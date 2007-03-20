@@ -787,6 +787,7 @@ EcGpeHandler(void *Context)
     struct acpi_ec_softc *sc = Context;
     ACPI_STATUS		       Status;
     EC_STATUS		       EcStatus;
+    int			       query_pend;
 
     KASSERT(Context != NULL, ("EcGpeHandler called with NULL"));
 
@@ -821,6 +822,7 @@ EcGpeHandler(void *Context)
      * it along to any potential waiters as it may be an IBE/OBF event.
      * If it is set, queue a query handler.
      */
+    query_pend = FALSE;
     if ((EcStatus & EC_EVENT_SCI) == 0) {
 	CTR1(KTR_ACPI, "ec event was IBE/OBF, status %#x", EcStatus);
 	sc->ec_csrvalue = EcStatus;
@@ -832,12 +834,19 @@ EcGpeHandler(void *Context)
 	    Context);
 	if (ACPI_SUCCESS(Status)) {
 	    sc->ec_sci_pend = TRUE;
-	} else {
+	    query_pend = TRUE;
+	} else
 	    printf("Queuing GPE query handler failed.\n");
-	    Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_ISR);
-	    if (ACPI_FAILURE(Status))
-		printf("EcGpeHandler: AcpiEnableEvent failed\n");
-	}
+    }
+
+    /*
+     * If we didn't queue a query handler, which will eventually re-enable
+     * the GPE, re-enable it right now so we can get more events.
+     */
+    if (!query_pend) {
+	Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_ISR);
+	if (ACPI_FAILURE(Status))
+	    printf("EcGpeHandler: AcpiEnableGpe failed\n");
     }
 
     EcUnlock(sc);
