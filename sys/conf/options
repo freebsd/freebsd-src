@@ -419,6 +419,7 @@ SCTP_NAGLE_LOGGING      opt_sctp.h
 SCTP_WAKE_LOGGING       opt_sctp.h
 SCTP_RECV_RWND_LOGGING  opt_sctp.h
 SCTP_SACK_RWND_LOGGING  opt_sctp.h
+SCTP_FLIGHT_LOGGING     opt_sctp.h
 SCTP_MBUF_LOGGING       opt_sctp.h
 
 # Netgraph(4). Use option NETGRAPH to enable the base netgraph code.
