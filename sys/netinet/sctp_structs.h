@@ -237,8 +237,6 @@ struct sctp_nets {
 	uint8_t will_exit_fast_recovery;
 	/* Flags that probably can be combined into dest_state */
 	uint8_t rto_variance_dir;	/* increase = 1, decreasing = 0 */
-	uint8_t rto_pending;	/* is segment marked for RTO update  ** if we
-				 * split? */
 	uint8_t fast_retran_ip;	/* fast retransmit in progress */
 	uint8_t hb_responded;
 	uint8_t saw_newack;	/* CMT's SFR algorithm flag */
