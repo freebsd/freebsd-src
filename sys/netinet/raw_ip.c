@@ -106,12 +106,6 @@ int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
 void (*ip_rsvp_force_done)(struct socket *);
 
 /*
- * Nominal space allocated to a raw ip socket.
- */
-#define	RIPSNDQ		8192
-#define	RIPRCVQ		8192
-
-/*
  * Raw interface to IP protocol.
  */
 
@@ -595,8 +589,8 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	}
 }
 
-u_long	rip_sendspace = RIPSNDQ;
-u_long	rip_recvspace = RIPRCVQ;
+u_long	rip_sendspace = 9216;
+u_long	rip_recvspace = 9216;
 
 SYSCTL_ULONG(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
     &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
