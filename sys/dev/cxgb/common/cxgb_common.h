@@ -45,6 +45,7 @@ enum {
 	TCB_SIZE       = 128,   /* TCB size */
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
+	NTX_SCHED      = 8,     /* # of HW Tx scheduling queues */
 };
 
 #define MAX_RX_COALESCING_LEN 16224U
@@ -66,6 +67,12 @@ enum {                            /* adapter interrupt-maintained statistics */
 	STAT_PCI_CORR_ECC,
 
 	IRQ_NUM_STATS             /* keep last */
+};
+
+enum {
+	FW_VERSION_MAJOR = 3,
+	FW_VERSION_MINOR = 2,
+	FW_VERSION_MICRO = 0
 };
 
 enum {
@@ -203,6 +210,9 @@ struct mac_stats {
 	unsigned long serdes_signal_loss;
 	unsigned long xaui_pcs_ctc_err;
 	unsigned long xaui_pcs_align_change;
+
+	unsigned long num_toggled; /* # times toggled TxEn due to stuck TX */
+	unsigned long num_resets;  /* # times reset due to stuck TX */
 };
 
 struct tp_mib_stats {
@@ -261,6 +271,7 @@ struct tp_params {
 	unsigned int rx_num_pgs;     /* # of Rx pages */
 	unsigned int tx_num_pgs;     /* # of Tx pages */
 	unsigned int ntimer_qs;      /* # of timer queues */
+	unsigned int dack_re;        /* DACK timer resolution */
 };
 
 struct qset_params {                   /* SGE queue set parameters */
@@ -271,6 +282,7 @@ struct qset_params {                   /* SGE queue set parameters */
 	unsigned int jumbo_size;       /* # of entries in jumbo free list */
 	unsigned int txq_size[SGE_TXQ_PER_SET];  /* Tx queue sizes */
 	unsigned int cong_thres;       /* FL congestion threshold */
+	unsigned int vector;           /* Interrupt (line or vector) number */
 };
 
 struct sge_params {
@@ -344,6 +356,12 @@ struct adapter_params {
 	unsigned int   rev;                 /* chip revision */
 };
 
+enum {					    /* chip revisions */
+	T3_REV_A  = 0,
+	T3_REV_B  = 2,
+	T3_REV_B2 = 3,
+};
+
 struct trace_params {
 	u32 sip;
        	u32 sip_mask;
@@ -409,6 +427,10 @@ struct cmac {
 	adapter_t *adapter;
 	unsigned int offset;
 	unsigned int nucast;    /* # of address filters for unicast MACs */
+	unsigned int tcnt;
+	unsigned int xcnt;
+	unsigned int toggle_cnt;
+	unsigned int txen;
 	struct mac_stats stats;
 };
 
@@ -544,6 +566,12 @@ static inline unsigned int core_ticks_per_usec(const adapter_t *adap)
 	return adap->params.vpd.cclk / 1000;
 }
 
+static inline unsigned int dack_ticks_to_usec(const adapter_t *adap,
+					      unsigned int ticks)
+{
+	return (ticks << adap->params.tp.dack_re) / core_ticks_per_usec(adap);
+}
+
 static inline unsigned int is_pcie(const adapter_t *adap)
 {
 	return adap->params.pci.variant == PCI_VARIANT_PCIE;
@@ -622,6 +650,7 @@ int t3_mac_set_num_ucast(struct cmac *mac, int n);
 const struct mac_stats *t3_mac_update_stats(struct cmac *mac);
 int t3_mac_set_speed_duplex_fc(struct cmac *mac, int speed, int duplex,
 			       int fc);
+int t3b2_mac_watchdog_task(struct cmac *mac);
 
 void t3_mc5_prep(adapter_t *adapter, struct mc5 *mc5, int mode);
 int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
@@ -644,6 +673,12 @@ void t3_get_cong_cntl_tab(adapter_t *adap,
 void t3_config_trace_filter(adapter_t *adapter, const struct trace_params *tp,
 			    int filter_index, int invert, int enable);
 int t3_config_sched(adapter_t *adap, unsigned int kbps, int sched);
+int t3_set_sched_ipg(adapter_t *adap, int sched, unsigned int ipg);
+void t3_get_tx_sched(adapter_t *adap, unsigned int sched, unsigned int *kbps,
+		     unsigned int *ipg);
+void t3_read_pace_tbl(adapter_t *adap, unsigned int pace_vals[NTX_SCHED]);
+void t3_set_pace_tbl(adapter_t *adap, unsigned int *pace_vals,
+		     unsigned int start, unsigned int n);
 #endif
 
 void t3_sge_prep(adapter_t *adap, struct sge_params *p);
