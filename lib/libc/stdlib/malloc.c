@@ -214,6 +214,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -242,43 +243,45 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* Size of stack-allocated buffer passed to strerror_r(). */
-#define	STRERROR_BUF 64
+#define	STRERROR_BUF		64
 
 /* Minimum alignment of allocations is 2^QUANTUM_2POW_MIN bytes. */
 #ifdef __i386__
 #  define QUANTUM_2POW_MIN	4
-#  define SIZEOF_PTR		4
+#  define SIZEOF_PTR_2POW	2
 #  define USE_BRK
 #endif
 #ifdef __ia64__
 #  define QUANTUM_2POW_MIN	4
-#  define SIZEOF_PTR		8
+#  define SIZEOF_PTR_2POW	3
 #endif
 #ifdef __alpha__
 #  define QUANTUM_2POW_MIN	4
-#  define SIZEOF_PTR		8
+#  define SIZEOF_PTR_2POW	3
 #  define NO_TLS
 #endif
 #ifdef __sparc64__
 #  define QUANTUM_2POW_MIN	4
-#  define SIZEOF_PTR		8
+#  define SIZEOF_PTR_2POW	3
 #  define NO_TLS
 #endif
 #ifdef __amd64__
 #  define QUANTUM_2POW_MIN	4
-#  define SIZEOF_PTR		8
+#  define SIZEOF_PTR_2POW	3
 #endif
 #ifdef __arm__
 #  define QUANTUM_2POW_MIN	3
-#  define SIZEOF_PTR		4
+#  define SIZEOF_PTR_2POW	2
 #  define USE_BRK
 #  define NO_TLS
 #endif
 #ifdef __powerpc__
 #  define QUANTUM_2POW_MIN	4
-#  define SIZEOF_PTR		4
+#  define SIZEOF_PTR_2POW	2
 #  define USE_BRK
 #endif
+
+#define	SIZEOF_PTR		(1 << SIZEOF_PTR_2POW)
 
 /* sizeof(int) == (1 << SIZEOF_INT_2POW). */
 #ifndef SIZEOF_INT_2POW
@@ -293,12 +296,8 @@ __FBSDID("$FreeBSD$");
 /*
  * Size and alignment of memory chunks that are allocated by the OS's virtual
  * memory system.
- *
- * chunksize limits:
- *
- *   2^(pagesize_2pow - 1 + RUN_MIN_REGS_2POW) <= chunk_size <= 2^28
  */
-#define	CHUNK_2POW_DEFAULT	21
+#define	CHUNK_2POW_DEFAULT	20
 #define	CHUNK_2POW_MAX		28
 
 /*
@@ -306,38 +305,36 @@ __FBSDID("$FreeBSD$");
  * so over-estimates are okay (up to a point), but under-estimates will
  * negatively affect performance.
  */
-#define	CACHELINE_2POW 6
-#define	CACHELINE ((size_t)(1 << CACHELINE_2POW))
+#define	CACHELINE_2POW		6
+#define	CACHELINE		((size_t)(1 << CACHELINE_2POW))
+
+/* Smallest size class to support. */
+#define	TINY_MIN_2POW		1
 
 /*
  * Maximum size class that is a multiple of the quantum, but not (necessarily)
  * a power of 2.  Above this size, allocations are rounded up to the nearest
  * power of 2.
  */
-#define SMALL_MAX_2POW_DEFAULT 9
-#define SMALL_MAX_DEFAULT (1 << SMALL_MAX_2POW_DEFAULT)
+#define	SMALL_MAX_2POW_DEFAULT	9
+#define	SMALL_MAX_DEFAULT	(1 << SMALL_MAX_2POW_DEFAULT)
 
 /*
- * Minimum number of regions that must fit into a run that serves quantum-size
- * bin allocations.
+ * Maximum desired run header overhead.  Runs are sized as small as possible
+ * such that this setting is still honored, without violating other constraints.
+ * The goal is to make runs as small as possible without exceeding a per run
+ * external fragmentation threshold.
  *
- * Note that if this is set too low, space will be wasted if there are size
- * classes that are small enough that RUN_MIN_REGS regions don't fill a page.
- * If this is set too high, then the overhead of searching through the bitmap
- * that tracks region usage will become excessive.
+ * Note that it is possible to set this low enough that it cannot be honored
+ * for some/all object sizes, since there is one bit of header overhead per
+ * object (plus a constant).  In such cases, this value is iteratively doubled
+ * in order to make sure that the overhead limit is achievable.
  */
-#define RUN_MIN_REGS_2POW 10
-#define RUN_MIN_REGS (1 << RUN_MIN_REGS_2POW)
+#define RUN_MAX_HDR_OVERHEAD	0.005
 
-/*
- * Maximum number of pages for a run that is used for bin allocations.
- *
- * Note that if this is set too low, then fragmentation for the largest bin
- * size classes will be high.  If this is set too high, then even small
- * programs will often have to allocate more than two chunks early on.
- */
-#define RUN_MAX_PAGES_2POW 4
-#define RUN_MAX_PAGES (1 << RUN_MAX_PAGES_2POW)
+/* Put a cap on small object run size.  This overrides RUN_MAX_HDR_OVERHEAD. */
+#define RUN_MAX_SMALL_2POW	16
+#define RUN_MAX_SMALL		(1 << RUN_MAX_SMALL_2POW)
 
 /******************************************************************************/
 
@@ -511,11 +508,6 @@ struct arena_run_s {
 	/* Bin this run is associated with. */
 	arena_bin_t	*bin;
 
-	/* Bitmask of in-use regions (0: in use, 1: free). */
-#define REGS_MASK_NELMS							\
-	(1 << (RUN_MIN_REGS_2POW - SIZEOF_INT_2POW - 2))
-	unsigned	regs_mask[REGS_MASK_NELMS];
-
 	/* Index of first element that might have a free region. */
 	unsigned	regs_minelm;
 
@@ -541,6 +533,9 @@ struct arena_run_s {
 	 */
 	unsigned	free_max;
 	unsigned	free_min;
+
+	/* Bitmask of in-use regions (0: in use, 1: free). */
+	unsigned	regs_mask[1]; /* Dynamically sized. */
 };
 
 /* Used for run ring headers, where the run isn't actually used. */
@@ -607,6 +602,9 @@ struct arena_bin_s {
 
 	/* Total number of regions in a run for this bin's size class. */
 	uint32_t	nregs;
+
+	/* Number of elements in a run's regs_mask for this bin's size class. */
+	uint32_t	regs_mask_nelms;
 
 	/* Offset of first region in a run for this bin's size class. */
 	uint32_t	reg0_offset;
@@ -691,7 +689,6 @@ static unsigned		nqbins; /* Number of quantum-spaced bins. */
 static unsigned		nsbins; /* Number of (2^n)-spaced sub-page bins. */
 static size_t		small_min;
 static size_t		small_max;
-static unsigned		tiny_min_2pow;
 
 /* Various quantum-related settings. */
 static size_t		quantum;
@@ -840,7 +837,10 @@ typedef struct {
 static void	malloc_mutex_init(malloc_mutex_t *a_mutex);
 static void	wrtmessage(const char *p1, const char *p2, const char *p3,
 		const char *p4);
+#ifdef MALLOC_STATS
 static void	malloc_printf(const char *format, ...);
+#endif
+static char	*umax2s(uintmax_t x, char *s);
 static bool	base_chunk_alloc(size_t minsize);
 static void	*base_alloc(size_t size);
 static chunk_node_t *base_chunk_node_alloc(void);
@@ -867,6 +867,7 @@ static arena_run_t *arena_run_alloc(arena_t *arena, bool large, size_t size);
 static void	arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size);
 static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin);
 static void *arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin);
+static size_t arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size);
 static void	*arena_malloc(arena_t *arena, size_t size);
 static size_t	arena_salloc(const void *ptr);
 static void	*arena_ralloc(void *ptr, size_t size, size_t oldsize);
@@ -976,6 +977,7 @@ wrtmessage(const char *p1, const char *p2, const char *p3, const char *p4)
 void	(*_malloc_message)(const char *p1, const char *p2, const char *p3,
 	    const char *p4) = wrtmessage;
 
+#ifdef MALLOC_STATS
 /*
  * Print to stderr in such a way as to (hopefully) avoid memory allocation.
  */
@@ -989,6 +991,33 @@ malloc_printf(const char *format, ...)
 	vsnprintf(buf, sizeof(buf), format, ap);
 	va_end(ap);
 	_malloc_message(buf, "", "", "");
+}
+#endif
+
+/*
+ * We don't want to depend on vsnprintf() for production builds, since that can
+ * cause unnecessary bloat for static binaries.  umax2s() provides minimal
+ * integer printing functionality, so that malloc_printf() use can be limited to
+ * MALLOC_STATS code.
+ */
+#define UMAX2S_BUFSIZE	21
+static char *
+umax2s(uintmax_t x, char *s)
+{
+	unsigned i;
+
+	/* Make sure UMAX2S_BUFSIZE is large enough. */
+	assert(sizeof(uintmax_t) <= 8);
+
+	i = UMAX2S_BUFSIZE - 1;
+	s[i] = '\0';
+	do {
+		i--;
+		s[i] = "0123456789"[x % 10];
+		x /= 10;
+	} while (x > 0);
+
+	return (&s[i]);
 }
 
 /******************************************************************************/
@@ -1231,8 +1260,8 @@ pages_map(void *addr, size_t size)
 			char buf[STRERROR_BUF];
 
 			strerror_r(errno, buf, sizeof(buf));
-			malloc_printf("%s: (malloc) Error in munmap(): %s\n",
-			    _getprogname(), buf);
+			_malloc_message(_getprogname(),
+			    ": (malloc) Error in munmap(): ", buf, "\n");
 			if (opt_abort)
 				abort();
 		}
@@ -1252,8 +1281,8 @@ pages_unmap(void *addr, size_t size)
 		char buf[STRERROR_BUF];
 
 		strerror_r(errno, buf, sizeof(buf));
-		malloc_printf("%s: (malloc) Error in munmap(): %s\n",
-		    _getprogname(), buf);
+		_malloc_message(_getprogname(),
+		    ": (malloc) Error in munmap(): ", buf, "\n");
 		if (opt_abort)
 			abort();
 	}
@@ -1616,7 +1645,7 @@ arena_run_reg_alloc(arena_run_t *run, arena_bin_t *bin)
 
 	assert(run->magic == ARENA_RUN_MAGIC);
 
-	for (i = run->regs_minelm; i < REGS_MASK_NELMS; i++) {
+	for (i = run->regs_minelm; i < bin->regs_mask_nelms; i++) {
 		mask = run->regs_mask[i];
 		if (mask != 0) {
 			/* Usable allocation found. */
@@ -2205,16 +2234,15 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin)
 	qr_new(run, link);
 	run->bin = bin;
 
-	for (i = 0; i < (bin->nregs >> (SIZEOF_INT_2POW + 3)); i++)
+	for (i = 0; i < bin->regs_mask_nelms; i++)
 		run->regs_mask[i] = UINT_MAX;
 	remainder = bin->nregs % (1 << (SIZEOF_INT_2POW + 3));
 	if (remainder != 0) {
+		/* The last element has spare bits that need to be unset. */
 		run->regs_mask[i] = (UINT_MAX >> ((1 << (SIZEOF_INT_2POW + 3))
 		    - remainder));
 		i++;
 	}
-	for (; i < REGS_MASK_NELMS; i++)
-		run->regs_mask[i] = 0;
 
 	run->regs_minelm = 0;
 
@@ -2271,6 +2299,99 @@ arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin)
 	return (arena_bin_malloc_easy(arena, bin, bin->runcur));
 }
 
+/*
+ * Calculate bin->run_size such that it meets the following constraints:
+ *
+ *   *) bin->run_size >= min_run_size
+ *   *) bin->run_size <= arena_maxclass
+ *   *) bin->run_size <= RUN_MAX_SMALL
+ *   *) run header overhead <= RUN_MAX_HDR_OVERHEAD
+ *
+ * bin->nregs, bin->regs_mask_nelms, and bin->reg0_offset are
+ * also calculated here, since these settings are all interdependent.
+ */
+static size_t
+arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size)
+{
+	size_t try_run_size, good_run_size;
+	uint32_t good_nregs, good_mask_nelms, good_reg0_offset;
+	uint32_t try_nregs, try_mask_nelms, try_reg0_offset;
+	float run_max_hdr_overhead = RUN_MAX_HDR_OVERHEAD;
+
+	if (min_run_size < pagesize)
+		min_run_size = pagesize;
+	assert(min_run_size <= arena_maxclass);
+	assert(min_run_size <= RUN_MAX_SMALL);
+
+	/*
+	 * Make sure that the header overhead constraint allows a solution.  If
+	 * the maximum overhead is less than or equal to one bit per region,
+	 * there is clearly no solution.
+	 */
+	while (run_max_hdr_overhead <= 1.0 / ((float)(bin->reg_size << 3)))
+		run_max_hdr_overhead *= 2.0;
+
+	/*
+	 * Calculate known-valid settings before entering the run_size
+	 * expansion loop, so that the first part of the loop always copies
+	 * valid settings.
+	 *
+	 * The do..while loop iteratively reduces the number of regions until
+	 * the run header and the regions no longer overlap.  A closed formula
+	 * would be quite messy, since there is an interdependency between the
+	 * header's mask length and the number of regions.
+	 */
+	try_run_size = min_run_size;
+	try_nregs = ((try_run_size - sizeof(arena_run_t)) / bin->reg_size)
+	    + 1; /* Counter-act the first line of the loop. */
+	do {
+		try_nregs--;
+		try_mask_nelms = (try_nregs >> (SIZEOF_INT_2POW + 3)) +
+		    ((try_nregs & ((1 << (SIZEOF_INT_2POW + 3)) - 1)) ? 1 : 0);
+		try_reg0_offset = try_run_size - (try_nregs * bin->reg_size);
+	} while (sizeof(arena_run_t) + (sizeof(unsigned) * (try_mask_nelms - 1))
+	    > try_reg0_offset);
+
+	/* run_size expansion loop. */
+	do {
+		/*
+		 * Copy valid settings before trying more aggressive settings.
+		 */
+		good_run_size = try_run_size;
+		good_nregs = try_nregs;
+		good_mask_nelms = try_mask_nelms;
+		good_reg0_offset = try_reg0_offset;
+
+		/* Try more aggressive settings. */
+		try_run_size <<= 1;
+		try_nregs = ((try_run_size - sizeof(arena_run_t)) /
+		    bin->reg_size) + 1; /* Counter-act try_nregs-- in loop. */
+		do {
+			try_nregs--;
+			try_mask_nelms = (try_nregs >> (SIZEOF_INT_2POW + 3)) +
+			    ((try_nregs & ((1 << (SIZEOF_INT_2POW + 3)) - 1)) ?
+			    1 : 0);
+			try_reg0_offset = try_run_size - (try_nregs *
+			    bin->reg_size);
+		} while (sizeof(arena_run_t) + (sizeof(unsigned) *
+		    (try_mask_nelms - 1)) > try_reg0_offset);
+	} while (try_run_size <= arena_maxclass && try_run_size <= RUN_MAX_SMALL
+	    && ((float)(try_reg0_offset)) / ((float)(try_run_size)) >
+	    run_max_hdr_overhead);
+
+	assert(sizeof(arena_run_t) + (sizeof(unsigned) * (good_mask_nelms - 1))
+	    <= good_reg0_offset);
+	assert((good_mask_nelms << (SIZEOF_INT_2POW + 3)) >= good_nregs);
+
+	/* Copy final settings. */
+	bin->run_size = good_run_size;
+	bin->nregs = good_nregs;
+	bin->regs_mask_nelms = good_mask_nelms;
+	bin->reg0_offset = good_reg0_offset;
+
+	return (good_run_size);
+}
+
 static void *
 arena_malloc(arena_t *arena, size_t size)
 {
@@ -2290,7 +2411,7 @@ arena_malloc(arena_t *arena, size_t size)
 		if (size < small_min) {
 			/* Tiny. */
 			size = pow2_ceil(size);
-			bin = &arena->bins[ffs((int)(size >> (tiny_min_2pow +
+			bin = &arena->bins[ffs((int)(size >> (TINY_MIN_2POW +
 			    1)))];
 #if (!defined(NDEBUG) || defined(MALLOC_STATS))
 			/*
@@ -2298,8 +2419,8 @@ arena_malloc(arena_t *arena, size_t size)
 			 * to fix size for the purposes of assertions and/or
 			 * stats accuracy.
 			 */
-			if (size < (1 << tiny_min_2pow))
-				size = (1 << tiny_min_2pow);
+			if (size < (1 << TINY_MIN_2POW))
+				size = (1 << TINY_MIN_2POW);
 #endif
 		} else if (size <= small_max) {
 			/* Quantum-spaced. */
@@ -2390,8 +2511,8 @@ arena_ralloc(void *ptr, size_t size, size_t oldsize)
 	/* Avoid moving the allocation if the size class would not change. */
 	if (size < small_min) {
 		if (oldsize < small_min &&
-		    ffs((int)(pow2_ceil(size) >> (tiny_min_2pow + 1)))
-		    == ffs((int)(pow2_ceil(oldsize) >> (tiny_min_2pow + 1))))
+		    ffs((int)(pow2_ceil(size) >> (TINY_MIN_2POW + 1)))
+		    == ffs((int)(pow2_ceil(oldsize) >> (TINY_MIN_2POW + 1))))
 			goto IN_PLACE;
 	} else if (size <= small_max) {
 		if (oldsize >= small_min && oldsize <= small_max &&
@@ -2490,7 +2611,7 @@ arena_new(arena_t *arena)
 {
 	unsigned i;
 	arena_bin_t *bin;
-	size_t pow2_size, run_size;
+	size_t pow2_size, prev_run_size;
 
 	malloc_mutex_init(&arena->mtx);
 
@@ -2503,6 +2624,7 @@ arena_new(arena_t *arena)
 	arena->spare = NULL;
 
 	/* Initialize bins. */
+	prev_run_size = pagesize;
 
 	/* (2^n)-spaced tiny bins. */
 	for (i = 0; i < ntbins; i++) {
@@ -2513,28 +2635,9 @@ arena_new(arena_t *arena)
 		qr_new(arena_bin_link(&bin->runs50), link);
 		qr_new(arena_bin_link(&bin->runs75), link);
 
-		bin->reg_size = (1 << (tiny_min_2pow + i));
+		bin->reg_size = (1 << (TINY_MIN_2POW + i));
 
-		/*
-		 * Calculate how large of a run to allocate.  Make sure that at
-		 * least RUN_MIN_REGS regions fit in the run.
-		 */
-		run_size = bin->reg_size << RUN_MIN_REGS_2POW;
-		if (run_size < pagesize)
-			run_size = pagesize;
-		if (run_size > (pagesize << RUN_MAX_PAGES_2POW))
-			run_size = (pagesize << RUN_MAX_PAGES_2POW);
-		if (run_size > arena_maxclass)
-			run_size = arena_maxclass;
-		bin->run_size = run_size;
-
-		assert(run_size >= sizeof(arena_run_t));
-		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
-		if (bin->nregs > (REGS_MASK_NELMS << (SIZEOF_INT_2POW + 3))) {
-			/* Take care not to overflow regs_mask. */
-			bin->nregs = REGS_MASK_NELMS << (SIZEOF_INT_2POW + 3);
-		}
-		bin->reg0_offset = run_size - (bin->nregs * bin->reg_size);
+		prev_run_size = arena_bin_run_size_calc(bin, prev_run_size);
 
 #ifdef MALLOC_STATS
 		memset(&bin->stats, 0, sizeof(malloc_bin_stats_t));
@@ -2552,23 +2655,8 @@ arena_new(arena_t *arena)
 
 		bin->reg_size = quantum * (i - ntbins + 1);
 
-		/*
-		 * Calculate how large of a run to allocate.  Make sure that at
-		 * least RUN_MIN_REGS regions fit in the run.
-		 */
 		pow2_size = pow2_ceil(quantum * (i - ntbins + 1));
-		run_size = (pow2_size << RUN_MIN_REGS_2POW);
-		if (run_size < pagesize)
-			run_size = pagesize;
-		if (run_size > (pagesize << RUN_MAX_PAGES_2POW))
-			run_size = (pagesize << RUN_MAX_PAGES_2POW);
-		if (run_size > arena_maxclass)
-			run_size = arena_maxclass;
-		bin->run_size = run_size;
-
-		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
-		assert(bin->nregs <= REGS_MASK_NELMS << (SIZEOF_INT_2POW + 3));
-		bin->reg0_offset = run_size - (bin->nregs * bin->reg_size);
+		prev_run_size = arena_bin_run_size_calc(bin, prev_run_size);
 
 #ifdef MALLOC_STATS
 		memset(&bin->stats, 0, sizeof(malloc_bin_stats_t));
@@ -2586,22 +2674,7 @@ arena_new(arena_t *arena)
 
 		bin->reg_size = (small_max << (i - (ntbins + nqbins) + 1));
 
-		/*
-		 * Calculate how large of a run to allocate.  Make sure that at
-		 * least RUN_MIN_REGS regions fit in the run.
-		 */
-		run_size = bin->reg_size << RUN_MIN_REGS_2POW;
-		if (run_size < pagesize)
-			run_size = pagesize;
-		if (run_size > (pagesize << RUN_MAX_PAGES_2POW))
-			run_size = (pagesize << RUN_MAX_PAGES_2POW);
-		if (run_size > arena_maxclass)
-			run_size = arena_maxclass;
-		bin->run_size = run_size;
-
-		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
-		assert(bin->nregs <= REGS_MASK_NELMS << (SIZEOF_INT_2POW + 3));
-		bin->reg0_offset = run_size - (bin->nregs * bin->reg_size);
+		prev_run_size = arena_bin_run_size_calc(bin, prev_run_size);
 
 #ifdef MALLOC_STATS
 		memset(&bin->stats, 0, sizeof(malloc_bin_stats_t));
@@ -2636,8 +2709,8 @@ arenas_extend(unsigned ind)
 	 * by using arenas[0].  In practice, this is an extremely unlikely
 	 * failure.
 	 */
-	malloc_printf("%s: (malloc) Error initializing arena\n",
-	    _getprogname());
+	_malloc_message(_getprogname(),
+	    ": (malloc) Error initializing arena\n", "", "");
 	if (opt_abort)
 		abort();
 
@@ -3011,25 +3084,32 @@ malloc_print_stats(void)
 {
 
 	if (opt_print_stats) {
-		malloc_printf("___ Begin malloc statistics ___\n");
-		malloc_printf("Number of CPUs: %u\n", ncpus);
-		malloc_printf("Number of arenas: %u\n", narenas);
-		malloc_printf("Chunk size: %zu (2^%zu)\n", chunk_size,
-		    opt_chunk_2pow);
-		malloc_printf("Quantum size: %zu (2^%zu)\n", quantum,
-		    opt_quantum_2pow);
-		malloc_printf("Max small size: %zu\n", small_max);
-		malloc_printf("Pointer size: %u\n", sizeof(void *));
-		malloc_printf("Assertions %s\n",
+		char s[UMAX2S_BUFSIZE];
+		_malloc_message("___ Begin malloc statistics ___\n", "", "",
+		    "");
+		_malloc_message("Number of CPUs: ", umax2s(ncpus, s), "\n", "");
+		_malloc_message("Number of arenas: ", umax2s(narenas, s), "\n",
+		    "");
+
+		_malloc_message("Chunk size: ", umax2s(chunk_size, s), "", "");
+		_malloc_message(" (2^", umax2s(opt_chunk_2pow, s), ")\n", "");
+
+		_malloc_message("Quantum size: ", umax2s(quantum, s), "", "");
+		_malloc_message(" (2^", umax2s(opt_quantum_2pow, s), ")\n", "");
+
+		_malloc_message("Max small size: ", umax2s(small_max, s), "\n",
+		    "");
+		_malloc_message("Pointer size: ", umax2s(sizeof(void *), s),
+		    "\n", "");
+		_malloc_message("Assertions ",
 #ifdef NDEBUG
-		    "disabled"
+		    "disabled",
 #else
-		    "enabled"
+		    "enabled",
 #endif
-		    );
+		    "\n", "");
 
 #ifdef MALLOC_STATS
-
 		{
 			size_t allocated, total;
 			unsigned i;
@@ -3101,7 +3181,7 @@ malloc_print_stats(void)
 			}
 		}
 #endif /* #ifdef MALLOC_STATS */
-		malloc_printf("--- End malloc statistics ---\n");
+		_malloc_message("--- End malloc statistics ---\n", "", "", "");
 	}
 }
 
@@ -3302,10 +3382,15 @@ malloc_init_hard(void)
 			case 'Z':
 				opt_zero = true;
 				break;
-			default:
-				malloc_printf("%s: (malloc) Unsupported"
-				    " character in malloc options: '%c'\n",
-				    _getprogname(), opts[j]);
+			default: {
+				char cbuf[2];
+				
+				cbuf[0] = opts[j];
+				cbuf[1] = '\0';
+				_malloc_message(_getprogname(),
+				    ": (malloc) Unsupported character in "
+				    "malloc options: '", cbuf, "'\n");
+			}
 			}
 		}
 	}
@@ -3323,12 +3408,8 @@ malloc_init_hard(void)
 
 	/* Set bin-related variables. */
 	bin_maxclass = (pagesize >> 1);
-	if (pagesize_2pow > RUN_MIN_REGS_2POW + 1)
-		tiny_min_2pow = pagesize_2pow - (RUN_MIN_REGS_2POW + 1);
-	else
-		tiny_min_2pow = 1;
-	assert(opt_quantum_2pow >= tiny_min_2pow);
-	ntbins = opt_quantum_2pow - tiny_min_2pow;
+	assert(opt_quantum_2pow >= TINY_MIN_2POW);
+	ntbins = opt_quantum_2pow - TINY_MIN_2POW;
 	assert(ntbins <= opt_quantum_2pow);
 	nqbins = (small_max >> opt_quantum_2pow);
 	nsbins = pagesize_2pow - opt_small_max_2pow - 1;
@@ -3510,8 +3591,9 @@ malloc(size_t size)
 RETURN:
 	if (ret == NULL) {
 		if (opt_xmalloc) {
-			malloc_printf("%s: (malloc) Error in malloc(%zu):"
-			    " out of memory\n", _getprogname(), size);
+			_malloc_message(_getprogname(),
+			    ": (malloc) Error in malloc(): out of memory\n", "",
+			    "");
 			abort();
 		}
 		errno = ENOMEM;
@@ -3534,10 +3616,9 @@ posix_memalign(void **memptr, size_t alignment, size_t size)
 		if (((alignment - 1) & alignment) != 0
 		    || alignment < sizeof(void *)) {
 			if (opt_xmalloc) {
-				malloc_printf("%s: (malloc) Error in"
-				    " posix_memalign(%zu, %zu):"
-				    " invalid alignment\n",
-				    _getprogname(), alignment, size);
+				_malloc_message(_getprogname(),
+				    ": (malloc) Error in posix_memalign(): "
+				    "invalid alignment\n", "", "");
 				abort();
 			}
 			result = NULL;
@@ -3550,9 +3631,9 @@ posix_memalign(void **memptr, size_t alignment, size_t size)
 
 	if (result == NULL) {
 		if (opt_xmalloc) {
-			malloc_printf("%s: (malloc) Error in"
-			    " posix_memalign(%zu, %zu): out of memory\n",
-			    _getprogname(), alignment, size);
+			_malloc_message(_getprogname(),
+			": (malloc) Error in posix_memalign(): out of memory\n",
+			"", "");
 			abort();
 		}
 		ret = ENOMEM;
@@ -3604,9 +3685,9 @@ calloc(size_t num, size_t size)
 RETURN:
 	if (ret == NULL) {
 		if (opt_xmalloc) {
-			malloc_printf("%s: (malloc) Error in"
-			    " calloc(%zu, %zu): out of memory\n",
-			    _getprogname(), num, size);
+			_malloc_message(_getprogname(),
+			    ": (malloc) Error in calloc(): out of memory\n", "",
+			    "");
 			abort();
 		}
 		errno = ENOMEM;
@@ -3639,9 +3720,9 @@ realloc(void *ptr, size_t size)
 
 		if (ret == NULL) {
 			if (opt_xmalloc) {
-				malloc_printf("%s: (malloc) Error in"
-				    " realloc(%p, %zu): out of memory\n",
-				    _getprogname(), ptr, size);
+				_malloc_message(_getprogname(),
+				    ": (malloc) Error in realloc(): out of "
+				    "memory\n", "", "");
 				abort();
 			}
 			errno = ENOMEM;
@@ -3654,9 +3735,9 @@ realloc(void *ptr, size_t size)
 
 		if (ret == NULL) {
 			if (opt_xmalloc) {
-				malloc_printf("%s: (malloc) Error in"
-				    " realloc(%p, %zu): out of memory\n",
-				    _getprogname(), ptr, size);
+				_malloc_message(_getprogname(),
+				    ": (malloc) Error in realloc(): out of "
+				    "memory\n", "", "");
 				abort();
 			}
 			errno = ENOMEM;
