@@ -2422,6 +2422,10 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			uint32_t *value;
 
 			SCTP_CHECK_AND_CAST(value, optval, uint32_t, optsize);
+			if (*value > SCTP_SB_LIMIT_RCV(so)) {
+				error = EINVAL;
+				break;
+			}
 			inp->partial_delivery_point = *value;
 		}
 		break;

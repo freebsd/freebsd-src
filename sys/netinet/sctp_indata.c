@@ -74,7 +74,7 @@ sctp_set_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 	    asoc->size_on_reasm_queue == 0 &&
 	    asoc->size_on_all_streams == 0) {
 		/* Full rwnd granted */
-		asoc->my_rwnd = max(stcb->sctp_socket->so_rcv.sb_hiwat,
+		asoc->my_rwnd = max(SCTP_SB_LIMIT_RCV(stcb->sctp_socket),
 		    SCTP_MINIMAL_RWND);
 		return;
 	}
@@ -134,7 +134,7 @@ sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 	    asoc->size_on_reasm_queue == 0 &&
 	    asoc->size_on_all_streams == 0) {
 		/* Full rwnd granted */
-		calc = max(stcb->sctp_socket->so_rcv.sb_hiwat,
+		calc = max(SCTP_SB_LIMIT_RCV(stcb->sctp_socket),
 		    SCTP_MINIMAL_RWND);
 		return (calc);
 	}
@@ -3024,7 +3024,6 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 									    asoc,
 									    tp1->whoTo,
 									    &tp1->sent_rcv_time);
-									tp1->whoTo->rto_pending = 0;
 									tp1->do_rtt = 0;
 								}
 							}
@@ -3500,7 +3499,6 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				 * this guy had a RTO calculation pending on
 				 * it, cancel it
 				 */
-				tp1->whoTo->rto_pending = 0;
 				tp1->do_rtt = 0;
 			}
 			/* fix counts and things */
@@ -4171,12 +4169,11 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 						    tp1->send_size;
 
 						/* update RTO too? */
-						if ((tp1->do_rtt) && (tp1->whoTo->rto_pending)) {
+						if (tp1->do_rtt) {
 							tp1->whoTo->RTO =
 							    sctp_calculate_rto(stcb,
 							    asoc, tp1->whoTo,
 							    &tp1->sent_rcv_time);
-							tp1->whoTo->rto_pending = 0;
 							tp1->do_rtt = 0;
 						}
 					}
@@ -4738,7 +4735,6 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 							    sctp_calculate_rto(stcb,
 							    asoc, tp1->whoTo,
 							    &tp1->sent_rcv_time);
-							tp1->whoTo->rto_pending = 0;
 							tp1->do_rtt = 0;
 						}
 					}

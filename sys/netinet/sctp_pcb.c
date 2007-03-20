@@ -1636,7 +1636,7 @@ sctp_inpcb_alloc(struct socket *so)
 	inp->sctp_socket = so;
 	inp->ip_inp.inp.inp_socket = so;
 
-	inp->partial_delivery_point = so->so_rcv.sb_hiwat >> SCTP_PARTIAL_DELIVERY_SHIFT;
+	inp->partial_delivery_point = SCTP_SB_LIMIT_RCV(so) >> SCTP_PARTIAL_DELIVERY_SHIFT;
 	inp->sctp_frag_point = SCTP_DEFAULT_MAXSEGMENT;
 
 #ifdef IPSEC
