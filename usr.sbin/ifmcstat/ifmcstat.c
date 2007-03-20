@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-/* TODO: use -M, -N for kernel/namelist. */
 /* TODO: use sysctl. */
 
 #include <sys/cdefs.h>
@@ -151,12 +150,13 @@ int main(argc, argv)
 	int c;
 	struct	ifnet	*ifp, *nifp, ifnet;
 	const char *kernel = NULL;
+	const char *core = NULL;
 
 	/* "ifmcstat [kernel]" format is supported for backward compatiblity */
 	if (argc == 2)
 		kernel = argv[1];
 
-	while ((c = getopt(argc, argv, "i:f:k:")) != -1) {
+	while ((c = getopt(argc, argv, "i:f:M:N:")) != -1) {
 		switch (c) {
 		case 'i':
 			if ((ifindex = if_nametoindex(optarg)) == 0) {
@@ -176,17 +176,22 @@ int main(argc, argv)
 			fprintf(stderr, "%s: unknown address family\n", optarg);
 			exit(1);
 			/*NOTREACHED*/
-		case 'k':
+		case 'M':
+			core = strdup(optarg);
+			break;
+		case 'N':
 			kernel = strdup(optarg);
 			break;
 		default:
-			fprintf(stderr, "usage: ifmcstat [-i interface] [-f address family] [-k kernel]\n");
+			fprintf(stderr,
+"usage: ifmcstat [-i interface] [-f address family] [-M core] [-N system]\n");
 			exit(1);
 			/*NOTREACHED*/
 		}
 	}
 
-	if ((kvmd = kvm_openfiles(kernel, NULL, NULL, O_RDONLY, buf)) == NULL) {
+	if ((kvmd = kvm_openfiles(kernel, core, NULL, O_RDONLY, buf)) ==
+	    NULL) {
 		perror("kvm_openfiles");
 		exit(1);
 	}
