@@ -607,6 +607,84 @@ nexus_release_msi(device_t pcib, device_t dev, int count, int *irqs)
 }
 #endif
 
+/* Placeholder for system RAM. */
+static void
+ram_identify(driver_t *driver, device_t parent)
+{
+
+	if (resource_disabled("ram", 0))
+		return;	
+	if (BUS_ADD_CHILD(parent, 0, "ram", 0) == NULL)
+		panic("ram_identify");
+}
+
+static int
+ram_probe(device_t dev)
+{
+
+	device_quiet(dev);
+	device_set_desc(dev, "System RAM");
+	return (0);
+}
+
+static int
+ram_attach(device_t dev)
+{
+	struct resource *res;
+	vm_paddr_t *p;
+	int error, i, rid;
+
+	/*
+	 * We use the dump_avail[] array rather than phys_avail[] for
+	 * the memory map as phys_avail[] contains holes for kernel
+	 * memory, page 0, the message buffer, and the dcons buffer.
+	 * We test the end address in the loop instead of the start
+	 * since the start address for the first segment is 0.
+	 *
+	 * XXX: It would be preferable to use the SMAP if it exists
+	 * instead since if the SMAP is very fragmented we may not
+	 * include some memory regions in dump_avail[] and phys_avail[].
+	 */
+	for (i = 0, p = dump_avail; p[1] != 0; i++, p += 2) {
+		rid = i;
+#ifdef PAE
+		/*
+		 * Resources use long's to track resources, so we can't
+		 * include memory regions above 4GB.
+		 */
+		if (p[0] >= ~0ul)
+			break;
+#endif
+		error = bus_set_resource(dev, SYS_RES_MEMORY, rid, p[0],
+		    p[1] - p[0]);
+		if (error)
+			panic("ram_attach: resource %d failed set with %d", i,
+			    error);
+		res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
+		if (res == NULL)
+			panic("ram_attach: resource %d failed to attach", i);
+	}
+	return (0);
+}
+
+static device_method_t ram_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	ram_identify),
+	DEVMETHOD(device_probe,		ram_probe),
+	DEVMETHOD(device_attach,	ram_attach),
+	{ 0, 0 }
+};
+
+static driver_t ram_driver = {
+	"ram",
+	ram_methods,
+	1,		/* no softc */
+};
+
+static devclass_t ram_devclass;
+
+DRIVER_MODULE(ram, nexus, ram_driver, ram_devclass, 0, 0);
+
 #ifdef DEV_ISA
 /*
  * Placeholder which claims PnP 'devices' which describe system
