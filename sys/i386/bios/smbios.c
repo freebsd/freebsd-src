@@ -131,7 +131,7 @@ smbios_identify (driver_t *driver, device_t parent)
 				return;
 		}
 
-		child = BUS_ADD_CHILD(parent, 0, "smbios", -1);
+		child = BUS_ADD_CHILD(parent, 5, "smbios", -1);
 		device_set_driver(child, driver);
 		bus_set_resource(child, SYS_RES_MEMORY, rid, addr, length);
 		device_set_desc(child, "System Management BIOS");

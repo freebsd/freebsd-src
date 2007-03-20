@@ -350,7 +350,7 @@ acpi_identify(driver_t *driver, device_t parent)
     snprintf(acpi_ca_version, sizeof(acpi_ca_version), "%x", ACPI_CA_VERSION);
 
     /* Attach the actual ACPI device. */
-    if ((child = BUS_ADD_CHILD(parent, 0, "acpi", 0)) == NULL) {
+    if ((child = BUS_ADD_CHILD(parent, 10, "acpi", 0)) == NULL) {
 	device_printf(parent, "device_identify failed\n");
 	return_VOID;
     }
