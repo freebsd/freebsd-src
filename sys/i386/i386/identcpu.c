@@ -745,7 +745,7 @@ via_common:
 				"\004MON"	/* MONITOR/MWAIT Instructions */
 				"\005DS_CPL"	/* CPL Qualified Debug Store */
 				"\006VMX"	/* Virtual Machine Extensions */
-				"\007SMX"	/* LaGrange Technology */
+				"\007SMX"	/* Safer Mode Extensions */
 				"\010EST"	/* Enhanced SpeedStep */
 				"\011TM2"	/* Thermal Monitor 2 */
 				"\012SSSE3"	/* SSSE3 */
@@ -753,7 +753,7 @@ via_common:
 				"\014<b11>"
 				"\015<b12>"
 				"\016CX16"	/* CMPXCHG16B Instruction */
-				"\017XTPR"	/* Send Task Priority Messages*/
+				"\017xTPR"	/* Send Task Priority Messages*/
 				"\020<b15>"
 				"\021<b16>"
 				"\022<b17>"
