@@ -108,8 +108,6 @@ static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
 static void	if_purgemaddrs(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
-static struct ifmultiaddr *
-		if_findmulti(struct ifnet *, struct sockaddr *);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
 static void	if_init(void *);
@@ -2170,7 +2168,7 @@ if_allmulti(struct ifnet *ifp, int onswitch)
 	return (if_setflag(ifp, IFF_ALLMULTI, 0, &ifp->if_amcount, onswitch));
 }
 
-static struct ifmultiaddr *
+struct ifmultiaddr *
 if_findmulti(struct ifnet *ifp, struct sockaddr *sa)
 {
 	struct ifmultiaddr *ifma;
