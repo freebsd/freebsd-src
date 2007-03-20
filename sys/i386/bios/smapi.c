@@ -166,7 +166,7 @@ smapi_identify (driver_t *driver, device_t parent)
 		rid = 0;
 		length = ADDR2HDR(addr)->length;
 
-		child = BUS_ADD_CHILD(parent, 0, "smapi", -1);
+		child = BUS_ADD_CHILD(parent, 5, "smapi", -1);
 		device_set_driver(child, driver);
 		bus_set_resource(child, SYS_RES_MEMORY, rid, addr, length);
 		device_set_desc(child, "SMAPI BIOS");

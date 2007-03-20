@@ -110,10 +110,10 @@ legacy_identify(driver_t *driver, device_t parent)
 {
 
 	/*
-	 * Add child device with order of 1 so it gets probed
-	 * after ACPI (which is at order 0.
+	 * Add child device with order of 11 so it gets probed
+	 * after ACPI (which is at order 10).
 	 */
-	if (BUS_ADD_CHILD(parent, 1, "legacy", 0) == NULL)
+	if (BUS_ADD_CHILD(parent, 11, "legacy", 0) == NULL)
 		panic("legacy: could not attach");
 }
 
