@@ -657,16 +657,12 @@ fdc_release_resources(struct fdc_data *fdc)
 		fdc->fdc_intr = NULL;
 	}
 	if (fdc->res_irq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
-					fdc->res_irq);
 		bus_release_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
 				     fdc->res_irq);
 		fdc->res_irq = NULL;
 	}
 #ifndef PC98
 	if (fdc->res_ctl != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
-					fdc->res_ctl);
 		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
 				     fdc->res_ctl);
 		fdc->res_ctl = NULL;
@@ -674,28 +670,20 @@ fdc_release_resources(struct fdc_data *fdc)
 #endif
 #ifdef PC98
 	if (fdc->res_fdsio != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, 3,
-					fdc->res_fdsio);
 		bus_release_resource(dev, SYS_RES_IOPORT, 3, fdc->res_fdsio);
 		fdc->res_fdsio = NULL;
 	}
 	if (fdc->res_fdemsio != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, 4,
-					fdc->res_fdemsio);
 		bus_release_resource(dev, SYS_RES_IOPORT, 4, fdc->res_fdemsio);
 		fdc->res_fdemsio = NULL;
 	}
 #endif
 	if (fdc->res_ioport != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
-					fdc->res_ioport);
 		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
 				     fdc->res_ioport);
 		fdc->res_ioport = NULL;
 	}
 	if (fdc->res_drq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
-					fdc->res_drq);
 		bus_release_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
 				     fdc->res_drq);
 		fdc->res_drq = NULL;

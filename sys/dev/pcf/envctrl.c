@@ -151,14 +151,10 @@ envctrl_attach(device_t dev)
 
 error:
 	if (sc->res_irq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IRQ, sc->rid_irq,
-					sc->res_irq);
 		bus_release_resource(dev, SYS_RES_IRQ, sc->rid_irq,
 				     sc->res_irq);
 	}
 	if (sc->res_ioport != 0) {
-		bus_deactivate_resource(dev, SYS_RES_MEMORY, sc->rid_ioport,
-					sc->res_ioport);
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->rid_ioport,
 				     sc->res_ioport);
 	}
@@ -181,11 +177,9 @@ envctrl_detach(device_t dev)
 
 	if (sc->res_irq != 0) {
 		bus_teardown_intr(dev, sc->res_irq, sc->intr_cookie);
-		bus_deactivate_resource(dev, SYS_RES_IRQ, sc->rid_irq, sc->res_irq);
 		bus_release_resource(dev, SYS_RES_IRQ, sc->rid_irq, sc->res_irq);
 	}
 
-	bus_deactivate_resource(dev, SYS_RES_MEMORY, sc->rid_ioport, sc->res_ioport);
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->rid_ioport, sc->res_ioport);
 
 	return (0);
