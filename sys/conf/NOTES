@@ -875,12 +875,6 @@ options 	MBUF_STRESS_TEST
 options 	ACCEPT_FILTER_DATA
 options 	ACCEPT_FILTER_HTTP
 
-# TCP_DROP_SYNFIN adds support for ignoring TCP packets with SYN+FIN. This
-# prevents nmap et al. from identifying the TCP/IP stack, but breaks support
-# for RFC1644 extensions and is not recommended for web servers.
-#
-options 	TCP_DROP_SYNFIN		#drop TCP packets with SYN+FIN
-
 # TCP_SIGNATURE adds support for RFC 2385 (TCP-MD5) digests. These are
 # carried in TCP option 19. This option is commonly used to protect
 # TCP sessions (e.g. BGP) where IPSEC is not available nor desirable.
