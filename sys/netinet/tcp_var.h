@@ -186,10 +186,6 @@ struct tcpcb {
 	tcp_seq	snd_recover_prev;	/* snd_recover prior to retransmit */
 	u_long	t_badrxtwin;		/* window for retransmit recovery */
 	u_char	snd_limited;		/* segments limited transmitted */
-/* anti DoS counters */
-	u_long	rcv_second;		/* start of interval second */
-	u_long	rcv_pps;		/* received packets per second */
-	u_long	rcv_byps;		/* received bytes per second */
 /* SACK related state */
 	int	sack_enable;		/* enable SACK for this connection */
 	int	snd_numholes;		/* number of holes seen by sender */
@@ -493,7 +489,6 @@ extern	struct inpcbinfo tcbinfo;
 extern	struct tcpstat tcpstat;	/* tcp statistics */
 extern	int tcp_mssdflt;	/* XXX */
 extern	int tcp_minmss;
-extern	int tcp_minmssoverload;
 extern	int tcp_delack_enabled;
 extern	int tcp_do_newreno;
 extern	int path_mtu_discovery;
