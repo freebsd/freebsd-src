@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2007
+.Dd March 21, 2007
 .Dt INET 3
 .Os
 .Sh NAME
@@ -126,6 +126,11 @@ The
 .Fa size
 argument specifies the size, in bytes, of the buffer
 .Fa *dst .
+.Dv INET_ADDRSTRLEN
+and
+.Dv INET6_ADDRSTRLEN
+define the maximum size required to convert an address of the respective
+type.
 It returns NULL if a system error occurs (in which case,
 .Va errno
 will have been set), or it returns a pointer to the destination string.
