@@ -96,7 +96,16 @@ void
 cv_wait(struct cv *cvp, struct mtx *mp)
 {
 	WITNESS_SAVE_DECL(mp);
+	struct thread *td;
 
+	td = curthread;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(1, 0);
+#endif
+	CV_ASSERT(cvp, mp, td);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	    "Waiting on \"%s\"", cvp->cv_description);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	if (cold || panicstr) {
@@ -109,7 +118,21 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 		return;
 	}
 
-	cv_wait_unlock(cvp, mp);
+	sleepq_lock(cvp);
+
+	cvp->cv_waiters++;
+	DROP_GIANT();
+	mtx_unlock(mp);
+
+	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR, 
+		   0);
+	sleepq_wait(cvp);
+
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
+#endif
+	PICKUP_GIANT();
 	mtx_lock(mp);
 	WITNESS_RESTORE(&mp->mtx_object, mp);
 }
@@ -153,6 +176,10 @@ cv_wait_unlock(struct cv *cvp, struct mtx *mp)
 		   0);
 	sleepq_wait(cvp);
 
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
+#endif
 	PICKUP_GIANT();
 }
 
