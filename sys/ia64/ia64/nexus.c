@@ -356,15 +356,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0)
 		return 0;
-
 	rman_set_rid(rv, *rid);
-	if (type == SYS_RES_MEMORY) {
-		rman_set_bustag(rv, IA64_BUS_SPACE_MEM);
-	} else if (type == SYS_RES_IOPORT) {
-		rman_set_bustag(rv, IA64_BUS_SPACE_IO);
-		/* IBM-PC: the type of bus_space_handle_t is u_int */
-		rman_set_bushandle(rv, rman_get_start(rv));
-	}
 
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
@@ -380,17 +372,25 @@ static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 			struct resource *r)
 {
+	vm_paddr_t paddr, psize;
+	void *vaddr;
+
 	/*
 	 * If this is a memory resource, map it into the kernel.
 	 */
-	if (rman_get_bustag(r) == IA64_BUS_SPACE_MEM) {
-		vm_offset_t paddr = rman_get_start(r);
-		vm_offset_t psize = rman_get_size(r);
-		caddr_t vaddr = 0;
-
+	switch (type) {
+	case SYS_RES_IOPORT:
+		rman_set_bustag(r, IA64_BUS_SPACE_IO);
+		rman_set_bushandle(r, rman_get_start(r));
+		break;
+	case SYS_RES_MEMORY:
+		paddr = rman_get_start(r);
+		psize = rman_get_size(r);
 		vaddr = pmap_mapdev(paddr, psize);
 		rman_set_virtual(r, vaddr);
+		rman_set_bustag(r, IA64_BUS_SPACE_MEM);
 		rman_set_bushandle(r, (bus_space_handle_t) paddr);
+		break;
 	}
 	return (rman_activate_resource(r));
 }
