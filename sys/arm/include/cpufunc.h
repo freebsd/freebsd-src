@@ -322,16 +322,16 @@ void	arm9_setttb		(u_int);
 
 void	arm9_tlb_flushID_SE	(u_int va);
 
-void	arm9_icache_sync_all	__P((void));
-void	arm9_icache_sync_range	__P((vm_offset_t, vm_size_t));
+void	arm9_icache_sync_all	(void);
+void	arm9_icache_sync_range	(vm_offset_t, vm_size_t);
 
-void	arm9_dcache_wbinv_all	__P((void));
-void	arm9_dcache_wbinv_range __P((vm_offset_t, vm_size_t));
-void	arm9_dcache_inv_range	__P((vm_offset_t, vm_size_t));
-void	arm9_dcache_wb_range	__P((vm_offset_t, vm_size_t));
+void	arm9_dcache_wbinv_all	(void);
+void	arm9_dcache_wbinv_range (vm_offset_t, vm_size_t);
+void	arm9_dcache_inv_range	(vm_offset_t, vm_size_t);
+void	arm9_dcache_wb_range	(vm_offset_t, vm_size_t);
 
-void	arm9_idcache_wbinv_all	__P((void));
-void	arm9_idcache_wbinv_range __P((vm_offset_t, vm_size_t));
+void	arm9_idcache_wbinv_all	(void);
+void	arm9_idcache_wbinv_range (vm_offset_t, vm_size_t);
 
 void	arm9_context_switch	(void);
 
@@ -503,20 +503,20 @@ u_int	GetCPSR(void);
  * (in arm/arm32/setstack.S)
  */
 
-void set_stackptr	__P((u_int mode, u_int address));
-u_int get_stackptr	__P((u_int mode));
+void set_stackptr	(u_int mode, u_int address);
+u_int get_stackptr	(u_int mode);
 
 /*
  * Miscellany
  */
 
-int get_pc_str_offset	__P((void));
+int get_pc_str_offset	(void);
 
 /*
  * CPU functions from locore.S
  */
 
-void cpu_reset		__P((void)) __attribute__((__noreturn__));
+void cpu_reset		(void) __attribute__((__noreturn__));
 
 /*
  * Cache info variables.
