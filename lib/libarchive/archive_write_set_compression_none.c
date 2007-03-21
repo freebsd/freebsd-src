@@ -142,7 +142,7 @@ archive_compressor_none_write(struct archive *a, const void *vbuff,
 			    buff, remaining);
 			if (bytes_written <= 0)
 				return (ARCHIVE_FATAL);
-			a->archive.raw_position += bytes_written;
+			a->raw_position += bytes_written;
 			remaining -= bytes_written;
 			buff += bytes_written;
 		}
