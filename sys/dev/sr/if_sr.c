@@ -568,29 +568,21 @@ sr_deallocate_resources(device_t device)
 	struct sr_hardc *hc = device_get_softc(device);
 
 	if (hc->res_irq != 0) {
-		bus_deactivate_resource(device, SYS_RES_IRQ,
-			hc->rid_irq, hc->res_irq);
 		bus_release_resource(device, SYS_RES_IRQ,
 			hc->rid_irq, hc->res_irq);
 		hc->res_irq = 0;
 	}
 	if (hc->res_ioport != 0) {
-		bus_deactivate_resource(device, SYS_RES_IOPORT,
-			hc->rid_ioport, hc->res_ioport);
 		bus_release_resource(device, SYS_RES_IOPORT,
 			hc->rid_ioport, hc->res_ioport);
 		hc->res_ioport = 0;
 	}
 	if (hc->res_memory != 0) {
-		bus_deactivate_resource(device, SYS_RES_MEMORY,
-			hc->rid_memory, hc->res_memory);
 		bus_release_resource(device, SYS_RES_MEMORY,
 			hc->rid_memory, hc->res_memory);
 		hc->res_memory = 0;
 	}
 	if (hc->res_plx_memory != 0) {
-		bus_deactivate_resource(device, SYS_RES_MEMORY,
-			hc->rid_plx_memory, hc->res_plx_memory);
 		bus_release_resource(device, SYS_RES_MEMORY,
 			hc->rid_plx_memory, hc->res_plx_memory);
 		hc->res_plx_memory = 0;

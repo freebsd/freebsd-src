@@ -139,22 +139,16 @@ cm_release_resources(dev)
 	struct cm_softc *sc = device_get_softc(dev);
 
 	if (sc->port_res != NULL) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT,
-				     0, sc->port_res);
 		bus_release_resource(dev, SYS_RES_IOPORT,
 				     0, sc->port_res);
 		sc->port_res = NULL;
 	}
 	if (sc->mem_res != NULL) {
-		bus_deactivate_resource(dev, SYS_RES_MEMORY,
-				     0, sc->mem_res);
 		bus_release_resource(dev, SYS_RES_MEMORY,
 				     0, sc->mem_res);
 		sc->mem_res = NULL;
 	}
 	if (sc->irq_res != NULL) {
-		bus_deactivate_resource(dev, SYS_RES_IRQ,
-				     0, sc->irq_res);
 		bus_release_resource(dev, SYS_RES_IRQ,
 				     0, sc->irq_res);
 		sc->irq_res = NULL;
