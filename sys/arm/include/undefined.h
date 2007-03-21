@@ -52,7 +52,7 @@
 
 #include <sys/queue.h>
 
-typedef int (*undef_handler_t) __P((unsigned int, unsigned int, trapframe_t *, int));
+typedef int (*undef_handler_t) (unsigned int, unsigned int, trapframe_t *, int);
 
 #define FP_COPROC	1
 #define FP_COPROC2	2
@@ -60,9 +60,9 @@ typedef int (*undef_handler_t) __P((unsigned int, unsigned int, trapframe_t *, i
 
 /* Prototypes for undefined.c */
 
-void *install_coproc_handler __P((int, undef_handler_t));
-void remove_coproc_handler __P((void *));
-void undefined_init __P((void));
+void *install_coproc_handler (int, undef_handler_t);
+void remove_coproc_handler (void *);
+void undefined_init (void);
 
 /*
  * XXX Stuff below here is for use before malloc() is available.  Most code
@@ -78,7 +78,7 @@ struct undefined_handler {
  * Handlers installed using install_coproc_handler_static shouldn't be
  * removed.
  */
-void install_coproc_handler_static __P((int, struct undefined_handler *));
+void install_coproc_handler_static (int, struct undefined_handler *);
 
 /* Calls up to undefined.c from trap handlers */
 void undefinedinstruction(struct trapframe *);
