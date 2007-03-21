@@ -650,7 +650,6 @@ static int cp_detach (device_t dev)
 	b->sys = NULL;
 	CP_UNLOCK (bd);
 
-	bus_deactivate_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
 	bus_release_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
 	bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->cp_res);
 
