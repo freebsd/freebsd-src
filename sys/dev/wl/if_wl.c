@@ -639,15 +639,11 @@ wl_deallocate_resources(device_t device)
     struct wl_softc *sc = device_get_softc(device);
 
     if (sc->res_irq != 0) {
-	bus_deactivate_resource(device, SYS_RES_IRQ,
-	    sc->rid_irq, sc->res_irq);
 	bus_release_resource(device, SYS_RES_IRQ,
 	    sc->rid_irq, sc->res_irq);
 	sc->res_irq = 0;
     }
     if (sc->res_ioport != 0) {
-	bus_deactivate_resource(device, SYS_RES_IOPORT,
-	    sc->rid_ioport, sc->res_ioport);
 	bus_release_resource(device, SYS_RES_IOPORT,
 	    sc->rid_ioport, sc->res_ioport);
 	sc->res_ioport = 0;

@@ -1779,14 +1779,10 @@ error:
 				     ppc->res_irq);
 	}
 	if (ppc->res_ioport != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, ppc->rid_ioport,
-					ppc->res_ioport);
 		bus_release_resource(dev, SYS_RES_IOPORT, ppc->rid_ioport,
 				     ppc->res_ioport);
 	}
 	if (ppc->res_drq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_DRQ, ppc->rid_drq,
-					ppc->res_drq);
 		bus_release_resource(dev, SYS_RES_DRQ, ppc->rid_drq,
 				     ppc->res_drq);
 	}
@@ -1856,14 +1852,10 @@ ppc_detach(device_t dev)
 				     ppc->res_irq);
 	}
 	if (ppc->res_ioport != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, ppc->rid_ioport,
-					ppc->res_ioport);
 		bus_release_resource(dev, SYS_RES_IOPORT, ppc->rid_ioport,
 				     ppc->res_ioport);
 	}
 	if (ppc->res_drq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_DRQ, ppc->rid_drq,
-					ppc->res_drq);
 		bus_release_resource(dev, SYS_RES_DRQ, ppc->rid_drq,
 				     ppc->res_drq);
 	}
