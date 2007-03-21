@@ -30,7 +30,7 @@
 KMOD	= safe
 SRCS	= safe.c opt_safe.h
 SRCS   += device_if.h bus_if.h pci_if.h
-SRCS   += opt_bus.h crypto_if.h
+SRCS   += opt_bus.h cryptodev_if.h
 
 .if !defined(KERNBUILDDIR)
 opt_safe.h:

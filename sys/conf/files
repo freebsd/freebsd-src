@@ -1919,6 +1919,7 @@ opencrypto/cast.c		optional crypto | ipsec ipsec_esp
 opencrypto/criov.c		optional crypto
 opencrypto/crypto.c		optional crypto
 opencrypto/cryptodev.c		optional cryptodev
+opencrypto/cryptodev_if.m	optional crypto
 opencrypto/cryptosoft.c		optional crypto
 opencrypto/deflate.c		optional crypto
 opencrypto/rmd160.c		optional crypto | ipsec
