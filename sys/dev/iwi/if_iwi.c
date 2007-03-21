@@ -3093,7 +3093,7 @@ iwi_release_fw_dma(struct iwi_softc *sc)
 static int
 iwi_init_fw_dma(struct iwi_softc *sc, int size)
 {
-	if (sc->fw_dma_size > size)
+	if (sc->fw_dma_size >= size)
 		return 0;
 	if (bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
