@@ -343,7 +343,7 @@ cxgb_controller_attach(device_t dev)
 	    (sc->msix_regs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->msix_regs_rid, RF_ACTIVE)) != NULL) {
 
-		msi_needed = msi_count = 5;
+		msi_needed = msi_count = SGE_MSIX_COUNT;
 
 		if ((pci_alloc_msix(dev, &msi_count) != 0) ||
 		    (msi_count != msi_needed)) {
