@@ -466,10 +466,10 @@ tcpip_maketemplate(struct inpcb *inp)
  * NOTE: If m != NULL, then ti must point to *inside* the mbuf.
  */
 void
-tcp_respond(struct tcpcb *tp, void *ipgen, register struct tcphdr *th,
-    register struct mbuf *m, tcp_seq ack, tcp_seq seq, int flags)
+tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th,
+    struct mbuf *m, tcp_seq ack, tcp_seq seq, int flags)
 {
-	register int tlen;
+	int tlen;
 	int win = 0;
 	struct ip *ip;
 	struct tcphdr *nth;
@@ -1058,7 +1058,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
-	    tcp_pcblist, "S,xtcpcb", "List of active TCP connections");
+    tcp_pcblist, "S,xtcpcb", "List of active TCP connections");
 
 static int
 tcp_getcred(SYSCTL_HANDLER_ARGS)

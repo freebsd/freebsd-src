@@ -146,8 +146,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, timer_race, CTLFLAG_RD, &tcp_timer_race,
  */
 
 void
-tcp_timer_delack(xtp)
-	void *xtp;
+tcp_timer_delack(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
@@ -182,8 +181,7 @@ tcp_timer_delack(xtp)
 }
 
 void
-tcp_timer_2msl(xtp)
-	void *xtp;
+tcp_timer_2msl(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
@@ -306,8 +304,7 @@ tcp_timer_2msl_tw(int reuse)
 }
 
 void
-tcp_timer_keep(xtp)
-	void *xtp;
+tcp_timer_keep(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct tcptemp *t_template;
@@ -398,8 +395,7 @@ dropit:
 }
 
 void
-tcp_timer_persist(xtp)
-	void *xtp;
+tcp_timer_persist(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
@@ -465,8 +461,7 @@ out:
 }
 
 void
-tcp_timer_rexmt(xtp)
-	void *xtp;
+tcp_timer_rexmt(void * xtp)
 {
 	struct tcpcb *tp = xtp;
 	int rexmt;
