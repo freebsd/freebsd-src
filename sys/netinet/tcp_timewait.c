@@ -137,18 +137,6 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
 int	tcp_minmss = TCP_MINMSS;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_RW,
     &tcp_minmss , 0, "Minmum TCP Maximum Segment Size");
-/*
- * Number of TCP segments per second we accept from remote host
- * before we start to calculate average segment size. If average
- * segment size drops below the minimum TCP MSS we assume a DoS
- * attack and reset+drop the connection. Care has to be taken not to
- * set this value too small to not kill interactive type connections
- * (telnet, SSH) which send many small packets.
- */
-int     tcp_minmssoverload = TCP_MINMSSOVERLOAD;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, minmssoverload, CTLFLAG_RW,
-    &tcp_minmssoverload , 0,
-    "Number of TCP Segments per Second allowed to be under the MINMSS Size");
 
 int	tcp_do_rfc1323 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,

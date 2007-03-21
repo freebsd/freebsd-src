@@ -124,14 +124,6 @@ struct tcphdr {
  * Setting this to "0" disables the minmss check.
  */
 #define	TCP_MINMSS 216
-/*
- * TCP_MINMSSOVERLOAD is defined to be 1000 which should cover any type
- * of interactive TCP session.
- * See tcp_subr.c tcp_minmssoverload SYSCTL declaration and tcp_input.c
- * for more comments.
- * Setting this to "0" disables the minmssoverload check.
- */
-#define	TCP_MINMSSOVERLOAD 0	/* XXX: Disabled until refined */
 
 /*
  * Default maximum segment size for TCP6.

@@ -1048,65 +1048,6 @@ after_listen:
 	KASSERT(tp->t_state != TCPS_LISTEN, ("tcp_input: TCPS_LISTEN"));
 
 	/*
-	 * This is the second part of the MSS DoS prevention code (after
-	 * minmss on the sending side) and it deals with too many too small
-	 * tcp packets in a too short timeframe (1 second).
-	 *
-	 * For every full second we count the number of received packets
-	 * and bytes. If we get a lot of packets per second for this connection
-	 * (tcp_minmssoverload) we take a closer look at it and compute the
-	 * average packet size for the past second. If that is less than
-	 * tcp_minmss we get too many packets with very small payload which
-	 * is not good and burdens our system (and every packet generates
-	 * a wakeup to the process connected to our socket). We can reasonable
-	 * expect this to be small packet DoS attack to exhaust our CPU
-	 * cycles.
-	 *
-	 * Care has to be taken for the minimum packet overload value. This
-	 * value defines the minimum number of packets per second before we
-	 * start to worry. This must not be too low to avoid killing for
-	 * example interactive connections with many small packets like
-	 * telnet or SSH.
-	 *
-	 * Setting either tcp_minmssoverload or tcp_minmss to "0" disables
-	 * this check.
-	 *
-	 * Account for packet if payload packet, skip over ACK, etc.
-	 */
-	if (tcp_minmss && tcp_minmssoverload &&
-	    tp->t_state == TCPS_ESTABLISHED && tlen > 0) {
-		if ((unsigned int)(tp->rcv_second - ticks) < hz) {
-			tp->rcv_pps++;
-			tp->rcv_byps += tlen + off;
-			if (tp->rcv_pps > tcp_minmssoverload) {
-				if ((tp->rcv_byps / tp->rcv_pps) < tcp_minmss) {
-					printf("too many small tcp packets from "
-					       "%s:%u, av. %lubyte/packet, "
-					       "dropping connection\n",
-#ifdef INET6
-						isipv6 ?
-						ip6_sprintf(ip6buf,
-						    &inp->inp_inc.inc6_faddr) :
-#endif
-						inet_ntoa(inp->inp_inc.inc_faddr),
-						inp->inp_inc.inc_fport,
-						tp->rcv_byps / tp->rcv_pps);
-					KASSERT(headlocked, ("tcp_input: "
-					    "after_listen: tcp_drop: head "
-					    "not locked"));
-					tp = tcp_drop(tp, ECONNRESET);
-					tcpstat.tcps_minmssdrops++;
-					goto drop;
-				}
-			}
-		} else {
-			tp->rcv_second = ticks + hz;
-			tp->rcv_pps = 1;
-			tp->rcv_byps = tlen + off;
-		}
-	}
-
-	/*
 	 * Segment received on connection.
 	 * Reset idle time and keep-alive timer.
 	 */
