@@ -330,6 +330,12 @@ cxgb_controller_attach(device_t dev)
 	sc->bt = rman_get_bustag(sc->regs_res);
 	sc->bh = rman_get_bushandle(sc->regs_res);
 	sc->mmio_len = rman_get_size(sc->regs_res);
+
+	ai = cxgb_get_adapter_info(dev);
+	if (t3_prep_adapter(sc, ai, 1) < 0) {
+		error = ENODEV;
+		goto out;
+	}
 	
 	/* Allocate the BAR for doing MSI-X.  If it succeeds, try to allocate
 	 * enough messages for the queue sets.  If that fails, try falling
@@ -401,11 +407,6 @@ cxgb_controller_attach(device_t dev)
 	/* Create a periodic callout for checking adapter status */
 	callout_init_mtx(&sc->cxgb_tick_ch, &sc->lock, CALLOUT_RETURNUNLOCKED);
 	
-	ai = cxgb_get_adapter_info(dev);
-	if (t3_prep_adapter(sc, ai, 1) < 0) {
-		error = ENODEV;
-		goto out;
-	}
 	if (t3_check_fw_version(sc) != 0) {
 		/*
 		 * Warn user that a firmware update will be attempted in init.
