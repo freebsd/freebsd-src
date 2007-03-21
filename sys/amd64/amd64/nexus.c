@@ -351,12 +351,6 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (rv == 0)
 		return 0;
 	rman_set_rid(rv, *rid);
-	if (type == SYS_RES_MEMORY) {
-		rman_set_bustag(rv, AMD64_BUS_SPACE_MEM);
-	} else if (type == SYS_RES_IOPORT) {
-		rman_set_bustag(rv, AMD64_BUS_SPACE_IO);
-		rman_set_bushandle(rv, rman_get_start(rv));
-	}
 
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
@@ -376,12 +370,16 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	/*
 	 * If this is a memory resource, map it into the kernel.
 	 */
-	if (rman_get_bustag(r) == AMD64_BUS_SPACE_MEM) {
+	if (type == SYS_RES_MEMORY) {
 		void *vaddr;
 
 		vaddr = pmap_mapdev(rman_get_start(r), rman_get_size(r));
 		rman_set_virtual(r, vaddr);
+		rman_set_bustag(r, AMD64_BUS_SPACE_MEM);
 		rman_set_bushandle(r, (bus_space_handle_t) vaddr);
+	} else if (type == SYS_RES_IOPORT) {
+		rman_set_bustag(r, AMD64_BUS_SPACE_IO);
+		rman_set_bushandle(r, rman_get_start(r));
 	}
 	return (rman_activate_resource(r));
 }
@@ -393,7 +391,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	/*
 	 * If this is a memory resource, unmap it.
 	 */
-	if (rman_get_bustag(r) == AMD64_BUS_SPACE_MEM) {
+	if (type == SYS_RES_MEMORY) {
 		pmap_unmapdev((vm_offset_t)rman_get_virtual(r),
 		    rman_get_size(r));
 	}
