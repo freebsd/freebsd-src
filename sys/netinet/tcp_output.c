@@ -717,7 +717,7 @@ send:
 	if (len + optlen + ipoptlen > tp->t_maxopd) {
 		flags &= ~TH_FIN;
 		if (tso) {
-			if (len > TCP_MAXWIN - hdrlen) {
+			if (len > TCP_MAXWIN - hdrlen - optlen) {
 				len = TCP_MAXWIN - hdrlen - optlen;
 				len = len - (len % (tp->t_maxopd - optlen));
 				sendalot = 1;
