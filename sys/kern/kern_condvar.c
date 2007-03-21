@@ -104,9 +104,9 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->lock_object,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(&mp->mtx_object, mp);
+	WITNESS_SAVE(&mp->lock_object, mp);
 
 	if (cold || panicstr) {
 		/*
@@ -124,7 +124,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR, 
+	sleepq_add(cvp, &mp->lock_object, cvp->cv_description, SLEEPQ_CONDVAR, 
 		   0);
 	sleepq_wait(cvp);
 
@@ -134,7 +134,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 #endif
 	PICKUP_GIANT();
 	mtx_lock(mp);
-	WITNESS_RESTORE(&mp->mtx_object, mp);
+	WITNESS_RESTORE(&mp->lock_object, mp);
 }
 
 /*
@@ -152,7 +152,7 @@ cv_wait_unlock(struct cv *cvp, struct mtx *mp)
 		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->lock_object,
 	    "Waiting on \"%s\"", cvp->cv_description);
 
 	if (cold || panicstr) {
@@ -172,7 +172,7 @@ cv_wait_unlock(struct cv *cvp, struct mtx *mp)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR, 
+	sleepq_add(cvp, &mp->lock_object, cvp->cv_description, SLEEPQ_CONDVAR, 
 		   0);
 	sleepq_wait(cvp);
 
@@ -204,9 +204,9 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->lock_object,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(&mp->mtx_object, mp);
+	WITNESS_SAVE(&mp->lock_object, mp);
 
 	if (cold || panicstr) {
 		/*
@@ -224,7 +224,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR |
+	sleepq_add(cvp, &mp->lock_object, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
 	rval = sleepq_wait_sig(cvp);
 
@@ -234,7 +234,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 #endif
 	PICKUP_GIANT();
 	mtx_lock(mp);
-	WITNESS_RESTORE(&mp->mtx_object, mp);
+	WITNESS_RESTORE(&mp->lock_object, mp);
 
 	return (rval);
 }
@@ -258,9 +258,9 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->lock_object,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(&mp->mtx_object, mp);
+	WITNESS_SAVE(&mp->lock_object, mp);
 
 	if (cold || panicstr) {
 		/*
@@ -278,7 +278,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR, 
+	sleepq_add(cvp, &mp->lock_object, cvp->cv_description, SLEEPQ_CONDVAR, 
 		   0);
 	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait(cvp);
@@ -289,7 +289,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 #endif
 	PICKUP_GIANT();
 	mtx_lock(mp);
-	WITNESS_RESTORE(&mp->mtx_object, mp);
+	WITNESS_RESTORE(&mp->lock_object, mp);
 
 	return (rval);
 }
@@ -316,9 +316,9 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->lock_object,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(&mp->mtx_object, mp);
+	WITNESS_SAVE(&mp->lock_object, mp);
 
 	if (cold || panicstr) {
 		/*
@@ -336,7 +336,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR |
+	sleepq_add(cvp, &mp->lock_object, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
 	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait_sig(cvp);
@@ -347,7 +347,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 #endif
 	PICKUP_GIANT();
 	mtx_lock(mp);
-	WITNESS_RESTORE(&mp->mtx_object, mp);
+	WITNESS_RESTORE(&mp->lock_object, mp);
 
 	return (rval);
 }

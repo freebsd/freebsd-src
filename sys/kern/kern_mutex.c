@@ -181,16 +181,16 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_lock() of destroyed mutex @ %s:%d", file, line));
-	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_sleep,
-	    ("mtx_lock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
+	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,
+	    ("mtx_lock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
-	WITNESS_CHECKORDER(&m->mtx_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
+	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line);
 
 	_get_sleep_lock(m, curthread, opts, file, line);
-	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
+	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
-	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
+	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
 	curthread->td_locks++;
 }
 
@@ -200,16 +200,16 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock() of destroyed mutex @ %s:%d", file, line));
-	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_sleep,
-	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
+	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,
+	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
 	curthread->td_locks--;
-	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
-	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
+	WITNESS_UNLOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
+	LOCK_LOG_LOCK("UNLOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	mtx_assert(m, MA_OWNED);
 
-	lock_profile_release_lock(&m->mtx_object);
+	lock_profile_release_lock(&m->lock_object);
 	_rel_sleep_lock(m, curthread, opts, file, line);
 }
 
@@ -220,15 +220,15 @@ _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_lock_spin() of destroyed mutex @ %s:%d", file, line));
-	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_spin,
+	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
 	    ("mtx_lock_spin() of sleep mutex %s @ %s:%d",
-	    m->mtx_object.lo_name, file, line));
-	WITNESS_CHECKORDER(&m->mtx_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
+	    m->lock_object.lo_name, file, line));
+	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line);
 	_get_spin_lock(m, curthread, opts, file, line);
-	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
+	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
-	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
+	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
 }
 
 void
@@ -238,15 +238,15 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock_spin() of destroyed mutex @ %s:%d", file, line));
-	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_spin,
+	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
 	    ("mtx_unlock_spin() of sleep mutex %s @ %s:%d",
-	    m->mtx_object.lo_name, file, line));
-	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
-	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
+	    m->lock_object.lo_name, file, line));
+	WITNESS_UNLOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
+	LOCK_LOG_LOCK("UNLOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	mtx_assert(m, MA_OWNED);
 
-	lock_profile_release_lock(&m->mtx_object);
+	lock_profile_release_lock(&m->lock_object);
 	_rel_spin_lock(m);
 }
 
@@ -264,24 +264,24 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_trylock() of destroyed mutex @ %s:%d", file, line));
-	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_sleep,
-	    ("mtx_trylock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
+	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,
+	    ("mtx_trylock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
 
-	if (mtx_owned(m) && (m->mtx_object.lo_flags & LO_RECURSABLE) != 0) {
+	if (mtx_owned(m) && (m->lock_object.lo_flags & LO_RECURSABLE) != 0) {
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		rval = 1;
 	} else
 		rval = _obtain_lock(m, (uintptr_t)curthread);
 
-	LOCK_LOG_TRY("LOCK", &m->mtx_object, opts, rval, file, line);
+	LOCK_LOG_TRY("LOCK", &m->lock_object, opts, rval, file, line);
 	if (rval) {
-		WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE | LOP_TRYLOCK,
+		WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
 		curthread->td_locks++;
 		if (m->mtx_recurse == 0)
-			lock_profile_obtain_lock_success(&m->mtx_object, contested,
+			lock_profile_obtain_lock_success(&m->lock_object, contested,
 			    waittime, file, line);
 
 	}
@@ -308,23 +308,23 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	uintptr_t v;
 	
 	if (mtx_owned(m)) {
-		KASSERT((m->mtx_object.lo_flags & LO_RECURSABLE) != 0,
+		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
 	    ("_mtx_lock_sleep: recursed on non-recursive mutex %s @ %s:%d\n",
-		    m->mtx_object.lo_name, file, line));
+		    m->lock_object.lo_name, file, line));
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
+		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR1(KTR_LOCK, "_mtx_lock_sleep: %p recursing", m);
 		return;
 	}
 
-	if (LOCK_LOG_TEST(&m->mtx_object, opts))
+	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR4(KTR_LOCK,
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
-		    m->mtx_object.lo_name, (void *)m->mtx_lock, file, line);
+		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
 
 	while (!_obtain_lock(m, tid)) { 
-		turnstile_lock(&m->mtx_object);
+		turnstile_lock(&m->lock_object);
 		v = m->mtx_lock;
 
 		/*
@@ -332,7 +332,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 * the turnstile chain lock.
 		 */
 		if (v == MTX_UNOWNED) {
-			turnstile_release(&m->mtx_object);
+			turnstile_release(&m->lock_object);
 			cpu_spinwait();
 			continue;
 		}
@@ -348,7 +348,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 */
 		if (v == MTX_CONTESTED) {
 			m->mtx_lock = tid | MTX_CONTESTED;
-			turnstile_claim(&m->mtx_object);
+			turnstile_claim(&m->lock_object);
 			break;
 		}
 #endif
@@ -360,7 +360,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 */
 		if ((v & MTX_CONTESTED) == 0 &&
 		    !atomic_cmpset_ptr(&m->mtx_lock, v, v | MTX_CONTESTED)) {
-			turnstile_release(&m->mtx_object);
+			turnstile_release(&m->lock_object);
 			cpu_spinwait();
 			continue;
 		}
@@ -377,7 +377,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		if (m != &Giant && TD_IS_RUNNING(owner)) 
 #endif
 		{
-			turnstile_release(&m->mtx_object);
+			turnstile_release(&m->lock_object);
 			while (mtx_owner(m) == owner && TD_IS_RUNNING(owner)) {
 				cpu_spinwait();
 			}
@@ -394,9 +394,9 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		if (!cont_logged) {
 			CTR6(KTR_CONTENTION,
 			    "contention: %p at %s:%d wants %s, taken by %s:%d",
-			    (void *)tid, file, line, m->mtx_object.lo_name,
-			    WITNESS_FILE(&m->mtx_object),
-			    WITNESS_LINE(&m->mtx_object));
+			    (void *)tid, file, line, m->lock_object.lo_name,
+			    WITNESS_FILE(&m->lock_object),
+			    WITNESS_LINE(&m->lock_object));
 			cont_logged = 1;
 		}
 #endif
@@ -404,14 +404,14 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		/*
 		 * Block on the turnstile.
 		 */
-		turnstile_wait(&m->mtx_object, mtx_owner(m),
+		turnstile_wait(&m->lock_object, mtx_owner(m),
 		    TS_EXCLUSIVE_QUEUE);
 	}
 #ifdef KTR
 	if (cont_logged) {
 		CTR4(KTR_CONTENTION,
 		    "contention end: %s acquired by %p at %s:%d",
-		    m->mtx_object.lo_name, (void *)tid, file, line);
+		    m->lock_object.lo_name, (void *)tid, file, line);
 	}
 #endif
 	return;
@@ -431,7 +431,7 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	int i = 0;
 	struct thread *td;
 
-	if (LOCK_LOG_TEST(&m->mtx_object, opts))
+	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
 	while (!_obtain_lock(m, tid)) {
@@ -453,9 +453,9 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 					continue;
 				printf(
 			"spin lock %p (%s) held by %p (tid %d) too long\n",
-				    m, m->mtx_object.lo_name, td, td->td_tid);
+				    m, m->lock_object.lo_name, td, td->td_tid);
 #ifdef WITNESS
-				witness_display_spinlock(&m->mtx_object, td);
+				witness_display_spinlock(&m->lock_object, td);
 #endif
 				panic("spin lock held too long");
 			}
@@ -464,7 +464,7 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		spinlock_enter();
 	}
 
-	if (LOCK_LOG_TEST(&m->mtx_object, opts))
+	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
 
 	return;
@@ -488,22 +488,22 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	if (mtx_recursed(m)) {
 		if (--(m->mtx_recurse) == 0)
 			atomic_clear_ptr(&m->mtx_lock, MTX_RECURSED);
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
+		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p unrecurse", m);
 		return;
 	}
 
-	turnstile_lock(&m->mtx_object);
-	ts = turnstile_lookup(&m->mtx_object);
-	if (LOCK_LOG_TEST(&m->mtx_object, opts))
+	turnstile_lock(&m->lock_object);
+	ts = turnstile_lookup(&m->lock_object);
+	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
 
 #if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
 	if (ts == NULL) {
 		_release_lock_quick(m);
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
+		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p no sleepers", m);
-		turnstile_release(&m->mtx_object);
+		turnstile_release(&m->lock_object);
 		return;
 	}
 #else
@@ -519,11 +519,11 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 #else
 	if (turnstile_signal(ts, TS_EXCLUSIVE_QUEUE)) {
 		_release_lock_quick(m);
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
+		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p not held", m);
 	} else {
 		m->mtx_lock = MTX_CONTESTED;
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
+		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p still contested",
 			    m);
 	}
@@ -548,7 +548,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			struct ithd *it = td->td_ithd;
 
 			if (it->it_interrupted) {
-				if (LOCK_LOG_TEST(&m->mtx_object, opts))
+				if (LOCK_LOG_TEST(&m->lock_object, opts))
 					CTR2(KTR_LOCK,
 				    "_mtx_unlock_sleep: %p interrupted %p",
 					    it, it->it_interrupted);
@@ -556,13 +556,13 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			}
 		}
 #endif
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
+		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR2(KTR_LOCK,
 			    "_mtx_unlock_sleep: %p switching out lock=%p", m,
 			    (void *)m->mtx_lock);
 
 		mi_switch(SW_INVOL, NULL);
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
+		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p resuming lock=%p",
 			    m, (void *)m->mtx_lock);
 	}
@@ -593,20 +593,20 @@ _mtx_assert(struct mtx *m, int what, const char *file, int line)
 	case MA_OWNED | MA_NOTRECURSED:
 		if (!mtx_owned(m))
 			panic("mutex %s not owned at %s:%d",
-			    m->mtx_object.lo_name, file, line);
+			    m->lock_object.lo_name, file, line);
 		if (mtx_recursed(m)) {
 			if ((what & MA_NOTRECURSED) != 0)
 				panic("mutex %s recursed at %s:%d",
-				    m->mtx_object.lo_name, file, line);
+				    m->lock_object.lo_name, file, line);
 		} else if ((what & MA_RECURSED) != 0) {
 			panic("mutex %s unrecursed at %s:%d",
-			    m->mtx_object.lo_name, file, line);
+			    m->lock_object.lo_name, file, line);
 		}
 		break;
 	case MA_NOTOWNED:
 		if (mtx_owned(m))
 			panic("mutex %s owned at %s:%d",
-			    m->mtx_object.lo_name, file, line);
+			    m->lock_object.lo_name, file, line);
 		break;
 	default:
 		panic("unknown mtx_assert at %s:%d", file, line);
@@ -697,8 +697,8 @@ mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 	m->mtx_lock = MTX_UNOWNED;
 	m->mtx_recurse = 0;
 
-	lock_profile_object_init(&m->mtx_object, class, name);
-	lock_init(&m->mtx_object, class, name, type, flags);
+	lock_profile_object_init(&m->lock_object, class, name);
+	lock_init(&m->lock_object, class, name, type, flags);
 }
 
 /*
@@ -717,19 +717,19 @@ mtx_destroy(struct mtx *m)
 		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_CONTESTED)) == 0);
 
 		/* Perform the non-mtx related part of mtx_unlock_spin(). */
-		if (LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_spin)
+		if (LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin)
 			spinlock_exit();
 		else
 			curthread->td_locks--;
 
 		/* Tell witness this isn't locked to make it happy. */
-		WITNESS_UNLOCK(&m->mtx_object, LOP_EXCLUSIVE, __FILE__,
+		WITNESS_UNLOCK(&m->lock_object, LOP_EXCLUSIVE, __FILE__,
 		    __LINE__);
 	}
 
 	m->mtx_lock = MTX_DESTROYED;
-	lock_profile_object_destroy(&m->mtx_object);
-	lock_destroy(&m->mtx_object);
+	lock_profile_object_destroy(&m->lock_object);
+	lock_destroy(&m->lock_object);
 }
 
 /*
@@ -770,9 +770,9 @@ db_show_mtx(struct lock_object *lock)
 		db_printf("SPIN");
 	else
 		db_printf("DEF");
-	if (m->mtx_object.lo_flags & LO_RECURSABLE)
+	if (m->lock_object.lo_flags & LO_RECURSABLE)
 		db_printf(", RECURSE");
-	if (m->mtx_object.lo_flags & LO_DUPOK)
+	if (m->lock_object.lo_flags & LO_DUPOK)
 		db_printf(", DUPOK");
 	db_printf("}\n");
 	db_printf(" state: {");

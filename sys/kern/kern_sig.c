@@ -2424,7 +2424,7 @@ ptracestop(struct thread *td, int sig)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
-	    &p->p_mtx.mtx_object, "Stopping for traced signal");
+	    &p->p_mtx.lock_object, "Stopping for traced signal");
 
 	mtx_lock_spin(&sched_lock);
 	td->td_flags |= TDF_XSIG;
@@ -2614,7 +2614,7 @@ issignal(td)
 					break;	/* == ignore */
 				mtx_unlock(&ps->ps_mtx);
 				WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
-				    &p->p_mtx.mtx_object, "Catching SIGSTOP");
+				    &p->p_mtx.lock_object, "Catching SIGSTOP");
 				p->p_flag |= P_STOPPED_SIG;
 				p->p_xstat = sig;
 				mtx_lock_spin(&sched_lock);

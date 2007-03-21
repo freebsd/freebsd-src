@@ -1253,7 +1253,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		PROC_LOCK(p);
 		if (p->p_upsleeps)
 			wakeup(&p->p_completed);
-		WITNESS_WARN(WARN_PANIC, &p->p_mtx.mtx_object,
+		WITNESS_WARN(WARN_PANIC, &p->p_mtx.lock_object,
 		    "thread exiting in userret");
 		sigqueue_flush(&td->td_sigqueue);
 		mtx_lock_spin(&sched_lock);

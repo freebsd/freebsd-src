@@ -159,11 +159,11 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 	int contested = 0;						\
 	uint64_t waittime = 0;						\
 	if (!_obtain_lock((mp), _tid)) {				\
-		lock_profile_obtain_lock_failed(&(mp)->mtx_object,	\
+		lock_profile_obtain_lock_failed(&(mp)->lock_object,	\
 		    &contested, &waittime);				\
 		_mtx_lock_sleep((mp), _tid, (opts), (file), (line));	\
 	}								\
-	lock_profile_obtain_lock_success(&(mp)->mtx_object, contested,	\
+	lock_profile_obtain_lock_success(&(mp)->lock_object, contested,	\
 	    waittime, (file), (line));					\
 } while (0)
 #endif
@@ -186,12 +186,12 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 		if ((mp)->mtx_lock == _tid)				\
 			(mp)->mtx_recurse++;				\
 		else {							\
-			lock_profile_obtain_lock_failed(&(mp)->mtx_object, \
+			lock_profile_obtain_lock_failed(&(mp)->lock_object, \
 			    &contested, &waittime);			\
 			_mtx_lock_spin((mp), _tid, (opts), (file), (line)); \
 		}							\
 	}								\
-	lock_profile_obtain_lock_success(&(mp)->mtx_object, contested,	\
+	lock_profile_obtain_lock_success(&(mp)->lock_object, contested,	\
 	    waittime, (file), (line));					\
 } while (0)
 #else /* SMP */
@@ -340,15 +340,15 @@ extern struct mtx_pool *mtxpool_sleep;
 	_mtx_trylock((m), (opts), LOCK_FILE, LOCK_LINE)
 
 #define	mtx_sleep(chan, mtx, pri, wmesg, timo)				\
-	_sleep((chan), &(mtx)->mtx_object, (pri), (wmesg), (timo))
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo))
 
-#define	mtx_initialized(m)	lock_initalized(&(m)->mtx_object)
+#define	mtx_initialized(m)	lock_initalized(&(m)->lock_object)
 
 #define mtx_owned(m)	(((m)->mtx_lock & ~MTX_FLAGMASK) == (uintptr_t)curthread)
 
 #define mtx_recursed(m)	((m)->mtx_recurse != 0)
 
-#define mtx_name(m)	((m)->mtx_object.lo_name)
+#define mtx_name(m)	((m)->lock_object.lo_name)
 
 /*
  * Global locks.
@@ -370,7 +370,7 @@ do {									\
 	WITNESS_SAVE_DECL(Giant);					\
 									\
 	if (mtx_owned(&Giant))						\
-		WITNESS_SAVE(&Giant.mtx_object, Giant);			\
+		WITNESS_SAVE(&Giant.lock_object, Giant);		\
 	for (_giantcnt = 0; mtx_owned(&Giant); _giantcnt++)		\
 		mtx_unlock(&Giant)
 
@@ -379,7 +379,7 @@ do {									\
 	while (_giantcnt--)						\
 		mtx_lock(&Giant);					\
 	if (mtx_owned(&Giant))						\
-		WITNESS_RESTORE(&Giant.mtx_object, Giant);		\
+		WITNESS_RESTORE(&Giant.lock_object, Giant);		\
 } while (0)
 
 #define PARTIAL_PICKUP_GIANT()						\
@@ -387,7 +387,7 @@ do {									\
 	while (_giantcnt--)						\
 		mtx_lock(&Giant);					\
 	if (mtx_owned(&Giant))						\
-		WITNESS_RESTORE(&Giant.mtx_object, Giant)
+		WITNESS_RESTORE(&Giant.lock_object, Giant)
 #endif
 
 /*

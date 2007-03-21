@@ -698,7 +698,7 @@ MALLOC_DECLARE(M_ZOMBIE);
 } while (0)
 #define	_STOPEVENT(p, e, v) do {					\
 	PROC_LOCK_ASSERT(p, MA_OWNED);					\
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &p->p_mtx.mtx_object, \
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &p->p_mtx.lock_object, \
  	    "checking stopevent %d", (e));				\
 	if ((p)->p_stops & (e))						\
 		stopevent((p), (e), (v));				\
