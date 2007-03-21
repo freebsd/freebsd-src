@@ -617,14 +617,7 @@ tcp_input(m, off0)
 	th->th_urp = ntohs(th->th_urp);
 
 	/*
-	 * Delay dropping TCP, IP headers, IPv6 ext headers, and TCP options,
-	 * until after ip6_savecontrol() is called and before other functions
-	 * which don't want those proto headers.
-	 * Because ip6_savecontrol() is going to parse the mbuf to
-	 * search for data to be passed up to user-land, it wants mbuf
-	 * parameters to be unchanged.
-	 * XXX: the call of ip6_savecontrol() has been obsoleted based on
-	 * latest version of the advanced API (20020110).
+	 * Delay dropping TCP, IP headers, IPv6 ext headers, and TCP options.
 	 */
 	drop_hdrlen = off0 + off;
 
@@ -763,21 +756,26 @@ findpcb:
 			goto drop;
 	}
 
+	/*
+	 * A previous connection in TIMEWAIT state is supposed to catch
+	 * stray or duplicate segments arriving late.  If this segment
+	 * was a legitimate new connection attempt the old INPCB gets
+	 * removed and we can try again to find a listening socket.
+	 */
 	if (inp->inp_vflag & INP_TIMEWAIT) {
-		/*
-		 * The only option of relevance is TOF_CC, and only if
-		 * present in a SYN segment.  See tcp_timewait().
-		 */
 		if (thflags & TH_SYN)
 			tcp_dooptions(&to, optp, optlen, TO_SYN);
 		if (tcp_timewait(inp, &to, th, m, tlen))
 			goto findpcb;
-		/*
-		 * tcp_timewait unlocks inp.
-		 */
+		/* tcp_timewait unlocks inp. */
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
 	}
+	/*
+	 * The TCPCB may no longer exist if the connection is winding
+	 * down or it is in the CLOSED state.  Either way we drop the
+	 * segment and send an appropriate response.
+	 */
 	tp = intotcpcb(inp);
 	if (tp == 0) {
 		INP_UNLOCK(inp);
