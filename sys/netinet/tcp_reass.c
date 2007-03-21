@@ -804,13 +804,16 @@ findpcb:
 		tcp_savetcp = *th;
 	}
 #endif
+	/*
+	 * When the socket is accepting connections (the INPCB is in LISTEN
+	 * state) we look into the SYN cache if this is a new connection
+	 * attempt or the completion of a previous one.
+	 */
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct in_conninfo inc;
 
 		bzero(&inc, sizeof(inc));
-#ifdef INET6
 		inc.inc_isipv6 = isipv6;
-#endif
 		if (isipv6) {
 			inc.inc6_faddr = ip6->ip6_src;
 			inc.inc6_laddr = ip6->ip6_dst;
@@ -936,21 +939,12 @@ findpcb:
 		}
 #endif
 		/*
+		 * Basic sanity checks on incoming SYN requests:
+		 *
+		 * Don't bother responding if the destination was a
+		 * broadcast according to RFC1122 4.2.3.10, p. 104.
+		 *
 		 * If it is from this socket, drop it, it must be forged.
-		 * Don't bother responding if the destination was a broadcast.
-		 */
-		if (th->th_dport == th->th_sport) {
-			if (isipv6) {
-				if (IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
-						       &ip6->ip6_src))
-					goto drop;
-			} else {
-				if (ip->ip_dst.s_addr == ip->ip_src.s_addr)
-					goto drop;
-			}
-		}
-		/*
-		 * RFC1122 4.2.3.10, p. 104: discard bcast/mcast SYN
 		 *
 		 * Note that it is quite possible to receive unicast
 		 * link-layer packets with a broadcast IP address. Use
@@ -959,10 +953,18 @@ findpcb:
 		if (m->m_flags & (M_BCAST|M_MCAST))
 			goto drop;
 		if (isipv6) {
+#ifdef INET6
+			if (th->th_dport == th->th_sport &&
+			    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &ip6->ip6_src))
+				goto drop;
 			if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
 			    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src))
 				goto drop;
+#endif
 		} else {
+			if (th->th_dport == th->th_sport &&
+			    ip->ip_dst.s_addr == ip->ip_src.s_addr)
+				goto drop;
 			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 			    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 			    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
@@ -970,8 +972,8 @@ findpcb:
 				goto drop;
 		}
 		/*
-		 * SYN appears to be valid; create compressed TCP state
-		 * for syncache, or perform t/tcp connection.
+		 * SYN appears to be valid.  Create compressed TCP state
+		 * for syncache.
 		 */
 		if (so->so_qlen <= so->so_qlimit) {
 #ifdef TCPDEBUG
@@ -981,47 +983,18 @@ findpcb:
 #endif
 			tcp_dooptions(&to, optp, optlen, TO_SYN);
 			if (!syncache_add(&inc, &to, th, inp, &so, m))
-				goto drop;	/* XXX: does not happen */
-			if (so == NULL) {
-				/*
-				 * Entry added to syncache, mbuf used to
-				 * send SYN,ACK packet.  Everything unlocked
-				 * already.
-				 */
-				return;
-			}
-			panic("T/TCP not supported at the moment");
-#if 0 /* T/TCP */
+				goto drop;
 			/*
-			 * Segment passed TAO tests.
-			 * XXX: Can't happen at the moment.
+			 * Entry added to syncache, mbuf used to
+			 * send SYN-ACK packet.  Everything unlocked
+			 * already.
 			 */
-			INP_UNLOCK(inp);
-			inp = sotoinpcb(so);
-			INP_LOCK(inp);
-			tp = intotcpcb(inp);
-			tp->t_starttime = ticks;
-			tp->t_state = TCPS_ESTABLISHED;
-
-			/*
-			 * T/TCP logic:
-			 * If there is a FIN or if there is data, then
-			 * delay SYN,ACK(SYN) in the hope of piggy-backing
-			 * it on a response segment.  Otherwise must send
-			 * ACK now in case the other side is slow starting.
-			 */
-			if (thflags & TH_FIN || tlen != 0)
-				tp->t_flags |= (TF_DELACK | TF_NEEDSYN);
-			else
-				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
-			tiwin = th->th_win << tp->snd_scale;
-			tcpstat.tcps_connects++;
-			soisconnected(so);
-			goto trimthenstep6;
-#endif	/* T/TCP */
+			return;
 		}
+		/* Catch all.  Everthing that makes it down here is junk. */
 		goto drop;
 	}
+
 after_listen:
 	KASSERT(headlocked, ("tcp_input: after_listen: head not locked"));
 	INP_LOCK_ASSERT(inp);
@@ -1468,9 +1441,6 @@ after_listen:
 			tp->t_state = TCPS_SYN_RECEIVED;
 		}
 
-#if 0 /* T/TCP */
-trimthenstep6:
-#endif
 		KASSERT(headlocked, ("tcp_input: trimthenstep6: head not "
 		    "locked"));
 		INP_LOCK_ASSERT(inp);
