@@ -82,6 +82,7 @@ struct t3_mbuf_hdr {
 
 #define CXGB_TX_CLEANUP_THRESHOLD 32
 
+#define LOG_WARNING 1
 
 #ifdef DEBUG_PRINT
 #define DPRINTF printf
