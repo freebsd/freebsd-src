@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2006
+.Dd March 21, 2007
 .Dt CONDVAR 9
 .Os
 .Sh NAME
@@ -52,15 +52,15 @@
 .Ft void
 .Fn cv_destroy "struct cv *cvp"
 .Ft void
-.Fn cv_wait "struct cv *cvp" "struct mtx *mp"
+.Fn cv_wait "struct cv *cvp" "lock"
 .Ft int
-.Fn cv_wait_sig "struct cv *cvp" "struct mtx *mp"
+.Fn cv_wait_sig "struct cv *cvp" "lock"
 .Ft void
-.Fn cv_wait_unlock "struct cv *cvp" "struct mtx *mp"
+.Fn cv_wait_unlock "struct cv *cvp" "lock"
 .Ft int
-.Fn cv_timedwait "struct cv *cvp" "struct mtx *mp" "int timo"
+.Fn cv_timedwait "struct cv *cvp" "lock" "int timo"
 .Ft int
-.Fn cv_timedwait_sig "struct cv *cvp" "struct mtx *mp" "int timo"
+.Fn cv_timedwait_sig "struct cv *cvp" "lock" "int timo"
 .Ft void
 .Fn cv_signal "struct cv *cvp"
 .Ft void
@@ -109,8 +109,16 @@ returns the description string of
 as set by the initial call to
 .Fn cv_init .
 .Pp
+The
+.Fa lock
+argument is a pointer to either a
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+or
+.Xr sx 9
+lock.
 A thread must hold
-.Fa mp
+.Fa lock
 before calling
 .Fn cv_wait ,
 .Fn cv_wait_sig ,
@@ -119,14 +127,14 @@ before calling
 or
 .Fn cv_timedwait_sig .
 When a thread waits on a condition,
-.Fa mp
+.Fa lock
 is atomically released before the thread is blocked, then reacquired
 before the function call returns.
 The
 .Fn cv_wait_unlock
 function does not reacquire the lock before returning.
 All waiters must pass the same
-.Fa mp
+.Fa lock
 in conjunction with
 .Fa cvp .
 .Pp
