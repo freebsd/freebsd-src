@@ -183,6 +183,9 @@ struct hifn_softc {
 	int			sc_needwakeup;	/* ops q'd wating on resources */
 	int			sc_curbatch;	/* # ops submitted w/o int */
 	int			sc_suspended;
+#ifdef HIFN_VULCANDEV
+	struct cdev            *sc_pkdev;
+#endif
 };
 
 #define	HIFN_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
