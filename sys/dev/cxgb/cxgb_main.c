@@ -176,7 +176,7 @@ DRIVER_MODULE(cxgb, cxgbc, cxgb_port_driver, cxgb_port_devclass, 0, 0);
  * msi = 1 : only consider MSI and pin interrupts
  * msi = 0: force pin interrupts
  */
-static int msi_allowed = 0;
+static int msi_allowed = 2;
 TUNABLE_INT("hw.cxgb.msi_allowed", &msi_allowed);
 
 SYSCTL_NODE(_hw, OID_AUTO, cxgb, CTLFLAG_RD, 0, "CXGB driver parameters");
@@ -303,9 +303,10 @@ cxgb_controller_attach(device_t dev)
 	device_t child;
 	const struct adapter_info *ai;
 	struct adapter *sc;
-	int i, msi_count = 0, error = 0;
+	int i, msi_needed, msi_count = 0, error = 0;
 	uint32_t vers;
-	
+	int port_qsets = 1;
+	    
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
@@ -336,14 +337,18 @@ cxgb_controller_attach(device_t dev)
 	 * interrupt pin model.
 	 */
 #ifdef MSI_SUPPORTED
+
 	sc->msix_regs_rid = 0x20;
 	if ((msi_allowed >= 2) &&
 	    (sc->msix_regs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->msix_regs_rid, RF_ACTIVE)) != NULL) {
 
-		msi_count = SGE_MSIX_COUNT;
+		msi_needed = msi_count = 5;
+
 		if ((pci_alloc_msix(dev, &msi_count) != 0) ||
-		    (msi_count != SGE_MSIX_COUNT)) {
+		    (msi_count != msi_needed)) {
+			device_printf(dev, "msix allocation failed"
+			    " will try msi\n");
 			msi_count = 0;
 			pci_release_msi(dev);
 			bus_release_resource(dev, SYS_RES_MEMORY,
@@ -353,14 +358,12 @@ cxgb_controller_attach(device_t dev)
 			sc->flags |= USING_MSIX;
 			cxgb_intr = t3_intr_msix;
 		}
-
-		printf("allocated %d msix intrs\n", msi_count);
 	}
 
 	if ((msi_allowed >= 1) && (msi_count == 0)) {
 		msi_count = 1;
 		if (pci_alloc_msi(dev, &msi_count)) {
-			device_printf(dev, "alloc msi failed\n");
+			device_printf(dev, "alloc msi failed - will try INTx\n");
 			msi_count = 0;
 			pci_release_msi(dev);
 		} else {
@@ -371,6 +374,7 @@ cxgb_controller_attach(device_t dev)
 	}
 #endif
 	if (msi_count == 0) {
+		device_printf(dev, "using line interrupts\n");
 		sc->irq_rid = 0;
 		cxgb_intr = t3b_intr;
 	}
@@ -420,11 +424,14 @@ cxgb_controller_attach(device_t dev)
 	}
 	t3_write_reg(sc, A_ULPRX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
 
+	if (sc->flags & USING_MSIX)
+		port_qsets = min((SGE_QSETS/(sc)->params.nports), mp_ncpus);
+
 	/*
 	 * Create a child device for each MAC.  The ethernet attachment
 	 * will be done in these children.
-	 */
-	for (i = 0; i < (sc)->params.nports; ++i) {
+	 */	
+	for (i = 0; i < (sc)->params.nports; i++) {
 		if ((child = device_add_child(dev, "cxgb", -1)) == NULL) {
 			device_printf(dev, "failed to add child port\n");
 			error = EINVAL;
@@ -432,12 +439,8 @@ cxgb_controller_attach(device_t dev)
 		}
 		sc->portdev[i] = child;
 		sc->port[i].adapter = sc;
-#ifdef MULTIQ
-		sc->port[i].nqsets = mp_ncpus;
-#else		
-		sc->port[i].nqsets = 1;
-#endif		
-		sc->port[i].first_qset = i;
+		sc->port[i].nqsets = port_qsets;
+		sc->port[i].first_qset = i*port_qsets;
 		sc->port[i].port = i;
 		device_set_softc(child, &sc->port[i]);
 	}
@@ -512,20 +515,20 @@ cxgb_free(struct adapter *sc)
 {
 	int i;
 
-	for (i = 0; i < (sc)->params.nports; ++i) {
-		if (sc->portdev[i] != NULL)
-			device_delete_child(sc->dev, sc->portdev[i]);
-	}
-	
+	callout_drain(&sc->cxgb_tick_ch);
+
 	t3_sge_deinit_sw(sc);
 
 	if (sc->tq != NULL) {
 		taskqueue_drain(sc->tq, &sc->ext_intr_task);
 		taskqueue_free(sc->tq);
 	}
-
-	callout_drain(&sc->cxgb_tick_ch);
 	
+	for (i = 0; i < (sc)->params.nports; ++i) {
+		if (sc->portdev[i] != NULL)
+			device_delete_child(sc->dev, sc->portdev[i]);
+	}
+		
 	bus_generic_detach(sc->dev);
 
 	t3_free_sge_resources(sc);
@@ -589,7 +592,7 @@ setup_sge_qsets(adapter_t *sc)
 	u_int ntxq = 3;
 
 	if ((err = t3_sge_alloc(sc)) != 0) {
-		printf("t3_sge_alloc returned %d\n", err);
+		device_printf(sc->dev, "t3_sge_alloc returned %d\n", err);
 		return (err);
 	}
 
@@ -602,12 +605,12 @@ setup_sge_qsets(adapter_t *sc)
 		struct port_info *pi = &sc->port[i];
 
 		for (j = 0; j < pi->nqsets; ++j, ++qset_idx) {
-			err = t3_sge_alloc_qset(sc, qset_idx, 1,
+			err = t3_sge_alloc_qset(sc, qset_idx, (sc)->params.nports,
 			    (sc->flags & USING_MSIX) ? qset_idx + 1 : irq_idx,
 			    &sc->params.sge.qset[qset_idx], ntxq, pi);
 			if (err) {
 				t3_free_sge_resources(sc);
-				printf("t3_sge_alloc_qset failed with %d\n", err);
+				device_printf(sc->dev, "t3_sge_alloc_qset failed with %d\n", err);
 				return (err);
 			}
 		}
@@ -628,6 +631,7 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 		device_printf(sc->dev, "Cannot allocate msix interrupt\n");
 		return (EINVAL);
 	}
+
 	if (bus_setup_intr(sc->dev, sc->irq_res, INTR_MPSAFE|INTR_TYPE_NET,
 #ifdef INTR_FILTERS
 			NULL,
@@ -636,7 +640,6 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 		device_printf(sc->dev, "Cannot set up interrupt\n");
 		return (EINVAL);
 	}
-
 	for (i = 0, k = 0; i < (sc)->params.nports; ++i) {
 		nqsets = sc->port[i].nqsets;
 		for (j = 0; j < nqsets; ++j, k++) {
@@ -665,6 +668,8 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 			}
 		}
 	}
+
+
 	return (0);
 }
 
@@ -1109,9 +1114,11 @@ cxgb_init_locked(struct port_info *p)
 	ADAPTER_UNLOCK(p->adapter);
 	t3_intr_enable(sc);
 	t3_port_intr_enable(sc, p->port);
+
 	if ((p->adapter->flags & (USING_MSIX | QUEUES_BOUND)) == USING_MSIX)
 		bind_qsets(sc);
 	p->adapter->flags |= QUEUES_BOUND;
+
 	callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
 	    cxgb_tick, sc);
 	
@@ -1125,6 +1132,8 @@ cxgb_set_rxmode(struct port_info *p)
 {
 	struct t3_rx_mode rm;
 	struct cmac *mac = &p->mac;
+
+	mtx_assert(&p->lock, MA_OWNED);
 	
 	t3_init_rx_mode(&rm, p);
 	t3_mac_set_rx_mode(mac, &rm);
@@ -1138,7 +1147,6 @@ cxgb_stop_locked(struct port_info *p)
 	mtx_assert(&p->lock, MA_OWNED);
 	mtx_assert(&p->adapter->lock, MA_NOTOWNED);
 		
-	callout_stop(&p->adapter->cxgb_tick_ch);
 	ifp = p->ifp;
 
 	ADAPTER_LOCK(p->adapter);
@@ -1185,8 +1193,9 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFFLAGS:
-		PORT_LOCK(p);
+
 		if (ifp->if_flags & IFF_UP) {
+			PORT_LOCK(p);			
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				flags = p->if_flags;
 				if (((ifp->if_flags ^ flags) & IFF_PROMISC) ||
@@ -1195,13 +1204,23 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			
 			} else
 				cxgb_init_locked(p);
+			p->if_flags = ifp->if_flags;
+			PORT_UNLOCK(p);
 		} else {
+			callout_drain(&p->adapter->cxgb_tick_ch);
+			PORT_LOCK(p);
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				cxgb_stop_locked(p);
+			} else {
+				adapter_t *sc = p->adapter;
+				callout_reset(&sc->cxgb_tick_ch,
+				    sc->params.stats_update_period * hz,
+				    cxgb_tick, sc);
 			}
+			PORT_UNLOCK(p);
 		}
-		p->if_flags = ifp->if_flags;
-		PORT_UNLOCK(p);
+
+
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -1370,8 +1389,13 @@ cxgb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 static void
 cxgb_async_intr(void *data)
 {
+	adapter_t *sc = data;
+
 	if (cxgb_debug)
-		printf("cxgb_async_intr\n");
+		device_printf(sc->dev, "cxgb_async_intr\n");
+
+	t3_slow_intr_handler(sc);
+
 }
 
 static void
