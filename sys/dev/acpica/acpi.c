@@ -106,8 +106,6 @@ static int	acpi_write_ivar(device_t dev, device_t child, int index,
 			uintptr_t value);
 static struct resource_list *acpi_get_rlist(device_t dev, device_t child);
 static int	acpi_sysres_alloc(device_t dev);
-static struct resource_list_entry *acpi_sysres_find(device_t dev, int type,
-		    u_long addr);
 static struct resource *acpi_alloc_resource(device_t bus, device_t child,
 			int type, int *rid, u_long start, u_long end,
 			u_long count, u_int flags);
@@ -958,31 +956,6 @@ acpi_sysres_alloc(device_t dev)
     return (0);
 }
 
-/* Find if we manage a given resource. */
-static struct resource_list_entry *
-acpi_sysres_find(device_t dev, int type, u_long addr)
-{
-    struct resource_list *rl;
-    struct resource_list_entry *rle;
-
-    ACPI_SERIAL_ASSERT(acpi);
-
-    /* We only consider IO and memory resources for our pool. */
-    rle = NULL;
-    if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY)
-	goto out;
-
-    rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
-    STAILQ_FOREACH(rle, rl, link) {
-	if (type == rle->type && addr >= rle->start &&
-	    addr < rle->start + rle->count)
-	    break;
-    }
-
-out:
-    return (rle);
-}
-
 static struct resource *
 acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -995,6 +968,19 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     struct rman *rm;
 
     res = NULL;
+
+    /* We only handle memory and IO resources through rman. */
+    switch (type) {
+    case SYS_RES_IOPORT:
+	rm = &acpi_rman_io;
+	break;
+    case SYS_RES_MEMORY:
+	rm = &acpi_rman_mem;
+	break;
+    default:
+	rm = NULL;
+    }
+	    
     ACPI_SERIAL_BEGIN(acpi);
 
     /*
@@ -1011,35 +997,19 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	count = rle->count;
     }
 
-    /* If we don't manage this address, pass the request up to the parent. */
-    rle = acpi_sysres_find(bus, type, start);
-    if (rle == NULL) {
+    /*
+     * If this is an allocation of a specific range, see if we can satisfy
+     * the request from our system resource regions.  If we can't, pass the
+     * request up to the parent.
+     */
+    if (!(start == 0UL && end == ~0UL) && rm != NULL)
+	res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
+	    child);
+    if (res == NULL) {
 	res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
 	    start, end, count, flags);
     } else {
-
-	/* We only handle memory and IO resources through rman. */
-	switch (type) {
-	case SYS_RES_IOPORT:
-	    rm = &acpi_rman_io;
-	    break;
-	case SYS_RES_MEMORY:
-	    rm = &acpi_rman_mem;
-	    break;
-	default:
-	    panic("acpi_alloc_resource: invalid res type %d", type);
-	}
-
-	/* If we do know it, allocate it from the local pool. */
-	res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
-	    child);
-	if (res == NULL)
-	    goto out;
-
-	/* Copy the bus tag and handle from the pre-allocated resource. */
 	rman_set_rid(res, *rid);
-	rman_set_bustag(res, rman_get_bustag(rle->res));
-	rman_set_bushandle(res, rman_get_start(res));
 
 	/* If requested, activate the resource using the parent's method. */
 	if (flags & RF_ACTIVE)
@@ -1075,15 +1045,29 @@ static int
 acpi_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
+    struct rman *rm;
     int ret;
+
+    /* We only handle memory and IO resources through rman. */
+    switch (type) {
+    case SYS_RES_IOPORT:
+	rm = &acpi_rman_io;
+	break;
+    case SYS_RES_MEMORY:
+	rm = &acpi_rman_mem;
+	break;
+    default:
+	rm = NULL;
+    }
 
     ACPI_SERIAL_BEGIN(acpi);
 
     /*
-     * If we know about this address, deactivate it and release it to the
-     * local pool.  If we don't, pass this request up to the parent.
+     * If this resource belongs to one of our internal managers,
+     * deactivate it and release it to the local pool.  If it doesn't,
+     * pass this request up to the parent.
      */
-    if (acpi_sysres_find(bus, type, rman_get_start(r)) != NULL) {
+    if (rm != NULL && rman_is_region_manager(r, rm)) {
 	if (rman_get_flags(r) & RF_ACTIVE) {
 	    ret = bus_deactivate_resource(child, type, rid, r);
 	    if (ret != 0)
