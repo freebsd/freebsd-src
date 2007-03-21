@@ -156,26 +156,26 @@ static void tcp_hc_purge(void *);
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0, "TCP Host cache");
 
 SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,
-     &tcp_hostcache.cache_limit, 0, "Overall entry limit for hostcache");
+    &tcp_hostcache.cache_limit, 0, "Overall entry limit for hostcache");
 
 SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, hashsize, CTLFLAG_RDTUN,
-     &tcp_hostcache.hashsize, 0, "Size of TCP hostcache hashtable");
+    &tcp_hostcache.hashsize, 0, "Size of TCP hostcache hashtable");
 
 SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, bucketlimit, CTLFLAG_RDTUN,
-     &tcp_hostcache.bucket_limit, 0, "Per-bucket hash limit for hostcache");
+    &tcp_hostcache.bucket_limit, 0, "Per-bucket hash limit for hostcache");
 
 SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, count, CTLFLAG_RD,
-     &tcp_hostcache.cache_count, 0, "Current number of entries in hostcache");
+    &tcp_hostcache.cache_count, 0, "Current number of entries in hostcache");
 
 SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, expire, CTLFLAG_RW,
-     &tcp_hostcache.expire, 0, "Expire time of TCP hostcache entries");
+    &tcp_hostcache.expire, 0, "Expire time of TCP hostcache entries");
 
 SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, purge, CTLFLAG_RW,
-     &tcp_hostcache.purgeall, 0, "Expire all entires on next purge run");
+    &tcp_hostcache.purgeall, 0, "Expire all entires on next purge run");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, list,
-	CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP, 0, 0,
-	sysctl_tcp_hc_list, "A", "List of all hostcache entries");
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP, 0, 0,
+    sysctl_tcp_hc_list, "A", "List of all hostcache entries");
 
 
 static MALLOC_DEFINE(M_HOSTCACHE, "hostcache", "TCP hostcache");
