@@ -188,7 +188,7 @@ ENTRY_NP(arm9_idcache_wbinv_all)
 	 * dcache, so that we can safely flush the Icache and fall through
 	 * into the Dcache purging code.
 	 */
-	mcr	p15, 0, r0, c7, c5, 0	/* Flush I&D cache */
+	mcr	p15, 0, r0, c7, c5, 0	/* Flush I cache */
 	/* Fall through */
 
 ENTRY(arm9_dcache_wbinv_all)
