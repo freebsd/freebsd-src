@@ -311,7 +311,7 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
 int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
 	    int timo) __nonnull(1);
 #define	msleep(chan, mtx, pri, wmesg, timo)				\
-	_sleep((chan), &(mtx)->mtx_object, (pri), (wmesg), (timo))
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo))
 int	msleep_spin(void *chan, struct mtx *mtx, const char *wmesg, int timo)
 	    __nonnull(1);
 int	pause(const char *wmesg, int timo);
