@@ -326,14 +326,14 @@ const char *witness_file(struct lock_object *);
  * wherever they please without having to actually grab a lock to do so.
  */
 #define	witness_check_mutex(m)						\
-	WITNESS_CHECKORDER(&(m)->mtx_object, LOP_EXCLUSIVE, LOCK_FILE,	\
+	WITNESS_CHECKORDER(&(m)->lock_object, LOP_EXCLUSIVE, LOCK_FILE,	\
 	    LOCK_LINE)
 
 #define	witness_check_shared_sx(sx)					\
-	WITNESS_CHECKORDER(&(sx)->sx_object, 0, LOCK_FILE, LOCK_LINE)
+	WITNESS_CHECKORDER(&(sx)->lock_object, 0, LOCK_FILE, LOCK_LINE)
 	
 #define	witness_check_exclusive_sx(sx)					\
-	WITNESS_CHECKORDER(&(sx)->sx_object, LOP_EXCLUSIVE, LOCK_FILE,	\
+	WITNESS_CHECKORDER(&(sx)->lock_object, LOP_EXCLUSIVE, LOCK_FILE, \
 	    LOCK_LINE)
 
 #endif	/* _KERNEL */

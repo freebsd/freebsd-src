@@ -36,7 +36,7 @@
  * Reader/writer lock.
  */
 struct rwlock {
-	struct lock_object	rw_object;
+	struct lock_object	lock_object;
 	volatile uintptr_t	rw_lock;
 };
 

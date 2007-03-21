@@ -270,13 +270,13 @@ msleep_spin(ident, mtx, wmesg, timo)
 
 	DROP_GIANT();
 	mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
-	WITNESS_SAVE(&mtx->mtx_object, mtx);
+	WITNESS_SAVE(&mtx->lock_object, mtx);
 	mtx_unlock_spin(mtx);
 
 	/*
 	 * We put ourselves on the sleep queue and start our timeout.
 	 */
-	sleepq_add(ident, &mtx->mtx_object, wmesg, SLEEPQ_SLEEP, 0);
+	sleepq_add(ident, &mtx->lock_object, wmesg, SLEEPQ_SLEEP, 0);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
 
@@ -312,7 +312,7 @@ msleep_spin(ident, mtx, wmesg, timo)
 #endif
 	PICKUP_GIANT();
 	mtx_lock_spin(mtx);
-	WITNESS_RESTORE(&mtx->mtx_object, mtx);
+	WITNESS_RESTORE(&mtx->lock_object, mtx);
 	return (rval);
 }
 

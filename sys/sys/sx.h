@@ -35,7 +35,7 @@
 #include <sys/condvar.h>	/* XXX */
 
 struct sx {
-	struct lock_object sx_object;	/* Common lock properties. */
+	struct lock_object lock_object;	/* Common lock properties. */
 	struct mtx	*sx_lock;	/* General protection lock. */
 	int		sx_cnt;		/* -1: xlock, > 0: slock count. */
 	struct cv	sx_shrd_cv;	/* slock waiters. */
@@ -95,7 +95,7 @@ struct sx_args {
 		sx_sunlock(sx);						\
 } while (0)
 #define	sx_sleep(chan, sx, pri, wmesg, timo)				\
-	_sleep((chan), &(sx)->sx_object, (pri), (wmesg), (timo))
+	_sleep((chan), &(sx)->lock_object, (pri), (wmesg), (timo))
 
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 #define	SX_LOCKED		LA_LOCKED

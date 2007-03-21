@@ -118,8 +118,8 @@ sx_init(struct sx *sx, const char *description)
 	cv_init(&sx->sx_excl_cv, description);
 	sx->sx_excl_wcnt = 0;
 	sx->sx_xholder = NULL;
-	lock_profile_object_init(&sx->sx_object, &lock_class_sx, description);
-	lock_init(&sx->sx_object, &lock_class_sx, description, NULL,
+	lock_profile_object_init(&sx->lock_object, &lock_class_sx, description);
+	lock_init(&sx->lock_object, &lock_class_sx, description, NULL,
 	    LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE);
 }
 
@@ -129,14 +129,14 @@ sx_destroy(struct sx *sx)
 
 	KASSERT((sx->sx_cnt == 0 && sx->sx_shrd_wcnt == 0 && sx->sx_excl_wcnt ==
 	    0), ("%s (%s): holders or waiters\n", __func__,
-	    sx->sx_object.lo_name));
+	    sx->lock_object.lo_name));
 
 	sx->sx_lock = NULL;
 	cv_destroy(&sx->sx_shrd_cv);
 	cv_destroy(&sx->sx_excl_cv);
 	
-	lock_profile_object_destroy(&sx->sx_object);
-	lock_destroy(&sx->sx_object);
+	lock_profile_object_destroy(&sx->lock_object);
+	lock_destroy(&sx->lock_object);
 }
 
 void
@@ -148,15 +148,15 @@ _sx_slock(struct sx *sx, const char *file, int line)
 	mtx_lock(sx->sx_lock);
 	KASSERT(sx->sx_xholder != curthread,
 	    ("%s (%s): slock while xlock is held @ %s:%d\n", __func__,
-	    sx->sx_object.lo_name, file, line));
-	WITNESS_CHECKORDER(&sx->sx_object, LOP_NEWORDER, file, line);
+	    sx->lock_object.lo_name, file, line));
+	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER, file, line);
 
 	/*
 	 * Loop in case we lose the race for lock acquisition.
 	 */
 	while (sx->sx_cnt < 0) {
 		sx->sx_shrd_wcnt++;
-		lock_profile_obtain_lock_failed(&sx->sx_object, &contested, &waittime);
+		lock_profile_obtain_lock_failed(&sx->lock_object, &contested, &waittime);
 		cv_wait(&sx->sx_shrd_cv, sx->sx_lock);
 		sx->sx_shrd_wcnt--;
 	}
@@ -165,10 +165,10 @@ _sx_slock(struct sx *sx, const char *file, int line)
 	sx->sx_cnt++;
 
         if (sx->sx_cnt == 1)
-		lock_profile_obtain_lock_success(&sx->sx_object, contested, waittime, file, line);
+		lock_profile_obtain_lock_success(&sx->lock_object, contested, waittime, file, line);
 
-	LOCK_LOG_LOCK("SLOCK", &sx->sx_object, 0, 0, file, line);
-	WITNESS_LOCK(&sx->sx_object, 0, file, line);
+	LOCK_LOG_LOCK("SLOCK", &sx->lock_object, 0, 0, file, line);
+	WITNESS_LOCK(&sx->lock_object, 0, file, line);
 	curthread->td_locks++;
 
 	mtx_unlock(sx->sx_lock);
@@ -181,13 +181,13 @@ _sx_try_slock(struct sx *sx, const char *file, int line)
 	mtx_lock(sx->sx_lock);
 	if (sx->sx_cnt >= 0) {
 		sx->sx_cnt++;
-		LOCK_LOG_TRY("SLOCK", &sx->sx_object, 0, 1, file, line);
-		WITNESS_LOCK(&sx->sx_object, LOP_TRYLOCK, file, line);
+		LOCK_LOG_TRY("SLOCK", &sx->lock_object, 0, 1, file, line);
+		WITNESS_LOCK(&sx->lock_object, LOP_TRYLOCK, file, line);
 		curthread->td_locks++;
 		mtx_unlock(sx->sx_lock);
 		return (1);
 	} else {
-		LOCK_LOG_TRY("SLOCK", &sx->sx_object, 0, 0, file, line);
+		LOCK_LOG_TRY("SLOCK", &sx->lock_object, 0, 0, file, line);
 		mtx_unlock(sx->sx_lock);
 		return (0);
 	}
@@ -210,14 +210,14 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 	 */
 	KASSERT(sx->sx_xholder != curthread,
 	    ("%s (%s): xlock already held @ %s:%d", __func__,
-	    sx->sx_object.lo_name, file, line));
-	WITNESS_CHECKORDER(&sx->sx_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
+	    sx->lock_object.lo_name, file, line));
+	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
 	    line);
 
 	/* Loop in case we lose the race for lock acquisition. */
 	while (sx->sx_cnt != 0) {
 		sx->sx_excl_wcnt++;
-		lock_profile_obtain_lock_failed(&sx->sx_object, &contested, &waittime);
+		lock_profile_obtain_lock_failed(&sx->lock_object, &contested, &waittime);
 		cv_wait(&sx->sx_excl_cv, sx->sx_lock);
 		sx->sx_excl_wcnt--;
 	}
@@ -228,9 +228,9 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 	sx->sx_cnt--;
 	sx->sx_xholder = curthread;
 
-	lock_profile_obtain_lock_success(&sx->sx_object, contested, waittime, file, line);
-	LOCK_LOG_LOCK("XLOCK", &sx->sx_object, 0, 0, file, line);
-	WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
+	lock_profile_obtain_lock_success(&sx->lock_object, contested, waittime, file, line);
+	LOCK_LOG_LOCK("XLOCK", &sx->lock_object, 0, 0, file, line);
+	WITNESS_LOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
 	curthread->td_locks++;
 
 	mtx_unlock(sx->sx_lock);
@@ -244,14 +244,14 @@ _sx_try_xlock(struct sx *sx, const char *file, int line)
 	if (sx->sx_cnt == 0) {
 		sx->sx_cnt--;
 		sx->sx_xholder = curthread;
-		LOCK_LOG_TRY("XLOCK", &sx->sx_object, 0, 1, file, line);
-		WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE | LOP_TRYLOCK, file,
+		LOCK_LOG_TRY("XLOCK", &sx->lock_object, 0, 1, file, line);
+		WITNESS_LOCK(&sx->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK, file,
 		    line);
 		curthread->td_locks++;
 		mtx_unlock(sx->sx_lock);
 		return (1);
 	} else {
-		LOCK_LOG_TRY("XLOCK", &sx->sx_object, 0, 0, file, line);
+		LOCK_LOG_TRY("XLOCK", &sx->lock_object, 0, 0, file, line);
 		mtx_unlock(sx->sx_lock);
 		return (0);
 	}
@@ -264,13 +264,13 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	mtx_lock(sx->sx_lock);
 
 	curthread->td_locks--;
-	WITNESS_UNLOCK(&sx->sx_object, 0, file, line);
+	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
 
 	/* Release. */
 	sx->sx_cnt--;
 
 	if (sx->sx_cnt == 0) {
-		lock_profile_release_lock(&sx->sx_object);
+		lock_profile_release_lock(&sx->lock_object);
 	}
 
 	/*
@@ -285,7 +285,7 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	} else if (sx->sx_shrd_wcnt > 0)
 		cv_broadcast(&sx->sx_shrd_cv);
 
-	LOCK_LOG_LOCK("SUNLOCK", &sx->sx_object, 0, 0, file, line);
+	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);
 
 	mtx_unlock(sx->sx_lock);
 }
@@ -298,7 +298,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	MPASS(sx->sx_cnt == -1);
 
 	curthread->td_locks--;
-	WITNESS_UNLOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
+	WITNESS_UNLOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
 
 	/* Release. */
 	sx->sx_cnt++;
@@ -312,9 +312,9 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	else if (sx->sx_excl_wcnt > 0)
 		cv_signal(&sx->sx_excl_cv);
 
-	LOCK_LOG_LOCK("XUNLOCK", &sx->sx_object, 0, 0, file, line);
+	LOCK_LOG_LOCK("XUNLOCK", &sx->lock_object, 0, 0, file, line);
 
-	lock_profile_release_lock(&sx->sx_object);
+	lock_profile_release_lock(&sx->lock_object);
 	mtx_unlock(sx->sx_lock);
 }
 
@@ -329,14 +329,14 @@ _sx_try_upgrade(struct sx *sx, const char *file, int line)
 		sx->sx_cnt = -1;
 		sx->sx_xholder = curthread;
 
-		LOCK_LOG_TRY("XUPGRADE", &sx->sx_object, 0, 1, file, line);
-		WITNESS_UPGRADE(&sx->sx_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
+		LOCK_LOG_TRY("XUPGRADE", &sx->lock_object, 0, 1, file, line);
+		WITNESS_UPGRADE(&sx->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
 
 		mtx_unlock(sx->sx_lock);
 		return (1);
 	} else {
-		LOCK_LOG_TRY("XUPGRADE", &sx->sx_object, 0, 0, file, line);
+		LOCK_LOG_TRY("XUPGRADE", &sx->lock_object, 0, 0, file, line);
 		mtx_unlock(sx->sx_lock);
 		return (0);
 	}
@@ -350,14 +350,14 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 	mtx_lock(sx->sx_lock);
 	MPASS(sx->sx_cnt == -1);
 
-	WITNESS_DOWNGRADE(&sx->sx_object, 0, file, line);
+	WITNESS_DOWNGRADE(&sx->lock_object, 0, file, line);
 
 	sx->sx_cnt = 1;
 	sx->sx_xholder = NULL;
         if (sx->sx_shrd_wcnt > 0)
                 cv_broadcast(&sx->sx_shrd_cv);
 
-	LOCK_LOG_LOCK("XDOWNGRADE", &sx->sx_object, 0, 0, file, line);
+	LOCK_LOG_LOCK("XDOWNGRADE", &sx->lock_object, 0, 0, file, line);
 
 	mtx_unlock(sx->sx_lock);
 }
@@ -383,13 +383,13 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 	case SX_LOCKED | LA_NOTRECURSED:
 	case SX_SLOCKED:
 #ifdef WITNESS
-		witness_assert(&sx->sx_object, what, file, line);
+		witness_assert(&sx->lock_object, what, file, line);
 #else
 		mtx_lock(sx->sx_lock);
 		if (sx->sx_cnt <= 0 &&
 		    (what == SX_SLOCKED || sx->sx_xholder != curthread))
 			panic("Lock %s not %slocked @ %s:%d\n",
-			    sx->sx_object.lo_name, (what == SX_SLOCKED) ?
+			    sx->lock_object.lo_name, (what == SX_SLOCKED) ?
 			    "share " : "", file, line);
 		mtx_unlock(sx->sx_lock);
 #endif
@@ -398,12 +398,12 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 		mtx_lock(sx->sx_lock);
 		if (sx->sx_xholder != curthread)
 			panic("Lock %s not exclusively locked @ %s:%d\n",
-			    sx->sx_object.lo_name, file, line);
+			    sx->lock_object.lo_name, file, line);
 		mtx_unlock(sx->sx_lock);
 		break;
 	case SX_UNLOCKED:
 #ifdef WITNESS
-		witness_assert(&sx->sx_object, what, file, line);
+		witness_assert(&sx->lock_object, what, file, line);
 #else
 		/*
 		 * We are able to check only exclusive lock here,
@@ -412,7 +412,7 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 		mtx_lock(sx->sx_lock);
 		if (sx->sx_xholder == curthread)
 			panic("Lock %s exclusively locked @ %s:%d\n",
-			    sx->sx_object.lo_name, file, line);
+			    sx->lock_object.lo_name, file, line);
 		mtx_unlock(sx->sx_lock);
 #endif
 		break;
@@ -469,7 +469,7 @@ sx_chain(struct thread *td, struct thread **ownerp)
 	 * condition variable.
 	 */
 	sx = (struct sx *)((char *)cv - offsetof(struct sx, sx_excl_cv));
-	if (LOCK_CLASS(&sx->sx_object) == &lock_class_sx &&
+	if (LOCK_CLASS(&sx->lock_object) == &lock_class_sx &&
 	    sx->sx_excl_wcnt > 0)
 		goto ok;
 
@@ -478,7 +478,7 @@ sx_chain(struct thread *td, struct thread **ownerp)
 	 * condition variable.
 	 */
 	sx = (struct sx *)((char *)cv - offsetof(struct sx, sx_shrd_cv));
-	if (LOCK_CLASS(&sx->sx_object) == &lock_class_sx &&
+	if (LOCK_CLASS(&sx->lock_object) == &lock_class_sx &&
 	    sx->sx_shrd_wcnt > 0)
 		goto ok;
 
