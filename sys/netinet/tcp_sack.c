@@ -319,7 +319,7 @@ tcp_sackhole_free(struct tcpcb *tp, struct sackhole *hole)
  */
 static struct sackhole *
 tcp_sackhole_insert(struct tcpcb *tp, tcp_seq start, tcp_seq end,
-		    struct sackhole *after)
+    struct sackhole *after)
 {
 	struct sackhole *hole;
 
@@ -582,9 +582,7 @@ tcp_free_sackholes(struct tcpcb *tp)
  * of sack recovery.
  */
 void
-tcp_sack_partialack(tp, th)
-	struct tcpcb *tp;
-	struct tcphdr *th;
+tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 {
 	int num_segs = 1;
 
