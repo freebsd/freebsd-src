@@ -1874,11 +1874,6 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->snd_recover_prev, tp->t_badrxtwin);
 
 	db_print_indent(indent);
-	db_printf("snd_limited: %u   rcv_second: %lu   rcv_pps: %lu   "
-	    "tcv_byps: %lu\n", tp->snd_limited, tp->rcv_second, tp->rcv_pps,
-	    tp->rcv_byps);
-
-	db_print_indent(indent);
 	db_printf("sack_enable: %d   snd_numholes: %d  snd_holes first: %p\n",
 	    tp->sack_enable, tp->snd_numholes, TAILQ_FIRST(&tp->snd_holes));
 
