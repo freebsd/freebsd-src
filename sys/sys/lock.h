@@ -325,16 +325,12 @@ const char *witness_file(struct lock_object *);
  * Helper macros to allow developers to add explicit lock order checks
  * wherever they please without having to actually grab a lock to do so.
  */
-#define	witness_check_mutex(m)						\
-	WITNESS_CHECKORDER(&(m)->lock_object, LOP_EXCLUSIVE, LOCK_FILE,	\
+#define	witness_check(l)						\
+	WITNESS_CHECKORDER(&(l)->lock_object, LOP_EXCLUSIVE, LOCK_FILE,	\
 	    LOCK_LINE)
 
-#define	witness_check_shared_sx(sx)					\
-	WITNESS_CHECKORDER(&(sx)->lock_object, 0, LOCK_FILE, LOCK_LINE)
+#define	witness_check_shared(l)						\
+	WITNESS_CHECKORDER(&(l)->lock_object, 0, LOCK_FILE, LOCK_LINE)
 	
-#define	witness_check_exclusive_sx(sx)					\
-	WITNESS_CHECKORDER(&(sx)->lock_object, LOP_EXCLUSIVE, LOCK_FILE, \
-	    LOCK_LINE)
-
 #endif	/* _KERNEL */
 #endif	/* _SYS_LOCK_H_ */
