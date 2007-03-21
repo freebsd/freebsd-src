@@ -49,7 +49,7 @@
 #define BOOTOPT_TYPE_HEXINT		4
 #define BOOTOPT_TYPE_MASK		7
 
-int get_bootconf_option __P((char *, char *, int, void *));
+int get_bootconf_option (char *, char *, int, void *);
 
 extern char *boot_args;
 extern char *boot_file;
