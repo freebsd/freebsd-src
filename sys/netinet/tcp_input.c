@@ -106,11 +106,11 @@ SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
 
 static int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
-    &tcp_log_in_vain, 0, "Log all incoming TCP connections");
+    &tcp_log_in_vain, 0, "Log all incoming TCP segments to closed ports");
 
 static int blackhole = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
-    &blackhole, 0, "Do not send RST when dropping refused connections");
+    &blackhole, 0, "Do not send RST on segments to closed ports");
 
 int tcp_delack_enabled = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW,
@@ -704,62 +704,49 @@ findpcb:
 #endif /*IPSEC || FAST_IPSEC*/
 
 	/*
-	 * If the state is CLOSED (i.e., TCB does not exist) then
-	 * all data in the incoming segment is discarded.
-	 * If the TCB exists but is in CLOSED state, it is embryonic,
-	 * but should either do a listen or a connect soon.
+	 * If the INPCB does not exist then all data in the incoming
+	 * segment is discarded and an appropriate RST is sent back.
 	 */
 	if (inp == NULL) {
-		if (tcp_log_in_vain) {
-#ifdef INET6
-			char dbuf[INET6_ADDRSTRLEN+2], sbuf[INET6_ADDRSTRLEN+2];
-#else
+		/*
+		 * Log communication attempts to ports that are not
+		 * in use.
+		 */
+		if ((tcp_log_in_vain == 1 && (thflags & TH_SYN)) ||
+		    tcp_log_in_vain == 2) {
+#ifndef INET6
 			char dbuf[4*sizeof "123"], sbuf[4*sizeof "123"];
-#endif
-
+#else
+			char dbuf[INET6_ADDRSTRLEN+2], sbuf[INET6_ADDRSTRLEN+2];
 			if (isipv6) {
-#ifdef INET6
 				strcpy(dbuf, "[");
-				strcpy(sbuf, "[");
 				strcat(dbuf,
 				    ip6_sprintf(ip6buf, &ip6->ip6_dst));
+				strcat(dbuf, "]");
+				strcpy(sbuf, "[");
 				strcat(sbuf,
 				    ip6_sprintf(ip6buf, &ip6->ip6_src));
-				strcat(dbuf, "]");
 				strcat(sbuf, "]");
-#endif
-			} else {
+			} else
+#endif /* INET6 */
+			{
 				strcpy(dbuf, inet_ntoa(ip->ip_dst));
 				strcpy(sbuf, inet_ntoa(ip->ip_src));
 			}
-			switch (tcp_log_in_vain) {
-			case 1:
-				if ((thflags & TH_SYN) == 0)
-					break;
-				/* FALLTHROUGH */
-			case 2:
-				log(LOG_INFO,
-				    "Connection attempt to TCP %s:%d "
-				    "from %s:%d flags:0x%02x\n",
-				    dbuf, ntohs(th->th_dport), sbuf,
-				    ntohs(th->th_sport), thflags);
-				break;
-			default:
-				break;
-			}
+			log(LOG_INFO,
+			    "Connection attempt to TCP %s:%d "
+			    "from %s:%d flags:0x%02x\n",
+			    dbuf, ntohs(th->th_dport), sbuf,
+			    ntohs(th->th_sport), thflags);
 		}
-		if (blackhole) {
-			switch (blackhole) {
-			case 1:
-				if (thflags & TH_SYN)
-					goto drop;
-				break;
-			case 2:
-				goto drop;
-			default:
-				goto drop;
-			}
-		}
+		/*
+		 * When blackholing do not respond with a RST but
+		 * completely ignore the segment and drop it.
+		 */
+		if ((blackhole == 1 && (thflags & TH_SYN)) ||
+		    blackhole == 2)
+			goto drop;
+
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
 	}
