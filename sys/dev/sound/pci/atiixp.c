@@ -1111,27 +1111,30 @@ atiixp_release_resource(struct atiixp_info *sc)
 	}
 	if (sc->ih) {
 		bus_teardown_intr(sc->dev, sc->irq, sc->ih);
-		sc->ih = 0;
+		sc->ih = NULL;
 	}
 	if (sc->reg) {
 		bus_release_resource(sc->dev, sc->regtype, sc->regid, sc->reg);
-		sc->reg = 0;
+		sc->reg = NULL;
 	}
 	if (sc->irq) {
 		bus_release_resource(sc->dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-		sc->irq = 0;
+		sc->irq = NULL;
 	}
 	if (sc->parent_dmat) {
 		bus_dma_tag_destroy(sc->parent_dmat);
-		sc->parent_dmat = 0;
+		sc->parent_dmat = NULL;
 	}
-	if (sc->sgd_dmamap) {
+	if (sc->sgd_dmamap)
 		bus_dmamap_unload(sc->sgd_dmat, sc->sgd_dmamap);
-		sc->sgd_dmamap = 0;
+	if (sc->sgd_table) {
+		bus_dmamem_free(sc->sgd_dmat, sc->sgd_table, sc->sgd_dmamap);
+		sc->sgd_table = NULL;
 	}
+	sc->sgd_dmamap = NULL;
 	if (sc->sgd_dmat) {
 		bus_dma_tag_destroy(sc->sgd_dmat);
-		sc->sgd_dmat = 0;
+		sc->sgd_dmat = NULL;
 	}
 	if (sc->lock) {
 		snd_mtxfree(sc->lock);

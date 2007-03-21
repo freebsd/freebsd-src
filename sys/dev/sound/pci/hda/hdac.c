@@ -1210,7 +1210,7 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 	if (result != 0) {
 		device_printf(sc->dev, "%s: bus_dma_tag_create failed (%x)\n",
 		    __func__, result);
-		goto fail;
+		goto hdac_dma_alloc_fail;
 	}
 
 	/*
@@ -1221,7 +1221,7 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 	if (result != 0) {
 		device_printf(sc->dev, "%s: bus_dmamem_alloc failed (%x)\n",
 		    __func__, result);
-		goto fail;
+		goto hdac_dma_alloc_fail;
 	}
 
 	/*
@@ -1231,19 +1231,19 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 	    (void *)dma->dma_vaddr, size, hdac_dma_cb, (void *)dma,
 	    BUS_DMA_NOWAIT);
 	if (result != 0 || dma->dma_paddr == 0) {
+		if (result == 0)
+			result = ENOMEM;
 		device_printf(sc->dev, "%s: bus_dmamem_load failed (%x)\n",
 		    __func__, result);
-		goto fail;
+		goto hdac_dma_alloc_fail;
 	}
 	hdac_dma_attr((vm_offset_t)dma->dma_vaddr, size, HDAC_DMA_UNCACHEABLE);
 	dma->dma_size = size;
 
 	return (0);
-fail:
-	if (dma->dma_map != NULL)
-		bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-	if (dma->dma_tag != NULL)
-		bus_dma_tag_destroy(dma->dma_tag);
+hdac_dma_alloc_fail:
+	hdac_dma_free(dma);
+
 	return (result);
 }
 
@@ -1257,16 +1257,25 @@ fail:
 static void
 hdac_dma_free(struct hdac_dma *dma)
 {
-	if (dma->dma_tag != NULL) {
+	if (dma->dma_map != NULL) {
 		/* Flush caches */
 		bus_dmamap_sync(dma->dma_tag, dma->dma_map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-		hdac_dma_attr((vm_offset_t)dma->dma_vaddr, dma->dma_size,
-		    HDAC_DMA_WRITEBACK);
 		bus_dmamap_unload(dma->dma_tag, dma->dma_map);
-		bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-		bus_dma_tag_destroy(dma->dma_tag);
 	}
+	if (dma->dma_vaddr != NULL) {
+		if (dma->dma_size > 0)
+			hdac_dma_attr((vm_offset_t)dma->dma_vaddr,
+			    dma->dma_size, HDAC_DMA_WRITEBACK);
+		bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
+		dma->dma_vaddr = NULL;
+	}
+	dma->dma_map = NULL;
+	if (dma->dma_tag != NULL) {
+		bus_dma_tag_destroy(dma->dma_tag);
+		dma->dma_tag = NULL;
+	}
+	dma->dma_size = 0;
 }
 
 /****************************************************************************
@@ -1330,7 +1339,7 @@ hdac_irq_alloc(struct hdac_softc *sc)
 	if (irq->irq_res == NULL) {
 		device_printf(sc->dev, "%s: Unable to allocate irq\n",
 		    __func__);
-		goto fail;
+		goto hdac_irq_alloc_fail;
 	}
 	result = snd_setup_intr(sc->dev, irq->irq_res, INTR_MPSAFE,
 	    hdac_intr_handler, sc, &irq->irq_handle);
@@ -1338,12 +1347,12 @@ hdac_irq_alloc(struct hdac_softc *sc)
 		device_printf(sc->dev,
 		    "%s: Unable to setup interrupt handler (%x)\n",
 		    __func__, result);
-		goto fail;
+		goto hdac_irq_alloc_fail;
 	}
 
 	return (0);
 
-fail:
+hdac_irq_alloc_fail:
 	hdac_irq_free(sc);
 
 	return (ENXIO);
@@ -2655,8 +2664,9 @@ hdac_channel_free(kobj_t obj, void *data)
 {
 	struct hdac_chan *ch = data;
 
-	hdac_dma_attr((vm_offset_t)ch->b->buf, sndbuf_getmaxsize(ch->b),
-	    HDAC_DMA_WRITEBACK);
+	if (ch != NULL && ch->b != NULL && ch->b->buf != NULL)
+		hdac_dma_attr((vm_offset_t)ch->b->buf, sndbuf_getmaxsize(ch->b),
+		    HDAC_DMA_WRITEBACK);
 
 	return (1);
 }
