@@ -777,7 +777,7 @@ out:
  */
 static int
 tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
-	     struct sockaddr *nam, struct mbuf *control, struct thread *td)
+    struct sockaddr *nam, struct mbuf *control, struct thread *td)
 {
 	int error = 0;
 	struct inpcb *inp;
@@ -1100,10 +1100,7 @@ struct pr_usrreqs tcp6_usrreqs = {
  * Initialize connection parameters and enter SYN-SENT state.
  */
 static int
-tcp_connect(tp, nam, td)
-	register struct tcpcb *tp;
-	struct sockaddr *nam;
-	struct thread *td;
+tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
@@ -1159,10 +1156,7 @@ tcp_connect(tp, nam, td)
 
 #ifdef INET6
 static int
-tcp6_connect(tp, nam, td)
-	register struct tcpcb *tp;
-	struct sockaddr *nam;
-	struct thread *td;
+tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
@@ -1232,9 +1226,7 @@ tcp6_connect(tp, nam, td)
  * from Linux.
  */
 static void
-tcp_fill_info(tp, ti)
-	struct tcpcb *tp;
-	struct tcp_info *ti;
+tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 {
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
@@ -1276,9 +1268,7 @@ tcp_fill_info(tp, ti)
  * the inpcb lock.
  */
 int
-tcp_ctloutput(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	int	error, opt, optval;
 	struct	inpcb *inp;
@@ -1440,10 +1430,9 @@ SYSCTL_ULONG(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
  * bufer space, and entering LISTEN state if to accept connections.
  */
 static int
-tcp_attach(so)
-	struct socket *so;
+tcp_attach(struct socket *so)
 {
-	register struct tcpcb *tp;
+	struct tcpcb *tp;
 	struct inpcb *inp;
 	int error;
 #ifdef INET6
@@ -1503,8 +1492,7 @@ tcp_attach(so)
  * send segment to peer (with FIN).
  */
 static void
-tcp_disconnect(tp)
-	register struct tcpcb *tp;
+tcp_disconnect(struct tcpcb *tp)
 {
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so = inp->inp_socket;
@@ -1544,8 +1532,7 @@ tcp_disconnect(tp)
  * We can let the user exit from the close as soon as the FIN is acked.
  */
 static void
-tcp_usrclosed(tp)
-	register struct tcpcb *tp;
+tcp_usrclosed(struct tcpcb *tp)
 {
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);

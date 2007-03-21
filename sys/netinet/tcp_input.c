@@ -236,11 +236,7 @@ tcp_reass_init()
 }
 
 static int
-tcp_reass(tp, th, tlenp, m)
-	register struct tcpcb *tp;
-	register struct tcphdr *th;
-	int *tlenp;
-	struct mbuf *m;
+tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 {
 	struct tseg_qent *q;
 	struct tseg_qent *p = NULL;
@@ -310,7 +306,7 @@ tcp_reass(tp, th, tlenp, m)
 	 * segment.  If it provides all of our data, drop us.
 	 */
 	if (p != NULL) {
-		register int i;
+		int i;
 		/* conversion to int (in i) handles seq wraparound */
 		i = p->tqe_th->th_seq + p->tqe_len - th->th_seq;
 		if (i > 0) {
@@ -342,7 +338,7 @@ tcp_reass(tp, th, tlenp, m)
 	 * if they are completely covered, dequeue them.
 	 */
 	while (q) {
-		register int i = (th->th_seq + *tlenp) - q->tqe_th->th_seq;
+		int i = (th->th_seq + *tlenp) - q->tqe_th->th_seq;
 		if (i <= 0)
 			break;
 		if (i < q->tqe_len) {
@@ -408,11 +404,9 @@ present:
  */
 #ifdef INET6
 int
-tcp6_input(mp, offp, proto)
-	struct mbuf **mp;
-	int *offp, proto;
+tcp6_input(struct mbuf **mp, int *offp, int proto)
 {
-	register struct mbuf *m = *mp;
+	struct mbuf *m = *mp;
 	struct in6_ifaddr *ia6;
 
 	IP6_EXTHDR_CHECK(m, *offp, sizeof(struct tcphdr), IPPROTO_DONE);
@@ -437,20 +431,18 @@ tcp6_input(mp, offp, proto)
 #endif
 
 void
-tcp_input(m, off0)
-	register struct mbuf *m;
-	int off0;
+tcp_input(struct mbuf *m, int off0)
 {
-	register struct tcphdr *th;
-	register struct ip *ip = NULL;
-	register struct ipovly *ipov;
-	register struct inpcb *inp = NULL;
+	struct tcphdr *th;
+	struct ip *ip = NULL;
+	struct ipovly *ipov;
+	struct inpcb *inp = NULL;
 	u_char *optp = NULL;
 	int optlen = 0;
 	int len, tlen, off;
 	int drop_hdrlen;
-	register struct tcpcb *tp = 0;
-	register int thflags;
+	struct tcpcb *tp = 0;
+	int thflags;
 	struct socket *so = 0;
 	int todrop, acked, ourfinisacked, needoutput = 0;
 	u_long tiwin;
@@ -2137,8 +2129,8 @@ process_ACK:
 		 */
 		if ((!tcp_do_newreno && !tp->sack_enable) ||
 		    !IN_FASTRECOVERY(tp)) {
-			register u_int cw = tp->snd_cwnd;
-			register u_int incr = tp->t_maxseg;
+			u_int cw = tp->snd_cwnd;
+			u_int incr = tp->t_maxseg;
 			if (cw > tp->snd_ssthresh)
 				incr = incr * incr / cw;
 			tp->snd_cwnd = min(cw+incr, TCP_MAXWIN<<tp->snd_scale);
@@ -2597,11 +2589,7 @@ drop:
  * Parse TCP options and place in tcpopt.
  */
 static void
-tcp_dooptions(to, cp, cnt, flags)
-	struct tcpopt *to;
-	u_char *cp;
-	int cnt;
-	int flags;
+tcp_dooptions(struct tcpopt *to, u_char *cp, int cnt, int flags)
 {
 	int opt, optlen;
 
@@ -2691,11 +2679,8 @@ tcp_dooptions(to, cp, cnt, flags)
  * sequencing purposes.
  */
 static void
-tcp_pulloutofband(so, th, m, off)
-	struct socket *so;
-	struct tcphdr *th;
-	register struct mbuf *m;
-	int off;		/* delayed to be droped hdrlen */
+tcp_pulloutofband(struct socket *so, struct tcphdr *th, struct mbuf *m,
+    int off)
 {
 	int cnt = off + th->th_urp - 1;
 
@@ -2725,11 +2710,9 @@ tcp_pulloutofband(so, th, m, off)
  * and update averages and current timeout.
  */
 static void
-tcp_xmit_timer(tp, rtt)
-	register struct tcpcb *tp;
-	int rtt;
+tcp_xmit_timer(struct tcpcb *tp, int rtt)
 {
-	register int delta;
+	int delta;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
 
@@ -2833,9 +2816,7 @@ tcp_xmit_timer(tp, rtt)
  * segment. Outgoing SYN/ACK MSS settings are handled in tcp_mssopt().
  */
 void
-tcp_mss(tp, offer)
-	struct tcpcb *tp;
-	int offer;
+tcp_mss(struct tcpcb *tp, int offer)
 {
 	int rtt, mss;
 	u_long bufsize;
@@ -3079,8 +3060,7 @@ tcp_mss(tp, offer)
  * Determine the MSS option to send on an outgoing SYN.
  */
 int
-tcp_mssopt(inc)
-	struct in_conninfo *inc;
+tcp_mssopt(struct in_conninfo *inc)
 {
 	int mss = 0;
 	u_long maxmtu = 0;
@@ -3122,9 +3102,7 @@ tcp_mssopt(inc)
  * be started again.
  */
 static void
-tcp_newreno_partial_ack(tp, th)
-	struct tcpcb *tp;
-	struct tcphdr *th;
+tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 {
 	tcp_seq onxt = tp->snd_nxt;
 	u_long  ocwnd = tp->snd_cwnd;
@@ -3158,12 +3136,8 @@ tcp_newreno_partial_ack(tp, th)
  * looking for a pcb in the listen state.  Returns 0 otherwise.
  */
 static int
-tcp_timewait(inp, to, th, m, tlen)
-	struct inpcb *inp;
-	struct tcpopt *to;
-	struct tcphdr *th;
-	struct mbuf *m;
-	int tlen;
+tcp_timewait(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
+    struct mbuf *m, int tlen)
 {
 	struct tcptw *tw;
 	int thflags;

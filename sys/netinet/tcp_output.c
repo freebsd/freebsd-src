@@ -1226,8 +1226,7 @@ out:
 }
 
 void
-tcp_setpersist(tp)
-	register struct tcpcb *tp;
+tcp_setpersist(struct tcpcb *tp)
 {
 	int t = ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1;
 	int tt;
