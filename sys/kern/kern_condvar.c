@@ -49,12 +49,11 @@ __FBSDID("$FreeBSD$");
 /*
  * Common sanity checks for cv_wait* functions.
  */
-#define	CV_ASSERT(cvp, mp, td) do {					\
+#define	CV_ASSERT(cvp, lock, td) do {					\
 	KASSERT((td) != NULL, ("%s: curthread NULL", __func__));	\
 	KASSERT(TD_IS_RUNNING(td), ("%s: not TDS_RUNNING", __func__));	\
 	KASSERT((cvp) != NULL, ("%s: cvp NULL", __func__));		\
-	KASSERT((mp) != NULL, ("%s: mp NULL", __func__));		\
-	mtx_assert((mp), MA_OWNED | MA_NOTRECURSED);			\
+	KASSERT((lock) != NULL, ("%s: lock NULL", __func__));		\
 } while (0)
 
 /*
@@ -93,20 +92,23 @@ cv_destroy(struct cv *cvp)
  * held when cv_signal or cv_broadcast are called.
  */
 void
-cv_wait(struct cv *cvp, struct mtx *mp)
+_cv_wait(struct cv *cvp, struct lock_object *lock)
 {
-	WITNESS_SAVE_DECL(mp);
+	WITNESS_SAVE_DECL(lock_witness);
+	struct lock_class *class;
 	struct thread *td;
+	int lock_state;
 
 	td = curthread;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
 #endif
-	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->lock_object,
+	CV_ASSERT(cvp, lock, td);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(&mp->lock_object, mp);
+	WITNESS_SAVE(lock, lock_witness);
+	class = LOCK_CLASS(lock);
 
 	if (cold || panicstr) {
 		/*
@@ -122,10 +124,9 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
-	mtx_unlock(mp);
+	lock_state = class->lc_unlock(lock);
 
-	sleepq_add(cvp, &mp->lock_object, cvp->cv_description, SLEEPQ_CONDVAR, 
-		   0);
+	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
 	sleepq_wait(cvp);
 
 #ifdef KTRACE
@@ -133,8 +134,8 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	mtx_lock(mp);
-	WITNESS_RESTORE(&mp->lock_object, mp);
+	class->lc_lock(lock, lock_state);
+	WITNESS_RESTORE(lock, lock_witness);
 }
 
 /*
@@ -142,8 +143,9 @@ cv_wait(struct cv *cvp, struct mtx *mp)
  * not aquiring the mutex after condition variable was signaled.
  */
 void
-cv_wait_unlock(struct cv *cvp, struct mtx *mp)
+_cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 {
+	struct lock_class *class;
 	struct thread *td;
 
 	td = curthread;
@@ -151,9 +153,10 @@ cv_wait_unlock(struct cv *cvp, struct mtx *mp)
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
 #endif
-	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->lock_object,
+	CV_ASSERT(cvp, lock, td);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
+	class = LOCK_CLASS(lock);
 
 	if (cold || panicstr) {
 		/*
@@ -162,7 +165,7 @@ cv_wait_unlock(struct cv *cvp, struct mtx *mp)
 		 * thread or panic below, in case this is the idle
 		 * process and already asleep.
 		 */
-		mtx_unlock(mp);
+		class->lc_unlock(lock);
 		return;
 	}
 
@@ -170,10 +173,9 @@ cv_wait_unlock(struct cv *cvp, struct mtx *mp)
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
-	mtx_unlock(mp);
+	class->lc_unlock(lock);
 
-	sleepq_add(cvp, &mp->lock_object, cvp->cv_description, SLEEPQ_CONDVAR, 
-		   0);
+	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
 	sleepq_wait(cvp);
 
 #ifdef KTRACE
@@ -190,12 +192,13 @@ cv_wait_unlock(struct cv *cvp, struct mtx *mp)
  * restarted if possible.
  */
 int
-cv_wait_sig(struct cv *cvp, struct mtx *mp)
+_cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 {
+	WITNESS_SAVE_DECL(lock_witness);
+	struct lock_class *class;
 	struct thread *td;
 	struct proc *p;
-	int rval;
-	WITNESS_SAVE_DECL(mp);
+	int lock_state, rval;
 
 	td = curthread;
 	p = td->td_proc;
@@ -203,10 +206,11 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
 #endif
-	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->lock_object,
+	CV_ASSERT(cvp, lock, td);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(&mp->lock_object, mp);
+	WITNESS_SAVE(lock, lock_witness);
+	class = LOCK_CLASS(lock);
 
 	if (cold || panicstr) {
 		/*
@@ -222,9 +226,9 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
-	mtx_unlock(mp);
+	lock_state = class->lc_unlock(lock);
 
-	sleepq_add(cvp, &mp->lock_object, cvp->cv_description, SLEEPQ_CONDVAR |
+	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
 	rval = sleepq_wait_sig(cvp);
 
@@ -233,8 +237,8 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	mtx_lock(mp);
-	WITNESS_RESTORE(&mp->lock_object, mp);
+	class->lc_lock(lock, lock_state);
+	WITNESS_RESTORE(lock, lock_witness);
 
 	return (rval);
 }
@@ -245,11 +249,12 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
  * expires.
  */
 int
-cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
+_cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 {
+	WITNESS_SAVE_DECL(lock_witness);
+	struct lock_class *class;
 	struct thread *td;
-	int rval;
-	WITNESS_SAVE_DECL(mp);
+	int lock_state, rval;
 
 	td = curthread;
 	rval = 0;
@@ -257,10 +262,11 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
 #endif
-	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->lock_object,
+	CV_ASSERT(cvp, lock, td);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(&mp->lock_object, mp);
+	WITNESS_SAVE(lock, lock_witness);
+	class = LOCK_CLASS(lock);
 
 	if (cold || panicstr) {
 		/*
@@ -276,10 +282,9 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
-	mtx_unlock(mp);
+	lock_state = class->lc_unlock(lock);
 
-	sleepq_add(cvp, &mp->lock_object, cvp->cv_description, SLEEPQ_CONDVAR, 
-		   0);
+	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
 	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait(cvp);
 
@@ -288,8 +293,8 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	mtx_lock(mp);
-	WITNESS_RESTORE(&mp->lock_object, mp);
+	class->lc_lock(lock, lock_state);
+	WITNESS_RESTORE(lock, lock_witness);
 
 	return (rval);
 }
@@ -301,12 +306,13 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
  * a signal was caught.
  */
 int
-cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
+_cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 {
+	WITNESS_SAVE_DECL(lock_witness);
+	struct lock_class *class;
 	struct thread *td;
 	struct proc *p;
-	int rval;
-	WITNESS_SAVE_DECL(mp);
+	int lock_state, rval;
 
 	td = curthread;
 	p = td->td_proc;
@@ -315,10 +321,11 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
 #endif
-	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->lock_object,
+	CV_ASSERT(cvp, lock, td);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(&mp->lock_object, mp);
+	WITNESS_SAVE(lock, lock_witness);
+	class = LOCK_CLASS(lock);
 
 	if (cold || panicstr) {
 		/*
@@ -334,9 +341,9 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
-	mtx_unlock(mp);
+	lock_state = class->lc_unlock(lock);
 
-	sleepq_add(cvp, &mp->lock_object, cvp->cv_description, SLEEPQ_CONDVAR |
+	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
 	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait_sig(cvp);
@@ -346,8 +353,8 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	mtx_lock(mp);
-	WITNESS_RESTORE(&mp->lock_object, mp);
+	class->lc_lock(lock, lock_state);
+	WITNESS_RESTORE(lock, lock_witness);
 
 	return (rval);
 }
