@@ -495,7 +495,7 @@ retry:
 	 */
 	cpu_exit(td);
 
-	WITNESS_WARN(WARN_PANIC, &proctree_lock.sx_object,
+	WITNESS_WARN(WARN_PANIC, &proctree_lock.lock_object,
 	    "process (pid %d) exiting", p->p_pid);
 
 	PROC_LOCK(p);

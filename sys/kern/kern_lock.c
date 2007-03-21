@@ -217,7 +217,7 @@ _lockmgr(struct lock *lkp, int flags, struct mtx *interlkp,
 
 	if ((flags & (LK_NOWAIT|LK_RELEASE)) == 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
-		    &lkp->lk_interlock->mtx_object,
+		    &lkp->lk_interlock->lock_object,
 		    "Acquiring lockmgr lock \"%s\"", lkp->lk_wmesg);
 
 	if (panicstr != NULL) {

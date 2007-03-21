@@ -101,11 +101,11 @@
         uint64_t waitstart = 0;                                         \
 						                        \
 	if (!_rw_write_lock((rw), _tid)) {				\
-		lock_profile_obtain_lock_failed(&(rw)->rw_object,	\
+		lock_profile_obtain_lock_failed(&(rw)->lock_object,	\
 		    &contested, &waitstart);				\
 		_rw_wlock_hard((rw), _tid, (file), (line));		\
 	}                                                               \
-	lock_profile_obtain_lock_success(&(rw)->rw_object, contested,	\
+	lock_profile_obtain_lock_success(&(rw)->lock_object, contested,	\
 	    waitstart, (file), (line));					\
 } while (0)
 
@@ -164,9 +164,9 @@ void	_rw_assert(struct rwlock *rw, int what, const char *file, int line);
 #define	rw_try_upgrade(rw)	_rw_try_upgrade((rw), LOCK_FILE, LOCK_LINE)
 #define	rw_downgrade(rw)	_rw_downgrade((rw), LOCK_FILE, LOCK_LINE)
 #define	rw_sleep(chan, rw, pri, wmesg, timo)				\
-	_sleep((chan), &(rw)->rw_object, (pri), (wmesg), (timo))
+	_sleep((chan), &(rw)->lock_object, (pri), (wmesg), (timo))
 
-#define	rw_initialized(rw)	lock_initalized(&(rw)->rw_object)
+#define	rw_initialized(rw)	lock_initalized(&(rw)->lock_object)
 
 struct rw_args {
 	struct rwlock	*ra_rw;

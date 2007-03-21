@@ -954,14 +954,14 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			 * lock, then skip it.
 			 */
 			if ((lock1->li_lock->lo_flags & LO_SLEEPABLE) != 0 &&
-			    lock == &Giant.mtx_object)
+			    lock == &Giant.lock_object)
 				continue;
 			/*
 			 * If we are locking a sleepable lock and this lock
 			 * is Giant, then skip it.
 			 */
 			if ((lock->lo_flags & LO_SLEEPABLE) != 0 &&
-			    lock1->li_lock == &Giant.mtx_object)
+			    lock1->li_lock == &Giant.lock_object)
 				continue;
 			/*
 			 * If we are locking a sleepable lock and this lock
@@ -977,7 +977,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			 * lock, then treat it as a reversal.
 			 */
 			if ((lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0 &&
-			    lock == &Giant.mtx_object)
+			    lock == &Giant.lock_object)
 				goto reversal;
 			/*
 			 * Check the lock order hierarchy for a reveresal.
@@ -999,7 +999,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			if (blessed(w, w1))
 				return;
 #endif
-			if (lock1->li_lock == &Giant.mtx_object) {
+			if (lock1->li_lock == &Giant.lock_object) {
 				if (w1->w_Giant_squawked)
 					return;
 				else
@@ -1018,7 +1018,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 				printf(
 		"lock order reversal: (sleepable after non-sleepable)\n");
 			else if ((lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0
-			    && lock == &Giant.mtx_object)
+			    && lock == &Giant.lock_object)
 				printf(
 		"lock order reversal: (Giant after non-sleepable)\n");
 			else
@@ -1073,7 +1073,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	 * always come before Giant.
 	 */
 	if (flags & LOP_NEWORDER &&
-	    !(lock1->li_lock == &Giant.mtx_object &&
+	    !(lock1->li_lock == &Giant.lock_object &&
 	    (lock->lo_flags & LO_SLEEPABLE) != 0)) {
 		CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
 		    lock->lo_type, lock1->li_lock->lo_type);
@@ -1325,7 +1325,7 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 			if (lock1->li_lock == lock)
 				continue;
 			if (flags & WARN_GIANTOK &&
-			    lock1->li_lock == &Giant.mtx_object)
+			    lock1->li_lock == &Giant.lock_object)
 				continue;
 			if (flags & WARN_SLEEPOK &&
 			    (lock1->li_lock->lo_flags & LO_SLEEPABLE) != 0)
