@@ -73,7 +73,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	cri.cri_alg = algo;
 	cri.cri_key = __DECONST(void *, key);
 	cri.cri_klen = keysize;
-	error = crypto_newsession(&sid, &cri, 0);
+	error = crypto_newsession(&sid, &cri, CRYPTOCAP_F_SOFTWARE);
 	if (error != 0)
 		return (error);
 	p = malloc(sizeof(*crp) + sizeof(*crd) + sizeof(*uio) + sizeof(*iov),

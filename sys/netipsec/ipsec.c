@@ -117,7 +117,7 @@ int ip4_esp_randpad = -1;
  * -1	require software support
  *  0	take anything
  */
-int	crypto_support = 0;
+int	crypto_support = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
 
 SYSCTL_DECL(_net_inet_ipsec);
 

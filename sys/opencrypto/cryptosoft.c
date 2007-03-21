@@ -2,6 +2,7 @@
 
 /*-
  * The author of this code is Angelos D. Keromytis (angelos@cis.upenn.edu)
+ * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
  *
  * This code was written by Angelos D. Keromytis in Athens, Greece, in
  * February 2000. Network Security Technologies Inc. (NSTI) kindly
@@ -28,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/errno.h>
 #include <sys/random.h>
@@ -45,19 +47,21 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/cryptosoft.h>
 #include <opencrypto/xform.h>
 
-u_int8_t *hmac_ipad_buffer;
-u_int8_t *hmac_opad_buffer;
+#include <sys/kobj.h>
+#include <sys/bus.h>
+#include "cryptodev_if.h"
 
-struct swcr_data **swcr_sessions = NULL;
-u_int32_t swcr_sesnum = 0;
-int32_t swcr_id = -1;
+static	int32_t swcr_id;
+static	struct swcr_data **swcr_sessions = NULL;
+static	u_int32_t swcr_sesnum;
+
+u_int8_t hmac_ipad_buffer[HMAC_MAX_BLOCK_LEN];
+u_int8_t hmac_opad_buffer[HMAC_MAX_BLOCK_LEN];
 
 static	int swcr_encdec(struct cryptodesc *, struct swcr_data *, caddr_t, int);
 static	int swcr_authcompute(struct cryptodesc *, struct swcr_data *, caddr_t, int);
 static	int swcr_compdec(struct cryptodesc *, struct swcr_data *, caddr_t, int);
-static	int swcr_process(void *, struct cryptop *, int);
-static	int swcr_newsession(void *, u_int32_t *, struct cryptoini *);
-static	int swcr_freesession(void *, u_int64_t);
+static	int swcr_freesession(device_t dev, u_int64_t tid);
 
 /*
  * Apply a symmetric encryption/decryption algorithm.
@@ -580,7 +584,7 @@ swcr_compdec(struct cryptodesc *crd, struct swcr_data *sw,
  * Generate a new software session.
  */
 static int
-swcr_newsession(void *arg, u_int32_t *sid, struct cryptoini *cri)
+swcr_newsession(device_t dev, u_int32_t *sid, struct cryptoini *cri)
 {
 	struct swcr_data **swd;
 	struct auth_hash *axf;
@@ -618,7 +622,7 @@ swcr_newsession(void *arg, u_int32_t *sid, struct cryptoini *cri)
 		}
 
 		/* Copy existing sessions */
-		if (swcr_sessions) {
+		if (swcr_sessions != NULL) {
 			bcopy(swcr_sessions, swd,
 			    (swcr_sesnum / 2) * sizeof(struct swcr_data *));
 			free(swcr_sessions, M_CRYPTO_DATA);
@@ -634,7 +638,7 @@ swcr_newsession(void *arg, u_int32_t *sid, struct cryptoini *cri)
 		MALLOC(*swd, struct swcr_data *, sizeof(struct swcr_data),
 		    M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
 		if (*swd == NULL) {
-			swcr_freesession(NULL, i);
+			swcr_freesession(dev, i);
 			return ENOBUFS;
 		}
 
@@ -665,7 +669,7 @@ swcr_newsession(void *arg, u_int32_t *sid, struct cryptoini *cri)
 				error = txf->setkey(&((*swd)->sw_kschedule),
 				    cri->cri_key, cri->cri_klen / 8);
 				if (error) {
-					swcr_freesession(NULL, i);
+					swcr_freesession(dev, i);
 					return error;
 				}
 			}
@@ -696,14 +700,14 @@ swcr_newsession(void *arg, u_int32_t *sid, struct cryptoini *cri)
 			(*swd)->sw_ictx = malloc(axf->ctxsize, M_CRYPTO_DATA,
 			    M_NOWAIT);
 			if ((*swd)->sw_ictx == NULL) {
-				swcr_freesession(NULL, i);
+				swcr_freesession(dev, i);
 				return ENOBUFS;
 			}
 	
 			(*swd)->sw_octx = malloc(axf->ctxsize, M_CRYPTO_DATA,
 			    M_NOWAIT);
 			if ((*swd)->sw_octx == NULL) {
-				swcr_freesession(NULL, i);
+				swcr_freesession(dev, i);
 				return ENOBUFS;
 			}
 
@@ -726,14 +730,14 @@ swcr_newsession(void *arg, u_int32_t *sid, struct cryptoini *cri)
 			(*swd)->sw_ictx = malloc(axf->ctxsize, M_CRYPTO_DATA,
 			    M_NOWAIT);
 			if ((*swd)->sw_ictx == NULL) {
-				swcr_freesession(NULL, i);
+				swcr_freesession(dev, i);
 				return ENOBUFS;
 			}
 	
 			(*swd)->sw_octx = malloc(cri->cri_klen / 8,
 			    M_CRYPTO_DATA, M_NOWAIT);
 			if ((*swd)->sw_octx == NULL) {
-				swcr_freesession(NULL, i);
+				swcr_freesession(dev, i);
 				return ENOBUFS;
 			}
 
@@ -757,7 +761,7 @@ swcr_newsession(void *arg, u_int32_t *sid, struct cryptoini *cri)
 			(*swd)->sw_ictx = malloc(axf->ctxsize, M_CRYPTO_DATA,
 			    M_NOWAIT);
 			if ((*swd)->sw_ictx == NULL) {
-				swcr_freesession(NULL, i);
+				swcr_freesession(dev, i);
 				return ENOBUFS;
 			}
 
@@ -771,7 +775,7 @@ swcr_newsession(void *arg, u_int32_t *sid, struct cryptoini *cri)
 			(*swd)->sw_cxf = cxf;
 			break;
 		default:
-			swcr_freesession(NULL, i);
+			swcr_freesession(dev, i);
 			return EINVAL;
 		}
 	
@@ -786,7 +790,7 @@ swcr_newsession(void *arg, u_int32_t *sid, struct cryptoini *cri)
  * Free a session.
  */
 static int
-swcr_freesession(void *arg, u_int64_t tid)
+swcr_freesession(device_t dev, u_int64_t tid)
 {
 	struct swcr_data *swd;
 	struct enc_xform *txf;
@@ -874,7 +878,7 @@ swcr_freesession(void *arg, u_int64_t tid)
  * Process a software request.
  */
 static int
-swcr_process(void *arg, struct cryptop *crp, int hint)
+swcr_process(device_t dev, struct cryptop *crp, int hint)
 {
 	struct cryptodesc *crd;
 	struct swcr_data *sw;
@@ -967,28 +971,37 @@ done:
 	return 0;
 }
 
-/*
- * Initialize the driver, called from the kernel main().
- */
 static void
-swcr_init(void)
+swcr_identify(device_t *dev, device_t parent)
 {
-	u_int i;
+	/* NB: order 10 is so we get attached after h/w devices */
+	if (device_find_child(parent, "cryptosoft", -1) == NULL &&
+	    BUS_ADD_CHILD(parent, 10, "cryptosoft", -1) == 0)
+		panic("cryptosoft: could not attach");
+}
 
-	hmac_ipad_buffer = malloc(HMAC_MAX_BLOCK_LEN, M_CRYPTO_DATA, M_WAITOK);
-	for (i = 0; i < HMAC_MAX_BLOCK_LEN; i++)
-		hmac_ipad_buffer[i] = HMAC_IPAD_VAL;
-	hmac_opad_buffer = malloc(HMAC_MAX_BLOCK_LEN, M_CRYPTO_DATA, M_WAITOK);
-	for (i = 0; i < HMAC_MAX_BLOCK_LEN; i++)
-		hmac_opad_buffer[i] = HMAC_OPAD_VAL;
+static int
+swcr_probe(device_t dev)
+{
+	device_set_desc(dev, "software crypto");
+	return (0);
+}
 
-	swcr_id = crypto_get_driverid(CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC);
-	if (swcr_id < 0)
-		panic("Software crypto device cannot initialize!");
-	crypto_register(swcr_id, CRYPTO_DES_CBC,
-	    0, 0, swcr_newsession, swcr_freesession, swcr_process, NULL);
+static int
+swcr_attach(device_t dev)
+{
+	memset(hmac_ipad_buffer, HMAC_IPAD_VAL, HMAC_MAX_BLOCK_LEN);
+	memset(hmac_opad_buffer, HMAC_OPAD_VAL, HMAC_MAX_BLOCK_LEN);
+
+	swcr_id = crypto_get_driverid(dev,
+			CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC);
+	if (swcr_id < 0) {
+		device_printf(dev, "cannot initialize!");
+		return ENOMEM;
+	}
 #define	REGISTER(alg) \
-	crypto_register(swcr_id, alg, 0,0,NULL,NULL,NULL,NULL)
+	crypto_register(swcr_id, alg, 0,0)
+	REGISTER(CRYPTO_DES_CBC);
 	REGISTER(CRYPTO_3DES_CBC);
 	REGISTER(CRYPTO_BLF_CBC);
 	REGISTER(CRYPTO_CAST_CBC);
@@ -1008,16 +1021,47 @@ swcr_init(void)
 	REGISTER(CRYPTO_RIJNDAEL128_CBC);
 	REGISTER(CRYPTO_DEFLATE_COMP);
 #undef REGISTER
+
+	return 0;
 }
-SYSINIT(cryptosoft_init, SI_SUB_PSEUDO, SI_ORDER_ANY, swcr_init, NULL)
 
 static void
-swcr_uninit(void)
+swcr_detach(device_t dev)
 {
-
+	crypto_unregister_all(swcr_id);
 	if (swcr_sessions != NULL)
 		FREE(swcr_sessions, M_CRYPTO_DATA);
-	free(hmac_ipad_buffer, M_CRYPTO_DATA);
-	free(hmac_opad_buffer, M_CRYPTO_DATA);
 }
-SYSUNINIT(cryptosoft_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY, swcr_uninit, NULL);
+
+static device_method_t swcr_methods[] = {
+	DEVMETHOD(device_identify,	swcr_identify),
+	DEVMETHOD(device_probe,		swcr_probe),
+	DEVMETHOD(device_attach,	swcr_attach),
+	DEVMETHOD(device_detach,	swcr_detach),
+
+	DEVMETHOD(cryptodev_newsession,	swcr_newsession),
+	DEVMETHOD(cryptodev_freesession,swcr_freesession),
+	DEVMETHOD(cryptodev_process,	swcr_process),
+
+	{0, 0},
+};
+
+static driver_t swcr_driver = {
+	"cryptosoft",
+	swcr_methods,
+	0,		/* NB: no softc */
+};
+static devclass_t swcr_devclass;
+
+/*
+ * NB: We explicitly reference the crypto module so we
+ * get the necessary ordering when built as a loadable
+ * module.  This is required because we bundle the crypto
+ * module code together with the cryptosoft driver (otherwise
+ * normal module dependencies would handle things).
+ */
+extern int crypto_modevent(struct module *, int, void *);
+/* XXX where to attach */
+DRIVER_MODULE(cryptosoft, nexus, swcr_driver, swcr_devclass, crypto_modevent,0);
+MODULE_VERSION(cryptosoft, 1);
+MODULE_DEPEND(cryptosoft, crypto, 1, 1, 1);

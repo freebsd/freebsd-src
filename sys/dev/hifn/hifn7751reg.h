@@ -118,7 +118,10 @@ typedef struct hifn_desc {
 #define	HIFN_0_PUSTAT		0x14	/* Processing Unit Status/Chip ID */
 #define	HIFN_0_FIFOSTAT		0x18	/* FIFO Status */
 #define	HIFN_0_FIFOCNFG		0x1c	/* FIFO Configuration */
-#define	HIFN_0_SPACESIZE	0x20	/* Register space size */
+#define	HIFN_0_PUCTRL2		0x28	/* Processing Unit Control (2nd map) */
+#define	HIFN_0_MUTE1		0x80
+#define	HIFN_0_MUTE2		0x90
+#define	HIFN_0_SPACESIZE	0x100	/* Register space size */
 
 /* Processing Unit Control Register (HIFN_0_PUCTRL) */
 #define	HIFN_PUCTRL_CLRSRCFIFO	0x0010	/* clear source fifo */
@@ -200,7 +203,7 @@ typedef struct hifn_desc {
 #define	HIFN_FIFOSTAT_DST	0x007f	/* Destination FIFO available */
 
 /* FIFO Configuration Register (HIFN_0_FIFOCNFG) */
-#define	HIFN_FIFOCNFG_THRESHOLD	0x0400	/* must be written as 1 */
+#define	HIFN_FIFOCNFG_THRESHOLD	0x0400	/* must be written as this value */
 
 /*
  * DMA Interface Registers (offset from BASEREG1)
@@ -217,17 +220,21 @@ typedef struct hifn_desc {
 #define	HIFN_1_7811_RNGCFG	0x64	/* 7811: rng config */
 #define	HIFN_1_7811_RNGDAT	0x68	/* 7811: rng data */
 #define	HIFN_1_7811_RNGSTS	0x6c	/* 7811: rng status */
+#define	HIFN_1_DMA_CNFG2	0x6c	/* 7955/7956: dma config #2 */
 #define	HIFN_1_7811_MIPSRST	0x94	/* 7811: MIPS reset */
 #define	HIFN_1_REVID		0x98	/* Revision ID */
 
 #define	HIFN_1_PUB_RESET	0x204	/* Public/RNG Reset */
 #define	HIFN_1_PUB_BASE		0x300	/* Public Base Address */
-#define	HIFN_1_PUB_OPLEN	0x304	/* Public Operand Length */
-#define	HIFN_1_PUB_OP		0x308	/* Public Operand */
-#define	HIFN_1_PUB_STATUS	0x30c	/* Public Status */
-#define	HIFN_1_PUB_IEN		0x310	/* Public Interrupt nable */
+#define	HIFN_1_PUB_OPLEN	0x304	/* 7951-compat Public Operand Length */
+#define	HIFN_1_PUB_OP		0x308	/* 7951-compat Public Operand */
+#define	HIFN_1_PUB_STATUS	0x30c	/* 7951-compat Public Status */
+#define	HIFN_1_PUB_IEN		0x310	/* Public Interrupt enable */
 #define	HIFN_1_RNG_CONFIG	0x314	/* RNG config */
 #define	HIFN_1_RNG_DATA		0x318	/* RNG data */
+#define	HIFN_1_PUB_MODE		0x320	/* PK mode */
+#define	HIFN_1_PUB_FIFO_OPLEN	0x380	/* first element of oplen fifo */
+#define	HIFN_1_PUB_FIFO_OP	0x384	/* first element of op fifo */
 #define	HIFN_1_PUB_MEM		0x400	/* start of Public key memory */
 #define	HIFN_1_PUB_MEMEND	0xbff	/* end of Public key memory */
 
@@ -305,6 +312,16 @@ typedef struct hifn_desc {
 #define	HIFN_DMACNFG_DMARESET	0x00000002	/* DMA Reset # */
 #define	HIFN_DMACNFG_MSTRESET	0x00000001	/* Master Reset # */
 
+/* DMA Configuration Register (HIFN_1_DMA_CNFG2) */
+#define	HIFN_DMACNFG2_PKSWAP32	(1 << 19)	/* swap the OPLEN/OP reg */
+#define	HIFN_DMACNFG2_PKSWAP8	(1 << 18)	/* swap the bits of OPLEN/OP */
+#define	HIFN_DMACNFG2_BAR0_SWAP32 (1<<17)	/* swap the bytes of BAR0 */
+#define	HIFN_DMACNFG2_BAR1_SWAP8 (1<<16)	/* swap the bits  of BAR0 */
+#define	HIFN_DMACNFG2_INIT_WRITE_BURST_SHIFT 12
+#define	HIFN_DMACNFG2_INIT_READ_BURST_SHIFT 8
+#define	HIFN_DMACNFG2_TGT_WRITE_BURST_SHIFT 4
+#define	HIFN_DMACNFG2_TGT_READ_BURST_SHIFT  0
+
 /* 7811 RNG Enable Register (HIFN_1_7811_RNGENA) */
 #define	HIFN_7811_RNGENA_ENA	0x00000001	/* enable RNG */
 
@@ -358,6 +375,11 @@ typedef struct hifn_desc {
 /* Public status register (HIFN_1_PUB_STATUS) */
 #define	HIFN_PUBSTS_DONE	0x00000001	/* operation done */
 #define	HIFN_PUBSTS_CARRY	0x00000002	/* carry */
+#define	HIFN_PUBSTS_FIFO_EMPTY	0x00000100	/* fifo empty */
+#define	HIFN_PUBSTS_FIFO_FULL	0x00000200	/* fifo full */
+#define	HIFN_PUBSTS_FIFO_OVFL	0x00000400	/* fifo overflow */
+#define	HIFN_PUBSTS_FIFO_WRITE	0x000f0000	/* fifo write */
+#define	HIFN_PUBSTS_FIFO_READ	0x0f000000	/* fifo read */
 
 /* Public interrupt enable register (HIFN_1_PUB_IEN) */
 #define	HIFN_PUBIEN_DONE	0x00000001	/* operation done interrupt */
@@ -406,6 +428,13 @@ typedef struct hifn_desc {
  * Board configuration specifies only these bits.
  */
 #define	HIFN_PLL_CONFIG		(HIFN_PLL_IS|HIFN_PLL_ND|HIFN_PLL_REF_SEL)
+
+/*
+ * Public Key Engine Mode Register
+ */
+#define	HIFN_PKMODE_HOSTINVERT	(1 << 0)	/* HOST INVERT */
+#define	HIFN_PKMODE_ENHANCED	(1 << 1)	/* Enable enhanced mode */
+
 
 /*********************************************************************
  * Structs for board commands 

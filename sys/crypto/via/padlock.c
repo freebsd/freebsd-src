@@ -46,6 +46,10 @@ __FBSDID("$FreeBSD$");
 
 #include <crypto/via/padlock.h>
 
+#include <sys/kobj.h>
+#include <sys/bus.h>
+#include "cryptodev_if.h"
+
 /*
  * Technical documentation about the PadLock engine can be found here:
  *
@@ -59,26 +63,30 @@ struct padlock_softc {
 	struct mtx	sc_sessions_mtx;
 };
 
-static struct padlock_softc *padlock_sc;
-
-static int padlock_newsession(void *arg __unused, uint32_t *sidp,
-    struct cryptoini *cri);
-static int padlock_freesession(void *arg __unused, uint64_t tid);
-static int padlock_process(void *arg __unused, struct cryptop *crp,
-    int hint __unused);
+static int padlock_newsession(device_t, uint32_t *sidp, struct cryptoini *cri);
+static int padlock_freesession(device_t, uint64_t tid);
+static int padlock_process(device_t, struct cryptop *crp, int hint __unused);
 
 MALLOC_DEFINE(M_PADLOCK, "padlock_data", "PadLock Data");
 
-static int
-padlock_init(void)
+static void
+padlock_identify(device_t *dev, device_t parent)
 {
-	struct padlock_softc *sc;
+	/* NB: order 10 is so we get attached after h/w devices */
+	if (device_find_child(parent, "padlock", -1) == NULL &&
+	    BUS_ADD_CHILD(parent, 10, "padlock", -1) == 0)
+		panic("padlock: could not attach");
+}
+
+static int
+padlock_probe(device_t dev)
+{
 	char capp[256];
 
 #if defined(__i386__) && !defined(PC98)
 	/* If there is no AES support, we has nothing to do here. */
 	if (!(via_feature_xcrypt & VIA_HAS_AES)) {
-		printf("PadLock: No ACE support.\n");
+		device_printf(dev, "No ACE support.\n");
 		return (EINVAL);
 	}
 	strlcpy(capp, "AES-CBC", sizeof(capp));
@@ -97,63 +105,53 @@ padlock_init(void)
 	if (via_feature_xcrypt & VIA_HAS_MM)
 		strlcat(capp, ",RSA", sizeof(capp));
 #endif
-	printf("PadLock: HW support loaded for %s.\n", capp);
+	device_set_desc_copy(dev, capp);
+	return (0);
 #else
 	return (EINVAL);
 #endif
+}
 
-	padlock_sc = sc = malloc(sizeof(*padlock_sc), M_PADLOCK,
-	    M_WAITOK | M_ZERO);
+static int
+padlock_attach(device_t dev)
+{
+	struct padlock_softc *sc = device_get_softc(dev);
+
 	TAILQ_INIT(&sc->sc_sessions);
 	sc->sc_sid = 1;
 
-	sc->sc_cid = crypto_get_driverid(0);
+	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
-		printf("PadLock: Could not get crypto driver id.\n");
-		free(padlock_sc, M_PADLOCK);
-		padlock_sc = NULL;
+		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
 	}
 
 	mtx_init(&sc->sc_sessions_mtx, "padlock_mtx", NULL, MTX_DEF);
-	crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0, padlock_newsession,
-	    padlock_freesession, padlock_process, NULL);
-	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0, padlock_newsession,
-	    padlock_freesession, padlock_process, NULL);
-	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0, padlock_newsession,
-	    padlock_freesession, padlock_process, NULL);
-	crypto_register(sc->sc_cid, CRYPTO_RIPEMD160_HMAC, 0, 0,
-	    padlock_newsession, padlock_freesession, padlock_process, NULL);
-	crypto_register(sc->sc_cid, CRYPTO_SHA2_256_HMAC, 0, 0,
-	    padlock_newsession, padlock_freesession, padlock_process, NULL);
-	crypto_register(sc->sc_cid, CRYPTO_SHA2_384_HMAC, 0, 0,
-	    padlock_newsession, padlock_freesession, padlock_process, NULL);
-	crypto_register(sc->sc_cid, CRYPTO_SHA2_512_HMAC, 0, 0,
-	    padlock_newsession, padlock_freesession, padlock_process, NULL);
+	crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_RIPEMD160_HMAC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_SHA2_256_HMAC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_SHA2_384_HMAC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_SHA2_512_HMAC, 0, 0);
 	return (0);
 }
 
 static int
-padlock_destroy(void)
+padlock_detach(device_t dev)
 {
-	struct padlock_softc *sc = padlock_sc;
+	struct padlock_softc *sc = device_get_softc(dev);
 	struct padlock_session *ses;
-	u_int active = 0;
 
-	if (sc == NULL)
-		return (0);
 	mtx_lock(&sc->sc_sessions_mtx);
 	TAILQ_FOREACH(ses, &sc->sc_sessions, ses_next) {
-		if (ses->ses_used)
-			active++;
+		if (ses->ses_used) {
+			mtx_unlock(&sc->sc_sessions_mtx);
+			device_printf(dev,
+			    "Cannot detach, sessions still active.\n");
+			return (EBUSY);
+		}
 	}
-	if (active > 0) {
-		mtx_unlock(&sc->sc_sessions_mtx);
-		printf("PadLock: Cannot destroy, %u sessions active.\n",
-		    active);
-		return (EBUSY);
-	}
-	padlock_sc = NULL;
 	for (ses = TAILQ_FIRST(&sc->sc_sessions); ses != NULL;
 	    ses = TAILQ_FIRST(&sc->sc_sessions)) {
 		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
@@ -161,19 +159,18 @@ padlock_destroy(void)
 	}
 	mtx_destroy(&sc->sc_sessions_mtx);
 	crypto_unregister_all(sc->sc_cid);
-	free(sc, M_PADLOCK);
 	return (0);
 }
 
 static int
-padlock_newsession(void *arg __unused, uint32_t *sidp, struct cryptoini *cri)
+padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 {
-	struct padlock_softc *sc = padlock_sc;
+	struct padlock_softc *sc = device_get_softc(dev);
 	struct padlock_session *ses = NULL;
 	struct cryptoini *encini, *macini;
 	int error;
 
-	if (sc == NULL || sidp == NULL || cri == NULL)
+	if (sidp == NULL || cri == NULL)
 		return (EINVAL);
 
 	encini = macini = NULL;
@@ -255,14 +252,12 @@ padlock_newsession(void *arg __unused, uint32_t *sidp, struct cryptoini *cri)
 }
 
 static int
-padlock_freesession(void *arg __unused, uint64_t tid)
+padlock_freesession(device_t dev, uint64_t tid)
 {
-	struct padlock_softc *sc = padlock_sc;
+	struct padlock_softc *sc = device_get_softc(dev);
 	struct padlock_session *ses;
 	uint32_t sid = ((uint32_t)tid) & 0xffffffff;
 
-	if (sc == NULL)
-		return (EINVAL);
 	mtx_lock(&sc->sc_sessions_mtx);
 	TAILQ_FOREACH(ses, &sc->sc_sessions, ses_next) {
 		if (ses->ses_id == sid)
@@ -282,9 +277,9 @@ padlock_freesession(void *arg __unused, uint64_t tid)
 }
 
 static int
-padlock_process(void *arg __unused, struct cryptop *crp, int hint __unused)
+padlock_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
-	struct padlock_softc *sc = padlock_sc;
+	struct padlock_softc *sc = device_get_softc(dev);
 	struct padlock_session *ses = NULL;
 	struct cryptodesc *crd, *enccrd, *maccrd;
 	int error = 0;
@@ -373,28 +368,27 @@ out:
 	return (error);
 }
 
-static int
-padlock_modevent(module_t mod, int type, void *unused __unused)
-{
-	int error;
+static device_method_t padlock_methods[] = {
+	DEVMETHOD(device_identify,	padlock_identify),
+	DEVMETHOD(device_probe,		padlock_probe),
+	DEVMETHOD(device_attach,	padlock_attach),
+	DEVMETHOD(device_detach,	padlock_detach),
 
-	error = EOPNOTSUPP;
-	switch (type) {
-	case MOD_LOAD:
-		error = padlock_init();
-		break;
-	case MOD_UNLOAD:
-		error = padlock_destroy();
-		break;
-	}
-	return (error);
-}
+	DEVMETHOD(cryptodev_newsession,	padlock_newsession),
+	DEVMETHOD(cryptodev_freesession,padlock_freesession),
+	DEVMETHOD(cryptodev_process,	padlock_process),
 
-static moduledata_t padlock_mod = {
-	"padlock",
-	padlock_modevent,
-	0
+	{0, 0},
 };
-DECLARE_MODULE(padlock, padlock_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
+
+static driver_t padlock_driver = {
+	"padlock",
+	padlock_methods,
+	sizeof(struct padlock_softc),
+};
+static devclass_t padlock_devclass;
+
+/* XXX where to attach */
+DRIVER_MODULE(padlock, nexus, padlock_driver, padlock_devclass, 0, 0);
 MODULE_VERSION(padlock, 1);
 MODULE_DEPEND(padlock, crypto, 1, 1, 1);
