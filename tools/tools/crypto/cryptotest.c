@@ -40,6 +40,7 @@
  * Run count iterations of a crypt+decrypt or mac operation on a buffer of
  * size bytes.  A random key and iv are used.  Options:
  *	-c	check the results
+ *	-d dev	pin work on device dev
  *	-z	run all available algorithms on a variety of buffer sizes
  *	-v	be verbose
  *	-b	mark operations for batching
@@ -106,6 +107,7 @@ void	hexdump(char *, int);
 int	verbose = 0;
 int	opflags = 0;
 int	verify = 0;
+int	crid = CRYPTO_FLAG_HARDWARE;
 
 struct alg {
 	const char* name;
@@ -139,7 +141,7 @@ struct alg {
 static void
 usage(const char* cmd)
 {
-	printf("usage: %s [-c] [-z] [-s] [-b] [-v] [-a algorithm] [count] [size ...]\n",
+	printf("usage: %s [-czsbv] [-d dev] [-a algorithm] [count] [size ...]\n",
 		cmd);
 	printf("where algorithm is one of:\n");
 	printf("    des 3des (default) blowfish cast skipjack\n");
@@ -148,6 +150,7 @@ usage(const char* cmd)
 	printf("size is the number of bytes of text to encrypt+decrypt\n");
 	printf("\n");
 	printf("-c check the results (slows timing)\n");
+	printf("-d use specific device\n");
 	printf("-z run all available algorithms on a variety of sizes\n");
 	printf("-v be verbose\n");
 	printf("-b mark operations for batching\n");
@@ -193,6 +196,30 @@ devcrypto(void)
 }
 
 static int
+crlookup(const char *devname)
+{
+	struct crypt_find_op find;
+
+	find.crid = -1;
+	strlcpy(find.name, devname, sizeof(find.name));
+	if (ioctl(devcrypto(), CIOCFINDDEV, &find) == -1)
+		err(1, "ioctl(CIOCFINDDEV)");
+	return find.crid;
+}
+
+static const char *
+crfind(int crid)
+{
+	static struct crypt_find_op find;
+
+	bzero(&find, sizeof(find));
+	find.crid = crid;
+	if (ioctl(devcrypto(), CRIOFINDDEV, &find) == -1)
+		err(1, "ioctl(CIOCFINDDEV): crid %d", crid);
+	return find.name;
+}
+
+static int
 crget(void)
 {
 	int fd;
@@ -220,7 +247,7 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 	int i, fd = crget();
 	struct timeval start, stop, dt;
 	char *cleartext, *ciphertext, *originaltext;
-	struct session_op sop;
+	struct session2_op sop;
 	struct crypt_op cop;
 	char iv[8];
 
@@ -242,8 +269,9 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 			sop.mackey[i] = rdigit();
 		sop.mac = alg->code;
 	}
+	sop.crid = crid;
 	if (ioctl(fd, cmd, &sop) < 0) {
-		if (cmd == CIOCGSESSION) {
+		if (cmd == CIOCGSESSION || cmd == CIOCGSESSION2) {
 			close(fd);
 			if (verbose) {
 				printf("cipher %s", alg->name);
@@ -274,6 +302,7 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 
 	if (verbose) {
 		printf("session = 0x%x\n", sop.ses);
+		printf("device = %s\n", crfind(sop.crid));
 		printf("count = %d, size = %d\n", count, size);
 		if (!alg->ishash) {
 			printf("iv:");
@@ -448,10 +477,17 @@ runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int prof
 	if (t) {
 		int nops = alg->ishash ? count : 2*count;
 
+#if 0
 		t /= threads;
 		printf("%6.3lf sec, %7d %6s crypts, %7d bytes, %8.0lf byte/sec, %7.1lf Mb/sec\n",
 		    t, nops, alg->name, size, (double)nops*size / t,
 		    (double)nops*size / t * 8 / 1024 / 1024);
+#else
+		nops *= threads;
+		printf("%8.3lf sec, %7d %6s crypts, %7d bytes, %8.0lf byte/sec, %7.1lf Mb/sec\n",
+		    t, nops, alg->name, size, (double)nops*size / t,
+		    (double)nops*size / t * 8 / 1024 / 1024);
+#endif
 	}
 #ifdef __FreeBSD__
 	if (profile) {
@@ -480,13 +516,13 @@ main(int argc, char **argv)
 	struct alg *alg = NULL;
 	int count = 1;
 	int sizes[128], nsizes = 0;
-	u_long cmd = CIOCGSESSION;
+	u_long cmd = CIOCGSESSION2;
 	int testall = 0;
 	int maxthreads = 1;
 	int profile = 0;
 	int i, ch;
 
-	while ((ch = getopt(argc, argv, "cpzsva:bt:")) != -1) {
+	while ((ch = getopt(argc, argv, "cpzsva:bd:t:")) != -1) {
 		switch (ch) {
 #ifdef CIOCGSSESSION
 		case 's':
@@ -504,6 +540,9 @@ main(int argc, char **argv)
 				else
 					usage(argv[0]);
 			}
+			break;
+		case 'd':
+			crid = crlookup(optarg);
 			break;
 		case 't':
 			maxthreads = atoi(optarg);

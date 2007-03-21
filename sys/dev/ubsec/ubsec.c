@@ -73,6 +73,9 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/cryptosoft.h>
 #include <sys/md5.h>
 #include <sys/random.h>
+#include <sys/kobj.h>
+
+#include "cryptodev_if.h"
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -106,6 +109,11 @@ static	int ubsec_suspend(device_t);
 static	int ubsec_resume(device_t);
 static	void ubsec_shutdown(device_t);
 
+static	int ubsec_newsession(device_t, u_int32_t *, struct cryptoini *);
+static	int ubsec_freesession(device_t, u_int64_t);
+static	int ubsec_process(device_t, struct cryptop *, int);
+static	int ubsec_kprocess(device_t, struct cryptkop *, int);
+
 static device_method_t ubsec_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ubsec_probe),
@@ -118,6 +126,12 @@ static device_method_t ubsec_methods[] = {
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+
+	/* crypto device methods */
+	DEVMETHOD(cryptodev_newsession,	ubsec_newsession),
+	DEVMETHOD(cryptodev_freesession,ubsec_freesession),
+	DEVMETHOD(cryptodev_process,	ubsec_process),
+	DEVMETHOD(cryptodev_kprocess,	ubsec_kprocess),
 
 	{ 0, 0 }
 };
@@ -135,9 +149,6 @@ MODULE_DEPEND(ubsec, rndtest, 1, 1, 1);
 #endif
 
 static	void ubsec_intr(void *);
-static	int ubsec_newsession(void *, u_int32_t *, struct cryptoini *);
-static	int ubsec_freesession(void *, u_int64_t);
-static	int ubsec_process(void *, struct cryptop *, int);
 static	void ubsec_callback(struct ubsec_softc *, struct ubsec_q *);
 static	void ubsec_feed(struct ubsec_softc *);
 static	void ubsec_mcopy(struct mbuf *, struct mbuf *, int, int);
@@ -158,7 +169,6 @@ static	void ubsec_totalreset(struct ubsec_softc *sc);
 
 static	int ubsec_free_q(struct ubsec_softc *sc, struct ubsec_q *q);
 
-static	int ubsec_kprocess(void*, struct cryptkop *, int);
 static	int ubsec_kprocess_modexp_hw(struct ubsec_softc *, struct cryptkop *, int);
 static	int ubsec_kprocess_modexp_sw(struct ubsec_softc *, struct cryptkop *, int);
 static	int ubsec_kprocess_rsapriv(struct ubsec_softc *, struct cryptkop *, int);
@@ -350,7 +360,7 @@ ubsec_attach(device_t dev)
 		goto bad2;
 	}
 
-	sc->sc_cid = crypto_get_driverid(0);
+	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
 		goto bad3;
@@ -405,14 +415,10 @@ ubsec_attach(device_t dev)
 
 	device_printf(sc->sc_dev, "%s\n", ubsec_partname(sc));
 
-	crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0,
-	    ubsec_newsession, ubsec_freesession, ubsec_process, sc);
-	crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0,
-	     ubsec_newsession, ubsec_freesession, ubsec_process, sc);
-	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0,
-	     ubsec_newsession, ubsec_freesession, ubsec_process, sc);
-	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0,
-	     ubsec_newsession, ubsec_freesession, ubsec_process, sc);
+	crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
 
 	/*
 	 * Reset Broadcom chip
@@ -475,11 +481,9 @@ skip_rng:
 	if (sc->sc_flags & UBS_FLAGS_KEY) {
 		sc->sc_statmask |= BS_STAT_MCR2_DONE;
 
-		crypto_kregister(sc->sc_cid, CRK_MOD_EXP, 0,
-			ubsec_kprocess, sc);
+		crypto_kregister(sc->sc_cid, CRK_MOD_EXP, 0);
 #if 0
-		crypto_kregister(sc->sc_cid, CRK_MOD_EXP_CRT, 0,
-			ubsec_kprocess, sc);
+		crypto_kregister(sc->sc_cid, CRK_MOD_EXP_CRT, 0);
 #endif
 	}
 	return (0);
@@ -900,10 +904,10 @@ ubsec_setup_mackey(struct ubsec_session *ses, int algo, caddr_t key, int klen)
  * id on successful allocation.
  */
 static int
-ubsec_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
+ubsec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 {
+	struct ubsec_softc *sc = device_get_softc(dev);
 	struct cryptoini *c, *encini = NULL, *macini = NULL;
-	struct ubsec_softc *sc = arg;
 	struct ubsec_session *ses = NULL;
 	int sesn;
 
@@ -995,9 +999,9 @@ ubsec_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
  * Deallocate a session.
  */
 static int
-ubsec_freesession(void *arg, u_int64_t tid)
+ubsec_freesession(device_t dev, u_int64_t tid)
 {
-	struct ubsec_softc *sc = arg;
+	struct ubsec_softc *sc = device_get_softc(dev);
 	int session, ret;
 	u_int32_t sid = CRYPTO_SESID2LID(tid);
 
@@ -1035,11 +1039,11 @@ ubsec_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, in
 }
 
 static int
-ubsec_process(void *arg, struct cryptop *crp, int hint)
+ubsec_process(device_t dev, struct cryptop *crp, int hint)
 {
+	struct ubsec_softc *sc = device_get_softc(dev);
 	struct ubsec_q *q = NULL;
 	int err = 0, i, j, nicealign;
-	struct ubsec_softc *sc = arg;
 	struct cryptodesc *crd1, *crd2, *maccrd, *enccrd;
 	int encoffset = 0, macoffset = 0, cpskip, cpoffset;
 	int sskip, dskip, stheend, dtheend;
@@ -2110,9 +2114,9 @@ ubsec_kfree(struct ubsec_softc *sc, struct ubsec_q2 *q)
 }
 
 static int
-ubsec_kprocess(void *arg, struct cryptkop *krp, int hint)
+ubsec_kprocess(device_t dev, struct cryptkop *krp, int hint)
 {
-	struct ubsec_softc *sc = arg;
+	struct ubsec_softc *sc = device_get_softc(dev);
 	int r;
 
 	if (krp == NULL || krp->krp_callback == NULL)

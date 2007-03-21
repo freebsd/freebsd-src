@@ -2,6 +2,7 @@
 
 /*-
  * Copyright (c) 2001 Theo de Raadt
+ * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/fcntl.h>
+#include <sys/bus.h>
 
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
@@ -113,6 +115,7 @@ static int csefree(struct csession *);
 static	int cryptodev_op(struct csession *, struct crypt_op *,
 			struct ucred *, struct thread *td);
 static	int cryptodev_key(struct crypt_kop *);
+static	int cryptodev_find(struct crypt_find_op *);
 
 static int
 cryptof_rw(
@@ -126,6 +129,22 @@ cryptof_rw(
 	return (EIO);
 }
 
+/*
+ * Check a crypto identifier to see if it requested
+ * a software device/driver.  This can be done either
+ * by device name/class or through search constraints.
+ */
+static int
+checkforsoftware(int crid)
+{
+	if (crid & CRYPTOCAP_F_SOFTWARE)
+		return EINVAL;		/* XXX */
+	if ((crid & CRYPTOCAP_F_HARDWARE) == 0 &&
+	    (crypto_getcaps(crid) & CRYPTOCAP_F_HARDWARE) == 0)
+		return EINVAL;		/* XXX */
+	return 0;
+}
+
 /* ARGSUSED */
 static int
 cryptof_ioctl(
@@ -135,6 +154,7 @@ cryptof_ioctl(
 	struct ucred *active_cred,
 	struct thread *td)
 {
+#define	SES2(p)	((struct session2_op *)p)
 	struct cryptoini cria, crie;
 	struct fcrypt *fcr = fp->f_data;
 	struct csession *cse;
@@ -142,16 +162,14 @@ cryptof_ioctl(
 	struct crypt_op *cop;
 	struct enc_xform *txform = NULL;
 	struct auth_hash *thash = NULL;
+	struct crypt_kop *kop;
 	u_int64_t sid;
 	u_int32_t ses;
-	int error = 0;
+	int error = 0, crid;
 
-	/*
-	 * XXX: Not sure Giant is needed, but better safe than sorry
-	 */
-	mtx_lock(&Giant);
 	switch (cmd) {
 	case CIOCGSESSION:
+	case CIOCGSESSION2:
 		sop = (struct session_op *)data;
 		switch (sop->cipher) {
 		case 0:
@@ -181,7 +199,6 @@ cryptof_ioctl(
 			txform = &enc_xform_arc4;
 			break;
 		default:
-			mtx_unlock(&Giant);
 			return (EINVAL);
 		}
 
@@ -218,7 +235,6 @@ cryptof_ioctl(
 			thash = &auth_hash_null;
 			break;
 		default:
-			mtx_unlock(&Giant);
 			return (EINVAL);
 		}
 
@@ -260,15 +276,17 @@ cryptof_ioctl(
 			}
 		}
 
-		error = crypto_newsession(&sid, (txform ? &crie : &cria), 1);
-		if (error) {
-			if (crypto_devallowsoft) {
-				error = crypto_newsession(&sid,
-				    (txform ? &crie : &cria), 0);
-			}
+		/* NB: CIOGSESSION2 has the crid */
+		if (cmd == CIOCGSESSION2) {
+			crid = SES2(sop)->crid;
+			error = checkforsoftware(crid);
 			if (error)
 				goto bail;
-		}
+		} else
+			crid = CRYPTOCAP_F_HARDWARE;
+		error = crypto_newsession(&sid, (txform ? &crie : &cria), crid);
+		if (error)
+			goto bail;
 
 		cse = csecreate(fcr, sid, crie.cri_key, crie.cri_klen,
 		    cria.cri_key, cria.cri_klen, sop->cipher, sop->mac, txform,
@@ -280,7 +298,10 @@ cryptof_ioctl(
 			goto bail;
 		}
 		sop->ses = cse->ses;
-
+		if (cmd == CIOCGSESSION2) {
+			/* return hardware/driver id */
+			SES2(sop)->crid = CRYPTO_SESID2HID(cse->sid);
+		}
 bail:
 		if (error) {
 			if (crie.cri_key)
@@ -292,33 +313,53 @@ bail:
 	case CIOCFSESSION:
 		ses = *(u_int32_t *)data;
 		cse = csefind(fcr, ses);
-		if (cse == NULL) {
-			mtx_unlock(&Giant);
+		if (cse == NULL)
 			return (EINVAL);
-		}
 		csedelete(fcr, cse);
 		error = csefree(cse);
 		break;
 	case CIOCCRYPT:
 		cop = (struct crypt_op *)data;
 		cse = csefind(fcr, cop->ses);
-		if (cse == NULL) {
-			mtx_unlock(&Giant);
+		if (cse == NULL)
 			return (EINVAL);
-		}
 		error = cryptodev_op(cse, cop, active_cred, td);
 		break;
 	case CIOCKEY:
-		error = cryptodev_key((struct crypt_kop *)data);
+	case CIOCKEY2:
+		if (!crypto_userasymcrypto)
+			return (EPERM);		/* XXX compat? */
+		mtx_lock(&Giant);
+		kop = (struct crypt_kop *)data;
+		if (cmd == CIOCKEY) {
+			/* NB: crypto core enforces s/w driver use */
+			kop->crk_crid =
+			    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
+		}
+		error = cryptodev_key(kop);
+		mtx_unlock(&Giant);
 		break;
 	case CIOCASYMFEAT:
-		error = crypto_getfeat((int *)data);
+		if (!crypto_userasymcrypto) {
+			/*
+			 * NB: if user asym crypto operations are
+			 * not permitted return "no algorithms"
+			 * so well-behaved applications will just
+			 * fallback to doing them in software.
+			 */
+			*(int *)data = 0;
+		} else
+			error = crypto_getfeat((int *)data);
+		break;
+	case CIOCFINDDEV:
+		error = cryptodev_find((struct crypt_find_op *)data);
 		break;
 	default:
 		error = EINVAL;
+		break;
 	}
-	mtx_unlock(&Giant);
 	return (error);
+#undef SES2
 }
 
 static int cryptodev_cb(void *);
@@ -485,12 +526,16 @@ cryptodev_cb(void *op)
 {
 	struct cryptop *crp = (struct cryptop *) op;
 	struct csession *cse = (struct csession *)crp->crp_opaque;
+	int error;
 
-	cse->error = crp->crp_etype;
-	if (crp->crp_etype == EAGAIN)
-		return crypto_dispatch(crp);
+	error = crp->crp_etype;
+	if (error == EAGAIN)
+		error = crypto_dispatch(crp);
 	mtx_lock(&cse->lock);
-	wakeup_one(crp);
+	if (error != 0 || (crp->crp_flags & CRYPTO_F_DONE)) {
+		cse->error = error;
+		wakeup_one(crp);
+	}
 	mtx_unlock(&cse->lock);
 	return (0);
 }
@@ -500,7 +545,7 @@ cryptodevkey_cb(void *op)
 {
 	struct cryptkop *krp = (struct cryptkop *) op;
 
-	wakeup(krp);
+	wakeup_one(krp);
 	return (0);
 }
 
@@ -550,6 +595,7 @@ cryptodev_key(struct crypt_kop *kop)
 	krp->krp_status = kop->crk_status;
 	krp->krp_iparams = kop->crk_iparams;
 	krp->krp_oparams = kop->crk_oparams;
+	krp->krp_crid = kop->crk_crid;
 	krp->krp_status = 0;
 	krp->krp_callback = (int (*) (struct cryptkop *)) cryptodevkey_cb;
 
@@ -576,6 +622,7 @@ cryptodev_key(struct crypt_kop *kop)
 		goto fail;
 	}
 	
+	kop->crk_crid = krp->krp_crid;		/* device that did the work */
 	if (krp->krp_status != 0) {
 		error = krp->krp_status;
 		goto fail;
@@ -600,6 +647,25 @@ fail:
 		free(krp, M_XDATA);
 	}
 	return (error);
+}
+
+static int
+cryptodev_find(struct crypt_find_op *find)
+{
+	device_t dev;
+
+	if (find->crid != -1) {
+		dev = crypto_find_device_byhid(find->crid);
+		if (dev == NULL)
+			return (ENOENT);
+		strlcpy(find->name, device_get_nameunit(dev),
+		    sizeof(find->name));
+	} else {
+		find->crid = crypto_find_driver(find->name);
+		if (find->crid == -1)
+			return (ENOENT);
+	}
+	return (0);
 }
 
 /* ARGSUSED */
@@ -774,6 +840,12 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 		f->f_data = fcr;
 		*(u_int32_t *)data = fd;
 		fdrop(f, td);
+		break;
+	case CRIOFINDDEV:
+		error = cryptodev_find((struct crypt_find_op *)data);
+		break;
+	case CRIOASYMFEAT:
+		error = crypto_getfeat((int *)data);
 		break;
 	default:
 		error = EINVAL;

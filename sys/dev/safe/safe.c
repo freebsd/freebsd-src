@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/cryptosoft.h>
 #include <sys/md5.h>
 #include <sys/random.h>
+#include <sys/kobj.h>
+
+#include "cryptodev_if.h"
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -83,6 +86,10 @@ static	int safe_suspend(device_t);
 static	int safe_resume(device_t);
 static	void safe_shutdown(device_t);
 
+static	int safe_newsession(device_t, u_int32_t *, struct cryptoini *);
+static	int safe_freesession(device_t, u_int64_t);
+static	int safe_process(device_t, struct cryptop *, int);
+
 static device_method_t safe_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		safe_probe),
@@ -95,6 +102,11 @@ static device_method_t safe_methods[] = {
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+
+	/* crypto device methods */
+	DEVMETHOD(cryptodev_newsession,	safe_newsession),
+	DEVMETHOD(cryptodev_freesession,safe_freesession),
+	DEVMETHOD(cryptodev_process,	safe_process),
 
 	{ 0, 0 }
 };
@@ -112,9 +124,6 @@ MODULE_DEPEND(safe, rndtest, 1, 1, 1);
 #endif
 
 static	void safe_intr(void *);
-static	int safe_newsession(void *, u_int32_t *, struct cryptoini *);
-static	int safe_freesession(void *, u_int64_t);
-static	int safe_process(void *, struct cryptop *, int);
 static	void safe_callback(struct safe_softc *, struct safe_ringentry *);
 static	void safe_feed(struct safe_softc *, struct safe_ringentry *);
 static	void safe_mcopy(struct mbuf *, struct mbuf *, u_int);
@@ -270,7 +279,7 @@ safe_attach(device_t dev)
 		goto bad2;
 	}
 
-	sc->sc_cid = crypto_get_driverid(0);
+	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
 		goto bad3;
@@ -388,39 +397,30 @@ safe_attach(device_t dev)
 #if 0
 		printf(" key");
 		sc->sc_flags |= SAFE_FLAGS_KEY;
-		crypto_kregister(sc->sc_cid, CRK_MOD_EXP, 0,
-			safe_kprocess, sc);
-		crypto_kregister(sc->sc_cid, CRK_MOD_EXP_CRT, 0,
-			safe_kprocess, sc);
+		crypto_kregister(sc->sc_cid, CRK_MOD_EXP, 0);
+		crypto_kregister(sc->sc_cid, CRK_MOD_EXP_CRT, 0);
 #endif
 	}
 	if (devinfo & SAFE_DEVINFO_DES) {
 		printf(" des/3des");
-		crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0,
-			safe_newsession, safe_freesession, safe_process, sc);
-		crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0,
-			safe_newsession, safe_freesession, safe_process, sc);
+		crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0);
+		crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0);
 	}
 	if (devinfo & SAFE_DEVINFO_AES) {
 		printf(" aes");
-		crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0,
-			safe_newsession, safe_freesession, safe_process, sc);
+		crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0);
 	}
 	if (devinfo & SAFE_DEVINFO_MD5) {
 		printf(" md5");
-		crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0,
-			safe_newsession, safe_freesession, safe_process, sc);
+		crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
 	}
 	if (devinfo & SAFE_DEVINFO_SHA1) {
 		printf(" sha1");
-		crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0,
-			safe_newsession, safe_freesession, safe_process, sc);
+		crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
 	}
 	printf(" null");
-	crypto_register(sc->sc_cid, CRYPTO_NULL_CBC, 0, 0,
-		safe_newsession, safe_freesession, safe_process, sc);
-	crypto_register(sc->sc_cid, CRYPTO_NULL_HMAC, 0, 0,
-		safe_newsession, safe_freesession, safe_process, sc);
+	crypto_register(sc->sc_cid, CRYPTO_NULL_CBC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_NULL_HMAC, 0, 0);
 	/* XXX other supported algorithms */
 	printf("\n");
 
@@ -710,10 +710,10 @@ safe_setup_mackey(struct safe_session *ses, int algo, caddr_t key, int klen)
  * id on successful allocation.
  */
 static int
-safe_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
+safe_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 {
+	struct safe_softc *sc = device_get_softc(dev);
 	struct cryptoini *c, *encini = NULL, *macini = NULL;
-	struct safe_softc *sc = arg;
 	struct safe_session *ses = NULL;
 	int sesn;
 
@@ -826,9 +826,9 @@ safe_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
  * Deallocate a session.
  */
 static int
-safe_freesession(void *arg, u_int64_t tid)
+safe_freesession(device_t dev, u_int64_t tid)
 {
-	struct safe_softc *sc = arg;
+	struct safe_softc *sc = device_get_softc(dev);
 	int session, ret;
 	u_int32_t sid = ((u_int32_t) tid) & 0xffffffff;
 
@@ -859,10 +859,10 @@ safe_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, int
 }
 
 static int
-safe_process(void *arg, struct cryptop *crp, int hint)
+safe_process(device_t dev, struct cryptop *crp, int hint)
 {
+	struct safe_softc *sc = device_get_softc(dev);
 	int err = 0, i, nicealign, uniform;
-	struct safe_softc *sc = arg;
 	struct cryptodesc *crd1, *crd2, *maccrd, *enccrd;
 	int bypass, oplen, ivsize;
 	caddr_t iv;

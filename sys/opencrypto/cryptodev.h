@@ -3,6 +3,7 @@
 
 /*-
  * The author of this code is Angelos D. Keromytis (angelos@cis.upenn.edu)
+ * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
  *
  * This code was written by Angelos D. Keromytis in Athens, Greece, in
  * February 2000. Network Security Technologies Inc. (NSTI) kindly
@@ -127,6 +128,18 @@
 #define	CRYPTO_ALG_FLAG_RNG_ENABLE	0x02 /* Has HW RNG for DH/DSA */
 #define	CRYPTO_ALG_FLAG_DSA_SHA		0x04 /* Can do SHA on msg */
 
+/*
+ * Crypto driver/device flags.  They can set in the crid
+ * parameter when creating a session or submitting a key
+ * op to affect the device/driver assigned.  If neither
+ * of these are specified then the crid is assumed to hold
+ * the driver id of an existing (and suitable) device that
+ * must be used to satisfy the request.
+ */
+#define CRYPTO_FLAG_HARDWARE	0x01000000	/* hardware accelerated */
+#define CRYPTO_FLAG_SOFTWARE	0x02000000	/* software implementation */
+
+/* NB: deprecated */
 struct session_op {
 	u_int32_t	cipher;		/* ie. CRYPTO_DES_CBC */
 	u_int32_t	mac;		/* ie. CRYPTO_MD5_HMAC */
@@ -137,6 +150,20 @@ struct session_op {
 	caddr_t		mackey;
 
   	u_int32_t	ses;		/* returns: session # */ 
+};
+
+struct session2_op {
+	u_int32_t	cipher;		/* ie. CRYPTO_DES_CBC */
+	u_int32_t	mac;		/* ie. CRYPTO_MD5_HMAC */
+
+	u_int32_t	keylen;		/* cipher key */
+	caddr_t		key;
+	int		mackeylen;	/* mac key */
+	caddr_t		mackey;
+
+  	u_int32_t	ses;		/* returns: session # */ 
+	int		crid;		/* driver id + flags (rw) */
+	int		pad[4];		/* for future expansion */
 };
 
 struct crypt_op {
@@ -152,6 +179,16 @@ struct crypt_op {
 	caddr_t		iv;
 };
 
+/*
+ * Parameters for looking up a crypto driver/device by
+ * device name or by id.  The latter are returned for
+ * created sessions (crid) and completed key operations.
+ */
+struct crypt_find_op {
+	int		crid;		/* driver id + flags */
+	char		name[32];	/* device/driver name */
+};
+
 /* bignum parameter, in packed bytes, ... */
 struct crparam {
 	caddr_t		crp_p;
@@ -165,7 +202,7 @@ struct crypt_kop {
 	u_int		crk_status;	/* return status */
 	u_short		crk_iparams;	/* # of input parameters */
 	u_short		crk_oparams;	/* # of output parameters */
-	u_int		crk_pad1;
+	u_int		crk_crid;	/* NB: only used by CIOCKEY2 (rw) */
 	struct crparam	crk_param[CRK_MAXPARAM];
 };
 #define	CRK_ALGORITM_MIN	0
@@ -187,14 +224,18 @@ struct crypt_kop {
  * Please use F_SETFD against the cloned descriptor.
  */
 #define	CRIOGET		_IOWR('c', 100, u_int32_t)
+#define	CRIOASYMFEAT	CIOCASYMFEAT
+#define	CRIOFINDDEV	CIOCFINDDEV
 
 /* the following are done against the cloned descriptor */
 #define	CIOCGSESSION	_IOWR('c', 101, struct session_op)
 #define	CIOCFSESSION	_IOW('c', 102, u_int32_t)
 #define CIOCCRYPT	_IOWR('c', 103, struct crypt_op)
 #define CIOCKEY		_IOWR('c', 104, struct crypt_kop)
-
 #define CIOCASYMFEAT	_IOR('c', 105, u_int32_t)
+#define	CIOCGSESSION2	_IOWR('c', 106, struct session2_op)
+#define	CIOCKEY2	_IOWR('c', 107, struct crypt_kop)
+#define	CIOCFINDDEV	_IOWR('c', 108, struct crypt_find_op)
 
 struct cryptotstat {
 	struct timespec	acc;		/* total accumulated time */
@@ -316,46 +357,10 @@ struct cryptkop {
 	u_int		krp_status;	/* return status */
 	u_short		krp_iparams;	/* # of input parameters */
 	u_short		krp_oparams;	/* # of output parameters */
+	u_int		krp_crid;	/* desired device, etc. */
 	u_int32_t	krp_hid;
 	struct crparam	krp_param[CRK_MAXPARAM];	/* kvm */
 	int		(*krp_callback)(struct cryptkop *);
-};
-
-/*
- * Crypto capabilities structure.
- *
- * Synchronization:
- * (d) - protected by CRYPTO_DRIVER_LOCK()
- * (q) - protected by CRYPTO_Q_LOCK()
- * Not tagged fields are read-only.
- */
-struct cryptocap {
-	u_int32_t	cc_sessions;		/* (d) number of sessions */
-	u_int32_t	cc_koperations;		/* (d) number os asym operations */
-
-	/*
-	 * Largest possible operator length (in bits) for each type of
-	 * encryption algorithm.
-	 */
-	u_int16_t	cc_max_op_len[CRYPTO_ALGORITHM_MAX + 1];
-
-	u_int8_t	cc_alg[CRYPTO_ALGORITHM_MAX + 1];
-
-	u_int8_t	cc_kalg[CRK_ALGORITHM_MAX + 1];
-
-	u_int8_t	cc_flags;		/* (d) flags */
-#define CRYPTOCAP_F_CLEANUP	0x01		/* needs resource cleanup */
-#define CRYPTOCAP_F_SOFTWARE	0x02		/* software implementation */
-#define CRYPTOCAP_F_SYNC	0x04		/* operates synchronously */
-	u_int8_t	cc_qblocked;		/* (q) symmetric q blocked */
-	u_int8_t	cc_kqblocked;		/* (q) asymmetric q blocked */
-
-	void		*cc_arg;		/* callback argument */
-	int		(*cc_newsession)(void*, u_int32_t*, struct cryptoini*);
-	int		(*cc_process)(void*, struct cryptop *, int);
-	int		(*cc_freesession)(void*, u_int64_t);
-	void		*cc_karg;		/* callback argument */
-	int		(*cc_kprocess) (void*, struct cryptkop *, int);
 };
 
 /*
@@ -365,24 +370,24 @@ struct cryptocap {
  * a copy of the driver's capabilities that can be used by client code to
  * optimize operation.
  */
-#define	CRYPTO_SESID2HID(_sid)	(((_sid) >> 32) & 0xffffff)
-#define	CRYPTO_SESID2CAPS(_sid)	(((_sid) >> 56) & 0xff)
+#define	CRYPTO_SESID2HID(_sid)	(((_sid) >> 32) & 0x00ffffff)
+#define	CRYPTO_SESID2CAPS(_sid)	(((_sid) >> 32) & 0xff000000)
 #define	CRYPTO_SESID2LID(_sid)	(((u_int32_t) (_sid)) & 0xffffffff)
 
 MALLOC_DECLARE(M_CRYPTO_DATA);
 
 extern	int crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int hard);
 extern	int crypto_freesession(u_int64_t sid);
-extern	int32_t crypto_get_driverid(u_int32_t flags);
+#define CRYPTOCAP_F_HARDWARE	CRYPTO_FLAG_HARDWARE
+#define CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
+#define CRYPTOCAP_F_SYNC	0x04000000	/* operates synchronously */
+extern	int32_t crypto_get_driverid(device_t dev, int flags);
+extern	int crypto_find_driver(const char *);
+extern	device_t crypto_find_device_byhid(int hid);
+extern	int crypto_getcaps(int hid);
 extern	int crypto_register(u_int32_t driverid, int alg, u_int16_t maxoplen,
-	    u_int32_t flags,
-	    int (*newses)(void*, u_int32_t*, struct cryptoini*),
-	    int (*freeses)(void*, u_int64_t),
-	    int (*process)(void*, struct cryptop *, int),
-	    void *arg);
-extern	int crypto_kregister(u_int32_t, int, u_int32_t,
-	    int (*)(void*, struct cryptkop *, int),
-	    void *arg);
+	    u_int32_t flags);
+extern	int crypto_kregister(u_int32_t, int, u_int32_t);
 extern	int crypto_unregister(u_int32_t driverid, int alg);
 extern	int crypto_unregister_all(u_int32_t driverid);
 extern	int crypto_dispatch(struct cryptop *crp);

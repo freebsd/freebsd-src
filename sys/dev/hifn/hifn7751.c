@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 
 #include <opencrypto/cryptodev.h>
 #include <sys/random.h>
+#include <sys/kobj.h>
+
+#include "cryptodev_if.h"
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -80,6 +83,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/hifn/hifn7751reg.h>
 #include <dev/hifn/hifn7751var.h>
 
+#ifdef HIFN_VULCANDEV
+#include <sys/conf.h>
+#include <sys/uio.h>
+
+static struct cdevsw vulcanpk_cdevsw; /* forward declaration */
+#endif
+
 /*
  * Prototypes and count for the pci_device structure
  */
@@ -89,6 +99,10 @@ static	int hifn_detach(device_t);
 static	int hifn_suspend(device_t);
 static	int hifn_resume(device_t);
 static	void hifn_shutdown(device_t);
+
+static	int hifn_newsession(device_t, u_int32_t *, struct cryptoini *);
+static	int hifn_freesession(device_t, u_int64_t);
+static	int hifn_process(device_t, struct cryptop *, int);
 
 static device_method_t hifn_methods[] = {
 	/* Device interface */
@@ -102,6 +116,11 @@ static device_method_t hifn_methods[] = {
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+
+	/* crypto device methods */
+	DEVMETHOD(cryptodev_newsession,	hifn_newsession),
+	DEVMETHOD(cryptodev_freesession,hifn_freesession),
+	DEVMETHOD(cryptodev_process,	hifn_process),
 
 	{ 0, 0 }
 };
@@ -132,9 +151,6 @@ static	void hifn_sessions(struct hifn_softc *);
 static	void hifn_intr(void *);
 static	u_int hifn_write_command(struct hifn_command *, u_int8_t *);
 static	u_int32_t hifn_next_signature(u_int32_t a, u_int cnt);
-static	int hifn_newsession(void *, u_int32_t *, struct cryptoini *);
-static	int hifn_freesession(void *, u_int64_t);
-static	int hifn_process(void *, struct cryptop *, int);
 static	void hifn_callback(struct hifn_softc *, struct hifn_command *, u_int8_t *);
 static	int hifn_crypto(struct hifn_softc *, struct hifn_command *, struct cryptop *, int);
 static	int hifn_readramaddr(struct hifn_softc *, int, u_int8_t *);
@@ -279,6 +295,12 @@ checkmaxmin(device_t dev, const char *what, u_int v, u_int min, u_int max)
  * always will allow the card to work.  If a card is using the PCI
  * bus clock and in a 33MHz slot then it will be operating at half
  * speed until the correct information is provided.
+ *
+ * We use a default setting of "ext66" because according to Mike Ham
+ * of HiFn, almost every board in existence has an external crystal
+ * populated at 66Mhz. Using PCI can be a problem on modern motherboards,
+ * because PCI33 can have clocks from 0 to 33Mhz, and some have
+ * non-PCI-compliant spread-spectrum clocks, which can confuse the pll.
  */
 static void
 hifn_getpllconfig(device_t dev, u_int *pll)
@@ -290,7 +312,7 @@ hifn_getpllconfig(device_t dev, u_int *pll)
 
 	if (resource_string_value("hifn", device_get_unit(dev),
 	    "pllconfig", &pllspec))
-		pllspec = "pci66";
+		pllspec = "ext66";
 	fl = 33, fh = 66;
 	pllconfig = 0;
 	if (strncmp(pllspec, "ext", 3) == 0) {
@@ -559,7 +581,7 @@ hifn_attach(device_t dev)
 			2 + 2*((sc->sc_pllconfig & HIFN_PLL_ND) >> 11));
 	printf("\n");
 
-	sc->sc_cid = crypto_get_driverid(0);
+	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
 		goto fail_intr;
@@ -571,26 +593,17 @@ hifn_attach(device_t dev)
 
 	switch (ena) {
 	case HIFN_PUSTAT_ENA_2:
-		crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0,
-		    hifn_newsession, hifn_freesession, hifn_process, sc);
-		crypto_register(sc->sc_cid, CRYPTO_ARC4, 0, 0,
-		    hifn_newsession, hifn_freesession, hifn_process, sc);
+		crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0);
+		crypto_register(sc->sc_cid, CRYPTO_ARC4, 0, 0);
 		if (sc->sc_flags & HIFN_HAS_AES)
-			crypto_register(sc->sc_cid, CRYPTO_AES_CBC,  0, 0,
-				hifn_newsession, hifn_freesession,
-				hifn_process, sc);
+			crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0);
 		/*FALLTHROUGH*/
 	case HIFN_PUSTAT_ENA_1:
-		crypto_register(sc->sc_cid, CRYPTO_MD5, 0, 0,
-		    hifn_newsession, hifn_freesession, hifn_process, sc);
-		crypto_register(sc->sc_cid, CRYPTO_SHA1, 0, 0,
-		    hifn_newsession, hifn_freesession, hifn_process, sc);
-		crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0,
-		    hifn_newsession, hifn_freesession, hifn_process, sc);
-		crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0,
-		    hifn_newsession, hifn_freesession, hifn_process, sc);
-		crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0,
-		    hifn_newsession, hifn_freesession, hifn_process, sc);
+		crypto_register(sc->sc_cid, CRYPTO_MD5, 0, 0);
+		crypto_register(sc->sc_cid, CRYPTO_SHA1, 0, 0);
+		crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
+		crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
+		crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0);
 		break;
 	}
 
@@ -790,6 +803,12 @@ hifn_init_pubrng(struct hifn_softc *sc)
 		WRITE_REG_1(sc, HIFN_1_PUB_IEN, HIFN_PUBIEN_DONE);
 		sc->sc_dmaier |= HIFN_DMAIER_PUBDONE;
 		WRITE_REG_1(sc, HIFN_1_DMA_IER, sc->sc_dmaier);
+#ifdef HIFN_VULCANDEV
+		sc->sc_pkdev = make_dev(&vulcanpk_cdevsw, 0, 
+					UID_ROOT, GID_WHEEL, 0666,
+					"vulcanpk");
+		sc->sc_pkdev->si_drv1 = sc;
+#endif
 	}
 
 	return (0);
@@ -804,6 +823,7 @@ hifn_rng(void *vsc)
 	int i;
 
 	if (sc->sc_flags & HIFN_IS_7811) {
+		/* ONLY VALID ON 7811!!!! */
 		for (i = 0; i < 5; i++) {
 			sts = READ_REG_1(sc, HIFN_1_7811_RNGSTS);
 			if (sts & HIFN_7811_RNGSTS_UFL) {
@@ -846,10 +866,15 @@ static void
 hifn_puc_wait(struct hifn_softc *sc)
 {
 	int i;
+	int reg = HIFN_0_PUCTRL;
+
+	if (sc->sc_flags & HIFN_IS_7956) {
+		reg = HIFN_0_PUCTRL2;
+	}
 
 	for (i = 5000; i > 0; i--) {
 		DELAY(1);
-		if (!(READ_REG_0(sc, HIFN_0_PUCTRL) & HIFN_PUCTRL_RESET))
+		if (!(READ_REG_0(sc, reg) & HIFN_PUCTRL_RESET))
 			break;
 	}
 	if (!i)
@@ -863,7 +888,13 @@ static void
 hifn_reset_puc(struct hifn_softc *sc)
 {
 	/* Reset processing unit */
-	WRITE_REG_0(sc, HIFN_0_PUCTRL, HIFN_PUCTRL_DMAENA);
+	int reg = HIFN_0_PUCTRL;
+
+	if (sc->sc_flags & HIFN_IS_7956) {
+		reg = HIFN_0_PUCTRL2;
+	}
+	WRITE_REG_0(sc, reg, HIFN_PUCTRL_DMAENA);
+
 	hifn_puc_wait(sc);
 }
 
@@ -932,7 +963,16 @@ hifn_reset_board(struct hifn_softc *sc, int full)
 		}
 		if (reg == 1000)
 			printf(": cram init timeout\n");
+	} else {
+	  /* set up DMA configuration register #2 */
+	  /* turn off all PK and BAR0 swaps */
+	  WRITE_REG_1(sc, HIFN_1_DMA_CNFG2,
+		      (3 << HIFN_DMACNFG2_INIT_WRITE_BURST_SHIFT)|
+		      (3 << HIFN_DMACNFG2_INIT_READ_BURST_SHIFT)|
+		      (2 << HIFN_DMACNFG2_TGT_WRITE_BURST_SHIFT)|
+		      (2 << HIFN_DMACNFG2_TGT_READ_BURST_SHIFT));
 	}
+		      
 }
 
 static u_int32_t
@@ -1170,13 +1210,15 @@ hifn_init_pci_registers(struct hifn_softc *sc)
 		/* turn off the clocks and insure bypass is set */
 		pll = READ_REG_1(sc, HIFN_1_PLL);
 		pll = (pll &~ (HIFN_PLL_PK_CLK_SEL | HIFN_PLL_PE_CLK_SEL))
-		    | HIFN_PLL_BP;
+		  | HIFN_PLL_BP | HIFN_PLL_MBSET;
 		WRITE_REG_1(sc, HIFN_1_PLL, pll);
 		DELAY(10*1000);		/* 10ms */
+
 		/* change configuration */
 		pll = (pll &~ HIFN_PLL_CONFIG) | sc->sc_pllconfig;
 		WRITE_REG_1(sc, HIFN_1_PLL, pll);
 		DELAY(10*1000);		/* 10ms */
+
 		/* disable bypass */
 		pll &= ~HIFN_PLL_BP;
 		WRITE_REG_1(sc, HIFN_1_PLL, pll);
@@ -1657,6 +1699,21 @@ hifn_dmamap_aligned(struct hifn_operand *op)
 	return (1);
 }
 
+static __inline int
+hifn_dmamap_dstwrap(struct hifn_softc *sc, int idx)
+{
+	struct hifn_dma *dma = sc->sc_dma;
+
+	if (++idx == HIFN_D_DST_RSIZE) {
+		dma->dstr[idx].l = htole32(HIFN_D_VALID | HIFN_D_JUMP |
+		    HIFN_D_MASKDONEIRQ);
+		HIFN_DSTR_SYNC(sc, idx,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		idx = 0;
+	}
+	return (idx);
+}
+
 static int
 hifn_dmamap_load_dst(struct hifn_softc *sc, struct hifn_command *cmd)
 {
@@ -1674,13 +1731,7 @@ hifn_dmamap_load_dst(struct hifn_softc *sc, struct hifn_command *cmd)
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 		used++;
 
-		if (++idx == HIFN_D_DST_RSIZE) {
-			dma->dstr[idx].l = htole32(HIFN_D_VALID |
-			    HIFN_D_JUMP | HIFN_D_MASKDONEIRQ);
-			HIFN_DSTR_SYNC(sc, idx,
-			    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-			idx = 0;
-		}
+		idx = hifn_dmamap_dstwrap(sc, idx);
 	}
 
 	if (cmd->sloplen == 0) {
@@ -1702,13 +1753,7 @@ hifn_dmamap_load_dst(struct hifn_softc *sc, struct hifn_command *cmd)
 			    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 			used++;
 
-			if (++idx == HIFN_D_DST_RSIZE) {
-				dma->dstr[idx].l = htole32(HIFN_D_VALID |
-				    HIFN_D_JUMP | HIFN_D_MASKDONEIRQ);
-				HIFN_DSTR_SYNC(sc, idx,
-				    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-				idx = 0;
-			}
+			idx = hifn_dmamap_dstwrap(sc, idx);
 		}
 	}
 	dma->dstr[idx].p = htole32(p);
@@ -1716,16 +1761,25 @@ hifn_dmamap_load_dst(struct hifn_softc *sc, struct hifn_command *cmd)
 	HIFN_DSTR_SYNC(sc, idx, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	used++;
 
-	if (++idx == HIFN_D_DST_RSIZE) {
-		dma->dstr[idx].l = htole32(HIFN_D_VALID | HIFN_D_JUMP |
-		    HIFN_D_MASKDONEIRQ);
-		HIFN_DSTR_SYNC(sc, idx,
-		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-		idx = 0;
-	}
+	idx = hifn_dmamap_dstwrap(sc, idx);
 
 	dma->dsti = idx;
 	dma->dstu += used;
+	return (idx);
+}
+
+static __inline int
+hifn_dmamap_srcwrap(struct hifn_softc *sc, int idx)
+{
+	struct hifn_dma *dma = sc->sc_dma;
+
+	if (++idx == HIFN_D_SRC_RSIZE) {
+		dma->srcr[idx].l = htole32(HIFN_D_VALID |
+		    HIFN_D_JUMP | HIFN_D_MASKDONEIRQ);
+		HIFN_SRCR_SYNC(sc, HIFN_D_SRC_RSIZE,
+		    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+		idx = 0;
+	}
 	return (idx);
 }
 
@@ -1748,13 +1802,7 @@ hifn_dmamap_load_src(struct hifn_softc *sc, struct hifn_command *cmd)
 		HIFN_SRCR_SYNC(sc, idx,
 		    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
-		if (++idx == HIFN_D_SRC_RSIZE) {
-			dma->srcr[idx].l = htole32(HIFN_D_VALID |
-			    HIFN_D_JUMP | HIFN_D_MASKDONEIRQ);
-			HIFN_SRCR_SYNC(sc, HIFN_D_SRC_RSIZE,
-			    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
-			idx = 0;
-		}
+		idx = hifn_dmamap_srcwrap(sc, idx);
 	}
 	dma->srci = idx;
 	dma->srcu += src->nsegs;
@@ -1782,7 +1830,7 @@ hifn_crypto(
 	int hint)
 {
 	struct	hifn_dma *dma = sc->sc_dma;
-	u_int32_t cmdlen;
+	u_int32_t cmdlen, csr;
 	int cmdi, resi, err = 0;
 
 	/*
@@ -1995,10 +2043,6 @@ hifn_crypto(
 	HIFN_CMDR_SYNC(sc, cmdi,
 	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 	dma->cmdu++;
-	if (sc->sc_c_busy == 0) {
-		WRITE_REG_1(sc, HIFN_1_DMA_CSR, HIFN_DMACSR_C_CTRL_ENA);
-		sc->sc_c_busy = 1;
-	}
 
 	/*
 	 * We don't worry about missing an interrupt (which a "command wait"
@@ -2014,10 +2058,6 @@ hifn_crypto(
 	hifnstats.hst_ibytes += cmd->src_mapsize;
 
 	hifn_dmamap_load_src(sc, cmd);
-	if (sc->sc_s_busy == 0) {
-		WRITE_REG_1(sc, HIFN_1_DMA_CSR, HIFN_DMACSR_S_CTRL_ENA);
-		sc->sc_s_busy = 1;
-	}
 
 	/*
 	 * Unlike other descriptors, we don't mask done interrupt from
@@ -2054,20 +2094,31 @@ hifn_crypto(
 	HIFN_RESR_SYNC(sc, resi,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	dma->resu++;
-	if (sc->sc_r_busy == 0) {
-		WRITE_REG_1(sc, HIFN_1_DMA_CSR, HIFN_DMACSR_R_CTRL_ENA);
-		sc->sc_r_busy = 1;
-	}
 
 	if (cmd->sloplen)
 		cmd->slopidx = resi;
 
 	hifn_dmamap_load_dst(sc, cmd);
 
+	csr = 0;
+	if (sc->sc_c_busy == 0) {
+		csr |= HIFN_DMACSR_C_CTRL_ENA;
+		sc->sc_c_busy = 1;
+	}
+	if (sc->sc_s_busy == 0) {
+		csr |= HIFN_DMACSR_S_CTRL_ENA;
+		sc->sc_s_busy = 1;
+	}
+	if (sc->sc_r_busy == 0) {
+		csr |= HIFN_DMACSR_R_CTRL_ENA;
+		sc->sc_r_busy = 1;
+	}
 	if (sc->sc_d_busy == 0) {
-		WRITE_REG_1(sc, HIFN_1_DMA_CSR, HIFN_DMACSR_D_CTRL_ENA);
+		csr |= HIFN_DMACSR_D_CTRL_ENA;
 		sc->sc_d_busy = 1;
 	}
+	if (csr)
+		WRITE_REG_1(sc, HIFN_1_DMA_CSR, csr);
 
 #ifdef HIFN_DEBUG
 	if (hifn_debug) {
@@ -2292,10 +2343,10 @@ hifn_intr(void *arg)
  * id on successful allocation.
  */
 static int
-hifn_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
+hifn_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 {
+	struct hifn_softc *sc = device_get_softc(dev);
 	struct cryptoini *c;
-	struct hifn_softc *sc = arg;
 	int mac = 0, cry = 0, sesn;
 	struct hifn_session *ses = NULL;
 
@@ -2303,11 +2354,14 @@ hifn_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 	if (sidp == NULL || cri == NULL || sc == NULL)
 		return (EINVAL);
 
+	HIFN_LOCK(sc);
 	if (sc->sc_sessions == NULL) {
 		ses = sc->sc_sessions = (struct hifn_session *)malloc(
 		    sizeof(*ses), M_DEVBUF, M_NOWAIT);
-		if (ses == NULL)
+		if (ses == NULL) {
+			HIFN_UNLOCK(sc);
 			return (ENOMEM);
+		}
 		sesn = 0;
 		sc->sc_nsessions = 1;
 	} else {
@@ -2322,8 +2376,10 @@ hifn_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 			sesn = sc->sc_nsessions;
 			ses = (struct hifn_session *)malloc((sesn + 1) *
 			    sizeof(*ses), M_DEVBUF, M_NOWAIT);
-			if (ses == NULL)
+			if (ses == NULL) {
+				HIFN_UNLOCK(sc);
 				return (ENOMEM);
+			}
 			bcopy(sc->sc_sessions, ses, sesn * sizeof(*ses));
 			bzero(sc->sc_sessions, sesn * sizeof(*ses));
 			free(sc->sc_sessions, M_DEVBUF);
@@ -2332,6 +2388,8 @@ hifn_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 			sc->sc_nsessions++;
 		}
 	}
+	HIFN_UNLOCK(sc);
+
 	bzero(ses, sizeof(*ses));
 	ses->hs_used = 1;
 
@@ -2389,28 +2447,32 @@ hifn_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
  * XXX to blow away any keys already stored there.
  */
 static int
-hifn_freesession(void *arg, u_int64_t tid)
+hifn_freesession(device_t dev, u_int64_t tid)
 {
-	struct hifn_softc *sc = arg;
-	int session;
+	struct hifn_softc *sc = device_get_softc(dev);
+	int session, error;
 	u_int32_t sid = CRYPTO_SESID2LID(tid);
 
 	KASSERT(sc != NULL, ("hifn_freesession: null softc"));
 	if (sc == NULL)
 		return (EINVAL);
 
+	HIFN_LOCK(sc);
 	session = HIFN_SESSION(sid);
-	if (session >= sc->sc_nsessions)
-		return (EINVAL);
+	if (session < sc->sc_nsessions) {
+		bzero(&sc->sc_sessions[session], sizeof(struct hifn_session));
+		error = 0;
+	} else
+		error = EINVAL;
+	HIFN_UNLOCK(sc);
 
-	bzero(&sc->sc_sessions[session], sizeof(sc->sc_sessions[session]));
-	return (0);
+	return (error);
 }
 
 static int
-hifn_process(void *arg, struct cryptop *crp, int hint)
+hifn_process(device_t dev, struct cryptop *crp, int hint)
 {
-	struct hifn_softc *sc = arg;
+	struct hifn_softc *sc = device_get_softc(dev);
 	struct hifn_command *cmd = NULL;
 	int session, err, ivlen;
 	struct cryptodesc *crd1, *crd2, *maccrd, *enccrd;
@@ -2858,3 +2920,41 @@ hifn_write_reg_1(struct hifn_softc *sc, bus_size_t reg, u_int32_t val)
 	}
 	bus_space_write_4(sc->sc_st1, sc->sc_sh1, reg, val);
 }
+
+#ifdef HIFN_VULCANDEV
+/*
+ * this code provides support for mapping the PK engine's register
+ * into a userspace program.
+ *
+ */
+static int
+vulcanpk_mmap(struct cdev *dev, vm_offset_t offset,
+	      vm_paddr_t *paddr, int nprot)
+{
+	struct hifn_softc *sc;
+	vm_paddr_t pd;
+	void *b;
+
+	sc = dev->si_drv1;
+
+	pd = rman_get_start(sc->sc_bar1res);
+	b = rman_get_virtual(sc->sc_bar1res);
+
+#if 0
+	printf("vpk mmap: %p(%08x) offset=%d\n", b, pd, offset);
+	hexdump(b, HIFN_1_PUB_MEMEND, "vpk", 0);
+#endif
+
+	if (offset == 0) {
+		*paddr = pd;
+		return (0);
+	}
+	return (-1);
+}
+
+static struct cdevsw vulcanpk_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_mmap =	vulcanpk_mmap,
+	.d_name =	"vulcanpk",
+};
+#endif /* HIFN_VULCANDEV */
