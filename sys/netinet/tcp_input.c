@@ -30,7 +30,7 @@
  * $FreeBSD$
  */
 
-#include "opt_ipfw.h"		/* for ipfw_fwd		*/
+#include "opt_ipfw.h"		/* for ipfw_fwd	*/
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -657,8 +657,9 @@ findpcb:
 		}
 		/* Remove the tag from the packet.  We don't need it anymore. */
 		m_tag_delete(m, fwd_tag);
-	} else {
+	} else
 #endif /* IPFIREWALL_FORWARD */
+	{
 		if (isipv6) {
 #ifdef INET6
 			inp = in6_pcblookup_hash(&tcbinfo,
@@ -673,9 +674,7 @@ findpcb:
 						ip->ip_dst, th->th_dport,
 						INPLOOKUP_WILDCARD,
 						m->m_pkthdr.rcvif);
-#ifdef IPFIREWALL_FORWARD
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
 #ifdef INET6
