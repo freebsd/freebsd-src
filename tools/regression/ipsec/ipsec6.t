@@ -1,16 +1,17 @@
 #!/bin/sh
 # $FreeBSD$
 #
-# IPsec regression test.
+# IPv6 IPsec test based on ipsec.t, in this same directory, which tests
+# IPsec by setting up a set of tunnels and then sending ICMPv6 packets,   
+# aka those generated with ping6(8), across the tunnel.
 #
-# This test sets up tunnels on the localhost (lo0) interface 
-# with various ciphers by using the setkey(8) command and then 
-# attempts to ping each end of the tunnel.
-# The test says which pings worked and which failed.      
+# This test should ONLY be used as a smoke test to verify that nothing
+# drastic has been broken, it is insufficient for true protocol conformance
+# testing.
 #
-# Expected Output: No failures
+# Expected Output: No failures.
 
-ipbase="127.255"
+ipbase="1"
 netif="lo0"
 spi="10000"
 
@@ -18,8 +19,8 @@ echo "1..306"
 
 #sysctl net.inet.ipsec.crypto_support=1 >/dev/null 2>&1
 
-ifconfig $netif alias ${ipbase}.0.1/24
-ifconfig $netif alias ${ipbase}.1.1/24
+ifconfig $netif inet6 alias ${ipbase}::1/128
+ifconfig $netif inet6 alias ${ipbase}::2/128
 
 i=1
 
@@ -59,13 +60,13 @@ for ecipher in \
 		setkey -F
 		setkey -FP
 
-		(echo "add ${ipbase}.0.1 ${ipbase}.1.1 esp $spi            -m transport -E $ealgo \"${ekey}\" -A $aalgo \"${akey}\" ;"
-		 echo "add ${ipbase}.1.1 ${ipbase}.0.1 esp `expr $spi + 1` -m transport -E $ealgo \"${ekey}\" -A $aalgo \"${akey}\" ;"
+		(echo "add -6 ${ipbase}::1 ${ipbase}::2 esp $spi            -m transport -E $ealgo \"${ekey}\" -A $aalgo \"${akey}\" ;"
+		 echo "add -6 ${ipbase}::2 ${ipbase}::1 esp `expr $spi + 1` -m transport -E $ealgo \"${ekey}\" -A $aalgo \"${akey}\" ;"
 
-		 echo "spdadd ${ipbase}.0.1 ${ipbase}.1.1 any -P out ipsec esp/transport//require;"
-		 echo "spdadd ${ipbase}.1.1 ${ipbase}.0.1 any -P in  ipsec esp/transport//require;"
-		 echo "spdadd ${ipbase}.0.1 ${ipbase}.1.1 any -P in  ipsec esp/transport//require;"
-		 echo "spdadd ${ipbase}.1.1 ${ipbase}.0.1 any -P out ipsec esp/transport//require;"
+		 echo "spdadd -6 ${ipbase}::1 ${ipbase}::2 any -P out ipsec esp/transport//require;"
+		 echo "spdadd -6 ${ipbase}::2 ${ipbase}::1 any -P in  ipsec esp/transport//require;"
+		 echo "spdadd -6 ${ipbase}::1 ${ipbase}::2 any -P in  ipsec esp/transport//require;"
+		 echo "spdadd -6 ${ipbase}::2 ${ipbase}::1 any -P out ipsec esp/transport//require;"
 		) | setkey -c >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
 			echo "ok $i - setkey ${ealgo} ${ekey} ${aalgo} ${akey}"
@@ -74,14 +75,14 @@ for ecipher in \
 		fi
 		i=$((i+1))
 
-		ping -c 1 -t 2 -S ${ipbase}.0.1 ${ipbase}.1.1 >/dev/null
+		ping6 -c 1 -i 1 -S ${ipbase}::1 ${ipbase}::2 >/dev/null
 		if [ $? -eq 0 ]; then
 			echo "ok $i - test 1 ${ealgo} ${ekey} ${aalgo} ${akey}"
 		else
 			echo "not ok $i - test 1 ${ealgo} ${ekey} ${aalgo} ${akey}"
 		fi
 		i=$((i+1))
-		ping -c 1 -t 2 -S ${ipbase}.1.1 ${ipbase}.0.1 >/dev/null
+		ping6 -c 1 -i 1 -S ${ipbase}::2 ${ipbase}::1 >/dev/null
 		if [ $? -eq 0 ]; then
 			echo "ok $i - test 2 ${ealgo} ${ekey} ${aalgo} ${akey}"
 		else
@@ -94,5 +95,5 @@ done
 setkey -F
 setkey -FP
 
-ifconfig $netif -alias ${ipbase}.0.1
-ifconfig $netif -alias ${ipbase}.1.1
+ifconfig $netif inet6 ${ipbase}::1 delete
+ifconfig $netif inet6 ${ipbase}::2 delete
