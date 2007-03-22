@@ -59,7 +59,7 @@ scc_ebus_probe(device_t dev)
 	if (!strcmp(nm, "se") || !strcmp(cmpt, "sab82532")) {
 		device_set_desc(dev, "Siemens SAB 82532 dual channel SCC");
 		sc->sc_class = &scc_sab82532_class;
-		return (scc_bfe_probe(dev, EBUS_REGSHFT, EBUS_RCLK));
+		return (scc_bfe_probe(dev, EBUS_REGSHFT, EBUS_RCLK, 0));
 	}
 	return (ENXIO);
 }

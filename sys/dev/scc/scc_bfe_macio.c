@@ -56,7 +56,7 @@ scc_macio_probe(device_t dev)
 	if (!strcmp(nm, "escc")) {
 		device_set_desc(dev, "Zilog Z8530 dual channel SCC");
 		sc->sc_class = &scc_z8530_class;
-		return (scc_bfe_probe(dev, MACIO_REGSHFT, MACIO_RCLK));
+		return (scc_bfe_probe(dev, MACIO_REGSHFT, MACIO_RCLK, 0));
 	}
 	return (ENXIO);
 }
