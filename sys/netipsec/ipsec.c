@@ -93,6 +93,8 @@
 
 #include <machine/in_cksum.h>
 
+#include <opencrypto/cryptodev.h>
+
 #ifdef IPSEC_DEBUG
 int ipsec_debug = 1;
 #else
