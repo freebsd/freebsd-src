@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 169 $
+ *       $Revision: 1.234 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -137,7 +137,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20051021
+#define ACPI_CA_VERSION                 0x20070320
 
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,
@@ -155,9 +155,10 @@
 #define ACPI_MAX_PARSE_CACHE_DEPTH      96          /* Parse tree objects */
 #define ACPI_MAX_EXTPARSE_CACHE_DEPTH   96          /* Parse tree objects */
 #define ACPI_MAX_OBJECT_CACHE_DEPTH     96          /* Interpreter operand objects */
+#define ACPI_MAX_NAMESPACE_CACHE_DEPTH  96          /* Namespace objects */
 
 /*
- * Should the subystem abort the loading of an ACPI table if the
+ * Should the subsystem abort the loading of an ACPI table if the
  * table checksum is incorrect?
  */
 #define ACPI_CHECKSUM_ABORT             FALSE
@@ -173,22 +174,25 @@
 
 #define ACPI_CA_SUPPORT_LEVEL           3
 
-/* String size constants */
-
-#define ACPI_MAX_STRING_LENGTH          512
-#define ACPI_PATHNAME_MAX               256         /* A full namespace pathname */
-
 /* Maximum count for a semaphore object */
 
 #define ACPI_MAX_SEMAPHORE_COUNT        256
 
-/* Max reference count (for debug only) */
+/* Maximum object reference count (detects object deletion issues) */
 
-#define ACPI_MAX_REFERENCE_COUNT        0x400
+#define ACPI_MAX_REFERENCE_COUNT        0x800
 
 /* Size of cached memory mapping for system memory operation region */
 
 #define ACPI_SYSMEM_REGION_WINDOW_SIZE  4096
+
+/* OwnerId tracking. 8 entries allows for 255 OwnerIds */
+
+#define ACPI_NUM_OWNERID_MASKS          8
+
+/* Size of the root table array is increased by this increment */
+
+#define ACPI_ROOT_TABLE_SIZE_INCREMENT  4
 
 
 /******************************************************************************
@@ -210,14 +214,11 @@
 #define ACPI_METHOD_NUM_ARGS            7
 #define ACPI_METHOD_MAX_ARG             6
 
-/* Maximum length of resulting string when converting from a buffer */
-
-#define ACPI_MAX_STRING_CONVERSION      200
-
-/* Length of _HID, _UID, and _CID values */
+/* Length of _HID, _UID, _CID, and UUID values */
 
 #define ACPI_DEVICE_ID_LENGTH           0x09
 #define ACPI_MAX_CID_LENGTH             48
+#define ACPI_UUID_LENGTH                16
 
 /*
  * Operand Stack (in WALK_STATE), Must be large enough to contain METHOD_MAX_ARG
@@ -225,11 +226,27 @@
 #define ACPI_OBJ_NUM_OPERANDS           8
 #define ACPI_OBJ_MAX_OPERAND            7
 
+/* Number of elements in the Result Stack frame, can be an arbitrary value */
+
+#define ACPI_RESULTS_FRAME_OBJ_NUM      8
+
+/*
+ * Maximal number of elements the Result Stack can contain,
+ * it may be an arbitray value not exceeding the types of
+ * ResultSize and ResultCount (now UINT8).
+ */
+#define ACPI_RESULTS_OBJ_NUM_MAX        255
+
 /* Names within the namespace are 4 bytes long */
 
 #define ACPI_NAME_SIZE                  4
 #define ACPI_PATH_SEGMENT_LENGTH        5           /* 4 chars for name + 1 char for separator */
 #define ACPI_PATH_SEPARATOR             '.'
+
+/* Sizes for ACPI table headers */
+
+#define ACPI_OEM_ID_SIZE                6
+#define ACPI_OEM_TABLE_ID_SIZE          8
 
 /* Constants used in searching for the RSDP in low memory */
 
@@ -251,12 +268,7 @@
 
 /* Array sizes.  Used for range checking also */
 
-#define ACPI_NUM_ACCESS_TYPES           6
-#define ACPI_NUM_UPDATE_RULES           3
-#define ACPI_NUM_LOCK_RULES             2
-#define ACPI_NUM_MATCH_OPS              6
-#define ACPI_NUM_OPCODES                256
-#define ACPI_NUM_FIELD_NAMES            2
+#define ACPI_MAX_MATCH_OPCODE           5
 
 /* RSDP checksums */
 
@@ -266,10 +278,6 @@
 /* SMBus bidirectional buffer size */
 
 #define ACPI_SMBUS_BUFFER_SIZE          34
-
-/* Number of strings associated with the _OSI reserved method */
-
-#define ACPI_NUM_OSI_STRINGS            10
 
 
 /******************************************************************************
