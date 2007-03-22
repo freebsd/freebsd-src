@@ -1087,35 +1087,28 @@ timer:
 		 * We know that the packet was lost, so back out the
 		 * sequence number advance, if any.
 		 */
-		if ((tp->t_flags & TF_FORCEDATA) == 0 || 
-		    !callout_active(tp->tt_persist)) {
-			/*
-			 * No need to check for TH_FIN here because
-			 * the TF_SENTFIN flag handles that case.
-			 */
-			if ((flags & TH_SYN) == 0) {
-				if (sack_rxmit) {
-					p->rxmit -= len;
-					tp->sackhint.sack_bytes_rexmit -= len;
-					KASSERT(tp->sackhint.sack_bytes_rexmit
-						>= 0,
-						("sackhint bytes rtx >= 0"));
-				} else
-					tp->snd_nxt -= len;
-			}
+		if (((tp->t_flags & TF_FORCEDATA) == 0 ||
+		    !callout_active(tp->tt_persist)) &&
+		    (flags & TH_SYN) == 0) {
+			if (sack_rxmit) {
+				p->rxmit -= len;
+				tp->sackhint.sack_bytes_rexmit -= len;
+				KASSERT(tp->sackhint.sack_bytes_rexmit >= 0,
+				    ("sackhint bytes rtx >= 0"));
+			} else
+				tp->snd_nxt -= len;
 		}
-
 out:
 		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);	/* Check gotos. */
-		if (error == ENOBUFS) {
+		switch (error) {
+		case ENOBUFS:
 	                if (!callout_active(tp->tt_rexmt) &&
 			    !callout_active(tp->tt_persist))
 	                        callout_reset(tp->tt_rexmt, tp->t_rxtcur,
 				    tcp_timer_rexmt, tp);
 			tp->snd_cwnd = tp->t_maxseg;
 			return (0);
-		}
-		if (error == EMSGSIZE) {
+		case EMSGSIZE:
 			/*
 			 * ip_output() will have already fixed the route
 			 * for us.  tcp_mtudisc() will, as its last action,
@@ -1123,14 +1116,19 @@ out:
 			 * not do so here.
 			 */
 			tcp_mtudisc(tp->t_inpcb, 0);
-			return 0;
-		}
-		if ((error == EHOSTUNREACH || error == ENETDOWN)
-		    && TCPS_HAVERCVDSYN(tp->t_state)) {
-			tp->t_softerror = error;
 			return (0);
+		case EHOSTDOWN:
+		case EHOSTUNREACH:
+		case ENETDOWN:
+		case ENETUNREACH:
+			if (TCPS_HAVERCVDSYN(tp->t_state)) {
+				tp->t_softerror = error;
+				return (0);
+			}
+			/* FALLTHROUGH */
+		default:
+			return (error);
 		}
-		return (error);
 	}
 	tcpstat.tcps_sndtotal++;
 
