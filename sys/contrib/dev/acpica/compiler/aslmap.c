@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslmap - parser to AML opcode mapping table
- *              $Revision: 1.80 $
+ *              $Revision: 1.87 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -308,7 +308,7 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_EJ3",     1,      0},
     {"_EJ4",     1,      0},
     {"_EJD",     0,      ASL_RSVD_RETURN_VALUE},
-    {"_ERR",     2,      ASL_RSVD_RETURN_VALUE},
+    {"_ERR",     3,      ASL_RSVD_RETURN_VALUE},
     {"_FDE",     0,      ASL_RSVD_RETURN_VALUE},
     {"_FDI",     0,      ASL_RSVD_RETURN_VALUE},
     {"_FDM",     1,      0},
@@ -421,6 +421,7 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_SWS",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_TC1",     0,      ASL_RSVD_RETURN_VALUE},
     {"_TC2",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_TDL",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0b */
     {"_TMP",     0,      ASL_RSVD_RETURN_VALUE},
     {"_TPC",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_TPT",     1,      0},                        /* Acpi 3.0 */
@@ -445,6 +446,8 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_UPP",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_VPO",     0,      ASL_RSVD_RETURN_VALUE},
     {"_WAK",     1,      ASL_RSVD_RETURN_VALUE},
+    {"_WDG",     0,      ASL_RSVD_RETURN_VALUE},    /* MS Extension */
+    {"_WED",     1,      ASL_RSVD_RETURN_VALUE},    /* MS Extension */
     {NULL,       0,      0},
 };
 
@@ -551,6 +554,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* ELSE */                      OP_TABLE_ENTRY (AML_ELSE_OP,                0,                              NODE_AML_PACKAGE,   0),
 /* ELSEIF */                    OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              NODE_AML_PACKAGE,   0),
 /* ENDDEPENDENTFN */            OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
+/* ENDTAG */                    OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* ERRORNODE */                 OP_TABLE_ENTRY (AML_NOOP_OP,                0,                              0,                  0),
 /* EVENT */                     OP_TABLE_ENTRY (AML_EVENT_OP,               0,                              0,                  0),
 /* EXTENDEDIO */                OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),

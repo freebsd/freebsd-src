@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconvrt - Object conversion routines
- *              $Revision: 1.67 $
+ *              $Revision: 1.74 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -164,7 +164,7 @@ AcpiExConvertToInteger (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("ExConvertToInteger", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR (ExConvertToInteger, ObjDesc);
 
 
     switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
@@ -265,6 +265,9 @@ AcpiExConvertToInteger (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Converted value: %8.8X%8.8X\n",
+        ACPI_FORMAT_UINT64 (Result)));
+
     /* Save the Result */
 
     ReturnDesc->Integer.Value = Result;
@@ -297,7 +300,7 @@ AcpiExConvertToBuffer (
     UINT8                   *NewBuf;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("ExConvertToBuffer", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR (ExConvertToBuffer, ObjDesc);
 
 
     switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
@@ -518,7 +521,7 @@ AcpiExConvertToString (
     UINT8                   Separator = ',';
 
 
-    ACPI_FUNCTION_TRACE_PTR ("ExConvertToString", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR (ExConvertToString, ObjDesc);
 
 
     switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
@@ -632,18 +635,10 @@ AcpiExConvertToString (
         }
 
         /*
-         * Perform the conversion.
+         * Create a new string object and string buffer
          * (-1 because of extra separator included in StringLength from above)
          */
-        StringLength--;
-        if (StringLength > ACPI_MAX_STRING_CONVERSION)  /* ACPI limit */
-        {
-            return_ACPI_STATUS (AE_AML_STRING_LIMIT);
-        }
-
-        /* Create a new string object and string buffer */
-
-        ReturnDesc = AcpiUtCreateStringObject ((ACPI_SIZE) StringLength);
+        ReturnDesc = AcpiUtCreateStringObject ((ACPI_SIZE) (StringLength - 1));
         if (!ReturnDesc)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
@@ -705,7 +700,7 @@ AcpiExConvertToTargetType (
     ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE ("ExConvertToTargetType");
+    ACPI_FUNCTION_TRACE (ExConvertToTargetType);
 
 
     /* Default behavior */
@@ -782,7 +777,7 @@ AcpiExConvertToTargetType (
 
 
         default:
-            ACPI_REPORT_ERROR (("Bad destination type during conversion: %X\n",
+            ACPI_ERROR ((AE_INFO, "Bad destination type during conversion: %X",
                 DestinationType));
             Status = AE_AML_INTERNAL;
             break;
@@ -798,13 +793,10 @@ AcpiExConvertToTargetType (
 
 
     default:
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Unknown Target type ID 0x%X Op %s DestType %s\n",
+        ACPI_ERROR ((AE_INFO,
+            "Unknown Target type ID 0x%X AmlOpcode %X DestType %s",
             GET_CURRENT_ARG_TYPE (WalkState->OpInfo->RuntimeArgs),
-            WalkState->OpInfo->Name, AcpiUtGetTypeName (DestinationType)));
-
-        ACPI_REPORT_ERROR (("Bad Target Type (ARGI): %X\n",
-            GET_CURRENT_ARG_TYPE (WalkState->OpInfo->RuntimeArgs)))
+            WalkState->Opcode, AcpiUtGetTypeName (DestinationType)));
         Status = AE_AML_INTERNAL;
     }
 

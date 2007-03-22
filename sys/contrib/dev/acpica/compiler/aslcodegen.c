@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslcodegen - AML code generation
- *              $Revision: 1.57 $
+ *              $Revision: 1.62 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -205,6 +205,18 @@ CgAmlWriteWalk (
     void                    *Context)
 {
 
+    /*
+     * Print header at level 0. Alignment assumes 32-bit pointers
+     */
+    if (!Level)
+    {
+        DbgPrint (ASL_TREE_OUTPUT,
+            "Final parse tree used for AML output:\n");
+        DbgPrint (ASL_TREE_OUTPUT,
+            "%*s Value    P_Op A_Op OpLen PByts Len  SubLen PSubLen OpPtr    Child    Parent   Flags    AcTyp    Final Col L\n",
+            76, " ");
+    }
+
     /* Debug output */
 
     DbgPrint (ASL_TREE_OUTPUT,
@@ -223,23 +235,24 @@ CgAmlWriteWalk (
         DbgPrint (ASL_TREE_OUTPUT, "                ");
     }
 
-    DbgPrint (ASL_TREE_OUTPUT,
-        "Val-%08X POp-%04X AOp-%04X OpLen-%01X PByts-%01X Len-%04X SubLen-%04X PSubLen-%04X Op-%08X Chld-%08X Paren-%08X Flags-%04X AcTyp-%08X C-%2d L-%d\n",
-                (UINT32) Op->Asl.Value.Integer,
-                Op->Asl.ParseOpcode,
-                Op->Asl.AmlOpcode,
-                Op->Asl.AmlOpcodeLength,
-                Op->Asl.AmlPkgLenBytes,
-                Op->Asl.AmlLength,
-                Op->Asl.AmlSubtreeLength,
-                Op->Asl.Parent ? Op->Asl.Parent->Asl.AmlSubtreeLength : 0,
-                Op,
-                Op->Asl.Child,
-                Op->Asl.Parent,
-                Op->Asl.CompileFlags,
-                Op->Asl.AcpiBtype,
-                Op->Asl.Column,
-                Op->Asl.LineNumber);
+        DbgPrint (ASL_TREE_OUTPUT,
+        "%08X %04X %04X %01X     %04X  %04X %04X   %04X    %08X %08X %08X %08X %08X %04X  %02d  %02d\n",
+                /* 1  */ (UINT32) Op->Asl.Value.Integer,
+                /* 2  */ Op->Asl.ParseOpcode,
+                /* 3  */ Op->Asl.AmlOpcode,
+                /* 4  */ Op->Asl.AmlOpcodeLength,
+                /* 5  */ Op->Asl.AmlPkgLenBytes,
+                /* 6  */ Op->Asl.AmlLength,
+                /* 7  */ Op->Asl.AmlSubtreeLength,
+                /* 8  */ Op->Asl.Parent ? Op->Asl.Parent->Asl.AmlSubtreeLength : 0,
+                /* 9  */ Op,
+                /* 10 */ Op->Asl.Child,
+                /* 11 */ Op->Asl.Parent,
+                /* 12 */ Op->Asl.CompileFlags,
+                /* 13 */ Op->Asl.AcpiBtype,
+                /* 14 */ Op->Asl.FinalAmlLength,
+                /* 15 */ Op->Asl.Column,
+                /* 16 */ Op->Asl.LineNumber);
 
     /* Generate the AML for this node */
 
@@ -383,7 +396,7 @@ CgWriteAmlOpcode (
 
             CgLocalWriteAmlData (Op, &PkgLen.LenBytes[0], 1);
         }
-        else
+        else if (Op->Asl.AmlPkgLenBytes != 0)
         {
             /*
              * Encode the "bytes to follow" in the first byte, top two bits.
@@ -575,8 +588,6 @@ CgWriteNode (
     ASL_RESOURCE_NODE       *Rnode;
 
 
-    Op->Asl.FinalAmlLength = 0;
-
     /* Always check for DEFAULT_ARG and other "Noop" nodes */
     /* TBD: this may not be the best place for this check */
 
@@ -587,6 +598,8 @@ CgWriteNode (
     {
         return;
     }
+
+    Op->Asl.FinalAmlLength = 0;
 
     switch (Op->Asl.AmlOpcode)
     {

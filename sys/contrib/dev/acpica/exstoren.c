@@ -3,7 +3,7 @@
  *
  * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 1.64 $
+ *              $Revision: 1.71 $
  *
  *****************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -152,7 +152,7 @@ AcpiExResolveObject (
     ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE ("ExResolveObject");
+    ACPI_FUNCTION_TRACE (ExResolveObject);
 
 
     /* Ensure we have a Target that can be stored to */
@@ -204,8 +204,8 @@ AcpiExResolveObject (
         {
             /* Conversion successful but still not a valid type */
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "Cannot assign type %s to %s (must be type Int/Str/Buf)\n",
+            ACPI_ERROR ((AE_INFO,
+                "Cannot assign type %s to %s (must be type Int/Str/Buf)",
                 AcpiUtGetObjectTypeName (SourceDesc),
                 AcpiUtGetTypeName (TargetType)));
             Status = AE_AML_OPERAND_TYPE;
@@ -216,9 +216,11 @@ AcpiExResolveObject (
     case ACPI_TYPE_LOCAL_ALIAS:
     case ACPI_TYPE_LOCAL_METHOD_ALIAS:
 
-        /* Aliases are resolved by AcpiExPrepOperands */
-
-        ACPI_REPORT_ERROR (("Store into Alias - should never happen\n"));
+        /*
+         * All aliases should have been resolved earlier, during the
+         * operand resolution phase.
+         */
+        ACPI_ERROR ((AE_INFO, "Store into an unresolved Alias object"));
         Status = AE_AML_INTERNAL;
         break;
 
@@ -283,7 +285,7 @@ AcpiExStoreObjectToObject (
     ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("ExStoreObjectToObject", SourceDesc);
+    ACPI_FUNCTION_TRACE_PTR (ExStoreObjectToObject, SourceDesc);
 
 
     ActualSrcDesc = SourceDesc;
@@ -362,7 +364,7 @@ AcpiExStoreObjectToObject (
         /*
          * All other types come here.
          */
-        ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "Store into type %s not implemented\n",
+        ACPI_WARNING ((AE_INFO, "Store into type %s not implemented",
             AcpiUtGetObjectTypeName (DestDesc)));
 
         Status = AE_NOT_IMPLEMENTED;

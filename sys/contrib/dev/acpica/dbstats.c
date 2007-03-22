@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 1.79 $
+ *              $Revision: 1.87 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -170,6 +170,8 @@ static ARGUMENT_INFO        AcpiDbStatTypes [] =
 #define CMD_STAT_STACK           6
 
 
+#if defined ACPI_DBG_TRACK_ALLOCATIONS || defined ACPI_USE_LOCAL_CACHE
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbListInfo
@@ -188,7 +190,6 @@ AcpiDbListInfo (
 {
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
     UINT32                  Outstanding;
-    UINT32                  Temp;
 #endif
 
     AcpiOsPrintf ("\n%s\n", List->ListName);
@@ -198,7 +199,7 @@ AcpiDbListInfo (
     if (List->MaxDepth > 0)
     {
         AcpiOsPrintf (
-            "    Cache: [Depth Max Avail Size]         % 7d % 7d % 7d % 7d B\n",
+            "    Cache: [Depth    MaxD Avail  Size]                %8.2X %8.2X %8.2X %8.2X\n",
             List->CurrentDepth,
             List->MaxDepth,
             List->MaxDepth - List->CurrentDepth,
@@ -209,33 +210,39 @@ AcpiDbListInfo (
     if (List->MaxDepth > 0)
     {
         AcpiOsPrintf (
-            "    Cache: [Requests Hits Misses ObjSize] % 7d % 7d % 7d % 7d B\n",
+            "    Cache: [Requests Hits Misses ObjSize]             %8.2X %8.2X %8.2X %8.2X\n",
             List->Requests,
             List->Hits,
             List->Requests - List->Hits,
             List->ObjectSize);
     }
 
-    Outstanding = List->TotalAllocated -
-                    List->TotalFreed -
-                    List->CurrentDepth;
+    Outstanding = AcpiDbGetCacheInfo (List);
 
     if (List->ObjectSize)
     {
-        Temp = ACPI_ROUND_UP_TO_1K (Outstanding * List->ObjectSize);
+        AcpiOsPrintf (
+            "    Mem:   [Alloc    Free Max    CurSize Outstanding] %8.2X %8.2X %8.2X %8.2X %8.2X\n",
+            List->TotalAllocated,
+            List->TotalFreed,
+            List->MaxOccupied,
+            Outstanding * List->ObjectSize,
+            Outstanding);
     }
     else
     {
-        Temp = ACPI_ROUND_UP_TO_1K (List->CurrentTotalSize);
+        AcpiOsPrintf (
+            "    Mem:   [Alloc Free Max CurSize Outstanding Total] %8.2X %8.2X %8.2X %8.2X %8.2X %8.2X\n",
+            List->TotalAllocated,
+            List->TotalFreed,
+            List->MaxOccupied,
+            List->CurrentTotalSize,
+            Outstanding,
+            List->TotalSize);
     }
-
-    AcpiOsPrintf (
-        "    Mem:   [Alloc Free Outstanding Size]  % 7d % 7d % 7d % 7d Kb\n",
-        List->TotalAllocated,
-        List->TotalFreed,
-        Outstanding, Temp);
 #endif
 }
+#endif
 
 
 /*******************************************************************************
@@ -462,11 +469,6 @@ AcpiDbDisplayStatistics (
     UINT32                  Temp;
 
 
-    if (!AcpiGbl_DSDT)
-    {
-        AcpiOsPrintf ("*** Warning:  There is no DSDT loaded\n");
-    }
-
     if (!TypeArg)
     {
         AcpiOsPrintf ("The following subcommands are available:\n    ALLOCATIONS, OBJECTS, MEMORY, MISC, SIZES, TABLES\n");
@@ -493,12 +495,7 @@ AcpiDbDisplayStatistics (
 
     case CMD_STAT_TABLES:
 
-        AcpiOsPrintf ("ACPI Table Information:\n\n");
-        if (AcpiGbl_DSDT)
-        {
-            AcpiOsPrintf ("DSDT Length:................% 7ld (%X)\n",
-                AcpiGbl_DSDT->Length, AcpiGbl_DSDT->Length);
-        }
+        AcpiOsPrintf ("ACPI Table Information (not implemented):\n\n");
         break;
 
     case CMD_STAT_OBJECTS:
@@ -525,7 +522,7 @@ AcpiDbDisplayStatistics (
     case CMD_STAT_MEMORY:
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
-        AcpiOsPrintf ("\n----Object and Cache Statistics---------------------------------------------\n");
+        AcpiOsPrintf ("\n----Object and Cache Statistics (all in hex)---------\n");
 
         AcpiDbListInfo (AcpiGbl_GlobalList);
         AcpiDbListInfo (AcpiGbl_NsNodeList);
@@ -551,7 +548,7 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("\n");
 
         AcpiOsPrintf ("Mutex usage:\n\n");
-        for (i = 0; i < NUM_MUTEX; i++)
+        for (i = 0; i < ACPI_NUM_MUTEX; i++)
         {
             AcpiOsPrintf ("%-28s:       % 7ld\n",
                 AcpiUtGetMutexName (i), AcpiGbl_MutexInfo[i].UseCount);

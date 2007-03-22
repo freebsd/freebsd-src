@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslopcode - AML opcode generation
- *              $Revision: 1.71 $
+ *              $Revision: 1.74 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -213,7 +213,6 @@ OpcAmlOpcodeWalk (
 
     OpcGenerateAmlOpcode (Op);
     OpnGenerateAmlOperands (Op);
-
     return (AE_OK);
 }
 
@@ -593,14 +592,15 @@ OpcDoEisaId (
     {
         /* Create ID big-endian first (bits are contiguous) */
 
-        BigEndianId  =  (UINT32) (InString[0] - 0x40) << 26 |
-                        (UINT32) (InString[1] - 0x40) << 21 |
-                        (UINT32) (InString[2] - 0x40) << 16 |
+        BigEndianId =
+            (UINT32) (InString[0] - 0x40) << 26 |
+            (UINT32) (InString[1] - 0x40) << 21 |
+            (UINT32) (InString[2] - 0x40) << 16 |
 
-                        (UtHexCharToValue (InString[3])) << 12 |
-                        (UtHexCharToValue (InString[4])) << 8  |
-                        (UtHexCharToValue (InString[5])) << 4  |
-                         UtHexCharToValue (InString[6]);
+            (UtHexCharToValue (InString[3])) << 12 |
+            (UtHexCharToValue (InString[4])) << 8  |
+            (UtHexCharToValue (InString[5])) << 4  |
+             UtHexCharToValue (InString[6]);
 
         /* Swap to little-endian to get final ID (see function header) */
 

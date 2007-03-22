@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswscope - Scope stack manipulation
- *              $Revision: 1.63 $
+ *              $Revision: 1.69 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -143,7 +143,7 @@ AcpiDsScopeStackClear (
 {
     ACPI_GENERIC_STATE      *ScopeInfo;
 
-    ACPI_FUNCTION_NAME ("DsScopeStackClear");
+    ACPI_FUNCTION_NAME (DsScopeStackClear);
 
 
     while (WalkState->ScopeInfo)
@@ -186,14 +186,14 @@ AcpiDsScopeStackPush (
     ACPI_GENERIC_STATE      *OldScopeInfo;
 
 
-    ACPI_FUNCTION_TRACE ("DsScopeStackPush");
+    ACPI_FUNCTION_TRACE (DsScopeStackPush);
 
 
     if (!Node)
     {
         /* Invalid scope   */
 
-        ACPI_REPORT_ERROR (("DsScopeStackPush: null scope passed\n"));
+        ACPI_ERROR ((AE_INFO, "Null scope parameter"));
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
@@ -201,8 +201,8 @@ AcpiDsScopeStackPush (
 
     if (!AcpiUtValidObjectType (Type))
     {
-        ACPI_REPORT_WARNING ((
-            "DsScopeStackPush: Invalid object type: 0x%X\n", Type));
+        ACPI_WARNING ((AE_INFO,
+            "Invalid object type: 0x%X", Type));
     }
 
     /* Allocate a new scope object */
@@ -215,9 +215,9 @@ AcpiDsScopeStackPush (
 
     /* Init new scope object */
 
-    ScopeInfo->Common.DataType  = ACPI_DESC_TYPE_STATE_WSCOPE;
-    ScopeInfo->Scope.Node       = Node;
-    ScopeInfo->Common.Value     = (UINT16) Type;
+    ScopeInfo->Common.DescriptorType = ACPI_DESC_TYPE_STATE_WSCOPE;
+    ScopeInfo->Scope.Node = Node;
+    ScopeInfo->Common.Value = (UINT16) Type;
 
     WalkState->ScopeDepth++;
 
@@ -270,7 +270,7 @@ AcpiDsScopeStackPop (
     ACPI_GENERIC_STATE      *NewScopeInfo;
 
 
-    ACPI_FUNCTION_TRACE ("DsScopeStackPop");
+    ACPI_FUNCTION_TRACE (DsScopeStackPop);
 
 
     /*
