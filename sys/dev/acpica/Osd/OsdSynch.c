@@ -62,10 +62,12 @@ struct acpi_semaphore {
     UINT32	as_timeouts;
 };
 
+/* Default number of maximum pending threads. */
 #ifndef ACPI_NO_SEMAPHORES
 #ifndef ACPI_SEMAPHORES_MAX_PENDING
 #define ACPI_SEMAPHORES_MAX_PENDING	4
 #endif
+
 static int	acpi_semaphore_debug = 0;
 TUNABLE_INT("debug.acpi_semaphore_debug", &acpi_semaphore_debug);
 SYSCTL_DECL(_debug_acpi);
@@ -195,7 +197,7 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT16 Timeout)
 	    break;
 	}
 
-	/* limit number of pending treads */
+	/* limit number of pending threads */
 	if (as->as_pendings >= ACPI_SEMAPHORES_MAX_PENDING) {
 	    result = AE_TIME;
 	    break;

@@ -44,15 +44,15 @@ __FBSDID("$FreeBSD$");
  * environment.
  */
 
-static RSDP_DESCRIPTOR	*biosacpi_find_rsdp(void);
-static RSDP_DESCRIPTOR	*biosacpi_search_rsdp(char *base, int length);
+static ACPI_TABLE_RSDP	*biosacpi_find_rsdp(void);
+static ACPI_TABLE_RSDP	*biosacpi_search_rsdp(char *base, int length);
 
 #define RSDP_CHECKSUM_LENGTH 20
 
 void
 biosacpi_detect(void)
 {
-    RSDP_DESCRIPTOR	*rsdp;
+    ACPI_TABLE_RSDP	*rsdp;
     char		buf[24];
     int			revision;
 
@@ -63,6 +63,8 @@ biosacpi_detect(void)
 	return;
 
     /* export values from the RSDP */
+    sprintf(buf, "%p", VTOP(rsdp));
+    setenv("hint.acpi.0.rsdp", buf, 1);
     revision = rsdp->Revision;
     if (revision == 0)
 	revision = 1;
@@ -88,10 +90,10 @@ biosacpi_detect(void)
 /*
  * Find the RSDP in low memory.  See section 5.2.2 of the ACPI spec.
  */
-static RSDP_DESCRIPTOR *
+static ACPI_TABLE_RSDP *
 biosacpi_find_rsdp(void)
 {
-    RSDP_DESCRIPTOR	*rsdp;
+    ACPI_TABLE_RSDP	*rsdp;
     uint16_t		*addr;
 
     /* EBDA is the 1 KB addressed by the 16 bit pointer at 0x40E. */
@@ -106,19 +108,19 @@ biosacpi_find_rsdp(void)
     return (NULL);
 }
 
-static RSDP_DESCRIPTOR *
+static ACPI_TABLE_RSDP *
 biosacpi_search_rsdp(char *base, int length)
 {
-    RSDP_DESCRIPTOR	*rsdp;
+    ACPI_TABLE_RSDP	*rsdp;
     u_int8_t		*cp, sum;
     int			ofs, idx;
 
     /* search on 16-byte boundaries */
     for (ofs = 0; ofs < length; ofs += 16) {
-	rsdp = (RSDP_DESCRIPTOR *)PTOV(base + ofs);
+	rsdp = (ACPI_TABLE_RSDP *)PTOV(base + ofs);
 
 	/* compare signature, validate checksum */
-	if (!strncmp(rsdp->Signature, RSDP_SIG, strlen(RSDP_SIG))) {
+	if (!strncmp(rsdp->Signature, ACPI_SIG_RSDP, strlen(ACPI_SIG_RSDP))) {
 	    cp = (u_int8_t *)rsdp;
 	    sum = 0;
 	    for (idx = 0; idx < RSDP_CHECKSUM_LENGTH; idx++)

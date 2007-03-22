@@ -54,14 +54,10 @@ AcpiOsFree(void *Memory)
     free(Memory, M_ACPICA);
 }
 
-ACPI_STATUS
-AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length,
-    void **LogicalAddress)
+void *
+AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_NATIVE_UINT Length)
 {
-    *LogicalAddress = pmap_mapbios((vm_offset_t)PhysicalAddress, Length);
-    if (*LogicalAddress == NULL)
-	return (AE_BAD_ADDRESS);
-    return (AE_OK);
+    return (pmap_mapbios((vm_offset_t)PhysicalAddress, Length));
 }
 
 void
@@ -78,10 +74,23 @@ AcpiOsGetPhysicalAddress(void *LogicalAddress,
     return (AE_BAD_ADDRESS);
 }
 
+ACPI_STATUS
+AcpiOsValidateInterface (char *Interface)
+{
+    return (AE_SUPPORT);
+}
+
 /*
  * There is no clean way to do this.  We make the charitable assumption
  * that callers will not pass garbage to us.
  */
+ACPI_STATUS
+AcpiOsValidateAddress (UINT8 SpaceId, ACPI_PHYSICAL_ADDRESS Address,
+    ACPI_SIZE Length)
+{
+    return (AE_OK);
+}
+
 BOOLEAN
 AcpiOsReadable (void *Pointer, ACPI_SIZE Length)
 {
@@ -99,7 +108,8 @@ AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 *Value, UINT32 Width)
 {
     void	*LogicalAddress;
 
-    if (AcpiOsMapMemory(Address, Width / 8, &LogicalAddress) != AE_OK)
+    LogicalAddress = AcpiOsMapMemory(Address, Width / 8);
+    if (LogicalAddress == NULL)
 	return (AE_NOT_EXIST);
 
     switch (Width) {
@@ -130,7 +140,8 @@ AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 Value, UINT32 Width)
 {
     void	*LogicalAddress;
 
-    if (AcpiOsMapMemory(Address, Width / 8, &LogicalAddress) != AE_OK)
+    LogicalAddress = AcpiOsMapMemory(Address, Width / 8);
+    if (LogicalAddress == NULL)
 	return (AE_NOT_EXIST);
 
     switch (Width) {

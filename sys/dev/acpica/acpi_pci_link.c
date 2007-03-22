@@ -384,7 +384,7 @@ link_valid_irq(struct link *link, int irq)
 	 * For links routed via an ISA interrupt, if the SCI is routed via
 	 * an ISA interrupt, the SCI is always treated as a valid IRQ.
 	 */
-	if (link->l_isa_irq && AcpiGbl_FADT->SciInt == irq &&
+	if (link->l_isa_irq && AcpiGbl_FADT.SciInterrupt == irq &&
 	    irq < NUM_ISA_INTERRUPTS)
 		return (TRUE);
 
@@ -1002,7 +1002,7 @@ acpi_pci_link_choose_irq(device_t dev, struct link *link)
 	 * interrupt as a fallback.
 	 */
 	if (link->l_isa_irq) {
-		pos_irq = AcpiGbl_FADT->SciInt;
+		pos_irq = AcpiGbl_FADT.SciInterrupt;
 		pos_weight = pci_link_interrupt_weights[pos_irq];
 		if (pos_weight < best_weight) {
 			best_weight = pos_weight;
@@ -1079,8 +1079,8 @@ acpi_pci_link_identify(driver_t *driver, device_t parent)
 	 * if we are using the APIC, we also shouldn't be having any PCI
 	 * interrupts routed via ISA IRQs, so this is probably ok.
 	 */
-	if (AcpiGbl_FADT->SciInt < NUM_ISA_INTERRUPTS)
-		pci_link_bios_isa_irqs |= (1 << AcpiGbl_FADT->SciInt);
+	if (AcpiGbl_FADT.SciInterrupt < NUM_ISA_INTERRUPTS)
+		pci_link_bios_isa_irqs |= (1 << AcpiGbl_FADT.SciInterrupt);
 }
 
 static device_method_t acpi_pci_link_methods[] = {

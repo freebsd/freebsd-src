@@ -300,8 +300,7 @@ ibm_led(void *softc, int onoff)
 	sc->led_busy = 1;
 	sc->led_state = onoff;
 
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-	    (void *)ibm_led_task, sc);
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, (void *)ibm_led_task, sc);
 }
 
 static void

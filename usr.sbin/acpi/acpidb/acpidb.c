@@ -30,6 +30,7 @@
 #include <sys/queue.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/stdint.h>
 #include <sys/types.h>
 
 #include <assert.h>
@@ -84,6 +85,13 @@ static int		 aml_simulate_regcontent_write(int regtype,
 static ACPI_INTEGER	 aml_simulate_prompt(char *msg, ACPI_INTEGER def_val);
 static void		 aml_simulation_regload(const char *dumpfile);
 static void		 aml_simulation_regdump(const char *dumpfile);
+
+/* Stubs to simplify linkage to the ACPI CA core subsystem. */
+ACPI_STATUS
+AeLocalGetRootPointer(void)
+{
+	return AE_ERROR;
+}
 
 static void
 aml_simulation_init(void)
@@ -239,7 +247,7 @@ aml_simulation_regdump(const char *dumpfile)
 	while (!TAILQ_EMPTY(&RegionContentList)) {
 		rc = TAILQ_FIRST(&RegionContentList);
 		fprintf(fp, "%d	0x%jx	0x%x\n",
-		    rc->regtype, rc->addr, rc->value);
+		    rc->regtype, (uintmax_t)rc->addr, rc->value);
 		TAILQ_REMOVE(&RegionContentList, rc, links);
 		free(rc);
 	}
@@ -283,7 +291,8 @@ aml_vm_space_handler(
 		*Value = value;
 		if (Prompt) {
 			sprintf(msg, "[read (%s, %2d, 0x%jx)]",
-				space_names[SpaceID], BitWidth, Address);
+				space_names[SpaceID], BitWidth,
+				(uintmax_t)Address);
 			*Value = aml_simulate_prompt(msg, value);
 			if (*Value != value) {
 				return(aml_vm_space_handler(SpaceID,
@@ -297,7 +306,8 @@ aml_vm_space_handler(
 		value = *Value;
 		if (Prompt) {
 			sprintf(msg, "[write(%s, %2d, 0x%jx)]",
-				space_names[SpaceID], BitWidth, Address);
+				space_names[SpaceID], BitWidth,
+				(uintmax_t)Address);
 			value = aml_simulate_prompt(msg, *Value);
 		}
 		*Value = value;
@@ -339,16 +349,14 @@ DECLARE_VM_SPACE_HANDLER(pci_bar_target,ACPI_ADR_SPACE_PCI_BAR_TARGET);
  * Load DSDT data file and invoke debugger
  */
 
-static UINT32	DummyGlobalLock;
-
 static int
 load_dsdt(const char *dsdtfile)
 {
 	char			filetmp[PATH_MAX];
 	u_int8_t		*code;
-	struct stat		 sb;
-	int			 fd, fd2;
-	int			 error;
+	struct stat		sb;
+	int			fd, fd2;
+	int			error;
 
 	fd = open(dsdtfile, O_RDONLY, 0);
 	if (fd == -1) {
@@ -441,17 +449,7 @@ load_dsdt(const char *dsdtfile)
 		return (-1);
 	}
 
-	AcpiGbl_FACS = malloc(sizeof (ACPI_COMMON_FACS));
-	if (AcpiGbl_FACS == NULL) {
-		fprintf(stderr, "could not allocate memory for FACS\n");
-		return (-1);
-	}
-	DummyGlobalLock = 0;
-	AcpiGbl_CommonFACS.GlobalLock = &DummyGlobalLock;
-	AcpiGbl_GlobalLockPresent = TRUE;
-
 	AcpiDbGetTableFromFile(filetmp, NULL);
-	AcpiUtSetIntegerWidth (AcpiGbl_DSDT->Revision);
 
 	AcpiDbInitialize();
 	AcpiGbl_DebuggerConfiguration = 0;

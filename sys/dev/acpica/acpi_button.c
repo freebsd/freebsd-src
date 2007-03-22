@@ -248,12 +248,10 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     sc = (struct acpi_button_softc *)context;
     switch (notify) {
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP:
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-				acpi_button_notify_sleep, sc);
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_button_notify_sleep, sc);
 	break;   
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_WAKEUP:
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-				acpi_button_notify_wakeup, sc);
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_button_notify_wakeup, sc);
 	break;   
     default:
 	device_printf(sc->button_dev, "unknown notify %#x\n", notify);

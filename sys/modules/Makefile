@@ -453,7 +453,7 @@ _snc=		snc
 
 .if ${MACHINE_ARCH} == "amd64"
 _aac=		aac
-_acpi=		acpi		
+_acpi=		acpi
 _agp=		agp
 _an=		an
 _arcmsr=	arcmsr

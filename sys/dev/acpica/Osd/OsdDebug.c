@@ -62,14 +62,6 @@ AcpiOsGetLine(char *Buffer)
 #endif /* DDB */
 }
 
-void
-AcpiOsDbgAssert(void *FailedAssertion, void *FileName, UINT32 LineNumber,
-    char *Message)
-{
-    printf("ACPI: %s:%d - %s\n", (char *)FileName, LineNumber, Message);
-    printf("ACPI: assertion  %s\n", (char *)FailedAssertion);
-}
-
 ACPI_STATUS
 AcpiOsSignal(UINT32 Function, void *Info)
 {

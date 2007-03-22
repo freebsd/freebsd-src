@@ -319,8 +319,8 @@ acpi_machdep_init(device_t dev)
 	acpi_install_wakeup_handler(sc);
 
 	if (intr_model == ACPI_INTR_PIC)
-		BUS_CONFIG_INTR(dev, AcpiGbl_FADT->SciInt, INTR_TRIGGER_LEVEL,
-		    INTR_POLARITY_LOW);
+		BUS_CONFIG_INTR(dev, AcpiGbl_FADT.SciInterrupt,
+		    INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 	else
 		acpi_SetIntrModel(intr_model);
 
