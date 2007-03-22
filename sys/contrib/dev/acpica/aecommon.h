@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -135,6 +135,7 @@
 #include <contrib/dev/acpica/acapps.h>
 
 extern FILE                     *AcpiGbl_DebugFile;
+extern BOOLEAN                  AcpiGbl_IgnoreErrors;
 
 /*
  * Debug Regions
@@ -145,6 +146,7 @@ typedef struct Region
     UINT32                  Length;
     void                    *Buffer;
     void                    *NextRegion;
+    UINT8                   SpaceId;
 
 } REGION;
 
@@ -183,7 +185,7 @@ typedef union ptr_ovl
 #define OSD_PRINT(lvl,fp)               TEST_OUTPUT_LEVEL(lvl) {\
                                             AcpiOsPrintf PARAM_LIST(fp);}
 
-void
+void __cdecl
 AeCtrlCHandler (
     int                     Sig);
 
@@ -229,7 +231,12 @@ AeDisplayAllMethods (
     UINT32                  DisplayCount);
 
 ACPI_STATUS
-AeInstallHandlers (void);
+AeInstallHandlers (
+    void);
+
+void
+AeMiscellaneousTests (
+    void);
 
 
 #endif /* _AECOMMON */
