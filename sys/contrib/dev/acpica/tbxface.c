@@ -535,6 +535,7 @@ AcpiTbLoadNamespace (
     ACPI_STATUS             Status;
     ACPI_TABLE_HEADER       *Table;
     ACPI_NATIVE_UINT        i;
+    BOOLEAN                 DsdtOverriden;
 
 
     ACPI_FUNCTION_TRACE (TbLoadNamespace);
@@ -558,6 +559,7 @@ AcpiTbLoadNamespace (
     /*
      * Find DSDT table
      */
+    DsdtOverriden = FALSE;
     Status = AcpiOsTableOverride (
                 AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Pointer, &Table);
     if (ACPI_SUCCESS (Status) && Table)
@@ -569,6 +571,7 @@ AcpiTbLoadNamespace (
         AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Pointer = Table;
         AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Length = Table->Length;
         AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Flags = ACPI_TABLE_ORIGIN_UNKNOWN;
+        DsdtOverriden = TRUE;
 
         ACPI_INFO ((AE_INFO, "Table DSDT replaced by host OS"));
         AcpiTbPrintTableHeader (0, Table);
@@ -598,7 +601,7 @@ AcpiTbLoadNamespace (
      * Load any SSDT or PSDT tables. Note: Loop leaves tables locked
      */
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    for (i = 0; i < AcpiGbl_RootTableList.Count; ++i)
+    for (i = 2; i < AcpiGbl_RootTableList.Count; ++i)
     {
         if ((!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
                     ACPI_SIG_SSDT) &&
@@ -606,6 +609,15 @@ AcpiTbLoadNamespace (
                     ACPI_SIG_PSDT)) ||
              ACPI_FAILURE (AcpiTbVerifyTable (&AcpiGbl_RootTableList.Tables[i])))
         {
+            continue;
+        }
+
+        /* Delete SSDT when DSDT is overriden */
+
+        if (ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
+                    ACPI_SIG_SSDT) && DsdtOverriden)
+        {
+            AcpiTbDeleteTable (&AcpiGbl_RootTableList.Tables[i]);
             continue;
         }
 
