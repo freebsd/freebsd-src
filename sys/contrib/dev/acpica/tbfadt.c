@@ -320,7 +320,7 @@ AcpiTbCreateLocalFadt (
     if (Length > sizeof (ACPI_TABLE_FADT))
     {
         ACPI_WARNING ((AE_INFO,
-            "FADT (revision %u) is longer than ACPI 2.0 version, truncating length 0x%X to 0x%X",
+            "FADT (revision %u) is longer than ACPI 2.0 version, truncating length 0x%X to 0x%zX",
             Table->Revision, Length, sizeof (ACPI_TABLE_FADT)));
     }
 
