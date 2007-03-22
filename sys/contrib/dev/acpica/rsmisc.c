@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsmisc - Miscellaneous resource descriptors
- *              $Revision: 1.35 $
+ *              $Revision: 1.46 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -163,13 +163,16 @@ AcpiRsConvertAmlToResource (
     UINT16                  Temp16 = 0;
 
 
-    ACPI_FUNCTION_TRACE ("RsGetResource");
+    ACPI_FUNCTION_TRACE (RsConvertAmlToResource);
 
 
     if (((ACPI_NATIVE_UINT) Resource) & 0x3)
     {
-        AcpiOsPrintf ("**** GET: Misaligned resource pointer: %p Type %2.2X Len %X\n",
-            Resource, Resource->Type, Resource->Length);
+        /* Each internal resource struct is expected to be 32-bit aligned */
+
+        ACPI_WARNING ((AE_INFO,
+            "Misaligned resource pointer (get): %p Type %2.2X Len %X",
+            Resource, Resource->Type, Resource->Length));
     }
 
     /* Extract the resource Length field (does not include header length) */
@@ -188,8 +191,8 @@ AcpiRsConvertAmlToResource (
          * Source is the external AML byte stream buffer,
          * destination is the internal resource descriptor
          */
-        Source      = ((UINT8 *) Aml) + Info->AmlOffset;
-        Destination = ((UINT8 *) Resource) + Info->ResourceOffset;
+        Source      = ACPI_ADD_PTR (void, Aml, Info->AmlOffset);
+        Destination = ACPI_ADD_PTR (void, Resource, Info->ResourceOffset);
 
         switch (Info->Opcode)
         {
@@ -217,8 +220,8 @@ AcpiRsConvertAmlToResource (
             /*
              * Mask and shift the flag bit
              */
-            *((UINT8 *) Destination) = (UINT8)
-                ((*((UINT8 *) Source) >> Info->Value) & 0x01);
+            ACPI_SET8 (Destination) = (UINT8)
+                ((ACPI_GET8 (Source) >> Info->Value) & 0x01);
             break;
 
 
@@ -226,15 +229,15 @@ AcpiRsConvertAmlToResource (
             /*
              * Mask and shift the flag bits
              */
-            *((UINT8 *) Destination) = (UINT8)
-                ((*((UINT8 *) Source) >> Info->Value) & 0x03);
+            ACPI_SET8 (Destination) = (UINT8)
+                ((ACPI_GET8 (Source) >> Info->Value) & 0x03);
             break;
 
 
         case ACPI_RSC_COUNT:
 
-            ItemCount = *((UINT8 *) Source);
-            *((UINT8 *) Destination) = (UINT8) ItemCount;
+            ItemCount = ACPI_GET8 (Source);
+            ACPI_SET8 (Destination) = (UINT8) ItemCount;
 
             Resource->Length = Resource->Length +
                 (Info->Value * (ItemCount - 1));
@@ -244,7 +247,7 @@ AcpiRsConvertAmlToResource (
         case ACPI_RSC_COUNT16:
 
             ItemCount = AmlResourceLength;
-            *((UINT16 *) Destination) = ItemCount;
+            ACPI_SET16 (Destination) = ItemCount;
 
             Resource->Length = Resource->Length +
                 (Info->Value * (ItemCount - 1));
@@ -269,8 +272,7 @@ AcpiRsConvertAmlToResource (
             {
                 ItemCount = Info->Value;
             }
-            AcpiRsMoveData (Destination, Source, ItemCount,
-                Info->Opcode);
+            AcpiRsMoveData (Destination, Source, ItemCount, Info->Opcode);
             break;
 
 
@@ -282,8 +284,8 @@ AcpiRsConvertAmlToResource (
 
         case ACPI_RSC_DATA8:
 
-            Target = ((char *) Resource) + Info->Value;
-            ACPI_MEMCPY (Destination, Source,  *(ACPI_CAST_PTR (UINT16, Target)));
+            Target = ACPI_ADD_PTR (char, Resource, Info->Value);
+            ACPI_MEMCPY (Destination, Source,  ACPI_GET16 (Target));
             break;
 
 
@@ -313,7 +315,7 @@ AcpiRsConvertAmlToResource (
              * Optional ResourceSource (Index and String). This is the more
              * complicated case used by the Interrupt() macro
              */
-            Target = ((char *) Resource) + Info->AmlOffset + (ItemCount * 4);
+            Target = ACPI_ADD_PTR (char, Resource, Info->AmlOffset + (ItemCount * 4));
 
             Resource->Length +=
                 AcpiRsGetResourceSource (AmlResourceLength,
@@ -326,14 +328,14 @@ AcpiRsConvertAmlToResource (
             /*
              * 8-bit encoded bitmask (DMA macro)
              */
-            ItemCount = AcpiRsDecodeBitmask (*((UINT8 *) Source), Destination);
+            ItemCount = AcpiRsDecodeBitmask (ACPI_GET8 (Source), Destination);
             if (ItemCount)
             {
                 Resource->Length += (ItemCount - 1);
             }
 
-            Target = ((char *) Resource) + Info->Value;
-            *((UINT8 *) Target) = (UINT8) ItemCount;
+            Target = ACPI_ADD_PTR (char, Resource, Info->Value);
+            ACPI_SET8 (Target) = (UINT8) ItemCount;
             break;
 
 
@@ -349,8 +351,8 @@ AcpiRsConvertAmlToResource (
                 Resource->Length += (ItemCount - 1);
             }
 
-            Target = ((char *) Resource) + Info->Value;
-            *((UINT8 *) Target) = (UINT8) ItemCount;
+            Target = ACPI_ADD_PTR (char, Resource, Info->Value);
+            ACPI_SET8 (Target) = (UINT8) ItemCount;
             break;
 
 
@@ -368,14 +370,15 @@ AcpiRsConvertAmlToResource (
                 break;
 
             case ACPI_RSC_COMPARE_VALUE:
-                if (*((UINT8 *) Source) != Info->Value)
+                if (ACPI_GET8 (Source) != Info->Value)
                 {
                     goto Exit;
                 }
                 break;
 
             default:
-                AcpiOsPrintf ("*** Invalid conversion sub-opcode\n");
+
+                ACPI_ERROR ((AE_INFO, "Invalid conversion sub-opcode"));
                 return_ACPI_STATUS (AE_BAD_PARAMETER);
             }
             break;
@@ -383,7 +386,7 @@ AcpiRsConvertAmlToResource (
 
         default:
 
-            AcpiOsPrintf ("*** Invalid conversion opcode\n");
+            ACPI_ERROR ((AE_INFO, "Invalid conversion opcode"));
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
 
@@ -394,9 +397,9 @@ AcpiRsConvertAmlToResource (
 Exit:
     if (!FlagsMode)
     {
-        /* Round the resource struct length up to the next 32-bit boundary */
+        /* Round the resource struct length up to the next boundary (32 or 64) */
 
-        Resource->Length = ACPI_ROUND_UP_TO_32BITS (Resource->Length);
+        Resource->Length = (UINT32) ACPI_ROUND_UP_TO_NATIVE_WORD (Resource->Length);
     }
     return_ACPI_STATUS (AE_OK);
 }
@@ -431,16 +434,8 @@ AcpiRsConvertResourceToAml (
     UINT16                  ItemCount = 0;
 
 
-    ACPI_FUNCTION_TRACE ("RsConvertResourceToAml");
+    ACPI_FUNCTION_TRACE (RsConvertResourceToAml);
 
-
-    /* Validate the Resource pointer, must be 32-bit aligned */
-
-    if (((ACPI_NATIVE_UINT) Resource) & 0x3)
-    {
-        AcpiOsPrintf ("**** SET: Misaligned resource pointer: %p Type %2.2X Len %X\n",
-            Resource, Resource->Type, Resource->Length);
-    }
 
     /*
      * First table entry must be ACPI_RSC_INITxxx and must contain the
@@ -454,8 +449,8 @@ AcpiRsConvertResourceToAml (
          * Source is the internal resource descriptor,
          * destination is the external AML byte stream buffer
          */
-        Source      = ((UINT8 *) Resource) + Info->ResourceOffset;
-        Destination = ((UINT8 *) Aml) + Info->AmlOffset;
+        Source      = ACPI_ADD_PTR (void, Resource, Info->ResourceOffset);
+        Destination = ACPI_ADD_PTR (void, Aml, Info->AmlOffset);
 
         switch (Info->Opcode)
         {
@@ -475,7 +470,7 @@ AcpiRsConvertResourceToAml (
             /*
              * Clear the flag byte
              */
-            *((UINT8 *) Destination) = 0;
+            ACPI_SET8 (Destination) = 0;
             break;
 
 
@@ -483,8 +478,8 @@ AcpiRsConvertResourceToAml (
             /*
              * Mask and shift the flag bit
              */
-            *((UINT8 *) Destination) |= (UINT8)
-                ((*((UINT8 *) Source) & 0x01) << Info->Value);
+            ACPI_SET8 (Destination) |= (UINT8)
+                ((ACPI_GET8 (Source) & 0x01) << Info->Value);
             break;
 
 
@@ -492,24 +487,23 @@ AcpiRsConvertResourceToAml (
             /*
              * Mask and shift the flag bits
              */
-            *((UINT8 *) Destination) |= (UINT8)
-                ((*((UINT8 *) Source) & 0x03) << Info->Value);
+            ACPI_SET8 (Destination) |= (UINT8)
+                ((ACPI_GET8 (Source) & 0x03) << Info->Value);
             break;
 
 
         case ACPI_RSC_COUNT:
 
-            ItemCount = *((UINT8 *) Source);
-            *((UINT8 *) Destination) = (UINT8) ItemCount;
+            ItemCount = ACPI_GET8 (Source);
+            ACPI_SET8 (Destination) = (UINT8) ItemCount;
 
-            AmlLength = (UINT16) (AmlLength +
-                (Info->Value * (ItemCount - 1)));
+            AmlLength = (UINT16) (AmlLength + (Info->Value * (ItemCount - 1)));
             break;
 
 
         case ACPI_RSC_COUNT16:
 
-            ItemCount = *((UINT16 *) Source);
+            ItemCount = ACPI_GET16 (Source);
             AmlLength = (UINT16) (AmlLength + ItemCount);
             AcpiRsSetResourceLength (AmlLength, Aml);
             break;
@@ -566,8 +560,9 @@ AcpiRsConvertResourceToAml (
             /*
              * 8-bit encoded bitmask (DMA macro)
              */
-            *((UINT8 *) Destination) = (UINT8)
-                AcpiRsEncodeBitmask (Source, *(((UINT8 *) Resource) + Info->Value));
+            ACPI_SET8 (Destination) = (UINT8)
+                AcpiRsEncodeBitmask (Source,
+                    *ACPI_ADD_PTR (UINT8, Resource, Info->Value));
             break;
 
 
@@ -575,7 +570,8 @@ AcpiRsConvertResourceToAml (
             /*
              * 16-bit encoded bitmask (IRQ macro)
              */
-            Temp16 = AcpiRsEncodeBitmask (Source, *(((UINT8 *) Resource) + Info->Value));
+            Temp16 = AcpiRsEncodeBitmask (Source,
+                        *ACPI_ADD_PTR (UINT8, Resource, Info->Value));
             ACPI_MOVE_16_TO_16 (Destination, &Temp16);
             break;
 
@@ -598,14 +594,17 @@ AcpiRsConvertResourceToAml (
             switch (COMPARE_OPCODE (Info))
             {
             case ACPI_RSC_COMPARE_VALUE:
-                if (*((UINT8 *) (((UINT8 *) Resource) + COMPARE_TARGET(Info))) != COMPARE_VALUE (Info))
+
+                if (*ACPI_ADD_PTR (UINT8, Resource,
+                        COMPARE_TARGET (Info)) != COMPARE_VALUE (Info))
                 {
                     goto Exit;
                 }
                 break;
 
             default:
-                AcpiOsPrintf ("*** Invalid conversion sub-opcode\n");
+
+                ACPI_ERROR ((AE_INFO, "Invalid conversion sub-opcode"));
                 return_ACPI_STATUS (AE_BAD_PARAMETER);
             }
             break;
@@ -613,7 +612,7 @@ AcpiRsConvertResourceToAml (
 
         default:
 
-            AcpiOsPrintf ("*** Invalid conversion opcode\n");
+            ACPI_ERROR ((AE_INFO, "Invalid conversion opcode"));
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
 
@@ -647,8 +646,8 @@ Exit:
          * polarity/trigger interrupts are allowed (ACPI spec, section
          * "IRQ Format"), so 0x00 and 0x09 are illegal.
          */
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Invalid interrupt polarity/trigger in resource list, %X\n",
+        ACPI_ERROR ((AE_INFO,
+            "Invalid interrupt polarity/trigger in resource list, %X",
             Aml->Irq.Flags));
         return_ACPI_STATUS (AE_BAD_DATA);
     }
@@ -663,8 +662,8 @@ Exit:
 
     if (Resource->Data.Dma.Transfer == 0x03)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Invalid DMA.Transfer preference (3)\n"));
+        ACPI_ERROR ((AE_INFO,
+            "Invalid DMA.Transfer preference (3)"));
         return_ACPI_STATUS (AE_BAD_DATA);
     }
 #endif

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: asllisting - Listing file generation
- *              $Revision: 1.58 $
+ *              $Revision: 1.63 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -202,6 +202,54 @@ LsDoHexOutputAsm (
 
 /*******************************************************************************
  *
+ * FUNCTION:    LsTreeWriteWalk
+ *
+ * PARAMETERS:  ASL_WALK_CALLBACK
+ *
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Dump entire parse tree, for compiler debug only
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+LsTreeWriteWalk (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context)
+{
+
+    /* Debug output */
+
+    DbgPrint (ASL_TREE_OUTPUT,
+        "%5.5d [%2d]", Op->Asl.LogicalLineNumber, Level);
+    UtPrintFormattedName (Op->Asl.ParseOpcode, Level);
+
+
+    DbgPrint (ASL_TREE_OUTPUT, "\n");
+    return (AE_OK);
+}
+
+
+void
+LsDumpParseTree (
+    void)
+{
+
+    if (!Gbl_DebugFlag)
+    {
+        return;
+    }
+
+    DbgPrint (ASL_TREE_OUTPUT, "\nOriginal parse tree from parser:\n\n");
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD,
+        LsTreeWriteWalk, NULL, NULL);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    LsDumpAscii
  *
  * PARAMETERS:  FileId          - ID of current listing file
@@ -319,10 +367,17 @@ LsAmlListingWalk (
 {
     UINT8                   FileByte;
     UINT32                  i;
-    UINT32                  FileId = (UINT32) Context;
+    UINT32                  FileId = (UINT32) ACPI_TO_INTEGER (Context);
 
 
     LsWriteNodeToListing (Op, FileId);
+
+    if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DATA)
+    {
+        /* Buffer is a resource template, don't dump the data all at once */
+
+        return (AE_OK);
+    }
 
     /* Write the hex bytes to the listing file(s) (if requested) */
 
@@ -491,7 +546,7 @@ LsPopNode (
     }
 
     Gbl_ListingNode = Lnode->Next;
-    ACPI_MEM_FREE (Lnode);
+    ACPI_FREE (Lnode);
 
     /* New "Current" node is the new head */
 
@@ -1081,6 +1136,12 @@ LsWriteNodeToListing (
 
 
     case PARSEOP_DEFAULT_ARG:
+
+        if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC)
+        {
+            LsWriteSourceLines (Op->Asl.LineNumber, Op->Asl.EndLogicalLine,
+                FileId);
+        }
         return;
 
 
@@ -1109,7 +1170,6 @@ LsWriteNodeToListing (
         case AML_FIELD_OP:
         case AML_INDEX_FIELD_OP:
         case AML_BANK_FIELD_OP:
-        case AML_NAME_OP:
 
             /*
              * For fields, we want to dump all the AML after the
@@ -1117,6 +1177,24 @@ LsWriteNodeToListing (
              */
             LsWriteSourceLines (Op->Asl.EndLine, Op->Asl.EndLogicalLine,
                 FileId);
+            break;
+
+        case AML_NAME_OP:
+
+            if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC)
+            {
+                LsWriteSourceLines (Op->Asl.LineNumber, Op->Asl.LogicalLineNumber,
+                    FileId);
+            }
+            else
+            {
+                /*
+                 * For fields, we want to dump all the AML after the
+                 * entire definition
+                 */
+                LsWriteSourceLines (Op->Asl.EndLine, Op->Asl.EndLogicalLine,
+                    FileId);
+            }
             break;
 
         default:
@@ -1194,7 +1272,7 @@ LsWriteNodeToListing (
                                 Gbl_TableSignature, Gbl_TableId, &Pathname[1]);
                         }
                     }
-                    ACPI_MEM_FREE (Pathname);
+                    ACPI_FREE (Pathname);
                 }
                 break;
 
@@ -1208,6 +1286,12 @@ LsWriteNodeToListing (
     case AML_CLASS_EXECUTE:
     case AML_CLASS_CREATE:
     default:
+
+        if ((Op->Asl.ParseOpcode == PARSEOP_BUFFER) &&
+            (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC))
+        {
+            return;
+        }
 
         LsWriteSourceLines (Op->Asl.LineNumber, Op->Asl.LogicalLineNumber,
             FileId);

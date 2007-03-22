@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscalc - Calculate stream and list lengths
- *              $Revision: 1.66 $
+ *              $Revision: 1.80 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -256,9 +256,11 @@ AcpiRsStreamOptionLength (
         StringLength = ResourceLength - MinimumAmlResourceLength - 1;
     }
 
-    /* Round up length to 32 bits for internal structure alignment */
-
-    return (ACPI_ROUND_UP_TO_32BITS (StringLength));
+    /*
+     * Round the length up to a multiple of the native word in order to
+     * guarantee that the entire resource descriptor is native word aligned
+     */
+    return ((UINT32) ACPI_ROUND_UP_TO_NATIVE_WORD (StringLength));
 }
 
 
@@ -283,10 +285,10 @@ AcpiRsGetAmlLength (
     ACPI_SIZE               *SizeNeeded)
 {
     ACPI_SIZE               AmlSizeNeeded = 0;
-    ACPI_RS_LENGTH     TotalSize;
+    ACPI_RS_LENGTH          TotalSize;
 
 
-    ACPI_FUNCTION_TRACE ("RsGetAmlLength");
+    ACPI_FUNCTION_TRACE (RsGetAmlLength);
 
 
     /* Traverse entire list of internal resource descriptors */
@@ -403,13 +405,12 @@ AcpiRsGetAmlLength (
 
         /* Point to the next object */
 
-        Resource = ACPI_PTR_ADD (ACPI_RESOURCE,
-                        Resource, Resource->Length);
+        Resource = ACPI_ADD_PTR (ACPI_RESOURCE, Resource, Resource->Length);
     }
 
-    /* Did not find an END_TAG descriptor */
+    /* Did not find an EndTag resource descriptor */
 
-    return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
+    return_ACPI_STATUS (AE_AML_NO_RESOURCE_END_TAG);
 }
 
 
@@ -435,179 +436,146 @@ AcpiRsGetListLength (
     UINT32                  AmlBufferLength,
     ACPI_SIZE               *SizeNeeded)
 {
+    ACPI_STATUS             Status;
+    UINT8                   *EndAml;
     UINT8                   *Buffer;
-    ACPI_RESOURCE_INFO      *ResourceInfo;
-    UINT32                  BufferSize = 0;
-    UINT32                  BytesParsed = 0;
-    UINT8                   ResourceType;
+    UINT32                  BufferSize;
     UINT16                  Temp16;
     UINT16                  ResourceLength;
-    UINT16                  HeaderLength;
     UINT32                  ExtraStructBytes;
+    UINT8                   ResourceIndex;
+    UINT8                   MinimumAmlResourceLength;
 
 
-    ACPI_FUNCTION_TRACE ("RsGetListLength");
+    ACPI_FUNCTION_TRACE (RsGetListLength);
 
 
-    while (BytesParsed < AmlBufferLength)
+    *SizeNeeded = 0;
+    EndAml = AmlBuffer + AmlBufferLength;
+
+    /* Walk the list of AML resource descriptors */
+
+    while (AmlBuffer < EndAml)
     {
-        /* The next byte in the stream is the resource descriptor type */
+        /* Validate the Resource Type and Resource Length */
 
-        ResourceType = AcpiUtGetResourceType (AmlBuffer);
-
-        /* Get the base stream size and structure sizes for the descriptor */
-
-        ResourceInfo = AcpiRsGetResourceInfo (ResourceType);
-        if (!ResourceInfo)
+        Status = AcpiUtValidateResource (AmlBuffer, &ResourceIndex);
+        if (ACPI_FAILURE (Status))
         {
-            return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
+            return_ACPI_STATUS (Status);
         }
 
-        /* Get the Length field from the input resource descriptor */
+        /* Get the resource length and base (minimum) AML size */
 
         ResourceLength = AcpiUtGetResourceLength (AmlBuffer);
-
-        /* Augment the size for descriptors with optional fields */
-
-        ExtraStructBytes = 0;
-
-        if (!(ResourceType & ACPI_RESOURCE_NAME_LARGE))
-        {
-            /*
-             * Small resource descriptors
-             */
-            HeaderLength = sizeof (AML_RESOURCE_SMALL_HEADER);
-            Buffer = AmlBuffer + HeaderLength;
-
-            switch (ResourceType)
-            {
-            case ACPI_RESOURCE_NAME_IRQ:
-                /*
-                 * IRQ Resource:
-                 * Get the number of bits set in the IRQ word
-                 */
-                ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
-                ExtraStructBytes = AcpiRsCountSetBits (Temp16);
-                break;
-
-
-            case ACPI_RESOURCE_NAME_DMA:
-                /*
-                 * DMA Resource:
-                 * Get the number of bits set in the DMA channels byte
-                 */
-                ExtraStructBytes = AcpiRsCountSetBits (*Buffer);
-                break;
-
-
-            case ACPI_RESOURCE_NAME_VENDOR_SMALL:
-                /*
-                 * Vendor Specific Resource:
-                 * Ensure a 32-bit boundary for the structure
-                 */
-                ExtraStructBytes = ACPI_ROUND_UP_TO_32BITS (ResourceLength);
-                break;
-
-
-            case ACPI_RESOURCE_NAME_END_TAG:
-                /*
-                 * End Tag: This is the normal exit, add size of EndTag
-                 */
-                *SizeNeeded = BufferSize + ACPI_RS_SIZE_MIN;
-                return_ACPI_STATUS (AE_OK);
-
-            default:
-                break;
-            }
-        }
-        else
-        {
-            /*
-             * Large resource descriptors
-             */
-            HeaderLength = sizeof (AML_RESOURCE_LARGE_HEADER);
-            Buffer = AmlBuffer + HeaderLength;
-
-            switch (ResourceType)
-            {
-            case ACPI_RESOURCE_NAME_VENDOR_LARGE:
-                /*
-                 * Vendor Defined Resource:
-                 * Add vendor data and ensure a 32-bit boundary for the structure
-                 */
-                ExtraStructBytes = ACPI_ROUND_UP_TO_32BITS (ResourceLength);
-                break;
-
-
-            case ACPI_RESOURCE_NAME_ADDRESS32:
-            case ACPI_RESOURCE_NAME_ADDRESS16:
-               /*
-                 * 32-Bit or 16-bit Address Resource:
-                 * Add the size of any optional data (ResourceSource)
-                 */
-                ExtraStructBytes = AcpiRsStreamOptionLength (ResourceLength,
-                                        ResourceInfo->MinimumAmlResourceLength);
-                break;
-
-
-            case ACPI_RESOURCE_NAME_EXTENDED_IRQ:
-                /*
-                 * Extended IRQ:
-                 * Point past the InterruptVectorFlags to get the
-                 * InterruptTableLength.
-                 */
-                Buffer++;
-
-                /*
-                 * Add 4 bytes for each additional interrupt. Note: at least one
-                 * interrupt is required and is included in the minimum
-                 * descriptor size
-                 */
-                ExtraStructBytes = ((*Buffer - 1) * sizeof (UINT32));
-
-                /* Add the size of any optional data (ResourceSource) */
-
-                ExtraStructBytes += AcpiRsStreamOptionLength (
-                                        ResourceLength - ExtraStructBytes,
-                                        ResourceInfo->MinimumAmlResourceLength);
-                break;
-
-
-            case ACPI_RESOURCE_NAME_ADDRESS64:
-                /*
-                 * 64-Bit Address Resource:
-                 * Add the size of any optional data (ResourceSource)
-                 * Ensure a 64-bit boundary for the structure
-                 */
-                ExtraStructBytes = ACPI_ROUND_UP_TO_64BITS (
-                    AcpiRsStreamOptionLength (ResourceLength,
-                                        ResourceInfo->MinimumAmlResourceLength));
-                break;
-
-
-            default:
-                break;
-            }
-        }
-
-        /* Update the required buffer size for the internal descriptor structs */
-
-        Temp16 = (UINT16) (ResourceInfo->MinimumInternalStructLength +  ExtraStructBytes);
-        BufferSize += (UINT32) ACPI_ROUND_UP_TO_NATIVE_WORD (Temp16);
+        MinimumAmlResourceLength = AcpiGbl_ResourceAmlSizes[ResourceIndex];
 
         /*
-         * Update byte count and point to the next resource within the stream
-         * using the size of the header plus the length contained in the header
+         * Augment the size for descriptors with optional
+         * and/or variable length fields
          */
-        Temp16 = (UINT16) (HeaderLength + ResourceLength);
-        BytesParsed += Temp16;
-        AmlBuffer += Temp16;
+        ExtraStructBytes = 0;
+        Buffer = AmlBuffer + AcpiUtGetResourceHeaderLength (AmlBuffer);
+
+        switch (AcpiUtGetResourceType (AmlBuffer))
+        {
+        case ACPI_RESOURCE_NAME_IRQ:
+            /*
+             * IRQ Resource:
+             * Get the number of bits set in the 16-bit IRQ mask
+             */
+            ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
+            ExtraStructBytes = AcpiRsCountSetBits (Temp16);
+            break;
+
+
+        case ACPI_RESOURCE_NAME_DMA:
+            /*
+             * DMA Resource:
+             * Get the number of bits set in the 8-bit DMA mask
+             */
+            ExtraStructBytes = AcpiRsCountSetBits (*Buffer);
+            break;
+
+
+        case ACPI_RESOURCE_NAME_VENDOR_SMALL:
+        case ACPI_RESOURCE_NAME_VENDOR_LARGE:
+            /*
+             * Vendor Resource:
+             * Get the number of vendor data bytes
+             */
+            ExtraStructBytes = ResourceLength;
+            break;
+
+
+        case ACPI_RESOURCE_NAME_END_TAG:
+            /*
+             * End Tag:
+             * This is the normal exit, add size of EndTag
+             */
+            *SizeNeeded += ACPI_RS_SIZE_MIN;
+            return_ACPI_STATUS (AE_OK);
+
+
+        case ACPI_RESOURCE_NAME_ADDRESS32:
+        case ACPI_RESOURCE_NAME_ADDRESS16:
+        case ACPI_RESOURCE_NAME_ADDRESS64:
+            /*
+             * Address Resource:
+             * Add the size of the optional ResourceSource
+             */
+            ExtraStructBytes = AcpiRsStreamOptionLength (
+                ResourceLength, MinimumAmlResourceLength);
+            break;
+
+
+        case ACPI_RESOURCE_NAME_EXTENDED_IRQ:
+            /*
+             * Extended IRQ Resource:
+             * Using the InterruptTableLength, add 4 bytes for each additional
+             * interrupt. Note: at least one interrupt is required and is
+             * included in the minimum descriptor size (reason for the -1)
+             */
+            ExtraStructBytes = (Buffer[1] - 1) * sizeof (UINT32);
+
+            /* Add the size of the optional ResourceSource */
+
+            ExtraStructBytes += AcpiRsStreamOptionLength (
+                ResourceLength - ExtraStructBytes, MinimumAmlResourceLength);
+            break;
+
+
+        default:
+            break;
+        }
+
+        /*
+         * Update the required buffer size for the internal descriptor structs
+         *
+         * Important: Round the size up for the appropriate alignment. This
+         * is a requirement on IA64.
+         */
+        BufferSize = AcpiGbl_ResourceStructSizes[ResourceIndex] +
+                        ExtraStructBytes;
+        BufferSize = (UINT32) ACPI_ROUND_UP_TO_NATIVE_WORD (BufferSize);
+
+        *SizeNeeded += BufferSize;
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_RESOURCES,
+            "Type %.2X, AmlLength %.2X InternalLength %.2X\n",
+            AcpiUtGetResourceType (AmlBuffer),
+            AcpiUtGetDescriptorLength (AmlBuffer), BufferSize));
+
+        /*
+         * Point to the next resource within the AML stream using the length
+         * contained in the resource descriptor header
+         */
+        AmlBuffer += AcpiUtGetDescriptorLength (AmlBuffer);
     }
 
-    /* This is the data the caller needs */
+    /* Did not find an EndTag resource descriptor */
 
-    *SizeNeeded = BufferSize;
-    return_ACPI_STATUS (AE_OK);
+    return_ACPI_STATUS (AE_AML_NO_RESOURCE_END_TAG);
 }
 
 
@@ -643,7 +611,7 @@ AcpiRsGetPciRoutingTableLength (
     UINT32                  TableIndex;
 
 
-    ACPI_FUNCTION_TRACE ("RsGetPciRoutingTableLength");
+    ACPI_FUNCTION_TRACE (RsGetPciRoutingTableLength);
 
 
     NumberOfElements = PackageObject->Package.Count;
@@ -678,14 +646,16 @@ AcpiRsGetPciRoutingTableLength (
 
         for (TableIndex = 0; TableIndex < 4 && !NameFound; TableIndex++)
         {
-            if ((ACPI_TYPE_STRING ==
+            if (*SubObjectList && /* Null object allowed */
+
+                ((ACPI_TYPE_STRING ==
                     ACPI_GET_OBJECT_TYPE (*SubObjectList)) ||
 
                 ((ACPI_TYPE_LOCAL_REFERENCE ==
                     ACPI_GET_OBJECT_TYPE (*SubObjectList)) &&
 
                     ((*SubObjectList)->Reference.Opcode ==
-                        AML_INT_NAMEPATH_OP)))
+                        AML_INT_NAMEPATH_OP))))
             {
                 NameFound = TRUE;
             }
@@ -729,7 +699,7 @@ AcpiRsGetPciRoutingTableLength (
 
         /* Round up the size since each element must be aligned */
 
-        TempSizeNeeded = ACPI_ROUND_UP_TO_64BITS (TempSizeNeeded);
+        TempSizeNeeded = ACPI_ROUND_UP_TO_64BIT (TempSizeNeeded);
 
         /* Point to the next ACPI_OPERAND_OBJECT */
 
@@ -737,7 +707,7 @@ AcpiRsGetPciRoutingTableLength (
     }
 
     /*
-     * Adding an extra element to the end of the list, essentially a
+     * Add an extra element to the end of the list, essentially a
      * NULL terminator
      */
     *BufferSizeNeeded = TempSizeNeeded + sizeof (ACPI_PCI_ROUTING_TABLE);

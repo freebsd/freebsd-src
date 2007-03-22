@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslcompile - top level compile module
- *              $Revision: 1.88 $
+ *              $Revision: 1.97 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -328,13 +328,97 @@ CmFlushSourceCode (
 
 /*******************************************************************************
  *
+ * FUNCTION:    FlConsume*
+ *
+ * PARAMETERS:  FileInfo        - Points to an open input file
+ *
+ * RETURN:      Number of lines consumed
+ *
+ * DESCRIPTION: Step over both types of comment during check for ascii chars
+ *
+ ******************************************************************************/
+
+void
+FlConsumeAnsiComment (
+    ASL_FILE_INFO           *FileInfo,
+    ASL_FILE_STATUS         *Status)
+{
+    UINT8                   Byte;
+    BOOLEAN                 ClosingComment = FALSE;
+
+
+    while (fread (&Byte, 1, 1, FileInfo->Handle))
+    {
+        /* Scan until comment close is found */
+
+        if (ClosingComment)
+        {
+            if (Byte == '/')
+            {
+                return;
+            }
+
+            if (Byte != '*')
+            {
+                /* Reset */
+
+                ClosingComment = FALSE;
+            }
+        }
+        else if (Byte == '*')
+        {
+            ClosingComment = TRUE;
+        }
+
+        /* Maintain line count */
+
+        if (Byte == 0x0A)
+        {
+            Status->Line++;
+        }
+
+        Status->Offset++;
+    }
+}
+
+
+void
+FlConsumeNewComment (
+    ASL_FILE_INFO           *FileInfo,
+    ASL_FILE_STATUS         *Status)
+{
+    UINT8                   Byte;
+
+
+    while (fread (&Byte, 1, 1, FileInfo->Handle))
+    {
+        Status->Offset++;
+
+        /* Comment ends at newline */
+
+        if (Byte == 0x0A)
+        {
+            Status->Line++;
+            return;
+        }
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    FlCheckForAscii
  *
  * PARAMETERS:  FileInfo        - Points to an open input file
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Verify that the input file is entirely ASCII.
+ * DESCRIPTION: Verify that the input file is entirely ASCII. Ignores characters
+ *              within comments. Note: does not handle nested comments and does
+ *              not handle comment delimiters within string literals. However,
+ *              on the rare chance this happens and an invalid character is
+ *              missed, the parser will catch the error by failing in some
+ *              spectactular manner.
  *
  ******************************************************************************/
 
@@ -344,13 +428,42 @@ FlCheckForAscii (
 {
     UINT8                   Byte;
     ACPI_SIZE               BadBytes = 0;
-    ACPI_SIZE               Offset = 0;
+    BOOLEAN                 OpeningComment = FALSE;
+    ASL_FILE_STATUS         Status;
 
+
+    Status.Line = 1;
+    Status.Offset = 0;
 
     /* Read the entire file */
 
     while (fread (&Byte, 1, 1, FileInfo->Handle))
     {
+        /* Ignore comment fields (allow non-ascii within) */
+
+        if (OpeningComment)
+        {
+            /* Check for second comment open delimiter */
+
+            if (Byte == '*')
+            {
+                FlConsumeAnsiComment (FileInfo, &Status);
+            }
+
+            if (Byte == '/')
+            {
+                FlConsumeNewComment (FileInfo, &Status);
+            }
+
+            /* Reset */
+
+            OpeningComment = FALSE;
+        }
+        else if (Byte == '/')
+        {
+            OpeningComment = TRUE;
+        }
+
         /* Check for an ASCII character */
 
         if (!isascii (Byte))
@@ -358,12 +471,21 @@ FlCheckForAscii (
             if (BadBytes < 10)
             {
                 AcpiOsPrintf (
-                    "Non-ASCII character [0x%2.2X] found at file offset 0x%8.8X\n",
-                    Byte, Offset);
+                    "Non-ASCII character [0x%2.2X] found in line %u, file offset 0x%.2X\n",
+                    Byte, Status.Line, Status.Offset);
             }
+
             BadBytes++;
         }
-        Offset++;
+
+        /* Update line counter */
+
+        else if (Byte == 0x0A)
+        {
+            Status.Line++;
+        }
+
+        Status.Offset++;
     }
 
     /* Seek back to the beginning of the source file */
@@ -375,9 +497,9 @@ FlCheckForAscii (
     if (BadBytes)
     {
         AcpiOsPrintf (
-            "%d non-ASCII characters found in input file, could be a binary file\n",
+            "%u non-ASCII characters found in input source text, could be a binary file\n",
             BadBytes);
-        AslError (ASL_WARNING, ASL_MSG_NON_ASCII, NULL, FileInfo->Filename);
+        AslError (ASL_ERROR, ASL_MSG_NON_ASCII, NULL, FileInfo->Filename);
         return (AE_BAD_CHARACTER);
     }
 
@@ -420,19 +542,13 @@ CmDoCompile (
         return -1;
     }
 
-    /* Optional check for 100% ASCII source file */
+    /* Check for 100% ASCII source file (comments are ignored) */
 
-    if (Gbl_CheckForAscii)
+    Status = FlCheckForAscii (&Gbl_Files[ASL_FILE_INPUT]);
+    if (ACPI_FAILURE (Status))
     {
-        /*
-         * NOTE: This code is optional because there can be "special" characters
-         * embedded in comments (such as the "copyright" symbol, 0xA9).
-         * Just emit a warning if there are non-ascii characters present.
-         */
-
-        /* Check if the input file is 100% ASCII text */
-
-        Status = FlCheckForAscii (&Gbl_Files[ASL_FILE_INPUT]);
+        AePrintErrorLog (ASL_FILE_STDERR);
+        return -1;
     }
 
     Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
@@ -461,6 +577,10 @@ CmDoCompile (
         CmCleanupAndExit ();
         return -1;
     }
+
+    /* Optional parse tree dump, compiler debug output only */
+
+    LsDumpParseTree ();
 
     OpcGetIntegerWidth (RootNode);
     UtEndEvent (Event);
@@ -549,15 +669,19 @@ CmDoCompile (
         return -1;
     }
 
-    /* Namespace lookup */
+    /* Namespace cross-reference */
 
     AslGbl_NamespaceEvent = UtBeginEvent ("Cross reference parse tree and Namespace");
     Status = LkCrossReferenceNamespace ();
-    UtEndEvent (AslGbl_NamespaceEvent);
     if (ACPI_FAILURE (Status))
     {
         return -1;
     }
+
+    /* Namespace - Check for non-referenced objects */
+
+    LkFindUnreferencedObjects ();
+    UtEndEvent (AslGbl_NamespaceEvent);
 
     /*
      * Semantic analysis.  This can happen only after the
@@ -774,24 +898,28 @@ CmCleanupAndExit (
      */
     if (!Gbl_SourceOutputFlag)
     {
-        unlink (Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
+        remove (Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
     }
 
     /* Delete AML file if there are errors */
 
     if ((Gbl_ExceptionCount[ASL_ERROR] > 0) && (!Gbl_IgnoreErrors))
     {
-        unlink (Gbl_Files[ASL_FILE_AML_OUTPUT].Filename);
+        remove (Gbl_Files[ASL_FILE_AML_OUTPUT].Filename);
     }
 
     if (Gbl_ExceptionCount[ASL_ERROR] > ASL_MAX_ERROR_COUNT)
     {
-        printf ("\nMaximum error count (%d) exceeded.\n", ASL_MAX_ERROR_COUNT);
+        printf ("\nMaximum error count (%d) exceeded\n", ASL_MAX_ERROR_COUNT);
     }
 
     UtDisplaySummary (ASL_FILE_STDOUT);
 
-    if (Gbl_ExceptionCount[ASL_ERROR] > 0)
+    /*
+     * Return non-zero exit code if there have been errors, unless the
+     * global ignore error flag has been set
+     */
+    if ((Gbl_ExceptionCount[ASL_ERROR] > 0) && (!Gbl_IgnoreErrors))
     {
         exit (1);
     }

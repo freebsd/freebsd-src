@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslutils -- compiler utilities
- *              $Revision: 1.66 $
+ *              $Revision: 1.72 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -166,7 +166,7 @@ void
 UtDisplayConstantOpcodes (
     void)
 {
-    UINT32              i;
+    UINT32                  i;
 
 
     printf ("Constant expression opcode information\n\n");
@@ -202,7 +202,7 @@ UtLocalCalloc (
     void                    *Allocated;
 
 
-    Allocated = ACPI_MEM_CALLOCATE (Size);
+    Allocated = ACPI_ALLOCATE_ZEROED (Size);
     if (!Allocated)
     {
         AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,
@@ -214,7 +214,7 @@ UtLocalCalloc (
 
     TotalAllocations++;
     TotalAllocated += Size;
-    return Allocated;
+    return (Allocated);
 }
 
 
@@ -359,7 +359,6 @@ UtConvertByteToAsmHex (
 {
 
     Buffer[0] = '0';
-
     Buffer[1] = (UINT8) hex[(RawByte >> 4) & 0xF];
     Buffer[2] = (UINT8) hex[RawByte & 0xF];
     Buffer[3] = 'h';
@@ -430,9 +429,13 @@ UtPrintFormattedName (
     UINT32                  Level)
 {
 
+    if (Level)
+    {
+        DbgPrint (ASL_TREE_OUTPUT,
+            "%*s", (3 * Level), " ");
+    }
     DbgPrint (ASL_TREE_OUTPUT,
-        "%*s %-16.16s", (3 * Level), " ",
-        UtGetOpName (ParseOpcode));
+        " %-20.20s", UtGetOpName (ParseOpcode));
 
     if (Level < TEXT_OFFSET)
     {
@@ -459,7 +462,8 @@ UtSetParseOpName (
     ACPI_PARSE_OBJECT       *Op)
 {
 
-    strncpy (Op->Asl.ParseOpName, UtGetOpName (Op->Asl.ParseOpcode), 12);
+    strncpy (Op->Asl.ParseOpName, UtGetOpName (Op->Asl.ParseOpcode),
+        ACPI_MAX_PARSEOP_NAME);
 }
 
 
@@ -484,7 +488,8 @@ UtGetOpName (
      * First entries (ASL_YYTNAME_START) in yytname are special reserved names.
      * Ignore first 8 characters of the name
      */
-    return ((char *) yytname [(ParseOpcode - ASL_FIRST_PARSE_OPCODE) + ASL_YYTNAME_START] + 8);
+    return ((char *) yytname
+        [(ParseOpcode - ASL_FIRST_PARSE_OPCODE) + ASL_YYTNAME_START] + 8);
 }
 
 
@@ -535,7 +540,9 @@ UtDisplaySummary (
     FlPrintFile (FileId,
         "Compilation complete. %d Errors, %d Warnings, %d Remarks, %d Optimizations\n",
         Gbl_ExceptionCount[ASL_ERROR],
-        Gbl_ExceptionCount[ASL_WARNING],
+        Gbl_ExceptionCount[ASL_WARNING] +
+            Gbl_ExceptionCount[ASL_WARNING2] +
+            Gbl_ExceptionCount[ASL_WARNING3],
         Gbl_ExceptionCount[ASL_REMARK],
         Gbl_ExceptionCount[ASL_OPTIMIZATION]);
 }
@@ -545,7 +552,7 @@ UtDisplaySummary (
  *
  * FUNCTION:    UtDisplaySummary
  *
- * PARAMETERS:  Op            - Integer parse node
+ * PARAMETERS:  Op              - Integer parse node
  *              LowValue        - Smallest allowed value
  *              HighValue       - Largest allowed value
  *

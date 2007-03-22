@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsinit - Object initialization namespace walk
- *              $Revision: 1.17 $
+ *              $Revision: 1.28 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,6 +119,7 @@
 #include <contrib/dev/acpica/acpi.h>
 #include <contrib/dev/acpica/acdispat.h>
 #include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/actables.h>
 
 #define _COMPONENT          ACPI_DISPATCHER
         ACPI_MODULE_NAME    ("dsinit")
@@ -166,14 +167,14 @@ AcpiDsInitOneObject (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_NAME ("DsInitOneObject");
+    ACPI_FUNCTION_ENTRY ();
 
 
     /*
      * We are only interested in NS nodes owned by the table that
      * was just loaded
      */
-    if (Node->OwnerId != Info->TableDesc->OwnerId)
+    if (Node->OwnerId != Info->OwnerId)
     {
         return (AE_OK);
     }
@@ -191,10 +192,9 @@ AcpiDsInitOneObject (
         Status = AcpiDsInitializeRegion (ObjHandle);
         if (ACPI_FAILURE (Status))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "Region %p [%4.4s] - Init failure, %s\n",
-                ObjHandle, AcpiUtGetNodeName (ObjHandle),
-                AcpiFormatException (Status)));
+            ACPI_EXCEPTION ((AE_INFO, Status,
+                "During Region initialization %p [%4.4s]",
+                ObjHandle, AcpiUtGetNodeName (ObjHandle)));
         }
 
         Info->OpRegionCount++;
@@ -202,41 +202,6 @@ AcpiDsInitOneObject (
 
 
     case ACPI_TYPE_METHOD:
-
-        /*
-         * Print a dot for each method unless we are going to print
-         * the entire pathname
-         */
-        if (!(AcpiDbgLevel & ACPI_LV_INIT_NAMES))
-        {
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "."));
-        }
-
-        /*
-         * Set the execution data width (32 or 64) based upon the
-         * revision number of the parent ACPI table.
-         * TBD: This is really for possible future support of integer width
-         * on a per-table basis. Currently, we just use a global for the width.
-         */
-        if (Info->TableDesc->Pointer->Revision == 1)
-        {
-            Node->Flags |= ANOBJ_DATA_WIDTH_32;
-        }
-
-        /*
-         * Always parse methods to detect errors, we will delete
-         * the parse tree below
-         */
-        Status = AcpiDsParseMethod (ObjHandle);
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "\n+Method %p [%4.4s] - parse failure, %s\n",
-                ObjHandle, AcpiUtGetNodeName (ObjHandle),
-                AcpiFormatException (Status)));
-
-            /* This parse failed, but we will continue parsing more methods */
-        }
 
         Info->MethodCount++;
         break;
@@ -276,15 +241,23 @@ AcpiDsInitOneObject (
 
 ACPI_STATUS
 AcpiDsInitializeObjects (
-    ACPI_TABLE_DESC         *TableDesc,
+    ACPI_NATIVE_UINT        TableIndex,
     ACPI_NAMESPACE_NODE     *StartNode)
 {
     ACPI_STATUS             Status;
     ACPI_INIT_WALK_INFO     Info;
+    ACPI_TABLE_HEADER       *Table;
+    ACPI_OWNER_ID           OwnerId;
 
 
-    ACPI_FUNCTION_TRACE ("DsInitializeObjects");
+    ACPI_FUNCTION_TRACE (DsInitializeObjects);
 
+
+    Status = AcpiTbGetOwnerId (TableIndex, &OwnerId);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "**** Starting initialization of namespace objects ****\n"));
@@ -294,7 +267,8 @@ AcpiDsInitializeObjects (
     Info.OpRegionCount  = 0;
     Info.ObjectCount    = 0;
     Info.DeviceCount    = 0;
-    Info.TableDesc      = TableDesc;
+    Info.TableIndex     = TableIndex;
+    Info.OwnerId        = OwnerId;
 
     /* Walk entire namespace from the supplied root */
 
@@ -302,13 +276,18 @@ AcpiDsInitializeObjects (
                     AcpiDsInitOneObject, &Info, NULL);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "WalkNamespace failed, %s\n",
-            AcpiFormatException (Status)));
+        ACPI_EXCEPTION ((AE_INFO, Status, "During WalkNamespace"));
+    }
+
+    Status = AcpiGetTableByIndex (TableIndex, &Table);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
     }
 
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
         "\nTable [%4.4s](id %4.4X) - %hd Objects with %hd Devices %hd Methods %hd Regions\n",
-        TableDesc->Pointer->Signature, TableDesc->OwnerId, Info.ObjectCount,
+        Table->Signature, OwnerId, Info.ObjectCount,
         Info.DeviceCount, Info.MethodCount, Info.OpRegionCount));
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,

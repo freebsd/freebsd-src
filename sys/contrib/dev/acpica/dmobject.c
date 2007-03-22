@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmobject - ACPI object decode and display
- *              $Revision: 1.17 $
+ *              $Revision: 1.22 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -210,13 +210,16 @@ AcpiDmDumpMethodInfo (
 
         if (NextWalkState == WalkState)
         {
-            /* Display currently executing ASL statement */
+            if (Op)
+            {
+                /* Display currently executing ASL statement */
 
-            Next = Op->Common.Next;
-            Op->Common.Next = NULL;
+                Next = Op->Common.Next;
+                Op->Common.Next = NULL;
 
-            AcpiDmDisassemble (NextWalkState, Op, ACPI_UINT32_MAX);
-            Op->Common.Next = Next;
+                AcpiDmDisassemble (NextWalkState, Op, ACPI_UINT32_MAX);
+                Op->Common.Next = Next;
+            }
         }
         else
         {
@@ -378,7 +381,7 @@ AcpiDmDisplayInternalObject (
 
     if (!ObjDesc)
     {
-        AcpiOsPrintf ("<NullObj>\n");
+        AcpiOsPrintf ("<Null Object>\n");
         return;
     }
 
@@ -611,8 +614,6 @@ AcpiDmDisplayArguments (
 {
     UINT32                  i;
     ACPI_OPERAND_OBJECT     *ObjDesc;
-    UINT32                  NumArgs;
-    UINT32                  Concurrency;
     ACPI_NAMESPACE_NODE     *Node;
 
 
@@ -631,12 +632,9 @@ AcpiDmDisplayArguments (
         return;
     }
 
-    NumArgs     = ObjDesc->Method.ParamCount;
-    Concurrency = ObjDesc->Method.Concurrency;
-
     AcpiOsPrintf (
         "Arguments for Method [%4.4s]:  (%X arguments defined, max concurrency = %X)\n",
-        AcpiUtGetNodeName (Node), NumArgs, Concurrency);
+        AcpiUtGetNodeName (Node), ObjDesc->Method.ParamCount, ObjDesc->Method.SyncLevel);
 
     for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
     {

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evevent - Fixed Event handling and dispatch
- *              $Revision: 1.117 $
+ *              $Revision: 1.125 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -150,16 +150,8 @@ AcpiEvInitializeEvents (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("EvInitializeEvents");
+    ACPI_FUNCTION_TRACE (EvInitializeEvents);
 
-
-    /* Make sure we have ACPI tables */
-
-    if (!AcpiGbl_DSDT)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "No ACPI tables present!\n"));
-        return_ACPI_STATUS (AE_NO_ACPI_TABLES);
-    }
 
     /*
      * Initialize the Fixed and General Purpose Events. This is done prior to
@@ -169,22 +161,68 @@ AcpiEvInitializeEvents (
     Status = AcpiEvFixedEventInitialize ();
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR ((
-                "Unable to initialize fixed events, %s\n",
-                AcpiFormatException (Status)));
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "Unable to initialize fixed events"));
         return_ACPI_STATUS (Status);
     }
 
     Status = AcpiEvGpeInitialize ();
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR ((
-                "Unable to initialize general purpose events, %s\n",
-                AcpiFormatException (Status)));
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "Unable to initialize general purpose events"));
         return_ACPI_STATUS (Status);
     }
 
     return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvInstallFadtGpes
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Completes initialization of the FADT-defined GPE blocks
+ *              (0 and 1). This causes the _PRW methods to be run, so the HW
+ *              must be fully initialized at this point, including global lock
+ *              support.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEvInstallFadtGpes (
+    void)
+{
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (EvInstallFadtGpes);
+
+
+    /* Namespace must be locked */
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /* FADT GPE Block 0 */
+
+    (void) AcpiEvInitializeGpeBlock (
+                AcpiGbl_FadtGpeDevice, AcpiGbl_GpeFadtBlocks[0]);
+
+    /* FADT GPE Block 1 */
+
+    (void) AcpiEvInitializeGpeBlock (
+                AcpiGbl_FadtGpeDevice, AcpiGbl_GpeFadtBlocks[1]);
+
+    (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+    return_ACPI_STATUS (AE_OK);
 }
 
 
@@ -207,7 +245,7 @@ AcpiEvInstallXruptHandlers (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("EvInstallXruptHandlers");
+    ACPI_FUNCTION_TRACE (EvInstallXruptHandlers);
 
 
     /* Install the SCI handler */
@@ -215,9 +253,8 @@ AcpiEvInstallXruptHandlers (
     Status = AcpiEvInstallSciHandler ();
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR ((
-                "Unable to install System Control Interrupt Handler, %s\n",
-                AcpiFormatException (Status)));
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "Unable to install System Control Interrupt handler"));
         return_ACPI_STATUS (Status);
     }
 
@@ -226,9 +263,8 @@ AcpiEvInstallXruptHandlers (
     Status = AcpiEvInitGlobalLockHandler ();
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR ((
-                "Unable to initialize Global Lock handler, %s\n",
-                AcpiFormatException (Status)));
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "Unable to initialize Global Lock handler"));
         return_ACPI_STATUS (Status);
     }
 
@@ -271,8 +307,7 @@ AcpiEvFixedEventInitialize (
         if (AcpiGbl_FixedEventInfo[i].EnableRegisterId != 0xFF)
         {
             Status = AcpiSetRegister (
-                        AcpiGbl_FixedEventInfo[i].EnableRegisterId,
-                        0, ACPI_MTX_LOCK);
+                        AcpiGbl_FixedEventInfo[i].EnableRegisterId, 0);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -306,7 +341,7 @@ AcpiEvFixedEventDetect (
     ACPI_NATIVE_UINT        i;
 
 
-    ACPI_FUNCTION_NAME ("EvFixedEventDetect");
+    ACPI_FUNCTION_NAME (EvFixedEventDetect);
 
 
     /*
@@ -366,8 +401,7 @@ AcpiEvFixedEventDispatch (
 
     /* Clear the status bit */
 
-    (void) AcpiSetRegister (AcpiGbl_FixedEventInfo[Event].StatusRegisterId,
-                1, ACPI_MTX_DO_NOT_LOCK);
+    (void) AcpiSetRegister (AcpiGbl_FixedEventInfo[Event].StatusRegisterId, 1);
 
     /*
      * Make sure we've got a handler.  If not, report an error.
@@ -375,11 +409,10 @@ AcpiEvFixedEventDispatch (
      */
     if (NULL == AcpiGbl_FixedEventHandlers[Event].Handler)
     {
-        (void) AcpiSetRegister (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
-                0, ACPI_MTX_DO_NOT_LOCK);
+        (void) AcpiSetRegister (AcpiGbl_FixedEventInfo[Event].EnableRegisterId, 0);
 
-        ACPI_REPORT_ERROR (
-            ("No installed handler for fixed event [%08X]\n",
+        ACPI_ERROR ((AE_INFO,
+            "No installed handler for fixed event [%08X]",
             Event));
 
         return (ACPI_INTERRUPT_NOT_HANDLED);

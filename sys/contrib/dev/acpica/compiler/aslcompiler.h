@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslcompiler.h - common include file for iASL
- *              $Revision: 1.142 $
+ *              $Revision: 1.148 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -307,10 +307,9 @@ void
 AePrintErrorLog (
     UINT32                  FileId);
 
-ACPI_STATUS
+ACPI_PHYSICAL_ADDRESS
 AeLocalGetRootPointer (
-    UINT32                  Flags,
-    ACPI_PHYSICAL_ADDRESS   *RsdpPhysicalAddress);
+    void);
 
 
 /*
@@ -333,6 +332,9 @@ void
 LsDoHexOutput (
     void);
 
+void
+LsDumpParseTree (
+    void);
 
 /*
  * aslfold - constant folding
@@ -607,6 +609,10 @@ ACPI_STATUS
 LkCrossReferenceNamespace (
     void);
 
+void
+LkFindUnreferencedObjects (
+    void);
+
 ACPI_STATUS
 LsDisplayNamespace (
     void);
@@ -759,6 +765,11 @@ RsDoResourceTemplate (
 /*
  * aslrestype1 - generate Small descriptors
  */
+ASL_RESOURCE_NODE *
+RsDoEndTagDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
 ASL_RESOURCE_NODE *
 RsDoDmaDescriptor (
     ACPI_PARSE_OBJECT       *Op,

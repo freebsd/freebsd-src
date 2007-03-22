@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
- *              $Revision: 1.97 $
+ *              $Revision: 1.104 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -176,7 +176,7 @@ AcpiUtCreateInternalObjectDbg (
     ACPI_OPERAND_OBJECT     *SecondObject;
 
 
-    ACPI_FUNCTION_TRACE_STR ("UtCreateInternalObjectDbg",
+    ACPI_FUNCTION_TRACE_STR (UtCreateInternalObjectDbg,
         AcpiUtGetTypeName (Type));
 
 
@@ -250,7 +250,7 @@ AcpiUtCreateBufferObject (
     UINT8                   *Buffer = NULL;
 
 
-    ACPI_FUNCTION_TRACE_U32 ("UtCreateBufferObject", BufferSize);
+    ACPI_FUNCTION_TRACE_U32 (UtCreateBufferObject, BufferSize);
 
 
     /* Create a new Buffer object */
@@ -267,10 +267,10 @@ AcpiUtCreateBufferObject (
     {
         /* Allocate the actual buffer */
 
-        Buffer = ACPI_MEM_CALLOCATE (BufferSize);
+        Buffer = ACPI_ALLOCATE_ZEROED (BufferSize);
         if (!Buffer)
         {
-            ACPI_REPORT_ERROR (("CreateBuffer: could not allocate size %X\n",
+            ACPI_ERROR ((AE_INFO, "Could not allocate size %X",
                 (UINT32) BufferSize));
             AcpiUtRemoveReference (BufferDesc);
             return_PTR (NULL);
@@ -311,7 +311,7 @@ AcpiUtCreateStringObject (
     char                    *String;
 
 
-    ACPI_FUNCTION_TRACE_U32 ("UtCreateStringObject", StringSize);
+    ACPI_FUNCTION_TRACE_U32 (UtCreateStringObject, StringSize);
 
 
     /* Create a new String object */
@@ -326,10 +326,10 @@ AcpiUtCreateStringObject (
      * Allocate the actual string buffer -- (Size + 1) for NULL terminator.
      * NOTE: Zero-length strings are NULL terminated
      */
-    String = ACPI_MEM_CALLOCATE (StringSize + 1);
+    String = ACPI_ALLOCATE_ZEROED (StringSize + 1);
     if (!String)
     {
-        ACPI_REPORT_ERROR (("CreateString: could not allocate size %X\n",
+        ACPI_ERROR ((AE_INFO, "Could not allocate size %X",
             (UINT32) StringSize));
         AcpiUtRemoveReference (StringDesc);
         return_PTR (NULL);
@@ -363,7 +363,7 @@ AcpiUtValidInternalObject (
     void                    *Object)
 {
 
-    ACPI_FUNCTION_NAME ("UtValidInternalObject");
+    ACPI_FUNCTION_NAME (UtValidInternalObject);
 
 
     /* Check for a null pointer */
@@ -419,14 +419,14 @@ AcpiUtAllocateObjectDescDbg (
     ACPI_OPERAND_OBJECT     *Object;
 
 
-    ACPI_FUNCTION_TRACE ("UtAllocateObjectDescDbg");
+    ACPI_FUNCTION_TRACE (UtAllocateObjectDescDbg);
 
 
     Object = AcpiOsAcquireObject (AcpiGbl_OperandCache);
     if (!Object)
     {
-        _ACPI_REPORT_ERROR (ModuleName, LineNumber, ComponentId,
-                        ("Could not allocate an object descriptor\n"));
+        ACPI_ERROR ((ModuleName, LineNumber,
+            "Could not allocate an object descriptor"));
 
         return_PTR (NULL);
     }
@@ -458,16 +458,16 @@ void
 AcpiUtDeleteObjectDesc (
     ACPI_OPERAND_OBJECT     *Object)
 {
-    ACPI_FUNCTION_TRACE_PTR ("UtDeleteObjectDesc", Object);
+    ACPI_FUNCTION_TRACE_PTR (UtDeleteObjectDesc, Object);
 
 
     /* Object must be an ACPI_OPERAND_OBJECT  */
 
     if (ACPI_GET_DESCRIPTOR_TYPE (Object) != ACPI_DESC_TYPE_OPERAND)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "%p is not an ACPI Operand object [%s]\n", Object,
-                AcpiUtGetDescriptorName (Object)));
+        ACPI_ERROR ((AE_INFO,
+            "%p is not an ACPI Operand object [%s]", Object,
+            AcpiUtGetDescriptorName (Object)));
         return_VOID;
     }
 
@@ -502,7 +502,7 @@ AcpiUtGetSimpleObjectSize (
     ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("UtGetSimpleObjectSize", InternalObject);
+    ACPI_FUNCTION_TRACE_PTR (UtGetSimpleObjectSize, InternalObject);
 
 
     /*
@@ -578,8 +578,8 @@ AcpiUtGetSimpleObjectSize (
              * Notably, Locals and Args are not supported, but this may be
              * required eventually.
              */
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "Unsupported Reference opcode=%X in object %p\n",
+            ACPI_ERROR ((AE_INFO,
+                "Unsupported Reference opcode=%X in object %p",
                 InternalObject->Reference.Opcode, InternalObject));
             Status = AE_TYPE;
             break;
@@ -589,7 +589,7 @@ AcpiUtGetSimpleObjectSize (
 
     default:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unsupported type=%X in object %p\n",
+        ACPI_ERROR ((AE_INFO, "Unsupported type=%X in object %p",
             ACPI_GET_OBJECT_TYPE (InternalObject), InternalObject));
         Status = AE_TYPE;
         break;
@@ -694,7 +694,7 @@ AcpiUtGetPackageObjectSize (
     ACPI_PKG_INFO           Info;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("UtGetPackageObjectSize", InternalObject);
+    ACPI_FUNCTION_TRACE_PTR (UtGetPackageObjectSize, InternalObject);
 
 
     Info.Length      = 0;
