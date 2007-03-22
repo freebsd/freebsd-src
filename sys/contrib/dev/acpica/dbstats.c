@@ -141,9 +141,11 @@ AcpiDbClassifyOneObject (
     void                    *Context,
     void                    **ReturnValue);
 
+#if defined ACPI_DBG_TRACK_ALLOCATIONS || defined ACPI_USE_LOCAL_CACHE
 static void
 AcpiDbListInfo (
     ACPI_MEMORY_LIST        *List);
+#endif
 
 
 /*
@@ -522,17 +524,18 @@ AcpiDbDisplayStatistics (
     case CMD_STAT_MEMORY:
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
-        AcpiOsPrintf ("\n----Object and Cache Statistics (all in hex)---------\n");
+        AcpiOsPrintf ("\n----Object Statistics (all in hex)---------\n");
 
         AcpiDbListInfo (AcpiGbl_GlobalList);
         AcpiDbListInfo (AcpiGbl_NsNodeList);
+#endif
 
 #ifdef ACPI_USE_LOCAL_CACHE
+        AcpiOsPrintf ("\n----Cache Statistics (all in hex)----------\n");
         AcpiDbListInfo (AcpiGbl_OperandCache);
         AcpiDbListInfo (AcpiGbl_PsNodeCache);
         AcpiDbListInfo (AcpiGbl_PsNodeExtCache);
         AcpiDbListInfo (AcpiGbl_StateCache);
-#endif
 #endif
 
         break;

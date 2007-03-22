@@ -211,7 +211,8 @@ AcpiNsOneCompleteParse (
 
     /* Parse the AML */
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "*PARSE* pass %d parse\n", PassNumber));
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "*PARSE* pass %lu parse\n",
+        (unsigned long) PassNumber));
     Status = AcpiPsParseAml (WalkState);
 
     AcpiPsDeleteParseTree (ParseRoot);
