@@ -1308,6 +1308,10 @@ vm_object_split(vm_map_entry_t entry)
 	 */
 	new_object = vm_object_allocate(OBJT_DEFAULT, size);
 
+	/*
+	 * At this point, the new object is still private, so the order in
+	 * which the original and new objects are locked does not matter.
+	 */
 	VM_OBJECT_LOCK(new_object);
 	VM_OBJECT_LOCK(orig_object);
 	source = orig_object->backing_object;
@@ -1350,9 +1354,8 @@ retry:
 			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(new_object);
 			m->oflags |= VPO_WANTED;
-			msleep(m, VM_OBJECT_MTX(orig_object), PDROP | PVM, "spltwt", 0);
+			msleep(m, VM_OBJECT_MTX(orig_object), PVM, "spltwt", 0);
 			VM_OBJECT_LOCK(new_object);
-			VM_OBJECT_LOCK(orig_object);
 			goto retry;
 		}
 		vm_page_rename(m, new_object, idx);
