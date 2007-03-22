@@ -606,6 +606,11 @@ sofree(so)
 	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
 
+	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
+		(*pr->pr_domain->dom_dispose)(so->so_rcv.sb_mb);
+	if (pr->pr_usrreqs->pru_detach != NULL)
+		(*pr->pr_usrreqs->pru_detach)(so);
+
 	/*
 	 * From this point on, we assume that no other references to this
 	 * socket exist anywhere else in the stack.  Therefore, no locks need
@@ -624,11 +629,7 @@ sofree(so)
 	KASSERT((so->so_snd.sb_flags & SB_LOCK) == 0, ("sofree: snd sblock"));
 	KASSERT((so->so_rcv.sb_flags & SB_LOCK) == 0, ("sofree: rcv sblock"));
 	sbdestroy(&so->so_snd, so);
-	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
-		(*pr->pr_domain->dom_dispose)(so->so_rcv.sb_mb);
 	sbdestroy(&so->so_rcv, so);
-	if (pr->pr_usrreqs->pru_detach != NULL)
-		(*pr->pr_usrreqs->pru_detach)(so);
 	knlist_destroy(&so->so_rcv.sb_sel.si_note);
 	knlist_destroy(&so->so_snd.sb_sel.si_note);
 	sodealloc(so);
