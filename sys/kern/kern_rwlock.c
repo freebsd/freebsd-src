@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_no_adaptive_rwlocks.h"
 
 #include <sys/param.h>
 #include <sys/ktr.h>
@@ -46,6 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/turnstile.h>
 #include <sys/lock_profile.h>
 #include <machine/cpu.h>
+
+#if defined(SMP) && !defined(NO_ADAPTIVE_RWLOCKS)
+#define	ADAPTIVE_RWLOCKS
+#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -179,7 +184,7 @@ _rw_wunlock(struct rwlock *rw, const char *file, int line)
 void
 _rw_rlock(struct rwlock *rw, const char *file, int line)
 {
-#ifdef SMP
+#ifdef ADAPTIVE_RWLOCKS
 	volatile struct thread *owner;
 #endif
 	uint64_t waittime = 0;
@@ -278,7 +283,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 				    __func__, rw);
 		}
 
-#ifdef SMP
+#ifdef ADAPTIVE_RWLOCKS
 		/*
 		 * If the owner is running on another CPU, spin until
 		 * the owner stops running or the state of the lock
@@ -446,7 +451,7 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 void
 _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 {
-#ifdef SMP
+#ifdef ADAPTIVE_RWLOCKS
 	volatile struct thread *owner;
 #endif
 	uintptr_t v;
@@ -510,7 +515,7 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 				    __func__, rw);
 		}
 
-#ifdef SMP
+#ifdef ADAPTIVE_RWLOCKS
 		/*
 		 * If the lock is write locked and the owner is
 		 * running on another CPU, spin until the owner stops
@@ -565,7 +570,7 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	turnstile_lock(&rw->lock_object);
 	ts = turnstile_lookup(&rw->lock_object);
 
-#ifdef SMP
+#ifdef ADAPTIVE_RWLOCKS
 	/*
 	 * There might not be a turnstile for this lock if all of
 	 * the waiters are adaptively spinning.  In that case, just
@@ -598,16 +603,16 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	 * there that could be worked around either by waking both queues
 	 * of waiters or doing some complicated lock handoff gymnastics.
 	 *
-	 * Note that in the SMP case, if both flags are set, there might
-	 * not be any actual writers on the turnstile as they might all
-	 * be spinning.  In that case, we don't want to preserve the
-	 * RW_LOCK_WRITE_WAITERS flag as the turnstile is going to go
-	 * away once we wakeup all the readers.
+	 * Note that in the ADAPTIVE_RWLOCKS case, if both flags are
+	 * set, there might not be any actual writers on the turnstile
+	 * as they might all be spinning.  In that case, we don't want
+	 * to preserve the RW_LOCK_WRITE_WAITERS flag as the turnstile
+	 * is going to go away once we wakeup all the readers.
 	 */
 	v = RW_UNLOCKED;
 	if (rw->rw_lock & RW_LOCK_READ_WAITERS) {
 		queue = TS_SHARED_QUEUE;
-#ifdef SMP
+#ifdef ADAPTIVE_RWLOCKS
 		if (rw->rw_lock & RW_LOCK_WRITE_WAITERS &&
 		    !turnstile_empty(ts, TS_EXCLUSIVE_QUEUE))
 			v |= RW_LOCK_WRITE_WAITERS;
@@ -617,7 +622,7 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	} else
 		queue = TS_EXCLUSIVE_QUEUE;
 
-#ifdef SMP
+#ifdef ADAPTIVE_RWLOCKS
 	/*
 	 * We have to make sure that we actually have waiters to
 	 * wakeup.  If they are all spinning, then we just need to
@@ -678,14 +683,15 @@ _rw_try_upgrade(struct rwlock *rw, const char *file, int line)
 	 * Try to switch from one reader to a writer again.  This time
 	 * we honor the current state of the RW_LOCK_WRITE_WAITERS
 	 * flag.  If we obtain the lock with the flag set, then claim
-	 * ownership of the turnstile.  In the SMP case it is possible
-	 * for there to not be an associated turnstile even though there
-	 * are waiters if all of the waiters are spinning.
+	 * ownership of the turnstile.  In the ADAPTIVE_RWLOCKS case
+	 * it is possible for there to not be an associated turnstile
+	 * even though there are waiters if all of the waiters are
+	 * spinning.
 	 */
 	v = rw->rw_lock & RW_LOCK_WRITE_WAITERS;
 	success = atomic_cmpset_acq_ptr(&rw->rw_lock, RW_READERS_LOCK(1) | v,
 	    tid | v);
-#ifdef SMP
+#ifdef ADAPTIVE_RWLOCKS
 	if (success && v && turnstile_lookup(&rw->lock_object) != NULL)
 #else
 	if (success && v)
@@ -737,14 +743,14 @@ _rw_downgrade(struct rwlock *rw, const char *file, int line)
 	 * RW_LOCK_WRITE_WAITERS and give up ownership of the
 	 * turnstile.  If there are any read waiters, wake them up.
 	 *
-	 * For SMP, we have to allow for the fact that all of the
-	 * read waiters might be spinning.  In that case, act as if
-	 * RW_LOCK_READ_WAITERS is not set.  Also, only preserve
-	 * the RW_LOCK_WRITE_WAITERS flag if at least one writer is
-	 * blocked on the turnstile.
+	 * For ADAPTIVE_RWLOCKS, we have to allow for the fact that
+	 * all of the read waiters might be spinning.  In that case,
+	 * act as if RW_LOCK_READ_WAITERS is not set.  Also, only
+	 * preserve the RW_LOCK_WRITE_WAITERS flag if at least one
+	 * writer is blocked on the turnstile.
 	 */
 	ts = turnstile_lookup(&rw->lock_object);
-#ifdef SMP
+#ifdef ADAPTIVE_RWLOCKS
 	if (ts == NULL)
 		v &= ~(RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS);
 	else if (v & RW_LOCK_READ_WAITERS &&
@@ -762,7 +768,7 @@ _rw_downgrade(struct rwlock *rw, const char *file, int line)
 	    (v & RW_LOCK_WRITE_WAITERS));
 	if (v & RW_LOCK_READ_WAITERS)
 		turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
-#ifdef SMP
+#ifdef ADAPTIVE_RWLOCKS
 	else if (ts == NULL)
 		turnstile_release(&rw->lock_object);
 #endif
