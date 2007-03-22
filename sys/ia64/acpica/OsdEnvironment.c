@@ -56,19 +56,17 @@ AcpiOsTerminate(void)
 	return(AE_OK);
 }
 
-ACPI_STATUS
-AcpiOsGetRootPointer(UINT32 Flags, ACPI_POINTER *RsdpAddress)
+ACPI_PHYSICAL_ADDRESS
+AcpiOsGetRootPointer(void)
 {
 	void *acpi_root;
 
 	if (acpi_root_phys == 0) {
 		acpi_root = efi_get_table(&acpi_root_uuid);
 		if (acpi_root == NULL)
-			return (AE_NOT_FOUND);
+			return (0);
 		acpi_root_phys = IA64_RR_MASK((u_long)acpi_root);
 	}
 
-	RsdpAddress->PointerType = ACPI_PHYSICAL_POINTER;
-	RsdpAddress->Pointer.Physical = acpi_root_phys;
-	return (AE_OK);
+	return (acpi_root_phys);
 }

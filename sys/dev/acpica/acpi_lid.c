@@ -184,8 +184,8 @@ acpi_lid_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     sc = (struct acpi_lid_softc *)context;
     switch (notify) {
     case ACPI_NOTIFY_STATUS_CHANGED:
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-				acpi_lid_notify_status_changed, sc);
+	AcpiOsExecute(OSL_NOTIFY_HANDLER,
+		      acpi_lid_notify_status_changed, sc);
 	break;
     default:
 	device_printf(sc->lid_dev, "unknown notify %#x\n", notify);

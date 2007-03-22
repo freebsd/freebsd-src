@@ -149,7 +149,7 @@ acpi_cmbat_attach(device_t dev)
     AcpiInstallNotifyHandler(handle, ACPI_ALL_NOTIFY,
 	acpi_cmbat_notify_handler, dev);
 
-    AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_init_battery, dev);
+    AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_cmbat_init_battery, dev);
 
     return (0);
 }
@@ -169,7 +169,7 @@ static int
 acpi_cmbat_resume(device_t dev)
 {
 
-    AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_init_battery, dev);
+    AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_cmbat_init_battery, dev);
     return (0);
 }
 
@@ -197,7 +197,7 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 	 * Queue a callback to get the current battery info from thread
 	 * context.  It's not safe to block in a notify handler.
 	 */
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif_task, dev);
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_cmbat_get_bif_task, dev);
 	break;
     }
 

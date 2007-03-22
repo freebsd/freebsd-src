@@ -275,8 +275,8 @@ acpi_cpu_attach(device_t dev)
     pcpu_data = pcpu_find(cpu_id);
     pcpu_data->pc_device = dev;
     sc->cpu_pcpu = pcpu_data;
-    cpu_smi_cmd = AcpiGbl_FADT->SmiCmd;
-    cpu_cst_cnt = AcpiGbl_FADT->CstCnt;
+    cpu_smi_cmd = AcpiGbl_FADT.SmiCommand;
+    cpu_cst_cnt = AcpiGbl_FADT.CstControl;
 
     buf.Pointer = NULL;
     buf.Length = ACPI_ALLOCATE_BUFFER;
@@ -310,7 +310,7 @@ acpi_cpu_attach(device_t dev)
 	    CTLFLAG_RD, 0, "node for CPU children");
 
 	/* Queue post cpu-probing task handler */
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cpu_startup, NULL);
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_cpu_startup, NULL);
     }
 
     /*
@@ -518,16 +518,16 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
 	return; 
 
     /* Validate and allocate resources for C2 (P_LVL2). */
-    gas.AddressSpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
-    gas.RegisterBitWidth = 8;
-    if (AcpiGbl_FADT->Plvl2Lat <= 100) {
+    gas.SpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
+    gas.BitWidth = 8;
+    if (AcpiGbl_FADT.C2Latency <= 100) {
 	gas.Address = sc->cpu_p_blk + 4;
 	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &sc->cpu_rid,
 	    &gas, &cx_ptr->p_lvlx, RF_SHAREABLE);
 	if (cx_ptr->p_lvlx != NULL) {
 	    sc->cpu_rid++;
 	    cx_ptr->type = ACPI_STATE_C2;
-	    cx_ptr->trans_lat = AcpiGbl_FADT->Plvl2Lat;
+	    cx_ptr->trans_lat = AcpiGbl_FADT.C2Latency;
 	    cx_ptr++;
 	    sc->cpu_cx_count++;
 	}
@@ -536,14 +536,14 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
 	return;
 
     /* Validate and allocate resources for C3 (P_LVL3). */
-    if (AcpiGbl_FADT->Plvl3Lat <= 1000) {
+    if (AcpiGbl_FADT.C3Latency <= 1000) {
 	gas.Address = sc->cpu_p_blk + 5;
 	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &sc->cpu_rid, &gas,
 	    &cx_ptr->p_lvlx, RF_SHAREABLE);
 	if (cx_ptr->p_lvlx != NULL) {
 	    sc->cpu_rid++;
 	    cx_ptr->type = ACPI_STATE_C3;
-	    cx_ptr->trans_lat = AcpiGbl_FADT->Plvl3Lat;
+	    cx_ptr->trans_lat = AcpiGbl_FADT.C3Latency;
 	    cx_ptr++;
 	    sc->cpu_cx_count++;
 	}
@@ -863,11 +863,9 @@ acpi_cpu_idle()
      * time if USB is loaded.
      */
     if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
-	AcpiGetRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active,
-	    ACPI_MTX_DO_NOT_LOCK);
+	AcpiGetRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active);
 	if (bm_active != 0) {
-	    AcpiSetRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1,
-		ACPI_MTX_DO_NOT_LOCK);
+	    AcpiSetRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1);
 	    cx_next_idx = min(cx_next_idx, sc->cpu_non_c3);
 	}
     }
@@ -894,9 +892,8 @@ acpi_cpu_idle()
      */
     if (cx_next->type == ACPI_STATE_C3) {
 	if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
-	    AcpiSetRegister(ACPI_BITREG_ARB_DISABLE, 1, ACPI_MTX_DO_NOT_LOCK);
-	    AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 1,
-		ACPI_MTX_DO_NOT_LOCK);
+	    AcpiSetRegister(ACPI_BITREG_ARB_DISABLE, 1);
+	    AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 1);
 	} else
 	    ACPI_FLUSH_CPU_CACHE();
     }
@@ -907,7 +904,7 @@ acpi_cpu_idle()
      * get the time very close to the CPU start/stop clock logic, this
      * is the only reliable time source.
      */
-    AcpiHwLowLevelRead(32, &start_time, &AcpiGbl_FADT->XPmTmrBlk);
+    AcpiHwLowLevelRead(32, &start_time, &AcpiGbl_FADT.XPmTimerBlock);
     CPU_GET_REG(cx_next->p_lvlx, 1);
 
     /*
@@ -916,14 +913,14 @@ acpi_cpu_idle()
      * the processor has stopped.  Doing it again provides enough
      * margin that we are certain to have a correct value.
      */
-    AcpiHwLowLevelRead(32, &end_time, &AcpiGbl_FADT->XPmTmrBlk);
-    AcpiHwLowLevelRead(32, &end_time, &AcpiGbl_FADT->XPmTmrBlk);
+    AcpiHwLowLevelRead(32, &end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiHwLowLevelRead(32, &end_time, &AcpiGbl_FADT.XPmTimerBlock);
 
     /* Enable bus master arbitration and disable bus master wakeup. */
     if (cx_next->type == ACPI_STATE_C3 &&
 	(cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
-	AcpiSetRegister(ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_DO_NOT_LOCK);
-	AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 0, ACPI_MTX_DO_NOT_LOCK);
+	AcpiSetRegister(ACPI_BITREG_ARB_DISABLE, 0);
+	AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 0);
     }
     ACPI_ENABLE_IRQS();
 
@@ -962,8 +959,10 @@ acpi_cpu_quirks(void)
      * instruction is present, flush the caches before entering C3 instead.
      * Otherwise, just disable C3 completely.
      */
-    if (AcpiGbl_FADT->V1_Pm2CntBlk == 0 || AcpiGbl_FADT->Pm2CntLen == 0) {
-	if (AcpiGbl_FADT->WbInvd && AcpiGbl_FADT->WbInvdFlush == 0) {
+    if (AcpiGbl_FADT.Pm2ControlBlock == 0 ||
+	AcpiGbl_FADT.Pm2ControlLength == 0) {
+	if ((AcpiGbl_FADT.Flags & ACPI_FADT_WBINVD) &&
+	    (AcpiGbl_FADT.Flags & ACPI_FADT_WBINVD_FLUSH) == 0) {
 	    cpu_quirks |= CPU_QUIRK_NO_BM_CTRL;
 	    ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"acpi_cpu: no BM control, using flush cache method\n"));
