@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: asllookup- Namespace lookup
- *              $Revision: 1.95 $
+ *              $Revision: 1.103 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -167,6 +167,13 @@ LkNamespaceLocateEnd (
     UINT32                  Level,
     void                    *Context);
 
+static ACPI_STATUS
+LkIsObjectUsed (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
+
 
 /*******************************************************************************
  *
@@ -196,9 +203,9 @@ LsDoOneNamespaceObject (
     Gbl_NumNamespaceObjects++;
 
     FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "%5d  [%d]  %*s %4.4s - %s",
-                        Gbl_NumNamespaceObjects, Level, (Level * 3), " ",
-                        &Node->Name,
-                        AcpiUtGetTypeName (Node->Type));
+        Gbl_NumNamespaceObjects, Level, (Level * 3), " ",
+        &Node->Name,
+        AcpiUtGetTypeName (Node->Type));
 
     Op = Node->Op;
     ObjDesc = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, Node->Object);
@@ -211,7 +218,7 @@ LsDoOneNamespaceObject (
 
 
     if ((ObjDesc) &&
-        (ObjDesc->Common.Descriptor == ACPI_DESC_TYPE_OPERAND))
+        (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) == ACPI_DESC_TYPE_OPERAND))
     {
         switch (Node->Type)
         {
@@ -358,7 +365,7 @@ LsDoOneNamespaceObject (
             }
             Op = Op->Asl.Child;
 
-            if (Op->Asl.ParseOpcode == PARSEOP_INTEGER)
+            if (Op && (Op->Asl.ParseOpcode == PARSEOP_INTEGER))
             {
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
                     "        [Initial Length  0x%.2X bytes]",
@@ -375,6 +382,29 @@ LsDoOneNamespaceObject (
             break;
 
 
+        case ACPI_TYPE_LOCAL_RESOURCE:
+
+            FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
+                "  [Desc Offset     0x%.4X Bytes]", Node->Value);
+            break;
+
+
+        case ACPI_TYPE_LOCAL_RESOURCE_FIELD:
+
+            if (Node->Flags & 0x80)
+            {
+                FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
+                    "   [Field Offset    0x%.4X Bits 0x%.4X Bytes]",
+                    Node->Value, Node->Value / 8);
+            }
+            else
+            {
+                FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
+                    "   [Field Offset    0x%.4X Bytes]", Node->Value);
+            }
+            break;
+
+
         default:
             /* Nothing to do for other types */
             break;
@@ -383,6 +413,15 @@ LsDoOneNamespaceObject (
 
     FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "\n");
     return (AE_OK);
+}
+
+
+void
+LsSetupNsList (void * Handle)
+{
+
+    Gbl_NsOutputFlag = TRUE;
+    Gbl_Files[ASL_FILE_NAMESPACE_OUTPUT].Handle = Handle;
 }
 
 
@@ -411,6 +450,8 @@ LsDisplayNamespace (
     {
         return (AE_OK);
     }
+
+    Gbl_NumNamespaceObjects = 0;
 
     /* File header */
 
@@ -493,6 +534,153 @@ LkObjectExists (
     }
 
     return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    LkGetNameOp
+ *
+ * PARAMETERS:  Op              - Current Op
+ *
+ * RETURN:      NameOp associated with the input op
+ *
+ * DESCRIPTION: Find the name declaration op associated with the operator
+ *
+ ******************************************************************************/
+
+ACPI_PARSE_OBJECT *
+LkGetNameOp (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    const ACPI_OPCODE_INFO  *OpInfo;
+    ACPI_PARSE_OBJECT       *NameOp = Op;
+
+
+    OpInfo = AcpiPsGetOpcodeInfo (Op->Asl.AmlOpcode);
+
+
+    /* Get the NamePath from the appropriate place */
+
+    if (OpInfo->Flags & AML_NAMED)
+    {
+        /* For nearly all NAMED operators, the name reference is the first child */
+
+        NameOp = Op->Asl.Child;
+        if (Op->Asl.AmlOpcode == AML_ALIAS_OP)
+        {
+            /*
+             * ALIAS is the only oddball opcode, the name declaration
+             * (alias name) is the second operand
+             */
+            NameOp = Op->Asl.Child->Asl.Next;
+        }
+    }
+    else if (OpInfo->Flags & AML_CREATE)
+    {
+        /* Name must appear as the last parameter */
+
+        NameOp = Op->Asl.Child;
+        while (!(NameOp->Asl.CompileFlags & NODE_IS_NAME_DECLARATION))
+        {
+            NameOp = NameOp->Asl.Next;
+        }
+    }
+
+    return (NameOp);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    LkIsObjectUsed
+ *
+ * PARAMETERS:  ACPI_WALK_CALLBACK
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Check for an unreferenced namespace object and emit a warning.
+ *              We have to be careful, because some types and names are
+ *              typically or always unreferenced, we don't want to issue
+ *              excessive warnings.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+LkIsObjectUsed (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+    ACPI_NAMESPACE_NODE     *Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, ObjHandle);
+
+
+    /* Referenced flag is set during the namespace xref */
+
+    if (Node->Flags & ANOBJ_IS_REFERENCED)
+    {
+        return (AE_OK);
+    }
+
+    /*
+     * Ignore names that start with an underscore,
+     * these are the reserved ACPI names and are typically not referenced,
+     * they are called by the host OS.
+     */
+    if (Node->Name.Ascii[0] == '_')
+    {
+        return (AE_OK);
+    }
+
+    /* There are some types that are typically not referenced, ignore them */
+
+    switch (Node->Type)
+    {
+    case ACPI_TYPE_DEVICE:
+    case ACPI_TYPE_PROCESSOR:
+    case ACPI_TYPE_POWER:
+    case ACPI_TYPE_LOCAL_RESOURCE:
+        return (AE_OK);
+
+    default:
+        break;
+    }
+
+    /* All others are valid unreferenced namespace objects */
+
+    if (Node->Op)
+    {
+        AslError (ASL_WARNING2, ASL_MSG_NOT_REFERENCED, LkGetNameOp (Node->Op), NULL);
+    }
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    LkFindUnreferencedObjects
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Namespace walk to find objects that are not referenced in any
+ *              way. Must be called after the namespace has been cross
+ *              referenced.
+ *
+ ******************************************************************************/
+
+void
+LkFindUnreferencedObjects (
+    void)
+{
+
+    /* Walk entire namespace from the supplied root */
+
+    (void) AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
+                ACPI_UINT32_MAX, FALSE, LkIsObjectUsed,
+                NULL, NULL);
 }
 
 
@@ -641,7 +829,7 @@ LkNamespaceLocateBegin (
     UINT32                  Flags;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("LkNamespaceLocateBegin", Op);
+    ACPI_FUNCTION_TRACE_PTR (LkNamespaceLocateBegin, Op);
 
     /*
      * If this node is the actual declaration of a name
@@ -688,7 +876,7 @@ LkNamespaceLocateBegin (
 
     if (OpInfo->Flags & AML_NAMED)
     {
-        /* For all NAMED operators, the name reference is the first child */
+        /* For nearly all NAMED operators, the name reference is the first child */
 
         Path = Op->Asl.Child->Asl.Value.String;
         if (Op->Asl.AmlOpcode == AML_ALIAS_OP)
@@ -729,7 +917,7 @@ LkNamespaceLocateBegin (
      */
     Gbl_NsLookupCount++;
 
-    Status = AcpiNsLookup (WalkState->ScopeInfo,  Path, ObjectType,
+    Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
                 ACPI_IMODE_EXECUTE, Flags, WalkState, &(Node));
     if (ACPI_FAILURE (Status))
     {
@@ -803,13 +991,23 @@ LkNamespaceLocateBegin (
         return (Status);
     }
 
+    /* Check for a reference vs. name declaration */
+
+    if (!(OpInfo->Flags & AML_NAMED) &&
+        !(OpInfo->Flags & AML_CREATE))
+    {
+        /* This node has been referenced, mark it for reference check */
+
+        Node->Flags |= ANOBJ_IS_REFERENCED;
+    }
+
     /* Attempt to optimize the NamePath */
 
     OptOptimizeNamePath (Op, OpInfo->Flags, WalkState, Path, Node);
 
     /*
-     * Dereference an alias. (A name reference that is an alias.)
-     * Aliases are not nested;  The alias always points to the final object
+     * 1) Dereference an alias (A name reference that is an alias)
+     *    Aliases are not nested, the alias always points to the final object
      */
     if ((Op->Asl.ParseOpcode != PARSEOP_ALIAS) &&
         (Node->Type == ACPI_TYPE_LOCAL_ALIAS))
@@ -822,22 +1020,19 @@ LkNamespaceLocateBegin (
 
         NextOp = NextOp->Asl.Child;
 
-        /* Who in turn points back to original target alias node */
+        /* That in turn points back to original target alias node */
 
         if (NextOp->Asl.Node)
         {
             Node = NextOp->Asl.Node;
         }
-        else
-        {
-            AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL, Op,
-                "Missing alias link");
-        }
+
+        /* Else - forward reference to alias, will be resolved later */
     }
 
-    /* 1) Check for a reference to a resource descriptor */
+    /* 2) Check for a reference to a resource descriptor */
 
-    else if ((Node->Type == ACPI_TYPE_LOCAL_RESOURCE_FIELD) ||
+    if ((Node->Type == ACPI_TYPE_LOCAL_RESOURCE_FIELD) ||
              (Node->Type == ACPI_TYPE_LOCAL_RESOURCE))
     {
         /*
@@ -910,7 +1105,7 @@ LkNamespaceLocateBegin (
         OpcGenerateAmlOpcode (Op);
     }
 
-    /* 2) Check for a method invocation */
+    /* 3) Check for a method invocation */
 
     else if ((((Op->Asl.ParseOpcode == PARSEOP_NAMESTRING) || (Op->Asl.ParseOpcode == PARSEOP_NAMESEG)) &&
                 (Node->Type == ACPI_TYPE_METHOD) &&
@@ -996,7 +1191,7 @@ LkNamespaceLocateBegin (
         }
     }
 
-    /* 3) Check for an ASL Field definition */
+    /* 4) Check for an ASL Field definition */
 
     else if ((Op->Asl.Parent) &&
             ((Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_FIELD)     ||
@@ -1137,7 +1332,7 @@ LkNamespaceLocateEnd (
     const ACPI_OPCODE_INFO  *OpInfo;
 
 
-    ACPI_FUNCTION_TRACE ("LkNamespaceLocateEnd");
+    ACPI_FUNCTION_TRACE (LkNamespaceLocateEnd);
 
 
     /* We are only interested in opcodes that have an associated name */

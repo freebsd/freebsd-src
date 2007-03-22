@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmwalk - AML disassembly tree walk
- *              $Revision: 1.24 $
+ *              $Revision: 1.33 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -144,13 +144,6 @@ AcpiDmAscendingOp (
     UINT32                  Level,
     void                    *Context);
 
-static void
-AcpiDmWalkParseTree (
-    ACPI_PARSE_OBJECT       *Op,
-    ASL_WALK_CALLBACK       DescendingCallback,
-    ASL_WALK_CALLBACK       AscendingCallback,
-    void                    *Context);
-
 static UINT32
 AcpiDmBlockType (
     ACPI_PARSE_OBJECT       *Op);
@@ -186,7 +179,9 @@ AcpiDmDisassemble (
         return;
     }
 
+    Info.Flags = 0;
     Info.Level = 0;
+    Info.Count = 0;
     Info.WalkState = WalkState;
     AcpiDmWalkParseTree (Op, AcpiDmDescendingOp, AcpiDmAscendingOp, &Info);
     return;
@@ -208,7 +203,7 @@ AcpiDmDisassemble (
  *
  ******************************************************************************/
 
-static void
+void
 AcpiDmWalkParseTree (
     ACPI_PARSE_OBJECT       *Op,
     ASL_WALK_CALLBACK       DescendingCallback,
@@ -229,10 +224,13 @@ AcpiDmWalkParseTree (
     {
         if (NodePreviouslyVisited)
         {
-            Status = AscendingCallback (Op, Info->Level, Context);
-            if (ACPI_FAILURE (Status))
+            if (AscendingCallback)
             {
-                return;
+                Status = AscendingCallback (Op, Info->Level, Context);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
             }
         }
         else
@@ -495,21 +493,47 @@ AcpiDmDescendingOp (
 
             if (AcpiGbl_ExternalList)
             {
-                AcpiOsPrintf (
-                    "    /*\n     * These objects were referenced but not defined in this table\n     */\n");
-
                 /*
                  * Walk the list of externals (unresolved references)
                  * found during parsing
                  */
                 while (AcpiGbl_ExternalList)
                 {
-                    AcpiOsPrintf ("    External (%s, DeviceObj)\n",
+                    AcpiOsPrintf ("    External (%s",
                         AcpiGbl_ExternalList->Path);
 
+                    /* TBD: should be a lookup table */
+
+                    switch (AcpiGbl_ExternalList->Type)
+                    {
+                    case ACPI_TYPE_DEVICE:
+                        AcpiOsPrintf (", DeviceObj");
+                        break;
+
+                    case ACPI_TYPE_METHOD:
+                        AcpiOsPrintf (", MethodObj");
+                        break;
+
+                    case ACPI_TYPE_INTEGER:
+                        AcpiOsPrintf (", IntObj");
+                        break;
+
+                    default:
+                        break;
+                    }
+
+                    if (AcpiGbl_ExternalList->Type == ACPI_TYPE_METHOD)
+                    {
+                        AcpiOsPrintf (")    // %d Arguments\n", AcpiGbl_ExternalList->Value);
+                    }
+                    else
+                    {
+                        AcpiOsPrintf (")\n");
+                    }
+
                     NextExternal = AcpiGbl_ExternalList->Next;
-                    ACPI_MEM_FREE (AcpiGbl_ExternalList->Path);
-                    ACPI_MEM_FREE (AcpiGbl_ExternalList);
+                    ACPI_FREE (AcpiGbl_ExternalList->Path);
+                    ACPI_FREE (AcpiGbl_ExternalList);
                     AcpiGbl_ExternalList = NextExternal;
                 }
                 AcpiOsPrintf ("\n");
@@ -527,11 +551,32 @@ AcpiDmDescendingOp (
              * indent a new line
              */
             AcpiDmIndent (Level);
+            Info->LastLevel = Level;
+            Info->Count = 0;
+    }
+
+    /*
+     * This is an inexpensive mechanism to try and keep lines from getting
+     * too long. When the limit is hit, start a new line at the previous
+     * indent plus one. A better but more expensive mechanism would be to
+     * keep track of the current column.
+     */
+    Info->Count++;
+    if (Info->Count /*+Info->LastLevel*/ > 10)
+    {
+        Info->Count = 0;
+        AcpiOsPrintf ("\n");
+        AcpiDmIndent (Info->LastLevel + 1);
     }
 
     /* Print the opcode name */
 
     AcpiDmDisassembleOneOp (NULL, Info, Op);
+
+    if (Op->Common.DisasmOpcode == ACPI_DASM_LNOT_PREFIX)
+    {
+        return (AE_OK);
+    }
 
     if ((Op->Common.AmlOpcode == AML_NAME_OP) ||
         (Op->Common.AmlOpcode == AML_RETURN_OP))
@@ -644,6 +689,7 @@ AcpiDmDescendingOp (
 
 
             case AML_MUTEX_OP:
+            case AML_DATA_REGION_OP:
 
                 AcpiOsPrintf (", ");
                 return (AE_OK);
@@ -665,7 +711,7 @@ AcpiDmDescendingOp (
 
             default:
 
-                AcpiOsPrintf ("*** Unhandled named opcode\n");
+                AcpiOsPrintf ("*** Unhandled named opcode %X\n", Op->Common.AmlOpcode);
                 break;
             }
         }
@@ -689,23 +735,34 @@ AcpiDmDescendingOp (
             {
             case AML_BANK_FIELD_OP:
 
-                /* Namestring */
+                /* Namestring - Bank Name */
 
                 NextOp = AcpiPsGetDepthNext (NULL, NextOp);
                 AcpiDmNamestring (NextOp->Common.Value.Name);
                 NextOp->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
                 AcpiOsPrintf (", ");
 
-
+                /*
+                 * Bank Value. This is a TermArg in the middle of the parameter
+                 * list, must handle it here.
+                 *
+                 * Disassemble the TermArg parse tree. ACPI_PARSEOP_PARAMLIST
+                 * eliminates newline in the output.
+                 */
                 NextOp = NextOp->Common.Next;
-                AcpiDmDisassembleOneOp (NULL, Info, NextOp);
+
+                Info->Flags = ACPI_PARSEOP_PARAMLIST;
+                AcpiDmWalkParseTree (NextOp, AcpiDmDescendingOp, AcpiDmAscendingOp, Info);
+                Info->Flags = 0;
+                Info->Level = Level;
+
                 NextOp->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
                 AcpiOsPrintf (", ");
                 break;
 
             case AML_INDEX_FIELD_OP:
 
-                /* Namestring */
+                /* Namestring - Data Name */
 
                 NextOp = AcpiPsGetDepthNext (NULL, NextOp);
                 AcpiDmNamestring (NextOp->Common.Value.Name);
@@ -860,7 +917,10 @@ AcpiDmAscendingOp (
                  * This is a first-level element of a term list
                  * start a new line
                  */
-                AcpiOsPrintf ("\n");
+                if (!(Info->Flags & ACPI_PARSEOP_PARAMLIST))
+                {
+                    AcpiOsPrintf ("\n");
+                }
             }
         }
         break;

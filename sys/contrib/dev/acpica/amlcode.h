@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 1.82 $
+ *       $Revision: 1.86 $
  *
  *****************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -254,8 +254,10 @@
 #define AML_DATA_REGION_OP          (UINT16) 0x5b88     /* ACPI 2.0 */
 
 
-/* Bogus opcodes (they are actually two separate opcodes) */
-
+/*
+ * Combination opcodes (actually two one-byte opcodes)
+ * Used by the disassembler and iASL compiler
+ */
 #define AML_LGREATEREQUAL_OP        (UINT16) 0x9295
 #define AML_LLESSEQUAL_OP           (UINT16) 0x9294
 #define AML_LNOTEQUAL_OP            (UINT16) 0x9293
@@ -347,7 +349,7 @@
 #define ARGI_DATAOBJECT             0x12    /* Buffer, String, package or reference to a Node - Used only by SizeOf operator*/
 #define ARGI_COMPLEXOBJ             0x13    /* Buffer, String, or package (Used by INDEX op only) */
 #define ARGI_REF_OR_STRING          0x14    /* Reference or String (Used by DEREFOF op only) */
-#define ARGI_REGION_OR_FIELD        0x15    /* Used by LOAD op only */
+#define ARGI_REGION_OR_BUFFER       0x15    /* Used by LOAD op only */
 #define ARGI_DATAREFOBJ             0x16
 
 /* Note: types above can expand to 0x1F maximum */

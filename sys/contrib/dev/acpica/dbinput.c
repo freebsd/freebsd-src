@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 1.111 $
+ *              $Revision: 1.114 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -366,7 +366,6 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("Set N <NamedObject> <Value>         Set value for named integer\n");
         AcpiOsPrintf ("Sleep <SleepState>                  Simulate sleep/wake sequence\n");
         AcpiOsPrintf ("Terminate                           Delete namespace and all internal objects\n");
-        AcpiOsPrintf ("Thread <Threads><Loops><NamePath>   Spawn threads to execute method(s)\n");
         AcpiOsPrintf ("Type <Object>                       Display object type\n");
         return;
 
@@ -385,6 +384,7 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("Results                             Display method result stack\n");
         AcpiOsPrintf ("Set <A|L> <#> <Value>               Set method data (Arguments/Locals)\n");
         AcpiOsPrintf ("Stop                                Terminate control method\n");
+        AcpiOsPrintf ("Thread <Threads><Loops><NamePath>   Spawn threads to execute method(s)\n");
         AcpiOsPrintf ("Trace <method name>                 Trace method execution\n");
         AcpiOsPrintf ("Tree                                Display control method calling tree\n");
         AcpiOsPrintf ("<Enter>                             Single step next AML opcode (over calls)\n");

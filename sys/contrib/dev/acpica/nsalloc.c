@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 1.97 $
+ *              $Revision: 1.108 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,12 +124,6 @@
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsalloc")
 
-/* Local prototypes */
-
-static void
-AcpiNsRemoveReference (
-    ACPI_NAMESPACE_NODE     *Node);
-
 
 /*******************************************************************************
  *
@@ -148,12 +142,15 @@ AcpiNsCreateNode (
     UINT32                  Name)
 {
     ACPI_NAMESPACE_NODE     *Node;
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+    UINT32                  Temp;
+#endif
 
 
-    ACPI_FUNCTION_TRACE ("NsCreateNode");
+    ACPI_FUNCTION_TRACE (NsCreateNode);
 
 
-    Node = ACPI_MEM_CALLOCATE (sizeof (ACPI_NAMESPACE_NODE));
+    Node = AcpiOsAcquireObject (AcpiGbl_NamespaceCache);
     if (!Node)
     {
         return_PTR (NULL);
@@ -161,10 +158,16 @@ AcpiNsCreateNode (
 
     ACPI_MEM_TRACKING (AcpiGbl_NsNodeList->TotalAllocated++);
 
-    Node->Name.Integer   = Name;
-    Node->ReferenceCount = 1;
-    ACPI_SET_DESCRIPTOR_TYPE (Node, ACPI_DESC_TYPE_NAMED);
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+        Temp = AcpiGbl_NsNodeList->TotalAllocated - AcpiGbl_NsNodeList->TotalFreed;
+        if (Temp > AcpiGbl_NsNodeList->MaxOccupied)
+        {
+            AcpiGbl_NsNodeList->MaxOccupied = Temp;
+        }
+#endif
 
+    Node->Name.Integer = Name;
+    ACPI_SET_DESCRIPTOR_TYPE (Node, ACPI_DESC_TYPE_NAMED);
     return_PTR (Node);
 }
 
@@ -190,7 +193,7 @@ AcpiNsDeleteNode (
     ACPI_NAMESPACE_NODE     *NextNode;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("NsDeleteNode", Node);
+    ACPI_FUNCTION_TRACE_PTR (NsDeleteNode, Node);
 
 
     ParentNode = AcpiNsGetParentNode (Node);
@@ -236,10 +239,10 @@ AcpiNsDeleteNode (
     ACPI_MEM_TRACKING (AcpiGbl_NsNodeList->TotalFreed++);
 
     /*
-     * Detach an object if there is one then delete the node
+     * Detach an object if there is one, then delete the node
      */
     AcpiNsDetachObject (Node);
-    ACPI_MEM_FREE (Node);
+    (void) AcpiOsReleaseObject (AcpiGbl_NamespaceCache, Node);
     return_VOID;
 }
 
@@ -275,7 +278,7 @@ AcpiNsInstallNode (
     ACPI_NAMESPACE_NODE     *ChildNode;
 
 
-    ACPI_FUNCTION_TRACE ("NsInstallNode");
+    ACPI_FUNCTION_TRACE (NsInstallNode);
 
 
     /*
@@ -324,15 +327,6 @@ AcpiNsInstallNode (
         AcpiUtGetNodeName (ParentNode), AcpiUtGetTypeName (ParentNode->Type),
         ParentNode));
 
-    /*
-     * Increment the reference count(s) of all parents up to
-     * the root!
-     */
-    while ((Node = AcpiNsGetParentNode (Node)) != NULL)
-    {
-        Node->ReferenceCount++;
-    }
-
     return_VOID;
 }
 
@@ -356,11 +350,10 @@ AcpiNsDeleteChildren (
 {
     ACPI_NAMESPACE_NODE     *ChildNode;
     ACPI_NAMESPACE_NODE     *NextNode;
-    ACPI_NAMESPACE_NODE     *Node;
     UINT8                   Flags;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("NsDeleteChildren", ParentNode);
+    ACPI_FUNCTION_TRACE_PTR (NsDeleteChildren, ParentNode);
 
 
     if (!ParentNode)
@@ -383,14 +376,14 @@ AcpiNsDeleteChildren (
     {
         /* Get the things we need */
 
-        NextNode    = ChildNode->Peer;
-        Flags       = ChildNode->Flags;
+        NextNode = ChildNode->Peer;
+        Flags = ChildNode->Flags;
 
         /* Grandchildren should have all been deleted already */
 
         if (ChildNode->Child)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Found a grandchild! P=%p C=%p\n",
+            ACPI_ERROR ((AE_INFO, "Found a grandchild! P=%p C=%p",
                 ParentNode, ChildNode));
         }
 
@@ -406,28 +399,9 @@ AcpiNsDeleteChildren (
          */
         AcpiNsDetachObject (ChildNode);
 
-        /*
-         * Decrement the reference count(s) of all parents up to
-         * the root! (counts were incremented when the node was created)
-         */
-        Node = ChildNode;
-        while ((Node = AcpiNsGetParentNode (Node)) != NULL)
-        {
-            Node->ReferenceCount--;
-        }
-
-        /* There should be only one reference remaining on this node */
-
-        if (ChildNode->ReferenceCount != 1)
-        {
-            ACPI_REPORT_WARNING ((
-                "Existing references (%d) on node being deleted (%p)\n",
-                ChildNode->ReferenceCount, ChildNode));
-        }
-
         /* Now we can delete the node */
 
-        ACPI_MEM_FREE (ChildNode);
+        (void) AcpiOsReleaseObject (AcpiGbl_NamespaceCache, ChildNode);
 
         /* And move on to the next child in the list */
 
@@ -465,7 +439,7 @@ AcpiNsDeleteNamespaceSubtree (
     UINT32                  Level = 1;
 
 
-    ACPI_FUNCTION_TRACE ("NsDeleteNamespaceSubtree");
+    ACPI_FUNCTION_TRACE (NsDeleteNamespaceSubtree);
 
 
     if (!ParentNode)
@@ -481,8 +455,7 @@ AcpiNsDeleteNamespaceSubtree (
     {
         /* Get the next node in this scope (NULL if none) */
 
-        ChildNode = AcpiNsGetNextNode (ACPI_TYPE_ANY, ParentNode,
-                                            ChildNode);
+        ChildNode = AcpiNsGetNextNode (ACPI_TYPE_ANY, ParentNode, ChildNode);
         if (ChildNode)
         {
             /* Found a child node - detach any attached object */
@@ -532,62 +505,6 @@ AcpiNsDeleteNamespaceSubtree (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsRemoveReference
- *
- * PARAMETERS:  Node           - Named node whose reference count is to be
- *                               decremented
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Remove a Node reference.  Decrements the reference count
- *              of all parent Nodes up to the root.  Any node along
- *              the way that reaches zero references is freed.
- *
- ******************************************************************************/
-
-static void
-AcpiNsRemoveReference (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-    ACPI_NAMESPACE_NODE     *ParentNode;
-    ACPI_NAMESPACE_NODE     *ThisNode;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /*
-     * Decrement the reference count(s) of this node and all
-     * nodes up to the root,  Delete anything with zero remaining references.
-     */
-    ThisNode = Node;
-    while (ThisNode)
-    {
-        /* Prepare to move up to parent */
-
-        ParentNode = AcpiNsGetParentNode (ThisNode);
-
-        /* Decrement the reference count on this node */
-
-        ThisNode->ReferenceCount--;
-
-        /* Delete the node if no more references */
-
-        if (!ThisNode->ReferenceCount)
-        {
-            /* Delete all children and delete the node */
-
-            AcpiNsDeleteChildren (ThisNode);
-            AcpiNsDeleteNode (ThisNode);
-        }
-
-        ThisNode = ParentNode;
-    }
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AcpiNsDeleteNamespaceByOwner
  *
  * PARAMETERS:  OwnerId     - All nodes with this owner will be deleted
@@ -598,6 +515,8 @@ AcpiNsRemoveReference (
  *              specific ID.  Used to delete entire ACPI tables.  All
  *              reference counts are updated.
  *
+ * MUTEX:       Locks namespace during deletion walk.
+ *
  ******************************************************************************/
 
 void
@@ -606,11 +525,12 @@ AcpiNsDeleteNamespaceByOwner (
 {
     ACPI_NAMESPACE_NODE     *ChildNode;
     ACPI_NAMESPACE_NODE     *DeletionNode;
-    UINT32                  Level;
     ACPI_NAMESPACE_NODE     *ParentNode;
+    UINT32                  Level;
+    ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE_U32 ("NsDeleteNamespaceByOwner", OwnerId);
+    ACPI_FUNCTION_TRACE_U32 (NsDeleteNamespaceByOwner, OwnerId);
 
 
     if (OwnerId == 0)
@@ -618,10 +538,18 @@ AcpiNsDeleteNamespaceByOwner (
         return_VOID;
     }
 
-    ParentNode    = AcpiGbl_RootNode;
-    ChildNode     = NULL;
-    DeletionNode  = NULL;
-    Level         = 1;
+    /* Lock namespace for possible update */
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+    if (ACPI_FAILURE (Status))
+    {
+        return_VOID;
+    }
+
+    DeletionNode = NULL;
+    ParentNode = AcpiGbl_RootNode;
+    ChildNode = NULL;
+    Level = 1;
 
     /*
      * Traverse the tree of nodes until we bubble back up
@@ -637,7 +565,8 @@ AcpiNsDeleteNamespaceByOwner (
 
         if (DeletionNode)
         {
-            AcpiNsRemoveReference (DeletionNode);
+            AcpiNsDeleteChildren (DeletionNode);
+            AcpiNsDeleteNode (DeletionNode);
             DeletionNode = NULL;
         }
 
@@ -692,6 +621,7 @@ AcpiNsDeleteNamespaceByOwner (
         }
     }
 
+    (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return_VOID;
 }
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslresource - Resource templates and descriptors
- *              $Revision: 1.38 $
+ *              $Revision: 1.43 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -376,7 +376,7 @@ RsDoOneResourceDescriptor (
     ASL_RESOURCE_NODE       *Rnode = NULL;
 
 
-    /* Determine type of resource */
+    /* Construct the resource */
 
     switch (DescriptorTypeOp->Asl.ParseOpcode)
     {
@@ -420,6 +420,11 @@ RsDoOneResourceDescriptor (
 
         *State = ACPI_RSTATE_NORMAL;
         Rnode = RsDoEndDependentDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_ENDTAG:
+        Rnode = RsDoEndTagDescriptor (DescriptorTypeOp,
                     CurrentByteOffset);
         break;
 
@@ -580,6 +585,12 @@ RsDoOneResourceDescriptor (
      */
     DescriptorTypeOp->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
     DescriptorTypeOp->Asl.CompileFlags = NODE_IS_RESOURCE_DESC;
+    DescriptorTypeOp->Asl.Value.Integer = CurrentByteOffset;
+
+    if (Rnode)
+    {
+        DescriptorTypeOp->Asl.FinalAmlLength = Rnode->BufferLength;
+    }
 
     return (Rnode);
 }
@@ -658,13 +669,19 @@ RsDoResourceTemplate (
     ACPI_PARSE_OBJECT       *BufferOp;
     ACPI_PARSE_OBJECT       *DescriptorTypeOp;
     ACPI_PARSE_OBJECT       *LastOp = NULL;
-    AML_RESOURCE            *Descriptor;
     UINT32                  CurrentByteOffset = 0;
     ASL_RESOURCE_NODE       HeadRnode;
     ASL_RESOURCE_NODE       *PreviousRnode;
     ASL_RESOURCE_NODE       *Rnode;
     UINT8                   State;
 
+
+    /* Mark parent as containing a resource template */
+
+    if (Op->Asl.Parent)
+    {
+        Op->Asl.Parent->Asl.CompileFlags |= NODE_IS_RESOURCE_DESC;
+    }
 
     /* ResourceTemplate Opcode is first (Op) */
     /* Buffer Length node is first child */
@@ -679,12 +696,16 @@ RsDoResourceTemplate (
 
     DescriptorTypeOp = ASL_GET_PEER_NODE (BufferOp);
 
-    /* Process all resource descriptors in the list */
-
+    /*
+     * Process all resource descriptors in the list
+     * Note: It is assumed that the EndTag node has been automatically
+     * inserted at the end of the template by the parser.
+     */
     State = ACPI_RSTATE_NORMAL;
     PreviousRnode = &HeadRnode;
     while (DescriptorTypeOp)
     {
+        DescriptorTypeOp->Asl.CompileFlags |= NODE_IS_RESOURCE_DESC;
         Rnode = RsDoOneResourceDescriptor (DescriptorTypeOp, CurrentByteOffset,
                     &State);
 
@@ -712,19 +733,6 @@ RsDoResourceTemplate (
     }
 
     /*
-     * Insert the EndTag descriptor after all other descriptors have
-     * been processed
-     */
-    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_END_TAG));
-
-    Descriptor = Rnode->Buffer;
-    Descriptor->EndTag.DescriptorType = ACPI_RESOURCE_NAME_END_TAG |
-                                        ASL_RDESC_END_TAG_SIZE;
-    Descriptor->EndTag.Checksum = 0;
-
-    CurrentByteOffset += RsLinkDescriptorChain (&PreviousRnode, Rnode);
-
-    /*
      * Transform the nodes into the following
      *
      * Op           -> AML_BUFFER_OP
@@ -733,11 +741,10 @@ RsDoResourceTemplate (
      */
     Op->Asl.ParseOpcode               = PARSEOP_BUFFER;
     Op->Asl.AmlOpcode                 = AML_BUFFER_OP;
-    Op->Asl.CompileFlags              = NODE_AML_PACKAGE;
+    Op->Asl.CompileFlags              = NODE_AML_PACKAGE | NODE_IS_RESOURCE_DESC;
 
     BufferLengthOp->Asl.ParseOpcode   = PARSEOP_INTEGER;
     BufferLengthOp->Asl.Value.Integer = CurrentByteOffset;
-
     (void) OpcSetOptimalIntegerSize (BufferLengthOp);
 
     BufferOp->Asl.ParseOpcode         = PARSEOP_RAW_DATA;
@@ -745,6 +752,7 @@ RsDoResourceTemplate (
     BufferOp->Asl.AmlOpcodeLength     = 0;
     BufferOp->Asl.AmlLength           = CurrentByteOffset;
     BufferOp->Asl.Value.Buffer        = (UINT8 *) HeadRnode.Next;
+    BufferOp->Asl.CompileFlags       |= NODE_IS_RESOURCE_DATA;
 
     return;
 }

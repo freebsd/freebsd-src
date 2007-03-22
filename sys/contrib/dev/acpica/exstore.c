@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 1.196 $
+ *              $Revision: 1.203 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -166,7 +166,7 @@ AcpiExDoDebugObject (
     UINT32                  i;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("ExDoDebugObject", SourceDesc);
+    ACPI_FUNCTION_TRACE_PTR (ExDoDebugObject, SourceDesc);
 
 
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[ACPI Debug] %*s",
@@ -233,7 +233,7 @@ AcpiExDoDebugObject (
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X]\n",
             (UINT32) SourceDesc->Buffer.Length));
         ACPI_DUMP_BUFFER (SourceDesc->Buffer.Pointer,
-            (SourceDesc->Buffer.Length < 32) ? SourceDesc->Buffer.Length : 32);
+            (SourceDesc->Buffer.Length < 256) ? SourceDesc->Buffer.Length : 256);
         break;
 
     case ACPI_TYPE_STRING:
@@ -334,14 +334,14 @@ AcpiExStore (
     ACPI_OPERAND_OBJECT     *RefDesc = DestDesc;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("ExStore", DestDesc);
+    ACPI_FUNCTION_TRACE_PTR (ExStore, DestDesc);
 
 
     /* Validate parameters */
 
     if (!SourceDesc || !DestDesc)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null parameter\n"));
+        ACPI_ERROR ((AE_INFO, "Null parameter"));
         return_ACPI_STATUS (AE_AML_NO_OPERAND);
     }
 
@@ -382,8 +382,8 @@ AcpiExStore (
 
         /* Destination is not a Reference object */
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Target is not a Reference or Constant object - %s [%p]\n",
+        ACPI_ERROR ((AE_INFO,
+            "Target is not a Reference or Constant object - %s [%p]",
             AcpiUtGetObjectTypeName (DestDesc), DestDesc));
 
         ACPI_DUMP_STACK_ENTRY (SourceDesc);
@@ -404,7 +404,6 @@ AcpiExStore (
      */
     switch (RefDesc->Reference.Opcode)
     {
-    case AML_NAME_OP:
     case AML_REF_OF_OP:
 
         /* Storing an object into a Name "container" */
@@ -449,7 +448,7 @@ AcpiExStore (
 
     default:
 
-        ACPI_REPORT_ERROR (("ExStore: Unknown Reference opcode %X\n",
+        ACPI_ERROR ((AE_INFO, "Unknown Reference opcode %X",
             RefDesc->Reference.Opcode));
         ACPI_DUMP_ENTRY (RefDesc, ACPI_LV_ERROR);
 
@@ -488,7 +487,7 @@ AcpiExStoreObjectToIndex (
     UINT32                  i;
 
 
-    ACPI_FUNCTION_TRACE ("ExStoreObjectToIndex");
+    ACPI_FUNCTION_TRACE (ExStoreObjectToIndex);
 
 
     /*
@@ -591,8 +590,8 @@ AcpiExStoreObjectToIndex (
 
             /* All other types are invalid */
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "Source must be Integer/Buffer/String type, not %s\n",
+            ACPI_ERROR ((AE_INFO,
+                "Source must be Integer/Buffer/String type, not %s",
                 AcpiUtGetObjectTypeName (SourceDesc)));
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
@@ -604,8 +603,8 @@ AcpiExStoreObjectToIndex (
 
 
     default:
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Target is not a Package or BufferField\n"));
+        ACPI_ERROR ((AE_INFO,
+            "Target is not a Package or BufferField"));
         Status = AE_AML_OPERAND_TYPE;
         break;
     }
@@ -653,7 +652,7 @@ AcpiExStoreObjectToNode (
     ACPI_OBJECT_TYPE        TargetType;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("ExStoreObjectToNode", SourceDesc);
+    ACPI_FUNCTION_TRACE_PTR (ExStoreObjectToNode, SourceDesc);
 
 
     /* Get current type of the node, and object attached to Node */

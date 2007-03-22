@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 1.71 $
+ *              $Revision: 1.77 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -341,6 +341,9 @@ LdLoadResourceElements (
         return (Status);
     }
 
+    Node->Value = (UINT32) Op->Asl.Value.Integer;
+    Node->Op = Op;
+
     /*
      * Now enter the predefined fields, for easy lookup when referenced
      * by the source ASL
@@ -412,9 +415,10 @@ LdNamespace1Begin (
     UINT32                  Flags = ACPI_NS_NO_UPSEARCH;
     ACPI_PARSE_OBJECT       *Arg;
     UINT32                  i;
+    BOOLEAN                 ForceNewScope = FALSE;
 
 
-    ACPI_FUNCTION_NAME ("LdNamespace1Begin");
+    ACPI_FUNCTION_NAME (LdNamespace1Begin);
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op %p [%s]\n",
         Op, Op->Asl.ParseOpName));
 
@@ -460,6 +464,16 @@ LdNamespace1Begin (
         Arg = Op->Asl.Child;  /* Get the NameSeg/NameString node */
         Arg = Arg->Asl.Next;  /* First peer is the object to be associated with the name */
 
+        /*
+         * If this name refers to a ResourceTemplate, we will need to open
+         * a new scope so that the resource subfield names can be entered into
+         * the namespace underneath this name
+         */
+        if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC)
+        {
+            ForceNewScope = TRUE;
+        }
+
         /* Get the data type associated with the named object, not the name itself */
 
         /* Log2 loop to convert from Btype (binary) to Etype (encoded) */
@@ -483,12 +497,30 @@ LdNamespace1Begin (
          */
         ActualObjectType = (UINT8) Op->Asl.Child->Asl.Next->Asl.Value.Integer;
         ObjectType = ACPI_TYPE_ANY;
-        break;
 
+        /*
+         * We will mark every new node along the path as "External". This
+         * allows some or all of the nodes to be created later in the ASL
+         * code. Handles cases like this:
+         *
+         *   External (\_SB_.PCI0.ABCD, IntObj)
+         *   Scope (_SB_)
+         *   {
+         *       Device (PCI0)
+         *       {
+         *       }
+         *   }
+         *   Method (X)
+         *   {
+         *       Store (\_SB_.PCI0.ABCD, Local0)
+         *   }
+         */
+        Flags |= ACPI_NS_EXTERNAL;
+        break;
 
     case PARSEOP_DEFAULT_ARG:
 
-        if(Op->Asl.CompileFlags == NODE_IS_RESOURCE_DESC)
+        if (Op->Asl.CompileFlags == NODE_IS_RESOURCE_DESC)
         {
             Status = LdLoadResourceElements (Op, WalkState);
             goto Exit;
@@ -626,7 +658,7 @@ LdNamespace1Begin (
      * parse tree later.
      */
     Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
-                    ACPI_IMODE_LOAD_PASS1, Flags, WalkState, &(Node));
+                    ACPI_IMODE_LOAD_PASS1, Flags, WalkState, &Node);
     if (ACPI_FAILURE (Status))
     {
         if (Status == AE_ALREADY_EXISTS)
@@ -635,11 +667,36 @@ LdNamespace1Begin (
 
             if (Node->Type == ACPI_TYPE_LOCAL_SCOPE)
             {
+                /* Allow multiple references to the same scope */
+
                 Node->Type = (UINT8) ObjectType;
+                Status = AE_OK;
+            }
+            else if (Node->Flags & ANOBJ_IS_EXTERNAL)
+            {
+                /*
+                 * Allow one create on an object or segment that was
+                 * previously declared External
+                 */
+                Node->Flags &= ~ANOBJ_IS_EXTERNAL;
+                Node->Type = (UINT8) ObjectType;
+
+                /* Just retyped a node, probably will need to open a scope */
+
+                if (AcpiNsOpensScope (ObjectType))
+                {
+                    Status = AcpiDsScopeStackPush (Node, ObjectType, WalkState);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        return_ACPI_STATUS (Status);
+                    }
+                }
                 Status = AE_OK;
             }
             else
             {
+                /* Valid error, object already exists */
+
                 AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
                     Op->Asl.ExternalName);
                 Status = AE_OK;
@@ -654,6 +711,14 @@ LdNamespace1Begin (
         }
     }
 
+    if (ForceNewScope)
+    {
+        Status = AcpiDsScopeStackPush (Node, ObjectType, WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+    }
 
 FinishNode:
     /*
@@ -706,9 +771,10 @@ LdNamespace1End (
 {
     ACPI_WALK_STATE         *WalkState = (ACPI_WALK_STATE *) Context;
     ACPI_OBJECT_TYPE        ObjectType;
+    BOOLEAN                 ForceNewScope = FALSE;
 
 
-    ACPI_FUNCTION_NAME ("LdNamespace1End");
+    ACPI_FUNCTION_NAME (LdNamespace1End);
 
 
     /* We are only interested in opcodes that have an associated name */
@@ -732,9 +798,19 @@ LdNamespace1End (
         ObjectType = AslMapNamedOpcodeToDataType (Op->Asl.AmlOpcode);
     }
 
+    /* Pop scope that was pushed for Resource Templates */
+
+    if (Op->Asl.ParseOpcode == PARSEOP_NAME)
+    {
+        if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC)
+        {
+            ForceNewScope = TRUE;
+        }
+    }
+
     /* Pop the scope stack */
 
-    if (AcpiNsOpensScope (ObjectType))
+    if (ForceNewScope || AcpiNsOpensScope (ObjectType))
     {
 
         ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
