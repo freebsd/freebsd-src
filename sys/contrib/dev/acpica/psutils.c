@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psutils - Parser miscellaneous utilities (Parser only)
- *              $Revision: 1.66 $
+ *              $Revision: 1.70 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -174,7 +174,7 @@ AcpiPsInitOp (
     ACPI_FUNCTION_ENTRY ();
 
 
-    Op->Common.DataType = ACPI_DESC_TYPE_PARSER;
+    Op->Common.DescriptorType = ACPI_DESC_TYPE_PARSER;
     Op->Common.AmlOpcode = Opcode;
 
     ACPI_DISASM_ONLY_MEMBERS (ACPI_STRNCPY (Op->Common.AmlOpName,
@@ -270,7 +270,7 @@ void
 AcpiPsFreeOp (
     ACPI_PARSE_OBJECT       *Op)
 {
-    ACPI_FUNCTION_NAME ("PsFreeOp");
+    ACPI_FUNCTION_NAME (PsFreeOp);
 
 
     if (Op->Common.AmlOpcode == AML_INT_RETURN_VALUE_OP)

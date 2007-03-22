@@ -2,7 +2,7 @@
  *
  * Module Name: dsopcode - Dispatcher Op Region support and handling of
  *                         "control" opcodes
- *              $Revision: 1.103 $
+ *              $Revision: 1.111 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -174,7 +174,7 @@ AcpiDsExecuteArguments (
     ACPI_WALK_STATE         *WalkState;
 
 
-    ACPI_FUNCTION_TRACE ("DsExecuteArguments");
+    ACPI_FUNCTION_TRACE (DsExecuteArguments);
 
 
     /*
@@ -200,7 +200,7 @@ AcpiDsExecuteArguments (
     }
 
     Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, AmlStart,
-                    AmlLength, NULL, 1);
+                    AmlLength, NULL, ACPI_IMODE_LOAD_PASS1);
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
@@ -247,7 +247,7 @@ AcpiDsExecuteArguments (
     /* Execute the opcode and arguments */
 
     Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, AmlStart,
-                    AmlLength, NULL, 3);
+                    AmlLength, NULL, ACPI_IMODE_EXECUTE);
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
@@ -287,7 +287,7 @@ AcpiDsGetBufferFieldArguments (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsGetBufferFieldArguments", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR (DsGetBufferFieldArguments, ObjDesc);
 
 
     if (ObjDesc->Common.Flags & AOPOBJ_DATA_VALID)
@@ -333,7 +333,7 @@ AcpiDsGetBufferArguments (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsGetBufferArguments", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR (DsGetBufferArguments, ObjDesc);
 
 
     if (ObjDesc->Common.Flags & AOPOBJ_DATA_VALID)
@@ -346,8 +346,8 @@ AcpiDsGetBufferArguments (
     Node = ObjDesc->Buffer.Node;
     if (!Node)
     {
-        ACPI_REPORT_ERROR ((
-                "No pointer back to NS node in buffer obj %p\n", ObjDesc));
+        ACPI_ERROR ((AE_INFO,
+            "No pointer back to NS node in buffer obj %p", ObjDesc));
         return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
@@ -382,7 +382,7 @@ AcpiDsGetPackageArguments (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsGetPackageArguments", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR (DsGetPackageArguments, ObjDesc);
 
 
     if (ObjDesc->Common.Flags & AOPOBJ_DATA_VALID)
@@ -395,8 +395,8 @@ AcpiDsGetPackageArguments (
     Node = ObjDesc->Package.Node;
     if (!Node)
     {
-        ACPI_REPORT_ERROR ((
-                "No pointer back to NS node in package %p\n", ObjDesc));
+        ACPI_ERROR ((AE_INFO,
+            "No pointer back to NS node in package %p", ObjDesc));
         return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
@@ -432,7 +432,7 @@ AcpiDsGetRegionArguments (
     ACPI_OPERAND_OBJECT     *ExtraDesc;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsGetRegionArguments", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR (DsGetRegionArguments, ObjDesc);
 
 
     if (ObjDesc->Region.Flags & AOPOBJ_DATA_VALID)
@@ -459,6 +459,28 @@ AcpiDsGetRegionArguments (
 
     Status = AcpiDsExecuteArguments (Node, AcpiNsGetParentNode (Node),
                 ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Validate the region address/length via the host OS */
+
+    Status = AcpiOsValidateAddress (ObjDesc->Region.SpaceId,
+                ObjDesc->Region.Address, (ACPI_SIZE) ObjDesc->Region.Length);
+    if (ACPI_FAILURE (Status))
+    {
+        /*
+         * Invalid address/length. We will emit an error message and mark
+         * the region as invalid, so that it will cause an additional error if
+         * it is ever used. Then return AE_OK.
+         */
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "During address validation of OpRegion [%4.4s]", Node->Name.Ascii));
+        ObjDesc->Common.Flags |= AOPOBJ_INVALID;
+        Status = AE_OK;
+    }
+
     return_ACPI_STATUS (Status);
 }
 
@@ -525,15 +547,15 @@ AcpiDsInitBufferField (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsInitBufferField", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR (DsInitBufferField, ObjDesc);
 
 
     /* Host object must be a Buffer */
 
     if (ACPI_GET_OBJECT_TYPE (BufferDesc) != ACPI_TYPE_BUFFER)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Target of Create Field is not a Buffer object - %s\n",
+        ACPI_ERROR ((AE_INFO,
+            "Target of Create Field is not a Buffer object - %s",
             AcpiUtGetObjectTypeName (BufferDesc)));
 
         Status = AE_AML_OPERAND_TYPE;
@@ -547,10 +569,10 @@ AcpiDsInitBufferField (
      */
     if (ACPI_GET_DESCRIPTOR_TYPE (ResultDesc) != ACPI_DESC_TYPE_NAMED)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "(%s) destination not a NS Node [%s]\n",
-                AcpiPsGetOpcodeName (AmlOpcode),
-                AcpiUtGetDescriptorName (ResultDesc)));
+        ACPI_ERROR ((AE_INFO,
+            "(%s) destination not a NS Node [%s]",
+            AcpiPsGetOpcodeName (AmlOpcode),
+            AcpiUtGetDescriptorName (ResultDesc)));
 
         Status = AE_AML_OPERAND_TYPE;
         goto Cleanup;
@@ -575,8 +597,8 @@ AcpiDsInitBufferField (
 
         if (BitCount == 0)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "Attempt to CreateField of length 0\n"));
+            ACPI_ERROR ((AE_INFO,
+                "Attempt to CreateField of length zero"));
             Status = AE_AML_OPERAND_VALUE;
             goto Cleanup;
         }
@@ -629,8 +651,8 @@ AcpiDsInitBufferField (
 
     default:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Unknown field creation opcode %02x\n",
+        ACPI_ERROR ((AE_INFO,
+            "Unknown field creation opcode %02x",
             AmlOpcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -641,12 +663,12 @@ AcpiDsInitBufferField (
     if ((BitOffset + BitCount) >
         (8 * (UINT32) BufferDesc->Buffer.Length))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Field [%4.4s] size %d exceeds Buffer [%4.4s] size %d (bits)\n",
-             AcpiUtGetNodeName (ResultDesc),
-             BitOffset + BitCount,
-             AcpiUtGetNodeName (BufferDesc->Buffer.Node),
-             8 * (UINT32) BufferDesc->Buffer.Length));
+        ACPI_ERROR ((AE_INFO,
+            "Field [%4.4s] at %d exceeds Buffer [%4.4s] size %d (bits)",
+            AcpiUtGetNodeName (ResultDesc),
+            BitOffset + BitCount,
+            AcpiUtGetNodeName (BufferDesc->Buffer.Node),
+            8 * (UINT32) BufferDesc->Buffer.Length));
         Status = AE_AML_BUFFER_LIMIT;
         goto Cleanup;
     }
@@ -725,7 +747,7 @@ AcpiDsEvalBufferFieldOperands (
     ACPI_PARSE_OBJECT       *NextOp;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsEvalBufferFieldOperands", Op);
+    ACPI_FUNCTION_TRACE_PTR (DsEvalBufferFieldOperands, Op);
 
 
     /*
@@ -763,7 +785,7 @@ AcpiDsEvalBufferFieldOperands (
 
     if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "(%s) bad operand(s) (%X)\n",
+        ACPI_ERROR ((AE_INFO, "(%s) bad operand(s) (%X)",
             AcpiPsGetOpcodeName (Op->Common.AmlOpcode), Status));
 
         return_ACPI_STATUS (Status);
@@ -818,7 +840,7 @@ AcpiDsEvalRegionOperands (
     ACPI_PARSE_OBJECT       *NextOp;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsEvalRegionOperands", Op);
+    ACPI_FUNCTION_TRACE_PTR (DsEvalRegionOperands, Op);
 
 
     /*
@@ -920,10 +942,16 @@ AcpiDsEvalDataObjectOperands (
     UINT32                  Length;
 
 
-    ACPI_FUNCTION_TRACE ("DsEvalDataObjectOperands");
+    ACPI_FUNCTION_TRACE (DsEvalDataObjectOperands);
 
 
     /* The first operand (for all of these data objects) is the length */
+
+    /*
+     * Set proper index into operand stack for AcpiDsObjStackPush
+     * invoked inside AcpiDsCreateOperand.
+     */
+    WalkState->OperandIndex = WalkState->NumOperands;
 
     Status = AcpiDsCreateOperand (WalkState, Op->Common.Value.Arg, 1);
     if (ACPI_FAILURE (Status))
@@ -1017,7 +1045,7 @@ AcpiDsExecBeginControlOp (
     ACPI_GENERIC_STATE      *ControlState;
 
 
-    ACPI_FUNCTION_NAME ("DsExecBeginControlOp");
+    ACPI_FUNCTION_NAME (DsExecBeginControlOp);
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op=%p Opcode=%2.2X State=%p\n", Op,
@@ -1100,7 +1128,7 @@ AcpiDsExecEndControlOp (
     ACPI_GENERIC_STATE      *ControlState;
 
 
-    ACPI_FUNCTION_NAME ("DsExecEndControlOp");
+    ACPI_FUNCTION_NAME (DsExecEndControlOp);
 
 
     switch (Op->Common.AmlOpcode)
@@ -1195,8 +1223,7 @@ AcpiDsExecEndControlOp (
              */
             WalkState->ReturnDesc = WalkState->Operands[0];
         }
-        else if ((WalkState->Results) &&
-                 (WalkState->Results->Results.NumResults > 0))
+        else if (WalkState->ResultCount)
         {
             /* Since we have a real Return(), delete any implicit return */
 
@@ -1305,7 +1332,7 @@ AcpiDsExecEndControlOp (
 
     default:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown control opcode=%X Op=%p\n",
+        ACPI_ERROR ((AE_INFO, "Unknown control opcode=%X Op=%p",
             Op->Common.AmlOpcode, Op));
 
         Status = AE_AML_BAD_OPCODE;

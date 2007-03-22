@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psopcode - Parser/Interpreter opcode information table
- *              $Revision: 1.93 $
+ *              $Revision: 1.99 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,6 +123,9 @@
 
 #define _COMPONENT          ACPI_PARSER
         ACPI_MODULE_NAME    ("psopcode")
+
+
+const UINT8                 AcpiGbl_ArgumentCount[] = {0,1,1,1,1,2,2,2,2,3,3,6};
 
 
 /*******************************************************************************
@@ -495,7 +498,7 @@ const ACPI_OPCODE_INFO *
 AcpiPsGetOpcodeInfo (
     UINT16                  Opcode)
 {
-    ACPI_FUNCTION_NAME ("PsGetOpcodeInfo");
+    ACPI_FUNCTION_NAME (PsGetOpcodeInfo);
 
 
     /*
@@ -518,7 +521,7 @@ AcpiPsGetOpcodeInfo (
 
     /* Unknown AML opcode */
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
         "Unknown AML opcode [%4.4X]\n", Opcode));
 
     return (&AcpiGbl_AmlOpInfo [_UNK]);
@@ -554,8 +557,33 @@ AcpiPsGetOpcodeName (
     return (Op->Name);
 
 #else
-    return ("AE_NOT_CONFIGURED");
+    return ("OpcodeName unavailable");
 
 #endif
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiPsGetArgumentCount
+ *
+ * PARAMETERS:  OpType              - Type associated with the AML opcode
+ *
+ * RETURN:      Argument count
+ *
+ * DESCRIPTION: Obtain the number of expected arguments for an AML opcode
+ *
+ ******************************************************************************/
+
+UINT8
+AcpiPsGetArgumentCount (
+    UINT32                  OpType)
+{
+
+    if (OpType <= AML_TYPE_EXEC_6A_0T_1R)
+    {
+        return (AcpiGbl_ArgumentCount[OpType]);
+    }
+
+    return (0);
+}

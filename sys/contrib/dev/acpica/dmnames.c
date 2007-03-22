@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmnames - AML disassembler, names, namestrings, pathnames
- *              $Revision: 1.11 $
+ *              $Revision: 1.17 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -154,21 +154,33 @@ AcpiDmDumpName (
 {
     UINT32                  i;
     UINT32                  Length;
-    char                    *End = Name + ACPI_NAME_SIZE;
+    char                    NewName[4];
 
 
-    for (i = 0; i < ACPI_NAME_SIZE; i++)
+    /* Ensure that the name is printable, even if we have to fix it */
+
+    *(UINT32 *) NewName = AcpiUtRepairName (Name);
+
+    /* Remove all trailing underscores from the name */
+
+    Length = ACPI_NAME_SIZE;
+    for (i = (ACPI_NAME_SIZE - 1); i != 0; i--)
     {
-        if (Name[i] != '_')
+        if (NewName[i] == '_')
         {
-            End = &Name[i];
+            Length--;
+        }
+        else
+        {
+            break;
         }
     }
 
-    Length = (UINT32)(End - Name) + 1;
+    /* Dump the name, up to the start of the trailing underscores */
+
     for (i = 0; i < Length; i++)
     {
-        AcpiOsPrintf ("%c", Name[i]);
+        AcpiOsPrintf ("%c", NewName[i]);
     }
 
     return (Length);
@@ -245,7 +257,7 @@ AcpiPsDisplayObjectPathname (
     }
 
     AcpiOsPrintf ("  (Path %s)", (char *) Buffer.Pointer);
-    ACPI_MEM_FREE (Buffer.Pointer);
+    ACPI_FREE (Buffer.Pointer);
 
 
 Exit:

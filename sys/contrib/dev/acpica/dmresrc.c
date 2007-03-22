@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmresrc.c - Resource Descriptor disassembly
- *              $Revision: 1.26 $
+ *              $Revision: 1.35 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -133,8 +133,10 @@ void (*ACPI_RESOURCE_HANDLER) (
     UINT32                  Length,
     UINT32                  Level);
 
-static ACPI_RESOURCE_HANDLER    AcpiGbl_SmResourceDispatch [] =
+static ACPI_RESOURCE_HANDLER    AcpiGbl_DumpResourceDispatch [] =
 {
+    /* Small descriptors */
+
     NULL,                           /* 0x00, Reserved */
     NULL,                           /* 0x01, Reserved */
     NULL,                           /* 0x02, Reserved */
@@ -150,11 +152,10 @@ static ACPI_RESOURCE_HANDLER    AcpiGbl_SmResourceDispatch [] =
     NULL,                           /* 0x0C, Reserved */
     NULL,                           /* 0x0D, Reserved */
     AcpiDmVendorSmallDescriptor,    /* 0x0E, ACPI_RESOURCE_NAME_SMALL_VENDOR */
-    NULL                            /* 0x0F, ACPI_RESOURCE_NAME_END_TAG (not used) */
-};
+    NULL,                           /* 0x0F, ACPI_RESOURCE_NAME_END_TAG (not used) */
 
-static ACPI_RESOURCE_HANDLER    AcpiGbl_LgResourceDispatch [] =
-{
+    /* Large descriptors */
+
     NULL,                           /* 0x00, Reserved */
     AcpiDmMemory24Descriptor,       /* 0x01, ACPI_RESOURCE_NAME_MEMORY_24 */
     AcpiDmGenericRegisterDescriptor,/* 0x02, ACPI_RESOURCE_NAME_GENERIC_REGISTER */
@@ -170,11 +171,39 @@ static ACPI_RESOURCE_HANDLER    AcpiGbl_LgResourceDispatch [] =
 };
 
 
-/* Local prototypes */
+/* Only used for single-threaded applications */
+/* TBD: remove when name is passed as parameter to the dump functions */
 
-static ACPI_RESOURCE_HANDLER
-AcpiDmGetResourceHandler (
-    UINT8                   ResourceType);
+static UINT32               ResourceName;
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDescriptorName
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Emit a name for the descriptor if one is present (indicated
+ *              by the name being changed from the default name.) A name is only
+ *              emitted if a reference to the descriptor has been made somewhere
+ *              in the original ASL code.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDescriptorName (
+    void)
+{
+
+    if (ResourceName == ACPI_DEFAULT_RESNAME)
+    {
+        return;
+    }
+
+    AcpiOsPrintf ("%4.4s", (char *) &ResourceName);
+}
 
 
 /*******************************************************************************
@@ -219,53 +248,7 @@ AcpiDmDumpInteger64 (
     UINT64                  Value,
     char                    *Name)
 {
-    AcpiOsPrintf ("0x%8.8X%8.8X, // %s\n",
-        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Value)), Name);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDmGetResourceHandler
- *
- * PARAMETERS:  ResourceType        - Byte 0 of a resource descriptor
- *
- * RETURN:      Pointer to the resource conversion handler. NULL is returned
- *              if the ResourceType is invalid.
- *
- * DESCRIPTION: Return the handler associated with this resource type.
- *              May also be used to validate a ResourceType.
- *
- ******************************************************************************/
-
-static ACPI_RESOURCE_HANDLER
-AcpiDmGetResourceHandler (
-    UINT8                   ResourceType)
-{
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /* Determine if this is a small or large resource */
-
-    if (ResourceType & ACPI_RESOURCE_NAME_LARGE)
-    {
-        /* Large Resource Type -- bits 6:0 contain the name */
-
-        if (ResourceType > ACPI_RESOURCE_NAME_LARGE_MAX)
-        {
-            return (NULL);
-        }
-
-        return (AcpiGbl_LgResourceDispatch [
-                    (ResourceType & ACPI_RESOURCE_NAME_LARGE_MASK)]);
-    }
-    else
-    {
-        /* Small Resource Type -- bits 6:3 contain the name */
-
-        return (AcpiGbl_SmResourceDispatch [
-                    ((ResourceType & ACPI_RESOURCE_NAME_SMALL_MASK) >> 3)]);
-    }
+    AcpiOsPrintf ("0x%8.8X%8.8X, // %s\n", ACPI_FORMAT_UINT64 (Value), Name);
 }
 
 
@@ -337,32 +320,51 @@ AcpiDmBitList (
 void
 AcpiDmResourceTemplate (
     ACPI_OP_WALK_INFO       *Info,
+    ACPI_PARSE_OBJECT       *Op,
     UINT8                   *ByteData,
     UINT32                  ByteCount)
 {
+    ACPI_STATUS             Status;
     ACPI_NATIVE_UINT        CurrentByteOffset;
     UINT8                   ResourceType;
     UINT32                  ResourceLength;
-    void                    *DescriptorBody;
+    void                    *Aml;
     UINT32                  Level;
     BOOLEAN                 DependentFns = FALSE;
-    ACPI_RESOURCE_HANDLER   Handler;
+    UINT8                   ResourceIndex;
+    ACPI_NAMESPACE_NODE     *Node;
 
 
     Level = Info->Level;
+    ResourceName = ACPI_DEFAULT_RESNAME;
+    Node = Op->Common.Node;
+    if (Node)
+    {
+        Node = Node->Child;
+    }
 
     for (CurrentByteOffset = 0; CurrentByteOffset < ByteCount; )
     {
+        Aml = &ByteData[CurrentByteOffset];
+
         /* Get the descriptor type and length */
 
-        DescriptorBody = &ByteData[CurrentByteOffset];
+        ResourceType = AcpiUtGetResourceType (Aml);
+        ResourceLength = AcpiUtGetResourceLength (Aml);
 
-        ResourceType = AcpiUtGetResourceType (DescriptorBody);
-        ResourceLength = AcpiUtGetResourceLength (DescriptorBody);
+        /* Validate the Resource Type and Resource Length */
+
+        Status = AcpiUtValidateResource (Aml, &ResourceIndex);
+        if (ACPI_FAILURE (Status))
+        {
+            AcpiOsPrintf ("/*** Could not validate Resource, type (%X) %s***/\n",
+                ResourceType, AcpiFormatException (Status));
+            return;
+        }
 
         /* Point to next descriptor */
 
-        CurrentByteOffset += AcpiUtGetDescriptorLength (DescriptorBody);
+        CurrentByteOffset += AcpiUtGetDescriptorLength (Aml);
 
         /* Descriptor pre-processing */
 
@@ -401,7 +403,7 @@ AcpiDmResourceTemplate (
 
                 /* Go ahead and insert EndDependentFn() */
 
-                AcpiDmEndDependentDescriptor (DescriptorBody, ResourceLength, Level);
+                AcpiDmEndDependentDescriptor (Aml, ResourceLength, Level);
 
                 AcpiDmIndent (Level);
                 AcpiOsPrintf (
@@ -413,25 +415,16 @@ AcpiDmResourceTemplate (
             break;
         }
 
-        /* Get the handler associated with this Descriptor Type */
-
-        Handler = AcpiDmGetResourceHandler (ResourceType);
-        if (!Handler)
-        {
-            /*
-             * Invalid Descriptor Type.
-             *
-             * Since the entire resource buffer has been previously walked and
-             * validated, this is a very serious error indicating that someone
-             * overwrote the buffer.
-             */
-            AcpiOsPrintf ("/*** Unknown Resource type (%X) ***/\n", ResourceType);
-            return;
-        }
-
         /* Disassemble the resource structure */
 
-        Handler (DescriptorBody, ResourceLength, Level);
+        if (Node)
+        {
+            ResourceName = Node->Name.Integer;
+            Node = Node->Peer;
+        }
+
+        AcpiGbl_DumpResourceDispatch [ResourceIndex] (
+            Aml, ResourceLength, Level);
 
         /* Descriptor post-processing */
 
@@ -450,101 +443,67 @@ AcpiDmResourceTemplate (
  *
  * PARAMETERS:  Op          - Buffer Op to be examined
  *
- * RETURN:      TRUE if this Buffer Op contains a valid resource
- *              descriptor.
+ * RETURN:      Status. AE_OK if valid template
  *
  * DESCRIPTION: Walk a byte list to determine if it consists of a valid set
  *              of resource descriptors.  Nothing is output.
  *
  ******************************************************************************/
 
-BOOLEAN
+ACPI_STATUS
 AcpiDmIsResourceTemplate (
     ACPI_PARSE_OBJECT       *Op)
 {
-    UINT8                   *ByteData;
-    UINT32                  ByteCount;
+    ACPI_STATUS             Status;
     ACPI_PARSE_OBJECT       *NextOp;
-    ACPI_NATIVE_UINT        CurrentByteOffset;
-    UINT8                   ResourceType;
-    void                    *DescriptorBody;
+    UINT8                   *Aml;
+    UINT8                   *EndAml;
+    ACPI_SIZE               Length;
 
 
     /* This op must be a buffer */
 
     if (Op->Common.AmlOpcode != AML_BUFFER_OP)
     {
-        return FALSE;
+        return (AE_TYPE);
     }
 
-    /* Get to the ByteData list */
+    /* Get the ByteData list and length */
 
     NextOp = Op->Common.Value.Arg;
     NextOp = NextOp->Common.Next;
     if (!NextOp)
     {
-        return (FALSE);
+        return (AE_TYPE);
     }
 
-    /* Extract the data pointer and data length */
+    Aml = NextOp->Named.Data;
+    Length = (ACPI_SIZE) NextOp->Common.Value.Integer;
 
-    ByteCount = (UINT32) NextOp->Common.Value.Integer;
-    ByteData = NextOp->Named.Data;
+    /* Walk the byte list, abort on any invalid descriptor type or length */
+
+    Status = AcpiUtWalkAmlResources (Aml, Length, NULL, &EndAml);
+    if (ACPI_FAILURE (Status))
+    {
+        return (AE_TYPE);
+    }
 
     /*
-     * The absolute minimum resource template is an END_TAG (2 bytes),
-     * and the list must be terminated by a valid 2-byte END_TAG
+     * For the resource template to be valid, one EndTag must appear
+     * at the very end of the ByteList, not before. (For proper disassembly
+     * of a ResourceTemplate, the buffer must not have any extra data after
+     * the EndTag.)
      */
-    if ((ByteCount < 2) ||
-        (ByteData[ByteCount - 2] != (ACPI_RESOURCE_NAME_END_TAG | 1)))
+    if ((Aml + Length - sizeof (AML_RESOURCE_END_TAG)) != EndAml)
     {
-        return (FALSE);
+        return (AE_AML_NO_RESOURCE_END_TAG);
     }
 
-    /* Walk the byte list, abort on any invalid descriptor ID or length */
-
-    for (CurrentByteOffset = 0; CurrentByteOffset < ByteCount;)
-    {
-        /* Get the descriptor type and length */
-
-        DescriptorBody = &ByteData[CurrentByteOffset];
-        ResourceType = AcpiUtGetResourceType (DescriptorBody);
-
-        /* Point to next descriptor */
-
-        CurrentByteOffset += AcpiUtGetDescriptorLength (DescriptorBody);
-
-        /* END_TAG terminates the descriptor list */
-
-        if (ResourceType == ACPI_RESOURCE_NAME_END_TAG)
-        {
-            /*
-             * For the resource template to be valid, one END_TAG must appear
-             * at the very end of the ByteList, not before
-             */
-            if (CurrentByteOffset != ByteCount)
-            {
-                return (FALSE);
-            }
-
-            /*
-             * All resource descriptor types and lengths are valid,
-             * this list appears to be a valid resource template
-             */
-            return (TRUE);
-        }
-
-        /* Validate the resource name (must be after check for END_TAG) */
-
-        if (!AcpiDmGetResourceHandler (ResourceType))
-        {
-            return (FALSE);
-        }
-    }
-
-    /* Did not find an END_TAG, something seriously wrong */
-
-    return (FALSE);
+    /*
+     * All resource descriptors are valid, therefore this list appears
+     * to be a valid resource template
+     */
+    return (AE_OK);
 }
 
 #endif

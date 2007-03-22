@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nswalk - Functions for walking the ACPI namespace
- *              $Revision: 1.39 $
+ *              $Revision: 1.46 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -160,10 +160,7 @@ AcpiNsGetNextNode (
     {
         /* It's really the parent's _scope_ that we want */
 
-        if (ParentNode->Child)
-        {
-            NextNode = ParentNode->Child;
-        }
+        NextNode = ParentNode->Child;
     }
 
     else
@@ -211,7 +208,7 @@ AcpiNsGetNextNode (
  * PARAMETERS:  Type                - ACPI_OBJECT_TYPE to search for
  *              StartNode           - Handle in namespace where search begins
  *              MaxDepth            - Depth to which search is to reach
- *              UnlockBeforeCallback- Whether to unlock the NS before invoking
+ *              Flags               - Whether to unlock the NS before invoking
  *                                    the callback routine
  *              UserFunction        - Called when an object of "Type" is found
  *              Context             - Passed to user function
@@ -239,7 +236,7 @@ AcpiNsWalkNamespace (
     ACPI_OBJECT_TYPE        Type,
     ACPI_HANDLE             StartNode,
     UINT32                  MaxDepth,
-    BOOLEAN                 UnlockBeforeCallback,
+    UINT32                  Flags,
     ACPI_WALK_CALLBACK      UserFunction,
     void                    *Context,
     void                    **ReturnValue)
@@ -252,7 +249,7 @@ AcpiNsWalkNamespace (
     UINT32                  Level;
 
 
-    ACPI_FUNCTION_TRACE ("NsWalkNamespace");
+    ACPI_FUNCTION_TRACE (NsWalkNamespace);
 
 
     /* Special case for the namespace Root Node */
@@ -282,22 +279,36 @@ AcpiNsWalkNamespace (
         ChildNode = AcpiNsGetNextNode (ACPI_TYPE_ANY, ParentNode, ChildNode);
         if (ChildNode)
         {
-            /*
-             * Found node, Get the type if we are not
-             * searching for ANY
-             */
+            /* Found next child, get the type if we are not searching for ANY */
+
             if (Type != ACPI_TYPE_ANY)
             {
                 ChildType = ChildNode->Type;
             }
 
-            if (ChildType == Type)
+            /*
+             * Ignore all temporary namespace nodes (created during control
+             * method execution) unless told otherwise. These temporary nodes
+             * can cause a race condition because they can be deleted during the
+             * execution of the user function (if the namespace is unlocked before
+             * invocation of the user function.) Only the debugger namespace dump
+             * will examine the temporary nodes.
+             */
+            if ((ChildNode->Flags & ANOBJ_TEMPORARY) &&
+                !(Flags & ACPI_NS_WALK_TEMP_NODES))
+            {
+                Status = AE_CTRL_DEPTH;
+            }
+
+            /* Type must match requested type */
+
+            else if (ChildType == Type)
             {
                 /*
-                 * Found a matching node, invoke the user
-                 * callback function
+                 * Found a matching node, invoke the user callback function.
+                 * Unlock the namespace if flag is set.
                  */
-                if (UnlockBeforeCallback)
+                if (Flags & ACPI_NS_WALK_UNLOCK)
                 {
                     MutexStatus = AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
                     if (ACPI_FAILURE (MutexStatus))
@@ -306,10 +317,9 @@ AcpiNsWalkNamespace (
                     }
                 }
 
-                Status = UserFunction (ChildNode, Level,
-                                        Context, ReturnValue);
+                Status = UserFunction (ChildNode, Level, Context, ReturnValue);
 
-                if (UnlockBeforeCallback)
+                if (Flags & ACPI_NS_WALK_UNLOCK)
                 {
                     MutexStatus = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
                     if (ACPI_FAILURE (MutexStatus))
@@ -341,33 +351,28 @@ AcpiNsWalkNamespace (
             }
 
             /*
-             * Depth first search:
-             * Attempt to go down another level in the namespace
-             * if we are allowed to.  Don't go any further if we
-             * have reached the caller specified maximum depth
-             * or if the user function has specified that the
-             * maximum depth has been reached.
+             * Depth first search: Attempt to go down another level in the
+             * namespace if we are allowed to.  Don't go any further if we have
+             * reached the caller specified maximum depth or if the user
+             * function has specified that the maximum depth has been reached.
              */
             if ((Level < MaxDepth) && (Status != AE_CTRL_DEPTH))
             {
                 if (AcpiNsGetNextNode (ACPI_TYPE_ANY, ChildNode, NULL))
                 {
-                    /*
-                     * There is at least one child of this
-                     * node, visit the onde
-                     */
+                    /* There is at least one child of this node, visit it */
+
                     Level++;
                     ParentNode = ChildNode;
-                    ChildNode  = NULL;
+                    ChildNode = NULL;
                 }
             }
         }
         else
         {
             /*
-             * No more children of this node (AcpiNsGetNextNode
-             * failed), go back upwards in the namespace tree to
-             * the node's parent.
+             * No more children of this node (AcpiNsGetNextNode failed), go
+             * back upwards in the namespace tree to the node's parent.
              */
             Level--;
             ChildNode = ParentNode;

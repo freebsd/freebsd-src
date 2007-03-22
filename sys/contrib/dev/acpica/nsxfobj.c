@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfobj - Public interfaces to the ACPI subsystem
  *                         ACPI Object oriented interfaces
- *              $Revision: 1.119 $
+ *              $Revision: 1.122 $
  *
  ******************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -186,6 +186,8 @@ AcpiGetType (
     return (Status);
 }
 
+ACPI_EXPORT_SYMBOL (AcpiGetType)
+
 
 /*******************************************************************************
  *
@@ -255,6 +257,8 @@ UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return (Status);
 }
+
+ACPI_EXPORT_SYMBOL (AcpiGetParent)
 
 
 /*******************************************************************************
@@ -348,4 +352,5 @@ UnlockAndExit:
     return (Status);
 }
 
+ACPI_EXPORT_SYMBOL (AcpiGetNextObject)
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 1.132 $
+ *              $Revision: 1.144 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -121,6 +121,7 @@
 #include <contrib/dev/acpica/acpi.h>
 #include <contrib/dev/acpica/acinterp.h>
 #include <contrib/dev/acpica/amlcode.h>
+#include <contrib/dev/acpica/amlresrc.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -152,7 +153,7 @@ AcpiExGetObjectReference (
     ACPI_OPERAND_OBJECT     *ReferencedObj;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("ExGetObjectReference", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR (ExGetObjectReference, ObjDesc);
 
 
     *ReturnDesc = NULL;
@@ -182,7 +183,7 @@ AcpiExGetObjectReference (
 
         default:
 
-            ACPI_REPORT_ERROR (("Unknown Reference opcode in GetReference %X\n",
+            ACPI_ERROR ((AE_INFO, "Unknown Reference opcode %X",
                 ObjDesc->Reference.Opcode));
             return_ACPI_STATUS (AE_AML_INTERNAL);
         }
@@ -200,8 +201,8 @@ AcpiExGetObjectReference (
 
     default:
 
-        ACPI_REPORT_ERROR (("Invalid descriptor type in GetReference: %X\n",
-                ACPI_GET_DESCRIPTOR_TYPE (ObjDesc)));
+        ACPI_ERROR ((AE_INFO, "Invalid descriptor type %X",
+            ACPI_GET_DESCRIPTOR_TYPE (ObjDesc)));
         return_ACPI_STATUS (AE_TYPE);
     }
 
@@ -248,53 +249,70 @@ AcpiExConcatTemplate (
     ACPI_OPERAND_OBJECT     **ActualReturnDesc,
     ACPI_WALK_STATE         *WalkState)
 {
+    ACPI_STATUS             Status;
     ACPI_OPERAND_OBJECT     *ReturnDesc;
     UINT8                   *NewBuf;
-    UINT8                   *EndTag1;
-    UINT8                   *EndTag2;
+    UINT8                   *EndTag;
+    ACPI_SIZE               Length0;
     ACPI_SIZE               Length1;
-    ACPI_SIZE               Length2;
+    ACPI_SIZE               NewLength;
 
 
-    ACPI_FUNCTION_TRACE ("ExConcatTemplate");
+    ACPI_FUNCTION_TRACE (ExConcatTemplate);
 
 
-    /* Find the EndTags in each resource template */
+    /*
+     * Find the EndTag descriptor in each resource template.
+     * Note1: returned pointers point TO the EndTag, not past it.
+     * Note2: zero-length buffers are allowed; treated like one EndTag
+     */
 
-    EndTag1 = AcpiUtGetResourceEndTag (Operand0);
-    EndTag2 = AcpiUtGetResourceEndTag (Operand1);
-    if (!EndTag1 || !EndTag2)
+    /* Get the length of the first resource template */
+
+    Status = AcpiUtGetResourceEndTag (Operand0, &EndTag);
+    if (ACPI_FAILURE (Status))
     {
-        return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+        return_ACPI_STATUS (Status);
     }
 
-    /* Compute the length of each part */
+    Length0 = ACPI_PTR_DIFF (EndTag, Operand0->Buffer.Pointer);
 
-    Length1 = ACPI_PTR_DIFF (EndTag1, Operand0->Buffer.Pointer);
-    Length2 = ACPI_PTR_DIFF (EndTag2, Operand1->Buffer.Pointer) +
-                             2; /* Size of END_TAG */
+    /* Get the length of the second resource template */
 
-    /* Create a new buffer object for the result */
+    Status = AcpiUtGetResourceEndTag (Operand1, &EndTag);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
-    ReturnDesc = AcpiUtCreateBufferObject (Length1 + Length2);
+    Length1 = ACPI_PTR_DIFF (EndTag, Operand1->Buffer.Pointer);
+
+    /* Combine both lengths, minimum size will be 2 for EndTag */
+
+    NewLength = Length0 + Length1 + sizeof (AML_RESOURCE_END_TAG);
+
+    /* Create a new buffer object for the result (with one EndTag) */
+
+    ReturnDesc = AcpiUtCreateBufferObject (NewLength);
     if (!ReturnDesc)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    /* Copy the templates to the new descriptor */
-
+    /*
+     * Copy the templates to the new buffer, 0 first, then 1 follows. One
+     * EndTag descriptor is copied from Operand1.
+     */
     NewBuf = ReturnDesc->Buffer.Pointer;
-    ACPI_MEMCPY (NewBuf, Operand0->Buffer.Pointer, Length1);
-    ACPI_MEMCPY (NewBuf + Length1, Operand1->Buffer.Pointer, Length2);
+    ACPI_MEMCPY (NewBuf, Operand0->Buffer.Pointer, Length0);
+    ACPI_MEMCPY (NewBuf + Length0, Operand1->Buffer.Pointer, Length1);
 
-    /* Compute the new checksum */
+    /* Insert EndTag and set the checksum to zero, means "ignore checksum" */
 
-    NewBuf[ReturnDesc->Buffer.Length - 1] =
-            AcpiUtGenerateChecksum (ReturnDesc->Buffer.Pointer,
-                                   (ReturnDesc->Buffer.Length - 1));
+    NewBuf[NewLength - 1] = 0;
+    NewBuf[NewLength - 2] = ACPI_RESOURCE_NAME_END_TAG | 1;
 
-    /* Return the completed template descriptor */
+    /* Return the completed resource template */
 
     *ActualReturnDesc = ReturnDesc;
     return_ACPI_STATUS (AE_OK);
@@ -327,10 +345,9 @@ AcpiExDoConcatenate (
     ACPI_OPERAND_OBJECT     *ReturnDesc;
     char                    *NewBuf;
     ACPI_STATUS             Status;
-    ACPI_SIZE               NewLength;
 
 
-    ACPI_FUNCTION_TRACE ("ExDoConcatenate");
+    ACPI_FUNCTION_TRACE (ExDoConcatenate);
 
 
     /*
@@ -356,8 +373,8 @@ AcpiExDoConcatenate (
         break;
 
     default:
-        ACPI_REPORT_ERROR (("Concat - invalid obj type: %X\n",
-                ACPI_GET_OBJECT_TYPE (Operand0)));
+        ACPI_ERROR ((AE_INFO, "Invalid object type: %X",
+            ACPI_GET_OBJECT_TYPE (Operand0)));
         Status = AE_AML_INTERNAL;
     }
 
@@ -398,8 +415,7 @@ AcpiExDoConcatenate (
 
         /* Copy the first integer, LSB first */
 
-        ACPI_MEMCPY (NewBuf,
-                        &Operand0->Integer.Value,
+        ACPI_MEMCPY (NewBuf, &Operand0->Integer.Value,
                         AcpiGbl_IntegerByteWidth);
 
         /* Copy the second integer (LSB first) after the first */
@@ -413,15 +429,9 @@ AcpiExDoConcatenate (
 
         /* Result of two Strings is a String */
 
-        NewLength = (ACPI_SIZE) Operand0->String.Length +
-                    (ACPI_SIZE) LocalOperand1->String.Length;
-        if (NewLength > ACPI_MAX_STRING_CONVERSION)
-        {
-            Status = AE_AML_STRING_LIMIT;
-            goto Cleanup;
-        }
-
-        ReturnDesc = AcpiUtCreateStringObject (NewLength);
+        ReturnDesc = AcpiUtCreateStringObject ((ACPI_SIZE)
+                        (Operand0->String.Length +
+                        LocalOperand1->String.Length));
         if (!ReturnDesc)
         {
             Status = AE_NO_MEMORY;
@@ -432,8 +442,7 @@ AcpiExDoConcatenate (
 
         /* Concatenate the strings */
 
-        ACPI_STRCPY (NewBuf,
-                        Operand0->String.Pointer);
+        ACPI_STRCPY (NewBuf, Operand0->String.Pointer);
         ACPI_STRCPY (NewBuf + Operand0->String.Length,
                         LocalOperand1->String.Pointer);
         break;
@@ -442,9 +451,9 @@ AcpiExDoConcatenate (
 
         /* Result of two Buffers is a Buffer */
 
-        ReturnDesc = AcpiUtCreateBufferObject (
-                            (ACPI_SIZE) Operand0->Buffer.Length +
-                            (ACPI_SIZE) LocalOperand1->Buffer.Length);
+        ReturnDesc = AcpiUtCreateBufferObject ((ACPI_SIZE)
+                        (Operand0->Buffer.Length +
+                        LocalOperand1->Buffer.Length));
         if (!ReturnDesc)
         {
             Status = AE_NO_MEMORY;
@@ -455,8 +464,7 @@ AcpiExDoConcatenate (
 
         /* Concatenate the buffers */
 
-        ACPI_MEMCPY (NewBuf,
-                        Operand0->Buffer.Pointer,
+        ACPI_MEMCPY (NewBuf, Operand0->Buffer.Pointer,
                         Operand0->Buffer.Length);
         ACPI_MEMCPY (NewBuf + Operand0->Buffer.Length,
                         LocalOperand1->Buffer.Pointer,
@@ -467,8 +475,8 @@ AcpiExDoConcatenate (
 
         /* Invalid object type, should not happen here */
 
-        ACPI_REPORT_ERROR (("Concatenate - Invalid object type: %X\n",
-                ACPI_GET_OBJECT_TYPE (Operand0)));
+        ACPI_ERROR ((AE_INFO, "Invalid object type: %X",
+            ACPI_GET_OBJECT_TYPE (Operand0)));
         Status =AE_AML_INTERNAL;
         goto Cleanup;
     }
@@ -549,11 +557,27 @@ AcpiExDoMathOp (
 
     case AML_SHIFT_LEFT_OP:         /* ShiftLeft (Operand, ShiftCount, Result)*/
 
+        /*
+         * We need to check if the shiftcount is larger than the integer bit
+         * width since the behavior of this is not well-defined in the C language.
+         */
+        if (Integer1 >= AcpiGbl_IntegerBitWidth)
+        {
+            return (0);
+        }
         return (Integer0 << Integer1);
 
 
     case AML_SHIFT_RIGHT_OP:        /* ShiftRight (Operand, ShiftCount, Result) */
 
+        /*
+         * We need to check if the shiftcount is larger than the integer bit
+         * width since the behavior of this is not well-defined in the C language.
+         */
+        if (Integer1 >= AcpiGbl_IntegerBitWidth)
+        {
+            return (0);
+        }
         return (Integer0 >> Integer1);
 
 
@@ -599,7 +623,7 @@ AcpiExDoLogicalNumericOp (
     BOOLEAN                 LocalResult = FALSE;
 
 
-    ACPI_FUNCTION_TRACE ("ExDoLogicalNumericOp");
+    ACPI_FUNCTION_TRACE (ExDoLogicalNumericOp);
 
 
     switch (Opcode)
@@ -675,7 +699,7 @@ AcpiExDoLogicalOp (
     int                     Compare;
 
 
-    ACPI_FUNCTION_TRACE ("ExDoLogicalOp");
+    ACPI_FUNCTION_TRACE (ExDoLogicalOp);
 
 
     /*

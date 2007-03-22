@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmresrcl.c - "Large" Resource Descriptor disassembly
- *              $Revision: 1.29 $
+ *              $Revision: 1.37 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -129,19 +129,19 @@
 
 static char                 *AcpiDmAddressNames[] =
 {
-    "Address Space Granularity",
-    "Address Range Minimum",
-    "Address Range Maximum",
-    "Address Translation Offset",
-    "Address Length"
+    "Granularity",
+    "Range Minimum",
+    "Range Maximum",
+    "Translation Offset",
+    "Length"
 };
 
 static char                 *AcpiDmMemoryNames[] =
 {
-    "Address Range Minimum",
-    "Address Range Maximum",
-    "Address Alignment",
-    "Address Length"
+    "Range Minimum",
+    "Range Maximum",
+    "Alignment",
+    "Length"
 };
 
 
@@ -225,11 +225,13 @@ AcpiDmMemoryFields (
         switch (Type)
         {
         case 16:
-            AcpiDmDumpInteger16 (((UINT16 *) Source)[i], AcpiDmMemoryNames[i]);
+            AcpiDmDumpInteger16 (ACPI_CAST_PTR (UINT16, Source)[i],
+                AcpiDmMemoryNames[i]);
             break;
 
         case 32:
-            AcpiDmDumpInteger32 (((UINT32 *) Source)[i], AcpiDmMemoryNames[i]);
+            AcpiDmDumpInteger32 (ACPI_CAST_PTR (UINT32, Source)[i],
+                AcpiDmMemoryNames[i]);
             break;
 
         default:
@@ -241,7 +243,7 @@ AcpiDmMemoryFields (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDm
+ * FUNCTION:    AcpiDmAddressFields
  *
  * PARAMETERS:  Source              - Pointer to the contiguous data fields
  *              Type                - 16, 32, or 64 (bit)
@@ -271,15 +273,18 @@ AcpiDmAddressFields (
         switch (Type)
         {
         case 16:
-            AcpiDmDumpInteger16 (((UINT16 *) Source)[i], AcpiDmAddressNames[i]);
+            AcpiDmDumpInteger16 (ACPI_CAST_PTR (UINT16, Source)[i],
+                AcpiDmAddressNames[i]);
             break;
 
         case 32:
-            AcpiDmDumpInteger32 (((UINT32 *) Source)[i], AcpiDmAddressNames[i]);
+            AcpiDmDumpInteger32 (ACPI_CAST_PTR (UINT32, Source)[i],
+                AcpiDmAddressNames[i]);
             break;
 
         case 64:
-            AcpiDmDumpInteger64 (((UINT64 *) Source)[i], AcpiDmAddressNames[i]);
+            AcpiDmDumpInteger64 (ACPI_CAST_PTR (UINT64, Source)[i],
+                AcpiDmAddressNames[i]);
             break;
 
         default:
@@ -385,7 +390,7 @@ AcpiDmAddressCommon (
 
     /* This is either a Memory, IO, or BusNumber descriptor (0,1,2) */
 
-    AcpiOsPrintf ("%s (", AcpiGbl_WordDecode [ResourceType]);
+    AcpiOsPrintf ("%s (", AcpiGbl_WordDecode [ResourceType & 0x3]);
 
     /* Decode the general and type-specific flags */
 
@@ -398,7 +403,7 @@ AcpiDmAddressCommon (
         AcpiDmIoFlags (Flags);
         if (ResourceType == ACPI_IO_RANGE)
         {
-            AcpiOsPrintf (" %s,", AcpiGbl_RNGDecode [SpecificFlags & 0x3]);
+            AcpiOsPrintf (" %s,", AcpiGbl_RngDecode [SpecificFlags & 0x3]);
         }
     }
 }
@@ -451,7 +456,7 @@ AcpiDmSpaceFlags (
 
     AcpiOsPrintf ("%s, %s, %s, %s,",
         AcpiGbl_ConsumeDecode [(Flags & 1)],
-        AcpiGbl_DECDecode [(Flags & 0x2) >> 1],
+        AcpiGbl_DecDecode [(Flags & 0x2) >> 1],
         AcpiGbl_MinDecode [(Flags & 0x4) >> 2],
         AcpiGbl_MaxDecode [(Flags & 0x8) >> 3]);
 }
@@ -477,7 +482,7 @@ AcpiDmIoFlags (
         AcpiGbl_ConsumeDecode [(Flags & 1)],
         AcpiGbl_MinDecode [(Flags & 0x4) >> 2],
         AcpiGbl_MaxDecode [(Flags & 0x8) >> 3],
-        AcpiGbl_DECDecode [(Flags & 0x2) >> 1]);
+        AcpiGbl_DecDecode [(Flags & 0x2) >> 1]);
 }
 
 
@@ -499,14 +504,14 @@ AcpiDmIoFlags2 (
 {
 
     AcpiOsPrintf (", %s",
-        AcpiGbl_TTPDecode [(SpecificFlags & 0x10) >> 4]);
+        AcpiGbl_TtpDecode [(SpecificFlags & 0x10) >> 4]);
 
     /* TRS is only used if TTP is TypeTranslation */
 
     if (SpecificFlags & 0x10)
     {
         AcpiOsPrintf (", %s",
-            AcpiGbl_TRSDecode [(SpecificFlags & 0x20) >> 5]);
+            AcpiGbl_TrsDecode [(SpecificFlags & 0x20) >> 5]);
     }
 }
 
@@ -532,11 +537,11 @@ AcpiDmMemoryFlags (
 
     AcpiOsPrintf ("%s, %s, %s, %s, %s, %s,",
         AcpiGbl_ConsumeDecode [(Flags & 1)],
-        AcpiGbl_DECDecode [(Flags & 0x2) >> 1],
+        AcpiGbl_DecDecode [(Flags & 0x2) >> 1],
         AcpiGbl_MinDecode [(Flags & 0x4) >> 2],
         AcpiGbl_MaxDecode [(Flags & 0x8) >> 3],
-        AcpiGbl_MEMDecode [(SpecificFlags & 0x6) >> 1],
-        AcpiGbl_RWDecode [(SpecificFlags & 0x1)]);
+        AcpiGbl_MemDecode [(SpecificFlags & 0x6) >> 1],
+        AcpiGbl_RwDecode [(SpecificFlags & 0x1)]);
 }
 
 
@@ -558,8 +563,8 @@ AcpiDmMemoryFlags2 (
 {
 
     AcpiOsPrintf (", %s, %s",
-        AcpiGbl_MTPDecode [(SpecificFlags & 0x18) >> 3],
-        AcpiGbl_TTPDecode [(SpecificFlags & 0x20) >> 5]);
+        AcpiGbl_MtpDecode [(SpecificFlags & 0x18) >> 3],
+        AcpiGbl_TtpDecode [(SpecificFlags & 0x20) >> 5]);
 }
 
 
@@ -595,13 +600,13 @@ AcpiDmResourceSource (
     {
         /* The two optional fields are not used */
 
-        AcpiOsPrintf (",,");
+        AcpiOsPrintf (",, ");
         return;
     }
 
     /* Get a pointer to the ResourceSource */
 
-    AmlResourceSource = ((UINT8 *) Resource) + MinimumTotalLength;
+    AmlResourceSource = ACPI_ADD_PTR (UINT8, Resource, MinimumTotalLength);
 
     /*
      * Always emit the ResourceSourceIndex (Byte)
@@ -623,7 +628,7 @@ AcpiDmResourceSource (
         AcpiUtPrintString ((char *) &AmlResourceSource[1], ACPI_UINT8_MAX);
     }
 
-    AcpiOsPrintf (",");
+    AcpiOsPrintf (", ");
 }
 
 
@@ -660,6 +665,10 @@ AcpiDmWordDescriptor (
 
     AcpiDmIndent (Level + 1);
     AcpiDmResourceSource (Resource, sizeof (AML_RESOURCE_ADDRESS16), Length);
+
+    /* Insert a descriptor name */
+
+    AcpiDmDescriptorName ();
 
     /* Type-specific flags */
 
@@ -702,6 +711,10 @@ AcpiDmDwordDescriptor (
     AcpiDmIndent (Level + 1);
     AcpiDmResourceSource (Resource, sizeof (AML_RESOURCE_ADDRESS32), Length);
 
+    /* Insert a descriptor name */
+
+    AcpiDmDescriptorName ();
+
     /* Type-specific flags */
 
     AcpiDmAddressFlags (Resource);
@@ -742,6 +755,10 @@ AcpiDmQwordDescriptor (
 
     AcpiDmIndent (Level + 1);
     AcpiDmResourceSource (Resource, sizeof (AML_RESOURCE_ADDRESS64), Length);
+
+    /* Insert a descriptor name */
+
+    AcpiDmDescriptorName ();
 
     /* Type-specific flags */
 
@@ -785,9 +802,13 @@ AcpiDmExtendedDescriptor (
     AcpiDmDumpInteger64 (Resource->ExtAddress64.TypeSpecific,
         "Type-Specific Attributes");
 
-    /* Type-specific flags */
+    /* Insert a descriptor name */
 
     AcpiDmIndent (Level + 1);
+    AcpiDmDescriptorName ();
+
+    /* Type-specific flags */
+
     AcpiDmAddressFlags (Resource);
     AcpiOsPrintf (")\n");
 }
@@ -818,13 +839,16 @@ AcpiDmMemory24Descriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("Memory24 (%s,\n",
-        AcpiGbl_RWDecode [Resource->Memory24.Flags & 1]);
+        AcpiGbl_RwDecode [Resource->Memory24.Flags & 1]);
 
     /* Dump the 4 contiguous WORD values */
 
     AcpiDmMemoryFields (&Resource->Memory24.Minimum, 16, Level);
 
+    /* Insert a descriptor name */
+
     AcpiDmIndent (Level + 1);
+    AcpiDmDescriptorName ();
     AcpiOsPrintf (")\n");
 }
 
@@ -854,13 +878,16 @@ AcpiDmMemory32Descriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("Memory32 (%s,\n",
-        AcpiGbl_RWDecode [Resource->Memory32.Flags & 1]);
+        AcpiGbl_RwDecode [Resource->Memory32.Flags & 1]);
 
     /* Dump the 4 contiguous DWORD values */
 
     AcpiDmMemoryFields (&Resource->Memory32.Minimum, 32, Level);
 
+    /* Insert a descriptor name */
+
     AcpiDmIndent (Level + 1);
+    AcpiDmDescriptorName ();
     AcpiOsPrintf (")\n");
 }
 
@@ -890,7 +917,7 @@ AcpiDmFixedMemory32Descriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("Memory32Fixed (%s,\n",
-        AcpiGbl_RWDecode [Resource->FixedMemory32.Flags & 1]);
+        AcpiGbl_RwDecode [Resource->FixedMemory32.Flags & 1]);
 
     AcpiDmIndent (Level + 1);
     AcpiDmDumpInteger32 (Resource->FixedMemory32.Address, "Address Base");
@@ -898,7 +925,10 @@ AcpiDmFixedMemory32Descriptor (
     AcpiDmIndent (Level + 1);
     AcpiDmDumpInteger32 (Resource->FixedMemory32.AddressLength, "Address Length");
 
+    /* Insert a descriptor name */
+
     AcpiDmIndent (Level + 1);
+    AcpiDmDescriptorName ();
     AcpiOsPrintf (")\n");
 }
 
@@ -930,24 +960,31 @@ AcpiDmGenericRegisterDescriptor (
     AcpiOsPrintf ("\n");
 
     AcpiDmIndent (Level + 1);
-    AcpiDmDumpInteger8 (Resource->GenericReg.BitWidth, "Register Bit Width");
+    AcpiDmDumpInteger8 (Resource->GenericReg.BitWidth, "Bit Width");
 
     AcpiDmIndent (Level + 1);
-    AcpiDmDumpInteger8 (Resource->GenericReg.BitOffset, "Register Bit Offset");
+    AcpiDmDumpInteger8 (Resource->GenericReg.BitOffset, "Bit Offset");
 
     AcpiDmIndent (Level + 1);
-    AcpiDmDumpInteger64 (Resource->GenericReg.Address, "Register Address");
+    AcpiDmDumpInteger64 (Resource->GenericReg.Address, "Address");
 
     /* Optional field for ACPI 3.0 */
 
+    AcpiDmIndent (Level + 1);
     if (Resource->GenericReg.AccessSize)
     {
-        AcpiDmIndent (Level + 1);
-        AcpiOsPrintf ("0x%2.2X                // %s\n",
+        AcpiOsPrintf ("0x%2.2X,               // %s\n",
             Resource->GenericReg.AccessSize, "Access Size");
+        AcpiDmIndent (Level + 1);
+    }
+    else
+    {
+        AcpiOsPrintf (",");
     }
 
-    AcpiDmIndent (Level + 1);
+    /* DescriptorName was added for ACPI 3.0+ */
+
+    AcpiDmDescriptorName ();
     AcpiOsPrintf (")\n");
 }
 
@@ -978,9 +1015,9 @@ AcpiDmInterruptDescriptor (
     AcpiDmIndent (Level);
     AcpiOsPrintf ("Interrupt (%s, %s, %s, %s, ",
         AcpiGbl_ConsumeDecode [(Resource->ExtendedIrq.Flags & 1)],
-        AcpiGbl_HEDecode [(Resource->ExtendedIrq.Flags >> 1) & 1],
-        AcpiGbl_LLDecode [(Resource->ExtendedIrq.Flags >> 2) & 1],
-        AcpiGbl_SHRDecode [(Resource->ExtendedIrq.Flags >> 3) & 1]);
+        AcpiGbl_HeDecode [(Resource->ExtendedIrq.Flags >> 1) & 1],
+        AcpiGbl_LlDecode [(Resource->ExtendedIrq.Flags >> 2) & 1],
+        AcpiGbl_ShrDecode [(Resource->ExtendedIrq.Flags >> 3) & 1]);
 
     /*
      * The ResourceSource fields are optional and appear after the interrupt
@@ -992,9 +1029,13 @@ AcpiDmInterruptDescriptor (
             (Resource->ExtendedIrq.InterruptCount - 1) * sizeof (UINT32),
         Resource->ExtendedIrq.ResourceLength);
 
+    /* Insert a descriptor name */
+
+    AcpiDmDescriptorName ();
+    AcpiOsPrintf (")\n");
+
     /* Dump the interrupt list */
 
-    AcpiOsPrintf (")\n");
     AcpiDmIndent (Level);
     AcpiOsPrintf ("{\n");
     for (i = 0; i < Resource->ExtendedIrq.InterruptCount; i++)
@@ -1032,10 +1073,15 @@ AcpiDmVendorCommon (
     UINT32                  Level)
 {
 
-    /* Dump descriptor name */
+    /* Dump macro name */
 
     AcpiDmIndent (Level);
-    AcpiOsPrintf ("Vendor%s          // Length = 0x%.2X\n", Name, Length);
+    AcpiOsPrintf ("Vendor%s (", Name);
+
+    /* Insert a descriptor name */
+
+    AcpiDmDescriptorName ();
+    AcpiOsPrintf (")      // Length = 0x%.2X\n", Length);
 
     /* Dump the vendor bytes */
 
@@ -1070,8 +1116,8 @@ AcpiDmVendorLargeDescriptor (
     UINT32                  Level)
 {
 
-    AcpiDmVendorCommon ("Long () ",
-        ((UINT8 *) Resource) + sizeof (AML_RESOURCE_LARGE_HEADER),
+    AcpiDmVendorCommon ("Long ",
+        ACPI_ADD_PTR (UINT8, Resource, sizeof (AML_RESOURCE_LARGE_HEADER)),
         Length, Level);
 }
 

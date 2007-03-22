@@ -3,7 +3,7 @@
 /******************************************************************************
  *
  * Module Name: aslcompiler.l - Flex input file
- *              $Revision: 1.74 $
+ *              $Revision: 1.79 $
  *
  *****************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -579,7 +579,7 @@ AslPopInputFileStack (
 
     /* All done with this node */
 
-    ACPI_MEM_FREE (Fnode);
+    ACPI_FREE (Fnode);
     return 0;
 }
 
@@ -926,13 +926,13 @@ comment2 (void)
 char
 literal (void)
 {
-    char                *s = MsgBuffer;
+    char                *StringBuffer = MsgBuffer;
+    char                *EndBuffer = MsgBuffer + ASL_MSG_BUFFER_SIZE;
     char                *CleanString;
     char                StringChar;
     UINT32              State = ASL_NORMAL_CHAR;
     UINT32              i = 0;
     UINT8               Digit;
-    UINT8               StringLength = 0;
     char                ConvertBuffer[4];
 
 
@@ -944,17 +944,6 @@ literal (void)
     InsertLineBuffer ('\"');
     while ((StringChar = (char) input()) != EOF)
     {
-        StringLength++;
-        if (StringLength == ACPI_MAX_STRING_CONVERSION)
-        {
-            /* Emit error only once, but keep going */
-
-            AslCommonError (ASL_ERROR, ASL_MSG_STRING_LENGTH,
-                            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
-                            Gbl_CurrentLineOffset, Gbl_CurrentColumn,
-                            Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
-        }
-
         InsertLineBuffer (StringChar);
 
 DoCharacter:
@@ -1073,8 +1062,12 @@ DoCharacter:
                 }
                 else
                 {
-                    *s = (char) Digit;
-                    s++;
+                    *StringBuffer = (char) Digit;
+                    StringBuffer++;
+                    if (StringBuffer >= EndBuffer)
+                    {
+                        goto BufferOverflow;
+                    }
                 }
 
                 State = ASL_NORMAL_CHAR;
@@ -1114,8 +1107,12 @@ DoCharacter:
                 }
                 else
                 {
-                    *s = (char) Digit;
-                    s++;
+                    *StringBuffer = (char) Digit;
+                    StringBuffer++;
+                    if (StringBuffer >= EndBuffer)
+                    {
+                        goto BufferOverflow;
+                    }
                 }
 
                 State = ASL_NORMAL_CHAR;
@@ -1132,8 +1129,12 @@ DoCharacter:
 
         /* Save the finished character */
 
-        *s = StringChar;
-        s++;
+        *StringBuffer = StringChar;
+        StringBuffer++;
+        if (StringBuffer >= EndBuffer)
+        {
+            goto BufferOverflow;
+        }
     }
 
     /*
@@ -1150,7 +1151,7 @@ CompletedString:
     /*
      * Null terminate the input string and copy string to a new buffer
      */
-    *s = 0;
+    *StringBuffer = 0;
 
     CleanString = UtGetStringBuffer (strlen (MsgBuffer) + 1);
     if (!CleanString)
@@ -1165,6 +1166,17 @@ CompletedString:
     ACPI_STRCPY (CleanString, MsgBuffer);
     AslCompilerlval.s = CleanString;
     return (TRUE);
+
+
+BufferOverflow:
+
+    /* Literal was too long */
+
+    AslCommonError (ASL_ERROR, ASL_MSG_STRING_LENGTH,
+                    Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
+                    Gbl_CurrentLineOffset, Gbl_CurrentColumn,
+                    Gbl_Files[ASL_FILE_INPUT].Filename, "Max length 4096");
+    return (FALSE);
 }
 
 

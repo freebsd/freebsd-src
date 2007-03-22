@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslstubs - Stubs used to link to Aml interpreter
- *              $Revision: 1.14 $
+ *              $Revision: 1.20 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -129,12 +129,19 @@
  * Things like Events, Global Lock, etc. are not used
  * by the compiler, so they are stubbed out here.
  */
-ACPI_STATUS
+ACPI_PHYSICAL_ADDRESS
 AeLocalGetRootPointer (
-    UINT32                  Flags,
-    ACPI_PHYSICAL_ADDRESS   *RsdpPhysicalAddress)
+    void)
 {
-    return AE_ERROR;
+    return 0;
+}
+
+ACPI_STATUS
+AcpiDsMethodError (
+    ACPI_STATUS             Status,
+    ACPI_WALK_STATE         *WalkState)
+{
+    return (Status);
 }
 
 ACPI_STATUS
@@ -266,7 +273,7 @@ AcpiTbFindTable (
     char                    *Signature,
     char                    *OemId,
     char                    *OemTableId,
-    ACPI_TABLE_HEADER       **TablePtr)
+    ACPI_NATIVE_UINT        *TableIndex)
 {
     return (AE_SUPPORT);
 }
