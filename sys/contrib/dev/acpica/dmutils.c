@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmutils - AML disassembler utilities
- *              $Revision: 1.19 $
+ *              $Revision: 1.25 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -134,15 +134,16 @@ ACPI_EXTERNAL_LIST              *AcpiGbl_ExternalList = NULL;
 
 /* Data used in keeping track of fields */
 #if 0
-const char                      *AcpiGbl_FENames[ACPI_NUM_FIELD_NAMES] =
+const char                      *AcpiGbl_FENames[] =
 {
     "skip",
     "?access?"
 };              /* FE = Field Element */
 #endif
 
+/* Operators for Match() */
 
-const char                      *AcpiGbl_MatchOps[ACPI_NUM_MATCH_OPS] =
+const char                      *AcpiGbl_MatchOps[] =
 {
     "MTR",
     "MEQ",
@@ -152,10 +153,9 @@ const char                      *AcpiGbl_MatchOps[ACPI_NUM_MATCH_OPS] =
     "MGT"
 };
 
-
 /* Access type decoding */
 
-const char                      *AcpiGbl_AccessTypes[ACPI_NUM_ACCESS_TYPES] =
+const char                      *AcpiGbl_AccessTypes[] =
 {
     "AnyAcc",
     "ByteAcc",
@@ -163,12 +163,13 @@ const char                      *AcpiGbl_AccessTypes[ACPI_NUM_ACCESS_TYPES] =
     "DWordAcc",
     "QWordAcc",
     "BufferAcc",
+    "InvalidAccType",
+    "InvalidAccType"
 };
-
 
 /* Lock rule decoding */
 
-const char                      *AcpiGbl_LockRule[ACPI_NUM_LOCK_RULES] =
+const char                      *AcpiGbl_LockRule[] =
 {
     "NoLock",
     "Lock"
@@ -176,150 +177,28 @@ const char                      *AcpiGbl_LockRule[ACPI_NUM_LOCK_RULES] =
 
 /* Update rule decoding */
 
-const char                      *AcpiGbl_UpdateRules[ACPI_NUM_UPDATE_RULES] =
+const char                      *AcpiGbl_UpdateRules[] =
 {
     "Preserve",
     "WriteAsOnes",
-    "WriteAsZeros"
+    "WriteAsZeros",
+    "InvalidUpdateRule"
 };
 
-/*
- * Strings used to decode resource descriptors
- */
-const char                      *AcpiGbl_IoDecode[2] =
-{
-    "Decode10",
-    "Decode16"
-};
+/* Strings used to decode resource descriptors */
 
-const char                      *AcpiGbl_WordDecode[4] =
+const char                      *AcpiGbl_WordDecode[] =
 {
     "Memory",
     "IO",
     "BusNumber",
-    "Unknown-resource-type"
+    "UnknownResourceType"
 };
 
-const char                      *AcpiGbl_ConsumeDecode[2] =
-{
-    "ResourceProducer",
-    "ResourceConsumer"
-};
-
-const char                      *AcpiGbl_MinDecode[2] =
-{
-    "MinNotFixed",
-    "MinFixed"
-};
-
-const char                      *AcpiGbl_MaxDecode[2] =
-{
-    "MaxNotFixed",
-    "MaxFixed"
-};
-
-const char                      *AcpiGbl_DECDecode[2] =
-{
-    "PosDecode",
-    "SubDecode"
-};
-
-const char                      *AcpiGbl_IrqDecode[2] =
+const char                      *AcpiGbl_IrqDecode[] =
 {
     "IRQNoFlags",
     "IRQ"
-};
-
-const char                      *AcpiGbl_HEDecode[2] =
-{
-    "Level",
-    "Edge"
-};
-
-const char                      *AcpiGbl_LLDecode[2] =
-{
-    "ActiveHigh",
-    "ActiveLow"
-};
-
-const char                      *AcpiGbl_SHRDecode[2] =
-{
-    "Exclusive",
-    "Shared"
-};
-
-const char                      *AcpiGbl_TYPDecode[4] =
-{
-    "Compatibility",
-    "TypeA",
-    "TypeB",
-    "TypeF"
-};
-
-const char                      *AcpiGbl_BMDecode[2] =
-{
-    "NotBusMaster",
-    "BusMaster"
-};
-
-const char                      *AcpiGbl_SIZDecode[4] =
-{
-    "Transfer8",
-    "Transfer8_16",
-    "Transfer16",
-    "InvalidSize"
-};
-
-/* Type Specific Flags */
-
-const char                      *AcpiGbl_TTPDecode[2] =
-{
-    "TypeStatic",
-    "TypeTranslation"
-};
-
-const char                      *AcpiGbl_MTPDecode[4] =
-{
-    "AddressRangeMemory",
-    "AddressRangeReserved",
-    "AddressRangeACPI",
-    "AddressRangeNVS"
-};
-
-const char                      *AcpiGbl_MEMDecode[4] =
-{
-    "NonCacheable",
-    "Cacheable",
-    "WriteCombining",
-    "Prefetchable"
-};
-
-const char                      *AcpiGbl_RWDecode[2] =
-{
-    "ReadOnly",
-    "ReadWrite"
-};
-
-const char                      *AcpiGbl_TRSDecode[2] =
-{
-    "DenseTranslation",
-    "SparseTranslation"
-};
-
-const char                      *AcpiGbl_RNGDecode[4] =
-{
-    "InvalidRanges",
-    "NonISAOnlyRanges",
-    "ISAOnlyRanges",
-    "EntireRange"
-};
-
-const char                      *AcpiGbl_ConfigDecode[4] =
-{
-    "0 - Good Configuration",
-    "1 - Acceptable Configuration",
-    "2 - Suboptimal Configuration",
-    "3 - ***Invalid Configuration***",
 };
 
 
@@ -340,10 +219,14 @@ const char                      *AcpiGbl_ConfigDecode[4] =
 
 void
 AcpiDmAddToExternalList (
-    char                    *Path)
+    char                    *Path,
+    UINT8                   Type,
+    UINT32                  Value)
 {
     char                    *ExternalPath;
     ACPI_EXTERNAL_LIST      *NewExternal;
+    ACPI_EXTERNAL_LIST      *NextExternal;
+    ACPI_EXTERNAL_LIST      *PrevExternal = NULL;
     ACPI_STATUS             Status;
 
 
@@ -356,23 +239,83 @@ AcpiDmAddToExternalList (
 
     Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, Path,
                     NULL, &ExternalPath);
-    if (ACPI_SUCCESS (Status))
+    if (ACPI_FAILURE (Status))
     {
-        /* Allocate and init a new External() descriptor */
+        return;
+    }
 
-        NewExternal = ACPI_MEM_CALLOCATE (sizeof (ACPI_EXTERNAL_LIST));
-        NewExternal->Path = ExternalPath;
+    /* Ensure that we don't have duplicate externals */
 
-        /* Link the new descriptor into the global list */
+    NextExternal = AcpiGbl_ExternalList;
+    while (NextExternal)
+    {
+        /* Allow upgrade of type from ANY */
 
-        if (AcpiGbl_ExternalList)
+        if (!ACPI_STRCMP (ExternalPath, NextExternal->Path))
         {
-            NewExternal->Next = AcpiGbl_ExternalList;
+            /* Duplicate method, check that the Value (ArgCount) is the same */
+
+            if ((NextExternal->Type == ACPI_TYPE_METHOD) &&
+                (NextExternal->Value != Value))
+            {
+                ACPI_ERROR ((AE_INFO, "Argument count mismatch for method %s %d %d",
+                    NextExternal->Path, NextExternal->Value, Value));
+            }
+            if (NextExternal->Type == ACPI_TYPE_ANY)
+            {
+                NextExternal->Type = Type;
+                NextExternal->Value = Value;
+            }
+            ACPI_FREE (ExternalPath);
+            return;
         }
+        NextExternal = NextExternal->Next;
+    }
+
+    /* Allocate and init a new External() descriptor */
+
+    NewExternal = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_EXTERNAL_LIST));
+    NewExternal->InternalPath = Path;
+    NewExternal->Path = ExternalPath;
+    NewExternal->Type = Type;
+    NewExternal->Value = Value;
+    NewExternal->Length = (UINT16) ACPI_STRLEN (ExternalPath);
+
+    /* Link the new descriptor into the global list, ordered by string length */
+
+    NextExternal = AcpiGbl_ExternalList;
+    while (NextExternal)
+    {
+        if (NewExternal->Length <= NextExternal->Length)
+        {
+            if (PrevExternal)
+            {
+                PrevExternal->Next = NewExternal;
+            }
+            else
+            {
+                AcpiGbl_ExternalList = NewExternal;
+            }
+
+            NewExternal->Next = NextExternal;
+            return;
+        }
+
+        PrevExternal = NextExternal;
+        NextExternal = NextExternal->Next;
+    }
+
+    if (PrevExternal)
+    {
+        PrevExternal->Next = NewExternal;
+    }
+    else
+    {
         AcpiGbl_ExternalList = NewExternal;
     }
 }
 #endif
+
 
 /*******************************************************************************
  *

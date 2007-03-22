@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
- *       $Revision: 1.75 $
+ *       $Revision: 1.79 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -239,8 +239,9 @@
 #define AE_AML_BAD_RESOURCE_VALUE       (ACPI_STATUS) (0x001F | AE_CODE_AML)
 #define AE_AML_CIRCULAR_REFERENCE       (ACPI_STATUS) (0x0020 | AE_CODE_AML)
 #define AE_AML_BAD_RESOURCE_LENGTH      (ACPI_STATUS) (0x0021 | AE_CODE_AML)
+#define AE_AML_ILLEGAL_ADDRESS          (ACPI_STATUS) (0x0022 | AE_CODE_AML)
 
-#define AE_CODE_AML_MAX                 0x0021
+#define AE_CODE_AML_MAX                 0x0022
 
 
 /*
@@ -257,8 +258,10 @@
 #define AE_CTRL_BREAK                   (ACPI_STATUS) (0x0009 | AE_CODE_CONTROL)
 #define AE_CTRL_CONTINUE                (ACPI_STATUS) (0x000A | AE_CODE_CONTROL)
 #define AE_CTRL_SKIP                    (ACPI_STATUS) (0x000B | AE_CODE_CONTROL)
+#define AE_CTRL_PARSE_CONTINUE          (ACPI_STATUS) (0x000C | AE_CODE_CONTROL)
+#define AE_CTRL_PARSE_PENDING           (ACPI_STATUS) (0x000D | AE_CODE_CONTROL)
 
-#define AE_CODE_CTRL_MAX                0x000B
+#define AE_CODE_CTRL_MAX                0x000D
 
 
 #ifdef DEFINE_ACPI_GLOBALS
@@ -361,7 +364,8 @@ char const   *AcpiGbl_ExceptionNames_Aml[] =
     "AE_AML_NO_RESOURCE_END_TAG",
     "AE_AML_BAD_RESOURCE_VALUE",
     "AE_AML_CIRCULAR_REFERENCE",
-    "AE_AML_BAD_RESOURCE_LENGTH"
+    "AE_AML_BAD_RESOURCE_LENGTH",
+    "AE_AML_ILLEGAL_ADDRESS"
 };
 
 char const   *AcpiGbl_ExceptionNames_Ctrl[] =
@@ -376,7 +380,9 @@ char const   *AcpiGbl_ExceptionNames_Ctrl[] =
     "AE_CTRL_TRANSFER",
     "AE_CTRL_BREAK",
     "AE_CTRL_CONTINUE",
-    "AE_CTRL_SKIP"
+    "AE_CTRL_SKIP",
+    "AE_CTRL_PARSE_CONTINUE",
+    "AE_CTRL_PARSE_PENDING"
 };
 
 #endif /* ACPI GLOBALS */

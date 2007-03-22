@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: aslopt- Compiler optimizations
- *              $Revision: 1.21 $
+ *              $Revision: 1.26 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -196,7 +196,7 @@ OptSearchToRoot (
     char                    *Path;
 
 
-    ACPI_FUNCTION_NAME ("OptSearchToRoot");
+    ACPI_FUNCTION_NAME (OptSearchToRoot);
 
 
     /*
@@ -241,7 +241,7 @@ OptSearchToRoot (
 
     /* We must allocate a new string for the name (TargetPath gets deleted) */
 
-    *NewPath = ACPI_MEM_CALLOCATE (ACPI_NAME_SIZE + 1);
+    *NewPath = ACPI_ALLOCATE_ZEROED (ACPI_NAME_SIZE + 1);
     ACPI_STRCPY (*NewPath, Path);
 
     if (ACPI_STRNCMP (*NewPath, "_T_", 3))
@@ -299,7 +299,7 @@ OptBuildShortestPath (
     BOOLEAN                 SubPath = FALSE;
 
 
-    ACPI_FUNCTION_NAME ("OptBuildShortestPath");
+    ACPI_FUNCTION_NAME (OptBuildShortestPath);
 
 
     ScopeInfo.Scope.Node = CurrentNode;
@@ -372,7 +372,8 @@ OptBuildShortestPath (
     /*
      * Construct a new target string
      */
-    NewPathExternal = ACPI_MEM_CALLOCATE (TargetPath->Length + NumCarats + 1);
+    NewPathExternal = ACPI_ALLOCATE_ZEROED (
+        TargetPath->Length + NumCarats + 1);
 
     /* Insert the Carats into the Target string */
 
@@ -415,7 +416,6 @@ OptBuildShortestPath (
         Index = TargetPath->Length;
     }
 
-
     ACPI_STRCPY (&NewPathExternal[i], &((char *) TargetPath->Pointer)[Index]);
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, " %-24s", NewPathExternal));
 
@@ -425,21 +425,20 @@ OptBuildShortestPath (
      * original string is already optimal, there is no point in continuing.
      */
     Status = AcpiNsInternalizeName (NewPathExternal, &NewPath);
-
     if (ACPI_FAILURE (Status))
     {
         AslCoreSubsystemError (Op, Status, "Internalizing new NamePath",
             ASL_NO_ABORT);
-        ACPI_MEM_FREE (NewPathExternal);
+        ACPI_FREE (NewPathExternal);
         return (Status);
     }
 
     if (ACPI_STRLEN (NewPath) >= AmlNameStringLength)
     {
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS,
-            " NOT SHORTER (New %d old %d)",
+            " NOT SHORTER (New %u old %u)",
             ACPI_STRLEN (NewPath), AmlNameStringLength));
-        ACPI_MEM_FREE (NewPathExternal);
+        ACPI_FREE (NewPathExternal);
         return (AE_NOT_FOUND);
     }
 
@@ -482,7 +481,7 @@ OptBuildShortestPath (
             "Not using optimized name - did not find node");
     }
 
-    ACPI_MEM_FREE (NewPathExternal);
+    ACPI_FREE (NewPathExternal);
     return (Status);
 }
 
@@ -519,7 +518,7 @@ OptOptimizeNameDeclaration (
     ACPI_NAMESPACE_NODE     *Node;
 
 
-    ACPI_FUNCTION_TRACE ("OptOptimizeNameDeclaration");
+    ACPI_FUNCTION_TRACE (OptOptimizeNameDeclaration);
 
 
     if (((CurrentNode == AcpiGbl_RootNode) ||
@@ -587,7 +586,7 @@ OptOptimizeNameDeclaration (
                 "Not using optimized name - did not find node");
         }
 
-        ACPI_MEM_FREE (NewPathExternal);
+        ACPI_FREE (NewPathExternal);
         return (Status);
     }
 
@@ -634,7 +633,7 @@ OptOptimizeNamePath (
     ACPI_PARSE_OBJECT       *NextOp;
 
 
-    ACPI_FUNCTION_TRACE ("OptOptimizeNamePath");
+    ACPI_FUNCTION_TRACE (OptOptimizeNamePath);
 
 
     /* This is an optional optimization */
@@ -753,11 +752,11 @@ OptOptimizeNamePath (
     }
 
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS,
-        "%37s (%2d) ==> %-32s(%2d) %-32s",
+        "%37s (%2u) ==> %-32s(%2u) %-32s",
         (char *) CurrentPath.Pointer, CurrentPath.Length,
         (char *) TargetPath.Pointer, TargetPath.Length, ExternalNameString));
 
-    ACPI_MEM_FREE (ExternalNameString);
+    ACPI_FREE (ExternalNameString);
 
     /*
      * Attempt an optmization depending on the type of namepath
@@ -812,7 +811,7 @@ OptOptimizeNamePath (
         HowMuchShorter = (AmlNameStringLength - ACPI_STRLEN (NewPath));
         OptTotal += HowMuchShorter;
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, " REDUCED %2d (%d)",
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, " REDUCED %2u (%u)",
             HowMuchShorter, OptTotal));
 
         if (Flags & AML_NAMED)
@@ -861,8 +860,8 @@ OptOptimizeNamePath (
 
     /* Cleanup path buffers */
 
-    ACPI_MEM_FREE (TargetPath.Pointer);
-    ACPI_MEM_FREE (CurrentPath.Pointer);
+    ACPI_FREE (TargetPath.Pointer);
+    ACPI_FREE (CurrentPath.Pointer);
 
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, "\n"));
     return_VOID;

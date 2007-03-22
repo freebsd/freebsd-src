@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
- *              $Revision: 1.78 $
+ *              $Revision: 1.84 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -168,7 +168,7 @@ AcpiDsCreateBufferField (
     UINT32                  Flags;
 
 
-    ACPI_FUNCTION_TRACE ("DsCreateBufferField");
+    ACPI_FUNCTION_TRACE (DsCreateBufferField);
 
 
     /* Get the NameString argument */
@@ -219,12 +219,13 @@ AcpiDsCreateBufferField (
                                 Flags, WalkState, &(Node));
         if (ACPI_FAILURE (Status))
         {
-            ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
+            ACPI_ERROR_NAMESPACE (Arg->Common.Value.String, Status);
             return_ACPI_STATUS (Status);
         }
     }
 
-    /* We could put the returned object (Node) on the object stack for later,
+    /*
+     * We could put the returned object (Node) on the object stack for later,
      * but for now, we will put it in the "op" object that the parser uses,
      * so we can get it again at the end of this scope
      */
@@ -308,7 +309,7 @@ AcpiDsGetFieldNames (
     ACPI_INTEGER            Position;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsGetFieldNames", Info);
+    ACPI_FUNCTION_TRACE_PTR (DsGetFieldNames, Info);
 
 
     /* First field starts at bit zero */
@@ -334,8 +335,8 @@ AcpiDsGetFieldNames (
 
             if (Position > ACPI_UINT32_MAX)
             {
-                ACPI_REPORT_ERROR ((
-                    "Bit offset within field too large (> 0xFFFFFFFF)\n"));
+                ACPI_ERROR ((AE_INFO,
+                    "Bit offset within field too large (> 0xFFFFFFFF)"));
                 return_ACPI_STATUS (AE_SUPPORT);
             }
 
@@ -372,7 +373,7 @@ AcpiDsGetFieldNames (
                             WalkState, &Info->FieldNode);
             if (ACPI_FAILURE (Status))
             {
-                ACPI_REPORT_NSERROR ((char *) &Arg->Named.Name, Status);
+                ACPI_ERROR_NAMESPACE ((char *) &Arg->Named.Name, Status);
                 if (Status != AE_ALREADY_EXISTS)
                 {
                     return_ACPI_STATUS (Status);
@@ -401,9 +402,9 @@ AcpiDsGetFieldNames (
 
             if (Position > ACPI_UINT32_MAX)
             {
-                ACPI_REPORT_ERROR ((
-                    "Field [%4.4s] bit offset too large (> 0xFFFFFFFF)\n",
-                    (char *) &Info->FieldNode->Name));
+                ACPI_ERROR ((AE_INFO,
+                    "Field [%4.4s] bit offset too large (> 0xFFFFFFFF)",
+                    ACPI_CAST_PTR (char, &Info->FieldNode->Name)));
                 return_ACPI_STATUS (AE_SUPPORT);
             }
 
@@ -413,8 +414,8 @@ AcpiDsGetFieldNames (
 
         default:
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "Invalid opcode in field list: %X\n",
+            ACPI_ERROR ((AE_INFO,
+                "Invalid opcode in field list: %X",
                 Arg->Common.AmlOpcode));
             return_ACPI_STATUS (AE_AML_BAD_OPCODE);
         }
@@ -451,7 +452,7 @@ AcpiDsCreateField (
     ACPI_CREATE_FIELD_INFO  Info;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsCreateField", Op);
+    ACPI_FUNCTION_TRACE_PTR (DsCreateField, Op);
 
 
     /* First arg is the name of the parent OpRegion (must already exist) */
@@ -464,7 +465,7 @@ AcpiDsCreateField (
                         ACPI_NS_SEARCH_PARENT, WalkState, &RegionNode);
         if (ACPI_FAILURE (Status))
         {
-            ACPI_REPORT_NSERROR (Arg->Common.Value.Name, Status);
+            ACPI_ERROR_NAMESPACE (Arg->Common.Value.Name, Status);
             return_ACPI_STATUS (Status);
         }
     }
@@ -512,7 +513,7 @@ AcpiDsInitFieldObjects (
     UINT8                   Type = 0;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsInitFieldObjects", Op);
+    ACPI_FUNCTION_TRACE_PTR (DsInitFieldObjects, Op);
 
 
     switch (WalkState->Opcode)
@@ -553,7 +554,7 @@ AcpiDsInitFieldObjects (
                             WalkState, &Node);
             if (ACPI_FAILURE (Status))
             {
-                ACPI_REPORT_NSERROR ((char *) &Arg->Named.Name, Status);
+                ACPI_ERROR_NAMESPACE ((char *) &Arg->Named.Name, Status);
                 if (Status != AE_ALREADY_EXISTS)
                 {
                     return_ACPI_STATUS (Status);
@@ -601,7 +602,7 @@ AcpiDsCreateBankField (
     ACPI_CREATE_FIELD_INFO  Info;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsCreateBankField", Op);
+    ACPI_FUNCTION_TRACE_PTR (DsCreateBankField, Op);
 
 
     /* First arg is the name of the parent OpRegion (must already exist) */
@@ -614,7 +615,7 @@ AcpiDsCreateBankField (
                         ACPI_NS_SEARCH_PARENT, WalkState, &RegionNode);
         if (ACPI_FAILURE (Status))
         {
-            ACPI_REPORT_NSERROR (Arg->Common.Value.Name, Status);
+            ACPI_ERROR_NAMESPACE (Arg->Common.Value.Name, Status);
             return_ACPI_STATUS (Status);
         }
     }
@@ -627,14 +628,39 @@ AcpiDsCreateBankField (
                     ACPI_NS_SEARCH_PARENT, WalkState, &Info.RegisterNode);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
+        ACPI_ERROR_NAMESPACE (Arg->Common.Value.String, Status);
         return_ACPI_STATUS (Status);
     }
 
     /* Third arg is the BankValue */
 
+    /* TBD: This arg is a TermArg, not a constant, and must be evaluated */
+
     Arg = Arg->Common.Next;
-    Info.BankValue = (UINT32) Arg->Common.Value.Integer;
+
+    /* Currently, only the following constants are supported */
+
+    switch (Arg->Common.AmlOpcode)
+    {
+    case AML_ZERO_OP:
+        Info.BankValue = 0;
+        break;
+
+    case AML_ONE_OP:
+        Info.BankValue = 1;
+        break;
+
+    case AML_BYTE_OP:
+    case AML_WORD_OP:
+    case AML_DWORD_OP:
+    case AML_QWORD_OP:
+        Info.BankValue = (UINT32) Arg->Common.Value.Integer;
+        break;
+
+    default:
+        Info.BankValue = 0;
+        ACPI_ERROR ((AE_INFO, "Non-constant BankValue for BankField is not implemented"));
+    }
 
     /* Fourth arg is the field flags */
 
@@ -677,7 +703,7 @@ AcpiDsCreateIndexField (
     ACPI_CREATE_FIELD_INFO  Info;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("DsCreateIndexField", Op);
+    ACPI_FUNCTION_TRACE_PTR (DsCreateIndexField, Op);
 
 
     /* First arg is the name of the Index register (must already exist) */
@@ -688,7 +714,7 @@ AcpiDsCreateIndexField (
                     ACPI_NS_SEARCH_PARENT, WalkState, &Info.RegisterNode);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
+        ACPI_ERROR_NAMESPACE (Arg->Common.Value.String, Status);
         return_ACPI_STATUS (Status);
     }
 
@@ -700,7 +726,7 @@ AcpiDsCreateIndexField (
                     ACPI_NS_SEARCH_PARENT, WalkState, &Info.DataRegisterNode);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
+        ACPI_ERROR_NAMESPACE (Arg->Common.Value.String, Status);
         return_ACPI_STATUS (Status);
     }
 

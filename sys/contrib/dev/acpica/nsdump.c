@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 1.172 $
+ *              $Revision: 1.182 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -163,7 +163,7 @@ AcpiNsPrintPathname (
     ACPI_NATIVE_UINT        i;
 
 
-    ACPI_FUNCTION_NAME ("NsPrintPathname");
+    ACPI_FUNCTION_NAME (NsPrintPathname);
 
 
     if (!(AcpiDbgLevel & ACPI_LV_NAMES) || !(AcpiDbgLayer & ACPI_NAMESPACE))
@@ -220,7 +220,7 @@ AcpiNsDumpPathname (
     UINT32                  Component)
 {
 
-    ACPI_FUNCTION_TRACE ("NsDumpPathname");
+    ACPI_FUNCTION_TRACE (NsDumpPathname);
 
 
     /* Do this only if the requested debug level and component are enabled */
@@ -271,7 +271,7 @@ AcpiNsDumpOneObject (
     UINT32                  i;
 
 
-    ACPI_FUNCTION_NAME ("NsDumpOneObject");
+    ACPI_FUNCTION_NAME (NsDumpOneObject);
 
 
     /* Is output enabled? */
@@ -308,12 +308,14 @@ AcpiNsDumpOneObject (
 
         if (Type > ACPI_TYPE_LOCAL_MAX)
         {
-            ACPI_REPORT_WARNING (("Invalid ACPI Type %08X\n", Type));
+            ACPI_WARNING ((AE_INFO, "Invalid ACPI Object Type %08X", Type));
         }
 
         if (!AcpiUtValidAcpiName (ThisNode->Name.Integer))
         {
-            ACPI_REPORT_WARNING (("Invalid ACPI Name %08X\n",
+            ThisNode->Name.Integer = AcpiUtRepairName (ThisNode->Name.Ascii);
+
+            ACPI_WARNING ((AE_INFO, "Invalid ACPI Name %08X",
                 ThisNode->Name.Integer));
         }
 
@@ -323,13 +325,20 @@ AcpiNsDumpOneObject (
     /*
      * Now we can print out the pertinent information
      */
-    AcpiOsPrintf (" %-12s %p ",
-            AcpiUtGetTypeName (Type), ThisNode);
+    AcpiOsPrintf (" %-12s %p %2.2X ",
+            AcpiUtGetTypeName (Type), ThisNode, ThisNode->OwnerId);
 
     DbgLevel = AcpiDbgLevel;
     AcpiDbgLevel = 0;
     ObjDesc = AcpiNsGetAttachedObject (ThisNode);
     AcpiDbgLevel = DbgLevel;
+
+    /* Temp nodes are those nodes created by a control method */
+
+    if (ThisNode->Flags & ANOBJ_TEMPORARY)
+    {
+        AcpiOsPrintf ("(T) ");
+    }
 
     switch (Info->DisplayType & ACPI_DISPLAY_MASK)
     {
@@ -726,8 +735,8 @@ AcpiNsDumpObjects (
     Info.DisplayType = DisplayType;
 
     (void) AcpiNsWalkNamespace (Type, StartHandle, MaxDepth,
-                ACPI_NS_WALK_NO_UNLOCK, AcpiNsDumpOneObject,
-                (void *) &Info, NULL);
+                ACPI_NS_WALK_NO_UNLOCK | ACPI_NS_WALK_TEMP_NODES,
+                AcpiNsDumpOneObject, (void *) &Info, NULL);
 }
 
 
@@ -787,7 +796,7 @@ AcpiNsDumpTables (
     ACPI_HANDLE             SearchHandle = SearchBase;
 
 
-    ACPI_FUNCTION_TRACE ("NsDumpTables");
+    ACPI_FUNCTION_TRACE (NsDumpTables);
 
 
     if (!AcpiGbl_RootNode)

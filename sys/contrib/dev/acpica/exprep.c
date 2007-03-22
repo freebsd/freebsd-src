@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 1.135 $
+ *              $Revision: 1.142 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -182,7 +182,7 @@ AcpiExGenerateAccess (
     UINT32                  Accesses;
 
 
-    ACPI_FUNCTION_TRACE ("ExGenerateAccess");
+    ACPI_FUNCTION_TRACE (ExGenerateAccess);
 
 
     /* Round Field start offset and length to "minimal" byte boundaries */
@@ -316,7 +316,7 @@ AcpiExDecodeFieldAccess (
     UINT32                  BitLength;
 
 
-    ACPI_FUNCTION_TRACE ("ExDecodeFieldAccess");
+    ACPI_FUNCTION_TRACE (ExDecodeFieldAccess);
 
 
     Access = (FieldFlags & AML_FIELD_ACCESS_TYPE_MASK);
@@ -361,8 +361,8 @@ AcpiExDecodeFieldAccess (
     default:
         /* Invalid field access type */
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Unknown field access type %X\n",
+        ACPI_ERROR ((AE_INFO,
+            "Unknown field access type %X",
             Access));
         return_UINT32 (0);
     }
@@ -416,7 +416,7 @@ AcpiExPrepCommonFieldObject (
     UINT32                  NearestByteAddress;
 
 
-    ACPI_FUNCTION_TRACE ("ExPrepCommonFieldObject");
+    ACPI_FUNCTION_TRACE (ExPrepCommonFieldObject);
 
 
     /*
@@ -515,7 +515,7 @@ AcpiExPrepFieldValue (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("ExPrepFieldValue");
+    ACPI_FUNCTION_TRACE (ExPrepFieldValue);
 
 
     /* Parameter validation */
@@ -524,15 +524,15 @@ AcpiExPrepFieldValue (
     {
         if (!Info->RegionNode)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null RegionNode\n"));
+            ACPI_ERROR ((AE_INFO, "Null RegionNode"));
             return_ACPI_STATUS (AE_AML_NO_OPERAND);
         }
 
         Type = AcpiNsGetType (Info->RegionNode);
         if (Type != ACPI_TYPE_REGION)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "Needed Region, found type %X (%s)\n",
+            ACPI_ERROR ((AE_INFO,
+                "Needed Region, found type %X (%s)",
                 Type, AcpiUtGetTypeName (Type)));
 
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
@@ -602,17 +602,16 @@ AcpiExPrepFieldValue (
 
     case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
+        /* Get the Index and Data registers */
+
         ObjDesc->IndexField.IndexObj = AcpiNsGetAttachedObject (
                                             Info->RegisterNode);
         ObjDesc->IndexField.DataObj  = AcpiNsGetAttachedObject (
                                             Info->DataRegisterNode);
-        ObjDesc->IndexField.Value    = (UINT32)
-            (Info->FieldBitPosition / ACPI_MUL_8 (
-                                        ObjDesc->Field.AccessByteWidth));
 
         if (!ObjDesc->IndexField.DataObj || !ObjDesc->IndexField.IndexObj)
         {
-            ACPI_REPORT_ERROR (("Null Index Object during field prep\n"));
+            ACPI_ERROR ((AE_INFO, "Null Index Object during field prep"));
             AcpiUtDeleteObjectDesc (ObjDesc);
             return_ACPI_STATUS (AE_AML_INTERNAL);
         }
@@ -621,6 +620,27 @@ AcpiExPrepFieldValue (
 
         AcpiUtAddReference (ObjDesc->IndexField.DataObj);
         AcpiUtAddReference (ObjDesc->IndexField.IndexObj);
+
+        /*
+         * April 2006: Changed to match MS behavior
+         *
+         * The value written to the Index register is the byte offset of the
+         * target field in units of the granularity of the IndexField
+         *
+         * Previously, the value was calculated as an index in terms of the
+         * width of the Data register, as below:
+         *
+         *      ObjDesc->IndexField.Value = (UINT32)
+         *          (Info->FieldBitPosition / ACPI_MUL_8 (
+         *              ObjDesc->Field.AccessByteWidth));
+         *
+         * February 2006: Tried value as a byte offset:
+         *      ObjDesc->IndexField.Value = (UINT32)
+         *          ACPI_DIV_8 (Info->FieldBitPosition);
+         */
+        ObjDesc->IndexField.Value = (UINT32) ACPI_ROUND_DOWN (
+            ACPI_DIV_8 (Info->FieldBitPosition),
+            ObjDesc->IndexField.AccessByteWidth);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
             "IndexField: BitOff %X, Off %X, Value %X, Gran %X, Index %p, Data %p\n",

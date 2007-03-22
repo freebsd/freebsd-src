@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 1.125 $
+ *              $Revision: 1.151 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,11 +119,122 @@
 
 #include <contrib/dev/acpica/acpi.h>
 #include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/amlresrc.h>
 
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utmisc")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtValidateException
+ *
+ * PARAMETERS:  Status       - The ACPI_STATUS code to be formatted
+ *
+ * RETURN:      A string containing the exception text. NULL if exception is
+ *              not valid.
+ *
+ * DESCRIPTION: This function validates and translates an ACPI exception into
+ *              an ASCII string.
+ *
+ ******************************************************************************/
+
+const char *
+AcpiUtValidateException (
+    ACPI_STATUS             Status)
+{
+    ACPI_STATUS             SubStatus;
+    const char              *Exception = NULL;
+
+
+    ACPI_FUNCTION_ENTRY ();
+
+
+    /*
+     * Status is composed of two parts, a "type" and an actual code
+     */
+    SubStatus = (Status & ~AE_CODE_MASK);
+
+    switch (Status & AE_CODE_MASK)
+    {
+    case AE_CODE_ENVIRONMENTAL:
+
+        if (SubStatus <= AE_CODE_ENV_MAX)
+        {
+            Exception = AcpiGbl_ExceptionNames_Env [SubStatus];
+        }
+        break;
+
+    case AE_CODE_PROGRAMMER:
+
+        if (SubStatus <= AE_CODE_PGM_MAX)
+        {
+            Exception = AcpiGbl_ExceptionNames_Pgm [SubStatus -1];
+        }
+        break;
+
+    case AE_CODE_ACPI_TABLES:
+
+        if (SubStatus <= AE_CODE_TBL_MAX)
+        {
+            Exception = AcpiGbl_ExceptionNames_Tbl [SubStatus -1];
+        }
+        break;
+
+    case AE_CODE_AML:
+
+        if (SubStatus <= AE_CODE_AML_MAX)
+        {
+            Exception = AcpiGbl_ExceptionNames_Aml [SubStatus -1];
+        }
+        break;
+
+    case AE_CODE_CONTROL:
+
+        if (SubStatus <= AE_CODE_CTRL_MAX)
+        {
+            Exception = AcpiGbl_ExceptionNames_Ctrl [SubStatus -1];
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    return (ACPI_CAST_PTR (const char, Exception));
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtIsAmlTable
+ *
+ * PARAMETERS:  Table               - An ACPI table
+ *
+ * RETURN:      TRUE if table contains executable AML; FALSE otherwise
+ *
+ * DESCRIPTION: Check ACPI Signature for a table that contains AML code.
+ *              Currently, these are DSDT,SSDT,PSDT. All other table types are
+ *              data tables that do not contain AML code.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiUtIsAmlTable (
+    ACPI_TABLE_HEADER       *Table)
+{
+
+    /* These are the only tables that contain executable AML */
+
+    if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_DSDT) ||
+        ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_PSDT) ||
+        ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_SSDT))
+    {
+        return (TRUE);
+    }
+
+    return (FALSE);
+}
 
 
 /*******************************************************************************
@@ -145,17 +256,19 @@ AcpiUtAllocateOwnerId (
     ACPI_OWNER_ID           *OwnerId)
 {
     ACPI_NATIVE_UINT        i;
+    ACPI_NATIVE_UINT        j;
+    ACPI_NATIVE_UINT        k;
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("UtAllocateOwnerId");
+    ACPI_FUNCTION_TRACE (UtAllocateOwnerId);
 
 
     /* Guard against multiple allocations of ID to the same location */
 
     if (*OwnerId)
     {
-        ACPI_REPORT_ERROR (("Owner ID [%2.2X] already exists\n", *OwnerId));
+        ACPI_ERROR ((AE_INFO, "Owner ID [%2.2X] already exists", *OwnerId));
         return_ACPI_STATUS (AE_ALREADY_EXISTS);
     }
 
@@ -167,33 +280,71 @@ AcpiUtAllocateOwnerId (
         return_ACPI_STATUS (Status);
     }
 
-    /* Find a free owner ID */
-
-    for (i = 0; i < 32; i++)
+    /*
+     * Find a free owner ID, cycle through all possible IDs on repeated
+     * allocations. (ACPI_NUM_OWNERID_MASKS + 1) because first index may have
+     * to be scanned twice.
+     */
+    for (i = 0, j = AcpiGbl_LastOwnerIdIndex;
+         i < (ACPI_NUM_OWNERID_MASKS + 1);
+         i++, j++)
     {
-        if (!(AcpiGbl_OwnerIdMask & (1 << i)))
+        if (j >= ACPI_NUM_OWNERID_MASKS)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_VALUES,
-                "Current OwnerId mask: %8.8X New ID: %2.2X\n",
-                AcpiGbl_OwnerIdMask, (unsigned int) (i + 1)));
-
-            AcpiGbl_OwnerIdMask |= (1 << i);
-            *OwnerId = (ACPI_OWNER_ID) (i + 1);
-            goto Exit;
+            j = 0;  /* Wraparound to start of mask array */
         }
+
+        for (k = AcpiGbl_NextOwnerIdOffset; k < 32; k++)
+        {
+            if (AcpiGbl_OwnerIdMask[j] == ACPI_UINT32_MAX)
+            {
+                /* There are no free IDs in this mask */
+
+                break;
+            }
+
+            if (!(AcpiGbl_OwnerIdMask[j] & (1 << k)))
+            {
+                /*
+                 * Found a free ID. The actual ID is the bit index plus one,
+                 * making zero an invalid Owner ID. Save this as the last ID
+                 * allocated and update the global ID mask.
+                 */
+                AcpiGbl_OwnerIdMask[j] |= (1 << k);
+
+                AcpiGbl_LastOwnerIdIndex = (UINT8) j;
+                AcpiGbl_NextOwnerIdOffset = (UINT8) (k + 1);
+
+                /*
+                 * Construct encoded ID from the index and bit position
+                 *
+                 * Note: Last [j].k (bit 255) is never used and is marked
+                 * permanently allocated (prevents +1 overflow)
+                 */
+                *OwnerId = (ACPI_OWNER_ID) ((k + 1) + ACPI_MUL_32 (j));
+
+                ACPI_DEBUG_PRINT ((ACPI_DB_VALUES,
+                    "Allocated OwnerId: %2.2X\n", (unsigned int) *OwnerId));
+                goto Exit;
+            }
+        }
+
+        AcpiGbl_NextOwnerIdOffset = 0;
     }
 
     /*
-     * If we are here, all OwnerIds have been allocated. This probably should
+     * All OwnerIds have been allocated. This typically should
      * not happen since the IDs are reused after deallocation. The IDs are
      * allocated upon table load (one per table) and method execution, and
      * they are released when a table is unloaded or a method completes
      * execution.
+     *
+     * If this error happens, there may be very deep nesting of invoked control
+     * methods, or there may be a bug where the IDs are not released.
      */
-    *OwnerId = 0;
     Status = AE_OWNER_ID_LIMIT;
-    ACPI_REPORT_ERROR ((
-        "Could not allocate new OwnerId (32 max), AE_OWNER_ID_LIMIT\n"));
+    ACPI_ERROR ((AE_INFO,
+        "Could not allocate new OwnerId (255 max), AE_OWNER_ID_LIMIT"));
 
 Exit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_CACHES);
@@ -211,7 +362,7 @@ Exit:
  *              control method or unloading a table. Either way, we would
  *              ignore any error anyway.
  *
- * DESCRIPTION: Release a table or method owner ID.  Valid IDs are 1 - 32
+ * DESCRIPTION: Release a table or method owner ID.  Valid IDs are 1 - 255
  *
  ******************************************************************************/
 
@@ -221,9 +372,11 @@ AcpiUtReleaseOwnerId (
 {
     ACPI_OWNER_ID           OwnerId = *OwnerIdPtr;
     ACPI_STATUS             Status;
+    ACPI_NATIVE_UINT        Index;
+    UINT32                  Bit;
 
 
-    ACPI_FUNCTION_TRACE_U32 ("UtReleaseOwnerId", OwnerId);
+    ACPI_FUNCTION_TRACE_U32 (UtReleaseOwnerId, OwnerId);
 
 
     /* Always clear the input OwnerId (zero is an invalid ID) */
@@ -232,9 +385,9 @@ AcpiUtReleaseOwnerId (
 
     /* Zero is not a valid OwnerID */
 
-    if ((OwnerId == 0) || (OwnerId > 32))
+    if (OwnerId == 0)
     {
-        ACPI_REPORT_ERROR (("Invalid OwnerId: %2.2X\n", OwnerId));
+        ACPI_ERROR ((AE_INFO, "Invalid OwnerId: %2.2X", OwnerId));
         return_VOID;
     }
 
@@ -250,11 +403,21 @@ AcpiUtReleaseOwnerId (
 
     OwnerId--;
 
+    /* Decode ID to index/offset pair */
+
+    Index = ACPI_DIV_32 (OwnerId);
+    Bit = 1 << ACPI_MOD_32 (OwnerId);
+
     /* Free the owner ID only if it is valid */
 
-    if (AcpiGbl_OwnerIdMask & (1 << OwnerId))
+    if (AcpiGbl_OwnerIdMask[Index] & Bit)
     {
-        AcpiGbl_OwnerIdMask ^= (1 << OwnerId);
+        AcpiGbl_OwnerIdMask[Index] ^= Bit;
+    }
+    else
+    {
+        ACPI_ERROR ((AE_INFO,
+            "Release of non-allocated OwnerId: %2.2X", OwnerId + 1));
     }
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_CACHES);
@@ -338,7 +501,7 @@ AcpiUtPrintString (
         switch (String[i])
         {
         case 0x07:
-            AcpiOsPrintf ("\\a");        /* BELL */
+            AcpiOsPrintf ("\\a");       /* BELL */
             break;
 
         case 0x08:
@@ -461,14 +624,18 @@ AcpiUtSetIntegerWidth (
     UINT8                   Revision)
 {
 
-    if (Revision <= 1)
+    if (Revision < 2)
     {
+        /* 32-bit case */
+
         AcpiGbl_IntegerBitWidth    = 32;
         AcpiGbl_IntegerNybbleWidth = 8;
         AcpiGbl_IntegerByteWidth   = 4;
     }
     else
     {
+        /* 64-bit case (ACPI 2.0+) */
+
         AcpiGbl_IntegerBitWidth    = 64;
         AcpiGbl_IntegerNybbleWidth = 16;
         AcpiGbl_IntegerByteWidth   = 8;
@@ -547,9 +714,51 @@ AcpiUtDisplayInitPathname (
     }
     AcpiOsPrintf ("\n");
 
-    ACPI_MEM_FREE (Buffer.Pointer);
+    ACPI_FREE (Buffer.Pointer);
 }
 #endif
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtValidAcpiChar
+ *
+ * PARAMETERS:  Char            - The character to be examined
+ *              Position        - Byte position (0-3)
+ *
+ * RETURN:      TRUE if the character is valid, FALSE otherwise
+ *
+ * DESCRIPTION: Check for a valid ACPI character. Must be one of:
+ *              1) Upper case alpha
+ *              2) numeric
+ *              3) underscore
+ *
+ *              We allow a '!' as the last character because of the ASF! table
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiUtValidAcpiChar (
+    char                    Character,
+    ACPI_NATIVE_UINT        Position)
+{
+
+    if (!((Character >= 'A' && Character <= 'Z') ||
+          (Character >= '0' && Character <= '9') ||
+          (Character == '_')))
+    {
+        /* Allow a '!' in the last position */
+
+        if (Character == '!' && Position == 3)
+        {
+            return (TRUE);
+        }
+
+        return (FALSE);
+    }
+
+    return (TRUE);
+}
 
 
 /*******************************************************************************
@@ -571,8 +780,6 @@ BOOLEAN
 AcpiUtValidAcpiName (
     UINT32                  Name)
 {
-    char                    *NamePtr = (char *) &Name;
-    char                    Character;
     ACPI_NATIVE_UINT        i;
 
 
@@ -581,12 +788,7 @@ AcpiUtValidAcpiName (
 
     for (i = 0; i < ACPI_NAME_SIZE; i++)
     {
-        Character = *NamePtr;
-        NamePtr++;
-
-        if (!((Character == '_') ||
-              (Character >= 'A' && Character <= 'Z') ||
-              (Character >= '0' && Character <= '9')))
+        if (!AcpiUtValidAcpiChar ((ACPI_CAST_PTR (char, &Name))[i], i))
         {
             return (FALSE);
         }
@@ -598,26 +800,41 @@ AcpiUtValidAcpiName (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtValidAcpiCharacter
+ * FUNCTION:    AcpiUtRepairName
  *
- * PARAMETERS:  Character           - The character to be examined
+ * PARAMETERS:  Name            - The ACPI name to be repaired
  *
- * RETURN:      1 if Character may appear in a name, else 0
+ * RETURN:      Repaired version of the name
  *
- * DESCRIPTION: Check for a printable character
+ * DESCRIPTION: Repair an ACPI name: Change invalid characters to '*' and
+ *              return the new name.
  *
  ******************************************************************************/
 
-BOOLEAN
-AcpiUtValidAcpiCharacter (
-    char                    Character)
+ACPI_NAME
+AcpiUtRepairName (
+    char                    *Name)
 {
+    ACPI_NATIVE_UINT        i;
+    char                    NewName[ACPI_NAME_SIZE];
 
-    ACPI_FUNCTION_ENTRY ();
 
-    return ((BOOLEAN)   ((Character == '_') ||
-                        (Character >= 'A' && Character <= 'Z') ||
-                        (Character >= '0' && Character <= '9')));
+    for (i = 0; i < ACPI_NAME_SIZE; i++)
+    {
+        NewName[i] = Name[i];
+
+        /*
+         * Replace a bad character with something printable, yet technically
+         * still invalid. This prevents any collisions with existing "good"
+         * names in the namespace.
+         */
+        if (!AcpiUtValidAcpiChar (Name[i], i))
+        {
+            NewName[i] = '*';
+        }
+    }
+
+    return (*(UINT32 *) NewName);
 }
 
 
@@ -626,12 +843,15 @@ AcpiUtValidAcpiCharacter (
  * FUNCTION:    AcpiUtStrtoul64
  *
  * PARAMETERS:  String          - Null terminated string
- *              Base            - Radix of the string: 10, 16, or ACPI_ANY_BASE
+ *              Base            - Radix of the string: 16 or ACPI_ANY_BASE;
+ *                                ACPI_ANY_BASE means 'in behalf of ToInteger'
  *              RetInteger      - Where the converted integer is returned
  *
  * RETURN:      Status and Converted value
  *
- * DESCRIPTION: Convert a string into an unsigned value.
+ * DESCRIPTION: Convert a string into an unsigned value. Performs either a
+ *              32-bit or 64-bit conversion, depending on the current mode
+ *              of the interpreter.
  *              NOTE: Does not support Octal strings, not needed.
  *
  ******************************************************************************/
@@ -645,20 +865,20 @@ AcpiUtStrtoul64 (
     UINT32                  ThisDigit = 0;
     ACPI_INTEGER            ReturnValue = 0;
     ACPI_INTEGER            Quotient;
+    ACPI_INTEGER            Dividend;
+    UINT32                  ToIntegerOp = (Base == ACPI_ANY_BASE);
+    UINT32                  Mode32 = (AcpiGbl_IntegerByteWidth == 4);
+    UINT8                   ValidDigits = 0;
+    UINT8                   SignOf0x = 0;
+    UINT8                   Term = 0;
 
 
-    ACPI_FUNCTION_TRACE ("UtStroul64");
+    ACPI_FUNCTION_TRACE_STR (UtStroul64, String);
 
-
-    if ((!String) || !(*String))
-    {
-        goto ErrorExit;
-    }
 
     switch (Base)
     {
     case ACPI_ANY_BASE:
-    case 10:
     case 16:
         break;
 
@@ -667,23 +887,30 @@ AcpiUtStrtoul64 (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
+    if (!String)
+    {
+        goto ErrorExit;
+    }
+
     /* Skip over any white space in the buffer */
 
-    while (ACPI_IS_SPACE (*String) || *String == '\t')
+    while ((*String) && (ACPI_IS_SPACE (*String) || *String == '\t'))
     {
         String++;
     }
 
-    /*
-     * If the input parameter Base is zero, then we need to
-     * determine if it is decimal or hexadecimal:
-     */
-    if (Base == 0)
+    if (ToIntegerOp)
     {
-        if ((*String == '0') &&
-            (ACPI_TOLOWER (*(String + 1)) == 'x'))
+        /*
+         * Base equal to ACPI_ANY_BASE means 'ToInteger operation case'.
+         * We need to determine if it is decimal or hexadecimal.
+         */
+        if ((*String == '0') && (ACPI_TOLOWER (*(String + 1)) == 'x'))
         {
+            SignOf0x = 1;
             Base = 16;
+
+            /* Skip over the leading '0x' */
             String += 2;
         }
         else
@@ -692,25 +919,27 @@ AcpiUtStrtoul64 (
         }
     }
 
+    /* Any string left? Check that '0x' is not followed by white space. */
+
+    if (!(*String) || ACPI_IS_SPACE (*String) || *String == '\t')
+    {
+        if (ToIntegerOp)
+        {
+            goto ErrorExit;
+        }
+        else
+        {
+            goto AllDone;
+        }
+    }
+
     /*
-     * For hexadecimal base, skip over the leading
-     * 0 or 0x, if they are present.
+     * Perform a 32-bit or 64-bit conversion, depending upon the current
+     * execution mode of the interpreter
      */
-    if ((Base == 16) &&
-        (*String == '0') &&
-        (ACPI_TOLOWER (*(String + 1)) == 'x'))
-    {
-        String += 2;
-    }
+    Dividend = (Mode32) ? ACPI_UINT32_MAX : ACPI_UINT64_MAX;
 
-    /* Any string left? */
-
-    if (!(*String))
-    {
-        goto ErrorExit;
-    }
-
-    /* Main loop: convert the string to a 64-bit integer */
+    /* Main loop: convert the string to a 32- or 64-bit integer */
 
     while (*String)
     {
@@ -720,15 +949,14 @@ AcpiUtStrtoul64 (
 
             ThisDigit = ((UINT8) *String) - '0';
         }
+        else if (Base == 10)
+        {
+            /* Digit is out of range; possible in ToInteger case only */
+
+            Term = 1;
+        }
         else
         {
-            if (Base == 10)
-            {
-                /* Digit is out of range */
-
-                goto ErrorExit;
-            }
-
             ThisDigit = (UINT8) ACPI_TOUPPER (*String);
             if (ACPI_IS_XDIGIT ((char) ThisDigit))
             {
@@ -738,21 +966,55 @@ AcpiUtStrtoul64 (
             }
             else
             {
-                /*
-                 * We allow non-hex chars, just stop now, same as end-of-string.
-                 * See ACPI spec, string-to-integer conversion.
-                 */
+                Term = 1;
+            }
+        }
+
+        if (Term)
+        {
+            if (ToIntegerOp)
+            {
+                goto ErrorExit;
+            }
+            else
+            {
                 break;
             }
+        }
+        else if ((ValidDigits == 0) && (ThisDigit == 0) && !SignOf0x)
+        {
+            /* Skip zeros */
+            String++;
+            continue;
+        }
+
+        ValidDigits++;
+
+        if (SignOf0x && ((ValidDigits > 16) || ((ValidDigits > 8) && Mode32)))
+        {
+            /*
+             * This is ToInteger operation case.
+             * No any restrictions for string-to-integer conversion,
+             * see ACPI spec.
+             */
+            goto ErrorExit;
         }
 
         /* Divide the digit into the correct position */
 
-        (void) AcpiUtShortDivide ((ACPI_INTEGER_MAX - (ACPI_INTEGER) ThisDigit),
+        (void) AcpiUtShortDivide ((Dividend - (ACPI_INTEGER) ThisDigit),
                     Base, &Quotient, NULL);
+
         if (ReturnValue > Quotient)
         {
-            goto ErrorExit;
+            if (ToIntegerOp)
+            {
+                goto ErrorExit;
+            }
+            else
+            {
+                break;
+            }
         }
 
         ReturnValue *= Base;
@@ -761,6 +1023,11 @@ AcpiUtStrtoul64 (
     }
 
     /* All done, normal exit */
+
+AllDone:
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Converted value: %8.8X%8.8X\n",
+        ACPI_FORMAT_UINT64 (ReturnValue)));
 
     *RetInteger = ReturnValue;
     return_ACPI_STATUS (AE_OK);
@@ -853,7 +1120,7 @@ AcpiUtWalkPackageTree (
     ACPI_OPERAND_OBJECT     *ThisSourceObj;
 
 
-    ACPI_FUNCTION_TRACE ("UtWalkPackageTree");
+    ACPI_FUNCTION_TRACE (UtWalkPackageTree);
 
 
     State = AcpiUtCreatePkgState (SourceObject, TargetObject, 0);
@@ -954,283 +1221,89 @@ AcpiUtWalkPackageTree (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtGenerateChecksum
+ * FUNCTION:    AcpiUtError, AcpiUtWarning, AcpiUtInfo
  *
- * PARAMETERS:  Buffer          - Buffer to be scanned
- *              Length          - number of bytes to examine
+ * PARAMETERS:  ModuleName          - Caller's module name (for error output)
+ *              LineNumber          - Caller's line number (for error output)
+ *              Format              - Printf format string + additional args
  *
- * RETURN:      The generated checksum
+ * RETURN:      None
  *
- * DESCRIPTION: Generate a checksum on a raw buffer
+ * DESCRIPTION: Print message with module/line/version info
  *
  ******************************************************************************/
 
-UINT8
-AcpiUtGenerateChecksum (
-    UINT8                   *Buffer,
-    UINT32                  Length)
+void  ACPI_INTERNAL_VAR_XFACE
+AcpiUtError (
+    char                    *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Format,
+    ...)
 {
-    UINT32                  i;
-    signed char             Sum = 0;
+    va_list                 args;
 
 
-    for (i = 0; i < Length; i++)
-    {
-        Sum = (signed char) (Sum + Buffer[i]);
-    }
+    AcpiOsPrintf ("ACPI Error (%s-%04d): ", ModuleName, LineNumber);
 
-    return ((UINT8) (0 - Sum));
+    va_start (args, Format);
+    AcpiOsVprintf (Format, args);
+    AcpiOsPrintf (" [%X]\n", ACPI_CA_VERSION);
 }
 
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtGetResourceType
- *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
- *
- * RETURN:      The Resource Type with no extraneous bits (except the
- *              Large/Small descriptor bit -- this is left alone)
- *
- * DESCRIPTION: Extract the Resource Type/Name from the first byte of
- *              a resource descriptor.
- *
- ******************************************************************************/
-
-UINT8
-AcpiUtGetResourceType (
-    void                    *Aml)
+void  ACPI_INTERNAL_VAR_XFACE
+AcpiUtException (
+    char                    *ModuleName,
+    UINT32                  LineNumber,
+    ACPI_STATUS             Status,
+    char                    *Format,
+    ...)
 {
-    ACPI_FUNCTION_ENTRY ();
+    va_list                 args;
+
+
+    AcpiOsPrintf ("ACPI Exception (%s-%04d): %s, ", ModuleName, LineNumber,
+        AcpiFormatException (Status));
+
+    va_start (args, Format);
+    AcpiOsVprintf (Format, args);
+    AcpiOsPrintf (" [%X]\n", ACPI_CA_VERSION);
+}
+
+void  ACPI_INTERNAL_VAR_XFACE
+AcpiUtWarning (
+    char                    *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Format,
+    ...)
+{
+    va_list                 args;
+
+
+    AcpiOsPrintf ("ACPI Warning (%s-%04d): ", ModuleName, LineNumber);
+
+    va_start (args, Format);
+    AcpiOsVprintf (Format, args);
+    AcpiOsPrintf (" [%X]\n", ACPI_CA_VERSION);
+}
+
+void  ACPI_INTERNAL_VAR_XFACE
+AcpiUtInfo (
+    char                    *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Format,
+    ...)
+{
+    va_list                 args;
 
 
     /*
-     * Byte 0 contains the descriptor name (Resource Type)
-     * Determine if this is a small or large resource
+     * Removed ModuleName, LineNumber, and acpica version, not needed
+     * for info output
      */
-    if (*((UINT8 *) Aml) & ACPI_RESOURCE_NAME_LARGE)
-    {
-        /* Large Resource Type -- bits 6:0 contain the name */
+    AcpiOsPrintf ("ACPI: ");
 
-        return (*((UINT8 *) Aml));
-    }
-    else
-    {
-        /* Small Resource Type -- bits 6:3 contain the name */
-
-        return ((UINT8) (*((UINT8 *) Aml) & ACPI_RESOURCE_NAME_SMALL_MASK));
-    }
+    va_start (args, Format);
+    AcpiOsVprintf (Format, args);
+    AcpiOsPrintf ("\n");
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtGetResourceLength
- *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
- *
- * RETURN:      Byte Length
- *
- * DESCRIPTION: Get the "Resource Length" of a raw AML descriptor. By
- *              definition, this does not include the size of the descriptor
- *              header or the length field itself.
- *
- ******************************************************************************/
-
-UINT16
-AcpiUtGetResourceLength (
-    void                    *Aml)
-{
-    UINT16                  ResourceLength;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /*
-     * Byte 0 contains the descriptor name (Resource Type)
-     * Determine if this is a small or large resource
-     */
-    if (*((UINT8 *) Aml) & ACPI_RESOURCE_NAME_LARGE)
-    {
-        /* Large Resource type -- bytes 1-2 contain the 16-bit length */
-
-        ACPI_MOVE_16_TO_16 (&ResourceLength, &((UINT8 *) Aml)[1]);
-
-    }
-    else
-    {
-        /* Small Resource type -- bits 2:0 of byte 0 contain the length */
-
-        ResourceLength = (UINT16) (*((UINT8 *) Aml) &
-                                    ACPI_RESOURCE_NAME_SMALL_LENGTH_MASK);
-    }
-
-    return (ResourceLength);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtGetDescriptorLength
- *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
- *
- * RETURN:      Byte length
- *
- * DESCRIPTION: Get the total byte length of a raw AML descriptor, including the
- *              length of the descriptor header and the length field itself.
- *              Used to walk descriptor lists.
- *
- ******************************************************************************/
-
-UINT32
-AcpiUtGetDescriptorLength (
-    void                    *Aml)
-{
-    UINT32                  DescriptorLength;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /* First get the Resource Length (Does not include header length) */
-
-    DescriptorLength = AcpiUtGetResourceLength (Aml);
-
-    /* Determine if this is a small or large resource */
-
-    if (*((UINT8 *) Aml) & ACPI_RESOURCE_NAME_LARGE)
-    {
-        DescriptorLength += sizeof (AML_RESOURCE_LARGE_HEADER);
-    }
-    else
-    {
-        DescriptorLength += sizeof (AML_RESOURCE_SMALL_HEADER);
-    }
-
-    return (DescriptorLength);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtGetResourceEndTag
- *
- * PARAMETERS:  ObjDesc         - The resource template buffer object
- *
- * RETURN:      Pointer to the end tag
- *
- * DESCRIPTION: Find the END_TAG resource descriptor in an AML resource template
- *
- ******************************************************************************/
-
-
-UINT8 *
-AcpiUtGetResourceEndTag (
-    ACPI_OPERAND_OBJECT     *ObjDesc)
-{
-    UINT8                   *Aml;
-    UINT8                   *EndAml;
-
-
-    Aml    = ObjDesc->Buffer.Pointer;
-    EndAml = Aml + ObjDesc->Buffer.Length;
-
-    /* Walk the resource template, one descriptor per loop */
-
-    while (Aml < EndAml)
-    {
-        if (AcpiUtGetResourceType (Aml) == ACPI_RESOURCE_NAME_END_TAG)
-        {
-            /* Found the end_tag descriptor, all done */
-
-            return (Aml);
-        }
-
-        /* Point to the next resource descriptor */
-
-        Aml += AcpiUtGetResourceLength (Aml);
-    }
-
-    /* End tag was not found */
-
-    return (NULL);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtReportError
- *
- * PARAMETERS:  ModuleName          - Caller's module name (for error output)
- *              LineNumber          - Caller's line number (for error output)
- *              ComponentId         - Caller's component ID (for error output)
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print error message
- *
- ******************************************************************************/
-
-void
-AcpiUtReportError (
-    char                    *ModuleName,
-    UINT32                  LineNumber,
-    UINT32                  ComponentId)
-{
-
-    AcpiOsPrintf ("%8s-%04d: *** Error: ", ModuleName, LineNumber);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtReportWarning
- *
- * PARAMETERS:  ModuleName          - Caller's module name (for error output)
- *              LineNumber          - Caller's line number (for error output)
- *              ComponentId         - Caller's component ID (for error output)
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print warning message
- *
- ******************************************************************************/
-
-void
-AcpiUtReportWarning (
-    char                    *ModuleName,
-    UINT32                  LineNumber,
-    UINT32                  ComponentId)
-{
-
-    AcpiOsPrintf ("%8s-%04d: *** Warning: ", ModuleName, LineNumber);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtReportInfo
- *
- * PARAMETERS:  ModuleName          - Caller's module name (for error output)
- *              LineNumber          - Caller's line number (for error output)
- *              ComponentId         - Caller's component ID (for error output)
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print information message
- *
- ******************************************************************************/
-
-void
-AcpiUtReportInfo (
-    char                    *ModuleName,
-    UINT32                  LineNumber,
-    UINT32                  ComponentId)
-{
-
-    AcpiOsPrintf ("%8s-%04d: *** Info: ", ModuleName, LineNumber);
-}
-
 
