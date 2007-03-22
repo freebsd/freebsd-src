@@ -320,7 +320,7 @@ acpi_fujitsu_notify_handler(ACPI_HANDLE h, uint32_t notify, void *context)
 
 	switch (notify) {
 	case ACPI_NOTIFY_STATUS_CHANGED:
-		AcpiOsQueueForExecution(OSD_PRIORITY_LO,
+		AcpiOsExecute(OSL_NOTIFY_HANDLER,
 		    acpi_fujitsu_notify_status_changed, sc);
 		break;
 	default:

@@ -226,17 +226,14 @@ contrib/dev/acpica/rsmemory.c	optional acpi
 contrib/dev/acpica/rsmisc.c	optional acpi
 contrib/dev/acpica/rsutils.c	optional acpi
 contrib/dev/acpica/rsxface.c	optional acpi
-contrib/dev/acpica/tbconvrt.c	optional acpi
-contrib/dev/acpica/tbget.c	optional acpi
-contrib/dev/acpica/tbgetall.c	optional acpi
+contrib/dev/acpica/tbfadt.c	optional acpi
+contrib/dev/acpica/tbfind.c	optional acpi
 contrib/dev/acpica/tbinstal.c	optional acpi
-contrib/dev/acpica/tbrsdt.c	optional acpi
 contrib/dev/acpica/tbutils.c	optional acpi
 contrib/dev/acpica/tbxface.c	optional acpi
 contrib/dev/acpica/tbxfroot.c	optional acpi
 contrib/dev/acpica/utalloc.c	optional acpi
-contrib/dev/acpica/utcache.c	optional acpi \
-	compile-with "${NORMAL_C} -DACPI_USE_LOCAL_CACHE"
+contrib/dev/acpica/utcache.c	optional acpi
 contrib/dev/acpica/utclib.c	optional acpi
 contrib/dev/acpica/utcopy.c	optional acpi
 contrib/dev/acpica/utdebug.c	optional acpi
@@ -248,6 +245,7 @@ contrib/dev/acpica/utmath.c	optional acpi
 contrib/dev/acpica/utmisc.c	optional acpi
 contrib/dev/acpica/utmutex.c	optional acpi
 contrib/dev/acpica/utobject.c	optional acpi
+contrib/dev/acpica/utresrc.c	optional acpi
 contrib/dev/acpica/utstate.c	optional acpi
 contrib/dev/acpica/utxface.c	optional acpi
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \

@@ -1,11 +1,11 @@
 # $FreeBSD$
 
 PROG=	iasl
-SRCS=	adisasm.c
+SRCS=	adfile.c adisasm.c adwalk.c
 SRCS+=	osunixxf.c
 
 # common
-SRCS+=	getopt.c
+SRCS+=	dmrestag.c dmtable.c dmtbdump.c	dmtbinfo.c getopt.c
 
 # compiler
 SRCS+=	aslanalyze.c aslcodegen.c aslcompile.c aslcompiler.y.h	\
@@ -42,12 +42,12 @@ SRCS+=	nsaccess.c nsalloc.c nsdump.c nsnames.c nsobject.c	\
 	nsparse.c nssearch.c nsutils.c nswalk.c nsxfobj.c
 
 # tables
-SRCS+=	tbinstal.c tbutils.c
+SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 
 # utilities
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
 	utglobal.c utmath.c utmisc.c utmutex.c utobject.c	\
-	utstate.c
+	utresrc.c utstate.c
 
 MAN=	iasl.8
 

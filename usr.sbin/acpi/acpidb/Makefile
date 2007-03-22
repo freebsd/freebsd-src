@@ -46,21 +46,18 @@ SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c		\
 	rsutils.c rsxface.c
 
 # tables
-SRCS+=	tbconvrt.c tbget.c tbgetall.c tbinstal.c tbrsdt.c	\
-	tbutils.c tbxface.c tbxfroot.c
-
-# tools/acpiexec
-SRCS+=	aeexec.c
+SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\
+	tbxfroot.c
 
 # utilities
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
 	uteval.c utglobal.c utinit.c utmath.c utmisc.c		\
-	utmutex.c utobject.c utstate.c utxface.c
+	utmutex.c utobject.c utresrc.c utstate.c uttrack.c	\
+	utxface.c
 
 MAN=	acpidb.8
 WARNS?=	2
 
-CFLAGS+= -DACPI_APPLICATION -DACPI_DEBUG_OUTPUT -DACPI_DEBUGGER \
-	-DACPI_DISASSEMBLER
+CFLAGS+= -DACPI_EXEC_APP
 
 .include <bsd.prog.mk>

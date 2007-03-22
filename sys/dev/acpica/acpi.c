@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
+#include <vm/vm_param.h>
+
 MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
 
 /* Hooks for the ACPI CA debugging infrastructure */
@@ -273,39 +275,28 @@ ACPI_STATUS
 acpi_Startup(void)
 {
     static int started = 0;
-    int error, val;
+    ACPI_STATUS status;
+    int val;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /* Only run the startup code once.  The MADT driver also calls this. */
     if (started)
-	return_VALUE (0);
+	return_VALUE (AE_OK);
     started = 1;
 
-    /* Initialise the ACPI mutex */
-    mtx_init(&acpi_mutex, "ACPI global lock", NULL, MTX_DEF);
-
     /*
-     * Set the globals from our tunables.  This is needed because ACPI-CA
-     * uses UINT8 for some values and we have no tunable_byte.
+     * Pre-allocate space for RSDT/XSDT and DSDT tables and allow resizing
+     * if more tables exist.
      */
-    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods;
-    AcpiGbl_EnableInterpreterSlack = TRUE;
-
-    /* Start up the ACPI CA subsystem. */
-    if (ACPI_FAILURE(error = AcpiInitializeSubsystem())) {
-	printf("ACPI: initialisation failed: %s\n", AcpiFormatException(error));
-	return_VALUE (error);
-    }
-
-    if (ACPI_FAILURE(error = AcpiLoadTables())) {
-	printf("ACPI: table load failed: %s\n", AcpiFormatException(error));
-	AcpiTerminate();
-	return_VALUE (error);
+    if (ACPI_FAILURE(status = AcpiInitializeTables(NULL, 2, TRUE))) {
+	printf("ACPI: Table initialisation failed: %s\n",
+	    AcpiFormatException(status));
+	return_VALUE (status);
     }
 
     /* Set up any quirks we have for this system. */
-    if (acpi_quirks == 0)
+    if (acpi_quirks == ACPI_Q_OK)
 	acpi_table_quirks(&acpi_quirks);
 
     /* If the user manually set the disabled hint to 0, force-enable ACPI. */
@@ -313,11 +304,10 @@ acpi_Startup(void)
 	acpi_quirks &= ~ACPI_Q_BROKEN;
     if (acpi_quirks & ACPI_Q_BROKEN) {
 	printf("ACPI disabled by blacklist.  Contact your BIOS vendor.\n");
-	AcpiTerminate();
-	return_VALUE (AE_ERROR);
+	status = AE_SUPPORT;
     }
 
-    return_VALUE (AE_OK);
+    return_VALUE (status);
 }
 
 /*
@@ -341,9 +331,11 @@ acpi_identify(driver_t *driver, device_t parent)
     if (device_find_child(parent, "acpi", 0) != NULL)
 	return_VOID;
 
-    /* Initialize ACPI-CA. */
-    if (ACPI_FAILURE(acpi_Startup()))
+    /* Initialize root tables. */
+    if (ACPI_FAILURE(acpi_Startup())) {
+	printf("ACPI: Try disabling either ACPI or apic support.\n");
 	return_VOID;
+    }
 
     snprintf(acpi_ca_version, sizeof(acpi_ca_version), "%x", ACPI_CA_VERSION);
 
@@ -360,11 +352,11 @@ acpi_identify(driver_t *driver, device_t parent)
 static int
 acpi_probe(device_t dev)
 {
-    ACPI_TABLE_HEADER	th;
-    char		buf[20];
-    int			error;
+    ACPI_TABLE_RSDP	*rsdp;
+    ACPI_TABLE_HEADER	*rsdt;
+    ACPI_PHYSICAL_ADDRESS paddr;
+    char		buf[ACPI_OEM_ID_SIZE + ACPI_OEM_TABLE_ID_SIZE + 2];
     struct sbuf		sb;
-    ACPI_STATUS		status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -374,30 +366,36 @@ acpi_probe(device_t dev)
 	return_VALUE (ENXIO);
     }
 
-    if (ACPI_FAILURE(status = AcpiGetTableHeader(ACPI_TABLE_XSDT, 1, &th))) {
-	device_printf(dev, "couldn't get XSDT header: %s\n",
-		      AcpiFormatException(status));
-	error = ENXIO;
-    } else {
-	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
-	sbuf_bcat(&sb, th.OemId, 6);
-	sbuf_trim(&sb);
-	sbuf_putc(&sb, ' ');
-	sbuf_bcat(&sb, th.OemTableId, 8);
-	sbuf_trim(&sb);
-	sbuf_finish(&sb);
-	device_set_desc_copy(dev, sbuf_data(&sb));
-	sbuf_delete(&sb);
-	error = 0;
-    }
+    if ((paddr = AcpiOsGetRootPointer()) == 0 ||
+	(rsdp = AcpiOsMapMemory(paddr, sizeof(ACPI_TABLE_RSDP))) == NULL)
+	return_VALUE (ENXIO);
+    if (rsdp->Revision > 1 && rsdp->XsdtPhysicalAddress != 0)
+	paddr = (ACPI_PHYSICAL_ADDRESS)rsdp->XsdtPhysicalAddress;
+    else
+	paddr = (ACPI_PHYSICAL_ADDRESS)rsdp->RsdtPhysicalAddress;
+    AcpiOsUnmapMemory(rsdp, sizeof(ACPI_TABLE_RSDP));
 
-    return_VALUE (error);
+    if ((rsdt = AcpiOsMapMemory(paddr, sizeof(ACPI_TABLE_HEADER))) == NULL)
+	return_VALUE (ENXIO);
+    sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+    sbuf_bcat(&sb, rsdt->OemId, ACPI_OEM_ID_SIZE);
+    sbuf_trim(&sb);
+    sbuf_putc(&sb, ' ');
+    sbuf_bcat(&sb, rsdt->OemTableId, ACPI_OEM_TABLE_ID_SIZE);
+    sbuf_trim(&sb);
+    sbuf_finish(&sb);
+    device_set_desc_copy(dev, sbuf_data(&sb));
+    sbuf_delete(&sb);
+    AcpiOsUnmapMemory(rsdt, sizeof(ACPI_TABLE_HEADER));
+
+    return_VALUE (0);
 }
 
 static int
 acpi_attach(device_t dev)
 {
     struct acpi_softc	*sc;
+    ACPI_TABLE_FACS	*facs;
     ACPI_STATUS		status;
     int			error, state;
     UINT32		flags;
@@ -408,6 +406,8 @@ acpi_attach(device_t dev)
 
     sc = device_get_softc(dev);
     sc->acpi_dev = dev;
+
+    error = ENXIO;
 
     /* Initialize resource manager. */
     acpi_rman_io.rm_type = RMAN_ARRAY;
@@ -423,8 +423,33 @@ acpi_attach(device_t dev)
     if (rman_init(&acpi_rman_mem) != 0)
 	panic("acpi rman_init memory failed");
 
+    /* Initialise the ACPI mutex */
+    mtx_init(&acpi_mutex, "ACPI global lock", NULL, MTX_DEF);
+
+    /*
+     * Set the globals from our tunables.  This is needed because ACPI-CA
+     * uses UINT8 for some values and we have no tunable_byte.
+     */
+    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods;
+    AcpiGbl_EnableInterpreterSlack = TRUE;
+
+    /* Start up the ACPI CA subsystem. */
+    status = AcpiInitializeSubsystem();
+    if (ACPI_FAILURE(status)) {
+	device_printf(dev, "Could not initialize Subsystem: %s\n",
+		      AcpiFormatException(status));
+	goto out;
+    }
+
+    /* Load ACPI name space. */
+    status = AcpiLoadTables();
+    if (ACPI_FAILURE(status)) {
+	device_printf(dev, "Could not load Namespace: %s\n",
+		      AcpiFormatException(status));
+	goto out;
+    }
+
     /* Install the default address space handlers. */
-    error = ENXIO;
     status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 		ACPI_ADR_SPACE_SYSTEM_MEMORY, ACPI_DEFAULT_HANDLER, NULL, NULL);
     if (ACPI_FAILURE(status)) {
@@ -541,7 +566,14 @@ acpi_attach(device_t dev)
     }
 
     /* Only enable S4BIOS by default if the FACS says it is available. */
-    if (AcpiGbl_FACS->S4Bios_f != 0)
+    status = AcpiGetTable(ACPI_SIG_FACS, 0, (ACPI_TABLE_HEADER **)&facs);
+    if (ACPI_FAILURE(status)) {
+	device_printf(dev, "couldn't get FACS: %s\n",
+		      AcpiFormatException(status));
+	error = ENXIO;
+	goto out;
+    }
+    if (facs->Flags & ACPI_FACS_S4_BIOS_PRESENT)
 	sc->acpi_s4bios = 1;
 
     /*
@@ -1103,7 +1135,7 @@ acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
 	return (EINVAL);
 
     /* We only support memory and IO spaces. */
-    switch (gas->AddressSpaceId) {
+    switch (gas->SpaceId) {
     case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 	res_type = SYS_RES_MEMORY;
 	break;
@@ -1118,15 +1150,15 @@ acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
      * If the register width is less than 8, assume the BIOS author means
      * it is a bit field and just allocate a byte.
      */
-    if (gas->RegisterBitWidth && gas->RegisterBitWidth < 8)
-	gas->RegisterBitWidth = 8;
+    if (gas->BitWidth && gas->BitWidth < 8)
+	gas->BitWidth = 8;
 
     /* Validate the address after we're sure we support the space. */
-    if (!ACPI_VALID_ADDRESS(gas->Address) || gas->RegisterBitWidth == 0)
+    if (gas->Address == 0 || gas->BitWidth == 0)
 	return (EINVAL);
 
     bus_set_resource(dev, res_type, *rid, gas->Address,
-	gas->RegisterBitWidth / 8);
+	gas->BitWidth / 8);
     *res = bus_alloc_resource_any(dev, res_type, rid, RF_ACTIVE | flags);
     if (*res != NULL) {
 	*type = res_type;
@@ -1645,12 +1677,13 @@ acpi_shutdown_final(void *arg, int howto)
 	    DELAY(1000000);
 	    printf("ACPI power-off failed - timeout\n");
 	}
-    } else if ((howto & RB_HALT) == 0 && AcpiGbl_FADT->ResetRegSup &&
+    } else if ((howto & RB_HALT) == 0 &&
+	(AcpiGbl_FADT.Flags & ACPI_FADT_RESET_REGISTER) &&
 	sc->acpi_handle_reboot) {
 	/* Reboot using the reset register. */
 	status = AcpiHwLowLevelWrite(
-	    AcpiGbl_FADT->ResetRegister.RegisterBitWidth,
-	    AcpiGbl_FADT->ResetValue, &AcpiGbl_FADT->ResetRegister);
+	    AcpiGbl_FADT.ResetRegister.BitWidth,
+	    AcpiGbl_FADT.ResetValue, &AcpiGbl_FADT.ResetRegister);
 	if (ACPI_FAILURE(status)) {
 	    printf("ACPI reset failed - %s\n", AcpiFormatException(status));
 	} else {
@@ -1673,14 +1706,14 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
     static int	first_time = 1;
 
     /* Enable and clear fixed events and install handlers. */
-    if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->PwrButton == 0) {
+    if ((AcpiGbl_FADT.Flags & ACPI_FADT_POWER_BUTTON) == 0) {
 	AcpiClearEvent(ACPI_EVENT_POWER_BUTTON);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON,
 				     acpi_event_power_button_sleep, sc);
 	if (first_time)
 	    device_printf(sc->acpi_dev, "Power Button (fixed)\n");
     }
-    if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->SleepButton == 0) {
+    if ((AcpiGbl_FADT.Flags & ACPI_FADT_SLEEP_BUTTON) == 0) {
 	AcpiClearEvent(ACPI_EVENT_SLEEP_BUTTON);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_SLEEP_BUTTON,
 				     acpi_event_sleep_button_sleep, sc);
@@ -1832,10 +1865,10 @@ acpi_TimerDelta(uint32_t end, uint32_t start)
 
     if (end >= start)
 	delta = end - start;
-    else if (AcpiGbl_FADT->TmrValExt == 0)
-	delta = ((0x00FFFFFF - start) + end + 1) & 0x00FFFFFF;
-    else
+    else if (AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER)
 	delta = ((0xFFFFFFFF - start) + end + 1);
+    else
+	delta = ((0x00FFFFFF - start) + end + 1) & 0x00FFFFFF;
     return (delta);
 }
 
@@ -2252,13 +2285,11 @@ int
 acpi_wake_set_enable(device_t dev, int enable)
 {
     struct acpi_prw_data prw;
-    ACPI_HANDLE handle;
     ACPI_STATUS status;
     int flags;
 
     /* Make sure the device supports waking the system and get the GPE. */
-    handle = acpi_get_handle(dev);
-    if (acpi_parse_prw(handle, &prw) != 0)
+    if (acpi_parse_prw(acpi_get_handle(dev), &prw) != 0)
 	return (ENXIO);
 
     flags = acpi_get_flags(dev);

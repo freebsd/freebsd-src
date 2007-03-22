@@ -227,16 +227,6 @@ typedef UINT8				EC_EVENT;
 #define EC_SET_CSR(sc, v)						\
 	bus_space_write_1((sc)->ec_csr_tag, (sc)->ec_csr_handle, 0, (v))
 
-/* Embedded Controller Boot Resources Table (ECDT) */
-typedef struct {
-    ACPI_TABLE_HEADER		header;
-    ACPI_GENERIC_ADDRESS	control;
-    ACPI_GENERIC_ADDRESS	data;
-    UINT32			uid;
-    UINT8			gpe_bit;
-    char			ec_id[0];
-} ACPI_TABLE_ECDT;
-
 /* Additional params to pass from the probe routine */
 struct acpi_ec_params {
     int		glk;
@@ -408,7 +398,6 @@ void
 acpi_ec_ecdt_probe(device_t parent)
 {
     ACPI_TABLE_ECDT *ecdt;
-    ACPI_TABLE_HEADER *hdr;
     ACPI_STATUS	     status;
     device_t	     child;
     ACPI_HANDLE	     h;
@@ -417,23 +406,22 @@ acpi_ec_ecdt_probe(device_t parent)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /* Find and validate the ECDT. */
-    status = AcpiGetFirmwareTable("ECDT", 1, ACPI_LOGICAL_ADDRESSING, &hdr);
-    ecdt = (ACPI_TABLE_ECDT *)hdr;
+    status = AcpiGetTable(ACPI_SIG_ECDT, 1, (ACPI_TABLE_HEADER **)&ecdt);
     if (ACPI_FAILURE(status) ||
-	ecdt->control.RegisterBitWidth != 8 ||
-	ecdt->data.RegisterBitWidth != 8) {
+	ecdt->Control.BitWidth != 8 ||
+	ecdt->Data.BitWidth != 8) {
 	return;
     }
 
     /* Create the child device with the given unit number. */
-    child = BUS_ADD_CHILD(parent, 0, "acpi_ec", ecdt->uid);
+    child = BUS_ADD_CHILD(parent, 0, "acpi_ec", ecdt->Uid);
     if (child == NULL) {
 	printf("%s: can't add child\n", __func__);
 	return;
     }
 
     /* Find and save the ACPI handle for this device. */
-    status = AcpiGetHandle(NULL, ecdt->ec_id, &h);
+    status = AcpiGetHandle(NULL, ecdt->Id, &h);
     if (ACPI_FAILURE(status)) {
 	device_delete_child(parent, child);
 	printf("%s: can't get handle\n", __func__);
@@ -442,9 +430,9 @@ acpi_ec_ecdt_probe(device_t parent)
     acpi_set_handle(child, h);
 
     /* Set the data and CSR register addresses. */
-    bus_set_resource(child, SYS_RES_IOPORT, 0, ecdt->data.Address,
+    bus_set_resource(child, SYS_RES_IOPORT, 0, ecdt->Data.Address,
 	/*count*/1);
-    bus_set_resource(child, SYS_RES_IOPORT, 1, ecdt->control.Address,
+    bus_set_resource(child, SYS_RES_IOPORT, 1, ecdt->Control.Address,
 	/*count*/1);
 
     /*
@@ -456,8 +444,8 @@ acpi_ec_ecdt_probe(device_t parent)
      */
     params = malloc(sizeof(struct acpi_ec_params), M_TEMP, M_WAITOK | M_ZERO);
     params->gpe_handle = NULL;
-    params->gpe_bit = ecdt->gpe_bit;
-    params->uid = ecdt->uid;
+    params->gpe_bit = ecdt->Gpe;
+    params->uid = ecdt->Uid;
     acpi_GetInteger(h, "_GLK", &params->glk);
     acpi_set_private(child, params);
     acpi_set_magic(child, (int)&acpi_ec_devclass);
@@ -830,8 +818,7 @@ EcGpeHandler(void *Context)
     } else if (!sc->ec_sci_pend) {
 	/* SCI bit set and no pending query handler, so schedule one. */
 	CTR0(KTR_ACPI, "ec queueing gpe handler");
-	Status = AcpiOsQueueForExecution(OSD_PRIORITY_GPE, EcGpeQueryHandler,
-	    Context);
+	Status = AcpiOsExecute(OSL_GPE_HANDLER, EcGpeQueryHandler, Context);
 	if (ACPI_SUCCESS(Status)) {
 	    sc->ec_sci_pend = TRUE;
 	    query_pend = TRUE;
