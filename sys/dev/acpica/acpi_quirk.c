@@ -47,10 +47,8 @@ enum val_t {
 	CREATOR_REV,
 };
 
-#define ACPI_TABLE_END		(ACPI_TABLE_MAX + 1)
-
 struct acpi_q_rule {
-    int 	sig;		/* Table signature to match */
+    char	sig[ACPI_NAME_SIZE];	/* Table signature to match */
     enum val_t	val;
     union {
 	char	*id;
@@ -141,33 +139,35 @@ acpi_table_quirks(int *quirks)
 {
     const struct acpi_q_entry *entry;
     const struct acpi_q_rule *match;
-    ACPI_TABLE_HEADER *hdr;
+    ACPI_TABLE_HEADER fadt, dsdt, xsdt, *hdr;
     int done;
 
     /* First, allow the machdep system to set its idea of quirks. */
     KASSERT(quirks != NULL, ("acpi quirks ptr is NULL"));
     acpi_machdep_quirks(quirks);
 
+    if (ACPI_FAILURE(AcpiGetTableHeader(ACPI_SIG_FADT, 0, &fadt)))
+	bzero(&fadt, sizeof(fadt));
+    if (ACPI_FAILURE(AcpiGetTableHeader(ACPI_SIG_DSDT, 0, &dsdt)))
+	bzero(&fadt, sizeof(dsdt));
+    if (ACPI_FAILURE(AcpiGetTableHeader(ACPI_SIG_XSDT, 0, &xsdt)))
+	bzero(&fadt, sizeof(xsdt));
+
     /* Then, override the quirks with any matched from table signatures. */
     for (entry = acpi_quirks_table; entry->match; entry++) {
 	done = TRUE;
-	for (match = entry->match; match->sig != ACPI_TABLE_END; match++) {
-	    switch (match->sig) {
-	    case ACPI_TABLE_FADT:
-		hdr = (ACPI_TABLE_HEADER *)AcpiGbl_FADT;
-		break;
-	    case ACPI_TABLE_DSDT:
-		hdr = (ACPI_TABLE_HEADER *)AcpiGbl_DSDT;
-		break;
-	    case ACPI_TABLE_XSDT:
-		hdr = (ACPI_TABLE_HEADER *)AcpiGbl_XSDT;
-		break;
-	    default:
+	for (match = entry->match; match->sig[0] != '\0'; match++) {
+	    if (!strncmp(match->sig, "FADT", ACPI_NAME_SIZE))
+		hdr = &fadt;
+	    else if (!strncmp(match->sig, ACPI_SIG_DSDT, ACPI_NAME_SIZE))
+		hdr = &dsdt;
+	    else if (!strncmp(match->sig, ACPI_SIG_XSDT, ACPI_NAME_SIZE))
+		hdr = &xsdt;
+	    else
 		panic("invalid quirk header\n");
-	    }
 
 	    /* If we don't match any, skip to the next entry. */
-	    if (!aq_match_header(hdr, match)) {
+	    if (aq_match_header(hdr, match) == FALSE) {
 		done = FALSE;
 		break;
 	    }

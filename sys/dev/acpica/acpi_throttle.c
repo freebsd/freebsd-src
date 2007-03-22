@@ -141,7 +141,7 @@ acpi_throttle_identify(driver_t *driver, device_t parent)
 	handle = acpi_get_handle(parent);
 	if (handle == NULL)
 		return;
-	if (AcpiGbl_FADT->DutyWidth == 0 ||
+	if (AcpiGbl_FADT.DutyWidth == 0 ||
 	    acpi_get_type(parent) != ACPI_TYPE_PROCESSOR)
 		return;
 
@@ -242,8 +242,8 @@ acpi_throttle_evaluate(struct acpi_throttle_softc *sc)
 
 	/* Get throttling parameters from the FADT.  0 means not supported. */
 	if (device_get_unit(sc->cpu_dev) == 0) {
-		cpu_duty_offset = AcpiGbl_FADT->DutyOffset;
-		cpu_duty_width = AcpiGbl_FADT->DutyWidth;
+		cpu_duty_offset = AcpiGbl_FADT.DutyOffset;
+		cpu_duty_width = AcpiGbl_FADT.DutyWidth;
 	}
 	if (cpu_duty_width == 0 || (thr_quirks & CPU_QUIRK_NO_THROTTLE) != 0)
 		return (ENXIO);
@@ -295,8 +295,8 @@ acpi_throttle_evaluate(struct acpi_throttle_softc *sc)
 		if (sc->cpu_p_blk_len < 4)
 			return (ENXIO);
 		gas.Address = sc->cpu_p_blk;
-		gas.AddressSpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
-		gas.RegisterBitWidth = 32;
+		gas.SpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
+		gas.BitWidth = 32;
 		acpi_bus_alloc_gas(sc->cpu_dev, &sc->cpu_p_type, &thr_rid,
 		    &gas, &sc->cpu_p_cnt, 0);
 		if (sc->cpu_p_cnt != NULL) {

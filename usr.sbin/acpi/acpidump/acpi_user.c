@@ -35,12 +35,14 @@
 
 #include <err.h>
 #include <fcntl.h>
+#include <kenv.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "acpidump.h"
 
+static char	hint_acpi_0_rsdp[] = "hint.acpi.0.rsdp";
 static char	machdep_acpi_root[] = "machdep.acpi_root";
 static int      acpi_mem_fd = -1;
 
@@ -124,7 +126,7 @@ acpi_get_rsdp(u_long addr)
 static struct ACPIrsdp *
 acpi_scan_rsd_ptr(void)
 {
-#if defined(__i386__)
+#if defined(__amd64__) || defined(__i386__)
 	struct ACPIrsdp *rsdp;
 	u_long		addr, end;
 
@@ -147,7 +149,7 @@ acpi_scan_rsd_ptr(void)
 	for (; addr < end; addr += 16)
 		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
 			return (rsdp);
-#endif /* __i386__ */
+#endif /* __amd64__ || __i386__ */
 	return (NULL);
 }
 
@@ -158,20 +160,22 @@ struct ACPIrsdp *
 acpi_find_rsd_ptr(void)
 {
 	struct ACPIrsdp *rsdp;
+	char		buf[20];
 	u_long		addr;
 	size_t		len;
 
 	acpi_user_init();
 
-	/* Attempt to use sysctl to find RSD PTR record. */
-	len = sizeof(addr);
-	if (sysctlbyname(machdep_acpi_root, &addr, &len, NULL, 0) == 0) {	
-		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
-			return (rsdp);
-		else
-			warnx("sysctl %s does not point to RSDP",
-			    machdep_acpi_root);
+	/* Attempt to use kenv or sysctl to find RSD PTR record. */
+	if (kenv(KENV_GET, hint_acpi_0_rsdp, buf, 20) == 0)
+		addr = strtoul(buf, NULL, 0);
+	if (addr == 0) {
+		len = sizeof(addr);
+		if (sysctlbyname(machdep_acpi_root, &addr, &len, NULL, 0) != 0)
+			addr = 0;
 	}
+	if (addr != 0 && (rsdp = acpi_get_rsdp(addr)) != NULL)
+		return (rsdp);
 
 	return (acpi_scan_rsd_ptr());
 }

@@ -128,7 +128,7 @@ acpi_acad_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     case ACPI_NOTIFY_DEVICE_CHECK:
     case ACPI_POWERSOURCE_STAT_CHANGE:
 	/* Temporarily.  It is better to notify policy manager */
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_acad_get_status, context);
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_acad_get_status, context);
 	break;
     default:
 	device_printf(dev, "unknown notify %#x\n", notify);
@@ -181,7 +181,7 @@ acpi_acad_attach(device_t dev)
      */
     AcpiInstallNotifyHandler(handle, ACPI_ALL_NOTIFY,
 			     acpi_acad_notify_handler, dev);
-    AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_acad_init_acline, dev);
+    AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_acad_init_acline, dev);
 
     return (0);
 }

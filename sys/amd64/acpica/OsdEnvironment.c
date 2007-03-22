@@ -32,10 +32,12 @@ __FBSDID("$FreeBSD$");
  * 6.1 : Environmental support
  */
 #include <sys/types.h>
+#include <sys/bus.h>
 #include <sys/linker_set.h>
 #include <sys/sysctl.h>
 
 #include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/actables.h>
 
 static u_long amd64_acpi_root;
 
@@ -54,25 +56,16 @@ AcpiOsTerminate(void)
 	return(0);
 }
 
-ACPI_STATUS
-AcpiOsGetRootPointer(UINT32 Flags, ACPI_POINTER *RsdpPhysicalAddress)
+ACPI_PHYSICAL_ADDRESS
+AcpiOsGetRootPointer(void)
 {
-	ACPI_POINTER ptr;
-	ACPI_STATUS status;
+	u_long	ptr;
 
-	if (amd64_acpi_root == 0) {
-		/*
-		 * The loader passes the physical address at which it found the
-		 * RSDP in a hint.  We could recover this rather than searching
-		 * manually here.
-		 */
-		status = AcpiFindRootPointer(Flags, &ptr);
-		if (status == AE_OK)
-			amd64_acpi_root = ptr.Pointer.Physical;
-	} else
-		status = AE_OK;
+	if (amd64_acpi_root == 0 &&
+	    (resource_long_value("acpi", 0, "rsdp", (long *)&ptr) == 0 ||
+	    AcpiFindRootPointer((ACPI_NATIVE_UINT *)&ptr) == AE_OK) &&
+	    ptr != 0)
+		amd64_acpi_root = ptr;
 
-	RsdpPhysicalAddress->PointerType = ACPI_PHYSICAL_POINTER;
-	RsdpPhysicalAddress->Pointer.Physical = amd64_acpi_root;
-	return (status);
+	return (amd64_acpi_root);
 }

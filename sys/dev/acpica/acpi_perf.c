@@ -221,7 +221,7 @@ acpi_perf_attach(device_t dev)
 	sc->px_curr_state = CPUFREQ_VAL_UNKNOWN;
 	if (acpi_perf_evaluate(dev) != 0)
 		return (ENXIO);
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_px_startup, NULL);
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_px_startup, NULL);
 	if (!sc->info_only)
 		cpufreq_register(dev);
 
@@ -393,10 +393,10 @@ acpi_px_startup(void *arg)
 {
 
 	/* Signal to the platform that we are taking over CPU control. */
-	if (AcpiGbl_FADT->PstateCnt == 0)
+	if (AcpiGbl_FADT.PstateControl == 0)
 		return;
 	ACPI_LOCK(acpi);
-	AcpiOsWritePort(AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->PstateCnt, 8);
+	AcpiOsWritePort(AcpiGbl_FADT.SmiCommand, AcpiGbl_FADT.PstateControl, 8);
 	ACPI_UNLOCK(acpi);
 }
 

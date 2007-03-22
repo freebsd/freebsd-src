@@ -443,7 +443,7 @@ acpi_asus_probe(device_t dev)
 		ACPI_STATUS		status;
 		ACPI_TABLE_HEADER	th;
 
-		status = AcpiGetTableHeader(ACPI_TABLE_DSDT, 1, &th);
+		status = AcpiGetTableHeader(ACPI_SIG_DSDT, 0, &th);
 		if (ACPI_FAILURE(status)) {
 			device_printf(dev, "Unsupported (Samsung?) laptop\n");
 			AcpiOsFree(Buf.Pointer);
@@ -720,8 +720,7 @@ acpi_asus_led(struct acpi_asus_led *led, int state)
 	led->busy = 1;
 	led->state = state;
 
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-	    (void *)acpi_asus_led_task, led);
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, (void *)acpi_asus_led_task, led);
 }
 
 static int

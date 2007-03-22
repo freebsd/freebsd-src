@@ -36,38 +36,38 @@ __FBSDID("$FreeBSD$");
 
 typedef struct  /* LOCAL SAPIC */
 {
-        APIC_HEADER     Header;
-        UINT8           ProcessorId;            /* ACPI processor id */
-        UINT8           LocalSapicId;           /* Processor local SAPIC id */
-        UINT8           LocalSapicEid;          /* Processor local SAPIC eid */
-        UINT8           Reserved[3];
-        UINT32          ProcessorEnabled: 1;
-        UINT32          FlagsReserved: 31;
+	ACPI_SUBTABLE_HEADER Header;
+	UINT8		ProcessorId;		/* ACPI processor id */
+	UINT8		LocalSapicId;		/* Processor local SAPIC id */
+	UINT8		LocalSapicEid;		/* Processor local SAPIC eid */
+	UINT8		Reserved[3];
+	UINT32		ProcessorEnabled: 1;
+	UINT32		FlagsReserved: 31;
 } LOCAL_SAPIC;
 
 typedef struct  /* IO SAPIC */
 {
-        APIC_HEADER     Header;
-        UINT8           IoSapicId;              /* I/O SAPIC ID */
-        UINT8           Reserved;               /* reserved - must be zero */
-        UINT32          Vector;                 /* interrupt base */
-        UINT64          IoSapicAddress;         /* SAPIC's physical address */
+	ACPI_SUBTABLE_HEADER Header;
+	UINT8		IoSapicId;		/* I/O SAPIC ID */
+	UINT8		Reserved;		/* reserved - must be zero */
+	UINT32		Vector;			/* interrupt base */
+	UINT64		IoSapicAddress;		/* SAPIC's physical address */
 } IO_SAPIC;
 
 /*
  */
 
 struct {
-	MULTIPLE_APIC_TABLE	Header;
-	MADT_LOCAL_SAPIC	cpu0;
-	MADT_LOCAL_SAPIC	cpu1;
-	MADT_LOCAL_SAPIC	cpu2;
-	MADT_LOCAL_SAPIC	cpu3;
-	MADT_IO_SAPIC		sapic;
+	ACPI_TABLE_MADT		MADT;
+	ACPI_MADT_LOCAL_SAPIC	cpu0;
+	ACPI_MADT_LOCAL_SAPIC	cpu1;
+	ACPI_MADT_LOCAL_SAPIC	cpu2;
+	ACPI_MADT_LOCAL_SAPIC	cpu3;
+	ACPI_MADT_IO_SAPIC	sapic;
 } apic = {
 	/* Header. */
 	{
-		APIC_SIG,			/* Signature. */
+		ACPI_SIG_MADT,			/* Signature. */
 		sizeof(apic),			/* Length of table. */
 		0,				/* ACPI minor revision. */
 		0,				/* Checksum. */
@@ -134,7 +134,7 @@ struct {
 	UINT64			apic_tbl;
 } xsdt = {
 	{
-		XSDT_SIG,		/* Signature. */
+		ACPI_SIG_XSDT,		/* Signature. */
 		sizeof(xsdt),		/* Length of table. */
 		0,			/* ACPI minor revision. */
 		0,			/* XXX checksum. */
@@ -147,8 +147,8 @@ struct {
 	0UL				/* XXX APIC table address. */
 };
 
-RSDP_DESCRIPTOR acpi_root = {
-	RSDP_SIG,
+ACPI_TABLE_RSDP acpi_root = {
+	ACPI_SIG_RSDP,
 	0,				/* XXX checksum. */
 	"FBSD",
 	2,				/* ACPI Rev 2.0. */
@@ -177,7 +177,7 @@ acpi_stub_init(void)
 	cksum(&acpi_root, 20, &acpi_root.Checksum);
 	cksum(&acpi_root, sizeof(acpi_root), &acpi_root.ExtendedChecksum);
 
-	cksum(&apic, sizeof(apic), &apic.Header.Checksum);
+	cksum(&apic, sizeof(apic), &apic.MADT.Header.Checksum);
 	xsdt.apic_tbl = (UINT32)&apic;
 	cksum(&xsdt, sizeof(xsdt), &xsdt.Header.Checksum);
 }

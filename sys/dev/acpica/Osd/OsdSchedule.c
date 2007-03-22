@@ -87,7 +87,7 @@ acpi_task_execute(void *context, int pending)
  * We allocate and queue a task for one of our taskqueue threads to process.
  */
 ACPI_STATUS
-AcpiOsQueueForExecution(UINT32 Priority, ACPI_OSD_EXEC_CALLBACK Function,
+AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
     void *Context)
 {
     struct acpi_task_ctx *at;
@@ -104,18 +104,20 @@ AcpiOsQueueForExecution(UINT32 Priority, ACPI_OSD_EXEC_CALLBACK Function,
 
     at->at_function = Function;
     at->at_context = Context;
-    switch (Priority) {
-    case OSD_PRIORITY_GPE:
-	pri = 4;
+    switch (Type) {
+    case OSL_GPE_HANDLER:
+	pri = 10;
 	break;
-    case OSD_PRIORITY_HIGH:
+    case OSL_GLOBAL_LOCK_HANDLER:
+    case OSL_EC_POLL_HANDLER:
+    case OSL_EC_BURST_HANDLER:
+	pri = 5;
+	break;
+    case OSL_NOTIFY_HANDLER:
 	pri = 3;
 	break;
-    case OSD_PRIORITY_MED:
-	pri = 2;
-	break;
-    case OSD_PRIORITY_LO:
-	pri = 1;
+    case OSL_DEBUGGER_THREAD:
+	pri = 0;
 	break;
     default:
 	free(at, M_ACPITASK);
@@ -178,7 +180,7 @@ AcpiOsStall(UINT32 Microseconds)
     return_VOID;
 }
 
-UINT32
+ACPI_THREAD_ID
 AcpiOsGetThreadId(void)
 {
     struct proc *p;
