@@ -147,7 +147,8 @@ AcpiSetFirmwareWakingVector (
 
     /* Get the FACS */
 
-    Status = AcpiGetTableByIndex (ACPI_TABLE_INDEX_FACS, (ACPI_TABLE_HEADER **) &Facs);
+    Status = AcpiGetTableByIndex (ACPI_TABLE_INDEX_FACS,
+        ACPI_CAST_INDIRECT_PTR (ACPI_TABLE_HEADER, &Facs));
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -209,7 +210,8 @@ AcpiGetFirmwareWakingVector (
 
     /* Get the FACS */
 
-    Status = AcpiGetTableByIndex (ACPI_TABLE_INDEX_FACS, (ACPI_TABLE_HEADER **) &Facs);
+    Status = AcpiGetTableByIndex (ACPI_TABLE_INDEX_FACS,
+        ACPI_CAST_INDIRECT_PTR (ACPI_TABLE_HEADER, &Facs));
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
