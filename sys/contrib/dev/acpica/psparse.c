@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psparse - Parser top level AML parse routines
- *              $Revision: 146 $
+ *              $Revision: 1.171 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -224,7 +224,7 @@ AcpiPsCompleteThisOp (
     ACPI_PARSE_OBJECT       *ReplacementOp = NULL;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("PsCompleteThisOp", Op);
+    ACPI_FUNCTION_TRACE_PTR (PsCompleteThisOp, Op);
 
 
     /* Check for null Op, can happen if AML code is corrupt */
@@ -415,13 +415,12 @@ AcpiPsNextParseState (
     ACPI_STATUS             Status = AE_CTRL_PENDING;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("PsNextParseState", Op);
+    ACPI_FUNCTION_TRACE_PTR (PsNextParseState, Op);
 
 
     switch (CallbackStatus)
     {
     case AE_CTRL_TERMINATE:
-
         /*
          * A control method was terminated via a RETURN statement.
          * The walk of this method is complete.
@@ -438,12 +437,13 @@ AcpiPsNextParseState (
         Status = AE_CTRL_BREAK;
         break;
 
-    case AE_CTRL_CONTINUE:
 
+    case AE_CTRL_CONTINUE:
 
         ParserState->Aml = WalkState->AmlLastWhile;
         Status = AE_CTRL_CONTINUE;
         break;
+
 
     case AE_CTRL_PENDING:
 
@@ -459,17 +459,16 @@ AcpiPsNextParseState (
 #endif
 
     case AE_CTRL_TRUE:
-
         /*
          * Predicate of an IF was true, and we are at the matching ELSE.
          * Just close out this package
          */
         ParserState->Aml = AcpiPsGetNextPackageEnd (ParserState);
+        Status = AE_CTRL_PENDING;
         break;
 
 
     case AE_CTRL_FALSE:
-
         /*
          * Either an IF/WHILE Predicate was false or we encountered a BREAK
          * opcode.  In both cases, we do not execute the rest of the
@@ -538,7 +537,7 @@ AcpiPsParseAml (
     ACPI_WALK_STATE         *PreviousWalkState;
 
 
-    ACPI_FUNCTION_TRACE ("PsParseAml");
+    ACPI_FUNCTION_TRACE (PsParseAml);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
         "Entered with WalkState=%p Aml=%p size=%X\n",
@@ -551,10 +550,21 @@ AcpiPsParseAml (
     Thread = AcpiUtCreateThreadState ();
     if (!Thread)
     {
+        AcpiDsDeleteWalkState (WalkState);
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
     WalkState->Thread = Thread;
+
+    /*
+     * If executing a method, the starting SyncLevel is this method's
+     * SyncLevel
+     */
+    if (WalkState->MethodDesc)
+    {
+        WalkState->Thread->CurrentSyncLevel = WalkState->MethodDesc->Method.SyncLevel;
+    }
+
     AcpiDsPushWalkState (WalkState, Thread);
 
     /*
@@ -592,6 +602,10 @@ AcpiPsParseAml (
              * Transfer control to the called control method
              */
             Status = AcpiDsCallControlMethod (Thread, WalkState, NULL);
+            if (ACPI_FAILURE (Status))
+            {
+                Status = AcpiDsMethodError (Status, WalkState);
+            }
 
             /*
              * If the transfer to the new method method call worked, a new walk
@@ -606,26 +620,30 @@ AcpiPsParseAml (
         }
         else if ((Status != AE_OK) && (WalkState->MethodDesc))
         {
-            ACPI_REPORT_METHOD_ERROR ("Method execution failed",
+            /* Either the method parse or actual execution failed */
+
+            ACPI_ERROR_METHOD ("Method parse/execution failed",
                 WalkState->MethodNode, NULL, Status);
-
-            /* Ensure proper cleanup */
-
-            WalkState->ParseFlags |= ACPI_PARSE_EXECUTE;
 
             /* Check for possible multi-thread reentrancy problem */
 
             if ((Status == AE_ALREADY_EXISTS) &&
-                (!WalkState->MethodDesc->Method.Semaphore))
+                (!WalkState->MethodDesc->Method.Mutex))
             {
+                ACPI_INFO ((AE_INFO, "Marking method %4.4s as Serialized",
+                    WalkState->MethodNode->Name.Ascii));
+
                 /*
-                 * This method is marked NotSerialized, but it tried to create
+                 * Method tried to create an object twice. The probable cause is
+                 * that the method cannot handle reentrancy.
+                 *
+                 * The method is marked NotSerialized, but it tried to create
                  * a named object, causing the second thread entrance to fail.
-                 * We will workaround this by marking the method permanently
+                 * Workaround this problem by marking the method permanently
                  * as Serialized.
                  */
                 WalkState->MethodDesc->Method.MethodFlags |= AML_METHOD_SERIALIZED;
-                WalkState->MethodDesc->Method.Concurrency = 1;
+                WalkState->MethodDesc->Method.SyncLevel = 0;
             }
         }
 
@@ -638,25 +656,19 @@ AcpiPsParseAml (
         AcpiDsScopeStackClear (WalkState);
 
         /*
-         * If we just returned from the execution of a control method,
-         * there's lots of cleanup to do
+         * If we just returned from the execution of a control method or if we
+         * encountered an error during the method parse phase, there's lots of
+         * cleanup to do
          */
-        if ((WalkState->ParseFlags & ACPI_PARSE_MODE_MASK) == ACPI_PARSE_EXECUTE)
+        if (((WalkState->ParseFlags & ACPI_PARSE_MODE_MASK) == ACPI_PARSE_EXECUTE) ||
+            (ACPI_FAILURE (Status)))
         {
-            if (WalkState->MethodDesc)
-            {
-                /* Decrement the thread count on the method parse tree */
-
-                WalkState->MethodDesc->Method.ThreadCount--;
-            }
-
-            AcpiDsTerminateControlMethod (WalkState);
+            AcpiDsTerminateControlMethod (WalkState->MethodDesc, WalkState);
         }
 
         /* Delete this walk state and all linked control states */
 
         AcpiPsCleanupScope (&WalkState->ParserState);
-
         PreviousWalkState = WalkState;
 
         ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
