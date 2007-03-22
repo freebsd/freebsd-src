@@ -17,18 +17,17 @@ dst=./acpi_ca_destination
 fulldirs="common compiler"
 # files to remove
 stripdirs="generate acpisrc"
-stripfiles="16bit.h Makefile README a16find.c a16utils.asm		\
-	a16utils.lst a16utils.obj abcompare.c abmain.c acdos16.h	\
-	acintel.h aclinux.h acmsvc.h acnetbsd.h acpibin.h acwin.h	\
-	acwin64.h adisasm.h aemain.c osunixdir.c readme.txt"
+stripfiles="16bit.h Makefile README a16find.c a16utils.asm a16utils.obj	\
+	acdos16.h acintel.h aclinux.h acmsvc.h acnetbsd.h acpixtract.c	\
+	acwin.h acwin64.h aeexec.c aemain.c osdosxf.c osunixdir.c	\
+	oswindir.c oswinxf.c readme.txt"
 # include files to canonify
 src_headers="acapps.h acconfig.h acdebug.h acdisasm.h acdispat.h	\
 	acenv.h	acevents.h acexcep.h acfreebsd.h acgcc.h acglobal.h	\
 	achware.h acinterp.h aclocal.h acmacros.h acnames.h acnamesp.h	\
 	acobject.h acopcode.h acoutput.h acparser.h acpi.h acpiosxf.h	\
 	acpixf.h acresrc.h acstruct.h actables.h actbl.h actbl1.h	\
-	actbl2.h actypes.h acutils.h aecommon.h amlcode.h amlresrc.h	\
-	mlresrc.h"
+	actbl2.h actypes.h acutils.h aecommon.h amlcode.h amlresrc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h asltypes.h"
 	
 # files to update paths in
@@ -56,7 +55,7 @@ done
 
 echo copying full dirs
 for i in ${fulldirs}; do
-    find ${wrk} -name ${i} -type d | xargs -J % mv % ${dst}
+	find ${wrk} -name ${i} -type d | xargs -J % mv % ${dst}
 done
 
 # move files to destination
