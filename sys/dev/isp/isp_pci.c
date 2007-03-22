@@ -1053,12 +1053,7 @@ isp_pci_attach(device_t dev)
 			isp->isp_osinfo.fw = firmware_get(fwname);
 		}
 		if (isp->isp_osinfo.fw != NULL) {
-			union {
-				const void *fred;
-				uint16_t *bob;
-			} u;
-			u.fred = isp->isp_osinfo.fw->data;
-			isp->isp_mdvec->dv_ispfw = u.bob;
+			isp->isp_mdvec->dv_ispfw = isp->isp_osinfo.fw->data;
 		}
 	}
 #else

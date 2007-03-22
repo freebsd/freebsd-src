@@ -68,7 +68,7 @@ struct ispmdvec {
 	void		(*dv_reset0) (ispsoftc_t *);
 	void		(*dv_reset1) (ispsoftc_t *);
 	void		(*dv_dregs) (ispsoftc_t *, const char *);
-	void *		dv_ispfw;	/* ptr to f/w */
+	const void *	dv_ispfw;	/* ptr to f/w */
 	uint16_t	dv_conf1;
 	uint16_t	dv_clock;	/* clock frequency */
 };
@@ -162,7 +162,9 @@ struct ispmdvec {
  * SCSI Specific Host Adapter Parameters- per bus, per target
  */
 typedef struct {
-	uint32_t	isp_gotdparms		: 1,
+	uint32_t 				: 10,
+			isp_bad_nvram		: 1,
+			isp_gotdparms		: 1,
 			isp_req_ack_active_neg	: 1,
 			isp_data_line_active_neg: 1,
 			isp_cmd_dma_burst_enable: 1,
@@ -363,10 +365,10 @@ typedef struct {
 				isp_gbspeed	: 3,
 						: 1,
 						: 1,
-						: 1,
+				isp_gotdparms	: 1,
+				isp_bad_nvram	: 1,
 				isp_loopstate	: 4,	/* Current Loop State */
 				isp_fwstate	: 4,	/* ISP F/W state */
-				isp_gotdparms	: 1,
 				isp_topo	: 3,
 				loop_seen_once	: 1;
 	uint32_t				: 8,
