@@ -81,6 +81,10 @@ __FBSDID("$FreeBSD$");
 #define MUTEX_WAKE_ALL
 #endif
 
+#if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
+#define	ADAPTIVE_MUTEXES
+#endif
+
 /*
  * Internal utility macros.
  */
@@ -299,7 +303,7 @@ void
 _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
-#if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
+#ifdef ADAPTIVE_MUTEXES
 	volatile struct thread *owner;
 #endif
 #ifdef KTR
@@ -365,7 +369,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 			continue;
 		}
 
-#if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
+#ifdef ADAPTIVE_MUTEXES
 		/*
 		 * If the current owner of the lock is executing on another
 		 * CPU, spin instead of blocking.
@@ -383,7 +387,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 			}
 			continue;
 		}
-#endif	/* SMP && !NO_ADAPTIVE_MUTEXES */
+#endif	/* ADAPTIVE_MUTEXES */
 
 		/*
 		 * We definitely must sleep for this lock.
@@ -498,7 +502,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
 
-#if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
+#ifdef ADAPTIVE_MUTEXES
 	if (ts == NULL) {
 		_release_lock_quick(m);
 		if (LOCK_LOG_TEST(&m->lock_object, opts))
