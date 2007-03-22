@@ -176,7 +176,7 @@
 /* Always use FreeBSD code over our local versions */
 #define ACPI_USE_SYSTEM_CLIBRARY
 
-#ifdef _KERNEL
+#if defined(_KERNEL) && (__FreeBSD_version < 700020)
 /* Or strstr (used in debugging mode, also move to libkern) */
 static __inline char *
 strstr (char *s, char *find)
