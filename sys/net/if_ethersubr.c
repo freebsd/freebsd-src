@@ -669,15 +669,14 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 #endif
 	{
 		/*
-		 * If the frame was received promiscuously, set the
+		 * If the frame received was not for our MAC address, set the
 		 * M_PROMISC flag on the mbuf chain. The frame may need to
 		 * be seen by the rest of the Ethernet input path in case of
 		 * re-entry (e.g. bridge, vlan, netgraph) but should not be
 		 * seen by upper protocol layers.
 		 */
 		if (!ETHER_IS_MULTICAST(eh->ether_dhost) &&
-		    (ifp->if_flags & IFF_PROMISC) != 0 &&
-		    !bcmp(IF_LLADDR(ifp), eh->ether_dhost, ETHER_ADDR_LEN))
+		    bcmp(IF_LLADDR(ifp), eh->ether_dhost, ETHER_ADDR_LEN) != 0)
 			m->m_flags |= M_PROMISC;
 	}
 
