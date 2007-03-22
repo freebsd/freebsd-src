@@ -318,7 +318,6 @@ route_output(struct mbuf *m, struct socket *so)
 	struct rt_addrinfo info;
 	int len, error = 0;
 	struct ifnet *ifp = NULL;
-	struct ifaddr *ifa = NULL;
 	struct sockaddr_in jail;
 
 #define senderr(e) { error = e; goto flush;}
@@ -515,25 +514,25 @@ route_output(struct mbuf *m, struct socket *so)
 					senderr(error);
 				RT_LOCK(rt);
 			}
-			if (info.rti_info[RTAX_GATEWAY] != NULL &&
-			    (error = rt_setgate(rt, rt_key(rt),
-					info.rti_info[RTAX_GATEWAY])) != 0) {
-				RT_UNLOCK(rt);
-				senderr(error);
+			if (info.rti_ifa != rt->rt_ifa && rt->rt_ifa != NULL &&
+			    rt->rt_ifa->ifa_rtrequest != NULL) {
+				rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt,
+				    &info);
+				IFAFREE(rt->rt_ifa);
 			}
-			if ((ifa = info.rti_ifa) != NULL) {
-				struct ifaddr *oifa = rt->rt_ifa;
-				if (oifa != ifa) {
-					if (oifa) {
-						if (oifa->ifa_rtrequest)
-							oifa->ifa_rtrequest(
-								RTM_DELETE, rt,
-								&info);
-						IFAFREE(oifa);
-					}
-				        IFAREF(ifa);
-				        rt->rt_ifa = ifa;
-				        rt->rt_ifp = info.rti_ifp;
+			if (info.rti_info[RTAX_GATEWAY] != NULL) {
+				if ((error = rt_setgate(rt, rt_key(rt),
+					info.rti_info[RTAX_GATEWAY])) != 0) {
+					RT_UNLOCK(rt);
+					senderr(error);
+				}
+				rt->rt_flags |= RTF_GATEWAY;
+			}
+			if (info.rti_ifa != rt->rt_ifa) {
+				rt->rt_ifa = info.rti_ifa;
+				if (info.rti_ifa != NULL) {
+					IFAREF(info.rti_ifa);
+					rt->rt_ifp = info.rti_ifp;
 				}
 			}
 			/* Allow some flags to be toggled on change. */
