@@ -35,7 +35,7 @@ extern uint32_t isp_handle_index(uint32_t);
 extern void isp_destroy_handle(ispsoftc_t *, uint32_t);
 extern int isp_getrqentry(ispsoftc_t *, uint32_t *, uint32_t *, void **);
 extern void isp_print_qentry (ispsoftc_t *, char *, int, void *);
-extern void isp_print_bytes(ispsoftc_t *, char *, int, void *);
+extern void isp_print_bytes(ispsoftc_t *, const char *, int, void *);
 extern int isp_fc_runstate(ispsoftc_t *, int);
 extern void isp_dump_portdb(ispsoftc_t *);
 extern void isp_shutdown(ispsoftc_t *);
