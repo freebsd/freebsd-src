@@ -78,25 +78,20 @@ SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 
 /* timer values */
-static int arpt_prune = (5*60*1); /* walk list every 5 minutes */
 static int arpt_keep = (20*60); /* once resolved, good for 20 more minutes */
 
-SYSCTL_INT(_net_link_ether_inet, OID_AUTO, prune_intvl, CTLFLAG_RW,
-	   &arpt_prune, 0, "ARP table prune interval in seconds");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW, 
 	   &arpt_keep, 0, "ARP entry lifetime in seconds");
 
 #define	rt_expire rt_rmx.rmx_expire
 
 struct llinfo_arp {
-	LIST_ENTRY(llinfo_arp) la_le;
+	struct	callout la_timer;
 	struct	rtentry *la_rt;
 	struct	mbuf *la_hold;	/* last packet until resolved/timeout */
 	u_short	la_preempt;	/* countdown for pre-expiry arps */
 	u_short	la_asked;	/* # requests sent */
 };
-
-static	LIST_HEAD(, llinfo_arp) llinfo_arp;
 
 static struct	ifqueue arpintrq;
 static int	arp_allocated;
@@ -104,7 +99,6 @@ static int	arp_allocated;
 static int	arp_maxtries = 5;
 static int	useloopback = 1; /* use loopback interface for local traffic */
 static int	arp_proxyall = 0;
-static struct callout arp_callout;
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxtries, CTLFLAG_RW,
 	   &arp_maxtries, 0, "ARP resolution attempts before returning error");
@@ -126,43 +120,23 @@ static void	in_arpinput(struct mbuf *);
 #endif
 
 /*
- * Timeout routine.  Age arp_tab entries periodically.
+ * Timeout routine.
  */
-/* ARGSUSED */
 static void
-arptimer(void * __unused unused)
+arptimer(void *arg)
 {
-	struct llinfo_arp *la, *ola;
+	struct rtentry *rt = (struct rtentry *)arg;
 
-	RADIX_NODE_HEAD_LOCK(rt_tables[AF_INET]);
-	LIST_FOREACH_SAFE(la, &llinfo_arp, la_le, ola) {
-		struct rtentry *rt = la->la_rt;
+	RT_LOCK_ASSERT(rt);
+	/*
+	 * The lock is needed to close a theoretical race
+	 * between spontaneous expiry and intentional removal.
+	 * We still got an extra reference on rtentry, so can
+	 * safely pass pointers to its contents.
+	 */
+	RT_UNLOCK(rt);
 
-		RT_LOCK(rt);
-		if (rt->rt_expire && rt->rt_expire <= time_uptime) {
-			struct sockaddr_dl *sdl = SDL(rt->rt_gateway);
-
-			KASSERT(sdl->sdl_family == AF_LINK, ("sdl_family %d",
-			    sdl->sdl_family));
-			if (rt->rt_refcnt > 1) {
-				sdl->sdl_alen = 0;
-				la->la_preempt = la->la_asked = 0;
-				RT_UNLOCK(rt);
-				continue;
-			}
-			RT_UNLOCK(rt);
-			/*
-			 * XXX: LIST_REMOVE() is deep inside rtrequest().
-			 */
-			rtrequest(RTM_DELETE, rt_key(rt), NULL, rt_mask(rt), 0,
-			    NULL);
-			continue;
-		}
-		RT_UNLOCK(rt);
-	}
-	RADIX_NODE_HEAD_UNLOCK(rt_tables[AF_INET]);
-
-	callout_reset(&arp_callout, arpt_prune * hz, arptimer, NULL);
+	rtrequest(RTM_DELETE, rt_key(rt), NULL, rt_mask(rt), 0, NULL);
 }
 
 /*
@@ -251,8 +225,8 @@ arp_rtrequest(req, rt, info)
 		RT_ADDREF(rt);
 		la->la_rt = rt;
 		rt->rt_flags |= RTF_LLINFO;
-		RADIX_NODE_HEAD_LOCK_ASSERT(rt_tables[AF_INET]);
-		LIST_INSERT_HEAD(&llinfo_arp, la, la_le);
+		callout_init_mtx(&la->la_timer, &rt->rt_mtx,
+		    CALLOUT_RETURNUNLOCKED);
 
 #ifdef INET
 		/*
@@ -315,13 +289,12 @@ arp_rtrequest(req, rt, info)
 		break;
 
 	case RTM_DELETE:
-		if (la == 0)
+		if (la == NULL)	/* XXX: at least CARP does this. */
 			break;
-		RADIX_NODE_HEAD_LOCK_ASSERT(rt_tables[AF_INET]);
-		LIST_REMOVE(la, la_le);
-		RT_REMREF(rt);
-		rt->rt_llinfo = 0;
+		callout_stop(&la->la_timer);
+		rt->rt_llinfo = NULL;
 		rt->rt_flags &= ~RTF_LLINFO;
+		RT_REMREF(rt);
 		if (la->la_hold)
 			m_freem(la->la_hold);
 		Free((caddr_t)la);
@@ -501,6 +474,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
 
 		rt->rt_expire = time_uptime;
+		callout_reset(&la->la_timer, hz, arptimer, rt);
 		la->la_asked++;
 		RT_UNLOCK(rt);
 
@@ -794,8 +768,10 @@ match:
 		m->m_pkthdr.len += 8;
 		th->rcf = trld->trld_rcf;
 	}
-	if (rt->rt_expire)
+	if (rt->rt_expire) {
 		rt->rt_expire = time_uptime + arpt_keep;
+		callout_reset(&la->la_timer, hz * arpt_keep, arptimer, rt);
+	}
 	la->la_asked = 0;
 	la->la_preempt = arp_maxtries;
 	hold = la->la_hold;
@@ -997,9 +973,6 @@ arp_init(void)
 
 	arpintrq.ifq_maxlen = 50;
 	mtx_init(&arpintrq.ifq_mtx, "arp_inq", NULL, MTX_DEF);
-	LIST_INIT(&llinfo_arp);
-	callout_init(&arp_callout, CALLOUT_MPSAFE);
 	netisr_register(NETISR_ARP, arpintr, &arpintrq, NETISR_MPSAFE);
-	callout_reset(&arp_callout, hz, arptimer, NULL);
 }
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);
