@@ -2657,9 +2657,9 @@ g_journal_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		}
 		sbuf_printf(sb, "</Role>\n");
 		if (cp == sc->sc_jconsumer) {
-			sbuf_printf(sb, "<Jstart>%jd</Jstart>",
+			sbuf_printf(sb, "<Jstart>%jd</Jstart>\n",
 			    (intmax_t)sc->sc_jstart);
-			sbuf_printf(sb, "<Jend>%jd</Jend>",
+			sbuf_printf(sb, "<Jend>%jd</Jend>\n",
 			    (intmax_t)sc->sc_jend);
 		}
 	} else {
