@@ -529,7 +529,7 @@ getprocname(pid_t pid)
 		warn("sysctl()");
 		return ("??");
 	}
-	return (proc.ki_ocomm);
+	return (proc.ki_comm);
 }
 
 static int
