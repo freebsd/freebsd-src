@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 1.98 $
+ *              $Revision: 1.117 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -210,7 +210,7 @@ AcpiDsLoad1BeginOp (
     UINT32                  Flags;
 
 
-    ACPI_FUNCTION_NAME ("DsLoad1BeginOp");
+    ACPI_FUNCTION_TRACE (DsLoad1BeginOp);
 
 
     Op = WalkState->Op;
@@ -223,7 +223,7 @@ AcpiDsLoad1BeginOp (
         if (!(WalkState->OpInfo->Flags & AML_NAMED))
         {
             *OutOp = Op;
-            return (AE_OK);
+            return_ACPI_STATUS (AE_OK);
         }
 
         /* Check if this object has already been installed in the namespace */
@@ -231,7 +231,7 @@ AcpiDsLoad1BeginOp (
         if (Op->Common.Node)
         {
             *OutOp = Op;
-            return (AE_OK);
+            return_ACPI_STATUS (AE_OK);
         }
     }
 
@@ -260,19 +260,19 @@ AcpiDsLoad1BeginOp (
         {
             /*
              * Table disassembly:
-             * Target of Scope() not found.  Generate an External for it, and
+             * Target of Scope() not found. Generate an External for it, and
              * insert the name into the namespace.
              */
-            AcpiDmAddToExternalList (Path);
+            AcpiDmAddToExternalList (Path, ACPI_TYPE_DEVICE, 0);
             Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
                        ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT,
-                       WalkState, &(Node));
+                       WalkState, &Node);
         }
 #endif
         if (ACPI_FAILURE (Status))
         {
-            ACPI_REPORT_NSERROR (Path, Status);
-            return (Status);
+            ACPI_ERROR_NAMESPACE (Path, Status);
+            return_ACPI_STATUS (Status);
         }
 
         /*
@@ -281,6 +281,7 @@ AcpiDsLoad1BeginOp (
          */
         switch (Node->Type)
         {
+        case ACPI_TYPE_ANY:
         case ACPI_TYPE_LOCAL_SCOPE:         /* Scope  */
         case ACPI_TYPE_DEVICE:
         case ACPI_TYPE_POWER:
@@ -295,16 +296,15 @@ AcpiDsLoad1BeginOp (
         case ACPI_TYPE_BUFFER:
 
             /*
-             * These types we will allow, but we will change the type.  This
+             * These types we will allow, but we will change the type. This
              * enables some existing code of the form:
              *
              *  Name (DEB, 0)
              *  Scope (DEB) { ... }
              *
-             * Note: silently change the type here.  On the second pass, we will report
+             * Note: silently change the type here. On the second pass, we will report
              * a warning
              */
-
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
                 "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n",
                 Path, AcpiUtGetTypeName (Node->Type)));
@@ -317,17 +317,16 @@ AcpiDsLoad1BeginOp (
 
             /* All other types are an error */
 
-            ACPI_REPORT_ERROR ((
-                "Invalid type (%s) for target of Scope operator [%4.4s] (Cannot override)\n",
+            ACPI_ERROR ((AE_INFO,
+                "Invalid type (%s) for target of Scope operator [%4.4s] (Cannot override)",
                 AcpiUtGetTypeName (Node->Type), Path));
 
-            return (AE_AML_OPERAND_TYPE);
+            return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
         break;
 
 
     default:
-
         /*
          * For all other named opcodes, we will enter the name into
          * the namespace.
@@ -353,6 +352,17 @@ AcpiDsLoad1BeginOp (
             break;
         }
 
+        /*
+         * If we are executing a method, do not create any namespace objects
+         * during the load phase, only during execution.
+         */
+        if (WalkState->MethodNode)
+        {
+            Node = NULL;
+            Status = AE_OK;
+            break;
+        }
+
         Flags = ACPI_NS_NO_UPSEARCH;
         if ((WalkState->Opcode != AML_SCOPE_OP) &&
             (!(WalkState->ParseFlags & ACPI_PARSE_DEFERRED_OP)))
@@ -369,21 +379,51 @@ AcpiDsLoad1BeginOp (
         }
 
         /*
-         * Enter the named type into the internal namespace.  We enter the name
-         * as we go downward in the parse tree.  Any necessary subobjects that
+         * Enter the named type into the internal namespace. We enter the name
+         * as we go downward in the parse tree. Any necessary subobjects that
          * involve arguments to the opcode must be created as we go back up the
          * parse tree later.
          */
         Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
-                        ACPI_IMODE_LOAD_PASS1, Flags, WalkState, &(Node));
+                        ACPI_IMODE_LOAD_PASS1, Flags, WalkState, &Node);
         if (ACPI_FAILURE (Status))
         {
-            ACPI_REPORT_NSERROR (Path, Status);
-            return (Status);
+            if (Status == AE_ALREADY_EXISTS)
+            {
+                /* The name already exists in this scope */
+
+                if (Node->Flags & ANOBJ_IS_EXTERNAL)
+                {
+                    /*
+                     * Allow one create on an object or segment that was
+                     * previously declared External
+                     */
+                    Node->Flags &= ~ANOBJ_IS_EXTERNAL;
+                    Node->Type = (UINT8) ObjectType;
+
+                    /* Just retyped a node, probably will need to open a scope */
+
+                    if (AcpiNsOpensScope (ObjectType))
+                    {
+                        Status = AcpiDsScopeStackPush (Node, ObjectType, WalkState);
+                        if (ACPI_FAILURE (Status))
+                        {
+                            return_ACPI_STATUS (Status);
+                        }
+                    }
+
+                    Status = AE_OK;
+                }
+            }
+
+            if (ACPI_FAILURE (Status))
+            {
+                ACPI_ERROR_NAMESPACE (Path, Status);
+                return_ACPI_STATUS (Status);
+            }
         }
         break;
     }
-
 
     /* Common exit */
 
@@ -394,28 +434,29 @@ AcpiDsLoad1BeginOp (
         Op = AcpiPsAllocOp (WalkState->Opcode);
         if (!Op)
         {
-            return (AE_NO_MEMORY);
+            return_ACPI_STATUS (AE_NO_MEMORY);
         }
     }
 
-    /* Initialize */
-
-    Op->Named.Name = Node->Name.Integer;
+    /* Initialize the op */
 
 #if (defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY))
-    Op->Named.Path = (UINT8 *) Path;
+    Op->Named.Path = ACPI_CAST_PTR (UINT8, Path);
 #endif
 
+    if (Node)
+    {
+        /*
+         * Put the Node in the "op" object that the parser uses, so we
+         * can get it again quickly when this scope is closed
+         */
+        Op->Common.Node = Node;
+        Op->Named.Name = Node->Name.Integer;
+    }
 
-    /*
-     * Put the Node in the "op" object that the parser uses, so we
-     * can get it again quickly when this scope is closed
-     */
-    Op->Common.Node = Node;
     AcpiPsAppendArg (AcpiPsGetParentScope (&WalkState->ParserState), Op);
-
     *OutOp = Op;
-    return (Status);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -441,7 +482,7 @@ AcpiDsLoad1EndOp (
     ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_NAME ("DsLoad1EndOp");
+    ACPI_FUNCTION_TRACE (DsLoad1EndOp);
 
 
     Op = WalkState->Op;
@@ -451,7 +492,7 @@ AcpiDsLoad1EndOp (
 
     if (!(WalkState->OpInfo->Flags & (AML_NAMED | AML_FIELD)))
     {
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     /* Get the object type to determine if we should pop the scope */
@@ -461,25 +502,37 @@ AcpiDsLoad1EndOp (
 #ifndef ACPI_NO_METHOD_EXECUTION
     if (WalkState->OpInfo->Flags & AML_FIELD)
     {
-        if (WalkState->Opcode == AML_FIELD_OP          ||
-            WalkState->Opcode == AML_BANK_FIELD_OP     ||
-            WalkState->Opcode == AML_INDEX_FIELD_OP)
+        /*
+         * If we are executing a method, do not create any namespace objects
+         * during the load phase, only during execution.
+         */
+        if (!WalkState->MethodNode)
         {
-            Status = AcpiDsInitFieldObjects (Op, WalkState);
+            if (WalkState->Opcode == AML_FIELD_OP          ||
+                WalkState->Opcode == AML_BANK_FIELD_OP     ||
+                WalkState->Opcode == AML_INDEX_FIELD_OP)
+            {
+                Status = AcpiDsInitFieldObjects (Op, WalkState);
+            }
         }
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
-
-    if (Op->Common.AmlOpcode == AML_REGION_OP)
+    /*
+     * If we are executing a method, do not create any namespace objects
+     * during the load phase, only during execution.
+     */
+    if (!WalkState->MethodNode)
     {
-        Status = AcpiExCreateRegion (Op->Named.Data, Op->Named.Length,
-                         (ACPI_ADR_SPACE_TYPE)
-                            ((Op->Common.Value.Arg)->Common.Value.Integer),
-                            WalkState);
-        if (ACPI_FAILURE (Status))
+        if (Op->Common.AmlOpcode == AML_REGION_OP)
         {
-            return (Status);
+            Status = AcpiExCreateRegion (Op->Named.Data, Op->Named.Length,
+                        (ACPI_ADR_SPACE_TYPE) ((Op->Common.Value.Arg)->Common.Value.Integer),
+                        WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
         }
     }
 #endif
@@ -492,48 +545,63 @@ AcpiDsLoad1EndOp (
         {
             ObjectType = (AcpiPsGetOpcodeInfo (
                 (Op->Common.Value.Arg)->Common.AmlOpcode))->ObjectType;
-            Op->Common.Node->Type = (UINT8) ObjectType;
+
+            /* Set node type if we have a namespace node */
+
+            if (Op->Common.Node)
+            {
+                Op->Common.Node->Type = (UINT8) ObjectType;
+            }
         }
     }
 
-    if (Op->Common.AmlOpcode == AML_METHOD_OP)
+    /*
+     * If we are executing a method, do not create any namespace objects
+     * during the load phase, only during execution.
+     */
+    if (!WalkState->MethodNode)
     {
-        /*
-         * MethodOp PkgLength NameString MethodFlags TermList
-         *
-         * Note: We must create the method node/object pair as soon as we
-         * see the method declaration.  This allows later pass1 parsing
-         * of invocations of the method (need to know the number of
-         * arguments.)
-         */
-        ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-            "LOADING-Method: State=%p Op=%p NamedObj=%p\n",
-            WalkState, Op, Op->Named.Node));
-
-        if (!AcpiNsGetAttachedObject (Op->Named.Node))
+        if (Op->Common.AmlOpcode == AML_METHOD_OP)
         {
-            WalkState->Operands[0] = (void *) Op->Named.Node;
-            WalkState->NumOperands = 1;
+            /*
+             * MethodOp PkgLength NameString MethodFlags TermList
+             *
+             * Note: We must create the method node/object pair as soon as we
+             * see the method declaration. This allows later pass1 parsing
+             * of invocations of the method (need to know the number of
+             * arguments.)
+             */
+            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+                "LOADING-Method: State=%p Op=%p NamedObj=%p\n",
+                WalkState, Op, Op->Named.Node));
 
-            Status = AcpiDsCreateOperands (WalkState, Op->Common.Value.Arg);
-            if (ACPI_SUCCESS (Status))
+            if (!AcpiNsGetAttachedObject (Op->Named.Node))
             {
-                Status = AcpiExCreateMethod (Op->Named.Data,
-                                    Op->Named.Length, WalkState);
-            }
-            WalkState->Operands[0] = NULL;
-            WalkState->NumOperands = 0;
+                WalkState->Operands[0] = ACPI_CAST_PTR (void, Op->Named.Node);
+                WalkState->NumOperands = 1;
 
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
+                Status = AcpiDsCreateOperands (WalkState, Op->Common.Value.Arg);
+                if (ACPI_SUCCESS (Status))
+                {
+                    Status = AcpiExCreateMethod (Op->Named.Data,
+                                        Op->Named.Length, WalkState);
+                }
+
+                WalkState->Operands[0] = NULL;
+                WalkState->NumOperands = 0;
+
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
             }
         }
     }
 
-    /* Pop the scope stack */
+    /* Pop the scope stack (only if loading a table) */
 
-    if (AcpiNsOpensScope (ObjectType))
+    if (!WalkState->MethodNode &&
+        AcpiNsOpensScope (ObjectType))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "(%s): Popping scope for Op %p\n",
             AcpiUtGetTypeName (ObjectType), Op));
@@ -541,7 +609,7 @@ AcpiDsLoad1EndOp (
         Status = AcpiDsScopeStackPop (WalkState);
     }
 
-    return (Status);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -568,9 +636,10 @@ AcpiDsLoad2BeginOp (
     ACPI_STATUS             Status;
     ACPI_OBJECT_TYPE        ObjectType;
     char                    *BufferPtr;
+    UINT32                  Flags;
 
 
-    ACPI_FUNCTION_TRACE ("DsLoad2BeginOp");
+    ACPI_FUNCTION_TRACE (DsLoad2BeginOp);
 
 
     Op = WalkState->Op;
@@ -598,7 +667,6 @@ AcpiDsLoad2BeginOp (
             if ((WalkState->OpInfo->Class == AML_CLASS_EXECUTE) ||
                 (WalkState->OpInfo->Class == AML_CLASS_CONTROL))
             {
-
                 ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
                     "Begin/EXEC: %s (fl %8.8X)\n", WalkState->OpInfo->Name,
                     WalkState->OpInfo->Flags));
@@ -630,7 +698,7 @@ AcpiDsLoad2BeginOp (
         {
             /* Get name from the op */
 
-            BufferPtr = (char *) &Op->Named.Name;
+            BufferPtr = ACPI_CAST_PTR (char, &Op->Named.Name);
         }
     }
     else
@@ -647,7 +715,6 @@ AcpiDsLoad2BeginOp (
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "State=%p Op=%p Type=%X\n", WalkState, Op, ObjectType));
 
-
     switch (WalkState->Opcode)
     {
     case AML_FIELD_OP:
@@ -659,7 +726,6 @@ AcpiDsLoad2BeginOp (
         break;
 
     case AML_INT_NAMEPATH_OP:
-
         /*
          * The NamePath is an object reference to an existing object.
          * Don't enter the name into the namespace, but look it up
@@ -671,7 +737,6 @@ AcpiDsLoad2BeginOp (
         break;
 
     case AML_SCOPE_OP:
-
         /*
          * The Path is an object reference to an existing object.
          * Don't enter the name into the namespace, but look it up
@@ -689,19 +754,21 @@ AcpiDsLoad2BeginOp (
             }
             else
             {
-                ACPI_REPORT_NSERROR (BufferPtr, Status);
+                ACPI_ERROR_NAMESPACE (BufferPtr, Status);
             }
 #else
-            ACPI_REPORT_NSERROR (BufferPtr, Status);
+            ACPI_ERROR_NAMESPACE (BufferPtr, Status);
 #endif
             return_ACPI_STATUS (Status);
         }
+
         /*
          * We must check to make sure that the target is
          * one of the opcodes that actually opens a scope
          */
         switch (Node->Type)
         {
+        case ACPI_TYPE_ANY:
         case ACPI_TYPE_LOCAL_SCOPE:         /* Scope */
         case ACPI_TYPE_DEVICE:
         case ACPI_TYPE_POWER:
@@ -716,15 +783,14 @@ AcpiDsLoad2BeginOp (
         case ACPI_TYPE_BUFFER:
 
             /*
-             * These types we will allow, but we will change the type.  This
+             * These types we will allow, but we will change the type. This
              * enables some existing code of the form:
              *
              *  Name (DEB, 0)
              *  Scope (DEB) { ... }
              */
-
-            ACPI_REPORT_WARNING ((
-                "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n",
+            ACPI_WARNING ((AE_INFO,
+                "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)",
                 BufferPtr, AcpiUtGetTypeName (Node->Type)));
 
             Node->Type = ACPI_TYPE_ANY;
@@ -735,8 +801,8 @@ AcpiDsLoad2BeginOp (
 
             /* All other types are an error */
 
-            ACPI_REPORT_ERROR ((
-                "Invalid type (%s) for target of Scope operator [%4.4s]\n",
+            ACPI_ERROR ((AE_INFO,
+                "Invalid type (%s) for target of Scope operator [%4.4s]",
                 AcpiUtGetTypeName (Node->Type), BufferPtr));
 
             return (AE_AML_OPERAND_TYPE);
@@ -760,14 +826,14 @@ AcpiDsLoad2BeginOp (
                 {
                     return_ACPI_STATUS (Status);
                 }
-
             }
+
             return_ACPI_STATUS (AE_OK);
         }
 
         /*
-         * Enter the named type into the internal namespace.  We enter the name
-         * as we go downward in the parse tree.  Any necessary subobjects that
+         * Enter the named type into the internal namespace. We enter the name
+         * as we go downward in the parse tree. Any necessary subobjects that
          * involve arguments to the opcode must be created as we go back up the
          * parse tree later.
          *
@@ -782,17 +848,24 @@ AcpiDsLoad2BeginOp (
             break;
         }
 
-        /* Add new entry into namespace */
+        Flags = ACPI_NS_NO_UPSEARCH;
+        if (WalkState->PassNumber == ACPI_IMODE_EXECUTE)
+        {
+            /* Execution mode, node cannot already exist, node is temporary */
+
+            Flags |= (ACPI_NS_ERROR_IF_FOUND | ACPI_NS_TEMPORARY);
+        }
+
+        /* Add new entry or lookup existing entry */
 
         Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr, ObjectType,
-                        ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH,
-                        WalkState, &(Node));
+                    ACPI_IMODE_LOAD_PASS2, Flags, WalkState, &Node);
         break;
     }
 
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_NSERROR (BufferPtr, Status);
+        ACPI_ERROR_NAMESPACE (BufferPtr, Status);
         return_ACPI_STATUS (Status);
     }
 
@@ -820,7 +893,6 @@ AcpiDsLoad2BeginOp (
      * can get it again quickly when this scope is closed
      */
     Op->Common.Node = Node;
-
     return_ACPI_STATUS (Status);
 }
 
@@ -853,7 +925,7 @@ AcpiDsLoad2EndOp (
 #endif
 
 
-    ACPI_FUNCTION_TRACE ("DsLoad2EndOp");
+    ACPI_FUNCTION_TRACE (DsLoad2EndOp);
 
     Op = WalkState->Op;
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Opcode [%s] Op %p State %p\n",
@@ -961,7 +1033,6 @@ AcpiDsLoad2EndOp (
 #ifndef ACPI_NO_METHOD_EXECUTION
 
     case AML_TYPE_CREATE_FIELD:
-
         /*
          * Create the field object, but the field buffer and index must
          * be evaluated later during the execution phase
@@ -971,6 +1042,13 @@ AcpiDsLoad2EndOp (
 
 
      case AML_TYPE_NAMED_FIELD:
+        /*
+         * If we are executing a method, initialize the field
+         */
+        if (WalkState->MethodNode)
+        {
+            Status = AcpiDsInitFieldObjects (Op, WalkState);
+        }
 
         switch (Op->Common.AmlOpcode)
         {
@@ -1061,14 +1139,34 @@ AcpiDsLoad2EndOp (
         {
 #ifndef ACPI_NO_METHOD_EXECUTION
         case AML_REGION_OP:
+
             /*
-             * The OpRegion is not fully parsed at this time.  Only valid
+             * If we are executing a method, initialize the region
+             */
+            if (WalkState->MethodNode)
+            {
+                Status = AcpiExCreateRegion (Op->Named.Data, Op->Named.Length,
+                            (ACPI_ADR_SPACE_TYPE)
+                                ((Op->Common.Value.Arg)->Common.Value.Integer),
+                            WalkState);
+                if (ACPI_FAILURE (Status))
+                {
+                    return (Status);
+                }
+            }
+
+            /*
+             * The OpRegion is not fully parsed at this time. Only valid
              * argument is the SpaceId. (We must save the address of the
              * AML of the address and length operands)
              */
+
             /*
              * If we have a valid region, initialize it
              * Namespace is NOT locked at this point.
+             *
+             * TBD: need to unlock interpreter if it is locked, in order
+             * to allow _REG methods to be run.
              */
             Status = AcpiEvInitializeRegion (AcpiNsGetAttachedObject (Node),
                         FALSE);
@@ -1091,12 +1189,46 @@ AcpiDsLoad2EndOp (
 
             Status = AcpiDsCreateNode (WalkState, Node, Op);
             break;
-#endif /* ACPI_NO_METHOD_EXECUTION */
 
+
+        case AML_METHOD_OP:
+            /*
+             * MethodOp PkgLength NameString MethodFlags TermList
+             *
+             * Note: We must create the method node/object pair as soon as we
+             * see the method declaration. This allows later pass1 parsing
+             * of invocations of the method (need to know the number of
+             * arguments.)
+             */
+            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+                "LOADING-Method: State=%p Op=%p NamedObj=%p\n",
+                WalkState, Op, Op->Named.Node));
+
+            if (!AcpiNsGetAttachedObject (Op->Named.Node))
+            {
+                WalkState->Operands[0] = ACPI_CAST_PTR (void, Op->Named.Node);
+                WalkState->NumOperands = 1;
+
+                Status = AcpiDsCreateOperands (WalkState, Op->Common.Value.Arg);
+                if (ACPI_SUCCESS (Status))
+                {
+                    Status = AcpiExCreateMethod (Op->Named.Data,
+                                        Op->Named.Length, WalkState);
+                }
+                WalkState->Operands[0] = NULL;
+                WalkState->NumOperands = 0;
+
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
+            }
+            break;
+
+#endif /* ACPI_NO_METHOD_EXECUTION */
 
         default:
             /* All NAMED_COMPLEX opcodes must be handled above */
-            /* Note: Method objects were already created in Pass 1 */
             break;
         }
         break;
@@ -1141,7 +1273,7 @@ AcpiDsLoad2EndOp (
         }
         else
         {
-            ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
+            ACPI_ERROR_NAMESPACE (Arg->Common.Value.String, Status);
         }
         break;
 

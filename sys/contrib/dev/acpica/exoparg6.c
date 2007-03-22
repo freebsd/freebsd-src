@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg6 - AML execution - opcodes with 6 arguments
- *              $Revision: 1.23 $
+ *              $Revision: 1.29 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -309,7 +309,7 @@ AcpiExOpcode_6A_0T_1R (
     ACPI_OPERAND_OBJECT     *ThisElement;
 
 
-    ACPI_FUNCTION_TRACE_STR ("ExOpcode_6A_0T_1R",
+    ACPI_FUNCTION_TRACE_STR (ExOpcode_6A_0T_1R,
         AcpiPsGetOpcodeName (WalkState->Opcode));
 
 
@@ -326,7 +326,7 @@ AcpiExOpcode_6A_0T_1R (
         if ((Operand[1]->Integer.Value > MAX_MATCH_OPERATOR) ||
             (Operand[3]->Integer.Value > MAX_MATCH_OPERATOR))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Match operator out of range\n"));
+            ACPI_ERROR ((AE_INFO, "Match operator out of range"));
             Status = AE_AML_OPERAND_VALUE;
             goto Cleanup;
         }
@@ -336,8 +336,8 @@ AcpiExOpcode_6A_0T_1R (
         Index = Operand[5]->Integer.Value;
         if (Index >= Operand[0]->Package.Count)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "Index (%X%8.8X) beyond package end (%X)\n",
+            ACPI_ERROR ((AE_INFO,
+                "Index (%X%8.8X) beyond package end (%X)",
                 ACPI_FORMAT_UINT64 (Index), Operand[0]->Package.Count));
             Status = AE_AML_PACKAGE_LIMIT;
             goto Cleanup;
@@ -414,13 +414,11 @@ AcpiExOpcode_6A_0T_1R (
 
     default:
 
-        ACPI_REPORT_ERROR (("AcpiExOpcode_6A_0T_1R: Unknown opcode %X\n",
-                WalkState->Opcode));
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+            WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
     }
-
-    WalkState->ResultObj = ReturnDesc;
 
 
 Cleanup:
@@ -430,6 +428,13 @@ Cleanup:
     if (ACPI_FAILURE (Status))
     {
         AcpiUtRemoveReference (ReturnDesc);
+    }
+
+    /* Save return object on success */
+
+    else
+    {
+        WalkState->ResultObj = ReturnDesc;
     }
 
     return_ACPI_STATUS (Status);

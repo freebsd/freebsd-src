@@ -2,7 +2,7 @@
  *
  * Module Name: nsobject - Utilities for objects attached to namespace
  *                         table entries
- *              $Revision: 1.93 $
+ *              $Revision: 1.98 $
  *
  ******************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -158,7 +158,7 @@ AcpiNsAttachObject (
     ACPI_OBJECT_TYPE        ObjectType = ACPI_TYPE_ANY;
 
 
-    ACPI_FUNCTION_TRACE ("NsAttachObject");
+    ACPI_FUNCTION_TRACE (NsAttachObject);
 
 
     /*
@@ -168,7 +168,7 @@ AcpiNsAttachObject (
     {
         /* Invalid handle */
 
-        ACPI_REPORT_ERROR (("NsAttachObject: Null NamedObj handle\n"));
+        ACPI_ERROR ((AE_INFO, "Null NamedObj handle"));
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
@@ -176,8 +176,8 @@ AcpiNsAttachObject (
     {
         /* Null object */
 
-        ACPI_REPORT_ERROR ((
-            "NsAttachObject: Null object, but type not ACPI_TYPE_ANY\n"));
+        ACPI_ERROR ((AE_INFO,
+            "Null object, but type not ACPI_TYPE_ANY"));
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
@@ -185,8 +185,8 @@ AcpiNsAttachObject (
     {
         /* Not a name handle */
 
-        ACPI_REPORT_ERROR (("NsAttachObject: Invalid handle %p [%s]\n",
-                Node, AcpiUtGetDescriptorName (Node)));
+        ACPI_ERROR ((AE_INFO, "Invalid handle %p [%s]",
+            Node, AcpiUtGetDescriptorName (Node)));
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
@@ -298,7 +298,7 @@ AcpiNsDetachObject (
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
 
-    ACPI_FUNCTION_TRACE ("NsDetachObject");
+    ACPI_FUNCTION_TRACE (NsDetachObject);
 
 
     ObjDesc = Node->Object;
@@ -353,12 +353,12 @@ ACPI_OPERAND_OBJECT *
 AcpiNsGetAttachedObject (
     ACPI_NAMESPACE_NODE     *Node)
 {
-    ACPI_FUNCTION_TRACE_PTR ("NsGetAttachedObject", Node);
+    ACPI_FUNCTION_TRACE_PTR (NsGetAttachedObject, Node);
 
 
     if (!Node)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "Null Node ptr\n"));
+        ACPI_WARNING ((AE_INFO, "Null Node ptr"));
         return_PTR (NULL);
     }
 
@@ -391,7 +391,7 @@ ACPI_OPERAND_OBJECT *
 AcpiNsGetSecondaryObject (
     ACPI_OPERAND_OBJECT     *ObjDesc)
 {
-    ACPI_FUNCTION_TRACE_PTR ("NsGetSecondaryObject", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR (NsGetSecondaryObject, ObjDesc);
 
 
     if ((!ObjDesc)                                                ||

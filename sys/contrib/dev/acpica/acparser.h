@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: acparser.h - AML Parser subcomponent prototypes and defines
- *       $Revision: 1.77 $
+ *       $Revision: 1.83 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -121,7 +121,7 @@
 
 #define OP_HAS_RETURN_VALUE             1
 
-/* variable # arguments */
+/* Variable number of arguments. This field must be 32 bits */
 
 #define ACPI_VAR_ARGS                   ACPI_UINT32_MAX
 
@@ -151,7 +151,7 @@
  */
 ACPI_STATUS
 AcpiPsExecuteMethod (
-    ACPI_PARAMETER_INFO     *Info);
+    ACPI_EVALUATE_INFO      *Info);
 
 
 /*
@@ -210,6 +210,10 @@ AcpiPsGetOpcodeInfo (
 char *
 AcpiPsGetOpcodeName (
     UINT16                  Opcode);
+
+UINT8
+AcpiPsGetArgumentCount (
+    UINT32                  OpType);
 
 
 /*

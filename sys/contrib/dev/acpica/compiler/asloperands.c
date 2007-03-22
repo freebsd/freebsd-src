@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: asloperands - AML operand processing
- *              $Revision: 1.57 $
+ *              $Revision: 1.61 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -959,10 +959,12 @@ OpnDoDefinitionBlock (
      * as AML opcodes!
      */
 
-    /* AML filename */
+    /* Get AML filename. Use it if non-null */
 
     Child = Op->Asl.Child;
-    if ((Child->Asl.Value.Buffer) && (Gbl_UseDefaultAmlFilename))
+    if (Child->Asl.Value.Buffer  &&
+        *Child->Asl.Value.Buffer &&
+        (Gbl_UseDefaultAmlFilename))
     {
         Gbl_OutputFilenamePrefix = (char *) Child->Asl.Value.Buffer;
     }
@@ -995,10 +997,9 @@ OpnDoDefinitionBlock (
 
     Child = Child->Asl.Next;
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
-
-    /* Use the revision to set the integer width */
-
-    AcpiUtSetIntegerWidth ((UINT8) Child->Asl.Value.Integer);
+    /*
+     * We used the revision to set the integer width earlier
+     */
 
     /* OEMID */
 

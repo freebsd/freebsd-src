@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -121,6 +121,9 @@
 #pragma warning(disable:4100)   /* warning C4100: unreferenced formal parameter */
 #endif
 
+#define FILE_SUFFIX_DISASSEMBLY     "dsl"
+#define ACPI_TABLE_FILE_SUFFIX      ".dat"
+
 extern UINT8                    *DsdtPtr;
 extern UINT32                   AcpiDsdtLength;
 extern UINT8                    *AmlStart;
@@ -136,21 +139,9 @@ AcpiGetopt(
     char                    **argv,
     char                    *opts);
 
-ACPI_STATUS
-AdInitialize (
-    void);
-
-char *
-FlGenerateFilename (
-    char                    *InputFilename,
-    char                    *Suffix);
-
-ACPI_STATUS
-FlSplitInputPathname (
-    char                    *InputPath,
-    char                    **OutDirectoryPath,
-    char                    **OutFilename);
-
+/*
+ * adisasm
+ */
 ACPI_STATUS
 AdAmlDisassemble (
     BOOLEAN                 OutToFile,
@@ -187,6 +178,66 @@ AdDisplayTables (
 ACPI_STATUS
 AdDisplayStatistics (void);
 
+/*
+ * adwalk
+ */
+void
+AcpiDmCrossReferenceNamespace (
+    ACPI_PARSE_OBJECT       *ParseTreeRoot,
+    ACPI_NAMESPACE_NODE     *NamespaceRoot);
+
+void
+AcpiDmDumpTree (
+    ACPI_PARSE_OBJECT       *Origin);
+
+void
+AcpiDmFindOrphanMethods (
+    ACPI_PARSE_OBJECT       *Origin);
+
+void
+AcpiDmFinishNamespaceLoad (
+    ACPI_PARSE_OBJECT       *ParseTreeRoot,
+    ACPI_NAMESPACE_NODE     *NamespaceRoot);
+
+void
+AcpiDmConvertResourceIndexes (
+    ACPI_PARSE_OBJECT       *ParseTreeRoot,
+    ACPI_NAMESPACE_NODE     *NamespaceRoot);
+
+/*
+ * adfile
+ */
+ACPI_STATUS
+AdInitialize (
+    void);
+
+char *
+FlGenerateFilename (
+    char                    *InputFilename,
+    char                    *Suffix);
+
+ACPI_STATUS
+FlSplitInputPathname (
+    char                    *InputPath,
+    char                    **OutDirectoryPath,
+    char                    **OutFilename);
+
+char *
+FlGenerateFilename (
+    char                    *InputFilename,
+    char                    *Suffix);
+
+char *
+AdGenerateFilename (
+    char                    *Prefix,
+    char                    *TableId);
+
+void
+AdWriteTable (
+    ACPI_TABLE_HEADER       *Table,
+    UINT32                  Length,
+    char                    *TableName,
+    char                    *OemTableId);
 
 #endif /* _ACAPPS */
 

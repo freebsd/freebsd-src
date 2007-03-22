@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acresrc.h - Resource Manager function prototypes
- *       $Revision: 1.51 $
+ *       $Revision: 1.60 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,9 +125,13 @@
 
 /*
  * If possible, pack the following structures to byte alignment, since we
- * don't care about performance for debug output
+ * don't care about performance for debug output. Two cases where we cannot
+ * pack the structures:
+ *
+ * 1) Hardware does not support misaligned memory transfers
+ * 2) Compiler does not support pointers within packed structures
  */
-#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
+#if (!defined(ACPI_MISALIGNMENT_NOT_SUPPORTED) && !defined(ACPI_PACKED_POINTERS_NOT_SUPPORTED))
 #pragma pack(1)
 #endif
 
@@ -178,29 +182,12 @@ typedef const struct acpi_rsconvert_info
 #define AML_OFFSET(f)                   (UINT8) ACPI_OFFSET (AML_RESOURCE,f)
 
 
-/*
- * Resource dispatch and info tables
- */
-typedef const struct acpi_resource_info
-{
-    UINT8                   LengthType;
-    UINT8                   MinimumAmlResourceLength;
-    UINT8                   MinimumInternalStructLength;
-
-} ACPI_RESOURCE_INFO;
-
-/* Types for LengthType above */
-
-#define ACPI_FIXED_LENGTH               0
-#define ACPI_VARIABLE_LENGTH            1
-#define ACPI_SMALL_VARIABLE_LENGTH      2
-
 typedef const struct acpi_rsdump_info
 {
     UINT8                   Opcode;
     UINT8                   Offset;
     char                    *Name;
-    const void              *Pointer;
+    const char              **Pointer;
 
 } ACPI_RSDUMP_INFO;
 
@@ -233,10 +220,17 @@ extern ACPI_RSCONVERT_INFO      *AcpiGbl_SetResourceDispatch[];
 
 /* Resource tables indexed by raw AML resource descriptor type */
 
-extern ACPI_RESOURCE_INFO       AcpiGbl_SmResourceInfo[];
-extern ACPI_RESOURCE_INFO       AcpiGbl_LgResourceInfo[];
-extern ACPI_RSCONVERT_INFO      *AcpiGbl_SmGetResourceDispatch[];
-extern ACPI_RSCONVERT_INFO      *AcpiGbl_LgGetResourceDispatch[];
+extern const UINT8              AcpiGbl_ResourceStructSizes[];
+extern ACPI_RSCONVERT_INFO      *AcpiGbl_GetResourceDispatch[];
+
+
+typedef struct acpi_vendor_walk_info
+{
+    ACPI_VENDOR_UUID        *Uuid;
+    ACPI_BUFFER             *Buffer;
+    ACPI_STATUS             Status;
+
+} ACPI_VENDOR_WALK_INFO;
 
 
 /*
@@ -263,17 +257,17 @@ AcpiRsCreatePciRoutingTable (
  */
 ACPI_STATUS
 AcpiRsGetPrtMethodData (
-    ACPI_HANDLE             Handle,
+    ACPI_NAMESPACE_NODE     *Node,
     ACPI_BUFFER             *RetBuffer);
 
 ACPI_STATUS
 AcpiRsGetCrsMethodData (
-    ACPI_HANDLE             Handle,
+    ACPI_NAMESPACE_NODE     *Node,
     ACPI_BUFFER             *RetBuffer);
 
 ACPI_STATUS
 AcpiRsGetPrsMethodData (
-    ACPI_HANDLE             Handle,
+    ACPI_NAMESPACE_NODE     *Node,
     ACPI_BUFFER             *RetBuffer);
 
 ACPI_STATUS
@@ -284,7 +278,7 @@ AcpiRsGetMethodData (
 
 ACPI_STATUS
 AcpiRsSetSrsMethodData (
-    ACPI_HANDLE             Handle,
+    ACPI_NAMESPACE_NODE     *Node,
     ACPI_BUFFER             *RetBuffer);
 
 
@@ -309,9 +303,11 @@ AcpiRsGetPciRoutingTableLength (
 
 ACPI_STATUS
 AcpiRsConvertAmlToResources (
-    UINT8                   *AmlBuffer,
-    UINT32                  AmlBufferLength,
-    UINT8                   *OutputBuffer);
+    UINT8                   *Aml,
+    UINT32                  Length,
+    UINT32                  Offset,
+    UINT8                   ResourceIndex,
+    void                    *Context);
 
 ACPI_STATUS
 AcpiRsConvertResourcesToAml (
@@ -394,10 +390,6 @@ void
 AcpiRsSetResourceLength (
     ACPI_RSDESC_SIZE        TotalLength,
     AML_RESOURCE            *Aml);
-
-ACPI_RESOURCE_INFO *
-AcpiRsGetResourceInfo (
-    UINT8                   ResourceType);
 
 
 /*

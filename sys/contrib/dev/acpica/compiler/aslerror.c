@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslerror - Error handling and statistics
- *              $Revision: 1.88 $
+ *              $Revision: 1.92 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -503,7 +503,7 @@ AslCommonError (
     Gbl_ExceptionCount[Level]++;
     if (Gbl_ExceptionCount[ASL_ERROR] > ASL_MAX_ERROR_COUNT)
     {
-        printf ("\nMaximum error count (%d) exceeded.\n", ASL_MAX_ERROR_COUNT);
+        printf ("\nMaximum error count (%d) exceeded\n", ASL_MAX_ERROR_COUNT);
 
         Gbl_SourceLine = 0;
         Gbl_NextError = Gbl_ErrorLog;
@@ -538,6 +538,21 @@ AslError (
     ACPI_PARSE_OBJECT       *Op,
     char                    *ExtraMessage)
 {
+
+    switch (Level)
+    {
+    case ASL_WARNING2:
+    case ASL_WARNING3:
+        if (Gbl_WarningLevel < Level)
+        {
+            return;
+        }
+        break;
+
+    default:
+        break;
+    }
+
 
     if (Op)
     {

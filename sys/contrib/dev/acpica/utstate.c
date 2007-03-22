@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utstate - state object support procedures
- *              $Revision: 1.2 $
+ *              $Revision: 1.8 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -179,7 +179,7 @@ AcpiUtPushGenericState (
     ACPI_GENERIC_STATE      **ListHead,
     ACPI_GENERIC_STATE      *State)
 {
-    ACPI_FUNCTION_TRACE ("UtPushGenericState");
+    ACPI_FUNCTION_TRACE (UtPushGenericState);
 
 
     /* Push the state object onto the front of the list (stack) */
@@ -210,7 +210,7 @@ AcpiUtPopGenericState (
     ACPI_GENERIC_STATE      *State;
 
 
-    ACPI_FUNCTION_TRACE ("UtPopGenericState");
+    ACPI_FUNCTION_TRACE (UtPopGenericState);
 
 
     /* Remove the state object at the head of the list (stack) */
@@ -254,7 +254,7 @@ AcpiUtCreateGenericState (
     if (State)
     {
         /* Initialize */
-        State->Common.DataType = ACPI_DESC_TYPE_STATE;
+        State->Common.DescriptorType = ACPI_DESC_TYPE_STATE;
     }
 
     return (State);
@@ -281,7 +281,7 @@ AcpiUtCreateThreadState (
     ACPI_GENERIC_STATE      *State;
 
 
-    ACPI_FUNCTION_TRACE ("UtCreateThreadState");
+    ACPI_FUNCTION_TRACE (UtCreateThreadState);
 
 
     /* Create the generic state object */
@@ -294,8 +294,16 @@ AcpiUtCreateThreadState (
 
     /* Init fields specific to the update struct */
 
-    State->Common.DataType = ACPI_DESC_TYPE_STATE_THREAD;
+    State->Common.DescriptorType = ACPI_DESC_TYPE_STATE_THREAD;
     State->Thread.ThreadId = AcpiOsGetThreadId ();
+
+    /* Check for invalid thread ID - zero is very bad, it will break things */
+
+    if (!State->Thread.ThreadId)
+    {
+        ACPI_ERROR ((AE_INFO, "Invalid zero ID from AcpiOsGetThreadId"));
+        State->Thread.ThreadId = 1;
+    }
 
     return_PTR ((ACPI_THREAD_STATE *) State);
 }
@@ -324,7 +332,7 @@ AcpiUtCreateUpdateState (
     ACPI_GENERIC_STATE      *State;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("UtCreateUpdateState", Object);
+    ACPI_FUNCTION_TRACE_PTR (UtCreateUpdateState, Object);
 
 
     /* Create the generic state object */
@@ -337,9 +345,9 @@ AcpiUtCreateUpdateState (
 
     /* Init fields specific to the update struct */
 
-    State->Common.DataType = ACPI_DESC_TYPE_STATE_UPDATE;
+    State->Common.DescriptorType = ACPI_DESC_TYPE_STATE_UPDATE;
     State->Update.Object = Object;
-    State->Update.Value  = Action;
+    State->Update.Value = Action;
 
     return_PTR (State);
 }
@@ -367,7 +375,7 @@ AcpiUtCreatePkgState (
     ACPI_GENERIC_STATE      *State;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("UtCreatePkgState", InternalObject);
+    ACPI_FUNCTION_TRACE_PTR (UtCreatePkgState, InternalObject);
 
 
     /* Create the generic state object */
@@ -380,11 +388,11 @@ AcpiUtCreatePkgState (
 
     /* Init fields specific to the update struct */
 
-    State->Common.DataType  = ACPI_DESC_TYPE_STATE_PACKAGE;
+    State->Common.DescriptorType = ACPI_DESC_TYPE_STATE_PACKAGE;
     State->Pkg.SourceObject = (ACPI_OPERAND_OBJECT *) InternalObject;
-    State->Pkg.DestObject   = ExternalObject;
-    State->Pkg.Index        = Index;
-    State->Pkg.NumPackages  = 1;
+    State->Pkg.DestObject = ExternalObject;
+    State->Pkg.Index= Index;
+    State->Pkg.NumPackages = 1;
 
     return_PTR (State);
 }
@@ -410,7 +418,7 @@ AcpiUtCreateControlState (
     ACPI_GENERIC_STATE      *State;
 
 
-    ACPI_FUNCTION_TRACE ("UtCreateControlState");
+    ACPI_FUNCTION_TRACE (UtCreateControlState);
 
 
     /* Create the generic state object */
@@ -423,8 +431,8 @@ AcpiUtCreateControlState (
 
     /* Init fields specific to the control struct */
 
-    State->Common.DataType  = ACPI_DESC_TYPE_STATE_CONTROL;
-    State->Common.State     = ACPI_CONTROL_CONDITIONAL_EXECUTING;
+    State->Common.DescriptorType = ACPI_DESC_TYPE_STATE_CONTROL;
+    State->Common.State = ACPI_CONTROL_CONDITIONAL_EXECUTING;
 
     return_PTR (State);
 }
@@ -438,8 +446,8 @@ AcpiUtCreateControlState (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Put a state object back into the global state cache.  The object
- *              is not actually freed at this time.
+ * DESCRIPTION: Release a state object to the state cache. NULL state objects
+ *              are ignored.
  *
  ******************************************************************************/
 
@@ -447,10 +455,15 @@ void
 AcpiUtDeleteGenericState (
     ACPI_GENERIC_STATE      *State)
 {
-    ACPI_FUNCTION_TRACE ("UtDeleteGenericState");
+    ACPI_FUNCTION_TRACE (UtDeleteGenericState);
 
 
-    (void) AcpiOsReleaseObject (AcpiGbl_StateCache, State);
+    /* Ignore null state */
+
+    if (State)
+    {
+        (void) AcpiOsReleaseObject (AcpiGbl_StateCache, State);
+    }
     return_VOID;
 }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: achware.h -- hardware specific interfaces
- *       $Revision: 1.79 $
+ *       $Revision: 1.83 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -138,10 +138,6 @@
  * hwacpi - high level functions
  */
 ACPI_STATUS
-AcpiHwInitialize (
-    void);
-
-ACPI_STATUS
 AcpiHwSetMode (
     UINT32                  Mode);
 
@@ -183,7 +179,7 @@ AcpiHwLowLevelWrite (
 
 ACPI_STATUS
 AcpiHwClearAcpiStatus (
-    UINT32                  Flags);
+    void);
 
 
 /*

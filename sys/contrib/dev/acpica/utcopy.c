@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utcopy - Internal to external object translation utilities
- *              $Revision: 1.122 $
+ *              $Revision: 1.130 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -199,7 +199,7 @@ AcpiUtCopyIsimpleToEsimple (
     ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE ("UtCopyIsimpleToEsimple");
+    ACPI_FUNCTION_TRACE (UtCopyIsimpleToEsimple);
 
 
     *BufferSpaceUsed = 0;
@@ -425,7 +425,7 @@ AcpiUtCopyIpackageToEpackage (
     ACPI_PKG_INFO           Info;
 
 
-    ACPI_FUNCTION_TRACE ("UtCopyIpackageToEpackage");
+    ACPI_FUNCTION_TRACE (UtCopyIpackageToEpackage);
 
 
     /*
@@ -486,7 +486,7 @@ AcpiUtCopyIobjectToEobject (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("UtCopyIobjectToEobject");
+    ACPI_FUNCTION_TRACE (UtCopyIobjectToEobject);
 
 
     if (ACPI_GET_OBJECT_TYPE (InternalObject) == ACPI_TYPE_PACKAGE)
@@ -504,9 +504,9 @@ AcpiUtCopyIobjectToEobject (
          * Build a simple object (no nested objects)
          */
         Status = AcpiUtCopyIsimpleToEsimple (InternalObject,
-                    (ACPI_OBJECT *) RetBuffer->Pointer,
-                    ((UINT8 *) RetBuffer->Pointer +
-                    ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT))),
+                    ACPI_CAST_PTR (ACPI_OBJECT, RetBuffer->Pointer),
+                    ACPI_ADD_PTR (UINT8, RetBuffer->Pointer,
+                        ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT))),
                     &RetBuffer->Length);
         /*
          * build simple does not include the object size in the length
@@ -543,7 +543,7 @@ AcpiUtCopyEsimpleToIsimple (
     ACPI_OPERAND_OBJECT     *InternalObject;
 
 
-    ACPI_FUNCTION_TRACE ("UtCopyEsimpleToIsimple");
+    ACPI_FUNCTION_TRACE (UtCopyEsimpleToIsimple);
 
 
     /*
@@ -577,7 +577,7 @@ AcpiUtCopyEsimpleToIsimple (
     case ACPI_TYPE_STRING:
 
         InternalObject->String.Pointer =
-            ACPI_MEM_CALLOCATE ((ACPI_SIZE) ExternalObject->String.Length + 1);
+            ACPI_ALLOCATE_ZEROED ((ACPI_SIZE) ExternalObject->String.Length + 1);
         if (!InternalObject->String.Pointer)
         {
             goto ErrorExit;
@@ -594,7 +594,7 @@ AcpiUtCopyEsimpleToIsimple (
     case ACPI_TYPE_BUFFER:
 
         InternalObject->Buffer.Pointer =
-            ACPI_MEM_CALLOCATE (ExternalObject->Buffer.Length);
+            ACPI_ALLOCATE_ZEROED (ExternalObject->Buffer.Length);
         if (!InternalObject->Buffer.Pointer)
         {
             goto ErrorExit;
@@ -665,7 +665,7 @@ AcpiUtCopyEpackageToIpackage (
     ACPI_OBJECT             *ThisExternalObj;
 
 
-    ACPI_FUNCTION_TRACE ("UtCopyEpackageToIpackage");
+    ACPI_FUNCTION_TRACE (UtCopyEpackageToIpackage);
 
 
     /*
@@ -718,7 +718,7 @@ AcpiUtCopyEobjectToIobject (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("UtCopyEobjectToIobject");
+    ACPI_FUNCTION_TRACE (UtCopyEobjectToIobject);
 
 
     if (ExternalObject->Type == ACPI_TYPE_PACKAGE)
@@ -726,8 +726,8 @@ AcpiUtCopyEobjectToIobject (
         /*
          * Packages as external input to control methods are not supported,
          */
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Packages as parameters not implemented!\n"));
+        ACPI_ERROR ((AE_INFO,
+            "Packages as parameters not implemented!"));
 
         return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
     }
@@ -800,7 +800,7 @@ AcpiUtCopySimpleObject (
             (SourceDesc->Buffer.Length))
         {
             DestDesc->Buffer.Pointer =
-                ACPI_MEM_ALLOCATE (SourceDesc->Buffer.Length);
+                ACPI_ALLOCATE (SourceDesc->Buffer.Length);
             if (!DestDesc->Buffer.Pointer)
             {
                 return (AE_NO_MEMORY);
@@ -823,7 +823,7 @@ AcpiUtCopySimpleObject (
         if (SourceDesc->String.Pointer)
         {
             DestDesc->String.Pointer =
-                ACPI_MEM_ALLOCATE ((ACPI_SIZE) SourceDesc->String.Length + 1);
+                ACPI_ALLOCATE ((ACPI_SIZE) SourceDesc->String.Length + 1);
             if (!DestDesc->String.Pointer)
             {
                 return (AE_NO_MEMORY);
@@ -842,6 +842,16 @@ AcpiUtCopySimpleObject (
          * to the object pointed to by the reference
          */
         AcpiUtAddReference (SourceDesc->Reference.Object);
+        break;
+
+    case ACPI_TYPE_REGION:
+        /*
+         * We copied the Region Handler, so we now must add a reference
+         */
+        if (DestDesc->Region.Handler)
+        {
+            AcpiUtAddReference (DestDesc->Region.Handler);
+        }
         break;
 
     default:
@@ -938,9 +948,8 @@ AcpiUtCopyIelementToIelement (
         /*
          * Create the object array
          */
-        TargetObject->Package.Elements =
-            ACPI_MEM_CALLOCATE (((ACPI_SIZE) SourceObject->Package.Count + 1) *
-                                    sizeof (void *));
+        TargetObject->Package.Elements = ACPI_ALLOCATE_ZEROED (
+            ((ACPI_SIZE) SourceObject->Package.Count + 1) * sizeof (void *));
         if (!TargetObject->Package.Elements)
         {
             Status = AE_NO_MEMORY;
@@ -994,7 +1003,7 @@ AcpiUtCopyIpackageToIpackage (
     ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE ("UtCopyIpackageToIpackage");
+    ACPI_FUNCTION_TRACE (UtCopyIpackageToIpackage);
 
 
     DestObj->Common.Type    = ACPI_GET_OBJECT_TYPE (SourceObj);
@@ -1004,13 +1013,12 @@ AcpiUtCopyIpackageToIpackage (
     /*
      * Create the object array and walk the source package tree
      */
-    DestObj->Package.Elements = ACPI_MEM_CALLOCATE (
+    DestObj->Package.Elements = ACPI_ALLOCATE_ZEROED (
                                     ((ACPI_SIZE) SourceObj->Package.Count + 1) *
                                     sizeof (void *));
     if (!DestObj->Package.Elements)
     {
-        ACPI_REPORT_ERROR (
-            ("AmlBuildCopyInternalPackageObject: Package allocation failure\n"));
+        ACPI_ERROR ((AE_INFO, "Package allocation failure"));
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
@@ -1019,7 +1027,7 @@ AcpiUtCopyIpackageToIpackage (
      * This handles nested packages of arbitrary depth.
      */
     Status = AcpiUtWalkPackageTree (SourceObj, DestObj,
-                            AcpiUtCopyIelementToIelement, WalkState);
+                AcpiUtCopyIelementToIelement, WalkState);
     if (ACPI_FAILURE (Status))
     {
         /* On failure, delete the destination package object */
@@ -1054,7 +1062,7 @@ AcpiUtCopyIobjectToIobject (
     ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE ("UtCopyIobjectToIobject");
+    ACPI_FUNCTION_TRACE (UtCopyIobjectToIobject);
 
 
     /* Create the top level object */

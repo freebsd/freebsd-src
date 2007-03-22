@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsutils - Utilities for the resource manager
- *              $Revision: 1.50 $
+ *              $Revision: 1.67 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -148,6 +148,9 @@ AcpiRsDecodeBitmask (
     UINT8                   BitCount;
 
 
+    ACPI_FUNCTION_ENTRY ();
+
+
     /* Decode the mask bits */
 
     for (i = 0, BitCount = 0; Mask; i++)
@@ -185,6 +188,9 @@ AcpiRsEncodeBitmask (
 {
     ACPI_NATIVE_UINT        i;
     UINT16                  Mask;
+
+
+    ACPI_FUNCTION_ENTRY ();
 
 
     /* Encode the list into a single bitmask */
@@ -225,6 +231,9 @@ AcpiRsMoveData (
     ACPI_NATIVE_UINT        i;
 
 
+    ACPI_FUNCTION_ENTRY ();
+
+
     /* One move per item */
 
     for (i = 0; i < ItemCount; i++)
@@ -245,80 +254,24 @@ AcpiRsMoveData (
          * misaligned memory transfers
          */
         case ACPI_RSC_MOVE16:
-            ACPI_MOVE_16_TO_16 (&((UINT16 *) Destination)[i],
-                                &((UINT16 *) Source)[i]);
+            ACPI_MOVE_16_TO_16 (&ACPI_CAST_PTR (UINT16, Destination)[i],
+                                &ACPI_CAST_PTR (UINT16, Source)[i]);
             break;
 
         case ACPI_RSC_MOVE32:
-            ACPI_MOVE_32_TO_32 (&((UINT32 *) Destination)[i],
-                                &((UINT32 *) Source)[i]);
+            ACPI_MOVE_32_TO_32 (&ACPI_CAST_PTR (UINT32, Destination)[i],
+                                &ACPI_CAST_PTR (UINT32, Source)[i]);
             break;
 
         case ACPI_RSC_MOVE64:
-            ACPI_MOVE_64_TO_64 (&((UINT64 *) Destination)[i],
-                                &((UINT64 *) Source)[i]);
+            ACPI_MOVE_64_TO_64 (&ACPI_CAST_PTR (UINT64, Destination)[i],
+                                &ACPI_CAST_PTR (UINT64, Source)[i]);
             break;
 
         default:
             return;
         }
     }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiRsGetResourceInfo
- *
- * PARAMETERS:  ResourceType        - Byte 0 of a resource descriptor
- *
- * RETURN:      Pointer to the resource conversion handler
- *
- * DESCRIPTION: Extract the Resource Type/Name from the first byte of
- *              a resource descriptor.
- *
- ******************************************************************************/
-
-ACPI_RESOURCE_INFO *
-AcpiRsGetResourceInfo (
-    UINT8                   ResourceType)
-{
-    ACPI_RESOURCE_INFO      *SizeInfo;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /* Determine if this is a small or large resource */
-
-    if (ResourceType & ACPI_RESOURCE_NAME_LARGE)
-    {
-        /* Large Resource Type -- bits 6:0 contain the name */
-
-        if (ResourceType > ACPI_RESOURCE_NAME_LARGE_MAX)
-        {
-            return (NULL);
-        }
-
-        SizeInfo = &AcpiGbl_LgResourceInfo [
-                    (ResourceType & ACPI_RESOURCE_NAME_LARGE_MASK)];
-    }
-    else
-    {
-        /* Small Resource Type -- bits 6:3 contain the name */
-
-        SizeInfo = &AcpiGbl_SmResourceInfo [
-                    ((ResourceType & ACPI_RESOURCE_NAME_SMALL_MASK) >> 3)];
-    }
-
-    /* Zero entry indicates an invalid resource type */
-
-    if (!SizeInfo->MinimumInternalStructLength)
-    {
-        return (NULL);
-    }
-
-    return (SizeInfo);
 }
 
 
@@ -350,27 +303,22 @@ AcpiRsSetResourceLength (
     ACPI_FUNCTION_ENTRY ();
 
 
-    /* Determine if this is a small or large resource */
+    /* Length is the total descriptor length minus the header length */
+
+    ResourceLength = (ACPI_RS_LENGTH)
+        (TotalLength - AcpiUtGetResourceHeaderLength (Aml));
+
+    /* Length is stored differently for large and small descriptors */
 
     if (Aml->SmallHeader.DescriptorType & ACPI_RESOURCE_NAME_LARGE)
     {
-        /* Large Resource type -- bytes 1-2 contain the 16-bit length */
-
-        ResourceLength = (ACPI_RS_LENGTH)
-            (TotalLength - sizeof (AML_RESOURCE_LARGE_HEADER));
-
-        /* Insert length into the Large descriptor length field */
+        /* Large descriptor -- bytes 1-2 contain the 16-bit length */
 
         ACPI_MOVE_16_TO_16 (&Aml->LargeHeader.ResourceLength, &ResourceLength);
     }
     else
     {
-        /* Small Resource type -- bits 2:0 of byte 0 contain the length */
-
-        ResourceLength = (ACPI_RS_LENGTH)
-            (TotalLength - sizeof (AML_RESOURCE_SMALL_HEADER));
-
-        /* Insert length into the descriptor type byte */
+        /* Small descriptor -- bits 2:0 of byte 0 contain the length */
 
         Aml->SmallHeader.DescriptorType = (UINT8)
 
@@ -409,7 +357,7 @@ AcpiRsSetResourceHeader (
     ACPI_FUNCTION_ENTRY ();
 
 
-    /* Set the Descriptor Type */
+    /* Set the Resource Type */
 
     Aml->SmallHeader.DescriptorType = DescriptorType;
 
@@ -469,7 +417,8 @@ AcpiRsStrcpy (
  *              StringPtr           - (optional) where to store the actual
  *                                    ResourceSource string
  *
- * RETURN:      Length of the string plus NULL terminator, rounded up to 32 bit
+ * RETURN:      Length of the string plus NULL terminator, rounded up to native
+ *              word boundary
  *
  * DESCRIPTION: Copy the optional ResourceSource data from a raw AML descriptor
  *              to an internal resource descriptor
@@ -492,7 +441,7 @@ AcpiRsGetResourceSource (
 
 
     TotalLength = ResourceLength + sizeof (AML_RESOURCE_LARGE_HEADER);
-    AmlResourceSource = ((UINT8 *) Aml) + MinimumLength;
+    AmlResourceSource = ACPI_ADD_PTR (UINT8, Aml, MinimumLength);
 
     /*
      * ResourceSource is present if the length of the descriptor is longer than
@@ -501,7 +450,7 @@ AcpiRsGetResourceSource (
      * Note: Some resource descriptors will have an additional null, so
      * we add 1 to the minimum length.
      */
-    if (TotalLength > (ACPI_RSDESC_SIZE )(MinimumLength + 1))
+    if (TotalLength > (ACPI_RSDESC_SIZE) (MinimumLength + 1))
     {
         /* Get the ResourceSourceIndex */
 
@@ -514,38 +463,39 @@ AcpiRsGetResourceSource (
              * String destination pointer is not specified; Set the String
              * pointer to the end of the current ResourceSource structure.
              */
-            ResourceSource->StringPtr = (char *)
-                ((UINT8 *) ResourceSource) + sizeof (ACPI_RESOURCE_SOURCE);
+            ResourceSource->StringPtr = ACPI_ADD_PTR (char, ResourceSource,
+                sizeof (ACPI_RESOURCE_SOURCE));
         }
 
         /*
-         * In order for the StructSize to fall on a 32-bit boundary, calculate
-         * the length of the string (+1 for the NULL terminator) and expand the
-         * StructSize to the next 32-bit boundary.
+         * In order for the Resource length to be a multiple of the native
+         * word, calculate the length of the string (+1 for NULL terminator)
+         * and expand to the next word multiple.
          *
          * Zero the entire area of the buffer.
          */
-        TotalLength = ACPI_ROUND_UP_TO_32BITS (
-                        ACPI_STRLEN ((char *) &AmlResourceSource[1]) + 1);
+        TotalLength = (UINT32) ACPI_STRLEN (
+            ACPI_CAST_PTR (char, &AmlResourceSource[1])) + 1;
+        TotalLength = (UINT32) ACPI_ROUND_UP_TO_NATIVE_WORD (TotalLength);
+
         ACPI_MEMSET (ResourceSource->StringPtr, 0, TotalLength);
 
         /* Copy the ResourceSource string to the destination */
 
         ResourceSource->StringLength = AcpiRsStrcpy (ResourceSource->StringPtr,
-                                        (char *) &AmlResourceSource[1]);
+            ACPI_CAST_PTR (char, &AmlResourceSource[1]));
 
         return ((ACPI_RS_LENGTH) TotalLength);
     }
-    else
-    {
-        /* ResourceSource is not present */
 
-        ResourceSource->Index = 0;
-        ResourceSource->StringLength = 0;
-        ResourceSource->StringPtr = NULL;
-        return (0);
-    }
+    /* ResourceSource is not present */
+
+    ResourceSource->Index = 0;
+    ResourceSource->StringLength = 0;
+    ResourceSource->StringPtr = NULL;
+    return (0);
 }
+
 
 /*******************************************************************************
  *
@@ -585,7 +535,7 @@ AcpiRsSetResourceSource (
     {
         /* Point to the end of the AML descriptor */
 
-        AmlResourceSource = ((UINT8 *) Aml) + MinimumLength;
+        AmlResourceSource = ACPI_ADD_PTR (UINT8, Aml, MinimumLength);
 
         /* Copy the ResourceSourceIndex */
 
@@ -593,8 +543,8 @@ AcpiRsSetResourceSource (
 
         /* Copy the ResourceSource string */
 
-        ACPI_STRCPY ((char *) &AmlResourceSource[1],
-                ResourceSource->StringPtr);
+        ACPI_STRCPY (ACPI_CAST_PTR (char, &AmlResourceSource[1]),
+            ResourceSource->StringPtr);
 
         /*
          * Add the length of the string (+ 1 for null terminator) to the
@@ -613,9 +563,9 @@ AcpiRsSetResourceSource (
  *
  * FUNCTION:    AcpiRsGetPrtMethodData
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              RetBuffer       - a pointer to a buffer structure for the
- *                                  results
+ * PARAMETERS:  Node            - Device node
+ *              RetBuffer       - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -629,21 +579,21 @@ AcpiRsSetResourceSource (
 
 ACPI_STATUS
 AcpiRsGetPrtMethodData (
-    ACPI_HANDLE             Handle,
+    ACPI_NAMESPACE_NODE     *Node,
     ACPI_BUFFER             *RetBuffer)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("RsGetPrtMethodData");
+    ACPI_FUNCTION_TRACE (RsGetPrtMethodData);
 
 
     /* Parameters guaranteed valid by caller */
 
     /* Execute the method, no parameters */
 
-    Status = AcpiUtEvaluateObject (Handle, METHOD_NAME__PRT,
+    Status = AcpiUtEvaluateObject (Node, METHOD_NAME__PRT,
                 ACPI_BTYPE_PACKAGE, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
@@ -667,9 +617,9 @@ AcpiRsGetPrtMethodData (
  *
  * FUNCTION:    AcpiRsGetCrsMethodData
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              RetBuffer       - a pointer to a buffer structure for the
- *                                  results
+ * PARAMETERS:  Node            - Device node
+ *              RetBuffer       - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -683,21 +633,21 @@ AcpiRsGetPrtMethodData (
 
 ACPI_STATUS
 AcpiRsGetCrsMethodData (
-    ACPI_HANDLE             Handle,
+    ACPI_NAMESPACE_NODE     *Node,
     ACPI_BUFFER             *RetBuffer)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("RsGetCrsMethodData");
+    ACPI_FUNCTION_TRACE (RsGetCrsMethodData);
 
 
     /* Parameters guaranteed valid by caller */
 
     /* Execute the method, no parameters */
 
-    Status = AcpiUtEvaluateObject (Handle, METHOD_NAME__CRS,
+    Status = AcpiUtEvaluateObject (Node, METHOD_NAME__CRS,
                 ACPI_BTYPE_BUFFER, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
@@ -722,9 +672,9 @@ AcpiRsGetCrsMethodData (
  *
  * FUNCTION:    AcpiRsGetPrsMethodData
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              RetBuffer       - a pointer to a buffer structure for the
- *                                  results
+ * PARAMETERS:  Node            - Device node
+ *              RetBuffer       - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -738,21 +688,21 @@ AcpiRsGetCrsMethodData (
 
 ACPI_STATUS
 AcpiRsGetPrsMethodData (
-    ACPI_HANDLE             Handle,
+    ACPI_NAMESPACE_NODE     *Node,
     ACPI_BUFFER             *RetBuffer)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("RsGetPrsMethodData");
+    ACPI_FUNCTION_TRACE (RsGetPrsMethodData);
 
 
     /* Parameters guaranteed valid by caller */
 
     /* Execute the method, no parameters */
 
-    Status = AcpiUtEvaluateObject (Handle, METHOD_NAME__PRS,
+    Status = AcpiUtEvaluateObject (Node, METHOD_NAME__PRS,
                 ACPI_BTYPE_BUFFER, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
@@ -777,10 +727,10 @@ AcpiRsGetPrsMethodData (
  *
  * FUNCTION:    AcpiRsGetMethodData
  *
- * PARAMETERS:  Handle          - a handle to the containing object
+ * PARAMETERS:  Handle          - Handle to the containing object
  *              Path            - Path to method, relative to Handle
- *              RetBuffer       - a pointer to a buffer structure for the
- *                                  results
+ *              RetBuffer       - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -802,7 +752,7 @@ AcpiRsGetMethodData (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("RsGetMethodData");
+    ACPI_FUNCTION_TRACE (RsGetMethodData);
 
 
     /* Parameters guaranteed valid by caller */
@@ -810,7 +760,8 @@ AcpiRsGetMethodData (
     /* Execute the method, no parameters */
 
     Status = AcpiUtEvaluateObject (Handle, Path, ACPI_BTYPE_BUFFER, &ObjDesc);
-    if (ACPI_FAILURE (Status)) {
+    if (ACPI_FAILURE (Status))
+    {
         return_ACPI_STATUS (Status);
     }
 
@@ -827,13 +778,14 @@ AcpiRsGetMethodData (
     return_ACPI_STATUS (Status);
 }
 
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiRsSetSrsMethodData
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              InBuffer        - a pointer to a buffer structure of the
- *                                  parameter
+ * PARAMETERS:  Node            - Device node
+ *              InBuffer        - Pointer to a buffer structure of the
+ *                                parameter
  *
  * RETURN:      Status
  *
@@ -843,27 +795,41 @@ AcpiRsGetMethodData (
  *              If the function fails an appropriate status will be returned
  *              and the contents of the callers buffer is undefined.
  *
+ * Note: Parameters guaranteed valid by caller
+ *
  ******************************************************************************/
 
 ACPI_STATUS
 AcpiRsSetSrsMethodData (
-    ACPI_HANDLE             Handle,
+    ACPI_NAMESPACE_NODE     *Node,
     ACPI_BUFFER             *InBuffer)
 {
-    ACPI_PARAMETER_INFO     Info;
-    ACPI_OPERAND_OBJECT     *Params[2];
+    ACPI_EVALUATE_INFO      *Info;
+    ACPI_OPERAND_OBJECT     *Args[2];
     ACPI_STATUS             Status;
     ACPI_BUFFER             Buffer;
 
 
-    ACPI_FUNCTION_TRACE ("RsSetSrsMethodData");
+    ACPI_FUNCTION_TRACE (RsSetSrsMethodData);
 
 
-    /* Parameters guaranteed valid by caller */
+    /* Allocate and initialize the evaluation information block */
+
+    Info = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_EVALUATE_INFO));
+    if (!Info)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    Info->PrefixNode = Node;
+    Info->Pathname = METHOD_NAME__SRS;
+    Info->Parameters = Args;
+    Info->ParameterType = ACPI_PARAM_ARGS;
+    Info->Flags = ACPI_IGNORE_RETURN_VALUE;
 
     /*
      * The InBuffer parameter will point to a linked list of
-     * resource parameters.  It needs to be formatted into a
+     * resource parameters. It needs to be formatted into a
      * byte stream to be sent in as an input parameter to _SRS
      *
      * Convert the linked list into a byte stream
@@ -872,45 +838,38 @@ AcpiRsSetSrsMethodData (
     Status = AcpiRsCreateAmlResources (InBuffer->Pointer, &Buffer);
     if (ACPI_FAILURE (Status))
     {
-        return_ACPI_STATUS (Status);
+        goto Cleanup;
     }
 
-    /* Init the param object */
+    /* Create and initialize the method parameter object */
 
-    Params[0] = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
-    if (!Params[0])
+    Args[0] = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
+    if (!Args[0])
     {
-        AcpiOsFree (Buffer.Pointer);
-        return_ACPI_STATUS (AE_NO_MEMORY);
+        /*
+         * Must free the buffer allocated above (otherwise it is freed
+         * later)
+         */
+        ACPI_FREE (Buffer.Pointer);
+        Status = AE_NO_MEMORY;
+        goto Cleanup;
     }
 
-    /* Set up the parameter object */
+    Args[0]->Buffer.Length  = (UINT32) Buffer.Length;
+    Args[0]->Buffer.Pointer = Buffer.Pointer;
+    Args[0]->Common.Flags   = AOPOBJ_DATA_VALID;
+    Args[1] = NULL;
 
-    Params[0]->Buffer.Length  = (UINT32) Buffer.Length;
-    Params[0]->Buffer.Pointer = Buffer.Pointer;
-    Params[0]->Common.Flags   = AOPOBJ_DATA_VALID;
-    Params[1] = NULL;
+    /* Execute the method, no return value is expected */
 
-    Info.Node = Handle;
-    Info.Parameters = Params;
-    Info.ParameterType = ACPI_PARAM_ARGS;
+    Status = AcpiNsEvaluate (Info);
 
-    /* Execute the method, no return value */
+    /* Clean up and return the status from AcpiNsEvaluate */
 
-    Status = AcpiNsEvaluateRelative (METHOD_NAME__SRS, &Info);
-    if (ACPI_SUCCESS (Status))
-    {
-        /* Delete any return object (especially if ImplicitReturn is enabled) */
+    AcpiUtRemoveReference (Args[0]);
 
-        if (Info.ReturnObject)
-        {
-            AcpiUtRemoveReference (Info.ReturnObject);
-        }
-    }
-
-    /* Clean up and return the status from AcpiNsEvaluateRelative */
-
-    AcpiUtRemoveReference (Params[0]);
+Cleanup:
+    ACPI_FREE (Info);
     return_ACPI_STATUS (Status);
 }
 

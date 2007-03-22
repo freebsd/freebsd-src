@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 1.80 $
+ *              $Revision: 1.91 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,139 +118,154 @@
 #define __TBINSTAL_C__
 
 #include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
 #include <contrib/dev/acpica/actables.h>
 
 
 #define _COMPONENT          ACPI_TABLES
         ACPI_MODULE_NAME    ("tbinstal")
 
-/* Local prototypes */
 
-static ACPI_STATUS
-AcpiTbMatchSignature (
-    char                    *Signature,
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT8                   SearchType);
-
-
-/*******************************************************************************
+/******************************************************************************
  *
- * FUNCTION:    AcpiTbMatchSignature
+ * FUNCTION:    AcpiTbVerifyTable
  *
- * PARAMETERS:  Signature           - Table signature to match
- *              TableInfo           - Return data
- *              SearchType          - Table type to match (primary/secondary)
+ * PARAMETERS:  TableDesc           - table
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Compare signature against the list of "ACPI-subsystem-owned"
- *              tables (DSDT/FADT/SSDT, etc.) Returns the TableTypeID on match.
+ * DESCRIPTION: this function is called to verify and map table
  *
- ******************************************************************************/
+ *****************************************************************************/
 
-static ACPI_STATUS
-AcpiTbMatchSignature (
-    char                    *Signature,
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT8                   SearchType)
+ACPI_STATUS
+AcpiTbVerifyTable (
+    ACPI_TABLE_DESC         *TableDesc)
 {
-    ACPI_NATIVE_UINT        i;
+    ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE ("TbMatchSignature");
+    ACPI_FUNCTION_TRACE (TbVerifyTable);
 
 
-    /* Search for a signature match among the known table types */
+    /* Map the table if necessary */
 
-    for (i = 0; i < NUM_ACPI_TABLE_TYPES; i++)
+    if (!TableDesc->Pointer)
     {
-        if (!(AcpiGbl_TableData[i].Flags & SearchType))
+        if ((TableDesc->Flags & ACPI_TABLE_ORIGIN_MASK) ==
+            ACPI_TABLE_ORIGIN_MAPPED)
         {
-            continue;
+            TableDesc->Pointer = AcpiOsMapMemory (TableDesc->Address, TableDesc->Length);
         }
 
-        if (!ACPI_STRNCMP (Signature, AcpiGbl_TableData[i].Signature,
-                      AcpiGbl_TableData[i].SigLength))
+        if (!TableDesc->Pointer)
         {
-            /* Found a signature match, return index if requested */
-
-            if (TableInfo)
-            {
-                TableInfo->Type = (UINT8) i;
-            }
-
-            ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-                "Table [%4.4s] is an ACPI table consumed by the core subsystem\n",
-                (char *) AcpiGbl_TableData[i].Signature));
-
-            return_ACPI_STATUS (AE_OK);
+            return_ACPI_STATUS (AE_NO_MEMORY);
         }
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "Table [%4.4s] is not an ACPI table consumed by the core subsystem - ignored\n",
-        (char *) Signature));
+    /* FACS is the odd table, has no standard ACPI header and no checksum */
 
-    return_ACPI_STATUS (AE_TABLE_NOT_SUPPORTED);
+    if (!ACPI_COMPARE_NAME (&TableDesc->Signature, ACPI_SIG_FACS))
+    {
+        /* Always calculate checksum, ignore bad checksum if requested */
+
+        Status = AcpiTbVerifyChecksum (TableDesc->Pointer, TableDesc->Length);
+    }
+
+    return_ACPI_STATUS (Status);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiTbInstallTable
+ * FUNCTION:    AcpiTbAddTable
  *
- * PARAMETERS:  TableInfo           - Return value from AcpiTbGetTableBody
+ * PARAMETERS:  TableDesc           - Table descriptor
+ *              TableIndex          - Where the table index is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Install the table into the global data structures.
+ * DESCRIPTION: This function is called to add the ACPI table
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiTbInstallTable (
-    ACPI_TABLE_DESC         *TableInfo)
+AcpiTbAddTable (
+    ACPI_TABLE_DESC         *TableDesc,
+    ACPI_NATIVE_UINT        *TableIndex)
 {
-    ACPI_STATUS             Status;
+    ACPI_NATIVE_UINT        i;
+    ACPI_NATIVE_UINT        Length;
+    ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE ("TbInstallTable");
+    ACPI_FUNCTION_TRACE (TbAddTable);
 
 
-    /* Lock tables while installing */
-
-    Status = AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    if (ACPI_FAILURE (Status))
+    if (!TableDesc->Pointer)
     {
-        ACPI_REPORT_ERROR (("Could not acquire table mutex, %s\n",
-            AcpiFormatException (Status)));
-        return_ACPI_STATUS (Status);
+        Status = AcpiTbVerifyTable (TableDesc);
+        if (ACPI_FAILURE (Status) || !TableDesc->Pointer)
+        {
+            return_ACPI_STATUS (Status);
+        }
+    }
+
+    /* The table must be either an SSDT or a PSDT */
+
+    if ((!ACPI_COMPARE_NAME (TableDesc->Pointer->Signature, ACPI_SIG_PSDT)) &&
+        (!ACPI_COMPARE_NAME (TableDesc->Pointer->Signature, ACPI_SIG_SSDT)))
+    {
+        ACPI_ERROR ((AE_INFO,
+            "Table has invalid signature [%4.4s], must be SSDT or PSDT",
+            TableDesc->Pointer->Signature));
+        return_ACPI_STATUS (AE_BAD_SIGNATURE);
+    }
+
+    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
+
+    /* Check if table is already registered */
+
+    for (i = 0; i < AcpiGbl_RootTableList.Count; ++i)
+    {
+        if (!AcpiGbl_RootTableList.Tables[i].Pointer)
+        {
+            Status = AcpiTbVerifyTable (&AcpiGbl_RootTableList.Tables[i]);
+            if (ACPI_FAILURE (Status) || !AcpiGbl_RootTableList.Tables[i].Pointer)
+            {
+                continue;
+            }
+        }
+
+        Length = ACPI_MIN (TableDesc->Length,
+                    AcpiGbl_RootTableList.Tables[i].Length);
+        if (ACPI_MEMCMP (TableDesc->Pointer,
+                AcpiGbl_RootTableList.Tables[i].Pointer, Length))
+        {
+            continue;
+        }
+
+        /* Table is already registered */
+
+        AcpiTbDeleteTable (TableDesc);
+        *TableIndex = i;
+        goto Release;
     }
 
     /*
-     * Ignore a table that is already installed. For example, some BIOS
-     * ASL code will repeatedly attempt to load the same SSDT.
+     * Add the table to the global table list
      */
-    Status = AcpiTbIsTableInstalled (TableInfo);
+    Status = AcpiTbStoreTable (TableDesc->Address, TableDesc->Pointer,
+                TableDesc->Length, TableDesc->Flags, TableIndex);
     if (ACPI_FAILURE (Status))
     {
-        goto UnlockAndExit;
+        goto Release;
     }
 
-    /* Install the table into the global data structure */
+    AcpiTbPrintTableHeader (TableDesc->Address, TableDesc->Pointer);
 
-    Status = AcpiTbInitTableDescriptor (TableInfo->Type, TableInfo);
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_REPORT_ERROR (("Could not install table [%4.4s], %s\n",
-            TableInfo->Pointer->Signature, AcpiFormatException (Status)));
-    }
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s located at %p\n",
-        AcpiGbl_TableData[TableInfo->Type].Name, TableInfo->Pointer));
-
-
-UnlockAndExit:
+Release:
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
     return_ACPI_STATUS (Status);
 }
@@ -258,200 +273,61 @@ UnlockAndExit:
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiTbRecognizeTable
+ * FUNCTION:    AcpiTbResizeRootTableList
  *
- * PARAMETERS:  TableInfo           - Return value from AcpiTbGetTableBody
- *              SearchType          - Table type to match (primary/secondary)
+ * PARAMETERS:  None
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Check a table signature for a match against known table types
- *
- * NOTE:  All table pointers are validated as follows:
- *          1) Table pointer must point to valid physical memory
- *          2) Signature must be 4 ASCII chars, even if we don't recognize the
- *             name
- *          3) Table must be readable for length specified in the header
- *          4) Table checksum must be valid (with the exception of the FACS
- *             which has no checksum for some odd reason)
+ * DESCRIPTION: Expand the size of global table array
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiTbRecognizeTable (
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT8                   SearchType)
+AcpiTbResizeRootTableList (
+    void)
 {
-    ACPI_TABLE_HEADER       *TableHeader;
-    ACPI_STATUS             Status;
+    ACPI_TABLE_DESC         *Tables;
 
 
-    ACPI_FUNCTION_TRACE ("TbRecognizeTable");
+    ACPI_FUNCTION_TRACE (TbResizeRootTableList);
 
 
-    /* Ensure that we have a valid table pointer */
+    /* AllowResize flag is a parameter to AcpiInitializeTables */
 
-    TableHeader = (ACPI_TABLE_HEADER *) TableInfo->Pointer;
-    if (!TableHeader)
+    if (!(AcpiGbl_RootTableList.Flags & ACPI_ROOT_ALLOW_RESIZE))
     {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
+        ACPI_ERROR ((AE_INFO, "Resize of Root Table Array is not allowed"));
+        return_ACPI_STATUS (AE_SUPPORT);
     }
 
-    /*
-     * We only "recognize" a limited number of ACPI tables -- namely, the
-     * ones that are used by the subsystem (DSDT, FADT, etc.)
-     *
-     * An AE_TABLE_NOT_SUPPORTED means that the table was not recognized.
-     * This can be any one of many valid ACPI tables, it just isn't one of
-     * the tables that is consumed by the core subsystem
-     */
-    Status = AcpiTbMatchSignature (TableHeader->Signature,
-                TableInfo, SearchType);
-    if (ACPI_FAILURE (Status))
+    /* Increase the Table Array size */
+
+    Tables = ACPI_ALLOCATE_ZEROED (
+                (AcpiGbl_RootTableList.Size + ACPI_ROOT_TABLE_SIZE_INCREMENT)
+                * sizeof (ACPI_TABLE_DESC));
+    if (!Tables)
     {
-        return_ACPI_STATUS (Status);
-    }
-
-    Status = AcpiTbValidateTableHeader (TableHeader);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Return the table type and length via the info struct */
-
-    TableInfo->Length = (ACPI_SIZE) TableHeader->Length;
-
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbInitTableDescriptor
- *
- * PARAMETERS:  TableType           - The type of the table
- *              TableInfo           - A table info struct
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Install a table into the global data structs.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiTbInitTableDescriptor (
-    ACPI_TABLE_TYPE         TableType,
-    ACPI_TABLE_DESC         *TableInfo)
-{
-    ACPI_TABLE_LIST         *ListHead;
-    ACPI_TABLE_DESC         *TableDesc;
-    ACPI_STATUS             Status;
-
-
-    ACPI_FUNCTION_TRACE_U32 ("TbInitTableDescriptor", TableType);
-
-
-    /* Allocate a descriptor for this table */
-
-    TableDesc = ACPI_MEM_CALLOCATE (sizeof (ACPI_TABLE_DESC));
-    if (!TableDesc)
-    {
+        ACPI_ERROR ((AE_INFO, "Could not allocate new root table array"));
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    /* Get a new owner ID for the table */
+    /* Copy and free the previous table array */
 
-    Status = AcpiUtAllocateOwnerId (&TableDesc->OwnerId);
-    if (ACPI_FAILURE (Status))
+    if (AcpiGbl_RootTableList.Tables)
     {
-        return_ACPI_STATUS (Status);
-    }
+        ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables,
+            AcpiGbl_RootTableList.Size * sizeof (ACPI_TABLE_DESC));
 
-    /* Install the table into the global data structure */
-
-    ListHead = &AcpiGbl_TableLists[TableType];
-
-    /*
-     * Two major types of tables:  1) Only one instance is allowed.  This
-     * includes most ACPI tables such as the DSDT.  2) Multiple instances of
-     * the table are allowed.  This includes SSDT and PSDTs.
-     */
-    if (ACPI_IS_SINGLE_TABLE (AcpiGbl_TableData[TableType].Flags))
-    {
-        /*
-         * Only one table allowed, and a table has alread been installed
-         * at this location, so return an error.
-         */
-        if (ListHead->Next)
+        if (AcpiGbl_RootTableList.Flags & ACPI_ROOT_ORIGIN_ALLOCATED)
         {
-            ACPI_MEM_FREE (TableDesc);
-            return_ACPI_STATUS (AE_ALREADY_EXISTS);
-        }
-
-        TableDesc->Next = ListHead->Next;
-        ListHead->Next = TableDesc;
-
-        if (TableDesc->Next)
-        {
-            TableDesc->Next->Prev = TableDesc;
-        }
-
-        ListHead->Count++;
-    }
-    else
-    {
-        /*
-         * Link the new table in to the list of tables of this type.
-         * Insert at the end of the list, order IS IMPORTANT.
-         *
-         * TableDesc->Prev & Next are already NULL from calloc()
-         */
-        ListHead->Count++;
-
-        if (!ListHead->Next)
-        {
-            ListHead->Next = TableDesc;
-        }
-        else
-        {
-            TableDesc->Next = ListHead->Next;
-
-            while (TableDesc->Next->Next)
-            {
-                TableDesc->Next = TableDesc->Next->Next;
-            }
-
-            TableDesc->Next->Next = TableDesc;
-            TableDesc->Prev = TableDesc->Next;
-            TableDesc->Next = NULL;
+            ACPI_FREE (AcpiGbl_RootTableList.Tables);
         }
     }
 
-    /* Finish initialization of the table descriptor */
-
-    TableDesc->Type                 = (UINT8) TableType;
-    TableDesc->Pointer              = TableInfo->Pointer;
-    TableDesc->Length               = TableInfo->Length;
-    TableDesc->Allocation           = TableInfo->Allocation;
-    TableDesc->AmlStart             = (UINT8 *) (TableDesc->Pointer + 1),
-    TableDesc->AmlLength            = (UINT32) (TableDesc->Length -
-                                        (UINT32) sizeof (ACPI_TABLE_HEADER));
-    TableDesc->LoadedIntoNamespace  = FALSE;
-
-    /*
-     * Set the appropriate global pointer (if there is one) to point to the
-     * newly installed table
-     */
-    if (AcpiGbl_TableData[TableType].GlobalPtr)
-    {
-        *(AcpiGbl_TableData[TableType].GlobalPtr) = TableInfo->Pointer;
-    }
-
-    /* Return Data */
-
-    TableInfo->OwnerId          = TableDesc->OwnerId;
-    TableInfo->InstalledDesc    = TableDesc;
+    AcpiGbl_RootTableList.Tables = Tables;
+    AcpiGbl_RootTableList.Size += ACPI_ROOT_TABLE_SIZE_INCREMENT;
+    AcpiGbl_RootTableList.Flags |= (UINT8) ACPI_ROOT_ORIGIN_ALLOCATED;
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -459,228 +335,350 @@ AcpiTbInitTableDescriptor (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiTbDeleteAllTables
+ * FUNCTION:    AcpiTbStoreTable
  *
- * PARAMETERS:  None.
+ * PARAMETERS:  Address             - Table address
+ *              Table               - Table header
+ *              Length              - Table length
+ *              Flags               - flags
  *
- * RETURN:      None.
+ * RETURN:      Status and table index.
+ *
+ * DESCRIPTION: Add an ACPI table to the global table list
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbStoreTable (
+    ACPI_PHYSICAL_ADDRESS   Address,
+    ACPI_TABLE_HEADER       *Table,
+    UINT32                  Length,
+    UINT8                   Flags,
+    ACPI_NATIVE_UINT        *TableIndex)
+{
+    ACPI_STATUS             Status = AE_OK;
+
+
+    /* Ensure that there is room for the table in the Root Table List */
+
+    if (AcpiGbl_RootTableList.Count >= AcpiGbl_RootTableList.Size)
+    {
+        Status = AcpiTbResizeRootTableList();
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+    }
+
+    /* Initialize added table */
+
+    AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Address = Address;
+    AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Pointer = Table;
+    AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Length = Length;
+    AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].OwnerId = 0;
+    AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Flags = Flags;
+
+    ACPI_MOVE_32_TO_32 (
+        &(AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Signature),
+        Table->Signature);
+
+    *TableIndex = AcpiGbl_RootTableList.Count;
+    AcpiGbl_RootTableList.Count++;
+    return (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbDeleteTable
+ *
+ * PARAMETERS:  TableIndex          - Table index
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Delete one internal ACPI table
+ *
+ ******************************************************************************/
+
+void
+AcpiTbDeleteTable (
+    ACPI_TABLE_DESC         *TableDesc)
+{
+
+    /* Table must be mapped or allocated */
+
+    if (!TableDesc->Pointer)
+    {
+        return;
+    }
+
+    switch (TableDesc->Flags & ACPI_TABLE_ORIGIN_MASK)
+    {
+    case ACPI_TABLE_ORIGIN_MAPPED:
+        AcpiOsUnmapMemory (TableDesc->Pointer, TableDesc->Length);
+        break;
+
+    case ACPI_TABLE_ORIGIN_ALLOCATED:
+        ACPI_FREE (TableDesc->Pointer);
+        break;
+
+    default:
+        break;
+    }
+
+    TableDesc->Pointer = NULL;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbTerminate
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
  *
  * DESCRIPTION: Delete all internal ACPI tables
  *
  ******************************************************************************/
 
 void
-AcpiTbDeleteAllTables (
+AcpiTbTerminate (
     void)
 {
-    ACPI_TABLE_TYPE         Type;
+    ACPI_NATIVE_UINT        i;
 
 
-    /*
-     * Free memory allocated for ACPI tables
-     * Memory can either be mapped or allocated
-     */
-    for (Type = 0; Type < NUM_ACPI_TABLE_TYPES; Type++)
+    ACPI_FUNCTION_TRACE (TbTerminate);
+
+
+    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
+
+    /* Delete the individual tables */
+
+    for (i = 0; i < AcpiGbl_RootTableList.Count; i++)
     {
-        AcpiTbDeleteTablesByType (Type);
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbDeleteTablesByType
- *
- * PARAMETERS:  Type                - The table type to be deleted
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Delete an internal ACPI table
- *              Locks the ACPI table mutex
- *
- ******************************************************************************/
-
-void
-AcpiTbDeleteTablesByType (
-    ACPI_TABLE_TYPE         Type)
-{
-    ACPI_TABLE_DESC         *TableDesc;
-    UINT32                  Count;
-    UINT32                  i;
-
-
-    ACPI_FUNCTION_TRACE_U32 ("TbDeleteTablesByType", Type);
-
-
-    if (Type > ACPI_TABLE_MAX)
-    {
-        return_VOID;
-    }
-
-    if (ACPI_FAILURE (AcpiUtAcquireMutex (ACPI_MTX_TABLES)))
-    {
-        return;
-    }
-
-    /* Clear the appropriate "typed" global table pointer */
-
-    switch (Type)
-    {
-    case ACPI_TABLE_RSDP:
-        AcpiGbl_RSDP = NULL;
-        break;
-
-    case ACPI_TABLE_DSDT:
-        AcpiGbl_DSDT = NULL;
-        break;
-
-    case ACPI_TABLE_FADT:
-        AcpiGbl_FADT = NULL;
-        break;
-
-    case ACPI_TABLE_FACS:
-        AcpiGbl_FACS = NULL;
-        break;
-
-    case ACPI_TABLE_XSDT:
-        AcpiGbl_XSDT = NULL;
-        break;
-
-    case ACPI_TABLE_SSDT:
-    case ACPI_TABLE_PSDT:
-    default:
-        break;
+        AcpiTbDeleteTable (&AcpiGbl_RootTableList.Tables[i]);
     }
 
     /*
-     * Free the table
-     * 1) Get the head of the list
+     * Delete the root table array if allocated locally. Array cannot be
+     * mapped, so we don't need to check for that flag.
      */
-    TableDesc = AcpiGbl_TableLists[Type].Next;
-    Count     = AcpiGbl_TableLists[Type].Count;
-
-    /*
-     * 2) Walk the entire list, deleting both the allocated tables
-     *    and the table descriptors
-     */
-    for (i = 0; i < Count; i++)
+    if (AcpiGbl_RootTableList.Flags & ACPI_ROOT_ORIGIN_ALLOCATED)
     {
-        TableDesc = AcpiTbUninstallTable (TableDesc);
+        ACPI_FREE (AcpiGbl_RootTableList.Tables);
     }
 
+    AcpiGbl_RootTableList.Tables = NULL;
+    AcpiGbl_RootTableList.Flags = 0;
+    AcpiGbl_RootTableList.Count = 0;
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "ACPI Tables freed\n"));
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
-    return_VOID;
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiTbDeleteSingleTable
+ * FUNCTION:    AcpiTbDeleteNamespaceByOwner
  *
- * PARAMETERS:  TableInfo           - A table info struct
+ * PARAMETERS:  TableIndex          - Table index
  *
- * RETURN:      None.
+ * RETURN:      None
  *
- * DESCRIPTION: Low-level free for a single ACPI table.  Handles cases where
- *              the table was allocated a buffer or was mapped.
+ * DESCRIPTION: Delete all namespace objects created when this table was loaded.
  *
  ******************************************************************************/
 
 void
-AcpiTbDeleteSingleTable (
-    ACPI_TABLE_DESC         *TableDesc)
+AcpiTbDeleteNamespaceByOwner (
+    ACPI_NATIVE_UINT        TableIndex)
 {
+    ACPI_OWNER_ID           OwnerId;
 
-    /* Must have a valid table descriptor and pointer */
 
-    if ((!TableDesc) ||
-         (!TableDesc->Pointer))
+    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
+    if (TableIndex < AcpiGbl_RootTableList.Count)
     {
-        return;
-    }
-
-    /* Valid table, determine type of memory allocation */
-
-    switch (TableDesc->Allocation)
-    {
-    case ACPI_MEM_NOT_ALLOCATED:
-        break;
-
-    case ACPI_MEM_ALLOCATED:
-
-        ACPI_MEM_FREE (TableDesc->Pointer);
-        break;
-
-    case ACPI_MEM_MAPPED:
-
-        AcpiOsUnmapMemory (TableDesc->Pointer, TableDesc->Length);
-        break;
-
-    default:
-        break;
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbUninstallTable
- *
- * PARAMETERS:  TableInfo           - A table info struct
- *
- * RETURN:      Pointer to the next table in the list (of same type)
- *
- * DESCRIPTION: Free the memory associated with an internal ACPI table that
- *              is either installed or has never been installed.
- *              Table mutex should be locked.
- *
- ******************************************************************************/
-
-ACPI_TABLE_DESC *
-AcpiTbUninstallTable (
-    ACPI_TABLE_DESC         *TableDesc)
-{
-    ACPI_TABLE_DESC         *NextDesc;
-
-
-    ACPI_FUNCTION_TRACE_PTR ("TbUninstallTable", TableDesc);
-
-
-    if (!TableDesc)
-    {
-        return_PTR (NULL);
-    }
-
-    /* Unlink the descriptor from the doubly linked list */
-
-    if (TableDesc->Prev)
-    {
-        TableDesc->Prev->Next = TableDesc->Next;
+        OwnerId = AcpiGbl_RootTableList.Tables[TableIndex].OwnerId;
     }
     else
     {
-        /* Is first on list, update list head */
-
-        AcpiGbl_TableLists[TableDesc->Type].Next = TableDesc->Next;
+        (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+        return;
     }
 
-    if (TableDesc->Next)
-    {
-        TableDesc->Next->Prev = TableDesc->Prev;
-    }
-
-    /* Free the memory allocated for the table itself */
-
-    AcpiTbDeleteSingleTable (TableDesc);
-
-    /* Free the table descriptor */
-
-    NextDesc = TableDesc->Next;
-    ACPI_MEM_FREE (TableDesc);
-
-    /* Return pointer to the next descriptor */
-
-    return_PTR (NextDesc);
+    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+    AcpiNsDeleteNamespaceByOwner (OwnerId);
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbAllocateOwnerId
+ *
+ * PARAMETERS:  TableIndex          - Table index
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Allocates OwnerId in TableDesc
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbAllocateOwnerId (
+    ACPI_NATIVE_UINT        TableIndex)
+{
+    ACPI_STATUS             Status = AE_BAD_PARAMETER;
+
+
+    ACPI_FUNCTION_TRACE (TbAllocateOwnerId);
+
+
+    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
+    if (TableIndex < AcpiGbl_RootTableList.Count)
+    {
+        Status = AcpiUtAllocateOwnerId
+                    (&(AcpiGbl_RootTableList.Tables[TableIndex].OwnerId));
+    }
+
+    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbReleaseOwnerId
+ *
+ * PARAMETERS:  TableIndex          - Table index
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Releases OwnerId in TableDesc
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbReleaseOwnerId (
+    ACPI_NATIVE_UINT        TableIndex)
+{
+    ACPI_STATUS             Status = AE_BAD_PARAMETER;
+
+
+    ACPI_FUNCTION_TRACE (TbReleaseOwnerId);
+
+
+    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
+    if (TableIndex < AcpiGbl_RootTableList.Count)
+    {
+        AcpiUtReleaseOwnerId (&(AcpiGbl_RootTableList.Tables[TableIndex].OwnerId));
+        Status = AE_OK;
+    }
+
+    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbGetOwnerId
+ *
+ * PARAMETERS:  TableIndex          - Table index
+ *              OwnerId             - Where the table OwnerId is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: returns OwnerId for the ACPI table
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbGetOwnerId (
+    ACPI_NATIVE_UINT        TableIndex,
+    ACPI_OWNER_ID           *OwnerId)
+{
+    ACPI_STATUS             Status = AE_BAD_PARAMETER;
+
+
+    ACPI_FUNCTION_TRACE (TbGetOwnerId);
+
+
+    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
+    if (TableIndex < AcpiGbl_RootTableList.Count)
+    {
+        *OwnerId = AcpiGbl_RootTableList.Tables[TableIndex].OwnerId;
+        Status = AE_OK;
+    }
+
+    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbIsTableLoaded
+ *
+ * PARAMETERS:  TableIndex          - Table index
+ *
+ * RETURN:      Table Loaded Flag
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiTbIsTableLoaded (
+    ACPI_NATIVE_UINT        TableIndex)
+{
+    BOOLEAN                 IsLoaded = FALSE;
+
+
+    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
+    if (TableIndex < AcpiGbl_RootTableList.Count)
+    {
+        IsLoaded = (BOOLEAN)
+            (AcpiGbl_RootTableList.Tables[TableIndex].Flags & ACPI_TABLE_IS_LOADED);
+    }
+
+    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+    return (IsLoaded);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbSetTableLoadedFlag
+ *
+ * PARAMETERS:  TableIndex          - Table index
+ *              IsLoaded            - TRUE if table is loaded, FALSE otherwise
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Sets the table loaded flag to either TRUE or FALSE.
+ *
+ ******************************************************************************/
+
+void
+AcpiTbSetTableLoadedFlag (
+    ACPI_NATIVE_UINT        TableIndex,
+    BOOLEAN                 IsLoaded)
+{
+
+    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
+    if (TableIndex < AcpiGbl_RootTableList.Count)
+    {
+        if (IsLoaded)
+        {
+            AcpiGbl_RootTableList.Tables[TableIndex].Flags |= ACPI_TABLE_IS_LOADED;
+        }
+        else
+        {
+            AcpiGbl_RootTableList.Tables[TableIndex].Flags &= ~ACPI_TABLE_IS_LOADED;
+        }
+    }
+
+    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+}
 
