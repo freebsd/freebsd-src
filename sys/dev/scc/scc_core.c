@@ -332,7 +332,7 @@ scc_bfe_detach(device_t dev)
 }
 
 int
-scc_bfe_probe(device_t dev, u_int regshft, u_int rclk)
+scc_bfe_probe(device_t dev, u_int regshft, u_int rclk, u_int rid)
 {
 	struct scc_softc *sc;
 	struct scc_class *cl;
@@ -361,12 +361,12 @@ scc_bfe_probe(device_t dev, u_int regshft, u_int rclk)
 	 * I/O space. Any SCC that needs multiple windows will consequently
 	 * not be supported by this driver as-is.
 	 */
-	sc->sc_rrid = 0;
+	sc->sc_rrid = rid;
 	sc->sc_rtype = SYS_RES_MEMORY;
 	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
 	    0, ~0, cl->cl_channels * size, RF_ACTIVE);
 	if (sc->sc_rres == NULL) {
-		sc->sc_rrid = 0;
+		sc->sc_rrid = rid;
 		sc->sc_rtype = SYS_RES_IOPORT;
 		sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype,
 		    &sc->sc_rrid, 0, ~0, cl->cl_channels * size, RF_ACTIVE);
