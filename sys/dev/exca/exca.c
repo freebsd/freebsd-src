@@ -259,11 +259,11 @@ exca_mem_map(struct exca_softc *sc, int kind, struct resource *res)
 		}
 	}
 	if (win >= EXCA_MEM_WINS)
-		return (1);
+		return (ENOSPC);
 	if (((rman_get_start(res) >> EXCA_MEMREG_WIN_SHIFT) & 0xff) != 0 &&
 	    (sc->flags & EXCA_HAS_MEMREG_WIN) == 0) {
 		device_printf(sc->dev, "Does not support mapping above 24M.");
-		return (1);
+		return (EINVAL);
 	}
 
 	sc->mem[win].cardaddr = 0;
@@ -301,7 +301,7 @@ exca_mem_unmap(struct exca_softc *sc, int window)
 }
 
 /*
- * Find the map that we're using to hold the resoruce.  This works well
+ * Find the map that we're using to hold the resource.  This works well
  * so long as the client drivers don't do silly things like map the same
  * area mutliple times, or map both common and attribute memory at the
  * same time.  This latter restriction is a bug.  We likely should just
@@ -477,7 +477,7 @@ exca_io_map(struct exca_softc *sc, int width, struct resource *r)
 		}
 	}
 	if (win >= EXCA_IO_WINS)
-		return (1);
+		return (ENOSPC);
 
 	sc->io[win].iot = rman_get_bustag(r);
 	sc->io[win].ioh = rman_get_bushandle(r);
@@ -789,24 +789,25 @@ exca_activate_resource(struct exca_softc *exca, device_t child, int type,
     int rid, struct resource *res)
 {
 	int err;
-	if (!(rman_get_flags(res) & RF_ACTIVE)) { /* not already activated */
-		switch (type) {
-		case SYS_RES_IOPORT:
-			err = exca_io_map(exca, PCCARD_WIDTH_AUTO, res);
-			break;
-		case SYS_RES_MEMORY:
-			err = exca_mem_map(exca, PCCARD_A_MEM_COM, res);
-			break;
-		default:
-			err = 0;
-			break;
-		}
-		if (err)
-			return (err);
 
+	if (rman_get_flags(res) & RF_ACTIVE)
+		return (0);
+	err = BUS_ACTIVATE_RESOURCE(device_get_parent(exca->dev), child,
+	    type, rid, res);
+	if (err)
+		return (err);
+	switch (type) {
+	case SYS_RES_IOPORT:
+		err = exca_io_map(exca, PCCARD_WIDTH_AUTO, res);
+		break;
+	case SYS_RES_MEMORY:
+		err = exca_mem_map(exca, PCCARD_A_MEM_COM, res);
+		break;
 	}
-	return (BUS_ACTIVATE_RESOURCE(device_get_parent(exca->dev), child,
-		  type, rid, res));
+	if (err)
+		BUS_DEACTIVATE_RESOURCE(device_get_parent(exca->dev), child,
+		    type, rid, res);
+	return (err);
 }
 
 int
