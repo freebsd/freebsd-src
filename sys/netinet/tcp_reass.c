@@ -441,9 +441,9 @@ tcp_input(struct mbuf *m, int off0)
 	int optlen = 0;
 	int len, tlen, off;
 	int drop_hdrlen;
-	struct tcpcb *tp = 0;
+	struct tcpcb *tp = NULL;
 	int thflags;
-	struct socket *so = 0;
+	struct socket *so = NULL;
 	int todrop, acked, ourfinisacked, needoutput = 0;
 	u_long tiwin;
 	struct tcpopt to;		/* options in this segment */
@@ -514,7 +514,8 @@ tcp_input(struct mbuf *m, int off0)
 			off0 = sizeof(struct ip);
 		}
 		if (m->m_len < sizeof (struct tcpiphdr)) {
-			if ((m = m_pullup(m, sizeof (struct tcpiphdr))) == 0) {
+			if ((m = m_pullup(m, sizeof (struct tcpiphdr)))
+			    == NULL) {
 				tcpstat.tcps_rcvshort++;
 				return;
 			}
@@ -576,7 +577,7 @@ tcp_input(struct mbuf *m, int off0)
 		} else {
 			if (m->m_len < sizeof(struct ip) + off) {
 				if ((m = m_pullup(m, sizeof (struct ip) + off))
-						== 0) {
+				    == NULL) {
 					tcpstat.tcps_rcvshort++;
 					return;
 				}
@@ -670,13 +671,11 @@ findpcb:
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
 #ifdef INET6
-	if (isipv6) {
-		if (inp != NULL && ipsec6_in_reject(m, inp)) {
+	if (isipv6 && inp != NULL && ipsec6_in_reject(m, inp)) {
 #ifdef IPSEC
-			ipsec6stat.in_polvio++;
+		ipsec6stat.in_polvio++;
 #endif
-			goto drop;
-		}
+		goto drop;
 	} else
 #endif /* INET6 */
 	if (inp != NULL && ipsec4_in_reject(m, inp)) {
@@ -768,7 +767,7 @@ findpcb:
 	 * segment and send an appropriate response.
 	 */
 	tp = intotcpcb(inp);
-	if (tp == 0) {
+	if (tp == NULL) {
 		INP_UNLOCK(inp);
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
@@ -813,8 +812,8 @@ findpcb:
 		inc.inc_fport = th->th_sport;
 		inc.inc_lport = th->th_dport;
 
-	        /*
-	         * If the state is LISTEN then ignore segment if it contains
+		/*
+		 * If the state is LISTEN then ignore segment if it contains
 		 * a RST.  If the segment contains an ACK then it is bad and
 		 * send a RST.  If it does not contain a SYN then it is not
 		 * interesting; drop it.
@@ -1140,7 +1139,7 @@ after_listen:
 					tcp_xmit_timer(tp,
 					    ticks - to.to_tsecr + 1);
 				} else if (tp->t_rtttime &&
-					    SEQ_GT(th->th_ack, tp->t_rtseq)) {
+				    SEQ_GT(th->th_ack, tp->t_rtseq)) {
 					if (!tp->t_rttlow ||
 					    tp->t_rttlow > ticks - tp->t_rtttime)
 						tp->t_rttlow = ticks - tp->t_rtttime;
@@ -1883,9 +1882,9 @@ after_listen:
 				    th->th_ack != tp->snd_una)
 					tp->t_dupacks = 0;
 				else if (++tp->t_dupacks > tcprexmtthresh ||
-					 ((tcp_do_newreno || tp->sack_enable) &&
-					  IN_FASTRECOVERY(tp))) {
-                                        if (tp->sack_enable && IN_FASTRECOVERY(tp)) {
+				    ((tcp_do_newreno || tp->sack_enable) &&
+				     IN_FASTRECOVERY(tp))) {
+					if (tp->sack_enable && IN_FASTRECOVERY(tp)) {
 						int awnd;
 						
 						/*
@@ -2702,7 +2701,7 @@ tcp_pulloutofband(struct socket *so, struct tcphdr *th, struct mbuf *m,
 		}
 		cnt -= m->m_len;
 		m = m->m_next;
-		if (m == 0)
+		if (m == NULL)
 			break;
 	}
 	panic("tcp_pulloutofband");
