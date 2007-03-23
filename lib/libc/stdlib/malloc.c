@@ -72,11 +72,10 @@
  *   |                           |    ... |
  *   |                           | 256 kB |
  *   |                           | 512 kB |
- *   |                           |   1 MB |
  *   |====================================|
- *   | Huge                      |   2 MB |
- *   |                           |   4 MB |
- *   |                           |   6 MB |
+ *   | Huge                      |   1 MB |
+ *   |                           |   2 MB |
+ *   |                           |   3 MB |
  *   |                           |    ... |
  *   |====================================|
  *
@@ -174,13 +173,13 @@
 /******************************************************************************/
 
 /*
- * In order to disable various extra features that may have negative
- * performance impacts, (assertions, expanded statistics), define
- * NO_MALLOC_EXTRAS.
+ * MALLOC_PRODUCTION disables assertions and statistics gathering.  It also
+ * defaults the A and J runtime options to off.  These settings are appropriate
+ * for production systems.
  */
-/* #define NO_MALLOC_EXTRAS */
+/* #define MALLOC_PRODUCTION */
 
-#ifndef NO_MALLOC_EXTRAS
+#ifndef MALLOC_PRODUCTION
 #  define MALLOC_DEBUG
 #endif
 
@@ -222,11 +221,8 @@ __FBSDID("$FreeBSD$");
 
 #include "un-namespace.h"
 
-/*
- * Calculate statistics that can be used to get an idea of how well caching is
- * working.
- */
-#ifndef NO_MALLOC_EXTRAS
+/* MALLOC_STATS enables statistics calculation. */
+#ifndef MALLOC_PRODUCTION
 #  define MALLOC_STATS
 #endif
 
@@ -298,7 +294,6 @@ __FBSDID("$FreeBSD$");
  * memory system.
  */
 #define	CHUNK_2POW_DEFAULT	20
-#define	CHUNK_2POW_MAX		28
 
 /*
  * Maximum size of L1 cache line.  This is used to avoid cache line aliasing,
@@ -327,12 +322,15 @@ __FBSDID("$FreeBSD$");
  *
  * Note that it is possible to set this low enough that it cannot be honored
  * for some/all object sizes, since there is one bit of header overhead per
- * object (plus a constant).  In such cases, this value is iteratively doubled
- * in order to make sure that the overhead limit is achievable.
+ * object (plus a constant).  In such cases, this constraint is relaxed.
+ *
+ * RUN_MAX_OVRHD_RELAX specifies the maximum number of bits per region of
+ * overhead for which RUN_MAX_OVRHD is relaxed.
  */
-#define RUN_MAX_HDR_OVERHEAD	0.005
+#define RUN_MAX_OVRHD		0.015
+#define RUN_MAX_OVRHD_RELAX	1.5
 
-/* Put a cap on small object run size.  This overrides RUN_MAX_HDR_OVERHEAD. */
+/* Put a cap on small object run size.  This overrides RUN_MAX_OVRHD. */
 #define RUN_MAX_SMALL_2POW	16
 #define RUN_MAX_SMALL		(1 << RUN_MAX_SMALL_2POW)
 
@@ -385,16 +383,17 @@ struct malloc_bin_stats_s {
 
 typedef struct arena_stats_s arena_stats_t;
 struct arena_stats_s {
-	/* Total byte count of allocated memory, not including overhead. */
-	size_t		allocated;
+	/* Number of bytes currently mapped. */
+	size_t		mapped;
 
-	/* Number of times each function was called. */
-	uint64_t	nmalloc;
-	uint64_t	ndalloc;
-	uint64_t	nmadvise;
+	/* Per-size-category statistics. */
+	size_t		allocated_small;
+	uint64_t	nmalloc_small;
+	uint64_t	ndalloc_small;
 
-	/* Number of large allocation requests. */
-	uint64_t	large_nrequests;
+	size_t		allocated_large;
+	uint64_t	nmalloc_large;
+	uint64_t	ndalloc_large;
 };
 
 typedef struct chunk_stats_s chunk_stats_t;
@@ -450,10 +449,18 @@ typedef struct arena_bin_s arena_bin_t;
 
 typedef struct arena_chunk_map_s arena_chunk_map_t;
 struct arena_chunk_map_s {
-	bool		free:1;
-	bool		large:1;
-	unsigned	npages:15; /* Limiting factor for CHUNK_2POW_MAX. */
-	unsigned	pos:15;
+	/* Number of pages in run. */
+	uint32_t	npages;
+	/*
+	 * Position within run.  For a free run, this is POS_FREE for the first
+	 * and last pages.  The POS_FREE special value makes it possible to
+	 * quickly coalesce free runs.
+	 *
+	 * This is the limiting factor for chunk_size; there can be at most 2^31
+	 * pages in a run.
+	 */
+#define POS_FREE 0xffffffffU
+	uint32_t	pos;
 };
 
 /* Arena chunk header. */
@@ -472,24 +479,25 @@ struct arena_chunk_s {
 	uint32_t pages_used;
 
 	/*
-	 * Array of counters that keeps track of how many free runs of each
-	 * size are available in this chunk.  This table is sized at compile
-	 * time, which is wasteful.  However, due to unrelated rounding, this
-	 * doesn't actually waste any otherwise useful space.
-	 *
-	 *   index == 2^n pages
-	 *
-	 *   index | npages
-	 *   ------+-------
-	 *       0 |      1
-	 *       1 |      2
-	 *       2 |      4
-	 *       3 |      8
-	 *         :
+	 * Every time a free run larger than this value is created/coalesced,
+	 * this value is increased.  The only way that the value decreases is if
+	 * arena_run_alloc() fails to find a free run as large as advertised by
+	 * this value.
 	 */
-	uint32_t nfree_runs[CHUNK_2POW_MAX/* - PAGE_SHIFT */];
+	uint32_t max_frun_npages;
 
-	/* Map of pages within chunk that keeps track of free/large/small. */
+	/*
+	 * Every time a free run that starts at an earlier page than this value
+	 * is created/coalesced, this value is decreased.  It is reset in a
+	 * similar fashion to max_frun_npages.
+	 */
+	uint32_t min_frun_ind;
+
+	/*
+	 * Map of pages within chunk that keeps track of free/large/small.  For
+	 * free runs, only the map entries for the first and last pages are
+	 * kept up to date, so that free runs can be quickly coalesced.
+	 */
 	arena_chunk_map_t map[1]; /* Dynamically sized. */
 };
 typedef struct arena_chunk_tree_s arena_chunk_tree_t;
@@ -680,6 +688,7 @@ static unsigned		ncpus;
 
 /* VM page size. */
 static unsigned		pagesize;
+static unsigned		pagesize_mask;
 static unsigned		pagesize_2pow;
 
 /* Various bin-related settings. */
@@ -697,8 +706,9 @@ static size_t		quantum_mask; /* (quantum - 1). */
 /* Various chunk-related settings. */
 static size_t		chunk_size;
 static size_t		chunk_size_mask; /* (chunk_size - 1). */
+static unsigned		chunk_npages;
+static unsigned		arena_chunk_header_npages;
 static size_t		arena_maxclass; /* Max size class for arenas. */
-static unsigned		arena_chunk_maplen;
 
 /********/
 /*
@@ -731,7 +741,7 @@ static void		*brk_max;
 
 #ifdef MALLOC_STATS
 /*
- * Byte counters for allocated/total space used by the chunks in the huge
+ * Byte counters for allocated/mapped space used by the chunks in the huge
  * allocations tree.
  */
 static uint64_t		huge_nmalloc;
@@ -761,7 +771,7 @@ static void		*base_past_addr; /* Addr immediately past base_chunk. */
 static chunk_node_t	*base_chunk_nodes; /* LIFO cache of chunk nodes. */
 static malloc_mutex_t	base_mtx;
 #ifdef MALLOC_STATS
-static uint64_t		base_total;
+static size_t		base_mapped;
 #endif
 
 /********/
@@ -799,7 +809,7 @@ static chunk_stats_t	stats_chunks;
  */
 const char	*_malloc_options;
 
-#ifndef NO_MALLOC_EXTRAS
+#ifndef MALLOC_PRODUCTION
 static bool	opt_abort = true;
 static bool	opt_junk = true;
 #else
@@ -855,15 +865,14 @@ static void	chunk_dealloc(void *chunk, size_t size);
 #ifndef NO_TLS
 static arena_t	*choose_arena_hard(void);
 #endif
-static void	arena_run_split(arena_t *arena, arena_run_t *run, bool large,
-    size_t size);
+static void	arena_run_split(arena_t *arena, arena_run_t *run, size_t size);
 static arena_chunk_t *arena_chunk_alloc(arena_t *arena);
 static void	arena_chunk_dealloc(arena_t *arena, arena_chunk_t *chunk);
 static void	arena_bin_run_promote(arena_t *arena, arena_bin_t *bin,
     arena_run_t *run);
 static void	arena_bin_run_demote(arena_t *arena, arena_bin_t *bin,
     arena_run_t *run);
-static arena_run_t *arena_run_alloc(arena_t *arena, bool large, size_t size);
+static arena_run_t *arena_run_alloc(arena_t *arena, size_t size);
 static void	arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size);
 static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin);
 static void *arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin);
@@ -945,6 +954,10 @@ malloc_mutex_unlock(malloc_mutex_t *a_mutex)
 /* Return the smallest quantum multiple that is >= a. */
 #define	QUANTUM_CEILING(a)						\
 	(((a) + quantum_mask) & ~quantum_mask)
+
+/* Return the smallest pagesize multiple that is >= s. */
+#define	PAGE_CEILING(s)							\
+	(((s) + pagesize_mask) & ~pagesize_mask)
 
 /* Compute the smallest power of 2 that is >= x. */
 static inline size_t
@@ -1061,7 +1074,7 @@ base_chunk_alloc(size_t minsize)
 				base_past_addr = (void *)((uintptr_t)base_chunk
 				    + incr);
 #ifdef MALLOC_STATS
-				base_total += incr;
+				base_mapped += incr;
 #endif
 				return (false);
 			}
@@ -1080,7 +1093,7 @@ base_chunk_alloc(size_t minsize)
 	base_next_addr = base_chunk;
 	base_past_addr = (void *)((uintptr_t)base_chunk + chunk_size);
 #ifdef MALLOC_STATS
-	base_total += chunk_size;
+	base_mapped += chunk_size;
 #endif
 	return (false);
 }
@@ -1154,19 +1167,22 @@ stats_print(arena_t *arena)
 	unsigned i;
 	int gap_start;
 
-	malloc_printf("allocated: %zu\n", arena->stats.allocated);
+	malloc_printf(
+	    "          allocated/mapped            nmalloc      ndalloc\n");
+	malloc_printf("small: %12llu %-12s %12llu %12llu\n",
+	    arena->stats.allocated_small, "", arena->stats.nmalloc_small,
+	    arena->stats.ndalloc_small);
+	malloc_printf("large: %12llu %-12s %12llu %12llu\n",
+	    arena->stats.allocated_large, "", arena->stats.nmalloc_large,
+	    arena->stats.ndalloc_large);
+	malloc_printf("total: %12llu/%-12llu %12llu %12llu\n",
+	    arena->stats.allocated_small + arena->stats.allocated_large,
+	    arena->stats.mapped,
+	    arena->stats.nmalloc_small + arena->stats.nmalloc_large,
+	    arena->stats.ndalloc_small + arena->stats.ndalloc_large);
 
-	malloc_printf("calls:\n");
-	malloc_printf(" %12s %12s %12s\n", "nmalloc","ndalloc", "nmadvise");
-	malloc_printf(" %12llu %12llu %12llu\n",
-	    arena->stats.nmalloc, arena->stats.ndalloc, arena->stats.nmadvise);
-
-	malloc_printf("large requests: %llu\n", arena->stats.large_nrequests);
-
-	malloc_printf("bins:\n");
-	malloc_printf("%13s %1s %4s %5s %6s %9s %5s %6s %7s %6s %6s\n",
-	    "bin", "", "size", "nregs", "run_sz", "nrequests", "nruns",
-	    "hiruns", "curruns", "npromo", "ndemo");
+	malloc_printf("bins:     bin   size regs pgs  requests newruns "
+	    "maxruns curruns promote  demote\n");
 	for (i = 0, gap_start = -1; i < ntbins + nqbins + nsbins; i++) {
 		if (arena->bins[i].stats.nrequests == 0) {
 			if (gap_start == -1)
@@ -1184,13 +1200,13 @@ stats_print(arena_t *arena)
 				gap_start = -1;
 			}
 			malloc_printf(
-			    "%13u %1s %4u %5u %6u %9llu %5llu"
-			    " %6lu %7lu %6llu %6llu\n",
+			    "%13u %1s %4u %4u %3u %9llu %7llu"
+			    " %7lu %7lu %7llu %7llu\n",
 			    i,
 			    i < ntbins ? "T" : i < ntbins + nqbins ? "Q" : "S",
 			    arena->bins[i].reg_size,
 			    arena->bins[i].nregs,
-			    arena->bins[i].run_size,
+			    arena->bins[i].run_size >> pagesize_2pow,
 			    arena->bins[i].stats.nrequests,
 			    arena->bins[i].stats.nruns,
 			    arena->bins[i].stats.highruns,
@@ -1776,57 +1792,44 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 }
 
 static void
-arena_run_split(arena_t *arena, arena_run_t *run, bool large, size_t size)
+arena_run_split(arena_t *arena, arena_run_t *run, size_t size)
 {
 	arena_chunk_t *chunk;
-	unsigned run_ind, map_offset, total_pages, need_pages;
-	unsigned i, log2_run_pages, run_pages;
+	unsigned run_ind, map_offset, total_pages, need_pages, rem_pages;
+	unsigned i;
 
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(run);
 	run_ind = (unsigned)(((uintptr_t)run - (uintptr_t)chunk)
 	    >> pagesize_2pow);
-	assert(chunk->map[run_ind].free);
 	total_pages = chunk->map[run_ind].npages;
 	need_pages = (size >> pagesize_2pow);
-
-	assert(chunk->map[run_ind].free);
-	assert(chunk->map[run_ind].large == false);
-	assert(chunk->map[run_ind].npages == total_pages);
+	assert(need_pages <= total_pages);
+	rem_pages = total_pages - need_pages;
 
 	/* Split enough pages from the front of run to fit allocation size. */
 	map_offset = run_ind;
 	for (i = 0; i < need_pages; i++) {
-		chunk->map[map_offset + i].free = false;
-		chunk->map[map_offset + i].large = large;
 		chunk->map[map_offset + i].npages = need_pages;
 		chunk->map[map_offset + i].pos = i;
 	}
 
-	/* Update map for trailing pages. */
-	map_offset += need_pages;
-	while (map_offset < run_ind + total_pages) {
-		log2_run_pages = ffs((int)map_offset) - 1;
-		run_pages = (1 << log2_run_pages);
-
-		chunk->map[map_offset].free = true;
-		chunk->map[map_offset].large = false;
-		chunk->map[map_offset].npages = run_pages;
-
-		chunk->nfree_runs[log2_run_pages]++;
-
-		map_offset += run_pages;
+	/* Keep track of trailing unused pages for later use. */
+	if (rem_pages > 0) {
+		/* Update map for trailing pages. */
+		map_offset += need_pages;
+		chunk->map[map_offset].npages = rem_pages;
+		chunk->map[map_offset].pos = POS_FREE;
+		chunk->map[map_offset + rem_pages - 1].npages = rem_pages;
+		chunk->map[map_offset + rem_pages - 1].pos = POS_FREE;
 	}
 
-	chunk->pages_used += (size >> pagesize_2pow);
+	chunk->pages_used += need_pages;
 }
 
 static arena_chunk_t *
 arena_chunk_alloc(arena_t *arena)
 {
 	arena_chunk_t *chunk;
-	unsigned i, j, header_npages, pow2_header_npages, map_offset;
-	unsigned log2_run_pages, run_pages;
-	size_t header_size;
 
 	if (arena->spare != NULL) {
 		chunk = arena->spare;
@@ -1837,6 +1840,9 @@ arena_chunk_alloc(arena_t *arena)
 		chunk = (arena_chunk_t *)chunk_alloc(chunk_size);
 		if (chunk == NULL)
 			return (NULL);
+#ifdef MALLOC_STATS
+		arena->stats.mapped += chunk_size;
+#endif
 
 		chunk->arena = arena;
 
@@ -1848,58 +1854,19 @@ arena_chunk_alloc(arena_t *arena)
 		 */
 		chunk->pages_used = 0;
 
-		memset(&chunk->nfree_runs, 0, sizeof(chunk->nfree_runs));
-
-		header_size =
-		    (size_t)((uintptr_t)&chunk->map[arena_chunk_maplen] -
-		    (uintptr_t)chunk);
-		if (header_size % pagesize != 0) {
-			/* Round up to the nearest page boundary. */
-			header_size += pagesize - (header_size % pagesize);
-		}
-
-		header_npages = header_size >> pagesize_2pow;
-		pow2_header_npages = pow2_ceil(header_npages);
+		chunk->max_frun_npages = chunk_npages -
+		    arena_chunk_header_npages;
+		chunk->min_frun_ind = arena_chunk_header_npages;
 
 		/*
-		 * Iteratively mark runs as in use, until we've spoken for the
-		 * entire header.
+		 * Initialize enough of the map to support one maximal free run.
 		 */
-		map_offset = 0;
-		for (i = 0; header_npages > 0; i++) {
-			if ((pow2_header_npages >> i) <= header_npages) {
-				for (j = 0; j < (pow2_header_npages >> i);
-				    j++) {
-					chunk->map[map_offset + j].free =
-					    false;
-					chunk->map[map_offset + j].large =
-					    false;
-					chunk->map[map_offset + j].npages =
-					    (pow2_header_npages >> i);
-					chunk->map[map_offset + j].pos = j;
-				}
-				header_npages -= (pow2_header_npages >> i);
-				map_offset += (pow2_header_npages >> i);
-			}
-		}
-
-		/*
-		 * Finish initializing map.  The chunk header takes up some
-		 * space at the beginning of the chunk, which we just took care
-		 * of by "allocating" the leading pages.
-		 */
-		while (map_offset < (chunk_size >> pagesize_2pow)) {
-			log2_run_pages = ffs((int)map_offset) - 1;
-			run_pages = (1 << log2_run_pages);
-
-			chunk->map[map_offset].free = true;
-			chunk->map[map_offset].large = false;
-			chunk->map[map_offset].npages = run_pages;
-
-			chunk->nfree_runs[log2_run_pages]++;
-
-			map_offset += run_pages;
-		}
+		chunk->map[arena_chunk_header_npages].npages = chunk_npages -
+		    arena_chunk_header_npages;
+		chunk->map[arena_chunk_header_npages].pos = POS_FREE;
+		chunk->map[chunk_npages - 1].npages = chunk_npages -
+		    arena_chunk_header_npages;
+		chunk->map[chunk_npages - 1].pos = POS_FREE;
 	}
 
 	return (chunk);
@@ -1916,12 +1883,19 @@ arena_chunk_dealloc(arena_t *arena, arena_chunk_t *chunk)
 	RB_REMOVE(arena_chunk_tree_s, &chunk->arena->chunks, chunk);
 
 	if (opt_hint == false) {
-		if (arena->spare != NULL)
+		if (arena->spare != NULL) {
 			chunk_dealloc((void *)arena->spare, chunk_size);
+#ifdef MALLOC_STATS
+			arena->stats.mapped -= chunk_size;
+#endif
+		}
 		arena->spare = chunk;
 	} else {
 		assert(arena->spare == NULL);
 		chunk_dealloc((void *)chunk, chunk_size);
+#ifdef MALLOC_STATS
+		arena->stats.mapped -= chunk_size;
+#endif
 	}
 }
 
@@ -1981,6 +1955,13 @@ arena_bin_run_promote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 			 * pathological edge cases.
 			 */
 			run->quartile++;
+#ifdef MALLOC_STATS
+			/*
+			 * Count as a double promotion, in order to keep
+			 * promotions and demotions symmetric.
+			 */
+			bin->stats.npromote++;
+#endif
 			/* Fall through. */
 		case RUN_Q100:
 			qr_remove(run, link);
@@ -2068,140 +2049,154 @@ arena_bin_run_demote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 }
 
 static arena_run_t *
-arena_run_alloc(arena_t *arena, bool large, size_t size)
+arena_run_alloc(arena_t *arena, size_t size)
 {
-	arena_run_t *run;
-	unsigned min_ind, i, j;
 	arena_chunk_t *chunk;
-#ifndef NDEBUG
-	int rep = 0;
-#endif
+	arena_run_t *run;
+	unsigned need_npages, limit_pages, compl_need_npages;
 
-	assert(size <= arena_maxclass);
-
-AGAIN:
-#ifndef NDEBUG
-	rep++;
-	assert(rep <= 2);
-#endif
+	assert(size <= (chunk_size - (arena_chunk_header_npages <<
+	    pagesize_2pow)));
 
 	/*
-	 * Search through arena's chunks in address order for a run that is
-	 * large enough.  Look for a precise fit, but do not pass up a chunk
-	 * that has a run which is large enough to split.
+	 * Search through arena's chunks in address order for a free run that is
+	 * large enough.  Look for the first fit.
 	 */
-	min_ind = ffs((int)(size >> pagesize_2pow)) - 1;
+	need_npages = (size >> pagesize_2pow);
+	limit_pages = chunk_npages - arena_chunk_header_npages;
+	compl_need_npages = limit_pages - need_npages;
 	RB_FOREACH(chunk, arena_chunk_tree_s, &arena->chunks) {
-		for (i = min_ind;
-		    i < (opt_chunk_2pow - pagesize_2pow);
-		    i++) {
-			if (chunk->nfree_runs[i] > 0) {
-				arena_chunk_map_t *map = chunk->map;
+		/*
+		 * Avoid searching this chunk if there are not enough
+		 * contiguous free pages for there to possibly be a large
+		 * enough free run.
+		 */
+		if (chunk->pages_used <= compl_need_npages &&
+		    need_npages <= chunk->max_frun_npages) {
+			arena_chunk_map_t *mapelm;
+			unsigned i;
+			uint32_t max_frun_npages = 0;
+			uint32_t min_frun_ind = chunk_npages;
 
-				/* Scan chunk's map for free run. */
-				for (j = 0;
-				    j < arena_chunk_maplen;
-				    j += map[j].npages) {
-					if (map[j].free
-					    && map[j].npages == (1 << i))
-		{/*<----------------------------*/
-			run = (arena_run_t *)&((char *)chunk)[j
-			    << pagesize_2pow];
-
-			assert(chunk->nfree_runs[i] > 0);
-			chunk->nfree_runs[i]--;
-
-			/* Update page map. */
-			arena_run_split(arena, run, large, size);
-
-			return (run);
-		}/*---------------------------->*/
+			assert(chunk->min_frun_ind >=
+			    arena_chunk_header_npages);
+			for (i = chunk->min_frun_ind; i < chunk_npages;) {
+				mapelm = &chunk->map[i];
+				if (mapelm->pos == POS_FREE) {
+					if (mapelm->npages >= need_npages) {
+						run = (arena_run_t *)
+						    ((uintptr_t)chunk + (i <<
+						    pagesize_2pow));
+						/* Update page map. */
+						arena_run_split(arena, run,
+						    size);
+						return (run);
+					}
+					if (mapelm->npages >
+					    max_frun_npages) {
+						max_frun_npages =
+						    mapelm->npages;
+					}
+					if (i < min_frun_ind) {
+						min_frun_ind = i;
+						if (i < chunk->min_frun_ind)
+							chunk->min_frun_ind = i;
+					}
 				}
-				/* Not reached. */
-				assert(0);
+				i += mapelm->npages;
 			}
+			/*
+			 * Search failure.  Reset cached chunk->max_frun_npages.
+			 * chunk->min_frun_ind was already reset above (if
+			 * necessary).
+			 */
+			chunk->max_frun_npages = max_frun_npages;
 		}
 	}
 
 	/* No usable runs.  Allocate a new chunk, then try again. */
-	if (arena_chunk_alloc(arena) == NULL)
+	chunk = arena_chunk_alloc(arena);
+	if (chunk == NULL)
 		return (NULL);
-	goto AGAIN;
+	run = (arena_run_t *)((uintptr_t)chunk + (arena_chunk_header_npages <<
+	    pagesize_2pow));
+	/* Update page map. */
+	arena_run_split(arena, run, size);
+	return (run);
 }
 
 static void
 arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 {
 	arena_chunk_t *chunk;
-	unsigned run_ind, buddy_ind, base_run_ind, run_pages, log2_run_pages;
+	unsigned run_ind, run_pages;
 
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(run);
+
 	run_ind = (unsigned)(((uintptr_t)run - (uintptr_t)chunk)
 	    >> pagesize_2pow);
 	run_pages = (size >> pagesize_2pow);
-	log2_run_pages = ffs((int)run_pages) - 1;
-	assert(run_pages > 0);
+	assert(run_pages == chunk->map[run_ind].npages);
 
 	/* Subtract pages from count of pages used in chunk. */
 	chunk->pages_used -= run_pages;
 
 	/* Mark run as deallocated. */
-	chunk->map[run_ind].free = true;
-	chunk->map[run_ind].large = false;
-	chunk->map[run_ind].npages = run_pages;
+	assert(chunk->map[run_ind].npages == run_pages);
+	chunk->map[run_ind].pos = POS_FREE;
+	assert(chunk->map[run_ind + run_pages - 1].npages == run_pages);
+	chunk->map[run_ind + run_pages - 1].pos = POS_FREE;
 
 	/*
 	 * Tell the kernel that we don't need the data in this run, but only if
 	 * requested via runtime configuration.
 	 */
-	if (opt_hint) {
+	if (opt_hint)
 		madvise(run, size, MADV_FREE);
-#ifdef MALLOC_STATS
-		arena->stats.nmadvise += (size >> pagesize_2pow);
-#endif
+
+	/* Try to coalesce with neighboring runs. */
+	if (run_ind > arena_chunk_header_npages &&
+	    chunk->map[run_ind - 1].pos == POS_FREE) {
+		unsigned prev_npages;
+
+		/* Coalesce with previous run. */
+		prev_npages = chunk->map[run_ind - 1].npages;
+		run_ind -= prev_npages;
+		assert(chunk->map[run_ind].npages == prev_npages);
+		assert(chunk->map[run_ind].pos == POS_FREE);
+		run_pages += prev_npages;
+
+		chunk->map[run_ind].npages = run_pages;
+		assert(chunk->map[run_ind].pos == POS_FREE);
+		chunk->map[run_ind + run_pages - 1].npages = run_pages;
+		assert(chunk->map[run_ind + run_pages - 1].pos == POS_FREE);
 	}
 
-	/*
-	 * Iteratively coalesce with buddies.  Conceptually, the buddy scheme
-	 * induces a tree on the set of pages.  If we know the number of pages
-	 * in the subtree rooted at the current node, we can quickly determine
-	 * whether a run is the left or right buddy, and then calculate the
-	 * buddy's index.
-	 */
-	for (;
-	    (run_pages = (1 << log2_run_pages)) < arena_chunk_maplen;
-	    log2_run_pages++) {
-		if (((run_ind >> log2_run_pages) & 1) == 0) {
-			/* Current run precedes its buddy. */
-			buddy_ind = run_ind + run_pages;
-			base_run_ind = run_ind;
-		} else {
-			/* Current run follows its buddy. */
-			buddy_ind = run_ind - run_pages;
-			base_run_ind = buddy_ind;
-		}
+	if (run_ind + run_pages < chunk_npages &&
+	    chunk->map[run_ind + run_pages].pos == POS_FREE) {
+		unsigned next_npages;
 
-		if (chunk->map[buddy_ind].free == false
-		    || chunk->map[buddy_ind].npages != run_pages)
-			break;
+		/* Coalesce with next run. */
+		next_npages = chunk->map[run_ind + run_pages].npages;
+		run_pages += next_npages;
+		assert(chunk->map[run_ind + run_pages - 1].npages ==
+		    next_npages);
+		assert(chunk->map[run_ind + run_pages - 1].pos == POS_FREE);
 
-		assert(chunk->nfree_runs[log2_run_pages] > 0);
-		chunk->nfree_runs[log2_run_pages]--;
-
-		/* Coalesce. */
-		chunk->map[base_run_ind].npages = (run_pages << 1);
-
-		/* Update run_ind to be the beginning of the coalesced run. */
-		run_ind = base_run_ind;
+		chunk->map[run_ind].npages = run_pages;
+		chunk->map[run_ind].pos = POS_FREE;
+		chunk->map[run_ind + run_pages - 1].npages = run_pages;
+		assert(chunk->map[run_ind + run_pages - 1].pos == POS_FREE);
 	}
 
-	chunk->nfree_runs[log2_run_pages]++;
+	if (chunk->map[run_ind].npages > chunk->max_frun_npages)
+		chunk->max_frun_npages = chunk->map[run_ind].npages;
+	if (run_ind < chunk->min_frun_ind)
+		chunk->min_frun_ind = run_ind;
 
-	/* Free pages, to the extent possible. */
-	if (chunk->pages_used == 0) {
-		/* This chunk is completely unused now, so deallocate it. */
+	/* Deallocate chunk if it is now completely unused. */
+	if (chunk->pages_used == 0)
 		arena_chunk_dealloc(arena, chunk);
-	}
 }
 
 static arena_run_t *
@@ -2226,7 +2221,7 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin)
 	/* No existing runs have any space available. */
 
 	/* Allocate a new run. */
-	run = arena_run_alloc(arena, false, bin->run_size);
+	run = arena_run_alloc(arena, bin->run_size);
 	if (run == NULL)
 		return (NULL);
 
@@ -2305,7 +2300,7 @@ arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin)
  *   *) bin->run_size >= min_run_size
  *   *) bin->run_size <= arena_maxclass
  *   *) bin->run_size <= RUN_MAX_SMALL
- *   *) run header overhead <= RUN_MAX_HDR_OVERHEAD
+ *   *) run header overhead <= RUN_MAX_OVRHD (or header overhead relaxed).
  *
  * bin->nregs, bin->regs_mask_nelms, and bin->reg0_offset are
  * also calculated here, since these settings are all interdependent.
@@ -2316,20 +2311,11 @@ arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size)
 	size_t try_run_size, good_run_size;
 	uint32_t good_nregs, good_mask_nelms, good_reg0_offset;
 	uint32_t try_nregs, try_mask_nelms, try_reg0_offset;
-	float run_max_hdr_overhead = RUN_MAX_HDR_OVERHEAD;
+	float max_ovrhd = RUN_MAX_OVRHD;
 
-	if (min_run_size < pagesize)
-		min_run_size = pagesize;
+	assert(min_run_size >= pagesize);
 	assert(min_run_size <= arena_maxclass);
 	assert(min_run_size <= RUN_MAX_SMALL);
-
-	/*
-	 * Make sure that the header overhead constraint allows a solution.  If
-	 * the maximum overhead is less than or equal to one bit per region,
-	 * there is clearly no solution.
-	 */
-	while (run_max_hdr_overhead <= 1.0 / ((float)(bin->reg_size << 3)))
-		run_max_hdr_overhead *= 2.0;
 
 	/*
 	 * Calculate known-valid settings before entering the run_size
@@ -2363,7 +2349,7 @@ arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size)
 		good_reg0_offset = try_reg0_offset;
 
 		/* Try more aggressive settings. */
-		try_run_size <<= 1;
+		try_run_size += pagesize;
 		try_nregs = ((try_run_size - sizeof(arena_run_t)) /
 		    bin->reg_size) + 1; /* Counter-act try_nregs-- in loop. */
 		do {
@@ -2376,8 +2362,9 @@ arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size)
 		} while (sizeof(arena_run_t) + (sizeof(unsigned) *
 		    (try_mask_nelms - 1)) > try_reg0_offset);
 	} while (try_run_size <= arena_maxclass && try_run_size <= RUN_MAX_SMALL
+	    && max_ovrhd > RUN_MAX_OVRHD_RELAX / ((float)(bin->reg_size << 3))
 	    && ((float)(try_reg0_offset)) / ((float)(try_run_size)) >
-	    run_max_hdr_overhead);
+	    max_ovrhd);
 
 	assert(sizeof(arena_run_t) + (sizeof(unsigned) * (good_mask_nelms - 1))
 	    <= good_reg0_offset);
@@ -2443,22 +2430,21 @@ arena_malloc(arena_t *arena, size_t size)
 
 #ifdef MALLOC_STATS
 		bin->stats.nrequests++;
+		arena->stats.nmalloc_small++;
+		if (ret != NULL)
+			arena->stats.allocated_small += size;
 #endif
 	} else {
-		/* Medium allocation. */
-		size = pow2_ceil(size);
+		/* Large allocation. */
+		size = PAGE_CEILING(size);
 		malloc_mutex_lock(&arena->mtx);
-		ret = (void *)arena_run_alloc(arena, true, size);
+		ret = (void *)arena_run_alloc(arena, size);
 #ifdef MALLOC_STATS
-		arena->stats.large_nrequests++;
+		arena->stats.nmalloc_large++;
+		if (ret != NULL)
+			arena->stats.allocated_large += size;
 #endif
 	}
-
-#ifdef MALLOC_STATS
-	arena->stats.nmalloc++;
-	if (ret != NULL)
-		arena->stats.allocated += size;
-#endif
 
 	malloc_mutex_unlock(&arena->mtx);
 
@@ -2488,8 +2474,8 @@ arena_salloc(const void *ptr)
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
 	mapelm = chunk->map[pageind];
-	assert(mapelm.free == false);
-	if (mapelm.large == false) {
+	if (mapelm.pos != 0 || ptr != (void *)((uintptr_t)chunk) + (pageind <<
+	    pagesize_2pow)) {
 		arena_run_t *run;
 
 		pageind -= mapelm.pos;
@@ -2520,7 +2506,11 @@ arena_ralloc(void *ptr, size_t size, size_t oldsize)
 		    == (QUANTUM_CEILING(oldsize) >> opt_quantum_2pow))
 			goto IN_PLACE;
 	} else {
-		if (oldsize > small_max && pow2_ceil(size) == oldsize)
+		/*
+		 * We make no attempt to resize runs here, though it would be
+		 * possible to do so.
+		 */
+		if (oldsize > small_max && PAGE_CEILING(size) == oldsize)
 			goto IN_PLACE;
 	}
 
@@ -2562,8 +2552,8 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
 	mapelm = chunk->map[pageind];
-	assert(mapelm.free == false);
-	if (mapelm.large == false) {
+	if (mapelm.pos != 0 || ptr != (void *)((uintptr_t)chunk) + (pageind <<
+	    pagesize_2pow)) {
 		arena_run_t *run;
 		arena_bin_t *bin;
 
@@ -2586,22 +2576,26 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 			/* Demote run to lower fullness quartile. */
 			arena_bin_run_demote(arena, bin, run);
 		}
+#ifdef MALLOC_STATS
+		arena->stats.allocated_small -= size;
+		arena->stats.ndalloc_small++;
+#endif
 	} else {
-		/* Medium allocation. */
+		/* Large allocation. */
 
 		size = mapelm.npages << pagesize_2pow;
-		assert((((uintptr_t)ptr) & (size - 1)) == 0);
+		assert((((uintptr_t)ptr) & pagesize_mask) == 0);
 
 		if (opt_junk)
 			memset(ptr, 0x5a, size);
 
 		malloc_mutex_lock(&arena->mtx);
 		arena_run_dalloc(arena, (arena_run_t *)ptr, size);
-	}
-
 #ifdef MALLOC_STATS
-	arena->stats.allocated -= size;
+		arena->stats.allocated_large -= size;
+		arena->stats.ndalloc_large++;
 #endif
+	}
 
 	malloc_mutex_unlock(&arena->mtx);
 }
@@ -3069,11 +3063,6 @@ idalloc(void *ptr)
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
 	if (chunk != ptr) {
 		/* Region. */
-#ifdef MALLOC_STATS
-		malloc_mutex_lock(&chunk->arena->mtx);
-		chunk->arena->stats.ndalloc++;
-		malloc_mutex_unlock(&chunk->arena->mtx);
-#endif
 		arena_dalloc(chunk->arena, chunk, ptr);
 	} else
 		huge_dalloc(ptr);
@@ -3087,20 +3076,6 @@ malloc_print_stats(void)
 		char s[UMAX2S_BUFSIZE];
 		_malloc_message("___ Begin malloc statistics ___\n", "", "",
 		    "");
-		_malloc_message("Number of CPUs: ", umax2s(ncpus, s), "\n", "");
-		_malloc_message("Number of arenas: ", umax2s(narenas, s), "\n",
-		    "");
-
-		_malloc_message("Chunk size: ", umax2s(chunk_size, s), "", "");
-		_malloc_message(" (2^", umax2s(opt_chunk_2pow, s), ")\n", "");
-
-		_malloc_message("Quantum size: ", umax2s(quantum, s), "", "");
-		_malloc_message(" (2^", umax2s(opt_quantum_2pow, s), ")\n", "");
-
-		_malloc_message("Max small size: ", umax2s(small_max, s), "\n",
-		    "");
-		_malloc_message("Pointer size: ", umax2s(sizeof(void *), s),
-		    "\n", "");
 		_malloc_message("Assertions ",
 #ifdef NDEBUG
 		    "disabled",
@@ -3108,41 +3083,58 @@ malloc_print_stats(void)
 		    "enabled",
 #endif
 		    "\n", "");
+		_malloc_message("Boolean MALLOC_OPTIONS: ",
+		    opt_abort ? "A" : "a",
+		    opt_junk ? "J" : "j",
+		    opt_hint ? "H" : "h");
+		_malloc_message(opt_utrace ? "PU" : "Pu",
+		    opt_sysv ? "V" : "v",
+		    opt_xmalloc ? "X" : "x",
+		    opt_zero ? "Z\n" : "z\n");
+
+		_malloc_message("CPUs: ", umax2s(ncpus, s), "\n", "");
+		_malloc_message("Max arenas: ", umax2s(narenas, s), "\n", "");
+		_malloc_message("Pointer size: ", umax2s(sizeof(void *), s),
+		    "\n", "");
+		_malloc_message("Quantum size: ", umax2s(quantum, s), "\n", "");
+		_malloc_message("Max small size: ", umax2s(small_max, s), "\n",
+		    "");
+
+		_malloc_message("Chunk size: ", umax2s(chunk_size, s), "", "");
+		_malloc_message(" (2^", umax2s(opt_chunk_2pow, s), ")\n", "");
 
 #ifdef MALLOC_STATS
 		{
-			size_t allocated, total;
+			size_t allocated, mapped;
 			unsigned i;
 			arena_t *arena;
 
-			/* Calculate and print allocated/total stats. */
+			/* Calculate and print allocated/mapped stats. */
 
 			/* arenas. */
 			for (i = 0, allocated = 0; i < narenas; i++) {
 				if (arenas[i] != NULL) {
 					malloc_mutex_lock(&arenas[i]->mtx);
-					allocated += arenas[i]->stats.allocated;
+					allocated +=
+					    arenas[i]->stats.allocated_small;
+					allocated +=
+					    arenas[i]->stats.allocated_large;
 					malloc_mutex_unlock(&arenas[i]->mtx);
 				}
 			}
 
-			/* huge. */
+			/* huge/base. */
 			malloc_mutex_lock(&chunks_mtx);
 			allocated += huge_allocated;
-			total = stats_chunks.curchunks * chunk_size;
+			mapped = stats_chunks.curchunks * chunk_size;
 			malloc_mutex_unlock(&chunks_mtx);
 
-			malloc_printf("Allocated: %zu, space used: %zu\n",
-			    allocated, total);
+			malloc_mutex_lock(&base_mtx);
+			mapped += base_mapped;
+			malloc_mutex_unlock(&base_mtx);
 
-			/* Print base stats. */
-			{
-				malloc_mutex_lock(&base_mtx);
-				malloc_printf("\nbase:\n");
-				malloc_printf(" %13s\n", "total");
-				malloc_printf(" %13llu\n", base_total);
-				malloc_mutex_unlock(&base_mtx);
-			}
+			malloc_printf("Allocated: %zu, mapped: %zu\n",
+			    allocated, mapped);
 
 			/* Print chunk stats. */
 			{
@@ -3152,28 +3144,27 @@ malloc_print_stats(void)
 				chunks_stats = stats_chunks;
 				malloc_mutex_unlock(&chunks_mtx);
 
-				malloc_printf("\nchunks:\n");
-				malloc_printf(" %13s%13s%13s\n", "nchunks",
-				    "highchunks", "curchunks");
-				malloc_printf(" %13llu%13lu%13lu\n",
+				malloc_printf("chunks: nchunks   "
+				    "highchunks    curchunks\n");
+				malloc_printf("  %13llu%13lu%13lu\n",
 				    chunks_stats.nchunks,
 				    chunks_stats.highchunks,
 				    chunks_stats.curchunks);
 			}
 
 			/* Print chunk stats. */
-			malloc_printf("\nhuge:\n");
-			malloc_printf("%12s %12s %12s\n",
-			    "nmalloc", "ndalloc", "allocated");
-			malloc_printf("%12llu %12llu %12zu\n",
-			    huge_nmalloc, huge_ndalloc, huge_allocated);
+			malloc_printf(
+			    "huge: nmalloc      ndalloc    allocated\n");
+			malloc_printf(" %12llu %12llu %12zu\n",
+			    huge_nmalloc, huge_ndalloc, huge_allocated
+			    * chunk_size);
 
 			/* Print stats for each arena. */
 			for (i = 0; i < narenas; i++) {
 				arena = arenas[i];
 				if (arena != NULL) {
 					malloc_printf(
-					    "\narenas[%u] statistics:\n", i);
+					    "\narenas[%u]:\n", i);
 					malloc_mutex_lock(&arena->mtx);
 					stats_print(arena);
 					malloc_mutex_unlock(&arena->mtx);
@@ -3242,9 +3233,10 @@ malloc_init_hard(void)
 
 		/*
 		 * We assume that pagesize is a power of 2 when calculating
-		 * pagesize_2pow.
+		 * pagesize_mask and pagesize_2pow.
 		 */
 		assert(((result - 1) & result) == 0);
+		pagesize_mask = result - 1;
 		pagesize_2pow = ffs((int)result) - 1;
 	}
 
@@ -3327,7 +3319,14 @@ malloc_init_hard(void)
 					opt_chunk_2pow--;
 				break;
 			case 'K':
-				if (opt_chunk_2pow < CHUNK_2POW_MAX)
+				/*
+				 * There must be fewer pages in a chunk than
+				 * can be recorded by the pos field of
+				 * arena_chunk_map_t, in order to make POS_FREE
+				 * special.
+				 */
+				if (opt_chunk_2pow - pagesize_2pow
+				    < (sizeof(uint32_t) << 3) - 1)
 					opt_chunk_2pow++;
 				break;
 			case 'n':
@@ -3424,10 +3423,20 @@ malloc_init_hard(void)
 	assert(small_min <= quantum);
 
 	/* Set variables according to the value of opt_chunk_2pow. */
-	chunk_size = (1 << opt_chunk_2pow);
+	chunk_size = (1LU << opt_chunk_2pow);
 	chunk_size_mask = chunk_size - 1;
-	arena_chunk_maplen = (1 << (opt_chunk_2pow - pagesize_2pow));
-	arena_maxclass = (chunk_size >> 1);
+	chunk_npages = (chunk_size >> pagesize_2pow);
+	{
+		unsigned header_size;
+
+		header_size = sizeof(arena_chunk_t) + (sizeof(arena_chunk_map_t)
+		    * (chunk_npages - 1));
+		arena_chunk_header_npages = (header_size >> pagesize_2pow);
+		if ((header_size & pagesize_mask) != 0)
+			arena_chunk_header_npages++;
+	}
+	arena_maxclass = chunk_size - (arena_chunk_header_npages <<
+	    pagesize_2pow);
 
 	UTRACE(0, 0, 0);
 
@@ -3459,7 +3468,7 @@ malloc_init_hard(void)
 
 	/* Initialize base allocation data structures. */
 #ifdef MALLOC_STATS
-	base_total = 0;
+	base_mapped = 0;
 #endif
 #ifdef USE_BRK
 	/*
