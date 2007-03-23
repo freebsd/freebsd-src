@@ -714,8 +714,7 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 	classp = find_class(&mesh, gclass_name);
 	if (classp == NULL) {
 		geom_deletetree(&mesh);
-		warnx("Class %s not found.", gclass_name);
-		return;
+		errx(EXIT_FAILURE, "Class %s not found.", gclass_name);
 	}
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs > 0) {
@@ -725,7 +724,7 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 			if (gp != NULL)
 				list_one_geom(gp);
 			else
-				warnx("No such geom: %s.", name);
+				errx(EXIT_FAILURE, "No such geom: %s.", name);
 		}
 	} else {
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
@@ -848,10 +847,8 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 	if (error != 0)
 		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	classp = find_class(&mesh, gclass_name);
-	if (classp == NULL) {
-		warnx("Class %s not found.", gclass_name);
-		goto end;
-	}
+	if (classp == NULL)
+		errx(EXIT_FAILURE, "Class %s not found.", gclass_name);
 	nargs = gctl_get_int(req, "nargs");
 	script = gctl_get_int(req, "script");
 	name_len = strlen("Name");
@@ -861,7 +858,7 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
 			if (gp == NULL)
-				warnx("No such geom: %s.", name);
+				errx(EXIT_FAILURE, "No such geom: %s.", name);
 			else {
 				status_update_len(gp, &name_len, &status_len);
 				n++;
