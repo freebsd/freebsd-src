@@ -42,7 +42,7 @@ ports-${__target}:
 
 .ORDER: kernel-install modules-install
 
-kernel-all: ${KERNEL_KO}
+kernel-all: ${KERNEL_KO} ${KERNEL_EXTRA}
 
 kernel-cleandir: kernel-clean kernel-cleandepend
 
@@ -224,6 +224,11 @@ kernel-install:
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG)
 	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
 .endif
+.if defined(KERNEL_EXTRA_INSTALL)
+	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_EXTRA_INSTALL} ${DESTDIR}${KODIR}
+.endif
+
+
 
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
