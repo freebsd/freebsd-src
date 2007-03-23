@@ -36,7 +36,7 @@
 .\"     @(#)tmpnam.3	8.2 (Berkeley) 11/17/93
 .\" $FreeBSD$
 .\"
-.Dd November 17, 1993
+.Dd March 18, 2007
 .Dt TMPFILE 3
 .Os
 .Sh NAME
@@ -156,6 +156,19 @@ return a pointer to a file name on success, and a
 .Dv NULL
 pointer
 on error.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev TMPDIR
+.Pf [ Fn tempnam
+only]
+If set,
+the directory in which the temporary file is stored.
+.Ev TMPDIR
+is ignored for processes
+for which
+.Xr issetugid 2
+is true.
+.El
 .Sh COMPATIBILITY
 These interfaces are provided from System V and
 .Tn ANSI
