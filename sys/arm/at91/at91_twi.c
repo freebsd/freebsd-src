@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iicbus.h>
 #include "iicbus_if.h"
 
+#define TWI_SLOW_CLOCK		 1500
+#define TWI_FAST_CLOCK 		45000
+#define TWI_FASTEST_CLOCK	90000
+
 struct at91_twi_softc
 {
 	device_t dev;			/* Myself */
@@ -123,7 +127,7 @@ at91_twi_attach(device_t dev)
 		AT91_TWI_LOCK_DESTROY(sc);
 		goto out;
 	}
-	sc->cwgr = TWI_CWGR_CKDIV(8 * AT91C_MASTER_CLOCK / 90000) |
+	sc->cwgr = TWI_CWGR_CKDIV(8 * AT91C_MASTER_CLOCK / TWI_FASTEST_CLOCK) |
 	    TWI_CWGR_CHDIV(TWI_CWGR_DIV(TWI_DEF_CLK)) |
 	    TWI_CWGR_CLDIV(TWI_CWGR_DIV(TWI_DEF_CLK));
 	WR4(sc, TWI_CR, TWI_CR_SWRST);
@@ -226,14 +230,13 @@ at91_twi_wait(struct at91_twi_softc *sc, uint32_t bit)
 	int counter = 100000;
 	uint32_t sr;
 
-	while (!((sr = RD4(sc, TWI_SR)) & bit) && counter-- > 0)
+	while (!((sr = RD4(sc, TWI_SR)) & bit) && counter-- > 0 &&
+	    !(sr & TWI_SR_NACK))
 		continue;
 	if (counter <= 0)
 		err = EBUSY;
 	else if (sr & TWI_SR_NACK)
-		err = EADDRNOTAVAIL;
-	if (sr & ~bit)
-		printf("status is %x\n", sr);
+		err = ENXIO;		// iic nack convention
 	return (err);
 }
 
@@ -253,17 +256,17 @@ at91_twi_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	 */
 	switch (speed) {
 	case IIC_SLOW:
-		clk = 1500;
+		clk = TWI_SLOW_CLOCK;
 		break;
 
 	case IIC_FAST:
-		clk = 45000;
+		clk = TWI_FAST_CLOCK;
 		break;
 
 	case IIC_UNKNOWN:
 	case IIC_FASTEST:
 	default:
-		clk = 90000;
+		clk = TWI_FASTEST_CLOCK;
 		break;
 	}
 	sc->cwgr = TWI_CWGR_CKDIV(1) | TWI_CWGR_CHDIV(TWI_CWGR_DIV(clk)) |
@@ -302,6 +305,7 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	int i, len, err;
 	uint32_t rdwr;
 	uint8_t *buf;
+	uint32_t sr;
 
 	sc = device_get_softc(dev);
 	err = 0;
@@ -320,26 +324,36 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		WR4(sc, TWI_MMR, TWI_MMR_DADR(msgs[i].slave) | rdwr);
 		len = msgs[i].len;
 		buf = msgs[i].buf;
-		if (len != 0 && buf == NULL)
-			return (EINVAL);
-		WR4(sc, TWI_CR, TWI_CR_START);
+		/* zero byte transfers aren't allowed */
+		if (len == 0 || buf == NULL) {
+			err = EINVAL;
+			goto out;
+		}
+		if (len == 1)
+			WR4(sc, TWI_CR, TWI_CR_START | TWI_CR_STOP);
+		else
+			WR4(sc, TWI_CR, TWI_CR_START);
 		if (msgs[i].flags & IIC_M_RD) {
-			while (len--) {
-				if (len == 0)
-					WR4(sc, TWI_CR, TWI_CR_STOP);
-				if ((err = at91_twi_wait(sc, TWI_SR_RXRDY)))
-					goto out;
-				*buf++ = RD4(sc, TWI_RHR) & 0xff;
+			sr = RD4(sc, TWI_SR);
+			while (!(sr & TWI_SR_TXCOMP)) {
+				if ((sr = RD4(sc, TWI_SR)) & TWI_SR_RXRDY) {
+					len--;
+					*buf++ = RD4(sc, TWI_RHR) & 0xff;
+					if (len == 0 && msgs[i].len != 1)
+						WR4(sc, TWI_CR, TWI_CR_STOP);
+				}
+			}
+			if (len > 0 || (sr & TWI_SR_NACK)) {
+				err = ENXIO;		// iic nack convention
+				goto out;
 			}
 		} else {
 			while (len--) {
-				WR4(sc, TWI_THR, *buf++);
-				if (len == 0)
+				if (len == 0 && msgs[i].len != 1)
 					WR4(sc, TWI_CR, TWI_CR_STOP);
-				if ((err = at91_twi_wait(sc, TWI_SR_TXRDY))) {
-					printf("Len %d\n", len);
+				if ((err = at91_twi_wait(sc, TWI_SR_TXRDY)))
 					goto out;
-				}
+				WR4(sc, TWI_THR, *buf++);
 			}
 		}
 		if ((err = at91_twi_wait(sc, TWI_SR_TXCOMP)))
@@ -347,8 +361,9 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	}
 out:;
 	if (err) {
-		WR4(sc, TWI_CR, TWI_CR_STOP);
-		printf("Err is %d\n", err);
+		WR4(sc, TWI_CR, TWI_CR_SWRST);
+		WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);
+		WR4(sc, TWI_CWGR, sc->cwgr);
 	}
 	AT91_TWI_UNLOCK(sc);
 	return (err);
