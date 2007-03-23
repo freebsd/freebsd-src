@@ -29,12 +29,35 @@
 #ifndef __IICBUS_H
 #define __IICBUS_H
 
-struct iicbus_softc {
+#define IICBUS_IVAR(d) (struct iicbus_ivar *) device_get_ivars(d)
+#define IICBUS_SOFTC(d) (struct iicbus_softc *) device_get_softc(d)
 
+struct iicbus_softc
+{
+	device_t dev;		/* Myself */
 	device_t owner;		/* iicbus owner device structure */
 	u_char started;		/* address of the 'started' slave
 				 * 0 if no start condition succeeded */
 };
+
+struct iicbus_ivar
+{
+	uint32_t	addr;
+};
+
+enum {
+	IICBUS_IVAR_ADDR		/* Address or base address */
+};
+
+#define IICBUS_ACCESSOR(A, B, T)					\
+__inline static int							\
+iicbus_get_ ## A(device_t dev, T *t)					\
+{									\
+	return BUS_READ_IVAR(device_get_parent(dev), dev,		\
+	    IICBUS_IVAR_ ## B, (uintptr_t *) t);			\
+}
+	
+IICBUS_ACCESSOR(addr,		ADDR,		uint32_t)
 
 extern int iicbus_generic_intr(device_t dev, int event, char *buf);
 
