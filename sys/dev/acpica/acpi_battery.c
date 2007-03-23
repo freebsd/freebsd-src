@@ -366,6 +366,7 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
     switch (cmd) {
     case ACPIIO_BATT_GET_UNITS:
 	*(int *)addr = acpi_battery_get_units();
+	error = 0;
 	break;
     case ACPIIO_BATT_GET_BATTINFO:
 	if (dev != NULL || unit == ACPI_BATTERY_ALL_UNITS) {
