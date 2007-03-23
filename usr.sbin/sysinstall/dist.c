@@ -39,6 +39,7 @@
 #include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+#include <ctype.h>
 #include <signal.h>
 #include <libutil.h>
 
