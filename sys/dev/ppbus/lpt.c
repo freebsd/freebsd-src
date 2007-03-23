@@ -409,6 +409,21 @@ lpt_attach(device_t dev)
 	return (0);
 }
 
+static int
+lpt_detach(device_t dev)
+{
+	struct lpt_data *sc = DEVTOSOFTC(dev);
+
+	lpt_release_ppbus(dev);
+	if (sc->intr_resource != 0) {
+		BUS_TEARDOWN_INTR(device_get_parent(dev), dev,
+		    sc->intr_resource, sc->intr_cookie);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->intr_resource);
+	}
+
+	return (0);
+}
+
 static void
 lptout(void *arg)
 {
@@ -954,6 +969,7 @@ static device_method_t lpt_methods[] = {
 	DEVMETHOD(device_identify,	lpt_identify),
 	DEVMETHOD(device_probe,		lpt_probe),
 	DEVMETHOD(device_attach,	lpt_attach),
+	DEVMETHOD(device_detach,	lpt_detach),
 
 	{ 0, 0 }
 };

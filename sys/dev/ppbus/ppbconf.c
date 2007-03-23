@@ -399,6 +399,23 @@ ppbus_attach(device_t dev)
 }
 
 static int
+ppbus_detach(device_t dev)
+{
+        device_t *children;
+        int nchildren, i;
+
+	/* detach & delete all children */
+	if (!device_get_children(dev, &children, &nchildren)) {
+		for (i = 0; i < nchildren; i++)
+			if (children[i])
+				device_delete_child(dev, children[i]);
+		free(children, M_TEMP);
+        }
+
+	return (0);
+}
+
+static int
 ppbus_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 			void (*ihand)(void *), void *arg, void **cookiep)
 {
@@ -539,6 +556,7 @@ static device_method_t ppbus_methods[] = {
         /* device interface */
 	DEVMETHOD(device_probe,         ppbus_probe),
 	DEVMETHOD(device_attach,        ppbus_attach),
+	DEVMETHOD(device_detach,        ppbus_detach),
   
         /* bus interface */
 	DEVMETHOD(bus_add_child,	ppbus_add_child),
