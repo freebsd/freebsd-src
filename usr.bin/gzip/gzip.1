@@ -27,7 +27,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 26, 2007
+.Dd March 16, 2007
 .Dt GZIP 1
 .Os
 .Sh NAME
@@ -200,3 +200,11 @@ This implementation of
 .Nm
 was written by
 .An Matthew R. Green Aq mrg@eterna.com.au .
+.Sh BUGS
+According to RFC 1952, the recorded file size is stored in a 32-bit
+integer and therefore it can not represent files that is bigger than
+4GB in size.  This limitation also applies to
+.Fl l
+option of
+.Nm
+utility.
