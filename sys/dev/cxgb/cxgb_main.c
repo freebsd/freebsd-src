@@ -303,13 +303,29 @@ cxgb_controller_attach(device_t dev)
 	device_t child;
 	const struct adapter_info *ai;
 	struct adapter *sc;
-	int i, msi_needed, msi_count = 0, error = 0;
+	int i, reg, msi_needed, msi_count = 0, error = 0;
 	uint32_t vers;
 	int port_qsets = 1;
 	    
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
+	/* find the PCIe link width and set max read request to 4KB*/
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+		uint16_t lnk, pectl;
+		lnk = pci_read_config(dev, reg + 0x12, 2);
+		sc->link_width = (lnk >> 4) & 0x3f;
+		
+		pectl = pci_read_config(dev, reg + 0x8, 2);
+		pectl = (pectl & ~0x7000) | (5 << 12);
+		pci_write_config(dev, reg + 0x8, pectl, 2);
+	}
+	if (sc->link_width != 0 && sc->link_width <= 4) {
+		device_printf(sc->dev,
+		    "PCIe x%ld Link, expect reduced performance\n",
+		    sc->link_width);
+	}
+	
 	pci_enable_busmaster(dev);
 
 	/*
