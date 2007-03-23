@@ -456,10 +456,10 @@ struct arena_chunk_map_s {
 	 * and last pages.  The POS_FREE special value makes it possible to
 	 * quickly coalesce free runs.
 	 *
-	 * This is the limiting factor for chunk_size; there can be at most 2^31
+	 * This is the limiting factor for chunksize; there can be at most 2^31
 	 * pages in a run.
 	 */
-#define POS_FREE 0xffffffffU
+#define POS_FREE ((uint32_t)0xffffffffU)
 	uint32_t	pos;
 };
 
@@ -704,8 +704,8 @@ static size_t		quantum;
 static size_t		quantum_mask; /* (quantum - 1). */
 
 /* Various chunk-related settings. */
-static size_t		chunk_size;
-static size_t		chunk_size_mask; /* (chunk_size - 1). */
+static size_t		chunksize;
+static size_t		chunksize_mask; /* (chunksize - 1). */
 static unsigned		chunk_npages;
 static unsigned		arena_chunk_header_npages;
 static size_t		arena_maxclass; /* Max size class for arenas. */
@@ -878,12 +878,15 @@ static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin);
 static void *arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin);
 static size_t arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size);
 static void	*arena_malloc(arena_t *arena, size_t size);
+static void	*arena_palloc(arena_t *arena, size_t alignment, size_t size,
+    size_t alloc_size);
 static size_t	arena_salloc(const void *ptr);
 static void	*arena_ralloc(void *ptr, size_t size, size_t oldsize);
 static void	arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr);
 static bool	arena_new(arena_t *arena);
 static arena_t	*arenas_extend(unsigned ind);
 static void	*huge_malloc(size_t size);
+static void	*huge_palloc(size_t alignment, size_t size);
 static void	*huge_ralloc(void *ptr, size_t size, size_t oldsize);
 static void	huge_dalloc(void *ptr);
 static void	*imalloc(size_t size);
@@ -937,15 +940,15 @@ malloc_mutex_unlock(malloc_mutex_t *a_mutex)
 
 /* Return the chunk address for allocation address a. */
 #define	CHUNK_ADDR2BASE(a)						\
-	((void *)((uintptr_t)(a) & ~chunk_size_mask))
+	((void *)((uintptr_t)(a) & ~chunksize_mask))
 
 /* Return the chunk offset of address a. */
 #define	CHUNK_ADDR2OFFSET(a)						\
-	((size_t)((uintptr_t)(a) & chunk_size_mask))
+	((size_t)((uintptr_t)(a) & chunksize_mask))
 
 /* Return the smallest chunk multiple that is >= s. */
 #define	CHUNK_CEILING(s)						\
-	(((s) + chunk_size_mask) & ~chunk_size_mask)
+	(((s) + chunksize_mask) & ~chunksize_mask)
 
 /* Return the smallest cacheline multiple that is >= s. */
 #define	CACHELINE_CEILING(s)						\
@@ -1039,7 +1042,7 @@ static bool
 base_chunk_alloc(size_t minsize)
 {
 
-	assert(minsize <= chunk_size);
+	assert(minsize <= chunksize);
 
 #ifdef USE_BRK
 	/*
@@ -1060,10 +1063,10 @@ base_chunk_alloc(size_t minsize)
 			 * chunk-align the end of brk.  Don't worry about
 			 * brk_cur not being chunk-aligned though.
 			 */
-			incr = (intptr_t)chunk_size
+			incr = (intptr_t)chunksize
 			    - (intptr_t)CHUNK_ADDR2OFFSET(brk_cur);
 			if (incr < minsize)
-				incr += chunk_size;
+				incr += chunksize;
 
 			brk_prev = sbrk(incr);
 			if (brk_prev == brk_cur) {
@@ -1087,13 +1090,13 @@ base_chunk_alloc(size_t minsize)
 	 * Don't worry about chunk alignment here, since base_chunk doesn't
 	 * really need to be aligned.
 	 */
-	base_chunk = pages_map(NULL, chunk_size);
+	base_chunk = pages_map(NULL, chunksize);
 	if (base_chunk == NULL)
 		return (true);
 	base_next_addr = base_chunk;
-	base_past_addr = (void *)((uintptr_t)base_chunk + chunk_size);
+	base_past_addr = (void *)((uintptr_t)base_chunk + chunksize);
 #ifdef MALLOC_STATS
-	base_mapped += chunk_size;
+	base_mapped += chunksize;
 #endif
 	return (false);
 }
@@ -1311,11 +1314,11 @@ chunk_alloc(size_t size)
 	chunk_node_t *tchunk, *delchunk;
 
 	assert(size != 0);
-	assert(size % chunk_size == 0);
+	assert((size & chunksize_mask) == 0);
 
 	malloc_mutex_lock(&chunks_mtx);
 
-	if (size == chunk_size) {
+	if (size == chunksize) {
 		/*
 		 * Check for address ranges that were previously chunks and try
 		 * to use them.
@@ -1352,8 +1355,8 @@ chunk_alloc(size_t size)
 	 * Try to over-allocate, but allow the OS to place the allocation
 	 * anywhere.  Beware of size_t wrap-around.
 	 */
-	if (size + chunk_size > size) {
-		if ((ret = pages_map(NULL, size + chunk_size)) != NULL) {
+	if (size + chunksize > size) {
+		if ((ret = pages_map(NULL, size + chunksize)) != NULL) {
 			size_t offset = CHUNK_ADDR2OFFSET(ret);
 
 			/*
@@ -1361,9 +1364,9 @@ chunk_alloc(size_t size)
 			 */
 			if (offset != 0) {
 				/* Leading space. */
-				pages_unmap(ret, chunk_size - offset);
+				pages_unmap(ret, chunksize - offset);
 
-				ret = (void *)((uintptr_t)ret + (chunk_size -
+				ret = (void *)((uintptr_t)ret + (chunksize -
 				    offset));
 
 				/* Trailing space. */
@@ -1372,7 +1375,7 @@ chunk_alloc(size_t size)
 			} else {
 				/* Trailing space only. */
 				pages_unmap((void *)((uintptr_t)ret + size),
-				    chunk_size);
+				    chunksize);
 			}
 			goto RETURN;
 		}
@@ -1426,8 +1429,8 @@ chunk_alloc(size_t size)
 RETURN:
 #ifdef MALLOC_STATS
 	if (ret != NULL) {
-		stats_chunks.nchunks += (size / chunk_size);
-		stats_chunks.curchunks += (size / chunk_size);
+		stats_chunks.nchunks += (size / chunksize);
+		stats_chunks.curchunks += (size / chunksize);
 	}
 	if (stats_chunks.curchunks > stats_chunks.highchunks)
 		stats_chunks.highchunks = stats_chunks.curchunks;
@@ -1448,7 +1451,7 @@ chunk_dealloc(void *chunk, size_t size)
 	assert(chunk != NULL);
 	assert(CHUNK_ADDR2BASE(chunk) == chunk);
 	assert(size != 0);
-	assert(size % chunk_size == 0);
+	assert((size & chunksize_mask) == 0);
 
 	malloc_mutex_lock(&chunks_mtx);
 
@@ -1491,7 +1494,7 @@ chunk_dealloc(void *chunk, size_t size)
 	 * 'chunk' is comprised of, so that the address range can be recycled
 	 * if memory usage increases later on.
 	 */
-	for (offset = 0; offset < size; offset += chunk_size) {
+	for (offset = 0; offset < size; offset += chunksize) {
 		/*
 		 * It is possible for chunk to overlap existing entries in
 		 * old_chunks if it is a huge allocation, so take care to not
@@ -1504,7 +1507,7 @@ chunk_dealloc(void *chunk, size_t size)
 				break;
 
 			node->chunk = key.chunk;
-			node->size = chunk_size;
+			node->size = chunksize;
 			RB_INSERT(chunk_tree_s, &old_chunks, node);
 		}
 	}
@@ -1513,7 +1516,7 @@ chunk_dealloc(void *chunk, size_t size)
 RETURN:
 #endif
 #ifdef MALLOC_STATS
-	stats_chunks.curchunks -= (size / chunk_size);
+	stats_chunks.curchunks -= (size / chunksize);
 #endif
 	malloc_mutex_unlock(&chunks_mtx);
 }
@@ -1837,11 +1840,11 @@ arena_chunk_alloc(arena_t *arena)
 
 		RB_INSERT(arena_chunk_tree_s, &arena->chunks, chunk);
 	} else {
-		chunk = (arena_chunk_t *)chunk_alloc(chunk_size);
+		chunk = (arena_chunk_t *)chunk_alloc(chunksize);
 		if (chunk == NULL)
 			return (NULL);
 #ifdef MALLOC_STATS
-		arena->stats.mapped += chunk_size;
+		arena->stats.mapped += chunksize;
 #endif
 
 		chunk->arena = arena;
@@ -1884,17 +1887,17 @@ arena_chunk_dealloc(arena_t *arena, arena_chunk_t *chunk)
 
 	if (opt_hint == false) {
 		if (arena->spare != NULL) {
-			chunk_dealloc((void *)arena->spare, chunk_size);
+			chunk_dealloc((void *)arena->spare, chunksize);
 #ifdef MALLOC_STATS
-			arena->stats.mapped -= chunk_size;
+			arena->stats.mapped -= chunksize;
 #endif
 		}
 		arena->spare = chunk;
 	} else {
 		assert(arena->spare == NULL);
-		chunk_dealloc((void *)chunk, chunk_size);
+		chunk_dealloc((void *)chunk, chunksize);
 #ifdef MALLOC_STATS
-		arena->stats.mapped -= chunk_size;
+		arena->stats.mapped -= chunksize;
 #endif
 	}
 }
@@ -2055,8 +2058,9 @@ arena_run_alloc(arena_t *arena, size_t size)
 	arena_run_t *run;
 	unsigned need_npages, limit_pages, compl_need_npages;
 
-	assert(size <= (chunk_size - (arena_chunk_header_npages <<
+	assert(size <= (chunksize - (arena_chunk_header_npages <<
 	    pagesize_2pow)));
+	assert((size & pagesize_mask) == 0);
 
 	/*
 	 * Search through arena's chunks in address order for a free run that is
@@ -2075,8 +2079,8 @@ arena_run_alloc(arena_t *arena, size_t size)
 		    need_npages <= chunk->max_frun_npages) {
 			arena_chunk_map_t *mapelm;
 			unsigned i;
-			uint32_t max_frun_npages = 0;
-			uint32_t min_frun_ind = chunk_npages;
+			unsigned max_frun_npages = 0;
+			unsigned min_frun_ind = chunk_npages;
 
 			assert(chunk->min_frun_ind >=
 			    arena_chunk_header_npages);
@@ -2135,6 +2139,8 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 
 	run_ind = (unsigned)(((uintptr_t)run - (uintptr_t)chunk)
 	    >> pagesize_2pow);
+	assert(run_ind >= arena_chunk_header_npages);
+	assert(run_ind < (chunksize >> pagesize_2pow));
 	run_pages = (size >> pagesize_2pow);
 	assert(run_pages == chunk->map[run_ind].npages);
 
@@ -2309,8 +2315,8 @@ static size_t
 arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size)
 {
 	size_t try_run_size, good_run_size;
-	uint32_t good_nregs, good_mask_nelms, good_reg0_offset;
-	uint32_t try_nregs, try_mask_nelms, try_reg0_offset;
+	unsigned good_nregs, good_mask_nelms, good_reg0_offset;
+	unsigned try_nregs, try_mask_nelms, try_reg0_offset;
 	float max_ovrhd = RUN_MAX_OVRHD;
 
 	assert(min_run_size >= pagesize);
@@ -2428,29 +2434,135 @@ arena_malloc(arena_t *arena, size_t size)
 		else
 			ret = arena_bin_malloc_hard(arena, bin);
 
+		if (ret == NULL) {
+			malloc_mutex_unlock(&arena->mtx);
+			return (NULL);
+		}
+
 #ifdef MALLOC_STATS
 		bin->stats.nrequests++;
 		arena->stats.nmalloc_small++;
-		if (ret != NULL)
-			arena->stats.allocated_small += size;
+		arena->stats.allocated_small += size;
 #endif
 	} else {
 		/* Large allocation. */
 		size = PAGE_CEILING(size);
 		malloc_mutex_lock(&arena->mtx);
 		ret = (void *)arena_run_alloc(arena, size);
+		if (ret == NULL) {
+			malloc_mutex_unlock(&arena->mtx);
+			return (NULL);
+		}
 #ifdef MALLOC_STATS
 		arena->stats.nmalloc_large++;
-		if (ret != NULL)
-			arena->stats.allocated_large += size;
+		arena->stats.allocated_large += size;
 #endif
 	}
 
 	malloc_mutex_unlock(&arena->mtx);
 
-	if (opt_junk && ret != NULL)
+	if (opt_junk)
 		memset(ret, 0xa5, size);
-	else if (opt_zero && ret != NULL)
+	else if (opt_zero)
+		memset(ret, 0, size);
+	return (ret);
+}
+
+static inline void
+arena_palloc_trim(arena_t *arena, arena_chunk_t *chunk, unsigned pageind,
+    unsigned npages)
+{
+	unsigned i;
+
+	assert(npages > 0);
+
+	/*
+	 * Modifiy the map such that arena_run_dalloc() sees the run as
+	 * separately allocated.
+	 */
+	for (i = 0; i < npages; i++) {
+		chunk->map[pageind + i].npages = npages;
+		chunk->map[pageind + i].pos = i;
+	}
+	arena_run_dalloc(arena, (arena_run_t *)((uintptr_t)chunk + (pageind <<
+	    pagesize_2pow)), npages << pagesize_2pow);
+}
+
+/* Only handles large allocations that require more than page alignment. */
+static void *
+arena_palloc(arena_t *arena, size_t alignment, size_t size, size_t alloc_size)
+{
+	void *ret;
+	size_t offset;
+	arena_chunk_t *chunk;
+	unsigned pageind, i, npages;
+
+	assert((size & pagesize_mask) == 0);
+	assert((alignment & pagesize_mask) == 0);
+
+	npages = size >> pagesize_2pow;
+
+	malloc_mutex_lock(&arena->mtx);
+	ret = (void *)arena_run_alloc(arena, alloc_size);
+	if (ret == NULL) {
+		malloc_mutex_unlock(&arena->mtx);
+		return (NULL);
+	}
+
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ret);
+
+	offset = (uintptr_t)ret & (alignment - 1);
+	assert((offset & pagesize_mask) == 0);
+	assert(offset < alloc_size);
+	if (offset == 0) {
+		pageind = (((uintptr_t)ret - (uintptr_t)chunk) >>
+		    pagesize_2pow);
+
+		/* Update the map for the run to be kept. */
+		for (i = 0; i < npages; i++) {
+			chunk->map[pageind + i].npages = npages;
+			assert(chunk->map[pageind + i].pos == i);
+		}
+
+		/* Trim trailing space. */
+		arena_palloc_trim(arena, chunk, pageind + npages,
+		    (alloc_size - size) >> pagesize_2pow);
+	} else {
+		size_t leadsize, trailsize;
+
+		leadsize = alignment - offset;
+		ret = (void *)((uintptr_t)ret + leadsize);
+		pageind = (((uintptr_t)ret - (uintptr_t)chunk) >>
+		    pagesize_2pow);
+
+		/* Update the map for the run to be kept. */
+		for (i = 0; i < npages; i++) {
+			chunk->map[pageind + i].npages = npages;
+			chunk->map[pageind + i].pos = i;
+		}
+
+		/* Trim leading space. */
+		arena_palloc_trim(arena, chunk, pageind - (leadsize >>
+		    pagesize_2pow), leadsize >> pagesize_2pow);
+
+		trailsize = alloc_size - leadsize - size;
+		if (trailsize != 0) {
+			/* Trim trailing space. */
+			assert(trailsize < alloc_size);
+			arena_palloc_trim(arena, chunk, pageind + npages,
+			    trailsize >> pagesize_2pow);
+		}
+	}
+
+#ifdef MALLOC_STATS
+	arena->stats.nmalloc_large++;
+	arena->stats.allocated_large += size;
+#endif
+	malloc_mutex_unlock(&arena->mtx);
+
+	if (opt_junk)
+		memset(ret, 0xa5, size);
+	else if (opt_zero)
 		memset(ret, 0, size);
 	return (ret);
 }
@@ -2461,8 +2573,8 @@ arena_salloc(const void *ptr)
 {
 	size_t ret;
 	arena_chunk_t *chunk;
-	uint32_t pageind;
-	arena_chunk_map_t mapelm;
+	arena_chunk_map_t *mapelm;
+	unsigned pageind;
 
 	assert(ptr != NULL);
 	assert(CHUNK_ADDR2BASE(ptr) != ptr);
@@ -2473,18 +2585,18 @@ arena_salloc(const void *ptr)
 	 */
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
-	mapelm = chunk->map[pageind];
-	if (mapelm.pos != 0 || ptr != (void *)((uintptr_t)chunk) + (pageind <<
+	mapelm = &chunk->map[pageind];
+	if (mapelm->pos != 0 || ptr != (void *)((uintptr_t)chunk) + (pageind <<
 	    pagesize_2pow)) {
 		arena_run_t *run;
 
-		pageind -= mapelm.pos;
+		pageind -= mapelm->pos;
 
 		run = (arena_run_t *)&((char *)chunk)[pageind << pagesize_2pow];
 		assert(run->magic == ARENA_RUN_MAGIC);
 		ret = run->bin->reg_size;
 	} else
-		ret = mapelm.npages << pagesize_2pow;
+		ret = mapelm->npages << pagesize_2pow;
 
 	return (ret);
 }
@@ -2541,7 +2653,7 @@ static void
 arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 {
 	unsigned pageind;
-	arena_chunk_map_t mapelm;
+	arena_chunk_map_t *mapelm;
 	size_t size;
 
 	assert(arena != NULL);
@@ -2551,15 +2663,15 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 	assert(CHUNK_ADDR2BASE(ptr) != ptr);
 
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
-	mapelm = chunk->map[pageind];
-	if (mapelm.pos != 0 || ptr != (void *)((uintptr_t)chunk) + (pageind <<
+	mapelm = &chunk->map[pageind];
+	if (mapelm->pos != 0 || ptr != (void *)((uintptr_t)chunk) + (pageind <<
 	    pagesize_2pow)) {
 		arena_run_t *run;
 		arena_bin_t *bin;
 
 		/* Small allocation. */
 
-		pageind -= mapelm.pos;
+		pageind -= mapelm->pos;
 
 		run = (arena_run_t *)&((char *)chunk)[pageind << pagesize_2pow];
 		assert(run->magic == ARENA_RUN_MAGIC);
@@ -2583,7 +2695,7 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 	} else {
 		/* Large allocation. */
 
-		size = mapelm.npages << pagesize_2pow;
+		size = mapelm->npages << pagesize_2pow;
 		assert((((uintptr_t)ptr) & pagesize_mask) == 0);
 
 		if (opt_junk)
@@ -2757,10 +2869,88 @@ huge_malloc(size_t size)
 #endif
 	malloc_mutex_unlock(&chunks_mtx);
 
-	if (opt_junk && ret != NULL)
+	if (opt_junk)
 		memset(ret, 0xa5, csize);
-	else if (opt_zero && ret != NULL)
+	else if (opt_zero)
 		memset(ret, 0, csize);
+
+	return (ret);
+}
+
+/* Only handles large allocations that require more than chunk alignment. */
+static void *
+huge_palloc(size_t alignment, size_t size)
+{
+	void *ret;
+	size_t alloc_size, chunk_size, offset;
+	chunk_node_t *node;
+
+	/*
+	 * This allocation requires alignment that is even larger than chunk
+	 * alignment.  This means that huge_malloc() isn't good enough.
+	 *
+	 * Allocate almost twice as many chunks as are demanded by the size or
+	 * alignment, in order to assure the alignment can be achieved, then
+	 * unmap leading and trailing chunks.
+	 */
+
+	chunk_size = CHUNK_CEILING(size);
+
+	if (size >= alignment)
+		alloc_size = chunk_size + alignment - chunksize;
+	else
+		alloc_size = (alignment << 1) - chunksize;
+
+	/* Allocate a chunk node with which to track the chunk. */
+	node = base_chunk_node_alloc();
+	if (node == NULL)
+		return (NULL);
+
+	ret = chunk_alloc(alloc_size);
+	if (ret == NULL) {
+		base_chunk_node_dealloc(node);
+		return (NULL);
+	}
+
+	offset = (uintptr_t)ret & (alignment - 1);
+	assert((offset & chunksize_mask) == 0);
+	assert(offset < alloc_size);
+	if (offset == 0) {
+		/* Trim trailing space. */
+		chunk_dealloc((void *)((uintptr_t)ret + chunk_size), alloc_size
+		    - chunk_size);
+	} else {
+		size_t trailsize;
+
+		/* Trim leading space. */
+		chunk_dealloc(ret, alignment - offset);
+
+		ret = (void *)((uintptr_t)ret + (alignment - offset));
+
+		trailsize = alloc_size - (alignment - offset) - chunk_size;
+		if (trailsize != 0) {
+		    /* Trim trailing space. */
+		    assert(trailsize < alloc_size);
+		    chunk_dealloc((void *)((uintptr_t)ret + chunk_size),
+			trailsize);
+		}
+	}
+
+	/* Insert node into huge. */
+	node->chunk = ret;
+	node->size = chunk_size;
+
+	malloc_mutex_lock(&chunks_mtx);
+	RB_INSERT(chunk_tree_s, &huge, node);
+#ifdef MALLOC_STATS
+	huge_allocated += size;
+#endif
+	malloc_mutex_unlock(&chunks_mtx);
+
+	if (opt_junk)
+		memset(ret, 0xa5, chunk_size);
+	else if (opt_zero)
+		memset(ret, 0, chunk_size);
 
 	return (ret);
 }
@@ -2851,12 +3041,15 @@ static void *
 ipalloc(size_t alignment, size_t size)
 {
 	void *ret;
-	size_t alloc_size;
+	size_t orig_size;
 
 	/*
-	 * Take advantage of the fact that for each size class, every object is
-	 * aligned at the smallest power of two that is non-zero in the base
-	 * two representation of the size.  For example:
+	 * Round size up to the nearest multiple of alignment.
+	 *
+	 * This done, we can take advantage of the fact that for each small
+	 * size class, every object is aligned at the smallest power of two
+	 * that is non-zero in the base two representation of the size.  For
+	 * example:
 	 *
 	 *   Size |   Base 2 | Minimum alignment
 	 *   -----+----------+------------------
@@ -2868,94 +3061,47 @@ ipalloc(size_t alignment, size_t size)
 	 * will further round up to a power of two, but that never causes
 	 * correctness issues.
 	 */
-	alloc_size = (size + (alignment - 1)) & (-alignment);
-	if (alloc_size < size) {
+	orig_size = size;
+	size = (size + (alignment - 1)) & (-alignment);
+	if (size < orig_size) {
 		/* size_t overflow. */
 		return (NULL);
 	}
 
-	if (alloc_size <= arena_maxclass)
-		ret = arena_malloc(choose_arena(), alloc_size);
+	if (size <= pagesize || (alignment <= pagesize
+	    && size <= arena_maxclass))
+		ret = arena_malloc(choose_arena(), size);
 	else {
-		if (alignment <= chunk_size)
-			ret = huge_malloc(size);
-		else {
-			size_t chunksize, offset;
-			chunk_node_t *node;
+		size_t run_size;
 
-			/*
-			 * This allocation requires alignment that is even
-			 * larger than chunk alignment.  This means that
-			 * huge_malloc() isn't good enough.
-			 *
-			 * Allocate almost twice as many chunks as are demanded
-			 * by the size or alignment, in order to assure the
-			 * alignment can be achieved, then unmap leading and
-			 * trailing chunks.
-			 */
-
-			chunksize = CHUNK_CEILING(size);
-
-			if (size >= alignment)
-				alloc_size = chunksize + alignment - chunk_size;
-			else
-				alloc_size = (alignment << 1) - chunk_size;
-
-			/*
-			 * Allocate a chunk node with which to track the chunk.
-			 */
-			node = base_chunk_node_alloc();
-			if (node == NULL)
-				return (NULL);
-
-			ret = chunk_alloc(alloc_size);
-			if (ret == NULL) {
-				base_chunk_node_dealloc(node);
-				return (NULL);
-			}
-
-			offset = (uintptr_t)ret & (alignment - 1);
-			assert(offset % chunk_size == 0);
-			assert(offset < alloc_size);
-			if (offset == 0) {
-				/* Trim trailing space. */
-				chunk_dealloc((void *)((uintptr_t)ret
-				    + chunksize), alloc_size - chunksize);
-			} else {
-				size_t trailsize;
-
-				/* Trim leading space. */
-				chunk_dealloc(ret, alignment - offset);
-
-				ret = (void *)((uintptr_t)ret + (alignment
-				    - offset));
-
-				trailsize = alloc_size - (alignment - offset)
-				    - chunksize;
-				if (trailsize != 0) {
-				    /* Trim trailing space. */
-				    assert(trailsize < alloc_size);
-				    chunk_dealloc((void *)((uintptr_t)ret
-				        + chunksize), trailsize);
-				}
-			}
-
-			/* Insert node into huge. */
-			node->chunk = ret;
-			node->size = chunksize;
-
-			malloc_mutex_lock(&chunks_mtx);
-			RB_INSERT(chunk_tree_s, &huge, node);
-#ifdef MALLOC_STATS
-			huge_allocated += size;
-#endif
-			malloc_mutex_unlock(&chunks_mtx);
-
-			if (opt_junk)
-				memset(ret, 0xa5, chunksize);
-			else if (opt_zero)
-				memset(ret, 0, chunksize);
+		/*
+		 * We can't achieve sub-page alignment, so round up
+		 * permanently; it makes later calculations simpler.
+		 */
+		alignment = PAGE_CEILING(alignment);
+		size = PAGE_CEILING(size);
+		if (size < orig_size) {
+			/* size_t overflow. */
+			return (NULL);
 		}
+
+		/*
+		 * Calculate the size of the over-size run that arena_palloc()
+		 * would need to allocate in order to guarantee the alignment.
+		 */
+		if (size >= alignment)
+			run_size = size + alignment - pagesize;
+		else
+			run_size = (alignment << 1) - pagesize;
+
+		/* Protect against size_t overflow in the first conditional. */
+		if ((run_size | alignment | size) <= arena_maxclass) {
+			ret = arena_palloc(choose_arena(), alignment, size,
+			    run_size);
+		} else if (alignment <= chunksize)
+			ret = huge_malloc(size);
+		else
+			ret = huge_palloc(alignment, size);
 	}
 
 	assert(((uintptr_t)ret & (alignment - 1)) == 0);
@@ -3100,7 +3246,7 @@ malloc_print_stats(void)
 		_malloc_message("Max small size: ", umax2s(small_max, s), "\n",
 		    "");
 
-		_malloc_message("Chunk size: ", umax2s(chunk_size, s), "", "");
+		_malloc_message("Chunk size: ", umax2s(chunksize, s), "", "");
 		_malloc_message(" (2^", umax2s(opt_chunk_2pow, s), ")\n", "");
 
 #ifdef MALLOC_STATS
@@ -3126,7 +3272,7 @@ malloc_print_stats(void)
 			/* huge/base. */
 			malloc_mutex_lock(&chunks_mtx);
 			allocated += huge_allocated;
-			mapped = stats_chunks.curchunks * chunk_size;
+			mapped = stats_chunks.curchunks * chunksize;
 			malloc_mutex_unlock(&chunks_mtx);
 
 			malloc_mutex_lock(&base_mtx);
@@ -3157,7 +3303,7 @@ malloc_print_stats(void)
 			    "huge: nmalloc      ndalloc    allocated\n");
 			malloc_printf(" %12llu %12llu %12zu\n",
 			    huge_nmalloc, huge_ndalloc, huge_allocated
-			    * chunk_size);
+			    * chunksize);
 
 			/* Print stats for each arena. */
 			for (i = 0; i < narenas; i++) {
@@ -3423,9 +3569,9 @@ malloc_init_hard(void)
 	assert(small_min <= quantum);
 
 	/* Set variables according to the value of opt_chunk_2pow. */
-	chunk_size = (1LU << opt_chunk_2pow);
-	chunk_size_mask = chunk_size - 1;
-	chunk_npages = (chunk_size >> pagesize_2pow);
+	chunksize = (1LU << opt_chunk_2pow);
+	chunksize_mask = chunksize - 1;
+	chunk_npages = (chunksize >> pagesize_2pow);
 	{
 		unsigned header_size;
 
@@ -3435,7 +3581,7 @@ malloc_init_hard(void)
 		if ((header_size & pagesize_mask) != 0)
 			arena_chunk_header_npages++;
 	}
-	arena_maxclass = chunk_size - (arena_chunk_header_npages <<
+	arena_maxclass = chunksize - (arena_chunk_header_npages <<
 	    pagesize_2pow);
 
 	UTRACE(0, 0, 0);
@@ -3447,8 +3593,8 @@ malloc_init_hard(void)
 	/* Various sanity checks that regard configuration. */
 	assert(quantum >= sizeof(void *));
 	assert(quantum <= pagesize);
-	assert(chunk_size >= pagesize);
-	assert(quantum * 4 <= chunk_size);
+	assert(chunksize >= pagesize);
+	assert(quantum * 4 <= chunksize);
 
 	/* Initialize chunks data. */
 	malloc_mutex_init(&chunks_mtx);
@@ -3498,8 +3644,8 @@ malloc_init_hard(void)
 		 * Make sure not to exceed the limits of what base_malloc()
 		 * can handle.
 		 */
-		if (narenas * sizeof(arena_t *) > chunk_size)
-			narenas = chunk_size / sizeof(arena_t *);
+		if (narenas * sizeof(arena_t *) > chunksize)
+			narenas = chunksize / sizeof(arena_t *);
 	} else if (opt_narenas_lshift < 0) {
 		if ((narenas << opt_narenas_lshift) < narenas)
 			narenas <<= opt_narenas_lshift;
