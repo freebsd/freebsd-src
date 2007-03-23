@@ -137,9 +137,7 @@ ttytosnp(struct tty *tp)
 }
 
 static int
-snplclose(tp, flag)
-	struct tty *tp;
-	int flag;
+snplclose(struct tty *tp, int flag)
 {
 	struct snoop *snp;
 	int error;
@@ -153,10 +151,7 @@ snplclose(tp, flag)
 }
 
 static int
-snplwrite(tp, uio, flag)
-	struct tty *tp;
-	struct uio *uio;
-	int flag;
+snplwrite(struct tty *tp, struct uio *uio, int flag)
 {
 	struct iovec iov;
 	struct uio uio2;
@@ -196,8 +191,7 @@ snplwrite(tp, uio, flag)
 }
 
 static struct tty *
-snpdevtotty(dev)
-	struct cdev *dev;
+snpdevtotty(struct cdev *dev)
 {
 	struct cdevsw *cdp;
 	struct tty *tp;
@@ -219,10 +213,7 @@ snpdevtotty(dev)
 				 */
 
 static int
-snpwrite(dev, uio, flag)
-	struct cdev *dev;
-	struct uio *uio;
-	int flag;
+snpwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct snoop *snp;
 	struct tty *tp;
@@ -257,10 +248,7 @@ tty_input:
 
 
 static int
-snpread(dev, uio, flag)
-	struct cdev *dev;
-	struct uio *uio;
-	int flag;
+snpread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct snoop *snp;
 	int error, len, n, nblen, s;
@@ -323,10 +311,7 @@ snpread(dev, uio, flag)
 }
 
 static int
-snp_in(snp, buf, n)
-	struct snoop *snp;
-	char *buf;
-	int n;
+snp_in(struct snoop *snp, char *buf, int n)
 {
 	int s_free, s_tail;
 	int s, len, nblen;
@@ -403,10 +388,7 @@ snp_in(snp, buf, n)
 }
 
 static int
-snpopen(dev, flag, mode, td)
-	struct cdev *dev;
-	int flag, mode;
-	struct thread *td;
+snpopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct snoop *snp;
 
@@ -441,8 +423,7 @@ snpopen(dev, flag, mode, td)
 
 
 static int
-snp_detach(snp)
-	struct snoop *snp;
+snp_detach(struct snoop *snp)
 {
 	struct tty *tp;
 
@@ -475,11 +456,7 @@ detach_notty:
 }
 
 static int
-snpclose(dev, flags, fmt, td)
-	struct cdev *dev;
-	int flags;
-	int fmt;
-	struct thread *td;
+snpclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct snoop *snp;
 
@@ -495,8 +472,7 @@ snpclose(dev, flags, fmt, td)
 }
 
 static int
-snp_down(snp)
-	struct snoop *snp;
+snp_down(struct snoop *snp)
 {
 
 	if (snp->snp_blen != SNOOP_MINLEN) {
@@ -510,12 +486,8 @@ snp_down(snp)
 }
 
 static int
-snpioctl(dev, cmd, data, flags, td)
-	struct cdev *dev;
-	u_long cmd;
-	caddr_t data;
-	int flags;
-	struct thread *td;
+snpioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
+    struct thread *td)
 {
 	struct snoop *snp;
 	struct tty *tp, *tpo;
@@ -611,10 +583,7 @@ snpioctl(dev, cmd, data, flags, td)
 }
 
 static int
-snppoll(dev, events, td)
-	struct cdev *dev;
-	int events;
-	struct thread *td;
+snppoll(struct cdev *dev, int events, struct thread *td)
 {
 	struct snoop *snp;
 	int revents;
@@ -636,12 +605,8 @@ snppoll(dev, events, td)
 }
 
 static void
-snp_clone(arg, cred, name, namelen, dev)
-	void *arg;
-	struct ucred *cred;
-	char *name;
-	int namelen;
-	struct cdev **dev;
+snp_clone(void *arg, struct ucred *cred, char *name, int namelen,
+    struct cdev **dev)
 {
 	int u, i;
 
@@ -660,10 +625,7 @@ snp_clone(arg, cred, name, namelen, dev)
 }
 
 static int
-snp_modevent(mod, type, data)
-	module_t mod;
-	int type;
-	void *data;
+snp_modevent(module_t mod, int type, void *data)
 {
 	static eventhandler_tag eh_tag;
 
