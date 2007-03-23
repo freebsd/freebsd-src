@@ -94,6 +94,7 @@ static device_method_t iicbb_methods[] = {
 	DEVMETHOD(iicbus_write,		iicbb_write),
 	DEVMETHOD(iicbus_read,		iicbb_read),
 	DEVMETHOD(iicbus_reset,		iicbb_reset),
+	DEVMETHOD(iicbus_transfer,	iicbus_transfer_gen),
 
 	{ 0, 0 }
 };
@@ -421,6 +422,7 @@ DRIVER_MODULE(iicbb, ixpiic, iicbb_driver, iicbb_devclass, 0, 0);
 DRIVER_MODULE(iicbb, lpbb, iicbb_driver, iicbb_devclass, 0, 0);
 DRIVER_MODULE(iicbb, viapm, iicbb_driver, iicbb_devclass, 0, 0);
 DRIVER_MODULE(iicbb, cxm_iic, iicbb_driver, iicbb_devclass, 0, 0);
+DRIVER_MODULE(iicbb, at91_bbiic, iicbb_driver, iicbb_devclass, 0, 0);
 
 MODULE_DEPEND(iicbb, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(iicbb, IICBB_MODVER);
