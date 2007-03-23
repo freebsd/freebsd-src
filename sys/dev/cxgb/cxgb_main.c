@@ -1064,16 +1064,18 @@ send_pktsched_cmd(struct adapter *adap, int sched, int qidx, int lo,
 	struct mngt_pktsched_wr *req;
 
 	m = m_gethdr(M_NOWAIT, MT_DATA);
-	req = (struct mngt_pktsched_wr *)m->m_data;
-	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_MNGT));
-	req->mngt_opcode = FW_MNGTOPCODE_PKTSCHED_SET;
-	req->sched = sched;
-	req->idx = qidx;
-	req->min = lo;
-	req->max = hi;
-	req->binding = port;
-	m->m_len = m->m_pkthdr.len = sizeof(*req);
-	t3_mgmt_tx(adap, m);
+	if (m) {	
+		req = (struct mngt_pktsched_wr *)m->m_data;
+		req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_MNGT));
+		req->mngt_opcode = FW_MNGTOPCODE_PKTSCHED_SET;
+		req->sched = sched;
+		req->idx = qidx;
+		req->min = lo;
+		req->max = hi;
+		req->binding = port;
+		m->m_len = m->m_pkthdr.len = sizeof(*req);
+		t3_mgmt_tx(adap, m);
+	}
 }
 
 static void

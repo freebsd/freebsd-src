@@ -269,13 +269,14 @@ get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct t3_mbuf_hdr *m
 	uint32_t flags = ntohl(resp->flags);       	
 	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
 
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	len = G_RSPD_LEN(ntohl(resp->len_cq));
 	/*
 	 * would be a firmware bug
 	 */
 	if (sopeop == RSPQ_NSOP_NEOP || sopeop == RSPQ_SOP)
 		return (0);
+	
+	m = m_gethdr(M_NOWAIT, MT_DATA);
+	len = G_RSPD_LEN(ntohl(resp->len_cq));
 	
 	if (m) {
 		MH_ALIGN(m, IMMED_PKT_SIZE);
@@ -342,7 +343,12 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 		struct qset_params *q = p->qset + i;
 
 		q->polling = adap->params.rev > 0;
-		q->coalesce_nsecs = 3500;
+
+		if (adap->flags & USING_MSIX)
+			q->coalesce_nsecs = 6000;
+		else
+			q->coalesce_nsecs = 3500;
+		
 		q->rspq_size = RSPQ_Q_SIZE;
 		q->fl_size = FL_Q_SIZE;
 		q->jumbo_size = JUMBO_Q_SIZE;
@@ -462,7 +468,10 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 		}
 		
 		if ((sd->flags & RX_SW_DESC_MAP_CREATED) == 0) {
-			bus_dmamap_create(sc->rx_jumbo_dmat, 0, &sd->map);
+			if ((err = bus_dmamap_create(sc->rx_jumbo_dmat, 0, &sd->map))) {
+				log(LOG_WARNING, "bus_dmamap_create failed %d\n", err);
+				goto done;
+			}
 			sd->flags |= RX_SW_DESC_MAP_CREATED;
 		}
 		sd->flags |= RX_SW_DESC_INUSE;
@@ -632,8 +641,10 @@ void
 t3_sge_deinit_sw(adapter_t *sc)
 {
 	callout_drain(&sc->sge_timer_ch);
-	taskqueue_drain(sc->tq, &sc->timer_reclaim_task);
-	taskqueue_drain(sc->tq, &sc->slow_intr_task);
+	if (sc->tq) {
+		taskqueue_drain(sc->tq, &sc->timer_reclaim_task);
+		taskqueue_drain(sc->tq, &sc->slow_intr_task);
+	}
 }
 
 /**
@@ -1852,12 +1863,13 @@ static void
 bind_ithread(int cpu)
 {
 	KASSERT(cpu < mp_ncpus, ("invalid cpu identifier"));
+#if 0	
 	if (mp_ncpus > 1) {
 		mtx_lock_spin(&sched_lock);
 		sched_bind(curthread, cpu);
 		mtx_unlock_spin(&sched_lock);
 	}
-
+#endif
 }
 
 /**
