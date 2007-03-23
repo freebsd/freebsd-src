@@ -410,6 +410,7 @@ RetryFault:;
 				VM_WAITPFAULT;
 				goto RetryFault;
 			}
+			vm_page_unlock_queues();
 
 			/*
 			 * Mark page busy for other processes, and the 
@@ -418,7 +419,6 @@ RetryFault:;
 			 * found the page ).
 			 */
 			vm_page_busy(fs.m);
-			vm_page_unlock_queues();
 			if (((fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
 				fs.m->object != kernel_object && fs.m->object != kmem_object) {
 				goto readrest;
@@ -748,8 +748,8 @@ readrest:
 				 * automatically made dirty.
 				 */
 				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
-				vm_page_busy(fs.m);
 				vm_page_unlock_queues();
+				vm_page_busy(fs.m);
 				fs.first_m = fs.m;
 				fs.m = NULL;
 				PCPU_LAZY_INC(cnt.v_cow_optim);
