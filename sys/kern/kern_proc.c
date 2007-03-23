@@ -732,15 +732,8 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 			kp->ki_tsid = tp->t_session->s_sid;
 	} else
 		kp->ki_tdev = NODEV;
-	if (p->p_comm[0] != '\0') {
+	if (p->p_comm[0] != '\0')
 		strlcpy(kp->ki_comm, p->p_comm, sizeof(kp->ki_comm));
-		/*
-		 * Temporarily give the thread a default name of the process
-		 * as it's erroneously used in the snmp code.
-		 * Remove this when that is fixed. (soon I'm told)
-		 */
-		strlcpy(kp->ki_ocomm, p->p_comm, sizeof(kp->ki_ocomm));
-	}
 	if (p->p_sysent && p->p_sysent->sv_name != NULL &&
 	    p->p_sysent->sv_name[0] != '\0')
 		strlcpy(kp->ki_emul, p->p_sysent->sv_name, sizeof(kp->ki_emul));
