@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 
@@ -356,13 +357,16 @@ iicbus_transfer(device_t bus, struct iic_msg *msgs, uint32_t nmsgs)
  * buffer addresses.
  */
 int
-iicbus_transfer_gen(device_t bus, struct iic_msg *msgs, uint32_t nmsgs)
+iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
-	int i, error, max, lenread, lenwrote;
+	int i, error, lenread, lenwrote, nkid;
+	device_t *children, bus;
 
-	for (i = 0, max = 0; i < nmsgs; i++)
-		if (max < msgs[i].len)
-			max = msgs[i].len;
+	device_get_children(dev, &children, &nkid);
+	if (nkid != 1)
+		return EIO;
+	bus = children[0];
+	free(children, M_TEMP);
 	for (i = 0, error = 0; i < nmsgs && error == 0; i++) {
 		if (msgs[i].flags & IIC_M_RD)
 			error = iicbus_block_read(bus, msgs[i].slave,
