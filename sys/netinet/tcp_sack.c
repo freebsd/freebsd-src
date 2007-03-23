@@ -371,6 +371,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	int i, j, num_sack_blks;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
+	KASSERT(to->to_flags & TOF_SACK, ("%s: SACK invalid", __func__));
 
 	num_sack_blks = 0;
 	/*
