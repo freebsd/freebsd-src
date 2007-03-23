@@ -249,9 +249,8 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 	if (!sc)
 		return (EINVAL);
 
-	if ((error = iicbus_request_bus(device_get_parent(iicdev), iicdev,
-			(flags & O_NONBLOCK) ? IIC_DONTWAIT :
-						(IIC_WAIT | IIC_INTR))))
+	if ((error = iicbus_request_bus(parent, iicdev,
+	    (flags & O_NONBLOCK) ? IIC_DONTWAIT : (IIC_WAIT | IIC_INTR))))
 		return (error);
 
 	switch (cmd) {
@@ -314,7 +313,7 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 			if (!(m->flags & IIC_M_RD))
 				copyin(usrbufs[i], m->buf, m->len);
 		}
-		error = iicbus_transfer(parent, (struct iic_msg *)buf, d->nmsgs);
+		error = iicbus_transfer(iicdev, (struct iic_msg *)buf, d->nmsgs);
 		/* Copyout all read segments, free up kernel buffers */
 		for (i = 0; i < d->nmsgs; i++) {
 			m = &((struct iic_msg *)buf)[i];
@@ -328,7 +327,7 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		error = ENOTTY;
 	}
 
-	iicbus_release_bus(device_get_parent(iicdev), iicdev);
+	iicbus_release_bus(parent, iicdev);
 
 	if (buf != NULL)
 		free(buf, M_TEMP);
