@@ -15,12 +15,11 @@
     r/o bin open-file 0= if
         locals| f | end-locals
         f include-file
-        f close-file drop
     else
         drop
     endif
     ;
 
-: include parse-word included ; immediate
+: include parse-word included ;
 
 \ #endif

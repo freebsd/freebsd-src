@@ -22,7 +22,7 @@ start-prefixes
 
 
 \ make .( a prefix (we just create an alias for it in the prefixes list)
-: .(  .( ;
+: .( postpone .( ; immediate
 
 
 \ make \ a prefix, and add // (same thing) as a prefix too
