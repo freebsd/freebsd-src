@@ -56,7 +56,7 @@
 #define TWI_MMR_IADRSZ(n) ((n) << 8)	/* Set size of transfer */
 #define TWI_MMR_MWRITE	0U		/* Master Read Direction */
 #define TWI_MMR_MREAD	(1U << 12)	/* Master Read Direction */
-#define TWI_MMR_DADR(n)	((n) << 16)	/* Device Address */
+#define TWI_MMR_DADR(n)	((n) << 15)	/* Device Address */
 
 /* TWI_CWGR */
 #define TWI_CWGR_CKDIV(x) ((x) << 16)	/* Clock Divider */
