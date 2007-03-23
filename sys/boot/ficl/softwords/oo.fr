@@ -86,8 +86,6 @@ user current-class
 \ execute it at run-time...
 \
 
-hide
-
 \ p a r s e - m e t h o d
 \ compiles a method name so that it pushes
 \ the string base address and count at run-time.
@@ -97,6 +95,13 @@ hide
     postpone sliteral
 ; compile-only
 
+
+
+: (lookup-method)  { class 2:name -- class 0 | class xt 1 | class xt -1  }
+    class  name class cell+ @  ( class c-addr u wid )
+    search-wordlist
+;
+
 \ l o o k u p - m e t h o d
 \ takes a counted string method name from the stack (as compiled
 \ by parse-method) and attempts to look this method up in the method list of 
@@ -104,21 +109,17 @@ hide
 \ and pushes the xt of the method. If not, it aborts with an error message.
 
 : lookup-method  { class 2:name -- class xt }
-    name class cell+ @  ( c-addr u wid )
-    search-wordlist     ( 0 | xt 1 | xt -1 )
+    class name (lookup-method)    ( 0 | xt 1 | xt -1 )
     0= if
         name type ."  not found in " 
         class body> >name type
         cr abort 
     endif 
-    class swap
 ;
 
 : find-method-xt   \ name ( class -- class xt )
     parse-word lookup-method
 ;
-
-set-current  ( stop hiding definitions )
 
 : catch-method  ( instance class c-addr u -- <method-signature> exc-flag )
     lookup-method catch

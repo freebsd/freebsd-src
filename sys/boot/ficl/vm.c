@@ -316,14 +316,28 @@ STRINGINFO vmGetWord0(FICL_VM *pVM)
     char *pEnd      = vmGetInBufEnd(pVM);
     STRINGINFO si;
     FICL_UNS count = 0;
-    char ch;
+    char ch = 0;
 
     pSrc = skipSpace(pSrc, pEnd);
     SI_SETPTR(si, pSrc);
 
+/*
     for (ch = *pSrc; (pEnd != pSrc) && !isspace(ch); ch = *++pSrc)
     {
         count++;
+    }
+*/
+
+    /* Changed to make Purify happier.  --lch */
+    for (;;)
+    {
+        if (pEnd == pSrc)
+            break;
+        ch = *pSrc;
+        if (isspace(ch))
+            break;
+        count++;
+        pSrc++;
     }
 
     SI_SETLEN(si, count);
