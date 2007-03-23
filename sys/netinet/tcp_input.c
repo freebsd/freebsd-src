@@ -1046,7 +1046,7 @@ after_listen:
 		if (to.to_flags & TOF_MSS)
 			tcp_mss(tp, to.to_mss);
 		if (tp->sack_enable) {
-			if (!(to.to_flags & TOF_SACK))
+			if (!(to.to_flags & TOF_SACKPERM))
 				tp->sack_enable = 0;
 			else
 				tp->t_flags |= TF_SACK_PERMIT;
@@ -1098,7 +1098,8 @@ after_listen:
 			    ((!tcp_do_newreno && !tp->sack_enable &&
 			      tp->t_dupacks < tcprexmtthresh) ||
 			     ((tcp_do_newreno || tp->sack_enable) &&
-			      !IN_FASTRECOVERY(tp) && to.to_nsacks == 0 &&
+			      !IN_FASTRECOVERY(tp) &&
+			      (to.to_flags & TOF_SACK) == 0 &&
 			      TAILQ_EMPTY(&tp->snd_holes)))) {
 				KASSERT(headlocked, ("headlocked"));
 				INP_INFO_WUNLOCK(&tcbinfo);
@@ -1848,7 +1849,8 @@ after_listen:
 			goto dropafterack;
 		}
 		if (tp->sack_enable &&
-		    (to.to_nsacks > 0 || !TAILQ_EMPTY(&tp->snd_holes)))
+		    ((to.to_flags & TOF_SACK) ||
+		     !TAILQ_EMPTY(&tp->snd_holes)))
 			tcp_sack_doack(tp, &to, th->th_ack);
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			if (tlen == 0 && tiwin == tp->snd_wnd) {
@@ -2657,11 +2659,12 @@ tcp_dooptions(struct tcpopt *to, u_char *cp, int cnt, int flags)
 				continue;
 			if (!tcp_do_sack)
 				continue;
-			to->to_flags |= TOF_SACK;
+			to->to_flags |= TOF_SACKPERM;
 			break;
 		case TCPOPT_SACK:
 			if (optlen <= 2 || (optlen - 2) % TCPOLEN_SACK != 0)
 				continue;
+			to->to_flags |= TOF_SACK;
 			to->to_nsacks = (optlen - 2) / TCPOLEN_SACK;
 			to->to_sacks = cp + 2;
 			tcpstat.tcps_sack_rcv_blocks++;
