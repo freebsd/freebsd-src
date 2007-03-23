@@ -237,9 +237,9 @@ typedef struct ficl_system_info FICL_SYSTEM_INFO;
 /* 
 ** the Good Stuff starts here...
 */
-#define FICL_VER        "3.02"
+#define FICL_VER        "3.03"
 #define FICL_VER_MAJOR  3
-#define FICL_VER_MINOR  2
+#define FICL_VER_MINOR  3
 #if !defined (FICL_PROMPT)
 #define FICL_PROMPT "ok> "
 #endif
@@ -857,7 +857,7 @@ struct ficl_system
 	FICL_WORD *pDoesParen;
 	FICL_WORD *pExitInner;
 	FICL_WORD *pExitParen;
-	FICL_WORD *pIfParen;
+	FICL_WORD *pBranch0;
 	FICL_WORD *pInterpret;
 	FICL_WORD *pLitParen;
 	FICL_WORD *pTwoLitParen;
@@ -865,7 +865,9 @@ struct ficl_system
 	FICL_WORD *pPLoopParen;
 	FICL_WORD *pQDoParen;
 	FICL_WORD *pSemiParen;
+	FICL_WORD *pOfParen;
 	FICL_WORD *pStore;
+	FICL_WORD *pDrop;
 	FICL_WORD *pCStringLit;
 	FICL_WORD *pStringLit;
 
@@ -1086,6 +1088,7 @@ typedef enum
     IF,
     LITERAL,
     LOOP,
+    OF,
     PLOOP,
     PRIMITIVE,
     QDO,
