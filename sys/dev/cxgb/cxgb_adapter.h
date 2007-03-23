@@ -244,6 +244,7 @@ struct adapter {
 	bus_space_handle_t	bh;
 	bus_space_tag_t		bt;
 	bus_size_t              mmio_len;
+	bus_size_t              link_width;
 	
 	/* DMA resources */
 	bus_dma_tag_t		parent_dmat;
