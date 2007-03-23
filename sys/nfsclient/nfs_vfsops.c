@@ -950,8 +950,8 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	return (0);
 bad:
-	mtx_destroy(&nmp->nm_mtx);
 	nfs_disconnect(nmp);
+	mtx_destroy(&nmp->nm_mtx);
 	uma_zfree(nfsmount_zone, nmp);
 	FREE(nam, M_SONAME);
 	return (error);
