@@ -6,6 +6,7 @@ _wizard=	wizard.c
 
 PROG=	sysinstall
 MAN=	sysinstall.8
+WARNS?=	2
 SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
 	disks.c dispatch.c dist.c dmenu.c doc.c dos.c floppy.c \
 	ftp.c globals.c http.c index.c install.c installUpgrade.c keymap.c \
