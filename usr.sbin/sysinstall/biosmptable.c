@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <machine/mptable.h>
 
+#include <err.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <paths.h>
@@ -151,7 +152,7 @@ static int
 memread(off_t addr, void* entry, size_t size)
 {
     if ((size_t)pread(pfd, entry, size, addr) != size) {
-	warn("pread (%lu @ 0x%lx)", size, addr);
+	warn("pread (%zu @ 0x%llx)", size, addr);
 	return 0;
     }
     return 1;
@@ -232,7 +233,7 @@ biosmptable_check_mpcth(off_t addr)
 
     /* mpcth must be in the first 1MB */
     if ((u_int32_t)addr >= 1024 * 1024) {
-	msgDebug("%s: bad mpcth address (0x%lx)\n", __func__, addr);
+	msgDebug("%s: bad mpcth address (0x%llx)\n", __func__, addr);
 	return (NULL);
     }
 
