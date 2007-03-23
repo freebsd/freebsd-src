@@ -1101,8 +1101,6 @@ ip_ctloutput(so, sopt)
 		case IP_MULTICAST_VIF:
 		case IP_MULTICAST_TTL:
 		case IP_MULTICAST_LOOP:
-		case IP_ADD_MEMBERSHIP:
-		case IP_DROP_MEMBERSHIP:
 			error = ip_getmoptions(inp, sopt);
 			break;
 
