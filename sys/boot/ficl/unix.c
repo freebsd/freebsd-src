@@ -8,9 +8,9 @@
 
 
 unsigned long ficlNtohl(unsigned long number)
-	{
-	return ntohl(number);
-	}
+{
+    return ntohl(number);
+}
 
 
 

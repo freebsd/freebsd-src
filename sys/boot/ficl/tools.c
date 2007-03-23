@@ -244,10 +244,17 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
                 break;                                                           
             case BRANCH:
                 c = *++pc;
-                if (c.i > 0)
+                if (c.i == 0)
+                    sprintf(cp, "repeat (branch %d)",     pc+c.i-param0);
+                else if (c.i == 1)
                     sprintf(cp, "else (branch %d)",       pc+c.i-param0);
                 else
-                    sprintf(cp, "repeat (branch %d)",     pc+c.i-param0);
+                    sprintf(cp, "endof (branch %d)",       pc+c.i-param0);
+                break;
+
+            case OF:
+                c = *++pc;
+                sprintf(cp, "of (branch %d)",       pc+c.i-param0);
                 break;
 
             case QDO:

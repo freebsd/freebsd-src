@@ -17,7 +17,9 @@
 \ $FreeBSD$
 
 hide
+
 0 constant zero
+
 
 : ?--   ( c-addr u -- c-addr u flag )
     2dup s" --" compare 0= ;
@@ -74,23 +76,24 @@ set-current
             parse-word
             ?delim dup to locstate
         0= while
-		    ?2loc if 
-			    postpone zero postpone zero  (2local)
-			else
-                postpone zero  (local)
-		    endif
+            ?2loc if
+                postpone zero postpone zero (2local)
+            else
+                postpone zero (local)
+            endif
         repeat
     endif
 
     0 0 (local)
 
     \ toss words until }
+    \ (explicitly allow | and -- in the comment)
     locstate 2 = if
         begin
             parse-word
-            ?delim dup to locstate
-        0= while
-            2drop
+            ?delim dup  to locstate
+        3 < while
+            locstate 0=  if 2drop endif
         repeat
     endif
 

@@ -977,6 +977,8 @@ int ficlParseFloatNumber( FICL_VM *pVM, STRINGINFO si )
     }
 
     PUSHFLOAT(accum);
+    if (pVM->state == COMPILE)
+        fliteralIm(pVM);
 
     return(1);
 }
@@ -1062,3 +1064,4 @@ void ficlCompileFloat(FICL_SYSTEM *pSys)
 #endif
     return;
 }
+
