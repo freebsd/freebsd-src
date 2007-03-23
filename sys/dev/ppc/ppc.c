@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/kdb.h>
   
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -72,6 +73,7 @@ static device_method_t ppc_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,         ppc_isa_probe),
 	DEVMETHOD(device_attach,        ppc_attach),
+	DEVMETHOD(device_detach,        ppc_detach),
 
 	/* bus interface */
 	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
@@ -2003,6 +2005,46 @@ ppc_attach(device_t dev)
 			/* remember the ppcintr is registered */
 			ppc->ppc_registered = 1;
 		}
+	}
+
+	return (0);
+}
+
+int
+ppc_detach(device_t dev)
+{
+	struct ppc_data *ppc = DEVTOSOFTC(dev);
+	device_t *children;
+	int nchildren, i;
+
+	if (ppc->res_irq == 0) {
+		return (ENXIO);
+	}
+
+	/* detach & delete all children */
+	if (!device_get_children(dev, &children, &nchildren)) {
+		for (i = 0; i < nchildren; i++)
+			if (children[i])
+				device_delete_child(dev, children[i]);
+		free(children, M_TEMP);
+	}
+
+	if (ppc->res_irq != 0) {
+		bus_teardown_intr(dev, ppc->res_irq, ppc->intr_cookie);
+		bus_release_resource(dev, SYS_RES_IRQ, ppc->rid_irq,
+				     ppc->res_irq);
+	}
+	if (ppc->res_ioport != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IOPORT, ppc->rid_ioport,
+					ppc->res_ioport);
+		bus_release_resource(dev, SYS_RES_IOPORT, ppc->rid_ioport,
+				     ppc->res_ioport);
+	}
+	if (ppc->res_drq != 0) {
+		bus_deactivate_resource(dev, SYS_RES_DRQ, ppc->rid_drq,
+					ppc->res_drq);
+		bus_release_resource(dev, SYS_RES_DRQ, ppc->rid_drq,
+				     ppc->res_drq);
 	}
 
 	return (0);

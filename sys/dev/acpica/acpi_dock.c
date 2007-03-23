@@ -238,7 +238,7 @@ acpi_dock_insert_child(ACPI_HANDLE handle, UINT32 level, void *context,
 		goto out;
 	}
 
-	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_dock_attach_later, dev);
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_dock_attach_later, dev);
 
 out:
 	return (AE_OK);

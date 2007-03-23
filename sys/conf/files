@@ -364,6 +364,7 @@ dev/acpica/acpi_button.c	optional acpi
 dev/acpica/acpi_cmbat.c		optional acpi
 dev/acpica/acpi_cpu.c		optional acpi
 dev/acpica/acpi_ec.c		optional acpi
+dev/acpica/acpi_hpet.c		optional acpi
 dev/acpica/acpi_isab.c		optional acpi isa
 dev/acpica/acpi_lid.c		optional acpi
 dev/acpica/acpi_package.c	optional acpi
@@ -381,6 +382,7 @@ dev/acpica/acpi_thermal.c	optional acpi
 dev/acpica/acpi_throttle.c	optional acpi
 dev/acpica/acpi_timer.c		optional acpi
 dev/acpica/acpi_video.c		optional acpi_video acpi
+dev/acpica/acpi_dock.c		optional acpi_dock acpi
 dev/adlink/adlink.c		optional adlink
 dev/advansys/adv_eisa.c		optional adv eisa
 dev/advansys/adv_pci.c		optional adv pci

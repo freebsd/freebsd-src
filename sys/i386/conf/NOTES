@@ -467,6 +467,9 @@ device		acpi_toshiba
 # ACPI Video Extensions (LCD backlight/brightness, video output, etc.)
 device		acpi_video
 
+# ACPI Docking Station
+device		acpi_dock
+
 # The cpufreq(4) driver provides support for non-ACPI CPU frequency control
 device		cpufreq
 
