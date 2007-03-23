@@ -19,7 +19,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-n count] [-x] [prefix [suffix]]\n",
+	fprintf(stderr, "usage: %s [-n count] [-s] [-x] [prefix [suffix]]\n",
 	    getprogname());
 	exit(1);
 }
@@ -27,14 +27,18 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	int c, count, linepos, maxcount, radix;
+	int c, count, linepos, maxcount, pretty, radix;
 
 	maxcount = 0;
+	pretty = 0;
 	radix = 10;
-	while ((c = getopt(argc, argv, "n:x")) != -1) {
+	while ((c = getopt(argc, argv, "n:sx")) != -1) {
 		switch (c) {
 		case 'n':	/* Max. number of bytes per line. */
 			maxcount = strtol(optarg, NULL, 10);
+			break;
+		case 's':	/* Be more style(9) comliant. */
+			pretty = 1;
 			break;
 		case 'x':	/* Print hexadecimal numbers. */
 			radix = 16;
@@ -59,6 +63,15 @@ main(int argc, char *argv[])
 		    (maxcount > 0 && count >= maxcount)) {
 			putchar('\n');
 			count = linepos = 0;
+		}
+		if (pretty) {
+			if (count) {
+				putchar(' ');
+				linepos++;
+			} else {
+				putchar('\t');
+				linepos += 8;
+			}
 		}
 		switch (radix) {
 		case 10:
