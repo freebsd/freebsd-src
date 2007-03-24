@@ -83,7 +83,7 @@ The following example script creates an
 node, attaches four Ethernet interfaces to it and
 sets the forwarding method to be IP-address based:
 .Bd -literal -offset indent
-/usr/sbin/ngctl -f- <<-SEQ
+/usr/sbin/ngctl -f- << SEQ
 	mkpeer fec dummy fec
 	msg fec0: add_iface "dc0"
 	msg fec0: add_iface "dc1"
