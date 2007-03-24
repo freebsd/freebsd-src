@@ -322,7 +322,7 @@ cxgb_controller_attach(device_t dev)
 	}
 	if (sc->link_width != 0 && sc->link_width <= 4) {
 		device_printf(sc->dev,
-		    "PCIe x%ld Link, expect reduced performance\n",
+		    "PCIe x%d Link, expect reduced performance\n",
 		    sc->link_width);
 	}
 	
