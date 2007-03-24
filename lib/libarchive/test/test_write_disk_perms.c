@@ -57,7 +57,7 @@ searchgid(void)
 		return;
 	_searched = 1;
 
-	/* Create a file on disk. */
+	/* Create a file on disk in the current default dir. */
 	fd = open("test_gid", O_CREAT, 0664);
 	failure("Couldn't create a file for gid testing.");
 	assert(fd > 0);
@@ -135,6 +135,49 @@ DEFINE_TEST(test_write_disk_perms)
 	archive_entry_set_mode(ae, S_IFREG | 0777);
 	assert(0 == archive_write_header(a, ae));
 	assert(0 == archive_write_finish_entry(a));
+
+	/* Write a regular file, then write over it. */
+	/* For files, the perms should get updated. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file_overwrite_0144");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	/* Check that file was created with different perms. */
+	assert(0 == stat("file_overwrite_0144", &st));
+	failure("file_overwrite_0144: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) != 0144);
+	/* Overwrite, this should change the perms. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file_overwrite_0144");
+	archive_entry_set_mode(ae, S_IFREG | 0144);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+
+	/* Write a regular dir. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "dir_0514");
+	archive_entry_set_mode(ae, S_IFDIR | 0514);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+
+	/* Overwrite an existing dir. */
+	/* For dir, the first perms should get left. */
+	assert(mkdir("dir_overwrite_0744", 0744) == 0);
+	/* Check original perms. */
+	assert(0 == stat("dir_overwrite_0744", &st));
+	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == 0744);
+	/* Overwrite shouldn't edit perms. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "dir_overwrite_0744");
+	archive_entry_set_mode(ae, S_IFDIR | 0777);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	/* Make sure they're unchanged. */
+	assert(0 == stat("dir_overwrite_0744", &st));
+	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == 0744);
 
 	/* Write a regular file with SUID bit, but don't use _EXTRACT_PERM. */
 	assert((ae = archive_entry_new()) != NULL);
@@ -267,6 +310,18 @@ DEFINE_TEST(test_write_disk_perms)
 	assert(0 == stat("file_0755", &st));
 	failure("file_0755: st.st_mode=%o", st.st_mode);
 	assert((st.st_mode & 07777) == 0755);
+
+	assert(0 == stat("file_overwrite_0144", &st));
+	failure("file_overwrite_0144: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == 0144);
+
+	assert(0 == stat("dir_0514", &st));
+	failure("dir_0514: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == 0514);
+
+	assert(0 == stat("dir_overwrite_0744", &st));
+	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == 0744);
 
 	assert(0 == stat("file_no_suid", &st));
 	failure("file_0755: st.st_mode=%o", st.st_mode);

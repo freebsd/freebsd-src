@@ -111,6 +111,7 @@ struct fixup_entry {
  * that verification can occur explicitly through a stat() call or
  * implicitly because of a successful chown() call.
  */
+#define	TODO_MODE_FORCE		0x40000000
 #define	TODO_MODE_BASE		0x20000000
 #define	TODO_SUID		0x10000000
 #define	TODO_SUID_CHECK		0x08000000
@@ -320,6 +321,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	/* Figure out what we need to do for this entry. */
 	a->todo = TODO_MODE_BASE;
 	if (a->flags & ARCHIVE_EXTRACT_PERM) {
+		a->todo |= TODO_MODE_FORCE; /* Be pushy about permissions. */
 		/*
 		 * SGID requires an extra "check" step because we
 		 * cannot easily predict the GID that the system will
@@ -732,9 +734,12 @@ restore_entry(struct archive_write_disk *a)
 			 * There's a dir in the way of a dir.  Don't
 			 * waste time with rmdir()/mkdir(), just fix
 			 * up the permissions on the existing dir.
+			 * Note that we don't change perms on existing
+			 * dirs unless _EXTRACT_PERM is specified.
 			 */
-			if (a->mode != a->st.st_mode)
-				a->deferred |= TODO_MODE;
+			if ((a->mode != a->st.st_mode)
+			    && (a->todo & TODO_MODE_FORCE))
+				a->deferred |= (a->todo & TODO_MODE);
 			/* Ownership doesn't need deferred fixup. */
 			en = 0; /* Forget the EEXIST. */
 		}
@@ -806,13 +811,15 @@ create_filesystem_object(struct archive_write_disk *a)
 	case S_IFDIR:
 		mode = (mode | MINIMUM_DIR_MODE) & MAXIMUM_DIR_MODE;
 		r = mkdir(a->name, mode);
-		/* Defer setting dir times. */
-		a->deferred |= (a->todo & TODO_TIMES);
-		a->todo &= ~TODO_TIMES;
-		/* Never use an immediate chmod(). */
-		if (mode != final_mode)
-			a->deferred |= (a->todo & TODO_MODE);
-		a->todo &= ~TODO_MODE;
+		if (r == 0) {
+			/* Defer setting dir times. */
+			a->deferred |= (a->todo & TODO_TIMES);
+			a->todo &= ~TODO_TIMES;
+			/* Never use an immediate chmod(). */
+			if (mode != final_mode)
+				a->deferred |= (a->todo & TODO_MODE);
+			a->todo &= ~TODO_MODE;
+		}
 		break;
 	case S_IFIFO:
 		r = mkfifo(a->name, mode);
