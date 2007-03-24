@@ -363,6 +363,7 @@ vendor LOGITEC		0x0789	Logitec
 vendor BRIMAX		0x078e	Brimax
 vendor AXIS		0x0792	Axis
 vendor ABL		0x0794	ABL
+vendor SAGEM		0x079b	Sagem
 vendor SUNCOMM		0x079c	Sun Communications
 vendor ALFADATA		0x079d	Alfadata
 vendor NATIONALTECH	0x07a2	National Technical
