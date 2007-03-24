@@ -657,6 +657,9 @@ main(int argc, char **argv)
 	}
 
 	cleanup_exclusions(bsdtar);
+	if (bsdtar->return_value != 0)
+		bsdtar_warnc(bsdtar, 0,
+		    "Error exit delayed from previous errors.");
 	return (bsdtar->return_value);
 }
 
