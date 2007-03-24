@@ -902,7 +902,7 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	 * If this is a LOOKUP and we've already partially searched through
 	 * the directory, pick up where we left off and flag that the
 	 * directory may need to be searched twice.  For a full description,
-	 * see /sys/isofs/cd9660/cd9660_lookup.c:cd9660_lookup()
+	 * see /sys/fs/cd9660/cd9660_lookup.c:cd9660_lookup()
 	 */
 	if (nameiop != LOOKUP || node->diroff == 0 || node->diroff > fsize) {
 		offset = 0;
