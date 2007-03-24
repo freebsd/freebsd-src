@@ -136,7 +136,7 @@ bid(const void *buff, size_t len)
  * archives and emit a useful message.
  */
 static int
-init(struct archive *a, const void *buff, size_t n)
+init(struct archive_read *a, const void *buff, size_t n)
 {
 	(void)a;	/* UNUSED */
 	(void)buff;	/* UNUSED */
