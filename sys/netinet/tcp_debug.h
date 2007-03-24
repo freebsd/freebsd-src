@@ -45,10 +45,11 @@ struct	tcp_debug {
 	 */
 	struct	tcpiphdr td_ti;
 	struct {
+#define	IP6_HDR_LEN	40	/* sizeof(struct ip6_hdr) */
 #if !defined(_KERNEL) && defined(INET6)
 		struct	ip6_hdr ip6;
 #else
-		u_char	ip6buf[40]; /* sizeof(struct ip6_hdr) */
+		u_char	ip6buf[IP6_HDR_LEN];
 #endif
 		struct	tcphdr th;
 	} td_ti6;

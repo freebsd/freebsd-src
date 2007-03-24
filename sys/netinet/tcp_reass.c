@@ -465,7 +465,7 @@ tcp_input(struct mbuf *m, int off0)
 	 * The size of tcp_saveipgen must be the size of the max ip header,
 	 * now IPv6.
 	 */
-	u_char tcp_saveipgen[40];
+	u_char tcp_saveipgen[IP6_HDR_LEN];
 	struct tcphdr tcp_savetcp;
 	short ostate = 0;
 #endif
@@ -1028,6 +1028,15 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	u_long tiwin;
 	struct tcpopt to;
 
+#ifdef TCPDEBUG
+	/*
+	 * The size of tcp_saveipgen must be the size of the max ip header,
+	 * now IPv6.
+	 */
+	u_char tcp_saveipgen[IP6_HDR_LEN];
+	struct tcphdr tcp_savetcp;
+	short ostate = 0;
+#endif
 	thflags = th->th_flags;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
