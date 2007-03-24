@@ -2893,6 +2893,7 @@ huge_palloc(size_t alignment, size_t size)
 	 * alignment, in order to assure the alignment can be achieved, then
 	 * unmap leading and trailing chunks.
 	 */
+	assert(alignment >= chunksize);
 
 	chunk_size = CHUNK_CEILING(size);
 
@@ -3041,7 +3042,7 @@ static void *
 ipalloc(size_t alignment, size_t size)
 {
 	void *ret;
-	size_t orig_size;
+	size_t ceil_size;
 
 	/*
 	 * Round size up to the nearest multiple of alignment.
@@ -3061,26 +3062,41 @@ ipalloc(size_t alignment, size_t size)
 	 * will further round up to a power of two, but that never causes
 	 * correctness issues.
 	 */
-	orig_size = size;
-	size = (size + (alignment - 1)) & (-alignment);
-	if (size < orig_size) {
+	ceil_size = (size + (alignment - 1)) & (-alignment);
+	/*
+	 * (ceil_size < size) protects against the combination of maximal
+	 * alignment and size greater than maximal alignment.
+	 */
+	if (ceil_size < size) {
 		/* size_t overflow. */
 		return (NULL);
 	}
 
-	if (size <= pagesize || (alignment <= pagesize
-	    && size <= arena_maxclass))
-		ret = arena_malloc(choose_arena(), size);
+	if (ceil_size <= pagesize || (alignment <= pagesize
+	    && ceil_size <= arena_maxclass))
+		ret = arena_malloc(choose_arena(), ceil_size);
 	else {
 		size_t run_size;
 
 		/*
-		 * We can't achieve sub-page alignment, so round up
+		 * We can't achieve sub-page alignment, so round up alignment
 		 * permanently; it makes later calculations simpler.
 		 */
 		alignment = PAGE_CEILING(alignment);
-		size = PAGE_CEILING(size);
-		if (size < orig_size) {
+		ceil_size = PAGE_CEILING(size);
+		/*
+		 * (ceil_size < size) protects against very large sizes within
+		 * pagesize of SIZE_T_MAX.
+		 *
+		 * (ceil_size + alignment < ceil_size) protects against the
+		 * combination of maximal alignment and ceil_size large enough
+		 * to cause overflow.  This is similar to the first overflow
+		 * check above, but it needs to be repeated due to the new
+		 * ceil_size value, which may now be *equal* to maximal
+		 * alignment, whereas before we only detected overflow if the
+		 * original size was *greater* than maximal alignment.
+		 */
+		if (ceil_size < size || ceil_size + alignment < ceil_size) {
 			/* size_t overflow. */
 			return (NULL);
 		}
@@ -3089,19 +3105,28 @@ ipalloc(size_t alignment, size_t size)
 		 * Calculate the size of the over-size run that arena_palloc()
 		 * would need to allocate in order to guarantee the alignment.
 		 */
-		if (size >= alignment)
-			run_size = size + alignment - pagesize;
-		else
+		if (ceil_size >= alignment)
+			run_size = ceil_size + alignment - pagesize;
+		else {
+			/*
+			 * It is possible that (alignment << 1) will cause
+			 * overflow, but it doesn't matter because we also
+			 * subtract pagesize, which in the case of overflow
+			 * leaves us with a very large run_size.  That causes
+			 * the first conditional below to fail, which means
+			 * that the bogus run_size value never gets used for
+			 * anything important.
+			 */
 			run_size = (alignment << 1) - pagesize;
+		}
 
-		/* Protect against size_t overflow in the first conditional. */
-		if ((run_size | alignment | size) <= arena_maxclass) {
-			ret = arena_palloc(choose_arena(), alignment, size,
+		if (run_size <= arena_maxclass) {
+			ret = arena_palloc(choose_arena(), alignment, ceil_size,
 			    run_size);
 		} else if (alignment <= chunksize)
-			ret = huge_malloc(size);
+			ret = huge_malloc(ceil_size);
 		else
-			ret = huge_palloc(alignment, size);
+			ret = huge_palloc(alignment, ceil_size);
 	}
 
 	assert(((uintptr_t)ret & (alignment - 1)) == 0);
