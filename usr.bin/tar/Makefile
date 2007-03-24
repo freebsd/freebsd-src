@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	bsdtar
-VERSION=	2.0.23
+VERSION=	2.0.25
 SRCS=	bsdtar.c getdate.y matching.c read.c tree.c util.c write.c
 WARNS?=	5
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
