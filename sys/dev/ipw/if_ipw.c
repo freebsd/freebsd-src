@@ -1065,6 +1065,7 @@ ipw_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 		ipw_fix_channel(ic, m);
 
 	wh = mtod(m, struct ieee80211_frame *);
+	mtx_unlock(&sc->sc_mtx);
 	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 
 	/* send the frame to the 802.11 layer */
@@ -1072,6 +1073,7 @@ ipw_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
+	mtx_lock(&sc->sc_mtx);
 
 	bus_dmamap_sync(sc->rbd_dmat, sc->rbd_map, BUS_DMASYNC_PREWRITE);
 }
