@@ -69,13 +69,6 @@ __FBSDID("$FreeBSD$");
 #   include <net/if_types.h>
 #   include <net/if_sppp.h>
 #   define PP_CISCO IFF_LINK2
-#   if __FreeBSD_version < 500000
-#	include <bpf.h>
-#	define NBPFILTER NBPF
-#   else
-#	include "opt_bpf.h"
-#	define NBPFILTER DEV_BPF
-#   endif
 #   include <net/bpf.h>
 #endif
 #include <dev/cx/machdep.h>
@@ -844,10 +837,9 @@ static int ce_detach (device_t dev)
 		if (! d || ! d->chan)
 			continue;
 #ifndef NETGRAPH
-#if __FreeBSD_version >= 410000 && NBPFILTER > 0
 		/* Detach from the packet filter list of interfaces. */
 		bpfdetach (d->ifp);
-#endif
+
 		/* Detach from the sync PPP list. */
 		sppp_detach (d->ifp);
 
