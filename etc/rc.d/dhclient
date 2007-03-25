@@ -34,7 +34,7 @@ dhclient_start()
 	fi
 
 	background_dhclient=`get_if_var $ifn background_dhclient_IF $background_dhclient`
-	if checkyesno background_dhclient_$ifn; then
+	if checkyesno background_dhclient; then
 		rc_flags="${rc_flags} -b"
 	fi
 
