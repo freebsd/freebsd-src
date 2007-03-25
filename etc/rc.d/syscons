@@ -113,7 +113,7 @@ syscons_setkeyboard()
 
 	# Check if the kbdmux(4) is the current active keyboard
 	kbdcontrol -i < ${kbddev} | grep kbdmux > /dev/null 2>&1
-	if [ $? != 0 ]; then
+	if [ $? -ne 0 ]; then
 		kbdcontrol -k ${kbd} < ${kbddev} > /dev/null 2>&1
 	fi
 
