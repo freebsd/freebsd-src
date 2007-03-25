@@ -1437,9 +1437,9 @@ void
 vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
     vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags)
 {
-	vm_offset_t start, tmpidx;
-	int psize;
+	vm_offset_t start;
 	vm_page_t p, p_start;
+	vm_pindex_t psize, tmpidx;
 	boolean_t are_queues_locked;
 
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
@@ -1493,8 +1493,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 			break;
 		}
 		if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
-		    (p->busy == 0) &&
-		    (p->flags & PG_FICTITIOUS) == 0) {
+		    (p->busy == 0)) {
 			if (p_start == NULL) {
 				start = addr + ptoa(tmpidx);
 				p_start = p;
