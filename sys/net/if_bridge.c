@@ -2117,41 +2117,61 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		return (m);
 	}
 
+#ifdef DEV_CARP
+#   define OR_CARP_CHECK_WE_ARE_DST(iface) \
+	|| ((iface)->if_carp \
+	    && carp_forus((iface)->if_carp, eh->ether_dhost))
+#   define OR_CARP_CHECK_WE_ARE_SRC(iface) \
+	|| ((iface)->if_carp \
+	    && carp_forus((iface)->if_carp, eh->ether_shost))
+#else
+#   define OR_CARP_CHECK_WE_ARE_DST(iface)
+#   define OR_CARP_CHECK_WE_ARE_SRC(iface)
+#endif
+
+#define GRAB_OUR_PACKETS(iface) \
+	if ((iface)->if_type == IFT_GIF) \
+		continue; \
+	/* It is destined for us. */ \
+	if (memcmp(IF_LLADDR((iface)), eh->ether_dhost,  ETHER_ADDR_LEN) == 0 \
+	    OR_CARP_CHECK_WE_ARE_DST((iface))				\
+	    ) {								\
+		if (bif->bif_flags & IFBIF_LEARNING)			\
+			(void) bridge_rtupdate(sc,			\
+			    eh->ether_shost, bif, 0, IFBAF_DYNAMIC);	\
+		m->m_pkthdr.rcvif = iface;				\
+		BRIDGE_UNLOCK(sc);					\
+		return (m);						\
+	}								\
+									\
+	/* We just received a packet that we sent out. */		\
+	if (memcmp(IF_LLADDR((iface)), eh->ether_shost, ETHER_ADDR_LEN) == 0 \
+	    OR_CARP_CHECK_WE_ARE_SRC((iface))			\
+	    ) {								\
+		BRIDGE_UNLOCK(sc);					\
+		m_freem(m);						\
+		return (NULL);						\
+	}
+
 	/*
 	 * Unicast.  Make sure it's not for us.
+	 *
+	 * Give a chance for ifp at first priority. This will help when	the
+	 * packet comes through the interface like VLAN's with the same MACs
+	 * on several interfaces from the same bridge. This also will save
+	 * some CPU cycles in case the destination interface and the input
+	 * interface (eq ifp) are the same.
 	 */
-	LIST_FOREACH(bif2, &sc->sc_iflist, bif_next) {
-		if (bif2->bif_ifp->if_type == IFT_GIF)
-			continue;
-		/* It is destined for us. */
-		if (memcmp(IF_LLADDR(bif2->bif_ifp), eh->ether_dhost,
-		    ETHER_ADDR_LEN) == 0
-#ifdef DEV_CARP
-		    || (bif2->bif_ifp->if_carp 
-			&& carp_forus(bif2->bif_ifp->if_carp, eh->ether_dhost))
-#endif
-		    ) {
-			if (bif->bif_flags & IFBIF_LEARNING)
-				(void) bridge_rtupdate(sc,
-				    eh->ether_shost, bif, 0, IFBAF_DYNAMIC);
-			m->m_pkthdr.rcvif = bif2->bif_ifp;
-			BRIDGE_UNLOCK(sc);
-			return (m);
-		}
+	do { GRAB_OUR_PACKETS(ifp) } while (0);
 
-		/* We just received a packet that we sent out. */
-		if (memcmp(IF_LLADDR(bif2->bif_ifp), eh->ether_shost,
-		    ETHER_ADDR_LEN) == 0
-#ifdef DEV_CARP
-		    || (bif2->bif_ifp->if_carp 
-			&& carp_forus(bif2->bif_ifp->if_carp, eh->ether_shost))
-#endif
-		    ) {
-			BRIDGE_UNLOCK(sc);
-			m_freem(m);
-			return (NULL);
-		}
+	/* Now check the all bridge members. */
+	LIST_FOREACH(bif2, &sc->sc_iflist, bif_next) {
+		GRAB_OUR_PACKETS(bif2->bif_ifp)
 	}
+
+#undef OR_CARP_CHECK_WE_ARE_DST
+#undef OR_CARP_CHECK_WE_ARE_SRC
+#undef GRAB_OUR_PACKETS
 
 	/* Perform the bridge forwarding function. */
 	bridge_forward(sc, m);
