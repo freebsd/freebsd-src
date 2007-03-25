@@ -419,7 +419,7 @@ vfs_buf_test_cache(struct buf *bp,
 	}
 }
 
-/* Wake up the buffer deamon if necessary */
+/* Wake up the buffer daemon if necessary */
 static __inline
 void
 bd_wakeup(int dirtybuflevel)
