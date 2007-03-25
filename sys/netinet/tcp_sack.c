@@ -371,7 +371,6 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	int i, j, num_sack_blks;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
-	KASSERT(to->to_flags & TOF_SACK, ("%s: SACK invalid", __func__));
 
 	num_sack_blks = 0;
 	/*
@@ -383,21 +382,24 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		sack_blocks[num_sack_blks++].end = th_ack;
 	}
 	/*
-	 * Append received valid SACK blocks to sack_blocks[].
+	 * Append received valid SACK blocks to sack_blocks[], but only
+	 * if we received new blocks from the other side.
 	 */
-	for (i = 0; i < to->to_nsacks; i++) {
-		bcopy((to->to_sacks + i * TCPOLEN_SACK), &sack, sizeof(sack));
-		sack.start = ntohl(sack.start);
-		sack.end = ntohl(sack.end);
-		if (SEQ_GT(sack.end, sack.start) &&
-		    SEQ_GT(sack.start, tp->snd_una) &&
-		    SEQ_GT(sack.start, th_ack) &&
-		    SEQ_LT(sack.start, tp->snd_max) &&
-		    SEQ_GT(sack.end, tp->snd_una) &&
-		    SEQ_LEQ(sack.end, tp->snd_max))
-			sack_blocks[num_sack_blks++] = sack;
+	if (to->to_flags & TOF_SACK) {
+		for (i = 0; i < to->to_nsacks; i++) {
+			bcopy((to->to_sacks + i * TCPOLEN_SACK),
+			    &sack, sizeof(sack));
+			sack.start = ntohl(sack.start);
+			sack.end = ntohl(sack.end);
+			if (SEQ_GT(sack.end, sack.start) &&
+			    SEQ_GT(sack.start, tp->snd_una) &&
+			    SEQ_GT(sack.start, th_ack) &&
+			    SEQ_LT(sack.start, tp->snd_max) &&
+			    SEQ_GT(sack.end, tp->snd_una) &&
+			    SEQ_LEQ(sack.end, tp->snd_max))
+				sack_blocks[num_sack_blks++] = sack;
+		}
 	}
-
 	/*
 	 * Return if SND.UNA is not advanced and no valid SACK block
 	 * is received.
