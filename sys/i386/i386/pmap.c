@@ -1683,7 +1683,13 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		    sva += PAGE_SIZE) {
 			if (*pte == 0)
 				continue;
-			anyvalid = 1;
+
+			/*
+			 * The TLB entry for a PG_G mapping is invalidated
+			 * by pmap_remove_pte().
+			 */
+			if ((*pte & PG_G) == 0)
+				anyvalid = 1;
 			if (pmap_remove_pte(pmap, pte, sva))
 				break;
 		}
