@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Nate Lawson (SDG)
+ * Copyright (c) 2005-2007 Nate Lawson (SDG)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,8 @@
 
 #ifndef _SYS_CPU_H_
 #define _SYS_CPU_H_
+
+#include <sys/eventhandler.h>
 
 /*
  * CPU device support.
@@ -117,6 +119,36 @@ TAILQ_HEAD(cf_level_lst, cf_level);
  */
 int	cpufreq_register(device_t dev);
 int	cpufreq_unregister(device_t dev);
+
+/*
+ * Notify the cpufreq core that the number of or values for settings have
+ * changed.
+ */
+int	cpufreq_settings_changed(device_t dev);
+
+/*
+ * Eventhandlers that are called before and after a change in frequency.
+ * The new level and the result of the change (0 is success) is passed in.
+ * If the driver wishes to revoke the change from cpufreq_pre_change, it
+ * stores a non-zero error code in the result parameter and the change will
+ * not be made.  If the post-change eventhandler gets a non-zero result, 
+ * no change was made and the previous level remains in effect.  If a change
+ * is revoked, the post-change eventhandler is still called with the error
+ * value supplied by the revoking driver.  This gives listeners who cached
+ * some data in preparation for a level change a chance to clean up.
+ */
+typedef void (*cpufreq_pre_notify_fn)(void *, const struct cf_level *, int *);
+typedef void (*cpufreq_post_notify_fn)(void *, const struct cf_level *, int);
+EVENTHANDLER_DECLARE(cpufreq_pre_change, cpufreq_pre_notify_fn);
+EVENTHANDLER_DECLARE(cpufreq_post_change, cpufreq_post_notify_fn);
+
+/*
+ * Eventhandler called when the available list of levels changed.
+ * The unit number of the device (i.e. "cpufreq0") whose levels changed
+ * is provided so the listener can retrieve the new list of levels.
+ */
+typedef void (*cpufreq_levels_notify_fn)(void *, int);
+EVENTHANDLER_DECLARE(cpufreq_levels_changed, cpufreq_levels_notify_fn);
 
 /* Allow values to be +/- a bit since sometimes we have to estimate. */
 #define CPUFREQ_CMP(x, y)	(abs((x) - (y)) < 25)

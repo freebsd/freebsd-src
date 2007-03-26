@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2005 Nate Lawson (SDG)
+ * Copyright (c) 2004-2007 Nate Lawson (SDG)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sx.h>
 #include <sys/timetc.h>
+#include <sys/taskqueue.h>
 
 #include "cpufreq_if.h"
 
@@ -73,6 +74,7 @@ struct cpufreq_softc {
 	int				max_mhz;
 	device_t			dev;
 	struct sysctl_ctx_list		sysctl_ctx;
+	struct task			startup_task;
 };
 
 struct cf_setting_array {
@@ -94,8 +96,8 @@ TAILQ_HEAD(cf_setting_lst, cf_setting_array);
 	} while (0)
 
 static int	cpufreq_attach(device_t dev);
+static void	cpufreq_startup_task(void *ctx, int pending);
 static int	cpufreq_detach(device_t dev);
-static void	cpufreq_evaluate(void *arg);
 static int	cf_set_method(device_t dev, const struct cf_level *level,
 		    int priority);
 static int	cf_get_method(device_t dev, struct cf_level *level);
@@ -126,8 +128,6 @@ static driver_t cpufreq_driver = {
 };
 static devclass_t cpufreq_dc;
 DRIVER_MODULE(cpufreq, cpu, cpufreq_driver, cpufreq_dc, 0, 0);
-
-static eventhandler_tag	cf_ev_tag;
 
 static int		cf_lowest_freq;
 static int		cf_verbose;
@@ -176,10 +176,23 @@ cpufreq_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(parent)),
 	    OID_AUTO, "freq_levels", CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    cpufreq_levels_sysctl, "A", "CPU frequency levels");
-	cf_ev_tag = EVENTHANDLER_REGISTER(cpufreq_changed, cpufreq_evaluate,
-	    NULL, EVENTHANDLER_PRI_ANY);
+
+	/*
+	 * Queue a one-shot broadcast that levels have changed.
+	 * It will run once the system has completed booting.
+	 */
+	TASK_INIT(&sc->startup_task, 0, cpufreq_startup_task, dev);
+	taskqueue_enqueue(taskqueue_thread, &sc->startup_task);
 
 	return (0);
+}
+
+/* Handle any work to be done for all drivers that attached during boot. */
+static void 
+cpufreq_startup_task(void *ctx, int pending)
+{
+
+	cpufreq_settings_changed((device_t)ctx);
 }
 
 static int
@@ -202,16 +215,9 @@ cpufreq_detach(device_t dev)
 	numdevs = devclass_get_count(cpufreq_dc);
 	if (numdevs == 1) {
 		CF_DEBUG("final shutdown for %s\n", device_get_nameunit(dev));
-		EVENTHANDLER_DEREGISTER(cpufreq_changed, cf_ev_tag);
 	}
 
 	return (0);
-}
-
-static void
-cpufreq_evaluate(void *arg)
-{
-	/* TODO: Re-evaluate when notified of changes to drivers. */
 }
 
 static int
@@ -222,25 +228,17 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	struct cf_saved_freq *saved_freq, *curr_freq;
 	struct pcpu *pc;
 	int cpu_id, error, i;
-	static int once;
 
 	sc = device_get_softc(dev);
 	error = 0;
 	set = NULL;
 	saved_freq = NULL;
 
-	/*
-	 * Check that the TSC isn't being used as a timecounter.
-	 * If it is, then return EBUSY and refuse to change the
-	 * clock speed.
-	 */
-	if (strcmp(timecounter->tc_name, "TSC") == 0) {
-		if (!once) {
-			printf("cpufreq: frequency change with timecounter"
-				" TSC not allowed, see cpufreq(4)\n");
-			once = 1;
-		}
-		return (EBUSY);
+	/* We are going to change levels so notify the pre-change handler. */
+	EVENTHANDLER_INVOKE(cpufreq_pre_change, level, &error);
+	if (error != 0) {
+		EVENTHANDLER_INVOKE(cpufreq_post_change, level, error);
+		return (error);
 	}
 
 	CF_MTX_LOCK(&sc->lock);
@@ -378,8 +376,15 @@ skip:
 
 out:
 	CF_MTX_UNLOCK(&sc->lock);
+
+	/*
+	 * We changed levels (or attempted to) so notify the post-change
+	 * handler of new frequency or error.
+	 */
+	EVENTHANDLER_INVOKE(cpufreq_post_change, level, error);
 	if (error && set)
 		device_printf(set->dev, "set freq failed, err %d\n", error);
+
 	return (error);
 }
 
@@ -1019,5 +1024,14 @@ cpufreq_unregister(device_t dev)
 		device_delete_child(device_get_parent(cf_dev), cf_dev);
 	free(devs, M_TEMP);
 
+	return (0);
+}
+
+int
+cpufreq_settings_changed(device_t dev)
+{
+
+	EVENTHANDLER_INVOKE(cpufreq_levels_changed,
+	    device_get_unit(device_get_parent(dev)));
 	return (0);
 }
