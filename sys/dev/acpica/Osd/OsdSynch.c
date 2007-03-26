@@ -77,7 +77,7 @@ SYSCTL_INT(_debug_acpi, OID_AUTO, semaphore_debug, CTLFLAG_RW,
 
 ACPI_STATUS
 AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits,
-    ACPI_HANDLE *OutHandle)
+    ACPI_SEMAPHORE *OutHandle)
 {
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as;
@@ -110,7 +110,7 @@ AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits,
 }
 
 ACPI_STATUS
-AcpiOsDeleteSemaphore(ACPI_HANDLE Handle)
+AcpiOsDeleteSemaphore(ACPI_SEMAPHORE Handle)
 {
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore *as = (struct acpi_semaphore *)Handle;
@@ -131,7 +131,7 @@ AcpiOsDeleteSemaphore(ACPI_HANDLE Handle)
  * use getmicrotime() to correctly adjust the timeout after being woken up.
  */
 ACPI_STATUS
-AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT16 Timeout)
+AcpiOsWaitSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units, UINT16 Timeout)
 {
 #ifndef ACPI_NO_SEMAPHORES
     ACPI_STATUS			result;
@@ -290,7 +290,7 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT16 Timeout)
 }
 
 ACPI_STATUS
-AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
+AcpiOsSignalSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units)
 {
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as = (struct acpi_semaphore *)Handle;
