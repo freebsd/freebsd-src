@@ -1532,6 +1532,7 @@ net/if_atmsubr.c		optional atm
 net/if_bridge.c			optional if_bridge
 net/if_clone.c			standard
 net/if_disc.c			optional disc
+net/if_edsc.c			optional edsc
 net/if_ef.c			optional ef
 net/if_enc.c			optional enc
 net/if_ethersubr.c		optional ether
