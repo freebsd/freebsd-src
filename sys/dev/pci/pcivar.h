@@ -67,6 +67,7 @@ struct vpd_write {
 
 struct pcicfg_vpd {
     uint8_t	vpd_reg;	/* base register, + 2 for addr, + 4 data */
+    char	vpd_cached;
     char	*vpd_ident;	/* string identifier */
     int 	vpd_rocnt;
     struct vpd_readonly *vpd_ros;
