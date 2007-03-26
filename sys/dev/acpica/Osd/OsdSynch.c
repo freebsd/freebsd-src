@@ -335,14 +335,14 @@ AcpiOsCreateLock (ACPI_SPINLOCK *OutHandle)
 
     if (OutHandle == NULL)
 	return (AE_BAD_PARAMETER);
-    h = malloc(sizeof(struct acpi_spinlock), M_ACPISEM, M_NOWAIT | M_ZERO);
+    h = malloc(sizeof(*h), M_ACPISEM, M_NOWAIT | M_ZERO);
     if (h == NULL)
 	return (AE_NO_MEMORY);
 
     /* Build a unique name based on the address of the handle. */
     if (OutHandle == &AcpiGbl_GpeLock)
 	snprintf(h->name, sizeof(h->name), "acpi subsystem GPE lock");
-    if (OutHandle == &AcpiGbl_HardwareLock)
+    else if (OutHandle == &AcpiGbl_HardwareLock)
 	snprintf(h->name, sizeof(h->name), "acpi subsystem HW lock");
     else
 	snprintf(h->name, sizeof(h->name), "acpi subsys %p", OutHandle);
