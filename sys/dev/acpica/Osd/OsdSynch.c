@@ -323,38 +323,43 @@ AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
 }
 
 /* Combined mutex + mutex name storage since the latter must persist. */
-struct acpi_mtx_msg {
-    struct mtx	mtx;
-    char	msg[32];
+struct acpi_spinlock {
+    struct mtx	lock;
+    char	name[32];
 };
 
 ACPI_STATUS
-AcpiOsCreateLock (ACPI_HANDLE *OutHandle)
+AcpiOsCreateLock (ACPI_SPINLOCK *OutHandle)
 {
-    struct acpi_mtx_msg *m;
+    struct acpi_spinlock *h;
 
     if (OutHandle == NULL)
 	return (AE_BAD_PARAMETER);
-    m = malloc(sizeof(*m), M_ACPISEM, M_NOWAIT | M_ZERO);
-    if (m == NULL)
+    h = malloc(sizeof(struct acpi_spinlock), M_ACPISEM, M_NOWAIT | M_ZERO);
+    if (h == NULL)
 	return (AE_NO_MEMORY);
 
     /* Build a unique name based on the address of the handle. */
-    snprintf(m->msg, sizeof(m->msg), "acpi subsys %p", OutHandle);
-    mtx_init(&m->mtx, m->msg, NULL, MTX_DEF);
-    *OutHandle = (ACPI_HANDLE)m;
+    if (OutHandle == &AcpiGbl_GpeLock)
+	snprintf(h->name, sizeof(h->name), "acpi subsystem GPE lock");
+    if (OutHandle == &AcpiGbl_HardwareLock)
+	snprintf(h->name, sizeof(h->name), "acpi subsystem HW lock");
+    else
+	snprintf(h->name, sizeof(h->name), "acpi subsys %p", OutHandle);
+    mtx_init(&h->lock, h->name, NULL, MTX_DEF);
+    *OutHandle = (ACPI_SPINLOCK)h;
     return (AE_OK);
 }
 
 void
-AcpiOsDeleteLock (ACPI_HANDLE Handle)
+AcpiOsDeleteLock (ACPI_SPINLOCK Handle)
 {
-    struct mtx *m = (struct mtx *)Handle;
+    struct acpi_spinlock *h = (struct acpi_spinlock *)Handle;
 
     if (Handle == NULL)
         return;
-    mtx_destroy(m);
-    free(m, M_ACPISEM);
+    mtx_destroy(&h->lock);
+    free(&h->lock, M_ACPISEM);
 }
 
 /*
@@ -363,24 +368,24 @@ AcpiOsDeleteLock (ACPI_HANDLE Handle)
  * about potentially blocking.
  */
 ACPI_NATIVE_UINT
-AcpiOsAcquireLock (ACPI_HANDLE Handle)
+AcpiOsAcquireLock (ACPI_SPINLOCK Handle)
 {
-    struct mtx *m = (struct mtx *)Handle;
+    struct acpi_spinlock *h = (struct acpi_spinlock *)Handle;
 
     if (Handle == NULL)
 	return (0);
-    mtx_lock(m);
+    mtx_lock(&h->lock);
     return (0);
 }
 
 void
-AcpiOsReleaseLock (ACPI_HANDLE Handle, ACPI_NATIVE_UINT Flags)
+AcpiOsReleaseLock (ACPI_SPINLOCK Handle, ACPI_CPU_FLAGS Flags)
 {
-    struct mtx *m = (struct mtx *)Handle;
+    struct acpi_spinlock *h = (struct acpi_spinlock *)Handle;
 
     if (Handle == NULL)
 	return;
-    mtx_unlock(m);
+    mtx_unlock(&h->lock);
 }
 
 /* Section 5.2.9.1:  global lock acquire/release functions */
