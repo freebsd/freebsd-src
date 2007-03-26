@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
+#include <machine/psl.h>
 #include <machine/smp.h>
 #include <machine/smptests.h>	/** COUNT_XINVLTLB_HITS */
 #include <machine/specialreg.h>
@@ -1010,13 +1011,16 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 	ncpu = mp_ncpus - 1;	/* does not shootdown self */
 	if (ncpu < 1)
 		return;		/* no other cpus */
-	mtx_assert(&smp_ipi_mtx, MA_OWNED);
+	if (!(read_eflags() & PSL_I))
+		panic("%s: interrupts disabled", __func__);
+	mtx_lock_spin(&smp_ipi_mtx);
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
 	ipi_all_but_self(vector);
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
+	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
 static void
@@ -1044,7 +1048,9 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 		if (ncpu < 1)
 			return;
 	}
-	mtx_assert(&smp_ipi_mtx, MA_OWNED);
+	if (!(read_eflags() & PSL_I))
+		panic("%s: interrupts disabled", __func__);
+	mtx_lock_spin(&smp_ipi_mtx);
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
@@ -1054,6 +1060,7 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 		ipi_selected(mask, vector);
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
+	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
 void
