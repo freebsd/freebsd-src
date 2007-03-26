@@ -2673,8 +2673,8 @@ pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
 }
 
 /*
- * This isn't really a ``null'' operation, but it's the default one
- * and doesn't do anything destructive.
+ * This isn't really a ``null'' operation, but it's the default one and
+ * doesn't do anything destructive.
  */
 int
 pru_sense_null(struct socket *so, struct stat *sb)
@@ -2827,39 +2827,37 @@ sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * Primitive routines for operating on sockets.
+ * These functions are used by protocols to notify the socket layer (and its
+ * consumers) of state changes in the sockets driven by protocol-side events.
  */
 
 /*
- * Procedures to manipulate state flags of socket
- * and do appropriate wakeups.  Normal sequence from the
- * active (originating) side is that soisconnecting() is
- * called during processing of connect() call,
- * resulting in an eventual call to soisconnected() if/when the
- * connection is established.  When the connection is torn down
- * soisdisconnecting() is called during processing of disconnect() call,
- * and soisdisconnected() is called when the connection to the peer
- * is totally severed.  The semantics of these routines are such that
- * connectionless protocols can call soisconnected() and soisdisconnected()
- * only, bypassing the in-progress calls when setting up a ``connection''
- * takes no time.
+ * Procedures to manipulate state flags of socket and do appropriate wakeups.
  *
- * From the passive side, a socket is created with
- * two queues of sockets: so_incomp for connections in progress
- * and so_comp for connections already made and awaiting user acceptance.
- * As a protocol is preparing incoming connections, it creates a socket
- * structure queued on so_incomp by calling sonewconn().  When the connection
- * is established, soisconnected() is called, and transfers the
- * socket structure to so_comp, making it available to accept().
+ * Normal sequence from the active (originating) side is that
+ * soisconnecting() is called during processing of connect() call, resulting
+ * in an eventual call to soisconnected() if/when the connection is
+ * established.  When the connection is torn down soisdisconnecting() is
+ * called during processing of disconnect() call, and soisdisconnected() is
+ * called when the connection to the peer is totally severed.  The semantics
+ * of these routines are such that connectionless protocols can call
+ * soisconnected() and soisdisconnected() only, bypassing the in-progress
+ * calls when setting up a ``connection'' takes no time.
  *
- * If a socket is closed with sockets on either
- * so_incomp or so_comp, these sockets are dropped.
+ * From the passive side, a socket is created with two queues of sockets:
+ * so_incomp for connections in progress and so_comp for connections already
+ * made and awaiting user acceptance.  As a protocol is preparing incoming
+ * connections, it creates a socket structure queued on so_incomp by calling
+ * sonewconn().  When the connection is established, soisconnected() is
+ * called, and transfers the socket structure to so_comp, making it available
+ * to accept().
  *
- * If higher level protocols are implemented in
- * the kernel, the wakeups done here will sometimes
- * cause software-interrupt process scheduling.
+ * If a socket is closed with sockets on either so_incomp or so_comp, these
+ * sockets are dropped.
+ *
+ * If higher-level protocols are implemented in the kernel, the wakeups done
+ * here will sometimes cause software-interrupt process scheduling.
  */
-
 void
 soisconnecting(so)
 	register struct socket *so;
@@ -2969,12 +2967,12 @@ sodupsockaddr(const struct sockaddr *sa, int mflags)
 }
 
 /*
- * Create an external-format (``xsocket'') structure using the information
- * in the kernel-format socket structure pointed to by so.  This is done
- * to reduce the spew of irrelevant information over this interface,
- * to isolate user code from changes in the kernel structure, and
- * potentially to provide information-hiding if we decide that
- * some of this information should be hidden from users.
+ * Create an external-format (``xsocket'') structure using the information in
+ * the kernel-format socket structure pointed to by so.  This is done to
+ * reduce the spew of irrelevant information over this interface, to isolate
+ * user code from changes in the kernel structure, and potentially to provide
+ * information-hiding if we decide that some of this information should be
+ * hidden from users.
  */
 void
 sotoxsocket(struct socket *so, struct xsocket *xso)
