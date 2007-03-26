@@ -56,6 +56,11 @@
  */
 struct edsc_softc {
 	struct ifnet	*sc_ifp; /* ptr to generic interface configuration */
+
+	/*
+	 * A non-null driver can keep various things here, for instance,
+	 * the hardware revision, cached values of write-only registers, etc.
+	 */
 };
 
 /*
