@@ -74,6 +74,9 @@
 #if __FreeBSD__ < 3
 #include "opt_cpu.h"	/* for FreeBSD-2.2.8 to get i586_ctr_freq */
 #endif
+#include <sys/bus.h>
+#include <sys/cpu.h>
+#include <sys/eventhandler.h>
 #include <machine/clock.h>
 #endif
 #if defined(__i386__)
@@ -897,6 +900,22 @@ extern u_int64_t cycles_per_usec;	/* alpha cpu clock frequency */
 #if defined(__i386__) && defined(__NetBSD__)
 extern u_int64_t cpu_tsc_freq;
 #endif /* __alpha__ */
+
+#if (__FreeBSD_version >= 700035)
+/* Update TSC freq with the value indicated by the caller. */
+static void
+tsc_freq_changed(void *arg, const struct cf_level *level, int status)
+{
+	/* If there was an error during the transition, don't do anything. */
+	if (status != 0)
+		return;
+
+	/* Total setting for this level gives the new frequency in MHz. */
+	machclk_freq = level->total_set.freq * 1000000;
+}
+EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
+    EVENTHANDLER_PRI_ANY);
+#endif /* __FreeBSD_version >= 700035 */
 
 void
 init_machclk(void)
