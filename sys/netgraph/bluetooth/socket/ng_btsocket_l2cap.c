@@ -1977,7 +1977,7 @@ ng_btsocket_l2cap_attach(struct socket *so, int proto, struct thread *td)
 	 * In the first case we must aquire ng_btsocket_l2cap_sockets_mtx.
 	 * In the second case we hold ng_btsocket_l2cap_sockets_mtx already.
 	 * So we now need to distinguish between these cases. From reading
-	 * /sys/kern/uipc_socket2.c we can find out that sonewconn() calls
+	 * /sys/kern/uipc_socket.c we can find out that sonewconn() calls
 	 * pru_attach with proto == 0 and td == NULL. For now use this fact
 	 * to figure out if we were called from socket() or from sonewconn().
 	 */
