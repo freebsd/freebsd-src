@@ -574,10 +574,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			cfg->msix.msix_pba_offset = val & ~PCIM_MSIX_BIR_MASK;
 			break;
 		case PCIY_VPD:		/* PCI Vital Product Data */
-			if (pci_do_vpd) {
-				cfg->vpd.vpd_reg = ptr;
-				pci_read_vpd(pcib, cfg);
-			}
+			cfg->vpd.vpd_reg = ptr;
 			break;
 		case PCIY_SUBVENDOR:
 			/* Should always be true. */
@@ -689,6 +686,11 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 	int alloc, off;		/* alloc/off for RO/W arrays */
 	int cksumvalid;
 	int dflen;
+
+	if (!pci_do_vpd) {
+		cfg->vpd.vpd_cached = 1;
+		return;
+	}
 
 	/* init vpd reader */
 	vrs.bytesinval = 0;
@@ -905,6 +907,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 		free(cfg->vpd.vpd_ros, M_DEVBUF);
 		cfg->vpd.vpd_ros = NULL;
 	}
+	cfg->vpd.vpd_cached = 1;
 #undef REG
 #undef WREG
 }
@@ -914,6 +917,9 @@ pci_get_vpd_ident_method(device_t dev, device_t child, const char **identptr)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
+
+	if (!cfg->vpd.vpd_cached && cfg->vpd.vpd_reg != 0)
+		pci_read_vpd(device_get_parent(dev), cfg);
 
 	*identptr = cfg->vpd.vpd_ident;
 
@@ -930,6 +936,9 @@ pci_get_vpd_readonly_method(device_t dev, device_t child, const char *kw,
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 	int i;
+
+	if (!cfg->vpd.vpd_cached && cfg->vpd.vpd_reg != 0)
+		pci_read_vpd(device_get_parent(dev), cfg);
 
 	for (i = 0; i < cfg->vpd.vpd_rocnt; i++)
 		if (memcmp(kw, cfg->vpd.vpd_ros[i].keyword,
@@ -1870,7 +1879,6 @@ pci_disable_io_method(device_t dev, device_t child, int space)
 void
 pci_print_verbose(struct pci_devinfo *dinfo)
 {
-	int i;
 
 	if (bootverbose) {
 		pcicfgregs *cfg = &dinfo->cfg;
@@ -1899,31 +1907,6 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 			    cfg->pp.pp_cap & PCIM_PCAP_D1SUPP ? " D1" : "",
 			    cfg->pp.pp_cap & PCIM_PCAP_D2SUPP ? " D2" : "",
 			    status & PCIM_PSTAT_DMASK);
-		}
-		if (cfg->vpd.vpd_reg) {
-			printf("\tVPD Ident: %s\n", cfg->vpd.vpd_ident);
-			for (i = 0; i < cfg->vpd.vpd_rocnt; i++) {
-				struct vpd_readonly *vrop;
-				vrop = &cfg->vpd.vpd_ros[i];
-				if (strncmp("CP", vrop->keyword, 2) == 0)
-					printf("\tCP: id %d, BAR%d, off %#x\n",
-					    vrop->value[0], vrop->value[1],
-					    le16toh(
-					      *(uint16_t *)&vrop->value[2]));
-				else if (strncmp("RV", vrop->keyword, 2) == 0)
-					printf("\tRV: %#hhx\n", vrop->value[0]);
-				else
-					printf("\t%.2s: %s\n", vrop->keyword,
-					    vrop->value);
-			}
-			for (i = 0; i < cfg->vpd.vpd_wcnt; i++) {
-				struct vpd_write *vwp;
-				vwp = &cfg->vpd.vpd_w[i];
-				if (strncmp("RW", vwp->keyword, 2) != 0)
-					printf("\t%.2s(%#x-%#x): %s\n",
-					    vwp->keyword, vwp->start,
-					    vwp->start + vwp->len, vwp->value);
-			}
 		}
 		if (cfg->msi.msi_location) {
 			int ctrl;
