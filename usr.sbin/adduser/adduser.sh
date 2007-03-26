@@ -346,11 +346,17 @@ get_user() {
 			_input="`echo "$fileline" | cut -f1 -d:`"
 		fi
 
-		# There *must* be a username. If this is an interactive
-		# session give the user an opportunity to retry.
+		# There *must* be a username, and it must not exist. If
+		# this is an interactive session give the user an
+		# opportunity to retry.
 		#
 		if [ -z "$_input" ]; then
 			err "You must enter a username!"
+			[ -z "$fflag" ] && continue
+		fi
+		${PWCMD} usershow $_input > /dev/null 2>&1
+		if [ "$?" -eq 0 ]; then
+			err "User exists!"
 			[ -z "$fflag" ] && continue
 		fi
 		break
