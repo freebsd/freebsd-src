@@ -979,6 +979,58 @@ sbdroprecord(struct sockbuf *sb)
 	SOCKBUF_UNLOCK(sb);
 }
 
+/*
+ * Create a "control" mbuf containing the specified data
+ * with the specified type for presentation on a socket buffer.
+ */
+struct mbuf *
+sbcreatecontrol(p, size, type, level)
+	caddr_t p;
+	register int size;
+	int type, level;
+{
+	register struct cmsghdr *cp;
+	struct mbuf *m;
+
+	if (CMSG_SPACE((u_int)size) > MCLBYTES)
+		return ((struct mbuf *) NULL);
+	if (CMSG_SPACE((u_int)size) > MLEN)
+		m = m_getcl(M_DONTWAIT, MT_CONTROL, 0);
+	else
+		m = m_get(M_DONTWAIT, MT_CONTROL);
+	if (m == NULL)
+		return ((struct mbuf *) NULL);
+	cp = mtod(m, struct cmsghdr *);
+	m->m_len = 0;
+	KASSERT(CMSG_SPACE((u_int)size) <= M_TRAILINGSPACE(m),
+	    ("sbcreatecontrol: short mbuf"));
+	if (p != NULL)
+		(void)memcpy(CMSG_DATA(cp), p, size);
+	m->m_len = CMSG_SPACE(size);
+	cp->cmsg_len = CMSG_LEN(size);
+	cp->cmsg_level = level;
+	cp->cmsg_type = type;
+	return (m);
+}
+
+/*
+ * This does the same for sockbufs.  Note that the xsockbuf structure,
+ * since it is always embedded in a socket, does not include a self
+ * pointer nor a length.  We make this entry point public in case
+ * some other mechanism needs it.
+ */
+void
+sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
+{
+	xsb->sb_cc = sb->sb_cc;
+	xsb->sb_hiwat = sb->sb_hiwat;
+	xsb->sb_mbcnt = sb->sb_mbcnt;
+	xsb->sb_mbmax = sb->sb_mbmax;
+	xsb->sb_lowat = sb->sb_lowat;
+	xsb->sb_flags = sb->sb_flags;
+	xsb->sb_timeo = sb->sb_timeo;
+}
+
 /* This takes the place of kern.maxsockbuf, which moved to kern.ipc. */
 static int dummy;
 SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");

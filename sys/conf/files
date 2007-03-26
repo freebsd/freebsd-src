@@ -1459,7 +1459,6 @@ kern/uipc_mqueue.c		optional p1003_1b_mqueue
 kern/uipc_sem.c			optional p1003_1b_semaphores
 kern/uipc_sockbuf.c		standard
 kern/uipc_socket.c		standard
-kern/uipc_socket2.c		standard
 kern/uipc_syscalls.c		standard
 kern/uipc_usrreq.c		standard
 kern/vfs_acl.c			standard
