@@ -322,10 +322,16 @@ AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
     return_ACPI_STATUS (AE_OK);
 }
 
+/* Combined mutex + mutex name storage since the latter must persist. */
+struct acpi_mtx_msg {
+    struct mtx	mtx;
+    char	msg[32];
+};
+
 ACPI_STATUS
 AcpiOsCreateLock (ACPI_HANDLE *OutHandle)
 {
-    struct mtx *m;
+    struct acpi_mtx_msg *m;
 
     if (OutHandle == NULL)
 	return (AE_BAD_PARAMETER);
@@ -333,7 +339,9 @@ AcpiOsCreateLock (ACPI_HANDLE *OutHandle)
     if (m == NULL)
 	return (AE_NO_MEMORY);
 
-    mtx_init(m, "acpica subsystem lock", NULL, MTX_DEF);
+    /* Build a unique name based on the address of the handle. */
+    snprintf(m->msg, sizeof(m->msg), "acpi subsys %p", OutHandle);
+    mtx_init(&m->mtx, m->msg, NULL, MTX_DEF);
     *OutHandle = (ACPI_HANDLE)m;
     return (AE_OK);
 }
@@ -346,6 +354,7 @@ AcpiOsDeleteLock (ACPI_HANDLE Handle)
     if (Handle == NULL)
         return;
     mtx_destroy(m);
+    free(m, M_ACPISEM);
 }
 
 /*
