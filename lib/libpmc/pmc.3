@@ -357,7 +357,10 @@ The function
 .Fn pmc_cpuinfo
 sets argument
 .Fa cpu_info
-to point to a structure with information about the system's CPUs.
+to point to an internal structure with information about the system's CPUs.
+The caller should not
+.Fn free
+this pointer value.
 Function
 .Fn pmc_pmcinfo
 returns information about the current state of CPU
