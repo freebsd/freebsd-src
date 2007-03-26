@@ -62,7 +62,7 @@
 #define DISCNAME	"disc"
 
 struct disc_softc {
-	struct ifnet *sc_ifp;	/* must be first */
+	struct ifnet *sc_ifp;
 };
 
 static int	discoutput(struct ifnet *, struct mbuf *,
