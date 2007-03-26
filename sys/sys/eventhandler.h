@@ -104,6 +104,17 @@ struct eventhandler_entry_ ## name 					\
 };									\
 struct __hack
 
+#define EVENTHANDLER_DEFINE(name, func, arg, priority)			\
+	static eventhandler_tag name ## _tag;				\
+	static void name ## _evh_init(void *ctx)			\
+	{								\
+		name ## _tag = EVENTHANDLER_REGISTER(name, func, ctx,	\
+		    priority);						\
+	}								\
+	SYSINIT(name ## _evh_init, SI_SUB_CONFIGURE, SI_ORDER_ANY,	\
+	    name ## _evh_init, arg)					\
+	struct __hack
+
 #define EVENTHANDLER_INVOKE(name, ...)					\
 do {									\
 	struct eventhandler_list *_el;					\

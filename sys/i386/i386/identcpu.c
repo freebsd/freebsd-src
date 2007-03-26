@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/cpu.h>
+#include <sys/eventhandler.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -1076,6 +1078,21 @@ identifycyrix(void)
 
 	write_eflags(eflags);
 }
+
+/* Update TSC freq with the value indicated by the caller. */
+static void
+tsc_freq_changed(void *arg, const struct cf_level *level, int status)
+{
+	/* If there was an error during the transition, don't do anything. */
+	if (status != 0)
+		return;
+
+	/* Total setting for this level gives the new frequency in MHz. */
+	hw_clockrate = level->total_set.freq;
+}
+
+EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
+    EVENTHANDLER_PRI_ANY);
 
 /*
  * Final stage of CPU identification. -- Should I check TI?

@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/cpu.h>
+#include <sys/eventhandler.h>
 #include <sys/gmon.h>
 #include <sys/kernel.h>
 #include <sys/smp.h>
@@ -56,6 +59,9 @@ static u_int	cputime_clock_pmc_conf = I586_PMC_GUPROF;
 static int	cputime_clock_pmc_init;
 static struct gmonparam saved_gmp;
 #endif
+#if defined(I586_CPU) || defined(I686_CPU)
+static int	cputime_prof_active;
+#endif
 #endif /* GUPROF */
 
 #ifdef __GNUCLIKE_ASM
@@ -72,19 +78,19 @@ __mcount:							\n\
 	# Check that we are profiling.  Do it early for speed.	\n\
 	#							\n\
 	cmpl	$GMON_PROF_OFF,_gmonparam+GM_STATE		\n\
- 	je	.mcount_exit					\n\
- 	#							\n\
- 	# __mcount is the same as [.]mcount except the caller	\n\
- 	# hasn't changed the stack except to call here, so the	\n\
+	je	.mcount_exit					\n\
+	#							\n\
+	# __mcount is the same as [.]mcount except the caller	\n\
+	# hasn't changed the stack except to call here, so the	\n\
 	# caller's raddr is above our raddr.			\n\
 	#							\n\
- 	movl	4(%esp),%edx					\n\
- 	jmp	.got_frompc					\n\
- 								\n\
- 	.p2align 4,0x90						\n\
- 	.globl	.mcount						\n\
+	movl	4(%esp),%edx					\n\
+	jmp	.got_frompc					\n\
+								\n\
+	.p2align 4,0x90						\n\
+	.globl	.mcount						\n\
 .mcount:							\n\
- 	.globl	__cyg_profile_func_enter			\n\
+	.globl	__cyg_profile_func_enter			\n\
 __cyg_profile_func_enter:					\n\
 	cmpl	$GMON_PROF_OFF,_gmonparam+GM_STATE		\n\
 	je	.mcount_exit					\n\
@@ -139,7 +145,7 @@ GMON_PROF_HIRES	=	4					\n\
 	.p2align 4,0x90						\n\
 	.globl	.mexitcount					\n\
 .mexitcount:							\n\
- 	.globl	__cyg_profile_func_exit				\n\
+	.globl	__cyg_profile_func_exit				\n\
 __cyg_profile_func_exit:					\n\
 	cmpl	$GMON_PROF_HIRES,_gmonparam+GM_STATE		\n\
 	jne	.mexitcount_exit				\n\
@@ -287,14 +293,16 @@ startguprof(gp)
 	if (cputime_clock == CPUTIME_CLOCK_UNINITIALIZED) {
 		cputime_clock = CPUTIME_CLOCK_I8254;
 #if defined(I586_CPU) || defined(I686_CPU)
-		if (tsc_freq != 0 && !tsc_is_broken && mp_ncpus < 2)
+		if (tsc_freq != 0 && !tsc_is_broken && mp_ncpus == 1)
 			cputime_clock = CPUTIME_CLOCK_TSC;
 #endif
 	}
 	gp->profrate = timer_freq << CPUTIME_CLOCK_I8254_SHIFT;
 #if defined(I586_CPU) || defined(I686_CPU)
-	if (cputime_clock == CPUTIME_CLOCK_TSC)
+	if (cputime_clock == CPUTIME_CLOCK_TSC) {
 		gp->profrate = tsc_freq >> 1;
+		cputime_prof_active = 1;
+	}
 #if defined(PERFMON) && defined(I586_PMC_GUPROF)
 	else if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
 		if (perfmon_avail() &&
@@ -337,5 +345,27 @@ stopguprof(gp)
 		cputime_clock_pmc_init = FALSE;
 	}
 #endif
+#if defined(I586_CPU) || defined(I686_CPU)
+	if (cputime_clock == CPUTIME_CLOCK_TSC)
+		cputime_prof_active = 0;
+#endif
 }
+
+#if defined(I586_CPU) || defined(I686_CPU)
+/* If the cpu frequency changed while profiling, report a warning. */
+static void
+tsc_freq_changed(void *arg, const struct cf_level *level, int status)
+{
+
+	/* If there was an error during the transition, don't do anything. */
+	if (status != 0)
+		return;
+	if (cputime_prof_active && cputime_clock == CPUTIME_CLOCK_TSC)
+		printf("warning: cpu freq changed while profiling active\n");
+}
+
+EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
+    EVENTHANDLER_PRI_ANY);
+#endif /* I586_CPU || I686_CPU */
+
 #endif /* GUPROF */
