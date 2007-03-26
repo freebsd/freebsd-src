@@ -359,7 +359,7 @@ AcpiOsDeleteLock (ACPI_SPINLOCK Handle)
     if (Handle == NULL)
         return;
     mtx_destroy(&h->lock);
-    free(&h->lock, M_ACPISEM);
+    free(h, M_ACPISEM);
 }
 
 /*
