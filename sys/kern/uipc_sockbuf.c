@@ -980,8 +980,8 @@ sbdroprecord(struct sockbuf *sb)
 }
 
 /*
- * Create a "control" mbuf containing the specified data
- * with the specified type for presentation on a socket buffer.
+ * Create a "control" mbuf containing the specified data with the specified
+ * type for presentation on a socket buffer.
  */
 struct mbuf *
 sbcreatecontrol(p, size, type, level)
@@ -1014,10 +1014,11 @@ sbcreatecontrol(p, size, type, level)
 }
 
 /*
- * This does the same for sockbufs.  Note that the xsockbuf structure,
- * since it is always embedded in a socket, does not include a self
- * pointer nor a length.  We make this entry point public in case
- * some other mechanism needs it.
+ * This does the same for socket buffers that sotoxsocket does for sockets:
+ * generate an user-format data structure describing the socket buffer.  Note
+ * that the xsockbuf structure, since it is always embedded in a socket, does
+ * not include a self pointer nor a length.  We make this entry point public
+ * in case some other mechanism needs it.
  */
 void
 sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
