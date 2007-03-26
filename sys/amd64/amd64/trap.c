@@ -745,10 +745,8 @@ syscall(struct trapframe *frame)
 
 #ifdef DIAGNOSTIC
 	if (ISPL(frame->tf_cs) != SEL_UPL) {
-		mtx_lock(&Giant);	/* try to stabilize the system XXX */
 		panic("syscall");
 		/* NOT REACHED */
-		mtx_unlock(&Giant);
 	}
 #endif
 
