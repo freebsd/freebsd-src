@@ -747,9 +747,7 @@ shootdown:
 		other_cpus = PCPU_GET(other_cpus) & ~sf->cpumask;
 		if (other_cpus != 0) {
 			sf->cpumask |= other_cpus;
-			mtx_lock_spin(&smp_ipi_mtx);
 			smp_masked_invlpg(other_cpus, sf->kva);
-			mtx_unlock_spin(&smp_ipi_mtx);
 		}
 	}
 	sched_unpin();	
