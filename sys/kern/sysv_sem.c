@@ -1287,8 +1287,10 @@ semexit_myhook(arg, p)
 	 */
 	SEMUNDO_LOCK();
 	SLIST_FOREACH_PREVPTR(suptr, supptr, &semu_list, un_next) {
-		if (suptr->un_proc == p)
+		if (suptr->un_proc == p) {
+			*supptr = SLIST_NEXT(suptr, un_next);
 			break;
+		}
 	}
 	SEMUNDO_UNLOCK();
 
@@ -1348,8 +1350,9 @@ semexit_myhook(arg, p)
 	 * Deallocate the undo vector.
 	 */
 	DPRINTF(("removing vector\n"));
+	SEMUNDO_LOCK();
 	suptr->un_proc = NULL;
-	*supptr = SLIST_NEXT(suptr, un_next);
+	SEMUNDO_UNLOCK();
 }
 
 static int
