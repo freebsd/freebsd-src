@@ -1220,7 +1220,7 @@ ibcs2_rename(td, uap)
 	 * errors.
 	 */
 	error = ibcs2_emul_find(td, uap->to, UIO_USERSPACE, &to, 1);
-	if (link == NULL) {
+	if (to == NULL) {
 		free(from, M_TEMP);
 		return (error);
 	}
