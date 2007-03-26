@@ -138,19 +138,11 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	error = g_attach(cp, pp);
 	KASSERT(error == 0,
 	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));
-	/*
-	 * XXX: I'm not 100% sure we can call make_dev(9) without Giant
-	 * yet.  Once we can, we don't need to drop topology here either.
-	 */
 	unit = alloc_unr(unithdr);
-	g_topology_unlock();
-	mtx_lock(&Giant);
 	dev = make_dev(&g_dev_cdevsw, unit2minor(unit),
 	    UID_ROOT, GID_OPERATOR, 0640, gp->name);
 	if (pp->flags & G_PF_CANDELETE)
 		dev->si_flags |= SI_CANDELETE;
-	mtx_unlock(&Giant);
-	g_topology_lock();
 	dev->si_iosize_max = MAXPHYS;
 	gp->softc = dev;
 	dev->si_drv1 = gp;
