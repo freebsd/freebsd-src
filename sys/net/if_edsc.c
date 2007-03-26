@@ -46,16 +46,16 @@
 
 #include <net/bpf.h>		/* bpf(9) */
 #include <net/ethernet.h>	/* Ethernet related constants and types */
-#include <net/if.h>		/* basic network interface related things */
+#include <net/if.h>		/* basic part of ifnet(9) */
 #include <net/if_clone.h>	/* network interface cloning */
 #include <net/if_types.h>	/* IFT_ETHER and friends */
-#include <net/if_var.h>		/* struct ifnet and other kernel-only stuff */
+#include <net/if_var.h>		/* kernel-only part of ifnet(9) */
 
 /*
- * Software configuration of an interface instance.
+ * Software configuration of an interface specific to this device type.
  */
 struct edsc_softc {
-	struct ifnet		*sc_ifp;	/* must be first */
+	struct ifnet	*sc_ifp; /* ptr to generic interface configuration */
 };
 
 /*
