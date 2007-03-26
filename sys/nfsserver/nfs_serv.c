@@ -4051,6 +4051,7 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (!v3)
 		panic("nfsrv_fsinfo: v3 proc called on a v2 connection");
 	fhp = &nfh.fh_generic;
+	vfslocked = 0;
 	nfsm_srvmtofh(fhp);
 	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, cred, slp,
 	    nam, &rdonly, TRUE);
