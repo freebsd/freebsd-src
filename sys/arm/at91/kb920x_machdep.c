@@ -136,7 +136,6 @@ struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
-struct pv_addr minidataclean;
 
 static struct trapframe proc0_tf;
 
@@ -355,7 +354,6 @@ initarm(void *arg, void *arg2)
 	valloc_pages(abtstack, ABT_STACK_SIZE);
 	valloc_pages(undstack, UND_STACK_SIZE);
 	valloc_pages(kernelstack, KSTACK_PAGES);
-	alloc_pages(minidataclean.pv_pa, 1);
 	valloc_pages(msgbufpv, round_page(MSGBUF_SIZE) / PAGE_SIZE);
 	/*
 	 * Now we start construction of the L1 page table
@@ -379,9 +377,6 @@ initarm(void *arg, void *arg2)
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
 	}
-	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa, 
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	
 
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
