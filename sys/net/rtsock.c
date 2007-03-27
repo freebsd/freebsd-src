@@ -964,6 +964,8 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 	if (m == NULL)
 		return;
 	ifmam = mtod(m, struct ifma_msghdr *);
+	KASSERT(ifp != NULL, ("%s: link-layer multicast address w/o ifp\n",
+	    __func__));
 	ifmam->ifmam_index = ifp->if_index;
 	ifmam->ifmam_addrs = info.rti_addrs;
 	rt_dispatch(m, ifma->ifma_addr);
