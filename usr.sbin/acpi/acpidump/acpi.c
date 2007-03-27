@@ -344,7 +344,8 @@ acpi_handle_hpet(struct ACPIsdt *sdp)
 	acpi_print_sdt(sdp);
 	hpetp = (struct HPETbody *) sdp->body;
 	printf("\tHPET Number=%d\n", hpetp->hpet_number);
-	printf("\tADDR=0x%08x\n", hpetp->base_addr);
+	printf("\tADDR=");
+	acpi_print_gas(&hpetp->genaddr);
 	printf("\tHW Rev=0x%x\n", hpetp->block_hwrev);
 	printf("\tComparitors=%d\n", hpetp->block_comparitors);
 	printf("\tCounter Size=%d\n", hpetp->block_counter_size);
