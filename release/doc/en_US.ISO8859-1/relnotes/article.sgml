@@ -281,7 +281,7 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para>&man.acpi.4; now has basic support for the HPET time counter.</para>
+    <para>&man.acpi.4; now has support for the HPET time counter.  &merged;</para>
 
     <para>The &man.acpi.ibm.4; driver now supports setting the fan control
       mode to manual or automatic, and adjusting the fan speed if the
@@ -349,6 +349,13 @@
       option (previously it was a mandatory feature in the kernel).
       It is enabled in the GENERIC kernel (thus there is no change in
       functionality) for all platforms except sun4v.</para>
+
+    <para>The &man.priv.9; kernel interface has been added.  Its purpose
+      is checking the availability of privilege for threads and credentials.
+      Unlike the existing &man.suser.9; interface, &man.priv.9; exposes a
+      named privilege identifier to the privilege checking code, allowing
+      more complex policies regarding the granting of privilege to be
+      expressed.</para>
 
     <para>The &man.random.4; entropy device driver is now MPSAFE.
       &merged;</para>
@@ -496,7 +503,7 @@
 
       <para>An &man.acpi.dock.4; driver has been added to provide
         support for controlling laptop docking station functions via
-        ACPI.</para>
+        ACPI.  &merged;</para>
 
       <para>The &man.acpi.thermal.4; driver now supports
 	passive cooling. &merged;</para>
@@ -715,14 +722,31 @@
 	  by defining <literal>NO_EM_FASTINTR</literal> kernel option
 	  for debugging purpose.</para>
 
+	<para>The firmware images needed by the &man.ipw.4; driver are now
+	  part of the &os; base system.  For the loaded firmware to work the
+	  license at <filename>/usr/share/doc/legal/intel_ipw/LICENSE</filename>
+	  must be agreed to and <literal>legal.intel_ipw.license_ack=1</literal>
+	  has to be added to <filename>/boot/loader.conf</filename>.
+	  Prior versions of the driver used the firmware image in the
+	  <filename role="package">net/ipw-firmware-kmod</filename>
+	  port/package or the
+	  <filename role="package">net/ipw-firmware</filename>
+	  port/package. &merged;</para>
+
 	<para>The &man.iwi.4; driver now supports big-endian
 	  architectures such as sparc64.</para>
 
 	<para>A number of improvements and bugfixes have been made to the
-	  functionality of the &man.iwi.4; driver.  This driver now
-	  requires the firmware image in the 
+	  functionality of the &man.iwi.4; driver.  &merged;</para>
+	  
+	<para>The firmware images needed by the &man.iwi.4; driver are now
+	  part of the &os; base system.  For the loaded firmware to work the
+	  license at <filename>/usr/share/doc/legal/intel_iwi/LICENSE</filename>
+	  must be agreed to and <literal>legal.intel_iwi.license_ack=1</literal>
+	  has to be added to <filename>/boot/loader.conf</filename>.
+	  Prior versions of the driver used the firmware image in the
 	  <filename role="package">net/iwi-firmware-kmod</filename>
-	  port/package; prior versions of this driver used the
+	  port/package or the
 	  <filename role="package">net/iwi-firmware</filename>
 	  port/package. &merged;</para>
 
@@ -742,7 +766,7 @@
 
 	<para>The &man.msk.4; driver has been added.  It supports
 	  network interfaces using the Marvell/SysKonnect Yukon II
-	  Gigabit Ethernet controller.</para>
+	  Gigabit Ethernet controller.  &merged;</para>
 
 	<para>The &man.my.4; driver is now MPSAFE. &merged;</para>
 
@@ -1882,7 +1906,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       4.2p1 to 4.5p1. &merged;</para>
 
     <para><application>OpenSSL</application> has been updated from
-      0.9.7e to 0.9.8d.</para>
+      0.9.7e to 0.9.8e.</para>
 
     <para><application>ncurses</application> has been updated from
       5.2-20010512 to 5.6-20061217.  ncurses now also has wide
@@ -2073,7 +2097,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.10.2 to 2.16.3.  As a part of this update, the
+      updated from 2.10.2 to 2.18.0.  As a part of this update, the
       default prefix for <application>GNOME</application> (and some
       related programs) has moved from
       <filename>/usr/X11R6</filename>
