@@ -87,6 +87,7 @@ lnc	i386,pc98
 mfi	i386,alpha,ia64,amd64
 mlx	i386,alpha,ia64,amd64
 mly	i386,ia64,amd64
+msk	i386,amd64
 my	i386,pc98
 ncr	i386,pc98,alpha,sparc64,amd64
 ncv	i386,pc98
