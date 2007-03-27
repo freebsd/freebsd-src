@@ -183,16 +183,17 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 	timeout = ((uint64_t)1 << cmd) / ICHWD_TICK;
 	if (cmd > 0 && cmd <= 63
 	    && timeout >= ICHWD_MIN_TIMEOUT && timeout <= ICHWD_MAX_TIMEOUT) {
-		if (timeout != sc->timeout)
+		if (timeout != sc->timeout) {
+			if (!sc->active)
+				ichwd_tmr_enable(sc);
 			ichwd_tmr_set(sc, timeout);
+		}
 
 		ichwd_tmr_reload(sc);
 		*error = 0;
 	} else {
 		if (sc->active)
 			ichwd_tmr_disable(sc);
-		if (cmd > 0)
-			*error = EINVAL;
 	}
 }
 
