@@ -2512,20 +2512,26 @@ if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
 	/*
 	 * If the ifnet is detaching, null out references to ifnet,
 	 * so that upper protocol layers will notice, and not attempt
-	 * to obtain locks for an ifnet which no longer exists.
-	 * It is OK to call rt_newmaddrmsg() with a NULL ifp.
+	 * to obtain locks for an ifnet which no longer exists. The
+	 * routing socket announcement must happen before the ifnet
+	 * instance is detached from the system.
 	 */
 	if (detaching) {
 #ifdef DIAGNOSTIC
 		printf("%s: detaching ifnet instance %p\n", __func__, ifp);
 #endif
-		ifma->ifma_ifp = NULL;
+		/*
+		 * ifp may already be nulled out if we are being reentered
+		 * to delete the ll_ifma.
+		 */
+		if (ifp != NULL) {
+			rt_newmaddrmsg(RTM_DELMADDR, ifma);
+			ifma->ifma_ifp = NULL;
+		}
 	}
 
 	if (--ifma->ifma_refcount > 0)
 		return 0;
-
-	rt_newmaddrmsg(RTM_DELMADDR, ifma);
 
 	/*
 	 * If this ifma is a network-layer ifma, a link-layer ifma may
