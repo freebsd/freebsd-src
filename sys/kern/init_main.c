@@ -94,7 +94,7 @@ void mi_startup(void);				/* Should be elsewhere */
 static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
-struct	thread thread0 __aligned(8);
+struct	thread thread0 __aligned(16);
 struct	vmspace vmspace0;
 struct	proc *initproc;
 
