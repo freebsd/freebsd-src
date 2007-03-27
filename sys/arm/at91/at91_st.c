@@ -171,13 +171,11 @@ at91st_watchdog(void *argp, u_int cmd, int *error)
 	int t;
 
 	t = cmd & WD_INTERVAL;
-	if (cmd > 0 && t >= 22 && t <= 37) {
+	if (t >= 22 && t <= 37) {
 		wdog = (1 << (t - 22)) | ST_WDMR_RSTEN;
 		*error = 0;
 	} else {
 		wdog = 0;
-		if (cmd > 0)
-			*error = EINVAL;
 	}
 	WR4(ST_WDMR, wdog);
 	WR4(ST_CR, ST_CR_WDRST);

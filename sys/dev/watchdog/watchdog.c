@@ -55,6 +55,8 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 		return (EINVAL);
 	if ((u & (WD_ACTIVE | WD_PASSIVE)) == (WD_ACTIVE | WD_PASSIVE))
 		return (EINVAL);
+	if ((u & (WD_ACTIVE | WD_PASSIVE)) == 0 && (u & WD_INTERVAL) > 0)
+		return (EINVAL);
 	if (u & WD_PASSIVE)
 		return (ENOSYS);	/* XXX Not implemented yet */
 	if ((u & WD_INTERVAL) == WD_TO_NEVER) {

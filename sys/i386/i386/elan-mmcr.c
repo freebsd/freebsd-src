@@ -412,8 +412,6 @@ elan_watchdog(void *foo __unused, u_int spec, int *error)
 		elan_mmcr->WDTMRCTL = w;		/* XXX What does this statement do? */
 		elan_mmcr->GPECHO = w;
 		cur = 0;
-		if (u > 0)
-			*error = 0;
 	}
 }
 

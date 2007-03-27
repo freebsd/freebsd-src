@@ -656,8 +656,6 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 		*error = 0;
 	} else {
 		ipmi_set_watchdog(sc, 0);
-		if (cmd > 0)
-			*error = 0;
 	}
 }
 

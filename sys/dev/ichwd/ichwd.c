@@ -194,8 +194,6 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 	} else {
 		if (sc->active)
 			ichwd_tmr_disable(sc);
-		if (cmd > 0)
-			*error = EINVAL;
 	}
 }
 
