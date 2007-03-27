@@ -794,7 +794,8 @@ static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
  */
 static void
 ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
-	struct mbuf *m, struct ifnet *oif, u_short offset, struct ip  *ip)
+	struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg, struct ip  *ip)
+>>>>>>> 1.144
 {
 	struct ether_header *eh = args->eh;
 	char *action;
@@ -887,9 +888,15 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		case O_FORWARD_IP: {
 			ipfw_insn_sa *sa = (ipfw_insn_sa *)cmd;
 			int len;
+			struct in_addr dummyaddr;
+			if (sa->sa.sin_addr.s_addr == INADDR_ANY)
+				dummyaddr.s_addr = htonl(tablearg);
+			else
+				dummyaddr.s_addr = sa->sa.sin_addr.s_addr;
 
 			len = snprintf(SNPARGS(action2, 0), "Forward to %s",
-				inet_ntoa(sa->sa.sin_addr));
+				inet_ntoa(dummyaddr));
+
 			if (sa->sa.sin_port)
 				snprintf(SNPARGS(action2, len), ":%d",
 				    sa->sa.sin_port);
@@ -2916,7 +2923,8 @@ check_body:
 
 			case O_LOG:
 				if (fw_verbose)
-					ipfw_log(f, hlen, args, m, oif, offset, ip);
+					ipfw_log(f, hlen, args, m,
+					    oif, offset, tablearg, ip);
 				match = 1;
 				break;
 
@@ -3276,14 +3284,26 @@ check_body:
 				retval = IP_FW_DENY;
 				goto done;
 
-			case O_FORWARD_IP:
+			case O_FORWARD_IP: {
+				struct sockaddr_in *sa;
+				sa = &(((ipfw_insn_sa *)cmd)->sa);
 				if (args->eh)	/* not valid on layer2 pkts */
 					break;
-				if (!q || dyn_dir == MATCH_FORWARD)
-					args->next_hop =
-					    &((ipfw_insn_sa *)cmd)->sa;
+				if (!q || dyn_dir == MATCH_FORWARD) {
+					if (sa->sin_addr.s_addr == INADDR_ANY) {
+						bcopy(sa, &args->hopstore,
+							sizeof(*sa));
+						args->hopstore.sin_addr.s_addr =
+						    htonl(tablearg);
+						args->next_hop =
+						    &args->hopstore;
+					} else {
+						args->next_hop = sa;
+					}
+				}
 				retval = IP_FW_PASS;
-				goto done;
+			    }
+			    goto done;
 
 			case O_NETGRAPH:
 			case O_NGTEE:
