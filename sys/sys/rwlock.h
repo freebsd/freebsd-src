@@ -58,7 +58,7 @@
  * barriers as mutexes: _acq when acquiring a write lock and _rel when
  * releasing a write lock.  Read locks also need to use an _acq barrier when
  * acquiring a read lock.  However, since read locks do not update any
- * locked data (modulo bugs of course), no memory barrier is needed to when
+ * locked data (modulo bugs of course), no memory barrier is needed when
  * releasing a read lock.
  */
 
