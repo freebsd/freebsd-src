@@ -2315,9 +2315,9 @@ struct msk_if_softc;
 /* Softc for the Marvell Yukon II controller. */
 struct msk_softc {
 	struct resource		*msk_res[1];	/* I/O resource */
-	struct resource_spec	*msk_res_spec;
+	int			msk_res_type;
+	int			msk_res_id;
 	struct resource		*msk_irq[2];	/* IRQ resources */
-	struct resource_spec	*msk_irq_spec;
 	void			*msk_intrhand[2]; /* irq handler handle */
 	device_t		msk_dev;
 	uint8_t			msk_hw_id;
