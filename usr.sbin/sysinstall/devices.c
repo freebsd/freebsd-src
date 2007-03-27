@@ -113,6 +113,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"le",		"AMD Am7900 LANCE or Am79C9xx PCnet Ethernet adapter"		},
     { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) Ethernet"		},
     { DEVICE_TYPE_NETWORK,	"lge",		"Level 1 LXT1001 Gigabit Ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"msk",		"Marvell/SysKonnect Yukon II gigabit Ethernet"			},
     { DEVICE_TYPE_NETWORK,	"nge",		"NatSemi PCI Gigabit Ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"nve",		"NVIDIA nForce MCP Ethernet"				},
     { DEVICE_TYPE_NETWORK,	"pcn",		"AMD Am79c79x PCI Ethernet card"				},
