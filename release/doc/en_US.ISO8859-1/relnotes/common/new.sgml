@@ -123,7 +123,7 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para>&man.acpi.4; now has support for the HPET time counter.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -139,7 +139,9 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
-      <para></para>
+      <para>An &man.acpi.dock.4; driver has been added to provide
+	support for controlling laptop docking station functions via
+	ACPI.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -157,6 +159,10 @@
 	<para>The &man.cxgb.4; driver has been added.  It provides support for
 	  10 Gigabit Ethernet adapters based on the Chelsio T3 and T3B chipsets.
 	  </para>
+
+	<para>The &man.msk.4; driver has been added.  It supports
+	  network interfaces using the Marvell/SysKonnect Yukon II
+	  Gigabit Ethernet controller.</para>
 
 	<para arch="arm">The &man.npe.4; driver, which supports the
 	   Intel XScale Network Processing Engine, has been
@@ -240,7 +246,15 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported version of
+      the <application>GNOME</application> desktop environment
+      (<filename role="package">x11/gnome2</filename>) has been
+      updated from 2.16.1 to 2.18.0.</para>
+
+    <para>The supported version of
+      the <application>KDE</application> desktop environment
+      (<filename role="package">x11/kde3</filename>) has been
+      updated from 3.5.4 to 3.5.6.</para>
 
   </sect2>
 
