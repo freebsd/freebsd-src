@@ -699,11 +699,13 @@ is_icmp6_query(int icmp6_type)
 }
 
 static void
-send_reject6(struct ip_fw_args *args, int code, u_short offset, u_int hlen)
+send_reject6(struct ip_fw_args *args, int code, u_short offset, u_int hlen, struct ip6_hdr *ip6)
 {
+	struct mbuf *m;
+
+	m = args->m;
 	if (code == ICMP6_UNREACH_RST && offset == 0 &&
 	    args->f_id.proto == IPPROTO_TCP) {
-		struct ip6_hdr *ip6;
 		struct tcphdr *tcp;
 		tcp_seq ack, seq;
 		int flags;
@@ -711,18 +713,11 @@ send_reject6(struct ip_fw_args *args, int code, u_short offset, u_int hlen)
 			struct ip6_hdr ip6;
 			struct tcphdr th;
 		} ti;
-
-		if (args->m->m_len < (hlen+sizeof(struct tcphdr))) {
-			args->m = m_pullup(args->m, hlen+sizeof(struct tcphdr));
-			if (args->m == NULL)
-				return;
-		}
-
-		ip6 = mtod(args->m, struct ip6_hdr *);
-		tcp = (struct tcphdr *)(mtod(args->m, char *) + hlen);
+		tcp = (struct tcphdr *)((char *)ip6 + hlen);
 
 		if ((tcp->th_flags & TH_RST) != 0) {
-			m_freem(args->m);
+			m_freem(m);
+			args->m = NULL;
 			return;
 		}
 
@@ -738,14 +733,20 @@ send_reject6(struct ip_fw_args *args, int code, u_short offset, u_int hlen)
 			flags = TH_RST;
 		} else {
 			ack = ti.th.th_seq;
-			if (((args->m)->m_flags & M_PKTHDR) != 0) {
-				ack += (args->m)->m_pkthdr.len - hlen
+			if ((m->m_flags & M_PKTHDR) != 0) {
+				/*
+				 * total new data to ACK is:
+				 * total packet length,
+				 * minus the header length,
+				 * minus the tcp header length.
+				 */
+				ack += m->m_pkthdr.len - hlen
 					- (ti.th.th_off << 2);
 			} else if (ip6->ip6_plen) {
-				ack += ntohs(ip6->ip6_plen) + sizeof(*ip6)
-					- hlen - (ti.th.th_off << 2);
+				ack += ntohs(ip6->ip6_plen) + sizeof(*ip6) -
+				    hlen - (ti.th.th_off << 2);
 			} else {
-				m_freem(args->m);
+				m_freem(m);
 				return;
 			}
 			if (tcp->th_flags & TH_SYN)
@@ -754,14 +755,28 @@ send_reject6(struct ip_fw_args *args, int code, u_short offset, u_int hlen)
 			flags = TH_RST|TH_ACK;
 		}
 		bcopy(&ti, ip6, sizeof(ti));
-		tcp_respond(NULL, ip6, (struct tcphdr *)(ip6 + 1),
-			args->m, ack, seq, flags);
-
+		/*
+		 * m is only used to recycle the mbuf
+		 * The data in it is never read so we don't need
+		 * to correct the offsets or anything
+		 */
+		tcp_respond(NULL, ip6, tcp, m, ack, seq, flags);
 	} else if (code != ICMP6_UNREACH_RST) { /* Send an ICMPv6 unreach. */
-		icmp6_error(args->m, ICMP6_DST_UNREACH, code, 0);
-
+#if 0
+		/*
+		 * Unlike above, the mbufs need to line up with the ip6 hdr,
+		 * as the contents are read. We need to m_adj() the
+		 * needed amount.
+		 * The mbuf will however be thrown away so we can adjust it.
+		 * Remember we did an m_pullup on it already so we
+		 * can make some assumptions about contiguousness.
+		 */
+		if (args->L3offset)
+			m_adj(m, args->L3offset);
+#endif
+		icmp6_error(m, ICMP6_DST_UNREACH, code, 0);
 	} else
-		m_freem(args->m);
+		m_freem(m);
 
 	args->m = NULL;
 }
@@ -779,7 +794,7 @@ static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
  */
 static void
 ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
-	struct mbuf *m, struct ifnet *oif, u_short offset)
+	struct mbuf *m, struct ifnet *oif, u_short offset, struct ip  *ip)
 {
 	struct ether_header *eh = args->eh;
 	char *action;
@@ -903,8 +918,6 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		struct icmphdr *icmp;
 		struct tcphdr *tcp;
 		struct udphdr *udp;
-		/* Initialize to make compiler happy. */
-		struct ip *ip = NULL;
 #ifdef INET6
 		struct ip6_hdr *ip6 = NULL;
 		struct icmp6_hdr *icmp6;
@@ -918,13 +931,12 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			snprintf(dst, sizeof(dst), "[%s]",
 			    ip6_sprintf(&args->f_id.dst_ip6));
 
-			ip6 = (struct ip6_hdr *)mtod(m, struct ip6_hdr *);
-			tcp = (struct tcphdr *)(mtod(args->m, char *) + hlen);
-			udp = (struct udphdr *)(mtod(args->m, char *) + hlen);
+			ip6 = (struct ip6_hdr *)ip;
+			tcp = (struct tcphdr *)(((char *)ip) + hlen);
+			udp = (struct udphdr *)(((char *)ip) + hlen);
 		} else
 #endif
 		{
-			ip = mtod(m, struct ip *);
 			tcp = L3HDR(struct tcphdr, ip);
 			udp = L3HDR(struct udphdr, ip);
 
@@ -968,7 +980,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			break;
 #ifdef INET6
 		case IPPROTO_ICMPV6:
-			icmp6 = (struct icmp6_hdr *)(mtod(args->m, char *) + hlen);
+			icmp6 = (struct icmp6_hdr *)(((char *)ip) + hlen);
 			if (offset == 0)
 				len = snprintf(SNPARGS(proto, 0),
 				    "ICMPv6:%u.%u ",
@@ -1698,13 +1710,22 @@ send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
  * sends a reject message, consuming the mbuf passed as an argument.
  */
 static void
-send_reject(struct ip_fw_args *args, int code, u_short offset, int ip_len)
+send_reject(struct ip_fw_args *args, int code, u_short offset, int ip_len, struct ip *ip)
 {
 
+#if 0
+	/* XXX When ip is not guaranteed to be at mtod() we will
+	 * need to account for this */
+	 * The mbuf will however be thrown away so we can adjust it.
+	 * Remember we did an m_pullup on it already so we
+	 * can make some assumptions about contiguousness.
+	 */
+	if (args->L3offset)
+		m_adj(m, args->L3offset);
+#endif
 	if (code != ICMP_REJECT_RST) { /* Send an ICMP unreach */
 		/* We need the IP header in host order for icmp_error(). */
 		if (args->eh != NULL) {
-			struct ip *ip = mtod(args->m, struct ip *);
 			ip->ip_len = ntohs(ip->ip_len);
 			ip->ip_off = ntohs(ip->ip_off);
 		}
@@ -2064,6 +2085,8 @@ check_uidgid(ipfw_insn_u32 *insn,
  *	args->m	(in/out) The packet; we set to NULL when/if we nuke it.
  *		Starts with the IP header.
  *	args->eh (in)	Mac header if present, or NULL for layer3 packet.
+ *	args->L3offset	Number of bytes bypassed if we came from L2.
+ *			e.g. often sizeof(eh)  ** NOTYET **
  *	args->oif	Outgoing interface, or NULL if packet is incoming.
  *		The incoming interface is in the mbuf. (in)
  *	args->divert_rule (in/out)
@@ -2085,12 +2108,11 @@ check_uidgid(ipfw_insn_u32 *insn,
  *	IP_FW_NETGRAPH	into netgraph, cookie args->cookie
  *
  */
-
 int
 ipfw_chk(struct ip_fw_args *args)
 {
 	/*
-	 * Local variables hold state during the processing of a packet.
+	 * Local variables holding state during the processing of a packet:
 	 *
 	 * IMPORTANT NOTE: to speed up the processing of rules, there
 	 * are some assumption on the values of the variables, which
@@ -2100,15 +2122,18 @@ ipfw_chk(struct ip_fw_args *args)
 	 *
 	 * args->eh	The MAC header. It is non-null for a layer2
 	 *	packet, it is NULL for a layer-3 packet.
+	 * **notyet**
+	 * args->L3offset Offset in the packet to the L3 (IP or equiv.) header.
 	 *
 	 * m | args->m	Pointer to the mbuf, as received from the caller.
 	 *	It may change if ipfw_chk() does an m_pullup, or if it
 	 *	consumes the packet because it calls send_reject().
 	 *	XXX This has to change, so that ipfw_chk() never modifies
 	 *	or consumes the buffer.
-	 * ip	is simply an alias of the value of m, and it is kept
-	 *	in sync with it (the packet is	supposed to start with
-	 *	the ip header).
+	 * ip	is the beginning of the ip(4 or 6) header.
+	 *	Calculated by adding the L3offset to the start of data.
+	 *	(Until we start using L3offset, the packet is
+	 *	supposed to start with the ip header).
 	 */
 	struct mbuf *m = args->m;
 	struct ip *ip = mtod(m, struct ip *);
@@ -2179,6 +2204,7 @@ ipfw_chk(struct ip_fw_args *args)
 	struct in_addr src_ip, dst_ip;		/* NOTE: network format	*/
 	u_int16_t ip_len=0;
 	int pktlen;
+	u_int16_t	etype = 0;	/* Host order stored ether type */
 
 	/*
 	 * dyn_dir = MATCH_UNKNOWN when rules unchecked,
@@ -2227,14 +2253,20 @@ do {									\
 	p = (mtod(m, char *) + (len));					\
 } while (0)
 
+	/*
+	 * if we have an ether header,
+	 */
+	if (args->eh)
+		etype = ntohs(args->eh->ether_type);
+
 	/* Identify IP packets and fill up variables. */
 	if (pktlen >= sizeof(struct ip6_hdr) &&
-	    (args->eh == NULL || ntohs(args->eh->ether_type)==ETHERTYPE_IPV6) &&
-	    mtod(m, struct ip *)->ip_v == 6) {
+	    (args->eh == NULL || etype == ETHERTYPE_IPV6) && ip->ip_v == 6) {
+		struct ip6_hdr *ip6 = (struct ip6_hdr *)ip;
 		is_ipv6 = 1;
 		args->f_id.addr_type = 6;
 		hlen = sizeof(struct ip6_hdr);
-		proto = mtod(m, struct ip6_hdr *)->ip6_nxt;
+		proto = ip6->ip6_nxt;
 
 		/* Search extension headers to find upper layer protocols */
 		while (ulp == NULL) {
@@ -2373,16 +2405,16 @@ do {									\
 				break;
 			} /*switch */
 		}
-		args->f_id.src_ip6 = mtod(m,struct ip6_hdr *)->ip6_src;
-		args->f_id.dst_ip6 = mtod(m,struct ip6_hdr *)->ip6_dst;
+		ip = mtod(m, struct ip *);
+		ip6 = (struct ip6_hdr *)ip;
+		args->f_id.src_ip6 = ip6->ip6_src;
+		args->f_id.dst_ip6 = ip6->ip6_dst;
 		args->f_id.src_ip = 0;
 		args->f_id.dst_ip = 0;
-		args->f_id.flow_id6 = ntohl(mtod(m, struct ip6_hdr *)->ip6_flow);
+		args->f_id.flow_id6 = ntohl(ip6->ip6_flow);
 	} else if (pktlen >= sizeof(struct ip) &&
-	    (args->eh == NULL || ntohs(args->eh->ether_type) == ETHERTYPE_IP) &&
-	    mtod(m, struct ip *)->ip_v == 4) {
+	    (args->eh == NULL || etype == ETHERTYPE_IP) && ip->ip_v == 4) {
 	    	is_ipv4 = 1;
-		ip = mtod(m, struct ip *);
 		hlen = ip->ip_hl << 2;
 		args->f_id.addr_type = 4;
 
@@ -2426,6 +2458,7 @@ do {									\
 			}
 		}
 
+		ip = mtod(m, struct ip *);
 		args->f_id.src_ip = ntohl(src_ip.s_addr);
 		args->f_id.dst_ip = ntohl(dst_ip.s_addr);
 	}
@@ -2592,15 +2625,14 @@ check_body:
 
 			case O_MAC_TYPE:
 				if (args->eh != NULL) {
-					u_int16_t t =
-					    ntohs(args->eh->ether_type);
 					u_int16_t *p =
 					    ((ipfw_insn_u16 *)cmd)->ports;
 					int i;
 
 					for (i = cmdlen - 1; !match && i>0;
 					    i--, p += 2)
-						match = (t>=p[0] && t<=p[1]);
+						match = (etype >= p[0] &&
+						    etype <= p[1]);
 				}
 				break;
 
@@ -2752,12 +2784,12 @@ check_body:
 
 			case O_IPOPT:
 				match = (is_ipv4 &&
-				    ipopts_match(mtod(m, struct ip *), cmd) );
+				    ipopts_match(ip, cmd) );
 				break;
 
 			case O_IPVER:
 				match = (is_ipv4 &&
-				    cmd->arg1 == mtod(m, struct ip *)->ip_v);
+				    cmd->arg1 == ip->ip_v);
 				break;
 
 			case O_IPID:
@@ -2771,9 +2803,9 @@ check_body:
 				    if (cmd->opcode == O_IPLEN)
 					x = ip_len;
 				    else if (cmd->opcode == O_IPTTL)
-					x = mtod(m, struct ip *)->ip_ttl;
+					x = ip->ip_ttl;
 				    else /* must be IPID */
-					x = ntohs(mtod(m, struct ip *)->ip_id);
+					x = ntohs(ip->ip_id);
 				    if (cmdlen == 1) {
 					match = (cmd->arg1 == x);
 					break;
@@ -2788,12 +2820,12 @@ check_body:
 
 			case O_IPPRECEDENCE:
 				match = (is_ipv4 &&
-				    (cmd->arg1 == (mtod(m, struct ip *)->ip_tos & 0xe0)) );
+				    (cmd->arg1 == (ip->ip_tos & 0xe0)) );
 				break;
 
 			case O_IPTOS:
 				match = (is_ipv4 &&
-				    flags_match(cmd, mtod(m, struct ip *)->ip_tos));
+				    flags_match(cmd, ip->ip_tos));
 				break;
 
 			case O_TCPDATALEN:
@@ -2884,7 +2916,7 @@ check_body:
 
 			case O_LOG:
 				if (fw_verbose)
-					ipfw_log(f, hlen, args, m, oif, offset);
+					ipfw_log(f, hlen, args, m, oif, offset, ip);
 				match = 1;
 				break;
 
@@ -3223,7 +3255,7 @@ check_body:
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN_MULTICAST(ntohl(dst_ip.s_addr))) {
 					send_reject(args, cmd->arg1,
-					    offset,ip_len);
+					    offset,ip_len, ip);
 					m = args->m;
 				}
 				/* FALLTHROUGH */
@@ -3235,7 +3267,7 @@ check_body:
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN6_IS_ADDR_MULTICAST(&args->f_id.dst_ip6)) {
 					send_reject6(args, cmd->arg1,
-					    offset, hlen);
+					    offset, hlen, (struct ip6_hdr *)ip);
 					m = args->m;
 				}
 				/* FALLTHROUGH */
