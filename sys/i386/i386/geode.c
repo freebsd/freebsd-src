@@ -136,7 +136,7 @@ geode_watchdog(void *foo __unused, u_int cmd, int *error)
 	u_int u, p, r;
 
 	u = cmd & WD_INTERVAL;
-	if (cmd && u >= 14 && u <= 43) {
+	if (u >= 14 && u <= 43) {
 		u -= 14;
 		if (u > 16) {
 			p = u - 16;
@@ -165,7 +165,10 @@ geode_watchdog(void *foo __unused, u_int cmd, int *error)
 static void
 advantech_watchdog(void *foo __unused, u_int cmd, int *error)
 {
-	if (cmd && (cmd & WD_INTERVAL) <= WD_TO_1SEC) {
+	u_int u;
+
+	u = cmd & WD_INTERVAL;
+	if (u > 0 && u <= WD_TO_1SEC) {
 		outb(0x0443, 1);
 		*error = 0;
 	} else {
