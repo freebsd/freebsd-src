@@ -50,23 +50,21 @@ If
 .Fa cmd
 is zero, the watchdog must be disabled and the
 .Fa error
-argument left untouched.
+argument left untouched. If the watchdog cannot be disabled, the
+.Fa error
+argument must be set to 
+.Dv EOPNOTSUPP .
 .Pp
 Else the watchdog should be reset and configured to a timeout of
 .Pq 1 << Pq Fa cmd No & Dv WD_INTERVAL
 nanoseconds or larger and the
 .Fa error
-argument be set to zero.
+argument be set to zero to signal arming of a watchdog.
 .Pp
 If the watchdog cannot be configured to the proposed timeout, it
 must be disabled and the
 .Fa error
-argument set to
-.Dv EINVAL .
-If the watchdog cannot be disabled, the
-.Fa error
-argument must be set to 
-.Dv EOPNOTSUPP .
+argument left as is (to avoid hiding the arming of another watchdog).
 .Pp
 There is no specification of what the watchdog should do when it
 times out, but a hardware reset or similar
