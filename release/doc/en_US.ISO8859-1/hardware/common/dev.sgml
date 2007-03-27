@@ -252,6 +252,8 @@
 
     &hwlist.lnc;
 
+    &hwlist.msk;
+
     &hwlist.my;
 
     &hwlist.nge;
