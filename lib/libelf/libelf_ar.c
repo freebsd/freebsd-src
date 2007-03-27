@@ -114,22 +114,40 @@ _libelf_ar_get_number(char *s, size_t sz, int base, size_t *ret)
  * ar(1) control characters in.
  */
 static char *
-_libelf_ar_get_string(char *buf, size_t bufsize, int rawname)
+_libelf_ar_get_string(const char *buf, size_t bufsize, int rawname)
 {
-	char *q, *r;
+	const char *q;
+	char *r;
 	size_t sz;
 
-	/* Skip back over trailing blanks. */
-	for (q = buf + bufsize - 1; q > buf && *q == ' '; --q)
-		;
+	if (rawname)
+		sz = bufsize + 1;
+	else {
+		/* Skip back over trailing blanks. */
+		for (q = buf + bufsize - 1; q >= buf && *q == ' '; --q)
+			;
 
-	if (rawname == 0 && *q == '/')
-		q--;
+		if (q < buf) {
+			/*
+			 * If the input buffer only had blanks in it,
+			 * return a zero-length string.
+			 */
+			buf = "";
+			sz = 1;
+		} else {
+			/*
+			 * Remove the trailing '/' character, but only
+			 * if the name isn't one of the special names
+			 * "/" and "//".
+			 */
+			if (q > buf + 1 ||
+			    (q == (buf + 1) && *buf != '/'))
+				q--;
 
-	if (q <= buf)
-		return (NULL);
+			sz = q - buf + 2; /* Space for a trailing NUL. */
+		}
+	}
 
-	sz = q - buf + 2; /* Space for a trailing NUL. */
 	if ((r = malloc(sz)) == NULL) {
 		LIBELF_SET_ERROR(RESOURCE, 0);
 		return (NULL);
@@ -147,13 +165,13 @@ _libelf_ar_get_string(char *buf, size_t bufsize, int rawname)
 static char *
 _libelf_ar_get_name(char *buf, size_t bufsize, Elf *e)
 {
-	char *q, *r, *s;
+	char c, *q, *r, *s;
 	size_t len;
 	size_t offset;
 
 	assert(e->e_kind == ELF_K_AR);
 
-	if (buf[0] == '/') {
+	if (buf[0] == '/' && (c = buf[1]) >= '0' && c <= '9') {
 		/*
 		 * The value in field ar_name is a decimal offset into
 		 * the archive string table where the actual name
