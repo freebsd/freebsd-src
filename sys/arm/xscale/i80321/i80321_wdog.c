@@ -111,18 +111,15 @@ iopwdog_watchdog_fn(void *private, u_int cmd, int *error)
 
 	cmd &= WD_INTERVAL;
 	if (cmd > 0 && cmd <= 63
-	    && (uint64_t)1 << (cmd & WD_INTERVAL) <=
-	       (uint64_t)sc->wdog_period * 1000000000) {
+	    && (uint64_t)1<<cmd <= (uint64_t)sc->wdog_period * 1000000000) {
 		/* Valid value -> Enable watchdog */
 		iopwdog_tickle(sc);
 		sc->armed = 1;
 		*error = 0;
 	} else {
-		/* XXX Can't disable this watchdog? */
+		/* Can't disable this watchdog! */
 		if (sc->armed)
 			*error = EOPNOTSUPP;
-		else if (cmd > 0)
-			*error = EINVAL;
 	}
 }
 
