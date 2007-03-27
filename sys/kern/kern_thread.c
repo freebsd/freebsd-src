@@ -247,7 +247,7 @@ threadinit(void)
 
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
-	    UMA_ALIGN_CACHE, 0);
+	    16 - 1, 0);
 #ifdef KSE
 	kseinit();	/* set up kse specific stuff  e.g. upcall zone*/
 #endif
