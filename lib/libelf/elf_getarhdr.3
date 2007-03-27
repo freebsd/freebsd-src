@@ -52,13 +52,13 @@ Structure
 includes the following members:
 .Bl -tag -width indent
 .It Vt "char *" Va ar_name
-A pointer to a null terminated string with the archive
-member's name inside the archive.
+A pointer to a null terminated string containing the translated
+name of the archive member.
 .It Vt "char *" Va ar_rawname
-A pointer to a null terminated string that representing the
-name in the archive symbol table, including the formatting characters
-used by
-.Xr ar 1 .
+A pointer to a null terminated string containing the untranslated
+name for the archive member, including all
+.Xr ar 1
+formatting characters and trailing white space.
 .It Vt time_t Va ar_date
 The timestamp associated with the member.
 .It Vt uid_t Va ar_uid
