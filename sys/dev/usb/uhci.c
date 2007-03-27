@@ -723,6 +723,7 @@ uhci_power(int why, void *v)
 			    sc->sc_intr_xfer);
 		sc->sc_bus.use_polling++;
 		uhci_run(sc, 0); /* stop the controller */
+		cmd &= ~UHCI_CMD_RS;
 
 		/* save some state if BIOS doesn't */
 		sc->sc_saved_frnum = UREAD2(sc, UHCI_FRNUM);
