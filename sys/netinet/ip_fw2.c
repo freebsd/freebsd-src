@@ -795,7 +795,6 @@ static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
 static void
 ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 	struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg, struct ip  *ip)
->>>>>>> 1.144
 {
 	struct ether_header *eh = args->eh;
 	char *action;
