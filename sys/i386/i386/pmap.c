@@ -518,20 +518,6 @@ pmap_init2()
  * Low level helper routines.....
  ***************************************************/
 
-
-/*
- * this routine defines the region(s) of memory that should
- * not be tested for the modified bit.
- */
-static PMAP_INLINE int
-pmap_track_modified(vm_offset_t va)
-{
-	if ((va < kmi.clean_sva) || (va >= kmi.clean_eva)) 
-		return 1;
-	else
-		return 0;
-}
-
 #ifdef SMP
 /*
  * For SMP, these functions have to use the IPI mechanism for coherence.
@@ -1534,10 +1520,9 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 		m = PHYS_TO_VM_PAGE(oldpte);
 		if (oldpte & PG_M) {
 			KASSERT((oldpte & PG_RW),
-	("pmap_remove_pte: modified page not writable: va: 0x%x, pte: 0x%x",
-			    va, oldpte));
-			if (pmap_track_modified(va))
-				vm_page_dirty(m);
+	("pmap_remove_pte: modified page not writable: va: %#x, pte: %#jx",
+			    va, (uintmax_t)oldpte));
+			vm_page_dirty(m);
 		}
 		if (oldpte & PG_A)
 			vm_page_flag_set(m, PG_REFERENCED);
@@ -1706,10 +1691,9 @@ pmap_remove_all(vm_page_t m)
 		 */
 		if (tpte & PG_M) {
 			KASSERT((tpte & PG_RW),
-	("pmap_remove_all: modified page not writable: va: 0x%x, pte: 0x%x",
-			    pv->pv_va, tpte));
-			if (pmap_track_modified(pv->pv_va))
-				vm_page_dirty(m);
+	("pmap_remove_all: modified page not writable: va: %#x, pte: %#jx",
+			    pv->pv_va, (uintmax_t)tpte));
+			vm_page_dirty(m);
 		}
 		pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
@@ -1793,8 +1777,7 @@ retry:
 					vm_page_flag_set(m, PG_REFERENCED);
 					pbits &= ~PG_A;
 				}
-				if ((pbits & PG_M) != 0 &&
-				    pmap_track_modified(sva)) {
+				if ((pbits & PG_M) != 0) {
 					if (m == NULL)
 						m = PHYS_TO_VM_PAGE(*pte);
 					vm_page_dirty(m);
@@ -1956,6 +1939,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
+		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
+		    ("pmap_enter: managed mapping within the clean submap"));
 		pmap_insert_entry(pmap, va, m);
 		pa |= PG_MANAGED;
 	}
@@ -1996,10 +1981,9 @@ validate:
 			}
 			if (origpte & PG_M) {
 				KASSERT((origpte & PG_RW),
-	("pmap_enter: modified page not writable: va: 0x%x, pte: 0x%x",
-				    va, origpte));
-				if ((origpte & PG_MANAGED) &&
-				    pmap_track_modified(va))
+	("pmap_enter: modified page not writable: va: %#x, pte: %#jx",
+				    va, (uintmax_t)origpte));
+				if ((origpte & PG_MANAGED) != 0)
 					vm_page_dirty(om);
 				if ((prot & VM_PROT_WRITE) == 0)
 					invlva = TRUE;
@@ -2030,6 +2014,9 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pt_entry_t *pte;
 	vm_paddr_t pa;
 
+	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
+	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0,
+	    ("pmap_enter_quick: managed mapping within the clean submap"));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	PMAP_LOCK(pmap);
@@ -2607,13 +2594,6 @@ pmap_is_modified(vm_page_t m)
 	sched_pin();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		/*
-		 * if the bit being tested is the modified bit, then
-		 * mark clean_map and ptes as never
-		 * modified.
-		 */
-		if (!pmap_track_modified(pv->pv_va))
-			continue;
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 		rv = (*pte & PG_M) != 0;
@@ -2669,14 +2649,6 @@ pmap_clear_ptes(vm_page_t m, int bit)
 	 * setting RO do we need to clear the VAC?
 	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		/*
-		 * don't write protect pager mappings
-		 */
-		if (bit == PG_RW) {
-			if (!pmap_track_modified(pv->pv_va))
-				continue;
-		}
-
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 retry:
@@ -2758,9 +2730,6 @@ pmap_ts_referenced(vm_page_t m)
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 
 			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-
-			if (!pmap_track_modified(pv->pv_va))
-				continue;
 
 			PMAP_LOCK(pv->pv_pmap);
 			pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
