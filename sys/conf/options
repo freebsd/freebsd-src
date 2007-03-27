@@ -59,7 +59,6 @@ NO_SYSCTL_DESCR	opt_global.h
 
 # Miscellaneous options.
 ADAPTIVE_GIANT	opt_adaptive_mutexes.h
-NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 ALQ
 AUDIT		opt_global.h
 CODA_COMPAT_5	opt_coda.h
@@ -124,6 +123,7 @@ MFI_DECODE_LOG	opt_mfi.h
 MPROF_BUFFERS	opt_mprof.h
 MPROF_HASH_SIZE	opt_mprof.h
 MUTEX_WAKE_ALL
+NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
 NSWBUF_MIN	opt_swap.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
