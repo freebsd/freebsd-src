@@ -2,7 +2,7 @@
  *
  * Name   : sky2.c
  * Project: Gigabit Ethernet Driver for FreeBSD 5.x/6.x
- * Version: $Revision: 1.23 $
+ * Version: $Revision: 1.11 $
  * Date   : $Date: 2005/12/22 09:04:11 $
  * Purpose: Main driver source file
  *
@@ -151,10 +151,24 @@ MODULE_DEPEND(msk, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
 /* Tunables. */
-static int msi_disable = 0;
+static int msi_disable = 1;
 TUNABLE_INT("hw.msk.msi_disable", &msi_disable);
 
 #define MSK_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
+
+/* RELENG_6 support code */
+#ifndef	IFCAP_TSO4
+#define	IFCAP_TSO4	0
+#define	CSUM_TSO	0
+#endif
+#ifndef	VLAN_CAPABILITIES
+#define	VLAN_CAPABILITIES(x)
+#endif
+#ifndef	IFCAP_VLAN_HWCSUM
+#define	IFCAP_VLAN_HWCSUM	0
+#endif
+#undef	MSI_SUPPORT
+#undef	TSO_SUPPORT
 
 /*
  * Devices supported by this driver.
@@ -228,7 +242,7 @@ static int msk_attach(device_t);
 static int msk_detach(device_t);
 
 static void msk_tick(void *);
-static int msk_intr(void *);
+static void msk_intr(void *);
 static void msk_int_task(void *, int);
 static void msk_intr_phy(struct msk_if_softc *);
 static void msk_intr_gmac(struct msk_if_softc *);
@@ -336,27 +350,6 @@ static devclass_t msk_devclass;
 DRIVER_MODULE(mskc, pci, mskc_driver, mskc_devclass, 0, 0);
 DRIVER_MODULE(msk, mskc, msk_driver, msk_devclass, 0, 0);
 DRIVER_MODULE(miibus, msk, miibus_driver, miibus_devclass, 0, 0);
-
-static struct resource_spec msk_res_spec_io[] = {
-	{ SYS_RES_IOPORT,	PCIR_BAR(1),	RF_ACTIVE },
-	{ -1,			0,		0 }
-};
-
-static struct resource_spec msk_res_spec_mem[] = {
-	{ SYS_RES_MEMORY,	PCIR_BAR(0),	RF_ACTIVE },
-	{ -1,			0,		0 }
-};
-
-static struct resource_spec msk_irq_spec_legacy[] = {
-	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
-	{ -1,			0,		0 }
-};
-
-static struct resource_spec msk_irq_spec_msi[] = {
-	{ SYS_RES_IRQ,		1,		RF_ACTIVE },
-	{ SYS_RES_IRQ,		2,		RF_ACTIVE },
-	{ -1,			0,		0 }
-};
 
 static int
 msk_miibus_readreg(device_t dev, int phy, int reg)
@@ -1536,7 +1529,10 @@ static int
 mskc_attach(device_t dev)
 {
 	struct msk_softc *sc;
-	int error, msic, *port, reg;
+	int error, *port, reg, rid;
+#ifdef	MSI_SUPPORT
+	int msic;
+#endif
 
 	sc = device_get_softc(dev);
 	sc->msk_dev = dev;
@@ -1550,21 +1546,27 @@ mskc_attach(device_t dev)
 
 	/* Allocate I/O resource */
 #ifdef MSK_USEIOSPACE
-	sc->msk_res_spec = msk_res_spec_io;
+	sc->msk_res_type = SYS_RES_IOPORT;
+	sc->msk_res_id = PCIR_BAR(1);
 #else
-	sc->msk_res_spec = msk_res_spec_mem;
+	sc->msk_res_type = SYS_RES_MEMORY;
+	sc->msk_res_id = PCIR_BAR(0);
 #endif
-	sc->msk_irq_spec = msk_irq_spec_legacy;
-	error = bus_alloc_resources(dev, sc->msk_res_spec, sc->msk_res);
-	if (error) {
-		if (sc->msk_res_spec == msk_res_spec_mem)
-			sc->msk_res_spec = msk_res_spec_io;
-		else
-			sc->msk_res_spec = msk_res_spec_mem;
-		error = bus_alloc_resources(dev, sc->msk_res_spec, sc->msk_res);
-		if (error) {
+	sc->msk_res[0] = bus_alloc_resource_any(dev, sc->msk_res_type,
+	    &sc->msk_res_id, RF_ACTIVE);
+	if (sc->msk_res[0] == NULL) {
+		if (sc->msk_res_type == SYS_RES_MEMORY) {
+			sc->msk_res_type = SYS_RES_IOPORT;
+			sc->msk_res_id = PCIR_BAR(1);
+		} else {
+			sc->msk_res_type = SYS_RES_MEMORY;
+			sc->msk_res_id = PCIR_BAR(0);
+		}
+		sc->msk_res[0] = bus_alloc_resource_any(dev, sc->msk_res_type,
+		    &sc->msk_res_id, RF_ACTIVE);
+		if (sc->msk_res[0] == NULL) {
 			device_printf(dev, "couldn't allocate %s resources\n",
-			    sc->msk_res_spec == msk_res_spec_mem ? "memory" :
+			    sc->msk_res_type == SYS_RES_MEMORY ? "memory" :
 			    "I/O");
 			mtx_destroy(&sc->msk_mtx);
 			return (ENXIO);
@@ -1695,6 +1697,7 @@ mskc_attach(device_t dev)
 		sc->msk_hw_feature = 0;
 	}
 
+#ifdef	MSI_SUPPORT
 	/* Allocate IRQ resources. */
 	msic = pci_msi_count(dev);
 	if (bootverbose)
@@ -1712,16 +1715,41 @@ mskc_attach(device_t dev)
 	    pci_alloc_msi(dev, &msic) == 0) {
 		if (msic == 2) {
 			sc->msk_msi = 1;
-			sc->msk_irq_spec = msk_irq_spec_msi;
 		} else
 			pci_release_msi(dev);
 	}
 
-	error = bus_alloc_resources(dev, sc->msk_irq_spec, sc->msk_irq);
-	if (error) {
+	if (sc->msk_msi == 0) {
+		rid = 0;
+		sc->msk_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+		    RF_SHAREABLE | RF_ACTIVE);
+		if (sc->msk_irq[0] == NULL) {
+			device_printf(dev, "couldn't allocate IRQ resources\n");
+			error = ENXIO;
+			goto fail;
+		}
+	} else {
+		for (i = 0, rid = 1; i < 2; i++, rid++) {
+			sc->msk_irq[i] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+			    &rid, RF_ACTIVE);
+			if (sc->msk_irq[i] == NULL) {
+				device_printf(dev,
+				    "couldn't allocate IRQ resources\n");
+				error = ENXIO;
+				goto fail;
+			}
+		}
+	}
+#else
+	rid = 0;
+	sc->msk_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
+	if (sc->msk_irq[0] == NULL) {
 		device_printf(dev, "couldn't allocate IRQ resources\n");
+		error = ENXIO;
 		goto fail;
 	}
+#endif
 
 	if ((error = msk_status_dma_alloc(sc)) != 0)
 		goto fail;
@@ -1784,7 +1812,7 @@ mskc_attach(device_t dev)
 	    device_get_nameunit(sc->msk_dev));
 	/* Hook interrupt last to avoid having to lock softc. */
 	error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
-	    INTR_MPSAFE, msk_intr, NULL, sc, &sc->msk_intrhand[0]);
+	    INTR_MPSAFE | INTR_FAST, msk_intr, sc, &sc->msk_intrhand[0]);
 
 	if (error != 0) {
 		device_printf(dev, "couldn't set up interrupt handler\n");
@@ -1904,10 +1932,33 @@ mskc_detach(device_t dev)
 		bus_teardown_intr(dev, sc->msk_irq[0], sc->msk_intrhand[0]);
 		sc->msk_intrhand[1] = NULL;
 	}
-	bus_release_resources(dev, sc->msk_irq_spec, sc->msk_irq);
-	if (sc->msk_msi)
+#ifdef	MSI_SUPPORT
+	if (sc->msk_msi) {
+		int i, rid;
+		for (i = 0, rid = 1; i < 2; i++, rid++) {
+			if (sc->msk_irq[i] != NULL) {
+				bus_release_resource(dev, SYS_RES_IRQ, rid,
+				    sc->msk_irq[i]);
+				sc->msk_irq[i] = NULL;
+			}
+		}
 		pci_release_msi(dev);
-	bus_release_resources(dev, sc->msk_res_spec, sc->msk_res);
+	} else {
+		if (sc->msk_irq[0] != NULL) {
+			bus_release_resource(dev, SYS_RES_IRQ, 0,
+			    sc->msk_irq[0]);
+			sc->msk_irq[0] = NULL;
+		}
+	}
+#else
+	if (sc->msk_irq[0] != NULL) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->msk_irq[0]);
+		sc->msk_irq[0] = NULL;
+	}
+#endif
+	if (sc->msk_res[0] != NULL)
+		bus_release_resource(dev, sc->msk_res_type, sc->msk_res_id,
+		    sc->msk_res[0]);
 	mtx_destroy(&sc->msk_mtx);
 
 	return (0);
@@ -2627,10 +2678,14 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	struct msk_txdesc *txd, *txd_last;
 	struct msk_tx_desc *tx_le;
 	struct mbuf *m;
+	struct m_tag *mtag;
 	bus_dmamap_t map;
 	bus_dma_segment_t txsegs[MSK_MAXTXSEGS];
 	uint32_t control, prod, si;
-	uint16_t offset, tcp_offset, tso_mtu;
+	uint16_t offset, tcp_offset;
+#ifdef	TSO_SUPPORT
+	uint16_t tso_mtu;
+#endif
 	int error, i, nseg, tso;
 
 	MSK_IF_LOCK_ASSERT(sc_if);
@@ -2733,6 +2788,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	tx_le = NULL;
 
 	/* Check TSO support. */
+#ifdef	TSO_SUPPORT
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 		tso_mtu = offset + m->m_pkthdr.tso_segsz;
 		if (tso_mtu != sc_if->msk_cdata.msk_tso_mtu) {
@@ -2745,18 +2801,20 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		}
 		tso++;
 	}
+#endif
 	/* Check if we have a VLAN tag to insert. */
-	if ((m->m_flags & M_VLANTAG) != 0) {
+	mtag = VLAN_OUTPUT_TAG(sc_if->msk_ifp, m);
+	if (mtag != NULL) {
 		if (tso == 0) {
 			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
 			tx_le->msk_addr = htole32(0);
 			tx_le->msk_control = htole32(OP_VLAN | HW_OWNER |
-			    htons(m->m_pkthdr.ether_vtag));
+			    htons(VLAN_TAG_VALUE(mtag)));
 			sc_if->msk_cdata.msk_tx_cnt++;
 			MSK_INC(prod, MSK_TX_RING_CNT);
 		} else {
 			tx_le->msk_control |= htole32(OP_VLAN |
-			    htons(m->m_pkthdr.ether_vtag));
+			    htons(VLAN_TAG_VALUE(mtag)));
 		}
 		control |= INS_VLAN;
 	}
@@ -3055,8 +3113,7 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
-			m->m_pkthdr.ether_vtag = sc_if->msk_vtag;
-			m->m_flags |= M_VLANTAG;
+			VLAN_INPUT_TAG_NEW(ifp, m, sc_if->msk_vtag);
 		}
 		MSK_IF_UNLOCK(sc_if);
 		(*ifp->if_input)(ifp, m);
@@ -3108,8 +3165,7 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
-			m->m_pkthdr.ether_vtag = sc_if->msk_vtag;
-			m->m_flags |= M_VLANTAG;
+			VLAN_INPUT_TAG_NEW(ifp, m, sc_if->msk_vtag);
 		}
 		MSK_IF_UNLOCK(sc_if);
 		(*ifp->if_input)(ifp, m);
@@ -3483,7 +3539,7 @@ msk_handle_events(struct msk_softc *sc)
 	return (sc->msk_stat_cons != CSR_READ_2(sc, STAT_PUT_IDX));
 }
 
-static int
+static void
 msk_intr(void *xsc)
 {
 	struct msk_softc *sc;
@@ -3494,11 +3550,10 @@ msk_intr(void *xsc)
 	/* Reading B0_Y2_SP_ISRC2 masks further interrupts. */
 	if (status == 0 || status == 0xffffffff) {
 		CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
-		return (FILTER_STRAY);
+		return;
 	}
 
 	taskqueue_enqueue(sc->msk_tq, &sc->msk_int_task);
-	return (FILTER_HANDLED);
 }
 
 static void
