@@ -1,3 +1,16 @@
+# ------------------------------------------------------------------
+# This file is part of bzip2/libbzip2, a program and library for
+# lossless, block-sorting data compression.
+#
+# bzip2/libbzip2 version 1.0.4 of 20 December 2006
+# Copyright (C) 1996-2006 Julian Seward <jseward@bzip.org>
+#
+# Please read the WARNING, DISCLAIMER and PATENTS sections in the 
+# README file.
+#
+# This program is released under the terms of the license contained
+# in the file LICENSE.
+# ------------------------------------------------------------------
 
 SHELL=/bin/sh
 
@@ -8,10 +21,10 @@ RANLIB=ranlib
 LDFLAGS=
 
 BIGFILES=-D_FILE_OFFSET_BITS=64
-CFLAGS=-Wall -Winline -O -g $(BIGFILES)
+CFLAGS=-Wall -Winline -O2 -g $(BIGFILES)
 
 # Where you want it installed when you do 'make install'
-PREFIX=/usr
+PREFIX=/usr/local
 
 
 OBJS= blocksort.o  \
@@ -77,14 +90,14 @@ install: bzip2 bzip2recover
 	cp -f libbz2.a $(PREFIX)/lib
 	chmod a+r $(PREFIX)/lib/libbz2.a
 	cp -f bzgrep $(PREFIX)/bin/bzgrep
-	ln $(PREFIX)/bin/bzgrep $(PREFIX)/bin/bzegrep
-	ln $(PREFIX)/bin/bzgrep $(PREFIX)/bin/bzfgrep
+	ln -s -f $(PREFIX)/bin/bzgrep $(PREFIX)/bin/bzegrep
+	ln -s -f $(PREFIX)/bin/bzgrep $(PREFIX)/bin/bzfgrep
 	chmod a+x $(PREFIX)/bin/bzgrep
 	cp -f bzmore $(PREFIX)/bin/bzmore
-	ln $(PREFIX)/bin/bzmore $(PREFIX)/bin/bzless
+	ln -s -f $(PREFIX)/bin/bzmore $(PREFIX)/bin/bzless
 	chmod a+x $(PREFIX)/bin/bzmore
 	cp -f bzdiff $(PREFIX)/bin/bzdiff
-	ln $(PREFIX)/bin/bzdiff $(PREFIX)/bin/bzcmp
+	ln -s -f $(PREFIX)/bin/bzdiff $(PREFIX)/bin/bzcmp
 	chmod a+x $(PREFIX)/bin/bzdiff
 	cp -f bzgrep.1 bzmore.1 bzdiff.1 $(PREFIX)/man/man1
 	chmod a+r $(PREFIX)/man/man1/bzgrep.1
@@ -124,10 +137,10 @@ bzip2recover.o: bzip2recover.c
 distclean: clean
 	rm -f manual.ps manual.html manual.pdf
 
-DISTNAME=bzip2-1.0.3
+DISTNAME=bzip2-1.0.4
 dist: check manual
 	rm -f $(DISTNAME)
-	ln -sf . $(DISTNAME)
+	ln -s -f . $(DISTNAME)
 	tar cvf $(DISTNAME).tar \
 	   $(DISTNAME)/blocksort.c \
 	   $(DISTNAME)/huffman.c \
@@ -167,7 +180,6 @@ dist: check manual
 	   $(DISTNAME)/libbz2.dsp \
 	   $(DISTNAME)/dlltest.dsp \
 	   $(DISTNAME)/makefile.msc \
-	   $(DISTNAME)/Y2K_INFO \
 	   $(DISTNAME)/unzcrash.c \
 	   $(DISTNAME)/spewG.c \
 	   $(DISTNAME)/mk251.c \
