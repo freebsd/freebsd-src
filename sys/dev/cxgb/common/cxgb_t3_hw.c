@@ -684,7 +684,8 @@ enum {
 	SF_ERASE_SECTOR = 0xd8,    /* erase sector */
 
 	FW_FLASH_BOOT_ADDR = 0x70000, /* start address of FW in flash */
-	FW_VERS_ADDR = 0x77ffc     /* flash address holding FW version */
+	FW_VERS_ADDR = 0x77ffc,    /* flash address holding FW version */
+	FW_MIN_SIZE = 8            /* at least version and csum */
 };
 
 /**
@@ -887,12 +888,13 @@ int t3_check_fw_version(adapter_t *adapter)
 	major = G_FW_VERSION_MAJOR(vers);
 	minor = G_FW_VERSION_MINOR(vers);
 
-	if (type == FW_VERSION_T3 && major == CHELSIO_FW_MAJOR && minor == CHELSIO_FW_MINOR)
+	if (type == FW_VERSION_T3 && major == FW_VERSION_MAJOR &&
+	    minor == FW_VERSION_MINOR)
 		return 0;
 
 	CH_ERR(adapter, "found wrong FW version(%u.%u), "
 	    "driver needs version %d.%d\n", major, minor,
-	    CHELSIO_FW_MAJOR, CHELSIO_FW_MINOR);
+	    FW_VERSION_MAJOR, FW_VERSION_MINOR);
 	return -EINVAL;
 }
 
@@ -937,7 +939,7 @@ int t3_load_fw(adapter_t *adapter, const u8 *fw_data, unsigned int size)
 	const u32 *p = (const u32 *)fw_data;
 	int ret, addr, fw_sector = FW_FLASH_BOOT_ADDR >> 16;
 
-	if (size & 3)
+	if ((size & 3) || (size < FW_MIN_SIZE))
 		return -EINVAL;
 	if (size > FW_VERS_ADDR + 8 - FW_FLASH_BOOT_ADDR)
 		return -EFBIG;
@@ -1558,7 +1560,6 @@ int t3_slow_intr_handler(adapter_t *adapter)
 	if (!cause)
 		return 0;
 
-	printf("slow intr handler\n");
 	if (cause & F_PCIM0) {
 		if (is_pcie(adapter))
 			pcie_intr_handler(adapter);
@@ -2353,7 +2354,7 @@ static void tp_config(adapter_t *adap, const struct tp_params *p)
 		     F_TCPCHECKSUMOFFLOAD | V_IPTTL(64));
 	t3_write_reg(adap, A_TP_TCP_OPTIONS, V_MTUDEFAULT(576) |
 		     F_MTUENABLE | V_WINDOWSCALEMODE(1) |
-		     V_TIMESTAMPSMODE(1) | V_SACKMODE(1) | V_SACKRX(1));
+		     V_TIMESTAMPSMODE(0) | V_SACKMODE(1) | V_SACKRX(1));
 	t3_write_reg(adap, A_TP_DACK_CONFIG, V_AUTOSTATE3(1) |
 		     V_AUTOSTATE2(1) | V_AUTOSTATE1(0) |
 		     V_BYTETHRESHOLD(16384) | V_MSSTHRESHOLD(2) |
@@ -2380,13 +2381,14 @@ static void tp_config(adapter_t *adap, const struct tp_params *p)
 	} else
 		t3_set_reg_field(adap, A_TP_PARA_REG3, 0, F_TXPACEFIXED);
 
-	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT1, 0x12121212);
-	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT0, 0x12121212);
-	t3_write_reg(adap, A_TP_MOD_CHANNEL_WEIGHT, 0x1212);
+	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT1, 0);
+	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT0, 0);
+	t3_write_reg(adap, A_TP_MOD_CHANNEL_WEIGHT, 0);
+	t3_write_reg(adap, A_TP_MOD_RATE_LIMIT, 0);
 }
 
 /* Desired TP timer resolution in usec */
-#define TP_TMR_RES 50
+#define TP_TMR_RES 200
 
 /* TCP timer values in ms */
 #define TP_DACK_TIMER 50
@@ -2403,7 +2405,7 @@ static void tp_config(adapter_t *adap, const struct tp_params *p)
 static void tp_set_timers(adapter_t *adap, unsigned int core_clk)
 {
 	unsigned int tre = fls(core_clk / (1000000 / TP_TMR_RES)) - 1;
-	unsigned int dack_re = fls(core_clk / 5000) - 1;   /* 200us */
+	unsigned int dack_re = adap->params.tp.dack_re;
 	unsigned int tstamp_re = fls(core_clk / 1000);     /* 1ms, at least */
 	unsigned int tps = core_clk >> tre;
 
@@ -2489,10 +2491,11 @@ static void __devinit init_mtus(unsigned short mtus[])
 	 * are enabled and still have at least 8 bytes of payload.
 	 */
 	mtus[0] = 88;
-	mtus[1] = 256;
-	mtus[2] = 512;
-	mtus[3] = 576;
-	mtus[4] = 808;
+	mtus[1] = 88; /* workaround for silicon starting at 1 */
+	mtus[2] = 256;
+	mtus[3] = 512;
+	mtus[4] = 576;
+	/* mtus[4] = 808; */
 	mtus[5] = 1024;
 	mtus[6] = 1280;
 	mtus[7] = 1492;
@@ -2648,6 +2651,42 @@ void t3_tp_get_mib_stats(adapter_t *adap, struct tp_mib_stats *tps)
 			 sizeof(*tps) / sizeof(u32), 0);
 }
 
+/**
+ *	t3_read_pace_tbl - read the pace table
+ *	@adap: the adapter
+ *	@pace_vals: holds the returned values
+ *
+ *	Returns the values of TP's pace table in nanoseconds.
+ */
+void t3_read_pace_tbl(adapter_t *adap, unsigned int pace_vals[NTX_SCHED])
+{
+	unsigned int i, tick_ns = dack_ticks_to_usec(adap, 1000);
+
+	for (i = 0; i < NTX_SCHED; i++) {
+		t3_write_reg(adap, A_TP_PACE_TABLE, 0xffff0000 + i);
+		pace_vals[i] = t3_read_reg(adap, A_TP_PACE_TABLE) * tick_ns;
+	}
+}
+
+/**
+ *	t3_set_pace_tbl - set the pace table
+ *	@adap: the adapter
+ *	@pace_vals: the pace values in nanoseconds
+ *	@start: index of the first entry in the HW pace table to set
+ *	@n: how many entries to set
+ *
+ *	Sets (a subset of the) HW pace table.
+ */
+void t3_set_pace_tbl(adapter_t *adap, unsigned int *pace_vals,
+		     unsigned int start, unsigned int n)
+{
+	unsigned int tick_ns = dack_ticks_to_usec(adap, 1000);
+
+	for ( ; n; n--, start++, pace_vals++)
+		t3_write_reg(adap, A_TP_PACE_TABLE, (start << 16) |
+			     ((*pace_vals + tick_ns / 2) / tick_ns));
+}
+
 #define ulp_region(adap, name, start, len) \
 	t3_write_reg((adap), A_ULPRX_ ## name ## _LLIMIT, (start)); \
 	t3_write_reg((adap), A_ULPRX_ ## name ## _ULIMIT, \
@@ -2712,7 +2751,7 @@ void t3_config_trace_filter(adapter_t *adapter, const struct trace_params *tp,
  *	@kbps: target rate in Kbps
  *	@sched: the scheduler index
  *
- *	Configure a HW scheduler for the target rate
+ *	Configure a Tx HW scheduler for the target rate.
  */
 int t3_config_sched(adapter_t *adap, unsigned int kbps, int sched)
 {
@@ -2748,6 +2787,75 @@ int t3_config_sched(adapter_t *adap, unsigned int kbps, int sched)
 		v = (v & 0xffff0000) | selected_cpt | (selected_bpt << 8);
 	t3_write_reg(adap, A_TP_TM_PIO_DATA, v);
 	return 0;
+}
+
+/**
+ *	t3_set_sched_ipg - set the IPG for a Tx HW packet rate scheduler
+ *	@adap: the adapter
+ *	@sched: the scheduler index
+ *	@ipg: the interpacket delay in tenths of nanoseconds
+ *
+ *	Set the interpacket delay for a HW packet rate scheduler.
+ */
+int t3_set_sched_ipg(adapter_t *adap, int sched, unsigned int ipg)
+{
+	unsigned int v, addr = A_TP_TX_MOD_Q1_Q0_TIMER_SEPARATOR - sched / 2;
+
+	/* convert ipg to nearest number of core clocks */
+	ipg *= core_ticks_per_usec(adap);
+	ipg = (ipg + 5000) / 10000;
+	if (ipg > 0xffff)
+		return -EINVAL;
+
+	t3_write_reg(adap, A_TP_TM_PIO_ADDR, addr);
+	v = t3_read_reg(adap, A_TP_TM_PIO_DATA);
+	if (sched & 1)
+		v = (v & 0xffff) | (ipg << 16);
+	else
+		v = (v & 0xffff0000) | ipg;
+	t3_write_reg(adap, A_TP_TM_PIO_DATA, v);
+	t3_read_reg(adap, A_TP_TM_PIO_DATA);
+	return 0;
+}
+
+/**
+ *	t3_get_tx_sched - get the configuration of a Tx HW traffic scheduler
+ *	@adap: the adapter
+ *	@sched: the scheduler index
+ *	@kbps: the byte rate in Kbps
+ *	@ipg: the interpacket delay in tenths of nanoseconds
+ *
+ *	Return the current configuration of a HW Tx scheduler.
+ */
+void t3_get_tx_sched(adapter_t *adap, unsigned int sched, unsigned int *kbps,
+		     unsigned int *ipg)
+{
+	unsigned int v, addr, bpt, cpt;
+
+	if (kbps) {
+		addr = A_TP_TX_MOD_Q1_Q0_RATE_LIMIT - sched / 2;
+		t3_write_reg(adap, A_TP_TM_PIO_ADDR, addr);
+		v = t3_read_reg(adap, A_TP_TM_PIO_DATA);
+		if (sched & 1)
+			v >>= 16;
+		bpt = (v >> 8) & 0xff;
+		cpt = v & 0xff;
+		if (!cpt)
+			*kbps = 0;        /* scheduler disabled */
+		else {
+			v = (adap->params.vpd.cclk * 1000) / cpt;
+			*kbps = (v * bpt) / 125;
+		}
+	}
+	if (ipg) {
+		addr = A_TP_TX_MOD_Q1_Q0_TIMER_SEPARATOR - sched / 2;
+		t3_write_reg(adap, A_TP_TM_PIO_ADDR, addr);
+		v = t3_read_reg(adap, A_TP_TM_PIO_DATA);
+		if (sched & 1)
+			v >>= 16;
+		v &= 0xffff;
+		*ipg = (10000 * v) / core_ticks_per_usec(adap);
+	}
 }
 
 static int tp_init(adapter_t *adap, const struct tp_params *p)
@@ -3249,10 +3357,11 @@ void early_hw_init(adapter_t *adapter, const struct adapter_info *ai)
  */
 int t3_reset_adapter(adapter_t *adapter)
 {
-    int i;
-    uint16_t devid = 0;
+	int i, save_and_restore_pcie =
+	    adapter->params.rev < T3_REV_B2 && is_pcie(adapter);
+	uint16_t devid = 0;
 
-	if (is_pcie(adapter))
+	if (save_and_restore_pcie)
 		t3_os_pci_save_state(adapter);
 	t3_write_reg(adapter, A_PL_RST, F_CRSTWRM | F_CRSTWRMMODE);
 
@@ -3270,7 +3379,7 @@ int t3_reset_adapter(adapter_t *adapter)
 	if (devid != 0x1425)
 		return -1;
 
-	if (is_pcie(adapter))
+	if (save_and_restore_pcie)
 		t3_os_pci_restore_state(adapter);
 	return 0;
 }
@@ -3325,6 +3434,7 @@ int __devinit t3_prep_adapter(adapter_t *adapter,
 		p->tx_num_pgs = pm_num_pages(p->chan_tx_size, p->tx_pg_size);
 		p->ntimer_qs = p->cm_size >= (128 << 20) ||
 			       adapter->params.rev > 0 ? 12 : 6;
+		p->dack_re = fls(adapter->params.vpd.cclk / 10) - 1; /* 100us */
 
 		adapter->params.mc5.nservers = DEFAULT_NSERVERS;
 		adapter->params.mc5.nfilters = adapter->params.rev > 0 ?

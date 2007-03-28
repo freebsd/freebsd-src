@@ -32,10 +32,14 @@ POSSIBILITY OF SUCH DAMAGE.
 $FreeBSD$
 
 ***************************************************************************/
-
+/*
+ * Note that although this driver doesn't contain all of the functionality of the Linux driver
+ * the common code is 99% the same. Hence we keep the same version number to indicate what linux
+ * driver the common code corresponds to.
+ */
 #ifndef __CHELSIO_VERSION_H
 #define __CHELSIO_VERSION_H
 #define DRV_DESC "Chelsio T3 Network Driver"
 #define DRV_NAME "cxgb"
-#define DRV_VERSION "1.0"
+#define DRV_VERSION "1.0.071"
 #endif 
