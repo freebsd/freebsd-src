@@ -58,14 +58,10 @@ extern "C" {
 
 
 #if defined(__i386__) || defined(__powerpc__) || defined(__arm__)
-/* The word size of the default bfd target.  */
-#define BFD_DEFAULT_TARGET_SIZE 32
 #define BFD_HOST_64BIT_LONG 0
 #define BFD_HOST_64_BIT long long
 #define BFD_HOST_U_64_BIT unsigned long long
 #elif defined(__alpha__) || defined(__sparc64__) || defined(__amd64__) || defined(__ia64__)
-/* The word size of the default bfd target.  */
-#define BFD_DEFAULT_TARGET_SIZE 64
 #define BFD_HOST_64BIT_LONG 1
 #define BFD_HOST_64_BIT long
 #define BFD_HOST_U_64_BIT unsigned long
