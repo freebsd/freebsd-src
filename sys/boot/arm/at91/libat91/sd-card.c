@@ -157,8 +157,9 @@ MCI_GetStatus()
 static int
 MCI_ReadBlock(int src, unsigned int *dataBuffer, int sizeToRead)
 {
-	unsigned log2sl = MCI_Device.READ_BL_LEN;
-	unsigned sectorLength = 1 << log2sl;
+//	unsigned log2sl = MCI_Device.READ_BL_LEN;
+//	unsigned sectorLength = 1 << log2sl;
+	unsigned sectorLength = 512;
 
 	///////////////////////////////////////////////////////////////////////
 	if (MCI_Device.state != AT91C_MCI_IDLE)
@@ -195,8 +196,9 @@ MCI_ReadBlock(int src, unsigned int *dataBuffer, int sizeToRead)
 int
 MCI_read(char* dest, unsigned source, unsigned length)
 {
-	unsigned log2sl = MCI_Device.READ_BL_LEN;
-	unsigned sectorLength = 1 << log2sl;
+//	unsigned log2sl = MCI_Device.READ_BL_LEN;
+//	unsigned sectorLength = 1 << log2sl;
+	unsigned sectorLength = 512;
 	int sizeToRead;
 	unsigned int *walker;
 
