@@ -81,7 +81,9 @@ ns8250_delay(struct uart_bas *bas)
 	uart_barrier(bas);
 
 	/* 1/10th the time to transmit 1 character (estimate). */
-	return (16000000 * divisor / bas->rclk);
+	if (divisor <= 134)
+		return (16000000 * divisor / bas->rclk);
+	return (16000 * divisor / (bas->rclk / 1000));
 }
 
 static int
