@@ -71,7 +71,6 @@ struct port_info {
 	struct cphy	phy;
 	struct cmac	mac;
 	struct link_config link_config;
-	int		activity;
 	struct ifmedia	media;	
 	struct mtx	lock;
 	
@@ -227,6 +226,7 @@ struct sge_qset {
        	unsigned long           txq_stopped;       /* which Tx queues are stopped */
 	uint64_t                port_stats[SGE_PSTAT_MAX];
 	struct port_info        *port;
+	int                     idx; /* qset # */
 };
 
 struct sge {
@@ -244,6 +244,7 @@ struct adapter {
 	bus_space_handle_t	bh;
 	bus_space_tag_t		bt;
 	bus_size_t              mmio_len;
+	uint32_t                link_width;
 	
 	/* DMA resources */
 	bus_dma_tag_t		parent_dmat;
@@ -411,7 +412,7 @@ void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p);
 /*
  * XXX figure out how we can return this to being private to sge
  */
-#define desc_reclaimable(q) ((q)->processed - (q)->cleaned - TX_MAX_DESC)
+#define desc_reclaimable(q) ((int)((q)->processed - (q)->cleaned - TX_MAX_DESC))
 
 #define container_of(p, stype, field) ((stype *)(((uint8_t *)(p)) - offsetof(stype, field))) 
 

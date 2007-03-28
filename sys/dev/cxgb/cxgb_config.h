@@ -38,8 +38,6 @@ $FreeBSD$
 
 #ifndef CONFIG_DEFINED
 #define CONFIG_CHELSIO_T3_CORE
-#define CHELSIO_FW_MAJOR 3
-#define CHELSIO_FW_MINOR 2
 #define DEFAULT_JUMBO
 #endif
 

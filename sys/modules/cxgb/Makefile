@@ -9,7 +9,6 @@ SRCS+=	cxgb_xgmac.c cxgb_t3_hw.c cxgb_main.c cxgb_sge.c cxgb_lro.c
 SRCS+=	device_if.h bus_if.h pci_if.h
 
 CFLAGS+= -DCONFIG_CHELSIO_T3_CORE -g -DDEFAULT_JUMBO -DCONFIG_DEFINED
-CFLAGS+= -DCHELSIO_FW_MAJOR=3 -DCHELSIO_FW_MINOR=2
 
 .if ${MACHINE_ARCH} != "ia64"
 # ld is broken on ia64
