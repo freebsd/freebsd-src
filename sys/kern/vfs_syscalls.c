@@ -1018,11 +1018,6 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		}
 
 		/*
-		 * release our own reference
-		 */
-		fdrop(fp, td);
-
-		/*
 		 * handle special fdopen() case.  bleh.  dupfdopen() is
 		 * responsible for dropping the old contents of ofiles[indx]
 		 * if it succeeds.
@@ -1032,6 +1027,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		    (error =
 			dupfdopen(td, fdp, indx, td->td_dupfd, flags, error)) == 0) {
 			td->td_retval[0] = indx;
+			fdrop(fp, td);
 			return (0);
 		}
 		/*
@@ -1039,6 +1035,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		 * replaced or closed it.
 		 */
 		fdclose(fdp, fp, indx, td);
+		fdrop(fp, td);
 
 		if (error == ERESTART)
 			error = EINTR;
