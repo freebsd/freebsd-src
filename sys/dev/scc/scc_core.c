@@ -162,6 +162,10 @@ scc_bfe_attach(device_t dev)
 		resource_list_init(&ch->ch_rlist);
 		ch->ch_nr = c + 1;
 
+		if (!SCC_ENABLED(sc, ch))
+			goto next;
+
+		ch->ch_enabled = 1;
 		resource_list_add(&ch->ch_rlist, sc->sc_rtype, 0, start,
 		    start + sz - 1, sz);
 		rle = resource_list_find(&ch->ch_rlist, sc->sc_rtype, 0);
@@ -192,6 +196,7 @@ scc_bfe_attach(device_t dev)
 			}
 		}
 
+	 next:
 		start += (cl->cl_range < 0) ? -size : size;
 		sysdev |= ch->ch_sysdev;
 	}
