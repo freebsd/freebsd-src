@@ -170,7 +170,7 @@ Boolean		fexists(const char *);
 Boolean		isdir(const char *);
 Boolean		isemptydir(const char *fname);
 Boolean		isemptyfile(const char *fname);
-Boolean         isfile(const char *);
+Boolean		isfile(const char *);
 Boolean		isempty(const char *);
 Boolean		issymlink(const char *);
 Boolean		isURL(const char *);
