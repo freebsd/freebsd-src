@@ -103,7 +103,7 @@ scc_bfe_attach(device_t dev)
 	struct scc_softc *sc, *sc0;
 	const char *sep;
 	bus_space_handle_t bh;
-	u_long base, size, start;
+	u_long base, size, start, sz;
 	int c, error, mode, sysdev;
 
 	/*
@@ -155,6 +155,7 @@ scc_bfe_attach(device_t dev)
 	 */
 	sysdev = 0;
 	base = rman_get_start(sc->sc_rres);
+	sz = (size != 0) ? size : rman_get_size(sc->sc_rres);
 	start = base + ((cl->cl_range < 0) ? size * (cl->cl_channels - 1) : 0);
 	for (c = 0; c < cl->cl_channels; c++) {
 		ch = &sc->sc_chan[c];
@@ -162,11 +163,11 @@ scc_bfe_attach(device_t dev)
 		ch->ch_nr = c + 1;
 
 		resource_list_add(&ch->ch_rlist, sc->sc_rtype, 0, start,
-		    start + size - 1, size);
+		    start + sz - 1, sz);
 		rle = resource_list_find(&ch->ch_rlist, sc->sc_rtype, 0);
 		rle->res = &ch->ch_rres;
 		bus_space_subregion(rman_get_bustag(sc->sc_rres),
-		    rman_get_bushandle(sc->sc_rres), start - base, size, &bh);
+		    rman_get_bushandle(sc->sc_rres), start - base, sz, &bh);
 		rman_set_bushandle(rle->res, bh);
 		rman_set_bustag(rle->res, rman_get_bustag(sc->sc_rres));
 
@@ -336,7 +337,7 @@ scc_bfe_probe(device_t dev, u_int regshft, u_int rclk, u_int rid)
 {
 	struct scc_softc *sc;
 	struct scc_class *cl;
-	u_long size;
+	u_long size, sz;
 	int error;
 
 	/*
@@ -378,9 +379,10 @@ scc_bfe_probe(device_t dev, u_int regshft, u_int rclk, u_int rid)
 	 * Fill in the bus access structure and call the hardware specific
 	 * probe method.
 	 */
+	sz = (size != 0) ? size : rman_get_size(sc->sc_rres);
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
-	sc->sc_bas.range = size;
+	sc->sc_bas.range = sz;
 	sc->sc_bas.rclk = rclk;
 	sc->sc_bas.regshft = regshft;
 
