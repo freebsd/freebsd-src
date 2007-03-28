@@ -154,6 +154,18 @@ acpi_hpet_detach(device_t dev)
 	return (EBUSY);
 }
 
+static int
+acpi_hpet_resume(device_t dev)
+{
+	struct acpi_hpet_softc *sc;
+
+	/* Re-enable the timer after a resume to keep the clock advancing. */
+	sc = device_get_softc(dev);
+	bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 1);
+
+	return (0);
+}
+
 /* Print some basic latency/rate information to assist in debugging. */
 static void
 acpi_hpet_test(struct acpi_hpet_softc *sc)
@@ -188,6 +200,7 @@ static device_method_t acpi_hpet_methods[] = {
 	DEVMETHOD(device_probe, acpi_hpet_probe),
 	DEVMETHOD(device_attach, acpi_hpet_attach),
 	DEVMETHOD(device_detach, acpi_hpet_detach),
+	DEVMETHOD(device_resume, acpi_hpet_resume),
 
 	{0, 0}
 };
