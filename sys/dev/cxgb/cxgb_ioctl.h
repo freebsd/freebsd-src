@@ -110,6 +110,8 @@ struct ch_qset_params {
 	int32_t  intr_lat;
 	int32_t  polling;
 	int32_t  cong_thres;
+	int32_t  vector;
+	int32_t  qnum;
 };
 
 struct ch_pktsched_params {
@@ -119,6 +121,16 @@ struct ch_pktsched_params {
 	uint8_t  min;
 	uint8_t  max;
 	uint8_t  binding;
+};
+
+struct ch_hw_sched {
+	uint32_t cmd;
+	uint8_t  sched;
+	int8_t   mode;
+	int8_t   channel;
+	int32_t  kbps;        /* rate in Kbps */
+	int32_t  class_ipg;   /* tenths of nanoseconds */
+	int32_t  flow_ipg;    /* usec */
 };
 
 #ifndef TCB_SIZE

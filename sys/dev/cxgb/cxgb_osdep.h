@@ -82,6 +82,7 @@ struct t3_mbuf_hdr {
 
 #define CXGB_TX_CLEANUP_THRESHOLD 32
 
+#define LOG_WARNING 1
 
 #ifdef DEBUG_PRINT
 #define DPRINTF printf
@@ -139,11 +140,9 @@ static const int debug_flags = DBG_RX;
 #define CH_WARN(adap, fmt, ...)	device_printf(adap->dev, fmt, ##__VA_ARGS__)
 #define CH_ALERT(adap, fmt, ...) device_printf(adap->dev, fmt, ##__VA_ARGS__)
 
-#if __FreeBSD_version < 700000
-#define t3_os_sleep(x) DELAY((x) * 3000)
-#else
-#define t3_os_sleep(x) DELAY((x) * 1000)
-#endif
+#define t3_os_sleep(x) DELAY((x) * 2000)
+
+#define max_t(type, a, b) (type)max((a), (b))
 
 /* Standard PHY definitions */
 #define BMCR_LOOPBACK		BMCR_LOOP

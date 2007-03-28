@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/systm.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -268,13 +269,14 @@ get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct t3_mbuf_hdr *m
 	uint32_t flags = ntohl(resp->flags);       	
 	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
 
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	len = G_RSPD_LEN(ntohl(resp->len_cq));
 	/*
 	 * would be a firmware bug
 	 */
 	if (sopeop == RSPQ_NSOP_NEOP || sopeop == RSPQ_SOP)
 		return (0);
+	
+	m = m_gethdr(M_NOWAIT, MT_DATA);
+	len = G_RSPD_LEN(ntohl(resp->len_cq));
 	
 	if (m) {
 		MH_ALIGN(m, IMMED_PKT_SIZE);
@@ -341,7 +343,12 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 		struct qset_params *q = p->qset + i;
 
 		q->polling = adap->params.rev > 0;
-		q->coalesce_nsecs = 3500;
+
+		if (adap->flags & USING_MSIX)
+			q->coalesce_nsecs = 6000;
+		else
+			q->coalesce_nsecs = 3500;
+		
 		q->rspq_size = RSPQ_Q_SIZE;
 		q->fl_size = FL_Q_SIZE;
 		q->jumbo_size = JUMBO_Q_SIZE;
@@ -456,12 +463,15 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, q->buf_size);
 		
 		if (m == NULL) {
-			printf("Failed to allocate mbuf\n");
+			log(LOG_WARNING, "Failed to allocate mbuf\n");
 			goto done;
 		}
 		
 		if ((sd->flags & RX_SW_DESC_MAP_CREATED) == 0) {
-			bus_dmamap_create(sc->rx_jumbo_dmat, 0, &sd->map);
+			if ((err = bus_dmamap_create(sc->rx_jumbo_dmat, 0, &sd->map))) {
+				log(LOG_WARNING, "bus_dmamap_create failed %d\n", err);
+				goto done;
+			}
 			sd->flags |= RX_SW_DESC_MAP_CREATED;
 		}
 		sd->flags |= RX_SW_DESC_INUSE;
@@ -470,7 +480,7 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 		err = bus_dmamap_load_mbuf_sg(sc->rx_jumbo_dmat, sd->map, m, &seg,
 		    &nsegs, BUS_DMA_NOWAIT);
 		if (err != 0) {
-			printf("failure in refill_fl %d\n", err);
+			log(LOG_WARNING, "failure in refill_fl %d\n", err);
 			m_freem(m);
 			return;
 		}
@@ -581,11 +591,9 @@ static void
 sge_slow_intr_handler(void *arg, int ncount)
 {
 	adapter_t *sc = arg;
-	
+
 	t3_slow_intr_handler(sc);
 }
-
-
 
 static void
 sge_timer_cb(void *arg)
@@ -633,8 +641,10 @@ void
 t3_sge_deinit_sw(adapter_t *sc)
 {
 	callout_drain(&sc->sge_timer_ch);
-	taskqueue_drain(sc->tq, &sc->timer_reclaim_task);
-	taskqueue_drain(sc->tq, &sc->slow_intr_task);
+	if (sc->tq) {
+		taskqueue_drain(sc->tq, &sc->timer_reclaim_task);
+		taskqueue_drain(sc->tq, &sc->slow_intr_task);
+	}
 }
 
 /**
@@ -660,24 +670,24 @@ static void
 sge_timer_reclaim(void *arg, int ncount)
 {
 	adapter_t *sc = arg;
-	int i, j, nqsets = 0;
+	int i, nqsets = 0;
 	struct sge_qset *qs;
 	struct sge_txq *txq;
 	struct mtx *lock;
 	struct mbuf *m_vec[TX_CLEAN_MAX_DESC];
-	int n;
+	int n, reclaimable;
 	/* 
 	 * XXX assuming these quantities are allowed to change during operation
 	 */
-	for (i = 0; i < sc->params.nports; i++) {		
-		for (j = 0; j < sc->port[i].nqsets; j++)
-			nqsets++;
-	}
+	for (i = 0; i < sc->params.nports; i++) 
+		nqsets += sc->port[i].nqsets;
+
 	for (i = 0; i < nqsets; i++) {
 		qs = &sc->sge.qs[i];
 		txq = &qs->txq[TXQ_ETH];
-		if (desc_reclaimable(txq) > 0) {
-			mtx_lock(&txq->lock);
+		reclaimable = desc_reclaimable(txq);
+		if (reclaimable > 0) {
+			mtx_lock(&txq->lock);			
 			n = reclaim_completed_tx(sc, txq, TX_CLEAN_MAX_DESC, m_vec);
 			mtx_unlock(&txq->lock);
 			
@@ -687,7 +697,8 @@ sge_timer_reclaim(void *arg, int ncount)
 		} 
 		    
 		txq = &qs->txq[TXQ_OFLD];
-		if (desc_reclaimable(txq) > 0) {
+		reclaimable = desc_reclaimable(txq);
+		if (reclaimable > 0) {
 			mtx_lock(&txq->lock);
 			n = reclaim_completed_tx(sc, txq, TX_CLEAN_MAX_DESC, m_vec);
 			mtx_unlock(&txq->lock);
@@ -697,17 +708,16 @@ sge_timer_reclaim(void *arg, int ncount)
 			}
 		}
 
-		
 		lock = (sc->flags & USING_MSIX) ? &qs->rspq.lock :
 			    &sc->sge.qs[0].rspq.lock;
 
 		if (mtx_trylock(lock)) {
 			/* XXX currently assume that we are *NOT* polling */
 			uint32_t status = t3_read_reg(sc, A_SG_RSPQ_FL_STATUS);
-			
-			if (qs->fl[0].credits < qs->fl[0].size)
+
+			if (qs->fl[0].credits < qs->fl[0].size - 16)
 				__refill_fl(sc, &qs->fl[0]);
-			if (qs->fl[1].credits < qs->fl[1].size)
+			if (qs->fl[1].credits < qs->fl[1].size - 16)
 				__refill_fl(sc, &qs->fl[1]);
 			
 			if (status & (1 << qs->rspq.cntxt_id)) {
@@ -1850,14 +1860,16 @@ check_ring_db(adapter_t *adap, struct sge_qset *qs,
  * to work around lack of ithread affinity
  */
 static void
-bind_ithread(void)
+bind_ithread(int cpu)
 {
+	KASSERT(cpu < mp_ncpus, ("invalid cpu identifier"));
+#if 0	
 	if (mp_ncpus > 1) {
 		mtx_lock_spin(&sched_lock);
-		sched_bind(curthread, 1);
+		sched_bind(curthread, cpu);
 		mtx_unlock_spin(&sched_lock);
 	}
-
+#endif
 }
 
 /**
@@ -1884,7 +1896,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	unsigned int sleeping = 0;
 	int lro = qs->lro.enabled;
 		
-	static int pinned = 0;
+	static uint8_t pinned[MAXCPU];
 
 #ifdef DEBUG	
 	static int last_holdoff = 0;
@@ -1893,9 +1905,12 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 		last_holdoff = rspq->holdoff_tmr;
 	}
 #endif	
-	if (pinned == 0) {
-		bind_ithread();
-		pinned = 1;
+	if (pinned[qs->rspq.cntxt_id * adap->params.nports] == 0) {
+		/*
+		 * Assumes that cntxt_id < mp_ncpus
+		 */
+		bind_ithread(qs->rspq.cntxt_id);
+		pinned[qs->rspq.cntxt_id * adap->params.nports] = 1;
 	}
 	rspq->next_holdoff = rspq->holdoff_tmr;
 
@@ -2088,8 +2103,6 @@ t3_intr_msix(void *data)
 	adapter_t *adap = qs->port->adapter;
 	struct sge_rspq *rspq = &qs->rspq;
 
-	if (cxgb_debug)
-		printf("got msi-x interrupt\n");
 	mtx_lock(&rspq->lock);
 	if (process_responses_gts(adap, rspq) == 0) {
 #ifdef notyet
