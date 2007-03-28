@@ -92,6 +92,7 @@ struct scc_chan {
 	struct scc_mode	ch_mode[SCC_NMODES];
 
 	u_int		ch_nr;
+	int		ch_enabled:1;
 	int		ch_sysdev:1;
 
 	uint32_t	ch_ipend;

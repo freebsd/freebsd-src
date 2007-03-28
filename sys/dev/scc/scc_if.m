@@ -38,6 +38,15 @@
 
 INTERFACE scc;
 
+# Default implementations of some methods.
+CODE {
+	static int
+	default_enabled(struct scc_softc *this, struct scc_chan *ch)
+	{
+		return (1);
+	}
+}
+
 # attach() - attach hardware.
 # This method is called when the device is being attached. All resources
 # have been allocated. The intend of this method is to setup the hardware
@@ -50,6 +59,13 @@ METHOD int attach {
 	int reset;
 };
 
+# enabled()
+METHOD int enabled {
+	struct scc_softc *this;
+	struct scc_chan *chan;
+} DEFAULT default_enabled;
+
+# iclear()
 METHOD void iclear {
 	struct scc_softc *this;
 	struct scc_chan *chan;
