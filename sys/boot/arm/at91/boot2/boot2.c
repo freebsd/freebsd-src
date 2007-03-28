@@ -114,12 +114,10 @@ getstr(int c)
     char *s;
 
     s = cmd;
-    if (c)
-	*s++ = c;
-    for (;;) {
+    if (c == 0)
 	c = getc(10000);
-
-	switch (c = getc(10000)) {
+    for (;;) {
+	switch (c) {
 	case 0:
 	    break;
 	case '\177':
@@ -138,6 +136,7 @@ getstr(int c)
 		*s++ = c;
 	    xputchar(c);
 	}
+	c = getc(10000);
     }
 }
 
@@ -170,7 +169,8 @@ main(void)
 
     /* Present the user with the boot2 prompt. */
 
-    strcpy(kname, PATH_KERNEL);
+    if (*kname == '\0')
+	strcpy(kname, PATH_KERNEL);
     for (;;) {
 	printf("\nDefault: %s\nboot: ", kname);
 	if (!autoboot || (c = getc(2)) != -1)
@@ -252,6 +252,7 @@ parse()
 		opts ^= OPT_SET(flags[i]);
 	    }
 	} else {
+	    arg--;
 	    if ((i = ep - arg)) {
 		if ((size_t)i >= sizeof(kname))
 		    return -1;
