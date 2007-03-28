@@ -412,7 +412,8 @@ MII_GetLinkSpeed(AT91PS_EMAC pEmac)
 				break;
 			printf(".");
 			sec = GetSeconds();
-			while (GetSeconds() <= sec) continue;
+			while (GetSeconds() == sec)
+			    continue;
 		}
 		if (stat2 & MII_STS_LINK_STAT)
 			break;
@@ -541,7 +542,7 @@ TFTP_Download(unsigned address, char *filename)
 	dlAddress = (char*)address;
 	lastSize = 0;
 	timeout = 10;
-	thisSeconds = GetSeconds() + 1;
+	thisSeconds = (GetSeconds() + 2) % 32;
 	serverPort = SWAP16(69);
 	++localPort;
 	ackBlock = -1;
@@ -551,10 +552,10 @@ TFTP_Download(unsigned address, char *filename)
 			if (ackBlock == -2)
 				break;
 			timeout = 10;
-			thisSeconds = GetSeconds() + 1;
-		} else if (GetSeconds() > thisSeconds) {
+			thisSeconds = (GetSeconds() + 2) % 32;
+		} else if (GetSeconds() == thisSeconds) {
 			--timeout;
-			thisSeconds = GetSeconds() + 1;
+			thisSeconds = (GetSeconds() + 2) % 32;
 			if (!serverMACSet)
 				GetServerAddress();
 			else if (ackBlock == -1)

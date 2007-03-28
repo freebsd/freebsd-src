@@ -53,6 +53,7 @@ _init(void)
 	register unsigned	value;
 	volatile sdram_size_t *p = (sdram_size_t *)SDRAM_BASE;
 
+	AT91C_BASE_ST->ST_RTMR = 1;
 #ifdef BOOT_TSC
 	// For the TSC board, we turn ON the one LED we have while
 	// early in boot.
