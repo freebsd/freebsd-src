@@ -64,5 +64,5 @@ p_strlen(const char *buffer)
 	const char *ptr = buffer;
 	while (*ptr++)
 		continue;
-	return (ptr - buffer);
+	return (ptr - buffer - 1);
 }
