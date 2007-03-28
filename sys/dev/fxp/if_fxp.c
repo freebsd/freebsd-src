@@ -178,6 +178,7 @@ static struct fxp_ident fxp_ident_table[] = {
     { 0x1065,	-1,	"Intel 82562ET/EZ/GT/GZ PRO/100 VE Ethernet" },
     { 0x1068,	-1,	"Intel 82801FBM (ICH6-M) Pro/100 VE Ethernet" },
     { 0x1069,	-1,	"Intel 82562EM/EX/GX Pro/100 Ethernet" },
+    { 0x1091,	-1,	"Intel 82562GX Pro/100 Ethernet" },
     { 0x1092,	-1,	"Intel Pro/100 VE Network Connection" },
     { 0x1093,	-1,	"Intel Pro/100 VM Network Connection" },
     { 0x1094,	-1,	"Intel Pro/100 946GZ (ICH7) Network Connection" },
