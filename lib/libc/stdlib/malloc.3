@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2006
+.Dd March 27, 2007
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -202,7 +202,7 @@ will be initialized to 0x5a.
 This is intended for debugging and will impact performance negatively.
 .It K
 Increase/decrease the virtual memory chunk size by a factor of two.
-The default chunk size is 2 MB.
+The default chunk size is 1 MB.
 This option can be specified multiple times.
 .It N
 Increase/decrease the number of arenas by a factor of two.
@@ -294,12 +294,29 @@ improve performance, mainly due to reduced cache performance.
 However, it may make sense to reduce the number of arenas if an application
 does not make much use of the allocation functions.
 .Pp
-Chunks manage their pages by using a power-of-two buddy allocation strategy.
-Each chunk maintains a page map that makes it possible to determine the state
-of any page in the chunk in constant time.
-Allocations that are no larger than one half of a page are managed in groups by
-page
-.Dq runs .
+Memory is conceptually broken into equal-sized chunks, where the chunk size is
+a power of two that is greater than the page size.
+Chunks are always aligned to multiples of the chunk size.
+This alignment makes it possible to find metadata for user objects very
+quickly.
+.Pp
+User objects are broken into three categories according to size: small, large,
+and huge.
+Small objects are no larger than one half of a page.
+Large objects are smaller than the chunk size.
+Huge objects are a multiple of the chunk size.
+Small and large objects are managed by arenas; huge objects are managed
+separately in a single data structure that is shared by all threads.
+Huge objects are used by applications infrequently enough that this single
+data structure is not a scalability issue.
+.Pp
+Each chunk that is managed by an arena tracks its contents in a page map as
+runs of contiguous pages (unused, backing a set of small objects, or backing
+one large object).
+The combination of chunk alignment and chunk page maps makes it possible to
+determine all metadata regarding small and large allocations in constant time.
+.Pp
+Small objects are managed in groups by page runs.
 Each run maintains a bitmap that tracks which regions are in use.
 Allocation requests that are no more than half the quantum (see the
 .Dq Q
@@ -311,12 +328,12 @@ option) are rounded up to the nearest multiple of the quantum.
 Allocation requests that are larger than the maximum quantum-multiple size
 class, but no larger than one half of a page, are rounded up to the nearest
 power of two.
-Allocation requests that are larger than half of a page, but no larger than half
-of a chunk (see the
+Allocation requests that are larger than half of a page, but small enough to
+fit in an arena-managed chunk (see the
 .Dq K
 option), are rounded up to the nearest run size.
-Allocation requests that are larger than half of a chunk are rounded up to the
-nearest multiple of the chunk size.
+Allocation requests that are too large to fit in an arena-managed chunk are
+rounded up to the nearest multiple of the chunk size.
 .Pp
 Allocations are packed tightly together, which can be an issue for
 multi-threaded applications.
@@ -356,7 +373,7 @@ all calls made to these functions.
 Unfortunately this implementation does not provide much detail about
 the problems it detects; the performance impact for storing such information
 would be prohibitive.
-There are a number of allocation implementations available on the Internet
+There are a number of allocator implementations available on the Internet
 which focus on detecting and pinpointing problems by trading performance for
 extra sanity checks and detailed diagnostics.
 .Sh DIAGNOSTIC MESSAGES
