@@ -34,5 +34,5 @@ p_memcmp(const char *to, const char *from, unsigned size)
 	while ((--size) && (*to++ == *from++))
 		continue;
 
-	return (*to != *from);
+	return (size || (*to != *from));
 }
