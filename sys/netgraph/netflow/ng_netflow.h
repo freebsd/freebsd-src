@@ -34,7 +34,7 @@
 #define NG_NETFLOW_NODE_TYPE	"netflow"
 #define NGM_NETFLOW_COOKIE	1137078102
 
-#define	NG_NETFLOW_MAXIFACES	2048
+#define	NG_NETFLOW_MAXIFACES	USHRT_MAX
 
 /* Hook names */
 
