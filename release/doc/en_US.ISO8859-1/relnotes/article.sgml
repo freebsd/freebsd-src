@@ -1864,6 +1864,9 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para><application>BSNMPD</application> has been updated from
       1.11 to 1.12.</para>
 
+    <para><application>BZIP2</application> has been updated from
+      1.0.3 to 1.0.4.</para>
+
     <para><application>DRM</application> has
       been updated to a snapshot from DRI CVS as of 20060517.
       &merged;</para>
@@ -1877,7 +1880,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para><application>netcat</application> has been updated from the
       version in a 4 February 2005 OpenBSD snapshot to the version
-      included in OpenBSD 3.9. &merged;</para>
+      included in OpenBSD 4.1.</para>
 
     <para><application>GCC</application> has been updated from 3.4.4
       to 3.4.6. &merged;</para>
