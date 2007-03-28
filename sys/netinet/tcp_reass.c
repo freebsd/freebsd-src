@@ -726,7 +726,7 @@ findpcb:
 		 */
 		if ((blackhole == 1 && (thflags & TH_SYN)) ||
 		    blackhole == 2)
-			goto drop;
+			goto dropunlock;
 
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
