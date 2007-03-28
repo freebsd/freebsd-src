@@ -234,11 +234,6 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 	struct	mtx ipi_mtx;
 };
 
-/*
- * NB: We cannot enable assertions when IPv6 is configured as
- *     this code is shared by both IPv4 and IPv6 and IPv6 is
- *     not properly locked.
- */
 #define INP_LOCK_INIT(inp, d, t) \
 	mtx_init(&(inp)->inp_mtx, (d), (t), MTX_DEF | MTX_RECURSE | MTX_DUPOK)
 #define INP_LOCK_DESTROY(inp)	mtx_destroy(&(inp)->inp_mtx)
