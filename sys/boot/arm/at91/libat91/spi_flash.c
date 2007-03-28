@@ -256,9 +256,6 @@ SPI_InitFlash(void)
 	value = pSPI->SPI_RDR;
 	value = pSPI->SPI_SR;
 
-	// Increment real time counter every SLCK
-	AT91C_BASE_ST->ST_RTMR = 1;
-
 #ifdef BOOT_BWCT
 	if (((value = GetFlashStatus()) & 0xFC) != 0xB4)
 		printf(" Bad SPI status: 0x%x\n", value);
