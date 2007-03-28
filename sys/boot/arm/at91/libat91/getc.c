@@ -50,13 +50,15 @@ getc(int seconds)
 	AT91PS_USART pUSART = (AT91PS_USART)AT91C_BASE_DBGU;
 	unsigned	thisSecond;
 
+	// Clamp to 20s
+	if (seconds > 20)
+	    seconds = 20;
 	thisSecond = GetSeconds();
 	seconds = thisSecond + seconds;
-
 	do {
 		if ((pUSART->US_CSR & AT91C_US_RXRDY))
 			return (pUSART->US_RHR & 0xFF);
 		thisSecond = GetSeconds();
-	} while (thisSecond < seconds);
+	} while (thisSecond != seconds);
 	return (-1);
 }
