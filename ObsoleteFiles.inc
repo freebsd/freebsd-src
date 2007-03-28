@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070328: bzip2 1.0.4
+OLD_FILES+=usr/share/info/bzip2.info.gz
 # 20070303: libarchive 2.0
 OLD_LIBS+=usr/lib/libarchive.so.3
 # 20070301: remove addr2ascii and ascii2addr
