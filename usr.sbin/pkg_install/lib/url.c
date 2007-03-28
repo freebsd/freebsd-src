@@ -99,13 +99,13 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 	strcpy(fname, spec);
 
     if (keep_package) {
-    	tmp = getenv("PKGDIR");
+	tmp = getenv("PKGDIR");
 	strlcpy(pkg, tmp ? tmp : ".", sizeof(pkg));
 	tmp = basename(fname);
 	strlcat(pkg, "/", sizeof(pkg));
 	strlcat(pkg, tmp, sizeof(pkg));
-    	if ((pkgfd = open(pkg, O_WRONLY|O_CREAT|O_TRUNC, 0644)) == -1) {
-    	    printf("Error: Unable to open %s\n", pkg);
+	if ((pkgfd = open(pkg, O_WRONLY|O_CREAT|O_TRUNC, 0644)) == -1) {
+	    printf("Error: Unable to open %s\n", pkg);
 	    perror("open");
 	    return NULL;
 	}
