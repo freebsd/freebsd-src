@@ -58,7 +58,8 @@ typedef unsigned int sdram_size_t;
 /* Master clock frequency at power-up */
 #define AT91C_MASTER_CLOCK 60000000
 
-#define GetSeconds() (AT91C_BASE_RTC->RTC_TIMR & AT91C_RTC_SEC)
+/* #define GetSeconds() (AT91C_BASE_RTC->RTC_TIMR & AT91C_RTC_SEC) */
+#define GetSeconds() (AT91C_BASE_ST->ST_CRTR >> 15)
 
 extern void _init(void);
 
