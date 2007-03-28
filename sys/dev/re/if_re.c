@@ -182,6 +182,8 @@ static struct rl_type re_devs[] = {
 		"RealTek 8169S Single-chip Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169_8110SB,
 		"RealTek 8169SB/8110SB Single-chip Gigabit Ethernet" },
+	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169_8110SC,
+		"RealTek 8169SC/8110SC Single-chip Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169SC, RL_HWREV_8169_8110SC,
 		"RealTek 8169SC/8110SC Single-chip Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8110S,
