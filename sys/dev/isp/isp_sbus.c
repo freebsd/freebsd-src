@@ -193,8 +193,6 @@ isp_sbus_attach(device_t dev)
 	sbs->sbus_dev = dev;
 	sbs->sbus_reg = regs;
 	sbs->sbus_mdvec = mdvec;
-	isp->isp_bus_tag = rman_get_bustag(regs);
-	isp->isp_bus_handle = rman_get_bushandle(regs);
 
 	sbs->sbus_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
 	sbs->sbus_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = SBUS_MBOX_REGS_OFF;
@@ -202,6 +200,8 @@ isp_sbus_attach(device_t dev)
 	sbs->sbus_poff[RISC_BLOCK >> _BLK_REG_SHFT] = SBUS_RISC_REGS_OFF;
 	sbs->sbus_poff[DMA_BLOCK >> _BLK_REG_SHFT] = DMA_REGS_OFF;
 	isp = &sbs->sbus_isp;
+	isp->isp_bus_tag = rman_get_bustag(regs);
+	isp->isp_bus_handle = rman_get_bushandle(regs);
 	isp->isp_mdvec = &sbs->sbus_mdvec;
 	isp->isp_bustype = ISP_BT_SBUS;
 	isp->isp_type = ISP_HA_SCSI_UNKNOWN;
