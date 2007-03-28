@@ -1121,9 +1121,9 @@ remove_dyn_rule(struct ip_fw *rule, ipfw_dyn_rule *keep_me)
 	if (ipfw_dyn_v == NULL || dyn_count == 0)
 		return;
 	/* do not expire more than once per second, it is useless */
-	if (!FORCE && last_remove == time_second)
+	if (!FORCE && last_remove == time_uptime)
 		return;
-	last_remove = time_second;
+	last_remove = time_uptime;
 
 	/*
 	 * because O_LIMIT refer to parent rules, during the first pass only
@@ -1155,7 +1155,7 @@ next_pass:
 				}
 			} else {
 				if (!FORCE &&
-				    !TIME_LEQ( q->expire, time_second ))
+				    !TIME_LEQ( q->expire, time_uptime ))
 					goto next;
 			}
              if (q->dyn_type != O_LIMIT_PARENT || !q->count) {
@@ -1198,7 +1198,7 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
 	for (prev=NULL, q = ipfw_dyn_v[i] ; q != NULL ; ) {
 		if (q->dyn_type == O_LIMIT_PARENT && q->count)
 			goto next;
-		if (TIME_LEQ( q->expire, time_second)) { /* expire entry */
+		if (TIME_LEQ( q->expire, time_uptime)) { /* expire entry */
 			UNLINK_DYN_RULE(prev, ipfw_dyn_v[i], q);
 			continue;
 		}
@@ -1260,7 +1260,7 @@ next:
 		q->state |= (dir == MATCH_FORWARD ) ? flags : (flags << 8);
 		switch (q->state) {
 		case TH_SYN:				/* opening */
-			q->expire = time_second + dyn_syn_lifetime;
+			q->expire = time_uptime + dyn_syn_lifetime;
 			break;
 
 		case BOTH_SYN:			/* move to established */
@@ -1283,13 +1283,13 @@ next:
 				}
 			    }
 			}
-			q->expire = time_second + dyn_ack_lifetime;
+			q->expire = time_uptime + dyn_ack_lifetime;
 			break;
 
 		case BOTH_SYN | BOTH_FIN:	/* both sides closed */
 			if (dyn_fin_lifetime >= dyn_keepalive_period)
 				dyn_fin_lifetime = dyn_keepalive_period - 1;
-			q->expire = time_second + dyn_fin_lifetime;
+			q->expire = time_uptime + dyn_fin_lifetime;
 			break;
 
 		default:
@@ -1303,14 +1303,14 @@ next:
 #endif
 			if (dyn_rst_lifetime >= dyn_keepalive_period)
 				dyn_rst_lifetime = dyn_keepalive_period - 1;
-			q->expire = time_second + dyn_rst_lifetime;
+			q->expire = time_uptime + dyn_rst_lifetime;
 			break;
 		}
 	} else if (pkt->proto == IPPROTO_UDP) {
-		q->expire = time_second + dyn_udp_lifetime;
+		q->expire = time_uptime + dyn_udp_lifetime;
 	} else {
 		/* other protocols */
-		q->expire = time_second + dyn_short_lifetime;
+		q->expire = time_uptime + dyn_short_lifetime;
 	}
 done:
 	if (match_direction)
@@ -1404,7 +1404,7 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 	}
 
 	r->id = *id;
-	r->expire = time_second + dyn_syn_lifetime;
+	r->expire = time_uptime + dyn_syn_lifetime;
 	r->rule = rule;
 	r->dyn_type = dyn_type;
 	r->pcnt = r->bcnt = 0;
@@ -1454,7 +1454,7 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
 				 pkt->dst_ip == q->id.dst_ip)
 			    )
 			) {
-				q->expire = time_second + dyn_short_lifetime;
+				q->expire = time_uptime + dyn_short_lifetime;
 				DEB(printf("ipfw: lookup_dyn_parent found 0x%p\n",q);)
 				return q;
 			}
@@ -1492,8 +1492,8 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 	q = lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
 
 	if (q != NULL) {	/* should never occur */
-		if (last_log != time_second) {
-			last_log = time_second;
+		if (last_log != time_uptime) {
+			last_log = time_uptime;
 			printf("ipfw: %s: entry already present, done\n",
 			    __func__);
 		}
@@ -1506,8 +1506,8 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		remove_dyn_rule(NULL, (ipfw_dyn_rule *)1);
 
 	if (dyn_count >= dyn_max) {
-		if (last_log != time_second) {
-			last_log = time_second;
+		if (last_log != time_uptime) {
+			last_log = time_uptime;
 			printf("ipfw: %s: Too many dynamic rules\n", __func__);
 		}
 		IPFW_DYN_UNLOCK();
@@ -1566,8 +1566,8 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 			/* See if we can remove some expired rule. */
 			remove_dyn_rule(rule, parent);
 			if (parent->count >= conn_limit) {
-				if (fw_verbose && last_log != time_second) {
-					last_log = time_second;
+				if (fw_verbose && last_log != time_uptime) {
+					last_log = time_uptime;
 #ifdef INET6
 					/*
 					 * XXX IPv6 flows are not
@@ -3241,7 +3241,7 @@ check_body:
 			case O_SKIPTO:
 				f->pcnt++;	/* update stats */
 				f->bcnt += pktlen;
-				f->timestamp = time_second;
+				f->timestamp = time_uptime;
 				if (cmd->opcode == O_COUNT)
 					goto next_rule;
 				/* handle skipto */
@@ -3343,7 +3343,7 @@ done:
 	/* Update statistics */
 	f->pcnt++;
 	f->bcnt += pktlen;
-	f->timestamp = time_second;
+	f->timestamp = time_uptime;
 	IPFW_RUNLOCK(chain);
 	return (retval);
 
@@ -4052,8 +4052,8 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 					bcopy(&dst, &dst->next, sizeof(dst));
 					last = dst;
 					dst->expire =
-					    TIME_LEQ(dst->expire, time_second) ?
-						0 : dst->expire - time_second ;
+					    TIME_LEQ(dst->expire, time_uptime) ?
+						0 : dst->expire - time_uptime ;
 					bp += sizeof(ipfw_dyn_rule);
 				}
 			}
@@ -4341,10 +4341,10 @@ ipfw_tick(void * __unused unused)
 				continue;
 			if ( (q->state & BOTH_SYN) != BOTH_SYN)
 				continue;
-			if (TIME_LEQ( time_second+dyn_keepalive_interval,
+			if (TIME_LEQ( time_uptime+dyn_keepalive_interval,
 			    q->expire))
 				continue;	/* too early */
-			if (TIME_LEQ(q->expire, time_second))
+			if (TIME_LEQ(q->expire, time_uptime))
 				continue;	/* too late, rule expired */
 
 			*mtailp = send_pkt(NULL, &(q->id), q->ack_rev - 1,
