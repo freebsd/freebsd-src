@@ -611,9 +611,22 @@ lockmgr_chain(struct thread *td, struct thread **ownerp)
 	lkp = td->td_wchan;
 
 	/* Simple test to see if wchan points to a lockmgr lock. */
-	if (lkp->lk_wmesg != td->td_wmesg)
-		return (0);
+	if (lkp->lk_wmesg == td->td_wmesg)
+		goto ok;
 
+	/*
+	 * If this thread is doing a DRAIN, then it would be asleep on
+	 * &lkp->lk_flags rather than lkp.
+	 */
+	lkp = (struct lock *)((char *)td->td_wchan -
+	    offsetof(struct lock, lk_flags));
+	if (lkp->lk_wmesg == td->td_wmesg && (lkp->lk_flags & LK_WAITDRAIN))
+		goto ok;
+
+	/* Doen't seem to be a lockmgr lock. */
+	return (0);
+
+ok:
 	/* Ok, we think we have a lockmgr lock, so output some details. */
 	db_printf("blocked on lk \"%s\" ", lkp->lk_wmesg);
 	if (lkp->lk_sharecount) {
