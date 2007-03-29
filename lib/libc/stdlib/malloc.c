@@ -146,7 +146,11 @@ __FBSDID("$FreeBSD$");
 #  define MALLOC_STATS
 #endif
 
-#ifndef MALLOC_DEBUG
+#ifdef MALLOC_DEBUG
+#  ifdef NDEBUG
+#    undef NDEBUG
+#  endif
+#else
 #  ifndef NDEBUG
 #    define NDEBUG
 #  endif
@@ -549,9 +553,9 @@ struct arena_s {
 static unsigned		ncpus;
 
 /* VM page size. */
-static unsigned		pagesize;
-static unsigned		pagesize_mask;
-static unsigned		pagesize_2pow;
+static size_t		pagesize;
+static size_t		pagesize_mask;
+static size_t		pagesize_2pow;
 
 /* Various bin-related settings. */
 static size_t		bin_maxclass; /* Max size class for bins. */
