@@ -871,7 +871,10 @@ struct linux_migrate_pages_args {
 	register_t dummy;
 };
 struct linux_openat_args {
-	register_t dummy;
+	char dfd_l_[PADL_(l_int)]; l_int dfd; char dfd_r_[PADR_(l_int)];
+	char filename_l_[PADL_(char *)]; char * filename; char filename_r_[PADR_(char *)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
+	char mode_l_[PADL_(l_int)]; l_int mode; char mode_r_[PADR_(l_int)];
 };
 struct linux_mkdirat_args {
 	register_t dummy;
@@ -1381,7 +1384,7 @@ int	linux_unshare(struct thread *, struct linux_unshare_args *);
 #define	LINUX_SYS_AUE_linux_inotify_add_watch	AUE_NULL
 #define	LINUX_SYS_AUE_linux_inotify_rm_watch	AUE_NULL
 #define	LINUX_SYS_AUE_linux_migrate_pages	AUE_NULL
-#define	LINUX_SYS_AUE_linux_openat	AUE_NULL
+#define	LINUX_SYS_AUE_linux_openat	AUE_OPEN_RWTC
 #define	LINUX_SYS_AUE_linux_mkdirat	AUE_NULL
 #define	LINUX_SYS_AUE_linux_mknodat	AUE_NULL
 #define	LINUX_SYS_AUE_linux_fchownat	AUE_NULL
