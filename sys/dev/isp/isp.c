@@ -4068,7 +4068,7 @@ isp_start(XS_T *xs)
 		}
 
 		hdlidx = fcp->isp_ini_map[XS_TGT(xs)] - 1;
-		isp_prt(isp, ISP_LOGDEBUG1, "XS_TGT(xs)=%d- handle value %d",
+		isp_prt(isp, ISP_LOGDEBUG1, "XS_TGT(xs)=%d- hdlidx value %d",
 		    XS_TGT(xs), hdlidx);
 		if (hdlidx < 0 || hdlidx >= MAX_FC_TARG) {
 			XS_SETERR(xs, HBA_SELTIMEOUT);
@@ -4296,7 +4296,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 		 * Issue a bus reset.
 		 */
 		if (IS_24XX(isp)) {
-			isp_prt(isp, ISP_LOGWARN, "RESET BUS NOT IMPLETENTED");
+			isp_prt(isp, ISP_LOGWARN, "RESET BUS NOT IMPLEMENTED");
 			break;
 		} else if (IS_FC(isp)) {
 			mbs.param[1] = 10;
@@ -4325,7 +4325,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 	case ISPCTL_RESET_DEV:
 		tgt = (*((int *) arg)) & 0xffff;
 		if (IS_24XX(isp)) {
-			isp_prt(isp, ISP_LOGWARN, "RESET DEV NOT IMPLETENTED");
+			isp_prt(isp, ISP_LOGWARN, "RESET DEV NOT IMPLEMENTED");
 			break;
 		} else if (IS_FC(isp)) {
 			if (FCPARAM(isp)->isp_2klogin) {
@@ -4362,7 +4362,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 			break;
 		}
 		if (IS_24XX(isp)) {
-			isp_prt(isp, ISP_LOGWARN, "ABORT CMD NOT IMPLETENTED");
+			isp_prt(isp, ISP_LOGWARN, "ABORT CMD NOT IMPLEMENTED");
 			break;
 		} else if (IS_FC(isp)) {
 			if (FCPARAM(isp)->isp_sccfw) {
