@@ -722,12 +722,14 @@ softdep_flush(void)
 	struct ufsmount *ump;
 	struct thread *td;
 	int remaining;
+	int vfslocked;
 
 	td = curthread;
 	td->td_pflags |= TDP_NORUNNINGBUF;
 
 	for (;;) {	
 		kthread_suspend_check(softdepproc);
+		vfslocked = VFS_LOCK_GIANT((struct mount *)NULL);
 		ACQUIRE_LOCK(&lk);
 		/*
 		 * If requested, try removing inode or removal dependencies.
@@ -743,6 +745,7 @@ softdep_flush(void)
 			wakeup_one(&proc_waiting);
 		}
 		FREE_LOCK(&lk);
+		VFS_UNLOCK_GIANT(vfslocked);
 		remaining = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp)  {
@@ -751,10 +754,12 @@ softdep_flush(void)
 				continue;
 			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td))
 				continue;
+			vfslocked = VFS_LOCK_GIANT(mp);
 			softdep_process_worklist(mp, 0);
 			ump = VFSTOUFS(mp);
 			remaining += ump->softdep_on_worklist -
 				ump->softdep_on_worklist_inprogress;
+			VFS_UNLOCK_GIANT(vfslocked);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp, td);
