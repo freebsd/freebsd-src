@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
@@ -85,57 +86,51 @@ linux_creat(struct thread *td, struct linux_creat_args *args)
     return (error);
 }
 
-int
-linux_open(struct thread *td, struct linux_open_args *args)
+
+static int
+linux_common_open(struct thread *td, char *path, int l_flags, int mode, int openat)
 {
     struct proc *p = td->td_proc;
     struct file *fp;
     int fd;
-    char *path;
     int bsd_flags, error;
 
-    if (args->flags & LINUX_O_CREAT)
-	LCONVPATHCREAT(td, args->path, &path);
-    else
-	LCONVPATHEXIST(td, args->path, &path);
-
-#ifdef DEBUG
-	if (ldebug(open))
-		printf(ARGS(open, "%s, 0x%x, 0x%x"),
-		    path, args->flags, args->mode);
-#endif
     bsd_flags = 0;
-    if (args->flags & LINUX_O_RDONLY)
-	bsd_flags |= O_RDONLY;
-    if (args->flags & LINUX_O_WRONLY)
+    switch (l_flags & LINUX_O_ACCMODE) {
+    case LINUX_O_WRONLY:
 	bsd_flags |= O_WRONLY;
-    if (args->flags & LINUX_O_RDWR)
+	break;
+    case LINUX_O_RDWR:
 	bsd_flags |= O_RDWR;
-    if (args->flags & LINUX_O_NDELAY)
+	break;
+    default:
+	bsd_flags |= O_RDONLY;
+    }
+    if (l_flags & LINUX_O_NDELAY)
 	bsd_flags |= O_NONBLOCK;
-    if (args->flags & LINUX_O_APPEND)
+    if (l_flags & LINUX_O_APPEND)
 	bsd_flags |= O_APPEND;
-    if (args->flags & LINUX_O_SYNC)
+    if (l_flags & LINUX_O_SYNC)
 	bsd_flags |= O_FSYNC;
-    if (args->flags & LINUX_O_NONBLOCK)
+    if (l_flags & LINUX_O_NONBLOCK)
 	bsd_flags |= O_NONBLOCK;
-    if (args->flags & LINUX_FASYNC)
+    if (l_flags & LINUX_FASYNC)
 	bsd_flags |= O_ASYNC;
-    if (args->flags & LINUX_O_CREAT)
+    if (l_flags & LINUX_O_CREAT)
 	bsd_flags |= O_CREAT;
-    if (args->flags & LINUX_O_TRUNC)
+    if (l_flags & LINUX_O_TRUNC)
 	bsd_flags |= O_TRUNC;
-    if (args->flags & LINUX_O_EXCL)
+    if (l_flags & LINUX_O_EXCL)
 	bsd_flags |= O_EXCL;
-    if (args->flags & LINUX_O_NOCTTY)
+    if (l_flags & LINUX_O_NOCTTY)
 	bsd_flags |= O_NOCTTY;
-    if (args->flags & LINUX_O_DIRECT)
+    if (l_flags & LINUX_O_DIRECT)
 	bsd_flags |= O_DIRECT;
-    if (args->flags & LINUX_O_NOFOLLOW)
+    if (l_flags & LINUX_O_NOFOLLOW)
 	bsd_flags |= O_NOFOLLOW;
     /* XXX LINUX_O_NOATIME: unable to be easily implemented. */
 
-    error = kern_open(td, path, UIO_SYSSPACE, bsd_flags, args->mode);
+    error = kern_open(td, path, UIO_SYSSPACE, bsd_flags, mode);
     if (!error) {
 	    fd = td->td_retval[0];
 	    /*
@@ -158,7 +153,7 @@ linux_open(struct thread *td, struct linux_open_args *args)
 			    PROC_UNLOCK(p);
 			    sx_sunlock(&proctree_lock);
 		    }
-		    if (args->flags & LINUX_O_DIRECTORY) {
+		    if (l_flags & LINUX_O_DIRECTORY) {
 			    if (fp->f_type != DTYPE_VNODE ||
 				fp->f_vnode->v_type != VDIR) {
 				    error = ENOTDIR;
@@ -177,8 +172,119 @@ linux_open(struct thread *td, struct linux_open_args *args)
     if (ldebug(open))
 	    printf(LMSG("open returns error %d"), error);
 #endif
-    LFREEPATH(path);
+    if (!openat)
+	LFREEPATH(path);
     return error;
+}
+
+/*
+ * common code for linux *at set of syscalls
+ *
+ * works like this:
+ * if filename is absolute 
+ *    ignore dirfd
+ * else
+ *    if dirfd == AT_FDCWD 
+ *       return CWD/filename
+ *    else
+ *       return DIRFD/filename
+ */
+static int
+linux_at(struct thread *td, int dirfd, char *filename, char **newpath, char **freebuf)
+{
+   	struct file *fp;
+	int error = 0;
+	struct vnode *dvp;
+	struct filedesc *fdp = td->td_proc->p_fd;
+	char *fullpath = "unknown";
+	char *freepath = NULL;
+
+	/* don't do anything if the pathname is absolute */
+	if (*filename == '/') {
+	   	*newpath= filename;
+	   	return (0);
+	}
+
+	/* check for AT_FDWCD */
+	if (dirfd == LINUX_AT_FDCWD) {
+	   	FILEDESC_LOCK(fdp);
+		dvp = fdp->fd_cdir;
+	   	FILEDESC_UNLOCK(fdp);
+	} else {
+	   	error = fget(td, dirfd, &fp);
+		if (error)
+		   	return (error);
+		dvp = fp->f_vnode;
+		/* only a dir can be dfd */
+		if (dvp->v_type != VDIR) {
+		   	fdrop(fp, td);
+			return (ENOTDIR);
+		}
+		fdrop(fp, td);
+	}
+
+	error = vn_fullpath(td, dvp, &fullpath, &freepath);
+	if (!error) {
+	   	*newpath = malloc(strlen(fullpath) + strlen(filename) + 2, M_TEMP, M_WAITOK | M_ZERO);
+		*freebuf = freepath;
+		sprintf(*newpath, "%s/%s", fullpath, filename);
+	}
+
+	return (error);
+}
+
+int
+linux_openat(struct thread *td, struct linux_openat_args *args)
+{
+   	char *newpath, *oldpath, *freebuf = NULL, *path;
+	int error;
+
+	oldpath = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	error = copyinstr(args->filename, oldpath, MAXPATHLEN, NULL);
+
+#ifdef DEBUG
+	if (ldebug(openat))
+		printf(ARGS(openat, "%i, %s, 0x%x, 0x%x"), args->dfd,
+		    oldpath, args->flags, args->mode);
+#endif
+
+	error = linux_at(td, args->dfd, oldpath, &newpath, &freebuf);
+	if (error)
+	   	return (error);
+#ifdef DEBUG
+	printf(LMSG("newpath: %s"), newpath);
+#endif
+    	if (args->flags & LINUX_O_CREAT)
+		LCONVPATH_SEG(td, newpath, &path, 1, UIO_SYSSPACE);
+    	else
+		LCONVPATH_SEG(td, newpath, &path, 0, UIO_SYSSPACE);
+	if (freebuf)
+	   	free(freebuf, M_TEMP);
+	if (*oldpath != '/')
+   	   	free(newpath, M_TEMP);
+
+	error = linux_common_open(td, path, args->flags, args->mode, 1);
+	free(oldpath, M_TEMP);
+	return (error);
+}
+
+int
+linux_open(struct thread *td, struct linux_open_args *args)
+{
+    char *path;
+
+    if (args->flags & LINUX_O_CREAT)
+	LCONVPATHCREAT(td, args->path, &path);
+    else
+	LCONVPATHEXIST(td, args->path, &path);
+
+#ifdef DEBUG
+	if (ldebug(open))
+		printf(ARGS(open, "%s, 0x%x, 0x%x"),
+		    path, args->flags, args->mode);
+#endif
+
+    return linux_common_open(td, path, args->flags, args->mode, 0);
 }
 
 int

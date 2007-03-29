@@ -53,15 +53,18 @@ extern const char linux_emul_path[];
 
 int linux_emul_convpath(struct thread *, char *, enum uio_seg, char **, int);
 
-#define LCONVPATH(td, upath, pathp, i) 					\
+#define LCONVPATH_SEG(td, upath, pathp, i, seg)				\
 	do {								\
 		int _error;						\
 									\
-		_error = linux_emul_convpath(td, upath, UIO_USERSPACE,  \
+		_error = linux_emul_convpath(td, upath, seg,		\
 		    pathp, i);						\
 		if (*(pathp) == NULL)					\
 			return (_error);				\
 	} while (0)
+
+#define LCONVPATH(td, upath, pathp, i) 	\
+   LCONVPATH_SEG(td, upath, pathp, i, UIO_USERSPACE)
 
 #define LCONVPATHEXIST(td, upath, pathp) LCONVPATH(td, upath, pathp, 0)
 #define LCONVPATHCREAT(td, upath, pathp) LCONVPATH(td, upath, pathp, 1)
