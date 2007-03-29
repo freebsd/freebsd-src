@@ -224,13 +224,17 @@ in_control(so, cmd, data, ifp, td)
 	register struct ifreq *ifr = (struct ifreq *)data;
 	register struct in_ifaddr *ia = 0, *iap;
 	register struct ifaddr *ifa;
+	struct in_addr allhosts_addr;
 	struct in_addr dst;
 	struct in_ifaddr *oia;
 	struct in_aliasreq *ifra = (struct in_aliasreq *)data;
 	struct sockaddr_in oldaddr;
 	int error, hostIsNew, iaIsNew, maskIsNew, s;
+	int iaIsFirst;
 
+	iaIsFirst = 0;
 	iaIsNew = 0;
+	allhosts_addr.s_addr = htonl(INADDR_ALLHOSTS_GROUP);
 
 	switch (cmd) {
 	case SIOCALIFADDR:
@@ -281,6 +285,8 @@ in_control(so, cmd, data, ifp, td)
 					break;
 				}
 			}
+		if (ia == NULL)
+			iaIsFirst = 1;
 	}
 
 	switch (cmd) {
@@ -422,8 +428,11 @@ in_control(so, cmd, data, ifp, td)
 		    (struct sockaddr_in *) &ifr->ifr_addr, 1);
 		if (error != 0 && iaIsNew)
 			break;
-		if (error == 0)
+		if (error == 0) {
+			if (iaIsFirst && (ifp->if_flags & IFF_MULTICAST) != 0)
+				in_addmulti(&allhosts_addr, ifp);
 			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+		}
 		return (0);
 
 	case SIOCSIFNETMASK:
@@ -466,8 +475,11 @@ in_control(so, cmd, data, ifp, td)
 		if ((ifp->if_flags & IFF_BROADCAST) &&
 		    (ifra->ifra_broadaddr.sin_family == AF_INET))
 			ia->ia_broadaddr = ifra->ifra_broadaddr;
-		if (error == 0)
+		if (error == 0) {
+			if (iaIsFirst && (ifp->if_flags & IFF_MULTICAST) != 0)
+				in_addmulti(&allhosts_addr, ifp);
 			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+		}
 		return (error);
 
 	case SIOCDIFADDR:
@@ -502,8 +514,27 @@ in_control(so, cmd, data, ifp, td)
 	s = splnet();
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 	TAILQ_REMOVE(&in_ifaddrhead, ia, ia_link);
-	if (ia->ia_addr.sin_family == AF_INET)
+	if (ia->ia_addr.sin_family == AF_INET) {
 		LIST_REMOVE(ia, ia_hash);
+		/*
+		 * If this is the last IPv4 address configured on this
+		 * interface, leave the all-hosts group.
+		 * XXX: This is quite ugly because of locking and structure.
+		 */
+		oia = NULL;
+		IFP_TO_IA(ifp, oia);
+		if (oia == NULL) {
+			struct in_multi *inm;
+
+			IFF_LOCKGIANT(ifp);
+			IN_MULTI_LOCK();
+			IN_LOOKUP_MULTI(allhosts_addr, ifp, inm);
+			if (inm != NULL)
+				in_delmulti_locked(inm);
+			IN_MULTI_UNLOCK();
+			IFF_UNLOCKGIANT(ifp);
+		}
+	}
 	IFAFREE(&ia->ia_ifa);
 	splx(s);
 
@@ -792,16 +823,6 @@ in_ifinit(ifp, ia, sin, scrub)
 	if ((error = in_addprefix(ia, flags)) != 0)
 		return (error);
 
-	/*
-	 * If the interface supports multicast, join the "all hosts"
-	 * multicast group on that interface.
-	 */
-	if (ifp->if_flags & IFF_MULTICAST) {
-		struct in_addr addr;
-
-		addr.s_addr = htonl(INADDR_ALLHOSTS_GROUP);
-		in_addmulti(&addr, ifp);
-	}
 	return (error);
 }
 
@@ -1113,6 +1134,9 @@ in_delmulti_locked(struct in_multi *inm)
 		igmp_leavegroup(inm);
 
 		ifma = inm->inm_ifma;
+#ifdef DIAGNOSTIC
+		printf("%s: purging ifma %p\n", __func__, ifma);
+#endif
 		KASSERT(ifma->ifma_protospec == inm,
 		    ("%s: ifma_protospec != inm", __func__));
 		ifma->ifma_protospec = NULL;
@@ -1134,6 +1158,9 @@ in_purgemaddrs(struct ifnet *ifp)
 	struct in_multi *inm;
 	struct in_multi *oinm;
 
+#ifdef DIAGNOSTIC
+	printf("%s: purging ifp %p\n", __func__, ifp);
+#endif
 	IFF_LOCKGIANT(ifp);
 	IN_MULTI_LOCK();
 	LIST_FOREACH_SAFE(inm, &in_multihead, inm_link, oinm) {
