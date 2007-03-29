@@ -118,7 +118,7 @@ get_if_var()
 
 	prefix=${_var%%IF*}
 	suffix=${_var##*IF}
-	eval echo \${${prefix}${_if}${suffix}-${_default}}
+	eval echo \${${prefix}${_if}${suffix}:-${_default}}
 }
 
 # _ifconfig_getargs if
