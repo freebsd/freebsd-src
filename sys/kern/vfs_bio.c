@@ -633,12 +633,8 @@ bfreekva(struct buf *bp)
 	if (bp->b_kvasize) {
 		atomic_add_int(&buffreekvacnt, 1);
 		atomic_subtract_int(&bufspace, bp->b_kvasize);
-		vm_map_lock(buffer_map);
-		vm_map_delete(buffer_map,
-		    (vm_offset_t) bp->b_kvabase,
-		    (vm_offset_t) bp->b_kvabase + bp->b_kvasize
-		);
-		vm_map_unlock(buffer_map);
+		vm_map_remove(buffer_map, (vm_offset_t) bp->b_kvabase,
+		    (vm_offset_t) bp->b_kvabase + bp->b_kvasize);
 		bp->b_kvasize = 0;
 		bufspacewakeup();
 	}
