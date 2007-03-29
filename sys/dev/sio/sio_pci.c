@@ -78,7 +78,6 @@ static struct pci_ids pci_ids[] = {
 	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
 	{ 0x0103115d, "Xircom Cardbus modem", 0x10 },
 	{ 0x432214e4, "Broadcom 802.11g/GPRS CardBus (Serial)", 0x10 },
-	{ 0x98359710, "MosChip MCS9835 PCI Dual UART", 0x10 },
 	{ 0x01c0135c, "Quatech SSCLP-200/300", 0x18 
 		/* 
 		 * NB: You must mount the "SPAD" jumper to correctly detect
