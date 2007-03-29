@@ -531,6 +531,7 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_O_RDONLY		00000000
 #define	LINUX_O_WRONLY		00000001
 #define	LINUX_O_RDWR		00000002
+#define	LINUX_O_ACCMODE		00000003
 #define	LINUX_O_CREAT		00000100
 #define	LINUX_O_EXCL		00000200
 #define	LINUX_O_NOCTTY		00000400
@@ -564,6 +565,8 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_F_RDLCK		0
 #define	LINUX_F_WRLCK		1
 #define	LINUX_F_UNLCK		2
+
+#define	LINUX_AT_FDCWD		-100
 
 /*
  * mount flags

@@ -97,7 +97,6 @@ DUMMY(inotify_init);
 DUMMY(inotify_add_watch);
 DUMMY(inotify_rm_watch);
 DUMMY(migrate_pages);
-DUMMY(openat);
 DUMMY(mkdirat);
 DUMMY(mknodat);
 DUMMY(fchownat);

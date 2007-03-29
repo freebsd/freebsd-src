@@ -473,7 +473,8 @@
 292	AUE_NULL	STD	{ int linux_inotify_add_watch(void); }
 293	AUE_NULL	STD	{ int linux_inotify_rm_watch(void); }
 294	AUE_NULL	STD	{ int linux_migrate_pages(void); }
-295	AUE_NULL	STD	{ int linux_openat(void); }
+295	AUE_OPEN_RWTC	STD	{ int linux_openat(l_int dfd, char *filename, \
+					l_int flags, l_int mode); }
 296	AUE_NULL	STD	{ int linux_mkdirat(void); }
 297	AUE_NULL	STD	{ int linux_mknodat(void); }
 298	AUE_NULL	STD	{ int linux_fchownat(void); }
