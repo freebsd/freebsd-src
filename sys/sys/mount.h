@@ -573,15 +573,22 @@ vfs_statfs_t	__vfs_statfs;
 
 extern int mpsafe_vfs;
 
-#define	VFS_NEEDSGIANT(MP)						\
+#define	VFS_NEEDSGIANT_(MP)						\
     (!mpsafe_vfs || ((MP) != NULL && ((MP)->mnt_kern_flag & MNTK_MPSAFE) == 0))
+
+#define	VFS_NEEDSGIANT(MP) __extension__				\
+({									\
+	struct mount *_mp;						\
+	_mp = (MP);							\
+	VFS_NEEDSGIANT_(_mp);						\
+})
 
 #define	VFS_LOCK_GIANT(MP) __extension__				\
 ({									\
 	int _locked;							\
-	struct mount *_MP;						\
-	_MP = (MP);							\
-	if (VFS_NEEDSGIANT(_MP)) {					\
+	struct mount *_mp;						\
+	_mp = (MP);							\
+	if (VFS_NEEDSGIANT_(_mp)) {					\
 		mtx_lock(&Giant);					\
 		_locked = 1;						\
 	} else								\
@@ -591,7 +598,9 @@ extern int mpsafe_vfs;
 #define	VFS_UNLOCK_GIANT(locked)	if ((locked)) mtx_unlock(&Giant);
 #define	VFS_ASSERT_GIANT(MP) do 					\
 {									\
-	if (VFS_NEEDSGIANT((MP)))					\
+	struct mount *_mp;						\
+	_mp = (MP);							\
+	if (VFS_NEEDSGIANT_(_mp))					\
 		mtx_assert(&Giant, MA_OWNED);				\
 } while (0)
 
