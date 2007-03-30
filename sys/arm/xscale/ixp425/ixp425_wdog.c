@@ -70,7 +70,7 @@ ixp425_watchdog(void *arg, u_int cmd, int *error)
 	u_int u = cmd & WD_INTERVAL;
 
 	WR4(sc, IXP425_OST_WDOG_KEY, OST_WDOG_KEY_MAJICK);
-	if (cmd && 4 <= u && u <= 35) {
+	if (4 <= u && u <= 35) {
 		WR4(sc, IXP425_OST_WDOG_ENAB, 0);
 		/* approximate 66.66MHz cycles */
 		WR4(sc, IXP425_OST_WDOG, 2<<(u - 4));
