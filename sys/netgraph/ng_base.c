@@ -228,6 +228,19 @@ MALLOC_DEFINE(M_NETGRAPH_MSG, "netgraph_msg", "netgraph name storage");
 #define _NG_ALLOC_NODE(node) \
 	MALLOC(node, node_p, sizeof(*node), M_NETGRAPH_NODE, M_NOWAIT | M_ZERO)
 
+#define	NG_QUEUE_LOCK_INIT(n)			\
+	mtx_init(&(n)->q_mtx, "ng_node", NULL, MTX_SPIN)
+#define	NG_QUEUE_LOCK(n)			\
+	mtx_lock_spin(&(n)->q_mtx)
+#define	NG_QUEUE_UNLOCK(n)			\
+	mtx_unlock_spin(&(n)->q_mtx)
+#define	NG_WORKLIST_LOCK_INIT()			\
+	mtx_init(&ng_worklist_mtx, "ng_worklist", NULL, MTX_SPIN)
+#define	NG_WORKLIST_LOCK()			\
+	mtx_lock_spin(&ng_worklist_mtx)
+#define	NG_WORKLIST_UNLOCK()			\
+	mtx_unlock_spin(&ng_worklist_mtx)
+
 #ifdef NETGRAPH_DEBUG /*----------------------------------------------*/
 /*
  * In debug mode:
@@ -605,7 +618,7 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	NG_NODE_REF(node);				/* note reference */
 	type->refs++;
 
-	mtx_init(&node->nd_input_queue.q_mtx, "ng_node", NULL, MTX_SPIN);
+	NG_QUEUE_LOCK_INIT(&node->nd_input_queue);
 	node->nd_input_queue.queue = NULL;
 	node->nd_input_queue.last = &node->nd_input_queue.queue;
 	node->nd_input_queue.q_flags = 0;
@@ -2039,7 +2052,7 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 	atomic_subtract_long(&ngq->q_flags, READER_INCREMENT);
 
 	/* ######### End Hack alert ######### */
-	mtx_lock_spin((&ngq->q_mtx));
+	NG_QUEUE_LOCK(ngq);
 	/*
 	 * Try again. Another processor (or interrupt for that matter) may
 	 * have removed the last queued item that was stopping us from
@@ -2050,7 +2063,7 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 	 */
 	if ((ngq->q_flags & NGQ_RMASK) == 0) {
 		atomic_add_long(&ngq->q_flags, READER_INCREMENT);
-		mtx_unlock_spin((&ngq->q_mtx));
+		NG_QUEUE_UNLOCK(ngq);
 		CTR4(KTR_NET, "%20s: node [%x] (%p) slow acquired item %p",
 		    __func__, ngq->q_node->nd_ID, ngq->q_node, item);
 		return (item);
@@ -2060,7 +2073,7 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 	 * and queue the request for later.
 	 */
 	ng_queue_rw(ngq, item, NGQRW_R);
-	mtx_unlock_spin(&(ngq->q_mtx));
+	NG_QUEUE_UNLOCK(ngq);
 
 	return (NULL);
 }
@@ -2072,7 +2085,7 @@ ng_acquire_write(struct ng_queue *ngq, item_p item)
 	    ("%s: working on deadnode", __func__));
 
 restart:
-	mtx_lock_spin(&(ngq->q_mtx));
+	NG_QUEUE_LOCK(ngq);
 	/*
 	 * If there are no readers, no writer, and no pending packets, then
 	 * we can just go ahead. In all other situations we need to queue the
@@ -2081,7 +2094,7 @@ restart:
 	if ((ngq->q_flags & NGQ_WMASK) == 0) {
 		/* collision could happen *HERE* */
 		atomic_add_long(&ngq->q_flags, WRITER_ACTIVE);
-		mtx_unlock_spin((&ngq->q_mtx));
+		NG_QUEUE_UNLOCK(ngq);
 		if (ngq->q_flags & READER_MASK) {
 			/* Collision with fast-track reader */
 			atomic_subtract_long(&ngq->q_flags, WRITER_ACTIVE);
@@ -2096,7 +2109,7 @@ restart:
 	 * and queue the request for later.
 	 */
 	ng_queue_rw(ngq, item, NGQRW_W);
-	mtx_unlock_spin(&(ngq->q_mtx));
+	NG_QUEUE_UNLOCK(ngq);
 
 	return (NULL);
 }
@@ -2192,7 +2205,7 @@ ng_flush_input_queue(struct ng_queue * ngq)
 {
 	item_p item;
 
-	mtx_lock_spin(&ngq->q_mtx);
+	NG_QUEUE_LOCK(ngq);
 	while (ngq->queue) {
 		item = ngq->queue;
 		ngq->queue = item->el_next;
@@ -2200,7 +2213,7 @@ ng_flush_input_queue(struct ng_queue * ngq)
 			ngq->last = &(ngq->queue);
 			atomic_add_long(&ngq->q_flags, -OP_PENDING);
 		}
-		mtx_unlock_spin(&ngq->q_mtx);
+		NG_QUEUE_UNLOCK(ngq);
 
 		/* If the item is supplying a callback, call it with an error */
 		if (item->apply != NULL) {
@@ -2208,14 +2221,14 @@ ng_flush_input_queue(struct ng_queue * ngq)
 			item->apply = NULL;
 		}
 		NG_FREE_ITEM(item);
-		mtx_lock_spin(&ngq->q_mtx);
+		NG_QUEUE_LOCK(ngq);
 	}
 	/*
 	 * Take us off the work queue if we are there.
 	 * We definately have no work to be done.
 	 */
 	ng_worklist_remove(ngq->q_node);
-	mtx_unlock_spin(&ngq->q_mtx);
+	NG_QUEUE_UNLOCK(ngq);
 }
 
 /***********************************************************************
@@ -2339,9 +2352,9 @@ ng_snd_item(item_p item, int flags)
 #ifdef	NETGRAPH_DEBUG
 		_ngi_check(item, __FILE__, __LINE__);
 #endif
-		mtx_lock_spin(&(ngq->q_mtx));
+		NG_QUEUE_LOCK(ngq);
 		ng_queue_rw(ngq, item, rw);
-		mtx_unlock_spin(&(ngq->q_mtx));
+		NG_QUEUE_UNLOCK(ngq);
 
 		if (flags & NG_PROGRESS)
 			return (EINPROGRESS);
@@ -2384,10 +2397,10 @@ ng_snd_item(item_p item, int flags)
 		return (error);
 	}
 
-	mtx_lock_spin(&(ngq->q_mtx));
+	NG_QUEUE_LOCK(ngq);
 	if (NEXT_QUEUED_ITEM_CAN_PROCEED(ngq))
 		ng_setisr(ngq->q_node);
-	mtx_unlock_spin(&(ngq->q_mtx));
+	NG_QUEUE_UNLOCK(ngq);
 
 	return (error);
 }
@@ -3140,7 +3153,7 @@ ngb_mod_event(module_t mod, int event, void *data)
 	switch (event) {
 	case MOD_LOAD:
 		/* Initialize everything. */
-		mtx_init(&ng_worklist_mtx, "ng_worklist", NULL, MTX_SPIN);
+		NG_WORKLIST_LOCK_INIT();
 		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL,
 		    MTX_DEF);
 		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", NULL,
@@ -3318,15 +3331,15 @@ ngintr(void)
 	node_p  node = NULL;
 
 	for (;;) {
-		mtx_lock_spin(&ng_worklist_mtx);
+		NG_WORKLIST_LOCK();
 		node = TAILQ_FIRST(&ng_worklist);
 		if (!node) {
-			mtx_unlock_spin(&ng_worklist_mtx);
+			NG_WORKLIST_UNLOCK();
 			break;
 		}
 		node->nd_flags &= ~NGF_WORKQ;	
 		TAILQ_REMOVE(&ng_worklist, node, nd_work);
-		mtx_unlock_spin(&ng_worklist_mtx);
+		NG_WORKLIST_UNLOCK();
 		CTR3(KTR_NET, "%20s: node [%x] (%p) taken off worklist",
 		    __func__, node->nd_ID, node);
 		/*
@@ -3345,13 +3358,13 @@ ngintr(void)
 		for (;;) {
 			int rw;
 
-			mtx_lock_spin(&node->nd_input_queue.q_mtx);
+			NG_QUEUE_LOCK(&node->nd_input_queue);
 			item = ng_dequeue(&node->nd_input_queue, &rw);
 			if (item == NULL) {
-				mtx_unlock_spin(&node->nd_input_queue.q_mtx);
+				NG_QUEUE_UNLOCK(&node->nd_input_queue);
 				break; /* go look for another node */
 			} else {
-				mtx_unlock_spin(&node->nd_input_queue.q_mtx);
+				NG_QUEUE_UNLOCK(&node->nd_input_queue);
 				NGI_GET_NODE(item, node); /* zaps stored node */
 				ng_apply_item(node, item, rw);
 				NG_NODE_UNREF(node);
@@ -3366,16 +3379,16 @@ ng_worklist_remove(node_p node)
 {
 	mtx_assert(&node->nd_input_queue.q_mtx, MA_OWNED);
 
-	mtx_lock_spin(&ng_worklist_mtx);
+	NG_WORKLIST_LOCK();
 	if (node->nd_flags & NGF_WORKQ) {
 		node->nd_flags &= ~NGF_WORKQ;
 		TAILQ_REMOVE(&ng_worklist, node, nd_work);
-		mtx_unlock_spin(&ng_worklist_mtx);
+		NG_WORKLIST_UNLOCK();
 		NG_NODE_UNREF(node);
 		CTR3(KTR_NET, "%20s: node [%x] (%p) removed from worklist",
 		    __func__, node->nd_ID, node);
 	} else {
-		mtx_unlock_spin(&ng_worklist_mtx);
+		NG_WORKLIST_UNLOCK();
 	}
 }
 
@@ -3396,9 +3409,9 @@ ng_setisr(node_p node)
 		 * then put us on.
 		 */
 		node->nd_flags |= NGF_WORKQ;
-		mtx_lock_spin(&ng_worklist_mtx);
+		NG_WORKLIST_LOCK();
 		TAILQ_INSERT_TAIL(&ng_worklist, node, nd_work);
-		mtx_unlock_spin(&ng_worklist_mtx);
+		NG_WORKLIST_UNLOCK();
 		NG_NODE_REF(node); /* XXX fafe in mutex? */
 		CTR3(KTR_NET, "%20s: node [%x] (%p) put on worklist", __func__,
 		    node->nd_ID, node);
