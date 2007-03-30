@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+digraph doc {
+
+node [color=grey62, style=filled, bgcolor=black];
+
+# Alumni go here.
+
+node [color=lightblue2, style=filled, bgcolor=black];
+
+# Current doc committers go here. Try to keep things sorted.
+
+# Here are the mentor/mentee relationships.
+
+}

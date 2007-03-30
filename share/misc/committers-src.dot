@@ -1,0 +1,20 @@
+# $FreeBSD$
+
+digraph src {
+
+node [color=grey62, style=filled, bgcolor=black];
+
+# Alumni go here.
+
+node [color=lightblue2, style=filled, bgcolor=black];
+
+# Current src committers go here. Try to keep things sorted.
+
+cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
+flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
+
+# Here are the mentor/mentee relationships.
+
+cperciva -> flz
+
+}
