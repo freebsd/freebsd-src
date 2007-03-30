@@ -54,11 +54,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/msg.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
+#include <sys/sem.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -1031,14 +1033,8 @@ linprocfs_doosbuild(PFS_FILL_ARGS)
 static int
 linprocfs_domsgmni(PFS_FILL_ARGS)
 {
-	int msgmni;
-	size_t size;
 
-	size = sizeof(msgmni);
-	if (kernel_sysctlbyname(td, "kern.ipc.msgmni", &msgmni, &size,
-	    0, 0, 0, 0) != 0)
-		msgmni = 0;
-	sbuf_printf(sb, "%i\n", msgmni);
+	sbuf_printf(sb, "%d\n", msginfo.msgmni);
 
 	return (0);
 }
@@ -1061,34 +1057,9 @@ linprocfs_dopid_max(PFS_FILL_ARGS)
 static int
 linprocfs_dosem(PFS_FILL_ARGS)
 {
-	int semmsl, semmns, semopm, semmni;
-	size_t size;
 
-	/* Field 1: SEMMSL */
-	size = sizeof(semmsl);
-	if (kernel_sysctlbyname(td, "kern.ipc.semmsl", &semmsl, &size,
-	    0, 0, 0, 0) != 0)
-		semmsl = 0;
-
-	/* Field 2: SEMMNS */
-	size = sizeof(semmns);
-	if (kernel_sysctlbyname(td, "kern.ipc.semmns", &semmns, &size,
-	    0, 0, 0, 0) != 0)
-		semmns = 0;
-
-	/* Field 3: SEMOPM */
-	size = sizeof(semopm);
-	if (kernel_sysctlbyname(td, "kern.ipc.semopm", &semopm, &size,
-	    0, 0, 0, 0) != 0)
-		semopm = 0;
-
-	/* Field 4: SEMMNI */
-	size = sizeof(semmni);
-	if (kernel_sysctlbyname(td, "kern.ipc.semmni", &semmni, &size,
-	    0, 0, 0, 0) != 0)
-		semmni = 0;
-
-	sbuf_printf(sb, "%i %i %i %i\n", semmsl, semmns, semopm, semmni);
+	sbuf_printf(sb, "%d %d %d %d\n", seminfo.semmsl, seminfo.semmns,
+	    seminfo.semopm, seminfo.semmni);
 
 	return (0);
 }
