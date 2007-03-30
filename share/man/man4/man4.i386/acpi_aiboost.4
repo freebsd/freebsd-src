@@ -55,7 +55,8 @@ motherboards.
 The driver uses ACPI as the backend to fetch sensor values and
 descriptions and provides its data via the
 .Xr sysctl 8
-interface.
+interface, under dev.acpi_aiboost.0 namespace. Descriptions for these
+values are set to sysctl description, which can be see with sysctl -d.
 .Pp
 The
 .Nm
