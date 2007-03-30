@@ -1,0 +1,27 @@
+# $FreeBSD$
+
+digraph ports {
+
+node [color=grey62, style=filled, bgcolor=black];
+
+# Alumni go here.
+
+node [color=lightblue2, style=filled, bgcolor=black];
+
+# Current ports committers go here. Try to keep things sorted.
+
+flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
+garga [label="Renato Botelho\ngarga@FreeBSD.org\n2005/07/11"]
+johans [label="Johan Selst\njohans@FreeBSD.org\n2006/04/01"]
+laszlof [label="Frank Laszlo\nlaszlof@FreeBSD.org\n2006/11/07"]
+pav [label="Pav Lucistnik\npav@FreeBSD.org\n2003/11/12"]
+
+# Here are the mentor/mentee relationships.
+
+flz -> garga
+flz -> johans
+flz -> laszlof
+
+pav -> flz
+
+}
