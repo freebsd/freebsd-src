@@ -371,7 +371,7 @@ elan_watchdog(void *foo __unused, u_int spec, int *error)
 	static u_int cur;
 
 	u = spec & WD_INTERVAL;
-	if (spec && u > 0 && u <= 35) {
+	if (u > 0 && u <= 35) {
 		u = imax(u - 5, 24);
 		v = 2 << (u - 24);
 		v |= 0xc000;
@@ -412,8 +412,6 @@ elan_watchdog(void *foo __unused, u_int spec, int *error)
 		elan_mmcr->WDTMRCTL = w;		/* XXX What does this statement do? */
 		elan_mmcr->GPECHO = w;
 		cur = 0;
-		if (u > 0)
-			*error = 0;
 	}
 }
 
