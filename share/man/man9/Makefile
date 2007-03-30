@@ -133,6 +133,7 @@ MAN=	accept_filter.9 \
 	kthread.9 \
 	ktr.9 \
 	lock.9 \
+	locking.9 \
 	LOCK_PROFILING.9 \
 	mac.9 \
 	make_dev.9 \
