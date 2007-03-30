@@ -424,19 +424,18 @@ fwohci_pci_detach(device_t self)
 				  FWOHCI_INTMASKCLR, OHCI_INT_EN);
 
 	if (sc->irq_res) {
-		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
-		if (err)
-			/* XXX or should we panic? */
-			device_printf(self, "Could not tear down irq, %d\n",
-				      err);
+		int err;
+		if (sc->ih) {
+			err = bus_teardown_intr(self, sc->irq_res, sc->ih);
+			if (err)
+				device_printf(self,
+					 "Could not tear down irq, %d\n", err);
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
-		bus_teardown_intr(self, sc->irq_res, sc->ih_cam);
-		bus_teardown_intr(self, sc->irq_res, sc->ih_bio);
+			bus_teardown_intr(self, sc->irq_res, sc->ih_cam);
+			bus_teardown_intr(self, sc->irq_res, sc->ih_bio);
 #endif
-		sc->ih = NULL;
-	}
-
-	if (sc->irq_res) {
+			sc->ih = NULL;
+		}
 		bus_release_resource(self, SYS_RES_IRQ, 0, sc->irq_res);
 		sc->irq_res = NULL;
 	}
