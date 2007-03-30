@@ -166,8 +166,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			    dmode_c);
 		dmode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
 		free(set);
-	} else
-		dmode = S_IRWXU | S_IRWXG | S_IRWXO;
+		cnf->homemode = dmode;
+	}
 
 	/*
 	 * If we'll need to use it or we're updating it,
@@ -194,7 +194,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (strchr(cnf->home+1, '/') == NULL) {
 				strcpy(dbuf, "/usr");
 				strncat(dbuf, cnf->home, MAXPATHLEN-5);
-				if (mkdir(dbuf, dmode) != -1 || errno == EEXIST) {
+				if (mkdir(dbuf, cnf->homemode) != -1 || errno == EEXIST) {
 					chown(dbuf, 0, 0);
 					/*
 					 * Skip first "/" and create symlink:
@@ -210,7 +210,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				while ((p = strchr(++p, '/')) != NULL) {
 					*p = '\0';
 					if (stat(dbuf, &st) == -1) {
-						if (mkdir(dbuf, dmode) == -1)
+						if (mkdir(dbuf, cnf->homemode) == -1)
 							goto direrr;
 						chown(dbuf, 0, 0);
 					} else if (!S_ISDIR(st.st_mode))
@@ -219,7 +219,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				}
 			}
 			if (stat(dbuf, &st) == -1) {
-				if (mkdir(dbuf, dmode) == -1) {
+				if (mkdir(dbuf, cnf->homemode) == -1) {
 				direrr:	err(EX_OSFILE, "mkdir '%s'", dbuf);
 				}
 				chown(dbuf, 0, 0);
@@ -776,7 +776,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * existing files will *not* be overwritten.
 	 */
 	if (!PWALTDIR() && getarg(args, 'm') != NULL && pwd->pw_dir && *pwd->pw_dir == '/' && pwd->pw_dir[1]) {
-		copymkdir(pwd->pw_dir, cnf->dotdir, dmode, pwd->pw_uid, pwd->pw_gid);
+		copymkdir(pwd->pw_dir, cnf->dotdir, cnf->homemode, pwd->pw_uid, pwd->pw_gid);
 		pw_log(cnf, mode, W_USER, "%s(%ld) home %s made",
 		       pwd->pw_name, (long) pwd->pw_uid, pwd->pw_dir);
 	}
