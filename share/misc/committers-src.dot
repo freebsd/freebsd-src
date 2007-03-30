@@ -27,6 +27,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 dds [label="Diomidis Spinellis\ndds@FreeBSD.org\n2003/06/20"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
+schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n????/??/??"]
 
 # Here are the mentor/mentee relationships.
 # Group together all the mentees for a particular mentor.
