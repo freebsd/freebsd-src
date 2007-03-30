@@ -1549,8 +1549,7 @@ futex_fault:
 	ret
 
 /* int futex_xchgl(int oparg, caddr_t uaddr, int *oldval); */
-	.globl	futex_xchgl
-futex_xchgl:
+ENTRY(futex_xchgl)
 	movl	PCPU(CURPCB), %eax
 	movl	$futex_fault, PCB_ONFAULT(%eax)
 	movl	4(%esp), %eax
@@ -1568,8 +1567,7 @@ futex_xchgl:
 	ret
 
 /* int futex_addl(int oparg, caddr_t uaddr, int *oldval); */
-	.globl	futex_addl
-futex_addl:
+ENTRY(futex_addl)
 	movl	PCPU(CURPCB), %eax
 	movl	$futex_fault, PCB_ONFAULT(%eax)
 	movl	4(%esp), %eax
@@ -1586,60 +1584,3 @@ futex_addl:
 	movl	$0, PCB_ONFAULT(%edx)
 	ret
 
-/* int futex_orl(int oparg, caddr_t uaddr, int *oldval); */
-	.globl	futex_orl
-futex_orl:
-	movl	PCPU(CURPCB), %eax
-	movl	$futex_fault, PCB_ONFAULT(%eax)
-	movl	4(%esp), %eax
-	movl	8(%esp), %edx
-	cmpl    $VM_MAXUSER_ADDRESS,%edx
-	ja     	futex_fault
-
-	MPLOCKED orl 	%eax, (%edx)
-	movl	0xc(%esp), %edx
-	movl	%eax, (%edx)
-	xorl	%eax, %eax
-
-	movl	PCPU(CURPCB), %edx
-	movl	$0, PCB_ONFAULT(%edx)
-	ret
-
-/* int futex_andnl(int oparg, caddr_t uaddr, int *oldval); */
-	.globl	futex_andnl
-futex_andnl:
-	movl	PCPU(CURPCB), %eax
-	movl	$futex_fault, PCB_ONFAULT(%eax)
-	movl	4(%esp), %eax
-	movl	8(%esp), %edx
-	cmpl    $VM_MAXUSER_ADDRESS,%edx
-	ja     	futex_fault
-
-	notl	(%edx)
-	MPLOCKED andl 	%eax, (%edx)
-	movl	0xc(%esp), %edx
-	movl	%eax, (%edx)
-	xorl	%eax, %eax
-
-	movl	PCPU(CURPCB), %edx
-	movl	$0, PCB_ONFAULT(%edx)
-	ret
-
-/* int futex_xorl(int oparg, caddr_t uaddr, int *oldval); */
-	.globl	futex_xorl
-futex_xorl:
-	movl	PCPU(CURPCB), %eax
-	movl	$futex_fault, PCB_ONFAULT(%eax)
-	movl	4(%esp), %eax
-	movl	8(%esp), %edx
-	cmpl    $VM_MAXUSER_ADDRESS,%edx
-	ja     	futex_fault
-
-	MPLOCKED xorl 	%eax, (%edx)
-	movl	0xc(%esp), %edx
-	movl	%eax, (%edx)
-	xorl	%eax, %eax
-
-	movl	PCPU(CURPCB), %edx
-	movl	$0, PCB_ONFAULT(%edx)
-	ret
