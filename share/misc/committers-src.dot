@@ -2,9 +2,23 @@
 
 digraph src {
 
+# Node definitions follow this example:
+#
+#   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??"]
+#
+# ????/??/?? is the date when the commit bit was obtained, usually the one you
+# can find looking at CVS logs for the access (or avail) file under CVSROOT.
+#
+# For returned commit bits, the node definition will follow this example:
+#
+#   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??\n????/??/??"]
+#
+# The first date is the same as for an active committer, the second date is
+# the date when the commit bit has been returned. Again, check CVS logs.
+
 node [color=grey62, style=filled, bgcolor=black];
 
-# Alumni go here.
+# Alumni go here.. Try to keep things sorted.
 
 node [color=lightblue2, style=filled, bgcolor=black];
 
@@ -15,8 +29,11 @@ dds [label="Diomidis Spinellis\ndds@FreeBSD.org\n2003/06/20"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 
 # Here are the mentor/mentee relationships.
+# Group together all the mentees for a particular mentor.
+# Keep the list sorted by mentor login.
 
 cperciva -> flz
+
 schweikh -> dds
 
 }
