@@ -30,11 +30,14 @@ cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 dds [label="Diomidis Spinellis\ndds@FreeBSD.org\n2003/06/20"]
 dhartmei [label="Daniel Hartmeier\ndhartmei@FreeBSD.org\n2004/04/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
+grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16"]
+joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n????/??/??"]
+le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n????/??/??"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
-schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n????/??/??"]
+schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n2001/04/06"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 
 # Here are the mentor/mentee relationships.
@@ -48,6 +51,10 @@ bms -> dhartmei
 bms -> thompsa
 
 jake -> bms
+
+joerg -> le
+
+grog -> le
 
 mlaier -> benjsc
 mlaier -> dhartmei
