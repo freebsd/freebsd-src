@@ -122,7 +122,7 @@ geode_watchdog(void *foo __unused, u_int cmd, int *error)
 	u_int u, p, r;
 
 	u = cmd & WD_INTERVAL;
-	if (cmd && u >= 14 && u <= 43) {
+	if (u >= 14 && u <= 43) {
 		u -= 14;
 		if (u > 16) {
 			p = u - 16;

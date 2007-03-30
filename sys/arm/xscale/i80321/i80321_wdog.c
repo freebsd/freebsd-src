@@ -118,11 +118,9 @@ iopwdog_watchdog_fn(void *private, u_int cmd, int *error)
 		sc->armed = 1;
 		*error = 0;
 	} else {
-		/* XXX Can't disable this watchdog? */
+		/* Can't disable this watchdog! */
 		if (sc->armed)
 			*error = EOPNOTSUPP;
-		else if (cmd > 0)
-			*error = EINVAL;
 	}
 }
 
