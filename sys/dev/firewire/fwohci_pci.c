@@ -510,10 +510,12 @@ fwohci_pci_add_child(device_t dev, int order, const char *name, int unit)
 	 * Clear the bus reset event flag to start transactions even when
 	 * interrupt is disabled during the boot process.
 	 */
-	DELAY(250); /* 2 cycles */
-	s = splfw();
-	fwohci_poll((void *)sc, 0, -1);
-	splx(s);
+	if (cold) {
+		DELAY(250); /* 2 cycles */
+		s = splfw();
+		fwohci_poll((void *)sc, 0, -1);
+		splx(s);
+	}
 
 	return (child);
 }
