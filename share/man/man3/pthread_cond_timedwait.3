@@ -46,7 +46,7 @@ The
 function atomically blocks the current thread waiting on the condition
 variable specified by
 .Fa cond ,
-and unblocks the mutex specified by
+and releases the mutex specified by
 .Fa mutex .
 The waiting thread unblocks only after another thread calls
 .Xr pthread_cond_signal 3 ,
@@ -78,6 +78,10 @@ is invalid.
 .It Bq Er ETIMEDOUT
 The system time has reached or exceeded the time specified in
 .Fa abstime .
+.It Bq Er EPERM
+The specified 
+.Fa mutex 
+was not locked by the calling thread.
 .El
 .Sh SEE ALSO
 .Xr pthread_cond_broadcast 3 ,
