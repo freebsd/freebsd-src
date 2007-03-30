@@ -180,7 +180,7 @@ acquire(struct lock **lkpp, int extflags, int wanted, int *contested, uint64_t *
  * accepted shared locks and shared-to-exclusive upgrades to go away.
  */
 int
-_lockmgr(struct lock *lkp, int flags, struct mtx *interlkp, 
+_lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, 
 	 struct thread *td, char *file, int line)
 
 {
@@ -544,7 +544,6 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	lkp->lk_waitcount = 0;
 	lkp->lk_exclusivecount = 0;
 	lkp->lk_prio = prio;
-	lkp->lk_wmesg = wmesg;
 	lkp->lk_timo = timo;
 	lkp->lk_lockholder = LK_NOPROC;
 	lkp->lk_newlock = NULL;
@@ -552,6 +551,8 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	stack_zero(&lkp->lk_stack);
 #endif
 	lock_profile_object_init(&lkp->lk_object, &lock_class_lockmgr, wmesg);
+	lock_init(&lkp->lk_object, &lock_class_lockmgr, wmesg, NULL,
+	    LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE);
 }
 
 /*
@@ -564,6 +565,7 @@ lockdestroy(lkp)
 	CTR2(KTR_LOCK, "lockdestroy(): lkp == %p (lk_wmesg == \"%s\")",
 	    lkp, lkp->lk_wmesg);
 	lock_profile_object_destroy(&lkp->lk_object);
+	lock_destroy(&lkp->lk_object);
 }
 
 /*
@@ -661,7 +663,8 @@ lockmgr_chain(struct thread *td, struct thread **ownerp)
 	lkp = td->td_wchan;
 
 	/* Simple test to see if wchan points to a lockmgr lock. */
-	if (lkp->lk_wmesg == td->td_wmesg)
+	if (LOCK_CLASS(&lkp->lk_object) == &lock_class_lockmgr &&
+	    lkp->lk_wmesg == td->td_wmesg)
 		goto ok;
 
 	/*
@@ -670,7 +673,8 @@ lockmgr_chain(struct thread *td, struct thread **ownerp)
 	 */
 	lkp = (struct lock *)((char *)td->td_wchan -
 	    offsetof(struct lock, lk_flags));
-	if (lkp->lk_wmesg == td->td_wmesg && (lkp->lk_flags & LK_WAITDRAIN))
+	if (LOCK_CLASS(&lkp->lk_object) == &lock_class_lockmgr &&
+	    lkp->lk_wmesg == td->td_wmesg && (lkp->lk_flags & LK_WAITDRAIN))
 		goto ok;
 
 	/* Doen't seem to be a lockmgr lock. */
@@ -697,8 +701,8 @@ db_show_lockmgr(struct lock_object *lock)
 
 	lkp = (struct lock *)lock;
 
-	db_printf("lock type: %s\n", lkp->lk_wmesg);
-	db_printf("state: ");
+	db_printf(" lock type: %s\n", lkp->lk_wmesg);
+	db_printf(" state: ");
 	if (lkp->lk_sharecount)
 		db_printf("SHARED (count %d)\n", lkp->lk_sharecount);
 	else if (lkp->lk_flags & LK_HAVE_EXCL) {
@@ -709,6 +713,6 @@ db_show_lockmgr(struct lock_object *lock)
 	} else
 		db_printf("UNLOCKED\n");
 	if (lkp->lk_waitcount > 0)
-		db_printf("waiters: %d\n", lkp->lk_waitcount);
+		db_printf(" waiters: %d\n", lkp->lk_waitcount);
 }
 #endif
