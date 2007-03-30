@@ -24,14 +24,17 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current src committers go here. Try to keep things sorted.
 
+anholt [label="Eric Anholt\nanholt@FreeBSD.org\n2002/04/22"]
 benjsc [label="Benjamin Close\nbenjsc@FreeBSD.org\n2007/02/09"]
 bms [label="Bruce M Simpson\nbms@FreeBSD.org\n2003/08/06"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 dds [label="Diomidis Spinellis\ndds@FreeBSD.org\n2003/06/20"]
+des [label="Dag-Erling Smorgrav\ndes@FreeBSD.org\n1998/04/03"]
 dhartmei [label="Daniel Hartmeier\ndhartmei@FreeBSD.org\n2004/04/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16"]
+jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n????/??/??"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
@@ -44,11 +47,15 @@ thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 # Group together all the mentees for a particular mentor.
 # Keep the list sorted by mentor login.
 
+anholt -> jkim
+
 cperciva -> flz
 
 bms -> mlaier
 bms -> dhartmei
 bms -> thompsa
+
+des -> anholt
 
 jake -> bms
 
