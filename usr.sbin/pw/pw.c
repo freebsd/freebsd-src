@@ -328,6 +328,7 @@ cmdhelp(int mode, int which)
 				"\t-G grp1,grp2   additional groups\n"
 				"\t-L class       default user class\n"
 				"\t-k dir         default home skeleton\n"
+				"\t-M mode        home directory permissions\n"
 				"\t-u min,max     set min,max uids\n"
 				"\t-i min,max     set min,max gids\n"
 				"\t-w method      set default password method\n"
