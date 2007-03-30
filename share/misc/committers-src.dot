@@ -11,10 +11,12 @@ node [color=lightblue2, style=filled, bgcolor=black];
 # Current src committers go here. Try to keep things sorted.
 
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
+dds [label="Diomidis Spinellis\ndds@FreeBSD.org\n2003/06/20"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 
 # Here are the mentor/mentee relationships.
 
 cperciva -> flz
+schweikh -> dds
 
 }
