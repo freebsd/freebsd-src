@@ -53,6 +53,7 @@ struct	mtx;
 struct lock {
 	struct lock_object lk_object;   /* common lock properties */
 	struct	mtx *lk_interlock;	/* lock on remaining fields */
+	u_int	lk_flags;		/* see below */
 	int	lk_sharecount;		/* # of accepted shared locks */
 	int	lk_waitcount;		/* # of processes sleeping for lock */
 	short	lk_exclusivecount;	/* # of recursive exclusive locks */
@@ -66,7 +67,6 @@ struct lock {
 #endif
 };
 
-#define lk_flags lk_object.lo_flags
 #define lk_wmesg lk_object.lo_name
 /*
  * Lock request types:
@@ -202,7 +202,7 @@ void	lockinit(struct lock *, int prio, const char *wmesg,
 			int timo, int flags);
 void	lockdestroy(struct lock *);
 
-int	_lockmgr(struct lock *, int flags,
+int	_lockmgr(struct lock *, u_int flags,
 		 struct mtx *, struct thread *p, char *file, int line);
 void	transferlockers(struct lock *, struct lock *);
 void	lockmgr_printinfo(struct lock *);
