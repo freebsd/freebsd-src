@@ -593,6 +593,10 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if ((args->flags & 0xffffff00) == LINUX_THREADING_FLAGS)
 		ff |= RFTHREAD;
 
+	if (args->flags & LINUX_CLONE_PARENT_SETTID)
+		if (args->parent_tidptr == NULL)
+			return (EINVAL);
+
 	error = fork1(td, ff, 0, &p2);
 	if (error)
 		return (error);
@@ -611,17 +615,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	em = em_find(p2, EMUL_DOLOCK);
 	KASSERT(em != NULL, ("clone: emuldata not found.\n"));
 	/* and adjust it */
-	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
-	   	if (args->parent_tidptr == NULL) {
-		   	EMUL_UNLOCK(&emul_lock);
-			return (EINVAL);
-		}
-		error = copyout(&p2->p_pid, args->parent_tidptr, sizeof(p2->p_pid));
-		if (error) {
-		   	EMUL_UNLOCK(&emul_lock);
-			return (error);
-		}
-	}
 
 	if (args->flags & LINUX_CLONE_THREAD) {
 	   	/* XXX: linux mangles pgrp and pptr somehow
@@ -646,6 +639,13 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	   	em->child_clear_tid = NULL;
 
 	EMUL_UNLOCK(&emul_lock);
+
+	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
+		error = copyout(&p2->p_pid, args->parent_tidptr,
+		    sizeof(p2->p_pid));
+		if (error)
+			printf(LMSG("copyout failed!"));
+	}
 
 	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
