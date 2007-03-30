@@ -481,7 +481,7 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		 * value RW_UNLOCKED | RW_LOCK_WRITE_WAITERS.  If we see
 		 * that value, try to acquire it once.  Note that we have
 		 * to preserve the RW_LOCK_WRITE_WAITERS flag as there are
-		 * other writers waiting still. If we fail, restart the
+		 * other writers waiting still.  If we fail, restart the
 		 * loop.
 		 */
 		if (v == (RW_UNLOCKED | RW_LOCK_WRITE_WAITERS)) {
@@ -668,8 +668,8 @@ _rw_try_upgrade(struct rwlock *rw, const char *file, int line)
 	 */
 	tid = (uintptr_t)curthread;
 	if (!(rw->rw_lock & RW_LOCK_WRITE_WAITERS)) {
-		success = atomic_cmpset_acq_ptr(&rw->rw_lock,
-		    RW_READERS_LOCK(1), tid);
+		success = atomic_cmpset_ptr(&rw->rw_lock, RW_READERS_LOCK(1),
+		    tid);
 		goto out;
 	}
 
@@ -689,7 +689,7 @@ _rw_try_upgrade(struct rwlock *rw, const char *file, int line)
 	 * spinning.
 	 */
 	v = rw->rw_lock & RW_LOCK_WRITE_WAITERS;
-	success = atomic_cmpset_acq_ptr(&rw->rw_lock, RW_READERS_LOCK(1) | v,
+	success = atomic_cmpset_ptr(&rw->rw_lock, RW_READERS_LOCK(1) | v,
 	    tid | v);
 #ifdef ADAPTIVE_RWLOCKS
 	if (success && v && turnstile_lookup(&rw->lock_object) != NULL)
