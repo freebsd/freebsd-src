@@ -11,8 +11,6 @@
 NON_GPROF_ENTRY(linux_sigcode)
 	call	*LINUX_SIGF_HANDLER(%esp)
 	leal	LINUX_SIGF_SC(%esp),%ebx	/* linux scp */
-	movl	LINUX_SC_GS(%ebx),%gs
-	movl	LINUX_SC_FS(%ebx),%fs
 	movl	LINUX_SC_ES(%ebx),%es
 	movl	LINUX_SC_DS(%ebx),%ds
 	movl	%esp, %ebx			/* pass sigframe */
@@ -25,8 +23,6 @@ NON_GPROF_ENTRY(linux_sigcode)
 linux_rt_sigcode:
 	call	*LINUX_RT_SIGF_HANDLER(%esp)
 	leal	LINUX_RT_SIGF_UC(%esp),%ebx	/* linux ucp */
-	movl	LINUX_SC_GS(%ebx),%gs
-	movl	LINUX_SC_FS(%ebx),%fs
 	movl	LINUX_SC_ES(%ebx),%es
 	movl	LINUX_SC_DS(%ebx),%ds
 	push	%eax				/* fake ret addr */
