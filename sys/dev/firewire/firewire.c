@@ -420,7 +420,6 @@ firewire_attach(device_t dev)
 	bus_generic_attach(dev);
 
 	/* bus_reset */
-	fw_busreset(fc);
 	fc->ibr(fc);
 
 	return 0;
