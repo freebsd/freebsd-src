@@ -124,7 +124,7 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 	 * Allocate temporary demand zeroed space for argument and
 	 *	environment strings
 	 */
-	args->buf = (char *) kmem_alloc_wait(exec_map,
+	args->buf = (char *)kmem_alloc_wait(exec_map,
 	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
 	if (args->buf == NULL)
 		return (ENOMEM);
@@ -158,14 +158,14 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 		if (error) {
 			if (error == ENAMETOOLONG)
 				error = E2BIG;
-			
+
 			goto err_exit;
 		}
 		args->stringspace -= length;
 		args->endp += length;
 		args->argc++;
 	}
-			
+
 	args->begin_envv = args->endp;
 
 	/*
@@ -222,13 +222,13 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
 	if (error == 0)
-	   	/* linux process can exec fbsd one, dont attempt
+		/* Linux process can execute FreeBSD one, do not attempt
 		 * to create emuldata for such process using
 		 * linux_proc_init, this leads to a panic on KASSERT
-		 * because such process has p->p_emuldata == NULL
+		 * because such process has p->p_emuldata == NULL.
 		 */
 	   	if (td->td_proc->p_sysent == &elf_linux_sysvec)
-   		   	error = linux_proc_init(td, 0, 0);
+			error = linux_proc_init(td, 0, 0);
 	return (error);
 }
 
@@ -469,7 +469,7 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 
 	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2)) != 0)
 		return (error);
-	
+
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -483,7 +483,9 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 
 	td2 = FIRST_THREAD_IN_PROC(p2);
 
-	/* make it run */
+	/*
+	 * Make this runnable after we are finished with it.
+	 */
 	mtx_lock_spin(&sched_lock);
 	TD_SET_CAN_RUN(td2);
 	sched_add(td2, SRQ_BORING);
@@ -504,7 +506,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 		printf(ARGS(vfork, ""));
 #endif
 
-	/* exclude RFPPWAIT */
+	/* Exclude RFPPWAIT */
 	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFSTOPPED, 0, &p2)) != 0)
 		return (error);
 	if (error == 0) {
@@ -523,7 +525,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	PROC_UNLOCK(p2);
 
 	td2 = FIRST_THREAD_IN_PROC(p2);
-	
+
 	/* make it run */
 	mtx_lock_spin(&sched_lock);
 	TD_SET_CAN_RUN(td2);
@@ -535,7 +537,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	while (p2->p_flag & P_PPWAIT)
 	   	msleep(td->td_proc, &p2->p_mtx, PWAIT, "ppwait", 0);
 	PROC_UNLOCK(p2);
-	
+
 	return (0);
 }
 
@@ -550,10 +552,9 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 
 #ifdef DEBUG
 	if (ldebug(clone)) {
-   	   	printf(ARGS(clone, "flags %x, stack %x, parent tid: %x, child tid: %x"),
-		    (unsigned int)args->flags, (unsigned int)(uintptr_t)args->stack, 
-		    (unsigned int)(uintptr_t)args->parent_tidptr, 
-		    (unsigned int)(uintptr_t)args->child_tidptr);
+		printf(ARGS(clone, "flags %x, stack %p, parent tid: %p, "
+		    "child tid: %p"), (unsigned)args->flags,
+		    args->stack, args->parent_tidptr, args->child_tidptr);
 	}
 #endif
 
@@ -568,11 +569,11 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		ff |= RFMEM;
 	if (args->flags & LINUX_CLONE_SIGHAND)
 		ff |= RFSIGSHARE;
-	/* 
-	 * XXX: in linux sharing of fs info (chroot/cwd/umask)
-	 * and open files is independant. in fbsd its in one
-	 * structure but in reality it doesn't cause any problems
-	 * because both of these flags are usually set together.
+	/*
+	 * XXX: In Linux, sharing of fs info (chroot/cwd/umask)
+	 * and open files is independant.  In FreeBSD, its in one
+	 * structure but in reality it does not make any problems
+	 * because both of these flags are set at once usually.
 	 */
 	if (!(args->flags & (LINUX_CLONE_FILES | LINUX_CLONE_FS)))
 		ff |= RFFDG;
@@ -608,7 +609,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		PROC_UNLOCK(p2);
 		sx_xunlock(&proctree_lock);
 	}
-	
+
 	/* create the emuldata */
 	error = linux_proc_init(td, p2->p_pid, args->flags);
 	/* reference it - no need to check this */
@@ -617,15 +618,12 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	/* and adjust it */
 
 	if (args->flags & LINUX_CLONE_THREAD) {
-	   	/* XXX: linux mangles pgrp and pptr somehow
-		 * I think it might be this but I am not sure.
-		 */
 #ifdef notyet
 	   	PROC_LOCK(p2);
 	   	p2->p_pgrp = td->td_proc->p_pgrp;
 	   	PROC_UNLOCK(p2);
 #endif
-	 	exit_signal = 0;
+		exit_signal = 0;
 	}
 
 	if (args->flags & LINUX_CLONE_CHILD_SETTID)
@@ -651,12 +649,13 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
 	td2 = FIRST_THREAD_IN_PROC(p2);
-	/* 
-	 * in a case of stack = NULL we are supposed to COW calling process stack
-	 * this is what normal fork() does so we just keep the tf_rsp arg intact
+	/*
+	 * In a case of stack = NULL, we are supposed to COW calling process
+	 * stack. This is what normal fork() does, so we just keep tf_rsp arg
+	 * intact.
 	 */
 	if (args->stack)
-   	   	td2->td_frame->tf_rsp = PTROUT(args->stack);
+		td2->td_frame->tf_rsp = PTROUT(args->stack);
 
 	if (args->flags & LINUX_CLONE_SETTLS) {
 		struct user_segment_descriptor sd;
@@ -700,8 +699,9 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 
 #ifdef DEBUG
 	if (ldebug(clone))
-		printf(LMSG("clone: successful rfork to %ld, stack %p sig = %d"),
-		    (long)p2->p_pid, args->stack, exit_signal);
+		printf(LMSG("clone: successful rfork to %d, "
+		    "stack %p sig = %d"), (int)p2->p_pid, args->stack,
+		    exit_signal);
 #endif
 	if (args->flags & LINUX_CLONE_VFORK) {
 	   	PROC_LOCK(p2);
@@ -719,12 +719,12 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 
 	td->td_retval[0] = p2->p_pid;
 	td->td_retval[1] = 0;
-	
+
 	if (args->flags & LINUX_CLONE_VFORK) {
-   	   	/* wait for the children to exit, ie. emulate vfork */
-   	   	PROC_LOCK(p2);
+		/* wait for the children to exit, ie. emulate vfork */
+		PROC_LOCK(p2);
 		while (p2->p_flag & P_PPWAIT)
-   		   	msleep(td->td_proc, &p2->p_mtx, PWAIT, "ppwait", 0);
+			msleep(td->td_proc, &p2->p_mtx, PWAIT, "ppwait", 0);
 		PROC_UNLOCK(p2);
 	}
 
@@ -743,8 +743,8 @@ linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 
 #ifdef DEBUG
 	if (ldebug(mmap2))
-		printf(ARGS(mmap2, "%p, %d, %d, 0x%08x, %d, %d"),
-		    (void *)(intptr_t)args->addr, args->len, args->prot,
+		printf(ARGS(mmap2, "0x%08x, %d, %d, 0x%08x, %d, %d"),
+		    args->addr, args->len, args->prot,
 		    args->flags, args->fd, args->pgoff);
 #endif
 
@@ -770,10 +770,9 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 
 #ifdef DEBUG
 	if (ldebug(mmap))
-		printf(ARGS(mmap, "%p, %d, %d, 0x%08x, %d, %d"),
-		    (void *)(intptr_t)linux_args.addr, linux_args.len,
-		    linux_args.prot, linux_args.flags, linux_args.fd,
-		    linux_args.pgoff);
+		printf(ARGS(mmap, "0x%08x, %d, %d, 0x%08x, %d, %d"),
+		    linux_args.addr, linux_args.len, linux_args.prot,
+		    linux_args.flags, linux_args.fd, linux_args.pgoff);
 #endif
 	if ((linux_args.pgoff % PAGE_SIZE) != 0)
 		return (EINVAL);
@@ -859,14 +858,14 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 	}
 
 	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
-		/* 
-		 * The linux MAP_GROWSDOWN option does not limit auto
+		/*
+		 * The Linux MAP_GROWSDOWN option does not limit auto
 		 * growth of the region.  Linux mmap with this option
 		 * takes as addr the inital BOS, and as len, the initial
 		 * region size.  It can then grow down from addr without
-		 * limit.  However, linux threads has an implicit internal
+		 * limit.  However, Linux threads has an implicit internal
 		 * limit to stack size of STACK_SIZE.  Its just not
-		 * enforced explicitly in linux.  But, here we impose
+		 * enforced explicitly in Linux.  But, here we impose
 		 * a limit of (STACK_SIZE - GUARD_SIZE) on the stack
 		 * region, since we can do this with our mmap.
 		 *
@@ -883,8 +882,8 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 
 		if ((caddr_t)PTRIN(linux_args->addr) + linux_args->len >
 		    p->p_vmspace->vm_maxsaddr) {
-			/* 
-			 * Some linux apps will attempt to mmap
+			/*
+			 * Some Linux apps will attempt to mmap
 			 * thread stacks near the top of their
 			 * address space.  If their TOS is greater
 			 * than vm_maxsaddr, vm_map_growstack()
@@ -911,7 +910,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		else
 			bsd_args.len  = STACK_SIZE - GUARD_SIZE;
 
-		/* 
+		/*
 		 * This gives us a new BOS.  If we're using VM_STACK, then
 		 * mmap will just map the top SGROWSIZ bytes, and let
 		 * the stack grow down to the limit at BOS.  If we're
@@ -1044,7 +1043,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 }
 
 /*
- * Linux has two extra args, restart and oldmask.  We dont use these,
+ * Linux has two extra args, restart and oldmask.  We don't use these,
  * but it seems that "restart" is actually a context pointer that
  * enables the signal to happen with a different register set.
  */
