@@ -1524,12 +1524,6 @@ ENTRY(longjmp)
 bbhead:
 	.long 0
 
-#if defined(SMP) || !defined(_KERNEL)
-#define MPLOCKED        lock ;
-#else
-#define MPLOCKED
-#endif
-
 	.text
 NON_GPROF_ENTRY(__bb_init_func)
 	movl	4(%esp),%eax
@@ -1557,7 +1551,10 @@ ENTRY(futex_xchgl)
 	cmpl    $VM_MAXUSER_ADDRESS,%edx
 	ja     	futex_fault
 
-	MPLOCKED xchgl	%eax, (%edx)
+#if defined(SMP) || !defined(_KERNEL)
+	lock
+#endif
+	xchgl	%eax, (%edx)
 	movl	0xc(%esp), %edx
 	movl	%eax, (%edx)
 	xorl	%eax, %eax
@@ -1575,7 +1572,10 @@ ENTRY(futex_addl)
 	cmpl    $VM_MAXUSER_ADDRESS,%edx
 	ja     	futex_fault
 
-	MPLOCKED xaddl	%eax, (%edx)
+#if defined(SMP) || !defined(_KERNEL)
+	lock
+#endif
+	xaddl	%eax, (%edx)
 	movl	0xc(%esp), %edx
 	movl	%eax, (%edx)
 	xorl	%eax, %eax
@@ -1583,4 +1583,3 @@ ENTRY(futex_addl)
 	movl	PCPU(CURPCB), %edx
 	movl	$0, PCB_ONFAULT(%edx)
 	ret
-

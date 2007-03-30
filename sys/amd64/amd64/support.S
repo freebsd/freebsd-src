@@ -690,12 +690,6 @@ NON_GPROF_ENTRY(__bb_init_func)
 	movq	%rdi,bbhead
 	NON_GPROF_RET
 
-#if defined(SMP) || !defined(_KERNEL)
-#define MPLOCKED	lock ;
-#else
-#define MPLOCKED
-#endif
-
 	.text
 
 futex_fault:
@@ -713,7 +707,10 @@ ENTRY(futex_xchgl)
 	cmpq	%rax, %rsi
 	ja	futex_fault
 
-	MPLOCKED xchgl	%edi, (%rsi)
+#if defined(SMP) || !defined(_KERNEL)
+	lock
+#endif
+	xchgl	%edi, (%rsi)
 	movl	%edi, (%rdx)
 	xorl	%eax, %eax
 	movq	%rax, PCB_ONFAULT(%r11)
@@ -728,7 +725,10 @@ ENTRY(futex_addl)
 	cmpq	%rax, %rsi
 	ja	futex_fault
 
-	MPLOCKED xaddl	%edi, (%rsi)
+#if defined(SMP) || !defined(_KERNEL)
+	lock
+#endif
+	xaddl	%edi, (%rsi)
 	movl	%edi, (%rdx)
 	xorl	%eax, %eax
 	movq	%rax, PCB_ONFAULT(%r11)
