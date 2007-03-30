@@ -53,7 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <machine/frame.h>
+#include <machine/pcb.h>
 #include <machine/psl.h>
+#include <machine/segments.h>
+#include <machine/specialreg.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -656,7 +659,43 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
    	   	td2->td_frame->tf_rsp = PTROUT(args->stack);
 
 	if (args->flags & LINUX_CLONE_SETTLS) {
-	   	/* XXX: todo */
+		struct user_segment_descriptor sd;
+		struct l_user_desc info;
+	   	int a[2];
+
+	   	error = copyin((void *)td->td_frame->tf_rsi, &info,
+		    sizeof(struct l_user_desc));
+		if (error) {
+			printf(LMSG("copyin failed!"));
+		} else {
+			/* We might copy out the entry_number as GUGS32_SEL. */
+		   	info.entry_number = GUGS32_SEL;
+			error = copyout(&info, (void *)td->td_frame->tf_rsi,
+			    sizeof(struct l_user_desc));
+			if (error)
+				printf(LMSG("copyout failed!"));
+
+			a[0] = LINUX_LDT_entry_a(&info);
+			a[1] = LINUX_LDT_entry_b(&info);
+
+			memcpy(&sd, &a, sizeof(a));
+#ifdef DEBUG
+			if (ldebug(clone))
+				printf("Segment created in clone with "
+				    "CLONE_SETTLS: lobase: %x, hibase: %x, "
+				    "lolimit: %x, hilimit: %x, type: %i, "
+				    "dpl: %i, p: %i, xx: %i, long: %i, "
+				    "def32: %i, gran: %i\n", sd.sd_lobase,
+				    sd.sd_hibase, sd.sd_lolimit, sd.sd_hilimit,
+				    sd.sd_type, sd.sd_dpl, sd.sd_p, sd.sd_xx,
+				    sd.sd_long, sd.sd_def32, sd.sd_gran);
+#endif
+			td2->td_pcb->pcb_gsbase = (register_t)info.base_addr;
+			td2->td_pcb->pcb_gs32sd = sd;
+			td2->td_pcb->pcb_gs32p = &gdt[GUGS32_SEL];
+			td2->td_pcb->pcb_gs = GSEL(GUGS32_SEL, SEL_UPL);
+			td2->td_pcb->pcb_flags |= PCB_32BIT;
+		}
 	}
 
 #ifdef DEBUG
@@ -902,6 +941,19 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 			__func__, error, (u_int)td->td_retval[0]);
 #endif
 	return (error);
+}
+
+int
+linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
+{
+	struct mprotect_args bsd_args;
+
+	bsd_args.addr = uap->addr;
+	bsd_args.len = uap->len;
+	bsd_args.prot = uap->prot;
+	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
+		bsd_args.prot |= PROT_READ | PROT_EXEC;
+	return (mprotect(td, &bsd_args));
 }
 
 int
@@ -1177,14 +1229,104 @@ linux_sched_rr_get_interval(struct thread *td,
 }
 
 int
-linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
+linux_set_thread_area(struct thread *td,
+    struct linux_set_thread_area_args *args)
 {
-	struct mprotect_args bsd_args;
+	struct l_user_desc info;
+	struct user_segment_descriptor sd;
+	int a[2];
+	int error;
 
-	bsd_args.addr = uap->addr;
-	bsd_args.len = uap->len;
-	bsd_args.prot = uap->prot;
-	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
-		bsd_args.prot |= PROT_READ | PROT_EXEC;
-	return (mprotect(td, &bsd_args));
+	error = copyin(args->desc, &info, sizeof(struct l_user_desc));
+	if (error)
+		return (error);
+
+#ifdef DEBUG
+	if (ldebug(set_thread_area))
+	   	printf(ARGS(set_thread_area, "%i, %x, %x, %i, %i, %i, "
+		    "%i, %i, %i"), info.entry_number, info.base_addr,
+		    info.limit, info.seg_32bit, info.contents,
+		    info.read_exec_only, info.limit_in_pages,
+		    info.seg_not_present, info.useable);
+#endif
+
+	/*
+	 * Semantics of Linux version: every thread in the system has array
+	 * of three TLS descriptors. 1st is GLIBC TLS, 2nd is WINE, 3rd unknown.
+	 * This syscall loads one of the selected TLS decriptors with a value
+	 * and also loads GDT descriptors 6, 7 and 8 with the content of
+	 * the per-thread descriptors.
+	 *
+	 * Semantics of FreeBSD version: I think we can ignore that Linux has
+	 * three per-thread descriptors and use just the first one.
+	 * The tls_array[] is used only in [gs]et_thread_area() syscalls and
+	 * for loading the GDT descriptors. We use just one GDT descriptor
+	 * for TLS, so we will load just one.
+	 * XXX: This doesnt work when user-space process tries to use more
+	 * than one TLS segment. Comment in the Linux source says wine might
+	 * do that.
+	 */
+
+	/*
+	 * GLIBC reads current %gs and call set_thread_area() with it.
+	 * We should let GUDATA_SEL and GUGS32_SEL proceed as well because
+	 * we use these segments.
+	 */
+	switch (info.entry_number) {
+	case GUGS32_SEL:
+	case GUDATA_SEL:
+	case 6:
+	case -1:
+		info.entry_number = GUGS32_SEL;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	/*
+	 * We have to copy out the GDT entry we use.
+	 * XXX: What if userspace program does not check return value and
+	 * tries to use 6, 7 or 8?
+	 */
+	error = copyout(&info, args->desc, sizeof(struct l_user_desc));
+	if (error)
+		return (error);
+
+	if (LINUX_LDT_empty(&info)) {
+		a[0] = 0;
+		a[1] = 0;
+	} else {
+		a[0] = LINUX_LDT_entry_a(&info);
+		a[1] = LINUX_LDT_entry_b(&info);
+	}
+
+	memcpy(&sd, &a, sizeof(a));
+#ifdef DEBUG
+	if (ldebug(set_thread_area))
+		printf("Segment created in set_thread_area: "
+		    "lobase: %x, hibase: %x, lolimit: %x, hilimit: %x, "
+		    "type: %i, dpl: %i, p: %i, xx: %i, long: %i, "
+		    "def32: %i, gran: %i\n",
+		    sd.sd_lobase,
+		    sd.sd_hibase,
+		    sd.sd_lolimit,
+		    sd.sd_hilimit,
+		    sd.sd_type,
+		    sd.sd_dpl,
+		    sd.sd_p,
+		    sd.sd_xx,
+		    sd.sd_long,
+		    sd.sd_def32,
+		    sd.sd_gran);
+#endif
+
+	critical_enter();
+	td->td_pcb->pcb_gsbase = (register_t)info.base_addr;
+	td->td_pcb->pcb_gs32sd = gdt[GUGS32_SEL] = sd;
+	td->td_pcb->pcb_gs32p = &gdt[GUGS32_SEL];
+	td->td_pcb->pcb_flags |= PCB_32BIT;
+	wrmsr(MSR_KGSBASE, td->td_pcb->pcb_gsbase);
+	critical_exit();
+
+	return (0);
 }

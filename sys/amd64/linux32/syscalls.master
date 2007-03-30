@@ -409,7 +409,7 @@
 					struct l_timespec *timeout, void *uaddr2, int val3); }
 241	AUE_NULL	UNIMPL	linux_sched_setaffinity
 242	AUE_NULL	UNIMPL	linux_sched_getaffinity
-243	AUE_NULL	UNIMPL	linux_set_thread_area
+243	AUE_NULL	STD	{ int linux_set_thread_area(struct l_user_desc *desc); }
 244	AUE_NULL	UNIMPL	linux_get_thread_area
 245	AUE_NULL	UNIMPL	linux_io_setup
 246	AUE_NULL	UNIMPL	linux_io_destroy

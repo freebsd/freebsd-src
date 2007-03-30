@@ -408,6 +408,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	td->td_pcb->pcb_ds = _udatasel;
 	load_es(_udatasel);
 	td->td_pcb->pcb_es = _udatasel;
+	/* leave user %fs and %gs untouched */
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -528,6 +529,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	td->td_pcb->pcb_ds = _udatasel;
 	load_es(_udatasel);
 	td->td_pcb->pcb_es = _udatasel;
+	/* leave user %fs and %gs untouched */
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -813,18 +815,20 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
+	critical_enter();
 	wrmsr(MSR_FSBASE, 0);
 	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
+	critical_exit();
 	load_ds(_udatasel);
 	load_es(_udatasel);
 	load_fs(_udatasel);
-	load_gs(0);
+	load_gs(_udatasel);
 	pcb->pcb_ds = _udatasel;
 	pcb->pcb_es = _udatasel;
 	pcb->pcb_fs = _udatasel;
-	pcb->pcb_gs = 0;
+	pcb->pcb_gs = _udatasel;
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;

@@ -136,12 +136,14 @@ ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
 ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_32BIT, PCB_32BIT);
+ASSYM(PCB_FULLCTX, PCB_FULLCTX);
 
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
-ASSYM(PCB_FULLCTX, PCB_FULLCTX);
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
 ASSYM(PCB_SAVEFPU_SIZE, sizeof(struct savefpu));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
+ASSYM(PCB_GS32P, offsetof(struct pcb, pcb_gs32p));
+ASSYM(PCB_GS32SD, offsetof(struct pcb, pcb_gs32sd));
 
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 
