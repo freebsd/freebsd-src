@@ -10,13 +10,16 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current doc committers go here. Try to keep things sorted.
 
-cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
-
 bvs [label="Vitaly Bogdanov\nbvs@FreeBSD.org\n2005/10/03"]
+cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 den [label="Denis Peplin\nden@FreeBSD.org\n2003/09/13"]
+gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
+keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
 marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
 
 # Here are the mentor/mentee relationships.
+
+keramida -> gabor
 
 marck -> bvs
 
