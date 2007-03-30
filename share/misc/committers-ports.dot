@@ -29,7 +29,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29"]
 alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
-clement [label="Clement Laforet\clement@FreeBSD.org\n2003/12/17"]
+clement [label="Clement Laforet\nclement@FreeBSD.org\n2003/12/17"]
 db [label="Diane Bruce\ndb@FreeBSD.org\n2007/01/18"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22"]
 ehaupt [label="Emanuel Haupt\nehaupt@FreeBSD.org\n2005/10/03"]
