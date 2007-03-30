@@ -1106,7 +1106,7 @@ nice," he replied, but don't you think it would be better if..."
 %
 	A novel approach is to remove all power from the system, which
 removes most system overhead so that resources can be fully devoted to
-doing nothing.  Benchmarks on  this technique are promising; tremendous
+doing nothing.  Benchmarks on this technique are promising; tremendous
 amounts of nothing can be produced in this manner.  Certain hardware
 limitations can limit the speed of this method, especially in the
 larger systems which require a more involved & less efficient
@@ -1662,6 +1662,11 @@ for doing it."
 Los Angeles fainted from hyperoxygenation, and we had to hold his head
 under the exhaust of a bus until he revived.
 %
+Attempting to stop MySQL by buying companies around it is like trying
+to kill a dolphin by drinking the ocean.
+
+                -- Mårten Mickos
+%
 	Before he became a hermit, Zarathud was a young Priest, and
 	took great delight in making fools of his opponents in front of
 his followers.
@@ -1904,7 +1909,7 @@ speaks in such a low voice I can hardly hear them.
 and waist, that it is almost impossible to reach one's shoelaces.  And the
 sizes don't run the way they used to.  The 12's and 14's are so much smaller.
 	Even people are changing.  They are so much younger than they used to
-be when I was their age.  On  the other hand people my age are so much older
+be when I was their age.  On the other hand people my age are so much older
 than I am.
 	I ran into an old classmate the other day and she has aged so much
 that she didn't recognize me.
@@ -2227,7 +2232,7 @@ of her blonde companion.
 	"How many people work here?"
 	"Oh, about half."
 %
-	How many seconds are there in a year?  If I tell you there  are
+	How many seconds are there in a year?  If I tell you there are
 3.155  x  10^7, you won't even try to remember it.  On the other hand, who
 could forget that, to within half a percent, pi seconds is a nanocentury.
 		-- Tom Duff, Bell Labs
@@ -2835,21 +2840,6 @@ explains.
 
 		-- being told in Poland, 1987
 %
-	Joan, the rather well-proportioned secretary, spent almost all of
-her vacation sunbathing on the roof of her hotel.  She wore a bathing suit
-the first day, but on the second, she decided that no one could see her
-way up there, and she slipped out of it for an overall tan.  She'd hardly
-begun when she heard someone running up the stairs; she was lying on her
-stomach, so she just pulled a towel over her rear.
-	"Excuse me, miss," said the flustered little assistant manager of
-the hotel, out of breath from running up the stairs.  "The Hilton doesn't
-mind your sunbathing on the roof, but we would very much appreciate your
-wearing a bathing suit as you did yesterday."
-	"What difference does it make," Joan asked rather calmly.  "No one
-can see me up here, and besides, I'm covered with a towel."
-	"Not exactly," said the embarrassed little man.  "You're lying on
-the dining room skylight."
-%
 	Lassie looked brilliant, in part because the farm family she
 lived with was made up of idiots.  Remember?  One of them was always
 getting pinned under the tractor, and Lassie was always rushing back to
@@ -3040,7 +3030,7 @@ it.  The answer is obvious.  A Japanese tourist took the picture.
 	Never ask if your lover has had therapy.  Only people who have had
 therapy ask if people have had therapy.
 	Don't ask about plaster casts of male sex organs marked JIMI, JIM, etc.
-Assume that she bought them at a flea  market.
+Assume that she bought them at a flea market.
 		-- James Peterson and Kate Nolan
 %
 	NEW YORK-- Kraft Foods, Inc. announced today that its board of
@@ -3106,7 +3096,7 @@ to be avoided than harped upon.
 reunited with his deceased relatives led on to the thought that they might
 just feel the same way about him and, what's more, be able to do something
 about helping to postpone this reunion.
-		-- Douglas Adams
+		-- Douglas Adams, "The Restaurant at the End of the Universe"
 %
 	"Oh sure, this costume may look silly, but it lets me get in and out
 of dangerous situations -- I work for a federal task force doing a survey on
@@ -4030,6 +4020,7 @@ a dozen other items that he may have "lost".  After all, any man who can
 hitch the length and breadth of the Galaxy, struggle against terrible odds,
 win through and still know where his towel is, is clearly a man to be
 reckoned with.
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 	The Hitchiker's Guide to the Galaxy has a few things to say on
 the subject of towels.
@@ -4040,6 +4031,7 @@ of Jaglan Beta; you can lie on it on the brilliant marble-sanded beaches
 of Santraginus V ... use it to sail a miniraft down the slow heavy River
 Moth; wave your towel in emergencies, and, of course, dry yourself off
 with it if it still seems to be clean enough.
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 	The honeymooning couple agreed it was a fine day for horseback riding.
 After a mile or so, the bride's mount cantered under a low tree and a
@@ -4983,14 +4975,6 @@ why the sea is salt."
 there is change.
 		-- Jim Starlin, "Captain Marvel", #29
 %
-	"Why did you spend so much time parked in that fellow's car last
-night?" demanded the irate mother.
-"I could hear the giggling and squealing for a good half hour."
-	"But, Mom," answered her daughter, "if a fellow takes you to the
-movies you ought to at least kiss him good night."
-	"I thought you went to the Stork Club?" countered the mother.
-	"We did."
-%
 	Will Rogers, having paid too much income tax one year, tried in
 vain to claim a rebate.  His numerous letters and queries remained
 unanswered.  Eventually the form for the next year's return arrived.  In
@@ -5192,6 +5176,22 @@ music at top volume and at least a pint of ether.
               /____/  \  \  /   \  \ \
               \    \  /___\/     \  \ \
                \____\/            \__\/
+%
+                              THE
+                             NORMAL
+                          LAW OF ERROR
+                        STANDS OUT IN THE
+                      EXPERIENCE OF MANKIND
+                     AS ONE  OF THE BROADEST
+                    GENERALIZATIONS OF NATURAL
+                  PHILOSOPHY * IT SERVES AS THE
+                GUIDING INSTRUMENT IN RESEARCHES
+             IN THE PHYSICAL AND SOCIAL SCIENCES AND
+            IN MEDICINE, AGRICULTURE AND ENGINEERING *
+       IT IS AN INDISPENSABLE TOOL FOR THE ANALYSIS AND THE
+INTERPRETATION OF THE BASIC DATA OBTAINED BY OBSERVATION AND EXPERIMENT
+
+                -- W. J. Youden
 %
     ***
   *******
@@ -5473,7 +5473,7 @@ astray by hunting and pecking.
 %
 "... And remember: if you don't like the news, go out and make some of
 your own."
-        	-- "Scoop" Nisker, KFOG radio reporter
+		-- "Scoop" Nisker, KFOG radio reporter
 		   Preposterous Words
 %
 ... Another writer again agreed with all my generalities, but said that as an
@@ -5488,11 +5488,6 @@ mistakes.  Postjudice is not terrible.  You can't be perfect of course; you
 may make mistakes also.  But it is permissible to make a judgment after you
 have examined the evidence.  In some circles it is even encouraged.
 		-- Carl Sagan, "The Burden of Skepticism"
-%
-... bleakness ... desolation ... plastic forks ...
-%
-"... bleakness... desolation... plastic forks..."
-		-- Zippy the Pinhead
 %
 ... But as records of courts and justice are admissible, it can
 easily be proved that powerful and malevolent magicians once existed
@@ -5623,8 +5618,8 @@ not a children's pastime like mere highway robbery.
 sense of achievement you get from getting them to work at all.  In other
 words... their fundamental design flaws are completely hidden by their
 superficial design flaws.
-		-- The Hitchhiker's Guide to the Galaxy, on the products
-		   of the Sirius Cybernetics Corporation.
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
+		   on the products of the Sirius Cybernetics Corporation
 %
 ... it still remains true that as a set of cognitive beliefs about the
 existence of God in any recognizable sense continuous with the great
@@ -6072,9 +6067,9 @@ increase to more than $100,000,000 -- by which time it will be worth nothing.
 	(6)  Fungus trellis
 	(7)  False eyelashes
 	(8)  Prosthetic dog claws
-        .
-        .
-        .
+	.
+	.
+	.
 	(99)  Window garden harrow (pulled behind Tonka tractors)
 	(100) Killer velcro
 	(101) Currency
@@ -6250,7 +6245,7 @@ You patch a bug, and dump it again:
 You patch a bug, and dump it again:
 101 blocks of crud on the disk!
 %
-A  truly great man will neither trample on a worm nor sneak to an emperor.
+A truly great man will neither trample on a worm nor sneak to an emperor.
 		-- Ben Franklin
 %
 A baby is an alimentary canal with a loud voice
@@ -6399,9 +6394,6 @@ is to make a copy of everything before he destroys it.
 %
 A businessman is a hybrid of a dancer and a calculator.
 		-- Paul Valery
-%
-"A can of ASPARAGUS, 73 pigeons, some LIVE ammo, and a FROZEN DAIQURI!!"
-		-- Zippy the Pinhead
 %
 A candidate is a person who gets money from the rich
 and votes from the poor to protect them from each other.
@@ -6633,7 +6625,7 @@ CS Student:	But we already have a structure element with that identifier
 		scope!
 Hacker:		So call it 'previous'.
 
-And then the CS Student was enlightened. 
+And then the CS Student was enlightened.
 %
 A computer science student on an exam:
 
@@ -7103,7 +7095,7 @@ A good supervisor can step on your toes without messing up your shine.
 A good sysadmin always carries around a few feet of fiber. If he ever
 gets lost, he simply drops the fiber on the ground, waits ten minutes,
 then asks the backhoe operator for directions.
-                -- Bill Bradford <mrbill@mrbill.net>
+		-- Bill Bradford <mrbill@mrbill.net>
 %
 A GOOD WAY TO THREATEN somebody is to light a stick of dynamite.  Then you
 call the guy and hold the burning fuse to the phone.  "Hear that?" you say.
@@ -7257,7 +7249,7 @@ M is for Maud who was swept out to sea, N is for Nevil who died of enui.
 O is for Olive, run through with an awl, P is for Prue, trampled flat in a brawl
 Q is for Quinton who sank in a mire, R is for Rhoda, consumed by a fire.
 S is for Susan who parished of fits, T is for Titas who flew into bits.
-U is for Una  who slipped down a drain, V is for Victor, squashed under a train.
+U is for Una who slipped down a drain, V is for Victor, squashed under a train.
 W is for Winie, embedded in ice, X is for Xercies, devoured by mice.
 Y is for Yoric whose head was bashed in, Z is for Zilla who drank too much gin.
 		-- Edward Gorey "The Gastly Crumb Tines"
@@ -7344,6 +7336,7 @@ The lady, indignant, removed her ear.
 %
 A language that doesn't affect the way you
 think about programming is not worth knowing.
+		-- Alan Perlis
 %
 A language that doesn't have everything is
 actually easier to program in than some that do.
@@ -9052,7 +9045,7 @@ the whale, and nobody would have caught Moby Dick or Billy Budd.
 %
 According to a recent and unscientific national survey, smiling is something
 everyone should do at least 6 times a day.  In an effort to increase the
-national average  (the US ranks third among the world's superpowers in
+national average (the US ranks third among the world's superpowers in
 smiling), Xerox has instructed all personnel to be happy, effervescent, and
 most importantly, to smile.  Xerox employees agree, and even feel strongly
 that they can not only meet but surpass the national average...  except for
@@ -9347,7 +9340,7 @@ that it sinks like a stone.
 After his legs had been broken in an accident, Mr. Miller sued for damages,
 claiming that he was crippled and would have to spend the rest of his life
 in a wheelchair.  Although the insurance-company doctor testified that his
-bones had healed properly and that he was fully capable  of walking, the
+bones had healed properly and that he was fully capable of walking, the
 judge decided for the plaintiff and awarded him $500,000.
 	When he was wheeled into the insurance office to collect his check,
 Miller was confronted by several executives.  "You're not getting away with
@@ -9697,9 +9690,6 @@ All I ask is a chance to prove that money can't make me happy.
 All I ask of life is a constant and exaggerated sense of my own
 importance.
 %
-All I can think of is a platter of organic PRUNE CRISPS being trampled
-by an army of swarthy, Italian LOUNGE SINGERS ...
-%
 All I kin say is when you finds yo'self wanderin' in a peach orchard,
 ya don't go lookin' for rutabagas.
 		-- Kingfish
@@ -9870,7 +9860,7 @@ From the ashes a fire shall be woken,
 A light from the shadows shall spring;
 Renewed shall be blade that was broken,
 The crownless again shall be king.
-	        -- J. R. R. Tolkien
+		-- J. R. R. Tolkien
 %
 All the big corporations depreciate their possessions, and you can,
 too, provided you use them for business purposes.  For example, if you
@@ -10067,8 +10057,6 @@ Always do right.  This will gratify some people and astonish the rest.
 Always draw your curves, then plot your reading.
 %
 Always leave room to add an explanation if it doesn't work out.
-%
-Always remember that you are unique.  Just like everyone else.
 %
 Always run from a knife and rush a gun.
 		-- Jimmy Hoffa
@@ -10728,8 +10716,9 @@ white children begin with a small separation but increase it during
 growth -- the rising belly button as a mark of progress.
 		-- S. J. Gould, "Racism and Recapitulation"
 %
-"...and the fully armed nuclear warheads, are, of course, merely a
+"... and the fully armed nuclear warheads are of course merely a
 courtesy detail."
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 And the silence came surging softly backwards
 When the plunging hooves were gone...
@@ -11068,9 +11057,14 @@ first word he speaks. It is a cheap word because it requires no
 explanation, and many men and women have acquired a reputation for
 intelligence who know only this word and have used it in place of
 thought on every occasion."
-                -- Chuck Jones (Warner Bros. animation director.)
+		-- Chuck Jones (Warner Bros. animation director.)
 %
 Anyone stupid enough to be caught by the police is probably guilty.
+%
+Anyone taking offence at fortune(s) is desperately lacking beer, in my
+extremely humble opinion.
+
+                -- Philip Paeps
 %
 Anyone who cannot cope with mathematics is not fully human.  At best he
 is a tolerable subhuman who has learned to wear shoes, bathe and not
@@ -11079,6 +11073,9 @@ make messes in the house.
 %
 Anyone who considers protocol unimportant has never dealt with a cat.
 		-- R. Heinlein
+%
+Anyone who describes Islam as a religion as intolerant encourages violence.
+		-- Tasnim Aslam, Spokesman for Pakistani Foreign Ministry.
 %
 Anyone who goes to a psychiatrist ought to have his head examined.
 		-- Samuel Goldwyn
@@ -11941,7 +11938,7 @@ I'm lucky today, I've overcome my UNIX problem.  It wasn't easy.  If
 you're smart, just don't start.  Remember, if any weirdo offers you
 some UNIX,
 
-        Just Say No!
+	Just Say No!
 %
 At first sight, the idea of any rules or principles being superimposed on
 the creative mind seems more likely to hinder than to help, but this is
@@ -12119,7 +12116,7 @@ Business before pleasure."
 Back in the early 60's, touch tone phones only had 10 buttons.  Some
 military versions had 16, while the 12 button jobs were used only by people
 who had "diva" (digital inquiry, voice answerback) systems -- mainly banks.
-Since in those days, only Western Electric  made "data sets" (modems) the
+Since in those days, only Western Electric made "data sets" (modems) the
 problems of terminology were all Bell System.  We used to struggle with
 written descriptions of dial pads that were unfamiliar to most people
 (most phones were rotary then.)  Partly in jest, some AT&T engineering
@@ -12454,7 +12451,7 @@ Behind every great computer sits a skinny little geek.
 Behind every successful man you'll find a woman with nothing to wear.
 %
 Behold the fool saith, "Put not all thine eggs in the one basket" -- which
-is but a manner of saying,  "Scatter your money and  your attention"; but
+is but a manner of saying,  "Scatter your money and your attention"; but
 the wise man saith, "Put all your eggs in the one basket and -- watch that
 basket!"
 		-- Mark Twain
@@ -12835,7 +12832,7 @@ absolute, but depended on the observer's movement in space, and that
 time was not an absolute, but depended on the observer's movement in
 time, so it is now realized that numbers are not absolute, but depend
 on the observer's movement in restaurants.
-		-- Douglas Adams
+		-- Douglas Adams, "Life, The Universe and Everything"
 %
 bit, n:
 	A unit of measure applied to color.  Twenty-four-bit color
@@ -14730,15 +14727,15 @@ Year award.
 %
 "Congratulations!
 
-Some products leave home silently, some go kicking and screaming.  If 
-v1.0 was the first born who came downstairs with shoes untied missing 
-a sock and a belt, then this one was a full fledged punk rocker 
-with neon hair and multiple piercings.  I believe we squeezed it into 
-a suit and tie and brought its color back to an earth tone before it 
+Some products leave home silently, some go kicking and screaming.  If
+v1.0 was the first born who came downstairs with shoes untied missing
+a sock and a belt, then this one was a full fledged punk rocker
+with neon hair and multiple piercings.  I believe we squeezed it into
+a suit and tie and brought its color back to an earth tone before it
 left."
 
-		-- An HP engineering project manager who shall remain 
-		   nameless to the development team after releasing 
+		-- An HP engineering project manager who shall remain
+		   nameless to the development team after releasing
 		   the second version of their product.
 %
 Conjecture: All odd numbers are prime.
@@ -14762,6 +14759,10 @@ manufacturers (or, by extension, programmers or purveyors of anything)
 to come up with new products which don't fit together with the old
 stuff, thereby making you buy either all new stuff or expensive
 interface devices.
+%
+Conquering the world on horseback is easy; it is dismounting and
+governing that is hard.
+		-- Chinggis (Genghis) Khan
 %
 Conquering Russia should be done steppe by steppe.
 %
@@ -15471,6 +15472,9 @@ DEATH WISH:
 %
 Debug is human, de-fix divine.
 %
+Debugging is anticipated with distaste, performed with reluctance,
+and bragged about forever. -- Button at the Boston Computer Museum
+%
 DEC diagnostics would run on a dead whale.
 		-- Mel Ferentz
 %
@@ -15780,9 +15784,6 @@ that's how dogs spend their lives.
 %
 Did you ever wonder what you'd say to God if He sneezed?
 %
-"Did YOU find a DIGITAL WATCH in YOUR box of VELVEETA?"
-		-- Zippy the Pinhead
-%
 Did you hear about the model who sat
 on a broken bottle and cut a nice figure?
 %
@@ -15857,9 +15858,6 @@ Didja' ever have to make up your mind?
 		-- Lovin' Spoonful
 %
 Didja hear about the dyslexic devil worshipper who sold his soul to Santa?
-%
-"Didn't I buy a 1951 Packard from you last March in Cairo?"
-		-- Zippy the Pinhead
 %
 Die?  I should say not, dear fellow.  No Barrymore
 would allow such a conventional thing to happen to him.
@@ -17791,7 +17789,7 @@ Excerpt from a DEC field service document:
 ....
 - none of these should have made it to customers.  BUT you could loosen the
 screws and lift system board at fan end while powering on to see if OCP
-comes up - this is not recommended unless you have three hands. 
+comes up - this is not recommended unless you have three hands.
 %
 Excess on occasion is exhilarating.  It prevents moderation from
 acquiring the deadening effect of a habit.
@@ -17844,10 +17842,6 @@ Experience is what causes a person
 to make new mistakes instead of old ones.
 %
 Experience is what you get when you didn't get what you wanted.
-%
-Experience, n:
-	Something you don't get until just after you need it.
-		-- Olivier
 %
 Experience teaches you that the man who looks you straight in the eye,
 particularly if he adds a firm handshake, is hiding something.
@@ -19913,10 +19907,24 @@ engaging a suitable stereotype protagonist or duty marionette (general,
 president, political party, etc.) to consummate the act of social
 schizophrenia in mass genocide.
 %
+From dusk till dawn
+I gathered people and their crown
+Conquered the hearts of
+Not too few
+United the heads of
+Now too humble.
+When weaken your mind
+Don?t get weakened
+When tired of thinking
+Don?t get tired
+My sons and descendants
+Don?t get exhausted in mind and thought and but get experienced.
+		-- Chinggis (Genghis) Khan
+%
 From Italian tourist guide:
 
-        "Non stop trains to Roma Termini Station leave from 7.38
-        a.m. to 10.08 p.m., hourly."
+	"Non stop trains to Roma Termini Station leave from 7.38
+	 a.m. to 10.08 p.m., hourly."
 %
 From listening comes wisdom and from speaking repentance.
 %
@@ -20323,7 +20331,7 @@ Teach a man to fish, and he'll invite himself over for dinner.
 Give a small boy a hammer and he will find
 that everything he encounters needs pounding.
 %
-Give a woman an inch  and she'll park a car in it.
+Give a woman an inch and she'll park a car in it.
 %
 Give all orders verbally.  Never write anything down
 that might go into a "Pearl Harbor File".
@@ -20351,8 +20359,6 @@ Bold I can meet -- perhaps may turn his blow!
 But of all plagues, good Heaven, thy wrath can send,
 Save me, oh save me from the candid friend.
 		-- George Canning
-%
-Give me the Luxuries, and the Hell with the Necessities!
 %
 Give me your students, your secretaries,
 Your huddled writers yearning to breathe free,
@@ -21090,8 +21096,8 @@ Hackers are just a migratory lifeform with a tropism for computers.
 %
 Hacker's Guide To Cooking:
 2 pkg. cream cheese (the mushy white stuff in silver wrappings that doesn't
-	really  come from Philadelphia after all; anyway, about 16 oz.)
-1 tsp. vanilla  extract  (which is more alcohol than vanilla and pretty
+	really come from Philadelphia after all; anyway, about 16 oz.)
+1 tsp. vanilla extract (which is more alcohol than vanilla and pretty
 	strong so this part you *GOTTA* measure)
 1/4 cup sugar (but honey works fine too)
 8 oz. Cool Whip (the fluffy stuff devoid of nutritional value that you
@@ -21103,10 +21109,10 @@ Hacker's Guide To Cooking:
 	beater if you have a cat(1) that can climb wall(1s) to lick it off
 	the ceiling(3m).
 "Pour into a graham cracker crust..."  Aha, the BUGS section at last.  You
-	just happened  to have a GCC sitting around under /etc/food, right?
+	just happened to have a GCC sitting around under /etc/food, right?
 	If not, don't panic(8), merely crumble a rand(3m) handful of innocent
 	GCs into a suitable tempfile and mix in some melted butter.
-"...and  refrigerate for an hour."  Leave the  recipe's  stdout in a fridge
+"...and refrigerate for an hour."  Leave the recipe's stdout in a fridge
 	for 3.6E6 milliseconds while you work on cleaning up stderr, and
 	by time out your cheesecake will be ready for stdin.
 %
@@ -22121,7 +22127,7 @@ No stellar recognition's given.
 There are not stars enough in heaven.
 %
 Here at the Phone Company, we serve all kinds of people;
-from President's and Kings to the scum of the earth...
+from Presidents and Kings to the scum of the earth...
 %
 Here comes the orator, with his flood of words and his drop of reason.
 %
@@ -22559,6 +22565,13 @@ used against the coloured.
 Hlade's Law:
 	If you have a difficult task, give it to a lazy person --
 	they will find an easier way to do it.
+%
+"Hmm, lots of people seem to be confused about the difference between
+amd64 and ia64."
+
+"Obviously they've never had an ia64 drop on their foot.  They'd know
+the difference then."
+		-- Peter Wemm explains CPU architecture
 %
 Hoaars-Faisse Gallery presents:
 An exhibit of works by the artist known only as Pretzel.
@@ -23027,7 +23040,7 @@ Hurewitz's Memory Principle:
 %
 Hydrogen: A colorless, odorless, lighter than air gas which, given
 time, turns into people.
-                -- Harlow Shapley
+		-- Harlow Shapley
 %
 I:
 	The best way to make a silk purse from a sow's ear is to begin
@@ -23525,7 +23538,7 @@ I should have to believe in it in this one.
 		-- Strange de Jim
 %
 I didn't do it! Nobody saw me do it! Can't prove anything!
-                -- Bart Simpson
+		-- Bart Simpson
 %
 I didn't get sophisticated -- I just got tired.
 But maybe that's what sophisticated is -- being tired.
@@ -23537,9 +23550,6 @@ I didn't know he was dead; I thought he was British.
 %
 I didn't like the play, but I saw it under adverse conditions.
 The curtain was up.
-%
-"I didn't order any WOO-WOO...  Maybe a YUBBA...  But no WOO-WOO!"
-		-- Zippy the Pinhead
 %
 I disagree with what you say, but will defend
 to the death your right to tell such LIES!
@@ -24112,9 +24122,6 @@ I have a very small mind and must live with it.
 I have a very strange feeling about this...
 		-- Luke Skywalker
 %
-"I have accepted Provolone into my life!"
-		-- Zippy the Pinhead
-%
 I have already given two cousins to the war and I stand ready to
 sacrifice my wife's brother.
 		-- Artemus Ward
@@ -24374,8 +24381,6 @@ I just asked myself... what would John DeLorean do?
 I just ate a whole package of Sweet Tarts and a can of Coke.
 I think I saw God.
 		-- B. Hathrume Duk
-%
-I just forgot my whole philosophy of life!!!
 %
 I just got off the phone with Sonny Barger [President of the Hell's Angels].
 He wants me to appear as a character witness for him at his murder trial
@@ -24765,7 +24770,7 @@ I poured spot remover on my dog.  Now he's gone.
 %
 I predict that today will be remembered until tomorrow!
 %
-I prefer rogues to imbeciles  because they sometimes take a rest.
+I prefer rogues to imbeciles because they sometimes take a rest.
 		-- Alexandre Dumas the Younger
 %
 I prefer the most unjust peace to the most righteous war.
@@ -24891,7 +24896,7 @@ I respect the institution of marriage.  I have always thought that every
 woman should marry -- and no man.
 		-- Benjamin Disraeli, "Lothair"
 %
-I reverently believe that the maker who made us all  makes everything in New
+I reverently believe that the maker who made us all makes everything in New
 England, but the weather.  I don't know who makes that, but I think it must be
 raw apprentices in the weather-clerks factory who experiment and learn how, in
 New England, for board and clothes, and then are promoted to make weather for
@@ -25450,9 +25455,6 @@ Elsewhere', won't scream, `FORGET IT, BLANCHE ... IT'S TIME FOR "HEE
 HAW"!!'"
 		-- Berke Breathed, "Bloom County"
 %
-I want to kill everyone here with a cute colorful Hydrogen Bomb!!
-		-- Zippy the Pinhead
-%
 I want to marry a girl just like the girl that married dear old dad.
 		-- Freud
 %
@@ -26005,10 +26007,10 @@ IDLENESS:
 %
 Idleness is the holiday of fools.
 %
-"If 10 years from now, when you are doing something quick 
+"If 10 years from now, when you are doing something quick
 and dirty, you suddenly visualize that I am looking over your
 shoulders and say to yourself, "Dijkstra would not have liked this",
-well that would be enough immortality for me." 
+well that would be enough immortality for me."
 		-- Edsger W. Dijkstra
 %
 If A = B and B = C, then A = C, except where void or prohibited by law.
@@ -26683,6 +26685,17 @@ them from their God given right to receive Net Mail ...
 If Karl, instead of writing a lot about Capital,
 had made a lot of Capital, it would have been much better.
 		-- Karl Marx's Mother
+%
+
+If Khaan behaves as serfs
+Lose entire states and all estates.
+If serfs behave as Khaan
+He will regret for his head.
+In time of friendship and harmony
+Befriend as closely
+In time of conflict with enemies
+Be falcon of advance and attacks
+		-- Chinggis (Genghis) Khan
 %
 If life gives you lemons, make lemonade.
 %
@@ -27641,6 +27654,10 @@ If you think nobody cares if you're alive,
 try missing a couple of car payments.
 		-- Earl Wilson
 %
+If you think technology can solve your security problems, then you
+don't understand the problems and you don't understand the technology.
+		-- Bruce Schneier
+%
 If you think the pen is mightier than the sword, the next time
 someone pulls out a sword I'd like to see you get up there with
 your Bic.
@@ -27860,6 +27877,7 @@ Though living on burrowed time.
 %
 If you've done six impossible things before breakfast, why not round it
 off with dinner at Milliway's, the restaurant at the end of the universe.
+		-- Douglas Adams, "The Restaurant at the End of the Universe"
 %
 If you've seen one redwood, you've seen them all.
 		-- Ronald Reagan
@@ -28027,9 +28045,6 @@ The world should make a place for shoe salesmen.
 I'm an evolutionist; I refuse to believe
 that I could have been created by man.
 %
-"I'm ANN LANDERS!!  I can SHOPLIFT!!"
-		-- Zippy the Pinhead
-%
 I'm changing my name to Chrysler
 I'm going down to Washington, D.C.
 I'll tell some power broker
@@ -28048,7 +28063,7 @@ I'm dying beyond my means.
 		-- Oscar Wilde, his last words, while sipping champagne
 %
 "I'm dying," he croaked.
-"My experiment was a success," the chemist retorted .
+"My experiment was a success," the chemist retorted.
 "You can't really train a beagle," he dogmatized.
 "That's no beagle, it's a mongrel," she muttered.
 "The fire is going out," he bellowed.
@@ -28687,6 +28702,10 @@ In our civilization, and under our republican form of government, intelligence
 is so highly honored that it is rewarded by exemption from the cares of office.
 		-- Ambrose Bierce, "The Devil's Dictionary"
 %
+In our system there's no intermediate step between a definitive Supreme
+Court decision and violent revolution.
+		-- Al Gore (New York Magazine, May 29 2006)
+%
 In Oz, never say "krizzle kroo" to a Woozy.
 %
 In Pierre Trudeau, Canada has finally produced
@@ -28707,6 +28726,22 @@ happens a lot despite official propaganda to the contrary.
 In real love you want the other person's good.  In romantic love you
 want the other person.
 		-- Margaret Anderson
+%
+In reply to a message by Scott Long:
+
+> Note: this amounts to life support for floppies.  The end IS coming.
+
+Say it ain't so!   If you establish a dangerous trend like this in
+your support for floppy booting, the next thing you know, some
+computer manufacturer will start shipping machines without ANY FLOPPY
+DRIVE AT ALL, leading to the infocalypse, the four horsemen pouring
+their vials upon the earth, the birth of the anti-christ (or PERL 6,
+whichever comes first), dogs and cats living together, etc.
+
+It's the end of days, I tell you!  The end!   Can the FreeBSD/NetBSD
+merger be that far off?
+
+- Jordan Hubbard (31 January 2006)
 %
 In Riemann, Hilbert or in Banach space
 Let superscripts and subscripts go their ways.
@@ -29288,10 +29323,6 @@ Is a computer language with goto's totally Wirth-less?
 %
 Is a person who blows up banks an econoclast?
 %
-"Is a tatoo real, like a curb or a battleship?
-Or are we suffering in Safeway?"
-		-- Zippy the Pinhead
-%
 Is a wedding successful if it comes off without a hitch?
 %
 Is death legally binding?
@@ -29673,6 +29704,10 @@ It is dangerous for a national candidate to say things that people might
 remember.
 		-- Eugene McCarthy
 %
+It is difficult to get a man to understand something when his salary
+depends upon his not understanding it.
+		-- Upton Sinclair
+%
 It is difficult to legislate morality in the absence of moral legislators.
 %
 It is difficult to produce a television documentary that is both
@@ -29936,6 +29971,11 @@ It is only with the heart one can see clearly;
 what is essential is invisible to the eye.
 		-- The Fox, 'The Little Prince"
 %
+It is perfectly permissible for every system call to fail with [ENOTADUCK]
+unless the first five bytes of the caller's address space contain the
+word "quack".
+		-- Garrett Wollman
+%
 It is possible by ingenuity and at the expense of clarity... {to do almost
 anything in any language}.  However, the fact that it is possible to push
 a pea up a mountain with your nose does not mean that this is a sensible
@@ -30054,14 +30094,14 @@ unhappy.
 		-- Groucho Marx
 %
 It isn't whether you win or lose, it's how much money you end up with.
-                -- Jack T. Shakespeare
+		-- Jack T. Shakespeare
 %
 It just doesn't seem right to go over the river and through the woods
 to Grandmother's condo.
 %
 It looked like something resembling white marble, which was
 probably what it was: something resembling white marble.
-		-- Douglas Adams, "The Hitchhikers Guide to the Galaxy"
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 It looks like blind screaming hedonism won out.
 %
@@ -30123,6 +30163,15 @@ they'll come out for it.
 		-- Red Skelton, surveying the funeral of Hollywood
 		   mogul Harry Cohn
 %
+
+It ruins mind
+It exhausts wealth
+When it reaches to the tongue
+It is like a mosquito
+When it relives from tongue
+It is like an elephant.
+		-- Boorchi (first of 9 knights of Chinggis (Genghis) Khan)
+%
 "It runs like _x, where _x is something unsavory"
 		-- Prof. Romas Aleliunas, CS 435
 %
@@ -30162,6 +30211,9 @@ average wife is like that.
 It shall be unlawful for any suspicious person to be within the
 municipality.
 		-- Local ordinance, Euclid Ohio
+%
+It so happens that everything that is stupid is not unconstitutional.
+		-- Supreme Court Justice Antonio Scalia
 %
 It takes a smart husband to have the last word and not use it.
 %
@@ -31783,6 +31835,9 @@ Lay off the muses, it's a very tough dollar.
 Lay on, MacDuff, and curs'd be him who first cries, "Hold, enough!".
 		-- Shakespeare
 %
+Layers are for cakes, not for software.
+		-- Bart Smaalders
+%
 Lays eggs inside a paper bag;
 The reason, you will see, no doubt,
 Is to keep the lightning out.
@@ -31936,6 +31991,13 @@ in the 1980 New Hampshire primary.  But when the Right held a big tribute
 for Loeb, George came back to the fold, like a man with a bungee cord wrapped
 around his neck.
 		-- Dave Barry
+%
+
+Let my petty body exhausted,
+But not my state nature.
+Let my whole body exhausted
+But not my entire state
+		-- Chinggis (Genghis) Khan
 %
 Let no guilty man escape.
 		-- U. S. Grant
@@ -32308,7 +32370,8 @@ Life, like beer, is merely borrowed.
 		-- Don Reed
 %
 "Life, loathe it or ignore it, you can't like it."
-		-- Marvin, "Hitchhiker's Guide to the Galaxy"
+		-- Marvin, from
+		   Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 Life may have no meaning, or, even worse,
 it may have a meaning of which you disapprove.
@@ -33251,7 +33314,7 @@ he has achieved so much -- the wheel, New York, wars and so on -- while
 all the dolphins had ever done was muck about in the water having a good
 time.  But, conversely, the dolphins had always believed that they were
 far more intelligent than man -- for precisely the same reasons.
-		-- D. Adams, "Hitchhiker's Guide to the Galaxy"
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 Man has made his bedlam; let him lie in it.
 		-- Fred Allen
@@ -33686,6 +33749,10 @@ Mason's First Law of Synergism:
 The one day you'd sell your soul for something, souls are a glut.
 %
 Massachusetts has the best politicians money can buy.
+%
+Mastery of UNIX, like mastery of language, offers real freedom.  The
+price of freedom is always dear, but there's no substitute.
+                -- Thomas Scoville
 %
 Masturbation is the thinking man's television.
 		-- Christopher Hampton
@@ -34864,6 +34931,9 @@ that no matter which way I went I would come to a place where people were
 just as high and wild as I was: no doubt at all about that.
 		-- Hunter S. Thompson
 %
+"My code is elegant", "Your code is sneaky", "His code is an ugly hack"
+		-- Colin Percival on irregular verbs
+%
 "My country, right or wrong" is a thing that no patriot would think
 of saying, except in a desperate case.  It is like saying "My mother,
 drunk or sober."
@@ -35042,9 +35112,6 @@ slow march of intelligence has brought us, in our generation, to a point
 from which we can explore and understand and utilize it. To turn back now
 would be to deny our history, our capabilities.
 		-- James A. Michener
-%
-"My pants just went on a wild rampage through a Long Island Bowling Alley!!"
-		-- Zippy the Pinhead
 %
 My parents went to Niagra Falls and all I got was this crummy life.
 %
@@ -35386,6 +35453,10 @@ Never count your chickens before they rip your lips off.
 %
 Never delay the ending of a meeting or the beginning of a cocktail hour.
 %
+Never do programs contain so few bugs as when no debugging tools
+are available.
+		-- Niklaus Wirth
+%
 Never do today what you can put off until tomorrow.
 %
 Never drink Coca-Cola in a moving elevator.  The elevator's motion coupled
@@ -35468,6 +35539,10 @@ Never look up when dragons fly overhead.
 %
 Never make anything simple and efficient when a
 way can be found to make it complex and wonderful.
+%
+Never negotiate with the United States unless you have a nuclear
+weapon.
+		-- Former deputy defense minister of India.
 %
 Never offend people with style when you can offend them with substance.
 		-- Sam Brown, "The Washington Post", January 26, 1977
@@ -36388,7 +36463,7 @@ ugly and the paper is from the wrong kind of tree.
 		-- Professor, EECS, George Washington University
 
 I'm looking forward to working with you on this next year.
-		-- Professor, Harvard, on a  senior thesis.
+		-- Professor, Harvard, on a senior thesis.
 %
 Not only is UNIX dead, it's starting to smell really bad.
 		-- Rob Pike
@@ -36714,7 +36789,7 @@ Talking politics and nuclear fission
 We see him and he's all washed up --
 Moving on into the body of a beetle
 Getting ready for a long long crawl
-He  ain't nothing -- he ain't nothing at all...
+He ain't nothing -- he ain't nothing at all...
 
 Death and Money make their point once more
 In the shape of Philosophical assassins
@@ -37200,7 +37275,7 @@ Old soldiers never die.  Young ones do.
 Old timer, n:
 	One who remembers when charity was a virtue and not an organization.
 %
-Oliver's Law:
+Olivier's Law:
 	Experience is something you don't get until just after you need it.
 %
 omnibiblious, adj.:
@@ -37265,8 +37340,6 @@ On the night before her family moved from Kansas to California, the little
 girl knelt by her bed to say her prayers.  "God bless Mommy and Daddy and
 Keith and Kim," she said.  As she began to get up, she quickly added, "Oh,
 and God, this is goodbye.  We're moving to Hollywood."
-%
-On the road, ZIPPY is a pinhead without a purpose, but never without a POINT.
 %
 On the subject of C program indentation:
 
@@ -38069,7 +38142,7 @@ Oral sex is like being attacked by a giant snail.
 Orcs really aren't so bad (if you use lots of catsup).
 %
 Order and simplification are the first steps toward
-mastery of  a subject -- the actual enemy is the unknown.
+mastery of a subject -- the actual enemy is the unknown.
 		-- Thomas Mann
 %
 Oregano, n.:
@@ -38159,7 +38232,7 @@ Her reply:
 Our government has kept us in a perpetual state of fear -- kept us in a
 continuous stampede of patriotic fervor -- with the cry of grave national
 emergency...  Always there has been some terrible evil to gobble us up if we
-did not blindly rally behind it  by furnishing the exorbitant sums demanded.
+did not blindly rally behind it by furnishing the exorbitant sums demanded.
 Yet, in retrospect, these disasters seem never to have happened, seem never
 to have been quite real.
 		-- General Douglas MacArthur, 1957
@@ -38831,6 +38904,11 @@ Pete:	Waiter, this meat is bad.
 Waiter:	Who told you?
 Pete:	A little swallow.
 %
+Peter Fellgett's wildcard recipe:
+	Into a clean dish, place the dry ingredients and add the
+	liquids until the right consistency is obtained. Turn out
+	into suitable containers and cook until done.
+%
 Peter Wemm Murphy Field, n.:
 	A field of abnormally frequent and severe Murphy's Law events
 emanating from Mr. Peter Wemm.  The field was first discovered and
@@ -39404,7 +39482,7 @@ PRAIRIES:
 	Vast plains covered by treeless forests.
 %
 Praise the Lord and pass the ammunition.
-                -- Stephen Coonts, "The Minotaur"
+		-- Stephen Coonts, "The Minotaur"
 %
 Praise the sea; on shore remain.
 		-- John Florio
@@ -39825,6 +39903,12 @@ A:	We are Vaxen.
 Q:	Do you know what the death rate around here is?
 A:	One per person.
 %
+Q:      do you think the idea of "one tool doing one job" has been
+        abandoned? ...
+A:      Those days are dead and gone and the eulogy was delivered by
+        Perl.
+		-- Rob Pike
+%
 Q:	Have you heard about the man who didn't pay for his exorcism?
 A:	He got re-possessed!
 %
@@ -40063,7 +40147,7 @@ A:	"Twelve; one to screw the light-bulb in, and eleven to self-destruct
 	the ship out of disgrace."
 
 	[Warning: do not tell this joke to Romulans or else be ready for
-	a fight.  They consider this it to be a discrace, though it's
+	a fight.  They consider it to be a disgrace, though it's
 	pretty good for a LBJ.  Ed.]
 %
 Q:	How many surrealists does it take to change a light bulb?
@@ -41625,9 +41709,6 @@ I'm schizophrenic,
 Rotten wood cannot be carved.
 		-- Confucius, "Analects", Book 5, Ch. 9
 %
-Roumanian-Yiddish cooking has killed more Jews than Hitler.
-		-- Zero Mostel
-%
 Round Numbers are always false.
 		-- Samuel Johnson
 %
@@ -42126,7 +42207,7 @@ schlattwhapper, n:
 		-- Rich Hall, "Sniglets"
 %
 Schmidt's Observation:
-	All things being equal, a fat person  uses more soap
+	All things being equal, a fat person uses more soap
 	than a thin person.
 %
 Schnuffel, n.:
@@ -42361,10 +42442,10 @@ driving down a mountain when the brakes gave out.  They screamed down the
 mountain, gaining speed, but finally managed to grind to a halt, more by
 luck than anything else, just inches from a thousand foot drop to jagged
 rocks.  They all got out of the car:
-        The computer engineer said, "I think I can fix it."
-        The systems analyst said, "No, no, I think we should take it
+	The computer engineer said, "I think I can fix it."
+	The systems analyst said, "No, no, I think we should take it
 into town and have a specialist look at it."
-        The programmer said, "OK, but first I think we should get back
+	The programmer said, "OK, but first I think we should get back
 in and see if it does it again."
 %
 Seems like this duck waddles into a pharmacy, waddles up to the prescription
@@ -42791,7 +42872,7 @@ BYTE, BYTE, BYTE!
 Ships are safe in harbor, but they were never meant to stay there.
 %
 Shirley MacLaine died today in a freak psychic collision today.  Two freaks
-in a van  [Oh no!!  It's the Copyright Police!!]  Her aura-charred body was
+in a van [Oh no!!  It's the Copyright Police!!]  Her aura-charred body was
 laid to rest after a eulogy by Jackie Collins, fellow member of SAFE [Society
 of Asinine Flake Entertainers].  Excerpted from some of his more quotable
 comments:
@@ -43735,7 +43816,7 @@ Sorry, no fortune this time.
 Space is big.  You just won't believe how vastly, hugely, mind-bogglingly
 big it is.  I mean, you may think it's a long way down the road to the
 drug store, but that's just peanuts to space.
-		-- The Hitchhiker's Guide to the Galaxy
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 Space is to place as eternity is to time.
 		-- Joseph Joubert
@@ -44143,6 +44224,14 @@ the "Gaslight" treatment, the "Are you talking to me?" technique, and the
 implication.  Advance to manipulation and humiliation.  Above all, relax
 and have a nice day.
 %
+Strive to the pass of high mountain
+Cross in the shallow side of the wide ocean
+Do not give up because of distance
+Will certainly reach if walks
+Do not discourage of human
+Shall overcome if you try
+		-- Chinggis (Genghis) Khan
+%
 Stuckness shouldn't be avoided.  It's the psychic predecessor of all
 real understanding.  An egoless acceptance of stuckness is a key to an
 understanding of all Quality, in mechanical work as in other endeavors.
@@ -44377,6 +44466,10 @@ I rush!
 %
 Swipple's Rule of Order:
 	He who shouts the loudest has the floor.
+%
+Symbolic representation of quantitative  entities is doomed to its rightful
+place of minor importance in a world where flowers and beautiful women abound.
+		-- Albert Einstein
 %
 Symptom:		Drinking fails to give taste and satisfaction, beer is
 			unusually pale and clear.
@@ -44650,6 +44743,12 @@ instruction of the court, the learned judges holding that the words did
 not charge murder, for they did not affirm the death of the cook, that
 being only an inference.
 		-- Ambrose Bierce, "The Devil's Dictionary"
+%
+Teeth for meat is in mouth
+Teeth for human is in soul.
+Win one with your body strength
+Win many with your mind strength
+		-- Chinggis (Genghis) Khan
 %
 Technique?" said the programmer turning from his terminal, "What I follow
 is Tao -- beyond all technique! When I first began to program I would see
@@ -44952,8 +45051,8 @@ That's where the money was.
 It's a rather pleasant experience to be alone in a bank at night.
 		-- Willie Sutton
 %
-The  White Rabbit put on his spectacles.
-	"Where shall  I  begin, please your Majesty ?" he asked.
+The White Rabbit put on his spectacles.
+	"Where shall I begin, please your Majesty ?" he asked.
 	"Begin at the beginning,", the King said, very gravely,
 "and go on till you come to the end: then stop."
 		-- Lewis Carroll
@@ -46937,7 +47036,7 @@ The greatest joy a man can know is to conquer his enemies and drive them
 before him.  To ride their horses and take away their possessions.  To see
 the faces of those who were dear to them bedewed with tears, and to clasp
 their wives and daughters to his arms.
-		-- Genghis Khan
+		-- Chinggis (Genghis) Khan
 %
 The greatest love is a mother's, then a dog's, then a sweetheart's.
 		-- Polish proverb
@@ -46970,7 +47069,7 @@ it delivers its message and then disappears.
 The hand that feeds the chicken every day finally wrings its neck instead,
 thus proving that more sophisticated views about the uniformity of nature
 would have been useful to the chicken.
- 
+
 		-- Bertrand Russell, "On Induction"
 %
 The happiest time in any man's life is just after the first divorce.
@@ -47045,7 +47144,7 @@ Sophistication, otherwise known as the How, Why, and Where phases.  For
 instance, the first phase is characterized by the question "How can we
 eat?" the second by "Why do we eat?" and the third by "Where shall we
 have lunch?".
-		-- Hitchhiker's Guide to the Galaxy
+		-- Douglas Adams, "The Restaurant at the End of the Universe"
 %
 The history of warfare is similarly subdivided, although here the phases
 are Retribution, Anticipation, and Diplomacy.  Thus:
@@ -48096,6 +48195,9 @@ The National Short-Sleeved Shirt Association says:
 The nearer to the church, the further from God.
 		-- John Heywood
 %
+The Net interprets censorship as damage and routes around it.
+		-- John Gilmore
+%
 The net is like a vast sea of lutefisk with tiny dinosaur brains embedded
 in it here and there. Any given spoonful will likely have an IQ of 1, but
 occasional spoonfuls may have an IQ more than six times that!
@@ -48444,7 +48546,7 @@ is to slip and fall on an icy pavement.
 The only way to get rid of a temptation is to yield to it.
 		-- Oscar Wilde
 %
-The only way to keep you health is to eat what you don't want,
+The only way to keep your health is to eat what you don't want,
 drink what you don't like, and do what you'd rather not.
 		-- Mark Twain
 %
@@ -49068,6 +49170,10 @@ showed that all had these things in common:
 The scum also rises.
 		-- Dr. Hunter S. Thompson
 %
+The sealed-paper-in-a-safe thing is only your last resort if all your
+password-knowers get hit by a redundant array of inexperienced busdrivers.
+		-- jpd on comp.unix.freebsd.bsd.misc
+%
 The search for the perfect martini is a fraud.  The perfect martini is
 a belt of gin from the bottle; anything else is the decadent trappings
 of civilization.
@@ -49288,7 +49394,7 @@ the scientific world by storm.  So many mathematical conferences got held
 in such good restaurants that many of the finest minds of a generation
 died of obesity and heart failure, and the science of mathematics was put
 back by years.
-		-- Douglas Adams
+		-- Douglas Adams, "Life, The Universe and Everything"
 %
 The state law of Pennsylvania prohibits singing in the bathtub.
 %
@@ -49296,7 +49402,7 @@ The state of innocence contains the germs of all future sin.
 		-- Alexandre Arnoux, "Etudes et caprices"
 %
 The state that separates its scholars from its warriors will have its
-thinking done by cowards, and its fighting by fools. 
+thinking done by cowards, and its fighting by fools.
 
 		-- Thucydides
 %
@@ -49564,6 +49670,10 @@ THE THREE MOST COMMONLY-ASKED QUESTIONS AT DISNEYLAND:
 1) Where's the bathroom?
 2) What time does the parade start?
 3) Do you sell anything without that damn mouse on it?
+%
+The three most dangerous things in the world are a programmer with a
+soldering iron, a hardware type with a program patch and a user with
+an idea. -- The Wizardry Compiled by Rick Cook
 %
 The three questions of greatest concern are -- 1. Is it attractive?
 2. Is it amusing?  3. Does it know its place?
@@ -50378,6 +50488,10 @@ There are few virtues that the Poles do not possess --
 and there are few mistakes they have ever avoided.
 		-- Winston Churchill, Parliament, August, 1945
 %
+There are four boxes to be used in defense of liberty: soap, ballot,
+jury, and ammo. Please use in that order. 
+		-- Ed Howdershelt 
+%
 There are four kinds of homicide: felonious, excusable, justifiable,
 and praiseworthy ...
 		-- Ambrose Bierce, "The Devil's Dictionary"
@@ -50804,6 +50918,11 @@ There is an old time toast which is golden for its beauty.
 There is brutality and there is honesty.
 There is no such thing as brutal honesty.
 %
+There is Good Information and there is Bad Information and the 
+Internet is generally pretty neutral about the difference. If you're
+a computer, it's all just 0s and 1s.
+		-- Joel Achenbach
+%
 There is grandeur in this view of life, with its several powers,
 having been originally breathed into a few forms or into one; and that,
 whilst this planet has gone cycling on according to the fixed law of
@@ -51190,13 +51309,6 @@ Who ate a green apple and died.
 	The apple fermented
 And made cider inside her inside.
 %
-There was a young man from Brazil,
-And a lady who'd not take the pill,
-	They lay on the sofa,
-	And a <$H12{ot]{ok]{ob{o[]{oR{oK{oDpo~po~pot~poe~{ o!po~po~poq~
-n~po_~{o[po	 ~poz~pok~po\~{o
-8]{o/pomF~po^~{opoh~poY~{opoc~poT~{op~po^~poO~{o[~poY~ poJ~{oF~poT~poE~{o1~
-%
 There was a young man from LeDoux,
 Whose limericks stopped at line two.
 
@@ -51233,7 +51345,7 @@ during the trial."
 There was an old Indian belief that by making love on the hide of
 their favorite animal, one could guarantee the health and prosperity
 of the offspring conceived thereupon.  And so it goes that one Indian
-couple made love on a buffalo  hide.  Nine months later, they were
+couple made love on a buffalo hide.  Nine months later, they were
 blessed with a healthy baby son.  Yet another couple huddled together
 on the hide of a deer and they too were blessed with a very healthy
 baby son.  But a third couple, whose favorite animal was a hippopotamus,
@@ -52041,7 +52153,7 @@ solutions were suggested for this problem, but most of these were
 largely concerned with the movements of small green pieces of paper,
 which is odd because on the whole it wasn't the small green pieces of
 paper that were unhappy.
-		-- Douglas Adams
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 This process can check if this value is zero, and if it is, it does
 something child-like.
@@ -52159,6 +52271,9 @@ Those who can, do; those who can't, simulate.
 %
 Those who can, do; those who can't, write.
 Those who can't write work for the Bell Labs Record.
+%
+Those who can make you believe absurdities, can make you commit atrocities.
+		-- Voltaire
 %
 Those who cannot remember the past are condemned to repeat it.
 		-- George Santayana
@@ -52422,7 +52537,7 @@ Time is a great teacher, but unfortunately it kills all its pupils.
 		-- Hector Berlioz
 %
 Time is an illusion, lunchtime doubly so.
-		-- The Hitchhiker's Guide to the Galaxy
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 Time is an illusion perpetrated by the manufacturers of space.
 %
@@ -52672,6 +52787,10 @@ may be as natural to future times as to us is a literary correspondence.
 %
 To craunch a marmoset.
 		-- Pedro Carolino, "English as She is Spoke"
+%
+To create quality software, the ability to say no is usually far
+more important than the ability to say yes.
+		-- Michi Henning
 %
 To criticize the incompetent is easy;
 it is more difficult to criticize the competent.
@@ -54243,7 +54362,7 @@ Walk softly and carry a megawatt laser.
 Walking on water wasn't built in a day.
 		-- Jack Kerouac
 %
-Wall Street indices predicted nine out of the last five recessions 
+Wall Street indices predicted nine out of the last five recessions
 		-- Paul A. Samuelson, Nobel laureate in economics.
 		   (Newsweek, Science and Stocks, 19 Sep. 1966.)
 %
@@ -57493,10 +57612,6 @@ Who was that masked man?
 %
 Who will take care of the world after you're gone?
 %
-"WHOA!!  Ken and Barbie are having TOO MUCH FUN!!
-It must be the NEGATIVE IONS!!"
-		-- Zippy the Pinhead
-%
 Whoever dies with the most toys wins.
 %
 Whoever fights monsters should see to it that in the process he does not
@@ -57908,7 +58023,7 @@ try to be a fraud and a half.
 		-- Otto von Bismarck
 %
 With a rubber duck, one's never alone.
-		-- "The Hitchhiker's Guide to the Galaxy"
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 With all the fancy scientists in the world,
 why can't they just once build a nuclear balm.
@@ -58662,6 +58777,13 @@ LII:
 	People working in the private sector should try to save money.
 	There remains the possibility that it may someday be valuable again.
 		-- Norman Augustine
+%
+XML is a giant step in no direction at all.
+	-- Erik Naggum
+%
+XML is like violence: if it doesn't solve your problem, you aren't using
+enough of it.
+	-- XML guru Chris Maden
 %
 X-rated movies are all alike -- the only thing
 they leave to the imagination is the plot.
@@ -59630,7 +59752,7 @@ If you want to get anywhere, you'll have to run much faster.
 You humans are all alike.
 %
 You just know when a relationship is about to end.  My girlfriend called me
-at work and asked me how you change a lightbulb in  the bathroom.  "It's very
+at work and asked me how you change a lightbulb in the bathroom.  "It's very
 simple," I said. "You start by filling up the bathtub with water..."
 %
 You just wait, I'll sin till I blow up!
@@ -60735,30 +60857,6 @@ You've got to pity New Mexico... so far from heaven and so close to Texas.
 
 "TOMORROW!  I haven't even prepared for *_________yesterday* yet!"
 %
-"Yow!  Am I having fun yet?"
-		-- Zippy the Pinhead
-%
-"Yow!  Am I in Milwaukee?"
-		-- Zippy the Pinhead
-%
-"Yow!  And then we could sit on the hoods of cars at stop lights!"
-		-- Zippy the Pinhead
-%
-"Yow!  Did something bad happen or am I in a drive-in movie?"
-		-- Zippy the Pinhead
-%
-YOW!!  Everybody out of the GENETIC POOL!
-%
-"Yow!  Is this sexual intercourse yet?  Is it, huh, is it?"
-		-- Zippy the Pinhead
-%
-"Yow!!  Those people look exactly like Donnie and Marie Osmond!!"
-		-- Zippy the Pinhead
-%
-"Yow! Now I get to think about all the BAD THINGS I did
-to a BOWLING BALL when I was in JUNIOR HIGH SCHOOL!"
-		-- Zippy the Pinhead
-%
 YO-YO:
 	Something that is occasionally up but normally down.
 	(see also Computer).
@@ -60803,7 +60901,7 @@ In war: where soldiers die.
 ...that FC loop thing sucks.
 So I decided to stick to my good old philosophy: "if it has tits,
 wheels or FC loops it will give you problem!"
-                -- storage engineer on the virtues of FC-AL
+		-- storage engineer on the virtues of FC-AL
 %
 Life should not be a journey to the grave with the intention
 of arriving safely in a pretty and well preserved body, but
@@ -60813,23 +60911,23 @@ and loudly proclaiming --WOW---What A RIDE!!
 To announce that there must be no criticism of the president, or that we are
 to stand by the president right or wrong, is not only unpatriotic and
 servile, but is morally treasonable to the American public."
-                --  Theodore Roosevelt
+		--  Theodore Roosevelt
 %
 PS: This message is not intended to supply the minimum
 daily requirement of serious thought.  Consult your doctor
 or pharmacist, but not the one that just sent you electronic
 junk mail or promises to make explicit drugs fast.
-                -- taken from Norman Wilson's .sig
+		-- taken from Norman Wilson's .sig
 %
 A life lived in fear is a life half lived.
 %
-We will not be responsible for damage to equipment, your ego, county wide   
-power outages, spontaneously generated mini (or larger) black holes, 
-planetary disruptions, or personal injury or worse that may result from the 
+We will not be responsible for damage to equipment, your ego, county wide
+power outages, spontaneously generated mini (or larger) black holes,
+planetary disruptions, or personal injury or worse that may result from the
 use of this material.
-                -- taken from Samuel M. Goldwasser's
-                   Sam's Strobe FAQ Notes on the Troubleshooting 
-                   and Repair of Electronic Flash Units and Strobe Lights
+		-- taken from Samuel M. Goldwasser's
+		   Sam's Strobe FAQ Notes on the Troubleshooting
+		   and Repair of Electronic Flash Units and Strobe Lights
 %
 The Microsoft Exchange MTA Stacks service depends on the Microsoft Exchange
 System Attendant service which failed to start because of the following
@@ -60839,3 +60937,45 @@ The operation completed successfully.
 
 For more information, see Help and Support Center at
 http://go.microsoft.com/fwlink/events.asp.
+%
+Any sufficiently simple directive can be obfuscated beyond reason
+given proper legal counsel.
+
+- Alfred Perlstein
+%
+David Sarnoff, 1964: "The computer will become the hub of a vast network of
+remote data stations and information banks feeding into the machine at 
+a transmission rate of a billion or more bits of information a
+second. Laser channels will vastly increase both data capacity and the
+speeds with which it will be transmitted.  Eventually, a global 
+communications network handling voice, data and facsimile will 
+instantly link man to machine--or machine to machine--by land, air, 
+underwater, and space circuits. [The computer] will affect man's
+ways of thinking, his means of education, his relationship to his physical
+and social environment, and it will alter his ways of living... 
+[Before the end of this century, these forces] will coalesce into what 
+unquestionably will become the greatest adventure of the human mind."
+
+- from David Sarnoff by Eugene Lyons, 1966.
+%
+Never test the depth of the water with both feet.
+%
+Before you criticize someone, you should walk a mile in their shoes.
+That way, when you criticize them, you're a mile away and you have
+their shoes.
+%
+If at first you don't succeed, skydiving is not for you.
+%
+Give a man a fish and he will eat for a day. Teach him how to fish,
+and he will sit in a boat and drink beer all day.
+%
+If you lend someone $20 and never see that person again, it was
+probably worth it.
+%
+Some days you are the bug; some days you are the windshield.
+%
+There are two theories to arguing with women. Neither one works.
+%
+Generally speaking, you aren't learning much when your lips are moving.
+%
+Never miss a good chance to shut up.
