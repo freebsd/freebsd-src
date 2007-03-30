@@ -39,6 +39,7 @@
 #include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+#include <ctype.h>
 #include <signal.h>
 #include <libutil.h>
 
@@ -70,6 +71,7 @@ static Distribution XOrgDistTable[];
 	{ name, mask, DIST_ ## flag, DT_PACKAGE, { package } }
 #define	DTE_SUBDIST(name, mask, flag, subdist)				\
 	{ name, mask, DIST_ ## flag, DT_SUBDIST, { .my_dist = subdist } }
+#define	DTE_END			{ NULL, NULL, 0, 0, { NULL } }
 
 #define	BASE_DIST	(&DistTable[0])
 
@@ -91,7 +93,7 @@ static Distribution DistTable[] = {
     DTE_TARBALL("ports",    &Dists, PORTS,    "/usr"),
     DTE_TARBALL("local",    &Dists, LOCAL,    "/"),
     DTE_SUBDIST("X.Org",    &Dists, XORG,     XOrgDistTable),
-    { NULL },
+    DTE_END,
 };
 
 /* The kernel distributions */
@@ -100,7 +102,7 @@ static Distribution KernelDistTable[] = {
 #ifdef WITH_SMP
     DTE_TARBALL("SMP", 	    &KernelDists, KERNEL_SMP,	  "/boot"),
 #endif
-    { NULL },
+    DTE_END,
 };
 
 /* The /usr/src distribution */
@@ -125,7 +127,7 @@ static Distribution SrcDistTable[] = {
     DTE_TARBALL("susbin",   &SrcDists, SRC_USBIN,   "/usr/src"),
     DTE_TARBALL("stools",   &SrcDists, SRC_TOOLS,   "/usr/src"),
     DTE_TARBALL("srescue",  &SrcDists, SRC_RESCUE,  "/usr/src"),
-    { NULL },
+    DTE_END,
 };
 
 /* The X.Org distribution */
@@ -148,7 +150,7 @@ static Distribution XOrgDistTable[] = {
     DTE_PACKAGE("Xft1",  &XOrgDists, XORG_FONTS_T1,	 "xorg-fonts-type1"),
     DTE_PACKAGE("Xftt",  &XOrgDists, XORG_FONTS_TT,	 "xorg-fonts-truetype"),
     DTE_PACKAGE("Xfs",   &XOrgDists, XORG_FONTSERVER,	 "xorg-fontserver"),
-    { NULL },
+    DTE_END,
 };
 
 static int	distMaybeSetPorts(dialogMenuItem *self);
@@ -324,7 +326,7 @@ distMaybeSetPorts(dialogMenuItem *self)
 {
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to install the FreeBSD ports collection?\n\n"
-		  "This will give you ready access to over 13,300 ported software packages,\n"
+		  "This will give you ready access to over 14,900 ported software packages,\n"
 		  "at a cost of around 440MB of disk space when \"clean\" and possibly\n"
 		  "much more than that when a lot of the distribution tarballs are loaded\n"
 		  "(unless you have the extra discs available from a FreeBSD CD/DVD distribution\n"
@@ -883,7 +885,7 @@ distExtractAll(dialogMenuItem *self)
     /* Only do base fixup if base dist was successfully extracted */
     if ((old_dists & DIST_BASE) && !(Dists & DIST_BASE))
 	status |= installFixupBase(self);
-    /* Only do base fixup if base dist was successfully extracted */
+    /* Only do kernel fixup if kernel dist was successfully extracted */
     if ((old_dists & DIST_KERNEL) && !(Dists & DIST_KERNEL))
 	status |= installFixupKernel(self, old_kernel);
 
