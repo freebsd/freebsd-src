@@ -242,7 +242,7 @@ ENTRY(copyout)
 	cmpq	%rcx,%rax
 	ja	copyout_fault
 
-	xchgq	%rdi, %rsi
+	xchgq	%rdi,%rsi
 	/* bcopy(%rsi, %rdi, %rdx) */
 	movq	%rdx,%rcx
 
@@ -288,8 +288,8 @@ ENTRY(copyin)
 	cmpq	%rcx,%rax
 	ja	copyin_fault
 
-	xchgq	%rdi, %rsi
-	movq	%rdx, %rcx
+	xchgq	%rdi,%rsi
+	movq	%rdx,%rcx
 	movb	%cl,%al
 	shrq	$3,%rcx				/* copy longword-wise */
 	cld
@@ -353,11 +353,11 @@ ENTRY(casuword)
 	cmpq	%rax,%rdi			/* verify address is valid */
 	ja	fusufault
 
-	movq	%rsi, %rax			/* old */
+	movq	%rsi,%rax			/* old */
 #ifdef SMP
 	lock
 #endif
-	cmpxchgq %rdx, (%rdi)			/* new = %rdx */
+	cmpxchgq %rdx,(%rdi)			/* new = %rdx */
 
 	/*
 	 * The old value is in %eax.  If the store succeeded it will be the
@@ -501,7 +501,7 @@ ENTRY(subyte)
 	cmpq	%rax,%rdi			/* verify address validity */
 	ja	fusufault
 
-	movl	%esi, %eax
+	movl	%esi,%eax
 	movb	%al,(%rdi)
 	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
@@ -518,9 +518,9 @@ ENTRY(subyte)
  *	return the actual length in *lencopied.
  */
 ENTRY(copyinstr)
-	movq	%rdx, %r8			/* %r8 = maxlen */
-	movq	%rcx, %r9			/* %r9 = *len */
-	xchgq	%rdi, %rsi			/* %rdi = from, %rsi = to */
+	movq	%rdx,%r8			/* %r8 = maxlen */
+	movq	%rcx,%r9			/* %r9 = *len */
+	xchgq	%rdi,%rsi			/* %rdi = from, %rsi = to */
 	movq	PCPU(CURPCB),%rcx
 	movq	$cpystrflt,PCB_ONFAULT(%rcx)
 
@@ -582,9 +582,9 @@ cpystrflt_x:
  *         %rdi, %rsi, %rdx, %rcx
  */
 ENTRY(copystr)
-	movq	%rdx, %r8			/* %r8 = maxlen */
+	movq	%rdx,%r8			/* %r8 = maxlen */
 
-	xchgq	%rdi, %rsi
+	xchgq	%rdi,%rsi
 	incq	%rdx
 	cld
 1:
@@ -605,11 +605,11 @@ ENTRY(copystr)
 
 6:
 
-	testq	%rcx, %rcx
+	testq	%rcx,%rcx
 	jz	7f
 	/* set *lencopied and return %rax */
-	subq	%rdx, %r8
-	movq	%r8, (%rcx)
+	subq	%rdx,%r8
+	movq	%r8,(%rcx)
 7:
 	ret
 
@@ -626,7 +626,7 @@ ENTRY(lgdt)
 	jmp	1f
 	nop
 1:
-	movl	$KDSEL, %eax
+	movl	$KDSEL,%eax
 	movl	%eax,%ds
 	movl	%eax,%es
 	movl	%eax,%fs	/* Beware, use wrmsr to set 64 bit base */
@@ -693,43 +693,43 @@ NON_GPROF_ENTRY(__bb_init_func)
 	.text
 
 futex_fault:
-	movq	PCPU(CURPCB), %rdx
-	movq	$0, PCB_ONFAULT(%rdx)
-	movq	$-EFAULT, %rax
+	movq	PCPU(CURPCB),%rdx
+	movq	$0,PCB_ONFAULT(%rdx)
+	movq	$-EFAULT,%rax
 	ret
 
 /* int futex_xchgl(int oparg, caddr_t uaddr, int *oldval); */
 ENTRY(futex_xchgl)
-	movq	PCPU(CURPCB), %r11
-	movq	$futex_fault, PCB_ONFAULT(%r11)
+	movq	PCPU(CURPCB),%r11
+	movq	$futex_fault,PCB_ONFAULT(%r11)
 
-	movq	$VM_MAXUSER_ADDRESS-4, %rax
-	cmpq	%rax, %rsi
+	movq	$VM_MAXUSER_ADDRESS-4,%rax
+	cmpq	%rax,%rsi
 	ja	futex_fault
 
-#if defined(SMP) || !defined(_KERNEL)
+#ifdef SMP
 	lock
 #endif
-	xchgl	%edi, (%rsi)
-	movl	%edi, (%rdx)
-	xorl	%eax, %eax
-	movq	%rax, PCB_ONFAULT(%r11)
+	xchgl	%edi,(%rsi)
+	movl	%edi,(%rdx)
+	xorl	%eax,%eax
+	movq	%rax,PCB_ONFAULT(%r11)
 	ret
 
 /* int futex_addl(int oparg, caddr_t uaddr, int *oldval); */
 ENTRY(futex_addl)
-	movq	PCPU(CURPCB), %r11
-	movq	$futex_fault, PCB_ONFAULT(%r11)
+	movq	PCPU(CURPCB),%r11
+	movq	$futex_fault,PCB_ONFAULT(%r11)
 
-	movq	$VM_MAXUSER_ADDRESS-4, %rax
-	cmpq	%rax, %rsi
+	movq	$VM_MAXUSER_ADDRESS-4,%rax
+	cmpq	%rax,%rsi
 	ja	futex_fault
 
-#if defined(SMP) || !defined(_KERNEL)
+#ifdef SMP
 	lock
 #endif
-	xaddl	%edi, (%rsi)
-	movl	%edi, (%rdx)
-	xorl	%eax, %eax
-	movq	%rax, PCB_ONFAULT(%r11)
+	xaddl	%edi,(%rsi)
+	movl	%edi,(%rdx)
+	xorl	%eax,%eax
+	movq	%rax,PCB_ONFAULT(%r11)
 	ret

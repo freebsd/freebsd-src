@@ -376,13 +376,13 @@ ENTRY(i686_pagezero)
 	pushl	%edi
 	pushl	%ebx
 
-	movl	12(%esp), %edi
-	movl	$1024, %ecx
+	movl	12(%esp),%edi
+	movl	$1024,%ecx
 	cld
 
 	ALIGN_TEXT
 1:
-	xorl	%eax, %eax
+	xorl	%eax,%eax
 	repe
 	scasl
 	jnz	2f
@@ -395,27 +395,27 @@ ENTRY(i686_pagezero)
 
 2:
 	incl	%ecx
-	subl	$4, %edi
+	subl	$4,%edi
 
-	movl	%ecx, %edx
-	cmpl	$16, %ecx
+	movl	%ecx,%edx
+	cmpl	$16,%ecx
 
 	jge	3f
 
-	movl	%edi, %ebx
-	andl	$0x3f, %ebx
+	movl	%edi,%ebx
+	andl	$0x3f,%ebx
 	shrl	%ebx
 	shrl	%ebx
-	movl	$16, %ecx
-	subl	%ebx, %ecx
+	movl	$16,%ecx
+	subl	%ebx,%ecx
 
 3:
-	subl	%ecx, %edx
+	subl	%ecx,%edx
 	rep
 	stosl
 
-	movl	%edx, %ecx
-	testl	%edx, %edx
+	movl	%edx,%ecx
+	testl	%edx,%edx
 	jnz	1b
 
 	popl	%ebx
@@ -1157,7 +1157,7 @@ ENTRY(casuword)
 #ifdef SMP
 	lock
 #endif
-	cmpxchgl %ecx, (%edx)			/* Compare and set. */
+	cmpxchgl %ecx,(%edx)			/* Compare and set. */
 
 	/*
 	 * The old value is in %eax.  If the store succeeded it will be the
@@ -1537,49 +1537,49 @@ NON_GPROF_ENTRY(__bb_init_func)
 	.text
 
 futex_fault:
-	movl	PCPU(CURPCB), %edx
-	movl	$0, PCB_ONFAULT(%edx)
-	movl	$-EFAULT, %eax
+	movl	PCPU(CURPCB),%edx
+	movl	$0,PCB_ONFAULT(%edx)
+	movl	$-EFAULT,%eax
 	ret
 
 /* int futex_xchgl(int oparg, caddr_t uaddr, int *oldval); */
 ENTRY(futex_xchgl)
-	movl	PCPU(CURPCB), %eax
-	movl	$futex_fault, PCB_ONFAULT(%eax)
-	movl	4(%esp), %eax
-	movl	8(%esp), %edx
+	movl	PCPU(CURPCB),%eax
+	movl	$futex_fault,PCB_ONFAULT(%eax)
+	movl	4(%esp),%eax
+	movl	8(%esp),%edx
 	cmpl    $VM_MAXUSER_ADDRESS,%edx
 	ja     	futex_fault
 
-#if defined(SMP) || !defined(_KERNEL)
+#ifdef SMP
 	lock
 #endif
-	xchgl	%eax, (%edx)
-	movl	0xc(%esp), %edx
-	movl	%eax, (%edx)
-	xorl	%eax, %eax
+	xchgl	%eax,(%edx)
+	movl	0xc(%esp),%edx
+	movl	%eax,(%edx)
+	xorl	%eax,%eax
 
-	movl	PCPU(CURPCB), %edx	
-	movl	$0, PCB_ONFAULT(%edx)
+	movl	PCPU(CURPCB),%edx	
+	movl	$0,PCB_ONFAULT(%edx)
 	ret
 
 /* int futex_addl(int oparg, caddr_t uaddr, int *oldval); */
 ENTRY(futex_addl)
-	movl	PCPU(CURPCB), %eax
-	movl	$futex_fault, PCB_ONFAULT(%eax)
-	movl	4(%esp), %eax
-	movl	8(%esp), %edx
+	movl	PCPU(CURPCB),%eax
+	movl	$futex_fault,PCB_ONFAULT(%eax)
+	movl	4(%esp),%eax
+	movl	8(%esp),%edx
 	cmpl    $VM_MAXUSER_ADDRESS,%edx
 	ja     	futex_fault
 
-#if defined(SMP) || !defined(_KERNEL)
+#ifdef SMP
 	lock
 #endif
-	xaddl	%eax, (%edx)
-	movl	0xc(%esp), %edx
-	movl	%eax, (%edx)
-	xorl	%eax, %eax
+	xaddl	%eax,(%edx)
+	movl	12(%esp),%edx
+	movl	%eax,(%edx)
+	xorl	%eax,%eax
 
-	movl	PCPU(CURPCB), %edx
-	movl	$0, PCB_ONFAULT(%edx)
+	movl	PCPU(CURPCB),%edx
+	movl	$0,PCB_ONFAULT(%edx)
 	ret
