@@ -1788,9 +1788,9 @@ ieee80211_status(int s)
 		ireq.i_type = IEEE80211_IOC_HIDESSID;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
 			if (ireq.i_val)
-				LINE_CHECK("ssid HIDE");
+				LINE_CHECK("hidessid");
 			else if (verbose)
-				LINE_CHECK("ssid SHOW");
+				LINE_CHECK("-hidessid");
 		}
 
 		ireq.i_type = IEEE80211_IOC_APBRIDGE;
