@@ -355,7 +355,6 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 				"split transaction timeout dst=0x%x tl=0x%x state=%d\n",
 				xfer->send.hdr.mode.hdr.dst, i, xfer->state);
 			xfer->resp = ETIMEDOUT;
-			STAILQ_REMOVE_HEAD(&fc->tlabels[i], link);
 			fw_xfer_done(xfer);
 		}
 	}
@@ -1012,6 +1011,7 @@ fw_xfer_done(struct fw_xfer *xfer)
 	if (xfer->fc == NULL)
 		panic("fw_xfer_done: why xfer->fc is NULL?");
 
+	fw_tl_free(xfer->fc, xfer);
 	xfer->hand(xfer);
 }
 
@@ -1038,7 +1038,6 @@ fw_xfer_unload(struct fw_xfer* xfer)
 			 */
 			printf("fw_xfer_free FWXF_START\n");
 #endif
-		fw_tl_free(xfer->fc, xfer);
 	}
 	xfer->state = FWXF_INIT;
 	xfer->resp = 0;
