@@ -725,6 +725,15 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0,			/* long */
 	0,			/* default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
+/* GUGS32_SEL	8 32 bit GS Descriptor for user */
+{	0x0,			/* segment base address  */
+	0xfffff,		/* length - all address space */
+	SDT_MEMRWA,		/* segment type */
+	SEL_UPL,		/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0,			/* long */
+	1,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
 };
 
 void
