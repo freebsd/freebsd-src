@@ -689,3 +689,47 @@ NON_GPROF_ENTRY(__bb_init_func)
 	movq	%rax,32(%rdi)
 	movq	%rdi,bbhead
 	NON_GPROF_RET
+
+#if defined(SMP) || !defined(_KERNEL)
+#define MPLOCKED	lock ;
+#else
+#define MPLOCKED
+#endif
+
+	.text
+
+futex_fault:
+	movq	PCPU(CURPCB), %rdx
+	movq	$0, PCB_ONFAULT(%rdx)
+	movq	$-EFAULT, %rax
+	ret
+
+/* int futex_xchgl(int oparg, caddr_t uaddr, int *oldval); */
+ENTRY(futex_xchgl)
+	movq	PCPU(CURPCB), %r11
+	movq	$futex_fault, PCB_ONFAULT(%r11)
+
+	movq	$VM_MAXUSER_ADDRESS-4, %rax
+	cmpq	%rax, %rsi
+	ja	futex_fault
+
+	MPLOCKED xchgl	%edi, (%rsi)
+	movl	%edi, (%rdx)
+	xorl	%eax, %eax
+	movq	%rax, PCB_ONFAULT(%r11)
+	ret
+
+/* int futex_addl(int oparg, caddr_t uaddr, int *oldval); */
+ENTRY(futex_addl)
+	movq	PCPU(CURPCB), %r11
+	movq	$futex_fault, PCB_ONFAULT(%r11)
+
+	movq	$VM_MAXUSER_ADDRESS-4, %rax
+	cmpq	%rax, %rsi
+	ja	futex_fault
+
+	MPLOCKED xaddl	%edi, (%rsi)
+	movl	%edi, (%rdx)
+	xorl	%eax, %eax
+	movq	%rax, PCB_ONFAULT(%r11)
+	ret
