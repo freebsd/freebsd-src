@@ -398,17 +398,17 @@ gctl_get_geom(struct gctl_req *req, struct g_class *mpr, char const *arg)
 	struct g_geom *gp;
 
 	p = gctl_get_asciiparam(req, arg);
-	if (p != NULL) {
-		LIST_FOREACH(mp, &g_classes, class) {
-			if (mpr != NULL && mpr != mp)
-				continue;
-			LIST_FOREACH(gp, &mp->geom, geom) {
-				if (!strcmp(p, gp->name))
-					return (gp);
-			}
+	if (p == NULL)
+		return (NULL);
+	LIST_FOREACH(mp, &g_classes, class) {
+		if (mpr != NULL && mpr != mp)
+			continue;
+		LIST_FOREACH(gp, &mp->geom, geom) {
+			if (!strcmp(p, gp->name))
+				return (gp);
 		}
 	}
-	gctl_error(req, "Geom not found");
+	gctl_error(req, "Geom not found: \"%s\"", p);
 	return (NULL);
 }
 
@@ -424,7 +424,7 @@ gctl_get_provider(struct gctl_req *req, char const *arg)
 	pp = g_provider_by_name(p);
 	if (pp != NULL)
 		return (pp);
-	gctl_error(req, "Provider not found");
+	gctl_error(req, "Provider not found: \"%s\"", p);
 	return (NULL);
 }
 
