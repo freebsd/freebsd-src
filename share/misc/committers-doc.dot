@@ -29,6 +29,7 @@ den [label="Denis Peplin\nden@FreeBSD.org\n2003/09/13"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
 keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
 marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
+nik [label="Nik Clayton\nnik@FreeBSD.org\n1998/02/26"]
 
 # Here are the mentor/mentee relationships.
 # Group together all the mentees for a particular mentor.
@@ -39,5 +40,7 @@ den -> marck
 keramida -> gabor
 
 marck -> bvs
+
+nik -> keramida
 
 }
