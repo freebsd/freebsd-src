@@ -375,11 +375,7 @@ do {									\
 		mtx_unlock(&Giant)
 
 #define PICKUP_GIANT()							\
-	mtx_assert(&Giant, MA_NOTOWNED);				\
-	while (_giantcnt--)						\
-		mtx_lock(&Giant);					\
-	if (mtx_owned(&Giant))						\
-		WITNESS_RESTORE(&Giant.lock_object, Giant);		\
+	PARTIAL_PICKUP_GIANT();						\
 } while (0)
 
 #define PARTIAL_PICKUP_GIANT()						\
@@ -390,14 +386,20 @@ do {									\
 		WITNESS_RESTORE(&Giant.lock_object, Giant)
 #endif
 
+#define	UGAR(rval) do {							\
+	int _val = (rval);						\
+	mtx_unlock(&Giant);						\
+	return (_val);							\
+} while (0)
+
 /*
  * Network MPSAFE temporary workarounds.  When debug_mpsafenet
  * is 1 the network is assumed to operate without Giant on the
  * input path and protocols that require Giant must collect it
  * on entry.  When 0 Giant is grabbed in the network interface
  * ISR's and in the netisr path and there is no need to grab
- * the Giant lock.  Note that, unlike GIANT_PICKUP() and
- * GIANT_DROP(), these macros directly wrap mutex operations
+ * the Giant lock.  Note that, unlike PICKUP_GIANT() and
+ * DROP_GIANT(), these macros directly wrap mutex operations
  * without special recursion handling.
  *
  * This mechanism is intended as temporary until everything of
@@ -420,12 +422,6 @@ extern	int debug_mpsafenet;		/* defined in net/netisr.c */
 		mtx_assert(&Giant, MA_OWNED);				\
 } while (0)
 #define	NET_CALLOUT_MPSAFE	(debug_mpsafenet ? CALLOUT_MPSAFE : 0)
-
-#define	UGAR(rval) do {							\
-	int _val = (rval);						\
-	mtx_unlock(&Giant);						\
-	return (_val);							\
-} while (0)
 
 struct mtx_args {
 	struct mtx	*ma_mtx;
