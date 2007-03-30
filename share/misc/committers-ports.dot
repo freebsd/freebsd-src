@@ -30,7 +30,9 @@ acardenas [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
 ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29"]
 clement [label="Clement Laforet\clement@FreeBSD.org\n2003/12/17"]
+db [label="Diane Bruce\ndb@FreeBSD.org\n2007/01/18"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22"]
+ehaupt [label="Emanuel Haupt\nehaupt@FreeBSD.org\n2005/10/03"]
 erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
@@ -63,6 +65,8 @@ ahze -> shaun
 ahze -> tmclaugh
 
 edwin -> erwin
+
+ehaupt -> db
 
 erwin -> clement
 erwin -> gabor
