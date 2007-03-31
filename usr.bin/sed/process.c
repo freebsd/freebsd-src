@@ -666,9 +666,9 @@ regsub(SPACE *sp, char *string, char *src)
 }
 
 /*
- * aspace --
- *	Append the source space to the destination space, allocating new
- *	space as necessary.
+ * cspace --
+ *	Concatenate space: append the source space to the destination space,
+ *	allocating new space as necessary.
  */
 void
 cspace(SPACE *sp, const char *p, size_t len, enum e_spflag spflag)
