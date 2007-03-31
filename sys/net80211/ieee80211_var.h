@@ -418,12 +418,43 @@ void	ieee80211_note_frame(struct ieee80211com *ic,
 	((_ic)->ic_debug & IEEE80211_MSG_SCAN)
 #define	ieee80211_msg_assoc(_ic) \
 	((_ic)->ic_debug & IEEE80211_MSG_ASSOC)
+
+/*
+ * Emit a debug message about discarding a frame or information
+ * element.  One format is for extracting the mac address from
+ * the frame header; the other is for when a header is not
+ * available or otherwise appropriate.
+ */
+#define	IEEE80211_DISCARD(_ic, _m, _wh, _type, _fmt, ...) do {		\
+	if ((_ic)->ic_debug & (_m))					\
+		ieee80211_discard_frame(_ic, _wh, _type, _fmt, __VA_ARGS__);\
+} while (0)
+#define	IEEE80211_DISCARD_IE(_ic, _m, _wh, _type, _fmt, ...) do {	\
+	if ((_ic)->ic_debug & (_m))					\
+		ieee80211_discard_ie(_ic, _wh, _type, _fmt, __VA_ARGS__);\
+} while (0)
+#define	IEEE80211_DISCARD_MAC(_ic, _m, _mac, _type, _fmt, ...) do {	\
+	if ((_ic)->ic_debug & (_m))					\
+		ieee80211_discard_mac(_ic, _mac, _type, _fmt, __VA_ARGS__);\
+} while (0)
+
+void ieee80211_discard_frame(struct ieee80211com *,
+	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
+void ieee80211_discard_ie(struct ieee80211com *,
+	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
+void ieee80211_discard_mac(struct ieee80211com *,
+	const u_int8_t mac[IEEE80211_ADDR_LEN], const char *type,
+	const char *fmt, ...);
 #else
 #define	IEEE80211_DPRINTF(_ic, _m, _fmt, ...)
 #define	IEEE80211_NOTE_FRAME(_ic, _m, _wh, _fmt, ...)
 #define	IEEE80211_NOTE_MAC(_ic, _m, _mac, _fmt, ...)
 #define	ieee80211_msg_dumppkts(_ic)	0
 #define	ieee80211_msg(_ic, _m)		0
+
+#define	IEEE80211_DISCARD(_ic, _m, _wh, _type, _fmt, ...)
+#define	IEEE80211_DISCARD_IE(_ic, _m, _wh, _type, _fmt, ...)
+#define	IEEE80211_DISCARD_MAC(_ic, _m, _mac, _type, _fmt, ...)
 #endif
 
 #endif /* _NET80211_IEEE80211_VAR_H_ */
