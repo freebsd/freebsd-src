@@ -38,7 +38,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 akiyama [label="Shunsuke Akiyama\nakiyama@FreeBSD.org\n2000/06/19"]
 ambrisko [label="Doug Ambrisko\nambrisko@FreeBSD.org\n2001/12/19"]
-andre [label="André Oppermann\nandre@FreeBSD.org\n2003/11/12"]
+andre [label="Andre Oppermann\nandre@FreeBSD.org\n2003/11/12"]
 anholt [label="Eric Anholt\nanholt@FreeBSD.org\n2002/04/22"]
 ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
 benjsc [label="Benjamin Close\nbenjsc@FreeBSD.org\n2007/02/09"]
