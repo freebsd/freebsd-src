@@ -48,6 +48,7 @@ joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\2006/01/18"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
+murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2005/03/31"]
 njl [label="Nate Lawson\njl@FreeBSD.org\n2002/08/07"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
@@ -94,6 +95,8 @@ grog -> le
 mlaier -> benjsc
 mlaier -> dhartmei
 mlaier -> thompsa
+
+murray -> delphij
 
 netchild -> ariff
 
