@@ -185,7 +185,7 @@ ipmi2_pci_probe(device_t dev)
 {
 
 	if (pci_get_class(dev) == PCIC_SERIALBUS &&
-	    pci_get_subclass(dev) == 0x07) {
+	    pci_get_subclass(dev) == PCIS_SERIALBUS_IPMI) {
 		device_set_desc(dev, "IPMI System Interface");
 		return (BUS_PROBE_GENERIC);
 	}
@@ -204,13 +204,13 @@ ipmi2_pci_attach(device_t dev)
 
 	/* Interface is determined by progif. */
 	switch (pci_get_progif(dev)) {
-	case 0:
+	case PCIP_SERIALBUS_IPMI_SMIC:
 		iface = SMIC_MODE;
 		break;
-	case 1:
+	case PCIP_SERIALBUS_IPMI_KCS:
 		iface = KCS_MODE;
 		break;
-	case 2:
+	case PCIP_SERIALBUS_IPMI_BT:
 		iface = BT_MODE;
 		device_printf(dev, "BT interface unsupported\n");
 		return (ENXIO);
