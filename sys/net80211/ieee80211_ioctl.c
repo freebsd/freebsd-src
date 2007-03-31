@@ -1136,8 +1136,8 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 		memcpy(si->isi_txseqs, ni->ni_txseqs, sizeof(ni->ni_txseqs));
 		memcpy(si->isi_rxseqs, ni->ni_rxseqs, sizeof(ni->ni_rxseqs));
 	} else {
-		si->isi_txseqs[0] = ni->ni_txseqs[0];
-		si->isi_rxseqs[0] = ni->ni_rxseqs[0];
+		si->isi_txseqs[0] = ni->ni_txseqs[IEEE80211_NONQOS_TID];
+		si->isi_rxseqs[0] = ni->ni_rxseqs[IEEE80211_NONQOS_TID];
 	}
 	/* NB: leave all cases in case we relax ni_associd == 0 check */
 	if (ieee80211_node_is_authorized(ni))

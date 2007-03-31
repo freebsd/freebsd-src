@@ -261,7 +261,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 					ic->ic_wme.wme_hipri_traffic++;
 				tid++;
 			} else
-				tid = 0;
+				tid = IEEE80211_NONQOS_TID;
 			rxseq = le16toh(*(u_int16_t *)wh->i_seq);
 			if ((wh->i_fc[1] & IEEE80211_FC1_RETRY) &&
 			    SEQ_LEQ(rxseq, ni->ni_rxseqs[tid])) {
