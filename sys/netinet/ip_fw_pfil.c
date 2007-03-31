@@ -64,7 +64,12 @@
 
 #include <machine/in_cksum.h>
 
-static	int ipfw_pfil_hooked = 0;
+int fw_enable = 1;
+#ifdef INET6
+int fw6_enable = 1;
+#endif
+
+int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 /* Dummynet hooks. */
 ip_dn_ruledel_t	*ip_dn_ruledel_ptr = NULL;
@@ -95,9 +100,6 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 #endif
 
 	KASSERT(dir == PFIL_IN, ("ipfw_check_in wrong direction!"));
-
-	if (!fw_enable)
-		goto pass;
 
 	bzero(&args, sizeof(args));
 
@@ -216,9 +218,6 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 #endif
 
 	KASSERT(dir == PFIL_OUT, ("ipfw_check_out wrong direction!"));
-
-	if (!fw_enable)
-		goto pass;
 
 	bzero(&args, sizeof(args));
 
@@ -417,28 +416,13 @@ static int
 ipfw_hook(void)
 {
 	struct pfil_head *pfh_inet;
-#ifdef INET6
-	struct pfil_head *pfh_inet6;
-#endif
-
-	if (ipfw_pfil_hooked)
-		return EEXIST;
 
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 	if (pfh_inet == NULL)
 		return ENOENT;
-#ifdef INET6
-	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
-	if (pfh_inet6 == NULL)
-		return ENOENT;
-#endif
 
 	pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
 	pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
-#ifdef INET6
-	pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet6);
-	pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet6);
-#endif
 
 	return 0;
 }
@@ -447,30 +431,85 @@ static int
 ipfw_unhook(void)
 {
 	struct pfil_head *pfh_inet;
-#ifdef INET6
-	struct pfil_head *pfh_inet6;
-#endif
-
-	if (!ipfw_pfil_hooked)
-		return ENOENT;
 
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 	if (pfh_inet == NULL)
 		return ENOENT;
-#ifdef INET6
-	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
-	if (pfh_inet6 == NULL)
-		return ENOENT;
-#endif
 
 	pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
 	pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
-#ifdef INET6
-	pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet6);
-	pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet6);
-#endif
 
 	return 0;
+}
+
+#ifdef INET6
+static int
+ipfw6_hook(void)
+{
+	struct pfil_head *pfh_inet6;
+
+	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	if (pfh_inet6 == NULL)
+		return ENOENT;
+
+	pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet6);
+	pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+
+	return 0;
+}
+
+static int
+ipfw6_unhook(void)
+{
+	struct pfil_head *pfh_inet6;
+
+	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	if (pfh_inet6 == NULL)
+		return ENOENT;
+
+	pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet6);
+	pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+
+	return 0;
+}
+#endif /* INET6 */
+
+int
+ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
+{
+	int enable = *(int *)arg1;
+	int error;
+
+	error = sysctl_handle_int(oidp, &enable, 0, req);
+	if (error)
+		return (error);
+
+	enable = (enable) ? 1 : 0;
+
+	if (enable == *(int *)arg1)
+		return (0);
+
+	if (arg1 == &fw_enable) {
+		if (enable)
+			error = ipfw_hook();
+		else
+			error = ipfw_unhook();
+	}
+#ifdef INET6
+	if (arg1 == &fw6_enable) {
+		if (enable)
+			error = ipfw6_hook();
+		else
+			error = ipfw6_unhook();
+	}
+#endif
+
+	if (error)
+		return (error);
+
+	*(int *)arg1 = enable;
+
+	return (0);
 }
 
 static int
@@ -480,31 +519,30 @@ ipfw_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		if (ipfw_pfil_hooked) {
-			printf("IP firewall already loaded\n");
-			err = EEXIST;
-		} else {
-			if ((err = ipfw_init()) != 0) {
-				printf("ipfw_init() error\n");
-				break;
-			}
-			if ((err = ipfw_hook()) != 0) {
-				printf("ipfw_hook() error\n");
-				break;
-			}
-			ipfw_pfil_hooked = 1;
+		if ((err = ipfw_init()) != 0) {
+			printf("ipfw_init() error\n");
+			break;
 		}
+		if ((err = ipfw_hook()) != 0) {
+			printf("ipfw_hook() error\n");
+			break;
+		}
+#ifdef INET6
+		if ((err = ipfw6_hook()) != 0) {
+			printf("ipfw_hook() error\n");
+			break;
+		}
+#endif
 		break;
 
 	case MOD_UNLOAD:
-		if (ipfw_pfil_hooked) {
-			if ((err = ipfw_unhook()) > 0)
-				break;
-			ipfw_destroy();
-			ipfw_pfil_hooked = 0;
-		} else {
-			printf("IP firewall already unloaded\n");
-		}
+		if ((err = ipfw_unhook()) > 0)
+			break;
+#ifdef INET6
+		if ((err = ipfw6_unhook()) > 0)
+			break;
+#endif
+		ipfw_destroy();
 		break;
 
 	default:
