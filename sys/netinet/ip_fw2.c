@@ -2032,7 +2032,7 @@ check_uidgid(ipfw_insn_u32 *insn,
 		wildcard = 0;
 		pi = &tcbinfo;
 	} else if (proto == IPPROTO_UDP) {
-		wildcard = 1;
+		wildcard = INPLOOKUP_WILDCARD;
 		pi = &udbinfo;
 	} else
 		return 0;
