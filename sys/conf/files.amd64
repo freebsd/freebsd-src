@@ -113,6 +113,7 @@ amd64/amd64/mp_watchdog.c	optional	mp_watchdog smp
 amd64/amd64/mpboot.S		optional	smp
 amd64/amd64/mptable.c		optional	mptable
 amd64/amd64/mptable_pci.c	optional	mptable pci
+amd64/amd64/msi.c		optional	pci
 amd64/amd64/nexus.c		standard
 amd64/amd64/pmap.c		standard
 amd64/amd64/prof_machdep.c	optional	profiling-routine
