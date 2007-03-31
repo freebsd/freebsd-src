@@ -996,7 +996,7 @@ sctp_fill_user_address(struct sockaddr_storage *ss, struct sockaddr *sa)
 
 
 static size_t
-sctp_fill_up_addresses(struct sctp_inpcb *inp,
+sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     size_t limit,
     struct sockaddr_storage *sas,
@@ -1153,8 +1153,22 @@ sctp_fill_up_addresses(struct sctp_inpcb *inp,
 	return (actual);
 }
 
+static size_t
+sctp_fill_up_addresses(struct sctp_inpcb *inp,
+    struct sctp_tcb *stcb,
+    size_t limit,
+    struct sockaddr_storage *sas)
+{
+	size_t size = 0;
+
+	/* fill up addresses for the endpoint's default vrf */
+	size = sctp_fill_up_addresses_vrf(inp, stcb, limit, sas,
+	    inp->def_vrf_id);
+	return (size);
+}
+
 static int
-sctp_count_max_addresses(struct sctp_inpcb *inp, uint32_t vrf_id)
+sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 {
 	int cnt = 0;
 	struct sctp_vrf *vrf = NULL;
@@ -1201,6 +1215,16 @@ sctp_count_max_addresses(struct sctp_inpcb *inp, uint32_t vrf_id)
 				cnt += sizeof(struct sockaddr_in6);
 		}
 	}
+	return (cnt);
+}
+
+static int
+sctp_count_max_addresses(struct sctp_inpcb *inp)
+{
+	int cnt = 0;
+
+	/* count addresses for the endpoint's default VRF */
+	cnt = sctp_count_max_addresses_vrf(inp, inp->def_vrf_id);
 	return (cnt);
 }
 
@@ -1416,7 +1440,6 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 {
 	struct sctp_inpcb *inp;
 	int error, val = 0;
-	uint32_t vrf_id;
 	struct sctp_tcb *stcb = NULL;
 
 	if (optval == NULL) {
@@ -1425,8 +1448,6 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == 0)
 		return EINVAL;
-	vrf_id = SCTP_DEFAULT_VRFID;
-
 	error = 0;
 
 	switch (optname) {
@@ -1797,7 +1818,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 
 			SCTP_CHECK_AND_CAST(value, optval, uint32_t, *optsize);
 			SCTP_INP_RLOCK(inp);
-			*value = sctp_count_max_addresses(inp, vrf_id);
+			*value = sctp_count_max_addresses(inp);
 			SCTP_INP_RUNLOCK(inp);
 			*optsize = sizeof(uint32_t);
 		}
@@ -1898,7 +1919,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 
 			sas = (struct sockaddr_storage *)&saddr->addr[0];
 			limit = *optsize - sizeof(sctp_assoc_t);
-			actual = sctp_fill_up_addresses(inp, stcb, limit, sas, vrf_id);
+			actual = sctp_fill_up_addresses(inp, stcb, limit, sas);
 			if (stcb)
 				SCTP_TCB_UNLOCK(stcb);
 			*optsize = sizeof(struct sockaddr_storage) + actual;

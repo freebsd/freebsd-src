@@ -292,108 +292,118 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_EARLY_FAST_RETRAN_MAX	0xFFFFFFFF
 #define SCTPCTL_EARLY_FAST_RETRAN_DEFAULT	0
 
-/* use_rttvar_congctrl: Use Congestion Control via rtt variation */
-#define SCTPCTL_USE_RTTVAR_CONGCTRL		37
-#define SCTPCTL_USE_RTTVAR_CONGCTRL_DESC	"Use Congestion Control via rtt variation"
-#define SCTPCTL_USE_RTTVAR_CONGCTRL_MIN		0
-#define SCTPCTL_USE_RTTVAR_CONGCTRL_MAX		1
-#define SCTPCTL_USE_RTTVAR_CONGCTRL_DEFAULT	0	/* UNUSED?? */
-
 /* deadlock_detect: SMP Deadlock detection on/off */
-#define SCTPCTL_DEADLOCK_DETECT		38
+#define SCTPCTL_DEADLOCK_DETECT		37
 #define SCTPCTL_DEADLOCK_DETECT_DESC	"SMP Deadlock detection on/off"
 #define SCTPCTL_DEADLOCK_DETECT_MIN	0
 #define SCTPCTL_DEADLOCK_DETECT_MAX	1
 #define SCTPCTL_DEADLOCK_DETECT_DEFAULT	0
 
 /* early_fast_retran_msec: Early Fast Retransmit minimum timer value */
-#define SCTPCTL_EARLY_FAST_RETRAN_MSEC		39
+#define SCTPCTL_EARLY_FAST_RETRAN_MSEC		38
 #define SCTPCTL_EARLY_FAST_RETRAN_MSEC_DESC	"Early Fast Retransmit minimum timer value"
 #define SCTPCTL_EARLY_FAST_RETRAN_MSEC_MIN	0
 #define SCTPCTL_EARLY_FAST_RETRAN_MSEC_MAX	0xFFFFFFFF
 #define SCTPCTL_EARLY_FAST_RETRAN_MSEC_DEFAULT	SCTP_MINFR_MSEC_TIMER
 
 /* asconf_auth_nochk: Disable SCTP ASCONF AUTH requirement */
-#define SCTPCTL_ASCONF_AUTH_NOCHK	40
+#define SCTPCTL_ASCONF_AUTH_NOCHK	39
 #define SCTPCTL_ASCONF_AUTH_NOCHK_DESC	"Disable SCTP ASCONF AUTH requirement"
 #define SCTPCTL_ASCONF_AUTH_NOCHK_MIN	0
 #define SCTPCTL_ASCONF_AUTH_NOCHK_MAX	1
 #define SCTPCTL_ASCONF_AUTH_NOCHK_DEFAULT	0
 
 /* auth_disable: Disable SCTP AUTH function */
-#define SCTPCTL_AUTH_DISABLE		41
+#define SCTPCTL_AUTH_DISABLE		40
 #define SCTPCTL_AUTH_DISABLE_DESC	"Disable SCTP AUTH function"
 #define SCTPCTL_AUTH_DISABLE_MIN	0
 #define SCTPCTL_AUTH_DISABLE_MAX	1
 #define SCTPCTL_AUTH_DISABLE_DEFAULT	0
 
 /* nat_friendly: SCTP NAT friendly operation */
-#define SCTPCTL_NAT_FRIENDLY		42
+#define SCTPCTL_NAT_FRIENDLY		41
 #define SCTPCTL_NAT_FRIENDLY_DESC	"SCTP NAT friendly operation"
 #define SCTPCTL_NAT_FRIENDLY_MIN	0
 #define SCTPCTL_NAT_FRIENDLY_MAX	1
 #define SCTPCTL_NAT_FRIENDLY_DEFAULT	1
 
 /* abc_l_var: SCTP ABC max increase per SACK (L) */
-#define SCTPCTL_ABC_L_VAR		43
+#define SCTPCTL_ABC_L_VAR		42
 #define SCTPCTL_ABC_L_VAR_DESC		"SCTP ABC max increase per SACK (L)"
 #define SCTPCTL_ABC_L_VAR_MIN		0
 #define SCTPCTL_ABC_L_VAR_MAX		0xFFFFFFFF
 #define SCTPCTL_ABC_L_VAR_DEFAULT	1
 
 /* max_chained_mbufs: Default max number of small mbufs on a chain */
-#define SCTPCTL_MAX_CHAINED_MBUFS	44
+#define SCTPCTL_MAX_CHAINED_MBUFS	43
 #define SCTPCTL_MAX_CHAINED_MBUFS_DESC	"Default max number of small mbufs on a chain"
 #define SCTPCTL_MAX_CHAINED_MBUFS_MIN	0
 #define SCTPCTL_MAX_CHAINED_MBUFS_MAX	0xFFFFFFFF
 #define SCTPCTL_MAX_CHAINED_MBUFS_DEFAULT	SCTP_DEFAULT_MBUFS_IN_CHAIN
 
 /* cmt_use_dac: CMT DAC on/off flag */
-#define SCTPCTL_CMT_USE_DAC		45
+#define SCTPCTL_CMT_USE_DAC		44
 #define SCTPCTL_CMT_USE_DAC_DESC	"CMT DAC on/off flag"
 #define SCTPCTL_CMT_USE_DAC_MIN		0
 #define SCTPCTL_CMT_USE_DAC_MAX		1
 #define SCTPCTL_CMT_USE_DAC_DEFAULT    	0
 
 /* do_sctp_drain: Should SCTP respond to the drain calls */
-#define SCTPCTL_DO_SCTP_DRAIN		46
+#define SCTPCTL_DO_SCTP_DRAIN		45
 #define SCTPCTL_DO_SCTP_DRAIN_DESC	"Should SCTP respond to the drain calls"
 #define SCTPCTL_DO_SCTP_DRAIN_MIN	0
 #define SCTPCTL_DO_SCTP_DRAIN_MAX	1
 #define SCTPCTL_DO_SCTP_DRAIN_DEFAULT	1
 
 /* hb_max_burst: Confirmation Heartbeat max burst? */
-#define SCTPCTL_HB_MAX_BURST		47
+#define SCTPCTL_HB_MAX_BURST		46
 #define SCTPCTL_HB_MAX_BURST_DESC	"Confirmation Heartbeat max burst?"
 #define SCTPCTL_HB_MAX_BURST_MIN	1
 #define SCTPCTL_HB_MAX_BURST_MAX	0xFFFFFFFF
 #define SCTPCTL_HB_MAX_BURST_DEFAULT	SCTP_DEF_MAX_BURST
 
 /* abort_at_limit: When one-2-one hits qlimit abort */
-#define SCTPCTL_ABORT_AT_LIMIT		48
+#define SCTPCTL_ABORT_AT_LIMIT		47
 #define SCTPCTL_ABORT_AT_LIMIT_DESC	"When one-2-one hits qlimit abort"
 #define SCTPCTL_ABORT_AT_LIMIT_MIN	0
 #define SCTPCTL_ABORT_AT_LIMIT_MAX	1
 #define SCTPCTL_ABORT_AT_LIMIT_DEFAULT	0
 
 /* strict_data_order: Enforce strict data ordering, abort if control inside data */
-#define SCTPCTL_STRICT_DATA_ORDER	49
+#define SCTPCTL_STRICT_DATA_ORDER	48
 #define SCTPCTL_STRICT_DATA_ORDER_DESC	"Enforce strict data ordering, abort if control inside data"
 #define SCTPCTL_STRICT_DATA_ORDER_MIN	0
 #define SCTPCTL_STRICT_DATA_ORDER_MAX	1
 #define SCTPCTL_STRICT_DATA_ORDER_DEFAULT	0
 
+/* min residual in in a data fragment leftover  */
+#define SCTPCTL_MIN_REDIDUAL		49
+#define SCTPCTL_MIN_RESIDUAL_DESC	"Minimum residual data chunk in second part of split"
+#define SCTPCTL_MIN_RESIDUAL_MIN	20
+#define SCTPCTL_MIN_RESIDUAL_MAX	65535
+#define SCTPCTL_MIN_RESIDUAL_DEFAULT	1452
+
+/* min residual in in a data fragment leftover  */
+#define SCTPCTL_MAX_RETRAN		50
+#define SCTPCTL_MAX_RETRAN_DESC		"Maximum times a unlucky chunk can be retran'd before assoc abort "
+#define SCTPCTL_MAX_RETRAN_MIN		0
+#define SCTPCTL_MAX_RETRAN_MAX		65535
+#define SCTPCTL_MAX_RETRAN_DEFAULT	30
+
+
+
+#ifdef SCTP_DEBUG
 /* debug: Configure debug output */
-#define SCTPCTL_DEBUG		50
+#define SCTPCTL_DEBUG		51
 #define SCTPCTL_DEBUG_DESC	"Configure debug output"
 #define SCTPCTL_DEBUG_MIN	0
 #define SCTPCTL_DEBUG_MAX	0xFFFFFFFF
 #define SCTPCTL_DEBUG_DEFAULT	0
 
-#ifdef SCTP_DEBUG
-#define SCTPCTL_MAXID		    50
+
+#define SCTPCTL_MAXID		    51
 #else
-#define SCTPCTL_MAXID		    49
+#define SCTPCTL_MAXID		    50
 #endif
 
 /*
@@ -432,7 +442,6 @@ __FBSDID("$FreeBSD$");
 	{ "cmt_on_off", CTLTYPE_INT }, \
 	{ "cwnd_maxburst", CTLTYPE_INT }, \
 	{ "early_fast_retran", CTLTYPE_INT }, \
-	{ "use_rttvar_congctrl", CTLTYPE_INT }, \
 	{ "deadlock_detect", CTLTYPE_INT }, \
 	{ "early_fast_retran_msec", CTLTYPE_INT }, \
 	{ "asconf_auth_nochk", CTLTYPE_INT }, \
@@ -452,6 +461,8 @@ __FBSDID("$FreeBSD$");
 	{ "add_more_on_output", CTLTYPE_INT }, \
 	{ "sys_resource", CTLTYPE_INT }, \
 	{ "asoc_resource", CTLTYPE_INT }, \
+	{ "min_residual", CTLTYPE_INT }, \
+	{ "max_retran_chunk", CTLTYPE_INT }, \
 	{ "debug", CTLTYPE_INT }, \
 }
 #else
@@ -486,7 +497,6 @@ __FBSDID("$FreeBSD$");
 	{ "cmt_on_off", CTLTYPE_INT }, \
 	{ "cwnd_maxburst", CTLTYPE_INT }, \
 	{ "early_fast_retran", CTLTYPE_INT }, \
-	{ "use_rttvar_congctrl", CTLTYPE_INT }, \
 	{ "deadlock_detect", CTLTYPE_INT }, \
 	{ "early_fast_retran_msec", CTLTYPE_INT }, \
 	{ "asconf_auth_nochk", CTLTYPE_INT }, \
@@ -506,6 +516,8 @@ __FBSDID("$FreeBSD$");
 	{ "add_more_on_output", CTLTYPE_INT }, \
 	{ "sys_resource", CTLTYPE_INT }, \
 	{ "asoc_resource", CTLTYPE_INT }, \
+	{ "max_retran_chunk", CTLTYPE_INT }, \
+	{ "min_residual", CTLTYPE_INT }, \
 }
 #endif
 
@@ -564,6 +576,8 @@ extern uint32_t sctp_do_drain;
 extern uint32_t sctp_hb_maxburst;
 extern uint32_t sctp_abort_if_one_2_one_hits_limit;
 extern uint32_t sctp_strict_data_order;
+extern uint32_t sctp_min_residual;
+extern uint32_t sctp_max_retran_chunk;
 
 #if defined(SCTP_DEBUG)
 extern uint32_t sctp_debug_on;
