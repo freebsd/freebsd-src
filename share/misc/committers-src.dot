@@ -48,6 +48,7 @@ jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
+mjacob [label="Matt Jacob\nmjacob@FreeBSD.org\n1997/08/13"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
 murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2005/03/31"]
@@ -99,6 +100,8 @@ jake -> bms
 
 joerg -> le
 joerg -> netchild
+
+gibbs -> mjacob
 
 grog -> le
 
