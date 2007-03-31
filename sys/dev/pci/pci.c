@@ -91,6 +91,7 @@ static int		pci_modevent(module_t mod, int what, void *arg);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
 			    pcicfgregs *cfg);
 static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
+static int		pci_msi_blacklisted(void);
 
 static device_method_t pci_methods[] = {
 	/* Device interface */
@@ -132,6 +133,11 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
 	DEVMETHOD(pci_assign_interrupt,	pci_assign_interrupt_method),
 	DEVMETHOD(pci_find_extcap,	pci_find_extcap_method),
+	DEVMETHOD(pci_alloc_msi,	pci_alloc_msi_method),
+	DEVMETHOD(pci_alloc_msix,	pci_alloc_msix_method),
+	DEVMETHOD(pci_release_msi,	pci_release_msi_method),
+	DEVMETHOD(pci_msi_count,	pci_msi_count_method),
+	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
 
 	{ 0, 0 }
 };
@@ -150,6 +156,7 @@ struct pci_quirk {
 	uint32_t devid;	/* Vendor/device of the card */
 	int	type;
 #define	PCI_QUIRK_MAP_REG	1 /* PCI map register in weird place */
+#define	PCI_QUIRK_DISABLE_MSI	2 /* MSI/MSI-X doesn't work */
 	int	arg1;
 	int	arg2;
 };
@@ -160,6 +167,31 @@ struct pci_quirk pci_quirks[] = {
 	{ 0x719b8086, PCI_QUIRK_MAP_REG,	0x90,	 0 },
 	/* As does the Serverworks OSB4 (the SMBus mapping register) */
 	{ 0x02001166, PCI_QUIRK_MAP_REG,	0x90,	 0 },
+
+	/*
+	 * MSI doesn't work with the ServerWorks CNB20-HE Host Bridge
+	 * or the CMIC-SL (AKA ServerWorks GC_LE).
+	 */
+	{ 0x00141166, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x00171166, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
+	/*
+	 * MSI doesn't work on earlier Intel chipsets including
+	 * E7500, E7501, E7505, 845, 865, 875/E7210, and 855.
+	 */
+	{ 0x25408086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x254c8086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x25508086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x25608086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x25708086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x25788086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x35808086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
+	/*
+	 * MSI doesn't work with devices behind the AMD 8131 HT-PCIX
+	 * bridge.
+	 */
+	{ 0x74501022, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 
 	{ 0 }
 };
@@ -172,6 +204,7 @@ struct pci_quirk pci_quirks[] = {
 struct devlist pci_devq;
 uint32_t pci_generation;
 uint32_t pci_numdevs = 0;
+static int pcie_chipset, pcix_chipset;
 
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
@@ -198,6 +231,21 @@ TUNABLE_INT("hw.pci.do_power_resume", &pci_do_power_resume);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RW,
     &pci_do_power_resume, 1,
   "Transition from D3 -> D0 on resume.");
+
+static int pci_do_msi = 0;
+TUNABLE_INT("hw.pci.enable_msi", &pci_do_msi);
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_msi, CTLFLAG_RW, &pci_do_msi, 1,
+    "Enable support for MSI interrupts");
+
+static int pci_do_msix = 0;
+TUNABLE_INT("hw.pci.enable_msix", &pci_do_msix);
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_msix, CTLFLAG_RW, &pci_do_msix, 1,
+    "Enable support for MSI-X interrupts");
+
+static int pci_honor_msi_blacklist = 1;
+TUNABLE_INT("hw.pci.honor_msi_blacklist", &pci_honor_msi_blacklist);
+SYSCTL_INT(_hw_pci, OID_AUTO, honor_msi_blacklist, CTLFLAG_RD,
+    &pci_honor_msi_blacklist, 1, "Honor chipset blacklist for MSI");
 
 /* Find a device_t by bus/slot/function */
 
@@ -420,6 +468,7 @@ static void
 pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
+#define	WREG(n, v, w)	PCIB_WRITE_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, v, w)
 	uint32_t val;
 	int	ptr, nextptr, ptrptr;
 
@@ -462,13 +511,24 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			}
 			break;
 		case PCIY_MSI:		/* PCI MSI */
+			cfg->msi.msi_location = ptr;
 			cfg->msi.msi_ctrl = REG(ptr + PCIR_MSI_CTRL, 2);
-			if (cfg->msi.msi_ctrl & PCIM_MSICTRL_64BIT)
-				cfg->msi.msi_data = PCIR_MSI_DATA_64BIT;
-			else
-				cfg->msi.msi_data = PCIR_MSI_DATA;
 			cfg->msi.msi_msgnum = 1 << ((cfg->msi.msi_ctrl &
 						     PCIM_MSICTRL_MMC_MASK)>>1);
+			break;
+		case PCIY_MSIX:		/* PCI MSI-X */
+			cfg->msix.msix_location = ptr;
+			cfg->msix.msix_ctrl = REG(ptr + PCIR_MSIX_CTRL, 2);
+			cfg->msix.msix_msgnum = (cfg->msix.msix_ctrl &
+			    PCIM_MSIXCTRL_TABLE_SIZE) + 1;
+			val = REG(ptr + PCIR_MSIX_TABLE, 4);
+			cfg->msix.msix_table_bar = PCIR_BAR(val &
+			    PCIM_MSIX_BIR_MASK);
+			cfg->msix.msix_table_offset = val & ~PCIM_MSIX_BIR_MASK;
+			val = REG(ptr + PCIR_MSIX_PBA, 4);
+			cfg->msix.msix_pba_bar = PCIR_BAR(val &
+			    PCIM_MSIX_BIR_MASK);
+			cfg->msix.msix_pba_offset = val & ~PCIM_MSIX_BIR_MASK;
 			break;
 		case PCIY_SUBVENDOR:
 			/* Should always be true. */
@@ -478,11 +538,33 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 				cfg->subdevice = val >> 16;
 			}
 			break;
+		case PCIY_PCIX:		/* PCI-X */
+			/*
+			 * Assume we have a PCI-X chipset if we have
+			 * at least one PCI-PCI bridge with a PCI-X
+			 * capability.  Note that some systems with
+			 * PCI-express or HT chipsets might match on
+			 * this check as well.
+			 */
+			if ((cfg->hdrtype & PCIM_HDRTYPE) == 1)
+				pcix_chipset = 1;
+			break;
+		case PCIY_EXPRESS:	/* PCI-express */
+			/*
+			 * Assume we have a PCI-express chipset if we have
+			 * at least one PCI-express root port.
+			 */
+			val = REG(ptr + PCIR_EXPRESS_FLAGS, 2);
+			if ((val & PCIM_EXP_FLAGS_TYPE) ==
+			    PCIM_EXP_TYPE_ROOT_PORT)
+				pcie_chipset = 1;
+			break;
 		default:
 			break;
 		}
 	}
 #undef REG
+#undef WREG
 }
 
 /*
@@ -535,6 +617,543 @@ pci_find_extcap_method(device_t dev, device_t child, int capability,
 	}
 
 	return (ENOENT);
+}
+
+/*
+ * Support for MSI-X message interrupts.
+ */
+void
+pci_enable_msix(device_t dev, u_int index, uint64_t address, uint32_t data)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+	uint32_t offset;
+
+	KASSERT(cfg->msix.msix_alloc > index, ("bogus index"));
+	offset = cfg->msix.msix_table_offset + index * 16;
+	bus_write_4(cfg->msix.msix_table_res, offset, address & 0xffffffff);
+	bus_write_4(cfg->msix.msix_table_res, offset + 4, address >> 32);
+	bus_write_4(cfg->msix.msix_table_res, offset + 8, data);
+}
+
+void
+pci_mask_msix(device_t dev, u_int index)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+	uint32_t offset, val;
+
+	KASSERT(cfg->msix.msix_msgnum > index, ("bogus index"));
+	offset = cfg->msix.msix_table_offset + index * 16 + 12;
+	val = bus_read_4(cfg->msix.msix_table_res, offset);
+	if (!(val & PCIM_MSIX_VCTRL_MASK)) {
+		val |= PCIM_MSIX_VCTRL_MASK;
+		bus_write_4(cfg->msix.msix_table_res, offset, val);
+	}
+}
+
+void
+pci_unmask_msix(device_t dev, u_int index)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+	uint32_t offset, val;
+
+	KASSERT(cfg->msix.msix_alloc > index, ("bogus index"));
+	offset = cfg->msix.msix_table_offset + index * 16 + 12;
+	val = bus_read_4(cfg->msix.msix_table_res, offset);
+	if (val & PCIM_MSIX_VCTRL_MASK) {
+		val &= ~PCIM_MSIX_VCTRL_MASK;
+		bus_write_4(cfg->msix.msix_table_res, offset, val);
+	}
+}
+
+int
+pci_pending_msix(device_t dev, u_int index)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+	uint32_t offset, bit;
+
+	KASSERT(cfg->msix.msix_alloc > index, ("bogus index"));
+	offset = cfg->msix.msix_pba_offset + (index / 4) * 4;
+	bit = 1 << index % 32;
+	return (bus_read_4(cfg->msix.msix_pba_res, offset) & bit);
+}
+
+/*
+ * Attempt to allocate *count MSI-X messages.  The actual number allocated is
+ * returned in *count.  After this function returns, each message will be
+ * available to the driver as SYS_RES_IRQ resources starting at rid 1.
+ */
+int
+pci_alloc_msix_method(device_t dev, device_t child, int *count)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	struct resource_list_entry *rle;
+	int actual, error, i, irq, max;
+
+	/* Don't let count == 0 get us into trouble. */
+	if (*count == 0)
+		return (EINVAL);
+
+	/* If rid 0 is allocated, then fail. */
+	rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, 0);
+	if (rle != NULL && rle->res != NULL)
+		return (ENXIO);
+
+	/* Already have allocated messages? */
+	if (cfg->msi.msi_alloc != 0 || cfg->msix.msix_alloc != 0)
+		return (ENXIO);
+
+	/* If MSI is blacklisted for this system, fail. */
+	if (pci_msi_blacklisted())
+		return (ENXIO);
+
+	/* MSI-X capability present? */
+	if (cfg->msix.msix_location == 0 || !pci_do_msix)
+		return (ENODEV);
+
+	/* Make sure the appropriate BARs are mapped. */
+	rle = resource_list_find(&dinfo->resources, SYS_RES_MEMORY,
+	    cfg->msix.msix_table_bar);
+	if (rle == NULL || rle->res == NULL ||
+	    !(rman_get_flags(rle->res) & RF_ACTIVE))
+		return (ENXIO);
+	cfg->msix.msix_table_res = rle->res;
+	if (cfg->msix.msix_pba_bar != cfg->msix.msix_table_bar) {
+		rle = resource_list_find(&dinfo->resources, SYS_RES_MEMORY,
+		    cfg->msix.msix_pba_bar);
+		if (rle == NULL || rle->res == NULL ||
+		    !(rman_get_flags(rle->res) & RF_ACTIVE))
+			return (ENXIO);
+	}
+	cfg->msix.msix_pba_res = rle->res;
+
+	if (bootverbose)
+		device_printf(child,
+		    "attempting to allocate %d MSI-X vectors (%d supported)\n",
+		    *count, cfg->msix.msix_msgnum);
+	max = min(*count, cfg->msix.msix_msgnum);
+	for (i = 0; i < max; i++) {
+		/* Allocate a message. */
+		error = PCIB_ALLOC_MSIX(device_get_parent(dev), child, i,
+		    &irq);
+		if (error)
+			break;
+		resource_list_add(&dinfo->resources, SYS_RES_IRQ, i + 1, irq,
+		    irq, 1);
+	}
+	actual = i;
+
+	if (bootverbose) {
+		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, 1);
+		if (actual == 1)
+			device_printf(child, "using IRQ %lu for MSI-X\n",
+			    rle->start);
+		else {
+			int run;
+
+			/*
+			 * Be fancy and try to print contiguous runs of
+			 * IRQ values as ranges.  'irq' is the previous IRQ.
+			 * 'run' is true if we are in a range.
+			 */
+			device_printf(child, "using IRQs %lu", rle->start);
+			irq = rle->start;
+			run = 0;
+			for (i = 1; i < actual; i++) {
+				rle = resource_list_find(&dinfo->resources,
+				    SYS_RES_IRQ, i + 1);
+
+				/* Still in a run? */
+				if (rle->start == irq + 1) {
+					run = 1;
+					irq++;
+					continue;
+				}
+
+				/* Finish previous range. */
+				if (run) {
+					printf("-%d", irq);
+					run = 0;
+				}
+
+				/* Start new range. */
+				printf(",%lu", rle->start);
+				irq = rle->start;
+			}
+
+			/* Unfinished range? */
+			if (run)
+				printf("-%d", irq);
+			printf(" for MSI-X\n");
+		}
+	}
+
+	/* Mask all vectors. */
+	for (i = 0; i < cfg->msix.msix_msgnum; i++)
+		pci_mask_msix(child, i);
+
+	/* Update control register to enable MSI-X. */
+	cfg->msix.msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
+	pci_write_config(child, cfg->msix.msix_location + PCIR_MSIX_CTRL,
+	    cfg->msix.msix_ctrl, 2);
+
+	/* Update counts of alloc'd messages. */
+	cfg->msix.msix_alloc = actual;
+	*count = actual;
+	return (0);
+}
+
+static int
+pci_release_msix(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	struct resource_list_entry *rle;
+	int count, i;
+
+	/* Do we have any messages to release? */
+	if (cfg->msix.msix_alloc == 0)
+		return (ENODEV);
+
+	/* Make sure none of the resources are allocated. */
+	for (i = 1, count = 0; count < cfg->msix.msix_alloc; i++) {
+		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i);
+		if (rle == NULL)
+			continue;
+		if (rle->res != NULL)
+			return (EBUSY);
+		count++;
+	}
+
+	/* Update control register with to disable MSI-X. */
+	cfg->msix.msix_ctrl &= ~PCIM_MSIXCTRL_MSIX_ENABLE;
+	pci_write_config(child, cfg->msix.msix_location + PCIR_MSIX_CTRL,
+	    cfg->msix.msix_ctrl, 2);
+
+	/* Release the messages. */
+	for (i = 1, count = 0; count < cfg->msix.msix_alloc; i++) {
+		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i);
+		if (rle == NULL)
+			continue;
+		PCIB_RELEASE_MSIX(device_get_parent(dev), child,
+		    rle->start);
+		resource_list_delete(&dinfo->resources, SYS_RES_IRQ, i);
+		count++;
+	}
+
+	/* Update alloc count. */
+	cfg->msix.msix_alloc = 0;
+	return (0);
+}
+
+/*
+ * Return the max supported MSI-X messages this device supports.
+ * Basically, assuming the MD code can alloc messages, this function
+ * should return the maximum value that pci_alloc_msix() can return.
+ * Thus, it is subject to the tunables, etc.
+ */
+int
+pci_msix_count_method(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	if (pci_do_msix && cfg->msix.msix_location != 0)
+		return (cfg->msix.msix_msgnum);
+	return (0);
+}
+
+/*
+ * Support for MSI message signalled interrupts.
+ */
+void
+pci_enable_msi(device_t dev, uint64_t address, uint16_t data)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	/* Write data and address values. */
+	cfg->msi.msi_addr = address;
+	cfg->msi.msi_data = data;
+	pci_write_config(dev, cfg->msi.msi_location + PCIR_MSI_ADDR,
+	    address & 0xffffffff, 4);
+	if (cfg->msi.msi_ctrl & PCIM_MSICTRL_64BIT) {
+		pci_write_config(dev, cfg->msi.msi_location +
+		    PCIR_MSI_ADDR_HIGH, address >> 32, 4);
+		pci_write_config(dev, cfg->msi.msi_location +
+		    PCIR_MSI_DATA_64BIT, data, 2);
+	} else
+		pci_write_config(dev, cfg->msi.msi_location +
+		    PCIR_MSI_DATA, data, 2);
+
+	/* Enable MSI in the control register. */
+	cfg->msi.msi_ctrl |= PCIM_MSICTRL_MSI_ENABLE;
+	pci_write_config(dev, cfg->msi.msi_location + PCIR_MSI_CTRL,
+	    cfg->msi.msi_ctrl, 2);
+}
+
+/*
+ * Restore MSI registers during resume.  If MSI is enabled then
+ * restore the data and address registers in addition to the control
+ * register.
+ */
+static void
+pci_resume_msi(device_t dev)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+	uint64_t address;
+	uint16_t data;
+
+	if (cfg->msi.msi_ctrl & PCIM_MSICTRL_MSI_ENABLE) {
+		address = cfg->msi.msi_addr;
+		data = cfg->msi.msi_data;
+		pci_write_config(dev, cfg->msi.msi_location + PCIR_MSI_ADDR,
+		    address & 0xffffffff, 4);
+		if (cfg->msi.msi_ctrl & PCIM_MSICTRL_64BIT) {
+			pci_write_config(dev, cfg->msi.msi_location +
+			    PCIR_MSI_ADDR_HIGH, address >> 32, 4);
+			pci_write_config(dev, cfg->msi.msi_location +
+			    PCIR_MSI_DATA_64BIT, data, 2);
+		} else
+			pci_write_config(dev, cfg->msi.msi_location +
+			    PCIR_MSI_DATA, data, 2);
+	}
+	pci_write_config(dev, cfg->msi.msi_location + PCIR_MSI_CTRL,
+	    cfg->msi.msi_ctrl, 2);
+}
+
+/*
+ * Returns true if the specified device is blacklisted because MSI
+ * doesn't work.
+ */
+int
+pci_msi_device_blacklisted(device_t dev)
+{
+	struct pci_quirk *q;
+
+	if (!pci_honor_msi_blacklist)
+		return (0);
+
+	for (q = &pci_quirks[0]; q->devid; q++) {
+		if (q->devid == pci_get_devid(dev) &&
+		    q->type == PCI_QUIRK_DISABLE_MSI)
+			return (1);
+	}
+	return (0);
+}
+
+/*
+ * Determine if MSI is blacklisted globally on this sytem.  Currently,
+ * we just check for blacklisted chipsets as represented by the
+ * host-PCI bridge at device 0:0:0.  In the future, it may become
+ * necessary to check other system attributes, such as the kenv values
+ * that give the motherboard manufacturer and model number.
+ */
+static int
+pci_msi_blacklisted(void)
+{
+	device_t dev;
+
+	if (!pci_honor_msi_blacklist)
+		return (0);
+
+	/* Blacklist all non-PCI-express and non-PCI-X chipsets. */
+	if (!(pcie_chipset || pcix_chipset))
+		return (1);
+
+	dev = pci_find_bsf(0, 0, 0);
+	if (dev != NULL)
+		return (pci_msi_device_blacklisted(dev));
+	return (0);
+}
+
+/*
+ * Attempt to allocate *count MSI messages.  The actual number allocated is
+ * returned in *count.  After this function returns, each message will be
+ * available to the driver as SYS_RES_IRQ resources starting at a rid 1.
+ */
+int
+pci_alloc_msi_method(device_t dev, device_t child, int *count)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	struct resource_list_entry *rle;
+	int actual, error, i, irqs[32];
+	uint16_t ctrl;
+
+	/* Don't let count == 0 get us into trouble. */
+	if (*count == 0)
+		return (EINVAL);
+
+	/* If rid 0 is allocated, then fail. */
+	rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, 0);
+	if (rle != NULL && rle->res != NULL)
+		return (ENXIO);
+
+	/* Already have allocated messages? */
+	if (cfg->msi.msi_alloc != 0 || cfg->msix.msix_alloc != 0)
+		return (ENXIO);
+
+	/* If MSI is blacklisted for this system, fail. */
+	if (pci_msi_blacklisted())
+		return (ENXIO);
+
+	/* MSI capability present? */
+	if (cfg->msi.msi_location == 0 || !pci_do_msi)
+		return (ENODEV);
+
+	if (bootverbose)
+		device_printf(child,
+		    "attempting to allocate %d MSI vectors (%d supported)\n",
+		    *count, cfg->msi.msi_msgnum);
+
+	/* Don't ask for more than the device supports. */
+	actual = min(*count, cfg->msi.msi_msgnum);
+
+	/* Don't ask for more than 32 messages. */
+	actual = min(actual, 32);
+
+	/* MSI requires power of 2 number of messages. */
+	if (!powerof2(actual))
+		return (EINVAL);
+
+	for (;;) {
+		/* Try to allocate N messages. */
+		error = PCIB_ALLOC_MSI(device_get_parent(dev), child, actual,
+		    cfg->msi.msi_msgnum, irqs);
+		if (error == 0)
+			break;
+		if (actual == 1)
+			return (error);
+
+		/* Try N / 2. */
+		actual >>= 1;
+	}
+
+	/*
+	 * We now have N actual messages mapped onto SYS_RES_IRQ
+	 * resources in the irqs[] array, so add new resources
+	 * starting at rid 1.
+	 */
+	for (i = 0; i < actual; i++)
+		resource_list_add(&dinfo->resources, SYS_RES_IRQ, i + 1,
+		    irqs[i], irqs[i], 1);
+
+	if (bootverbose) {
+		if (actual == 1)
+			device_printf(child, "using IRQ %d for MSI\n", irqs[0]);
+		else {
+			int run;
+
+			/*
+			 * Be fancy and try to print contiguous runs
+			 * of IRQ values as ranges.  'run' is true if
+			 * we are in a range.
+			 */
+			device_printf(child, "using IRQs %d", irqs[0]);
+			run = 0;
+			for (i = 1; i < actual; i++) {
+
+				/* Still in a run? */
+				if (irqs[i] == irqs[i - 1] + 1) {
+					run = 1;
+					continue;
+				}
+
+				/* Finish previous range. */
+				if (run) {
+					printf("-%d", irqs[i - 1]);
+					run = 0;
+				}
+
+				/* Start new range. */
+				printf(",%d", irqs[i]);
+			}
+
+			/* Unfinished range? */
+			if (run)
+				printf("%d", irqs[actual - 1]);
+			printf(" for MSI\n");
+		}
+	}
+
+	/* Update control register with actual count and enable MSI. */
+	ctrl = cfg->msi.msi_ctrl;
+	ctrl &= ~PCIM_MSICTRL_MME_MASK;
+	ctrl |= (ffs(actual) - 1) << 4;
+	cfg->msi.msi_ctrl = ctrl;
+	pci_write_config(child, cfg->msi.msi_location + PCIR_MSI_CTRL, ctrl, 2);
+
+	/* Update counts of alloc'd messages. */
+	cfg->msi.msi_alloc = actual;
+	*count = actual;
+	return (0);
+}
+
+/* Release the MSI messages associated with this device. */
+int
+pci_release_msi_method(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	struct resource_list_entry *rle;
+	int error, i, irqs[32];
+
+	/* Try MSI-X first. */
+	error = pci_release_msix(dev, child);
+	if (error != ENODEV)
+		return (error);
+
+	/* Do we have any messages to release? */
+	if (cfg->msi.msi_alloc == 0)
+		return (ENODEV);
+	KASSERT(cfg->msi.msi_alloc <= 32, ("more than 32 alloc'd messages"));
+
+	/* Make sure none of the resources are allocated. */
+	for (i = 0; i < cfg->msi.msi_alloc; i++) {
+		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i + 1);
+		KASSERT(rle != NULL, ("missing MSI resource"));
+		if (rle->res != NULL)
+			return (EBUSY);
+		irqs[i] = rle->start;
+	}
+
+	/* Update control register with 0 count and disable MSI. */
+	cfg->msi.msi_ctrl &= ~(PCIM_MSICTRL_MME_MASK | PCIM_MSICTRL_MSI_ENABLE);
+	pci_write_config(child, cfg->msi.msi_location + PCIR_MSI_CTRL,
+	    cfg->msi.msi_ctrl, 2);
+
+	/* Release the messages. */
+	PCIB_RELEASE_MSI(device_get_parent(dev), child, cfg->msi.msi_alloc,
+	    irqs);
+	for (i = 0; i < cfg->msi.msi_alloc; i++)
+		resource_list_delete(&dinfo->resources, SYS_RES_IRQ, i + 1);
+
+	/* Update alloc count. */
+	cfg->msi.msi_alloc = 0;
+	return (0);
+}
+
+/*
+ * Return the max supported MSI messages this device supports.
+ * Basically, assuming the MD code can alloc messages, this function
+ * should return the maximum value that pci_alloc_msi() can return.
+ * Thus, it is subject to the tunables, etc.
+ */
+int
+pci_msi_count_method(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	if (pci_do_msi && cfg->msi.msi_location != 0)
+		return (cfg->msi.msi_msgnum);
+	return (0);
 }
 
 /* free pcicfgregs structure and all depending data structures */
@@ -805,15 +1424,27 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 			    cfg->pp.pp_cap & PCIM_PCAP_D2SUPP ? " D2" : "",
 			    status & PCIM_PSTAT_DMASK);
 		}
-		if (cfg->msi.msi_data) {
+		if (cfg->msi.msi_location) {
 			int ctrl;
 
-			ctrl =  cfg->msi.msi_ctrl;
+			ctrl = cfg->msi.msi_ctrl;
 			printf("\tMSI supports %d message%s%s%s\n",
 			    cfg->msi.msi_msgnum,
 			    (cfg->msi.msi_msgnum == 1) ? "" : "s",
 			    (ctrl & PCIM_MSICTRL_64BIT) ? ", 64 bit" : "",
 			    (ctrl & PCIM_MSICTRL_VECTOR) ? ", vector masks":"");
+		}
+		if (cfg->msix.msix_location) {
+			printf("\tMSI-X supports %d message%s ",
+			    cfg->msix.msix_msgnum,
+			    (cfg->msix.msix_msgnum == 1) ? "" : "s");
+			if (cfg->msix.msix_table_bar == cfg->msix.msix_pba_bar)
+				printf("in map 0x%x\n",
+				    cfg->msix.msix_table_bar);
+			else
+				printf("in maps 0x%x and 0x%x\n",
+				    cfg->msix.msix_table_bar,
+				    cfg->msix.msix_pba_bar);
 		}
 	}
 }
@@ -1866,11 +2497,18 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		switch (type) {
 		case SYS_RES_IRQ:
 			/*
+			 * Can't alloc legacy interrupt once MSI messages
+			 * have been allocated.
+			 */
+			if (*rid == 0 && (cfg->msi.msi_alloc > 0 ||
+			    cfg->msix.msix_alloc > 0))
+				return (NULL);
+			/*
 			 * If the child device doesn't have an
 			 * interrupt routed and is deserving of an
 			 * interrupt, try to assign it one.
 			 */
-			if (!PCI_INTERRUPT_VALID(cfg->intline) &&
+			if (*rid == 0 && !PCI_INTERRUPT_VALID(cfg->intline) &&
 			    (cfg->intpin != 0))
 				pci_assign_interrupt(dev, child, 0);
 			break;
@@ -2081,6 +2719,13 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	pci_write_config(dev, PCIR_LATTIMER, dinfo->cfg.lattimer, 1);
 	pci_write_config(dev, PCIR_PROGIF, dinfo->cfg.progif, 1);
 	pci_write_config(dev, PCIR_REVID, dinfo->cfg.revid, 1);
+
+	/*
+	 * Restore MSI configuration if it is present.  If MSI is enabled,
+	 * then restore the data and addr registers.
+	 */
+	if (dinfo->cfg.msi.msi_location != 0)
+		pci_resume_msi(dev);
 }
 
 void
