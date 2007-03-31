@@ -300,6 +300,7 @@ mappsb(u_int freq, u_int flags)
 int
 ieee80211_mhz2ieee(u_int freq, u_int flags)
 {
+#define	IS_FREQ_IN_PSB(_freq) ((_freq) > 4940 && (_freq) < 4990)
 	if (flags & IEEE80211_CHAN_GSM)
 		return mapgsm(freq, flags);
 	if (flags & IEEE80211_CHAN_2GHZ) {	/* 2GHz band */
@@ -311,7 +312,7 @@ ieee80211_mhz2ieee(u_int freq, u_int flags)
 			return 15 + ((freq - 2512) / 20);
 	} else if (flags & IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
 		if (freq <= 5000) {
-			if (flags &(IEEE80211_CHAN_HALF|IEEE80211_CHAN_QUARTER))
+			if (IS_FREQ_IN_PSB(freq))
 				return mappsb(freq, flags);
 			return (freq - 4000) / 5;
 		} else
@@ -325,7 +326,7 @@ ieee80211_mhz2ieee(u_int freq, u_int flags)
 			return ((int) freq - 2407) / 5;
 		}
 		if (freq < 5000) {
-			if (flags &(IEEE80211_CHAN_HALF|IEEE80211_CHAN_QUARTER))
+			if (IS_FREQ_IN_PSB(freq))
 				return mappsb(freq, flags);
 			else if (freq > 4900)
 				return (freq - 4000) / 5;
@@ -334,6 +335,7 @@ ieee80211_mhz2ieee(u_int freq, u_int flags)
 		}
 		return (freq - 5000) / 5;
 	}
+#undef IS_FREQ_IN_PSB
 }
 
 /*
