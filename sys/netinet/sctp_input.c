@@ -1313,7 +1313,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
 				if (chk->sent < SCTP_DATAGRAM_RESEND) {
 					chk->sent = SCTP_DATAGRAM_RESEND;
-					stcb->asoc.sent_queue_retran_cnt++;
+					sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
 					spec_flag++;
 				}
 			}
@@ -4702,9 +4702,6 @@ sctp_input(i_pak, off)
 	SCTP_STAT_INCR(sctps_recvpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
 
-	/*
-	 * Strip IP options, we don't allow any in or out.
-	 */
 #ifdef SCTP_MBUF_LOGGING
 	/* Log in any input mbufs */
 	mat = m;
@@ -4715,10 +4712,7 @@ sctp_input(i_pak, off)
 		mat = SCTP_BUF_NEXT(mat);
 	}
 #endif
-	if ((size_t)iphlen > sizeof(struct ip)) {
-		ip_stripoptions(m, (struct mbuf *)0);
-		iphlen = sizeof(struct ip);
-	}
+
 	/*
 	 * Get IP, SCTP, and first chunk header together in first mbuf.
 	 */
@@ -4738,23 +4732,15 @@ sctp_input(i_pak, off)
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		goto bad;
 	}
-	if (((ch->chunk_type == SCTP_INITIATION) ||
-	    (ch->chunk_type == SCTP_INITIATION_ACK) ||
-	    (ch->chunk_type == SCTP_COOKIE_ECHO)) &&
-	    (SCTP_IS_IT_BROADCAST(ip->ip_dst, i_pak))) {
+	if (SCTP_IS_IT_BROADCAST(ip->ip_dst, m)) {
 		/*
 		 * We only look at broadcast if its a front state, All
 		 * others we will not have a tcb for anyway.
 		 */
 		goto bad;
 	}
-	/* destination port of 0 is illegal, based on RFC2960. */
-	if (sh->dest_port == 0) {
-		SCTP_STAT_INCR(sctps_hdrops);
-		goto bad;
-	}
 	/* validate SCTP checksum */
-	if ((sctp_no_csum_on_loopback == 0) || !SCTP_IS_IT_LOOPBACK(i_pak)) {
+	if ((sctp_no_csum_on_loopback == 0) || !SCTP_IS_IT_LOOPBACK(m)) {
 		/*
 		 * we do NOT validate things from the loopback if the sysctl
 		 * is set to 1.
@@ -4795,7 +4781,13 @@ sctp_input(i_pak, off)
 		sh->checksum = calc_check;
 	} else {
 sctp_skip_csum_4:
-		mlen = SCTP_HEADER_LEN(i_pak);
+		mlen = SCTP_HEADER_LEN(m);
+	}
+
+	/* destination port of 0 is illegal, based on RFC2960. */
+	if (sh->dest_port == 0) {
+		SCTP_STAT_INCR(sctps_hdrops);
+		goto bad;
 	}
 	/* validate mbuf chain length with IP payload length */
 	if (mlen < (ip->ip_len - iphlen)) {

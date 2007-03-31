@@ -1413,7 +1413,7 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 	struct sctp_paramhdr *phdr, tmp_param;
 	uint16_t plen, ptype;
 	uint8_t random_store[SCTP_PARAM_BUFFER_SIZE];
-	struct sctp_auth_random *random = NULL;
+	struct sctp_auth_random *p_random = NULL;
 	uint16_t random_len = 0;
 	uint8_t hmacs_store[SCTP_PARAM_BUFFER_SIZE];
 	struct sctp_auth_hmac_algo *hmacs = NULL;
@@ -1444,8 +1444,8 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 			if (phdr == NULL)
 				return;
 			/* save the random and length for the key */
-			random = (struct sctp_auth_random *)phdr;
-			random_len = plen - sizeof(*random);
+			p_random = (struct sctp_auth_random *)phdr;
+			random_len = plen - sizeof(*p_random);
 		} else if (ptype == SCTP_HMAC_LIST) {
 			int num_hmacs;
 			int i;
@@ -1503,18 +1503,18 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 	new_key = sctp_alloc_key(keylen);
 	if (new_key != NULL) {
 		/* copy in the RANDOM */
-		if (random != NULL)
-			bcopy(random->random_data, new_key->key, random_len);
+		if (p_random != NULL)
+			bcopy(p_random->random_data, new_key->key, random_len);
 	}
 #else
-	keylen = sizeof(*random) + random_len + sizeof(*chunks) + num_chunks +
+	keylen = sizeof(*p_random) + random_len + sizeof(*chunks) + num_chunks +
 	    sizeof(*hmacs) + hmacs_len;
 	new_key = sctp_alloc_key(keylen);
 	if (new_key != NULL) {
 		/* copy in the RANDOM */
-		if (random != NULL) {
-			keylen = sizeof(*random) + random_len;
-			bcopy(random, new_key->key, keylen);
+		if (p_random != NULL) {
+			keylen = sizeof(*p_random) + random_len;
+			bcopy(p_random, new_key->key, keylen);
 		}
 		/* append in the AUTH chunks */
 		if (chunks != NULL) {
@@ -1829,7 +1829,7 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 	uint16_t ptype, plen;
 	int peer_supports_asconf = 0;
 	int peer_supports_auth = 0;
-	int got_random = 0, got_hmacs = 0;
+	int got_random = 0, got_hmacs = 0, got_chklist = 0;
 
 	/* go through each of the params. */
 	phdr = sctp_get_next_param(m, offset, &parm_buf, sizeof(parm_buf));
@@ -1904,6 +1904,10 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 				return (-1);
 			}
 			got_hmacs = 1;
+		} else if (ptype == SCTP_CHUNK_LIST) {
+			/* did the peer send a non-empty chunk list? */
+			if (plen > 0)
+				got_chklist = 1;
 		}
 		offset += SCTP_SIZE32(plen);
 		if (offset >= limit) {
@@ -1917,6 +1921,13 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 		peer_supports_auth = 1;
 	} else {
 		peer_supports_auth = 0;
+	}
+	if (!peer_supports_auth && got_chklist) {
+#ifdef SCTP_DEBUG
+		if (sctp_debug_on & SCTP_DEBUG_AUTH1)
+			printf("SCTP: peer sent chunk list w/o AUTH\n");
+#endif
+		return (-1);
 	}
 	if (!sctp_asconf_auth_nochk && peer_supports_asconf &&
 	    !peer_supports_auth) {
