@@ -33,8 +33,9 @@
 #define _SYS_SLEEPQUEUE_H_
 
 /*
- * Sleep queue interface.  Sleep/wakeup and condition variables use a sleep
- * queue for the queue of threads blocked on a sleep channel.
+ * Sleep queue interface.  Sleep/wakeup, condition variables, and sx
+ * locks use a sleep queue for the queue of threads blocked on a sleep
+ * channel.
  *
  * A thread calls sleepq_lock() to lock the sleep queue chain associated
  * with a given wait channel.  A thread can then call call sleepq_add() to
@@ -85,6 +86,7 @@ struct thread;
 #define	SLEEPQ_SLEEP		0x00		/* Used by sleep/wakeup. */
 #define	SLEEPQ_CONDVAR		0x01		/* Used for a cv. */
 #define	SLEEPQ_PAUSE		0x02		/* Used by pause. */
+#define	SLEEPQ_SX		0x03		/* Used by an sx lock. */
 #define	SLEEPQ_INTERRUPTIBLE	0x100		/* Sleep is interruptible. */
 
 void	init_sleepqueues(void);

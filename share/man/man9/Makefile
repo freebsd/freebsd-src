@@ -1058,6 +1058,7 @@ MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_destroy.9 \
 	sx.9 sx_downgrade.9 \
 	sx.9 sx_init.9 \
+	sx.9 sx_init_flags.9 \
 	sx.9 sx_slock.9 \
 	sx.9 sx_sunlock.9 \
 	sx.9 SX_SYSINIT.9 \
