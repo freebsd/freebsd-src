@@ -34,6 +34,7 @@ den [label="Denis Peplin\nden@FreeBSD.org\n2003/09/13"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
 garys [label="Gary W. Swearingen\ngarys@FreeBSD.org\n2005/08/21"]
 jim [label="Jim Mock\njim@FreeBSD.org\n1999/08/11\n2003/12/15"]
+joel [label="Joel Dahl\njoel@FreeBSD.org\n2005/04/05"]
 keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2004/03/31"]
 marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
@@ -47,6 +48,8 @@ pav [label="Pav Lucistnik\npav@FreeBSD.org\n2005/08/12"]
 # Here are the mentor/mentee relationships.
 # Group together all the mentees for a particular mentor.
 # Keep the list sorted by mentor login.
+
+brueffer -> joel
 
 ceri -> brd
 ceri -> brueffer
