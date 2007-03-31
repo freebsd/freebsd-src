@@ -3114,7 +3114,11 @@ uaudio_chan_close(struct uaudio_softc *sc, struct chan *ch)
 	if (sc->sc_nullalt >= 0) {
 		DPRINTF(("uaudio_chan_close: set null alt=%d\n",
 			 sc->sc_nullalt));
-		usbd_set_interface(as->ifaceh, sc->sc_nullalt);
+		/*
+		 * The interface will be initialized later again, so an
+		 * error does not hurt.
+		 */
+		(void)usbd_set_interface(as->ifaceh, sc->sc_nullalt);
 	}
 	if (ch->pipe) {
 		usbd_abort_pipe(ch->pipe);
