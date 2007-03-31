@@ -724,16 +724,9 @@ ieee80211_deliver_data(struct ieee80211com *ic,
 			/* attach vlan tag */
 			VLAN_INPUT_TAG_NEW(ifp, m, ni->ni_vlan);
 			if (m == NULL)
-				goto out;	/* XXX goto err? */
+				return;
 		}
 		(*ifp->if_input)(ifp, m);
-	}
-	return;
-  out:
-	if (m != NULL) {
-		if (bpf_peers_present(ic->ic_rawbpf))
-			bpf_mtap(ic->ic_rawbpf, m);
-		m_freem(m);
 	}
 }
 
