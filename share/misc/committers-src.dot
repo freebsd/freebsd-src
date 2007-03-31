@@ -34,7 +34,9 @@ ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
 benjsc [label="Benjamin Close\nbenjsc@FreeBSD.org\n2007/02/09"]
 bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2002/01/29"]
 bms [label="Bruce M Simpson\nbms@FreeBSD.org\n2003/08/06"]
+brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2006/02/28"]
 bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
+bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 dds [label="Diomidis Spinellis\ndds@FreeBSD.org\n2003/06/20"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
@@ -46,10 +48,12 @@ emax [label="Maksim Yevmenkin\nemax@FreeBSD.org\n2003/10/12"]
 fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 futura [label="Atsushi Furuta\nfututa@FreeBSD.org\n2000/06/21"]
+gnn [label="George V. Neville-Neil\ngnn@FreeBSD.org\n2004/10/11"]
 grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
 iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16"]
+jinmei [label="JINMEI Tatuya\njinmei@FreeBSD.org\n2007/03/17"]
 jkh [label="Jordan Hubbard\njkh@FreeBSD.org\n1994/07/24"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
 jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
@@ -57,6 +61,7 @@ joe [label="Josef Karthauser\njoe@FreeBSD.org\n1999/10/22"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 keichii [label="Michael Wu\nkeichii@FreeBSD.org\n2001/03/07"]
+kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
 mb [label="Maxim Bolotin\nmb@FreeBSD.org\n2000/04/06"]
@@ -84,6 +89,7 @@ sanpei [label="MIHIRA Sanpei Yoshiro\nsanpei@FreeBSD.org\n2000/06/19"]
 schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n2001/04/06"]
 shiba [label="Takeshi Shibagaki\nshiba@FreeBSD.org\n2000/06/19"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
+syrinx [label="Shteryana Shopova\nsyrinx@FreeBSD.org\n2006/10/07"]
 takawata [label="Takanori Watanabe\ntakawata@FreeBSD.org\n2000/07/06"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 toshi [label="Toshihiko Arai\ntoshi@FreeBSD.org\n2000/07/06"]
@@ -145,6 +151,13 @@ imp -> toshi
 imp -> uch
 
 jake -> bms
+jake -> gordon
+jake -> harti
+jake -> jeff
+jake -> kmacy
+jake -> robert
+
+jhb -> jeff
 
 jkh -> imp
 
@@ -184,6 +197,7 @@ rwatson -> wsalamon
 
 sam -> andre
 sam -> benjsc
+sam -> sephe
 
 schweikh -> dds
 
