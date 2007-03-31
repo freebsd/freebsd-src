@@ -157,18 +157,6 @@ static int		rt2661_prepare_beacon(struct rt2661_softc *);
 static void		rt2661_enable_tsf_sync(struct rt2661_softc *);
 static int		rt2661_get_rssi(struct rt2661_softc *, uint8_t);
 
-/*
- * Supported rates for 802.11a/b/g modes (in 500Kbps unit).
- */
-static const struct ieee80211_rateset rt2661_rateset_11a =
-	{ 8, { 12, 18, 24, 36, 48, 72, 96, 108 } };
-
-static const struct ieee80211_rateset rt2661_rateset_11b =
-	{ 4, { 2, 4, 11, 22 } };
-
-static const struct ieee80211_rateset rt2661_rateset_11g =
-	{ 12, { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 } };
-
 static const struct {
 	uint32_t	reg;
 	uint32_t	val;
@@ -315,9 +303,6 @@ rt2661_attach(device_t dev, int id)
 	    IEEE80211_C_WPA;		/* 802.11i */
 
 	if (sc->rf_rev == RT2661_RF_5225 || sc->rf_rev == RT2661_RF_5325) {
-		/* set supported .11a rates */
-		ic->ic_sup_rates[IEEE80211_MODE_11A] = rt2661_rateset_11a;
-
 		/* set supported .11a channels */
 		for (i = 36; i <= 64; i += 4) {
 			ic->ic_channels[i].ic_freq =
@@ -335,10 +320,6 @@ rt2661_attach(device_t dev, int id)
 			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_A;
 		}
 	}
-
-	/* set supported .11b and .11g rates */
-	ic->ic_sup_rates[IEEE80211_MODE_11B] = rt2661_rateset_11b;
-	ic->ic_sup_rates[IEEE80211_MODE_11G] = rt2661_rateset_11g;
 
 	/* set supported .11b and .11g channels (1 through 14) */
 	for (i = 1; i <= 14; i++) {
@@ -2094,6 +2075,7 @@ rt2661_set_basicrates(struct rt2661_softc *sc,
     const struct ieee80211_rateset *rs)
 {
 #define RV(r)	((r) & IEEE80211_RATE_VAL)
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t mask = 0;
 	uint8_t rate;
 	int i, j;
@@ -2108,7 +2090,7 @@ rt2661_set_basicrates(struct rt2661_softc *sc,
 		 * Find h/w rate index.  We know it exists because the rate
 		 * set has already been negotiated.
 		 */
-		for (j = 0; rt2661_rateset_11g.rs_rates[j] != RV(rate); j++);
+		for (j = 0; ic->ic_sup_rates[IEEE80211_MODE_11G].rs_rates[j] != RV(rate); j++);
 
 		mask |= 1 << j;
 	}
