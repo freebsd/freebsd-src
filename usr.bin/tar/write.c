@@ -129,7 +129,9 @@ struct name_cache {
 static void		 add_dir_list(struct bsdtar *bsdtar, const char *path,
 			     time_t mtime_sec, int mtime_nsec);
 static int		 append_archive(struct bsdtar *, struct archive *,
-			     const char *fname);
+			     struct archive *ina);
+static int		 append_archive_filename(struct bsdtar *,
+			     struct archive *, const char *fname);
 static void		 archive_names_from_file(struct bsdtar *bsdtar,
 			     struct archive *a);
 static int		 archive_names_from_file_helper(struct bsdtar *bsdtar,
@@ -453,7 +455,8 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			if (*arg != '/' && (arg[0] != '@' || arg[1] != '/'))
 				do_chdir(bsdtar); /* Handle a deferred -C */
 			if (*arg == '@') {
-				if (append_archive(bsdtar, a, arg + 1) != 0)
+				if (append_archive_filename(bsdtar, a,
+				    arg + 1) != 0)
 					break;
 			} else
 				write_hierarchy(bsdtar, a, arg);
@@ -513,12 +516,11 @@ archive_names_from_file_helper(struct bsdtar *bsdtar, const char *line)
  * operation will complete and return non-zero.
  */
 static int
-append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
+append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
+    const char *filename)
 {
 	struct archive *ina;
-	struct archive_entry *in_entry;
-	int bytes_read, bytes_written;
-	char buff[8192];
+	int rc;
 
 	if (strcmp(filename, "-") == 0)
 		filename = NULL; /* Library uses NULL for stdio. */
@@ -531,6 +533,26 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
 		bsdtar->return_value = 1;
 		return (0);
 	}
+
+	rc = append_archive(bsdtar, a, ina);
+
+	if (archive_errno(ina)) {
+		bsdtar_warnc(bsdtar, 0, "Error reading archive %s: %s",
+		    filename, archive_error_string(ina));
+		bsdtar->return_value = 1;
+	}
+	archive_read_finish(ina);
+
+	return (rc);
+}
+
+static int
+append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
+{
+	struct archive_entry *in_entry;
+	int bytes_read, bytes_written;
+	char buff[8192];
+
 	while (0 == archive_read_next_header(ina, &in_entry)) {
 		if (!new_enough(bsdtar, archive_entry_pathname(in_entry),
 			archive_entry_stat(in_entry)))
@@ -564,14 +586,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
 		}
 		if (bsdtar->verbose)
 			fprintf(stderr, "\n");
-
 	}
-	if (archive_errno(ina)) {
-		bsdtar_warnc(bsdtar, 0, "Error reading archive %s: %s",
-		    filename, archive_error_string(ina));
-		bsdtar->return_value = 1;
-	}
-	archive_read_finish(ina);
 
 	/* Note: If we got here, we saw no write errors, so return success. */
 	return (0);
