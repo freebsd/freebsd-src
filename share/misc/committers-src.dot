@@ -37,10 +37,14 @@ flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
+jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
+matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\2006/01/18"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
+njl [label="Nate Lawson\njl@FreeBSD.org\n2002/08/07"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
+philip [label="Philip Paeps\nphilip@FreBSD.org\n2004/01/21"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2007/01/31"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
@@ -75,7 +79,12 @@ mlaier -> benjsc
 mlaier -> dhartmei
 mlaier -> thompsa
 
+njl -> philip
+
 obrien -> sam
+
+philip -> jls
+philip -> matteo
 
 sam -> andre
 sam -> benjsc
