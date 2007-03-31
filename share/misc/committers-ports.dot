@@ -32,6 +32,7 @@ alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
 brooks [label="Brooks Davies\nbrooks@FreeBSD.org\n2004/05/03"]
 clement [label="Clement Laforet\nclement@FreeBSD.org\n2003/12/17"]
 db [label="Diane Bruce\ndb@FreeBSD.org\n2007/01/18"]
+delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22"]
 ehaupt [label="Emanuel Haupt\nehaupt@FreeBSD.org\n2005/10/03"]
 erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04"]
@@ -54,6 +55,7 @@ mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
 novel [label="Roman Bogorodskiy\nnovel@FreeBSD.org\n2005/03/07"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2003/11/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
+rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
@@ -73,6 +75,8 @@ adamw -> pav
 
 ahze -> shaun
 ahze -> tmclaugh
+
+delphij -> rafan
 
 edwin -> erwin
 
@@ -110,5 +114,7 @@ pav -> flz
 pav -> josef
 pav -> kwm
 pav -> mnag
+
+sem -> delphij
 
 }

@@ -30,6 +30,7 @@ benjsc [label="Benjamin Close\nbenjsc@FreeBSD.org\n2007/02/09"]
 bms [label="Bruce M Simpson\nbms@FreeBSD.org\n2003/08/06"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 dds [label="Diomidis Spinellis\ndds@FreeBSD.org\n2003/06/20"]
+delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
 des [label="Dag-Erling Smorgrav\ndes@FreeBSD.org\n1998/04/03"]
 dhartmei [label="Daniel Hartmeier\ndhartmei@FreeBSD.org\n2004/04/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
@@ -41,6 +42,7 @@ le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
+rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2007/01/31"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
 schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n2001/04/06"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
@@ -58,6 +60,8 @@ bms -> dhartmei
 bms -> thompsa
 
 cperciva -> flz
+
+delphij -> rafan
 
 des -> anholt
 
