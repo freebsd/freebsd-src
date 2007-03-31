@@ -35,15 +35,17 @@ gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
 garys [label="Gary W. Swearingen\ngarys@FreeBSD.org\n2005/08/21"]
 jim [label="Jim Mock\njim@FreeBSD.org\n1999/08/11\n2003/12/15"]
 joel [label="Joel Dahl\njoel@FreeBSD.org\n2005/04/05"]
+josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/01/15"]
 keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2004/03/31"]
 marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
 murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
 nik [label="Nik Clayton\nnik@FreeBSD.org\n1998/02/26"]
-roam [label="Peter Pentchev\nroam@FreeBSD.org\n2003/02/14"]
-simon [label="Simon Nielsen\nsimon@FreeBSD.org\n2003/07/20"]
-trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/03/25"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2005/08/12"]
+remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16"]
+roam [label="Peter Pentchev\nroam@FreeBSD.org\n2003/02/14"]
+simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2003/07/20"]
+trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/03/25"]
 
 # Here are the mentor/mentee relationships.
 # Group together all the mentees for a particular mentor.
@@ -71,6 +73,9 @@ marck -> bvs
 murray -> ceri
 
 nik -> keramida
+
+simon -> josef
+simon -> remko
 
 trhodes -> danger
 
