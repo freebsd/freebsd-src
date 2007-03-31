@@ -253,7 +253,7 @@ pcib_attach_common(device_t dev)
      * parts as subtractive.
      */
     if ((pci_get_devid(dev) & 0xff00ffff) == 0x24008086 ||
-      pci_read_config(dev, PCIR_PROGIF, 1) == 1)
+      pci_read_config(dev, PCIR_PROGIF, 1) == PCIP_BRIDGE_PCI_SUBTRACTIVE)
 	sc->flags |= PCIB_SUBTRACTIVE;
 	
     if (bootverbose) {
