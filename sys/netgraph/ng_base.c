@@ -229,17 +229,17 @@ MALLOC_DEFINE(M_NETGRAPH_MSG, "netgraph_msg", "netgraph name storage");
 	MALLOC(node, node_p, sizeof(*node), M_NETGRAPH_NODE, M_NOWAIT | M_ZERO)
 
 #define	NG_QUEUE_LOCK_INIT(n)			\
-	mtx_init(&(n)->q_mtx, "ng_node", NULL, MTX_SPIN)
+	mtx_init(&(n)->q_mtx, "ng_node", NULL, MTX_DEF)
 #define	NG_QUEUE_LOCK(n)			\
-	mtx_lock_spin(&(n)->q_mtx)
+	mtx_lock(&(n)->q_mtx)
 #define	NG_QUEUE_UNLOCK(n)			\
-	mtx_unlock_spin(&(n)->q_mtx)
+	mtx_unlock(&(n)->q_mtx)
 #define	NG_WORKLIST_LOCK_INIT()			\
-	mtx_init(&ng_worklist_mtx, "ng_worklist", NULL, MTX_SPIN)
+	mtx_init(&ng_worklist_mtx, "ng_worklist", NULL, MTX_DEF)
 #define	NG_WORKLIST_LOCK()			\
-	mtx_lock_spin(&ng_worklist_mtx)
+	mtx_lock(&ng_worklist_mtx)
 #define	NG_WORKLIST_UNLOCK()			\
-	mtx_unlock_spin(&ng_worklist_mtx)
+	mtx_unlock(&ng_worklist_mtx)
 
 #ifdef NETGRAPH_DEBUG /*----------------------------------------------*/
 /*
