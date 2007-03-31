@@ -917,33 +917,13 @@ fprintf(stderr, " *** Discarding CE data.\n");
 			offset = file->offset;
 
 		/* Seek forward to the start of the entry. */
-		/* Use fast compression_skip if it's available. */
-		if (iso9660->current_position < offset
-		    && a->compression_skip != NULL) {
+		if (iso9660->current_position < offset) {
 			off_t step = offset - iso9660->current_position;
 			off_t bytes_read;
 			bytes_read = (a->compression_skip)(a, step);
-			iso9660->current_position += bytes_read;
-		}
-
-		/* Use a series of reads if compression_skip didn't
-		 * get us all the way there. */
-		while (iso9660->current_position < offset) {
-			ssize_t step = offset - iso9660->current_position;
-			ssize_t bytes_read;
-			const void *buff;
-
-			if (step > iso9660->logical_block_size)
-				step = iso9660->logical_block_size;
-			bytes_read = (a->compression_read_ahead)(a, &buff, step);
-			if (bytes_read <= 0) {
-				release_file(iso9660, file);
-				return (ARCHIVE_FATAL);
-			}
-			if (bytes_read > step)
-				bytes_read = step;
-			iso9660->current_position += bytes_read;
-			(a->compression_read_consume)(a, bytes_read);
+			if (bytes_read < 0)
+				return (bytes_read);
+			iso9660->current_position = offset;
 		}
 
 		/* We found body of file; handle it now. */

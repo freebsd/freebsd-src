@@ -546,18 +546,8 @@ archive_read_format_tar_skip(struct archive_read *a)
 	off_t bytes_skipped;
 	struct tar* tar;
 	struct sparse_block *p;
-	int r = ARCHIVE_OK;
-	const void *b;	/* dummy variables */
-	size_t s;
-	off_t o;
-
 
 	tar = (struct tar *)*(a->pformat_data);
-	if (a->compression_skip == NULL) {
-		while (r == ARCHIVE_OK)
-			r = archive_read_format_tar_read_data(a, &b, &s, &o);
-		return (r);
-	}
 
 	/*
 	 * Compression layer skip functions are required to either skip the
