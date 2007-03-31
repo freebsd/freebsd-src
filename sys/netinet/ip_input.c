@@ -221,7 +221,6 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
  */
 ip_fw_chk_t *ip_fw_chk_ptr = NULL;
 ip_dn_io_t *ip_dn_io_ptr = NULL;
-int fw_enable = 1;
 int fw_one_pass = 1;
 
 /*
