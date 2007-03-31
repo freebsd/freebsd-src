@@ -21,6 +21,7 @@ node [color=grey62, style=filled, bgcolor=black];
 # Alumni go here.. Try to keep things sorted.
 
 adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16\n2006/09/25"]
+jmallett [label="Juli Mallett\njmallett@FreeBSD.org\n2003/01/16\n2006/08/10"]
 
 node [color=lightblue2, style=filled, bgcolor=black];
 
@@ -29,12 +30,14 @@ node [color=lightblue2, style=filled, bgcolor=black];
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29"]
 alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
+bland [label="Alexander Nedotsukov\nbland@FreeBSD.org\n2003/08/14"]
 brooks [label="Brooks Davies\nbrooks@FreeBSD.org\n2004/05/03"]
 clement [label="Clement Laforet\nclement@FreeBSD.org\n2003/12/17"]
 db [label="Diane Bruce\ndb@FreeBSD.org\n2007/01/18"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22"]
 ehaupt [label="Emanuel Haupt\nehaupt@FreeBSD.org\n2005/10/03"]
+eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12"]
 erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
@@ -49,6 +52,7 @@ kwm [label="Koop Mast\nkwm@FreeBSD.org\n2004/09/14"]
 laszlof [label="Frank Laszlo\nlaszlof@FreeBSD.org\n2006/11/07"]
 lbr [label="Lars Balker Rasmussen\lbr@FreeBSD.org\n2006/04/30"]
 lth [label="Lars Thegler\nlth@FreeBSD.org\n2004/05/04"]
+marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
 mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
 mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
@@ -105,6 +109,10 @@ krion -> philip
 krion -> sat
 krion -> sem
 krion -> sergei
+
+marcus -> bland
+marcus -> eik
+marcus -> jmallett
 
 mnag -> jmelo
 
