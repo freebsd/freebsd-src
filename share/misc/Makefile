@@ -8,8 +8,4 @@ FILES=	ascii birthtoken bsd-family-tree committers-doc.dot committers-ports.dot 
 NO_OBJ=
 FILESDIR=	${BINDIR}/misc
 
-.SUFFIXES: .dot .png
-.dot.png:
-	dot -T png -o ${.TARGET} ${.IMPSRC}
-
 .include <bsd.prog.mk>
