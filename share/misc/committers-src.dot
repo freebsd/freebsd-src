@@ -20,21 +20,21 @@ node [color=grey62, style=filled, bgcolor=black];
 
 # Alumni go here.. Try to keep things sorted.
 
-adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03"]
-alm [label="???\nalm@FreeBSD.org\n1993/06/12"]
-asmodai [label="Jeroen Ruigrok\nasmodai@FreeBSD.org\n2001/11/16\n"]
-futura [label="Atsushi Furuta\nfututa@FreeBSD.org\n2000/06/21"]
-jtc [label="???\njtc@FreeBSD.org\n1993/06/12"]
-keichii [label="Michael Wu\nkeichii@FreeBSD.org\n2001/03/07"]
-mb [label="Maxim Bolotin\nmb@FreeBSD.org\n2000/04/06"]
-nate [label="Nate Willams\nnate@FreeBSD.org\n1993/06/12"]
-non [label="Noriaki Mitsnaga\nnon@FreeBSD.org\n2000/06/19"]
-rgrimes [label="Rod Grimes\nrgrimes@FreeBSD.org\n1993/06/12"]
-shafeeq [label="Shafeeq Sinnamohideen\nshafeeq@FreeBSD.org\n2000/06/19"]
-sheldonh [label="Sheldon Hearn\nsheldonh@FreeBSD.org\n1999/06/14"]
-tmm [label="Thomas Moestl\ntmm@FreeBSD.org\n2001/03/07"]
-toshi [label="Toshihiko Arai\ntoshi@FreeBSD.org\n2000/07/06"]
-uch [label="UCHIYAMA Yasushi\nuch@FreeBSD.org\n2000/06/21"]
+adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03\n2006/05/30"]
+alm [label="???\nalm@FreeBSD.org\n1993/06/12\n????/??/??"]
+asmodai [label="Jeroen Ruigrok\nasmodai@FreeBSD.org\n1999/12/16\n2001/11/16"]
+futura [label="Atsushi Furuta\nfututa@FreeBSD.org\n2000/06/21\n????/??/??"]
+jtc [label="???\njtc@FreeBSD.org\n1993/06/12\n????/??/??"]
+keichii [label="Michael Wu\nkeichii@FreeBSD.org\n2001/03/07\n2006/04/28"]
+mb [label="Maxim Bolotin\nmb@FreeBSD.org\n2000/04/06\n????/??/??"]
+nate [label="Nate Willams\nnate@FreeBSD.org\n1993/06/12\n2003/12/15"]
+non [label="Noriaki Mitsnaga\nnon@FreeBSD.org\n2000/06/19\n2007/03/06"]
+rgrimes [label="Rod Grimes\nrgrimes@FreeBSD.org\n1993/06/12\n????/??/??"]
+shafeeq [label="Shafeeq Sinnamohideen\nshafeeq@FreeBSD.org\n2000/06/19\n????/??/??"]
+sheldonh [label="Sheldon Hearn\nsheldonh@FreeBSD.org\n1999/06/14\n2006/05/13"]
+tmm [label="Thomas Moestl\ntmm@FreeBSD.org\n2001/03/07\n2006/07/12"]
+toshi [label="Toshihiko Arai\ntoshi@FreeBSD.org\n2000/07/06\n????/??/??"]
+uch [label="UCHIYAMA Yasushi\nuch@FreeBSD.org\n2000/06/21\n????/??/??"]
 
 node [color=lightblue2, style=filled, bgcolor=black];
 
