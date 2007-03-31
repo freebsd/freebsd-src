@@ -49,6 +49,7 @@ qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2007/01/31"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
 schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n2001/04/06"]
+simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 
 # Here are the mentor/mentee relationships.
@@ -64,6 +65,7 @@ bms -> dhartmei
 bms -> thompsa
 
 cperciva -> flz
+cperciva -> simon
 
 delphij -> rafan
 
