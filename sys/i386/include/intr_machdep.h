@@ -43,11 +43,18 @@
  * 191 and still be safe since only interrupt sources in actual use will
  * allocate IDT vectors.
  *
- * For now we stick with 255 as ISA IRQs and PCI intline IRQs only allow
- * for IRQs in the range 0 - 254.  When MSI support is added this number
- * will likely increase.
+ * The first 255 IRQs (0 - 254) are reserved for ISA IRQs and PCI intline IRQs.
+ * IRQ values beyond 256 are used by MSI.  We leave 255 unused to avoid
+ * confusion since 255 is used in PCI to indicate an invalid IRQ.
  */
-#define	NUM_IO_INTS	255
+#define	NUM_MSI_INTS	128
+#define	FIRST_MSI_INT	256
+#define	NUM_IO_INTS	(FIRST_MSI_INT + NUM_MSI_INTS)
+
+/*
+ * Default base address for MSI messages on x86 platforms.
+ */
+#define	MSI_INTEL_ADDR_BASE		0xfee00000
 
 /*
  * - 1 ??? dummy counter.
@@ -137,6 +144,13 @@ int	intr_remove_handler(void *cookie);
 void	intr_resume(void);
 void	intr_suspend(void);
 void	intrcnt_add(const char *name, u_long **countp);
+int	msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
+    int *newcount);
+void	msi_init(void);
+int	msi_release(int* irqs, int count);
+int	msix_alloc(device_t dev, int index, int *irq, int *new);
+int	msix_remap(int index, int irq);
+int	msix_release(int irq);
 
 #endif	/* !LOCORE */
 #endif	/* _KERNEL */
