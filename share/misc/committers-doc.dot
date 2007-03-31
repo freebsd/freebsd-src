@@ -26,6 +26,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 # Current doc committers go here. Try to keep things sorted.
 
 ale [label="Alex Dupre\nale@FreeBSD.org\n2003/12/22"]
+blackend [label="Marc Fonvieille\nblackend@FreeBSD.org\n2002/06/16"]
 bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2000/08/22"]
 brd [label="Brad Davis\nbrd@FreeBSD.org\n2005/06/01"]
 brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2003/01/13"]
@@ -71,6 +72,7 @@ delphij -> chinsan
 
 jim -> trhodes
 
+keramida -> blackend
 keramida -> danger
 keramida -> gabor
 keramida -> garys
