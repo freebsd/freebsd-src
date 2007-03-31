@@ -208,18 +208,6 @@ static devclass_t iwi_devclass;
 
 DRIVER_MODULE(iwi, pci, iwi_driver, iwi_devclass, 0, 0);
 
-/*
- * Supported rates for 802.11a/b/g modes (in 500Kbps unit).
- */
-static const struct ieee80211_rateset iwi_rateset_11a =
-	{ 8, { 12, 18, 24, 36, 48, 72, 96, 108 } };
-
-static const struct ieee80211_rateset iwi_rateset_11b =
-	{ 4, { 2, 4, 11, 22 } };
-
-static const struct ieee80211_rateset iwi_rateset_11g =
-	{ 12, { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 } };
-
 static __inline uint8_t
 MEM_READ_1(struct iwi_softc *sc, uint32_t addr)
 {
@@ -393,9 +381,6 @@ iwi_attach(device_t dev)
 	ic->ic_myaddr[5] = val >> 8;
 
 	if (pci_get_device(dev) >= 0x4223) {
-		/* set supported .11a rates (2915ABG only) */
-		ic->ic_sup_rates[IEEE80211_MODE_11A] = iwi_rateset_11a;
-
 		/* set supported .11a channels */
 		for (i = 36; i <= 64; i += 4) {
 			ic->ic_channels[i].ic_freq =
@@ -408,10 +393,6 @@ iwi_attach(device_t dev)
 			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_A;
 		}
 	}
-
-	/* set supported .11b and .11g rates */
-	ic->ic_sup_rates[IEEE80211_MODE_11B] = iwi_rateset_11b;
-	ic->ic_sup_rates[IEEE80211_MODE_11G] = iwi_rateset_11g;
 
 	/* set supported .11b and .11g channels (1 through 14) */
 	for (i = 1; i <= 14; i++) {
