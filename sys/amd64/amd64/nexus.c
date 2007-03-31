@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/resource.h>
 
+#include "pcib_if.h"
+
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 #include <amd64/isa/isa.h>
@@ -101,6 +103,11 @@ static struct resource_list *nexus_get_reslist(device_t dev, device_t child);
 static	int nexus_set_resource(device_t, device_t, int, int, u_long, u_long);
 static	int nexus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
 static void nexus_delete_resource(device_t, device_t, int, int);
+static	int nexus_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs);
+static	int nexus_release_msi(device_t pcib, device_t dev, int count, int *irqs);
+static	int nexus_alloc_msix(device_t pcib, device_t dev, int index, int *irq);
+static	int nexus_remap_msix(device_t pcib, device_t dev, int index, int irq);
+static	int nexus_release_msix(device_t pcib, device_t dev, int irq);
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -125,6 +132,13 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_set_resource,	nexus_set_resource),
 	DEVMETHOD(bus_get_resource,	nexus_get_resource),
 	DEVMETHOD(bus_delete_resource,	nexus_delete_resource),
+
+	/* pcib interface */
+	DEVMETHOD(pcib_alloc_msi,	nexus_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	nexus_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	nexus_alloc_msix),
+	DEVMETHOD(pcib_remap_msix,	nexus_remap_msix),
+	DEVMETHOD(pcib_release_msix,	nexus_release_msix),
 
 	{ 0, 0 }
 };
@@ -503,6 +517,54 @@ nexus_delete_resource(device_t dev, device_t child, int type, int rid)
 	struct resource_list	*rl = &ndev->nx_resources;
 
 	resource_list_delete(rl, type, rid);
+}
+
+static int
+nexus_alloc_msix(device_t pcib, device_t dev, int index, int *irq)
+{
+	int error, new;
+
+	error = msix_alloc(dev, index, irq, &new);
+	if (new)
+		rman_manage_region(&irq_rman, *irq, *irq);
+	return (error);
+}
+
+static int
+nexus_remap_msix(device_t pcib, device_t dev, int index, int irq)
+{
+
+	return (msix_remap(index, irq));
+}
+
+static int
+nexus_release_msix(device_t pcib, device_t dev, int irq)
+{
+
+	return (msix_release(irq));
+}
+
+static int
+nexus_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
+{
+	int error, i, newirq, newcount;
+
+	/* First alloc the messages. */
+	error = msi_alloc(dev, count, maxcount, irqs, &newirq, &newcount);
+
+	/* Always add any new IRQs to the rman, even on failure. */
+	for (i = 0; i < newcount; i++)
+		rman_manage_region(&irq_rman, irqs[newirq + i],
+		    irqs[newirq + i]);
+
+	return (error);
+}
+
+static int
+nexus_release_msi(device_t pcib, device_t dev, int count, int *irqs)
+{
+
+	return (msi_release(irqs, count));
 }
 
 #ifdef DEV_ISA
