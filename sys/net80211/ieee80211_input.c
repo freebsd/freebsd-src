@@ -844,6 +844,15 @@ ieee80211_auth_open(struct ieee80211com *ic, struct ieee80211_frame *wh,
 		    "bad sta auth mode %u", ni->ni_authmode);
 		ic->ic_stats.is_rx_bad_auth++;	/* XXX */
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
+			/*
+			 * Clear any challenge text that may be there if
+			 * a previous shared key auth failed and then an
+			 * open auth is attempted.
+			 */
+			if (ni->ni_challenge != NULL) {
+				FREE(ni->ni_challenge, M_DEVBUF);
+				ni->ni_challenge = NULL;
+			}
 			/* XXX hack to workaround calling convention */
 			ieee80211_send_error(ic, ni, wh->i_addr2, 
 			    IEEE80211_FC0_SUBTYPE_AUTH,
