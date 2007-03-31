@@ -2552,6 +2552,11 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		ic->ic_stats.is_rx_deauth++;
 		IEEE80211_NODE_STAT(ni, rx_deauth);
 
+		if (!IEEE80211_ADDR_EQ(wh->i_addr1, ic->ic_myaddr)) {
+			/* NB: can happen when in promiscuous mode */
+			ic->ic_stats.is_rx_mgtdiscard++;
+			break;
+		}
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_AUTH,
 		    "[%s] recv deauthenticate (reason %d)\n",
 		    ether_sprintf(ni->ni_macaddr), reason);
@@ -2589,6 +2594,11 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		ic->ic_stats.is_rx_disassoc++;
 		IEEE80211_NODE_STAT(ni, rx_disassoc);
 
+		if (!IEEE80211_ADDR_EQ(wh->i_addr1, ic->ic_myaddr)) {
+			/* NB: can happen when in promiscuous mode */
+			ic->ic_stats.is_rx_mgtdiscard++;
+			break;
+		}
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
 		    "[%s] recv disassociate (reason %d)\n",
 		    ether_sprintf(ni->ni_macaddr), reason);
