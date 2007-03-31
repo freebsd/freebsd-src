@@ -62,8 +62,25 @@ struct pcicfg_pp {
 /* Interesting values for PCI MSI */
 struct pcicfg_msi {
     uint16_t	msi_ctrl;	/* Message Control */
+    uint8_t	msi_location;	/* Offset of MSI capability registers. */
     uint8_t	msi_msgnum;	/* Number of messages */
-    uint16_t	msi_data;	/* Location of MSI data word */
+    int		msi_alloc;	/* Number of allocated messages. */
+    uint64_t	msi_addr;	/* Contents of address register. */
+    uint16_t	msi_data;	/* Contents of data register. */
+};
+
+/* Interesting values for PCI MSI-X */
+struct pcicfg_msix {
+    uint16_t	msix_ctrl;	/* Message Control */
+    uint8_t	msix_location;	/* Offset of MSI-X capability registers. */
+    uint16_t	msix_msgnum;	/* Number of messages */
+    int		msix_alloc;	/* Number of allocated messages. */
+    uint8_t	msix_table_bar;	/* BAR containing vector table. */
+    uint8_t	msix_pba_bar;	/* BAR containing PBA. */
+    uint32_t	msix_table_offset;
+    uint32_t	msix_pba_offset;
+    struct resource *msix_table_res;	/* Resource containing vector table. */
+    struct resource *msix_pba_res;	/* Resource containing PBA. */
 };
 
 /* config header information common to all header types */
@@ -104,6 +121,7 @@ typedef struct pcicfg {
 
     struct pcicfg_pp pp;	/* pci power management */
     struct pcicfg_msi msi;	/* pci msi */
+    struct pcicfg_msix msix;	/* pci msi-x */
 } pcicfgregs;
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
@@ -349,8 +367,48 @@ pci_find_extcap(device_t dev, int capability, int *capreg)
     return PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg);
 }
 
+static __inline int
+pci_alloc_msi(device_t dev, int *count)
+{
+    return (PCI_ALLOC_MSI(device_get_parent(dev), dev, count));
+}
+
+static __inline int
+pci_alloc_msix(device_t dev, int *count)
+{
+    return (PCI_ALLOC_MSIX(device_get_parent(dev), dev, count));
+}
+
+static __inline int
+pci_release_msi(device_t dev)
+{
+    return (PCI_RELEASE_MSI(device_get_parent(dev), dev));
+}
+
+static __inline int
+pci_msi_count(device_t dev)
+{
+    return (PCI_MSI_COUNT(device_get_parent(dev), dev));
+}
+
+static __inline int
+pci_msix_count(device_t dev)
+{
+    return (PCI_MSIX_COUNT(device_get_parent(dev), dev));
+}
+
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
+
+/* Used by MD code to program MSI and MSI-X registers. */
+void	pci_enable_msi(device_t dev, uint64_t address, uint16_t data);
+void	pci_enable_msix(device_t dev, u_int index, uint64_t address,
+    uint32_t data);
+void	pci_mask_msix(device_t dev, u_int index);
+int	pci_pending_msix(device_t dev, u_int index);
+void	pci_unmask_msix(device_t dev, u_int index);
+int	pci_msi_device_blacklisted(device_t dev);
+
 #endif	/* _SYS_BUS_H_ */
 
 /*
