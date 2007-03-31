@@ -20,6 +20,8 @@ node [color=grey62, style=filled, bgcolor=black];
 
 # Alumni go here.. Try to keep things sorted.
 
+sheldonh [label="Sheldon Hearn\nsheldonh@FreeBSD.org\n1999/06/14"]
+
 node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current src committers go here. Try to keep things sorted.
@@ -34,8 +36,11 @@ dds [label="Diomidis Spinellis\ndds@FreeBSD.org\n2003/06/20"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
 des [label="Dag-Erling Smorgrav\ndes@FreeBSD.org\n1998/04/03"]
 dhartmei [label="Daniel Hartmeier\ndhartmei@FreeBSD.org\n2004/04/06"]
+dwmalone [label="David Malone\ndwmalone@FreeBSD.org\n2000/07/11"]
+fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
+iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
 jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
@@ -46,6 +51,7 @@ mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2005/03/31"]
 njl [label="Nate Lawson\njl@FreeBSD.org\n2002/08/07"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
+peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
 philip [label="Philip Paeps\nphilip@FreBSD.org\n2004/01/21"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2007/01/31"]
@@ -75,6 +81,9 @@ delphij -> rafan
 
 des -> anholt
 
+dwmalone -> fanf
+dwmalone -> peadar
+
 jake -> bms
 
 joerg -> le
@@ -99,5 +108,8 @@ sam -> andre
 sam -> benjsc
 
 schweikh -> dds
+
+sheldonh -> dwmalone
+sheldonh -> iedowse
 
 }
