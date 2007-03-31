@@ -32,6 +32,7 @@
 .Sh NAME
 .Nm sx ,
 .Nm sx_init ,
+.Nm sx_init_flags ,
 .Nm sx_destroy ,
 .Nm sx_slock ,
 .Nm sx_xlock ,
@@ -53,6 +54,8 @@
 .In sys/sx.h
 .Ft void
 .Fn sx_init "struct sx *sx" "const char *description"
+.Ft void
+.Fn sx_init_flags "struct sx *sx" "const char *description" "int opts"
 .Ft void
 .Fn sx_destroy "struct sx *sx"
 .Ft void
@@ -87,11 +90,14 @@
 .Sh DESCRIPTION
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.
-Mutexes are inherently more efficient than shared/exclusive locks, so
+Shared/exclusive locks do not implement priority propagation like mutexes and
+reader/writer locks to prevent priority inversions, so
 shared/exclusive locks should be used prudently.
 .Pp
-Shared/exclusive locks are created with
-.Fn sx_init ,
+Shared/exclusive locks are created with either
+.Fn sx_init
+or
+.Fn sx_init_flags
 where
 .Fa sx
 is a pointer to space for a
@@ -100,8 +106,40 @@ and
 .Fa description
 is a pointer to a null-terminated character string that describes the
 shared/exclusive lock.
+The
+.Fa opts
+argument to
+.Fn sx_init_flags
+specifies a set of optional flags to alter the behavior of
+.Fa sx .
+It contains one or more of the following flags:
+.Bl -tag -width SX_ADAPTIVESPIN
+.It Dv SX_ADAPTIVESPIN
+If the kernel is compiled with
+.Cd "options ADAPTIVE_SX" ,
+then lock operations for
+.Fa sx
+will spin instead of sleeping while an exclusive lock holder is executing on
+another CPU.
+.It Dv SX_DUPOK
+Witness should not log messages about duplicate locks being acquired.
+.It Dv SX_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this lock.
+.It Dv SX_NOPROFILE
+Do not profile this lock.
+.It Dv SX_QUIET
+Do not log any operations for this lock via
+.Xr ktr 4 .
+.El
+.Pp
 Shared/exclusive locks are destroyed with
 .Fn sx_destroy .
+The lock
+.Fa sx
+must not be locked by any thread when it is destroyed.
+.Pp
 Threads acquire and release a shared lock by calling
 .Fn sx_slock
 or
@@ -155,7 +193,7 @@ function tests
 for the assertions specified in
 .Fa what ,
 and panics if they are not met.
-The following assertions are supported:
+One of the following assertions must be specified:
 .Bl -tag -width ".Dv SX_UNLOCKED"
 .It Dv SX_LOCKED
 Assert that the current thread has either a shared or an exclusive lock on the
@@ -176,6 +214,22 @@ Assert that the current thread has no lock on the
 .Vt sx
 lock pointed to
 by the first argument.
+.El
+.Pp
+In addition, one of the following optional assertions may be included with
+either an
+.Dv SX_LOCKED ,
+.Dv SX_SLOCKED ,
+or
+.Dv SX_XLOCKED
+assertion:
+.Bl -tag -width ".Dv SX_NOTRECURSED"
+.It Dv SX_RECURSED
+Assert that the current thread has a recursed lock on
+.Fa sx .
+.It Dv SX_NOTRECURSED
+Assert that the current thread does not have a recursed lock on
+.Fa sx .
 .El
 .Pp
 .Fn sx_xlocked

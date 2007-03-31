@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/kdb.h>
+#include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sx.h>
