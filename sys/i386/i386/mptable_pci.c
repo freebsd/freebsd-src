@@ -72,6 +72,27 @@ mptable_hostb_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
+/* Pass MSI alloc requests up to the nexus. */
+static int
+mptable_hostb_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
+    int *irqs)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_ALLOC_MSI(device_get_parent(bus), dev, count, maxcount,
+	    irqs));
+}
+
+static int
+mptable_hostb_alloc_msix(device_t pcib, device_t dev, int index, int *irq)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, index, irq));
+}
+
 static device_method_t mptable_hostb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		mptable_hostb_probe),
@@ -96,6 +117,11 @@ static device_method_t mptable_hostb_methods[] = {
 	DEVMETHOD(pcib_read_config,	legacy_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	legacy_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	mptable_pci_route_interrupt),
+	DEVMETHOD(pcib_alloc_msi,	mptable_hostb_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	mptable_hostb_alloc_msix),
+	DEVMETHOD(pcib_remap_msix,	pcib_remap_msix),
+	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 
 	{ 0, 0 }
 };
@@ -148,6 +174,11 @@ static device_method_t mptable_pcib_pci_methods[] = {
 	DEVMETHOD(pcib_read_config,	pcib_read_config),
 	DEVMETHOD(pcib_write_config,	pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	mptable_pci_route_interrupt),
+	DEVMETHOD(pcib_alloc_msi,	pcib_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	pcib_alloc_msix),
+	DEVMETHOD(pcib_remap_msix,	pcib_remap_msix),
+	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 
 	{0, 0}
 };
@@ -157,4 +188,3 @@ static devclass_t pcib_devclass;
 DEFINE_CLASS_0(pcib, mptable_pcib_driver, mptable_pcib_pci_methods,
     sizeof(struct pcib_softc));
 DRIVER_MODULE(mptable_pcib, pci, mptable_pcib_driver, pcib_devclass, 0, 0);
-
