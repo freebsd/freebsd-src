@@ -21,6 +21,7 @@ node [color=grey62, style=filled, bgcolor=black];
 # Alumni go here.. Try to keep things sorted.
 
 adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16\n2006/09/25"]
+bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2000/08/23\n2006/12/19"]
 jmallett [label="Juli Mallett\njmallett@FreeBSD.org\n2003/01/16\n2006/08/10"]
 steve [label="Steve Price\nsteve@FreeBSD.org\nxxxx/xx/xx\nxxxx/xx/xx"]
 
