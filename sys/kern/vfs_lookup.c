@@ -77,9 +77,13 @@ static struct vnode *vp_crossmp;
 static void
 nameiinit(void *dummy __unused)
 {
+	int error;
+
 	namei_zone = uma_zcreate("NAMEI", MAXPATHLEN, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-	getnewvnode("crossmp", NULL, &dead_vnodeops, &vp_crossmp);
+	error = getnewvnode("crossmp", NULL, &dead_vnodeops, &vp_crossmp);
+	if (error != 0)
+		panic("nameiinit: getnewvnode");
 	vp_crossmp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL)
