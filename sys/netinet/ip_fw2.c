@@ -4388,7 +4388,11 @@ ipfw_init(void)
 	}
 
 	ip_fw_default_rule = layer3_chain.rules;
-	printf("ipfw2 (+ipv6) initialized, divert %s, "
+	printf("ipfw2 "
+#ifdef INET6
+		"(+ipv6) "
+#endif
+		"initialized, divert %s, "
 		"rule-based forwarding "
 #ifdef IPFIREWALL_FORWARD
 		"enabled, "
