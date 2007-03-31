@@ -521,7 +521,7 @@ ieee80211_crypto_encap(struct ieee80211com *ic,
 	 */
 	wh = mtod(m, struct ieee80211_frame *);
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
-	    ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
+	    IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)) {
 		if (ic->ic_def_txkey == IEEE80211_KEYIX_NONE) {
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
 			    "[%s] no default transmit key (%s) deftxkey %u\n",
@@ -577,7 +577,7 @@ ieee80211_crypto_decap(struct ieee80211com *ic,
 	ivp = mtod(m, const u_int8_t *) + hdrlen;	/* XXX contig */
 	keyid = ivp[IEEE80211_WEP_IVLEN];
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
-	    ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none)
+	    IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey))
 		k = &ic->ic_nw_keys[keyid >> 6];
 	else
 		k = &ni->ni_ucastkey;
