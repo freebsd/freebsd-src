@@ -201,7 +201,6 @@ struct sctp_nets {
 	uint32_t cwnd;		/* actual cwnd */
 	uint32_t prev_cwnd;	/* cwnd before any processing */
 	uint32_t partial_bytes_acked;	/* in CA tracks when to incr a MTU */
-	uint32_t rtt_variance;
 	uint32_t prev_rtt;
 	/* tracking variables to avoid the aloc/free in sack processing */
 	unsigned int net_ack;
@@ -226,6 +225,12 @@ struct sctp_nets {
 	uint32_t heartbeat_random2;
 	uint32_t tos_flowlabel;
 
+	struct timeval start_time;	/* time when this net was created */
+
+	uint32_t marked_retrans;/* number or DATA chunks marked for timer
+				 * based retransmissions */
+	uint32_t marked_fastretrans;
+
 	/* if this guy is ok or not ... status */
 	uint16_t dest_state;
 	/* number of transmit failures to down this guy */
@@ -236,7 +241,6 @@ struct sctp_nets {
 	uint8_t fast_retran_loss_recovery;
 	uint8_t will_exit_fast_recovery;
 	/* Flags that probably can be combined into dest_state */
-	uint8_t rto_variance_dir;	/* increase = 1, decreasing = 0 */
 	uint8_t fast_retran_ip;	/* fast retransmit in progress */
 	uint8_t hb_responded;
 	uint8_t saw_newack;	/* CMT's SFR algorithm flag */
@@ -266,13 +270,10 @@ struct sctp_nets {
 	uint8_t new_pseudo_cumack;	/* CMT CUC algorithm. Flag used to
 					 * indicate if a new pseudo-cumack or
 					 * rtx-pseudo-cumack has been received */
+	uint8_t window_probe;	/* Doing a window probe? */
 #ifdef SCTP_HIGH_SPEED
 	uint8_t last_hs_used;	/* index into the last HS table entry we used */
 #endif
-	struct timeval start_time;	/* time when this net was created */
-	uint32_t marked_retrans;/* number or DATA chunks marked for timer
-				 * based retransmissions */
-	uint32_t marked_fastretrans;
 };
 
 
@@ -341,6 +342,7 @@ struct sctp_tmit_chunk {
 	uint8_t no_fr_allowed;
 	uint8_t pr_sctp_on;
 	uint8_t copy_by_ref;
+	uint8_t window_probe;
 };
 
 /*
