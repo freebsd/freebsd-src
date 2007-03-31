@@ -57,8 +57,9 @@ peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
 philip [label="Philip Paeps\nphilip@FreBSD.org\n2004/01/21"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2007/01/31"]
-rrs [label="Randall R Stewart\rrs@FreeBSD.org\n2007/02/08"]
+rrs [label="Randall R Stewart\nrrs@FreeBSD.org\n2007/02/08"]
 rse [label="Ralf S. Engelschall\nrse@FreeBSD.org\n1997/07/31"]
+rwatson [label="Robert N. M. Watson\nrwatson@FreeBSD.org\n1999/12/16"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
 schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n2001/04/06"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
@@ -76,6 +77,8 @@ bms -> mlaier
 bms -> dhartmei
 bms -> thompsa
 
+bz -> syrinx
+
 cperciva -> flz
 cperciva -> simon
 
@@ -83,8 +86,13 @@ delphij -> rafan
 
 des -> anholt
 
+eivind -> rwatson
+
 dwmalone -> fanf
 dwmalone -> peadar
+
+gnn -> jinmei
+gnn -> rrs
 
 jake -> bms
 
@@ -108,6 +116,18 @@ obrien -> sam
 philip -> jls
 philip -> matteo
 
+rwatson -> adrian
+rwatson -> brueffer
+rwatson -> bz
+rwatson -> cperciva
+rwatson -> emaste
+rwatson -> gnn
+rwatson -> kensmith
+rwatson -> kmacy
+rwatson -> linimon
+rwatson -> tmm
+rwatson -> wsalamon
+
 sam -> andre
 sam -> benjsc
 
@@ -115,5 +135,7 @@ schweikh -> dds
 
 sheldonh -> dwmalone
 sheldonh -> iedowse
+
+ume -> jinmei
 
 }
