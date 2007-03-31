@@ -20,6 +20,7 @@ node [color=grey62, style=filled, bgcolor=black];
 
 # Alumni go here.. Try to keep things sorted.
 
+adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03"]
 alm [label="???\nalm@FreeBSD.org\n1993/06/12"]
 futura [label="Atsushi Furuta\nfututa@FreeBSD.org\n2000/06/21"]
 jtc [label="???\njtc@FreeBSD.org\n1993/06/12"]
@@ -28,7 +29,9 @@ mb [label="Maxim Bolotin\nmb@FreeBSD.org\n2000/04/06"]
 nate [label="Nate Willams\nnate@FreeBSD.org\n1993/06/12"]
 non [label="Noriaki Mitsnaga\nnon@FreeBSD.org\n2000/06/19"]
 rgrimes [label="Rod Grimes\nrgrimes@FreeBSD.org\n1993/06/12"]
+shafeeq [label="Shafeeq Sinnamohideen\nshafeeq@FreeBSD.org\n2000/06/19"]
 sheldonh [label="Sheldon Hearn\nsheldonh@FreeBSD.org\n1999/06/14"]
+tmm [label="Thomas Moestl\ntmm@FreeBSD.org\n2001/03/07"]
 toshi [label="Toshihiko Arai\ntoshi@FreeBSD.org\n2000/07/06"]
 uch [label="UCHIYAMA Yasushi\nuch@FreeBSD.org\n2000/06/21"]
 
@@ -55,6 +58,7 @@ dg [label="David Greenman\ndg@FreeBSD.org\n1993/06/14"]
 dhartmei [label="Daniel Hartmeier\ndhartmei@FreeBSD.org\n2004/04/06"]
 dmlb [label="Duncan Barclay\ndmlb@FreeBSD.org\n2001/12/14"]
 dwmalone [label="David Malone\ndwmalone@FreeBSD.org\n2000/07/11"]
+emaste [label="Ed Maste\nemaste@FreeBSD.org\n2005/10/04"]
 emax [label="Maksim Yevmenkin\nemax@FreeBSD.org\n2003/10/12"]
 fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
@@ -71,8 +75,10 @@ jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 joe [label="Josef Karthauser\njoe@FreeBSD.org\n1999/10/22"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
+kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
+linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2006/09/30"]
 marks [label="Mark Santcroos\nmarks@FreeBSD.org\n2004/03/18"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
 mjacob [label="Matt Jacob\nmjacob@FreeBSD.org\n1997/08/13"]
@@ -103,7 +109,9 @@ simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 syrinx [label="Shteryana Shopova\nsyrinx@FreeBSD.org\n2006/10/07"]
 takawata [label="Takanori Watanabe\ntakawata@FreeBSD.org\n2000/07/06"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
+trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
 wilko [label="Wilko Bulte\nwilko@FreeBSD.org\n2000/01/13"]
+wsalamon [label="Wayne Salamon\nwsalamon@FreeBSD.org\n2005/06/25"]
 
 # Pseudo target representing rev 1.1 of commit.allow
 day1 [label="Birth of FreeBSD"]
@@ -188,6 +196,7 @@ jake -> harti
 jake -> jeff
 jake -> kmacy
 jake -> robert
+jake -> yongari
 
 jhb -> arr
 jhb -> jeff
@@ -197,6 +206,8 @@ jkh -> imp
 jkh -> jlemon
 jkh -> joerg
 jkh -> phk
+
+jlemon -> bmilekic
 
 joerg -> le
 joerg -> netchild
@@ -211,6 +222,8 @@ mdodd -> jake
 mlaier -> benjsc
 mlaier -> dhartmei
 mlaier -> thompsa
+
+msmith -> scottl
 
 murray -> delphij
 
@@ -245,6 +258,7 @@ rwatson -> kmacy
 rwatson -> linimon
 rwatson -> shafeeq
 rwatson -> tmm
+rwatson -> trhodes
 rwatson -> wsalamon
 
 sam -> andre
@@ -252,6 +266,10 @@ sam -> benjsc
 sam -> sephe
 
 schweikh -> dds
+
+scottl -> pjd
+scottl -> sah
+scottl -> yongari
 
 sheldonh -> dwmalone
 sheldonh -> iedowse
