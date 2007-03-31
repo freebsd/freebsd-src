@@ -214,6 +214,12 @@ options 	NO_ADAPTIVE_RWLOCKS
 # to sleep rather than spinning.
 options 	ADAPTIVE_GIANT
 
+# ADAPTIVE_SX changes the behavior of sx locks to spin if the thread
+# that currently owns the lock is executing on another CPU.  Note that
+# in addition to enabling this option, individual sx locks must be
+# initialized with the SX_ADAPTIVESPIN flag.
+options 	ADAPTIVE_SX
+
 # MUTEX_NOINLINE forces mutex operations to call functions to perform each
 # operation rather than inlining the simple cases.  This can be used to
 # shrink the size of the kernel text segment.  Note that this behavior is
@@ -232,6 +238,13 @@ options 	MUTEX_WAKE_ALL
 # already implied by the INVARIANT_SUPPORT, INVARIANTS, KTR, LOCK_PROFILING,
 # and WITNESS options.
 options 	RWLOCK_NOINLINE
+
+# SX_NOINLINE forces sx lock operations to call functions to perform each
+# operation rather than inlining the simple cases.  This can be used to
+# shrink the size of the kernel text segment.  Note that this behavior is
+# already implied by the INVARIANT_SUPPORT, INVARIANTS, KTR, LOCK_PROFILING,
+# and WITNESS options.
+options 	SX_NOINLINE
 
 # SMP Debugging Options:
 #

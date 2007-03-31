@@ -59,6 +59,7 @@ NO_SYSCTL_DESCR	opt_global.h
 
 # Miscellaneous options.
 ADAPTIVE_GIANT	opt_adaptive_mutexes.h
+ADAPTIVE_SX
 ALQ
 AUDIT		opt_global.h
 CODA_COMPAT_5	opt_coda.h
@@ -555,6 +556,7 @@ MSIZE			opt_global.h
 REGRESSION		opt_global.h
 RESTARTABLE_PANICS	opt_global.h
 RWLOCK_NOINLINE		opt_global.h
+SX_NOINLINE		opt_global.h
 VFS_BIO_DEBUG		opt_global.h
 
 # These are VM related options

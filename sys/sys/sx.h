@@ -1,5 +1,7 @@
 /*-
- * Copyright (C) 2001 Jason Evans <jasone@freebsd.org>.  All rights reserved.
+ * Copyright (c) 2007 Attilio Rao <attilio@freebsd.org>
+ * Copyright (c) 2001 Jason Evans <jasone@freebsd.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,24 +32,132 @@
 #ifndef	_SYS_SX_H_
 #define	_SYS_SX_H_
 
-#include <sys/queue.h>
 #include <sys/_lock.h>
-#include <sys/condvar.h>	/* XXX */
+#include <sys/_sx.h>
 
-struct sx {
-	struct lock_object lock_object;	/* Common lock properties. */
-	struct mtx	*sx_lock;	/* General protection lock. */
-	int		sx_cnt;		/* -1: xlock, > 0: slock count. */
-	struct cv	sx_shrd_cv;	/* slock waiters. */
-	int		sx_shrd_wcnt;	/* Number of slock waiters. */
-	struct cv	sx_excl_cv;	/* xlock waiters. */
-	int		sx_excl_wcnt;	/* Number of xlock waiters. */
-	struct thread	*sx_xholder;	/* Thread presently holding xlock. */
-};
+#ifdef	_KERNEL
+#include <machine/atomic.h>
+#endif
+
+/*
+ * In general, the sx locks and rwlocks use very similar algorithms.
+ * The main difference in the implementations is how threads are
+ * blocked when a lock is unavailable.  For this, sx locks use sleep
+ * queues which do not support priority propagation, and rwlocks use
+ * turnstiles which do.
+ *
+ * The sx_lock field consists of several fields.  The low bit
+ * indicates if the lock is locked with a shared or exclusive lock.  A
+ * value of 0 indicates an exclusive lock, and a value of 1 indicates
+ * a shared lock.  Bit 1 is a boolean indicating if there are any
+ * threads waiting for a shared lock.  Bit 2 is a boolean indicating
+ * if there are any threads waiting for an exclusive lock.  Bit 3 is a
+ * boolean indicating if an exclusive lock is recursively held.  The
+ * rest of the variable's definition is dependent on the value of the
+ * first bit.  For an exclusive lock, it is a pointer to the thread
+ * holding the lock, similar to the mtx_lock field of mutexes.  For
+ * shared locks, it is a count of read locks that are held.
+ *
+ * When the lock is not locked by any thread, it is encoded as a
+ * shared lock with zero waiters.
+ *
+ * A note about memory barriers.  Exclusive locks need to use the same
+ * memory barriers as mutexes: _acq when acquiring an exclusive lock
+ * and _rel when releasing an exclusive lock.  On the other side,
+ * shared lock needs to use an _acq barrier when acquiring the lock
+ * but, since they don't update any locked data, no memory barrier is
+ * needed when releasing a shared lock.
+ */
+
+#define	SX_LOCK_SHARED			0x01
+#define	SX_LOCK_SHARED_WAITERS		0x02
+#define	SX_LOCK_EXCLUSIVE_WAITERS	0x04
+#define	SX_LOCK_RECURSED		0x08
+#define	SX_LOCK_FLAGMASK						\
+	(SX_LOCK_SHARED | SX_LOCK_SHARED_WAITERS |			\
+	SX_LOCK_EXCLUSIVE_WAITERS | SX_LOCK_RECURSED)
+
+#define	SX_OWNER(x)			((x) & ~SX_LOCK_FLAGMASK)
+#define	SX_SHARERS_SHIFT		4
+#define	SX_SHARERS(x)			(SX_OWNER(x) >> SX_SHARERS_SHIFT)
+#define	SX_SHARERS_LOCK(x)						\
+	((x) << SX_SHARERS_SHIFT | SX_LOCK_SHARED)
+#define	SX_ONE_SHARER			(1 << SX_SHARERS_SHIFT)
+
+#define	SX_LOCK_UNLOCKED		SX_SHARERS_LOCK(0)
 
 #ifdef _KERNEL
+
+/*
+ * Full lock operations that are suitable to be inlined in non-debug kernels.
+ * If the lock can't be acquired or released trivially then the work is
+ * deferred to 'tougher' functions.
+ */
+
+/* Acquire an exclusive lock. */
+#define	__sx_xlock(sx, tid, file, line) do {				\
+	uintptr_t _tid = (uintptr_t)(tid);				\
+	int contested = 0;                                              \
+        uint64_t waitstart = 0;                                         \
+									\
+	if (!atomic_cmpset_acq_ptr(&(sx)->sx_lock, SX_LOCK_UNLOCKED,	\
+	    _tid)) {							\
+		lock_profile_obtain_lock_failed(&(sx)->lock_object,	\
+		    &contested, &waitstart);				\
+		_sx_xlock_hard((sx), _tid, (file), (line));		\
+	}								\
+	lock_profile_obtain_lock_success(&(sx)->lock_object, contested,	\
+	    waitstart, (file), (line));					\
+} while (0)
+
+/* Release an exclusive lock. */
+#define	__sx_xunlock(sx, tid, file, line) do {				\
+	uintptr_t _tid = (uintptr_t)(tid);				\
+									\
+	if (!atomic_cmpset_rel_ptr(&(sx)->sx_lock, _tid,		\
+	    SX_LOCK_UNLOCKED))						\
+		_sx_xunlock_hard((sx), _tid, (file), (line));		\
+} while (0)
+
+/* Acquire a shared lock. */
+#define	__sx_slock(sx, file, line) do {					\
+	uintptr_t x = (sx)->sx_lock;					\
+	int contested = 0;                                              \
+        uint64_t waitstart = 0;                                         \
+									\
+	if (!(x & SX_LOCK_SHARED) ||					\
+	    !atomic_cmpset_acq_ptr(&(sx)->sx_lock, x,			\
+	    x + SX_ONE_SHARER)) {					\
+		lock_profile_obtain_lock_failed(&(sx)->lock_object,	\
+		    &contested, &waitstart);				\
+		_sx_slock_hard((sx), (file), (line));			\
+	}								\
+	lock_profile_obtain_lock_success(&(sx)->lock_object, contested,	\
+	    waitstart, (file), (line));					\
+} while (0)
+
+/*
+ * Release a shared lock.  We can just drop a single shared lock so
+ * long as we aren't trying to drop the last shared lock when other
+ * threads are waiting for an exclusive lock.  This takes advantage of
+ * the fact that an unlocked lock is encoded as a shared lock with a
+ * count of 0.
+ */
+#define	__sx_sunlock(sx, file, line) do {				\
+	uintptr_t x = (sx)->sx_lock;					\
+									\
+	if (x == (SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS) ||	\
+	    !atomic_cmpset_ptr(&(sx)->sx_lock, x, x - SX_ONE_SHARER))	\
+		_sx_sunlock_hard((sx), (file), (line));			\
+} while (0)
+
+/*
+ * Function prototipes.  Routines that start with an underscore are not part
+ * of the public interface and are wrappered with a macro.
+ */
 void	sx_sysinit(void *arg);
-void	sx_init(struct sx *sx, const char *description);
+#define	sx_init(sx, desc)	sx_init_flags((sx), (desc), 0)
+void	sx_init_flags(struct sx *sx, const char *description, int opts);
 void	sx_destroy(struct sx *sx);
 void	_sx_slock(struct sx *sx, const char *file, int line);
 void	_sx_xlock(struct sx *sx, const char *file, int line);
@@ -57,6 +167,12 @@ void	_sx_sunlock(struct sx *sx, const char *file, int line);
 void	_sx_xunlock(struct sx *sx, const char *file, int line);
 int	_sx_try_upgrade(struct sx *sx, const char *file, int line);
 void	_sx_downgrade(struct sx *sx, const char *file, int line);
+void	_sx_xlock_hard(struct sx *sx, uintptr_t tid, const char *file, int
+	    line);
+void	_sx_slock_hard(struct sx *sx, const char *file, int line);
+void	_sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int
+	    line);
+void	_sx_sunlock_hard(struct sx *sx, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_sx_assert(struct sx *sx, int what, const char *file, int line);
 #endif
@@ -79,29 +195,63 @@ struct sx_args {
 	SYSUNINIT(name##_sx_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    sx_destroy, (sxa))
 
-#define	sx_xlocked(sx)		((sx)->sx_cnt < 0 && (sx)->sx_xholder == curthread)
-#define	sx_slock(sx)		_sx_slock((sx), LOCK_FILE, LOCK_LINE)
+/*
+ * Public interface for lock operations.
+ */
+#ifndef LOCK_DEBUG
+#error	"LOCK_DEBUG not defined, include <sys/lock.h> before <sys/sx.h>"
+#endif
+#if	(LOCK_DEBUG > 0) || defined(SX_NOINLINE)
 #define	sx_xlock(sx)		_sx_xlock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_xunlock(sx)		_sx_xunlock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_slock(sx)		_sx_slock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_sunlock(sx)		_sx_sunlock((sx), LOCK_FILE, LOCK_LINE)
+#else
+#define	sx_xlock(sx)							\
+	__sx_xlock((sx), curthread, LOCK_FILE, LOCK_LINE)
+#define	sx_xunlock(sx)							\
+	__sx_xunlock((sx), curthread, LOCK_FILE, LOCK_LINE)
+#define	sx_slock(sx)		__sx_slock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_sunlock(sx)		__sx_sunlock((sx), LOCK_FILE, LOCK_LINE)
+#endif	/* LOCK_DEBUG > 0 || SX_NOINLINE */
 #define	sx_try_slock(sx)	_sx_try_slock((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_try_xlock(sx)	_sx_try_xlock((sx), LOCK_FILE, LOCK_LINE)
-#define	sx_sunlock(sx)		_sx_sunlock((sx), LOCK_FILE, LOCK_LINE)
-#define	sx_xunlock(sx)		_sx_xunlock((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_try_upgrade(sx)	_sx_try_upgrade((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_downgrade(sx)	_sx_downgrade((sx), LOCK_FILE, LOCK_LINE)
+
+#define	sx_xlocked(sx)							\
+	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) ==	\
+	    (uintptr_t)curthread)
+
 #define	sx_unlock(sx) do {						\
 	if (sx_xlocked(sx))						\
 		sx_xunlock(sx);						\
 	else								\
 		sx_sunlock(sx);						\
 } while (0)
+
 #define	sx_sleep(chan, sx, pri, wmesg, timo)				\
 	_sleep((chan), &(sx)->lock_object, (pri), (wmesg), (timo))
 
+/*
+ * Options passed to sx_init_flags().
+ */
+#define	SX_DUPOK		0x01
+#define	SX_NOPROFILE		0x02
+#define	SX_NOWITNESS		0x04
+#define	SX_QUIET		0x08
+#define	SX_ADAPTIVESPIN		0x10
+
+/*
+ * XXX: These options should be renamed as SA_*
+ */
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 #define	SX_LOCKED		LA_LOCKED
 #define	SX_SLOCKED		LA_SLOCKED
 #define	SX_XLOCKED		LA_XLOCKED
 #define	SX_UNLOCKED		LA_UNLOCKED
+#define	SX_RECURSED		LA_RECURSED
+#define	SX_NOTRECURSED		LA_NOTRECURSED
 #endif
 
 #ifdef INVARIANTS
