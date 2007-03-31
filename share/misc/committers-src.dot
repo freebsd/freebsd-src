@@ -121,14 +121,26 @@ andre -> qingli
 
 anholt -> jkim
 
+billf -> dougb
+billf -> gad
+billf -> jedgar
+billf -> jhb
+billf -> shafeeq
+
+bmilekic -> csjp
+
 bms -> mlaier
 bms -> dhartmei
 bms -> thompsa
+
+brooks -> bushman
 
 bz -> syrinx
 
 cperciva -> flz
 cperciva -> simon
+
+csjp -> bushman
 
 delphij -> rafan
 
@@ -174,9 +186,12 @@ jake -> jeff
 jake -> kmacy
 jake -> robert
 
+jhb -> arr
 jhb -> jeff
+jhb -> kbyanc
 
 jkh -> imp
+jkh -> jlemon
 jkh -> joerg
 jkh -> phk
 
@@ -186,6 +201,8 @@ joerg -> netchild
 gibbs -> mjacob
 
 grog -> le
+
+mdodd -> jake
 
 mlaier -> benjsc
 mlaier -> dhartmei
@@ -197,7 +214,15 @@ netchild -> ariff
 
 njl -> philip
 
+obrien -> benno
+obrien -> groudier
+obrien -> gshapiro
+obrien -> kan
 obrien -> sam
+
+peter -> jayanth
+peter -> ps
+peter -> asmodai
 
 philip -> jls
 philip -> matteo
@@ -211,6 +236,7 @@ rwatson -> gnn
 rwatson -> kensmith
 rwatson -> kmacy
 rwatson -> linimon
+rwatson -> shafeeq
 rwatson -> tmm
 rwatson -> wsalamon
 
