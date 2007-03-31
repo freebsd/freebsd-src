@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static uint32_t		pci_mapbase(unsigned mapreg);
-static int		pci_maptype(unsigned mapreg);
+static const char	*pci_maptype(unsigned mapreg);
 static int		pci_mapsize(unsigned testval);
 static int		pci_maprange(unsigned mapreg);
 static void		pci_fixancient(pcicfgregs *cfg);
@@ -305,29 +305,24 @@ pci_find_device(uint16_t vendor, uint16_t device)
 static uint32_t
 pci_mapbase(uint32_t mapreg)
 {
-	int mask = 0x03;
-	if ((mapreg & 0x01) == 0)
-		mask = 0x0f;
-	return (mapreg & ~mask);
+
+	if (PCI_BAR_MEM(mapreg))
+		return (mapreg & PCIM_BAR_MEM_BASE);
+	else
+		return (mapreg & PCIM_BAR_IO_BASE);
 }
 
 /* return map type of memory or port map */
 
-static int
+static const char *
 pci_maptype(unsigned mapreg)
 {
-	static uint8_t maptype[0x10] = {
-		PCI_MAPMEM,		PCI_MAPPORT,
-		PCI_MAPMEM,		0,
-		PCI_MAPMEM,		PCI_MAPPORT,
-		0,			0,
-		PCI_MAPMEM|PCI_MAPMEMP,	PCI_MAPPORT,
-		PCI_MAPMEM|PCI_MAPMEMP, 0,
-		PCI_MAPMEM|PCI_MAPMEMP,	PCI_MAPPORT,
-		0,			0,
-	};
 
-	return (maptype[mapreg & 0x0f]);
+	if (PCI_BAR_IO(mapreg))
+		return ("I/O Port");
+	if (mapreg & PCIM_BAR_MEM_PREFETCH)
+		return ("Prefetchable Memory");
+	return ("Memory");
 }
 
 /* return log2 of map size decoded for memory or port map */
@@ -355,19 +350,21 @@ static int
 pci_maprange(unsigned mapreg)
 {
 	int ln2range = 0;
-	switch (mapreg & 0x07) {
-	case 0x00:
-	case 0x01:
-	case 0x05:
+
+	if (PCI_BAR_IO(mapreg))
 		ln2range = 32;
-		break;
-	case 0x02:
-		ln2range = 20;
-		break;
-	case 0x04:
-		ln2range = 64;
-		break;
-	}
+	else
+		switch (mapreg & PCIM_BAR_MEM_TYPE) {
+		case PCIM_BAR_MEM_32:
+			ln2range = 32;
+			break;
+		case PCIM_BAR_MEM_1MB:
+			ln2range = 20;
+			break;
+		case PCIM_BAR_MEM_64:
+			ln2range = 64;
+			break;
+		}
 	return (ln2range);
 }
 
@@ -1972,7 +1969,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	testval = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, map, 4);
 
-	if (pci_maptype(map) & PCI_MAPMEM)
+	if (PCI_BAR_MEM(map))
 		type = SYS_RES_MEMORY;
 	else
 		type = SYS_RES_IOPORT;
@@ -1988,8 +1985,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 * areas to the type of memory involved.  Memory must be at least
 	 * 16 bytes in size, while I/O ranges must be at least 4.
 	 */
-	if ((testval & 0x1) == 0x1 &&
-	    (testval & 0x2) != 0)
+	if (PCI_BAR_IO(testval) && (testval & PCIM_BAR_IO_RESERVED) != 0)
 		return (barlen);
 	if ((type == SYS_RES_MEMORY && ln2size < 4) ||
 	    (type == SYS_RES_IOPORT && ln2size < 2))
@@ -1999,7 +1995,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		/* Read the other half of a 64bit map register */
 		base |= (uint64_t) PCIB_READ_CONFIG(pcib, b, s, f, reg + 4, 4) << 32;
 	if (bootverbose) {
-		printf("\tmap[%02x]: type %x, range %2d, base %#jx, size %2d",
+		printf("\tmap[%02x]: type %s, range %2d, base %#jx, size %2d",
 		    reg, pci_maptype(map), ln2range, (uintmax_t)base, ln2size);
 		if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f))
 			printf(", port disabled\n");
@@ -2920,7 +2916,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 		map |= (pci_addr_t)pci_read_config(child, *rid + 4, 4) << 32;
 	if (pci_mapbase(testval) == 0)
 		goto out;
-	if (pci_maptype(testval) & PCI_MAPMEM) {
+	if (PCI_BAR_MEM(testval)) {
 		if (type != SYS_RES_MEMORY) {
 			if (bootverbose)
 				device_printf(dev,
