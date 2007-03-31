@@ -3445,6 +3445,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			sctp_m_freem(m);
 			return (ENOMEM);
 		}
+		SCTP_ALIGN_TO_END(o_pak, sizeof(struct ip));
 		SCTP_BUF_LEN(SCTP_HEADER_TO_CHAIN(o_pak)) = sizeof(struct ip);
 		packet_length += sizeof(struct ip);
 		SCTP_ATTACH_CHAIN(o_pak, m, packet_length);
@@ -3670,6 +3671,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			sctp_m_freem(m);
 			return (ENOMEM);
 		}
+		SCTP_ALIGN_TO_END(o_pak, sizeof(struct ip6_hdr));
+
 		SCTP_BUF_LEN(SCTP_HEADER_TO_CHAIN(o_pak)) = sizeof(struct ip6_hdr);
 		packet_length += sizeof(struct ip6_hdr);
 		SCTP_ATTACH_CHAIN(o_pak, m, packet_length);
@@ -6019,9 +6022,6 @@ all_done:
 		    (bundle_at == 1)) {
 			/* Mark the chunk as being a window probe */
 			SCTP_STAT_INCR(sctps_windowprobed);
-			data_list[i]->rec.data.state_flags |= SCTP_WINDOW_PROBE;
-		} else {
-			data_list[i]->rec.data.state_flags &= ~SCTP_WINDOW_PROBE;
 		}
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_audit_log(0xC2, 3);
@@ -6100,6 +6100,10 @@ sctp_can_we_split_this(struct sctp_tcb *stcb,
 	 */
 	if (goal_mtu < sctp_min_split_point) {
 		/* you don't want enough */
+		return (0);
+	}
+	if ((sp->length <= goal_mtu) || ((sp->length - goal_mtu) < sctp_min_residual)) {
+		/* Sub-optimial residual don't split */
 		return (0);
 	}
 	if (sp->msg_is_complete == 0) {
@@ -6186,18 +6190,21 @@ sctp_move_to_outqueue(struct sctp_tcb *stcb, struct sctp_nets *net,
 		panic("sp length is 0?");
 	}
 	some_taken = sp->some_taken;
-	if ((goal_mtu >= sp->length) && (sp->msg_is_complete)) {
-		/* It all fits and its a complete msg, no brainer */
+	if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
+		sp->msg_is_complete = 1;
+	}
+	if (sp->msg_is_complete) {
+		/* The message is complete */
 		to_move = min(sp->length, frag_point);
 		if (to_move == sp->length) {
-			/* Getting it all */
+			/* All of it fits in the MTU */
 			if (sp->some_taken) {
 				rcv_flags |= SCTP_DATA_LAST_FRAG;
 			} else {
 				rcv_flags |= SCTP_DATA_NOT_FRAG;
 			}
 		} else {
-			/* Not getting it all, frag point overrides */
+			/* Not all of it fits, we fragment */
 			if (sp->some_taken == 0) {
 				rcv_flags |= SCTP_DATA_FIRST_FRAG;
 			}
@@ -6562,7 +6569,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 			}
 		}
 		total_moved += moved_how_much;
-		goal_mtu -= moved_how_much;
+		goal_mtu -= (moved_how_much + sizeof(struct sctp_data_chunk));
 		goal_mtu &= 0xfffffffc;
 	}
 	if (total_moved == 0) {
@@ -6724,6 +6731,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 		start_at = net;
 one_more_time:
 		for (; net != NULL; net = TAILQ_NEXT(net, sctp_next)) {
+			net->window_probe = 0;
 			if (old_startat && (old_startat == net)) {
 				break;
 			}
@@ -7106,9 +7114,9 @@ again_one_more_time:
 					continue;
 				}
 				if ((chk->send_size > omtu) && ((chk->flags & CHUNK_FLAGS_FRAGMENT_OK) == 0)) {
-					/*
+					/*-
 					 * strange, we have a chunk that is
-					 * to bit for its destination and
+					 * to big for its destination and
 					 * yet no fragment ok flag.
 					 * Something went wrong when the
 					 * PMTU changed...we did not mark
@@ -7178,12 +7186,13 @@ again_one_more_time:
 					to_out += chk->send_size;
 					if (to_out > mx_mtu) {
 #ifdef INVARIANTS
-						panic("gag");
+						panic("Exceeding mtu of %d out size is %d", mx_mtu, to_out);
 #else
 						printf("Exceeding mtu of %d out size is %d\n",
 						    mx_mtu, to_out);
 #endif
 					}
+					chk->window_probe = 0;
 					data_list[bundle_at++] = chk;
 					if (bundle_at >= SCTP_MAX_DATA_BUNDLING) {
 						mtu = 0;
@@ -7209,6 +7218,10 @@ again_one_more_time:
 							SCTP_STAT_INCR_COUNTER64(sctps_fragusrmsgs);
 					}
 					if ((mtu == 0) || (r_mtu == 0) || (one_chunk)) {
+						if (one_chunk) {
+							data_list[0]->window_probe = 1;
+							net->window_probe = 1;
+						}
 						break;
 					}
 				} else {
@@ -7218,7 +7231,7 @@ again_one_more_time:
 					 */
 					break;
 				}
-			}	/* for () */
+			}	/* for (chunk gather loop for this net) */
 		}		/* if asoc.state OPEN */
 		/* Is there something to send for this destination? */
 		if (outchain) {
@@ -7252,7 +7265,9 @@ again_one_more_time:
 			shdr->v_tag = htonl(stcb->asoc.peer_vtag);
 			shdr->checksum = 0;
 			auth_offset += sizeof(struct sctphdr);
-			if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
+			if ((error = sctp_lowlevel_chunk_output(inp,
+			    stcb,
+			    net,
 			    (struct sockaddr *)&net->ro._l_addr,
 			    outchain,
 			    auth_offset,
@@ -7293,7 +7308,15 @@ again_one_more_time:
 					sctp_move_to_an_alt(stcb, asoc, net);
 				}
 				*reason_code = 6;
-				continue;
+				/*-
+				 * I add this line to be paranoid. As far as
+				 * I can tell the continue, takes us back to
+				 * the top of the for, but just to make sure
+				 * I will reset these again here.
+				 */
+				ctl_cnt = bundle_at = 0;
+				continue;	/* This takes us back to the
+						 * for() for the nets. */
 			} else {
 				asoc->ifp_had_enobuf = 0;
 			}
@@ -7371,7 +7394,7 @@ again_one_more_time:
 void
 sctp_queue_op_err(struct sctp_tcb *stcb, struct mbuf *op_err)
 {
-	/*
+	/*-
 	 * Prepend a OPERATIONAL_ERROR chunk header and put on the end of
 	 * the control chunk queue.
 	 */
@@ -7423,7 +7446,7 @@ sctp_send_cookie_echo(struct mbuf *m,
     struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
-	/*
+	/*-
 	 * pull out the cookie and put it at the front of the control chunk
 	 * queue.
 	 */
@@ -7812,12 +7835,12 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
     struct sctp_association *asoc,
     int *cnt_out, struct timeval *now, int *now_filled, int *fr_done)
 {
-	/*
+	/*-
 	 * send out one MTU of retransmission. If fast_retransmit is
 	 * happening we ignore the cwnd. Otherwise we obey the cwnd and
 	 * rwnd. For a Cookie or Asconf in the control chunk queue we
 	 * retransmit them by themselves.
-	 * 
+	 *
 	 * For data chunks we will pick out the lowest TSN's in the sent_queue
 	 * marked for resend and bundle them all together (up to a MTU of
 	 * destination). The address to send to should have been
@@ -7950,7 +7973,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 	 * fwd-tsn with it all.
 	 */
 	if (TAILQ_EMPTY(&asoc->sent_queue)) {
-		return (-1);
+		return (SCTP_RETRAN_DONE);
 	}
 	if ((SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_ECHOED) ||
 	    (SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_WAIT)) {
@@ -7965,6 +7988,18 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 			/* No, not sent to this net or not ready for rtx */
 			continue;
 
+		}
+		if ((sctp_max_retran_chunk) && (chk->snd_count >= sctp_max_retran_chunk)) {
+			/* Gak, we have exceeded max unlucky retran, abort! */
+
+#ifdef SCTP_DEBUG
+			printf("Gak, chk->snd_count:%d >= max:%d - send abort\n",
+			    chk->snd_count,
+			    sctp_max_retran_chunk);
+#endif
+			sctp_send_abort_tcb(stcb, NULL);
+			sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
+			return (SCTP_RETRAN_EXIT);
 		}
 		/* pick up the net */
 		net = chk->whoTo;
@@ -7993,6 +8028,11 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 one_chunk_around:
 		if (asoc->peers_rwnd < mtu) {
 			one_chunk = 1;
+			if ((asoc->peers_rwnd == 0) &&
+			    (asoc->total_flight == 0)) {
+				chk->window_probe = 1;
+				chk->whoTo->window_probe = 1;
+			}
 		}
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_audit_log(0xC3, 2);
@@ -8056,7 +8096,6 @@ one_chunk_around:
 			data_list[bundle_at++] = chk;
 			if (one_chunk && (asoc->total_flight <= 0)) {
 				SCTP_STAT_INCR(sctps_windowprobed);
-				chk->rec.data.state_flags |= SCTP_WINDOW_PROBE;
 			}
 		}
 		if (one_chunk == 0) {
@@ -8193,9 +8232,6 @@ one_chunk_around:
 				sctp_ucount_decr(asoc->sent_queue_retran_cnt);
 				/* record the time */
 				data_list[i]->sent_rcv_time = asoc->time_last_sent;
-				if (asoc->sent_queue_retran_cnt < 0) {
-					asoc->sent_queue_retran_cnt = 0;
-				}
 				if (data_list[i]->book_size_scale) {
 					/*
 					 * need to double the book size on
@@ -8240,7 +8276,7 @@ one_chunk_around:
 					SCTP_STAT_INCR(sctps_sendfastretrans);
 					if ((data_list[i] == TAILQ_FIRST(&asoc->sent_queue)) &&
 					    (tmr_started == 0)) {
-						/*
+						/*-
 						 * ok we just fast-retrans'd
 						 * the lowest TSN, i.e the
 						 * first on the list. In
@@ -8312,7 +8348,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     int from_where)
 {
-	/*
+	/*-
 	 * Ok this is the generic chunk service queue. we must do the
 	 * following: - See if there are retransmits pending, if so we must
 	 * do these first and return. - Service the stream queue that is
@@ -8361,15 +8397,15 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 		SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
 	}
 	while (asoc->sent_queue_retran_cnt) {
-		/*
+		/*-
 		 * Ok, it is retransmission time only, we send out only ONE
 		 * packet with a single call off to the retran code.
 		 */
 		if (from_where == SCTP_OUTPUT_FROM_COOKIE_ACK) {
-			/*
-			 * Special hook for handling cookiess discarded by
-			 * peer that carried data. Send cookie-ack only and
-			 * then the next call with get the retran's.
+			/*-
+			 *Special hook for handling cookiess discarded
+			 * by peer that carried data. Send cookie-ack only
+			 * and then the next call with get the retran's.
 			 */
 			(void)sctp_med_chunk_output(inp, stcb, asoc, &num_out, &reason_code, 1,
 			    &cwnd_full, from_where,
@@ -8391,7 +8427,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 		}
 		if (ret > 0) {
 			/* Can't send anymore */
-			/*
+			/*-
 			 * now lets push out control by calling med-level
 			 * output once. this assures that we WILL send HB's
 			 * if queued too.
@@ -8405,13 +8441,16 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			return (sctp_timer_validation(inp, stcb, asoc, ret));
 		}
 		if (ret < 0) {
-			/*
+			/*-
 			 * The count was off.. retran is not happening so do
 			 * the normal retransmission.
 			 */
 #ifdef SCTP_AUDITING_ENABLED
 			sctp_auditing(9, inp, stcb, NULL);
 #endif
+			if (ret == SCTP_RETRAN_EXIT) {
+				return (-1);
+			}
 			break;
 		}
 		if (from_where == SCTP_OUTPUT_FROM_T3) {
@@ -8442,7 +8481,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if ((net->dest_state & SCTP_ADDR_NOT_REACHABLE) ==
 		    SCTP_ADDR_NOT_REACHABLE) {
-			/*
+			/*-
 			 * if possible move things off of this address we
 			 * still may send below due to the dormant state but
 			 * we try to find an alternate address to send to
@@ -8452,7 +8491,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			if (net->ref_count > 1)
 				sctp_move_to_an_alt(stcb, asoc, net);
 		} else {
-			/*
+			/*-
 			 * if ((asoc->sat_network) || (net->addr_is_local))
 			 * { burst_limit = asoc->max_burst *
 			 * SCTP_SAT_NETWORK_BURST_INCR; }
@@ -8521,10 +8560,10 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 		}
 #endif
 		if (nagle_on) {
-			/*
-			 * When nagle is on, we look at how much is un_sent,
-			 * then if its smaller than an MTU and we have data
-			 * in flight we stop.
+			/*-
+			 * When nagle is on, we look at how much is un_sent, then
+			 * if its smaller than an MTU and we have data in
+			 * flight we stop.
 			 */
 			un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
 			    ((stcb->asoc.chunks_on_out_queue - stcb->asoc.total_flight_count)
@@ -8566,7 +8605,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 		printf("Ok, we have put out %d chunks\n", tot_out);
 	}
 #endif
-	/*
+	/*-
 	 * Now we need to clean up the control chunk chain if a ECNE is on
 	 * it. It must be marked as UNSENT again so next call will continue
 	 * to send it until such time that we get a CWR, to remove it.
@@ -8647,7 +8686,7 @@ send_forward_tsn(struct sctp_tcb *stcb,
 	TAILQ_INSERT_TAIL(&asoc->control_send_queue, chk, sctp_next);
 	asoc->ctrl_queue_cnt++;
 sctp_fill_in_rest:
-	/*
+	/*-
 	 * Here we go through and fill out the part that deals with
 	 * stream/seq of the ones we skip.
 	 */
@@ -8685,14 +8724,14 @@ sctp_fill_in_rest:
 			cnt_of_space = asoc->smallest_mtu - ovh;
 		}
 		if (cnt_of_space < space_needed) {
-			/*
+			/*-
 			 * ok we must trim down the chunk by lowering the
 			 * advance peer ack point.
 			 */
 			cnt_of_skipped = (cnt_of_space -
 			    ((sizeof(struct sctp_forward_tsn_chunk)) /
 			    sizeof(struct sctp_strseq)));
-			/*
+			/*-
 			 * Go through and find the TSN that will be the one
 			 * we report.
 			 */
@@ -8702,7 +8741,7 @@ sctp_fill_in_rest:
 				at = tp1;
 			}
 			last = at;
-			/*
+			/*-
 			 * last now points to last one I can report, update
 			 * peer ack point
 			 */
@@ -8720,12 +8759,12 @@ sctp_fill_in_rest:
 		    (cnt_of_skipped * sizeof(struct sctp_strseq)));
 		SCTP_BUF_LEN(chk->data) = chk->send_size;
 		fwdtsn++;
-		/*
+		/*-
 		 * Move pointer to after the fwdtsn and transfer to the
 		 * strseq pointer.
 		 */
 		strseq = (struct sctp_strseq *)fwdtsn;
-		/*
+		/*-
 		 * Now populate the strseq list. This is done blindly
 		 * without pulling out duplicate stream info. This is
 		 * inefficent but won't harm the process since the peer will
@@ -8759,7 +8798,7 @@ sctp_fill_in_rest:
 void
 sctp_send_sack(struct sctp_tcb *stcb)
 {
-	/*
+	/*-
 	 * Queue up a SACK in the control queue. We must first check to see
 	 * if a SACK is somehow on the control queue. If so, we will take
 	 * and and remove the old one.
@@ -8833,7 +8872,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	if ((asoc->numduptsns) ||
 	    (asoc->last_data_chunk_from->dest_state & SCTP_ADDR_NOT_REACHABLE)
 	    ) {
-		/*
+		/*-
 		 * Ok, we have some duplicates or the destination for the
 		 * sack is unreachable, lets see if we can select an
 		 * alternate than asoc->last_data_chunk_from
@@ -8913,7 +8952,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 		sack->ch.chunk_flags = 0;
 
 	if (sctp_cmt_on_off && sctp_cmt_use_dac) {
-		/*
+		/*-
 		 * CMT DAC algorithm: If 2 (i.e., 0x10) packets have been
 		 * received, then set high bit to 1, else 0. Reset
 		 * pkts_rcvd.
@@ -8934,14 +8973,14 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	siz = (((asoc->highest_tsn_inside_map - asoc->mapping_array_base_tsn) + 1) + 7) / 8;
 	if (asoc->cumulative_tsn < asoc->mapping_array_base_tsn) {
 		offset = 1;
-		/*
+		/*-
 		 * cum-ack behind the mapping array, so we start and use all
 		 * entries.
 		 */
 		jstart = 0;
 	} else {
 		offset = asoc->mapping_array_base_tsn - asoc->cumulative_tsn;
-		/*
+		/*-
 		 * we skip the first one when the cum-ack is at or above the
 		 * mapping array base.
 		 */
@@ -9046,7 +9085,7 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr)
 	struct sctp_auth_chunk *auth = NULL;
 	struct sctphdr *shdr;
 
-	/*
+	/*-
 	 * Add an AUTH chunk, if chunk requires it and save the offset into
 	 * the chain for AUTH
 	 */
@@ -9290,7 +9329,7 @@ sctp_select_hb_destination(struct sctp_tcb *stcb, struct timeval *now)
 		} else
 			/* Never been sent to */
 			ms_goneby = 0x7fffffff;
-		/*
+		/*-
 		 * When the address state is unconfirmed but still
 		 * considered reachable, we HB at a higher rate. Once it
 		 * goes confirmed OR reaches the "unreachable" state, thenw
@@ -9316,7 +9355,7 @@ sctp_select_hb_destination(struct sctp_tcb *stcb, struct timeval *now)
 	}
 
 	if (highest_ms && (((unsigned int)highest_ms >= hnet->RTO) || state_overide)) {
-		/*
+		/*-
 		 * Found the one with longest delay bounds OR it is
 		 * unconfirmed and still not marked unreachable.
 		 */
@@ -9352,7 +9391,7 @@ sctp_send_hb(struct sctp_tcb *stcb, int user_req, struct sctp_nets *u_net)
 	if (user_req == 0) {
 		net = sctp_select_hb_destination(stcb, &now);
 		if (net == NULL) {
-			/*
+			/*-
 			 * All our busy none to send to, just start the
 			 * timer again.
 			 */
@@ -9447,12 +9486,12 @@ sctp_send_hb(struct sctp_tcb *stcb, int user_req, struct sctp_nets *u_net)
 
 	if (sctp_threshold_management(stcb->sctp_ep, stcb, net,
 	    stcb->asoc.max_send_times)) {
-		/*
-		 * we have lost the association, in a way this is quite bad
-		 * since we really are one less time since we really did not
-		 * send yet. This is the down side to the Q's style as
-		 * defined in the RFC and not my alternate style defined in
-		 * the RFC.
+		/*-
+		 * we have lost the association, in a way this is
+		 * quite bad since we really are one less time since
+		 * we really did not send yet. This is the down side
+		 * to the Q's style as defined in the RFC and not my
+		 * alternate style defined in the RFC.
 		 */
 		atomic_subtract_int(&chk->whoTo->ref_count, 1);
 		if (chk->data != NULL) {
@@ -9466,7 +9505,7 @@ sctp_send_hb(struct sctp_tcb *stcb, int user_req, struct sctp_nets *u_net)
 	TAILQ_INSERT_TAIL(&stcb->asoc.control_send_queue, chk, sctp_next);
 	stcb->asoc.ctrl_queue_cnt++;
 	SCTP_STAT_INCR(sctps_sendheartbeat);
-	/*
+	/*-
 	 * Call directly med level routine to put out the chunk. It will
 	 * always tumble out control chunks aka HB but it may even tumble
 	 * out data too.
@@ -9541,7 +9580,7 @@ sctp_send_packet_dropped(struct sctp_tcb *stcb, struct sctp_nets *net,
 	asoc = &stcb->asoc;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	if (asoc->peer_supports_pktdrop == 0) {
-		/*
+		/*-
 		 * peer must declare support before I send one.
 		 */
 		return;
@@ -9631,7 +9670,7 @@ jump_out:
 		    asoc->my_rwnd_control_len +
 		    stcb->sctp_socket->so_rcv.sb_cc);
 	} else {
-		/*
+		/*-
 		 * If my rwnd is 0, possibly from mbuf depletion as well as
 		 * space used, tell the peer there is NO space aka onq == bw
 		 */
@@ -9723,7 +9762,7 @@ sctp_add_stream_reset_out(struct sctp_tmit_chunk *chk,
 		}
 	}
 	if (SCTP_SIZE32(len) > len) {
-		/*
+		/*-
 		 * Need to worry about the pad we may end up adding to the
 		 * end. This is easy since the struct is either aligned to 4
 		 * bytes or 2 bytes off.
@@ -9767,7 +9806,7 @@ sctp_add_stream_reset_in(struct sctp_tmit_chunk *chk,
 		}
 	}
 	if (SCTP_SIZE32(len) > len) {
-		/*
+		/*-
 		 * Need to worry about the pad we may end up adding to the
 		 * end. This is easy since the struct is either aligned to 4
 		 * bytes or 2 bytes off.
@@ -9897,7 +9936,7 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 
 	asoc = &stcb->asoc;
 	if (asoc->stream_reset_outstanding) {
-		/*
+		/*-
 		 * Already one pending, must get ACK back to clear the flag.
 		 */
 		return (EBUSY);
@@ -9972,7 +10011,7 @@ void
 sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
     struct mbuf *err_cause)
 {
-	/*
+	/*-
 	 * Formulate the abort message, and send it back down.
 	 */
 	struct mbuf *o_pak;
@@ -10345,7 +10384,7 @@ sctp_copy_one(struct sctp_stream_queue_pending *sp,
 	if (m == NULL) {
 		return (ENOMEM);
 	}
-	/*
+	/*-
 	 * Add this one for m in now, that way if the alloc fails we won't
 	 * have a bad cnt.
 	 */
@@ -10398,7 +10437,7 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
     int *error,
     int non_blocking)
 {
-	/*
+	/*-
 	 * This routine must be very careful in its work. Protocol
 	 * processing is up and running so care must be taken to spl...()
 	 * when you need to do something that may effect the stcb/asoc. The
@@ -10614,9 +10653,10 @@ sctp_lower_sosend(struct socket *so,
 		}
 		hold_tcblock = 0;
 	} else if (addr) {
-		/*
-		 * Since we did not use findep we must increment it, and if
-		 * we don't find a tcb decrement it.
+		/*-
+		 * Since we did not use findep we must
+		 * increment it, and if we don't find a tcb
+		 * decrement it.
 		 */
 		SCTP_INP_WLOCK(inp);
 		SCTP_INP_INCR_REF(inp);
@@ -10677,7 +10717,7 @@ sctp_lower_sosend(struct socket *so,
 			    ((srcv->sinfo_flags & SCTP_ABORT) ||
 			    ((srcv->sinfo_flags & SCTP_EOF) &&
 			    (uio->uio_resid == 0)))) {
-				/*
+				/*-
 				 * User asks to abort a non-existant assoc,
 				 * or EOF a non-existant assoc with no data
 				 */
@@ -10770,26 +10810,20 @@ sctp_lower_sosend(struct socket *so,
 							}
 						}
 						for (i = 0; i < asoc->streamoutcnt; i++) {
-							/*
-							 * inbound side must
-							 * be set to 0xffff,
-							 * also NOTE when we
-							 * get the INIT-ACK
-							 * back (for INIT
-							 * sender) we MUST
+							/*-
+							 * inbound side must be set
+							 * to 0xffff, also NOTE when
+							 * we get the INIT-ACK back
+							 * (for INIT sender) we MUST
 							 * reduce the count
-							 * (streamoutcnt)
-							 * but first check
-							 * if we sent to any
-							 * of the upper
-							 * streams that were
-							 * dropped (if some
-							 * were). Those that
-							 * were dropped must
-							 * be notified to
-							 * the upper layer
-							 * as failed to
-							 * send.
+							 * (streamoutcnt) but first
+							 * check if we sent to any
+							 * of the upper streams that
+							 * were dropped (if some
+							 * were). Those that were
+							 * dropped must be notified
+							 * to the upper layer as
+							 * failed to send.
 							 */
 							asoc->strmout[i].next_sequence_sent = 0x0;
 							TAILQ_INIT(&asoc->strmout[i].outqueue);
@@ -10804,12 +10838,11 @@ sctp_lower_sosend(struct socket *so,
 			hold_tcblock = 1;
 			/* out with the INIT */
 			queue_only_for_init = 1;
-			/*
-			 * we may want to dig in after this call and adjust
-			 * the MTU value. It defaulted to 1500 (constant)
-			 * but the ro structure may now have an update and
-			 * thus we may need to change it BEFORE we append
-			 * the message.
+			/*-
+			 * we may want to dig in after this call and adjust the MTU
+			 * value. It defaulted to 1500 (constant) but the ro
+			 * structure may now have an update and thus we may need to
+			 * change it BEFORE we append the message.
 			 */
 			net = stcb->asoc.primary_destination;
 			asoc = &stcb->asoc;
@@ -10889,7 +10922,7 @@ sctp_lower_sosend(struct socket *so,
 		}
 	}
 	if ((net->flight_size > net->cwnd) && (sctp_cmt_on_off == 0)) {
-		/*
+		/*-
 		 * CMT: Added check for CMT above. net above is the primary
 		 * dest. If CMT is ON, sender should always attempt to send
 		 * with the output routine sctp_fill_outqueue() that loops
@@ -10964,7 +10997,7 @@ sctp_lower_sosend(struct socket *so,
 			if (top == NULL) {
 				error = uiomove((caddr_t)ph, (int)tot_out, uio);
 				if (error) {
-					/*
+					/*-
 					 * Here if we can't get his data we
 					 * still abort we just don't get to
 					 * send the users note :-0
@@ -11249,11 +11282,10 @@ sctp_lower_sosend(struct socket *so,
 			    (un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD))
 			    ) {
 
-				/*
-				 * Ok, Nagle is set on and we have data
-				 * outstanding. Don't send anything and let
-				 * SACKs drive out the data unless wen have
-				 * a "full" segment to send.
+				/*-
+				 * Ok, Nagle is set on and we have data outstanding.
+				 * Don't send anything and let SACKs drive out the
+				 * data unless wen have a "full" segment to send.
 				 */
 #ifdef SCTP_NAGLE_LOGGING
 				sctp_log_nagle_event(stcb, SCTP_NAGLE_APPLIED);
@@ -11292,12 +11324,12 @@ sctp_lower_sosend(struct socket *so,
 			}
 			if ((queue_only == 0) && (nagle_applies == 0)
 			    ) {
-				/*
-				 * need to start chunk output before
-				 * blocking.. note that if a lock is already
-				 * applied, then the input via the net is
-				 * happening and I don't need to start
-				 * output :-D
+				/*-
+				 * need to start chunk output
+				 * before blocking.. note that if
+				 * a lock is already applied, then
+				 * the input via the net is happening
+				 * and I don't need to start output :-D
 				 */
 				if (hold_tcblock == 0) {
 					if (SCTP_TCB_TRYLOCK(stcb)) {
@@ -11318,20 +11350,19 @@ sctp_lower_sosend(struct socket *so,
 				}
 			}
 			SOCKBUF_LOCK(&so->so_snd);
-			/*
-			 * This is a bit strange, but I think it will work.
-			 * The total_output_queue_size is locked and
-			 * protected by the TCB_LOCK, which we just
-			 * released. There is a race that can occur between
-			 * releasing it above, and me getting the socket
-			 * lock, where sacks come in but we have not put the
-			 * SB_WAIT on the so_snd buffer to get the wakeup.
-			 * After the LOCK is applied the sack_processing
-			 * will also need to LOCK the so->so_snd to do the
-			 * actual sowwakeup(). So once we have the socket
-			 * buffer lock if we recheck the size we KNOW we
-			 * will get to sleep safely with the wakeup flag in
-			 * place.
+			/*-
+			 * This is a bit strange, but I think it will
+			 * work. The total_output_queue_size is locked and
+			 * protected by the TCB_LOCK, which we just released.
+			 * There is a race that can occur between releasing it
+			 * above, and me getting the socket lock, where sacks
+			 * come in but we have not put the SB_WAIT on the
+			 * so_snd buffer to get the wakeup. After the LOCK
+			 * is applied the sack_processing will also need to
+			 * LOCK the so->so_snd to do the actual sowwakeup(). So
+			 * once we have the socket buffer lock if we recheck the
+			 * size we KNOW we will get to sleep safely with the
+			 * wakeup flag in place.
 			 */
 			if (SCTP_SB_LIMIT_SND(so) < (stcb->asoc.total_output_queue_size + sctp_add_more_threshold)) {
 #ifdef SCTP_BLK_LOGGING
@@ -11419,11 +11450,11 @@ dataless_eof:
 				    asoc->primary_destination);
 			}
 		} else {
-			/*
+			/*-
 			 * we still got (or just got) data to send, so set
 			 * SHUTDOWN_PENDING
 			 */
-			/*
+			/*-
 			 * XXX sockets draft says that SCTP_EOF should be
 			 * sent with no data.  currently, we will allow user
 			 * data to be sent first and move to
@@ -11500,10 +11531,10 @@ skip_out_eof:
 	    (un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD))
 	    ) {
 
-		/*
-		 * Ok, Nagle is set on and we have data outstanding. Don't
-		 * send anything and let SACKs drive out the data unless wen
-		 * have a "full" segment to send.
+		/*-
+		 * Ok, Nagle is set on and we have data outstanding.
+		 * Don't send anything and let SACKs drive out the
+		 * data unless wen have a "full" segment to send.
 		 */
 #ifdef SCTP_NAGLE_LOGGING
 		sctp_log_nagle_event(stcb, SCTP_NAGLE_APPLIED);

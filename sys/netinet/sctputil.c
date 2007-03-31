@@ -133,8 +133,6 @@ rto_logging(struct sctp_nets *net, int from)
 	sctp_clog[sctp_cwnd_log_at].event_type = (uint8_t) SCTP_LOG_EVENT_RTT;
 	sctp_clog[sctp_cwnd_log_at].x.rto.net = (void *)net;
 	sctp_clog[sctp_cwnd_log_at].x.rto.rtt = net->prev_rtt;
-	sctp_clog[sctp_cwnd_log_at].x.rto.rttvar = net->rtt_variance;
-	sctp_clog[sctp_cwnd_log_at].x.rto.direction = net->rto_variance_dir;
 }
 
 void
@@ -2464,7 +2462,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	 */
 	int calc_time = 0;
 	int o_calctime;
-	unsigned int new_rto = 0;
+	uint32_t new_rto = 0;
 	int first_measure = 0;
 	struct timeval now;
 
@@ -2493,7 +2491,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 			    (u_long)old->tv_usec) / 1000;
 		} else if ((u_long)now.tv_usec < (u_long)old->tv_usec) {
 			/* impossible .. garbage in nothing out */
-			return (((net->lastsa >> 2) + net->lastsv) >> 1);
+			goto calc_rto;
 		} else if ((u_long)now.tv_usec == (u_long)old->tv_usec) {
 			/*
 			 * We have to have 1 usec :-D this must be the
@@ -2502,11 +2500,11 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 			calc_time = 1;
 		} else {
 			/* impossible .. garbage in nothing out */
-			return (((net->lastsa >> 2) + net->lastsv) >> 1);
+			goto calc_rto;
 		}
 	} else {
 		/* Clock wrapped? */
-		return (((net->lastsa >> 2) + net->lastsv) >> 1);
+		goto calc_rto;
 	}
 	/***************************/
 	/* 2. update RTTVAR & SRTT */
@@ -2515,15 +2513,6 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/* this is Van Jacobson's integer version */
 	if (net->RTO) {
 		calc_time -= (net->lastsa >> 3);
-		if ((int)net->prev_rtt > o_calctime) {
-			net->rtt_variance = net->prev_rtt - o_calctime;
-			/* decreasing */
-			net->rto_variance_dir = 0;
-		} else {
-			/* increasing */
-			net->rtt_variance = o_calctime - net->prev_rtt;
-			net->rto_variance_dir = 1;
-		}
 #ifdef SCTP_RTTVAR_LOGGING
 		rto_logging(net, SCTP_LOG_RTTVAR);
 #endif
@@ -2542,13 +2531,12 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 		net->lastsa = calc_time;
 		net->lastsv = calc_time >> 1;
 		first_measure = 1;
-		net->rto_variance_dir = 1;
 		net->prev_rtt = o_calctime;
-		net->rtt_variance = 0;
 #ifdef SCTP_RTTVAR_LOGGING
 		rto_logging(net, SCTP_LOG_INITIAL_RTT);
 #endif
 	}
+calc_rto:
 	new_rto = ((net->lastsa >> 2) + net->lastsv) >> 1;
 	if ((new_rto > SCTP_SAT_NETWORK_MIN) &&
 	    (stcb->asoc.sat_network_lockout == 0)) {
@@ -2564,8 +2552,8 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	if (new_rto > stcb->asoc.maxrto) {
 		new_rto = stcb->asoc.maxrto;
 	}
-	/* we are now returning the RTT Smoothed */
-	return ((uint32_t) new_rto);
+	/* we are now returning the RTO */
+	return (new_rto);
 }
 
 /*

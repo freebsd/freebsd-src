@@ -80,12 +80,6 @@ sctp6_input(mp, offp, proto)
 	m = SCTP_HEADER_TO_CHAIN(*mp);
 
 	ip6 = mtod(m, struct ip6_hdr *);
-#ifndef PULLDOWN_TEST
-	/* If PULLDOWN_TEST off, must be in a single mbuf. */
-	IP6_EXTHDR_CHECK(m, off, (int)(sizeof(*sh) + sizeof(*ch)), IPPROTO_DONE);
-	sh = (struct sctphdr *)((caddr_t)ip6 + off);
-	ch = (struct sctp_chunkhdr *)((caddr_t)sh + sizeof(*sh));
-#else
 	/* Ensure that (sctphdr + sctp_chunkhdr) in a row. */
 	IP6_EXTHDR_GET(sh, struct sctphdr *, m, off, sizeof(*sh) + sizeof(*ch));
 	if (sh == NULL) {
@@ -93,8 +87,6 @@ sctp6_input(mp, offp, proto)
 		return IPPROTO_DONE;
 	}
 	ch = (struct sctp_chunkhdr *)((caddr_t)sh + sizeof(struct sctphdr));
-#endif
-
 	iphlen = off;
 	offset = iphlen + sizeof(*sh) + sizeof(*ch);
 
