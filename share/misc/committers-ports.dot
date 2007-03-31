@@ -30,6 +30,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29"]
+ale [label="Alex Dupre\nale@FreeBSD.org\n2004/01/12"]
 alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
 bland [label="Alexander Nedotsukov\nbland@FreeBSD.org\n2003/08/14"]
 brooks [label="Brooks Davies\nbrooks@FreeBSD.org\n2004/05/03"]
@@ -127,6 +128,8 @@ marcus -> jmallett
 mnag -> jmelo
 
 netchild -> bsam
+
+nork -> ale
 
 novel -> ehaupt
 
