@@ -42,7 +42,9 @@ fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
 iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
+imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16"]
+jkh [label="Jordan Hubbard\njkh@FreeBSD.org\n1994/07/24"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
 jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
@@ -97,6 +99,8 @@ gnn -> jinmei
 gnn -> rrs
 
 jake -> bms
+
+jkh -> imp
 
 joerg -> le
 joerg -> netchild
