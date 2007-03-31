@@ -87,7 +87,6 @@ static int	vfs_mountroot_try(const char *mountfrom);
 static int	vfs_donmount(struct thread *td, int fsflags,
 		    struct uio *fsoptions);
 static void	free_mntarg(struct mntarg *ma);
-static void	vfs_mount_destroy(struct mount *);
 static int	vfs_getopt_pos(struct vfsoptlist *opts, const char *name);
 
 static int	usermount = 0;
@@ -185,7 +184,7 @@ vfs_freeopt(struct vfsoptlist *opts, struct vfsopt *opt)
 }
 
 /* Release all resources related to the mount options. */
-static void
+void
 vfs_freeopts(struct vfsoptlist *opts)
 {
 	struct vfsopt *opt;
@@ -504,7 +503,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 /*
  * Destroy the mount struct previously allocated by vfs_mount_alloc().
  */
-static void
+void
 vfs_mount_destroy(struct mount *mp)
 {
 	int i;
