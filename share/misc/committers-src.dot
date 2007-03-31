@@ -73,6 +73,7 @@ joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
+marks [label="Mark Santcroos\nmarks@FreeBSD.org\n2004/03/18"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
 mjacob [label="Matt Jacob\nmjacob@FreeBSD.org\n1997/08/13"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
@@ -96,6 +97,7 @@ rwatson [label="Robert N. M. Watson\nrwatson@FreeBSD.org\n1999/12/16"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
 sanpei [label="MIHIRA Sanpei Yoshiro\nsanpei@FreeBSD.org\n2000/06/19"]
 schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n2001/04/06"]
+sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 shiba [label="Takeshi Shibagaki\nshiba@FreeBSD.org\n2000/06/19"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 syrinx [label="Shteryana Shopova\nsyrinx@FreeBSD.org\n2006/10/07"]
@@ -200,6 +202,7 @@ joerg -> le
 joerg -> netchild
 
 gibbs -> mjacob
+gibbs -> njl
 
 grog -> le
 
@@ -213,7 +216,9 @@ murray -> delphij
 
 netchild -> ariff
 
+njl -> marks
 njl -> philip
+njl -> sepotvin
 
 obrien -> benno
 obrien -> groudier
