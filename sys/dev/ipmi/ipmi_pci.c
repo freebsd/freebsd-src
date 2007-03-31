@@ -220,12 +220,9 @@ ipmi2_pci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/*
-	 * Bottom bit of bar indicates resouce type.  There should be
-	 * constants in pcireg.h for fields in a BAR.
-	 */
+	/* Check the BAR to determine our resource type. */
 	sc->ipmi_io_rid = PCIR_BAR(0);
-	if (pci_read_config(dev, PCIR_BAR(0), 4) & 0x1)
+	if (PCI_BAR_IO(pci_read_config(dev, PCIR_BAR(0), 4)))
 		type = SYS_RES_IOPORT;
 	else
 		type = SYS_RES_MEMORY;
