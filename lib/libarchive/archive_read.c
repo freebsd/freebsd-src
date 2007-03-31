@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 static int	choose_decompressor(struct archive_read *, const void*, size_t);
 static int	choose_format(struct archive_read *);
+static off_t	dummy_skip(struct archive_read *, off_t);
 
 /*
  * Allocate, initialize and return a struct archive object.
@@ -191,6 +192,13 @@ archive_read_open2(struct archive *_a, void *client_data,
 	if (e == ARCHIVE_OK)
 		a->archive.state = ARCHIVE_STATE_HEADER;
 
+	/*
+	 * If the decompressor didn't register a skip function, provide a
+	 * dummy compression-layer skip function.
+	 */
+	if (a->compression_skip == NULL)
+		a->compression_skip = dummy_skip;
+
 	return (e);
 }
 
@@ -241,6 +249,38 @@ choose_decompressor(struct archive_read *a,
 	}
 
 	return (best_bid_slot);
+}
+
+/*
+ * Dummy skip function, for use if the compression layer doesn't provide
+ * one: This code just reads data and discards it.
+ */
+static off_t
+dummy_skip(struct archive_read * a, off_t request)
+{
+	const void * dummy_buffer;
+	ssize_t bytes_read;
+	off_t bytes_skipped;
+
+	for (bytes_skipped = 0; request > 0;) {
+		bytes_read = (a->compression_read_ahead)(a, &dummy_buffer, 1);
+		if (bytes_read < 0)
+			return (bytes_read);
+		if (bytes_read == 0) {
+			/* Premature EOF. */
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Truncated input file (need to skip %jd bytes)",
+			    (intmax_t)request);
+			return (ARCHIVE_FATAL);
+		}
+		if (bytes_read > request)
+			bytes_read = request;
+		(a->compression_read_consume)(a, bytes_read);
+		request -= bytes_read;
+		bytes_skipped += bytes_read;
+	}
+
+	return (bytes_skipped);
 }
 
 /*
