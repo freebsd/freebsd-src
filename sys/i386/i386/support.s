@@ -1513,6 +1513,51 @@ ENTRY(longjmp)
 	incl	%eax
 	ret
 
+/*****************************************************************************/
+/* linux_futex support                                                       */
+/*****************************************************************************/
+
+futex_fault:
+	movl	$0,PCB_ONFAULT(%ecx)
+	movl	$-EFAULT,%eax
+	ret
+
+ENTRY(futex_xchgl)
+	movl	PCPU(CURPCB),%ecx
+	movl	$futex_fault,PCB_ONFAULT(%ecx)
+	movl	4(%esp),%eax
+	movl	8(%esp),%edx
+	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
+	ja     	futex_fault
+
+#ifdef SMP
+	lock
+#endif
+	xchgl	%eax,(%edx)
+	movl	12(%esp),%edx
+	movl	%eax,(%edx)
+	xorl	%eax,%eax
+	movl	$0,PCB_ONFAULT(%ecx)
+	ret
+
+ENTRY(futex_addl)
+	movl	PCPU(CURPCB),%ecx
+	movl	$futex_fault,PCB_ONFAULT(%ecx)
+	movl	4(%esp),%eax
+	movl	8(%esp),%edx
+	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
+	ja     	futex_fault
+
+#ifdef SMP
+	lock
+#endif
+	xaddl	%eax,(%edx)
+	movl	12(%esp),%edx
+	movl	%eax,(%edx)
+	xorl	%eax,%eax
+	movl	$0,PCB_ONFAULT(%ecx)
+	ret
+
 /*
  * Support for BB-profiling (gcc -a).  The kernbb program will extract
  * the data from the kernel.
@@ -1532,49 +1577,3 @@ NON_GPROF_ENTRY(__bb_init_func)
 	movl	%edx,16(%eax)
 	movl	%eax,bbhead
 	NON_GPROF_RET
-
-/* necessary for linux_futex support */
-	.text
-
-futex_fault:
-	movl	$0,PCB_ONFAULT(%ecx)
-	movl	$-EFAULT,%eax
-	ret
-
-/* int futex_xchgl(int oparg, caddr_t uaddr, int *oldval); */
-ENTRY(futex_xchgl)
-	movl	PCPU(CURPCB),%ecx
-	movl	$futex_fault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%eax
-	movl	8(%esp),%edx
-	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
-	ja     	futex_fault
-
-#ifdef SMP
-	lock
-#endif
-	xchgl	%eax,(%edx)
-	movl	12(%esp),%edx
-	movl	%eax,(%edx)
-	xorl	%eax,%eax
-	movl	$0,PCB_ONFAULT(%ecx)
-	ret
-
-/* int futex_addl(int oparg, caddr_t uaddr, int *oldval); */
-ENTRY(futex_addl)
-	movl	PCPU(CURPCB),%ecx
-	movl	$futex_fault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%eax
-	movl	8(%esp),%edx
-	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
-	ja     	futex_fault
-
-#ifdef SMP
-	lock
-#endif
-	xaddl	%eax,(%edx)
-	movl	12(%esp),%edx
-	movl	%eax,(%edx)
-	xorl	%eax,%eax
-	movl	$0,PCB_ONFAULT(%ecx)
-	ret
