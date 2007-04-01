@@ -135,7 +135,7 @@ struct vfsopt;
  * put on a doubly linked list.
  *
  * Lock reference:
- * 	m - mountlist_mtx
+ *	m - mountlist_mtx
  *	i - interlock
  *	l - mnt_lock
  *
@@ -158,7 +158,7 @@ struct mount {
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	u_int		mnt_flag;		/* (i) flags shared with user */
-	u_int		mnt_noasync;		/* (i) # noasync overrides */ 
+	u_int		mnt_noasync;		/* (i) # noasync overrides */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
@@ -189,7 +189,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 		(vp) != NULL; vp = __mnt_vnode_next(&(mvp), (mp)))
 
 #define MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp)			\
-	__mnt_vnode_markerfree(&(mvp), (mp)) 
+	__mnt_vnode_markerfree(&(mvp), (mp))
 
 #define MNT_VNODE_FOREACH_ABORT(mp, mvp)				\
         do {								\
@@ -426,19 +426,19 @@ struct ovfsconf {
 #define	VFCF_READONLY	0x00040000	/* writes are not implemented */
 #define	VFCF_SYNTHETIC	0x00080000	/* data does not represent real files */
 #define	VFCF_LOOPBACK	0x00100000	/* aliases some other mounted FS */
-#define	VFCF_UNICODE	0x00200000	/* stores file names as Unicode*/
+#define	VFCF_UNICODE	0x00200000	/* stores file names as Unicode */
 
 typedef uint32_t fsctlop_t;
 
 struct vfsidctl {
 	int		vc_vers;	/* should be VFSIDCTL_VERS1 (below) */
-	fsid_t		vc_fsid;	/* fsid to operate on. */
+	fsid_t		vc_fsid;	/* fsid to operate on */
 	char		vc_fstypename[MFSNAMELEN];
 					/* type of fs 'nfs' or '*' */
 	fsctlop_t	vc_op;		/* operation VFS_CTL_* (below) */
-	void		*vc_ptr;	/* pointer to data structure. */
-	size_t		vc_len;		/* sizeof said structure. */
-	u_int32_t	vc_spare[12];	/* spare (must be zero). */
+	void		*vc_ptr;	/* pointer to data structure */
+	size_t		vc_len;		/* sizeof said structure */
+	u_int32_t	vc_spare[12];	/* spare (must be zero) */
 };
 
 /* vfsidctl API version. */
@@ -596,7 +596,7 @@ extern int mpsafe_vfs;
 	_locked;							\
 })
 #define	VFS_UNLOCK_GIANT(locked)	if ((locked)) mtx_unlock(&Giant);
-#define	VFS_ASSERT_GIANT(MP) do 					\
+#define	VFS_ASSERT_GIANT(MP) do						\
 {									\
 	struct mount *_mp;						\
 	_mp = (MP);							\
