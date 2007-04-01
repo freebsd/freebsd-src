@@ -1440,7 +1440,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 	}
 
-	if (prot & VM_PROT_WRITE)
+	if ((prot & (VM_PROT_WRITE|VM_PROT_EXECUTE)) ==
+	    (VM_PROT_WRITE|VM_PROT_EXECUTE))
 		return;
 
 	if ((sva & PAGE_MASK) || (eva & PAGE_MASK))
