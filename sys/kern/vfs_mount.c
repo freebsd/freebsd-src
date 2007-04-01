@@ -482,9 +482,6 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	mp->mnt_vfc = vfsp;
 	vfsp->vfc_refcount++;	/* XXX Unlocked */
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
-	MNT_ILOCK(mp);
-	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
-	MNT_IUNLOCK(mp);
 	mp->mnt_gen++;
 	strlcpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
 	mp->mnt_vnodecovered = vp;
