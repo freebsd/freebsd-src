@@ -378,8 +378,10 @@ ahbattach(device_t dev)
 		goto error_exit;
 
 	/* Enable our interrupt */
-	bus_setup_intr(dev, irq, INTR_TYPE_CAM|INTR_ENTROPY, NULL, ahbintr, 
-	    ahb, &ih);
+	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM|INTR_ENTROPY, NULL, ahbintr, 
+	    ahb, &ih) != 0)
+		goto error_exit;
+
 	return (0);
 
 error_exit:
