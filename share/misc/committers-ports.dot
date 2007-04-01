@@ -60,6 +60,7 @@ krion [label="Kirill Ponomarew\nkrion@FreeBSD.org\n2003/07/20"]
 kwm [label="Koop Mast\nkwm@FreeBSD.org\n2004/09/14"]
 koitsu [label="Jeremy Chadwick\nkoitsu@FreeBSD.org\n2006/11/10"]
 laszlof [label="Frank Laszlo\nlaszlof@FreeBSD.org\n2006/11/07"]
+lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
 lbr [label="Lars Balker Rasmussen\lbr@FreeBSD.org\n2006/04/30"]
 lth [label="Lars Thegler\nlth@FreeBSD.org\n2004/05/04"]
 maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
@@ -98,6 +99,7 @@ ahze -> shaun
 ahze -> tmclaugh
 
 clement -> tdb
+clement -> lawrance
 
 delphij -> rafan
 
