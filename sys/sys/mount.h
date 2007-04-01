@@ -424,7 +424,7 @@ struct ovfsconf {
 #define	VFCF_STATIC	0x00010000	/* statically compiled into kernel */
 #define	VFCF_NETWORK	0x00020000	/* may get data over the network */
 #define	VFCF_READONLY	0x00040000	/* writes are not implemented */
-#define VFCF_SYNTHETIC	0x00080000	/* data does not represent real files */
+#define	VFCF_SYNTHETIC	0x00080000	/* data does not represent real files */
 #define	VFCF_LOOPBACK	0x00100000	/* aliases some other mounted FS */
 #define	VFCF_UNICODE	0x00200000	/* stores file names as Unicode*/
 
