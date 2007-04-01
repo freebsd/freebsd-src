@@ -1,5 +1,4 @@
 /*-
- *
  * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
@@ -40,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/isp/isp_ioctl.h>
 #if	__FreeBSD_version >= 500000
 #include <sys/sysctl.h>
+#else
+#include <sys/devicestat.h>
 #endif
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>

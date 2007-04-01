@@ -1,27 +1,28 @@
 /*-
- * Copyright (c) 1997-2006 by Matthew Jacob
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ *  Copyright (c) 1997-2007 by Matthew Jacob
+ *  All rights reserved.
+ * 
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ * 
+ *  1. Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *  2. Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ * 
+ *  THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ *  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ *  ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ *  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ *  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ *  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ *  SUCH DAMAGE.
  */
 
 /*
@@ -39,6 +40,8 @@
  * Include header file appropriate for platform we're building on.
  */
 #ifdef	__NetBSD__
+#include <sys/cdefs.h>
+__KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/ic/isp_netbsd.h>
 #endif
 #ifdef	__FreeBSD__
@@ -137,6 +140,7 @@ static void isp_mboxcmd(ispsoftc_t *, mbreg_t *);
 static void isp_update(ispsoftc_t *);
 static void isp_update_bus(ispsoftc_t *, int);
 static void isp_setdfltparm(ispsoftc_t *, int);
+static void isp_setdfltfcparm(ispsoftc_t *);
 static int isp_read_nvram(ispsoftc_t *);
 static int isp_read_nvram_2400(ispsoftc_t *);
 static void isp_rdnvram_word(ispsoftc_t *, int, uint16_t *);
@@ -773,7 +777,7 @@ isp_reset(ispsoftc_t *isp)
 	}
 
 	if (dodnld && IS_24XX(isp)) {
-		uint32_t *ptr = isp->isp_mdvec->dv_ispfw;
+		const uint32_t *ptr = isp->isp_mdvec->dv_ispfw;
 
 		/*
 		 * NB: Whatever you do do, do *not* issue the VERIFY FIRMWARE
@@ -841,7 +845,7 @@ isp_reset(ispsoftc_t *isp)
 		} 
 		isp->isp_loaded_fw = 1;
 	} else if (dodnld && IS_23XX(isp)) {
-		uint16_t *ptr = isp->isp_mdvec->dv_ispfw;
+		const uint16_t *ptr = isp->isp_mdvec->dv_ispfw;
 		uint16_t wi, wl, segno;
 		uint32_t la;
 
@@ -931,15 +935,18 @@ isp_reset(ispsoftc_t *isp)
 		}
 		isp->isp_loaded_fw = 1;
 	} else if (dodnld) {
-		uint16_t *ptr = isp->isp_mdvec->dv_ispfw;
-
-		isp->isp_mbxworkp = &ptr[1];
-		isp->isp_mbxwrk0 = ptr[3] - 1;
+		union {
+			const uint16_t *cp;
+			uint16_t *np;
+		} u;
+		u.cp = isp->isp_mdvec->dv_ispfw;
+		isp->isp_mbxworkp = &u.np[1];
+		isp->isp_mbxwrk0 = u.np[3] - 1;
 		isp->isp_mbxwrk1 = code_org + 1;
 		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_WRITE_RAM_WORD;
 		mbs.param[1] = code_org;
-		mbs.param[2] = ptr[0];
+		mbs.param[2] = u.np[0];
 		mbs.logval = MBLOGNONE;
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -1173,9 +1180,13 @@ isp_reset(ispsoftc_t *isp)
 	/*
 	 * Must do this first to get defaults established.
 	 */
-	isp_setdfltparm(isp, 0);
-	if (IS_DUALBUS(isp)) {
-		isp_setdfltparm(isp, 1);
+	if (IS_SCSI(isp)) {
+		isp_setdfltparm(isp, 0);
+		if (IS_DUALBUS(isp)) {
+			isp_setdfltparm(isp, 1);
+		}
+	} else {
+		isp_setdfltfcparm(isp);
 	}
 
 }
@@ -1997,10 +2008,14 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 			    icbp->icb_atioqlen);
 			return;
 		}
-		icbp->icb_atioqaddr[RQRSP_ADDR0015] = DMA_WD0(isp->isp_atioq_dma);
-		icbp->icb_atioqaddr[RQRSP_ADDR1631] = DMA_WD1(isp->isp_atioq_dma);
-		icbp->icb_atioqaddr[RQRSP_ADDR3247] = DMA_WD2(isp->isp_atioq_dma);
-		icbp->icb_atioqaddr[RQRSP_ADDR4863] = DMA_WD3(isp->isp_atioq_dma);
+		icbp->icb_atioqaddr[RQRSP_ADDR0015] =
+		    DMA_WD0(isp->isp_atioq_dma);
+		icbp->icb_atioqaddr[RQRSP_ADDR1631] =
+		    DMA_WD1(isp->isp_atioq_dma);
+		icbp->icb_atioqaddr[RQRSP_ADDR3247] =
+		    DMA_WD2(isp->isp_atioq_dma);
+		icbp->icb_atioqaddr[RQRSP_ADDR4863] =
+		    DMA_WD3(isp->isp_atioq_dma);
 		isp_prt(isp, ISP_LOGDEBUG0,
 		    "isp_fibre_init_2400: atioq %04x%04x%04x%04x",
 		    DMA_WD3(isp->isp_atioq_dma), DMA_WD2(isp->isp_atioq_dma),
@@ -3396,7 +3411,7 @@ isp_scan_fabric(ispsoftc_t *isp)
 		fcportdb_t *lp;
 		isp_pdb_t pdb;
 		uint64_t wwnn, wwpn;
-		int dbidx, r, nr;
+		int dbidx, nr;
 
 		portid =
 		    ((rs1->snscb_ports[portidx].portid[0]) << 16) |
@@ -3988,8 +4003,7 @@ int
 isp_start(XS_T *xs)
 {
 	ispsoftc_t *isp;
-	uint32_t nxti, optr, handle, isr;
-	uint16_t sema, mbox;
+	uint32_t nxti, optr, handle;
 	uint8_t local[QENTRY_LEN];
 	ispreq_t *reqp, *qep;
 	void *cdbp;
@@ -4054,7 +4068,7 @@ isp_start(XS_T *xs)
 		}
 
 		hdlidx = fcp->isp_ini_map[XS_TGT(xs)] - 1;
-		isp_prt(isp, ISP_LOGDEBUG1, "XS_TGT(xs)=%d- handle value %d",
+		isp_prt(isp, ISP_LOGDEBUG1, "XS_TGT(xs)=%d- hdlidx value %d",
 		    XS_TGT(xs), hdlidx);
 		if (hdlidx < 0 || hdlidx >= MAX_FC_TARG) {
 			XS_SETERR(xs, HBA_SELTIMEOUT);
@@ -4254,11 +4268,6 @@ isp_start(XS_T *xs)
 	    (long) XS_XFRLEN(xs));
 	ISP_ADD_REQUEST(isp, nxti);
 	isp->isp_nactive++;
-	if (IS_23XX(isp) || IS_24XX(isp)) {
-		if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
-			isp_intr(isp, isr, sema, mbox);
-		}
-	}
 	return (CMD_QUEUED);
 }
 
@@ -4287,7 +4296,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 		 * Issue a bus reset.
 		 */
 		if (IS_24XX(isp)) {
-			isp_prt(isp, ISP_LOGWARN, "RESET BUS NOT IMPLETENTED");
+			isp_prt(isp, ISP_LOGWARN, "RESET BUS NOT IMPLEMENTED");
 			break;
 		} else if (IS_FC(isp)) {
 			mbs.param[1] = 10;
@@ -4316,7 +4325,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 	case ISPCTL_RESET_DEV:
 		tgt = (*((int *) arg)) & 0xffff;
 		if (IS_24XX(isp)) {
-			isp_prt(isp, ISP_LOGWARN, "RESET DEV NOT IMPLETENTED");
+			isp_prt(isp, ISP_LOGWARN, "RESET DEV NOT IMPLEMENTED");
 			break;
 		} else if (IS_FC(isp)) {
 			if (FCPARAM(isp)->isp_2klogin) {
@@ -4353,7 +4362,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 			break;
 		}
 		if (IS_24XX(isp)) {
-			isp_prt(isp, ISP_LOGWARN, "ABORT CMD NOT IMPLETENTED");
+			isp_prt(isp, ISP_LOGWARN, "ABORT CMD NOT IMPLEMENTED");
 			break;
 		} else if (IS_FC(isp)) {
 			if (FCPARAM(isp)->isp_sccfw) {
@@ -4534,8 +4543,8 @@ again:
 		if (mbox & 0x4000) {
 			isp->isp_intmboxc++;
 			if (isp->isp_mboxbsy) {
-				int i = 0, obits = isp->isp_obits;
-				isp->isp_mboxtmp[i++] = mbox;
+				int obits = isp->isp_obits;
+				isp->isp_mboxtmp[0] = mbox;
 				for (i = 1; i < MAX_MAILBOX(isp); i++) {
 					if ((obits & (1 << i)) == 0) {
 						continue;
@@ -4614,6 +4623,7 @@ again:
 			ISP_WRITE(isp, isp->isp_atiooutrp, optr);
 		}
 		isp->isp_rspbsy = 0;
+		optr = isp->isp_residx;
 	}
 #endif
 
@@ -4800,7 +4810,7 @@ again:
 				isp_prt(isp, ISP_LOGERR, notresp,
 				    etype, oop, optr, nlooked);
 				isp_print_bytes(isp,
-				    "Reqeonse Queue Entry", QENTRY_LEN, sp);
+				    "Request Queue Entry", QENTRY_LEN, sp);
 				MEMZERO(hp, QENTRY_LEN);	/* PERF */
 				continue;
 			}
@@ -5836,7 +5846,7 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, long *rp)
 		 */
 	case RQCS_PORT_LOGGED_OUT:
 	{
-		char *reason;
+		const char *reason;
 		uint8_t sts = sp->req_completion_status & 0xff;
 
 		/*
@@ -5986,7 +5996,7 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp,
 		 */
 	case RQCS_PORT_LOGGED_OUT:
 	{
-		char *reason;
+		const char *reason;
 		uint8_t sts = sp->req_completion_status & 0xff;
 
 		/*
@@ -6267,7 +6277,7 @@ static const uint32_t mbpscsi[] = {
 	ISPOPMAP(0x01, 0x01)	/* 0x5d: GET NOST DATA */
 };
 
-static char *scsi_mbcmd_names[] = {
+static const char *scsi_mbcmd_names[] = {
 	"NO-OP",
 	"LOAD RAM",
 	"EXEC FIRMWARE",
@@ -6502,7 +6512,7 @@ static const uint32_t mbpfc[] = {
  *	is that we won't overflow.
  */
 
-static char *fc_mbcmd_names[] = {
+static const char *fc_mbcmd_names[] = {
 	"NO-OP",
 	"LOAD RAM",
 	"EXEC FIRMWARE",
@@ -6679,7 +6689,8 @@ isp_mboxcmd_qnw(ispsoftc_t *isp, mbreg_t *mbp, int nodelay)
 static void
 isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 {
-	char *cname, *xname, tname[16], mname[16];
+	const char *cname, *xname;
+	char tname[16], mname[16];
 	unsigned int lim, ibits, obits, box, opcode;
 	const uint32_t *mcp;
 
@@ -6997,9 +7008,6 @@ isp_update_bus(ispsoftc_t *isp, int bus)
 	}
 }
 
-#ifndef	DEFAULT_FRAMESIZE
-#define	DEFAULT_FRAMESIZE(isp)		ICB_DFLT_FRMLEN
-#endif
 #ifndef	DEFAULT_EXEC_THROTTLE
 #define	DEFAULT_EXEC_THROTTLE(isp)	ISP_EXEC_THROTTLE
 #endif
@@ -7009,97 +7017,6 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 {
 	int tgt;
 	sdparam *sdp;
-
-	if (IS_FC(isp)) {
-		fcparam *fcp = (fcparam *) isp->isp_param;
-		int nvfail;
-
-		fcp += channel;
-		if (fcp->isp_gotdparms) {
-			return;
-		}
-		fcp->isp_gotdparms = 1;
-		fcp->isp_maxfrmlen = DEFAULT_FRAMESIZE(isp);
-		fcp->isp_maxalloc = ICB_DFLT_ALLOC;
-		fcp->isp_execthrottle = DEFAULT_EXEC_THROTTLE(isp);
-		fcp->isp_retry_delay = ICB_DFLT_RDELAY;
-		fcp->isp_retry_count = ICB_DFLT_RCOUNT;
-		/* Platform specific.... */
-		fcp->isp_loopid = DEFAULT_LOOPID(isp);
-		fcp->isp_wwnn_nvram = DEFAULT_NODEWWN(isp);
-		fcp->isp_wwpn_nvram = DEFAULT_PORTWWN(isp);
-		fcp->isp_fwoptions = 0;
-		fcp->isp_fwoptions |= ICBOPT_FAIRNESS;
-		fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
-		fcp->isp_fwoptions |= ICBOPT_HARD_ADDRESS;
-		fcp->isp_fwoptions |= ICBOPT_FAST_POST;
-		if (isp->isp_confopts & ISP_CFG_FULL_DUPLEX) {
-			fcp->isp_fwoptions |= ICBOPT_FULL_DUPLEX;
-		}
-
-		/*
-		 * Make sure this is turned off now until we get
-		 * extended options from NVRAM
-		 */
-		fcp->isp_fwoptions &= ~ICBOPT_EXTENDED;
-
-		/*
-		 * Now try and read NVRAM unless told to not do so.
-		 * This will set fcparam's isp_wwnn_nvram && isp_wwpn_nvram.
-		 */
-		if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0) {
-		    	nvfail = isp_read_nvram(isp);
-			if (nvfail) {
-				isp->isp_confopts |= ISP_CFG_NONVRAM;
-			}
-		} else {
-			nvfail = 1;
-		}
-		/*
-		 * Set node && port to override platform set defaults
-		 * unless the nvram read failed (or none was done),
-		 * or the platform code wants to use what had been
-		 * set in the defaults.
-		 */
-		if (nvfail) {
-			isp->isp_confopts |= ISP_CFG_OWNWWPN|ISP_CFG_OWNWWNN;
-		}
-		if (isp->isp_confopts & ISP_CFG_OWNWWNN) {
-			isp_prt(isp, ISP_LOGCONFIG, "Using Node WWN 0x%08x%08x",
-			    (uint32_t) (DEFAULT_NODEWWN(isp) >> 32),
-			    (uint32_t) (DEFAULT_NODEWWN(isp) & 0xffffffff));
-			ISP_NODEWWN(isp) = DEFAULT_NODEWWN(isp);
-		} else {
-			/*
-			 * We always start out with values derived
-			 * from NVRAM or our platform default.
-			 */
-			ISP_NODEWWN(isp) = fcp->isp_wwnn_nvram;
-			if (fcp->isp_wwnn_nvram == 0) {
-				isp_prt(isp, ISP_LOGCONFIG,
-				    "bad WWNN- using default");
-				ISP_NODEWWN(isp) = DEFAULT_NODEWWN(isp);
-			}
-		}
-		if (isp->isp_confopts & ISP_CFG_OWNWWPN) {
-			isp_prt(isp, ISP_LOGCONFIG, "Using Port WWN 0x%08x%08x",
-			    (uint32_t) (DEFAULT_PORTWWN(isp) >> 32),
-			    (uint32_t) (DEFAULT_PORTWWN(isp) & 0xffffffff));
-			ISP_PORTWWN(isp) = DEFAULT_PORTWWN(isp);
-		} else {
-			/*
-			 * We always start out with values derived
-			 * from NVRAM or our platform default.
-			 */
-			ISP_PORTWWN(isp) = fcp->isp_wwpn_nvram;
-			if (fcp->isp_wwpn_nvram == 0) {
-				isp_prt(isp, ISP_LOGCONFIG,
-				    "bad WWPN- using default");
-				ISP_PORTWWN(isp) = DEFAULT_PORTWWN(isp);
-			}
-		}
-		return;
-	}
 
 	sdp = (sdparam *) isp->isp_param;
 	sdp += channel;
@@ -7111,7 +7028,7 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 		return;
 	}
 	sdp->isp_gotdparms = 1;
-
+	sdp->isp_bad_nvram = 0;
 	/*
 	 * Establish some default parameters.
 	 */
@@ -7151,6 +7068,7 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 		if (isp_read_nvram(isp) == 0) {
 			return;
 		}
+		sdp->isp_bad_nvram = 1;
 	}
 
 	/*
@@ -7232,6 +7150,110 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 		    channel, tgt, sdp->isp_devparam[tgt].nvrm_flags,
 		    sdp->isp_devparam[tgt].nvrm_offset,
 		    sdp->isp_devparam[tgt].nvrm_period);
+	}
+}
+
+#ifndef	DEFAULT_FRAMESIZE
+#define	DEFAULT_FRAMESIZE(isp)		ICB_DFLT_FRMLEN
+#endif
+static void
+isp_setdfltfcparm(ispsoftc_t *isp)
+{
+	fcparam *fcp = FCPARAM(isp);
+
+	if (fcp->isp_gotdparms) {
+		return;
+	}
+	fcp->isp_gotdparms = 1;
+	fcp->isp_bad_nvram = 0;
+	fcp->isp_maxfrmlen = DEFAULT_FRAMESIZE(isp);
+	fcp->isp_maxalloc = ICB_DFLT_ALLOC;
+	fcp->isp_execthrottle = DEFAULT_EXEC_THROTTLE(isp);
+	fcp->isp_retry_delay = ICB_DFLT_RDELAY;
+	fcp->isp_retry_count = ICB_DFLT_RCOUNT;
+	/* Platform specific.... */
+	fcp->isp_loopid = DEFAULT_LOOPID(isp);
+	fcp->isp_wwnn_nvram = DEFAULT_NODEWWN(isp);
+	fcp->isp_wwpn_nvram = DEFAULT_PORTWWN(isp);
+	fcp->isp_fwoptions = 0;
+	fcp->isp_fwoptions |= ICBOPT_FAIRNESS;
+	fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
+	fcp->isp_fwoptions |= ICBOPT_HARD_ADDRESS;
+	fcp->isp_fwoptions |= ICBOPT_FAST_POST;
+	if (isp->isp_confopts & ISP_CFG_FULL_DUPLEX) {
+		fcp->isp_fwoptions |= ICBOPT_FULL_DUPLEX;
+	}
+
+	/*
+	 * Make sure this is turned off now until we get
+	 * extended options from NVRAM
+	 */
+	fcp->isp_fwoptions &= ~ICBOPT_EXTENDED;
+
+	/*
+	 * Now try and read NVRAM unless told to not do so.
+	 * This will set fcparam's isp_wwnn_nvram && isp_wwpn_nvram.
+	 */
+	if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0) {
+		int i, j = 0;
+		/*
+		 * Give a couple of tries at reading NVRAM.
+		 */
+		for (i = 0; i < 2; i++) {
+			j = isp_read_nvram(isp);
+			if (j == 0) {
+				break;
+			}
+		}
+		if (j) {
+			fcp->isp_bad_nvram = 1;
+			isp->isp_confopts |= ISP_CFG_NONVRAM;
+			isp->isp_confopts |= ISP_CFG_OWNWWPN;
+			isp->isp_confopts |= ISP_CFG_OWNWWNN;
+		}
+	} else {
+		isp->isp_confopts |= ISP_CFG_OWNWWPN|ISP_CFG_OWNWWNN;
+	}
+
+	/*
+	 * Set node && port to override platform set defaults
+	 * unless the nvram read failed (or none was done),
+	 * or the platform code wants to use what had been
+	 * set in the defaults.
+	 */
+	if (isp->isp_confopts & ISP_CFG_OWNWWNN) {
+		isp_prt(isp, ISP_LOGCONFIG, "Using Node WWN 0x%08x%08x",
+		    (uint32_t) (DEFAULT_NODEWWN(isp) >> 32),
+		    (uint32_t) (DEFAULT_NODEWWN(isp) & 0xffffffff));
+		ISP_NODEWWN(isp) = DEFAULT_NODEWWN(isp);
+	} else {
+		/*
+		 * We always start out with values derived
+		 * from NVRAM or our platform default.
+		 */
+		ISP_NODEWWN(isp) = fcp->isp_wwnn_nvram;
+		if (fcp->isp_wwnn_nvram == 0) {
+			isp_prt(isp, ISP_LOGCONFIG,
+			    "bad WWNN- using default");
+			ISP_NODEWWN(isp) = DEFAULT_NODEWWN(isp);
+		}
+	}
+	if (isp->isp_confopts & ISP_CFG_OWNWWPN) {
+		isp_prt(isp, ISP_LOGCONFIG, "Using Port WWN 0x%08x%08x",
+		    (uint32_t) (DEFAULT_PORTWWN(isp) >> 32),
+		    (uint32_t) (DEFAULT_PORTWWN(isp) & 0xffffffff));
+		ISP_PORTWWN(isp) = DEFAULT_PORTWWN(isp);
+	} else {
+		/*
+		 * We always start out with values derived
+		 * from NVRAM or our platform default.
+		 */
+		ISP_PORTWWN(isp) = fcp->isp_wwpn_nvram;
+		if (fcp->isp_wwpn_nvram == 0) {
+			isp_prt(isp, ISP_LOGCONFIG,
+			    "bad WWPN- using default");
+			ISP_PORTWWN(isp) = DEFAULT_PORTWWN(isp);
+		}
 	}
 }
 
@@ -7499,7 +7521,7 @@ isp_rd_2400_nvram(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
 {
 	int loops = 0;
 	const uint32_t base = 0x7ffe0000;
-	uint32_t tmp;
+	uint32_t tmp = 0;
 
 	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
 	for (loops = 0; loops < 5000; loops++) {
