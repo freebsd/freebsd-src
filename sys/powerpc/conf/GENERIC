@@ -98,9 +98,10 @@ device		uart
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
+device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		gem		# Sun GEM/Sun ERI/Apple GMAC
-device 		dc		# DEC/Intel 21143 and various workalikes
-device 		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		dc		# DEC/Intel 21143 and various workalikes
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 
 # Pseudo devices.
 device		loop		# Network loopback
