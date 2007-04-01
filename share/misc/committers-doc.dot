@@ -38,6 +38,8 @@ den [label="Denis Peplin\nden@FreeBSD.org\n2003/09/13"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
 garys [label="Gary W. Swearingen\ngarys@FreeBSD.org\n2005/08/21"]
+jcamou [label="Jesus R. Camou\njcamou@FreeBSD.org\n2005/03/02"]
+jesusr [label="Jesus Rodriguez Cuesta\njesusr@FreeBSD.org\n1998/12/10"]
 jim [label="Jim Mock\njim@FreeBSD.org\n1999/08/11\n2003/12/15"]
 joel [label="Joel Dahl\njoel@FreeBSD.org\n2005/04/05"]
 josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/01/15"]
@@ -70,6 +72,8 @@ den -> marck
 
 delphij -> chinsan
 
+jesusr -> jcamou
+
 jim -> trhodes
 
 keramida -> blackend
@@ -90,5 +94,5 @@ simon -> josef
 simon -> remko
 
 trhodes -> danger
-
+trhodes -> jcamou
 }

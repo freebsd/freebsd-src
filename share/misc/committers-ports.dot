@@ -84,6 +84,7 @@ sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
 shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2005/01/08"]
 tdb [label="Tim Bishop\ntdb@FreeBSD.org\n2005/11/30"]
+trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
 tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
@@ -110,6 +111,8 @@ demon -> mat
 edwin -> erwin
 
 ehaupt -> db
+
+eik -> trhodes
 
 erwin -> clement
 erwin -> gabor
