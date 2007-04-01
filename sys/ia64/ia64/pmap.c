@@ -693,19 +693,6 @@ pmap_free_rid(uint32_t rid)
 	mtx_unlock(&pmap_ridmutex);
 }
 
-/*
- * this routine defines the region(s) of memory that should
- * not be tested for the modified bit.
- */
-static PMAP_INLINE int
-pmap_track_modified(vm_offset_t va)
-{
-	if ((va < kmi.clean_sva) || (va >= kmi.clean_eva)) 
-		return 1;
-	else
-		return 0;
-}
-
 /***************************************************
  * Page table page management routines.....
  ***************************************************/
@@ -1150,8 +1137,7 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 	if (pmap_managed(pte)) {
 		m = PHYS_TO_VM_PAGE(pmap_ppn(pte));
 		if (pmap_dirty(pte))
-			if (pmap_track_modified(va))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 		if (pmap_accessed(pte))
 			vm_page_flag_set(m, PG_REFERENCED);
 
@@ -1381,7 +1367,6 @@ pmap_remove_all(vm_page_t m)
 {
 	pmap_t oldpmap;
 	pv_entry_t pv;
-	int s;
 
 #if defined(DIAGNOSTIC)
 	/*
@@ -1392,9 +1377,7 @@ pmap_remove_all(vm_page_t m)
 		panic("pmap_page_protect: illegal for unmanaged page, va: 0x%lx", VM_PAGE_TO_PHYS(m));
 	}
 #endif
-
-	s = splvm();
-
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		struct ia64_lpte *pte;
 		pmap_t pmap = pv->pv_pmap;
@@ -1410,11 +1393,7 @@ pmap_remove_all(vm_page_t m)
 		pmap_install(oldpmap);
 		PMAP_UNLOCK(pmap);
 	}
-
 	vm_page_flag_clear(m, PG_WRITEABLE);
-
-	splx(s);
-	return;
 }
 
 /*
@@ -1456,8 +1435,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				vm_offset_t pa = pmap_ppn(pte);
 				vm_page_t m = PHYS_TO_VM_PAGE(pa);
 				if (pmap_dirty(pte)) {
-					if (pmap_track_modified(sva))
-						vm_page_dirty(m);
+					vm_page_dirty(m);
 					pmap_clear_dirty(pte);
 				}
 				if (pmap_accessed(pte)) {
@@ -1551,8 +1529,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * We might be turning off write access to the page,
 		 * so we go ahead and sense modify status.
 		 */
-		if (managed && pmap_dirty(&origpte) &&
-		    pmap_track_modified(va))
+		if (managed && pmap_dirty(&origpte))
 			vm_page_dirty(m);
 
 		pmap_invalidate_page(pmap, va);
@@ -1572,6 +1549,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
+		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
+		    ("pmap_enter: managed mapping within the clean submap"));
 		pmap_insert_entry(pmap, va, m);
 		managed = TRUE;
 	}
@@ -1614,6 +1593,9 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pmap_t oldpmap;
 	boolean_t managed;
 
+	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
+	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0,
+	    ("pmap_enter_quick: managed mapping within the clean submap"));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	PMAP_LOCK(pmap);
@@ -1792,26 +1774,22 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	pv_entry_t pv;
 	int loops = 0;
-	int s;
 
 	if (m->flags & PG_FICTITIOUS)
 		return FALSE;
 
-	s = splvm();
-
 	/*
 	 * Not found, check current mappings returning immediately if found.
 	 */
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
-			splx(s);
 			return TRUE;
 		}
 		loops++;
 		if (loops >= 16)
 			break;
 	}
-	splx(s);
 	return (FALSE);
 }
 
