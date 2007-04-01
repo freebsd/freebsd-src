@@ -26,11 +26,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2001
+.Dd April 1, 2007
 .Dt VHOLD 9
 .Os
 .Sh NAME
-.Nm vhold , vdrop
+.Nm vhold , vdrop , vdropl
 .Nd "acquire/release a hold on a vnode"
 .Sh SYNOPSIS
 .In sys/param.h
@@ -39,6 +39,8 @@
 .Fn vhold "struct vnode *vp"
 .Ft void
 .Fn vdrop "struct vnode *vp"
+.Ft void
+.Fn vdropl "struct vnode *vp"
 .Sh DESCRIPTION
 The
 .Fn vhold
@@ -50,13 +52,29 @@ it will be removed.
 .Pp
 The
 .Fn vdrop
-function decrements the
+and
+.Fn vdropl
+functions decrement the
 .Va v_holdcnt
 of the vnode.
 If the holdcount is less than or equal to zero prior to calling
-.Fn vdrop ,
+.Fn vdrop
+or
+.Fn vdropl ,
 the system will panic.
 If the vnode is no longer referenced, it will be freed.
+.Pp
+The difference between
+.Fn vdrop
+and
+.Fn vdropl
+is that
+.Fn vdrop
+locks the vnode interlock and then calls
+.Fn vdropl
+while
+.Fn vdropl
+expects the interlock to already be locked.
 .Sh SEE ALSO
 .Xr vbusy 9 ,
 .Xr vfree 9
