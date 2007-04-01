@@ -42,6 +42,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current src committers go here. Try to keep things sorted.
 
+ache [label="Andrey Chernov\nache@FreeBSD.org\n1993/10/31"]
 akiyama [label="Shunsuke Akiyama\nakiyama@FreeBSD.org\n2000/06/19"]
 ambrisko [label="Doug Ambrisko\nambrisko@FreeBSD.org\n2001/12/19"]
 andre [label="Andre Oppermann\nandre@FreeBSD.org\n2003/11/12"]
