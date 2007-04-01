@@ -278,7 +278,7 @@ USB_ATTACH(ubser)
 
 	/* find our bulk endpoints */
 	epcount = 0;
-	usbd_endpoint_count(sc->sc_iface, &epcount);
+	(void)usbd_endpoint_count(sc->sc_iface, &epcount);
 	sc->sc_bulkin_no = -1;
 	sc->sc_bulkout_no = -1;
 	for (i = 0; i < epcount; i++) {
