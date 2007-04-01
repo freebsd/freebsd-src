@@ -252,9 +252,13 @@ isic_probe_avma1(device_t dev)
 	sc->sc_irq = rman_get_start(sc->sc_resources.irq);
 
 	/* register interupt routine */
-	bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET,
-			NULL, (void(*)(void *))(isicintr),
-			sc, &ih);
+	if (bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET, NULL,
+			(void(*)(void *))(isicintr), sc, &ih) != 0)
+	{
+		printf("isic%d: Could not setup the irq for AVM A1/Fritz!\n",unit);
+		isic_detach_common(dev);
+		return ENXIO;
+	}
 
 	/* check IRQ validity */
 
