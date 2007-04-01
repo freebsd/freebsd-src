@@ -515,8 +515,14 @@ avm_pnp_attach(device_t dev)
 
 	/* not needed */
 	sc->sc_irq = rman_get_start(sc->sc_resources.irq);
-	bus_setup_intr(dev,sc->sc_resources.irq,INTR_TYPE_NET,
+	error = bus_setup_intr(dev,sc->sc_resources.irq,INTR_TYPE_NET,
 				NULL, (void(*)(void*))avm_pnp_intr, sc,&ih);
+	if (error != 0)
+	{
+		printf("avm_pnp%d: Could not setup irq.\n",unit);
+		error = ENXIO;
+		goto fail;
+	}
 	sc->sc_unit = unit;
 
 	/* end of new-bus stuff */
