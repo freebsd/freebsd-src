@@ -23,7 +23,7 @@ node [color=grey62, style=filled, bgcolor=black];
 adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03\n2006/05/30"]
 alm [label="???\nalm@FreeBSD.org\n1993/06/12\n????/??/??"]
 asmodai [label="Jeroen Ruigrok\nasmodai@FreeBSD.org\n1999/12/16\n2001/11/16"]
-futura [label="Atsushi Furuta\nfututa@FreeBSD.org\n2000/06/21\n????/??/??"]
+furuta [label="Atsushi Furuta\nfuruta@FreeBSD.org\n2000/06/21\n????/??/??"]
 jtc [label="???\njtc@FreeBSD.org\n1993/06/12\n????/??/??"]
 keichii [label="Michael Wu\nkeichii@FreeBSD.org\n2001/03/07\n2006/04/28"]
 mb [label="Maxim Bolotin\nmb@FreeBSD.org\n2000/04/06\n????/??/??"]
