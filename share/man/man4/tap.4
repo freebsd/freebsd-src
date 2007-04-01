@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd February 4, 2007
+.Dd March 19, 2007
 .Os
 .Dt TAP 4
 .Sh NAME
@@ -117,6 +117,13 @@ and is restricted to the super-user, unless the
 variable
 .Va net.link.tap.user_open
 is non-zero.
+If the
+.Xr sysctl 8
+variable
+.Va net.link.tap.up_on_open
+is non-zero, the tunnel device will be marked
+.Dq up
+when the control device is opened.
 A
 .Fn read
 call will return an error
