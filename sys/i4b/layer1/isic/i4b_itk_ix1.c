@@ -279,10 +279,15 @@ isic_probe_itkix1(device_t dev)
 	printf("Setting up access interupt...");
 	#endif
 
-	bus_setup_intr(dev, sc->sc_resources.irq,
-			INTR_TYPE_NET,
-			NULL, (void(*)(void *))(isicintr),
-			sc, &ih);
+	if (bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET, NULL,
+			(void(*)(void *))(isicintr), sc, &ih) != 0)
+	{
+		printf("isic%d: Could not setup irq for ITK IX1.\n", unit);
+		bus_release_resource(dev,SYS_RES_IOPORT,
+				sc->sc_resources.io_rid[0],
+				sc->sc_resources.io_base[0]);
+		return ENXIO;
+	}
 
 	#if defined(ITK_PROBE_DEBUG)
 	printf("done.\n");
