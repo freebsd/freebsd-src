@@ -89,8 +89,6 @@ struct isp_sbussoftc {
 	ispsoftc_t			sbus_isp;
 	device_t			sbus_dev;
 	struct resource *		sbus_reg;
-	bus_space_tag_t			sbus_st;
-	bus_space_handle_t		sbus_sh;
 	void *				ih;
 	int16_t				sbus_poff[_NREG_BLKS];
 	bus_dma_tag_t			dmat;
@@ -194,8 +192,6 @@ isp_sbus_attach(device_t dev)
 	}
 	sbs->sbus_dev = dev;
 	sbs->sbus_reg = regs;
-	sbs->sbus_st = rman_get_bustag(regs);
-	sbs->sbus_sh = rman_get_bushandle(regs);
 	sbs->sbus_mdvec = mdvec;
 
 	sbs->sbus_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
@@ -204,6 +200,8 @@ isp_sbus_attach(device_t dev)
 	sbs->sbus_poff[RISC_BLOCK >> _BLK_REG_SHFT] = SBUS_RISC_REGS_OFF;
 	sbs->sbus_poff[DMA_BLOCK >> _BLK_REG_SHFT] = DMA_REGS_OFF;
 	isp = &sbs->sbus_isp;
+	isp->isp_bus_tag = rman_get_bustag(regs);
+	isp->isp_bus_handle = rman_get_bushandle(regs);
 	isp->isp_mdvec = &sbs->sbus_mdvec;
 	isp->isp_bustype = ISP_BT_SBUS;
 	isp->isp_type = ISP_HA_SCSI_UNKNOWN;
@@ -404,12 +402,11 @@ isp_sbus_intr(void *arg)
 	_BLK_REG_SHFT] + ((x) & 0xff))
 
 #define	BXR2(sbc, off)		\
-	bus_space_read_2(sbc->sbus_st, sbc->sbus_sh, off)
+	bus_space_read_2(isp->isp_bus_tag, isp->isp_bus_handle, off)
 
 static int
 isp_sbus_rd_isr(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbp)
 {
-	struct isp_sbussoftc *sbc = (struct isp_sbussoftc *) isp;
 	uint16_t isr, sema;
 
 	isr = BXR2(sbc, IspVirt2Off(isp, BIU_ISR));
@@ -434,7 +431,7 @@ isp_sbus_rd_reg(ispsoftc_t *isp, int regoff)
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *) isp;
 	int offset = sbs->sbus_poff[(regoff & _BLK_REG_MASK) >> _BLK_REG_SHFT];
 	offset += (regoff & 0xff);
-	rval = bus_space_read_2(sbs->sbus_st, sbs->sbus_sh, offset);
+	rval = bus_space_read_2(isp->isp_bus_tag, isp->isp_bus_handle, offset);
 	isp_prt(isp, ISP_LOGDEBUG3,
 	    "isp_sbus_rd_reg(off %x) = %x", regoff, rval);
 	return (rval);
@@ -448,7 +445,8 @@ isp_sbus_wr_reg(ispsoftc_t *isp, int regoff, uint32_t val)
 	offset += (regoff & 0xff);
 	isp_prt(isp, ISP_LOGDEBUG3,
 	    "isp_sbus_wr_reg(off %x) = %x", regoff, val);
-	bus_space_write_2(sbs->sbus_st, sbs->sbus_sh, offset, val);
+	bus_space_write_2(isp->isp_bus_tag, isp->isp_bus_handle, offset, val);
+	MEMORYBARRIER(isp, SYNC_REG, offset, 2);
 }
 
 struct imush {
