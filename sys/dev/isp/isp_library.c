@@ -150,7 +150,7 @@ isp_print_qentry(ispsoftc_t *isp, char *msg, int idx, void *arg)
 }
 
 void
-isp_print_bytes(ispsoftc_t *isp, char *msg, int amt, void *arg)
+isp_print_bytes(ispsoftc_t *isp, const char *msg, int amt, void *arg)
 {
 	char buf[128];
 	uint8_t *ptr = arg;
