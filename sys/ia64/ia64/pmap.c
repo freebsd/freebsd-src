@@ -235,8 +235,14 @@ SYSCTL_PROC(_machdep_vhpt, OID_AUTO, population, CTLTYPE_INT | CTLFLAG_RD,
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
 
+static void	pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
+		    vm_page_t m, vm_prot_t prot);
 static pmap_t	pmap_install(pmap_t);
 static void	pmap_invalidate_all(pmap_t pmap);
+static int	pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte,
+		    vm_offset_t va, pv_entry_t pv, int freepte);
+static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
+		    vm_page_t m);
 
 vm_offset_t
 pmap_steal_memory(vm_size_t size)
@@ -807,6 +813,29 @@ get_pv_entry(void)
 		wakeup (&vm_pages_needed);
 	}
 	return uma_zalloc(pvzone, M_NOWAIT);
+}
+
+/*
+ * Conditionally create a pv entry.
+ */
+static boolean_t
+pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	pv_entry_t pv;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if (pv_entry_count < pv_entry_high_water && 
+	    (pv = uma_zalloc(pvzone, M_NOWAIT)) != NULL) {
+		pv_entry_count++;
+		pv->pv_va = va;
+		pv->pv_pmap = pmap;
+		TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		m->md.pv_list_count++;
+		return (TRUE);
+	} else
+		return (FALSE);
 }
 
 /*
@@ -1577,6 +1606,39 @@ validate:
 }
 
 /*
+ * Maps a sequence of resident pages belonging to the same object.
+ * The sequence begins with the given page m_start.  This page is
+ * mapped at the given virtual address start.  Each subsequent page is
+ * mapped at a virtual address that is offset from start by the same
+ * amount as the page is offset from m_start within the object.  The
+ * last page in the sequence is the page with the largest offset from
+ * m_start that can be mapped at a virtual address less than the given
+ * virtual address end.  Not every virtual page between start and end
+ * is mapped; only those for which a resident page exists with the
+ * corresponding offset from m_start are mapped.
+ */
+void
+pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
+    vm_page_t m_start, vm_prot_t prot)
+{
+	pmap_t oldpmap;
+	vm_page_t m;
+	vm_pindex_t diff, psize;
+
+	VM_OBJECT_LOCK_ASSERT(m_start->object, MA_OWNED);
+	psize = atop(end - start);
+	m = m_start;
+	PMAP_LOCK(pmap);
+	oldpmap = pmap_install(pmap);
+	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
+		pmap_enter_quick_locked(pmap, start + ptoa(diff), m, prot);
+		m = TAILQ_NEXT(m, listq);
+	}
+	pmap_install(oldpmap);
+ 	PMAP_UNLOCK(pmap);
+}
+
+/*
  * this code makes some *MAJOR* assumptions:
  * 1. Current pmap & pmap exists.
  * 2. Not wired.
@@ -1589,36 +1651,39 @@ vm_page_t
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     vm_page_t mpte)
 {
-	struct ia64_lpte *pte;
 	pmap_t oldpmap;
+
+	PMAP_LOCK(pmap);
+	oldpmap = pmap_install(pmap);
+	pmap_enter_quick_locked(pmap, va, m, prot);
+	pmap_install(oldpmap);
+	PMAP_UNLOCK(pmap);
+	return (NULL);
+}
+
+static void
+pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
+    vm_prot_t prot)
+{
+	struct ia64_lpte *pte;
 	boolean_t managed;
 
 	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
 	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0,
-	    ("pmap_enter_quick: managed mapping within the clean submap"));
+	    ("pmap_enter_quick_locked: managed mapping within the clean submap"));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	while ((pte = pmap_find_pte(va)) == NULL) {
-		pmap_install(oldpmap);
-		PMAP_UNLOCK(pmap);
-		vm_page_busy(m);
-		vm_page_unlock_queues();
-		VM_OBJECT_UNLOCK(m->object);
-		VM_WAIT;
-		VM_OBJECT_LOCK(m->object);
-		vm_page_lock_queues();
-		vm_page_wakeup(m);
-		PMAP_LOCK(pmap);
-		oldpmap = pmap_install(pmap);
-	}
+	if ((pte = pmap_find_pte(va)) == NULL)
+		return;
 
 	if (!pmap_present(pte)) {
-		/* Enter on the PV list if its managed. */
+		/* Enter on the PV list if the page is managed. */
 		if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
-			pmap_insert_entry(pmap, va, m);
+			if (!pmap_try_insert_pv_entry(pmap, va, m)) {
+				pmap_free_pte(pte, va);
+				return;
+			}
 			managed = TRUE;
 		} else
 			managed = FALSE;
@@ -1632,10 +1697,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		    prot & (VM_PROT_READ | VM_PROT_EXECUTE));
 		pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m), FALSE, managed);
 	}
-
-	pmap_install(oldpmap);
-	PMAP_UNLOCK(pmap);
-	return (NULL);
 }
 
 /*
