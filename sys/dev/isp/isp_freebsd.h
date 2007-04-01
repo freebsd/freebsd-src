@@ -98,7 +98,7 @@
 #endif
 
 #if __FreeBSD_version < 700000
-typedef void ispfwfunc(int, int, int, void **);
+typedef void ispfwfunc(int, int, int, const void **);
 #endif
 
 #ifdef	ISP_TARGET_MODE
@@ -140,6 +140,8 @@ typedef struct tstate {
 
 struct isposinfo {
 	struct ispsoftc *	next;
+	bus_space_tag_t		bus_tag;
+	bus_space_handle_t	bus_handle;
 	uint64_t		default_port_wwn;
 	uint64_t		default_node_wwn;
 	uint32_t		default_id;
@@ -194,6 +196,8 @@ struct isposinfo {
 };
 
 #define	isp_lock	isp_osinfo.lock
+#define	isp_bus_tag	isp_osinfo.bus_tag
+#define	isp_bus_handle	isp_osinfo.bus_handle
 
 /*
  * Locking macros...
@@ -250,6 +254,11 @@ case SYNC_SFORCPU:						\
 case SYNC_RESULT:						\
 	bus_dmamap_sync(isp->isp_cdmat, isp->isp_cdmap,		\
 	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
+	break;							\
+case SYNC_REG:							\
+	bus_space_barrier(isp->isp_bus_tag,			\
+	    isp->isp_bus_handle, offset, size, 			\
+	    BUS_SPACE_BARRIER_READ);				\
 	break;							\
 default:							\
 	break;							\
@@ -348,6 +357,17 @@ default:							\
 #define	DEFAULT_PORTWWN(isp)	(isp)->isp_osinfo.default_port_wwn
 #define	ISP_NODEWWN(isp)	FCPARAM(isp)->isp_wwnn_nvram
 #define	ISP_PORTWWN(isp)	FCPARAM(isp)->isp_wwpn_nvram
+
+
+#if __FreeBSD_version < 500000  
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+#define	bswap16		htobe16
+#define	bswap32		htobe32
+#else
+#define	bswap16		htole16
+#define	bswap32		htole32
+#endif
+#endif
 
 #if	BYTE_ORDER == BIG_ENDIAN
 #ifdef	ISP_SBUS_SUPPORTED
