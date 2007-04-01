@@ -2217,6 +2217,7 @@ void
 vdropl(struct vnode *vp)
 {
 
+	ASSERT_VI_LOCKED(vp, "vdropl");
 	if (vp->v_holdcnt <= 0)
 		panic("vdrop: holdcnt %d", vp->v_holdcnt);
 	vp->v_holdcnt--;
