@@ -122,8 +122,8 @@ main(int argc, char *argv[])
 		opts = argv[0];
 	if (!strcmp(opts, "swapinfo")) {
 		swapflag = 1;
-		opts = "hkM:N:";
-		usagestr = "swapinfo [-hk] [-M core [-N system]]";
+		opts = "ghkmM:N:";
+		usagestr = "swapinfo [-ghkm] [-M core [-N system]]";
 	} else {
 		opts = "TM:N:hfknst";
 		usagestr = "pstat [-Tfhknst] [-M core [-N system]]";
@@ -134,11 +134,17 @@ main(int argc, char *argv[])
 		case 'f':
 			fileflag = 1;
 			break;
+		case 'g':
+			putenv("BLOCKSIZE=1G");
+			break;
 		case 'h':
 			humanflag = 1;
 			break;
 		case 'k':
 			putenv("BLOCKSIZE=1K");
+			break;
+		case 'm':
+			putenv("BLOCKSIZE=1M");
 			break;
 		case 'M':
 			memf = optarg;

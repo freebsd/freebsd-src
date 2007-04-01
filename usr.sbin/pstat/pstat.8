@@ -60,8 +60,10 @@ If invoked as
 the
 .Fl s
 option is implied, and only the
-.Fl k
-option is legal.
+.Fl [kmg]
+and
+.Fl h
+options are legal.
 .Pp
 If the
 .Fl M
@@ -84,6 +86,14 @@ Use unit suffixes when printing swap partition sizes:
 Byte, Kilobyte, Megabyte, Gigabyte, Terabyte and Petabyte.
 .It Fl k
 Print sizes in kilobytes, regardless of the setting of the
+.Ev BLOCKSIZE
+environment variable.
+.It Fl m
+Print sizes in megabytes, regardless of the setting of the
+.Ev BLOCKSIZE
+environment variable.
+.It Fl g
+Print sizes in gigabytes, regardless of the setting of the
 .Ev BLOCKSIZE
 environment variable.
 .It Fl T
