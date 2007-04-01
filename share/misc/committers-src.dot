@@ -32,8 +32,10 @@ non [label="Noriaki Mitsnaga\nnon@FreeBSD.org\n2000/06/19\n2007/03/06"]
 rgrimes [label="Rod Grimes\nrgrimes@FreeBSD.org\n1993/06/12\n????/??/??"]
 shafeeq [label="Shafeeq Sinnamohideen\nshafeeq@FreeBSD.org\n2000/06/19\n????/??/??"]
 sheldonh [label="Sheldon Hearn\nsheldonh@FreeBSD.org\n1999/06/14\n2006/05/13"]
+shin [label="Yoshinobu Inoue\nshin@FreeBSD.org\n1999/07/29\n2003/03/08"]
 tmm [label="Thomas Moestl\ntmm@FreeBSD.org\n2001/03/07\n2006/07/12"]
 toshi [label="Toshihiko Arai\ntoshi@FreeBSD.org\n2000/07/06\n????/??/??"]
+tshiozak [label="Takuya SHIOZAKI\ntshiozak@FreeBSD.org\n2001/04/25\n2003/03/08"]
 uch [label="UCHIYAMA Yasushi\nuch@FreeBSD.org\n2000/06/21\n????/??/??"]
 
 node [color=lightblue2, style=filled, bgcolor=black];
@@ -292,5 +294,6 @@ shin -> ume
 
 ume -> jinmei
 ume -> suz
+ume -> tshiozak
 
 }
