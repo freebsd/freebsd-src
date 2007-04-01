@@ -50,6 +50,7 @@ fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
 garga [label="Renato Botelho\ngarga@FreeBSD.org\n2005/07/11"]
+itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
 johans [label="Johan Selst\njohans@FreeBSD.org\n2006/04/01"]
@@ -140,6 +141,8 @@ krion -> sat
 krion -> sem
 krion -> sergei
 
+lawrance -> itetcu
+
 marcus -> bland
 marcus -> eik
 marcus -> jmallett
@@ -164,5 +167,7 @@ philip -> koitsu
 sem -> delphij
 
 steve -> netchild
+
+tmclaugh -> itetcu
 
 }
