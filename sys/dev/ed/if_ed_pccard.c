@@ -541,7 +541,7 @@ ed_pccard_attach(device_t dev)
 	    sc->chip_type == ED_CHIP_TYPE_DL10022) {
 		/* Probe for an MII bus, but ignore errors. */
 		ed_pccard_dl100xx_mii_reset(sc);
-		mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
+		(void)mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
 		    ed_ifmedia_sts);
 	} else if (sc->chip_type == ED_CHIP_TYPE_AX88190) {
 		ed_pccard_ax88x90_mii_reset(sc);
