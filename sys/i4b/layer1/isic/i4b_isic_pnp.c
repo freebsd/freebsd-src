@@ -320,9 +320,14 @@ isic_pnp_attach(device_t dev)
 	else
 	{
 		/* setup intr routine */
-		bus_setup_intr(dev,sc->sc_resources.irq,INTR_TYPE_NET,
-				NULL, (void(*)(void*))isicintr,
-				sc,&ih);
+		if (bus_setup_intr(dev,sc->sc_resources.irq,INTR_TYPE_NET,
+				NULL, (void(*)(void*))isicintr, sc,&ih) != 0)
+		{
+			printf("isic%d: Could not setup irq.\n",unit);
+			isic_detach_common(dev);
+			return ENXIO;
+		}
+
 		return 0;
 	}
 }
