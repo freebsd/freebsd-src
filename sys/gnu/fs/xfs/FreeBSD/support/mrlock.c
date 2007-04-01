@@ -1,5 +1,5 @@
 #include <sys/param.h>
-#include <machine/pcpu.h>
+#include <sys/pcpu.h>
 #include <support/debug.h>
 #include <support/mrlock.h>
 
