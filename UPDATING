@@ -25,7 +25,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	Firmwares for ipw(4) and iwi(4) are now included in the base tree.
 	In order to use them one must agree to the respective LICENSE in
 	share/doc/legal and define legal.<name>.license_ack=1 via
-	loader.conf(5) or kenv(1).
+	loader.conf(5) or kenv(1).  Make sure to deinstall the now
+	deprecated modules from the respective firmware ports.
 
 20070228:
 	The name resolution/mapping functions addr2ascii(3) and ascii2addr(3)
