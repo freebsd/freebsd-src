@@ -57,6 +57,7 @@ nodevice	dcons_crom
 # Options we don't want to deal with
 
 nooption 	SMP
+nooption 	ADAPTIVE_SX
 nooption 	GDB
 nooption	PPC_DEBUG
 nooption	PPC_PROBE_CHIPSET
