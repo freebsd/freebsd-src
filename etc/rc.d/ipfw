@@ -26,7 +26,7 @@ ipfw_start()
 		if [ -f /etc/rc.d/natd ] ; then
 			/etc/rc.d/natd start
 		fi
-		. "${firewall_script}"
+		/bin/sh "${firewall_script}"
 		echo 'Firewall rules loaded.'
 	elif [ "`ipfw list 65535`" = "65535 deny ip from any to any" ]; then
 		echo 'Warning: kernel has firewall functionality, but' \
