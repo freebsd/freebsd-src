@@ -13,8 +13,6 @@ REGRESSION_TEST(`sg', `echo foo | sed s/,*/,/g')
 REGRESSION_TEST(`s3', `echo foo | sed s/,*/,/3')
 REGRESSION_TEST(`s4', `echo foo | sed s/,*/,/4')
 REGRESSION_TEST(`s5', `echo foo | sed s/,*/,/5')
-REGRESSION_TEST(`hanoi', `echo ":abcd: : :" | sed -f hanoi.sed')
-REGRESSION_TEST(`math', `echo "4+7*3+2^7/3" | sed -f math.sed')
 REGRESSION_TEST(`c0', `sed ''`c\
 foo
 ''`< regress.in')
@@ -29,5 +27,8 @@ foo
 ''`< regress.in')
 REGRESSION_TEST(`b2a', `sed ''`2,3b
 1,2d''` < regress.in')
+
+REGRESSION_TEST(`hanoi', `echo ":abcd: : :" | sed -f hanoi.sed')
+REGRESSION_TEST(`math', `echo "4+7*3+2^7/3" | sed -f math.sed')
 
 REGRESSION_END()
