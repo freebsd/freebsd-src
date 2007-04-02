@@ -1,5 +1,13 @@
 # $FreeBSD$
 
+# This file is meant to list all FreeBSD src committers and describe the
+# mentor-mentee relationships between them.
+# The graphical output can be generated from this file with the following
+# command:
+# $ dot -T png -o file.png committers-src.dot
+#
+# The dot binary is part of the graphics/graphviz port.
+
 digraph src {
 
 # Node definitions follow this example:
