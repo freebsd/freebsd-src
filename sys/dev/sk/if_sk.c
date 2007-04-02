@@ -769,13 +769,11 @@ sk_marv_miibus_writereg(sc_if, phy, reg, val)
 
 	for (i = 0; i < SK_TIMEOUT; i++) {
 		DELAY(1);
-		if (SK_YU_READ_2(sc_if, YUKON_SMICR) & YU_SMICR_BUSY)
+		if ((SK_YU_READ_2(sc_if, YUKON_SMICR) & YU_SMICR_BUSY) == 0)
 			break;
 	}
-	if (i == SK_TIMEOUT) {
+	if (i == SK_TIMEOUT)
 		if_printf(sc_if->sk_ifp, "phy write timeout\n");
-		return (0);
-	}
 
 	return(0);
 }
