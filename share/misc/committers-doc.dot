@@ -25,6 +25,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current doc committers go here. Try to keep things sorted.
 
+ache [label="Andrey Chernov\nache@FreeBSD.org\n1997/06/13"]
 ale [label="Alex Dupre\nale@FreeBSD.org\n2003/12/22"]
 blackend [label="Marc Fonvieille\nblackend@FreeBSD.org\n2002/06/16"]
 bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2000/08/22"]
