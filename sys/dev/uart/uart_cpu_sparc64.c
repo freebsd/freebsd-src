@@ -194,9 +194,10 @@ int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	char buf[32], compat[32], dev[64];
+	struct uart_class *class;
 	phandle_t input, options;
 	bus_addr_t addr;
-	int baud, bits, error, space, stop;
+	int baud, bits, error, range, space, stop;
 	char flag, par;
 
 	if ((options = OF_finddevice("/options")) == -1)
@@ -228,14 +229,15 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		compat[0] = '\0';
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
+	class = NULL;
 	if (!strcmp(buf, "se") || !strcmp(compat, "sab82532")) {
-		di->ops = uart_sab82532_ops;
+		class = &uart_sab82532_class;
 		/* SAB82532 are only known to be used for TTYs. */
 		if ((di->bas.chan = uart_cpu_channel(dev)) == 0)
 			return (ENXIO);
-		addr += 64 * (di->bas.chan - 1);
+		addr += uart_getrange(class) * (di->bas.chan - 1);
 	} else if (!strcmp(buf, "zs")) {
-		di->ops = uart_z8530_ops;
+		class = &uart_z8530_class;
 		if ((di->bas.chan = uart_cpu_channel(dev)) == 0) {
 			/*
 			 * There's no way to determine from OF which
@@ -248,16 +250,19 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 				return (ENXIO);
 		}
 		di->bas.regshft = 1;
-		addr += 4 - 4 * (di->bas.chan - 1);
+		range = uart_getrange(class) << di->bas.regshft;
+		addr += range - range * (di->bas.chan - 1);
 	} else if (!strcmp(buf, "lom-console") || !strcmp(buf, "su") ||
 	    !strcmp(buf, "su_pnp") || !strcmp(compat, "rsc-console") ||
 	    !strcmp(compat, "su") || !strcmp(compat, "su16550")) {
-		di->ops = uart_ns8250_ops;
+		class = &uart_ns8250_class;
 		di->bas.chan = 0;
-	} else
+	}
+	if (class == NULL)
 		return (ENXIO);
 
 	/* Fill in the device info. */
+	di->ops = uart_getops(class);
 	di->bas.bst = &bst_store[devtype];
 	di->bas.bsh = sparc64_fake_bustag(space, addr, di->bas.bst);
 

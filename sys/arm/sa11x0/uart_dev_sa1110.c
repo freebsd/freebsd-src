@@ -57,7 +57,7 @@ static int sa1110_getc(struct uart_bas *bas, struct mtx *mtx);
 
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 
-struct uart_ops uart_sa1110_ops = {
+static struct uart_ops uart_sa1110_ops = {
 	.probe = sa1110_probe,
 	.init = sa1110_init,
 	.term = sa1110_term,
@@ -272,10 +272,12 @@ sa1110_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
 	return (EINVAL);
 }
+
 struct uart_class uart_sa1110_class = {
-	"sa1110 class",
+	"sa1110",
 	sa1110_methods,
 	1,
+	.uc_ops = &uart_sa1110_ops,
 	.uc_range = 8,
 	.uc_rclk = 3686400
 };

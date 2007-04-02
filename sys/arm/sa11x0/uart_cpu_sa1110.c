@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
 
-extern struct uart_ops uart_sa1110_ops;
+extern struct uart_class uart_sa1110_class;
 
 vm_offset_t sa1110_uart_vaddr;
 
@@ -55,7 +55,8 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	di->ops = uart_sa1110_ops;
+
+	di->ops = uart_getops(&uart_sa1110_class);
 	di->bas.chan = 0;
 	di->bas.bst = &sa11x0_bs_tag;
 	di->bas.bsh = sa1110_uart_vaddr;

@@ -712,8 +712,8 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 		if (*(int *)data & SLKED)
 			c |= SKBD_LED_SCROLLLOCK;
 		uart_lock(sc->sc_sysdev->hwmtx);
-		sc->sc_sysdev->ops.putc(&sc->sc_sysdev->bas, SKBD_CMD_SETLED);
-		sc->sc_sysdev->ops.putc(&sc->sc_sysdev->bas, c);
+		sc->sc_sysdev->ops->putc(&sc->sc_sysdev->bas, SKBD_CMD_SETLED);
+		sc->sc_sysdev->ops->putc(&sc->sc_sysdev->bas, c);
 		uart_unlock(sc->sc_sysdev->hwmtx);
 		KBD_LED_VAL(kbd) = *(int *)data;
 		break;
