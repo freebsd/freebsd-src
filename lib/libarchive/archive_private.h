@@ -63,8 +63,8 @@ struct archive {
 	 * ridiculous time, or the client passes us an invalid
 	 * pointer, these values allow me to catch that.
 	 */
-	unsigned	  magic;
-	unsigned	  state;
+	unsigned int	magic;
+	unsigned int	state;
 
 	/*
 	 * Some public API functions depend on the "real" type of the
@@ -89,8 +89,8 @@ struct archive {
 };
 
 /* Check magic value and state; exit if it isn't valid. */
-void	__archive_check_magic(struct archive *, unsigned magic,
-	    unsigned state, const char *func);
+void	__archive_check_magic(struct archive *, unsigned int magic,
+	    unsigned int state, const char *func);
 
 void	__archive_errx(int retvalue, const char *msg);
 

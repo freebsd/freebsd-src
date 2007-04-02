@@ -72,9 +72,9 @@ state_name(unsigned s)
 
 
 static void
-write_all_states(int states)
+write_all_states(unsigned int states)
 {
-	unsigned lowbit;
+	unsigned int lowbit;
 
 	/* A trick for computing the lowest set bit. */
 	while ((lowbit = states & (-states)) != 0) {
@@ -92,8 +92,8 @@ write_all_states(int states)
  * the libarchive API.
  */
 void
-__archive_check_magic(struct archive *a, unsigned magic, unsigned state,
-    const char *function)
+__archive_check_magic(struct archive *a, unsigned int magic,
+    unsigned int state, const char *function)
 {
 	if (a->magic != magic) {
 		errmsg("INTERNAL ERROR: Function ");
