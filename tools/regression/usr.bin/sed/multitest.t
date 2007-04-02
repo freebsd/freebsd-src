@@ -280,7 +280,7 @@ b
 :ok
 s/^/tested /p
 ' lines1 lines2
-# SunOS and GNU sed behave differently here.  Clarification needed.
+# SunOS and GNU sed behave as follows: lines 9-$ aren't printed at all
 	mark '5.3' ; $SED -n -e '
 5,8b inside
 1,5 {
