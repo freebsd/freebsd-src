@@ -26,7 +26,7 @@ ip6fw_start()
 	# Load rules
 	#
 	if [ -r "${ipv6_firewall_script}" ]; then
-		. "${ipv6_firewall_script}"
+		/bin/sh "${ipv6_firewall_script}"
 		echo 'IPv6 Firewall rules loaded.'
 	elif [ "`ipfw show 65535`" = "65535 deny ip from any to any" ]; then
 		warn 'IPv6 firewall rules have not been loaded. Default' \
