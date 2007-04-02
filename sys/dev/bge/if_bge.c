@@ -2114,7 +2114,7 @@ bge_dma_alloc(device_t dev)
 	return (0);
 }
 
-#if __FreeBSD_version > 700025
+#if __FreeBSD_version > 602105
 /*
  * Return true if this device has more than one port.
  */
@@ -2277,7 +2277,7 @@ bge_attach(device_t dev)
 	}
 #endif
 
-#if __FreeBSD_version > 700025
+#if __FreeBSD_version > 602105
 	{
 		int msicount;
 
@@ -2596,7 +2596,7 @@ bge_release_resources(struct bge_softc *sc)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    sc->bge_flags & BGE_FLAG_MSI ? 1 : 0, sc->bge_irq);
 
-#if __FreeBSD_version > 700025
+#if __FreeBSD_version > 602105
 	if (sc->bge_flags & BGE_FLAG_MSI)
 		pci_release_msi(dev);
 #endif
