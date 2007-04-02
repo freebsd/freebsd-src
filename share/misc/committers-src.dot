@@ -139,6 +139,7 @@ takawata [label="Takanori Watanabe\ntakawata@FreeBSD.org\n2000/07/06"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
+wes [label="Wes Peters\nwes@FreeBSD.org\n1998/11/25"]
 wilko [label="Wilko Bulte\nwilko@FreeBSD.org\n2000/01/13"]
 wsalamon [label="Wayne Salamon\nwsalamon@FreeBSD.org\n2005/06/25"]
 yongari [label="Pyun YongHyeon\nyongari@FreeBSD.org\n2004/08/01"]
@@ -239,6 +240,7 @@ jkh -> imp
 jkh -> jlemon
 jkh -> joerg
 jkh -> phk
+jkh -> wes
 
 jlemon -> bmilekic
 jlemon -> brooks
