@@ -2,7 +2,7 @@
 
 REGRESSION_START($1)
 
-echo '1..15'
+echo '1..16'
 
 REGRESSION_TEST(`G', `sed G < regress.in')
 REGRESSION_TEST(`P', `sed P < regress.in')
@@ -27,5 +27,7 @@ foo
 REGRESSION_TEST(`c3', `sed ''`3,/no such string/c\
 foo
 ''`< regress.in')
+REGRESSION_TEST(`b2a', `sed ''`2,3b
+1,2d''` < regress.in')
 
 REGRESSION_END()
