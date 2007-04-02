@@ -251,10 +251,11 @@ struct uaudio_softc {
 #if defined(__FreeBSD__)
 	struct sbuf	uaudio_sndstat;
 	int		uaudio_sndstat_flag;
+	int		async;
+#endif
 	int		sc_vendor;
 	int		sc_product;
 	int		sc_release;
-#endif
 };
 
 struct terminal_list {
@@ -538,6 +539,13 @@ USB_ATTACH(uaudio)
 	sc->sc_vendor = uaa->vendor;
 	sc->sc_product = uaa->product;
 	sc->sc_release = uaa->release;
+#if defined(__FreeBSD__)
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev), "async", &i) == 0 && i != 0)
+		sc->async = 1;
+	else
+		sc->async = 0;
+#endif
 
 	cdesc = usbd_get_config_descriptor(sc->sc_udev);
 	if (cdesc == NULL) {
@@ -613,6 +621,13 @@ USB_ATTACH(uaudio)
 		printf("audio_attach_mi failed\n");
 		USB_ATTACH_ERROR_RETURN;
 	}
+#endif
+
+#if defined(__FreeBSD__)
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->sc_dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sc_dev)),
+	    OID_AUTO, "async", CTLFLAG_RW, &sc->async, 0,
+	    "Asynchronous USB request");
 #endif
 
 	USB_ATTACH_SUCCESS_RETURN;
@@ -2724,7 +2739,12 @@ uaudio_get(struct uaudio_softc *sc, int which, int type, int wValue,
 	DPRINTFN(2,("uaudio_get: type=0x%02x req=0x%02x wValue=0x%04x "
 		    "wIndex=0x%04x len=%d\n",
 		    type, which, wValue, wIndex, len));
-	err = usbd_do_request(sc->sc_udev, &req, data);
+#if defined(__FreeBSD__)
+	if (sc->async != 0)
+		err = usbd_do_request_async(sc->sc_udev, &req, data);
+	else
+#endif
+		err = usbd_do_request(sc->sc_udev, &req, data);
 	if (err) {
 		DPRINTF(("uaudio_get: err=%s\n", usbd_errstr(err)));
 		return -1;
@@ -2779,7 +2799,12 @@ uaudio_set(struct uaudio_softc *sc, int which, int type, int wValue,
 	DPRINTFN(2,("uaudio_set: type=0x%02x req=0x%02x wValue=0x%04x "
 		    "wIndex=0x%04x len=%d, val=%d\n",
 		    type, which, wValue, wIndex, len, val & 0xffff));
-	err = usbd_do_request(sc->sc_udev, &req, data);
+#if defined(__FreeBSD__)
+	if (sc->async != 0)
+		err = usbd_do_request_async(sc->sc_udev, &req, data);
+	else
+#endif
+		err = usbd_do_request(sc->sc_udev, &req, data);
 #ifdef USB_DEBUG
 	if (err)
 		DPRINTF(("uaudio_set: err=%d\n", err));
@@ -3789,6 +3814,10 @@ uaudio_set_speed(struct uaudio_softc *sc, int endpt, u_int speed)
 	data[1] = speed >> 8;
 	data[2] = speed >> 16;
 
+#if defined(__FreeBSD__)
+	if (sc->async != 0)
+		return usbd_do_request_async(sc->sc_udev, &req, data);
+#endif
 	return usbd_do_request(sc->sc_udev, &req, data);
 }
 
