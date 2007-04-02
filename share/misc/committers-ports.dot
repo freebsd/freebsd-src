@@ -1,5 +1,13 @@
 # $FreeBSD$
 
+# This file is meant to list all FreeBSD ports committers and describe the
+# mentor-mentee relationships between them.
+# The graphical output can be generated from this file with the following
+# command:
+# $ dot -T png -o file.png committers-ports.dot
+#
+# The dot binary is part of the graphics/graphviz port.
+
 digraph ports {
 
 # Node definitions follow this example:
