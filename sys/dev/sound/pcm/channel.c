@@ -71,6 +71,8 @@ sysctl_hw_snd_latency(SYSCTL_HANDLER_ARGS)
 
 	val = chn_latency;
 	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (err != 0 || req->newptr == NULL)
+		return err;
 	if (val < CHN_LATENCY_MIN || val > CHN_LATENCY_MAX)
 		err = EINVAL;
 	else
@@ -92,6 +94,8 @@ sysctl_hw_snd_latency_profile(SYSCTL_HANDLER_ARGS)
 
 	val = chn_latency_profile;
 	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (err != 0 || req->newptr == NULL)
+		return err;
 	if (val < CHN_LATENCY_PROFILE_MIN || val > CHN_LATENCY_PROFILE_MAX)
 		err = EINVAL;
 	else
@@ -104,7 +108,7 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, latency_profile, CTLTYPE_INT | CTLFLAG_RW,
 	"buffering latency profile (0=aggresive 1=safe)");
 
 static int chn_timeout = CHN_TIMEOUT;
-
+TUNABLE_INT("hw.snd.timeout", &chn_timeout);
 #ifdef SND_DEBUG
 static int
 sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
@@ -113,6 +117,8 @@ sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
 
 	val = chn_timeout;
 	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (err != 0 || req->newptr == NULL)
+		return err;
 	if (val < CHN_TIMEOUT_MIN || val > CHN_TIMEOUT_MAX)
 		err = EINVAL;
 	else
@@ -122,7 +128,7 @@ sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, timeout, CTLTYPE_INT | CTLFLAG_RW,
 	0, sizeof(int), sysctl_hw_snd_timeout, "I",
-	"interrupt timeout (1 - 10)");
+	"interrupt timeout (1 - 10) seconds");
 #endif
 
 static int chn_usefrags = 0;
@@ -360,11 +366,8 @@ chn_wrfeed(struct pcm_channel *c)
 	if (sndbuf_getfree(b) > 0)
 		c->xruns++;
 
-#if 0
-	if (ret == 0 && sndbuf_getfree(b) < amt)
+	if (sndbuf_getfree(b) < amt)
 		chn_wakeup(c);
-#endif
-	chn_wakeup(c);
 
 	return ret;
 }
@@ -494,7 +497,7 @@ chn_rdfeed(struct pcm_channel *c)
 	}
 #endif
 	amt = sndbuf_getfree(bs);
-	ret = (amt > 0)? sndbuf_feed(b, bs, c, c->feeder, amt) : 0;
+	ret = (amt > 0) ? sndbuf_feed(b, bs, c, c->feeder, amt) : 0;
 
 	amt = sndbuf_getready(b);
 	if (amt > 0) {
@@ -502,7 +505,8 @@ chn_rdfeed(struct pcm_channel *c)
 		sndbuf_dispose(b, NULL, amt);
 	}
 
-	chn_wakeup(c);
+	if (sndbuf_getready(bs) > 0)
+		chn_wakeup(c);
 
 	return ret;
 }
@@ -1082,6 +1086,9 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction)
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
 	int ret;
+
+	if (chn_timeout < CHN_TIMEOUT_MIN || chn_timeout > CHN_TIMEOUT_MAX)
+		chn_timeout = CHN_TIMEOUT;
 
 	chn_lockinit(c, dir);
 
