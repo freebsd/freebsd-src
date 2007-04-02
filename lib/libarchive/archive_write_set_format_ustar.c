@@ -490,13 +490,11 @@ format_octal(int64_t v, char *p, int s)
 static int
 archive_write_ustar_finish(struct archive_write *a)
 {
-	struct ustar *ustar;
 	int r;
 
 	if (a->compression_write == NULL)
 		return (ARCHIVE_OK);
 
-	ustar = (struct ustar *)a->format_data;
 	r = write_nulls(a, 512*2);
 	return (r);
 }
@@ -528,7 +526,8 @@ archive_write_ustar_finish_entry(struct archive_write *a)
 static int
 write_nulls(struct archive_write *a, size_t padding)
 {
-	int ret, to_write;
+	int ret;
+	size_t to_write;
 
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
