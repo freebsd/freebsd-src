@@ -50,6 +50,18 @@ __FBSDID("$FreeBSD$");
 
 #include "statd.h"
 
+static const char *
+from_addr(saddr)
+	struct sockaddr *saddr;
+{
+	static char inet_buf[INET6_ADDRSTRLEN];
+
+	if (getnameinfo(saddr, saddr->sa_len, inet_buf, sizeof(inet_buf),
+			NULL, 0, NI_NUMERICHOST) == 0)
+		return inet_buf;
+	return "???";
+}
+
 /* sm_check_hostname -------------------------------------------------------- */
 /*
  * Purpose: Check `mon_name' member of sm_name struct to ensure that the array
@@ -64,13 +76,13 @@ __FBSDID("$FreeBSD$");
 int sm_check_hostname(struct svc_req *req, char *arg)
 {
   int len, dstlen, ret;
-  struct sockaddr_in *claddr;
+  struct sockaddr *claddr;
   char *dst;
 
   len = strlen(arg);
   dstlen = (4 * len) + 1;
   dst = malloc(dstlen);
-  claddr = svc_getcaller(req->rq_xprt);
+  claddr = (struct sockaddr *) (svc_getrpccaller(req->rq_xprt)->buf) ;
   ret = 1;
 
   if (claddr == NULL || dst == NULL)
@@ -81,7 +93,7 @@ int sm_check_hostname(struct svc_req *req, char *arg)
   {
     syslog(LOG_ERR,
 	"sm_stat: client %s hostname %s contained invalid characters.",
-	inet_ntoa(claddr->sin_addr),
+	from_addr(claddr),
 	dst);
     ret = 0;
   }
@@ -100,7 +112,7 @@ struct sm_stat_res *sm_stat_1_svc(sm_name *arg, struct svc_req *req)
 {
   static sm_stat_res res;
   struct addrinfo *ai;
-  struct sockaddr_in *claddr;
+  struct sockaddr *claddr;
   static int err;
 
   err = 1;
@@ -118,9 +130,9 @@ struct sm_stat_res *sm_stat_1_svc(sm_name *arg, struct svc_req *req)
     }
     else
     {
-      claddr = svc_getcaller(req->rq_xprt);
+      claddr = (struct sockaddr *) (svc_getrpccaller(req->rq_xprt)->buf) ;
       syslog(LOG_ERR, "invalid hostname to sm_stat from %s: %s",
-	  inet_ntoa(claddr->sin_addr), arg->mon_name);
+	  from_addr(claddr), arg->mon_name);
       res.res_stat = stat_fail;
     }
   }
