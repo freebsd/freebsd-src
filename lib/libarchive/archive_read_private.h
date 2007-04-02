@@ -93,9 +93,6 @@ struct archive_read {
 	 * test, e.g., 16 if you test a 2-byte magic value.  The
 	 * highest bidder will have their init function invoked, which
 	 * can set up pointers to specific handlers.
-	 *
-	 * On write, the client just invokes an archive_write_set function
-	 * which sets up the data here directly.
 	 */
 	struct {
 		int	(*bid)(const void *buff, size_t);
@@ -103,9 +100,8 @@ struct archive_read {
 	}	decompressors[4];
 	/* Read/write data stream (with compression). */
 	void	 *compression_data;		/* Data for (de)compressor. */
-	int	(*compression_init)(struct archive_read *);	/* Initialize. */
 	int	(*compression_finish)(struct archive_read *);
-	int	(*compression_write)(struct archive_read *, const void *, size_t);
+
 	/*
 	 * Read uses a peek/consume I/O model: the decompression code
 	 * returns a pointer to the requested block and advances the
