@@ -1511,6 +1511,8 @@ struct sk_if_softc {
 	int			sk_phyaddr;
 	int			sk_link;
 	struct callout		sk_tick_ch;
+	struct callout		sk_watchdog_ch;
+	int			sk_watchdog_timer;
 	struct sk_chain_data	sk_cdata;
 	struct sk_ring_data	sk_rdata;
 	struct sk_softc		*sk_softc;	/* parent controller */
