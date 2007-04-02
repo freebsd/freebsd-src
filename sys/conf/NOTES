@@ -1534,9 +1534,13 @@ options 	ADW_ALLOW_MEMIO
 #
 options 	ISP_TARGET_MODE=1
 #
-#	ISP_DEFAULT_ROLES	-	default role (none, target, init, both)
+#	ISP_DEFAULT_ROLES	-	default role
+#		none=0
+#		target=1
+#		initiator=2
+#		both=3			(not supported currently)
 #
-options 	ISP_DEFAULT_ROLES=3
+options 	ISP_DEFAULT_ROLES=2
 
 # Options used in dev/sym/ (Symbios SCSI driver).
 #options 	SYM_SETUP_LP_PROBE_MAP	#-Low Priority Probe Map (bits)
