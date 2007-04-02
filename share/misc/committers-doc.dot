@@ -1,5 +1,13 @@
 # $FreeBSD$
 
+# This file is meant to list all FreeBSD doc+www committers and describe the
+# mentor-mentee relationships between them.
+# The graphical output can be generated from this file with the following
+# command:
+# $ dot -T png -o file.png committers-doc.dot
+#
+# The dot binary is part of the graphics/graphviz port.
+
 digraph doc {
 
 # Node definitions follow this example:
