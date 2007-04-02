@@ -37,7 +37,7 @@ struct snd_mixer {
 	KOBJ_FIELDS;
 	const char *type;
 	void *devinfo;
-	int busy;
+	int busy:1;
 	int hwvol_muted;
 	int hwvol_mixer;
 	int hwvol_step;
@@ -86,7 +86,7 @@ static d_close_t mixer_close;
 
 static struct cdevsw mixer_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_TRACKCLOSE | D_NEEDGIANT,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	mixer_open,
 	.d_close =	mixer_close,
 	.d_ioctl =	mixer_ioctl,
@@ -733,7 +733,7 @@ mixer_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	m = i_dev->si_drv1;
 	snd_mtxlock(m->lock);
 
-	m->busy++;
+	m->busy = 1;
 
 	snd_mtxunlock(m->lock);
 	return 0;
@@ -751,7 +751,7 @@ mixer_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		snd_mtxunlock(m->lock);
 		return EBADF;
 	}
-	m->busy--;
+	m->busy = 0;
 
 	snd_mtxunlock(m->lock);
 	return 0;
