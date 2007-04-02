@@ -82,6 +82,13 @@ The
 .Nm
 interface randomly chooses a link (MAC) address in the range reserved for
 locally administered addresses when it is created.
+This address is guaranteed to be unique
+.Em only
+across all
+.Nm
+interfaces on the local machine.
+Thus you can theoretically have two bridges on the different machines with
+the same link addresses.
 The address can be changed by assigning the desired link address using
 .Xr ifconfig 8 .
 .Pp
@@ -219,9 +226,91 @@ IPFW can filter Ethernet types using
 so all packets are passed to
 the filter for processing.
 .Pp
-Note that packets to and from the bridging host will be seen by the
-filter on the interface with the appropriate address configured as well
-as on the interface on which the packet arrives or departs.
+The packets originating from the bridging host will be seen by
+the filter on the interface that is looked up in the routing
+table.
+.Pp
+The packets destined to the bridging host will be seen by the filter
+on the interface with the MAC address equal to the packet's destination
+MAC.
+There are situations when some of the bridge members are sharing
+the same MAC address (for example the
+.Xr if_vlan 4
+interfaces: they are currenly sharing the
+MAC address of the parent physical interface).
+It is not possible to distinguish between these interfaces using
+their MAC address, excluding the case when the packet's destination
+MAC address is equal to the MAC address of the interface on which
+the packet was entered to the system.
+In this case the filter will see the incoming packet on this
+interface.
+In all other cases the interface seen by the packet filter is chosen
+from the list of bridge members with the same MAC address and the
+result strongly depends on the member addition sequence and the
+actual implementation of
+.Nm .
+It is not recommended to rely on the order chosen by the current
+.Nm
+implementation: it can be changed in the future.
+.Pp
+The previous paragraph is best illustrated with the following
+pictures.
+Let
+.Bl -bullet
+.It
+the MAC address of the incoming packet's destination is
+.Nm nn:nn:nn:nn:nn:nn ,
+.It
+the interface on which packet entered the system is
+.Nm ifX ,
+.It
+.Nm ifX
+MAC address is
+.Nm xx:xx:xx:xx:xx:xx ,
+.It
+there are possibly other bridge members with the same MAC address
+.Nm xx:xx:xx:xx:xx:xx ,
+.It
+the bridge has more than one interface that are sharing the
+same MAC address
+.Nm yy:yy:yy:yy:yy:yy ;
+we will call them
+.Nm vlanY1 ,
+.Nm vlanY2 ,
+etc.
+.El
+.Pp
+Then if the MAC address
+.Nm nn:nn:nn:nn:nn:nn
+is equal to the
+.Nm xx:xx:xx:xx:xx:xx
+then the filter will see the packet on the interface
+.Nm ifX
+no matter if there are any other bridge members carrying the same
+MAC address.
+But if the MAC address
+.Nm nn:nn:nn:nn:nn:nn
+is equal to the
+.Nm yy:yy:yy:yy:yy:yy
+then the interface that will be seen by the filter is one of the
+.Nm vlanYn .
+It is not possible to predict the name of the actual interface
+without the knowledge of the system state and the
+.Nm
+implementation details.
+.Pp
+This problem arises for any bridge members that are sharing the same
+MAC address, not only to the
+.Xr if_vlan 4
+ones: they we taken just as the example of such situation.
+So if one wants the filter the locally destined packets based on
+their interface name, one should be aware of this implication.
+The described situation will appear at least on the filtering bridges
+that are doing IP-forwarding; in some of such cases it is better
+to assign the IP address only to the
+.Nm
+interface and not to the bridge members.
+But your mileage may vary.
 .Sh EXAMPLES
 The following when placed in the file
 .Pa /etc/rc.conf
