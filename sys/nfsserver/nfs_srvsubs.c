@@ -98,8 +98,9 @@ int nfssvc_sockhead_flag;
 struct nfsd_head nfsd_head;
 int nfsd_head_flag;
 
-static int nfs_prev_nfssvc_sy_narg;
-static sy_call_t *nfs_prev_nfssvc_sy_call;
+static int nfssvc_offset = SYS_nfssvc;
+static struct sysent nfssvc_prev_sysent;
+MAKE_SYSENT(nfssvc);
 
 struct mtx nfsd_mtx;
 
@@ -522,6 +523,7 @@ static const short *nfsrv_v3errmap[] = {
 static int
 nfsrv_modevent(module_t mod, int type, void *data)
 {
+	static int registered;
 	int error = 0;
 
 	NET_LOCK_GIANT();
@@ -554,11 +556,11 @@ nfsrv_modevent(module_t mod, int type, void *data)
 		NFSD_UNLOCK();
 		nfsrv_timer(0);
 
-		/* XXX: Should use SYSCALL_MODULE() */
-		nfs_prev_nfssvc_sy_narg = sysent[SYS_nfssvc].sy_narg;
-		sysent[SYS_nfssvc].sy_narg = 2;
-		nfs_prev_nfssvc_sy_call = sysent[SYS_nfssvc].sy_call;
-		sysent[SYS_nfssvc].sy_call = (sy_call_t *)nfssvc;
+		error = syscall_register(&nfssvc_offset, &nfssvc_sysent,
+		    &nfssvc_prev_sysent);
+		if (error)
+			break;
+		registered = 1;
 		break;
 
 	case MOD_UNLOAD:
@@ -567,9 +569,10 @@ nfsrv_modevent(module_t mod, int type, void *data)
 			break;
 		}
 
+		if (registered)
+			syscall_deregister(&nfssvc_offset, &nfssvc_prev_sysent);
 		callout_drain(&nfsrv_callout);
-		sysent[SYS_nfssvc].sy_narg = nfs_prev_nfssvc_sy_narg;
-		sysent[SYS_nfssvc].sy_call = nfs_prev_nfssvc_sy_call;
+		nfsrv_destroycache();	/* Free the server request cache */
 		nfsrv_destroycache();	/* Free the server request cache */
 		mtx_destroy(&nfsd_mtx);
 		break;
