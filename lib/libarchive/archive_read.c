@@ -182,12 +182,12 @@ archive_read_open2(struct archive *_a, void *client_data,
 	a->client_data = client_data;
 
 	/* Select a decompression routine. */
-	high_bidder = choose_decompressor(a, buffer, bytes_read);
+	high_bidder = choose_decompressor(a, buffer, (size_t)bytes_read);
 	if (high_bidder < 0)
 		return (ARCHIVE_FATAL);
 
 	/* Initialize decompression routine with the first block of data. */
-	e = (a->decompressors[high_bidder].init)(a, buffer, bytes_read);
+	e = (a->decompressors[high_bidder].init)(a, buffer, (size_t)bytes_read);
 
 	if (e == ARCHIVE_OK)
 		a->archive.state = ARCHIVE_STATE_HEADER;
@@ -439,6 +439,7 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	char	*dest;
+	const void *read_buf;
 	size_t	 bytes_read;
 	size_t	 len;
 	int	 r;
@@ -448,10 +449,10 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 
 	while (s > 0) {
 		if (a->read_data_remaining <= 0) {
-			r = archive_read_data_block(&a->archive,
-			    (const void **)&a->read_data_block,
-			    &a->read_data_remaining,
-			    &a->read_data_offset);
+			read_buf = a->read_data_block;
+			r = archive_read_data_block(&a->archive, &read_buf,
+			    &a->read_data_remaining, &a->read_data_offset);
+			a->read_data_block = read_buf;
 			if (r == ARCHIVE_EOF)
 				return (bytes_read);
 			/*
