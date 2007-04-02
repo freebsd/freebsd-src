@@ -119,6 +119,14 @@ struct syscall_module_data {
        struct  sysent old_sysent; /* old sysent */
 };
 
+#define MAKE_SYSENT(syscallname)                        \
+static struct sysent syscallname##_sysent = {           \
+    (sizeof(struct syscallname ## _args )               \
+     / sizeof(register_t)),                             \
+    (sy_call_t *)& syscallname,                         \
+    SYS_AUE_##syscallname                               \
+}
+	
 #define SYSCALL_MODULE(name, offset, new_sysent, evh, arg)     \
 static struct syscall_module_data name##_syscall_mod = {       \
        evh, arg, offset, new_sysent, { 0, NULL, AUE_NULL }     \
@@ -133,12 +141,7 @@ DECLARE_MODULE(name, name##_mod, SI_SUB_SYSCALLS, SI_ORDER_MIDDLE)
 
 #define SYSCALL_MODULE_HELPER(syscallname)              \
 static int syscallname##_syscall = SYS_##syscallname;   \
-static struct sysent syscallname##_sysent = {           \
-    (sizeof(struct syscallname ## _args )               \
-     / sizeof(register_t)),                             \
-    (sy_call_t *)& syscallname,                         \
-    SYS_AUE_##syscallname                               \
-};                                                      \
+MAKE_SYSENT(syscallname);                               \
 SYSCALL_MODULE(syscallname,                             \
     & syscallname##_syscall, & syscallname##_sysent,    \
     NULL, NULL);
