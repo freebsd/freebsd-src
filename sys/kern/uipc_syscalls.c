@@ -664,7 +664,10 @@ socketpair(td, uap)
 	fp2->f_ops = &socketops;
 	fp2->f_type = DTYPE_SOCKET;
 	FILE_UNLOCK(fp2);
+	so1 = so2 = NULL;
 	error = copyout(sv, uap->rsv, 2 * sizeof (int));
+	if (error)
+		goto free4;
 	fdrop(fp1, td);
 	fdrop(fp2, td);
 	goto done2;
@@ -675,9 +678,11 @@ free3:
 	fdclose(fdp, fp1, sv[0], td);
 	fdrop(fp1, td);
 free2:
-	(void)soclose(so2);
+	if (so2 != NULL)
+		(void)soclose(so2);
 free1:
-	(void)soclose(so1);
+	if (so1 != NULL)
+		(void)soclose(so1);
 done2:
 	NET_UNLOCK_GIANT();
 	return (error);
