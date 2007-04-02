@@ -624,7 +624,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	isp = mp->isp;
 	rq = mp->rq;
 	sbs = (struct isp_sbussoftc *)mp->isp;
-	dp = &sbs->dmaps[isp_handle_index(rq->req_handle)];
+	dp = &sbs->dmaps[isp_handle_index(rq->req_handle & ISP_HANDLE_MASK)];
 	nxti = *mp->nxtip;
 
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
@@ -735,7 +735,8 @@ isp_sbus_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 	if ((csio->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
 		if ((csio->ccb_h.flags & CAM_DATA_PHYS) == 0) {
 			int error, s;
-			dp = &sbs->dmaps[isp_handle_index(rq->req_handle)];
+			dp = &sbs->dmaps[isp_handle_index(
+			    rq->req_handle & ISP_HANDLE_MASK)];
 			s = splsoftvm();
 			error = bus_dmamap_load(sbs->dmat, *dp,
 			    csio->data_ptr, csio->dxfer_len, eptr, mp, 0);
@@ -809,7 +810,8 @@ static void
 isp_sbus_dmateardown(ispsoftc_t *isp, XS_T *xs, uint32_t handle)
 {
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *)isp;
-	bus_dmamap_t *dp = &sbs->dmaps[isp_handle_index(handle)];
+	bus_dmamap_t *dp;
+	dp = &sbs->dmaps[isp_handle_index(handle & ISP_HANDLE_MASK)];
 	if ((xs->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 		bus_dmamap_sync(sbs->dmat, *dp, BUS_DMASYNC_POSTREAD);
 	} else {
