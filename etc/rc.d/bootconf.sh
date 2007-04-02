@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: bootconf
-# REQUIRE: mountcritlocal
+# REQUIRE: FILESYSTEMS
 
 bootconf_start()
 {

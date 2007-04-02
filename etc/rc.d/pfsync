@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: pfsync
-# REQUIRE: root mountcritlocal netif
+# REQUIRE: root FILESYSTEMS netif
 # KEYWORD: nojail
 
 . /etc/rc.subr
