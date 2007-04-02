@@ -1271,8 +1271,7 @@ static void arcmsr_executesrb(void *arg, bus_dma_segment_t *dm_segs, int nseg, i
 				, acb->pci_unit, error);
 		}
 		if((pccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
-			xpt_freeze_devq(pccb->ccb_h.path, /*count*/1);
-			pccb->ccb_h.status |= (CAM_REQ_TOO_BIG|CAM_DEV_QFRZN);
+			pccb->ccb_h.status |= CAM_REQ_TOO_BIG;
 		}
 		arcmsr_srb_complete(srb, 0);
 		return;
@@ -1308,14 +1307,14 @@ static void arcmsr_executesrb(void *arg, bus_dma_segment_t *dm_segs, int nseg, i
 		arcmsr_srb_complete(srb, 0);
 		return;
 	}
-	pccb->ccb_h.status |= CAM_SIM_QUEUED;
 	if(acb->srboutstandingcount >= ARCMSR_MAX_OUTSTANDING_CMD) {
-		pccb->ccb_h.status &= ~CAM_STATUS_MASK;
-		pccb->ccb_h.status |= (CAM_REQUEUE_REQ|CAM_DEV_QFRZN);
+		xpt_freeze_simq(acb->psim, 1);
+		pccb->ccb_h.status = CAM_REQUEUE_REQ;
 		acb->acb_flags |= ACB_F_CAM_DEV_QFRZN;
 		arcmsr_srb_complete(srb, 0);
 		return;
 	}
+	pccb->ccb_h.status |= CAM_SIM_QUEUED;
 	arcmsr_build_srb(srb, dm_segs, nseg);
 	arcmsr_post_srb(acb, srb);
 	return;
