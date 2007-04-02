@@ -1519,7 +1519,7 @@ static int
 set_fflags(struct archive_write_disk *a)
 {
 	struct fixup_entry *le;
-	long		set, clear;
+	unsigned long	set, clear;
 	int		r;
 	int		critical_flags;
 	mode_t		mode = archive_entry_mode(a->entry);
