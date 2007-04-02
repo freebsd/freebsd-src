@@ -148,8 +148,9 @@ main(void)
 
     board_init();
     EMAC_Init();
-    sdcard_init();
     EMAC_SetMACAddress(mac);
+    while (sdcard_init() == 0)
+	printf("Looking for SD card\n");
 
     dmadat = (void *)(0x20000000 + (16 << 20));
     /* Process configuration file */
