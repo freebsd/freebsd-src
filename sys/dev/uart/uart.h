@@ -60,6 +60,15 @@ struct uart_bas {
 	    BUS_SPACE_BARRIER_READ|BUS_SPACE_BARRIER_WRITE)
 
 /*
+ * UART device classes.
+ */
+struct uart_class;
+
+extern struct uart_class uart_ns8250_class __attribute__((weak));
+extern struct uart_class uart_sab82532_class __attribute__((weak));
+extern struct uart_class uart_z8530_class __attribute__((weak));
+
+/*
  * Device flags.
  */
 #define	UART_FLAGS_CONSOLE(f)		((f) & 0x10)

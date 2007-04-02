@@ -222,7 +222,7 @@ static void ns8250_putc(struct uart_bas *bas, int);
 static int ns8250_rxready(struct uart_bas *bas);
 static int ns8250_getc(struct uart_bas *bas, struct mtx *);
 
-struct uart_ops uart_ns8250_ops = {
+static struct uart_ops uart_ns8250_ops = {
 	.probe = ns8250_probe,
 	.init = ns8250_init,
 	.term = ns8250_term,
@@ -368,9 +368,10 @@ static kobj_method_t ns8250_methods[] = {
 };
 
 struct uart_class uart_ns8250_class = {
-	"ns8250 class",
+	"ns8250",
 	ns8250_methods,
 	sizeof(struct ns8250_softc),
+	.uc_ops = &uart_ns8250_ops,
 	.uc_range = 8,
 	.uc_rclk = DEFAULT_RCLK
 };

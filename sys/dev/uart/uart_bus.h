@@ -67,13 +67,10 @@
  */
 struct uart_class {
 	KOBJ_CLASS_FIELDS;
+	struct uart_ops *uc_ops;	/* Low-level console operations. */
 	u_int	uc_range;		/* Bus space address range. */
 	u_int	uc_rclk;		/* Default rclk for this device. */
 };
-
-extern struct uart_class uart_ns8250_class;
-extern struct uart_class uart_sab82532_class;
-extern struct uart_class uart_z8530_class;
 
 struct uart_softc {
 	KOBJ_FIELDS;
