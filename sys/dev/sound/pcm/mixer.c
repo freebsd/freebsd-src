@@ -37,7 +37,7 @@ struct snd_mixer {
 	KOBJ_FIELDS;
 	const char *type;
 	void *devinfo;
-	int busy:1;
+	int busy;
 	int hwvol_muted;
 	int hwvol_mixer;
 	int hwvol_step;
