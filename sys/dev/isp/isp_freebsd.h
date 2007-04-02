@@ -98,7 +98,7 @@
 #endif
 
 #if __FreeBSD_version < 700000
-typedef void ispfwfunc(int, int, int, const void **);
+typedef void ispfwfunc(int, int, int, void **);
 #endif
 
 #ifdef	ISP_TARGET_MODE
@@ -532,4 +532,10 @@ int isp_mstohz(int);
 
 #include <dev/isp/isp_library.h>
 
+/*
+ * XXX: Temp
+ */
+#if	ISP_DEFAULT_ROLES == ISP_ROLE_BOTH
+#error	"Dual Role Temporarily Unsupported"
+#endif
 #endif	/* _ISP_FREEBSD_H */

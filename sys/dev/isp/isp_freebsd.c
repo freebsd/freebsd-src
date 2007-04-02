@@ -382,6 +382,14 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 			retval = EINVAL;
 			break;
 		}
+		/*
+		 * XXX: Current
+		 */
+		if (nr == ISP_ROLE_BOTH) {
+			isp_prt(isp, ISP_LOGERR, "dual roles not supported");
+			retval = EINVAL;
+			break;
+		}
 		*(int *)addr = isp->isp_role;
 		isp->isp_role = nr;
 		/* FALLTHROUGH */
@@ -1133,7 +1141,7 @@ isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 static void
 isp_ledone(ispsoftc_t *isp, lun_entry_t *lep)
 {
-	const char lfmt[] = "now %sabled for target mode";
+	const char lfmt[] = "now %sabled for target mode\n";
 	union ccb *ccb;
 	uint32_t seq;
 	tstate_t *tptr;
