@@ -151,7 +151,7 @@ MODULE_DEPEND(msk, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
 /* Tunables. */
-static int msi_disable = 1;
+static int msi_disable = 0;
 TUNABLE_INT("hw.msk.msi_disable", &msi_disable);
 
 #define MSK_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
@@ -167,7 +167,7 @@ TUNABLE_INT("hw.msk.msi_disable", &msi_disable);
 #ifndef	IFCAP_VLAN_HWCSUM
 #define	IFCAP_VLAN_HWCSUM	0
 #endif
-#undef	MSI_SUPPORT
+#define	MSI_SUPPORT
 #undef	TSO_SUPPORT
 
 /*
@@ -1531,7 +1531,7 @@ mskc_attach(device_t dev)
 	struct msk_softc *sc;
 	int error, *port, reg, rid;
 #ifdef	MSI_SUPPORT
-	int msic;
+	int i, msic;
 #endif
 
 	sc = device_get_softc(dev);
