@@ -286,7 +286,7 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	struct iso9660 *iso9660;
 	ssize_t bytes_read;
 	const void *h;
-	const char *p;
+	const unsigned char *p;
 
 	iso9660 = (struct iso9660 *)*(a->pformat_data);
 
@@ -301,7 +301,7 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	bytes_read = (a->compression_read_ahead)(a, &h, 32768 + 8*2048);
 	if (bytes_read < 32768 + 8*2048)
 	    return (iso9660->bid = -1);
-	p = (const char *)h;
+	p = (const unsigned char *)h;
 
 	/* Skip the reserved area. */
 	bytes_read -= 32768;
@@ -312,7 +312,7 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 		iso9660->bid = isPVD(iso9660, p);
 		if (iso9660->bid > 0)
 			return (iso9660->bid);
-		if (*p == '\xff') /* End-of-volume-descriptor marker. */
+		if (*p == '\177') /* End-of-volume-descriptor marker. */
 			break;
 	}
 
