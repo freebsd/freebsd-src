@@ -48,10 +48,39 @@ __FBSDID("$FreeBSD$");
 #define	UART_TAG_SB	8
 #define	UART_TAG_XO	9
 
+static struct uart_class *uart_classes[] = {
+	&uart_ns8250_class,
+	&uart_sab82532_class,
+	&uart_z8530_class,
+};
+static size_t uart_nclasses = sizeof(uart_classes) / sizeof(uart_classes[0]);
+
 static bus_addr_t
 uart_parse_addr(__const char **p)
 {
 	return (strtoul(*p, (char**)(uintptr_t)p, 0));
+}
+
+static struct uart_class *
+uart_parse_class(struct uart_class *class, __const char **p)
+{
+	struct uart_class *uc;
+	const char *nm;
+	size_t len;
+	u_int i;
+
+	for (i = 0; i < uart_nclasses; i++) {
+		uc = uart_classes[i];
+		nm = uart_getname(uc);
+		if (nm == NULL || *nm == '\0')
+			continue;
+		len = strlen(nm);
+		if (strncmp(nm, *p, len) == 0) {
+			*p += len;
+			return (uc);
+		}
+	}
+	return (class);
 }
 
 static long
@@ -161,10 +190,18 @@ out:
  */
 
 int
-uart_getenv(int devtype, struct uart_devinfo *di)
+uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 {
 	__const char *spec;
 	bus_addr_t addr = ~0U;
+	int error;
+
+	/*
+	 * All uart_class references are weak. Make sure the default
+	 * device class has been compiled-in.
+	 */
+	if (class == NULL)
+		return (ENXIO);
 
 	/*
 	 * Check the environment variables "hw.uart.console" and
@@ -203,7 +240,7 @@ uart_getenv(int devtype, struct uart_devinfo *di)
 			di->databits = uart_parse_long(&spec);
 			break;
 		case UART_TAG_DT:
-			return (EINVAL);	/* XXX not yet implemented. */
+			class = uart_parse_class(class, &spec);
 			break;
 		case UART_TAG_IO:
 			di->bas.bst = uart_bus_space_io;
@@ -261,8 +298,9 @@ uart_getenv(int devtype, struct uart_devinfo *di)
 	} else
 		di->baudrate = 0;
 
-	/* XXX the size of the mapping depends on the UART class. */
-	if (bus_space_map(di->bas.bst, addr, 8, 0, &di->bas.bsh) != 0)
-		return (EINVAL);
-	return (0);
+	/* Set the ops and create a bus space handle. */
+	di->ops = uart_getops(class);
+	error = bus_space_map(di->bas.bst, addr, uart_getrange(class), 0,
+	    &di->bas.bsh);
+	return (error);
 }

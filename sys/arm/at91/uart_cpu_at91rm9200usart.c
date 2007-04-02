@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
 
-extern struct uart_ops at91_usart_ops;
+extern struct uart_class at91_usart_class;
 extern struct bus_space at91_bs_tag;
 
 int
@@ -55,7 +55,10 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	di->ops = at91_usart_ops;
+	struct uart_class *class;
+
+	class = &at91_usart_class;
+	di->ops = uart_getops(class);
 	di->bas.chan = 0;
 	di->bas.bst = &at91_bs_tag;
 	/* 
@@ -77,7 +80,5 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	uart_bus_space_io = &at91_bs_tag;
 	uart_bus_space_mem = NULL;
 	/* Check the environment for overrides */
-	if (uart_getenv(devtype, di) == 0)
-		return (0);
-	return (0);
+	return (uart_getenv(devtype, di, class));
 }

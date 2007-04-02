@@ -52,8 +52,13 @@ int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	char buf[64];
+	struct uart_class *class;
 	phandle_t input, opts;
 	int error;
+
+	class = &uart_z8530_class;
+	if (class == NULL)
+		return (ENXIO);
 
 	if ((opts = OF_finddevice("/options")) == -1)
 		return (ENXIO);
@@ -93,7 +98,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (error)
 		return (error);
 
-	di->ops = uart_z8530_ops;
+	di->ops = uart_getops(class);
 
 	di->bas.rclk = 230400;
 	di->bas.chan = 1;
