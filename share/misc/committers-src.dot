@@ -127,6 +127,7 @@ trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
 wilko [label="Wilko Bulte\nwilko@FreeBSD.org\n2000/01/13"]
 wsalamon [label="Wayne Salamon\nwsalamon@FreeBSD.org\n2005/06/25"]
+yongari [label="Pyun YongHyeon\nyongari@FreeBSD.org\n2004/08/01"]
 
 # Pseudo target representing rev 1.1 of commit.allow
 day1 [label="Birth of FreeBSD"]
