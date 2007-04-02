@@ -55,8 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 
-struct sx emul_shared_lock;
-struct sx emul_lock;
+struct sx	emul_shared_lock;
+struct mtx	emul_lock;
 
 /* this returns locked reference to the emuldata entry (if found) */
 struct linux_emuldata *

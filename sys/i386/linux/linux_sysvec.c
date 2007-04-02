@@ -917,7 +917,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_ioctl_register_handler(*lihp);
 			SET_FOREACH(ldhp, linux_device_handler_set)
 				linux_device_register_handler(*ldhp);
-			sx_init(&emul_lock, "emuldata lock");
+			mtx_init(&emul_lock, "emuldata lock", NULL, MTX_DEF);
 			sx_init(&emul_shared_lock, "emuldata->shared lock");
 			LIST_INIT(&futex_list);
 			sx_init(&futex_sx, "futex protection lock");
@@ -948,7 +948,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_ioctl_unregister_handler(*lihp);
 			SET_FOREACH(ldhp, linux_device_handler_set)
 				linux_device_unregister_handler(*ldhp);
-			sx_destroy(&emul_lock);
+			mtx_destroy(&emul_lock);
 			sx_destroy(&emul_shared_lock);
 			sx_destroy(&futex_sx);
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);

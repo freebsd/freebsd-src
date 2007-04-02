@@ -29,7 +29,7 @@
  */
 
 #ifndef _LINUX_EMUL_H_
-#define _LINUX_EMUL_H_
+#define	_LINUX_EMUL_H_
 
 struct linux_emuldata_shared {
 	int	refs;
@@ -55,26 +55,26 @@ struct linux_emuldata {
 	LIST_ENTRY(linux_emuldata) threads;	/* list of linux threads */
 };
 
-struct linux_emuldata *em_find(struct proc *, int locked);
+struct linux_emuldata	*em_find(struct proc *, int locked);
 
-#define EMUL_LOCK(l)	sx_xlock(l)
-#define EMUL_UNLOCK(l)	sx_xunlock(l)
+#define	EMUL_LOCK(l)		mtx_lock(l)
+#define	EMUL_UNLOCK(l)		mtx_unlock(l)
 
-#define EMUL_SHARED_RLOCK(l) sx_slock(l)
-#define EMUL_SHARED_RUNLOCK(l) sx_sunlock(l)
-#define EMUL_SHARED_WLOCK(l) sx_xlock(l)
-#define EMUL_SHARED_WUNLOCK(l) sx_xunlock(l)
+#define	EMUL_SHARED_RLOCK(l)	sx_slock(l)
+#define	EMUL_SHARED_RUNLOCK(l)	sx_sunlock(l)
+#define	EMUL_SHARED_WLOCK(l)	sx_xlock(l)
+#define	EMUL_SHARED_WUNLOCK(l)	sx_xunlock(l)
 
 /* for em_find use */
-#define EMUL_DOLOCK		1
-#define EMUL_DONTLOCK		0
+#define	EMUL_DOLOCK		1
+#define	EMUL_DONTLOCK		0
 
 int	linux_proc_init(struct thread *, pid_t, int);
 void	linux_proc_exit(void *, struct proc *);
 void	linux_schedtail(void *, struct proc *);
 void	linux_proc_exec(void *, struct proc *, struct image_params *);
 
-extern struct sx emul_shared_lock;
-extern struct sx emul_lock;
+extern struct sx	emul_shared_lock;
+extern struct mtx	emul_lock;
 
 #endif	/* !_LINUX_EMUL_H_ */
