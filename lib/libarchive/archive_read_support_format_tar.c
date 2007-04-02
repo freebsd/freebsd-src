@@ -524,15 +524,9 @@ archive_read_format_tar_read_data(struct archive_read *a,
 		(a->compression_read_consume)(a, bytes_read);
 		return (ARCHIVE_OK);
 	} else {
-		while (tar->entry_padding > 0) {
-			bytes_read = (a->compression_read_ahead)(a, buff, 1);
-			if (bytes_read <= 0)
-				return (ARCHIVE_FATAL);
-			if (bytes_read > tar->entry_padding)
-				bytes_read = tar->entry_padding;
-			(a->compression_read_consume)(a, bytes_read);
-			tar->entry_padding -= bytes_read;
-		}
+		if ((a->compression_skip)(a, tar->entry_padding) < 0)
+			return (ARCHIVE_FATAL);
+		tar->entry_padding = 0;
 		*buff = NULL;
 		*size = 0;
 		*offset = tar->entry_offset;
