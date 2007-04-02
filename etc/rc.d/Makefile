@@ -3,7 +3,7 @@
 
 .include <bsd.own.mk>
 
-FILES=	DAEMON LOGIN NETWORKING SERVERS \
+FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	abi accounting addswap adjkerntz amd \
 	apm apmd archdep atm1 atm2 atm3 auditd auto_linklocal \
 	bgfsck bluetooth bootparams bridge bsnmpd bthidd \
