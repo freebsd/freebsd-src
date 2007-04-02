@@ -7,7 +7,7 @@
 #
 
 # PROVIDE: isdnd
-# REQUIRE: netif mountcritlocal cleanvar
+# REQUIRE: netif FILESYSTEMS cleanvar
 # KEYWORD: nojail
 
 . /etc/rc.subr

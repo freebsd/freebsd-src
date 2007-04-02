@@ -9,7 +9,7 @@
 #
 
 # PROVIDE: power_profile
-# REQUIRE: mountcritlocal syslogd
+# REQUIRE: FILESYSTEMS syslogd
 # KEYWORD: nojail nostart
 
 . /etc/rc.subr

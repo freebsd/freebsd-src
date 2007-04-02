@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: var
-# REQUIRE: mountcritlocal
+# REQUIRE: FILESYSTEMS
 
 . /etc/rc.subr
 

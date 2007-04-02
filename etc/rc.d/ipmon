@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: ipmon
-# REQUIRE: mountcritlocal hostname sysctl cleanvar ipfilter
+# REQUIRE: FILESYSTEMS hostname sysctl cleanvar ipfilter
 # BEFORE:  SERVERS
 # KEYWORD: nojail
 
