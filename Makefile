@@ -261,12 +261,14 @@ make: .PHONY
 # existing system is.
 #
 .if make(universe)
+TARGETS?=amd64 arm i386 ia64 pc98 powerpc sparc64 sun4v
+
 universe: universe_prologue
 universe_prologue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
-.for target in amd64 arm i386 ia64 pc98 powerpc sparc64 sun4v
+.for target in ${TARGETS}
 KERNCONFS!=	cd ${.CURDIR}/sys/${target}/conf && \
 		find [A-Z]*[A-Z] -type f -maxdepth 0 \
 		! -name DEFAULTS ! -name LINT
