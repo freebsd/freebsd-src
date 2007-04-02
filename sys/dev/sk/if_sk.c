@@ -217,7 +217,7 @@ static void sk_init_locked(struct sk_if_softc *);
 static void sk_init_xmac(struct sk_if_softc *);
 static void sk_init_yukon(struct sk_if_softc *);
 static void sk_stop(struct sk_if_softc *);
-static void sk_watchdog(struct ifnet *);
+static void sk_watchdog(void *);
 static int sk_ifmedia_upd(struct ifnet *);
 static void sk_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static void sk_reset(struct sk_softc *);
@@ -1368,6 +1368,7 @@ sk_attach(dev)
 		sc_if->sk_tx_bmu = SK_BMU_TXS_CSR1;
 
 	callout_init_mtx(&sc_if->sk_tick_ch, &sc_if->sk_softc->sk_mtx, 0);
+	callout_init_mtx(&sc_if->sk_watchdog_ch, &sc_if->sk_softc->sk_mtx, 0);
 
 	if (sk_dma_alloc(sc_if) != 0) {
 		error = ENOMEM;
@@ -1397,7 +1398,8 @@ sk_attach(dev)
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = sk_ioctl;
 	ifp->if_start = sk_start;
-	ifp->if_watchdog = sk_watchdog;
+	ifp->if_timer = 0;
+	ifp->if_watchdog = NULL;
 	ifp->if_init = sk_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, SK_TX_RING_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = SK_TX_RING_CNT - 1;
@@ -1839,6 +1841,7 @@ sk_detach(dev)
 		/* Can't hold locks while calling detach */
 		SK_IF_UNLOCK(sc_if);
 		callout_drain(&sc_if->sk_tick_ch);
+		callout_drain(&sc_if->sk_watchdog_ch);
 		ether_ifdetach(ifp);
 		SK_IF_LOCK(sc_if);
 	}
@@ -2652,20 +2655,26 @@ sk_start_locked(ifp)
 		CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
 
 		/* Set a timeout in case the chip goes out to lunch. */
-		ifp->if_timer = 5;
+		sc_if->sk_watchdog_timer = 5;
 	}
 }
 
 
 static void
-sk_watchdog(ifp)
-	struct ifnet		*ifp;
+sk_watchdog(arg)
+	void			*arg;
 {
 	struct sk_if_softc	*sc_if;
+	struct ifnet		*ifp;
 
+	ifp = arg;
 	sc_if = ifp->if_softc;
 
-	SK_IF_LOCK(sc_if);
+	SK_IF_LOCK_ASSERT(sc_if);
+
+	if (sc_if->sk_watchdog_timer == 0 || --sc_if->sk_watchdog_timer)
+		goto done;
+
 	/*
 	 * Reclaim first as there is a possibility of losing Tx completion
 	 * interrupts.
@@ -2677,7 +2686,9 @@ sk_watchdog(ifp)
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		sk_init_locked(sc_if);
 	}
-	SK_IF_UNLOCK(sc_if);
+
+done:
+	callout_reset(&sc_if->sk_watchdog_ch, hz, sk_watchdog, ifp);
 
 	return;
 }
@@ -3030,7 +3041,7 @@ sk_txeof(sc_if)
 		txd = STAILQ_FIRST(&sc_if->sk_cdata.sk_txbusyq);
 	}
 	sc_if->sk_cdata.sk_tx_cons = idx;
-	ifp->if_timer = sc_if->sk_cdata.sk_tx_cnt > 0 ? 5 : 0;
+	sc_if->sk_watchdog_timer = sc_if->sk_cdata.sk_tx_cnt > 0 ? 5 : 0;
 
 	bus_dmamap_sync(sc_if->sk_cdata.sk_tx_ring_tag,
 	    sc_if->sk_cdata.sk_tx_ring_map,
@@ -3805,6 +3816,8 @@ sk_init_locked(sc_if)
 		break;
 	}
 
+	callout_reset(&sc_if->sk_watchdog_ch, hz, sk_watchdog, ifp);
+
 	return;
 }
 
@@ -3825,6 +3838,7 @@ sk_stop(sc_if)
 	ifp = sc_if->sk_ifp;
 
 	callout_stop(&sc_if->sk_tick_ch);
+	callout_stop(&sc_if->sk_watchdog_ch);
 
 	/* stop Tx descriptor polling timer */
 	SK_IF_WRITE_4(sc_if, 0, SK_DPT_TIMER_CTRL, SK_DPT_TCTL_STOP);
