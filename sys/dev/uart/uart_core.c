@@ -70,6 +70,24 @@ uart_add_sysdev(struct uart_devinfo *di)
 	SLIST_INSERT_HEAD(&uart_sysdevs, di, next);
 }
 
+const char *
+uart_getname(struct uart_class *uc)
+{
+	return ((uc != NULL) ? uc->name : NULL);
+}
+
+struct uart_ops *
+uart_getops(struct uart_class *uc)
+{
+	return ((uc != NULL) ? uc->uc_ops : NULL);
+}
+
+int
+uart_getrange(struct uart_class *uc)
+{
+	return ((uc != NULL) ? uc->uc_range : 0);
+}
+
 /*
  * Schedule a soft interrupt. We do this on the 0 to !0 transition
  * of the TTY pending interrupt status.
@@ -293,6 +311,15 @@ uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan)
 	struct uart_devinfo *sysdev;
 	int error;
 
+	sc = device_get_softc(dev);
+
+	/*
+	 * All uart_class references are weak. Check that the needed
+	 * class has been compiled-in. Fail if not.
+	 */
+	if (sc->sc_class == NULL)
+		return (ENXIO);
+
 	/*
 	 * Initialize the instance. Note that the instance (=softc) does
 	 * not necessarily match the hardware specific softc. We can't do
@@ -300,11 +327,10 @@ uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan)
 	 * Hardware drivers cannot use any of the class specific fields
 	 * while probing.
 	 */
-	sc = device_get_softc(dev);
 	kobj_init((kobj_t)sc, (kobj_class_t)sc->sc_class);
 	sc->sc_dev = dev;
 	if (device_get_desc(dev) == NULL)
-		device_set_desc(dev, sc->sc_class->name);
+		device_set_desc(dev, uart_getname(sc->sc_class));
 
 	/*
 	 * Allocate the register resource. We assume that all UARTs have
@@ -316,12 +342,13 @@ uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan)
 	sc->sc_rrid = rid;
 	sc->sc_rtype = SYS_RES_IOPORT;
 	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
-	    0, ~0, sc->sc_class->uc_range, RF_ACTIVE);
+	    0, ~0, uart_getrange(sc->sc_class), RF_ACTIVE);
 	if (sc->sc_rres == NULL) {
 		sc->sc_rrid = rid;
 		sc->sc_rtype = SYS_RES_MEMORY;
 		sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype,
-		    &sc->sc_rrid, 0, ~0, sc->sc_class->uc_range, RF_ACTIVE);
+		    &sc->sc_rrid, 0, ~0, uart_getrange(sc->sc_class),
+		    RF_ACTIVE);
 		if (sc->sc_rres == NULL)
 			return (ENXIO);
 	}
@@ -390,7 +417,7 @@ uart_bus_attach(device_t dev)
 	 * collected by uart_bus_probe() intact.
 	 */
 	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
-	    0, ~0, sc->sc_class->uc_range, RF_ACTIVE);
+	    0, ~0, uart_getrange(sc->sc_class), RF_ACTIVE);
 	if (sc->sc_rres == NULL) {
 		mtx_destroy(&sc->sc_hwmtx_s);
 		return (ENXIO);

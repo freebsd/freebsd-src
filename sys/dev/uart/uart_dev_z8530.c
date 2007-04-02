@@ -195,7 +195,7 @@ static void z8530_putc(struct uart_bas *bas, int);
 static int z8530_rxready(struct uart_bas *bas);
 static int z8530_getc(struct uart_bas *bas, struct mtx *);
 
-struct uart_ops uart_z8530_ops = {
+static struct uart_ops uart_z8530_ops = {
 	.probe = z8530_probe,
 	.init = z8530_init,
 	.term = z8530_term,
@@ -298,9 +298,10 @@ static kobj_method_t z8530_methods[] = {
 };
 
 struct uart_class uart_z8530_class = {
-	"z8530 class",
+	"z8530",
 	z8530_methods,
 	sizeof(struct z8530_softc),
+	.uc_ops = &uart_z8530_ops,
 	.uc_range = 2,
 	.uc_rclk = DEFAULT_RCLK
 };

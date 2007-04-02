@@ -45,11 +45,6 @@ struct uart_ops {
 	int (*getc)(struct uart_bas *, struct mtx *);
 };
 
-extern struct uart_ops uart_i8251_ops;
-extern struct uart_ops uart_ns8250_ops;
-extern struct uart_ops uart_sab82532_ops;
-extern struct uart_ops uart_z8530_ops;
-
 extern bus_space_tag_t uart_bus_space_io;
 extern bus_space_tag_t uart_bus_space_mem;
 
@@ -59,7 +54,7 @@ extern bus_space_tag_t uart_bus_space_mem;
 struct uart_softc;
 struct uart_devinfo {
 	SLIST_ENTRY(uart_devinfo) next;
-	struct uart_ops ops;
+	struct uart_ops *ops;
 	struct uart_bas bas;
 	int	baudrate;
 	int	databits;
@@ -77,7 +72,11 @@ struct uart_devinfo {
 
 int uart_cpu_eqres(struct uart_bas *, struct uart_bas *);
 int uart_cpu_getdev(int, struct uart_devinfo *);
-int uart_getenv(int, struct uart_devinfo *);
+
+int uart_getenv(int, struct uart_devinfo *, struct uart_class *);
+const char *uart_getname(struct uart_class *);
+struct uart_ops *uart_getops(struct uart_class *);
+int uart_getrange(struct uart_class *);
 
 void uart_add_sysdev(struct uart_devinfo *);
 
@@ -106,7 +105,7 @@ uart_probe(struct uart_devinfo *di)
 	int res;
 
 	uart_lock(di->hwmtx);
-	res = di->ops.probe(&di->bas);
+	res = di->ops->probe(&di->bas);
 	uart_unlock(di->hwmtx);
 	return (res);
 }
@@ -115,7 +114,7 @@ static __inline void
 uart_init(struct uart_devinfo *di)
 {
 	uart_lock(di->hwmtx);
-	di->ops.init(&di->bas, di->baudrate, di->databits, di->stopbits,
+	di->ops->init(&di->bas, di->baudrate, di->databits, di->stopbits,
 	    di->parity);
 	uart_unlock(di->hwmtx);
 }
@@ -124,7 +123,7 @@ static __inline void
 uart_term(struct uart_devinfo *di)
 {
 	uart_lock(di->hwmtx);
-	di->ops.term(&di->bas);
+	di->ops->term(&di->bas);
 	uart_unlock(di->hwmtx);
 }
 
@@ -132,7 +131,7 @@ static __inline void
 uart_putc(struct uart_devinfo *di, int c)
 {
 	uart_lock(di->hwmtx);
-	di->ops.putc(&di->bas, c);
+	di->ops->putc(&di->bas, c);
 	uart_unlock(di->hwmtx);
 }
 
@@ -142,7 +141,7 @@ uart_rxready(struct uart_devinfo *di)
 	int res;
 
 	uart_lock(di->hwmtx);
-	res = di->ops.rxready(&di->bas);
+	res = di->ops->rxready(&di->bas);
 	uart_unlock(di->hwmtx);
 	return (res);
 }
@@ -153,8 +152,8 @@ uart_poll(struct uart_devinfo *di)
 	int res;
 
 	uart_lock(di->hwmtx);
-	if (di->ops.rxready(&di->bas))
-		res = di->ops.getc(&di->bas, NULL);
+	if (di->ops->rxready(&di->bas))
+		res = di->ops->getc(&di->bas, NULL);
 	else
 		res = -1;
 	uart_unlock(di->hwmtx);
@@ -165,7 +164,7 @@ static __inline int
 uart_getc(struct uart_devinfo *di)
 {
 
-	return (di->ops.getc(&di->bas, di->hwmtx));
+	return (di->ops->getc(&di->bas, di->hwmtx));
 }
 
 #endif /* _DEV_UART_CPU_H_ */

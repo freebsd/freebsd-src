@@ -49,11 +49,15 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
+	struct uart_class *class;
 	unsigned int i, ivar;
 
+	class = &uart_ns8250_class;
+	if (class == NULL)
+		return (ENXIO);
+
 	/* Check the environment. */
-	di->ops = uart_ns8250_ops;
-	if (uart_getenv(devtype, di) == 0)
+	if (uart_getenv(devtype, di, class) == 0)
 		return (0);
 
 	/*
@@ -82,10 +86,11 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		 * Got it. Fill in the instance and return it. We only have
 		 * ns8250 and successors on i386.
 		 */
-		di->ops = uart_ns8250_ops;
+		di->ops = uart_getops(class);
 		di->bas.chan = 0;
 		di->bas.bst = uart_bus_space_io;
-		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
+		if (bus_space_map(di->bas.bst, ivar, uart_getrange(class), 0,
+		    &di->bas.bsh) != 0)
 			continue;
 		di->bas.regshft = 0;
 		di->bas.rclk = 0;

@@ -176,7 +176,7 @@ static void sab82532_putc(struct uart_bas *bas, int);
 static int sab82532_rxready(struct uart_bas *bas);
 static int sab82532_getc(struct uart_bas *bas, struct mtx *);
 
-struct uart_ops uart_sab82532_ops = {
+static struct uart_ops uart_sab82532_ops = {
 	.probe = sab82532_probe,
 	.init = sab82532_init,
 	.term = sab82532_term,
@@ -382,9 +382,10 @@ static kobj_method_t sab82532_methods[] = {
 };
 
 struct uart_class uart_sab82532_class = {
-	"sab82532 class",
+	"sab82532",
 	sab82532_methods,
 	sizeof(struct sab82532_softc),
+	.uc_ops = &uart_sab82532_ops,
 	.uc_range = 64,
 	.uc_rclk = DEFAULT_RCLK
 };

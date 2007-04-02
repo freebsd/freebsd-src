@@ -196,7 +196,7 @@ at91_usart_param(struct uart_bas *bas, int baudrate, int databits,
 	return (0);
 }
 
-struct uart_ops at91_usart_ops = {
+static struct uart_ops at91_usart_ops = {
 	.probe = at91_usart_probe,
 	.init = at91_usart_init,
 	.term = at91_usart_term,
@@ -662,10 +662,12 @@ at91_usart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 	}
 	return (EINVAL);
 }
+
 struct uart_class at91_usart_class = {
-	"at91_usart class",
+	"at91_usart",
 	at91_usart_methods,
 	sizeof(struct at91_usart_softc),
+	.uc_ops = &at91_usart_ops,
 	.uc_range = 8,
 	.uc_rclk = DEFAULT_RCLK
 };
