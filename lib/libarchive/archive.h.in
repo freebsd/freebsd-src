@@ -177,6 +177,9 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_ISO9660_ROCKRIDGE	(ARCHIVE_FORMAT_ISO9660 | 1)
 #define	ARCHIVE_FORMAT_ZIP			0x50000
 #define	ARCHIVE_FORMAT_EMPTY			0x60000
+#define	ARCHIVE_FORMAT_AR			0x70000
+#define	ARCHIVE_FORMAT_AR_SVR4			(ARCHIVE_FORMAT_AR | 1)
+#define	ARCHIVE_FORMAT_AR_BSD			(ARCHIVE_FORMAT_AR | 2)
 
 /*-
  * Basic outline for reading an archive:
@@ -206,6 +209,7 @@ int		 archive_read_support_compression_gzip(struct archive *);
 int		 archive_read_support_compression_none(struct archive *);
 
 int		 archive_read_support_format_all(struct archive *);
+int		 archive_read_support_format_ar(struct archive *);
 int		 archive_read_support_format_cpio(struct archive *);
 int		 archive_read_support_format_empty(struct archive *);
 int		 archive_read_support_format_gnutar(struct archive *);
@@ -374,6 +378,8 @@ int		 archive_write_set_format(struct archive *, int format_code);
 int		 archive_write_set_format_by_name(struct archive *,
 		     const char *name);
 /* To minimize link pollution, use one or more of the following. */
+int		 archive_write_set_format_ar_bsd(struct archive *);
+int		 archive_write_set_format_ar_svr4(struct archive *);
 int		 archive_write_set_format_cpio(struct archive *);
 /* TODO: int archive_write_set_format_old_tar(struct archive *); */
 int		 archive_write_set_format_pax(struct archive *);
