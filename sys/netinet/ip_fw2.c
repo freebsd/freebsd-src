@@ -202,13 +202,11 @@ struct table_entry {
 static int fw_debug = 1;
 static int autoinc_step = 100; /* bounded to 1..1000 in add_rule() */
 
-extern int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
-
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_PROC(_net_inet_ip_fw, OID_AUTO, enable,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &fw_enable, 0,
-    ipfw_chg_hook, "I", "Enable ipfw");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, enable,
+    CTLFLAG_RW | CTLFLAG_SECURE3,
+    &fw_enable, 0, "Enable ipfw");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step, CTLFLAG_RW,
     &autoinc_step, 0, "Rule number autincrement step");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
@@ -4346,15 +4344,12 @@ ipfw_init(void)
 	/* Setup IPv6 fw sysctl tree. */
 	sysctl_ctx_init(&ip6_fw_sysctl_ctx);
 	ip6_fw_sysctl_tree = SYSCTL_ADD_NODE(&ip6_fw_sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_net_inet6_ip6), OID_AUTO, "fw",
-	    CTLFLAG_RW | CTLFLAG_SECURE, 0, "Firewall");
-	SYSCTL_ADD_PROC(&ip6_fw_sysctl_ctx, SYSCTL_CHILDREN(ip6_fw_sysctl_tree),
-	    OID_AUTO, "enable", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3,
-	    &fw6_enable, 0, ipfw_chg_hook, "I", "Enable ipfw+6");
+		SYSCTL_STATIC_CHILDREN(_net_inet6_ip6), OID_AUTO, "fw",
+		CTLFLAG_RW | CTLFLAG_SECURE, 0, "Firewall");
 	SYSCTL_ADD_INT(&ip6_fw_sysctl_ctx, SYSCTL_CHILDREN(ip6_fw_sysctl_tree),
-	    OID_AUTO, "deny_unknown_exthdrs", CTLFLAG_RW | CTLFLAG_SECURE,
-	    &fw_deny_unknown_exthdrs, 0,
-	    "Deny packets with unknown IPv6 Extension Headers");
+		OID_AUTO, "deny_unknown_exthdrs", CTLFLAG_RW | CTLFLAG_SECURE,
+		&fw_deny_unknown_exthdrs, 0,
+		"Deny packets with unknown IPv6 Extension Headers");
 #endif
 
 	layer3_chain.rules = NULL;
