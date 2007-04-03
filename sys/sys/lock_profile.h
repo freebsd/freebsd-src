@@ -129,12 +129,14 @@ static inline void lock_profile_obtain_lock_failed(struct lock_object *lo, int *
 
 static inline void lock_profile_obtain_lock_success(struct lock_object *lo, int contested, uint64_t waittime, const char *file, int line) 
 {
-	if (lock_prof_enable) {
+	
+	/* don't reset the timer when/if recursing */
+	if (lock_prof_enable && lo->lo_profile_obj.lpo_acqtime == 0) {
 #ifdef LOCK_PROFILING_FAST
                if (contested == 0)
                        return;
 #endif
-		_lock_profile_obtain_lock_success(lo, contested, waittime, file, line);
+	       _lock_profile_obtain_lock_success(lo, contested, waittime, file, line);
 	}
 }
 static inline void lock_profile_release_lock(struct lock_object *lo)
