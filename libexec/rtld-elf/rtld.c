@@ -164,6 +164,7 @@ static Obj_Entry **obj_tail;	/* Link field of last object in list */
 static Obj_Entry *obj_main;	/* The main program shared object */
 static Obj_Entry obj_rtld;	/* The dynamic linker shared object */
 static unsigned int obj_count;	/* Number of objects in obj_list */
+static unsigned int obj_loads;	/* Number of objects in obj_list */
 
 static Objlist list_global =	/* Objects dlopened with RTLD_GLOBAL */
   STAILQ_HEAD_INITIALIZER(list_global);
@@ -204,6 +205,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &__tls_get_addr,
     (func_ptr_type) &_rtld_allocate_tls,
     (func_ptr_type) &_rtld_free_tls,
+    (func_ptr_type) &dl_iterate_phdr,
     NULL
 };
 
@@ -423,6 +425,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     *obj_tail = obj_main;
     obj_tail = &obj_main->next;
     obj_count++;
+    obj_loads++;
     /* Make sure we don't call the main program's init and fini functions. */
     obj_main->init = obj_main->fini = (Elf_Addr)NULL;
 
@@ -1387,6 +1390,7 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp)
     *obj_tail = obj;
     obj_tail = &obj->next;
     obj_count++;
+    obj_loads++;
     linkmap_add(obj);	/* for GDB & dlinfo() */
 
     dbg("  %p .. %p: %s", obj->mapbase,
@@ -2074,6 +2078,37 @@ dlinfo(void *handle, int request, void *p)
 	error = -1;
     }
 
+    rlock_release(rtld_bind_lock, lockstate);
+
+    return (error);
+}
+
+int
+dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
+{
+    struct dl_phdr_info phdr_info;
+    const Obj_Entry *obj;
+    int error, lockstate;
+
+    lockstate = rlock_acquire(rtld_bind_lock);
+
+    error = 0;
+
+    for (obj = obj_list;  obj != NULL;  obj = obj->next) {
+	phdr_info.dlpi_addr = (Elf_Addr)obj->relocbase;
+	phdr_info.dlpi_name = STAILQ_FIRST(&obj->names) ?
+	    STAILQ_FIRST(&obj->names)->name : obj->path;
+	phdr_info.dlpi_phdr = obj->phdr;
+	phdr_info.dlpi_phnum = obj->phsize / sizeof(obj->phdr[0]);
+	phdr_info.dlpi_tls_modid = obj->tlsindex;
+	phdr_info.dlpi_tls_data = obj->tlsinit;
+	phdr_info.dlpi_adds = obj_loads;
+	phdr_info.dlpi_subs = obj_loads - obj_count;
+
+	if ((error = callback(&phdr_info, sizeof phdr_info, param)) != 0)
+		break;
+
+    }
     rlock_release(rtld_bind_lock, lockstate);
 
     return (error);

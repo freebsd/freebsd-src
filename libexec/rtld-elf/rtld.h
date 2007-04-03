@@ -201,15 +201,16 @@ typedef struct Struct_Obj_Entry {
     Elf_Addr init;		/* Initialization function to call */
     Elf_Addr fini;		/* Termination function to call */
 
-    bool mainprog;		/* True if this is the main program */
-    bool rtld;			/* True if this is the dynamic linker */
-    bool textrel;		/* True if there are relocations to text seg */
-    bool symbolic;		/* True if generated with "-Bsymbolic" */
-    bool bind_now;		/* True if all relocations should be made first */
-    bool traced;		/* Already printed in ldd trace output */
-    bool jmpslots_done;		/* Already have relocated the jump slots */
-    bool init_done;		/* Already have added object to init list */
-    bool tls_done;		/* Already allocated offset for static TLS */
+    bool mainprog : 1;		/* True if this is the main program */
+    bool rtld : 1;		/* True if this is the dynamic linker */
+    bool textrel : 1;		/* True if there are relocations to text seg */
+    bool symbolic : 1;		/* True if generated with "-Bsymbolic" */
+    bool bind_now : 1;		/* True if all relocations should be made first */
+    bool traced : 1;		/* Already printed in ldd trace output */
+    bool jmpslots_done : 1;	/* Already have relocated the jump slots */
+    bool init_done : 1;		/* Already have added object to init list */
+    bool tls_done : 1;		/* Already allocated offset for static TLS */
+    bool phdr_alloc : 1;	/* Phdr is allocated and needs to be freed. */
 
     struct link_map linkmap;	/* for GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
