@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 19, 1995
+.Dd April 3, 2007
 .Dt RPC.STATD 8
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
+.Op Fl p Ar port
 .Sh DESCRIPTION
 The
 .Nm
@@ -73,6 +74,12 @@ These messages are logged with level
 LOG_DEBUG and facility LOG_DAEMON.
 Error conditions are logged irrespective
 of this option, using level LOG_ERR.
+.It Fl p
+The
+.Fl p
+option allow to force the daemon to bind to the specified
+.Ar port ,
+for both AF_INET and AF_INET6 address families.
 .El
 .Pp
 The
