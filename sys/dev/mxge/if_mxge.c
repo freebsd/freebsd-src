@@ -1446,10 +1446,11 @@ mxge_encap_tso(mxge_softc_t *sc, struct mbuf *m, int busdma_seg_cnt)
 		/* Break the busdma segment up into pieces*/
 		low = MXGE_LOWPART_TO_U32(seg->ds_addr);
 		high_swapped = 	htobe32(MXGE_HIGHPART_TO_U32(seg->ds_addr));
-		len = seglen = seg->ds_len;
+		len = seg->ds_len;
 
 		while (len) {
 			flags_next = flags & ~MXGEFW_FLAGS_FIRST;
+			seglen = len;
 			cum_len_next = cum_len + seglen;
 			(req-rdma_count)->rdma_count = rdma_count + 1;
 			if (__predict_true(cum_len >= 0)) {
@@ -1514,6 +1515,7 @@ mxge_encap_tso(mxge_softc_t *sc, struct mbuf *m, int busdma_seg_cnt)
 	return;
 
 drop:
+	bus_dmamap_unload(tx->dmat, tx->info[tx->req & tx->mask].map);
 	m_freem(m);
 	sc->ifp->if_oerrors++;
 	if (!once) {
