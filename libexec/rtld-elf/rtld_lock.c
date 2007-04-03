@@ -54,7 +54,7 @@
 #define RC_INCR		0x2	/* Adjusts count of readers desiring lock */
 
 typedef struct Struct_Lock {
-	volatile int lock;
+	volatile u_int lock;
 	void *base;
 } Lock;
 
