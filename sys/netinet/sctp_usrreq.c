@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_output.h>
-#include <netinet/sctp_bsd_addr.h>
 #include <netinet/sctp_uio.h>
 #include <netinet/sctp_asconf.h>
 #include <netinet/sctputil.h>
@@ -302,6 +301,7 @@ sctp_ctlinput(cmd, sa, vip)
 	struct sctphdr *sh;
 	uint32_t vrf_id;
 
+	/* FIX, for non-bsd is this right? */
 	vrf_id = SCTP_DEFAULT_VRFID;
 	if (sa->sa_family != AF_INET ||
 	    ((struct sockaddr_in *)sa)->sin_addr.s_addr == INADDR_ANY) {
@@ -375,7 +375,10 @@ sctp_getcred(SYSCTL_HANDLER_ARGS)
 	int error;
 	uint32_t vrf_id;
 
+
+	/* FIX, for non-bsd is this right? */
 	vrf_id = SCTP_DEFAULT_VRFID;
+
 	/*
 	 * XXXRW: Other instances of getcred use SUSER_ALLOWJAIL, as socket
 	 * visibility is scoped using cr_canseesocket(), which it is not
@@ -847,6 +850,7 @@ sctp_disconnect(struct socket *so)
 			return (0);
 		}
 		/* not reached */
+		printf("Not reached reached?\n");
 	} else {
 		/* UDP model does not support this */
 		SCTP_INP_RUNLOCK(inp);
@@ -889,6 +893,7 @@ sctp_shutdown(struct socket *so)
 			 * made after an abort or something. Nothing to do
 			 * now.
 			 */
+			SCTP_INP_RUNLOCK(inp);
 			return (0);
 		}
 		SCTP_TCB_LOCK(stcb);
@@ -1336,15 +1341,11 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
 	    SCTP_PCB_FLAGS_UNBOUND) {
 		/* Bind a ephemeral port */
-		SCTP_INP_WUNLOCK(inp);
 		error = sctp_inpcb_bind(so, NULL, p);
 		if (error) {
 			goto out_now;
 		}
-	} else {
-		SCTP_INP_WUNLOCK(inp);
 	}
-
 	/* FIX ME: do we want to pass in a vrf on the connect call? */
 	vrf_id = inp->def_vrf_id;
 
@@ -2251,6 +2252,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 			if (hmaclist == NULL) {
 				/* no HMACs to return */
 				*optsize = sizeof(*shmac);
+				SCTP_INP_RUNLOCK(inp);
 				break;
 			}
 			/* is there room for all of the hmac ids? */
@@ -2382,7 +2384,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 		printf("inp is NULL?\n");
 		return EINVAL;
 	}
-	vrf_id = SCTP_DEFAULT_VRFID;
+	vrf_id = inp->def_vrf_id;
 
 	error = 0;
 	switch (optname) {
@@ -3555,8 +3557,6 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) {
 		SCTP_INP_RLOCK(inp);
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
-		if (stcb)
-			SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_RUNLOCK(inp);
 	} else {
 		/*
@@ -3568,6 +3568,8 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		stcb = sctp_findassociation_ep_addr(&inp, addr, NULL, NULL, NULL);
 		if (stcb == NULL) {
 			SCTP_INP_DECR_REF(inp);
+		} else {
+			SCTP_TCB_LOCK(stcb);
 		}
 	}
 	if (stcb != NULL) {
@@ -3575,7 +3577,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		error = EALREADY;
 		goto out_now;
 	}
-	vrf_id = SCTP_DEFAULT_VRFID;
+	vrf_id = inp->def_vrf_id;
 	/* We are GOOD to go */
 	stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0, vrf_id);
 	if (stcb == NULL) {
@@ -3594,12 +3596,11 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	sctp_initialize_auth_params(inp, stcb);
 
 	sctp_send_initiate(inp, stcb);
+	SCTP_TCB_UNLOCK(stcb);
 out_now:
 	if (create_lock_on)
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 
-	if (stcb)
-		SCTP_TCB_UNLOCK(stcb);
 	SCTP_INP_DECR_REF(inp);
 	return error;
 }
@@ -3686,6 +3687,7 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 	}
 	SCTP_INP_RLOCK(inp);
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) {
+		SCTP_INP_RUNLOCK(inp);
 		return (ENOTSUP);
 	}
 	if (so->so_state & SS_ISDISCONNECTED) {
@@ -3808,11 +3810,10 @@ sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
 				SCTP_TCB_UNLOCK(stcb);
 				goto notConn;
 			}
-			vrf_id = SCTP_DEFAULT_VRFID;
-
+			vrf_id = inp->def_vrf_id;
 			sctp_ifa = sctp_source_address_selection(inp,
 			    stcb,
-			    (struct route *)&net->ro,
+			    (sctp_route_t *) & net->ro,
 			    net, 0, vrf_id);
 			if (sctp_ifa) {
 				sin->sin_addr = sctp_ifa->address.sin.sin_addr;

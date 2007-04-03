@@ -376,20 +376,19 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_STRICT_DATA_ORDER_MAX	1
 #define SCTPCTL_STRICT_DATA_ORDER_DEFAULT	0
 
-/* min residual in in a data fragment leftover  */
+/* min_residual: min residual in a data fragment leftover */
 #define SCTPCTL_MIN_REDIDUAL		49
 #define SCTPCTL_MIN_RESIDUAL_DESC	"Minimum residual data chunk in second part of split"
 #define SCTPCTL_MIN_RESIDUAL_MIN	20
 #define SCTPCTL_MIN_RESIDUAL_MAX	65535
 #define SCTPCTL_MIN_RESIDUAL_DEFAULT	1452
 
-/* min residual in in a data fragment leftover  */
-#define SCTPCTL_MAX_RETRAN		50
-#define SCTPCTL_MAX_RETRAN_DESC		"Maximum times a unlucky chunk can be retran'd before assoc abort "
-#define SCTPCTL_MAX_RETRAN_MIN		0
-#define SCTPCTL_MAX_RETRAN_MAX		65535
-#define SCTPCTL_MAX_RETRAN_DEFAULT	30
-
+/* max_retran_chunk: max chunk retransmissions */
+#define SCTPCTL_MAX_RETRAN_CHUNK	50
+#define SCTPCTL_MAX_RETRAN_CHUNK_DESC	"Maximum times an unlucky chunk can be retran'd before assoc abort"
+#define SCTPCTL_MAX_RETRAN_CHUNK_MIN	0
+#define SCTPCTL_MAX_RETRAN_CHUNK_MAX	65535
+#define SCTPCTL_MAX_RETRAN_CHUNK_DEFAULT	30
 
 
 #ifdef SCTP_DEBUG
@@ -516,8 +515,8 @@ __FBSDID("$FreeBSD$");
 	{ "add_more_on_output", CTLTYPE_INT }, \
 	{ "sys_resource", CTLTYPE_INT }, \
 	{ "asoc_resource", CTLTYPE_INT }, \
-	{ "max_retran_chunk", CTLTYPE_INT }, \
 	{ "min_residual", CTLTYPE_INT }, \
+	{ "max_retran_chunk", CTLTYPE_INT }, \
 }
 #endif
 

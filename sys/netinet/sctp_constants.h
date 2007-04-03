@@ -40,26 +40,22 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEFAULT_SACK_FREQ 2
 
 /* Address limit - This variable is calculated
- * based on an 1500 byte mtu. We take out 100 bytes
+ * based on an 65535 byte max ip packet. We take out 100 bytes
  * for the cookie, 40 bytes for a v6 header and 32
  * bytes for the init structure. A second init structure
  * for the init-ack and then finally a third one for the
  * imbedded init. This yeilds 100+40+(3 * 32) = 236 bytes.
- * This leaves 1264 bytes for addresses. Now whatever we
- * send in the INIT() we need to allow to get back in the
+ * This leaves 65299 bytes for addresses. We throw out the 299 bytes.
+ * Now whatever we send in the INIT() we need to allow to get back in the
  * INIT-ACK plus all the values from INIT and INIT-ACK
  * listed in the cookie. Plus we need some overhead for
  * maybe copied parameters in the COOKIE. If we
- * allow 20 addresses, and each side has 20 V6 addresses
- * that will be 400 bytes. In the INIT-ACK we will
- * see the INIT-ACK 400 + 800 in the cookie. This leaves
- * 64 bytes slack for misc things in the cookie. Otherwise
- * we need to allow IP fragmentation.. which I believe
- * the INIT-ACK and COOKIE do, I don't think we do that
- * to the INIT though. So the max you could make this
- * value is 60 addresses.
+ * allow 1080 addresses, and each side has 1080 V6 addresses
+ * that will be 21600 bytes. In the INIT-ACK we will
+ * see the INIT-ACK 21600 + 43200 in the cookie. This leaves
+ * about 500 bytes slack for misc things in the cookie.
  */
-#define SCTP_ADDRESS_LIMIT 20
+#define SCTP_ADDRESS_LIMIT 1080
 
 /* Number of addresses where we just skip the counting */
 #define SCTP_COUNT_LIMIT 40
