@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: history.c,v 1.31 2005/08/01 14:34:06 christos Exp $
+ *	$NetBSD: history.c,v 1.32 2006/09/28 13:52:51 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -543,6 +543,7 @@ history_end(History *h)
 
 	if (h->h_next == history_def_next)
 		history_def_clear(h->h_ref, &ev);
+	h_free(h->h_ref);
 	h_free(h);
 }
 

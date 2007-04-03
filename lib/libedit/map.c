@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: map.c,v 1.22 2005/08/09 13:58:44 christos Exp $
+ *	$NetBSD: map.c,v 1.24 2006/04/09 01:36:51 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -1126,7 +1126,7 @@ map_print_key(EditLine *el, el_action_t *map, const char *in)
 	el_bindings_t *bp, *ep;
 
 	if (in[0] == '\0' || in[1] == '\0') {
-		(void) key__decode_str(in, outbuf, "");
+		(void) key__decode_str(in, outbuf, sizeof(outbuf), "");
 		ep = &el->el_map.help[el->el_map.nfunc];
 		for (bp = el->el_map.help; bp < ep; bp++)
 			if (bp->func == map[(unsigned char) *in]) {
@@ -1154,40 +1154,47 @@ map_print_some_keys(EditLine *el, el_action_t *map, int first, int last)
 	lastbuf[0] = last;
 	lastbuf[1] = 0;
 	if (map[first] == ED_UNASSIGNED) {
-		if (first == last)
+		if (first == last) {
+			(void) key__decode_str(firstbuf, unparsbuf, 
+			    sizeof(unparsbuf), STRQQ);
 			(void) fprintf(el->el_outfile,
-			    "%-15s->  is undefined\n",
-			    key__decode_str(firstbuf, unparsbuf, STRQQ));
+			    "%-15s->  is undefined\n", unparsbuf);
+		}
 		return;
 	}
 	ep = &el->el_map.help[el->el_map.nfunc];
 	for (bp = el->el_map.help; bp < ep; bp++) {
 		if (bp->func == map[first]) {
 			if (first == last) {
+				(void) key__decode_str(firstbuf, unparsbuf, 
+				    sizeof(unparsbuf), STRQQ);
 				(void) fprintf(el->el_outfile, "%-15s->  %s\n",
-				    key__decode_str(firstbuf, unparsbuf, STRQQ),
-				    bp->name);
+				    unparsbuf, bp->name);
 			} else {
+				(void) key__decode_str(firstbuf, unparsbuf, 
+				    sizeof(unparsbuf), STRQQ);
+				(void) key__decode_str(lastbuf, extrabuf, 
+				    sizeof(extrabuf), STRQQ);
 				(void) fprintf(el->el_outfile,
 				    "%-4s to %-7s->  %s\n",
-				    key__decode_str(firstbuf, unparsbuf, STRQQ),
-				    key__decode_str(lastbuf, extrabuf, STRQQ),
-				    bp->name);
+				    unparsbuf, extrabuf, bp->name);
 			}
 			return;
 		}
 	}
 #ifdef MAP_DEBUG
 	if (map == el->el_map.key) {
+		(void) key__decode_str(firstbuf, unparsbuf, 
+		    sizeof(unparsbuf), STRQQ);
 		(void) fprintf(el->el_outfile,
-		    "BUG!!! %s isn't bound to anything.\n",
-		    key__decode_str(firstbuf, unparsbuf, STRQQ));
+		    "BUG!!! %s isn't bound to anything.\n", unparsbuf);
 		(void) fprintf(el->el_outfile, "el->el_map.key[%d] == %d\n",
 		    first, el->el_map.key[first]);
 	} else {
+		(void) key__decode_str(firstbuf, unparsbuf, 
+		    sizeof(unparsbuf), STRQQ);
 		(void) fprintf(el->el_outfile,
-		    "BUG!!! %s isn't bound to anything.\n",
-		    key__decode_str(firstbuf, unparsbuf, STRQQ));
+		    "BUG!!! %s isn't bound to anything.\n", unparsbuf);
 		(void) fprintf(el->el_outfile, "el->el_map.alt[%d] == %d\n",
 		    first, el->el_map.alt[first]);
 	}
@@ -1374,7 +1381,7 @@ map_bind(EditLine *el, int argc, const char **argv)
 		break;
 
 	default:
-		EL_ABORT((el->el_errfile, "Bad XK_ type\n", ntype));
+		EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ntype));
 		break;
 	}
 	return (0);

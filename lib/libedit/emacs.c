@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: emacs.c,v 1.20 2005/08/08 14:05:37 christos Exp $
+ *	$NetBSD: emacs.c,v 1.21 2006/03/06 21:11:56 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -50,15 +50,14 @@ __FBSDID("$FreeBSD$");
  */
 protected el_action_t
 /*ARGSUSED*/
-em_delete_or_list(EditLine *el, int c __unused)
+em_delete_or_list(EditLine *el, int c)
 {
 
 	if (el->el_line.cursor == el->el_line.lastchar) {
 					/* if I'm at the end */
 		if (el->el_line.cursor == el->el_line.buffer) {
 					/* and the beginning */
-			term_overwrite(el, STReof, 4);	/* then do an EOF */
-			term__flush();
+			term_writec(el, c);	/* then do an EOF */
 			return (CC_EOF);
 		} else {
 			/*
