@@ -97,17 +97,13 @@
 /* Acquire an exclusive lock. */
 #define	__sx_xlock(sx, tid, file, line) do {				\
 	uintptr_t _tid = (uintptr_t)(tid);				\
-	int contested = 0;                                              \
-        uint64_t waitstart = 0;                                         \
 									\
 	if (!atomic_cmpset_acq_ptr(&(sx)->sx_lock, SX_LOCK_UNLOCKED,	\
 	    _tid)) {							\
-		lock_profile_obtain_lock_failed(&(sx)->lock_object,	\
-		    &contested, &waitstart);				\
 		_sx_xlock_hard((sx), _tid, (file), (line));		\
-	}								\
-	lock_profile_obtain_lock_success(&(sx)->lock_object, contested,	\
-	    waitstart, (file), (line));					\
+	} else								\
+		lock_profile_obtain_lock_success(&(sx)->lock_object, 0,	\
+		    0, (file), (line));					\
 } while (0)
 
 /* Release an exclusive lock. */
@@ -122,18 +118,14 @@
 /* Acquire a shared lock. */
 #define	__sx_slock(sx, file, line) do {					\
 	uintptr_t x = (sx)->sx_lock;					\
-	int contested = 0;                                              \
-        uint64_t waitstart = 0;                                         \
 									\
 	if (!(x & SX_LOCK_SHARED) ||					\
 	    !atomic_cmpset_acq_ptr(&(sx)->sx_lock, x,			\
 	    x + SX_ONE_SHARER)) {					\
-		lock_profile_obtain_lock_failed(&(sx)->lock_object,	\
-		    &contested, &waitstart);				\
 		_sx_slock_hard((sx), (file), (line));			\
-	}								\
-	lock_profile_obtain_lock_success(&(sx)->lock_object, contested,	\
-	    waitstart, (file), (line));					\
+	} else								\
+		lock_profile_obtain_lock_success(&(sx)->lock_object, 0,	\
+		    0, (file), (line));					\
 } while (0)
 
 /*
