@@ -3859,7 +3859,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_PIPE:
 		case O_QUEUE:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn))
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_pipe))
 				goto bad_size;
 			goto check_action;
 
