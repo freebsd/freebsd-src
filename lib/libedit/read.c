@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: read.c,v 1.39 2005/08/02 12:11:14 christos Exp $
+ *	$NetBSD: read.c,v 1.40 2007/03/01 21:41:45 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -55,6 +55,7 @@ private int	read__fixio(int, int);
 private int	read_preread(EditLine *);
 private int	read_char(EditLine *, char *);
 private int	read_getcmd(EditLine *, el_action_t *, char *);
+private void	read_pop(c_macro_t *);
 
 /* read_init():
  *	Initialize the read stuff
@@ -299,6 +300,19 @@ read_char(EditLine *el, char *cp)
 	return (num_read);
 }
 
+/* read_pop():
+ *	Pop a macro from the stack
+ */
+private void
+read_pop(c_macro_t *ma)
+{
+	int i;
+
+	el_free(ma->macro[0]);
+	for (i = ma->level--; i > 0; i--)
+		ma->macro[i - 1] = ma->macro[i];
+	ma->offset = 0;
+}
 
 /* el_getc():
  *	Read a character
@@ -315,20 +329,22 @@ el_getc(EditLine *el, char *cp)
 			if (!read_preread(el))
 				break;
 		}
+
 		if (ma->level < 0)
 			break;
 
-		if (ma->macro[ma->level][ma->offset] == '\0') {
-			el_free(ma->macro[ma->level--]);
-			ma->offset = 0;
+		if (ma->macro[0][ma->offset] == '\0') {
+			read_pop(ma);
 			continue;
 		}
-		*cp = ma->macro[ma->level][ma->offset++] & 0377;
-		if (ma->macro[ma->level][ma->offset] == '\0') {
+
+		*cp = ma->macro[0][ma->offset++] & 0377;
+
+		if (ma->macro[0][ma->offset] == '\0') {
 			/* Needed for QuoteMode On */
-			el_free(ma->macro[ma->level--]);
-			ma->offset = 0;
+			read_pop(ma);
 		}
+
 		return (1);
 	}
 
