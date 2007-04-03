@@ -4328,7 +4328,9 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 	char *ep = bp + space;
 	struct ip_fw *rule;
 	int i;
+	time_t	boot_seconds;
 
+        boot_seconds = boottime.tv_sec;
 	/* XXX this can take a long time and locking will block packet flow */
 	IPFW_RLOCK(chain);
 	for (rule = chain->rules; rule ; rule = rule->next) {
@@ -4341,8 +4343,15 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 		i = RULESIZE(rule);
 		if (bp + i <= ep) {
 			bcopy(rule, bp, i);
+			/*
+			 * XXX HACK. Store the disable mask in the "next" pointer
+			 * in a wild attempt to keep the ABI the same.
+			 * Why do we do this on EVERY rule?
+			 */
 			bcopy(&set_disable, &(((struct ip_fw *)bp)->next_rule),
 			    sizeof(set_disable));
+			if (((struct ip_fw *)bp)->timestamp)
+				((struct ip_fw *)bp)->timestamp += boot_seconds;
 			bp += i;
 		}
 	}
