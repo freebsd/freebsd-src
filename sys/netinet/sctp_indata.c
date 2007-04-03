@@ -4071,6 +4071,63 @@ skip_cwnd_update:
 	}
 }
 
+static int sctp_anal_print = 0;
+
+static void
+sctp_print_fs_audit(struct sctp_association *asoc)
+{
+	int cnt, i;
+	struct sctp_tmit_chunk *chk;
+	int inflight = 0, resend = 0, inbetween = 0, acked = 0, above = 0;
+
+	printf("sdqc:%d stqc:%d retran:%d reasm:%d cnt:%d tot_flight:%d tfc:%d\n",
+	    (int)asoc->send_queue_cnt,
+	    (int)asoc->sent_queue_cnt,
+	    (int)asoc->sent_queue_retran_cnt,
+	    (int)asoc->size_on_reasm_queue,
+	    (int)asoc->cnt_on_reasm_queue,
+	    (int)asoc->total_flight,
+	    (int)asoc->total_flight_count);
+	printf("my_rwnd:%d peers_rwnd:%d asoc calc cumack:%x\n",
+	    (int)asoc->my_rwnd, (int)asoc->peers_rwnd, asoc->last_acked_seq);
+	for (i = 0; i < asoc->streamoutcnt; i++) {
+		struct sctp_stream_queue_pending *sp;
+
+		cnt = 0;
+		TAILQ_FOREACH(sp, &asoc->strmout[i].outqueue, next)
+		    cnt++;
+		if (cnt) {
+			printf("Stream %d has %d msgs yet to be sent in strm queue\n", i, cnt);
+		}
+	}
+	cnt = 0;
+	TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
+		cnt++;
+	}
+	printf("The control_send_queue has %d pending\n", cnt);
+	cnt = 0;
+	TAILQ_FOREACH(chk, &asoc->send_queue, sctp_next) {
+		cnt++;
+	}
+	printf("The send_queue (waiting to get in flight) has %d chunks pending\n", cnt);
+	TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
+		if (chk->sent < SCTP_DATAGRAM_RESEND) {
+			inflight++;
+		} else if (chk->sent == SCTP_DATAGRAM_RESEND) {
+			resend++;
+		} else if (chk->sent < SCTP_DATAGRAM_ACKED) {
+			inbetween++;
+		} else if (chk->sent > SCTP_DATAGRAM_ACKED) {
+			above++;
+		} else {
+			acked++;
+			printf("chk->sent:%x chk->tsn:%x\n",
+			    chk->sent, chk->rec.data.TSN_seq);
+		}
+	}
+	printf("The sent_queue stats inflight:%d resend:%d acked:%d above:%d inbetween:%d\n",
+	    inflight, resend, acked, above, inbetween);
+}
 
 void
 sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
@@ -4081,7 +4138,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	struct sctp_tmit_chunk *tp1, *tp2;
 	uint32_t old_rwnd;
 	int win_probe_recovery = 0;
-	int j;
+	int j, done_once;;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
@@ -4351,6 +4408,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		win_probe_recovery = 1;
 	}
 	/* Now assure a timer where data is queued at */
+	done_once = 0;
 again:
 	j = 0;
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
@@ -4402,12 +4460,15 @@ again:
 			}
 		}
 	}
-	if ((j == 0) && (!TAILQ_EMPTY(&asoc->sent_queue)) && (asoc->sent_queue_retran_cnt == 0)) {
+	if ((j == 0) &&
+	    (!TAILQ_EMPTY(&asoc->sent_queue)) &&
+	    (asoc->sent_queue_retran_cnt == 0) &&
+	    (done_once == 0)) {
 		/* huh, this should not happen */
-#ifdef INVARIANTS
-		panic("Flight size incorrect? fixing??");
-#else
-		printf("Flight size incorrect?  fixing\n");
+		if (sctp_anal_print == 0) {
+			printf("Flight size-express incorrect? cumack:%x\n", cumack);
+			sctp_print_fs_audit(asoc);
+		}
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			net->flight_size = 0;
 		}
@@ -4423,7 +4484,12 @@ again:
 				asoc->sent_queue_retran_cnt++;
 			}
 		}
-#endif
+		if (sctp_anal_print == 0) {
+			printf("After audit, totalflight:%d, retran_cnt:%d\n",
+			    asoc->total_flight, asoc->sent_queue_retran_cnt);
+			sctp_anal_print = 1;
+		}
+		done_once = 1;
 		goto again;
 	}
 	/**********************************/
@@ -4527,6 +4593,7 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 	struct sctp_tmit_chunk *tp1, *tp2;
 	uint32_t cum_ack, last_tsn, biggest_tsn_acked, biggest_tsn_newly_acked,
 	         this_sack_lowest_newack;
+	uint32_t sav_cum_ack;
 	uint16_t num_seg, num_dup;
 	uint16_t wake_him = 0;
 	unsigned int sack_length;
@@ -4538,6 +4605,7 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 	int win_probe_recovery = 0;
 	struct sctp_nets *net = NULL;
 	int nonce_sum_flag, ecn_seg_sums = 0;
+	int done_once;
 	uint8_t reneged_all = 0;
 	uint8_t cmt_dac_flag;
 
@@ -4668,6 +4736,8 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 		/* acking something behind */
 		return;
 	}
+	sav_cum_ack = asoc->last_acked_seq;
+
 	/* update the Rwnd of the peer */
 	if (TAILQ_EMPTY(&asoc->sent_queue) &&
 	    TAILQ_EMPTY(&asoc->send_queue) &&
@@ -5391,6 +5461,7 @@ done_with_it:
 	 * Now we must setup so we have a timer up for anyone with
 	 * outstanding data.
 	 */
+	done_once = 0;
 again:
 	j = 0;
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
@@ -5423,12 +5494,16 @@ again:
 			    stcb->sctp_ep, stcb, net);
 		}
 	}
-	if ((j == 0) && (!TAILQ_EMPTY(&asoc->sent_queue)) && (asoc->sent_queue_retran_cnt == 0)) {
+	if ((j == 0) &&
+	    (!TAILQ_EMPTY(&asoc->sent_queue)) &&
+	    (asoc->sent_queue_retran_cnt == 0) &&
+	    (done_once == 0)) {
 		/* huh, this should not happen */
-#ifdef INVARIANTS
-		panic("Flight size incorrect? fixing??");
-#else
-		printf("Flight size incorrect? fixing??\n");
+		if (sctp_anal_print == 0) {
+			printf("Flight size incorrect sack-cumack:%x prev_last_ack:%x? fixing??",
+			    cum_ack, sav_cum_ack);
+			sctp_print_fs_audit(asoc);
+		}
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			net->flight_size = 0;
 		}
@@ -5444,7 +5519,12 @@ again:
 				asoc->sent_queue_retran_cnt++;
 			}
 		}
-#endif
+		if (sctp_anal_print == 0) {
+			printf("After audit, totalflight:%d retran count:%d\n",
+			    asoc->total_flight, asoc->sent_queue_retran_cnt);
+			sctp_anal_print = 1;
+		}
+		done_once = 1;
 		goto again;
 	}
 #ifdef SCTP_SACK_RWND_LOGGING

@@ -966,6 +966,7 @@ int
 sctp_lower_sosend(struct socket *so,
     struct sockaddr *addr,
     struct uio *uio,
+
     struct mbuf *top,
     struct mbuf *control,
     int flags,
