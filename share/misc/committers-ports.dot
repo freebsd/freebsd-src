@@ -75,7 +75,8 @@ kwm [label="Koop Mast\nkwm@FreeBSD.org\n2004/09/14"]
 koitsu [label="Jeremy Chadwick\nkoitsu@FreeBSD.org\n2006/11/10"]
 laszlof [label="Frank Laszlo\nlaszlof@FreeBSD.org\n2006/11/07"]
 lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
-lbr [label="Lars Balker Rasmussen\lbr@FreeBSD.org\n2006/04/30"]
+lbr [label="Lars Balker Rasmussen\nlbr@FreeBSD.org\n2006/04/30"]
+leeym [label="Yen-Ming Lee\nleeym@FreeBSD.org\n2002/08/14"]
 lth [label="Lars Thegler\nlth@FreeBSD.org\n2004/05/04"]
 maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
 marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
@@ -144,6 +145,8 @@ garga -> acm
 garga -> alepulver
 garga -> vd
 
+ijliao -> leeym
+
 itetcu -> dryice
 
 joerg -> netchild
@@ -162,6 +165,8 @@ krion -> sem
 krion -> sergei
 
 lawrance -> itetcu
+
+leeym -> clsung
 
 marcus -> bland
 marcus -> eik
