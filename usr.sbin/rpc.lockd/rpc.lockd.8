@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 24, 1995
+.Dd April 3, 2007
 .Dt RPC.LOCKD 8
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .Nm
 .Op Fl d Ar debug_level
 .Op Fl g Ar grace period
+.Op Fl p Ar port
 .Sh DESCRIPTION
 The
 .Nm
@@ -83,6 +84,12 @@ During the grace period
 only accepts requests from hosts which are reinitialising locks which
 existed before the server restart.
 Default is 30 seconds.
+.It Fl p
+The
+.Fl p
+option allow to force the daemon to bind to the specified
+.Ar port ,
+for both AF_INET and AF_INET6 address families.
 .El
 .Pp
 Error conditions are logged to syslog, irrespective of the debug level,
