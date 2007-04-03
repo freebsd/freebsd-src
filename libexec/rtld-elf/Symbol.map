@@ -1,0 +1,18 @@
+# $FreeBSD$
+
+FBSD_1.0 {
+    _rtld_error;
+    dlclose;
+    dlerror;
+    dlopen;
+    dlsym;
+    dlvsym;
+    dladdr;
+    dllockinit;
+    dlinfo;
+    dl_iterate_phdr;
+    _rtld_thread_init;
+    _rtld_allocate_tls;
+    _rtld_free_tls;
+    __tls_get_addr;
+};
