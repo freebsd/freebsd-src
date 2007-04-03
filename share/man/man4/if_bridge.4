@@ -235,7 +235,7 @@ on the interface with the MAC address equal to the packet's destination
 MAC.
 There are situations when some of the bridge members are sharing
 the same MAC address (for example the
-.Xr if_vlan 4
+.Xr vlan 4
 interfaces: they are currenly sharing the
 MAC address of the parent physical interface).
 It is not possible to distinguish between these interfaces using
@@ -301,7 +301,7 @@ implementation details.
 .Pp
 This problem arises for any bridge members that are sharing the same
 MAC address, not only to the
-.Xr if_vlan 4
+.Xr vlan 4
 ones: they we taken just as the example of such situation.
 So if one wants the filter the locally destined packets based on
 their interface name, one should be aware of this implication.
