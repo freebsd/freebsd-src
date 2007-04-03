@@ -285,19 +285,16 @@ ns8250_term(struct uart_bas *bas)
 static void
 ns8250_putc(struct uart_bas *bas, int c)
 {
-	int delay, limit;
+	int limit;
 
-	/* 1/10th the time to transmit 1 character (estimate). */
-	delay = ns8250_delay(bas);
-
-	limit = 20;
+	limit = 250000;
 	while ((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0 && --limit)
-		DELAY(delay);
+		DELAY(4);
 	uart_setreg(bas, REG_DATA, c);
 	uart_barrier(bas);
-	limit = 40;
+	limit = 250000;
 	while ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0 && --limit)
-		DELAY(delay);
+		DELAY(4);
 }
 
 static int
@@ -310,16 +307,13 @@ ns8250_rxready(struct uart_bas *bas)
 static int
 ns8250_getc(struct uart_bas *bas, struct mtx *hwmtx)
 {
-	int c, delay;
+	int c;
 
 	uart_lock(hwmtx);
 
-	/* 1/10th the time to transmit 1 character (estimate). */
-	delay = ns8250_delay(bas);
-
 	while ((uart_getreg(bas, REG_LSR) & LSR_RXRDY) == 0) {
 		uart_unlock(hwmtx);
-		DELAY(delay);
+		DELAY(4);
 		uart_lock(hwmtx);
 	}
 
