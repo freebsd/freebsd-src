@@ -41,7 +41,7 @@
 #ifndef _SYS_LINK_ELF_H_
 #define _SYS_LINK_ELF_H_
 
-#include <sys/types.h>
+#include <sys/elf.h>
 
 /*
  * Flags that describe the origin of the entries in Dl_serinfo.
@@ -75,5 +75,25 @@ struct r_debug {
 	    RT_DELETE				/* removing a shared library */
 	}		r_state;
 };
+
+struct dl_phdr_info
+{
+	Elf_Addr dlpi_addr;			/* module relocation base */
+	const char *dlpi_name;			/* module name */
+	const Elf_Phdr *dlpi_phdr;		/* pointer to module's phdr */
+	Elf_Half dlpi_phnum;			/* number of entries in phdr */
+	unsigned long long int dlpi_adds;	/* total # of loads */
+	unsigned long long int dlpi_subs;	/* total # of unloads */
+	size_t dlpi_tls_modid;
+	void *dlpi_tls_data;
+};
+
+__BEGIN_DECLS
+
+typedef int (*__dl_iterate_hdr_callback)(struct dl_phdr_info *, size_t,
+    void *);
+extern int dl_iterate_phdr(__dl_iterate_hdr_callback, void *);
+
+__END_DECLS
 
 #endif /* _SYS_LINK_ELF_H_ */
