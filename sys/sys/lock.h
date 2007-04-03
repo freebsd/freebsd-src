@@ -79,7 +79,6 @@ struct lock_class {
 #define	LO_ENROLLPEND	0x00800000	/* On the pending enroll list. */
 #define	LO_CLASSMASK	0x0f000000	/* Class index bitmask. */
 #define LO_NOPROFILE    0x10000000      /* Don't profile this lock */
-#define LO_CONTESTED    0x20000000      /* Lock was contested */
 
 /*
  * Lock classes are statically assigned an index into the gobal lock_classes
