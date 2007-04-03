@@ -180,20 +180,29 @@ journal_label(struct gctl_req *req)
 	case 1:
 		if (!force && g_journal_fs_exists(data)) {
 			gctl_error(req, "File system exists on %s and this "
-			    "operation is going to destroy it. Use -f if you "
+			    "operation would destroy it.\nUse -f if you "
 			    "really want to do it.", data);
 			return;
 		}
 		journal = data;
+		msize = g_get_mediasize(data);
+		ssize = g_get_sectorsize(data);
 		if (jsize == -1) {
 			/*
 			 * No journal size specified. 1GB should be safe
 			 * default.
 			 */
 			jsize = 1073741824ULL;
+		} else {
+			if (jsize < 104857600) {
+				gctl_error(req, "Journal too small.");
+				return;
+			}
+			if ((jsize % ssize) != 0) {
+				gctl_error(req, "Invalid journal size.");
+				return;
+			}
 		}
-		msize = g_get_mediasize(data);
-		ssize = g_get_sectorsize(data);
 		if (jsize + ssize >= msize) {
 			gctl_error(req, "Provider too small for journalling. "
 			    "You can try smaller jsize (default is %jd).",
