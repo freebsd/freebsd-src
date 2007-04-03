@@ -91,7 +91,7 @@ uint32_t sctp_chunkscale = SCTP_CHUNKQUEUE_SCALE;
 
 uint32_t sctp_cmt_on_off = 0;
 uint32_t sctp_cmt_use_dac = 0;
-uint32_t sctp_max_retran_chunk = SCTPCTL_MAX_RETRAN_DEFAULT;
+uint32_t sctp_max_retran_chunk = SCTPCTL_MAX_RETRAN_CHUNK_DEFAULT;
 
 
 uint32_t sctp_L2_abc_variable = 1;
@@ -486,18 +486,6 @@ SYSCTL_INT(_net_inet_sctp, OID_AUTO, strict_data_order, CTLFLAG_RW,
     &sctp_strict_data_order, 0,
     "Enforce strict data ordering, abort if control inside data");
 
-SYSCTL_INT(_net_inet_sctp, OID_AUTO, min_residual, CTLFLAG_RW,
-    &sctp_min_residual, 0,
-    SCTPCTL_MIN_RESIDUAL_DESC);
-
-
-SYSCTL_INT(_net_inet_sctp, OID_AUTO, max_retran_chunk, CTLFLAG_RW,
-    &sctp_max_retran_chunk, 0,
-    SCTPCTL_MAX_RETRAN_DESC);
-
-
-
-
 SYSCTL_STRUCT(_net_inet_sctp, OID_AUTO, stats, CTLFLAG_RW,
     &sctpstat, sctpstat,
     "SCTP statistics (struct sctps_stat, netinet/sctp.h");
@@ -505,6 +493,14 @@ SYSCTL_STRUCT(_net_inet_sctp, OID_AUTO, stats, CTLFLAG_RW,
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, assoclist, CTLFLAG_RD,
     0, 0, sctp_assoclist,
     "S,xassoc", "List of active SCTP associations");
+
+SYSCTL_INT(_net_inet_sctp, OID_AUTO, min_residual, CTLFLAG_RW,
+    &sctp_min_residual, 0,
+    SCTPCTL_MIN_RESIDUAL_DESC);
+
+SYSCTL_INT(_net_inet_sctp, OID_AUTO, max_retran_chunk, CTLFLAG_RW,
+    &sctp_max_retran_chunk, 0,
+    SCTPCTL_MAX_RETRAN_CHUNK_DESC);
 
 #ifdef SCTP_DEBUG
 SYSCTL_INT(_net_inet_sctp, OID_AUTO, debug, CTLFLAG_RW,

@@ -207,6 +207,7 @@ sctp_find_vrf(uint32_t vrfid)
 	return (NULL);
 }
 
+
 void
 sctp_free_ifa(struct sctp_ifa *sctp_ifap)
 {
@@ -215,6 +216,17 @@ sctp_free_ifa(struct sctp_ifa *sctp_ifap)
 	ret = atomic_fetchadd_int(&sctp_ifap->refcount, -1);
 	if (ret == 1) {
 		/* We zero'd the count */
+#ifdef INVARIANTS
+		if (sctp_ifap->in_ifa_list) {
+			panic("Attempt to free item in a list");
+		}
+#else
+		if (sctp_ifap->in_ifa_list) {
+			printf("in_ifa_list was not clear, fixing cnt\n");
+			atomic_add_int(&sctp_ifap->refcount, 1);
+			return;
+		}
+#endif
 		SCTP_FREE(sctp_ifap);
 	}
 }
@@ -349,6 +361,7 @@ sctp_add_addr_to_vrf(uint32_t vrfid, void *ifn, uint32_t ifn_index,
 	sctp_ifap->refcount = 1;
 	LIST_INSERT_HEAD(&sctp_ifnp->ifalist, sctp_ifap, next_ifa);
 	sctp_ifnp->ifa_count++;
+	sctp_ifap->in_ifa_list = 1;
 	vrf->total_ifa_count++;
 	SCTP_IPI_ADDR_UNLOCK();
 	return (sctp_ifap);
@@ -383,6 +396,7 @@ sctp_del_addr_from_vrf(uint32_t vrfid, struct sockaddr *addr,
 		vrf->total_ifa_count--;
 		LIST_REMOVE(sctp_ifap, next_bucket);
 		LIST_REMOVE(sctp_ifap, next_ifa);
+		sctp_ifap->in_ifa_list = 0;
 		atomic_add_int(&sctp_ifnp->refcount, -1);
 	} else {
 		printf("Del Addr-ifn:%d Could not find address:",
@@ -412,7 +426,7 @@ out_now:
 
 static struct sctp_tcb *
 sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
-    struct sockaddr *to, struct sctp_nets **netp)
+    struct sockaddr *to, struct sctp_nets **netp, uint32_t vrf_id)
 {
 	/**** ASSUMSES THE CALLER holds the INP_INFO_RLOCK */
 
@@ -459,6 +473,10 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 		}
 		SCTP_INP_RLOCK(inp);
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
+			SCTP_INP_RUNLOCK(inp);
+			continue;
+		}
+		if (inp->def_vrf_id == vrf_id) {
 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
@@ -599,7 +617,7 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 {
 	struct sctpasochead *head;
 	struct sctp_inpcb *inp;
-	struct sctp_tcb *stcb;
+	struct sctp_tcb *stcb = NULL;
 	struct sctp_nets *net;
 	uint16_t rport;
 
@@ -620,7 +638,7 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 	}
 	SCTP_INP_INFO_RLOCK();
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
-		/*
+		/*-
 		 * Now either this guy is our listener or it's the
 		 * connector. If it is the one that issued the connect, then
 		 * it's only chance is to be the first TCB in the list. If
@@ -630,7 +648,7 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 		if ((inp->sctp_socket) && (inp->sctp_socket->so_qlimit)) {
 			/* to is peer addr, from is my addr */
 			stcb = sctp_tcb_special_locate(inp_p, remote, local,
-			    netp);
+			    netp, inp->def_vrf_id);
 			if ((stcb != NULL) && (locked_tcb == NULL)) {
 				/* we have a locked tcb, lower refcount */
 				SCTP_INP_WLOCK(inp);
@@ -1131,9 +1149,9 @@ sctp_findassociation_addr_sa(struct sockaddr *to, struct sockaddr *from,
 	SCTP_INP_INFO_RLOCK();
 	if (find_tcp_pool) {
 		if (inp_p != NULL) {
-			retval = sctp_tcb_special_locate(inp_p, from, to, netp);
+			retval = sctp_tcb_special_locate(inp_p, from, to, netp, vrf_id);
 		} else {
-			retval = sctp_tcb_special_locate(&inp, from, to, netp);
+			retval = sctp_tcb_special_locate(&inp, from, to, netp, vrf_id);
 		}
 		if (retval != NULL) {
 			SCTP_INP_INFO_RUNLOCK();
@@ -1331,7 +1349,7 @@ sctp_findassoc_by_vtag(struct sockaddr *from, uint32_t vtag,
 struct sctp_tcb *
 sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
     struct sctphdr *sh, struct sctp_chunkhdr *ch,
-    struct sctp_inpcb **inp_p, struct sctp_nets **netp)
+    struct sctp_inpcb **inp_p, struct sctp_nets **netp, uint32_t vrf_id)
 {
 	int find_tcp_pool;
 	struct ip *iph;
@@ -1340,9 +1358,7 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
 	struct sockaddr *to = (struct sockaddr *)&to_store;
 	struct sockaddr *from = (struct sockaddr *)&from_store;
 	struct sctp_inpcb *inp;
-	uint32_t vrf_id;
 
-	vrf_id = SCTP_DEFAULT_VRFID;
 	iph = mtod(m, struct ip *);
 	if (iph->ip_v == IPVERSION) {
 		/* its IPv4 */
@@ -1871,6 +1887,7 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 			SCTP_INCR_LADDR_COUNT();
 			bzero(laddr, sizeof(*laddr));
 			laddr->ifa = oladdr->ifa;
+			atomic_add_int(&laddr->ifa->refcount, 1);
 			LIST_INSERT_HEAD(&new_inp->sctp_addr_list, laddr,
 			    sctp_nxt_addr);
 			new_inp->laddr_count++;
@@ -2371,6 +2388,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 
 	struct sctp_queued_to_read *sq;
 
+
 	int cnt;
 	sctp_sharedkey_t *shared_key;
 
@@ -2819,6 +2837,7 @@ sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 	net->ssthresh = stcb->asoc.peers_rwnd;
 }
 
+
 int
 sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
     int set_scope, int from)
@@ -2999,6 +3018,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		sin6->sin6_scope_id = 0;
 	}
 	rtalloc_ign((struct route *)&net->ro, 0UL);
+
 	if (newaddr->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6;
 
@@ -3070,15 +3090,13 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 			netlook = TAILQ_NEXT(netfirst, sctp_next);
 			if (netlook == NULL) {
 				/* End of the list */
-				TAILQ_INSERT_TAIL(&stcb->asoc.nets, net,
-				    sctp_next);
+				TAILQ_INSERT_TAIL(&stcb->asoc.nets, net, sctp_next);
 				break;
 			} else if (netlook->ro.ro_rt == NULL) {
 				/* next one has NO route */
 				TAILQ_INSERT_BEFORE(netfirst, net, sctp_next);
 				break;
-			} else if (netlook->ro.ro_rt->rt_ifp !=
-			    net->ro.ro_rt->rt_ifp) {
+			} else if (netlook->ro.ro_rt->rt_ifp != net->ro.ro_rt->rt_ifp) {
 				TAILQ_INSERT_AFTER(&stcb->asoc.nets, netlook,
 				    net, sctp_next);
 				break;
@@ -3268,6 +3286,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		SCTP_DECR_ASOC_COUNT();
 		SCTP_TCB_LOCK_DESTROY(stcb);
 		SCTP_TCB_SEND_LOCK_DESTROY(stcb);
+		SCTP_INP_WUNLOCK(inp);
 		*error = ENOBUFS;
 		return (NULL);
 	}
@@ -3457,6 +3476,7 @@ sctp_iterator_asoc_being_freed(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 		}
 	}
 }
+
 
 /*
  * Free the association after un-hashing the remote port.
@@ -5392,7 +5412,8 @@ sctp_drain()
  * flags and asoc_state.  "af" (mandatory) is executed for all matching
  * assocs and "ef" (optional) is executed when the iterator completes.
  * "inpf" (optional) is executed for each new endpoint as it is being
- * iterated through.
+ * iterated through. inpe (optional) is called when the inp completes
+ * its way through all the stcbs.
  */
 int
 sctp_initiate_iterator(inp_func inpf,

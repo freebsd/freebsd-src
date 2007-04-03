@@ -59,9 +59,7 @@ int
 sctp6_input(mp, offp, proto)
 	struct mbuf **mp;
 	int *offp;
-
 	int proto;
-
 {
 	struct mbuf *m;
 	struct ip6_hdr *ip6;
@@ -69,14 +67,15 @@ sctp6_input(mp, offp, proto)
 	struct sctp_inpcb *in6p = NULL;
 	struct sctp_nets *net;
 	int refcount_up = 0;
-	u_int32_t check, calc_check;
+	uint32_t check, calc_check, vrf_id;
 	struct inpcb *in6p_ip;
 	struct sctp_chunkhdr *ch;
 	int length, mlen, offset, iphlen;
-	u_int8_t ecn_bits;
+	uint8_t ecn_bits;
 	struct sctp_tcb *stcb = NULL;
 	int off = *offp;
 
+	vrf_id = SCTP_DEFAULT_VRFID;
 	m = SCTP_HEADER_TO_CHAIN(*mp);
 
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -138,7 +137,7 @@ sctp6_input(mp, offp, proto)
 			}
 #endif
 			stcb = sctp_findassociation_addr(m, iphlen, offset - sizeof(*ch),
-			    sh, ch, &in6p, &net);
+			    sh, ch, &in6p, &net, vrf_id);
 			/* in6p's ref-count increased && stcb locked */
 			if ((in6p) && (stcb)) {
 				sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
@@ -159,7 +158,7 @@ sctp_skip_csum:
 	 * IP/SCTP/first chunk header...
 	 */
 	stcb = sctp_findassociation_addr(m, iphlen, offset - sizeof(*ch),
-	    sh, ch, &in6p, &net);
+	    sh, ch, &in6p, &net, vrf_id);
 	/* in6p's ref-count increased */
 	if (in6p == NULL) {
 		struct sctp_init_chunk *init_chk, chunk_buf;
@@ -173,7 +172,7 @@ sctp_skip_csum:
 			 */
 			init_chk = (struct sctp_init_chunk *)sctp_m_getptr(m,
 			    iphlen + sizeof(*sh), sizeof(*init_chk),
-			    (u_int8_t *) & chunk_buf);
+			    (uint8_t *) & chunk_buf);
 			sh->v_tag = init_chk->init.initiate_tag;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
@@ -248,7 +247,7 @@ sctp6_notify_mbuf(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
-	u_int32_t nxtsz;
+	uint32_t nxtsz;
 
 	if ((inp == NULL) || (stcb == NULL) || (net == NULL) ||
 	    (icmp6 == NULL) || (sh == NULL)) {
@@ -285,12 +284,12 @@ sctp6_notify_mbuf(struct sctp_inpcb *inp,
 		/* now off to subtract IP_DF flag if needed */
 
 		TAILQ_FOREACH(chk, &stcb->asoc.send_queue, sctp_next) {
-			if ((u_int32_t) (chk->send_size + IP_HDR_SIZE) > nxtsz) {
+			if ((uint32_t) (chk->send_size + IP_HDR_SIZE) > nxtsz) {
 				chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
 			}
 		}
 		TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
-			if ((u_int32_t) (chk->send_size + IP_HDR_SIZE) > nxtsz) {
+			if ((uint32_t) (chk->send_size + IP_HDR_SIZE) > nxtsz) {
 				/*
 				 * For this guy we also mark for immediate
 				 * resend since we sent to big of chunk
@@ -939,7 +938,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		return (ECONNRESET);	/* I made the same as TCP since we are
 					 * not setup? */
 	}
-	vrf_id = SCTP_DEFAULT_VRFID;
+	vrf_id = inp->def_vrf_id;
 	SCTP_ASOC_CREATE_LOCK(inp);
 	SCTP_INP_RLOCK(inp);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
@@ -1095,9 +1094,8 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 				/* punt */
 				goto notConn6;
 			}
-			vrf_id = SCTP_DEFAULT_VRFID;
-
-			sctp_ifa = sctp_source_address_selection(inp, stcb, (struct route *)&net->ro, net, 0, vrf_id);
+			vrf_id = inp->def_vrf_id;
+			sctp_ifa = sctp_source_address_selection(inp, stcb, (sctp_route_t *) & net->ro, net, 0, vrf_id);
 			if (sctp_ifa) {
 				sin6->sin6_addr = sctp_ifa->address.sin6.sin6_addr;
 			}

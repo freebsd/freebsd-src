@@ -93,9 +93,7 @@ __FBSDID("$FreeBSD$");
 #endif				/* INET6 */
 
 
-
 #include <netinet/ip_options.h>
-
 
 #ifndef in6pcb
 #define in6pcb		inpcb
@@ -268,6 +266,12 @@ typedef struct callout sctp_os_timer_t;
 
 #define SCTP_SB_LIMIT_RCV(so) so->so_rcv.sb_hiwat
 #define SCTP_SB_LIMIT_SND(so) so->so_snd.sb_hiwat
+
+/*
+ * routes, output, etc.
+ */
+typedef struct route sctp_route_t;
+
 
 /*
  * SCTP AUTH

@@ -200,6 +200,7 @@ sctp_audit_retranmission_queue(struct sctp_association *asoc)
 #endif				/* SCTP_DEBUG */
 }
 
+
 int
 sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct sctp_nets *net, uint16_t threshold)
@@ -360,6 +361,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 				(void)sa6_embedscope(sin6, ip6_use_defzone);
 			}
 			rtalloc_ign((struct route *)&alt->ro, 0UL);
+
 			if (sin6->sin6_family == AF_INET6) {
 				(void)sa6_recoverscope(sin6);
 			}
