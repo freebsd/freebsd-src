@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+FBSD_1.0 {
+    ___tls_get_addr;
+};
+
+# This is our private namespace.  Any global interfaces that are
+# strictly for use only by other FreeBSD applications and libraries
+# are listed here.  We use a separate namespace so we can write
+# simple ABI-checking tools.
+FBSDprivate {
+};
