@@ -1295,6 +1295,10 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 			    tar_atol10(value, wcslen(value)));
 		else if (wcscmp(key, L"SCHILY.fflags")==0)
 			archive_entry_copy_fflags_text_w(entry, value);
+		else if (wcscmp(key, L"SCHILY.dev")==0)
+			st->st_dev = tar_atol10(value, wcslen(value));
+		else if (wcscmp(key, L"SCHILY.ino")==0)
+			st->st_ino = tar_atol10(value, wcslen(value));
 		else if (wcscmp(key, L"SCHILY.nlink")==0)
 			st->st_nlink = tar_atol10(value, wcslen(value));
 		break;
