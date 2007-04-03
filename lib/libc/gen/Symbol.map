@@ -91,6 +91,7 @@ FBSD_1.0 {
 	dlsym;
 	dlvsym;
 	dlinfo;
+	dl_iterate_phdr;
 	drand48;
 	erand48;
 	err_set_file;
