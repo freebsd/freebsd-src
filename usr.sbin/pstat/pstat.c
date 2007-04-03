@@ -125,8 +125,8 @@ main(int argc, char *argv[])
 		opts = "ghkmM:N:";
 		usagestr = "swapinfo [-ghkm] [-M core [-N system]]";
 	} else {
-		opts = "TM:N:hfknst";
-		usagestr = "pstat [-Tfhknst] [-M core [-N system]]";
+		opts = "TM:N:fghkmnst";
+		usagestr = "pstat [-Tfghkmnst] [-M core [-N system]]";
 	}
 
 	while ((ch = getopt(argc, argv, opts)) != -1)

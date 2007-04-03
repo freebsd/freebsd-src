@@ -35,7 +35,7 @@
 .\"     @(#)pstat.8	8.5 (Berkeley) 5/13/94
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2005
+.Dd April 1, 2007
 .Dt PSTAT 8
 .Os
 .Sh NAME
@@ -44,10 +44,10 @@
 .Nd display system data structures
 .Sh SYNOPSIS
 .Nm
-.Op Fl Tfhknst
+.Op Fl Tfghkmnst
 .Op Fl M Ar core Op Fl N Ar system
 .Nm swapinfo
-.Op Fl hk
+.Op Fl ghkm
 .Op Fl M Ar core Op Fl N Ar system
 .Sh DESCRIPTION
 The
@@ -60,7 +60,7 @@ If invoked as
 the
 .Fl s
 option is implied, and only the
-.Fl [kmg]
+.Fl k , m , g ,
 and
 .Fl h
 options are legal.
