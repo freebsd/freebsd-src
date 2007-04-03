@@ -6,6 +6,7 @@ MAN=	ifmcstat.8
 BINMODE= 550
 
 WARNS?=	2
+CFLAGS+=-DINET6
 
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
