@@ -62,6 +62,7 @@ benno [label="Benno Rice\nbenno@FreeBSD.org\n2000/11/02"]
 bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2002/01/29"]
 bmilekic [label="Bosko Milekic\nbmilekic@FreeBSD.org\n????/??/??"]
 bms [label="Bruce M Simpson\nbms@FreeBSD.org\n2003/08/06"]
+brian [label="Brian Somers\nbrian@FreeBSD.org\n1996/12/16"]
 brooks [label="Brooks Davis\nbrooks@FreeBSD.org\n2001/06/21"]
 brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2006/02/28"]
 bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
@@ -176,6 +177,8 @@ bms -> mlaier
 bms -> dhartmei
 bms -> thompsa
 
+brian -> joe
+
 brooks -> bushman
 
 bz -> syrinx
@@ -245,6 +248,7 @@ jkh -> wes
 jlemon -> bmilekic
 jlemon -> brooks
 
+joerg -> brian
 joerg -> eik
 joerg -> le
 joerg -> netchild
