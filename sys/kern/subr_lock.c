@@ -254,21 +254,18 @@ void _lock_profile_obtain_lock_success(struct lock_object *lo, int contested, ui
 {
         struct lock_profile_object *l = &lo->lo_profile_obj;
 
-        /* don't reset the timer when/if recursing */
-        if (l->lpo_acqtime == 0) {
-		lo->lo_profile_obj.lpo_contest_holding = 0;
-
-		if (contested)
-			lo->lo_profile_obj.lpo_contest_locking++;		
+	lo->lo_profile_obj.lpo_contest_holding = 0;
 	
-                l->lpo_filename = file;
-                l->lpo_lineno = line;
-                l->lpo_acqtime = nanoseconds(); 
-                if (waittime && (l->lpo_acqtime > waittime))
-			l->lpo_waittime = l->lpo_acqtime - waittime;
-                else
-			l->lpo_waittime = 0;
-        }
+	if (contested)
+		lo->lo_profile_obj.lpo_contest_locking++;		
+	
+	l->lpo_filename = file;
+	l->lpo_lineno = line;
+	l->lpo_acqtime = nanoseconds(); 
+	if (waittime && (l->lpo_acqtime > waittime))
+		l->lpo_waittime = l->lpo_acqtime - waittime;
+	else
+		l->lpo_waittime = 0;
 }
 
 void _lock_profile_release_lock(struct lock_object *lo)
