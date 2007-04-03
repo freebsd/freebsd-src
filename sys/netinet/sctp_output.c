@@ -1991,7 +1991,7 @@ sctp_add_addresses_to_i_ia(struct sctp_inpcb *inp, struct sctp_scoping *scope,
 	int cnt, limit_out = 0, total_count;
 	uint32_t vrf_id;
 
-	vrf_id = SCTP_DEFAULT_VRFID;
+	vrf_id = inp->def_vrf_id;
 	SCTP_IPI_ADDR_LOCK();
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
@@ -2403,7 +2403,7 @@ sctp_is_addr_in_ep(struct sctp_inpcb *inp, struct sctp_ifa *ifa)
 
 static struct sctp_ifa *
 sctp_choose_boundspecific_inp(struct sctp_inpcb *inp,
-    struct route *ro,
+    sctp_route_t * ro,
     uint32_t vrf_id,
     int non_asoc_addr_ok,
     uint8_t dest_is_priv,
@@ -2414,7 +2414,7 @@ sctp_choose_boundspecific_inp(struct sctp_inpcb *inp,
 	void *ifn;
 	int resettotop = 0;
 	struct sctp_ifn *sctp_ifn;
-	struct sctp_ifa *sctp_ifa, *pass;
+	struct sctp_ifa *sctp_ifa, *sifa;
 	struct sctp_vrf *vrf;
 	uint32_t ifn_index;
 
@@ -2435,12 +2435,12 @@ sctp_choose_boundspecific_inp(struct sctp_inpcb *inp,
 		LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
 			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 				continue;
-			pass = sctp_is_ifa_addr_prefered(sctp_ifa, dest_is_loop, dest_is_priv, fam);
-			if (pass == NULL)
+			sifa = sctp_is_ifa_addr_prefered(sctp_ifa, dest_is_loop, dest_is_priv, fam);
+			if (sifa == NULL)
 				continue;
-			if (sctp_is_addr_in_ep(inp, pass)) {
-				atomic_add_int(&pass->refcount, 1);
-				return (pass);
+			if (sctp_is_addr_in_ep(inp, sifa)) {
+				atomic_add_int(&sifa->refcount, 1);
+				return (sifa);
 			}
 		}
 	}
@@ -2461,11 +2461,11 @@ once_again:
 			/* address has been removed */
 			continue;
 		}
-		pass = sctp_is_ifa_addr_prefered(laddr->ifa, dest_is_loop, dest_is_priv, fam);
-		if (pass == NULL)
+		sifa = sctp_is_ifa_addr_prefered(laddr->ifa, dest_is_loop, dest_is_priv, fam);
+		if (sifa == NULL)
 			continue;
-		atomic_add_int(&pass->refcount, 1);
-		return (pass);
+		atomic_add_int(&sifa->refcount, 1);
+		return (sifa);
 	}
 	if (resettotop == 0) {
 		inp->next_addr_touse = NULL;
@@ -2484,11 +2484,11 @@ once_again_too:
 			/* address has been removed */
 			continue;
 		}
-		pass = sctp_is_ifa_addr_acceptable(laddr->ifa, dest_is_loop, dest_is_priv, fam);
-		if (pass == NULL)
+		sifa = sctp_is_ifa_addr_acceptable(laddr->ifa, dest_is_loop, dest_is_priv, fam);
+		if (sifa == NULL)
 			continue;
-		atomic_add_int(&pass->refcount, 1);
-		return (pass);
+		atomic_add_int(&sifa->refcount, 1);
+		return (sifa);
 	}
 	if (resettotop == 0) {
 		inp->next_addr_touse = NULL;
@@ -2507,7 +2507,7 @@ static struct sctp_ifa *
 sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net,
-    struct route *ro,
+    sctp_route_t * ro,
     uint32_t vrf_id,
     uint8_t dest_is_priv,
     uint8_t dest_is_loop,
@@ -2517,7 +2517,7 @@ sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
 	struct sctp_laddr *laddr, *starting_point;
 	void *ifn;
 	struct sctp_ifn *sctp_ifn;
-	struct sctp_ifa *sctp_ifa, *pass;
+	struct sctp_ifa *sctp_ifa, *sifa;
 	uint8_t start_at_beginning = 0;
 	struct sctp_vrf *vrf;
 	uint32_t ifn_index;
@@ -2540,21 +2540,21 @@ sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
 	 * acceptable.
 	 */
 	if (sctp_ifn) {
-		/* first try for an prefered address on the ep */
+		/* first try for a prefered address on the ep */
 		LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
 			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 				continue;
 			if (sctp_is_addr_in_ep(inp, sctp_ifa)) {
-				pass = sctp_is_ifa_addr_prefered(sctp_ifa, dest_is_loop, dest_is_priv, fam);
-				if (pass == NULL)
+				sifa = sctp_is_ifa_addr_prefered(sctp_ifa, dest_is_loop, dest_is_priv, fam);
+				if (sifa == NULL)
 					continue;
 				if ((non_asoc_addr_ok == 0) &&
-				    (sctp_is_addr_restricted(stcb, pass))) {
+				    (sctp_is_addr_restricted(stcb, sifa))) {
 					/* on the no-no list */
 					continue;
 				}
-				atomic_add_int(&pass->refcount, 1);
-				return (pass);
+				atomic_add_int(&sifa->refcount, 1);
+				return (sifa);
 			}
 		}
 		/* next try for an acceptable address on the ep */
@@ -2562,16 +2562,16 @@ sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
 			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 				continue;
 			if (sctp_is_addr_in_ep(inp, sctp_ifa)) {
-				pass = sctp_is_ifa_addr_acceptable(sctp_ifa, dest_is_loop, dest_is_priv, fam);
-				if (pass == NULL)
+				sifa = sctp_is_ifa_addr_acceptable(sctp_ifa, dest_is_loop, dest_is_priv, fam);
+				if (sifa == NULL)
 					continue;
 				if ((non_asoc_addr_ok == 0) &&
-				    (sctp_is_addr_restricted(stcb, pass))) {
+				    (sctp_is_addr_restricted(stcb, sifa))) {
 					/* on the no-no list */
 					continue;
 				}
-				atomic_add_int(&pass->refcount, 1);
-				return (pass);
+				atomic_add_int(&sifa->refcount, 1);
+				return (sifa);
 			}
 		}
 
@@ -2593,17 +2593,17 @@ sctp_from_the_top:
 			/* address has been removed */
 			continue;
 		}
-		pass = sctp_is_ifa_addr_prefered(laddr->ifa, dest_is_loop, dest_is_priv, fam);
-		if (pass == NULL)
+		sifa = sctp_is_ifa_addr_prefered(laddr->ifa, dest_is_loop, dest_is_priv, fam);
+		if (sifa == NULL)
 			continue;
 		if ((non_asoc_addr_ok == 0) &&
-		    (sctp_is_addr_restricted(stcb, pass))) {
+		    (sctp_is_addr_restricted(stcb, sifa))) {
 			/* on the no-no list */
 			continue;
 		}
 		stcb->asoc.last_used_address = laddr;
-		atomic_add_int(&pass->refcount, 1);
-		return (pass);
+		atomic_add_int(&sifa->refcount, 1);
+		return (sifa);
 
 	}
 	if (start_at_beginning == 0) {
@@ -2625,17 +2625,17 @@ sctp_from_the_top2:
 			/* address has been removed */
 			continue;
 		}
-		pass = sctp_is_ifa_addr_acceptable(laddr->ifa, dest_is_loop, dest_is_priv, fam);
-		if (pass == NULL)
+		sifa = sctp_is_ifa_addr_acceptable(laddr->ifa, dest_is_loop, dest_is_priv, fam);
+		if (sifa == NULL)
 			continue;
 		if ((non_asoc_addr_ok == 0) &&
-		    (sctp_is_addr_restricted(stcb, pass))) {
+		    (sctp_is_addr_restricted(stcb, sifa))) {
 			/* on the no-no list */
 			continue;
 		}
 		stcb->asoc.last_used_address = laddr;
-		atomic_add_int(&pass->refcount, 1);
-		return (pass);
+		atomic_add_int(&sifa->refcount, 1);
+		return (sifa);
 	}
 	if (start_at_beginning == 0) {
 		stcb->asoc.last_used_address = NULL;
@@ -2653,17 +2653,17 @@ sctp_select_nth_prefered_addr_from_ifn_boundall(struct sctp_ifn *ifn,
     int addr_wanted,
     sa_family_t fam)
 {
-	struct sctp_ifa *ifa, *pass;
+	struct sctp_ifa *ifa, *sifa;
 	int num_eligible_addr = 0;
 
 	LIST_FOREACH(ifa, &ifn->ifalist, next_ifa) {
 		if ((ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 			continue;
-		pass = sctp_is_ifa_addr_prefered(ifa, dest_is_loop, dest_is_priv, fam);
-		if (pass == NULL)
+		sifa = sctp_is_ifa_addr_prefered(ifa, dest_is_loop, dest_is_priv, fam);
+		if (sifa == NULL)
 			continue;
 		if (stcb) {
-			if ((non_asoc_addr_ok == 0) && sctp_is_addr_restricted(stcb, pass)) {
+			if ((non_asoc_addr_ok == 0) && sctp_is_addr_restricted(stcb, sifa)) {
 				/*
 				 * It is restricted for some reason..
 				 * probably not yet added.
@@ -2672,7 +2672,7 @@ sctp_select_nth_prefered_addr_from_ifn_boundall(struct sctp_ifn *ifn,
 			}
 		}
 		if (num_eligible_addr >= addr_wanted) {
-			return (pass);
+			return (sifa);
 		}
 		num_eligible_addr++;
 	}
@@ -2688,19 +2688,19 @@ sctp_count_num_prefered_boundall(struct sctp_ifn *ifn,
     uint8_t dest_is_priv,
     sa_family_t fam)
 {
-	struct sctp_ifa *ifa, *pass;
+	struct sctp_ifa *ifa, *sifa;
 	int num_eligible_addr = 0;
 
 	LIST_FOREACH(ifa, &ifn->ifalist, next_ifa) {
 		if ((ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0)) {
 			continue;
 		}
-		pass = sctp_is_ifa_addr_prefered(ifa, dest_is_loop, dest_is_priv, fam);
-		if (pass == NULL) {
+		sifa = sctp_is_ifa_addr_prefered(ifa, dest_is_loop, dest_is_priv, fam);
+		if (sifa == NULL) {
 			continue;
 		}
 		if (stcb) {
-			if ((non_asoc_addr_ok == 0) && sctp_is_addr_restricted(stcb, pass)) {
+			if ((non_asoc_addr_ok == 0) && sctp_is_addr_restricted(stcb, sifa)) {
 				/*
 				 * It is restricted for some reason..
 				 * probably not yet added.
@@ -2717,7 +2717,7 @@ static struct sctp_ifa *
 sctp_choose_boundall(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net,
-    struct route *ro,
+    sctp_route_t * ro,
     uint32_t vrf_id,
     uint8_t dest_is_priv,
     uint8_t dest_is_loop,
@@ -2727,7 +2727,7 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 	int cur_addr_num = 0, num_prefered = 0;
 	void *ifn;
 	struct sctp_ifn *sctp_ifn, *looked_at = NULL, *emit_ifn;
-	struct sctp_ifa *sctp_ifa, *pass;
+	struct sctp_ifa *sctp_ifa, *sifa;
 	uint32_t ifn_index;
 	struct sctp_vrf *vrf;
 
@@ -2854,9 +2854,9 @@ bound_all_plan_b:
 		if (cur_addr_num >= num_prefered) {
 			cur_addr_num = 0;
 		}
-		pass = sctp_select_nth_prefered_addr_from_ifn_boundall(sctp_ifn, stcb, non_asoc_addr_ok, dest_is_loop,
+		sifa = sctp_select_nth_prefered_addr_from_ifn_boundall(sctp_ifn, stcb, non_asoc_addr_ok, dest_is_loop,
 		    dest_is_priv, cur_addr_num, fam);
-		if (pass == NULL)
+		if (sifa == NULL)
 			continue;
 		if (net) {
 			net->indx_of_eligible_next_to_use = cur_addr_num + 1;
@@ -2864,14 +2864,14 @@ bound_all_plan_b:
 			if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
 				printf("we selected %d\n", cur_addr_num);
 				printf("Source:");
-				sctp_print_address(&pass->address.sa);
+				sctp_print_address(&sifa->address.sa);
 				printf("Dest:");
 				sctp_print_address(&net->ro._l_addr.sa);
 			}
 #endif
 		}
-		atomic_add_int(&pass->refcount, 1);
-		return (pass);
+		atomic_add_int(&sifa->refcount, 1);
+		return (sifa);
 
 	}
 
@@ -2888,11 +2888,11 @@ bound_all_plan_b:
 	LIST_FOREACH(sctp_ifa, &emit_ifn->ifalist, next_ifa) {
 		if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 			continue;
-		pass = sctp_is_ifa_addr_acceptable(sctp_ifa, dest_is_loop, dest_is_priv, fam);
-		if (pass == NULL)
+		sifa = sctp_is_ifa_addr_acceptable(sctp_ifa, dest_is_loop, dest_is_priv, fam);
+		if (sifa == NULL)
 			continue;
 		if (stcb) {
-			if ((non_asoc_addr_ok == 0) && sctp_is_addr_restricted(stcb, pass)) {
+			if ((non_asoc_addr_ok == 0) && sctp_is_addr_restricted(stcb, sifa)) {
 				/*
 				 * It is restricted for some reason..
 				 * probably not yet added.
@@ -2900,8 +2900,8 @@ bound_all_plan_b:
 				continue;
 			}
 		}
-		atomic_add_int(&pass->refcount, 1);
-		return (pass);
+		atomic_add_int(&sifa->refcount, 1);
+		return (sifa);
 	}
 
 	/*
@@ -2927,11 +2927,11 @@ bound_all_plan_b:
 		LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
 			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 				continue;
-			pass = sctp_is_ifa_addr_acceptable(sctp_ifa, dest_is_loop, dest_is_priv, fam);
-			if (pass == NULL)
+			sifa = sctp_is_ifa_addr_acceptable(sctp_ifa, dest_is_loop, dest_is_priv, fam);
+			if (sifa == NULL)
 				continue;
 			if (stcb) {
-				if ((non_asoc_addr_ok == 0) && sctp_is_addr_restricted(stcb, pass)) {
+				if ((non_asoc_addr_ok == 0) && sctp_is_addr_restricted(stcb, sifa)) {
 					/*
 					 * It is restricted for some
 					 * reason.. probably not yet added.
@@ -2939,8 +2939,8 @@ bound_all_plan_b:
 					continue;
 				}
 			}
-			atomic_add_int(&pass->refcount, 1);
-			return (pass);
+			atomic_add_int(&sifa->refcount, 1);
+			return (sifa);
 		}
 	}
 	/*
@@ -2957,7 +2957,7 @@ bound_all_plan_b:
 struct sctp_ifa *
 sctp_source_address_selection(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
-    struct route *ro,
+    sctp_route_t * ro,
     struct sctp_nets *net,
     int non_asoc_addr_ok, uint32_t vrf_id)
 {
@@ -3398,7 +3398,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 	int ret;
 	unsigned int have_mtu;
 	uint32_t vrf_id;
-	struct route *ro;
+	sctp_route_t *ro;
 
 
 	if ((net) && (net->dest_state & SCTP_ADDR_OUT_OF_SCOPE)) {
@@ -3406,7 +3406,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		return (EFAULT);
 	}
 	if (stcb == NULL) {
-		vrf_id = SCTP_DEFAULT_VRFID;
+		vrf_id = inp->def_vrf_id;
 	} else {
 		vrf_id = stcb->asoc.vrf_id;
 	}
@@ -3436,7 +3436,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 
 	if (to->sa_family == AF_INET) {
 		struct ip *ip = NULL;
-		struct route iproute;
+		sctp_route_t iproute;
 		uint8_t tos_value;
 
 		o_pak = SCTP_GET_HEADER_FOR_OUTPUT(sizeof(struct ip));
@@ -3491,7 +3491,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			memset(&iproute, 0, sizeof(iproute));
 			memcpy(&ro->ro_dst, to, to->sa_len);
 		} else {
-			ro = (struct route *)&net->ro;
+			ro = (sctp_route_t *) & net->ro;
 		}
 		/* Now the address selection part */
 		ip->ip_dst.s_addr = ((struct sockaddr_in *)to)->sin_addr.s_addr;
@@ -3694,10 +3694,10 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			return (EINVAL);
 		if (net == NULL) {
 			memset(&ip6route, 0, sizeof(ip6route));
-			ro = (struct route *)&ip6route;
+			ro = (sctp_route_t *) & ip6route;
 			memcpy(&ro->ro_dst, sin6, sin6->sin6_len);
 		} else {
-			ro = (struct route *)&net->ro;
+			ro = (sctp_route_t *) & net->ro;
 		}
 		if (stcb != NULL) {
 			if ((stcb->asoc.ecn_allowed) && ecn_ok) {
@@ -4100,7 +4100,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 		/*
 		 * To optimize this we could put the scoping stuff into a
 		 * structure and remove the individual uint8's from the
-		 * assoc structure. Then we could just pass in the address
+		 * assoc structure. Then we could just sifa in the address
 		 * within the stcb.. but for now this is a quick hack to get
 		 * the address stuff teased apart.
 		 */
@@ -4124,7 +4124,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	}
 	initm->msg.ch.chunk_length = htons((p_len - sizeof(struct sctphdr)));
 	/*
-	 * We pass 0 here to NOT set IP_DF if its IPv4, we ignore the return
+	 * We sifa 0 here to NOT set IP_DF if its IPv4, we ignore the return
 	 * here since the timer will drive a retranmission.
 	 */
 
@@ -4523,7 +4523,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	struct sockaddr_storage store;
 	struct sockaddr_in *sin;
 	struct sockaddr_in6 *sin6;
-	struct route *ro;
+	sctp_route_t *ro;
 	struct ip *iph;
 	struct ip6_hdr *ip6;
 	struct sockaddr *to;
@@ -4536,10 +4536,11 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	int p_len;
 	uint32_t vrf_id;
 
-	vrf_id = SCTP_DEFAULT_VRFID;
 	if (stcb) {
 		asoc = &stcb->asoc;
+		vrf_id = asoc->vrf_id;
 	} else {
+		vrf_id = inp->def_vrf_id;
 		asoc = NULL;
 	}
 	m_last = NULL;
@@ -4631,7 +4632,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		iph = mtod(init_pkt, struct ip *);
 		if (iph->ip_v == IPVERSION) {
 			struct sctp_ifa *addr;
-			struct route iproute;
+			sctp_route_t iproute;
 
 			sin->sin_family = AF_INET;
 			sin->sin_len = sizeof(struct sockaddr_in);
@@ -4733,7 +4734,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			}
 			/* local from address */
 			memset(&iproute6, 0, sizeof(iproute6));
-			ro = (struct route *)&iproute6;
+			ro = (sctp_route_t *) & iproute6;
 			memcpy(&ro->ro_dst, sin6, sizeof(*sin6));
 			addr = sctp_source_address_selection(inp, NULL,
 			    ro, NULL, 0, vrf_id);
@@ -4782,7 +4783,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				 * did the selection.
 				 */
 				net->ro._s_addr = sctp_source_address_selection(inp,
-				    stcb, (struct route *)&net->ro,
+				    stcb, (sctp_route_t *) & net->ro,
 				    net, 0, vrf_id);
 				if (net->ro._s_addr == NULL)
 					return;
@@ -4806,7 +4807,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				 * did the selection.
 				 */
 				net->ro._s_addr = sctp_source_address_selection(inp,
-				    stcb, (struct route *)&net->ro,
+				    stcb, (sctp_route_t *) & net->ro,
 				    net, 0, vrf_id);
 				if (net->ro._s_addr == NULL)
 					return;
@@ -4999,7 +5000,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		/*
 		 * To optimize this we could put the scoping stuff into a
 		 * structure and remove the individual uint8's from the stc
-		 * structure. Then we could just pass in the address within
+		 * structure. Then we could just sifa in the address within
 		 * the stc.. but for now this is a quick hack to get the
 		 * address stuff teased apart.
 		 */
@@ -5093,7 +5094,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	}
 
 	/*
-	 * We pass 0 here to NOT set IP_DF if its IPv4, we ignore the return
+	 * We sifa 0 here to NOT set IP_DF if its IPv4, we ignore the return
 	 * here since the timer will drive a retranmission.
 	 */
 	padval = p_len % 4;
@@ -5420,7 +5421,7 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	at = m;
 	sctp_set_prsctp_policy(stcb, sp);
 	/*
-	 * We could in theory (for sendall) pass the length in, but we would
+	 * We could in theory (for sendall) sifa the length in, but we would
 	 * still have to hunt through the chain since we need to setup the
 	 * tail_mbuf
 	 */
@@ -9269,7 +9270,7 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh)
 		comp_cp->sh.checksum = sctp_calculate_sum(mout, NULL, offset_out);
 	}
 	if (iph_out != NULL) {
-		struct route ro;
+		sctp_route_t ro;
 
 		bzero(&ro, sizeof ro);
 		/* set IPv4 length */
@@ -10121,7 +10122,7 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 		abm->sh.checksum = sctp_calculate_sum(mout, NULL, iphlen_out);
 	}
 	if (iph_out != NULL) {
-		struct route ro;
+		sctp_route_t ro;
 
 		/* zap the stack pointer to the route */
 		bzero(&ro, sizeof ro);
@@ -10226,7 +10227,7 @@ sctp_send_operr_to(struct mbuf *m, int iphlen,
 	if (iph->ip_v == IPVERSION) {
 		/* V4 */
 		struct ip *out;
-		struct route ro;
+		sctp_route_t ro;
 
 		o_pak = SCTP_GET_HEADER_FOR_OUTPUT(sizeof(struct ip));
 		if (o_pak == NULL) {
@@ -10538,8 +10539,12 @@ sctp_sosend(struct socket *so,
 			use_rcvinfo = 1;
 		}
 	}
-	error = sctp_lower_sosend(so, addr, uio, top, control, flags,
-	    use_rcvinfo, &srcv, p);
+	error = sctp_lower_sosend(so, addr, uio, top,
+	    control,
+	    flags,
+	    use_rcvinfo, &srcv
+	    ,p
+	    );
 	return (error);
 }
 
@@ -10711,7 +10716,7 @@ sctp_lower_sosend(struct socket *so,
 			 * UDP style, we must go ahead and start the INIT
 			 * process
 			 */
-			uint32_t vrf;
+			uint32_t vrf_id;
 
 			if ((use_rcvinfo) && (srcv) &&
 			    ((srcv->sinfo_flags & SCTP_ABORT) ||
@@ -10725,8 +10730,9 @@ sctp_lower_sosend(struct socket *so,
 				goto out_unlocked;
 			}
 			/* get an asoc/stcb struct */
-			vrf = SCTP_DEFAULT_VRFID;
-			stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0, vrf);
+
+			vrf_id = inp->def_vrf_id;
+			stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0, vrf_id);
 			if (stcb == NULL) {
 				/* Error is setup for us in the call */
 				goto out_unlocked;

@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_indata.h>/* for sctp_deliver_data() */
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_asconf.h>
-#include <netinet/sctp_bsd_addr.h>
 
 #define NUMBER_OF_MTU_SIZES 18
 
@@ -3708,7 +3707,7 @@ sctp_print_address(struct sockaddr *sa)
 		char ip6buf[INET6_ADDRSTRLEN];
 
 		sin6 = (struct sockaddr_in6 *)sa;
-		printf("IPv6 address: %s:%d scope:%u\n",
+		printf("IPv6 address: %s:port:%d scope:%u\n",
 		    ip6_sprintf(ip6buf, &sin6->sin6_addr),
 		    ntohs(sin6->sin6_port),
 		    sin6->sin6_scope_id);
@@ -3780,7 +3779,7 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 	struct sctp_queued_to_read *control, *nctl;
 	struct sctp_readhead tmp_queue;
 	struct mbuf *m;
-	int error;
+	int error = 0;
 
 	old_so = old_inp->sctp_socket;
 	new_so = new_inp->sctp_socket;
@@ -4291,16 +4290,33 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 	struct sctp_ifalist *hash_head;
 	uint32_t hash_of_addr;
 
-	vrf = sctp_find_vrf(vrf_id);
-	if (vrf == NULL)
-		return (NULL);
-
-	hash_of_addr = sctp_get_ifa_hash_val(addr);
 	if (holds_lock == 0)
 		SCTP_IPI_ADDR_LOCK();
 
+	vrf = sctp_find_vrf(vrf_id);
+	if (vrf == NULL) {
+		if (holds_lock == 0)
+			SCTP_IPI_ADDR_UNLOCK();
+		return (NULL);
+	}
+	hash_of_addr = sctp_get_ifa_hash_val(addr);
+
 	hash_head = &vrf->vrf_addr_hash[(hash_of_addr & vrf->vrf_hashmark)];
+	if (hash_head == NULL) {
+		printf("hash_of_addr:%x mask:%x table:%x - ",
+		    (u_int)hash_of_addr, (u_int)vrf->vrf_hashmark,
+		    (u_int)(hash_of_addr & vrf->vrf_hashmark));
+		sctp_print_address(addr);
+		printf("No such bucket for address\n");
+		if (holds_lock == 0)
+			SCTP_IPI_ADDR_UNLOCK();
+
+		return (NULL);
+	}
 	LIST_FOREACH(sctp_ifap, hash_head, next_bucket) {
+		if (sctp_ifap == NULL) {
+			panic("Huh LIST_FOREACH corrupt");
+		}
 		if (addr->sa_family != sctp_ifap->address.sa.sa_family)
 			continue;
 		if (addr->sa_family == AF_INET) {
