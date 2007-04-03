@@ -2379,9 +2379,6 @@ ural_amrr_timeout(void *arg)
 {
 	struct ural_softc *sc = (struct ural_softc *)arg;
 	usb_device_request_t req;
-	int s;
-
-	s = splusb();
 
 	/*
 	 * Asynchronously read statistic registers (cleared by read).
@@ -2396,8 +2393,6 @@ ural_amrr_timeout(void *arg)
 	    USBD_DEFAULT_TIMEOUT, &req, sc->sta, sizeof sc->sta, 0,
 	    ural_amrr_update);
 	(void)usbd_transfer(sc->amrr_xfer);
-
-	splx(s);
 }
 
 static void
