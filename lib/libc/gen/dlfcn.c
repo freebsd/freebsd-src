@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
  * Linkage to services provided by the dynamic linker.
  */
 #include <dlfcn.h>
+#include <link.h>
 #include <stddef.h>
 
 static const char sorry[] = "Service unavailable";
@@ -126,4 +127,13 @@ void
 _rtld_thread_init(void * li)
 {
 	_rtld_error(sorry);
+}
+
+#pragma weak dl_iterate_phdr
+int
+dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *),
+    void *data)
+{
+	_rtld_error(sorry);
+	return 0;
 }
