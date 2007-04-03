@@ -213,7 +213,8 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 	    line);
 	mtx_assert(m, MA_OWNED);
 
-	lock_profile_release_lock(&m->lock_object);
+	if (m->mtx_recurse == 0)
+		lock_profile_release_lock(&m->lock_object);
 	_rel_sleep_lock(m, curthread, opts, file, line);
 }
 
@@ -250,7 +251,6 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 	    line);
 	mtx_assert(m, MA_OWNED);
 
-	lock_profile_release_lock(&m->lock_object);
 	_rel_spin_lock(m);
 }
 
@@ -309,6 +309,8 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 #ifdef KTR
 	int cont_logged = 0;
 #endif
+	int contested = 0;
+	uint64_t waittime = 0;
 	uintptr_t v;
 	
 	if (mtx_owned(m)) {
@@ -322,6 +324,8 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		return;
 	}
 
+	lock_profile_obtain_lock_failed(&m->lock_object,
+		    &contested, &waittime);
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR4(KTR_LOCK,
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
@@ -418,7 +422,8 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		    m->lock_object.lo_name, (void *)tid, file, line);
 	}
 #endif
-	return;
+	lock_profile_obtain_lock_success(&m->lock_object, contested,	
+	    waittime, (file), (line));					
 }
 
 #ifdef SMP
@@ -432,12 +437,14 @@ void
 _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
-	int i = 0;
-	struct thread *td;
-
+	int i = 0, contested = 0;
+	struct thread *td;	
+	uint64_t waittime = 0;
+	
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
+	lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
 	while (!_obtain_lock(m, tid)) {
 
 		/* Give interrupts a chance while we spin. */
@@ -471,7 +478,9 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
 
-	return;
+	lock_profile_obtain_lock_success(&m->lock_object, contested,	
+	    waittime, (file), (line));
+
 }
 #endif /* SMP */
 
@@ -545,6 +554,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	td = curthread;
 	if (td->td_critnest > 0 || td1->td_priority >= td->td_priority)
 		return;
+
 	mtx_lock_spin(&sched_lock);
 	if (!TD_IS_RUNNING(td1)) {
 #ifdef notyet
@@ -572,8 +582,6 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	}
 	mtx_unlock_spin(&sched_lock);
 #endif
-
-	return;
 }
 
 /*
