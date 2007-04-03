@@ -1305,6 +1305,11 @@ struct root_hold_token {
 static LIST_HEAD(, root_hold_token)	root_holds =
     LIST_HEAD_INITIALIZER(&root_holds);
 
+static int root_mount_complete = 0;
+
+/*
+ * Hold root mount.
+ */
 struct root_hold_token *
 root_mount_hold(const char *identifier)
 {
@@ -1318,6 +1323,9 @@ root_mount_hold(const char *identifier)
 	return (h);
 }
 
+/*
+ * Release root mount.
+ */
 void
 root_mount_rel(struct root_hold_token *h)
 {
@@ -1329,8 +1337,11 @@ root_mount_rel(struct root_hold_token *h)
 	free(h, M_DEVBUF);
 }
 
+/*
+ * Wait for all subsystems to release root mount.
+ */
 static void
-root_mount_wait(void)
+root_mount_prepare(void)
 {
 	struct root_hold_token *h;
 
@@ -1350,6 +1361,40 @@ root_mount_wait(void)
 		msleep(&root_holds, &mountlist_mtx, PZERO | PDROP, "roothold",
 		    hz);
 	}
+}
+
+/*
+ * Root was mounted, share the good news.
+ */
+static void
+root_mount_done(void)
+{
+
+	mtx_lock(&mountlist_mtx);
+	root_mount_complete = 1;
+	wakeup(&root_mount_complete);
+	mtx_unlock(&mountlist_mtx);
+}
+
+/*
+ * Wait until root is mounted.
+ */
+void
+root_mount_wait(void)
+{
+
+	/*
+	 * Panic on an obvious deadlock - the function can't be called from
+	 * a thread which is doing the whole SYSINIT stuff.
+	 */
+	KASSERT(curthread->td_proc->p_pid != 0,
+	    ("root_mount_wait: cannot be called from the swapper thread"));
+	mtx_lock(&mountlist_mtx);
+	while (!root_mount_complete) {
+		msleep(&root_mount_complete, &mountlist_mtx, PZERO, "rootwait",
+		    hz);
+	}
+	mtx_unlock(&mountlist_mtx);
 }
 
 static void
@@ -1507,7 +1552,7 @@ vfs_mountroot(void)
 	char *cp;
 	int error, i, asked = 0;
 
-	root_mount_wait();
+	root_mount_prepare();
 
 	mount_zone = uma_zcreate("Mountpoints", sizeof(struct mount),
 	    NULL, NULL, mount_init, mount_fini,
@@ -1519,7 +1564,7 @@ vfs_mountroot(void)
 	 */
 	if (boothowto & RB_ASKNAME) {
 		if (!vfs_mountroot_ask())
-			return;
+			goto mounted;
 		asked = 1;
 	}
 
@@ -1529,7 +1574,7 @@ vfs_mountroot(void)
 	 */
 	if (ctrootdevname != NULL && (boothowto & RB_DFLTROOT)) {
 		if (!vfs_mountroot_try(ctrootdevname))
-			return;
+			goto mounted;
 		ctrootdevname = NULL;
 	}
 
@@ -1541,7 +1586,7 @@ vfs_mountroot(void)
 	if (boothowto & RB_CDROM) {
 		for (i = 0; cdrom_rootdevnames[i] != NULL; i++) {
 			if (!vfs_mountroot_try(cdrom_rootdevnames[i]))
-				return;
+				goto mounted;
 		}
 	}
 
@@ -1555,32 +1600,35 @@ vfs_mountroot(void)
 		error = vfs_mountroot_try(cp);
 		freeenv(cp);
 		if (!error)
-			return;
+			goto mounted;
 	}
 
 	/*
 	 * Try values that may have been computed by code during boot
 	 */
 	if (!vfs_mountroot_try(rootdevnames[0]))
-		return;
+		goto mounted;
 	if (!vfs_mountroot_try(rootdevnames[1]))
-		return;
+		goto mounted;
 
 	/*
 	 * If we (still) have a compiled-in default, try it.
 	 */
 	if (ctrootdevname != NULL)
 		if (!vfs_mountroot_try(ctrootdevname))
-			return;
+			goto mounted;
 	/*
 	 * Everything so far has failed, prompt on the console if we haven't
 	 * already tried that.
 	 */
 	if (!asked)
 		if (!vfs_mountroot_ask())
-			return;
+			goto mounted;
 
 	panic("Root mount failed, startup aborted.");
+
+mounted:
+	root_mount_done();
 }
 
 /*
