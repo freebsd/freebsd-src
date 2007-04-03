@@ -169,7 +169,7 @@ atm_physif_deregister(cup)
 	Cmn_unit	*cup;
 {
 	struct atm_pif	*pip = (struct atm_pif *)&cup->cu_pif;
-	Cmn_vcc		*cvp;
+	Cmn_vcc		*cvp, *cvp_next;
 	int	err;
 	int	s = splnet();
 
@@ -215,8 +215,9 @@ atm_physif_deregister(cup)
 	 */
 	cvp = cup->cu_vcc;
 	while (cvp) {
+		cvp_next = cvp->cv_next;
 		uma_zfree(cup->cu_vcc_zone, cvp);
-		cvp = cvp->cv_next;
+		cvp = cvp_next;
 	}
 	cup->cu_vcc = (Cmn_vcc *)NULL;
 
