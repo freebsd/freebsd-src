@@ -260,6 +260,9 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 	mtx_assert(&(ipi)->ipi_mtx, MA_OWNED);				\
 	NET_ASSERT_GIANT();						\
 } while (0)
+#define INP_INFO_UNLOCK_ASSERT(ipi)	do {				\
+	mtx_assert(&(ipi)->ipi_mtx, MA_NOTOWNED);			\
+} while (0)
 
 #define INP_PCBHASH(faddr, lport, fport, mask) \
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
