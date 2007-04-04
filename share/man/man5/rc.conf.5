@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2007
+.Dd April 4, 2007
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1724,6 +1724,15 @@ If set to
 and also an NFS server or client, run
 .Xr rpc.lockd 8
 at boot time.
+.It Va rpc_lockd_flags
+.Pq Vt str
+If
+.Va rpc_lockd_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr rpc.lockd 8
+daemon.
 .It Va rpc_statd_enable
 .Pq Vt bool
 If set to
@@ -1731,6 +1740,15 @@ If set to
 and also an NFS server or client, run
 .Xr rpc.statd 8
 at boot time.
+.It Va rpc_statd_flags
+.Pq Vt str
+If
+.Va rpc_statd_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr rpc.statd 8
+daemon.
 .It Va rpcbind_program
 .Pq Vt str
 Path to
