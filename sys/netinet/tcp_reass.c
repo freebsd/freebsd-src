@@ -854,18 +854,10 @@ findpcb:
 				 * Socket is created in state SYN_RECEIVED.
 				 * Continue processing segment.
 				 */
-				INP_UNLOCK(inp);
+				INP_UNLOCK(inp);	/* listen socket */
 				inp = sotoinpcb(so);
-				INP_LOCK(inp);
+				INP_LOCK(inp);		/* new connection */
 				tp = intotcpcb(inp);
-				/*
-				 * This is what would have happened in
-				 * tcp_output() when the SYN,ACK was sent.
-				 */
-				tp->snd_up = tp->snd_una;
-				tp->snd_max = tp->snd_nxt = tp->iss + 1;
-				tp->last_ack_sent = tp->rcv_nxt;
-
 				/*
 				 * Process the segment and the data it
 				 * contains.  tcp_do_segment() consumes
