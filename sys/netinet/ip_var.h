@@ -61,7 +61,7 @@ struct ipq {
 	struct mbuf *ipq_frags;		/* to ip headers of fragments */
 	struct	in_addr ipq_src,ipq_dst;
 	u_char	ipq_nfrags;		/* # frags in this packet */
-	struct label *ipq_label;		/* MAC label */
+	struct label *ipq_label;	/* MAC label */
 };
 #endif /* _KERNEL */
 
@@ -127,14 +127,18 @@ struct	ipstat {
 
 #ifdef _KERNEL
 
-/* flags passed to ip_output as last parameter */
-#define	IP_FORWARDING		0x1		/* most of ip header exists */
-#define	IP_RAWOUTPUT		0x2		/* raw ip header exists */
-#define	IP_SENDONES		0x4		/* send all-ones broadcast */
-#define	IP_ROUTETOIF		SO_DONTROUTE	/* bypass routing tables */
-#define	IP_ALLOWBROADCAST	SO_BROADCAST	/* can send broadcast packets */
+/*
+ * Flags passed to ip_output as last parameter.
+ */
+#define IP_FORWARDING		0x01		/* most of ip header exists */
+#define IP_RAWOUTPUT		0x02		/* raw ip header exists */
+#define IP_SENDONES		0x04		/* send all-ones broadcast */
+#define IP_ROUTETOIF		SO_DONTROUTE	/* 0x10 bypass routing tables */
+#define IP_ALLOWBROADCAST	SO_BROADCAST	/* 0x20 can send broadcast packets */
 
-/* mbuf flag used by ip_fastfwd */
+/*
+ * mbuf flag used by ip_fastfwd
+ */
 #define	M_FASTFWD_OURS		M_PROTO1	/* changed dst to local */
 
 #ifdef __NO_STRICT_ALIGNMENT
@@ -149,42 +153,43 @@ struct route;
 struct sockopt;
 
 extern struct	ipstat	ipstat;
-extern u_short	ip_id;				/* ip packet ctr, for ids */
-extern int	ip_defttl;			/* default IP ttl */
-extern int	ipforwarding;			/* ip forwarding */
+extern u_short	ip_id;			/* ip packet ctr, for ids */
+extern int	ip_defttl;		/* default IP ttl */
+extern int	ipforwarding;		/* ip forwarding */
 #ifdef IPSTEALTH
-extern int	ipstealth;			/* stealth forwarding */
+extern int	ipstealth;		/* stealth forwarding */
 #endif
 extern u_char	ip_protox[];
-extern struct socket *ip_rsvpd;	/* reservation protocol daemon */
-extern struct socket *ip_mrouter; /* multicast routing daemon */
+extern struct socket *ip_rsvpd;		/* reservation protocol daemon */
+extern struct socket *ip_mrouter;	/* multicast routing daemon */
 extern int	(*legal_vif_num)(int);
 extern u_long	(*ip_mcast_src)(int);
 extern int rsvp_on;
 extern struct	pr_usrreqs rip_usrreqs;
 
-int	 ip_ctloutput(struct socket *, struct sockopt *sopt);
-void	 ip_drain(void);
-void	 ip_fini(void *xtp);
-int	 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
+int	ip_ctloutput(struct socket *, struct sockopt *sopt);
+void	ip_drain(void);
+void	ip_fini(void *xtp);
+int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags, int sw_csum);
-void	 ip_freemoptions(struct ip_moptions *);
-void	 ip_forward(struct mbuf *m, int srcrt);
-void	 ip_init(void);
-extern int	 (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
-			  struct ip_moptions *);
-int	 ip_output(struct mbuf *,
+void	ip_freemoptions(struct ip_moptions *);
+void	ip_forward(struct mbuf *m, int srcrt);
+void	ip_init(void);
+extern int
+	(*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
+	    struct ip_moptions *);
+int	ip_output(struct mbuf *,
 	    struct mbuf *, struct route *, int, struct ip_moptions *,
 	    struct inpcb *);
-int	 ipproto_register(u_char);
-int	 ipproto_unregister(u_char);
+int	ipproto_register(u_char);
+int	ipproto_unregister(u_char);
 struct mbuf *
-	 ip_reass(struct mbuf *);
+	ip_reass(struct mbuf *);
 struct in_ifaddr *
-	 ip_rtaddr(struct in_addr);
-void	 ip_savecontrol(struct inpcb *, struct mbuf **, struct ip *,
-		struct mbuf *);
-void	 ip_slowtimo(void);
+	ip_rtaddr(struct in_addr);
+void	ip_savecontrol(struct inpcb *, struct mbuf **, struct ip *,
+	    struct mbuf *);
+void	ip_slowtimo(void);
 u_int16_t	ip_randomid(void);
 int	rip_ctloutput(struct socket *, struct sockopt *);
 void	rip_ctlinput(int, struct sockaddr *, void *);
