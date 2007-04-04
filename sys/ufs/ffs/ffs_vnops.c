@@ -232,7 +232,7 @@ loop:
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 			continue;
 		VI_UNLOCK(vp);
-		if (!wait && LIST_FIRST(&bp->b_dep) != NULL &&
+		if (!wait && !LIST_EMPTY(&bp->b_dep) &&
 		    (bp->b_flags & B_DEFERRED) == 0 &&
 		    buf_countdeps(bp, 0)) {
 			bp->b_flags |= B_DEFERRED;
@@ -565,7 +565,7 @@ ffs_read(ap)
 			break;
 
 		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+		   (LIST_EMPTY(&bp->b_dep))) {
 			/*
 			 * If there are no dependencies, and it's VMIO,
 			 * then we don't need the buf, mark it available
@@ -592,7 +592,7 @@ ffs_read(ap)
 	 */
 	if (bp != NULL) {
 		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+		   (LIST_EMPTY(&bp->b_dep))) {
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
 		} else {
@@ -747,7 +747,7 @@ ffs_write(ap)
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
 		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+		   (LIST_EMPTY(&bp->b_dep))) {
 			bp->b_flags |= B_RELBUF;
 		}
 
@@ -967,7 +967,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 			break;
 
 		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+		   (LIST_EMPTY(&bp->b_dep))) {
 			/*
 			 * If there are no dependencies, and it's VMIO,
 			 * then we don't need the buf, mark it available
@@ -994,7 +994,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 	 */
 	if (bp != NULL) {
 		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+		   (LIST_EMPTY(&bp->b_dep))) {
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
 		} else {
@@ -1091,7 +1091,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
 		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+		   (LIST_EMPTY(&bp->b_dep))) {
 			bp->b_flags |= B_RELBUF;
 		}
 

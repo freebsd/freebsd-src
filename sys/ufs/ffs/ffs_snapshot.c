@@ -2209,7 +2209,7 @@ ffs_copyonwrite(devvp, bp)
 	VI_LOCK(devvp);
 	sn = devvp->v_rdev->si_snapdata;
 	if (sn == NULL ||
-	    TAILQ_FIRST(&sn->sn_head) == NULL) {
+	    TAILQ_EMPTY(&sn->sn_head)) {
 		VI_UNLOCK(devvp);
 		return (0);		/* No snapshot */
 	}
@@ -2251,7 +2251,7 @@ ffs_copyonwrite(devvp, bp)
 		VI_LOCK(devvp);
 		sn = devvp->v_rdev->si_snapdata;
 		if (sn == NULL ||
-		    TAILQ_FIRST(&sn->sn_head) == NULL) {
+		    TAILQ_EMPTY(&sn->sn_head)) {
 			VI_UNLOCK(devvp);
 			if (saved_runningbufspace != 0) {
 				bp->b_runningbufspace = saved_runningbufspace;

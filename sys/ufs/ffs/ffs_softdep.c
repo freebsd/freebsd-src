@@ -806,7 +806,7 @@ add_to_worklist(wk)
 	if (wk->wk_state & ONWORKLIST)
 		panic("add_to_worklist: already on list");
 	wk->wk_state |= ONWORKLIST;
-	if (LIST_FIRST(&ump->softdep_workitem_pending) == NULL)
+	if (LIST_EMPTY(&ump->softdep_workitem_pending))
 		LIST_INSERT_HEAD(&ump->softdep_workitem_pending, wk, wk_list);
 	else
 		LIST_INSERT_AFTER(ump->softdep_worklist_tail, wk, wk_list);
@@ -993,7 +993,7 @@ softdep_move_dependencies(oldbp, newbp)
 {
 	struct worklist *wk, *wktail;
 
-	if (LIST_FIRST(&newbp->b_dep) != NULL)
+	if (!LIST_EMPTY(&newbp->b_dep))
 		panic("softdep_move_dependencies: need merge code");
 	wktail = 0;
 	ACQUIRE_LOCK(&lk);
@@ -1779,7 +1779,7 @@ allocdirect_merge(adphead, newadp, oldadp)
 	if ((wk = LIST_FIRST(&oldadp->ad_newdirblk)) != NULL) {
 		newdirblk = WK_NEWDIRBLK(wk);
 		WORKLIST_REMOVE(&newdirblk->db_list);
-		if (LIST_FIRST(&oldadp->ad_newdirblk) != NULL)
+		if (!LIST_EMPTY(&oldadp->ad_newdirblk))
 			panic("allocdirect_merge: extra newdirblk");
 		WORKLIST_INSERT(&newadp->ad_newdirblk, &newdirblk->db_list);
 	}
@@ -2507,7 +2507,7 @@ free_allocdirect(adphead, adp, delay)
 	if ((wk = LIST_FIRST(&adp->ad_newdirblk)) != NULL) {
 		newdirblk = WK_NEWDIRBLK(wk);
 		WORKLIST_REMOVE(&newdirblk->db_list);
-		if (LIST_FIRST(&adp->ad_newdirblk) != NULL)
+		if (!LIST_EMPTY(&adp->ad_newdirblk))
 			panic("free_allocdirect: extra newdirblk");
 		if (delay)
 			WORKLIST_INSERT(&adp->ad_inodedep->id_bufwait,
@@ -2550,7 +2550,7 @@ free_newdirblk(newdirblk)
 	 * If no dependencies remain, the pagedep will be freed.
 	 */
 	for (i = 0; i < DAHASHSZ; i++)
-		if (LIST_FIRST(&pagedep->pd_diraddhd[i]) != NULL)
+		if (!LIST_EMPTY(&pagedep->pd_diraddhd[i]))
 			break;
 	if (i == DAHASHSZ && (pagedep->pd_state & ONWORKLIST) == 0) {
 		LIST_REMOVE(pagedep, pd_hash);
@@ -2627,13 +2627,13 @@ check_inode_unwritten(inodedep)
 
 	mtx_assert(&lk, MA_OWNED);
 	if ((inodedep->id_state & DEPCOMPLETE) != 0 ||
-	    LIST_FIRST(&inodedep->id_pendinghd) != NULL ||
-	    LIST_FIRST(&inodedep->id_bufwait) != NULL ||
-	    LIST_FIRST(&inodedep->id_inowait) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_extupdt) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_newextupdt) != NULL ||
+	    !LIST_EMPTY(&inodedep->id_pendinghd) ||
+	    !LIST_EMPTY(&inodedep->id_bufwait) ||
+	    !LIST_EMPTY(&inodedep->id_inowait) ||
+	    !TAILQ_EMPTY(&inodedep->id_inoupdt) ||
+	    !TAILQ_EMPTY(&inodedep->id_newinoupdt) ||
+	    !TAILQ_EMPTY(&inodedep->id_extupdt) ||
+	    !TAILQ_EMPTY(&inodedep->id_newextupdt) ||
 	    inodedep->id_nlinkdelta != 0)
 		return (0);
 
@@ -2670,13 +2670,13 @@ free_inodedep(inodedep)
 	mtx_assert(&lk, MA_OWNED);
 	if ((inodedep->id_state & ONWORKLIST) != 0 ||
 	    (inodedep->id_state & ALLCOMPLETE) != ALLCOMPLETE ||
-	    LIST_FIRST(&inodedep->id_pendinghd) != NULL ||
-	    LIST_FIRST(&inodedep->id_bufwait) != NULL ||
-	    LIST_FIRST(&inodedep->id_inowait) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_extupdt) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_newextupdt) != NULL ||
+	    !LIST_EMPTY(&inodedep->id_pendinghd) ||
+	    !LIST_EMPTY(&inodedep->id_bufwait) ||
+	    !LIST_EMPTY(&inodedep->id_inowait) ||
+	    !TAILQ_EMPTY(&inodedep->id_inoupdt) ||
+	    !TAILQ_EMPTY(&inodedep->id_newinoupdt) ||
+	    !TAILQ_EMPTY(&inodedep->id_extupdt) ||
+	    !TAILQ_EMPTY(&inodedep->id_newextupdt) ||
 	    inodedep->id_nlinkdelta != 0 || inodedep->id_savedino1 != NULL)
 		return (0);
 	LIST_REMOVE(inodedep, id_hash);
@@ -2852,7 +2852,7 @@ indir_trunc(freeblks, dbn, level, lbn, countp)
 			panic("indir_trunc: lost indirdep");
 		WORKLIST_REMOVE(wk);
 		WORKITEM_FREE(indirdep, D_INDIRDEP);
-		if (LIST_FIRST(&bp->b_dep) != NULL)
+		if (!LIST_EMPTY(&bp->b_dep))
 			panic("indir_trunc: dangling dep");
 		ump->um_numindirdeps -= 1;
 		FREE_LOCK(&lk);
@@ -3767,7 +3767,7 @@ softdep_disk_io_initiation(bp)
 			 * will be writing the real pointers, so the
 			 * dependency can be freed.
 			 */
-			if (LIST_FIRST(&indirdep->ir_deplisthd) == NULL) {
+			if (LIST_EMPTY(&indirdep->ir_deplisthd)) {
 				struct buf *bp;
 
 				bp = indirdep->ir_savebp;
@@ -3904,7 +3904,7 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 	 */
 	inodedep->id_savedsize = dp->di_size;
 	inodedep->id_savedextsize = 0;
-	if (TAILQ_FIRST(&inodedep->id_inoupdt) == NULL)
+	if (TAILQ_EMPTY(&inodedep->id_inoupdt))
 		return;
 	/*
 	 * Set the dependencies to busy.
@@ -4047,8 +4047,8 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 	 */
 	inodedep->id_savedsize = dp->di_size;
 	inodedep->id_savedextsize = dp->di_extsize;
-	if (TAILQ_FIRST(&inodedep->id_inoupdt) == NULL &&
-	    TAILQ_FIRST(&inodedep->id_extupdt) == NULL)
+	if (TAILQ_EMPTY(&inodedep->id_inoupdt) &&
+	    TAILQ_EMPTY(&inodedep->id_extupdt))
 		return;
 	/*
 	 * Set the ext data dependencies to busy.
@@ -4905,10 +4905,10 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	 * allocdirects that are completed by the merger.
 	 */
 	merge_inode_lists(&inodedep->id_newinoupdt, &inodedep->id_inoupdt);
-	if (TAILQ_FIRST(&inodedep->id_inoupdt) != NULL)
+	if (!TAILQ_EMPTY(&inodedep->id_inoupdt))
 		handle_allocdirect_partdone(TAILQ_FIRST(&inodedep->id_inoupdt));
 	merge_inode_lists(&inodedep->id_newextupdt, &inodedep->id_extupdt);
-	if (TAILQ_FIRST(&inodedep->id_extupdt) != NULL)
+	if (!TAILQ_EMPTY(&inodedep->id_extupdt))
 		handle_allocdirect_partdone(TAILQ_FIRST(&inodedep->id_extupdt));
 	/*
 	 * Now that the inode has been pushed into the buffer, the
@@ -5017,12 +5017,12 @@ softdep_fsync(vp)
 		FREE_LOCK(&lk);
 		return (0);
 	}
-	if (LIST_FIRST(&inodedep->id_inowait) != NULL ||
-	    LIST_FIRST(&inodedep->id_bufwait) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_extupdt) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_newextupdt) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL)
+	if (!LIST_EMPTY(&inodedep->id_inowait) ||
+	    !LIST_EMPTY(&inodedep->id_bufwait) ||
+	    !TAILQ_EMPTY(&inodedep->id_extupdt) ||
+	    !TAILQ_EMPTY(&inodedep->id_newextupdt) ||
+	    !TAILQ_EMPTY(&inodedep->id_inoupdt) ||
+	    !TAILQ_EMPTY(&inodedep->id_newinoupdt))
 		panic("softdep_fsync: pending ops");
 	for (error = 0, flushparent = 0; ; ) {
 		if ((wk = LIST_FIRST(&inodedep->id_pendinghd)) == NULL)
@@ -5876,7 +5876,7 @@ clear_remove(td)
 		if (next >= pagedep_hash)
 			next = 0;
 		LIST_FOREACH(pagedep, pagedephd, pd_hash) {
-			if (LIST_FIRST(&pagedep->pd_dirremhd) == NULL)
+			if (LIST_EMPTY(&pagedep->pd_dirremhd))
 				continue;
 			mp = pagedep->pd_list.wk_mp;
 			ino = pagedep->pd_ino;
