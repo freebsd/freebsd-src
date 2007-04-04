@@ -69,7 +69,8 @@ void
 scsp_cache_key(const Atm_addr *ap, const struct in_addr *ip, int ol, char *op)
 {
 	int	i, len;
-	char	buff[32], digest[16];
+	char	buff[32];
+        unsigned char digest[16];
 	MD5_CTX	context;
 
 	/*
