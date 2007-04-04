@@ -170,8 +170,7 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 {
 	int flags;
 
-	flags = LO_SLEEPABLE | LO_UPGRADABLE | LO_RECURSABLE;;
-	
+	flags = LO_SLEEPABLE | LO_UPGRADABLE | LO_RECURSABLE;
 	if (opts & SX_DUPOK)
 		flags |= LO_DUPOK;
 	if (opts & SX_NOPROFILE)
@@ -274,6 +273,8 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);
+	if (SX_SHARERS(x) == 0)
+		lock_profile_release_lock(&sx->lock_object);
 	__sx_sunlock(sx, file, line);
 }
 
@@ -522,9 +523,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 			    __func__, sx);
 	}
 	
-	GIANT_RESTORE();	
+	GIANT_RESTORE();
 	lock_profile_obtain_lock_success(&(sx)->lock_object, contested,
-	    waitstart, (file), (line));
+	    waitstart, file, line);
 }
 
 /*
