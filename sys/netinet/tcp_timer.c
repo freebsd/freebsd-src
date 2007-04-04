@@ -32,7 +32,6 @@
 
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
-#include "opt_tcp_sack.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
