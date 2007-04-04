@@ -390,7 +390,6 @@ PPP_FILTER		opt_ppp.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_SIGNATURE		opt_inet.h
-TCP_SACK_DEBUG		opt_tcp_sack.h 
 DEV_VLAN		opt_vlan.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
