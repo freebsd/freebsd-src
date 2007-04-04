@@ -174,8 +174,8 @@ billf -> shafeeq
 
 bmilekic -> csjp
 
-bms -> mlaier
 bms -> dhartmei
+bms -> mlaier
 bms -> thompsa
 
 brian -> joe
@@ -196,14 +196,19 @@ des -> hmp
 des -> mike
 des -> ru
 
-eivind -> des
-eivind -> rwatson
-
 dwmalone -> fanf
 dwmalone -> peadar
 
+eivind -> des
+eivind -> rwatson
+
+gibbs -> mjacob
+gibbs -> njl
+
 gnn -> jinmei
 gnn -> rrs
+
+grog -> le
 
 imp -> akiyama
 imp -> ambrisko
@@ -220,8 +225,8 @@ imp -> mr
 imp -> non
 imp -> onoe
 imp -> remko
-imp -> rink
 imp -> rik
+imp -> rink
 imp -> sanpei
 imp -> shiba
 imp -> takawata
@@ -254,11 +259,6 @@ joerg -> eik
 joerg -> le
 joerg -> netchild
 
-gibbs -> mjacob
-gibbs -> njl
-
-grog -> le
-
 mdodd -> jake
 
 mlaier -> benjsc
@@ -281,9 +281,9 @@ obrien -> gshapiro
 obrien -> kan
 obrien -> sam
 
+peter -> asmodai
 peter -> jayanth
 peter -> ps
-peter -> asmodai
 
 philip -> jls
 philip -> matteo
