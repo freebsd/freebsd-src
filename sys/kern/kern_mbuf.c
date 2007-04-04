@@ -395,32 +395,40 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 {
 	struct mbuf *m;
 	u_int *refcnt;
-	int type = 0;
-
+	int type;
+	uma_zone_t zone;
+	
 #ifdef INVARIANTS
 	trash_ctor(mem, size, arg, how);
 #endif
-	m = (struct mbuf *)arg;
-	if (m != NULL) {
-		switch (size) {
-		case MCLBYTES:
-			type = EXT_CLUSTER;
-			break;
+	switch (size) {
+	case MCLBYTES:
+		type = EXT_CLUSTER;
+		zone = zone_clust;
+		break;
 #if MJUMPAGESIZE != MCLBYTES
-		case MJUMPAGESIZE:
-			type = EXT_JUMBOP;
-			break;
+	case MJUMPAGESIZE:
+		type = EXT_JUMBOP;
+		zone = zone_jumbop;
+		break;
 #endif
-		case MJUM9BYTES:
-			type = EXT_JUMBO9;
-			break;
-		case MJUM16BYTES:
-			type = EXT_JUMBO16;
-			break;
-		default:
-			panic("unknown cluster size");
-			break;
-		}
+	case MJUM9BYTES:
+		type = EXT_JUMBO9;
+		zone = zone_jumbo9;
+		break;
+	case MJUM16BYTES:
+		type = EXT_JUMBO16;
+		zone = zone_jumbo16;
+		break;
+	default:
+		panic("unknown cluster size");
+		break;
+	}
+
+	m = (struct mbuf *)arg;
+	refcnt = uma_find_refcnt(zone, mem);
+	*refcnt = 1;			
+	if (m != NULL) {
 		m->m_ext.ext_buf = (caddr_t)mem;
 		m->m_data = m->m_ext.ext_buf;
 		m->m_flags |= M_EXT;
@@ -428,12 +436,9 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 		m->m_ext.ext_args = NULL;
 		m->m_ext.ext_size = size;
 		m->m_ext.ext_type = type;
-		m->m_ext.ref_cnt = uma_find_refcnt(zone_clust, mem);
-		*m->m_ext.ref_cnt = 1;
-	} else {
-		refcnt =  uma_find_refcnt(zone_clust, mem);
-		*refcnt = 1;
+		m->m_ext.ref_cnt = refcnt;
 	}
+
 	return (0);
 }
 
@@ -443,11 +448,14 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 static void
 mb_dtor_clust(void *mem, int size, void *arg)
 {
-
-	KASSERT(*(uma_find_refcnt(zone_clust, mem)) <= 1,
-		("%s: refcnt incorrect %u", __func__,
-		 *(uma_find_refcnt(zone_clust, mem))) );
 #ifdef INVARIANTS
+	uma_zone_t zone;
+
+	zone = m_getzone(size);
+	KASSERT(*(uma_find_refcnt(zone, mem)) <= 1,
+		("%s: refcnt incorrect %u", __func__,
+		 *(uma_find_refcnt(zone, mem))) );
+
 	trash_dtor(mem, size, arg);
 #endif
 }
