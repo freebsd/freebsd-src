@@ -175,7 +175,9 @@ struct sge_fl {
 	uint64_t	empty;
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
-	struct mtx      fl_locks[8];
+	bus_dma_tag_t   entry_tag;
+	uma_zone_t      zone;
+	int             type;
 };
 
 struct tx_desc;
@@ -201,6 +203,7 @@ struct sge_txq {
 	uint64_t	restarts;
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
+	bus_dma_tag_t   entry_tag;
 	struct mtx      lock;
 };
      	
