@@ -110,11 +110,11 @@ struct in_conninfo {
 struct	icmp6_filter;
 
 struct inpcb {
-	LIST_ENTRY(inpcb) inp_hash; /* hash list */
-	LIST_ENTRY(inpcb) inp_list; /* list for all PCBs of this proto */
+	LIST_ENTRY(inpcb) inp_hash;	/* hash list */
+	LIST_ENTRY(inpcb) inp_list;	/* list for all PCBs of this proto */
 	u_int32_t	inp_flow;
 
-	/* local and foreign ports, local and foreign addr */
+	/* Local and foreign ports, local and foreign addr. */
 	struct	in_conninfo inp_inc;
 
 	void	*inp_ppcb;		/* pointer to per-protocol pcb */
@@ -124,7 +124,7 @@ struct inpcb {
 	struct	label *inp_label;	/* MAC label */
 	int	inp_flags;		/* generic IP/datagram flags */
 
-	struct	inpcbpolicy *inp_sp; /* for IPSEC */
+	struct	inpcbpolicy *inp_sp;	/* for IPSEC */
 	u_char	inp_vflag;		/* IP version flag (v4/v6) */
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2
@@ -137,7 +137,7 @@ struct inpcb {
 	u_char	inp_ip_p;		/* protocol proto */
 	u_char	inp_ip_minttl;		/* minimum TTL or drop */
 
-	/* protocol dependent part; options */
+	/* Protocol dependent part; options. */
 	struct {
 		u_char	inp4_ip_tos;		/* type of service proto */
 		struct	mbuf *inp4_options;	/* IP options */
