@@ -32,12 +32,12 @@
 .\"	From: @(#)lastcomm.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd September 18, 1996
+.Dd April 4, 2007
 .Dt LASTCOMM 1
 .Os
 .Sh NAME
 .Nm lastcomm
-.Nd show last commands executed in reverse order
+.Nd show last commands executed
 .Sh SYNOPSIS
 .Nm
 .Op Fl EScesu
@@ -73,6 +73,12 @@ Read from
 .Ar file
 rather than the default
 .Pa /var/account/acct .
+If
+.Ar file
+is a single dash
+.Pq Sq \&-
+.Nm
+reads accounting entries from the standard input.
 .El
 .Pp
 If no options are specified,
@@ -138,11 +144,28 @@ a fork, but without a following
 ``D'' indicates the command terminated with the generation of a
 .Pa core
 file, and ``X'' indicates the command was terminated with a signal.
+.Pp
+By default, accounting entries are printed going backwards in time,
+starting from the time
+.Nm
+was executed.
+However, if
+.Nm
+reads entries from its standard input, then entries are printed in
+the order they are read.
 .Sh FILES
 .Bl -tag -width /var/account/acct -compact
 .It Pa /var/account/acct
 default accounting file
 .El
+.Sh EXAMPLES
+The command
+.Dl lastcomm -Ee
+will print the exit time and elapsed time of each command logged in
+.Pa /var/account/acct ,
+while
+.Dl tail -f -c 0 /var/account/acct | lastcomm -f -
+will print details of each terminating command.
 .Sh SEE ALSO
 .Xr last 1 ,
 .Xr sigvec 2 ,
