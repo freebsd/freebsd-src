@@ -82,6 +82,7 @@ emaste [label="Ed Maste\nemaste@FreeBSD.org\n2005/10/04"]
 emax [label="Maksim Yevmenkin\nemax@FreeBSD.org\n2003/10/12"]
 fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
+gad [label="Garance A. Drosehn\ngad@FreeBSD.org\n2000/10/27"]
 gibbs [label="Justin T. Gibbs\ngibbs@FreeBSD.org\n????/??/??"]
 gnn [label="George V. Neville-Neil\ngnn@FreeBSD.org\n2004/10/11"]
 grehan [label="Peter Grehan\ngrehan@FreeBSD.org\n2002/08/08"]
@@ -329,5 +330,7 @@ shin -> ume
 ume -> jinmei
 ume -> suz
 ume -> tshiozak
+
+wollman -> gad
 
 }
