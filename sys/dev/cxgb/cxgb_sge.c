@@ -126,7 +126,7 @@ struct tx_sw_desc {                /* SW state per Tx descriptor */
 };
 
 struct rx_sw_desc {                /* SW state per Rx descriptor */
-	struct mbuf	*m;
+	void	        *cl;
 	bus_dmamap_t	map;
 	int		flags;
 };
@@ -135,6 +135,12 @@ struct txq_state {
 	unsigned int compl;
 	unsigned int gen;
 	unsigned int pidx;
+};
+
+struct refill_fl_cb_arg {
+	int               error;
+	bus_dma_segment_t seg;
+	int               nseg;
 };
 
 /*
@@ -440,6 +446,16 @@ t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p)
 	qs->rspq.polling = 0 /* p->polling */;
 }
 
+static void
+refill_fl_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	struct refill_fl_cb_arg *cb_arg = arg;
+	
+	cb_arg->error = error;
+	cb_arg->seg = segs[0];
+	cb_arg->nseg = nseg;
+
+}
 
 /**
  *	refill_fl - refill an SGE free-buffer list
@@ -453,41 +469,46 @@ t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p)
 static void
 refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 {
-	bus_dma_segment_t seg;
 	struct rx_sw_desc *sd = &q->sdesc[q->pidx];
 	struct rx_desc *d = &q->desc[q->pidx];
-	struct mbuf *m;
-	int err, nsegs;
+	struct refill_fl_cb_arg cb_arg;
+	void *cl;
+	int err;
 
+	cb_arg.error = 0;
 	while (n--) {
-		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, q->buf_size);
-		
-		if (m == NULL) {
-			log(LOG_WARNING, "Failed to allocate mbuf\n");
+		/*
+		 * We only allocate a cluster, mbuf allocation happens after rx
+		 */
+		if ((cl = m_cljget(NULL, M_DONTWAIT, q->buf_size)) == NULL) {
+			log(LOG_WARNING, "Failed to allocate cluster\n");
 			goto done;
 		}
-		
 		if ((sd->flags & RX_SW_DESC_MAP_CREATED) == 0) {
-			if ((err = bus_dmamap_create(sc->rx_jumbo_dmat, 0, &sd->map))) {
+			if ((err = bus_dmamap_create(q->entry_tag, 0, &sd->map))) {
 				log(LOG_WARNING, "bus_dmamap_create failed %d\n", err);
+				/*
+				 * XXX free cluster
+				 */
 				goto done;
 			}
 			sd->flags |= RX_SW_DESC_MAP_CREATED;
 		}
-		sd->flags |= RX_SW_DESC_INUSE;
+		err = bus_dmamap_load(q->entry_tag, sd->map, cl, q->buf_size,
+		    refill_fl_cb, &cb_arg, 0);
 		
-		m->m_pkthdr.len = m->m_len = q->buf_size;
-		err = bus_dmamap_load_mbuf_sg(sc->rx_jumbo_dmat, sd->map, m, &seg,
-		    &nsegs, BUS_DMA_NOWAIT);
-		if (err != 0) {
-			log(LOG_WARNING, "failure in refill_fl %d\n", err);
-			m_freem(m);
+		if (err != 0 || cb_arg.error) {
+			log(LOG_WARNING, "failure in refill_fl %d\n", cb_arg.error);
+			/*
+			 * XXX free cluster
+			 */
 			return;
 		}
-
-		sd->m = m;
-		d->addr_lo = htobe32(seg.ds_addr & 0xffffffff);
-		d->addr_hi = htobe32(((uint64_t)seg.ds_addr >>32) & 0xffffffff);
+		
+		sd->flags |= RX_SW_DESC_INUSE;
+		sd->cl = cl;
+		d->addr_lo = htobe32(cb_arg.seg.ds_addr & 0xffffffff);
+		d->addr_hi = htobe32(((uint64_t)cb_arg.seg.ds_addr >>32) & 0xffffffff);
 		d->len_gen = htobe32(V_FLD_GEN1(q->gen));
 		d->gen2 = htobe32(V_FLD_GEN2(q->gen));
 
@@ -525,11 +546,11 @@ free_rx_bufs(adapter_t *sc, struct sge_fl *q)
 		struct rx_sw_desc *d = &q->sdesc[cidx];
 
 		if (d->flags & RX_SW_DESC_INUSE) {
-			bus_dmamap_unload(sc->rx_jumbo_dmat, d->map);
-			bus_dmamap_destroy(sc->rx_jumbo_dmat, d->map);
-			m_freem(d->m);
+			bus_dmamap_unload(q->entry_tag, d->map);
+			bus_dmamap_destroy(q->entry_tag, d->map);
+			uma_zfree(q->zone, d->cl);
 		}
-		d->m = NULL;
+		d->cl = NULL;
 		if (++cidx == q->size)
 			cidx = 0;
 	}
@@ -552,8 +573,8 @@ alloc_ring_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 static int
 alloc_ring(adapter_t *sc, size_t nelem, size_t elem_size, size_t sw_size,
-	   bus_addr_t *phys, void *desc, void *sdesc, bus_dma_tag_t *tag,
-	   bus_dmamap_t *map)
+    bus_addr_t *phys, void *desc, void *sdesc, bus_dma_tag_t *tag,
+    bus_dmamap_t *map, bus_dma_tag_t parent_entry_tag, bus_dma_tag_t *entry_tag)
 {
 	size_t len = nelem * elem_size;
 	void *s = NULL;
@@ -583,6 +604,17 @@ alloc_ring(adapter_t *sc, size_t nelem, size_t elem_size, size_t sw_size,
 		s = malloc(len, M_DEVBUF, M_WAITOK);
 		bzero(s, len);
 		*(void **)sdesc = s;
+	}
+	if (parent_entry_tag == NULL)
+		return (0);
+	    
+	if ((err = bus_dma_tag_create(parent_entry_tag, PAGE_SIZE, 0,
+				      BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+		                      NULL, NULL, PAGE_SIZE, 1,
+				      PAGE_SIZE, BUS_DMA_ALLOCNOW,
+		                      NULL, NULL, entry_tag)) != 0) {
+		device_printf(sc->dev, "Cannot allocate descriptor entry tag\n");
+		return (ENOMEM);
 	}
 	return (0);
 }
@@ -823,7 +855,6 @@ busdma_map_mbufs(struct mbuf **m, adapter_t *sc, struct tx_sw_desc *stx,
 		    err, m0->m_pkthdr.len, n);
 #endif
 	}
-	
 		 
 	if (err == EFBIG) {
 		/* Too many segments, try to defrag */
@@ -1360,24 +1391,27 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	init_qset_cntxt(q, id);
 	
 	if ((ret = alloc_ring(sc, p->fl_size, sizeof(struct rx_desc),
-			      sizeof(struct rx_sw_desc), &q->fl[0].phys_addr,
-			      &q->fl[0].desc, &q->fl[0].sdesc,
-			      &q->fl[0].desc_tag, &q->fl[0].desc_map)) != 0) {
+		    sizeof(struct rx_sw_desc), &q->fl[0].phys_addr,
+		    &q->fl[0].desc, &q->fl[0].sdesc,
+		    &q->fl[0].desc_tag, &q->fl[0].desc_map,
+		    sc->rx_dmat, &q->fl[0].entry_tag)) != 0) {
 		printf("error %d from alloc ring fl0\n", ret);
 		goto err;
 	}
 
 	if ((ret = alloc_ring(sc, p->jumbo_size, sizeof(struct rx_desc),
-			      sizeof(struct rx_sw_desc), &q->fl[1].phys_addr,
-			      &q->fl[1].desc, &q->fl[1].sdesc,
-			      &q->fl[1].desc_tag, &q->fl[1].desc_map)) != 0) {
+		    sizeof(struct rx_sw_desc), &q->fl[1].phys_addr,
+		    &q->fl[1].desc, &q->fl[1].sdesc,
+		    &q->fl[1].desc_tag, &q->fl[1].desc_map,
+		    sc->rx_jumbo_dmat, &q->fl[1].entry_tag)) != 0) {
 		printf("error %d from alloc ring fl1\n", ret);
 		goto err;
 	}
 
 	if ((ret = alloc_ring(sc, p->rspq_size, sizeof(struct rsp_desc), 0,
-			      &q->rspq.phys_addr, &q->rspq.desc, NULL,
-			      &q->rspq.desc_tag, &q->rspq.desc_map)) != 0) {
+		    &q->rspq.phys_addr, &q->rspq.desc, NULL,
+		    &q->rspq.desc_tag, &q->rspq.desc_map,
+		    NULL, NULL)) != 0) {
 		printf("error %d from alloc ring rspq\n", ret);
 		goto err;
 	}
@@ -1391,10 +1425,11 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 		size_t sz = i == TXQ_CTRL ? 0 : sizeof(struct tx_sw_desc);
 
 		if ((ret = alloc_ring(sc, p->txq_size[i],
-				      sizeof(struct tx_desc), sz,
-				      &q->txq[i].phys_addr, &q->txq[i].desc,
-				      &q->txq[i].sdesc, &q->txq[i].desc_tag,
-				      &q->txq[i].desc_map)) != 0) {
+			    sizeof(struct tx_desc), sz,
+			    &q->txq[i].phys_addr, &q->txq[i].desc,
+			    &q->txq[i].sdesc, &q->txq[i].desc_tag,
+			    &q->txq[i].desc_map,
+			    sc->tx_dmat, &q->txq[i].entry_tag)) != 0) {
 			printf("error %d from alloc ring tx %i\n", ret, i);
 			goto err;
 		}
@@ -1416,7 +1451,12 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	    flits_to_desc(sgl_len(TX_MAX_SEGS + 1) + 3);
 
 	q->fl[0].buf_size = MCLBYTES;
+	q->fl[0].zone = zone_clust;
+	q->fl[0].type = EXT_CLUSTER;
 	q->fl[1].buf_size = MJUMPAGESIZE;
+	q->fl[1].zone = zone_jumbop;
+	q->fl[1].type = EXT_JUMBOP;
+	
 	q->lro.enabled = lro_default;
 	
 	mtx_lock(&sc->sge.reg_lock);
@@ -1516,6 +1556,7 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 			bus_dmamem_free(q->fl[i].desc_tag, q->fl[i].desc,
 					q->fl[i].desc_map);
 			bus_dma_tag_destroy(q->fl[i].desc_tag);
+			bus_dma_tag_destroy(q->fl[i].entry_tag);
 		}
 		if (q->fl[i].sdesc) {
 			free_rx_bufs(sc, &q->fl[i]);
@@ -1533,6 +1574,7 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 			bus_dmamem_free(q->txq[i].desc_tag, q->txq[i].desc,
 					q->txq[i].desc_map);
 			bus_dma_tag_destroy(q->txq[i].desc_tag);
+			bus_dma_tag_destroy(q->txq[i].entry_tag);
 		}
 		if (q->txq[i].sdesc) {
 			free(q->txq[i].sdesc, M_DEVBUF);
@@ -1552,9 +1594,9 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 			        q->rspq.desc_map);
 		bus_dma_tag_destroy(q->rspq.desc_tag);
 	}
-	if (mtx_initialized(&q->rspq.lock)) {
+
+	if (mtx_initialized(&q->rspq.lock))
 		mtx_destroy(&q->rspq.lock); 
-	}
 	
 	bzero(q, sizeof(*q));
 }
@@ -1614,8 +1656,8 @@ free_tx_desc(adapter_t *sc, struct sge_txq *q, int n, struct mbuf **m_vec)
 		DPRINTF("cidx=%d d=%p\n", cidx, d);
 		if (d->m) {
 			if (d->flags & TX_SW_DESC_MAPPED) {
-				bus_dmamap_unload(sc->tx_dmat, d->map);
-				bus_dmamap_destroy(sc->tx_dmat, d->map);
+				bus_dmamap_unload(q->entry_tag, d->map);
+				bus_dmamap_destroy(q->entry_tag, d->map);
 				d->flags &= ~TX_SW_DESC_MAPPED;
 			}
 			m_vec[nbufs] = d->m;
@@ -1658,8 +1700,7 @@ is_new_response(const struct rsp_desc *r,
 #define NOMEM_INTR_DELAY 2500
 
 static __inline void
-deliver_partial_bundle(struct t3cdev *tdev,
-					  struct sge_rspq *q)
+deliver_partial_bundle(struct t3cdev *tdev, struct sge_rspq *q)
 {
 	;
 }
@@ -1701,10 +1742,6 @@ t3_rx_eth(struct port_info *pi, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 	if (&pi->adapter->port[cpl->iff] != pi)
 		panic("bad port index %d m->m_data=%p\n", cpl->iff, m->m_data);
 
-
-	m_adj(m, sizeof(*cpl) + ethpad);
-
-
 	if ((ifp->if_capenable & IFCAP_RXCSUM) && !cpl->fragment &&
 	    cpl->csum_valid && cpl->csum == 0xffff) {
 		m->m_pkthdr.csum_flags = (CSUM_IP_CHECKED|CSUM_IP_VALID);
@@ -1722,6 +1759,8 @@ t3_rx_eth(struct port_info *pi, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 	} 
 #endif
 	m->m_pkthdr.rcvif = ifp;
+
+	m_adj(m, sizeof(*cpl) + ethpad);
 
 	(*ifp->if_input)(ifp, m);
 }
@@ -1742,12 +1781,12 @@ t3_rx_eth(struct port_info *pi, struct sge_rspq *rq, struct mbuf *m, int ethpad)
  *	threshold and the packet is too big to copy, or (b) the packet should
  *	be copied but there is no memory for the copy.
  */
+
 static int
 get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
-    struct t3_mbuf_hdr *mh, struct rsp_desc *r)
+    struct t3_mbuf_hdr *mh, struct rsp_desc *r, struct mbuf *m)
 {
 	
-	struct mbuf *m = NULL;
 	unsigned int len_cq =  ntohl(r->len_cq);
 	struct sge_fl *fl = (len_cq & F_RSPD_FLQ) ? &qs->fl[1] : &qs->fl[0];
 	struct rx_sw_desc *sd = &fl->sdesc[fl->cidx];
@@ -1756,14 +1795,15 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
 	int ret = 0;
 	
-	prefetch(sd->m->m_data);
+	prefetch(sd->cl);
 	
 	fl->credits--;
-	bus_dmamap_sync(adap->rx_jumbo_dmat, sd->map, BUS_DMASYNC_POSTREAD);
-	bus_dmamap_unload(adap->rx_jumbo_dmat, sd->map);
-	m = sd->m;
-	m->m_len = len;
+	bus_dmamap_sync(fl->entry_tag, sd->map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_unload(fl->entry_tag, sd->map);
 
+	m_cljset(m, sd->cl, fl->type);
+	m->m_len = len;
+	
 	switch(sopeop) {
 	case RSPQ_SOP_EOP:
 		DBG(DBG_RX, ("get_packet: SOP-EOP m %p\n", m));
@@ -1941,9 +1981,17 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			rspq->imm_data++;
 		} else if (r->len_cq) {			
 			int drop_thresh = eth ? SGE_RX_DROP_THRES : 0;
+			struct mbuf *m;
+
+			m = m_gethdr(M_NOWAIT, MT_DATA);
+
+			if (m == NULL) {
+				log(LOG_WARNING, "failed to get mbuf for packet\n");
+				break;
+			}
 			
 			ethpad = 2;
-			eop = get_packet(adap, drop_thresh, qs, &rspq->mh, r);
+			eop = get_packet(adap, drop_thresh, qs, &rspq->mh, r, m);
 		} else {
 			DPRINTF("pure response\n");
 			rspq->pure_rsps++;
@@ -2044,7 +2092,6 @@ t3b_intr(void *data)
 	adapter_t *adap = data;
 	struct sge_rspq *q0 = &adap->sge.qs[0].rspq;
 	struct sge_rspq *q1 = &adap->sge.qs[1].rspq;
-
 	
 	t3_write_reg(adap, A_PL_CLI, 0);
 	map = t3_read_reg(adap, A_SG_DATA_INTR);
@@ -2089,7 +2136,6 @@ t3_intr_msi(void *data)
 	    process_responses_gts(adap, q1)) {
 		new_packets = 1;
 	}
-	
 	
 	mtx_unlock(&q0->lock);
 	if (new_packets == 0)
