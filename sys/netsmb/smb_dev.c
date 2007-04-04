@@ -368,15 +368,15 @@ nsmb_getfp(struct filedesc* fdp, int fd, int flag)
 {
 	struct file* fp;
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_SLOCK(fdp);
 	if (((u_int)fd) >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL ||
 	    (fp->f_flag & flag) == 0) {
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		return (NULL);
 	}
 	fhold(fp);
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_SUNLOCK(fdp);
 	return (fp);
 }
 

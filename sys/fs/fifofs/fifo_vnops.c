@@ -295,9 +295,11 @@ fail1:
 	mtx_unlock(&fifo_mtx);
 	KASSERT(ap->a_fdidx >= 0, ("can't fifo/vnode bypass %d", ap->a_fdidx));
 	fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
+	FILE_LOCK(fp);
 	KASSERT(fp->f_ops == &badfileops, ("not badfileops in fifo_open"));
-	fp->f_ops = &fifo_ops_f;
 	fp->f_data = fip;
+	fp->f_ops = &fifo_ops_f;
+	FILE_UNLOCK(fp);
 	return (0);
 }
 

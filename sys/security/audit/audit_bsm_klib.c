@@ -494,7 +494,7 @@ canon_path(struct thread *td, char *path, char *cpath)
 	fdp = td->td_proc->p_fd;
 	bufp = path;
 	cisr = 0;
-	FILEDESC_LOCK(fdp);
+	FILEDESC_SLOCK(fdp);
 	if (*(path) == '/') {
 		while (*(bufp) == '/')
 			bufp++;			/* Skip leading '/'s. */
@@ -516,7 +516,7 @@ canon_path(struct thread *td, char *path, char *cpath)
 		vref(vnp);
 		bufp = path;
 	}
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_SUNLOCK(fdp);
 	if (vnp != NULL) {
 		/*
 		 * XXX: vn_fullpath() on FreeBSD is "less reliable" than

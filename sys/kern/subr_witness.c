@@ -281,7 +281,6 @@ static struct witness_order_list_entry order_lists[] = {
 	 * Various mutexes
 	 */
 	{ "Giant", &lock_class_mtx_sleep },
-	{ "filedesc structure", &lock_class_mtx_sleep },
 	{ "pipe mutex", &lock_class_mtx_sleep },
 	{ "sigio lock", &lock_class_mtx_sleep },
 	{ "process group", &lock_class_mtx_sleep },
@@ -294,7 +293,6 @@ static struct witness_order_list_entry order_lists[] = {
 	/*
 	 * Sockets
 	 */
-	{ "filedesc structure", &lock_class_mtx_sleep },
 	{ "accept", &lock_class_mtx_sleep },
 	{ "so_snd", &lock_class_mtx_sleep },
 	{ "so_rcv", &lock_class_mtx_sleep },

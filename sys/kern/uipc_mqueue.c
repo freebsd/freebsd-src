@@ -2009,14 +2009,14 @@ kmq_open(struct thread *td, struct kmq_open_args *uap)
 	FILE_LOCK(fp);
 	fp->f_flag = (flags & (FREAD | FWRITE | O_NONBLOCK));
 	fp->f_type = DTYPE_MQUEUE;
-	fp->f_ops = &mqueueops;
 	fp->f_data = pn;
+	fp->f_ops = &mqueueops;
 	FILE_UNLOCK(fp);
 
-	FILEDESC_LOCK_FAST(fdp);
+	FILEDESC_XLOCK(fdp);
 	if (fdp->fd_ofiles[fd] == fp)
 		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_XUNLOCK(fdp);
 	td->td_retval[0] = fd;
 	fdrop(fp, td);
 	return (0);
@@ -2197,14 +2197,14 @@ kmq_notify(struct thread *td, struct kmq_notify_args *uap)
 	if (error)
 		return (error);
 again:
-	FILEDESC_LOCK_FAST(fdp);
+	FILEDESC_SLOCK(fdp);
 	if (fget_locked(fdp, uap->mqd) != fp) {
-		FILEDESC_UNLOCK_FAST(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		error = EBADF;
 		goto out;
 	}
 	mtx_lock(&mq->mq_mutex);
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_SUNLOCK(fdp);
 	if (uap->sigev != NULL) {
 		if (mq->mq_notifier != NULL) {
 			error = EBUSY;
@@ -2267,7 +2267,8 @@ mqueue_fdclose(struct thread *td, int fd, struct file *fp)
 	struct mqueue *mq;
  
 	fdp = td->td_proc->p_fd;
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
+	FILEDESC_LOCK_ASSERT(fdp);
+
 	if (fp->f_ops == &mqueueops) {
 		mq = FPTOMQ(fp);
 		mtx_lock(&mq->mq_mutex);
@@ -2295,7 +2296,7 @@ mq_proc_exit(void *arg __unused, struct proc *p)
 	int i;
 
 	fdp = p->p_fd;
-	FILEDESC_LOCK_FAST(fdp);
+	FILEDESC_SLOCK(fdp);
 	for (i = 0; i < fdp->fd_nfiles; ++i) {
 		fp = fget_locked(fdp, i);
 		if (fp != NULL && fp->f_ops == &mqueueops) {
@@ -2305,7 +2306,7 @@ mq_proc_exit(void *arg __unused, struct proc *p)
 			mtx_unlock(&mq->mq_mutex);
 		}
 	}
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_SUNLOCK(fdp);
 	KASSERT(LIST_EMPTY(&p->p_mqnotifier), ("mq notifiers left"));
 }
 
@@ -2363,9 +2364,7 @@ mqf_close(struct file *fp, struct thread *td)
 {
 	struct mqfs_node *pn;
 
-	FILE_LOCK(fp);
 	fp->f_ops = &badfileops;
-	FILE_UNLOCK(fp);
 	pn = fp->f_data;
 	fp->f_data = NULL;
 	sx_xlock(&mqfs_data.mi_lock);
