@@ -793,10 +793,12 @@ devfs_open(struct vop_open_args *ap)
 	 * the file *.
 	 */
 	fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
+	FILE_LOCK(fp);
 	KASSERT(fp->f_ops == &badfileops,
 	     ("Could not vnode bypass device on fdops %p", fp->f_ops));
-	fp->f_ops = &devfs_ops_f;
 	fp->f_data = dev;
+	fp->f_ops = &devfs_ops_f;
+	FILE_UNLOCK(fp);
 	return (error);
 }
 

@@ -253,12 +253,12 @@ streamsopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	   return error;
 	}
 
-	FILEDESC_LOCK_FAST(fdp);
+	FILE_LOCK(fp);
 	fp->f_data = so;
 	fp->f_flag = FREAD|FWRITE;
 	fp->f_ops = &svr4_netops;
 	fp->f_type = DTYPE_SOCKET;
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILE_UNLOCK(fp);
 
 	/*
 	 * Allocate a stream structure and attach it to this socket.
