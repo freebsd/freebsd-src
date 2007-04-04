@@ -458,9 +458,9 @@ again:
 			 * shared process leaders.
 			 */
 			fdtol = p1->p_fdtol;
-			FILEDESC_LOCK_FAST(p1->p_fd);
+			FILEDESC_XLOCK(p1->p_fd);
 			fdtol->fdl_refcount++;
-			FILEDESC_UNLOCK_FAST(p1->p_fd);
+			FILEDESC_XUNLOCK(p1->p_fd);
 		} else {
 			/* 
 			 * Shared file descriptor table, and

@@ -717,10 +717,10 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 	tmpbuf = malloc(buflen, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
 	mtx_lock(&Giant);
-	FILEDESC_LOCK(fdp);
+	FILEDESC_SLOCK(fdp);
 	error = vn_fullpath1(td, fdp->fd_cdir, fdp->fd_rdir, tmpbuf,
 	    &bp, buflen);
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_SUNLOCK(fdp);
 	mtx_unlock(&Giant);
 
 	if (!error) {
@@ -771,9 +771,9 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 
 	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
-	FILEDESC_LOCK(fdp);
+	FILEDESC_SLOCK(fdp);
 	error = vn_fullpath1(td, vn, fdp->fd_rdir, buf, retbuf, MAXPATHLEN);
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_SUNLOCK(fdp);
 
 	if (!error)
 		*freebuf = buf;

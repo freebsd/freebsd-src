@@ -1579,10 +1579,10 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 				unp_freerights(rp, newfds);
 				goto next;
 			}
-			FILEDESC_LOCK(td->td_proc->p_fd);
+			FILEDESC_XLOCK(td->td_proc->p_fd);
 			/* if the new FD's will not fit free them.  */
 			if (!fdavail(td, newfds)) {
-				FILEDESC_UNLOCK(td->td_proc->p_fd);
+				FILEDESC_XUNLOCK(td->td_proc->p_fd);
 				error = EMSGSIZE;
 				unp_freerights(rp, newfds);
 				goto next;
@@ -1597,7 +1597,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET);
 			if (*controlp == NULL) {
-				FILEDESC_UNLOCK(td->td_proc->p_fd);
+				FILEDESC_XUNLOCK(td->td_proc->p_fd);
 				error = E2BIG;
 				unp_freerights(rp, newfds);
 				goto next;
@@ -1616,7 +1616,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 				unp_rights--;
 				*fdp++ = f;
 			}
-			FILEDESC_UNLOCK(td->td_proc->p_fd);
+			FILEDESC_XUNLOCK(td->td_proc->p_fd);
 		} else {
 			/* We can just copy anything else across. */
 			if (error || controlp == NULL)
@@ -1738,23 +1738,24 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			 * files.  If not, reject the entire operation.
 			 */
 			fdp = data;
-			FILEDESC_LOCK(fdescp);
+			FILEDESC_SLOCK(fdescp);
 			for (i = 0; i < oldfds; i++) {
 				fd = *fdp++;
 				if ((unsigned)fd >= fdescp->fd_nfiles ||
 				    fdescp->fd_ofiles[fd] == NULL) {
-					FILEDESC_UNLOCK(fdescp);
+					FILEDESC_SUNLOCK(fdescp);
 					error = EBADF;
 					goto out;
 				}
 				fp = fdescp->fd_ofiles[fd];
 				if (!(fp->f_ops->fo_flags & DFLAG_PASSABLE)) {
-					FILEDESC_UNLOCK(fdescp);
+					FILEDESC_SUNLOCK(fdescp);
 					error = EOPNOTSUPP;
 					goto out;
 				}
 
 			}
+
 			/*
 			 * Now replace the integer FDs with pointers to
 			 * the associated global file table entry..
@@ -1763,7 +1764,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET);
 			if (*controlp == NULL) {
-				FILEDESC_UNLOCK(fdescp);
+				FILEDESC_SUNLOCK(fdescp);
 				error = E2BIG;
 				goto out;
 			}
@@ -1780,7 +1781,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 				FILE_UNLOCK(fp);
 				unp_rights++;
 			}
-			FILEDESC_UNLOCK(fdescp);
+			FILEDESC_SUNLOCK(fdescp);
 			break;
 
 		case SCM_TIMESTAMP:

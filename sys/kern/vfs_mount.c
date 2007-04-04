@@ -1406,7 +1406,7 @@ set_rootvnode(struct thread *td)
 		panic("Cannot find root vnode");
 
 	p = td->td_proc;
-	FILEDESC_LOCK(p->p_fd);
+	FILEDESC_SLOCK(p->p_fd);
 
 	if (p->p_fd->fd_cdir != NULL)
 		vrele(p->p_fd->fd_cdir);
@@ -1418,7 +1418,7 @@ set_rootvnode(struct thread *td)
 	p->p_fd->fd_rdir = rootvnode;
 	VREF(rootvnode);
 
-	FILEDESC_UNLOCK(p->p_fd);
+	FILEDESC_SUNLOCK(p->p_fd);
 
 	VOP_UNLOCK(rootvnode, 0, td);
 }

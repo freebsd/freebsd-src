@@ -211,9 +211,11 @@ fdisused(struct filedesc *fdp, int fd)
 static void
 fdused(struct filedesc *fdp, int fd)
 {
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
+
+	FILEDESC_XLOCK_ASSERT(fdp);
 	KASSERT(!fdisused(fdp, fd),
 	    ("fd already used"));
+
 	fdp->fd_map[NDSLOT(fd)] |= NDBIT(fd);
 	if (fd > fdp->fd_lastfile)
 		fdp->fd_lastfile = fd;
@@ -227,11 +229,13 @@ fdused(struct filedesc *fdp, int fd)
 static void
 fdunused(struct filedesc *fdp, int fd)
 {
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
+
+	FILEDESC_XLOCK_ASSERT(fdp);
 	KASSERT(fdisused(fdp, fd),
 	    ("fd is already unused"));
 	KASSERT(fdp->fd_ofiles[fd] == NULL,
 	    ("fd is still in use"));
+
 	fdp->fd_map[NDSLOT(fd)] &= ~NDBIT(fd);
 	if (fd < fdp->fd_freefile)
 		fdp->fd_freefile = fd;
@@ -371,10 +375,14 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	flg = F_POSIX;
 	p = td->td_proc;
 	fdp = p->p_fd;
-	FILEDESC_LOCK(fdp);
+
+	/*
+	 * XXXRW: It could be an exclusive lock is not [always] needed here.
+	 */
+	FILEDESC_XLOCK(fdp);
 	if ((unsigned)fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL) {
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		error = EBADF;
 		goto done2;
 	}
@@ -383,7 +391,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	switch (cmd) {
 	case F_DUPFD:
 		/* mtx_assert(&Giant, MA_NOTOWNED); */
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		newmin = arg;
 		PROC_LOCK(p);
 		if (newmin >= lim_cur(p, RLIMIT_NOFILE) ||
@@ -399,14 +407,14 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_GETFD:
 		/* mtx_assert(&Giant, MA_NOTOWNED); */
 		td->td_retval[0] = (*pop & UF_EXCLOSE) ? FD_CLOEXEC : 0;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		break;
 
 	case F_SETFD:
 		/* mtx_assert(&Giant, MA_NOTOWNED); */
 		*pop = (*pop &~ UF_EXCLOSE) |
 		    (arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		break;
 
 	case F_GETFL:
@@ -414,7 +422,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		FILE_LOCK(fp);
 		td->td_retval[0] = OFLAGS(fp->f_flag);
 		FILE_UNLOCK(fp);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		break;
 
 	case F_SETFL:
@@ -424,7 +432,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		fp->f_flag &= ~FCNTLFLAGS;
 		fp->f_flag |= FFLAGS(arg & ~O_ACCMODE) & FCNTLFLAGS;
 		FILE_UNLOCK(fp);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		tmp = fp->f_flag & FNONBLOCK;
 		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		if (error) {
@@ -448,7 +456,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_GETOWN:
 		mtx_assert(&Giant, MA_OWNED);
 		fhold(fp);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		error = fo_ioctl(fp, FIOGETOWN, &tmp, td->td_ucred, td);
 		if (error == 0)
 			td->td_retval[0] = tmp;
@@ -458,7 +466,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_SETOWN:
 		mtx_assert(&Giant, MA_OWNED);
 		fhold(fp);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		tmp = arg;
 		error = fo_ioctl(fp, FIOSETOWN, &tmp, td->td_ucred, td);
 		fdrop(fp, td);
@@ -472,7 +480,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_SETLK:
 		mtx_assert(&Giant, MA_OWNED);
 		if (fp->f_type != DTYPE_VNODE) {
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_XUNLOCK(fdp);
 			error = EBADF;
 			break;
 		}
@@ -482,7 +490,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			if (fp->f_offset < 0 ||
 			    (flp->l_start > 0 &&
 			     fp->f_offset > OFF_MAX - flp->l_start)) {
-				FILEDESC_UNLOCK(fdp);
+				FILEDESC_XUNLOCK(fdp);
 				error = EOVERFLOW;
 				break;
 			}
@@ -493,7 +501,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * VOP_ADVLOCK() may block.
 		 */
 		fhold(fp);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		vp = fp->f_vnode;
 
 		switch (flp->l_type) {
@@ -528,10 +536,10 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			break;
 		}
 		/* Check for race with close */
-		FILEDESC_LOCK_FAST(fdp);
+		FILEDESC_XLOCK(fdp);
 		if ((unsigned) fd >= fdp->fd_nfiles ||
 		    fp != fdp->fd_ofiles[fd]) {
-			FILEDESC_UNLOCK_FAST(fdp);
+			FILEDESC_XUNLOCK(fdp);
 			flp->l_whence = SEEK_SET;
 			flp->l_start = 0;
 			flp->l_len = 0;
@@ -539,21 +547,21 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader,
 					   F_UNLCK, flp, F_POSIX);
 		} else
-			FILEDESC_UNLOCK_FAST(fdp);
+			FILEDESC_XUNLOCK(fdp);
 		fdrop(fp, td);
 		break;
 
 	case F_GETLK:
 		mtx_assert(&Giant, MA_OWNED);
 		if (fp->f_type != DTYPE_VNODE) {
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_XUNLOCK(fdp);
 			error = EBADF;
 			break;
 		}
 		flp = (struct flock *)arg;
 		if (flp->l_type != F_RDLCK && flp->l_type != F_WRLCK &&
 		    flp->l_type != F_UNLCK) {
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_XUNLOCK(fdp);
 			error = EINVAL;
 			break;
 		}
@@ -562,7 +570,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			    fp->f_offset > OFF_MAX - flp->l_start) ||
 			    (flp->l_start < 0 &&
 			     fp->f_offset < OFF_MIN - flp->l_start)) {
-				FILEDESC_UNLOCK(fdp);
+				FILEDESC_XUNLOCK(fdp);
 				error = EOVERFLOW;
 				break;
 			}
@@ -572,14 +580,14 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * VOP_ADVLOCK() may block.
 		 */
 		fhold(fp);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		vp = fp->f_vnode;
 		error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_GETLK, flp,
 		    F_POSIX);
 		fdrop(fp, td);
 		break;
 	default:
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		error = EINVAL;
 		break;
 	}
@@ -593,7 +601,8 @@ done2:
  * Common code for dup, dup2, and fcntl(F_DUPFD).
  */
 static int
-do_dup(struct thread *td, enum dup_type type, int old, int new, register_t *retval)
+do_dup(struct thread *td, enum dup_type type, int old, int new,
+    register_t *retval)
 {
 	struct filedesc *fdp;
 	struct proc *p;
@@ -619,14 +628,14 @@ do_dup(struct thread *td, enum dup_type type, int old, int new, register_t *retv
 	if (new >= maxfd)
 		return (EMFILE);
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_XLOCK(fdp);
 	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL) {
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
 	if (type == DUP_FIXED && old == new) {
 		*retval = new;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		return (0);
 	}
 	fp = fdp->fd_ofiles[old];
@@ -646,7 +655,7 @@ do_dup(struct thread *td, enum dup_type type, int old, int new, register_t *retv
 			fdused(fdp, new);
 	} else {
 		if ((error = fdalloc(td, new, &new)) != 0) {
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_XUNLOCK(fdp);
 			fdrop(fp, td);
 			return (error);
 		}
@@ -661,7 +670,7 @@ do_dup(struct thread *td, enum dup_type type, int old, int new, register_t *retv
 		/* we've allocated a descriptor which we won't use */
 		if (fdp->fd_ofiles[new] == NULL)
 			fdunused(fdp, new);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		fdrop(fp, td);
 		return (EBADF);
 	}
@@ -708,20 +717,20 @@ do_dup(struct thread *td, enum dup_type type, int old, int new, register_t *retv
 		knote_fdclose(td, new);
 		if (delfp->f_type == DTYPE_MQUEUE)
 			mq_fdclose(td, new, delfp);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		(void) closef(delfp, td);
 		if (holdleaders) {
-			FILEDESC_LOCK_FAST(fdp);
+			FILEDESC_XLOCK(fdp);
 			fdp->fd_holdleaderscount--;
 			if (fdp->fd_holdleaderscount == 0 &&
 			    fdp->fd_holdleaderswakeup != 0) {
 				fdp->fd_holdleaderswakeup = 0;
 				wakeup(&fdp->fd_holdleaderscount);
 			}
-			FILEDESC_UNLOCK_FAST(fdp);
+			FILEDESC_XUNLOCK(fdp);
 		}
 	} else {
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 	}
 	return (0);
 }
@@ -979,10 +988,10 @@ kern_close(td, fd)
 
 	AUDIT_SYSCLOSE(td, fd);
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_XLOCK(fdp);
 	if ((unsigned)fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL) {
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
 	fdp->fd_ofiles[fd] = NULL;
@@ -998,27 +1007,26 @@ kern_close(td, fd)
 	}
 
 	/*
-	 * We now hold the fp reference that used to be owned by the descriptor
-	 * array.
-	 * We have to unlock the FILEDESC *AFTER* knote_fdclose to prevent a
-	 * race of the fd getting opened, a knote added, and deleteing a knote
-	 * for the new fd.
+	 * We now hold the fp reference that used to be owned by the
+	 * descriptor array.  We have to unlock the FILEDESC *AFTER*
+	 * knote_fdclose to prevent a race of the fd getting opened, a knote
+	 * added, and deleteing a knote for the new fd.
 	 */
 	knote_fdclose(td, fd);
 	if (fp->f_type == DTYPE_MQUEUE)
 		mq_fdclose(td, fd, fp);
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_XUNLOCK(fdp);
 
 	error = closef(fp, td);
 	if (holdleaders) {
-		FILEDESC_LOCK_FAST(fdp);
+		FILEDESC_XLOCK(fdp);
 		fdp->fd_holdleaderscount--;
 		if (fdp->fd_holdleaderscount == 0 &&
 		    fdp->fd_holdleaderswakeup != 0) {
 			fdp->fd_holdleaderswakeup = 0;
 			wakeup(&fdp->fd_holdleaderscount);
 		}
-		FILEDESC_UNLOCK_FAST(fdp);
+		FILEDESC_XUNLOCK(fdp);
 	}
 	return (error);
 }
@@ -1176,7 +1184,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	int nnfiles, onfiles;
 	NDSLOTTYPE *nmap;
 
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
+	FILEDESC_XLOCK_ASSERT(fdp);
 
 	KASSERT(fdp->fd_nfiles > 0,
 	    ("zero-length file table"));
@@ -1189,7 +1197,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		return;
 
 	/* allocate a new table and (if required) new bitmaps */
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_XUNLOCK(fdp);
 	MALLOC(ntable, struct file **, nnfiles * OFILESIZE,
 	    M_FILEDESC, M_ZERO | M_WAITOK);
 	nfileflags = (char *)&ntable[nnfiles];
@@ -1198,7 +1206,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		    M_FILEDESC, M_ZERO | M_WAITOK);
 	else
 		nmap = NULL;
-	FILEDESC_LOCK(fdp);
+	FILEDESC_XLOCK(fdp);
 
 	/*
 	 * We now have new tables ready to go.  Since we dropped the
@@ -1237,7 +1245,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 	struct filedesc *fdp = p->p_fd;
 	int fd = -1, maxfd;
 
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
+	FILEDESC_XLOCK_ASSERT(fdp);
 
 	if (fdp->fd_freefile > minfd)
 		minfd = fdp->fd_freefile;	   
@@ -1276,8 +1284,8 @@ fdalloc(struct thread *td, int minfd, int *result)
 }
 
 /*
- * Check to see whether n user file descriptors
- * are available to the process p.
+ * Check to see whether n user file descriptors are available to the process
+ * p.
  */
 int
 fdavail(struct thread *td, int n)
@@ -1287,7 +1295,7 @@ fdavail(struct thread *td, int n)
 	struct file **fpp;
 	int i, lim, last;
 
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
+	FILEDESC_LOCK_ASSERT(fdp);
 
 	PROC_LOCK(p);
 	lim = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
@@ -1304,12 +1312,11 @@ fdavail(struct thread *td, int n)
 }
 
 /*
- * Create a new open file structure and allocate
- * a file decriptor for the process that refers to it.
- * We add one reference to the file for the descriptor table
- * and one reference for resultfp. This is to prevent us being
- * preempted and the entry in the descriptor table closed after
- * we release the FILEDESC lock.
+ * Create a new open file structure and allocate a file decriptor for the
+ * process that refers to it.  We add one reference to the file for the
+ * descriptor table and one reference for resultfp. This is to prevent us
+ * being preempted and the entry in the descriptor table closed after we
+ * release the FILEDESC lock.
  */
 int
 falloc(struct thread *td, struct file **resultfp, int *resultfd)
@@ -1350,7 +1357,7 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 	fp->f_ops = &badfileops;
 	fp->f_data = NULL;
 	fp->f_vnode = NULL;
-	FILEDESC_LOCK(p->p_fd);
+	FILEDESC_XLOCK(p->p_fd);
 	if ((fq = p->p_fd->fd_ofiles[0])) {
 		LIST_INSERT_AFTER(fq, fp, f_list);
 	} else {
@@ -1358,14 +1365,14 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 	}
 	sx_xunlock(&filelist_lock);
 	if ((error = fdalloc(td, 0, &i))) {
-		FILEDESC_UNLOCK(p->p_fd);
+		FILEDESC_XUNLOCK(p->p_fd);
 		fdrop(fp, td);
 		if (resultfp)
 			fdrop(fp, td);
 		return (error);
 	}
 	p->p_fd->fd_ofiles[i] = fp;
-	FILEDESC_UNLOCK(p->p_fd);
+	FILEDESC_XUNLOCK(p->p_fd);
 	if (resultfp)
 		*resultfp = fp;
 	if (resultfd)
@@ -1383,9 +1390,9 @@ fdinit(struct filedesc *fdp)
 	struct filedesc0 *newfdp;
 
 	newfdp = malloc(sizeof *newfdp, M_FILEDESC, M_WAITOK | M_ZERO);
-	mtx_init(&newfdp->fd_fd.fd_mtx, FILEDESC_LOCK_DESC, NULL, MTX_DEF);
+	FILEDESC_LOCK_INIT(&newfdp->fd_fd);
 	if (fdp != NULL) {
-		FILEDESC_LOCK(fdp);
+		FILEDESC_XLOCK(fdp);
 		newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
 		if (newfdp->fd_fd.fd_cdir)
 			VREF(newfdp->fd_fd.fd_cdir);
@@ -1395,7 +1402,7 @@ fdinit(struct filedesc *fdp)
 		newfdp->fd_fd.fd_jdir = fdp->fd_jdir;
 		if (newfdp->fd_fd.fd_jdir)
 			VREF(newfdp->fd_fd.fd_jdir);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 	}
 
 	/* Create the file descriptor table. */
@@ -1434,7 +1441,7 @@ fddrop(struct filedesc *fdp)
 	if (i > 0)
 		return;
 
-	mtx_destroy(&fdp->fd_mtx);
+	FILEDESC_LOCK_DESTROY(fdp);
 	FREE(fdp, M_FILEDESC);
 }
 
@@ -1444,9 +1451,10 @@ fddrop(struct filedesc *fdp)
 struct filedesc *
 fdshare(struct filedesc *fdp)
 {
-	FILEDESC_LOCK_FAST(fdp);
+
+	FILEDESC_XLOCK(fdp);
 	fdp->fd_refcnt++;
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_XUNLOCK(fdp);
 	return (fdp);
 }
 
@@ -1457,22 +1465,21 @@ void
 fdunshare(struct proc *p, struct thread *td)
 {
 
-	FILEDESC_LOCK_FAST(p->p_fd);
+	FILEDESC_XLOCK(p->p_fd);
 	if (p->p_fd->fd_refcnt > 1) {
 		struct filedesc *tmp;
 
-		FILEDESC_UNLOCK_FAST(p->p_fd);
+		FILEDESC_XUNLOCK(p->p_fd);
 		tmp = fdcopy(p->p_fd);
 		fdfree(td);
 		p->p_fd = tmp;
 	} else
-		FILEDESC_UNLOCK_FAST(p->p_fd);
+		FILEDESC_XUNLOCK(p->p_fd);
 }
 
 /*
- * Copy a filedesc structure.
- * A NULL pointer in returns a NULL reference, this is to ease callers,
- * not catch errors.
+ * Copy a filedesc structure.  A NULL pointer in returns a NULL reference,
+ * this is to ease callers, not catch errors.
  */
 struct filedesc *
 fdcopy(struct filedesc *fdp)
@@ -1485,13 +1492,13 @@ fdcopy(struct filedesc *fdp)
 		return (NULL);
 
 	newfdp = fdinit(fdp);
-	FILEDESC_LOCK_FAST(fdp);
+	FILEDESC_SLOCK(fdp);
 	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
-		FILEDESC_UNLOCK_FAST(fdp);
-		FILEDESC_LOCK(newfdp);
+		FILEDESC_SUNLOCK(fdp);
+		FILEDESC_XLOCK(newfdp);
 		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
-		FILEDESC_UNLOCK(newfdp);
-		FILEDESC_LOCK_FAST(fdp);
+		FILEDESC_XUNLOCK(newfdp);
+		FILEDESC_SLOCK(fdp);
 	}
 	/* copy everything except kqueue descriptors */
 	newfdp->fd_freefile = -1;
@@ -1507,17 +1514,17 @@ fdcopy(struct filedesc *fdp)
 				newfdp->fd_freefile = i;
 		}
 	}
-	FILEDESC_UNLOCK_FAST(fdp);
-	FILEDESC_LOCK(newfdp);
+	FILEDESC_SUNLOCK(fdp);
+	FILEDESC_XLOCK(newfdp);
 	for (i = 0; i <= newfdp->fd_lastfile; ++i)
 		if (newfdp->fd_ofiles[i] != NULL)
 			fdused(newfdp, i);
-	FILEDESC_UNLOCK(newfdp);
-	FILEDESC_LOCK_FAST(fdp);
+	FILEDESC_XUNLOCK(newfdp);
+	FILEDESC_SLOCK(fdp);
 	if (newfdp->fd_freefile == -1)
 		newfdp->fd_freefile = i;
 	newfdp->fd_cmask = fdp->fd_cmask;
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_SUNLOCK(fdp);
 	return (newfdp);
 }
 
@@ -1543,7 +1550,7 @@ fdfree(struct thread *td)
 	/* Check for special need to clear POSIX style locks */
 	fdtol = td->td_proc->p_fdtol;
 	if (fdtol != NULL) {
-		FILEDESC_LOCK(fdp);
+		FILEDESC_XLOCK(fdp);
 		KASSERT(fdtol->fdl_refcount > 0,
 			("filedesc_to_refcount botch: fdl_refcount=%d",
 			 fdtol->fdl_refcount));
@@ -1557,7 +1564,7 @@ fdfree(struct thread *td)
 					continue;
 				fp = *fpp;
 				fhold(fp);
-				FILEDESC_UNLOCK(fdp);
+				FILEDESC_XUNLOCK(fdp);
 				lf.l_whence = SEEK_SET;
 				lf.l_start = 0;
 				lf.l_len = 0;
@@ -1571,7 +1578,7 @@ fdfree(struct thread *td)
 						   &lf,
 						   F_POSIX);
 				VFS_UNLOCK_GIANT(locked);
-				FILEDESC_LOCK(fdp);
+				FILEDESC_XLOCK(fdp);
 				fdrop(fp, td);
 				fpp = fdp->fd_ofiles + i;
 			}
@@ -1585,18 +1592,18 @@ fdfree(struct thread *td)
 				 * in a shared file descriptor table.
 				 */
 				fdp->fd_holdleaderswakeup = 1;
-				msleep(&fdp->fd_holdleaderscount, &fdp->fd_mtx,
-				       PLOCK, "fdlhold", 0);
+				sx_sleep(&fdp->fd_holdleaderscount,
+				    FILEDESC_LOCK(fdp), PLOCK, "fdlhold", 0);
 				goto retry;
 			}
 			if (fdtol->fdl_holdcount > 0) {
 				/*
-				 * Ensure that fdtol->fdl_leader
-				 * remains valid in closef().
+				 * Ensure that fdtol->fdl_leader remains
+				 * valid in closef().
 				 */
 				fdtol->fdl_wakeup = 1;
-				msleep(fdtol, &fdp->fd_mtx,
-				       PLOCK, "fdlhold", 0);
+				sx_sleep(fdtol, FILEDESC_LOCK(fdp), PLOCK,
+				    "fdlhold", 0);
 				goto retry;
 			}
 		}
@@ -1608,13 +1615,13 @@ fdfree(struct thread *td)
 		} else
 			fdtol = NULL;
 		td->td_proc->p_fdtol = NULL;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		if (fdtol != NULL)
 			FREE(fdtol, M_FILEDESC_TO_LEADER);
 	}
-	FILEDESC_LOCK_FAST(fdp);
+	FILEDESC_XLOCK(fdp);
 	i = --fdp->fd_refcnt;
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_XUNLOCK(fdp);
 	if (i > 0)
 		return;
 	/*
@@ -1626,7 +1633,7 @@ fdfree(struct thread *td)
 		if (*fpp)
 			(void) closef(*fpp, td);
 	}
-	FILEDESC_LOCK(fdp);
+	FILEDESC_XLOCK(fdp);
 
 	/* XXX This should happen earlier. */
 	mtx_lock(&fdesc_mtx);
@@ -1646,7 +1653,7 @@ fdfree(struct thread *td)
 	fdp->fd_rdir = NULL;
 	jdir = fdp->fd_jdir;
 	fdp->fd_jdir = NULL;
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_XUNLOCK(fdp);
 
 	if (cdir) {
 		locked = VFS_LOCK_GIANT(cdir->v_mount);
@@ -1706,7 +1713,7 @@ setugidsafety(struct thread *td)
 	 * Note: fdp->fd_ofiles may be reallocated out from under us while
 	 * we are blocked in a close.  Be careful!
 	 */
-	FILEDESC_LOCK(fdp);
+	FILEDESC_XLOCK(fdp);
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
 		if (i > 2)
 			break;
@@ -1722,35 +1729,33 @@ setugidsafety(struct thread *td)
 			fdp->fd_ofiles[i] = NULL;
 			fdp->fd_ofileflags[i] = 0;
 			fdunused(fdp, i);
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_XUNLOCK(fdp);
 			(void) closef(fp, td);
-			FILEDESC_LOCK(fdp);
+			FILEDESC_XLOCK(fdp);
 		}
 	}
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_XUNLOCK(fdp);
 }
 
 /*
- * If a specific file object occupies a specific file descriptor,
- * close the file descriptor entry and drop a reference on the file
- * object.  This is a convenience function to handle a subsequent
- * error in a function that calls falloc() that handles the race that
- * another thread might have closed the file descriptor out from under
- * the thread creating the file object.
+ * If a specific file object occupies a specific file descriptor, close the
+ * file descriptor entry and drop a reference on the file object.  This is a
+ * convenience function to handle a subsequent error in a function that calls
+ * falloc() that handles the race that another thread might have closed the
+ * file descriptor out from under the thread creating the file object.
  */
 void
 fdclose(struct filedesc *fdp, struct file *fp, int idx, struct thread *td)
 {
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_XLOCK(fdp);
 	if (fdp->fd_ofiles[idx] == fp) {
 		fdp->fd_ofiles[idx] = NULL;
 		fdunused(fdp, idx);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		fdrop(fp, td);
-	} else {
-		FILEDESC_UNLOCK(fdp);
-	}
+	} else
+		FILEDESC_XUNLOCK(fdp);
 }
 
 /*
@@ -1767,7 +1772,7 @@ fdcloseexec(struct thread *td)
 	if (fdp == NULL)
 		return;
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_XLOCK(fdp);
 
 	/*
 	 * We cannot cache fd_ofiles or fd_ofileflags since operations
@@ -1790,12 +1795,12 @@ fdcloseexec(struct thread *td)
 			fdunused(fdp, i);
 			if (fp->f_type == DTYPE_MQUEUE)
 				mq_fdclose(td, i, fp);
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_XUNLOCK(fdp);
 			(void) closef(fp, td);
-			FILEDESC_LOCK(fdp);
+			FILEDESC_XLOCK(fdp);
 		}
 	}
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_XUNLOCK(fdp);
 }
 
 /*
@@ -1838,27 +1843,30 @@ fdcheckstd(struct thread *td)
 				/*
 				 * Someone may have closed the entry in the
 				 * file descriptor table, so check it hasn't
-				 * changed before dropping the reference count.
+				 * changed before dropping the reference
+				 * count.
 				 */
-				FILEDESC_LOCK(fdp);
+				FILEDESC_XLOCK(fdp);
 				KASSERT(fdp->fd_ofiles[fd] == fp,
 				    ("table not shared, how did it change?"));
 				fdp->fd_ofiles[fd] = NULL;
 				fdunused(fdp, fd);
-				FILEDESC_UNLOCK(fdp);
+				FILEDESC_XUNLOCK(fdp);
 				fdrop(fp, td);
 				fdrop(fp, td);
 				break;
 			}
 			vfslocked = NDHASGIANT(&nd);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
+			FILE_LOCK(fp);
 			fp->f_flag = flags;
 			fp->f_vnode = nd.ni_vp;
 			if (fp->f_data == NULL)
 				fp->f_data = nd.ni_vp;
+			fp->f_type = DTYPE_VNODE;
 			if (fp->f_ops == &badfileops)
 				fp->f_ops = &vnops;
-			fp->f_type = DTYPE_VNODE;
+			FILE_UNLOCK(fp);
 			VOP_UNLOCK(nd.ni_vp, 0, td);
 			VFS_UNLOCK_GIANT(vfslocked);
 			devnull = fd;
@@ -1873,8 +1881,7 @@ fdcheckstd(struct thread *td)
 }
 
 /*
- * Internal form of close.
- * Decrement reference count on file structure.
+ * Internal form of close.  Decrement reference count on file structure.
  * Note: td may be NULL when closing a file that was being passed in a
  * message.
  *
@@ -1917,11 +1924,11 @@ closef(struct file *fp, struct thread *td)
 		fdtol = td->td_proc->p_fdtol;
 		if (fdtol != NULL) {
 			/*
-			 * Handle special case where file descriptor table
-			 * is shared between multiple process leaders.
+			 * Handle special case where file descriptor table is
+			 * shared between multiple process leaders.
 			 */
 			fdp = td->td_proc->p_fd;
-			FILEDESC_LOCK(fdp);
+			FILEDESC_XLOCK(fdp);
 			for (fdtol = fdtol->fdl_next;
 			     fdtol != td->td_proc->p_fdtol;
 			     fdtol = fdtol->fdl_next) {
@@ -1929,7 +1936,7 @@ closef(struct file *fp, struct thread *td)
 				     P_ADVLOCK) == 0)
 					continue;
 				fdtol->fdl_holdcount++;
-				FILEDESC_UNLOCK(fdp);
+				FILEDESC_XUNLOCK(fdp);
 				lf.l_whence = SEEK_SET;
 				lf.l_start = 0;
 				lf.l_len = 0;
@@ -1938,7 +1945,7 @@ closef(struct file *fp, struct thread *td)
 				(void) VOP_ADVLOCK(vp,
 						   (caddr_t)fdtol->fdl_leader,
 						   F_UNLCK, &lf, F_POSIX);
-				FILEDESC_LOCK(fdp);
+				FILEDESC_XLOCK(fdp);
 				fdtol->fdl_holdcount--;
 				if (fdtol->fdl_holdcount == 0 &&
 				    fdtol->fdl_wakeup != 0) {
@@ -1946,7 +1953,7 @@ closef(struct file *fp, struct thread *td)
 					wakeup(fdtol);
 				}
 			}
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_XUNLOCK(fdp);
 		}
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
@@ -1954,21 +1961,21 @@ closef(struct file *fp, struct thread *td)
 }
 
 /*
- * Extract the file pointer associated with the specified descriptor for
- * the current user process.
+ * Extract the file pointer associated with the specified descriptor for the
+ * current user process.
  *
  * If the descriptor doesn't exist, EBADF is returned.
  *
- * If the descriptor exists but doesn't match 'flags' then
- * return EBADF for read attempts and EINVAL for write attempts.
+ * If the descriptor exists but doesn't match 'flags' then return EBADF for
+ * read attempts and EINVAL for write attempts.
  *
  * If 'hold' is set (non-zero) the file's refcount will be bumped on return.
- * It should be dropped with fdrop().
- * If it is not set, then the refcount will not be bumped however the
- * thread's filedesc struct will be returned locked (for fgetsock).
+ * It should be dropped with fdrop().  If it is not set, then the refcount
+ * will not be bumped however the thread's filedesc struct will be returned
+ * locked (for fgetsock).
  *
- * If an error occured the non-zero error is returned and *fpp is set to NULL.
- * Otherwise *fpp is set and zero is returned.
+ * If an error occured the non-zero error is returned and *fpp is set to
+ * NULL.  Otherwise *fpp is set and zero is returned.
  */
 static __inline int
 _fget(struct thread *td, int fd, struct file **fpp, int flags, int hold)
@@ -1979,9 +1986,9 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags, int hold)
 	*fpp = NULL;
 	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
 		return (EBADF);
-	FILEDESC_LOCK(fdp);
+	FILEDESC_SLOCK(fdp);
 	if ((fp = fget_locked(fdp, fd)) == NULL || fp->f_ops == &badfileops) {
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		return (EBADF);
 	}
 
@@ -1991,16 +1998,16 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags, int hold)
 	 * Only one flag, or 0, may be specified.
 	 */
 	if (flags == FREAD && (fp->f_flag & FREAD) == 0) {
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		return (EBADF);
 	}
 	if (flags == FWRITE && (fp->f_flag & FWRITE) == 0) {
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		return (EBADF);
 	}
 	if (hold) {
 		fhold(fp);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 	}
 	*fpp = fp;
 	return (0);
@@ -2028,9 +2035,9 @@ fget_write(struct thread *td, int fd, struct file **fpp)
 }
 
 /*
- * Like fget() but loads the underlying vnode, or returns an error if
- * the descriptor does not represent a vnode.  Note that pipes use vnodes
- * but never have VM objects.  The returned vnode will be vref()d.
+ * Like fget() but loads the underlying vnode, or returns an error if the
+ * descriptor does not represent a vnode.  Note that pipes use vnodes but
+ * never have VM objects.  The returned vnode will be vref()'d.
  *
  * XXX: what about the unused flags ?
  */
@@ -2049,7 +2056,7 @@ _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 		*vpp = fp->f_vnode;
 		vref(*vpp);
 	}
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 	return (error);
 }
 
@@ -2077,15 +2084,15 @@ fgetvp_write(struct thread *td, int fd, struct vnode **vpp)
 #endif
 
 /*
- * Like fget() but loads the underlying socket, or returns an error if
- * the descriptor does not represent a socket.
+ * Like fget() but loads the underlying socket, or returns an error if the
+ * descriptor does not represent a socket.
  *
- * We bump the ref count on the returned socket.  XXX Also obtain the SX
- * lock in the future.
+ * We bump the ref count on the returned socket.  XXX Also obtain the SX lock
+ * in the future.
  *
  * XXXRW: fgetsock() and fputsock() are deprecated, as consumers should rely
- * on their file descriptor reference to prevent the socket from being
- * freed during use.
+ * on their file descriptor reference to prevent the socket from being free'd
+ * during use.
  */
 int
 fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
@@ -2110,7 +2117,7 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 		soref(*spp);
 		SOCK_UNLOCK(*spp);
 	}
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 	return (error);
 }
 
@@ -2257,22 +2264,20 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 	 * of file descriptors, or the fd to be dup'd has already been
 	 * closed, then reject.
 	 */
-	FILEDESC_LOCK(fdp);
+	FILEDESC_XLOCK(fdp);
 	if (dfd < 0 || dfd >= fdp->fd_nfiles ||
 	    (wfp = fdp->fd_ofiles[dfd]) == NULL) {
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
 
 	/*
 	 * There are two cases of interest here.
 	 *
-	 * For ENODEV simply dup (dfd) to file descriptor
-	 * (indx) and return.
+	 * For ENODEV simply dup (dfd) to file descriptor (indx) and return.
 	 *
-	 * For ENXIO steal away the file structure from (dfd) and
-	 * store it in (indx).  (dfd) is effectively closed by
-	 * this operation.
+	 * For ENXIO steal away the file structure from (dfd) and store it in
+	 * (indx).  (dfd) is effectively closed by this operation.
 	 *
 	 * Any other error code is just returned.
 	 */
@@ -2285,7 +2290,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 		FILE_LOCK(wfp);
 		if (((mode & (FREAD|FWRITE)) | wfp->f_flag) != wfp->f_flag) {
 			FILE_UNLOCK(wfp);
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_XUNLOCK(fdp);
 			return (EACCES);
 		}
 		fp = fdp->fd_ofiles[indx];
@@ -2295,7 +2300,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 			fdused(fdp, indx);
 		fhold_locked(wfp);
 		FILE_UNLOCK(wfp);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		if (fp != NULL)
 			/*
 			 * We now own the reference to fp that the ofiles[]
@@ -2316,7 +2321,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 		fdunused(fdp, dfd);
 		if (fp == NULL)
 			fdused(fdp, indx);
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 
 		/*
 		 * We now own the reference to fp that the ofiles[] array
@@ -2327,16 +2332,15 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 		return (0);
 
 	default:
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		return (error);
 	}
 	/* NOTREACHED */
 }
 
 /*
- * Scan all active processes to see if any of them have a current
- * or root directory of `olddp'. If so, replace them with the new
- * mount point.
+ * Scan all active processes to see if any of them have a current or root
+ * directory of `olddp'. If so, replace them with the new mount point.
  */
 void
 mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
@@ -2353,7 +2357,7 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 		if (fdp == NULL)
 			continue;
 		nrele = 0;
-		FILEDESC_LOCK_FAST(fdp);
+		FILEDESC_XLOCK(fdp);
 		if (fdp->fd_cdir == olddp) {
 			vref(newdp);
 			fdp->fd_cdir = newdp;
@@ -2364,7 +2368,7 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 			fdp->fd_rdir = newdp;
 			nrele++;
 		}
-		FILEDESC_UNLOCK_FAST(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		fddrop(fdp);
 		while (nrele--)
 			vrele(olddp);
@@ -2391,12 +2395,12 @@ filedesc_to_leader_alloc(struct filedesc_to_leader *old, struct filedesc *fdp, s
 	fdtol->fdl_wakeup = 0;
 	fdtol->fdl_leader = leader;
 	if (old != NULL) {
-		FILEDESC_LOCK(fdp);
+		FILEDESC_XLOCK(fdp);
 		fdtol->fdl_next = old->fdl_next;
 		fdtol->fdl_prev = old;
 		old->fdl_next = fdtol;
 		fdtol->fdl_next->fdl_prev = fdtol;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
 	} else {
 		fdtol->fdl_next = fdtol;
 		fdtol->fdl_prev = fdtol;
@@ -2459,7 +2463,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		fdp = fdhold(p);
 		if (fdp == NULL)
 			continue;
-		FILEDESC_LOCK_FAST(fdp);
+		FILEDESC_SLOCK(fdp);
 		for (n = 0; fdp->fd_refcnt > 0 && n < fdp->fd_nfiles; ++n) {
 			if ((fp = fdp->fd_ofiles[n]) == NULL)
 				continue;
@@ -2476,7 +2480,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			if (error)
 				break;
 		}
-		FILEDESC_UNLOCK_FAST(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		fddrop(fdp);
 		if (error)
 			break;

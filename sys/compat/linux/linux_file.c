@@ -193,7 +193,7 @@ static int
 linux_at(struct thread *td, int dirfd, char *filename, char **newpath, char **freebuf)
 {
    	struct file *fp;
-	int error = 0;
+	int error = 0, vfslocked;
 	struct vnode *dvp;
 	struct filedesc *fdp = td->td_proc->p_fd;
 	char *fullpath = "unknown";
@@ -207,9 +207,10 @@ linux_at(struct thread *td, int dirfd, char *filename, char **newpath, char **fr
 
 	/* check for AT_FDWCD */
 	if (dirfd == LINUX_AT_FDCWD) {
-	   	FILEDESC_LOCK(fdp);
+	   	FILEDESC_SLOCK(fdp);
 		dvp = fdp->fd_cdir;
-	   	FILEDESC_UNLOCK(fdp);
+		vref(dvp);
+	   	FILEDESC_SUNLOCK(fdp);
 	} else {
 	   	error = fget(td, dirfd, &fp);
 		if (error)
@@ -220,16 +221,28 @@ linux_at(struct thread *td, int dirfd, char *filename, char **newpath, char **fr
 		   	fdrop(fp, td);
 			return (ENOTDIR);
 		}
+		vref(dvp);
 		fdrop(fp, td);
 	}
 
+	/*
+	 * XXXRW: This is bogus, as vn_fullpath() returns only an advisory
+	 * file path, and may fail in several common situations, including
+	 * for file systmes that don't use the name cache, and if the entry
+	 * for the file falls out of the name cache.  We should implement
+	 * openat() in the FreeBSD native system call layer properly (using a
+	 * requested starting directory), and have Linux and other ABIs wrap
+	 * the native implementation.
+	 */
 	error = vn_fullpath(td, dvp, &fullpath, &freepath);
 	if (!error) {
 	   	*newpath = malloc(strlen(fullpath) + strlen(filename) + 2, M_TEMP, M_WAITOK | M_ZERO);
 		*freebuf = freepath;
 		sprintf(*newpath, "%s/%s", fullpath, filename);
 	}
-
+	vfslocked = VFS_LOCK_GIANT(dvp->v_mount);
+	vrele(dvp);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
