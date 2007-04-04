@@ -195,6 +195,7 @@ struct mbuf {
 #define	EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
 #define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
+#define	EXT_MBUF	7	/* external mbuf reference (M_IOVEC) */
 #define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
@@ -345,6 +346,66 @@ static __inline void		*m_cljget(struct mbuf *m, int how, int size);
 static __inline void		 m_chtype(struct mbuf *m, short new_type);
 void				 mb_free_ext(struct mbuf *);
 
+static __inline int
+m_gettype(int size)
+{
+	int type;
+	
+	switch (size) {
+	case MSIZE:
+		type = EXT_MBUF;
+		break;
+	case MCLBYTES:
+		type = EXT_CLUSTER;
+		break;
+#if MJUMPAGESIZE != MCLBYTES
+	case MJUMPAGESIZE:
+		type = EXT_JUMBOP;
+		break;
+#endif
+	case MJUM9BYTES:
+		type = EXT_JUMBO9;
+		break;
+	case MJUM16BYTES:
+		type = EXT_JUMBO16;
+		break;
+	default:
+		panic("%s: m_getjcl: invalid cluster size", __func__);
+	}
+
+	return (type);
+}
+
+static __inline uma_zone_t
+m_getzone(int size)
+{
+	uma_zone_t zone;
+	
+	switch (size) {
+	case MSIZE:
+		zone = zone_mbuf;
+		break;
+	case MCLBYTES:
+		zone = zone_clust;
+		break;
+#if MJUMPAGESIZE != MCLBYTES
+	case MJUMPAGESIZE:
+		zone = zone_jumbop;
+		break;
+#endif
+	case MJUM9BYTES:
+		zone = zone_jumbo9;
+		break;
+	case MJUM16BYTES:
+		zone = zone_jumbo16;
+		break;
+	default:
+		panic("%s: m_getjcl: invalid cluster type", __func__);
+	}
+
+	return (zone);
+}
+
 static __inline struct mbuf *
 m_get(int how, short type)
 {
@@ -412,24 +473,7 @@ m_getjcl(int how, short type, int flags, int size)
 	if (m == NULL)
 		return (NULL);
 
-	switch (size) {
-	case MCLBYTES:
-		zone = zone_clust;
-		break;
-#if MJUMPAGESIZE != MCLBYTES
-	case MJUMPAGESIZE:
-		zone = zone_jumbop;
-		break;
-#endif
-	case MJUM9BYTES:
-		zone = zone_jumbo9;
-		break;
-	case MJUM16BYTES:
-		zone = zone_jumbo16;
-		break;
-	default:
-		panic("%s: m_getjcl: invalid cluster type", __func__);
-	}
+	zone = m_getzone(size);
 	n = uma_zalloc_arg(zone, m, how);
 	if (n == NULL) {
 		uma_zfree(zone_mbuf, m);
@@ -485,25 +529,7 @@ m_cljget(struct mbuf *m, int how, int size)
 	if (m != NULL)
 		m->m_ext.ext_buf = NULL;
 
-	switch (size) {
-	case MCLBYTES:
-		zone = zone_clust;
-		break;
-#if MJUMPAGESIZE != MCLBYTES
-	case MJUMPAGESIZE:
-		zone = zone_jumbop;
-		break;
-#endif
-	case MJUM9BYTES:
-		zone = zone_jumbo9;
-		break;
-	case MJUM16BYTES:
-		zone = zone_jumbo16;
-		break;
-	default:
-		panic("%s: m_getjcl: invalid cluster type", __func__);
-	}
-
+	zone = m_getzone(size);
 	return (uma_zalloc_arg(zone, m, how));
 }
 
