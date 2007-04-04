@@ -997,13 +997,16 @@ findpcb:
 	return;
 
 dropwithreset:
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	tcp_dropwithreset(m, th, tp, tlen, rstreason);
 	m = NULL;	/* mbuf chain got consumed. */
 dropunlock:
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	if (tp != NULL)
 		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
 drop:
+	INP_INFO_UNLOCK_ASSERT(&tcbinfo);
 	if (m != NULL)
 		m_freem(m);
 	return;
