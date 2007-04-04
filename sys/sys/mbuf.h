@@ -534,6 +534,45 @@ m_cljget(struct mbuf *m, int how, int size)
 }
 
 static __inline void
+m_cljset(struct mbuf *m, void *cl, int type)
+{
+	uma_zone_t zone;
+	int size;
+	
+	switch (type) {
+	case EXT_CLUSTER:
+		size = MCLBYTES;
+		zone = zone_clust;
+		break;
+#if MJUMPAGESIZE != MCLBYTES
+	case EXT_JUMBOP:
+		size = MJUMPAGESIZE;
+		zone = zone_jumbop;
+		break;
+#endif
+	case EXT_JUMBO9:
+		size = MJUM9BYTES;
+		zone = zone_jumbo9;
+		break;
+	case EXT_JUMBO16:
+		size = MJUM16BYTES;
+		zone = zone_jumbo16;
+		break;
+	default:
+		panic("unknown cluster type");
+		break;
+	}
+
+	m->m_data = m->m_ext.ext_buf = cl;
+	m->m_ext.ext_free = m->m_ext.ext_args = NULL;
+	m->m_ext.ext_size = size;
+	m->m_ext.ext_type = type;
+	m->m_ext.ref_cnt = uma_find_refcnt(zone, cl);
+	m->m_flags |= M_EXT;
+
+}
+
+static __inline void
 m_chtype(struct mbuf *m, short new_type)
 {
 
