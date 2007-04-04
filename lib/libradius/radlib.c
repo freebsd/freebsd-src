@@ -182,7 +182,8 @@ is_valid_response(struct rad_handle *h, int srv,
 #ifdef WITH_SSL
 	HMAC_CTX hctx;
 	u_char resp[MSGSIZE], md[EVP_MAX_MD_SIZE];
-	int pos, md_len;
+	u_int md_len;
+	int pos;
 #endif
 
 	srvp = &h->servers[srv];
@@ -524,7 +525,7 @@ rad_continue_send_request(struct rad_handle *h, int selected, int *fd,
 
 	if (selected) {
 		struct sockaddr_in from;
-		int fromlen;
+		socklen_t fromlen;
 
 		fromlen = sizeof from;
 		h->resp_len = recvfrom(h->fd, h->response,
