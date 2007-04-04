@@ -568,14 +568,14 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 	fdp = td->td_proc->p_fd;
 	switch (com) {
 	case FIONCLEX:
-		FILEDESC_LOCK_FAST(fdp);
+		FILEDESC_XLOCK(fdp);
 		fdp->fd_ofileflags[fd] &= ~UF_EXCLOSE;
-		FILEDESC_UNLOCK_FAST(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		goto out;
 	case FIOCLEX:
-		FILEDESC_LOCK_FAST(fdp);
+		FILEDESC_XLOCK(fdp);
 		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
-		FILEDESC_UNLOCK_FAST(fdp);
+		FILEDESC_XUNLOCK(fdp);
 		goto out;
 	case FIONBIO:
 		FILE_LOCK(fp);
@@ -658,11 +658,10 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
 	
-	FILEDESC_LOCK_FAST(fdp);
-
+	FILEDESC_SLOCK(fdp);
 	if (nd > td->td_proc->p_fd->fd_nfiles)
 		nd = td->td_proc->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_SUNLOCK(fdp);
 
 	/*
 	 * Allocate just enough bits for the non-null fd_sets.  Use the
@@ -809,7 +808,7 @@ selscan(td, ibits, obits, nfd)
 	static int flag[3] = { POLLRDNORM, POLLWRNORM, POLLRDBAND };
 	struct filedesc *fdp = td->td_proc->p_fd;
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_SLOCK(fdp);
 	for (msk = 0; msk < 3; msk++) {
 		if (ibits[msk] == NULL)
 			continue;
@@ -820,7 +819,7 @@ selscan(td, ibits, obits, nfd)
 				if (!(bits & 1))
 					continue;
 				if ((fp = fget_locked(fdp, fd)) == NULL) {
-					FILEDESC_UNLOCK(fdp);
+					FILEDESC_SUNLOCK(fdp);
 					return (EBADF);
 				}
 				if (fo_poll(fp, flag[msk], td->td_ucred,
@@ -832,7 +831,7 @@ selscan(td, ibits, obits, nfd)
 			}
 		}
 	}
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_SUNLOCK(fdp);
 	td->td_retval[0] = n;
 	return (0);
 }
@@ -973,7 +972,7 @@ pollscan(td, fds, nfd)
 	struct file *fp;
 	int n = 0;
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_SLOCK(fdp);
 	for (i = 0; i < nfd; i++, fds++) {
 		if (fds->fd >= fdp->fd_nfiles) {
 			fds->revents = POLLNVAL;
@@ -997,7 +996,7 @@ pollscan(td, fds, nfd)
 			}
 		}
 	}
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_SUNLOCK(fdp);
 	td->td_retval[0] = n;
 	return (0);
 }

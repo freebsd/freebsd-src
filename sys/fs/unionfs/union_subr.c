@@ -450,9 +450,9 @@ unionfs_create_uppervattr_core(struct unionfs_mount *ump,
 		}
 		break;
 	default:		/* UNIONFS_TRADITIONAL */
-		FILEDESC_LOCK_FAST(td->td_proc->p_fd);
+		FILEDESC_SLOCK(td->td_proc->p_fd);
 		uva->va_mode = 0777 & ~td->td_proc->p_fd->fd_cmask;
-		FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
+		FILEDESC_SUNLOCK(td->td_proc->p_fd);
 		uva->va_uid = ump->um_uid;
 		uva->va_gid = ump->um_gid;
 		break;

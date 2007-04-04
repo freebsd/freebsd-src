@@ -715,10 +715,10 @@ fchdir(td, uap)
 	}
 	VOP_UNLOCK(vp, 0, td);
 	VFS_UNLOCK_GIANT(vfslocked);
-	FILEDESC_LOCK_FAST(fdp);
+	FILEDESC_XLOCK(fdp);
 	vpold = fdp->fd_cdir;
 	fdp->fd_cdir = vp;
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_XUNLOCK(fdp);
 	vfslocked = VFS_LOCK_GIANT(vpold->v_mount);
 	vrele(vpold);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -767,10 +767,10 @@ kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
 	VOP_UNLOCK(nd.ni_vp, 0, td);
 	VFS_UNLOCK_GIANT(vfslocked);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	FILEDESC_LOCK_FAST(fdp);
+	FILEDESC_XLOCK(fdp);
 	vp = fdp->fd_cdir;
 	fdp->fd_cdir = nd.ni_vp;
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_XUNLOCK(fdp);
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vrele(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -789,7 +789,8 @@ chroot_refuse_vdir_fds(fdp)
 	struct file *fp;
 	int fd;
 
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
+	FILEDESC_LOCK_ASSERT(fdp);
+
 	for (fd = 0; fd < fdp->fd_nfiles ; fd++) {
 		fp = fget_locked(fdp, fd);
 		if (fp == NULL)
@@ -905,12 +906,12 @@ change_root(vp, td)
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 	fdp = td->td_proc->p_fd;
-	FILEDESC_LOCK(fdp);
+	FILEDESC_XLOCK(fdp);
 	if (chroot_allow_open_directories == 0 ||
 	    (chroot_allow_open_directories == 1 && fdp->fd_rdir != rootvnode)) {
 		error = chroot_refuse_vdir_fds(fdp);
 		if (error) {
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_XUNLOCK(fdp);
 			return (error);
 		}
 	}
@@ -921,7 +922,7 @@ change_root(vp, td)
 		fdp->fd_jdir = vp;
 		VREF(fdp->fd_jdir);
 	}
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_XUNLOCK(fdp);
 	vfslocked = VFS_LOCK_GIANT(oldvp->v_mount);
 	vrele(oldvp);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -1024,18 +1025,16 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	FILEDESC_LOCK_FAST(fdp);
 	FILE_LOCK(fp);
 	fp->f_vnode = vp;
 	if (fp->f_data == NULL)
 		fp->f_data = vp;
 	fp->f_flag = flags & FMASK;
-	if (fp->f_ops == &badfileops)
-		fp->f_ops = &vnops;
 	fp->f_seqcount = 1;
 	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
+	if (fp->f_ops == &badfileops)
+		fp->f_ops = &vnops;
 	FILE_UNLOCK(fp);
-	FILEDESC_UNLOCK_FAST(fdp);
 
 	VOP_UNLOCK(vp, 0, td);
 	if (flags & (O_EXLOCK | O_SHLOCK)) {
@@ -1183,10 +1182,10 @@ restart:
 		return (EEXIST);
 	} else {
 		VATTR_NULL(&vattr);
-		FILEDESC_LOCK_FAST(td->td_proc->p_fd);
+		FILEDESC_SLOCK(td->td_proc->p_fd);
 		vattr.va_mode = (mode & ALLPERMS) &
 		    ~td->td_proc->p_fd->fd_cmask;
-		FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
+		FILEDESC_SUNLOCK(td->td_proc->p_fd);
 		vattr.va_rdev = dev;
 		whiteout = 0;
 
@@ -1296,9 +1295,9 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VFIFO;
-	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
+	FILEDESC_SLOCK(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ALLPERMS) & ~td->td_proc->p_fd->fd_cmask;
-	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
+	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 #ifdef MAC
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -1511,9 +1510,9 @@ restart:
 		goto restart;
 	}
 	VATTR_NULL(&vattr);
-	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
+	FILEDESC_SLOCK(td->td_proc->p_fd);
 	vattr.va_mode = ACCESSPERMS &~ td->td_proc->p_fd->fd_cmask;
-	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
+	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 #ifdef MAC
 	vattr.va_type = VLNK;
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
@@ -3395,9 +3394,9 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VDIR;
-	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
+	FILEDESC_SLOCK(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ACCESSPERMS) &~ td->td_proc->p_fd->fd_cmask;
-	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
+	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 #ifdef MAC
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -3784,11 +3783,11 @@ umask(td, uap)
 {
 	register struct filedesc *fdp;
 
-	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
+	FILEDESC_XLOCK(td->td_proc->p_fd);
 	fdp = td->td_proc->p_fd;
 	td->td_retval[0] = fdp->fd_cmask;
 	fdp->fd_cmask = uap->newmask & ALLPERMS;
-	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
+	FILEDESC_XUNLOCK(td->td_proc->p_fd);
 	return (0);
 }
 
@@ -3864,7 +3863,7 @@ getvnode(fdp, fd, fpp)
 	if (fdp == NULL)
 		error = EBADF;
 	else {
-		FILEDESC_LOCK(fdp);
+		FILEDESC_SLOCK(fdp);
 		if ((u_int)fd >= fdp->fd_nfiles ||
 		    (fp = fdp->fd_ofiles[fd]) == NULL)
 			error = EBADF;
@@ -3875,7 +3874,7 @@ getvnode(fdp, fd, fpp)
 			fhold(fp);
 			error = 0;
 		}
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 	}
 	*fpp = fp;
 	return (error);
@@ -4104,11 +4103,13 @@ fhopen(td, uap)
 	/* An extra reference on `nfp' has been held for us by falloc(). */
 	fp = nfp;
 
+	FILE_LOCK(nfp);
 	nfp->f_vnode = vp;
 	nfp->f_data = vp;
 	nfp->f_flag = fmode & FMASK;
-	nfp->f_ops = &vnops;
 	nfp->f_type = DTYPE_VNODE;
+	nfp->f_ops = &vnops;
+	FILE_UNLOCK(nfp);
 	if (fmode & (O_EXLOCK | O_SHLOCK)) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;

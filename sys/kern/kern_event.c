@@ -527,15 +527,15 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	knlist_init(&kq->kq_sel.si_note, &kq->kq_lock, NULL, NULL, NULL);
 	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 
-	FILEDESC_LOCK_FAST(fdp);
+	FILEDESC_XLOCK(fdp);
 	SLIST_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_XUNLOCK(fdp);
 
 	FILE_LOCK(fp);
 	fp->f_flag = FREAD | FWRITE;
 	fp->f_type = DTYPE_KQUEUE;
-	fp->f_ops = &kqueueops;
 	fp->f_data = kq;
+	fp->f_ops = &kqueueops;
 	FILE_UNLOCK(fp);
 	fdrop(fp, td);
 
@@ -1493,9 +1493,9 @@ kqueue_close(struct file *fp, struct thread *td)
 
 	KQ_UNLOCK(kq);
 
-	FILEDESC_LOCK_FAST(fdp);
+	FILEDESC_XLOCK(fdp);
 	SLIST_REMOVE(&fdp->fd_kqlist, kq, kqueue, kq_list);
-	FILEDESC_UNLOCK_FAST(fdp);
+	FILEDESC_XUNLOCK(fdp);
 
 	knlist_destroy(&kq->kq_sel.si_note);
 	mtx_destroy(&kq->kq_lock);
@@ -1781,9 +1781,9 @@ again:		/* need to reaquire lock since we have dropped it */
 }
 
 /*
- * remove all knotes referencing a specified fd
- * must be called with FILEDESC lock.  This prevents a race where a new fd
- * comes along and occupies the entry and we attach a knote to the fd.
+ * Remove all knotes referencing a specified fd must be called with FILEDESC
+ * lock.  This prevents a race where a new fd comes along and occupies the
+ * entry and we attach a knote to the fd.
  */
 void
 knote_fdclose(struct thread *td, int fd)
@@ -1793,7 +1793,7 @@ knote_fdclose(struct thread *td, int fd)
 	struct knote *kn;
 	int influx;
 
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
+	FILEDESC_XLOCK_ASSERT(fdp);
 
 	/*
 	 * We shouldn't have to worry about new kevents appearing on fd

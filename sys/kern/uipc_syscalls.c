@@ -124,7 +124,7 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp, u_int *fflagp)
 	if (fdp == NULL)
 		error = EBADF;
 	else {
-		FILEDESC_LOCK_FAST(fdp);
+		FILEDESC_SLOCK(fdp);
 		fp = fget_locked(fdp, fd);
 		if (fp == NULL)
 			error = EBADF;
@@ -137,7 +137,7 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp, u_int *fflagp)
 				*fflagp = fp->f_flag;
 			error = 0;
 		}
-		FILEDESC_UNLOCK_FAST(fdp);
+		FILEDESC_SUNLOCK(fdp);
 	}
 	*fpp = fp;
 	return (error);
@@ -182,12 +182,17 @@ socket(td, uap)
 	if (error) {
 		fdclose(fdp, fp, fd, td);
 	} else {
-		FILEDESC_LOCK_FAST(fdp);
+		/*
+		 * XXXRW: The logic here seems wrong -- shouldn't it be
+		 * locking the file, not the filedesc?  Other threads could
+		 * already have a reference to the socket by now.
+		 */
+		FILE_LOCK(fp);
 		fp->f_data = so;	/* already has ref count */
 		fp->f_flag = FREAD|FWRITE;
-		fp->f_ops = &socketops;
 		fp->f_type = DTYPE_SOCKET;
-		FILEDESC_UNLOCK_FAST(fdp);
+		fp->f_ops = &socketops;
+		FILE_UNLOCK(fp);
 		td->td_retval[0] = fd;
 	}
 	fdrop(fp, td);
@@ -434,8 +439,8 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	FILE_LOCK(nfp);
 	nfp->f_data = so;	/* nfp has ref count from falloc */
 	nfp->f_flag = fflag;
-	nfp->f_ops = &socketops;
 	nfp->f_type = DTYPE_SOCKET;
+	nfp->f_ops = &socketops;
 	FILE_UNLOCK(nfp);
 	/* Sync socket nonblocking/async state with file flags */
 	tmp = fflag & FNONBLOCK;
@@ -656,13 +661,13 @@ socketpair(td, uap)
 	}
 	FILE_LOCK(fp1);
 	fp1->f_flag = FREAD|FWRITE;
-	fp1->f_ops = &socketops;
 	fp1->f_type = DTYPE_SOCKET;
+	fp1->f_ops = &socketops;
 	FILE_UNLOCK(fp1);
 	FILE_LOCK(fp2);
 	fp2->f_flag = FREAD|FWRITE;
-	fp2->f_ops = &socketops;
 	fp2->f_type = DTYPE_SOCKET;
+	fp2->f_ops = &socketops;
 	FILE_UNLOCK(fp2);
 	so1 = so2 = NULL;
 	error = copyout(sv, uap->rsv, 2 * sizeof (int));
@@ -2322,8 +2327,8 @@ sctp_peeloff(td, uap)
 	FILE_LOCK(nfp);
 	nfp->f_data = so;
 	nfp->f_flag = fflag;
-	nfp->f_ops = &socketops;
 	nfp->f_type = DTYPE_SOCKET;
+	nfp->f_ops = &socketops;
 	FILE_UNLOCK(nfp);
 
 noconnection:
