@@ -431,7 +431,7 @@ ProxyEncodeTcpStream(struct alias_link *lnk,
 	{
 		int dlen;
 		int hlen;
-		u_char *p;
+		char *p;
 
 		hlen = (pip->ip_hl + tc->th_off) << 2;
 		dlen = ntohs(pip->ip_len) - hlen;
