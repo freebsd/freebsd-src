@@ -85,6 +85,7 @@ marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
 mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
+mm [label="Martin Matuska\nmm@FreeBSD.org\n2007/04/04"]
 mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2002/03/19"]
 nobutaka [label="Nobutaka Mantani\nnobutaka@FreeBSD.org\n2001/11/02"]
@@ -148,6 +149,7 @@ flz -> laszlof
 
 garga -> acm
 garga -> alepulver
+garga -> mm
 garga -> vd
 
 ijliao -> leeym
