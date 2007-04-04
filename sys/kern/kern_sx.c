@@ -273,7 +273,7 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);
-	if (SX_SHARERS(x) == 0)
+	if (SX_SHARERS(sx->sx_lock) == 0)
 		lock_profile_release_lock(&sx->lock_object);
 	__sx_sunlock(sx, file, line);
 }
