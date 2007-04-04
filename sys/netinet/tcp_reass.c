@@ -2748,6 +2748,8 @@ tcp_dooptions(struct tcpopt *to, u_char *cp, int cnt, int flags)
 		case TCPOPT_SACK:
 			if (optlen <= 2 || (optlen - 2) % TCPOLEN_SACK != 0)
 				continue;
+			if (flags & TO_SYN)
+				continue;
 			to->to_flags |= TOF_SACK;
 			to->to_nsacks = (optlen - 2) / TCPOLEN_SACK;
 			to->to_sacks = cp + 2;
