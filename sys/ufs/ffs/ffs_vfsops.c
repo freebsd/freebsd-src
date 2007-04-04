@@ -1662,10 +1662,10 @@ ffs_backgroundwritedone(struct buf *bp)
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
-	if (LIST_FIRST(&bp->b_dep) != NULL)
+	if (!LIST_EMPTY(&bp->b_dep))
 		buf_complete(bp);
 #ifdef SOFTUPDATES
-	if (LIST_FIRST(&bp->b_dep) != NULL)
+	if (!LIST_EMPTY(&bp->b_dep))
 		softdep_move_dependencies(bp, origbp);
 #endif
 	/*
@@ -1783,7 +1783,7 @@ ffs_bufwrite(struct buf *bp)
 
 #ifdef SOFTUPDATES
 		/* move over the dependencies */
-		if (LIST_FIRST(&bp->b_dep) != NULL)
+		if (!LIST_EMPTY(&bp->b_dep))
 			softdep_move_dependencies(bp, newbp);
 #endif 
 
@@ -1850,11 +1850,11 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 		if ((bp->b_flags & B_CLUSTER) != 0) {
 			TAILQ_FOREACH(tbp, &bp->b_cluster.cluster_head,
 				      b_cluster.cluster_entry) {
-				if (LIST_FIRST(&tbp->b_dep) != NULL)
+				if (!LIST_EMPTY(&tbp->b_dep))
 					buf_start(tbp);
 			}
 		} else {
-			if (LIST_FIRST(&bp->b_dep) != NULL)
+			if (!LIST_EMPTY(&bp->b_dep))
 				buf_start(bp);
 		}
 
