@@ -687,9 +687,12 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tcp_rcvseqinit(tp);
 	tcp_sendseqinit(tp);
 	tp->snd_wl1 = sc->sc_irs;
+	tp->snd_max = tp->iss + 1;
+	tp->snd_nxt = tp->iss + 1;
 	tp->rcv_up = sc->sc_irs + 1;
 	tp->rcv_wnd = sc->sc_wnd;
 	tp->rcv_adv += tp->rcv_wnd;
+	tp->last_ack_sent = tp->rcv_nxt;
 
 	tp->t_flags = sototcpcb(lso)->t_flags & (TF_NOPUSH|TF_NODELAY);
 	if (sc->sc_flags & SCF_NOOPT)
