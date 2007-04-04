@@ -1310,6 +1310,14 @@ vm_object_split(vm_map_entry_t entry)
 	source = orig_object->backing_object;
 	if (source != NULL) {
 		VM_OBJECT_LOCK(source);
+		if ((source->flags & OBJ_DEAD) != 0) {
+			VM_OBJECT_UNLOCK(source);
+			VM_OBJECT_UNLOCK(orig_object);
+			VM_OBJECT_UNLOCK(new_object);
+			vm_object_deallocate(new_object);
+			VM_OBJECT_LOCK(orig_object);
+			return;
+		}
 		LIST_INSERT_HEAD(&source->shadow_head,
 				  new_object, shadow_list);
 		source->shadow_count++;
