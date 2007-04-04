@@ -359,6 +359,11 @@ mkdir filter-tar-tar
 (cd original && ${BSDTAR} -cf - .) | ${BSDTAR} -cf - @- | (cd filter-tar-tar; ${BSDTAR} -xf -)
 diff -r original filter-tar-tar || echo XXX FAILED XXX
 
+# Make sure that reading and writing a tar archive doesn't change it.
+echo "  bsdtar -cf- @- | cmp"
+(cd original && ${BSDTAR} -cf - .) > original.tar
+${BSDTAR} -cf - @- < original.tar | cmp - original.tar || echo XXX FAILED XXX
+
 # Filtering as format conversion
 echo "  Convert tar archive to cpio archive"
 mkdir filter-tar-cpio
