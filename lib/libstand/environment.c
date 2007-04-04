@@ -126,7 +126,7 @@ env_setenv(const char *name, int flags, const void *value,
     if (flags & EV_VOLATILE) {
 	ev->ev_value = strdup(value);
     } else {
-	ev->ev_value = value;
+	ev->ev_value = (char *)value;
     }
 
     /* Keep the flag components that are relevant */
