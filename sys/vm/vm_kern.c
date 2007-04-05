@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>		/* for ticks and hz */
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -81,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
+#include <vm/uma.h>
 
 vm_map_t kernel_map=0;
 vm_map_t kmem_map=0;
@@ -294,10 +296,18 @@ kmem_malloc(map, size, flags)
 	vm_map_lock(map);
 	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
 		vm_map_unlock(map);
-		if ((flags & M_NOWAIT) == 0)
-			panic("kmem_malloc(%ld): kmem_map too small: %ld total allocated",
-				(long)size, (long)map->size);
-		return (0);
+		if ((flags & M_NOWAIT) == 0) {
+			EVENTHANDLER_INVOKE(vm_lowmem, 0);
+			uma_reclaim();
+			vm_map_lock(map);
+			if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
+				vm_map_unlock(map);
+				panic("kmem_malloc(%ld): kmem_map too small: %ld total allocated",
+					(long)size, (long)map->size);
+			}
+		} else {
+			return (0);
+		}
 	}
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	vm_object_reference(kmem_object);
