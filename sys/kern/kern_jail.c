@@ -85,7 +85,6 @@ int	prisoncount = 0;
 
 static void		 init_prison(void *);
 static void		 prison_complete(void *context, int pending);
-static struct prison	*prison_find(int);
 static int		 sysctl_jail_list(SYSCTL_HANDLER_ARGS);
 
 static void
@@ -256,7 +255,7 @@ e_unlock:
 /*
  * Returns a locked prison instance, or NULL on failure.
  */
-static struct prison *
+struct prison *
 prison_find(int prid)
 {
 	struct prison *pr;
