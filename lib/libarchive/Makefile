@@ -46,7 +46,6 @@ SRCS=	archive.h					\
 	archive_check_magic.c				\
 	archive_entry.c					\
 	archive_read.c					\
-	archive_read_data_into_buffer.c			\
 	archive_read_data_into_fd.c			\
 	archive_read_extract.c				\
 	archive_read_open_fd.c				\
