@@ -236,20 +236,17 @@ compressed with the
 algorithm.
 Older zip compression algorithms are not supported.
 .Ss Archive (library) file format
-The Unix archives (commonly created by the
+The Unix archive format (commonly created by the
 .Xr ar 1
-archiver) are mainly used as libraries of object files intended to
-be loaded using the link-editor
+archiver) is a general-purpose format which is
+used almost exclusively for object files to be
+read by the link editor
 .Xr ld 1 .
-Altough it is capable of creating archives for any purpose,
-nowadays it is used only to create static libraries and
-for other purpose,
-.Xr tar 1
-is the prefered way. The ar format has never been standardised,
-currently there exist two commonly used format, one is
-the GNU variant derived from SVR4, the other is the
-BSD format first appeared in 4.4BSD.
-Libarchive provides read and write support for both two variants.
+The ar format has never been standardised.
+There are two common variants:
+the GNU format derived from SVR4,
+and the BSD format, which first appeared in 4.4BSD.
+Libarchive provides read and write support for both variants.
 .Sh SEE ALSO
 .Xr ar 1 ,
 .Xr cpio 1 ,
