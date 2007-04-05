@@ -506,6 +506,22 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 	return (bytes_read);
 }
 
+#if ARCHIVE_API_VERSION < 3
+/*
+ * Obsolete function provided for compatibility only.  Note that the API
+ * of this function doesn't allow the caller to detect if the remaining
+ * data from the archive entry is shorter than the buffer provided, or
+ * even if an error occurred while reading data.
+ */
+int
+archive_read_data_into_buffer(struct archive *a, void *d, ssize_t len)
+{
+
+	archive_read_data(a, d, len);
+	return (ARCHIVE_OK);
+}
+#endif
+
 /*
  * Skip over all remaining data in this entry.
  */
