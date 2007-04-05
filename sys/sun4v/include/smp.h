@@ -71,8 +71,6 @@ struct ipi_tlb_args {
 
 struct pcpu;
 
-extern struct pcb stoppcbs[];
-
 void	cpu_mp_bootstrap(struct pcpu *pc);
 void	cpu_mp_shutdown(void);
 
