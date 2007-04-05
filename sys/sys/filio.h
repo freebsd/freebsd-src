@@ -55,5 +55,8 @@ struct fiodgname_arg {
 	void	*buf;
 };
 #define	FIODGNAME	_IOW('f', 120, struct fiodgname_arg) /* get dev. name */
+/* Handle lseek SEEK_DATA and SEEK_HOLE for holey file knowledge. */
+#define	FIOSEEKDATA	_IOWR('f', 97, off_t)	/* SEEK_DATA */
+#define	FIOSEEKHOLE	_IOWR('f', 98, off_t)	/* SEEK_HOLE */
 
 #endif /* !_SYS_FILIO_H_ */

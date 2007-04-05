@@ -144,6 +144,17 @@ otherwise 0.
 .It Li _PC_MAC_PRESENT
 Returns 1 if a Mandatory Access Control (MAC) label can be set on the
 specified file, otherwise 0.
+.It Li _PC_MIN_HOLE_SIZE
+If a file system supports the reporting of holes (see
+.Xr lseek 2 ,
+.Fn pathconf
+and
+.Fn fpathconf
+return a positive number that represents the minimum hole size returned in
+bytes.
+The offsets of holes returned will be aligned to this same value.
+A special value of 1 is returned if the file system does not specify the minimum
+hole size but still reports holes.  
 .El
 .Sh RETURN VALUES
 If the call to
@@ -216,6 +227,7 @@ is not a valid open file descriptor.
 An I/O error occurred while reading from or writing to the file system.
 .El
 .Sh SEE ALSO
+.Xr lseek 2 ,
 .Xr sysctl 3
 .Sh HISTORY
 The
