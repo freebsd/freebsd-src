@@ -1244,6 +1244,8 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 		return 1;
 	}
 
+	cbehind = cahead = 0;
+
 	/*
 	 * if the requested page is not available, then give up now
 	 */
