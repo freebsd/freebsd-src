@@ -188,7 +188,7 @@ pfs_create_file(struct pfs_node *parent, const char *name, pfs_fill_t fill,
  */
 struct pfs_node	*
 pfs_create_link(struct pfs_node *parent, const char *name, pfs_fill_t fill,
-		pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy, 
+		pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
 		int flags)
 {
 	struct pfs_node *node;
@@ -255,9 +255,9 @@ pfs_destroy(struct pfs_node *node)
 	}
 
 	/* callback to free any private resources */
-	if(node->pn_destroy != NULL)
+	if (node->pn_destroy != NULL)
 		(node->pn_destroy)(node);
-	
+
 	/* revoke vnodes and release memory */
 	pfs_disable(node);
 	FREE(node, M_PFSNODES);
