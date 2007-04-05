@@ -275,10 +275,10 @@ static ssize_t
 read_ahead(struct archive_read *a, const void **p, size_t min)
 {
 	struct private_data *state;
-	int read_avail, was_avail, ret;
+	size_t read_avail;
+	int ret;
 
 	state = (struct private_data *)a->compression_data;
-	was_avail = -1;
 	if (!a->client_reader) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No read callback is registered?  "
@@ -288,14 +288,14 @@ read_ahead(struct archive_read *a, const void **p, size_t min)
 
 	read_avail = state->next_out - state->read_next;
 
-	if (read_avail < (int)min  &&  state->end_of_stream) {
+	if (read_avail < min  &&  state->end_of_stream) {
 		if (state->end_of_stream == ARCHIVE_EOF)
 			return (0);
 		else
 			return (-1);
 	}
 
-	if (read_avail < (int)min) {
+	if (read_avail < min) {
 		memmove(state->uncompressed_buffer, state->read_next,
 		    read_avail);
 		state->read_next = (unsigned char *)state->uncompressed_buffer;
@@ -303,7 +303,7 @@ read_ahead(struct archive_read *a, const void **p, size_t min)
 		state->avail_out
 		    = state->uncompressed_buffer_size - read_avail;
 
-		while (read_avail < (int)state->uncompressed_buffer_size
+		while (read_avail < state->uncompressed_buffer_size
 			&& !state->end_of_stream) {
 			if (state->stackp > state->stack) {
 				*state->next_out++ = *--state->stackp;
@@ -465,12 +465,14 @@ getbits(struct archive_read *a, struct private_data *state, int n)
 		0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff,
 		0x1ff, 0x3ff, 0x7ff, 0xfff, 0x1fff, 0x3fff, 0x7fff, 0xffff
 	};
-
+	const void *read_buf;
 
 	while (state->bits_avail < n) {
 		if (state->avail_in <= 0) {
+			read_buf = state->next_in;
 			ret = (a->client_reader)(&a->archive, a->client_data,
-			    (const void **)&state->next_in);
+			    &read_buf);
+			state->next_in = read_buf;
 			if (ret < 0)
 				return (ARCHIVE_FATAL);
 			if (ret == 0)

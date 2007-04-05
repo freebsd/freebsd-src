@@ -51,7 +51,7 @@ struct archive_decompress_none {
 	size_t		 buffer_size;
 	char		*next;		/* Current read location. */
 	size_t		 avail;		/* Bytes in my buffer. */
-	const char	*client_buff;	/* Client buffer information. */
+	const void	*client_buff;	/* Client buffer information. */
 	size_t		 client_total;
 	const char	*client_next;
 	size_t		 client_avail;
@@ -130,7 +130,7 @@ archive_decompressor_none_init(struct archive_read *a, const void *buff, size_t 
 	}
 
 	/* Save reference to first block of data. */
-	state->client_buff = (const char *)buff;
+	state->client_buff = buff;
 	state->client_total = n;
 	state->client_next = state->client_buff;
 	state->client_avail = state->client_total;
@@ -219,8 +219,7 @@ archive_decompressor_none_read_ahead(struct archive_read *a, const void **buff,
 			 * aren't, hence the cast.
 			 */
 			bytes_read = (a->client_reader)(&a->archive,
-			    a->client_data,
-			    (const void **)&state->client_buff);
+			    a->client_data, &state->client_buff);
 			if (bytes_read < 0) {		/* Read error. */
 				state->client_total = state->client_avail = 0;
 				state->client_next = state->client_buff = NULL;
