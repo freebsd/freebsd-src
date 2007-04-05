@@ -546,6 +546,15 @@ or clear system file flags; if non-zero, such users are treated as
 privileged, and may manipulate system file flags subject to the usual
 constraints on
 .Va kern.securelevel .
+.It Va security.jail.mount_allowed
+This MIB entry determines if a privileged user inside a jail will be
+able to mount and unmount file system types marked as jail-friendly.
+The
+.Xr lsvfs 1
+command can be used to find file system types available for mount from within
+a jail.
+This functionality is disabled by default, but can be enabled by setting this
+MIB entry to 1.
 .El
 .Pp
 The read-only sysctl variable
@@ -572,6 +581,7 @@ and
 .Va kern.hostname .
 .Sh SEE ALSO
 .Xr killall 1 ,
+.Xr lsvfs 1 ,
 .Xr newaliases 1 ,
 .Xr pgrep 1 ,
 .Xr pkill 1 ,
