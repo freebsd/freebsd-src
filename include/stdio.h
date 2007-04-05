@@ -200,6 +200,12 @@ __END_DECLS
 #ifndef SEEK_END
 #define	SEEK_END	2	/* set file offset to EOF plus offset */
 #endif
+#ifndef SEEK_DATA
+#define	SEEK_DATA	3	/* set file offset to next data past offset */
+#endif
+#ifndef SEEK_HOLE
+#define	SEEK_HOLE	4	/* set file offset to next hole past offset */
+#endif
 
 #define	stdin	__stdinp
 #define	stdout	__stdoutp
