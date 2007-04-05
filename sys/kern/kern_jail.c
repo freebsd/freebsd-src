@@ -72,6 +72,11 @@ SYSCTL_INT(_security_jail, OID_AUTO, chflags_allowed, CTLFLAG_RW,
     &jail_chflags_allowed, 0,
     "Processes in jail can alter system file flags");
 
+int	jail_mount_allowed = 0;
+SYSCTL_INT(_security_jail, OID_AUTO, mount_allowed, CTLFLAG_RW,
+    &jail_mount_allowed, 0,
+    "Processes in jail can mount/unmount jail-friendly file systems");
+
 /* allprison, lastprid, and prisoncount are protected by allprison_mtx. */
 struct	prisonlist allprison;
 struct	mtx allprison_mtx;
@@ -647,6 +652,18 @@ prison_priv_check(struct ucred *cred, int priv)
 		 */
 	case PRIV_VFS_SYSFLAGS:
 		if (jail_chflags_allowed)
+			return (0);
+		else
+			return (EPERM);
+
+		/*
+		 * Depending on the global setting, allow privilege of
+		 * mounting/unmounting file systems.
+		 */
+	case PRIV_VFS_MOUNT:
+	case PRIV_VFS_UNMOUNT:
+	case PRIV_VFS_MOUNT_NONUSER:
+		if (jail_mount_allowed)
 			return (0);
 		else
 			return (EPERM);
