@@ -54,7 +54,7 @@ MALLOC_DECLARE(M_PRISON);
  * delete the struture when the last inmate is dead.
  *
  * Lock key:
- *   (a) allprison_mtx
+ *   (a) allprison_lock
  *   (p) locked by pr_mtx
  *   (c) set only during creation before the structure is shared, no mutex
  *       required to read
@@ -73,6 +73,7 @@ struct prison {
 	int		 pr_securelevel;		/* (p) securelevel */
 	struct task	 pr_task;			/* (d) destroy task */
 	struct mtx	 pr_mtx;
+	void		**pr_slots;			/* (p) additional data */
 };
 #endif /* _KERNEL || _WANT_PRISON */
 
@@ -91,6 +92,7 @@ extern int	jail_chflags_allowed;
 
 LIST_HEAD(prisonlist, prison);
 extern struct	prisonlist allprison;
+extern struct	sx allprison_lock;
 
 /*
  * Kernel support functions for jail().
@@ -113,6 +115,22 @@ int prison_if(struct ucred *cred, struct sockaddr *sa);
 int prison_ip(struct ucred *cred, int flag, u_int32_t *ip);
 int prison_priv_check(struct ucred *cred, int priv);
 void prison_remote_ip(struct ucred *cred, int flags, u_int32_t *ip);
+
+/*
+ * Kernel jail services.
+ */
+struct prison_service;
+typedef int (*prison_create_t)(struct prison_service *psrv, struct prison *pr);
+typedef int (*prison_destroy_t)(struct prison_service *psrv, struct prison *pr);
+
+struct prison_service *prison_service_register(const char *name,
+    prison_create_t create, prison_destroy_t destroy);
+void prison_service_deregister(struct prison_service *psrv);
+
+void prison_service_data_set(struct prison_service *psrv, struct prison *pr,
+    void *data);
+void *prison_service_data_get(struct prison_service *psrv, struct prison *pr);
+void *prison_service_data_del(struct prison_service *psrv, struct prison *pr);
 
 #endif /* _KERNEL */
 #endif /* !_SYS_JAIL_H_ */
