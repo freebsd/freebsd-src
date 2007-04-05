@@ -274,8 +274,8 @@ dummy_skip(struct archive_read * a, off_t request)
 			return (ARCHIVE_FATAL);
 		}
 		if (bytes_read > request)
-			bytes_read = request;
-		(a->compression_read_consume)(a, bytes_read);
+			bytes_read = (ssize_t)request;
+		(a->compression_read_consume)(a, (size_t)bytes_read);
 		request -= bytes_read;
 		bytes_skipped += bytes_read;
 	}
@@ -448,7 +448,7 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 	dest = (char *)buff;
 
 	while (s > 0) {
-		if (a->read_data_remaining <= 0) {
+		if (a->read_data_remaining == 0) {
 			read_buf = a->read_data_block;
 			r = archive_read_data_block(&a->archive, &read_buf,
 			    &a->read_data_remaining, &a->read_data_offset);
