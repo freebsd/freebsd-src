@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/filio.h>
 #include <sys/limits.h>
 #include <sys/linker.h>
 #include <sys/stat.h>
@@ -1739,6 +1740,12 @@ lseek(td, uap)
 		offset += vattr.va_size;
 		break;
 	case L_SET:
+		break;
+	case SEEK_DATA:
+		error = fo_ioctl(fp, FIOSEEKDATA, &offset, cred, td);
+		break;
+	case SEEK_HOLE:
+		error = fo_ioctl(fp, FIOSEEKHOLE, &offset, cred, td);
 		break;
 	default:
 		error = EINVAL;

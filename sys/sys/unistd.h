@@ -107,6 +107,8 @@
 #define	SEEK_SET	0	/* set file offset to offset */
 #define	SEEK_CUR	1	/* set file offset to current plus offset */
 #define	SEEK_END	2	/* set file offset to EOF plus offset */
+#define	SEEK_DATA	3	/* set file offset to next data past offset */
+#define	SEEK_HOLE	4	/* set file offset to next hole past offset */
 #endif
 
 #ifndef _POSIX_SOURCE
@@ -150,6 +152,9 @@
 #define	_PC_INF_PRESENT		62
 #define	_PC_MAC_PRESENT		63
 #endif
+
+/* From OpenSolaris, used by SEEK_DATA/SEEK_HOLE. */
+#define	_PC_MIN_HOLE_SIZE	21
 
 #if __BSD_VISIBLE
 /*
