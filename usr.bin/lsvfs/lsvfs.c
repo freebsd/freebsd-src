@@ -105,5 +105,10 @@ fmt_flags(int flags)
     strcat(buf, "unicode");
   }
 
+  if(flags & VFCF_JAIL) {
+    if(comma++) strcat(buf, ", ");
+    strcat(buf, "jail");
+  }
+
   return buf;
 }
