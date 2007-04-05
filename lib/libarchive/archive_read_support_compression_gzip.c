@@ -258,10 +258,10 @@ static ssize_t
 read_ahead(struct archive_read *a, const void **p, size_t min)
 {
 	struct private_data *state;
-	int read_avail, was_avail, ret;
+	size_t read_avail, was_avail;
+	int ret;
 
 	state = (struct private_data *)a->compression_data;
-	was_avail = -1;
 	if (!a->client_reader) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No read callback is registered?  "
@@ -280,13 +280,14 @@ read_ahead(struct archive_read *a, const void **p, size_t min)
 		    = state->uncompressed_buffer_size - read_avail;
 	}
 
-	while (was_avail < read_avail &&	/* Made some progress. */
-	    read_avail < (int)min &&		/* Haven't satisfied min. */
-	    read_avail < (int)state->uncompressed_buffer_size) { /* !full */
+	while (read_avail < min &&		/* Haven't satisfied min. */
+	    read_avail < state->uncompressed_buffer_size) { /* !full */
+		was_avail = read_avail;
 		if ((ret = drive_decompressor(a, state)) != ARCHIVE_OK)
 			return (ret);
-		was_avail = read_avail;
 		read_avail = state->stream.next_out - state->read_next;
+		if (was_avail == read_avail) /* No progress? */
+			break;
 	}
 
 	*p = state->read_next;
@@ -349,10 +350,11 @@ static int
 drive_decompressor(struct archive_read *a, struct private_data *state)
 {
 	ssize_t ret;
-	int decompressed, total_decompressed;
+	size_t decompressed, total_decompressed;
 	int count, flags, header_state;
 	unsigned char *output;
 	unsigned char b;
+	const void *read_buf;
 
 	flags = 0;
 	count = 0;
@@ -360,8 +362,10 @@ drive_decompressor(struct archive_read *a, struct private_data *state)
 	total_decompressed = 0;
 	for (;;) {
 		if (state->stream.avail_in == 0) {
+			read_buf = state->stream.next_in;
 			ret = (a->client_reader)(&a->archive, a->client_data,
-			    (const void **)&state->stream.next_in);
+			    &read_buf);
+			state->stream.next_in = (unsigned char *)(uintptr_t)read_buf;
 			if (ret < 0) {
 				/*
 				 * TODO: Find a better way to handle
