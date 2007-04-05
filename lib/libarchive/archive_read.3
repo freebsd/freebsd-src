@@ -50,7 +50,9 @@
 .Nm archive_read_data ,
 .Nm archive_read_data_block ,
 .Nm archive_read_data_skip ,
+.\" #if ARCHIVE_API_VERSION < 3
 .Nm archive_read_data_into_buffer ,
+.\" #endif
 .Nm archive_read_data_into_fd ,
 .Nm archive_read_extract ,
 .Nm archive_read_extract_set_progress_callback ,
@@ -103,8 +105,10 @@
 .Fn archive_read_data_block "struct archive *" "const void **buff" "size_t *len" "off_t *offset"
 .Ft int
 .Fn archive_read_data_skip "struct archive *"
+.\" #if ARCHIVE_API_VERSION < 3
 .Ft int
 .Fn archive_read_data_into_buffer "struct archive *" "void *" "ssize_t len"
+.\" #endif
 .Ft int
 .Fn archive_read_data_into_fd "struct archive *" "int fd"
 .Ft int
@@ -224,11 +228,10 @@ and internal buffer optimizations.
 A convenience function that repeatedly calls
 .Fn archive_read_data_block
 to skip all of the data for this archive entry.
+.\" #if ARCHIVE_API_VERSION < 3
 .It Fn archive_read_data_into_buffer
-A convenience function that repeatedly calls
-.Fn archive_read_data_block
-to copy the entire entry into the client-supplied buffer.
-Note that the client is responsible for sizing the buffer appropriately.
+This function is deprecated and should not be used.
+.\" #endif
 .It Fn archive_read_data_into_fd
 A convenience function that repeatedly calls
 .Fn archive_read_data_block
