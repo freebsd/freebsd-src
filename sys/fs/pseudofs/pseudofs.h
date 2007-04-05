@@ -225,7 +225,7 @@ int		 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
  * Directory structure construction and manipulation
  */
 struct pfs_node	*pfs_create_dir	(struct pfs_node *parent, const char *name,
-				 pfs_attr_t attr, pfs_vis_t vis, 
+				 pfs_attr_t attr, pfs_vis_t vis,
 				 pfs_destroy_t destroy, int flags);
 struct pfs_node	*pfs_create_file(struct pfs_node *parent, const char *name,
 				 pfs_fill_t fill, pfs_attr_t attr,
