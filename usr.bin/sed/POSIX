@@ -124,8 +124,9 @@ All uses of "POSIX" refer to section 4.55, Draft 12 of POSIX 1003.2.
 	However, the current practice adopted by this implementation,
 	as well as by those from GNU and SUN, is as follows:  The text
 	from the 'c' command still isn't output because the second address
-	isn't actually matched; but the range is reset after all.  In the
-	above example, only the first line of the input will be deleted.
+	isn't actually matched; but the range is reset after all if its
+	second address is a line number.  In the above example, only the
+	first line of the input will be deleted.
 
 13.	Historical implementations allow an output suppressing #n at the
 	beginning of -e arguments as well as in a script file.  POSIX
