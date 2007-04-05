@@ -67,7 +67,9 @@ extern int stathz;			/* statistics clock's frequency */
 extern int profhz;			/* profiling clock's frequency */
 extern int profprocs;			/* number of process's profiling */
 extern int ticks;
+#ifndef _SOLARIS_C_SOURCE
 extern int lbolt;			/* once a second sleep address */
+#endif
 
 #endif /* _KERNEL */
 
