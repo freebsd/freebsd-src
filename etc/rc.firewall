@@ -27,7 +27,7 @@
 #
 
 #
-# Setup system for firewall service.
+# Setup system for ipfw(4) firewall service.
 #
 
 # Suck in the configuration variables.
