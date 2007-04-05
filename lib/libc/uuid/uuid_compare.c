@@ -30,6 +30,12 @@
 #include <string.h>
 #include <uuid.h>
 
+/* A macro used to improve the readability of uuid_compare(). */
+#define DIFF_RETURN(a, b, field)	do {			\
+	if ((a)->field != (b)->field)				\
+		return (((a)->field < (b)->field) ? -1 : 1);	\
+} while (0)
+
 /*
  * uuid_compare() - compare two UUIDs.
  * See also:
@@ -42,7 +48,6 @@ int32_t
 uuid_compare(const uuid_t *a, const uuid_t *b, uint32_t *status)
 {
 	int	res;
-	int64_t res64;
 
 	if (status != NULL)
 		*status = uuid_s_ok;
@@ -55,34 +60,17 @@ uuid_compare(const uuid_t *a, const uuid_t *b, uint32_t *status)
 	if (b == NULL)
 		return ((uuid_is_nil(a, NULL)) ? 0 : 1);
 
-	/*
-	 * We have to compare the hard way.
-	 *
-	 * Note that time_low is defined as unsigned 32-bit
-	 * integer, therefore, with a significantly large
-	 * a->time_low and a small b->time_low, we will end
-	 * up with a value which is larger than 0x7fffffff
-	 * which is negative if casted to signed 32-bit
-	 * integer.
-	 */
-	res64 = (int64_t)a->time_low - (int64_t)b->time_low;
-	if (res64)
-		return ((res64 < 0) ? -1 : 1);
-	res = (int)a->time_mid - (int)b->time_mid;
-	if (res)
-		return ((res < 0) ? -1 : 1);
-	res = (int)a->time_hi_and_version - (int)b->time_hi_and_version;
-	if (res)
-		return ((res < 0) ? -1 : 1);
-	res = (int)a->clock_seq_hi_and_reserved -
-	    (int)b->clock_seq_hi_and_reserved;
-	if (res)
-		return ((res < 0) ? -1 : 1);
-	res = (int)a->clock_seq_low - (int)b->clock_seq_low;
-	if (res)
-		return ((res < 0) ? -1 : 1);
+	/* We have to compare the hard way. */
+	DIFF_RETURN(a, b, time_low);
+	DIFF_RETURN(a, b, time_mid);
+	DIFF_RETURN(a, b, time_hi_and_version);
+	DIFF_RETURN(a, b, clock_seq_hi_and_reserved);
+	DIFF_RETURN(a, b, clock_seq_low);
+
 	res = memcmp(a->node, b->node, sizeof(a->node));
 	if (res)
 		return ((res < 0) ? -1 : 1);
 	return (0);
 }
+
+#undef DIFF_RETURN
