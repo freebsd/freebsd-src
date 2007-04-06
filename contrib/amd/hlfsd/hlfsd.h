@@ -143,7 +143,6 @@ extern char *homedir(int, int);
 extern char *mailbox(int, char *);
 extern char *passwdfile;
 extern char *slinkname;
-extern char mboxfile[];
 extern gid_t hlfs_gid;
 extern int cache_interval;
 extern int noverify;
