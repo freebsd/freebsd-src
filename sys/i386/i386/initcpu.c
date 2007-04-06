@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
 #define CPU_ENABLE_SSE
 #endif
@@ -686,6 +689,15 @@ initializecpu(void)
 				break;
 			}
 		}
+#ifdef PAE
+		if ((amd_feature & AMDID_NX) != 0) {
+			uint64_t msr;
+
+			msr = rdmsr(MSR_EFER) | EFER_NXE;
+			wrmsr(MSR_EFER, msr);
+			pg_nx = PG_NX;
+		}
+#endif
 		break;
 #endif
 	default:

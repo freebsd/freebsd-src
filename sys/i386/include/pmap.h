@@ -63,12 +63,21 @@
 #define	PG_AVAIL2	0x400	/*   <	programmers use		*/
 #define	PG_AVAIL3	0x800	/*    \				*/
 #define	PG_PDE_PAT	0x1000	/* PAT	PAT index		*/
+#ifdef PAE
+#define	PG_NX		(1ull<<63) /* No-execute */
+#endif
 
 
 /* Our various interpretations of the above */
 #define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
 #define	PG_MANAGED	PG_AVAIL2
-#define	PG_FRAME	(~((vm_paddr_t)PAGE_MASK))
+#ifdef PAE
+#define	PG_FRAME	(0x000ffffffffff000ull)
+#define	PG_PS_FRAME	(0x000fffffffe00000ull)
+#else
+#define	PG_FRAME	(~PAGE_MASK)
+#define	PG_PS_FRAME	(0xffc00000)
+#endif
 #define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
 #define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
 
@@ -79,6 +88,7 @@
 #define PGEX_P		0x01	/* Protection violation vs. not present */
 #define PGEX_W		0x02	/* during a Write cycle */
 #define PGEX_U		0x04	/* access from User mode (UPL) */
+#define PGEX_I		0x10	/* during an instruction fetch */
 
 /*
  * Size of Kernel address space.  This is the number of page table pages
@@ -201,7 +211,7 @@ pmap_kextract(vm_offset_t va)
 	vm_paddr_t pa;
 
 	if ((pa = PTD[va >> PDRSHIFT]) & PG_PS) {
-		pa = (pa & ~(NBPDR - 1)) | (va & (NBPDR - 1));
+		pa = (pa & PG_PS_FRAME) | (va & PDRMASK);
 	} else {
 		pa = *vtopte(va);
 		pa = (pa & PG_FRAME) | (va & PAGE_MASK);
@@ -238,9 +248,32 @@ pte_load_store(pt_entry_t *ptep, pt_entry_t v)
 	return (r);
 }
 
+/* XXXRU move to atomic.h? */
+static __inline int
+atomic_cmpset_64(volatile uint64_t *dst, uint64_t exp, uint64_t src)
+{
+	int64_t res = exp;
+
+	__asm __volatile (
+	"	lock ;			"
+	"	cmpxchg8b %2 ;		"
+	"	setz	%%al ;		"
+	"	movzbl	%%al,%0 ;	"
+	"# atomic_cmpset_64"
+	: "+A" (res),			/* 0 (result) */
+	  "=m" (*dst)			/* 1 */
+	: "m" (*dst),			/* 2 */
+	  "b" ((uint32_t)src),
+	  "c" ((uint32_t)(src >> 32)));
+
+	return (res);
+}
+
 #define	pte_load_clear(ptep)	pte_load_store((ptep), (pt_entry_t)0ULL)
 
 #define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
+
+extern pt_entry_t pg_nx;
 
 #else /* PAE */
 
