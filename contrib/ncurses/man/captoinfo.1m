@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: captoinfo.1m,v 1.16 2000/08/13 01:56:49 tom Exp $
+.\" $Id: captoinfo.1m,v 1.20 2006/05/13 15:14:01 tom Exp $
 .TH captoinfo 1M ""
 .ds n 5
 .ds d @TERMINFO@
@@ -40,7 +40,7 @@
 one found, an equivalent \fBterminfo\fR description is written to standard
 output.  Termcap \fBtc\fR capabilities are translated directly to terminfo
 \fBuse\fR capabilities.
-
+.PP
 If no \fIfile\fR is given, then the environment variable \fBTERMCAP\fR is used
 for the filename or entry.  If \fBTERMCAP\fR is a full pathname to a file, only
 the terminal whose name is specified in the environment variable \fBTERM\fR is
@@ -151,7 +151,6 @@ be composed into an \fBacsc\fR string.  The double-line capabilities and
 IBM's AIX has a terminfo facility descended from SVr1 terminfo but incompatible
 with the SVr4 format. The following AIX extensions are automatically
 translated:
-.PP
 .TS
 c c
 l l.
@@ -174,11 +173,16 @@ These will be discarded with a warning message.
 .SH NOTES
 This utility is actually a link to \fItic\fR(1M), running in \fI-I\fR mode.
 You can use other \fItic\fR options such as \fB-f\fR and  \fB-x\fR.
-
+.PP
 The trace option isn't identical to SVr4's.  Under SVr4, instead of following
-the -v with a trace level n, you repeat it n times.
+the \fB-v\fR with a trace level n, you repeat it n times.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fB@INFOCMP@\fR(1M), \fBterminfo\fR(\*n)
+\fB@INFOCMP@\fR(1M),
+\fBcurses\fR(3X),
+\fBterminfo\fR(\*n)
+.PP
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
 .SH AUTHOR
 Eric S. Raymond <esr@snark.thyrsus.com>
 .\"#

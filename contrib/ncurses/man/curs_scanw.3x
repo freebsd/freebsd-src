@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2000,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_scanw.3x,v 1.11 2000/07/15 21:48:17 tom Exp $
+.\" $Id: curs_scanw.3x,v 1.13 2006/02/25 21:42:22 tom Exp $
 .TH curs_scanw 3X ""
 .SH NAME
 \fBscanw\fR,
@@ -36,15 +36,14 @@
 \fBvwscanw\fR, \fBvw_scanw\fR - convert formatted input from a \fBcurses\fR window
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
-
-\fBint scanw(char *fmt\fR [\fB, arg\fR] \fB...);\fR
+.sp
+\fBint scanw(char *fmt, ...);\fR
 .br
-\fBint wscanw(WINDOW *win, char *fmt\fR [\fB, arg\fR] \fB...);\fR
+\fBint wscanw(WINDOW *win, char *fmt, ...);\fR
 .br
-\fBint mvscanw(int y, int x, char *fmt\fR [\fB, arg\fR] \fB...);\fR
+\fBint mvscanw(int y, int x, char *fmt, ...);\fR
 .br
-\fBint mvwscanw(WINDOW *win, int y, int x,\fR
-      \fBchar *fmt\fR [\fB, arg]\fR \fB...);\fR
+\fBint mvwscanw(WINDOW *win, int y, int x, char *fmt, ...);\fR
 .br
 \fBint vw_scanw(WINDOW *win, char *fmt, va_list varglist);\fR
 .br
@@ -55,15 +54,15 @@ The \fBscanw\fR, \fBwscanw\fR and \fBmvscanw\fR routines are analogous to
 \fBwgetstr\fR were called on the window, and the resulting line used as input
 for \fBsscanf\fR(3).  Fields which do not map to a variable in the \fIfmt\fR
 field are lost.
-
-The \fBvwscanw\fR routine is similar to \fBvwprintw\fR in that it performs a
-\fBwscanw\fR using a variable argument list.  The third argument is a
-\fIva\fR_\fIlist\fR, a pointer to a list of arguments, as defined in
-\fB<varargs.h>\fR.
+.PP
+The \fBvwscanw\fR and \fBvw_scanw\fR routines are analogous to \fBvscanf\fR.
+They perform a \fBwscanw\fR using a variable argument list.
+The third argument is a \fIva_list\fR,
+a pointer to a list of arguments, as defined in \fB<stdarg.h>\fR.
 .SH RETURN VALUE
 \fBvwscanw\fR returns \fBERR\fR on failure and an integer equal to the
 number of fields scanned on success.
-
+.PP
 Applications may use the return value from the \fBscanw\fR, \fBwscanw\fR,
 \fBmvscanw\fR and \fBmvwscanw\fR routines to determine the number of fields
 which were mapped in the call.
@@ -71,6 +70,23 @@ which were mapped in the call.
 The XSI Curses standard, Issue 4 describes these functions.  The function
 \fBvwscanw\fR is marked TO BE WITHDRAWN, and is to be replaced by a function
 \fBvw_scanw\fR using the \fB<stdarg.h>\fR interface.
+The Single Unix Specification, Version 2 states that
+\fBvw_scanw\fR  is preferred to \fBvwscanw\fR since the latter requires
+including \fB<varargs.h>\fR, which
+cannot be used in the same file as \fB<stdarg.h>\fR.
+This implementation uses \fB<stdarg.h>\fR for both, because that header
+is included in \fB<curses.h\fR>.
+.LP
+Both XSI and The Single Unix Specification, Version 2 state that these
+functions return ERR or OK.
+Since the underlying \fBscanf\fR can return the number of items scanned,
+and the SVr4 code was documented to use this feature,
+this is probably an editing error which was introduced in XSI,
+rather than being done intentionally.
+Portable applications should only test if the return value is ERR,
+since the OK value (zero) is likely to be misleading.
+One possible way to get useful results would be to use a "%n" conversion
+at the end of the format string to ensure that something was processed.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_getstr\fR(3X), \fBcurs_printw\fR(3X), \fBscanf\fR(3S)
 .\"#

@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: make_sed.sh,v 1.5 1998/02/11 12:13:48 tom Exp $
+# $Id: make_sed.sh,v 1.9 2005/07/16 18:15:31 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,7 +28,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1997
+# Author: Thomas E. Dickey 1997-2005
 #
 # Construct a sed-script to perform renaming within man-pages.  Originally
 # written in much simpler form, this one accounts for the common cases of
@@ -47,7 +47,7 @@ RESULT=result$$
 rm -f $UPPER $SCRIPT $RESULT
 trap "rm -f $COL.* $INPUT $UPPER $SCRIPT $RESULT" 0 1 2 5 15
 fgrep -v \# $1 | \
-sed	-e 's/[	]\+/	/g' >$INPUT
+sed	-e 's/[	][	]*/	/g' >$INPUT
 
 for F in 1 2 3 4
 do
@@ -63,7 +63,7 @@ paste $COL.* | \
 sed	-e 's/^/s\/\\</' \
 	-e 's/$/\//' >$UPPER
 
-# Do the TH lines
+echo "# Do the TH lines" >>$RESULT
 sed	-e 's/\//\/TH /' \
 	-e 's/	/ /' \
 	-e 's/	/ ""\/TH /' \
@@ -71,12 +71,18 @@ sed	-e 's/\//\/TH /' \
 	-e 's/\/$/ ""\//' \
 	$UPPER >>$RESULT
 
-# Do the embedded references
+echo "# Do the embedded references" >>$RESULT
 sed	-e 's/</<fB/' \
 	-e 's/	/\\\\fR(/' \
 	-e 's/	/)\/fB/' \
 	-e 's/	/\\\\fR(/' \
 	-e 's/\/$/)\//' \
+	$UPPER >>$RESULT
+
+echo "# Do the \fBxxx\fR references in the .NAME section" >>$RESULT
+sed	-e 's/\\</^\\\\fB/' \
+	-e 's/	[^	]*	/\\\\f[RP] -\/\\\\fB/' \
+	-e 's/	.*$/\\\\fR -\//' \
 	$UPPER >>$RESULT
 
 # Finally, send the result to standard output

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -40,14 +41,46 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.61 2002/06/16 00:31:57 tom Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.75 2006/03/04 20:06:09 tom Exp $")
 
 #include <fifo_defs.h>
 
 NCURSES_EXPORT_VAR(int)
 ESCDELAY = 1000;		/* max interval betw. chars in funkeys, in millisecs */
 
-static inline int
+#ifdef NCURSES_WGETCH_EVENTS
+#define TWAIT_MASK 7
+#else
+#define TWAIT_MASK 3
+#endif
+
+/*
+ * Check for mouse activity, returning nonzero if we find any.
+ */
+static int
+check_mouse_activity(int delay EVENTLIST_2nd(_nc_eventlist * evl))
+{
+    int rc;
+
+#if USE_SYSMOUSE
+    if ((SP->_mouse_type == M_SYSMOUSE)
+	&& (SP->_sysmouse_head < SP->_sysmouse_tail)) {
+	return 2;
+    }
+#endif
+    rc = _nc_timed_wait(TWAIT_MASK, delay, (int *) 0 EVENTLIST_2nd(evl));
+#if USE_SYSMOUSE
+    if ((SP->_mouse_type == M_SYSMOUSE)
+	&& (SP->_sysmouse_head < SP->_sysmouse_tail)
+	&& (rc == 0)
+	&& (errno == EINTR)) {
+	rc |= 2;
+    }
+#endif
+    return rc;
+}
+
+static NCURSES_INLINE int
 fifo_peek(void)
 {
     int ch = SP->_fifo[peek];
@@ -57,7 +90,7 @@ fifo_peek(void)
     return ch;
 }
 
-static inline int
+static NCURSES_INLINE int
 fifo_pull(void)
 {
     int ch;
@@ -77,12 +110,14 @@ fifo_pull(void)
     return ch;
 }
 
-static inline int
-fifo_push(void)
+static NCURSES_INLINE int
+fifo_push(EVENTLIST_0th(_nc_eventlist * evl))
 {
     int n;
-    int ch;
+    int ch = 0;
+    int mask = 0;
 
+    (void) mask;
     if (tail == -1)
 	return ERR;
 
@@ -91,15 +126,48 @@ fifo_push(void)
     errno = 0;
 #endif
 
-#if USE_GPM_SUPPORT || defined(USE_EMX_MOUSE)
-    if ((SP->_mouse_fd >= 0)
-	&& (_nc_timed_wait(3, -1, (int *) 0) & 2)) {
+#ifdef NCURSES_WGETCH_EVENTS
+    if (evl
+#if USE_GPM_SUPPORT || USE_EMX_MOUSE || USE_SYSMOUSE
+	|| (SP->_mouse_fd >= 0)
+#endif
+	) {
+	mask = check_mouse_activity(-1 EVENTLIST_2nd(evl));
+    } else
+	mask = 0;
+
+    if (mask & 4) {
+	T(("fifo_push: ungetch KEY_EVENT"));
+	ungetch(KEY_EVENT);
+	return KEY_EVENT;
+    }
+#elif USE_GPM_SUPPORT || USE_EMX_MOUSE || USE_SYSMOUSE
+    if (SP->_mouse_fd >= 0) {
+	mask = check_mouse_activity(-1 EVENTLIST_2nd(evl));
+    }
+#endif
+
+#if USE_GPM_SUPPORT || USE_EMX_MOUSE
+    if ((SP->_mouse_fd >= 0) && (mask & 2)) {
 	SP->_mouse_event(SP);
 	ch = KEY_MOUSE;
 	n = 1;
     } else
 #endif
-    {
+#if USE_SYSMOUSE
+	if ((SP->_mouse_type == M_SYSMOUSE)
+	    && (SP->_sysmouse_head < SP->_sysmouse_tail)) {
+	SP->_mouse_event(SP);
+	ch = KEY_MOUSE;
+	n = 1;
+    } else if ((SP->_mouse_type == M_SYSMOUSE)
+	       && (mask <= 0) && errno == EINTR) {
+	SP->_mouse_event(SP);
+	ch = KEY_MOUSE;
+	n = 1;
+    } else
+#endif
+    {				/* Can block... */
 	unsigned char c2 = 0;
 	n = read(SP->_ifd, &c2, 1);
 	ch = c2;
@@ -138,7 +206,7 @@ fifo_push(void)
     return ch;
 }
 
-static inline void
+static NCURSES_INLINE void
 fifo_clear(void)
 {
     memset(SP->_fifo, 0, sizeof(SP->_fifo));
@@ -146,21 +214,27 @@ fifo_clear(void)
     tail = peek = 0;
 }
 
-static int kgetch(void);
+static int kgetch(EVENTLIST_0th(_nc_eventlist * evl));
 
 #define wgetch_should_refresh(win) (\
 	(is_wintouched(win) || (win->_flags & _HASMOVED)) \
 	&& !(win->_flags & _ISPAD))
 
 NCURSES_EXPORT(int)
-_nc_wgetch(WINDOW *win, unsigned long *result, int use_meta)
+_nc_wgetch(WINDOW *win,
+	   unsigned long *result,
+	   int use_meta
+	   EVENTLIST_2nd(_nc_eventlist * evl))
 {
     int ch;
+#ifdef NCURSES_WGETCH_EVENTS
+    long event_delay = -1;
+#endif
 
-    T((T_CALLED("wgetch(%p)"), win));
+    T((T_CALLED("_nc_wgetch(%p)"), win));
 
     *result = 0;
-    if (!win)
+    if (win == 0 || SP == 0)
 	returnCode(ERR);
 
     if (cooked_key_in_fifo()) {
@@ -170,23 +244,46 @@ _nc_wgetch(WINDOW *win, unsigned long *result, int use_meta)
 	*result = fifo_pull();
 	returnCode(OK);
     }
+#ifdef NCURSES_WGETCH_EVENTS
+    if (evl && (evl->count == 0))
+	evl = NULL;
+    event_delay = _nc_eventlist_timeout(evl);
+#endif
 
     /*
      * Handle cooked mode.  Grab a string from the screen,
      * stuff its contents in the FIFO queue, and pop off
      * the first character to return it.
      */
-    if (head == -1 && !SP->_raw && !SP->_cbreak) {
+    if (head == -1 &&
+	!SP->_notty &&
+	!SP->_raw &&
+	!SP->_cbreak &&
+	!SP->_called_wgetch) {
 	char buf[MAXCOLUMNS], *sp;
+	int rc;
 
 	TR(TRACE_IEVENT, ("filling queue in cooked mode"));
 
-	wgetnstr(win, buf, MAXCOLUMNS);
+	SP->_called_wgetch = TRUE;
+	rc = wgetnstr(win, buf, MAXCOLUMNS);
+	SP->_called_wgetch = FALSE;
 
 	/* ungetch in reverse order */
-	ungetch('\n');
+#ifdef NCURSES_WGETCH_EVENTS
+	if (rc != KEY_EVENT)
+#endif
+	    ungetch('\n');
 	for (sp = buf + strlen(buf); sp > buf; sp--)
 	    ungetch(sp[-1]);
+
+#ifdef NCURSES_WGETCH_EVENTS
+	/* Return it first */
+	if (rc == KEY_EVENT) {
+	    *result = rc;
+	    returnCode(OK);
+	}
+#endif
 
 	*result = fifo_pull();
 	returnCode(OK);
@@ -199,19 +296,34 @@ _nc_wgetch(WINDOW *win, unsigned long *result, int use_meta)
 	wrefresh(win);
 
     if (!win->_notimeout && (win->_delay >= 0 || SP->_cbreak > 1)) {
-	int delay;
+	if (head == -1) {	/* fifo is empty */
+	    int delay;
+	    int rc;
 
-	TR(TRACE_IEVENT, ("timed delay in wgetch()"));
-	if (SP->_cbreak > 1)
-	    delay = (SP->_cbreak - 1) * 100;
-	else
-	    delay = win->_delay;
+	    TR(TRACE_IEVENT, ("timed delay in wgetch()"));
+	    if (SP->_cbreak > 1)
+		delay = (SP->_cbreak - 1) * 100;
+	    else
+		delay = win->_delay;
 
-	TR(TRACE_IEVENT, ("delay is %d milliseconds", delay));
+#ifdef NCURSES_WGETCH_EVENTS
+	    if (event_delay >= 0 && delay > event_delay)
+		delay = event_delay;
+#endif
 
-	if (head == -1)		/* fifo is empty */
-	    if (!_nc_timed_wait(3, delay, (int *) 0))
+	    TR(TRACE_IEVENT, ("delay is %d milliseconds", delay));
+
+	    rc = check_mouse_activity(delay EVENTLIST_2nd(evl));
+
+#ifdef NCURSES_WGETCH_EVENTS
+	    if (rc & 4) {
+		*result = KEY_EVENT;
+		returnCode(OK);
+	    }
+#endif
+	    if (!rc)
 		returnCode(ERR);
+	}
 	/* else go on to read data available */
     }
 
@@ -228,9 +340,10 @@ _nc_wgetch(WINDOW *win, unsigned long *result, int use_meta)
 	 * increase the wait with mouseinterval().
 	 */
 	int runcount = 0;
+	int rc;
 
 	do {
-	    ch = kgetch();
+	    ch = kgetch(EVENTLIST_1st(evl));
 	    if (ch == KEY_MOUSE) {
 		++runcount;
 		if (SP->_mouse_inline(SP))
@@ -240,16 +353,32 @@ _nc_wgetch(WINDOW *win, unsigned long *result, int use_meta)
 		break;
 	} while
 	    (ch == KEY_MOUSE
-	     && (_nc_timed_wait(3, SP->_maxclick, (int *) 0)
+	     && (((rc = check_mouse_activity(SP->_maxclick
+					     EVENTLIST_2nd(evl))) != 0
+		  && !(rc & 4))
 		 || !SP->_mouse_parse(runcount)));
-	if (runcount > 0 && ch != KEY_MOUSE) {
-	    /* mouse event sequence ended by keystroke, push it */
+#ifdef NCURSES_WGETCH_EVENTS
+	if ((rc & 4) && !ch == KEY_EVENT) {
 	    ungetch(ch);
-	    ch = KEY_MOUSE;
+	    ch = KEY_EVENT;
+	}
+#endif
+	if (runcount > 0 && ch != KEY_MOUSE) {
+#ifdef NCURSES_WGETCH_EVENTS
+	    /* mouse event sequence ended by an event, report event */
+	    if (ch == KEY_EVENT) {
+		ungetch(KEY_MOUSE);	/* FIXME This interrupts a gesture... */
+	    } else
+#endif
+	    {
+		/* mouse event sequence ended by keystroke, store keystroke */
+		ungetch(ch);
+		ch = KEY_MOUSE;
+	    }
 	}
     } else {
 	if (head == -1)
-	    fifo_push();
+	    fifo_push(EVENTLIST_1st(evl));
 	ch = fifo_pull();
     }
 
@@ -312,6 +441,24 @@ _nc_wgetch(WINDOW *win, unsigned long *result, int use_meta)
     returnCode(ch >= KEY_MIN ? KEY_CODE_YES : OK);
 }
 
+#ifdef NCURSES_WGETCH_EVENTS
+NCURSES_EXPORT(int)
+wgetch_events(WINDOW *win, _nc_eventlist * evl)
+{
+    int code;
+    unsigned long value;
+
+    T((T_CALLED("wgetch_events(%p,%p)"), win, evl));
+    code = _nc_wgetch(win,
+		      &value,
+		      SP->_use_meta
+		      EVENTLIST_2nd(evl));
+    if (code != ERR)
+	code = value;
+    returnCode(code);
+}
+#endif
+
 NCURSES_EXPORT(int)
 wgetch(WINDOW *win)
 {
@@ -319,7 +466,10 @@ wgetch(WINDOW *win)
     unsigned long value;
 
     T((T_CALLED("wgetch(%p)"), win));
-    code = _nc_wgetch(win, &value, SP->_use_meta);
+    code = _nc_wgetch(win,
+		      &value,
+		      (SP ? SP->_use_meta : 0)
+		      EVENTLIST_2nd((_nc_eventlist *) 0));
     if (code != ERR)
 	code = value;
     returnCode(code);
@@ -341,7 +491,7 @@ wgetch(WINDOW *win)
 */
 
 static int
-kgetch(void)
+kgetch(EVENTLIST_0th(_nc_eventlist * evl))
 {
     struct tries *ptr;
     int ch = 0;
@@ -352,14 +502,28 @@ kgetch(void)
     ptr = SP->_keytry;
 
     for (;;) {
-	if (!raw_key_in_fifo()) {
-	    if (fifo_push() == ERR) {
+	if (cooked_key_in_fifo() && SP->_fifo[head] >= KEY_MIN) {
+	    break;
+	} else if (!raw_key_in_fifo()) {
+	    ch = fifo_push(EVENTLIST_1st(evl));
+	    if (ch == ERR) {
 		peek = head;	/* the keys stay uninterpreted */
 		return ERR;
 	    }
+#ifdef NCURSES_WGETCH_EVENTS
+	    else if (ch == KEY_EVENT) {
+		peek = head;	/* the keys stay uninterpreted */
+		return fifo_pull();	/* Remove KEY_EVENT from the queue */
+	    }
+#endif
 	}
+
 	ch = fifo_peek();
 	if (ch >= KEY_MIN) {
+	    /* If not first in queue, somebody put this key there on purpose in
+	     * emergency.  Consider it higher priority than the unfinished
+	     * keysequence we are parsing.
+	     */
 	    peek = head;
 	    /* assume the key is the last in fifo */
 	    t_dec();		/* remove the key */
@@ -389,8 +553,19 @@ kgetch(void)
 	ptr = ptr->child;
 
 	if (!raw_key_in_fifo()) {
+	    int rc;
+
 	    TR(TRACE_IEVENT, ("waiting for rest of sequence"));
-	    if (!_nc_timed_wait(3, timeleft, &timeleft)) {
+	    rc = check_mouse_activity(timeleft EVENTLIST_2nd(evl));
+#ifdef NCURSES_WGETCH_EVENTS
+	    if (rc & 4) {
+		TR(TRACE_IEVENT, ("interrupted by a user event"));
+		/* FIXME Should have preserved remainder timeleft for reuse... */
+		peek = head;	/* Restart interpreting later */
+		return KEY_EVENT;
+	    }
+#endif
+	    if (!rc) {
 		TR(TRACE_IEVENT, ("ran out of time"));
 		break;
 	    }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_pad.c,v 1.37 2002/05/23 23:39:26 tom Exp $")
+MODULE_ID("$Id: lib_pad.c,v 1.41 2006/10/14 20:47:13 tom Exp $")
 
 NCURSES_EXPORT(WINDOW *)
 newpad(int l, int c)
@@ -71,8 +71,7 @@ newpad(int l, int c)
 }
 
 NCURSES_EXPORT(WINDOW *)
-subpad
-(WINDOW *orig, int l, int c, int begy, int begx)
+subpad(WINDOW *orig, int l, int c, int begy, int begx)
 {
     WINDOW *win = (WINDOW *) 0;
 
@@ -87,9 +86,13 @@ subpad
 }
 
 NCURSES_EXPORT(int)
-prefresh
-(WINDOW *win, int pminrow, int pmincol,
- int sminrow, int smincol, int smaxrow, int smaxcol)
+prefresh(WINDOW *win,
+	 int pminrow,
+	 int pmincol,
+	 int sminrow,
+	 int smincol,
+	 int smaxrow,
+	 int smaxcol)
 {
     T((T_CALLED("prefresh()")));
     if (pnoutrefresh(win, pminrow, pmincol, sminrow, smincol, smaxrow,
@@ -101,9 +104,13 @@ prefresh
 }
 
 NCURSES_EXPORT(int)
-pnoutrefresh
-(WINDOW *win, int pminrow, int pmincol,
- int sminrow, int smincol, int smaxrow, int smaxcol)
+pnoutrefresh(WINDOW *win,
+	     int pminrow,
+	     int pmincol,
+	     int sminrow,
+	     int smincol,
+	     int smaxrow,
+	     int smaxcol)
 {
     NCURSES_SIZE_T i, j;
     NCURSES_SIZE_T m, n;
@@ -138,8 +145,10 @@ pnoutrefresh
     pmaxrow = pminrow + smaxrow - sminrow;
     pmaxcol = pmincol + smaxcol - smincol;
 
-    T((" pminrow + smaxrow - sminrow %d, win->_maxy %d", pmaxrow, win->_maxy));
-    T((" pmincol + smaxcol - smincol %d, win->_maxx %d", pmaxcol, win->_maxx));
+    T((" pminrow + smaxrow - sminrow %ld, win->_maxy %ld",
+       (long) pmaxrow, (long) win->_maxy));
+    T((" pmincol + smaxcol - smincol %ld, win->_maxx %ld",
+       (long) pmaxcol, (long) win->_maxx));
 
     /*
      * Trim the caller's screen size back to the actual limits.
@@ -153,8 +162,8 @@ pnoutrefresh
 	pmaxcol = pmincol + smaxcol - smincol;
     }
 
-    if (smaxrow > screen_lines
-	|| smaxcol > screen_columns
+    if (smaxrow >= screen_lines
+	|| smaxcol >= screen_columns
 	|| sminrow > smaxrow
 	|| smincol > smaxcol)
 	returnCode(ERR);
@@ -202,7 +211,7 @@ pnoutrefresh
 	     */
 	    if (j == pmincol
 		&& j > 0
-		&& isnac(ch)) {
+		&& isWidecExt(ch)) {
 		SetChar(ch, L(' '), AttrOf(oline->text[j - 1]));
 	    }
 #endif

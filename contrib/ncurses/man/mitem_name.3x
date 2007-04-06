@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_name.3x,v 1.5 1998/11/29 01:11:29 Rick.Ohnemus Exp $
+.\" $Id: mitem_name.3x,v 1.6 2006/11/04 17:53:40 tom Exp $
 .TH mitem_name 3X ""
 .SH NAME
 \fBmitem_name\fR - get menu item name and description fields
@@ -44,15 +44,16 @@ The function \fBitem_name\fR returns the name part of the given item.
 The function \fBitem_description\fR returns the description part of the given
 item.
 .SH RETURN VALUE
-These routines returns \fBNULL\fR on error.
+These routines return a pointer (which may be \fBNULL\fR).
+They do not set errno.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).
 .SH NOTES
 The header file \fB<menu.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V menu library.  They were not supported on
-Version 7 or BSD versions.
+These routines emulate the System V menu library.
+They were not supported on Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
 S. Raymond.

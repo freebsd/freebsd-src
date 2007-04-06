@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,24 +26,28 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: toe.1m,v 1.10 2000/08/19 18:51:05 tom Exp $
+.\" $Id: toe.1m,v 1.18 2006/05/13 15:14:01 tom Exp $
 .TH toe 1M ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
 \fBtoe\fR - table of (terminfo) entries
 .SH SYNOPSIS
-\fBtoe\fR [\fB-v\fR[\fIn\fR]] [\fB-huUV\fR] \fIfile...\fR
+\fBtoe\fR [\fB-v\fR[\fIn\fR]] [\fB-ahuUV\fR] \fIfile...\fR
 .br
 .SH DESCRIPTION
 .PP
 With no options, \fBtoe\fR lists all available terminal types by primary name
 with descriptions.  File arguments specify the directories to be scanned; if no
 such arguments are given, your default terminfo directory is scanned.  If you
-also specify the -h option, a directory header will be issued as each
-directory is entered. 
+also specify the \fB-h\fR option, a directory header will be issued as each
+directory is entered.
 .PP
 There are other options intended for use by terminfo file maintainers:
+.TP
+\fB-a\fR
+report on all of the terminal databases which ncurses would search,
+rather than only the first one that it finds.
 .TP
 \fB-u\fR \fIfile\fR
 says to issue a report on dependencies in the given file. This report condenses
@@ -60,10 +64,11 @@ whitespace-separated primary names of all terminals which depend on it,
 followed by a newline.
 .TP
 \fB-v\fR\fIn\fR
-specifies that (verbose) output be written to standard error trace
-information showing \fBtoe\fR's progress.  The optional integer
-\fIn\fR is a number from 1 to 10, interpreted as for \fBtic\fR(1).
-.TP 5
+specifies that (verbose) output be written to standard error,
+showing \fBtoe\fR's progress.
+The optional parameter \fIn\fR is a number from 1 to 10,
+interpreted as for \fBtic\fR(1).
+.TP
 \fB-V\fR
 reports the version of ncurses which was used in this program, and exits.
 .SH FILES
@@ -71,8 +76,15 @@ reports the version of ncurses which was used in this program, and exits.
 \fB\*d/?/*\fR
 Compiled terminal description database.
 .SH SEE ALSO
-\fB@TIC@\fR(1M), \fB@INFOCMP@\fR(1M), \fB@CAPTOINFO@\fR(1M),
-\fB@INFOTOCAP@\fR(1M), \fBcurses\fR(3X), \fBterminfo\fR(\*n).
+\fB@TIC@\fR(1M),
+\fB@INFOCMP@\fR(1M),
+\fB@CAPTOINFO@\fR(1M),
+\fB@INFOTOCAP@\fR(1M),
+\fBcurses\fR(3X),
+\fBterminfo\fR(\*n).
+.PP
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

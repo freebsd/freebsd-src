@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,8 +27,10 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
+ *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
+
+/* $Id: menu.priv.h,v 1.22 2005/01/16 01:02:23 tom Exp $ */
 
 /***************************************************************************
 * Module menu.priv.h                                                       *
@@ -38,9 +40,7 @@
 #ifndef MENU_PRIV_H_incl
 #define MENU_PRIV_H_incl 1
 
-#include <ncurses_cfg.h>
-#include <curses.h>
-
+#include "curses.priv.h"
 #include "mf_common.h"
 #include "menu.h"
 
@@ -106,10 +106,13 @@ extern NCURSES_EXPORT_VAR(MENU) _nc_Default_Menu;
   { (menu)->pindex = 0; \
     (menu)->pattern[0] = '\0'; }
 
+#define UChar(c)	((unsigned char)(c))
+
 /* Internal functions. */
 extern NCURSES_EXPORT(void) _nc_Draw_Menu (const MENU *);
 extern NCURSES_EXPORT(void) _nc_Show_Menu (const MENU *);
 extern NCURSES_EXPORT(void) _nc_Calculate_Item_Length_and_Width (MENU *);
+extern NCURSES_EXPORT(int)  _nc_Calculate_Text_Width(const TEXT *);
 extern NCURSES_EXPORT(void) _nc_Post_Item (const MENU *, const ITEM *);
 extern NCURSES_EXPORT(bool) _nc_Connect_Items (MENU *, ITEM **);
 extern NCURSES_EXPORT(void) _nc_Disconnect_Items (MENU *);
@@ -118,5 +121,32 @@ extern NCURSES_EXPORT(void) _nc_Link_Items (MENU *);
 extern NCURSES_EXPORT(int)  _nc_Match_Next_Character_In_Item_Name (MENU*,int,ITEM**);
 extern NCURSES_EXPORT(int)  _nc_menu_cursor_pos (const MENU* menu, const ITEM* item,
 				int* pY, int* pX);
+
+#ifdef TRACE
+
+#define returnItem(code)	TRACE_RETURN(code,item)
+#define returnItemPtr(code)	TRACE_RETURN(code,item_ptr)
+#define returnItemOpts(code)	TRACE_RETURN(code,item_opts)
+#define returnMenu(code)	TRACE_RETURN(code,menu)
+#define returnMenuHook(code)	TRACE_RETURN(code,menu_hook)
+#define returnMenuOpts(code)	TRACE_RETURN(code,menu_opts)
+
+extern NCURSES_EXPORT(ITEM *)	    _nc_retrace_item (ITEM *);
+extern NCURSES_EXPORT(ITEM **)	    _nc_retrace_item_ptr (ITEM **);
+extern NCURSES_EXPORT(Item_Options) _nc_retrace_item_opts (Item_Options);
+extern NCURSES_EXPORT(MENU *)	    _nc_retrace_menu (MENU *);
+extern NCURSES_EXPORT(Menu_Hook)    _nc_retrace_menu_hook (Menu_Hook);
+extern NCURSES_EXPORT(Menu_Options) _nc_retrace_menu_opts (Menu_Options);
+
+#else /* !TRACE */
+
+#define returnItem(code)	return code
+#define returnItemPtr(code)	return code
+#define returnItemOpts(code)	return code
+#define returnMenu(code)	return code
+#define returnMenuHook(code)	return code
+#define returnMenuOpts(code)	return code
+
+#endif /* TRACE/!TRACE */
 
 #endif /* MENU_PRIV_H_incl */

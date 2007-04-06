@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: tar-copy.sh,v 1.3 1998/02/11 12:14:03 tom Exp $
+# $Id: tar-copy.sh,v 1.5 2003/10/25 14:40:07 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,2003 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,7 +28,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1997,1998
+# Author: Thomas E. Dickey
 #
 # Copy a collection of files using 'tar', so that their dates and links are
 # preserved
@@ -55,16 +55,23 @@ fi
 WD=`pwd`
 
 TMP=$WD/copy$$
-trap "rm -f $TMP" 0 1 2 5 15
 
 cd $2
-if ( tar cf $TMP $1 )
+TEST=`ls -d $1 2>/dev/null`
+if test -z "$TEST"
 then
-	cd $3
-	LIST=`tar tf $TMP 2>&1`
-	$DOIT rm -rf $LIST 2>/dev/null
-	$DOIT tar xvf $TMP
+	echo "... no match for \"$1\" in $2"
 else
-	echo "Cannot create tar of $1 files"
-	exit 1
+	echo "... installing files matching \"$1\" in $2"
+	trap "rm -f $TMP" 0 1 2 5 15
+	if ( tar cf $TMP $1 )
+	then
+		cd $3
+		LIST=`tar tf $TMP 2>&1`
+		$DOIT rm -rf $LIST 2>/dev/null
+		$DOIT tar xvf $TMP
+	else
+		echo "Cannot create tar of $1 files"
+		exit 1
+	fi
 fi

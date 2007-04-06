@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2000,2003 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 #include <term_entry.h>		/* TTY, cur_term */
 #include <termcap.h>		/* ospeed */
 
-MODULE_ID("$Id: lib_cur_term.c,v 1.11 2000/12/10 02:55:07 tom Exp $")
+MODULE_ID("$Id: lib_cur_term.c,v 1.13 2003/12/27 18:21:30 tom Exp $")
 
 NCURSES_EXPORT_VAR(TERMINAL *) cur_term = 0;
 
@@ -49,11 +49,14 @@ set_curterm(TERMINAL * termp)
 {
     TERMINAL *oldterm = cur_term;
 
+    T((T_CALLED("set_curterm(%p)"), termp));
+
     if ((cur_term = termp) != 0) {
 	ospeed = _nc_ospeed(cur_term->_baudrate);
 	PC = (pad_char != NULL) ? pad_char[0] : 0;
     }
-    return oldterm;
+    T((T_RETURN("%p"), oldterm));
+    return (oldterm);
 }
 
 NCURSES_EXPORT(int)
@@ -63,6 +66,7 @@ del_curterm(TERMINAL * termp)
 
     if (termp != 0) {
 	_nc_free_termtype(&(termp->type));
+	FreeIfNeeded(termp->_termname);
 	free(termp);
 	if (termp == cur_term)
 	    cur_term = 0;

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 2002-2005,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_get_wstr.3x,v 1.2 2002/05/18 21:48:15 tom Exp $
+.\" $Id: curs_get_wstr.3x,v 1.6 2006/02/25 21:49:19 tom Exp $
 .TH curs_get_wstr 3X ""
+.na
+.hy 0
 .SH NAME
 \fBget_wstr\fR,
 \fBgetn_wstr\fR,
@@ -37,10 +39,12 @@
 \fBmvgetn_wstr\fR,
 \fBmvwget_wstr\fR,
 \fBmvwgetn_wstr\fR \- get an array of wide characters from a curses terminal keyboard
+.ad
+.hy
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>\fR
-
+.sp
 \fBint get_wstr(wint_t *\fR\fIwstr\fR\fB);\fR
 .br
 \fBint getn_wstr(wint_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
@@ -68,22 +72,22 @@ An end-of-file condition is represented by \fBWEOF\fR, as defined in \fB<wchar.h
 The newline and end-of-line conditions are represented by the \fB\\n\fR \fBwchar_t\fR value.
 In all instances, the end of the string is terminated by a null \fBwchar_t\fR.
 The routine places resulting values in the area pointed to by \fIwstr\fR.
-
+.PP
 The user's erase and kill characters are interpreted.  If keypad
 mode is on for the window, \fBKEY_LEFT\fR and \fBKEY_BACKSPACE\fR
 are both considered equivalent to the user's kill character.
-
+.PP
 Characters input are echoed only if \fBecho\fR is currently on.  In that case,
 backspace is echoed as deletion of the previous character (typically a left
 motion).
-
+.PP
 The effect of
 \fBwget_wstr\fR
 is as though a series of
 calls to
 \fBwget_wch\fR
 were made.
-
+.PP
 The effect of
 \fBmvget_wstr\fR
 is as though a call to
@@ -92,7 +96,7 @@ and then a series of calls to
 \fBget_wch\fR
 were
 made.
-
+.PP
 The effect of
 \fBmvwget_wstr\fR
 is as though a call to
@@ -100,7 +104,7 @@ is as though a call to
 and then a series of calls to
 \fBwget_wch\fR
 were made.
-
+.PP
 The
 \fBgetn_wstr\fR,
 \fBmvgetn_wstr\fR,
@@ -135,14 +139,21 @@ The use of
 \fBmvgetn_wstr\fR,
 \fBmvwgetn_wstr\fR, or
 \fBwgetn_wstr\fR, respectively, is recommended.
-
+.PP
 These functions cannot return \fBKEY_\fR values because there
 is no way to distinguish a \fBKEY_\fR value from a valid \fBwchar_t\fR value.
-
+.PP
 All of these routines except \fBwgetn_wstr\fR may be macros.
 .SH RETURN VALUES
 All of these functions return \fBOK\fR upon successful completion.
 Otherwise, they return \fBERR\fR.
+.PP
+Functions using a window parameter return an error if it is null.
+.RS
+.TP 5
+\fBwgetn_wstr\fP
+returns an error if the associated call to \fBwget_wch\fP failed.
+.RE
 .SH PORTABILITY
 These functions are described in The Single Unix Specification, Version 2.
 No error conditions are defined.
@@ -151,6 +162,9 @@ or if the lower-level \fBwget_wch\fR call returns an ERR.
 In the latter case,
 an ERR return without other data is treated as an end-of-file condition,
 and the returned array contains a \fBWEOF\fR followed by a null \fBwchar_t\fR.
+.PP
+X/Open curses documents these functions to pass an array of \fBwchar_t\fR,
+but all of the vendors implement this using \fBwint_t\fR.
 .SH SEE ALSO
 Functions:
 \fBcurses\fR(3X),

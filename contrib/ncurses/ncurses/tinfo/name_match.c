@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2004,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 #include <term.h>
 #include <tic.h>
 
-MODULE_ID("$Id: name_match.c,v 1.11 2001/09/22 21:11:34 tom Exp $")
+MODULE_ID("$Id: name_match.c,v 1.15 2005/01/22 21:47:25 tom Exp $")
 
 /*
  *	_nc_first_name(char *names)
@@ -49,8 +49,16 @@ _nc_first_name(const char *const sp)
     static char *buf;
     register unsigned n;
 
+#if NO_LEAKS
+    if (sp == 0) {
+	if (buf != 0)
+	    FreeAndNull(buf);	/* for leak-testing */
+	return 0;
+    }
+#endif
+
     if (buf == 0)
-	buf = _nc_doalloc(buf, MAX_NAME_SIZE + 1);
+	buf = typeMalloc(char, MAX_NAME_SIZE + 1);
     for (n = 0; n < MAX_NAME_SIZE; n++) {
 	if ((buf[n] = sp[n]) == '\0'
 	    || (buf[n] == '|'))
@@ -67,8 +75,7 @@ _nc_first_name(const char *const sp)
  */
 
 NCURSES_EXPORT(int)
-_nc_name_match
-(const char *const namelst, const char *const name, const char *const delim)
+_nc_name_match(const char *const namelst, const char *const name, const char *const delim)
 {
     const char *s, *d, *t;
     int code, found;

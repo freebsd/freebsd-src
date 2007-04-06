@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
+ *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
 /***************************************************************************
@@ -37,10 +37,10 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_global.c,v 1.13 2002/06/01 16:16:44 tom Exp $")
+MODULE_ID("$Id: m_global.c,v 1.23 2005/12/31 21:51:52 tom Exp $")
 
 static char mark[] = "-";
-
+/* *INDENT-OFF* */
 NCURSES_EXPORT_VAR(MENU) _nc_Default_Menu = {
   16,				  /* Nr. of chars high */
   1,				  /* Nr. of chars wide */
@@ -95,6 +95,7 @@ NCURSES_EXPORT_VAR(ITEM) _nc_Default_Item = {
   (ITEM *)0,		          /* up */
   (ITEM *)0		          /* down */
   };
+/* *INDENT-ON* */
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -105,24 +106,29 @@ NCURSES_EXPORT_VAR(ITEM) _nc_Default_Item = {
 |
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
-INLINE static void ComputeMaximum_NameDesc_Lengths(MENU * menu)
+NCURSES_INLINE static void
+ComputeMaximum_NameDesc_Lengths(MENU * menu)
 {
-  unsigned MaximumNameLength        = 0;
+  unsigned MaximumNameLength = 0;
   unsigned MaximumDescriptionLength = 0;
   ITEM **items;
-  
+  unsigned check;
+
   assert(menu && menu->items);
-  for( items = menu->items; *items ; items++ )
+  for (items = menu->items; *items; items++)
     {
-      if (items[0]->name.length > MaximumNameLength )
-	MaximumNameLength  = items[0]->name.length;
-      
-      if (items[0]->description.length > MaximumDescriptionLength)
-	MaximumDescriptionLength = items[0]->description.length;
+      check = _nc_Calculate_Text_Width(&((*items)->name));
+      if (check > MaximumNameLength)
+	MaximumNameLength = check;
+
+      check = _nc_Calculate_Text_Width(&((*items)->description));
+      if (check > MaximumDescriptionLength)
+	MaximumDescriptionLength = check;
     }
-  
+
   menu->namelen = MaximumNameLength;
   menu->desclen = MaximumDescriptionLength;
+  T(("ComputeMaximum_NameDesc_Lengths %d,%d", menu->namelen, menu->desclen));
 }
 
 /*---------------------------------------------------------------------------
@@ -134,22 +140,23 @@ INLINE static void ComputeMaximum_NameDesc_Lengths(MENU * menu)
 |
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
-INLINE static void ResetConnectionInfo(MENU *menu, ITEM **items)
+NCURSES_INLINE static void
+ResetConnectionInfo(MENU * menu, ITEM ** items)
 {
   ITEM **item;
-  
+
   assert(menu && items);
-  for(item=items; *item; item++)
+  for (item = items; *item; item++)
     {
       (*item)->index = 0;
-      (*item)->imenu = (MENU *)0;		
+      (*item)->imenu = (MENU *) 0;
     }
   if (menu->pattern)
     free(menu->pattern);
   menu->pattern = (char *)0;
-  menu->pindex  = 0;
-  menu->items   = (ITEM **)0;
-  menu->nitems  = 0;
+  menu->pindex = 0;
+  menu->items = (ITEM **) 0;
+  menu->nitems = 0;
 }
 
 /*---------------------------------------------------------------------------
@@ -160,29 +167,29 @@ INLINE static void ResetConnectionInfo(MENU *menu, ITEM **items)
 |                    Decorate all the items with a number and a backward
 |                    pointer to the menu.
 |
-|   Return Values :  TRUE       - successfull connection
+|   Return Values :  TRUE       - successful connection
 |                    FALSE      - connection failed
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(bool)
-_nc_Connect_Items (MENU *menu, ITEM **items)
+_nc_Connect_Items(MENU * menu, ITEM ** items)
 {
   ITEM **item;
   unsigned int ItemCount = 0;
-  
-  if ( menu && items )
-    {    
-      for(item=items; *item ; item++)
+
+  if (menu && items)
+    {
+      for (item = items; *item; item++)
 	{
-	  if ( (*item)->imenu )
+	  if ((*item)->imenu)
 	    {
 	      /* if a item is already connected, reject connection */
 	      break;
 	    }
 	}
-      if (! (*item) )		
+      if (!(*item))
 	/* we reached the end, so there was no connected item */
 	{
-	  for(item=items; *item ; item++)
+	  for (item = items; *item; item++)
 	    {
 	      if (menu->opt & O_ONEVALUE)
 		{
@@ -190,31 +197,31 @@ _nc_Connect_Items (MENU *menu, ITEM **items)
 		}
 	      (*item)->index = ItemCount++;
 	      (*item)->imenu = menu;
-	    }			
+	    }
 	}
     }
   else
-    return(FALSE);
-  
+    return (FALSE);
+
   if (ItemCount != 0)
     {
-      menu->items  = items;
+      menu->items = items;
       menu->nitems = ItemCount;
       ComputeMaximum_NameDesc_Lengths(menu);
-      if ( (menu->pattern = (char *)malloc( (unsigned)(1 + menu->namelen))) )
+      if ((menu->pattern = typeMalloc(char, (unsigned)(1 + menu->namelen))))
 	{
-	  Reset_Pattern(menu);	
-	  set_menu_format(menu,menu->frows,menu->fcols);
+	  Reset_Pattern(menu);
+	  set_menu_format(menu, menu->frows, menu->fcols);
 	  menu->curitem = *items;
 	  menu->toprow = 0;
-	  return(TRUE);
+	  return (TRUE);
 	}
     }
-  
+
   /* If we fall through to this point, we have to reset all items connection 
      and inform about a reject connection */
-  ResetConnectionInfo( menu, items );
-  return(FALSE);
+  ResetConnectionInfo(menu, items);
+  return (FALSE);
 }
 
 /*---------------------------------------------------------------------------
@@ -226,11 +233,99 @@ _nc_Connect_Items (MENU *menu, ITEM **items)
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(void)
-_nc_Disconnect_Items (MENU * menu)
+_nc_Disconnect_Items(MENU * menu)
 {
   if (menu && menu->items)
-    ResetConnectionInfo( menu, menu->items );
+    ResetConnectionInfo(menu, menu->items);
 }
+
+/*---------------------------------------------------------------------------
+|   Facility      :  libnmenu  
+|   Function      :  int _nc_Calculate_Text_Width(const TEXT * item)
+|   
+|   Description   :  Calculate the number of columns for a TEXT.
+|
+|   Return Values :  the width
++--------------------------------------------------------------------------*/
+NCURSES_EXPORT(int)
+_nc_Calculate_Text_Width(const TEXT * item /*FIXME: limit length */ )
+{
+#if USE_WIDEC_SUPPORT
+  int result = item->length;
+
+  T((T_CALLED("_nc_menu_text_width(%p)"), item));
+  if (result != 0 && item->str != 0)
+    {
+      int count = mbstowcs(0, item->str, 0);
+      wchar_t *temp = 0;
+
+      if (count > 0
+	  && (temp = typeMalloc(wchar_t, 2 + count)) != 0)
+	{
+	  int n;
+
+	  result = 0;
+	  mbstowcs(temp, item->str, (unsigned)count);
+	  for (n = 0; n < count; ++n)
+	    {
+	      int test = wcwidth(temp[n]);
+
+	      if (test <= 0)
+		test = 1;
+	      result += test;
+	    }
+	  free(temp);
+	}
+    }
+  returnCode(result);
+#else
+  return item->length;
+#endif
+}
+
+/*
+ * Calculate the actual width of a menu entry for wide-characters.
+ */
+#if USE_WIDEC_SUPPORT
+static int
+calculate_actual_width(MENU * menu, bool name)
+{
+  int width = 0;
+  int check = 0;
+  ITEM **items;
+
+  assert(menu && menu->items);
+
+  if (menu->items != 0)
+    {
+      for (items = menu->items; *items; items++)
+	{
+	  if (name)
+	    {
+	      check = _nc_Calculate_Text_Width(&((*items)->name));
+	    }
+	  else
+	    {
+	      check = _nc_Calculate_Text_Width(&((*items)->description));
+	    }
+	  if (check > width)
+	    width = check;
+	}
+    }
+  else
+    {
+      width = (name ? menu->namelen : menu->desclen);
+    }
+
+  T(("calculate_actual_width %s = %d/%d",
+     name ? "name" : "desc",
+     width,
+     name ? menu->namelen : menu->desclen));
+  return width;
+}
+#else
+#define calculate_actual_width(menu, name) (name ? menu->namelen : menu->desclen)
+#endif
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -242,93 +337,103 @@ _nc_Disconnect_Items (MENU * menu)
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(void)
-_nc_Calculate_Item_Length_and_Width (MENU * menu)
+_nc_Calculate_Item_Length_and_Width(MENU * menu)
 {
   int l;
-  
+
   assert(menu);
 
-  menu->height  = 1 + menu->spc_rows * (menu->arows - 1);
+  menu->height = 1 + menu->spc_rows * (menu->arows - 1);
 
-  l = menu->namelen + menu->marklen;
-  if ( (menu->opt & O_SHOWDESC) && (menu->desclen > 0) )
-    l += (menu->desclen + menu->spc_desc);
-  
+  l = calculate_actual_width(menu, TRUE);
+  l += menu->marklen;
+
+  if ((menu->opt & O_SHOWDESC) && (menu->desclen > 0))
+    {
+      l += calculate_actual_width(menu, FALSE);
+      l += menu->spc_desc;
+    }
+
   menu->itemlen = l;
   l *= menu->cols;
-  l += (menu->cols-1)*menu->spc_cols; /* for the padding between the columns */
+  l += (menu->cols - 1) * menu->spc_cols;	/* for the padding between the columns */
   menu->width = l;
-}  
+
+  T(("_nc_CalculateItem_Length_and_Width columns %d, item %d, width %d",
+     menu->cols,
+     menu->itemlen,
+     menu->width));
+}
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
 |   Function      :  void _nc_Link_Item(MENU *menu)
 |   
-|   Description   :  Statically calculate for every item its four neighbours.
+|   Description   :  Statically calculate for every item its four neighbors.
 |                    This depends on the orientation of the menu. This
-|                    static aproach simplifies navigation in the menu a lot.
+|                    static approach simplifies navigation in the menu a lot.
 |
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(void)
-_nc_Link_Items (MENU * menu)
+_nc_Link_Items(MENU * menu)
 {
   if (menu && menu->items && *(menu->items))
     {
-      int i,j;
+      int i, j;
       ITEM *item;
       int Number_Of_Items = menu->nitems;
       int col = 0, row = 0;
       int Last_in_Row;
       int Last_in_Column;
       bool cycle = (menu->opt & O_NONCYCLIC) ? FALSE : TRUE;
-      
+
       menu->status &= ~_LINK_NEEDED;
-      
+
       if (menu->opt & O_ROWMAJOR)
 	{
 	  int Number_Of_Columns = menu->cols;
-	  
-	  for(i=0; i < Number_Of_Items; i++)
+
+	  for (i = 0; i < Number_Of_Items; i++)
 	    {
 	      item = menu->items[i];
-	      
-	      Last_in_Row = row * Number_Of_Columns + (Number_Of_Columns-1);
-	      
-	      item->left  = (col) ? 
-		/* if we are not in the leftmost column, we can use the
-		   predecessor in the items array */
-		menu->items[i-1] :
-		  (cycle ? menu->items[(Last_in_Row>=Number_Of_Items) ? 
-				       Number_Of_Items-1:
-				       Last_in_Row] : 
-		   (ITEM *)0 );
-	      
-	      item->right = (  (col < (Number_Of_Columns-1)) && 
-			     ((i+1) < Number_Of_Items) 
-			     ) ? 
-			       menu->items[i+1] :
-				 ( cycle ? menu->items[row * Number_Of_Columns] : 
-				  (ITEM *)0
-				  );
-	      
-	      Last_in_Column = (menu->rows-1) * Number_Of_Columns + col;
-	      
-	      item->up    = (row) ? menu->items[i-Number_Of_Columns] :
-		(cycle ? menu->items[(Last_in_Column>=Number_Of_Items) ?
-				     Number_Of_Items-1 : 
-				     Last_in_Column] : 
-		 (ITEM *)0);
-	      
-	      item->down  = ( (i+Number_Of_Columns) < Number_Of_Items ) 
-		? 
-		  menu->items[i + Number_Of_Columns] :
-		    (cycle ? menu->items[(row+1)<menu->rows ?
-					 Number_Of_Items-1:col] : 
-		     (ITEM *)0);
+
+	      Last_in_Row = row * Number_Of_Columns + (Number_Of_Columns - 1);
+
+	      item->left = (col) ?
+	      /* if we are not in the leftmost column, we can use the
+	         predecessor in the items array */
+		menu->items[i - 1] :
+		(cycle ? menu->items[(Last_in_Row >= Number_Of_Items) ?
+				     Number_Of_Items - 1 :
+				     Last_in_Row] :
+		 (ITEM *) 0);
+
+	      item->right = ((col < (Number_Of_Columns - 1)) &&
+			     ((i + 1) < Number_Of_Items)
+		)?
+		menu->items[i + 1] :
+		(cycle ? menu->items[row * Number_Of_Columns] :
+		 (ITEM *) 0
+		);
+
+	      Last_in_Column = (menu->rows - 1) * Number_Of_Columns + col;
+
+	      item->up = (row) ? menu->items[i - Number_Of_Columns] :
+		(cycle ? menu->items[(Last_in_Column >= Number_Of_Items) ?
+				     Number_Of_Items - 1 :
+				     Last_in_Column] :
+		 (ITEM *) 0);
+
+	      item->down = ((i + Number_Of_Columns) < Number_Of_Items)
+		?
+		menu->items[i + Number_Of_Columns] :
+		(cycle ? menu->items[(row + 1) < menu->rows ?
+				     Number_Of_Items - 1 : col] :
+		 (ITEM *) 0);
 	      item->x = col;
 	      item->y = row;
-	      if ( ++col == Number_Of_Columns )
+	      if (++col == Number_Of_Columns)
 		{
 		  row++;
 		  col = 0;
@@ -338,48 +443,48 @@ _nc_Link_Items (MENU * menu)
       else
 	{
 	  int Number_Of_Rows = menu->rows;
-	  
-	  for(j=0; j<Number_Of_Items; j++)
+
+	  for (j = 0; j < Number_Of_Items; j++)
 	    {
-	      item = menu->items[i=(col * Number_Of_Rows + row)];
-	      
-	      Last_in_Column = (menu->cols-1) * Number_Of_Rows + row;
-	      
-	      item->left  = (col) ? 
+	      item = menu->items[i = (col * Number_Of_Rows + row)];
+
+	      Last_in_Column = (menu->cols - 1) * Number_Of_Rows + row;
+
+	      item->left = (col) ?
 		menu->items[i - Number_Of_Rows] :
-		  (cycle ? (Last_in_Column >= Number_Of_Items ) ? 
-		   menu->items[Last_in_Column-Number_Of_Rows] : 
-		   menu->items[Last_in_Column] : 
-		   (ITEM *)0 );
-	      
-	      item->right = ((i + Number_Of_Rows) <Number_Of_Items) 
-		? 
-		  menu->items[i + Number_Of_Rows] :
-		    (cycle ? menu->items[row] : (ITEM *)0);
-	      
+		(cycle ? (Last_in_Column >= Number_Of_Items) ?
+		 menu->items[Last_in_Column - Number_Of_Rows] :
+		 menu->items[Last_in_Column] :
+		 (ITEM *) 0);
+
+	      item->right = ((i + Number_Of_Rows) < Number_Of_Items)
+		?
+		menu->items[i + Number_Of_Rows] :
+		(cycle ? menu->items[row] : (ITEM *) 0);
+
 	      Last_in_Row = col * Number_Of_Rows + (Number_Of_Rows - 1);
-	      
-	      item->up    = (row) ? 
-		menu->items[i-1] :
-		  (cycle ?
-		   menu->items[(Last_in_Row>=Number_Of_Items) ? 
-			       Number_Of_Items-1:
-			       Last_in_Row] :
-		   (ITEM *)0);
-	      
-	      item->down  = (row < (Number_Of_Rows-1)) 
-		? 
-		  (menu->items[((i+1)<Number_Of_Items) ? 
-			       i+1 :
-			       (col-1)*Number_Of_Rows + row + 1]) :
-				 (cycle ?
-				  menu->items[col * Number_Of_Rows] :
-				  (ITEM *)0
-				  );
-	      
+
+	      item->up = (row) ?
+		menu->items[i - 1] :
+		(cycle ?
+		 menu->items[(Last_in_Row >= Number_Of_Items) ?
+			     Number_Of_Items - 1 :
+			     Last_in_Row] :
+		 (ITEM *) 0);
+
+	      item->down = (row < (Number_Of_Rows - 1))
+		?
+		(menu->items[((i + 1) < Number_Of_Items) ?
+			     i + 1 :
+			     (col - 1) * Number_Of_Rows + row + 1]) :
+		(cycle ?
+		 menu->items[col * Number_Of_Rows] :
+		 (ITEM *) 0
+		);
+
 	      item->x = col;
 	      item->y = row;
-	      if ( (++row) == Number_Of_Rows )
+	      if ((++row) == Number_Of_Rows)
 		{
 		  col++;
 		  row = 0;
@@ -398,31 +503,31 @@ _nc_Link_Items (MENU * menu)
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(void)
-_nc_Show_Menu (const MENU *menu)
+_nc_Show_Menu(const MENU * menu)
 {
   WINDOW *win;
   int maxy, maxx;
-  
+
   assert(menu);
-  if ( (menu->status & _POSTED) && !(menu->status & _IN_DRIVER) )
+  if ((menu->status & _POSTED) && !(menu->status & _IN_DRIVER))
     {
       /* adjust the internal subwindow to start on the current top */
       assert(menu->sub);
-      mvderwin(menu->sub,menu->spc_rows * menu->toprow,0);
+      mvderwin(menu->sub, menu->spc_rows * menu->toprow, 0);
       win = Get_Menu_Window(menu);
-      
+
       maxy = getmaxy(win);
-      maxx = getmaxx(win);	 
-      
-      if (menu->height < maxy) 
+      maxx = getmaxx(win);
+
+      if (menu->height < maxy)
 	maxy = menu->height;
-      if (menu->width < maxx) 
+      if (menu->width < maxx)
 	maxx = menu->width;
-      
-      copywin(menu->sub,win,0,0,0,0,maxy-1,maxx-1,0);
+
+      copywin(menu->sub, win, 0, 0, 0, 0, maxy - 1, maxx - 1, 0);
       pos_menu_cursor(menu);
-    }	
-}	
+    }
+}
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -438,41 +543,41 @@ _nc_Show_Menu (const MENU *menu)
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(void)
-_nc_New_TopRow_and_CurrentItem
-(MENU *menu, int new_toprow, ITEM *new_current_item)
+  _nc_New_TopRow_and_CurrentItem
+  (MENU * menu, int new_toprow, ITEM * new_current_item)
 {
   ITEM *cur_item;
   bool mterm_called = FALSE;
   bool iterm_called = FALSE;
-  
+
   assert(menu);
   if (menu->status & _POSTED)
     {
       if (new_current_item != menu->curitem)
 	{
-	  Call_Hook(menu,itemterm);
+	  Call_Hook(menu, itemterm);
 	  iterm_called = TRUE;
 	}
       if (new_toprow != menu->toprow)
 	{
-	  Call_Hook(menu,menuterm);
+	  Call_Hook(menu, menuterm);
 	  mterm_called = TRUE;
-	}			
-      
-      cur_item  = menu->curitem;
+	}
+
+      cur_item = menu->curitem;
       assert(cur_item);
-      menu->toprow  = new_toprow;
-      menu->curitem = new_current_item;			
-      
+      menu->toprow = new_toprow;
+      menu->curitem = new_current_item;
+
       if (mterm_called)
 	{
-	  Call_Hook(menu,menuinit);
+	  Call_Hook(menu, menuinit);
 	}
       if (iterm_called)
 	{
 	  /* this means, move from the old current_item to the new one... */
-	  Move_To_Current_Item( menu, cur_item );
-	  Call_Hook(menu,iteminit);
+	  Move_To_Current_Item(menu, cur_item);
+	  Call_Hook(menu, iteminit);
 	}
       if (mterm_called || iterm_called)
 	{
@@ -482,8 +587,8 @@ _nc_New_TopRow_and_CurrentItem
 	pos_menu_cursor(menu);
     }
   else
-    { /* if we are not posted, this is quite simple */
-      menu->toprow  = new_toprow;
+    {				/* if we are not posted, this is quite simple */
+      menu->toprow = new_toprow;
       menu->curitem = new_current_item;
     }
 }

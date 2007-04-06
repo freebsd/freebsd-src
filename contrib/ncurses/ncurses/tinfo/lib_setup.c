@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey 1996-2003                                      *
  ****************************************************************************/
 
 /*
@@ -46,9 +47,13 @@
 #define _POSIX_SOURCE
 #endif
 
+#if HAVE_LOCALE_H
+#include <locale.h>
+#endif
+
 #include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_setup.c,v 1.68 2001/12/08 22:14:18 tom Exp $")
+MODULE_ID("$Id: lib_setup.c,v 1.95 2006/07/28 22:58:13 tom Exp $")
 
 /****************************************************************************
  *
@@ -72,6 +77,10 @@ MODULE_ID("$Id: lib_setup.c,v 1.68 2001/12/08 22:14:18 tom Exp $")
 # include <sys/ptem.h>
 #endif
 
+#if HAVE_LANGINFO_CODESET
+#include <langinfo.h>
+#endif
+
 /*
  * SCO defines TIOCGSIZE and the corresponding struct.  Other systems (SunOS,
  * Solaris, IRIX) define TIOCGWINSZ and struct winsize.
@@ -90,9 +99,58 @@ MODULE_ID("$Id: lib_setup.c,v 1.68 2001/12/08 22:14:18 tom Exp $")
 # endif
 #endif
 
+NCURSES_EXPORT_VAR(char) ttytype[NAMESIZE] = "";
+NCURSES_EXPORT_VAR(int) LINES = 0;
+NCURSES_EXPORT_VAR(int) COLS = 0;
+NCURSES_EXPORT_VAR(int) TABSIZE = 0;
+
 static int _use_env = TRUE;
 
-static void do_prototype(void);
+#if USE_SIGWINCH
+int
+_nc_handle_sigwinch(int enable)
+{
+    static int have_sigwinch = 0;	/* initially no SIGWINCH's */
+    static int can_resizeall = 1;	/* initially enabled */
+    SCREEN *scan;
+    int result;
+
+    switch (enable) {
+    default:
+	/* record a SIGWINCH */
+	have_sigwinch = 1;
+	break;
+    case 0:
+	/* temporarily disable the next block */
+	--can_resizeall;
+	break;
+    case 1:
+	/* temporarily enable the next block */
+	++can_resizeall;
+	break;
+    }
+
+    /*
+     * If we have a pending SIGWINCH, set the flag in each screen.
+     * But do this only if the block is enabled.
+     */
+    if (can_resizeall-- >= 0) {	/* test and disable */
+	if (have_sigwinch) {
+	    scan = _nc_screen_chain;
+	    while (scan) {
+		scan->_sig_winch = TRUE;
+		scan = scan->_next_screen;
+	    }
+	    have_sigwinch = 0;
+	}
+    }
+    result = can_resizeall + 1;	/* reenable (unless disables are nested) */
+    can_resizeall = result;
+
+    return result;
+}
+
+#endif
 
 NCURSES_EXPORT(void)
 use_env(bool f)
@@ -102,10 +160,6 @@ use_env(bool f)
     returnVoid;
 }
 
-NCURSES_EXPORT_VAR(int) LINES = 0;
-NCURSES_EXPORT_VAR(int) COLS = 0;
-NCURSES_EXPORT_VAR(int) TABSIZE = 0;
-
 static void
 _nc_get_screensize(int *linep, int *colp)
 /* Obtain lines/columns values from the environment and/or terminfo entry */
@@ -113,6 +167,7 @@ _nc_get_screensize(int *linep, int *colp)
     /* figure out the size of the screen */
     T(("screen size: terminfo lines = %d columns = %d", lines, columns));
 
+    _nc_handle_sigwinch(0);
     if (!_use_env) {
 	*linep = (int) lines;
 	*colp = (int) columns;
@@ -159,7 +214,7 @@ _nc_get_screensize(int *linep, int *colp)
 		 * environment variable.
 		 */
 		if (*linep <= 0)
-		    *linep = WINSIZE_ROWS(size);
+		    *linep = (SP != 0 && SP->_filtered) ? 1 : WINSIZE_ROWS(size);
 		if (*colp <= 0)
 		    *colp = WINSIZE_COLS(size);
 	    }
@@ -191,6 +246,7 @@ _nc_get_screensize(int *linep, int *colp)
 	lines = (short) (*linep);
 	columns = (short) (*colp);
     }
+    _nc_handle_sigwinch(1);
 
     T(("screen size is %dx%d", *linep, *colp));
 
@@ -199,18 +255,30 @@ _nc_get_screensize(int *linep, int *colp)
     else
 	TABSIZE = 8;
     T(("TABSIZE = %d", TABSIZE));
-
 }
 
 #if USE_SIZECHANGE
 NCURSES_EXPORT(void)
 _nc_update_screensize(void)
 {
-    int my_lines, my_cols;
+    int old_lines = lines;
+    int new_lines;
+    int old_cols = columns;
+    int new_cols;
 
-    _nc_get_screensize(&my_lines, &my_cols);
-    if (SP != 0 && SP->_resize != 0)
-	SP->_resize(my_lines, my_cols);
+    _nc_get_screensize(&new_lines, &new_cols);
+
+    /*
+     * See is_term_resized() and resizeterm().
+     * We're doing it this way because those functions belong to the upper
+     * ncurses library, while this resides in the lower terminfo library.
+     */
+    if (SP != 0
+	&& SP->_resize != 0) {
+	if ((new_lines != old_lines) || (new_cols != old_cols))
+	    SP->_resize(new_lines, new_cols);
+	SP->_sig_winch = FALSE;
+    }
 }
 #endif
 
@@ -237,36 +305,15 @@ _nc_update_screensize(void)
 					}
 
 #if USE_DATABASE || USE_TERMCAP
+/*
+ * Return 1 if entry found, 0 if not found, -1 if database not accessible,
+ * just like tgetent().
+ */
 static int
-grab_entry(const char *const tn, TERMTYPE * const tp)
-/* return 1 if entry found, 0 if not found, -1 if database not accessible */
+grab_entry(const char *const tn, TERMTYPE *const tp)
 {
     char filename[PATH_MAX];
-    int status;
-
-    /*
-     * $TERM shouldn't contain pathname delimiters.
-     */
-    if (strchr(tn, '/'))
-	return 0;
-
-#if USE_DATABASE
-    if ((status = _nc_read_entry(tn, filename, tp)) != 1) {
-
-#if !PURE_TERMINFO
-	/*
-	 * Try falling back on the termcap file.
-	 * Note:  allowing this call links the entire terminfo/termcap
-	 * compiler into the startup code.  It's preferable to build a
-	 * real terminfo database and use that.
-	 */
-	status = _nc_read_termcap_entry(tn, tp);
-#endif /* PURE_TERMINFO */
-
-    }
-#else
-    status = _nc_read_termcap_entry(tn, tp);
-#endif
+    int status = _nc_read_entry(tn, filename, tp);
 
     /*
      * If we have an entry, force all of the cancelled strings to null
@@ -274,8 +321,8 @@ grab_entry(const char *const tn, TERMTYPE * const tp)
      * (The terminfo compiler bypasses this logic, since it must know if
      * a string is cancelled, for merging entries).
      */
-    if (status == 1) {
-	int n;
+    if (status == TGETENT_YES) {
+	unsigned n;
 	for_each_boolean(n, tp) {
 	    if (!VALID_BOOLEAN(tp->Booleans[n]))
 		tp->Booleans[n] = FALSE;
@@ -289,123 +336,12 @@ grab_entry(const char *const tn, TERMTYPE * const tp)
 }
 #endif
 
-NCURSES_EXPORT_VAR(char) ttytype[NAMESIZE] = "";
-
-/*
- *	setupterm(termname, Filedes, errret)
- *
- *	Find and read the appropriate object file for the terminal
- *	Make cur_term point to the structure.
- *
- */
-
-NCURSES_EXPORT(int)
-setupterm(NCURSES_CONST char *tname, int Filedes, int *errret)
-{
-    struct term *term_ptr;
-    int status;
-
-    T((T_CALLED("setupterm(%s,%d,%p)"), _nc_visbuf(tname), Filedes, errret));
-
-    if (tname == 0) {
-	tname = getenv("TERM");
-	if (tname == 0 || *tname == '\0') {
-	    ret_error0(-1, "TERM environment variable not set.\n");
-	}
-    }
-    if (strlen(tname) > MAX_NAME_SIZE) {
-	ret_error(-1, "TERM environment must be <= %d characters.\n",
-		  MAX_NAME_SIZE);
-    }
-
-    T(("your terminal name is %s", tname));
-
-    term_ptr = typeCalloc(TERMINAL, 1);
-
-    if (term_ptr == 0) {
-	ret_error0(-1, "Not enough memory to create terminal structure.\n");
-    }
-#if USE_DATABASE || USE_TERMCAP
-    status = grab_entry(tname, &term_ptr->type);
-#else
-    status = 0;
-#endif
-
-    /* try fallback list if entry on disk */
-    if (status != 1) {
-	const TERMTYPE *fallback = _nc_fallback(tname);
-
-	if (fallback) {
-	    term_ptr->type = *fallback;
-	    status = 1;
-	}
-    }
-
-    if (status == -1) {
-	ret_error0(-1, "terminals database is inaccessible\n");
-    } else if (status == 0) {
-	ret_error(0, "'%s': unknown terminal type.\n", tname);
-    }
-
-    /*
-     * Improve on SVr4 curses.  If an application mixes curses and termcap
-     * calls, it may call both initscr and tgetent.  This is not really a
-     * good thing to do, but can happen if someone tries using ncurses with
-     * the readline library.  The problem we are fixing is that when
-     * tgetent calls setupterm, the resulting Ottyb struct in cur_term is
-     * zeroed.  A subsequent call to endwin uses the zeroed terminal
-     * settings rather than the ones saved in initscr.  So we check if
-     * cur_term appears to contain terminal settings for the same output
-     * file as our current call - and copy those terminal settings.  (SVr4
-     * curses does not do this, however applications that are working
-     * around the problem will still work properly with this feature).
-     */
-    if (cur_term != 0) {
-	if (cur_term->Filedes == Filedes)
-	    term_ptr->Ottyb = cur_term->Ottyb;
-    }
-
-    set_curterm(term_ptr);
-
-    if (command_character && getenv("CC"))
-	do_prototype();
-
-    strncpy(ttytype, cur_term->type.term_names, NAMESIZE - 1);
-    ttytype[NAMESIZE - 1] = '\0';
-
-    /*
-     * Allow output redirection.  This is what SVr3 does.
-     * If stdout is directed to a file, screen updates go
-     * to standard error.
-     */
-    if (Filedes == STDOUT_FILENO && !isatty(Filedes))
-	Filedes = STDERR_FILENO;
-    cur_term->Filedes = Filedes;
-
-    _nc_get_screensize(&LINES, &COLS);
-
-    if (errret)
-	*errret = 1;
-
-    T((T_CREATE("screen %s %dx%d"), tname, LINES, COLS));
-
-    if (generic_type) {
-	ret_error(0, "'%s': I need something more specific.\n", tname);
-    }
-    if (hard_copy) {
-	ret_error(1, "'%s': I can't handle hardcopy terminals.\n", tname);
-    }
-    returnCode(OK);
-}
-
 /*
 **	do_prototype()
 **
 **	Take the real command character out of the CC environment variable
 **	and substitute it in for the prototype given in 'command_character'.
-**
 */
-
 static void
 do_prototype(void)
 {
@@ -424,4 +360,227 @@ do_prototype(void)
 		*tmp = CC;
 	}
     }
+}
+
+/*
+ * Find the locale which is in effect.
+ */
+NCURSES_EXPORT(char *)
+_nc_get_locale(void)
+{
+    char *env;
+#if HAVE_LOCALE_H
+    /*
+     * This is preferable to using getenv() since it ensures that we are using
+     * the locale which was actually initialized by the application.
+     */
+    env = setlocale(LC_CTYPE, 0);
+#else
+    if (((env = getenv("LC_ALL")) != 0 && *env != '\0')
+	|| ((env = getenv("LC_CTYPE")) != 0 && *env != '\0')
+	|| ((env = getenv("LANG")) != 0 && *env != '\0')) {
+	;
+    }
+#endif
+    T(("_nc_get_locale %s", _nc_visbuf(env)));
+    return env;
+}
+
+/*
+ * Check if we are running in a UTF-8 locale.
+ */
+NCURSES_EXPORT(int)
+_nc_unicode_locale(void)
+{
+    int result = 0;
+#if HAVE_LANGINFO_CODESET
+    char *env = nl_langinfo(CODESET);
+    result = !strcmp(env, "UTF-8");
+    T(("_nc_unicode_locale(%s) ->%d", env, result));
+#else
+    char *env = _nc_get_locale();
+    if (env != 0) {
+	if (strstr(env, ".UTF-8") != 0) {
+	    result = 1;
+	    T(("_nc_unicode_locale(%s) ->%d", env, result));
+	}
+    }
+#endif
+    return result;
+}
+
+#define CONTROL_N(s) ((s) != 0 && strstr(s, "\016") != 0)
+#define CONTROL_O(s) ((s) != 0 && strstr(s, "\017") != 0)
+
+/*
+ * Check for known broken cases where a UTF-8 locale breaks the alternate
+ * character set.
+ */
+NCURSES_EXPORT(int)
+_nc_locale_breaks_acs(void)
+{
+    char *env;
+
+    if ((env = getenv("NCURSES_NO_UTF8_ACS")) != 0) {
+	return atoi(env);
+    } else if ((env = getenv("TERM")) != 0) {
+	if (strstr(env, "linux"))
+	    return 1;		/* always broken */
+	if (strstr(env, "screen") != 0
+	    && ((env = getenv("TERMCAP")) != 0
+		&& strstr(env, "screen") != 0)
+	    && strstr(env, "hhII00") != 0) {
+	    if (CONTROL_N(enter_alt_charset_mode) ||
+		CONTROL_O(enter_alt_charset_mode) ||
+		CONTROL_N(set_attributes) ||
+		CONTROL_O(set_attributes))
+		return 1;
+	}
+    }
+    return 0;
+}
+
+/*
+ * This entrypoint is called from tgetent() to allow a special case of reusing
+ * the same TERMINAL data (see comment).
+ */
+NCURSES_EXPORT(int)
+_nc_setupterm(NCURSES_CONST char *tname, int Filedes, int *errret, bool reuse)
+{
+    int status;
+
+    START_TRACE();
+    T((T_CALLED("setupterm(%s,%d,%p)"), _nc_visbuf(tname), Filedes, errret));
+
+    if (tname == 0) {
+	tname = getenv("TERM");
+	if (tname == 0 || *tname == '\0') {
+	    ret_error0(TGETENT_ERR, "TERM environment variable not set.\n");
+	}
+    }
+
+    if (strlen(tname) > MAX_NAME_SIZE) {
+	ret_error(TGETENT_ERR,
+		  "TERM environment must be <= %d characters.\n",
+		  MAX_NAME_SIZE);
+    }
+
+    T(("your terminal name is %s", tname));
+
+    /*
+     * Allow output redirection.  This is what SVr3 does.  If stdout is
+     * directed to a file, screen updates go to standard error.
+     */
+    if (Filedes == STDOUT_FILENO && !isatty(Filedes))
+	Filedes = STDERR_FILENO;
+
+    /*
+     * Check if we have already initialized to use this terminal.  If so, we
+     * do not need to re-read the terminfo entry, or obtain TTY settings.
+     *
+     * This is an improvement on SVr4 curses.  If an application mixes curses
+     * and termcap calls, it may call both initscr and tgetent.  This is not
+     * really a good thing to do, but can happen if someone tries using ncurses
+     * with the readline library.  The problem we are fixing is that when
+     * tgetent calls setupterm, the resulting Ottyb struct in cur_term is
+     * zeroed.  A subsequent call to endwin uses the zeroed terminal settings
+     * rather than the ones saved in initscr.  So we check if cur_term appears
+     * to contain terminal settings for the same output file as our current
+     * call - and copy those terminal settings.  (SVr4 curses does not do this,
+     * however applications that are working around the problem will still work
+     * properly with this feature).
+     */
+    if (reuse
+	&& cur_term != 0
+	&& cur_term->Filedes == Filedes
+	&& cur_term->_termname != 0
+	&& !strcmp(cur_term->_termname, tname)
+	&& _nc_name_match(cur_term->type.term_names, tname, "|")) {
+	T(("reusing existing terminal information and mode-settings"));
+    } else {
+	TERMINAL *term_ptr;
+
+	term_ptr = typeCalloc(TERMINAL, 1);
+
+	if (term_ptr == 0) {
+	    ret_error0(TGETENT_ERR,
+		       "Not enough memory to create terminal structure.\n");
+	}
+#if USE_DATABASE || USE_TERMCAP
+	status = grab_entry(tname, &term_ptr->type);
+#else
+	status = TGETENT_NO;
+#endif
+
+	/* try fallback list if entry on disk */
+	if (status != TGETENT_YES) {
+	    const TERMTYPE *fallback = _nc_fallback(tname);
+
+	    if (fallback) {
+		term_ptr->type = *fallback;
+		status = TGETENT_YES;
+	    }
+	}
+
+	if (status != TGETENT_YES) {
+	    del_curterm(term_ptr);
+	    if (status == TGETENT_ERR) {
+		ret_error0(status, "terminals database is inaccessible\n");
+	    } else if (status == TGETENT_NO) {
+		ret_error(status, "'%s': unknown terminal type.\n", tname);
+	    }
+	}
+
+	set_curterm(term_ptr);
+
+	if (command_character && getenv("CC"))
+	    do_prototype();
+
+	strncpy(ttytype, cur_term->type.term_names, NAMESIZE - 1);
+	ttytype[NAMESIZE - 1] = '\0';
+
+	cur_term->Filedes = Filedes;
+	cur_term->_termname = strdup(tname);
+
+	/*
+	 * If an application calls setupterm() rather than initscr() or
+	 * newterm(), we will not have the def_prog_mode() call in
+	 * _nc_setupscreen().  Do it now anyway, so we can initialize the
+	 * baudrate.
+	 */
+	if (isatty(Filedes)) {
+	    def_prog_mode();
+	    baudrate();
+	}
+    }
+
+    /*
+     * We should always check the screensize, just in case.
+     */
+    _nc_get_screensize(&LINES, &COLS);
+
+    if (errret)
+	*errret = TGETENT_YES;
+
+    T((T_CREATE("screen %s %dx%d"), tname, LINES, COLS));
+
+    if (generic_type) {
+	ret_error(TGETENT_NO, "'%s': I need something more specific.\n", tname);
+    }
+    if (hard_copy) {
+	ret_error(TGETENT_YES, "'%s': I can't handle hardcopy terminals.\n", tname);
+    }
+    returnCode(OK);
+}
+
+/*
+ *	setupterm(termname, Filedes, errret)
+ *
+ *	Find and read the appropriate object file for the terminal
+ *	Make cur_term point to the structure.
+ */
+NCURSES_EXPORT(int)
+setupterm(NCURSES_CONST char *tname, int Filedes, int *errret)
+{
+    return _nc_setupterm(tname, Filedes, errret, FALSE);
 }

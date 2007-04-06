@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey 1998 on                                        *
  ****************************************************************************/
 
 /* $FreeBSD$ */
@@ -50,7 +51,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_raw.c,v 1.12 2001/08/04 17:18:38 tom Exp $")
+MODULE_ID("$Id: lib_raw.c,v 1.13 2002/07/06 22:00:45 tom Exp $")
 
 #if SVR4_TERMIO && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
@@ -62,6 +63,9 @@ MODULE_ID("$Id: lib_raw.c,v 1.12 2001/08/04 17:18:38 tom Exp $")
 
 #ifdef __EMX__
 #include <io.h>
+#define _nc_setmode(mode) setmode(SP->_ifd, mode)
+#else
+#define _nc_setmode(mode)	/* nothing */
 #endif
 
 #define COOKED_INPUT	(IXON|BRKINT|PARMRK)
@@ -77,162 +81,218 @@ MODULE_ID("$Id: lib_raw.c,v 1.12 2001/08/04 17:18:38 tom Exp $")
 NCURSES_EXPORT(int)
 raw(void)
 {
+    int result = ERR;
+
     T((T_CALLED("raw()")));
+
     if (SP != 0 && cur_term != 0) {
+	TTY buf;
 
-	SP->_raw = TRUE;
-	SP->_cbreak = 1;
-
-#ifdef __EMX__
-	setmode(SP->_ifd, O_BINARY);
-#endif
-
-#ifdef TERMIOS
 	BEFORE("raw");
-	cur_term->Nttyb.c_lflag &= ~(ICANON | ISIG | IEXTEN);
-	cur_term->Nttyb.c_iflag &= ~(COOKED_INPUT);
-	cur_term->Nttyb.c_cc[VMIN] = 1;
-	cur_term->Nttyb.c_cc[VTIME] = 0;
-	AFTER("raw");
+	_nc_setmode(O_BINARY);
+
+	buf = cur_term->Nttyb;
+#ifdef TERMIOS
+	buf.c_lflag &= ~(ICANON | ISIG | IEXTEN);
+	buf.c_iflag &= ~(COOKED_INPUT);
+	buf.c_cc[VMIN] = 1;
+	buf.c_cc[VTIME] = 0;
 #else
-	cur_term->Nttyb.sg_flags |= RAW;
+	buf.sg_flags |= RAW;
 #endif
-	returnCode(_nc_set_tty_mode(&cur_term->Nttyb));
+	if ((result = _nc_set_tty_mode(&buf)) == OK) {
+	    SP->_raw = TRUE;
+	    SP->_cbreak = 1;
+	    cur_term->Nttyb = buf;
+	}
+	AFTER("raw");
     }
-    returnCode(ERR);
+    returnCode(result);
 }
 
 NCURSES_EXPORT(int)
 cbreak(void)
 {
+    int result = ERR;
+
     T((T_CALLED("cbreak()")));
 
-    SP->_cbreak = 1;
+    if (SP != 0 && cur_term != 0) {
+	TTY buf;
 
-#ifdef __EMX__
-    setmode(SP->_ifd, O_BINARY);
-#endif
+	BEFORE("cbreak");
+	_nc_setmode(O_BINARY);
 
+	buf = cur_term->Nttyb;
 #ifdef TERMIOS
-    BEFORE("cbreak");
-    cur_term->Nttyb.c_lflag &= ~ICANON;
-    cur_term->Nttyb.c_iflag &= ~ICRNL;
-    cur_term->Nttyb.c_lflag |= ISIG;
-    cur_term->Nttyb.c_cc[VMIN] = 1;
-    cur_term->Nttyb.c_cc[VTIME] = 0;
-    AFTER("cbreak");
+	buf.c_lflag &= ~ICANON;
+	buf.c_iflag &= ~ICRNL;
+	buf.c_lflag |= ISIG;
+	buf.c_cc[VMIN] = 1;
+	buf.c_cc[VTIME] = 0;
 #else
-    cur_term->Nttyb.sg_flags |= CBREAK;
+	buf.sg_flags |= CBREAK;
 #endif
-    returnCode(_nc_set_tty_mode(&cur_term->Nttyb));
+	if ((result = _nc_set_tty_mode(&buf)) == OK) {
+	    SP->_cbreak = 1;
+	    cur_term->Nttyb = buf;
+	}
+	AFTER("cbreak");
+    }
+    returnCode(result);
 }
 
+/*
+ * Note:
+ * this implementation may be wrong.  See the comment under intrflush().
+ */
 NCURSES_EXPORT(void)
 qiflush(void)
 {
+    int result = ERR;
+
     T((T_CALLED("qiflush()")));
 
-    /*
-     * Note: this implementation may be wrong.  See the comment under
-     * intrflush().
-     */
+    if (cur_term != 0) {
+	TTY buf;
 
+	BEFORE("qiflush");
+	buf = cur_term->Nttyb;
 #ifdef TERMIOS
-    BEFORE("qiflush");
-    cur_term->Nttyb.c_lflag &= ~(NOFLSH);
-    AFTER("qiflush");
-    (void) _nc_set_tty_mode(&cur_term->Nttyb);
+	buf.c_lflag &= ~(NOFLSH);
+	result = _nc_set_tty_mode(&buf);
+#else
+	/* FIXME */
 #endif
+	if (result == OK)
+	    cur_term->Nttyb = buf;
+	AFTER("qiflush");
+    }
     returnVoid;
 }
 
 NCURSES_EXPORT(int)
 noraw(void)
 {
+    int result = ERR;
+
     T((T_CALLED("noraw()")));
 
-    SP->_raw = FALSE;
-    SP->_cbreak = 0;
+    if (SP != 0 && cur_term != 0) {
+	TTY buf;
 
-#ifdef __EMX__
-    setmode(SP->_ifd, O_TEXT);
-#endif
+	BEFORE("noraw");
+	_nc_setmode(O_TEXT);
 
+	buf = cur_term->Nttyb;
 #ifdef TERMIOS
-    BEFORE("noraw");
-    cur_term->Nttyb.c_lflag |= ISIG | ICANON |
-	(cur_term->Ottyb.c_lflag & IEXTEN);
-    cur_term->Nttyb.c_iflag |= COOKED_INPUT;
-    AFTER("noraw");
+	buf.c_lflag |= ISIG | ICANON |
+	    (cur_term->Ottyb.c_lflag & IEXTEN);
+	buf.c_iflag |= COOKED_INPUT;
 #else
-    cur_term->Nttyb.sg_flags &= ~(RAW | CBREAK);
+	buf.sg_flags &= ~(RAW | CBREAK);
 #endif
-    returnCode(_nc_set_tty_mode(&cur_term->Nttyb));
+	if ((result = _nc_set_tty_mode(&buf)) == OK) {
+	    SP->_raw = FALSE;
+	    SP->_cbreak = 0;
+	    cur_term->Nttyb = buf;
+	}
+	AFTER("noraw");
+    }
+    returnCode(result);
 }
 
 NCURSES_EXPORT(int)
 nocbreak(void)
 {
+    int result = ERR;
+
     T((T_CALLED("nocbreak()")));
 
-    SP->_cbreak = 0;
+    if (SP != 0 && cur_term != 0) {
+	TTY buf;
 
-#ifdef __EMX__
-    setmode(SP->_ifd, O_TEXT);
-#endif
+	BEFORE("nocbreak");
+	_nc_setmode(O_TEXT);
 
+	buf = cur_term->Nttyb;
 #ifdef TERMIOS
-    BEFORE("nocbreak");
-    cur_term->Nttyb.c_lflag |= ICANON;
-    cur_term->Nttyb.c_iflag |= ICRNL;
-    AFTER("nocbreak");
+	buf.c_lflag |= ICANON;
+	buf.c_iflag |= ICRNL;
 #else
-    cur_term->Nttyb.sg_flags &= ~CBREAK;
+	buf.sg_flags &= ~CBREAK;
 #endif
-    returnCode(_nc_set_tty_mode(&cur_term->Nttyb));
+	if ((result = _nc_set_tty_mode(&buf)) == OK) {
+	    SP->_cbreak = 0;
+	    cur_term->Nttyb = buf;
+	}
+	AFTER("nocbreak");
+    }
+    returnCode(result);
 }
 
+/*
+ * Note:
+ * this implementation may be wrong.  See the comment under intrflush().
+ */
 NCURSES_EXPORT(void)
 noqiflush(void)
 {
+    int result = ERR;
+
     T((T_CALLED("noqiflush()")));
 
-    /*
-     * Note: this implementation may be wrong.  See the comment under
-     * intrflush().
-     */
+    if (cur_term != 0) {
+	TTY buf;
 
+	BEFORE("noqiflush");
+	buf = cur_term->Nttyb;
 #ifdef TERMIOS
-    BEFORE("noqiflush");
-    cur_term->Nttyb.c_lflag |= NOFLSH;
-    AFTER("noqiflush");
-    (void) _nc_set_tty_mode(&cur_term->Nttyb);
+	buf.c_lflag |= NOFLSH;
+	result = _nc_set_tty_mode(&buf);
+#else
+	/* FIXME */
 #endif
+	if (result == OK) {
+	    cur_term->Nttyb = buf;
+	}
+	AFTER("noqiflush");
+    }
     returnVoid;
 }
 
+/*
+ * This call does the same thing as the qiflush()/noqiflush() pair.  We know
+ * for certain that SVr3 intrflush() tweaks the NOFLSH bit; on the other hand,
+ * the match (in the SVr4 man pages) between the language describing NOFLSH in
+ * termio(7) and the language describing qiflush()/noqiflush() in
+ * curs_inopts(3x) is too exact to be coincidence.
+ */
 NCURSES_EXPORT(int)
 intrflush(WINDOW *win GCC_UNUSED, bool flag)
 {
+    int result = ERR;
+
     T((T_CALLED("intrflush(%d)"), flag));
 
-    /*
-     * This call does the same thing as the qiflush()/noqiflush() pair.  We
-     * know for certain that SVr3 intrflush() tweaks the NOFLSH bit; on the
-     * other hand, the match (in the SVr4 man pages) between the language
-     * describing NOFLSH in termio(7) and the language describing
-     * qiflush()/noqiflush() in curs_inopts(3x) is too exact to be coincidence.
-     */
+    if (cur_term != 0) {
+	TTY buf;
 
+	BEFORE("intrflush");
+	buf = cur_term->Nttyb;
 #ifdef TERMIOS
-    BEFORE("intrflush");
-    if (flag)
-	cur_term->Nttyb.c_lflag &= ~(NOFLSH);
-    else
-	cur_term->Nttyb.c_lflag |= (NOFLSH);
-    AFTER("intrflush");
-    returnCode(_nc_set_tty_mode(&cur_term->Nttyb));
+	if (flag)
+	    buf.c_lflag &= ~(NOFLSH);
+	else
+	    buf.c_lflag |= (NOFLSH);
+	result = _nc_set_tty_mode(&buf);
 #else
-    returnCode(ERR);
+	/* FIXME */
 #endif
+	if (result == OK) {
+	    cur_term->Nttyb = buf;
+	}
+	AFTER("intrflush");
+    }
+    returnCode(result);
 }

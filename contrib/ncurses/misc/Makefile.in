@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.34 2002/01/12 23:54:39 Robert.Joop Exp $
+# $Id: Makefile.in,v 1.40 2006/10/21 13:28:03 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,2000,2001,2002 Free Software Foundation, Inc.           #
+# Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,7 +27,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
+# Author: Thomas E. Dickey 1996-on
 #
 # Makefile for ncurses miscellany directory
 #
@@ -62,22 +62,25 @@ HOSTCC		= @BUILD_CC@
 
 tabsetdir	= $(datadir)/tabset
 ticdir		= @TERMINFO@
+ticfile		= $(ticdir).db
 source		= @TERMINFO_SRC@
 
 INSTALL		= @INSTALL@
+INSTALL_PROG	= @INSTALL_PROGRAM@
 INSTALL_DATA	= @INSTALL_DATA@
 
 ################################################################################
-all :
+all :	terminfo.tmp
 
 depend :
 
 sources :
 
-install : install.data
+install : install.data install.scripts
 
-install.data :	$(DESTDIR)$(libdir) \
-		$(DESTDIR)$(ticdir) \
+install.data :	terminfo.tmp \
+		$(DESTDIR)$(libdir) \
+		$(DESTDIR)$(datadir) \
 		$(DESTDIR)$(tabsetdir)
 	DESTDIR=${DESTDIR} \
 	prefix=${prefix} \
@@ -87,39 +90,59 @@ install.data :	$(DESTDIR)$(libdir) \
 	srcdir=${srcdir} \
 	datadir=${datadir} \
 	ticdir=${ticdir} \
-	source=${source} \
+	source=terminfo.tmp \
 	THIS_CC="$(CC)" \
 	THAT_CC="$(HOSTCC)" \
-	sh ./run_tic.sh
+	$(SHELL) ./run_tic.sh
 	@cd $(srcdir)/tabset && \
-		sh -c 'for i in * ; do \
+		$(SHELL) -c 'for i in * ; do \
 			if test -f $$i ; then \
 			echo installing $$i; \
 			$(INSTALL_DATA) $$i $(DESTDIR)$(tabsetdir)/$$i; \
 			fi; done'
 
-$(DESTDIR)$(libdir) \
-$(DESTDIR)$(tabsetdir) \
-$(DESTDIR)$(ticdir) :
-	sh $(srcdir)/../mkinstalldirs $@
+NCURSES_CONFIG	= ncurses@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config
 
-uninstall : uninstall.data
+install.scripts :	ncurses-config
+	$(INSTALL_PROG) ncurses-config $(DESTDIR)$(bindir)/$(NCURSES_CONFIG)
+
+terminfo.tmp : run_tic.sed $(source)
+	echo '** adjusting tabset paths'
+	sed -f run_tic.sed $(source) >terminfo.tmp
+
+run_tic.sed :
+	WHICH_XTERM=@WHICH_XTERM@ \
+	ticdir=${ticdir} \
+	$(SHELL) $(srcdir)/gen_edit.sh >$@
+
+$(DESTDIR)$(libdir) \
+$(DESTDIR)$(datadir) \
+$(DESTDIR)$(tabsetdir) :
+	$(SHELL) $(top_srcdir)/mkinstalldirs $@
+
+uninstall : uninstall.data uninstall.scripts
 
 uninstall.data :
-	-cd $(DESTDIR)$(ticdir) && rm -rf *
-	-cd $(DESTDIR)$(tabsetdir) && rm -rf *
+	-test -d $(DESTDIR)$(tabsetdir) && rm -rf $(DESTDIR)$(tabsetdir)
+	-test -d $(DESTDIR)$(ticdir) && rm -rf $(DESTDIR)$(ticdir)
+	-test -f $(DESTDIR)$(ticfile) && rm -f $(DESTDIR)$(ticfile)
+
+uninstall.scripts :
+	-rm -f $(DESTDIR)$(bindir)/$(NCURSES_CONFIG)
 
 tags :
 
 @MAKE_UPPER_TAGS@TAGS :
 
 mostlyclean :
+	-rm -f terminfo.tmp
+	-rm -f run_tic.sed
 	-rm -f core tags TAGS *~ *.bak *.ln *.atac trace
 
 clean :: mostlyclean
 
 distclean : clean
-	-rm -f Makefile run_tic.sh
+	-rm -f Makefile run_tic.sh ncurses-config
 
 realclean : distclean
 

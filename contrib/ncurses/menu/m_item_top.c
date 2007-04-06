@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
+ *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
 /***************************************************************************
@@ -37,48 +37,50 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_top.c,v 1.5 2000/12/10 02:16:48 tom Exp $")
+MODULE_ID("$Id: m_item_top.c,v 1.10 2004/12/11 23:29:34 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
 |   Function      :  int set_top_row(MENU *menu, int row)
 |   
-|   Description   :  Makes the speified row the top row in the menu
+|   Description   :  Makes the specified row the top row in the menu
 |
 |   Return Values :  E_OK             - success
 |                    E_BAD_ARGUMENT   - not a menu pointer or invalid row
 |                    E_NOT_CONNECTED  - there are no items for the menu
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(int)
-set_top_row (MENU * menu, int row)
+set_top_row(MENU * menu, int row)
 {
   ITEM *item;
-  
+
+  T((T_CALLED("set_top_row(%p,%d)"), menu, row));
+
   if (menu)
     {
-      if ( menu->status & _IN_DRIVER )
+      if (menu->status & _IN_DRIVER)
 	RETURN(E_BAD_STATE);
-      if (menu->items == (ITEM **)0)
+      if (menu->items == (ITEM **) 0)
 	RETURN(E_NOT_CONNECTED);
-      
-      if ((row<0) || (row > (menu->rows - menu->arows)))
+
+      if ((row < 0) || (row > (menu->rows - menu->arows)))
 	RETURN(E_BAD_ARGUMENT);
     }
   else
     RETURN(E_BAD_ARGUMENT);
-  
+
   if (row != menu->toprow)
     {
-      if (menu->status & _LINK_NEEDED) 
+      if (menu->status & _LINK_NEEDED)
 	_nc_Link_Items(menu);
-      
-      item = menu->items[ (menu->opt&O_ROWMAJOR) ? (row*menu->cols) : row ];
+
+      item = menu->items[(menu->opt & O_ROWMAJOR) ? (row * menu->cols) : row];
       assert(menu->pattern);
       Reset_Pattern(menu);
       _nc_New_TopRow_and_CurrentItem(menu, row, item);
     }
-  
-    RETURN(E_OK);
+
+  RETURN(E_OK);
 }
 
 /*---------------------------------------------------------------------------
@@ -90,15 +92,16 @@ set_top_row (MENU * menu, int row)
 |   Return Values :  The row number or ERR if there is no row
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(int)
-top_row (const MENU * menu)
+top_row(const MENU * menu)
 {
+  T((T_CALLED("top_row(%p)"), menu));
   if (menu && menu->items && *(menu->items))
     {
-      assert( (menu->toprow>=0) && (menu->toprow < menu->rows) );
-      return menu->toprow;
+      assert((menu->toprow >= 0) && (menu->toprow < menu->rows));
+      returnCode(menu->toprow);
     }
   else
-    return(ERR);
+    returnCode(ERR);
 }
 
 /* m_item_top.c ends here */

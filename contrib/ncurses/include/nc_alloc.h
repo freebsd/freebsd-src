@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,10 +29,14 @@
 /****************************************************************************
  *  Author: Thomas E. Dickey <dickey@clark.net> 1996,1997                   *
  ****************************************************************************/
-/* $Id: nc_alloc.h,v 1.10 2001/12/08 23:49:44 tom Exp $ */
+/* $Id: nc_alloc.h,v 1.13 2005/01/16 00:27:35 tom Exp $ */
 
 #ifndef NC_ALLOC_included
 #define NC_ALLOC_included 1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #if HAVE_LIBDMALLOC
 #include <dmalloc.h>    /* Gray Watson's library */
@@ -48,6 +52,13 @@
 #define HAVE_LIBDBMALLOC 0
 #endif
 
+#if HAVE_LIBMPATROL
+#include <mpatrol.h>    /* Memory-Patrol library */
+#else
+#undef  HAVE_LIBMPATROL
+#define HAVE_LIBMPATROL 0
+#endif
+
 #ifndef NO_LEAKS
 #define NO_LEAKS 0
 #endif
@@ -55,9 +66,9 @@
 #if HAVE_LIBDBMALLOC || HAVE_LIBDMALLOC || NO_LEAKS
 #define HAVE_NC_FREEALL 1
 struct termtype;
-extern void _nc_free_and_exit(int) GCC_NORETURN;
-extern void _nc_free_tparm(void);
-extern void _nc_leaks_dump_entry(void);
+extern NCURSES_EXPORT(void) _nc_free_and_exit(int) GCC_NORETURN;
+extern NCURSES_EXPORT(void) _nc_free_tparm(void);
+extern NCURSES_EXPORT(void) _nc_leaks_dump_entry(void);
 #define ExitProgram(code) _nc_free_and_exit(code)
 #endif
 
@@ -79,5 +90,9 @@ extern NCURSES_EXPORT(char *) _nc_strdup(const char *);
 #define typeMalloc(type,elts) (type *)malloc((elts)*sizeof(type))
 #define typeCalloc(type,elts) (type *)calloc((elts),sizeof(type))
 #define typeRealloc(type,elts,ptr) (type *)_nc_doalloc(ptr, (elts)*sizeof(type))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NC_ALLOC_included */

@@ -1,6 +1,11 @@
 
 Current history:
 
+2006/11/25		Fixes for ncurses tparm() prototype.
+2006/06/24	1.02	Modify to support ncurses extended string capabilities.
+2003/10/18	1.01	Fix some logic in pad.c, improve bce test.
+2003/09/20		Modified to allow running from compiled-in terminfo.
+2001/10/20		Make menu titles agree with descriptions.
 2000/03/04		Fix a few spelling errors
 1999/09/04		Minor fix to build/link on BeOS
 1999/05/16		Minor fix to build/link on CLIX

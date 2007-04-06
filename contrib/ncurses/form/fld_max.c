@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,12 +27,12 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
+ *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_max.c,v 1.5 2000/12/10 02:09:38 tom Exp $")
+MODULE_ID("$Id: fld_max.c,v 1.9 2004/12/11 21:51:54 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -45,17 +45,19 @@ MODULE_ID("$Id: fld_max.c,v 1.5 2000/12/10 02:09:38 tom Exp $")
 |                    E_BAD_ARGUMENT - invalid argument
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(int)
-set_max_field (FIELD *field, int maxgrow)
+set_max_field(FIELD *field, int maxgrow)
 {
-  if (!field || (maxgrow<0))
+  T((T_CALLED("set_max_field(%p,%d)"), field, maxgrow));
+
+  if (!field || (maxgrow < 0))
     RETURN(E_BAD_ARGUMENT);
   else
     {
       bool single_line_field = Single_Line_Field(field);
 
-      if (maxgrow>0)
+      if (maxgrow > 0)
 	{
-	  if (( single_line_field && (maxgrow < field->dcols)) ||
+	  if ((single_line_field && (maxgrow < field->dcols)) ||
 	      (!single_line_field && (maxgrow < field->drows)))
 	    RETURN(E_BAD_ARGUMENT);
 	}
@@ -63,13 +65,13 @@ set_max_field (FIELD *field, int maxgrow)
       field->status &= ~_MAY_GROW;
       if (!(field->opts & O_STATIC))
 	{
-	  if ((maxgrow==0) ||
-	      ( single_line_field && (field->dcols < maxgrow)) ||
+	  if ((maxgrow == 0) ||
+	      (single_line_field && (field->dcols < maxgrow)) ||
 	      (!single_line_field && (field->drows < maxgrow)))
 	    field->status |= _MAY_GROW;
 	}
     }
   RETURN(E_OK);
 }
-		  
+
 /* fld_max.c ends here */

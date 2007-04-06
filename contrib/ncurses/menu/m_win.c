@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
+ *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
 /***************************************************************************
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_win.c,v 1.10 2000/12/10 02:16:48 tom Exp $")
+MODULE_ID("$Id: m_win.c,v 1.15 2004/12/25 21:39:20 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -49,18 +49,20 @@ MODULE_ID("$Id: m_win.c,v 1.10 2000/12/10 02:16:48 tom Exp $")
 |                    E_POSTED           - menu is already posted
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(int)
-set_menu_win (MENU *menu, WINDOW *win)
+set_menu_win(MENU * menu, WINDOW *win)
 {
+  T((T_CALLED("set_menu_win(%p,%p)"), menu, win));
+
   if (menu)
     {
-      if ( menu->status & _POSTED )
+      if (menu->status & _POSTED)
 	RETURN(E_POSTED);
       menu->userwin = win;
       _nc_Calculate_Item_Length_and_Width(menu);
     }
   else
     _nc_Default_Menu.userwin = win;
-  
+
   RETURN(E_OK);
 }
 
@@ -73,10 +75,12 @@ set_menu_win (MENU *menu, WINDOW *win)
 |   Return Values :  NULL on error, otherwise pointer to window
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(WINDOW *)
-menu_win (const MENU *menu)
+menu_win(const MENU * menu)
 {
-  const MENU* m = Normalize_Menu(menu);
-  return (m->userwin ? m->userwin : stdscr);
+  const MENU *m = Normalize_Menu(menu);
+
+  T((T_CALLED("menu_win(%p)"), menu));
+  returnWin(m->userwin ? m->userwin : stdscr);
 }
 
 /* m_win.c ends here */

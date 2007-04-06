@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2002 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_driver.3x,v 1.10 2002/02/16 22:40:59 tom Exp $
+.\" $Id: menu_driver.3x,v 1.12 2006/11/04 17:13:50 tom Exp $
 .TH menu_driver 3X ""
 .SH NAME
 \fBmenu_driver\fR - command-processing loop of the menu system
@@ -115,10 +115,10 @@ is positioned to that item. If you double-click at an item a REQ_TOGGLE_ITEM
 is generated and \fBE_UNKNOWN_COMMAND\fR is returned. This return value makes
 sense, because a double click usually means that an item-specific action should
 be returned. It's exactly the purpose of this return value to signal that an
-application specific command should be executed. If a translation 
+application specific command should be executed. If a translation
 into a request was done, \fBmenu_driver\fR returns the result of this request.
 If you clicked outside the user window or the mouse event couldn't be translated
-into a menu request an \fBE_REQUEST_DENIED\fR is returned. 
+into a menu request an \fBE_REQUEST_DENIED\fR is returned.
 .PP
 If the second argument is neither printable ASCII nor one of the above
 pre-defined menu requests or KEY_MOUSE, the drive assumes it is an application-specific
@@ -128,28 +128,28 @@ pre-defined requests.
 .SH RETURN VALUE
 \fBmenu_driver\fR return one of the following error codes:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .TP 5
-\fBE_BAD_STATE\fR
+.B E_BAD_STATE
 Routine was called from an initialization or termination function.
 .TP 5
-\fBE_NOT_POSTED\fR
+.B E_NOT_POSTED
 The menu has not been posted.
 .TP 5
-\fBE_UNKNOWN_COMMAND\fR
+.B E_UNKNOWN_COMMAND
 The menu driver code saw an unknown request code.
 .TP 5
-\fBE_NO_MATCH\fR
+.B E_NO_MATCH
 Character failed to match.
 .TP 5
-\fBE_REQUEST_DENIED\fR
+.B E_REQUEST_DENIED
 The menu driver could not process the request.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).

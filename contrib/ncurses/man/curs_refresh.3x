@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2001,2005 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_refresh.3x,v 1.10 2001/11/03 18:57:12 tom Exp $
+.\" $Id: curs_refresh.3x,v 1.12 2005/05/15 16:18:49 tom Exp $
 .TH curs_refresh 3X ""
+.na
+.hy 0
 .SH NAME
 \fBdoupdate\fR,
 \fBredrawwin\fR,
@@ -35,9 +37,11 @@
 \fBwnoutrefresh\fR,
 \fBwredrawln\fR,
 \fBwrefresh\fR - refresh \fBcurses\fR windows and lines
+.ad
+.hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
-
+.sp
 \fBint refresh(void);\fR
 .br
 \fBint wrefresh(WINDOW *win);\fR
@@ -62,14 +66,14 @@ same, using \fBstdscr\fR as the default window.
 Unless \fBleaveok\fR has been
 enabled, the physical cursor of the terminal is left at the location of the
 cursor for that window.
-
+.PP
 The \fBwnoutrefresh\fR and \fBdoupdate\fR routines allow multiple updates with
 more efficiency than \fBwrefresh\fR alone.
 In addition to all the window
 structures, \fBcurses\fR keeps two data structures representing the terminal
 screen: a physical screen, describing what is actually on the screen, and a
 virtual screen, describing what the programmer wants to have on the screen.
-
+.PP
 The routine \fBwrefresh\fR works by first calling \fBwnoutrefresh\fR, which
 copies the named window to the virtual screen, and then calling \fBdoupdate\fR,
 which compares the virtual screen to the physical screen and does the actual
@@ -84,7 +88,7 @@ characters transmitted and less CPU time used.
 If the \fIwin\fR argument to
 \fBwrefresh\fR is the global variable \fBcurscr\fR, the screen is immediately
 cleared and repainted from scratch.
-
+.PP
 The phrase "copies the named window to the virtual screen" above is ambiguous.
 What actually happens is that all \fItouched\fR (changed) lines in the window
 are copied to the virtual screen.
@@ -94,7 +98,7 @@ order and the overlap region will be modified only when it is explicitly
 changed.
 (But see the section on \fBPORTABILITY\fR below for a warning about
 exploiting this behavior.)
-
+.PP
 The \fBwredrawln\fR routine indicates to \fBcurses\fR that some screen lines
 are corrupted and should be thrown away before anything is written over them.
 It touches the indicated lines (marking them changed).
@@ -103,11 +107,25 @@ The routine \fBredrawwin\fR() touches the entire window.
 Routines that return an integer return \fBERR\fR upon failure, and \fBOK\fR
 (SVr4 only specifies "an integer value other than \fBERR\fR") upon successful
 completion.
+.PP
+X/Open does not define any error conditions.
+In this implementation
+.RS
+.TP 5
+\fBwnoutrefresh\fP
+returns an error
+if the window pointer is null, or
+if the window is really a pad.
+.TP 5
+\fBwredrawln\fP
+returns an error
+if the associated call to \fBtouchln\fP returns an error.
+.RE
 .SH NOTES
 Note that \fBrefresh\fR and \fBredrawwin\fR may be macros.
 .SH PORTABILITY
 The XSI Curses standard, Issue 4 describes these functions.
-
+.PP
 Whether \fBwnoutrefresh()\fR copies to the virtual screen the entire contents
 of a window or just its changed portions has never been well-documented in
 historic curses versions (including SVr4).

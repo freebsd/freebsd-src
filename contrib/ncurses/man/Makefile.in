@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.33 2002/01/19 22:49:44 tom Exp $
+# $Id: Makefile.in,v 1.39 2005/07/16 17:26:45 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,2000,2001,2002 Free Software Foundation, Inc.           #
+# Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,7 +27,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
+# Author: Thomas E. Dickey 1996,1997
 #
 # Makefile for ncurses manual pages.
 #
@@ -49,6 +49,7 @@ INSTALL_DATA	= @INSTALL_DATA@
 all \
 sources :	terminfo.5
 depend :
+tags :
 
 $(DESTDIR)$(mandir) :
 	sh $(srcdir)/../mkinstalldirs $@
@@ -56,10 +57,10 @@ $(DESTDIR)$(mandir) :
 EDITARGS = $(DESTDIR)$(mandir) $(srcdir) terminfo.5 $(srcdir)/*.[0-9]*
 
 install install.man : terminfo.5 $(DESTDIR)$(mandir)
-	sh ./edit_man.sh installing $(EDITARGS)
+	sh ../edit_man.sh normal installing $(EDITARGS)
 
 uninstall uninstall.man :
-	-sh ./edit_man.sh removing $(EDITARGS)
+	-sh ../edit_man.sh normal removing $(EDITARGS)
 
 # We compose terminfo.5 from the real sources...
 CAPLIST=$(srcdir)/../include/@TERMINFO_CAPS@
@@ -72,8 +73,8 @@ mostlyclean :
 clean:	mostlyclean
 	rm -f terminfo.5
 
-edit_man.sed : make_sed.sh @MANPAGE_RENAMES@
-	sh $srcdir/make_sed.sh @MANPAGE_RENAMES@ >edit_man.sed
+../edit_man.sed : make_sed.sh @MANPAGE_RENAMES@
+	sh $(srcdir)/make_sed.sh @MANPAGE_RENAMES@ >../edit_man.sed
 
 distclean realclean: clean
-	rm -f Makefile edit_man.*
+	rm -f Makefile ../edit_man.*

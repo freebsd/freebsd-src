@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2001,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_hline.c,v 1.10 2001/06/03 00:39:24 skimo Exp $")
+MODULE_ID("$Id: lib_hline.c,v 1.11 2006/03/11 21:52:27 tom Exp $")
 
 NCURSES_EXPORT(int)
 whline(WINDOW *win, chtype ch, int n)
@@ -63,9 +63,9 @@ whline(WINDOW *win, chtype ch, int n)
 	CHANGED_RANGE(line, start, end);
 
 	if (ch == 0)
-	    SetChar(wch, ChCharOf(ACS_HLINE), ChAttrOf(ACS_HLINE));
+	    SetChar2(wch, ACS_HLINE);
 	else
-	    SetChar(wch, ChCharOf(ch), ChAttrOf(ch));
+	    SetChar2(wch, ch);
 	wch = _nc_render(win, wch);
 
 	while (end >= start) {

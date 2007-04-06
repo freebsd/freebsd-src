@@ -15,13 +15,13 @@
 ** 
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
-** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-** Boston, MA 02111-1307, USA.
+** the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+** Boston, MA 02110-1301, USA
 */
 
 #include <tack.h>
 
-MODULE_ID("$Id: pad.c,v 1.2 2000/03/04 21:04:58 tom Exp $")
+MODULE_ID("$Id: pad.c,v 1.6 2005/09/17 19:49:16 tom Exp $")
 
 /* test the pad counts on the terminal */
 
@@ -60,8 +60,6 @@ static void pad_ht(struct test_list *, int *, int *);
 static void pad_smso(struct test_list *, int *, int *);
 static void pad_smacs(struct test_list *, int *, int *);
 static void pad_crash(struct test_list *, int *, int *);
-
-extern struct test_menu change_pad_menu;
 
 /*
    Any command found in this list, executed from a "Done" prompt
@@ -168,10 +166,8 @@ struct test_list pad_test_list[] = {
 	{MENU_LAST, 0, 0, 0, 0, 0, 0}
 };
 
-extern int test_complete;	/* counts number of tests completed */
-
 /* globals */
-int hzcc;			/* horizontal character count */
+static int hzcc;		/* horizontal character count */
 char letter;			/* current character being displayed */
 int letter_number;		/* points into letters[] */
 int augment, repeats;		/* number of characters (or lines) effected */
@@ -1274,7 +1270,7 @@ pad_rin(
 	do {
 		sprintf(temp, "%d\r", test_complete);
 		put_str(temp);
-		if (scroll_reverse && augment == 1) {
+		if (scroll_reverse && repeats == 1) {
 			tt_putp(scroll_reverse);
 		} else {
 			tt_putparm(parm_rindex, repeats, repeats, 0);
@@ -1345,7 +1341,7 @@ pad_il(
 		}
 	} while(still_testing());
 	put_str("This line should be on the bottom.\r");
-	if (scroll_reverse && augment == 1) {
+	if (insert_line && augment == 1) {
 		for (i = 1; i < lines; i++) {
 			tt_putp(insert_line);
 		}
@@ -1386,8 +1382,13 @@ pad_indn(
 		start_message = "(indn) Scroll-forward-n-lines start testing";
 	} else {
 		/* ind */
-		if (!scroll_forward && over_strike) {
+		if (!scroll_forward) {
 			CAP_NOT_FOUND;
+			ptext("(ind) Scroll-forward not present.  ");
+			pad_done_message(t, state, ch);
+			return;
+		}
+		if (over_strike) {
 			ptext("(ind) Scroll-forward not tested on overstrike terminals.  ");
 			pad_done_message(t, state, ch);
 			return;
@@ -1404,14 +1405,14 @@ pad_indn(
 	do {
 		sprintf(temp, "%d\r", test_complete);
 		put_str(temp);
-		if (augment > 1) {
-			tt_putparm(parm_index, repeats, repeats, 0);
-		} else {
+		if (scroll_forward && repeats == 1) {
 			put_ind();
+		} else {
+			tt_putparm(parm_index, repeats, repeats, 0);
 		}
 	} while(still_testing());
 	put_str("This line should be on the top.\r");
-	if (augment == 1) {
+	if (scroll_forward && augment == 1) {
 		for (i = 1; i < lines; i++) {
 			put_ind();
 		}
@@ -1466,26 +1467,26 @@ pad_dl(
 	pad_test_startup(1);
 	do {
 		sprintf(temp, "%d\r", test_complete);
-		if ((i & 0x7f) == 0 && augment < lines - 1) {
+		if (augment < lines - 1) {
 			go_home();
 			putln(temp);
 		}
 		put_str(temp);
-		if (repeats || !delete_line) {
-			tt_putparm(parm_delete_line, repeats, repeats, 0);
-		} else {
+		if (delete_line && repeats == 1) {
 			tt_putp(delete_line);
+		} else {
+			tt_putparm(parm_delete_line, repeats, repeats, 0);
 		}
 	} while(still_testing());
 	home_down();
 	put_str("This line should be on the top.");
 	go_home();
-	if (repeats || !delete_line) {
-		tt_putparm(parm_delete_line, lines - 1, lines - 1, 0);
-	} else {
+	if (delete_line && augment == 1) {
 		for (i = 1; i < lines; i++) {
 			tt_putp(delete_line);
 		}
+	} else {
+		tt_putparm(parm_delete_line, lines - 1, lines - 1, 0);
 	}
 	sprintf(temp, "\nDelete %d line%s.  ", augment,
 		augment == 1 ? "" : "s");
@@ -1754,7 +1755,7 @@ pad_csr_cup(
 			put_str(every_line);
 		}
 		tt_putparm(change_scroll_region, 1, 0, lines - 1);
-		tt_putparm(cursor_address, 1, lines - 1, strlen(every_line));
+		tt_putparm(cursor_address, 1, lines - 1, (int) strlen(every_line));
 	} while(still_testing());
 	pad_test_shutdown(t, 0);
 	put_str("  ");
