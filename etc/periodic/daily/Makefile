@@ -12,6 +12,7 @@ FILES=	100.clean-disks \
 	310.accounting \
 	330.news \
 	400.status-disks \
+	404.status-zfs \
 	405.status-ata-raid \
 	406.status-gmirror \
 	407.status-graid3 \
