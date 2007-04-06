@@ -26,6 +26,9 @@
 #include <sys/types.h>
 __FBSDID("$FreeBSD$");
 
+void *memset(void *, int, size_t);
+
+
 void *
 memset(void *b, int c, size_t len)
 {
