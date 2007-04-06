@@ -613,53 +613,6 @@ ndis_encode_parm(block, oid, type, parm)
 	return(NDIS_STATUS_SUCCESS);
 }
 
-int
-ndis_strcasecmp(s1, s2)
-        const char              *s1;
-        const char              *s2;
-{
-	char			a, b;
-
-	/*
-	 * In the kernel, toupper() is a macro. Have to be careful
-	 * not to use pointer arithmetic when passing it arguments.
-	 */
-
-	while(1) {
-		a = *s1;
-		b = *s2++;
-		if (toupper(a) != toupper(b))
-			break;
-		if (*s1++ == '\0')
-			return(0);
-	}
-
-	return (*(const unsigned char *)s1 - *(const unsigned char *)(s2 - 1));
-}
-
-int
-ndis_strncasecmp(s1, s2, n)
-        const char              *s1;
-        const char              *s2;
-	size_t			n;
-{
-	char			a, b;
-
-	if (n != 0) {
-		do {
-			a = *s1;
-			b = *s2++;
-			if (toupper(a) != toupper(b))
-				return (*(const unsigned char *)s1 -
-				    *(const unsigned char *)(s2 - 1));
-			if (*s1++ == '\0')
-				break;
-		} while (--n != 0);
-	}
-
-	return(0);
-}
-
 static void
 NdisReadConfiguration(status, parm, cfg, key, type)
 	ndis_status		*status;
@@ -700,7 +653,7 @@ NdisReadConfiguration(status, parm, cfg, key, type)
 	TAILQ_FOREACH(e, device_get_sysctl_ctx(sc->ndis_dev), link) {
 #endif
 		oidp = e->entry;
-		if (ndis_strcasecmp(oidp->oid_name, keystr) == 0) {
+		if (strcasecmp(oidp->oid_name, keystr) == 0) {
 			if (strcmp((char *)oidp->oid_arg1, "UNSET") == 0) {
 				RtlFreeAnsiString(&as);
 				*status = NDIS_STATUS_FAILURE;
@@ -809,7 +762,7 @@ NdisWriteConfiguration(status, cfg, key, parm)
 	TAILQ_FOREACH(e, device_get_sysctl_ctx(sc->ndis_dev), link) {
 #endif
 		oidp = e->entry;
-		if (ndis_strcasecmp(oidp->oid_name, keystr) == 0) {
+		if (strcasecmp(oidp->oid_name, keystr) == 0) {
 			/* Found it, set the value. */
 			strcpy((char *)oidp->oid_arg1, val);
 			RtlFreeAnsiString(&as);
