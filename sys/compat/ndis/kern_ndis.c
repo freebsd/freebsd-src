@@ -323,8 +323,7 @@ ndis_create_sysctls(arg)
 		TAILQ_FOREACH(e, device_get_sysctl_ctx(sc->ndis_dev), link) {
 #endif
                 	oidp = e->entry;
-			if (ndis_strcasecmp(oidp->oid_name,
-			    vals->nc_cfgkey) == 0)
+			if (strcasecmp(oidp->oid_name, vals->nc_cfgkey) == 0)
 				break;
 			oidp = NULL;
 		}
