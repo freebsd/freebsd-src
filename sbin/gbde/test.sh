@@ -30,6 +30,8 @@ if ./gbde nuke $D -p foo2 -l /tmp/_l2 -n -1 ; then false ; fi
 if ./gbde nuke $D -p foo3 -l /tmp/_l3 -n -1 ; then false ; fi
 if ./gbde nuke $D -p foo4 -l /tmp/_l4 -n -1 ; then false ; fi
 
+rm -f /tmp/_l1 /tmp/_l2 /tmp/_l3 /tmp/_l4
+
 ./gbde init $D -P foo 
 ./gbde setkey $D -p foo -P bar
 ./gbde setkey $D -p bar -P foo
