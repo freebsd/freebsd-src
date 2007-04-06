@@ -36,6 +36,11 @@ mountd_precmd()
 			checkyesno weak_mountd_authentication && rc_flags="-n"
 		fi
 	fi
+
+	if checkyesno zfs_enable ; then
+		rc_flags="${rc_flags} /etc/exports /etc/zfs/exports"
+	fi
+
 	rm -f /var/db/mountdtab
 	( umask 022 ; > /var/db/mountdtab )
 	return 0

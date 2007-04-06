@@ -40,7 +40,8 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	var virecover \
 	watchdogd wpa_supplicant \
 	ypbind yppasswdd ypserv \
-	ypset ypupdated ypxfrd
+	ypset ypupdated ypxfrd \
+	zfs
 
 .if ${MK_OPENSSH} != "no"
 FILES+=	sshd
