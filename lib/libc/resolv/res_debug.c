@@ -468,7 +468,7 @@ const struct res_sym __p_type_syms[] = {
 /*
  * Names of DNS rcodes.
  */
-static const struct res_sym __p_rcode_syms[] = {
+const struct res_sym __p_rcode_syms[] = {
 	{ns_r_noerror,	"NOERROR",		"no error"},
 	{ns_r_formerr,	"FORMERR",		"format error"},
 	{ns_r_servfail,	"SERVFAIL",		"server failed"},
