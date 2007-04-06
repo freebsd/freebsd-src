@@ -15,13 +15,13 @@
 ** 
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
-** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-** Boston, MA 02111-1307, USA.
+** the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+** Boston, MA 02110-1301, USA
 */
 
 #include <tack.h>
 
-MODULE_ID("$Id: crum.c,v 1.3 2000/03/04 21:09:18 tom Exp $")
+MODULE_ID("$Id: crum.c,v 1.5 2006/11/26 00:15:02 tom Exp $")
 
 /*
  * Test cursor movement.
@@ -65,18 +65,18 @@ move_to(
 	char *s;
 
 	if (sel & 16) {	/* use (cup) */
-		s = tparm(cursor_address, rt, ct);
+		s = TPARM_2(cursor_address, rt, ct);
 		tputs(s, lines, tc_putch);
 		return;
 	}
 	if (sel & 8) {	/* use (hpa) (vpa) */
 		if (column_address) {
-			s = tparm(column_address, ct);
+			s = TPARM_1(column_address, ct);
 			tputs(s, 1, tc_putch);
 			cf = ct;
 		}
 		if (row_address) {
-			s = tparm(row_address, rt);
+			s = TPARM_1(row_address, rt);
 			tputs(s, 1, tc_putch);
 			rf = rt;
 		}
@@ -84,25 +84,25 @@ move_to(
 	if (sel & 4) {	/* parameterized relative cursor movement */
 		if (parm_right_cursor)
 			if (cf < ct) {
-				s = tparm(parm_right_cursor, ct - cf);
+				s = TPARM_1(parm_right_cursor, ct - cf);
 				tputs(s, ct - cf, tc_putch);
 				cf = ct;
 			}
 		if (parm_left_cursor)
 			if (cf > ct) {
-				s = tparm(parm_left_cursor, cf - ct);
+				s = TPARM_1(parm_left_cursor, cf - ct);
 				tputs(s, cf - ct, tc_putch);
 				cf = ct;
 			}
 		if (parm_down_cursor)
 			if (rf < rt) {
-				s = tparm(parm_down_cursor, rt - rf);
+				s = TPARM_1(parm_down_cursor, rt - rf);
 				tputs(s, rt - rf, tc_putch);
 				rf = rt;
 			}
 		if (parm_up_cursor)
 			if (rf > rt) {
-				s = tparm(parm_up_cursor, rf - rt);
+				s = TPARM_1(parm_up_cursor, rf - rt);
 				tputs(s, rf - rt, tc_putch);
 				rf = rt;
 			}
@@ -409,11 +409,11 @@ crum_os(
 			tc_putch('_');
 		}
 		for (i = 0; i < columns - 2; i++) {
-			tputs(tparm(cursor_address, 0, i), lines, tc_putch);
+			tputs(TPARM_2(cursor_address, 0, i), lines, tc_putch);
 			tc_putch('+');
 		}
 		for (i = 0; i < lines - 2; i++) {
-			tputs(tparm(cursor_address, i, 0), lines, tc_putch);
+			tputs(TPARM_2(cursor_address, i, 0), lines, tc_putch);
 			tc_putch(']');
 			tc_putch('_');
 		}

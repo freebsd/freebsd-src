@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2002 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_buffer.3x,v 1.9 2002/01/19 22:48:23 tom Exp $
+.\" $Id: form_field_buffer.3x,v 1.14 2006/11/04 17:12:00 tom Exp $
 .TH form_field_buffer 3X ""
 .SH NAME
 \fBform_field_buffer\fR - field buffer control
@@ -50,40 +50,53 @@ to contain a given string.  Buffer 0 is the displayed value of the field; other
 numbered buffers may be allocated by applications through the \fBnbuf\fR
 argument of (see \fBform_field_new\fR(3X)) but are not manipulated by the forms
 library.  The function \fBfield_buffer\fR returns the address of the buffer.
-Please note that this buffer has always the length of the buffer, that means 
+Please note that this buffer has always the length of the buffer, that means
 that it may typically contain trailing spaces. If you entered leading spaces
 the buffer may also contain them. If you want the raw data, you must write your
 own routine that copies the value out of the buffer and removes the leading
 and trailing spaces. Please note also, that subsequent operations on the form
-will probably change the content of the buffer. So don't use it for long term
+will probably change the content of the buffer. So do not use it for long term
 storage of the entered form data.
-
+.PP
 The function \fBset_field_status\fR sets the associated status flag of
 \fIfield\fR; \fBfield_status\fR gets the current value.  The status flag
 is set to a nonzero value whenever the field changes.
-
+.PP
 The function \fBset_max_field\fR sets the maximum size for a dynamic field.
 An argument of 0 turns off any maximum size threshold for that field.
 .SH RETURN VALUE
 The \fBfield_buffer\fR function returns NULL on error.
-
-The \fBfield_status\fR function returns \fBTRUE\fR or \fBFALSE\fR.
-
-The remaining routines return one of the following:
+It sets errno according to their success:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.PP
+The \fBfield_status\fR function returns \fBTRUE\fR or \fBFALSE\fR.
+.PP
+The remaining routines return one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .SH SEE ALSO
 \fBcurses\fR(3X) and related pages whose names begin "form_" for detailed
 descriptions of the entry points.
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header file
+.PP
+When configured for wide-characters, \fBfield_buffer\fP returns a pointer
+to temporary storage (allocated and freed by the library).
+The application should not attempt to modify the data.
+It will be freed on the next call to \fBfield_buffer\fP to return the
+same buffer.
 \fB<curses.h>\fR.
 .SH PORTABILITY
 These routines emulate the System V forms library.  They were not supported on

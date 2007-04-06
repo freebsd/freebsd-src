@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- *     and: Thomas Dickey 1995-2001                                         *
+ *     and: Thomas E. Dickey                        1995-on                 *
  ****************************************************************************/
 
 /*
@@ -46,7 +46,7 @@
 #define _POSIX_SOURCE
 #endif
 
-MODULE_ID("$Id: lib_tstp.c,v 1.30 2002/05/18 19:55:38 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.32 2006/04/01 19:31:34 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1
@@ -277,11 +277,7 @@ cleanup(int sig)
 static void
 sigwinch(int sig GCC_UNUSED)
 {
-    SCREEN *scan = _nc_screen_chain;
-    while (scan) {
-	scan->_sig_winch = TRUE;
-	scan = scan->_next_screen;
-    }
+    _nc_handle_sigwinch(-1);
 }
 #endif /* USE_SIGWINCH */
 

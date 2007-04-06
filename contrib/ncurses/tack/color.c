@@ -1,27 +1,27 @@
 /*
 ** Copyright (C) 1991, 1997 Free Software Foundation, Inc.
-** 
+**
 ** This file is part of TACK.
-** 
+**
 ** TACK is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
 ** the Free Software Foundation; either version 2, or (at your option)
 ** any later version.
-** 
+**
 ** TACK is distributed in the hope that it will be useful,
 ** but WITHOUT ANY WARRANTY; without even the implied warranty of
 ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ** GNU General Public License for more details.
-** 
+**
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
-** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-** Boston, MA 02111-1307, USA.
+** the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+** Boston, MA 02110-1301, USA
 */
 
 #include <tack.h>
 
-MODULE_ID("$Id: color.c,v 1.2 2000/03/04 21:05:54 tom Exp $")
+MODULE_ID("$Id: color.c,v 1.7 2006/11/26 00:14:25 tom Exp $")
 
 /*
  * Color terminal tests.  Has only one entry point: test_color().
@@ -84,6 +84,12 @@ static int a_bright_color, bright_value;
 static int cookie_monster, color_step, colors_per_line;
 static int R, G, B;
 
+static void reset_colors(void)
+{
+	tc_putp(orig_colors);
+	tc_putp(TPARM_0(orig_pair));
+}
+
 static int
 color_trans(int c)
 {				/* translate or load the color */
@@ -104,10 +110,10 @@ color_trans(int c)
 	fg_color[pairs_used] = c;
 	bg_color[pairs_used] = c;
 	if (hue_lightness_saturation) {
-		tc_putp(tparm(initialize_color, pairs_used,
+		tc_putp(TPARM_4(initialize_color, pairs_used,
 			def_colors[c].h, def_colors[c].l, def_colors[c].s));
 	} else {
-		tc_putp(tparm(initialize_color, pairs_used,
+		tc_putp(TPARM_4(initialize_color, pairs_used,
 			def_colors[c].r, def_colors[c].g, def_colors[c].b));
 	}
 	return pairs_used++;
@@ -126,17 +132,17 @@ new_color(
 	}
 	if (set_a_foreground) {
 		/* set ANSI color (setaf) (setab) */
-		tc_putp(tparm(set_a_foreground, fg));
-		tc_putp(tparm(set_a_background, bg));
+		tc_putp(TPARM_1(set_a_foreground, fg));
+		tc_putp(TPARM_1(set_a_background, bg));
 	} else if (set_foreground) {
 		/* make sure black is zero */
 		(void) color_trans(COLOR_BLACK);
-		tc_putp(tparm(set_foreground, color_trans(fg)));
-		tc_putp(tparm(set_background, color_trans(bg)));
+		tc_putp(TPARM_1(set_foreground, color_trans(fg)));
+		tc_putp(TPARM_1(set_background, color_trans(bg)));
 	} else {	/* set color pair */
 		for (i = 0; i < pairs_used; i++) {
 			if (fg_color[i] == fg && bg_color[i] == bg) {
-				tc_putp(tparm(set_color_pair, i));
+				tc_putp(TPARM_1(set_color_pair, i));
 				if (hungry) {
 					eat_cookie();
 				}
@@ -149,7 +155,7 @@ new_color(
 				if (fg_color[i] == fg)
 					break;
 			}
-			tc_putp(tparm(set_color_pair, i));
+			tc_putp(TPARM_1(set_color_pair, i));
 			if (hungry) {
 				eat_cookie();
 			}
@@ -162,15 +168,15 @@ new_color(
 		fg_color[pairs_used] = fg;
 		bg_color[pairs_used] = bg;
 		if (hue_lightness_saturation) {
-			tc_putp(tparm(initialize_pair, pairs_used,
+			tc_putp(TPARM_7(initialize_pair, pairs_used,
 				def_colors[fg].h, def_colors[fg].l, def_colors[fg].s,
 				def_colors[bg].h, def_colors[bg].l, def_colors[bg].s));
 		} else {
-			tc_putp(tparm(initialize_pair, pairs_used,
+			tc_putp(TPARM_7(initialize_pair, pairs_used,
 				def_colors[fg].r, def_colors[fg].g, def_colors[fg].b,
 				def_colors[bg].r, def_colors[bg].g, def_colors[bg].b));
 		}
-		tc_putp(tparm(set_color_pair, pairs_used));
+		tc_putp(TPARM_1(set_color_pair, pairs_used));
 		pairs_used++;
 	}
 	if (hungry) {
@@ -239,9 +245,9 @@ send_color(int p, int r, int g, int b)
 
 	if (hue_lightness_saturation) {
 		rgb_2_hls(r, g, b, &h, &l, &s);
-		tc_putp(tparm(initialize_color, p, h, l, s));
+		tc_putp(TPARM_4(initialize_color, p, h, l, s));
 	} else {
-		tc_putp(tparm(initialize_color, p, r, g, b));
+		tc_putp(TPARM_4(initialize_color, p, r, g, b));
 	}
 }
 
@@ -254,9 +260,9 @@ send_pair(int p, int fr, int fg, int fb, int br, int bg, int bb)
 	if (hue_lightness_saturation) {
 		rgb_2_hls(fr, fg, fb, &fh, &fl, &fs);
 		rgb_2_hls(br, bg, bb, &bh, &bl, &bs);
-		tc_putp(tparm(initialize_pair, p, fh, fl, fs, bh, bl, bs));
+		tc_putp(TPARM_7(initialize_pair, p, fh, fl, fs, bh, bl, bs));
 	} else {
-		tc_putp(tparm(initialize_pair, p, fr, fg, fb, bb, bg, bb));
+		tc_putp(TPARM_7(initialize_pair, p, fr, fg, fb, bb, bg, bb));
 	}
 }
 
@@ -349,19 +355,19 @@ rainbow(int n)
 				if (i >= max_colors) {
 					break;
 				}
-				tc_putp(tparm(set_a_foreground, i));
-				tc_putp(tparm(set_a_background, i));
+				tc_putp(TPARM_1(set_a_foreground, i));
+				tc_putp(TPARM_1(set_a_background, i));
 			} else if (set_foreground) {
 				if (i >= max_colors) {
 					break;
 				}
-				tc_putp(tparm(set_foreground, i));
-				tc_putp(tparm(set_background, i));
+				tc_putp(TPARM_1(set_foreground, i));
+				tc_putp(TPARM_1(set_background, i));
 			} else {
 				if (i >= max_pairs) {
 					break;
 				}
-				tc_putp(tparm(set_color_pair, i));
+				tc_putp(TPARM_1(set_color_pair, i));
 			}
 			putchp(c);
 		}
@@ -369,13 +375,13 @@ rainbow(int n)
 			put_mode(exit_attribute_mode);
 		}
 		if (set_a_foreground) {
-			tc_putp(tparm(set_a_foreground, a_bright_color));
-			tc_putp(tparm(set_a_background, 0));
+			tc_putp(TPARM_1(set_a_foreground, a_bright_color));
+			tc_putp(TPARM_1(set_a_background, 0));
 		} else if (set_foreground) {
-			tc_putp(tparm(set_foreground, a_bright_color));
-			tc_putp(tparm(set_background, 0));
+			tc_putp(TPARM_1(set_foreground, a_bright_color));
+			tc_putp(TPARM_1(set_background, 0));
 		} else {
-			tc_putp(tparm(set_color_pair, 0));
+			tc_putp(TPARM_1(set_color_pair, 0));
 		}
 		put_str("   ");
 		put_str(splat[d].name);
@@ -405,6 +411,7 @@ ncv_display(int m)
 	put_str(alt_modes[m].name);
 	eat_cookie();
 	set_attr(0);
+	reset_colors();
 	put_crlf();
 }
 
@@ -436,19 +443,19 @@ dump_colors(void)
 							continue;
 						}
 						send_color(p, R, G, B);
-						tc_putp(tparm(set_a_background, p));
+						tc_putp(TPARM_1(set_a_background, p));
 					} else if (set_background) {
 						if (p >= max_colors) {
 							continue;
 						}
 						send_color(p, R, G, B);
-						tc_putp(tparm(set_background, p));
+						tc_putp(TPARM_1(set_background, p));
 					} else {
 						if (p >= max_pairs) {
 							continue;
 						}
 						send_pair(p, R, G, B, R, G, B);
-						tc_putp(tparm(set_color_pair, p));
+						tc_putp(TPARM_1(set_color_pair, p));
 					}
 					found_one = TRUE;
 					putchp(' ');
@@ -517,10 +524,7 @@ color_setf(
 	}
 	/* initialize the color palette */
 	pairs_used = max_colors >= 8 ? 8 : max_colors;
-	if (can_change) {
-		tc_putp(orig_colors);
-	}
-	tc_putp(tparm(orig_pair));
+	reset_colors();
 	new_color(COLOR_WHITE, COLOR_BLACK, FALSE);
 
 	ptextln("(setf) (setb) (scp) The following colors are predefined:");
@@ -528,8 +532,8 @@ color_setf(
 	put_crlf();
 	j = max_colors > 8 ? 8 : max_colors;
 	/*
-	   the black on white test is the same as the white on black test.
-	*/
+	 * the black on white test is the same as the white on black test.
+	 */
 	for (i = 1; i < j; i++) {
 		putchp('0' + def_colors[i].index);
 		putchp(' ');
@@ -547,6 +551,7 @@ color_setf(
 		new_color(COLOR_WHITE, COLOR_BLACK, FALSE);
 		put_crlf();
 	}
+	reset_colors();
 	put_crlf();
 	generic_done_message(t, state, ch);
 }
@@ -589,10 +594,10 @@ color_matrix(
 		}
 		for (j = 0; j < matrix_area; j++) {
 			if (j % matrix_size == 0) {
-				tc_putp(tparm(orig_pair));
+				reset_colors();
 				put_crlf();
 				if (brightness) {
-					tc_putp(exit_standout_mode);
+					tc_putp(exit_attribute_mode);
 				}
 				(void) sprintf(temp, "%-8s", def_colors[j / matrix_size].name);
 				put_str(temp);
@@ -605,9 +610,9 @@ color_matrix(
 				FALSE);
 			put_str("  Hello ");
 		}
-		tc_putp(tparm(orig_pair));
+		reset_colors();
 		if (brightness) {
-			tc_putp(exit_standout_mode);
+			tc_putp(exit_attribute_mode);
 		}
 		put_crlf();
 	}
@@ -649,7 +654,7 @@ color_ncv(
 			}
 		}
 	}
-	tc_putp(orig_pair);
+	reset_colors();
 	put_crlf();
 	generic_done_message(t, state, ch);
 }
@@ -665,11 +670,11 @@ color_bce(
 	int *state,
 	int *ch)
 {
-	new_color(COLOR_BLACK, COLOR_WHITE, FALSE);
+	new_color(COLOR_CYAN, COLOR_BLUE, FALSE);
 	put_clear();
 	put_newlines(2);
-	new_color(COLOR_WHITE, COLOR_BLACK, FALSE);
-	ptextln("If the two lines above are black then back_color_erase (bce) should be false.");
+	reset_colors();
+	ptextln("If the two lines above are blue then back_color_erase (bce) should be true.");
 	sprintf(temp, "(bce) is %s in the data base.", back_color_erase ? "true" : "false");
 	ptextln(temp);
 	generic_done_message(t, state, ch);
@@ -693,7 +698,7 @@ color_ccc(
 		generic_done_message(t, state, ch);
 		return;
 	}
-	tc_putp(orig_colors);
+	reset_colors();
 	pairs_used = 0;
 	new_color(COLOR_WHITE, COLOR_BLACK, FALSE);
 	sprintf(temp, "Reloading colors (init%c) using %s method",
@@ -721,8 +726,7 @@ color_ccc(
 	}
 	generic_done_message(t, state, ch);
 	if (*ch != 0 && *ch != 'n') {
-		tc_putp(orig_colors);
-		tc_putp(tparm(orig_pair));
+		reset_colors();
 		return;
 	}
 
@@ -756,12 +760,10 @@ color_ccc(
 	}
 	generic_done_message(t, state, ch);
 	if (*ch != 0 && *ch != 'n') {
-		tc_putp(orig_colors);
-		tc_putp(tparm(orig_pair));
+		reset_colors();
 		return;
 	}
 	dump_colors();
-	tc_putp(orig_colors);
-	tc_putp(tparm(orig_pair));
+	reset_colors();
 	generic_done_message(t, state, ch);
 }

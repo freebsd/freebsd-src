@@ -15,14 +15,14 @@
 ** 
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
-** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-** Boston, MA 02111-1307, USA.
+** the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+** Boston, MA 02110-1301, USA
 */
 
 #include <tack.h>
 #include <time.h>
 
-MODULE_ID("$Id: sync.c,v 1.3 2001/06/16 17:55:48 tom Exp $")
+MODULE_ID("$Id: sync.c,v 1.9 2006/05/06 20:45:48 tom Exp $")
 
 /* terminal-synchronization and performance tests */
 
@@ -31,7 +31,7 @@ static void sync_lines(struct test_list *, int *, int *);
 static void sync_clear(struct test_list *, int *, int *);
 static void sync_summary(struct test_list *, int *, int *);
 
-struct test_list sync_test_list[] = {
+static struct test_list sync_test_list[] = {
 	{MENU_NEXT, 0, 0, 0, "b) baud rate test", sync_home, 0},
 	{MENU_NEXT, 0, 0, 0, "l) scroll performance", sync_lines, 0},
 	{MENU_NEXT, 0, 0, 0, "c) clear screen performance", sync_clear, 0},
@@ -48,16 +48,16 @@ struct test_menu sync_menu = {
 };
 
 int tty_can_sync;		/* TRUE if tty_sync_error() returned FALSE */
-int tty_newline_rate;		/* The number of newlines per second */
-int tty_clear_rate;		/* The number of clear-screens per second */
-int tty_cps;			/* The number of characters per second */
+static int tty_newline_rate;	/* The number of newlines per second */
+static int tty_clear_rate;	/* The number of clear-screens per second */
+unsigned long tty_cps;		/* The number of characters per second */
 
 #define TTY_ACK_SIZE 64
 
-int ACK_terminator;		/* terminating ACK character */
-int ACK_length;			/* length of ACK string */
-const char *tty_ENQ;		/* enquire string */
-char tty_ACK[TTY_ACK_SIZE];	/* ACK response, set by tty_sync_error() */
+static int ACK_terminator;	/* terminating ACK character */
+static int ACK_length;		/* length of ACK string */
+static const char *tty_ENQ;	/* enquire string */
+static char tty_ACK[TTY_ACK_SIZE]; /* ACK response, set by tty_sync_error() */
 
 /*****************************************************************************
  *
@@ -256,7 +256,7 @@ verify_time(void)
 **
 **	Baudrate test
 */
-void
+static void
 sync_home(
 	struct test_list *t,
 	int *state,
@@ -299,7 +299,7 @@ sync_home(
 	if (tx_cps > tty_cps) {
 		tty_cps = tx_cps;
 	}
-	sprintf(temp, "%d characters per second.  Baudrate %d  ", tx_cps, j);
+	sprintf(temp, "%lu characters per second.  Baudrate %d  ", tx_cps, j);
 	ptext(temp);
 	generic_done_message(t, state, ch);
 }
@@ -395,7 +395,7 @@ sync_summary(
 	put_crlf();
 	ptextln("Terminal  size    characters/sec linefeeds/sec  clears/sec");
 	sprintf(size, "%dx%d", columns, lines);
-	sprintf(temp, "%-10s%-11s%11d   %11d %11d", tty_basename, size,
+	sprintf(temp, "%-10s%-11s%11lu   %11d %11d", tty_basename, size,
 		tty_cps, tty_newline_rate, tty_clear_rate);
 	ptextln(temp);
 	generic_done_message(t, state, ch);

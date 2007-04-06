@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1999-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1999                        *
+ *  Author: Thomas E. Dickey                    1999-on                     *
  ****************************************************************************/
 
 /*
@@ -43,13 +43,14 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: free_ttype.c,v 1.7 2000/12/10 02:55:07 tom Exp $")
+MODULE_ID("$Id: free_ttype.c,v 1.13 2006/06/25 10:46:02 tom Exp $")
 
 NCURSES_EXPORT(void)
-_nc_free_termtype(TERMTYPE * ptr)
+_nc_free_termtype(TERMTYPE *ptr)
 {
+    T(("_nc_free_termtype(%s)", ptr->term_names));
+
     FreeIfNeeded(ptr->str_table);
-    FreeIfNeeded(ptr->term_names);
     FreeIfNeeded(ptr->Booleans);
     FreeIfNeeded(ptr->Numbers);
     FreeIfNeeded(ptr->Strings);
@@ -58,6 +59,7 @@ _nc_free_termtype(TERMTYPE * ptr)
     FreeIfNeeded(ptr->ext_Names);
 #endif
     memset(ptr, 0, sizeof(TERMTYPE));
+    _nc_free_entry(_nc_head, ptr);
 }
 
 #if NCURSES_XNAMES
@@ -67,7 +69,9 @@ NCURSES_EXPORT(int)
 use_extended_names(bool flag)
 {
     int oldflag = _nc_user_definable;
+
+    T((T_CALLED("use_extended_names(%d)"), flag));
     _nc_user_definable = flag;
-    return oldflag;
+    returnBool(oldflag);
 }
 #endif

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,13 +39,13 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: add_tries.c,v 1.4 2000/12/10 02:55:07 tom Exp $")
+MODULE_ID("$Id: add_tries.c,v 1.5 2005/11/20 01:32:48 tom Exp $")
 
 #define SET_TRY(dst,src) if ((dst->ch = *src++) == 128) dst->ch = '\0'
 #define CMP_TRY(a,b) ((a)? (a == b) : (b == 128))
 
 NCURSES_EXPORT(void)
-_nc_add_to_try(struct tries **tree, const char *str, unsigned short code)
+_nc_add_to_try(struct tries **tree, const char *str, unsigned code)
 {
     static bool out_of_memory = FALSE;
     struct tries *ptr, *savedptr;

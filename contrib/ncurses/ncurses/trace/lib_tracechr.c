@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -36,19 +37,36 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracechr.c,v 1.9 2002/05/25 23:34:19 tom Exp $")
+#include <ctype.h>
+
+MODULE_ID("$Id: lib_tracechr.c,v 1.12 2005/04/16 16:55:46 tom Exp $")
 
 #ifdef TRACE
 NCURSES_EXPORT(char *)
 _tracechar(int ch)
 {
-    static char crep[40];
-    (void) sprintf(crep, "'%.30s' = %#03o",
-		   ((ch > KEY_MIN || ch < 0)
-		    ? keyname(ch)
-		    : unctrl(ch)),
-		   ch);
-    return (crep);
+    static char result[40];
+    NCURSES_CONST char *name;
+
+    if (ch > KEY_MIN || ch < 0) {
+	name = keyname(ch);
+	if (name == 0 || *name == '\0')
+	    name = "NULL";
+	(void) sprintf(result, "'%.30s' = %#03o", name, ch);
+    } else if (!is8bits(ch) || !isprint(UChar(ch))) {
+	/*
+	 * workaround for glibc bug:
+	 * sprintf changes the result from unctrl() to an empty string if it
+	 * does not correspond to a valid multibyte sequence.
+	 */
+	(void) sprintf(result, "%#03o", ch);
+    } else {
+	name = unctrl((chtype) ch);
+	if (name == 0 || *name == 0)
+	    name = "null";	/* shouldn't happen */
+	(void) sprintf(result, "'%.30s' = %#03o", name, ch);
+    }
+    return (result);
 }
 #else
 empty_module(_nc_lib_tracechr)

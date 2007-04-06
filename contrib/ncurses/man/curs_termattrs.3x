@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2000,2002 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2002,2003 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_termattrs.3x,v 1.8 2002/05/11 21:32:26 tom Exp $
+.\" $Id: curs_termattrs.3x,v 1.9 2003/12/27 18:37:47 tom Exp $
 .TH curs_termattrs 3X ""
 .SH NAME
 \fBbaudrate\fR,
@@ -42,7 +42,7 @@
 \fBtermname\fR - \fBcurses\fR environment query routines
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
-
+.PP
 \fBint baudrate(void);\fR
 .br
 \fBchar erasechar(void);\fR
@@ -69,29 +69,29 @@
 The \fBbaudrate\fR routine returns the output speed of the terminal.  The
 number returned is in bits per second, for example \fB9600\fR, and is an
 integer.
-
+.PP
 The \fBerasechar\fR routine returns the user's current erase character.
-
+.PP
 The \fBerasewchar\fR routine stores the current erase character
 in the location referenced by \fIch\fR.
 If no erase character has been defined, the routine fails
 and the location referenced by \fIch\fR is not changed.
-
+.PP
 The \fBhas_ic\fR routine is true if the terminal has insert- and delete-
 character capabilities.
-
+.PP
 The \fBhas_il\fR routine is true if the terminal has insert- and delete-line
 capabilities, or can simulate them using scrolling regions.  This might
 be used to determine if it would be appropriate to turn on physical
 scrolling using \fBscrollok\fR.
-
+.PP
 The \fBkillchar\fR routine returns the user's current line kill character.
-
+.PP
 The \fBkillwchar\fR routine stores the current line-kill character
 in the location referenced by \fIch\fR.
 If no line-kill character has been defined,
 the routine fails and the location referenced by \fIch\fR is not changed.
-
+.PP
 The \fBlongname\fR routine returns a pointer to a static area
 containing a verbose description of the current terminal.  The maximum
 length of a verbose description is 128 characters.  It is defined only
@@ -100,7 +100,7 @@ overwritten by each call to \fBnewterm\fR and is not restored by
 \fBset_term\fR, so the value should be saved between calls to
 \fBnewterm\fR if \fBlongname\fR is going to be used with multiple
 terminals.
-
+.PP
 If a given terminal doesn't support a video attribute that an
 application program is trying to use, \fBcurses\fR may substitute a
 different video attribute for it.
@@ -109,12 +109,11 @@ return a logical \fBOR\fR of all video attributes supported by the
 terminal using \fIA_\fR and \fIWA_\fR constants respectively.
 This information is useful when a \fBcurses\fR program
 needs complete control over the appearance of the screen.
-
-The \fBtermname\fR routine returns the value of the environmental
-variable \fBTERM\fR (truncated to 14 characters).
+.PP
+The \fBtermname\fR routine returns the terminal name used by \fBsetupterm\fR.
 .SH RETURN VALUE
 \fBlongname\fR and \fBtermname\fR return \fBNULL\fR on error.
-
+.PP
 Routines that return an integer return \fBERR\fR upon failure and \fBOK\fR
 (SVr4 only specifies "an integer value other than \fBERR\fR") upon successful
 completion.
@@ -123,6 +122,8 @@ Note that \fBtermattrs\fR may be a macro.
 .SH PORTABILITY
 The XSI Curses standard, Issue 4 describes these functions.  It changes the
 return type of \fBtermattrs\fR to the new type \fBattr_t\fR.
+Most versions of curses truncate the result returned by \fBtermname\fR to
+14 characters.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_outopts\fR(3X)
 .\"#

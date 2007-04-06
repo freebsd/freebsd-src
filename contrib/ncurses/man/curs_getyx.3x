@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,14 +26,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getyx.3x,v 1.6 1998/03/11 21:12:53 juergen Exp $
+.\" $Id: curs_getyx.3x,v 1.13 2006/05/27 20:28:05 tom Exp $
 .TH curs_getyx 3X ""
 .SH NAME
-\fBgetyx\fR, \fBgetparyx\fR, \fBgetbegyx\fR,
+\fBgetyx\fR,
+\fBgetparyx\fR,
+\fBgetbegyx\fR,
 \fBgetmaxyx\fR - get \fBcurses\fR cursor and window coordinates
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
-
+.sp
 \fBvoid getyx(WINDOW *win, int y, int x);\fR
 .br
 \fBvoid getparyx(WINDOW *win, int y, int x);\fR
@@ -45,23 +47,40 @@
 .SH DESCRIPTION
 The \fBgetyx\fR macro places the current cursor position of the given window in
 the two integer variables \fIy\fR and \fIx\fR.
-
+.PP
 If \fIwin\fR is a subwindow, the \fBgetparyx\fR macro places the beginning
 coordinates of the subwindow relative to the parent window into two integer
-variables \fIy\fR and \fIx\fR.  Otherwise, \fB-1\fR is placed into \fIy\fR and
-\fIx\fR.
-
+variables \fIy\fR and \fIx\fR.
+Otherwise, \fB-1\fR is placed into \fIy\fR and \fIx\fR.
+.PP
 Like \fBgetyx\fR, the \fBgetbegyx\fR and \fBgetmaxyx\fR macros store
 the current beginning coordinates and size of the specified window.
 .SH RETURN VALUE
-The return values of these macros are undefined (\fIi\fR.\fIe\fR.,
-they should not be used as the right-hand side of assignment
-statements).
+The return values of these macros are undefined (i.e.,
+they should not be used as the right-hand side of assignment statements).
 .SH NOTES
-All of these interfaces are macros and that "\fB&\fR" is not
-necessary before the variables \fIy\fR and \fIx\fR.
+All of these interfaces are macros.
+A "\fB&\fR" is not necessary before the variables \fIy\fR and \fIx\fR.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.
+The
+\fBgetyx\fR,
+\fBgetparyx\fR,
+\fBgetbegyx\fR and
+\fBgetmaxyx\fR
+macros are described in the XSI Curses standard, Issue 4.
+.PP
+This implementation also provides
+\fBgetbegx\fR,
+\fBgetbegy\fR,
+\fBgetcurx\fR,
+\fBgetcury\fR,
+\fBgetmaxx\fR,
+\fBgetmaxy\fR,
+\fBgetparx\fR and
+\fBgetpary\fR
+for compatibility with older versions of curses.
+X/Open does not define a corresponding \fBgetcuryx\fP function,
+though that would be needed to make references to the WINDOW structure opaque.
 .SH SEE ALSO
 \fBcurses\fR(3X)
 .\"#

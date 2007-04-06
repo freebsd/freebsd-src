@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,12 +29,13 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_tracebits.c,v 1.12 2002/05/25 14:35:07 tom Exp $")
+MODULE_ID("$Id: lib_tracebits.c,v 1.13 2006/12/10 01:33:00 tom Exp $")
 
 #if SVR4_TERMIO && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
@@ -106,6 +107,7 @@ _nc_trace_ttymode(TTY * tty)
     }, oflags[] =
     {
 	{OPOST, "OPOST"},
+	{OFLAGS_TABS, "XTABS"},
 	{0, NULL}
 #define ALLOUT	(OPOST)
     }, cflags[] =

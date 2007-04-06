@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -43,10 +44,10 @@
 #include <term.h>		/* cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_set_term.c,v 1.65 2002/06/15 18:40:20 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.91 2006/05/20 14:58:02 tom Exp $")
 
 NCURSES_EXPORT(SCREEN *)
-set_term(SCREEN * screenp)
+set_term(SCREEN *screenp)
 {
     SCREEN *oldSP;
 
@@ -61,7 +62,6 @@ set_term(SCREEN * screenp)
     stdscr = SP->_stdscr;
     COLORS = SP->_color_count;
     COLOR_PAIRS = SP->_pair_count;
-    memcpy(acs_map, SP->_acs_map, sizeof(chtype) * ACS_LEN);
 
     T((T_RETURN("%p"), oldSP));
     return (oldSP);
@@ -81,9 +81,10 @@ _nc_free_keytry(struct tries *kt)
  * Free the storage associated with the given SCREEN sp.
  */
 NCURSES_EXPORT(void)
-delscreen(SCREEN * sp)
+delscreen(SCREEN *sp)
 {
     SCREEN **scan = &_nc_screen_chain;
+    int i;
 
     T((T_CALLED("delscreen(%p)"), sp));
 
@@ -98,14 +99,36 @@ delscreen(SCREEN * sp)
     (void) _nc_freewin(sp->_curscr);
     (void) _nc_freewin(sp->_newscr);
     (void) _nc_freewin(sp->_stdscr);
+
+    if (sp->_slk != 0) {
+	if (sp->_slk->ent != 0) {
+	    for (i = 0; i < sp->_slk->labcnt; ++i) {
+		FreeIfNeeded(sp->_slk->ent[i].ent_text);
+		FreeIfNeeded(sp->_slk->ent[i].form_text);
+	    }
+	    free(sp->_slk->ent);
+	}
+	free(sp->_slk);
+	sp->_slk = 0;
+    }
+
     _nc_free_keytry(sp->_keytry);
+    sp->_keytry = 0;
+
     _nc_free_keytry(sp->_key_ok);
+    sp->_key_ok = 0;
+
+    FreeIfNeeded(sp->_current_attr);
 
     FreeIfNeeded(sp->_color_table);
     FreeIfNeeded(sp->_color_pairs);
 
     FreeIfNeeded(sp->oldhash);
     FreeIfNeeded(sp->newhash);
+    FreeIfNeeded(sp->hashtab);
+
+    FreeIfNeeded(sp->_acs_map);
+    FreeIfNeeded(sp->_screen_acs_map);
 
     del_curterm(sp->_term);
 
@@ -141,16 +164,16 @@ delscreen(SCREEN * sp)
 
 static ripoff_t rippedoff[5];
 static ripoff_t *rsp = rippedoff;
-#define N_RIPS SIZEOF(rippedoff)
+#define N_RIPS SIZEOF(SP->_rippedoff)
 
 static bool
-no_mouse_event(SCREEN * sp GCC_UNUSED)
+no_mouse_event(SCREEN *sp GCC_UNUSED)
 {
     return FALSE;
 }
 
 static bool
-no_mouse_inline(SCREEN * sp GCC_UNUSED)
+no_mouse_inline(SCREEN *sp GCC_UNUSED)
 {
     return FALSE;
 }
@@ -162,12 +185,12 @@ no_mouse_parse(int code GCC_UNUSED)
 }
 
 static void
-no_mouse_resume(SCREEN * sp GCC_UNUSED)
+no_mouse_resume(SCREEN *sp GCC_UNUSED)
 {
 }
 
 static void
-no_mouse_wrap(SCREEN * sp GCC_UNUSED)
+no_mouse_wrap(SCREEN *sp GCC_UNUSED)
 {
 }
 
@@ -191,21 +214,67 @@ extract_fgbg(char *src, int *result)
 }
 #endif
 
-NCURSES_EXPORT(int)
-_nc_setupscreen
-(short slines, short const scolumns, FILE * output)
 /* OS-independent screen initializations */
+NCURSES_EXPORT(int)
+_nc_setupscreen(int slines,
+		int scolumns,
+		FILE *output,
+		bool filtered,
+		int slk_format)
 {
     int bottom_stolen = 0;
-    size_t i;
+    int i;
+    bool support_cookies = USE_XMC_SUPPORT;
+
+    T((T_CALLED("_nc_setupscreen(%d, %d, %p, %d, %d)"),
+       slines, scolumns, output, filtered, slk_format));
 
     assert(SP == 0);		/* has been reset in newterm() ! */
-    if (!_nc_alloc_screen())
-	return ERR;
+    if (!_nc_alloc_screen()
+	|| ((SP->_acs_map = typeCalloc(chtype, ACS_LEN)) == 0)
+	|| ((SP->_screen_acs_map = typeCalloc(bool, ACS_LEN)) == 0)) {
+	returnCode(ERR);
+    }
 
+    T(("created SP %p", SP));
     SP->_next_screen = _nc_screen_chain;
     _nc_screen_chain = SP;
 
+    if ((SP->_current_attr = typeCalloc(NCURSES_CH_T, 1)) == 0)
+	returnCode(ERR);
+
+    SP->_filtered = filtered;
+
+    /* implement filter mode */
+    if (filtered) {
+	slines = LINES = 1;
+
+	clear_screen = 0;
+	cursor_down = parm_down_cursor = 0;
+	cursor_address = 0;
+	cursor_up = parm_up_cursor = 0;
+	row_address = 0;
+
+	cursor_home = carriage_return;
+	T(("filter screensize %dx%d", LINES, COLS));
+    }
+
+    /* If we must simulate soft labels, grab off the line to be used.
+       We assume that we must simulate, if it is none of the standard
+       formats (4-4  or 3-2-3) for which there may be some hardware
+       support. */
+    if (num_labels <= 0 || !SLK_STDFMT(slk_format)) {
+	if (slk_format) {
+	    if (ERR == _nc_ripoffline(-SLK_LINES(slk_format),
+				      _nc_slk_initialize))
+		returnCode(ERR);
+	}
+    }
+#ifdef __DJGPP__
+    T(("setting output mode to binary"));
+    fflush(output);
+    setmode(output, O_BINARY);
+#endif
     _nc_set_buffer(output, TRUE);
     SP->_term = cur_term;
     SP->_lines = slines;
@@ -259,6 +328,26 @@ _nc_setupscreen
     SP->_default_bg = C_MASK;
 #endif
 
+    /*
+     * Allow those assumed/default color assumptions to be overridden at
+     * runtime:
+     */
+    if (getenv("NCURSES_ASSUMED_COLORS") != 0) {
+	char *p = getenv("NCURSES_ASSUMED_COLORS");
+	int fg, bg;
+	char sep1, sep2;
+	int count = sscanf(p, "%d%c%d%c", &fg, &sep1, &bg, &sep2);
+	if (count >= 1) {
+	    SP->_default_fg = (fg >= 0 && fg < max_colors) ? fg : C_MASK;
+	    if (count >= 3) {
+		SP->_default_bg = (bg >= 0 && bg < max_colors) ? bg : C_MASK;
+	    }
+	    TR(TRACE_CHARPUT | TRACE_MOVE,
+	       ("from environment assumed fg=%d, bg=%d",
+		SP->_default_fg,
+		SP->_default_bg));
+	}
+    }
 #if USE_COLORFGBG
     /*
      * If rxvt's $COLORFGBG variable is set, use it to specify the assumed
@@ -275,7 +364,7 @@ _nc_setupscreen
 	    p = extract_fgbg(p, &(SP->_default_bg));
 	TR(TRACE_CHARPUT | TRACE_MOVE, ("decoded fg=%d, bg=%d",
 					SP->_default_fg, SP->_default_bg));
-	if (SP->_default_fg > max_colors) {
+	if (SP->_default_fg >= max_colors) {
 	    if (set_a_foreground != ABSENT_STRING
 		&& !strcmp(set_a_foreground, "\033[3%p1%dm")) {
 		set_a_foreground = "\033[3%?%p1%{8}%>%t9%e%p1%d%;m";
@@ -283,7 +372,7 @@ _nc_setupscreen
 		SP->_default_fg %= max_colors;
 	    }
 	}
-	if (SP->_default_bg > max_colors) {
+	if (SP->_default_bg >= max_colors) {
 	    if (set_a_background != ABSENT_STRING
 		&& !strcmp(set_a_background, "\033[4%p1%dm")) {
 		set_a_background = "\033[4%?%p1%{8}%>%t9%e%p1%d%;m";
@@ -309,42 +398,104 @@ _nc_setupscreen
     SP->_panelHook.stdscr_pseudo_panel = (struct panel *) 0;
 
     /*
-     * If we've no magic cookie support, we suppress attributes that xmc
-     * would affect, i.e., the attributes that affect the rendition of a
-     * space.  Note that this impacts the alternate character set mapping
-     * as well.
+     * If we've no magic cookie support, we suppress attributes that xmc would
+     * affect, i.e., the attributes that affect the rendition of a space.
      */
-    if (magic_cookie_glitch > 0) {
+    SP->_ok_attributes = termattrs();
+    if (has_colors()) {
+	SP->_ok_attributes |= A_COLOR;
+    }
+#if USE_XMC_SUPPORT
+    /*
+     * If we have no magic-cookie support compiled-in, or if it is suppressed
+     * in the environment, reset the support-flag.
+     */
+    if (magic_cookie_glitch >= 0) {
+	if (getenv("NCURSES_NO_MAGIC_COOKIE") != 0) {
+	    support_cookies = FALSE;
+	}
+    }
+#endif
 
-	SP->_xmc_triggers = termattrs() & (
-					      A_ALTCHARSET |
-					      A_BLINK |
-					      A_BOLD |
-					      A_REVERSE |
-					      A_STANDOUT |
-					      A_UNDERLINE
+    if (!support_cookies && magic_cookie_glitch >= 0) {
+	T(("will disable attributes to work w/o magic cookies"));
+    }
+
+    if (magic_cookie_glitch > 0) {	/* tvi, wyse */
+
+	SP->_xmc_triggers = SP->_ok_attributes & (
+						     A_STANDOUT |
+						     A_UNDERLINE |
+						     A_REVERSE |
+						     A_BLINK |
+						     A_DIM |
+						     A_BOLD |
+						     A_INVIS |
+						     A_PROTECT
 	    );
-	SP->_xmc_suppress = SP->_xmc_triggers & (chtype) ~ (A_BOLD);
+#if 0
+	/*
+	 * We "should" treat colors as an attribute.  The wyse350 (and its
+	 * clones) appear to be the only ones that have both colors and magic
+	 * cookies.
+	 */
+	if (has_colors()) {
+	    SP->_xmc_triggers |= A_COLOR;
+	}
+#endif
+	SP->_xmc_suppress = SP->_xmc_triggers & (chtype) ~(A_BOLD);
 
 	T(("magic cookie attributes %s", _traceattr(SP->_xmc_suppress)));
+	/*
+	 * Supporting line-drawing may be possible.  But make the regular
+	 * video attributes work first.
+	 */
+	acs_chars = ABSENT_STRING;
+	ena_acs = ABSENT_STRING;
+	enter_alt_charset_mode = ABSENT_STRING;
+	exit_alt_charset_mode = ABSENT_STRING;
 #if USE_XMC_SUPPORT
 	/*
-	 * To keep this simple, suppress all of the optimization hooks
-	 * except for clear_screen and the cursor addressing.
+	 * To keep the cookie support simple, suppress all of the optimization
+	 * hooks except for clear_screen and the cursor addressing.
 	 */
-	clr_eol = 0;
-	clr_eos = 0;
-	set_attributes = 0;
-#else
-	magic_cookie_glitch = ABSENT_NUMERIC;
-	acs_chars = 0;
+	if (support_cookies) {
+	    clr_eol = ABSENT_STRING;
+	    clr_eos = ABSENT_STRING;
+	    set_attributes = ABSENT_STRING;
+	}
 #endif
+    } else if (magic_cookie_glitch == 0) {	/* hpterm */
     }
+
+    /*
+     * If magic cookies are not supported, cancel the strings that set
+     * video attributes.
+     */
+    if (!support_cookies && magic_cookie_glitch >= 0) {
+	magic_cookie_glitch = ABSENT_NUMERIC;
+	set_attributes = ABSENT_STRING;
+	enter_blink_mode = ABSENT_STRING;
+	enter_bold_mode = ABSENT_STRING;
+	enter_dim_mode = ABSENT_STRING;
+	enter_reverse_mode = ABSENT_STRING;
+	enter_standout_mode = ABSENT_STRING;
+	enter_underline_mode = ABSENT_STRING;
+    }
+
+    /* initialize normal acs before wide, since we use mapping in the latter */
+    _nc_init_acs();
 #if USE_WIDEC_SUPPORT
     _nc_init_wacs();
+
+    SP->_screen_acs_fix = (_nc_unicode_locale() && _nc_locale_breaks_acs());
+    {
+	char *env = _nc_get_locale();
+	SP->_legacy_coding = ((env == 0)
+			      || !strcmp(env, "C")
+			      || !strcmp(env, "POSIX"));
+    }
 #endif
-    _nc_init_acs();
-    memcpy(SP->_acs_map, acs_map, sizeof(chtype) * ACS_LEN);
 
     _nc_idcok = TRUE;
     _nc_idlok = FALSE;
@@ -356,11 +507,11 @@ _nc_setupscreen
 
     T(("creating newscr"));
     if ((newscr = newwin(slines, scolumns, 0, 0)) == 0)
-	return ERR;
+	returnCode(ERR);
 
     T(("creating curscr"));
     if ((curscr = newwin(slines, scolumns, 0, 0)) == 0)
-	return ERR;
+	returnCode(ERR);
 
     SP->_newscr = newscr;
     SP->_curscr = curscr;
@@ -374,42 +525,41 @@ _nc_setupscreen
     def_shell_mode();
     def_prog_mode();
 
-    for (i = 0, rsp = rippedoff; rsp->line && (i < N_RIPS); rsp++, i++) {
+    for (i = 0, rsp = rippedoff; rsp->line && (i < (int) N_RIPS); rsp++, i++) {
+	T(("ripping off line %d at %s", i, rsp->line < 0 ? "bottom" : "top"));
+	SP->_rippedoff[i] = rippedoff[i];
 	if (rsp->hook) {
-	    WINDOW *w;
 	    int count = (rsp->line < 0) ? -rsp->line : rsp->line;
 
-	    if (rsp->line < 0) {
-		w = newwin(count, scolumns, SP->_lines_avail - count, 0);
-		if (w) {
-		    rsp->w = w;
-		    rsp->hook(w, scolumns);
-		    bottom_stolen += count;
-		} else
-		    return ERR;
-	    } else {
-		w = newwin(count, scolumns, 0, 0);
-		if (w) {
-		    rsp->w = w;
-		    rsp->hook(w, scolumns);
-		    SP->_topstolen += count;
-		} else
-		    return ERR;
-	    }
+	    SP->_rippedoff[i].w = newwin(count,
+					 scolumns,
+					 ((rsp->line < 0)
+					  ? SP->_lines_avail - count
+					  : 0),
+					 0);
+	    if (SP->_rippedoff[i].w != 0)
+		SP->_rippedoff[i].hook(SP->_rippedoff[i].w, scolumns);
+	    else
+		returnCode(ERR);
+	    if (rsp->line < 0)
+		bottom_stolen += count;
+	    else
+		SP->_topstolen += count;
 	    SP->_lines_avail -= count;
 	}
 	rsp->line = 0;
     }
+    SP->_rip_count = i;
     /* reset the stack */
     rsp = rippedoff;
 
     T(("creating stdscr"));
     assert((SP->_lines_avail + SP->_topstolen + bottom_stolen) == slines);
     if ((stdscr = newwin(LINES = SP->_lines_avail, scolumns, 0, 0)) == 0)
-	return ERR;
+	returnCode(ERR);
     SP->_stdscr = stdscr;
 
-    return OK;
+    returnCode(OK);
 }
 
 /* The internal implementation interprets line as the number of
@@ -418,18 +568,20 @@ _nc_setupscreen
 NCURSES_EXPORT(int)
 _nc_ripoffline(int line, int (*init) (WINDOW *, int))
 {
-    if (line == 0)
-	return (OK);
+    T((T_CALLED("_nc_ripoffline(%d, %p)"), line, init));
 
-    if (rsp >= rippedoff + N_RIPS)
-	return (ERR);
+    if (line != 0) {
 
-    rsp->line = line;
-    rsp->hook = init;
-    rsp->w = 0;
-    rsp++;
+	if (rsp >= rippedoff + N_RIPS)
+	    returnCode(ERR);
 
-    return (OK);
+	rsp->line = line;
+	rsp->hook = init;
+	rsp->w = 0;
+	rsp++;
+    }
+
+    returnCode(OK);
 }
 
 NCURSES_EXPORT(int)

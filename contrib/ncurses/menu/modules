@@ -1,6 +1,6 @@
-# $Id: modules,v 1.14 1999/02/18 22:39:04 juergen Exp $
+# $Id: modules,v 1.16 2004/12/25 22:06:33 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,2004 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -56,5 +56,6 @@ m_req_name	lib		$(srcdir)	$(MENU_PRIV_H)
 m_scale		lib		$(srcdir)	$(MENU_PRIV_H)
 m_spacing	lib		$(srcdir)	$(MENU_PRIV_H)
 m_sub		lib		$(srcdir)	$(MENU_PRIV_H)
+m_trace		lib		$(srcdir)	$(MENU_PRIV_H)
 m_userptr	lib		$(srcdir)	$(MENU_PRIV_H)
 m_win		lib		$(srcdir)	$(MENU_PRIV_H)

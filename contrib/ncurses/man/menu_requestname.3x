@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_requestname.3x,v 1.6 1998/11/29 01:10:40 Rick.Ohnemus Exp $
+.\" $Id: menu_requestname.3x,v 1.7 2006/11/04 17:56:09 tom Exp $
 .TH menu_requestname 3X ""
 .SH NAME
 \fBmenu_requestname\fR - handle printable menu request names
@@ -43,12 +43,14 @@ The function \fBmenu_request_name\fR returns the printable name of a menu
 request code.
 .br
 The function \fBmenu_request_by_name\fR searches in the name-table for a request
-with the given name and returns its request code. Otherwise E_NO_MATCH is returned.
+with the given name and returns its request code.
+Otherwise E_NO_MATCH is returned.
 .SH RETURN VALUE
-\fBmenu_request_name\fR returns \fBNULL\fR on error and sets errno
-to \fBE_BAD_ARGUMENT\fR.
+\fBmenu_request_name\fR returns \fBNULL\fR on error
+and sets errno to \fBE_BAD_ARGUMENT\fR.
 .br
 \fBmenu_request_by_name\fR returns \fBE_NO_MATCH\fR on error.
+It does not set errno.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).
 .SH NOTES

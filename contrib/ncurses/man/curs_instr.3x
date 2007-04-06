@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_instr.3x,v 1.10 2001/11/03 19:58:56 tom Exp $
+.\" $Id: curs_instr.3x,v 1.13 2006/02/25 21:49:19 tom Exp $
 .TH curs_instr 3X ""
 .SH NAME
 \fBinstr\fR,
@@ -39,7 +39,7 @@
 \fBmvwinnstr\fR - get a string of characters from a \fBcurses\fR window
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
-
+.sp
 \fBint instr(char *str);\fR
 .br
 \fBint innstr(char *str, int n);\fR
@@ -65,13 +65,14 @@ functions with \fIn\fR as the last argument return a leading substring at most
 .SH RETURN VALUE
 All of the functions return \fBERR\fR upon failure,
 or the number of characters actually read into the string.
+.PP
+X/Open defines no error conditions.
+In this implementation,
+if the window parameter is null or the str parameter is null,
+a zero is returned.
 .SH NOTES
 Note that all routines except \fBwinnstr\fR may be macros.
 .SH PORTABILITY
-The XSI Curses
-error conditions \fBEILSEQ\fR and \fBEILOVERFLOW\fR associated with
-extended-level conformance are not yet detected (this implementation does not
-yet support XPG4 multibyte characters).
 SVr4 does not
 document whether a length limit includes or excludes the trailing NUL.
 .PP
@@ -86,4 +87,3 @@ In this case, the functions return the string ending at the right margin.
 .\"# mode:nroff
 .\"# fill-column:79
 .\"# End:
-

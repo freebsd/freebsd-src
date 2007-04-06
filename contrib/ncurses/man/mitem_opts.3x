@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_opts.3x,v 1.6 1998/11/29 01:12:37 Rick.Ohnemus Exp $
+.\" $Id: mitem_opts.3x,v 1.8 2006/11/04 17:12:00 tom Exp $
 .TH mitem_opts 3X ""
 .SH NAME
 \fBmitem_opts\fR - set and get menu item options
@@ -45,25 +45,25 @@ OPTIONS item_opts(const ITEM *item);
 .SH DESCRIPTION
 The function \fBset_item_opts\fR sets all the given item's option bits (menu
 option bits may be logically-OR'ed together).
-
+.PP
 The function \fBitem_opts_on\fR turns on the given option bits, and leaves
 others alone.
-
+.PP
 The function \fBitem_opts_off\fR turns off the given option bits, and leaves
 others alone.
-
+.PP
 The function \fBitem_opts\fR returns the item's current option bits.
-
+.PP
 There is only one defined option bit mask, \fBO_SELECTABLE\fR.  When this is
 on, the item may be selected during menu processing.  This option defaults
 to on.
 .SH RETURN VALUE
 Except for \fBitem_opts\fR, each routine returns one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).

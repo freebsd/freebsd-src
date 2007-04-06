@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,38 +27,75 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1996,1997                   *
+ *  Author: Thomas E. Dickey 1996-2002                                      *
  ****************************************************************************/
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wresize.c,v 1.21 2002/05/11 19:36:29 tom Exp $")
+MODULE_ID("$Id: wresize.c,v 1.24 2006/10/14 20:43:31 tom Exp $")
+
+static int
+cleanup_lines(struct ldat *data, int length)
+{
+    while (--length >= 0)
+	free(data->text);
+    free(data);
+    return ERR;
+}
+
+/*
+ * If we have reallocated the ldat structs, we will have to repair pointers
+ * used in subwindows.
+ */
+static void
+repair_subwindows(WINDOW *cmp)
+{
+    WINDOWLIST *wp;
+    struct ldat *pline = cmp->_line;
+    int row;
+
+    for (wp = _nc_windows; wp != 0; wp = wp->next) {
+	WINDOW *tst = &(wp->win);
+
+	if (tst->_parent == cmp) {
+
+	    if (tst->_pary > cmp->_maxy)
+		tst->_pary = cmp->_maxy;
+	    if (tst->_parx > cmp->_maxx)
+		tst->_parx = cmp->_maxx;
+
+	    if (tst->_maxy + tst->_pary > cmp->_maxy)
+		tst->_maxy = cmp->_maxy - tst->_pary;
+	    if (tst->_maxx + tst->_parx > cmp->_maxx)
+		tst->_maxx = cmp->_maxx - tst->_parx;
+
+	    for (row = 0; row <= tst->_maxy; ++row) {
+		tst->_line[row].text = &pline[tst->_pary + row].text[tst->_parx];
+	    }
+	    repair_subwindows(tst);
+	}
+    }
+}
 
 /*
  * Reallocate a curses WINDOW struct to either shrink or grow to the specified
  * new lines/columns.  If it grows, the new character cells are filled with
  * blanks.  The application is responsible for repainting the blank area.
  */
-
-#define DOALLOC(p,t,n)  typeRealloc(t, n, p)
-#define	ld_ALLOC(p,n)	DOALLOC(p,struct ldat,n)
-#define	c_ALLOC(p,n)	DOALLOC(p,NCURSES_CH_T,n)
-
 NCURSES_EXPORT(int)
 wresize(WINDOW *win, int ToLines, int ToCols)
 {
-    register int row;
-    int size_x, size_y;
+    int col, row, size_x, size_y;
     struct ldat *pline;
-    NCURSES_CH_T blank;
+    struct ldat *new_lines = 0;
 
 #ifdef TRACE
     T((T_CALLED("wresize(%p,%d,%d)"), win, ToLines, ToCols));
     if (win) {
-	TR(TRACE_UPDATE, ("...beg (%d, %d), max(%d,%d), reg(%d,%d)",
-			  win->_begy, win->_begx,
-			  win->_maxy, win->_maxx,
-			  win->_regtop, win->_regbottom));
+	TR(TRACE_UPDATE, ("...beg (%ld, %ld), max(%ld,%ld), reg(%ld,%ld)",
+			  (long) win->_begy, (long) win->_begx,
+			  (long) win->_maxy, (long) win->_maxx,
+			  (long) win->_regtop, (long) win->_regbottom));
 	if (_nc_tracing & TRACE_UPDATE)
 	    _tracedump("...before", win);
     }
@@ -90,65 +127,81 @@ wresize(WINDOW *win, int ToLines, int ToCols)
     }
 
     /*
-     * If the number of lines has changed, adjust the size of the overall
-     * vector:
+     * Allocate new memory as needed.  Do the allocations without modifying
+     * the original window, in case an allocation fails.  Always allocate
+     * (at least temporarily) the array pointing to the individual lines.
      */
-    if (ToLines != size_y) {
+    new_lines = typeCalloc(struct ldat, (unsigned) (ToLines + 1));
+    if (new_lines == 0)
+	returnCode(ERR);
+
+    /*
+     * For each line in the target, allocate or adjust pointers for the
+     * corresponding text, depending on whether this is a window or a
+     * subwindow.
+     */
+    for (row = 0; row <= ToLines; ++row) {
+	int begin = (row > size_y) ? 0 : (size_x + 1);
+	int end = ToCols;
+	NCURSES_CH_T *s;
+
 	if (!(win->_flags & _SUBWIN)) {
-	    for (row = ToLines + 1; row <= size_y; row++)
-		free((char *) (win->_line[row].text));
-	}
-
-	win->_line = ld_ALLOC(win->_line, ToLines + 1);
-	if (win->_line == 0)
-	    returnCode(ERR);
-
-	for (row = size_y + 1; row <= ToLines; row++) {
-	    win->_line[row].text = 0;
-	    win->_line[row].firstchar = 0;
-	    win->_line[row].lastchar = ToCols;
-	    if ((win->_flags & _SUBWIN)) {
-		win->_line[row].text =
-		    &pline[win->_pary + row].text[win->_parx];
+	    if (row <= size_y) {
+		if (ToCols != size_x) {
+		    if ((s = typeMalloc(NCURSES_CH_T, ToCols + 1)) == 0)
+			returnCode(cleanup_lines(new_lines, row));
+		    for (col = 0; col <= ToCols; ++col) {
+			s[col] = (col <= size_x
+				  ? win->_line[row].text[col]
+				  : win->_nc_bkgd);
+		    }
+		} else {
+		    s = win->_line[row].text;
+		}
+	    } else {
+		if ((s = typeMalloc(NCURSES_CH_T, ToCols + 1)) == 0)
+		    returnCode(cleanup_lines(new_lines, row));
+		for (col = 0; col <= ToCols; ++col)
+		    s[col] = win->_nc_bkgd;
 	    }
+	} else {
+	    s = &pline[win->_pary + row].text[win->_parx];
 	}
+
+	if_USE_SCROLL_HINTS(new_lines[row].oldindex = row);
+	if (row <= size_y) {
+	    new_lines[row].firstchar = win->_line[row].firstchar;
+	    new_lines[row].lastchar = win->_line[row].lastchar;
+	}
+	if ((ToCols != size_x) || (row > size_y)) {
+	    if (end >= begin) {	/* growing */
+		if (new_lines[row].firstchar < begin)
+		    new_lines[row].firstchar = begin;
+	    } else {		/* shrinking */
+		new_lines[row].firstchar = 0;
+	    }
+	    new_lines[row].lastchar = ToCols;
+	}
+	new_lines[row].text = s;
     }
 
     /*
-     * Adjust the width of the columns:
+     * Dispose of unwanted memory.
      */
-    blank = win->_nc_bkgd;
-    for (row = 0; row <= ToLines; row++) {
-	NCURSES_CH_T *s = win->_line[row].text;
-	int begin = (s == 0) ? 0 : size_x + 1;
-	int end = ToCols;
-
-	if_USE_SCROLL_HINTS(win->_line[row].oldindex = row);
-
-	if (ToCols != size_x || s == 0) {
-	    if (!(win->_flags & _SUBWIN)) {
-		win->_line[row].text = s = c_ALLOC(s, ToCols + 1);
-		if (win->_line[row].text == 0)
-		    returnCode(ERR);
-	    } else {
-		win->_line[row].text = s =
-		    &pline[win->_pary + row].text[win->_parx];
+    if (!(win->_flags & _SUBWIN)) {
+	if (ToCols == size_x) {
+	    for (row = ToLines + 1; row <= size_y; row++) {
+		free(win->_line[row].text);
 	    }
-
-	    if (end >= begin) {	/* growing */
-		if (win->_line[row].firstchar < begin)
-		    win->_line[row].firstchar = begin;
-		if (!(win->_flags & _SUBWIN)) {
-		    do {
-			s[end] = blank;
-		    } while (--end >= begin);
-		}
-	    } else {		/* shrinking */
-		win->_line[row].firstchar = 0;
+	} else {
+	    for (row = 0; row <= size_y; row++) {
+		free(win->_line[row].text);
 	    }
-	    win->_line[row].lastchar = ToCols;
 	}
     }
+
+    free(win->_line);
+    win->_line = new_lines;
 
     /*
      * Finally, adjust the parameters showing screen size and cursor
@@ -168,11 +221,17 @@ wresize(WINDOW *win, int ToLines, int ToCols)
     if (win->_cury > win->_maxy)
 	win->_cury = win->_maxy;
 
+    /*
+     * Check for subwindows of this one, and readjust pointers to our text,
+     * if needed.
+     */
+    repair_subwindows(win);
+
 #ifdef TRACE
-    TR(TRACE_UPDATE, ("...beg (%d, %d), max(%d,%d), reg(%d,%d)",
-		      win->_begy, win->_begx,
-		      win->_maxy, win->_maxx,
-		      win->_regtop, win->_regbottom));
+    TR(TRACE_UPDATE, ("...beg (%ld, %ld), max(%ld,%ld), reg(%ld,%ld)",
+		      (long) win->_begy, (long) win->_begx,
+		      (long) win->_maxy, (long) win->_maxx,
+		      (long) win->_regtop, (long) win->_regbottom));
     if (_nc_tracing & TRACE_UPDATE)
 	_tracedump("...after:", win);
 #endif

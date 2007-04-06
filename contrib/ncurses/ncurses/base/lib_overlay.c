@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,30 +40,60 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_overlay.c,v 1.20 2001/12/19 01:06:37 tom Exp $")
+MODULE_ID("$Id: lib_overlay.c,v 1.22 2006/10/14 20:43:31 tom Exp $")
 
 static int
 overlap(const WINDOW *const s, WINDOW *const d, int const flag)
 {
-    int sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol;
+    int sx1, sy1, sx2, sy2;
+    int dx1, dy1, dx2, dy2;
+    int sminrow, smincol;
+    int dminrow, dmincol;
+    int dmaxrow, dmaxcol;
 
-    T(("overlap : sby %d, sbx %d, smy %d, smx %d, dby %d, dbx %d, dmy %d, dmx %d",
-       s->_begy, s->_begx, s->_maxy, s->_maxx,
-       d->_begy, d->_begx, d->_maxy, d->_maxx));
+    T((T_CALLED("overlap(%p,%p,%d)"), s, d, flag));
 
-    if (!s || !d)
+    if (s == 0 || d == 0) {
 	returnCode(ERR);
+    } else {
+	T(("src : begy %ld, begx %ld, maxy %ld, maxx %ld",
+	   (long) s->_begy,
+	   (long) s->_begx,
+	   (long) s->_maxy,
+	   (long) s->_maxx));
+	T(("dst : begy %ld, begx %ld, maxy %ld, maxx %ld",
+	   (long) d->_begy,
+	   (long) d->_begx,
+	   (long) d->_maxy,
+	   (long) d->_maxx));
 
-    sminrow = max(s->_begy, d->_begy) - s->_begy;
-    smincol = max(s->_begx, d->_begx) - s->_begx;
-    dminrow = max(s->_begy, d->_begy) - d->_begy;
-    dmincol = max(s->_begx, d->_begx) - d->_begx;
-    dmaxrow = min(s->_maxy + s->_begy, d->_maxy + d->_begy) - d->_begy;
-    dmaxcol = min(s->_maxx + s->_begx, d->_maxx + d->_begx) - d->_begx;
+	sx1 = s->_begx;
+	sy1 = s->_begy;
+	sx2 = sx1 + s->_maxx;
+	sy2 = sy1 + s->_maxy;
 
-    return (copywin(s, d,
-		    sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol,
-		    flag));
+	dx1 = d->_begx;
+	dy1 = d->_begy;
+	dx2 = dx1 + d->_maxx;
+	dy2 = dy1 + d->_maxy;
+
+	if (dx2 < sx1 || dx1 > sx2 || dy2 < sy1 || dy1 > sy2) {
+	    returnCode(ERR);	/* No intersection */
+	} else {
+	    sminrow = max(sy1, dy1) - sy1;
+	    smincol = max(sx1, dx1) - sx1;
+	    dminrow = max(sy1, dy1) - dy1;
+	    dmincol = max(sx1, dx1) - dx1;
+	    dmaxrow = min(sy2, dy2) - dy1;
+	    dmaxcol = min(sx2, dx2) - dx1;
+
+	    returnCode(copywin(s, d,
+			       sminrow, smincol,
+			       dminrow, dmincol,
+			       dmaxrow, dmaxcol,
+			       flag));
+	}
+    }
 }
 
 /*
@@ -101,11 +131,11 @@ overwrite(const WINDOW *win1, WINDOW *win2)
 }
 
 NCURSES_EXPORT(int)
-copywin
-(const WINDOW *src, WINDOW *dst,
- int sminrow, int smincol,
- int dminrow, int dmincol, int dmaxrow, int dmaxcol,
- int over)
+copywin(const WINDOW *src, WINDOW *dst,
+	int sminrow, int smincol,
+	int dminrow, int dmincol,
+	int dmaxrow, int dmaxcol,
+	int over)
 {
     int sx, sy, dx, dy;
     bool touched;
@@ -152,7 +182,7 @@ copywin
 	    }
 	}
 	if (touched) {
-	    touchline(dst, 0, getmaxy(dst));
+	    touchline(dst, dminrow, (dmaxrow - dminrow + 1));
 	}
     }
     T(("finished copywin"));

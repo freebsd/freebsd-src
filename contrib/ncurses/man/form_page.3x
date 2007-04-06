@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_page.3x,v 1.8 1998/11/29 01:08:02 Rick.Ohnemus Exp $
+.\" $Id: form_page.3x,v 1.10 2006/11/04 18:52:32 tom Exp $
 .TH form_page 3X ""
 .SH NAME
 \fBform_page\fR - set and get form page number
@@ -59,23 +59,24 @@ the argument is the null pointer or the field is not connected.
 .SH RETURN VALUE
 Except for \fBform_page\fR, each routine returns one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
-System error occurred (see \fBerrno\fR).
-.TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .TP 5
-\fBE_BAD_STATE\fR
+.B E_BAD_STATE
 Routine was called from an initialization or termination function.
 .TP 5
-\fBE_INVALID_FIELD\fR
+.B E_INVALID_FIELD
 Contents of a field are not valid.
 .TP 5
-\fBE_REQUEST_DENIED\fR
+.B E_REQUEST_DENIED
 The form driver could not process the request.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).
 .SH NOTES

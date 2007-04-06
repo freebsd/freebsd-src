@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1999-2002,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1996,1997,1999              *
+ *  Author: Thomas E. Dickey        1996-2002,2005                          *
  ****************************************************************************/
 /* LINTLIBRARY */
 
@@ -122,15 +122,20 @@ MENU	_nc_Default_Menu;
 ITEM	_nc_Default_Item;
 
 #undef _nc_Connect_Items
-bool	_nc_Connect_Items(
+NCURSES_BOOL _nc_Connect_Items(
 		MENU	*menu, 
 		ITEM	**items)
-		{ return(*(bool *)0); }
+		{ return(*(NCURSES_BOOL *)0); }
 
 #undef _nc_Disconnect_Items
 void	_nc_Disconnect_Items(
 		MENU	*menu)
 		{ /* void */ }
+
+#undef _nc_Calculate_Text_Width
+int	_nc_Calculate_Text_Width(
+		const TEXT *item)
+		{ return(*(int *)0); }
 
 #undef _nc_Calculate_Item_Length_and_Width
 void	_nc_Calculate_Item_Length_and_Width(
@@ -310,20 +315,20 @@ void	*item_userptr(
 #undef set_item_value
 int	set_item_value(
 		ITEM	*item, 
-		bool	value)
+		NCURSES_BOOL value)
 		{ return(*(int *)0); }
 
 #undef item_value
-bool	item_value(
+NCURSES_BOOL item_value(
 		const ITEM *item)
-		{ return(*(bool *)0); }
+		{ return(*(NCURSES_BOOL *)0); }
 
 /* ./m_item_vis.c */
 
 #undef item_visible
-bool	item_visible(
+NCURSES_BOOL item_visible(
 		const ITEM *item)
-		{ return(*(bool *)0); }
+		{ return(*(NCURSES_BOOL *)0); }
 
 /* ./m_items.c */
 
@@ -480,6 +485,38 @@ int	set_menu_sub(
 WINDOW	*menu_sub(
 		const MENU *menu)
 		{ return(*(WINDOW **)0); }
+
+/* ./m_trace.c */
+
+#undef _nc_retrace_item
+ITEM	*_nc_retrace_item(
+		ITEM	*code)
+		{ return(*(ITEM **)0); }
+
+#undef _nc_retrace_item_ptr
+ITEM	**_nc_retrace_item_ptr(
+		ITEM	**code)
+		{ return(*(ITEM ***)0); }
+
+#undef _nc_retrace_item_opts
+Item_Options _nc_retrace_item_opts(
+		Item_Options code)
+		{ return(*(Item_Options *)0); }
+
+#undef _nc_retrace_menu
+MENU	*_nc_retrace_menu(
+		MENU	*code)
+		{ return(*(MENU **)0); }
+
+#undef _nc_retrace_menu_hook
+Menu_Hook _nc_retrace_menu_hook(
+		Menu_Hook code)
+		{ return(*(Menu_Hook *)0); }
+
+#undef _nc_retrace_menu_opts
+Menu_Options _nc_retrace_menu_opts(
+		Menu_Options code)
+		{ return(*(Menu_Options *)0); }
 
 /* ./m_userptr.c */
 

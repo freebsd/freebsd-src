@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2001,2002 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_attributes.3x,v 1.7 2002/01/19 22:48:14 tom Exp $
+.\" $Id: form_field_attributes.3x,v 1.10 2006/11/04 18:51:26 tom Exp $
 .TH form_field_attributes 3X ""
 .SH NAME
 \fBform_field_attributes\fR - color and attribute control for form fields
@@ -51,26 +51,27 @@ The function \fBset_field_fore\fR sets the foreground attribute of
 \fIfield\fR. This is the highlight used to display the field contents.  The
 function \fBfield_fore\fR returns the foreground attribute.  The default is
 \fBA_STANDOUT\fR.
-
+.PP
 The function \fBset_field_back\fR sets the background attribute of
 \fIform\fR. This is the highlight used to display the extent fields in the
 form.  The function \fBfield_back\fR returns the background attribute.  The
 default is \fBA_NORMAL\fR.
-
+.PP
 The function \fBset_field_pad\fR sets the character used to fill the field.
 The function \fBfield_pad\fR returns the given form's pad character.  The
 default is a blank.
 .SH RETURN VALUE
 These routines return one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
-System error occurred (see \fBerrno\fR).
-.TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.
 .SH SEE ALSO
 \fBcurses\fR(3X) and related pages whose names begin "form_" for detailed
 descriptions of the entry points.

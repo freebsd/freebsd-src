@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,11 +27,12 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
+ *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
+
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_pad.c,v 1.5 2000/12/10 02:09:38 tom Exp $")
+MODULE_ID("$Id: fld_pad.c,v 1.9 2004/12/11 21:56:49 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -45,17 +46,19 @@ MODULE_ID("$Id: fld_pad.c,v 1.5 2000/12/10 02:09:38 tom Exp $")
 |                    E_SYSTEM_ERROR - system error
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(int)
-set_field_pad (FIELD  * field, int ch)
+set_field_pad(FIELD *field, int ch)
 {
   int res = E_BAD_ARGUMENT;
 
-  Normalize_Field( field );
-  if (isprint((unsigned char)ch))
+  T((T_CALLED("set_field_pad(%p,%d)"), field, ch));
+
+  Normalize_Field(field);
+  if (isprint(UChar(ch)))
     {
       if (field->pad != ch)
 	{
 	  field->pad = ch;
-	  res = _nc_Synchronize_Attributes( field );
+	  res = _nc_Synchronize_Attributes(field);
 	}
       else
 	res = E_OK;
@@ -72,9 +75,11 @@ set_field_pad (FIELD  * field, int ch)
 |   Return Values :  The pad character.
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(int)
-field_pad (const FIELD * field)
+field_pad(const FIELD *field)
 {
-  return Normalize_Field( field )->pad;
+  T((T_CALLED("field_pad(%p)"), field));
+
+  returnCode(Normalize_Field(field)->pad);
 }
 
 /* fld_pad.c ends here */

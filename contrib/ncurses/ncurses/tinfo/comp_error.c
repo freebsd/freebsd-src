@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2002,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -40,7 +41,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: comp_error.c,v 1.23 2001/09/23 00:58:30 tom Exp $")
+MODULE_ID("$Id: comp_error.c,v 1.30 2005/11/26 15:28:47 tom Exp $")
 
 NCURSES_EXPORT_VAR(bool) _nc_suppress_warnings = FALSE;
 NCURSES_EXPORT_VAR(int) _nc_curr_line = 0; /* current line # in input */
@@ -48,6 +49,12 @@ NCURSES_EXPORT_VAR(int) _nc_curr_col = 0; /* current column # in input */
 
 static const char *sourcename;
 static char *termtype;
+
+NCURSES_EXPORT(const char *)
+_nc_get_source(void)
+{
+    return sourcename;
+}
 
 NCURSES_EXPORT(void)
 _nc_set_source(const char *const name)
@@ -59,19 +66,28 @@ NCURSES_EXPORT(void)
 _nc_set_type(const char *const name)
 {
     if (termtype == 0)
-	termtype = _nc_doalloc(termtype, MAX_NAME_SIZE + 1);
-    termtype[0] = '\0';
-    if (name)
-	strncat(termtype, name, MAX_NAME_SIZE);
+	termtype = typeMalloc(char, MAX_NAME_SIZE + 1);
+    if (termtype != 0) {
+	termtype[0] = '\0';
+	if (name)
+	    strncat(termtype, name, MAX_NAME_SIZE);
+    }
 }
 
 NCURSES_EXPORT(void)
 _nc_get_type(char *name)
 {
-    strcpy(name, termtype != 0 ? termtype : "");
+#if NO_LEAKS
+    if (name == 0 && termtype != 0) {
+	FreeAndNull(termtype);
+	return;
+    }
+#endif
+    if (name != 0)
+	strcpy(name, termtype != 0 ? termtype : "");
 }
 
-static inline void
+static NCURSES_INLINE void
 where_is_problem(void)
 {
     fprintf(stderr, "\"%s\"", sourcename);

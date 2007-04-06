@@ -23,7 +23,8 @@ for file in ${1+"$@"} ; do
      if test ! -d "$pathcomp"; then
         echo "mkdir $pathcomp" 1>&2
         case "$pathcomp" in
-          [a-zA-Z]: )  ;;               # DOSISH systems
+          [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]: )
+                ;;               # DOSISH systems
           * )          mkdir "$pathcomp" || errstatus=$? ;;
         esac
      fi

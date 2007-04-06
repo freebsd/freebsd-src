@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_ungetch.c,v 1.7 2001/12/29 23:01:09 tom Exp $")
+MODULE_ID("$Id: lib_ungetch.c,v 1.8 2002/08/24 22:08:48 tom Exp $")
 
 #include <fifo_defs.h>
 
@@ -58,7 +58,7 @@ _nc_fifo_dump(void)
 NCURSES_EXPORT(int)
 ungetch(int ch)
 {
-    T((T_CALLED("ungetch(%d)"), ch));
+    T((T_CALLED("ungetch(%s)"), _tracechar(ch)));
 
     if (tail == -1)
 	returnCode(ERR);
@@ -70,7 +70,7 @@ ungetch(int ch)
 	h_dec();
 
     SP->_fifo[head] = ch;
-    T(("ungetch %#x ok", ch));
+    T(("ungetch %s ok", _tracechar(ch)));
 #ifdef TRACE
     if (_nc_tracing & TRACE_IEVENT)
 	_nc_fifo_dump();

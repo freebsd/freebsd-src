@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,12 +27,12 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
+ *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_stat.c,v 1.7 2000/12/10 02:09:38 tom Exp $")
+MODULE_ID("$Id: fld_stat.c,v 1.11 2004/12/11 22:28:00 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -44,16 +44,18 @@ MODULE_ID("$Id: fld_stat.c,v 1.7 2000/12/10 02:09:38 tom Exp $")
 |   Return Values :  E_OK            - success
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(int)
-set_field_status (FIELD * field, bool status)
+set_field_status(FIELD *field, bool status)
 {
-  Normalize_Field( field );
+  T((T_CALLED("set_field_status(%p,%d)"), field, status));
+
+  Normalize_Field(field);
 
   if (status)
     field->status |= _CHANGED;
   else
     field->status &= ~_CHANGED;
 
-  return(E_OK);
+  RETURN(E_OK);
 }
 
 /*---------------------------------------------------------------------------
@@ -67,9 +69,11 @@ set_field_status (FIELD * field, bool status)
 |                    FALSE - buffer has not been changed
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(bool)
-field_status (const FIELD * field)
+field_status(const FIELD *field)
 {
-  return ((Normalize_Field(field)->status & _CHANGED) ? TRUE : FALSE);
+  T((T_CALLED("field_status(%p)"), field));
+
+  returnBool((Normalize_Field(field)->status & _CHANGED) ? TRUE : FALSE);
 }
 
 /* fld_stat.c ends here */

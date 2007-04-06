@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2001,2002 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 2001-2003,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getcchar.3x,v 1.6 2002/03/24 01:08:55 tom Exp $
+.\" $Id: curs_getcchar.3x,v 1.8 2006/07/15 22:51:07 wcmbrine Exp $
 .TH curs_getcchar 3X ""
 .SH NAME
 \fBgetcchar\fP,
@@ -108,7 +108,7 @@ The wide-character string pointed to by \fIwch\fP.
 The string must be L'\\0' terminated,
 contain at most one character with strictly positive width,
 which must be the first,
-and contain no characters of negative width. 
+and contain no characters of negative width.
 .SH NOTES
 .PP
 The \fIopts\fP argument is reserved for future use.
@@ -121,7 +121,7 @@ If \fIwcval\fP is constructed by any other means, the effect is unspecified.
 .PP
 When \fIwch\fP is a null pointer,
 \fBgetcchar\fP returns the number of wide characters referenced by
-\fIwcval\fP, including the null terminator.
+\fIwcval\fP.
 .PP
 When \fIwch\fP is not a null pointer,
 \fBgetcchar\fP returns \fBOK\fP upon successful completion,

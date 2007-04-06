@@ -15,13 +15,13 @@
 ** 
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
-** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-** Boston, MA 02111-1307, USA.
+** the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+** Boston, MA 02110-1301, USA
 */
 
 #include <tack.h>
 
-MODULE_ID("$Id: menu.c,v 1.2 2000/03/04 21:13:53 tom Exp $")
+MODULE_ID("$Id: menu.c,v 1.3 2005/09/17 19:49:16 tom Exp $")
 
 /*
    Menu control

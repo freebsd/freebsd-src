@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998-2002,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,13 +27,40 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1996,1997                   *
+ *  Author: Thomas E. Dickey       1996,1997,2002,2005                      *
  ****************************************************************************/
 /* LINTLIBRARY */
 
-/* ./fld_arg.c */
+/* ./f_trace.c */
 
 #include "form.priv.h"
+
+#undef _nc_retrace_field_ptr
+FIELD	**_nc_retrace_field_ptr(
+		FIELD	**code)
+		{ return(*(FIELD ***)0); }
+
+#undef _nc_retrace_field
+FIELD	*_nc_retrace_field(
+		FIELD	*code)
+		{ return(*(FIELD **)0); }
+
+#undef _nc_retrace_field_type
+FIELDTYPE *_nc_retrace_field_type(
+		FIELDTYPE *code)
+		{ return(*(FIELDTYPE **)0); }
+
+#undef _nc_retrace_form
+FORM	*_nc_retrace_form(
+		FORM	*code)
+		{ return(*(FORM **)0); }
+
+#undef _nc_retrace_form_hook
+Form_Hook _nc_retrace_form_hook(
+		Form_Hook code)
+		{ return(*(Form_Hook *)0); }
+
+/* ./fld_arg.c */
 
 #undef set_fieldtype_arg
 int	set_fieldtype_arg(
@@ -119,10 +146,10 @@ void	_nc_Free_Argument(
 		{ /* void */ }
 
 #undef _nc_Copy_Type
-bool	_nc_Copy_Type(
+NCURSES_BOOL _nc_Copy_Type(
 		FIELD	*dst, 
 		FIELD const *src)
-		{ return(*(bool *)0); }
+		{ return(*(NCURSES_BOOL *)0); }
 
 #undef _nc_Free_Type
 void	_nc_Free_Type(
@@ -158,10 +185,10 @@ FIELD	*dup_field(
 #undef set_fieldtype_choice
 int	set_fieldtype_choice(
 		FIELDTYPE *typ, 
-		bool	(*const next_choice)(
+		NCURSES_BOOL (*const next_choice)(
 		FIELD	*p1, 
 		const void *p2), 
-		bool	(*const prev_choice)(
+		NCURSES_BOOL (*const prev_choice)(
 		FIELD	*p1, 
 		const void *p2))
 		{ return(*(int *)0); }
@@ -241,10 +268,10 @@ const FIELDTYPE *_nc_Default_FieldType = {0};
 
 #undef new_fieldtype
 FIELDTYPE *new_fieldtype(
-		bool	(*const field_check)(
+		NCURSES_BOOL (*const field_check)(
 		FIELD	*p1, 
 		const void *p2), 
-		bool	(*const char_check)(
+		NCURSES_BOOL (*const char_check)(
 		int	p1, 
 		const void *p2))
 		{ return(*(FIELDTYPE **)0); }
@@ -297,26 +324,26 @@ int	field_pad(
 #undef set_new_page
 int	set_new_page(
 		FIELD	*field, 
-		bool	new_page_flag)
+		NCURSES_BOOL new_page_flag)
 		{ return(*(int *)0); }
 
 #undef new_page
-bool	new_page(
+NCURSES_BOOL new_page(
 		const FIELD *field)
-		{ return(*(bool *)0); }
+		{ return(*(NCURSES_BOOL *)0); }
 
 /* ./fld_stat.c */
 
 #undef set_field_status
 int	set_field_status(
 		FIELD	*field, 
-		bool	status)
+		NCURSES_BOOL status)
 		{ return(*(int *)0); }
 
 #undef field_status
-bool	field_status(
+NCURSES_BOOL field_status(
 		const FIELD *field)
-		{ return(*(bool *)0); }
+		{ return(*(NCURSES_BOOL *)0); }
 
 /* ./fld_type.c */
 
@@ -355,14 +382,14 @@ int	pos_form_cursor(
 /* ./frm_data.c */
 
 #undef data_behind
-bool	data_behind(
+NCURSES_BOOL data_behind(
 		const FORM *form)
-		{ return(*(bool *)0); }
+		{ return(*(NCURSES_BOOL *)0); }
 
 #undef data_ahead
-bool	data_ahead(
+NCURSES_BOOL data_ahead(
 		const FORM *form)
-		{ return(*(bool *)0); }
+		{ return(*(NCURSES_BOOL *)0); }
 
 /* ./frm_def.c */
 
@@ -425,9 +452,9 @@ int	_nc_Set_Current_Field(
 		{ return(*(int *)0); }
 
 #undef _nc_Internal_Validation
-bool	_nc_Internal_Validation(
+NCURSES_BOOL _nc_Internal_Validation(
 		FORM	*form)
-		{ return(*(bool *)0); }
+		{ return(*(NCURSES_BOOL *)0); }
 
 #undef _nc_First_Active_Field
 FIELD	*_nc_First_Active_Field(
@@ -441,10 +468,12 @@ int	_nc_Set_Form_Page(
 		FIELD	*field)
 		{ return(*(int *)0); }
 
-typedef struct {
-  int keycode;           
-  int (*cmd)(FORM *);    
-} Binding_Info;
+typedef struct
+{
+  int keycode; 
+  int (*cmd) (FORM *); 
+}
+Binding_Info;
 
 #undef form_driver
 int	form_driver(
@@ -623,41 +652,49 @@ WINDOW	*form_win(
 
 /* ./fty_alnum.c */
 
-typedef struct {
-  int width;
-} alnumARG;
+typedef struct
+  {
+    int width;
+  }
+alnumARG;
 
 #undef TYPE_ALNUM
 FIELDTYPE *TYPE_ALNUM;
 
 /* ./fty_alpha.c */
 
-typedef struct {
-  int width;
-} alphaARG;
+typedef struct
+  {
+    int width;
+  }
+alphaARG;
 
 #undef TYPE_ALPHA
 FIELDTYPE *TYPE_ALPHA;
 
 /* ./fty_enum.c */
 
-typedef struct {
-  char **kwds;
-  int  count;
-  bool checkcase;
-  bool checkunique;
-} enumARG;
+typedef struct
+  {
+    char **kwds;
+    int count;
+    NCURSES_BOOL checkcase;
+    NCURSES_BOOL checkunique;
+  }
+enumARG;
 
 #undef TYPE_ENUM
 FIELDTYPE *TYPE_ENUM;
 
 /* ./fty_int.c */
 
-typedef struct {
-  int precision;
-  long low;
-  long high;
-} integerARG;
+typedef struct
+  {
+    int precision;
+    long low;
+    long high;
+  }
+integerARG;
 
 #undef TYPE_INTEGER
 FIELDTYPE *TYPE_INTEGER;
@@ -670,12 +707,14 @@ FIELDTYPE *TYPE_IPV4;
 
 #include <locale.h>
 
-typedef struct {
-  int    precision;
-  double low;
-  double high;
-  struct lconv* L;
-} numericARG;
+typedef struct
+  {
+    int precision;
+    double low;
+    double high;
+    struct lconv *L;
+  }
+numericARG;
 
 #undef TYPE_NUMERIC
 FIELDTYPE *TYPE_NUMERIC;
@@ -685,10 +724,11 @@ FIELDTYPE *TYPE_NUMERIC;
 #include <regex.h>
 
 typedef struct
-{
-  regex_t *pRegExp;
-  unsigned long *refCount;
-} RegExp_Arg;
+  {
+    regex_t *pRegExp;
+    unsigned long *refCount;
+  }
+RegExp_Arg;
 
 #undef TYPE_REGEXP
 FIELDTYPE *TYPE_REGEXP;

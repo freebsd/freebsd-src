@@ -2,10 +2,10 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.18 2002/04/30 00:37:55 tom Exp $)
+# ($Id: MKlib_gen.sh,v 1.27 2006/07/01 21:25:39 tom Exp $)
 #
 ##############################################################################
-# Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -39,20 +39,28 @@
 #
 # This script accepts a file of prototypes on standard input.  It discards
 # any that don't have a `generated' comment attached. It then parses each
-# prototype (relying on the fact that none of the macros take function 
+# prototype (relying on the fact that none of the macros take function
 # pointer or array arguments) and generates C source from it.
 #
 # Here is what the pipeline stages are doing:
 #
 # 1. sed: extract prototypes of generated functions
 # 2. sed: decorate prototypes with generated arguments a1. a2,...z
-# 3. awk: generate the calls with args matching the formals 
+# 3. awk: generate the calls with args matching the formals
 # 4. sed: prefix function names in prototypes so the preprocessor won't expand
 #         them.
 # 5. cpp: macro-expand the file so the macro calls turn into C calls
 # 6. awk: strip the expansion junk off the front and add the new header
 # 7. sed: squeeze spaces, strip off gen_ prefix, create needed #undef
 #
+
+# keep the editing independent of locale:
+if test "${LANGUAGE+set}"    = set; then LANGUAGE=C;    export LANGUAGE;    fi
+if test "${LANG+set}"        = set; then LANG=C;        export LANG;        fi
+if test "${LC_ALL+set}"      = set; then LC_ALL=C;      export LC_ALL;      fi
+if test "${LC_MESSAGES+set}" = set; then LC_MESSAGES=C; export LC_MESSAGES; fi
+if test "${LC_CTYPE+set}"    = set; then LC_CTYPE=C;    export LC_CTYPE;    fi
+if test "${LC_COLLATE+set}"  = set; then LC_COLLATE=C;  export LC_COLLATE;  fi
 
 preprocessor="$1 -I../include"
 AWK="$2"
@@ -74,19 +82,19 @@ if test "$USE" = implemented ; then
 	cat >$ED1 <<EOF1
 /^extern.*implemented/{
 	h
-	s/^.*implemented:\([^ 	*]*\).*/P_#if_USE_\1_SUPPORT/p
+	s/^.*implemented:\([^ 	*]*\).*/P_POUNDCif_USE_\1_SUPPORT/p
 	g
 	s/^extern \([^;]*\);.*/\1/p
 	g
-	s/^.*implemented:\([^ 	*]*\).*/P_#endif/p
+	s/^.*implemented:\([^ 	*]*\).*/P_POUNDCendif/p
 }
 /^extern.*generated/{
 	h
-	s/^.*generated:\([^ 	*]*\).*/P_#if_USE_\1_SUPPORT/p
+	s/^.*generated:\([^ 	*]*\).*/P_POUNDCif_USE_\1_SUPPORT/p
 	g
 	s/^extern \([^;]*\);.*/\1/p
 	g
-	s/^.*generated:\([^ 	*]*\).*/P_#endif/p
+	s/^.*generated:\([^ 	*]*\).*/P_POUNDCendif/p
 }
 EOF1
 else
@@ -94,11 +102,11 @@ else
 	cat >$ED1 <<EOF1
 /^extern.*${ALL}/{
 	h
-	s/^.*${ALL}:\([^ 	*]*\).*/P_#if_USE_\1_SUPPORT/p
+	s/^.*${ALL}:\([^ 	*]*\).*/P_POUNDCif_USE_\1_SUPPORT/p
 	g
 	s/^extern \([^;]*\);.*/\1/p
 	g
-	s/^.*${ALL}:\([^ 	*]*\).*/P_#endif/p
+	s/^.*${ALL}:\([^ 	*]*\).*/P_POUNDCendif/p
 }
 EOF1
 fi
@@ -126,13 +134,14 @@ cat >$ED2 <<EOF2
 	s/)/ z)/
 	s/\.\.\. z)/...)/
 :nc
-	/(/s// ( /
+	s/(/ ( /
 	s/)/ )/
 EOF2
 
 cat >$ED3 <<EOF3
 /^P_/{
-	s/^P_#if_/#if /
+	s/^P_POUNDCif_/#if /
+	s/^P_POUNDCendif/#endif/
 	s/^P_//
 	b done
 }
@@ -143,7 +152,7 @@ cat >$ED3 <<EOF3
 	s/ )/)/g
 	s/ gen_/ /
 	s/^M_/#undef /
-	/^%%/s//	/
+	s/^[ 	]*%[ 	]*%[ 	]*/	/
 :done
 EOF3
 
@@ -167,12 +176,12 @@ cat >$AW1 <<\EOF1
 BEGIN	{
 		skip=0;
 	}
-/^P_#if/ {
+/^P_POUNDCif/ {
 		print "\n"
 		print $0
 		skip=0;
 }
-/^P_#endif/ {
+/^P_POUNDCendif/ {
 		print $0
 		skip=1;
 }
@@ -195,6 +204,10 @@ $0 !~ /^P_/ {
 		returnType = "SP";
 	} else if ( $first == "WINDOW" ) {
 		returnType = "Win";
+	} else if ( $first == "attr_t" || $second == "attrset" || $second == "standout" || $second == "standend" || $second == "wattrset" || $second == "wstandout" || $second == "wstandend" ) {
+		returnType = "Attr";
+	} else if ( $first == "bool" || $first == "NCURSES_BOOL" ) {
+		returnType = "Bool";
 	} else if ( $second == "*" ) {
 		returnType = "Ptr";
 	} else {
@@ -244,13 +257,17 @@ $0 !~ /^P_/ {
 	comma = ""
 	num = 0;
 	pointer = 0;
+	va_list = 0;
+	varargs = 0;
 	argtype = ""
 	for (i = myfunc; i <= NF; i++) {
 		ch = $i;
 		if ( ch == "*" )
 			pointer = 1;
 		else if ( ch == "va_list" )
-			pointer = 1;
+			va_list = 1;
+		else if ( ch == "..." )
+			varargs = 1;
 		else if ( ch == "char" )
 			argtype = "char";
 		else if ( ch == "int" )
@@ -263,7 +280,11 @@ $0 !~ /^P_/ {
 			argtype = "attr";
 
 		if ( ch == "," || ch == ")" ) {
-			if (pointer) {
+			if (va_list) {
+				call = call "%s"
+			} else if (varargs) {
+				call = call "%s"
+			} else if (pointer) {
 				if ( argtype == "char" ) {
 					call = call "%s"
 					comma = comma "_nc_visbuf2(" num ","
@@ -282,10 +303,17 @@ $0 !~ /^P_/ {
 					comma = comma "(long)"
 				}
 			}
-			if (ch == ",")
+			if (ch == ",") {
 				args = args comma "a" ++num;
-			else if ( argcount != 0 && $check != "..." )
-				args = args comma "z"
+			} else if ( argcount != 0 ) {
+				if ( va_list ) {
+					args = args comma "\"va_list\""
+				} else if ( varargs ) {
+					args = args comma "\"...\""
+				} else {
+					args = args comma "z"
+				}
+			}
 			call = call ch
 			if (pointer == 0 && argcount != 0 && argtype != "" )
 				args = args ")"
@@ -352,6 +380,7 @@ BEGIN		{
 			print " * pull most of the rest of the library into your link image."
 		}
 		print " */"
+		print "#define NCURSES_ATTR_T int"
 		print "#include <curses.priv.h>"
 		print ""
 		}
@@ -366,6 +395,7 @@ EOF1
 
 cat >$TMP <<EOF
 #include <ncurses_cfg.h>
+#undef NCURSES_NOMACROS
 #include <curses.h>
 
 DECLARATIONS
@@ -379,7 +409,10 @@ sed -n -f $ED1 \
 | sed -e 's/^\([a-z_][a-z_]*[ *]*\)/\1 gen_/' -e 's/  / /g' >>$TMP
 
 $preprocessor $TMP 2>/dev/null \
-| sed -e 's/  / /g' -e 's/^ //' \
+| sed \
+	-e 's/  / /g' \
+	-e 's/^ //' \
+	-e 's/^_Bool/bool/' \
 | $AWK -f $AW2 \
 | sed -f $ED3 \
 | sed \

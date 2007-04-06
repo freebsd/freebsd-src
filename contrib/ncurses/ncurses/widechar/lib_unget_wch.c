@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2002-2003,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,26 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_unget_wch.c,v 1.2 2002/03/17 00:01:38 tom Exp $")
+MODULE_ID("$Id: lib_unget_wch.c,v 1.7 2004/12/05 01:21:31 tom Exp $")
+
+#ifdef linux
+/*
+ * glibc's wcrtomb() function is broken - does not return the proper value
+ * when target is null (noted for glibc 2.3.2).  This is a workaround.
+ */
+NCURSES_EXPORT(size_t)
+_nc_wcrtomb(char *target, wchar_t source, mbstate_t * state)
+{
+    if (target == 0) {
+	wchar_t temp[2];
+	const wchar_t *tempp = temp;
+	temp[0] = source;
+	temp[1] = 0;
+	return wcsrtombs(NULL, &tempp, 0, state);
+    }
+    return wcrtomb(target, source, state);
+}
+#endif
 
 NCURSES_EXPORT(int)
 unget_wch(const wchar_t wch)
@@ -49,25 +68,29 @@ unget_wch(const wchar_t wch)
     size_t length;
     int n;
 
-    T((T_CALLED("unget_wch(%d)"), wch));
+    T((T_CALLED("unget_wch(%#lx)"), (unsigned long) wch));
 
-    memset(&state, 0, sizeof(state));
-    length = wcrtomb(0, wch, &state);
+    init_mb(state);
+    length = _nc_wcrtomb(0, wch, &state);
 
     if (length != (size_t) (-1)
 	&& length != 0) {
-	char *string = malloc(length);
+	char *string;
 
-	memset(&state, 0, sizeof(state));
-	wcrtomb(string, wch, &state);
+	if ((string = (char *) malloc(length)) != 0) {
+	    init_mb(state);
+	    wcrtomb(string, wch, &state);
 
-	for (n = (int) (length - 1); n >= 0; --n) {
-	    if (ungetch(string[n]) != OK) {
-		result = ERR;
-		break;
+	    for (n = (int) (length - 1); n >= 0; --n) {
+		if (ungetch(string[n]) != OK) {
+		    result = ERR;
+		    break;
+		}
 	    }
+	    free(string);
+	} else {
+	    result = ERR;
 	}
-	free(string);
     } else {
 	result = ERR;
     }
