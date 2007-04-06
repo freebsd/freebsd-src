@@ -40,6 +40,9 @@ SUBDIR+=bin
 .if ${MK_GAMES} != "no"
 SUBDIR+=games
 .endif
+.if ${MK_CDDL} != "no"
+SUBDIR+=cddl
+.endif
 SUBDIR+=gnu include
 .if ${MK_KERBEROS} != "no"
 SUBDIR+=kerberos5
@@ -430,6 +433,9 @@ build32:
 .for _t in obj includes
 	cd ${.CURDIR}/include; ${LIB32WMAKE} ${_t}
 	cd ${.CURDIR}/lib; ${LIB32WMAKE} ${_t}
+.if ${MK_CDDL} != "no"
+	cd ${.CURDIR}/cddl/lib; ${LIB32WMAKE} ${_t}
+.endif
 	cd ${.CURDIR}/gnu/lib; ${LIB32WMAKE} ${_t}
 .if ${MK_CRYPT} != "no"
 	cd ${.CURDIR}/secure/lib; ${LIB32WMAKE} ${_t}
@@ -1014,11 +1020,15 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libkrb5} \
 		lib/libradius lib/libsbuf lib/libtacplus lib/libutil \
 		${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
-		${_secure_lib_libssl}
+		${_secure_lib_libssl} lib/libthr
 
-_generic_libs=	gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib
+_generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
+
+.if ${MK_CDDL} != "no"
+_cddl_lib= cddl/lib
+.endif
 
 .if ${MK_CRYPT} != "no"
 .if ${MK_OPENSSL} != "no"
