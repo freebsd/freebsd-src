@@ -131,8 +131,8 @@ ndis_devcompare(bustype, t, dev)
 		return(FALSE);
 
 	while(t->ndis_name != NULL) {
-		if (ndis_strcasecmp(vendstr, t->ndis_vid) == 0 &&
-		    ndis_strcasecmp(prodstr, t->ndis_did) == 0) {
+		if (strcasecmp(vendstr, t->ndis_vid) == 0 &&
+		    strcasecmp(prodstr, t->ndis_did) == 0) {
 			device_set_desc(dev, t->ndis_name);
 			return(TRUE);
 		}
@@ -237,8 +237,8 @@ ndis_attach_pccard(dev)
 		return(error);
 
 	while(t->ndis_name != NULL) {
-		if (ndis_strcasecmp(vendstr, t->ndis_vid) == 0 &&
-		    ndis_strcasecmp(prodstr, t->ndis_did) == 0)
+		if (strcasecmp(vendstr, t->ndis_vid) == 0 &&
+		    strcasecmp(prodstr, t->ndis_did) == 0)
 			break;
 		t++;
 		devidx++;
