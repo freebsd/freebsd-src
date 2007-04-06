@@ -53,8 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
-extern int ndis_strncasecmp(const char *, const char *, size_t);
-#define strncasecmp(a, b, c) ndis_strncasecmp(a, b, c)
 #else
 #include <stdio.h>
 #include <stddef.h>
