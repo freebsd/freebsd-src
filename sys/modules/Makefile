@@ -445,7 +445,7 @@ _rr232x=	rr232x
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
-.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
+.if (defined(MK_ZFS) && ${MK_ZFS} != "no") || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
 .elif ${MACHINE} == "pc98"
