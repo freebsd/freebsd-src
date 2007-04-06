@@ -1746,8 +1746,6 @@ extern int ndis_destroy_dma(void *);
 extern int ndis_create_sysctls(void *);
 extern int ndis_add_sysctl(void *, char *, char *, char *, int);
 extern int ndis_flush_sysctls(void *);
-extern int ndis_strcasecmp(const char *, const char *);
-extern int ndis_strncasecmp(const char *, const char *, size_t);
 
 extern uint32_t NdisAddDevice(driver_object *, device_object *);
 extern void NdisAllocatePacketPool(ndis_status *,
