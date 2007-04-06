@@ -102,6 +102,7 @@ ata_begin_transaction(struct ata_request *request)
 
 	    /* device reset doesn't interrupt */
 	    if (request->u.ata.command == ATA_DEVICE_RESET) {
+
 		int timeout = 1000000;
 		do {
 		    DELAY(10);
