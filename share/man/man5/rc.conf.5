@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2007
+.Dd April 6, 2007
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1276,6 +1276,13 @@ By default, the files specified are
 .Pa /etc/rc.conf
 and
 .Pa /etc/rc.conf.local
+.It Va zfs_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+.Pa /etc/rc.d/zfs
+will attempt to automatically mount ZFS file systems and initialize ZFS volumes
+(ZVOLs).
 .It Va gbde_autoattach_all
 .Pq Vt bool
 If set to
