@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 2002-2003,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_get_wch.3x,v 1.3 2002/05/18 21:48:53 tom Exp $
+.\" $Id: curs_get_wch.3x,v 1.6 2006/02/25 21:47:06 tom Exp $
 .TH curs_get_wch 3X ""
 .SH NAME
 \fBget_wch\fR,
@@ -37,13 +37,13 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBint get_wch(win_t *\fR\fIwch\fR\fB);\fR
+\fBint get_wch(wint_t *\fR\fIwch\fR\fB);\fR
 .br
-\fBint wget_wch(WINDOW *\fR\fIwin\fR\fB, win_t *\fR\fIwch\fR\fB);\fR
+\fBint wget_wch(WINDOW *\fR\fIwin\fR\fB, wint_t *\fR\fIwch\fR\fB);\fR
 .br
-\fBint mvget_wch(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, win_t *\fR\fIwch\fR\fB);\fR
+\fBint mvget_wch(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, wint_t *\fR\fIwch\fR\fB);\fR
 .br
-\fBint mvwget_wch(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, win_t *\fR\fIwch\fR\fB);\fR
+\fBint mvwget_wch(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, wint_t *\fR\fIwch\fR\fB);\fR
 .br
 \fBint unget_wch(const wchar_t \fR\fIwch\fR\fB);\fR
 .SH DESCRIPTION
@@ -64,14 +64,14 @@ or after the first newline (nocbreak mode).
 In half-delay mode,
 the program waits until the user types a character or the specified
 timeout interval has elapsed.
-
+.PP
 Unless \fBnoecho\fR has been set,
 these routines echo the character into the designated window.
-
+.PP
 If the window is not a pad and has been moved or modified since the
 last call to \fBwrefresh\fR,
 \fBwrefresh\fR will be called before another character is read.
-
+.PP
 If \fBkeypad\fR is enabled,
 these functions respond to
 the pressing of a function key by setting the object pointed to by
@@ -130,7 +130,7 @@ at the same time.
 Depending on the state of the tty driver when each character
 is typed, the program may produce undesirable results.
 .PP
-All functions except \fBwget_wch\fR and \fBunget_wch\fR 
+All functions except \fBwget_wch\fR and \fBunget_wch\fR
 may be macros.
 .SH RETURN VALUES
 When

@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field.3x,v 1.5 1998/11/29 01:05:52 Rick.Ohnemus Exp $
+.\" $Id: form_field.3x,v 1.8 2006/11/04 18:01:38 tom Exp $
 .TH form_field 3X ""
 .SH NAME
 \fBform_field\fR - make and break connections between fields and forms
@@ -45,36 +45,37 @@ int move_field(FIELD *field, int frow, int fcol);
 .SH DESCRIPTION
 The function \fBset_form_fields\fR changes the field pointer array of
 the given \fIform\fR.  The array must be terminated by a \fBNULL\fR.
-
+.PP
 The function \fBform_fields\fR returns the field array of the given form.
-
+.PP
 The function \fBfield_count\fR returns the count of fields in \fIform\fR.
-
-The function \fBmove_field\fR move the given field (which must be disconnected)
+.PP
+The function \fBmove_field\fR moves the given field (which must be disconnected)
 to a specified location on the screen.
 .SH RETURN VALUES
-The function \fBform_fields\fR returns \fBNULL\fR on error.
-
-The function \fBfield_count\fR returns \fBERR\fR (the general
-\fBcurses\fR error return value) on error.
-
+The function \fBform_fields\fR returns a pointer (which may be \fBNULL\fR).
+It does not set errno.
+.PP
+The function \fBfield_count\fR returns \fBERR\fR if the \fIform\fP parameter
+is \fBNULL\fP.
+.PP
 The functions \fBset_form_fields\fR and \fBmove_field\fR return one of
 the following codes on error:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
-System error occurred (see \fBerrno\fR).
-.TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .TP 5
-\fBE_POSTED\fR
+.B E_CONNECTED
+The field is already connected to a form.
+.TP 5
+.B E_POSTED
 The form is already posted.
 .TP 5
-\fBE_CONNECTED\fR
-The field is already connected to a form.
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).
 .SH NOTES
@@ -83,7 +84,7 @@ The header file \fB<form.h>\fR automatically includes the header file
 .SH PORTABILITY
 These routines emulate the System V forms library.  They were not supported on
 Version 7 or BSD versions.
-
+.PP
 The SVr4 forms library documentation specifies the \fBfield_count\fR error value
 as -1 (which is the value of \fBERR\fR).
 .SH AUTHORS

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,20 +26,24 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_overlay.3x,v 1.10 2001/11/03 19:58:30 tom Exp $
+.\" $Id: curs_overlay.3x,v 1.14 2006/02/25 21:49:19 tom Exp $
 .TH curs_overlay 3X ""
+.na
+.hy 0
 .SH NAME
 \fBoverlay\fR,
 \fBoverwrite\fR,
 \fBcopywin\fR - overlay and manipulate overlapped \fBcurses\fR windows
+.ad
+.hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
-
+.sp
 \fBint overlay(const WINDOW *srcwin, WINDOW *dstwin);\fR
 .br
 \fBint overwrite(const WINDOW *srcwin, WINDOW *dstwin);\fR
 .br
-\fBint copywin(WINDOW *srcwin, WINDOW *dstwin, int sminrow,\fR
+\fBint copywin(const WINDOW *srcwin, WINDOW *dstwin, int sminrow,\fR
       \fBint smincol, int dminrow, int dmincol, int dmaxrow,\fR
       \fBint dmaxcol, int overlay);\fR
 .SH DESCRIPTION
@@ -48,7 +52,7 @@ top of \fIdstwin\fR.  \fIscrwin\fR and \fIdstwin\fR are not required
 to be the same size; only text where the two windows overlap is
 copied.  The difference is that \fBoverlay\fR is non-destructive
 (blanks are not copied) whereas \fBoverwrite\fR is destructive.
-
+.PP
 The \fBcopywin\fR routine provides a finer granularity of control over the
 \fBoverlay\fR and \fBoverwrite\fR routines.  Like in the \fBprefresh\fR
 routine, a rectangle is specified in the destination window, (\fIdminrow\fR,
@@ -60,6 +64,13 @@ argument \fIoverlay\fR is \fBtrue\fR, then copying is non-destructive, as in
 Routines that return an integer return \fBERR\fR upon failure, and \fBOK\fR
 (SVr4 only specifies "an integer value other than \fBERR\fR") upon successful
 completion.
+.PP
+X/Open defines no error conditions.
+In this implementation,
+\fBcopywin\fP,
+\fBoverlay\fP and \fBoverwrite\fP return an error
+if either of the window pointers are null, or
+if some part of the window would be placed off-screen.
 .SH NOTES
 Note that \fBoverlay\fR and \fBoverwrite\fR may be macros.
 .SH PORTABILITY

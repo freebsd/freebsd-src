@@ -1,6 +1,6 @@
-# $Id: modules,v 1.90 2002/05/11 20:14:41 tom Exp $
+# $Id: modules,v 1.107 2006/08/12 14:19:44 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,7 +27,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1996-1998, etc.
+# Author: Thomas E. Dickey	1996-on
 #
 
 @ base
@@ -61,7 +61,7 @@ lib_inchstr	lib		$(base)
 lib_initscr	lib		$(base)		$(INCDIR)/tic.h
 lib_insch	lib		$(base)
 lib_insdel	lib		$(base)
-lib_insstr	lib		$(base)
+lib_insnstr	lib		$(base)
 lib_instr	lib		$(base)
 lib_isendwin	lib		$(base)
 lib_leaveok	lib		$(base)
@@ -98,10 +98,9 @@ lib_slkrefr	lib		$(base)		../include/term.h
 lib_slkset	lib		$(base)
 lib_slktouch	lib		$(base)
 lib_touch	lib		$(base)
-lib_traceatr	lib		$(trace)	../include/term.h
 lib_tracedmp	lib		$(trace)
 lib_tracemse	lib		$(trace)
-lib_tstp	lib		$(serial)
+lib_tstp	lib		$(serial)	$(srcdir)/SigAction.h
 lib_ungetch	lib		$(base)
 lib_vidattr	lib		$(serial)	../include/term.h
 lib_vline	lib		$(base)
@@ -117,11 +116,15 @@ varargs		lib		$(trace)
 
 # Modules for porting
 memmove		lib		$(base)
-sigaction	lib		$(base)
 vsscanf 	lib		$(base)
+
+# actually an extension, but with its own configure option (--disable-leaks)
+lib_freeall	lib		$(base)
 
 # XSI extensions to the base library (wide-character)
 @ widechar
+charable	lib		$(wide)
+lib_add_wch	lib		$(wide)
 lib_box_set	lib		$(wide)
 lib_cchar	lib		$(wide)
 lib_get_wch	lib		$(wide)
@@ -130,9 +133,10 @@ lib_get_wstr	lib		$(wide)
 lib_hline_set	lib		$(wide)
 lib_in_wch	lib		$(wide)
 lib_in_wchnstr	lib		$(wide)
-lib_ins_nwstr	lib		$(wide)
 lib_ins_wch	lib		$(wide)
 lib_inwstr	lib		$(wide)
+lib_pecho_wchar	lib		$(wide)
+lib_slk_wset	lib		$(wide)
 lib_unget_wch	lib		$(wide)
 lib_vid_attr	lib		$(wide)		../include/term.h
 lib_vline_set	lib		$(wide)
@@ -141,17 +145,12 @@ lib_wunctrl	lib		$(wide)
 
 # Extensions to the base library
 @ ext_funcs
-define_key	lib		$(base)
 expanded	lib		.
-keybound	lib		$(base)
-keyok		lib		$(base)
+legacy_coding	lib		$(base)		../include/term.h
 lib_dft_fgbg	lib		$(base)		../include/term.h
-lib_freeall	lib		$(base)
 lib_print	lib		$(tinfo)	../include/term.h
 resizeterm	lib		$(base)		../include/term.h
 trace_xnames	lib		$(trace)	../include/term.h $(INCDIR)/term_entry.h
-tries		lib		$(base)
-version		lib		$(base)
 wresize		lib		$(base)		../include/term.h
 
 # Support for termcap (and tic, etc.), which can be a separate library
@@ -168,6 +167,7 @@ comp_expand	lib		$(tinfo)	$(INCDIR)/tic.h
 comp_hash	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h ../include/hashsize.h
 comp_parse	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 comp_scan	lib		$(tinfo)	$(INCDIR)/tic.h
+db_iterator	lib		$(tinfo)	$(INCDIR)/tic.h
 doalloc		lib		$(tinfo)
 fallback	lib		.		../include/term.h $(INCDIR)/tic.h
 free_ttype	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
@@ -193,6 +193,7 @@ lib_ti		lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 lib_tparm	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
 lib_tputs	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
 lib_trace	lib		$(trace)	$(INCDIR)/tic.h
+lib_traceatr	lib		$(trace)	../include/term.h
 lib_tracebits	lib		$(trace)	../include/term.h
 lib_tracechr	lib		$(trace)
 lib_ttyflags	lib		$(tinfo)	../include/term.h
@@ -206,6 +207,17 @@ setbuf		lib		$(tinfo)
 strings		lib		$(tinfo)
 trace_buf	lib		$(trace)
 trace_tries	lib		$(trace)
+tries		lib		$(base)
+trim_sgr0	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 unctrl		lib		.
 visbuf		lib		$(trace)	$(INCDIR)/tic.h
 write_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
+
+# Extensions to the termlib library
+@ ext_tinfo
+define_key	lib		$(base)
+hashed_db	lib		$(tinfo)
+key_defined	lib		$(base)
+keybound	lib		$(base)
+keyok		lib		$(base)
+version		lib		$(base)

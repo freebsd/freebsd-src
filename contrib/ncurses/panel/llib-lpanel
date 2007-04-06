@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998-2002,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1997                        *
+ *  Author: Thomas E. Dickey        1997,2002,2005                          *
  ****************************************************************************/
 /* LINTLIBRARY */
 
@@ -35,6 +35,45 @@
 
 #include "panel.priv.h"
 
+#undef _nc_retrace_panel
+PANEL	*_nc_retrace_panel(
+		PANEL	*pan)
+		{ return(*(PANEL **)0); }
+
+#undef _nc_my_visbuf
+const char *_nc_my_visbuf(
+		const void *ptr)
+		{ return(*(const char **)0); }
+
+#undef _nc_dPanel
+void	_nc_dPanel(
+		const char *text, 
+		const PANEL *pan)
+		{ /* void */ }
+
+#undef _nc_dStack
+void	_nc_dStack(
+		const char *fmt, 
+		int	num, 
+		const PANEL *pan)
+		{ /* void */ }
+
+#undef _nc_Wnoutrefresh
+void	_nc_Wnoutrefresh(
+		const PANEL *pan)
+		{ /* void */ }
+
+#undef _nc_Touchpan
+void	_nc_Touchpan(
+		const PANEL *pan)
+		{ /* void */ }
+
+#undef _nc_Touchline
+void	_nc_Touchline(
+		const PANEL *pan, 
+		int	start, 
+		int	count)
+		{ /* void */ }
 
 /* ./p_above.c */
 

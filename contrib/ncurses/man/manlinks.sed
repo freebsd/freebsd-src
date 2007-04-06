@@ -1,6 +1,6 @@
-# $Id: manlinks.sed,v 1.9 2000/09/30 23:32:24 tom Exp $
+# $Id: manlinks.sed,v 1.12 2003/12/20 13:17:56 tom Exp $
 ##############################################################################
-# Copyright (c) 2000 Free Software Foundation, Inc.                          #
+# Copyright (c) 2000-2002,2003 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -29,40 +29,73 @@
 # Given a manpage (nroff) as input, writes a list of the names that are
 # listed in the "NAME" section, i.e., the names that we would like to use
 # as aliases for the manpage -T.Dickey
+#
+# eliminate formatting controls that get in the way
 /^'\\"/d
 /\.\\"/d
 /^\.br/d
 /^\.sp/d
+s/^\.IX//
 s/\\f.//g
 s/[:,]/ /g
+#
+# eliminate unnecessary whitespace, convert multiple blanks to single space
 s/^[ 	][ 	]*//
 s/[ 	][ 	]*$//
 s/[ 	][ 	]*/ /g
+#
+# convert ".SH" into a more manageable form
 s/\.SH[ 	][ 	]*/.SH_(/
 #
+# in ".SH NAME"
+# change "\-" to "-", eliminate text after "-", and split the remaining lines
+# at each space, making a list of names:
 /^\.SH_(NAME/,/^\.SH_(SYNOPSIS/{
 s/\\-.*/ -/
 / -/{
-	s/ -.*//
-	s/ /\
+s/ -.*//
+s/ /\
 /g
 }
 /^-/{
-	d
+d
 }
 s/ /\
 /g
 }
+#
+# in ".SH SYNOPSIS"
+# remove any line that does not contain a '(', since we only want functions.
+# then strip off return-type of each function.
+# finally, remove the parameter list, which begins with a '('.
 /^\.SH_(SYNOPSIS/,/^\.SH_(DESCRIPTION/{
-	/^#/d
-	/^[^(]*$/d
-	s/^\([^ (]* [^ (]* [*]*\)//g
-	s/^\([^ (]* [*]*\)//g
-	s/\.SH_(/.SH_/
-	s/(.*//
-	s/\.SH_/.SH_(/
+/^[^(]*$/d
+# reduce
+#	.B "int add_wch( const cchar_t *\fIwch\fB );"
+# to
+#	add_wch( const cchar_t *\fIwch\fB );"
+s/^\([^ (]* [^ (]* [*]*\)//g
+s/^\([^ (]* [*]*\)//g
+# trim blanks in case we have
+#	void (*) (FORM *) field_init(const FORM *form);
+s/) (/)(/g
+# reduce stuff like
+#	void (*)(FORM *) field_init(const FORM *form);
+# to
+#	field_init(const FORM *form);
+s/^\(([^)]*)\)\(([^)]*)\)*[ ]*//g
+# rename marker temporarily
+s/\.SH_(/.SH_/
+# kill lines with ");", and trim off beginning of argument list.
+s/[()].*//
+# rename marker back
+s/\.SH_/.SH_(/
 }
+#
+# delete ".SH DESCRIPTION" and following lines
 /^\.SH_(DESCRIPTION/,${
-	d
+d
 }
+#
+# delete any remaining directives
 /^\./d

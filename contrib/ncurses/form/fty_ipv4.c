@@ -1,10 +1,31 @@
+/****************************************************************************
+ * Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
+ *                                                                          *
+ * Permission is hereby granted, free of charge, to any person obtaining a  *
+ * copy of this software and associated documentation files (the            *
+ * "Software"), to deal in the Software without restriction, including      *
+ * without limitation the rights to use, copy, modify, merge, publish,      *
+ * distribute, distribute with modifications, sublicense, and/or sell       *
+ * copies of the Software, and to permit persons to whom the Software is    *
+ * furnished to do so, subject to the following conditions:                 *
+ *                                                                          *
+ * The above copyright notice and this permission notice shall be included  *
+ * in all copies or substantial portions of the Software.                   *
+ *                                                                          *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+ * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+ *                                                                          *
+ * Except as contained in this notice, the name(s) of the above copyright   *
+ * holders shall not be used in advertising or otherwise to promote the     *
+ * sale, use or other dealings in this Software without prior written       *
+ * authorization.                                                           *
+ ****************************************************************************/
 
-/*
- * THIS CODE IS SPECIFICALLY EXEMPTED FROM THE NCURSES PACKAGE COPYRIGHT.
- * You may freely copy it for use as a template for your own field types.
- * If you develop a field type that might be of general use, please send
- * it back to the ncurses maintainers for inclusion in the next version.
- */
 /***************************************************************************
 *                                                                          *
 *  Author : Per Foreby, perf@efd.lth.se                                    *
@@ -13,7 +34,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_ipv4.c,v 1.4 2000/12/09 23:46:12 tom Exp $")
+MODULE_ID("$Id: fty_ipv4.c,v 1.8 2006/12/02 19:33:02 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -26,24 +47,25 @@ MODULE_ID("$Id: fty_ipv4.c,v 1.4 2000/12/09 23:46:12 tom Exp $")
 |   Return Values :  TRUE  - field is valid
 |                    FALSE - field is invalid
 +--------------------------------------------------------------------------*/
-static bool Check_IPV4_Field(FIELD * field, const void * argp GCC_UNUSED)
+static bool
+Check_IPV4_Field(FIELD *field, const void *argp GCC_UNUSED)
 {
-  char *bp = field_buffer(field,0);
+  char *bp = field_buffer(field, 0);
   int num = 0, len;
   unsigned int d1, d2, d3, d4;
 
-  if(isdigit((unsigned char)*bp)) /* Must start with digit */
+  if (isdigit(UChar(*bp)))	/* Must start with digit */
     {
       num = sscanf(bp, "%u.%u.%u.%u%n", &d1, &d2, &d3, &d4, &len);
       if (num == 4)
-        {
-          bp += len;            /* Make bp point to what sscanf() left */
-          while (*bp && isspace((unsigned char)*bp))
-            bp++;               /* Allow trailing whitespace */
-        }
+	{
+	  bp += len;		/* Make bp point to what sscanf() left */
+	  while (isspace(UChar(*bp)))
+	    bp++;		/* Allow trailing whitespace */
+	}
     }
   return ((num != 4 || *bp || d1 > 255 || d2 > 255
-                           || d3 > 255 || d4 > 255) ? FALSE : TRUE);
+	   || d3 > 255 || d4 > 255) ? FALSE : TRUE);
 }
 
 /*---------------------------------------------------------------------------
@@ -57,14 +79,16 @@ static bool Check_IPV4_Field(FIELD * field, const void * argp GCC_UNUSED)
 |   Return Values :  TRUE  - character is valid
 |                    FALSE - character is invalid
 +--------------------------------------------------------------------------*/
-static bool Check_IPV4_Character(int c, const void * argp GCC_UNUSED)
+static bool
+Check_IPV4_Character(int c, const void *argp GCC_UNUSED)
 {
-  return ((isdigit(c) || (c=='.')) ? TRUE : FALSE);
+  return ((isdigit(UChar(c)) || (c == '.')) ? TRUE : FALSE);
 }
 
-static FIELDTYPE typeIPV4 = {
+static FIELDTYPE typeIPV4 =
+{
   _RESIDENT,
-  1,                           /* this is mutable, so we can't be const */
+  1,				/* this is mutable, so we can't be const */
   (FIELDTYPE *)0,
   (FIELDTYPE *)0,
   NULL,

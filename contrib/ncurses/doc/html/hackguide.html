@@ -1,11 +1,39 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 3.0//EN">
 <!--
-  $Id: hackguide.html,v 1.25 2000/03/25 18:45:21 tom Exp $
+  $Id: hackguide.html,v 1.27 2005/12/24 15:37:13 tom Exp $
+  ****************************************************************************
+  * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
 -->
 <HTML>
 <HEAD>
 <TITLE>A Hacker's Guide to Ncurses Internals</TITLE>
 <link rev="made" href="mailto:bugs-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <!--
 This document is self-contained, *except* that there is one relative link to
 the ncurses-intro.html document, expected to be in the same directory with
@@ -286,10 +314,6 @@ header comments of <CODE>hardscroll.c</CODE> and <CODE>hashmap.c</CODE>; then tr
 it out. You can also test the hardware-scrolling optimization separately
 with <CODE>hardscroll</CODE>. <P>
 
-There's one other interactive tester, <CODE>tctest</CODE>, that exercises
-translation between termcap and terminfo formats.  If you have a serious
-need to run this, you probably belong on our development team!
-
 <H1><A NAME="ncurslib">A Tour of the Ncurses Library</A></H1>
 
 <H2><A NAME="loverview">Library Overview</A></H2>
@@ -377,7 +401,7 @@ trace_buf.c
 </code>
 </blockquote>
 It is rather unlikely you will ever need to change these, unless
-you want to introduce a new debug trace level for some reasoon.<P>
+you want to introduce a new debug trace level for some reason.<P>
 
 There is another group of files that do direct I/O via <EM>tputs()</EM>,
 computations on the terminal capabilities, or queries to the OS
@@ -558,7 +582,7 @@ Then <CODE>lib_doupdate.c</CODE> goes to work.  Its job is to do line-by-line
 transformations of <CODE>curscr</CODE> lines to <CODE>newscr</CODE> lines.  Its main
 tool is the routine <CODE>mvcur()</CODE> in <CODE>lib_mvcur.c</CODE>.  This routine
 does cursor-movement optimization, attempting to get from given screen
-location A to given location B in the fewest output characters posible. <P>
+location A to given location B in the fewest output characters possible. <P>
 
 If you want to work on screen optimizations, you should use the fact
 that (in the trace-enabled version of the library) enabling the

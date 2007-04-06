@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_new.3x,v 1.7 1998/11/29 01:11:38 Rick.Ohnemus Exp $
+.\" $Id: mitem_new.3x,v 1.10 2006/11/04 18:16:36 tom Exp $
 .TH mitem_new 3X ""
 .SH NAME
 \fBmitem_new\fR - create and destroy menu items
@@ -42,7 +42,7 @@ int free_item(ITEM *item);
 The function \fBnew_item\fR allocates a new item and initializes it from the
 \fBname\fR and \fBdescription\fR pointers. Please notice that the item stores
 only the pointers to the name and description. Those pointers must be valid
-during the lifetime of the item. So you should be very carefull with names
+during the lifetime of the item. So you should be very careful with names
 or descriptions allocated on the stack of some routines.
 .br
 The function \fBfree_item\fR de-allocates an item. Please notice that it
@@ -50,20 +50,27 @@ is the responsibility of the application to release the memory for the
 name or the description of the item.
 .SH RETURN VALUE
 The function \fBnew_item\fR returns \fBNULL\fR on error.
-
-The function \fBfree_item\fR returns one of the following:
+It sets errno according to the function's failure:
 .TP 5
-\fBE_OK\fR
-The routine succeeded.
-.TP 5
-\fBE_SYSTEM_ERROR\fR
-System error occurred (see \fBerrno\fR).
-.TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .TP 5
-\fBE_CONNECTED\fR
+.B E_SYSTEM_ERROR
+System error occurred, e.g., malloc failure.
+.PP
+The function \fBfree_item\fR returns one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_CONNECTED
 Item is connected to a menu.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).
 .SH NOTES

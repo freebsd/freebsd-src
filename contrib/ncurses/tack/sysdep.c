@@ -15,8 +15,8 @@
 ** 
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
-** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-** Boston, MA 02111-1307, USA.
+** the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+** Boston, MA 02110-1301, USA
 */
 /*
  * Operating system dependent functions.  We assume the POSIX API.
@@ -24,6 +24,9 @@
  * global has no effect.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <ncurses_cfg.h>
+#endif
 #include <signal.h>	/* include before curses.h to work around glibc bug */
 
 #include <tack.h>
@@ -46,7 +49,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: sysdep.c,v 1.11 2002/04/21 19:40:43 tom Exp $")
+MODULE_ID("$Id: sysdep.c,v 1.15 2005/09/17 19:49:16 tom Exp $")
 
 #if DECL_ERRNO
 extern int errno;
@@ -60,7 +63,7 @@ extern int errno;
 
 /* globals */
 int tty_frame_size;		/* asynch frame size times 2 */
-unsigned long tty_baud_rate;	/* baud rate - bits per second */
+unsigned tty_baud_rate;		/* baud rate - bits per second */
 int not_a_tty;			/* TRUE if output is not a tty (i.e. pipe) */
 int nodelay_read;		/* TRUE if NDELAY is set */
 
@@ -179,8 +182,8 @@ tty_set(void)
 #endif	/* NL1 */
 		break;
 	}
-	if (!(new_modes.c_oflag & ~OPOST))
-		new_modes.c_oflag &= ~OPOST;
+	if (!(new_modes.c_oflag & (unsigned long) ~OPOST))
+		new_modes.c_oflag &= (unsigned long) ~OPOST;
 #else
 	new_modes.sg_flags |= RAW;
 	if (not_a_tty)
@@ -396,7 +399,7 @@ read_key(char *buf, int max)
 		if (ask > max) {
 			ask = max;
 		}
-		if ((got = read(fileno(stdin), s, ask))) {
+		if ((got = read(fileno(stdin), s, (unsigned) ask))) {
 			s += got;
 		} else {
 			break;
@@ -497,5 +500,5 @@ set_alarm_clock(
 {
 	signal(SIGALRM, alarm_event);
 	no_alarm_event = 1;
-	(void) alarm(seconds);
+	(void) alarm((unsigned) seconds);
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -41,7 +42,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* beep, flash */
 
-MODULE_ID("$Id: lib_beep.c,v 1.9 2000/12/10 02:43:26 tom Exp $")
+MODULE_ID("$Id: lib_beep.c,v 1.10 2005/04/09 15:20:04 tom Exp $")
 
 /*
  *	beep()
@@ -59,7 +60,9 @@ beep(void)
     T((T_CALLED("beep()")));
 
     /* FIXME: should make sure that we are not in altchar mode */
-    if (bell) {
+    if (cur_term == 0) {
+	res = ERR;
+    } else if (bell) {
 	TPUTS_TRACE("bell");
 	res = putp(bell);
 	_nc_flush();

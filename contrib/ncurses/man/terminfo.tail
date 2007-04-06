@@ -1,9 +1,11 @@
-.\" $Id: terminfo.tail,v 1.35 2002/04/20 16:49:33 tom Exp $
+.\" $Id: terminfo.tail,v 1.44 2006/04/01 22:47:01 tom Exp $
 .\" Beginning of terminfo.tail file
+.\" This file is part of ncurses.
+.\" See "terminfo.head" for copyright.
 .ps +1
-.PP
+..
 .SS A Sample Entry
-.PP
+..
 The following entry, describing an ANSI-standard terminal, is representative
 of what a \fBterminfo\fR entry for a modern terminal typically looks like.
 .PP
@@ -271,22 +273,22 @@ Thus the model 33 teletype is described as
 .DT
 .nf
 .ft CW
-.in -7
-	\s-133\||\|tty33\||\|tty\||\|model 33 teletype,
+.\".in -2
+\s-133\||\|tty33\||\|tty\||\|model 33 teletype,
 	bel=^G, cols#72, cr=^M, cud1=^J, hc, ind=^J, os,\s+1
-.in +7
+.\".in +2
 .ft R
 .PP
-while the Lear Siegler \s-1ADM\-3\s0 is described as
+while the Lear Siegler \s-1ADM-3\s0 is described as
 .PP
 .DT
 .nf
 .ft CW
-.in -7
-	\s-1adm3\||\|3\||\|lsi adm3,
+.\".in -2
+\s-1adm3\||\|3\||\|lsi adm3,
 	am, bel=^G, clear=^Z, cols#80, cr=^M, cub1=^H, cud1=^J,
 	ind=^J, lines#24,\s+1
-.in +7
+.\".in +2
 .ft R
 .fi
 .PP
@@ -311,42 +313,93 @@ The parameter mechanism uses a stack and special \fB%\fP codes
 to manipulate it.
 Typically a sequence will push one of the
 parameters onto the stack and then print it in some format.
-Often more complex operations are necessary.
+Print (e.g., "%d") is a special case.
+Other operations, including "%t" pop their operand from the stack.
+It is noted that more complex operations are often necessary,
+e.g., in the \fBsgr\fP string.
 .PP
 The \fB%\fR encodings have the following meanings:
 .PP
-.DT
-.nf
-.ta .5i 1.5i
-	\s-1%%	outputs `%'
-	%\fI[[\fP:\fI]flags][width[.precision]][\fPdoxXs\fI]\fP
-		as in \fBprintf\fP, flags are [-+#] and space
-	%c	print pop() like %c in printf()
-	%s	print pop() like %s in printf()
-
-	%p[1-9]	push \fIi\fP'th parm
-	%P[a-z]	set dynamic variable [a-z] to pop()
-	%g[a-z]	get dynamic variable [a-z] and push it
-	%P[A-Z]	set static variable [a-z] to pop()
-	%g[A-Z]	get static variable [a-z] and push it
-	%'\fIc\fP'	char constant \fIc\fP
-	%{\fInn\fP}	integer constant \fInn\fP
-	%l	push strlen(pop)
-
-	%+ %- %* %/ %m
-		arithmetic (%m is mod): push(pop() op pop())
-	%& %| %^	bit operations: push(pop() op pop())
-	%= %> %<	logical operations: push(pop() op pop())
-	%A, %O	logical and & or operations (for conditionals)
-	%! %~	unary operations push(op pop())
-	%i	add 1 to first two parameters (for ANSI terminals)
-
-	%? expr %t thenpart %e elsepart %;
-		if-then-else, %e elsepart is optional.
-		else-if's are possible a la Algol 68:
-		%? c\d1\u %t b\d1\u %e c\d2\u %t b\d2\u %e c\d3\u %t b\d3\u %e c\d4\u %t b\d4\u %e %;
-\s+1		c\di\u are conditions, b\di\u are bodies.
-.fi
+.TP 5
+\s-1%%
+outputs `%'
+.TP
+%\fI[[\fP:\fI]flags][width[.precision]][\fPdoxXs\fI]\fP
+as in \fBprintf\fP, flags are [-+#] and space
+.TP
+%c
+print pop() like %c in \fBprintf\fP
+.TP
+%s
+print pop() like %s in \fBprintf\fP
+.TP
+%p[1-9]
+push \fIi\fP'th parameter
+.TP
+%P[a-z]
+set dynamic variable [a-z] to pop()
+.TP
+%g[a-z]
+get dynamic variable [a-z] and push it
+.TP
+%P[A-Z]
+set static variable [a-z] to pop()
+.TP
+%g[A-Z]
+get static variable [a-z] and push it
+.IP
+The terms "static" and "dynamic" are misleading.
+Historically, these are simply two different sets of variables,
+whose values are not reset between calls to \fBtparm\fP.
+However, that fact is not documented in other implementations.
+Relying on it will adversely impact portability to other implementations.
+.TP
+%'\fIc\fP'
+char constant \fIc\fP
+.TP
+%{\fInn\fP}
+integer constant \fInn\fP
+.TP
+%l
+push strlen(pop)
+.TP
+%+ %- %* %/ %m
+arithmetic (%m is mod): push(pop() op pop())
+.TP
+%& %| %^
+bit operations (AND, OR and exclusive-OR): push(pop() op pop())
+.TP
+%= %> %<
+logical operations: push(pop() op pop())
+.TP
+%A, %O
+logical AND and OR operations (for conditionals)
+.TP
+%! %~
+unary operations (logical and bit complement): push(op pop())
+.TP
+%i
+add 1 to first two parameters (for ANSI terminals)
+.TP
+%? \fIexpr\fP %t \fIthenpart\fP %e \fIelsepart\fP %;
+This forms an if-then-else.
+The %e \fIelsepart\fP is optional.
+Usually the %? \fIexpr\fP part pushes a value onto the stack,
+and %t pops it from the stack, testing if it is nonzero (true).
+If it is zero (false), control passes to the %e (else) part.
+.IP
+It is possible to form else-if's a la Algol 68:
+.RS
+%? c\d1\u %t b\d1\u %e c\d2\u %t b\d2\u %e c\d3\u %t b\d3\u %e c\d4\u %t b\d4\u %e %;
+.RE
+.IP
+where c\di\u are conditions, b\di\u are bodies.
+.IP
+Use the \fB-f\fP option of \fBtic\fP or \fBinfocmp\fP to see
+the structure of if-the-else's.
+Some strings, e.g., \fBsgr\fP can be very complicated when written
+on one line.
+The \fB-f\fP option splits the string into lines with the parts indented.
 .PP
 Binary operations are in postfix form with the operands in the usual order.
 That is, to get x-5 one would use "%gx%{5}%-".
@@ -762,6 +815,12 @@ Putting this all together into the sgr sequence gives:
 .fi
 .PP
 Remember that if you specify sgr, you must also specify sgr0.
+Also, some implementations rely on sgr being given if sgr0 is,
+Not all terminfo entries necessarily have an sgr string, however.
+Many terminfo entries are derived from termcap entries
+which have no sgr string.
+The only drawback to adding an sgr string is that termcap also
+assumes that sgr0 does not exit alternate character set mode.
 .PP
 Terminals with the ``magic cookie'' glitch
 .RB ( xmc )
@@ -937,25 +996,33 @@ option of the
 .IR tput
 program, each time the user logs in.
 They will be printed in the following order:
+.RS
+.TP
 run the program
-.BR iprog ;
+.BR iprog
+.TP
 output
-.BR is1 ;
-.BR is2 ;
+.BR is1
+.BR is2
+.TP
 set the margins using
 .BR mgc ,
 .BR smgl
 and
-.BR smgr ;
+.BR smgr
+.TP
 set tabs using
 .B tbc
 and
-.BR hts ;
+.BR hts
+.TP
 print the file
-.BR if ;
+.BR if
+.TP
 and finally
 output
 .BR is3 .
+.RE
 .PP
 Most initialization is done with
 .BR is2 .
@@ -966,17 +1033,21 @@ and special cases in
 .B is1
 and
 .BR is3 .
-A pair of sequences that does a harder reset from a totally unknown state
-can be analogously given as
+.PP
+A set of sequences that does a harder reset from a totally unknown state
+can be given as
 .BR rs1 ,
 .BR rs2 ,
-.BR rf ,
+.BR rf
 and
 .BR rs3 ,
 analogous to
-.B is2
+.B is1 ,
+.B is2 ,
+.B if
 and
-.BR if .
+.BR is3
+respectively.
 These strings are output by the
 .IR reset
 program, which is used when the terminal gets into a wedged state.
@@ -994,6 +1065,28 @@ normally be part of
 but it causes an annoying glitch of the screen and is not normally
 needed since the terminal is usually already in 80 column mode.
 .PP
+The
+.IR reset
+program writes strings
+including
+.BR iprog ,
+etc., in the same order as the
+.IR init
+program, using 
+.BR rs1 ,
+etc., instead of
+.BR is1 ,
+etc.
+If any of
+.BR rs1 ,
+.BR rs2 ,
+.BR rs3 ,
+or
+.BR rf
+reset capability strings are missing, the
+.IR reset
+program falls back upon the corresponding initialization capability string.
+.PP
 If there are commands to set and clear tab stops, they can be given as
 .B tbc
 (clear all tab stops)
@@ -1007,7 +1100,7 @@ or
 .BR if .
 .SS Delays and Padding
 .PP
-Many older and slower terminals don't support either XON/XOFF or DTR
+Many older and slower terminals do not support either XON/XOFF or DTR
 handshaking, including hard copy terminals and some very archaic CRTs
 (including, for example, DEC VT100s).
 These may require padding characters
@@ -1019,7 +1112,7 @@ close to full), set
 .BR xon .
 This capability suppresses the emission of padding.
 You can also set it
-for memory-mapped console devices effectively that don't have a speed limit.
+for memory-mapped console devices effectively that do not have a speed limit.
 Padding information should still be included so that routines can
 make better decisions about relative costs, but actual pad characters will
 not be transmitted.
@@ -1170,7 +1263,7 @@ defined."
 .PP
 The \fBsetaf\fR/\fBsetab\fR and \fBsetf\fR/\fBsetb\fR capabilities take a
 single numeric argument each.
-Argument values 0-7 are portably defined as
+Argument values 0-7 of \fBsetaf\fR/\fBsetab\fR are portably defined as
 follows (the middle column is the symbolic #define available in the header for
 the \fBcurses\fR or \fBncurses\fR libraries).
 The terminal hardware is free to
@@ -1191,6 +1284,25 @@ magenta	\fBCOLOR_MAGENTA\fR	5	max,0,max
 cyan	\fBCOLOR_CYAN\fR	6	0,max,max
 white	\fBCOLOR_WHITE\fR	7	max,max,max
 .TE
+.PP
+The argument values of \fBsetf\fR/\fBsetb\fR historically correspond to
+a different mapping, i.e.,
+.TS H
+center;
+l c c c
+l l n l.
+\fBColor	#define 	Value	RGB\fR
+black	\fBCOLOR_BLACK\fR	0	0, 0, 0
+blue	\fBCOLOR_BLUE\fR	1	0,0,max
+green	\fBCOLOR_GREEN\fR	2	0,max,0
+cyan	\fBCOLOR_CYAN\fR	3	0,max,max
+red	\fBCOLOR_RED\ \fR	4	max,0,0
+magenta	\fBCOLOR_MAGENTA\fR	5	max,0,max
+yellow	\fBCOLOR_YELLOW\fR	6	max,max,0
+white	\fBCOLOR_WHITE\fR	7	max,max,max
+.TE
+It is important to not confuse the two sets of color capabilities;
+otherwise red/blue will be interchanged on the display.
 .PP
 On an HP-like terminal, use \fBscp\fR with a color-pair number parameter to set
 which color pair is current.
@@ -1421,39 +1533,39 @@ user preferences.
 .SS Pitfalls of Long Entries
 .PP
 Long terminfo entries are unlikely to be a problem; to date, no entry has even
-approached terminfo's 4K string-table maximum.
+approached terminfo's 4096-byte string-table maximum.
 Unfortunately, the termcap
-translations are much more strictly limited (to 1K), thus termcap translations
+translations are much more strictly limited (to 1023 bytes), thus termcap translations
 of long terminfo entries can cause problems.
 .PP
-The man pages for 4.3BSD and older versions of tgetent() instruct the user to
-allocate a 1K buffer for the termcap entry.
+The man pages for 4.3BSD and older versions of \fBtgetent()\fP instruct the user to
+allocate a 1024-byte buffer for the termcap entry.
 The entry gets null-terminated by
 the termcap library, so that makes the maximum safe length for a termcap entry
 1k-1 (1023) bytes.
 Depending on what the application and the termcap library
-being used does, and where in the termcap file the terminal type that tgetent()
+being used does, and where in the termcap file the terminal type that \fBtgetent()\fP
 is searching for is, several bad things can happen.
 .PP
 Some termcap libraries print a warning message or exit if they find an
-entry that's longer than 1023 bytes; others don't; others truncate the
+entry that's longer than 1023 bytes; others do not; others truncate the
 entries to 1023 bytes.
 Some application programs allocate more than
-the recommended 1K for the termcap entry; others don't.
+the recommended 1K for the termcap entry; others do not.
 .PP
 Each termcap entry has two important sizes associated with it: before
 "tc" expansion, and after "tc" expansion.
 "tc" is the capability that
 tacks on another termcap entry to the end of the current one, to add
 on its capabilities.
-If a termcap entry doesn't use the "tc"
+If a termcap entry does not use the "tc"
 capability, then of course the two lengths are the same.
 .PP
 The "before tc expansion" length is the most important one, because it
 affects more than just users of that particular terminal.
 This is the
 length of the entry as it exists in /etc/termcap, minus the
-backslash-newline pairs, which tgetent() strips out while reading it.
+backslash-newline pairs, which \fBtgetent()\fP strips out while reading it.
 Some termcap libraries strip off the final newline, too (GNU termcap does not).
 Now suppose:
 .TP 5
@@ -1469,12 +1581,12 @@ the whole entry into the buffer, no matter what its length, to see
 if it's the entry it wants,
 .TP 5
 *
-and tgetent() is searching for a terminal type that either is the
+and \fBtgetent()\fP is searching for a terminal type that either is the
 long entry, appears in the termcap file after the long entry, or
-doesn't appear in the file at all (so that tgetent() has to search
+does not appear in the file at all (so that \fBtgetent()\fP has to search
 the whole termcap file).
 .PP
-Then tgetent() will overwrite memory, perhaps its stack, and probably core dump
+Then \fBtgetent()\fP will overwrite memory, perhaps its stack, and probably core dump
 the program.
 Programs like telnet are particularly vulnerable; modern telnets
 pass along values like the terminal type automatically.
@@ -1487,7 +1599,7 @@ here but will return incorrect data for the terminal.
 .PP
 The "after tc expansion" length will have a similar effect to the
 above, but only for people who actually set TERM to that terminal
-type, since tgetent() only does "tc" expansion once it's found the
+type, since \fBtgetent()\fP only does "tc" expansion once it's found the
 terminal type it was looking for, not while searching.
 .PP
 In summary, a termcap entry that is longer than 1023 bytes can cause,
@@ -1511,12 +1623,12 @@ of terminfo (under HP-UX and AIX) which diverged from System V terminfo after
 SVr1, and have added extension capabilities to the string table that (in the
 binary format) collide with System V and XSI Curses extensions.
 .SH EXTENSIONS
-Some SVr4 \fBcurses\fR implementations, and all previous to SVr4, don't
+Some SVr4 \fBcurses\fR implementations, and all previous to SVr4, do not
 interpret the %A and %O operators in parameter strings.
 .PP
 SVr4/XPG4 do not specify whether \fBmsgr\fR licenses movement while in
 an alternate-character-set mode (such modes may, among other things, map
-CR and NL to characters that don't trigger local motions).
+CR and NL to characters that do not trigger local motions).
 The \fBncurses\fR implementation ignores \fBmsgr\fR in \fBALTCHARSET\fR
 mode.
 This raises the possibility that an XPG4
@@ -1573,7 +1685,11 @@ Supports both the SVr4 set and the AIX extensions.
 \*d/?/*
 files containing terminal descriptions
 .SH SEE ALSO
-\fBtic\fR(1M), \fBcurses\fR(3X), \fBprintf\fR(3S), \fBterm\fR(\*n).
+\fB@TIC@\fR(1M),
+\fB@INFOCMP@\fR(1M),
+\fBcurses\fR(3X),
+\fBprintf\fR(3S),
+\fBterm\fR(\*n).
 .SH AUTHORS
 Zeyd M. Ben-Halim, Eric S. Raymond, Thomas E. Dickey.
 Based on pcurses by Pavel Curtis.

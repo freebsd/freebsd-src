@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -40,18 +41,15 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_data.c,v 1.16 2000/12/10 02:55:07 tom Exp $")
+MODULE_ID("$Id: lib_data.c,v 1.17 2005/01/22 17:39:22 tom Exp $")
 
 /*
  * OS/2's native linker complains if we don't initialize public data when
  * constructing a dll (reported by J.J.G.Ripoll).
  */
-NCURSES_EXPORT_VAR(WINDOW *)
-stdscr = 0;
-NCURSES_EXPORT_VAR(WINDOW *)
-curscr = 0;
-NCURSES_EXPORT_VAR(WINDOW *)
-newscr = 0;
+NCURSES_EXPORT_VAR(WINDOW *) stdscr = 0;
+NCURSES_EXPORT_VAR(WINDOW *) curscr = 0;
+NCURSES_EXPORT_VAR(WINDOW *) newscr = 0;
 
 NCURSES_EXPORT_VAR(SCREEN *) _nc_screen_chain = 0;
 
@@ -66,7 +64,7 @@ NCURSES_EXPORT_VAR(SCREEN *) _nc_screen_chain = 0;
  * module coupling that increases the size of the executable.
  */
 #if BROKEN_LINKER
-     static SCREEN *my_screen;
+static SCREEN *my_screen;
 
 NCURSES_EXPORT(SCREEN *)
 _nc_screen(void)
@@ -81,11 +79,11 @@ _nc_alloc_screen(void)
 }
 
 NCURSES_EXPORT(void)
-_nc_set_screen(SCREEN * sp)
+_nc_set_screen(SCREEN *sp)
 {
     my_screen = sp;
 }
 
 #else
-NCURSES_EXPORT_VAR(SCREEN *) SP = NULL;		/* Some linkers require initialized data... */
+NCURSES_EXPORT_VAR(SCREEN *) SP = NULL; /* Some linkers require initialized data... */
 #endif

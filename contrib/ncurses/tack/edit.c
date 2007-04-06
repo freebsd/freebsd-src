@@ -1,29 +1,29 @@
 /*
 ** Copyright (C) 1997 Free Software Foundation, Inc.
-** 
+**
 ** This file is part of TACK.
-** 
+**
 ** TACK is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
 ** the Free Software Foundation; either version 2, or (at your option)
 ** any later version.
-** 
+**
 ** TACK is distributed in the hope that it will be useful,
 ** but WITHOUT ANY WARRANTY; without even the implied warranty of
 ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ** GNU General Public License for more details.
-** 
+**
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
-** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-** Boston, MA 02111-1307, USA.
+** the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+** Boston, MA 02110-1301, USA
 */
 
 #include <tack.h>
 #include <time.h>
 #include <tic.h>
 
-MODULE_ID("$Id: edit.c,v 1.8 2001/06/18 18:44:32 tom Exp $")
+MODULE_ID("$Id: edit.c,v 1.11 2006/06/24 21:22:42 tom Exp $")
 
 /*
  * Terminfo edit features
@@ -52,7 +52,7 @@ struct test_list edit_test_list[] = {
 };
 
 static char change_pad_text[MAX_CHANGES][80];
-struct test_list change_pad_list[MAX_CHANGES] = {
+static struct test_list change_pad_list[MAX_CHANGES] = {
 	{MENU_LAST, 0, 0, 0, 0, 0, 0}
 };
 
@@ -65,18 +65,26 @@ struct test_menu change_pad_menu = {
 	build_change_menu, change_pad_list, 0, 0, 0
 };
 
-extern struct test_results *pads[STRCOUNT];	/* save pad results here */
-
 static TERMTYPE	original_term;		/* terminal type description */
 
 static char flag_boolean[BOOLCOUNT];	/* flags for booleans */
 static char flag_numerics[NUMCOUNT];	/* flags for numerics */
-static char flag_strings[STRCOUNT];	/* flags for strings */
+static char *flag_strings;		/* flags for strings */
+static int *label_strings;
 static int xon_index;			/* Subscript for (xon) */
-int xon_shadow;
+static int xon_shadow;
 
 static int start_display;		/* the display has just started */
 static int display_lines;		/* number of lines displayed */
+
+static void
+alloc_arrays(void)
+{
+	if (flag_strings == 0) {
+		label_strings = (int *)calloc(MAX_STRINGS, sizeof(int));
+		flag_strings = (char *)calloc(MAX_STRINGS, sizeof(char));
+	}
+}
 
 /*
 **	send_info_string(str)
@@ -156,9 +164,9 @@ show_info(
 			send_info_string(buf, ch);
 		}
 	}
-	for (i = 0; i < STRCOUNT; i++) {
+	for (i = 0; i < MAX_STRINGS; i++) {
 		if (CUR Strings[i]) {
-			sprintf(buf, "%s=%s", strnames[i],
+			sprintf(buf, "%s=%s", STR_NAME(i),
 				print_expand(CUR Strings[i]));
 			send_info_string(buf, ch);
 		}
@@ -237,9 +245,9 @@ save_info(
 			save_info_string(buf, fp);
 		}
 	}
-	for (i = 0; i < STRCOUNT; i++) {
+	for (i = 0; i < MAX_STRINGS; i++) {
 		if (CUR Strings[i]) {
-			sprintf(buf, "%s=%s", strnames[i],
+			sprintf(buf, "%s=%s", STR_NAME(i),
 				_nc_tic_expand(CUR Strings[i], TRUE, TRUE));
 			save_info_string(buf, fp);
 		}
@@ -401,7 +409,7 @@ get_string_cap_byvalue(
 	int i;
 
 	if (value) {
-		for (i = 0; i < STRCOUNT; i++) {
+		for (i = 0; i < MAX_STRINGS; i++) {
 			if (CUR Strings[i] == value) {
 				return i;
 			}
@@ -457,7 +465,7 @@ show_changed(
 			ptextln(temp);
 		}
 	}
-	for (i = 0; i < STRCOUNT; i++) {
+	for (i = 0; i < MAX_STRINGS; i++) {
 		a = original_term.Strings[i] ? original_term.Strings[i] : "";
 		b = CUR Strings[i] ?  CUR Strings[i] : "";
 		if (strcmp(a, b)) {
@@ -466,7 +474,7 @@ show_changed(
 				header = 0;
 			}
 			strcpy(abuf, _nc_tic_expand(a, TRUE, TRUE));
-			sprintf(temp, "%30s %6s %s", abuf, strnames[i],
+			sprintf(temp, "%30s %6s %s", abuf, STR_NAME(i),
 				_nc_tic_expand(b, TRUE, TRUE));
 			putln(temp);
 		}
@@ -500,7 +508,7 @@ user_modified(void)
 			return TRUE;
 		}
 	}
-	for (i = 0; i < STRCOUNT; i++) {
+	for (i = 0; i < MAX_STRINGS; i++) {
 		a = original_term.Strings[i] ? original_term.Strings[i] : "";
 		b = CUR Strings[i] ?  CUR Strings[i] : "";
 		if (strcmp(a, b)) {
@@ -528,6 +536,7 @@ mark_cap(
 {
 	struct name_table_entry const *nt;
 
+	alloc_arrays();
 	if ((nt = _nc_find_entry(name, _nc_info_hash_table))) {
 		switch (nt->nte_type) {
 		case BOOLEAN:
@@ -670,8 +679,9 @@ show_report(
 {
 	int i, j, nc, flag;
 	const char *s;
-	const char *nx[BOOLCOUNT + NUMCOUNT + STRCOUNT];
+	const char **nx = malloc(BOOLCOUNT + NUMCOUNT + MAX_STRINGS);
 
+	alloc_arrays();
 	flag = t->flags & 255;
 	nc = 0;
 	for (i = 0; i < BOOLCOUNT; i++) {
@@ -684,9 +694,9 @@ show_report(
 			nx[nc++] = numnames[i];
 		}
 	}
-	for (i = 0; i < STRCOUNT; i++) {
+	for (i = 0; i < MAX_STRINGS; i++) {
 		if (flag_strings[i] & flag) {
-			nx[nc++] = strnames[i];
+			nx[nc++] = STR_NAME(i);
 		}
 	}
 	/* sort */
@@ -715,6 +725,7 @@ show_report(
 	}
 	put_newlines(1);
 	*ch = REQUEST_PROMPT;
+	free (nx);
 }
 
 /*
@@ -731,6 +742,7 @@ show_untested(
 {
 	int i;
 
+	alloc_arrays();
 	ptextln("Caps that are defined but cannot be tested:");
 	for (i = 0; i < BOOLCOUNT; i++) {
 		if (flag_boolean[i] == 0 && CUR Booleans[i]) {
@@ -744,9 +756,9 @@ show_untested(
 			ptext(temp);
 		}
 	}
-	for (i = 0; i < STRCOUNT; i++) {
+	for (i = 0; i < MAX_STRINGS; i++) {
 		if (flag_strings[i] == 0 && CUR Strings[i]) {
-			sprintf(temp, "%s ", strnames[i]);
+			sprintf(temp, "%s ", STR_NAME(i));
 			ptext(temp);
 		}
 	}
@@ -765,7 +777,8 @@ edit_init(void)
 	int i, j, lc;
 	char *lab;
 	struct name_table_entry const *nt;
-	int label_strings[STRCOUNT];
+
+	alloc_arrays();
 
 	_nc_copy_termtype(&original_term, &cur_term->type);
 	for (i = 0; i < BOOLCOUNT; i++) {
@@ -775,9 +788,9 @@ edit_init(void)
 		original_term.Numbers[i] = CUR Numbers[i];
 	}
 	/* scan for labels */
-	for (i = lc = 0; i < STRCOUNT; i++) {
+	for (i = lc = 0; i < MAX_STRINGS; i++) {
 		original_term.Strings[i] = CUR Strings[i];
-		if (strncmp(strnames[i], "lf", 2) == 0) {
+		if (strncmp(STR_NAME(i), "lf", 2) == 0) {
 			flag_strings[i] |= FLAG_LABEL;
 			if (CUR Strings[i]) {
 				label_strings[lc++] = i;
@@ -785,18 +798,19 @@ edit_init(void)
 		}
 	}
 	/* scan for function keys */
-	for (i = 0; i < STRCOUNT; i++) {
-		if ((strnames[i][0] == 'k') && strcmp(strnames[i], "kmous")) {
+	for (i = 0; i < MAX_STRINGS; i++) {
+		const char *this_name = STR_NAME(i);
+		if ((this_name[0] == 'k') && strcmp(this_name, "kmous")) {
 			flag_strings[i] |= FLAG_FUNCTION_KEY;
 			lab = (char *) 0;
 			for (j = 0; j < lc; j++) {
-				if (!strcmp(&strnames[i][1],
-					&strnames[label_strings[j]][1])) {
+				if (!strcmp(this_name,
+					STR_NAME(label_strings[j]))) {
 					lab = CUR Strings[label_strings[j]];
 					break;
 				}
 			}
-			enter_key(strnames[i], CUR Strings[i], lab);
+			enter_key(this_name, CUR Strings[i], lab);
 		}
 	}
 	/* Lookup the translated strings */
@@ -814,6 +828,7 @@ edit_init(void)
 		xon_index = nt->nte_index;
 	}
 	xon_shadow = xon_xoff;
+	free(label_strings);
 }
 
 /*
@@ -857,7 +872,7 @@ change_one_entry(
 	} else {
 		x = tx_index[i];
 		current_string = tx_cap[i];
-		strcpy(pad, strnames[x]);
+		strcpy(pad, STR_NAME(x));
 	}
 	if (!current_string) {
 		ptextln("That string is not currently defined.  Please enter a new value, including the padding delay:");
@@ -867,7 +882,7 @@ change_one_entry(
 		t = (char *)malloc(strlen(pad) + 1);
 		strcpy(t, pad);
 		CUR Strings[x] = t;
-		sprintf(temp, "new string value  %s", strnames[x]);
+		sprintf(temp, "new string value  %s", STR_NAME(x));
 		ptextln(temp);
 		ptextln(expand(t));
 		return;
@@ -955,7 +970,7 @@ build_change_menu(
 			s = _nc_tic_expand(tx_cap[i], TRUE, TRUE);
 			s[40] = '\0';
 			sprintf(change_pad_text[j], "%c) (%s) %s",
-				'a' + j, strnames[k], s);
+				'a' + j, STR_NAME(k), s);
 			change_pad_list[j].flags = i;
 			change_pad_list[j].lines_needed = 4;
 			change_pad_list[j].menu_entry = change_pad_text[j];

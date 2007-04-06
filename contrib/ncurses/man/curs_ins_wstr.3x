@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 2002,2005 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_ins_wstr.3x,v 1.2 2002/03/10 23:43:27 tom Exp $
+.\" $Id: curs_ins_wstr.3x,v 1.4 2005/05/15 17:02:54 tom Exp $
 .TH curs_ins_wstr 3X ""
+.na
+.hy 0
 .SH NAME
 \fBins_wstr\fR,
 \fBins_nwstr\fR,
@@ -37,10 +39,12 @@
 \fBmvins_nwstr\fR,
 \fBmvwins_wstr\fR,
 \fBmvwins_nwstr\fR \- insert a wide-character string into a curses window
+.ad
+.hy
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>\fR
-
+.sp
 \fBint ins_wstr(const wchar_t *\fR\fIwstr);\fR
 .br
 \fBint ins_nwstr(const wchar_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
@@ -69,7 +73,7 @@ The cursor position does not change
 The four routines with \fIn\fR as the last argument
 insert a leading substring of at most \fIn\fR \fBwchar_t\fR characters.
 If \fIn\fR is less than 1, the entire string is inserted.
-
+.PP
 If a character in \fIwstr\fR is a tab, newline, carriage return or
 backspace, the cursor is moved appropriately within the window.
 A newline also does a \fBclrtoeol\fR before moving.
@@ -83,7 +87,7 @@ but instead returns a character in the ^-representation
 of the control character.
 .SH NOTES
 Note that all but wins_nwstr may be macros.
-
+.PP
 If the first character in the string is a nonspacing character, these
 functions will fail.
 XSI does not define what will happen if a nonspacing character follows

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,23 +42,48 @@
 #include <sys/stat.h>
 
 #include <dump_entry.h>
-#include <term_entry.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tic.c,v 1.96 2002/06/01 20:42:53 tom Exp $")
+MODULE_ID("$Id: tic.c,v 1.131 2006/12/02 22:13:17 tom Exp $")
 
 const char *_nc_progname = "tic";
 
 static FILE *log_fp;
 static FILE *tmp_fp;
+static bool capdump = FALSE;	/* running as infotocap? */
+static bool infodump = FALSE;	/* running as captoinfo? */
 static bool showsummary = FALSE;
 static const char *to_remove;
-static int tparm_errs;
 
-static void (*save_check_termtype) (TERMTYPE *);
-static void check_termtype(TERMTYPE * tt);
+static void (*save_check_termtype) (TERMTYPE *, bool);
+static void check_termtype(TERMTYPE *tt, bool);
 
-static const char usage_string[] = "[-V] [-v[n]] [-e names] [-CILNRTcfrswx1] source-file\n";
+static const char usage_string[] = "\
+[-e names] \
+[-o dir] \
+[-R name] \
+[-v[n]] \
+[-V] \
+[-w[n]] \
+[-\
+1\
+a\
+C\
+c\
+f\
+G\
+g\
+I\
+L\
+N\
+r\
+s\
+T\
+t\
+U\
+x\
+] \
+source-file\n";
 
 static void
 cleanup(void)
@@ -79,7 +104,7 @@ failed(const char *msg)
 {
     perror(msg);
     cleanup();
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
 }
 
 static void
@@ -89,24 +114,28 @@ usage(void)
     {
 	"Options:",
 	"  -1         format translation output one capability per line",
-	"  -C         translate entries to termcap source form",
-	"  -I         translate entries to terminfo source form",
-	"  -L         translate entries to full terminfo source form",
-	"  -N         disable smart defaults for source translation",
-	"  -R         restrict translation to given terminfo/termcap version",
-	"  -T         remove size-restrictions on compiled description",
-	"  -V         print version",
 #if NCURSES_XNAMES
 	"  -a         retain commented-out capabilities (sets -x also)",
 #endif
+	"  -C         translate entries to termcap source form",
 	"  -c         check only, validate input without compiling or translating",
+	"  -e<names>  translate/compile only entries named by comma-separated list",
 	"  -f         format complex strings for readability",
 	"  -G         format %{number} to %'char'",
 	"  -g         format %'char' to %{number}",
-	"  -e<names>  translate/compile only entries named by comma-separated list",
+	"  -I         translate entries to terminfo source form",
+	"  -L         translate entries to full terminfo source form",
+	"  -N         disable smart defaults for source translation",
 	"  -o<dir>    set output directory for compiled entry writes",
+	"  -R<name>   restrict translation to given terminfo/termcap version",
 	"  -r         force resolution of all use entries in source translation",
 	"  -s         print summary statistics",
+	"  -T         remove size-restrictions on compiled description",
+#if NCURSES_XNAMES
+	"  -t         suppress commented-out capabilities",
+#endif
+	"  -U         suppress post-processing of entries",
+	"  -V         print version",
 	"  -v[n]      set verbosity level",
 	"  -w[n]      set format width for translation output",
 #if NCURSES_XNAMES
@@ -123,7 +152,7 @@ usage(void)
 	fputs(tbl[j], stderr);
 	putc('\n', stderr);
     }
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
 }
 
 #define L_BRACE '{'
@@ -297,7 +326,7 @@ stripped(char *src)
     while (isspace(UChar(*src)))
 	src++;
     if (*src != '\0') {
-	char *dst = strcpy(malloc(strlen(src) + 1), src);
+	char *dst = strcpy((char *) malloc(strlen(src) + 1), src);
 	size_t len = strlen(dst);
 	while (--len != 0 && isspace(UChar(dst[len])))
 	    dst[len] = '\0';
@@ -314,12 +343,12 @@ open_input(const char *filename)
 
     if (fp == 0) {
 	fprintf(stderr, "%s: Can't open %s\n", _nc_progname, filename);
-	exit(EXIT_FAILURE);
+	ExitProgram(EXIT_FAILURE);
     }
     if (fstat(fileno(fp), &sb) < 0
 	|| (sb.st_mode & S_IFMT) != S_IFREG) {
 	fprintf(stderr, "%s: %s is not a file\n", _nc_progname, filename);
-	exit(EXIT_FAILURE);
+	ExitProgram(EXIT_FAILURE);
     }
     return fp;
 }
@@ -378,7 +407,7 @@ make_namelist(char *src)
     if (showsummary) {
 	fprintf(log_fp, "Entries that will be compiled:\n");
 	for (n = 0; dst[n] != 0; n++)
-	    fprintf(log_fp, "%d:%s\n", n + 1, dst[n]);
+	    fprintf(log_fp, "%u:%s\n", n + 1, dst[n]);
     }
     return dst;
 }
@@ -433,9 +462,8 @@ main(int argc, char *argv[])
 
     int width = 60;
     bool formatted = FALSE;	/* reformat complex strings? */
+    bool literal = FALSE;	/* suppress post-processing? */
     int numbers = 0;		/* format "%'char'" to/from "%{number}" */
-    bool infodump = FALSE;	/* running as captoinfo? */
-    bool capdump = FALSE;	/* running as infotocap? */
     bool forceresolve = FALSE;	/* force resolution */
     bool limited = TRUE;
     char *tversion = (char *) NULL;
@@ -443,6 +471,7 @@ main(int argc, char *argv[])
     const char **namelst = 0;
     char *outdir = (char *) NULL;
     bool check_only = FALSE;
+    bool suppress_untranslatable = FALSE;
 
     log_fp = stderr;
 
@@ -466,7 +495,7 @@ main(int argc, char *argv[])
      * be optional.
      */
     while ((this_opt = getopt(argc, argv,
-			      "0123456789CILNR:TVace:fGgo:rsvwx")) != EOF) {
+			      "0123456789CILNR:TUVace:fGgo:rstvwx")) != EOF) {
 	if (isdigit(this_opt)) {
 	    switch (last_opt) {
 	    case 'v':
@@ -501,12 +530,16 @@ main(int argc, char *argv[])
 	    break;
 	case 'N':
 	    smart_defaults = FALSE;
+	    literal = TRUE;
 	    break;
 	case 'R':
 	    tversion = optarg;
 	    break;
 	case 'T':
 	    limited = FALSE;
+	    break;
+	case 'U':
+	    literal = TRUE;
 	    break;
 	case 'V':
 	    puts(curses_version());
@@ -542,6 +575,10 @@ main(int argc, char *argv[])
 	    width = 0;
 	    break;
 #if NCURSES_XNAMES
+	case 't':
+	    _nc_disable_period = FALSE;
+	    suppress_untranslatable = TRUE;
+	    break;
 	case 'a':
 	    _nc_disable_period = TRUE;
 	    /* FALLTHRU */
@@ -559,8 +596,8 @@ main(int argc, char *argv[])
     set_trace_level(debug_level);
 
     if (_nc_tracing) {
-	save_check_termtype = _nc_check_termtype;
-	_nc_check_termtype = check_termtype;
+	save_check_termtype = _nc_check_termtype2;
+	_nc_check_termtype2 = check_termtype;
     }
 #if !HAVE_BIG_CORE
     /*
@@ -577,7 +614,7 @@ main(int argc, char *argv[])
 	(void) fprintf(stderr,
 		       "Sorry, -e can't be used without -I or -C\n");
 	cleanup();
-	return EXIT_FAILURE;
+	ExitProgram(EXIT_FAILURE);
     }
 #endif /* HAVE_BIG_CORE */
 
@@ -589,7 +626,7 @@ main(int argc, char *argv[])
 		    _nc_progname,
 		    _nc_progname,
 		    usage_string);
-	    return EXIT_FAILURE;
+	    ExitProgram(EXIT_FAILURE);
 	}
     } else {
 	if (infodump == TRUE) {
@@ -620,7 +657,7 @@ main(int argc, char *argv[])
 		    _nc_progname,
 		    usage_string);
 	    cleanup();
-	    return EXIT_FAILURE;
+	    ExitProgram(EXIT_FAILURE);
 	}
     }
 
@@ -645,14 +682,16 @@ main(int argc, char *argv[])
 	_nc_set_writedir(outdir);
 #endif /* HAVE_BIG_CORE */
     _nc_read_entry_source(tmp_fp, (char *) NULL,
-			  !smart_defaults, FALSE,
-			  (check_only || infodump || capdump) ? NULLHOOK : immedhook);
+			  !smart_defaults || literal, FALSE,
+			  ((check_only || infodump || capdump)
+			   ? NULLHOOK
+			   : immedhook));
 
     /* do use resolution */
     if (check_only || (!infodump && !capdump) || forceresolve) {
-	if (!_nc_resolve_uses(TRUE) && !check_only) {
+	if (!_nc_resolve_uses2(TRUE, literal) && !check_only) {
 	    cleanup();
-	    return EXIT_FAILURE;
+	    ExitProgram(EXIT_FAILURE);
 	}
     }
 
@@ -660,7 +699,7 @@ main(int argc, char *argv[])
     if (check_only && (capdump || infodump)) {
 	for_entry_list(qp) {
 	    if (matches(namelst, qp->tterm.term_names)) {
-		int len = fmt_entry(&qp->tterm, NULL, TRUE, infodump, numbers);
+		int len = fmt_entry(&qp->tterm, NULL, FALSE, TRUE, infodump, numbers);
 
 		if (len > (infodump ? MAX_TERMINFO_LENGTH : MAX_TERMCAP_LENGTH))
 		    (void) fprintf(stderr,
@@ -692,17 +731,18 @@ main(int argc, char *argv[])
 		    _nc_set_type(_nc_first_name(qp->tterm.term_names));
 
 		    (void) fseek(tmp_fp, qp->cstart, SEEK_SET);
-		    while (j--) {
+		    while (j-- > 0) {
 			if (infodump)
 			    (void) putchar(fgetc(tmp_fp));
 			else
 			    put_translate(fgetc(tmp_fp));
 		    }
 
-		    len = dump_entry(&qp->tterm, limited, numbers, NULL);
+		    dump_entry(&qp->tterm, suppress_untranslatable,
+			       limited, numbers, NULL);
 		    for (j = 0; j < qp->nuses; j++)
-			len += dump_uses(qp->uses[j].name, !capdump);
-		    (void) putchar('\n');
+			dump_uses(qp->uses[j].name, !capdump);
+		    len = show_entry();
 		    if (debug_level != 0 && !limited)
 			printf("# length=%d\n", len);
 		}
@@ -745,7 +785,7 @@ main(int argc, char *argv[])
 	    fprintf(log_fp, "No entries written\n");
     }
     cleanup();
-    return (EXIT_SUCCESS);
+    ExitProgram(EXIT_SUCCESS);
 }
 
 /*
@@ -753,11 +793,218 @@ main(int argc, char *argv[])
  * references to locations in the arrays Booleans, Numbers, and Strings ---
  * precisely what's needed (see comp_parse.c).
  */
-
-TERMINAL *cur_term;		/* tweak to avoid linking lib_cur_term.c */
-
 #undef CUR
 #define CUR tp->
+
+/*
+ * Check if the alternate character-set capabilities are consistent.
+ */
+static void
+check_acs(TERMTYPE *tp)
+{
+    if (VALID_STRING(acs_chars)) {
+	const char *boxes = "lmkjtuvwqxn";
+	char mapped[256];
+	char missing[256];
+	const char *p;
+	char *q;
+
+	memset(mapped, 0, sizeof(mapped));
+	for (p = acs_chars; *p != '\0'; p += 2) {
+	    if (p[1] == '\0') {
+		_nc_warning("acsc has odd number of characters");
+		break;
+	    }
+	    mapped[UChar(p[0])] = p[1];
+	}
+	if (mapped[UChar('I')] && !mapped[UChar('i')]) {
+	    _nc_warning("acsc refers to 'I', which is probably an error");
+	}
+	for (p = boxes, q = missing; *p != '\0'; ++p) {
+	    if (!mapped[UChar(p[0])]) {
+		*q++ = p[0];
+	    }
+	    *q = '\0';
+	}
+	if (*missing != '\0' && strcmp(missing, boxes)) {
+	    _nc_warning("acsc is missing some line-drawing mapping: %s", missing);
+	}
+    }
+}
+
+/*
+ * Check if the color capabilities are consistent
+ */
+static void
+check_colors(TERMTYPE *tp)
+{
+    if ((max_colors > 0) != (max_pairs > 0)
+	|| ((max_colors > max_pairs) && (initialize_pair == 0)))
+	_nc_warning("inconsistent values for max_colors (%d) and max_pairs (%d)",
+		    max_colors, max_pairs);
+
+    PAIRED(set_foreground, set_background);
+    PAIRED(set_a_foreground, set_a_background);
+    PAIRED(set_color_pair, initialize_pair);
+
+    if (VALID_STRING(set_foreground)
+	&& VALID_STRING(set_a_foreground)
+	&& !_nc_capcmp(set_foreground, set_a_foreground))
+	_nc_warning("expected setf/setaf to be different");
+
+    if (VALID_STRING(set_background)
+	&& VALID_STRING(set_a_background)
+	&& !_nc_capcmp(set_background, set_a_background))
+	_nc_warning("expected setb/setab to be different");
+
+    /* see: has_colors() */
+    if (VALID_NUMERIC(max_colors) && VALID_NUMERIC(max_pairs)
+	&& (((set_foreground != NULL)
+	     && (set_background != NULL))
+	    || ((set_a_foreground != NULL)
+		&& (set_a_background != NULL))
+	    || set_color_pair)) {
+	if (!VALID_STRING(orig_pair) && !VALID_STRING(orig_colors))
+	    _nc_warning("expected either op/oc string for resetting colors");
+    }
+}
+
+static int
+keypad_final(const char *string)
+{
+    int result = '\0';
+
+    if (VALID_STRING(string)
+	&& *string++ == '\033'
+	&& *string++ == 'O'
+	&& strlen(string) == 1) {
+	result = *string;
+    }
+
+    return result;
+}
+
+static int
+keypad_index(const char *string)
+{
+    char *test;
+    const char *list = "PQRSwxymtuvlqrsPpn";	/* app-keypad except "Enter" */
+    int ch;
+    int result = -1;
+
+    if ((ch = keypad_final(string)) != '\0') {
+	test = strchr(list, ch);
+	if (test != 0)
+	    result = (test - list);
+    }
+    return result;
+}
+
+/*
+ * Do a quick sanity-check for vt100-style keypads to see if the 5-key keypad
+ * is mapped inconsistently.
+ */
+static void
+check_keypad(TERMTYPE *tp)
+{
+    char show[80];
+
+    if (VALID_STRING(key_a1) &&
+	VALID_STRING(key_a3) &&
+	VALID_STRING(key_b2) &&
+	VALID_STRING(key_c1) &&
+	VALID_STRING(key_c3)) {
+	char final[6];
+	int list[5];
+	int increase = 0;
+	int j, k, kk;
+	int last;
+	int test;
+
+	final[0] = keypad_final(key_a1);
+	final[1] = keypad_final(key_a3);
+	final[2] = keypad_final(key_b2);
+	final[3] = keypad_final(key_c1);
+	final[4] = keypad_final(key_c3);
+	final[5] = '\0';
+
+	/* special case: legacy coding using 1,2,3,0,. on the bottom */
+	if (!strcmp(final, "qsrpn"))
+	    return;
+
+	list[0] = keypad_index(key_a1);
+	list[1] = keypad_index(key_a3);
+	list[2] = keypad_index(key_b2);
+	list[3] = keypad_index(key_c1);
+	list[4] = keypad_index(key_c3);
+
+	/* check that they're all vt100 keys */
+	for (j = 0; j < 5; ++j) {
+	    if (list[j] < 0) {
+		return;
+	    }
+	}
+
+	/* check if they're all in increasing order */
+	for (j = 1; j < 5; ++j) {
+	    if (list[j] > list[j - 1]) {
+		++increase;
+	    }
+	}
+	if (increase != 4) {
+	    show[0] = '\0';
+
+	    for (j = 0, last = -1; j < 5; ++j) {
+		for (k = 0, kk = -1, test = 100; k < 5; ++k) {
+		    if (list[k] > last &&
+			list[k] < test) {
+			test = list[k];
+			kk = k;
+		    }
+		}
+		last = test;
+		switch (kk) {
+		case 0:
+		    strcat(show, " ka1");
+		    break;
+		case 1:
+		    strcat(show, " ka3");
+		    break;
+		case 2:
+		    strcat(show, " kb2");
+		    break;
+		case 3:
+		    strcat(show, " kc1");
+		    break;
+		case 4:
+		    strcat(show, " kc3");
+		    break;
+		}
+	    }
+
+	    _nc_warning("vt100 keypad order inconsistent: %s", show);
+	}
+
+    } else if (VALID_STRING(key_a1) ||
+	       VALID_STRING(key_a3) ||
+	       VALID_STRING(key_b2) ||
+	       VALID_STRING(key_c1) ||
+	       VALID_STRING(key_c3)) {
+	show[0] = '\0';
+	if (keypad_index(key_a1) >= 0)
+	    strcat(show, " ka1");
+	if (keypad_index(key_a3) >= 0)
+	    strcat(show, " ka3");
+	if (keypad_index(key_b2) >= 0)
+	    strcat(show, " kb2");
+	if (keypad_index(key_c1) >= 0)
+	    strcat(show, " kc1");
+	if (keypad_index(key_c3) >= 0)
+	    strcat(show, " kc3");
+	if (*show != '\0')
+	    _nc_warning("vt100 keypad map incomplete:%s", show);
+    }
+}
 
 /*
  * Returns the expected number of parameters for the given capability.
@@ -856,7 +1103,7 @@ expected_params(const char *name)
  * markers.
  */
 static void
-check_params(TERMTYPE * tp, const char *name, char *value)
+check_params(TERMTYPE *tp, const char *name, char *value)
 {
     int expected = expected_params(name);
     int actual = 0;
@@ -864,9 +1111,11 @@ check_params(TERMTYPE * tp, const char *name, char *value)
     bool params[10];
     char *s = value;
 
+#ifdef set_top_margin_parm
     if (!strcmp(name, "smgbp")
 	&& set_top_margin_parm == 0)
 	expected = 2;
+#endif
 
     for (n = 0; n < 10; n++)
 	params[n] = FALSE;
@@ -911,6 +1160,43 @@ skip_delay(char *s)
 {
     while (*s == '/' || isdigit(UChar(*s)))
 	++s;
+    return s;
+}
+
+/*
+ * Skip a delay altogether, e.g., when comparing a simple string to sgr,
+ * the latter may have a worst-case delay on the end.
+ */
+static char *
+ignore_delays(char *s)
+{
+    int delaying = 0;
+
+    do {
+	switch (*s) {
+	case '$':
+	    if (delaying == 0)
+		delaying = 1;
+	    break;
+	case '<':
+	    if (delaying == 1)
+		delaying = 2;
+	    break;
+	case '\0':
+	    delaying = 0;
+	    break;
+	default:
+	    if (delaying) {
+		s = skip_delay(s);
+		if (*s == '>')
+		    ++s;
+		delaying = 0;
+	    }
+	    break;
+	}
+	if (delaying)
+	    ++s;
+    } while (delaying);
     return s;
 }
 
@@ -976,23 +1262,27 @@ similar_sgr(int num, char *a, char *b)
 	a++;
 	b++;
     }
-    return TRUE;
+    /* ignore delays on the end of the string */
+    a = ignore_delays(a);
+    return ((num != 0) || (*a == 0));
 }
 
-static void
-check_sgr(TERMTYPE * tp, char *zero, int num, char *cap, const char *name)
+static char *
+check_sgr(TERMTYPE *tp, char *zero, int num, char *cap, const char *name)
 {
-    char *test = tparm(set_attributes,
-		       num == 1,
-		       num == 2,
-		       num == 3,
-		       num == 4,
-		       num == 5,
-		       num == 6,
-		       num == 7,
-		       num == 8,
-		       num == 9);
-    tparm_errs += _nc_tparm_err;
+    char *test;
+
+    _nc_tparm_err = 0;
+    test = TPARM_9(set_attributes,
+		   num == 1,
+		   num == 2,
+		   num == 3,
+		   num == 4,
+		   num == 5,
+		   num == 6,
+		   num == 7,
+		   num == 8,
+		   num == 9);
     if (test != 0) {
 	if (PRESENT(cap)) {
 	    if (!similar_sgr(num, test, cap)) {
@@ -1001,21 +1291,47 @@ check_sgr(TERMTYPE * tp, char *zero, int num, char *cap, const char *name)
 			    name, _nc_visbuf2(1, cap),
 			    num, _nc_visbuf2(2, test));
 	    }
-	} else if (strcmp(test, zero)) {
+	} else if (_nc_capcmp(test, zero)) {
 	    _nc_warning("sgr(%d) present, but not %s", num, name);
 	}
     } else if (PRESENT(cap)) {
 	_nc_warning("sgr(%d) missing, but %s present", num, name);
     }
+    if (_nc_tparm_err)
+	_nc_warning("stack error in sgr(%d) string", num);
+    return test;
 }
 
 #define CHECK_SGR(num,name) check_sgr(tp, zero, num, name, #name)
+
+#ifdef TRACE
+/*
+ * If tic is compiled with TRACE, we'll be able to see the output from the
+ * DEBUG() macro.  But since it doesn't use traceon(), it always goes to
+ * the standard error.  Use this function to make it simpler to follow the
+ * resulting debug traces.
+ */
+static void
+show_where(unsigned level)
+{
+    if (_nc_tracing >= DEBUG_LEVEL(level)) {
+	char my_name[256];
+	_nc_get_type(my_name);
+	fprintf(stderr, "\"%s\", line %d, '%s' ",
+		_nc_get_source(),
+		_nc_curr_line, my_name);
+    }
+}
+
+#else
+#define show_where(level)	/* nothing */
+#endif
 
 /* other sanity-checks (things that we don't want in the normal
  * logic that reads a terminfo entry)
  */
 static void
-check_termtype(TERMTYPE * tp)
+check_termtype(TERMTYPE *tp, bool literal)
 {
     bool conflict = FALSE;
     unsigned j, k;
@@ -1026,37 +1342,39 @@ check_termtype(TERMTYPE * tp)
      * a given string (e.g., KEY_END and KEY_LL).  But curses will only
      * return one (the last one assigned).
      */
-    memset(fkeys, 0, sizeof(fkeys));
-    for (j = 0; _nc_tinfo_fkeys[j].code; j++) {
-	char *a = tp->Strings[_nc_tinfo_fkeys[j].offset];
-	bool first = TRUE;
-	if (!VALID_STRING(a))
-	    continue;
-	for (k = j + 1; _nc_tinfo_fkeys[k].code; k++) {
-	    char *b = tp->Strings[_nc_tinfo_fkeys[k].offset];
-	    if (!VALID_STRING(b)
-		|| fkeys[k])
+    if (!(_nc_syntax == SYN_TERMCAP && capdump)) {
+	memset(fkeys, 0, sizeof(fkeys));
+	for (j = 0; _nc_tinfo_fkeys[j].code; j++) {
+	    char *a = tp->Strings[_nc_tinfo_fkeys[j].offset];
+	    bool first = TRUE;
+	    if (!VALID_STRING(a))
 		continue;
-	    if (!strcmp(a, b)) {
-		fkeys[j] = 1;
-		fkeys[k] = 1;
-		if (first) {
-		    if (!conflict) {
-			_nc_warning("Conflicting key definitions (using the last)");
-			conflict = TRUE;
+	    for (k = j + 1; _nc_tinfo_fkeys[k].code; k++) {
+		char *b = tp->Strings[_nc_tinfo_fkeys[k].offset];
+		if (!VALID_STRING(b)
+		    || fkeys[k])
+		    continue;
+		if (!_nc_capcmp(a, b)) {
+		    fkeys[j] = 1;
+		    fkeys[k] = 1;
+		    if (first) {
+			if (!conflict) {
+			    _nc_warning("Conflicting key definitions (using the last)");
+			    conflict = TRUE;
+			}
+			fprintf(stderr, "... %s is the same as %s",
+				keyname((int) _nc_tinfo_fkeys[j].code),
+				keyname((int) _nc_tinfo_fkeys[k].code));
+			first = FALSE;
+		    } else {
+			fprintf(stderr, ", %s",
+				keyname((int) _nc_tinfo_fkeys[k].code));
 		    }
-		    fprintf(stderr, "... %s is the same as %s",
-			    keyname(_nc_tinfo_fkeys[j].code),
-			    keyname(_nc_tinfo_fkeys[k].code));
-		    first = FALSE;
-		} else {
-		    fprintf(stderr, ", %s",
-			    keyname(_nc_tinfo_fkeys[k].code));
 		}
 	    }
+	    if (!first)
+		fprintf(stderr, "\n");
 	}
-	if (!first)
-	    fprintf(stderr, "\n");
     }
 
     for (j = 0; j < NUM_STRINGS(tp); j++) {
@@ -1065,17 +1383,9 @@ check_termtype(TERMTYPE * tp)
 	    check_params(tp, ExtStrname(tp, j, strnames), a);
     }
 
-    /*
-     * Quick check for color.  We could also check if the ANSI versus
-     * non-ANSI strings are misused.
-     */
-    if ((max_colors > 0) != (max_pairs > 0)
-	|| ((max_colors > max_pairs) && (initialize_pair == 0)))
-	_nc_warning("inconsistent values for max_colors (%d) and max_pairs (%d)",
-		    max_colors, max_pairs);
-
-    PAIRED(set_foreground, set_background);
-    PAIRED(set_a_foreground, set_a_background);
+    check_acs(tp);
+    check_colors(tp);
+    check_keypad(tp);
 
     /*
      * These may be mismatched because the terminal description relies on
@@ -1085,7 +1395,7 @@ check_termtype(TERMTYPE * tp)
     ANDMISSING(cursor_visible, cursor_normal);
 
     if (PRESENT(cursor_visible) && PRESENT(cursor_normal)
-	&& !strcmp(cursor_visible, cursor_normal))
+	&& !_nc_capcmp(cursor_visible, cursor_normal))
 	_nc_warning("cursor_visible is same as cursor_normal");
 
     /*
@@ -1096,39 +1406,90 @@ check_termtype(TERMTYPE * tp)
     ANDMISSING(change_scroll_region, save_cursor);
     ANDMISSING(change_scroll_region, restore_cursor);
 
-    tparm_errs = 0;
     if (PRESENT(set_attributes)) {
-	char *zero = tparm(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	char *zero = 0;
 
-	zero = strdup(zero);
-	CHECK_SGR(1, enter_standout_mode);
-	CHECK_SGR(2, enter_underline_mode);
-	CHECK_SGR(3, enter_reverse_mode);
-	CHECK_SGR(4, enter_blink_mode);
-	CHECK_SGR(5, enter_dim_mode);
-	CHECK_SGR(6, enter_bold_mode);
-	CHECK_SGR(7, enter_secure_mode);
-	CHECK_SGR(8, enter_protected_mode);
-	CHECK_SGR(9, enter_alt_charset_mode);
-	free(zero);
-	if (tparm_errs)
-	    _nc_warning("stack error in sgr string");
+	_nc_tparm_err = 0;
+	if (PRESENT(exit_attribute_mode)) {
+	    zero = strdup(CHECK_SGR(0, exit_attribute_mode));
+	} else {
+	    zero = strdup(TPARM_9(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+	}
+	if (_nc_tparm_err)
+	    _nc_warning("stack error in sgr(0) string");
+
+	if (zero != 0) {
+	    CHECK_SGR(1, enter_standout_mode);
+	    CHECK_SGR(2, enter_underline_mode);
+	    CHECK_SGR(3, enter_reverse_mode);
+	    CHECK_SGR(4, enter_blink_mode);
+	    CHECK_SGR(5, enter_dim_mode);
+	    CHECK_SGR(6, enter_bold_mode);
+	    CHECK_SGR(7, enter_secure_mode);
+	    CHECK_SGR(8, enter_protected_mode);
+	    CHECK_SGR(9, enter_alt_charset_mode);
+	    free(zero);
+	} else {
+	    _nc_warning("sgr(0) did not return a value");
+	}
+    } else if (PRESENT(exit_attribute_mode) &&
+	       set_attributes != CANCELLED_STRING) {
+	if (_nc_syntax == SYN_TERMINFO)
+	    _nc_warning("missing sgr string");
     }
+
+    if (PRESENT(exit_attribute_mode)) {
+	char *check_sgr0 = _nc_trim_sgr0(tp);
+
+	if (check_sgr0 == 0 || *check_sgr0 == '\0') {
+	    _nc_warning("trimmed sgr0 is empty");
+	} else {
+	    show_where(2);
+	    if (check_sgr0 != exit_attribute_mode) {
+		DEBUG(2,
+		      ("will trim sgr0\n\toriginal sgr0=%s\n\ttrimmed  sgr0=%s",
+		       _nc_visbuf2(1, exit_attribute_mode),
+		       _nc_visbuf2(2, check_sgr0)));
+		free(check_sgr0);
+	    } else {
+		DEBUG(2,
+		      ("will not trim sgr0\n\toriginal sgr0=%s",
+		       _nc_visbuf(exit_attribute_mode)));
+	    }
+	}
+    }
+#ifdef TRACE
+    show_where(2);
+    if (!auto_right_margin) {
+	DEBUG(2,
+	      ("can write to lower-right directly"));
+    } else if (PRESENT(enter_am_mode) && PRESENT(exit_am_mode)) {
+	DEBUG(2,
+	      ("can write to lower-right by suppressing automargin"));
+    } else if ((PRESENT(enter_insert_mode) && PRESENT(exit_insert_mode))
+	       || PRESENT(insert_character) || PRESENT(parm_ich)) {
+	DEBUG(2,
+	      ("can write to lower-right by using inserts"));
+    } else {
+	DEBUG(2,
+	      ("cannot write to lower-right"));
+    }
+#endif
 
     /*
      * Some standard applications (e.g., vi) and some non-curses
-     * applications (e.g., jove) get confused if we have both ich/ich1 and
+     * applications (e.g., jove) get confused if we have both ich1 and
      * smir/rmir.  Let's be nice and warn about that, too, even though
      * ncurses handles it.
      */
     if ((PRESENT(enter_insert_mode) || PRESENT(exit_insert_mode))
-	&& (PRESENT(insert_character) || PRESENT(parm_ich))) {
-	_nc_warning("non-curses applications may be confused by ich/ich1 with smir/rmir");
+	&& PRESENT(parm_ich)) {
+	_nc_warning("non-curses applications may be confused by ich1 with smir/rmir");
     }
 
     /*
      * Finally, do the non-verbose checks
      */
     if (save_check_termtype != 0)
-	save_check_termtype(tp);
+	save_check_termtype(tp, literal);
 }

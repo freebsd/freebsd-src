@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2002,2006 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,22 +33,9 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: lib_wacs.c,v 1.2 2002/02/17 00:02:15 tom Exp $")
+MODULE_ID("$Id: lib_wacs.c,v 1.7 2006/12/17 15:16:17 tom Exp $")
 
 NCURSES_EXPORT_VAR(cchar_t) * _nc_wacs = 0;
-
-static int
-_nc_unicode_locale(void)
-{
-    char *s;
-    if (((s = getenv("LC_ALL")) != 0 && *s != '\0')
-	|| ((s = getenv("LC_ALL")) != 0 && *s != '\0')
-	|| ((s = getenv("LC_ALL")) != 0 && *s != '\0')) {
-	if (strstr(s, ".UTF-8") != 0)
-	    return 1;
-    }
-    return 0;
-}
 
 NCURSES_EXPORT(void)
 _nc_init_wacs(void)
@@ -72,7 +59,7 @@ _nc_init_wacs(void)
 	{ 'n',	{ '+',	0x253c }},	/* large plus or crossover */
 	{ 'o',	{ '~',	0x23ba }},	/* scan line 1 */
 	{ 's',	{ '_',	0x23bd }},	/* scan line 9 */
-	{ '\'',	{ '+',	0x25c6 }},	/* diamond */
+	{ '`',	{ '+',	0x25c6 }},	/* diamond */
 	{ 'a',	{ ':',	0x2592 }},	/* checker board (stipple) */
 	{ 'f',	{ '\'',	0x00b0 }},	/* degree symbol */
 	{ 'g',	{ '#',	0x00b1 }},	/* plus/minus */
@@ -99,19 +86,29 @@ _nc_init_wacs(void)
     unsigned n, m;
     int active = _nc_unicode_locale();
 
+    /*
+     * If we're running in a UTF-8 locale, will use the Unicode equivalents
+     * rather than the terminfo information.  Actually the terminfo should
+     * be the rule, but there are people who are offended by the notion that
+     * a Unicode-capable terminal would have something resembling a mode.
+     * So the smacs/rmacs may be disabled -- sometime.
+     */
     T(("initializing WIDE-ACS map (Unicode is%s active)",
        active ? "" : " not"));
 
-    if (active) {
-	enter_alt_charset_mode = "";
-	exit_alt_charset_mode = "";
-	acs_chars = "";
-	ena_acs = "";
-    }
     _nc_wacs = typeCalloc(cchar_t, ACS_LEN);
     for (n = 0; n < SIZEOF(table); ++n) {
+	int wide = wcwidth(table[n].value[active]);
+
 	m = table[n].map;
-	SetChar(_nc_wacs[m], table[n].value[active], A_NORMAL);
+	if (active && (wide == 1)) {
+	    SetChar(_nc_wacs[m], table[n].value[active], A_NORMAL);
+	} else if (acs_map[m] & A_ALTCHARSET) {
+	    SetChar(_nc_wacs[m], m, A_ALTCHARSET);
+	} else {
+	    SetChar(_nc_wacs[m], table[n].value[0], A_NORMAL);
+	}
+
 	T(("#%d, SetChar(%c, %#04x) = %s",
 	   n, m,
 	   table[n].value[active],

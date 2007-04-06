@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_userptr.3x,v 1.6 1998/11/29 01:11:02 Rick.Ohnemus Exp $
+.\" $Id: menu_userptr.3x,v 1.8 2006/11/04 18:21:03 tom Exp $
 .TH menu_userptr 3X ""
 .SH NAME
 \fBmenu_userptr\fR - associate application data with a menu item
@@ -43,14 +43,10 @@ Every menu and every menu item has a field that can be used to hold
 application-specific data (that is, the menu-driver code leaves it alone).
 These functions get and set the menu user pointer field.
 .SH RETURN VALUE
-Except for \fBmenu_userptr\fR (which returns \fBNULL\fR on error), each
-function returns one of the following:
-.TP 5
-\fBE_OK\fR
-The routine succeeded.
-.TP 5
-\fBE_SYSTEM_ERROR\fR
-System error occurred (see \fBerrno\fR).
+\fBmenu_userptr\fR returns a pointer (which may be \fBNULL\fR).
+It does not set errno.
+.PP
+\fBset_menu_userptr\fP returns \fBE_OK\fP (success).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).
 .SH NOTES
@@ -59,9 +55,9 @@ The header file \fB<menu.h>\fR automatically includes the header file
 .SH PORTABILITY
 These routines emulate the System V menu library.  They were not supported on
 Version 7 or BSD versions.
-
-The user pointer should be a void pointer.  We leave it as a char pointer for
-SVr4 compatibility.
+.PP
+The user pointer is a void pointer.
+We chose not to leave it as a char pointer for SVr4 compatibility.
 .SH AUTHORS
 Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
 S. Raymond.

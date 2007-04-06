@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,15 +27,18 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1998                  *
+ *  Author:  Juergen Pfeifer, 1998                                          *
+ *     and:  Thomas E. Dickey 2005                                          *
  ****************************************************************************/
 
 /*
  *	lib_slkcolor.c
+ *	Soft key routines.
+ *	Set the label's color
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkcolor.c,v 1.7 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_slkcolor.c,v 1.12 2005/01/28 21:11:53 tom Exp $")
 
 NCURSES_EXPORT(int)
 slk_color(short color_pair_number)
@@ -44,8 +47,9 @@ slk_color(short color_pair_number)
 
     if (SP != 0 && SP->_slk != 0 &&
 	color_pair_number >= 0 && color_pair_number < COLOR_PAIRS) {
-	T(("... current %ld", (long) PAIR_NUMBER(SP->_slk->attr)));
-	toggle_attr_on(SP->_slk->attr, COLOR_PAIR(color_pair_number));
+	TR(TRACE_ATTRS, ("... current is %s", _tracech_t(CHREF(SP->_slk->attr))));
+	SetPair(SP->_slk->attr, color_pair_number);
+	TR(TRACE_ATTRS, ("new attribute is %s", _tracech_t(CHREF(SP->_slk->attr))));
 	returnCode(OK);
     } else
 	returnCode(ERR);
