@@ -182,11 +182,6 @@ socket(td, uap)
 	if (error) {
 		fdclose(fdp, fp, fd, td);
 	} else {
-		/*
-		 * XXXRW: The logic here seems wrong -- shouldn't it be
-		 * locking the file, not the filedesc?  Other threads could
-		 * already have a reference to the socket by now.
-		 */
 		FILE_LOCK(fp);
 		fp->f_data = so;	/* already has ref count */
 		fp->f_flag = FREAD|FWRITE;
