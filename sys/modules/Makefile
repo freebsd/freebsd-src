@@ -302,6 +302,7 @@ SUBDIR=	${_3dfx} \
 	${_xe} \
 	xfs \
 	xl \
+	${_zfs} \
 	zlib
 
 .if ${MACHINE_ARCH} != "powerpc"
@@ -444,6 +445,9 @@ _rr232x=	rr232x
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
+.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
+_zfs=		zfs
+.endif
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus

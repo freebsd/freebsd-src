@@ -352,7 +352,8 @@ WITH_IDEA=
     TCSH \
     TOOLCHAIN \
     USB \
-    WPA_SUPPLICANT_EAPOL
+    WPA_SUPPLICANT_EAPOL \
+    ZFS
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
@@ -401,6 +402,10 @@ MK_BIND_UTILS:=	no
 
 .if ${MK_BIND_MTREE} == "no"
 MK_BIND_ETC:=	no
+.endif
+
+.if ${MK_CDDL} == "no"
+MK_ZFS:=	no
 .endif
 
 .if ${MK_CRYPT} == "no"
