@@ -29,6 +29,7 @@ FBSD_1.0 {
 	__p_cert_syms;
 	__p_class_syms;
 	__p_key_syms;
+	__p_rcode_syms;
 	__p_type_syms;
 	__sym_ston;
 	__sym_ntos;
