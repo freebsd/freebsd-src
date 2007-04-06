@@ -188,20 +188,6 @@ printcpuinfo(void)
 		}
 	}
 
-	/* Detect AMD features (PTE no-execute bit, 3dnow, 64 bit mode etc) */
-	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
-	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
-		if (cpu_exthigh >= 0x80000001) {
-			do_cpuid(0x80000001, regs);
-			amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
-			amd_feature2 = regs[2];
-		}
-		if (cpu_exthigh >= 0x80000008) {
-			do_cpuid(0x80000008, regs);
-			cpu_procinfo2 = regs[2];
-		}
-	}
-
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
 		if ((cpu_id & 0xf00) > 0x300) {
 			u_int brand_index;
@@ -1104,7 +1090,20 @@ finishidentcpu(void)
 	u_char	ccr3;
 	u_int	regs[4];
 
-	if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
+	/* Detect AMD features (PTE no-execute bit, 3dnow, 64 bit mode etc) */
+	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
+	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+		init_exthigh();
+		if (cpu_exthigh >= 0x80000001) {
+			do_cpuid(0x80000001, regs);
+			amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
+			amd_feature2 = regs[2];
+		}
+		if (cpu_exthigh >= 0x80000008) {
+			do_cpuid(0x80000008, regs);
+			cpu_procinfo2 = regs[2];
+		}
+	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 		if (cpu == CPU_486) {
 			/*
 			 * These conditions are equivalent to:

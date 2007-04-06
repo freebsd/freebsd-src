@@ -43,7 +43,9 @@
  * Machine dependent constants for 386.
  */
 
+#ifndef PAE
 #define VM_PROT_READ_IS_EXEC	/* if you can read -- then you can exec */
+#endif
 
 /*
  * Virtual memory related constants, all in bytes
