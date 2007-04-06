@@ -2733,7 +2733,6 @@ ata_marvell_edma_dmainit(device_t dev)
 	/* note start and stop are not used here */
 	ch->dma->setprd = ata_marvell_edma_dmasetprd;
 	
-device_printf(dev, "HW qword=%08x\n", ATA_INL(ctlr->r_res1, 0x00d00));
 	if (ATA_INL(ctlr->r_res1, 0x00d00) & 0x00000004)
 	    ch->dma->flags |= ATA_DMA_64BIT;
     }
