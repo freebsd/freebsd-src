@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: zfs
+# REQUIRE: mountcritlocal
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="zfs"
+rcvar="zfs_enable"
+start_cmd="zfs_start"
+stop_cmd="zfs_stop"
+required_modules="zfs"
+
+zfs_start()
+{
+	zfs mount -a
+	zfs volinit
+	zfs share -a
+}
+
+zfs_stop()
+{
+	zfs unshare -a
+	zfs volfini
+	zfs unmount -a
+}
+
+load_rc_config $name
+run_rc_command "$1"
