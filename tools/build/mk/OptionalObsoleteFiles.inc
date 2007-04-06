@@ -326,6 +326,37 @@ OLD_FILES+=usr/share/man/man8/sdpd.8.gz
 # to be filled in
 #.endif
 
+.if ${MK_CDDL} == no
+OLD_LIBS+=lib/libavl.so.1
+OLD_LIBS+=lib/libnvpair.so.1
+OLD_LIBS+=lib/libumem.so.1
+OLD_LIBS+=lib/libuutil.so.1
+OLD_FILES+=usr/lib/libavl.a
+OLD_FILES+=usr/lib/libavl.so
+OLD_FILES+=usr/lib/libnvpair.a
+OLD_FILES+=usr/lib/libnvpair.so
+OLD_FILES+=usr/lib/libumem.a
+OLD_FILES+=usr/lib/libumem.so
+OLD_FILES+=usr/lib/libuutil.a
+OLD_FILES+=usr/lib/libuutil.so
+.endif
+
+.if ${MK_ZFS} == no
+OLD_LIBS+=lib/libzfs.so.1
+OLD_LIBS+=lib/libzpool.so.1
+OLD_FILES+=sbin/zfs
+OLD_FILES+=sbin/zpool
+OLD_FILES+=usr/lib/libzfs.a
+OLD_FILES+=usr/lib/libzfs.so
+OLD_FILES+=usr/lib/libzpool.a
+OLD_FILES+=usr/lib/libzpool.so
+OLD_FILES+=usr/bin/ztest
+OLD_FILES+=usr/sbin/zdb
+OLD_FILES+=usr/share/man/man8/zdb.8.gz
+OLD_FILES+=usr/share/man/man8/zfs.8.gz
+OLD_FILES+=usr/share/man/man8/zpool.8.gz
+.endif
+
 #.if ${MK_CPP} == no
 # to be filled in
 #.endif
