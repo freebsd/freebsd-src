@@ -70,7 +70,7 @@ static char kernel_config[KERNEL_CONFIG_SIZE];
 static char kernel_config_namebuf[NAMEBUF_LEN + sizeof "config"];
 static char linebuf[NAMEBUF_LEN];
 static char namebuf[NAMEBUF_LEN];
-static struct bootinfo bootinfo;
+struct bootinfo bootinfo;
 int loadflags;
 
 static void getbootdev(char *ptr, int *howto);
