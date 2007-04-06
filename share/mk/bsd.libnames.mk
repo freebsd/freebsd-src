@@ -11,10 +11,10 @@
 LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
 
 LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
-LIBAVL?=	${DESTDIR}${LIBDIR}/libavl.a
 LIBARCHIVE?=	${DESTDIR}${LIBDIR}/libarchive.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
+LIBAVL?=	${DESTDIR}${LIBDIR}/libavl.a
 LIBBEGEMOT?=	${DESTDIR}${LIBDIR}/libbegemot.a
 .if ${MK_BIND_LIBS} != "no"
 LIBBIND?=	${DESTDIR}${LIBDIR}/libbind.a
