@@ -95,22 +95,24 @@ ata_dmaalloc(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_dc_cb_args ccba;
+    int maxaddr = (ch->dma->flags & ATA_DMA_64BIT ?
+		   BUS_SPACE_MAXADDR : BUS_SPACE_MAXADDR_32BIT);
 
     if (bus_dma_tag_create(bus_get_dma_tag(dev), ch->dma->alignment, 0,
-			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+			   maxaddr, BUS_SPACE_MAXADDR,
 			   NULL, NULL, ch->dma->max_iosize,
 			   ATA_DMA_ENTRIES, ch->dma->segsize,
 			   0, NULL, NULL, &ch->dma->dmatag))
 	goto error;
 
     if (bus_dma_tag_create(ch->dma->dmatag, PAGE_SIZE, PAGE_SIZE,
-			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+			   maxaddr, BUS_SPACE_MAXADDR,
 			   NULL, NULL, MAXTABSZ, 1, MAXTABSZ,
 			   0, NULL, NULL, &ch->dma->sg_tag))
 	goto error;
 
     if (bus_dma_tag_create(ch->dma->dmatag,ch->dma->alignment,ch->dma->boundary,
-			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+			   maxaddr, BUS_SPACE_MAXADDR,
 			   NULL, NULL, ch->dma->max_iosize,
 			   ATA_DMA_ENTRIES, ch->dma->segsize,
 			   0, NULL, NULL, &ch->dma->data_tag))
@@ -131,7 +133,7 @@ ata_dmaalloc(device_t dev)
 	goto error;
 
     if (bus_dma_tag_create(ch->dma->dmatag, PAGE_SIZE, 64 * 1024,
-			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+			   maxaddr, BUS_SPACE_MAXADDR,
 			   NULL, NULL, MAXWSPCSZ, 1, MAXWSPCSZ,
 			   0, NULL, NULL, &ch->dma->work_tag))
 	goto error;
