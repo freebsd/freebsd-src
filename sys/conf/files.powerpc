@@ -98,6 +98,7 @@ libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+libkern/memset.c		standard
 
 powerpc/powerpc/mem.c		optional mem
 powerpc/powerpc/mp_machdep.c	optional smp
