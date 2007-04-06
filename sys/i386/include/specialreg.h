@@ -68,6 +68,11 @@
 #define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
 
 /*
+ * Bits in AMD64 special registers.  EFER is 64 bits wide.
+ */
+#define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
+
+/*
  * CPUID instruction features register
  */
 #define	CPUID_FPU	0x00000001
@@ -419,6 +424,9 @@
 #define	AMD_WT_ALLOC_TME	0x40000	/* top-of-memory enable */
 #define	AMD_WT_ALLOC_PRE	0x20000	/* programmable range enable */
 #define	AMD_WT_ALLOC_FRE	0x10000	/* fixed (A0000-FFFFF) range enable */
+
+/* AMD64 MSR's */
+#define	MSR_EFER	0xc0000080	/* extended features */
 
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */

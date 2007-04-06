@@ -736,8 +736,16 @@ trap_pfault(frame, usermode, eva)
 		map = &vm->vm_map;
 	}
 
+	/*
+	 * PGEX_I is defined only if the execute disable bit capability is
+	 * supported and enabled.
+	 */
 	if (frame->tf_err & PGEX_W)
 		ftype = VM_PROT_WRITE;
+#ifdef PAE
+	else if ((frame->tf_err & PGEX_I) && pg_nx != 0)
+		ftype = VM_PROT_EXECUTE;
+#endif
 	else
 		ftype = VM_PROT_READ;
 
