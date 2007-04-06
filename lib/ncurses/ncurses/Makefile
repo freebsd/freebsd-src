@@ -281,6 +281,7 @@ INCSLINKS=	curses.h ${INCLUDEDIR}/ncurses.h
 SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libcurses${LIB_SUFFIX}.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libtermcap${LIB_SUFFIX}.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libtermlib${LIB_SUFFIX}.a
+SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libmytinfo${LIB_SUFFIX}.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libtinfo${LIB_SUFFIX}.a
 .endif
 .if !defined(NO_PIC)
@@ -288,19 +289,21 @@ SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libtinfo${LIB_SUFFIX}.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}.so ${LIBDIR}/libcurses${LIB_SUFFIX}.so
 SYMLINKS+=	libncurses${LIB_SUFFIX}.so ${LIBDIR}/libtermcap${LIB_SUFFIX}.so
 SYMLINKS+=	libncurses${LIB_SUFFIX}.so ${LIBDIR}/libtermlib${LIB_SUFFIX}.so
+SYMLINKS+=	libncurses${LIB_SUFFIX}.so ${LIBDIR}/libmytinfo${LIB_SUFFIX}.so
 SYMLINKS+=	libncurses${LIB_SUFFIX}.so ${LIBDIR}/libtinfo${LIB_SUFFIX}.so
 .endif
-.if ${MK_PROFILE} != "no"
+.if !defined(NO_PROFILE)
 SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libcurses${LIB_SUFFIX}_p.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtermcap${LIB_SUFFIX}_p.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtermlib${LIB_SUFFIX}_p.a
+SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libmytinfo${LIB_SUFFIX}_p.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtinfo${LIB_SUFFIX}_p.a
 .endif
 
 DOCSDIR=	${SHAREDIR}/doc/ncurses
 DOCS=		ncurses-intro.html hackguide.html
 
-.if ${MK_HTML} != "no"
+.if !defined(NO_HTML)
 .PATH: ${NCURSES_DIR}/doc/html
 FILESGROUPS=	DOCS
 .endif
@@ -923,7 +926,6 @@ MLINKS+=curs_add_wch.3 add_wch.3 \
 	curs_scanw.3 vwscanw.3 \
 	curs_scanw.3 wscanw.3
 .endif
-
 
 .include <bsd.lib.mk>
 
