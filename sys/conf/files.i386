@@ -439,12 +439,12 @@ kern/imgact_gzip.c		optional gzip
 libkern/divdi3.c		standard
 libkern/ffsl.c			standard
 libkern/flsl.c			standard
+libkern/memset.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-libkern/memset.c		standard
 pci/agp_ali.c			optional agp
 pci/agp_amd.c			optional agp
 pci/agp_amd64.c			optional agp
