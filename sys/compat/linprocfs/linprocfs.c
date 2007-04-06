@@ -1238,3 +1238,5 @@ linprocfs_uninit(PFS_INIT_ARGS)
 PSEUDOFS(linprocfs, 1);
 MODULE_DEPEND(linprocfs, linux, 1, 1, 1);
 MODULE_DEPEND(linprocfs, procfs, 1, 1, 1);
+MODULE_DEPEND(linprocfs, sysvmsg, 1, 1, 1);
+MODULE_DEPEND(linprocfs, sysvsem, 1, 1, 1);
