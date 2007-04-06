@@ -384,7 +384,7 @@ fsbtoblk(int64_t num, uint64_t fsbs, u_long bs)
 static void
 prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 {
-	static u_long blocksize;
+	static long blocksize;
 	static int headerlen, timesthrough = 0;
 	static const char *header;
 	int64_t used, availblks, inodes;
@@ -461,7 +461,7 @@ addstat(struct statfs *totalfsp, struct statfs *statfsp)
 static void
 update_maxwidths(struct maxwidths *mwp, const struct statfs *sfsp)
 {
-	static u_long blocksize = 0;
+	static long blocksize = 0;
 	int dummy;
 
 	if (blocksize == 0)
