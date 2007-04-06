@@ -98,7 +98,7 @@ SYSCTL_INT(_kern_geom_journal, OID_AUTO, debug, CTLFLAG_RW, &g_journal_debug, 0,
 SYSCTL_UINT(_kern_geom_journal, OID_AUTO, switch_time, CTLFLAG_RW,
     &g_journal_switch_time, 0, "Switch journals every N seconds");
 SYSCTL_UINT(_kern_geom_journal, OID_AUTO, force_switch, CTLFLAG_RW,
-    &g_journal_force_switch, 0, "Force switch when journal is N%% full");
+    &g_journal_force_switch, 0, "Force switch when journal is N% full");
 SYSCTL_UINT(_kern_geom_journal, OID_AUTO, parallel_flushes, CTLFLAG_RW,
     &g_journal_parallel_flushes, 0,
     "Number of flush I/O requests send in parallel");
