@@ -1,6 +1,6 @@
 /* as.h - global header file
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003
+   1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -397,6 +397,22 @@ typedef unsigned int relax_substateT;
 /* Enough bits for address, but still an integer type.
    Could be a problem, cross-assembling for 64-bit machines.  */
 typedef addressT relax_addressT;
+
+struct relax_type
+{
+  /* Forward reach. Signed number. > 0.  */
+  offsetT rlx_forward;
+  /* Backward reach. Signed number. < 0.  */
+  offsetT rlx_backward;
+
+  /* Bytes length of this address.  */
+  unsigned char rlx_length;
+
+  /* Next longer relax-state.  0 means there is no 'next' relax-state.  */
+  relax_substateT rlx_more;
+};
+
+typedef struct relax_type relax_typeS;
 
 /* main program "as.c" (command arguments etc) */
 
