@@ -4816,6 +4816,8 @@ ata_siiprb_dmainit(device_t dev)
     if (ch->dma) {
 	/* note start and stop are not used here */
 	ch->dma->setprd = ata_siiprb_dmasetprd;
+
+	ch->dma->flags |= ATA_DMA_64BIT;
     }
 }
 
