@@ -108,6 +108,7 @@ geom_shsec	pjd	Pre-commit review preferred.
 geom_stripe	pjd	Pre-commit review preferred.
 geom_zero	pjd	Pre-commit review preferred.
 sbin/geom	pjd	Pre-commit review preferred.
+zfs		pjd	Pre-commit review preferred.
 nfs		alfred	Will be happy to review code, but not mandatory.
 rpc.lockd	alfred	Will be happy to review code, but not mandatory.
 truss		alfred	Will be happy to review code, but not mandatory.
