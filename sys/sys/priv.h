@@ -227,6 +227,15 @@
 #define	PRIV_UFS_SETUSE		273	/* setuse(). */
 
 /*
+ * ZFS-specific privileges.
+ */
+#define	PRIV_ZFS_POOL_CONFIG	280	/* Can configure ZFS pools. */
+#define	PRIV_ZFS_INJECT		281	/* Can inject faults in the ZFS fault
+					   injection framework. */
+#define	PRIV_ZFS_JAIL		282	/* Can attach/detach ZFS file systems
+					   to/from jails. */
+
+/*
  * VFS privileges.
  */
 #define	PRIV_VFS_READ		310	/* Override vnode DAC read perm. */
