@@ -350,6 +350,9 @@
       It is enabled in the GENERIC kernel (thus there is no change in
       functionality) for all platforms except sun4v.</para>
 
+    <para>Support for Message Signaled Interrupts (MSI) has been added to
+      the &man.pci.4; driver.  &merged;</para>
+
     <para>The &man.priv.9; kernel interface has been added.  Its purpose
       is checking the availability of privilege for threads and credentials.
       Unlike the existing &man.suser.9; interface, &man.priv.9; exposes a
@@ -532,6 +535,8 @@
 	page.
 	&merged;</para>
 
+      <para>icee(4), a generic I2C EEPROM driver, has been added.</para>
+
       <para>A bug which prevented the &man.ichsmb.4; kernel module
 	from unloading has been fixed.</para>
 
@@ -564,7 +569,7 @@
       <para>The &man.nfsmb.4; driver, which supports the NVIDIA nForce
 	2/3/4 SMBus 2.0 controller, has been added.  &merged;</para>
 
-      <para>[&arch.ia64;] The loader tunable <varname>debug.mpsafevfs</varname>
+      <para>[&arch.ia64;, &arch.powerpc;] The loader tunable <varname>debug.mpsafevfs</varname>
 	is set to <literal>1</literal> by default.</para>
 
       <para>The &man.sab.4; driver has been removed (it has been
@@ -957,7 +962,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The &man.natm.4;, Native Mode ATM protocol layer is now MPSAFE.</para>
 
-      <para>A new &man.ng.deflate.4; NetGraph node type has been
+      <para>A new &man.ng.deflate.4; Netgraph node type has been
 	added.  It implements Deflate PPP compression. &merged;</para>
 
       <para>The &man.ng.ether.4; Netgraph node no longer overwrites
@@ -966,7 +971,7 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>The &man.ng.iface.4; Netgraph node now supports &man.altq.4;.
 	&merged;</para>
 
-      <para>A new &man.ng.pred1.4; NetGraph node type has been added
+      <para>A new &man.ng.pred1.4; Netgraph node type has been added
 	to implement Predictor-1 PPP compression. &merged;</para>
 
       <para>The &man.ng.tag.4; Netgraph node has been added to
@@ -1030,6 +1035,10 @@ pipe tablearg ip from table(1) to any</programlisting>
 	This behavior can be controlled by using a new sysctl variable
 	<varname>net.inet6.ip6.stealth</varname>.</para>
 
+      <para>The <literal>PIM</literal> kernel option has been removed.
+	The corresponding code is now included in the
+	<literal>MROUTING</literal> kernel option.</para>
+
       <para>Support has been added for the Stream Control Transmission
 	Protocol (SCTP).  SCTP implements a reliable, message-oriented
 	transport protocol, and is defined in RFC 3268.  It is enabled
@@ -1037,6 +1046,11 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The <literal>IPV6_V6ONLY</literal> socket option
 	now works for UDP.</para>
+
+      <para>The <literal>TCP_DROP_SYNFIN</literal> kernel option is now
+	included in the kernel by default.  The
+	<varname>net.inet.tcp.drop_synfin</varname> sysctl variable still
+	defaults to <literal>0</literal>.</para>
 
       <para>The TCP bandwidth-delay product limiting feature has
 	been disabled when the RTT is below a certain threshold.
@@ -1065,6 +1079,10 @@ pipe tablearg ip from table(1) to any</programlisting>
 	the <varname>net.inet.tcp.sendbuf_*</varname>
 	and <varname>net.inet.tcp.recvbuf_*</varname> sysctl
 	variables.</para>
+
+      <para>The <varname>net.link.tap.up_on_open</varname> sysctl variable
+	has been added to the &man.tap.4; driver.  If enabled, new tap
+	devices will marked <literal>up</literal> upon creation.</para>
 
       <para>Support for &man.kqueue.2; operations has been added to
 	the &man.tun.4; driver. &merged;</para>
@@ -1256,6 +1274,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	modes for automatically creating files in the upper file system
 	layer of unions.  More information can be found in the
 	&man.mount.unionfs.8; manual page.  &merged;</para>
+
+      <para>[&arch.amd64;, &arch.i386;]Support for Sun's ZFS has been
+	added.  More information about this file system can be found
+	on the <a href="http://www.opensolaris.org/os/community/zfs/">
+	  OpenSolaris ZFS page</a>.</para>
 
     </sect3>
   </sect2>
@@ -1871,6 +1894,9 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       been updated to a snapshot from DRI CVS as of 20060517.
       &merged;</para>
 
+    <para>The Forth Inspired Command Language (<application>FICL</application>)
+      used in the boot loader has been updated to 3.03.</para>
+
     <para><application>FILE</application> has been updated from 4.12
       to 4.17.</para>
 
@@ -1913,7 +1939,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para><application>ncurses</application> has been updated from
       5.2-20010512 to 5.6-20061217.  ncurses now also has wide
-      character support.</para>
+      character support.  &merged;</para>
 
     <para><application>hostapd</application>
       has been updated from version 0.3.9 to version 0.4.8.
