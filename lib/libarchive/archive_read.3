@@ -230,7 +230,10 @@ A convenience function that repeatedly calls
 to skip all of the data for this archive entry.
 .\" #if ARCHIVE_API_VERSION < 3
 .It Fn archive_read_data_into_buffer
-This function is deprecated and should not be used.
+This function is deprecated and will be removed.
+Use
+.Fn archive_read_data
+instead.
 .\" #endif
 .It Fn archive_read_data_into_fd
 A convenience function that repeatedly calls
