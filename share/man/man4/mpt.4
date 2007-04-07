@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2006
+.Dd April 6, 2007
 .Dt MPT 4
 .Os
 .Sh NAME
@@ -104,10 +104,14 @@ LSI Logic 7202XP-LC
 LSI Logic FC949X
 (Dual 4Gb/s
 .Tn Fibre Channel )
+.It
+LSI Logic FC949ES
+(Dual 4Gb/s
+.Tn Fibre Channel PCI-Express)
 .El
 .Pp
 The
-.Tn SCSI
+.Tn Ultra 320 SCSI
 controller chips supported by the
 .Nm
 driver can be found onboard on many systems including:
@@ -127,7 +131,17 @@ The
 controller chips are also present on many new AMD/Opteron based systems,
 like the Sun 4100.
 Note that this controller can drive both SAS and SATA
-drives or a mix of them at the same time.
+drives or a mix of them at the same time. The Integrated Raid Mirroring
+available for these controllers is poorly supported at best.
+.Pp
+The
+.Tn Fibre Channel
+controller chipset are supported by a broad variety of speeds and systems.
+The
+.Tn Apple
+Fibre Channel HBA is in fact the
+.Tn FC949ES
+card.
 .Pp
 This driver also supports target mode for Fibre Channel cards.
 This support may be enabled by setting the desired role of the core via
@@ -158,12 +172,12 @@ driver was originally written for
 .Fx
 by
 .An Greg Ansley
-and substantially improved upon
+and marginally improved upon
 by
-.An Matt Jacob Aq mjacob@FreeBSD.org
-and
-.An Justin Gibbs Aq gibbs@FreeBSD.org .
-.Sh BUGS
-This driver has been reported to have problems under the VMware ESX server.
+.An Matt Jacob Aq mjacob@FreeBSD.org .
 .Pp
-This driver does not yet work on big endian machines like Sparc64.
+.An Justin Gibbs Aq gibbs@FreeBSD.org
+and
+.An Scott Long Aq scottl@FreeBSD.org
+have made more substantial improvements.
+.Sh BUGS
