@@ -406,6 +406,9 @@ _stg=		stg
 _streams=	streams
 _wi=		wi
 _xe=		xe
+.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
+_zfs=		zfs
+.endif
 .if ${MACHINE} == "i386"
 _aac=		aac
 _acpi=		acpi
@@ -445,9 +448,6 @@ _rr232x=	rr232x
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
-.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
-_zfs=		zfs
-.endif
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
@@ -505,6 +505,9 @@ _speaker=	speaker
 _sppp=		sppp
 _twa=		twa
 _wi=		wi
+.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
+_zfs=		zfs
+.endif
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
