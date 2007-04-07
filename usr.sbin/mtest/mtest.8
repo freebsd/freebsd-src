@@ -2,7 +2,7 @@
 .\" $FreeBSD$
 .\"
 .\" The following requests are required for all man pages.
-.Dd December 15, 1996
+.Dd March 8, 2007
 .Os
 .Dt MTEST 8
 .Sh NAME
@@ -46,13 +46,74 @@ Set or reset ALLMULTI mode on interface
 .It Ic p Ar ifname Ar 1/0
 Set or reset promiscuous mode on interface
 .Ar ifname .
+.\"
+.It Ic i Ar g.g.g.g Ar i.i.i.i Ar n Ar x.x.x.x ...
+Set the socket with group membership of
+.Ar g.g.g.g
+on IPv4 address
+.Ar i.i.i.i
+to include filter mode, and add
+.Ar n
+sources beginning with
+.Ar x.x.x.x
+to the inclusion filter list.
+.\"
+.It Ic e Ar g.g.g.g Ar i.i.i.i Ar n Ar x.x.x.x ...
+Set the socket with group membership of
+.Ar g.g.g.g
+on IPv4 address
+.Ar i.i.i.i
+to exclude filter mode, and add
+.Ar n
+sources beginning with
+.Ar x.x.x.x
+to the exclusion filter list.
+.\"
+.It Ic t Ar g.g.g.g Ar i.i.i.i Ar s.s.s.s
+Set the socket with group membership of
+.Ar g.g.g.g
+on IPv4 address
+.Ar i.i.i.i
+to block traffic from source
+.Ar s.s.s.s .
+.\"
+.It Ic b Ar g.g.g.g Ar i.i.i.i Ar s.s.s.s
+Set the socket with group membership of
+.Ar g.g.g.g
+on IPv4 address
+.Ar i.i.i.i
+to allow traffic from source
+.Ar s.s.s.s .
+.\"
+.It Ic g Ar g.g.g.g Ar i.i.i.i Ar n
+Print
+.Ar n
+source filter entries for group
+.An g.g.g.g
+on IPv4 address
+.An i.i.i.i .
+.\"
+.It Ic f Ar filename
+Read commands from the file
+.Ar filename .
+.It Ic s Ar n
+Sleep for
+.Ar n
+seconds.
 .It Ic ?\&
 List legal commands.
 .It Ic q
 Quit the program.
 .El
-.\" .Sh SEE ALSO
+.Sh SEE ALSO
+.Rs
+.%A D. Thaler
+.%A B. Fenner
+.%A B. Quinn
+.%T "Socket Interface Extensions for Multicast Filters"
+.%O RFC 3678
+.Re
 .Sh AUTHORS
-.An Steve Deering
-.Sh BUGS
-The command parser is not very flexible.
+.An -split
+.An "Steve Deering"
+.An "Wilbert De Graaf"
