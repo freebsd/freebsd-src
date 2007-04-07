@@ -122,18 +122,16 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		r = archive_read_next_header(a, &entry);
 		if (r == ARCHIVE_EOF)
 			break;
-		if (r == ARCHIVE_WARN)
+		if (r < ARCHIVE_OK)
 			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
-		if (r == ARCHIVE_FATAL) {
-			bsdtar->return_value = 1;
-			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
-			break;
-		}
 		if (r == ARCHIVE_RETRY) {
 			/* Retryable error: try again */
-			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 			bsdtar_warnc(bsdtar, 0, "Retrying...");
 			continue;
+		}
+		if (r != ARCHIVE_OK) {
+			bsdtar->return_value = 1;
+			break;
 		}
 
 		/*
