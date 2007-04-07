@@ -98,10 +98,6 @@ archive_read_extract(struct archive *_a, struct archive_entry *entry, int flags)
 	if (r == ARCHIVE_OK)
 		/* If there's an FD, pour data into it. */
 		r = copy_data(_a, a->extract->ad);
-	if (r != ARCHIVE_OK)
-		archive_set_error(&a->archive,
-		    archive_errno(extract->ad),
-		    "%s", archive_error_string(extract->ad));
 	r2 = archive_write_finish_entry(a->extract->ad);
 	/* Use the first message. */
 	if (r2 != ARCHIVE_OK && r == ARCHIVE_OK)
@@ -141,8 +137,11 @@ copy_data(struct archive *ar, struct archive *aw)
 		if (r != ARCHIVE_OK)
 			return (r);
 		r = archive_write_data_block(aw, buff, size, offset);
-		if (r != ARCHIVE_OK)
+		if (r != ARCHIVE_OK) {
+			archive_set_error(ar, archive_errno(aw),
+			    "%s", archive_error_string(aw));
 			return (r);
+		}
 	}
 }
 
