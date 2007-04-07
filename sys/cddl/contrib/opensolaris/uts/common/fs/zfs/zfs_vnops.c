@@ -201,7 +201,7 @@ zfs_close(ap)
  * data (cmd == _FIO_SEEK_DATA). "off" is an in/out parameter.
  */
 static int
-zfs_holey(vnode_t *vp, int cmd, offset_t *off)
+zfs_holey(vnode_t *vp, unsigned long cmd, offset_t *off)
 {
 	znode_t	*zp = VTOZ(vp);
 	uint64_t noff = (uint64_t)*off; /* new offset */
@@ -3065,11 +3065,11 @@ zfs_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
 		int a_name;
-		int *a_retval;
+		register_t *a_retval;
 	} */ *ap;
 {
 	int		cmd = ap->a_name;
-	int		*valp = ap->a_retval;
+	register_t	*valp = ap->a_retval;
 #if 0
 	vnode_t		*vp = ap->a_vp;
 	znode_t		*zp, *xzp;
