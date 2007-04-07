@@ -453,7 +453,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	g_topology_lock();
 	pp2 = g_new_providerf(gp, "%s", gp->name);
 	pp2->sectorsize = 512;
-	pp2->mediasize = sc->nblocks * sc->blksz;
+	pp2->mediasize = (off_t)sc->nblocks * sc->blksz;
         pp2->flags = pp->flags & G_PF_CANDELETE;
         if (pp->stripesize > 0) {
                 pp2->stripesize = pp->stripesize;
