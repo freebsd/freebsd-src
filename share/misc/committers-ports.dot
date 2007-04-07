@@ -42,6 +42,7 @@ acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29"]
 ale [label="Alex Dupre\nale@FreeBSD.org\n2004/01/12"]
 alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
+alexbl [label="Alexander Botero-Lowry\nalexbl@FreeBSD.org\n2006/09/11"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
 bland [label="Alexander Nedotsukov\nbland@FreeBSD.org\n2003/08/14"]
@@ -187,6 +188,7 @@ netchild -> bsam
 
 nork -> ale
 
+novel -> alexbl
 novel -> ehaupt
 
 pav -> flz
