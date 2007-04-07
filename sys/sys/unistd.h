@@ -107,6 +107,8 @@
 #define	SEEK_SET	0	/* set file offset to offset */
 #define	SEEK_CUR	1	/* set file offset to current plus offset */
 #define	SEEK_END	2	/* set file offset to EOF plus offset */
+#endif
+#if !defined(_POSIX_SOURCE) && !defined(_XOPEN_SOURCE)
 #define	SEEK_DATA	3	/* set file offset to next data past offset */
 #define	SEEK_HOLE	4	/* set file offset to next hole past offset */
 #endif
