@@ -20,7 +20,7 @@ SRCS+=	opensolaris_string.c
 SRCS+=	opensolaris_vfs.c
 SRCS+=	opensolaris_zone.c
 
-.PATH:	${.CURDIR}/../../contrib/opensolaris/uts/common/arch/${MACHINE_ARCH}
+.PATH:	${.CURDIR}/../../contrib/opensolaris/common/atomic/${MACHINE_ARCH}
 SRCS+=	atomic.S
 
 .PATH:	${.CURDIR}/../../contrib/opensolaris/uts/common/fs
