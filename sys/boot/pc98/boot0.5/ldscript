@@ -1,0 +1,12 @@
+/*
+ * $FreeBSD$
+ */
+
+SECTIONS
+{
+	.text : { *(.text) }
+	.data : { *(.data) }
+	. = 0x1243;
+	.putssjis : { *(.putssjis) }
+	.bss : { *(.bss) }
+}

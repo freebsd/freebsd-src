@@ -1,4 +1,4 @@
-# Copyright (c) KATO Takenori, 1999, 2000.
+# Copyright (c) KATO Takenori, 1999, 2000, 2007.
 #
 # All rights reserved.  Unpublished rights reserved under the copyright
 # laws of Japan.
@@ -299,6 +299,11 @@ devmode_loop:
 	jne	dev_right
 	movw	$3, mode		# N88-BASIC
 	ret
+
+	# XXX
+	.space	5, 0x90
+	ret				# Dummy ret @0x9ab
+
 dev_up:
 	cmpw	$0, curdevice
 	je	devmode_loop
