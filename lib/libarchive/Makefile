@@ -9,7 +9,7 @@ LDADD=	-lbz2 -lz
 #  Major: Bumped ONLY when API/ABI breakage happens (see SHLIB_MAJOR)
 #  Minor: Bumped when significant new features are added
 #  Revision: Bumped on any notable change
-VERSION= 2.0.25
+VERSION= 2.0.27
 
 ARCHIVE_API_MAJOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/\..*//'
 ARCHIVE_API_MINOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/[0-9]*\.//' -e 's/\..*//'
@@ -58,6 +58,7 @@ SRCS=	archive.h					\
 	archive_read_support_compression_gzip.c		\
 	archive_read_support_compression_none.c		\
 	archive_read_support_format_all.c		\
+	archive_read_support_format_ar.c		\
 	archive_read_support_format_cpio.c		\
 	archive_read_support_format_empty.c		\
 	archive_read_support_format_iso9660.c		\
@@ -78,6 +79,7 @@ SRCS=	archive.h					\
 	archive_write_set_compression_gzip.c		\
 	archive_write_set_compression_none.c		\
 	archive_write_set_format.c			\
+	archive_write_set_format_ar.c			\
 	archive_write_set_format_by_name.c		\
 	archive_write_set_format_cpio.c			\
 	archive_write_set_format_pax.c			\
