@@ -11,10 +11,8 @@ SUBDIR+=libzfs
 SUBDIR+=${_libzpool}
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
-.if ${MACHINE} == "i386"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 _libzpool=	libzpool
-.endif
 .endif
 
 .include <bsd.subdir.mk>
