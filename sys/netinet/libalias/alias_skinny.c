@@ -309,6 +309,7 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 	size_t orig_len, skinny_hdr_len = sizeof(struct skinny_header);
 	ConvDirection direction;
 
+	lip = -1;
 	tc = (struct tcphdr *)ip_next(pip);
 	hlen = (pip->ip_hl + tc->th_off) << 2;
 	tlen = ntohs(pip->ip_len);
@@ -418,6 +419,16 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 #endif
 				return;
 			}
+			if (lip == -1) {
+#ifdef LIBALIAS_DEBUG
+				fprintf(stderr,
+				    "PacketAlias/Skinny: received a"
+				    " packet,StartMediaTx Message before"
+				    " packet,OpnRcvChnAckMsg\n"
+#endif
+				return;
+			}
+
 #ifdef LIBALIAS_DEBUG
 			fprintf(stderr,
 			    "PacketAlias/Skinny: Received start media trans msg\n");
