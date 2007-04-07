@@ -7,6 +7,7 @@ TESTS= \
 	test_bad_fd.c				\
 	test_read_data_large.c			\
 	test_read_extract.c			\
+	test_read_format_ar.c			\
 	test_read_format_cpio_bin.c		\
 	test_read_format_cpio_bin_Z.c		\
 	test_read_format_cpio_bin_bz2.c		\
@@ -30,6 +31,7 @@ TESTS= \
 	test_write_disk.c			\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
+	test_write_format_ar.c			\
 	test_write_format_cpio_empty.c		\
 	test_write_format_shar_empty.c		\
 	test_write_format_tar.c			\
