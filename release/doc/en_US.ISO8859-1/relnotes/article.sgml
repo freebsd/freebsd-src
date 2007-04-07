@@ -1082,7 +1082,8 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The <varname>net.link.tap.up_on_open</varname> sysctl variable
 	has been added to the &man.tap.4; driver.  If enabled, new tap
-	devices will marked <literal>up</literal> upon creation.</para>
+	devices will marked <literal>up</literal> upon creation.  &merged;
+	</para>
 
       <para>Support for &man.kqueue.2; operations has been added to
 	the &man.tun.4; driver. &merged;</para>
@@ -1275,7 +1276,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	layer of unions.  More information can be found in the
 	&man.mount.unionfs.8; manual page.  &merged;</para>
 
-      <para>[&arch.amd64;, &arch.i386;]Support for Sun's ZFS has been
+      <para>[&arch.amd64;, &arch.i386;] Support for Sun's ZFS has been
 	added.  More information about this file system can be found
 	on the <ulink url="http://www.opensolaris.org/os/community/zfs/">
 	  OpenSolaris ZFS page</ulink>.</para>
