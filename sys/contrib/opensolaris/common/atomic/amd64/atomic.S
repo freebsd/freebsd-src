@@ -28,7 +28,7 @@
 
 	.file	"%M%"
 
-#define _ASM
+#define	_ASM
 #include <sys/asm_linkage.h>
 
 #if defined(_KERNEL)
@@ -558,7 +558,3 @@
 	lfence
 	ret
 	SET_SIZE(membar_consumer)
-
-#ifdef __ELF__
-.section .note.GNU-stack,"",%progbits
-#endif
