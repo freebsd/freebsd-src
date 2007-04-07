@@ -2176,7 +2176,7 @@ SetDestCallId(struct alias_link *lnk, u_int16_t cid)
 
 	LIBALIAS_LOCK_ASSERT(la);
 	la->deleteAllLinks = 1;
-	lnk = ReLink(lnk, lnk->src_addr, lnk->dst_addr, lnk->alias_addr,
+	ReLink(lnk, lnk->src_addr, lnk->dst_addr, lnk->alias_addr,
 	    lnk->src_port, cid, lnk->alias_port, lnk->link_type);
 	la->deleteAllLinks = 0;
 }
