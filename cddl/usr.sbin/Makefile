@@ -7,10 +7,8 @@ SUBDIR=
 SUBDIR+=${_zdb}
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
-.if ${MACHINE} == "i386"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 _zdb=	zdb
-.endif
 .endif
 
 .include <bsd.subdir.mk>

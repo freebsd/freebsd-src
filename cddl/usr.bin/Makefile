@@ -6,10 +6,8 @@
 SUBDIR=	${_ztest}
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
-.if ${MACHINE} == "i386"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 _ztest=	ztest
-.endif
 .endif
 
 .include <bsd.subdir.mk>
