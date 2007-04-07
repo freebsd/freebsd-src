@@ -125,6 +125,9 @@
 
     <para>&man.acpi.4; now has support for the HPET time counter.</para>
 
+    <para>Support for Message Signaled Interrupts (MSI) has been added to
+     the &man.pci.4; driver.</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="boot">
@@ -192,6 +195,10 @@
       <para>A bug which prevented &os; &release.prev; from running
 	IPv6 correctly over &man.gif.4; tunnels has been fixed.</para>
 
+      <para>The <varname>net.link.tap.up_on_open</varname> sysctl variable
+	has been added to the &man.tap.4; driver.  If enabled, new tap
+	devices will marked <literal>up</literal> upon creation.</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -233,6 +240,10 @@
 
     <para><application>BIND</application> has been updated from 9.3.3
       to 9.3.4.</para>
+
+    <para><application>ncurses</application> has been updated from
+      5.2-20010512 to 5.6-20061217.  ncurses now also has wide
+      character support.</para>
 
   </sect2>
 
