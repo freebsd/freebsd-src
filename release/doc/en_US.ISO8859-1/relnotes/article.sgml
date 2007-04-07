@@ -1277,8 +1277,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
       <para>[&arch.amd64;, &arch.i386;]Support for Sun's ZFS has been
 	added.  More information about this file system can be found
-	on the <a href="http://www.opensolaris.org/os/community/zfs/">
-	  OpenSolaris ZFS page</a>.</para>
+	on the <ulink url="http://www.opensolaris.org/os/community/zfs/">
+	  OpenSolaris ZFS page</ulink>.</para>
 
     </sect3>
   </sect2>
