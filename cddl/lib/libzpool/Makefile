@@ -11,7 +11,7 @@
 # LIST_SRCS
 .PATH:	${.CURDIR}/../../../sys/contrib/opensolaris/uts/common/os
 # ATOMIC_SRCS
-.PATH:	${.CURDIR}/../../../sys/contrib/opensolaris/uts/common/arch/${MACHINE_ARCH}
+.PATH:	${.CURDIR}/../../../sys/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
 
 LIB=	zpool
 SHLIB_MAJOR?=1
