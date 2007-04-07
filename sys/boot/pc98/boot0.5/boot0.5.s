@@ -1,4 +1,4 @@
-# Copyright (c) KATO Takenori, 1999, 2000.
+# Copyright (c) KATO Takenori, 1999, 2000, 2007.
 #
 # All rights reserved.  Unpublished rights reserved under the copyright
 # laws of Japan.
@@ -261,8 +261,8 @@ curdevice:	.word	0		# current device
 	.global	ishireso
 ishireso:	.byte	0
 
-title:		.asciz	"PC98 Boot Selector Version 1.1"
-copyright:	.ascii	"(C)Copyright 1999, 2000 KATO Takenori. "
+title:		.asciz	"PC98 Boot Selector Version 1.2"
+copyright:	.ascii	"(C)Copyright 1999-2007 KATO Takenori. "
 		.asciz	"All rights reserved."
 msg_device:	.asciz	"Device"
 msg_sasi:	.asciz	"SASI/IDE unit "

@@ -1,4 +1,4 @@
-# Copyright (c) KATO Takenori, 1999, 2000.
+# Copyright (c) KATO Takenori, 1999, 2000, 2007.
 # 
 # All rights reserved.  Unpublished rights reserved under the copyright
 # laws of Japan.
@@ -34,8 +34,19 @@
 start:
 	jmp	start1
 
+	# Magic
+	.org	0x053, 0x20
+	.byte	0x4e, 0x45, 0x43
+
+	.org	0x8f
+	.byte	0x32, 0x2e, 0x37, 0x30
+
 	.org	0x2d4
 start1:
+	# The instruction 'call 0x9ab' can be here.  See also selector.s.
+	nop
+	nop
+	nop
 	cli
 	movw	%cs, %ax
 	movw	%ax, %ds
