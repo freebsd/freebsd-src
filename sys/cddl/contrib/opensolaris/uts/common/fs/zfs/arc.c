@@ -2402,6 +2402,7 @@ arc_release(arc_buf_t *buf, void *tag)
 		nhdr->b_flags = 0;
 		nhdr->b_datacnt = 1;
 		nhdr->b_freeze_cksum = NULL;
+		mutex_init(&nhdr->b_freeze_lock, NULL, MUTEX_DEFAULT, NULL);
 		(void) refcount_add(&nhdr->b_refcnt, tag);
 		buf->b_hdr = nhdr;
 		atomic_add_64(&arc_anon->arcs_size, blksz);
