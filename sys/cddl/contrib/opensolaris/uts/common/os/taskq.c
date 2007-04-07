@@ -393,7 +393,7 @@ taskq_t *system_taskq;
  * Maxmimum number of entries in global system taskq is
  *      system_taskq_size * max_ncpus
  */
-#define SYSTEM_TASKQ_SIZE 64
+#define SYSTEM_TASKQ_SIZE 1
 int system_taskq_size = SYSTEM_TASKQ_SIZE;
 
 /*
