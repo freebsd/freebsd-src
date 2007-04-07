@@ -154,6 +154,7 @@ static int arc_dead;
  */
 u_long zfs_arc_max;
 u_long zfs_arc_min;
+#ifdef _KERNEL
 TUNABLE_ULONG("vfs.zfs.arc_max", &zfs_arc_max);
 TUNABLE_ULONG("vfs.zfs.arc_min", &zfs_arc_min);
 SYSCTL_DECL(_vfs_zfs);
@@ -161,6 +162,7 @@ SYSCTL_ULONG(_vfs_zfs, OID_AUTO, arc_max, CTLFLAG_RD, &zfs_arc_max, 0,
     "Maximum ARC size");
 SYSCTL_ULONG(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RD, &zfs_arc_min, 0,
     "Minimum ARC size");
+#endif
 
 /*
  * Note that buffers can be on one of 5 states:
@@ -2727,6 +2729,7 @@ arc_init(void)
 	else
 		arc_c_max = arc_c_min;
 	arc_c_max = MAX(arc_c * 6, arc_c_max);
+#ifdef _KERNEL
 	/*
 	 * Allow the tunables to override our calculations if they are
 	 * reasonable (ie. over 64MB)
@@ -2735,6 +2738,7 @@ arc_init(void)
 		arc_c_max = zfs_arc_max;
 	if (zfs_arc_min > 64<<20 && zfs_arc_min <= arc_c_max)
 		arc_c_min = zfs_arc_min;
+#endif
 	arc_c = arc_c_max;
 	arc_p = (arc_c >> 1);
 
