@@ -3340,6 +3340,8 @@ rtld_verify_versions(const Objlist *objlist)
 		break;
 	}
     }
+    if (rc == 0 || ld_tracing != NULL)
+    	rc = rtld_verify_object_versions(&obj_rtld);
     return rc;
 }
 
