@@ -299,6 +299,15 @@ argument is to be set to the size of the structure known to the caller.
 This allows the structure to grow without affecting older programs.
 .It PT_GETLWPLIST
 This request can be used to get the current thread list.
+A pointer to an array of type
+.Vt lwpid_t
+should be passed in
+.Fa addr ,
+with the array size specified by
+.Fa data .
+The return value from
+.Fn ptrace
+is the count of array entries filled in.
 .El
 .Pp
 Additionally, machine-specific requests can exist.
