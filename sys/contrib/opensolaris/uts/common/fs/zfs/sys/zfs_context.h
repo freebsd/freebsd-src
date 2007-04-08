@@ -46,7 +46,6 @@ extern "C" {
 #include <sys/kmem.h>
 #include <sys/taskq.h>
 #include <sys/systm.h>
-#include <sys/kobj.h>
 #include <sys/conf.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
@@ -77,6 +76,7 @@ extern "C" {
 #include <sys/policy.h>
 #include <sys/zone.h>
 #include <sys/eventhandler.h>
+#include <sys/misc.h>
 #include <sys/zfs_debug.h>
 
 #include <machine/stdarg.h>

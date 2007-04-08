@@ -246,6 +246,8 @@ extern uint16_t zio_zil_fail_shift;
 #define	ZTEST_DIROBJ_BLOCKSIZE	(1 << 10)
 #define	ZTEST_DIRSIZE		256
 
+static void usage(boolean_t);
+
 /*
  * These libumem hooks provide a reasonable set of defaults for the allocator's
  * debugging facilities.
@@ -303,13 +305,17 @@ str2shift(const char *buf)
 		if (toupper(buf[0]) == ends[i])
 			break;
 	}
-	if (i == strlen(ends))
-		fatal(0, "invalid bytes suffix: %s", buf);
+	if (i == strlen(ends)) {
+		(void) fprintf(stderr, "ztest: invalid bytes suffix: %s\n",
+		    buf);
+		usage(B_FALSE);
+	}
 	if (buf[1] == '\0' || (toupper(buf[1]) == 'B' && buf[2] == '\0')) {
 		return (10*i);
 	}
-	fatal(0, "invalid bytes suffix: %s", buf);
-	return (-1);
+	(void) fprintf(stderr, "ztest: invalid bytes suffix: %s\n", buf);
+	usage(B_FALSE);
+	/* NOTREACHED */
 }
 
 static uint64_t
@@ -320,32 +326,40 @@ nicenumtoull(const char *buf)
 
 	val = strtoull(buf, &end, 0);
 	if (end == buf) {
-		fatal(0, "bad numeric value: %s", buf);
+		(void) fprintf(stderr, "ztest: bad numeric value: %s\n", buf);
+		usage(B_FALSE);
 	} else if (end[0] == '.') {
 		double fval = strtod(buf, &end);
 		fval *= pow(2, str2shift(end));
-		if (fval > UINT64_MAX)
-			fatal(0, "value too large: %s", buf);
+		if (fval > UINT64_MAX) {
+			(void) fprintf(stderr, "ztest: value too large: %s\n",
+			    buf);
+			usage(B_FALSE);
+		}
 		val = (uint64_t)fval;
 	} else {
 		int shift = str2shift(end);
-		if (shift >= 64 || (val << shift) >> shift != val)
-			fatal(0, "value too large: %s", buf);
+		if (shift >= 64 || (val << shift) >> shift != val) {
+			(void) fprintf(stderr, "ztest: value too large: %s\n",
+			    buf);
+			usage(B_FALSE);
+		}
 		val <<= shift;
 	}
 	return (val);
 }
 
 static void
-usage(void)
+usage(boolean_t requested)
 {
 	char nice_vdev_size[10];
 	char nice_gang_bang[10];
+	FILE *fp = requested ? stdout : stderr;
 
 	nicenum(zopt_vdev_size, nice_vdev_size);
 	nicenum(zio_gang_bang, nice_gang_bang);
 
-	(void) printf("Usage: %s\n"
+	(void) fprintf(fp, "Usage: %s\n"
 	    "\t[-v vdevs (default: %llu)]\n"
 	    "\t[-s size_of_each_vdev (default: %s)]\n"
 	    "\t[-a alignment_shift (default: %d) (use 0 for random)]\n"
@@ -364,6 +378,7 @@ usage(void)
 	    "\t[-T time] total run time (default: %llu sec)\n"
 	    "\t[-P passtime] time per pass (default: %llu sec)\n"
 	    "\t[-z zil failure rate (default: fail every 2^%llu allocs)]\n"
+	    "\t[-h] (print help)\n"
 	    "",
 	    cmdname,
 	    (u_longlong_t)zopt_vdevs,		/* -v */
@@ -382,7 +397,7 @@ usage(void)
 	    (u_longlong_t)zopt_time,		/* -T */
 	    (u_longlong_t)zopt_passtime,	/* -P */
 	    (u_longlong_t)zio_zil_fail_shift);	/* -z */
-	exit(1);
+	exit(requested ? 0 : 1);
 }
 
 static uint64_t
@@ -422,7 +437,7 @@ process_options(int argc, char **argv)
 	zio_zil_fail_shift = 5;
 
 	while ((opt = getopt(argc, argv,
-	    "v:s:a:m:r:R:d:t:g:i:k:p:f:VET:P:z:")) != EOF) {
+	    "v:s:a:m:r:R:d:t:g:i:k:p:f:VET:P:z:h")) != EOF) {
 		value = 0;
 		switch (opt) {
 		    case 'v':
@@ -496,9 +511,12 @@ process_options(int argc, char **argv)
 		    case 'z':
 			zio_zil_fail_shift = MIN(value, 16);
 			break;
+		    case 'h':
+			usage(B_TRUE);
+			break;
 		    case '?':
 		    default:
-			usage();
+			usage(B_FALSE);
 			break;
 		}
 	}

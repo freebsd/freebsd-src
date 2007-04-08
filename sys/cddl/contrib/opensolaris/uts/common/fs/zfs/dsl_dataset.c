@@ -491,6 +491,32 @@ dsl_dataset_name(dsl_dataset_t *ds, char *name)
 	}
 }
 
+static int
+dsl_dataset_namelen(dsl_dataset_t *ds)
+{
+	int result;
+
+	if (ds == NULL) {
+		result = 3;	/* "mos" */
+	} else {
+		result = dsl_dir_namelen(ds->ds_dir);
+		VERIFY(0 == dsl_dataset_get_snapname(ds));
+		if (ds->ds_snapname[0]) {
+			++result;	/* adding one for the @-sign */
+			if (!MUTEX_HELD(&ds->ds_lock)) {
+				/* see dsl_datset_name */
+				mutex_enter(&ds->ds_lock);
+				result += strlen(ds->ds_snapname);
+				mutex_exit(&ds->ds_lock);
+			} else {
+				result += strlen(ds->ds_snapname);
+			}
+		}
+	}
+
+	return (result);
+}
+
 void
 dsl_dataset_close(dsl_dataset_t *ds, int mode, void *tag)
 {
@@ -1327,6 +1353,13 @@ dsl_dataset_snapshot_check(void *arg1, void *arg2, dmu_tx_t *tx)
 		return (EEXIST);
 	if (err != ENOENT)
 		return (err);
+
+	/*
+	 * Check that the dataset's name is not too long.  Name consists
+	 * of the dataset's length + 1 for the @-sign + snapshot name's length
+	 */
+	if (dsl_dataset_namelen(ds) + 1 + strlen(snapname) >= MAXNAMELEN)
+		return (ENAMETOOLONG);
 
 	ds->ds_trysnap_txg = tx->tx_txg;
 	return (0);

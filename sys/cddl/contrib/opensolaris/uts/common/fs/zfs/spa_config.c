@@ -34,6 +34,7 @@
 #include <sys/fs/zfs.h>
 #include <sys/vdev_impl.h>
 #include <sys/zfs_ioctl.h>
+#include <sys/utsname.h>
 #ifdef _KERNEL
 #include <sys/kobj.h>
 #endif
@@ -268,6 +269,7 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 {
 	nvlist_t *config, *nvroot;
 	vdev_t *rvd = spa->spa_root_vdev;
+	unsigned long hostid = 0;
 
 	ASSERT(spa_config_held(spa, RW_READER));
 
@@ -292,6 +294,11 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 	    txg) == 0);
 	VERIFY(nvlist_add_uint64(config, ZPOOL_CONFIG_POOL_GUID,
 	    spa_guid(spa)) == 0);
+	(void) ddi_strtoul(hw_serial, NULL, 10, &hostid);
+	VERIFY(nvlist_add_uint64(config, ZPOOL_CONFIG_HOSTID,
+	    hostid) == 0);
+	VERIFY(nvlist_add_string(config, ZPOOL_CONFIG_HOSTNAME,
+	    utsname.nodename) == 0);
 
 	if (vd != rvd) {
 		VERIFY(nvlist_add_uint64(config, ZPOOL_CONFIG_TOP_GUID,
