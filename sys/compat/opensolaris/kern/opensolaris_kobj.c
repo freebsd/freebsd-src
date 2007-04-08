@@ -30,12 +30,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/systm.h>
 #include <sys/kthread.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
-#include <sys/vnode.h>
 #include <sys/fcntl.h>
+#include <sys/linker.h>
 #include <sys/kobj.h>
 
 void
@@ -62,8 +63,8 @@ kobj_zalloc(size_t size, int flag)
 	return (p);
 }
 
-struct _buf *
-kobj_open_file(const char *file)
+static void *
+kobj_open_file_vnode(const char *file)
 {
 	struct thread *td = curthread;
 	struct nameidata nd;
@@ -79,16 +80,45 @@ kobj_open_file(const char *file)
 	error = vn_open_cred(&nd, &flags, 0, td->td_ucred, -1);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0)
-		return ((struct _buf *)-1);
+		return (NULL);
 	/* We just unlock so we hold a reference. */
 	VOP_UNLOCK(nd.ni_vp, 0, td);
-	return ((struct _buf *)nd.ni_vp);
+	return (nd.ni_vp);
 }
 
-int
-kobj_get_filesize(struct _buf *file, uint64_t *size)
+static void *
+kobj_open_file_loader(const char *file)
 {
-	struct vnode *vp = (struct vnode *)file;
+
+	return (preload_search_by_name(file));
+}
+
+struct _buf *
+kobj_open_file(const char *file)
+{
+	struct _buf *out;
+
+	out = kmem_alloc(sizeof(*out), KM_SLEEP);
+	out->mounted = root_mounted();
+	/*
+	 * If root is already mounted we read file using file system,
+	 * if not, we use loader.
+	 */
+	if (out->mounted)
+		out->ptr = kobj_open_file_vnode(file);
+	else
+		out->ptr = kobj_open_file_loader(file);
+	if (out->ptr == NULL) {
+		kmem_free(out, sizeof(*out));
+		return ((struct _buf *)-1);
+	}
+	return (out);
+}
+
+static int
+kobj_get_filesize_vnode(struct _buf *file, uint64_t *size)
+{
+	struct vnode *vp = file->ptr;
 	struct thread *td = curthread;
 	struct vattr va;
 	int error;
@@ -101,10 +131,32 @@ kobj_get_filesize(struct _buf *file, uint64_t *size)
 	return (error);
 }
 
-int
-kobj_read_file(struct _buf *file, char *buf, unsigned size, unsigned off)
+static int
+kobj_get_filesize_loader(struct _buf *file, uint64_t *size)
 {
-	struct vnode *vp = (struct vnode *)file;
+	void *ptr;
+
+	ptr = preload_search_info(file->ptr, MODINFO_SIZE);
+	if (ptr == NULL)
+		return (ENOENT);
+	*size = (uint64_t)*(size_t *)ptr;
+	return (0);
+}
+
+int
+kobj_get_filesize(struct _buf *file, uint64_t *size)
+{
+
+	if (file->mounted)
+		return (kobj_get_filesize_vnode(file, size));
+	else
+		return (kobj_get_filesize_loader(file, size));
+}
+
+int
+kobj_read_file_vnode(struct _buf *file, char *buf, unsigned size, unsigned off)
+{
+	struct vnode *vp = file->ptr;
 	struct thread *td = curthread;
 	struct uio auio;
 	struct iovec aiov;
@@ -130,13 +182,39 @@ kobj_read_file(struct _buf *file, char *buf, unsigned size, unsigned off)
 	return (error != 0 ? -1 : size - auio.uio_resid);
 }
 
+int
+kobj_read_file_loader(struct _buf *file, char *buf, unsigned size, unsigned off)
+{
+	char *ptr;
+
+	ptr = preload_search_info(file->ptr, MODINFO_ADDR);
+	if (ptr == NULL)
+		return (ENOENT);
+	ptr = *(void **)ptr;
+	bcopy(ptr + off, buf, size);
+	return (0);
+}
+
+int
+kobj_read_file(struct _buf *file, char *buf, unsigned size, unsigned off)
+{
+
+	if (file->mounted)
+		return (kobj_read_file_vnode(file, buf, size, off));
+	else
+		return (kobj_read_file_loader(file, buf, size, off));
+}
+
 void
 kobj_close_file(struct _buf *file)
 {
-	struct vnode *vp = (struct vnode *)file;
-	struct thread *td = curthread;
-	int flags;
 
-	flags = FREAD;
-	vn_close(vp, flags, td->td_ucred, td);
+	if (file->mounted) {
+		struct vnode *vp = file->ptr;
+		struct thread *td = curthread;
+		int flags = FREAD;
+
+		vn_close(vp, flags, td->td_ucred, td);
+	}
+	kmem_free(file, sizeof(*file));
 }
