@@ -943,12 +943,12 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 	sxp = xp = malloc(sizeof(*xp) * count, M_TEMP, M_WAITOK | M_ZERO);
 
 	LIST_FOREACH(pr, &allprison, pr_list) {
-		mtx_lock(&pr->pr_mtx);
 		xp->pr_version = XPRISON_VERSION;
 		xp->pr_id = pr->pr_id;
-		strlcpy(xp->pr_path, pr->pr_path, sizeof(xp->pr_path));
-		strlcpy(xp->pr_host, pr->pr_host, sizeof(xp->pr_host));
 		xp->pr_ip = pr->pr_ip;
+		strlcpy(xp->pr_path, pr->pr_path, sizeof(xp->pr_path));
+		mtx_lock(&pr->pr_mtx);
+		strlcpy(xp->pr_host, pr->pr_host, sizeof(xp->pr_host));
 		mtx_unlock(&pr->pr_mtx);
 		xp++;
 	}
