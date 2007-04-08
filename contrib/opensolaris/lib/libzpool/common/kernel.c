@@ -37,6 +37,7 @@
 #include <sys/processor.h>
 #include <sys/zfs_context.h>
 #include <sys/zmod.h>
+#include <sys/utsname.h>
 
 /*
  * Emulation of kernel services in userland.
@@ -45,6 +46,11 @@
 int hz = 119;	/* frequency when using gethrtime() >> 23 for lbolt */
 uint64_t physmem;
 vnode_t *rootdir = (vnode_t *)0xabcd1234;
+char hw_serial[11];
+
+struct utsname utsname = {
+	"userland", "libzpool", "1", "1", "na"
+};
 
 /*
  * =========================================================================
@@ -770,6 +776,17 @@ random_get_pseudo_bytes(uint8_t *ptr, size_t len)
 	return (random_get_bytes_common(ptr, len, "/dev/urandom"));
 }
 
+int
+ddi_strtoul(const char *hw_serial, char **nptr, int base, unsigned long *result)
+{
+	char *end;
+
+	*result = strtoul(hw_serial, &end, base);
+	if (*result == 0)
+		return (errno);
+	return (0);
+}
+
 /*
  * =========================================================================
  * kernel emulation setup & teardown
@@ -794,6 +811,8 @@ kernel_init(int mode)
 
 	dprintf("physmem = %llu pages (%.2f GB)\n", physmem,
 	    (double)physmem * sysconf(_SC_PAGE_SIZE) / (1ULL << 30));
+
+	snprintf(hw_serial, sizeof (hw_serial), "%ld", gethostid());
 
 	spa_init(mode);
 }

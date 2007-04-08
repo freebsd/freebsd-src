@@ -436,6 +436,14 @@ typedef struct callb_cpr {
 #define	zone_dataset_visible(x, y)	(1)
 #define	INGLOBALZONE(z)			(1)
 
+/*
+ * Hostname information
+ */
+extern struct utsname utsname;
+extern char hw_serial[];
+extern int ddi_strtoul(const char *str, char **nptr, int base,
+    unsigned long *result);
+
 #ifdef	__cplusplus
 }
 #endif
