@@ -98,6 +98,7 @@ enum {
 	EZFS_POOLPROPS,		/* couldn't retrieve pool props */
 	EZFS_POOL_NOTSUP,	/* ops not supported for this type of pool */
 	EZFS_POOL_INVALARG,	/* invalid argument for this pool operation */
+	EZFS_NAMETOOLONG,	/* dataset name is too long */
 	EZFS_UNKNOWN
 };
 
@@ -192,6 +193,7 @@ typedef enum {
 	ZPOOL_STATUS_CORRUPT_DATA,	/* data errors in user (meta)data */
 	ZPOOL_STATUS_FAILING_DEV,	/* device experiencing errors */
 	ZPOOL_STATUS_VERSION_NEWER,	/* newer on-disk version */
+	ZPOOL_STATUS_HOSTID_MISMATCH,	/* last accessed by another system */
 
 	/*
 	 * The following are not faults per se, but still an error possibly

@@ -379,7 +379,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl)
 	uint_t i, nspares;
 	boolean_t config_seen;
 	uint64_t best_txg;
-	char *name;
+	char *name, *hostname;
 	zfs_cmd_t zc = { 0 };
 	uint64_t version, guid;
 	size_t len;
@@ -388,6 +388,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl)
 	nvlist_t **child = NULL;
 	uint_t c;
 	boolean_t isactive;
+	uint64_t hostid;
 
 	if (nvlist_alloc(&ret, 0, 0) != 0)
 		goto nomem;
@@ -430,6 +431,8 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl)
 				 * 	pool guid
 				 * 	name
 				 * 	pool state
+				 *	hostid (if available)
+				 *	hostname (if available)
 				 */
 				uint64_t state;
 
@@ -453,6 +456,20 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl)
 				if (nvlist_add_uint64(config,
 				    ZPOOL_CONFIG_POOL_STATE, state) != 0)
 					goto nomem;
+				hostid = 0;
+				if (nvlist_lookup_uint64(tmp,
+				    ZPOOL_CONFIG_HOSTID, &hostid) == 0) {
+					if (nvlist_add_uint64(config,
+					    ZPOOL_CONFIG_HOSTID, hostid) != 0)
+						goto nomem;
+					verify(nvlist_lookup_string(tmp,
+					    ZPOOL_CONFIG_HOSTNAME,
+					    &hostname) == 0);
+					if (nvlist_add_string(config,
+					    ZPOOL_CONFIG_HOSTNAME,
+					    hostname) != 0)
+						goto nomem;
+				}
 
 				config_seen = B_TRUE;
 			}
@@ -619,6 +636,20 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl)
 				if (fix_paths(spares[i], pl->names) != 0)
 					goto nomem;
 			}
+		}
+
+		/*
+		 * Restore the original information read from the actual label.
+		 */
+		(void) nvlist_remove(config, ZPOOL_CONFIG_HOSTID,
+		    DATA_TYPE_UINT64);
+		(void) nvlist_remove(config, ZPOOL_CONFIG_HOSTNAME,
+		    DATA_TYPE_STRING);
+		if (hostid != 0) {
+			verify(nvlist_add_uint64(config, ZPOOL_CONFIG_HOSTID,
+			    hostid) == 0);
+			verify(nvlist_add_string(config, ZPOOL_CONFIG_HOSTNAME,
+			    hostname) == 0);
 		}
 
 		/*

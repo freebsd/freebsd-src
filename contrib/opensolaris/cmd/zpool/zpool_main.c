@@ -1082,6 +1082,10 @@ show_import(nvlist_t *config)
 		    "incompatible version.\n"));
 		break;
 
+	case ZPOOL_STATUS_HOSTID_MISMATCH:
+		(void) printf(gettext("status: The pool was last accessed by "
+		    "another system.\n"));
+		break;
 	default:
 		/*
 		 * No other status can be seen when importing pools.
@@ -1098,6 +1102,10 @@ show_import(nvlist_t *config)
 			    "imported using its name or numeric identifier, "
 			    "though\n\tsome features will not be available "
 			    "without an explicit 'zpool upgrade'.\n"));
+		else if (reason == ZPOOL_STATUS_HOSTID_MISMATCH)
+			(void) printf(gettext("action: The pool can be "
+			    "imported using its name or numeric "
+			    "identifier and\n\tthe '-f' flag.\n"));
 		else
 			(void) printf(gettext("action: The pool can be "
 			    "imported using its name or numeric "
@@ -1187,10 +1195,37 @@ do_import(nvlist_t *config, const char *newname, const char *mntopts,
 		    "is formatted using a newer ZFS version\n"), name);
 		return (1);
 	} else if (state != POOL_STATE_EXPORTED && !force) {
-		(void) fprintf(stderr, gettext("cannot import '%s': pool "
-		    "may be in use from other system\n"), name);
-		(void) fprintf(stderr, gettext("use '-f' to import anyway\n"));
-		return (1);
+		uint64_t hostid;
+
+		if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_HOSTID,
+		    &hostid) == 0) {
+			if ((unsigned long)hostid != gethostid()) {
+				char *hostname;
+				uint64_t timestamp;
+				time_t t;
+
+				verify(nvlist_lookup_string(config,
+				    ZPOOL_CONFIG_HOSTNAME, &hostname) == 0);
+				verify(nvlist_lookup_uint64(config,
+				    ZPOOL_CONFIG_TIMESTAMP, &timestamp) == 0);
+				t = timestamp;
+				(void) fprintf(stderr, gettext("cannot import "
+				    "'%s': pool may be in use from other "
+				    "system, it was last accessed by %s "
+				    "(hostid: 0x%lx) on %s"), name, hostname,
+				    (unsigned long)hostid,
+				    asctime(localtime(&t)));
+				(void) fprintf(stderr, gettext("use '-f' to "
+				    "import anyway\n"));
+				return (1);
+			}
+		} else {
+			(void) fprintf(stderr, gettext("cannot import '%s': "
+			    "pool may be in use from other system\n"), name);
+			(void) fprintf(stderr, gettext("use '-f' to import "
+			    "anyway\n"));
+			return (1);
+		}
 	}
 
 	if (zpool_import(g_zfs, config, newname, altroot) != 0)

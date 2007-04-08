@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -205,6 +205,29 @@ dsl_dir_name(dsl_dir_t *dd, char *buf)
 	} else {
 		(void) strcat(buf, dd->dd_myname);
 	}
+}
+
+/* Calculate name legnth, avoiding all the strcat calls of dsl_dir_name */
+int
+dsl_dir_namelen(dsl_dir_t *dd)
+{
+	int result = 0;
+
+	if (dd->dd_parent) {
+		/* parent's name + 1 for the "/" */
+		result = dsl_dir_namelen(dd->dd_parent) + 1;
+	}
+
+	if (!MUTEX_HELD(&dd->dd_lock)) {
+		/* see dsl_dir_name */
+		mutex_enter(&dd->dd_lock);
+		result += strlen(dd->dd_myname);
+		mutex_exit(&dd->dd_lock);
+	} else {
+		result += strlen(dd->dd_myname);
+	}
+
+	return (result);
 }
 
 int

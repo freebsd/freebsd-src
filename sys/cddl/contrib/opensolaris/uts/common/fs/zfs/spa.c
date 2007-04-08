@@ -579,12 +579,34 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 
 	if (!mosconfig) {
 		nvlist_t *newconfig;
+		uint64_t hostid;
 
 		if (load_nvlist(spa, spa->spa_config_object, &newconfig) != 0) {
 			vdev_set_state(rvd, B_TRUE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_CORRUPT_DATA);
 			error = EIO;
 			goto out;
+		}
+
+		if (nvlist_lookup_uint64(newconfig, ZPOOL_CONFIG_HOSTID,
+		    &hostid) == 0) {
+			char *hostname;
+			unsigned long myhostid = 0;
+
+			VERIFY(nvlist_lookup_string(newconfig,
+			    ZPOOL_CONFIG_HOSTNAME, &hostname) == 0);
+
+			(void) ddi_strtoul(hw_serial, NULL, 10, &myhostid);
+			if ((unsigned long)hostid != myhostid) {
+				cmn_err(CE_WARN, "pool '%s' could not be "
+				    "loaded as it was last accessed by "
+				    "another system (host: %s hostid: 0x%lx).  "
+				    "See: http://www.sun.com/msg/ZFS-8000-EY",
+				    spa->spa_name, hostname,
+				    (unsigned long)hostid);
+				error = EBADF;
+				goto out;
+			}
 		}
 
 		spa_config_set(spa, newconfig);
@@ -1366,6 +1388,8 @@ spa_tryimport(nvlist_t *tryconfig)
 		    poolname) == 0);
 		VERIFY(nvlist_add_uint64(config, ZPOOL_CONFIG_POOL_STATE,
 		    state) == 0);
+		VERIFY(nvlist_add_uint64(config, ZPOOL_CONFIG_TIMESTAMP,
+		    spa->spa_uberblock.ub_timestamp) == 0);
 
 		/*
 		 * Add the list of hot spares.

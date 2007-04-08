@@ -208,6 +208,9 @@ extern zpool_prop_t zpool_prop_iter(zpool_prop_f, void *, boolean_t);
 #define	ZPOOL_CONFIG_SPARES		"spares"
 #define	ZPOOL_CONFIG_IS_SPARE		"is_spare"
 #define	ZPOOL_CONFIG_NPARITY		"nparity"
+#define	ZPOOL_CONFIG_HOSTID		"hostid"
+#define	ZPOOL_CONFIG_HOSTNAME		"hostname"
+#define	ZPOOL_CONFIG_TIMESTAMP		"timestamp" /* not stored on disk */
 
 #define	VDEV_TYPE_ROOT			"root"
 #define	VDEV_TYPE_MIRROR		"mirror"
