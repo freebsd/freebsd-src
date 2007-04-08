@@ -31,6 +31,13 @@
 
 #include <sys/types.h>
 #include <sys/kmem.h>
+#include_next <sys/kobj.h>
+#ifdef AT_UID
+#undef AT_UID
+#endif
+#ifdef AT_GID
+#undef AT_GID
+#endif
 #include <sys/vnode.h>
 
 #define	KM_NOWAIT	0x01
@@ -41,7 +48,8 @@ void *kobj_alloc(size_t size, int flag);
 void *kobj_zalloc(size_t size, int flag);
 
 struct _buf {
-	void	*dummy;
+	void *ptr;
+	int mounted;
 };
 
 struct _buf *kobj_open_file(const char *path);
