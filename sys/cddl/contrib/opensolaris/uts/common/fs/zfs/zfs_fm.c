@@ -102,7 +102,6 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 {
 #ifdef _KERNEL
 	char buf[1024];
-	char class[64];
 	struct sbuf sb;
 	struct timespec ts;
 
@@ -139,7 +138,7 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 	nanotime(&ts);
 
 	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
-	sbuf_printf(&sb, "time %ju.%ld", (uintmax_t)ts.tv_sec, ts.tv_nsec);
+	sbuf_printf(&sb, "time=%ju.%ld", (uintmax_t)ts.tv_sec, ts.tv_nsec);
 
 	/*
 	 * Serialize ereport generation
@@ -177,11 +176,10 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 	/*
 	 * Construct the full class, detector, and other standard FMA fields.
 	 */
-	sbuf_printf(&sb, " ereport_version %u", FM_EREPORT_VERSION);
-	snprintf(class, sizeof(class), "%s.%s", ZFS_ERROR_CLASS, subclass);
-	sbuf_printf(&sb, " class %s", class);
+	sbuf_printf(&sb, " ereport_version=%u", FM_EREPORT_VERSION);
+	sbuf_printf(&sb, " class=%s.%s", ZFS_ERROR_CLASS, subclass);
 
-	sbuf_printf(&sb, " zfs_scheme_version %u", FM_ZFS_SCHEME_VERSION);
+	sbuf_printf(&sb, " zfs_scheme_version=%u", FM_ZFS_SCHEME_VERSION);
 
 	/*
 	 * Construct the per-ereport payload, depending on which parameters are
@@ -200,38 +198,38 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 	 * contexts in which this function is called (pool open, I/O) are safe,
 	 * and dereference the name directly.
 	 */
-	sbuf_printf(&sb, " %s %s", FM_EREPORT_PAYLOAD_ZFS_POOL, spa->spa_name);
-	sbuf_printf(&sb, " %s %ju", FM_EREPORT_PAYLOAD_ZFS_POOL_GUID,
+	sbuf_printf(&sb, " %s=%s", FM_EREPORT_PAYLOAD_ZFS_POOL, spa->spa_name);
+	sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_POOL_GUID,
 	    spa_guid(spa));
-	sbuf_printf(&sb, " %s %u", FM_EREPORT_PAYLOAD_ZFS_POOL_CONTEXT,
+	sbuf_printf(&sb, " %s=%u", FM_EREPORT_PAYLOAD_ZFS_POOL_CONTEXT,
 	    spa->spa_load_state);
 
 	if (vd != NULL) {
 		vdev_t *pvd = vd->vdev_parent;
 
-		sbuf_printf(&sb, " %s %ju", FM_EREPORT_PAYLOAD_ZFS_VDEV_GUID,
+		sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_VDEV_GUID,
 		    vd->vdev_guid);
-		sbuf_printf(&sb, " %s %s", FM_EREPORT_PAYLOAD_ZFS_VDEV_TYPE,
+		sbuf_printf(&sb, " %s=%s", FM_EREPORT_PAYLOAD_ZFS_VDEV_TYPE,
 		    vd->vdev_ops->vdev_op_type);
 		if (vd->vdev_path)
-			sbuf_printf(&sb, " %s %s",
+			sbuf_printf(&sb, " %s=%s",
 			    FM_EREPORT_PAYLOAD_ZFS_VDEV_PATH, vd->vdev_path);
 		if (vd->vdev_devid)
-			sbuf_printf(&sb, " %s %s",
+			sbuf_printf(&sb, " %s=%s",
 			    FM_EREPORT_PAYLOAD_ZFS_VDEV_DEVID, vd->vdev_devid);
 
 		if (pvd != NULL) {
-			sbuf_printf(&sb, " %s %ju",
+			sbuf_printf(&sb, " %s=%ju",
 			    FM_EREPORT_PAYLOAD_ZFS_PARENT_GUID, pvd->vdev_guid);
-			sbuf_printf(&sb, " %s %s",
+			sbuf_printf(&sb, " %s=%s",
 			    FM_EREPORT_PAYLOAD_ZFS_PARENT_TYPE,
 			    pvd->vdev_ops->vdev_op_type);
 			if (pvd->vdev_path)
-				sbuf_printf(&sb, " %s %s",
+				sbuf_printf(&sb, " %s=%s",
 				    FM_EREPORT_PAYLOAD_ZFS_PARENT_PATH,
 				    pvd->vdev_path);
 			if (pvd->vdev_devid)
-				sbuf_printf(&sb, " %s %s",
+				sbuf_printf(&sb, " %s=%s",
 				    FM_EREPORT_PAYLOAD_ZFS_PARENT_DEVID,
 				    pvd->vdev_devid);
 		}
@@ -241,7 +239,7 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 		/*
 		 * Payload common to all I/Os.
 		 */
-		sbuf_printf(&sb, " %s %u", FM_EREPORT_PAYLOAD_ZFS_ZIO_ERR,
+		sbuf_printf(&sb, " %s=%u", FM_EREPORT_PAYLOAD_ZFS_ZIO_ERR,
 		    zio->io_error);
 
 		/*
@@ -251,16 +249,16 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 		 */
 		if (vd != NULL) {
 			if (size) {
-				sbuf_printf(&sb, " %s %ju",
+				sbuf_printf(&sb, " %s=%ju",
 				    FM_EREPORT_PAYLOAD_ZFS_ZIO_OFFSET,
 				    stateoroffset);
-				sbuf_printf(&sb, " %s %ju",
+				sbuf_printf(&sb, " %s=%ju",
 				    FM_EREPORT_PAYLOAD_ZFS_ZIO_SIZE, size);
 			} else {
-				sbuf_printf(&sb, " %s %ju",
+				sbuf_printf(&sb, " %s=%ju",
 				    FM_EREPORT_PAYLOAD_ZFS_ZIO_OFFSET,
 				    zio->io_offset);
-				sbuf_printf(&sb, " %s %ju",
+				sbuf_printf(&sb, " %s=%ju",
 				    FM_EREPORT_PAYLOAD_ZFS_ZIO_SIZE,
 				    zio->io_size);
 			}
@@ -270,13 +268,13 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 		 * Payload for I/Os with corresponding logical information.
 		 */
 		if (zio->io_logical != NULL) {
-			sbuf_printf(&sb, " %s %ju",
+			sbuf_printf(&sb, " %s=%ju",
 			    FM_EREPORT_PAYLOAD_ZFS_ZIO_OBJECT,
 			    zio->io_logical->io_bookmark.zb_object);
-			sbuf_printf(&sb, " %s %ju",
+			sbuf_printf(&sb, " %s=%ju",
 			    FM_EREPORT_PAYLOAD_ZFS_ZIO_LEVEL,
 			    zio->io_logical->io_bookmark.zb_level);
-			sbuf_printf(&sb, " %s %ju",
+			sbuf_printf(&sb, " %s=%ju",
 			    FM_EREPORT_PAYLOAD_ZFS_ZIO_BLKID,
 			    zio->io_logical->io_bookmark.zb_blkid);
 		}
@@ -286,13 +284,13 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 		 * 'stateoroffset' parameter indicates the previous state of the
 		 * vdev.
 		 */
-		sbuf_printf(&sb, " %s %ju", FM_EREPORT_PAYLOAD_ZFS_PREV_STATE,
+		sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_PREV_STATE,
 		    stateoroffset);
 	}
 	mutex_exit(&spa->spa_errlist_lock);
 
 	sbuf_finish(&sb);
-	devctl_notify("ZFS", spa->spa_name, class, sbuf_data(&sb));
+	devctl_notify("ZFS", spa->spa_name, subclass, sbuf_data(&sb));
 	if (sbuf_overflowed(&sb))
 		printf("ZFS WARNING: sbuf overflowed\n");
 	sbuf_delete(&sb);
@@ -316,16 +314,16 @@ zfs_post_ok(spa_t *spa, vdev_t *vd)
 	nanotime(&ts);
 
 	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
-	sbuf_printf(&sb, "time %ju.%ld", (uintmax_t)ts.tv_sec, ts.tv_nsec);
+	sbuf_printf(&sb, "time=%ju.%ld", (uintmax_t)ts.tv_sec, ts.tv_nsec);
 
 	snprintf(class, sizeof(class), "%s.%s.%s", FM_RSRC_RESOURCE,
 	    ZFS_ERROR_CLASS, FM_RESOURCE_OK);
-	sbuf_printf(&sb, " %s %hhu", FM_VERSION, FM_RSRC_VERSION);
-	sbuf_printf(&sb, " %s %s", FM_CLASS, class);
-	sbuf_printf(&sb, " %s %ju", FM_EREPORT_PAYLOAD_ZFS_POOL_GUID,
+	sbuf_printf(&sb, " %s=%hhu", FM_VERSION, FM_RSRC_VERSION);
+	sbuf_printf(&sb, " %s=%s", FM_CLASS, class);
+	sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_POOL_GUID,
 	    spa_guid(spa));
 	if (vd)
-		sbuf_printf(&sb, " %s %ju", FM_EREPORT_PAYLOAD_ZFS_VDEV_GUID,
+		sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_VDEV_GUID,
 		    vd->vdev_guid);
 	sbuf_finish(&sb);
 	devctl_notify("ZFS", spa->spa_name, class, sbuf_data(&sb));
