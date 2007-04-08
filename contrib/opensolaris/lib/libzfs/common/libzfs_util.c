@@ -490,6 +490,21 @@ libzfs_print_on_error(libzfs_handle_t *hdl, boolean_t printerr)
 	hdl->libzfs_printerr = printerr;
 }
 
+static int
+libzfs_load(void)
+{
+	int error;
+
+	if (modfind("zfs") < 0) {
+		/* Not present in kernel, try loading it. */
+		if (kldload("zfs") < 0 || modfind("zfs") < 0) {
+			if (errno != EEXIST)
+				return (error);
+		}
+	}
+	return (0);
+}
+
 libzfs_handle_t *
 libzfs_init(void)
 {
@@ -500,8 +515,12 @@ libzfs_init(void)
 	}
 
 	if ((hdl->libzfs_fd = open(ZFS_DEV, O_RDWR)) < 0) {
-		free(hdl);
-		return (NULL);
+		if (libzfs_load() == 0)
+			hdl->libzfs_fd = open(ZFS_DEV, O_RDWR);
+		if (hdl->libzfs_fd < 0) {
+			free(hdl);
+			return (NULL);
+		}
 	}
 
 	if ((hdl->libzfs_mnttab = fopen(MNTTAB, "r")) == NULL) {
