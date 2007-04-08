@@ -311,8 +311,8 @@ prison_free(struct prison *pr)
 	mtx_lock(&pr->pr_mtx);
 	pr->pr_ref--;
 	if (pr->pr_ref == 0) {
-		LIST_REMOVE(pr, pr_list);
 		mtx_unlock(&pr->pr_mtx);
+		LIST_REMOVE(pr, pr_list);
 		prisoncount--;
 		sx_downgrade(&allprison_lock);
 		TAILQ_FOREACH(psrv, &prison_services, ps_next) {
