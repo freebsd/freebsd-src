@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/ktr.h>
+
+#include <machine/bus.h>
 
 #include <dev/cxgb/sys/mvec.h>
 
@@ -84,8 +87,8 @@ _m_explode(struct mbuf *m)
 
 #define MAX_BUFS 36
 
-struct mbuf *
-_m_collapse(struct mbuf *m, int maxbufs)
+int
+_m_collapse(struct mbuf *m, int maxbufs, struct mbuf **mnew)
 {
 	struct mbuf *m0, *lvec[MAX_BUFS];
 	struct mbuf **mnext, **vec = &lvec[0];
@@ -96,7 +99,7 @@ _m_collapse(struct mbuf *m, int maxbufs)
 	if (maxbufs > MAX_BUFS)
 		if ((vec = malloc(maxbufs * sizeof(struct mbuf *),
 			    M_DEVBUF, M_NOWAIT)) == NULL)
-			return (NULL);
+			return (ENOMEM);
 
 	m0 = m;
 	for (i = 0; i < maxbufs; i++) {
@@ -107,7 +110,7 @@ _m_collapse(struct mbuf *m, int maxbufs)
 	}
 
 	if (i == maxbufs) 
-		return (NULL);	
+		return (EFBIG);
 batch:
 	max = i;
 	i = 0;
@@ -148,7 +151,8 @@ batch:
 	}
 
 	mhead->m_flags |= (m0->m_flags & M_PKTHDR);
-	return (mhead);
+	*mnew = mhead;
+	return (0);
 
 m_getfail:
 	m0 = mhead;
@@ -156,7 +160,7 @@ m_getfail:
 		mhead = m0->m_next;
 		uma_zfree(zone_mbuf, m0);
 	}
-	return (NULL);
+	return (ENOMEM);
 }
 
 void
@@ -225,4 +229,96 @@ mb_free_vec(struct mbuf *m)
 	 */
 	m->m_flags &= ~M_IOVEC;
 	uma_zfree(zone_mbuf, m);
+}
+
+struct mvec_sg_cb_arg {
+	int error;
+	bus_dma_segment_t seg;
+	int nseg;
+};
+
+struct bus_dma_tag {
+	bus_dma_tag_t	  parent;
+	bus_size_t	  alignment;
+	bus_size_t	  boundary;
+	bus_addr_t	  lowaddr;
+	bus_addr_t	  highaddr;
+	bus_dma_filter_t *filter;
+	void		 *filterarg;
+	bus_size_t	  maxsize;
+	u_int		  nsegments;
+	bus_size_t	  maxsegsz;
+	int		  flags;
+	int		  ref_count;
+	int		  map_count;
+	bus_dma_lock_t	 *lockfunc;
+	void		 *lockfuncarg;
+	bus_dma_segment_t *segments;
+	struct bounce_zone *bounce_zone;
+};
+
+static void
+mvec_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	struct mvec_sg_cb_arg *cb_arg = arg;
+	
+	cb_arg->error = error;
+	cb_arg->seg = segs[0];
+	cb_arg->nseg = nseg;
+
+}
+
+int
+bus_dmamap_load_mvec_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
+                        bus_dma_segment_t *segs, int *nsegs, int flags)
+{
+	int error;
+	struct mbuf_vec *mv;
+	struct mvec_sg_cb_arg cb_arg;
+		
+	M_ASSERTPKTHDR(m0);
+
+	flags |= BUS_DMA_NOWAIT;
+	*nsegs = 0;
+	error = 0;
+	if (m0->m_pkthdr.len <=
+	    dmat->maxsize) {
+		struct mbuf *m;
+
+		for (m = m0; m != NULL && error == 0; m = m->m_next) {
+			int count, first, i;
+			if (!(m->m_len > 0))
+				continue;
+			
+			mv = mtomv(m);
+			count = mv->mv_count;
+			first = mv->mv_first;
+			for (i = first; i < count; i++) {
+				void *data = mv->mv_vec[i].mi_base;
+				int size = mv->mv_vec[i].mi_size;
+				
+				cb_arg.seg = *segs;
+				error = bus_dmamap_load(dmat, map, 
+				    data, size, mvec_cb, &cb_arg, flags);
+				segs++;
+				*nsegs++;
+				if (error || cb_arg.error)
+					goto err_out;
+			}
+		}
+	} else {
+		error = EINVAL;
+	}
+
+	/* XXX FIXME: Having to increment nsegs is really annoying */
+	++*nsegs;
+	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, dmat->flags, error, *nsegs);
+	return (error);
+
+err_out:
+	if (cb_arg.error)
+		return (cb_arg.error);
+	
+	return (error);
 }
