@@ -29,6 +29,9 @@
  *
  ***************************************************************************/
 
+#ifndef _MVEC_H_
+#define _MVEC_H_
+
 #define mtomv(m)          ((struct mbuf_vec *)((m)->m_pktdat))
 
 #define M_IOVEC         0x40000 /* mbuf immediate data area is used for cluster ptrs */
@@ -62,7 +65,7 @@ struct mbuf_vec {
 }; 
 
 int _m_explode(struct mbuf *);
-struct mbuf *_m_collapse(struct mbuf *, int maxbufs);
+int _m_collapse(struct mbuf *, int maxbufs, struct mbuf **);
 void mb_free_vec(struct mbuf *m);
 
 
@@ -108,13 +111,14 @@ m_explode(struct mbuf *m)
 	return _m_explode(m); 
 } 
  
-static __inline struct mbuf *
-m_collapse(struct mbuf *m, int maxbufs) 
-{ 
-	if (m->m_next == NULL) 
-		return (m); 
-
-	return _m_collapse(m, maxbufs);
+static __inline int
+m_collapse(struct mbuf *m, int maxbufs, struct mbuf **mnew) 
+{
+	/*
+	 * Add checks here
+	 */
+	
+	return _m_collapse(m, maxbufs, mnew);
 } 
 
 static __inline void 
@@ -133,3 +137,10 @@ m_freem_vec(struct mbuf *m)
 			uma_zfree(zone_mbuf, m);
 	}
 }
+
+
+int
+bus_dmamap_load_mvec_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
+                        bus_dma_segment_t *segs, int *nsegs, int flags);
+
+#endif
