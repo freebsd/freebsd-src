@@ -210,7 +210,7 @@ lro_flush_session(struct sge_qset *qs, struct sge_lro_session *s, struct mbuf *m
 	ih->ip_sum = 0;
 	ih->ip_sum = in_cksum_hdr(ih);
 
-	MBUF_HEADER_CHECK(smh);
+	MBUF_HEADER_CHECK(sm);
 	
 	sm->m_flags |= M_LRO;
 	t3_rx_eth(qs->port, &qs->rspq, sm, 2);
@@ -282,7 +282,7 @@ lro_update_session(struct sge_lro_session *s, struct mbuf *m)
 		return -1;
 	}
 
-	MBUF_HEADER_CHECK(smh);
+	MBUF_HEADER_CHECK(sm);
 	th = (struct tcphdr *)(sm->m_data + IPH_OFFSET + sizeof (struct ip));
 
 	if (olen) {
