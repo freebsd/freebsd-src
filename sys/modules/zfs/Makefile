@@ -15,6 +15,7 @@ SRCS+=	nvpair.c
 SRCS+=	opensolaris_kmem.c
 SRCS+=	opensolaris_kobj.c
 SRCS+=	opensolaris_kstat.c
+SRCS+=	opensolaris_misc.c
 SRCS+=	opensolaris_policy.c
 SRCS+=	opensolaris_string.c
 SRCS+=	opensolaris_vfs.c

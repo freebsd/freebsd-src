@@ -948,7 +948,7 @@ dmu_objset_find(char *name, int func(char *, void *), void *arg, int flags)
 	objset_t *os;
 	uint64_t snapobj;
 	zap_cursor_t zc;
-	zap_attribute_t attr;
+	zap_attribute_t *attr;
 	char *child;
 	int do_self, err;
 
@@ -958,6 +958,7 @@ dmu_objset_find(char *name, int func(char *, void *), void *arg, int flags)
 
 	/* NB: the $MOS dir doesn't have a head dataset */
 	do_self = (dd->dd_phys->dd_head_dataset_obj != 0);
+	attr = kmem_alloc(sizeof (zap_attribute_t), KM_SLEEP);
 
 	/*
 	 * Iterate over all children.
@@ -965,10 +966,10 @@ dmu_objset_find(char *name, int func(char *, void *), void *arg, int flags)
 	if (flags & DS_FIND_CHILDREN) {
 		for (zap_cursor_init(&zc, dd->dd_pool->dp_meta_objset,
 		    dd->dd_phys->dd_child_dir_zapobj);
-		    zap_cursor_retrieve(&zc, &attr) == 0;
+		    zap_cursor_retrieve(&zc, attr) == 0;
 		    (void) zap_cursor_advance(&zc)) {
-			ASSERT(attr.za_integer_length == sizeof (uint64_t));
-			ASSERT(attr.za_num_integers == 1);
+			ASSERT(attr->za_integer_length == sizeof (uint64_t));
+			ASSERT(attr->za_num_integers == 1);
 
 			/*
 			 * No separating '/' because parent's name ends in /.
@@ -977,7 +978,7 @@ dmu_objset_find(char *name, int func(char *, void *), void *arg, int flags)
 			/* XXX could probably just use name here */
 			dsl_dir_name(dd, child);
 			(void) strcat(child, "/");
-			(void) strcat(child, attr.za_name);
+			(void) strcat(child, attr->za_name);
 			err = dmu_objset_find(child, func, arg, flags);
 			kmem_free(child, MAXPATHLEN);
 			if (err)
@@ -987,6 +988,7 @@ dmu_objset_find(char *name, int func(char *, void *), void *arg, int flags)
 
 		if (err) {
 			dsl_dir_close(dd, FTAG);
+			kmem_free(attr, sizeof (zap_attribute_t));
 			return (err);
 		}
 	}
@@ -1002,16 +1004,16 @@ dmu_objset_find(char *name, int func(char *, void *), void *arg, int flags)
 		dmu_objset_close(os);
 
 		for (zap_cursor_init(&zc, dd->dd_pool->dp_meta_objset, snapobj);
-		    zap_cursor_retrieve(&zc, &attr) == 0;
+		    zap_cursor_retrieve(&zc, attr) == 0;
 		    (void) zap_cursor_advance(&zc)) {
-			ASSERT(attr.za_integer_length == sizeof (uint64_t));
-			ASSERT(attr.za_num_integers == 1);
+			ASSERT(attr->za_integer_length == sizeof (uint64_t));
+			ASSERT(attr->za_num_integers == 1);
 
 			child = kmem_alloc(MAXPATHLEN, KM_SLEEP);
 			/* XXX could probably just use name here */
 			dsl_dir_name(dd, child);
 			(void) strcat(child, "@");
-			(void) strcat(child, attr.za_name);
+			(void) strcat(child, attr->za_name);
 			err = func(child, arg);
 			kmem_free(child, MAXPATHLEN);
 			if (err)
@@ -1021,6 +1023,7 @@ dmu_objset_find(char *name, int func(char *, void *), void *arg, int flags)
 	}
 
 	dsl_dir_close(dd, FTAG);
+	kmem_free(attr, sizeof (zap_attribute_t));
 
 	if (err)
 		return (err);

@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -43,6 +43,7 @@
 
 #include <libzfs.h>
 #include <string.h>
+#include <unistd.h>
 #include "libzfs_impl.h"
 
 /*
@@ -50,7 +51,7 @@
  * in libzfs.h.  Note that there are some status results which go past the end
  * of this table, and hence have no associated message ID.
  */
-static char *msgid_table[] = {
+static char *zfs_msgid_table[] = {
 	"ZFS-8000-14",
 	"ZFS-8000-2Q",
 	"ZFS-8000-3C",
@@ -60,7 +61,8 @@ static char *msgid_table[] = {
 	"ZFS-8000-72",
 	"ZFS-8000-8A",
 	"ZFS-8000-9P",
-	"ZFS-8000-A5"
+	"ZFS-8000-A5",
+	"ZFS-8000-EY"
 };
 
 /*
@@ -69,7 +71,7 @@ static char *msgid_table[] = {
  * and the article referred to by 'zpool status' must match that indicated by
  * the syslog error message.  We override missing data as well as corrupt pool.
  */
-static char *msgid_table_active[] = {
+static char *zfs_msgid_table_active[] = {
 	"ZFS-8000-14",
 	"ZFS-8000-D3",		/* overridden */
 	"ZFS-8000-D3",		/* overridden */
@@ -82,7 +84,7 @@ static char *msgid_table_active[] = {
 	"ZFS-8000-CS",		/* overridden */
 };
 
-#define	NMSGID	(sizeof (msgid_table) / sizeof (msgid_table[0]))
+#define	NMSGID	(sizeof (zfs_msgid_table) / sizeof (zfs_msgid_table[0]))
 
 /* ARGSUSED */
 static int
@@ -178,6 +180,8 @@ check_status(nvlist_t *config, boolean_t isimport)
 	uint_t vsc;
 	uint64_t nerr;
 	uint64_t version;
+	uint64_t stateval;
+	uint64_t hostid = 0;
 
 	verify(nvlist_lookup_uint64(config, ZPOOL_CONFIG_VERSION,
 	    &version) == 0);
@@ -185,6 +189,16 @@ check_status(nvlist_t *config, boolean_t isimport)
 	    &nvroot) == 0);
 	verify(nvlist_lookup_uint64_array(nvroot, ZPOOL_CONFIG_STATS,
 	    (uint64_t **)&vs, &vsc) == 0);
+	verify(nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_STATE,
+	    &stateval) == 0);
+	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_HOSTID, &hostid);
+
+	/*
+	 * Pool last accessed by another system.
+	 */
+	if (hostid != 0 && (unsigned long)hostid != gethostid() &&
+	    stateval == POOL_STATE_ACTIVE)
+		return (ZPOOL_STATUS_HOSTID_MISMATCH);
 
 	/*
 	 * Newer on-disk version.
@@ -270,7 +284,7 @@ zpool_get_status(zpool_handle_t *zhp, char **msgid)
 	if (ret >= NMSGID)
 		*msgid = NULL;
 	else
-		*msgid = msgid_table_active[ret];
+		*msgid = zfs_msgid_table_active[ret];
 
 	return (ret);
 }
@@ -283,7 +297,7 @@ zpool_import_status(nvlist_t *config, char **msgid)
 	if (ret >= NMSGID)
 		*msgid = NULL;
 	else
-		*msgid = msgid_table[ret];
+		*msgid = zfs_msgid_table[ret];
 
 	return (ret);
 }

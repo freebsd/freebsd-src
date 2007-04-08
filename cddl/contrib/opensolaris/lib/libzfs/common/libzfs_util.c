@@ -167,6 +167,8 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_POOL_INVALARG:
 		return (dgettext(TEXT_DOMAIN, "invalid argument for "
 		    "this pool operation"));
+	case EZFS_NAMETOOLONG:
+		return (dgettext(TEXT_DOMAIN, "dataset name is too long"));
 	case EZFS_UNKNOWN:
 		return (dgettext(TEXT_DOMAIN, "unknown error"));
 	default:
@@ -306,6 +308,11 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 		    "dataset is busy"));
 		zfs_verror(hdl, EZFS_BUSY, fmt, ap);
 		break;
+
+	case ENAMETOOLONG:
+		zfs_verror(hdl, EZFS_NAMETOOLONG, fmt, ap);
+		break;
+
 	default:
 		zfs_error_aux(hdl, strerror(errno));
 		zfs_verror(hdl, EZFS_UNKNOWN, fmt, ap);
