@@ -68,16 +68,17 @@ static void
 znode_pageout_func(dmu_buf_t *dbuf, void *user_ptr)
 {
 	znode_t *zp = user_ptr;
-	vnode_t *vp = ZTOV(zp);
+	vnode_t *vp;
 
 	mutex_enter(&zp->z_lock);
+	vp = ZTOV(zp);
 	if (vp == NULL) {
 		mutex_exit(&zp->z_lock);
 		zfs_znode_free(zp);
 	} else if (vp->v_count == 0) {
 		ZTOV(zp) = NULL;
-		mutex_exit(&zp->z_lock);
 		vhold(vp);
+		mutex_exit(&zp->z_lock);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 		vrecycle(vp, curthread);
 		VOP_UNLOCK(vp, 0, curthread);
