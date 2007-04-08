@@ -52,11 +52,6 @@ typedef struct adapter adapter_t;
 
 struct sge_rspq;
 
-struct t3_mbuf_hdr {
-	struct mbuf *mh_head;
-	struct mbuf *mh_tail;
-};
-
 #if __FreeBSD_version > 700030
 #define INTR_FILTERS
 #define FIRMWARE_LATEST
