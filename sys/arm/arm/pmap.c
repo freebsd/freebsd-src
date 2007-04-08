@@ -1240,18 +1240,6 @@ pmap_dcache_wbinv_all(pmap_t pm)
 }
 
 /*
- * this routine defines the region(s) of memory that should
- * not be tested for the modified bit.
- */
-static PMAP_INLINE int
-pmap_track_modified(vm_offset_t va)
-{
-	if ((va < kmi.clean_sva) || (va >= kmi.clean_eva)) 
-		return 1;
-	else
-		return 0;
-}
-/*
  * PTE_SYNC_CURRENT:
  *
  *     Make sure the pte is written out to RAM.
@@ -1595,8 +1583,7 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 		ptep = &l2b->l2b_kva[l2pte_index(va)];
 		npte = opte = *ptep;
 
-		if (maskbits & (PVF_WRITE|PVF_MOD) &&
-		    !pmap_track_modified(pv->pv_va)) {
+		if (maskbits & (PVF_WRITE|PVF_MOD)) {
 			if ((pv->pv_flags & PVF_NC)) {
 				/* 
 				 * Entry is not cacheable:
@@ -1654,7 +1641,7 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 			}
 		}
 
-		if (maskbits & PVF_REF && !pmap_track_modified(pv->pv_va)) {
+		if (maskbits & PVF_REF) {
 			if ((pv->pv_flags & PVF_NC) == 0 &&
 			    (maskbits & (PVF_WRITE|PVF_MOD)) == 0) {
 				/*
@@ -2079,10 +2066,8 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 			goto out;
 		}
 
-		if (pmap_track_modified(pv->pv_va)) {
-			pg->md.pvh_attrs |= PVF_REF | PVF_MOD;
-			vm_page_dirty(pg);
-		}
+		pg->md.pvh_attrs |= PVF_REF | PVF_MOD;
+		vm_page_dirty(pg);
 		pv->pv_flags |= PVF_REF | PVF_MOD;
 
 		/* 
@@ -3305,8 +3290,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 					f = pmap_modify_pv(pg, pm, sva,
 					    PVF_WRITE, 0);
 					pmap_vac_me_harder(pg, pm, sva);
-					if (pmap_track_modified(sva))
-						vm_page_dirty(pg);
+					vm_page_dirty(pg);
 				} else
 					f = PVF_REF | PVF_EXEC;
 
@@ -3429,8 +3413,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			 * writable from the outset.
 			 */
 			nflags |= PVF_MOD;
-			if (!(m->md.pvh_attrs & PVF_MOD) &&
-			    pmap_track_modified(va))
+			if (!(m->md.pvh_attrs & PVF_MOD))
 				vm_page_dirty(m);
 		}
 		if (m && opte)
@@ -3517,8 +3500,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if ((pve = pmap_get_pv_entry()) == NULL) {
 				panic("pmap_enter: no pv entries");	
 			}
-		if (m && !(m->flags & (PG_UNMANAGED | PG_FICTITIOUS)))
+		if (m && !(m->flags & (PG_UNMANAGED | PG_FICTITIOUS))) {
+			KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
+			    ("pmap_enter: managed mapping within the clean submap"));
 			pmap_enter_pv(m, pve, pmap, va, nflags);
+		}
 	}
 	/*
 	 * Make sure userland mappings get the right permissions
