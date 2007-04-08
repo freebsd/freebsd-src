@@ -16,6 +16,8 @@
         ..
         modules
         ..
+        zfs
+        ..
     ..
     dev             mode=0555
     ..

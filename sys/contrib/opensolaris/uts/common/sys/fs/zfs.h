@@ -230,7 +230,7 @@ extern zpool_prop_t zpool_prop_iter(zpool_prop_f, void *, boolean_t);
  * The location of the pool configuration repository, shared between kernel and
  * userland.
  */
-#define	ZPOOL_CACHE_DIR		"/etc/zfs"
+#define	ZPOOL_CACHE_DIR		"/boot/zfs"
 #define	ZPOOL_CACHE_FILE	"zpool.cache"
 #define	ZPOOL_CACHE_TMP		".zpool.cache"
 
