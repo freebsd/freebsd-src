@@ -258,8 +258,7 @@ ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir,
 		    dir ? BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
 
     ch->dma->cur_iosize = count;
-    ch->dma->flags &= ATA_DMA_READ;
-    ch->dma->flags |= dir ? (ATA_DMA_LOADED | ATA_DMA_READ) : ATA_DMA_LOADED;
+    ch->dma->flags = dir ? (ATA_DMA_LOADED | ATA_DMA_READ) : ATA_DMA_LOADED;
     return 0;
 }
 
