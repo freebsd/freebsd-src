@@ -198,6 +198,8 @@ extern struct pv_addr systempage;
 static void pmap_free_pv_entry (pv_entry_t);
 static pv_entry_t pmap_get_pv_entry(void);
 
+static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
+    vm_prot_t, boolean_t);
 static void		pmap_vac_me_harder(struct vm_page *, pmap_t,
     vm_offset_t);
 static void		pmap_vac_me_kpmap(struct vm_page *, pmap_t, 
@@ -3341,6 +3343,19 @@ void
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     boolean_t wired)
 {
+
+	vm_page_lock_queues();
+	pmap_enter_locked(pmap, va, m, prot, wired);
+	vm_page_unlock_queues();
+}
+
+/*
+ *	The page queues and pmap must be locked.
+ */
+static void
+pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    boolean_t wired)
+{
 	struct l2_bucket *l2b = NULL;
 	struct vm_page *opg;
 	struct pv_entry *pve = NULL;
@@ -3349,7 +3364,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	u_int oflags;
 	vm_paddr_t pa;
 
-	vm_page_lock_queues();
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (va == vector_page) {
 		pa = systempage.pv_pa;
 		m = NULL;
@@ -3565,7 +3580,34 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (m)
 			pmap_vac_me_harder(m, pmap, va);
 	}
-	vm_page_unlock_queues();
+}
+
+/*
+ * Maps a sequence of resident pages belonging to the same object.
+ * The sequence begins with the given page m_start.  This page is
+ * mapped at the given virtual address start.  Each subsequent page is
+ * mapped at a virtual address that is offset from start by the same
+ * amount as the page is offset from m_start within the object.  The
+ * last page in the sequence is the page with the largest offset from
+ * m_start that can be mapped at a virtual address less than the given
+ * virtual address end.  Not every virtual page between start and end
+ * is mapped; only those for which a resident page exists with the
+ * corresponding offset from m_start are mapped.
+ */
+void
+pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
+    vm_page_t m_start, vm_prot_t prot)
+{
+	vm_page_t m;
+	vm_pindex_t diff, psize;
+
+	psize = atop(end - start);
+	m = m_start;
+	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
+		pmap_enter_locked(pmap, start + ptoa(diff), m, prot &
+		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+		m = TAILQ_NEXT(m, listq);
+	}
 }
 
 /*
@@ -3582,16 +3624,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     vm_page_t mpte)
 {
 
-	vm_page_busy(m);
-	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(m->object);
-	mtx_lock(&Giant);
-	pmap_enter(pmap, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
-	pmap_idcache_wbinv_all(pmap);
-	mtx_unlock(&Giant);
-	VM_OBJECT_LOCK(m->object);
-	vm_page_lock_queues();
-	vm_page_wakeup(m);
+	pmap_enter_locked(pmap, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
+	    FALSE);
 	return (NULL);
 }
 
