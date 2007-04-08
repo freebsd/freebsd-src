@@ -296,6 +296,10 @@ prison_find(int prid)
 	LIST_FOREACH(pr, &allprison, pr_list) {
 		if (pr->pr_id == prid) {
 			mtx_lock(&pr->pr_mtx);
+			if (pr->pr_ref == 0) {
+				mtx_unlock(&pr->pr_mtx);
+				break;
+			}
 			return (pr);
 		}
 	}
@@ -305,36 +309,35 @@ prison_find(int prid)
 void
 prison_free(struct prison *pr)
 {
-	struct prison_service *psrv;
 
-	sx_xlock(&allprison_lock);
 	mtx_lock(&pr->pr_mtx);
 	pr->pr_ref--;
 	if (pr->pr_ref == 0) {
 		mtx_unlock(&pr->pr_mtx);
-		LIST_REMOVE(pr, pr_list);
-		prisoncount--;
-		sx_downgrade(&allprison_lock);
-		TAILQ_FOREACH(psrv, &prison_services, ps_next) {
-			psrv->ps_destroy(psrv, pr);
-		}
-		sx_sunlock(&allprison_lock);
-
 		TASK_INIT(&pr->pr_task, 0, prison_complete, pr);
 		taskqueue_enqueue(taskqueue_thread, &pr->pr_task);
 		return;
 	}
 	mtx_unlock(&pr->pr_mtx);
-	sx_xunlock(&allprison_lock);
 }
 
 static void
 prison_complete(void *context, int pending)
 {
+	struct prison_service *psrv;
 	struct prison *pr;
 	int vfslocked;
 
 	pr = (struct prison *)context;
+
+	sx_xlock(&allprison_lock);
+	LIST_REMOVE(pr, pr_list);
+	prisoncount--;
+	sx_downgrade(&allprison_lock);
+	TAILQ_FOREACH(psrv, &prison_services, ps_next) {
+		psrv->ps_destroy(psrv, pr);
+	}
+	sx_sunlock(&allprison_lock);
 
 	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vrele(pr->pr_root);
@@ -351,6 +354,8 @@ prison_hold(struct prison *pr)
 {
 
 	mtx_lock(&pr->pr_mtx);
+	KASSERT(pr->pr_ref > 0,
+	    ("Trying to hold dead prison (id=%d).", pr->pr_id));
 	pr->pr_ref++;
 	mtx_unlock(&pr->pr_mtx);
 }
