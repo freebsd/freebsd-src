@@ -1383,6 +1383,20 @@ root_mount_done(void)
 	mtx_unlock(&mountlist_mtx);
 }
 
+ /*
+ * Return true if root is already mounted.
+ */
+int
+root_mounted(void)
+{
+	int mounted;
+
+	mtx_lock(&mountlist_mtx);
+	mounted = root_mount_complete;
+	mtx_unlock(&mountlist_mtx);
+	return (mounted);
+}
+
 /*
  * Wait until root is mounted.
  */
