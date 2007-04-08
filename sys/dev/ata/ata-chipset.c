@@ -776,7 +776,7 @@ ata_ahci_dmainit(device_t dev)
 	ch->dma->setprd = ata_ahci_dmasetprd;
 	ch->dma->max_iosize = 8192 * DEV_BSIZE;
 	if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_64BIT)
-	    ch->dma->flags |= ATA_DMA_64BIT;
+	    ch->dma->max_address = BUS_SPACE_MAXADDR;
     }
 }
 
@@ -2734,7 +2734,7 @@ ata_marvell_edma_dmainit(device_t dev)
 	ch->dma->setprd = ata_marvell_edma_dmasetprd;
 	
 	if (ATA_INL(ctlr->r_res1, 0x00d00) & 0x00000004)
-	    ch->dma->flags |= ATA_DMA_64BIT;
+	    ch->dma->max_address = BUS_SPACE_MAXADDR;
     }
 }
 
@@ -4816,8 +4816,7 @@ ata_siiprb_dmainit(device_t dev)
     if (ch->dma) {
 	/* note start and stop are not used here */
 	ch->dma->setprd = ata_siiprb_dmasetprd;
-
-	ch->dma->flags |= ATA_DMA_64BIT;
+	ch->dma->max_address = BUS_SPACE_MAXADDR;
     }
 }
 

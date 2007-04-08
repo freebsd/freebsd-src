@@ -441,11 +441,11 @@ struct ata_dma {
     u_int32_t                   segsize;        /* DMA SG list segment size */
     u_int32_t                   max_iosize;     /* DMA data max IO size */
     u_int32_t                   cur_iosize;     /* DMA data current IO size */
+    u_int64_t                   max_address;    /* highest DMA'able address */
     int                         flags;
 #define ATA_DMA_READ                    0x01    /* transaction is a read */
 #define ATA_DMA_LOADED                  0x02    /* DMA tables etc loaded */
 #define ATA_DMA_ACTIVE                  0x04    /* DMA transfer in progress */
-#define ATA_DMA_64BIT                   0x10    /* supports 64bit addressing */
 
     void (*alloc)(device_t dev);
     void (*free)(device_t dev);
