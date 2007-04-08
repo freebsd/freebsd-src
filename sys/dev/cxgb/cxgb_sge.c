@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/common/cxgb_t3_cpl.h>
 #include <dev/cxgb/common/cxgb_firmware_exports.h>
 
+#include <dev/cxgb/sys/mvec.h>
+
 #define USE_GTS 0
 
 #define SGE_RX_SM_BUF_SIZE	1536
@@ -268,9 +270,8 @@ sgl_len(unsigned int n)
  *	Return a packet containing the immediate data of the given response.
  */
 static __inline int
-get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct t3_mbuf_hdr *mh)
+get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void *cl)
 {
-	struct mbuf *m;
 	int len;
 	uint32_t flags = ntohl(resp->flags);       	
 	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
@@ -291,15 +292,14 @@ get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct t3_mbuf_hdr *m
 		
 		switch (sopeop) {
 		case RSPQ_SOP_EOP:
-			mh->mh_head = mh->mh_tail = m;
-			m->m_pkthdr.len = len;
-			m->m_flags |= M_PKTHDR;
+			m->m_len = m->m_pkthdr.len = len; 
+			m->m_flags |= M_PKTHDR; 
+			memcpy(m->m_data, resp->imm_data, IMMED_PKT_SIZE); 
+			MH_ALIGN(m, IMMED_PKT_SIZE); 
 			break;
 		case RSPQ_EOP:	
-			m->m_flags &= ~M_PKTHDR;
-			mh->mh_head->m_pkthdr.len += len;
-			mh->mh_tail->m_next = m;
-			mh->mh_tail = m;
+			memcpy(cl, resp->imm_data, len); 
+			m_iovappend(m, cl, MSIZE, len, 0); 
 			break;
 		}
 	}
@@ -1759,7 +1759,8 @@ t3_rx_eth(struct port_info *pi, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 	} 
 #endif
 	m->m_pkthdr.rcvif = ifp;
-
+	
+	m_explode(m);
 	m_adj(m, sizeof(*cpl) + ethpad);
 
 	(*ifp->if_input)(ifp, m);
@@ -1784,7 +1785,7 @@ t3_rx_eth(struct port_info *pi, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 
 static int
 get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
-    struct t3_mbuf_hdr *mh, struct rsp_desc *r, struct mbuf *m)
+    struct mbuf *m, struct rsp_desc *r)
 {
 	
 	unsigned int len_cq =  ntohl(r->len_cq);
@@ -1801,47 +1802,34 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	bus_dmamap_sync(fl->entry_tag, sd->map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(fl->entry_tag, sd->map);
 
-	m_cljset(m, sd->cl, fl->type);
-	m->m_len = len;
 	
 	switch(sopeop) {
 	case RSPQ_SOP_EOP:
 		DBG(DBG_RX, ("get_packet: SOP-EOP m %p\n", m));
-		mh->mh_head = mh->mh_tail = m;
-		m->m_pkthdr.len = len;
+		m_cljset(m, sd->cl, fl->type);
+		m->m_len = m->m_pkthdr.len = len;
 		m->m_flags |= M_PKTHDR;
 		ret = 1;
+		goto done;
 		break;
 	case RSPQ_NSOP_NEOP:
 		DBG(DBG_RX, ("get_packet: NO_SOP-NO_EOP m %p\n", m));
-		m->m_flags &= ~M_PKTHDR;
-		if (mh->mh_tail == NULL) {
-			if (cxgb_debug)
-				printf("discarding intermediate descriptor entry\n");
-			m_freem(m);
-			break;
-		}
-		mh->mh_tail->m_next = m;
-		mh->mh_tail = m;
-		mh->mh_head->m_pkthdr.len += len;
 		ret = 0;
 		break;
 	case RSPQ_SOP:
 		DBG(DBG_RX, ("get_packet: SOP m %p\n", m));
-		m->m_pkthdr.len = len;
-		mh->mh_head = mh->mh_tail = m;
 		m->m_flags |= M_PKTHDR;
+		m_iovinit(m);
 		ret = 0;
 		break;
 	case RSPQ_EOP:
 		DBG(DBG_RX, ("get_packet: EOP m %p\n", m));
-		m->m_flags &= ~M_PKTHDR;
-		mh->mh_head->m_pkthdr.len += len;
-		mh->mh_tail->m_next = m;
-		mh->mh_tail = m;
 		ret = 1;
 		break;
 	}
+	m_iovappend(m, sd->cl, fl->buf_size, len, 0);
+
+done:	
 	if (++fl->cidx == fl->size)
 		fl->cidx = 0;
 
@@ -1967,31 +1955,35 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			printf("async notification\n");
 
 		} else if  (flags & F_RSPD_IMM_DATA_VALID) {
+			struct mbuf *m = NULL;
 			if (cxgb_debug)
 				printf("IMM DATA VALID\n");
-			
-			if(get_imm_packet(adap, r, &rspq->mh) == 0) {
+			if (rspq->m == NULL)  
+				rspq->m = m_gethdr(M_NOWAIT, MT_DATA);
+                        else
+				m = m_gethdr(M_NOWAIT, MT_DATA);
+
+			if (rspq->m == NULL || m == NULL) {
 				rspq->next_holdoff = NOMEM_INTR_DELAY;
 				budget_left--;
 				break;
-			} else {
-				eop = 1;
 			}
-
+			get_imm_packet(adap, r, rspq->m, m);
+			eop = 1;
 			rspq->imm_data++;
 		} else if (r->len_cq) {			
 			int drop_thresh = eth ? SGE_RX_DROP_THRES : 0;
-			struct mbuf *m;
 
-			m = m_gethdr(M_NOWAIT, MT_DATA);
-
-			if (m == NULL) {
-				log(LOG_WARNING, "failed to get mbuf for packet\n");
-				break;
+                        if (rspq->m == NULL) { 
+				rspq->m = m_gethdr(M_NOWAIT, MT_DATA);
+				rspq->m->m_flags = 0;
+                        } else if (rspq->m == NULL) { 
+				log(LOG_WARNING, "failed to get mbuf for packet\n"); 
+				break; 
 			}
-			
+
 			ethpad = 2;
-			eop = get_packet(adap, drop_thresh, qs, &rspq->mh, r, m);
+			eop = get_packet(adap, drop_thresh, qs, rspq->m, r);
 		} else {
 			DPRINTF("pure response\n");
 			rspq->pure_rsps++;
@@ -2016,14 +2008,14 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 		}
 		
 		if (eop) {
-			prefetch(rspq->mh.mh_head->m_data); 
-			prefetch(rspq->mh.mh_head->m_data + L1_CACHE_BYTES); 
+			prefetch(rspq->m->m_data); 
+			prefetch(rspq->m->m_data + L1_CACHE_BYTES); 
 
 			if (eth) {				
-				t3_rx_eth_lro(adap, rspq, &rspq->mh, ethpad,
+				t3_rx_eth_lro(adap, rspq, rspq->m, ethpad,
 				    rss_hash, rss_csum, lro);
 
-				rspq->mh.mh_tail = rspq->mh.mh_head = NULL;
+				rspq->m = NULL;
 			} else {
 #ifdef notyet
 				if (__predict_false(r->rss_hdr.opcode == CPL_TRACE_PKT))
@@ -2038,7 +2030,6 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			__refill_fl(adap, &qs->fl[0]);
 			__refill_fl(adap, &qs->fl[1]);
 #endif
-			
 		}
 		--budget_left;
 	}
@@ -2158,11 +2149,18 @@ t3_intr_msix(void *data)
 	mtx_unlock(&rspq->lock);
 }
 
+/* 
+ * broken by recent mbuf changes 
+ */ 
 static int
 t3_lro_enable(SYSCTL_HANDLER_ARGS)
 {
 	adapter_t *sc;
 	int i, j, enabled, err, nqsets = 0;
+
+#ifndef LRO_WORKING
+	return (0);
+#endif	
 	
 	sc = arg1;
 	enabled = sc->sge.qs[0].lro.enabled;

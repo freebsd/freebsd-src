@@ -115,7 +115,7 @@ enum {
 };
 
 struct sge_lro_session {
-	struct t3_mbuf_hdr mh;
+	struct mbuf *m;
 	uint32_t seq;
 	uint16_t ip_len;
 };
@@ -154,7 +154,7 @@ struct sge_rspq {
 	uint32_t	cntxt_id;
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
-	struct t3_mbuf_hdr mh;
+	struct mbuf	*m;
 	struct mtx      lock;
 };
 
@@ -403,7 +403,7 @@ int t3_encap(struct port_info *, struct mbuf **);
 int t3_sge_init_sw(adapter_t *);
 void t3_sge_deinit_sw(adapter_t *);
 
-void t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct t3_mbuf_hdr *mh,
+void t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,
     int ethpad, uint32_t rss_hash, uint32_t rss_csum, int lro);
 void t3_rx_eth(struct port_info *p, struct sge_rspq *rq, struct mbuf *m, int ethpad);
 void t3_sge_lro_flush_all(adapter_t *adap, struct sge_qset *qs);
