@@ -881,7 +881,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
 
-	if (rootvnode != NULL || g_eli_tries == 0)
+	if (root_mounted() || g_eli_tries == 0)
 		return (NULL);
 
 	G_ELI_DEBUG(3, "Tasting %s.", pp->name);
