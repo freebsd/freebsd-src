@@ -946,7 +946,8 @@ cmi_attach(device_t dev)
 	sc->st = rman_get_bustag(sc->reg);
 	sc->sh = rman_get_bushandle(sc->reg);
 
-	cmi_midiattach(sc);
+	if (0)
+		cmi_midiattach(sc);
 
 	sc->irqid = 0;
 	sc->irq   = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
