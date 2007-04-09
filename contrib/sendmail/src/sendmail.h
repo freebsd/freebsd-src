@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1008.2.1 2006/05/23 01:32:07 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1042 2007/02/27 22:21:13 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -70,6 +70,7 @@ SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1008.2.1 2006/05/23 
 #include <sm/errstring.h>
 #include <sm/sysexits.h>
 #include <sm/shm.h>
+#include <sm/misc.h>
 
 #ifdef LOG
 # include <syslog.h>
@@ -332,7 +333,7 @@ typedef struct address ADDRESS;
 extern ADDRESS	NullAddress;	/* a null (template) address [main.c] */
 
 /* functions */
-extern void	cataddr __P((char **, char **, char *, int, int));
+extern void	cataddr __P((char **, char **, char *, int, int, bool));
 extern char	*crackaddr __P((char *, ENVELOPE *));
 extern bool	emptyaddr __P((ADDRESS *));
 extern ADDRESS	*getctladdr __P((ADDRESS *));
@@ -351,9 +352,23 @@ extern int	sendtolist __P((char *, ADDRESS *, ADDRESS **, int, ENVELOPE *));
 extern int	removefromlist __P((char *, ADDRESS **, ENVELOPE *));
 #endif /* MILTER */
 extern void	setsender __P((char *, ENVELOPE *, char **, int, bool));
+typedef void esmtp_args_F __P((ADDRESS *, char *, char *, ENVELOPE *));
+extern void	parse_esmtp_args __P((ENVELOPE *, ADDRESS *, char *, char *,
+			char *, char *args[], esmtp_args_F));
+extern esmtp_args_F mail_esmtp_args;
+extern esmtp_args_F rcpt_esmtp_args;
+extern void	reset_mail_esmtp_args __P((ENVELOPE *));
 
 /* macro to simplify the common call to rewrite() */
 #define REWRITE(pvp, rs, env)	rewrite(pvp, rs, 0, env, MAXATOM)
+
+/*
+**  Token Tables for prescan
+*/
+
+extern unsigned char	ExtTokenTab[256];	/* external strings */
+extern unsigned char	IntTokenTab[256];	/* internal strings */
+
 
 /*
 **  Mailer definition structure.
@@ -740,7 +755,7 @@ extern int	mci_purge_persistent __P((char *, char *));
 extern MCI	**mci_scan __P((MCI *));
 extern void	mci_setstat __P((MCI *, int, char *, char *));
 extern void	mci_store_persistent __P((MCI *));
-extern int	mci_traverse_persistent __P((int (*)(), char *));
+extern int	mci_traverse_persistent __P((int (*)(char *, char *), char *));
 extern void	mci_unlock_host __P((MCI *));
 
 EXTERN int	MaxMciCache;		/* maximum entries in MCI cache */
@@ -807,13 +822,13 @@ extern struct hdrinfo	HdrInfo[];
 #define CHHDR_QUEUE	0x0008	/* header from queue file */
 
 /* functions */
-extern void	addheader __P((char *, char *, int, ENVELOPE *));
+extern void	addheader __P((char *, char *, int, ENVELOPE *, bool));
 extern unsigned long	chompheader __P((char *, int, HDR **, ENVELOPE *));
 extern bool	commaize __P((HDR *, char *, bool, MCI *, ENVELOPE *));
 extern HDR	*copyheader __P((HDR *, SM_RPOOL_T *));
 extern void	eatheader __P((ENVELOPE *, bool, bool));
 extern char	*hvalue __P((char *, HDR *));
-extern void	insheader __P((int, char *, char *, int, ENVELOPE *));
+extern void	insheader __P((int, char *, char *, int, ENVELOPE *, bool));
 extern bool	isheader __P((char *));
 extern bool	putfromline __P((MCI *, ENVELOPE *));
 extern void	setupheaders __P((void));
@@ -887,9 +902,8 @@ struct envelope
 	int		e_xfqdir;	/* index into queue directories (xf) */
 	SM_FILE_T	*e_xfp;		/* transcript file */
 	SM_FILE_T	*e_lockfp;	/* the lock file for this message */
-	char		*e_message;	/* error message; readonly; NULL, or
-					 * static storage, or allocated from
-					 * e_rpool */
+	char		*e_message;	/* error message; readonly; NULL,
+					 * or allocated from e_rpool */
 	char		*e_statmsg;	/* stat msg (changes per delivery).
 					 * readonly. NULL or allocated from
 					 * e_rpool. */
@@ -911,6 +925,7 @@ struct envelope
 	long		e_deliver_by;	/* deliver by */
 	int		e_dlvr_flag;	/* deliver by flag */
 	SM_RPOOL_T	*e_rpool;	/* resource pool for this envelope */
+	unsigned int	e_features;	/* server features */
 };
 
 /* values for e_flags */
@@ -1022,34 +1037,37 @@ struct rewrite
 **		cannot conflict.
 */
 
+/* "out of band" indicator */
+/* sm/sendmail.h #define METAQUOTE ((unsigned char)0377) quotes the next octet */
+
 /* left hand side items */
 #define MATCHZANY	((unsigned char)0220)	/* match zero or more tokens */
 #define MATCHANY	((unsigned char)0221)	/* match one or more tokens */
 #define MATCHONE	((unsigned char)0222)	/* match exactly one token */
 #define MATCHCLASS	((unsigned char)0223)	/* match one token in a class */
-#define MATCHNCLASS	((unsigned char)0224)	/* match anything not in class */
-#define MATCHREPL	((unsigned char)0225)	/* replacement on RHS for above */
+#define MATCHNCLASS	((unsigned char)0224)	/* match tokens not in class */
 
 /* right hand side items */
+#define MATCHREPL	((unsigned char)0225)	/* RHS replacement for above */
 #define CANONNET	((unsigned char)0226)	/* canonical net, next token */
 #define CANONHOST	((unsigned char)0227)	/* canonical host, next token */
 #define CANONUSER	((unsigned char)0230)	/* canonical user, next N tokens */
 #define CALLSUBR	((unsigned char)0231)	/* call another rewriting set */
 
-/* conditionals in macros */
+/* conditionals in macros (anywhere) */
 #define CONDIF		((unsigned char)0232)	/* conditional if-then */
 #define CONDELSE	((unsigned char)0233)	/* conditional else */
 #define CONDFI		((unsigned char)0234)	/* conditional fi */
 
-/* bracket characters for host name lookup */
+/* bracket characters for RHS host name lookup */
 #define HOSTBEGIN	((unsigned char)0235)	/* hostname lookup begin */
-#define HOSTEND	((unsigned char)0236)	/* hostname lookup end */
+#define HOSTEND		((unsigned char)0236)	/* hostname lookup end */
 
-/* bracket characters for generalized lookup */
+/* bracket characters for RHS generalized lookup */
 #define LOOKUPBEGIN	((unsigned char)0205)	/* generalized lookup begin */
 #define LOOKUPEND	((unsigned char)0206)	/* generalized lookup end */
 
-/* macro substitution character */
+/* macro substitution characters (anywhere) */
 #define MACROEXPAND	((unsigned char)0201)	/* macro expansion */
 #define MACRODEXPAND	((unsigned char)0202)	/* deferred macro expansion */
 
@@ -1098,11 +1116,11 @@ extern int	macid_parse __P((char *, char **));
 #define macid(name)  macid_parse(name, NULL)
 extern char	*macname __P((int));
 extern char	*macvalue __P((int, ENVELOPE *));
-extern int	rscheck __P((char *, char *, char *, ENVELOPE *, int, int, char *, char *));
+extern int	rscheck __P((char *, char *, char *, ENVELOPE *, int, int, char *, char *, ADDRESS *));
 extern int	rscap __P((char *, char *, char *, ENVELOPE *, char ***, char *, int));
 extern void	setclass __P((int, char *));
 extern int	strtorwset __P((char *, char **, int));
-extern void	translate_dollars __P((char *));
+extern char	*translate_dollars __P((char *, char *, int *));
 extern bool	wordinclass __P((char *, int));
 
 /*
@@ -1279,9 +1297,9 @@ extern char	*map_rewrite __P((MAP *, const char *, size_t, char **));
 extern char	*ni_propval __P((char *, char *, char *, char *, int));
 #endif /* NETINFO */
 extern bool	openmap __P((MAP *));
+extern int	udbexpand __P((ADDRESS *, ADDRESS **, int, ENVELOPE *));
 #if USERDB
 extern void	_udbx_close __P((void));
-extern int	udbexpand __P((ADDRESS *, ADDRESS **, int, ENVELOPE *));
 extern char	*udbsender __P((char *, SM_RPOOL_T *));
 #endif /* USERDB */
 
@@ -1587,6 +1605,7 @@ extern void	set_delivery_mode __P((int, ENVELOPE *));
 #define PXLF_STRIP8BIT		0x0002	/* strip 8th bit */
 #define PXLF_HEADER		0x0004	/* map newlines in headers */
 #define PXLF_NOADDEOL		0x0008	/* if EOL not present, don't add one */
+#define PXLF_STRIPMQUOTE	0x0010	/* strip METAQUOTEs */
 
 /*
 **  Privacy flags
@@ -1607,11 +1626,9 @@ extern void	set_delivery_mode __P((int, ENVELOPE *));
 #define PRIV_NOETRN		0x00080000	/* disallow ETRN command */
 #define PRIV_NOBODYRETN		0x00100000	/* do not return bodies on bounces */
 #define PRIV_NORECEIPTS		0x00200000	/* disallow return receipts */
-#if _FFR_PRIV_NOACTUALRECIPIENT
-# define PRIV_NOACTUALRECIPIENT	0x00400000 /* no X-Actual-Recipient in DSNs */
-#endif /* _FFR_PRIV_NOACTUALRECIPIENT */
+#define PRIV_NOACTUALRECIPIENT	0x00400000 /* no X-Actual-Recipient in DSNs */
 
-/* don't give no info, anyway, anyhow */
+/* don't give no info, anyway, anyhow (in the main SMTP transaction) */
 #define PRIV_GOAWAY		0x0000ffff
 
 /* struct defining such things */
@@ -1636,6 +1653,7 @@ EXTERN unsigned long	PrivacyFlags;	/* privacy flags */
 #define RF_COPYPADDR		0x020	/* copy print address */
 #define RF_COPYALL		(RF_COPYPARSE|RF_COPYPADDR)
 #define RF_COPYNONE		0
+#define RF_RM_ADDR		0x040	/* address to be removed */
 
 /*
 **  Flags passed to rscheck
@@ -1699,21 +1717,18 @@ struct milter
 	int		mf_sock;	/* connected socket */
 	char		mf_state;	/* state of filter */
 	time_t		mf_timeout[SMFTO_NUM_TO]; /* timeouts */
+#if _FFR_MILTER_CHECK
+	/* for testing only */
+	mi_int32	mf_mta_prot_version;
+	mi_int32	mf_mta_prot_flags;
+	mi_int32	mf_mta_actions;
+#endif /* _FFR_MILTER_CHECK */
 };
 
 /* MTA flags */
 # define SMF_REJECT		'R'	/* Reject connection on filter fail */
 # define SMF_TEMPFAIL		'T'	/* tempfail connection on failure */
 # define SMF_TEMPDROP		'4'	/* 421 connection on failure */
-
-/* states */
-# define SMFS_CLOSED		'C'	/* closed for all further actions */
-# define SMFS_OPEN		'O'	/* connected to remote milter filter */
-# define SMFS_INMSG		'M'	/* currently servicing a message */
-# define SMFS_DONE		'D'	/* done with current message */
-# define SMFS_CLOSABLE		'Q'	/* done with current connection */
-# define SMFS_ERROR		'E'	/* error state */
-# define SMFS_READY		'R'	/* ready for action */
 
 EXTERN struct milter	*InputFilters[MAXFILTERS];
 EXTERN char		*InputFilterList;
@@ -1759,7 +1774,8 @@ extern void	vendor_set_uid __P((UID_T));
 struct termescape
 {
 	char	*te_rv_on;	/* turn reverse-video on */
-	char	*te_rv_off;	/* turn reverse-video off */
+	char	*te_under_on;	/* turn underlining on */
+	char	*te_normal;	/* revert to normal output */
 };
 
 /*
@@ -2162,6 +2178,7 @@ EXTERN bool	DontPruneRoutes;	/* don't prune source routes */
 EXTERN bool	ForkQueueRuns;	/* fork for each job when running the queue */
 EXTERN bool	FromFlag;	/* if set, "From" person is explicit */
 EXTERN bool	GrabTo;		/* if set, get recipients from msg */
+EXTERN bool	EightBitAddrOK;	/* we'll let 8-bit addresses through */
 EXTERN bool	HasEightBits;	/* has at least one eight bit input byte */
 EXTERN bool	HasWildcardMX;	/* don't use MX records when canonifying */
 EXTERN bool	HoldErrs;	/* only output errors to transcript */
@@ -2184,9 +2201,7 @@ EXTERN bool	SendMIMEErrors;	/* send error messages in MIME format */
 EXTERN bool	SevenBitInput;	/* force 7-bit data on input */
 EXTERN bool	SingleLineFromHeader;	/* force From: header to be one line */
 EXTERN bool	SingleThreadDelivery;	/* single thread hosts on delivery */
-#if _FFR_SOFT_BOUNCE
 EXTERN bool	SoftBounce;	/* replace 5xy by 4xy (for testing) */
-#endif /* _FFR_SOFT_BOUNCE */
 EXTERN bool	volatile StopRequest;	/* stop sending output */
 EXTERN bool	SuprErrs;	/* set if we are suppressing errors */
 EXTERN bool	TryNullMXList;	/* if we are the best MX, try host directly */
@@ -2256,9 +2271,7 @@ EXTERN gid_t	RunAsGid;	/* GID to become for bulk of run */
 EXTERN gid_t	EffGid;		/* effective gid */
 #if SM_CONF_SHM
 EXTERN key_t	ShmKey;		/* shared memory key */
-# if _FFR_SELECT_SHM
 EXTERN char	*ShmKeyFile;	/* shared memory key file */
-# endif /* _FFR_SELECT_SHM */
 #endif /* SM_CONF_SHM */
 EXTERN pid_t	CurrentPid;	/* current process id */
 EXTERN pid_t	DaemonPid;	/* process id of daemon */
@@ -2291,9 +2304,7 @@ EXTERN char	*FallbackMX;	/* fall back MX host */
 EXTERN char	*FallbackSmartHost;	/* fall back smart host */
 EXTERN char	*FileName;	/* name to print on error messages */
 EXTERN char	*ForwardPath;	/* path to search for .forward files */
-#if _FFR_HELONAME
 EXTERN char	*HeloName;	/* hostname to announce in HELO */
-#endif /* _FFR_HELONAME */
 EXTERN char	*HelpFile;	/* location of SMTP help file */
 EXTERN char	*HostStatDir;	/* location of host status information */
 EXTERN char	*HostsFile;	/* path to /etc/hosts file */
@@ -2432,7 +2443,7 @@ extern char	*milter_connect __P((char *, SOCKADDR, ENVELOPE *, char *));
 extern char	*milter_helo __P((char *, ENVELOPE *, char *));
 extern char	*milter_envfrom __P((char **, ENVELOPE *, char *));
 extern char	*milter_data_cmd __P((ENVELOPE *, char *));
-extern char	*milter_envrcpt __P((char **, ENVELOPE *, char *));
+extern char	*milter_envrcpt __P((char **, ENVELOPE *, char *, bool));
 extern char	*milter_data __P((ENVELOPE *, char *));
 extern char	*milter_unknown __P((char *, ENVELOPE *, char *));
 #endif /* MILTER */
@@ -2473,25 +2484,26 @@ extern char	*defcharset __P((ENVELOPE *));
 extern char	*denlstring __P((char *, bool, bool));
 extern void	dferror __P((SM_FILE_T *volatile, char *, ENVELOPE *));
 extern void	disconnect __P((int, ENVELOPE *));
-#if _FFR_CONTROL_MSTAT
 extern void	disk_status __P((SM_FILE_T *, char *));
-#endif /* _FFR_CONTROL_MSTAT */
 extern bool	dns_getcanonname __P((char *, int, bool, int *, int *));
 extern pid_t	dofork __P((void));
 extern int	drop_privileges __P((bool));
 extern int	dsntoexitstat __P((char *));
 extern void	dumpfd __P((int, bool, bool));
+#if SM_HEAP_CHECK
+extern void	dumpstab __P((void));
+#endif /* SM_HEAP_CHECK */
 extern void	dumpstate __P((char *));
 extern bool	enoughdiskspace __P((long, ENVELOPE *));
 extern char	*exitstat __P((char *));
 extern void	fatal_error __P((SM_EXC_T *));
-extern char	*fgetfolded __P((char *, int, SM_FILE_T *));
+extern char	*fgetfolded __P((char *, int *, SM_FILE_T *));
 extern void	fill_fd __P((int, char *));
 extern char	*find_character __P((char *, int));
 extern int	finduser __P((char *, bool *, SM_MBDB_T *));
 extern void	finis __P((bool, bool, volatile int));
 extern void	fixcrlf __P((char *, bool));
-extern long	freediskspace __P((char *, long *));
+extern long	freediskspace __P((const char *, long *));
 #if NETINET6 && NEEDSGETIPNODE
 extern void	freehostent __P((struct hostent *));
 #endif /* NETINET6 && NEEDSGETIPNODE */
@@ -2522,7 +2534,8 @@ extern int	makeconnection __P((char *, volatile unsigned int, MCI *, ENVELOPE *,
 extern void	makeworkgroups __P((void));
 extern void	markfailure __P((ENVELOPE *, ADDRESS *, MCI *, int, bool));
 extern void	mark_work_group_restart __P((int, int));
-extern char *	munchstring __P((char *, char **, int));
+extern MCI	*mci_new __P((SM_RPOOL_T *));
+extern char	*munchstring __P((char *, char **, int));
 extern struct hostent	*myhostname __P((char *, int));
 extern char	*newstr __P((const char *));
 #if NISPLUS
@@ -2548,6 +2561,7 @@ extern void	resetlimits __P((void));
 extern void	restart_daemon __P((void));
 extern void	restart_marked_work_groups __P((void));
 extern bool	rfc822_string __P((char *));
+extern void	rmexpstab __P((void));
 extern bool	savemail __P((ENVELOPE *, bool));
 extern void	seed_random __P((void));
 extern void	sendtoargv __P((char **, ENVELOPE *));
@@ -2577,15 +2591,15 @@ extern void	sm_setproctitle __P((bool, ENVELOPE *, const char *, ...));
 extern pid_t	sm_wait __P((int *));
 extern bool	split_by_recipient __P((ENVELOPE *e));
 extern void	stop_sendmail __P((void));
-extern char	*str2prt __P((char *));
 extern void	stripbackslash __P((char *));
 extern bool	strreplnonprt __P((char *, int));
 extern bool	strcontainedin __P((bool, char *, char *));
 extern int	switch_map_find __P((char *, char *[], short []));
+#if STARTTLS
+extern void	tls_set_verify __P((SSL_CTX *, SSL *, bool));
+#endif /* STARTTLS */
 extern bool	transienterror __P((int));
-#if _FFR_BESTMX_BETTER_TRUNCATION || _FFR_DNSMAP_MULTI
 extern void	truncate_at_delim __P((char *, size_t, int));
-#endif /* _FFR_BESTMX_BETTER_TRUNCATION || _FFR_DNSMAP_MULTI */
 extern void	tTflag __P((char *));
 extern void	tTsetup __P((unsigned char *, unsigned int, char *));
 extern SIGFUNC_DECL	tick __P((int));
@@ -2623,4 +2637,5 @@ extern int	xunlink __P((char *));
 extern char	*xuntextify __P((char *));
 
 
+#undef EXTERN
 #endif /* ! _SENDMAIL_H */

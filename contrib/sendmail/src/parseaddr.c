@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,10 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.384 2006/04/18 01:28:47 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.400 2006/12/21 00:24:06 ca Exp $")
+
+#include <sm/sendmail.h>
+#include "map.h"
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -90,7 +93,8 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 	if (delimptr == NULL)
 		delimptr = &delimptrbuf;
 
-	pvp = prescan(addr, delim, pvpbuf, sizeof pvpbuf, delimptr, NULL, false);
+	pvp = prescan(addr, delim, pvpbuf, sizeof(pvpbuf), delimptr,
+			ExtTokenTab, false);
 	if (pvp == NULL)
 	{
 		if (tTd(20, 1))
@@ -176,7 +180,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 	*/
 
 	if ((a->q_qgrp == NOAQGRP || a->q_qgrp == ENVQGRP) &&
-	    !bitset(RF_SENDERADDR|RF_HEADERADDR, flags) &&
+	    !bitset(RF_SENDERADDR|RF_HEADERADDR|RF_RM_ADDR, flags) &&
 	    OpMode != MD_INITALIAS)
 	{
 		int r;
@@ -268,7 +272,7 @@ invalidaddr(addr, delimptr, isrcpt)
 	}
 	for (; *addr != '\0'; addr++)
 	{
-		if ((*addr & 0340) == 0200)
+		if (!EightBitAddrOK && (*addr & 0340) == 0200)
 		{
 			setstat(EX_USAGE);
 			result = true;
@@ -345,7 +349,7 @@ hasctrlchar(addr, isrcpt, complain)
 			}
 			result = "too long";
 		}
-		if (!quoted && (*addr < 32 || *addr == 127))
+		if (!EightBitAddrOK && !quoted && (*addr < 32 || *addr == 127))
 		{
 			result = "non-printable character";
 			*addr = BAD_CHAR_REPLACEMENT;
@@ -363,7 +367,7 @@ hasctrlchar(addr, isrcpt, complain)
 				break;
 			}
 		}
-		if ((*addr & 0340) == 0200)
+		if (!EightBitAddrOK && (*addr & 0340) == 0200)
 		{
 			setstat(EX_USAGE);
 			result = "8-bit character";
@@ -431,6 +435,7 @@ allocaddr(a, flags, paddr, e)
 		a->q_paddr = sm_rpool_strdup_x(e->e_rpool, a->q_user);
 	a->q_qgrp = NOAQGRP;
 }
+
 /*
 **  PRESCAN -- Prescan name and make it canonical
 **
@@ -491,11 +496,51 @@ static short StateTab[NSTATES][NSTATES] =
 	/*QST*/	{	QST,	QST,	OPR,	QST,	QST,	QST	},
 	/*SPC*/	{	OPR,	ATM,	QST,	SPC|M,	ONE,	ILL|MB	},
 	/*ONE*/	{	OPR,	OPR,	OPR,	OPR,	OPR,	ILL|MB	},
-	/*ILL*/	{	OPR|B,	ATM|B,	QST|B,	SPC|MB,	ONE|B,	ILL|M	},
+	/*ILL*/	{	OPR|B,	ATM|B,	QST|B,	SPC|MB,	ONE|B,	ILL|M	}
 };
 
-/* token type table -- it gets modified with $o characters */
-static unsigned char	TokTypeTab[256] =
+/* these all get modified with the OperatorChars */
+
+/* token type table for external strings */
+unsigned char	ExtTokenTab[256] =
+{
+    /*	nul soh stx etx eot enq ack bel  bs  ht  nl  vt  np  cr  so  si   */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,SPC,SPC,SPC,SPC,SPC,ATM,ATM,
+    /*	dle dc1 dc2 dc3 dc4 nak syn etb  can em  sub esc fs  gs  rs  us   */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*  sp  !   "   #   $   %   &   '    (   )   *   +   ,   -   .   /    */
+	SPC,ATM,QST,ATM,ATM,ATM,ATM,ATM, SPC,SPC,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*	0   1   2   3   4   5   6   7    8   9   :   ;   <   =   >   ?    */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*	@   A   B   C   D   E   F   G    H   I   J   K   L   M   N   O    */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*  P   Q   R   S   T   U   V   W    X   Y   Z   [   \   ]   ^   _    */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*	`   a   b   c   d   e   f   g    h   i   j   k   l   m   n   o    */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*  p   q   r   s   t   u   v   w    x   y   z   {   |   }   ~   del  */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+
+    /*	nul soh stx etx eot enq ack bel  bs  ht  nl  vt  np  cr  so  si   */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*	dle dc1 dc2 dc3 dc4 nak syn etb  can em  sub esc fs  gs  rs  us   */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*  sp  !   "   #   $   %   &   '    (   )   *   +   ,   -   .   /    */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*	0   1   2   3   4   5   6   7    8   9   :   ;   <   =   >   ?    */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*	@   A   B   C   D   E   F   G    H   I   J   K   L   M   N   O    */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*  P   Q   R   S   T   U   V   W    X   Y   Z   [   \   ]   ^   _    */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*	`   a   b   c   d   e   f   g    h   i   j   k   l   m   n   o    */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+    /*  p   q   r   s   t   u   v   w    x   y   z   {   |   }   ~   del  */
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM
+};
+
+/* token type table for internal strings */
+unsigned char	IntTokenTab[256] =
 {
     /*	nul soh stx etx eot enq ack bel  bs  ht  nl  vt  np  cr  so  si   */
 	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,SPC,SPC,SPC,SPC,SPC,ATM,ATM,
@@ -529,7 +574,7 @@ static unsigned char	TokTypeTab[256] =
     /*	`   a   b   c   d   e   f   g    h   i   j   k   l   m   n   o    */
 	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
     /*  p   q   r   s   t   u   v   w    x   y   z   {   |   }   ~   del  */
-	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ONE
 };
 
 /* token type table for MIME parsing */
@@ -567,7 +612,7 @@ unsigned char	MimeTokenTab[256] =
     /*	`   a   b   c   d   e   f   g    h   i   j   k   l   m   n   o    */
 	ILL,ILL,ILL,ILL,ILL,ILL,ILL,ILL, ILL,ILL,ILL,ILL,ILL,ILL,ILL,ILL,
     /*  p   q   r   s   t   u   v   w    x   y   z   {   |   }   ~   del  */
-	ILL,ILL,ILL,ILL,ILL,ILL,ILL,ILL, ILL,ILL,ILL,ILL,ILL,ILL,ILL,ILL,
+	ILL,ILL,ILL,ILL,ILL,ILL,ILL,ILL, ILL,ILL,ILL,ILL,ILL,ILL,ILL,ONE
 };
 
 /* token type table: don't strip comments */
@@ -605,7 +650,7 @@ unsigned char	TokTypeNoC[256] =
     /*	`   a   b   c   d   e   f   g    h   i   j   k   l   m   n   o    */
 	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
     /*  p   q   r   s   t   u   v   w    x   y   z   {   |   }   ~   del  */
-	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM,
+	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ONE
 };
 
 
@@ -649,19 +694,21 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 			if (OperatorChars == NULL)
 				OperatorChars = ".:@[]";
 		}
-		expand(OperatorChars, obuf, sizeof obuf - sizeof DELIMCHARS,
+		expand(OperatorChars, obuf, sizeof(obuf) - sizeof(DELIMCHARS),
 		       CurEnv);
-		(void) sm_strlcat(obuf, DELIMCHARS, sizeof obuf);
+		(void) sm_strlcat(obuf, DELIMCHARS, sizeof(obuf));
 		for (p = obuf; *p != '\0'; p++)
 		{
-			if (TokTypeTab[*p & 0xff] == ATM)
-				TokTypeTab[*p & 0xff] = OPR;
+			if (IntTokenTab[*p & 0xff] == ATM)
+				IntTokenTab[*p & 0xff] = OPR;
+			if (ExtTokenTab[*p & 0xff] == ATM)
+				ExtTokenTab[*p & 0xff] = OPR;
 			if (TokTypeNoC[*p & 0xff] == ATM)
 				TokTypeNoC[*p & 0xff] = OPR;
 		}
 	}
 	if (toktab == NULL)
-		toktab = TokTypeTab;
+		toktab = ExtTokenTab;
 
 	/* make sure error messages don't have garbage on them */
 	errno = 0;
@@ -712,7 +759,8 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 
 				/* squirrel it away */
 #if !ALLOW_255
-				if ((char) c == (char) -1 && !tTd(82, 101))
+				if ((char) c == (char) -1 && !tTd(82, 101) &&
+				    !EightBitAddrOK)
 					c &= 0x7f;
 #endif /* !ALLOW_255 */
 				*q++ = c;
@@ -995,7 +1043,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 	rulename = RuleSetNames[ruleset];
 	if (rulename == NULL)
 	{
-		(void) sm_snprintf(name, sizeof name, "%d", ruleset);
+		(void) sm_snprintf(name, sizeof(name), "%d", ruleset);
 		rulename = name;
 	}
 	if (OpMode == MD_TEST)
@@ -1081,14 +1129,15 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 				/* end-of-pattern before end-of-address */
 				goto backup;
 			}
-			if (ap == NULL && (*rp & 0377) != MATCHZANY &&
-			    (*rp & 0377) != MATCHZERO)
+			if (ap == NULL &&
+			    (rp[0] & 0377) != MATCHZANY &&
+			    (rp[0] & 0377) != MATCHZERO)
 			{
 				/* end-of-input with patterns left */
 				goto backup;
 			}
 
-			switch (*rp & 0377)
+			switch (rp[0] & 0377)
 			{
 			  case MATCHCLASS:
 				/* match any phrase in a class */
@@ -1100,7 +1149,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 					goto backup;
 				mlp->match_last = avp++;
 				cataddr(mlp->match_first, mlp->match_last,
-					buf, sizeof buf, '\0');
+					buf, sizeof(buf), '\0', true);
 				if (!wordinclass(buf, rp[1]))
 				{
 					if (tTd(21, 36))
@@ -1215,8 +1264,9 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 					/* run off the end -- back up again */
 					continue;
 				}
-				if ((*rp & 0377) == MATCHANY ||
-				    (*rp & 0377) == MATCHZANY)
+
+				if ((rp[0] & 0377) == MATCHANY ||
+				    (rp[0] & 0377) == MATCHZANY)
 				{
 					/* extend binding and continue */
 					mlp->match_last = avp++;
@@ -1224,7 +1274,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 					mlp++;
 					break;
 				}
-				if ((*rp & 0377) == MATCHCLASS)
+				if ((rp[0] & 0377) == MATCHCLASS)
 				{
 					/* extend binding and try again */
 					mlp->match_last = avp;
@@ -1263,14 +1313,14 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 		rp = *rvp;
 		if (rp != NULL)
 		{
-			if ((*rp & 0377) == CANONUSER)
+			if ((rp[0] & 0377) == CANONUSER)
 			{
 				rvp++;
 				rwr = rwr->r_next;
 				ruleno++;
 				loopcount = 0;
 			}
-			else if ((*rp & 0377) == CANONHOST)
+			else if ((rp[0] & 0377) == CANONHOST)
 			{
 				rvp++;
 				rwr = NULL;
@@ -1284,7 +1334,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			register char **pp;
 
 			rp = *rvp;
-			if ((*rp & 0377) == MATCHREPL)
+			if ((rp[0] & 0377) == MATCHREPL)
 			{
 				/* substitute from LHS */
 				m = &mlist[rp[1] - '1'];
@@ -1327,9 +1377,9 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 							rulename, ruleno);
 					return EX_DATAERR;
 				}
-				if ((*rp & 0377) != MACRODEXPAND)
+				if ((rp[0] & 0377) != MACRODEXPAND)
 				{
-					/* vanilla replacement */
+					/* vanilla replacement from RHS */
 					*avp++ = rp;
 				}
 				else
@@ -1351,7 +1401,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 
 					/* save the remainder of the input */
 					for (xpvp = pvp; *xpvp != NULL; xpvp++)
-						trsize += sizeof *xpvp;
+						trsize += sizeof(*xpvp);
 					if (trsize > pvpb1_size)
 					{
 						if (pvpb1 != NULL)
@@ -1367,7 +1417,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 
 					/* scan the new replacement */
 					xpvp = prescan(mval, '\0', pvpbuf,
-						       sizeof pvpbuf, NULL,
+						       sizeof(pvpbuf), NULL,
 						       NULL, false);
 					if (xpvp == NULL)
 					{
@@ -1421,23 +1471,13 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			char pvpbuf[PSBUFSIZE];
 			char *nullpvp[1];
 
-			if ((**rvp & 0377) != HOSTBEGIN &&
-			    (**rvp & 0377) != LOOKUPBEGIN)
-				continue;
-
-			/*
-			**  Got a hostname/keyword lookup.
-			**
-			**	This could be optimized fairly easily.
-			*/
-
 			hbrvp = rvp;
-			if ((**rvp & 0377) == HOSTBEGIN)
+			if ((rvp[0][0] & 0377) == HOSTBEGIN)
 			{
 				endtoken = HOSTEND;
 				mapname = "host";
 			}
-			else
+			else if ((rvp[0][0] & 0377) == LOOKUPBEGIN)
 			{
 				endtoken = LOOKUPEND;
 				mapname = *++rvp;
@@ -1448,6 +1488,15 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 					SM_ASSERT(0);
 				}
 			}
+			else
+				continue;
+
+			/*
+			**  Got a hostname/keyword lookup.
+			**
+			**	This could be optimized fairly easily.
+			*/
+
 			map = stab(mapname, ST_MAP, ST_FIND);
 			if (map == NULL)
 				syserr("554 5.3.0 rewrite: map %s not found",
@@ -1466,9 +1515,9 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			arg_rvp = argvect;
 			xpvp = NULL;
 			replac = pvpbuf;
-			while (*rvp != NULL && (**rvp & 0377) != endtoken)
+			while (*rvp != NULL && ((rvp[0][0] & 0377) != endtoken))
 			{
-				int nodetype = **rvp & 0377;
+				int nodetype = rvp[0][0] & 0377;
 
 				if (nodetype != CANONHOST &&
 				    nodetype != CANONUSER)
@@ -1482,8 +1531,8 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 				if (xpvp != NULL)
 				{
 					cataddr(xpvp, NULL, replac,
-						&pvpbuf[sizeof pvpbuf] - replac,
-						'\0');
+						&pvpbuf[sizeof(pvpbuf)] - replac,
+						'\0', false);
 					if (arg_rvp <
 					    &argvect[MAX_MAP_ARGS - 1])
 						*++arg_rvp = replac;
@@ -1506,8 +1555,8 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			if (xpvp != NULL)
 			{
 				cataddr(xpvp, NULL, replac,
-					&pvpbuf[sizeof pvpbuf] - replac,
-					'\0');
+					&pvpbuf[sizeof(pvpbuf)] - replac,
+					'\0', false);
 				if (arg_rvp < &argvect[MAX_MAP_ARGS - 1])
 					*++arg_rvp = replac;
 			}
@@ -1517,12 +1566,13 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 				*++arg_rvp = NULL;
 
 			/* save the remainder of the input string */
-			trsize = (avp - rvp + 1) * sizeof *rvp;
+			trsize = (avp - rvp + 1) * sizeof(*rvp);
 			memmove((char *) pvpb1, (char *) rvp, trsize);
 
 			/* look it up */
-			cataddr(key_rvp, NULL, cbuf, sizeof cbuf,
-				map == NULL ? '\0' : map->s_map.map_spacesub);
+			cataddr(key_rvp, NULL, cbuf, sizeof(cbuf),
+				map == NULL ? '\0' : map->s_map.map_spacesub,
+				true);
 			argvect[0] = cbuf;
 			replac = map_lookup(map, cbuf, argvect, &rstat, e);
 
@@ -1530,8 +1580,8 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			if (replac == NULL && default_rvp != NULL)
 			{
 				/* create the default */
-				cataddr(default_rvp, NULL, cbuf, sizeof cbuf,
-					'\0');
+				cataddr(default_rvp, NULL, cbuf, sizeof(cbuf),
+					'\0', false);
 				replac = cbuf;
 			}
 
@@ -1549,7 +1599,8 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			{
 				/* scan the new replacement */
 				xpvp = prescan(replac, '\0', pvpbuf,
-					       sizeof pvpbuf, NULL, NULL, false);
+					       sizeof(pvpbuf), NULL, NULL,
+					       false);
 				if (xpvp == NULL)
 				{
 					/* prescan already printed error */
@@ -1584,7 +1635,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 		for (avp = npvp; *avp++ != NULL;)
 			continue;
 		memmove((char *) pvp, (char *) npvp,
-		      (int) (avp - npvp) * sizeof *avp);
+		      (int) (avp - npvp) * sizeof(*avp));
 
 		if (tTd(21, 4))
 		{
@@ -1648,7 +1699,7 @@ callsubr(pvp, reclevel, e)
 
 	for (avp = pvp, j = 0; *avp != NULL; avp++, j++)
 	{
-		if ((**avp & 0377) == CALLSUBR && avp[1] != NULL)
+		if ((avp[0][0] & 0377) == CALLSUBR && avp[1] != NULL)
 		{
 			stripquotes(avp[1]);
 			subr = strtorwset(avp[1], NULL, ST_FIND);
@@ -1767,7 +1818,8 @@ map_lookup(smap, key, argvect, pstat, e)
 
 	if (tTd(60, 1))
 	{
-		sm_dprintf("map_lookup(%s, %s", smap->s_name, key);
+		sm_dprintf("map_lookup(%s, ", smap->s_name);
+		xputs(sm_debug_file(), key);
 		if (tTd(60, 5))
 		{
 			int i;
@@ -1794,7 +1846,7 @@ map_lookup(smap, key, argvect, pstat, e)
 		{
 			char mbuf[320];
 
-			(void) sm_snprintf(mbuf, sizeof mbuf,
+			(void) sm_snprintf(mbuf, sizeof(mbuf),
 				"%.80s map: lookup (%s): deferred",
 				smap->s_name,
 				shortenstring(key, MAXSHORTSTR));
@@ -1919,8 +1971,8 @@ buildaddr(tv, a, flags, e)
 
 	maxatom = MAXATOM;
 	if (a == NULL)
-		a = (ADDRESS *) sm_rpool_malloc_x(e->e_rpool, sizeof *a);
-	memset((char *) a, '\0', sizeof *a);
+		a = (ADDRESS *) sm_rpool_malloc_x(e->e_rpool, sizeof(*a));
+	memset((char *) a, '\0', sizeof(*a));
 	hbuf[0] = '\0';
 
 	/* set up default error return flags */
@@ -1976,8 +2028,8 @@ badaddr:
 	if (tv == hostp)
 		hostp = NULL;
 	else if (hostp != NULL)
-		cataddr(hostp, tv - 1, hbuf, sizeof hbuf, '\0');
-	cataddr(++tv, NULL, ubuf, sizeof ubuf, ' ');
+		cataddr(hostp, tv - 1, hbuf, sizeof(hbuf), '\0', false);
+	cataddr(++tv, NULL, ubuf, sizeof(ubuf), ' ', false);
 	--maxatom;
 
 	/* save away the host name */
@@ -2032,7 +2084,7 @@ badaddr:
 				off = 4;
 				ubuf[3] = '\0';
 			}
-			(void) sm_strlcpyn(fmt, sizeof fmt, 2, ubuf, " %s");
+			(void) sm_strlcpyn(fmt, sizeof(fmt), 2, ubuf, " %s");
 			if (off > 4)
 				usrerr(fmt, ubuf + off);
 			else if (isenhsc(hbuf, '\0') > 0)
@@ -2119,7 +2171,7 @@ badaddr:
 	(void) rewrite(tv, 4, 0, e, maxatom);
 
 	/* save the result for the command line/RCPT argument */
-	cataddr(tv, NULL, ubuf, sizeof ubuf, '\0');
+	cataddr(tv, NULL, ubuf, sizeof(ubuf), '\0', true);
 	a->q_user = sm_rpool_strdup_x(e->e_rpool, ubuf);
 
 	/*
@@ -2150,26 +2202,49 @@ badaddr:
 **		sz -- size of buf.
 **		spacesub -- the space separator character; if '\0',
 **			use SpaceSub.
+**		external -- convert to external form?
+**			(no metacharacters; METAQUOTEs removed, see below)
 **
 **	Returns:
 **		none.
 **
 **	Side Effects:
 **		Destroys buf.
+**
+**	Notes:
+**	There are two formats for strings: internal and external.
+**	The external format is just an eight-bit clean string (no
+**	null bytes, everything else OK).  The internal format can
+**	include sendmail metacharacters.  The special character
+**	METAQUOTE essentially quotes the character following, stripping
+**	it of all special semantics.
+**
+**	The cataddr routine needs to be aware of whether it is producing
+**	an internal or external form as output (it only takes internal
+**	form as input).
+**
+**	The parseaddr routine has a similar issue on input, but that
+**	is flagged on the basis of which token table is passed in.
 */
 
 void
-cataddr(pvp, evp, buf, sz, spacesub)
+cataddr(pvp, evp, buf, sz, spacesub, external)
 	char **pvp;
 	char **evp;
 	char *buf;
 	register int sz;
 	int spacesub;
+	bool external;
 {
-	bool oatomtok = false;
-	bool natomtok = false;
-	register int i;
-	register char *p;
+	bool oatomtok, natomtok;
+	char *p;
+
+	oatomtok = natomtok = false;
+	if (tTd(59, 14))
+	{
+		sm_dprintf("cataddr(%d) <==", external);
+		printav(sm_debug_file(), pvp);
+	}
 
 	if (sz <= 0)
 		return;
@@ -2186,19 +2261,37 @@ cataddr(pvp, evp, buf, sz, spacesub)
 	sz -= 2;
 	while (*pvp != NULL && sz > 0)
 	{
-		natomtok = (TokTypeTab[**pvp & 0xff] == ATM);
+		char *q;
+
+		natomtok = (ExtTokenTab[**pvp & 0xff] == ATM);
 		if (oatomtok && natomtok)
 		{
 			*p++ = spacesub;
 			if (--sz <= 0)
 				break;
 		}
-		i = sm_strlcpy(p, *pvp, sz);
-		sz -= i;
+		for (q = *pvp; *q != '\0'; )
+		{
+			int c;
+
+			if (--sz <= 0)
+				break;
+			*p++ = c = *q++;
+
+			/*
+			**  If the current character (c) is METAQUOTE and we
+			**  want the "external" form and the next character
+			**  is not NUL, then overwrite METAQUOTE with that
+			**  character (i.e., METAQUOTE ch is changed to
+			**  ch).  p[-1] is used because p is advanced (above).
+			*/
+
+			if ((c & 0377) == METAQUOTE && external && *q != '\0')
+				p[-1] = *q++;
+		}
 		if (sz <= 0)
 			break;
 		oatomtok = natomtok;
-		p += i;
 		if (pvp++ == evp)
 			break;
 	}
@@ -2220,7 +2313,11 @@ cataddr(pvp, evp, buf, sz, spacesub)
 		usrerr("cataddr: string too long");
 #endif
 	*p = '\0';
+
+	if (tTd(59, 14))
+		sm_dprintf("  cataddr => %s\n", str2prt(buf));
 }
+
 /*
 **  SAMEADDR -- Determine if two addresses are the same
 **
@@ -2544,7 +2641,11 @@ remotename(name, m, flags, pstat, e)
 	char addrtype[4];
 
 	if (tTd(12, 1))
-		sm_dprintf("remotename(%s)\n", name);
+	{
+		sm_dprintf("remotename(");
+		xputs(sm_debug_file(), name);
+		sm_dprintf(")\n");
+	}
 
 	/* don't do anything if we are tagging it as special */
 	if (bitset(RF_SENDERADDR, flags))
@@ -2584,7 +2685,7 @@ remotename(name, m, flags, pstat, e)
 	**	domain will be appended.
 	*/
 
-	pvp = prescan(name, '\0', pvpbuf, sizeof pvpbuf, NULL, NULL, false);
+	pvp = prescan(name, '\0', pvpbuf, sizeof(pvpbuf), NULL, NULL, false);
 	if (pvp == NULL)
 		return name;
 	if (REWRITE(pvp, 3, e) == EX_TEMPFAIL)
@@ -2658,22 +2759,26 @@ remotename(name, m, flags, pstat, e)
 	**  Now restore the comment information we had at the beginning.
 	*/
 
-	cataddr(pvp, NULL, lbuf, sizeof lbuf, '\0');
+	cataddr(pvp, NULL, lbuf, sizeof(lbuf), '\0', false);
 	oldg = macget(&e->e_macro, 'g');
 	macset(&e->e_macro, 'g', lbuf);
 
 	SM_TRY
 		/* need to make sure route-addrs have <angle brackets> */
 		if (bitset(RF_CANONICAL, flags) && lbuf[0] == '@')
-			expand("<\201g>", buf, sizeof buf, e);
+			expand("<\201g>", buf, sizeof(buf), e);
 		else
-			expand(fancy, buf, sizeof buf, e);
+			expand(fancy, buf, sizeof(buf), e);
 	SM_FINALLY
 		macset(&e->e_macro, 'g', oldg);
 	SM_END_TRY
 
 	if (tTd(12, 1))
-		sm_dprintf("remotename => `%s'\n", buf);
+	{
+		sm_dprintf("remotename => `");
+		xputs(sm_debug_file(), buf);
+		sm_dprintf("'\n");
+	}
 	return buf;
 }
 /*
@@ -2711,7 +2816,8 @@ maplocaluser(a, sendq, aliaslevel, e)
 		sm_dprintf("maplocaluser: ");
 		printaddr(sm_debug_file(), a, false);
 	}
-	pvp = prescan(a->q_user, '\0', pvpbuf, sizeof pvpbuf, NULL, NULL, false);
+	pvp = prescan(a->q_user, '\0', pvpbuf, sizeof(pvpbuf), NULL, NULL,
+			false);
 	if (pvp == NULL)
 	{
 		if (tTd(29, 9))
@@ -2940,6 +3046,8 @@ dequote_map(map, name, av, statp)
 **		logl -- logging level.
 **		host -- NULL or relay host.
 **		logid -- id for sm_syslog.
+**		addr -- if not NULL and ruleset returns $#error:
+**				store mailer triple here.
 **
 **	Returns:
 **		EX_OK -- if the rwset doesn't resolve to $#error
@@ -2947,7 +3055,7 @@ dequote_map(map, name, av, statp)
 */
 
 int
-rscheck(rwset, p1, p2, e, flags, logl, host, logid)
+rscheck(rwset, p1, p2, e, flags, logl, host, logid, addr)
 	char *rwset;
 	char *p1;
 	char *p2;
@@ -2956,6 +3064,7 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 	int logl;
 	char *host;
 	char *logid;
+	ADDRESS *addr;
 {
 	char *volatile buf;
 	size_t bufsize;
@@ -2964,7 +3073,6 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 	char **pvp;
 	int rsno;
 	bool volatile discard = false;
-	auto ADDRESS a1;
 	bool saveQuickAbort = QuickAbort;
 	bool saveSuprErrs = SuprErrs;
 	bool quarantine = false;
@@ -2984,24 +3092,24 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 	if (p2 != NULL)
 	{
 		bufsize = strlen(p1) + strlen(p2) + 2;
-		if (bufsize > sizeof buf0)
+		if (bufsize > sizeof(buf0))
 			buf = sm_malloc_x(bufsize);
 		else
 		{
 			buf = buf0;
-			bufsize = sizeof buf0;
+			bufsize = sizeof(buf0);
 		}
 		(void) sm_snprintf(buf, bufsize, "%s%c%s", p1, CONDELSE, p2);
 	}
 	else
 	{
 		bufsize = strlen(p1) + 1;
-		if (bufsize > sizeof buf0)
+		if (bufsize > sizeof(buf0))
 			buf = sm_malloc_x(bufsize);
 		else
 		{
 			buf = buf0;
-			bufsize = sizeof buf0;
+			bufsize = sizeof(buf0);
 		}
 		(void) sm_strlcpy(buf, p1, bufsize);
 	}
@@ -3009,8 +3117,9 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 	{
 		SuprErrs = true;
 		QuickAbort = false;
-		pvp = prescan(buf, '\0', pvpbuf, sizeof pvpbuf, NULL,
-			      bitset(RSF_RMCOMM, flags) ? NULL : TokTypeNoC,
+		pvp = prescan(buf, '\0', pvpbuf, sizeof(pvpbuf), NULL,
+			      bitset(RSF_RMCOMM, flags) ?
+					IntTokenTab : TokTypeNoC,
 			      bitset(RSF_RMCOMM, flags) ? false : true);
 		SuprErrs = saveSuprErrs;
 		if (pvp == NULL)
@@ -3055,7 +3164,7 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 			else
 			{
 				cataddr(&(pvp[5]), NULL, ubuf,
-					sizeof ubuf, ' ');
+					sizeof(ubuf), ' ', true);
 				e->e_quarmsg = sm_rpool_strdup_x(e->e_rpool,
 								 ubuf);
 			}
@@ -3065,6 +3174,7 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 		}
 		else
 		{
+			auto ADDRESS a1;
 			int savelogusrerrs = LogUsrErrs;
 			static bool logged = false;
 
@@ -3072,6 +3182,12 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 			saveexitstat = ExitStat;
 			LogUsrErrs = false;
 			(void) buildaddr(pvp, &a1, 0, e);
+			if (addr != NULL)
+			{
+				addr->q_mailer = a1.q_mailer;
+				addr->q_user = a1.q_user;
+				addr->q_host = a1.q_host;
+			}
 			LogUsrErrs = savelogusrerrs;
 			rstat = ExitStat;
 			ExitStat = saveexitstat;
@@ -3192,24 +3308,24 @@ rscap(rwset, p1, p2, e, pvp, pvpbuf, size)
 	if (p2 != NULL)
 	{
 		bufsize = strlen(p1) + strlen(p2) + 2;
-		if (bufsize > sizeof buf0)
+		if (bufsize > sizeof(buf0))
 			buf = sm_malloc_x(bufsize);
 		else
 		{
 			buf = buf0;
-			bufsize = sizeof buf0;
+			bufsize = sizeof(buf0);
 		}
 		(void) sm_snprintf(buf, bufsize, "%s%c%s", p1, CONDELSE, p2);
 	}
 	else
 	{
 		bufsize = strlen(p1) + 1;
-		if (bufsize > sizeof buf0)
+		if (bufsize > sizeof(buf0))
 			buf = sm_malloc_x(bufsize);
 		else
 		{
 			buf = buf0;
-			bufsize = sizeof buf0;
+			bufsize = sizeof(buf0);
 		}
 		(void) sm_strlcpy(buf, p1, bufsize);
 	}
@@ -3217,7 +3333,8 @@ rscap(rwset, p1, p2, e, pvp, pvpbuf, size)
 	{
 		SuprErrs = true;
 		QuickAbort = false;
-		*pvp = prescan(buf, '\0', pvpbuf, size, NULL, NULL, false);
+		*pvp = prescan(buf, '\0', pvpbuf, size, NULL, IntTokenTab,
+				false);
 		if (*pvp != NULL)
 			rstat = rewrite(*pvp, rsno, 0, e, size);
 		else

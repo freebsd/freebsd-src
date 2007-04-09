@@ -1,78 +1,78 @@
-<html>
-<head><title>smfi_opensocket</title></head>
-<body>
+<HTML>
+<HEAD><TITLE>smfi_opensocket</TITLE></HEAD>
+<BODY>
 <!--
-$Id: smfi_opensocket.html,v 1.4 2003/10/20 22:28:57 msk Exp $
+$Id: smfi_opensocket.html,v 1.6 2006/12/21 18:30:35 ca Exp $
 -->
-<h1>smfi_opensocket</h1>
+<H1>smfi_opensocket</H1>
 
-<table border="0" cellspacing=4 cellpadding=4>
+<TABLE border="0" cellspacing=4 cellpadding=4>
 <!---------- Synopsis ----------->
-<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
-<pre>
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
 #include &lt;libmilter/mfapi.h&gt;
 int smfi_opensocket(
 	bool rmsocket
 );
-</pre>
+</PRE>
 Attempt to create the interface socket MTAs will use to connect to the
 filter.
-</td></tr>
+</TD></TR>
 
 <!----------- Description ---------->
-<tr><th valign="top" align=left>DESCRIPTION</th><td>
-<table border="1" cellspacing=1 cellpadding=4>
-<tr align="left" valign=top>
-<th width="80">Called When</th>
-<td>Called only from program mainline, before calling
-<tt>smfi_main()</tt>.</td>
-</tr>
-<tr align="left" valign=top>
-<th width="80">Effects</th>
-<td>smfi_opensocket attempts to create the socket specified previously by
-a call to <tt>smfi_setconn()</tt> which will be the interface between MTAs
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>Called only from program mainline, before calling
+<TT>smfi_main()</TT>.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>smfi_opensocket attempts to create the socket specified previously by
+a call to <TT>smfi_setconn()</TT> which will be the interface between MTAs
 and the filter.  This allows the calling application to ensure that the
-socket can be created.  If this is not called, <tt>smfi_main()</tt> will
-do so implicitly.  </td>
-</tr>
-</table>
+socket can be created.  If this is not called, <TT>smfi_main()</TT> will
+do so implicitly.  </TD>
+</TR>
+</TABLE>
 
 <!----------- Arguments ---------->
-<tr><th valign="top" align=left>ARGUMENTS</th><td>
-    <table border="1" cellspacing=0>
-    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
-    <tr valign="top"><td>rmsocket</td>
-	<td>A flag indicating whether or not the library should try to
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>rmsocket</TD>
+	<TD>A flag indicating whether or not the library should try to
 	remove any existing UNIX domain socket before trying to create
         a new one.
-	</td></tr>
-    </table>
-</td></tr>
+	</TD></TR>
+    </TABLE>
+</TD></TR>
 
 <!----------- Return values ---------->
-<tr>
-<th valign="top" align=left>RETURN VALUES</th> 
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
 
-<td>smfi_opensocket will fail and return MI_FAILURE if:
-<ul>
-    <li>The interface socket could not be created for any reason.
-    <li><tt>rmsocket</tt> was <tt>true</tt>, and either the socket could
+<TD>smfi_opensocket will fail and return MI_FAILURE if:
+<UL>
+    <LI>The interface socket could not be created for any reason.
+    <LI><TT>rmsocket</TT> was <TT>true</TT>, and either the socket could
         not be examined, or exists and could not be removed.
-    <li><tt>smfi_setconn()</tt> has not been called.
-</ul>
+    <LI><TT>smfi_setconn()</TT> has not been called.
+</UL>
 Otherwise, it will return MI_SUCCESS
-</td>
-</tr>
+</TD>
+</TR>
 
-</table>
+</TABLE>
 
-<hr size="1">
-<font size="-1">
+<HR size="1">
+<FONT size="-1">
 Copyright (c) 2003 Sendmail, Inc. and its suppliers.
 All rights reserved.
-<br>
+<BR>
 By using this file, you agree to the terms and conditions set
 forth in the LICENSE.
-</font>
-</body>
-</html>
+</FONT>
+</BODY>
+</HTML>

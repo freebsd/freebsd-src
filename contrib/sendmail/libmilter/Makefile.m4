@@ -1,19 +1,19 @@
-dnl $Id: Makefile.m4,v 8.31 2002/06/21 22:01:31 ca Exp $
+dnl $Id: Makefile.m4,v 8.78 2007/02/05 19:21:29 ca Exp $
 include(confBUILDTOOLSDIR`/M4/switch.m4')
 
 dnl only required for compilation of EXTRAS
-define(`confREQUIRE_LIBSM', `true')
+define(`confREQUIRE_SM_OS_H', `true')
 define(`confMT', `true')
 
 # sendmail dir
-SMSRCDIR=	ifdef(`confSMSRCDIR', `confSMSRCDIR', `${SRCDIR}/sendmail')
+SMSRCDIR=ifdef(`confSMSRCDIR', `confSMSRCDIR', `${SRCDIR}/sendmail')
 PREPENDDEF(`confINCDIRS', `-I${SMSRCDIR} ')
 
 bldPRODUCT_START(`library', `libmilter')
 define(`bldINSTALLABLE', `true')
 define(`LIBMILTER_EXTRAS', `errstring.c strl.c')
 APPENDDEF(`confENVDEF', `-DNOT_SENDMAIL -Dsm_snprintf=snprintf')
-define(`bldSOURCES', `main.c engine.c listener.c handler.c comm.c smfi.c signal.c sm_gethost.c LIBMILTER_EXTRAS ')
+define(`bldSOURCES', `main.c engine.c listener.c worker.c handler.c comm.c smfi.c signal.c sm_gethost.c monitor.c LIBMILTER_EXTRAS ')
 define(`confBEFORE', `LIBMILTER_EXTRAS')
 bldPUSH_INSTALL_TARGET(`install-mfapi')
 bldPRODUCT_END

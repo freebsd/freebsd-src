@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: control.c,v 8.126 2004/08/04 20:54:00 ca Exp $")
+SM_RCSID("@(#)$Id: control.c,v 8.128 2006/08/15 23:24:56 ca Exp $")
 
 #include <sm/fdset.h>
 
@@ -21,9 +21,7 @@ SM_RCSID("@(#)$Id: control.c,v 8.126 2004/08/04 20:54:00 ca Exp $")
 #define CMDHELP		3	/* help */
 #define CMDSTATUS	4	/* daemon status */
 #define CMDMEMDUMP	5	/* dump memory, to find memory leaks */
-#if _FFR_CONTROL_MSTAT
-# define CMDMSTAT	6	/* daemon status, more info, tagged data */
-#endif /* _FFR_CONTROL_MSTAT */
+#define CMDMSTAT	6	/* daemon status, more info, tagged data */
 
 struct cmd
 {
@@ -38,9 +36,7 @@ static struct cmd	CmdTab[] =
 	{ "shutdown",	CMDSHUTDOWN	},
 	{ "status",	CMDSTATUS	},
 	{ "memdump",	CMDMEMDUMP	},
-#if _FFR_CONTROL_MSTAT
 	{ "mstat",	CMDMSTAT	},
-#endif /* _FFR_CONTROL_MSTAT */
 	{ NULL,		CMDERROR	}
 };
 
@@ -74,7 +70,7 @@ opencontrolsocket()
 	if (ControlSocketName == NULL || *ControlSocketName == '\0')
 		return 0;
 
-	if (strlen(ControlSocketName) >= sizeof controladdr.sun_path)
+	if (strlen(ControlSocketName) >= sizeof(controladdr.sun_path))
 	{
 		errno = ENAMETOOLONG;
 		return -1;
@@ -101,13 +97,13 @@ opencontrolsocket()
 	}
 
 	(void) unlink(ControlSocketName);
-	memset(&controladdr, '\0', sizeof controladdr);
+	memset(&controladdr, '\0', sizeof(controladdr));
 	controladdr.sun_family = AF_UNIX;
 	(void) sm_strlcpy(controladdr.sun_path, ControlSocketName,
-			  sizeof controladdr.sun_path);
+			  sizeof(controladdr.sun_path));
 
 	if (bind(ControlSocket, (struct sockaddr *) &controladdr,
-		 sizeof controladdr) < 0)
+		 sizeof(controladdr)) < 0)
 	{
 		save_errno = errno;
 		clrcontrol();
@@ -305,7 +301,7 @@ control_command(sock, e)
 	(void) sm_io_setvbuf(s, SM_TIME_DEFAULT, NULL,
 			     SM_IO_NBF, SM_IO_BUFSIZ);
 
-	if (sm_io_fgets(s, SM_TIME_DEFAULT, inp, sizeof inp) == NULL)
+	if (sm_io_fgets(s, SM_TIME_DEFAULT, inp, sizeof(inp)) == NULL)
 	{
 		(void) sm_io_close(s, SM_TIME_DEFAULT);
 		exit(EX_IOERR);
@@ -323,7 +319,7 @@ control_command(sock, e)
 	cmd = cmdbuf;
 	while (*p != '\0' &&
 	       !(isascii(*p) && isspace(*p)) &&
-	       cmd < &cmdbuf[sizeof cmdbuf - 2])
+	       cmd < &cmdbuf[sizeof(cmdbuf) - 2])
 		*cmd++ = *p++;
 	*cmd = '\0';
 
@@ -390,7 +386,6 @@ control_command(sock, e)
 		proc_list_display(s, "");
 		break;
 
-# if _FFR_CONTROL_MSTAT
 	  case CMDMSTAT:	/* daemon status, extended, tagged format */
 		proc_list_probe();
 		(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
@@ -401,7 +396,6 @@ control_command(sock, e)
 		disk_status(s, "D:");
 		proc_list_display(s, "P:");
 		break;
-# endif /* _FFR_CONTROL_MSTAT */
 
 	  case CMDMEMDUMP:	/* daemon memory dump, to find memory leaks */
 # if SM_HEAP_CHECK

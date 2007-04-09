@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: stab.c,v 8.88 2003/05/21 15:36:30 ca Exp $")
+SM_RCSID("@(#)$Id: stab.c,v 8.89 2006/08/15 23:24:58 ca Exp $")
 
 /*
 **  STAB -- manage the symbol table
@@ -110,72 +110,72 @@ stab(name, type, op)
 	switch (type)
 	{
 	  case ST_CLASS:
-		len = sizeof s->s_class;
+		len = sizeof(s->s_class);
 		break;
 
 	  case ST_ADDRESS:
-		len = sizeof s->s_address;
+		len = sizeof(s->s_address);
 		break;
 
 	  case ST_MAILER:
-		len = sizeof s->s_mailer;
+		len = sizeof(s->s_mailer);
 		break;
 
 	  case ST_ALIAS:
-		len = sizeof s->s_alias;
+		len = sizeof(s->s_alias);
 		break;
 
 	  case ST_MAPCLASS:
-		len = sizeof s->s_mapclass;
+		len = sizeof(s->s_mapclass);
 		break;
 
 	  case ST_MAP:
-		len = sizeof s->s_map;
+		len = sizeof(s->s_map);
 		break;
 
 	  case ST_HOSTSIG:
-		len = sizeof s->s_hostsig;
+		len = sizeof(s->s_hostsig);
 		break;
 
 	  case ST_NAMECANON:
-		len = sizeof s->s_namecanon;
+		len = sizeof(s->s_namecanon);
 		break;
 
 	  case ST_MACRO:
-		len = sizeof s->s_macro;
+		len = sizeof(s->s_macro);
 		break;
 
 	  case ST_RULESET:
-		len = sizeof s->s_ruleset;
+		len = sizeof(s->s_ruleset);
 		break;
 
 	  case ST_HEADER:
-		len = sizeof s->s_header;
+		len = sizeof(s->s_header);
 		break;
 
 	  case ST_SERVICE:
-		len = sizeof s->s_service;
+		len = sizeof(s->s_service);
 		break;
 
 #if LDAPMAP
 	  case ST_LMAP:
-		len = sizeof s->s_lmap;
+		len = sizeof(s->s_lmap);
 		break;
 #endif /* LDAPMAP */
 
 #if MILTER
 	  case ST_MILTER:
-		len = sizeof s->s_milter;
+		len = sizeof(s->s_milter);
 		break;
 #endif /* MILTER */
 
 	  case ST_QUEUE:
-		len = sizeof s->s_quegrp;
+		len = sizeof(s->s_quegrp);
 		break;
 
 #if SOCKETMAP
 	  case ST_SOCKETMAP:
-		len = sizeof s->s_socketmap;
+		len = sizeof(s->s_socketmap);
 		break;
 #endif /* SOCKETMAP */
 
@@ -189,15 +189,15 @@ stab(name, type, op)
 		*/
 
 		if (type >= ST_MCI)
-			len = sizeof s->s_mci;
+			len = sizeof(s->s_mci);
 		else
 		{
 			syserr("stab: unknown symbol type %d", type);
-			len = sizeof s->s_value;
+			len = sizeof(s->s_value);
 		}
 		break;
 	}
-	len += sizeof *s - sizeof s->s_value;
+	len += sizeof(*s) - sizeof(s->s_value);
 
 	if (tTd(36, 15))
 		sm_dprintf("size of stab entry: %d\n", len);

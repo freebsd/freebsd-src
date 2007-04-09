@@ -90,8 +90,10 @@ IPv4 socket on port 3333 of localhost.  The current flags (F=) are:
 
 	R		Reject connection if filter unavailable
 	T		Temporary fail connection if filter unavailable
+	4		Shut down connection if filter unavailable
+			(with a 421 temporary error).
 
-If neither F=R nor F=T is specified, the message is passed through sendmail
+If none of these is specified, the message is passed through sendmail
 in case of filter errors as if the failing filters were not present.
 
 Finally, you can override the default timeouts used by sendmail when
@@ -164,7 +166,7 @@ connected via one of these options, the session can be continued through
 the use of standard SMTP commands.
 
 % sendmail -bs
-220 test.sendmail.com ESMTP Sendmail 8.11.0/8.11.0; Tue, 10 Nov 1970 13:05:23 -0500 (EST)
+220 test.sendmail.com ESMTP Sendmail 8.14.0/8.14.0; Thu, 22 Jun 2006 13:05:23 -0500 (EST)
 HELO localhost
 250 test.sendmail.com Hello testy@localhost, pleased to meet you
 MAIL From:<testy>
@@ -225,248 +227,8 @@ Feedback about problems (and possible fixes) is welcome.
 | SOURCE FOR SAMPLE FILTER |
 +--------------------------+
 
-Note that the filter below may not be thread safe on some operating
+Note that the filter example.c may not be thread safe on some operating
 systems.  You should check your system man pages for the functions used
 below to verify the functions are thread safe.
 
-/* A trivial filter that logs all email to a file. */
-
-#include <sys/types.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sysexits.h>
-#include <unistd.h>
-
-#include "libmilter/mfapi.h"
-
-#ifndef true
-typedef int bool;
-# define false	0
-# define true	1
-#endif /* ! true */
-
-struct mlfiPriv
-{
-	char	*mlfi_fname;
-	FILE	*mlfi_fp;
-};
-
-#define MLFIPRIV	((struct mlfiPriv *) smfi_getpriv(ctx))
-
-extern sfsistat	 mlfi_cleanup(SMFICTX *, bool);
-
-sfsistat
-mlfi_envfrom(ctx, envfrom)
-	SMFICTX *ctx;
-	char **envfrom;
-{
-	struct mlfiPriv *priv;
-	int fd = -1;
-
-	/* allocate some private memory */
-	priv = malloc(sizeof *priv);
-	if (priv == NULL)
-	{
-		/* can't accept this message right now */
-		return SMFIS_TEMPFAIL;
-	}
-	memset(priv, '\0', sizeof *priv);
-
-	/* open a file to store this message */
-	priv->mlfi_fname = strdup("/tmp/msg.XXXXXXXX");
-	if (priv->mlfi_fname == NULL)
-	{
-		free(priv);
-		return SMFIS_TEMPFAIL;
-	}
-	if ((fd = mkstemp(priv->mlfi_fname)) < 0 ||
-	    (priv->mlfi_fp = fdopen(fd, "w+")) == NULL)
-	{
-		if (fd >= 0)
-			(void) close(fd);
-		free(priv->mlfi_fname);
-		free(priv);
-		return SMFIS_TEMPFAIL;
-	}
-
-	/* save the private data */
-	smfi_setpriv(ctx, priv);
-
-	/* continue processing */
-	return SMFIS_CONTINUE;
-}
-
-sfsistat
-mlfi_header(ctx, headerf, headerv)
-	SMFICTX *ctx;
-	char *headerf;
-	char *headerv;
-{
-	/* write the header to the log file */
-	fprintf(MLFIPRIV->mlfi_fp, "%s: %s\r\n", headerf, headerv);
-
-	/* continue processing */
-	return SMFIS_CONTINUE;
-}
-
-sfsistat
-mlfi_eoh(ctx)
-	SMFICTX *ctx;
-{
-	/* output the blank line between the header and the body */
-	fprintf(MLFIPRIV->mlfi_fp, "\r\n");
-
-	/* continue processing */
-	return SMFIS_CONTINUE;
-}
-
-sfsistat
-mlfi_body(ctx, bodyp, bodylen)
-	SMFICTX *ctx;
-	u_char *bodyp;
-	size_t bodylen;
-{
-	/* output body block to log file */
-	if (fwrite(bodyp, bodylen, 1, MLFIPRIV->mlfi_fp) <= 0)
-	{
-		/* write failed */
-		(void) mlfi_cleanup(ctx, false);
-		return SMFIS_TEMPFAIL;
-	}
-
-	/* continue processing */
-	return SMFIS_CONTINUE;
-}
-
-sfsistat
-mlfi_eom(ctx)
-	SMFICTX *ctx;
-{
-	return mlfi_cleanup(ctx, true);
-}
-
-sfsistat
-mlfi_close(ctx)
-	SMFICTX *ctx;
-{
-	return SMFIS_ACCEPT;
-}
-
-sfsistat
-mlfi_abort(ctx)
-	SMFICTX *ctx;
-{
-	return mlfi_cleanup(ctx, false);
-}
-
-sfsistat
-mlfi_cleanup(ctx, ok)
-	SMFICTX *ctx;
-	bool ok;
-{
-	sfsistat rstat = SMFIS_CONTINUE;
-	struct mlfiPriv *priv = MLFIPRIV;
-	char *p;
-	char host[512];
-	char hbuf[1024];
-
-	if (priv == NULL)
-		return rstat;
-
-	/* close the archive file */
-	if (priv->mlfi_fp != NULL && fclose(priv->mlfi_fp) == EOF)
-	{
-		/* failed; we have to wait until later */
-		rstat = SMFIS_TEMPFAIL;
-		(void) unlink(priv->mlfi_fname);
-	}
-	else if (ok)
-	{
-		/* add a header to the message announcing our presence */
-		if (gethostname(host, sizeof host) < 0)
-			snprintf(host, sizeof host, "localhost");
-		p = strrchr(priv->mlfi_fname, '/');
-		if (p == NULL)
-			p = priv->mlfi_fname;
-		else
-			p++;
-		snprintf(hbuf, sizeof hbuf, "%s@%s", p, host);
-		smfi_addheader(ctx, "X-Archived", hbuf);
-	}
-	else
-	{
-		/* message was aborted -- delete the archive file */
-		(void) unlink(priv->mlfi_fname);
-	}
-
-	/* release private memory */
-	free(priv->mlfi_fname);
-	free(priv);
-	smfi_setpriv(ctx, NULL);
-
-	/* return status */
-	return rstat;
-}
-
-struct smfiDesc smfilter =
-{
-	"SampleFilter",	/* filter name */
-	SMFI_VERSION,	/* version code -- do not change */
-	SMFIF_ADDHDRS,	/* flags */
-	NULL,		/* connection info filter */
-	NULL,		/* SMTP HELO command filter */
-	mlfi_envfrom,	/* envelope sender filter */
-	NULL,		/* envelope recipient filter */
-	mlfi_header,	/* header filter */
-	mlfi_eoh,	/* end of header */
-	mlfi_body,	/* body block filter */
-	mlfi_eom,	/* end of message */
-	mlfi_abort,	/* message aborted */
-	mlfi_close	/* connection cleanup */
-};
-
-
-int
-main(argc, argv)
-	int argc;
-	char *argv[];
-{
-	bool setconn = false;
-	int c;
-	const char *args = "p:";
-
-	/* Process command line options */
-	while ((c = getopt(argc, argv, args)) != -1)
-	{
-		switch (c)
-		{
-		  case 'p':
-			if (optarg == NULL || *optarg == '\0')
-			{
-				(void) fprintf(stderr, "Illegal conn: %s\n",
-					       optarg);
-				exit(EX_USAGE);
-			}
-			(void) smfi_setconn(optarg);
-			setconn = true;
-			break;
-
-		}
-	}
-	if (!setconn)
-	{
-		fprintf(stderr, "%s: Missing required -p argument\n", argv[0]);
-		exit(EX_USAGE);
-	}
-	if (smfi_register(smfilter) == MI_FAILURE)
-	{
-		fprintf(stderr, "smfi_register failed\n");
-		exit(EX_UNAVAILABLE);
-	}
-	return smfi_main();
-}
-
-/* eof */
-
-$Revision: 8.41 $, Last updated $Date: 2005/04/27 22:47:42 $
+$Revision: 8.42 $, Last updated $Date: 2006/06/29 17:10:16 $

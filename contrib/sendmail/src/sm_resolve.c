@@ -46,7 +46,7 @@
 # if NAMED_BIND
 #  include "sm_resolve.h"
 
-SM_RCSID("$Id: sm_resolve.c,v 8.33 2004/08/04 21:17:57 ca Exp $")
+SM_RCSID("$Id: sm_resolve.c,v 8.34 2006/08/15 23:24:58 ca Exp $")
 
 static struct stot
 {
@@ -184,7 +184,7 @@ parse_dns_reply(data, len)
 	/* doesn't work on Crays? */
 	memcpy(&r->dns_r_h, p, sizeof(r->dns_r_h));
 	p += sizeof(r->dns_r_h);
-	status = dn_expand(data, data + len, p, host, sizeof host);
+	status = dn_expand(data, data + len, p, host, sizeof(host));
 	if (status < 0)
 	{
 		dns_free_data(r);
@@ -204,7 +204,7 @@ parse_dns_reply(data, len)
 	{
 		int type, class, ttl, size, txtlen;
 
-		status = dn_expand(data, data + len, p, host, sizeof host);
+		status = dn_expand(data, data + len, p, host, sizeof(host));
 		if (status < 0)
 		{
 			dns_free_data(r);
@@ -252,7 +252,7 @@ parse_dns_reply(data, len)
 		  case T_CNAME:
 		  case T_PTR:
 			status = dn_expand(data, data + len, p, host,
-					   sizeof host);
+					   sizeof(host));
 			if (status < 0)
 			{
 				dns_free_data(r);
@@ -269,7 +269,7 @@ parse_dns_reply(data, len)
 		  case T_MX:
 		  case T_AFSDB:
 			status = dn_expand(data, data + len, p + 2, host,
-					   sizeof host);
+					   sizeof(host));
 			if (status < 0)
 			{
 				dns_free_data(r);
@@ -290,7 +290,7 @@ parse_dns_reply(data, len)
 
 		  case T_SRV:
 			status = dn_expand(data, data + len, p + 6, host,
-					   sizeof host);
+					   sizeof(host));
 			if (status < 0)
 			{
 				dns_free_data(r);
@@ -409,7 +409,7 @@ dns_lookup_int(domain, rr_class, rr_type, retrans, retry)
 	}
 	errno = 0;
 	SM_SET_H_ERRNO(0);
-	len = res_search(domain, rr_class, rr_type, reply, sizeof reply);
+	len = res_search(domain, rr_class, rr_type, reply, sizeof(reply));
 	if (tTd(8, 16))
 	{
 		_res.options = old_options;
