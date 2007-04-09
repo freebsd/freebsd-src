@@ -124,8 +124,6 @@
 #include <sys/kstat.h>
 #include <sys/sdt.h>
 
-#define	ARC_FREE_AT_ONCE	4194304
-
 static kmutex_t		arc_reclaim_thr_lock;
 static kcondvar_t	arc_reclaim_thr_cv;	/* used to signal reclaim thr */
 static uint8_t		arc_thread_exit;
