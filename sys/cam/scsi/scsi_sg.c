@@ -71,8 +71,8 @@ typedef enum {
 } sg_state;
 
 typedef enum {
+	SG_RDWR_FREE,
 	SG_RDWR_INPROG,
-	SG_RDWR_WAITING,
 	SG_RDWR_DONE
 } sg_rdwr_state;
 
@@ -388,8 +388,7 @@ sgdone(struct cam_periph *periph, union ccb *done_ccb)
 		rdwr = done_ccb->ccb_h.ccb_rdwr;
 		state = rdwr->state;
 		rdwr->state = SG_RDWR_DONE;
-		if (state == SG_RDWR_WAITING)
-			wakeup(rdwr);
+		wakeup(rdwr);
 		break;
 	}
 	default:
@@ -507,6 +506,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		 *     The linuxolator seems to have a hard time with this,
 		 *     so just return 0 and hope that apps can cope.
 		 */
+		td->td_retval[0] = 60*hz;
 		error = 0;
 		break;
 	case SG_IO:
@@ -809,7 +809,6 @@ search:
 			break;
 	}
 	if ((rdwr == NULL) || (rdwr->state != SG_RDWR_DONE)) {
-		rdwr->state = SG_RDWR_WAITING;
 		if (tsleep(rdwr, PCATCH, "sgread", 0) == ERESTART)
 			return (EAGAIN);
 		goto search;
