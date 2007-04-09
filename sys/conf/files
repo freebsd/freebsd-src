@@ -1801,7 +1801,6 @@ netinet/udp_usrreq.c		optional inet
 netinet/libalias/alias.c	optional libalias
 netinet/libalias/alias_db.c	optional libalias
 netinet/libalias/alias_mod.c	optional libalias
-netinet/libalias/alias_old.c	optional libalias
 netinet/libalias/alias_proxy.c	optional libalias
 netinet/libalias/alias_util.c	optional libalias
 netinet6/ah_aesxcbcmac.c	optional ipsec
