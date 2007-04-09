@@ -43,6 +43,7 @@
 .Nd change file access and modification times
 .Sh SYNOPSIS
 .Nm
+.Op Fl A Ar [-][[hh]mm]SS
 .Op Fl acfhm
 .Op Fl r Ar file
 .Op Fl t Ar [[CC]YY]MMDDhhmm[.SS]
@@ -50,17 +51,79 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility sets the modification and access times of files to the
-current time of day.
-If the file does not exist, it is created with default permissions.
+utility sets the modification and access times of files.
+If any file does not exist, it is created with default permissions.
+.Pp
+By default,
+.Nm 
+changes both modification and access times.  The
+.Fl a
+and 
+.Fl m
+flags may be used to select the access time or the modification time
+individually.
+Selecting both is equivalent to the default.
+The base times for the modification are both set to the current time.
+The 
+.Fl t
+flag explicitly specifies a single time for both values, and the
+.Fl r
+flag specifies to set the times from those of a different file.
+The 
+.Fl A
+flag adjusts the values by a specified amount.
+This adjustment is done after first establishing the base times.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
+.It Fl A 
+Adjust the access and modification time stamps for the file by the
+specified value.
+This flag is intended for use in modifying files with a time stamp
+relative to an incorrect time zone.
+It always modifies both the access time and the modification time.
+.Pp
+The argument is of the form
+.Dq [-][[hh]mm]SS
+where each pair of letters represents the following:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar -
+Make the adjustment negative: the new time stamp is set to be before
+the old one.
+.It Ar hh
+The hour of the day, from 00 to 23.
+.It Ar mm
+The minute of the hour, from 00 to 59.
+.It Ar SS
+The second of the minute, from 00 to 59.
+.El
+.Pp
+When used in conjunction with the
+.Fl a
+flag only, the modification time is adjusted by the time specified as
+argument to the
+.Fl A
+flag, while the access time is modified from the base time described
+above.
+Similarly, when used in conjunction with the
+.Fl m
+flag only, the access time is adjusted by the time specified as
+argument to the
+.Fl A
+flag, while the access time is modified from the base time described
+above.
+.Pp
+If the file does not exist, and creation is allowed,
+.Fl A
+does not change its time stamps.
 .It Fl a
 Change the access time of the file.
-The modification time of the file is not changed unless the
+The modification time of the file is not changed unless one of the
+.Fl A
+or
 .Fl m
-flag is also specified.
+flags is also specified.
 .It Fl c
 Do not create the file if it does not exist.
 The
@@ -80,15 +143,17 @@ implies
 and thus will not create any new files.
 .It Fl m
 Change the modification time of the file.
-The access time of the file is not changed unless the
+The access time of the file is not changed unless one of the
+.Fl A
+or
 .Fl a
-flag is also specified.
+flags is also specified.
 .It Fl r
 Use the access and modifications times from the specified file
 instead of the current time of day.
 .It Fl t
 Change the access and modification times to the specified time.
-The argument should be in the form
+The argument is of the form
 .Dq [[CC]YY]MMDDhhmm[.SS]
 where each pair of letters represents the following:
 .Pp
@@ -110,15 +175,15 @@ Otherwise, a
 .Dq CC
 value of 20 is used.
 .It Ar MM
-The month of the year, from 1 to 12.
+The month of the year, from 01 to 12.
 .It Ar DD
-the day of the month, from 1 to 31.
+the day of the month, from 01 to 31.
 .It Ar hh
-The hour of the day, from 0 to 23.
+The hour of the day, from 00 to 23.
 .It Ar mm
-The minute of the hour, from 0 to 59.
+The minute of the hour, from 00 to 59.
 .It Ar SS
-The second of the minute, from 0 to 61.
+The second of the minute, from 00 to 61.
 .El
 .Pp
 If the
