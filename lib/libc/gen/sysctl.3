@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2001
+.Dd April 9, 2007
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -325,6 +325,7 @@ information.
 .It "KERN_CLOCKRATE	struct clockinfo	no"
 .It "KERN_FILE	struct file	no"
 .It "KERN_HOSTID	integer	yes"
+.It "KERN_HOSTUUID	string	yes"
 .It "KERN_HOSTNAME	string	yes"
 .It "KERN_JOB_CONTROL	integer	no"
 .It "KERN_MAXFILES	integer	yes"
@@ -375,6 +376,8 @@ followed by an array of
 whose size depends on the current number of such objects in the system.
 .It Li KERN_HOSTID
 Get or set the host id.
+.It Li KERN_HOSTUUID
+Get or set the host UUID.
 .It Li KERN_HOSTNAME
 Get or set the hostname.
 .It Li KERN_JOB_CONTROL
