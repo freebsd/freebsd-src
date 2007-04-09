@@ -56,6 +56,7 @@
 
 /* 1.1 */
 extern unsigned long hostid;
+extern char *hostuuid;
 extern char hostname[MAXHOSTNAMELEN];
 extern char domainname[MAXHOSTNAMELEN];
 extern char kernelname[MAXPATHLEN];
