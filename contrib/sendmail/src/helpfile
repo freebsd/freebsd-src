@@ -1,6 +1,6 @@
 #vers	2
 cpyr
-cpyr	Copyright (c) 1998-2000, 2002, 2004-2006 Sendmail, Inc. and its suppliers.
+cpyr	Copyright (c) 1998-2000, 2002, 2004-2007 Sendmail, Inc. and its suppliers.
 cpyr	    All rights reserved.
 cpyr	Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
 cpyr	Copyright (c) 1988, 1993
@@ -11,7 +11,7 @@ cpyr	By using this file, you agree to the terms and conditions set
 cpyr	forth in the LICENSE file which can be found at the top level of
 cpyr	the sendmail distribution.
 cpyr
-cpyr	$$Id: helpfile,v 8.47 2006/04/26 18:22:54 ca Exp $$
+cpyr	$$Id: helpfile,v 8.48 2007/02/01 18:29:44 ca Exp $$
 cpyr
 smtp	This is sendmail version $v
 smtp	Topics:
@@ -133,4 +133,5 @@ control	help		This message.
 control	restart		Restart sendmail.
 control	shutdown	Shutdown sendmail.
 control	status		Show sendmail status.
+control	mstat		Show sendmail status (machine readable format).
 control	memdump		Dump allocated memory list (for debugging only).

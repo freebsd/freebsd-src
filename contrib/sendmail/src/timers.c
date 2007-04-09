@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: timers.c,v 8.25 2005/06/14 23:07:23 ca Exp $")
+SM_RCSID("@(#)$Id: timers.c,v 8.26 2006/08/15 23:24:58 ca Exp $")
 
 #if _FFR_TIMERS
 # include <sys/types.h>
@@ -40,7 +40,7 @@ warntimer(msg, va_alist)
 		return;
 # endif /* 0 */
 	SM_VA_START(ap, msg);
-	(void) sm_vsnprintf(buf, sizeof buf, msg, ap);
+	(void) sm_vsnprintf(buf, sizeof(buf), msg, ap);
 	SM_VA_END(ap);
 	sm_syslog(LOG_NOTICE, CurEnv->e_id, "%s; e_timers=0x%lx",
 		  buf, (unsigned long) &CurEnv->e_timers);
@@ -50,7 +50,7 @@ static void
 zerotimer(ptimer)
 	TIMER *ptimer;
 {
-	memset(ptimer, '\0', sizeof *ptimer);
+	memset(ptimer, '\0', sizeof(*ptimer));
 }
 
 static void
@@ -130,7 +130,7 @@ getinctimer(ptimer)
 	if (BaseTimer.ti_wall_sec == 0)
 	{
 		/* first call */
-		memset(ptimer, '\0', sizeof *ptimer);
+		memset(ptimer, '\0', sizeof(*ptimer));
 	}
 	else
 	{
@@ -223,7 +223,7 @@ strtimer(ptimer)
 {
 	static char buf[40];
 
-	(void) sm_snprintf(buf, sizeof buf, "%ld.%06ldr/%ld.%06ldc",
+	(void) sm_snprintf(buf, sizeof(buf), "%ld.%06ldr/%ld.%06ldc",
 		ptimer->ti_wall_sec, ptimer->ti_wall_usec,
 		ptimer->ti_cpu_sec, ptimer->ti_cpu_usec);
 	return buf;

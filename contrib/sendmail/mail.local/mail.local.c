@@ -18,7 +18,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.253 2004/11/01 20:42:42 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.254 2006/10/12 22:23:45 ca Exp $")
 
 #include <stdlib.h>
 #include <sm/errstring.h>
@@ -172,6 +172,8 @@ void	flush_error __P((void));
 const char	*hashname __P((char *));
 #endif /* HASHSPOOL */
 
+
+static void sm_exit __P((int));
 
 static void
 sm_exit(status)

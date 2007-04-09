@@ -12,11 +12,12 @@
  */
 
 #include <sendmail.h>
+#include "map.h"
 
 #if NAMED_BIND
-SM_RCSID("@(#)$Id: domain.c,v 8.199 2006/04/18 00:00:34 ca Exp $ (with name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.202 2006/12/19 01:15:07 ca Exp $ (with name server)")
 #else /* NAMED_BIND */
-SM_RCSID("@(#)$Id: domain.c,v 8.199 2006/04/18 00:00:34 ca Exp $ (without name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.202 2006/12/19 01:15:07 ca Exp $ (without name server)")
 #endif /* NAMED_BIND */
 
 #if NAMED_BIND
@@ -276,7 +277,7 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode, tryfallback, pttl)
 	{
 		if (tTd(8, 1))
 			sm_dprintf("getmxrr: res_search(%s) failed (errno=%d, h_errno=%d)\n",
-				host == NULL ? "<NULL>" : host, errno, h_errno);
+				host, errno, h_errno);
 		switch (h_errno)
 		{
 		  case NO_DATA:
@@ -524,14 +525,14 @@ punt:
 			h = NULL;
 # endif /* NETINET6 */
 		}
-		if (strlen(host) >= sizeof MXHostBuf)
+		if (strlen(host) >= sizeof(MXHostBuf))
 		{
 			*rcode = EX_CONFIG;
 			syserr("Host name %s too long",
 			       shortenstring(host, MAXSHORTSTR));
 			return -1;
 		}
-		(void) sm_strlcpy(MXHostBuf, host, sizeof MXHostBuf);
+		(void) sm_strlcpy(MXHostBuf, host, sizeof(MXHostBuf));
 		mxhosts[0] = MXHostBuf;
 		prefs[0] = 0;
 		if (host[0] == '[')
@@ -568,7 +569,7 @@ punt:
 			}
 		}
 		if (trycanon &&
-		    getcanonname(mxhosts[0], sizeof MXHostBuf - 2, false, pttl))
+		    getcanonname(mxhosts[0], sizeof(MXHostBuf) - 2, false, pttl))
 		{
 			/* XXX MXHostBuf == "" ?  is that possible? */
 			bp = &MXHostBuf[strlen(MXHostBuf)];
@@ -730,14 +731,14 @@ bestmx_map_lookup(map, name, av, statp)
 			return NULL;
 		}
 		slen = strlen(mxhosts[i]);
-		if (len + slen + 2 > sizeof buf)
+		if (len + slen + 2 > sizeof(buf))
 			break;
 		if (i > 0)
 		{
 			*p++ = map->map_coldelim;
 			len++;
 		}
-		(void) sm_strlcpy(p, mxhosts[i], sizeof buf - len);
+		(void) sm_strlcpy(p, mxhosts[i], sizeof(buf) - len);
 		p += slen;
 		len += slen;
 	}
@@ -1005,7 +1006,7 @@ nexttype:
 		     ap += n)
 		{
 			n = dn_expand((unsigned char *) &answer, eom, ap,
-				      (RES_UNC_T) nbuf, sizeof nbuf);
+				      (RES_UNC_T) nbuf, sizeof(nbuf));
 			if (n < 0)
 				break;
 			ap += n;
@@ -1070,7 +1071,7 @@ nexttype:
 						char ebuf[MAXLINE];
 
 						(void) sm_snprintf(ebuf,
-							sizeof ebuf,
+							sizeof(ebuf),
 							"Deferred: DNS failure: CNAME loop for %.100s",
 							host);
 						CurEnv->e_message =
@@ -1149,7 +1150,7 @@ nexttype:
 	**  Otherwise append the saved domain name.
 	*/
 
-	(void) sm_snprintf(nbuf, sizeof nbuf, "%.*s%s%.*s", MAXDNAME, host,
+	(void) sm_snprintf(nbuf, sizeof(nbuf), "%.*s%s%.*s", MAXDNAME, host,
 			   *mxmatch == '\0' ? "" : ".",
 			   MAXDNAME, mxmatch);
 	(void) sm_strlcpy(host, nbuf, hbsize);

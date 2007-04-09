@@ -1,13 +1,13 @@
 #!/usr/bin/perl -w
 
-# $Id: cidrexpand,v 8.4.2.1 2006/08/07 17:22:10 ca Exp $
+# $Id: cidrexpand,v 8.8 2006/08/07 17:18:37 ca Exp $
 #
 # v 0.4
 #
 # 17 July 2000 Derek J. Balling (dredd@megacity.org)
-#
+# 
 # Acts as a preparser on /etc/mail/access_db to allow you to use address/bit
-# notation.
+# notation. 
 #
 # If you have two overlapping CIDR blocks with conflicting actions
 # e.g.   10.2.3.128/25 REJECT and 10.2.3.143 ACCEPT
@@ -25,15 +25,25 @@
 #     Added code to deal with the prefix tags that may now be included in
 #     the access_db
 #
-#     Added clarification in the notes for what to do if you have
+#     Added clarification in the notes for what to do if you have 
 #     exceptions to a larger CIDR block.
+#
+#  26 Jul 2006 Richard Rognlie (richard@sendmail.com>
+#     Added code to strip "comments" (anything after a non-escaped #)
+#     # characters after a \ or within quotes (single and double) are
+#     left intact. 
+#
+#     e.g.
+#	From:1.2.3.4	550 Die spammer # spammed us 2006.07.26
+#     becomes
+#	From:1.2.3.4	550 Die spammer 
 #
 #  3 August 2006
 #
 #     Corrected a bug to have it handle the special case of "0.0.0.0/0"
 #     since Net::CIDR doesn't handle it properly.
 #
-# usage:
+# usage: 
 #  cidrexpand < /etc/mail/access | makemap -r hash /etc/mail/access
 #
 #
@@ -43,32 +53,59 @@
 
 use strict;
 use Net::CIDR;
+use Getopt::Std;
+
+our ($opt_c,$opt_t);
+getopts('ct:');
 
 my $spaceregex = '\s+';
-
-while (my $arg = shift @ARGV)
+if ($opt_t)
 {
-    if ($arg eq '-t')
-    {
-	$spaceregex = shift;
-    }
+    $spaceregex = $opt_t;
 }
-
-use strict;
-
-my $SENDMAIL = 1;
 
 while (<>)
 {
+    chomp;
     my ($prefix,$left,$right,$space);
 
+    if ( (/\#/) && $opt_c )
+    {
+	# print "checking...\n";
+	my $i;
+	my $qtype='';
+	for ($i=0 ; $i<length($_) ; $i++) 
+	{
+	    my $ch = substr($_,$i,1);
+	    if ($ch eq '\\') 
+	    {
+		$i++;
+		next;
+	    }
+	    elsif ($qtype eq '' && $ch eq '#') 
+	    {
+		substr($_,$i) = '';
+		last;
+	    }
+	    elsif ($qtype ne '' && $ch eq $qtype) 
+	    {
+		$qtype = '';
+	    }
+	    elsif ($qtype eq '' && $ch =~ /[\'\"]/) 
+	    {
+		$qtype = $ch;
+	    }
+	}
+    } 
+    
     if (! /^(|\S\S*:)(\d+\.){3}\d+\/\d\d?$spaceregex.*/ )
     {
-	print;
+	print "$_\n";
     }
     else
     {
-	($prefix,$left,$space,$right) = /^(|\S\S*:)((?:\d+\.){3}\d+\/\d\d?)($spaceregex)(.*)$/;
+	($prefix,$left,$space,$right) = 
+	    /^(|\S\S*:)((?:\d+\.){3}\d+\/\d\d?)($spaceregex)(.*)$/;
 	
 	my @new_lefts = expand_network($left);
 	foreach my $nl (@new_lefts)
@@ -77,7 +114,7 @@ while (<>)
 	}
     }
 }
-
+    
 sub expand_network
 {
     my $left_input = shift;
