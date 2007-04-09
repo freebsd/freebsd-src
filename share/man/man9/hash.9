@@ -26,7 +26,7 @@
 .\"     $OpenBSD: hash.9,v 1.5 2003/04/17 05:08:39 jmc Exp $
 .\" $FreeBSD$
 .\"
-.Dd October 19, 2006
+.Dd April 3, 2007
 .Dt HASH 9
 .Os
 .Sh NAME
@@ -47,9 +47,9 @@
 .Ft uint32_t
 .Fn hash32_strn "const void *buf" "size_t len" "uint32_t hash"
 .Ft uint32_t
-.Fn hash32_stre "const void *buf" "int end" "char **ep" "uint32_t hash"
+.Fn hash32_stre "const void *buf" "int end" "const char **ep" "uint32_t hash"
 .Ft uint32_t
-.Fn hash32_strne "const void *buf" "size_t len" "int end" "char **ep" "uint32_t hash"
+.Fn hash32_strne "const void *buf" "size_t len" "int end" "const char **ep" "uint32_t hash"
 .Sh DESCRIPTION
 The
 .Fn hash32

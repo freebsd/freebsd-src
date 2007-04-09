@@ -86,7 +86,7 @@ hash32_strn(const void *buf, size_t len, uint32_t hash)
  * namei() hashing of path name parts.
  */
 static __inline uint32_t
-hash32_stre(const void *buf, int end, char **ep, uint32_t hash)
+hash32_stre(const void *buf, int end, const char **ep, uint32_t hash)
 {
 	const unsigned char *p = buf;
 
@@ -94,7 +94,7 @@ hash32_stre(const void *buf, int end, char **ep, uint32_t hash)
 		hash = HASHSTEP(hash, *p++);
 
 	if (ep)
-		*ep = (char *)p;
+		*ep = p;
 
 	return hash;
 }
@@ -105,7 +105,8 @@ hash32_stre(const void *buf, int end, char **ep, uint32_t hash)
  * as a helper for the namei() hashing of path name parts.
  */
 static __inline uint32_t
-hash32_strne(const void *buf, size_t len, int end, char **ep, uint32_t hash)
+hash32_strne(const void *buf, size_t len, int end, const char **ep,
+    uint32_t hash)
 {
 	const unsigned char *p = buf;
 
@@ -113,7 +114,7 @@ hash32_strne(const void *buf, size_t len, int end, char **ep, uint32_t hash)
 		hash = HASHSTEP(hash, *p++);
 
 	if (ep)
-		*ep = (char *)p;
+		*ep = p;
 
 	return hash;
 }
