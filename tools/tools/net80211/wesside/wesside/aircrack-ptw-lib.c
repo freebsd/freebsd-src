@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2007, Andrea Bittau <a.bittau@cs.ucl.ac.uk>
+ * Copyright (c) 2007, Erik Tews, Andrei Pychkine and Ralf-Philipp Weinmann
+ *		       <aircrack-ptw@cdc.informatik.tu-darmstadt.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
