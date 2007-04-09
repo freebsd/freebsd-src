@@ -230,7 +230,7 @@ mb_free_vec(struct mbuf *m)
 	m->m_flags &= ~M_IOVEC;
 	uma_zfree(zone_mbuf, m);
 }
-
+#ifndef __sparc64__
 struct mvec_sg_cb_arg {
 	int error;
 	bus_dma_segment_t seg;
@@ -322,3 +322,4 @@ err_out:
 	
 	return (error);
 }
+#endif /* !__sparc64__ */
