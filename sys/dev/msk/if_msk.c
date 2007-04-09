@@ -1581,8 +1581,8 @@ mskc_attach(device_t dev)
 	    sc->msk_hw_id > CHIP_ID_YUKON_FE) {
 		device_printf(dev, "unknown device: id=0x%02x, rev=0x%02x\n",
 		    sc->msk_hw_id, sc->msk_hw_rev);
-		error = ENXIO;
-		goto fail;
+		mtx_destroy(&sc->msk_mtx);
+		return (ENXIO);
 	}
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
