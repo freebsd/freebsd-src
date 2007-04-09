@@ -92,14 +92,14 @@ struct	nlist nl[] = {
 	{ "" },
 };
 
-const char *inet6_n2a __P((struct in6_addr *));
-int main __P((int, char **));
-char *ifname __P((struct ifnet *));
-void kread __P((u_long, void *, int));
+const char *inet6_n2a(struct in6_addr *);
+int main(int, char **);
+char *ifname(struct ifnet *);
+void kread(u_long, void *, int);
 #ifdef INET6
-void if6_addrlist __P((struct ifaddr *));
-void in6_multilist __P((struct in6_multi *));
-struct in6_multi * in6_multientry __P((struct in6_multi *));
+void if6_addrlist (struct ifaddr *);
+void in6_multilist (struct in6_multi *);
+struct in6_multi *in6_multientry(struct in6_multi *);
 #endif
 void if_addrlist(struct ifaddr *);
 void in_multilist(struct in_multi *);
