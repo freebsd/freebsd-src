@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: mountcritremote
-# REQUIRE: NETWORKING root FILESYSTEMS cleanvar ipsec
+# REQUIRE: NETWORKING FILESYSTEMS cleanvar ipsec
 # KEYWORD: nojail
 
 . /etc/rc.subr
