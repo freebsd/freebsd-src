@@ -13,10 +13,11 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: snprintf.c,v 1.23 2001/09/11 04:04:49 gshapiro Exp $")
+SM_RCSID("@(#)$Id: snprintf.c,v 1.24 2006/10/12 21:50:10 ca Exp $")
 #include <limits.h>
 #include <sm/varargs.h>
 #include <sm/io.h>
+#include <sm/string.h>
 #include "local.h"
 
 /*

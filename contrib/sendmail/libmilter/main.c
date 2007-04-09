@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2003, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: main.c,v 8.79 2003/10/20 22:25:09 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.81 2006/11/02 18:31:43 ca Exp $")
 
 #define _DEFINE	1
 #include "libmilter.h"
@@ -232,7 +232,7 @@ smfi_main()
 			smfi->xxfi_name);
 		return MI_FAILURE;
 	}
-	r = MI_SUCCESS;
+	r = MI_MONITOR_INIT();
 
 	/* Startup the listener */
 	if (mi_listener(conn, dbg, smfi, timeout, backlog) != MI_SUCCESS)

@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.1 2000/03/27 19:26:48 dmoen Exp $
+#       $Id: Makefile,v 1.2 2006/08/16 21:06:30 ca Exp $
 
 SHELL= /bin/sh
 BUILD=   ./Build
@@ -9,6 +9,8 @@ all: FRC
 clean: FRC
 	$(SHELL) $(BUILD) $(OPTIONS) $@
 install: FRC
+	$(SHELL) $(BUILD) $(OPTIONS) $@
+check: FRC
 	$(SHELL) $(BUILD) $(OPTIONS) $@
 
 fresh: FRC
