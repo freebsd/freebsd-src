@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: ipsec
-# REQUIRE: root FILESYSTEMS
+# REQUIRE: FILESYSTEMS
 # BEFORE:  DAEMON mountcritremote
 # KEYWORD: nojail
 
