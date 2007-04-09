@@ -53,8 +53,12 @@ typedef	struct sx	krwlock_t;
 #define	RW_LOCK_HELD(x)		(rw_lock_held((x)))
 #define	RW_ISWRITER(x)		(rw_iswriter(x))
 
-#define	rw_init(lock, desc, type, arg)					\
-	sx_init_flags((lock), "zfs:" #lock, SX_DUPOK)
+#define	rw_init(lock, desc, type, arg)	do {				\
+	KASSERT(((lock)->lock_object.lo_flags & LO_ALLMASK) !=		\
+	    LO_EXPECTED, ("lock %s already initialized", #lock));	\
+	bzero((lock), sizeof(struct sx));				\
+	sx_init_flags((lock), "zfs:" #lock, SX_DUPOK);			\
+} while (0)
 #define	rw_destroy(lock)	sx_destroy(lock)
 #define	rw_enter(lock, how)	do {					\
 	if ((how) == RW_READER)						\
