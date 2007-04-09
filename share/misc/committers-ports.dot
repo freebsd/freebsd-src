@@ -60,6 +60,7 @@ edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22"]
 ehaupt [label="Emanuel Haupt\nehaupt@FreeBSD.org\n2005/10/03"]
 eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12"]
 erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04"]
+farrokhi [label="Babak Farrokhi\nfarrokhi@FreeBSD.org\n2006/11/07"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
@@ -93,6 +94,7 @@ netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2002/03/19"]
 nobutaka [label="Nobutaka Mantani\nnobutaka@FreeBSD.org\n2001/11/02"]
 nork [label="Norikatsu Shigemura\nnork@FreeBSD.org\n2002/04/01"]
 novel [label="Roman Bogorodskiy\nnovel@FreeBSD.org\n2005/03/07"]
+nox [label="Juergen Lock\nnox@FreeBSD.org\n2006/12/22"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2003/11/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
@@ -182,6 +184,9 @@ marcus -> eik
 marcus -> jmallett
 
 mat -> thierry
+
+miwi -> farrokhi
+miwi -> nox
 
 mnag -> jmelo
 
