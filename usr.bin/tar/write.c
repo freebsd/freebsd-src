@@ -136,6 +136,8 @@ static void		 archive_names_from_file(struct bsdtar *bsdtar,
 			     struct archive *a);
 static int		 archive_names_from_file_helper(struct bsdtar *bsdtar,
 			     const char *line);
+static int		 copy_file_data(struct bsdtar *bsdtar,
+			     struct archive *a, struct archive *ina);
 static void		 create_cleanup(struct bsdtar *);
 static void		 free_buckets(struct bsdtar *, struct links_cache *);
 static void		 free_cache(struct name_cache *cache);
@@ -550,8 +552,7 @@ static int
 append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 {
 	struct archive_entry *in_entry;
-	int bytes_read, bytes_written;
-	char buff[8192];
+	int e;
 
 	while (0 == archive_read_next_header(ina, &in_entry)) {
 		if (!new_enough(bsdtar, archive_entry_pathname(in_entry),
@@ -565,30 +566,49 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		if (bsdtar->verbose)
 			safe_fprintf(stderr, "a %s",
 			    archive_entry_pathname(in_entry));
-		/* XXX handle/report errors XXX */
-		if (archive_write_header(a, in_entry)) {
-			bsdtar_warnc(bsdtar, 0, "%s",
-			    archive_error_string(a));
-			bsdtar->return_value = 1;
-			return (-1);
-		}
-		bytes_read = archive_read_data(ina, buff, sizeof(buff));
-		while (bytes_read > 0) {
-			bytes_written =
-			    archive_write_data(a, buff, bytes_read);
-			if (bytes_written < bytes_read) {
-				bsdtar_warnc(bsdtar, archive_errno(a), "%s",
+
+		e = archive_write_header(a, in_entry);
+		if (e != ARCHIVE_OK) {
+			if (!bsdtar->verbose)
+				bsdtar_warnc(bsdtar, 0, "%s: %s",
+				    archive_entry_pathname(in_entry),
 				    archive_error_string(a));
-				return (-1);
-			}
-			bytes_read =
-			    archive_read_data(ina, buff, sizeof(buff));
+			else
+				fprintf(stderr, ": %s", archive_error_string(a));
 		}
+		if (e == ARCHIVE_FATAL)
+			exit(1);
+
+		if (e >= ARCHIVE_WARN)
+			if (copy_file_data(bsdtar, a, ina))
+				exit(1);
+
 		if (bsdtar->verbose)
 			fprintf(stderr, "\n");
 	}
 
 	/* Note: If we got here, we saw no write errors, so return success. */
+	return (0);
+}
+
+/* Helper function to copy data between archives. */
+static int
+copy_file_data(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
+{
+	char	buff[64*1024];
+	ssize_t	bytes_read;
+	ssize_t	bytes_written;
+
+	bytes_read = archive_read_data(ina, buff, sizeof(buff));
+	while (bytes_read > 0) {
+		bytes_written = archive_write_data(a, buff, bytes_read);
+		if (bytes_written < bytes_read) {
+			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
+			return (-1);
+		}
+		bytes_read = archive_read_data(ina, buff, sizeof(buff));
+	}
+
 	return (0);
 }
 
