@@ -680,7 +680,7 @@ test_ip_multicast_membership(int sock, const char *socktypename)
      * route is pointing.
      */
     for (i = 0; i < nmcastgroups; i++) {
-	mreq.imr_multiaddr.s_addr = htonl((basegroup | i));
+	mreq.imr_multiaddr.s_addr = htonl((basegroup + i));
 	mreq.imr_interface.s_addr = INADDR_ANY;
 	inet_ntop(AF_INET, &mreq.imr_multiaddr, addrbuf, sizeof(addrbuf));
 	if (verbose)
@@ -693,7 +693,7 @@ test_ip_multicast_membership(int sock, const char *socktypename)
 	}
     }
     for (i = 0; i < nmcastgroups; i++) {
-	mreq.imr_multiaddr.s_addr = htonl((basegroup | i));
+	mreq.imr_multiaddr.s_addr = htonl((basegroup + i));
 	mreq.imr_interface.s_addr = INADDR_ANY;
 	inet_ntop(AF_INET, &mreq.imr_multiaddr, addrbuf, sizeof(addrbuf));
 	if (verbose)
