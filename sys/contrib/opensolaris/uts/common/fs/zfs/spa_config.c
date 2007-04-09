@@ -78,8 +78,6 @@ spa_config_load(void)
 	struct _buf *file;
 	uint64_t fsize;
 
-	root_mount_wait();
-
 	/*
 	 * Open the configuration file.
 	 */
