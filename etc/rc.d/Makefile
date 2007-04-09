@@ -14,7 +14,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	fsck ftpd \
 	gbde geli geli2 \
 	hcsecd \
-	hostapd hostname \
+	hostapd hostid hostname \
 	idmapd inetd initrandom \
 	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \
 	ipnat ipsec ipxrouted isdnd \
