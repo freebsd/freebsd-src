@@ -1947,7 +1947,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       &merged;</para>
 
     <para><application>sendmail</application> has been updated from
-      8.13.4 to 8.13.8. &merged;</para>
+      8.13.4 to 8.14.1. &merged;</para>
 
     <para><application>tcpdump</application> has been updated from
       3.9.1 to 3.9.4. &merged;</para>
