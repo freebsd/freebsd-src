@@ -62,7 +62,8 @@ int	rw(char *, struct stat *, int);
 void	stime_arg1(char *, struct timeval *);
 void	stime_arg2(char *, int, struct timeval *);
 void	stime_file(char *, struct timeval *);
-void	usage(void);
+int	timeoffset(char *);
+void	usage(char *);
 
 int
 main(int argc, char *argv[])
@@ -71,17 +72,22 @@ main(int argc, char *argv[])
 	struct timeval tv[2];
 	int (*stat_f)(const char *, struct stat *);
 	int (*utimes_f)(const char *, const struct timeval *);
-	int aflag, cflag, fflag, mflag, ch, fd, len, rval, timeset;
+	int Aflag, aflag, cflag, fflag, mflag, ch, fd, len, rval, timeset;
 	char *p;
+	char *myname;
 
-	aflag = cflag = fflag = mflag = timeset = 0;
+	myname = argv[0];
+	Aflag = aflag = cflag = fflag = mflag = timeset = 0;
 	stat_f = stat;
 	utimes_f = utimes;
 	if (gettimeofday(&tv[0], NULL))
 		err(1, "gettimeofday");
 
-	while ((ch = getopt(argc, argv, "acfhmr:t:")) != -1)
+	while ((ch = getopt(argc, argv, "A:acfhmr:t:")) != -1)
 		switch(ch) {
+		case 'A':
+			Aflag = timeoffset(optarg);
+			break;
 		case 'a':
 			aflag = 1;
 			break;
@@ -109,13 +115,13 @@ main(int argc, char *argv[])
 			break;
 		case '?':
 		default:
-			usage();
+			usage(myname);
 		}
 	argc -= optind;
 	argv += optind;
 
-	/* Default is both -a and -m. */
-	if (aflag == 0 && mflag == 0)
+	/* -a and -m are default unless one of them or -A is set. */
+	if (aflag == 0 && mflag == 0 && Aflag == 0)
 		aflag = mflag = 1;
 
 	/*
@@ -136,7 +142,7 @@ main(int argc, char *argv[])
 		tv[1] = tv[0];
 
 	if (*argv == NULL)
-		usage();
+		usage(myname);
 
 	for (rval = 0; *argv; ++argv) {
 		/* See if the file exists. */
@@ -158,10 +164,15 @@ main(int argc, char *argv[])
 				continue;
 		}
 
+		/* If -a or -m are not set, base time on current file time. */
 		if (!aflag)
 			TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atimespec);
 		if (!mflag)
 			TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
+		if (Aflag) {
+			tv[0].tv_sec += Aflag;
+			tv[1].tv_sec += Aflag;
+		}
 
 		/* Try utimes(2). */
 		if (!utimes_f(*argv, tv))
@@ -286,6 +297,36 @@ stime_arg2(char *arg, int year, struct timeval *tvp)
 	tvp[0].tv_usec = tvp[1].tv_usec = 0;
 }
 
+/* Calculate a time offset in seconds, given an arg of the format [-]HHMMSS. */
+int
+timeoffset(char *arg)
+{
+	int offset;
+	int isneg;
+
+	offset = 0;
+	isneg = *arg == '-';
+	if (isneg)
+		arg++;
+	switch (strlen(arg)) {
+	default:				/* invalid */
+		errx(1, "Invalid offset spec, must be [-][[HH]MM]SS");
+
+	case 6:					/* HHMMSS */
+		offset = ATOI2(arg);
+		/* FALLTHROUGH */
+	case 4:					/* MMSS */
+		offset = offset * 60 + ATOI2(arg);
+		/* FALLTHROUGH */
+	case 2:					/* SS */
+		offset = offset * 60 + ATOI2(arg);
+	}
+	if (isneg)
+		return (-offset);
+	else
+		return (offset);
+}
+
 void
 stime_file(char *fname, struct timeval *tvp)
 {
@@ -347,8 +388,9 @@ err:			rval = 1;
 }
 
 void
-usage(void)
+usage(char *myname)
 {
-	(void)fprintf(stderr, "usage: touch [-acfhm] [-r file] [-t [[CC]YY]MMDDhhmm[.SS]] file ...\n");
+	fprintf(stderr, "usage:\n" "%s [-A [-][[hh]mm]SS] [-acfhm] [-r file] "
+		"[-t [[CC]YY]MMDDhhmm[.SS]] file ...\n", myname);
 	exit(1);
 }
