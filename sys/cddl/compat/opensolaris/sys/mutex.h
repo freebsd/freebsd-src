@@ -48,6 +48,9 @@ typedef struct sx	kmutex_t;
 
 #define	mutex_init(lock, desc, type, arg)	do {			\
 	ASSERT((type) == MUTEX_DEFAULT);				\
+	KASSERT(((lock)->lock_object.lo_flags & LO_ALLMASK) !=		\
+	    LO_EXPECTED, ("lock %s already initialized", #lock));	\
+	bzero((lock), sizeof(struct sx));				\
 	sx_init_flags((lock), "zfs:" #lock, SX_DUPOK);			\
 } while (0)
 #define	mutex_destroy(lock)	sx_destroy(lock)

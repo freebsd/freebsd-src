@@ -26,41 +26,21 @@
  * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_SYS_MUTEX_H_
-#define	_OPENSOLARIS_SYS_MUTEX_H_
+#ifndef _OPENSOLARIS_SYS_LOCK_H_
+#define	_OPENSOLARIS_SYS_LOCK_H_
+
+#include_next <sys/lock.h>
 
 #ifdef _KERNEL
 
-#include <sys/param.h>
-#include <sys/proc.h>
-#include <sys/lock.h>
-#include_next <sys/mutex.h>
-#include <sys/sx.h>
+#define	LO_ALLMASK	(LO_INITIALIZED | LO_WITNESS | LO_QUIET |	\
+			 LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE |	\
+			 LO_DUPOK | LO_ENROLLPEND | LO_CLASSMASK |	\
+			 LO_NOPROFILE)
+#define	LO_EXPECTED	(LO_INITIALIZED | LO_WITNESS | LO_RECURSABLE |	\
+			 LO_SLEEPABLE | LO_UPGRADABLE | LO_DUPOK |	\
+			 /* sx lock class */(2 << LO_CLASSSHIFT))
 
-typedef enum {
-	MUTEX_DEFAULT = 6	/* kernel default mutex */
-} kmutex_type_t;
+#endif	/* defined(_KERNEL) */
 
-#define	MUTEX_HELD(x)		(mutex_owned(x))
-#define	MUTEX_NOT_HELD(x)	(!mutex_owned(x) || panicstr)
-
-typedef struct sx	kmutex_t;
-
-#define	mutex_init(lock, desc, type, arg)	do {			\
-	ASSERT((type) == MUTEX_DEFAULT);				\
-	KASSERT(((lock)->lock_object.lo_flags & LO_ALLMASK) !=		\
-	    LO_EXPECTED, ("lock %s already initialized", #lock));	\
-	bzero((lock), sizeof(struct sx));				\
-	sx_init_flags((lock), "zfs:" #lock, SX_DUPOK);			\
-} while (0)
-#define	mutex_destroy(lock)	sx_destroy(lock)
-#define	mutex_enter(lock)	sx_xlock(lock)
-#define	mutex_tryenter(lock)	sx_try_xlock(lock)
-#define	mutex_exit(lock)	sx_xunlock(lock)
-#define	mutex_owned(lock)	sx_xlocked(lock)
-/* TODO: Change to sx_xholder() once it is moved from kern_sx.c to sx.h. */
-#define	mutex_owner(lock)	((lock)->sx_lock & SX_LOCK_SHARED ? NULL : (struct thread *)SX_OWNER((lock)->sx_lock))
-
-#endif	/* _KERNEL */
-
-#endif	/* _OPENSOLARIS_SYS_MUTEX_H_ */
+#endif	/* _OPENSOLARIS_SYS_LOCK_H_ */
