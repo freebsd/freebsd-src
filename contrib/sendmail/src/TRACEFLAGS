@@ -1,4 +1,4 @@
-#	$Id: TRACEFLAGS,v 8.44 2006/02/27 18:52:41 ca Exp $
+#	$Id: TRACEFLAGS,v 8.47 2006/09/11 22:36:32 ca Exp $
 0, 4	main.c		main	canonical name, UUCP node name, a.k.a.s
 0, 15	main.c		main	print configuration
 0, 44	util.c		printav	print address of each string
@@ -27,6 +27,7 @@
 20	parseaddr.c	parseaddr
 21	parseaddr.c	rewrite
 22	parseaddr.c	prescan
+23	main.c		testmodeline
 24	parseaddr.c	buildaddr, allocaddr
 25	recipient.c	sendtolist
 26	recipient.c	recipient
@@ -69,6 +70,7 @@
 56	mci.c		persistent host status
 57	util.c		snprintf
 58	bf.c		bf* routines
+59	parseaddr.c	cataddr
 60	map.c
 61	conf.c		sm_gethostbyname
 62	multiple	file descriptor checking
@@ -88,6 +90,7 @@
 81			sun remote mode
 83	collect.c	timeout
 84	deliver.c	timeout
+85	map.c		dprintf map
 91	mci.c		syslogging of MCI cache information
 93,>99	*		Prevent daemon connection fork for profiling/debugging
 94,>99	srvrsmtp.c	cause commands to fail (for protocol testing)

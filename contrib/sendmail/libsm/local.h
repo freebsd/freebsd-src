@@ -11,7 +11,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: local.h,v 1.57 2006/02/28 18:48:25 ca Exp $
+ *	$Id: local.h,v 1.58 2006/12/19 19:44:23 ca Exp $
  */
 
 /*
@@ -101,6 +101,8 @@ extern const char SmFileMagic[];
 
 #define sm_io_flockfile(fp)	((void) 0)
 #define sm_io_funlockfile(fp)	((void) 0)
+
+int sm_flags __P((int));
 
 #ifndef FDSET_CAST
 # define FDSET_CAST		/* empty cast for fd_set arg to select */

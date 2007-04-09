@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.1003.2.1 2006/05/23 01:32:08 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.1012 2007/03/29 21:20:15 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -34,7 +34,6 @@ static void	mailfiletimeout __P((int));
 static void	endwaittimeout __P((int));
 static int	parse_hostsignature __P((char *, char **, MAILER *));
 static void	sendenvelope __P((ENVELOPE *, int));
-extern MCI	*mci_new __P((SM_RPOOL_T *));
 static int	coloncmp __P((const char *, const char *));
 
 #if STARTTLS
@@ -383,7 +382,7 @@ sendall(e, mode)
 			*/
 
 			ee = (ENVELOPE *) sm_rpool_malloc_x(e->e_rpool,
-							    sizeof *ee);
+							    sizeof(*ee));
 			STRUCTCOPY(*e, *ee);
 			ee->e_message = NULL;
 			ee->e_id = NULL;
@@ -884,7 +883,7 @@ sendenvelope(e, mode)
 #if XDEBUG
 		char wbuf[MAXNAME + 20];
 
-		(void) sm_snprintf(wbuf, sizeof wbuf, "sendall(%.*s)",
+		(void) sm_snprintf(wbuf, sizeof(wbuf), "sendall(%.*s)",
 				   MAXNAME, q->q_paddr);
 		checkfd012(wbuf);
 #endif /* XDEBUG */
@@ -959,7 +958,7 @@ sync_dir(filename, panic)
 	dirp = strrchr(filename, '/');
 	if (dirp != NULL)
 	{
-		if (sm_strlcpy(dir, filename, sizeof dir) >= sizeof dir)
+		if (sm_strlcpy(dir, filename, sizeof(dir)) >= sizeof(dir))
 			return;
 		dir[dirp - filename] = '\0';
 		dirp = dir;
@@ -1012,8 +1011,8 @@ dup_queue_file(e, ee, type)
 	**  Make sure both are in the same directory.
 	*/
 
-	(void) sm_strlcpy(f1buf, queuename(e, type), sizeof f1buf);
-	(void) sm_strlcpy(f2buf, queuename(ee, type), sizeof f2buf);
+	(void) sm_strlcpy(f1buf, queuename(e, type), sizeof(f1buf));
+	(void) sm_strlcpy(f2buf, queuename(ee, type), sizeof(f2buf));
 
 	/* Force the df to disk if it's not there yet */
 	if (type == DATAFL_LETTER && e->e_dfp != NULL &&
@@ -1192,6 +1191,8 @@ coloncmp(a, b)
 **		true iff FallbackSmartHost should be tried.
 */
 
+static bool should_try_fbsh __P((ENVELOPE *, bool *, char *, size_t, int));
+
 static bool
 should_try_fbsh(e, tried_fallbacksmarthost, hostbuf, hbsz, status)
 	ENVELOPE *e;
@@ -1333,11 +1334,13 @@ deliver(e, firstto)
 	char cbuf[MAXPATHLEN];
 
 	errno = 0;
+	SM_REQUIRE(firstto != NULL);	/* same as to */
 	if (!QS_IS_OK(to->q_state))
 		return 0;
 
 	suidwarn = geteuid() == 0;
 
+	SM_REQUIRE(e != NULL);
 	m = to->q_mailer;
 	host = to->q_host;
 	CurEnv = e;			/* just in case */
@@ -1382,6 +1385,7 @@ deliver(e, firstto)
 
 	/* rewrite from address, using rewriting rules */
 	rcode = EX_OK;
+	SM_ASSERT(e->e_from.q_mailer != NULL);
 	if (bitnset(M_UDBENVELOPE, e->e_from.q_mailer->m_flags))
 		p = e->e_sender;
 	else
@@ -1441,7 +1445,7 @@ deliver(e, firstto)
 			break;
 
 		/* this entry is safe -- go ahead and process it */
-		expand(*mvp, buf, sizeof buf, e);
+		expand(*mvp, buf, sizeof(buf), e);
 		*pvp++ = sm_rpool_strdup_x(e->e_rpool, buf);
 		if (pvp >= &pv[MAXPV - 3])
 		{
@@ -1595,7 +1599,7 @@ deliver(e, firstto)
 		quarantine = (e->e_quarmsg != NULL);
 		rcode = rscheck("check_compat", e->e_from.q_paddr, to->q_paddr,
 				e, RSF_RMCOMM|RSF_COUNT, 3, NULL,
-				e->e_id);
+				e->e_id, NULL);
 		if (rcode == EX_OK)
 		{
 			/* do in-code checking if not discarding */
@@ -1698,7 +1702,7 @@ deliver(e, firstto)
 			if (p == NULL && ctladdr != NULL)
 				p = ctladdr->q_home;
 			macdefine(&e->e_macro, A_PERM, 'z', p);
-			expand(m->m_argv[1], buf, sizeof buf, e);
+			expand(m->m_argv[1], buf, sizeof(buf), e);
 			if (strlen(buf) > 0)
 				rcode = mailfile(buf, m, ctladdr, SFF_CREAT, e);
 			else
@@ -1754,18 +1758,18 @@ deliver(e, firstto)
 			notify[0] = '\0';
 			if (bitset(QPINGONSUCCESS, to->q_flags))
 				(void) sm_strlcat(notify, "SUCCESS,",
-						  sizeof notify);
+						  sizeof(notify));
 			if (bitset(QPINGONFAILURE, to->q_flags))
 				(void) sm_strlcat(notify, "FAILURE,",
-						  sizeof notify);
+						  sizeof(notify));
 			if (bitset(QPINGONDELAY, to->q_flags))
 				(void) sm_strlcat(notify, "DELAY,",
-						  sizeof notify);
+						  sizeof(notify));
 
 			/* Set to NEVER or drop trailing comma */
 			if (notify[0] == '\0')
 				(void) sm_strlcat(notify, "NEVER",
-						  sizeof notify);
+						  sizeof(notify));
 			else
 				notify[strlen(notify) - 1] = '\0';
 
@@ -1782,7 +1786,7 @@ deliver(e, firstto)
 
 		if (!clever)
 		{
-			expand(*mvp, buf, sizeof buf, e);
+			expand(*mvp, buf, sizeof(buf), e);
 			*pvp++ = sm_rpool_strdup_x(e->e_rpool, buf);
 			if (pvp >= &pv[MAXPV - 2])
 			{
@@ -1829,7 +1833,7 @@ deliver(e, firstto)
 	{
 		while (*++mvp != NULL)
 		{
-			expand(*mvp, buf, sizeof buf, e);
+			expand(*mvp, buf, sizeof(buf), e);
 			*pvp++ = sm_rpool_strdup_x(e->e_rpool, buf);
 			if (pvp >= &pv[MAXPV])
 				syserr("554 5.3.0 deliver: pv overflow after $u for %s",
@@ -1883,7 +1887,7 @@ deliver(e, firstto)
 		char wbuf[MAXLINE];
 
 		/* make absolutely certain 0, 1, and 2 are in use */
-		(void) sm_snprintf(wbuf, sizeof wbuf, "%s... openmailer(%s)",
+		(void) sm_snprintf(wbuf, sizeof(wbuf), "%s... openmailer(%s)",
 				   shortenstring(e->e_to, MAXSHORTSTR),
 				   m->m_name);
 		checkfd012(wbuf);
@@ -2060,7 +2064,7 @@ tryhost:
 				continue;
 			}
 			(void) sm_strlcpy(hostbuf, mxhosts[hostnum],
-					  sizeof hostbuf);
+					  sizeof(hostbuf));
 			hostnum++;
 			if (endp != NULL)
 				*endp = sep;
@@ -2098,7 +2102,7 @@ tryhost:
 
 				/* Try FallbackSmartHost? */
 				if (should_try_fbsh(e, &tried_fallbacksmarthost,
-						    hostbuf, sizeof hostbuf,
+						    hostbuf, sizeof(hostbuf),
 						    mci->mci_exitstat))
 					goto one_last_try;
 
@@ -2190,7 +2194,7 @@ tryhost:
 			{
 				/* Try FallbackSmartHost? */
 				if (should_try_fbsh(e, &tried_fallbacksmarthost,
-						    hostbuf, sizeof hostbuf, i))
+						    hostbuf, sizeof(hostbuf), i))
 					goto one_last_try;
 
 				if (tTd(11, 1))
@@ -2527,7 +2531,7 @@ tryhost:
 			/* change root to some "safe" directory */
 			if (m->m_rootdir != NULL)
 			{
-				expand(m->m_rootdir, cbuf, sizeof cbuf, e);
+				expand(m->m_rootdir, cbuf, sizeof(cbuf), e);
 				if (tTd(11, 20))
 					sm_dprintf("openmailer: chroot %s\n",
 						   cbuf);
@@ -2664,7 +2668,7 @@ tryhost:
 					q = strchr(p, ':');
 					if (q != NULL)
 						*q = '\0';
-					expand(p, cbuf, sizeof cbuf, e);
+					expand(p, cbuf, sizeof(cbuf), e);
 					if (q != NULL)
 						*q++ = ':';
 					if (tTd(11, 20))
@@ -2945,16 +2949,19 @@ reconnect:	/* after switching to an encrypted connection */
 			if (usetls)
 				usetls = !iscltflgset(e, D_NOTLS);
 
+			host = macvalue(macid("{server_name}"), e);
 			if (usetls)
 			{
-				host = macvalue(macid("{server_name}"), e);
 				olderrors = Errors;
 				QuickAbort = false;
 				SuprErrs = true;
 				if (rscheck("try_tls", host, NULL, e,
-					    RSF_RMCOMM, 7, host, NOQID) != EX_OK
+					    RSF_RMCOMM, 7, host, NOQID, NULL)
+								!= EX_OK
 				    || Errors > olderrors)
+				{
 					usetls = false;
+				}
 				SuprErrs = saveSuprErrs;
 				QuickAbort = saveQuickAbort;
 			}
@@ -3024,7 +3031,7 @@ reconnect:	/* after switching to an encrypted connection */
 			if (rscheck("tls_server",
 				    macvalue(macid("{verify}"), e),
 				    NULL, e, RSF_RMCOMM|RSF_COUNT, 5,
-				    host, NOQID) != EX_OK ||
+				    host, NOQID, NULL) != EX_OK ||
 			    Errors > olderrors ||
 			    rcode == EX_SOFTWARE)
 			{
@@ -3041,7 +3048,7 @@ reconnect:	/* after switching to an encrypted connection */
 				{
 					p = "403 4.7.0 server not authenticated.";
 					(void) sm_strlcpy(enhsc, "4.7.0",
-							  sizeof enhsc);
+							  sizeof(enhsc));
 				}
 				SuprErrs = saveSuprErrs;
 				QuickAbort = saveQuickAbort;
@@ -3079,8 +3086,18 @@ reconnect:	/* after switching to an encrypted connection */
 				*/
 
 				(void) sm_strlcpy(SmtpError, p,
-						  sizeof SmtpError);
+						  sizeof(SmtpError));
 			}
+			else if (mci->mci_state == MCIS_CLOSED)
+			{
+				/* connection close caused by 421 */
+				mci->mci_errno = 0;
+				rcode = EX_TEMPFAIL;
+				mci_setstat(mci, rcode, NULL, "421");
+			}
+			else
+				rcode = 0;
+
 			QuickAbort = saveQuickAbort;
 			SuprErrs = saveSuprErrs;
 			if (DONE_STARTTLS(mci->mci_flags) &&
@@ -3171,7 +3188,7 @@ reconnect:	/* after switching to an encrypted connection */
 
 				(void) sm_strlcpy(SmtpError,
 						  "Temporary AUTH failure",
-						  sizeof SmtpError);
+						  sizeof(SmtpError));
 			}
 		}
 # endif /* SASL */
@@ -3233,7 +3250,7 @@ do_transfer:
 		rcode = EX_DATAERR;
 
 		/* Need an e_message for error */
-		(void) sm_snprintf(SmtpError, sizeof SmtpError,
+		(void) sm_snprintf(SmtpError, sizeof(SmtpError),
 				   "Message is too large; %ld bytes max",
 				   mci->mci_maxsize);
 		goto give_up;
@@ -3297,7 +3314,7 @@ do_transfer:
 			**  We set SmtpError as
 			*/
 
-			(void) sm_snprintf(SmtpError, sizeof SmtpError,
+			(void) sm_snprintf(SmtpError, sizeof(SmtpError),
 					   "%s mailer (%s) exited with EX_TEMPFAIL",
 					   m->m_name, m->m_mailer);
 		}
@@ -3337,7 +3354,7 @@ do_transfer:
 # if STARTTLS
 				i = rscheck("tls_rcpt", to->q_user, NULL, e,
 					    RSF_RMCOMM|RSF_COUNT, 3,
-					    mci->mci_host, e->e_id);
+					    mci->mci_host, e->e_id, NULL);
 				if (i != EX_OK)
 				{
 					markfailure(e, to, mci, i, false);
@@ -3612,7 +3629,7 @@ cleanup: ;
 		char wbuf[MAXLINE];
 
 		/* make absolutely certain 0, 1, and 2 are in use */
-		(void) sm_snprintf(wbuf, sizeof wbuf,
+		(void) sm_snprintf(wbuf, sizeof(wbuf),
 				   "%s... end of deliver(%s)",
 				   e->e_to == NULL ? "NO-TO-LIST"
 						   : shortenstring(e->e_to,
@@ -3756,7 +3773,7 @@ markfailure(e, q, mci, rcode, ovr)
 	{
 		char buf[16];
 
-		(void) sm_snprintf(buf, sizeof buf, "%d", rcode);
+		(void) sm_snprintf(buf, sizeof(buf), "%d", rcode);
 		q->q_rstatus = sm_rpool_strdup_x(e->e_rpool, buf);
 	}
 
@@ -3830,7 +3847,7 @@ endmailer(mci, e, pv)
 	if (mci->mci_in != NULL && mci->mci_state != MCIS_ERROR &&
 	    e->e_xfp != NULL)
 	{
-		while (sfgets(buf, sizeof buf, mci->mci_in,
+		while (sfgets(buf, sizeof(buf), mci->mci_in,
 			      TimeOuts.to_quit, "Draining Input") != NULL)
 			(void) sm_io_fputs(e->e_xfp, SM_TIME_DEFAULT, buf);
 	}
@@ -3980,7 +3997,7 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 		statmsg = "250 2.0.0 Sent";
 		if (e->e_statmsg != NULL)
 		{
-			(void) sm_snprintf(buf, sizeof buf, "%s (%s)",
+			(void) sm_snprintf(buf, sizeof(buf), "%s (%s)",
 					   statmsg,
 					   shortenstring(e->e_statmsg, 403));
 			statmsg = buf;
@@ -3988,7 +4005,7 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 	}
 	else if (exmsg == NULL)
 	{
-		(void) sm_snprintf(buf, sizeof buf,
+		(void) sm_snprintf(buf, sizeof(buf),
 				   "554 5.3.0 unknown mailer error %d",
 				   status);
 		status = EX_UNAVAILABLE;
@@ -4054,7 +4071,7 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 	else if (status == EX_NOHOST && h_errno != 0)
 	{
 		statmsg = sm_errstring(h_errno + E_DNSBASE);
-		(void) sm_snprintf(buf, sizeof buf, "%s (%s)", exmsg + 1,
+		(void) sm_snprintf(buf, sizeof(buf), "%s (%s)", exmsg + 1,
 				   statmsg);
 		statmsg = buf;
 		usestat = true;
@@ -4065,14 +4082,14 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 		statmsg = exmsg;
 		if (*statmsg++ == ':' && errnum != 0)
 		{
-			(void) sm_snprintf(buf, sizeof buf, "%s: %s", statmsg,
+			(void) sm_snprintf(buf, sizeof(buf), "%s: %s", statmsg,
 					   sm_errstring(errnum));
 			statmsg = buf;
 			usestat = true;
 		}
 		else if (bitnset(M_LMTP, m->m_flags) && e->e_statmsg != NULL)
 		{
-			(void) sm_snprintf(buf, sizeof buf, "%s (%s)", statmsg,
+			(void) sm_snprintf(buf, sizeof(buf), "%s (%s)", statmsg,
 					   shortenstring(e->e_statmsg, 403));
 			statmsg = buf;
 			usestat = true;
@@ -4091,7 +4108,7 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 		{
 			if (dsn == NULL)
 			{
-				(void) sm_snprintf(dsnbuf, sizeof dsnbuf,
+				(void) sm_snprintf(dsnbuf, sizeof(dsnbuf),
 						   "%.*s", off, statmsg + 4);
 				dsn = dsnbuf;
 			}
@@ -4112,11 +4129,11 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 
 		Errors++;
 		if ((off = isenhsc(statmsg + 4, ' ')) > 0 &&
-		    off < sizeof mbuf - 4)
+		    off < sizeof(mbuf) - 4)
 		{
 			if (dsn == NULL)
 			{
-				(void) sm_snprintf(dsnbuf, sizeof dsnbuf,
+				(void) sm_snprintf(dsnbuf, sizeof(dsnbuf),
 						   "%.*s", off, statmsg + 4);
 				dsn = dsnbuf;
 			}
@@ -4124,12 +4141,12 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 
 			/* copy only part of statmsg to mbuf */
 			(void) sm_strlcpy(mbuf, statmsg, off);
-			(void) sm_strlcat(mbuf, " %s", sizeof mbuf);
+			(void) sm_strlcat(mbuf, " %s", sizeof(mbuf));
 		}
 		else
 		{
 			dsnbuf[0] = '\0';
-			(void) sm_snprintf(mbuf, sizeof mbuf, "%.3s %%s",
+			(void) sm_snprintf(mbuf, sizeof(mbuf), "%.3s %%s",
 					   statmsg);
 			off = 4;
 		}
@@ -4315,10 +4332,10 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 # endif /* (STATLEN) > 203 */
 
 	/* stat: max 210 bytes */
-	if ((bp - buf) > (sizeof buf - ((STATLEN) + 20)))
+	if ((bp - buf) > (sizeof(buf) - ((STATLEN) + 20)))
 	{
 		/* desperation move -- truncate data */
-		bp = buf + sizeof buf - ((STATLEN) + 17);
+		bp = buf + sizeof(buf) - ((STATLEN) + 17);
 		(void) sm_strlcpy(bp, "...", SPACELEFT(buf, bp));
 		bp += 3;
 	}
@@ -4434,7 +4451,7 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 	{
 		p = macvalue('h', e);
 		if (p != NULL && p[0] != '\0')
-			(void) sm_snprintf(buf, sizeof buf, "relay=%.100s", p);
+			(void) sm_snprintf(buf, sizeof(buf), "relay=%.100s", p);
 	}
 	if (buf[0] != '\0')
 		sm_syslog(LOG_INFO, e->e_id, "%.1000s", buf);
@@ -4481,7 +4498,7 @@ putfromline(mci, e)
 	{
 		char *bang;
 
-		expand("\201g", buf, sizeof buf, e);
+		expand("\201g", buf, sizeof(buf), e);
 		bang = strchr(buf, '!');
 		if (bang == NULL)
 		{
@@ -4495,25 +4512,25 @@ putfromline(mci, e)
 			at = strrchr(buf, '@');
 			if (at == NULL)
 			{
-				expand("\201k", hname, sizeof hname, e);
+				expand("\201k", hname, sizeof(hname), e);
 				at = hname;
 			}
 			else
 				*at++ = '\0';
-			(void) sm_snprintf(xbuf, sizeof xbuf,
+			(void) sm_snprintf(xbuf, sizeof(xbuf),
 					   "From %.800s  \201d remote from %.100s\n",
 					   buf, at);
 		}
 		else
 		{
 			*bang++ = '\0';
-			(void) sm_snprintf(xbuf, sizeof xbuf,
+			(void) sm_snprintf(xbuf, sizeof(xbuf),
 					   "From %.800s  \201d remote from %.100s\n",
 					   bang, buf);
 			template = xbuf;
 		}
 	}
-	expand(template, buf, sizeof buf, e);
+	expand(template, buf, sizeof(buf), e);
 	return putxline(buf, strlen(buf), mci, PXLF_HEADER);
 }
 
@@ -4620,7 +4637,7 @@ putbody(mci, e, separator)
 
 		if (hvalue("Content-Type", e->e_header) == NULL)
 		{
-			(void) sm_snprintf(buf, sizeof buf,
+			(void) sm_snprintf(buf, sizeof(buf),
 					   "Content-Type: text/plain; charset=%s",
 					   defcharset(e));
 			if (!putline(buf, mci))
@@ -4688,9 +4705,9 @@ putbody(mci, e, separator)
 		}
 
 		/* determine end of buffer; allow for short mailer lines */
-		buflim = &buf[sizeof buf - 1];
+		buflim = &buf[sizeof(buf) - 1];
 		if (mci->mci_mailer->m_linelimit > 0 &&
-		    mci->mci_mailer->m_linelimit < sizeof buf - 1)
+		    mci->mci_mailer->m_linelimit < sizeof(buf) - 1)
 			buflim = &buf[mci->mci_mailer->m_linelimit - 1];
 
 		/* copy temp file to output with mapping */
@@ -4836,6 +4853,7 @@ putbody(mci, e, separator)
 								   SM_TIME_DEFAULT,
 								   mci->mci_mailer->m_eol);
 					}
+					pos = 0;
 					ostate = OSTATE_HEAD;
 					continue;
 				}
@@ -5135,13 +5153,13 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		if (strncmp(SafeFileEnv, filename, len) == 0)
 			filename += len;
 
-		if (len + strlen(filename) + 1 >= sizeof targetfile)
+		if (len + strlen(filename) + 1 >= sizeof(targetfile))
 		{
 			syserr("mailfile: filename too long (%s/%s)",
 			       SafeFileEnv, filename);
 			return EX_CANTCREAT;
 		}
-		(void) sm_strlcpy(targetfile, SafeFileEnv, sizeof targetfile);
+		(void) sm_strlcpy(targetfile, SafeFileEnv, sizeof(targetfile));
 		realfile = targetfile + len;
 		if (*filename == '/')
 			filename++;
@@ -5150,20 +5168,20 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 			/* paranoia: trailing / should be removed in readcf */
 			if (targetfile[len - 1] != '/')
 				(void) sm_strlcat(targetfile,
-						  "/", sizeof targetfile);
+						  "/", sizeof(targetfile));
 			(void) sm_strlcat(targetfile, filename,
-					  sizeof targetfile);
+					  sizeof(targetfile));
 		}
 	}
 	else if (mailer->m_rootdir != NULL)
 	{
-		expand(mailer->m_rootdir, targetfile, sizeof targetfile, e);
+		expand(mailer->m_rootdir, targetfile, sizeof(targetfile), e);
 		len = strlen(targetfile);
 
 		if (strncmp(targetfile, filename, len) == 0)
 			filename += len;
 
-		if (len + strlen(filename) + 1 >= sizeof targetfile)
+		if (len + strlen(filename) + 1 >= sizeof(targetfile))
 		{
 			syserr("mailfile: filename too long (%s/%s)",
 			       targetfile, filename);
@@ -5171,18 +5189,18 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		}
 		realfile = targetfile + len;
 		if (targetfile[len - 1] != '/')
-			(void) sm_strlcat(targetfile, "/", sizeof targetfile);
+			(void) sm_strlcat(targetfile, "/", sizeof(targetfile));
 		if (*filename == '/')
 			(void) sm_strlcat(targetfile, filename + 1,
-					  sizeof targetfile);
+					  sizeof(targetfile));
 		else
 			(void) sm_strlcat(targetfile, filename,
-					  sizeof targetfile);
+					  sizeof(targetfile));
 	}
 	else
 	{
-		if (sm_strlcpy(targetfile, filename, sizeof targetfile) >=
-		    sizeof targetfile)
+		if (sm_strlcpy(targetfile, filename, sizeof(targetfile)) >=
+		    sizeof(targetfile))
 		{
 			syserr("mailfile: filename too long (%s)", filename);
 			return EX_CANTCREAT;
@@ -5460,7 +5478,7 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 				q = strchr(p, ':');
 				if (q != NULL)
 					*q = '\0';
-				expand(p, buf, sizeof buf, e);
+				expand(p, buf, sizeof(buf), e);
 				if (q != NULL)
 					*q++ = ':';
 				if (tTd(11, 20))
@@ -5544,7 +5562,7 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		if (ev != NULL)
 			sm_clrevent(ev);
 
-		memset(&mcibuf, '\0', sizeof mcibuf);
+		memset(&mcibuf, '\0', sizeof(mcibuf));
 		mcibuf.mci_mailer = mailer;
 		mcibuf.mci_out = f;
 		if (bitnset(M_7BITS, mailer->m_flags))

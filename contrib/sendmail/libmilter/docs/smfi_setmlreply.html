@@ -1,15 +1,15 @@
-<html>
-<head><title>smfi_setmlreply</title></head>
-<body>
+<HTML>
+<HEAD><TITLE>smfi_setmlreply</TITLE></HEAD>
+<BODY>
 <!--
-$Id: smfi_setmlreply.html,v 1.1 2004/01/01 00:32:45 gshapiro Exp $
+$Id: smfi_setmlreply.html,v 1.4 2006/12/21 18:30:35 ca Exp $
 -->
-<h1>smfi_setmlreply</h1>
+<H1>smfi_setmlreply</H1>
 
-<table border="0" cellspacing=4 cellpadding=4>
+<TABLE border="0" cellspacing=4 cellpadding=4>
 <!---------- Synopsis ----------->
-<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
-<pre>
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
 #include &lt;libmilter/mfapi.h&gt;
 int smfi_setmlreply(
 	SMFICTX *ctx,
@@ -17,131 +17,129 @@ int smfi_setmlreply(
 	char *xcode,
 	...
 );
-</pre>
+</PRE>
 Set the default SMTP error reply code to a multi-line response.  Only 4XX
 and 5XX replies are accepted.
-</td></tr>
+</TD></TR>
 
 <!----------- Description ---------->
-<tr><th valign="top" align=left>DESCRIPTION</th><td>
-<table border="1" cellspacing=1 cellpadding=4>
-<tr align="left" valign=top>
-<th width="80">Called When</th>
-<td>smfi_setmlreply may be called from any of the xxfi_ callbacks
-other than xxfi_connect.</td>
-</tr>
-<tr align="left" valign=top>
-<th width="80">Effects</th>
-<td>Directly set the SMTP error reply code for this connection to the given
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>smfi_setmlreply may be called from any of the xxfi_ callbacks
+other than xxfi_connect.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>Directly set the SMTP error reply code for this connection to the given
 lines after the xcode.  The list of arguments must be NULL terminated.
 This code  will be used on subsequent error replies resulting from actions
-taken by this filter.</td>
-</tr>
-</table>
+taken by this filter.</TD>
+</TR>
+</TABLE>
 
 <!----------- Arguments ---------->
-<tr><th valign="top" align=left>ARGUMENTS</th><td>
-    <table border="1" cellspacing=0>
-    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
-    <tr valign="top"><td>ctx</td>
-	<td>Opaque context structure.
-	</td></tr>
-    <tr valign="top"><td>rcode</td>
-	<td>The three-digit (RFC 821/2821) SMTP reply code, as a
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>rcode</TD>
+	<TD>The three-digit (RFC 821/2821) SMTP reply code, as a
 	null-terminated string.  rcode cannot be NULL, and must be a valid
 	4XX or 5XX reply code.
-        </td></tr>
-    <tr valign="top"><td>xcode</td>
-	<td>The extended (RFC 1893/2034) reply code.  If xcode is NULL, no
+        </TD></TR>
+    <TR valign="top"><TD>xcode</TD>
+	<TD>The extended (RFC 1893/2034) reply code.  If xcode is NULL, no
 	extended code is used.  Otherwise, xcode must conform to RFC 1893/2034.
-	</td></tr>
-    <tr valign="top"><td>...</td>
-	<td>The remainder of the arguments are single lines of text, up to
+	</TD></TR>
+    <TR valign="top"><TD>...</TD>
+	<TD>The remainder of the arguments are single lines of text, up to
 	32 arguments, which will be used as the text part of the SMTP
 	reply.  The list must be NULL terminated.
-	</td></tr>
-    </table>
-</td></tr>
+	</TD></TR>
+    </TABLE>
+</TD></TR>
 
 <!----------- Example ---------->
-<tr>
-<th valign="top" align=left>RETURN VALUES</th> 
-<td>
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+<TD>
 For example, the code:<BR>
-<pre>
+<PRE>
 	ret = smfi_setmlreply(ctx, "550", "5.7.0",
 			      "Spammer access rejected",
 			      "Please see our policy at:",
 			      "http://www.example.com/spampolicy.html",
 			      NULL);
-</pre>
+</PRE>
 <BR>would give the SMTP response:<BR>
-<pre>
+<PRE>
 550-5.7.0 Spammer access rejected
 550-5.7.0 Please see our policy at:
 550 5.7.0 http://www.example.com/spampolicy.html
-</td>
-</tr>
+</PRE>
+</TD>
+</TR>
 
 <!----------- Return values ---------->
-<tr>
-<th valign="top" align=left>RETURN VALUES</th> 
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
 
-<td>smfi_setmlreply will fail and return MI_FAILURE if:
-<ul>
-    <li>The rcode or xcode argument is invalid.
-    <li>A memory-allocation failure occurs.
-    <li>If any text line contains a carraige return or line feed.
-    <li>The length of any text line is more than MAXREPLYLEN (980).
-    <li>More than 32 lines of text replies are given.
-</ul>
+<TD>smfi_setmlreply will fail and return MI_FAILURE if:
+<UL>
+    <LI>The rcode or xcode argument is invalid.
+    <LI>A memory-allocation failure occurs.
+    <LI>If any text line contains a carraige return or line feed.
+    <LI>The length of any text line is more than MAXREPLYLEN (980).
+    <LI>More than 32 lines of text replies are given.
+</UL>
 Otherwise, it return MI_SUCCESS.
-</td>
-</tr>
+</TD>
+</TR>
 
 <!----------- Notes ---------->
-<tr align="left" valign=top>
-<th>NOTES</th> 
-<td>
-<ul>
-<li>Values passed to smfi_setmlreply are not checked for standards compliance.
-<li>The message parameter should contain only printable characters,
+<TR align="left" valign=top>
+<TH>NOTES</TH> 
+<TD>
+<UL>
+<LI>Values passed to smfi_setmlreply are not checked for standards compliance.
+<LI>The message parameter should contain only printable characters,
 other characters may lead to undefined behavior.
 For example, CR or LF will cause the call to fail,
 single '%' characters will cause the text to be ignored
 (if there really should be a '%' in the string,
-use '%%' just like for <tt>printf(3)</tt>).
-<li>For details about reply codes and their meanings, please see RFC's 
-<a href="http://www.rfc-editor.org/rfc/rfc821.txt">821</a>/
-<a href="http://www.rfc-editor.org/rfc/rfc2821.txt">2821</a>
+use '%%' just like for <TT>printf(3)</TT>).
+<LI>For details about reply codes and their meanings, please see RFC's 
+<A href="http://www.rfc-editor.org/rfc/rfc821.txt">821</A>/
+<A href="http://www.rfc-editor.org/rfc/rfc2821.txt">2821</A>
 and
-<a href="http://www.rfc-editor.org/rfc/rfc1893.txt">1893</a>/
-<a href="http://www.rfc-editor.org/rfc/rfc2034.txt">2034</a>.
-<li>If the reply code (rcode) given is a '4XX' code but SMFI_REJECT is used
+<A href="http://www.rfc-editor.org/rfc/rfc1893.txt">1893</A>/
+<A href="http://www.rfc-editor.org/rfc/rfc2034.txt">2034</A>.
+<LI>If the reply code (rcode) given is a '4XX' code but SMFI_REJECT is used
 for the message, the custom reply is not used.
-<li>Similarly, if the reply code (rcode) given is a '5XX' code but
+<LI>Similarly, if the reply code (rcode) given is a '5XX' code but
 SMFI_TEMPFAIL is used for the message, the custom reply is not used.
 <BR>
 Note: in neither of the last two cases an error is returned to the milter,
 libmilter silently ignores the reply code.
-<li>
-If the milter returns SMFI_TEMPFAIL
-and sets the reply code to '421',
-then the SMTP server will terminate the SMTP session with a 421
-error code.
-</ul>
-</td>
-</tr>
+<LI>If the milter returns SMFI_TEMPFAIL and sets the reply code to '421',
+then the SMTP server will terminate the SMTP session with a 421 error code.
+</UL>
+</TD>
+</TR>
 
-</table>
+</TABLE>
 
-<hr size="1">
-<font size="-1">
+<HR size="1">
+<FONT size="-1">
 Copyright (c) 2000, 2002-2003 Sendmail, Inc. and its suppliers.
 All rights reserved.
-<br>
+<BR>
 By using this file, you agree to the terms and conditions set
 forth in the LICENSE.
-</font>
-</body>
-</html>
+</FONT>
+</BODY>
+</HTML>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2006 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,8 +7,11 @@
  * the sendmail distribution.
  */
 
+/* some "deprecated" calls are used, e.g., ldap_get_values() */
+#define LDAP_DEPRECATED	1
+
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.67 2005/12/14 00:08:03 ca Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.78 2006/08/30 22:56:59 ca Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>
@@ -95,6 +98,7 @@ sm_ldap_clear(lmap)
 	lmap->ldap_res = NULL;
 	lmap->ldap_next = NULL;
 	lmap->ldap_pid = 0;
+	lmap->ldap_multi_args = false;
 }
 
 /*
@@ -280,35 +284,67 @@ ldaptimeout(unused)
 }
 
 /*
-**  SM_LDAP_SEARCH -- initiate LDAP search
+**  SM_LDAP_SEARCH_M -- initiate multi-key LDAP search
 **
 **	Initiate an LDAP search, return the msgid.
 **	The calling function must collect the results.
 **
 **	Parameters:
 **		lmap -- LDAP map information
-**		key -- key to substitute in LDAP filter
+**		argv -- key vector of substitutions in LDAP filter
+**		        NOTE: argv must have SM_LDAP_ARGS elements to prevent
+**			      out of bound array references
 **
 **	Returns:
-**		-1 on failure, msgid on success
+**		<0 on failure (SM_LDAP_ERR*), msgid on success
 **
 */
 
 int
-sm_ldap_search(lmap, key)
+sm_ldap_search_m(lmap, argv)
 	SM_LDAP_STRUCT *lmap;
-	char *key;
+	char **argv;
 {
 	int msgid;
 	char *fp, *p, *q;
 	char filter[LDAPMAP_MAX_FILTER + 1];
 
-	/* substitute key into filter, perhaps multiple times */
+	SM_REQUIRE(lmap != NULL);
+	SM_REQUIRE(argv != NULL);
+	SM_REQUIRE(argv[0] != NULL);
+
 	memset(filter, '\0', sizeof filter);
 	fp = filter;
 	p = lmap->ldap_filter;
 	while ((q = strchr(p, '%')) != NULL)
 	{
+		char *key;
+
+		if (lmap->ldap_multi_args)
+		{
+#if SM_LDAP_ARGS < 10
+# ERROR _SM_LDAP_ARGS must be 10
+#endif /* SM_LDAP_ARGS < 10 */
+			if (q[1] == 's')
+				key = argv[0];
+			else if (q[1] >= '0' && q[1] <= '9')
+			{
+				key = argv[q[1] - '0'];
+				if (key == NULL)
+				{
+# if SM_LDAP_ERROR_ON_MISSING_ARGS
+					return SM_LDAP_ERR_ARG_MISS;
+# else /* SM_LDAP_ERROR_ON_MISSING_ARGS */
+					key = "";
+# endif /* SM_LDAP_ERROR_ON_MISSING_ARGS */
+				}
+			}
+			else
+				key = NULL;
+		}
+		else
+			key = argv[0];
+
 		if (q[1] == 's')
 		{
 			(void) sm_snprintf(fp, SPACELEFT(filter, fp),
@@ -316,7 +352,8 @@ sm_ldap_search(lmap, key)
 			fp += strlen(fp);
 			p = q + 2;
 		}
-		else if (q[1] == '0')
+		else if (q[1] == '0' ||
+			 (lmap->ldap_multi_args && q[1] >= '0' && q[1] <= '9'))
 		{
 			char *k = key;
 
@@ -365,6 +402,34 @@ sm_ldap_search(lmap, key)
 			     lmap->ldap_attr),
 			    lmap->ldap_attrsonly);
 	return msgid;
+}
+
+/*
+**  SM_LDAP_SEARCH -- initiate LDAP search
+**
+**	Initiate an LDAP search, return the msgid.
+**	The calling function must collect the results.
+**	Note this is just a wrapper into sm_ldap_search_m()
+**
+**	Parameters:
+**		lmap -- LDAP map information
+**		key -- key to substitute in LDAP filter
+**
+**	Returns:
+**		<0 on failure, msgid on success
+**
+*/
+
+int
+sm_ldap_search(lmap, key)
+	SM_LDAP_STRUCT *lmap;
+	char *key;
+{
+	char *argv[SM_LDAP_ARGS];
+
+	memset(argv, '\0', sizeof argv);
+	argv[0] = key;
+	return sm_ldap_search_m(lmap, argv);
 }
 
 /*
@@ -480,29 +545,29 @@ sm_ldap_add_recurse(top, item, type, rpool)
 	{
 		/* Allocate an initial SM_LDAP_RECURSE_LIST struct */
 		*top = sm_rpool_malloc_x(rpool, sizeof **top);
-		(*top)->lr_cnt = 0;
-		(*top)->lr_size = 0;
-		(*top)->lr_data = NULL;
+		(*top)->lrl_cnt = 0;
+		(*top)->lrl_size = 0;
+		(*top)->lrl_data = NULL;
 	}
 
-	if ((*top)->lr_cnt >= (*top)->lr_size)
+	if ((*top)->lrl_cnt >= (*top)->lrl_size)
 	{
 		/* Grow the list of SM_LDAP_RECURSE_ENTRY ptrs */
-		olddata = (*top)->lr_data;
-		if ((*top)->lr_size == 0)
+		olddata = (*top)->lrl_data;
+		if ((*top)->lrl_size == 0)
 		{
 			oldsizeb = 0;
-			(*top)->lr_size = 256;
+			(*top)->lrl_size = 256;
 		}
 		else
 		{
-			oldsizeb = (*top)->lr_size * sizeof *((*top)->lr_data);
-			(*top)->lr_size *= 2;
+			oldsizeb = (*top)->lrl_size * sizeof *((*top)->lrl_data);
+			(*top)->lrl_size *= 2;
 		}
-		(*top)->lr_data = sm_rpool_malloc_x(rpool,
-						    (*top)->lr_size * sizeof *((*top)->lr_data));
+		(*top)->lrl_data = sm_rpool_malloc_x(rpool,
+						    (*top)->lrl_size * sizeof *((*top)->lrl_data));
 		if (oldsizeb > 0)
-			memcpy((*top)->lr_data, olddata, oldsizeb);
+			memcpy((*top)->lrl_data, olddata, oldsizeb);
 	}
 
 	/*
@@ -511,7 +576,7 @@ sm_ldap_add_recurse(top, item, type, rpool)
 	*/
 
 	n = 0;
-	m = (*top)->lr_cnt - 1;
+	m = (*top)->lrl_cnt - 1;
 	if (m < 0)
 		insertat = 0;
 	else
@@ -521,21 +586,21 @@ sm_ldap_add_recurse(top, item, type, rpool)
 	{
 		p = (m + n) / 2;
 
-		rc = sm_strcasecmp(item, (*top)->lr_data[p]->lr_search);
+		rc = sm_strcasecmp(item, (*top)->lrl_data[p]->lr_search);
 		if (rc == 0)
-			rc = type - (*top)->lr_data[p]->lr_type;
+			rc = type - (*top)->lrl_data[p]->lr_type;
 
 		if (rc < 0)
 			m = p - 1;
 		else if (rc > 0)
 			n = p + 1;
 		else
-			return (*top)->lr_data[p];
+			return (*top)->lrl_data[p];
 
 		if (m == -1)
 			insertat = 0;
-		else if (n >= (*top)->lr_cnt)
-			insertat = (*top)->lr_cnt;
+		else if (n >= (*top)->lrl_cnt)
+			insertat = (*top)->lrl_cnt;
 		else if (m < n)
 			insertat = m + 1;
 	}
@@ -548,10 +613,10 @@ sm_ldap_add_recurse(top, item, type, rpool)
 	newe = sm_rpool_malloc_x(rpool, sizeof *newe);
 	if (newe != NULL)
 	{
-		moveb = ((*top)->lr_cnt - insertat) * sizeof *((*top)->lr_data);
+		moveb = ((*top)->lrl_cnt - insertat) * sizeof *((*top)->lrl_data);
 		if (moveb > 0)
-			memmove(&((*top)->lr_data[insertat + 1]),
-				&((*top)->lr_data[insertat]),
+			memmove(&((*top)->lrl_data[insertat + 1]),
+				&((*top)->lrl_data[insertat]),
 				moveb);
 
 		newe->lr_search = sm_rpool_strdup_x(rpool, item);
@@ -560,8 +625,8 @@ sm_ldap_add_recurse(top, item, type, rpool)
 		newe->lr_attrs = NULL;
 		newe->lr_done = false;
 
-		((*top)->lr_data)[insertat] = newe;
-		(*top)->lr_cnt++;
+		((*top)->lrl_data)[insertat] = newe;
+		(*top)->lrl_cnt++;
 	}
 	return newe;
 }
@@ -1082,13 +1147,14 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 		**  will be expanded by the top level.
 		*/
 
-		for (rlidx = 0; recurse != NULL && rlidx < recurse->lr_cnt; rlidx++)
+		for (rlidx = 0; recurse != NULL && rlidx < recurse->lrl_cnt;
+		     rlidx++)
 		{
 			int newflags;
 			int sid;
 			int status;
 
-			rl = recurse->lr_data[rlidx];
+			rl = recurse->lrl_data[rlidx];
 
 			newflags = flags;
 			if (rl->lr_done)
