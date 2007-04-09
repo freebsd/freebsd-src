@@ -128,3 +128,4 @@ libkern/ia64/__umoddi3.S	standard
 libkern/ia64/__umodsi3.S	standard
 libkern/ia64/bswap16.S		standard
 libkern/ia64/bswap32.S		standard
+libkern/memset.c		standard
