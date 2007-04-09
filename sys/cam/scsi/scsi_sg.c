@@ -289,13 +289,12 @@ sgregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	softc = (struct sg_softc *)malloc(sizeof(*softc), M_DEVBUF, M_NOWAIT);
+	softc = malloc(sizeof(*softc), M_DEVBUF, M_ZERO | M_NOWAIT);
 	if (softc == NULL) {
 		printf("sgregister: Unable to allocate softc\n");
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	bzero(softc, sizeof(*softc));
 	softc->state = SG_STATE_NORMAL;
 	softc->pd_type = SID_TYPE(&cgd->inq_data);
 	TAILQ_INIT(&softc->rdwr_done);
@@ -679,7 +678,7 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 
 	periph = dev->si_drv1;
 	sc = periph->softc;
-	rdwr = malloc(sizeof(*rdwr), M_DEVBUF, M_WAITOK);
+	rdwr = malloc(sizeof(*rdwr), M_DEVBUF, M_WAITOK | M_ZERO);
 	hdr = &rdwr->hdr.hdr;
 
 	/* Copy in the header block and sanity check it */
@@ -728,13 +727,13 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	 */
 	buf_len = uio->uio_resid;
 	if (buf_len != 0) {
-		buf = malloc(buf_len, M_DEVBUF, M_WAITOK);
+		buf = malloc(buf_len, M_DEVBUF, M_WAITOK | M_ZERO);
 		error = uiomove(buf, buf_len, uio);
 		if (error)
 			goto out_buf;
 		dir = CAM_DIR_OUT;
 	} else if (hdr->reply_len != 0) {
-		buf = malloc(hdr->reply_len, M_DEVBUF, M_WAITOK);
+		buf = malloc(hdr->reply_len, M_DEVBUF, M_WAITOK | M_ZERO);
 		buf_len = hdr->reply_len;
 		dir = CAM_DIR_IN;
 	} else {
