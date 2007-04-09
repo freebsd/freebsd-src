@@ -46,6 +46,7 @@ FBSD_1.0 {
 	i386_set_watch;
 	i386_vm86;
 	sbrk;
+	___tls_get_addr;
 };
 
 FBSDprivate {
