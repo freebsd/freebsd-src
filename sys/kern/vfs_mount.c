@@ -1378,12 +1378,13 @@ root_mount_done(void)
 {
 
 	/*
-	 * No mutex is acquired here because int stores are atomic.  If a
-	 * thread is polling root_mount_complete, it may get a spurious
-	 * wakeup() but that is fine in the tsleep()/wakeup() model.
+	 * Use a mutex to prevent the wakeup being missed and waiting for
+	 * an extra 1 second sleep.
 	 */
+	mtx_lock(&mountlist_mtx);
 	root_mount_complete = 1;
 	wakeup(&root_mount_complete);
+	mtx_unlock(&mountlist_mtx);
 }
 
 /*
@@ -1393,6 +1394,7 @@ int
 root_mounted(void)
 {
 
+	/* No mutex is acquired here because int stores are atomic. */
 	return (root_mount_complete);
 }
 
@@ -1409,8 +1411,12 @@ root_mount_wait(void)
 	 */
 	KASSERT(curthread->td_proc->p_pid != 0,
 	    ("root_mount_wait: cannot be called from the swapper thread"));
-	while (!root_mount_complete)
-		tsleep(&root_mount_complete, PZERO, "rootwait", hz);
+	mtx_lock(&mountlist_mtx);
+	while (!root_mount_complete) {
+		msleep(&root_mount_complete, &mountlist_mtx, PZERO, "rootwait",
+		    hz);
+	}
+	mtx_unlock(&mountlist_mtx);
 }
 
 static void
