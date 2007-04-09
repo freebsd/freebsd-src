@@ -57,7 +57,6 @@ extern int errno;
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #include <sys/ioctl.h>
-#include <sys/ptrace.h>
 #include <sys/socket.h>
 #include <dlfcn.h>
 #include <err.h>
@@ -303,12 +302,6 @@ dumpheader(struct ktr_header *kth)
 #undef KTRACE
 int nsyscalls = sizeof (syscallnames) / sizeof (syscallnames[0]);
 
-static const char *ptrace_ops[] = {
-	"PT_TRACE_ME",	"PT_READ_I",	"PT_READ_D",	"PT_READ_U",
-	"PT_WRITE_I",	"PT_WRITE_D",	"PT_WRITE_U",	"PT_CONTINUE",
-	"PT_KILL",	"PT_STEP",	"PT_ATTACH",	"PT_DETACH",
-};
-
 void
 ktrsyscall(struct ktr_syscall *ktr)
 {
@@ -349,35 +342,8 @@ ktrsyscall(struct ktr_syscall *ktr)
 				ip++;
 				narg--;
 			} else if (ktr->ktr_code == SYS_ptrace) {
-				if ((size_t)*ip < sizeof(ptrace_ops) /
-				    sizeof(ptrace_ops[0]) && *ip >= 0)
-					(void)printf("(%s", ptrace_ops[*ip]);
-#ifdef PT_GETREGS
-				else if (*ip == PT_GETREGS)
-					(void)printf("(%s", "PT_GETREGS");
-#endif
-#ifdef PT_SETREGS
-				else if (*ip == PT_SETREGS)
-					(void)printf("(%s", "PT_SETREGS");
-#endif
-#ifdef PT_GETFPREGS
-				else if (*ip == PT_GETFPREGS)
-					(void)printf("(%s", "PT_GETFPREGS");
-#endif
-#ifdef PT_SETFPREGS
-				else if (*ip == PT_SETFPREGS)
-					(void)printf("(%s", "PT_SETFPREGS");
-#endif
-#ifdef PT_GETDBREGS
-				else if (*ip == PT_GETDBREGS)
-					(void)printf("(%s", "PT_GETDBREGS");
-#endif
-#ifdef PT_SETDBREGS
-				else if (*ip == PT_SETDBREGS)
-					(void)printf("(%s", "PT_SETDBREGS");
-#endif
-				else
-					(void)printf("(%ld", (long)*ip);
+				(void)putchar('(');
+				ptraceopname ((int)*ip);
 				c = ',';
 				ip++;
 				narg--;
