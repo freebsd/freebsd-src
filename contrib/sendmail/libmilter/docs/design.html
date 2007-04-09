@@ -1,23 +1,23 @@
-<html>
-<head>
-<title>Architecture</title>
-</head>
-<body>
+<HTML>
+<HEAD>
+<TITLE>Architecture</TITLE>
+</HEAD>
+<BODY>
 <!--
-$Id: design.html,v 1.11 2003/03/05 19:57:54 ca Exp $
+$Id: design.html,v 1.12 2006/08/08 20:55:57 ca Exp $
 -->
 
-<h1>Architecture</h1>
+<H1>Architecture</H1>
 
-<h2>Contents</h2>
+<H2>Contents</H2>
 
-<ul>
-    <li>Design Goals
-    <li>Implementing Filtering Policies
-    <li>MTA - Filter Communication
-</ul>
+<UL>
+    <LI>Design Goals
+    <LI>Implementing Filtering Policies
+    <LI>MTA - Filter Communication
+</UL>
 
-<h2>Goals</h2>
+<H2>Goals</H2>
 
 The Sendmail Content Management API (Milter) provides an interface for
 third-party software to validate and modify messages as they pass
@@ -28,7 +28,7 @@ recipients, headers, and body.  The MTA configuration file specifies
 which filters are to be applied, and in what order, allowing an
 administrator to combine multiple independently-developed filters.
 
-<p>
+<P>
 We expect to see both vendor-supplied, configurable mail filtering
 applications and a multiplicity of script-like filters designed by and
 for MTA administrators.  A certain degree of coding sophistication and
@@ -37,7 +37,7 @@ allows filters to exercise fine-grained control at the SMTP level.
 However, as will be seen in the example, many filtering applications
 can be written with relatively little protocol knowledge.
 
-<p>
+<P>
 Given these expectations, the API is designed to achieve the following
 goals:
 
@@ -47,7 +47,7 @@ goals:
         (of course, they can if required, but that is a local issue);
         this will simplify coding
         and limit the impact of security flaws in the filter program.
-<p>
+<P>
   <LI>Reliability.
         Coding failures in a Milter process that cause that process
         to hang or core-dump
@@ -59,7 +59,7 @@ goals:
         The latter failure mode will generally have sendmail return
         a 4xx SMTP code (although in later phases of the SMTP protocol
         it may cause the mail to be queued for later processing).
-<p>
+<P>
   <LI>Simplicity.
         The API should make implementation of a new filter
         no more difficult than absolutely necessary.
@@ -70,12 +70,12 @@ goals:
           <LI>Provide all interfaces required
               while avoiding unnecessary pedanticism.
         </UL>
-<p>
+<P>
   <LI>Performance.
         Simple filters should not seriously impact overall MTA performance.
 </OL>
 
-<h2>Implementing Filtering Policies</h2>
+<H2>Implementing Filtering Policies</H2>
 
 Milter is designed to allow a server administrator to combine
 third-party filters to implement a desired mail filtering policy.  For
@@ -87,16 +87,16 @@ engine, then via a large-scale spam-catching service, and finally
 append the desired footer if the message still met requisite criteria.
 Any of these filters could be added or changed independently.
 
-<p>
+<P>
 Thus the site administrator, not the filter writer, controls the
 overall mail filtering environment.  In particular, he/she must decide
 which filters are run, in what order they are run, and how they
 communicate with the MTA.  These parameters, as well as the
 actions to be taken if a filter becomes unavailable, are selectable
-during MTA configuration.  <a href="installation.html">Further
-details</a> are available later in this document.
+during MTA configuration.  <A href="installation.html">Further
+details</A> are available later in this document.
 
-<h2>MTA - Filter communication</h2>
+<H2>MTA - Filter communication</H2>
 
 Filters run as separate processes, outside of the sendmail address
 space.  The benefits of this are threefold:
@@ -112,36 +112,36 @@ space.  The benefits of this are threefold:
         the parallelism inherent in multiple processes.</LI>
 </OL>
 
-<p>
+<P>
 Each filter may communicate with multiple MTAs at the same time over
-local or remote connections, using multiple threads of execution.  <a
-href="#figure-1">Figure 1</a> illustrates a possible network of
+local or remote connections, using multiple threads of execution.
+<A HREF="#figure-1">Figure 1</A> illustrates a possible network of
 communication channels between a site's filters, its MTAs, and other
 MTAs on the network:
-</p>
-<div align="center">
-<a name="figure-1"><img src="figure1.jpg" ALT=""></A><br>
-<b>Figure 1: A set of MTA's interacting with a set of filters.</b>
-</div>
-<p>
+</P>
+<DIV align="center">
+<A name="figure-1"><IMG src="figure1.jpg" ALT=""></A><BR>
+<B>Figure 1: A set of MTA's interacting with a set of filters.</B>
+</DIV>
+<P>
 The Milter library (libmilter) implements the communication protocol.
 It accepts connections from various MTAs, passes the relevant data to
 the filter through callbacks, then makes appropriate responses based
 on return codes.  A filter may also send data to the MTA as a result
-of library calls.  <a href="#figure-2">Figure 2</a> shows a single
+of library calls.  <A href="#figure-2">Figure 2</A> shows a single
 filter process processing messages from two MTAs:
-</p>
-<div align="center">
-<img src="figure2.jpg" ALT=""><br>
-<b>Figure 2: A filter handling simultaneous requests from two MTA's.</b>
-</div>
-<hr size="1">
-<font size="-1">
+</P>
+<DIV align="center">
+<IMG src="figure2.jpg" ALT=""><BR>
+<B>Figure 2: A filter handling simultaneous requests from two MTA's.</B>
+</DIV>
+<HR size="1">
+<FONT size="-1">
 Copyright (c) 2000, 2003 Sendmail, Inc. and its suppliers.
 All rights reserved.
-<br>
+<BR>
 By using this file, you agree to the terms and conditions set
 forth in the LICENSE.
-</font>
-</body>
-</html>
+</FONT>
+</BODY>
+</HTML>

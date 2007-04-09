@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: exc.c,v 1.48 2003/12/05 22:45:24 ca Exp $")
+SM_RCSID("@(#)$Id: exc.c,v 1.49 2006/12/19 19:28:09 ca Exp $")
 
 /*
 **  exception handling
@@ -229,7 +229,9 @@ const SM_EXC_TYPE_T SmEtypeErr =
 **  an out-of-memory exception so that exc is not leaked.
 */
 
-SM_EXC_T *
+static SM_EXC_T *sm_exc_vnew_x __P((const SM_EXC_TYPE_T *, va_list SM_NONVOLATILE));
+
+static SM_EXC_T *
 sm_exc_vnew_x(etype, ap)
 	const SM_EXC_TYPE_T *etype;
 	va_list SM_NONVOLATILE ap;
@@ -415,26 +417,6 @@ sm_exc_new_x(etype, va_alist)
 	SM_VA_START(ap, etype);
 	exc = sm_exc_vnew_x(etype, ap);
 	SM_VA_END(ap);
-	return exc;
-}
-
-/*
-**  SM_ADDREF -- Add a reference to an exception object.
-**
-**	Parameters:
-**		exc -- exception object.
-**
-**	Returns:
-**		exc itself.
-*/
-
-SM_EXC_T *
-sm_addref(exc)
-	SM_EXC_T *exc;
-{
-	SM_REQUIRE_ISA(exc, SmExcMagic);
-	if (exc->exc_refcount != 0)
-		++exc->exc_refcount;
 	return exc;
 }
 

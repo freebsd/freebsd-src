@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
 	The Regents of the University of California.  All rights reserved.\n\
      Copyright (c) 1983 Eric P. Allman.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.142 2004/11/02 18:25:33 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.143 2006/12/19 19:00:43 ca Exp $")
 
 
 #include <ctype.h>
@@ -52,6 +52,16 @@ int	Verbose = 2;
 bool	DontInitGroups = false;
 uid_t	TrustedUid = 0;
 BITMAP256 DontBlameSendmail;
+
+static int readheaders __P((bool));
+static bool junkmail __P((char *));
+static bool nsearch __P((char *, char *));
+static void usage __P((void));
+static void setinterval __P((time_t));
+static bool recent __P((void));
+static void setreply __P((char *, time_t));
+static void sendmessage __P((char *, char *, char *));
+static void xclude __P((SM_FILE_T *));
 
 /*
 **  VACATION -- return a message to the sender when on vacation.
@@ -149,13 +159,6 @@ main(argc, argv)
 	static char rnamebuf[MAXNAME];
 	extern int optind, opterr;
 	extern char *optarg;
-	extern void usage __P((void));
-	extern void setinterval __P((time_t));
-	extern int readheaders __P((bool));
-	extern bool recent __P((void));
-	extern void setreply __P((char *, time_t));
-	extern void sendmessage __P((char *, char *, char *));
-	extern void xclude __P((SM_FILE_T *));
 
 	/* Vars needed to link with smutil */
 	clrbitmap(DontBlameSendmail);
@@ -489,7 +492,7 @@ eatmsg()
 **
 */
 
-int
+static int
 readheaders(alwaysrespond)
 	bool alwaysrespond;
 {
@@ -497,8 +500,6 @@ readheaders(alwaysrespond)
 	register char *p;
 	register ALIAS *cur;
 	char buf[MAXLINE];
-	extern bool junkmail __P((char *));
-	extern bool nsearch __P((char *, char *));
 
 	cont = false;
 	tome = alwaysrespond;
@@ -623,7 +624,7 @@ findme:
 **
 */
 
-bool
+static bool
 nsearch(name, str)
 	register char *name, *str;
 {
@@ -677,7 +678,7 @@ typedef struct ignore IGNORE_T;
 /* delimiters for the local part of an address */
 #define isdelim(c)	((c) == '%' || (c) == '@' || (c) == '+')
 
-bool
+static bool
 junkmail(from)
 	char *from;
 {
@@ -815,7 +816,7 @@ junkmail(from)
 **
 */
 
-bool
+static bool
 recent()
 {
 	SMDB_DBENT key, data;
@@ -877,7 +878,7 @@ recent()
 **		stores the reply interval in database.
 */
 
-void
+static void
 setinterval(interval)
 	time_t interval;
 {
@@ -908,7 +909,7 @@ setinterval(interval)
 **		stores user/time in database.
 */
 
-void
+static void
 setreply(from, when)
 	char *from;
 	time_t when;
@@ -939,7 +940,7 @@ setreply(from, when)
 **		stores users in database.
 */
 
-void
+static void
 xclude(f)
 	SM_FILE_T *f;
 {
@@ -971,7 +972,7 @@ xclude(f)
 **		sends vacation reply.
 */
 
-void
+static void
 sendmessage(myname, msgfn, sender)
 	char *myname;
 	char *msgfn;
@@ -1047,7 +1048,7 @@ sendmessage(myname, msgfn, sender)
 	}
 }
 
-void
+static void
 usage()
 {
 	msglog(LOG_NOTICE,

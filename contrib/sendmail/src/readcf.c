@@ -12,8 +12,9 @@
  */
 
 #include <sendmail.h>
+#include <sm/sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.651 2006/03/02 19:17:09 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.663 2006/10/05 20:58:59 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -103,6 +104,7 @@ readcf(cfname, safe, e)
 	long sff = SFF_OPENASROOT;
 	struct stat statb;
 	char buf[MAXLINE];
+	int bufsize;
 	char exbuf[MAXLINE];
 	char pvpbuf[MAXLINE + MAXATOM];
 	static char *null_list[1] = { NULL };
@@ -148,8 +150,11 @@ readcf(cfname, safe, e)
 	xla_zero();
 #endif /* XLA */
 
-	while ((bp = fgetfolded(buf, sizeof buf, cf)) != NULL)
+	while (bufsize = sizeof(buf),
+	       (bp = fgetfolded(buf, &bufsize, cf)) != NULL)
 	{
+		char *nbp;
+
 		if (bp[0] == '#')
 		{
 			if (bp != buf)
@@ -158,7 +163,10 @@ readcf(cfname, safe, e)
 		}
 
 		/* do macro expansion mappings */
-		translate_dollars(bp);
+		nbp = translate_dollars(bp, bp, &bufsize);
+		if (nbp != bp && bp != buf)
+			sm_free(bp);
+		bp = nbp;
 
 		/* interpret this line */
 		errno = 0;
@@ -187,21 +195,21 @@ readcf(cfname, safe, e)
 			if (rwp == NULL)
 			{
 				RewriteRules[ruleset] = rwp =
-					(struct rewrite *) xalloc(sizeof *rwp);
+					(struct rewrite *) xalloc(sizeof(*rwp));
 			}
 			else
 			{
-				rwp->r_next = (struct rewrite *) xalloc(sizeof *rwp);
+				rwp->r_next = (struct rewrite *) xalloc(sizeof(*rwp));
 				rwp = rwp->r_next;
 			}
 			rwp->r_next = NULL;
 
 			/* expand and save the LHS */
 			*p = '\0';
-			expand(&bp[1], exbuf, sizeof exbuf, e);
+			expand(&bp[1], exbuf, sizeof(exbuf), e);
 			rwp->r_lhs = prescan(exbuf, '\t', pvpbuf,
-					     sizeof pvpbuf, NULL,
-					     ConfigLevel >= 9 ? TokTypeNoC : NULL,
+					     sizeof(pvpbuf), NULL,
+					     ConfigLevel >= 9 ? TokTypeNoC : IntTokenTab,
 					     true);
 			nfuzzy = 0;
 			if (rwp->r_lhs != NULL)
@@ -216,7 +224,7 @@ readcf(cfname, safe, e)
 					char *botch;
 
 					botch = NULL;
-					switch (**ap & 0377)
+					switch (ap[0][0] & 0377)
 					{
 					  case MATCHZANY:
 					  case MATCHANY:
@@ -227,7 +235,7 @@ readcf(cfname, safe, e)
 						break;
 
 					  case MATCHREPL:
-						botch = "$0-$9";
+						botch = "$1-$9";
 						break;
 
 					  case CANONUSER:
@@ -286,10 +294,10 @@ readcf(cfname, safe, e)
 			while (*p != '\0' && *p != '\t')
 				p++;
 			*p = '\0';
-			expand(q, exbuf, sizeof exbuf, e);
+			expand(q, exbuf, sizeof(exbuf), e);
 			rwp->r_rhs = prescan(exbuf, '\t', pvpbuf,
-					     sizeof pvpbuf, NULL,
-					     ConfigLevel >= 9 ? TokTypeNoC : NULL,
+					     sizeof(pvpbuf), NULL,
+					     ConfigLevel >= 9 ? TokTypeNoC : IntTokenTab,
 					     true);
 			if (rwp->r_rhs != NULL)
 			{
@@ -312,13 +320,14 @@ readcf(cfname, safe, e)
 					char *botch;
 
 					botch = NULL;
-					switch (**ap & 0377)
+					switch (ap[0][0] & 0377)
 					{
 					  case MATCHREPL:
-						if ((*ap)[1] <= '0' || (*ap)[1] > nfuzzy)
+						if (ap[0][1] <= '0' ||
+						    ap[0][1] > nfuzzy)
 						{
 							syserr("replacement $%c out of bounds",
-								(*ap)[1]);
+								ap[0][1]);
 						}
 						break;
 
@@ -354,34 +363,34 @@ readcf(cfname, safe, e)
 						/* FALLTHROUGH */
 					  case LOOKUPBEGIN:
 						/* see above... */
-						if ((**ap & 0377) == LOOKUPBEGIN)
+						if ((ap[0][0] & 0377) == LOOKUPBEGIN)
 							endtoken = LOOKUPEND;
 						if (inmap)
 							syserr("cannot nest map lookups");
 						inmap = true;
 						args = 0;
 #if _FFR_EXTRA_MAP_CHECK
-						if (*(ap + 1) == NULL)
+						if (ap[1] == NULL)
 						{
 							syserr("syntax error in map lookup");
 							break;
 						}
-						nexttoken = **(ap + 1) & 0377;
+						nexttoken = ap[1][0] & 0377;
 						if (nexttoken == CANONHOST ||
 						    nexttoken == CANONUSER ||
-						    nexttoken == endtoken)
+						    nexttoken == endtoken))
 						{
 							syserr("missing map name for lookup");
 							break;
 						}
-						if (*(ap + 2) == NULL)
+						if (ap[2] == NULL)
 						{
 							syserr("syntax error in map lookup");
 							break;
 						}
-						if ((**ap & 0377) == HOSTBEGIN)
+						if (ap[0][0] == HOSTBEGIN)
 							break;
-						nexttoken = **(ap + 2) & 0377;
+						nexttoken = ap[2][0] & 0377;
 						if (nexttoken == CANONHOST ||
 						    nexttoken == CANONUSER ||
 						    nexttoken == endtoken)
@@ -394,7 +403,7 @@ readcf(cfname, safe, e)
 
 					  case HOSTEND:
 					  case LOOKUPEND:
-						if ((**ap & 0377) != endtoken)
+						if ((ap[0][0] & 0377) != endtoken)
 							break;
 						inmap = false;
 						endtoken = 0;
@@ -416,10 +425,9 @@ readcf(cfname, safe, e)
 						**  check if map is defined.
 						*/
 
-						ep = *(ap + 1);
-						if ((*ep & 0377) != MACRODEXPAND &&
-						    stab(ep, ST_MAP,
-							 ST_FIND) == NULL)
+						ep = ap[1];
+						if ((ep[0] & 0377) != MACRODEXPAND &&
+						    stab(ep, ST_MAP, ST_FIND) == NULL)
 						{
 							(void) sm_io_fprintf(smioout,
 									     SM_TIME_DEFAULT,
@@ -446,7 +454,7 @@ readcf(cfname, safe, e)
 			break;
 
 		  case 'S':		/* select rewriting set */
-			expand(&bp[1], exbuf, sizeof exbuf, e);
+			expand(&bp[1], exbuf, sizeof(exbuf), e);
 			ruleset = strtorwset(exbuf, NULL, ST_ENTER);
 			if (ruleset < 0)
 				break;
@@ -486,7 +494,7 @@ readcf(cfname, safe, e)
 				mid = macid_parse(&bp[1], &ep);
 				if (mid == 0)
 					break;
-				expand(ep, exbuf, sizeof exbuf, e);
+				expand(ep, exbuf, sizeof(exbuf), e);
 				p = exbuf;
 			}
 			else
@@ -671,7 +679,7 @@ readcf(cfname, safe, e)
 			break;
 
 		  case 'K':
-			expand(&bp[1], exbuf, sizeof exbuf, e);
+			expand(&bp[1], exbuf, sizeof(exbuf), e);
 			(void) makemapentry(exbuf);
 			break;
 
@@ -733,6 +741,7 @@ readcf(cfname, safe, e)
 		}
 	}
 }
+
 /*
 **  TRANSLATE_DOLLARS -- convert $x into internal form
 **
@@ -740,20 +749,35 @@ readcf(cfname, safe, e)
 **	to turn it into internal form.
 **
 **	Parameters:
-**		bp -- the buffer to translate.
+**		ibp -- the buffer to translate.
+**		obp -- where to put the translation; may be the same as obp
+**		bsp -- a pointer to the size of obp; will be updated if
+**			the buffer needs to be replaced.
 **
 **	Returns:
-**		None.  The buffer is translated in place.  Since the
-**		translations always make the buffer shorter, this is
-**		safe without a size parameter.
+**		The buffer pointer; may differ from obp if the expansion
+**		is larger then *bsp, in which case this will point to
+**		malloc()ed memory which must be free()d by the caller.
 */
 
-void
-translate_dollars(bp)
-	char *bp;
+char *
+translate_dollars(ibp, obp, bsp)
+	char *ibp;
+	char *obp;
+	int *bsp;
 {
 	register char *p;
 	auto char *ep;
+	char *bp;
+
+	if (tTd(37, 53))
+	{
+		sm_dprintf("translate_dollars(");
+		xputs(sm_debug_file(), ibp);
+		sm_dprintf(")\n");
+	}
+
+	bp = quote_internal_chars(ibp, obp, bsp);
 
 	for (p = bp; *p != '\0'; p++)
 	{
@@ -777,7 +801,9 @@ translate_dollars(bp)
 				/* delete leading white space */
 				while (isascii(*p) && isspace(*p) &&
 				       *p != '\n' && p > bp)
+				{
 					p--;
+				}
 				if ((e = strchr(++p, '\n')) != NULL)
 					(void) sm_strlcpy(p, e, strlen(p));
 				else
@@ -813,6 +839,15 @@ translate_dollars(bp)
 	/* strip trailing white space from the line */
 	while (--p > bp && isascii(*p) && isspace(*p))
 		*p = '\0';
+
+	if (tTd(37, 53))
+	{
+		sm_dprintf("  translate_dollars => ");
+		xputs(sm_debug_file(), bp);
+		sm_dprintf("\n");
+	}
+
+	return bp;
 }
 /*
 **  TOOMANY -- signal too many of some option
@@ -944,11 +979,11 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 			char lcbuf[MAXLINE];
 
 			/* Get $j */
-			expand("\201j", jbuf, sizeof jbuf, &BlankEnvelope);
+			expand("\201j", jbuf, sizeof(jbuf), &BlankEnvelope);
 			if (jbuf[0] == '\0')
 			{
 				(void) sm_strlcpy(jbuf, "localhost",
-						  sizeof jbuf);
+						  sizeof(jbuf));
 			}
 
 			/* impose the default schema */
@@ -957,15 +992,15 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 				lc = "";
 			else
 			{
-				expand(lc, lcbuf, sizeof lcbuf, CurEnv);
+				expand(lc, lcbuf, sizeof(lcbuf), CurEnv);
 				lc = lcbuf;
 			}
 
 			cl = "ldap";
-			n = sm_snprintf(buf, sizeof buf,
+			n = sm_snprintf(buf, sizeof(buf),
 					"-k (&(objectClass=sendmailMTAClass)(sendmailMTAClassName=%s)(|(sendmailMTACluster=%s)(sendmailMTAHost=%s))) -v sendmailMTAClassValue,sendmailMTAClassSearch:FILTER:sendmailMTAClass,sendmailMTAClassURL:URL:sendmailMTAClass",
 					mn, lc, jbuf);
-			if (n >= sizeof buf)
+			if (n >= sizeof(buf))
 			{
 				syserr("fileclass: F{%s}: Default LDAP string too long",
 				       mn);
@@ -996,7 +1031,7 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 			sm_free(mn);
 			return;
 		}
-		memset(&map, '\0', sizeof map);
+		memset(&map, '\0', sizeof(map));
 		map.map_class = &mapclass->s_mapclass;
 		map.map_mname = mn;
 		map.map_mflags |= MF_FILECLASS;
@@ -1095,7 +1130,7 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 		return;
 	}
 
-	while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof buf) != NULL)
+	while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
 	{
 #if SCANF
 		char wordbuf[MAXLINE + 1];
@@ -1170,8 +1205,8 @@ makemailer(line)
 	static int nextmailer = 0;	/* "free" index into Mailer struct */
 
 	/* allocate a mailer and set up defaults */
-	m = (struct mailer *) xalloc(sizeof *m);
-	memset((char *) m, '\0', sizeof *m);
+	m = (struct mailer *) xalloc(sizeof(*m));
+	memset((char *) m, '\0', sizeof(*m));
 	errno = 0; /* avoid bogus error text */
 
 	/* collect the mailer name */
@@ -1630,7 +1665,7 @@ munchstring(p, delimptr, delim)
 	bool quotemode = false;
 	static char buf[MAXLINE];
 
-	for (q = buf; *p != '\0' && q < &buf[sizeof buf - 1]; p++)
+	for (q = buf; *p != '\0' && q < &buf[sizeof(buf) - 1]; p++)
 	{
 		if (backslash)
 		{
@@ -1708,7 +1743,7 @@ extrquotstr(p, delimptr, delimbuf, st)
 	bool quotemode = false;
 	static char buf[MAXLINE];
 
-	for (q = buf; *p != '\0' && q < &buf[sizeof buf - 1]; p++)
+	for (q = buf; *p != '\0' && q < &buf[sizeof(buf) - 1]; p++)
 	{
 		if (backslash)
 		{
@@ -1770,8 +1805,8 @@ makeargv(p)
 	argv[i++] = NULL;
 
 	/* now make a copy of the argv */
-	avp = (char **) xalloc(sizeof *avp * i);
-	memmove((char *) avp, (char *) argv, sizeof *avp * i);
+	avp = (char **) xalloc(sizeof(*avp) * i);
+	memmove((char *) avp, (char *) argv, sizeof(*avp) * i);
 
 	return avp;
 }
@@ -2163,14 +2198,10 @@ static struct optioninfo
 	{ "DelayLA",	O_DELAY_LA,	OI_NONE	},
 #define O_FASTSPLIT	0xce
 	{ "FastSplit",	O_FASTSPLIT,	OI_NONE	},
-#if _FFR_SOFT_BOUNCE
-# define O_SOFTBOUNCE	0xcf
+#define O_SOFTBOUNCE	0xcf
 	{ "SoftBounce",	O_SOFTBOUNCE,	OI_NONE	},
-#endif /* _FFR_SOFT_BOUNCE */
-#if _FFR_SELECT_SHM
-# define O_SHMKEYFILE	0xd0
+#define O_SHMKEYFILE	0xd0
 	{ "SharedMemoryKeyFile",	O_SHMKEYFILE,	OI_NONE	},
-#endif /* _FFR_SELECT_SHM */
 #define O_REJECTLOGINTERVAL	0xd1
 	{ "RejectLogInterval",	O_REJECTLOGINTERVAL,	OI_NONE	},
 #define O_REQUIRES_DIR_FSYNC	0xd2
@@ -2187,10 +2218,8 @@ static struct optioninfo
 # define O_CRLPATH	0xd7
 	{ "CRLPath",		O_CRLPATH,	OI_NONE	},
 #endif /* _FFR_CRLPATH */
-#if _FFR_HELONAME
-# define O_HELONAME 0xd8
+#define O_HELONAME 0xd8
 	{ "HeloName",   O_HELONAME,     OI_NONE },
-#endif /* _FFR_HELONAME */
 #if _FFR_MEMSTAT
 # define O_REFUSELOWMEM	0xd9
 	{ "RefuseLowMem",	O_REFUSELOWMEM,	OI_NONE },
@@ -2199,10 +2228,8 @@ static struct optioninfo
 # define O_MEMRESOURCE	0xdb
 	{ "MemoryResource",	O_MEMRESOURCE,	OI_NONE },
 #endif /* _FFR_MEMSTAT */
-#if _FFR_MAXNOOPCOMMANDS
-# define O_MAXNOOPCOMMANDS 0xdc
+#define O_MAXNOOPCOMMANDS 0xdc
 	{ "MaxNOOPCommands",	O_MAXNOOPCOMMANDS,	OI_NONE },
-#endif /* _FFR_MAXNOOPCOMMANDS */
 #if _FFR_MSG_ACCEPT
 # define O_MSG_ACCEPT 0xdd
 	{ "MessageAccept",	O_MSG_ACCEPT,	OI_NONE },
@@ -2211,6 +2238,13 @@ static struct optioninfo
 # define O_CHK_Q_RUNNERS 0xde
 	{ "CheckQueueRunners",	O_CHK_Q_RUNNERS,	OI_NONE },
 #endif /* _FFR_QUEUE_RUN_PARANOIA */
+#if _FFR_EIGHT_BIT_ADDR_OK
+# if !ALLOW_255
+#  ERROR FFR_EIGHT_BIT_ADDR_OK requires _ALLOW_255
+# endif /* !ALLOW_255 */
+# define O_EIGHT_BIT_ADDR_OK	0xdf
+	{ "EightBitAddrOK",	O_EIGHT_BIT_ADDR_OK,	OI_NONE },
+#endif /* _FFR_EIGHT_BIT_ADDR_OK */
 
 	{ NULL,				'\0',		OI_NONE	}
 };
@@ -2222,7 +2256,7 @@ static struct optioninfo
 /* set a string option by expanding the value and assigning it */
 /* WARNING this belongs ONLY into a case statement! */
 #define SET_STRING_EXP(str)	\
-		expand(val, exbuf, sizeof exbuf, e);	\
+		expand(val, exbuf, sizeof(exbuf), e);	\
 		newval = sm_pstrdup_x(exbuf);		\
 		if (str != NULL)	\
 			sm_free(str);	\
@@ -2251,10 +2285,10 @@ setoption(opt, val, safe, sticky, e)
 #if _FFR_ALLOW_SASLINFO
 	extern unsigned int SubmitMode;
 #endif /* _FFR_ALLOW_SASLINFO */
-#if STARTTLS || (_FFR_SELECT_SHM && SM_CONF_SHM)
+#if STARTTLS || SM_CONF_SHM
 	char *newval;
 	char exbuf[MAXLINE];
-#endif /* STARTTLS || (_FFR_SELECT_SHM && SM_CONF_SHM) */
+#endif /* STARTTLS || SM_CONF_SHM */
 
 	errno = 0;
 	if (opt == ' ')
@@ -3038,17 +3072,15 @@ setoption(opt, val, safe, sticky, e)
 #endif /* SM_CONF_SHM */
 		break;
 
-#if _FFR_SELECT_SHM
 	  case O_SHMKEYFILE:		/* shared memory key file */
-# if SM_CONF_SHM
+#if SM_CONF_SHM
 		SET_STRING_EXP(ShmKeyFile);
-# else /* SM_CONF_SHM */
+#else /* SM_CONF_SHM */
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "Warning: Option: %s requires shared memory support (-DSM_CONF_SHM)\n",
 				     OPTNAME);
 		break;
-# endif /* SM_CONF_SHM */
-#endif /* _FFR_SELECT_SHM */
+#endif /* SM_CONF_SHM */
 
 #if _FFR_MAX_FORWARD_ENTRIES
 	  case O_MAXFORWARD:	/* max # of forward entries */
@@ -3061,9 +3093,9 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case O_MUSTQUOTE:	/* must quote these characters in phrases */
-		(void) sm_strlcpy(buf, "@,;:\\()[]", sizeof buf);
-		if (strlen(val) < sizeof buf - 10)
-			(void) sm_strlcat(buf, val, sizeof buf);
+		(void) sm_strlcpy(buf, "@,;:\\()[]", sizeof(buf));
+		if (strlen(val) < sizeof(buf) - 10)
+			(void) sm_strlcat(buf, val, sizeof(buf));
 		else
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "Warning: MustQuoteChars too long, ignored.\n");
@@ -3371,6 +3403,16 @@ setoption(opt, val, safe, sticky, e)
 		else if (MaxMimeFieldLength < 40)
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "Warning: MaxMimeHeaderLength: field length limit set lower than 40\n");
+
+		/*
+		**  Headers field values now include leading space, so let's
+		**  adjust the values to be "backward compatible".
+		*/
+
+		if (MaxMimeHeaderLength > 0)
+			MaxMimeHeaderLength++;
+		if (MaxMimeFieldLength > 0)
+			MaxMimeFieldLength++;
 		break;
 
 	  case O_CONTROLSOCKET:
@@ -3702,11 +3744,9 @@ setoption(opt, val, safe, sticky, e)
 		UseMSP = atobool(val);
 		break;
 
-#if _FFR_SOFT_BOUNCE
 	  case O_SOFTBOUNCE:
 		SoftBounce = atobool(val);
 		break;
-#endif /* _FFR_SOFT_BOUNCE */
 
 	  case O_REJECTLOGINTERVAL:	/* time btwn log msgs while refusing */
 		RejectLogInterval = convtime(val, 'h');
@@ -3729,11 +3769,10 @@ setoption(opt, val, safe, sticky, e)
 			FallbackSmartHost = newstr(val);
 		break;
 
-#if _FFR_HELONAME
 	  case O_HELONAME:
 		HeloName = newstr(val);
 		break;
-#endif /* _FFR_HELONAME */
+
 #if _FFR_MEMSTAT
 	  case O_REFUSELOWMEM:
 		RefuseLowMem = atoi(val);
@@ -3746,11 +3785,9 @@ setoption(opt, val, safe, sticky, e)
 		break;
 #endif /* _FFR_MEMSTAT */
 
-#if _FFR_MAXNOOPCOMMANDS
 	  case O_MAXNOOPCOMMANDS:
 		MaxNOOPCommands = atoi(val);
 		break;
-#endif /* _FFR_MAXNOOPCOMMANDS */
 
 #if _FFR_MSG_ACCEPT
 	  case O_MSG_ACCEPT:
@@ -3763,6 +3800,12 @@ setoption(opt, val, safe, sticky, e)
 		CheckQueueRunners = atoi(val);
 		break;
 #endif /* _FFR_QUEUE_RUN_PARANOIA */
+
+#if _FFR_EIGHT_BIT_ADDR_OK
+	  case O_EIGHT_BIT_ADDR_OK:
+		EightBitAddrOK = atobool(val);
+		break;
+#endif /* _FFR_EIGHT_BIT_ADDR_OK */
 
 	  default:
 		if (tTd(37, 1))
@@ -3807,7 +3850,7 @@ setclass(class, str)
 {
 	register STAB *s;
 
-	if ((*str & 0377) == MATCHCLASS)
+	if ((str[0] & 0377) == MATCHCLASS)
 	{
 		int mid;
 
