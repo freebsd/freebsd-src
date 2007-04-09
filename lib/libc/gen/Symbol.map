@@ -312,6 +312,7 @@ FBSD_1.0 {
 	tcdrain;
 	tcflush;
 	tcflow;
+	__tls_get_addr;
 	ualarm;
 	ulimit;
 	uname;
@@ -429,12 +430,6 @@ FBSDprivate {
 	_sleep;
 	_rtld_allocate_tls;
 	_rtld_free_tls;
-	__libc_allocate_tls;
-	__libc_free_tls;
-	___tls_get_addr;	# x86 only
-	___libc_tls_get_addr;	# x86 only
-	__libc_tls_get_addr;
-	__tls_get_addr;
 	__tcdrain;
 	_tcdrain;
 	__usleep;
