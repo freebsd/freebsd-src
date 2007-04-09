@@ -21,7 +21,7 @@ LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic
 
-.if defined(SYMVER_ENABLED)
+.if defined(SYMVER_ENABLED) && 0
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 VERSION_DEF=	${.CURDIR}/Versions.def
 VERSION_MAP=	Version.map

@@ -11,8 +11,11 @@ FBSD_1.0 {
     dllockinit;
     dlinfo;
     dl_iterate_phdr;
+    __tls_get_addr;
+};
+
+FBSDprivate {
     _rtld_thread_init;
     _rtld_allocate_tls;
     _rtld_free_tls;
-    __tls_get_addr;
 };

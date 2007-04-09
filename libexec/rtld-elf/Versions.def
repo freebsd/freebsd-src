@@ -2,3 +2,6 @@
 
 FBSD_1.0 {
 };
+
+FBSDprivate {
+};
