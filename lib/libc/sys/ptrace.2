@@ -297,6 +297,9 @@ The
 .Fa data
 argument is to be set to the size of the structure known to the caller.
 This allows the structure to grow without affecting older programs.
+.It PT_GETNUMLWPS
+This request returns the number of kernel threads associated with the
+traced process.
 .It PT_GETLWPLIST
 This request can be used to get the current thread list.
 A pointer to an array of type
