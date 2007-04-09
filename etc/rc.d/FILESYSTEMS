@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: FILESYSTEMS
-# REQUIRE: root mountcritlocal
+# REQUIRE: root mountcritlocal zfs
 
 #	This is a dummy dependency, for services which require file systems
 #	to be mounted before starting.  It also serves as the default early /
