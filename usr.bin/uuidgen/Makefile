@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+BINDIR=	/bin
+
 PROG=	uuidgen
 WARNS?=	6
 
