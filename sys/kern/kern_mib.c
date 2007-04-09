@@ -301,6 +301,9 @@ SYSCTL_STRING(_kern, KERN_NISDOMAINNAME, domainname, CTLFLAG_RW,
 
 u_long hostid;
 SYSCTL_ULONG(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "Host ID");
+char hostuuid[64] = "00000000-0000-0000-0000-000000000000";
+SYSCTL_STRING(_kern, KERN_HOSTUUID, hostuuid, CTLFLAG_RW, hostuuid,
+    sizeof(hostuuid), "Host UUID");
 
 /*
  * This is really cheating.  These actually live in the libc, something
