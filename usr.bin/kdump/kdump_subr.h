@@ -45,3 +45,4 @@ void sigprocmaskhowname (int);
 void lio_listioname (int);
 void minheritname (int);
 void quotactlname (int);
+void ptraceopname (int);
