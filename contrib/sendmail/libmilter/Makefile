@@ -1,10 +1,12 @@
-#       $Id: Makefile,v 8.1 1999/11/04 00:03:40 ca Exp $
+#       $Id: Makefile,v 8.2 2006/05/23 21:55:55 ca Exp $
 
 SHELL= /bin/sh
 BUILD=   ./Build
 OPTIONS= $(CONFIG) $(FLAGS)
 
 all: FRC
+	$(SHELL) $(BUILD) $(OPTIONS) $@
+check: FRC
 	$(SHELL) $(BUILD) $(OPTIONS) $@
 clean: FRC
 	$(SHELL) $(BUILD) $(OPTIONS) $@

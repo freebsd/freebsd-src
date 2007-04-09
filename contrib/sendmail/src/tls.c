@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: tls.c,v 8.105 2006/05/11 22:59:31 ca Exp $")
+SM_RCSID("@(#)$Id: tls.c,v 8.107 2006/10/12 21:35:11 ca Exp $")
 
 #if STARTTLS
 #  include <openssl/err.h>
@@ -213,7 +213,7 @@ tls_rand_init(randfile, logl)
 					  DontBlameSendmail))
 			{
 				/* add this even if fstat() failed */
-				RAND_seed((void *) &st, sizeof st);
+				RAND_seed((void *) &st, sizeof(st));
 			}
 			(void) close(fd);
 		}
@@ -251,7 +251,7 @@ tls_rand_init(randfile, logl)
 			r = get_random();
 			(void) memcpy(buf + i, (void *) &r, sizeof(long));
 		}
-		RAND_seed(buf, sizeof buf);
+		RAND_seed(buf, sizeof(buf));
 		if (LogLevel > logl)
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS: Warning: random number generator not properly seeded");
@@ -747,8 +747,10 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: BIO_new=failed", who);
 	}
+	else
+		store = NULL;
 #  if _FFR_CRLPATH
-	if (CRLPath != NULL)
+	if (CRLPath != NULL && store != NULL)
 	{
 		X509_LOOKUP *lookup;
 
@@ -1175,9 +1177,9 @@ tls_get_info(ssl, srv, host, mac, certreq)
 	macdefine(mac, A_TEMP, macid("{cipher}"),
 		  (char *) SSL_CIPHER_get_name(c));
 	b = SSL_CIPHER_get_bits(c, &r);
-	(void) sm_snprintf(bitstr, sizeof bitstr, "%d", b);
+	(void) sm_snprintf(bitstr, sizeof(bitstr), "%d", b);
 	macdefine(mac, A_TEMP, macid("{cipher_bits}"), bitstr);
-	(void) sm_snprintf(bitstr, sizeof bitstr, "%d", r);
+	(void) sm_snprintf(bitstr, sizeof(bitstr), "%d", r);
 	macdefine(mac, A_TEMP, macid("{alg_bits}"), bitstr);
 	s = SSL_CIPHER_get_version(c);
 	if (s == NULL)
@@ -1198,19 +1200,19 @@ tls_get_info(ssl, srv, host, mac, certreq)
 		char buf[MAXNAME];
 
 		X509_NAME_oneline(X509_get_subject_name(cert),
-				  buf, sizeof buf);
+				  buf, sizeof(buf));
 		macdefine(mac, A_TEMP, macid("{cert_subject}"),
 			 xtextify(buf, "<>\")"));
 		X509_NAME_oneline(X509_get_issuer_name(cert),
-				  buf, sizeof buf);
+				  buf, sizeof(buf));
 		macdefine(mac, A_TEMP, macid("{cert_issuer}"),
 			 xtextify(buf, "<>\")"));
 		X509_NAME_get_text_by_NID(X509_get_subject_name(cert),
-					  NID_commonName, buf, sizeof buf);
+					  NID_commonName, buf, sizeof(buf));
 		macdefine(mac, A_TEMP, macid("{cn_subject}"),
 			 xtextify(buf, "<>\")"));
 		X509_NAME_get_text_by_NID(X509_get_issuer_name(cert),
-					  NID_commonName, buf, sizeof buf);
+					  NID_commonName, buf, sizeof(buf));
 		macdefine(mac, A_TEMP, macid("{cn_issuer}"),
 			 xtextify(buf, "<>\")"));
 		n = 0;
@@ -1564,7 +1566,7 @@ tls_verify_log(ok, ctx, name)
 		return 0;
 	}
 
-	X509_NAME_oneline(X509_get_subject_name(cert), buf, sizeof buf);
+	X509_NAME_oneline(X509_get_subject_name(cert), buf, sizeof(buf));
 	sm_syslog(LOG_INFO, NOQID,
 		  "STARTTLS: %s cert verify: depth=%d %s, state=%d, reason=%s",
 		  name, depth, buf, ok, X509_verify_cert_error_string(reason));

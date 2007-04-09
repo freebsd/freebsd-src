@@ -3,7 +3,7 @@
 ## Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
 ##	All rights reserved.
 ##
-## $Id: qtool.pl,v 8.28 2002/06/27 23:06:16 gshapiro Exp $
+## $Id: qtool.pl,v 8.29 2007/02/16 01:12:08 ca Exp $
 ##
 use strict;
 use File::Basename;
@@ -69,6 +69,12 @@ my $new_condition;
 my $qprefix;
 my $queuegroups = 0;
 my $conditions = new Compound();
+my $fcntl_struct = 's H60';
+my $fcntl_structlockp = pack($fcntl_struct, Fcntl::F_WRLCK,
+	"000000000000000000000000000000000000000000000000000000000000");
+my $fcntl_structunlockp = pack($fcntl_struct, Fcntl::F_UNLCK,
+	"000000000000000000000000000000000000000000000000000000000000");
+my $lock_both = -1;
 
 Getopt::Std::getopts('bC:de:Qs:', \%opts);
 
@@ -340,7 +346,9 @@ sub add_source
 ## 	Opens a file for read/write and uses flock to obtain a lock on the
 ##	file. The flock is Perl's flock which defaults to flock on systems
 ##	that support it. On systems without flock it falls back to fcntl
-##	locking.
+##	locking.  This script will also call fcntl explicitly if flock
+##      uses BSD semantics (i.e. if both flock() and fcntl() can successfully
+##      lock the file at the same time)
 ##
 ##	Parameters:
 ##		file_name -- The name of the file to open and lock.
@@ -358,6 +366,24 @@ sub lock_file
 	my $file_name = shift;
 	my $result;
 
+	if ($lock_both == -1)
+	{
+		if (open(DEVNULL, '>/dev/null'))
+		{
+			my $flock_status = flock(DEVNULL, Fcntl::LOCK_EX | Fcntl::LOCK_NB);
+			my $fcntl_status = fcntl (DEVNULL, Fcntl::F_SETLK, $fcntl_structlockp);
+			close(DEVNULL);
+
+			$lock_both = ($flock_status && $fcntl_status);
+		}
+		else
+		{
+			# Couldn't open /dev/null.  Windows system?
+			$lock_both = 0;
+		}
+	}
+
+
 	$result = sysopen(FILE_TO_LOCK, $file_name, Fcntl::O_RDWR);
 	if (!$result)
 	{
@@ -368,6 +394,15 @@ sub lock_file
 	if (!$result)
 	{
 		return (undef, "Could not obtain lock on '$file_name': $!");
+	}
+
+	if ($lock_both)
+	{
+		my $result2 = fcntl (FILE_TO_LOCK, Fcntl::F_SETLK, $fcntl_structlockp);
+		if (!$result2)
+		{
+			return (undef, "Could not obtain fcntl lock on '$file_name': $!");
+		}
 	}
 
 	return (\*FILE_TO_LOCK, undef);
@@ -395,6 +430,14 @@ sub unlock_file
 	if (!$result)
 	{
 		return "Unlock failed on '$result': $!";
+	}
+	if ($lock_both)
+	{
+		my $result2 = fcntl ($file, Fcntl::F_SETLK, $fcntl_structunlockp);
+		if (!$result2)
+		{
+			return (undef, "Fcntl unlock failed on '$result': $!");
+		}
 	}
 
 	return undef;

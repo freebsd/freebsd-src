@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.273 2006/03/31 18:51:47 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.280 2006/11/29 00:20:40 ca Exp $")
 
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));
@@ -53,13 +53,13 @@ collect_eoh(e, numhdrs, hdrslen)
 	char hsize[16];
 
 	/* call the end-of-header check ruleset */
-	(void) sm_snprintf(hnum, sizeof hnum, "%d", numhdrs);
-	(void) sm_snprintf(hsize, sizeof hsize, "%d", hdrslen);
+	(void) sm_snprintf(hnum, sizeof(hnum), "%d", numhdrs);
+	(void) sm_snprintf(hsize, sizeof(hsize), "%d", hdrslen);
 	if (tTd(30, 10))
 		sm_dprintf("collect: rscheck(\"check_eoh\", \"%s $| %s\")\n",
 			   hnum, hsize);
 	(void) rscheck("check_eoh", hnum, hsize, e, RSF_UNSTRUCTURED|RSF_COUNT,
-			3, NULL, e->e_id);
+			3, NULL, e->e_id, NULL);
 
 	/*
 	**  Process the header,
@@ -144,11 +144,11 @@ collect_doheader(e)
 			break;
 
 		  case NRA_ADD_BCC:
-			addheader("Bcc", " ", 0, e);
+			addheader("Bcc", " ", 0, e, true);
 			break;
 
 		  case NRA_ADD_TO_UNDISCLOSED:
-			addheader("To", "undisclosed-recipients:;", 0, e);
+			addheader("To", "undisclosed-recipients:;", 0, e, true);
 			break;
 		}
 
@@ -161,7 +161,7 @@ collect_doheader(e)
 				if (tTd(30, 3))
 					sm_dprintf("Adding %s: %s\n",
 						hdr, q->q_paddr);
-				addheader(hdr, q->q_paddr, 0, e);
+				addheader(hdr, q->q_paddr, 0, e, true);
 			}
 		}
 	}
@@ -315,7 +315,7 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	numhdrs = 0;
 	HasEightBits = false;
 	buf = bp = bufbuf;
-	buflen = sizeof bufbuf;
+	buflen = sizeof(bufbuf);
 	pbp = peekbuf;
 	istate = IS_BOL;
 	mstate = SaveFrom ? MS_HEADER : MS_UFROM;
@@ -552,25 +552,7 @@ bufferchar:
 					sm_free(obuf);  /* XXX */
 			}
 
-			/*
-			**  XXX Notice: the logic here is broken.
-			**  An input to sendmail that doesn't contain a
-			**  header but starts immediately with the body whose
-			**  first line contain characters which match the
-			**  following "if" will cause problems: those
-			**  characters will NOT appear in the output...
-			**  Do we care?
-			*/
-
-			if (c >= 0200 && c <= 0237)
-			{
-#if 0	/* causes complaints -- figure out something for 8.n+1 */
-				usrerr("Illegal character 0x%x in header", c);
-#else /* 0 */
-				/* EMPTY */
-#endif /* 0 */
-			}
-			else if (c != '\0')
+			if (c != '\0')
 			{
 				*bp++ = c;
 				++hdrslen;
@@ -599,7 +581,7 @@ bufferchar:
 
 nextstate:
 		if (tTd(30, 35))
-			sm_dprintf("nextstate, istate=%d, mstate=%d, line = \"%s\"\n",
+			sm_dprintf("nextstate, istate=%d, mstate=%d, line=\"%s\"\n",
 				istate, mstate, buf);
 		switch (mstate)
 		{

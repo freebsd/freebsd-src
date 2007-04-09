@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: comm.c,v 8.66 2004/08/20 20:38:35 ca Exp $")
+SM_RCSID("@(#)$Id: comm.c,v 8.67 2006/11/02 17:54:44 ca Exp $")
 
 #include "libmilter.h"
 #include <sm/errstring.h>
@@ -352,7 +352,7 @@ mi_wr_cmd(sd, timeout, cmd, buf, len)
 		iov[1].iov_len  = len;
 		iovcnt = 2;
 	}
-    
+
 	l = retry_writev(sd, iov, iovcnt, timeout);
 	if (l == MI_FAILURE)
 		return MI_FAILURE;

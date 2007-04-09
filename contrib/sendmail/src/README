@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.389 2006/05/02 16:58:50 ca Exp $
+#	$Id: README,v 8.390 2006/11/13 22:27:27 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -508,6 +508,9 @@ HASSNPRINTF	Set this to 1 if your OS has a working snprintf(3), i.e.,
 		size were unlimited.
 LDAP_REFERRALS	Set this if you want to use the -R flag (do not auto chase
 		referrals) for LDAP maps (requires -DLDAPMAP).
+MILTER_NO_NAGLE	Turn off Nagle algorithm for communication with libmilter
+		("cork" on Linux).  On some operating systems this may
+		improve the interprocess communication performance.
 
 
 +-----------------------+
@@ -1844,4 +1847,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.389 $, last update $Date: 2006/05/02 16:58:50 $ )
+(Version $Revision: 8.390 $, last update $Date: 2006/11/13 22:27:27 $ )

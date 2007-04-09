@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.708 2005/11/12 02:08:04 ca Exp $
+.\"	$Id: op.me,v 8.739 2007/03/22 17:56:01 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,10 +90,10 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.708 $
+.Ve $Revision: 8.739 $
 .rm Ve
 .sp
-For Sendmail Version 8.13
+For Sendmail Version 8.14
 .)l
 .(f
 Sendmail is a trademark of Sendmail, Inc.
@@ -982,7 +982,7 @@ This should be a link to /usr/\*(SD/sendmail.
 .sh 3 "sendmail.pid"
 .pp
 .i sendmail
-stores its current pid in the file specifed by the
+stores its current pid in the file specified by the
 .b PidFile
 option (default is _PATH_SENDMAILPID).
 .i sendmail
@@ -4259,6 +4259,13 @@ It can accept or reject mail transfer between these two addresses
 much like the
 .i checkcompat()
 function.
+Note:
+while other
+.i check_*
+rulesets are invoked during the SMTP mail receiption stage
+(i.e., in the SMTP server),
+.i check_compat
+is invoked during the mail delivery stage.
 .sh 4 "check_eoh"
 .pp
 The
@@ -4310,6 +4317,13 @@ Keep in mind the Message-Id: header is not a required header and
 is not a guaranteed spam indicator.
 This ruleset is an example and
 should probably not be used in production.
+.sh 4 "check_eom"
+.pp
+The
+.i check_eom
+ruleset is called after the end of a message,
+its parameter is the message size.
+It can accept or reject the message.
 .sh 4 "check_etrn"
 .pp
 The
@@ -4827,9 +4841,6 @@ This macro contains up to three characters, the first
 is either `e' or `h' for envelope/header address,
 the second is a space,
 and the third is either `s' or `r' for sender/recipient address.
-Notice: for header addresses no distinction is currently made
-between sender and recipient addresses, i.e., the macro contains
-only `h'.
 .ip ${alg_bits}
 The maximum keylength (in bits) of the symmetric encryption algorithm
 used for a TLS connection.
@@ -4878,6 +4889,18 @@ IPv6 addresses are tagged with "IPv6:" before the address.
 Defined in the SMTP server only.
 .ip ${client_connections}
 The number of open connections in the SMTP server for the client IP address.
+.ip ${client_flags}
+The flags specified by the
+Modifier= part of
+.b ClientPortOptions
+where flags are separated from each other by spaces
+and upper case flags are doubled.
+That is,
+Modifier=hA
+will be represented as
+"h AA" in
+.b ${client_flags} ,
+which is required for testing the flags in rulesets.
 .ip ${client_name}
 The host name of the SMTP client.
 This may be the client's bracketed IP address
@@ -6666,6 +6689,7 @@ A running
 daemon can be controlled through this named socket.
 Available commands are:
 .i help,
+.i mstat,
 .i restart,
 .i shutdown,
 and
@@ -6711,6 +6735,11 @@ Listen	Size of listen queue (defaults to 10)
 Modifier	Options (flags) for the daemon
 SndBufSize	Size of TCP send buffer
 RcvBufSize	Size of TCP receive buffer
+children	maximum number of children per daemon, see \fBMaxDaemonChildren\fP.
+DeliveryMode	Delivery mode per daemon, see \fBDeliveryMode\fP.
+refuseLA	RefuseLA per daemon
+delayLA		DelayLA per daemon
+queueLA		QueueLA per daemon
 .)b
 The
 .i Name
@@ -7176,11 +7205,9 @@ will search first in /var/forward/\c
 and then in
 .i ~username /.forward
 (but only if the first file does not exist).
-.ip HelpFile=\fIfile\fP
-[H]
-Specify the help file
-for SMTP.
-If no file name is specified, "helpfile" is used.
+.ip HeloName=\fIname\fP
+[no short name]
+Set the name to be used for HELO/EHLO (instead of $j).
 .ip HoldExpensive
 [c]
 If an outgoing mailer is marked as being expensive,
@@ -7305,7 +7332,7 @@ If the limit should be enforced, then a
 .b DeliveryMode
 other than background must be used.
 If not set, there is no limit to the number of children --
-that is, the system load averaging controls this.
+that is, the system load average controls this.
 .ip MaxHeadersLength=\fIN\fP
 [no short name]
 The maximum length of the sum of all headers.
@@ -7346,6 +7373,13 @@ will be used.
 By default,
 these values are 2048 and 1024, respectively.
 To allow any length, a value of 0 can be specified.
+.ip MaxNOOPCommands=\fIN\fP
+Override the default of
+.b MAXNOOPCOMMANDS
+for the number of
+.i useless
+commands, see Section
+"Measures against Denial of Service Attacks".
 .ip MaxQueueChildren=\fIN\fP
 [no short name]
 When set, this limits the number of concurrent queue runner processes to
@@ -7385,6 +7419,16 @@ highest priority jobs)
 this should be set as high as possible to avoid
 .q losing
 jobs that happen to fall late in the queue directory.
+Note: this option also restricts the number of entries printed by
+.i mailq .
+That is, if
+.i MaxQueueRunSize
+is set to a value
+.b N
+larger than zero,
+then only
+.b N
+entries are printed per queue group.
 .ip MaxRecipientsPerMessage=\fIN\fP
 [no short name]
 The maximum number of recipients that will be accepted per message
@@ -7428,9 +7472,11 @@ after a certain event occurred.
 .(b
 .ta \w'envfrom'u+3n
 connect	After session connection start
-helo	After HELO command
-envfrom	After MAIL FROM command
-envrcpt	After RCPT TO command
+helo	After EHLO/HELO command
+envfrom	After MAIL From command
+envrcpt	After RCPT To command
+data	After DATA command.
+eoh	After DATA command and header
 eom	After DATA command and terminating ``.''
 .)b
 By default the lists of macros are empty.
@@ -7560,7 +7606,7 @@ The
 .i opt ions
 can be selected from:
 .(b
-.ta \w'needvrfyhelo'u+3n
+.ta \w'noactualrecipient'u+3n
 public	Allow open access
 needmailhelo	Insist on HELO or EHLO command before MAIL
 needexpnhelo	Insist on HELO or EHLO command before EXPN
@@ -7577,6 +7623,8 @@ nobodyreturn	Don't return the body of a message with DSNs
 goaway	Disallow essentially all SMTP status queries
 authwarnings	Put X-Authentication-Warning: headers in messages
 		and log warnings
+noactualrecipient	Don't put X-Actual-Recipient lines in DSNs
+		which reveal the actual account that addresses map to.
 .)b
 .(f
 \**N.B.:
@@ -7914,20 +7962,6 @@ UNIX-style
 lines at the front of headers.
 Normally they are assumed redundant
 and discarded.
-.ip SharedMemoryKey
-[no short name]
-Key to use for shared memory segment;
-if not set (or 0), shared memory will not be used.
-Requires support for shared memory to be compiled into
-.i sendmail .
-If this option is set,
-.i sendmail
-can share some data between different instances.
-For example, the number of entries in a queue directory
-or the available space in a file system.
-This allows for more efficient program execution, since only
-one process needs to update the data instead of each individual
-process gathering the data each time it is required.
 .ip SendMimeErrors
 [j]
 If set, send error messages in MIME format
@@ -7986,6 +8020,34 @@ The default file is
 [7]
 Strip input to seven bits for compatibility with old systems.
 This shouldn't be necessary.
+.ip SharedMemoryKey
+[no short name]
+Key to use for shared memory segment;
+if not set (or 0), shared memory will not be used.
+If set to
+-1
+.i sendmail
+can select a key itself provided that also
+.b SharedMemoryKeyFile
+is set.
+Requires support for shared memory to be compiled into
+.i sendmail .
+If this option is set,
+.i sendmail
+can share some data between different instances.
+For example, the number of entries in a queue directory
+or the available space in a file system.
+This allows for more efficient program execution, since only
+one process needs to update the data instead of each individual
+process gathering the data each time it is required.
+.ip SharedMemoryKeyFile
+[no short name]
+If
+.b SharedMemoryKey
+is set to
+-1
+then the automatically selected shared memory key will be stored
+in the specified file.
 .ip SingleLineFromHeader
 [no short name]
 If set, From: lines that have embedded newlines are unwrapped
@@ -8023,6 +8085,10 @@ option.
 The message printed when the SMTP server starts up.
 Defaults to
 .q "$j Sendmail $v ready at $b".
+.ip SoftBounce
+If set, issue temporary errors (4xy) instead of permanent errors (5xy).
+This can be useful during testing of a new configuration to avoid
+erroneous bouncing of mails.
 .ip StatusFile=\fIfile\fP
 [S]
 Log summary statistics in the named
@@ -8817,16 +8883,21 @@ R$\-	$: $(storage {MyMacro} $) $1
 .)b
 .ip arith
 Perform simple arithmetic operations.
-The operation is given as key, currently +, -, *, /, %,
+The operation is given as key, currently
++, -, *, /, %,
 |, & (bitwise OR, AND),
-l (for less than), and = are supported.
+l (for less than), =,
+and r (for random) are supported.
 The two operands are given as arguments.
 The lookup returns the result of the computation,
-i.e.
+i.e.,
 .sm TRUE
 or
 .sm FALSE
 for comparisons, integer values otherwise.
+The r operator returns a pseudo-random number whose value
+lies between the first and second operand
+(which requires that the first operand is smaller than the second).
 All options which are possible for maps are ignored.
 A simple example is:
 .(b
@@ -8983,6 +9054,10 @@ For LDAP maps this is an LDAP filter string
 in which %s is replaced with the literal contents of the lookup key
 and %0 is replaced with the LDAP escaped contents of the lookup key
 according to RFC 2254.
+If the flag
+.b \-K
+is used, then %1 through %9 are replaced with the LDAP escaped contents
+of the arguments specified in the map lookup.
 .ip "\-v\fIvalcol\fP"
 The value column name (for NIS+) or number
 (for text lookups).
@@ -9007,6 +9082,8 @@ to combine multiple values
 into a single return string.
 If not set,
 the LDAP lookup will only return the first match found.
+For DNS maps this is the separator character at which
+the result of a query is cut off if is too long.
 .ip "\-t"
 Normally, when a map attempts to do a lookup
 and the server fails
@@ -9072,6 +9149,10 @@ delay: specify the resolver's retransmission time interval (in seconds).
 .ip "\-r"
 retry: specify the number of times to retransmit a resolver query.
 .pp
+The dns map has another flag:
+.ip "\-B"
+basedomain: specify a domain that is always appended to queries.
+.pp
 The following additional flags are present in the ldap map only:
 .ip "\-R"
 Do not auto chase referrals.  sendmail must be compiled with
@@ -9130,7 +9211,7 @@ LDAP search base.
 .ip "\-l\fItimelimit\fP"
 Time limit for LDAP queries.
 .ip "\-Z\fIsizelimit\fP"
-Size (number of matches) limit for LDAP queries.
+Size (number of matches) limit for LDAP or DNS queries.
 .ip "\-d\fIdistinguished_name\fP"
 The distinguished name to use to login to the LDAP server.
 .ip "\-M\fImethod\fP"
@@ -9158,6 +9239,10 @@ For example,
 will cause
 .i sendmail
 to use LDAPv3 when communicating with the LDAP server.
+.ip "\-K"
+Treat the LDAP search key as multi-argument and
+replace %1 through %9 in the key with
+the LDAP escaped contents of the lookup arguments specified in the map lookup.
 .pp
 The
 .i dbm
@@ -11339,7 +11424,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.708 $
+.\"Version $Revision: 8.739 $
 .\".ce 0
 .bp 3
 .ce
