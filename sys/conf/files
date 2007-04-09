@@ -1775,19 +1775,19 @@ netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
 netinet/raw_ip.c		optional inet
-netinet/sctp_usrreq.c		optional inet inet6 sctp
-netinet/sctp_pcb.c		optional inet inet6 sctp
-netinet/sctputil.c		optional inet inet6 sctp
+netinet/sctp_asconf.c		optional inet inet6 sctp
+netinet/sctp_auth.c		optional inet inet6 sctp
 netinet/sctp_bsd_addr.c		optional inet inet6 sctp
-netinet/sctp_timer.c		optional inet inet6 sctp
+netinet/sctp_crc32.c		optional inet inet6 sctp
+netinet/sctp_indata.c		optional inet inet6 sctp
 netinet/sctp_input.c		optional inet inet6 sctp
 netinet/sctp_output.c		optional inet inet6 sctp
-netinet/sctp_indata.c		optional inet inet6 sctp
-netinet/sctp_asconf.c		optional inet inet6 sctp
+netinet/sctp_pcb.c		optional inet inet6 sctp
 netinet/sctp_peeloff.c		optional inet inet6 sctp
-netinet/sctp_crc32.c		optional inet inet6 sctp
-netinet/sctp_auth.c		optional inet inet6 sctp
 netinet/sctp_sysctl.c		optional inet inet6 sctp
+netinet/sctp_timer.c		optional inet inet6 sctp
+netinet/sctp_usrreq.c		optional inet inet6 sctp
+netinet/sctputil.c		optional inet inet6 sctp
 netinet/tcp_debug.c		optional tcpdebug
 netinet/tcp_hostcache.c		optional inet
 netinet/tcp_input.c		optional inet
