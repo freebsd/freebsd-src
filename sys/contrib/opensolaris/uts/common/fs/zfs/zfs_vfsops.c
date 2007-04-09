@@ -598,7 +598,10 @@ zfs_mount(vfs_t *vfsp, kthread_t *td)
 	if (vfs_getopt(vfsp->mnt_optnew, "from", (void **)&from, NULL))
 		return (EINVAL);
 
-	return (zfs_domount(vfsp, from, td));
+	DROP_GIANT();
+	error = zfs_domount(vfsp, from, td);
+	PICKUP_GIANT();
+	return (error);
 }
 
 static int
