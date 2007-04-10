@@ -38,11 +38,12 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/ioctl.h>
-#include <sys/pioctl.h>
+#include <sys/types.h>
+#include <sys/ptrace.h>
 #include <sys/wait.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -51,10 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
+#include <machine/reg.h>
+
 #include "truss.h"
 #include "extern.h"
 
-static int evflags = 0;
+static int child_pid;
 
 /*
  * setup_and_wait() is called to start a process.  All it really does
@@ -66,75 +69,28 @@ static int evflags = 0;
 int
 setup_and_wait(char *command[])
 {
-	struct procfs_status pfs;
-	char buf[32];
-	int fd;
 	int pid;
-	int flags;
-	int loop;
+	int waitval;
 
-	pid = fork();
+	pid = vfork();
 	if (pid == -1) {
 		err(1, "fork failed");
 	}
 	if (pid == 0) {	/* Child */
-		int mask = S_EXEC | S_EXIT;
-		fd = open("/proc/curproc/mem", O_WRONLY);
-		if (fd == -1)
-			err(2, "cannot open /proc/curproc/mem");
-		fcntl(fd, F_SETFD, 1);
-		if (ioctl(fd, PIOCBIS, mask) == -1)
-			err(3, "PIOCBIS");
-		flags = PF_LINGER;
-		/*
-		 * The PF_LINGER flag tells procfs not to wake up the
-		 * process on last close; normally, this is the behaviour
-		 * we want.
-		 */
-		if (ioctl(fd, PIOCSFL, flags) == -1)
-			warn("cannot set PF_LINGER");
+		ptrace(PT_TRACE_ME, 0, 0, 0);
+		setpgid (0, 0); 
 		execvp(command[0], command);
-		mask = ~0;
-		ioctl(fd, PIOCBIC, ~0);
-		err(4, "execvp %s", command[0]);
+		err(1, "execvp %s", command[0]);
 	}
+	
 	/* Only in the parent here */
-
-	if (waitpid(pid, NULL, WNOHANG) != 0) {
-		/*
-		 * Process exited before it got to us -- meaning the exec failed
-		 * miserably -- so we just quietly exit.
-		 */
-		exit(1);
+	if (waitpid(pid, &waitval, 0) < -1) {
+		err(1, "unexpect stop in waitpid");
+		return 0;
 	}
 
-	sprintf(buf, "/proc/%d/mem", pid);
-
-	/* Try 6 times to trace our child, waiting 1/2 second each time */
-	for (loop=6 ;; loop--) {
-		if (loop != 6)
-			usleep(500000);
-		if ((fd = open(buf, O_RDWR)) == -1) {
-			if (loop > 0)
-				continue;
-			else
-				err(5, "cannot open1 %s", buf);
-		}
-		if (ioctl(fd, PIOCWAIT, &pfs) == -1) {
-			if (loop >= 0)
-				continue;
-			else
-				err(6, "PIOCWAIT");
-		}
-		if (pfs.why == S_EXIT) {
-			warnx("process exited before exec'ing");
-			ioctl(fd, PIOCCONT, 0);
-			wait(0);
-			exit(7);
-		} else
-			break;
-	}
-	close(fd);
+	child_pid = pid;
+	
 	return (pid);
 }
 
@@ -145,45 +101,24 @@ setup_and_wait(char *command[])
  */
 
 int
-start_tracing(int pid, int failisfatal, int eventflags, int flags)
+start_tracing(int pid)
 {
-	int fd;
-	char buf[32];
-	struct procfs_status tmp;
+	int waitval;
+	int ret;
+	int retry = 10;
 
-	sprintf(buf, "/proc/%d/mem", pid);
-	/* usleep(500000); */
+	do {
+		ret = ptrace(PT_ATTACH, pid, NULL, 0);
+		usleep(200);
+	} while(ret && retry-- > 0);
+	if (ret)
+		err(1, "can not attach to target process");
 
-	fd = open(buf, O_RDWR);
-	if (fd == -1) {
-		/*
-		 * The process may have run away before we could start -- this
-		 * happens with SUGID programs.  So we need to see if it still
-		 * exists before we complain bitterly.
-		 */
-		if (!failisfatal && kill(pid, 0) == -1)
-			return (-1);
-		err(8, "cannot open2 %s", buf);
-	}
+	child_pid = pid;	
+	if (waitpid(pid, &waitval, 0) < -1) 
+		err(1, "Unexpect stop in waitpid");
 
-	if (ioctl(fd, PIOCSTATUS, &tmp) == -1) {
-		err(10, "cannot get procfs status struct");
-	}
-	evflags = tmp.events;
-
-	if (ioctl(fd, PIOCBIS, eventflags) == -1)
-		err(9, "cannot set procfs event bit mask");
-
-	/*
-	 * This clears the PF_LINGER set above in setup_and_wait();
-	 * if truss happens to die before this, then the process
-	 * needs to be woken up via procctl.
-	 */
-
-	if (ioctl(fd, PIOCSFL, flags) == -1)
-		warn("cannot clear PF_LINGER");
-
-	return (fd);
+	return (0);
 }
 
 /*
@@ -193,10 +128,89 @@ start_tracing(int pid, int failisfatal, int eventflags, int flags)
  * process.
  */
 void
-restore_proc(int signo __unused) {
+restore_proc(int signo __unused)
+{
+	int waitval;
 
-	ioctl(Procfd, PIOCBIC, ~0);
-	if (evflags)
-		ioctl(Procfd, PIOCBIS, evflags);
+	/* stop the child so that we can detach */	
+	kill(child_pid, SIGSTOP);
+	if (waitpid(child_pid, &waitval, 0) < -1)
+		err(1, "Unexpected stop in waitpid");
+
+	if (ptrace(PT_DETACH, child_pid, (caddr_t)1, 0) < 0)
+		err(1, "Can not detach the process");
+	
+	kill(child_pid, SIGCONT);
 	exit(0);
+}
+
+/*
+ * Change curthread member based on lwpid.
+ * If it is a new thread, create a threadinfo structure
+ */
+static void
+find_thread(struct trussinfo *info, lwpid_t lwpid)
+{
+	info->curthread = NULL;
+	struct threadinfo *np;
+	SLIST_FOREACH(np, &info->threadlist, entries) {
+	if (np->tid == lwpid) {
+		info->curthread = np;
+		return;
+		}
+	}
+
+	np = (struct threadinfo *)malloc(sizeof(struct threadinfo));
+	if (np == NULL)
+		errx(1, "malloc() failed");
+	np->tid = lwpid;
+	np->in_fork = 0;
+	np->in_syscall = 0;
+	SLIST_INSERT_HEAD(&info->threadlist, np, entries);
+	info->curthread = np;
+}
+
+/*
+ * Start the traced process and wait until it stoped.
+ * Fill trussinfo structure.
+ * When this even returns, the traced process is in stop state.
+ */
+void
+waitevent(struct trussinfo *info)
+{
+	int waitval;
+	static int pending_signal = 0;
+	
+	ptrace(PT_SYSCALL, info->pid, (caddr_t)1, pending_signal);
+	pending_signal = 0;
+
+	if (waitpid(info->pid, &waitval, 0) < -1) {
+		err(1, "Unexpected stop in waitpid");
+	}
+	
+	if (WIFCONTINUED(waitval)) {
+		info->pr_why = S_NONE;
+		return;
+	}
+	if (WIFEXITED(waitval)) {
+		info->pr_why = S_EXIT;
+		info->pr_data = WEXITSTATUS(waitval);
+		return;
+	}
+	if (WIFSTOPPED(waitval) || (WIFSIGNALED(waitval))) {
+		struct ptrace_lwpinfo lwpinfo;
+		ptrace(PT_LWPINFO, info->pid, (caddr_t)&lwpinfo, sizeof(lwpinfo));	
+		find_thread(info, lwpinfo.pl_lwpid);
+		switch(WSTOPSIG(waitval)) {
+		case SIGTRAP:
+			info->pr_why = info->curthread->in_syscall?S_SCX:S_SCE;
+			info->curthread->in_syscall = 1 - info->curthread->in_syscall;
+			break;
+		default:
+			info->pr_why = S_SIG;
+			info->pr_data = WSTOPSIG(waitval);
+			pending_signal = info->pr_data;
+			break;
+		}
+	}
 }

@@ -25,6 +25,8 @@
  * $FreeBSD$
  */
 
+#include <sys/queue.h>
+
 #define FOLLOWFORKS        0x00000001
 #define RELATIVETIMESTAMPS 0x00000002
 #define ABSOLUTETIMESTAMPS 0x00000004
@@ -32,17 +34,30 @@
 #define EXECVEARGS         0x00000010
 #define EXECVEENVS         0x00000020
 
+struct threadinfo
+{
+	SLIST_ENTRY(threadinfo) entries;
+	lwpid_t tid;
+	int in_syscall;
+	int in_fork;
+};
+
 struct trussinfo
 {
 	int pid;
 	int flags;
-	int in_fork;
+	int pr_why;
+	int pr_data;
 	int strsize;
 	FILE *outfile;
 
 	struct timespec start_time;
 	struct timespec before;
 	struct timespec after;
+
+	struct threadinfo *curthread;
+	
+	SLIST_HEAD(, threadinfo) threadlist;
 };
 
 #define timespecsubt(tvp, uvp, vvp)					\
@@ -54,3 +69,10 @@ struct trussinfo
 			(vvp)->tv_nsec += 1000000000;			\
 		}							\
 	} while (0)
+
+#define S_NONE  0
+#define S_SCE   1
+#define S_SCX   2
+#define S_EXIT  3
+#define S_SIG   4
+#define S_EXEC  5

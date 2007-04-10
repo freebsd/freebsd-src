@@ -41,8 +41,7 @@ static const char rcsid[] =
  */
 
 #include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/pioctl.h>
+#include <sys/ptrace.h>
 
 #include <machine/reg.h>
 #include <machine/psl.h>
@@ -60,7 +59,6 @@ static const char rcsid[] =
 #include "syscall.h"
 #include "extern.h"
 
-static int fd = -1;
 static int cpid = -1;
 
 #include "linux_syscalls.h"
@@ -108,28 +106,20 @@ clear_fsc(void) {
 
 void
 i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
-  char buf[32];
   struct reg regs;
   int syscall_num;
   int i;
   struct syscall *sc;
 
-  if (fd == -1 || trussinfo->pid != cpid) {
-    sprintf(buf, "/proc/%d/regs", trussinfo->pid);
-    fd = open(buf, O_RDWR);
-    if (fd == -1) {
-      fprintf(trussinfo->outfile, "-- CANNOT OPEN REGISTERS --\n");
-      return;
-    }
-    cpid = trussinfo->pid;
-  }
+  cpid = trussinfo->curthread->tid;
 
   clear_fsc();
-  lseek(fd, 0L, 0);
-  if (read(fd, &regs, sizeof(regs)) != sizeof(regs)) {
+  
+  if (ptrace(PT_GETREGS, cpid, (caddr_t)&regs, 0) < 0)
+  {
     fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
     return;
-  }
+  } 
   syscall_num = regs.r_eax;
 
   fsc.number = syscall_num;
@@ -143,7 +133,7 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
    && ((!strcmp(fsc.name, "linux_fork")
     || !strcmp(fsc.name, "linux_vfork"))))
   {
-    trussinfo->in_fork = 1;
+    trussinfo->curthread->in_fork = 1;
   }
 
   if (nargs == 0)
@@ -200,7 +190,7 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 	      i < (fsc.nargs - 1) ? "," : "");
 #endif
       if (sc && !(sc->args[i].type & OUT)) {
-	fsc.s_args[i] = print_arg(Procfd, &sc->args[i], fsc.args, 0, trussinfo);
+	fsc.s_args[i] = print_arg(&sc->args[i], fsc.args, 0, trussinfo);
       }
     }
 #if DEBUG
@@ -264,28 +254,19 @@ const int bsd_to_linux_errno[] = {
 long
 i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 {
-  char buf[32];
   struct reg regs;
   long retval;
   int i;
   int errorp;
   struct syscall *sc;
 
-  if (fd == -1 || trussinfo->pid != cpid) {
-    sprintf(buf, "/proc/%d/regs", trussinfo->pid);
-    fd = open(buf, O_RDONLY);
-    if (fd == -1) {
-      fprintf(trussinfo->outfile, "-- CANNOT OPEN REGISTERS --\n");
-      return (-1);
-    }
-    cpid = trussinfo->pid;
-  }
-
-  lseek(fd, 0L, 0);
-  if (read(fd, &regs, sizeof(regs)) != sizeof(regs)) {
-    fprintf(trussinfo->outfile, "\n");
+  cpid = trussinfo->curthread->tid;
+  if (ptrace(PT_GETREGS, cpid, (caddr_t)&regs, 0) < 0)
+  {
+    fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
     return (-1);
   }
+
   retval = regs.r_eax;
   errorp = !!(regs.r_eflags & PSL_C);
 
@@ -313,7 +294,7 @@ i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 	if (errorp)
 	  asprintf(&temp, "0x%lx", fsc.args[sc->args[i].offset]);
 	else
-	  temp = print_arg(Procfd, &sc->args[i], fsc.args, retval, trussinfo);
+	  temp = print_arg(&sc->args[i], fsc.args, retval, trussinfo);
 	fsc.s_args[i] = temp;
       }
     }
