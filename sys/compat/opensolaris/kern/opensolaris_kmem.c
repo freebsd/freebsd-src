@@ -31,12 +31,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <vm/uma.h>
 #include <sys/kmem.h>
 #include <sys/debug.h>
 #include <sys/mutex.h>
+
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+
+#ifdef KMEM_DEBUG
 #include <sys/queue.h>
 #include <sys/stack.h>
+#endif
 
 #ifdef _KERNEL
 static MALLOC_DEFINE(M_SOLARIS, "solaris", "Solaris");
@@ -82,12 +89,6 @@ zfs_kmem_alloc(size_t size, int kmflags)
 	return (p);
 }
 
-void *
-kmem_zalloc(size_t size, int kmflags)
-{
-	return (kmem_alloc(size, kmflags | M_ZERO));
-}
-
 void
 zfs_kmem_free(void *buf, size_t size __unused)
 {
@@ -105,6 +106,20 @@ zfs_kmem_free(void *buf, size_t size __unused)
 	mtx_unlock(&kmem_items_mtx);
 #endif
 	free(buf, M_SOLARIS);
+}
+
+u_long
+kmem_size(void)
+{
+
+	return ((u_long)vm_kmem_size);
+}
+
+u_long
+kmem_used(void)
+{
+
+	return ((u_long)kmem_map->size);
 }
 
 static int
