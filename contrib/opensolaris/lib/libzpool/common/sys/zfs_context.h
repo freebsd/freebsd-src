@@ -489,12 +489,15 @@ struct file {
 #define	SX_SYSINIT(name, lock, desc)
 
 #define	SYSCTL_DECL(...)
-#define	SYSCTL_INT(...)
 #define	SYSCTL_NODE(...)
+#define	SYSCTL_INT(...)
+#define	SYSCTL_ULONG(...)
 #ifdef TUNABLE_INT
 #undef TUNABLE_INT
+#undef TUNABLE_ULONG
 #endif
 #define	TUNABLE_INT(...)
+#define	TUNABLE_ULONG(...)
 
 /* Errors */
 
