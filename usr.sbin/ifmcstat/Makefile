@@ -11,7 +11,10 @@ WARNS?=	2
 CFLAGS+=-DINET6
 .endif
 
+.if !defined(MK_KVM_SUPPORT) || ${MK_KVM_SUPPORT} != "no"
+CFLAGS+=-DWITH_KVM
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
+.endif
 
 .include <bsd.prog.mk>
