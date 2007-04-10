@@ -96,6 +96,7 @@ SYSCTL_INT(_net_link, OID_AUTO, log_link_state_change, CTLFLAG_RW,
 
 void	(*bstp_linkstate_p)(struct ifnet *ifp, int state);
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
+void	(*trunk_linkstate_p)(struct ifnet *ifp, int state);
 
 struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
 
@@ -1378,6 +1379,10 @@ do_link_state_change(void *arg, int pending)
 		KASSERT(bstp_linkstate_p != NULL,("if_bridge bstp not loaded!"));
 		(*bstp_linkstate_p)(ifp, link_state);
 	}
+	if (ifp->if_trunk) {
+		KASSERT(trunk_linkstate_p != NULL,("if_trunk not loaded!"));
+		(*trunk_linkstate_p)(ifp, link_state);
+	}
 
 	devctl_notify("IFNET", ifp->if_xname,
 	    (link_state == LINK_STATE_UP) ? "LINK_UP" : "LINK_DOWN", NULL);
@@ -2593,6 +2598,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_L2VLAN:
 	case IFT_BRIDGE:
 	case IFT_ARCNET:
+	case IFT_IEEE8023ADLAG:
 		bcopy(lladdr, LLADDR(sdl), len);
 		break;
 	default:
