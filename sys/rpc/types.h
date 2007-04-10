@@ -65,7 +65,9 @@ typedef   int32_t rpc_inline_t;
 #define mem_free(ptr, bsize)	free(ptr)
 
 #include <sys/time.h>
+#ifndef _KERNEL
 #include <netconfig.h>
+#endif
 
 /*
  * The netbuf structure is defined here, because FreeBSD / NetBSD only use
