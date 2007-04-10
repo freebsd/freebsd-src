@@ -61,6 +61,10 @@ __FBSDID("$FreeBSD$");
 
 #include "netstat.h"
 
+#define __NETSTAT_BURN_BRIDGES
+
+#ifdef __NETSTAT_BURN_BRIDGES
+
 union sockunion {
 	struct sockaddr_storage	ss;
 	struct sockaddr		sa;
@@ -194,6 +198,10 @@ ifmalist_dump(void)
 {
 	struct ifmaddrs *ifmap;
 
+	fprintf(stderr,
+	     "WARNING: This functionality is deprecated, and will be removed\n"
+	     "in FreeBSD 7.0. Please consider using ifmcstat(8) instead.\n");
+
 	if (getifmaddrs(&ifmap))
 		err(EX_OSERR, "getifmaddrs");
 
@@ -207,3 +215,4 @@ ifmalist_dump(void)
 
 	freeifmaddrs(ifmap);
 }
+#endif /* __NETSTAT_BURN_BRIDGES */
