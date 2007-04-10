@@ -1367,6 +1367,23 @@ cost to 0.
 The minimum is 1 and the maximum is 200000000.
 .El
 .Pp
+The following parameters are specific to trunk interfaces:
+.Bl -tag -width indent
+.It Cm trunkport Ar interface
+Add the interface named by
+.Ar interface
+as a port of the trunk.
+.It Cm -trunkport Ar interface
+Remove the interface named by
+.Ar interface
+from the trunk.
+.It Cm trunkproto Ar proto
+Set the trunking protocol.
+The default is failover.
+The available options are failover, fec, lacp, loadbalance, roundrobin and
+none.
+.El
+.Pp
 The following parameters are specific to IP tunnel interfaces,
 .Xr gif 4 :
 .Bl -tag -width indent
