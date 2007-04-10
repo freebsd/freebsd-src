@@ -1,6 +1,7 @@
 /*	$KAME: ifmcstat.c,v 1.48 2006/11/15 05:13:59 itojun Exp $	*/
 
 /*
+ * Copyright (c) 2007 Bruce M. Simpson <bms@FreeBSD.org>
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  * 
@@ -28,8 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-/* TODO: use sysctl. */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -71,51 +70,237 @@ __FBSDID("$FreeBSD$");
 #undef _KERNEL
 #endif /* INET6 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <kvm.h>
-#include <nlist.h>
-#include <string.h>
-#include <limits.h>
-#include <unistd.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
-kvm_t	*kvmd;
-int ifindex = 0;
-int af = AF_UNSPEC;
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-struct	nlist nl[] = {
-#define	N_IFNET	0
-	{ "_ifnet" },
-	{ "" },
-};
+#include <ctype.h>
+#include <err.h>
+#include <fcntl.h>
+#include <kvm.h>
+#include <limits.h>
+#include <ifaddrs.h>
+#include <nlist.h>
+#include <sysexits.h>
+#include <unistd.h>
 
-const char *inet6_n2a(struct in6_addr *);
-int main(int, char **);
-char *ifname(struct ifnet *);
-void kread(u_long, void *, int);
+/* XXX: This file currently assumes INET and KVM support in the base system. */
+#ifndef INET
+#define INET
+#endif
+
+union sockunion {
+	struct sockaddr_storage	ss;
+	struct sockaddr		sa;
+	struct sockaddr_dl	sdl;
+#ifdef INET
+	struct sockaddr_in	sin;
+#endif
 #ifdef INET6
-void if6_addrlist (struct ifaddr *);
-void in6_multilist (struct in6_multi *);
-struct in6_multi *in6_multientry(struct in6_multi *);
+	struct sockaddr_in6	sin6;
 #endif
-void if_addrlist(struct ifaddr *);
-void in_multilist(struct in_multi *);
-struct in_multi * in_multientry(struct in_multi *);
+};
+typedef union sockunion sockunion_t;
+
+uint32_t	ifindex = 0;
+int		af = AF_UNSPEC;
+
+#define	sa_equal(a1, a2)	\
+	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
+
+#define	sa_dl_equal(a1, a2)	\
+	((((struct sockaddr_dl *)(a1))->sdl_len ==			\
+	 ((struct sockaddr_dl *)(a2))->sdl_len) &&			\
+	 (bcmp(LLADDR((struct sockaddr_dl *)(a1)),			\
+	       LLADDR((struct sockaddr_dl *)(a2)),			\
+	       ((struct sockaddr_dl *)(a1))->sdl_alen) == 0))
+
+/*
+ * Most of the code in this utility is to support the use of KVM for
+ * post-mortem debugging of the multicast code.
+ */
+#ifdef WITH_KVM
+
+#ifdef INET
+static void		if_addrlist(struct ifaddr *);
+static struct in_multi *
+			in_multientry(struct in_multi *);
 #ifdef HAVE_IGMPV3
-void in_addr_slistentry(struct in_addr_slist *ias, char *heading);
+static void		in_addr_slistentry(struct in_addr_slist *, char *);
 #endif
+#endif /* INET */
+
+#ifdef INET6
+static void		if6_addrlist(struct ifaddr *);
+static struct in6_multi *
+			in6_multientry(struct in6_multi *);
 #ifdef HAVE_MLDV2
-void in6_addr_slistentry(struct in6_addr_slist *ias, char *heading);
+static void		in6_addr_slistentry(struct in6_addr_slist *, char *);
 #endif
+static const char *	inet6_n2a(struct in6_addr *);
+#endif /* INET6 */
+
+static void		kread(u_long, void *, int);
+static int		ifmcstat_kvm(const char *kernel, const char *core);
 
 #define	KREAD(addr, buf, type) \
 	kread((u_long)addr, (void *)buf, sizeof(type))
 
-const char *inet6_n2a(p)
-	struct in6_addr *p;
+kvm_t	*kvmd;
+struct	nlist nl[] = {
+	{ "_ifnet", 0, 0, 0, 0, },
+	{ "", 0, 0, 0, 0, },
+};
+#define	N_IFNET	0
+
+#endif /* WITH_KVM */
+
+static int		ifmcstat_getifmaddrs(void);
+int			main(int, char **);
+
+int
+main(int argc, char **argv)
+{
+	int c, error;
+#ifdef WITH_KVM
+	const char *kernel = NULL;
+	const char *core = NULL;
+
+	/* "ifmcstat [kernel]" format is supported for backward compatiblity */
+	if (argc == 2)
+		kernel = argv[1];
+#endif
+
+	while ((c = getopt(argc, argv, "i:f:M:N:")) != -1) {
+		switch (c) {
+		case 'i':
+			if ((ifindex = if_nametoindex(optarg)) == 0) {
+				fprintf(stderr, "%s: unknown interface\n",
+				    optarg);
+				exit(1);
+			}
+			break;
+
+		case 'f':
+#ifdef INET
+			if (strcmp(optarg, "inet") == 0) {
+				af = AF_INET;
+				break;
+			}
+#endif
+#ifdef INET6
+			if (strcmp(optarg, "inet6") == 0) {
+				af = AF_INET6;
+				break;
+			}
+#endif
+			fprintf(stderr, "%s: unknown address family\n", optarg);
+			exit(1);
+			/*NOTREACHED*/
+			break;
+
+#ifdef WITH_KVM
+		case 'M':
+			core = strdup(optarg);
+			break;
+
+		case 'N':
+			kernel = strdup(optarg);
+			break;
+#endif
+
+		default:
+			fprintf(stderr,
+			    "usage: ifmcstat [-i interface] [-f address family]"
+#ifdef WITH_KVM
+			    " [-M core] [-N system]"
+#endif
+			    "\n");
+			exit(1);
+			break;
+			/*NOTREACHED*/
+		}
+	}
+
+#ifdef WITH_KVM
+	error = ifmcstat_kvm(kernel, core);
+	/*
+	 * If KVM failed, and user did not explicitly specify a core file,
+	 * try the sysctl backend.
+	 */
+	if (error != 0 && (core == NULL && kernel == NULL))
+#endif
+	error = ifmcstat_getifmaddrs();
+	if (error != 0)
+		exit(1);
+
+	exit(0);
+	/*NOTREACHED*/
+}
+
+#ifdef WITH_KVM
+
+static int
+ifmcstat_kvm(const char *kernel, const char *core)
+{
+	char	buf[_POSIX2_LINE_MAX], ifname[IFNAMSIZ];
+	struct	ifnet	*ifp, *nifp, ifnet;
+
+	if ((kvmd = kvm_openfiles(kernel, core, NULL, O_RDONLY, buf)) ==
+	    NULL) {
+		perror("kvm_openfiles");
+		return (-1);
+	}
+	if (kvm_nlist(kvmd, nl) < 0) {
+		perror("kvm_nlist");
+		return (-1);
+	}
+	if (nl[N_IFNET].n_value == 0) {
+		printf("symbol %s not found\n", nl[N_IFNET].n_name);
+		return (-1);
+	}
+	KREAD(nl[N_IFNET].n_value, &ifp, struct ifnet *);
+	while (ifp) {
+		KREAD(ifp, &ifnet, struct ifnet);
+		nifp = ifnet.if_link.tqe_next;
+		if (ifindex && ifindex != ifnet.if_index)
+			goto next;
+	
+		printf("%s:\n", if_indextoname(ifnet.if_index, ifname));
+#ifdef INET
+		if_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
+#endif
+#ifdef INET6
+		if6_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
+#endif
+next:
+		ifp = nifp;
+	}
+
+	return (0);
+}
+
+static void
+kread(u_long addr, void *buf, int len)
+{
+
+	if (kvm_read(kvmd, addr, buf, len) != len) {
+		perror("kvm_read");
+		exit(1);
+	}
+}
+
+#ifdef INET6
+
+static const char *
+inet6_n2a(struct in6_addr *p)
 {
 	static char buf[NI_MAXHOST];
 	struct sockaddr_in6 sin6;
@@ -142,114 +327,8 @@ const char *inet6_n2a(p)
 		return "(invalid)";
 }
 
-int main(argc, argv)
-	int argc;
-	char **argv;
-{
-	char	buf[_POSIX2_LINE_MAX], ifname[IFNAMSIZ];
-	int c;
-	struct	ifnet	*ifp, *nifp, ifnet;
-	const char *kernel = NULL;
-	const char *core = NULL;
-
-	/* "ifmcstat [kernel]" format is supported for backward compatiblity */
-	if (argc == 2)
-		kernel = argv[1];
-
-	while ((c = getopt(argc, argv, "i:f:M:N:")) != -1) {
-		switch (c) {
-		case 'i':
-			if ((ifindex = if_nametoindex(optarg)) == 0) {
-				fprintf(stderr, "%s: unknown interface\n", optarg);
-				exit(1);
-			}
-			break;
-		case 'f':
-			if (strcmp(optarg, "inet") == 0) {
-				af = AF_INET;
-				break;
-			}
-			if (strcmp(optarg, "inet6") == 0) {
-				af = AF_INET6;
-				break;
-			}
-			fprintf(stderr, "%s: unknown address family\n", optarg);
-			exit(1);
-			/*NOTREACHED*/
-		case 'M':
-			core = strdup(optarg);
-			break;
-		case 'N':
-			kernel = strdup(optarg);
-			break;
-		default:
-			fprintf(stderr,
-"usage: ifmcstat [-i interface] [-f address family] [-M core] [-N system]\n");
-			exit(1);
-			/*NOTREACHED*/
-		}
-	}
-
-	if ((kvmd = kvm_openfiles(kernel, core, NULL, O_RDONLY, buf)) ==
-	    NULL) {
-		perror("kvm_openfiles");
-		exit(1);
-	}
-	if (kvm_nlist(kvmd, nl) < 0) {
-		perror("kvm_nlist");
-		exit(1);
-	}
-	if (nl[N_IFNET].n_value == 0) {
-		printf("symbol %s not found\n", nl[N_IFNET].n_name);
-		exit(1);
-	}
-	KREAD(nl[N_IFNET].n_value, &ifp, struct ifnet *);
-	while (ifp) {
-		KREAD(ifp, &ifnet, struct ifnet);
-		nifp = ifnet.if_link.tqe_next;
-		if (ifindex && ifindex != ifnet.if_index)
-			goto next;
-	
-		printf("%s:\n", if_indextoname(ifnet.if_index, ifname));
-		if_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
-#ifdef INET6
-		if6_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
-#endif
-next:
-		ifp = nifp;
-	}
-
-	exit(0);
-	/*NOTREACHED*/
-}
-
-char *ifname(ifp)
-	struct ifnet *ifp;
-{
-	static char buf[BUFSIZ];
-	struct ifnet ifnet;
-
-	KREAD(ifp, &ifnet, struct ifnet);
-	strlcpy(buf, ifnet.if_xname, sizeof(buf));
-	return buf;
-}
-
-void kread(addr, buf, len)
-	u_long addr;
-	void *buf;
-	int len;
-{
-	if (kvm_read(kvmd, addr, buf, len) != len) {
-		perror("kvm_read");
-		exit(1);
-	}
-}
-
-#ifdef INET6
-
-void
-if6_addrlist(ifap)
-	struct ifaddr *ifap;
+static void
+if6_addrlist(struct ifaddr *ifap)
 {
 	struct ifaddr ifa;
 	struct sockaddr sa;
@@ -292,7 +371,7 @@ if6_addrlist(ifap)
 			if (ifm.ifma_lladdr == 0)
 				goto nextmulti;
 			KREAD(ifm.ifma_lladdr, &sdl, struct sockaddr_dl);
-			printf("\t\t\tmcast-macaddr %s multicnt %d\n",
+			printf("\t\t\tmcast-macaddr %s refcnt %d\n",
 			       ether_ntoa((struct ether_addr *)LLADDR(&sdl)),
 			       ifm.ifma_refcount);
 		    nextmulti:
@@ -301,9 +380,8 @@ if6_addrlist(ifap)
 	}
 }
 
-struct in6_multi *
-in6_multientry(mc)
-	struct in6_multi *mc;
+static struct in6_multi *
+in6_multientry(struct in6_multi *mc)
 {
 	struct in6_multi multi;
 #ifdef HAVE_MLDV2
@@ -356,7 +434,7 @@ in6_multientry(mc)
 }
 
 #ifdef HAVE_MLDV2
-void
+static void
 in6_addr_slistentry(struct in6_addr_slist *ias, char *heading)
 {
 	struct in6_addr_slist slist;
@@ -386,21 +464,14 @@ in6_addr_slistentry(struct in6_addr_slist *ias, char *heading)
 	}
 	return;
 }
-#endif
-
-void
-in6_multilist(mc)
-	struct in6_multi *mc;
-{
-	while (mc)
-		mc = in6_multientry(mc);
-}
+#endif /* HAVE_MLDV2 */
 
 #endif /* INET6 */
 
-void
-if_addrlist(ifap)
-	struct ifaddr *ifap;
+#ifdef INET
+
+static void
+if_addrlist(struct ifaddr *ifap)
 {
 	struct ifaddr ifa;
 	struct sockaddr sa;
@@ -443,7 +514,7 @@ if_addrlist(ifap)
 			if (ifm.ifma_lladdr == 0)
 				goto nextmulti;
 			KREAD(ifm.ifma_lladdr, &sdl, struct sockaddr_dl);
-			printf("\t\t\tmcast-macaddr %s multicnt %d\n",
+			printf("\t\t\tmcast-macaddr %s refcnt %d\n",
 			       ether_ntoa((struct ether_addr *)LLADDR(&sdl)),
 			       ifm.ifma_refcount);
 		    nextmulti:
@@ -452,17 +523,8 @@ if_addrlist(ifap)
 	}
 }
 
-void
-in_multilist(mc)
-	struct in_multi *mc;
-{
-	while (mc)
-		mc = in_multientry(mc);
-}
-
-struct in_multi *
-in_multientry(mc)
-	struct in_multi *mc;
+static struct in_multi *
+in_multientry(struct in_multi *mc)
 {
 	struct in_multi multi;
 	struct router_info rti;
@@ -522,7 +584,7 @@ in_multientry(mc)
 }
 
 #ifdef HAVE_IGMPV3
-void
+static void
 in_addr_slistentry(struct in_addr_slist *ias, char *heading)
 {
 	struct in_addr_slist slist;
@@ -551,4 +613,171 @@ in_addr_slistentry(struct in_addr_slist *ias, char *heading)
 	}
 	return;
 }
+#endif /* HAVE_IGMPV3 */
+
+#endif /* INET */
+
+#endif /* WITH_KVM */
+
+static int
+ifmcstat_getifmaddrs(void)
+{
+	char			 thisifname[IFNAMSIZ];
+	char			 addrbuf[INET6_ADDRSTRLEN];
+	struct ifaddrs		*ifap, *ifa;
+	struct ifmaddrs		*ifmap, *ifma;
+	sockunion_t		 lastifasa;
+	sockunion_t		*psa, *pgsa, *pllsa, *pifasa;
+	char			*pcolon;
+	char			*pafname;
+	uint32_t		 lastifindex, thisifindex;
+	int			 error;
+
+	error = 0;
+	ifap = NULL;
+	ifmap = NULL;
+	lastifindex = 0;
+	thisifindex = 0;
+	lastifasa.ss.ss_family = AF_UNSPEC;
+
+	if (getifaddrs(&ifap) != 0) {
+		warn("getifmaddrs");
+		return (-1);
+	}
+
+	if (getifmaddrs(&ifmap) != 0) {
+		warn("getifmaddrs");
+		error = -1;
+		goto out;
+	}
+
+	for (ifma = ifmap; ifma; ifma = ifma->ifma_next) {
+		error = 0;
+		if (ifma->ifma_name == NULL || ifma->ifma_addr == NULL)
+			continue;
+
+		psa = (sockunion_t *)ifma->ifma_name;
+		if (psa->sa.sa_family != AF_LINK) {
+			fprintf(stderr,
+			    "WARNING: Kernel returned invalid data.\n");
+			error = -1;
+			break;
+		}
+
+		/* Filter on interface name. */
+		thisifindex = psa->sdl.sdl_index;
+		if (ifindex != 0 && thisifindex != ifindex)
+			continue;
+
+		/* Filter on address family. */
+		pgsa = (sockunion_t *)ifma->ifma_addr;
+		if (af != 0 && pgsa->sa.sa_family != af)
+			continue;
+
+		strlcpy(thisifname, link_ntoa(&psa->sdl), IFNAMSIZ);
+		pcolon = strchr(thisifname, ':');
+		if (pcolon)
+			*pcolon = '\0';
+
+		/* Only print the banner for the first ifmaddrs entry. */
+		if (lastifindex == 0 || lastifindex != thisifindex) {
+			lastifindex = thisifindex;
+			fprintf(stdout, "%s:\n", thisifname);
+		}
+
+		/*
+		 * Currently, multicast joins only take place on the
+		 * primary IPv4 address, and only on the link-local IPv6
+		 * address, as per IGMPv2/3 and MLDv1/2 semantics.
+		 * Therefore, we only look up the primary address on
+		 * the first pass.
+		 */
+		pifasa = NULL;
+		for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+			if ((strcmp(ifa->ifa_name, thisifname) != 0) ||
+			    (ifa->ifa_addr == NULL) ||
+			    (ifa->ifa_addr->sa_family != pgsa->sa.sa_family))
+				continue;
+#ifdef INET6
+			/*
+			 * For AF_INET6 only the link-local address should
+			 * be returned.
+			 * XXX: ifmcstat actually prints all of the inet6
+			 * addresses, but never mind...
+			 */
+			pifasa = (sockunion_t *)ifa->ifa_addr;
+			if (pifasa->sa.sa_family == AF_INET6 &&
+			    !IN6_IS_ADDR_LINKLOCAL(&pifasa->sin6.sin6_addr)) {
+				pifasa = NULL;
+				continue;
+			}
 #endif
+			break;
+		}
+		if (pifasa == NULL)
+			continue;	/* primary address not found */
+
+		/* Parse and print primary address, if not already printed. */
+		if (lastifasa.ss.ss_family == AF_UNSPEC ||
+		    ((lastifasa.ss.ss_family == AF_LINK &&
+		      !sa_dl_equal(&lastifasa.sa, &pifasa->sa)) ||
+		     !sa_equal(&lastifasa.sa, &pifasa->sa))) {
+
+			switch (pifasa->sa.sa_family) {
+			case AF_INET:
+				pafname = "inet";
+				break;
+			case AF_INET6:
+				pafname = "inet6";
+				break;
+			case AF_LINK:
+				pafname = "link";
+				break;
+			default:
+				pafname = "unknown";
+				break;
+			}
+
+			switch (pifasa->sa.sa_family) {
+			case AF_INET:
+			case AF_INET6:
+			case AF_LINK:
+				error = getnameinfo(&pifasa->sa,
+				    pifasa->sa.sa_len,
+				    addrbuf, sizeof(addrbuf), NULL, 0,
+				    NI_NUMERICHOST);
+				if (error)
+					perror("getnameinfo");
+				break;
+			default:
+				addrbuf[0] = '\0';
+				break;
+			}
+
+			fprintf(stdout, "\t%s %s\n", pafname, addrbuf);
+			lastifasa = *pifasa;
+		}
+
+		/* Print this group address. */
+		error = getnameinfo(&pgsa->sa, pgsa->sa.sa_len, addrbuf,
+		    sizeof(addrbuf), NULL, 0, NI_NUMERICHOST);
+		if (error)
+			perror("getnameinfo");
+		fprintf(stdout, "\t\tgroup %s\n", addrbuf);
+
+		/* Link-layer mapping, if present. */
+		pllsa = (sockunion_t *)ifma->ifma_lladdr;
+		if (pllsa != NULL) {
+			error = getnameinfo(&pifasa->sa, pifasa->sa.sa_len,
+			    addrbuf, sizeof(addrbuf), NULL, 0, NI_NUMERICHOST);
+			fprintf(stdout, "\t\t\tmcast-macaddr %s\n", addrbuf);
+		}
+	}
+out:
+	if (ifmap != NULL)
+		freeifmaddrs(ifmap);
+	if (ifap != NULL)
+		freeifaddrs(ifap);
+
+	return (error);
+}

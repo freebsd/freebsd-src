@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2007
+.Dd April 10, 2007
 .Dt IFMCSTAT 8
 .Os
 .Sh NAME
@@ -60,6 +60,13 @@ specifies the address-family to be displayed; currently only
 and
 .Ar inet6
 are supported.
+.El
+.Pp
+The following options are only available if
+.Nm
+has been built with support for
+.Xr kvm 3 .
+.Bl -tag -width Fl
 .It Fl M Ar core
 extracts values associated with the name list from the specified core,
 instead of the default
@@ -72,6 +79,37 @@ This is the same as specifying
 .Nm
 .Fl N Ar system .
 This usage is deprecated; it is supported only for backwards compatibility.
+.Sh IMPLEMENTATION NOTES
+When built without
+.Xr kvm 3
+support, the information displayed by
+.Nm
+is more limited.
+This support is recommended for debugging purposes.
+It requires superuser privilege if used to inspect a running kernel.
+.Pp
+When run without using
+.Xr kvm 3
+support,
+.Nm
+may print multicast MAC addresses twice if they are
+referenced by a layer 3 protocol.
+.Pp
+When run with
+.Xr kvm 3
+support,
+the names of all interfaces configured in the system will be
+printed in the first column of output, even if no multicast
+addresses are configured on those interfaces.
+.Sh SEE ALSO
+.Xr getifaddrs 3 ,
+.Xr getifmaddrs 3 ,
+.Xr kvm 3 ,
+.Xr netstat 8
 .Sh BUGS
 .Nm
-needs superuser privilege.
+does not support the
+.Ar link
+argument to the
+.Ar address-family
+option.
