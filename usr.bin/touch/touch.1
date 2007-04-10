@@ -63,25 +63,23 @@ and
 flags may be used to select the access time or the modification time
 individually.
 Selecting both is equivalent to the default.
-The base times for the modification are both set to the current time.
+By default, the timestamps are set to the current time.
 The 
 .Fl t
-flag explicitly specifies a single time for both values, and the
+flag explicitly specifies a different time, and the
 .Fl r
-flag specifies to set the times from those of a different file.
+flag specifies to set the times those of the specified file.
 The 
 .Fl A
 flag adjusts the values by a specified amount.
-This adjustment is done after first establishing the base times.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
 .It Fl A 
 Adjust the access and modification time stamps for the file by the
 specified value.
-This flag is intended for use in modifying files with a time stamp
-relative to an incorrect time zone.
-It always modifies both the access time and the modification time.
+This flag is intended for use in modifying files with incorrectly set
+time stamps.
 .Pp
 The argument is of the form
 .Dq [-][[hh]mm]SS
@@ -92,38 +90,23 @@ where each pair of letters represents the following:
 Make the adjustment negative: the new time stamp is set to be before
 the old one.
 .It Ar hh
-The hour of the day, from 00 to 23.
+The number of hours, from 00 to 99.
 .It Ar mm
-The minute of the hour, from 00 to 59.
+The number of minutes, from 00 to 59.
 .It Ar SS
-The second of the minute, from 00 to 59.
+The number of seconds, from 00 to 59.
 .El
 .Pp
-When used in conjunction with the
-.Fl a
-flag only, the modification time is adjusted by the time specified as
-argument to the
+The
 .Fl A
-flag, while the access time is modified from the base time described
-above.
-Similarly, when used in conjunction with the
-.Fl m
-flag only, the access time is adjusted by the time specified as
-argument to the
-.Fl A
-flag, while the access time is modified from the base time described
-above.
-.Pp
-If the file does not exist, and creation is allowed,
-.Fl A
-does not change its time stamps.
+flag implies the 
+.Fl c
+flag: if any file specified does not exist, it will be silently ignored.
 .It Fl a
 Change the access time of the file.
-The modification time of the file is not changed unless one of the
-.Fl A
-or
+The modification time of the file is not changed unless the
 .Fl m
-flags is also specified.
+flag is also specified.
 .It Fl c
 Do not create the file if it does not exist.
 The
@@ -143,16 +126,15 @@ implies
 and thus will not create any new files.
 .It Fl m
 Change the modification time of the file.
-The access time of the file is not changed unless one of the
-.Fl A
-or
+The access time of the file is not changed unless the
 .Fl a
-flags is also specified.
+flag is also specified.
 .It Fl r
 Use the access and modifications times from the specified file
 instead of the current time of day.
 .It Fl t
-Change the access and modification times to the specified time.
+Change the access and modification times to the specified time instead
+of the current time of day.
 The argument is of the form
 .Dq [[CC]YY]MMDDhhmm[.SS]
 where each pair of letters represents the following:
