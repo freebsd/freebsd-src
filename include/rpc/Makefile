@@ -12,7 +12,7 @@ XFILES= rpcb_prot.x
 HFILES=	auth.h auth_unix.h clnt.h clnt_soc.h clnt_stat.h \
 	nettype.h pmap_clnt.h pmap_prot.h pmap_rmt.h raw.h \
 	rpc.h rpc_msg.h rpcb_clnt.h rpcent.h rpc_com.h \
-	svc.h svc_auth.h svc_soc.h svc_dg.h types.h xdr.h
+	svc.h svc_auth.h svc_soc.h svc_dg.h xdr.h
 
 # Secure RPC
 HFILES+= auth_des.h des.h des_crypt.h
