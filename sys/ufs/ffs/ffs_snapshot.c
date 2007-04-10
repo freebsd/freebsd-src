@@ -807,6 +807,7 @@ done:
 	FREE(copy_fs->fs_csp, M_UFSMNT);
 	bawrite(sbp);
 out:
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (saved_nice > 0) {
 		PROC_LOCK(td->td_proc);
 		mtx_lock_spin(&sched_lock);
