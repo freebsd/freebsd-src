@@ -5008,7 +5008,7 @@ softdep_fsync(vp)
 	struct buf *bp;
 	struct fs *fs;
 	struct thread *td = curthread;
-	int error, flushparent;
+	int error, flushparent, pagedep_new_block;
 	ino_t parentino;
 	ufs_lbn_t lbn;
 
@@ -5086,15 +5086,36 @@ softdep_fsync(vp)
 		 * then we do the slower ffs_syncvnode of the directory.
 		 */
 		if (flushparent) {
+			int locked;
+
 			if ((error = ffs_update(pvp, 1)) != 0) {
 				vput(pvp);
 				return (error);
 			}
-			if ((pagedep->pd_state & NEWBLOCK) &&
-			    (error = ffs_syncvnode(pvp, MNT_WAIT))) {
-				vput(pvp);
-				return (error);
+			ACQUIRE_LOCK(&lk);
+			locked = 1;
+			if (inodedep_lookup(mp, ip->i_number, 0, &inodedep) != 0) {
+				if ((wk = LIST_FIRST(&inodedep->id_pendinghd)) != NULL) {
+					if (wk->wk_type != D_DIRADD)
+						panic("softdep_fsync: Unexpected type %s",
+						      TYPENAME(wk->wk_type));
+					dap = WK_DIRADD(wk);
+					if (dap->da_state & DIRCHG)
+						pagedep = dap->da_previous->dm_pagedep;
+					else
+						pagedep = dap->da_pagedep;
+					pagedep_new_block = pagedep->pd_state & NEWBLOCK;
+					FREE_LOCK(&lk);
+					locked = 0;
+					if (pagedep_new_block &&
+					    (error = ffs_syncvnode(pvp, MNT_WAIT))) {
+						vput(pvp);
+						return (error);
+					}
+				}
 			}
+			if (locked)
+				FREE_LOCK(&lk);
 		}
 		/*
 		 * Flush directory page containing the inode's name.
