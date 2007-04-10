@@ -398,7 +398,7 @@ vfs_getvfs(fsid_t *fsid)
 }
 
 /*
- * Check if a user can access priveledged mount options.
+ * Check if a user can access privileged mount options.
  */
 int
 vfs_suser(struct mount *mp, struct thread *td)
