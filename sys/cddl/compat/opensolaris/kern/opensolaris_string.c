@@ -32,37 +32,6 @@
 	(((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z'))
 
 char *
-strchr(const char *s, int c)
-{
-	char ch;
-
-	ch = c;
-	for (;; ++s) {
-		if (*s == ch)
-			return ((char *)s);
-		if (*s == '\0')
-			return (NULL);
-	}
-	/* NOTREACHED */
-}
-
-char *
-strrchr(const char *s, int c)
-{
-	char *save;
-	char ch;
-
-	ch = c;
-	for (save = NULL;; ++s) {
-		if (*s == ch)
-			save = (char *)s;
-		if (*s == '\0')
-			return (save);
-	}
-	/* NOTREACHED */
-}
-
-char *
 strpbrk(const char *s, const char *b)
 {
 	const char *p;
