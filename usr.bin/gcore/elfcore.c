@@ -130,7 +130,6 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 	 * Allocate memory for building the header, fill it up,
 	 * and write it out.
 	 */
-	hdr = malloc(hdrsize);
 	if ((hdr = malloc(hdrsize)) == NULL)
 		errx(1, "out of memory");
 	elf_corehdr(fd, pid, map, seginfo.count, hdr, hdrsize);
