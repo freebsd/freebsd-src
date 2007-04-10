@@ -136,4 +136,9 @@ struct scsi_idlun {
 #define DRIVER_MASK	0x0f
 #define SUGGEST_MASK	0xf0
 
+/* Other definitions */
+/* HZ isn't always available, so simulate it */
+#define SG_DEFAULT_HZ		1000
+#define SG_DEFAULT_TIMEOUT	(60*SG_DEFAULT_HZ)
+
 #endif /* !_SCSI_SG_H */
