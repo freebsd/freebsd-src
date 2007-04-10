@@ -30,6 +30,7 @@ SRCS+=	ifgroup.c		# ...
 SRCS+=	ifpfsync.c		# pfsync(4) support
 
 SRCS+=	ifbridge.c		# bridge support
+SRCS+=	iftrunk.c		# trunk support
 
 .if ${MK_IPX_SUPPORT} != "no" && !defined(RELEASE_CRUNCH)
 SRCS+=	af_ipx.c		# IPX support
