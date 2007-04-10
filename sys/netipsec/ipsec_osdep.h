@@ -211,7 +211,8 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 
 /*
  * 8. Test for "privileged" socket opened by superuser.
- * FreeBSD tests  ((so)->so_cred != NULL && suser_cred((so)->so_cred, SUSER_ALLOWJAIL == 0))
+ * FreeBSD tests  ((so)->so_cred != NULL && priv_check_cred((so)->so_cred,
+ * PRIV_NETINET_IPSEC, SUSER_ALLOWJAIL) == 0).
  * NetBSD (1.6N) tests (so)->so_uid == 0).
  * This difference is wrapped inside  the IPSEC_PRIVILEGED_SO() macro.
  *
