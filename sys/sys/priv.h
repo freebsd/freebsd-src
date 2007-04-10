@@ -319,6 +319,7 @@
 #define	PRIV_NET_IFDESTROY	412	/* Destroy cloned interface. */
 #define	PRIV_NET_ADDIFADDR	413	/* Add protocol addr to interface. */
 #define	PRIV_NET_DELIFADDR	414	/* Delete protocol addr on interface. */
+#define	PRIV_NET_TRUNK		415	/* Administer trunk. */
 
 /*
  * 802.11-related privileges.
