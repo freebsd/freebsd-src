@@ -83,6 +83,7 @@ static linux_ioctl_function_t linux_ioctl_sound;
 static linux_ioctl_function_t linux_ioctl_termio;
 static linux_ioctl_function_t linux_ioctl_private;
 static linux_ioctl_function_t linux_ioctl_drm;
+static linux_ioctl_function_t linux_ioctl_sg;
 static linux_ioctl_function_t linux_ioctl_special;
 
 static struct linux_ioctl_handler cdrom_handler =
@@ -105,6 +106,8 @@ static struct linux_ioctl_handler private_handler =
 { linux_ioctl_private, LINUX_IOCTL_PRIVATE_MIN, LINUX_IOCTL_PRIVATE_MAX };
 static struct linux_ioctl_handler drm_handler =
 { linux_ioctl_drm, LINUX_IOCTL_DRM_MIN, LINUX_IOCTL_DRM_MAX };
+static struct linux_ioctl_handler sg_handler =
+{ linux_ioctl_sg, LINUX_IOCTL_SG_MIN, LINUX_IOCTL_SG_MAX };
 
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, vfat_handler);
@@ -116,6 +119,7 @@ DATA_SET(linux_ioctl_handler_set, sound_handler);
 DATA_SET(linux_ioctl_handler_set, termio_handler);
 DATA_SET(linux_ioctl_handler_set, private_handler);
 DATA_SET(linux_ioctl_handler_set, drm_handler);
+DATA_SET(linux_ioctl_handler_set, sg_handler);
 
 struct handler_element
 {
@@ -1605,6 +1609,11 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 		break;
 	}
 
+	case LINUX_SCSI_GET_BUS_NUMBER:
+	case LINUX_SCSI_GET_IDLUN:
+		error = linux_ioctl_sg(td, args);
+		break;
+
 	/* LINUX_CDROM_SEND_PACKET */
 	/* LINUX_CDROM_NEXT_WRITABLE */
 	/* LINUX_CDROM_LAST_WRITTEN */
@@ -2515,6 +2524,24 @@ linux_ioctl_drm(struct thread *td, struct linux_ioctl_args *args)
 {
 	args->cmd = SETDIR(args->cmd);
 	return ioctl(td, (struct ioctl_args *)args);
+}
+
+static int
+linux_ioctl_sg(struct thread *td, struct linux_ioctl_args *args)
+{
+	struct file *fp;
+	u_long cmd;
+	int error;
+
+	if ((error = fget(td, args->fd, &fp)) != 0) {
+		printf("sg_linux_ioctl: fget returned %d\n", error);
+		return (error);
+	}
+	cmd = args->cmd;
+
+	error = (fo_ioctl(fp, cmd, (caddr_t)args->arg, td->td_ucred, td));
+	fdrop(fp, td);
+	return (error);
 }
 
 /*
