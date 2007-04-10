@@ -33,6 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/libkern.h>
 
+/*
+ * rindex() is also present as the strrchr() in the kernel; it does exactly the
+ * same thing as it's userland equivalent.
+ */
 char *
 rindex(p, ch)
 	const char *p;
