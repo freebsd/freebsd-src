@@ -199,16 +199,13 @@ ath_hal_setlogging(int enable)
 	int error;
 
 	if (enable) {
-		error = suser(curthread);
-		if (error == 0) {
-			error = alq_open(&ath_hal_alq, ath_hal_logfile,
-				curthread->td_ucred, ALQ_DEFAULT_CMODE,
-				sizeof (struct athregrec), ath_hal_alq_qsize);
-			ath_hal_alq_lost = 0;
-			ath_hal_alq_emitdev = 1;
-			printf("ath_hal: logging to %s enabled\n",
-				ath_hal_logfile);
-		}
+		error = alq_open(&ath_hal_alq, ath_hal_logfile,
+			curthread->td_ucred, ALQ_DEFAULT_CMODE,
+			sizeof (struct athregrec), ath_hal_alq_qsize);
+		ath_hal_alq_lost = 0;
+		ath_hal_alq_emitdev = 1;
+		printf("ath_hal: logging to %s enabled\n",
+			ath_hal_logfile);
 	} else {
 		if (ath_hal_alq)
 			alq_close(ath_hal_alq);
