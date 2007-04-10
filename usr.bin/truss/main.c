@@ -39,11 +39,10 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/ioctl.h>
-#include <sys/pioctl.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/sysctl.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -59,12 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "truss.h"
 #include "extern.h"
 
-/*
- * It's difficult to parameterize this because it must be
- * accessible in a signal handler.
- */
-
-int Procfd;
+#define MAXARGS 5
 
 static void
 usage(void)
@@ -111,26 +105,26 @@ struct ex_types {
 
 /*
  * Set the execution type.  This is called after every exec, and when
- * a process is first monitored.  The procfs pseudo-file "etype" has
- * the execution module type -- see /proc/curproc/etype for an example.
+ * a process is first monitored. 
  */
 
 static struct ex_types *
 set_etype(struct trussinfo *trussinfo)
 {
 	struct ex_types *funcs;
-	char etype[24];
 	char progt[32];
-	int fd;
+	
+	size_t len = sizeof(progt);
+	int mib[4];
+	int error;
 
-	sprintf(etype, "/proc/%d/etype", trussinfo->pid);
-	if ((fd = open(etype, O_RDONLY)) == -1) {
-		strcpy(progt, "FreeBSD a.out");
-	} else {
-		int len = read(fd, progt, sizeof(progt));
-		progt[len-1] = '\0';
-		close(fd);
-	}
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_SV_NAME;
+	mib[3] = trussinfo->pid;
+	error = sysctl(mib, 4, progt, &len, NULL, 0);
+	if (error != 0)
+		err(2, "can not get etype");
 
 	for (funcs = ex_types; funcs->type; funcs++)
 		if (!strcmp(funcs->type, progt))
@@ -167,14 +161,12 @@ main(int ac, char **av)
 	int c;
 	int i;
 	char **command;
-	struct procfs_status pfs;
 	struct ex_types *funcs;
-	int in_exec, sigexit, initial_open;
+	int sigexit, initial_open;
 	char *fname;
 	struct trussinfo *trussinfo;
 	char *signame;
 
-	in_exec = 0;
 	sigexit = 0;
 	fname = NULL;
 	initial_open = 1;
@@ -184,9 +176,12 @@ main(int ac, char **av)
 	if (trussinfo == NULL)
 		errx(1, "malloc() failed");
 	bzero(trussinfo, sizeof(struct trussinfo));
+	
 	trussinfo->outfile = stderr;
 	trussinfo->strsize = 32;
-
+	trussinfo->pr_why = S_NONE;
+	trussinfo->curthread = NULL;
+	SLIST_INIT(&trussinfo->threadlist);
 	while ((c = getopt(ac, av, "p:o:faedDs:S")) != -1) {
 		switch (c) {
 		case 'p':	/* specified pid */
@@ -245,6 +240,7 @@ main(int ac, char **av)
 		signal(SIGTERM, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
 	} else {
+		start_tracing(trussinfo->pid);
 		signal(SIGINT, restore_proc);
 		signal(SIGTERM, restore_proc);
 		signal(SIGQUIT, restore_proc);
@@ -257,18 +253,9 @@ main(int ac, char **av)
 	 */
 
 START_TRACE:
-	Procfd = start_tracing(
-	    trussinfo->pid, initial_open,
-	    S_EXEC | S_SCE | S_SCX | S_CORE | S_EXIT |
-	    ((trussinfo->flags & NOSIGS) ? 0 : S_SIG),
-	    ((trussinfo->flags & FOLLOWFORKS) ? PF_FORK : 0));
-	initial_open = 0;
-	if (Procfd == -1)
-		return (0);
-
-	pfs.why = 0;
-
 	funcs = set_etype(trussinfo);
+
+	initial_open = 0;
 	/*
 	 * At this point, it's a simple loop, waiting for the process to
 	 * stop, finding out why, printing out why, and then continuing it.
@@ -278,118 +265,92 @@ START_TRACE:
 	clock_gettime(CLOCK_REALTIME, &trussinfo->start_time);
 
 	do {
-		int val = 0;
 		struct timespec timediff;
+		waitevent(trussinfo);
 
-		if (ioctl(Procfd, PIOCWAIT, &pfs) == -1)
-			warn("PIOCWAIT top of loop");
-		else {
-			switch(i = pfs.why) {
-			case S_SCE:
-				funcs->enter_syscall(trussinfo, pfs.val);
-				clock_gettime(CLOCK_REALTIME,
-				    &trussinfo->before);
-				break;
-			case S_SCX:
-				clock_gettime(CLOCK_REALTIME,
-				    &trussinfo->after);
+		switch(i = trussinfo->pr_why) {
+		case S_SCE:
+			funcs->enter_syscall(trussinfo, MAXARGS);
+			clock_gettime(CLOCK_REALTIME,
+			    &trussinfo->before);
+			break;
+		case S_SCX:
+			clock_gettime(CLOCK_REALTIME,
+			    &trussinfo->after);
+
+			if (trussinfo->curthread->in_fork &&
+			    (trussinfo->flags & FOLLOWFORKS)) {
+				int childpid;
+
+				trussinfo->curthread->in_fork = 0;
+				childpid =
+				    funcs->exit_syscall(trussinfo,
+					trussinfo->pr_data);
+
 				/*
-				 * This is so we don't get two messages for
-				 * an exec -- one for the S_EXEC, and one for
-				 * the syscall exit.  It also, conveniently,
-				 * ensures that the first message printed out
-				 * isn't the return-from-syscall used to
-				 * create the process.
+				 * Fork a new copy of ourself to trace
+				 * the child of the original traced
+				 * process.
 				 */
-				if (in_exec) {
-					in_exec = 0;
-					break;
+				if (fork() == 0) {
+					trussinfo->pid = childpid;
+					start_tracing(trussinfo->pid);
+					goto START_TRACE;
 				}
-
-				if (trussinfo->in_fork &&
-				    (trussinfo->flags & FOLLOWFORKS)) {
-					int childpid;
-
-					trussinfo->in_fork = 0;
-					childpid =
-					    funcs->exit_syscall(trussinfo,
-						pfs.val);
-
-					/*
-					 * Fork a new copy of ourself to trace
-					 * the child of the original traced
-					 * process.
-					 */
-					if (fork() == 0) {
-						trussinfo->pid = childpid;
-						goto START_TRACE;
-					}
-					break;
-				}
-				funcs->exit_syscall(trussinfo, pfs.val);
-				break;
-			case S_SIG:
-				if (trussinfo->flags & FOLLOWFORKS)
-					fprintf(trussinfo->outfile, "%5d: ",
-					    trussinfo->pid);
-				if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-					timespecsubt(&trussinfo->after,
-					    &trussinfo->start_time, &timediff);
-					fprintf(trussinfo->outfile, "%ld.%09ld ",
-					    (long)timediff.tv_sec,
-					    timediff.tv_nsec);
-				}
-				if (trussinfo->flags & RELATIVETIMESTAMPS) {
-					timespecsubt(&trussinfo->after,
-					    &trussinfo->before, &timediff);
-					fprintf(trussinfo->outfile, "%ld.%09ld ",
-					    (long)timediff.tv_sec,
-					    timediff.tv_nsec);
-				}
-				signame = strsig(pfs.val);
-				fprintf(trussinfo->outfile,
-				    "SIGNAL %lu (%s)\n", pfs.val,
-				    signame == NULL ? "?" : signame);
-				free(signame);
-				sigexit = pfs.val;
-				break;
-			case S_EXIT:
-				if (trussinfo->flags & FOLLOWFORKS)
-					fprintf(trussinfo->outfile, "%5d: ",
-					    trussinfo->pid);
-				if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-					timespecsubt(&trussinfo->after,
-					    &trussinfo->start_time, &timediff);
-					fprintf(trussinfo->outfile, "%ld.%09ld ",
-					    (long)timediff.tv_sec,
-					    timediff.tv_nsec);
-				}
-				if (trussinfo->flags & RELATIVETIMESTAMPS) {
-				  timespecsubt(&trussinfo->after,
-				      &trussinfo->before, &timediff);
-				  fprintf(trussinfo->outfile, "%ld.%09ld ",
-				    (long)timediff.tv_sec, timediff.tv_nsec);
-				}
-				fprintf(trussinfo->outfile,
-				    "process exit, rval = %lu\n", pfs.val);
-				break;
-			case S_EXEC:
-				funcs = set_etype(trussinfo);
-				in_exec = 1;
-				break;
-			default:
-				fprintf(trussinfo->outfile,
-				    "Process stopped because of:  %d\n", i);
 				break;
 			}
-		}
-		if (ioctl(Procfd, PIOCCONT, val) == -1) {
-			if (kill(trussinfo->pid, 0) == -1 && errno == ESRCH)
+			funcs->exit_syscall(trussinfo, MAXARGS);
+			break;
+		case S_SIG:
+			if (trussinfo->flags & NOSIGS)
 				break;
-			else
-				warn("PIOCCONT");
+			if (trussinfo->flags & FOLLOWFORKS)
+				fprintf(trussinfo->outfile, "%5d: ",
+				    trussinfo->pid);
+			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
+				timespecsubt(&trussinfo->after,
+				    &trussinfo->start_time, &timediff);
+				fprintf(trussinfo->outfile, "%ld.%09ld ",
+				    (long)timediff.tv_sec,
+				    timediff.tv_nsec);
+			}
+			if (trussinfo->flags & RELATIVETIMESTAMPS) {
+				timespecsubt(&trussinfo->after,
+				    &trussinfo->before, &timediff);
+				fprintf(trussinfo->outfile, "%ld.%09ld ",
+				    (long)timediff.tv_sec,
+				    timediff.tv_nsec);
+			}
+			signame = strsig(trussinfo->pr_data);
+			fprintf(trussinfo->outfile,
+			    "SIGNAL %u (%s)\n", trussinfo->pr_data,
+			    signame == NULL ? "?" : signame);
+			free(signame);
+			break;
+		case S_EXIT:
+			if (trussinfo->flags & FOLLOWFORKS)
+				fprintf(trussinfo->outfile, "%5d: ",
+				    trussinfo->pid);
+			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
+				timespecsubt(&trussinfo->after,
+				    &trussinfo->start_time, &timediff);
+				fprintf(trussinfo->outfile, "%ld.%09ld ",
+				    (long)timediff.tv_sec,
+				    timediff.tv_nsec);
+			}
+			if (trussinfo->flags & RELATIVETIMESTAMPS) {
+			  timespecsubt(&trussinfo->after,
+			      &trussinfo->before, &timediff);
+			  fprintf(trussinfo->outfile, "%ld.%09ld ",
+			    (long)timediff.tv_sec, timediff.tv_nsec);
+			}
+			fprintf(trussinfo->outfile,
+			    "process exit, rval = %u\n", trussinfo->pr_data);
+			break;
+		default:
+			break;
 		}
-	} while (pfs.why != S_EXIT);
+	} while (trussinfo->pr_why != S_EXIT);
 	fflush(trussinfo->outfile);
 	if (sigexit) {
 		struct rlimit rlp;
@@ -400,5 +361,6 @@ START_TRACE:
 		(void) signal(sigexit, SIG_DFL);
 		(void) kill(getpid(), sigexit);
 	}
+	
 	return (0);
 }

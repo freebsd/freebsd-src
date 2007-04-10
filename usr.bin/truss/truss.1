@@ -23,7 +23,7 @@ The
 utility traces the system calls called by the specified process or program.
 Output is to the specified output file, or standard error by default.
 It does this by stopping and restarting the process being monitored via
-.Xr procfs 5 .
+.Xr ptrace 2 .
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -79,13 +79,6 @@ and
 .Ar command
 options are mutually exclusive.)
 .El
-.Pp
-The
-.Xr procctl 8
-utility can be used to clear tracepoints in a stuck process
-left behind if
-.Nm
-terminates abnormally.
 .Sh EXAMPLES
 # Follow the system calls used in echoing "hello"
 .Dl $ truss /bin/echo hello
@@ -96,8 +89,7 @@ terminates abnormally.
 .Sh SEE ALSO
 .Xr kdump 1 ,
 .Xr ktrace 1 ,
-.Xr procfs 5 ,
-.Xr procctl 8
+.Xr ptrace 2 2 
 .Sh HISTORY
 The
 .Nm

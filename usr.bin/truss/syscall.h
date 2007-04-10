@@ -60,8 +60,7 @@ struct syscall {
 };
 
 struct syscall *get_syscall(const char*);
-char *get_string(int, void*, int);
-char *print_arg(int, struct syscall_args *, unsigned long*, long, struct trussinfo *);
+char *print_arg(struct syscall_args *, unsigned long*, long, struct trussinfo *);
 void print_syscall(struct trussinfo *, const char *, int, char **);
 void print_syscall_ret(struct trussinfo *, const char *, int, char **, int,
     long);
