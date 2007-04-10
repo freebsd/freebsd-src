@@ -710,9 +710,11 @@ prison_priv_check(struct ucred *cred, int priv)
 			return (EPERM);
 
 		/*
-		 * Allow jailed root to bind reserved ports.
+		 * Allow jailed root to bind reserved ports and reuse in-use
+		 * ports.
 		 */
 	case PRIV_NETINET_RESERVEDPORT:
+	case PRIV_NETINET_REUSEPORT:
 		return (0);
 
 		/*
