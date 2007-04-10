@@ -52,6 +52,7 @@ static const char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,7 +77,7 @@ main(int argc, char *argv[])
 	char *p;
 	char *myname;
 
-	myname = argv[0];
+	myname = basename(argv[0]);
 	Aflag = aflag = cflag = fflag = mflag = timeset = 0;
 	stat_f = stat;
 	utimes_f = utimes;
@@ -120,29 +121,45 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	/* -a and -m are default unless one of them or -A is set. */
-	if (aflag == 0 && mflag == 0 && Aflag == 0)
+	if (aflag == 0 && mflag == 0)
 		aflag = mflag = 1;
 
-	/*
-	 * If no -r or -t flag, at least two operands, the first of which
-	 * is an 8 or 10 digit number, use the obsolete time specification.
-	 */
-	if (!timeset && argc > 1) {
-		(void)strtol(argv[0], &p, 10);
-		len = p - argv[0];
-		if (*p == '\0' && (len == 8 || len == 10)) {
-			timeset = 1;
-			stime_arg2(*argv++, len == 10, tv);
+	if (timeset) {
+		if (Aflag) {
+			/*
+			 * We're setting the time to an offset from a specified
+			 * time.  God knows why, but it means that we can set
+			 * that time once and for all here.
+			 */
+			if (aflag)
+				tv[0].tv_sec += Aflag;
+			if (mflag)
+				tv[1].tv_sec += Aflag;
+			Aflag = 0;		/* done our job */
 		}
-	}
-
-	/* Otherwise use the current time of day. */
-	if (!timeset)
+	} else {
+		/*
+		 * If no -r or -t flag, at least two operands, the first of
+		 * which is an 8 or 10 digit number, use the obsolete time
+		 * specification, otherwise use the current time.
+		 */
+		if (argc > 1) {
+			strtol(argv[0], &p, 10);
+			len = p - argv[0];
+			if (*p == '\0' && (len == 8 || len == 10)) {
+				timeset = 1;
+				stime_arg2(*argv++, len == 10, tv);
+			}
+		}
+		/* Both times default to the same. */
 		tv[1] = tv[0];
+	}
 
 	if (*argv == NULL)
 		usage(myname);
+
+	if (Aflag)
+		cflag = 1;
 
 	for (rval = 0; *argv; ++argv) {
 		/* See if the file exists. */
@@ -164,14 +181,24 @@ main(int argc, char *argv[])
 				continue;
 		}
 
-		/* If -a or -m are not set, base time on current file time. */
 		if (!aflag)
 			TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atimespec);
 		if (!mflag)
 			TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
+
+		/*
+		 * We're adjusting the times based on the file times, not a
+		 * specified time (that gets handled above).
+		 */
 		if (Aflag) {
-			tv[0].tv_sec += Aflag;
-			tv[1].tv_sec += Aflag;
+			if (aflag) {
+				TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atimespec);
+				tv[0].tv_sec += Aflag;
+			}
+			if (mflag) {
+				TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
+				tv[1].tv_sec += Aflag;
+			}
 		}
 
 		/* Try utimes(2). */
