@@ -48,6 +48,7 @@ options 	SCHED_4BSD	# 4BSD scheduler
 options 	SCSI_DELAY=5000	# Delay (in ms) before probing SCSI
 options 	SMP		# Symmetric Multi-Processor support
 options 	SOFTUPDATES	# Enable FFS soft updates support
+options 	UFS_GJOURNAL	# Enable gjournal-based UFS journaling.
 options 	SYSVMSG		# SYSV-style message queues
 options 	SYSVSEM		# SYSV-style semaphores
 options 	SYSVSHM		# SYSV-style shared memory
