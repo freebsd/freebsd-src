@@ -304,14 +304,14 @@ vntblinit(void *dummy __unused)
 			    desiredvnodes, MAXVNODES_MAX);
 		desiredvnodes = MAXVNODES_MAX;
 	}
-	wantfreevnodes = desiredvnodes / 4; 
+	wantfreevnodes = desiredvnodes / 4;
 	mtx_init(&mntid_mtx, "mntid", NULL, MTX_DEF);
 	TAILQ_INIT(&vnode_free_list);
 	mtx_init(&vnode_free_list_mtx, "vnode_free_list", NULL, MTX_DEF);
 	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	vnodepoll_zone = uma_zcreate("VNODEPOLL", sizeof (struct vpollinfo),
-	      NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	/*
 	 * Initialize the filesystem syncer.
 	 */
@@ -604,7 +604,7 @@ vlrureclaim(struct mount *mp)
 		 * vnode lock before our VOP_LOCK() call fails.
 		 */
 		if (vp->v_usecount || !LIST_EMPTY(&(vp)->v_cache_src) ||
-		    (vp->v_object != NULL && 
+		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VOP_UNLOCK(vp, LK_INTERLOCK, td);
 			goto next_iter_mntunlocked;
@@ -745,7 +745,7 @@ vnlru_proc(void)
 #endif
 			vnlru_nowhere++;
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
-		} else 
+		} else
 			uio_yield();
 	}
 }
@@ -880,7 +880,7 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 			goto alloc;
 		}
 		if (vnlruproc_sig == 0) {
-			vnlruproc_sig = 1;      /* avoid unnecessary wakeups */
+			vnlruproc_sig = 1;	/* avoid unnecessary wakeups */
 			wakeup(vnlruproc);
 		}
 		msleep(&vnlruproc_sig, &vnode_free_list_mtx, PVFS,
@@ -1155,7 +1155,7 @@ flushbuflist( struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 			return (error != ENOLCK ? error : EAGAIN);
 		}
 		KASSERT(bp->b_bufobj == bo,
-	            ("bp %p wrong b_bufobj %p should be %p",
+		    ("bp %p wrong b_bufobj %p should be %p",
 		    bp, bp->b_bufobj, bo));
 		if (bp->b_bufobj != bo) {	/* XXX: necessary ? */
 			BUF_UNLOCK(bp);
@@ -1182,7 +1182,7 @@ flushbuflist( struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		brelse(bp);
 		BO_LOCK(bo);
 		if (nbp != NULL &&
-		    (nbp->b_bufobj != bo || 
+		    (nbp->b_bufobj != bo ||
 		     nbp->b_lblkno != lblkno ||
 		     (nbp->b_xflags &
 		      (BX_BKGRDMARKER | BX_VNDIRTY | BX_VNCLEAN)) != xflags))
@@ -1374,7 +1374,7 @@ buf_vlist_remove(struct buf *bp)
 	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) !=
 	    (BX_VNDIRTY|BX_VNCLEAN),
 	    ("buf_vlist_remove: Buf %p is on two lists", bp));
-	if (bp->b_xflags & BX_VNDIRTY) 
+	if (bp->b_xflags & BX_VNDIRTY)
 		bv = &bp->b_bufobj->bo_dirty;
 	else
 		bv = &bp->b_bufobj->bo_clean;
@@ -1526,7 +1526,7 @@ brelvp(struct buf *bp)
 		bo->bo_flag &= ~BO_ONWORKLST;
 		mtx_lock(&sync_mtx);
 		LIST_REMOVE(bo, bo_synclist);
- 		syncer_worklist_len--;
+		syncer_worklist_len--;
 		mtx_unlock(&sync_mtx);
 	}
 	bp->b_flags &= ~B_NEEDSGIANT;
@@ -1550,7 +1550,7 @@ vn_syncer_add_to_worklist(struct bufobj *bo, int delay)
 		LIST_REMOVE(bo, bo_synclist);
 	else {
 		bo->bo_flag |= BO_ONWORKLST;
- 		syncer_worklist_len++;
+		syncer_worklist_len++;
 	}
 
 	if (delay > syncer_maxdelay - 2)
@@ -1591,7 +1591,7 @@ sync_vnode(struct bufobj *bo, struct thread *td)
 	struct vnode *vp;
 	struct mount *mp;
 
-	vp = bo->__bo_vnode; 	/* XXX */
+	vp = bo->__bo_vnode;	/* XXX */
 	if (VOP_ISLOCKED(vp, NULL) != 0)
 		return (1);
 	if (VI_TRYLOCK(vp) == 0)
@@ -1691,7 +1691,7 @@ sched_sync(void)
 			next = &syncer_workitem_pending[syncer_delayno];
 			/*
 			 * If the worklist has wrapped since the
-			 * it was emptied of all but syncer vnodes, 
+			 * it was emptied of all but syncer vnodes,
 			 * switch to the FINAL_DELAY state and run
 			 * for one more second.
 			 */
@@ -1862,7 +1862,7 @@ reassignbuf(struct buf *bp)
 		if ((bo->bo_flag & BO_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
 			mtx_lock(&sync_mtx);
 			LIST_REMOVE(bo, bo_synclist);
- 			syncer_worklist_len--;
+			syncer_worklist_len--;
 			mtx_unlock(&sync_mtx);
 			bo->bo_flag &= ~BO_ONWORKLST;
 		}
@@ -3157,7 +3157,7 @@ sync_reclaim(struct vop_reclaim_args *ap)
 	if (bo->bo_flag & BO_ONWORKLST) {
 		mtx_lock(&sync_mtx);
 		LIST_REMOVE(bo, bo_synclist);
- 		syncer_worklist_len--;
+		syncer_worklist_len--;
 		sync_vnode_count--;
 		mtx_unlock(&sync_mtx);
 		bo->bo_flag &= ~BO_ONWORKLST;
@@ -3579,16 +3579,16 @@ vop_create_post(void *ap, int rc)
 	struct vop_create_args *a = ap;
 
 	if (!rc)
-		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE); 
+		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE);
 }
 
 void
 vop_link_post(void *ap, int rc)
 {
 	struct vop_link_args *a = ap;
-	
+
 	if (!rc) {
-		VFS_KNOTE_LOCKED(a->a_vp, NOTE_LINK); 
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_LINK);
 		VFS_KNOTE_LOCKED(a->a_tdvp, NOTE_WRITE);
 	}
 }
@@ -3667,7 +3667,7 @@ void
 vop_symlink_post(void *ap, int rc)
 {
 	struct vop_symlink_args *a = ap;
-	
+
 	if (!rc)
 		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE);
 }
@@ -3747,8 +3747,8 @@ sysctl_vfs_ctl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLFLAG_WR,
-        NULL, 0, sysctl_vfs_ctl, "", "Sysctl by fsid");
+SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLFLAG_WR, NULL, 0, sysctl_vfs_ctl, "",
+    "Sysctl by fsid");
 
 /*
  * Function to initialize a va_filerev field sensibly.
@@ -3803,7 +3803,7 @@ vfs_kqfilter(struct vop_kqfilter_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct knote *kn = ap->a_kn;
-	struct knlist *knl; 
+	struct knlist *knl;
 
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
@@ -3859,7 +3859,7 @@ filt_vfsread(struct knote *kn, long hint)
 		return (1);
 	}
 
-	if (VOP_GETATTR(vp, &va, curthread->td_ucred, curthread)) 
+	if (VOP_GETATTR(vp, &va, curthread->td_ucred, curthread))
 		return (0);
 
 	kn->kn_data = va.va_size - kn->kn_fp->f_offset;
