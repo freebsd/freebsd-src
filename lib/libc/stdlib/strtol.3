@@ -177,8 +177,8 @@ is set to
 .Er ERANGE
 and the function return value is clamped according
 to the following table.
-.Bl -column -offset indent ".Fn strtoimax" ".Sy overflow" ".Sy underflow"
-.It Sy Function Ta Sy overflow Ta Sy underflow
+.Bl -column -offset indent ".Fn strtoimax" ".Sy underflow" ".Sy overflow"
+.It Sy Function Ta Sy underflow Ta Sy overflow
 .It Fn strtol Ta Dv LONG_MIN Ta Dv LONG_MAX
 .It Fn strtoll Ta Dv LLONG_MIN Ta Dv LLONG_MAX
 .It Fn strtoimax Ta Dv INTMAX_MIN Ta Dv INTMAX_MAX
