@@ -32,8 +32,9 @@
  */
 
 extern int setup_and_wait(char **);
-extern int start_tracing(int, int, int, int);
+extern int start_tracing(int);
 extern void restore_proc(int);
+extern void waitevent(struct trussinfo *);
 extern const char *ioctlname(register_t val);
 extern char *strsig(int sig);
 #ifdef __alpha__
@@ -63,4 +64,3 @@ extern void sparc64_syscall_entry(struct trussinfo *, int);
 extern long sparc64_syscall_exit(struct trussinfo *, int);
 #endif
 
-extern int Procfd;
