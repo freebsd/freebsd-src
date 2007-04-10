@@ -34,6 +34,7 @@ options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
+options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling.
 options 	MD_ROOT			# MD is a potential root device
 options 	NFSCLIENT		# Network Filesystem Client
 options 	NFSSERVER		# Network Filesystem Server
