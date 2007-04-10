@@ -33,6 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/libkern.h>
 
+/*
+ * index() is also present as the strchr() in the kernel; it does exactly the
+ * same thing as it's userland equivalent.
+ */
 char *
 index(p, ch)
 	const char *p;

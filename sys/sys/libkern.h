@@ -153,6 +153,18 @@ memset(void *b, int c, size_t len)
 	return (b);
 }
 
+static __inline char *
+strchr(const char *p, int ch)
+{
+	return (index(p, ch));
+}
+
+static __inline char *
+strrchr(const char *p, int ch)
+{
+	return (rindex(p, ch));
+}
+
 /* fnmatch() return values. */
 #define	FNM_NOMATCH	1	/* Match failed. */
 
