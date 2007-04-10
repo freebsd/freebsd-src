@@ -22,6 +22,7 @@ SRCS+=	scsi_pass.c
 SRCS+=	scsi_pt.c
 SRCS+=	scsi_sa.c
 SRCS+=	scsi_ses.c
+SRCS+=	scsi_sg.c
 SRCS+=	scsi_targ_bh.c scsi_target.c
 
 EXPORT_SYMS=	YES	# XXX evaluate
