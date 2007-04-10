@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-/* prevent concurrant creation races */
+/* prevent concurrent creation races */
 static int phys_pager_alloc_lock;
 /* list of device pager objects */
 static struct pagerlst phys_pager_object_list;
