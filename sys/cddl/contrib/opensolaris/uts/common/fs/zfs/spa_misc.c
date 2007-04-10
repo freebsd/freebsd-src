@@ -193,6 +193,10 @@ int zfs_flags = 0;
  * set, calls to zfs_panic_recover() will turn into warning messages.
  */
 int zfs_recover = 0;
+SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.recover", &zfs_recover);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RDTUN, &zfs_recover, 0,
+    "Try to recover from otherwise-fatal errors.");
 
 #define	SPA_MINREF	5	/* spa_refcnt for an open-but-idle pool */
 
