@@ -29,8 +29,8 @@
 #ifndef _OPENSOLARIS_SYS_STRING_H_
 #define	_OPENSOLARIS_SYS_STRING_H_
 
-char	*strchr(const char *, int);
-char	*strrchr(const char *p, int c);
+#include <sys/libkern.h>
+
 char	*strpbrk(const char *, const char *);
 void	 strident_canon(char *s, size_t n);
 
