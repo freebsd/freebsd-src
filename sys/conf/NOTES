@@ -813,7 +813,7 @@ device		ppp			#Point-to-point protocol
 options 	PPP_BSDCOMP		#PPP BSD-compress support
 options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support
 options 	PPP_FILTER		#enable bpf filtering (needs bpf)
-options		trunk			#Trunk aggregation interface
+device		trunk			#Trunk aggregation interface
 
 device		ef			# Multiple ethernet frames support
 options 	ETHER_II		# enable Ethernet_II frame
