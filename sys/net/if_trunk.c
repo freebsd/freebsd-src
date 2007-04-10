@@ -562,7 +562,7 @@ trunk_port_output(struct ifnet *ifp, struct mbuf *m,
 {
 	struct trunk_port *tp = ifp->if_trunk;
 	struct ether_header *eh;
-	short type;
+	short type = 0;
 
 	switch (dst->sa_family) {
 		case pseudo_AF_HDRCMPLT:
