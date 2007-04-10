@@ -152,7 +152,6 @@ static int arc_dead;
  */
 u_long zfs_arc_max;
 u_long zfs_arc_min;
-#ifdef _KERNEL
 TUNABLE_ULONG("vfs.zfs.arc_max", &zfs_arc_max);
 TUNABLE_ULONG("vfs.zfs.arc_min", &zfs_arc_min);
 SYSCTL_DECL(_vfs_zfs);
@@ -160,7 +159,6 @@ SYSCTL_ULONG(_vfs_zfs, OID_AUTO, arc_max, CTLFLAG_RD, &zfs_arc_max, 0,
     "Maximum ARC size");
 SYSCTL_ULONG(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RD, &zfs_arc_min, 0,
     "Minimum ARC size");
-#endif
 
 /*
  * Note that buffers can be on one of 5 states:
@@ -2684,9 +2682,9 @@ arc_tempreserve_space(uint64_t tempreserve)
 	return (0);
 }
 
+static kmutex_t arc_lowmem_lock;
 #ifdef _KERNEL
 static eventhandler_tag arc_event_lowmem = NULL;
-static kmutex_t arc_lowmem_lock;
 
 static void
 arc_lowmem(void *arg __unused, int howto __unused)
@@ -2707,9 +2705,7 @@ arc_init(void)
 {
 	mutex_init(&arc_reclaim_thr_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&arc_reclaim_thr_cv, NULL, CV_DEFAULT, NULL);
-#ifdef _KERNEL
 	mutex_init(&arc_lowmem_lock, NULL, MUTEX_DEFAULT, NULL);
-#endif
 
 	/* Convert seconds to clock ticks */
 	arc_min_prefetch_lifespan = 1 * hz;
@@ -2853,9 +2849,9 @@ arc_fini(void)
 
 	buf_fini();
 
+	mutex_destroy(&arc_lowmem_lock);
 #ifdef _KERNEL
 	if (arc_event_lowmem != NULL)
 		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
-	mutex_destroy(&arc_lowmem_lock);
 #endif
 }
