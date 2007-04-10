@@ -100,11 +100,13 @@ struct sg_rdwr {
 struct sg_softc {
 	sg_state		state;
 	sg_flags		flags;
-	uint8_t			pd_type;
 	struct devstat		*device_stats;
 	TAILQ_HEAD(, sg_rdwr)	rdwr_done;
 	struct cdev		*dev;
 	struct cdev		*devalias;
+	int			sg_timeout;
+	int			sg_user_timeout;
+	uint8_t			pd_type;
 	union ccb		saved_ccb;
 };
 
@@ -297,6 +299,8 @@ sgregister(struct cam_periph *periph, void *arg)
 
 	softc->state = SG_STATE_NORMAL;
 	softc->pd_type = SID_TYPE(&cgd->inq_data);
+	softc->sg_timeout = SG_DEFAULT_TIMEOUT / SG_DEFAULT_HZ * hz;
+	softc->sg_user_timeout = SG_DEFAULT_TIMEOUT;
 	TAILQ_INIT(&softc->rdwr_done);
 	periph->softc = softc;
 
@@ -495,17 +499,22 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		error = copyout(&sg_version, arg, sizeof(sg_version));
 		break;
 	case SG_SET_TIMEOUT:
-	case LINUX_SG_SET_TIMEOUT:
+	case LINUX_SG_SET_TIMEOUT: {
+		u_int user_timeout;
+
+		error = copyin(arg, &user_timeout, sizeof(u_int));
+		if (error == 0) {
+			softc->sg_user_timeout = user_timeout;
+			softc->sg_timeout = user_timeout / SG_DEFAULT_HZ * hz;
+		}
 		break;
+	}
 	case SG_GET_TIMEOUT:
 	case LINUX_SG_GET_TIMEOUT:
 		/*
-		 * XXX This ioctl is highly brain damaged because it requires
-		 *     that the value be returned in the syscall return value.
-		 *     The linuxolator seems to have a hard time with this,
-		 *     so just return 0 and hope that apps can cope.
+		 * The value is returned directly to the syscall.
 		 */
-		td->td_retval[0] = 60*hz;
+		td->td_retval[0] = softc->sg_user_timeout;
 		error = 0;
 		break;
 	case SG_IO:
@@ -751,7 +760,7 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		      buf_len,
 		      SG_MAX_SENSE,
 		      cdb_len,
-		      60*hz);
+		      sc->sg_timeout);
 
 	/*
 	 * Send off the command and hope that it works. This path does not
