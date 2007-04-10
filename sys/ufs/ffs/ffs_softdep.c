@@ -3626,9 +3626,12 @@ handle_workitem_remove(dirrem, xp)
 	dirrem->dm_oldinum = dirrem->dm_dirinum;
 	if (inodedep_lookup(dirrem->dm_list.wk_mp, oldinum,
 	    0, &inodedep) == 0 || check_inode_unwritten(inodedep)) {
+		if (xp != NULL)
+			add_to_worklist(&dirrem->dm_list);
 		FREE_LOCK(&lk);
 		vput(vp);
-		handle_workitem_remove(dirrem, NULL);
+		if (xp == NULL)
+			handle_workitem_remove(dirrem, NULL);
 		return;
 	}
 	WORKLIST_INSERT(&inodedep->id_inowait, &dirrem->dm_list);
