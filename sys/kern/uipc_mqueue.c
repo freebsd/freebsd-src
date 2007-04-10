@@ -966,7 +966,8 @@ int do_unlink(struct mqfs_node *pn, struct ucred *ucred)
 	 * allowed in jail?
 	 */
 	if (ucred->cr_uid != pn->mn_uid &&
-	    (error = priv_check_cred(ucred, PRIV_MQ_ADMIN, 0)) != 0)
+	    (error = priv_check_cred(ucred, PRIV_MQ_ADMIN,
+	    SUSER_ALLOWJAIL)) != 0)
 		error = EACCES;
 	else if (!pn->mn_deleted) {
 		parent = pn->mn_parent;
