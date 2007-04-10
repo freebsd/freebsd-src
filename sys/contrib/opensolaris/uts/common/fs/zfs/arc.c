@@ -1441,7 +1441,7 @@ arc_reclaim_needed(void)
 		return (1);
 #endif
 #else
-	if (kmem_map->size > (vm_kmem_size * 3) / 4)
+	if (kmem_used() > kmem_size() / 2)
 		return (1);
 #endif
 
@@ -2685,16 +2685,20 @@ arc_tempreserve_space(uint64_t tempreserve)
 }
 
 #ifdef _KERNEL
-static eventhandler_tag zfs_event_lowmem = NULL;
+static eventhandler_tag arc_event_lowmem = NULL;
+static kmutex_t arc_lowmem_lock;
 
 static void
-zfs_lowmem(void *arg __unused, int howto __unused)
+arc_lowmem(void *arg __unused, int howto __unused)
 {
 
+	/* Serialize access via arc_lowmem_lock. */
+	mutex_enter(&arc_lowmem_lock);
 	zfs_needfree = 1;
 	cv_signal(&arc_reclaim_thr_cv);
 	while (zfs_needfree)
 		tsleep(&zfs_needfree, 0, "zfs:lowmem", hz / 5);
+	mutex_exit(&arc_lowmem_lock);
 }
 #endif
 
@@ -2703,12 +2707,15 @@ arc_init(void)
 {
 	mutex_init(&arc_reclaim_thr_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&arc_reclaim_thr_cv, NULL, CV_DEFAULT, NULL);
+#ifdef _KERNEL
+	mutex_init(&arc_lowmem_lock, NULL, MUTEX_DEFAULT, NULL);
+#endif
 
 	/* Convert seconds to clock ticks */
 	arc_min_prefetch_lifespan = 1 * hz;
 
 	/* Start out with 1/8 of all memory */
-	arc_c = physmem * PAGESIZE / 8;
+	arc_c = kmem_size() / 8;
 #if 0
 #ifdef _KERNEL
 	/*
@@ -2719,22 +2726,22 @@ arc_init(void)
 	arc_c = MIN(arc_c, vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 8);
 #endif
 #endif
-	/* set min cache to 1/32 of all memory, or 64MB, whichever is more */
-	arc_c_min = MAX(arc_c / 4, 64<<20);
-	/* set max to 3/4 of all memory, or all but 1GB, whichever is more */
+	/* set min cache to 1/32 of all memory, or 16MB, whichever is more */
+	arc_c_min = MAX(arc_c / 4, 64<<18);
+	/* set max to 1/2 of all memory, or all but 1GB, whichever is more */
 	if (arc_c * 8 >= 1<<30)
 		arc_c_max = (arc_c * 8) - (1<<30);
 	else
 		arc_c_max = arc_c_min;
-	arc_c_max = MAX(arc_c * 6, arc_c_max);
+	arc_c_max = MAX(arc_c * 4, arc_c_max);
 #ifdef _KERNEL
 	/*
 	 * Allow the tunables to override our calculations if they are
-	 * reasonable (ie. over 64MB)
+	 * reasonable (ie. over 16MB)
 	 */
-	if (zfs_arc_max > 64<<20 && zfs_arc_max < vm_kmem_size)
+	if (zfs_arc_max >= 64<<18 && zfs_arc_max < kmem_size())
 		arc_c_max = zfs_arc_max;
-	if (zfs_arc_min > 64<<20 && zfs_arc_min <= arc_c_max)
+	if (zfs_arc_min >= 64<<18 && zfs_arc_min <= arc_c_max)
 		arc_c_min = zfs_arc_min;
 #endif
 	arc_c = arc_c_max;
@@ -2790,11 +2797,24 @@ arc_init(void)
 	    TS_RUN, minclsyspri);
 
 #ifdef _KERNEL
-	zfs_event_lowmem = EVENTHANDLER_REGISTER(vm_lowmem, zfs_lowmem, NULL,
+	arc_event_lowmem = EVENTHANDLER_REGISTER(vm_lowmem, arc_lowmem, NULL,
 	    EVENTHANDLER_PRI_FIRST);
 #endif
 
 	arc_dead = FALSE;
+
+#ifdef _KERNEL
+	/* Warn about ZFS memory requirements. */
+	if ((physmem * PAGESIZE) < (256 + 128 + 64) * (1 << 20)) {
+		printf("ZFS WARNING: Recomended minimum of RAM size is 512MB, "
+		    "expect unstable behaviour.\n");
+	} else if (kmem_size() < 256 * (1 << 20)) {
+		printf("ZFS WARNING: Recomended minimum of kmem_map size is "
+		    "256MB, expect unstable behaviour.\n");
+		printf("             Consider tunning vm.kmem_size and "
+		    "vm.kmem_size_max in /boot/loader.conf.\n");
+	}
+#endif
 }
 
 void
@@ -2834,7 +2854,8 @@ arc_fini(void)
 	buf_fini();
 
 #ifdef _KERNEL
-	if (zfs_event_lowmem != NULL)
-		EVENTHANDLER_DEREGISTER(vm_lowmem, zfs_event_lowmem);
+	if (arc_event_lowmem != NULL)
+		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
+	mutex_destroy(&arc_lowmem_lock);
 #endif
 }
