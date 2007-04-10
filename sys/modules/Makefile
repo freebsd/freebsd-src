@@ -113,6 +113,7 @@ SUBDIR=	${_3dfx} \
 	if_sl \
 	if_stf \
 	if_tap \
+	if_trunk \
 	if_tun \
 	if_vlan \
 	${_iir} \
