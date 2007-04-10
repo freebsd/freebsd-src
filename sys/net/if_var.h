@@ -186,6 +186,7 @@ struct ifnet {
 	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
+	void	*if_trunk;		/* trunk glue */
 };
 
 typedef void if_init_f_t(void *);
