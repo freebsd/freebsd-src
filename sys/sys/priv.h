@@ -368,6 +368,7 @@
 #define	PRIV_NETINET_SCOPE6	501	/* Administer IPv6 address scopes. */
 #define	PRIV_NETINET_ALIFETIME6	502	/* Administer IPv6 address lifetimes. */
 #define	PRIV_NETINET_IPSEC	503	/* Administer IPSEC. */
+#define	PRIV_NETINET_REUSEPORT	504	/* Allow [rapid] port/address reuse. */
 
 /*
  * IPX/SPX privileges.
