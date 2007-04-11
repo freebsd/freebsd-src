@@ -47,7 +47,6 @@ extern int lflag;
 extern time_t now;
 extern int oflag;
 extern int pplan;			/* don't show .plan/.project */
-extern int Tflag;
 extern int invoker_root;		/* Invoked by root */
 
 void	 enter_lastlog(PERSON *);
