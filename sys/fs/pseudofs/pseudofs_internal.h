@@ -44,6 +44,7 @@ struct pfs_vdata {
 	pid_t		 pvd_pid;
 	struct vnode	*pvd_vnode;
 	struct pfs_vdata*pvd_prev, *pvd_next;
+	int		 pvd_dead:1;
 };
 
 /*
