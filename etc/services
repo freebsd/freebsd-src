@@ -2100,6 +2100,7 @@ man		9535/tcp
 man		9535/udp
 sd		9876/tcp   #Session Director
 sd		9876/udp   #Session Director
+amanda		10080/tcp  #Dump server control
 amanda		10080/udp  #Dump server control
 amandaidx	10082/tcp  #Amanda indexing
 amidxtape	10083/tcp  #Amanda tape indexing
