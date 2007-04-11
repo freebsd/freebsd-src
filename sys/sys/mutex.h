@@ -360,13 +360,14 @@ extern struct mtx Giant;
 #ifndef DROP_GIANT
 #define DROP_GIANT()							\
 do {									\
-	int _giantcnt;							\
+	int _giantcnt = 0;						\
 	WITNESS_SAVE_DECL(Giant);					\
 									\
-	if (mtx_owned(&Giant))						\
+	if (mtx_owned(&Giant)) {					\
 		WITNESS_SAVE(&Giant.lock_object, Giant);		\
-	for (_giantcnt = 0; mtx_owned(&Giant); _giantcnt++)		\
-		mtx_unlock(&Giant)
+		for (_giantcnt = 0; mtx_owned(&Giant); _giantcnt++)	\
+			mtx_unlock(&Giant);				\
+	}
 
 #define PICKUP_GIANT()							\
 	PARTIAL_PICKUP_GIANT();						\
@@ -374,10 +375,11 @@ do {									\
 
 #define PARTIAL_PICKUP_GIANT()						\
 	mtx_assert(&Giant, MA_NOTOWNED);				\
-	while (_giantcnt--)						\
-		mtx_lock(&Giant);					\
-	if (mtx_owned(&Giant))						\
-		WITNESS_RESTORE(&Giant.lock_object, Giant)
+	if (_giantcnt > 0) {						\
+		while (_giantcnt--)					\
+			mtx_lock(&Giant);				\
+		WITNESS_RESTORE(&Giant.lock_object, Giant);		\
+	}
 #endif
 
 #define	UGAR(rval) do {							\
