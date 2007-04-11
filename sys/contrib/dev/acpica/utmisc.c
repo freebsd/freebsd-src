@@ -1295,9 +1295,11 @@ AcpiUtInfo (
 {
     va_list                 args;
 
+#ifdef _KERNEL
     /* Temporarily hide too verbose printfs. */
     if (!bootverbose)
         return;
+#endif
 
     /*
      * Removed ModuleName, LineNumber, and acpica version, not needed
