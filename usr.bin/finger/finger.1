@@ -40,7 +40,7 @@
 .Nd user information lookup program
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46gklmpshoT
+.Op Fl 46gklmpsho
 .Op Ar user ...\&
 .Op Ar user@host ...\&
 .Sh DESCRIPTION
@@ -161,9 +161,6 @@ option is supplied.
 All name matching performed by
 .Nm
 is case insensitive.
-.It Fl T
-Disable the piggybacking of data on the initial connection request.
-This option is needed to finger hosts with a broken TCP implementation.
 .El
 .Pp
 If no options are specified,
