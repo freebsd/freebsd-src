@@ -1315,7 +1315,7 @@ static struct pmc_event_alias p6_aliases[] = {
 	EV_ALIAS("branch-mispredicts",	"p6-br-miss-pred-retired"),
 	EV_ALIAS("cycles",		"tsc"),
 	EV_ALIAS("dc-misses",		"p6-dcu-lines-in"),
-	EV_ALIAS("ic-misses",		"p6-ifu-ifetch-miss"),
+	EV_ALIAS("ic-misses",		"p6-ifu-fetch-miss"),
 	EV_ALIAS("instructions",	"p6-inst-retired"),
 	EV_ALIAS("interrupts",		"p6-hw-int-rx"),
 	EV_ALIAS("unhalted-cycles",	"p6-cpu-clk-unhalted"),
