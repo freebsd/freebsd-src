@@ -244,14 +244,6 @@ The
 .Nm
 command appeared in
 .Bx 3.0 .
-.Sh BUGS
-The current FINGER protocol RFC requires that the client keep the connection
-fully open until the server closes.
-This prevents the use of the optimal
-three-packet T/TCP exchange.
-(Servers which depend on this requirement are
-bogus but have nonetheless been observed in the Internet at large.)
-.Pp
 The
 .Nm
 utility does not recognize multibyte characters.
