@@ -128,6 +128,19 @@ static const char *tcptimers[] =
     { "REXMT", "PERSIST", "KEEP", "2MSL" };
 #endif
 
+/*
+ * Force a time value to be in a certain range.
+ */
+#define	TCPT_RANGESET(tv, value, tvmin, tvmax) do { \
+	(tv) = (value) + tcp_rexmit_slop; \
+	if ((u_long)(tv) < (u_long)(tvmin)) \
+		(tv) = (tvmin); \
+	if ((u_long)(tv) > (u_long)(tvmax)) \
+		(tv) = (tvmax); \
+} while(0)
+
+#ifdef _KERNEL
+
 struct tcp_timer {
 	struct callout	tt_timer;
 	int		tt_nextc;	/* next callout time in time_uptime */
@@ -144,18 +157,6 @@ struct tcp_timer {
 	int             tt_2msl;
 };
 
-/*
- * Force a time value to be in a certain range.
- */
-#define	TCPT_RANGESET(tv, value, tvmin, tvmax) do { \
-	(tv) = (value) + tcp_rexmit_slop; \
-	if ((u_long)(tv) < (u_long)(tvmin)) \
-		(tv) = (tvmin); \
-	if ((u_long)(tv) > (u_long)(tvmax)) \
-		(tv) = (tvmax); \
-} while(0)
-
-#ifdef _KERNEL
 extern int tcp_keepinit;		/* time to establish connection */
 extern int tcp_keepidle;		/* time before keepalive probes begin */
 extern int tcp_keepintvl;		/* time between keepalive probes */
