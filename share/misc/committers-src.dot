@@ -83,6 +83,7 @@ emax [label="Maksim Yevmenkin\nemax@FreeBSD.org\n2003/10/12"]
 fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 gad [label="Garance A. Drosehn\ngad@FreeBSD.org\n2000/10/27"]
+gallatin [label="Andrew Gallatin\ngallatin@FreeBSD.org\n????/??/??"]
 gibbs [label="Justin T. Gibbs\ngibbs@FreeBSD.org\n????/??/??"]
 gnn [label="George V. Neville-Neil\ngnn@FreeBSD.org\n2004/10/11"]
 grehan [label="Peter Grehan\ngrehan@FreeBSD.org\n2002/08/08"]
@@ -141,6 +142,7 @@ suz [label="SUZUKI Shinsuke\nsuz@FreeBSD.org\n2002/03/26"]
 syrinx [label="Shteryana Shopova\nsyrinx@FreeBSD.org\n2006/10/07"]
 takawata [label="Takanori Watanabe\ntakawata@FreeBSD.org\n2000/07/06"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
+ticso [label="Bernd Walter\nticso@FreeBSD.org\n2002/01/31"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
 wes [label="Wes Peters\nwes@FreeBSD.org\n1998/11/25"]
@@ -204,6 +206,8 @@ dwmalone -> peadar
 
 eivind -> des
 eivind -> rwatson
+
+gallatin -> ticso
 
 gibbs -> mjacob
 gibbs -> njl
