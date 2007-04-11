@@ -96,7 +96,7 @@ main:
 /*
  * Initialize the serial port.  bioscom preserves the driver number in DX.
  */
-		movw COMSPEED,%ax		# defined by Makefile
+		movw $COMSPEED,%ax		# defined by Makefile
 		callw bioscom
 #endif
 /*
