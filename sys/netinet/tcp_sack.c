@@ -589,7 +589,7 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	int num_segs = 1;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
-	callout_stop(tp->tt_rexmt);
+	tcp_timer_activate(tp, TT_REXMT, 0);
 	tp->t_rtttime = 0;
 	/* send one or 2 segments based on how much new data was acked */
 	if (((th->th_ack - tp->snd_una) / tp->t_maxseg) > 2)
