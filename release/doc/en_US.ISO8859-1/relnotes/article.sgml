@@ -1253,8 +1253,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
         option; the <option>-a</option> option is now used to specify
         the authentication algorithm. &merged;</para>
 
-      <para>A new sg driver has been added.  It emulates a significant
-	subset of the Linux SCSI SG passthrough device API, and
+      <para>The sg driver, which emulates a significant
+	subset of the Linux SCSI SG passthrough device API, has
+	been added.  It is
 	intended to allow programs running under Linux emulation
 	(as well as native &os; applications) to access the
 	<filename>/dev/sg<replaceable>*</replaceable></filename>
