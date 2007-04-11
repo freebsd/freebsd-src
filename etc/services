@@ -1995,12 +1995,12 @@ aol-2		5192/tcp   #AmericaOnline2
 aol-2		5192/udp   #AmericaOnline2
 aol-3		5193/tcp   #AmericaOnline3
 aol-3		5193/udp   #AmericaOnline3
-jabber-client	5222/tcp   #Jabber Client Connection
-jabber-client	5222/udp   #Jabber Client Connection
+xmpp-client	5222/tcp   #XMPP Client Connection
+xmpp-client	5222/udp   #XMPP Client Connection
 padl2sim	5236/tcp
 padl2sim	5236/udp
-jabber-server	5269/tcp   #Jabber Server Connection
-jabber-server	5269/udp   #Jabber Server Connection
+xmpp-server	5269/tcp   #XMPP Server Connection
+xmpp-server	5269/udp   #XMPP Server Connection
 hacl-hb		5300/tcp   # HA cluster heartbeat
 hacl-hb		5300/udp   # HA cluster heartbeat
 hacl-gs		5301/tcp   # HA cluster general services
