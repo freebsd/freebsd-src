@@ -54,9 +54,26 @@ hostid_set()
 	${SYSCTL_W} kern.hostid=${id} >/dev/null
 }
 
+hostid_hardware()
+{
+	uuid=`kenv smbios.system.uuid 2>/dev/null`
+	x="[0-9a-zA-Z]"
+	y=$x$x$x$x
+	case "${uuid}" in
+	$y$y-$y-$y-$y-$y$y$y)
+		echo "${uuid}"
+		;;
+	esac
+}
+
 hostid_reset()
 {
-	uuid=`uuidgen`
+	# First look for UUID in hardware.
+	uuid=`hostid_hardware`
+	if [ -z ${uuid} ]; then
+		# If not found, fall back to software-generated UUID.
+		uuid=`uuidgen`
+	fi
 	# Store newly generated UUID in ${hostid_file}.
 	echo $uuid > ${hostid_file}
 	if [ $? -ne 0 ]; then
