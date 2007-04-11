@@ -1225,8 +1225,6 @@ ipsec_init_pcbpolicy(so, pcb_sp)
 	/*
 	 * XXXRW: Can we avoid caching the privilege decision here, and
 	 * instead cache the credential?
-	 *
-	 * XXXRW: Why is suser_allowjail set here?
 	 */
 	if (so->so_cred != NULL && priv_check_cred(so->so_cred,
 	    PRIV_NETINET_IPSEC, 0) == 0)
