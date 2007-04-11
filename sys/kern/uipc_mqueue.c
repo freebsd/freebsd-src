@@ -961,10 +961,6 @@ int do_unlink(struct mqfs_node *pn, struct ucred *ucred)
 
 	sx_assert(&pn->mn_info->mi_lock, SX_LOCKED);
 
-	/*
-	 * XXXRW: Other instances of the message queue primitive are
-	 * allowed in jail?
-	 */
 	if (ucred->cr_uid != pn->mn_uid &&
 	    (error = priv_check_cred(ucred, PRIV_MQ_ADMIN,
 	    SUSER_ALLOWJAIL)) != 0)
