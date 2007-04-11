@@ -84,11 +84,7 @@ struct tcpcb {
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
 
-	struct	callout *tt_rexmt;	/* retransmit timer */
-	struct	callout *tt_persist;	/* retransmit persistence */
-	struct	callout *tt_keep;	/* keepalive */
-	struct	callout *tt_2msl;	/* 2*msl TIME_WAIT timer */
-	struct	callout *tt_delack;	/* delayed ACK timer */
+	struct	tcp_timer *t_timers;	/* retransmit timer */
 
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
 	int	t_state;		/* state of this connection */
@@ -538,8 +534,8 @@ void	 tcp_slowtimo(void);
 struct tcptemp *
 	 tcpip_maketemplate(struct inpcb *);
 void	 tcpip_fillheaders(struct inpcb *, void *, void *);
-struct tcpcb *
-	 tcp_timers(struct tcpcb *, int);
+void	 tcp_timer_activate(struct tcpcb *, int, u_int);
+int	 tcp_timer_active(struct tcpcb *, int);
 void	 tcp_trace(int, int, struct tcpcb *, void *, struct tcphdr *, int);
 void	 tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq);
 void	 syncache_init(void);
