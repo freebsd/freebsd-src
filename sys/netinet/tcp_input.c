@@ -210,7 +210,7 @@ do { \
  *		- this is a half-synchronized T/TCP connection.
  */
 #define DELAY_ACK(tp)							\
-	((!callout_active(tp->tt_delack) &&				\
+	((!tcp_timer_active(tp, TT_DELACK) &&				\
 	    (tp->t_flags & TF_RXWIN0SENT) == 0) &&			\
 	    (tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
@@ -1043,7 +1043,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	tp->t_rcvtime = ticks;
 	if (TCPS_HAVEESTABLISHED(tp->t_state))
-		callout_reset(tp->tt_keep, tcp_keepidle, tcp_timer_keep, tp);
+		tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
 
 	/*
 	 * Unscale the window into a 32-bit value.
@@ -1231,11 +1231,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 #endif
 				 */
 				if (tp->snd_una == tp->snd_max)
-					callout_stop(tp->tt_rexmt);
-				else if (!callout_active(tp->tt_persist))
-					callout_reset(tp->tt_rexmt,
-						      tp->t_rxtcur,
-						      tcp_timer_rexmt, tp);
+					tcp_timer_activate(tp, TT_REXMT, 0);
+				else if (!tcp_timer_active(tp, TT_PERSIST))
+					tcp_timer_activate(tp, TT_REXMT,
+						      tp->t_rxtcur);
 
 				sowwakeup(so);
 				if (so->so_snd.sb_cc)
@@ -1441,8 +1440,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * ACKNOW will be turned on later.
 			 */
 			if (DELAY_ACK(tp) && tlen != 0)
-				callout_reset(tp->tt_delack, tcp_delacktime,
-				    tcp_timer_delack, tp);
+				tcp_timer_activate(tp, TT_DELACK,
+				    tcp_delacktime);
 			else
 				tp->t_flags |= TF_ACKNOW;
 			/*
@@ -1458,8 +1457,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				thflags &= ~TH_SYN;
 			} else {
 				tp->t_state = TCPS_ESTABLISHED;
-				callout_reset(tp->tt_keep, tcp_keepidle,
-					      tcp_timer_keep, tp);
+				tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
 			}
 		} else {
 			/*
@@ -1473,7 +1471,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * If there was no CC option, clear cached CC value.
 			 */
 			tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
-			callout_stop(tp->tt_rexmt);
+			tcp_timer_activate(tp, TT_REXMT, 0);
 			tp->t_state = TCPS_SYN_RECEIVED;
 		}
 
@@ -1863,8 +1861,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_flags &= ~TF_NEEDFIN;
 		} else {
 			tp->t_state = TCPS_ESTABLISHED;
-			callout_reset(tp->tt_keep, tcp_keepidle,
-				      tcp_timer_keep, tp);
+			tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
 		}
 		/*
 		 * If segment contains data or ACK, will call tcp_reass()
@@ -1928,7 +1925,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * to keep a constant cwnd packets in the
 				 * network.
 				 */
-				if (!callout_active(tp->tt_rexmt) ||
+				if (!tcp_timer_active(tp, TT_REXMT) ||
 				    th->th_ack != tp->snd_una)
 					tp->t_dupacks = 0;
 				else if (++tp->t_dupacks > tcprexmtthresh ||
@@ -1984,7 +1981,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tp->snd_ssthresh = win * tp->t_maxseg;
 					ENTER_FASTRECOVERY(tp);
 					tp->snd_recover = tp->snd_max;
-					callout_stop(tp->tt_rexmt);
+					tcp_timer_activate(tp, TT_REXMT, 0);
 					tp->t_rtttime = 0;
 					if (tp->sack_enable) {
 						tcpstat.tcps_sack_recovery_episode++;
@@ -2162,11 +2159,10 @@ process_ACK:
 		 * timer, using current (possibly backed-off) value.
 		 */
 		if (th->th_ack == tp->snd_max) {
-			callout_stop(tp->tt_rexmt);
+			tcp_timer_activate(tp, TT_REXMT, 0);
 			needoutput = 1;
-		} else if (!callout_active(tp->tt_persist))
-			callout_reset(tp->tt_rexmt, tp->t_rxtcur,
-				      tcp_timer_rexmt, tp);
+		} else if (!tcp_timer_active(tp, TT_PERSIST))
+			tcp_timer_activate(tp, TT_REXMT, tp->t_rxtcur);
 
 		/*
 		 * If no data (only SYN) was ACK'd,
@@ -2245,8 +2241,7 @@ process_ACK:
 					soisdisconnected(so);
 					timeout = (tcp_fast_finwait2_recycle) ? 
 						tcp_finwait2_timeout : tcp_maxidle;
-					callout_reset(tp->tt_2msl, timeout,
-						      tcp_timer_2msl, tp);
+					tcp_timer_activate(tp, TT_2MSL, timeout);
 				}
 				tp->t_state = TCPS_FIN_WAIT_2;
 			}
@@ -2293,8 +2288,7 @@ process_ACK:
 		case TCPS_TIME_WAIT:
 			KASSERT(tp->t_state != TCPS_TIME_WAIT,
 			    ("%s: timewait", __func__));
-			callout_reset(tp->tt_2msl, 2 * tcp_msl,
-				      tcp_timer_2msl, tp);
+			tcp_timer_activate(tp, TT_2MSL, 2 * tcp_msl);
 			goto dropafterack;
 		}
 	}
@@ -2511,8 +2505,7 @@ dodata:							/* XXX */
 		case TCPS_TIME_WAIT:
 			KASSERT(tp->t_state != TCPS_TIME_WAIT,
 			    ("%s: timewait", __func__));
-			callout_reset(tp->tt_2msl, 2 * tcp_msl,
-				      tcp_timer_2msl, tp);
+			tcp_timer_activate(tp, TT_2MSL, 2 * tcp_msl);
 			break;
 		}
 	}
@@ -2536,8 +2529,7 @@ check_delack:
 	INP_LOCK_ASSERT(tp->t_inpcb);
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
-		callout_reset(tp->tt_delack, tcp_delacktime,
-		    tcp_timer_delack, tp);
+		tcp_timer_activate(tp, TT_DELACK, tcp_delacktime);
 	}
 	INP_UNLOCK(tp->t_inpcb);
 	return (0);
@@ -2619,11 +2611,11 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 #ifdef INET6
 	struct ip6_hdr *ip6;
 #endif
-
 	/*
 	 * Generate a RST, dropping incoming segment.
 	 * Make ACK acceptable to originator of segment.
 	 * Don't bother to respond if destination was broadcast/multicast.
+	 * tp may be NULL.
 	 */
 	if ((th->th_flags & TH_RST) || m->m_flags & (M_BCAST|M_MCAST))
 		goto drop;
@@ -3190,7 +3182,7 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 	tcp_seq onxt = tp->snd_nxt;
 	u_long  ocwnd = tp->snd_cwnd;
 
-	callout_stop(tp->tt_rexmt);
+	tcp_timer_activate(tp, TT_REXMT, 0);
 	tp->t_rtttime = 0;
 	tp->snd_nxt = th->th_ack;
 	/*

@@ -262,10 +262,9 @@ static void	tcp_isn_tick(void *);
  * separate because the tcpcb structure is exported to userland for sysctl
  * parsing purposes, which do not know about callouts.
  */
-struct	tcpcb_mem {
-	struct	tcpcb tcb;
-	struct	callout tcpcb_mem_rexmt, tcpcb_mem_persist, tcpcb_mem_keep;
-	struct	callout tcpcb_mem_2msl, tcpcb_mem_delack;
+struct tcpcb_mem {
+	struct	tcpcb		tcb;
+	struct	tcp_timer	tt;
 };
 
 static uma_zone_t tcpcb_zone;
@@ -490,7 +489,6 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th,
 	if (tp != NULL) {
 		inp = tp->t_inpcb;
 		KASSERT(inp != NULL, ("tcp control block w/o inpcb"));
-		INP_INFO_WLOCK_ASSERT(&tcbinfo);
 		INP_LOCK_ASSERT(inp);
 	} else
 		inp = NULL;
@@ -645,6 +643,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (tm == NULL)
 		return (NULL);
 	tp = &tm->tcb;
+	tp->t_timers = &tm->tt;
 	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
 	tp->t_maxseg = tp->t_maxopd =
 #ifdef INET6
@@ -653,11 +652,8 @@ tcp_newtcpcb(struct inpcb *inp)
 		tcp_mssdflt;
 
 	/* Set up our timeouts. */
-	callout_init(tp->tt_rexmt = &tm->tcpcb_mem_rexmt, NET_CALLOUT_MPSAFE);
-	callout_init(tp->tt_persist = &tm->tcpcb_mem_persist, NET_CALLOUT_MPSAFE);
-	callout_init(tp->tt_keep = &tm->tcpcb_mem_keep, NET_CALLOUT_MPSAFE);
-	callout_init(tp->tt_2msl = &tm->tcpcb_mem_2msl, NET_CALLOUT_MPSAFE);
-	callout_init(tp->tt_delack = &tm->tcpcb_mem_delack, NET_CALLOUT_MPSAFE);
+	callout_init_mtx(&tp->t_timers->tt_timer, &inp->inp_mtx,
+			 CALLOUT_RETURNUNLOCKED);
 
 	if (tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
@@ -728,12 +724,15 @@ tcp_discardcb(struct tcpcb *tp)
 	/*
 	 * Make sure that all of our timers are stopped before we
 	 * delete the PCB.
+	 *
+	 * XXX: callout_stop() may race and a callout may already
+	 * try to obtain the INP_LOCK.  Only callout_drain() would
+	 * stop this but it would cause a LOR thus we can't use it.
+	 * The tcp_timer() function contains a lot of checks to
+	 * handle this case rather gracefully.
 	 */
-	callout_stop(tp->tt_rexmt);
-	callout_stop(tp->tt_persist);
-	callout_stop(tp->tt_keep);
-	callout_stop(tp->tt_2msl);
-	callout_stop(tp->tt_delack);
+	tp->t_timers->tt_active = 0;
+	callout_stop(&tp->t_timers->tt_timer);
 
 	/*
 	 * If we got enough samples through the srtt filter,

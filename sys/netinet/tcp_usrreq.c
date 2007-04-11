@@ -1146,7 +1146,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	soisconnecting(so);
 	tcpstat.tcps_connattempt++;
 	tp->t_state = TCPS_SYN_SENT;
-	callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
+	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
 	tp->iss = tcp_new_isn(tp);
 	tp->t_bw_rtseq = tp->iss;
 	tcp_sendseqinit(tp);
@@ -1209,7 +1209,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	soisconnecting(so);
 	tcpstat.tcps_connattempt++;
 	tp->t_state = TCPS_SYN_SENT;
-	callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
+	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
 	tp->iss = tcp_new_isn(tp);
 	tp->t_bw_rtseq = tp->iss;
 	tcp_sendseqinit(tp);
@@ -1573,8 +1573,7 @@ tcp_usrclosed(struct tcpcb *tp)
 
 			timeout = (tcp_fast_finwait2_recycle) ? 
 				tcp_finwait2_timeout : tcp_maxidle;
-			callout_reset(tp->tt_2msl, timeout,
-				      tcp_timer_2msl, tp);
+			tcp_timer_activate(tp, TT_2MSL, timeout);
 		}
 	}
 }
@@ -1774,12 +1773,15 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	   LIST_FIRST(&tp->t_segq), tp->t_segqlen, tp->t_dupacks);
 
 	db_print_indent(indent);
-	db_printf("tt_rexmt: %p   tt_persist: %p   tt_keep: %p\n",
-	    tp->tt_rexmt, tp->tt_persist, tp->tt_keep);
+	db_printf("t_inpcb: %p   t_timers: %p   tt_active: %x\n",
+	    tp->t_inpcb, tp->t_timers, tp->t_timers->tt_active);
 
 	db_print_indent(indent);
-	db_printf("tt_2msl: %p   tt_delack: %p   t_inpcb: %p\n", tp->tt_2msl,
-	    tp->tt_delack, tp->t_inpcb);
+	db_printf("tt_delack: %i   tt_rexmt: %i   tt_keep: %i   "
+	    "tt_persist: %i   tt_2msl: %i\n",
+	    tp->t_timers->tt_delack, tp->t_timers->tt_rexmt,
+	    tp->t_timers->tt_keep, tp->t_timers->tt_persist,
+	    tp->t_timers->tt_2msl);
 
 	db_print_indent(indent);
 	db_printf("t_state: %d (", tp->t_state);
