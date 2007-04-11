@@ -1880,6 +1880,10 @@ rkinit		2108/tcp   #Kerberos (v4) remote initialization
 rkinit		2108/udp   #Kerberos (v4) remote initialization
 ats		2201/tcp   #Advanced Training System Program
 ats		2201/udp   #Advanced Training System Program
+hpssd		2207/tcp   #HP Status and Services
+hpssd		2207/udp   #HP Status and Services
+hpiod		2208/tcp   #HP I/O Backend
+hpiod		2208/udp   #HP I/O Backend
 ivs-video	2232/tcp   #IVS Video default
 ivs-video	2232/udp   #IVS Video default
 ivsd		2241/tcp   #IVS Daemon
