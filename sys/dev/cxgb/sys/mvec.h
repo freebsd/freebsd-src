@@ -135,6 +135,7 @@ m_freem_vec(struct mbuf *m)
 			mb_free_ext(m);
 		else
 			uma_zfree(zone_mbuf, m);
+		m = n;
 	}
 }
 
