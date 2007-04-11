@@ -345,6 +345,7 @@ static __inline void		 m_clget(struct mbuf *m, int how);
 static __inline void		*m_cljget(struct mbuf *m, int how, int size);
 static __inline void		 m_chtype(struct mbuf *m, short new_type);
 void				 mb_free_ext(struct mbuf *);
+static __inline struct mbuf	*m_last(struct mbuf *m);
 
 static __inline int
 m_gettype(int size)
@@ -577,6 +578,15 @@ m_chtype(struct mbuf *m, short new_type)
 {
 
 	m->m_type = new_type;
+}
+
+static __inline struct mbuf *
+m_last(struct mbuf *m)
+{
+
+	while (m->m_next)
+		m = m->m_next;
+	return (m);
 }
 
 /*
