@@ -53,21 +53,35 @@ __FBSDID("$FreeBSD$");
 
 int debug = 0;		/* Controls syslog() calls for debug messages	*/
 
-extern void sm_prog_1(struct svc_req *rqstp, SVCXPRT *transp);
 static void handle_sigchld(int sig);
 static void usage(void);
+
+const char *transports[] = { "udp", "tcp", "udp6", "tcp6" };
 
 int
 main(int argc, char **argv)
 {
+  SVCXPRT *transp;
   struct sigaction sa;
-  int ch;
+  struct netconfig *nconf;
+  struct sockaddr_in sin;
+  struct sockaddr_in6 sin6;
+  int ch, i, maxindex, r, s, sock;
+  char *endptr;
   int maxrec = RPC_MAXDATASIZE;
+  in_port_t svcport = 0;
 
-  while ((ch = getopt(argc, argv, "d")) != -1)
+  while ((ch = getopt(argc, argv, "dp:")) != -1)
     switch (ch) {
     case 'd':
       debug = 1;
+      break;
+    case 'p':
+      endptr = NULL;
+      svcport = (in_port_t)strtoul(optarg, &endptr, 10);
+      if (endptr == NULL || *endptr != '\0' || svcport == 0 || 
+          svcport >= IPPORT_MAX)
+	usage();
       break;
     default:
       usage();
@@ -77,13 +91,101 @@ main(int argc, char **argv)
 
   (void)rpcb_unset(SM_PROG, SM_VERS, NULL);
 
+  /*
+   * Check if IPv6 support is present.
+   */
+  s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+  if (s < 0)
+      maxindex = 2;
+  else {
+      close(s);
+      maxindex = 4;
+  }
+
+  if (svcport != 0) {
+      bzero(&sin, sizeof(struct sockaddr_in));
+      sin.sin_len = sizeof(struct sockaddr_in);
+      sin.sin_family = AF_INET;
+      sin.sin_port = htons(svcport);
+
+      bzero(&sin6, sizeof(struct sockaddr_in6));
+      sin6.sin6_len = sizeof(struct sockaddr_in6);
+      sin6.sin6_family = AF_INET6;
+      sin6.sin6_port = htons(svcport);
+  }
+
   rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
 
-  if (!svc_create(sm_prog_1, SM_PROG, SM_VERS, "udp"))
-    errx(1, "cannot create udp service");
-  if (!svc_create(sm_prog_1, SM_PROG, SM_VERS, "tcp"))
-    errx(1, "cannot create tcp service");
-  init_file("/var/db/statd.status");
+  for (i = 0; i < maxindex; i++) {
+      nconf = getnetconfigent(transports[i]);
+      if (nconf == NULL)
+    	  errx(1, "cannot get %s netconf: %s.", transports[i],
+		nc_sperror());
+
+      if (svcport != 0) {
+	  if (strcmp(nconf->nc_netid, "udp6") == 0) {
+	      sock = socket(AF_INET6, SOCK_DGRAM,
+			    IPPROTO_UDP);
+	      if (sock != -1) {
+		  r = bindresvport_sa(sock, 
+		        (struct sockaddr *)&sin6);
+		  if (r != 0) {
+		      syslog(LOG_ERR, "bindresvport: %m");
+		      exit(1);
+		  }
+	     }
+	  } else if (strcmp(nconf->nc_netid, "udp") == 0) {
+	      sock = socket(AF_INET, SOCK_DGRAM,
+			    IPPROTO_UDP);
+	      if (sock != -1) {
+		  r = bindresvport(sock, &sin);
+		  if (r != 0) {
+		      syslog(LOG_ERR, "bindresvport: %m");
+		      exit(1);
+		  }
+	      }
+	  } else if (strcmp(nconf->nc_netid, "tcp6") == 0) {
+	      sock = socket(AF_INET6, SOCK_STREAM,
+			    IPPROTO_TCP);
+              if (sock != -1) {
+		  r = bindresvport_sa(sock, 
+			(struct sockaddr *)&sin6);
+	      	  if (r != 0) {
+		      syslog(LOG_ERR, "bindresvport: %m");
+		      exit(1);
+	          }
+	      }
+	  } else if (strcmp(nconf->nc_netid, "tcp") == 0) {
+	      sock = socket(AF_INET, SOCK_STREAM,
+			    IPPROTO_TCP);
+	      if (sock != -1) {
+		  r = bindresvport(sock, &sin);
+		  if (r != 0) {
+		      syslog(LOG_ERR, "bindresvport: %m");
+		      exit(1);
+		  }
+	      }
+	  }
+
+	  transp = svc_tli_create(sock, nconf, NULL,
+	    	RPC_MAXDATASIZE, RPC_MAXDATASIZE);
+      } else {
+	  transp = svc_tli_create(RPC_ANYFD, nconf, NULL,
+	    	RPC_MAXDATASIZE, RPC_MAXDATASIZE);
+      }
+
+      if (transp == NULL) {
+	  errx(1, "cannot create %s service.", transports[i]);
+	  /* NOTREACHED */
+      }
+      if (!svc_reg(transp, SM_PROG, SM_VERS, sm_prog_1, nconf)) {
+	  errx(1, "unable to register (SM_PROG, NLM_SM, %s)",
+		 transports[i]);
+	  /* NOTREACHED */
+      }
+      init_file("/var/db/statd.status");
+      freenetconfigent(nconf);
+  }
 
   /* Note that it is NOT sensible to run this program from inetd - the 	*/
   /* protocol assumes that it will run immediately at boot time.	*/
@@ -110,7 +212,7 @@ main(int argc, char **argv)
 static void
 usage()
 {
-      fprintf(stderr, "usage: rpc.statd [-d]\n");
+      fprintf(stderr, "usage: rpc.statd [-d] [-p <port>]\n");
       exit(1);
 }
 
