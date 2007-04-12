@@ -598,19 +598,20 @@ input_from_file() {
 		case "$fileline" in
 		\#*|'')
 			;;
+		*)
+			get_user || continue
+			get_gecos
+			get_uid
+			get_logingroup
+			get_class
+			get_shell
+			get_homedir
+			get_password
+			get_expire_dates
+
+			add_user
+			;;
 		esac
-
-		get_user || continue
-		get_gecos
-		get_uid
-		get_logingroup
-		get_class
-		get_shell
-		get_homedir
-		get_password
-		get_expire_dates
-
-		add_user
 	done
 }
 
