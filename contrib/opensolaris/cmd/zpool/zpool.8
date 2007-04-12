@@ -26,104 +26,124 @@ zpool \- configures ZFS storage pools
 .nf
 \fBzpool\fR [\fB-?\fR]
 .fi
+
 .LP
 .nf
 \fBzpool create\fR [\fB-fn\fR] [\fB-R\fR \fIroot\fR] [\fB-m\fR \fImountpoint\fR] \fIpool\fR \fIvdev ...\fR
 .fi
+
 .LP
 .nf
 \fBzpool destroy\fR [\fB-f\fR] \fIpool\fR
 .fi
+
 .LP
 .nf
 \fBzpool add\fR [\fB-fn\fR] \fIpool\fR \fIvdev\fR
 .fi
+
 .LP
 .nf
 \fBzpool remove\fR \fIpool\fR \fIvdev\fR
 .fi
+
 .LP
 .nf
 \fBzpool \fR \fBlist\fR [\fB-H\fR] [\fB-o\fR \fIfield\fR[,\fIfield\fR]*] [\fIpool\fR] ...
 .fi
+
 .LP
 .nf
 \fBzpool iostat\fR [\fB-v\fR] [\fIpool\fR] ... [\fIinterval\fR [\fIcount\fR]]
 .fi
+
 .LP
 .nf
 \fBzpool status\fR [\fB-xv\fR] [\fIpool\fR] ...
 .fi
+
 .LP
 .nf
 \fBzpool offline\fR [\fB-t\fR] \fIpool\fR \fIdevice\fR ...
 .fi
+
 .LP
 .nf
 \fBzpool online\fR \fIpool\fR \fIdevice\fR ...
 .fi
+
 .LP
 .nf
 \fBzpool clear\fR \fIpool\fR [\fIdevice\fR] ...
 .fi
+
 .LP
 .nf
 \fBzpool attach\fR [\fB-f\fR] \fIpool\fR \fIdevice\fR \fInew_device\fR
 .fi
+
 .LP
 .nf
 \fBzpool detach\fR \fIpool\fR \fIdevice\fR
 .fi
+
 .LP
 .nf
 \fBzpool replace\fR [\fB-f\fR] \fIpool\fR \fIdevice\fR [\fInew_device\fR]
 .fi
+
 .LP
 .nf
 \fBzpool scrub\fR [\fB-s\fR] \fIpool\fR ...
 .fi
+
 .LP
 .nf
 \fBzpool export\fR [\fB-f\fR] \fIpool\fR
 .fi
+
 .LP
 .nf
 \fBzpool import\fR [\fB-d\fR \fIdir\fR] [\fB-D\fR]
 .fi
+
 .LP
 .nf
 \fBzpool import\fR [\fB-d\fR \fIdir\fR] [\fB-D\fR] [\fB-f\fR] [\fB-o \fIopts\fR\fR] [\fB-R \fR\fIroot\fR] \fIpool\fR | \fIid\fR 
     [\fInewpool\fR]
 .fi
+
 .LP
 .nf
 \fBzpool import\fR [\fB-d\fR \fIdir\fR] [\fB-D\fR] [\fB-f\fR] [\fB-a\fR]
 .fi
+
 .LP
 .nf
 \fBzpool upgrade\fR 
 .fi
+
 .LP
 .nf
 \fBzpool upgrade\fR \fB-v\fR
 .fi
+
 .LP
 .nf
 \fBzpool upgrade\fR [\fB-a\fR | \fIpool\fR]
 .fi
+
 .LP
 .nf
 \fBzpool history\fR [\fIpool\fR] ...
 .fi
 
 .SH DESCRIPTION
-
 .LP
 The \fBzpool\fR command configures \fBZFS\fR storage pools. A storage pool is a collection of devices that provides physical storage and data replication for \fBZFS\fR datasets.
 .LP
 All datasets within a storage pool share the same space. See \fBzfs\fR(1M) for information on managing datasets. 
-.SS Virtual Devices (vdevs)
-
+.SS "Virtual Devices (vdevs)"
 .LP
 A "virtual device" describes a single device or a collection of devices organized according to certain performance and fault characteristics. The following virtual devices are supported:
 .sp
@@ -212,8 +232,7 @@ Virtual devices are specified one at a time on the command line, separated by wh
 .in -2
 .sp
 
-.SS Device Failure and Recovery
-
+.SS "Device Failure and Recovery"
 .LP
 \fBZFS\fR supports a rich set of mechanisms for handling device failure and data corruption. All metadata and data is checksummed, and \fBZFS\fR automatically repairs bad data from a good copy when corruption is detected.
 .LP
@@ -222,8 +241,7 @@ strongly discouraged. A single case of bit corruption can render some or all of 
 .LP
 A pool's health status is described by one of three states: online, degraded, or faulted. An online pool has all devices operating normally. A degraded pool is one in which one or more devices have failed, but the data is still available due to a redundant configuration. A faulted pool has
 one or more failed devices, and there is insufficient redundancy to replicate the missing data.
-.SS Hot Spares
-
+.SS "Hot Spares"
 .LP
 \fBZFS\fR allows devices to be associated with pools as "hot spares". These devices are not actively used in the pool, but when an active device fails, it is automatically replaced by a hot spare. To create a pool with hot spares, specify a "spare" \fBvdev\fR with any number of devices. For example, 
 .sp
@@ -239,8 +257,7 @@ Spares can be shared across multiple pools, and can be added with the "zpool add
 will remain there until the original device is replaced. At this point, the hot spare becomes available again if another device fails.
 .LP
 An in-progress spare replacement can be cancelled by detaching the hot spare. If the original faulted device is detached, then the hot spare assumes its place in the configuration, and is removed from the spare list of all active pools.
-.SS Alternate Root Pools
-
+.SS "Alternate Root Pools"
 .LP
 The "zpool create -R" and "zpool import -R" commands allow users to create and import a pool with a different root path. By default, whenever a pool is created or imported on a system, it is permanently added so that it is available whenever the system boots. For
 removable media, or when in recovery situations, this may not always be desirable. An alternate root pool does not persist on the system. Instead, it exists only until exported or the system is rebooted, at which point it will have to be imported again.
@@ -248,8 +265,7 @@ removable media, or when in recovery situations, this may not always be desirabl
 In addition, all mount points in the pool are prefixed with the given root, so a pool can be constrained to a particular area of the file system. This is most useful when importing unknown pools from removable media, as the mount points of any file systems cannot be trusted.
 .LP
 When creating an alternate root pool, the default mount point is "/", rather than the normal default "/\fIpool\fR".
-.SS Subcommands
-
+.SS "Subcommands"
 .LP
 All subcommands that modify state are logged persistently to the pool in their original form.
 .LP
@@ -879,9 +895,9 @@ Displays the command history of the specified pools (or all pools if no pool is 
 .SH EXAMPLES
 .LP
 \fBExample 1 \fRCreating a RAID-Z Storage Pool
-
 .LP
 The following command creates a pool with a single \fBraidz\fR root \fIvdev\fR that consists of six disks.
+
 .sp
 .in +2
 .nf
@@ -889,11 +905,12 @@ The following command creates a pool with a single \fBraidz\fR root \fIvdev\fR t
 .fi
 .in -2
 .sp
-.LP
-\fBExample 2 \fRCreating a Mirrored Storage Pool
 
 .LP
+\fBExample 2 \fRCreating a Mirrored Storage Pool
+.LP
 The following command creates a pool with two mirrors, where each mirror contains two disks.
+
 .sp
 .in +2
 .nf
@@ -901,11 +918,12 @@ The following command creates a pool with two mirrors, where each mirror contain
 .fi
 .in -2
 .sp
-.LP
-\fBExample 3 \fRCreating a ZFS Storage Pool by Using Slices
 
 .LP
+\fBExample 3 \fRCreating a ZFS Storage Pool by Using Slices
+.LP
 The following command creates an unmirrored pool using two disk slices.
+
 .sp
 .in +2
 .nf
@@ -913,11 +931,12 @@ The following command creates an unmirrored pool using two disk slices.
 .fi
 .in -2
 .sp
-.LP
-\fBExample 4 \fRCreating a ZFS Storage Pool by Using Files
 
 .LP
+\fBExample 4 \fRCreating a ZFS Storage Pool by Using Files
+.LP
 The following command creates an unmirrored pool using files. While not recommended, a pool based on files can be useful for experimental purposes.
+
 .sp
 .in +2
 .nf
@@ -925,11 +944,12 @@ The following command creates an unmirrored pool using files. While not recommen
 .fi
 .in -2
 .sp
-.LP
-\fBExample 5 \fRAdding a Mirror to a ZFS Storage Pool
 
 .LP
+\fBExample 5 \fRAdding a Mirror to a ZFS Storage Pool
+.LP
 The following command adds two mirrored disks to the pool "\fItank\fR", assuming the pool is already made up of two-way mirrors. The additional space is immediately available to any datasets within the pool.
+
 .sp
 .in +2
 .nf
@@ -937,13 +957,15 @@ The following command adds two mirrored disks to the pool "\fItank\fR", assuming
 .fi
 .in -2
 .sp
-.LP
-\fBExample 6 \fRListing Available ZFS Storage Pools
 
 .LP
+\fBExample 6 \fRListing Available ZFS Storage Pools
+.LP
 The following command lists all available pools on the system. In this case, the pool \fIzion\fR is faulted due to a missing device.
+
 .LP
 The results from this command are similar to the following:
+
 .sp
 .in +2
 .nf
@@ -955,11 +977,12 @@ The results from this command are similar to the following:
 .fi
 .in -2
 .sp
-.LP
-\fBExample 7 \fRDestroying a ZFS Storage Pool
 
 .LP
+\fBExample 7 \fRDestroying a ZFS Storage Pool
+.LP
 The following command destroys the pool "\fItank\fR" and any datasets contained within.
+
 .sp
 .in +2
 .nf
@@ -967,11 +990,12 @@ The following command destroys the pool "\fItank\fR" and any datasets contained 
 .fi
 .in -2
 .sp
-.LP
-\fBExample 8 \fRExporting a ZFS Storage Pool
 
 .LP
+\fBExample 8 \fRExporting a ZFS Storage Pool
+.LP
 The following command exports the devices in pool \fItank\fR so that they can be relocated or later imported.
+
 .sp
 .in +2
 .nf
@@ -979,13 +1003,15 @@ The following command exports the devices in pool \fItank\fR so that they can be
 .fi
 .in -2
 .sp
-.LP
-\fBExample 9 \fRImporting a ZFS Storage Pool
 
 .LP
+\fBExample 9 \fRImporting a ZFS Storage Pool
+.LP
 The following command displays available pools, and then imports the pool "tank" for use on the system.
+
 .LP
 The results from this command are similar to the following:
+
 .sp
 .in +2
 .nf
@@ -1005,11 +1031,12 @@ config:
 .fi
 .in -2
 .sp
-.LP
-\fBExample 10 \fRUpgrading All ZFS Storage Pools to the Current Version
 
 .LP
+\fBExample 10 \fRUpgrading All ZFS Storage Pools to the Current Version
+.LP
 The following command upgrades all ZFS Storage pools to the current version of the software.
+
 .sp
 .in +2
 .nf
@@ -1018,11 +1045,12 @@ This system is currently running ZFS version 2.
 .fi
 .in -2
 .sp
-.LP
-\fBExample 11 \fRManaging Hot Spares
 
 .LP
+\fBExample 11 \fRManaging Hot Spares
+.LP
 The following command creates a new pool with an available hot spare:
+
 .sp
 .in +2
 .nf
@@ -1033,6 +1061,7 @@ The following command creates a new pool with an available hot spare:
 
 .LP
 If one of the disks were to fail, the pool would be reduced to the degraded state. The failed device can be replaced using the following command:
+
 .sp
 .in +2
 .nf
@@ -1043,6 +1072,7 @@ If one of the disks were to fail, the pool would be reduced to the degraded stat
 
 .LP
 Once the data has been resilvered, the spare is automatically removed and is made available should another device fails.  The hot spare can be permanently removed from the pool using the following command:
+
 .sp
 .in +2
 .nf
@@ -1052,7 +1082,6 @@ Once the data has been resilvered, the spare is automatically removed and is mad
 .sp
 
 .SH EXIT STATUS
-
 .LP
 The following exit values are returned:
 .sp
@@ -1089,7 +1118,6 @@ Invalid command line options were specified.
 .RE
 
 .SH ATTRIBUTES
-
 .LP
 See \fBattributes\fR(5) for descriptions of the following attributes:
 .sp
@@ -1108,6 +1136,5 @@ Interface StabilityEvolving
 .TE
 
 .SH SEE ALSO
-
 .LP
 \fBzfs\fR(1M), \fBattributes\fR(5)

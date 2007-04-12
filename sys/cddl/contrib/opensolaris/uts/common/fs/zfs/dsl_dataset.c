@@ -37,6 +37,7 @@
 #include <sys/zap.h>
 #include <sys/unique.h>
 #include <sys/zfs_context.h>
+#include <sys/zfs_ioctl.h>
 
 static dsl_checkfunc_t dsl_dataset_destroy_begin_check;
 static dsl_syncfunc_t dsl_dataset_destroy_begin_sync;
@@ -639,7 +640,6 @@ dsl_dataset_create_sync(dsl_dir_t *pdd,
 struct destroyarg {
 	dsl_sync_task_group_t *dstg;
 	char *snapname;
-	void *tag;
 	char *failed;
 };
 
@@ -655,7 +655,7 @@ dsl_snapshot_destroy_one(char *name, void *arg)
 	(void) strcat(name, da->snapname);
 	err = dsl_dataset_open(name,
 	    DS_MODE_EXCLUSIVE | DS_MODE_READONLY | DS_MODE_INCONSISTENT,
-	    da->tag, &ds);
+	    da->dstg, &ds);
 	cp = strchr(name, '@');
 	*cp = '\0';
 	if (err == ENOENT)
@@ -666,7 +666,7 @@ dsl_snapshot_destroy_one(char *name, void *arg)
 	}
 
 	dsl_sync_task_create(da->dstg, dsl_dataset_destroy_check,
-	    dsl_dataset_destroy_sync, ds, da->tag, 0);
+	    dsl_dataset_destroy_sync, ds, da->dstg, 0);
 	return (0);
 }
 
@@ -695,7 +695,6 @@ dsl_snapshots_destroy(char *fsname, char *snapname)
 		return (err);
 	da.dstg = dsl_sync_task_group_create(spa_get_dsl(spa));
 	da.snapname = snapname;
-	da.tag = FTAG;
 	da.failed = fsname;
 
 	err = dmu_objset_find(fsname,
@@ -717,7 +716,7 @@ dsl_snapshots_destroy(char *fsname, char *snapname)
 		 * closed the ds
 		 */
 		if (err)
-			dsl_dataset_close(ds, DS_MODE_EXCLUSIVE, FTAG);
+			dsl_dataset_close(ds, DS_MODE_EXCLUSIVE, da.dstg);
 	}
 
 	dsl_sync_task_group_destroy(da.dstg);
@@ -1546,6 +1545,11 @@ dsl_dataset_snapshot_rename_check(void *arg1, void *arg2, dmu_tx_t *tx)
 		err = EEXIST;
 	else if (err == ENOENT)
 		err = 0;
+
+	/* dataset name + 1 for the "@" + the new snapshot name must fit */
+	if (dsl_dir_namelen(ds->ds_dir) + 1 + strlen(newsnapname) >= MAXNAMELEN)
+		err = ENAMETOOLONG;
+
 	return (err);
 }
 
@@ -1578,9 +1582,114 @@ dsl_dataset_snapshot_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	dsl_dataset_close(hds, DS_MODE_NONE, FTAG);
 }
 
+struct renamearg {
+	dsl_sync_task_group_t *dstg;
+	char failed[MAXPATHLEN];
+	char *oldsnap;
+	char *newsnap;
+};
+
+static int
+dsl_snapshot_rename_one(char *name, void *arg)
+{
+	struct renamearg *ra = arg;
+	dsl_dataset_t *ds = NULL;
+	char *cp;
+	int err;
+
+	cp = name + strlen(name);
+	*cp = '@';
+	(void) strcpy(cp + 1, ra->oldsnap);
+	err = dsl_dataset_open(name, DS_MODE_READONLY | DS_MODE_STANDARD,
+	    ra->dstg, &ds);
+	if (err == ENOENT) {
+		*cp = '\0';
+		return (0);
+	}
+	if (err) {
+		(void) strcpy(ra->failed, name);
+		*cp = '\0';
+		dsl_dataset_close(ds, DS_MODE_STANDARD, ra->dstg);
+		return (err);
+	}
+
+#ifdef _KERNEL
+	/* for all filesystems undergoing rename, we'll need to unmount it */
+	(void) zfs_unmount_snap(name, NULL);
+#endif
+
+	*cp = '\0';
+
+	dsl_sync_task_create(ra->dstg, dsl_dataset_snapshot_rename_check,
+	    dsl_dataset_snapshot_rename_sync, ds, ra->newsnap, 0);
+
+	return (0);
+}
+
+static int
+dsl_recursive_rename(char *oldname, const char *newname)
+{
+	int err;
+	struct renamearg *ra;
+	dsl_sync_task_t *dst;
+	spa_t *spa;
+	char *cp, *fsname = spa_strdup(oldname);
+	int len = strlen(oldname);
+
+	/* truncate the snapshot name to get the fsname */
+	cp = strchr(fsname, '@');
+	*cp = '\0';
+
+	cp = strchr(fsname, '/');
+	if (cp) {
+		*cp = '\0';
+		err = spa_open(fsname, &spa, FTAG);
+		*cp = '/';
+	} else {
+		err = spa_open(fsname, &spa, FTAG);
+	}
+	if (err) {
+		kmem_free(fsname, len + 1);
+		return (err);
+	}
+	ra = kmem_alloc(sizeof (struct renamearg), KM_SLEEP);
+	ra->dstg = dsl_sync_task_group_create(spa_get_dsl(spa));
+
+	ra->oldsnap = strchr(oldname, '@') + 1;
+	ra->newsnap = strchr(newname, '@') + 1;
+	*ra->failed = '\0';
+
+	err = dmu_objset_find(fsname, dsl_snapshot_rename_one, ra,
+	    DS_FIND_CHILDREN);
+	kmem_free(fsname, len + 1);
+
+	if (err == 0) {
+		err = dsl_sync_task_group_wait(ra->dstg);
+	}
+
+	for (dst = list_head(&ra->dstg->dstg_tasks); dst;
+	    dst = list_next(&ra->dstg->dstg_tasks, dst)) {
+		dsl_dataset_t *ds = dst->dst_arg1;
+		if (dst->dst_err) {
+			dsl_dir_name(ds->ds_dir, ra->failed);
+			(void) strcat(ra->failed, "@");
+			(void) strcat(ra->failed, ra->newsnap);
+		}
+		dsl_dataset_close(ds, DS_MODE_STANDARD, ra->dstg);
+	}
+
+	(void) strcpy(oldname, ra->failed);
+
+	dsl_sync_task_group_destroy(ra->dstg);
+	kmem_free(ra, sizeof (struct renamearg));
+	spa_close(spa, FTAG);
+	return (err);
+}
+
 #pragma weak dmu_objset_rename = dsl_dataset_rename
 int
-dsl_dataset_rename(const char *oldname, const char *newname)
+dsl_dataset_rename(char *oldname, const char *newname,
+    boolean_t recursive)
 {
 	dsl_dir_t *dd;
 	dsl_dataset_t *ds;
@@ -1611,16 +1720,20 @@ dsl_dataset_rename(const char *oldname, const char *newname)
 	if (strncmp(oldname, newname, tail - newname) != 0)
 		return (EXDEV);
 
-	err = dsl_dataset_open(oldname,
-	    DS_MODE_READONLY | DS_MODE_STANDARD, FTAG, &ds);
-	if (err)
-		return (err);
+	if (recursive) {
+		err = dsl_recursive_rename(oldname, newname);
+	} else {
+		err = dsl_dataset_open(oldname,
+		    DS_MODE_READONLY | DS_MODE_STANDARD, FTAG, &ds);
+		if (err)
+			return (err);
 
-	err = dsl_sync_task_do(ds->ds_dir->dd_pool,
-	    dsl_dataset_snapshot_rename_check,
-	    dsl_dataset_snapshot_rename_sync, ds, (char *)tail, 1);
+		err = dsl_sync_task_do(ds->ds_dir->dd_pool,
+		    dsl_dataset_snapshot_rename_check,
+		    dsl_dataset_snapshot_rename_sync, ds, (char *)tail, 1);
 
-	dsl_dataset_close(ds, DS_MODE_STANDARD, FTAG);
+		dsl_dataset_close(ds, DS_MODE_STANDARD, FTAG);
+	}
 
 	return (err);
 }

@@ -152,6 +152,7 @@ typedef struct zfs_create_data {
 
 extern int zfs_secpolicy_write(const char *dataset, cred_t *cr);
 extern int zfs_busy(void);
+extern int zfs_unmount_snap(char *, void *);
 
 #endif	/* _KERNEL */
 
