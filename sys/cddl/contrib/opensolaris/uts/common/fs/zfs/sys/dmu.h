@@ -164,7 +164,8 @@ int dmu_objset_destroy(const char *name);
 int dmu_snapshots_destroy(char *fsname, char *snapname);
 int dmu_objset_rollback(const char *name);
 int dmu_objset_snapshot(char *fsname, char *snapname, boolean_t recursive);
-int dmu_objset_rename(const char *name, const char *newname);
+int dmu_objset_rename(const char *name, const char *newname,
+    boolean_t recursive);
 int dmu_objset_find(char *name, int func(char *, void *), void *arg,
     int flags);
 void dmu_objset_byteswap(void *buf, size_t size);

@@ -132,7 +132,7 @@ int dsl_snapshots_destroy(char *fsname, char *snapname);
 dsl_checkfunc_t dsl_dataset_snapshot_check;
 dsl_syncfunc_t dsl_dataset_snapshot_sync;
 int dsl_dataset_rollback(dsl_dataset_t *ds);
-int dsl_dataset_rename(const char *name, const char *newname);
+int dsl_dataset_rename(char *name, const char *newname, boolean_t recursive);
 int dsl_dataset_promote(const char *name);
 
 void *dsl_dataset_set_user_ptr(dsl_dataset_t *ds,

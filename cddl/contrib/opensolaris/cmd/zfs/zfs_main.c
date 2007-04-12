@@ -206,7 +206,8 @@ get_usage(zfs_help_t idx)
 		"\treceive [-vnF] -d <filesystem>\n"));
 	case HELP_RENAME:
 		return (gettext("\trename <filesystem|volume|snapshot> "
-		    "<filesystem|volume|snapshot>\n"));
+		    "<filesystem|volume|snapshot>\n"
+		    "\trename -r <snapshot> <snapshot>"));
 	case HELP_ROLLBACK:
 		return (gettext("\trollback [-rRf] <snapshot>\n"));
 	case HELP_SEND:
@@ -1485,7 +1486,7 @@ zfs_do_list(int argc, char **argv)
 }
 
 /*
- * zfs rename <fs | snap | vol> <fs | snap | vol>
+ * zfs rename [-r] <fs | snap | vol> <fs | snap | vol>
  *
  * Renames the given dataset to another of the same type.
  */
@@ -1494,38 +1495,57 @@ static int
 zfs_do_rename(int argc, char **argv)
 {
 	zfs_handle_t *zhp;
+	int c;
 	int ret;
+	int recurse = 0;
 
 	/* check options */
-	if (argc > 1 && argv[1][0] == '-') {
-		(void) fprintf(stderr, gettext("invalid option '%c'\n"),
-		    argv[1][1]);
-		usage(B_FALSE);
+	while ((c = getopt(argc, argv, "r")) != -1) {
+		switch (c) {
+		case 'r':
+			recurse = 1;
+			break;
+		case '?':
+		default:
+			(void) fprintf(stderr, gettext("invalid option '%c'\n"),
+			    optopt);
+			usage(B_FALSE);
+		}
 	}
 
+	argc -= optind;
+	argv += optind;
+
 	/* check number of arguments */
-	if (argc < 2) {
+	if (argc < 1) {
 		(void) fprintf(stderr, gettext("missing source dataset "
 		    "argument\n"));
 		usage(B_FALSE);
 	}
-	if (argc < 3) {
+	if (argc < 2) {
 		(void) fprintf(stderr, gettext("missing target dataset "
 		    "argument\n"));
 		usage(B_FALSE);
 	}
-	if (argc > 3) {
+	if (argc > 2) {
 		(void) fprintf(stderr, gettext("too many arguments\n"));
 		usage(B_FALSE);
 	}
 
-	if ((zhp = zfs_open(g_zfs, argv[1], ZFS_TYPE_ANY)) == NULL)
+	if (recurse && strchr(argv[0], '@') == 0) {
+		(void) fprintf(stderr, gettext("source dataset for recursive "
+		    "rename must be a snapshot\n"));
+		usage(B_FALSE);
+	}
+
+	if ((zhp = zfs_open(g_zfs, argv[0], ZFS_TYPE_ANY)) == NULL)
 		return (1);
 
-	ret = (zfs_rename(zhp, argv[2]) != 0);
+	ret = (zfs_rename(zhp, argv[1], recurse) != 0);
 
 	if (!ret)
-		zpool_log_history(g_zfs, argc, argv, argv[2], B_FALSE, B_FALSE);
+		zpool_log_history(g_zfs, argc + optind, argv - optind, argv[1],
+		    B_FALSE, B_FALSE);
 
 	zfs_close(zhp);
 	return (ret);

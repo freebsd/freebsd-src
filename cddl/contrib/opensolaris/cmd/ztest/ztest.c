@@ -246,7 +246,7 @@ extern uint16_t zio_zil_fail_shift;
 #define	ZTEST_DIROBJ_BLOCKSIZE	(1 << 10)
 #define	ZTEST_DIRSIZE		256
 
-static void usage(boolean_t);
+static void usage(boolean_t) __NORETURN;
 
 /*
  * These libumem hooks provide a reasonable set of defaults for the allocator's
