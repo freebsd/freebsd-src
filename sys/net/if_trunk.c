@@ -94,9 +94,9 @@ static void	trunk_port2req(struct trunk_port *, struct trunk_reqport *);
 static void	trunk_init(void *);
 static void	trunk_stop(struct trunk_softc *);
 static int	trunk_ioctl(struct ifnet *, u_long, caddr_t);
-static int	trunk_ether_setmulti(struct trunk_softc *, struct trunk_port *);
-static int	trunk_ether_purgemulti(struct trunk_softc *,
-		    struct trunk_port *);
+static int	trunk_ether_setmulti(struct trunk_softc *);
+static int	trunk_ether_cmdmulti(struct trunk_port *, int);
+static void	trunk_ether_purgemulti(struct trunk_softc *);
 static	int	trunk_setflag(struct trunk_port *, int, int,
 		    int (*func)(struct ifnet *, int));
 static	int	trunk_setflags(struct trunk_port *, int status);
@@ -265,15 +265,15 @@ trunk_clone_destroy(struct ifnet *ifp)
 	trunk_stop(tr);
 	ifp->if_flags &= ~IFF_UP;
 
-	/* Remove any multicast groups that we may have joined. */
-	trunk_ether_purgemulti(tr, NULL);
-
 	/* Shutdown and remove trunk ports */
 	while ((tp = SLIST_FIRST(&tr->tr_ports)) != NULL)
 		trunk_port_destroy(tp, 1);
 	/* Unhook the trunking protocol */
 	if (tr->tr_detach != NULL)
 		(*tr->tr_detach)(tr);
+
+	/* Remove any multicast groups that we may have joined. */
+	trunk_ether_purgemulti(tr);
 
 	TRUNK_UNLOCK(tr);
 
@@ -422,7 +422,7 @@ trunk_port_create(struct trunk_softc *tr, struct ifnet *ifp)
 	tr->tr_capabilities = trunk_capabilities(tr);
 
 	/* Add multicast addresses and interface flags to this port */
-	trunk_ether_setmulti(tr, tp);
+	trunk_ether_cmdmulti(tp, 1);
 	trunk_setflags(tp, 1);
 
 	if (tr->tr_port_create != NULL)
@@ -468,7 +468,7 @@ trunk_port_destroy(struct trunk_port *tp, int runpd)
 		(*tr->tr_port_destroy)(tp);
 
 	/* Remove multicast addresses and interface flags from this port */
-	trunk_ether_purgemulti(tr, tp);
+	trunk_ether_cmdmulti(tp, 0);
 	trunk_setflags(tp, 0);
 
 	/* Restore interface */
@@ -814,7 +814,7 @@ trunk_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		error = trunk_ether_setmulti(tr, NULL);
+		error = trunk_ether_setmulti(tr);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -836,15 +836,17 @@ out:
 }
 
 static int
-trunk_ether_setmulti(struct trunk_softc *tr, struct trunk_port *tp)
+trunk_ether_setmulti(struct trunk_softc *tr)
 {
 	struct ifnet		*trifp = tr->tr_ifp;
 	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma, *rifma = NULL;
-	struct trunk_port	*tp2;
+	struct trunk_port	*tp;
 	struct trunk_mc		*mc;
 	struct sockaddr_dl	sdl;
 	int			error;
+
+	TRUNK_LOCK_ASSERT(tr);
 
 	bzero((char *)&sdl, sizeof(sdl));
 	sdl.sdl_len = sizeof(sdl);
@@ -853,7 +855,7 @@ trunk_ether_setmulti(struct trunk_softc *tr, struct trunk_port *tp)
 	sdl.sdl_alen = ETHER_ADDR_LEN;
 
 	/* First, remove any existing filter entries. */
-	trunk_ether_purgemulti(tr, tp);
+	trunk_ether_purgemulti(tr);
 
 	/* Now program new ones. */
 	TAILQ_FOREACH(ifma, &trifp->if_multiaddrs, ifma_link) {
@@ -869,12 +871,8 @@ trunk_ether_setmulti(struct trunk_softc *tr, struct trunk_port *tp)
 		    LLADDR(&sdl), ETHER_ADDR_LEN);
 
 		/* do all the ports */
-		SLIST_FOREACH(tp2, &tr->tr_ports, tp_entries) {
-			/* if we are only looking for one then skip */
-			if (tp != NULL && tp2 != tp)
-				continue;
-
-			ifp = tp2->tp_ifp;
+		SLIST_FOREACH(tp, &tr->tr_ports, tp_entries) {
+			ifp = tp->tp_ifp;
 			sdl.sdl_index = ifp->if_index;
 			error = if_addmulti(ifp, (struct sockaddr *)&sdl, &rifma);
 			if (error)
@@ -886,38 +884,57 @@ trunk_ether_setmulti(struct trunk_softc *tr, struct trunk_port *tp)
 }
 
 static int
-trunk_ether_purgemulti(struct trunk_softc *tr, struct trunk_port *tp)
+trunk_ether_cmdmulti(struct trunk_port *tp, int set)
 {
-	struct ifnet		*ifp;
-	struct trunk_port	*tp2;
+	struct trunk_softc *tr = tp->tp_trunk;
+	struct ifnet *ifp = tp->tp_ifp;;
 	struct trunk_mc		*mc;
+	struct ifmultiaddr	*rifma = NULL;
 	struct sockaddr_dl	sdl;
 	int			error;
+
+	TRUNK_LOCK_ASSERT(tr);
 
 	bzero((char *)&sdl, sizeof(sdl));
 	sdl.sdl_len = sizeof(sdl);
 	sdl.sdl_family = AF_LINK;
 	sdl.sdl_type = IFT_ETHER;
 	sdl.sdl_alen = ETHER_ADDR_LEN;
+	sdl.sdl_index = ifp->if_index;
+
+	SLIST_FOREACH(mc, &tr->tr_mc_head, mc_entries) {
+		bcopy((char *)&mc->mc_addr, LLADDR(&sdl), ETHER_ADDR_LEN);
+
+		if (set)
+			error = if_addmulti(ifp, (struct sockaddr *)&sdl, &rifma);
+		else
+			error = if_delmulti(ifp, (struct sockaddr *)&sdl);
+
+		if (error) {
+			printf("cmdmulti error on %s, set = %d\n",
+			    ifp->if_xname, set);
+			return (error);
+		}
+	}
+	return (0);
+}
+
+static void
+trunk_ether_purgemulti(struct trunk_softc *tr)
+{
+	struct trunk_port *tp;
+	struct trunk_mc *mc;
+
+	TRUNK_LOCK_ASSERT(tr);
+
+	/* remove from ports */
+	SLIST_FOREACH(tp, &tr->tr_ports, tp_entries)
+		trunk_ether_cmdmulti(tp, 0);
 
 	while ((mc = SLIST_FIRST(&tr->tr_mc_head)) != NULL) {
-		bcopy((char *)&mc->mc_addr, LLADDR(&sdl), ETHER_ADDR_LEN);
-		/* do all the ports */
-		SLIST_FOREACH(tp2, &tr->tr_ports, tp_entries) {
-			/* if we are only looking for one then skip */
-			if (tp != NULL && tp2 != tp)
-				continue;
-
-			ifp = tp2->tp_ifp;
-			sdl.sdl_index = ifp->if_index;
-			error = if_delmulti(ifp, (struct sockaddr *)&sdl);
-			if (error)
-				return (error);
-		}
 		SLIST_REMOVE(&tr->tr_mc_head, mc, trunk_mc, mc_entries);
 		free(mc, M_DEVBUF);
 	}
-	return (0);
 }
 
 /* Handle a ref counted flag that should be set on the trunk port as well */
