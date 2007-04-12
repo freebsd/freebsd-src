@@ -50,6 +50,8 @@
 #include "zfs_prop.h"
 #include "libzfs_impl.h"
 
+static int zvol_create_link_common(libzfs_handle_t *, const char *, int);
+
 /*
  * Given a single type (not a mask of types), return the type in a human
  * readable form.
@@ -2531,10 +2533,15 @@ zfs_promote(zfs_handle_t *zhp)
 	return (ret);
 }
 
+struct createdata {
+	const char *cd_snapname;
+	int cd_ifexists;
+};
+
 static int
 zfs_create_link_cb(zfs_handle_t *zhp, void *arg)
 {
-	char *snapname = arg;
+	struct createdata *cd = arg;
 	int ret;
 
 	if (zhp->zfs_type == ZFS_TYPE_VOLUME) {
@@ -2542,8 +2549,9 @@ zfs_create_link_cb(zfs_handle_t *zhp, void *arg)
 
 		(void) strlcpy(name, zhp->zfs_name, sizeof (name));
 		(void) strlcat(name, "@", sizeof (name));
-		(void) strlcat(name, snapname, sizeof (name));
-		(void) zvol_create_link(zhp->zfs_hdl, name);
+		(void) strlcat(name, cd->cd_snapname, sizeof (name));
+		(void) zvol_create_link_common(zhp->zfs_hdl, name,
+		    cd->cd_ifexists);
 		/*
 		 * NB: this is simply a best-effort.  We don't want to
 		 * return an error, because then we wouldn't visit all
@@ -2551,7 +2559,7 @@ zfs_create_link_cb(zfs_handle_t *zhp, void *arg)
 		 */
 	}
 
-	ret = zfs_iter_filesystems(zhp, zfs_create_link_cb, snapname);
+	ret = zfs_iter_filesystems(zhp, zfs_create_link_cb, cd);
 
 	zfs_close(zhp);
 
@@ -2603,8 +2611,11 @@ zfs_snapshot(libzfs_handle_t *hdl, const char *path, boolean_t recursive)
 	(void) snprintf(errbuf, sizeof (errbuf), dgettext(TEXT_DOMAIN,
 	    "cannot create snapshot '%s@%s'"), zc.zc_name, zc.zc_value);
 	if (ret == 0 && recursive) {
-		(void) zfs_iter_filesystems(zhp,
-		    zfs_create_link_cb, (char *)delim+1);
+		struct createdata cd;
+
+		cd.cd_snapname = delim + 1;
+		cd.cd_ifexists = B_FALSE;
+		(void) zfs_iter_filesystems(zhp, zfs_create_link_cb, &cd);
 	}
 	if (ret == 0 && zhp->zfs_type == ZFS_TYPE_VOLUME) {
 		ret = zvol_create_link(zhp->zfs_hdl, path);
@@ -3199,12 +3210,14 @@ zfs_iter_dependents(zfs_handle_t *zhp, boolean_t allowrecursion,
  * Renames the given dataset.
  */
 int
-zfs_rename(zfs_handle_t *zhp, const char *target)
+zfs_rename(zfs_handle_t *zhp, const char *target, int recursive)
 {
 	int ret;
 	zfs_cmd_t zc = { 0 };
 	char *delim;
-	prop_changelist_t *cl;
+	prop_changelist_t *cl = NULL;
+	zfs_handle_t *zhrp = NULL;
+	char *parentname = NULL;
 	char parent[ZFS_MAXNAMELEN];
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
 	char errbuf[1024];
@@ -3252,6 +3265,12 @@ zfs_rename(zfs_handle_t *zhp, const char *target)
 		if (!zfs_validate_name(hdl, target, zhp->zfs_type))
 			return (zfs_error(hdl, EZFS_INVALIDNAME, errbuf));
 	} else {
+		if (recursive) {
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "recursive rename must be a snapshot"));
+			return (zfs_error(hdl, EZFS_BADTYPE, errbuf));
+		}
+
 		if (!zfs_validate_name(hdl, target, zhp->zfs_type))
 			return (zfs_error(hdl, EZFS_INVALIDNAME, errbuf));
 		uint64_t unused;
@@ -3291,19 +3310,41 @@ zfs_rename(zfs_handle_t *zhp, const char *target)
 		return (zfs_error(hdl, EZFS_ZONED, errbuf));
 	}
 
-	if ((cl = changelist_gather(zhp, ZFS_PROP_NAME, 0)) == NULL)
-		return (-1);
+	if (recursive) {
+		struct destroydata dd;
 
-	if (changelist_haszonedchild(cl)) {
-		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-		    "child dataset with inherited mountpoint is used "
-		    "in a non-global zone"));
-		(void) zfs_error(hdl, EZFS_ZONED, errbuf);
-		goto error;
+		parentname = strdup(zhp->zfs_name);
+		delim = strchr(parentname, '@');
+		*delim = '\0';
+		zhrp = zfs_open(zhp->zfs_hdl, parentname, ZFS_TYPE_ANY);
+		if (zhrp == NULL) {
+			return (-1);
+		}
+
+		dd.snapname = delim + 1;
+		dd.gotone = B_FALSE;
+		dd.closezhp = B_FALSE;
+
+		/* We remove any zvol links prior to renaming them */
+		ret = zfs_iter_filesystems(zhrp, zfs_remove_link_cb, &dd);
+		if (ret) {
+			goto error;
+		}
+	} else {
+		if ((cl = changelist_gather(zhp, ZFS_PROP_NAME, 0)) == NULL)
+			return (-1);
+
+		if (changelist_haszonedchild(cl)) {
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "child dataset with inherited mountpoint is used "
+			    "in a non-global zone"));
+			(void) zfs_error(hdl, EZFS_ZONED, errbuf);
+			goto error;
+		}
+
+		if ((ret = changelist_prefix(cl)) != 0)
+			goto error;
 	}
-
-	if ((ret = changelist_prefix(cl)) != 0)
-		goto error;
 
 	if (ZFS_IS_VOLUME(zhp))
 		zc.zc_objset_type = DMU_OST_ZVOL;
@@ -3313,22 +3354,65 @@ zfs_rename(zfs_handle_t *zhp, const char *target)
 	(void) strlcpy(zc.zc_name, zhp->zfs_name, sizeof (zc.zc_name));
 	(void) strlcpy(zc.zc_value, target, sizeof (zc.zc_value));
 
+	zc.zc_cookie = recursive;
+
 	if ((ret = ioctl(zhp->zfs_hdl->libzfs_fd, ZFS_IOC_RENAME, &zc)) != 0) {
-		(void) zfs_standard_error(zhp->zfs_hdl, errno, errbuf);
+		/*
+		 * if it was recursive, the one that actually failed will
+		 * be in zc.zc_name
+		 */
+		(void) snprintf(errbuf, sizeof (errbuf), dgettext(TEXT_DOMAIN,
+		    "cannot rename to '%s'"), zc.zc_name);
+
+		if (recursive && errno == EEXIST) {
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "a child dataset already has a snapshot "
+			    "with the new name"));
+			(void) zfs_error(hdl, EZFS_CROSSTARGET, errbuf);
+		} else {
+			(void) zfs_standard_error(zhp->zfs_hdl, errno, errbuf);
+		}
 
 		/*
 		 * On failure, we still want to remount any filesystems that
 		 * were previously mounted, so we don't alter the system state.
 		 */
-		(void) changelist_postfix(cl);
-	} else {
-		changelist_rename(cl, zfs_get_name(zhp), target);
+		if (recursive) {
+			struct createdata cd;
 
-		ret = changelist_postfix(cl);
+			/* only create links for datasets that had existed */
+			cd.cd_snapname = delim + 1;
+			cd.cd_ifexists = B_TRUE;
+			(void) zfs_iter_filesystems(zhrp, zfs_create_link_cb,
+			    &cd);
+		} else {
+			(void) changelist_postfix(cl);
+		}
+	} else {
+		if (recursive) {
+			struct createdata cd;
+
+			/* only create links for datasets that had existed */
+			cd.cd_snapname = strchr(target, '@') + 1;
+			cd.cd_ifexists = B_TRUE;
+			ret = zfs_iter_filesystems(zhrp, zfs_create_link_cb,
+			    &cd);
+		} else {
+			changelist_rename(cl, zfs_get_name(zhp), target);
+			ret = changelist_postfix(cl);
+		}
 	}
 
 error:
-	changelist_free(cl);
+	if (parentname) {
+		free(parentname);
+	}
+	if (zhrp) {
+		zfs_close(zhrp);
+	}
+	if (cl) {
+		changelist_free(cl);
+	}
 	return (ret);
 }
 
@@ -3338,6 +3422,12 @@ error:
  */
 int
 zvol_create_link(libzfs_handle_t *hdl, const char *dataset)
+{
+	return (zvol_create_link_common(hdl, dataset, B_FALSE));
+}
+
+static int
+zvol_create_link_common(libzfs_handle_t *hdl, const char *dataset, int ifexists)
 {
 	zfs_cmd_t zc = { 0 };
 #if 0
@@ -3358,6 +3448,18 @@ zvol_create_link(libzfs_handle_t *hdl, const char *dataset)
 			 * times without errors.
 			 */
 			return (0);
+
+		case ENOENT:
+			/*
+			 * Dataset does not exist in the kernel.  If we
+			 * don't care (see zfs_rename), then ignore the
+			 * error quietly.
+			 */
+			if (ifexists) {
+				return (0);
+			}
+
+			/* FALLTHROUGH */
 
 		default:
 			return (zfs_standard_error_fmt(hdl, errno,

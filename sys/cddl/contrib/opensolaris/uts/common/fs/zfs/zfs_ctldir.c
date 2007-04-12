@@ -590,7 +590,7 @@ zfsctl_snapdir_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm,
 		return (ENOENT);
 	}
 
-	err = dmu_objset_rename(from, to);
+	err = dmu_objset_rename(from, to, B_FALSE);
 	if (err == 0)
 		zfsctl_rename_snap(sdp, sep, tnm);
 
