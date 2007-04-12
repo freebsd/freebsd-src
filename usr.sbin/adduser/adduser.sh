@@ -199,6 +199,7 @@ save_config() {
 	echo "udotdir=$udotdir"		>> ${ADDUSERCONF}
 	echo "msgfile=$msgfile"		>> ${ADDUSERCONF}
 	echo "disableflag=$disableflag" >> ${ADDUSERCONF}
+	echo "uidstart=$uidstart"       >> ${ADDUSERCONF}
 }
 
 # add_user
@@ -453,15 +454,9 @@ get_homedir() {
 #	allocates one if it is not specified.
 #
 get_uid() {
-	if [ -z "$uuid" ]; then
-		uuid=${uidstart}
-	fi
-
+	uuid=${uidstart}
 	_input=
 	_prompt=
-
-	# No need to take down uids for a configuration saving run.
-	[ -n "$configflag" ] && return
 
 	if [ -n "$uuid" ]; then
 		_prompt="Uid [$uuid]: "
