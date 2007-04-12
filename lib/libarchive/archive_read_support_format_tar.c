@@ -985,7 +985,7 @@ header_common(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 		 * Sparse files are really just regular files with
 		 * sparse information in the extended area.
 		 */
-		/* FALL THROUGH */
+		/* FALLTHROUGH */
 	default: /* Regular file  and non-standard types */
 		/*
 		 * Per POSIX: non-recognized types should always be
