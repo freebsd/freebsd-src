@@ -34,17 +34,15 @@
 #ifndef BSDTAR_PLATFORM_H_INCLUDED
 #define	BSDTAR_PLATFORM_H_INCLUDED
 
-#if HAVE_CONFIG_H
+#if defined(PLATFORM_CONFIG_H)
+/* Use hand-built config.h in environments that need it. */
+#include PLATFORM_CONFIG_H
+#elif defined(HAVE_CONFIG_H)
+/* Most POSIX platforms use the 'configure' script to build config.h */
 #include "../config.h"
 #else
-
-#ifdef __FreeBSD__
-#include "config_freebsd.h"
-#else /* !__FreeBSD__ */
 /* Warn if bsdtar hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no built-in configuration in bsdtar_platform.h.
-#endif /* !__FreeBSD__ */
-
 #endif /* !HAVE_CONFIG_H */
 
 /* No non-FreeBSD platform will have __FBSDID, so just define it here. */
