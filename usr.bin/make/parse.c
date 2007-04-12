@@ -2235,7 +2235,7 @@ parse_message(char *line, int iserror, int lineno __unused)
 	while (isspace((u_char)*line))
 		line++;
 
-	line = Buf_Peel(Var_Subst(line, VAR_GLOBAL, FALSE));
+	line = Buf_Peel(Var_Subst(line, VAR_CMD, FALSE));
 	Parse_Error(iserror ? PARSE_FATAL : PARSE_WARNING, "%s", line);
 	free(line);
 
