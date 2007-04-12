@@ -1600,7 +1600,8 @@ Count the weighted number of cycles while a data cache unit miss is
 outstanding, incremented by the number of outstanding cache misses at
 any time.
 .It Li p6-div
-Count the number of floating point multiplies.
+Count the number of integer and floating-point divides including
+speculative divides.
 This event is only allocated on counter 1.
 .It Li p6-emon-esp-uops
 .Pq Tn "Pentium M"
@@ -2046,7 +2047,8 @@ Count the number of MMX saturating instructions executed.
 .Pq Tn "Pentium II" , Tn "Pentium III"
 Count the number of MMX micro-ops executed.
 .It Li p6-mul
-Count the number of floating point multiplies.
+Count the number of integer and floating-point multiplies, including
+speculative multiplies.
 This event is only allocated on counter 1.
 .It Li p6-partial-rat-stalls
 Count the number of cycles or events for partial stalls.
