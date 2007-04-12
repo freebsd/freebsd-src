@@ -1243,7 +1243,7 @@ set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
 		/* Already have stat() data available. */
 	} else if (fd >= 0 && fstat(fd, &extract->st) == 0)
 		extract->pst = &extract->st;
-	else if (stat(name, &extract->st) == 0)
+	else if (lstat(name, &extract->st) == 0)
 		extract->pst = &extract->st;
 	else {
 		archive_set_error(a, errno,
