@@ -13,6 +13,7 @@
 
 #define _DEFINE
 #include <sendmail.h>
+#include <sm/sendmail.h>
 #include <sm/xtrap.h>
 #include <sm/signal.h>
 
@@ -25,7 +26,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.944.2.2 2006/08/03 22:05:03 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.962 2006/12/19 19:47:37 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -231,7 +232,7 @@ main(argc, argv, envp)
 	starttime = curtime();
 
 	/* avoid null pointer dereferences */
-	TermEscape.te_rv_on = TermEscape.te_rv_off = "";
+	TermEscape.te_rv_on = TermEscape.te_under_on = TermEscape.te_normal = "";
 
 	RealUid = getuid();
 	RealGid = getgid();
@@ -305,7 +306,7 @@ main(argc, argv, envp)
 	checkfd012("after openlog");
 #endif /* XDEBUG */
 
-	tTsetup(tTdvect, sizeof tTdvect, "0-99.1,*_trace_*.1");
+	tTsetup(tTdvect, sizeof(tTdvect), "0-99.1,*_trace_*.1");
 
 #ifdef NGROUPS_MAX
 	/* save initial group set for future checks */
@@ -477,7 +478,7 @@ main(argc, argv, envp)
 				     "WARNING: Can not use -d with -q.  Disabling debugging.\n");
 		sm_debug_close();
 		sm_debug_setfile(NULL);
-		(void) memset(tTdvect, '\0', sizeof tTdvect);
+		(void) memset(tTdvect, '\0', sizeof(tTdvect));
 	}
 
 #if LOG
@@ -521,9 +522,9 @@ main(argc, argv, envp)
 
 	pw = sm_getpwuid(RealUid);
 	if (pw != NULL)
-		(void) sm_strlcpy(rnamebuf, pw->pw_name, sizeof rnamebuf);
+		(void) sm_strlcpy(rnamebuf, pw->pw_name, sizeof(rnamebuf));
 	else
-		(void) sm_snprintf(rnamebuf, sizeof rnamebuf, "Unknown UID %d",
+		(void) sm_snprintf(rnamebuf, sizeof(rnamebuf), "Unknown UID %d",
 				   (int) RealUid);
 
 	RealUserName = rnamebuf;
@@ -567,7 +568,7 @@ main(argc, argv, envp)
 	j = 0;
 	for (av = argv; *av != NULL; )
 		j += strlen(*av++) + 1;
-	SaveArgv = (char **) xalloc(sizeof (char *) * (argc + 1));
+	SaveArgv = (char **) xalloc(sizeof(char *) * (argc + 1));
 	CommandLineArgs = xalloc(j);
 	p = CommandLineArgs;
 	for (av = argv, i = 0; *av != NULL; )
@@ -691,7 +692,7 @@ main(argc, argv, envp)
 	macdefine(&BlankEnvelope.e_macro, A_PERM, 'v', Version);
 
 	/* hostname */
-	hp = myhostname(jbuf, sizeof jbuf);
+	hp = myhostname(jbuf, sizeof(jbuf));
 	if (jbuf[0] != '\0')
 	{
 		struct utsname utsname;
@@ -752,7 +753,7 @@ main(argc, argv, envp)
 					break;
 
 				memmove(&ia, hp->h_addr_list[i], INADDRSZ);
-				(void) sm_snprintf(ipbuf, sizeof ipbuf,
+				(void) sm_snprintf(ipbuf, sizeof(ipbuf),
 						   "[%.100s]", inet_ntoa(ia));
 				break;
 # endif /* NETINET */
@@ -763,9 +764,9 @@ main(argc, argv, envp)
 					break;
 
 				memmove(&ia6, hp->h_addr_list[i], IN6ADDRSZ);
-				addr = anynet_ntop(&ia6, buf6, sizeof buf6);
+				addr = anynet_ntop(&ia6, buf6, sizeof(buf6));
 				if (addr != NULL)
-					(void) sm_snprintf(ipbuf, sizeof ipbuf,
+					(void) sm_snprintf(ipbuf, sizeof(ipbuf),
 							   "[%.100s]", addr);
 				break;
 # endif /* NETINET6 */
@@ -863,7 +864,7 @@ main(argc, argv, envp)
 			CHECK_AGAINST_OPMODE(j);
 			BlankEnvelope.e_hopcount = (short) strtol(optarg, &ep,
 								  10);
-			(void) sm_snprintf(buf, sizeof buf, "%d",
+			(void) sm_snprintf(buf, sizeof(buf), "%d",
 					   BlankEnvelope.e_hopcount);
 			macdefine(&BlankEnvelope.e_macro, A_TEMP, 'c', buf);
 
@@ -1006,7 +1007,7 @@ main(argc, argv, envp)
 				break;
 
 			  case 'I': /* Limit by ID */
-				new = (QUEUE_CHAR *) xalloc(sizeof *new);
+				new = (QUEUE_CHAR *) xalloc(sizeof(*new));
 				new->queue_match = newstr(&optarg[1]);
 				new->queue_negate = negate;
 				new->queue_next = QueueLimitId;
@@ -1014,7 +1015,7 @@ main(argc, argv, envp)
 				break;
 
 			  case 'R': /* Limit by recipient */
-				new = (QUEUE_CHAR *) xalloc(sizeof *new);
+				new = (QUEUE_CHAR *) xalloc(sizeof(*new));
 				new->queue_match = newstr(&optarg[1]);
 				new->queue_negate = negate;
 				new->queue_next = QueueLimitRecipient;
@@ -1022,7 +1023,7 @@ main(argc, argv, envp)
 				break;
 
 			  case 'S': /* Limit by sender */
-				new = (QUEUE_CHAR *) xalloc(sizeof *new);
+				new = (QUEUE_CHAR *) xalloc(sizeof(*new));
 				new->queue_match = newstr(&optarg[1]);
 				new->queue_negate = negate;
 				new->queue_next = QueueLimitSender;
@@ -1036,7 +1037,7 @@ main(argc, argv, envp)
 			  case 'Q': /* Limit by quarantine message */
 				if (optarg[1] != '\0')
 				{
-					new = (QUEUE_CHAR *) xalloc(sizeof *new);
+					new = (QUEUE_CHAR *) xalloc(sizeof(*new));
 					new->queue_match = newstr(&optarg[1]);
 					new->queue_negate = negate;
 					new->queue_next = QueueLimitQuarantine;
@@ -1230,11 +1231,11 @@ main(argc, argv, envp)
 
 		mbuf[0] = '\0';
 		if (bitset(1 << STDIN_FILENO, MissingFds))
-			(void) sm_strlcat(mbuf, ", stdin", sizeof mbuf);
+			(void) sm_strlcat(mbuf, ", stdin", sizeof(mbuf));
 		if (bitset(1 << STDOUT_FILENO, MissingFds))
-			(void) sm_strlcat(mbuf, ", stdout", sizeof mbuf);
+			(void) sm_strlcat(mbuf, ", stdout", sizeof(mbuf));
 		if (bitset(1 << STDERR_FILENO, MissingFds))
-			(void) sm_strlcat(mbuf, ", stderr", sizeof mbuf);
+			(void) sm_strlcat(mbuf, ", stderr", sizeof(mbuf));
 
 		/* Notice: fill_errno is from high above: fill_fd() */
 		sm_syslog(LOG_WARNING, NOQID,
@@ -1377,7 +1378,7 @@ main(argc, argv, envp)
 		HoldErrs = true;
 
 	/* set up the $=m class now, after .cf has a chance to redefine $m */
-	expand("\201m", jbuf, sizeof jbuf, &BlankEnvelope);
+	expand("\201m", jbuf, sizeof(jbuf), &BlankEnvelope);
 	if (jbuf[0] != '\0')
 		setclass('m', jbuf);
 
@@ -1392,7 +1393,7 @@ main(argc, argv, envp)
 		/* Now we know which .cf file we use */
 		sm_dprintf("     Conf file:\t%s (selected)\n",
 			   getcfname(OpMode, SubmitMode, cftype, conffile));
-		expand(PidFile, pidpath, sizeof pidpath, &BlankEnvelope);
+		expand(PidFile, pidpath, sizeof(pidpath), &BlankEnvelope);
 		sm_dprintf("      Pid file:\t%s (selected)\n", pidpath);
 	}
 
@@ -1739,7 +1740,7 @@ main(argc, argv, envp)
 	SmtpError[0] = '\0';
 
 	/* our name for SMTP codes */
-	expand("\201j", jbuf, sizeof jbuf, &BlankEnvelope);
+	expand("\201j", jbuf, sizeof(jbuf), &BlankEnvelope);
 	if (jbuf[0] == '\0')
 		PSTRSET(MyHostName, "localhost");
 	else
@@ -2082,7 +2083,7 @@ main(argc, argv, envp)
 							     "> ");
 				(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
 				if (sm_io_fgets(smioin, SM_TIME_DEFAULT, buf,
-						sizeof buf) == NULL)
+						sizeof(buf)) == NULL)
 					testmodeline("/quit", &MainEnvelope);
 				p = strchr(buf, '\n');
 				if (p != NULL)
@@ -2112,7 +2113,8 @@ main(argc, argv, envp)
 
 #if STARTTLS
 	tls_ok = true;
-	if (OpMode == MD_QUEUERUN || OpMode == MD_DELIVER)
+	if (OpMode == MD_QUEUERUN || OpMode == MD_DELIVER ||
+	    OpMode == MD_ARPAFTP)
 	{
 		/* check whether STARTTLS is turned off for the client */
 		if (chkclientmodifiers(D_NOTLS))
@@ -2324,7 +2326,7 @@ main(argc, argv, envp)
 		dtype[0] = '\0';
 		if (OpMode == MD_DAEMON)
 		{
-			(void) sm_strlcat(dtype, "+SMTP", sizeof dtype);
+			(void) sm_strlcat(dtype, "+SMTP", sizeof(dtype));
 			DaemonPid = CurrentPid;
 		}
 		if (QueueIntvl > 0)
@@ -2334,10 +2336,10 @@ main(argc, argv, envp)
 					   ? "+persistent-queueing@"
 					   : "+queueing@",
 					   pintvl(QueueIntvl, true),
-					   sizeof dtype);
+					   sizeof(dtype));
 		}
 		if (tTd(0, 1))
-			(void) sm_strlcat(dtype, "+debugging", sizeof dtype);
+			(void) sm_strlcat(dtype, "+debugging", sizeof(dtype));
 
 		sm_syslog(LOG_INFO, NOQID,
 			  "starting daemon (%s): %s", Version, dtype + 1);
@@ -2435,8 +2437,9 @@ main(argc, argv, envp)
 						}
 
 						sm_syslog(LOG_ERR, NOQID,
-							  "persistent queue runner=%d died, signal=%d",
-							  group, WTERMSIG(status));
+							  "persistent queue runner=%d died, pid=%ld, signal=%d",
+							  group, (long) ret,
+							  WTERMSIG(status));
 					}
 
 					/*
@@ -2454,6 +2457,7 @@ main(argc, argv, envp)
 						mark_work_group_restart(group,
 									-1);
 					}
+					CHECK_RESTART;
 				}
 				finis(true, true, ExitStat);
 				/* NOTREACHED */
@@ -2472,7 +2476,7 @@ main(argc, argv, envp)
 
 				/* set the title to make it easier to find */
 				qtype[0] = '\0';
-				(void) sm_strlcpyn(qtype, sizeof qtype, 4,
+				(void) sm_strlcpyn(qtype, sizeof(qtype), 4,
 						   "Queue runner@",
 						   pintvl(QueueIntvl, true),
 						   " for ",
@@ -2541,7 +2545,7 @@ main(argc, argv, envp)
 		{
 			char ipbuf[103];
 
-			(void) sm_snprintf(ipbuf, sizeof ipbuf, "[%.100s]",
+			(void) sm_snprintf(ipbuf, sizeof(ipbuf), "[%.100s]",
 					   anynet_ntoa(&RealHostAddr));
 			macdefine(&BlankEnvelope.e_macro, A_TEMP,
 				  macid("{client_name}"), ipbuf);
@@ -2559,18 +2563,18 @@ main(argc, argv, envp)
 		{
 #if NETINET
 		  case AF_INET:
-			(void) sm_snprintf(pbuf, sizeof pbuf, "%d",
+			(void) sm_snprintf(pbuf, sizeof(pbuf), "%d",
 					   RealHostAddr.sin.sin_port);
 			break;
 #endif /* NETINET */
 #if NETINET6
 		  case AF_INET6:
-			(void) sm_snprintf(pbuf, sizeof pbuf, "%d",
+			(void) sm_snprintf(pbuf, sizeof(pbuf), "%d",
 					   RealHostAddr.sin6.sin6_port);
 			break;
 #endif /* NETINET6 */
 		  default:
-			(void) sm_snprintf(pbuf, sizeof pbuf, "0");
+			(void) sm_snprintf(pbuf, sizeof(pbuf), "0");
 			break;
 		}
 		macdefine(&BlankEnvelope.e_macro, A_TEMP,
@@ -2578,17 +2582,24 @@ main(argc, argv, envp)
 
 		if (OpMode == MD_DAEMON)
 		{
+			ENVELOPE *saved_env;
+
 			/* validate the connection */
 			HoldErrs = true;
+			saved_env = CurEnv;
+			CurEnv = &BlankEnvelope;
 			nullserver = validate_connection(&RealHostAddr,
 						macvalue(macid("{client_name}"),
-							&MainEnvelope),
-						&MainEnvelope);
+							&BlankEnvelope),
+						&BlankEnvelope);
+			if (bitset(EF_DISCARD, BlankEnvelope.e_flags))
+				MainEnvelope.e_flags |= EF_DISCARD;
+			CurEnv = saved_env;
 			HoldErrs = false;
 		}
 		else if (p_flags == NULL)
 		{
-			p_flags = (BITMAP256 *) xalloc(sizeof *p_flags);
+			p_flags = (BITMAP256 *) xalloc(sizeof(*p_flags));
 			clrbitmap(p_flags);
 		}
 #if STARTTLS
@@ -2769,7 +2780,7 @@ main(argc, argv, envp)
 		}
 
 		/* set message size */
-		(void) sm_snprintf(buf, sizeof buf, "%ld",
+		(void) sm_snprintf(buf, sizeof(buf), "%ld",
 				   MainEnvelope.e_msgsize);
 		macdefine(&MainEnvelope.e_macro, A_TEMP,
 			  macid("{msg_size}"), buf);
@@ -2909,8 +2920,15 @@ finis(drop, cleanup, exitstat)
 				sm_rpool_free(CurEnv->e_rpool);
 				CurEnv->e_rpool = NULL;
 
-				/* this may have pointed to the rpool */
+				/* these may have pointed to the rpool */
 				CurEnv->e_to = NULL;
+				CurEnv->e_message = NULL;
+				CurEnv->e_statmsg = NULL;
+				CurEnv->e_quarmsg = NULL;
+				CurEnv->e_bodytype = NULL;
+				CurEnv->e_id = NULL;
+				CurEnv->e_envid = NULL;
+				CurEnv->e_auth_param = NULL;
 			}
 			else
 				poststats(StatFile);
@@ -2961,7 +2979,7 @@ finis(drop, cleanup, exitstat)
 		if (DaemonPid == pid || PidFilePid == pid)
 		{
 			/* blow away the pid file */
-			expand(PidFile, pidpath, sizeof pidpath, CurEnv);
+			expand(PidFile, pidpath, sizeof(pidpath), CurEnv);
 			(void) unlink(pidpath);
 		}
 
@@ -3418,7 +3436,7 @@ auth_warning(e, msg, va_alist)
 		{
 			struct hostent *hp;
 
-			hp = myhostname(hostbuf, sizeof hostbuf);
+			hp = myhostname(hostbuf, sizeof(hostbuf));
 #if NETINET6
 			if (hp != NULL)
 			{
@@ -3428,12 +3446,12 @@ auth_warning(e, msg, va_alist)
 #endif /* NETINET6 */
 		}
 
-		(void) sm_strlcpyn(buf, sizeof buf, 2, hostbuf, ": ");
+		(void) sm_strlcpyn(buf, sizeof(buf), 2, hostbuf, ": ");
 		p = &buf[strlen(buf)];
 		SM_VA_START(ap, msg);
 		(void) sm_vsnprintf(p, SPACELEFT(buf, p), msg, ap);
 		SM_VA_END(ap);
-		addheader("X-Authentication-Warning", buf, 0, e);
+		addheader("X-Authentication-Warning", buf, 0, e, true);
 		if (LogLevel > 3)
 			sm_syslog(LOG_INFO, e->e_id,
 				  "Authentication-Warning: %.400s",
@@ -3589,9 +3607,6 @@ sigusr1(sig)
 	int sig;
 {
 	int save_errno = errno;
-# if SM_HEAP_CHECK
-	extern void dumpstab __P((void));
-# endif /* SM_HEAP_CHECK */
 
 	FIX_SYSV_SIGNAL(sig, sigusr1);
 	errno = save_errno;
@@ -3896,6 +3911,69 @@ sm_printoptions(options)
 	}
 	sm_dprintf("\n");
 }
+
+/*
+**  TO8BIT -- convert \octal sequences in a test mode input line
+**
+**	Parameters:
+**		str -- the input line.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		replaces \0octal in str with octal value.
+*/
+
+static bool to8bit __P((char *));
+
+static bool
+to8bit(str)
+	char *str;
+{
+	int c, len;
+	char *out, *in;
+	bool changed;
+
+	if (str == NULL)
+		return false;
+	in = out = str;
+	changed = false;
+	len = 0;
+	while ((c = (*str++ & 0377)) != '\0')
+	{
+		int oct, nxtc;
+
+		++len;
+		if (c == '\\' &&
+		    (nxtc = (*str & 0377)) == '0')
+		{
+			oct = 0;
+			while ((nxtc = (*str & 0377)) != '\0' &&
+				isascii(nxtc) && isdigit(nxtc))
+			{
+				oct <<= 3;
+				oct += nxtc - '0';
+				++str;
+				++len;
+			}
+			changed = true;
+			c = oct;
+		}
+		*out++ = c;
+	}
+	*out++ = c;
+	if (changed)
+	{
+		char *q;
+
+		q = quote_internal_chars(in, in, &len);
+		if (q != in)
+			sm_strlcpy(in, q, len);
+	}
+	return changed;
+}
+
 /*
 **  TESTMODELINE -- process a test mode input line
 **
@@ -3925,14 +4003,20 @@ testmodeline(line, e)
 	char **s;
 	struct rewrite *rw;
 	ADDRESS a;
+	char *lbp;
+	auto int lbs;
 	static int tryflags = RF_COPYNONE;
 	char exbuf[MAXLINE];
+	char lbuf[MAXLINE];
 	extern unsigned char TokTypeNoC[];
+	bool eightbit;
 
 	/* skip leading spaces */
 	while (*line == ' ')
 		line++;
 
+	lbp = NULL;
+	eightbit = false;
 	switch (line[0])
 	{
 	  case '#':
@@ -3950,8 +4034,11 @@ testmodeline(line, e)
 			mid = macid_parse(&line[2], &delimptr);
 			if (mid == 0)
 				return;
-			translate_dollars(delimptr);
-			macdefine(&e->e_macro, A_TEMP, mid, delimptr);
+			lbs = sizeof(lbuf);
+			lbp = translate_dollars(delimptr, lbuf, &lbs);
+			macdefine(&e->e_macro, A_TEMP, mid, lbp);
+			if (lbp != lbuf)
+				SM_FREE(lbp);
 			break;
 
 		  case 'C':
@@ -3961,8 +4048,11 @@ testmodeline(line, e)
 			mid = macid_parse(&line[2], &delimptr);
 			if (mid == 0)
 				return;
-			translate_dollars(delimptr);
-			expand(delimptr, exbuf, sizeof exbuf, e);
+			lbs = sizeof(lbuf);
+			lbp = translate_dollars(delimptr, lbuf, &lbs);
+			expand(lbp, exbuf, sizeof(exbuf), e);
+			if (lbp != lbuf)
+				SM_FREE(lbp);
 			p = exbuf;
 			while (*p != '\0')
 			{
@@ -4158,13 +4248,13 @@ testmodeline(line, e)
 						     "Usage: /canon address\n");
 				return;
 			}
-			else if (sm_strlcpy(host, p, sizeof host) >= sizeof host)
+			else if (sm_strlcpy(host, p, sizeof(host)) >= sizeof(host))
 			{
 				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 						     "Name too long\n");
 				return;
 			}
-			(void) getcanonname(host, sizeof host, !HasWildcardMX,
+			(void) getcanonname(host, sizeof(host), !HasWildcardMX,
 					    NULL);
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "getcanonname(%s) returns %s\n",
@@ -4332,12 +4422,21 @@ testmodeline(line, e)
 						     a.q_user);
 			e->e_to = NULL;
 		}
+		else if (sm_strcasecmp(&line[1], "header") == 0)
+		{
+			unsigned long ul;
+
+			ul = chompheader(p, CHHDR_CHECK|CHHDR_USER, NULL, e);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "ul = %lu\n", ul);
+		}
 		else
 		{
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "Unknown \"/\" command %s\n",
 					     line);
 		}
+		(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
 		return;
 	}
 
@@ -4353,6 +4452,8 @@ testmodeline(line, e)
 		return;
 	}
 	*p = '\0';
+	if (tTd(23, 101))
+		eightbit = to8bit(p + 1);
 	if (invalidaddr(p + 1, NULL, true))
 		return;
 	do
@@ -4360,8 +4461,8 @@ testmodeline(line, e)
 		register char **pvp;
 		char pvpbuf[PSBUFSIZE];
 
-		pvp = prescan(++p, ',', pvpbuf, sizeof pvpbuf, &delimptr,
-			      ConfigLevel >= 9 ? TokTypeNoC : NULL, false);
+		pvp = prescan(++p, ',', pvpbuf, sizeof(pvpbuf), &delimptr,
+			      ConfigLevel >= 9 ? TokTypeNoC : ExtTokenTab, false);
 		if (pvp == NULL)
 			continue;
 		p = q;
@@ -4382,10 +4483,19 @@ testmodeline(line, e)
 				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 						     "== Ruleset %s (%d) status %d\n",
 						     p, rs, status);
+			else if (eightbit)
+			{
+				cataddr(pvp, NULL, exbuf, sizeof(exbuf), '\0',
+					true);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "cataddr: %s\n",
+						     str2prt(exbuf));
+			}
 			while (*p != '\0' && *p++ != ',')
 				continue;
 		}
 	} while (*(p = delimptr) != '\0');
+	(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
 }
 
 static void

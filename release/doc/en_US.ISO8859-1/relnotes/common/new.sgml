@@ -342,7 +342,7 @@
     <title>Contributed Software</title>
 
     <para><application>sendmail</application> has been updated from
-      version 8.13.1 to version 8.13.8.</para>
+      version 8.13.1 to version 8.14.1.</para>
 
     <para>The timezone database has been updated from the
       <application>tzdata2004g</application> release to the

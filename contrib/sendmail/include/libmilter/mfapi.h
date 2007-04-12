@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2004, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.61 2006/05/04 17:02:01 ca Exp $
+ *	$Id: mfapi.h,v 8.77 2006/11/02 02:44:07 ca Exp $
  */
 
 /*
@@ -18,8 +18,12 @@
 # define _LIBMILTER_MFAPI_H	1
 
 #ifndef SMFI_VERSION
-# define SMFI_VERSION	2		/* version number */
+# define SMFI_VERSION	0x01000000	/* libmilter version number */
 #endif /* ! SMFI_VERSION */
+
+#define SM_LM_VRS_MAJOR(v)	(((v) & 0x7f000000) >> 24)
+#define SM_LM_VRS_MINOR(v)	(((v) & 0x007fff00) >> 8)
+#define SM_LM_VRS_PLVL(v)	((v) & 0x0000007f)
 
 # include <sys/types.h>
 # include <sys/socket.h>
@@ -40,11 +44,14 @@ extern "C" {
 
 /*
 **  libmilter functions return one of the following to indicate
-**  success/failure:
+**  success/failure(/continue):
 */
 
 #define MI_SUCCESS	0
 #define MI_FAILURE	(-1)
+#if _FFR_WORKERS_POOL
+# define MI_CONTINUE	1
+#endif /* _FFR_WORKERS_POOL */
 
 /* "forward" declarations */
 typedef struct smfi_str SMFICTX;
@@ -128,15 +135,24 @@ struct smfiDesc
 	/* connection cleanup */
 	sfsistat	(*xxfi_close) SM__P((SMFICTX *));
 
-#if SMFI_VERSION > 2
 	/* any unrecognized or unimplemented command filter */
-	sfsistat	(*xxfi_unknown) SM__P((SMFICTX *, char *));
-#endif /* SMFI_VERSION > 2 */
+	sfsistat	(*xxfi_unknown) SM__P((SMFICTX *, const char *));
 
-#if SMFI_VERSION > 3
 	/* SMTP DATA command filter */
 	sfsistat	(*xxfi_data) SM__P((SMFICTX *));
-#endif /* SMFI_VERSION > 3 */
+
+	/* negotiation callback */
+	sfsistat	(*xxfi_negotiate) SM__P((SMFICTX *,
+					unsigned long, unsigned long,
+					unsigned long, unsigned long,
+					unsigned long *, unsigned long *,
+					unsigned long *, unsigned long *));
+
+#if 0
+	/* signal handler callback, not yet implemented. */
+	int		(*xxfi_signal) SM__P((int));
+#endif
+
 };
 
 LIBMILTER_API int smfi_opensocket __P((bool));
@@ -150,6 +166,7 @@ LIBMILTER_API int smfi_stop __P((void));
 #if _FFR_MAXDATASIZE
 LIBMILTER_API size_t smfi_setmaxdatasize __P((size_t));
 #endif /* _FFR_MAXDATASIZE */
+LIBMILTER_API int smfi_version __P((unsigned int *, unsigned int *, unsigned int *));
 
 /*
 **  What the filter might do -- values to be ORed together for
@@ -164,6 +181,33 @@ LIBMILTER_API size_t smfi_setmaxdatasize __P((size_t));
 #define SMFIF_DELRCPT	0x00000008L	/* filter may delete recipients */
 #define SMFIF_CHGHDRS	0x00000010L	/* filter may change/delete headers */
 #define SMFIF_QUARANTINE 0x00000020L	/* filter may quarantine envelope */
+
+/* filter may change "from" (envelope sender) */
+#define SMFIF_CHGFROM	0x00000040L
+#define SMFIF_ADDRCPT_PAR	0x00000080L	/* add recipients incl. args */
+
+/* filter can send set of symbols (macros) that it wants */
+#define SMFIF_SETSYMLIST	0x00000100L
+
+
+/*
+**  Macro "places";
+**  Notes:
+**  - must be coordinated with libmilter/engine.c and sendmail/milter.c
+**  - the order MUST NOT be changed as it would break compatibility between
+**	different versions. It's ok to append new entries however
+**	(hence the list is not sorted by the SMT protocol steps).
+*/
+
+#define SMFIM_FIRST	0	/* Do NOT use, internal marker only */
+#define SMFIM_CONNECT	0	/* connect */
+#define SMFIM_HELO	1	/* HELO/EHLO */
+#define SMFIM_ENVFROM	2	/* MAIL From */
+#define SMFIM_ENVRCPT	3	/* RCPT To */
+#define SMFIM_DATA	4	/* DATA */
+#define SMFIM_EOM	5	/* end of message (final dot) */
+#define SMFIM_EOH	6	/* end of header */
+#define SMFIM_LAST	6	/* Do NOT use, internal marker only */
 
 /*
 **  Continue processing message/connection.
@@ -208,6 +252,21 @@ LIBMILTER_API size_t smfi_setmaxdatasize __P((size_t));
 */
 
 #define SMFIS_TEMPFAIL	4
+
+/*
+**  Do not send a reply to the MTA
+*/
+
+#define SMFIS_NOREPLY	7
+
+/*
+**  Skip over rest of same callbacks, e.g., body.
+*/
+
+#define SMFIS_SKIP	8
+
+/* xxfi_negotiate: use all existing protocol options/actions */
+#define SMFIS_ALL_OPTS	10
 
 #if 0
 /*
@@ -261,12 +320,12 @@ extern sfsistat	xxfi_envrcpt __P((SMFICTX *, char **));
 
 /* unknown command filter */
 
-extern sfsistat	*xxfi_unknown __P((SMFICTX *, char *));
+extern sfsistat	*xxfi_unknown __P((SMFICTX *, const char *));
 
 /*
 **  xxfi_unknown(ctx, arg) Invoked when SMTP command is not recognized or not
 **  implemented.
-**	char *arg; Null-terminated SMTP command
+**	const char *arg; Null-terminated SMTP command
 */
 
 /* header filter */
@@ -414,6 +473,17 @@ LIBMILTER_API int smfi_insheader __P((SMFICTX *, int, char *, char *));
 **	char *headerv; Header field value
 */
 
+LIBMILTER_API int smfi_chgfrom __P((SMFICTX *, char *, char *));
+
+/*
+**  Modify envelope sender address
+**
+**	SMFICTX *ctx; Opaque context structure
+**	char *mail; New envelope sender address
+**	char *args; ESMTP arguments
+*/
+
+
 LIBMILTER_API int smfi_addrcpt __P((SMFICTX *, char *));
 
 /*
@@ -422,6 +492,17 @@ LIBMILTER_API int smfi_addrcpt __P((SMFICTX *, char *));
 **	SMFICTX *ctx; Opaque context structure
 **	char *rcpt; Recipient to be added
 */
+
+LIBMILTER_API int smfi_addrcpt_par __P((SMFICTX *, char *, char *));
+
+/*
+**  Add a recipient to the envelope
+**
+**	SMFICTX *ctx; Opaque context structure
+**	char *rcpt; Recipient to be added
+**	char *args; ESMTP arguments
+*/
+
 
 LIBMILTER_API int smfi_delrcpt __P((SMFICTX *, char *));
 
@@ -485,6 +566,27 @@ LIBMILTER_API int smfi_setpriv __P((SMFICTX *, void *));
 */
 
 LIBMILTER_API void *smfi_getpriv __P((SMFICTX *));
+
+/*
+**  Get the private data pointer
+**
+**	SMFICTX *ctx; Opaque context structure
+**	void *privatedata; Pointer to private data area
+*/
+
+LIBMILTER_API int smfi_setsymlist __P((SMFICTX *, int, char *));
+
+/*
+**  Set list of symbols (macros) to receive
+**
+**	SMFICTX *ctx; Opaque context structure
+**	int where; where in the SMTP dialogue should the macros be sent
+**	char *macros; list of macros (space separated)
+*/
+
+#if _FFR_THREAD_MONITOR
+LIBMILTER_API int smfi_set_max_exec_time __P((unsigned int));
+#endif /* _FFR_THREAD_MONITOR */
 
 #ifdef __cplusplus
 }
