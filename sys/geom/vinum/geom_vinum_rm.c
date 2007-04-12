@@ -216,6 +216,7 @@ static int
 gv_rm_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, int flags)
 {
 	struct g_geom *gp;
+	struct gv_volume *v;
 	struct gv_sd *s, *s2;
 	int err;
 
@@ -245,7 +246,6 @@ gv_rm_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, int fla
 
 	/* Remove the subdisks our plex has. */
 	LIST_FOREACH_SAFE(s, &p->subdisks, in_plex, s2) {
-		p->sdcount--;
 #if 0
 		LIST_REMOVE(s, in_plex);
 		s->plex_sc = NULL;
@@ -256,12 +256,15 @@ gv_rm_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, int fla
 			return (err);
 	}
 
+	v = p->vol_sc;
 	/* Clean up and let our geom fade away. */
 	LIST_REMOVE(p, plex);
 	if (p->vol_sc != NULL) {
 		p->vol_sc->plexcount--;
 		LIST_REMOVE(p, in_volume);
 		p->vol_sc = NULL;
+		/* Correctly update the volume size. */
+		gv_update_vol_size(v, gv_vol_size(v));
 	}
 
 	gv_kill_plex_thread(p);
@@ -280,14 +283,28 @@ int
 gv_rm_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *s, int flags)
 {
 	struct g_provider *pp;
+	struct gv_plex *p;
+	struct gv_volume *v;
 
 	KASSERT(s != NULL, ("gv_rm_sd: NULL s"));
 
 	pp = s->provider;
+	p = s->plex_sc;
+	v = NULL;
 
 	/* Clean up. */
-	if (s->plex_sc)
+	if (p != NULL) {
 		LIST_REMOVE(s, in_plex);
+
+		p->sdcount--;
+		/* Update the plexsize. */
+		p->size = gv_plex_size(p);
+		v = p->vol_sc;
+		if (v != NULL) {
+			/* Update the size of our plex' volume. */
+			gv_update_vol_size(v, gv_vol_size(v));
+		}
+	}
 	if (s->drive_sc)
 		LIST_REMOVE(s, from_drive);
 	LIST_REMOVE(s, sd);

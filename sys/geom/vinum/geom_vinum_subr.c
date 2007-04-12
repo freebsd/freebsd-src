@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
 
+static off_t gv_plex_smallest_sd(struct gv_plex *, off_t);
+
 /* Find the VINUM class and it's associated geom. */
 struct g_geom *
 find_vinum_geom(void)
@@ -235,6 +237,20 @@ gv_format_config(struct gv_softc *sc, struct sbuf *sb, int ondisk, char *prefix)
 	return;
 }
 
+static off_t
+gv_plex_smallest_sd(struct gv_plex *p, off_t smallest)
+{
+	struct gv_sd *s;
+
+	KASSERT(p != NULL, ("gv_plex_smallest_sd: NULL p"));
+
+	LIST_FOREACH(s, &p->subdisks, in_plex) {
+		if (s->size < smallest)
+			smallest = s->size;
+	}
+	return (smallest);
+}
+
 int
 gv_sd_to_plex(struct gv_plex *p, struct gv_sd *s, int check)
 {
@@ -280,7 +296,7 @@ gv_sd_to_plex(struct gv_plex *p, struct gv_sd *s, int check)
 		break;
 
 	case GV_PLEX_RAID5:
-		p->size = (p->sdcount - 1) * s->size;
+		p->size = (p->sdcount - 1) * gv_plex_smallest_sd(p, s->size);
 		break;
 
 	default:
@@ -327,6 +343,60 @@ gv_update_vol_size(struct gv_volume *v, off_t size)
 	}
 
 	v->size = size;
+}
+
+/* Calculates the plex size. */
+off_t
+gv_plex_size(struct gv_plex *p)
+{
+	struct gv_sd *s;
+	off_t size;
+
+	KASSERT(p != NULL, ("gv_plex_size: NULL p"));
+
+	if (p->sdcount == 0)
+		return (0);
+
+	/* Adjust the size of our plex. */
+	size = 0;
+	switch (p->org) {
+	case GV_PLEX_CONCAT:
+		LIST_FOREACH(s, &p->subdisks, in_plex)
+			size += s->size;
+		break;
+	case GV_PLEX_STRIPED:
+		s = LIST_FIRST(&p->subdisks);
+		size = p->sdcount * s->size;
+		break;
+	case GV_PLEX_RAID5:
+		s = LIST_FIRST(&p->subdisks);
+		size = (p->sdcount - 1) * s->size;
+		break;
+	}
+
+	return (size);
+}
+
+/* Returns the size of a volume. */
+off_t
+gv_vol_size(struct gv_volume *v)
+{
+	struct gv_plex *p;
+	off_t minplexsize;
+
+	KASSERT(v != NULL, ("gv_vol_size: NULL v"));
+
+	p = LIST_FIRST(&v->plexes);
+	if (p == NULL)
+		return (0);
+
+	minplexsize = p->size;
+	LIST_FOREACH(p, &v->plexes, plex) {
+		if (p->size < minplexsize) {
+			minplexsize = p->size;
+		}
+	}
+	return (minplexsize);
 }
 
 void
@@ -676,6 +746,7 @@ gv_free_sd(struct gv_sd *s)
 	}
 
 	d->avail += s->size;
+	d->sdcount--;
 }
 
 void
