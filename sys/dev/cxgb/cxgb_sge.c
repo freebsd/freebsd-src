@@ -282,22 +282,20 @@ get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void 
 	if (sopeop == RSPQ_NSOP_NEOP || sopeop == RSPQ_SOP)
 		return (0);
 	
-	m = m_gethdr(M_NOWAIT, MT_DATA);
+	
 	len = G_RSPD_LEN(ntohl(resp->len_cq));
 	
 	if (m) {
-		MH_ALIGN(m, IMMED_PKT_SIZE);
-		memcpy(m->m_data, resp->imm_data, IMMED_PKT_SIZE);
-		m->m_len = len;
+
 		
 		switch (sopeop) {
 		case RSPQ_SOP_EOP:
+			m = m_gethdr(M_NOWAIT, MT_DATA);
 			m->m_len = m->m_pkthdr.len = len; 
-			m->m_flags |= M_PKTHDR; 
 			memcpy(m->m_data, resp->imm_data, IMMED_PKT_SIZE); 
 			MH_ALIGN(m, IMMED_PKT_SIZE); 
 			break;
-		case RSPQ_EOP:	
+		case RSPQ_EOP:
 			memcpy(cl, resp->imm_data, len); 
 			m_iovappend(m, cl, MSIZE, len, 0); 
 			break;
