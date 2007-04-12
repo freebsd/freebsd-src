@@ -346,9 +346,9 @@ dump_filelock(const struct file_lock *fl)
 		debuglog("Dumping client cookie:\n");
 		dump_netobj(&fl->client_cookie);
 
-		debuglog("nsm: %d  status: %d  flags: %d  locker: %d"
-		    "  fd:  %d\n", fl->nsm_status, fl->status,
-		    fl->flags, fl->locker, fl->fd);
+		debuglog("nsm: %d  status: %d  flags: %d  svid: %x"
+		    "  client_name: %s\n", fl->nsm_status, fl->status,
+		    fl->flags, fl->client.svid, fl->client_name);
 #endif
 	} else {
 		debuglog("NULL file lock structure\n");
@@ -726,7 +726,7 @@ get_lock_matching_unlock(const struct file_lock *fl)
 {
 	struct file_lock *ifl; /* Iterator */
 
-	debuglog("Entering lock_matching_unlock\n");
+	debuglog("Entering get_lock_matching_unlock\n");
 	debuglog("********Dump of fl*****************\n");
 	dump_filelock(fl);
 
@@ -746,7 +746,7 @@ get_lock_matching_unlock(const struct file_lock *fl)
 		if (bcmp(&fl->filehandle, &ifl->filehandle, sizeof(fhandle_t)))
 			continue;
 
-		debuglog("matching_unlock: Filehandles match, "
+		debuglog("get_lock_matching_unlock: Filehandles match, "
 		    "checking regions\n");
 
 		/* Filehandles match, check for region overlap */
@@ -754,7 +754,7 @@ get_lock_matching_unlock(const struct file_lock *fl)
 			ifl->client.l_offset, ifl->client.l_len))
 			continue;
 
-		debuglog("matching_unlock: Region overlap"
+		debuglog("get_lock_matching_unlock: Region overlap"
 		    " found %llu : %llu -- %llu : %llu\n",
 		    fl->client.l_offset,fl->client.l_len,
 		    ifl->client.l_offset,ifl->client.l_len);
@@ -763,11 +763,11 @@ get_lock_matching_unlock(const struct file_lock *fl)
 		if (!same_filelock_identity(fl,ifl))
 			continue;
 
-		debuglog("matching_unlock: Duplicate lock id.  Granting\n");
+		debuglog("get_lock_matching_unlock: Duplicate lock id.  Granting\n");
 		return (ifl);
 	}
 
-	debuglog("Exiting lock_matching_unlock\n");
+	debuglog("Exiting bet_lock_matching_unlock\n");
 
 	return (NULL);
 }
