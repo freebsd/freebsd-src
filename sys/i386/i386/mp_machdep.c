@@ -577,6 +577,16 @@ init_secondary(void)
 	/* set up SSE registers */
 	enable_sse();
 
+#ifdef PAE
+	/* Enable the PTE no-execute bit. */
+	if ((amd_feature & AMDID_NX) != 0) {
+		uint64_t msr;
+
+		msr = rdmsr(MSR_EFER) | EFER_NXE;
+		wrmsr(MSR_EFER, msr);
+	}
+#endif
+
 	/* A quick check from sanity claus */
 	if (PCPU_GET(apic_id) != lapic_id()) {
 		printf("SMP: cpuid = %d\n", PCPU_GET(cpuid));
