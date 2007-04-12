@@ -608,10 +608,10 @@ alloc_ring(adapter_t *sc, size_t nelem, size_t elem_size, size_t sw_size,
 	if (parent_entry_tag == NULL)
 		return (0);
 	    
-	if ((err = bus_dma_tag_create(parent_entry_tag, PAGE_SIZE, 0,
+	if ((err = bus_dma_tag_create(parent_entry_tag, 1, 0,
 				      BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-		                      NULL, NULL, PAGE_SIZE, 1,
-				      PAGE_SIZE, BUS_DMA_ALLOCNOW,
+		                      NULL, NULL, TX_MAX_SIZE, TX_MAX_SEGS,
+				      TX_MAX_SIZE, BUS_DMA_ALLOCNOW,
 		                      NULL, NULL, entry_tag)) != 0) {
 		device_printf(sc->dev, "Cannot allocate descriptor entry tag\n");
 		return (ENOMEM);
@@ -833,19 +833,19 @@ calc_tx_descs(const struct mbuf *m, int nsegs)
 	return flits_to_desc(flits);
 }
 
-static __inline unsigned int
-busdma_map_mbufs(struct mbuf **m, adapter_t *sc, struct tx_sw_desc *stx,
-    bus_dma_segment_t *segs, int *nsegs)
+static unsigned int
+busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
+    struct tx_sw_desc *stx, bus_dma_segment_t *segs, int *nsegs)
 {
-	struct mbuf *m0, *mtmp;
+	struct mbuf *m0;
 	int err, pktlen;
 	
 	m0 = *m;
 	pktlen = m0->m_pkthdr.len;
-	err = bus_dmamap_load_mbuf_sg(sc->tx_dmat, stx->map, m0, segs, nsegs, 0);
+	err = bus_dmamap_load_mbuf_sg(txq->entry_tag, stx->map, m0, segs, nsegs, 0);
 	if (err) {
 		int n = 0;
-		mtmp = m0;
+		struct mbuf *mtmp = m0;
 		while(mtmp) {
 			n++;
 			mtmp = mtmp->m_next;
@@ -865,7 +865,7 @@ busdma_map_mbufs(struct mbuf **m, adapter_t *sc, struct tx_sw_desc *stx,
 			return (ENOBUFS);
 		}
 		*m = m0;
-		err = bus_dmamap_load_mbuf_sg(sc->tx_dmat, stx->map, m0, segs, nsegs, 0);
+		err = bus_dmamap_load_mbuf_sg(txq->entry_tag, stx->map, m0, segs, nsegs, 0);
 	}
 
 	if (err == ENOMEM) {
@@ -880,7 +880,7 @@ busdma_map_mbufs(struct mbuf **m, adapter_t *sc, struct tx_sw_desc *stx,
 		return (err);
 	}
 
-	bus_dmamap_sync(sc->tx_dmat, stx->map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(txq->entry_tag, stx->map, BUS_DMASYNC_PREWRITE);
 	stx->flags |= TX_SW_DESC_MAPPED;
 
 	return (0);
@@ -1071,7 +1071,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 
 	wrp = (struct work_request_hdr *)txd;
 	
-	if ((err = busdma_map_mbufs(m, sc, stx, segs, &nsegs)) != 0) {
+	if ((err = busdma_map_mbufs(m, txq, stx, segs, &nsegs)) != 0) {
 		return (err);
 	}
 	m0 = *m;
