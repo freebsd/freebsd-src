@@ -794,7 +794,8 @@ create_filesystem_object(struct archive_write_disk *a)
 
 	switch (a->mode & S_IFMT) {
 	default:
-		/* Fall through, as required by POSIX. */
+		/* POSIX requires that we fall through here. */
+		/* FALLTHROUGH */
 	case S_IFREG:
 		a->fd = open(a->name,
 		    O_WRONLY | O_CREAT | O_EXCL, mode);
