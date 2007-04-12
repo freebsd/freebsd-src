@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: nfslocking
-# REQUIRE: nfsserver nfsclient nfsd
+# REQUIRE: nfsserver nfsclient nfsd rpcbind
 # BEFORE:  DAEMON
 # KEYWORD: nojail
 
@@ -17,10 +17,32 @@ arg=$1
 # Either NFS client or server must be enabled or this must be a 'forcestart'
 # for either of the daemons to start.
 #
-start_precmd='checkyesno nfs_server_enable || checkyesno nfs_client_enable ||
+nfslocking_precmd()
+{
+	if ! checkyesno nfs_server_enable && ! checkyesno nfs_client_enable && \
+	    [ -z "$rc_force" ]
+	then
+		return 1
+	fi
+	if ! checkyesno rpcbind_enable && \
+	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend rpcbind || return 1
+	fi
+
+	if [ $name = "statd" ] 
+	then
+		rc_flags=${rpc_statd_flags}
+	elif [ $name = "lockd" ]
+	then
+		rc_flags=${rpc_lockd_flags}
+	fi
+}
+
+start_precmd="nfslocking_precmd"
+stop_precmd='checkyesno nfs_server_enable || checkyesno nfs_client_enable ||
     [ -n "$rc_force" ]'
-stop_precmd=$start_precmd
-status_precmd=$start_precmd
+status_precmd=$stop_precmd
 
 # rpc.statd
 #
