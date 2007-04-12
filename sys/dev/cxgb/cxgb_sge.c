@@ -966,8 +966,8 @@ t3_encap(struct port_info *p, struct mbuf **m)
 	struct sge_txq *txq;
 	struct tx_sw_desc *stx;
 	struct txq_state txqs;
-	unsigned int nsegs, ndesc, flits, cntrl, mlen, tso_info;
-	int err;
+	unsigned int nsegs, ndesc, flits, cntrl, mlen;
+	int err, tso_info = 0;
 
 	struct work_request_hdr *wrp;
 	struct tx_sw_desc *txsd;
@@ -1002,10 +1002,9 @@ t3_encap(struct port_info *p, struct mbuf **m)
 #ifdef VLAN_SUPPORTED
 	if (m0->m_flags & M_VLANTAG) 
 		cntrl |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN(m0->m_pkthdr.ether_vtag);
+	if  (m0->m_pkthdr.csum_flags & (CSUM_TSO))
+		tso_info = V_LSO_MSS(m0->m_pkthdr.tso_segsz);
 
-	tso_info = V_LSO_MSS(m0->m_pkthdr.tso_segsz);
-#else
-	tso_info = 0;
 #endif		
 	if (tso_info) {
 		int eth_type;
@@ -1808,7 +1807,6 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		DBG(DBG_RX, ("get_packet: SOP-EOP m %p\n", m));
 		m_cljset(m, sd->cl, fl->type);
 		m->m_len = m->m_pkthdr.len = len;
-		m->m_flags |= M_PKTHDR;
 		ret = 1;
 		goto done;
 		break;
@@ -1818,7 +1816,6 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		break;
 	case RSPQ_SOP:
 		DBG(DBG_RX, ("get_packet: SOP m %p\n", m));
-		m->m_flags |= M_PKTHDR;
 		m_iovinit(m);
 		ret = 0;
 		break;
@@ -1890,8 +1887,8 @@ check_ring_db(adapter_t *adap, struct sge_qset *qs,
 static void
 bind_ithread(int cpu)
 {
-	KASSERT(cpu < mp_ncpus, ("invalid cpu identifier"));
 #if 0	
+	KASSERT(cpu < mp_ncpus, ("invalid cpu identifier"));
 	if (mp_ncpus > 1) {
 		mtx_lock_spin(&sched_lock);
 		sched_bind(curthread, cpu);
@@ -1958,7 +1955,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			struct mbuf *m = NULL;
 			if (cxgb_debug)
 				printf("IMM DATA VALID\n");
-			if (rspq->m == NULL)  
+			if (rspq->m == NULL)
 				rspq->m = m_gethdr(M_NOWAIT, MT_DATA);
                         else
 				m = m_gethdr(M_NOWAIT, MT_DATA);
@@ -1974,10 +1971,9 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 		} else if (r->len_cq) {			
 			int drop_thresh = eth ? SGE_RX_DROP_THRES : 0;
 
-                        if (rspq->m == NULL) { 
+                        if (rspq->m == NULL)  
 				rspq->m = m_gethdr(M_NOWAIT, MT_DATA);
-				rspq->m->m_flags = 0;
-                        } else if (rspq->m == NULL) { 
+			if (rspq->m == NULL) { 
 				log(LOG_WARNING, "failed to get mbuf for packet\n"); 
 				break; 
 			}
