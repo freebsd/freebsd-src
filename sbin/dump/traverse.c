@@ -777,7 +777,7 @@ loop:
 			cnt = cread(diskfd, tmpbuf, secsize, offset - base);
 			if (cnt != secsize)
 				goto bad;
-			xfer = secsize - base;
+			xfer = MIN(secsize - base, size);
 			offset += xfer;
 			bytes -= xfer;
 			resid = bytes % secsize;
