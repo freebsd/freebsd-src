@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002, 2006 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: findfp.c,v 1.66 2002/02/20 02:40:24 ca Exp $")
+SM_RCSID("@(#)$Id: findfp.c,v 1.67 2006/08/28 21:24:46 ca Exp $")
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/param.h>
@@ -365,6 +365,11 @@ sm_io_getinfo(fp, what, valp)
 	switch (what)
 	{
 	  case SM_IO_WHAT_VECTORS:
+		if (valp == NULL)
+		{
+			errno = EINVAL;
+			return -1;
+		}
 
 		/* This is the "generic" available for all */
 		v->f_close = fp->f_close;

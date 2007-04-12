@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sasl.c,v 8.21 2004/11/22 23:09:00 gshapiro Exp $")
+SM_RCSID("@(#)$Id: sasl.c,v 8.22 2006/08/15 23:24:57 ca Exp $")
 
 #if SASL
 # include <stdlib.h>
@@ -258,7 +258,7 @@ iptostring(addr, addrlen, out, outlen)
 		niflags |= NI_WITHSCOPEID;
 #   endif /* NI_WITHSCOPEID */
 	if (getnameinfo((struct sockaddr *) addr, addrlen,
-			hbuf, sizeof hbuf, pbuf, sizeof pbuf, niflags) != 0)
+			hbuf, sizeof(hbuf), pbuf, sizeof(pbuf), niflags) != 0)
 		return false;
 #  else /* NETINET6 */
 	if (addr->sa.sa_family != AF_INET)
@@ -272,7 +272,7 @@ iptostring(addr, addrlen, out, outlen)
 		errno = ENOMEM;
 		return false;
 	}
-	sm_snprintf(pbuf, sizeof pbuf, "%d", ntohs(addr->sin.sin_port));
+	sm_snprintf(pbuf, sizeof(pbuf), "%d", ntohs(addr->sin.sin_port));
 #  endif /* NETINET6 */
 
 	if (outlen < strlen(hbuf) + strlen(pbuf) + 2)

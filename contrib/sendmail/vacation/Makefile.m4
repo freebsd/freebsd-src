@@ -1,7 +1,8 @@
-dnl $Id: Makefile.m4,v 8.25 2002/06/21 22:01:57 ca Exp $
+dnl $Id: Makefile.m4,v 8.26 2006/06/28 21:08:05 ca Exp $
 include(confBUILDTOOLSDIR`/M4/switch.m4')
 
 define(`confREQUIRE_LIBSM', `true')
+define(`confREQUIRE_SM_OS_H', `true')
 # sendmail dir
 SMSRCDIR=	ifdef(`confSMSRCDIR', `confSMSRCDIR', `${SRCDIR}/sendmail')
 PREPENDDEF(`confENVDEF', `confMAPDEF')

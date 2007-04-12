@@ -29,10 +29,10 @@ This list is not guaranteed to be complete.
 * Null bytes are not handled properly in headers.
 
   Sendmail should handle full binary data.  As it stands, it handles
-  all values in the body, but only 0x01-0x80 and 0xA0-0xFF in
-  the header.  Notably missing is 0x00, which would require a major
-  restructuring of the code -- for example, almost no C library support
-  could be used to handle strings.
+  all values in the body, but not 0x00 in the header.  Changing
+  this would require a major restructuring of the code -- for
+  example, almost no C library support could be used to handle
+  strings.
 
 * Header checks are not called if header value is too long or empty.
 
@@ -170,7 +170,7 @@ Kresolve sequence dnsmx canon
 
   When sendmail is doing 8->7 bit MIME conversions, and the message
   contains certain MIME body types that cannot be converted to 7-bit,
-  sendmail will strip the message to 7-bit.
+  sendmail will pass the message as 8-bit.
 
 * 7->8 bit MIME conversion
 
@@ -235,9 +235,9 @@ Kresolve sequence dnsmx canon
 
   Sendmail will deliver to a fail if the file is owned by the DefaultUser
   or has the set-user-ID bit set.  Unfortunately, some systems clear that bit
-  when a file is modified.  Sendmail compensates by resetting the file mode 
+  when a file is modified.  Sendmail compensates by resetting the file mode
   back to it's original settings.  Unfortunately, there's still a
-  permission failure race as sendmail checks the permissions before locking 
+  permission failure race as sendmail checks the permissions before locking
   the file.  This is unavoidable as sendmail must verify the file is safe
   to open before opening it.  A file can not be locked until it is open.
 
@@ -247,4 +247,4 @@ Kresolve sequence dnsmx canon
   be used if set instead of LOCAL_RELAY ($R).  This will be fixed in a
   future version.
 
-$Revision: 8.57 $, Last updated $Date: 2004/12/02 23:39:01 $
+$Revision: 8.59 $, Last updated $Date: 2007/02/21 23:13:58 $

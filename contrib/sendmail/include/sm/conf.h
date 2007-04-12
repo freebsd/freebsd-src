@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,14 +10,16 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.128 2006/01/27 18:43:44 ca Exp $
+ *	$Id: conf.h,v 1.132 2007/03/21 23:56:18 ca Exp $
  */
 
 /*
 **  CONF.H -- All user-configurable parameters for sendmail
 **
-**	Send updates to sendmail@Sendmail.ORG so they will be
-**	included in the next release.
+**	Send updates to Sendmail.ORG so they will be
+**	included in the next release; see
+**	http://www.sendmail.org/email-addresses.html
+**	for current e-mail address.
 */
 
 #ifndef SM_CONF_H
@@ -160,6 +162,8 @@ extern void	hard_syslog();
 */
 
 # ifdef _AIX5
+#  include <sys/signal.h>
+#  include <sys/wait.h>
 #  define _AIX4		40300
 #  define SOCKADDR_LEN_T socklen_t /* e.g., arg#3 to accept, getsockname */
 #  define SOCKOPT_LEN_T	socklen_t /* arg#5 to getsockopt */
@@ -444,6 +448,7 @@ typedef int		pid_t;
 #     define SMRSH_CMDDIR	"/var/adm/sm.bin"
 #    endif /* ! SMRSH_CMDDIR */
 #    define SL_FUDGE	34	/* fudge offset for SyslogPrefixLen */
+#    define HASLDAPGETALIASBYNAME	1	/* added in S8 */
 #   endif /* SOLARIS >= 20800 || (SOLARIS < 10000 && SOLARIS >= 208) */
 #   if SOLARIS >= 20900 || (SOLARIS < 10000 && SOLARIS >= 209)
 #    define HASURANDOMDEV	1	/* /dev/[u]random added in S9 */
@@ -852,36 +857,64 @@ extern unsigned int sleepX __P((unsigned int seconds));
 # endif /* __bsdi__ */
 
 
+# if defined(__QNX__)
+#  if defined(__QNXNTO__)
+/* QNX 6 */
+#   include <unix.h>
+#   define HASUNSETENV	1	/* has unsetenv(3) call */
+#   define HASINITGROUPS	1	/* has initgroups(3) call */
+#   define HASSETSID	1	/* has POSIX setsid(2) call */
+#   define USESETEUID	1	/* has usable seteuid(2) call */
+#   define HASFCHMOD	1	/* has fchmod(2) syscall */
+#   define HASFCHOWN	1	/* has fchown(2) syscall */
+#   define HASUNAME	1	/* has uname(2) syscall */
+#   define HASSTRERROR	1	/* has strerror(3) */
+#   define BSD4_4_SOCKADDR	/* has sa_len */
+#   define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
+#   define NETLINK	1	/* supports AF_LINK */
+#   define GIDSET_T	gid_t
+#   define QUAD_T	uint64_t
+#   define HASSNPRINTF	1	/* has snprintf(3) (all versions?) */
+#   define HASGETUSERSHELL 0
+
+/*
+**  We have a strrev() that doesn't allocate anything.
+**  Make sure the one here is used.
+*/
+
+#   define strrev strrev_sendmail
+
+#  else /* defined(__QNXNTO__) */
+
 /*
 **  QNX 4.2x
 **	Contributed by Glen McCready <glen@qnx.com>.
 **
-**	Should work with all versions of QNX.
+**	Should work with all versions of QNX 4.
 */
 
-# if defined(__QNX__)
-#  include <unix.h>
-#  include <sys/select.h>
-#  undef NGROUPS_MAX
-#  define HASSETSID	1	/* has POSIX setsid(2) call */
-#  define USESETEUID	1	/* has usable seteuid(2) call */
-#  define HASFCHMOD	1	/* has fchmod(2) syscall */
-#  define HASGETDTABLESIZE 1	/* has getdtablesize(2) call */
-#  define HASSETREUID	1	/* has setreuid(2) call */
-#  define HASSTRERROR	1	/* has strerror(3) */
-#  define HASFLOCK	0
-#  undef HASINITGROUPS		/* has initgroups(3) call */
-#  define SM_CONF_GETOPT	0	/* need a replacement for getopt(3) */
-#  define IP_SRCROUTE	1	/* can check IP source routing */
-#  define TZ_TYPE	TZ_TMNAME	/* use tmname variable */
-#  define GIDSET_T	gid_t
-#  define LA_TYPE	LA_ZERO
-#  define SFS_TYPE	SFS_NONE
-#  define SPT_TYPE	SPT_REUSEARGV
-#  define SPT_PADCHAR	'\0'	/* pad process title with nulls */
-#  define HASGETUSERSHELL 0
-#  define E_PSEUDOBASE	512
-#  define _FILE_H_INCLUDED
+#   include <unix.h>
+#   include <sys/select.h>
+#   undef NGROUPS_MAX
+#   define HASSETSID	1	/* has POSIX setsid(2) call */
+#   define USESETEUID	1	/* has usable seteuid(2) call */
+#   define HASFCHMOD	1	/* has fchmod(2) syscall */
+#   define HASGETDTABLESIZE 1	/* has getdtablesize(2) call */
+#   define HASSETREUID	1	/* has setreuid(2) call */
+#   define HASSTRERROR	1	/* has strerror(3) */
+#   define HASFLOCK	0
+#   undef HASINITGROUPS		/* has initgroups(3) call */
+#   define SM_CONF_GETOPT	0	/* need a replacement for getopt(3) */
+#   define IP_SRCROUTE	1	/* can check IP source routing */
+#   define TZ_TYPE	TZ_TMNAME	/* use tmname variable */
+#   define GIDSET_T	gid_t
+#   define LA_TYPE	LA_ZERO
+#   define SFS_TYPE	SFS_NONE
+#   define SPT_TYPE	SPT_REUSEARGV
+#   define SPT_PADCHAR	'\0'	/* pad process title with nulls */
+#   define HASGETUSERSHELL 0
+#   define _FILE_H_INCLUDED
+#  endif /* defined(__QNXNTO__) */
 # endif /* defined(__QNX__) */
 
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2005 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smfi.c,v 8.74 2005/03/30 00:44:07 ca Exp $")
+SM_RCSID("@(#)$Id: smfi.c,v 8.82 2007/01/20 06:37:19 ca Exp $")
 #include <sm/varargs.h>
 #include "libmilter.h"
 
@@ -29,7 +29,6 @@ static int myisenhsc __P((const char *, int));
 **		hdridx -- Header index
 **		headerf -- Header field name
 **		headerv -- Header field value
-**
 **
 **	Returns:
 **		MI_SUCCESS/MI_FAILURE
@@ -151,6 +150,221 @@ smfi_chgheader(ctx, headerf, hdridx, headerv)
 		headerv = "";
 
 	return smfi_header(ctx, SMFIR_CHGHEADER, hdridx, headerf, headerv);
+}
+
+#if 0
+/*
+**  BUF_CRT_SEND -- construct buffer to send from arguments
+**
+**	Parameters:
+**		ctx -- Opaque context structure
+**		cmd -- command
+**		arg0 -- first argument
+**		argv -- list of arguments (NULL terminated)
+**
+**	Returns:
+**		MI_SUCCESS/MI_FAILURE
+*/
+
+static int
+buf_crt_send __P((SMFICTX *, int cmd, char *, char **));
+
+static int
+buf_crt_send(ctx, cmd, arg0, argv)
+	SMFICTX *ctx;
+	int cmd;
+	char *arg0;
+	char **argv;
+{
+	size_t len, l0, l1, offset;
+	int r;
+	char *buf, *arg, **argvl;
+	struct timeval timeout;
+
+	if (arg0 == NULL || *arg0 == '\0')
+		return MI_FAILURE;
+	timeout.tv_sec = ctx->ctx_timeout;
+	timeout.tv_usec = 0;
+	l0 = strlen(arg0) + 1;
+	len = l0;
+	argvl = argv;
+	while (argvl != NULL && (arg = *argv) != NULL && *arg != '\0')
+	{
+		l1 = strlen(arg) + 1;
+		len += l1;
+		SM_ASSERT(len > l1);
+	}
+
+	buf = malloc(len);
+	if (buf == NULL)
+		return MI_FAILURE;
+	(void) memcpy(buf, arg0, l0);
+	offset = l0;
+
+	argvl = argv;
+	while (argvl != NULL && (arg = *argv) != NULL && *arg != '\0')
+	{
+		l1 = strlen(arg) + 1;
+		SM_ASSERT(offset < len);
+		SM_ASSERT(offset + l1 <= len);
+		(void) memcpy(buf + offset, arg, l1);
+		offset += l1;
+		SM_ASSERT(offset > l1);
+	}
+
+	r = mi_wr_cmd(ctx->ctx_sd, &timeout, cmd, buf, len);
+	free(buf);
+	return r;
+}
+#endif /* 0 */
+
+/*
+**  SEND2 -- construct buffer to send from arguments
+**
+**	Parameters:
+**		ctx -- Opaque context structure
+**		cmd -- command
+**		arg0 -- first argument
+**		argv -- list of arguments (NULL terminated)
+**
+**	Returns:
+**		MI_SUCCESS/MI_FAILURE
+*/
+
+static int
+send2 __P((SMFICTX *, int cmd, char *, char *));
+
+static int
+send2(ctx, cmd, arg0, arg1)
+	SMFICTX *ctx;
+	int cmd;
+	char *arg0;
+	char *arg1;
+{
+	size_t len, l0, l1, offset;
+	int r;
+	char *buf;
+	struct timeval timeout;
+
+	if (arg0 == NULL || *arg0 == '\0')
+		return MI_FAILURE;
+	timeout.tv_sec = ctx->ctx_timeout;
+	timeout.tv_usec = 0;
+	l0 = strlen(arg0) + 1;
+	len = l0;
+	if (arg1 != NULL)
+	{
+		l1 = strlen(arg1) + 1;
+		len += l1;
+		SM_ASSERT(len > l1);
+	}
+
+	buf = malloc(len);
+	if (buf == NULL)
+		return MI_FAILURE;
+	(void) memcpy(buf, arg0, l0);
+	offset = l0;
+
+	if (arg1 != NULL)
+	{
+		l1 = strlen(arg1) + 1;
+		SM_ASSERT(offset < len);
+		SM_ASSERT(offset + l1 <= len);
+		(void) memcpy(buf + offset, arg1, l1);
+		offset += l1;
+		SM_ASSERT(offset > l1);
+	}
+
+	r = mi_wr_cmd(ctx->ctx_sd, &timeout, cmd, buf, len);
+	free(buf);
+	return r;
+}
+
+/*
+**  SMFI_CHGFROM -- change enveloper sender ("from") address
+**
+**	Parameters:
+**		ctx -- Opaque context structure
+**		from -- new envelope sender address ("MAIL From")
+**		args -- ESMTP arguments
+**
+**	Returns:
+**		MI_SUCCESS/MI_FAILURE
+*/
+
+int
+smfi_chgfrom(ctx, from, args)
+	SMFICTX *ctx;
+	char *from;
+	char *args;
+{
+	if (from == NULL || *from == '\0')
+		return MI_FAILURE;
+	if (!mi_sendok(ctx, SMFIF_CHGFROM))
+		return MI_FAILURE;
+	return send2(ctx, SMFIR_CHGFROM, from, args);
+}
+
+/*
+**  SMFI_SETSYMLIST -- set list of macros that the MTA should send.
+**
+**	Parameters:
+**		ctx -- Opaque context structure
+**		where -- SMTP stage
+**		macros -- list of macros
+**
+**	Returns:
+**		MI_SUCCESS/MI_FAILURE
+*/
+
+int
+smfi_setsymlist(ctx, where, macros)
+	SMFICTX *ctx;
+	int where;
+	char *macros;
+{
+	SM_ASSERT(ctx != NULL);
+
+	if (macros == NULL || *macros == '\0')
+		return MI_FAILURE;
+	if (where < SMFIM_FIRST || where > SMFIM_LAST)
+		return MI_FAILURE;
+	if (where < 0 || where >= MAX_MACROS_ENTRIES)
+		return MI_FAILURE;
+
+	if (ctx->ctx_mac_list[where] != NULL)
+		return MI_FAILURE;
+
+	ctx->ctx_mac_list[where] = strdup(macros);
+	if (ctx->ctx_mac_list[where] == NULL)
+		return MI_FAILURE;
+
+	return MI_SUCCESS;
+}
+
+/*
+**  SMFI_ADDRCPT_PAR -- send an additional recipient to the MTA
+**
+**	Parameters:
+**		ctx -- Opaque context structure
+**		rcpt -- recipient address
+**		args -- ESMTP arguments
+**
+**	Returns:
+**		MI_SUCCESS/MI_FAILURE
+*/
+
+int
+smfi_addrcpt_par(ctx, rcpt, args)
+	SMFICTX *ctx;
+	char *rcpt;
+	char *args;
+{
+	if (rcpt == NULL || *rcpt == '\0')
+		return MI_FAILURE;
+	if (!mi_sendok(ctx, SMFIF_ADDRCPT_PAR))
+		return MI_FAILURE;
+	return send2(ctx, SMFIR_ADDRCPT_PAR, rcpt, args);
 }
 
 /*
@@ -645,4 +859,31 @@ smfi_progress(ctx)
 	timeout.tv_usec = 0;
 
 	return mi_wr_cmd(ctx->ctx_sd, &timeout, SMFIR_PROGRESS, NULL, 0);
+}
+
+/*
+**  SMFI_VERSION -- return (runtime) version of libmilter
+**
+**	Parameters:
+**		major -- (pointer to) major version
+**		minor -- (pointer to) minor version
+**		patchlevel -- (pointer to) patchlevel version
+**
+**	Return value:
+**		MI_SUCCESS
+*/
+
+int
+smfi_version(major, minor, patchlevel)
+	unsigned int *major;
+	unsigned int *minor;
+	unsigned int *patchlevel;
+{
+	if (major != NULL)
+		*major = SM_LM_VRS_MAJOR(SMFI_VERSION);
+	if (minor != NULL)
+		*minor = SM_LM_VRS_MINOR(SMFI_VERSION);
+	if (patchlevel != NULL)
+		*patchlevel = SM_LM_VRS_MINOR(SMFI_VERSION);
+	return MI_SUCCESS;
 }
