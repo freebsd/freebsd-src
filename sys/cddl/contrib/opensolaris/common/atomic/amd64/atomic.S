@@ -78,52 +78,52 @@
 
 	ENTRY(atomic_inc_8_nv)
 	ALTENTRY(atomic_inc_uchar_nv)
-	movb	(%rdi), %al
+	movb	(%rdi), %al	// %al = old value
 1:
-	leaq	1(%rax), %rcx
+	leaq	1(%rax), %rcx	// %cl = new value
 	lock
-	cmpxchgb %cl, (%rdi)
+	cmpxchgb %cl, (%rdi)	// try to stick it in
 	jne	1b
-	movzbl	%cl, %eax
+	movzbl	%cl, %eax	// return new value
 	ret
 	SET_SIZE(atomic_inc_uchar_nv)
 	SET_SIZE(atomic_inc_8_nv)
 
 	ENTRY(atomic_inc_16_nv)
 	ALTENTRY(atomic_inc_ushort_nv)
-	movw	(%rdi), %ax
+	movw	(%rdi), %ax	// %ax = old value
 1:
-	leaq	1(%rax), %rcx
+	leaq	1(%rax), %rcx	// %cx = new value
 	lock
-	cmpxchgw %cx, (%rdi)
+	cmpxchgw %cx, (%rdi)	// try to stick it in
 	jne	1b
-	movzwl	%cx, %eax
+	movzwl	%cx, %eax	// return new value
 	ret
 	SET_SIZE(atomic_inc_ushort_nv)
 	SET_SIZE(atomic_inc_16_nv)
 
 	ENTRY(atomic_inc_32_nv)
 	ALTENTRY(atomic_inc_uint_nv)
-	movl	(%rdi), %eax
+	movl	(%rdi), %eax	// %eax = old value
 1:
-	leaq	1(%rax), %rcx
+	leaq	1(%rax), %rcx	// %ecx = new value
 	lock
-	cmpxchgl %ecx, (%rdi)
+	cmpxchgl %ecx, (%rdi)	// try to stick it in
 	jne	1b
-	movl	%ecx, %eax
+	movl	%ecx, %eax	// return new value
 	ret
 	SET_SIZE(atomic_inc_uint_nv)
 	SET_SIZE(atomic_inc_32_nv)
 
 	ENTRY(atomic_inc_64_nv)
 	ALTENTRY(atomic_inc_ulong_nv)
-	movq	(%rdi), %rax
+	movq	(%rdi), %rax	// %rax = old value
 1:
-	leaq	1(%rax), %rcx
+	leaq	1(%rax), %rcx	// %rcx = new value
 	lock
-	cmpxchgq %rcx, (%rdi)
+	cmpxchgq %rcx, (%rdi)	// try to stick it in
 	jne	1b
-	movq	%rcx, %rax
+	movq	%rcx, %rax	// return new value
 	ret
 	SET_SIZE(atomic_inc_ulong_nv)
 	SET_SIZE(atomic_inc_64_nv)
@@ -162,52 +162,52 @@
 
 	ENTRY(atomic_dec_8_nv)
 	ALTENTRY(atomic_dec_uchar_nv)
-	movb	(%rdi), %al
+	movb	(%rdi), %al	// %al = old value
 1:
-	leaq	-1(%rax), %rcx
+	leaq	-1(%rax), %rcx	// %cl = new value
 	lock
-	cmpxchgb %cl, (%rdi)
+	cmpxchgb %cl, (%rdi)	// try to stick it in
 	jne	1b
-	movzbl	%cl, %eax
+	movzbl	%cl, %eax	// return new value
 	ret
 	SET_SIZE(atomic_dec_uchar_nv)
 	SET_SIZE(atomic_dec_8_nv)
 
 	ENTRY(atomic_dec_16_nv)
 	ALTENTRY(atomic_dec_ushort_nv)
-	movw	(%rdi), %ax
+	movw	(%rdi), %ax	// %ax = old value
 1:
-	leaq	-1(%rax), %rcx
+	leaq	-1(%rax), %rcx	// %cx = new value
 	lock
-	cmpxchgw %cx, (%rdi)
+	cmpxchgw %cx, (%rdi)	// try to stick it in
 	jne	1b
-	movzwl	%cx, %eax
+	movzwl	%cx, %eax	// return new value
 	ret
 	SET_SIZE(atomic_dec_ushort_nv)
 	SET_SIZE(atomic_dec_16_nv)
 
 	ENTRY(atomic_dec_32_nv)
 	ALTENTRY(atomic_dec_uint_nv)
-	movl	(%rdi), %eax
+	movl	(%rdi), %eax	// %eax = old value
 1:
-	leaq	-1(%rax), %rcx
+	leaq	-1(%rax), %rcx	// %ecx = new value
 	lock
-	cmpxchgl %ecx, (%rdi)
+	cmpxchgl %ecx, (%rdi)	// try to stick it in
 	jne	1b
-	movl	%ecx, %eax
+	movl	%ecx, %eax	// return new value
 	ret
 	SET_SIZE(atomic_dec_uint_nv)
 	SET_SIZE(atomic_dec_32_nv)
 
 	ENTRY(atomic_dec_64_nv)
 	ALTENTRY(atomic_dec_ulong_nv)
-	movq	(%rdi), %rax
+	movq	(%rdi), %rax	// %rax = old value
 1:
-	leaq	-1(%rax), %rcx
+	leaq	-1(%rax), %rcx	// %rcx = new value
 	lock
-	cmpxchgq %rcx, (%rdi)
+	cmpxchgq %rcx, (%rdi)	// try to stick it in
 	jne	1b
-	movq	%rcx, %rax
+	movq	%rcx, %rax	// return new value
 	ret
 	SET_SIZE(atomic_dec_ulong_nv)
 	SET_SIZE(atomic_dec_64_nv)
@@ -278,28 +278,28 @@
 
 	ENTRY(atomic_add_8_nv)
 	ALTENTRY(atomic_add_char_nv)
-	movb	(%rdi), %al
+	movb	(%rdi), %al	// %al = old value
 1:
 	movb	%sil, %cl
-	addb	%al, %cl
+	addb	%al, %cl	// %cl = new value
 	lock
-	cmpxchgb %cl, (%rdi)
+	cmpxchgb %cl, (%rdi)	// try to stick it in
 	jne	1b
-	movzbl	%cl, %eax
+	movzbl	%cl, %eax	// return new value
 	ret
 	SET_SIZE(atomic_add_char_nv)
 	SET_SIZE(atomic_add_8_nv)
 
 	ENTRY(atomic_add_16_nv)
 	ALTENTRY(atomic_add_short_nv)
-	movw	(%rdi), %ax
+	movw	(%rdi), %ax	// %ax = old value
 1:
 	movw	%si, %cx
-	addw	%ax, %cx
+	addw	%ax, %cx	// %cx = new value
 	lock
-	cmpxchgw %cx, (%rdi)
+	cmpxchgw %cx, (%rdi)	// try to stick it in
 	jne	1b
-	movzwl	%cx, %eax
+	movzwl	%cx, %eax	// return new value
 	ret
 	SET_SIZE(atomic_add_short_nv)
 	SET_SIZE(atomic_add_16_nv)
@@ -336,28 +336,28 @@
 
 	ENTRY(atomic_and_8_nv)
 	ALTENTRY(atomic_and_uchar_nv)
-	movb	(%rdi), %al
+	movb	(%rdi), %al	// %al = old value
 1:
 	movb	%sil, %cl
-	andb	%al, %cl
+	andb	%al, %cl	// %cl = new value
 	lock
-	cmpxchgb %cl, (%rdi)
+	cmpxchgb %cl, (%rdi)	// try to stick it in
 	jne	1b
-	movzbl	%cl, %eax
+	movzbl	%cl, %eax	// return new value
 	ret
 	SET_SIZE(atomic_and_uchar_nv)
 	SET_SIZE(atomic_and_8_nv)
 
 	ENTRY(atomic_and_16_nv)
 	ALTENTRY(atomic_and_ushort_nv)
-	movw	(%rdi), %ax
+	movw	(%rdi), %ax	// %ax = old value
 1:
 	movw	%si, %cx
-	andw	%ax, %cx
+	andw	%ax, %cx	// %cx = new value
 	lock
-	cmpxchgw %cx, (%rdi)
+	cmpxchgw %cx, (%rdi)	// try to stick it in
 	jne	1b
-	movzwl	%cx, %eax
+	movzwl	%cx, %eax	// return new value
 	ret
 	SET_SIZE(atomic_and_ushort_nv)
 	SET_SIZE(atomic_and_16_nv)
@@ -392,28 +392,28 @@
 
 	ENTRY(atomic_or_8_nv)
 	ALTENTRY(atomic_or_uchar_nv)
-	movb	(%rdi), %al
+	movb	(%rdi), %al	// %al = old value
 1:
 	movb	%sil, %cl
-	orb	%al, %cl
+	orb	%al, %cl	// %cl = new value
 	lock
-	cmpxchgb %cl, (%rdi)
+	cmpxchgb %cl, (%rdi)	// try to stick it in
 	jne	1b
-	movzbl	%cl, %eax
+	movzbl	%cl, %eax	// return new value
 	ret
 	SET_SIZE(atomic_and_uchar_nv)
 	SET_SIZE(atomic_and_8_nv)
 
 	ENTRY(atomic_or_16_nv)
 	ALTENTRY(atomic_or_ushort_nv)
-	movw	(%rdi), %ax
+	movw	(%rdi), %ax	// %ax = old value
 1:
 	movw	%si, %cx
-	orw	%ax, %cx
+	orw	%ax, %cx	// %cx = new value
 	lock
-	cmpxchgw %cx, (%rdi)
+	cmpxchgw %cx, (%rdi)	// try to stick it in
 	jne	1b
-	movzwl	%cx, %eax
+	movzwl	%cx, %eax	// return new value
 	ret
 	SET_SIZE(atomic_or_ushort_nv)
 	SET_SIZE(atomic_or_16_nv)
@@ -527,7 +527,7 @@
 	lock
 	btsq	%rsi, (%rdi)
 	jnc	1f
-	decl	%eax
+	decl	%eax			// return -1
 1:
 	ret
 	SET_SIZE(atomic_set_long_excl)
@@ -537,7 +537,7 @@
 	lock
 	btrq	%rsi, (%rdi)
 	jc	1f
-	decl	%eax
+	decl	%eax			// return -1
 1:
 	ret
 	SET_SIZE(atomic_clear_long_excl)
