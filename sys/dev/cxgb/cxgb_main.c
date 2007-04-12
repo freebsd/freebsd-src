@@ -1015,7 +1015,7 @@ cxgb_link_start(struct port_info *p)
 
 	t3_init_rx_mode(&rm, p);
 	t3_mac_reset(mac);
-	t3_mac_set_mtu(mac, ifp->if_mtu);
+	t3_mac_set_mtu(mac, ifp->if_mtu + ETHER_HDR_LEN);
 	t3_mac_set_address(mac, 0, p->hw_addr);
 	t3_mac_set_rx_mode(mac, &rm);
 	t3_link_start(&p->phy, mac, &p->link_config);
@@ -1196,7 +1196,7 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			PORT_LOCK(p);
 			ifp->if_mtu = ifr->ifr_mtu;
-			t3_mac_set_mtu(&p->mac, ifp->if_mtu);
+			t3_mac_set_mtu(&p->mac, ifp->if_mtu + ETHER_HDR_LEN);
 			PORT_UNLOCK(p);
 		}
 		break;
@@ -1470,7 +1470,7 @@ check_t3b2_mac(struct adapter *adapter)
 		else if (status == 2) {
 			struct cmac *mac = &p->mac;
 
-			t3_mac_set_mtu(mac, ifp->if_mtu);
+			t3_mac_set_mtu(mac, ifp->if_mtu + ETHER_HDR_LEN);
 			t3_mac_set_address(mac, 0, p->hw_addr);
 			cxgb_set_rxmode(p);
 			t3_link_start(&p->phy, mac, &p->link_config);
