@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001, 2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001, 2003, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,14 +13,17 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: macro.c,v 8.88 2003/09/05 23:11:18 ca Exp $")
+SM_RCSID("@(#)$Id: macro.c,v 8.102 2006/12/21 23:06:10 ca Exp $")
 
+#include <sm/sendmail.h>
 #if MAXMACROID != (BITMAPBITS - 1)
 	ERROR Read the comment in conf.h
 #endif /* MAXMACROID != (BITMAPBITS - 1) */
 
 static char	*MacroName[MAXMACROID + 1];	/* macro id to name table */
 int		NextMacroId = 0240;	/* codes for long named macros */
+/* see sendmail.h: Special characters in rewriting rules. */
+
 
 /*
 **  INITMACROS -- initialize the macro system
@@ -67,10 +70,10 @@ struct metamac	MetaMacros[] =
 
 void
 initmacros(e)
-	register ENVELOPE *e;
+	ENVELOPE *e;
 {
-	register struct metamac *m;
-	register int c;
+	struct metamac *m;
+	int c;
 	char buf[5];
 
 	for (m = MetaMacros; m->metaname != '\0'; m++)
@@ -94,13 +97,19 @@ initmacros(e)
 	MACBINDING("opMode", MID_OPMODE);
 	/*XXX should probably add equivalents for all short macros here XXX*/
 }
+
 /*
-**  EXPAND -- macro expand a string using $x escapes.
+**  EXPAND/DOEXPAND -- macro expand a string using $x escapes.
+**
+**	After expansion, the expansion will be in external form (that is,
+**	there will be no sendmail metacharacters and METAQUOTEs will have
+**	been stripped out).
 **
 **	Parameters:
 **		s -- the string to expand.
 **		buf -- the place to put the expansion.
 **		bufsize -- the size of the buffer.
+**		explevel -- the depth of expansion (doexpand only)
 **		e -- envelope in which to work.
 **
 **	Returns:
@@ -110,22 +119,25 @@ initmacros(e)
 **		none.
 */
 
-void
-expand(s, buf, bufsize, e)
-	register char *s;
-	register char *buf;
+static void doexpand __P(( char *, char *, size_t, int, ENVELOPE *));
+
+static void
+doexpand(s, buf, bufsize, explevel, e)
+	char *s;
+	char *buf;
 	size_t bufsize;
-	register ENVELOPE *e;
+	int explevel;
+	ENVELOPE *e;
 {
-	register char *xp;
-	register char *q;
+	char *xp;
+	char *q;
 	bool skipping;		/* set if conditionally skipping output */
 	bool recurse;		/* set if recursion required */
 	size_t i;
 	int skiplev;		/* skipping nesting level */
 	int iflev;		/* if nesting level */
+	bool quotenext;		/* quote the following character */
 	char xbuf[MACBUFSIZE];
-	static int explevel = 0;
 
 	if (tTd(35, 24))
 	{
@@ -138,6 +150,7 @@ expand(s, buf, bufsize, e)
 	skipping = false;
 	skiplev = 0;
 	iflev = 0;
+	quotenext = false;
 	if (s == NULL)
 		s = "";
 	for (xp = xbuf; *s != '\0'; s++)
@@ -150,12 +163,19 @@ expand(s, buf, bufsize, e)
 		*/
 
 		q = NULL;
-		c = *s;
-		switch (c & 0377)
+		c = *s & 0377;
+
+		if (quotenext)
+		{
+			quotenext = false;
+			goto simpleinterpolate;
+		}
+
+		switch (c)
 		{
 		  case CONDIF:		/* see if var set */
 			iflev++;
-			c = *++s;
+			c = *++s & 0377;
 			if (skipping)
 				skiplev++;
 			else
@@ -196,33 +216,45 @@ expand(s, buf, bufsize, e)
 			if (q == NULL)
 				continue;
 			break;
+
+		  case METAQUOTE:
+			/* next octet completely quoted */
+			quotenext = true;
+			break;
 		}
 
 		/*
 		**  Interpolate q or output one character
 		*/
 
-		if (skipping || xp >= &xbuf[sizeof xbuf - 1])
+  simpleinterpolate:
+		if (skipping || xp >= &xbuf[sizeof(xbuf) - 1])
 			continue;
 		if (q == NULL)
 			*xp++ = c;
 		else
 		{
 			/* copy to end of q or max space remaining in buf */
-			while ((c = *q++) != '\0' && xp < &xbuf[sizeof xbuf - 1])
+			bool hiderecurse = false;
+
+			while ((c = *q++) != '\0' &&
+				xp < &xbuf[sizeof(xbuf) - 1])
 			{
 				/* check for any sendmail metacharacters */
-				if ((c & 0340) == 0200)
+				if (!hiderecurse && (c & 0340) == 0200)
 					recurse = true;
 				*xp++ = c;
+
+				/* give quoted characters a free ride */
+				hiderecurse = (c & 0377) == METAQUOTE;
 			}
 		}
 	}
 	*xp = '\0';
 
-	if (tTd(35, 24))
+	if (tTd(35, 28))
 	{
-		sm_dprintf("expand ==> ");
+		sm_dprintf("expand(%d) ==> ", explevel);
 		xputs(sm_debug_file(), xbuf);
 		sm_dprintf("\n");
 	}
@@ -232,9 +264,7 @@ expand(s, buf, bufsize, e)
 	{
 		if (explevel < MaxMacroRecursion)
 		{
-			explevel++;
-			expand(xbuf, buf, bufsize, e);
-			explevel--;
+			doexpand(xbuf, buf, bufsize, explevel + 1, e);
 			return;
 		}
 		syserr("expand: recursion too deep (%d max)",
@@ -242,11 +272,34 @@ expand(s, buf, bufsize, e)
 	}
 
 	/* copy results out */
-	i = xp - xbuf;
-	if (i >= bufsize)
-		i = bufsize - 1;
-	memmove(buf, xbuf, i);
-	buf[i] = '\0';
+	if (explevel == 0)
+		(void) sm_strlcpy(buf, xbuf, bufsize);
+	else
+	{
+		/* leave in internal form */
+		i = xp - xbuf;
+		if (i >= bufsize)
+			i = bufsize - 1;
+		memmove(buf, xbuf, i);
+		buf[i] = '\0';
+	}
+
+	if (tTd(35, 24))
+	{
+		sm_dprintf("expand ==> ");
+		xputs(sm_debug_file(), buf);
+		sm_dprintf("\n");
+	}
+}
+
+void
+expand(s, buf, bufsize, e)
+	char *s;
+	char *buf;
+	size_t bufsize;
+	ENVELOPE *e;
+{
+	doexpand(s, buf, bufsize, 0, e);
 }
 
 /*
@@ -407,19 +460,19 @@ macset(mac, i, value)
 char *
 macvalue(n, e)
 	int n;
-	register ENVELOPE *e;
+	ENVELOPE *e;
 {
 	n = bitidx(n);
 	if (e != NULL && e->e_mci != NULL)
 	{
-		register char *p = e->e_mci->mci_macro.mac_table[n];
+		char *p = e->e_mci->mci_macro.mac_table[n];
 
 		if (p != NULL)
 			return p;
 	}
 	while (e != NULL)
 	{
-		register char *p = e->e_macro.mac_table[n];
+		char *p = e->e_macro.mac_table[n];
 
 		if (p != NULL)
 			return p;
@@ -429,6 +482,7 @@ macvalue(n, e)
 	}
 	return GlobalMacros.mac_table[n];
 }
+
 /*
 **  MACNAME -- return the name of a macro given its internal id
 **
@@ -440,6 +494,9 @@ macvalue(n, e)
 **
 **	Side Effects:
 **		none.
+**
+**	WARNING:
+**		Not thread-safe.
 */
 
 char *
@@ -448,8 +505,12 @@ macname(n)
 {
 	static char mbuf[2];
 
-	n = bitidx(n);
-	if (bitset(0200, n))
+	n = (int)(unsigned char)n;
+	if (n > MAXMACROID)
+		return "***OUT OF RANGE MACRO***";
+
+	/* if not ASCII printable, look up the name */
+	if (n <= 0x20 || n > 0x7f)
 	{
 		char *p = MacroName[n];
 
@@ -457,10 +518,13 @@ macname(n)
 			return p;
 		return "***UNDEFINED MACRO***";
 	}
+
+	/* if in the ASCII graphic range, just return the id directly */
 	mbuf[0] = n;
 	mbuf[1] = '\0';
 	return mbuf;
 }
+
 /*
 **  MACID_PARSE -- return id of macro identified by its name
 **
@@ -472,7 +536,7 @@ macname(n)
 **
 **	Returns:
 **		0 -- An error was detected.
-**		1..255 -- The internal id code for this macro.
+**		1..MAXMACROID -- The internal id code for this macro.
 **
 **	Side Effects:
 **		If this is a new macro name, a new id is allocated.
@@ -481,11 +545,11 @@ macname(n)
 
 int
 macid_parse(p, ep)
-	register char *p;
+	char *p;
 	char **ep;
 {
 	int mid;
-	register char *bp;
+	char *bp;
 	char mbuf[MAXMACNAMELEN + 1];
 
 	if (tTd(35, 14))
@@ -510,11 +574,18 @@ macid_parse(p, ep)
 		if (ep != NULL)
 			*ep = p + 1;
 		if (tTd(35, 14))
-			sm_dprintf("%c\n", bitidx(*p));
+		{
+			char buf[2];
+
+			buf[0] = *p;
+			buf[1] = '\0';
+			xputs(sm_debug_file(), buf);
+			sm_dprintf("\n");
+		}
 		return bitidx(*p);
 	}
 	bp = mbuf;
-	while (*++p != '\0' && *p != '}' && bp < &mbuf[sizeof mbuf - 1])
+	while (*++p != '\0' && *p != '}' && bp < &mbuf[sizeof(mbuf) - 1])
 	{
 		if (isascii(*p) && (isalnum(*p) || *p == '_'))
 			*bp++ = *p;
@@ -530,7 +601,7 @@ macid_parse(p, ep)
 	else if (*p != '}')
 	{
 		syserr("Macro/class name ({%s}) too long (%d chars max)",
-			mbuf, (int) (sizeof mbuf - 1));
+			mbuf, (int) (sizeof(mbuf) - 1));
 	}
 	else if (mbuf[1] == '\0')
 	{
@@ -540,7 +611,7 @@ macid_parse(p, ep)
 	}
 	else
 	{
-		register STAB *s;
+		STAB *s;
 
 		s = stab(mbuf, ST_MACRO, ST_ENTER);
 		if (s->s_macro != 0)
@@ -574,6 +645,7 @@ macid_parse(p, ep)
 		sm_dprintf("0x%x\n", mid);
 	return mid;
 }
+
 /*
 **  WORDINCLASS -- tell if a word is in a specific class
 **
@@ -591,7 +663,7 @@ wordinclass(str, cl)
 	char *str;
 	int cl;
 {
-	register STAB *s;
+	STAB *s;
 
 	s = stab(str, ST_CLASS, ST_FIND);
 	return s != NULL && bitnset(bitidx(cl), s->s_class);

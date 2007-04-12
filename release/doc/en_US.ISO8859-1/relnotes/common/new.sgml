@@ -262,7 +262,7 @@
       included in OpenBSD 3.9.</para>
 
     <para><application>sendmail</application> has been updated from
-      8.13.6 to 8.13.8.</para>
+      8.13.6 to 8.14.1.</para>
 
     <para>The timezone database has been updated from the
       <application>tzdata2006g</application> release to the

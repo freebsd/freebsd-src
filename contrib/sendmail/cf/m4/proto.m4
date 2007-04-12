@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.719 2006/03/30 20:50:13 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.730 2007/02/01 18:50:03 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -396,12 +396,11 @@ _OPTION(FastSplit, `confFAST_SPLIT', `1')
 # queue directory
 O QueueDirectory=ifdef(`QUEUE_DIR', QUEUE_DIR, `/var/spool/mqueue')
 
-# key for shared memory; 0 to turn off
+# key for shared memory; 0 to turn off, -1 to auto-select
 _OPTION(SharedMemoryKey, `confSHARED_MEMORY_KEY', `0')
 
-ifdef(`confSHARED_MEMORY_KEY_FILE', `dnl
-# file to store key for shared memory (if SharedMemoryKey = -1)
-O SharedMemoryKeyFile=confSHARED_MEMORY_KEY_FILE')
+# file to store auto-selected key for shared memory (SharedMemoryKey = -1)
+_OPTION(SharedMemoryKeyFile, `confSHARED_MEMORY_KEY_FILE', `')
 
 # timeouts (many of these)
 _OPTION(Timeout.initial, `confTO_INITIAL', `5m')
@@ -452,7 +451,7 @@ _OPTION(DontPruneRoutes, `confDONT_PRUNE_ROUTES', `False')
 _OPTION(SuperSafe, `confSAFE_QUEUE', `True')
 
 # status file
-O StatusFile=ifdef(`STATUS_FILE', `STATUS_FILE', `MAIL_SETTINGS_DIR`'statistics')
+_OPTION(StatusFile, `STATUS_FILE')
 
 # time zone handling:
 #  if undefined, use system default
@@ -565,6 +564,9 @@ ifdef(`confUNSAFE_GROUP_WRITES',
 # where do errors that occur when sending errors get sent?
 _OPTION(DoubleBounceAddress, `confDOUBLE_BOUNCE_ADDRESS', `postmaster')
 
+# issue temporary errors (4xy) instead of permanent errors (5xy)?
+_OPTION(SoftBounce, `confSOFT_BOUNCE', `False')
+
 # where to save bounces if all else fails
 _OPTION(DeadLetterDrop, `confDEAD_LETTER_DROP', `/var/tmp/dead.letter')
 
@@ -648,7 +650,9 @@ _OPTION(Milter.macros.connect, `confMILTER_MACROS_CONNECT', `')
 _OPTION(Milter.macros.helo, `confMILTER_MACROS_HELO', `')
 _OPTION(Milter.macros.envfrom, `confMILTER_MACROS_ENVFROM', `')
 _OPTION(Milter.macros.envrcpt, `confMILTER_MACROS_ENVRCPT', `')
-_OPTION(Milter.macros.eom, `confMILTER_MACROS_EOM', `')')
+_OPTION(Milter.macros.eom, `confMILTER_MACROS_EOM', `')
+_OPTION(Milter.macros.eoh, `confMILTER_MACROS_EOH', `')
+_OPTION(Milter.macros.data, `confMILTER_MACROS_DATA', `')')
 
 # CA directory
 _OPTION(CACertPath, `confCACERT_PATH', `')
@@ -668,6 +672,12 @@ _OPTION(CRLFile, `confCRL', `')
 _OPTION(DHParameters, `confDH_PARAMETERS', `')
 # Random data source (required for systems without /dev/urandom under OpenSSL)
 _OPTION(RandFile, `confRAND_FILE', `')
+
+# Maximum number of "useless" commands before slowing down
+_OPTION(MaxNOOPCommands, `confMAX_NOOP_COMMANDS', `20')
+
+# Name to use for EHLO (defaults to $j)
+_OPTION(HeloName, `confHELO_NAME')
 
 ############################
 `# QUEUE GROUP DEFINITIONS  #'
@@ -1782,6 +1792,14 @@ ifdef(`_CONN_CONTROL_IMMEDIATE_',`',`dnl
 dnl workspace: ignored...
 R$*		$: $>"ConnControl" dummy')', `dnl')
 undivert(8)
+ifdef(`_REQUIRE_RDNS_', `dnl
+R$*			$: $&{client_addr} $| $&{client_resolve}
+R$=R $*			$@ RELAY		We relay for these
+R$* $| OK		$@ OK			Resolves.
+R$* $| FAIL		$#error $@ 5.7.1 $: 550 Fix reverse DNS for $1
+R$* $| TEMP		$#error $@ 4.1.8 $: 451 Client IP address $1 does not resolve
+R$* $| FORGED		$#error $@ 4.1.8 $: 451 Possibly forged hostname for $1
+', `dnl')
 
 ######################################################################
 ###  check_mail -- check SMTP ``MAIL FROM:'' command argument
@@ -1907,7 +1925,7 @@ R<? $+> $*		$#error $@ 5.5.4 $: "_CODE553 Domain name required for sender addres
 							...remote is not')
 # check results
 R<?> $*			$: @ $1		mark address: nothing known about it
-R<$={ResOk}> $*		$@ <_RES_OK_>	domain ok: stop
+R<$={ResOk}> $*		$: @ $2		domain ok
 R<TEMP> $*		$#error $@ 4.1.8 $: "451 Domain of sender address " $&f " does not resolve"
 R<PERM> $*		$#error $@ 5.1.8 $: "_CODE553 Domain of sender address " $&f " does not exist"
 ifdef(`_ACCESS_TABLE_', `dnl
@@ -1922,6 +1940,34 @@ ifdef(`_ATMPF_', `R<_ATMPF_> $*		$#error $@ 4.3.0 $: "451 Temporary system failu
 dnl generic error from access map
 R<$+> $*		$#error $: $1		error from access db',
 `dnl')
+dnl workspace: @ CanonicalAddress (i.e. address in canonical form localpart<@host>)
+
+ifdef(`_BADMX_CHK_', `dnl
+R@ $*<@$+>$*		$: $1<@$2>$3 $| $>BadMX $2
+R$* $| $#$*		$#$2
+
+SBadMX
+# Look up MX records and ferret away a copy of the original address.
+# input: domain part of address to check
+R$+				$:<MX><$1><:$(mxlist $1$):><:>
+# workspace: <MX><domain><: mxlist-result $><:>
+R<MX><$+><:$*<TEMP>:><$*>	$#error $@ 4.1.2 $: "450 MX lookup failure for "$1
+# workspace: <MX> <original destination> <unchecked mxlist> <checked mxlist>
+# Recursively run badmx check on each mx.
+R<MX><$*><:$+:$*><:$*>		<MX><$1><:$3><: $4 $(badmx $2 $):>
+# See if any of them fail.
+R<MX><$*><$*><$*<BADMX>:$*>	$#error $@ 5.1.2 $:"550 Illegal MX record for recipient host "$1
+# Reverse the mxlists so we can use the same argument order again.
+R<MX><$*><$*><$*>		$:<MX><$1><$3><$2>
+R<MX><$*><:$+:$*><:$*>		<MX><$1><:$3><:$4 $(dnsA $2 $) :>
+
+# Reverse the lists so we can use the same argument order again.
+R<MX><$*><$*><$*>		$:<MX><$1><$3><$2>
+R<MX><$*><:$+:$*><:$*>		<MX><$1><:$3><:$4 $(BadMXIP $2 $) :>
+
+R<MX><$*><$*><$*<BADMXIP>:$*>	$#error $@ 5.1.2 $:"550 Invalid MX record for recipient host "$1',
+`dnl')
+
 
 ######################################################################
 ###  check_rcpt -- check SMTP ``RCPT TO:'' command argument
@@ -2312,6 +2358,7 @@ ifdef(`_SPAM_HATER_',
 R<HATER> $+		$: $1			spam hater: continue checks
 R<$*> $+		$@ $>"Delay_TLS_Clt2" NOSPAMHATER	everyone else: stop
 dnl',`dnl')
+
 dnl run further checks: check_mail
 dnl should we "clean up" $&f?
 ifdef(`_FFR_MAIL_MACRO',
@@ -2322,6 +2369,27 @@ R$* $| $#$*		$#$2
 dnl run further checks: check_relay
 R$* $| $*		$: $1 $| $>checkrelay $&{client_name} $| $&{client_addr}
 R$* $| $#$*		$#$2
+R$* $| $*		$: $1
+', `dnl')
+
+ifdef(`_BLOCK_BAD_HELO_', `dnl
+R$*			$: $1 $| <$&{auth_authen}>	Get auth info
+dnl Bypass the test for users who have authenticated.
+R$* $| <$+>		$: $1				skip if auth
+R$* $| <$*>		$: $1 $| <$&{client_addr}> [$&s]	Get connection info
+dnl Bypass for local clients -- IP address starts with $=R
+R$* $| <$=R $*> [$*]	$: $1				skip if local client
+dnl Bypass a "sendmail -bs" session, which use 0 for client ip address
+R$* $| <0> [$*]		$: $1				skip if sendmail -bs
+dnl Reject our IP - assumes "[ip]" is in class $=w
+R$* $| <$*> $=w		$#error $@ 5.7.1 $:"550 bogus HELO name used: " $&s
+dnl Reject our hostname
+R$* $| <$*> [$=w]	$#error $@ 5.7.1 $:"550 bogus HELO name used: " $&s
+dnl Pass anything else with a "." in the domain parameter
+R$* $| <$*> [$+.$+]	$: $1				qualified domain ok
+dnl Reject if there was no "." or only an initial or final "."
+R$* $| <$*> [$*]	$#error $@ 5.7.1 $:"550 bogus HELO name used: " $&s
+dnl Clean up the workspace
 R$* $| $*		$: $1
 ', `dnl')
 
