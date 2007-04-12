@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,15 +12,17 @@
  */
 
 #include <sendmail.h>
+#include "map.h"
 
 #if USERDB
-SM_RCSID("@(#)$Id: udb.c,v 8.161 2005/08/31 21:34:20 ca Exp $ (with USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.164 2006/12/19 19:49:51 ca Exp $ (with USERDB)")
 #else /* USERDB */
-SM_RCSID("@(#)$Id: udb.c,v 8.161 2005/08/31 21:34:20 ca Exp $ (without USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.164 2006/12/19 19:49:51 ca Exp $ (without USERDB)")
 #endif /* USERDB */
 
 #if USERDB
 
+#include <sm/sendmail.h>
 # if NEWDB
 #  include "sm/bdb.h"
 # else /* NEWDB */
@@ -139,8 +141,8 @@ udbexpand(a, sendq, aliaslevel, e)
 	char *user;
 	char keybuf[MAXUDBKEY];
 
-	memset(&key, '\0', sizeof key);
-	memset(&info, '\0', sizeof info);
+	memset(&key, '\0', sizeof(key));
+	memset(&info, '\0', sizeof(info));
 
 	if (tTd(28, 1))
 		sm_dprintf("udbexpand(%s)\n", a->q_paddr);
@@ -173,10 +175,10 @@ udbexpand(a, sendq, aliaslevel, e)
 	if (user[0] == ':')
 		return EX_OK;
 
-	keylen = sm_strlcpyn(keybuf, sizeof keybuf, 2, user, ":maildrop");
+	keylen = sm_strlcpyn(keybuf, sizeof(keybuf), 2, user, ":maildrop");
 
 	/* if name is too long, assume it won't match */
-	if (keylen >= sizeof keybuf)
+	if (keylen >= sizeof(keybuf))
 		return EX_OK;
 
 	/* build actual database key */
@@ -196,8 +198,8 @@ udbexpand(a, sendq, aliaslevel, e)
 
 		user = userbuf;
 		userbuf[0] = '\0';
-		usersize = sizeof userbuf;
-		userleft = sizeof userbuf - 1;
+		usersize = sizeof(userbuf);
+		userleft = sizeof(userbuf) - 1;
 
 		/*
 		**  Select action based on entry type.
@@ -350,9 +352,9 @@ udbexpand(a, sendq, aliaslevel, e)
 			**  it into the envelope.
 			*/
 
-			memset(&key, '\0', sizeof key);
-			memset(&info, '\0', sizeof info);
-			(void) sm_strlcpyn(keybuf, sizeof keybuf, 2, a->q_user,
+			memset(&key, '\0', sizeof(key));
+			memset(&info, '\0', sizeof(info));
+			(void) sm_strlcpyn(keybuf, sizeof(keybuf), 2, a->q_user,
 					   ":mailsender");
 			keylen = strlen(keybuf);
 			key.data = keybuf;
@@ -426,7 +428,7 @@ udbexpand(a, sendq, aliaslevel, e)
 					break;
 				}
 				if (strlen(hp->po_name) + strlen(hp->po_host) >
-				    sizeof pobuf - 2)
+				    sizeof(pobuf) - 2)
 				{
 					if (tTd(28, 2))
 						sm_dprintf("hes_getmailhost(%s): expansion too long: %.30s@%.30s\n",
@@ -436,7 +438,7 @@ udbexpand(a, sendq, aliaslevel, e)
 					break;
 				}
 				info.data = pobuf;
-				(void) sm_snprintf(pobuf, sizeof pobuf,
+				(void) sm_snprintf(pobuf, sizeof(pobuf),
 					"%s@%s", hp->po_name, hp->po_host);
 				info.size = strlen(info.data);
 #  else /* HES_GETMAILHOST */
@@ -484,7 +486,7 @@ udbexpand(a, sendq, aliaslevel, e)
 			**  it into the envelope.
 			*/
 
-			(void) sm_strlcpyn(keybuf, sizeof keybuf, 2, a->q_user,
+			(void) sm_strlcpyn(keybuf, sizeof(keybuf), 2, a->q_user,
 					   ":mailsender");
 			keylen = strlen(keybuf);
 			key.data = keybuf;
@@ -618,9 +620,9 @@ udbmatch(user, field, rpool)
 
 	/* long names can never match and are a pain to deal with */
 	i = strlen(field);
-	if (i < sizeof "maildrop")
-		i = sizeof "maildrop";
-	if ((strlen(user) + i) > sizeof keybuf - 4)
+	if (i < sizeof("maildrop"))
+		i = sizeof("maildrop");
+	if ((strlen(user) + i) > sizeof(keybuf) - 4)
 		return NULL;
 
 	/* names beginning with colons indicate metadata */
@@ -628,7 +630,7 @@ udbmatch(user, field, rpool)
 		return NULL;
 
 	/* build database key */
-	(void) sm_strlcpyn(keybuf, sizeof keybuf, 3, user, ":", field);
+	(void) sm_strlcpyn(keybuf, sizeof(keybuf), 3, user, ":", field);
 	keylen = strlen(keybuf);
 
 	for (up = UdbEnts; up->udb_type != UDB_EOLIST; up++)
@@ -641,8 +643,8 @@ udbmatch(user, field, rpool)
 		{
 # if NEWDB
 		  case UDB_DBFETCH:
-			memset(&key, '\0', sizeof key);
-			memset(&info, '\0', sizeof info);
+			memset(&key, '\0', sizeof(key));
+			memset(&info, '\0', sizeof(info));
 			key.data = keybuf;
 			key.size = keylen;
 #  if DB_VERSION_MAJOR < 2
@@ -700,7 +702,7 @@ udbmatch(user, field, rpool)
 	*/
 
 	/* build database key */
-	(void) sm_strlcpyn(keybuf, sizeof keybuf, 2, user, ":maildrop");
+	(void) sm_strlcpyn(keybuf, sizeof(keybuf), 2, user, ":maildrop");
 	keylen = strlen(keybuf);
 
 	for (up = UdbEnts; up->udb_type != UDB_EOLIST; up++)
@@ -712,8 +714,8 @@ udbmatch(user, field, rpool)
 			/* get the default case for this database */
 			if (up->udb_default == NULL)
 			{
-				memset(&key, '\0', sizeof key);
-				memset(&info, '\0', sizeof info);
+				memset(&key, '\0', sizeof(key));
+				memset(&info, '\0', sizeof(info));
 				key.data = ":default:mailname";
 				key.size = strlen(key.data);
 #  if DB_VERSION_MAJOR < 2
@@ -740,8 +742,8 @@ udbmatch(user, field, rpool)
 				continue;
 
 			/* we have a default case -- verify user:maildrop */
-			memset(&key, '\0', sizeof key);
-			memset(&info, '\0', sizeof info);
+			memset(&key, '\0', sizeof(key));
+			memset(&info, '\0', sizeof(info));
 			key.data = keybuf;
 			key.size = keylen;
 #  if DB_VERSION_MAJOR < 2
@@ -852,8 +854,8 @@ udb_map_lookup(map, name, av, statp)
 	{
 		int keysize = strlen(name);
 
-		if (keysize > sizeof keybuf - 1)
-			keysize = sizeof keybuf - 1;
+		if (keysize > sizeof(keybuf) - 1)
+			keysize = sizeof(keybuf) - 1;
 		memmove(keybuf, name, keysize);
 		keybuf[keysize] = '\0';
 		makelower(keybuf);
@@ -1234,7 +1236,7 @@ hes_udb_get(key, info)
 	char **hp;
 	char kbuf[MAXUDBKEY + 1];
 
-	if (sm_strlcpy(kbuf, key->data, sizeof kbuf) >= sizeof kbuf)
+	if (sm_strlcpy(kbuf, key->data, sizeof(kbuf)) >= sizeof(kbuf))
 		return 0;
 	name = kbuf;
 	type = strrchr(name, ':');

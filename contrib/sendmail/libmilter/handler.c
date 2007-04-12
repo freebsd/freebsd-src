@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2003, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,11 +9,11 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: handler.c,v 8.36 2003/09/08 21:27:14 yuri Exp $")
+SM_RCSID("@(#)$Id: handler.c,v 8.38 2006/11/02 02:38:22 ca Exp $")
 
 #include "libmilter.h"
 
-
+#if !_FFR_WORKERS_POOL
 /*
 **  HANDLE_SESSION -- Handle a connected session in its own context
 **
@@ -64,3 +64,4 @@ mi_handle_session(ctx)
 	ctx = NULL;
 	return ret;
 }
+#endif /* !_FFR_WORKERS_POOL */

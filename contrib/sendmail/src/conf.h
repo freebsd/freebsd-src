@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.570 2005/12/09 18:37:27 ca Exp $
+ *	$Id: conf.h,v 8.574 2006/11/29 00:36:06 ca Exp $
  *
  *	$FreeBSD$
  *
@@ -63,6 +63,11 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 **********************************************************************/
 
 #define MAXLINE		2048	/* max line length */
+#if SASL
+# define MAXINPLINE	12288	/* max input line length (for AUTH) */
+#else /* SASL */
+# define MAXINPLINE	MAXLINE	/* max input line length */
+#endif /* SASL */
 #define MAXNAME		256	/* max length of a name */
 #ifndef MAXAUTHINFO
 # define MAXAUTHINFO	100	/* max length of authinfo token */
@@ -74,11 +79,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #define MAXMXHOSTS	100	/* max # of MX records for one host */
 #define SMTPLINELIM	990	/* max SMTP line length */
 #define MAXUDBKEY	128	/* max size of a database key (udb only) */
-#if _FFR_MAXKEY
-# define MAXKEY		1024	/* max size of a database key */
-#else /* _FFR_MAXKEY */
-# define MAXKEY		(MAXNAME + 1)	/* max size of a database key */
-#endif /* _FFR_MAXKEY */
+#define MAXKEY		1024	/* max size of a database key */
 #define MEMCHUNKSIZE	1024	/* chunk size for memory allocation */
 #define MAXUSERENVIRON	100	/* max envars saved, must be >= 3 */
 #define MAXMAPSTACK	12	/* max # of stacked or sequenced maps */

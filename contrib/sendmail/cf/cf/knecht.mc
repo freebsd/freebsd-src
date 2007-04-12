@@ -19,7 +19,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: knecht.mc,v 8.61 2005/10/06 05:56:03 ca Exp $')
+VERSIONID(`$Id: knecht.mc,v 8.62 2006/09/27 19:48:59 eric Exp $')
 OSTYPE(bsd4.4)
 DOMAIN(generic)
 
@@ -30,6 +30,7 @@ define(`confHOST_STATUS_DIRECTORY', `.hoststat')
 define(`confTO_ICONNECT', `10s')
 define(`confTO_QUEUEWARN', `8h')
 define(`confMIN_QUEUE_AGE', `27m')
+define(`confTRUSTED_USER', `smtrust')
 define(`confTRUSTED_USERS', ``www listmgr'')
 define(`confPRIVACY_FLAGS', ``authwarnings,noexpn,novrfy'')
 
@@ -42,6 +43,7 @@ define(`confCLIENT_CERT', `CERT_DIR/MYcert.pem')
 define(`confCLIENT_KEY', `CERT_DIR/MYkey.pem')
 
 define(`CYRUS_MAILER_PATH', `/usr/local/cyrus/bin/deliver')
+define(`CYRUS_MAILER_FLAGS', `fAh5@/:|')
 
 FEATURE(`access_db')
 FEATURE(`blacklist_recipients')
@@ -64,9 +66,15 @@ define(`confFAST_SPLIT', `10')
 dnl #  10 runners, split into at most 15 recipients per envelope
 QUEUE_GROUP(`mqueue', `P=/var/spool/mqueue, R=5, r=15, F=f')
 
-
 dnl # enable spam assassin
 INPUT_MAIL_FILTER(`spamassassin', `S=local:/var/run/spamass-milter.sock, F=, T=C:15m;S:4m;R:4m;E:10m')
+
+dnl # enable DomainKeys and DKIM
+INPUT_MAIL_FILTER(`dkim-filter', `S=unix:/var/run/smtrust/dkim.sock, F=T, T=R:2m')
+dnl INPUT_MAIL_FILTER(`dk-filter', `S=unix:/var/run/smtrust/dk.sock, F=T, T=R:2m')
+
+define(`confMILTER_MACROS_CONNECT', `j, {daemon_name}')
+define(`confMILTER_MACROS_ENVFROM', `i, {auth_type}')
 
 dnl # enable some DNSBLs
 dnl FEATURE(`dnsbl', `dnsbl.sorbs.net', `"550 Mail from " $`'&{client_addr} " refused - see http://www.dnsbl.sorbs.net/"')

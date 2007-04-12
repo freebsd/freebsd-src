@@ -397,6 +397,9 @@ SMTP_MAILER_CHARSET	[undefined] If defined, messages containing 8-bit data
 			that ARRIVE from an address that resolves to one of
 			the SMTP mailers and which are converted to MIME will
 			be labeled with this character set.
+SMTP_MAILER_LL		[990] The maximum line length for SMTP mailers
+			(except the relay mailer).
+RELAY_MAILER_LL		[2040] The maximum line length for the relay mailer.
 UUCP_MAILER_PATH	[/usr/bin/uux] The program used to send UUCP mail.
 UUCP_MAILER_FLAGS	[undefined] Flags added to UUCP mailer.  Default
 			flags are `DFMhuU' (and `m' for uucp-new mailer,
@@ -1031,12 +1034,6 @@ ldap_routing	Implement LDAP-based e-mail recipient routing according to
 
 		See the LDAP ROUTING section below for more information.
 
-nodns		If you aren't running DNS at your site (for example,
-		you are UUCP-only connected).  It's hard to consider
-		this a "feature", but hey, it had to go somewhere.
-		Actually, as of 8.7 this is a no-op -- remove "dns" from
-		the hosts service switch entry instead.
-
 nullclient	This is a special case -- it creates a configuration file
 		containing nothing but support for forwarding all mail to a
 		central hub via a local SMTP-based network.  The argument
@@ -1241,12 +1238,15 @@ use_client_ptr	If this feature is enabled then check_relay will override
 		versions when delay_checks was not in use.  See doc/op/op.*
 		about check_relay, {client_name}, and {client_ptr}.
 
-dnsbl		Turns on rejection of hosts found in an DNS based rejection
-		list.  The first is used as the domain in which blocked
-		hosts are listed.  A second argument can be used to change
-		the default error message.  Without that second argument,
-		the error message will be
+dnsbl		Turns on rejection, discarding, or quarantining of hosts
+		found in a DNS based list.  The first argument is used as
+		the domain in which blocked hosts are listed.  A second
+		argument can be used to change the default error message,
+		or select one of the operations `discard' and `quarantine'.
+		Without that second argument, the error message will be
+
 			Rejected: IP-ADDRESS listed at SERVER
+
 		where IP-ADDRESS and SERVER are replaced by the appropriate
 		information.  By default, temporary lookup failures are
 		ignored.  This behavior can be changed by specifying a
@@ -1484,6 +1484,81 @@ greet_pause	Adds the greet_pause ruleset which enables open proxy
 			SLocal_greet_pause
 			R$*		$: $&{daemon_flags}
 			R$* a $*	$# 0
+
+block_bad_helo	Reject messages from SMTP clients which provide a HELO/EHLO
+		argument which is either unqualified, or is one of our own
+		names (i.e., the server name instead of the client name).
+		This check is performed at RCPT stage and disabled for the
+		following cases:
+		- authenticated sessions,
+		- connections from IP addresses in class $={R}.
+		Currently access_db lookups can not be used to
+		(selectively) disable this test, moreover,
+		FEATURE(`delay_checks')
+		is required.
+
+require_rdns	Reject mail from connecting SMTP clients without proper
+		rDNS (reverse DNS), functional gethostbyaddr() resolution.
+		Note: this feature will cause false positives, i.e., there
+		are legitimate MTAs that do not have proper DNS entries.
+		Rejecting mails from those MTAs is a local policy decision.
+
+		The basic policy is to reject message with a 5xx error if
+		the IP address fails to resolve.  However, if this is a
+		temporary failure, a 4xx temporary failure is returned.
+		If the look-up succeeds, but returns an apparently forged
+		value, this is treated as a temporary failure with a 4xx
+		error code.
+
+		EXCEPTIONS:
+
+		Exceptions based on access entries are discussed below.
+		Any IP address matched using $=R (the "relay-domains" file)
+		is excepted from the rules.  Since we have explicitly
+		allowed relaying for this host, based on IP address, we
+		ignore the rDNS failure.
+
+		The philosophical assumption here is that most users do
+		not control their rDNS.  They should be able to send mail
+		through their ISP, whether or not they have valid rDNS.
+		The class $=R, roughly speaking, contains those IP addresses
+		and address ranges for which we are the ISP, or are acting
+		as if the ISP.
+
+		If `delay_checks' is in effect (recommended), then any
+		sender who has authenticated is also excepted from the
+		restrictions.  This happens because the rules produced by
+		this FEATURE() will not be applied to authenticated senders
+		(assuming `delay_checks').
+
+		ACCESS MAP ENTRIES:
+
+		Entries such as
+			Connect:1.2.3.4		OK
+			Connect:1.2		RELAY
+		will whitelist IP address 1.2.3.4, so that the rDNS
+		blocking does apply to that IP address
+
+		Entries such as
+			Connect:1.2.3.4		REJECT
+		will have the effect of forcing a temporary failure for
+		that address to be treated as a permanent failure.
+
+badmx		Reject envelope sender addresses (MAIL) whose domain part
+		resolves to a "bad" MX record.  By default these are
+		MX records which resolve to A records that match the
+		regular expression:
+
+		^(127\.|10\.|0\.0\.0\.0)
+
+		This default regular expression can be overridden by
+		specifying an argument, e.g.,
+
+		FEATURE(`badmx', `^127\.0\.0\.1')
+
+		Note: this feature requires that the sendmail binary
+		has been compiled with the options MAP_REGEX and
+		DNSMAP.
 
 +-------+
 | HACKS |
@@ -2426,10 +2501,15 @@ definition for the database; for example
 	FEATURE(`access_db', `hash -T<TMPF> /etc/mail/access_map')
 
 Notice: If a second argument is specified it must contain the option
-`-T<TMPF>' as shown above.  The optional third and fourth parameters
-may be `skip' or `lookupdotdomain'.  The former enables SKIP as
-value part (see below), the latter is another way to enable the
-feature of the same name (see above).
+`-T<TMPF>' as shown above.  The optional parameters may be
+
+	`skip'			enables SKIP as value part (see below).
+	`lookupdotdomain'	another way to enable the feature of the
+				same name (see above).
+	`relaytofulladdress'	enable entries of the form
+				To:user@example.com	RELAY
+				to allow relaying to just a specific
+				e-mail address instead of an entire domain.
 
 Remember, since /etc/mail/access is a database, after creating the text
 file as described below, you must use makemap to create the database
@@ -2497,7 +2577,8 @@ The value part of the map can contain:
 			name is unresolvable.  "Accept" does not mean
 			"relay", but at most acceptance for local
 			recipients.  That is, OK allows less than RELAY.
-	RELAY		Accept mail addressed to the indicated domain or
+	RELAY		Accept mail addressed to the indicated domain
+			(or address if `relaytofulladdress' is set) or
 			received from the indicated domain for relaying
 			through your SMTP server.  RELAY also serves as
 			an implicit OK for the other checks.
@@ -2628,7 +2709,7 @@ maintained in DNS.  To use such a database, specify
 	FEATURE(`dnsbl', `dnsbl.example.com')
 
 This will cause sendmail to reject mail from any site listed in the
-DNS based blacklist.  You must select an DNSB based blacklist domain
+DNS based blacklist.  You must select a DNS based blacklist domain
 to check by specifying an argument to the FEATURE.  The default
 error message is
 
@@ -2636,10 +2717,18 @@ error message is
 
 where IP-ADDRESS and SERVER are replaced by the appropriate
 information.  A second argument can be used to specify a different
-text.  By default, temporary lookup failures are ignored and hence
-cause the connection not to be rejected by the DNS based rejection
-list.  This behavior can be changed by specifying a third argument,
-which must be either `t' or a full error message.  For example:
+text or action.  For example,
+
+	FEATURE(`dnsbl', `dnsbl.example.com', `quarantine')
+
+would quarantine the message if the client IP address is listed
+at `dnsbl.example.com'.
+
+By default, temporary lookup failures are ignored
+and hence cause the connection not to be rejected by the DNS based
+rejection list.  This behavior can be changed by specifying a third
+argument, which must be either `t' or a full error message.  For
+example:
 
 	FEATURE(`dnsbl', `dnsbl.example.com', `',
 	`"451 Temporary lookup failure for " $&{client_addr} " in dnsbl.example.com"')
@@ -4033,6 +4122,11 @@ confDOUBLE_BOUNCE_ADDRESS  DoubleBounceAddress
 					"double bounce" error message to this
 					address.  If it expands to an empty
 					string, double bounces are dropped.
+confSOFT_BOUNCE		SoftBounce	[False] If set, issue temporary errors
+					(4xy) instead of permanent errors
+					(5xy).  This can be useful during
+					testing of a new configuration to
+					avoid erroneous bouncing of mails.
 confDEAD_LETTER_DROP	DeadLetterDrop	[undefined] Filename to save bounce
 					messages which could not be returned
 					to the user or sent to postmaster.
@@ -4197,6 +4291,11 @@ confREQUIRES_DIR_FSYNC	RequiresDirfsync	[true] RequiresDirfsync can
 					flag REQUIRES_DIR_FSYNC at runtime.
 					See sendmail/README for details.
 confSHARED_MEMORY_KEY	SharedMemoryKey [0] Key for shared memory.
+confSHARED_MEMORY_KEY_FILE
+			SharedMemoryKeyFile
+					[undefined] File where the
+					automatically selected key for
+					shared memory is stored.
 confFAST_SPLIT		FastSplit	[1] If set to a value greater than
 					zero, the initial MX lookups on
 					addresses is suppressed when they
@@ -4210,6 +4309,11 @@ confMAILBOX_DATABASE	MailboxDatabase	[pw] Type of lookup to find
 					information about local mailboxes.
 confDEQUOTE_OPTS	-		[empty] Additional options for the
 					dequote map.
+confMAX_NOOP_COMMANDS	MaxNOOPCommands	[20] Maximum number of "useless"
+					commands before the SMTP server
+					will slow down responding.
+confHELO_NAME		HeloName	If defined, use as name for EHLO/HELO
+					command (instead of $j).
 confINPUT_MAIL_FILTERS	InputMailFilters
 					A comma separated list of filters
 					which determines which filters and
@@ -4241,7 +4345,14 @@ confMILTER_MACROS_ENVRCPT	Milter.macros.envrcpt
 					milters after RCPT TO command.
 confMILTER_MACROS_EOM		Milter.macros.eom
 					[{msg_id}] Macros to transmit to
-					milters after DATA command.
+					milters after the terminating
+					DATA '.' is received.
+confMILTER_MACROS_EOH		Milter.macros.eoh
+					Macros to transmit to milters
+					after the end of headers.
+confMILTER_MACROS_DATA		Milter.macros.data
+					Macros to transmit to milters
+					after DATA command is received.
 
 
 See also the description of OSTYPE for some parameters that can be
@@ -4588,4 +4699,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.706 $, Last updated $Date: 2006/04/18 22:31:06 $
+$Revision: 8.722 $, Last updated $Date: 2007/04/03 21:26:58 $

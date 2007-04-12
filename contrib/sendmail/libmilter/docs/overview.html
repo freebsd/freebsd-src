@@ -1,194 +1,215 @@
-<html>
-<head>
-<title>Technical Overview</title>
-</head>
-<body>
+<HTML>
+<HEAD>
+<TITLE>Technical Overview</TITLE>
+</HEAD>
+<BODY>
 <!--
-$Id: overview.html,v 1.14 2003/03/05 19:57:54 ca Exp $
+$Id: overview.html,v 1.19 2006/12/21 18:23:47 ca Exp $
 -->
 
-<h1>Technical Overview</h1>
+<H1>Technical Overview</H1>
 
-<h2>Contents</h2>
+<H2>Contents</H2>
 
-<ul>
-    <li>Initialization
-    <li>Control flow
-    <li>Multithreading
-    <li>Resource Management
-    <li>Signal Handling
-</ul>
+<UL>
+    <LI><A HREF="#Initialization">Initialization</A>
+    <LI><A HREF="#ControlFlow">Control Flow</A>
+    <LI><A HREF="#Multithreading">Multithreading</A>
+    <LI><A HREF="#ResourceManagement">Resource Management</A>
+    <LI><A HREF="#SignalHandling">Signal Handling</A>
+</UL>
 
-<h2>Initialization</h2>
+<H2><A NAME="Initialization">Initialization</A></H2>
 
-In addition to its own initialization, libmilter expects a filter to initialize several parameters before calling <a href="smfi_main.html">smfi_main</a>:
-<ul>
-    <li>The callbacks the filter wishes to be called, and the types of
-    message modification it intends to perform (required, see <a
-    href="smfi_register.html">smfi_register</a>).
+In addition to its own initialization,
+libmilter expects a filter to initialize several parameters
+before calling <A HREF="smfi_main.html">smfi_main</A>:
+<UL>
+    <LI>The callbacks the filter wishes to be called, and the types of
+    message modification it intends to perform (required, see
+    <A HREF="smfi_register.html">smfi_register</A>).
 
-    <li>The socket address to be used when communicating with the MTA
-    (required, see <a href="smfi_setconn.html">smfi_setconn</a>).
+    <LI>The socket address to be used when communicating with the MTA
+    (required, see <A HREF="smfi_setconn.html">smfi_setconn</A>).
 
-    <li>The number of seconds to wait for MTA connections before
-    timing out (optional, see <a
-    href="smfi_settimeout.html">smfi_settimeout</a>).
-</ul>
-<p>
-If the filter fails to initialize libmilter, or if one or more of the
-parameters it has passed are invalid, a subsequent call to smfi_main
-will fail.
+    <LI>The number of seconds to wait for MTA connections before
+    timing out (optional, see
+    <A HREF="smfi_settimeout.html">smfi_settimeout</A>).
+</UL>
+<P>
+If the filter fails to initialize libmilter,
+or if one or more of the parameters it has passed are invalid,
+a subsequent call to smfi_main will fail.
 
-<h2>Control flow</h2>
+<H2><A NAME="ControlFlow">Control Flow</A></H2>
 
-<p>
+<P>
 The following pseudocode describes the filtering process from the
-perspective of a set of <code>N</code> MTA's, each corresponding to a
-connection.  Callbacks are shown beside the processing stages in which
-they are invoked; if no callbacks are defined for a particular stage,
-that stage may be bypassed.  Though it is not shown, processing may be
-aborted at any time during a message, in which case the <a
-href="xxfi_abort.html">xxfi_abort</a> callback is invoked and control
-returns to <code>MESSAGE</code>.
-<p>
-<pre>
+perspective of a set of <CODE>N</CODE> MTA's,
+each corresponding to a connection.
+Callbacks are shown beside the processing stages in which they are invoked;
+if no callbacks are defined for a particular stage,
+that stage may be bypassed.
+Though it is not shown,
+processing may be aborted at any time during a message,
+in which case the
+<A HREF="xxfi_abort.html">xxfi_abort</A> callback is invoked and control
+returns to <CODE>MESSAGE</CODE>.
+<P>
+<PRE>
 For each of N connections
 {
 	For each filter
-		process connection/helo (<a href="xxfi_connect.html">xxfi_connect</a>, <a href="xxfi_helo.html">xxfi_helo</a>)
+		process connection/helo (<A HREF="xxfi_connect.html">xxfi_connect</A>, <A HREF="xxfi_helo.html">xxfi_helo</A>)
 MESSAGE:For each message in this connection (sequentially)
 	{
 		For each filter
-			process sender (<a href="xxfi_envfrom.html">xxfi_envfrom</a>)
+			process sender (<A HREF="xxfi_envfrom.html">xxfi_envfrom</A>)
 		For each recipient
 		{
 			For each filter
-				process recipient (<a href="xxfi_envrcpt.html">xxfi_envrcpt</a>)
+				process recipient (<A HREF="xxfi_envrcpt.html">xxfi_envrcpt</A>)
 		}
 		For each filter
 		{
+			process DATA (<A HREF="xxfi_data.html">xxfi_data</A>)
 			For each header
-				process header (<a href="xxfi_header.html">xxfi_header</a>)
-			process end of headers (<a href="xxfi_eoh.html">xxfi_eoh</a>)
+				process header (<A HREF="xxfi_header.html">xxfi_header</A>)
+			process end of headers (<A HREF="xxfi_eoh.html">xxfi_eoh</A>)
 			For each body block
-				process this body block (<a href="xxfi_body.html">xxfi_body</a>)
-			process end of message (<a href="xxfi_eom.html">xxfi_eom</a>)
+				process this body block (<A HREF="xxfi_body.html">xxfi_body</A>)
+			process end of message (<A HREF="xxfi_eom.html">xxfi_eom</A>)
 		}
 	}
 	For each filter
-		process end of connection (<a href="xxfi_close.html">xxfi_close</a>)
+		process end of connection (<A HREF="xxfi_close.html">xxfi_close</A>)
 }
-</pre>
+</PRE>
 
 <P>Note: Filters are contacted in order defined in config file.</P>
 
 <P>
 To write a filter, a vendor supplies callbacks to process relevant
-parts of a message transaction.  The library then controls all
-sequencing, threading, and protocol exchange with the MTA.  <a
-href="#figure-3">Figure 3</a> outlines control flow for a filter
+parts of a message transaction.
+The library then controls all sequencing, threading,
+and protocol exchange with the MTA.
+<A HREF="#figure-3">Figure 3</A> outlines control flow for a filter
 process, showing where different callbacks are invoked.
-</p>
-<div align="center"><a name="figure-3"></a>
-<table border=1 cellspacing=0 cellpadding=2 width="70%">
-<tr bgcolor="#dddddd"><th>SMTP Commands</th><th>Milter Callbacks</th></tr>
-<tr><td>(open SMTP connection)</td><td>xxfi_connect</td></tr>
-<tr><td>HELO ...</td><td>xxfi_helo</td></tr>
-<tr><td>MAIL From: ...</td><td>xxfi_envfrom</td></tr>
-<tr><td>RCPT To: ...</td><td>xxfi_envrcpt</td></tr>
-<tr><td>[more RCPTs]</td><td>[xxfi_envrcpt]</td></tr>
-<tr><td>DATA</td><td>&nbsp;</td></tr>
-<tr><td>Header: ...</td><td>xxfi_header</td></tr>
-<tr><td>[more headers]</td><td>[xxfi_header]</td></tr>
-<tr><td>&nbsp;</td><td>xxfi_eoh</td></tr>
-<tr><td>body... </td><td>xxfi_body</td></tr>
-<tr><td>[more body...]</td><td>[xxfi_body]</td></tr>
-<tr><td>.</td><td>xxfi_eom</td></tr>
-<tr><td>QUIT</td><td>xxfi_close</td></tr>
-<tr><td>(close SMTP connection)</td><td>&nbsp;</td></tr>
-</table>
-<b>Figure 3: Milter callbacks related to an SMTP transaction.</b>
-</div>
-<p>
+</P>
+
+<DIV ALIGN="center"><A NAME="figure-3"></A>
+<TABLE border=1 cellspacing=0 cellpadding=2 width="70%">
+<TR bgcolor="#dddddd"><TH>SMTP Commands</TH><TH>Milter Callbacks</TH></TR>
+<TR><TD>(open SMTP connection)</TD><TD>xxfi_connect</TD></TR>
+<TR><TD>HELO ...</TD><TD>xxfi_helo</TD></TR>
+<TR><TD>MAIL From: ...</TD><TD>xxfi_envfrom</TD></TR>
+<TR><TD>RCPT To: ...</TD><TD>xxfi_envrcpt</TD></TR>
+<TR><TD>[more RCPTs]</TD><TD>[xxfi_envrcpt]</TD></TR>
+<TR><TD>DATA</TD><TD>xxfi_data</TD></TR>
+<TR><TD>Header: ...</TD><TD>xxfi_header</TD></TR>
+<TR><TD>[more headers]</TD><TD>[xxfi_header]</TD></TR>
+<TR><TD>&nbsp;</TD><TD>xxfi_eoh</TD></TR>
+<TR><TD>body... </TD><TD>xxfi_body</TD></TR>
+<TR><TD>[more body...]</TD><TD>[xxfi_body]</TD></TR>
+<TR><TD>.</TD><TD>xxfi_eom</TD></TR>
+<TR><TD>QUIT</TD><TD>xxfi_close</TD></TR>
+<TR><TD>(close SMTP connection)</TD><TD>&nbsp;</TD></TR>
+</TABLE>
+<B>Figure 3: Milter callbacks related to an SMTP transaction.</B>
+</DIV>
+
+<P>
 Note that although only a single message is shown above, multiple
-messages may be sent in a single connection.  Note also that a message
-and/or connection may be aborted by either the remote host or the MTA
-at any point during the SMTP transaction.  If this occurs during a
-message (between the MAIL command and the final "."), the filter's <a
-href="xxfi_abort.html">xxfi_abort</a> routine will be called.  <a
-href="xxfi_close.html">xxfi_close</a> is called any time the
+messages may be sent in a single connection.
+Note also that a message or connection may be aborted by
+either the remote host or the MTA
+at any point during the SMTP transaction.
+f this occurs during a message (between the MAIL command and the final "."),
+the filter's
+<A HREF="xxfi_abort.html">xxfi_abort</A> routine will be called.
+<A HREF="xxfi_close.html">xxfi_close</A> is called any time the
 connection closes.
 
-<h2>Multithreading</h2>
+<H2><A NAME="Multithreading">Multithreading</A></H2>
 
-<p>
+<P>
 A single filter process may handle any number of connections
-simultaneously.  All filtering callbacks must therefore be reentrant,
+simultaneously.
+All filtering callbacks must therefore be reentrant,
 and use some appropriate external synchronization methods to access
-global data. Furthermore, since there is not a one-to-one
-correspondence between threads and connections (N connections mapped
-onto M threads, M &lt;= N), connection-specific data must be accessed
-through the handles provided by the Milter library.  The programmer
-cannot rely on library-supplied thread-specific data blocks
-(e.g. pthread_getspecific()) to store connection-specific data.  See
-the API documentation for <a
-href="smfi_setpriv.html">smfi_setpriv</a> and <a
-href="smfi_getpriv.html">smfi_getpriv</a> for details.
+global data.
+Furthermore, since there is not a one-to-one correspondence
+between threads and connections
+(N connections mapped onto M threads, M &lt;= N),
+connection-specific data must be accessed
+through the handles provided by the Milter library.
+The programmer cannot rely on library-supplied thread-specific data blocks
+(e.g., <CODE>pthread_getspecific(3)</CODE>) to store connection-specific data.
+See the API documentation for
+<A HREF="smfi_setpriv.html">smfi_setpriv</A> and
+<A HREF="smfi_getpriv.html">smfi_getpriv</A> for details.
 
-<h2>Resource management</h2>
+<H2><A NAME="ResourceManagement">Resource Management</A></H2>
 
-Since filters are likely to be long-lived, and to handle many
-connections, proper deallocation of per-connection resources is
-important.  The lifetime of a connection is bracketed by calls to the
-callbacks <a href="xxfi_connect.html">xxfi_connect</a> and <a
-href="xxfi_close.html">xxfi_close</a>.  Therefore connection-specific
-resources (accessed via <a href="smfi_getpriv.html">smfi_getpriv</a>
-and <a href="smfi_setpriv.html">smfi_setpriv</a>) may be allocated in
-<a href="xxfi_connect.html">xxfi_connect</a>, and should be freed in
-<a href="xxfi_close.html">xxfi_close</a>.  For further information see
-the <a href="api.html#conn-msg">discussion</a> of message- versus
-connection-oriented routines.  In particular, note that there is only
-one connection-specific data pointer per connection.
-<p>
+Since filters are likely to be long-lived,
+and to handle many connections,
+proper deallocation of per-connection resources is important.
+The lifetime of a connection is bracketed by calls to the
+callbacks <A HREF="xxfi_connect.html">xxfi_connect</A> and
+<A HREF="xxfi_close.html">xxfi_close</A>.
+Therefore connection-specific
+resources (accessed via <A HREF="smfi_getpriv.html">smfi_getpriv</A>
+and <A HREF="smfi_setpriv.html">smfi_setpriv</A>) may be allocated in
+<A HREF="xxfi_connect.html">xxfi_connect</A>,
+and should be freed in
+<A HREF="xxfi_close.html">xxfi_close</A>.
+For further information see
+the <A HREF="api.html#conn-msg">discussion</A> of message- versus
+connection-oriented routines.
+In particular,
+note that there is only one connection-specific data pointer per connection.
+<P>
 
-Each message is bracketed by calls to <a
-href="xxfi_envfrom.html">xxfi_envfrom</a> and <a
-href="xxfi_eom.html">xxfi_eom</a> (or <a
-href="xxfi_abort.html">xxfi_abort</a>), implying that message-specific
-resources can be allocated and reclaimed in these routines.  Since the
-messages in a connection are processed sequentially by each filter,
+Each message is bracketed by calls to
+<A HREF="xxfi_envfrom.html">xxfi_envfrom</A> and
+<A HREF="xxfi_eom.html">xxfi_eom</A> (or
+<A HREF="xxfi_abort.html">xxfi_abort</A>),
+implying that message-specific resources can be allocated
+and reclaimed in these routines.
+Since the messages in a connection are processed sequentially by each filter,
 there will be only one active message associated with a given
-connection and filter (and connection-private data block).  These
-resources must still be accessed through <a
-href="smfi_getpriv.html">smfi_getpriv</a> and <a
-href="smfi_setpriv.html">smfi_setpriv</a>, and must be reclaimed
-in <a href="xxfi_abort.html">xxfi_abort</a>.
+connection and filter (and connection-private data block).
+These resources must still be accessed through
+<A HREF="smfi_getpriv.html">smfi_getpriv</A> and
+<A HREF="smfi_setpriv.html">smfi_setpriv</A>,
+and must be reclaimed in
+<A HREF="xxfi_abort.html">xxfi_abort</A>.
 
-<h2>Signal Handling</h2>
+<H2><A NAME="SignalHandling">Signal Handling</A></H2>
 
-libmilter takes care of signal handling, the filters are
-not influenced directly by signals.
+libmilter takes care of signal handling,
+the filters are not influenced directly by signals.
 There are basically two types of signal handlers:
 
-<ol>
-<li><TT>Stop</TT>: no new connections from the MTA will be accepted,
+<OL>
+<LI><TT>Stop</TT>: no new connections from the MTA will be accepted,
 but existing connections are allowed to continue.
-<li><TT>Abort</TT>: all filters will be stopped as soon as the next
+<LI><TT>Abort</TT>: all filters will be stopped as soon as the next
 communication with the MTA happens.
-</ol>
+</OL>
 
-Filters are not terminated asynchronously (except by
-signals that can't be caught).
+Filters are not terminated asynchronously
+(except by signals that can't be caught).
 In the case of <TT>Abort</TT> the
-<a href="xxfi_abort.html">xxfi_abort</a> callback is invoked.
+<A HREF="xxfi_abort.html">xxfi_abort</A> callback is invoked.
 
-<hr size="1">
-<font size="-1">
-Copyright (c) 2000, 2001, 2003 Sendmail, Inc. and its suppliers.
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000, 2001, 2003, 2006 Sendmail, Inc. and its suppliers.
 All rights reserved.
-<br>
+<BR>
 By using this file, you agree to the terms and conditions set
 forth in the LICENSE.
-</font>
-</body>
-</html>
+</FONT>
+</BODY>
+</HTML>

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: alias.c,v 8.217 2003/07/28 17:47:18 ca Exp $")
+SM_RCSID("@(#)$Id: alias.c,v 8.219 2006/10/24 18:04:09 ca Exp $")
 
 #define SEPARATOR ':'
 # define ALIAS_SPEC_SEPARATORS	" ,/:"
@@ -90,7 +90,7 @@ alias(a, sendq, aliaslevel, e)
 	if (e->e_sender != NULL && *e->e_sender == '\0')
 	{
 		/* Look for owner of alias */
-		(void) sm_strlcpyn(obuf, sizeof obuf, 2, "owner-", a->q_user);
+		(void) sm_strlcpyn(obuf, sizeof(obuf), 2, "owner-", a->q_user);
 		if (aliaslookup(obuf, &status, a->q_host) != NULL)
 		{
 			if (LogLevel > 8)
@@ -107,7 +107,8 @@ alias(a, sendq, aliaslevel, e)
 	{
 		a->q_state = QS_QUEUEUP;
 		if (e->e_message == NULL)
-			e->e_message = "alias database unavailable";
+			e->e_message = sm_rpool_strdup_x(e->e_rpool,
+						"alias database unavailable");
 
 		/* XXX msg only per recipient? */
 		if (a->q_message == NULL)
@@ -164,10 +165,10 @@ alias(a, sendq, aliaslevel, e)
 	*/
 
 	if (strncmp(a->q_user, "owner-", 6) == 0 ||
-	    strlen(a->q_user) > sizeof obuf - 7)
-		(void) sm_strlcpy(obuf, "owner-owner", sizeof obuf);
+	    strlen(a->q_user) > sizeof(obuf) - 7)
+		(void) sm_strlcpy(obuf, "owner-owner", sizeof(obuf));
 	else
-		(void) sm_strlcpyn(obuf, sizeof obuf, 2, "owner-", a->q_user);
+		(void) sm_strlcpyn(obuf, sizeof(obuf), 2, "owner-", a->q_user);
 	owner = aliaslookup(obuf, &status, a->q_host);
 	if (owner == NULL)
 		return;
@@ -287,7 +288,7 @@ setalias(spec)
 		if (AliasFileMap == NULL)
 		{
 			(void) sm_strlcpy(buf, "aliases.files sequence",
-					  sizeof buf);
+					  sizeof(buf));
 			AliasFileMap = makemapentry(buf);
 			if (AliasFileMap == NULL)
 			{
@@ -295,10 +296,10 @@ setalias(spec)
 				return;
 			}
 		}
-		(void) sm_snprintf(buf, sizeof buf, "Alias%d", NAliasFileMaps);
+		(void) sm_snprintf(buf, sizeof(buf), "Alias%d", NAliasFileMaps);
 		s = stab(buf, ST_MAP, ST_ENTER);
 		map = &s->s_map;
-		memset(map, '\0', sizeof *map);
+		memset(map, '\0', sizeof(*map));
 		map->map_mname = s->s_name;
 		p = strpbrk(p, ALIAS_SPEC_SEPARATORS);
 		if (p != NULL && *p == SEPARATOR)
@@ -458,8 +459,8 @@ aliaswait(map, ext, isopen)
 		return isopen;
 	}
 	mtime = stb.st_mtime;
-	if (sm_strlcpyn(buf, sizeof buf, 2,
-			map->map_file, ext == NULL ? "" : ext) >= sizeof buf)
+	if (sm_strlcpyn(buf, sizeof(buf), 2,
+			map->map_file, ext == NULL ? "" : ext) >= sizeof(buf))
 	{
 		if (LogLevel > 3)
 			sm_syslog(LOG_INFO, NOQID,
@@ -656,7 +657,7 @@ readaliases(map, af, announcestats, logstats)
 	LineNumber = 0;
 	naliases = bytes = longest = 0;
 	skipping = false;
-	while (sm_io_fgets(af, SM_TIME_DEFAULT, line, sizeof line) != NULL)
+	while (sm_io_fgets(af, SM_TIME_DEFAULT, line, sizeof(line)) != NULL)
 	{
 		int lhssize, rhssize;
 		int c;
@@ -779,7 +780,7 @@ readaliases(map, af, announcestats, logstats)
 
 			/* read continuation line */
 			if (sm_io_fgets(af, SM_TIME_DEFAULT, p,
-					sizeof line - (p-line)) == NULL)
+					sizeof(line) - (p-line)) == NULL)
 				break;
 			LineNumber++;
 
@@ -928,7 +929,7 @@ forward(user, sendq, aliaslevel, e)
 		ep = strchr(pp, SEPARATOR);
 		if (ep != NULL)
 			*ep = '\0';
-		expand(pp, buf, sizeof buf, e);
+		expand(pp, buf, sizeof(buf), e);
 		if (ep != NULL)
 			*ep++ = SEPARATOR;
 		if (buf[0] == '\0')

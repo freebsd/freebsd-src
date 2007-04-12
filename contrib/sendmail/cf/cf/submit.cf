@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@nother.smi.sendmail.com on Mon Aug 7 10:37:32 PDT 2006
-##### in /extra/home/ca/sm-8.13.8/OpenSource/sendmail-8.13.8/cf/cf
+##### built by ca@nother.smi.sendmail.com on Tue Apr 3 16:32:55 PDT 2007
+##### in /extra/home/ca/sm-8.14.1/OpenSource/sendmail-8.14.1/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -35,7 +35,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.719 2006/03/30 20:50:13 ca Exp $  #####
+#####  $Id: proto.m4,v 8.730 2007/02/01 18:50:03 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.13.8/Submit
+DZ8.14.1/Submit
 
 
 ###############
@@ -260,10 +260,11 @@ O PrivacyOptions=goaway,noetrn,restrictqrun
 # queue directory
 O QueueDirectory=/var/spool/clientmqueue
 
-# key for shared memory; 0 to turn off
+# key for shared memory; 0 to turn off, -1 to auto-select
 #O SharedMemoryKey=0
 
-
+# file to store auto-selected key for shared memory (SharedMemoryKey = -1)
+#O SharedMemoryKeyFile
 
 # timeouts (many of these)
 #O Timeout.initial=5m
@@ -423,6 +424,9 @@ O DontInitGroups=True
 # where do errors that occur when sending errors get sent?
 #O DoubleBounceAddress=postmaster
 
+# issue temporary errors (4xy) instead of permanent errors (5xy)?
+#O SoftBounce=False
+
 # where to save bounces if all else fails
 #O DeadLetterDrop=/var/tmp/dead.letter
 
@@ -518,6 +522,12 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 #O DHParameters
 # Random data source (required for systems without /dev/urandom under OpenSSL)
 #O RandFile
+
+# Maximum number of "useless" commands before slowing down
+#O MaxNOOPCommands=20
+
+# Name to use for EHLO (defaults to $j)
+#O HeloName
 
 ############################
 # QUEUE GROUP DEFINITIONS  #
@@ -1042,9 +1052,11 @@ R<? $+> $*		$#error $@ 5.5.4 $: "553 Domain name required for sender address " $
 							...remote is not
 # check results
 R<?> $*			$: @ $1		mark address: nothing known about it
-R<$={ResOk}> $*		$@ <OKR>	domain ok: stop
+R<$={ResOk}> $*		$: @ $2		domain ok
 R<TEMP> $*		$#error $@ 4.1.8 $: "451 Domain of sender address " $&f " does not resolve"
 R<PERM> $*		$#error $@ 5.1.8 $: "553 Domain of sender address " $&f " does not exist"
+
+
 
 ######################################################################
 ###  check_rcpt -- check SMTP `RCPT TO:' command argument
@@ -1144,6 +1156,7 @@ R<@> $+			$:<?>  $[ $1 $]
 R$* .			$1			strip trailing dots
 R<?> $=w		$@ RELAY
 R<?> $* $=R			$@ RELAY
+
 
 
 
@@ -1335,7 +1348,7 @@ Mprog,		P=[IPC], F=lmDFMuXk5, S=EnvFromL/HdrFromL, R=EnvToL/HdrToL, D=$z:/,
 ###   SMTP Mailer specification   ###
 #####################################
 
-#####  $Id: smtp.m4,v 8.64 2001/04/03 01:52:54 gshapiro Exp $  #####
+#####  $Id: smtp.m4,v 8.65 2006/07/12 21:08:10 ca Exp $  #####
 
 #
 #  common sender and masquerading recipient rewriting

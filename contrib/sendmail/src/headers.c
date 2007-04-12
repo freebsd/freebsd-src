@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004, 2006, 2007 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,10 +13,11 @@
  */
 
 #include <sendmail.h>
+#include <sm/sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.291 2006/03/24 01:01:56 ca Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.310 2007/02/07 22:44:35 ca Exp $")
 
-static HDR	*allocheader __P((char *, char *, int, SM_RPOOL_T *));
+static HDR	*allocheader __P((char *, char *, int, SM_RPOOL_T *, bool));
 static size_t	fix_mime_header __P((HDR *, ENVELOPE *));
 static int	priencode __P((char *));
 static bool	put_vanilla_header __P((HDR *, char *, MCI *));
@@ -44,10 +45,11 @@ setupheaders()
 		s->s_header.hi_ruleset = NULL;
 	}
 }
+
 /*
-**  CHOMPHEADER -- process and save a header line.
+**  DOCHOMPHEADER -- process and save a header line.
 **
-**	Called by collect, readcf, and readqf to deal with header lines.
+**	Called by chompheader.
 **
 **	Parameters:
 **		line -- header as a text line.
@@ -64,13 +66,14 @@ setupheaders()
 */
 
 static struct hdrinfo	NormalHeader =	{ NULL, 0, NULL };
+static unsigned long	dochompheader __P((char *, int, HDR **, ENVELOPE *));
 
-unsigned long
-chompheader(line, pflag, hdrp, e)
+static unsigned long
+dochompheader(line, pflag, hdrp, e)
 	char *line;
 	int pflag;
 	HDR **hdrp;
-	register ENVELOPE *e;
+	ENVELOPE *e;
 {
 	unsigned char mid = '\0';
 	register char *p;
@@ -85,13 +88,6 @@ chompheader(line, pflag, hdrp, e)
 	struct hdrinfo *hi;
 	bool nullheader = false;
 	BITMAP256 mopts;
-
-	if (tTd(31, 6))
-	{
-		sm_dprintf("chompheader: ");
-		xputs(sm_debug_file(), line);
-		sm_dprintf("\n");
-	}
 
 	headeronly = hdrp != NULL;
 	if (!headeronly)
@@ -188,10 +184,6 @@ hse:
 		return 0;
 	}
 	*fvalue = '\0';
-
-	/* strip field value on front */
-	if (*p == ' ')
-		p++;
 	fvalue = p;
 
 	/* if the field is null, go ahead and use the default */
@@ -209,7 +201,7 @@ hse:
 	{
 		char hbuf[50];
 
-		(void) expand(fvalue, hbuf, sizeof hbuf, e);
+		(void) expand(fvalue, hbuf, sizeof(hbuf), e);
 		for (p = hbuf; isascii(*p) && isspace(*p); )
 			p++;
 		if ((*p++ & 0377) == CALLSUBR)
@@ -357,9 +349,8 @@ hse:
 			macdefine(&e->e_macro, A_TEMP,
 				macid("{hdr_name}"), fname);
 
-			(void) sm_snprintf(qval, sizeof qval, "%d", k);
+			(void) sm_snprintf(qval, sizeof(qval), "%d", k);
 			macdefine(&e->e_macro, A_TEMP, macid("{hdrlen}"), qval);
-#if _FFR_HDR_TYPE
 			if (bitset(H_FROM, hi->hi_flags))
 				macdefine(&e->e_macro, A_PERM,
 					macid("{addr_type}"), "h s");
@@ -367,11 +358,10 @@ hse:
 				macdefine(&e->e_macro, A_PERM,
 					macid("{addr_type}"), "h r");
 			else
-#endif /* _FFR_HDR_TYPE */
 				macdefine(&e->e_macro, A_PERM,
 					macid("{addr_type}"), "h");
 			(void) rscheck(rs, fvalue, NULL, e, rscheckflags, 3,
-				       NULL, e->e_id);
+				       NULL, e->e_id, NULL);
 		}
 	}
 
@@ -424,18 +414,18 @@ hse:
 			{
 				/* copy conditions from default case */
 				memmove((char *) mopts, (char *) h->h_mflags,
-					sizeof mopts);
+					sizeof(mopts));
 			}
 			h->h_macro = mid;
 		}
 	}
 
 	/* create a new node */
-	h = (HDR *) sm_rpool_malloc_x(e->e_rpool, sizeof *h);
+	h = (HDR *) sm_rpool_malloc_x(e->e_rpool, sizeof(*h));
 	h->h_field = sm_rpool_strdup_x(e->e_rpool, fname);
 	h->h_value = sm_rpool_strdup_x(e->e_rpool, fvalue);
 	h->h_link = NULL;
-	memmove((char *) h->h_mflags, (char *) mopts, sizeof mopts);
+	memmove((char *) h->h_mflags, (char *) mopts, sizeof(mopts));
 	h->h_macro = mid;
 	*hp = h;
 	h->h_flags = hi->hi_flags;
@@ -461,25 +451,97 @@ hse:
 
 	return h->h_flags;
 }
+
+/*
+**  CHOMPHEADER -- process and save a header line.
+**
+**	Called by collect, readcf, and readqf to deal with header lines.
+**	This is just a wrapper for dochompheader().
+**
+**	Parameters:
+**		line -- header as a text line.
+**		pflag -- flags for chompheader() (from sendmail.h)
+**		hdrp -- a pointer to the place to save the header.
+**		e -- the envelope including this header.
+**
+**	Returns:
+**		flags for this header.
+**
+**	Side Effects:
+**		The header is saved on the header list.
+**		Contents of 'line' are destroyed.
+*/
+
+
+unsigned long
+chompheader(line, pflag, hdrp, e)
+	char *line;
+	int pflag;
+	HDR **hdrp;
+	register ENVELOPE *e;
+{
+	unsigned long rval;
+
+	if (tTd(31, 6))
+	{
+		sm_dprintf("chompheader: ");
+		xputs(sm_debug_file(), line);
+		sm_dprintf("\n");
+	}
+
+	/* quote this if user (not config file) input */
+	if (bitset(pflag, CHHDR_USER))
+	{
+		char xbuf[MAXLINE];
+		char *xbp = NULL;
+		int xbufs;
+
+		xbufs = sizeof(xbuf);
+		xbp = quote_internal_chars(line, xbuf, &xbufs);
+		if (tTd(31, 7))
+		{
+			sm_dprintf("chompheader: quoted: ");
+			xputs(sm_debug_file(), xbp);
+			sm_dprintf("\n");
+		}
+		rval = dochompheader(xbp, pflag, hdrp, e);
+		if (xbp != xbuf)
+			sm_free(xbp);
+	}
+	else
+		rval = dochompheader(line, pflag, hdrp, e);
+
+	return rval;
+}
+
 /*
 **  ALLOCHEADER -- allocate a header entry
 **
 **	Parameters:
-**		field -- the name of the header field.
-**		value -- the value of the field.
+**		field -- the name of the header field (will not be copied).
+**		value -- the value of the field (will be copied).
 **		flags -- flags to add to h_flags.
 **		rp -- resource pool for allocations
+**		space -- add leading space?
 **
 **	Returns:
 **		Pointer to a newly allocated and populated HDR.
+**
+**	Notes:
+**		o field and value must be in internal format, i.e.,
+**		metacharacters must be "quoted", see quote_internal_chars().
+**		o maybe add more flags to decide:
+**		  - what to copy (field/value)
+**		  - whether to convert value to an internal format
 */
 
 static HDR *
-allocheader(field, value, flags, rp)
+allocheader(field, value, flags, rp, space)
 	char *field;
 	char *value;
 	int flags;
 	SM_RPOOL_T *rp;
+	bool space;
 {
 	HDR *h;
 	STAB *s;
@@ -488,9 +550,23 @@ allocheader(field, value, flags, rp)
 	s = stab(field, ST_HEADER, ST_FIND);
 
 	/* allocate space for new header */
-	h = (HDR *) sm_rpool_malloc_x(rp, sizeof *h);
+	h = (HDR *) sm_rpool_malloc_x(rp, sizeof(*h));
 	h->h_field = field;
-	h->h_value = sm_rpool_strdup_x(rp, value);
+	if (space)
+	{
+		size_t l;
+		char *n;
+
+		l = strlen(value);
+		SM_ASSERT(l + 2 > l);
+		n = sm_rpool_malloc_x(rp, l + 2);
+		n[0] = ' ';
+		n[1] = '\0';
+		sm_strlcpy(n + 1, value, l + 1);
+		h->h_value = n;
+	}
+	else
+		h->h_value = sm_rpool_strdup_x(rp, value);
 	h->h_flags = flags;
 	if (s != NULL)
 		h->h_flags |= s->s_header.hi_flags;
@@ -499,30 +575,36 @@ allocheader(field, value, flags, rp)
 
 	return h;
 }
+
 /*
 **  ADDHEADER -- add a header entry to the end of the queue.
 **
 **	This bypasses the special checking of chompheader.
 **
 **	Parameters:
-**		field -- the name of the header field.
-**		value -- the value of the field.
+**		field -- the name of the header field (will not be copied).
+**		value -- the value of the field (will be copied).
 **		flags -- flags to add to h_flags.
 **		e -- envelope.
+**		space -- add leading space?
 **
 **	Returns:
 **		none.
 **
 **	Side Effects:
 **		adds the field on the list of headers for this envelope.
+**
+**	Notes: field and value must be in internal format, i.e.,
+**		metacharacters must be "quoted", see quote_internal_chars().
 */
 
 void
-addheader(field, value, flags, e)
+addheader(field, value, flags, e, space)
 	char *field;
 	char *value;
 	int flags;
 	ENVELOPE *e;
+	bool space;
 {
 	register HDR *h;
 	HDR **hp;
@@ -536,41 +618,51 @@ addheader(field, value, flags, e)
 	}
 
 	/* allocate space for new header */
-	h = allocheader(field, value, flags, e->e_rpool);
+	h = allocheader(field, value, flags, e->e_rpool, space);
 	h->h_link = *hp;
 	*hp = h;
 }
+
 /*
 **  INSHEADER -- insert a header entry at the specified index
-**
 **	This bypasses the special checking of chompheader.
 **
 **	Parameters:
 **		idx -- index into the header list at which to insert
-**		field -- the name of the header field.
-**		value -- the value of the field.
+**		field -- the name of the header field (will be copied).
+**		value -- the value of the field (will be copied).
 **		flags -- flags to add to h_flags.
 **		e -- envelope.
+**		space -- add leading space?
 **
 **	Returns:
 **		none.
 **
 **	Side Effects:
 **		inserts the field on the list of headers for this envelope.
+**
+**	Notes:
+**		- field and value must be in internal format, i.e.,
+**		metacharacters must be "quoted", see quote_internal_chars().
+**		- the header list contains headers that might not be
+**		sent "out" (see putheader(): "skip"), hence there is no
+**		reliable way to insert a header at an exact position
+**		(except at the front or end).
 */
 
 void
-insheader(idx, field, value, flags, e)
+insheader(idx, field, value, flags, e, space)
 	int idx;
 	char *field;
 	char *value;
 	int flags;
 	ENVELOPE *e;
+	bool space;
 {
 	HDR *h, *srch, *last = NULL;
 
 	/* allocate space for new header */
-	h = allocheader(field, value, flags, e->e_rpool);
+	h = allocheader(field, value, flags, e->e_rpool, space);
 
 	/* find insertion position */
 	for (srch = e->e_header; srch != NULL && idx > 0;
@@ -594,6 +686,7 @@ insheader(idx, field, value, flags, e)
 		srch->h_link = h;
 	}
 }
+
 /*
 **  HVALUE -- return value of a header.
 **
@@ -605,7 +698,7 @@ insheader(idx, field, value, flags, e)
 **		header -- the header list.
 **
 **	Returns:
-**		pointer to the value part.
+**		pointer to the value part (internal format).
 **		NULL if not found.
 **
 **	Side Effects:
@@ -627,6 +720,7 @@ hvalue(field, header)
 	}
 	return NULL;
 }
+
 /*
 **  ISHEADER -- predicate telling if argument is a header.
 **
@@ -654,8 +748,9 @@ bool
 isheader(h)
 	char *h;
 {
-	register char *s = h;
+	char *s;
 
+	s = h;
 	if (s[0] == '-' && s[1] == '-')
 		return false;
 
@@ -671,6 +766,7 @@ isheader(h)
 
 	return (*s == ':');
 }
+
 /*
 **  EATHEADER -- run through the stored header and extract info.
 **
@@ -735,7 +831,7 @@ eatheader(e, full, log)
 	for (h = e->e_header; h != NULL; h = h->h_link)
 	{
 		if (tTd(32, 1))
-			sm_dprintf("%s: ", h->h_field);
+			sm_dprintf("%s:", h->h_field);
 		if (h->h_value == NULL)
 		{
 			if (tTd(32, 1))
@@ -753,12 +849,13 @@ eatheader(e, full, log)
 				xputs(sm_debug_file(), h->h_value);
 				sm_dprintf(") ");
 			}
-			expand(h->h_value, buf, sizeof buf, e);
-			if (buf[0] != '\0')
+			expand(h->h_value, buf, sizeof(buf), e);
+			if (buf[0] != '\0' &&
+			    (buf[0] != ' ' || buf[1] != '\0'))
 			{
 				if (bitset(H_FROM, h->h_flags))
 					expand(crackaddr(buf, e),
-					       buf, sizeof buf, e);
+					       buf, sizeof(buf), e);
 				h->h_value = sm_rpool_strdup_x(e->e_rpool, buf);
 				h->h_flags &= ~H_DEFAULT;
 			}
@@ -822,7 +919,7 @@ eatheader(e, full, log)
 	if (hopcnt > e->e_hopcount)
 	{
 		e->e_hopcount = hopcnt;
-		(void) sm_snprintf(buf, sizeof buf, "%d", e->e_hopcount);
+		(void) sm_snprintf(buf, sizeof(buf), "%d", e->e_hopcount);
 		macdefine(&e->e_macro, A_TEMP, 'c', buf);
 	}
 
@@ -853,7 +950,7 @@ eatheader(e, full, log)
 		/* tokenize header */
 		oldsupr = SuprErrs;
 		SuprErrs = true;
-		pvp = prescan(p, '\0', pvpbuf, sizeof pvpbuf, NULL,
+		pvp = prescan(p, '\0', pvpbuf, sizeof(pvpbuf), NULL,
 			      MimeTokenTab, false);
 		SuprErrs = oldsupr;
 
@@ -975,6 +1072,7 @@ eatheader(e, full, log)
 		e->e_flags &= ~EF_LOGSENDER;
 	}
 }
+
 /*
 **  LOGSENDER -- log sender information
 **
@@ -1005,8 +1103,8 @@ logsender(e, msgid)
 		size_t l;
 
 		l = strlen(msgid);
-		if (l > sizeof mbuf - 1)
-			l = sizeof mbuf - 1;
+		if (l > sizeof(mbuf) - 1)
+			l = sizeof(mbuf) - 1;
 		memmove(mbuf, msgid, l);
 		mbuf[l] = '\0';
 		p = mbuf;
@@ -1026,7 +1124,7 @@ logsender(e, msgid)
 	else
 	{
 		name = hbuf;
-		(void) sm_snprintf(hbuf, sizeof hbuf, "%.80s", RealHostName);
+		(void) sm_snprintf(hbuf, sizeof(hbuf), "%.80s", RealHostName);
 		if (RealHostAddr.sa.sa_family != 0)
 		{
 			p = &hbuf[strlen(hbuf)];
@@ -1105,6 +1203,7 @@ logsender(e, msgid)
 		  "%.400srelay=%s", sbuf, name);
 #endif /* (SYSLOG_BUFSIZE) >= 256 */
 }
+
 /*
 **  PRIENCODE -- encode external priority names into internal values.
 **
@@ -1133,6 +1232,7 @@ priencode(p)
 	/* unknown priority */
 	return 0;
 }
+
 /*
 **  CRACKADDR -- parse an address and turn it into a macro
 **
@@ -1215,17 +1315,22 @@ crackaddr(addr, e)
 	if (tTd(33, 1))
 		sm_dprintf("crackaddr(%s)\n", addr);
 
-	/* strip leading spaces */
+	buflim = bufend = &buf[sizeof(buf) - 1];
+	bp = bufhead = buf;
+
+	/* skip over leading spaces but preserve them */
 	while (*addr != '\0' && isascii(*addr) && isspace(*addr))
+	{
+		SM_APPEND_CHAR(*addr);
 		addr++;
+	}
+	bufhead = bp;
 
 	/*
 	**  Start by assuming we have no angle brackets.  This will be
 	**  adjusted later if we find them.
 	*/
 
-	buflim = bufend = &buf[sizeof(buf) - 1];
-	bp = bufhead = buf;
 	p = addrhead = addr;
 	copylev = anglelev = cmtlev = realcmtlev = 0;
 	bracklev = 0;
@@ -1533,6 +1638,7 @@ crackaddr(addr, e)
 	}
 	return buf;
 }
+
 /*
 **  PUTHEADER -- put the header part of a message from the in-core copy
 **
@@ -1580,7 +1686,7 @@ putheader(mci, hdr, e, flags)
 
 		if (tTd(34, 11))
 		{
-			sm_dprintf("  %s: ", h->h_field);
+			sm_dprintf("  %s:", h->h_field);
 			xputs(sm_debug_file(), p);
 		}
 
@@ -1721,7 +1827,7 @@ putheader(mci, hdr, e, flags)
 		if (bitset(H_DEFAULT, h->h_flags) ||
 		    bitset(H_BINDLATE, h->h_flags))
 		{
-			expand(p, buf, sizeof buf, e);
+			expand(p, buf, sizeof(buf), e);
 			p = buf;
 			if (*p == '\0')
 			{
@@ -1742,7 +1848,7 @@ putheader(mci, hdr, e, flags)
 			else
 			{
 				/* no other recipient headers: truncate value */
-				(void) sm_strlcpyn(obuf, sizeof obuf, 2,
+				(void) sm_strlcpyn(obuf, sizeof(obuf), 2,
 						   h->h_field, ":");
 				if (!putline(obuf, mci))
 					goto writeerr;
@@ -1786,7 +1892,7 @@ putheader(mci, hdr, e, flags)
 			goto writeerr;
 		if (hvalue("Content-Type", e->e_header) == NULL)
 		{
-			(void) sm_snprintf(obuf, sizeof obuf,
+			(void) sm_snprintf(obuf, sizeof(obuf),
 					"Content-Type: text/plain; charset=%s",
 					defcharset(e));
 			if (!putline(obuf, mci))
@@ -1802,6 +1908,7 @@ putheader(mci, hdr, e, flags)
   writeerr:
 	return false;
 }
+
 /*
 **  PUT_VANILLA_HEADER -- output a fairly ordinary header
 **
@@ -1825,10 +1932,10 @@ put_vanilla_header(h, v, mci)
 	int putflags;
 	char obuf[MAXLINE + 256];	/* additional length for h_field */
 
-	putflags = PXLF_HEADER;
+	putflags = PXLF_HEADER | PXLF_STRIPMQUOTE;
 	if (bitnset(M_7BITHDRS, mci->mci_mailer->m_flags))
 		putflags |= PXLF_STRIP8BIT;
-	(void) sm_snprintf(obuf, sizeof obuf, "%.200s: ", h->h_field);
+	(void) sm_snprintf(obuf, sizeof(obuf), "%.200s:", h->h_field);
 	obp = obuf + strlen(obuf);
 	while ((nlp = strchr(v, '\n')) != NULL)
 	{
@@ -1861,6 +1968,7 @@ put_vanilla_header(h, v, mci)
   writeerr:
 	return false;
 }
+
 /*
 **  COMMAIZE -- output a header field, making a comma-translated list.
 **
@@ -1875,7 +1983,7 @@ put_vanilla_header(h, v, mci)
 **		true iff header field was written successfully
 **
 **	Side Effects:
-**		outputs "p" to file "fp".
+**		outputs "p" to "mci".
 */
 
 bool
@@ -1887,10 +1995,9 @@ commaize(h, p, oldstyle, mci, e)
 	register ENVELOPE *e;
 {
 	register char *obp;
-	int opos;
-	int omax;
+	int opos, omax, spaces;
 	bool firstone = true;
-	int putflags = PXLF_HEADER;
+	int putflags = PXLF_HEADER | PXLF_STRIPMQUOTE;
 	char **res;
 	char obuf[MAXLINE + 3];
 
@@ -1900,20 +2007,44 @@ commaize(h, p, oldstyle, mci, e)
 	*/
 
 	if (tTd(14, 2))
-		sm_dprintf("commaize(%s: %s)\n", h->h_field, p);
+		sm_dprintf("commaize(%s:%s)\n", h->h_field, p);
 
 	if (bitnset(M_7BITHDRS, mci->mci_mailer->m_flags))
 		putflags |= PXLF_STRIP8BIT;
 
 	obp = obuf;
-	(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%.200s: ",
-			h->h_field);
-
-	/* opos = strlen(obp); */
-	opos = strlen(h->h_field) + 2;
-	if (opos > 202)
-		opos = 202;
+	(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%.200s:", h->h_field);
+	/* opos = strlen(obp); instead of the next 3 lines? */
+	opos = strlen(h->h_field) + 1;
+	if (opos > 201)
+		opos = 201;
 	obp += opos;
+
+	spaces = 0;
+	while (*p != '\0' && isascii(*p) && isspace(*p))
+	{
+		++spaces;
+		++p;
+	}
+	if (spaces > 0)
+	{
+		SM_ASSERT(sizeof(obuf) > opos  * 2);
+
+		/*
+		**  Restrict number of spaces to half the length of buffer
+		**  so the header field body can be put in here too.
+		**  Note: this is a hack...
+		*/
+
+		if (spaces > sizeof(obuf) / 2)
+			spaces = sizeof(obuf) / 2;
+		(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%*s", spaces,
+				"");
+		opos += spaces;
+		obp += spaces;
+		SM_ASSERT(obp < &obuf[MAXLINE]);
+	}
+
 	omax = mci->mci_mailer->m_linelimit - 2;
 	if (omax < 0 || omax > 78)
 		omax = 78;
@@ -1949,7 +2080,7 @@ commaize(h, p, oldstyle, mci, e)
 			char pvpbuf[PSBUFSIZE];
 
 			res = prescan(p, oldstyle ? ' ' : ',', pvpbuf,
-				      sizeof pvpbuf, &oldp, NULL, false);
+				      sizeof(pvpbuf), &oldp, ExtTokenTab, false);
 			p = oldp;
 #if _FFR_IGNORE_BOGUS_ADDR
 			/* ignore addresses that can't be parsed */
@@ -2027,7 +2158,7 @@ commaize(h, p, oldstyle, mci, e)
 			if (!putxline(obuf, strlen(obuf), mci, putflags))
 				goto writeerr;
 			obp = obuf;
-			(void) sm_strlcpy(obp, "        ", sizeof obuf);
+			(void) sm_strlcpy(obp, "        ", sizeof(obuf));
 			opos = strlen(obp);
 			obp += opos;
 			opos += strlen(name);
@@ -2043,10 +2174,10 @@ commaize(h, p, oldstyle, mci, e)
 		firstone = false;
 		*p = savechar;
 	}
-	if (obp < &obuf[sizeof obuf])
+	if (obp < &obuf[sizeof(obuf)])
 		*obp = '\0';
 	else
-		obuf[sizeof obuf - 1] = '\0';
+		obuf[sizeof(obuf) - 1] = '\0';
 	return putxline(obuf, strlen(obuf), mci, putflags);
 
   writeerr:
@@ -2080,7 +2211,7 @@ copyheader(header, rpool)
 
 	while (header != NULL)
 	{
-		newhdr = (HDR *) sm_rpool_malloc_x(rpool, sizeof *newhdr);
+		newhdr = (HDR *) sm_rpool_malloc_x(rpool, sizeof(*newhdr));
 		STRUCTCOPY(*header, *newhdr);
 		*tail = newhdr;
 		tail = &newhdr->h_link;
@@ -2090,6 +2221,7 @@ copyheader(header, rpool)
 
 	return ret;
 }
+
 /*
 **  FIX_MIME_HEADER -- possibly truncate/rebalance parameters in a MIME header
 **
