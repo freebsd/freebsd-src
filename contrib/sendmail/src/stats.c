@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: stats.c,v 8.56 2002/06/27 22:47:37 gshapiro Exp $")
+SM_RCSID("@(#)$Id: stats.c,v 8.57 2006/08/15 23:24:58 ca Exp $")
 
 #include <sendmail/mailstats.h>
 
@@ -112,7 +112,7 @@ void
 clearstats()
 {
 	/* clear the structure to avoid future disappointment */
-	memset(&Stat, '\0', sizeof Stat);
+	memset(&Stat, '\0', sizeof(Stat));
 	GotStats = false;
 }
 /*
@@ -143,7 +143,7 @@ poststats(sfile)
 	entered = true;
 
 	(void) time(&Stat.stat_itime);
-	Stat.stat_size = sizeof Stat;
+	Stat.stat_size = sizeof(Stat);
 	Stat.stat_magic = STAT_MAGIC;
 	Stat.stat_version = STAT_VERSION;
 
@@ -162,8 +162,8 @@ poststats(sfile)
 		entered = false;
 		return;
 	}
-	if (read(fd, (char *) &stats, sizeof stats) == sizeof stats &&
-	    stats.stat_size == sizeof stats &&
+	if (read(fd, (char *) &stats, sizeof(stats)) == sizeof(stats) &&
+	    stats.stat_size == sizeof(stats) &&
 	    stats.stat_magic == Stat.stat_magic &&
 	    stats.stat_version == Stat.stat_version)
 	{
@@ -185,11 +185,11 @@ poststats(sfile)
 		stats.stat_cf += Stat.stat_cf;
 	}
 	else
-		memmove((char *) &stats, (char *) &Stat, sizeof stats);
+		memmove((char *) &stats, (char *) &Stat, sizeof(stats));
 
 	/* write out results */
 	(void) lseek(fd, (off_t) 0, 0);
-	(void) write(fd, (char *) &stats, sizeof stats);
+	(void) write(fd, (char *) &stats, sizeof(stats));
 	(void) close(fd);
 
 	/* clear the structure to avoid future disappointment */

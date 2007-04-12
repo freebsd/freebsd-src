@@ -1,113 +1,121 @@
-<html>
-<head><title>xxfi_connect</title></head>
-<body>
+<HTML>
+<HEAD><TITLE>xxfi_connect</TITLE></HEAD>
+<BODY>
 <!--
-$Id: xxfi_connect.html,v 1.13 2003/10/29 22:54:16 msk Exp $
+$Id: xxfi_connect.html,v 1.19 2007/01/15 22:24:45 ca Exp $
 -->
-<h1>xxfi_connect</h1>
+<H1>xxfi_connect</H1>
 
-<table border="0" cellspacing=4 cellpadding=4>
+<TABLE border="0" cellspacing=4 cellpadding=4>
 <!---------- Synopsis ----------->
-<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
-<pre>
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
 #include &lt;libmilter/mfapi.h&gt;
 sfsistat (*xxfi_connect)(
         SMFICTX    *ctx, 
         char       *hostname,
         _SOCK_ADDR *hostaddr);
-</pre>
-</td></tr>
+</PRE>
+</TD></TR>
 <!----------- Description ---------->
-<tr><th valign="top" align=left>DESCRIPTION</th><td>
-<table border="1" cellspacing=1 cellpadding=4>
-<tr>
-<th valign="top" align=left width=80>Called When</th>
-<td>Once, at the start of each SMTP connection.</td>
-</tr>
-<tr>
-<th valign="top" align=left width=80>Default Behavior</th>
-<td>Do nothing; return SMFIS_CONTINUE.</td>
-</tr>
-</table>
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR>
+<TH valign="top" align=left width=80>Called When</TH>
+<TD>Once, at the start of each SMTP connection.</TD>
+</TR>
+<TR>
+<TH valign="top" align=left width=80>Default Behavior</TH>
+<TD>Do nothing; return SMFIS_CONTINUE.</TD>
+</TR>
+</TABLE>
 <!--
 This callback function is invoked on each connection to the mail 
-filter program.  The callback is to be implemented by the Milter
-application developers.  The name of the callback can be any valid
-function name.  The function pointer is to be assigned to the
+filter program.
+The callback is to be implemented by the Milter application developers.
+The name of the callback can be any valid function name.
+The function pointer is to be assigned to the
 smfiDesc.xxfi_connect and the pointer to the smfiDesc structure
 is passed to smfi_register().
-</td></tr>
+</TD></TR>
 -->
 <!----------- Arguments ---------->
-<tr><th valign="top" align=left>ARGUMENTS</th><td>
-    <table border="1" cellspacing=0>
-    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
-    <tr><td>ctx</td>
-	<td>the opaque context structure.
-	</td></tr>
-    <tr><td>hostname</td>
-	<td>the host name of the message sender, as determined by a
-	    reverse lookup on the host address.  If the reverse lookup
-	    fails, hostname will contain the message sender's IP
-	    address enclosed in square brackets (e.g. `[a.b.c.d]').
-	</td></tr>
-    <tr><td>hostaddr</td>
-	<td>the host address, as determined by a getpeername() call on the SMTP socket.
-	 NULL if the type is not supported in the current version or if
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR><TD>ctx</TD>
+	<TD>the opaque context structure.
+	</TD></TR>
+    <TR><TD>hostname</TD>
+	<TD>the host name of the message sender, as determined by a
+	reverse lookup on the host address.
+	If the reverse lookup fails
+	or if none of the IP addresses of the resolved host name
+	matches the original IP address,
+	hostname will contain the message sender's IP
+	address enclosed in square brackets (e.g. `[a.b.c.d]').
+	If the SMTP connection is made via stdin the value is
+	<CODE>localhost</CODE>.
+	</TD></TR>
+    <TR><TD>hostaddr</TD>
+	<TD>the host address,
+	as determined by a <CODE>getpeername(2)</CODE> call on the SMTP socket.
+	NULL if the type is not supported in the current version or if
 	the SMTP connection is made via stdin.
-	</td></tr>
-    </table>
-</td></tr>
+	</TD></TR>
+    </TABLE>
+</TD></TR>
 <!----------- Return values ---------->
 <!--
-<tr>
-<th valign="top" align=left>SPECIAL RETURN VALUES</th>
-<td><table border="1" cellspacing=0>
-  <tr bgcolor="#dddddd"><th>Return value</th><th>Description</th></tr>
-  <tr valign="top">
-     <td>SMFIS_ACCEPT</td>
-     <td>Accept all commands and messages from this client without any
-         further contact with the filter. </td>
-     </td>
-  </tr>
-  <tr valign="top">
-     <td>SMFIS_CONTINUE</td>
-     <td>Continue normal processing. </td>
-  </tr>
-  <tr valign="top">
-     <td>SMFIS_DISCARD</td>
-     <td>Undefined behaviour; do not use. </td>
-  </tr>
-  <tr valign="top">
-     <td>SMFIS_TEMPFAIL</td>
-     <td>Reject all commands and messages from this client with a
-         temporary failure reply code.  If also used in conjunction
-         with <tt>smfi_setreply()</tt> to set a reply whose SMTP
-         code is 421, the MTA will drop the connection immediately. </td>
-  </tr>
-  <tr valign="top">
-     <td>SMFIS_REJECT</td>
-     <td>Reject all commands and messages from this client with a
-         permanent failure reply code. </td>
-  </tr>
-</table>
-</tr>
+<TR>
+<TH valign="top" align=left>SPECIAL RETURN VALUES</TH>
+<TD><TABLE border="1" cellspacing=0>
+  <TR bgcolor="#dddddd"><TH>Return value</TH><TH>Description</TH></TR>
+  <TR valign="top">
+     <TD>SMFIS_ACCEPT</TD>
+     <TD>Accept all commands and messages from this client without any
+         further contact with the filter. </TD>
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_CONTINUE</TD>
+     <TD>Continue normal processing. </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_DISCARD</TD>
+     <TD>Undefined behaviour; do not use. </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_TEMPFAIL</TD>
+     <TD>Reject all commands and messages from this client with a
+        temporary failure reply code.
+	If also used in conjunction with <CODE>smfi_setreply()</CODE>
+	to set a reply whose SMTP code is 421,
+	the MTA will drop the connection immediately. </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_REJECT</TD>
+     <TD>Reject all commands and messages from this client with a
+         permanent failure reply code. </TD>
+  </TR>
+</TABLE>
+</TR>
 -->
 <!----------- Notes ---------->
-<tr>
-<th valign="top" align=left>NOTES</th> 
-<td>If an earlier filter rejects the connection in its xxfi_connect()
-routine, this filter's xxfi_connect() will not be called.</td>
-</tr>
-</table>
+<TR>
+<TH valign="top" align=left>NOTES</TH> 
+<TD>If an earlier filter rejects the connection in its xxfi_connect()
+routine, this filter's xxfi_connect() will not be called.</TD>
+</TR>
+</TABLE>
 
-<hr size="1">
-<font size="-1">
-Copyright (c) 2000-2001, 2003 Sendmail, Inc. and its suppliers.
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000-2001, 2003, 2007 Sendmail, Inc. and its suppliers.
 All rights reserved.
-<br>
+<BR>
 By using this file, you agree to the terms and conditions set
 forth in the LICENSE.
-</font>
-</body>
-</html>
+</FONT>
+</BODY>
+</HTML>

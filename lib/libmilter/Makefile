@@ -20,8 +20,8 @@ INCS=	${SENDMAIL_DIR}/include/libmilter/mfapi.h \
 LIB=	milter
 
 SRCS+=	sm_os.h
-SRCS+=	main.c engine.c listener.c handler.c comm.c smfi.c \
-	signal.c sm_gethost.c errstring.c strl.c
+SRCS+=	main.c engine.c listener.c handler.c comm.c monitor.c smfi.c \
+	signal.c sm_gethost.c errstring.c strl.c worker.c
 CLEANFILES+=sm_os.h
 
 sm_os.h:

@@ -14,7 +14,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.217 2006/04/18 01:27:36 ca Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.218 2006/08/15 23:24:57 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -141,8 +141,8 @@ mci_scan(savemci)
 	if (MciCache == NULL)
 	{
 		/* first call */
-		MciCache = (MCI **) sm_pmalloc_x(MaxMciCache * sizeof *MciCache);
-		memset((char *) MciCache, '\0', MaxMciCache * sizeof *MciCache);
+		MciCache = (MCI **) sm_pmalloc_x(MaxMciCache * sizeof(*MciCache));
+		memset((char *) MciCache, '\0', MaxMciCache * sizeof(*MciCache));
 		return &MciCache[0];
 	}
 
@@ -310,7 +310,7 @@ mci_get(host, m)
 	extern SOCKADDR CurHostAddr;
 
 	/* clear CurHostAddr so we don't get a bogus address with this name */
-	memset(&CurHostAddr, '\0', sizeof CurHostAddr);
+	memset(&CurHostAddr, '\0', sizeof(CurHostAddr));
 
 	/* clear out any expired connections */
 	(void) mci_scan(NULL);
@@ -375,7 +375,7 @@ mci_get(host, m)
 		{
 			/* get peer host address */
 			/* (this should really be in the mci struct) */
-			SOCKADDR_LEN_T socklen = sizeof CurHostAddr;
+			SOCKADDR_LEN_T socklen = sizeof(CurHostAddr);
 
 			(void) getpeername(sm_io_getinfo(mci->mci_in,
 							 SM_IO_WHAT_FD, NULL),
@@ -465,10 +465,10 @@ mci_new(rpool)
 	register MCI *mci;
 
 	if (rpool == NULL)
-		mci = (MCI *) sm_malloc_x(sizeof *mci);
+		mci = (MCI *) sm_malloc_x(sizeof(*mci));
 	else
-		mci = (MCI *) sm_rpool_malloc_x(rpool, sizeof *mci);
-	memset((char *) mci, '\0', sizeof *mci);
+		mci = (MCI *) sm_rpool_malloc_x(rpool, sizeof(*mci));
+	memset((char *) mci, '\0', sizeof(*mci));
 	mci->mci_rpool = sm_rpool_new_x(NULL);
 	mci->mci_macro.mac_rpool = mci->mci_rpool;
 	return mci;
@@ -727,7 +727,7 @@ mci_lock_host_statfile(mci)
 		sm_dprintf("mci_lock_host: attempting to lock %s\n",
 			   mci->mci_host);
 
-	if (mci_generate_persistent_path(mci->mci_host, fname, sizeof fname,
+	if (mci_generate_persistent_path(mci->mci_host, fname, sizeof(fname),
 					 true) < 0)
 	{
 		/* of course this should never happen */
@@ -857,7 +857,7 @@ mci_load_persistent(mci)
 		sm_dprintf("mci_load_persistent: Attempting to load persistent information for %s\n",
 			   mci->mci_host);
 
-	if (mci_generate_persistent_path(mci->mci_host, fname, sizeof fname,
+	if (mci_generate_persistent_path(mci->mci_host, fname, sizeof(fname),
 					 false) < 0)
 	{
 		/* Not much we can do if the file isn't there... */
@@ -946,7 +946,7 @@ mci_read_persistent(fp, mci)
 	sm_io_rewind(fp, SM_TIME_DEFAULT);
 	ver = -1;
 	LineNumber = 0;
-	while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf, sizeof buf) != NULL)
+	while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
 	{
 		LineNumber++;
 		p = strchr(buf, '\n');
@@ -1171,7 +1171,7 @@ mci_traverse_persistent(action, pathname)
 					continue;
 
 				(void) sm_strlcpy(newptr, e->d_name,
-					       sizeof newpath -
+					       sizeof(newpath) -
 					       (newptr - newpath));
 
 				if (StopRequest)
@@ -1301,7 +1301,7 @@ mci_print_persistent(pathname, hostname)
 	}
 
 	FileName = pathname;
-	memset(&mcib, '\0', sizeof mcib);
+	memset(&mcib, '\0', sizeof(mcib));
 	if (mci_read_persistent(fp, &mcib) < 0)
 	{
 		syserr("%s: could not read status file", pathname);
@@ -1333,7 +1333,7 @@ mci_print_persistent(pathname, hostname)
 		{
 			char buf[80];
 
-			(void) sm_snprintf(buf, sizeof buf,
+			(void) sm_snprintf(buf, sizeof(buf),
 				"Unknown mailer error %d",
 				mcib.mci_exitstat);
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%.*s\n",
@@ -1480,12 +1480,12 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 		return -1;
 
 	/* make certain this is not a bracketed host number */
-	if (strlen(host) > sizeof t_host - 1)
+	if (strlen(host) > sizeof(t_host) - 1)
 		return -1;
 	if (host[0] == '[')
-		(void) sm_strlcpy(t_host, host + 1, sizeof t_host);
+		(void) sm_strlcpy(t_host, host + 1, sizeof(t_host));
 	else
-		(void) sm_strlcpy(t_host, host, sizeof t_host);
+		(void) sm_strlcpy(t_host, host, sizeof(t_host));
 
 	/*
 	**  Delete any trailing dots from the hostname.

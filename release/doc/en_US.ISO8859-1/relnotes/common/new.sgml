@@ -245,6 +245,9 @@
       5.2-20010512 to 5.6-20061217.  ncurses now also has wide
       character support.</para>
 
+    <para><application>sendmail</application> has been updated from
+      8.13.8 to 8.14.1.</para>
+
   </sect2>
 
   <sect2 id="ports">
