@@ -85,6 +85,7 @@ flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 gad [label="Garance A. Drosehn\ngad@FreeBSD.org\n2000/10/27"]
 gallatin [label="Andrew Gallatin\ngallatin@FreeBSD.org\n????/??/??"]
 gibbs [label="Justin T. Gibbs\ngibbs@FreeBSD.org\n????/??/??"]
+glebius [label="Gleb Smirnoff\nglebius@FreeBSD.org\n2004/07/14"]
 gnn [label="George V. Neville-Neil\ngnn@FreeBSD.org\n2004/10/11"]
 grehan [label="Peter Grehan\ngrehan@FreeBSD.org\n2002/08/08"]
 grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
@@ -107,6 +108,7 @@ le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2006/09/30"]
 marks [label="Mark Santcroos\nmarks@FreeBSD.org\n2004/03/18"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
+mav [label="Alexander Motin\nmav@FreeBSD.org\n2007/04/12"]
 maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
 mjacob [label="Matt Jacob\nmjacob@FreeBSD.org\n1997/08/13"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
@@ -212,6 +214,8 @@ gallatin -> ticso
 gibbs -> mjacob
 gibbs -> njl
 
+glebius -> mav
+
 gnn -> jinmei
 gnn -> rrs
 
@@ -266,6 +270,8 @@ joerg -> brian
 joerg -> eik
 joerg -> le
 joerg -> netchild
+
+julian -> glebius
 
 mdodd -> jake
 
