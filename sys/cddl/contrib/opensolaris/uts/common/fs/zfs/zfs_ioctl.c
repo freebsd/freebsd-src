@@ -1354,7 +1354,7 @@ zfs_ioc_snapshot(zfs_cmd_t *zc)
 	    zc->zc_value, zc->zc_cookie));
 }
 
-static int
+int
 zfs_unmount_snap(char *name, void *arg)
 {
 	char *snapname = arg;
@@ -1430,18 +1430,25 @@ zfs_ioc_rollback(zfs_cmd_t *zc)
 static int
 zfs_ioc_rename(zfs_cmd_t *zc)
 {
+	int recursive = zc->zc_cookie & 1;
+
 	zc->zc_value[sizeof (zc->zc_value) - 1] = '\0';
 	if (dataset_namecheck(zc->zc_value, NULL, NULL) != 0)
 		return (EINVAL);
 
-	if (strchr(zc->zc_name, '@') != NULL &&
+	/*
+	 * Unmount snapshot unless we're doing a recursive rename,
+	 * in which case the dataset code figures out which snapshots
+	 * to unmount.
+	 */
+	if (!recursive && strchr(zc->zc_name, '@') != NULL &&
 	    zc->zc_objset_type == DMU_OST_ZFS) {
 		int err = zfs_unmount_snap(zc->zc_name, NULL);
 		if (err)
 			return (err);
 	}
 
-	return (dmu_objset_rename(zc->zc_name, zc->zc_value));
+	return (dmu_objset_rename(zc->zc_name, zc->zc_value, recursive));
 }
 
 static int
