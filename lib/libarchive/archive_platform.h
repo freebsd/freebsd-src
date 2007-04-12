@@ -36,15 +36,12 @@
 #ifndef ARCHIVE_PLATFORM_H_INCLUDED
 #define	ARCHIVE_PLATFORM_H_INCLUDED
 
-#if defined(HAVE_CONFIG_H)
+#if defined(PLATFORM_CONFIG_H)
+/* Use hand-built config.h in environments that need it. */
+#include PLATFORM_CONFIG_H
+#elif defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
 #include "../config.h"
-#elif defined(__FreeBSD__)
-/* Building as part of FreeBSD system requires a pre-built config.h. */
-#include "config_freebsd.h"
-#elif defined(_WIN32)
-/* Win32 can't run the 'configure' script. */
-#include "config_windows.h"
 #else
 /* Warn if the library hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no pre-built configuration in archive_platform.h.
