@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef MAJOR_IN_MKDEV
 #include <sys/mkdev.h>
+#elif defined(MAJOR_IN_SYSMACROS)
+#include <sys/sysmacros.h>
 #endif
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
