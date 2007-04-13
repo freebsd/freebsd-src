@@ -624,7 +624,7 @@ buf_init(void)
 	 * with an average 64K block size.  The table will take up
 	 * totalmem*sizeof(void*)/64K (eg. 128KB/GB with 8-byte pointers).
 	 */
-	while (hsize * 65536 < physmem * PAGESIZE)
+	while (hsize * 65536 < (uint64_t)physmem * PAGESIZE)
 		hsize <<= 1;
 retry:
 	buf_hash_table.ht_mask = hsize - 1;
@@ -2801,7 +2801,7 @@ arc_init(void)
 
 #ifdef _KERNEL
 	/* Warn about ZFS memory requirements. */
-	if ((physmem * PAGESIZE) < (256 + 128 + 64) * (1 << 20)) {
+	if (((uint64_t)physmem * PAGESIZE) < (256 + 128 + 64) * (1 << 20)) {
 		printf("ZFS WARNING: Recomended minimum of RAM size is 512MB, "
 		    "expect unstable behaviour.\n");
 	} else if (kmem_size() < 256 * (1 << 20)) {
