@@ -53,6 +53,7 @@
 #include <sys/taskq.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/eventhandler.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -285,8 +286,10 @@ vnode_t negative_cache_vnode;
 static ncache_t *dnlc_get(uchar_t namlen);
 static ncache_t *dnlc_search(vnode_t *dp, char *name, uchar_t namlen, int hash);
 static void do_dnlc_reduce_cache(void *);
+static void dnlc_lowvnodes(void *arg __unused, int nvnodes);
 
 static kstat_t *dnlc_ksp = NULL;
+static eventhandler_tag dnlc_event_lowvnodes = NULL;
 
 /*
  * Initialize the directory cache.
@@ -305,7 +308,7 @@ dnlc_init(void *arg __unused)
 #if 0
 		dnlc_nentries_low_water = 4 * (v.v_proc + maxusers) + 320;
 #else
-		dnlc_nentries_low_water = vm_kmem_size / 20480;
+		dnlc_nentries_low_water = (desiredvnodes * 49) / 100;
 #endif
 		ncsize = dnlc_nentries_low_water +
 		    (dnlc_nentries_low_water / dnlc_low_water_divisor);
@@ -363,6 +366,9 @@ dnlc_init(void *arg __unused)
 		dnlc_ksp->ks_data = (void *) &ncs;
 		kstat_install(dnlc_ksp);
 	}
+
+	dnlc_event_lowvnodes = EVENTHANDLER_REGISTER(vfs_lowvnodes,
+	    dnlc_lowvnodes, NULL, EVENTHANDLER_PRI_FIRST);
 }
 
 static void
@@ -370,6 +376,9 @@ dnlc_fini(void *arg __unused)
 {
 	nc_hash_t *hp;
 	int i;
+
+	if (dnlc_event_lowvnodes != NULL)
+		EVENTHANDLER_DEREGISTER(vfs_lowvnodes, dnlc_event_lowvnodes);
 
 	if (dnlc_ksp != NULL) {
 		kstat_delete(dnlc_ksp);
@@ -818,6 +827,16 @@ found:
 
 	dnlc_free_rotor = hp;
 	dnlc_reduce_idle = 1;
+}
+
+static void
+dnlc_lowvnodes(void *arg __unused, int nvnodes)
+{
+
+	nvnodes /= ncsize_onepercent;
+	/* Free no less than 5%. */
+	nvnodes = nvnodes < 5 * ncsize_onepercent ? 5 * ncsize_onepercent : nvnodes;
+	dnlc_reduce_cache((void *)(intptr_t)nvnodes);
 }
 
 SYSINIT(dnlc, SI_SUB_DRIVERS, SI_ORDER_ANY, dnlc_init, NULL);
