@@ -3261,7 +3261,7 @@ pmap_change_attr(va, size, mode)
 	pd_entry_t *pde;
 	pt_entry_t *pte;
 
-	base = va & PG_FRAME;
+	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 
