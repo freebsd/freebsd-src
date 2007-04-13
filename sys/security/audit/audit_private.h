@@ -172,6 +172,7 @@ struct audit_record {
 	pid_t			ar_subj_asid; /* Audit session ID */
 	pid_t			ar_subj_pid;
 	struct au_tid		ar_subj_term;
+	struct au_tid_addr	ar_subj_term_addr;
 	char			ar_subj_comm[MAXCOMLEN + 1];
 	struct au_mask		ar_subj_amask;
 
@@ -185,6 +186,7 @@ struct audit_record {
 	pid_t			ar_arg_pid;
 	pid_t			ar_arg_asid;
 	struct au_tid		ar_arg_termid;
+	struct au_tid_addr	ar_arg_termid_addr;
 	uid_t			ar_arg_uid;
 	uid_t			ar_arg_auid;
 	gid_t			ar_arg_gid;
