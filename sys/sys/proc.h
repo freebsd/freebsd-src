@@ -579,7 +579,7 @@ struct proc {
 	struct p_sched	*p_sched;	/* (*) Scheduler-specific data. */
 	STAILQ_HEAD(, ktr_request)	p_ktr;	/* (o) KTR event queue. */
 	LIST_HEAD(, mqueue_notifier)	p_mqnotifier; /* (c) mqueue notifiers.*/
-	struct auditinfo	*p_au;	/* (c) Process audit properties. */
+	struct auditinfo_addr	*p_au;	/* (c) Process audit properties. */
 };
 
 #define	p_session	p_pgrp->pg_session

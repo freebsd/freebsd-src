@@ -390,16 +390,40 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	rec = kau_open();
 
 	/* Create the subject token */
-	tid.port = ar->ar_subj_term.port;
-	tid.machine = ar->ar_subj_term.machine;
-	subj_tok = au_to_subject32(ar->ar_subj_auid,  /* audit ID */
-		ar->ar_subj_cred.cr_uid, /* eff uid */
-		ar->ar_subj_egid,	/* eff group id */
-		ar->ar_subj_ruid, 	/* real uid */
-		ar->ar_subj_rgid, 	/* real group id */
-		ar->ar_subj_pid,	/* process id */
-		ar->ar_subj_asid,	/* session ID */
-		&tid);
+	switch (ar->ar_subj_term_addr.at_type) {
+	case AU_IPv4:
+		tid.port = ar->ar_subj_term_addr.at_port;
+		tid.machine = ar->ar_subj_term_addr.at_addr[0];
+		subj_tok = au_to_subject32(ar->ar_subj_auid,  /* audit ID */
+		    ar->ar_subj_cred.cr_uid, /* eff uid */
+		    ar->ar_subj_egid,	/* eff group id */
+		    ar->ar_subj_ruid, 	/* real uid */
+		    ar->ar_subj_rgid, 	/* real group id */
+		    ar->ar_subj_pid,	/* process id */
+		    ar->ar_subj_asid,	/* session ID */
+		    &tid);
+		break;
+	case AU_IPv6:
+		subj_tok = au_to_subject32_ex(ar->ar_subj_auid,
+		    ar->ar_subj_cred.cr_uid,
+		    ar->ar_subj_egid,
+		    ar->ar_subj_ruid,
+		    ar->ar_subj_rgid,
+		    ar->ar_subj_pid,
+		    ar->ar_subj_asid,
+		    &ar->ar_subj_term_addr);
+		break;
+	default:
+		bzero(&tid, sizeof(tid));
+		subj_tok = au_to_subject32(ar->ar_subj_auid,
+		    ar->ar_subj_cred.cr_uid,
+		    ar->ar_subj_egid,
+		    ar->ar_subj_ruid,
+		    ar->ar_subj_rgid,
+		    ar->ar_subj_pid,
+		    ar->ar_subj_asid,
+		    &tid);
+	}
 
 	/*
 	 * The logic inside each case fills in the tokens required for the
