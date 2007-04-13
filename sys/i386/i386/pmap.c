@@ -2284,7 +2284,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	vm_page_t mpte, om;
 	boolean_t invlva;
 
-	va &= PG_FRAME;
+	va = trunc_page(va);
 #ifdef PMAP_DIAGNOSTIC
 	if (va > VM_MAX_KERNEL_ADDRESS)
 		panic("pmap_enter: toobig");
@@ -3346,7 +3346,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 
 	if (va >= KERNBASE && va + size <= KERNBASE + KERNLOAD)
 		return;
-	base = va & PG_FRAME;
+	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 	for (tmpva = base; tmpva < (base + size); tmpva += PAGE_SIZE)
@@ -3366,7 +3366,7 @@ pmap_change_attr(va, size, mode)
 	u_int opte, npte;
 	pd_entry_t *pde;
 
-	base = va & PG_FRAME;
+	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 
