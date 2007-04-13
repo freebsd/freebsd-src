@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2004
+.Dd April 6, 2007
 .Dt MPT 4
 .Os
 .Sh NAME
@@ -61,9 +61,10 @@ The
 .Nm
 driver provides support
 for the LSI Logic Fusion-MPT family of
-.Tn SCSI
-and
+.Tn SCSI ,
 .Tn Fibre Channel
+and
+.Tn SAS
 controllers.
 .Sh HARDWARE
 The following controllers are supported by the
@@ -72,9 +73,14 @@ driver:
 .Pp
 .Bl -bullet -compact
 .It
-LSI Logic 53c1030
-(Dual Ultra320
+LSI Logic 53c1030,
+LSI Logic LSI2x320-X
+(Single and Dual Ultra320
 .Tn SCSI )
+.It
+LSI Logic AS1064,
+LSI Logic AS1068
+.Pq Tn SAS/SATA
 .It
 LSI Logic FC909
 (1Gb/s
@@ -84,35 +90,71 @@ LSI Logic FC909A
 (Dual 1Gb/s
 .Tn Fibre Channel )
 .It
-LSI Logic FC919
-(2Gb/s
+LSI Logic FC919,
+LSI Logic 7102XP-LC
+(Single 2Gb/s
 .Tn Fibre Channel )
 .It
 LSI Logic FC929,
-LSI Logic FC929X
+LSI Logic FC929X,
+LSI Logic 7202XP-LC
 (Dual 2Gb/s
 .Tn Fibre Channel )
+.It
+LSI Logic FC949X
+(Dual 4Gb/s
+.Tn Fibre Channel )
+.It
+LSI Logic FC949ES
+(Dual 4Gb/s
+.Tn Fibre Channel PCI-Express)
 .El
 .Pp
 The
-.Tn SCSI
+.Tn Ultra 320 SCSI
 controller chips supported by the
 .Nm
 driver can be found onboard on many systems including:
 .Pp
 .Bl -bullet -compact
 .It
-Dell PowerEdge 1750
+Dell PowerEdge 1750 thru 2850
 .It
 IBM eServer xSeries 335
 .El
+.Pp
+These systems also contain Integrated Raid Mirroring and Integrated
+Raid Mirroring Enhanced which this driver also supports.
+.Pp
+The
+.Tn SAS
+controller chips are also present on many new AMD/Opteron based systems,
+like the Sun 4100.
+Note that this controller can drive both SAS and SATA
+drives or a mix of them at the same time. The Integrated Raid Mirroring
+available for these controllers is poorly supported at best.
+.Pp
+The
+.Tn Fibre Channel
+controller chipset are supported by a broad variety of speeds and systems.
+The
+.Tn Apple
+Fibre Channel HBA is in fact the
+.Tn FC949ES
+card.
+.Pp
+This driver also supports target mode for Fibre Channel cards.
+This support may be enabled by setting the desired role of the core via
+the LSI Logic firmware utility that establishes what roles the card
+can take on - no separate compilation is required.
 .Sh SEE ALSO
 .Xr cd 4 ,
 .Xr ch 4 ,
 .Xr da 4 ,
 .Xr pci 4 ,
 .Xr sa 4 ,
-.Xr scsi 4
+.Xr scsi 4 ,
+.Xr targ 4
 .Rs
 .%T "LSI Logic Website"
 .%O http://www.lsilogic.com/
@@ -130,6 +172,12 @@ driver was originally written for
 .Fx
 by
 .An Greg Ansley
-and substantially improved upon
+and marginally improved upon
 by
 .An Matt Jacob Aq mjacob@FreeBSD.org .
+.Pp
+.An Justin Gibbs Aq gibbs@FreeBSD.org
+and
+.An Scott Long Aq scottl@FreeBSD.org
+have made more substantial improvements.
+.Sh BUGS
