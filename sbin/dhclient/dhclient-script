@@ -88,7 +88,7 @@ add_new_alias() {
 
 fill_classless_routes() {
 	set $1
-	while [ $# -gt 5 ]; do
+	while [ $# -ge 5 ]; do
 		if [ $1 -eq 0 ]; then
 			route="default"
 		elif [ $1 -le 8 ]; then
