@@ -13,6 +13,7 @@
 name="mountd"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
 required_files="/etc/exports"
 start_precmd="mountd_precmd"
 extra_commands="reload"
@@ -37,7 +38,7 @@ mountd_precmd()
 		fi
 	fi
 
-	if checkyesno zfs_enable ; then
+	if checkyesno zfs_enable && [ -r /etc/zfs/exports ]; then
 		rc_flags="${rc_flags} /etc/exports /etc/zfs/exports"
 	fi
 
