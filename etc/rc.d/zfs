@@ -5,7 +5,7 @@
 
 # PROVIDE: zfs
 # REQUIRE: mountcritlocal
-# KEYWORD: nojail shutdown
+# KEYWORD: nojail
 
 . /etc/rc.subr
 
