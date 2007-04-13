@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/extattr.h>
 #include <sys/file.h>
 #include <sys/fcntl.h>
+#include <sys/jail.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -404,6 +405,29 @@ int
 vfs_suser(struct mount *mp, struct thread *td)
 {
 	int error;
+
+	/*
+	 * If the thread is jailed, but this is not a jail-friendly file
+	 * system, deny immediately.
+	 */
+	if (jailed(td->td_ucred) && !(mp->mnt_vfc->vfc_flags & VFCF_JAIL))
+		return (EPERM);
+
+	/*
+	 * If the file system was mounted outside a jail and a jailed thread
+	 * tries to access it, deny immediately.
+	 */
+	if (!jailed(mp->mnt_cred) && jailed(td->td_ucred))
+		return (EPERM);
+
+	/*
+	 * If the file system was mounted inside different jail that the jail of
+	 * the calling thread, deny immediately.
+	 */
+	if (jailed(mp->mnt_cred) && jailed(td->td_ucred) &&
+	    mp->mnt_cred->cr_prison != td->td_ucred->cr_prison) {
+		return (EPERM);
+	}
 
 	if ((mp->mnt_flag & MNT_USER) == 0 ||
 	    mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {

@@ -865,11 +865,6 @@ vfs_domount(
 			return (EINVAL);
 		}
 		mp = vp->v_mount;
-		vfsp = mp->mnt_vfc;
-		if (jailed(td->td_ucred) && !(vfsp->vfc_flags & VFCF_JAIL)) {
-			vput(vp);
-			return (EPERM);
-		}
 		MNT_ILOCK(mp);
 		flag = mp->mnt_flag;
 		/*
