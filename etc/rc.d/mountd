@@ -38,7 +38,7 @@ mountd_precmd()
 		fi
 	fi
 
-	if checkyesno zfs_enable && [ -r /etc/zfs/exports ]; then
+	if checkyesno zfs_enable; then
 		rc_flags="${rc_flags} /etc/exports /etc/zfs/exports"
 	fi
 
