@@ -304,14 +304,19 @@ auditon(struct thread *td, struct auditon_args *uap)
 			return (EINVAL);
 		}
 
+		if (tp->p_au->ai_termid.at_type == AU_IPv6) {
+			PROC_UNLOCK(tp);
+			return (EINVAL);
+		}
 		udata.au_aupinfo.ap_auid = tp->p_au->ai_auid;
 		udata.au_aupinfo.ap_mask.am_success =
 		    tp->p_au->ai_mask.am_success;
 		udata.au_aupinfo.ap_mask.am_failure =
 		    tp->p_au->ai_mask.am_failure;
 		udata.au_aupinfo.ap_termid.machine =
-		    tp->p_au->ai_termid.machine;
-		udata.au_aupinfo.ap_termid.port = tp->p_au->ai_termid.port;
+		    tp->p_au->ai_termid.at_addr[0];
+		udata.au_aupinfo.ap_termid.port =
+		    (dev_t)tp->p_au->ai_termid.at_port;
 		udata.au_aupinfo.ap_asid = tp->p_au->ai_asid;
 		PROC_UNLOCK(tp);
 		break;
@@ -347,7 +352,18 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_GETPINFO_ADDR:
-		return (ENOSYS);
+		if (udata.au_aupinfo_addr.ap_pid < 1)
+			return (EINVAL);
+		if ((tp = pfind(udata.au_aupinfo_addr.ap_pid)) == NULL)
+			return (EINVAL);
+		udata.au_aupinfo_addr.ap_auid = tp->p_au->ai_auid;
+		udata.au_aupinfo_addr.ap_mask.am_success =
+		    tp->p_au->ai_mask.am_success;
+		udata.au_aupinfo_addr.ap_mask.am_failure =
+		    tp->p_au->ai_mask.am_failure;
+		udata.au_aupinfo_addr.ap_termid = tp->p_au->ai_termid;
+		udata.au_aupinfo_addr.ap_asid = tp->p_au->ai_asid;
+		PROC_UNLOCK(tp);
 		break;
 
 	case A_GETKAUDIT:
@@ -469,7 +485,16 @@ getaudit(struct thread *td, struct getaudit_args *uap)
 		return (error);
 
 	PROC_LOCK(td->td_proc);
-	ai = *td->td_proc->p_au;
+	if (td->td_proc->p_au->ai_termid.at_type == AU_IPv6) {
+		PROC_UNLOCK(td->td_proc);
+		return (E2BIG);
+	}
+	bzero(&ai, sizeof(ai));
+	ai.ai_auid = td->td_proc->p_au->ai_auid;
+	ai.ai_mask = td->td_proc->p_au->ai_mask;
+	ai.ai_asid = td->td_proc->p_au->ai_asid;
+	ai.ai_termid.machine = td->td_proc->p_au->ai_termid.at_addr[0];
+	ai.ai_termid.port = td->td_proc->p_au->ai_termid.at_port;
 	PROC_UNLOCK(td->td_proc);
 
 	return (copyout(&ai, uap->auditinfo, sizeof(ai)));
@@ -498,7 +523,13 @@ setaudit(struct thread *td, struct setaudit_args *uap)
 	 * XXXRW: Test privilege while holding the proc lock?
 	*/
 	PROC_LOCK(td->td_proc);
-	*td->td_proc->p_au = ai;
+	bzero(td->td_proc->p_au, sizeof(struct auditinfo_addr));
+	td->td_proc->p_au->ai_auid = ai.ai_auid;
+	td->td_proc->p_au->ai_mask = ai.ai_mask;
+	td->td_proc->p_au->ai_asid = ai.ai_asid;
+	td->td_proc->p_au->ai_termid.at_addr[0] = ai.ai_termid.machine;
+	td->td_proc->p_au->ai_termid.at_port = ai.ai_termid.port;
+	td->td_proc->p_au->ai_termid.at_type = AU_IPv4;
 	PROC_UNLOCK(td->td_proc);
 
 	return (0);
@@ -508,6 +539,7 @@ setaudit(struct thread *td, struct setaudit_args *uap)
 int
 getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 {
+	struct auditinfo_addr aia;
 	int error;
 
 	if (jailed(td->td_ucred))
@@ -515,13 +547,19 @@ getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
-	return (ENOSYS);
+	if (uap->length < sizeof(aia))
+		return (EOVERFLOW);
+	PROC_LOCK(td->td_proc);
+	aia = *td->td_proc->p_au;
+	PROC_UNLOCK(td->td_proc);
+	return (copyout(&aia, uap->auditinfo_addr, sizeof(aia)));
 }
 
 /* ARGSUSED */
 int
 setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 {
+	struct auditinfo_addr aia;
 	int error;
 
 	if (jailed(td->td_ucred))
@@ -529,7 +567,14 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	error = priv_check(td, PRIV_AUDIT_SETAUDIT);
 	if (error)
 		return (error);
-	return (ENOSYS);
+
+	error = copyin(uap->auditinfo_addr, &aia, sizeof(aia));
+	if (error)
+		return (error);
+	PROC_LOCK(td->td_proc);
+	*td->td_proc->p_au = aia;
+	PROC_UNLOCK(td->td_proc);
+	return (error);
 }
 
 /*

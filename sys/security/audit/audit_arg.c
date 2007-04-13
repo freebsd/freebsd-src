@@ -371,10 +371,10 @@ audit_arg_process(struct proc *p)
 	ar->k_ar.ar_arg_ruid = p->p_ucred->cr_ruid;
 	ar->k_ar.ar_arg_rgid = p->p_ucred->cr_rgid;
 	ar->k_ar.ar_arg_asid = p->p_au->ai_asid;
-	ar->k_ar.ar_arg_termid = p->p_au->ai_termid;
+	ar->k_ar.ar_arg_termid_addr = p->p_au->ai_termid;
 	ar->k_ar.ar_arg_pid = p->p_pid;
 	ARG_SET_VALID(ar, ARG_AUID | ARG_EUID | ARG_EGID | ARG_RUID |
-	    ARG_RGID | ARG_ASID | ARG_TERMID | ARG_PID | ARG_PROCESS);
+	    ARG_RGID | ARG_ASID | ARG_TERMID_ADDR | ARG_PID | ARG_PROCESS);
 }
 
 void
