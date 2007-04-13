@@ -839,7 +839,7 @@ product CTX EX1300		0x9999	Ex1300 hub
 
 /* Curitel products */
 product CURITEL HX550C		0x1101	CDMA 2000 1xRTT USB modem (HX-550C)
-product CURITEL HX57XB		0x2101	CDMA 2000 1xRTT USB modem (HX-570/575B)
+product CURITEL HX57XB		0x2101	CDMA 2000 1xRTT USB modem (HX-570/575B/PR-600)
 product CURITEL PC5740		0x3701	Broadband wireless modem
 
 /* Cypress Semiconductor products */
@@ -1727,7 +1727,7 @@ product TRUMPION C3310		0x1100	Comotron C3310 MP3 player
 product TWINMOS MDIV		0x1325	Memory Disk IV
 
 /* Ubiquam products */
-product UBIQUAM UALL		0x3100	CDMA 1xRTT USB Modem (U-100/105/200/300)
+product UBIQUAM UALL		0x3100	CDMA 1xRTT USB Modem (U-100/105/200/300/520)
 
 /* U-MEDIA Communications products */
 product UMEDIA AR5523_1		0x3006	AR5523
