@@ -36,7 +36,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 LDIRS=	bsm cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
 	netipsec ${_netipx} netkey netnatm ${_netncp} netsmb \
 	nfs nfsclient nfsserver \
-	pccard rpc sys vm
+	pccard sys vm
 
 LSUBDIRS=	cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
@@ -201,6 +201,9 @@ copies:
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc
 .endif
 .endif
+	cd ${.CURDIR}/../sys/rpc; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
+	    ${DESTDIR}${INCLUDEDIR}/rpc
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
@@ -293,4 +296,9 @@ symlinks:
 	for h in *.h; do \
 		ln -fs ../../../../sys/fs/cd9660/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/isofs/cd9660; \
+	done
+	cd ${.CURDIR}/../sys/rpc; \
+	for h in types.h; do \
+		ln -fs ../../../sys/rpc/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
