@@ -704,6 +704,7 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_MOUNT:
 	case PRIV_VFS_UNMOUNT:
 	case PRIV_VFS_MOUNT_NONUSER:
+	case PRIV_VFS_MOUNT_OWNER:
 		if (jail_mount_allowed)
 			return (0);
 		else
