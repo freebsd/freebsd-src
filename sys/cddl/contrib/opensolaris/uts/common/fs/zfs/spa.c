@@ -127,7 +127,7 @@ spa_activate(spa_t *spa)
 	spa->spa_normal_class = metaslab_class_create();
 
 	if (nthreads == 0)
-		nthreads = mp_ncpus;
+		nthreads = max_ncpus;
 	for (t = 0; t < ZIO_TYPES; t++) {
 		snprintf(name, sizeof(name), "spa_zio_issue %d", t);
 		spa->spa_zio_issue_taskq[t] = taskq_create(name, nthreads,
