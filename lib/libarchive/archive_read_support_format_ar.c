@@ -45,11 +45,11 @@ __FBSDID("$FreeBSD$");
 
 struct ar {
 	int	 bid;
-	int	 has_strtab;
 	off_t	 entry_bytes_remaining;
 	off_t	 entry_offset;
 	off_t	 entry_padding;
 	char	*strtab;
+	size_t	 strtab_size;
 };
 
 /*
@@ -92,7 +92,7 @@ static int	archive_read_format_ar_read_header(struct archive_read *a,
 static int64_t	ar_atol8(const char *p, unsigned char_cnt);
 static int64_t	ar_atol10(const char *p, unsigned char_cnt);
 static int	ar_parse_string_table(struct archive_read *, struct ar *,
-		    const void *, ssize_t);
+		    const void *, size_t);
 
 /*
  * ANSI C99 defines constants for these, but not everyone supports
@@ -131,6 +131,7 @@ archive_read_support_format_ar(struct archive *_a)
 	}
 	memset(ar, 0, sizeof(*ar));
 	ar->bid = -1;
+	ar->strtab = NULL;
 
 	r = __archive_read_register_format(a,
 	    ar,
@@ -153,8 +154,7 @@ archive_read_format_ar_cleanup(struct archive_read *a)
 	struct ar *ar;
 
 	ar = (struct ar *)*(a->pformat_data);
-	if (ar->has_strtab > 0)
-		free(ar->strtab);
+	free(ar->strtab);
 	free(ar);
 	*(a->pformat_data) = NULL;
 	return (ARCHIVE_OK);
@@ -196,9 +196,11 @@ static int
 archive_read_format_ar_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	int r, bsd_append;
+	int r;
+	size_t bsd_append;
 	ssize_t bytes;
 	int64_t nval;
+	size_t tab_size;
 	char *fname, *p;
 	struct ar *ar;
 	const void *b;
@@ -247,22 +249,29 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		 * string table.
 		 */
 		nval = ar_atol10(h + AR_size_offset, AR_size_size);
-		bytes = (a->compression_read_ahead)(a, &b, nval);
+		if (nval < 0 || nval > SIZE_MAX) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "String table too large");
+			return (ARCHIVE_FATAL);
+		}
+		tab_size = (size_t)nval;
+		bytes = (a->compression_read_ahead)(a, &b, tab_size);
 		if (bytes <= 0)
 			return (ARCHIVE_FATAL);
-		if (bytes < nval) {
+		if (bytes < tab_size) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Truncated input file");
 			return (ARCHIVE_FATAL);
 		}
 
-		r = ar_parse_string_table(a, ar, b, nval);
+		r = ar_parse_string_table(a, ar, b, tab_size);
 		if (r == ARCHIVE_OK) {
 			/*
 			 * Archive string table only have ar_name and ar_size fileds
 			 * in its header.
 			 */
 			archive_entry_copy_pathname(entry, "//");
+			h = (const char *)b;
 			nval = ar_atol10(h + AR_size_offset, AR_size_size);
 			archive_entry_set_size(entry, nval);
 
@@ -279,15 +288,19 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		 * "/" followed by one or more digit(s) in the ar_name
 		 * filed indicates an index to the string table.
 		 */
-		if (ar->has_strtab > 0) {
-			nval = ar_atol10(h + AR_name_offset + 1,
-			    AR_name_size - 1);
-			archive_entry_copy_pathname(entry, &ar->strtab[nval]);
-		} else {
+		if (ar->strtab == NULL) {
 			archive_set_error(&a->archive, EINVAL,
 			    "String table does not exist");
 			return (ARCHIVE_WARN);
 		}
+
+		nval = ar_atol10(h + AR_name_offset + 1, AR_name_size - 1);
+		if (nval < 0 || nval > ar->strtab_size) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "String table overflow");
+			return (ARCHIVE_FATAL);
+		}
+		archive_entry_copy_pathname(entry, &ar->strtab[(size_t)nval]);
 		goto remain;
 	}
 
@@ -300,7 +313,13 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		 */
 		nval = ar_atol10(h + AR_name_offset + SAR_EFMT1,
 		    AR_name_size - SAR_EFMT1);
-		bytes = (a->compression_read_ahead)(a, &b, nval);
+		if (nval < 0 || nval >= SIZE_MAX) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Bad input file size");
+			return (ARCHIVE_FATAL);
+		}
+		bsd_append = (size_t)nval;
+		bytes = (a->compression_read_ahead)(a, &b, bsd_append);
 		if (bytes <= 0)
 			return (ARCHIVE_FATAL);
 		if (bytes < nval) {
@@ -309,21 +328,20 @@ archive_read_format_ar_read_header(struct archive_read *a,
 			return (ARCHIVE_FATAL);
 		}
 
-		(a->compression_read_consume)(a, nval);
+		(a->compression_read_consume)(a, bsd_append);
 
-		fname = (char *)malloc(nval + 1);
+		fname = (char *)malloc(bsd_append + 1);
 		if (fname == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate fname buffer");
 			return (ARCHIVE_FATAL);
 		}
-		strncpy(fname, b, nval);
-		fname[nval] = '\0';
+		strncpy(fname, b, bsd_append);
+		fname[bsd_append] = '\0';
 		archive_entry_copy_pathname(entry, fname);
 		free(fname);
 		fname = NULL;
 
-		bsd_append = nval;
 		goto remain;
 	}
 
@@ -373,13 +391,13 @@ archive_read_format_ar_read_header(struct archive_read *a,
 remain:
 	/* Copy remaining header */
 	archive_entry_set_mtime(entry,
-	    ar_atol10(h + AR_date_offset, AR_date_size), 0);
+	    (time_t)ar_atol10(h + AR_date_offset, AR_date_size), 0L);
 	archive_entry_set_uid(entry,
-	    ar_atol10(h + AR_uid_offset, AR_uid_size));
+	    (uid_t)ar_atol10(h + AR_uid_offset, AR_uid_size));
 	archive_entry_set_gid(entry,
-	    ar_atol10(h + AR_gid_offset, AR_gid_size));
+	    (gid_t)ar_atol10(h + AR_gid_offset, AR_gid_size));
 	archive_entry_set_mode(entry,
-	    ar_atol8(h + AR_mode_offset, AR_mode_size));
+	    (mode_t)ar_atol8(h + AR_mode_offset, AR_mode_size));
 	nval = ar_atol10(h + AR_size_offset, AR_size_size);
 
 	ar->entry_offset = 0;
@@ -391,6 +409,11 @@ remain:
 	 * real file size. But remember we should do this only
 	 * after we had calculated the padding.
 	 */
+	if (bsd_append > nval) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Truncated input file");
+		return (ARCHIVE_FATAL);
+	}
 	if (bsd_append > 0)
 		nval -= bsd_append;
 
@@ -418,13 +441,14 @@ archive_read_format_ar_read_data(struct archive_read *a,
 		}
 		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
+		/* XXX I don't get this. */
 		if (bytes_read > ar->entry_bytes_remaining)
-			bytes_read = ar->entry_bytes_remaining;
+			bytes_read = (ssize_t)ar->entry_bytes_remaining;
 		*size = bytes_read;
 		*offset = ar->entry_offset;
 		ar->entry_offset += bytes_read;
 		ar->entry_bytes_remaining -= bytes_read;
-		(a->compression_read_consume)(a, bytes_read);
+		(a->compression_read_consume)(a, (size_t)bytes_read);
 		return (ARCHIVE_OK);
 	} else {
 		while (ar->entry_padding > 0) {
@@ -432,8 +456,8 @@ archive_read_format_ar_read_data(struct archive_read *a,
 			if (bytes_read <= 0)
 				return (ARCHIVE_FATAL);
 			if (bytes_read > ar->entry_padding)
-				bytes_read = ar->entry_padding;
-			(a->compression_read_consume)(a, bytes_read);
+				bytes_read = (ssize_t)ar->entry_padding;
+			(a->compression_read_consume)(a, (size_t)bytes_read);
 			ar->entry_padding -= bytes_read;
 		}
 		*buff = NULL;
@@ -473,17 +497,23 @@ archive_read_format_ar_skip(struct archive_read *a)
 
 static int
 ar_parse_string_table(struct archive_read *a, struct ar *ar,
-    const void *h, ssize_t size)
+    const void *h, size_t size)
 {
 	char *p;
 
-	if (ar->has_strtab > 0) {
+	if (ar->strtab != NULL) {
 		archive_set_error(&a->archive, EINVAL,
 		    "More than one string tables exist");
 		return (ARCHIVE_WARN);
 	}
 
-	ar->strtab = (char *)malloc(size);
+	if (size == 0) {
+		archive_set_error(&a->archive, EINVAL, "Invalid string table");
+		return (ARCHIVE_WARN);
+	}
+
+	ar->strtab_size = size;
+	ar->strtab = malloc(size);
 	if (ar->strtab == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate string table buffer");
@@ -491,35 +521,33 @@ ar_parse_string_table(struct archive_read *a, struct ar *ar,
 	}
 
 	(void)memcpy(ar->strtab, h, size);
-	p = ar->strtab;
-	while (p < ar->strtab + size - 1) {
+	for (p = ar->strtab; p < ar->strtab + size - 1; ++p) {
 		if (*p == '/') {
 			*p++ = '\0';
-			if (*p == '\n')
-				*p++ = '\0';
-			else {
-				archive_set_error(&a->archive, EINVAL,
-				    "Invalid string table");
-				free(ar->strtab);
-				return (ARCHIVE_WARN);
-			}
-		} else
-			p++;
+			if (*p != '\n')
+				goto bad_string_table;
+			*p = '\0';
+		}
 	}
 	/*
 	 * Sanity check, last two chars must be `/\n' or '\n\n',
 	 * depending on whether the string table is padded by a '\n'
 	 * (string table produced by GNU ar always has a even size).
 	 */
-	if (p != ar->strtab + size && *p != '\n') {
-		archive_set_error(&a->archive, EINVAL,
-		    "Invalid string table");
-		free(ar->strtab);
-		return (ARCHIVE_WARN);
-	}
+	if (p != ar->strtab + size && *p != '\n')
+		goto bad_string_table;
 
-	ar->has_strtab = 1;
+	/* Enforce zero termination. */
+	ar->strtab[size - 1] = '\0';
+
 	return (ARCHIVE_OK);
+
+bad_string_table:
+	archive_set_error(&a->archive, EINVAL,
+	    "Invalid string table");
+	free(ar->strtab);
+	ar->strtab = NULL;
+	return (ARCHIVE_WARN);
 }
 
 static int64_t
@@ -553,6 +581,10 @@ ar_atol8(const char *p, unsigned char_cnt)
 	return (sign < 0) ? -l : l;
 }
 
+/*
+ * XXX This is not really correct for negative numbers,
+ * as min_int64_t can never be returned. That one is unused BTW.
+ */
 static int64_t
 ar_atol10(const char *p, unsigned char_cnt)
 {
