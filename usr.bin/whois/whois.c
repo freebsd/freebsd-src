@@ -341,7 +341,7 @@ whois(const char *query, const char *hostname, int flags)
 				    (int)(buf + len - host), host);
 			} else if (strcmp(hostname, ANICHOST) == 0) {
 				for (c = 0; c <= len; c++)
-					buf[c] = tolower((int)buf[c]);
+					buf[c] = tolower((unsigned char)buf[c]);
 				for (i = 0; ip_whois[i] != NULL; i++) {
 					if (strnstr(buf, ip_whois[i], len) !=
 					    NULL) {
