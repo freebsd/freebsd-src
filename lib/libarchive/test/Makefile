@@ -28,6 +28,7 @@ TESTS= \
 	test_read_large.c			\
 	test_read_position.c			\
 	test_read_truncated.c			\
+	test_tar_filenames.c			\
 	test_write_disk.c			\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
