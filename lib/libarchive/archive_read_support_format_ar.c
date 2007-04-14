@@ -258,7 +258,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		bytes = (a->compression_read_ahead)(a, &b, tab_size);
 		if (bytes <= 0)
 			return (ARCHIVE_FATAL);
-		if (bytes < tab_size) {
+		if (bytes < nval) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Truncated input file");
 			return (ARCHIVE_FATAL);
