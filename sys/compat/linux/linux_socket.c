@@ -1028,6 +1028,16 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	error = copyin(PTRIN(linux_args.msg), &msg, sizeof(msg));
 	if (error)
 		return (error);
+
+	/*
+	 * Some Linux applications (ping) define a non-NULL control data
+	 * pointer, but a msg_controllen of 0, which is not allowed in the
+	 * FreeBSD system call interface.  NULL the msg_control pointer in
+	 * order to handle this case.  This should be checked, but allows the
+	 * Linux ping to work.
+	 */
+	if (msg.msg_control != NULL && msg.msg_controllen == 0)
+		msg.msg_control = NULL;
 	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 	if (error)
 		return (error);
