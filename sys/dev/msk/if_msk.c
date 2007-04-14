@@ -131,6 +131,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 
 #include <machine/bus.h>
+#include <machine/in_cksum.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 
@@ -2702,7 +2703,6 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		 * hardware. However, TSO performance of Yukon II is very
 		 * good such that it's worth to implement it.
 		 */
-		struct ether_vlan_header *evh;
 		struct ether_header *eh;
 		struct ip *ip;
 		struct tcphdr *tcp;
@@ -2724,17 +2724,37 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
-			evh = mtod(m, struct ether_vlan_header *);
-			ip = (struct ip *)(evh + 1);
-		} else
-			ip = (struct ip *)(eh + 1);
+		}
 		m = m_pullup(m, offset + sizeof(struct ip));
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
+		ip = (struct ip *)(mtod(m, char *) + offset);
 		offset += (ip->ip_hl << 2);
 		tcp_offset = offset;
+		/*
+		 * It seems that Yukon II has Tx checksum offload bug for
+		 * small TCP packets that's less than 60 bytes in size
+		 * (e.g. TCP window probe packet, pure ACK packet).
+		 * Common work around like padding with zeros to make the
+		 * frame minimum ethernet frame size didn't work at all.
+		 * Instead of disabling checksum offload completely we
+		 * resort to S/W checksum routine when we encounter short
+		 * TCP frames.
+		 * Short UDP packets appear to be handled correctly by
+		 * Yukon II.
+		 */
+		if (m->m_pkthdr.len < MSK_MIN_FRAMELEN &&
+		    (m->m_pkthdr.csum_flags & CSUM_TCP) != 0) {
+			uint16_t csum;
+
+			csum = in_cksum_skip(m, ntohs(ip->ip_len) + offset -
+			    (ip->ip_hl << 2), offset);
+			*(uint16_t *)(m->m_data + offset +
+			    m->m_pkthdr.csum_data) = csum;
+			m->m_pkthdr.csum_flags &= ~CSUM_TCP;
+		}
 		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 			m = m_pullup(m, offset + sizeof(struct tcphdr));
 			if (m == NULL) {
