@@ -1905,7 +1905,15 @@ pfsync_ifdetach(void *arg, struct ifnet *ifp)
 	}
 	imo = &sc->sc_imo;
 	if (imo->imo_num_memberships > 0) {
-		in_delmulti(imo->imo_membership[--imo->imo_num_memberships]);
+		KASSERT(imo->imo_num_memberships == 1,
+			("%s: imo_num_memberships != 1", __func__)); 
+		/*
+		 * Our event handler is always called after protocol
+		 * domains have been detached from the underlying ifnet.
+		 * Do not call in_delmulti(); we held a single reference
+		 * which the protocol domain has purged in in_purgemaddrs().
+		 */
+		imo->imo_membership[--imo->imo_num_memberships] = NULL;
 		imo->imo_multicast_ifp = NULL;
 	}
 
