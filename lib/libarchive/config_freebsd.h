@@ -80,7 +80,14 @@
 #define	HAVE_SYS_WAIT_H 1
 #define	HAVE_TIMEGM 1
 #define	HAVE_UNISTD_H 1
+#define	HAVE_UTIME 1
+#define	HAVE_UTIMES 1
+#define	HAVE_UTIME_H 1
 #define	HAVE_WCHAR_H 1
+#define	HAVE_WCSCPY 1
+#define	HAVE_WCSLEN 1
+#define	HAVE_WMEMCMP 1
+#define	HAVE_WMEMCPY 1
 #define	HAVE_ZLIB_H 1
 #define	STDC_HEADERS 1
 #define	TIME_WITH_SYS_TIME 1
