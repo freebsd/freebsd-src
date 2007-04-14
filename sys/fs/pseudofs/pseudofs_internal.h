@@ -61,7 +61,7 @@ int	 pfs_vncache_free	(struct vnode *);
  */
 void	 pfs_fileno_init	(struct pfs_info *);
 void	 pfs_fileno_uninit	(struct pfs_info *);
-void	 pfs_fileno_alloc	(struct pfs_info *, struct pfs_node *);
-void	 pfs_fileno_free	(struct pfs_info *, struct pfs_node *);
+void	 pfs_fileno_alloc	(struct pfs_node *);
+void	 pfs_fileno_free	(struct pfs_node *);
 
 #endif
