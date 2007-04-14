@@ -146,11 +146,14 @@ ports-all
 #ports-misc
 #ports-multimedia
 #ports-net
+#ports-net-im
 #ports-net-mgmt
+#ports-net-p2p
 #ports-news
 #ports-palm
 #ports-picobsd
 #ports-polish
+#ports-ports-mgmt
 #ports-portuguese
 #ports-print
 #ports-russian
