@@ -77,6 +77,12 @@ struct mb_args {
 };
 #endif /* _KERNEL */
 
+#if defined(__LP64__)
+#define M_HDR_PAD    6
+#else
+#define M_HDR_PAD    2
+#endif
+
 /*
  * Header present at the beginning of every mbuf.
  */
@@ -87,6 +93,7 @@ struct m_hdr {
 	int		 mh_len;	/* amount of data in this mbuf */
 	int		 mh_flags;	/* flags; see below */
 	short		 mh_type;	/* type of data in this mbuf */
+	uint8_t          pad[M_HDR_PAD];/* word align                  */
 };
 
 /*
@@ -105,9 +112,9 @@ struct m_tag {
  */
 struct pkthdr {
 	struct ifnet	*rcvif;		/* rcv interface */
-	int		 len;		/* total packet length */
 	/* variables for ip and tcp reassembly */
 	void		*header;	/* pointer to packet header */
+	int		 len;		/* total packet length */
 	/* variables for hardware checksum */
 	int		 csum_flags;	/* flags regarding checksum */
 	int		 csum_data;	/* data field used by csum routines */
