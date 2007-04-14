@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
 
-
-
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -84,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/common/cxgb_regs.h>
 #include <dev/cxgb/common/cxgb_t3_cpl.h>
 #include <dev/cxgb/common/cxgb_firmware_exports.h>
+
+#include <dev/cxgb/sys/mvec.h>
 
 
 #ifdef PRIV_SUPPORTED
@@ -531,6 +531,11 @@ static void
 cxgb_free(struct adapter *sc)
 {
 	int i;
+
+	/*
+	 * XXX need to drain the ifq by hand until
+	 * it is taught about mbuf iovecs
+	 */ 
 
 	callout_drain(&sc->cxgb_tick_ch);
 
@@ -1188,6 +1193,9 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	int flags, error = 0;
 	uint32_t mask;
 
+	/* 
+	 * XXX need to check that we aren't in the middle of an unload
+	 */
 	switch (command) {
 	case SIOCSIFMTU:
 		if ((ifr->ifr_mtu < ETHERMIN) ||
@@ -1212,7 +1220,6 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFFLAGS:
-
 		if (ifp->if_flags & IFF_UP) {
 			PORT_LOCK(p);			
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -1294,7 +1301,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	struct sge_qset *qs;
 	struct sge_txq *txq;
 	struct port_info *p = ifp->if_softc;
-	struct mbuf *m = NULL;
+	struct mbuf *m0, *m = NULL;
 	int err, in_use_init;
 
 	
@@ -1315,6 +1322,33 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
+		/*
+		 * Convert chain to M_IOVEC
+		 */
+		KASSERT((m->m_flags & M_IOVEC) == 0, ("IOVEC set too early"));
+		m0 = m;
+#ifdef INVARIANTS
+		/*
+		 * Clean up after net stack sloppiness
+		 * before calling m_sanity
+		 */
+		m0 = m->m_next;
+		while (m0) {
+			m0->m_flags &= ~M_PKTHDR;
+			m0 = m0->m_next;
+		}
+		m_sanity(m0, 0);
+		m0 = m;
+#endif		
+		if (m->m_pkthdr.len > MCLBYTES &&
+		    m_collapse(m, TX_MAX_SEGS, &m0) == EFBIG) {
+			if ((m0 = m_defrag(m, M_NOWAIT)) != NULL) {
+				m = m0;
+				m_collapse(m, TX_MAX_SEGS, &m0);
+			} else
+				break;	
+		}
+		m = m0;
 		if ((err = t3_encap(p, &m)) != 0)
 			break;
 		BPF_MTAP(ifp, m); 
