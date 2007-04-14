@@ -654,6 +654,9 @@
 	<para>The &man.snd.envy24.4; driver has been added to support
 	  the Envy24 series of audio chips.</para>
 
+	<para>The &man.snd.envy24ht.4; driver has been added to support
+	  the VIA Envy24HT series of audio chips.</para>
+
 	<para>The &man.snd.es137x.4; driver is now MPSAFE.  &merged;</para>
 
 	<para>The &man.snd.ich.4; driver is now MPSAFE.  &merged;</para>
@@ -663,6 +666,9 @@
 	  Audio specification.</para>
 
 	<para>The &man.snd.solo.4; driver is now MPSAFE.  &merged;</para>
+
+	<para>The &man.snd.spicds.4; driver has been added to support
+	  I2S SPI audio codec chips.</para>
 
 	<para>The &man.snd.via8233.4; driver is now MPSAFE.  &merged;</para>
 
