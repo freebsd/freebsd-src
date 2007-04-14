@@ -39,4 +39,9 @@ char *version_string();
 
 enum displaymodes { DISP_CPU = 0, DISP_IO, DISP_MAX };
 
+/*
+ * Format modifiers
+ */
+#define FMT_SHOWARGS 0x00000001
+
 extern enum displaymodes displaymode;
