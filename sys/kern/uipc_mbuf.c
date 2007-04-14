@@ -330,8 +330,11 @@ m_sanity(struct mbuf *m0, int sanitize)
 	caddr_t a, b;
 	int pktlen = 0;
 
-#define	M_SANITY_ACTION(s)	return (0)
-/* #define	M_SANITY_ACTION(s)	panic("mbuf %p: " s, m) */
+#ifdef INVARIANTS
+#define	M_SANITY_ACTION(s)	panic("mbuf %p: " s, m)
+#else 
+#define	M_SANITY_ACTION(s)	printf("mbuf %p: " s, m)
+#endif
 
 	for (m = m0; m != NULL; m = m->m_next) {
 		/*
@@ -363,14 +366,6 @@ m_sanity(struct mbuf *m0, int sanitize)
 				m->m_nextpkt = (struct mbuf *)0xDEADC0DE;
 			} else
 				M_SANITY_ACTION("m->m_nextpkt on in-chain mbuf");
-		}
-
-		/* correct type correlations. */
-		if (m->m_type == MT_HEADER && !(m->m_flags & M_PKTHDR)) {
-			if (sanitize)
-				m->m_type = MT_DATA;
-			else
-				M_SANITY_ACTION("MT_HEADER set but not M_PKTHDR");
 		}
 
 		/* packet length (not mbuf length!) calculation */
