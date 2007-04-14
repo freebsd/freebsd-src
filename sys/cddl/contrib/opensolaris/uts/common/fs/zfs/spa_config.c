@@ -85,25 +85,33 @@ spa_config_load(void)
 	    spa_config_dir, ZPOOL_CACHE_FILE);
 
 	file = kobj_open_file(pathname);
-	if (file == (struct _buf *)-1)
+	if (file == (struct _buf *)-1) {
+		ZFS_LOG(1, "Cannot open %s.", pathname);
 		return;
+	}
 
-	if (kobj_get_filesize(file, &fsize) != 0)
+	if (kobj_get_filesize(file, &fsize) != 0) {
+		ZFS_LOG(1, "Cannot get size of %s.", pathname);
 		goto out;
+	}
 
 	buf = kmem_alloc(fsize, KM_SLEEP);
 
 	/*
 	 * Read the nvlist from the file.
 	 */
-	if (kobj_read_file(file, buf, fsize, 0) < 0)
+	if (kobj_read_file(file, buf, fsize, 0) < 0) {
+		ZFS_LOG(1, "Cannot read %s.", pathname);
 		goto out;
+	}
 
 	/*
 	 * Unpack the nvlist.
 	 */
 	if (nvlist_unpack(buf, fsize, &nvlist, KM_SLEEP) != 0)
 		goto out;
+
+	ZFS_LOG(1, "File %s loaded.", pathname);
 
 	/*
 	 * Iterate over all elements in the nvlist, creating a new spa_t for
