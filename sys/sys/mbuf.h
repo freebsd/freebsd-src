@@ -341,9 +341,11 @@ extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
 extern uma_zone_t	zone_ext_refcnt;
 
+#ifndef MBUF_PACKET_ZONE_DISABLE
+static __inline struct mbuf	*m_getcl(int how, short type, int flags);
+#endif
 static __inline struct mbuf	*m_get(int how, short type);
 static __inline struct mbuf	*m_gethdr(int how, short type);
-static __inline struct mbuf	*m_getcl(int how, short type, int flags);
 static __inline struct mbuf	*m_getjcl(int how, short type, int flags,
 				    int size);
 static __inline struct mbuf	*m_getclr(int how, short type);	/* XXX */
@@ -451,7 +453,7 @@ m_gethdr(int how, short type)
 	return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
 }
 
-#ifndef MBUF_PACKET_ZONE_DISABLE	
+#ifndef MBUF_PACKET_ZONE_DISABLE
 static __inline struct mbuf *
 m_getcl(int how, short type, int flags)
 {
