@@ -65,6 +65,8 @@ extern char *optarg;
 /* imported from screen.c */
 extern int overstrike;
 
+static int fmt_flags = 0;
+
 /* signal handling routines */
 sigret_t leave();
 sigret_t onalrm();
@@ -193,9 +195,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCao";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSC";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCa";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -219,8 +221,9 @@ char *argv[];
 #define CMD_viewtog	17
 #define CMD_viewsys	18
 #define	CMD_wcputog	19
+#define	CMD_showargs	20
 #ifdef ORDER
-#define CMD_order       20
+#define CMD_order       21
 #endif
 
     /* set the buffer for stdout */
@@ -277,7 +280,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHbinquvs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHabinquvs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -314,6 +317,10 @@ char *argv[];
 	      case 'n':			/* batch, or non-interactive */
 	      case 'b':
 		interactive = No;
+		break;
+
+	      case 'a':
+		fmt_flags ^= FMT_SHOWARGS;
 		break;
 
 	      case 'd':			/* number of displays to show */
@@ -651,7 +658,8 @@ restart:
 	    /* now show the top "n" processes. */
 	    for (i = 0; i < active_procs; i++)
 	    {
-		(*d_process)(i, format_next_process(processes, get_userid));
+		(*d_process)(i, format_next_process(processes, get_userid,
+			     fmt_flags));
 	    }
 	}
 	else
@@ -1019,6 +1027,9 @@ restart:
 				break;
 			    case CMD_viewsys:
 				ps.system = !ps.system;
+				break;
+			    case CMD_showargs:
+				fmt_flags ^= FMT_SHOWARGS;
 				break;
 #ifdef ORDER
 			    case CMD_order:
