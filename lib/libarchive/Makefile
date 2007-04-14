@@ -59,6 +59,7 @@ SRCS=	archive.h					\
 	archive_read_support_compression_gzip.c		\
 	archive_read_support_compression_none.c		\
 	archive_read_support_format_all.c		\
+	archive_read_support_format_ar.c		\
 	archive_read_support_format_cpio.c		\
 	archive_read_support_format_empty.c		\
 	archive_read_support_format_iso9660.c		\

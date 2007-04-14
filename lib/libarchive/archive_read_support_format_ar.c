@@ -28,6 +28,9 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -70,16 +73,6 @@ struct ar {
 #define AR_fmag_offset 58
 #define AR_fmag_size 2
 
-/*
- * "ar" magic numbers.
- */
-#define	ARMAG		"!<arch>\n"
-#define	SARMAG		8		/* strlen(ARMAG); */
-#define	AR_EFMT1	"#1/"
-#define	SAR_EFMT1	3		/* strlen(AR_EFMT1); */
-#define	ARFMAG		"`\n"
-#define	SARFMAG		2		/* strlen(ARFMAG); */
-
 #define isdigit(x)	(x) >= '0' && (x) <= '9'
 
 static int	archive_read_format_ar_bid(struct archive_read *a);
@@ -89,32 +82,12 @@ static int	archive_read_format_ar_read_data(struct archive_read *a,
 static int	archive_read_format_ar_skip(struct archive_read *a);
 static int	archive_read_format_ar_read_header(struct archive_read *a,
 		    struct archive_entry *e);
-static int64_t	ar_atol8(const char *p, unsigned char_cnt);
-static int64_t	ar_atol10(const char *p, unsigned char_cnt);
-static int	ar_parse_string_table(struct archive_read *, struct ar *,
+static uint64_t	ar_atol8(const char *p, unsigned char_cnt);
+static uint64_t	ar_atol10(const char *p, unsigned char_cnt);
+static int	ar_parse_gnu_filename_table(struct archive_read *, struct ar *,
 		    const void *, size_t);
-
-/*
- * ANSI C99 defines constants for these, but not everyone supports
- * those constants, so I define a couple of static variables here and
- * compute the values.  These calculations should be portable to any
- * 2s-complement architecture.
- */
-#ifdef UINT64_MAX
-static const uint64_t max_uint64 = UINT64_MAX;
-#else
-static const uint64_t max_uint64 = ~(uint64_t)0;
-#endif
-#ifdef INT64_MAX
-static const int64_t max_int64 = INT64_MAX;
-#else
-static const int64_t max_int64 = (int64_t)((~(uint64_t)0) >> 1);
-#endif
-#ifdef INT64_MIN
-static const int64_t min_int64 = INT64_MIN;
-#else
-static const int64_t min_int64 = (int64_t)(~((~(uint64_t)0) >> 1));
-#endif
+static int	ar_parse_common_header(struct ar *ar, struct archive_entry *,
+		    const char *h);
 
 int
 archive_read_support_format_ar(struct archive *_a)
@@ -177,16 +150,15 @@ archive_read_format_ar_bid(struct archive_read *a)
 	if (ar->bid > 0)
 		return (ar->bid);
 
-	bytes_read = (a->compression_read_ahead)(a, &h, SARMAG);
-	if (bytes_read < SARMAG)
-		return (-1);
-
 	/*
-	 * Verify the global header.
+	 * Verify the 8-byte file signature.
 	 * TODO: Do we need to check more than this?
 	 */
-	if (strncmp((const char*)h, ARMAG, SARMAG) == 0) {
-		ar->bid = SARMAG;
+	bytes_read = (a->compression_read_ahead)(a, &h, 8);
+	if (bytes_read < 8)
+		return (-1);
+	if (strncmp((const char*)h, "!<arch>\n", 8) == 0) {
+		ar->bid = 64;
 		return (ar->bid);
 	}
 	return (-1);
@@ -196,199 +168,247 @@ static int
 archive_read_format_ar_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	int r;
-	size_t bsd_append;
-	ssize_t bytes;
-	int64_t nval;
-	size_t tab_size;
-	char *fname, *p;
+	char filename[AR_name_size + 1];
 	struct ar *ar;
+	uint64_t number; /* Used to hold parsed numbers before validation. */
+	ssize_t bytes_read;
+	size_t bsd_name_length, entry_size;
+	char *p;
 	const void *b;
 	const char *h;
+	int r;
 
-	bsd_append = 0;
-
-	if (!a->archive.archive_format) {
-		a->archive.archive_format = ARCHIVE_FORMAT_AR;
-		a->archive.archive_format_name = "Unix Archiver";
-	}
+	ar = (struct ar*)*(a->pformat_data);
 
 	if (a->archive.file_position == 0) {
 		/*
 		 * We are now at the beginning of the archive,
 		 * so we need first consume the ar global header.
 		 */
-		(a->compression_read_consume)(a, SARMAG);
+		(a->compression_read_consume)(a, 8);
+		/* Set a default format code for now. */
+		a->archive.archive_format = ARCHIVE_FORMAT_AR;
 	}
 
-	/* Read 60-byte header */
-	bytes = (a->compression_read_ahead)(a, &b, 60);
-	if (bytes < 60) {
-		/*
-		 * We just encountered an incomplete ar file,
-		 * though the _bid function accepted it.
-		 */
+	/* Read the header for the next file entry. */
+	bytes_read = (a->compression_read_ahead)(a, &b, 60);
+	if (bytes_read < 60) {
+		/* Broken header. */
 		return (ARCHIVE_EOF);
 	}
 	(a->compression_read_consume)(a, 60);
-
 	h = (const char *)b;
 
-	/* Consistency check */
-	if (strncmp(h + AR_fmag_offset, ARFMAG, SARFMAG) != 0) {
+	/* Verify the magic signature on the file header. */
+	if (strncmp(h + AR_fmag_offset, "`\n", 2) != 0) {
 		archive_set_error(&a->archive, EINVAL,
 		    "Consistency check failed");
 		return (ARCHIVE_WARN);
 	}
 
-	ar = (struct ar*)*(a->pformat_data);
+	/* Copy filename into work buffer. */
+	strncpy(filename, h + AR_name_offset, AR_name_size);
+	filename[AR_name_size] = '\0';
 
-	if (strncmp(h + AR_name_offset, "//", 2) == 0) {
+	/*
+	 * Guess the format variant based on the filename.
+	 */
+	if (a->archive.archive_format == ARCHIVE_FORMAT_AR) {
+		/* We don't already know the variant, so let's guess. */
 		/*
-		 * An archive member with ar_name "//" is an archive
-		 * string table.
+		 * Biggest clue is presence of '/': GNU starts special
+		 * filenames with '/', appends '/' as terminator to
+		 * non-special names, so anything with '/' should be
+		 * GNU except for BSD long filenames.
 		 */
-		nval = ar_atol10(h + AR_size_offset, AR_size_size);
-		if (nval < 0 || nval > SIZE_MAX) {
+		if (strncmp(filename, "#1/", 3) == 0)
+			a->archive.archive_format = ARCHIVE_FORMAT_AR_BSD;
+		else if (strchr(filename, '/') != NULL)
+			a->archive.archive_format = ARCHIVE_FORMAT_AR_GNU;
+		else if (strncmp(filename, "__.SYMDEF", 9) == 0)
+			a->archive.archive_format = ARCHIVE_FORMAT_AR_BSD;
+		/*
+		 * XXX Do GNU/SVR4 'ar' programs ever omit trailing '/'
+		 * if name exactly fills 16-byte field?  If so, we
+		 * can't assume entries without '/' are BSD. XXX
+		 */
+	}
+
+	/* Update format name from the code. */
+	if (a->archive.archive_format == ARCHIVE_FORMAT_AR_GNU)
+		a->archive.archive_format_name = "ar (GNU/SVR4)";
+	else if (a->archive.archive_format == ARCHIVE_FORMAT_AR_BSD)
+		a->archive.archive_format_name = "ar (BSD)";
+	else
+		a->archive.archive_format_name = "ar";
+
+	/*
+	 * Remove trailing spaces from the filename.  GNU and BSD
+	 * variants both pad filename area out with spaces.
+	 * This will only be wrong if GNU/SVR4 'ar' implementations
+	 * omit trailing '/' for 16-char filenames and we have
+	 * a 16-char filename that ends in ' '.
+	 */
+	p = filename + AR_name_size - 1;
+	while (p >= filename && *p == ' ') {
+		*p = '\0';
+		p--;
+	}
+
+	/*
+	 * Remove trailing slash unless first character is '/'.
+	 * (BSD entries never end in '/', so this will only trim
+	 * GNU-format entries.  GNU special entries start with '/'
+	 * and are not terminated in '/', so we don't trim anything
+	 * that starts with '/'.)
+	 */
+	if (filename[0] != '/' && *p == '/')
+		*p = '\0';
+
+	/*
+	 * '//' is the GNU filename table.
+	 * Later entries can refer to names in this table.
+	 */
+	if (strcmp(filename, "//") == 0) {
+		/* This must come before any call to _read_ahead. */
+		ar_parse_common_header(ar, entry, h);
+		archive_entry_copy_pathname(entry, filename);
+		archive_entry_set_mode(entry,
+		    S_IFREG | (archive_entry_mode(entry) & 0777));
+		/* Get the size of the filename table. */
+		number = ar_atol10(h + AR_size_offset, AR_size_size);
+		if (number > SIZE_MAX) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "String table too large");
+			    "Filename table too large");
 			return (ARCHIVE_FATAL);
 		}
-		tab_size = (size_t)nval;
-		bytes = (a->compression_read_ahead)(a, &b, tab_size);
-		if (bytes <= 0)
+		entry_size = (size_t)number;
+		/* Read the filename table into memory. */
+		bytes_read = (a->compression_read_ahead)(a, &b, entry_size);
+		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
-		if (bytes < nval) {
+		if ((size_t)bytes_read < entry_size) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Truncated input file");
 			return (ARCHIVE_FATAL);
 		}
+		/*
+		 * Don't consume the contents, so the client will
+		 * also get a shot at reading it.
+		 */
 
-		r = ar_parse_string_table(a, ar, b, tab_size);
-		if (r == ARCHIVE_OK) {
-			/*
-			 * Archive string table only have ar_name and ar_size fileds
-			 * in its header.
-			 */
-			archive_entry_copy_pathname(entry, "//");
-			h = (const char *)b;
-			nval = ar_atol10(h + AR_size_offset, AR_size_size);
-			archive_entry_set_size(entry, nval);
-
-			ar->entry_offset = 0;
-			ar->entry_bytes_remaining = nval;
-			ar->entry_padding = ar->entry_bytes_remaining % 2;
-		}
-		return (r);
+		/* Parse the filename table. */
+		return (ar_parse_gnu_filename_table(a, ar, b, entry_size));
 	}
 
-	if (h[AR_name_offset] == '/' && isdigit(h[AR_name_offset + 1])) {
+	/*
+	 * GNU variant handles long filenames by storing /<number>
+	 * to indicate a name stored in the filename table.
+	 */
+	if (filename[0] == '/' && isdigit(filename[1])) {
+		number = ar_atol10(h + AR_name_offset + 1, AR_name_size - 1);
 		/*
-		 * Archive member is common format with SVR4/GNU variant.
-		 * "/" followed by one or more digit(s) in the ar_name
-		 * filed indicates an index to the string table.
+		 * If we can't look up the real name, warn and return
+		 * the entry with the wrong name.
 		 */
-		if (ar->strtab == NULL) {
+		if (ar->strtab == NULL || number > ar->strtab_size) {
 			archive_set_error(&a->archive, EINVAL,
-			    "String table does not exist");
+			    "Can't find long filename for entry");
+			archive_entry_copy_pathname(entry, filename);
+			/* Parse the time, owner, mode, size fields. */
+			ar_parse_common_header(ar, entry, h);
 			return (ARCHIVE_WARN);
 		}
 
-		nval = ar_atol10(h + AR_name_offset + 1, AR_name_size - 1);
-		if (nval < 0 || nval > ar->strtab_size) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "String table overflow");
-			return (ARCHIVE_FATAL);
-		}
-		archive_entry_copy_pathname(entry, &ar->strtab[(size_t)nval]);
-		goto remain;
+		archive_entry_copy_pathname(entry, &ar->strtab[(size_t)number]);
+		/* Parse the time, owner, mode, size fields. */
+		return (ar_parse_common_header(ar, entry, h));
 	}
 
-	if (strncmp(h + AR_name_offset, AR_EFMT1, SAR_EFMT1) == 0) {
-		/*
-		 * Archive member is common format with BSD variant.
-		 * AR_EFMT1 is followed by one or more digit(s) indicating
-		 * the length of the real filename which is appended
-		 * to the header.
-		 */
-		nval = ar_atol10(h + AR_name_offset + SAR_EFMT1,
-		    AR_name_size - SAR_EFMT1);
-		if (nval < 0 || nval >= SIZE_MAX) {
+	/*
+	 * BSD handles long filenames by storing "#1/" followed by the
+	 * length of filename as a decimal number, then prepends the
+	 * the filename to the file contents.
+	 */
+	if (strncmp(filename, "#1/", 3) == 0) {
+		/* Parse the time, owner, mode, size fields. */
+		/* This must occur before _read_ahead is called again. */
+		ar_parse_common_header(ar, entry, h);
+
+		/* Parse the size of the name, adjust the file size. */
+		number = ar_atol10(h + AR_name_offset + 3, AR_name_size - 3);
+		if ((off_t)number > ar->entry_bytes_remaining) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Bad input file size");
 			return (ARCHIVE_FATAL);
 		}
-		bsd_append = (size_t)nval;
-		bytes = (a->compression_read_ahead)(a, &b, bsd_append);
-		if (bytes <= 0)
+		bsd_name_length = (size_t)number;
+		ar->entry_bytes_remaining -= bsd_name_length;
+		/* Adjust file size reported to client. */
+		archive_entry_set_size(entry, ar->entry_bytes_remaining);
+
+		/* Read the long name into memory. */
+		bytes_read = (a->compression_read_ahead)(a, &b, bsd_name_length);
+		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
-		if (bytes < nval) {
+		if ((size_t)bytes_read < bsd_name_length) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Truncated input file");
 			return (ARCHIVE_FATAL);
 		}
+		(a->compression_read_consume)(a, bsd_name_length);
 
-		(a->compression_read_consume)(a, bsd_append);
-
-		fname = (char *)malloc(bsd_append + 1);
-		if (fname == NULL) {
+		/* Store it in the entry. */
+		p = (char *)malloc(bsd_name_length + 1);
+		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate fname buffer");
 			return (ARCHIVE_FATAL);
 		}
-		strncpy(fname, b, bsd_append);
-		fname[bsd_append] = '\0';
-		archive_entry_copy_pathname(entry, fname);
-		free(fname);
-		fname = NULL;
-
-		goto remain;
+		strncpy(p, b, bsd_name_length);
+		p[bsd_name_length] = '\0';
+		archive_entry_copy_pathname(entry, p);
+		free(p);
+		return (ARCHIVE_OK);
 	}
 
 	/*
-	 * "/" followed by one or more spaces indicate a
-	 * SVR4/GNU archive symbol table.
-	 *
+	 * "/" is the SVR4/GNU archive symbol table.
 	 */
-	if (strncmp(h + AR_name_offset, "/ ", 2) == 0) {
+	if (strcmp(filename, "/") == 0) {
 		archive_entry_copy_pathname(entry, "/");
-		goto remain;
-	}
-	/*
-	 * "__.SYMDEF" indicates a BSD archive symbol table.
-	 */
-	if (strncmp(h + AR_name_offset, "__.SYMDEF", 9) == 0) {
-		archive_entry_copy_pathname(entry, "__.SYMDEF");
-		goto remain;
+		/* Parse the time, owner, mode, size fields. */
+		r = ar_parse_common_header(ar, entry, h);
+		/* Force the file type to a regular file. */
+		archive_entry_set_mode(entry,
+		    S_IFREG | (archive_entry_mode(entry) & 0777));
+		return (r);
 	}
 
 	/*
-	 * Otherwise, the ar_name fields stores the real
-	 * filename.
-	 * SVR4/GNU variant append a '/' to mark the end of
-	 * filename, while BSD variant use a space.
+	 * "__.SYMDEF" is a BSD archive symbol table.
 	 */
-	fname = (char *)malloc(AR_name_size + 1);
-	strncpy(fname, h + AR_name_offset, AR_name_size);
-	fname[AR_name_size] = '\0';
-
-	if ((p = strchr(fname, '/')) != NULL) {
-		/* SVR4/GNU format */
-		*p = '\0';
-		archive_entry_copy_pathname(entry, fname);
-		free(fname);
-		fname = NULL;
-		goto remain;
+	if (strcmp(filename, "__.SYMDEF") == 0) {
+		archive_entry_copy_pathname(entry, filename);
+		/* Parse the time, owner, mode, size fields. */
+		return (ar_parse_common_header(ar, entry, h));
 	}
 
-	/* BSD format */
-	if ((p = strchr(fname, ' ')) != NULL)
-		*p = '\0';
-	archive_entry_copy_pathname(entry, fname);
-	free(fname);
-	fname = NULL;
+	/*
+	 * Otherwise, this is a standard entry.  The filename
+	 * has already been trimmed as much as possible, based
+	 * on our current knowledge of the format.
+	 */
+	archive_entry_copy_pathname(entry, filename);
+	return (ar_parse_common_header(ar, entry, h));
+}
 
-remain:
+static int
+ar_parse_common_header(struct ar *ar, struct archive_entry *entry,
+    const char *h)
+{
+	uint64_t n;
+
 	/* Copy remaining header */
 	archive_entry_set_mtime(entry,
 	    (time_t)ar_atol10(h + AR_date_offset, AR_date_size), 0L);
@@ -398,28 +418,12 @@ remain:
 	    (gid_t)ar_atol10(h + AR_gid_offset, AR_gid_size));
 	archive_entry_set_mode(entry,
 	    (mode_t)ar_atol8(h + AR_mode_offset, AR_mode_size));
-	nval = ar_atol10(h + AR_size_offset, AR_size_size);
+	n = ar_atol10(h + AR_size_offset, AR_size_size);
 
 	ar->entry_offset = 0;
-	ar->entry_padding = nval % 2;
-
-	/*
-	 * For BSD variant, we should subtract the length of
-	 * the appended filename string from ar_size to get the
-	 * real file size. But remember we should do this only
-	 * after we had calculated the padding.
-	 */
-	if (bsd_append > nval) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Truncated input file");
-		return (ARCHIVE_FATAL);
-	}
-	if (bsd_append > 0)
-		nval -= bsd_append;
-
-	archive_entry_set_size(entry, nval);
-	ar->entry_bytes_remaining = nval;
-
+	ar->entry_padding = n % 2;
+	archive_entry_set_size(entry, n);
+	ar->entry_bytes_remaining = n;
 	return (ARCHIVE_OK);
 }
 
@@ -441,7 +445,6 @@ archive_read_format_ar_read_data(struct archive_read *a,
 		}
 		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
-		/* XXX I don't get this. */
 		if (bytes_read > ar->entry_bytes_remaining)
 			bytes_read = (ssize_t)ar->entry_bytes_remaining;
 		*size = bytes_read;
@@ -496,7 +499,7 @@ archive_read_format_ar_skip(struct archive_read *a)
 }
 
 static int
-ar_parse_string_table(struct archive_read *a, struct ar *ar,
+ar_parse_gnu_filename_table(struct archive_read *a, struct ar *ar,
     const void *h, size_t size)
 {
 	char *p;
@@ -550,27 +553,23 @@ bad_string_table:
 	return (ARCHIVE_WARN);
 }
 
-static int64_t
+static uint64_t
 ar_atol8(const char *p, unsigned char_cnt)
 {
-	int64_t	l, limit, last_digit_limit;
-	int digit, sign, base;
+	static const uint64_t max_uint64 = ~(uint64_t)0;
+	uint64_t l, limit, last_digit_limit;
+	unsigned int digit, base;
 
 	base = 8;
-	limit = max_int64 / base;
-	last_digit_limit = max_int64 % base;
+	limit = max_uint64 / base;
+	last_digit_limit = max_uint64 % base;
 
-	while (*p == ' ' || *p == '\t')
+	while ((*p == ' ' || *p == '\t') && char_cnt-- > 0)
 		p++;
-	if (*p == '-') {
-		sign = -1;
-		p++;
-	} else
-		sign = 1;
 
 	l = 0;
 	digit = *p - '0';
-	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
+	while (*p >= '0' && digit < base  && char_cnt-- > 0) {
 		if (l>limit || (l == limit && digit > last_digit_limit)) {
 			l = max_uint64; /* Truncate on overflow. */
 			break;
@@ -578,34 +577,25 @@ ar_atol8(const char *p, unsigned char_cnt)
 		l = (l * base) + digit;
 		digit = *++p - '0';
 	}
-	return (sign < 0) ? -l : l;
+	return (l);
 }
 
-/*
- * XXX This is not really correct for negative numbers,
- * as min_int64_t can never be returned. That one is unused BTW.
- */
-static int64_t
+static uint64_t
 ar_atol10(const char *p, unsigned char_cnt)
 {
-	int64_t l, limit, last_digit_limit;
-	int base, digit, sign;
+	static const uint64_t max_uint64 = ~(uint64_t)0;
+	uint64_t l, limit, last_digit_limit;
+	unsigned int base, digit;
 
 	base = 10;
-	limit = max_int64 / base;
-	last_digit_limit = max_int64 % base;
+	limit = max_uint64 / base;
+	last_digit_limit = max_uint64 % base;
 
-	while (*p == ' ' || *p == '\t')
+	while ((*p == ' ' || *p == '\t') && char_cnt-- > 0)
 		p++;
-	if (*p == '-') {
-		sign = -1;
-		p++;
-	} else
-		sign = 1;
-
 	l = 0;
 	digit = *p - '0';
-	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
+	while (*p >= '0' && digit < base  && char_cnt-- > 0) {
 		if (l > limit || (l == limit && digit > last_digit_limit)) {
 			l = max_uint64; /* Truncate on overflow. */
 			break;
@@ -613,5 +603,5 @@ ar_atol10(const char *p, unsigned char_cnt)
 		l = (l * base) + digit;
 		digit = *++p - '0';
 	}
-	return (sign < 0) ? -l : l;
+	return (l);
 }
