@@ -69,6 +69,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/cxgb/sys/mvec.h>
 
+uint32_t collapse_free = 0;
+uint32_t mb_free_vec_free = 0;
+
+
 #define USE_GTS 0
 
 #define SGE_RX_SM_BUF_SIZE	1536
@@ -113,6 +117,7 @@ struct rsp_desc {               /* response queue descriptor */
 } __packed;
 
 #define RX_SW_DESC_MAP_CREATED	(1 << 0)
+#define TX_SW_DESC_MAP_CREATED	(1 << 1)
 #define RX_SW_DESC_INUSE        (1 << 3)
 #define TX_SW_DESC_MAPPED       (1 << 4)
 
@@ -269,7 +274,7 @@ sgl_len(unsigned int n)
  *
  *	Return a packet containing the immediate data of the given response.
  */
-static __inline int
+static __inline void
 get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void *cl)
 {
 	int len;
@@ -280,28 +285,19 @@ get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void 
 	 * would be a firmware bug
 	 */
 	if (sopeop == RSPQ_NSOP_NEOP || sopeop == RSPQ_SOP)
-		return (0);
+		return;
 	
-	
-	len = G_RSPD_LEN(ntohl(resp->len_cq));
-	
-	if (m) {
-
-		
-		switch (sopeop) {
-		case RSPQ_SOP_EOP:
-			m = m_gethdr(M_NOWAIT, MT_DATA);
-			m->m_len = m->m_pkthdr.len = len; 
-			memcpy(m->m_data, resp->imm_data, IMMED_PKT_SIZE); 
-			MH_ALIGN(m, IMMED_PKT_SIZE); 
-			break;
-		case RSPQ_EOP:
-			memcpy(cl, resp->imm_data, len); 
-			m_iovappend(m, cl, MSIZE, len, 0); 
-			break;
-		}
+	len = G_RSPD_LEN(ntohl(resp->len_cq));	
+	switch (sopeop) {
+	case RSPQ_SOP_EOP:
+		m->m_len = m->m_pkthdr.len = len; 
+		memcpy(m->m_data, resp->imm_data, len); 
+		break;
+	case RSPQ_EOP:
+		memcpy(cl, resp->imm_data, len); 
+		m_iovappend(m, cl, MSIZE, len, 0); 
+		break;
 	}
-	return (m != NULL);
 }
 
 
@@ -722,7 +718,7 @@ sge_timer_reclaim(void *arg, int ncount)
 			mtx_unlock(&txq->lock);
 			
 			for (i = 0; i < n; i++) {
-				m_freem(m_vec[i]);
+				m_freem_vec(m_vec[i]);
 			}
 		} 
 		    
@@ -734,7 +730,7 @@ sge_timer_reclaim(void *arg, int ncount)
 			mtx_unlock(&txq->lock);
 
 			for (i = 0; i < n; i++) {
-				m_freem(m_vec[i]);
+				m_freem_vec(m_vec[i]);
 			}
 		}
 
@@ -825,7 +821,7 @@ calc_tx_descs(const struct mbuf *m, int nsegs)
 
 	flits = sgl_len(nsegs) + 2;
 #ifdef TSO_SUPPORTED
-	if (m->m_pkthdr.tso_segsz)
+	if  (m->m_pkthdr.csum_flags & (CSUM_TSO))
 		flits++;
 #endif	
 	return flits_to_desc(flits);
@@ -840,7 +836,16 @@ busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
 	
 	m0 = *m;
 	pktlen = m0->m_pkthdr.len;
-	err = bus_dmamap_load_mbuf_sg(txq->entry_tag, stx->map, m0, segs, nsegs, 0);
+
+	if ((stx->flags & TX_SW_DESC_MAP_CREATED) == 0) {
+		if ((err = bus_dmamap_create(txq->entry_tag, 0, &stx->map))) {
+			log(LOG_WARNING, "bus_dmamap_create failed %d\n", err);
+			return (err);
+		}
+		stx->flags |= TX_SW_DESC_MAP_CREATED;
+	}
+	err = bus_dmamap_load_mvec_sg(txq->entry_tag, stx->map, m0, segs, nsegs, 0);
+#ifdef DEBUG		
 	if (err) {
 		int n = 0;
 		struct mbuf *mtmp = m0;
@@ -848,12 +853,10 @@ busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
 			n++;
 			mtmp = mtmp->m_next;
 		}
-#ifdef DEBUG		
 		printf("map_mbufs: bus_dmamap_load_mbuf_sg failed with %d - pkthdr.len==%d nmbufs=%d\n",
 		    err, m0->m_pkthdr.len, n);
-#endif
 	}
-		 
+#endif
 	if (err == EFBIG) {
 		/* Too many segments, try to defrag */
 		m0 = m_defrag(m0, M_NOWAIT);
@@ -873,7 +876,7 @@ busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
 	if (err) {
 		if (cxgb_debug)
 			printf("map failure err=%d pktlen=%d\n", err, pktlen);
-		m_freem(m0);
+		m_freem_vec(m0);
 		*m = NULL;
 		return (err);
 	}
@@ -1002,7 +1005,6 @@ t3_encap(struct port_info *p, struct mbuf **m)
 		cntrl |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN(m0->m_pkthdr.ether_vtag);
 	if  (m0->m_pkthdr.csum_flags & (CSUM_TSO))
 		tso_info = V_LSO_MSS(m0->m_pkthdr.tso_segsz);
-
 #endif		
 	if (tso_info) {
 		int eth_type;
@@ -1010,7 +1012,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 		struct ip *ip;
 		struct tcphdr *tcp;
 		uint8_t *pkthdr, tmp[TCPPKTHDRSIZE]; /* is this too large for the stack? */
-
+		
 		txd->flit[2] = 0;
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT_LSO);
 		hdr->cntrl = htonl(cntrl);
@@ -1032,12 +1034,11 @@ t3_encap(struct port_info *p, struct mbuf **m)
 		}
 		tcp = (struct tcphdr *)((uint8_t *)ip +
 		    sizeof(*ip)); 
-		    
+
 		tso_info |= V_LSO_ETH_TYPE(eth_type) |
 			    V_LSO_IPHDR_WORDS(ip->ip_hl) |
 			    V_LSO_TCPHDR_WORDS(tcp->th_off);
 		hdr->lso_info = htonl(tso_info);
-		
 		flits = 3;	
 	} else {
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT);
@@ -1051,7 +1052,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 				memcpy(&txd->flit[2], m0->m_data, mlen);
 			else
 				m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[2]);
-			
+
 			flits = (mlen + 7) / 8 + 2;
 			cpl->wr.wr_hi = htonl(V_WR_BCNTLFLT(mlen & 7) |
 					  V_WR_OP(FW_WROPCODE_TUNNEL_TX_PKT) |
@@ -1430,7 +1431,6 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 			printf("error %d from alloc ring tx %i\n", ret, i);
 			goto err;
 		}
-
 		q->txq[i].gen = 1;
 		q->txq[i].size = p->txq_size[i];
 		mtx_init(&q->txq[i].lock, "t3 txq lock", NULL, MTX_DEF);
@@ -1755,9 +1755,13 @@ t3_rx_eth(struct port_info *pi, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 		m->m_flags |= M_VLANTAG;
 	} 
 #endif
-	m->m_pkthdr.rcvif = ifp;
 	
+	m->m_pkthdr.rcvif = ifp;
+	m->m_pkthdr.header = m->m_data + sizeof(*cpl) + ethpad;
 	m_explode(m);
+	/*
+	 * adjust after conversion to mbuf chain
+	 */
 	m_adj(m, sizeof(*cpl) + ethpad);
 
 	(*ifp->if_input)(ifp, m);
@@ -2251,6 +2255,15 @@ t3_add_sysctls(adapter_t *sc)
 	    "enable_debug",
 	    CTLFLAG_RW, &cxgb_debug,
 	    0, "enable verbose debugging output");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "collapse_free",
+	    CTLFLAG_RD, &collapse_free,
+	    0, "frees during collapse");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "mb_free_vec_free",
+	    CTLFLAG_RD, &mb_free_vec_free,
+	    0, "frees during mb_free_vec");
 
 }
 
