@@ -81,6 +81,19 @@ SYSCTL_INT(_vfs_pfs, OID_AUTO, trace, CTLFLAG_RW, &pfs_trace, 0,
 #endif
 
 /*
+ *
+ */
+static uint32_t
+pfs_fileno(struct pfs_node *pn, pid_t pid)
+{
+	if (!pn->pn_fileno)
+		pfs_fileno_alloc(pn);
+	if (pid != NO_PID)
+		return (pn->pn_fileno * NO_PID + pid);
+	return (pn->pn_fileno);
+}
+
+/*
  * Returns non-zero if given file is visible to given process.  If the 'p'
  * parameter is non-NULL, then it will hold a pointer to the process the
  * given file belongs to on return and the process will be locked.
@@ -193,7 +206,7 @@ pfs_getattr(struct vop_getattr_args *va)
 
 	VATTR_NULL(vap);
 	vap->va_type = vn->v_type;
-	vap->va_fileid = pn->pn_fileno;
+	vap->va_fileid = pfs_fileno(pn, pvd->pvd_pid);
 	vap->va_flags = 0;
 	vap->va_blocksize = PAGE_SIZE;
 	vap->va_bytes = vap->va_size = 0;
@@ -591,7 +604,6 @@ static int
 pfs_readdir(struct vop_readdir_args *va)
 {
 	struct vnode *vn = va->a_vp;
-	struct pfs_info *pi = (struct pfs_info *)vn->v_mount->mnt_data;
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pd = pvd->pvd_pn;
 	pid_t pid = pvd->pvd_pid;
@@ -603,6 +615,8 @@ pfs_readdir(struct vop_readdir_args *va)
 	int error, i, resid;
 	char *buf, *ent;
 
+	KASSERT(pd->pn_info == vn->v_mount->mnt_data,
+	    ("directory's pn_info does not match mountpoint's mnt_data"));
 	PFS_TRACE((pd->pn_name));
 
 	if (vn->v_type != VDIR)
@@ -639,12 +653,7 @@ pfs_readdir(struct vop_readdir_args *va)
 		entry->d_reclen = PFS_DELEN;
 		if (!pn->pn_parent)
 			pn->pn_parent = pd;
-		if (!pn->pn_fileno)
-			pfs_fileno_alloc(pi, pn);
-		if (pid != NO_PID)
-			entry->d_fileno = pn->pn_fileno * NO_PID + pid;
-		else
-			entry->d_fileno = pn->pn_fileno;
+		entry->d_fileno = pfs_fileno(pn, pid);
 		/* PFS_DELEN was picked to fit PFS_NAMLEN */
 		for (i = 0; i < PFS_NAMELEN - 1 && pn->pn_name[i] != '\0'; ++i)
 			entry->d_name[i] = pn->pn_name[i];
@@ -654,7 +663,6 @@ pfs_readdir(struct vop_readdir_args *va)
 		case pfstype_procdir:
 			KASSERT(p != NULL,
 			    ("reached procdir node with p == NULL"));
-			entry->d_fileno = pn->pn_fileno * NO_PID + p->p_pid;
 			entry->d_namlen = snprintf(entry->d_name,
 			    PFS_NAMELEN, "%d", p->p_pid);
 			/* fall through */
