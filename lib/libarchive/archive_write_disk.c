@@ -897,7 +897,7 @@ _archive_write_close(struct archive *_a)
 			times.modtime = p->mtime;
 			times.actime = p->atime;
 
-			utime(p->name, times);
+			utime(p->name, &times);
 #endif
 		}
 		if (p->fixup & TODO_MODE_BASE)
@@ -1452,7 +1452,7 @@ set_time(struct archive_write_disk *a)
 
 	times.modtime = st->st_mtime;
 	times.actime = st->st_atime;
-	if (!S_ISLNK(a->mode) && utimes(a->name, times) != 0) {
+	if (!S_ISLNK(a->mode) && utime(a->name, &times) != 0) {
 		archive_set_error(&a->archive, errno,
 		    "Can't update time for %s", a->name);
 		return (ARCHIVE_WARN);
