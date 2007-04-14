@@ -130,9 +130,9 @@ int main(int argc, char **argv)
 	 */
 	now = time(NULL);
 	strftime(tmpdir, sizeof(tmpdir),
-	    "/tmp/libarchive_test.%Y-%m-%dT%H.%M.%S.XXXXXX",
+	    "/tmp/libarchive_test.%Y-%m-%dT%H.%M.%S",
 	    localtime(&now));
-	if (mkdtemp(tmpdir) == NULL) {
+	if (mkdir(tmpdir,0755) != 0) {
 		fprintf(stderr, "ERROR: Unable to create temp directory %s\n",
 		    tmpdir);
 		exit(1);
