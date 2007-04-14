@@ -67,8 +67,8 @@ static void		 add_pax_attr_int(struct archive_string *,
 static void		 add_pax_attr_time(struct archive_string *,
 			     const char *key, int64_t sec,
 			     unsigned long nanos);
-static void		 add_pax_attr_w(struct archive_string *,
-			     const char *key, const wchar_t *wvalue);
+static void		 add_pax_attr_w(struct archive_string *, const char *,
+			     const wchar_t *, const wchar_t *);
 static ssize_t		 archive_write_pax_data(struct archive_write *,
 			     const void *, size_t);
 static int		 archive_write_pax_finish(struct archive_write *);
@@ -205,30 +205,42 @@ add_pax_attr_int(struct archive_string *as, const char *key, int64_t value)
 	add_pax_attr(as, key, format_int(tmp + sizeof(tmp) - 1, value));
 }
 
+/*
+ * UTF-8 encode the concatenation of two strings.
+ *
+ * This interface eliminates the need to do some string
+ * manipulations at higher layers.
+ */
 static char *
-utf8_encode(const wchar_t *wval)
+utf8_encode(const wchar_t *wval1, const wchar_t *wval2)
 {
 	int utf8len;
-	const wchar_t *wp;
+	const wchar_t *wp, **wpp;
 	unsigned long wc;
 	char *utf8_value, *p;
+	const wchar_t *vals[2];
+
+	vals[0] = wval1;
+	vals[1] = wval2;
 
 	utf8len = 0;
-	for (wp = wval; *wp != L'\0'; ) {
-		wc = *wp++;
-		if (wc <= 0x7f)
-			utf8len++;
-		else if (wc <= 0x7ff)
-			utf8len += 2;
-		else if (wc <= 0xffff)
-			utf8len += 3;
-		else if (wc <= 0x1fffff)
-			utf8len += 4;
-		else if (wc <= 0x3ffffff)
-			utf8len += 5;
-		else if (wc <= 0x7fffffff)
-			utf8len += 6;
-		/* Ignore larger values; UTF-8 can't encode them. */
+	for (wpp = vals; wpp < vals + 2 && *wpp; wpp++) {
+		for (wp = *wpp; *wp != L'\0'; ) {
+			wc = *wp++;
+			if (wc <= 0x7f)
+				utf8len++;
+			else if (wc <= 0x7ff)
+				utf8len += 2;
+			else if (wc <= 0xffff)
+				utf8len += 3;
+			else if (wc <= 0x1fffff)
+				utf8len += 4;
+			else if (wc <= 0x3ffffff)
+				utf8len += 5;
+			else if (wc <= 0x7fffffff)
+				utf8len += 6;
+			/* Ignore larger values; UTF-8 can't encode them. */
+		}
 	}
 
 	utf8_value = (char *)malloc(utf8len + 1);
@@ -237,42 +249,45 @@ utf8_encode(const wchar_t *wval)
 		return (NULL);
 	}
 
-	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
-		wc = *wp++;
-		if (wc <= 0x7f) {
-			*p++ = (char)wc;
-		} else if (wc <= 0x7ff) {
-			p[0] = 0xc0 | ((wc >> 6) & 0x1f);
-			p[1] = 0x80 | (wc & 0x3f);
-			p += 2;
-		} else if (wc <= 0xffff) {
-			p[0] = 0xe0 | ((wc >> 12) & 0x0f);
-			p[1] = 0x80 | ((wc >> 6) & 0x3f);
-			p[2] = 0x80 | (wc & 0x3f);
-			p += 3;
-		} else if (wc <= 0x1fffff) {
-			p[0] = 0xf0 | ((wc >> 18) & 0x07);
-			p[1] = 0x80 | ((wc >> 12) & 0x3f);
-			p[2] = 0x80 | ((wc >> 6) & 0x3f);
-			p[3] = 0x80 | (wc & 0x3f);
-			p += 4;
-		} else if (wc <= 0x3ffffff) {
-			p[0] = 0xf8 | ((wc >> 24) & 0x03);
-			p[1] = 0x80 | ((wc >> 18) & 0x3f);
-			p[2] = 0x80 | ((wc >> 12) & 0x3f);
-			p[3] = 0x80 | ((wc >> 6) & 0x3f);
-			p[4] = 0x80 | (wc & 0x3f);
-			p += 5;
-		} else if (wc <= 0x7fffffff) {
-			p[0] = 0xfc | ((wc >> 30) & 0x01);
-			p[1] = 0x80 | ((wc >> 24) & 0x3f);
-			p[1] = 0x80 | ((wc >> 18) & 0x3f);
-			p[2] = 0x80 | ((wc >> 12) & 0x3f);
-			p[3] = 0x80 | ((wc >> 6) & 0x3f);
-			p[4] = 0x80 | (wc & 0x3f);
-			p += 6;
+	p = utf8_value;
+	for (wpp = vals; wpp < vals + 2 && *wpp; wpp++) {
+		for (wp = *wpp; *wp != L'\0'; ) {
+			wc = *wp++;
+			if (wc <= 0x7f) {
+				*p++ = (char)wc;
+			} else if (wc <= 0x7ff) {
+				p[0] = 0xc0 | ((wc >> 6) & 0x1f);
+				p[1] = 0x80 | (wc & 0x3f);
+				p += 2;
+			} else if (wc <= 0xffff) {
+				p[0] = 0xe0 | ((wc >> 12) & 0x0f);
+				p[1] = 0x80 | ((wc >> 6) & 0x3f);
+				p[2] = 0x80 | (wc & 0x3f);
+				p += 3;
+			} else if (wc <= 0x1fffff) {
+				p[0] = 0xf0 | ((wc >> 18) & 0x07);
+				p[1] = 0x80 | ((wc >> 12) & 0x3f);
+				p[2] = 0x80 | ((wc >> 6) & 0x3f);
+				p[3] = 0x80 | (wc & 0x3f);
+				p += 4;
+			} else if (wc <= 0x3ffffff) {
+				p[0] = 0xf8 | ((wc >> 24) & 0x03);
+				p[1] = 0x80 | ((wc >> 18) & 0x3f);
+				p[2] = 0x80 | ((wc >> 12) & 0x3f);
+				p[3] = 0x80 | ((wc >> 6) & 0x3f);
+				p[4] = 0x80 | (wc & 0x3f);
+				p += 5;
+			} else if (wc <= 0x7fffffff) {
+				p[0] = 0xfc | ((wc >> 30) & 0x01);
+				p[1] = 0x80 | ((wc >> 24) & 0x3f);
+				p[1] = 0x80 | ((wc >> 18) & 0x3f);
+				p[2] = 0x80 | ((wc >> 12) & 0x3f);
+				p[3] = 0x80 | ((wc >> 6) & 0x3f);
+				p[4] = 0x80 | (wc & 0x3f);
+				p += 6;
+			}
+			/* Ignore larger values; UTF-8 can't encode them. */
 		}
-		/* Ignore larger values; UTF-8 can't encode them. */
 	}
 	*p = '\0';
 
@@ -280,9 +295,10 @@ utf8_encode(const wchar_t *wval)
 }
 
 static void
-add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
+add_pax_attr_w(struct archive_string *as, const char *key,
+    const wchar_t *wval1, const wchar_t *wval2)
 {
-	char *utf8_value = utf8_encode(wval);
+	char *utf8_value = utf8_encode(wval1, wval2);
 	if (utf8_value == NULL)
 		return;
 	add_pax_attr(as, key, utf8_value);
@@ -367,7 +383,7 @@ archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
 			free(url_encoded_name); /* Done with this. */
 		}
 		if (wcs_name != NULL) {
-			encoded_name = utf8_encode(wcs_name);
+			encoded_name = utf8_encode(wcs_name, NULL);
 			free(wcs_name); /* Done with wchar_t name. */
 		}
 
@@ -401,6 +417,7 @@ archive_write_pax_header(struct archive_write *a,
 	const wchar_t *wp;
 	const char *suffix_start;
 	int need_extension, r, ret;
+	int need_slash = 0;
 	struct pax *pax;
 	const struct stat *st_main, *st_original;
 
@@ -451,18 +468,23 @@ archive_write_pax_header(struct archive_write *a,
 	 */
 	wp = archive_entry_pathname_w(entry_main);
 	p = archive_entry_pathname(entry_main);
-	if (strlen(p) <= 100)	/* Short enough for just 'name' field */
+	if (S_ISDIR(st_original->st_mode))
+		if (p[strlen(p) - 1] != '/')
+			need_slash = 1;
+	/* Short enough for just 'name' field */
+	if (strlen(p) + need_slash <= 100)
 		suffix_start = p;	/* Record a zero-length prefix */
 	else
 		/* Find the largest suffix that fits in 'name' field. */
-		suffix_start = strchr(p + strlen(p) - 100 - 1, '/');
+		suffix_start = strchr(p + strlen(p) + need_slash - 100 - 1, '/');
 
 	/*
 	 * If name is too long, or has non-ASCII characters, add
 	 * 'path' to pax extended attrs.
 	 */
 	if (suffix_start == NULL || suffix_start - p > 155 || has_non_ASCII(wp)) {
-		add_pax_attr_w(&(pax->pax_header), "path", wp);
+		add_pax_attr_w(&(pax->pax_header), "path", wp,
+		    need_slash ? L"/" : NULL);
 		archive_entry_set_pathname(entry_main,
 		    build_ustar_entry_name(ustar_entry_name, p, strlen(p), NULL));
 		need_extension = 1;
@@ -484,7 +506,7 @@ archive_write_pax_header(struct archive_write *a,
 		/* If the link is long or has a non-ASCII character,
 		 * store it as a pax extended attribute. */
 		if (strlen(linkname) > 100 || has_non_ASCII(wp)) {
-			add_pax_attr_w(&(pax->pax_header), "linkpath", wp);
+			add_pax_attr_w(&(pax->pax_header), "linkpath", wp, NULL);
 			if (hardlink != NULL)
 				archive_entry_set_hardlink(entry_main,
 				    "././@LongHardLink");
@@ -512,7 +534,7 @@ archive_write_pax_header(struct archive_write *a,
 	p = archive_entry_gname(entry_main);
 	wp = archive_entry_gname_w(entry_main);
 	if (p != NULL && (strlen(p) > 31 || has_non_ASCII(wp))) {
-		add_pax_attr_w(&(pax->pax_header), "gname", wp);
+		add_pax_attr_w(&(pax->pax_header), "gname", wp, NULL);
 		archive_entry_set_gname(entry_main, NULL);
 		need_extension = 1;
 	}
@@ -528,7 +550,7 @@ archive_write_pax_header(struct archive_write *a,
 	p = archive_entry_uname(entry_main);
 	wp = archive_entry_uname_w(entry_main);
 	if (p != NULL && (strlen(p) > 31 || has_non_ASCII(wp))) {
-		add_pax_attr_w(&(pax->pax_header), "uname", wp);
+		add_pax_attr_w(&(pax->pax_header), "uname", wp, NULL);
 		archive_entry_set_uname(entry_main, NULL);
 		need_extension = 1;
 	}
@@ -655,13 +677,13 @@ archive_write_pax_header(struct archive_write *a,
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
 		if (wp != NULL && *wp != L'\0')
 			add_pax_attr_w(&(pax->pax_header),
-			    "SCHILY.acl.access", wp);
+			    "SCHILY.acl.access", wp, NULL);
 		wp = archive_entry_acl_text_w(entry_original,
 		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT |
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
 		if (wp != NULL && *wp != L'\0')
 			add_pax_attr_w(&(pax->pax_header),
-			    "SCHILY.acl.default", wp);
+			    "SCHILY.acl.default", wp, NULL);
 
 		/* Include star-compatible metadata info. */
 		/* Note: "SCHILY.dev{major,minor}" are NOT the

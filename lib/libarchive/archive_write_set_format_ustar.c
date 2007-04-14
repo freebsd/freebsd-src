@@ -243,7 +243,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 {
 	unsigned int checksum;
 	int i, ret;
-	size_t copy_length;
+	size_t copy_length, ps, extra_slash;
 	const char *p, *pp;
 	const struct stat *st;
 	int mytartype;
@@ -256,6 +256,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	 * elements.
 	 */
 	memcpy(h, &template_header, 512);
+	st = archive_entry_stat(entry);
 
 	/*
 	 * Because the block is already null-filled, and strings
@@ -264,11 +265,18 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	 */
 
 	pp = archive_entry_pathname(entry);
-	if (strlen(pp) <= USTAR_name_size)
-		memcpy(h + USTAR_name_offset, pp, strlen(pp));
-	else {
+	ps = strlen(pp);
+	if (S_ISDIR(st->st_mode) && pp[ps - 1] != '/')
+		extra_slash = 1;
+	else
+		extra_slash = 0;
+	if (ps + extra_slash <= USTAR_name_size) {
+		memcpy(h + USTAR_name_offset, pp, ps);
+		if (extra_slash)
+			h[USTAR_name_offset + ps] = '/';
+	} else {
 		/* Store in two pieces, splitting at a '/'. */
-		p = strchr(pp + strlen(pp) - USTAR_name_size - 1, '/');
+		p = strchr(pp + ps + extra_slash - USTAR_name_size - 1, '/');
 		/*
 		 * If there is no path separator, or the prefix or
 		 * remaining name are too large, return an error.
@@ -284,7 +292,9 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		} else {
 			/* Copy prefix and remainder to appropriate places */
 			memcpy(h + USTAR_prefix_offset, pp, p - pp);
-			memcpy(h + USTAR_name_offset, p + 1, pp + strlen(pp) - p - 1);
+			memcpy(h + USTAR_name_offset, p + 1, pp + ps - p - 1);
+			if (extra_slash)
+				h[USTAR_name_offset + pp + ps - p - 1] = '/';
 		}
 	}
 
@@ -327,8 +337,6 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		}
 		memcpy(h + USTAR_gname_offset, p, copy_length);
 	}
-
-	st = archive_entry_stat(entry);
 
 	if (format_number(st->st_mode & 07777, h + USTAR_mode_offset, USTAR_mode_size, USTAR_mode_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE, "Numeric mode too large");
