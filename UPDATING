@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070411:
+	sendmail(8) has been updated to version 8.14.1.  Mail filters
+	(aka, milters) compiled against the libmilter included in the
+	base operating system should be recompiled.
+
 20070115:
 	FreeBSD 6.2-RELEASE
 
