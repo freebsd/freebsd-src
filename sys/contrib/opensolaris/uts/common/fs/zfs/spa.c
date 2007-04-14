@@ -58,7 +58,13 @@
 #include <sys/fs/zfs.h>
 #include <sys/callb.h>
 
-int zio_taskq_threads = 8;
+int zio_taskq_threads = 0;
+SYSCTL_DECL(_vfs_zfs);
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, zio, CTLFLAG_RW, 0, "ZFS ZIO");
+TUNABLE_INT("vfs.zfs.zio.taskq_threads", &zio_taskq_threads);
+SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, taskq_threads, CTLFLAG_RW,
+    &zio_taskq_threads, 0, "Number of ZIO threads per ZIO type");
+
 
 /*
  * ==========================================================================
@@ -111,6 +117,8 @@ static void
 spa_activate(spa_t *spa)
 {
 	int t;
+	int nthreads = zio_taskq_threads;
+	char name[32];
 
 	ASSERT(spa->spa_state == POOL_STATE_UNINITIALIZED);
 
@@ -118,13 +126,15 @@ spa_activate(spa_t *spa)
 
 	spa->spa_normal_class = metaslab_class_create();
 
+	if (nthreads == 0)
+		nthreads = mp_ncpus;
 	for (t = 0; t < ZIO_TYPES; t++) {
-		spa->spa_zio_issue_taskq[t] = taskq_create("spa_zio_issue",
-		    zio_taskq_threads, maxclsyspri, 50, INT_MAX,
-		    TASKQ_PREPOPULATE);
-		spa->spa_zio_intr_taskq[t] = taskq_create("spa_zio_intr",
-		    zio_taskq_threads, maxclsyspri, 50, INT_MAX,
-		    TASKQ_PREPOPULATE);
+		snprintf(name, sizeof(name), "spa_zio_issue %d", t);
+		spa->spa_zio_issue_taskq[t] = taskq_create(name, nthreads,
+		    maxclsyspri, 50, INT_MAX, TASKQ_PREPOPULATE);
+		snprintf(name, sizeof(name), "spa_zio_intr %d", t);
+		spa->spa_zio_intr_taskq[t] = taskq_create(name, nthreads,
+		    maxclsyspri, 50, INT_MAX, TASKQ_PREPOPULATE);
 	}
 
 	rw_init(&spa->spa_traverse_lock, NULL, RW_DEFAULT, NULL);
