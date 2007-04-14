@@ -2338,7 +2338,7 @@ Job_Init(int maxproc)
 			jobFull = FALSE;
 		}
 	}
-	if (fifoFd <= 0) {
+	if (fifoFd < 0) {
 		maxJobs = maxproc;
 		jobFull = FALSE;
 	} else {
