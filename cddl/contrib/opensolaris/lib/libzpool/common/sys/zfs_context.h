@@ -80,6 +80,7 @@ extern "C" {
 #include <sys/sdt.h>
 #include <sys/kstat.h>
 #include <sys/kernel.h>
+#include <sys/disk.h>
 #include <machine/atomic.h>
 
 #define	ZFS_EXPORTS_PATH	"/etc/zfs/exports"
