@@ -10,7 +10,7 @@ top \- display and update information about the top cpu processes
 .SH SYNOPSIS
 .B top
 [
-.B \-bCHIinqStuv
+.B \-abCHIinqStuv
 ] [
 .BI \-d count
 ] [
@@ -77,6 +77,12 @@ the \*(lqWCPU\*(rq column respectively.
 .B \-S
 Show system processes in the display.  Normally, system processes such as
 the pager and the swapper are not shown.  This option makes them visible.
+.TP
+.B \-a
+Display command names derived from the argv[] vector, rather than real
+executable name. It's useful when you want to watch applications, that
+puts their status information there. If the real name differs from argv[0],
+it will be displayed in parenthesis.
 .TP
 .B \-b
 Use \*(lqbatch\*(rq mode.  In this mode, all input from the terminal is
