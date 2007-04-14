@@ -110,7 +110,7 @@ archive_write_set_format_ar_svr4(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	int r = __archive_write_set_format_ar(a);
 	if (r == ARCHIVE_OK) {
-		a->archive_format = ARCHIVE_FORMAT_AR_SVR4;
+		a->archive_format = ARCHIVE_FORMAT_AR_GNU;
 		a->archive_format_name = "ar (GNU/SVR4)";
 	}
 	return (r);
@@ -197,7 +197,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	/* Otherwise, entry is a normal archive member. */
-	if (a->archive_format == ARCHIVE_FORMAT_AR_SVR4) {
+	if (a->archive_format == ARCHIVE_FORMAT_AR_GNU) {
 		/*
 		 * SVR4/GNU variant use a "/" to mark then end of the filename,
 		 * make it possible to have embedded spaces in the filename.

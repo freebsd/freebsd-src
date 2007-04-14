@@ -178,7 +178,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_ZIP			0x50000
 #define	ARCHIVE_FORMAT_EMPTY			0x60000
 #define	ARCHIVE_FORMAT_AR			0x70000
-#define	ARCHIVE_FORMAT_AR_SVR4			(ARCHIVE_FORMAT_AR | 1)
+#define	ARCHIVE_FORMAT_AR_GNU			(ARCHIVE_FORMAT_AR | 1)
 #define	ARCHIVE_FORMAT_AR_BSD			(ARCHIVE_FORMAT_AR | 2)
 
 /*-
