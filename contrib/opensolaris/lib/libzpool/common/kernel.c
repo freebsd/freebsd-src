@@ -291,7 +291,7 @@ cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime)
 
 	ASSERT(abstime > 0);
 top:
-	delta = abstime - lbolt;
+	delta = abstime;
 	if (delta <= 0)
 		return (-1);
 
@@ -413,7 +413,10 @@ vn_open(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2, int x3)
 	*vpp = vp = umem_zalloc(sizeof (vnode_t), UMEM_NOFAIL);
 
 	vp->v_fd = fd;
-	vp->v_size = st.st_size;
+	if (S_ISCHR(st.st_mode))
+		ioctl(fd, DIOCGMEDIASIZE, &vp->v_size);
+	else
+		vp->v_size = st.st_size;
 	vp->v_path = spa_strdup(path);
 
 	return (0);
