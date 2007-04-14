@@ -64,17 +64,22 @@ DEFINE_TEST(test_read_format_ar)
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_memory(a, archive, sizeof(archive)));
 
-	/* First we meet the string table */
+	/* Filename table.  */
 	assertA(0 == archive_read_next_header(a, &ae));
-	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
-	assertA(archive_format(a) == ARCHIVE_FORMAT_AR);
 	assert(0 == strcmp("//", archive_entry_pathname(ae)));
-	assert(40 == archive_entry_size(ae));
-	assertA(40 == archive_read_data(a, buff, 45));
+	assertEqualInt(0, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_uid(ae));
+	assertEqualInt(0, archive_entry_gid(ae));
+	assertEqualInt(40, archive_entry_size(ae));
+	assertEqualIntA(a, 40, archive_read_data(a, buff, 50));
+	assert(0 == memcmp(buff, "yyytttsssaaafff.o/\nhhhhjjjjkkkkllll.o/\n\n", 40));
 
 	/* First Entry */
 	assertA(0 == archive_read_next_header(a, &ae));
 	assert(0 == strcmp("yyytttsssaaafff.o", archive_entry_pathname(ae)));
+	assertEqualInt(1175465652, archive_entry_mtime(ae));
+	assertEqualInt(1001, archive_entry_uid(ae));
+	assertEqualInt(0, archive_entry_gid(ae));
 	assert(8 == archive_entry_size(ae));
 	assertA(8 == archive_read_data(a, buff, 10));
 	assert(0 == memcmp(buff, "55667788", 8));
@@ -82,6 +87,9 @@ DEFINE_TEST(test_read_format_ar)
 	/* Second Entry */
 	assertA(0 == archive_read_next_header(a, &ae));
 	assert(0 == strcmp("gghh.o", archive_entry_pathname(ae)));
+	assertEqualInt(1175465668, archive_entry_mtime(ae));
+	assertEqualInt(1001, archive_entry_uid(ae));
+	assertEqualInt(0, archive_entry_gid(ae));
 	assert(4 == archive_entry_size(ae));
 	assertA(4 == archive_read_data(a, buff, 10));
 	assert(0 == memcmp(buff, "3333", 4));
@@ -89,6 +97,9 @@ DEFINE_TEST(test_read_format_ar)
 	/* Third Entry */
 	assertA(0 == archive_read_next_header(a, &ae));
 	assert(0 == strcmp("hhhhjjjjkkkkllll.o", archive_entry_pathname(ae)));
+	assertEqualInt(1175465713, archive_entry_mtime(ae));
+	assertEqualInt(1001, archive_entry_uid(ae));
+	assertEqualInt(0, archive_entry_gid(ae));
 	assert(9 == archive_entry_size(ae));
 	assertA(9 == archive_read_data(a, buff, 9));
 	assert(0 == memcmp(buff, "987654321", 9));
