@@ -45,6 +45,7 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <vis.h>
 
 #include "top.h"
 #include "machine.h"
@@ -649,7 +650,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 static char fmt[128];	/* static area where result is built */
 
 char *
-format_next_process(caddr_t handle, char *(*get_userid)(int))
+format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 {
 	struct kinfo_proc *pp;
 	const struct kinfo_proc *oldp;
@@ -661,6 +662,8 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 	struct rusage ru, *rup;
 	long p_tot, s_tot;
 	char *proc_fmt, thr_buf[6];
+	char *cmdbuf = NULL;
+	char **args;
 
 	/* find and remember the next proc structure */
 	hp = (struct handle *)handle;
@@ -723,6 +726,65 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 		break;
 	}
 
+	cmdbuf = (char *)malloc(cmdlengthdelta + 1);
+	if (cmdbuf == NULL) {
+		warn("malloc(%d)", cmdlengthdelta + 1);
+		return NULL;
+	}
+
+	if (!(flags & FMT_SHOWARGS)) {
+		snprintf(cmdbuf, cmdlengthdelta, "%s", pp->ki_comm);
+	}
+	else if (pp->ki_args == NULL ||
+	    (args = kvm_getargv(kd, pp, cmdlengthdelta)) == NULL || !(*args))
+		snprintf(cmdbuf, cmdlengthdelta, "[%s]", pp->ki_comm);
+	else {
+		char *src, *dst, *argbuf;
+		char *cmd;
+		size_t argbuflen;
+		size_t len;
+
+		argbuflen = cmdlengthdelta * 4;
+		argbuf = (char *)malloc(argbuflen + 1);
+		if (argbuf == NULL) {
+			warn("malloc(%d)", argbuflen + 1);
+			free(cmdbuf);
+			return NULL;
+		}
+
+		dst = argbuf;
+
+		/* Extract cmd name from argv */
+		cmd = strrchr(*args, '/');
+		if (cmd == NULL)
+			cmd = *args;
+		else
+			cmd++;
+
+		for (; (src = *args++) != NULL; ) {
+			if (*src == '\0')
+				continue;
+			len = (argbuflen - (dst - argbuf) - 1) / 4;
+			strvisx(dst, src, strlen(src) < len ? strlen(src) : len,
+			    VIS_NL | VIS_CSTYLE);
+			while (*dst != '\0')
+				dst++;
+			if ((argbuflen - (dst - argbuf) - 1) / 4 > 0)
+				*dst++ = ' '; /* add delimiting space */
+		}
+		if (dst != argbuf && dst[-1] == ' ')
+			dst--;
+		*dst = '\0';
+
+		if (strcmp(cmd, pp->ki_comm) != 0 )
+			snprintf(cmdbuf, cmdlengthdelta, "%s (%s)",argbuf, \
+				 pp->ki_comm);
+		else
+			strlcpy(cmdbuf, argbuf, cmdlengthdelta);
+
+		free(argbuf);
+	}
+
 	if (displaymode == DISP_IO) {
 		oldp = get_old_proc(pp);
 		if (oldp != NULL) {
@@ -752,7 +814,10 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 		    s_tot == 0 ? 0.0 : (p_tot * 100.0 / s_tot),
 		    screen_width > cmdlengthdelta ?
 		    screen_width - cmdlengthdelta : 0,
-		    printable(pp->ki_comm));
+		    printable(cmdbuf));
+
+		free(cmdbuf);
+
 		return (fmt);
 	}
 
@@ -777,7 +842,9 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 	    format_time(cputime),
 	    ps.wcpu ? 100.0 * weighted_cpu(pct, pp) : 100.0 * pct,
 	    screen_width > cmdlengthdelta ? screen_width - cmdlengthdelta : 0,
-	    printable(pp->ki_comm));
+	    printable(cmdbuf));
+
+	free(cmdbuf);
 
 	/* return the result */
 	return (fmt);
