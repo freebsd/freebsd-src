@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070408:
+	sendmail(8) has been updated to version 8.14.1.  Mail filters
+	(aka, milters) compiled against the libmilter included in the
+	base operating system should be recompiled.
+
 20070302:
 	Firmwares for ipw(4) and iwi(4) are now included in the base tree.
 	In order to use them one must agree to the respective LICENSE in
