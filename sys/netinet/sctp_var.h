@@ -231,6 +231,57 @@ extern struct pr_usrreqs sctp_usrreqs;
 	} \
 } while (0)
 
+#ifdef RANDY_WILL_USE_LATER	/* this will be the non-invarant version */
+#define sctp_flight_size_decrease(tp1) do { \
+	if (tp1->whoTo->flight_size >= tp1->book_size) \
+		tp1->whoTo->flight_size -= tp1->book_size; \
+	else \
+		tp1->whoTo->flight_size = 0; \
+} while (0)
+
+
+#define sctp_total_flight_decrease(stcb, tp1) do { \
+	if (stcb->asoc.total_flight >= tp1->book_size) { \
+		stcb->asoc.total_flight -= tp1->book_size; \
+		if (stcb->asoc.total_flight_count > 0) \
+			stcb->asoc.total_flight_count--; \
+	} else { \
+		stcb->asoc.total_flight = 0; \
+		stcb->asoc.total_flight_count = 0; \
+	} \
+} while (0)
+
+#else
+
+#define sctp_flight_size_decrease(tp1) do { \
+	if (tp1->whoTo->flight_size >= tp1->book_size) \
+		tp1->whoTo->flight_size -= tp1->book_size; \
+	else \
+		panic("flight size corruption"); \
+} while (0)
+
+
+#define sctp_total_flight_decrease(stcb, tp1) do { \
+	if (stcb->asoc.total_flight >= tp1->book_size) { \
+		stcb->asoc.total_flight -= tp1->book_size; \
+		if (stcb->asoc.total_flight_count > 0) \
+			stcb->asoc.total_flight_count--; \
+	} else { \
+		panic("total flight size corruption"); \
+	} \
+} while (0)
+
+#endif
+
+#define sctp_flight_size_increase(tp1) do { \
+       (tp1)->whoTo->flight_size += (tp1)->book_size; \
+} while (0)
+
+
+#define sctp_total_flight_increase(stcb, tp1) do { \
+       (stcb)->asoc.total_flight_count++; \
+       (stcb)->asoc.total_flight += (tp1)->book_size; \
+} while (0)
 
 struct sctp_nets;
 struct sctp_inpcb;

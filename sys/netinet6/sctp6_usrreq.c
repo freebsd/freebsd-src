@@ -31,33 +31,35 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+
 #include <netinet/sctp_os.h>
 #include <sys/proc.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_var.h>
+#if defined(INET6)
+#include <netinet6/sctp6_var.h>
+#endif
 #include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_output.h>
-#include <netinet/sctp_input.h>
-#include <netinet/sctp_bsd_addr.h>
 #include <netinet/sctp_uio.h>
 #include <netinet/sctp_asconf.h>
 #include <netinet/sctputil.h>
 #include <netinet/sctp_indata.h>
-#include <netinet/sctp_asconf.h>
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_auth.h>
-#include <netinet6/sctp6_var.h>
-
+#include <netinet/sctp_input.h>
+#include <netinet/sctp_output.h>
 
 
 extern struct protosw inetsw[];
 
 
 
+
 int
-sctp6_input(mp, offp, proto)
-	struct mbuf **mp;
+sctp6_input(i_pak, offp, proto)
+	struct mbuf **i_pak;
 	int *offp;
 	int proto;
 {
@@ -76,7 +78,8 @@ sctp6_input(mp, offp, proto)
 	int off = *offp;
 
 	vrf_id = SCTP_DEFAULT_VRFID;
-	m = SCTP_HEADER_TO_CHAIN(*mp);
+	m = SCTP_HEADER_TO_CHAIN(*i_pak);
+
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	/* Ensure that (sctphdr + sctp_chunkhdr) in a row. */
@@ -100,7 +103,9 @@ sctp6_input(mp, offp, proto)
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_INPUT1) {
-		printf("V6 input gets a packet iphlen:%d pktlen:%d\n", iphlen, SCTP_HEADER_LEN((*mp)));
+		printf("V6 input gets a packet iphlen:%d pktlen:%d\n", iphlen,
+		    SCTP_HEADER_LEN((*i_pak))
+		    );
 	}
 #endif
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
@@ -199,7 +204,6 @@ sctp_skip_csum:
 		goto bad;
 	}
 #endif				/* IPSEC */
-
 
 	/*
 	 * CONTROL chunk processing
@@ -682,7 +686,8 @@ sctp_must_try_again:
 
 /* This could be made common with sctp_detach() since they are identical */
 
-static int
+static
+int
 sctp6_disconnect(struct socket *so)
 {
 	struct sctp_inpcb *inp;
@@ -715,23 +720,10 @@ sctp6_disconnect(struct socket *so)
 				if (SCTP_GET_STATE(asoc) !=
 				    SCTP_STATE_COOKIE_WAIT) {
 					/* Left with Data unread */
-					struct mbuf *err;
+					struct mbuf *op_err;
 
-					err = NULL;
-					MGET(err, M_DONTWAIT, MT_DATA);
-					if (err) {
-						/*
-						 * Fill in the user
-						 * initiated abort
-						 */
-						struct sctp_paramhdr *ph;
-
-						ph = mtod(err, struct sctp_paramhdr *);
-						SCTP_BUF_LEN(err) = sizeof(struct sctp_paramhdr);
-						ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
-						ph->param_length = htons(SCTP_BUF_LEN(err));
-					}
-					sctp_send_abort_tcb(stcb, err);
+					op_err = sctp_generate_invmanparam(SCTP_CAUSE_USER_INITIATED_ABT);
+					sctp_send_abort_tcb(stcb, op_err);
 					SCTP_STAT_INCR_COUNTER32(sctps_aborted);
 				}
 				SCTP_INP_RUNLOCK(inp);
@@ -802,6 +794,7 @@ sctp6_disconnect(struct socket *so)
 		return EOPNOTSUPP;
 	}
 }
+
 
 int
 sctp_sendm(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
@@ -1221,6 +1214,7 @@ sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 
 			in6_sin_2_v4mapsin6((struct sockaddr_in *)addr, &sin6);
 			memcpy(addr, &sin6, sizeof(struct sockaddr_in6));
+
 		}
 	}
 	return (error);

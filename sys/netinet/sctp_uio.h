@@ -872,6 +872,7 @@ struct sctpstat {
 	u_long sctps_sends_with_abort;
 	u_long sctps_protocol_drain_calls;
 	u_long sctps_protocol_drains_done;
+	u_long sctps_read_peeks;
 };
 
 #define SCTP_STAT_INCR(_x) SCTP_STAT_INCR_BY(_x,1)
@@ -971,8 +972,8 @@ sctp_lower_sosend(struct socket *so,
     struct mbuf *control,
     int flags,
     int use_rcvinfo,
-    struct sctp_sndrcvinfo *srcv,
-    struct thread *p
+    struct sctp_sndrcvinfo *srcv
+    ,struct thread *p
 );
 
 int

@@ -105,6 +105,7 @@ sctp_do_peeloff(struct socket *head, struct socket *so, sctp_assoc_t assoc_id)
 	return (0);
 }
 
+
 struct socket *
 sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 {
@@ -177,6 +178,7 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 	SCTP_CLEAR_SO_NBIO(newso);
 	newso->so_state |= SS_ISCONNECTED;
 	/* We remove it right away */
+
 #ifdef SCTP_LOCK_LOGGING
 	sctp_log_lock(inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_SOCK);
 #endif
