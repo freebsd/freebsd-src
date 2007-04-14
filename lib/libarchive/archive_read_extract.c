@@ -100,7 +100,7 @@ archive_read_extract(struct archive *_a, struct archive_entry *entry, int flags)
 		r = copy_data(_a, a->extract->ad);
 	r2 = archive_write_finish_entry(a->extract->ad);
 	/* Use the first message. */
-	if (r2 != ARCHIVE_OK && r == ARCHIVE_OK)
+	if (r2 != ARCHIVE_OK || r != ARCHIVE_OK)
 		archive_set_error(&a->archive,
 		    archive_errno(extract->ad),
 		    "%s", archive_error_string(extract->ad));
