@@ -474,14 +474,7 @@ zfs_domount(vfs_t *vfsp, char *osname, kthread_t *td)
 
 	error = dmu_objset_open(osname, DMU_OST_ZFS, mode, &zfsvfs->z_os);
 	if (error == EROFS) {
-		/*
-		 * FreeBSD: In Solaris there is DS_MODE_PRIMARY instead of
-		 * DS_MODE_STANDARD, but it doesn't work on FreeBSD and
-		 * I don't know why. It looks like the dataset is opened
-		 * on mount DS_MODE_PRIMARY mode and snapshot cannot open
-		 * the same dataset in DS_MODE_PRIMARY mode again.
-		 */
-		mode = DS_MODE_STANDARD | DS_MODE_READONLY;
+		mode = DS_MODE_PRIMARY | DS_MODE_READONLY;
 		error = dmu_objset_open(osname, DMU_OST_ZFS, mode,
 		    &zfsvfs->z_os);
 	}
