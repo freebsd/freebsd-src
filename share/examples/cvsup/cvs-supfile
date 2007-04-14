@@ -70,6 +70,7 @@ src-all
 # use these, be sure to comment out "src-all" above.
 #src-base
 #src-bin
+#src-cddl
 #src-contrib
 #src-etc
 #src-games
@@ -80,6 +81,7 @@ src-all
 #src-lib
 #src-libexec
 #src-release
+#src-rescue
 #src-sbin
 #src-share
 #src-sys
