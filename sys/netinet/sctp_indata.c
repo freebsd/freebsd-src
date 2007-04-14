@@ -2881,18 +2881,13 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						 * value to the sender's
 						 * nonce sum
 						 */
-						if (tp1->sent < SCTP_DATAGRAM_ACKED) {
-							/*
-							 * If it is less
-							 * than ACKED, it is
-							 * now no-longer in
-							 * flight. Higher
-							 * values may
-							 * already be set
-							 * via previous Gap
-							 * Ack Blocks...
-							 * i.e. ACKED or
-							 * MARKED.
+						if (tp1->sent < SCTP_DATAGRAM_RESEND) {
+							/*-
+							 * If it is less than RESEND, it is
+							 * now no-longer in flight.
+							 * Higher values may already be set
+							 * via previous Gap Ack Blocks...
+							 * i.e. ACKED or RESEND.
 							 */
 							if (compare_with_wrap(tp1->rec.data.TSN_seq,
 							    *biggest_newly_acked_tsn, MAX_TSN)) {
@@ -2927,7 +2922,7 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 							if (*this_sack_lowest_newack == 0) {
 #ifdef SCTP_SACK_LOGGING
 								sctp_log_sack(*this_sack_lowest_newack,
-								    last_tsn,
+								    v last_tsn,
 								    tp1->rec.data.TSN_seq,
 								    0,
 								    0,
@@ -2985,28 +2980,16 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 							    SCTP_LOG_TSN_ACKED);
 #endif
 #ifdef SCTP_FLIGHT_LOGGING
-							sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
+							sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_GAP,
 							    tp1->whoTo->flight_size,
 							    tp1->book_size,
-							    (uintptr_t) stcb,
+							    (uintptr_t) tp1->whoTo,
 							    tp1->rec.data.TSN_seq);
 #endif
-							if (tp1->whoTo->flight_size >= tp1->book_size)
-								tp1->whoTo->flight_size -= tp1->book_size;
-							else
-								tp1->whoTo->flight_size = 0;
-
-							if (asoc->total_flight >= tp1->book_size) {
-								asoc->total_flight -= tp1->book_size;
-								if (asoc->total_flight_count > 0)
-									asoc->total_flight_count--;
-							} else {
-								asoc->total_flight = 0;
-								asoc->total_flight_count = 0;
-							}
+							sctp_flight_size_decrease(tp1);
+							sctp_total_flight_decrease(stcb, tp1);
 
 							tp1->whoTo->net_ack += tp1->send_size;
-
 							if (tp1->snd_count < 2) {
 								/*
 								 * True
@@ -3028,25 +3011,28 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 								}
 							}
 						}
-						if (tp1->sent <= SCTP_DATAGRAM_RESEND &&
-						    tp1->sent != SCTP_DATAGRAM_UNSENT &&
-						    compare_with_wrap(tp1->rec.data.TSN_seq,
-						    asoc->this_sack_highest_gap,
-						    MAX_TSN)) {
-							asoc->this_sack_highest_gap =
-							    tp1->rec.data.TSN_seq;
-						}
-						if (tp1->sent == SCTP_DATAGRAM_RESEND) {
-							sctp_ucount_decr(asoc->sent_queue_retran_cnt);
+						if (tp1->sent <= SCTP_DATAGRAM_RESEND) {
+							(*ecn_seg_sums) += tp1->rec.data.ect_nonce;
+							(*ecn_seg_sums) &= SCTP_SACK_NONCE_SUM;
+							if (compare_with_wrap(tp1->rec.data.TSN_seq,
+							    asoc->this_sack_highest_gap,
+							    MAX_TSN)) {
+								asoc->this_sack_highest_gap =
+								    tp1->rec.data.TSN_seq;
+							}
+							if (tp1->sent == SCTP_DATAGRAM_RESEND) {
+								sctp_ucount_decr(asoc->sent_queue_retran_cnt);
 #ifdef SCTP_AUDITING_ENABLED
-							sctp_audit_log(0xB2,
-							    (asoc->sent_queue_retran_cnt & 0x000000ff));
+								sctp_audit_log(0xB2,
+								    (asoc->sent_queue_retran_cnt & 0x000000ff));
 #endif
-
+							}
 						}
-						(*ecn_seg_sums) += tp1->rec.data.ect_nonce;
-						(*ecn_seg_sums) &= SCTP_SACK_NONCE_SUM;
-
+						/*
+						 * All chunks NOT UNSENT
+						 * fall through here and are
+						 * marked
+						 */
 						tp1->sent = SCTP_DATAGRAM_MARKED;
 						if (tp1->rec.data.chunk_was_revoked) {
 							/* deflate the cwnd */
@@ -3074,7 +3060,8 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static void
-sctp_check_for_revoked(struct sctp_association *asoc, uint32_t cumack,
+sctp_check_for_revoked(struct sctp_tcb *stcb,
+    struct sctp_association *asoc, uint32_t cumack,
     u_long biggest_tsn_acked)
 {
 	struct sctp_tmit_chunk *tp1;
@@ -3098,15 +3085,20 @@ sctp_check_for_revoked(struct sctp_association *asoc, uint32_t cumack,
 				 * We must add this stuff back in to assure
 				 * timers and such get started.
 				 */
-				tp1->whoTo->flight_size += tp1->book_size;
+#ifdef SCTP_FLIGHT_LOGGING
+				sctp_misc_ints(SCTP_FLIGHT_LOG_UP_REVOKE,
+				    tp1->whoTo->flight_size,
+				    tp1->book_size,
+				    (uintptr_t) tp1->whoTo,
+				    tp1->rec.data.TSN_seq);
+#endif
+				sctp_flight_size_increase(tp1);
+				sctp_total_flight_increase(stcb, tp1);
 				/*
 				 * We inflate the cwnd to compensate for our
 				 * artificial inflation of the flight_size.
 				 */
 				tp1->whoTo->cwnd += tp1->book_size;
-				asoc->total_flight_count++;
-				asoc->total_flight += tp1->book_size;
-
 				tot_revoked++;
 #ifdef SCTP_SACK_LOGGING
 				sctp_log_sack(asoc->last_acked_seq,
@@ -3247,8 +3239,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			 * No new acks were receieved for data sent to this
 			 * dest. Therefore, according to the SFR algo for
 			 * CMT, no data sent to this dest can be marked for
-			 * FR using this SACK. (iyengar@cis.udel.edu,
-			 * 2005/05/12)
+			 * FR using this SACK.
 			 */
 			tp1 = TAILQ_NEXT(tp1, sctp_next);
 			continue;
@@ -3298,11 +3289,10 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				 * cumack earlier. If not already to be
 				 * rtx'd, If not a mixed sack and if tp1 is
 				 * not between two sacked TSNs, then mark by
-				 * one more.
-				 */
-				/*
-				 * Jana FIX, does this mean you strike it
-				 * twice (see code above?)
+				 * one more. NOTE that we are marking by one
+				 * additional time since the SACK DAC flag
+				 * indicates that two packets have been
+				 * received after this missing TSN.
 				 */
 				if ((tp1->sent < SCTP_DATAGRAM_RESEND) && (num_dests_sacked == 1) &&
 				    compare_with_wrap(this_sack_lowest_newack, tp1->rec.data.TSN_seq, MAX_TSN)) {
@@ -3367,7 +3357,13 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						 * If not a mixed sack and
 						 * if tp1 is not between two
 						 * sacked TSNs, then mark by
-						 * one more.
+						 * one more. NOTE that we
+						 * are marking by one
+						 * additional time since the
+						 * SACK DAC flag indicates
+						 * that two packets have
+						 * been received after this
+						 * missing TSN.
 						 */
 						if ((tp1->sent < SCTP_DATAGRAM_RESEND) &&
 						    (num_dests_sacked == 1) &&
@@ -3418,7 +3414,10 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				 * cumack earlier. If not already to be
 				 * rtx'd, If not a mixed sack and if tp1 is
 				 * not between two sacked TSNs, then mark by
-				 * one more.
+				 * one more. NOTE that we are marking by one
+				 * additional time since the SACK DAC flag
+				 * indicates that two packets have been
+				 * received after this missing TSN.
 				 */
 				if ((tp1->sent < SCTP_DATAGRAM_RESEND) && (num_dests_sacked == 1) &&
 				    compare_with_wrap(this_sack_lowest_newack, tp1->rec.data.TSN_seq, MAX_TSN)) {
@@ -3521,17 +3520,14 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			}
 			/* fix counts and things */
 #ifdef SCTP_FLIGHT_LOGGING
-			sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
+			sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_RSND,
 			    tp1->whoTo->flight_size,
 			    tp1->book_size,
-			    (uintptr_t) stcb,
+			    (uintptr_t) tp1->whoTo,
 			    tp1->rec.data.TSN_seq);
 #endif
 			tp1->whoTo->net_ack++;
-			if (tp1->whoTo->flight_size >= tp1->book_size)
-				tp1->whoTo->flight_size -= tp1->book_size;
-			else
-				tp1->whoTo->flight_size = 0;
+			sctp_flight_size_decrease(tp1);
 
 #ifdef SCTP_LOG_RWND
 			sctp_log_rwnd(SCTP_INCREASE_PEER_RWND,
@@ -3541,16 +3537,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			asoc->peers_rwnd += (tp1->send_size + sctp_peer_chunk_oh);
 
 			/* remove from the total flight */
-			if (asoc->total_flight >= tp1->book_size) {
-				asoc->total_flight -= tp1->book_size;
-				if (asoc->total_flight_count > 0)
-					asoc->total_flight_count--;
-			} else {
-				asoc->total_flight = 0;
-				asoc->total_flight_count = 0;
-			}
-
-
+			sctp_total_flight_decrease(stcb, tp1);
 			if (alt != tp1->whoTo) {
 				/* yes, there is an alternate. */
 				sctp_free_remote_addr(tp1->whoTo);
@@ -3950,7 +3937,7 @@ sctp_cwnd_update(struct sctp_tcb *stcb,
 		 */
 #endif
 
-		if (asoc->fast_retran_loss_recovery && will_exit == 0) {
+		if (asoc->fast_retran_loss_recovery && will_exit == 0 && sctp_cmt_on_off == 0) {
 			/*
 			 * If we are in loss recovery we skip any cwnd
 			 * update
@@ -4071,45 +4058,12 @@ skip_cwnd_update:
 	}
 }
 
-static int sctp_anal_print = 0;
-
 static void
-sctp_print_fs_audit(struct sctp_association *asoc)
+sctp_fs_audit(struct sctp_association *asoc)
 {
-	int cnt, i;
 	struct sctp_tmit_chunk *chk;
 	int inflight = 0, resend = 0, inbetween = 0, acked = 0, above = 0;
 
-	printf("sdqc:%d stqc:%d retran:%d reasm:%d cnt:%d tot_flight:%d tfc:%d\n",
-	    (int)asoc->send_queue_cnt,
-	    (int)asoc->sent_queue_cnt,
-	    (int)asoc->sent_queue_retran_cnt,
-	    (int)asoc->size_on_reasm_queue,
-	    (int)asoc->cnt_on_reasm_queue,
-	    (int)asoc->total_flight,
-	    (int)asoc->total_flight_count);
-	printf("my_rwnd:%d peers_rwnd:%d asoc calc cumack:%x\n",
-	    (int)asoc->my_rwnd, (int)asoc->peers_rwnd, asoc->last_acked_seq);
-	for (i = 0; i < asoc->streamoutcnt; i++) {
-		struct sctp_stream_queue_pending *sp;
-
-		cnt = 0;
-		TAILQ_FOREACH(sp, &asoc->strmout[i].outqueue, next)
-		    cnt++;
-		if (cnt) {
-			printf("Stream %d has %d msgs yet to be sent in strm queue\n", i, cnt);
-		}
-	}
-	cnt = 0;
-	TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
-		cnt++;
-	}
-	printf("The control_send_queue has %d pending\n", cnt);
-	cnt = 0;
-	TAILQ_FOREACH(chk, &asoc->send_queue, sctp_next) {
-		cnt++;
-	}
-	printf("The send_queue (waiting to get in flight) has %d chunks pending\n", cnt);
 	TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
 		if (chk->sent < SCTP_DATAGRAM_RESEND) {
 			inflight++;
@@ -4121,13 +4075,57 @@ sctp_print_fs_audit(struct sctp_association *asoc)
 			above++;
 		} else {
 			acked++;
-			printf("chk->sent:%x chk->tsn:%x\n",
-			    chk->sent, chk->rec.data.TSN_seq);
 		}
 	}
-	printf("The sent_queue stats inflight:%d resend:%d acked:%d above:%d inbetween:%d\n",
-	    inflight, resend, acked, above, inbetween);
+	if ((inflight > 0) || (inbetween > 0)) {
+		panic("Flight size-express incorrect? \n");
+	}
 }
+
+
+static void
+sctp_window_probe_recovery(struct sctp_tcb *stcb,
+    struct sctp_association *asoc,
+    struct sctp_nets *net,
+    struct sctp_tmit_chunk *tp1)
+{
+	struct sctp_tmit_chunk *chk;
+
+	/* First setup this one and get it moved back */
+	tp1->sent = SCTP_DATAGRAM_UNSENT;
+	tp1->window_probe = 0;
+#ifdef SCTP_FLIGHT_LOGGING
+	sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_WP,
+	    tp1->whoTo->flight_size,
+	    tp1->book_size,
+	    (uintptr_t) tp1->whoTo,
+	    tp1->rec.data.TSN_seq);
+#endif
+	sctp_flight_size_decrease(tp1);
+	sctp_total_flight_decrease(stcb, tp1);
+	TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
+	TAILQ_INSERT_HEAD(&asoc->send_queue, tp1, sctp_next);
+	asoc->sent_queue_cnt--;
+	asoc->send_queue_cnt++;
+	/*
+	 * Now all guys marked for RESEND on the sent_queue must be moved
+	 * back too.
+	 */
+	TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
+		if (chk->sent == SCTP_DATAGRAM_RESEND) {
+			/* Another chunk to move */
+			chk->sent = SCTP_DATAGRAM_UNSENT;
+			chk->window_probe = 0;
+			/* It should not be in flight */
+			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
+			TAILQ_INSERT_AFTER(&asoc->send_queue, tp1, chk, sctp_next);
+			asoc->sent_queue_cnt--;
+			asoc->send_queue_cnt++;
+			sctp_ucount_decr(asoc->sent_queue_retran_cnt);
+		}
+	}
+}
+
 
 void
 sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
@@ -4138,6 +4136,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	struct sctp_tmit_chunk *tp1, *tp2;
 	uint32_t old_rwnd;
 	int win_probe_recovery = 0;
+	int win_probe_recovered = 0;
 	int j, done_once;;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
@@ -4162,19 +4161,22 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	if (sctp_strict_sacks) {
 		uint32_t send_s;
 
-		if (TAILQ_EMPTY(&asoc->send_queue)) {
-			send_s = asoc->sending_seq;
+		if (!TAILQ_EMPTY(&asoc->sent_queue)) {
+			tp1 = TAILQ_LAST(&asoc->sent_queue,
+			    sctpchunk_listhead);
+			send_s = tp1->rec.data.TSN_seq + 1;
 		} else {
-			tp1 = TAILQ_FIRST(&asoc->send_queue);
-			send_s = tp1->rec.data.TSN_seq;
+			send_s = asoc->sending_seq;
 		}
 		if ((cumack == send_s) ||
 		    compare_with_wrap(cumack, send_s, MAX_TSN)) {
-#ifdef INVARIANTS		/* for testing only */
-			panic("Impossible sack 1");
-#else
+#ifndef INVARIANTS
 			struct mbuf *oper;
 
+#endif
+#ifdef INVARIANTS
+			panic("Impossible sack 1");
+#else
 			*abort_now = 1;
 			/* XXX */
 			oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
@@ -4221,27 +4223,17 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 						 * flight. Higher values may
 						 * occur during marking
 						 */
+						if (tp1->sent < SCTP_DATAGRAM_RESEND) {
 #ifdef SCTP_FLIGHT_LOGGING
-						sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
-						    tp1->whoTo->flight_size,
-						    tp1->book_size,
-						    (uintptr_t) stcb,
-						    tp1->rec.data.TSN_seq);
+							sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_CA,
+							    tp1->whoTo->flight_size,
+							    tp1->book_size,
+							    (uintptr_t) tp1->whoTo,
+							    tp1->rec.data.TSN_seq);
 #endif
 
-						if (tp1->whoTo->flight_size >= tp1->book_size) {
-							tp1->whoTo->flight_size -= tp1->book_size;
-						} else {
-							tp1->whoTo->flight_size = 0;
-						}
-
-						if (asoc->total_flight >= tp1->book_size) {
-							asoc->total_flight -= tp1->book_size;
-							if (asoc->total_flight_count > 0)
-								asoc->total_flight_count--;
-						} else {
-							asoc->total_flight = 0;
-							asoc->total_flight_count = 0;
+							sctp_flight_size_decrease(tp1);
+							sctp_total_flight_decrease(stcb, tp1);
 						}
 						tp1->whoTo->net_ack += tp1->send_size;
 						if (tp1->snd_count < 2) {
@@ -4414,6 +4406,7 @@ again:
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if (win_probe_recovery && (net->window_probe)) {
 			net->window_probe = 0;
+			win_probe_recovered = 1;
 			/*
 			 * Find first chunk that was used with window probe
 			 * and clear the sent
@@ -4421,15 +4414,7 @@ again:
 			TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
 				if (tp1->window_probe) {
 					/* move back to data send queue */
-					tp1->sent = SCTP_DATAGRAM_UNSENT;
-					tp1->window_probe = 0;
-					net->flight_size -= tp1->book_size;
-					asoc->total_flight -= tp1->book_size;
-					TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
-					TAILQ_INSERT_HEAD(&asoc->send_queue, tp1, sctp_next);
-					asoc->sent_queue_cnt--;
-					asoc->send_queue_cnt++;
-					asoc->total_flight_count--;
+					sctp_window_probe_recovery(stcb, asoc, net, tp1);
 					break;
 				}
 			}
@@ -4463,12 +4448,10 @@ again:
 	if ((j == 0) &&
 	    (!TAILQ_EMPTY(&asoc->sent_queue)) &&
 	    (asoc->sent_queue_retran_cnt == 0) &&
+	    (win_probe_recovered == 0) &&
 	    (done_once == 0)) {
 		/* huh, this should not happen */
-		if (sctp_anal_print == 0) {
-			printf("Flight size-express incorrect? cumack:%x\n", cumack);
-			sctp_print_fs_audit(asoc);
-		}
+		sctp_fs_audit(asoc);
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			net->flight_size = 0;
 		}
@@ -4477,17 +4460,11 @@ again:
 		asoc->sent_queue_retran_cnt = 0;
 		TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
 			if (tp1->sent < SCTP_DATAGRAM_RESEND) {
-				tp1->whoTo->flight_size += tp1->book_size;
-				asoc->total_flight += tp1->book_size;
-				asoc->total_flight_count++;
+				sctp_flight_size_increase(tp1);
+				sctp_total_flight_increase(stcb, tp1);
 			} else if (tp1->sent == SCTP_DATAGRAM_RESEND) {
 				asoc->sent_queue_retran_cnt++;
 			}
-		}
-		if (sctp_anal_print == 0) {
-			printf("After audit, totalflight:%d, retran_cnt:%d\n",
-			    asoc->total_flight, asoc->sent_queue_retran_cnt);
-			sctp_anal_print = 1;
 		}
 		done_once = 1;
 		goto again;
@@ -4597,12 +4574,13 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 	uint16_t num_seg, num_dup;
 	uint16_t wake_him = 0;
 	unsigned int sack_length;
-	uint32_t send_s;
+	uint32_t send_s = 0;
 	long j;
 	int accum_moved = 0;
 	int will_exit_fast_recovery = 0;
 	uint32_t a_rwnd, old_rwnd;
 	int win_probe_recovery = 0;
+	int win_probe_recovered = 0;
 	struct sctp_nets *net = NULL;
 	int nonce_sum_flag, ecn_seg_sums = 0;
 	int done_once;
@@ -4685,22 +4663,26 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 		}
 	}
 #endif
-	/* reality check */
-	if (TAILQ_EMPTY(&asoc->send_queue)) {
-		send_s = asoc->sending_seq;
-	} else {
-		tp1 = TAILQ_FIRST(&asoc->send_queue);
-		send_s = tp1->rec.data.TSN_seq;
-	}
-
 	if (sctp_strict_sacks) {
+		/* reality check */
+		if (!TAILQ_EMPTY(&asoc->sent_queue)) {
+			tp1 = TAILQ_LAST(&asoc->sent_queue,
+			    sctpchunk_listhead);
+			send_s = tp1->rec.data.TSN_seq + 1;
+		} else {
+			send_s = asoc->sending_seq;
+		}
 		if (cum_ack == send_s ||
 		    compare_with_wrap(cum_ack, send_s, MAX_TSN)) {
-#ifdef INVARIANTS		/* for testing only */
+#ifndef INVARIANTS
+			struct mbuf *oper;
+
+#endif
+#ifdef INVARIANTS
 	hopeless_peer:
 			panic("Impossible sack 1");
 #else
-			struct mbuf *oper;
+
 
 			/*
 			 * no way, we have not even sent this TSN out yet.
@@ -4826,25 +4808,16 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 						tp1->whoTo->dest_state &=
 						    ~SCTP_ADDR_UNCONFIRMED;
 					}
+					if (tp1->sent < SCTP_DATAGRAM_RESEND) {
 #ifdef SCTP_FLIGHT_LOGGING
-					sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
-					    tp1->whoTo->flight_size,
-					    tp1->book_size,
-					    (uintptr_t) stcb,
-					    tp1->rec.data.TSN_seq);
+						sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_CA,
+						    tp1->whoTo->flight_size,
+						    tp1->book_size,
+						    (uintptr_t) tp1->whoTo,
+						    tp1->rec.data.TSN_seq);
 #endif
-					if (tp1->whoTo->flight_size >= tp1->book_size) {
-						tp1->whoTo->flight_size -= tp1->book_size;
-					} else {
-						tp1->whoTo->flight_size = 0;
-					}
-					if (asoc->total_flight >= tp1->book_size) {
-						asoc->total_flight -= tp1->book_size;
-						if (asoc->total_flight_count > 0)
-							asoc->total_flight_count--;
-					} else {
-						asoc->total_flight = 0;
-						asoc->total_flight_count = 0;
+						sctp_flight_size_decrease(tp1);
+						sctp_total_flight_decrease(stcb, tp1);
 					}
 					tp1->whoTo->net_ack += tp1->send_size;
 
@@ -5013,8 +4986,11 @@ skip_segments:
 		}
 		if ((TAILQ_FIRST(&asoc->sent_queue) == NULL) &&
 		    (asoc->total_flight > 0)) {
-			printf("Warning flight size incorrect should be 0 is %d\n",
-			    asoc->total_flight);
+			panic("Warning flight size is postive and should be 0");
+/*
+  printf("Warning flight size incorrect should be 0 is %d\n",
+  asoc->total_flight);
+*/
 			asoc->total_flight = 0;
 		}
 		if (tp1->data) {
@@ -5073,7 +5049,7 @@ done_with_it:
 	 */
 
 	if (num_seg)
-		sctp_check_for_revoked(asoc, cum_ack, biggest_tsn_acked);
+		sctp_check_for_revoked(stcb, asoc, cum_ack, biggest_tsn_acked);
 	else if (asoc->saw_sack_with_frags) {
 		int cnt_revoked = 0;
 
@@ -5084,8 +5060,16 @@ done_with_it:
 				if ((tp1->sent > SCTP_DATAGRAM_RESEND) &&
 				    (tp1->sent < SCTP_FORWARD_TSN_SKIP)) {
 					tp1->sent = SCTP_DATAGRAM_SENT;
+#ifdef SCTP_FLIGHT_LOGGING
+					sctp_misc_ints(SCTP_FLIGHT_LOG_UP_REVOKE,
+					    tp1->whoTo->flight_size,
+					    tp1->book_size,
+					    (uintptr_t) tp1->whoTo,
+					    tp1->rec.data.TSN_seq);
+#endif
+					sctp_flight_size_increase(tp1);
+					sctp_total_flight_increase(stcb, tp1);
 					tp1->rec.data.chunk_was_revoked = 1;
-					tp1->whoTo->flight_size += tp1->book_size;
 					/*
 					 * To ensure that this increase in
 					 * flightsize, which is artificial,
@@ -5094,8 +5078,6 @@ done_with_it:
 					 * artificially.
 					 */
 					tp1->whoTo->cwnd += tp1->book_size;
-					asoc->total_flight_count++;
-					asoc->total_flight += tp1->book_size;
 					cnt_revoked++;
 				}
 			}
@@ -5282,12 +5264,10 @@ done_with_it:
 	}
 	/*
 	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off == 1) &&
-	 * (net->fast_retran_loss_recovery == 0))) if
-	 * ((asoc->fast_retran_loss_recovery == 0) || (sctp_cmt_on_off ==
-	 * 1)) {
+	 * (net->fast_retran_loss_recovery == 0)))
 	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		if (asoc->fast_retran_loss_recovery == 0) {
+		if ((asoc->fast_retran_loss_recovery == 0) || (sctp_cmt_on_off == 1)) {
 			/* out of a RFC2582 Fast recovery window? */
 			if (net->net_ack > 0) {
 				/*
@@ -5467,6 +5447,7 @@ again:
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if (win_probe_recovery && (net->window_probe)) {
 			net->window_probe = 0;
+			win_probe_recovered = 1;
 			/*-
 			 * Find first chunk that was used with
 			 * window probe and clear the event. Put
@@ -5475,15 +5456,7 @@ again:
 			 */
 			TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
 				if (tp1->window_probe) {
-					tp1->sent = SCTP_DATAGRAM_UNSENT;
-					tp1->window_probe = 0;
-					net->flight_size -= tp1->book_size;
-					asoc->total_flight -= tp1->book_size;
-					TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
-					TAILQ_INSERT_HEAD(&asoc->send_queue, tp1, sctp_next);
-					asoc->sent_queue_cnt--;
-					asoc->send_queue_cnt++;
-					asoc->total_flight_count--;
+					sctp_window_probe_recovery(stcb, asoc, net, tp1);
 					break;
 				}
 			}
@@ -5492,18 +5465,28 @@ again:
 			j++;
 			sctp_timer_start(SCTP_TIMER_TYPE_SEND,
 			    stcb->sctp_ep, stcb, net);
+		} else {
+			if (SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
+				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
+				    stcb, net,
+				    SCTP_FROM_SCTP_INDATA + SCTP_LOC_22);
+			}
+			if (sctp_early_fr) {
+				if (SCTP_OS_TIMER_PENDING(&net->fr_timer.timer)) {
+					SCTP_STAT_INCR(sctps_earlyfrstpidsck4);
+					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net,
+					    SCTP_FROM_SCTP_INDATA + SCTP_LOC_23);
+				}
+			}
 		}
 	}
 	if ((j == 0) &&
 	    (!TAILQ_EMPTY(&asoc->sent_queue)) &&
 	    (asoc->sent_queue_retran_cnt == 0) &&
+	    (win_probe_recovered == 0) &&
 	    (done_once == 0)) {
 		/* huh, this should not happen */
-		if (sctp_anal_print == 0) {
-			printf("Flight size incorrect sack-cumack:%x prev_last_ack:%x? fixing??",
-			    cum_ack, sav_cum_ack);
-			sctp_print_fs_audit(asoc);
-		}
+		sctp_fs_audit(asoc);
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			net->flight_size = 0;
 		}
@@ -5512,17 +5495,11 @@ again:
 		asoc->sent_queue_retran_cnt = 0;
 		TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
 			if (tp1->sent < SCTP_DATAGRAM_RESEND) {
-				tp1->whoTo->flight_size += tp1->book_size;
-				asoc->total_flight += tp1->book_size;
-				asoc->total_flight_count++;
+				sctp_flight_size_increase(tp1);
+				sctp_total_flight_increase(stcb, tp1);
 			} else if (tp1->sent == SCTP_DATAGRAM_RESEND) {
 				asoc->sent_queue_retran_cnt++;
 			}
-		}
-		if (sctp_anal_print == 0) {
-			printf("After audit, totalflight:%d retran count:%d\n",
-			    asoc->total_flight, asoc->sent_queue_retran_cnt);
-			sctp_anal_print = 1;
 		}
 		done_once = 1;
 		goto again;

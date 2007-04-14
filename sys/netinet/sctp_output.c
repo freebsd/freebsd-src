@@ -2150,21 +2150,18 @@ skip_count:
 }
 
 static struct sctp_ifa *
-sctp_is_ifa_addr_prefered(struct sctp_ifa *ifa,
+sctp_is_ifa_addr_preferred(struct sctp_ifa *ifa,
     uint8_t dest_is_loop,
     uint8_t dest_is_priv,
     sa_family_t fam)
 {
 	uint8_t dest_is_global = 0;
 
-	/*
-	 * is_scope -> dest_is_priv is true if destination is a private
-	 * address
-	 */
+	/* dest_is_priv is true if destination is a private address */
 	/* dest_is_loop is true if destination is a loopback addresses */
 
 	/*
-	 * Here we determine if its a prefered address. A prefered address
+	 * Here we determine if its a preferred address. A preferred address
 	 * means it is the same scope or higher scope then the destination.
 	 * L = loopback, P = private, G = global
 	 * ----------------------------------------- src    |  dest | result
@@ -2189,7 +2186,7 @@ sctp_is_ifa_addr_prefered(struct sctp_ifa *ifa,
 	}
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
-		printf("Is destination prefered:");
+		printf("Is destination preferred:");
 		sctp_print_address(&ifa->address.sa);
 	}
 #endif
@@ -2280,7 +2277,7 @@ sctp_is_ifa_addr_prefered(struct sctp_ifa *ifa,
 		printf("YES\n");
 	}
 #endif
-	/* its a prefered address */
+	/* its a preferred address */
 	return (ifa);
 }
 
@@ -2334,15 +2331,14 @@ sctp_is_ifa_addr_acceptable(struct sctp_ifa *ifa,
 		}
 	}
 	/*
-	 * Now that we know what is what, implement or table this could in
+	 * Now that we know what is what, implement our table. This could in
 	 * theory be done slicker (it used to be), but this is
 	 * straightforward and easier to validate :-)
 	 */
-
-	if ((ifa->src_is_loop == 0) && (dest_is_priv)) {
+	if ((ifa->src_is_loop == 1) && (dest_is_priv)) {
 		return (NULL);
 	}
-	if ((ifa->src_is_loop == 0) && (dest_is_global)) {
+	if ((ifa->src_is_loop == 1) && (dest_is_global)) {
 		return (NULL);
 	}
 	/* its an acceptable address */
@@ -2427,15 +2423,15 @@ sctp_choose_boundspecific_inp(struct sctp_inpcb *inp,
 	sctp_ifn = sctp_find_ifn(vrf, ifn, ifn_index);
 	/*
 	 * first question, is the ifn we will emit on in our list, if so, we
-	 * want such an address. Note that we first looked for a prefered
+	 * want such an address. Note that we first looked for a preferred
 	 * address.
 	 */
 	if (sctp_ifn) {
-		/* is a prefered one on the interface we route out? */
+		/* is a preferred one on the interface we route out? */
 		LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
 			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 				continue;
-			sifa = sctp_is_ifa_addr_prefered(sctp_ifa, dest_is_loop, dest_is_priv, fam);
+			sifa = sctp_is_ifa_addr_preferred(sctp_ifa, dest_is_loop, dest_is_priv, fam);
 			if (sifa == NULL)
 				continue;
 			if (sctp_is_addr_in_ep(inp, sifa)) {
@@ -2446,9 +2442,9 @@ sctp_choose_boundspecific_inp(struct sctp_inpcb *inp,
 	}
 	/*
 	 * ok, now we now need to find one on the list of the addresses. We
-	 * can't get one on the emitting interface so lets find first a
-	 * prefered one. If not that a acceptable one otherwise... we return
-	 * NULL.
+	 * can't get one on the emitting interface so let's find first a
+	 * preferred one. If not that an acceptable one otherwise... we
+	 * return NULL.
 	 */
 	starting_point = inp->next_addr_touse;
 once_again:
@@ -2461,7 +2457,7 @@ once_again:
 			/* address has been removed */
 			continue;
 		}
-		sifa = sctp_is_ifa_addr_prefered(laddr->ifa, dest_is_loop, dest_is_priv, fam);
+		sifa = sctp_is_ifa_addr_preferred(laddr->ifa, dest_is_loop, dest_is_priv, fam);
 		if (sifa == NULL)
 			continue;
 		atomic_add_int(&sifa->refcount, 1);
@@ -2535,17 +2531,17 @@ sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
 	sctp_ifn = sctp_find_ifn(vrf, ifn, ifn_index);
 
 	/*
-	 * first question, is the ifn we will emit on in our list, if so, we
-	 * want that one.. First we look for a prefered. Second we go for an
-	 * acceptable.
+	 * first question, is the ifn we will emit on in our list?  If so,
+	 * we want that one. First we look for a preferred. Second, we go
+	 * for an acceptable.
 	 */
 	if (sctp_ifn) {
-		/* first try for a prefered address on the ep */
+		/* first try for a preferred address on the ep */
 		LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
 			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 				continue;
 			if (sctp_is_addr_in_ep(inp, sctp_ifa)) {
-				sifa = sctp_is_ifa_addr_prefered(sctp_ifa, dest_is_loop, dest_is_priv, fam);
+				sifa = sctp_is_ifa_addr_preferred(sctp_ifa, dest_is_loop, dest_is_priv, fam);
 				if (sifa == NULL)
 					continue;
 				if ((non_asoc_addr_ok == 0) &&
@@ -2578,7 +2574,7 @@ sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
 	}
 	/*
 	 * if we can't find one like that then we must look at all addresses
-	 * bound to pick one at first prefereable then secondly acceptable.
+	 * bound to pick one at first preferable then secondly acceptable.
 	 */
 	starting_point = stcb->asoc.last_used_address;
 sctp_from_the_top:
@@ -2593,7 +2589,7 @@ sctp_from_the_top:
 			/* address has been removed */
 			continue;
 		}
-		sifa = sctp_is_ifa_addr_prefered(laddr->ifa, dest_is_loop, dest_is_priv, fam);
+		sifa = sctp_is_ifa_addr_preferred(laddr->ifa, dest_is_loop, dest_is_priv, fam);
 		if (sifa == NULL)
 			continue;
 		if ((non_asoc_addr_ok == 0) &&
@@ -2645,7 +2641,7 @@ sctp_from_the_top2:
 }
 
 static struct sctp_ifa *
-sctp_select_nth_prefered_addr_from_ifn_boundall(struct sctp_ifn *ifn,
+sctp_select_nth_preferred_addr_from_ifn_boundall(struct sctp_ifn *ifn,
     struct sctp_tcb *stcb,
     int non_asoc_addr_ok,
     uint8_t dest_is_loop,
@@ -2659,7 +2655,7 @@ sctp_select_nth_prefered_addr_from_ifn_boundall(struct sctp_ifn *ifn,
 	LIST_FOREACH(ifa, &ifn->ifalist, next_ifa) {
 		if ((ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 			continue;
-		sifa = sctp_is_ifa_addr_prefered(ifa, dest_is_loop, dest_is_priv, fam);
+		sifa = sctp_is_ifa_addr_preferred(ifa, dest_is_loop, dest_is_priv, fam);
 		if (sifa == NULL)
 			continue;
 		if (stcb) {
@@ -2681,7 +2677,7 @@ sctp_select_nth_prefered_addr_from_ifn_boundall(struct sctp_ifn *ifn,
 
 
 static int
-sctp_count_num_prefered_boundall(struct sctp_ifn *ifn,
+sctp_count_num_preferred_boundall(struct sctp_ifn *ifn,
     struct sctp_tcb *stcb,
     int non_asoc_addr_ok,
     uint8_t dest_is_loop,
@@ -2695,7 +2691,7 @@ sctp_count_num_prefered_boundall(struct sctp_ifn *ifn,
 		if ((ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0)) {
 			continue;
 		}
-		sifa = sctp_is_ifa_addr_prefered(ifa, dest_is_loop, dest_is_priv, fam);
+		sifa = sctp_is_ifa_addr_preferred(ifa, dest_is_loop, dest_is_priv, fam);
 		if (sifa == NULL) {
 			continue;
 		}
@@ -2724,7 +2720,7 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
     int non_asoc_addr_ok,
     sa_family_t fam)
 {
-	int cur_addr_num = 0, num_prefered = 0;
+	int cur_addr_num = 0, num_preferred = 0;
 	void *ifn;
 	struct sctp_ifn *sctp_ifn, *looked_at = NULL, *emit_ifn;
 	struct sctp_ifa *sctp_ifa, *sifa;
@@ -2732,10 +2728,10 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 	struct sctp_vrf *vrf;
 
 	/*
-	 * For boundall  we can use  any address in the association. If
+	 * For boundall  we can use any address in the association. If
 	 * non_asoc_addr_ok is set we can use any address (at least in
-	 * theory). So we look for prefered addresses first. If we find one,
-	 * we use it. Otherwise we next try to get an address on the
+	 * theory). So we look for preferred addresses first. If we find
+	 * one, we use it. Otherwise we next try to get an address on the
 	 * interface, which we should be able to do (unless non_asoc_addr_ok
 	 * is false and we are routed out that way). In these cases where we
 	 * can't use the address of the interface we go through all the
@@ -2760,17 +2756,17 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 	if (net) {
 		cur_addr_num = net->indx_of_eligible_next_to_use;
 	}
-	num_prefered = sctp_count_num_prefered_boundall(sctp_ifn,
+	num_preferred = sctp_count_num_preferred_boundall(sctp_ifn,
 	    stcb,
 	    non_asoc_addr_ok,
 	    dest_is_loop,
 	    dest_is_priv, fam);
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
-		printf("Found %d prefered source addresses\n", num_prefered);
+		printf("Found %d preferred source addresses\n", num_preferred);
 	}
 #endif
-	if (num_prefered == 0) {
+	if (num_preferred == 0) {
 		/*
 		 * no eligible addresses, we must use some other interface
 		 * address if we can find one.
@@ -2782,7 +2778,7 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 	 * may vary from call to call due to addresses being deprecated
 	 * etc..
 	 */
-	if (cur_addr_num >= num_prefered) {
+	if (cur_addr_num >= num_preferred) {
 		cur_addr_num = 0;
 	}
 	/*
@@ -2794,7 +2790,7 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 		printf("cur_addr_num:%d\n", cur_addr_num);
 	}
 #endif
-	sctp_ifa = sctp_select_nth_prefered_addr_from_ifn_boundall(sctp_ifn, stcb, non_asoc_addr_ok, dest_is_loop,
+	sctp_ifa = sctp_select_nth_preferred_addr_from_ifn_boundall(sctp_ifn, stcb, non_asoc_addr_ok, dest_is_loop,
 	    dest_is_priv, cur_addr_num, fam);
 
 	/* if sctp_ifa is NULL something changed??, fall to plan b. */
@@ -2807,8 +2803,8 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 		return (sctp_ifa);
 	}
 	/*
-	 * plan_b: Look at all interfaces and find a prefered address. If no
-	 * prefered fall through to plan_c.
+	 * plan_b: Look at all interfaces and find a preferred address. If
+	 * no preferred fall through to plan_c.
 	 */
 bound_all_plan_b:
 #ifdef SCTP_DEBUG
@@ -2824,14 +2820,14 @@ bound_all_plan_b:
 		if ((sctp_ifn == looked_at) && looked_at)
 			/* already looked at this guy */
 			continue;
-		num_prefered = sctp_count_num_prefered_boundall(sctp_ifn, stcb, non_asoc_addr_ok,
+		num_preferred = sctp_count_num_preferred_boundall(sctp_ifn, stcb, non_asoc_addr_ok,
 		    dest_is_loop, dest_is_priv, fam);
 #ifdef SCTP_DEBUG
 		if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
-			printf("Found ifn:%p %d prefered source addresses\n", ifn, num_prefered);
+			printf("Found ifn:%p %d preferred source addresses\n", ifn, num_preferred);
 		}
 #endif
-		if (num_prefered == 0) {
+		if (num_preferred == 0) {
 			/*
 			 * None on this interface.
 			 */
@@ -2839,8 +2835,8 @@ bound_all_plan_b:
 		}
 #ifdef SCTP_DEBUG
 		if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
-			printf("num prefered:%d on interface:%p cur_addr_num:%d\n",
-			    num_prefered,
+			printf("num preferred:%d on interface:%p cur_addr_num:%d\n",
+			    num_preferred,
 			    sctp_ifn,
 			    cur_addr_num);
 		}
@@ -2851,10 +2847,10 @@ bound_all_plan_b:
 		 * use, this may vary from call to call due to addresses
 		 * being deprecated etc..
 		 */
-		if (cur_addr_num >= num_prefered) {
+		if (cur_addr_num >= num_preferred) {
 			cur_addr_num = 0;
 		}
-		sifa = sctp_select_nth_prefered_addr_from_ifn_boundall(sctp_ifn, stcb, non_asoc_addr_ok, dest_is_loop,
+		sifa = sctp_select_nth_preferred_addr_from_ifn_boundall(sctp_ifn, stcb, non_asoc_addr_ok, dest_is_loop,
 		    dest_is_priv, cur_addr_num, fam);
 		if (sifa == NULL)
 			continue;
@@ -2881,18 +2877,21 @@ bound_all_plan_b:
 	 */
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
-		printf("Plan C no prefered for Dest, acceptable for?\n");
+		printf("Plan C no preferred for Dest, acceptable for?\n");
 	}
 #endif
 
 	LIST_FOREACH(sctp_ifa, &emit_ifn->ifalist, next_ifa) {
-		if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
+		if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) &&
+		    (non_asoc_addr_ok == 0))
 			continue;
-		sifa = sctp_is_ifa_addr_acceptable(sctp_ifa, dest_is_loop, dest_is_priv, fam);
+		sifa = sctp_is_ifa_addr_acceptable(sctp_ifa, dest_is_loop,
+		    dest_is_priv, fam);
 		if (sifa == NULL)
 			continue;
 		if (stcb) {
-			if ((non_asoc_addr_ok == 0) && sctp_is_addr_restricted(stcb, sifa)) {
+			if ((non_asoc_addr_ok == 0) &&
+			    sctp_is_addr_restricted(stcb, sifa)) {
 				/*
 				 * It is restricted for some reason..
 				 * probably not yet added.
@@ -2905,7 +2904,7 @@ bound_all_plan_b:
 	}
 
 	/*
-	 * plan_d: We are in trouble. No prefered address on the emit
+	 * plan_d: We are in trouble. No preferred address on the emit
 	 * interface. And not even a perfered address on all interfaces. Go
 	 * out and see if we can find an acceptable address somewhere
 	 * amongst all interfaces.
@@ -2925,13 +2924,17 @@ bound_all_plan_b:
 			continue;
 
 		LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
-			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
+			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) &&
+			    (non_asoc_addr_ok == 0))
 				continue;
-			sifa = sctp_is_ifa_addr_acceptable(sctp_ifa, dest_is_loop, dest_is_priv, fam);
+			sifa = sctp_is_ifa_addr_acceptable(sctp_ifa,
+			    dest_is_loop,
+			    dest_is_priv, fam);
 			if (sifa == NULL)
 				continue;
 			if (stcb) {
-				if ((non_asoc_addr_ok == 0) && sctp_is_addr_restricted(stcb, sifa)) {
+				if ((non_asoc_addr_ok == 0) &&
+				    sctp_is_addr_restricted(stcb, sifa)) {
 					/*
 					 * It is restricted for some
 					 * reason.. probably not yet added.
@@ -3019,12 +3022,10 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 	 * use the same concept but instead only consider the bound
 	 * addresses. If the bound set is NOT assigned to the interface then
 	 * we must use rotation amongst the bound addresses..
-	 * 
 	 */
 	if (ro->ro_rt == NULL) {
 		/*
 		 * Need a route to cache.
-		 * 
 		 */
 		rtalloc_ign(ro, 0UL);
 		did_rtalloc = 1;
@@ -3380,13 +3381,13 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 {
 	/*
 	 * Given a mbuf chain (via SCTP_BUF_NEXT()) that holds a packet
-	 * header WITH a SCTPHDR but no IP header, endpoint inp and sa
-	 * structure. - fill in the HMAC digest of any AUTH chunk in the
-	 * packet - calculate SCTP checksum and fill in - prepend a IP
-	 * address header - if boundall use INADDR_ANY - if boundspecific do
-	 * source address selection - set fragmentation option for ipV4 - On
-	 * return from IP output, check/adjust mtu size - of output
-	 * interface and smallest_mtu size as well.
+	 * header WITH an SCTPHDR but no IP header, endpoint inp and sa
+	 * structure: - fill in the HMAC digest of any AUTH chunk in the
+	 * packet. - calculate and fill in the SCTP checksum. - prepend an
+	 * IP address header. - if boundall use INADDR_ANY. - if
+	 * boundspecific do source address selection. - set fragmentation
+	 * option for ipV4. - On return from IP output, check/adjust mtu
+	 * size of output interface and smallest_mtu size as well.
 	 */
 	/* Will need ifdefs around this */
 	struct mbuf *o_pak;
@@ -3882,7 +3883,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 void
 sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 {
-	struct mbuf *m, *m_at, *m_last;
+	struct mbuf *m, *m_at, *mp_last;
 	struct sctp_nets *net;
 	struct sctp_init_msg *initm;
 	struct sctp_supported_addr_param *sup_addr;
@@ -3896,7 +3897,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	int p_len;
 
 	/* INIT's always go to the primary (and usually ONLY address) */
-	m_last = NULL;
+	mp_last = NULL;
 	net = stcb->asoc.primary_destination;
 	if (net == NULL) {
 		net = TAILQ_FIRST(&stcb->asoc.nets);
@@ -4119,7 +4120,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	p_len = 0;
 	for (m_at = m; m_at; m_at = SCTP_BUF_NEXT(m_at)) {
 		if (SCTP_BUF_NEXT(m_at) == NULL)
-			m_last = m_at;
+			mp_last = m_at;
 		p_len += SCTP_BUF_LEN(m_at);
 	}
 	initm->msg.ch.chunk_length = htons((p_len - sizeof(struct sctphdr)));
@@ -4130,15 +4131,15 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 
 	/* I don't expect this to execute but we will be safe here */
 	padval = p_len % 4;
-	if ((padval) && (m_last)) {
+	if ((padval) && (mp_last)) {
 		/*
-		 * The compiler worries that m_last may not be set even
-		 * though I think it is impossible :-> however we add m_last
-		 * here just in case.
+		 * The compiler worries that mp_last may not be set even
+		 * though I think it is impossible :-> however we add
+		 * mp_last here just in case.
 		 */
 		int ret;
 
-		ret = sctp_add_pad_tombuf(m_last, (4 - padval));
+		ret = sctp_add_pad_tombuf(mp_last, (4 - padval));
 		if (ret) {
 			/* Houston we have a problem, no space */
 			sctp_m_freem(m);
@@ -4514,7 +4515,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct sctp_init_chunk *init_chk)
 {
 	struct sctp_association *asoc;
-	struct mbuf *m, *m_at, *m_tmp, *m_cookie, *op_err, *m_last;
+	struct mbuf *m, *m_at, *m_tmp, *m_cookie, *op_err, *mp_last;
 	struct sctp_init_msg *initackm_out;
 	struct sctp_ecn_supported_param *ecn;
 	struct sctp_prsctp_supported_param *prsctp;
@@ -4543,7 +4544,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		vrf_id = inp->def_vrf_id;
 		asoc = NULL;
 	}
-	m_last = NULL;
+	mp_last = NULL;
 	if ((asoc != NULL) &&
 	    (SCTP_GET_STATE(asoc) != SCTP_STATE_COOKIE_WAIT) &&
 	    (sctp_are_there_new_addresses(asoc, init_pkt, iphlen, offset))) {
@@ -5088,7 +5089,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		p_len += SCTP_BUF_LEN(m_tmp);
 		if (SCTP_BUF_NEXT(m_tmp) == NULL) {
 			/* m_tmp should now point to last one */
-			m_last = m_tmp;
+			mp_last = m_tmp;
 			break;
 		}
 	}
@@ -5098,11 +5099,11 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	 * here since the timer will drive a retranmission.
 	 */
 	padval = p_len % 4;
-	if ((padval) && (m_last)) {
-		/* see my previous comments on m_last */
+	if ((padval) && (mp_last)) {
+		/* see my previous comments on mp_last */
 		int ret;
 
-		ret = sctp_add_pad_tombuf(m_last, (4 - padval));
+		ret = sctp_add_pad_tombuf(mp_last, (4 - padval));
 		if (ret) {
 			/* Houston we have a problem, no space */
 			sctp_m_freem(m);
@@ -6034,12 +6035,11 @@ all_done:
 		sctp_misc_ints(SCTP_FLIGHT_LOG_UP,
 		    data_list[i]->whoTo->flight_size,
 		    data_list[i]->book_size,
-		    (uintptr_t) stcb,
+		    (uintptr_t) data_list[i]->whoTo,
 		    data_list[i]->rec.data.TSN_seq);
 #endif
-		net->flight_size += data_list[i]->book_size;
-		asoc->total_flight += data_list[i]->book_size;
-		asoc->total_flight_count++;
+		sctp_flight_size_increase(data_list[i]);
+		sctp_total_flight_increase(stcb, data_list[i]);
 #ifdef SCTP_LOG_RWND
 		sctp_log_rwnd(SCTP_DECREASE_PEER_RWND,
 		    asoc->peers_rwnd, data_list[i]->send_size, sctp_peer_chunk_oh);
@@ -8250,7 +8250,6 @@ one_chunk_around:
 
 
 				} else {
-					sctp_ucount_incr(asoc->total_flight_count);
 #ifdef SCTP_LOG_RWND
 					sctp_log_rwnd(SCTP_DECREASE_PEER_RWND,
 					    asoc->peers_rwnd, data_list[i]->send_size, sctp_peer_chunk_oh);
@@ -8260,14 +8259,14 @@ one_chunk_around:
 					    sctp_peer_chunk_oh));
 				}
 #ifdef SCTP_FLIGHT_LOGGING
-				sctp_misc_ints(SCTP_FLIGHT_LOG_UP,
+				sctp_misc_ints(SCTP_FLIGHT_LOG_UP_RSND,
 				    data_list[i]->whoTo->flight_size,
 				    data_list[i]->book_size,
-				    (uintptr_t) stcb,
+				    (uintptr_t) data_list[i]->whoTo,
 				    data_list[i]->rec.data.TSN_seq);
 #endif
-				net->flight_size += data_list[i]->book_size;
-				asoc->total_flight += data_list[i]->book_size;
+				sctp_flight_size_increase(data_list[i]);
+				sctp_total_flight_increase(stcb, data_list[i]);
 				if (asoc->peers_rwnd < stcb->sctp_ep->sctp_ep.sctp_sws_sender) {
 					/* SWS sender side engages */
 					asoc->peers_rwnd = 0;
@@ -8969,7 +8968,6 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	stcb->freed_by_sorcv_sincelast = 0;
 
 	gap_descriptor = (struct sctp_gap_ack_block *)((caddr_t)sack + sizeof(struct sctp_sack_chunk));
-
 
 	siz = (((asoc->highest_tsn_inside_map - asoc->mapping_array_base_tsn) + 1) + 7) / 8;
 	if (asoc->cumulative_tsn < asoc->mapping_array_base_tsn) {
@@ -10309,8 +10307,6 @@ sctp_send_operr_to(struct mbuf *m, int iphlen,
 	}
 }
 
-
-
 static struct mbuf *
 sctp_copy_resume(struct sctp_stream_queue_pending *sp,
     struct uio *uio,
@@ -10321,6 +10317,22 @@ sctp_copy_resume(struct sctp_stream_queue_pending *sp,
     uint32_t * sndout,
     struct mbuf **new_tail)
 {
+
+/*#if defined(__FreeBSD__) && __FreeBSD_version >= 602000*/
+#if defined(_NOT_YET_)
+
+	struct mbuf *m;
+
+/* take out max_hdr */
+	m = m_uiotombuf(uio, M_WAITOK, max_send_len, 0,
+	    (M_PKTHDR | (user_marks_eor ? M_EOR : 0)));
+	if (m == NULL)
+		*error = ENOMEM;
+	else
+		*sndout = m_length(m, NULL);
+	*new_tail = m_last(m);
+	return (m);
+#else
 	int left, cancpy, willcpy;
 	struct mbuf *m, *prev, *head;
 
@@ -10368,6 +10380,7 @@ sctp_copy_resume(struct sctp_stream_queue_pending *sp,
 		}
 	}
 	return (head);
+#endif
 }
 
 static int
@@ -10375,7 +10388,19 @@ sctp_copy_one(struct sctp_stream_queue_pending *sp,
     struct uio *uio,
     int resv_upfront)
 {
-	int left, cancpy, willcpy, error;
+	int left;
+
+/*#if defined(__FreeBSD__) && __FreeBSD_version >= 602000*/
+#if defined(_NOT_YET_)
+	left = sp->length;
+	sp->data = m_uiotombuf(uio, M_WAITOK, 0, resv_upfront, M_PKTHDR);
+	if (sp->data == NULL)
+		return (ENOMEM);
+	sp->length = m_length(sp->data, NULL);
+	sp->tail_mbuf = m_last(sp->data);
+	return (0);
+#else
+	int cancpy, willcpy, error;
 	struct mbuf *m, *head;
 	int cpsz = 0;
 
@@ -10423,6 +10448,7 @@ sctp_copy_one(struct sctp_stream_queue_pending *sp,
 	sp->data = head;
 	sp->length = cpsz;
 	return (0);
+#endif
 }
 
 

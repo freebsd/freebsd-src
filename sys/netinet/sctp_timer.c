@@ -460,9 +460,9 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	struct sctp_nets *lnets;
 	struct timeval now, min_wait, tv;
 	int cur_rtt;
-	int orig_rwnd, audit_tf, num_mk, fir;
+	int audit_tf, num_mk, fir;
 	unsigned int cnt_mk;
-	uint32_t orig_flight;
+	uint32_t orig_flight, orig_tf;
 	uint32_t tsnlast, tsnfirst;
 
 	/*
@@ -524,8 +524,9 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	 * Our rwnd will be incorrect here since we are not adding back the
 	 * cnt * mbuf but we will fix that down below.
 	 */
-	orig_rwnd = stcb->asoc.peers_rwnd;
 	orig_flight = net->flight_size;
+	orig_tf = stcb->asoc.total_flight;
+
 	net->fast_retran_ip = 0;
 	/* Now on to each chunk */
 	num_mk = cnt_mk = 0;
@@ -617,7 +618,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 				}
 				continue;
 			}
-			if (chk->sent != SCTP_DATAGRAM_RESEND) {
+			if (chk->sent < SCTP_DATAGRAM_RESEND) {
 				sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
 				num_mk++;
 				if (fir == 0) {
@@ -630,33 +631,27 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 				    0, SCTP_FR_T3_MARKED);
 
 #endif
-			}
-			if (stcb->asoc.total_flight_count > 0)
-				stcb->asoc.total_flight_count--;
-			if (chk->rec.data.chunk_was_revoked) {
-				/* deflate the cwnd */
-				chk->whoTo->cwnd -= chk->book_size;
-				chk->rec.data.chunk_was_revoked = 0;
+				if (chk->rec.data.chunk_was_revoked) {
+					/* deflate the cwnd */
+					chk->whoTo->cwnd -= chk->book_size;
+					chk->rec.data.chunk_was_revoked = 0;
+				}
+				net->marked_retrans++;
+				stcb->asoc.marked_retrans++;
+#ifdef SCTP_FLIGHT_LOGGING
+				sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_RSND_TO,
+				    chk->whoTo->flight_size,
+				    chk->book_size,
+				    (uintptr_t) chk->whoTo,
+				    chk->rec.data.TSN_seq);
+#endif
+				sctp_flight_size_decrease(chk);
+				sctp_total_flight_decrease(stcb, chk);
+				stcb->asoc.peers_rwnd += chk->send_size;
+				stcb->asoc.peers_rwnd += sctp_peer_chunk_oh;
 			}
 			chk->sent = SCTP_DATAGRAM_RESEND;
 			SCTP_STAT_INCR(sctps_markedretrans);
-			net->marked_retrans++;
-			stcb->asoc.marked_retrans++;
-#ifdef SCTP_FLIGHT_LOGGING
-			sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
-			    chk->whoTo->flight_size,
-			    chk->book_size,
-			    (uintptr_t) stcb,
-			    chk->rec.data.TSN_seq);
-#endif
-
-			if (net->flight_size >= chk->book_size)
-				net->flight_size -= chk->book_size;
-			else
-				net->flight_size = 0;
-
-			stcb->asoc.peers_rwnd += chk->send_size;
-			stcb->asoc.peers_rwnd += sctp_peer_chunk_oh;
 
 			/* reset the TSN for striking and other FR stuff */
 			chk->rec.data.doing_fast_retransmit = 0;
@@ -686,18 +681,13 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 			cnt_mk++;
 		}
 	}
+	if ((orig_flight - net->flight_size) != (orig_tf - stcb->asoc.total_flight)) {
+		/* we did not subtract the same things? */
+		audit_tf = 1;
+	}
 #if defined(SCTP_FR_LOGGING) || defined(SCTP_EARLYFR_LOGGING)
 	sctp_log_fr(tsnfirst, tsnlast, num_mk, SCTP_FR_T3_TIMEOUT);
 #endif
-
-	if (stcb->asoc.total_flight >= (orig_flight - net->flight_size)) {
-		stcb->asoc.total_flight -= (orig_flight - net->flight_size);
-	} else {
-		stcb->asoc.total_flight = 0;
-		stcb->asoc.total_flight_count = 0;
-		audit_tf = 1;
-	}
-
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_TIMER1) {
 		if (num_mk) {
@@ -766,12 +756,12 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 				sctp_misc_ints(SCTP_FLIGHT_LOG_UP,
 				    chk->whoTo->flight_size,
 				    chk->book_size,
-				    (uintptr_t) stcb,
+				    (uintptr_t) chk->whoTo,
 				    chk->rec.data.TSN_seq);
 #endif
-				stcb->asoc.total_flight += chk->book_size;
-				chk->whoTo->flight_size += chk->book_size;
-				stcb->asoc.total_flight_count++;
+
+				sctp_flight_size_increase(chk);
+				sctp_total_flight_increase(stcb, chk);
 			}
 		}
 	}
@@ -865,7 +855,29 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 	} else {
 		win_probe = 0;
 	}
-	alt = sctp_find_alternate_net(stcb, net, 0);
+
+	if (sctp_cmt_on_off) {
+		/*
+		 * CMT: Using RTX_SSTHRESH policy for CMT. If CMT is being
+		 * used, then pick dest with largest ssthresh for any
+		 * retransmission.
+		 */
+		alt = net;
+		alt = sctp_find_alternate_net(stcb, alt, 1);
+		/*
+		 * CUCv2: If a different dest is picked for the
+		 * retransmission, then new (rtx-)pseudo_cumack needs to be
+		 * tracked for orig dest. Let CUCv2 track new (rtx-)
+		 * pseudo-cumack always.
+		 */
+		net->find_pseudo_cumack = 1;
+		net->find_rtx_pseudo_cumack = 1;
+
+	} else {		/* CMT is OFF */
+
+		alt = sctp_find_alternate_net(stcb, net, 0);
+	}
+
 	sctp_mark_all_for_resend(stcb, net, alt, win_probe, &num_mk);
 	/* FR Loss recovery just ended with the T3. */
 	stcb->asoc.fast_retran_loss_recovery = 0;
