@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#ifdef HAVE_UTIME_H
+#include <utime.h>
+#endif
 
 #include "archive.h"
 #include "archive_string.h"
@@ -876,6 +879,8 @@ _archive_write_close(struct archive *_a)
 	while (p != NULL) {
 		a->pst = NULL; /* Mark stat cache as out-of-date. */
 		if (p->fixup & TODO_TIMES) {
+#ifdef HAVE_UTIMES
+			/* {f,l,}utimes() are preferred, when available. */
 			struct timeval times[2];
 			times[1].tv_sec = p->mtime;
 			times[1].tv_usec = p->mtime_nanos / 1000;
@@ -885,6 +890,14 @@ _archive_write_close(struct archive *_a)
 			lutimes(p->name, times);
 #else
 			utimes(p->name, times);
+#endif
+#else
+			/* utime() is more portable, but less precise. */
+			struct utimbuf times;
+			times.modtime = p->mtime;
+			times.actime = p->atime;
+
+			utime(p->name, times);
 #endif
 		}
 		if (p->fixup & TODO_MODE_BASE)
@@ -1380,6 +1393,12 @@ success:
 	return (ARCHIVE_OK);
 }
 
+#ifdef HAVE_UTIMES
+/*
+ * The utimes()-family functions provide high resolution and
+ * a way to set time on an fd or a symlink.  We prefer them
+ * when they're available.
+ */
 static int
 set_time(struct archive_write_disk *a)
 {
@@ -1420,6 +1439,38 @@ set_time(struct archive_write_disk *a)
 	/* XXX TODO: Can FreeBSD restore ctime? XXX */
 	return (ARCHIVE_OK);
 }
+#elif defined(HAVE_UTIME)
+/*
+ * utime() is an older, more standard interface that we'll use
+ * if utimes() isn't available.
+ */
+static int
+set_time(struct archive_write_disk *a)
+{
+	const struct stat *st = archive_entry_stat(a->entry);
+	struct utimbuf times;
+
+	times.modtime = st->st_mtime;
+	times.actime = st->st_atime;
+	if (!S_ISLNK(a->mode) && utimes(a->name, times) != 0) {
+		archive_set_error(&a->archive, errno,
+		    "Can't update time for %s", a->name);
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+#else
+/* This platform doesn't give us a way to restore the time. */
+static int
+set_time(struct archive_write_disk *a)
+{
+	(void)a; /* UNUSED */
+	archive_set_error(&a->archive, errno,
+	    "Can't update time for %s", a->name);
+	return (ARCHIVE_WARN);
+}
+#endif
+
 
 static int
 set_mode(struct archive_write_disk *a, int mode)
