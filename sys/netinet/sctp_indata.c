@@ -2922,7 +2922,7 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 							if (*this_sack_lowest_newack == 0) {
 #ifdef SCTP_SACK_LOGGING
 								sctp_log_sack(*this_sack_lowest_newack,
-								    v last_tsn,
+								    last_tsn,
 								    tp1->rec.data.TSN_seq,
 								    0,
 								    0,
