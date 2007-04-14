@@ -2616,26 +2616,14 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 
 				/* fix counts and things */
 #ifdef SCTP_FLIGHT_LOGGING
-				sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
+				sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_PDRP,
 				    tp1->whoTo->flight_size,
 				    tp1->book_size,
 				    (uintptr_t) stcb,
 				    tp1->rec.data.TSN_seq);
 #endif
-				if (tp1->whoTo->flight_size >= tp1->book_size)
-					tp1->whoTo->flight_size -= tp1->book_size;
-				else
-					tp1->whoTo->flight_size = 0;
-
-				if (stcb->asoc.total_flight >= tp1->book_size) {
-					stcb->asoc.total_flight -= tp1->book_size;
-					if (stcb->asoc.total_flight_count > 0)
-						stcb->asoc.total_flight_count--;
-				} else {
-					stcb->asoc.total_flight = 0;
-					stcb->asoc.total_flight_count = 0;
-				}
-				tp1->snd_count--;
+				sctp_flight_size_decrease(tp1);
+				sctp_total_flight_decrease(stcb, tp1);
 			} {
 				/* audit code */
 				unsigned int audit;
@@ -4882,8 +4870,6 @@ sctp_skip_csum_4:
 		goto bad;
 	}
 #endif				/* IPSEC */
-
-
 
 	/*
 	 * common chunk processing

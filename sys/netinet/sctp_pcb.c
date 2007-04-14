@@ -476,7 +476,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
-		if (inp->def_vrf_id == vrf_id) {
+		if (inp->def_vrf_id != vrf_id) {
 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
@@ -1143,7 +1143,7 @@ struct sctp_tcb *
 sctp_findassociation_addr_sa(struct sockaddr *to, struct sockaddr *from,
     struct sctp_inpcb **inp_p, struct sctp_nets **netp, int find_tcp_pool, uint32_t vrf_id)
 {
-	struct sctp_inpcb *inp;
+	struct sctp_inpcb *inp = NULL;
 	struct sctp_tcb *retval;
 
 	SCTP_INP_INFO_RLOCK();
@@ -1954,7 +1954,7 @@ sctp_isport_inuse(struct sctp_inpcb *inp, uint16_t lport, uint32_t vrf_id)
 		} else {
 			/* t_inp is bound only V4 */
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-			    SCTP_IPV6_V6ONLY(t_inp)) {
+			    SCTP_IPV6_V6ONLY(inp)) {
 				/* no conflict */
 				continue;
 			}
@@ -3549,17 +3549,33 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	/* now clean up any other timers */
 	SCTP_OS_TIMER_STOP(&asoc->hb_timer.timer);
+	asoc->hb_timer.self = NULL;
 	SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
+	asoc->dack_timer.self = NULL;
 	SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
+	/*-
+	 * For stream reset we don't blast this unless
+	 * it is a str-reset timer, it might be the
+	 * free-asoc timer which we DON'T want to
+	 * disturb.
+	 */
+	if (asoc->strreset_timer.type == SCTP_TIMER_TYPE_STRRESET)
+		asoc->strreset_timer.self = NULL;
 	SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
+	asoc->asconf_timer.self = NULL;
 	SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
+	asoc->autoclose_timer.self = NULL;
 	SCTP_OS_TIMER_STOP(&asoc->shut_guard_timer.timer);
+	asoc->shut_guard_timer.self = NULL;
 	SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
-
+	asoc->delayed_event_timer.self = NULL;
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		SCTP_OS_TIMER_STOP(&net->fr_timer.timer);
+		net->fr_timer.self = NULL;
 		SCTP_OS_TIMER_STOP(&net->rxt_timer.timer);
+		net->rxt_timer.self = NULL;
 		SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
+		net->pmtu_timer.self = NULL;
 	}
 	/* Now the read queue needs to be cleaned up (only once) */
 	cnt = 0;

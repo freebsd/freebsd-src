@@ -1404,7 +1404,9 @@ sctp_timeout_handler(void *t)
 	}
 	tmr->stopped_from = 0xa004;
 	if (stcb) {
+		atomic_add_int(&stcb->asoc.refcnt, 1);
 		if (stcb->asoc.state == 0) {
+			atomic_add_int(&stcb->asoc.refcnt, -1);
 			if (inp) {
 				SCTP_INP_DECR_REF(inp);
 			}
@@ -1426,7 +1428,6 @@ sctp_timeout_handler(void *t)
 	tmr->stopped_from = 0xa006;
 
 	if (stcb) {
-		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_LOCK(stcb);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 	}
@@ -2706,7 +2707,7 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	 */
 	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
-	    (event == SCTP_COMM_LOST)) {
+	    ((event == SCTP_COMM_LOST) || (event == SCTP_SHUTDOWN_COMP))) {
 		if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_WAIT)
 			stcb->sctp_socket->so_error = ECONNREFUSED;
 		else
@@ -3270,7 +3271,12 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	case SCTP_NOTIFY_STRDATA_ERR:
 		break;
 	case SCTP_NOTIFY_ASSOC_ABORTED:
-		sctp_notify_assoc_change(SCTP_COMM_LOST, stcb, error, NULL);
+		if ((stcb) && (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
+		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED))) {
+			sctp_notify_assoc_change(SCTP_CANT_STR_ASSOC, stcb, error, NULL);
+		} else {
+			sctp_notify_assoc_change(SCTP_COMM_LOST, stcb, error, NULL);
+		}
 		break;
 	case SCTP_NOTIFY_PEER_OPENED_STREAM:
 		break;
@@ -4488,6 +4494,8 @@ sctp_sorecvmsg(struct socket *so,
 
 	if (msg_flags) {
 		in_flags = *msg_flags;
+		if (in_flags & MSG_PEEK)
+			SCTP_STAT_INCR(sctps_read_peeks);
 	} else {
 		in_flags = 0;
 	}
