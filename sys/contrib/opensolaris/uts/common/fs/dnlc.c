@@ -839,5 +839,5 @@ dnlc_lowvnodes(void *arg __unused, int nvnodes)
 	dnlc_reduce_cache((void *)(intptr_t)nvnodes);
 }
 
-SYSINIT(dnlc, SI_SUB_DRIVERS, SI_ORDER_ANY, dnlc_init, NULL);
-SYSUNINIT(dnlc, SI_SUB_DRIVERS, SI_ORDER_ANY, dnlc_fini, NULL);
+SYSINIT(dnlc, SI_SUB_VFS, SI_ORDER_ANY, dnlc_init, NULL);
+SYSUNINIT(dnlc, SI_SUB_VFS, SI_ORDER_ANY, dnlc_fini, NULL);
