@@ -506,8 +506,8 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 					NFSD_LOCK();
 					continue;
 				}
-				NFSD_LOCK();
 				nfs_realign(&mp, 10 * NFSX_UNSIGNED);
+				NFSD_LOCK();
 				rec->nr_address = nam;
 				rec->nr_packet = mp;
 				STAILQ_INSERT_TAIL(&slp->ns_rec, rec, nr_link);
