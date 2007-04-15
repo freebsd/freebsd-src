@@ -95,12 +95,17 @@ archive_read_extract(struct archive *_a, struct archive_entry *entry, int flags)
 	archive_write_disk_set_skip_file(a->extract->ad,
 	    a->skip_file_dev, a->skip_file_ino);
 	r = archive_write_header(a->extract->ad, entry);
-	if (r == ARCHIVE_OK)
-		/* If there's an FD, pour data into it. */
+	if (r != ARCHIVE_OK)
+		/* If _write_header failed, copy the error. */
+		archive_set_error(&a->archive,
+		    archive_errno(extract->ad),
+		    "%s", archive_error_string(extract->ad));
+	else
+		/* Otherwise, pour data into the entry. */
 		r = copy_data(_a, a->extract->ad);
 	r2 = archive_write_finish_entry(a->extract->ad);
 	/* Use the first message. */
-	if (r2 != ARCHIVE_OK || r != ARCHIVE_OK)
+	if (r2 != ARCHIVE_OK && r == ARCHIVE_OK)
 		archive_set_error(&a->archive,
 		    archive_errno(extract->ad),
 		    "%s", archive_error_string(extract->ad));
