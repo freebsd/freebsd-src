@@ -553,7 +553,7 @@ ahbxptattach(struct ahb_softc *ahb)
 	 * Construct our SIM entry
 	 */
 	ahb->sim = cam_sim_alloc(ahbaction, ahbpoll, "ahb", ahb, ahb->unit,
-				 2, ahb->num_ecbs, devq);
+				 &Giant, 2, ahb->num_ecbs, devq);
 	if (ahb->sim == NULL) {
 		cam_simq_free(devq);
 		return (ENOMEM);

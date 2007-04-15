@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_debug.h>
+#include <cam/cam_sim.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -122,6 +123,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 		 ac_callback_t *ac_callback, ac_code code, void *arg)
 {
 	struct		periph_driver **p_drv;
+	struct		cam_sim *sim;
 	struct		cam_periph *periph;
 	struct		cam_periph *cur_periph;
 	path_id_t	path_id;
@@ -163,11 +165,14 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	
 	init_level++;
 
+	xpt_lock_buses();
 	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
 		if (strcmp((*p_drv)->driver_name, name) == 0)
 			break;
 	}
-	
+	xpt_unlock_buses();
+
+	sim = xpt_path_sim(path);
 	path_id = xpt_path_path_id(path);
 	target_id = xpt_path_target_id(path);
 	lun_id = xpt_path_lun_id(path);
@@ -181,6 +186,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	periph->unit_number = camperiphunit(*p_drv, path_id, target_id, lun_id);
 	periph->immediate_priority = CAM_PRIORITY_NONE;
 	periph->refcount = 0;
+	periph->sim = sim;
 	SLIST_INIT(&periph->ccb_list);
 	status = xpt_create_path(&path, periph, path_id, target_id, lun_id);
 	if (status != CAM_REQ_CMP)
@@ -276,14 +282,13 @@ cam_periph_find(struct cam_path *path, char *name)
 cam_status
 cam_periph_acquire(struct cam_periph *periph)
 {
-	int s;
 
 	if (periph == NULL)
 		return(CAM_REQ_CMP_ERR);
 
-	s = splsoftcam();
+	xpt_lock_buses();
 	periph->refcount++;
-	splx(s);
+	xpt_unlock_buses();
 
 	return(CAM_REQ_CMP);
 }
@@ -291,18 +296,66 @@ cam_periph_acquire(struct cam_periph *periph)
 void
 cam_periph_release(struct cam_periph *periph)
 {
-	int s;
 
 	if (periph == NULL)
 		return;
 
-	s = splsoftcam();
+	xpt_lock_buses();
 	if ((--periph->refcount == 0)
 	 && (periph->flags & CAM_PERIPH_INVALID)) {
 		camperiphfree(periph);
 	}
-	splx(s);
+	xpt_unlock_buses();
 
+}
+
+int
+cam_periph_hold(struct cam_periph *periph, int priority)
+{
+	struct mtx *mtx;
+	int error;
+
+	mtx_assert(periph->sim->mtx, MA_OWNED);
+
+	/*
+	 * Increment the reference count on the peripheral
+	 * while we wait for our lock attempt to succeed
+	 * to ensure the peripheral doesn't disappear out
+	 * from user us while we sleep.
+	 */
+
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+		return (ENXIO);
+
+	mtx = periph->sim->mtx;
+	if (mtx == &Giant)
+		mtx = NULL;
+
+	while ((periph->flags & CAM_PERIPH_LOCKED) != 0) {
+		periph->flags |= CAM_PERIPH_LOCK_WANTED;
+		if ((error = msleep(periph, mtx, priority, "caplck", 0)) != 0) {
+			cam_periph_release(periph);
+			return (error);
+		}
+	}
+
+	periph->flags |= CAM_PERIPH_LOCKED;
+	return (0);
+}
+
+void
+cam_periph_unhold(struct cam_periph *periph)
+{
+
+	mtx_assert(periph->sim->mtx, MA_OWNED);
+
+	periph->flags &= ~CAM_PERIPH_LOCKED;
+	if ((periph->flags & CAM_PERIPH_LOCK_WANTED) != 0) {
+		periph->flags &= ~CAM_PERIPH_LOCK_WANTED;
+		wakeup(periph);
+	}
+
+	cam_periph_release(periph);
 }
 
 /*
@@ -424,9 +477,7 @@ camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 void
 cam_periph_invalidate(struct cam_periph *periph)
 {
-	int s;
 
-	s = splsoftcam();
 	/*
 	 * We only call this routine the first time a peripheral is
 	 * invalidated.  The oninvalidate() routine is always called at
@@ -439,11 +490,12 @@ cam_periph_invalidate(struct cam_periph *periph)
 	periph->flags |= CAM_PERIPH_INVALID;
 	periph->flags &= ~CAM_PERIPH_NEW_DEV_FOUND;
 
+	xpt_lock_buses();
 	if (periph->refcount == 0)
 		camperiphfree(periph);
 	else if (periph->refcount < 0)
 		printf("cam_invalidate_periph: refcount < 0!!\n");
-	splx(s);
+	xpt_unlock_buses();
 }
 
 static void
@@ -502,30 +554,11 @@ camperiphfree(struct cam_periph *periph)
 /*
  * Wait interruptibly for an exclusive lock.
  */
-int
-cam_periph_lock(struct cam_periph *periph, int priority)
+void
+cam_periph_lock(struct cam_periph *periph)
 {
-	int error;
 
-	/*
-	 * Increment the reference count on the peripheral
-	 * while we wait for our lock attempt to succeed
-	 * to ensure the peripheral doesn't disappear out
-	 * from under us while we sleep.
-	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
-		return(ENXIO);
-
-	while ((periph->flags & CAM_PERIPH_LOCKED) != 0) {
-		periph->flags |= CAM_PERIPH_LOCK_WANTED;
-		if ((error = tsleep(periph, priority, "caplck", 0)) != 0) {
-			cam_periph_release(periph);
-			return error;
-		}
-	}
-
-	periph->flags |= CAM_PERIPH_LOCKED;
-	return 0;
+	mtx_lock(periph->sim->mtx);
 }
 
 /*
@@ -534,13 +567,8 @@ cam_periph_lock(struct cam_periph *periph, int priority)
 void
 cam_periph_unlock(struct cam_periph *periph)
 {
-	periph->flags &= ~CAM_PERIPH_LOCKED;
-	if ((periph->flags & CAM_PERIPH_LOCK_WANTED) != 0) {
-		periph->flags &= ~CAM_PERIPH_LOCK_WANTED;
-		wakeup(periph);
-	}
 
-	cam_periph_release(periph);
+	mtx_unlock(periph->sim->mtx);
 }
 
 /*
@@ -752,12 +780,11 @@ union ccb *
 cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
 {
 	struct ccb_hdr *ccb_h;
-	int s;
+	struct mtx *mtx;
 
+	mtx_assert(periph->sim->mtx, MA_OWNED);
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering cdgetccb\n"));
 
-	s = splsoftcam();
-	
 	while (SLIST_FIRST(&periph->ccb_list) == NULL) {
 		if (periph->immediate_priority > priority)
 			periph->immediate_priority = priority;
@@ -765,24 +792,35 @@ cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
 		if ((SLIST_FIRST(&periph->ccb_list) != NULL)
 		 && (SLIST_FIRST(&periph->ccb_list)->pinfo.priority == priority))
 			break;
-		tsleep(&periph->ccb_list, PRIBIO, "cgticb", 0);
+		mtx_assert(periph->sim->mtx, MA_OWNED);
+		if (periph->sim->mtx == &Giant)
+			mtx = NULL;
+		else
+			mtx = periph->sim->mtx;
+		msleep(&periph->ccb_list, mtx, PRIBIO, "cgticb", 0);
 	}
 
 	ccb_h = SLIST_FIRST(&periph->ccb_list);
 	SLIST_REMOVE_HEAD(&periph->ccb_list, periph_links.sle);
-	splx(s);
 	return ((union ccb *)ccb_h);
 }
 
 void
 cam_periph_ccbwait(union ccb *ccb)
 {
+	struct mtx *mtx;
+	struct cam_sim *sim;
 	int s;
 
 	s = splsoftcam();
+	sim = xpt_path_sim(ccb->ccb_h.path);
+	if (sim->mtx == &Giant)
+		mtx = NULL;
+	else
+		mtx = sim->mtx;
 	if ((ccb->ccb_h.pinfo.index != CAM_UNQUEUED_INDEX)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG))
-		tsleep(&ccb->ccb_h.cbfcnp, PRIBIO, "cbwait", 0);
+		msleep(&ccb->ccb_h.cbfcnp, mtx, PRIBIO, "cbwait", 0);
 
 	splx(s);
 }
@@ -857,10 +895,13 @@ cam_periph_runccb(union ccb *ccb,
 		  cam_flags camflags, u_int32_t sense_flags,
 		  struct devstat *ds)
 {
+	struct cam_sim *sim;
 	int error;
  
 	error = 0;
-        
+	sim = xpt_path_sim(ccb->ccb_h.path);
+	mtx_assert(sim->mtx, MA_OWNED);
+
 	/*
 	 * If the user has supplied a stats structure, and if we understand
 	 * this particular type of ccb, record the transaction start.

@@ -110,6 +110,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/sysctl.h>
 
@@ -2257,6 +2259,7 @@ umass_cam_attach_sim(struct umass_softc *sc)
 				DEVNAME_SIM,
 				sc /*priv*/,
 				device_get_unit(sc->sc_dev) /*unit number*/,
+				&Giant,
 				1 /*maximum device openings*/,
 				0 /*maximum tagged device openings*/,
 				devq);

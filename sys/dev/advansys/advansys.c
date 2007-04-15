@@ -1414,7 +1414,7 @@ adv_attach(adv)
 	 * Construct our SIM entry.
 	 */
 	adv->sim = cam_sim_alloc(adv_action, adv_poll, "adv", adv, adv->unit,
-				 1, adv->max_openings, devq);
+				 &Giant, 1, adv->max_openings, devq);
 	if (adv->sim == NULL)
 		return (ENOMEM);
 

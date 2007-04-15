@@ -132,6 +132,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/assym.h>
+#include <sys/malloc.h>
 
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -606,7 +607,7 @@ wds_attach(device_t dev)
 		goto bad;
 
 	sim = cam_sim_alloc(wds_action, wds_poll, "wds", (void *) wp,
-			    wp->unit, 1, 1, devq);
+			    wp->unit, &Giant, 1, 1, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		goto bad;

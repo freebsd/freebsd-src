@@ -2651,7 +2651,8 @@ asr_attach(device_t dev)
 		 *	Construct our first channel SIM entry
 		 */
 		sc->ha_sim[bus] = cam_sim_alloc(asr_action, asr_poll, "asr", sc,
-						unit, 1, QueueSize, devq);
+						unit, &Giant,
+						1, QueueSize, devq);
 		if (sc->ha_sim[bus] == NULL) {
 			continue;
 		}

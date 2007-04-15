@@ -319,11 +319,13 @@ sgregister(struct cam_periph *periph, void *arg)
 			DEVSTAT_PRIORITY_PASS);
 
 	/* Register the device */
+	cam_periph_unlock(periph);
 	softc->dev = make_dev(&sg_cdevsw, unit2minor(periph->unit_number),
 			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 			      periph->periph_name, periph->unit_number);
 	softc->devalias = make_dev_alias(softc->dev, "sg%c",
 					 'a' + periph->unit_number);
+	cam_periph_lock(periph);
 	softc->dev->si_drv1 = periph;
 
 	/*
@@ -410,10 +412,6 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	if (periph == NULL)
 		return (ENXIO);
 
-	softc = (struct sg_softc *)periph->softc;
-	if (softc->flags & SG_FLAG_INVALID)
-		return (ENXIO);
-
 	/*
 	 * Don't allow access when we're running at a high securelevel.
 	 */
@@ -421,13 +419,19 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	if (error)
 		return (error);
 
-	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0)
-		return (error);
+	cam_periph_lock(periph);
+
+	softc = (struct sg_softc *)periph->softc;
+	if (softc->flags & SG_FLAG_INVALID) {
+		cam_periph_unlock(periph);
+		return (ENXIO);
+	}
 
 	if ((softc->flags & SG_FLAG_OPEN) == 0) {
-		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
-			return (ENXIO);
 		softc->flags |= SG_FLAG_OPEN;
+	} else {
+		/* Device closes aren't symmetrical, fix up the refcount. */
+		cam_periph_release(periph);
 	}
 
 	cam_periph_unlock(periph);
@@ -440,17 +444,14 @@ sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct sg_softc *softc;
-	int error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 
+	cam_periph_lock(periph);
+
 	softc = (struct sg_softc *)periph->softc;
-
-	if ((error = cam_periph_lock(periph, PRIBIO)) != 0)
-		return (error);
-
 	softc->flags &= ~SG_FLAG_OPEN;
 
 	cam_periph_unlock(periph);
@@ -472,6 +473,8 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
+
+	cam_periph_lock(periph);
 
 	softc = (struct sg_softc *)periph->softc;
 	error = 0;
@@ -669,6 +672,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		break;
 	}
 
+	cam_periph_unlock(periph);
 	return (error);
 }
 
@@ -686,7 +690,6 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	int error = 0, cdb_len, buf_len, dir;
 
 	periph = dev->si_drv1;
-	sc = periph->softc;
 	rdwr = malloc(sizeof(*rdwr), M_DEVBUF, M_WAITOK | M_ZERO);
 	hdr = &rdwr->hdr.hdr;
 
@@ -699,12 +702,11 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	if (error)
 		goto out_hdr;
 
-	ccb = xpt_alloc_ccb();
+	ccb = xpt_alloc_ccb(periph->sim);
 	if (ccb == NULL) {
 		error = ENOMEM;
 		goto out_hdr;
 	}
-	xpt_setup_ccb(&ccb->ccb_h, periph->path, /*priority*/5);
 	csio = &ccb->csio;
 
 	/*
@@ -751,6 +753,9 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		dir = CAM_DIR_NONE;
 	}
 
+	cam_periph_lock(periph);
+	sc = periph->softc;
+	xpt_setup_ccb(&ccb->ccb_h, periph->path, /*priority*/5);
 	cam_fill_csio(csio,
 		      /*retries*/1,
 		      sgdone,
@@ -774,7 +779,9 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	ccb->ccb_h.ccb_rdwr = rdwr;
 	ccb->ccb_h.ccb_type = SG_CCB_RDWR_IO;
 	TAILQ_INSERT_TAIL(&sc->rdwr_done, rdwr, rdwr_link);
-	return (sgsendrdwr(periph, ccb));
+	error = sgsendrdwr(periph, ccb);
+	cam_periph_unlock(periph);
+	return (error);
 
 out_buf:
 	free(buf, M_DEVBUF);
@@ -797,7 +804,6 @@ sgread(struct cdev *dev, struct uio *uio, int ioflag)
 	int error, pack_len, reply_len, pack_id;
 
 	periph = dev->si_drv1;
-	sc = periph->softc;
 
 	/* XXX The pack len field needs to be updated and written out instead
 	 * of discarded.  Not sure how to do that.
@@ -811,17 +817,20 @@ sgread(struct cdev *dev, struct uio *uio, int ioflag)
 		return (error);
 	uio->uio_rw = UIO_READ;
 
+	cam_periph_lock(periph);
+	sc = periph->softc;
 search:
 	TAILQ_FOREACH(rdwr, &sc->rdwr_done, rdwr_link) {
 		if (rdwr->tag == pack_id)
 			break;
 	}
 	if ((rdwr == NULL) || (rdwr->state != SG_RDWR_DONE)) {
-		if (tsleep(rdwr, PCATCH, "sgread", 0) == ERESTART)
+		if (msleep(rdwr, periph->sim->mtx, PCATCH, "sgread", 0) == ERESTART)
 			return (EAGAIN);
 		goto search;
 	}
 	TAILQ_REMOVE(&sc->rdwr_done, rdwr, rdwr_link);
+	cam_periph_unlock(periph);
 
 	hdr = &rdwr->hdr.hdr;
 	csio = &rdwr->ccb->csio;
@@ -865,7 +874,9 @@ search:
 	if ((error == 0) && (hdr->result == 0))
 		error = uiomove(rdwr->buf, rdwr->buf_len, uio);
 
+	cam_periph_lock(periph);
 	xpt_free_ccb(rdwr->ccb);
+	cam_periph_unlock(periph);
 	free(rdwr->buf, M_DEVBUF);
 	free(rdwr, M_DEVBUF);
 	return (error);
@@ -882,7 +893,15 @@ sgsendccb(struct cam_periph *periph, union ccb *ccb)
 	if (((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
 	    && (ccb->csio.data_ptr != NULL)) {
 		bzero(&mapinfo, sizeof(mapinfo));
+
+		/*
+		 * cam_periph_mapmem calls into proc and vm functions that can
+		 * sleep as well as trigger I/O, so we can't hold the lock.
+		 * Dropping it here is reasonably safe.
+		 */
+		cam_periph_unlock(periph);
 		error = cam_periph_mapmem(ccb, &mapinfo);
+		cam_periph_lock(periph);
 		if (error)
 			return (error);
 		need_unmap = 1;

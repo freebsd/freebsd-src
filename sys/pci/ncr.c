@@ -184,6 +184,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/md_var.h>
 #include <machine/bus.h>
@@ -3781,7 +3783,7 @@ ncr_attach (device_t dev)
 	**	about our bus.
 	*/
 	np->sim = cam_sim_alloc(ncr_action, ncr_poll, "ncr", np, np->unit,
-				1, MAX_TAGS, devq);
+				&Giant, 1, MAX_TAGS, devq);
 	if (np->sim == NULL) {
 		cam_simq_free(devq);
 		return ENOMEM;

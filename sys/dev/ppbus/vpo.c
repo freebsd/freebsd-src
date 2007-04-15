@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/malloc.h>
 
 #include <cam/cam.h>
@@ -160,7 +162,7 @@ vpo_attach(device_t dev)
 		return (ENXIO);
 
 	vpo->sim = cam_sim_alloc(vpo_action, vpo_poll, "vpo", vpo,
-				 device_get_unit(dev),
+				 device_get_unit(dev), &Giant,
 				 /*untagged*/1, /*tagged*/0, devq);
 	if (vpo->sim == NULL) {
 		cam_simq_free(devq);

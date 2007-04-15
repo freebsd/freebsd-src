@@ -1964,6 +1964,7 @@ END_DEBUG
 
 	sbp->sim = cam_sim_alloc(sbp_action, sbp_poll, "sbp", sbp,
 				 device_get_unit(dev),
+				 &Giant,
 				 /*untagged*/ 1,
 				 /*tagged*/ SBP_QUEUE_LEN - 1,
 				 devq);

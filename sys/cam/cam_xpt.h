@@ -58,6 +58,10 @@ cam_status		xpt_create_path(struct cam_path **new_path_ptr,
 					struct cam_periph *perph,
 					path_id_t path_id,
 					target_id_t target_id, lun_id_t lun_id);
+cam_status		xpt_create_path_unlocked(struct cam_path **new_path_ptr,
+					struct cam_periph *perph,
+					path_id_t path_id,
+					target_id_t target_id, lun_id_t lun_id);
 void			xpt_free_path(struct cam_path *path);
 int			xpt_path_comp(struct cam_path *path1,
 				      struct cam_path *path2);
@@ -73,6 +77,8 @@ struct cam_periph	*xpt_path_periph(struct cam_path *path);
 void			xpt_async(u_int32_t async_code, struct cam_path *path,
 				  void *async_arg);
 void			xpt_rescan(union ccb *ccb);
+void			xpt_lock_buses(void);
+void			xpt_unlock_buses(void);
 #endif /* _KERNEL */
 
 #endif /* _CAM_CAM_XPT_H */

@@ -2145,8 +2145,9 @@ static u_int32_t arcmsr_attach(device_t dev)
 		printf("arcmsr%d: cam_simq_alloc failure!\n", unit);
 		return ENXIO;
 	}
-	acb->psim=cam_sim_alloc(arcmsr_action, arcmsr_poll
-		, "arcmsr", acb, unit, 1, ARCMSR_MAX_OUTSTANDING_CMD, devq);
+	acb->psim=cam_sim_alloc(arcmsr_action, arcmsr_poll,
+		"arcmsr", acb, unit, &Giant, 1,
+		ARCMSR_MAX_OUTSTANDING_CMD, devq);
 	if(acb->psim == NULL) {
 		arcmsr_free_resource(acb);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, acb->irqres);
