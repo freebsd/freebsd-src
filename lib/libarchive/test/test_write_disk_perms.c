@@ -135,6 +135,7 @@ DEFINE_TEST(test_write_disk_perms)
 	archive_entry_set_mode(ae, S_IFREG | 0777);
 	assert(0 == archive_write_header(a, ae));
 	assert(0 == archive_write_finish_entry(a));
+	archive_entry_free(ae);
 
 	/* Write a regular file, then write over it. */
 	/* For files, the perms should get updated. */
@@ -142,6 +143,7 @@ DEFINE_TEST(test_write_disk_perms)
 	archive_entry_copy_pathname(ae, "file_overwrite_0144");
 	archive_entry_set_mode(ae, S_IFREG | 0777);
 	assert(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 	/* Check that file was created with different perms. */
 	assert(0 == stat("file_overwrite_0144", &st));
@@ -152,6 +154,7 @@ DEFINE_TEST(test_write_disk_perms)
 	archive_entry_copy_pathname(ae, "file_overwrite_0144");
 	archive_entry_set_mode(ae, S_IFREG | 0144);
 	assert(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
 	/* Write a regular dir. */
@@ -159,6 +162,7 @@ DEFINE_TEST(test_write_disk_perms)
 	archive_entry_copy_pathname(ae, "dir_0514");
 	archive_entry_set_mode(ae, S_IFDIR | 0514);
 	assert(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
 	/* Overwrite an existing dir. */
@@ -173,6 +177,7 @@ DEFINE_TEST(test_write_disk_perms)
 	archive_entry_copy_pathname(ae, "dir_overwrite_0744");
 	archive_entry_set_mode(ae, S_IFDIR | 0777);
 	assert(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 	/* Make sure they're unchanged. */
 	assert(0 == stat("dir_overwrite_0744", &st));
@@ -305,6 +310,7 @@ DEFINE_TEST(test_write_disk_perms)
 #else
 	archive_write_finish(a);
 #endif
+	archive_entry_free(ae);
 
 	/* Test the entries on disk. */
 	assert(0 == stat("file_0755", &st));
