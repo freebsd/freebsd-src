@@ -23,10 +23,28 @@ zfs_start()
 	if [ ! -r /etc/zfs/exports ]; then
 		touch /etc/zfs/exports
 	fi
+	# Enable swap on ZVOLs with property org.freebsd:swap=on.
+	zfs list -H -o org.freebsd:swap,name -t volume | \
+	while read state name; do
+		case "${state}" in
+		[oO][nN])
+			swapon /dev/zvol/${name}
+			;;
+		esac
+	done
 }
 
 zfs_stop()
 {
+	# Disable swap on ZVOLs with property org.freebsd:swap=on.
+	zfs list -H -o org.freebsd:swap,name -t volume | \
+	while read state name; do
+		case "${state}" in
+		[oO][nN])
+			swapoff /dev/zvol/${name}
+			;;
+		esac
+	done
 	zfs unshare -a
 	zfs unmount -a
 	zfs volfini
