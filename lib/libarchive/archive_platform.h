@@ -67,6 +67,23 @@
 #include <stdint.h>
 #endif
 
+/* Some platforms lack the standard *_MAX definitions. */
+#if !HAVE_DECL_SIZE_MAX
+#define	SIZE_MAX (~(size_t)0)
+#endif
+#if !HAVE_DECL_UINT32_MAX
+#define	UINT32_MAX (~(uint32_t)0)
+#endif
+#if !HAVE_DECL_UINT64_MAX
+#define	UINT64_MAX (~(uint64_t)0)
+#endif
+#if !HAVE_DECL_INT64_MAX
+#define	INT64_MAX ((int64_t)(UINT64_MAX >> 1))
+#endif
+#if !HAVE_DECL_INT64_MIN
+#define	INT64_MIN ((int64_t)(~INT64_MAX))
+#endif
+
 /*
  * If this platform has <sys/acl.h>, acl_create(), acl_init(),
  * acl_set_file(), and ACL_USER, we assume it has the rest of the
