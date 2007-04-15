@@ -86,6 +86,7 @@
 /* XXXRW: Additional X11 tokens not defined? */
 #define	AUT_CMD			0x51
 #define	AUT_EXIT		0x52
+#define	AUT_ZONENAME		0x60
 /* XXXRW: OpenBSM AUT_HOST 0x70? */
 #define	AUT_ARG64		0x71
 #define	AUT_RETURN64		0x72
@@ -329,6 +330,7 @@ token_t	*au_to_exec_env(char **envp);
 token_t	*au_to_text(char *text);
 token_t	*au_to_kevent(struct kevent *kev);
 token_t	*au_to_trailer(int rec_size);
+token_t	*au_to_zonename(char *zonename);
 
 __END_DECLS
 
