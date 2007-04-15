@@ -72,4 +72,5 @@ DEFINE_TEST(test_write_open_memory)
 		assert(buff[i] == 0xAE);
 		assert(s <= i);
 	}
+	archive_entry_free(ae);
 }

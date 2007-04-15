@@ -55,6 +55,7 @@ DEFINE_TEST(test_read_extract)
 	archive_entry_copy_pathname(ae, "dir_0775");
 	archive_entry_set_mode(ae, S_IFDIR | 0775);
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	/* A regular file. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
@@ -70,32 +71,38 @@ DEFINE_TEST(test_read_extract)
 	archive_entry_copy_pathname(ae, "dir");
 	archive_entry_set_mode(ae, S_IFDIR | 0777);
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	/* A file in the directory. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "dir/file");
 	archive_entry_set_mode(ae, S_IFREG | 0700);
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	/* A file in a dir that is not already in the archive. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "dir2/file");
 	archive_entry_set_mode(ae, S_IFREG | 0000);
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	/* A dir with a trailing /. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "dir3/.");
 	archive_entry_set_mode(ae, S_IFDIR | 0710);
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	/* Multiple dirs with a single entry. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "dir4/a/../b/../c/");
 	archive_entry_set_mode(ae, S_IFDIR | 0711);
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	/* A symlink. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "symlink");
 	archive_entry_set_mode(ae, S_IFLNK | 0755);
 	archive_entry_set_symlink(ae, "file");
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
 #if ARCHIVE_API_VERSION > 1

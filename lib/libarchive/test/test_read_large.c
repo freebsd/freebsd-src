@@ -50,6 +50,7 @@ DEFINE_TEST(test_read_large)
 	archive_entry_set_mode(entry, S_IFREG | 0777);
 	archive_entry_set_pathname(entry, "test");
 	assertA(0 == archive_write_header(a, entry));
+	archive_entry_free(entry);
 	assertA(sizeof(testdata) == archive_write_data(a, testdata, sizeof(testdata)));
 #if ARCHIVE_API_VERSION > 1
 	assertA(0 == archive_write_finish(a));
