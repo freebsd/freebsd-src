@@ -325,7 +325,7 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	}
 
 	sim = cam_sim_alloc(ncr53c9x_action, ncr53c9x_poll, "esp", sc,
-			    device_get_unit(sc->sc_dev), 1,
+			    device_get_unit(sc->sc_dev), &Giant, 1,
 			    NCR_TAG_DEPTH, devq);
 	if (sim == NULL) {
 		device_printf(sc->sc_dev, "cannot allocate SIM entry\n");

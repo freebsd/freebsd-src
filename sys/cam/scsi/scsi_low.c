@@ -966,7 +966,7 @@ scsi_low_rescan_bus_cam(slp)
 	struct scsi_low_softc *slp;
 {
   	struct cam_path *path;
-	union ccb *ccb = xpt_alloc_ccb();
+	union ccb *ccb = xpt_alloc_ccb(NULL);
 	cam_status status;
 
 	bzero(ccb, sizeof(union ccb));
@@ -1343,7 +1343,7 @@ scsi_low_attach_cam(slp)
 	slp->sl_si.sim = cam_sim_alloc(scsi_low_scsi_action_cam,
 				scsi_low_poll_cam,
 				DEVPORT_DEVNAME(slp->sl_dev), slp,
-				DEVPORT_DEVUNIT(slp->sl_dev), 
+				DEVPORT_DEVUNIT(slp->sl_dev), &Giant,
 				slp->sl_openings, tagged_openings, devq);
 
 	if (slp->sl_si.sim == NULL) {

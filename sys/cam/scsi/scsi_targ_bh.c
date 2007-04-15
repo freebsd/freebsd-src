@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
+#include <cam/cam_sim.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -447,7 +448,7 @@ targbhdtor(struct cam_periph *periph)
 		/* FALLTHROUGH */
 	default:
 		/* XXX Wait for callback of targbhdislun() */
-		tsleep(softc, PRIBIO, "targbh", hz/2);
+		msleep(softc, periph->sim->mtx, PRIBIO, "targbh", hz/2);
 		free(softc, M_SCSIBH);
 		break;
 	}
@@ -462,27 +463,22 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 	struct targbh_cmd_desc *desc;
 	struct ccb_scsiio *csio;
 	ccb_flags flags;
-	int    s;
 
 	softc = (struct targbh_softc *)periph->softc;
 	
-	s = splbio();
 	ccbh = TAILQ_FIRST(&softc->work_queue);
 	if (periph->immediate_priority <= periph->pinfo.priority) {
 		start_ccb->ccb_h.ccb_type = TARGBH_CCB_WAITING;			
 		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
 				  periph_links.sle);
 		periph->immediate_priority = CAM_PRIORITY_NONE;
-		splx(s);
 		wakeup(&periph->ccb_list);
 	} else if (ccbh == NULL) {
-		splx(s);
 		xpt_release_ccb(start_ccb);	
 	} else {
 		TAILQ_REMOVE(&softc->work_queue, ccbh, periph_links.tqe);
 		TAILQ_INSERT_HEAD(&softc->pending_queue, ccbh,
 				  periph_links.tqe);
-		splx(s);	
 		atio = (struct ccb_accept_tio*)ccbh;
 		desc = (struct targbh_cmd_desc *)atio->ccb_h.ccb_descr;
 
@@ -543,9 +539,7 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 					 /*getcount_only*/0); 
 			atio->ccb_h.status &= ~CAM_DEV_QFRZN;
 		}
-		s = splbio();
 		ccbh = TAILQ_FIRST(&softc->work_queue);
-		splx(s);
 	}
 	if (ccbh != NULL)
 		xpt_schedule(periph, /*priority*/1);

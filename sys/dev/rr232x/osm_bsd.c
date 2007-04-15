@@ -1088,7 +1088,8 @@ static void hpt_final_init(void *dummy)
 		}
 	
 		vbus_ext->sim = cam_sim_alloc(hpt_action, hpt_poll, driver_name,
-				vbus_ext, 0, os_max_queue_comm, /*tagged*/8,  devq);
+				vbus_ext, 0, &Giant,
+				os_max_queue_comm, /*tagged*/8,  devq);
 				
 		if (!vbus_ext->sim) {
 			os_printk("cam_sim_alloc failed");

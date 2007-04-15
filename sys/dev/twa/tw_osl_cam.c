@@ -102,7 +102,7 @@ tw_osli_cam_attach(struct twa_softc *sc)
 	 */
 	tw_osli_dbg_dprintf(3, sc, "Calling cam_sim_alloc");
 	sc->sim = cam_sim_alloc(twa_action, twa_poll, "twa", sc,
-			device_get_unit(sc->bus_dev),
+			device_get_unit(sc->bus_dev), &Giant,
 			TW_OSLI_MAX_NUM_IOS - 1, 1, devq);
 	if (sc->sim == NULL) {
 		cam_simq_free(devq);

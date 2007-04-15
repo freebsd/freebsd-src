@@ -58,6 +58,7 @@
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -2481,8 +2482,8 @@ amd_attach(device_t dev)
 	}
 
 	amd->psim = cam_sim_alloc(amd_action, amd_poll, "amd",
-				  amd, amd->unit, 1, MAX_TAGS_CMD_QUEUE,
-				  devq);
+				  amd, amd->unit, &Giant,
+				  1, MAX_TAGS_CMD_QUEUE, devq);
 	if (amd->psim == NULL) {
 		cam_simq_free(devq);
 		if (bootverbose)
