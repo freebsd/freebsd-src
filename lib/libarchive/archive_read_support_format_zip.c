@@ -137,9 +137,6 @@ static int	zip_read_file_header(struct archive_read *a,
 static time_t	zip_time(const char *);
 static void process_extra(const void* extra, struct zip* zip);
 
-/* Largest 32-bit unsigned value, stored in a 64-bit constant. */
-static const uint64_t max_uint32 = (((uint64_t)1) << 32) - 1;
-
 int
 archive_read_support_format_zip(struct archive *_a)
 {
@@ -412,8 +409,8 @@ archive_read_format_zip_read_data(struct archive_read *a,
 				return (ARCHIVE_WARN);
 			}
 			/* Size field only stores the lower 32 bits of the actual size. */
-			if ((zip->uncompressed_size & max_uint32)
-			    != (zip->entry_uncompressed_bytes_read & max_uint32)) {
+			if ((zip->uncompressed_size & UINT32_MAX)
+			    != (zip->entry_uncompressed_bytes_read & UINT32_MAX)) {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 				    "ZIP uncompressed data is wrong size");
 				return (ARCHIVE_WARN);
