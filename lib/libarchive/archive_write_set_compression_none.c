@@ -238,7 +238,8 @@ archive_compressor_none_finish(struct archive_write *a)
 	if (a->client_closer != NULL)
 		ret2 = (a->client_closer)(&a->archive, a->client_data);
 
-	free(state->buffer);
+	if (state->buffer)
+		free(state->buffer);
 	free(state);
 	a->compression_data = NULL;
 
