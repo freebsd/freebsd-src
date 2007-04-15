@@ -235,7 +235,7 @@ pfs_vncache_free(struct vnode *vp)
 }
 
 /*
- * Purge the cache of dead / disabled entries
+ * Purge the cache of dead entries
  *
  * This is extremely inefficient due to the fact that vgone() not only
  * indirectly modifies the vnode cache, but may also sleep.  We can
@@ -297,27 +297,4 @@ pfs_exit(void *arg, struct proc *p)
 	if (dead)
 		pfs_purge(NULL);
 	mtx_unlock(&Giant);
-}
-
-/*
- * Disable a pseudofs node, and free all vnodes associated with it
- */
-int
-pfs_disable(struct pfs_node *pn)
-{
-	if (pn->pn_flags & PFS_DISABLED)
-		return (0);
-	pn->pn_flags |= PFS_DISABLED;
-	pfs_purge(pn);
-	return (0);
-}
-
-/*
- * Re-enable a disabled pseudofs node
- */
-int
-pfs_enable(struct pfs_node *pn)
-{
-	pn->pn_flags &= ~PFS_DISABLED;
-	return (0);
 }
