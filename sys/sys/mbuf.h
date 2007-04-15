@@ -341,9 +341,7 @@ extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
 extern uma_zone_t	zone_ext_refcnt;
 
-#ifndef MBUF_PACKET_ZONE_DISABLE
 static __inline struct mbuf	*m_getcl(int how, short type, int flags);
-#endif
 static __inline struct mbuf	*m_get(int how, short type);
 static __inline struct mbuf	*m_gethdr(int how, short type);
 static __inline struct mbuf	*m_getjcl(int how, short type, int flags,
@@ -453,7 +451,6 @@ m_gethdr(int how, short type)
 	return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
 }
 
-#ifndef MBUF_PACKET_ZONE_DISABLE
 static __inline struct mbuf *
 m_getcl(int how, short type, int flags)
 {
@@ -463,9 +460,6 @@ m_getcl(int how, short type, int flags)
 	args.type = type;
 	return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
 }
-#else
-#define m_getcl(how, type, flags) m_getjcl(how, type, flags, MCLBYTES)
-#endif
 
 /*
  * m_getjcl() returns an mbuf with a cluster of the specified size attached.
