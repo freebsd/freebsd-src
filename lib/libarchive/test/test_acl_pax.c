@@ -397,6 +397,7 @@ compare_acls(struct archive_entry *ae, struct acl_t *acls, int n, int mode)
 	    acls[marker[0]].type, acls[marker[0]].permset,
 	    acls[marker[0]].tag, acls[marker[0]].qual, acls[marker[0]].name);
 	assert(n == 0); /* Number of ACLs not matched should == 0 */
+	free(marker);
 }
 
 DEFINE_TEST(test_acl_pax)
@@ -441,6 +442,7 @@ DEFINE_TEST(test_acl_pax)
 	 */
 	set_acls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]));
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));

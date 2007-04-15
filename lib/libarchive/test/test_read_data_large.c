@@ -62,6 +62,7 @@ DEFINE_TEST(test_read_data_large)
 		buff2[i] = (unsigned char)rand();
 	archive_entry_set_size(ae, sizeof(buff2));
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	assertA(sizeof(buff2) == archive_write_data(a, buff2, sizeof(buff2)));
 
 	/* Close out the archive. */

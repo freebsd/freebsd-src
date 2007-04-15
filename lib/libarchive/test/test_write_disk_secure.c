@@ -49,6 +49,7 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_entry_copy_pathname(ae, "dir");
 	archive_entry_set_mode(ae, S_IFDIR | 0777);
 	assert(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
 	/* Write a symlink to the dir above. */
@@ -77,6 +78,7 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_SYMLINKS);
 	failure("Extracting a file through a symlink should fail here.");
 	assertEqualInt(ARCHIVE_WARN, archive_write_header(a, ae));
+	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
 	/* Create another link. */
@@ -97,6 +99,7 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_entry_set_mode(ae, S_IFREG | 0777);
 	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_SYMLINKS | ARCHIVE_EXTRACT_UNLINK);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
 
