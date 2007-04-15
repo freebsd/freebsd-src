@@ -594,8 +594,8 @@ bus_dmamap_load_mvec_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 				error = _bus_dmamap_load_buffer(dmat, NULL, 
 				    data, len, NULL, flags, &lastaddr,
 				    segs, nsegs, first);
-				DPRINTF("%d: addr=0x%lx len=%ld\n", i, segs[i].ds_addr,
-				    segs[i].ds_len);
+				DPRINTF("%d: addr=0x%jx len=%ju\n", i,
+				    (uintmax_t)segs[i].ds_addr, (uintmax_t)segs[i].ds_len);
 				first = 0;
 			}
 		}
