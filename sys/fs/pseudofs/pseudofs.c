@@ -52,18 +52,48 @@ static MALLOC_DEFINE(M_PFSNODES, "pfs_nodes", "pseudofs nodes");
 SYSCTL_NODE(_vfs, OID_AUTO, pfs, CTLFLAG_RW, 0,
     "pseudofs");
 
+int pfs_trace;
+SYSCTL_INT(_vfs_pfs, OID_AUTO, trace, CTLFLAG_RW, &pfs_trace, 0,
+    "enable tracing of pseudofs vnode operations");
+
 #if PFS_FSNAMELEN != MFSNAMELEN
 #error "PFS_FSNAMELEN is not equal to MFSNAMELEN"
 #endif
 
 /*
+ * Allocate and initialize a node
+ */
+static struct pfs_node *
+pfs_alloc_node(struct pfs_info *pi, const char *name, pfs_type_t type)
+{
+	struct pfs_node *pn;
+
+	KASSERT(strlen(name) < PFS_NAMELEN,
+	    ("%s(): node name is too long", __func__));
+
+	MALLOC(pn, struct pfs_node *, sizeof *pn,
+	    M_PFSNODES, M_WAITOK|M_ZERO);
+	mtx_init(&pn->pn_mutex, "pfs_node", NULL, MTX_DEF | MTX_DUPOK);
+	strlcpy(pn->pn_name, name, sizeof pn->pn_name);
+	pn->pn_type = type;
+	pn->pn_info = pi;
+	return (pn);
+}
+
+/*
  * Add a node to a directory
  */
-static int
-_pfs_add_node(struct pfs_node *parent, struct pfs_node *node)
+static void
+pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 {
+#ifdef INVARIANTS
+	struct pfs_node *iter;
+#endif
+
 	KASSERT(parent != NULL,
 	    ("%s(): parent is NULL", __func__));
+	KASSERT(pn->pn_parent == NULL,
+	    ("%s(): node already has a parent", __func__));
 	KASSERT(parent->pn_info != NULL,
 	    ("%s(): parent has no pn_info", __func__));
 	KASSERT(parent->pn_type == pfstype_dir ||
@@ -71,48 +101,70 @@ _pfs_add_node(struct pfs_node *parent, struct pfs_node *node)
 	    parent->pn_type == pfstype_root,
 	    ("%s(): parent is not a directory", __func__));
 
-	/* XXX should check for duplicate names etc. */
+#ifdef INVARIANTS
+	/* XXX no locking! */
+	if (pn->pn_type == pfstype_procdir)
+		for (iter = parent; iter != NULL; iter = iter->pn_parent)
+			KASSERT(iter->pn_type != pfstype_procdir,
+			    ("%s(): nested process directories", __func__));
+	for (iter = parent->pn_nodes; iter != NULL; iter = iter->pn_next) {
+		KASSERT(strcmp(pn->pn_name, iter->pn_name) != 0,
+		    ("%s(): homonymous siblings", __func__));
+		if (pn->pn_type == pfstype_procdir)
+			KASSERT(iter->pn_type != pfstype_procdir,
+			    ("%s(): sibling process directories", __func__));
+	}
+#endif
 
-	node->pn_info = parent->pn_info;
-	node->pn_parent = parent;
-	node->pn_next = parent->pn_nodes;
-	parent->pn_nodes = node;
-	/* Propagate flag to all child nodes (and thus their vnodes) */
+	pn->pn_parent = parent;
+	pfs_fileno_alloc(pn);
+
+	pfs_lock(parent);
+	pn->pn_next = parent->pn_nodes;
 	if ((parent->pn_flags & PFS_PROCDEP) != 0)
-		node->pn_flags |= PFS_PROCDEP;
+		pn->pn_flags |= PFS_PROCDEP;
+	parent->pn_nodes = pn;
+	pfs_unlock(parent);
+}
 
-	return (0);
+/*
+ * Detach a node from its aprent
+ */
+static void
+pfs_detach_node(struct pfs_node *pn)
+{
+	struct pfs_node *parent = pn->pn_parent;
+	struct pfs_node **iter;
+
+	KASSERT(parent != NULL, ("%s(): node has no parent", __func__));
+	KASSERT(parent->pn_info == pn->pn_info,
+	    ("%s(): parent has different pn_info", __func__));
+
+	pfs_lock(parent);
+	iter = &parent->pn_nodes;
+	while (*iter != NULL) {
+		if (*iter == pn) {
+			*iter = pn->pn_next;
+			break;
+		}
+		iter = &(*iter)->pn_next;
+	}
+	pn->pn_parent = NULL;
+	pfs_unlock(parent);
 }
 
 /*
  * Add . and .. to a directory
  */
-static int
-_pfs_fixup_dir(struct pfs_node *parent)
+static void
+pfs_fixup_dir(struct pfs_node *parent)
 {
-	struct pfs_node *dir;
+	struct pfs_node *pn;
 
-	MALLOC(dir, struct pfs_node *, sizeof *dir,
-	    M_PFSNODES, M_WAITOK|M_ZERO);
-	dir->pn_name[0] = '.';
-	dir->pn_type = pfstype_this;
-
-	if (_pfs_add_node(parent, dir) != 0) {
-		FREE(dir, M_PFSNODES);
-		return (-1);
-	}
-
-	MALLOC(dir, struct pfs_node *, sizeof *dir,
-	    M_PFSNODES, M_WAITOK|M_ZERO);
-	dir->pn_name[0] = dir->pn_name[1] = '.';
-	dir->pn_type = pfstype_parent;
-
-	if (_pfs_add_node(parent, dir) != 0) {
-		FREE(dir, M_PFSNODES);
-		return (-1);
-	}
-
-	return (0);
+	pn = pfs_alloc_node(parent->pn_info, ".", pfstype_this);
+	pfs_add_node(parent, pn);
+	pn = pfs_alloc_node(parent->pn_info, "..", pfstype_parent);
+	pfs_add_node(parent, pn);
 }
 
 /*
@@ -123,31 +175,18 @@ pfs_create_dir(struct pfs_node *parent, const char *name,
 	       pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
 	       int flags)
 {
-	struct pfs_node *dir;
+	struct pfs_node *pn;
 
-	KASSERT(strlen(name) < PFS_NAMELEN,
-	    ("%s(): node name is too long", __func__));
+	pn = pfs_alloc_node(parent->pn_info, name,
+	    (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir);
+	pn->pn_attr = attr;
+	pn->pn_vis = vis;
+	pn->pn_destroy = destroy;
+	pn->pn_flags = flags;
+	pfs_add_node(parent, pn);
+	pfs_fixup_dir(pn);
 
-	MALLOC(dir, struct pfs_node *, sizeof *dir,
-	    M_PFSNODES, M_WAITOK|M_ZERO);
-	strcpy(dir->pn_name, name);
-	dir->pn_type = (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir;
-	dir->pn_attr = attr;
-	dir->pn_vis = vis;
-	dir->pn_destroy = destroy;
-	dir->pn_flags = flags;
-
-	if (_pfs_add_node(parent, dir) != 0) {
-		FREE(dir, M_PFSNODES);
-		return (NULL);
-	}
-
-	if (_pfs_fixup_dir(dir) != 0) {
-		pfs_destroy(dir);
-		return (NULL);
-	}
-
-	return (dir);
+	return (pn);
 }
 
 /*
@@ -158,27 +197,17 @@ pfs_create_file(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 		pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
 		int flags)
 {
-	struct pfs_node *node;
+	struct pfs_node *pn;
 
-	KASSERT(strlen(name) < PFS_NAMELEN,
-	    ("%s(): node name is too long", __func__));
+	pn = pfs_alloc_node(parent->pn_info, name, pfstype_file);
+	pn->pn_fill = fill;
+	pn->pn_attr = attr;
+	pn->pn_vis = vis;
+	pn->pn_destroy = destroy;
+	pn->pn_flags = flags;
+	pfs_add_node(parent, pn);
 
-	MALLOC(node, struct pfs_node *, sizeof *node,
-	    M_PFSNODES, M_WAITOK|M_ZERO);
-	strcpy(node->pn_name, name);
-	node->pn_type = pfstype_file;
-	node->pn_func = fill;
-	node->pn_attr = attr;
-	node->pn_vis = vis;
-	node->pn_destroy = destroy;
-	node->pn_flags = flags;
-
-	if (_pfs_add_node(parent, node) != 0) {
-		FREE(node, M_PFSNODES);
-		return (NULL);
-	}
-
-	return (node);
+	return (pn);
 }
 
 /*
@@ -189,13 +218,17 @@ pfs_create_link(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 		pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
 		int flags)
 {
-	struct pfs_node *node;
+	struct pfs_node *pn;
 
-	node = pfs_create_file(parent, name, fill, attr, vis, destroy, flags);
-	if (node == NULL)
-		return (NULL);
-	node->pn_type = pfstype_symlink;
-	return (node);
+	pn = pfs_alloc_node(parent->pn_info, name, pfstype_symlink);
+	pn->pn_fill = fill;
+	pn->pn_attr = attr;
+	pn->pn_vis = vis;
+	pn->pn_destroy = destroy;
+	pn->pn_flags = flags;
+	pfs_add_node(parent, pn);
+
+	return (pn);
 }
 
 /*
@@ -204,57 +237,60 @@ pfs_create_link(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 struct pfs_node *
 pfs_find_node(struct pfs_node *parent, const char *name)
 {
-	struct pfs_node *node;
+	struct pfs_node *pn;
 
-	for (node = parent->pn_nodes; node != NULL; node = node->pn_next)
-		if (strcmp(node->pn_name, name) == 0)
+	pfs_lock(parent);
+	for (pn = parent->pn_nodes; pn != NULL; pn = pn->pn_next)
+		if (strcmp(pn->pn_name, name) == 0)
 			break;
-	return (node);
+	pfs_unlock(parent);
+	return (pn);
 }
 
 /*
- * Destroy a node or a tree of nodes
+ * Destroy a node and all its descendants.  If the node to be destroyed
+ * has a parent, the parent's mutex must be held.
  */
 int
-pfs_destroy(struct pfs_node *node)
+pfs_destroy(struct pfs_node *pn)
 {
-	struct pfs_node *parent, **rover;
+	struct pfs_node *iter;
 
-	KASSERT(node != NULL,
+	KASSERT(pn != NULL,
 	    ("%s(): node is NULL", __func__));
-	KASSERT(node->pn_info != NULL,
+	KASSERT(pn->pn_info != NULL,
 	    ("%s(): node has no pn_info", __func__));
 
-	/* destroy children */
-	if (node->pn_type == pfstype_dir ||
-	    node->pn_type == pfstype_procdir ||
-	    node->pn_type == pfstype_root)
-		while (node->pn_nodes != NULL)
-			pfs_destroy(node->pn_nodes);
+	if (pn->pn_parent)
+		pfs_detach_node(pn);
 
-	/* unlink from parent */
-	if ((parent = node->pn_parent) != NULL) {
-		KASSERT(parent->pn_info == node->pn_info,
-		    ("%s(): parent has different pn_info", __func__));
-		rover = &parent->pn_nodes;
-		while (*rover != NULL) {
-			if (*rover == node) {
-				*rover = node->pn_next;
-				break;
-			}
-			rover = &(*rover)->pn_next;
+	/* destroy children */
+	if (pn->pn_type == pfstype_dir ||
+	    pn->pn_type == pfstype_procdir ||
+	    pn->pn_type == pfstype_root) {
+		pfs_lock(pn);
+		while (pn->pn_nodes != NULL) {
+			iter = pn->pn_nodes;
+			pn->pn_nodes = iter->pn_next;
+			iter->pn_parent = NULL;
+			pfs_unlock(pn);
+			pfs_destroy(iter);
+			pfs_lock(pn);
 		}
+		pfs_unlock(pn);
 	}
 
-	/* callback to free any private resources */
-	if (node->pn_destroy != NULL)
-		(node->pn_destroy)(node);
+	/* revoke vnodes and fileno */
+	pfs_purge(pn);
 
-	/* revoke fileno and vnodes and release memory */
-	if (node->pn_fileno)
-		pfs_fileno_free(node);
-	pfs_purge(node);
-	FREE(node, M_PFSNODES);
+	/* callback to free any private resources */
+	if (pn->pn_destroy != NULL)
+		pn_destroy(pn);
+
+	/* destroy the node */
+	pfs_fileno_free(pn);
+	mtx_destroy(&pn->pn_mutex);
+	FREE(pn, M_PFSNODES);
 
 	return (0);
 }
@@ -272,10 +308,7 @@ pfs_mount(struct pfs_info *pi, struct mount *mp, struct thread *td)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-#if 0
-	/* not quite ready for this yet */
 	mp->mnt_kern_flag |= MNTK_MPSAFE;
-#endif
 	MNT_IUNLOCK(mp);
 	mp->mnt_data = (qaddr_t)pi;
 	vfs_getnewfsid(mp);
@@ -294,12 +327,15 @@ pfs_mount(struct pfs_info *pi, struct mount *mp, struct thread *td)
 }
 
 /*
- * Compatibility shim for old mount(2) system call.
+ * Compatibility shim for old mount(2) system call
  */
 int
 pfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
 {
-	return kernel_mount(ma, flags);
+	int error;
+
+	error = kernel_mount(ma, flags);
+	return (error);
 }
 
 /*
@@ -308,12 +344,7 @@ pfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
 int
 pfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 {
-	struct pfs_info *pi;
 	int error;
-
-	pi = (struct pfs_info *)mp->mnt_data;
-
-	/* XXX do stuff with pi... */
 
 	error = vflush(mp, 0, (mntflags & MNT_FORCE) ?  FORCECLOSE : 0, td);
 	return (error);
@@ -328,7 +359,7 @@ pfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 	struct pfs_info *pi;
 
 	pi = (struct pfs_info *)mp->mnt_data;
-	return pfs_vncache_alloc(mp, vpp, pi->pi_root, NO_PID);
+	return (pfs_vncache_alloc(mp, vpp, pi->pi_root, NO_PID));
 }
 
 /*
@@ -352,17 +383,13 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 
 	mtx_assert(&Giant, MA_OWNED);
 
+	pfs_fileno_init(pi);
+
 	/* set up the root diretory */
-	MALLOC(root, struct pfs_node *, sizeof *root,
-	    M_PFSNODES, M_WAITOK|M_ZERO);
-	root->pn_type = pfstype_root;
-	root->pn_name[0] = '/';
-	root->pn_info = pi;
-	if (_pfs_fixup_dir(root) != 0) {
-		FREE(root, M_PFSNODES);
-		return (ENODEV); /* XXX not really the right errno */
-	}
+	root = pfs_alloc_node(pi, "/", pfstype_root);
 	pi->pi_root = root;
+	pfs_fileno_alloc(root);
+	pfs_fixup_dir(root);
 
 	/* construct file hierarchy */
 	error = (pi->pi_init)(pi, vfc);
@@ -372,7 +399,6 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 		return (error);
 	}
 
-	pfs_fileno_init(pi);
 	if (bootverbose)
 		printf("%s registered\n", pi->pi_name);
 	return (0);

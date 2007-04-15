@@ -64,4 +64,148 @@ void	 pfs_fileno_uninit	(struct pfs_info *);
 void	 pfs_fileno_alloc	(struct pfs_node *);
 void	 pfs_fileno_free	(struct pfs_node *);
 
+/*
+ * Debugging
+ */
+#ifdef PSEUDOFS_TRACE
+extern int pfs_trace;
+
+#define PFS_TRACE(foo) \
+	do { \
+		if (pfs_trace) { \
+			printf("%s(): line %d: ", __func__, __LINE__); \
+			printf foo ; \
+			printf("\n"); \
+		} \
+	} while (0)
+#define PFS_RETURN(err) \
+	do { \
+		if (pfs_trace) { \
+			printf("%s(): line %d: returning %d\n", \
+			    __func__, __LINE__, err); \
+		} \
+		return (err); \
+	} while (0)
+#else
+#define PFS_TRACE(foo) \
+	do { /* nothing */ } while (0)
+#define PFS_RETURN(err) \
+	return (err)
+#endif
+
+/*
+ * Inline helpers for locking
+ */
+static inline void
+pfs_lock(struct pfs_node *pn)
+{
+
+	mtx_lock(&pn->pn_mutex);
+}
+
+static inline void
+pfs_unlock(struct pfs_node *pn)
+{
+
+	mtx_unlock(&pn->pn_mutex);
+}
+
+static inline void
+pfs_assert_owned(struct pfs_node *pn)
+{
+
+	mtx_assert(&pn->pn_mutex, MA_OWNED);
+}
+
+static inline void
+pfs_assert_not_owned(struct pfs_node *pn)
+{
+
+	mtx_assert(&pn->pn_mutex, MA_NOTOWNED);
+}
+
+static inline int
+pn_fill(PFS_FILL_ARGS)
+{
+
+	PFS_TRACE(("%s", pn->pn_name));
+	KASSERT(pn->pn_fill != NULL, ("%s(): no callback", __func__));
+	if (p != NULL) {
+		PROC_LOCK_ASSERT(p, MA_NOTOWNED);
+		PROC_ASSERT_HELD(p);
+	}
+	pfs_assert_not_owned(pn);
+	return ((pn->pn_fill)(PFS_FILL_ARGNAMES));
+}
+
+static inline int
+pn_attr(PFS_ATTR_ARGS)
+{
+
+	PFS_TRACE(("%s", pn->pn_name));
+	KASSERT(pn->pn_attr != NULL, ("%s(): no callback", __func__));
+	if (p != NULL)
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+	pfs_assert_not_owned(pn);
+	return ((pn->pn_attr)(PFS_ATTR_ARGNAMES));
+}
+
+static inline int
+pn_vis(PFS_VIS_ARGS)
+{
+
+	PFS_TRACE(("%s", pn->pn_name));
+	KASSERT(pn->pn_vis != NULL, ("%s(): no callback", __func__));
+	KASSERT(p != NULL, ("%s(): no process", __func__));
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	pfs_assert_not_owned(pn);
+	return ((pn->pn_vis)(PFS_VIS_ARGNAMES));
+}
+
+static inline int
+pn_ioctl(PFS_IOCTL_ARGS)
+{
+
+	PFS_TRACE(("%s", pn->pn_name));
+	KASSERT(pn->pn_ioctl != NULL, ("%s(): no callback", __func__));
+	if (p != NULL)
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+	pfs_assert_not_owned(pn);
+	return ((pn->pn_ioctl)(PFS_IOCTL_ARGNAMES));
+}
+
+static inline int
+pn_getextattr(PFS_GETEXTATTR_ARGS)
+{
+
+	PFS_TRACE(("%s", pn->pn_name));
+	KASSERT(pn->pn_getextattr != NULL, ("%s(): no callback", __func__));
+	if (p != NULL)
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+	pfs_assert_not_owned(pn);
+	return ((pn->pn_getextattr)(PFS_GETEXTATTR_ARGNAMES));
+}
+
+static inline int
+pn_close(PFS_CLOSE_ARGS)
+{
+
+	PFS_TRACE(("%s", pn->pn_name));
+	KASSERT(pn->pn_close != NULL, ("%s(): no callback", __func__));
+	if (p != NULL)
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+	pfs_assert_not_owned(pn);
+	return ((pn->pn_close)(PFS_CLOSE_ARGNAMES));
+}
+
+static inline int
+pn_destroy(PFS_DESTROY_ARGS)
+{
+
+	PFS_TRACE(("%s", pn->pn_name));
+	KASSERT(pn->pn_destroy != NULL, ("%s(): no callback", __func__));
+	pfs_assert_not_owned(pn);
+	return ((pn->pn_destroy)(PFS_DESTROY_ARGNAMES));
+}
+
 #endif
