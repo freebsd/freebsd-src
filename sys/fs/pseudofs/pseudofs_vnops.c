@@ -126,6 +126,7 @@ pfs_access(struct vop_access_args *va)
 	int error;
 
 	PFS_TRACE(("%s", pvd->pvd_pn->pn_name));
+	(void)pvd;
 
 	error = VOP_GETATTR(vn, &vattr, va->a_cred, va->a_td);
 	if (error)
