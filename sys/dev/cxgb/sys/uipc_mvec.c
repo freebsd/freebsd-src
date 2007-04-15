@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/sys/mvec.h>
 #include "opt_zero.h"
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #ifdef DEBUG
 #define DPRINTF printf
 #else
