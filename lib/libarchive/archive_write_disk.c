@@ -922,6 +922,10 @@ _archive_write_finish(struct archive *_a)
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	int ret;
 	ret = _archive_write_close(&a->archive);
+	if (a->cleanup_gid != NULL && a->lookup_gid_data != NULL)
+		(a->cleanup_gid)(a->lookup_gid_data);
+	if (a->cleanup_uid != NULL && a->lookup_uid_data != NULL)
+		(a->cleanup_uid)(a->lookup_uid_data);
 	archive_string_free(&a->_name_data);
 	archive_string_free(&a->archive.error_string);
 	archive_string_free(&a->path_safe);
