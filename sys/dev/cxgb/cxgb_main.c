@@ -167,6 +167,7 @@ DRIVER_MODULE(cxgb, cxgbc, cxgb_port_driver, cxgb_port_devclass, 0, 0);
 
 #define SGE_MSIX_COUNT (SGE_QSETS + 1)
 
+extern int collapse_mbufs;
 /*
  * The driver uses the best interrupt scheme available on a platform in the
  * order MSI-X, MSI, legacy pin interrupts.  This parameter determines which
@@ -1339,8 +1340,8 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 		}
 		m_sanity(m0, 0);
 		m0 = m;
-#endif		
-		if (m->m_pkthdr.len > MCLBYTES &&
+#endif
+		if (collapse_mbufs && m->m_pkthdr.len > MCLBYTES &&
 		    m_collapse(m, TX_MAX_SEGS, &m0) == EFBIG) {
 			if ((m0 = m_defrag(m, M_NOWAIT)) != NULL) {
 				m = m0;
