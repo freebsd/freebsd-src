@@ -133,19 +133,7 @@ _m_explode(struct mbuf *m)
 	m->m_next = head;
 	head = m;
 	M_SANITY(m, 0);
-#ifdef INVARIANTS
-	len = head->m_len;
-	m = m->m_next;
-	while (m) {
-		KASSERT((m->m_flags & M_PKTHDR) == 0,
-		    ("pkthdr set on intermediate mbuf - post"));
-		len += m->m_len;
-		m = m->m_next;
-		
-	}
-	if (len != head->m_pkthdr.len)
-		panic("len=%d pktlen=%d", len, head->m_pkthdr.len);
-#endif
+
 	return (0);
 } 
 
@@ -165,9 +153,6 @@ m_vectorize(struct mbuf *m, int max, struct mbuf **vec, int *count)
 		if ((m->m_flags & M_EXT) && (m->m_ext.ext_type == EXT_SFBUF))		
 			return (EINVAL);
 #endif
-
-		if (m->m_len == 0)
-			DPRINTF("m=%p is len=0\n", m);
 		M_SANITY(m, 0);
 		vec[i] = m;
 		m = m->m_next;
@@ -399,13 +384,28 @@ mb_free_vec(struct mbuf *m)
 }
 
 #if (!defined(__sparc64__) && !defined(__sun4v__))
-struct mvec_sg_cb_arg {
-	bus_dma_segment_t *segs;
-	int error;
-	int index;
-	int nseg;
-};
+#include <sys/sysctl.h>
 
+#define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
+#define BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
+
+struct bounce_zone {
+	STAILQ_ENTRY(bounce_zone) links;
+	STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
+	int		total_bpages;
+	int		free_bpages;
+	int		reserved_bpages;
+	int		active_bpages;
+	int		total_bounced;
+	int		total_deferred;
+	bus_size_t	alignment;
+	bus_size_t	boundary;
+	bus_addr_t	lowaddr;
+	char		zoneid[8];
+	char		lowaddrid[20];
+	struct sysctl_ctx_list sysctl_tree;
+	struct sysctl_oid *sysctl_tree_top;
+};
 struct bus_dma_tag {
 	bus_dma_tag_t	  parent;
 	bus_size_t	  alignment;
@@ -426,23 +426,137 @@ struct bus_dma_tag {
 	struct bounce_zone *bounce_zone;
 };
 
-static void
-mvec_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+struct bus_dmamap {
+	struct bp_list	       bpages;
+	int		       pagesneeded;
+	int		       pagesreserved;
+	bus_dma_tag_t	       dmat;
+	void		      *buf;		/* unmapped buffer pointer */
+	bus_size_t	       buflen;		/* unmapped buffer length */
+	bus_dmamap_callback_t *callback;
+	void		      *callback_arg;
+	STAILQ_ENTRY(bus_dmamap) links;
+};
+
+static struct bus_dmamap nobounce_dmamap;
+
+static __inline int
+run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 {
-	struct mvec_sg_cb_arg *cb_arg = arg;
-	
-	cb_arg->error = error;
-	cb_arg->segs[cb_arg->index] = segs[0];
-	cb_arg->nseg = nseg;
-	KASSERT(nseg == 1, ("nseg=%d", nseg));
+	int retval;
+
+	retval = 0;
+
+	do {
+		if (((paddr > dmat->lowaddr && paddr <= dmat->highaddr)
+		 || ((paddr & (dmat->alignment - 1)) != 0))
+		 && (dmat->filter == NULL
+		  || (*dmat->filter)(dmat->filterarg, paddr) != 0))
+			retval = 1;
+
+		dmat = dmat->parent;		
+	} while (retval == 0 && dmat != NULL);
+	return (retval);
+}
+
+static __inline int
+_bus_dmamap_load_buffer(bus_dma_tag_t dmat,
+    			bus_dmamap_t map,
+			void *buf, bus_size_t buflen,
+			pmap_t pmap,
+			int flags,
+			bus_addr_t *lastaddrp,
+			bus_dma_segment_t *segs,
+			int *segp,
+			int first)
+{
+	bus_size_t sgsize;
+	bus_addr_t curaddr, lastaddr, baddr, bmask;
+	vm_offset_t vaddr;
+	int needbounce = 0;
+	int seg;
+
+	if (map == NULL)
+		map = &nobounce_dmamap;
+
+	/* Reserve Necessary Bounce Pages */
+	if (map->pagesneeded != 0)
+		panic("don't support bounce pages");
+
+	vaddr = (vm_offset_t)buf;
+	lastaddr = *lastaddrp;
+	bmask = ~(dmat->boundary - 1);
+
+	for (seg = *segp; buflen > 0 ; ) {
+		/*
+		 * Get the physical address for this segment.
+		 */
+		if (pmap)
+			curaddr = pmap_extract(pmap, vaddr);
+		else
+			curaddr = pmap_kextract(vaddr);
+
+
+		/*
+		 * Compute the segment size, and adjust counts.
+		 */
+		sgsize = PAGE_SIZE - ((u_long)curaddr & PAGE_MASK);
+		if (buflen < sgsize)
+			sgsize = buflen;
+
+		/*
+		 * Make sure we don't cross any boundaries.
+		 */
+		if (dmat->boundary > 0) {
+			baddr = (curaddr + dmat->boundary) & bmask;
+			if (sgsize > (baddr - curaddr))
+				sgsize = (baddr - curaddr);
+		}
+
+		if (map->pagesneeded != 0 && run_filter(dmat, curaddr))
+			panic("no bounce page support");
+		
+		/*
+		 * Insert chunk into a segment, coalescing with
+		 * previous segment if possible.
+		 */
+		if (first) {
+			segs[seg].ds_addr = curaddr;
+			segs[seg].ds_len = sgsize;
+			first = 0;
+		} else {
+			if (needbounce == 0 && curaddr == lastaddr &&
+			    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
+			    (dmat->boundary == 0 ||
+			     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
+				segs[seg].ds_len += sgsize;
+			else {
+				if (++seg >= dmat->nsegments)
+					break;
+				segs[seg].ds_addr = curaddr;
+				segs[seg].ds_len = sgsize;
+			}
+		}
+
+		lastaddr = curaddr + sgsize;
+		vaddr += sgsize;
+		buflen -= sgsize;
+	}
+
+	*segp = seg;
+	*lastaddrp = lastaddr;
+
+	/*
+	 * Did we fit?
+	 */
+	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
 }
 
 int
 bus_dmamap_load_mvec_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
                         bus_dma_segment_t *segs, int *nsegs, int flags)
 {
-	int error;
-	struct mvec_sg_cb_arg cb_arg;
+	int error, i;
 
 	M_ASSERTPKTHDR(m0);
 	
@@ -453,51 +567,43 @@ bus_dmamap_load_mvec_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 	*nsegs = 0;
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
+		int first = 1;
+		bus_addr_t lastaddr = 0;
 		struct mbuf *m;
-		cb_arg.segs = segs;
+		
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			struct mbuf_vec *mv;
-			int count, first, i;
+			int count, firstcl;
 			if (!(m->m_len > 0))
 				continue;
 			
 			mv = mtomv(m);
 			count = mv->mv_count;
-			first = mv->mv_first;
+			firstcl = mv->mv_first;
 			KASSERT(count <= MAX_MBUF_IOV, ("count=%d too large", count));
-			for (i = first; i < count; i++) {
+			for (i = firstcl; i < count && error == 0; i++) {
 				void *data = mv->mv_vec[i].mi_base + mv->mv_vec[i].mi_offset;
-				int size = mv->mv_vec[i].mi_len;
+				int len = mv->mv_vec[i].mi_len;
 
-				if (size == 0)
+				if (len == 0)
 					continue;
-				DPRINTF("mapping data=%p size=%d\n", data, size); 
-				cb_arg.index = *nsegs;
-				error = bus_dmamap_load(dmat, map, 
-				    data, size, mvec_cb, &cb_arg, flags);
-				(*nsegs)++;
-				
-				if (*nsegs >= dmat->nsegments) {
-					DPRINTF("*nsegs=%d dmat->nsegments=%d index=%d\n",
-					    *nsegs, dmat->nsegments, cb_arg.index);
-					error = EFBIG;
-					goto err_out;
-				}
-				if (error || cb_arg.error)
-					goto err_out;
+				DPRINTF("mapping data=%p len=%d\n", data, len); 
+				error = _bus_dmamap_load_buffer(dmat, NULL, 
+				    data, len, NULL, flags, &lastaddr,
+				    segs, nsegs, first);
+				DPRINTF("%d: addr=0x%lx len=%ld\n", i, segs[i].ds_addr,
+				    segs[i].ds_len);
+				first = 0;
 			}
 		}
 	} else {
 		error = EINVAL;
 	}
+
+	(*nsegs)++;
+
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
 	    __func__, dmat, dmat->flags, error, *nsegs);
-	return (error);
-
-err_out:
-	if (cb_arg.error)
-		return (cb_arg.error);
-	
 	return (error);
 }
 #endif /* !__sparc64__  && !__sun4v__ */
