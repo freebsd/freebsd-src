@@ -1960,7 +1960,8 @@ hpt_attach(device_t dev)
 	 * Construct our SIM entry
 	 */
 	if ((hpt_vsim = cam_sim_alloc(hpt_action, hpt_poll, __str(PROC_DIR_NAME),
-			pAdapter, device_get_unit(pAdapter->hpt_dev), /*untagged*/1, /*tagged*/8,  devq)) == NULL)	{
+			pAdapter, device_get_unit(pAdapter->hpt_dev),
+			&Giant, /*untagged*/1, /*tagged*/8,  devq)) == NULL)	{
 		cam_simq_free(devq);
 		return ENOMEM;
 	}

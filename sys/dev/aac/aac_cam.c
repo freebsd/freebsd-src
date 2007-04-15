@@ -171,7 +171,7 @@ aac_cam_attach(device_t dev)
 		return (EIO);
 
 	sim = cam_sim_alloc(aac_cam_action, aac_cam_poll, "aacp", camsc,
-	    device_get_unit(dev), 1, 1, devq);
+	    device_get_unit(dev), &Giant, 1, 1, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		return (EIO);

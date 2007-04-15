@@ -143,7 +143,7 @@ ahd_attach(struct ahd_softc *ahd)
 	 */
 	sim = cam_sim_alloc(ahd_action, ahd_poll, "ahd", ahd,
 			    device_get_unit(ahd->dev_softc),
-			    1, /*XXX*/256, devq);
+			    &Giant, 1, /*XXX*/256, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		goto fail;

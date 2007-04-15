@@ -210,7 +210,7 @@ atapi_cam_attach(device_t dev)
     }
 
     if ((sim = cam_sim_alloc(atapi_action, atapi_poll, "ata",
-		 (void *)scp, unit, 1, 1, devq)) == NULL) {
+		 (void *)scp, unit, &Giant, 1, 1, devq)) == NULL) {
 	error = ENOMEM;
 	goto out;
     }

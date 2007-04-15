@@ -196,7 +196,7 @@ ahc_attach(struct ahc_softc *ahc)
 	 */
 	sim = cam_sim_alloc(ahc_action, ahc_poll, "ahc", ahc,
 			    device_get_unit(ahc->dev_softc),
-			    1, AHC_MAX_QUEUE, devq);
+			    &Giant, 1, AHC_MAX_QUEUE, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		goto fail;
@@ -227,7 +227,8 @@ ahc_attach(struct ahc_softc *ahc)
 
 	if (ahc->features & AHC_TWIN) {
 		sim2 = cam_sim_alloc(ahc_action, ahc_poll, "ahc",
-				    ahc, device_get_unit(ahc->dev_softc), 1,
+				    ahc, device_get_unit(ahc->dev_softc),
+				    &Giant, 1,
 				    AHC_MAX_QUEUE, devq);
 
 		if (sim2 == NULL) {

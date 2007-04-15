@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
+#include <cam/cam_sim.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -182,7 +183,7 @@ static struct cdevsw ses_cdevsw = {
 	.d_close =	sesclose,
 	.d_ioctl =	sesioctl,
 	.d_name =	"ses",
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	0,
 };
 
 static void
@@ -363,9 +364,11 @@ sesregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
+	cam_periph_unlock(periph);
 	softc->ses_dev = make_dev(&ses_cdevsw, unit2minor(periph->unit_number),
 	    UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 	    periph->periph_name, periph->unit_number);
+	cam_periph_lock(periph);
 	softc->ses_dev->si_drv1 = periph;
 
 	/*
@@ -409,24 +412,19 @@ sesopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct ses_softc *softc;
-	int error, s;
+	int error = 0;
 
-	s = splsoftcam();
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL) {
-		splx(s);
 		return (ENXIO);
 	}
-	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
-		splx(s);
-		return (error);
-	}
-	splx(s);
 
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
 		cam_periph_unlock(periph);
 		return (ENXIO);
 	}
+
+	cam_periph_lock(periph);
 
 	softc = (struct ses_softc *)periph->softc;
 
@@ -453,10 +451,10 @@ sesopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	}
 
 out:
+	cam_periph_unlock(periph);
 	if (error) {
 		cam_periph_release(periph);
 	}
-	cam_periph_unlock(periph);
 	return (error);
 }
 
@@ -473,11 +471,9 @@ sesclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	if (periph == NULL)
 		return (ENXIO);
 
+	cam_periph_lock(periph);
+
 	softc = (struct ses_softc *)periph->softc;
-
-	if ((error = cam_periph_lock(periph, PRIBIO)) != 0)
-		return (error);
-
 	softc->ses_flags &= ~SES_FLAG_OPEN;
 
 	cam_periph_unlock(periph);
@@ -489,13 +485,11 @@ sesclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 static void
 sesstart(struct cam_periph *p, union ccb *sccb)
 {
-	int s = splbio();
 	if (p->immediate_priority <= p->pinfo.priority) {
 		SLIST_INSERT_HEAD(&p->ccb_list, &sccb->ccb_h, periph_links.sle);
 		p->immediate_priority = CAM_PRIORITY_NONE;
 		wakeup(&p->ccb_list);
 	}
-	splx(s);
 }
 
 static void
@@ -539,14 +533,17 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering sesioctl\n"));
 
+	cam_periph_lock(periph);
 	ssc = (struct ses_softc *)periph->softc;
 
 	/*
 	 * Now check to see whether we're initialized or not.
 	 */
 	if ((ssc->ses_flags & SES_FLAG_INITIALIZED) == 0) {
+		cam_periph_unlock(periph);
 		return (ENXIO);
 	}
+	cam_periph_lock(periph);
 
 	error = 0;
 
@@ -576,22 +573,34 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 		break;
 		
 	case SESIOC_GETOBJMAP:
+		/*
+		 * XXX Dropping the lock while copying multiple segments is
+		 * bogus.
+		 */
+		cam_periph_lock(periph);
 		for (uobj = addr, i = 0; i != ssc->ses_nobjects; i++, uobj++) {
 			obj.obj_id = i;
 			obj.subencid = ssc->ses_objmap[i].subenclosure;
 			obj.object_type = ssc->ses_objmap[i].enctype;
+			cam_periph_lock(periph);
 			error = copyout(&obj, uobj, sizeof (ses_object));
+			cam_periph_lock(periph);
 			if (error) {
 				break;
 			}
 		}
+		cam_periph_lock(periph);
 		break;
 
 	case SESIOC_GETENCSTAT:
+		cam_periph_lock(periph);
 		error = (*ssc->ses_vec.get_encstat)(ssc, 1);
-		if (error)
+		if (error) {
+			cam_periph_unlock(periph);
 			break;
+		}
 		tmp = ssc->ses_encstat & ~ENCI_SVALID;
+		cam_periph_unlock(periph);
 		error = copyout(&tmp, addr, sizeof (ses_encstat));
 		ssc->ses_encstat = tmp;
 		break;
@@ -600,7 +609,9 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 		error = copyin(addr, &tmp, sizeof (ses_encstat));
 		if (error)
 			break;
+		cam_periph_lock(periph);
 		error = (*ssc->ses_vec.set_encstat)(ssc, tmp, 1);
+		cam_periph_unlock(periph);
 		break;
 
 	case SESIOC_GETOBJSTAT:
@@ -611,7 +622,9 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 			error = EINVAL;
 			break;
 		}
+		cam_periph_lock(periph);
 		error = (*ssc->ses_vec.get_objstat)(ssc, &objs, 1);
+		cam_periph_unlock(periph);
 		if (error)
 			break;
 		error = copyout(&objs, addr, sizeof (ses_objstat));
@@ -630,7 +643,9 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 			error = EINVAL;
 			break;
 		}
+		cam_periph_lock(periph);
 		error = (*ssc->ses_vec.set_objstat)(ssc, &objs, 1);
+		cam_periph_unlock(periph);
 
 		/*
 		 * Always (for now) invalidate entry.
@@ -640,11 +655,15 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 
 	case SESIOC_INIT:
 
+		cam_periph_lock(periph);
 		error = (*ssc->ses_vec.init_enc)(ssc);
+		cam_periph_unlock(periph);
 		break;
 
 	default:
+		cam_periph_lock(periph);
 		error = cam_periph_ioctl(periph, cmd, arg_addr, seserror);
+		cam_periph_unlock(periph);
 		break;
 	}
 	return (error);

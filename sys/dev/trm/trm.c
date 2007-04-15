@@ -3636,6 +3636,7 @@ trm_attach(device_t dev)
 	    "trm",
 	    pACB,
 	    unit,
+	    &Giant,
 	    1,
 	    TRM_MAX_TAGS_CMD_QUEUE,
 	    device_Q);

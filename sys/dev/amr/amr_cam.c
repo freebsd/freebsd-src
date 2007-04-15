@@ -148,6 +148,7 @@ amr_cam_attach(struct amr_softc *sc)
 						  "amr",
 						  sc,
 						  device_get_unit(sc->amr_dev),
+						  &Giant,
 						  1,
 						  AMR_MAX_SCSI_CMDS,
 						  devq)) == NULL) {

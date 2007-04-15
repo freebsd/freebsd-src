@@ -1234,7 +1234,7 @@ adw_attach(struct adw_softc *adw)
 	 * Construct our SIM entry.
 	 */
 	adw->sim = cam_sim_alloc(adw_action, adw_poll, "adw", adw, adw->unit,
-				 1, adw->max_acbs, devq);
+				 &Giant, 1, adw->max_acbs, devq);
 	if (adw->sim == NULL) {
 		error = ENOMEM;
 		goto fail;

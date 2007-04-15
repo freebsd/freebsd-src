@@ -242,8 +242,7 @@ typedef union {
 typedef union {
 	void		*ptr;
 	u_long		field;
-	u_int8_t	bytes[sizeof(void *) > sizeof(u_long)
-			      ? sizeof(void *) : sizeof(u_long)];
+	u_int8_t	bytes[sizeof(uintptr_t)];
 } ccb_priv_entry;
 
 typedef union {
@@ -274,8 +273,12 @@ struct ccb_hdr {
 	ccb_ppriv_area	periph_priv;
 	ccb_spriv_area	sim_priv;
 	u_int32_t	timeout;	/* Timeout value */
+
+	/*
+	 * Deprecated, only for use by non-MPSAFE SIMs.  All others must
+	 * allocate and initialize their own callout storage.
+	 */
 	struct		callout_handle timeout_ch;
-					/* Callout handle used for timeouts */
 };
 
 /* Get Device Information CCB */

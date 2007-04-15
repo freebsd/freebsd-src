@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
+#include <cam/cam_sim.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_pass.h>
@@ -106,7 +107,7 @@ PERIPHDRIVER_DECLARE(pass, passdriver);
 
 static struct cdevsw pass_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	0,
 	.d_open =	passopen,
 	.d_close =	passclose,
 	.d_ioctl =	passioctl,
@@ -201,6 +202,7 @@ passasync(void *callback_arg, u_int32_t code,
 	  struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
+	struct cam_sim *sim;
 
 	periph = (struct cam_periph *)callback_arg;
 
@@ -219,6 +221,7 @@ passasync(void *callback_arg, u_int32_t code,
 		 * this device and start the probe
 		 * process.
 		 */
+		sim = xpt_path_sim(cgd->ccb_h.path);
 		status = cam_periph_alloc(passregister, passoninvalidate,
 					  passcleanup, passstart, "pass",
 					  CAM_PERIPH_BIO, cgd->ccb_h.path,
@@ -293,9 +296,11 @@ passregister(struct cam_periph *periph, void *arg)
 			  DEVSTAT_PRIORITY_PASS);
 
 	/* Register the device */
+	mtx_unlock(periph->sim->mtx);
 	softc->dev = make_dev(&pass_cdevsw, unit2minor(periph->unit_number),
 			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 			      periph->periph_name, periph->unit_number);
+	mtx_lock(periph->sim->mtx);
 	softc->dev->si_drv1 = periph;
 
 	/*
@@ -321,19 +326,20 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	struct cam_periph *periph;
 	struct pass_softc *softc;
 	int error;
-	int s;
 
 	error = 0; /* default to no error */
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 		return (ENXIO);
+
+	cam_periph_lock(periph);
 
 	softc = (struct pass_softc *)periph->softc;
 
-	s = splsoftcam();
 	if (softc->flags & PASS_FLAG_INVALID) {
-		splx(s);
+		cam_periph_unlock(periph);
+		cam_periph_release(periph);
 		return(ENXIO);
 	}
 
@@ -342,7 +348,8 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 */
 	error = securelevel_gt(td->td_ucred, 1);
 	if (error) {
-		splx(s);
+		cam_periph_unlock(periph);
+		cam_periph_release(periph);
 		return(error);
 	}
 
@@ -350,7 +357,8 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 * Only allow read-write access.
 	 */
 	if (((flags & FWRITE) == 0) || ((flags & FREAD) == 0)) {
-		splx(s);
+		cam_periph_unlock(periph);
+		cam_periph_release(periph);
 		return(EPERM);
 	}
 
@@ -359,21 +367,16 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 */
 	if ((flags & O_NONBLOCK) != 0) {
 		xpt_print(periph->path, "can't do nonblocking access\n");
-		splx(s);
+		cam_periph_unlock(periph);
+		cam_periph_release(periph);
 		return(EINVAL);
 	}
 
-	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
-		splx(s);
-		return (error);
-	}
-
-	splx(s);
-
 	if ((softc->flags & PASS_FLAG_OPEN) == 0) {
-		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
-			return(ENXIO);
 		softc->flags |= PASS_FLAG_OPEN;
+	} else {
+		/* Device closes aren't symmertical, so fix up the refcount */
+		cam_periph_release(periph);
 	}
 
 	cam_periph_unlock(periph);
@@ -386,17 +389,14 @@ passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct 	cam_periph *periph;
 	struct	pass_softc *softc;
-	int	error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
+	cam_periph_lock(periph);
+
 	softc = (struct pass_softc *)periph->softc;
-
-	if ((error = cam_periph_lock(periph, PRIBIO)) != 0)
-		return (error);
-
 	softc->flags &= ~PASS_FLAG_OPEN;
 
 	cam_periph_unlock(periph);
@@ -409,18 +409,15 @@ static void
 passstart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct pass_softc *softc;
-	int s;
 
 	softc = (struct pass_softc *)periph->softc;
 
 	switch (softc->state) {
 	case PASS_STATE_NORMAL:
-		s = splbio();
 		start_ccb->ccb_h.ccb_type = PASS_CCB_WAITING;			
 		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
 				  periph_links.sle);
 		periph->immediate_priority = CAM_PRIORITY_NONE;
-		splx(s);
 		wakeup(&periph->ccb_list);
 		break;
 	}
@@ -454,6 +451,7 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	if (periph == NULL)
 		return(ENXIO);
 
+	cam_periph_lock(periph);
 	softc = (struct pass_softc *)periph->softc;
 
 	error = 0;
@@ -492,7 +490,7 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 						inccb->ccb_h.pinfo.priority);
 			ccb_malloced = 0;
 		} else {
-			ccb = xpt_alloc_ccb();
+			ccb = xpt_alloc_ccb_nowait(periph->sim);
 
 			if (ccb != NULL)
 				xpt_setup_ccb(&ccb->ccb_h, periph->path,
@@ -520,6 +518,7 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		break;
 	}
 
+	cam_periph_unlock(periph);
 	return(error);
 }
 
@@ -568,7 +567,14 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 
 		bzero(&mapinfo, sizeof(mapinfo));
 
+		/*
+		 * cam_periph_mapmem calls into proc and vm functions that can
+		 * sleep as well as trigger I/O, so we can't hold the lock.
+		 * Dropping it here is reasonably safe.
+		 */
+		cam_periph_unlock(periph);
 		error = cam_periph_mapmem(ccb, &mapinfo); 
+		cam_periph_lock(periph);
 
 		/*
 		 * cam_periph_mapmem returned an error, we can't continue.
