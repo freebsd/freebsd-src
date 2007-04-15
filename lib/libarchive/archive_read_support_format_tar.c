@@ -225,28 +225,6 @@ static char	*url_decode(const char *);
 static int	utf8_decode(wchar_t *, const char *, size_t length);
 static char	*wide_to_narrow(const wchar_t *wval);
 
-/*
- * ANSI C99 defines constants for these, but not everyone supports
- * those constants, so I define a couple of static variables here and
- * compute the values.  These calculations should be portable to any
- * 2s-complement architecture.
- */
-#ifdef UINT64_MAX
-static const uint64_t max_uint64 = UINT64_MAX;
-#else
-static const uint64_t max_uint64 = ~(uint64_t)0;
-#endif
-#ifdef INT64_MAX
-static const int64_t max_int64 = INT64_MAX;
-#else
-static const int64_t max_int64 = (int64_t)((~(uint64_t)0) >> 1);
-#endif
-#ifdef INT64_MIN
-static const int64_t min_int64 = INT64_MIN;
-#else
-static const int64_t min_int64 = (int64_t)(~((~(uint64_t)0) >> 1));
-#endif
-
 int
 archive_read_support_format_gnutar(struct archive *a)
 {
@@ -1379,8 +1357,8 @@ pax_time(const wchar_t *p, int64_t *ps, long *pn)
 	int sign;
 	int64_t limit, last_digit_limit;
 
-	limit = max_int64 / 10;
-	last_digit_limit = max_int64 % 10;
+	limit = INT64_MAX / 10;
+	last_digit_limit = INT64_MAX % 10;
 
 	s = 0;
 	sign = 1;
@@ -1392,7 +1370,7 @@ pax_time(const wchar_t *p, int64_t *ps, long *pn)
 		digit = *p - '0';
 		if (s > limit ||
 		    (s == limit && digit > last_digit_limit)) {
-			s = max_uint64;
+			s = UINT64_MAX;
 			break;
 		}
 		s = (s * 10) + digit;
@@ -1593,8 +1571,8 @@ tar_atol8(const char *p, unsigned char_cnt)
 	int digit, sign, base;
 
 	base = 8;
-	limit = max_int64 / base;
-	last_digit_limit = max_int64 % base;
+	limit = INT64_MAX / base;
+	last_digit_limit = INT64_MAX % base;
 
 	while (*p == ' ' || *p == '\t')
 		p++;
@@ -1608,7 +1586,7 @@ tar_atol8(const char *p, unsigned char_cnt)
 	digit = *p - '0';
 	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
 		if (l>limit || (l == limit && digit > last_digit_limit)) {
-			l = max_uint64; /* Truncate on overflow. */
+			l = UINT64_MAX; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
@@ -1630,8 +1608,8 @@ tar_atol10(const wchar_t *p, unsigned char_cnt)
 	int base, digit, sign;
 
 	base = 10;
-	limit = max_int64 / base;
-	last_digit_limit = max_int64 % base;
+	limit = INT64_MAX / base;
+	last_digit_limit = INT64_MAX % base;
 
 	while (*p == ' ' || *p == '\t')
 		p++;
@@ -1645,7 +1623,7 @@ tar_atol10(const wchar_t *p, unsigned char_cnt)
 	digit = *p - '0';
 	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
 		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = max_uint64; /* Truncate on overflow. */
+			l = UINT64_MAX; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
@@ -1668,8 +1646,8 @@ tar_atol256(const char *_p, unsigned char_cnt)
 	int64_t	l, upper_limit, lower_limit;
 	const unsigned char *p = (const unsigned char *)_p;
 
-	upper_limit = max_int64 / 256;
-	lower_limit = min_int64 / 256;
+	upper_limit = INT64_MAX / 256;
+	lower_limit = INT64_MIN / 256;
 
 	/* Pad with 1 or 0 bits, depending on sign. */
 	if ((0x40 & *p) == 0x40)
@@ -1679,10 +1657,10 @@ tar_atol256(const char *_p, unsigned char_cnt)
 	l = (l << 6) | (0x3f & *p++);
 	while (--char_cnt > 0) {
 		if (l > upper_limit) {
-			l = max_int64; /* Truncate on overflow */
+			l = INT64_MAX; /* Truncate on overflow */
 			break;
 		} else if (l < lower_limit) {
-			l = min_int64;
+			l = INT64_MIN;
 			break;
 		}
 		l = (l << 8) | (0xff & (int64_t)*p++);
