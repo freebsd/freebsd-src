@@ -173,7 +173,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_RW,
 struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
-struct mtx	*tcbinfo_mtx;
 
 static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
 static int	 tcp_do_segment(struct mbuf *, struct tcphdr *,
