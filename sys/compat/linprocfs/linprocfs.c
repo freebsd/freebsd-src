@@ -449,6 +449,7 @@ linprocfs_osbuild(struct thread *td, struct sbuf *sb)
 static void
 linprocfs_osbuilder(struct thread *td, struct sbuf *sb)
 {
+#if 0
 	char builder[256];
 	char *cp;
 
@@ -463,6 +464,7 @@ linprocfs_osbuilder(struct thread *td, struct sbuf *sb)
 	if (cp)
 		sbuf_cat(sb, builder);
 	else
+#endif
 		sbuf_cat(sb, "des@freebsd.org");
 }
 
@@ -492,6 +494,7 @@ linprocfs_doversion(PFS_FILL_ARGS)
 static int
 linprocfs_doloadavg(PFS_FILL_ARGS)
 {
+
 	sbuf_printf(sb,
 	    "%d.%02d %d.%02d %d.%02d %d/%d %d\n",
 	    (int)(averunnable.ldavg[0] / averunnable.fscale),
@@ -504,7 +507,6 @@ linprocfs_doloadavg(PFS_FILL_ARGS)
 	    nprocs,			/* number of tasks */
 	    lastpid			/* the last pid */
 	);
-
 	return (0);
 }
 
@@ -843,8 +845,8 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 static int
 linprocfs_doprocenviron(PFS_FILL_ARGS)
 {
-	sbuf_printf(sb, "doprocenviron\n%c", '\0');
 
+	sbuf_printf(sb, "doprocenviron\n%c", '\0');
 	return (0);
 }
 
@@ -867,23 +869,23 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	struct vnode *vp;
 	struct vattr vat;
 	int locked;
-	
+
 	PROC_LOCK(p);
 	error = p_candebug(td, p);
 	PROC_UNLOCK(p);
 	if (error)
 		return (error);
-	
+
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
-	
+
 	if (uio->uio_offset != 0)
 		return (0);
-	
+
 	error = 0;
 	if (map != &curthread->td_proc->p_vmspace->vm_map)
 		vm_map_lock_read(map);
-        for (entry = map->header.next;
+	for (entry = map->header.next;
 	    ((uio->uio_resid > 0) && (entry != &map->header));
 	    entry = entry->next) {
 		name = "";
@@ -922,9 +924,9 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 			ref_count = 0;
 			shadow_count = 0;
 		}
-		
+
 		/*
-	     	 * format:
+		 * format:
 		 *  start, end, access, offset, major, minor, inode, name.
 		 */
 		snprintf(mebuffer, sizeof mebuffer,
@@ -955,10 +957,10 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	}
 	if (map != &curthread->td_proc->p_vmspace->vm_map)
 		vm_map_unlock_read(map);
-	
+
 	return (error);
-}	
-	
+}
+
 /*
  * Filler function for proc/net/dev
  */
@@ -1021,9 +1023,9 @@ linprocfs_doostype(PFS_FILL_ARGS)
 static int
 linprocfs_doosbuild(PFS_FILL_ARGS)
 {
+
 	linprocfs_osbuild(td, sb);
 	sbuf_cat(sb, "\n");
-
 	return (0);
 }
 
@@ -1035,7 +1037,6 @@ linprocfs_domsgmni(PFS_FILL_ARGS)
 {
 
 	sbuf_printf(sb, "%d\n", msginfo.msgmni);
-
 	return (0);
 }
 
@@ -1047,7 +1048,6 @@ linprocfs_dopid_max(PFS_FILL_ARGS)
 {
 
 	sbuf_printf(sb, "%i\n", PID_MAX);
-
 	return (0);
 }
 
@@ -1060,7 +1060,6 @@ linprocfs_dosem(PFS_FILL_ARGS)
 
 	sbuf_printf(sb, "%d %d %d %d\n", seminfo.semmsl, seminfo.semmns,
 	    seminfo.semopm, seminfo.semmni);
-
 	return (0);
 }
 
@@ -1070,6 +1069,7 @@ linprocfs_dosem(PFS_FILL_ARGS)
 static int
 linprocfs_doscsidevinfo(PFS_FILL_ARGS)
 {
+
 	return (0);
 }
 
@@ -1079,6 +1079,7 @@ linprocfs_doscsidevinfo(PFS_FILL_ARGS)
 static int
 linprocfs_doscsiscsi(PFS_FILL_ARGS)
 {
+
 	return (0);
 }
 
@@ -1108,6 +1109,7 @@ linprocfs_dodevices(PFS_FILL_ARGS)
 static int
 linprocfs_docmdline(PFS_FILL_ARGS)
 {
+
 	sbuf_printf(sb, "BOOT_IMAGE=%s", kernelname);
 	sbuf_printf(sb, " ro root=302\n");
 	return (0);
