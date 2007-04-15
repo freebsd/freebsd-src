@@ -91,8 +91,6 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	int wrap32 = 0;
 #endif
 
-	GIANT_REQUIRED;
-
 	PROC_LOCK(p);
 	error = p_candebug(td, p);
 	PROC_UNLOCK(p);
@@ -112,6 +110,9 @@ procfs_doprocmap(PFS_FILL_ARGS)
                 wrap32 = 1;
         }
 #endif
+
+	mtx_lock(&Giant);
+
 	error = 0;
 	if (map != &curthread->td_proc->p_vmspace->vm_map)
 		vm_map_lock_read(map);
@@ -212,6 +213,8 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	}
 	if (map != &curthread->td_proc->p_vmspace->vm_map)
 		vm_map_unlock_read(map);
+
+	mtx_unlock(&Giant);
 
 	return (error);
 }
