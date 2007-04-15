@@ -605,8 +605,8 @@ aha_attach(struct aha_softc *aha)
 	/*
 	 * Construct our SIM entry
 	 */
-	aha->sim = cam_sim_alloc(ahaaction, ahapoll, "aha", aha, aha->unit, 2,
-	    tagged_dev_openings, devq);
+	aha->sim = cam_sim_alloc(ahaaction, ahapoll, "aha", aha, aha->unit,
+	     &Giant, 2, tagged_dev_openings, devq);
 	if (aha->sim == NULL) {
 		cam_simq_free(devq);
 		return (ENOMEM);

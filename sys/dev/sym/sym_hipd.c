@@ -8973,7 +8973,7 @@ static int sym_cam_attach(hcb_p np)
 	 *  Construct our SIM entry.
 	 */
 	sim = cam_sim_alloc(sym_action, sym_poll, "sym", np, np->unit,
-			    1, SYM_SETUP_MAX_TAG, devq);
+			    &Giant, 1, SYM_SETUP_MAX_TAG, devq);
 	if (!sim)
 		goto fail;
 	devq = 0;

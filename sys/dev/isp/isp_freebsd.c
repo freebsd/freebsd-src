@@ -137,7 +137,7 @@ isp_attach(ispsoftc_t *isp)
 	 */
 	ISPLOCK_2_CAMLOCK(isp);
 	sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
-	    device_get_unit(isp->isp_dev), 1, isp->isp_maxcmds, devq);
+	    device_get_unit(isp->isp_dev), &Giant, 1, isp->isp_maxcmds, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		CAMLOCK_2_ISPLOCK(isp);
@@ -224,7 +224,8 @@ isp_attach(ispsoftc_t *isp)
 	if (IS_DUALBUS(isp)) {
 		ISPLOCK_2_CAMLOCK(isp);
 		sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
-		    device_get_unit(isp->isp_dev), 1, isp->isp_maxcmds, devq);
+		    device_get_unit(isp->isp_dev), &Giant, 1,
+		    isp->isp_maxcmds, devq);
 		if (sim == NULL) {
 			xpt_bus_deregister(cam_sim_path(isp->isp_sim));
 			xpt_free_path(isp->isp_path);
@@ -2147,7 +2148,7 @@ isp_make_here(ispsoftc_t *isp, int tgt)
 	 * Allocate a CCB, create a wildcard path for this bus,
 	 * and schedule a rescan.
 	 */
-	ccb = xpt_alloc_ccb_nowait();
+	ccb = xpt_alloc_ccb_nowait(isp->isp_osinfo.sim);
 	if (ccb == NULL) {
 		isp_prt(isp, ISP_LOGWARN, "unable to alloc CCB for rescan");
 		CAMLOCK_2_ISPLOCK(mpt);

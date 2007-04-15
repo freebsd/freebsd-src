@@ -1626,7 +1626,7 @@ sbp_targ_attach(device_t dev)
 		return (ENXIO);
 
 	sc->sim = cam_sim_alloc(sbp_targ_action, sbp_targ_poll,
-	    "sbp_targ", sc, device_get_unit(dev),
+	    "sbp_targ", sc, device_get_unit(dev), &Giant,
 	    /*untagged*/ 1, /*tagged*/ 1, devq);
 	if (sc->sim == NULL) {
 		cam_simq_free(devq);

@@ -30,6 +30,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/malloc.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>
@@ -1540,7 +1543,7 @@ aic_attach(struct aic_softc *aic)
 	 * Construct our SIM entry
 	 */
 	aic->sim = cam_sim_alloc(aic_action, aic_poll, "aic", aic,
-				 aic->unit, 2, 256, devq);
+				 aic->unit, &Giant, 2, 256, devq);
 	if (aic->sim == NULL) {
 		cam_simq_free(devq);
 		return (ENOMEM);

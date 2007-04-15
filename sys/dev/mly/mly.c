@@ -1945,6 +1945,7 @@ mly_cam_attach(struct mly_softc *sc)
 
 	    if ((sc->mly_cam_sim[chn] = cam_sim_alloc(mly_cam_action, mly_cam_poll, "mly", sc,
 						      device_get_unit(sc->mly_dev),
+						      &Giant,
 						      sc->mly_controllerinfo->maximum_parallel_commands,
 						      1, devq)) == NULL) {
 		return(ENOMEM);
@@ -1964,6 +1965,7 @@ mly_cam_attach(struct mly_softc *sc)
     for (i = 0; i < sc->mly_controllerinfo->virtual_channels_present; i++, chn++) {
 	if ((sc->mly_cam_sim[chn] = cam_sim_alloc(mly_cam_action, mly_cam_poll, "mly", sc,
 						  device_get_unit(sc->mly_dev),
+						  &Giant,
 						  sc->mly_controllerinfo->maximum_parallel_commands,
 						  0, devq)) == NULL) {
 	    return(ENOMEM);

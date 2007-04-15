@@ -311,7 +311,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Construct our SIM entry.
 	 */
 	mpt->sim = cam_sim_alloc(mpt_action, mpt_poll, "mpt", mpt,
-	    mpt->unit, 1, maxq, devq);
+	    mpt->unit, &Giant, 1, maxq, devq);
 	if (mpt->sim == NULL) {
 		mpt_prt(mpt, "Unable to allocate CAM SIM!\n");
 		cam_simq_free(devq);
@@ -348,7 +348,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Create a "bus" to export all hidden disks to CAM.
 	 */
 	mpt->phydisk_sim = cam_sim_alloc(mpt_action, mpt_poll, "mpt", mpt,
-	    mpt->unit, 1, maxq, devq);
+	    mpt->unit, &Giant, 1, maxq, devq);
 	if (mpt->phydisk_sim == NULL) {
 		mpt_prt(mpt, "Unable to allocate Physical Disk CAM SIM!\n");
 		error = ENOMEM;
@@ -2087,6 +2087,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 	{
 		union ccb *ccb;
 		uint32_t pathid;
+		struct cam_sim *sim;
 		/*
 		 * In general this means a device has been added to the loop.
 		 */
@@ -2095,16 +2096,17 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			break;
 		}
 		if (mpt->phydisk_sim) {
-			pathid = cam_sim_path(mpt->phydisk_sim);;
+			sim = mpt->phydisk_sim;
 		} else {
-			pathid = cam_sim_path(mpt->sim);
+			sim = mpt->sim;
 		}
+		pathid = cam_sim_path(sim);
 		MPTLOCK_2_CAMLOCK(mpt);
 		/*
 		 * Allocate a CCB, create a wildcard path for this bus,
 		 * and schedule a rescan.
 		 */
-		ccb = xpt_alloc_ccb_nowait();
+		ccb = xpt_alloc_ccb_nowait(sim);
 		if (ccb == NULL) {
 			mpt_prt(mpt, "unable to alloc CCB for rescan\n");
 			CAMLOCK_2_MPTLOCK(mpt);

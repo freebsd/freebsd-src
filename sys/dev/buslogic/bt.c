@@ -874,7 +874,7 @@ bt_attach(device_t dev)
 	 * Construct our SIM entry
 	 */
 	bt->sim = cam_sim_alloc(btaction, btpoll, "bt", bt, bt->unit,
-				2, tagged_dev_openings, devq);
+				&Giant, 2, tagged_dev_openings, devq);
 	if (bt->sim == NULL) {
 		cam_simq_free(devq);
 		return (ENOMEM);

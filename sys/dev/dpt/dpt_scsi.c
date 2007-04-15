@@ -1566,7 +1566,8 @@ dpt_attach(dpt_softc_t *dpt)
 		 * Construct our SIM entry
 		 */
 		dpt->sims[i] = cam_sim_alloc(dpt_action, dpt_poll, "dpt",
-					     dpt, dpt->unit, /*untagged*/2,
+					     dpt, dpt->unit, &Giant,
+					     /*untagged*/2,
 					     /*tagged*/dpt->max_dccbs, devq);
 		if (dpt->sims[i] == NULL) {
 			if (i == 0)
