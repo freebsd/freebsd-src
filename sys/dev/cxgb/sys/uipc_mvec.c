@@ -42,11 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <dev/cxgb/sys/mvec.h>
-
 #include "opt_zero.h"
-#ifdef ZERO_COPY_SOCKETS
-#error "ZERO_COPY_SOCKETS not supported with mvec"
-#endif
 
 #ifdef DEBUG
 #define DPRINTF printf
@@ -161,10 +157,15 @@ m_vectorize(struct mbuf *m, int max, struct mbuf **vec, int *count)
 	for (i = 0; i < max; i++) {
 		if (m == NULL)
 			break;
-#ifndef PACKET_ZONE_DISABLED
+#ifndef MBUF_PACKET_ZONE_DISABLE
 		if ((m->m_flags & M_EXT) && (m->m_ext.ext_type == EXT_PACKET))
 			return (EINVAL);
 #endif
+#ifdef ZERO_COPY_SOCKETS
+		if ((m->m_flags & M_EXT) && (m->m_ext.ext_type == EXT_SFBUF))		
+			return (EINVAL);
+#endif
+
 		if (m->m_len == 0)
 			DPRINTF("m=%p is len=0\n", m);
 		M_SANITY(m, 0);
