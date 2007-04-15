@@ -44,43 +44,43 @@ __FBSDID("$FreeBSD$");
  * Any new logging added must also define SCTP_STAT_LOGGING if
  * its not already defined.
  */
-#if defined(SCTP_LOG_MAXBURST) | defined(SCTP_LOG_RWND) | defined(SCTP_LOG_RWND)
+#if defined(SCTP_LOG_MAXBURST) || defined(SCTP_LOG_RWND) || defined(SCTP_LOG_RWND)
 #ifndef SCTP_STAT_LOGGING
 #define SCTP_STAT_LOGGING 1
 #endif
 #endif
 
-#if defined(SCTP_CWND_LOGGING) | defined(SCTP_CWND_MONITOR) | defined(SCTP_BLK_LOGGING)
+#if defined(SCTP_CWND_LOGGING) || defined(SCTP_CWND_MONITOR) || defined(SCTP_BLK_LOGGING)
 #ifndef SCTP_STAT_LOGGING
 #define SCTP_STAT_LOGGING 1
 #endif
 #endif
 
-#if defined(SCTP_STR_LOGGING) | defined(SCTP_FR_LOGGING) defined(SCTP_MAP_LOGGING)
+#if defined(SCTP_STR_LOGGING) || defined(SCTP_FR_LOGGING) || defined(SCTP_MAP_LOGGING)
 #ifndef SCTP_STAT_LOGGING
 #define SCTP_STAT_LOGGING 1
 #endif
 #endif
 
-#if defined(SCTP_SACK_LOGGING) | defined(SCTP_LOCK_LOGGING) | defined(SCTP_STAT_LOGGING)
+#if defined(SCTP_SACK_LOGGING) || defined(SCTP_LOCK_LOGGING) || defined(SCTP_STAT_LOGGING)
 #ifndef SCTP_STAT_LOGGING
 #define SCTP_STAT_LOGGING 1
 #endif
 #endif
 
-#if defined(SCTP_RTTVAR_LOGGING) | defined(SCTP_SB_LOGGING) | defined(SCTP_EARLYFR_LOGGING)
+#if defined(SCTP_RTTVAR_LOGGING) || defined(SCTP_SB_LOGGING) || defined(SCTP_EARLYFR_LOGGING)
 #ifndef SCTP_STAT_LOGGING
 #define SCTP_STAT_LOGGING 1
 #endif
 #endif
 
-#if defined(SCTP_NAGLE_LOGGING) | defined(SCTP_WAKE_LOGGING) | defined(SCTP_RECV_RWND_LOGGING)
+#if defined(SCTP_NAGLE_LOGGING) || defined(SCTP_WAKE_LOGGING) || defined(SCTP_RECV_RWND_LOGGING)
 #ifndef SCTP_STAT_LOGGING
 #define SCTP_STAT_LOGGING 1
 #endif
 #endif
 
-#if defined(SCTP_SACK_RWND_LOGGING) | defined(SCTP_FLIGHT_LOGGING) | defined(SCTP_MBUF_LOGGING)
+#if defined(SCTP_SACK_RWND_LOGGING) || defined(SCTP_FLIGHT_LOGGING) || defined(SCTP_MBUF_LOGGING)
 #ifndef SCTP_STAT_LOGGING
 #define SCTP_STAT_LOGGING 1
 #endif
