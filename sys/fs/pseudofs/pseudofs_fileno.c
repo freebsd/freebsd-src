@@ -77,9 +77,11 @@ void
 pfs_fileno_alloc(struct pfs_node *pn)
 {
 
-	/* make sure our parent has a file number */
-	if (pn->pn_parent && !pn->pn_parent->pn_fileno)
-		pfs_fileno_alloc(pn->pn_parent);
+	if (pn->pn_parent)
+		PFS_TRACE(("%s/%s", pn->pn_parent->pn_name, pn->pn_name));
+	else
+		PFS_TRACE(("%s", pn->pn_name));
+	pfs_assert_not_owned(pn);
 
 	switch (pn->pn_type) {
 	case pfstype_root:
@@ -94,28 +96,28 @@ pfs_fileno_alloc(struct pfs_node *pn)
 		break;
 	case pfstype_this:
 		KASSERT(pn->pn_parent != NULL,
-		    ("pfstype_this node has no parent"));
+		    ("%s(): pfstype_this node has no parent", __func__));
 		pn->pn_fileno = pn->pn_parent->pn_fileno;
 		break;
 	case pfstype_parent:
 		KASSERT(pn->pn_parent != NULL,
-		    ("pfstype_parent node has no parent"));
-		if (pn->pn_parent == pn->pn_info->pi_root) {
+		    ("%s(): pfstype_parent node has no parent", __func__));
+		if (pn->pn_parent->pn_type == pfstype_root) {
 			pn->pn_fileno = pn->pn_parent->pn_fileno;
 			break;
 		}
 		KASSERT(pn->pn_parent->pn_parent != NULL,
-		    ("pfstype_parent node has no grandparent"));
+		    ("%s(): pfstype_parent node has no grandparent", __func__));
 		pn->pn_fileno = pn->pn_parent->pn_parent->pn_fileno;
 		break;
 	case pfstype_none:
 		KASSERT(0,
-		    ("pfs_fileno_alloc() called for pfstype_none node"));
+		    ("%s(): pfstype_none node", __func__));
 		break;
 	}
 
 #if 0
-	printf("pfs_fileno_alloc(): %s: ", pn->pn_info->pi_name);
+	printf("%s(): %s: ", __func__, pn->pn_info->pi_name);
 	if (pn->pn_parent) {
 		if (pn->pn_parent->pn_parent) {
 			printf("%s/", pn->pn_parent->pn_parent->pn_name);
@@ -132,6 +134,8 @@ pfs_fileno_alloc(struct pfs_node *pn)
 void
 pfs_fileno_free(struct pfs_node *pn)
 {
+
+	pfs_assert_not_owned(pn);
 
 	switch (pn->pn_type) {
 	case pfstype_root:
