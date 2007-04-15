@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 
 uint32_t collapse_free = 0;
 uint32_t mb_free_vec_free = 0;
-
+int      collapse_mbufs = 1;
 
 #define USE_GTS 0
 
@@ -837,13 +837,6 @@ busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
 	m0 = *m;
 	pktlen = m0->m_pkthdr.len;
 
-	if ((stx->flags & TX_SW_DESC_MAP_CREATED) == 0) {
-		if ((err = bus_dmamap_create(txq->entry_tag, 0, &stx->map))) {
-			log(LOG_WARNING, "bus_dmamap_create failed %d\n", err);
-			return (err);
-		}
-		stx->flags |= TX_SW_DESC_MAP_CREATED;
-	}
 	err = bus_dmamap_load_mvec_sg(txq->entry_tag, stx->map, m0, segs, nsegs, 0);
 #ifdef DEBUG		
 	if (err) {
@@ -2264,7 +2257,10 @@ t3_add_sysctls(adapter_t *sc)
 	    "mb_free_vec_free",
 	    CTLFLAG_RD, &mb_free_vec_free,
 	    0, "frees during mb_free_vec");
-
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "collapse_mbufs",
+	    CTLFLAG_RW, &collapse_mbufs,
+	    0, "collapse mbuf chains into iovecs");
 }
 
 /**
