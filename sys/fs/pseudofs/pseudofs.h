@@ -73,7 +73,6 @@ typedef enum {
 #define	PFS_RAWWR	0x0008	/* raw writer */
 #define PFS_RAW		(PFS_RAWRD|PFS_RAWWR)
 #define PFS_PROCDEP	0x0010	/* process-dependent */
-#define PFS_DISABLED	0x8000	/* node is disabled */
 
 /*
  * Data structures
@@ -87,27 +86,35 @@ struct pfs_bitmap;
  */
 #define PFS_INIT_ARGS \
 	struct pfs_info *pi, struct vfsconf *vfc
+#define PFS_INIT_ARGNAMES \
+	pi, vfc
 #define PFS_INIT_PROTO(name) \
 	int name(PFS_INIT_ARGS);
 typedef int (*pfs_init_t)(PFS_INIT_ARGS);
 
 /*
  * Filler callback
+ * Called with proc held but unlocked
  */
 #define PFS_FILL_ARGS \
 	struct thread *td, struct proc *p, struct pfs_node *pn, \
 	struct sbuf *sb, struct uio *uio
+#define PFS_FILL_ARGNAMES \
+	td, p, pn, sb, uio
 #define PFS_FILL_PROTO(name) \
 	int name(PFS_FILL_ARGS);
 typedef int (*pfs_fill_t)(PFS_FILL_ARGS);
 
 /*
  * Attribute callback
+ * Called with proc locked
  */
 struct vattr;
 #define PFS_ATTR_ARGS \
 	struct thread *td, struct proc *p, struct pfs_node *pn, \
 	struct vattr *vap
+#define PFS_ATTR_ARGNAMES \
+	td, p, pn, vap
 #define PFS_ATTR_PROTO(name) \
 	int name(PFS_ATTR_ARGS);
 typedef int (*pfs_attr_t)(PFS_ATTR_ARGS);
@@ -116,30 +123,39 @@ struct pfs_bitmap;		/* opaque */
 
 /*
  * Visibility callback
+ * Called with proc locked
  */
 #define PFS_VIS_ARGS \
 	struct thread *td, struct proc *p, struct pfs_node *pn
+#define PFS_VIS_ARGNAMES \
+	td, p, pn
 #define PFS_VIS_PROTO(name) \
 	int name(PFS_VIS_ARGS);
 typedef int (*pfs_vis_t)(PFS_VIS_ARGS);
 
 /*
  * Ioctl callback
+ * Called with proc locked
  */
 #define PFS_IOCTL_ARGS \
 	struct thread *td, struct proc *p, struct pfs_node *pn, \
 	unsigned long cmd, void *data
+#define PFS_IOCTL_ARGNAMES \
+	td, p, pn, cmd, data
 #define PFS_IOCTL_PROTO(name) \
 	int name(PFS_IOCTL_ARGS);
 typedef int (*pfs_ioctl_t)(PFS_IOCTL_ARGS);
 
 /*
  * Getextattr callback
+ * Called with proc locked
  */
 #define PFS_GETEXTATTR_ARGS \
 	struct thread *td, struct proc *p, struct pfs_node *pn, \
 	int attrnamespace, const char *name, struct uio *uio,	\
 	size_t *size, struct ucred *cred
+#define PFS_GETEXTATTR_ARGNAMES \
+	td, p, pn, attrnamespace, name, uio, size, cred
 #define PFS_GETEXTATTR_PROTO(name) \
 	int name(PFS_GETEXTATTR_ARGS);
 struct ucred;
@@ -147,9 +163,12 @@ typedef int (*pfs_getextattr_t)(PFS_GETEXTATTR_ARGS);
 
 /*
  * Last-close callback
+ * Called with proc locked
  */
 #define PFS_CLOSE_ARGS \
 	struct thread *td, struct proc *p, struct pfs_node *pn
+#define PFS_CLOSE_ARGNAMES \
+	td, p, pn
 #define PFS_CLOSE_PROTO(name) \
 	int name(PFS_CLOSE_ARGS);
 typedef int (*pfs_close_t)(PFS_CLOSE_ARGS);
@@ -159,6 +178,8 @@ typedef int (*pfs_close_t)(PFS_CLOSE_ARGS);
  */
 #define PFS_DESTROY_ARGS \
 	struct pfs_node *pn
+#define PFS_DESTROY_ARGNAMES \
+	pn
 #define PFS_DESTROY_PROTO(name) \
 	int name(PFS_DESTROY_ARGS);
 typedef int (*pfs_destroy_t)(PFS_DESTROY_ARGS);
@@ -183,30 +204,38 @@ struct pfs_info {
 
 /*
  * pfs_node: describes a node (file or directory) within a pseudofs
+ *
+ * - Fields marked (o) are protected by the node's own mutex.
+ * - Fields marked (p) are protected by the node's parent's mutex.
+ * - Remaining fields are not protected by any lock and are assumed to be
+ *   immutable once the node has been created.
+ *
+ * To prevent deadlocks, if a node's mutex is to be held at the same time
+ * as its parent's (e.g. when adding or removing nodes to a directory),
+ * the parent's mutex must always be acquired first.  Unfortunately, this
+ * is not enforcable by WITNESS.
  */
 struct pfs_node {
 	char			 pn_name[PFS_NAMELEN];
 	pfs_type_t		 pn_type;
-	union {
-		void		*_pn_dummy;
-		pfs_fill_t	 _pn_func;
-		struct pfs_node	*_pn_nodes;
-	} u1;
-#define pn_func		u1._pn_func
-#define pn_nodes	u1._pn_nodes
+	int			 pn_flags;
+	struct mtx		 pn_mutex;
+	void			*pn_data;		/* (o) */
+
+	pfs_fill_t		 pn_fill;
 	pfs_ioctl_t		 pn_ioctl;
 	pfs_close_t		 pn_close;
 	pfs_attr_t		 pn_attr;
 	pfs_vis_t		 pn_vis;
 	pfs_getextattr_t	 pn_getextattr;
 	pfs_destroy_t		 pn_destroy;
-	void			*pn_data;
-	int			 pn_flags;
 
 	struct pfs_info		*pn_info;
-	struct pfs_node		*pn_parent;
-	struct pfs_node		*pn_next;
-	u_int32_t		 pn_fileno;
+	u_int32_t		 pn_fileno;		/* (o) */
+
+	struct pfs_node		*pn_parent;		/* (o) */
+	struct pfs_node		*pn_nodes;		/* (o) */
+	struct pfs_node		*pn_next;		/* (p) */
 };
 
 /*
@@ -241,8 +270,6 @@ struct pfs_node	*pfs_create_link(struct pfs_node *parent, const char *name,
 				 int flags);
 struct pfs_node	*pfs_find_node	(struct pfs_node *parent, const char *name);
 void		 pfs_purge	(struct pfs_node *pn);
-int		 pfs_disable	(struct pfs_node *pn);
-int		 pfs_enable	(struct pfs_node *pn);
 int		 pfs_destroy	(struct pfs_node *pn);
 
 /*
