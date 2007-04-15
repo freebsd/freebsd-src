@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_zero.h"
 
 #include <vm/vm.h>
+#include <vm/vm_page.h>
 #include <vm/pmap.h>
 
 #ifdef DEBUG
