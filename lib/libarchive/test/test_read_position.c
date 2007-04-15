@@ -47,6 +47,7 @@ DEFINE_TEST(test_read_position)
 	assertA(0 == archive_write_set_bytes_per_block(a, 512));
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &write_pos));
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 	assertA(data_size == archive_write_data(a, nulls, sizeof(nulls)));
 #if ARCHIVE_API_VERSION > 1
 	assertA(0 == archive_write_finish(a));

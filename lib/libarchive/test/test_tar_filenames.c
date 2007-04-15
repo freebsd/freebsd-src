@@ -66,6 +66,7 @@ test_filename(int dlen, int flen)
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	failure("Pathname %d/%d", dlen, flen);
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 
 	/*
 	 * Write a dir to it (without trailing '/').
@@ -75,6 +76,7 @@ test_filename(int dlen, int flen)
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
 	failure("Dirname %d/%d", dlen, flen);
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 
 	/* Tar adds a '/' to directory names. */
 	strcat(dirname, "/");
@@ -87,6 +89,7 @@ test_filename(int dlen, int flen)
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
 	failure("Dirname %d/%d", dlen, flen);
 	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));

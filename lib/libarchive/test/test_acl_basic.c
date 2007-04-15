@@ -174,6 +174,7 @@ compare_acls(struct archive_entry *ae, struct acl_t *acls, int n, int mode)
 	    acls[marker[0]].type, acls[marker[0]].permset,
 	    acls[marker[0]].tag, acls[marker[0]].qual, acls[marker[0]].name);
 	assert(n == 0); /* Number of ACLs not matched should == 0 */
+	free(marker);
 }
 
 DEFINE_TEST(test_acl_basic)
@@ -224,4 +225,5 @@ DEFINE_TEST(test_acl_basic)
 	failure("Basic ACLs should set mode to 0142, not %04o",
 	    archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0142);
+	archive_entry_free(ae);
 }
