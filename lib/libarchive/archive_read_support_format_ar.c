@@ -556,13 +556,12 @@ bad_string_table:
 static uint64_t
 ar_atol8(const char *p, unsigned char_cnt)
 {
-	static const uint64_t max_uint64 = ~(uint64_t)0;
 	uint64_t l, limit, last_digit_limit;
 	unsigned int digit, base;
 
 	base = 8;
-	limit = max_uint64 / base;
-	last_digit_limit = max_uint64 % base;
+	limit = UINT64_MAX / base;
+	last_digit_limit = UINT64_MAX % base;
 
 	while ((*p == ' ' || *p == '\t') && char_cnt-- > 0)
 		p++;
@@ -571,7 +570,7 @@ ar_atol8(const char *p, unsigned char_cnt)
 	digit = *p - '0';
 	while (*p >= '0' && digit < base  && char_cnt-- > 0) {
 		if (l>limit || (l == limit && digit > last_digit_limit)) {
-			l = max_uint64; /* Truncate on overflow. */
+			l = UINT64_MAX; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
@@ -583,13 +582,12 @@ ar_atol8(const char *p, unsigned char_cnt)
 static uint64_t
 ar_atol10(const char *p, unsigned char_cnt)
 {
-	static const uint64_t max_uint64 = ~(uint64_t)0;
 	uint64_t l, limit, last_digit_limit;
 	unsigned int base, digit;
 
 	base = 10;
-	limit = max_uint64 / base;
-	last_digit_limit = max_uint64 % base;
+	limit = UINT64_MAX / base;
+	last_digit_limit = UINT64_MAX % base;
 
 	while ((*p == ' ' || *p == '\t') && char_cnt-- > 0)
 		p++;
@@ -597,7 +595,7 @@ ar_atol10(const char *p, unsigned char_cnt)
 	digit = *p - '0';
 	while (*p >= '0' && digit < base  && char_cnt-- > 0) {
 		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = max_uint64; /* Truncate on overflow. */
+			l = UINT64_MAX; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
