@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#29 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#32 $
  * $FreeBSD$
  */
 
@@ -475,6 +475,28 @@
 #define	AUE_READDIR		43118	/* Linux. */
 #define	AUE_IOPL		43119	/* Linux. */
 #define	AUE_VM86		43120	/* Linux. */
+#define	AUE_MAC_GET_PROC	43121	/* FreeBSD. */
+#define	AUE_MAC_SET_PROC	43122	/* FreeBSD. */
+#define	AUE_MAC_GET_FD		43123	/* FreeBSD. */
+#define	AUE_MAC_GET_FILE	43124	/* FreeBSD. */
+#define	AUE_MAC_SET_FD		43125	/* FreeBSD. */
+#define	AUE_MAC_SET_FILE	43126	/* FreeBSD. */
+#define	AUE_MAC_SYSCALL		43127	/* FreeBSD. */
+#define	AUE_MAC_GET_PID		43128	/* FreeBSD. */
+#define	AUE_MAC_GET_LINK	43129	/* FreeBSD. */
+#define	AUE_MAC_SET_LINK	43130	/* FreeBSD. */
+#define	AUE_MAC_EXECVE		43131	/* FreeBSD. */
+#define	AUE_GETPATH_FROMFD	43132	/* FreeBSD. */
+#define	AUE_GETPATH_FROMADDR	43133	/* FreeBSD. */
+#define	AUE_MQ_OPEN		43134	/* FreeBSD. */
+#define	AUE_MQ_SETATTR		43135	/* FreeBSD. */
+#define	AUE_MQ_TIMEDRECEIVE	43136	/* FreeBSD. */
+#define	AUE_MQ_TIMEDSEND	43137	/* FreeBSD. */
+#define	AUE_MQ_NOTIFY		43138	/* FreeBSD. */
+#define	AUE_MQ_UNLINK		43139	/* FreeBSD. */
+#define	AUE_LISTEN		43140	/* FreeBSD/Darwin/Linux. */
+#define	AUE_MLOCKALL		43141	/* FreeBSD. */
+#define	AUE_MUNLOCKALL		43142	/* FreeBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
@@ -572,16 +594,13 @@
 #define	AUE_GETSOCKOPT		AUE_NULL
 #define	AUE_GTSOCKOPT		AUE_GETSOCKOPT	/* XXX: Typo in Darwin. */
 #define	AUE_ISSETUGID		AUE_NULL
-#define	AUE_LISTEN		AUE_NULL
 #define	AUE_LSTATV		AUE_NULL
 #define	AUE_MADVISE		AUE_NULL
 #define	AUE_MINCORE		AUE_NULL
 #define	AUE_MKCOMPLEX		AUE_NULL
-#define	AUE_MLOCKALL		AUE_NULL
 #define	AUE_MODWATCH		AUE_NULL
 #define	AUE_MSGCL		AUE_NULL
 #define	AUE_MSYNC		AUE_NULL
-#define	AUE_MUNLOCKALL		AUE_NULL
 #define	AUE_PREAD		AUE_NULL
 #define	AUE_PWRITE		AUE_NULL
 #define	AUE_PREADV		AUE_NULL
