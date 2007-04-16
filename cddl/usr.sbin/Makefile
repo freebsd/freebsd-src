@@ -2,13 +2,12 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=
-.if ${MK_ZFS} != "no"
-SUBDIR+=${_zdb}
-.endif
+SUBDIR=	${_zdb}
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MK_ZFS} != "no"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _zdb=	zdb
+.endif
 .endif
 
 .include <bsd.subdir.mk>

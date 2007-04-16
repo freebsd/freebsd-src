@@ -2,10 +2,11 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=
+SUBDIR=	${_zfs} ${_zpool}
+
 .if ${MK_ZFS} != "no"
-SUBDIR+=zfs
-SUBDIR+=zpool
+_zfs=	zfs
+_zpool=	zpool
 .endif
 
 .include <bsd.subdir.mk>
