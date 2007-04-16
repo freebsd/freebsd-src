@@ -501,7 +501,6 @@ cam_periph_invalidate(struct cam_periph *periph)
 static void
 camperiphfree(struct cam_periph *periph)
 {
-	int s;
 	struct periph_driver **p_drv;
 
 	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
@@ -512,15 +511,13 @@ camperiphfree(struct cam_periph *periph)
 		printf("camperiphfree: attempt to free non-existant periph\n");
 		return;
 	}
-	
-	if (periph->periph_dtor != NULL)
-		periph->periph_dtor(periph);
-	
-	s = splsoftcam();
+
 	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
 	(*p_drv)->generation++;
-	splx(s);
+	xpt_unlock_buses();
 
+	if (periph->periph_dtor != NULL)
+		periph->periph_dtor(periph);
 	xpt_remove_periph(periph);
 
 	if (periph->flags & CAM_PERIPH_NEW_DEV_FOUND) {
@@ -549,6 +546,7 @@ camperiphfree(struct cam_periph *periph)
 	}
 	xpt_free_path(periph->path);
 	free(periph, M_CAMPERIPH);
+	xpt_lock_buses();
 }
 
 /*
