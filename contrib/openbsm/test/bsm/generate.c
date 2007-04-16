@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Robert N. M. Watson
+ * Copyright (c) 2006-2007 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/test/bsm/generate.c#5 $
+ * $P4: //depot/projects/trustedbsd/openbsm/test/bsm/generate.c#9 $
  */
 
 /*
@@ -335,6 +335,7 @@ generate_subject32ex_token(const char *directory, const char *token_filename,
 	if (subject32ex_token == NULL)
 		err(EX_UNAVAILABLE, "au_to_subject32_ex");
 	write_token(directory, buf, subject32ex_token);
+	free(buf);
 }
 
 static void
@@ -361,6 +362,7 @@ generate_subject32ex_record(const char *directory, const char *record_filename,
 	if (subject32ex_token == NULL)
 		err(EX_UNAVAILABLE, "au_to_subject32_ex");
 	write_record(directory, record_filename, subject32ex_token, AUE_NULL);
+	free(buf);
 }
 
 static au_id_t		 process32_auid = 0x12345678;
@@ -404,35 +406,151 @@ generate_process32_record(const char *directory, const char *record_filename)
 }
 
 static void
-generate_process32ex_token(const char *directory, const char *token_filename)
+generate_process32ex_token(const char *directory, const char *token_filename,
+    u_int32_t type)
 {
 	token_t *process32ex_token;
+	char *buf;
 
-	process32_tid_addr.at_addr[0] = inet_addr("127.0.0.1");
-	process32_tid_addr.at_type = AU_IPv4;
+	buf = (char *)malloc(strlen(token_filename) + 6);
+	if (type == AU_IPv6) {
+		inet_pton(AF_INET6, "fe80::1", process32_tid_addr.at_addr);
+		process32_tid_addr.at_type = AU_IPv6;
+		sprintf(buf, "%s%s", token_filename, "-IPv6");
+	} else {
+		process32_tid_addr.at_addr[0] = inet_addr("127.0.0.1");
+		process32_tid_addr.at_type = AU_IPv4;
+		sprintf(buf, "%s%s", token_filename, "-IPv4");
+	}
 
 	process32ex_token = au_to_process32_ex(process32_auid, process32_euid,
 	    process32_egid, process32_ruid, process32_rgid, process32_pid,
 	    process32_sid, &process32_tid_addr);
 	if (process32ex_token == NULL)
 		err(EX_UNAVAILABLE, "au_to_process32_ex");
-	write_token(directory, token_filename, process32ex_token);
+	write_token(directory, buf, process32ex_token);
+	free(buf);
 }
 
 static void
-generate_process32ex_record(const char *directory, const char *record_filename)
+generate_process32ex_record(const char *directory, const char *record_filename,
+    u_int32_t type)
 {
 	token_t *process32ex_token;
+	char *buf;
 
-	process32_tid_addr.at_addr[0] = inet_addr("127.0.0.1");
-	process32_tid_addr.at_type = AU_IPv4;
+	buf = (char *)malloc(strlen(record_filename) + 6);
+	if (type == AU_IPv6) {
+		inet_pton(AF_INET6, "fe80::1", process32_tid_addr.at_addr);
+		process32_tid_addr.at_type = AU_IPv6;
+		sprintf(buf, "%s%s", record_filename, "-IPv6");
+	} else {
+		process32_tid_addr.at_addr[0] = inet_addr("127.0.0.1");
+		process32_tid_addr.at_type = AU_IPv4;
+		sprintf(buf, "%s%s", record_filename, "-IPv4");
+	}
 
 	process32ex_token = au_to_process32_ex(process32_auid, process32_euid,
 	    process32_egid, process32_ruid, process32_rgid, process32_pid,
 	    process32_sid, &process32_tid_addr);
 	if (process32ex_token == NULL)
 		err(EX_UNAVAILABLE, "au_to_process32_ex");
-	write_record(directory, record_filename, process32ex_token, AUE_NULL);
+	write_record(directory, buf, process32ex_token, AUE_NULL);
+	free(buf);
+}
+
+static au_id_t		 process64_auid = 0x12345678;
+static uid_t		 process64_euid = 0x01234567;
+static gid_t		 process64_egid = 0x23456789;
+static uid_t		 process64_ruid = 0x98765432;
+static gid_t		 process64_rgid = 0x09876543;
+static pid_t		 process64_pid = 0x13243546;
+static au_asid_t	 process64_sid = 0x97867564;
+static au_tid_t		 process64_tid = { 0x16593746 };
+static au_tid_addr_t	 process64_tid_addr = { 0x16593746 };
+
+static void
+generate_process64_token(const char *directory, const char *token_filename)
+{
+	token_t *process64_token;
+
+	process64_tid.machine = inet_addr("127.0.0.1");
+
+	process64_token = au_to_process64(process64_auid, process64_euid,
+	    process64_egid, process64_ruid, process64_rgid, process64_pid,
+	    process64_sid, &process64_tid);
+	if (process64_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_process64");
+	write_token(directory, token_filename, process64_token);
+}
+
+static void
+generate_process64_record(const char *directory, const char *record_filename)
+{
+	token_t *process64_token;
+
+	process64_tid.machine = inet_addr("127.0.0.1");
+
+	process64_token = au_to_process64(process64_auid, process64_euid,
+	    process64_egid, process64_ruid, process64_rgid, process64_pid,
+	    process64_sid, &process64_tid);
+	if (process64_token == NULL)
+		err(EX_UNAVAILABLE, "au_ti_process64");
+	write_record(directory, record_filename, process64_token, AUE_NULL);
+}
+
+static void
+generate_process64ex_token(const char *directory, const char *token_filename,
+    u_int32_t type)
+{
+	token_t *process64ex_token;
+	char *buf;
+
+	buf = (char *)malloc(strlen(token_filename) + 6);
+	if (type == AU_IPv6) {
+		inet_pton(AF_INET6, "fe80::1", process64_tid_addr.at_addr);
+		process64_tid_addr.at_type = AU_IPv6;
+		sprintf(buf, "%s%s", token_filename, "-IPv6");
+	} else {
+		process64_tid_addr.at_addr[0] = inet_addr("127.0.0.1");
+		process64_tid_addr.at_type = AU_IPv4;
+		sprintf(buf, "%s%s", token_filename, "-IPv4");
+	}
+
+	process64ex_token = au_to_process64_ex(process64_auid, process64_euid,
+	    process64_egid, process64_ruid, process64_rgid, process64_pid,
+	    process64_sid, &process64_tid_addr);
+	if (process64ex_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_process64_ex");
+	write_token(directory, buf, process64ex_token);
+	free(buf);
+}
+
+static void
+generate_process64ex_record(const char *directory, const char *record_filename,
+    u_int32_t type)
+{
+	token_t *process64ex_token;
+	char *buf;
+
+	buf = (char *)malloc(strlen(record_filename) + 6);
+	if (type == AU_IPv6) {
+		inet_pton(AF_INET6, "fe80::1", process64_tid_addr.at_addr);
+		process64_tid_addr.at_type = AU_IPv6;
+		sprintf(buf, "%s%s", record_filename, "-IPv6");
+	} else {
+		process64_tid_addr.at_addr[0] = inet_addr("127.0.0.1");
+		process64_tid_addr.at_type = AU_IPv4;
+		sprintf(buf, "%s%s", record_filename, "-IPv4");
+	}
+
+	process64ex_token = au_to_process64_ex(process64_auid, process64_euid,
+	    process64_egid, process64_ruid, process64_rgid, process64_pid,
+	    process64_sid, &process64_tid_addr);
+	if (process64ex_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_process64_ex");
+	write_record(directory, buf, process64ex_token, AUE_NULL);
+	free(buf);
 }
 
 static char		 return32_status = 0xd7;
@@ -771,6 +889,30 @@ generate_attr32_record(const char *directory, const char *record_filename)
 
 }
 
+static char	*zonename_sample = "testzone";
+
+static void
+generate_zonename_token(const char *directory, const char *token_filename)
+{
+	token_t *zonename_token;
+
+	zonename_token = au_to_zonename(zonename_sample);
+	if (zonename_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_zonename");
+	write_token(directory, token_filename, zonename_token);
+}
+
+static void
+generate_zonename_record(const char *directory, const char *record_filename)
+{
+	token_t *zonename_token;
+
+	zonename_token = au_to_zonename(zonename_sample);
+	if (zonename_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_zonename");
+	write_record(directory, record_filename, zonename_token, AUE_NULL);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -811,10 +953,20 @@ main(int argc, char *argv[])
 		generate_ipc_token(directory, "ipc_token");
 		generate_path_token(directory, "path_token");
 		generate_subject32_token(directory, "subject32_token");
-		generate_subject32ex_token(directory, "subject32ex_token", AU_IPv4);
-		generate_subject32ex_token(directory, "subject32ex_token", AU_IPv6);
+		generate_subject32ex_token(directory, "subject32ex_token",
+		    AU_IPv4);
+		generate_subject32ex_token(directory, "subject32ex_token",
+		    AU_IPv6);
 		generate_process32_token(directory, "process32_token");
-		generate_process32ex_token(directory, "process32ex_token");
+		generate_process32ex_token(directory, "process32ex_token",
+		    AU_IPv4);
+		generate_process32ex_token(directory, "process32ex_token",
+		    AU_IPv6);
+		generate_process64_token(directory, "process64_token");
+		generate_process64ex_token(directory, "process64ex_token",
+		    AU_IPv4);
+		generate_process64ex_token(directory, "process64ex_token",
+		    AU_IPv6);
 		generate_return32_token(directory, "return32_token");
 		generate_text_token(directory, "text_token");
 		generate_opaque_token(directory, "opaque_token");
@@ -827,6 +979,7 @@ main(int argc, char *argv[])
 		generate_ipc_perm_token(directory, "ipc_perm_token");
 		generate_groups_token(directory, "groups_token");
 		generate_attr32_token(directory, "attr32_token");
+		generate_zonename_token(directory, "zonename_token");
 	}
 
 	if (do_records) {
@@ -840,7 +993,15 @@ main(int argc, char *argv[])
 		generate_subject32ex_record(directory, "subject32ex_record",
 		    AU_IPv6);
 		generate_process32_record(directory, "process32_record");
-		generate_process32ex_record(directory, "process32ex_record");
+		generate_process32ex_record(directory, "process32ex_record",
+		    AU_IPv4);
+		generate_process32ex_record(directory, "process32ex_record",
+		    AU_IPv6);
+		generate_process64_record(directory, "process64_record");
+		generate_process64ex_record(directory, "process64ex_record",
+		    AU_IPv4);
+		generate_process64ex_record(directory, "process64ex_record",
+		    AU_IPv6);
 		generate_return32_record(directory, "return32_record");
 		generate_text_record(directory, "text_record");
 		generate_opaque_record(directory, "opaque_record");
@@ -853,6 +1014,7 @@ main(int argc, char *argv[])
 		generate_ipc_perm_record(directory, "ipc_perm_record");
 		generate_groups_record(directory, "groups_record");
 		generate_attr32_record(directory, "attr32_record");
+		generate_zonename_record(directory, "zonename_record");
 	}
 
 	return (0);

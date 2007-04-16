@@ -1,3 +1,23 @@
+OpenBSM 1.0 alpha 14
+
+- Fix endian issues when processing IPv6 addresses for extended subject
+  and process tokens.
+- gcc41 warnings clean.
+- Teach audit_submit(3) about getaudit_addr(2).
+- Add support for zonename tokens.
+
+OpenBSM 1.0 alpha 13
+
+- compat/clock_gettime.h now provides a compatibility implementation of
+  clock_gettime(), which fixes building on Mac OS X.
+- Countless man page improvements, markup fixes, content fixs, etc.
+- XML printing support via "praudit -x".
+- audit.log.5 expanded to include additional BSM token types.
+- Added encoding and decoding routines for process64_ex, process32_ex,
+  subject32_ex, header64, and attr64 tokens.
+- Additional audit event identifiers for listen, mlockall/munlockall,
+  getpath, POSIX message queues, and mandatory access control.
+
 OpenBSM 1.0 alpha 12
 
 - Correct bug in auditreduce which prevented the -c option from working
@@ -264,4 +284,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/HISTORY#39 $
+$P4: //depot/projects/trustedbsd/openbsm/HISTORY#50 $

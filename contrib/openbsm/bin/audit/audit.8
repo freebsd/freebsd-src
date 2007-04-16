@@ -2,20 +2,20 @@
 .\" All rights reserved.
 .\"
 .\" @APPLE_BSD_LICENSE_HEADER_START@
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
-.\" 
+.\"
 .\" 1.  Redistributions of source code must retain the above copyright
-.\"     notice, this list of conditions and the following disclaimer. 
+.\"     notice, this list of conditions and the following disclaimer.
 .\" 2.  Redistributions in binary form must reproduce the above copyright
 .\"     notice, this list of conditions and the following disclaimer in the
-.\"     documentation and/or other materials provided with the distribution. 
+.\"     documentation and/or other materials provided with the distribution.
 .\" 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
 .\"     its contributors may be used to endorse or promote products derived
-.\"     from this software without specific prior written permission. 
-.\" 
+.\"     from this software without specific prior written permission.
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND ANY
 .\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -26,32 +26,27 @@
 .\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.\" 
+.\"
 .\" @APPLE_BSD_LICENSE_HEADER_END@
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.8#6 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.8#9 $
 .\"
-.Dd January 24, 2004
+.Dd October 2, 2006
 .Dt AUDIT 8
 .Os
 .Sh NAME
 .Nm audit
 .Nd audit management utility
 .Sh SYNOPSIS
-.Nm audit
-.Op Fl nst
-.Op Ar file
+.Nm
+.Fl n | s | t
 .Sh DESCRIPTION
 The
-.Nm 
+.Nm
 utility controls the state of the audit system.
-The optional
-.Ar file
-operand specifies the location of the audit control input file (default
-.Pa /etc/security/audit_control ) .
-.Pp
-The options are as follows:
-.Bl -tag -width Ds
+One of the following flags is required as an argument to
+.Nm :
+.Bl -tag -width indent
 .It Fl n
 Forces the audit system to close the existing audit log file and rotate to
 a new log file in a location specified in the audit control file.
@@ -69,22 +64,27 @@ The
 .Xr auditd 8
 daemon must already be running.
 .Sh FILES
-.Bl -tag -width "/etc/security/audit_control" -compact
+.Bl -tag -width ".Pa /etc/security/audit_control" -compact
 .It Pa /etc/security/audit_control
-Default audit policy file used to configure the auditing system.
+Audit policy file used to configure the auditing system.
 .El
 .Sh SEE ALSO
+.Xr audit 4 ,
 .Xr audit_control 5 ,
 .Xr auditd 8
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
 .Sh AUTHORS
+.An -nosplit
 This software was created by McAfee Research, the security research division
 of McAfee, Inc., under contract to Apple Computer Inc.
-Additional authors include Wayne Salamon, Robert Watson, and SPARTA Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
 .Pp
 The Basic Security Module (BSM) interface to audit records and audit event
 stream format were defined by Sun Microsystems.
-.Sh HISTORY
-The OpenBSM implementation was created by McAfee Research, the security
-division of McAfee Inc., under contract to Apple Computer Inc. in 2004.
-It was subsequently adopted by the TrustedBSD Project as the foundation for
-the OpenBSM distribution.

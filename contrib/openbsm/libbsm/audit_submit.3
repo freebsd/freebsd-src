@@ -27,23 +27,26 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/audit_submit.3#8 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/audit_submit.3#11 $
 .\"
 .Dd May 29, 2006
 .Dt audit_submit 3
 .Os
 .Sh NAME
 .Nm audit_submit
-.Nd general purpose audit record submission
+.Nd "general purpose audit record submission"
 .Sh LIBRARY
 .Lb libbsm
 .Sh SYNOPSIS
-.In stdio.h
+.In bsm/libbsm.h
 .Ft int
-.Fn audit_submit "short au_event" "au_id_t auid" "char status" "int reterr" "const char * restrict format" ...
+.Fo audit_submit
+.Fa "short au_event" "au_id_t auid" "char status"
+.Fa "int reterr" "const char * restrict format" ...
+.Fc
 .Sh DESCRIPTION
 The
-.Nm
+.Fn audit_submit
 function provides a generic programming interface for audit record submission.
 This audit record will contain a header, subject token, an optional text token,
 return token, and a trailer.
@@ -66,14 +69,16 @@ variable-length argument facilities of
 are converted for output.
 If
 .Fa format
-is NULL, then no text token is created in the audit record.
+is
+.Dv NULL ,
+then no text token is created in the audit record.
 .Pp
 It should be noted that
-.Nm
+.Fn audit_submit
 assumes that
 .Xr setaudit 2 ,
 or
-.Xr setaudit_addr 2 
+.Xr setaudit_addr 2
 has already been called.
 As a direct result, the terminal ID for the
 subject will be retrieved from the kernel via
@@ -116,11 +121,12 @@ trailer,94
 .Xr stdarg 3
 .Sh HISTORY
 The
-.Nm
+.Fn audit_submit
 function first appeared in OpenBSM version 1.0.
-OpenBSM 1.0 was introduced in FreeBSD 7.0.
+OpenBSM 1.0 was introduced in
+.Fx 7.0 .
 .Sh AUTHORS
 The
-.Nm
+.Fn audit_submit
 function was written by
 .An Christian S.J. Peron Aq csjp@FreeBSD.org .
