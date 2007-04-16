@@ -55,6 +55,8 @@
  * permitted.
  */
 
+#include "opt_ddb.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -69,6 +71,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 /*
  * We use a linked list rather than a bitmap because we need to be able to
@@ -911,3 +917,47 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_NODE(_hw_bus, OID_AUTO, rman, CTLFLAG_RD, sysctl_rman,
     "kernel resource manager");
+
+#ifdef DDB
+static void
+dump_rman(struct rman *rm)
+{
+	struct resource_i *r;
+	const char *devname;
+
+	if (db_pager_quit)
+		return;
+	db_printf("rman: %s\n", rm->rm_descr);
+	db_printf("    0x%lx-0x%lx (full range)\n", rm->rm_start, rm->rm_end);
+	TAILQ_FOREACH(r, &rm->rm_list, r_link) {
+		if (r->r_dev != NULL) {
+			devname = device_get_nameunit(r->r_dev);
+			if (devname == NULL)
+				devname = "nomatch";
+		} else
+			devname = NULL;
+		db_printf("    0x%lx-0x%lx ", r->r_start, r->r_end);
+		if (devname != NULL)
+			db_printf("(%s)\n", devname);
+		else
+			db_printf("----\n");
+		if (db_pager_quit)
+			return;
+	}
+}
+
+DB_SHOW_COMMAND(rman, db_show_rman)
+{
+
+	if (have_addr)
+		dump_rman((struct rman *)addr);
+}
+
+DB_SHOW_COMMAND(allrman, db_show_all_rman)
+{
+	struct rman *rm;
+
+	TAILQ_FOREACH(rm, &rman_head, rm_link)
+		dump_rman(rm);
+}
+#endif
