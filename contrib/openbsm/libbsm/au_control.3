@@ -10,7 +10,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_control.3#5 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_control.3#8 $
 .\"
 .Dd April 19, 2005
 .Dt AU_CONTROL 3
@@ -37,17 +37,17 @@
 .Nm getacflg ,
 .Nm getacna ,
 .Nm getacpol ,
-.Nm au_poltostr
+.Nm au_poltostr ,
 .Nm au_strtopol
-.Nd "Look up information from the audit_control database"
+.Nd "look up information from the audit_control database"
 .Sh LIBRARY
 .Lb libbsm
 .Sh SYNOPSIS
-.In libbsm.h
+.In bsm/libbsm.h
 .Ft void
-.Fn setac "void"
+.Fn setac void
 .Ft void
-.Fn endac "void"
+.Fn endac void
 .Ft int
 .Fn getacdir "char *name" "int len"
 .Ft int
@@ -69,64 +69,88 @@ These interfaces may be used to look up information from the
 .Xr audit_control 5
 database, which contains various audit-related administrative parameters.
 .Pp
+The
 .Fn setac
+function
 resets the database iterator to the beginning of the database; see the
-BUGS section for more information.
+.Sx BUGS
+section for more information.
 .Pp
+The
 .Fn sendac
+function
 closes the
 .Xr audit_control 5
 database.
 .Pp
+The
 .Fn getacdir
+function
 returns the name of the directory where log data is stored via the passed
 character buffer
-.Va name
+.Fa name
 of length
-.Va len .
+.Fa len .
 .Pp
+The
 .Fn getacmin
+function
 returns the minimum free disk space for the audit log target file system via
 the passed
-.Va min_val
+.Fa min_val
 variable.
 .Pp
+The
 .Fn getacfilesz
-returns the audit trail rotation size in the passed size_t buffer
+function
+returns the audit trail rotation size in the passed
+.Vt size_t
+buffer
 .Fa size_val .
 .Pp
+The
 .Fn getacflg
+function
 returns the audit system flags via the the passed character buffer
-.Va auditstr
+.Fa auditstr
 of length
-.Va len .
+.Fa len .
 .Pp
+The
 .Fn getacna
+function
 returns the non-attributable flags via the passed character buffer
-.Va auditstr
+.Fa auditstr
 of length
-.Va len .
+.Fa len .
 .Pp
+The
 .Fn getacpol
+function
 returns the audit policy flags via the passed character buffer
-.Va auditstr
+.Fa auditstr
 of length
-.Va len .
+.Fa len .
 .Pp
+The
 .Fn au_poltostr
+function
 converts a numeric audit policy mask,
-.Va policy ,
-value to a string in the passed character buffer
-.Va buf
+.Fa policy ,
+to a string in the passed character buffer
+.Fa buf
 of lenth
-.Va maxsize .
+.Fa maxsize .
 .Pp
+The
 .Fn au_strtopol
+function
 converts an audit policy flags string,
-.Va polstr ,
+.Fa polstr ,
 to a numeric audit policy mask returned via
-.Va policy .
+.Fa policy .
 .Sh RETURN VALULES
+The
 .Fn getacdir ,
 .Fn getacmin ,
 .Fn getacflg ,
@@ -134,11 +158,14 @@ to a numeric audit policy mask returned via
 .Fn getacpol ,
 and
 .Fn au_strtopol
+functions
 return 0 on success, or a negative value on failure, along with error
 information in
 .Va errno .
 .Pp
+The
 .Fn au_poltostr
+function
 returns a string length of 0 or more on success, or a negative value on
 if there is a failure.
 .Pp
@@ -147,18 +174,23 @@ insufficient room in the passed character buffer for the full string.
 .Sh SEE ALSO
 .Xr libbsm 3 ,
 .Xr audit_control 5
-.Sh AUTHORS
-This software was created by Robert Watson, Wayne Salamon, and Suresh
-Krishnaswamy for McAfee Research, the security research division of McAfee,
-Inc., under contract to Apple Computer, Inc.
-.Pp
-The Basic Security Module (BSM) interface to audit records and audit event
-stream format were defined by Sun Microsystems.
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security
 division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
 It was subsequently adopted by the TrustedBSD Project as the foundation for
 the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by
+.An Robert Watson ,
+.An Wayne Salamon ,
+and
+.An Suresh Krishnaswamy
+for McAfee Research, the security research division of McAfee,
+Inc., under contract to Apple Computer, Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
 .Sh BUGS
 These routines cannot currently distinguish between an entry not being found
 and an error accessing the database.
