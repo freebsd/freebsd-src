@@ -827,7 +827,7 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_trace.3 _tracedump.3 \
 	curs_trace.3 _tracef.3 \
 	curs_trace.3 _tracemouse.3 \
-	curs_trace.3 trace.3
+	curs_trace.3 trace.3 \
 	curs_util.3 delay_output.3 \
 	curs_util.3 filter.3 \
 	curs_util.3 flushinp.3 \
