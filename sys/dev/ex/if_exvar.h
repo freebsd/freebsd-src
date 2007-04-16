@@ -113,6 +113,6 @@ void		ex_stop(struct ex_softc *);
 #define EX_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
 	    MTX_NETWORK_LOCK, MTX_DEF)
-#define EX_LOCK_DESTORY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define EX_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
 #define EX_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define EX_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);

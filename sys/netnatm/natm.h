@@ -74,7 +74,7 @@ struct natmpcb {
 #define	NPCB_FREE	0x01		/* free (not on any list) */
 #define	NPCB_CONNECTED	0x02		/* connected */
 #define	NPCB_IP		0x04		/* used by IP */
-#define	NPCB_DRAIN	0x08		/* destory as soon as inq == 0 */
+#define	NPCB_DRAIN	0x08		/* destroy as soon as inq == 0 */
 
 /* flag arg to npcb_free */
 #define	NPCB_REMOVE	0		/* remove from global list */
