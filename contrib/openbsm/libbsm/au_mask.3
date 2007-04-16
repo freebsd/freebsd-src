@@ -10,7 +10,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_mask.3#3 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_mask.3#6 $
 .\"
 .Dd April 19, 2005
 .Dt AU_MASK 3
@@ -32,11 +32,11 @@
 .Nm au_preselect ,
 .Nm getauditflagsbin ,
 .Nm getauditflagschar
-.Nd "Convert between string and numeric values of audit masks"
+.Nd "convert between string and numeric values of audit masks"
 .Sh LIBRARY
 .Lb libbsm
 .Sh SYNOPSIS
-.In libbsm.h
+.In bsm/libbsm.h
 .Ft int
 .Fn au_preselect "au_event_t event" "au_mask_t *mask_p" "int sorf" "int flag"
 .Ft int
@@ -49,13 +49,15 @@ These interfaces support processing of an audit mask represented by type
 including conversion between numeric and text formats, and computing whether
 or not an event is matched by a mask.
 .Pp
-.Fn au_preselect
-calculates whether or not the audit event passed via
-.Va event
-is matched by the audit mask passed via
-.Va au_mask_t .
 The
-.Va sorf
+.Fn au_preselect
+function
+calculates whether or not the audit event passed via
+.Fa event
+is matched by the audit mask passed via
+.Fa mask_p .
+The
+.Fa sorf
 argument indicates whether or not to consider the event as a success,
 if the
 .Dv AU_PRS_SUCCESS
@@ -63,7 +65,7 @@ flag is set, or failure, if the
 .Dv AU_PRS_FAILURE
 flag is set.
 The
-.Va flag
+.Fa flag
 argument accepts additional arguments influencing the behavior of
 .Fn au_preselect ,
 including
@@ -73,64 +75,78 @@ or
 .Dv AU_PRS_USECACHE
 which forces use of the cache.
 .Pp
+The
 .Fn getauditflagsbin
+function
 converts a string representation of an audit mask passed via a character
 string pointed to by
-.Va auditstr ,
+.Fa auditstr ,
 returning the resulting mask, if valid, via
-.Va *masks .
+.Fa *masks .
 .Pp
+The
 .Fn getauditflagschar
+function
 converts the audit event mask passed via
-.Va *masks
+.Fa *masks
 and converts it to a character string in a buffer pointed to by
-.Va auditstr .
-See the BUGS section for more information on how to provide a buffer of
+.Fa auditstr .
+See the
+.Sx BUGS
+section for more information on how to provide a buffer of
 sufficient size.
 If the
-.Va verbose
+.Fa verbose
 flag is set, the class description string retrieved from
 .Xr audit_class 5
 will be used; otherwise, the two-character class name.
-.Sh RETURN VALUES
+.Sh IMPLEMENTATION NOTES
+The
 .Fn au_preselect
-returns 0 on success, or returns -1 if there is a failure looking up the
+function
+makes implicit use of various audit database routines, and may influence
+the behavior of simultaneous or interleaved processing of those databases by
+other code.
+.Sh RETURN VALUES
+The
+.Fn au_preselect
+function
+returns 0 on success, or returns \-1 if there is a failure looking up the
 event type or other database access, in which case
 .Va errno
 will be set to indicate the error.
 It returns 1 if the event is matched; 0 if not.
 .Pp
-.Fn getauditflagsbin
-and
-.Fn getauditflagschar
-returns 0 on success, or -1 if there is a failure, in which case
-.Va errno
-will be set to indicate the error.
-.Sh IMPLEMENTATION NOTES
-.Fn au_preselect
-makes implicit use of various audit database routines, and may influence
-the behavior of simultaneous or interleaved processing of those databases by
-other code.
+.Rv -std getauditflagsbin getauditflagschar
 .Sh SEE ALSO
 .Xr libbsm 3 ,
 .Xr audit_class 5
-.Sh AUTHORS
-This software was created by Robert Watson, Wayne Salamon, and Suresh
-Krishnaswamy for McAfee Research, the security research division of McAfee,
-Inc., under contract to Apple Computer, Inc.
-.Pp
-The Basic Security Module (BSM) interface to audit records and audit event
-stream format were defined by Sun Microsystems.
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security
 division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
 It was subsequently adopted by the TrustedBSD Project as the foundation for
 the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by
+.An Robert Watson ,
+.An Wayne Salamon ,
+and
+.An Suresh Krishnaswamy
+for McAfee Research, the security research division of McAfee,
+Inc., under contract to Apple Computer, Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
 .Sh BUGS
+The
 .Va errno
+variable
 may not always be properly set in the event of an error.
 .Pp
+The
 .Fn getauditflagschar
+function
 does not provide a way to indicate how long the character buffer is, in order
 to detect overflow.
 As a result, the caller must always provide a buffer of sufficient length for

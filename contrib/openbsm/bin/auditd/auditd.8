@@ -29,46 +29,35 @@
 .\"
 .\" @APPLE_BSD_LICENSE_HEADER_END@
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.8#9 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.8#12 $
 .\"
-.Dd January 24, 2004
+.Dd October 2, 2006
 .Dt AUDITD 8
 .Os
 .Sh NAME
 .Nm auditd
 .Nd audit log management daemon
 .Sh SYNOPSIS
-.Nm auditd
-.Op Fl dhs
+.Nm
+.Op Fl d
 .Sh DESCRIPTION
 The
 .Nm
-daemon responds to requests from the audit(1) utility and notifications
-from the kernel.  It manages the resulting audit log files and specified
+daemon responds to requests from the
+.Xr audit 8
+utility and notifications
+from the kernel.
+It manages the resulting audit log files and specified
 log file locations.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl d
-Starts the daemon in debug mode - it will not daemonize.
+Starts the daemon in debug mode \[em] it will not daemonize.
 .El
-.Pp
-The historical
-.Fl h
-and
-.Fl s
-flags are now configured using
-.Xr audit_control 5
-policy flags
-.Dv ahlt
-and
-.Dv cnt ,
-and are no longer available as arguments to
-.Xr auditd 8 .
 .Sh NOTE
-.Pp
 To assure uninterrupted audit support, the
-.Nm auditd
+.Nm
 daemon should not be started and stopped manually.
 Instead, the
 .Xr audit 8
@@ -78,28 +67,51 @@ the
 .Pa audit_control
 file.
 .Pp
-.\" Sending a SIGHUP to a running
-.\" .Nm auditd
+.\" Sending a
+.\" .Dv SIGHUP
+.\" to a running
+.\" .Nm
 .\" daemon will force it to exit.
-Sending a SIGTERM to a running
-.Nm auditd
+Sending a
+.Dv SIGTERM
+to a running
+.Nm
 daemon will force it to exit.
 .Sh FILES
-.Bl -tag -width "/var/audit" -compact
+.Bl -tag -width ".Pa /var/audit" -compact
 .It Pa /var/audit
 Default directory for storing audit log files.
 .El
+.Sh COMPATIBILITY
+The historical
+.Fl h
+and
+.Fl s
+flags are now configured using
+.Xr audit_control 5
+policy flags
+.Cm ahlt
+and
+.Cm cnt ,
+and are no longer available as arguments to
+.Nm .
 .Sh SEE ALSO
+.Xr audit 4 ,
+.Xr audit_control 5 ,
 .Xr audit 8
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
 .Sh AUTHORS
+.An -nosplit
 This software was created by McAfee Research, the security research division
 of McAfee, Inc., under contract to Apple Computer Inc.
-Additional authors include Wayne Salamon, Robert Watson, and SPARTA Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
 .Pp
 The Basic Security Module (BSM) interface to audit records and audit event
 stream format were defined by Sun Microsystems.
-.Sh HISTORY
-The OpenBSM implementation was created by McAfee Research, the security
-division of McAfee Inc., under contract to Apple Computer Inc. in 2004.
-It was subsequently adopted by the TrustedBSD Project as the foundation for
-the OpenBSM distribution.

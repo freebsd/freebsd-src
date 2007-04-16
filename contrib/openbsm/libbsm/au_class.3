@@ -10,7 +10,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_class.3#3 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_class.3#6 $
 .\"
 .Dd April 19, 2005
 .Dt AU_CLASS 3
@@ -35,69 +35,81 @@
 .Nm getauclassnam_r ,
 .Nm setauclass ,
 .Nm endauclass
-.Nd "Look up information from the audit_class database"
+.Nd "look up information from the audit_class database"
 .Sh LIBRARY
 .Lb libbsm
 .Sh SYNOPSIS
-.In libbsm.h
-.Ft struct au_class_ent *
-.Fn getauclassent "void"
-.Ft struct au_class_ent *
+.In bsm/libbsm.h
+.Ft "struct au_class_ent *"
+.Fn getauclassent void
+.Ft "struct au_class_ent *"
 .Fn getauclassent_r "struct au_class_ent *e"
-.Ft struct au_class_ent *
+.Ft "struct au_class_ent *"
 .Fn getauclassnam "const char *name"
-.Ft struct au_class_ent *
+.Ft "struct au_class_ent *"
 .Fn getauclassnam_r "struct au_class_ent *e" "const char *name"
 .Ft void
-.Fn setauclass "void"
+.Fn setauclass void
 .Ft void
-.Fn endauclass "void"
+.Fn endauclass void
 .Sh DESCRIPTION
 These interfaces may be used to look up information from the
 .Xr audit_class 5
 database, which describes audit event classes.
 Audit event classes are described by
-.Vt struct au_class_ent .
+.Vt "struct au_class_ent" .
 .Pp
-.Pp
+The
 .Fn getauclassent
+function
 will return the next class found in the
 .Xr audit_class 5
 database, or the first if the function has not yet been called.
 .Dv NULL
 will be returned if no further records are available.
 .Pp
+The
 .Fn getauclassnam
+function
 looks up a class by name.
 .Dv NULL
 will be returned if no matching class can be found.
 .Pp
+The
 .Fn setauclass
+function
 resets the iterator through the
 .Xr audit_class 5
 database, causing the next call to
 .Fn getauclassent
 to start again from the beginning of the file.
 .Pp
+The
 .Fn endauclass
+function
 closes the
 .Xr audit_class 5
 database, if open.
 .Sh SEE ALSO
 .Xr libbsm 3 ,
 .Xr audit_class 5
-.Sh AUTHORS
-This software was created by Robert Watson, Wayne Salamon, and Suresh
-Krishnaswamy for McAfee Research, the security research division of McAfee,
-Inc., under contract to Apple Computer, Inc.
-.Pp
-The Basic Security Module (BSM) interface to audit records and audit event
-stream format were defined by Sun Microsystems.
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security
 division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
 It was subsequently adopted by the TrustedBSD Project as the foundation for
 the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by
+.An Robert Watson ,
+.An Wayne Salamon ,
+and
+.An Suresh Krishnaswamy
+for McAfee Research, the security research division of McAfee,
+Inc., under contract to Apple Computer, Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
 .Sh BUGS
 These routines cannot currently distinguish between an entry not being found
 and an error accessing the database.
