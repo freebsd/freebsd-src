@@ -523,7 +523,6 @@ CLEANFILES+=	${MAN:M*.3}
 MAN+=	term.5 terminfo.5
 MAN+=	term.7
 
-
 MLINKS=	ncurses.3 curses.3 \
 	curs_addch.3 addch.3 \
 	curs_addch.3 echochar.3 \
@@ -541,7 +540,7 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_addchstr.3 waddchstr.3 \
 	curs_addstr.3 addnstr.3 \
 	curs_addstr.3 addstr.3 \
-	curs_addstr.3 mvaddnstr.3\
+	curs_addstr.3 mvaddnstr.3 \
 	curs_addstr.3 mvaddstr.3 \
 	curs_addstr.3 mvwaddnstr.3 \
 	curs_addstr.3 mvwaddstr.3 \
@@ -579,6 +578,12 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_bkgd.3 getbkgd.3 \
 	curs_bkgd.3 wbkgd.3 \
 	curs_bkgd.3 wbkgdset.3 \
+	curs_bkgrnd.3 bkgrnd.3 \
+	curs_bkgrnd.3 bkgrndset.3 \
+	curs_bkgrnd.3 getbkgrnd.3 \
+	curs_bkgrnd.3 wbkgrnd.3 \
+	curs_bkgrnd.3 wbkgrndset.3 \
+	curs_bkgrnd.3 wgetbkgrnd.3 \
 	curs_border.3 border.3 \
 	curs_border.3 box.3 \
 	curs_border.3 hline.3 \
@@ -813,6 +818,16 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_touch.3 touchwin.3 \
 	curs_touch.3 untouchwin.3 \
 	curs_touch.3 wtouchln.3 \
+	curs_trace.3 _nc_tracebits.3 \
+	curs_trace.3 _traceattr.3 \
+	curs_trace.3 _traceattr2.3 \
+	curs_trace.3 _tracechar.3 \
+	curs_trace.3 _tracechtype.3 \
+	curs_trace.3 _tracechtype2.3 \
+	curs_trace.3 _tracedump.3 \
+	curs_trace.3 _tracef.3 \
+	curs_trace.3 _tracemouse.3 \
+	curs_trace.3 trace.3
 	curs_util.3 delay_output.3 \
 	curs_util.3 filter.3 \
 	curs_util.3 flushinp.3 \
@@ -837,7 +852,6 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_window.3 wsyncup.3 \
 	default_colors.3 assume_default_colors.3 \
 	default_colors.3 use_default_colors.3 \
-	key_defined.3 define_key.3 \
 	legacy_coding.3 use_legacy_coding.3 \
 	resizeterm.3 is_term_resized.3 \
 	resizeterm.3 resize_term.3
