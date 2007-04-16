@@ -74,7 +74,8 @@ MALLOC_DEFINE(M_CAMXPT, "CAM XPT", "CAM XPT buffers");
 /* Object for defering XPT actions to a taskqueue */
 struct xpt_task {
 	struct task	task;
-	void		*data;
+	void		*data1;
+	uintptr_t	data2;
 };
 
 /*
@@ -2952,62 +2953,13 @@ xptsetasyncbusfunc(struct cam_eb *bus, void *arg)
 static void
 xpt_action_sasync_cb(void *context, int pending)
 {
-	union ccb *start_ccb;
-	struct xpt_task *task;
-	struct ccb_setasync *csa;
 	struct async_node *cur_entry;
-	struct async_list *async_head;
-	u_int32_t added;
-	int s;
+	struct xpt_task *task;
+	uint32_t added;
 
 	task = (struct xpt_task *)context;
-	start_ccb = (union ccb *)task->data;
-	csa = &start_ccb->csa;
-	added = csa->event_enable;
-	async_head = &csa->ccb_h.path->device->asyncs;
-
-	/*
-	 * If there is already an entry for us, simply
-	 * update it.
-	 */
-	s = splcam();
-	mtx_lock(csa->ccb_h.path->bus->sim->mtx);
-	cur_entry = SLIST_FIRST(async_head);
-	while (cur_entry != NULL) {
-		if ((cur_entry->callback_arg == csa->callback_arg)
-		 && (cur_entry->callback == csa->callback))
-			break;
-		cur_entry = SLIST_NEXT(cur_entry, links);
-	}
-
-	if (cur_entry != NULL) {
-	 	/*
-		 * If the request has no flags set,
-		 * remove the entry.
-		 */
-		added &= ~cur_entry->event_enable;
-		if (csa->event_enable == 0) {
-			SLIST_REMOVE(async_head, cur_entry,
-				     async_node, links);
-			csa->ccb_h.path->device->refcount--;
-			free(cur_entry, M_CAMXPT);
-		} else {
-			cur_entry->event_enable = csa->event_enable;
-		}
-	} else {
-		cur_entry = malloc(sizeof(*cur_entry), M_CAMXPT,
-				   M_NOWAIT);
-		if (cur_entry == NULL) {
-			splx(s);
-			goto out;
-		}
-		cur_entry->event_enable = csa->event_enable;
-		cur_entry->callback_arg = csa->callback_arg;
-		cur_entry->callback = csa->callback;
-		SLIST_INSERT_HEAD(async_head, cur_entry, links);
-		csa->ccb_h.path->device->refcount++;
-	}
-	mtx_unlock(csa->ccb_h.path->bus->sim->mtx);
+	cur_entry = (struct async_node *)task->data1;
+	added = task->data2;
 
 	if ((added & AC_FOUND_DEVICE) != 0) {
 		/*
@@ -3023,11 +2975,7 @@ xpt_action_sasync_cb(void *context, int pending)
 		 */
 		xpt_for_all_busses(xptsetasyncbusfunc, cur_entry);
 		}
-	splx(s);
 
-out:
-	xpt_free_path(start_ccb->ccb_h.path);
-	xpt_free_ccb(start_ccb);
 	free(task, M_CAMXPT);
 }
 
@@ -3433,41 +3381,74 @@ xpt_action(union ccb *start_ccb)
 	}
 	case XPT_SASYNC_CB:
 	{
-		union ccb *task_ccb;
-		struct xpt_task *task;
+		struct ccb_setasync *csa;
+		struct async_node *cur_entry;
+		struct async_list *async_head;
+		u_int32_t added;
+
+		csa = &start_ccb->csa;
+		added = csa->event_enable;
+		async_head = &csa->ccb_h.path->device->asyncs;
+
+		/*
+		 * If there is already an entry for us, simply
+		 * update it.
+		 */
+		cur_entry = SLIST_FIRST(async_head);
+		while (cur_entry != NULL) {
+			if ((cur_entry->callback_arg == csa->callback_arg)
+			 && (cur_entry->callback == csa->callback))
+				break;
+			cur_entry = SLIST_NEXT(cur_entry, links);
+		}
+
+		if (cur_entry != NULL) {
+		 	/*
+			 * If the request has no flags set,
+			 * remove the entry.
+			 */
+			added &= ~cur_entry->event_enable;
+			if (csa->event_enable == 0) {
+				SLIST_REMOVE(async_head, cur_entry,
+					     async_node, links);
+				csa->ccb_h.path->device->refcount--;
+				free(cur_entry, M_CAMXPT);
+			} else {
+				cur_entry->event_enable = csa->event_enable;
+			}
+		} else {
+			cur_entry = malloc(sizeof(*cur_entry), M_CAMXPT,
+					   M_NOWAIT);
+			if (cur_entry == NULL) {
+				csa->ccb_h.status = CAM_RESRC_UNAVAIL;
+				break;
+			}
+			cur_entry->event_enable = csa->event_enable;
+			cur_entry->callback_arg = csa->callback_arg;
+			cur_entry->callback = csa->callback;
+			SLIST_INSERT_HEAD(async_head, cur_entry, links);
+			csa->ccb_h.path->device->refcount++;
+		}
 
 		/*
 		 * Need to decouple this operation via a taqskqueue so that
-		 * the locking doesn't become a mess.  Clone the ccb so that
-		 * we own the memory and can free it later.
+		 * the locking doesn't become a mess.
 		 */
-		task_ccb = malloc(sizeof(union ccb), M_CAMXPT, M_NOWAIT);
-		if (task_ccb == NULL) {
-			start_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
-			break;
-		}
-		bcopy(start_ccb, task_ccb, sizeof(union ccb));
-		if (xpt_create_path(&task_ccb->ccb_h.path, NULL,
-				    start_ccb->ccb_h.path_id,
-				    start_ccb->ccb_h.target_id,
-				    start_ccb->ccb_h.target_lun) !=
-				    CAM_REQ_CMP) {
-			start_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
-			xpt_free_ccb(task_ccb);
-			break;
-		}
+		if ((added & (AC_FOUND_DEVICE | AC_PATH_REGISTERED)) != 0) {
+			struct xpt_task *task;
 
-		task = malloc(sizeof(struct xpt_task), M_CAMXPT, M_NOWAIT);
-		if (task == NULL) {
-			start_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
-			xpt_free_path(task_ccb->ccb_h.path);
-			xpt_free_ccb(task_ccb);
-			break;
-		}
+			task = malloc(sizeof(struct xpt_task), M_CAMXPT,
+				      M_NOWAIT);
+			if (task == NULL) {
+				csa->ccb_h.status = CAM_RESRC_UNAVAIL;
+				break;
+			}
 
-		TASK_INIT(&task->task, 0, xpt_action_sasync_cb, task);
-		task->data = task_ccb;
-		taskqueue_enqueue(taskqueue_thread, &task->task);
+			TASK_INIT(&task->task, 0, xpt_action_sasync_cb, task);
+			task->data1 = cur_entry;
+			task->data2 = added;
+			taskqueue_enqueue(taskqueue_thread, &task->task);
+		}
 
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
