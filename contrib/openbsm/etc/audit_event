@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#16 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#20 $
 #
 0:AUE_NULL:indir system call:no
 1:AUE_EXIT:exit(2):pc
@@ -422,6 +422,28 @@
 43118:AUE_READDIR:readdir(3):no
 43119:AUE_IOPL:linux iopl:ad
 43120:AUE_VM86:linux vm86:pc
+43121:AUE_MAC_GET_PROC:mac_get_proc(2):pc
+43122:AUE_MAC_SET_PROC:mac_set_proc(2):pc
+43123:AUE_MAC_GET_FD:mac_get_fd(2):fa
+43124:AUE_MAC_GET_FILE:mac_get_file(2):fa
+43125:AUE_MAC_SET_FD:mac_set_fd(2):fm
+43126:AUE_MAC_SET_FILE:mac_set_file(2):fm
+43127:AUE_MAC_SYSCALL:mac_syscall(2):ad
+43128:AUE_MAC_GET_PID:mac_get_pid(2):pc
+43129:AUE_MAC_GET_LINK:mac_get_link(2):fa
+43130:AUE_MAC_SET_LINK:mac_set_link(2):fm
+43131:AUE_MAC_EXECVE:mac_exeve(2):ex,pc
+43132:AUE_GETPATH_FROMFD:getpath_fromfd(2):fa
+43133:AUE_GETPATH_FROMADDR:getpath_fromaddr(2):fa
+43134:AUE_MQ_OPEN:mq_open(2):ip
+43135:AUE_MQ_SETATTR:mq_setattr(2):ip
+43136:AUE_MQ_TIMEDRECEIVE:mq_timedreceive(2):ip
+43137:AUE_MQ_TIMEDSEND:mq_timedsend(2):ip
+43138:AUE_MQ_NOTIFY:mq_notify(2):ip
+43139:AUE_MQ_UNLINK:mq_unlink(2):ip
+43140:AUE_LISTEN:listen(2):nt
+43141:AUE_MLOCKALL:mlockall(2):pc
+43142:AUE_MUNLOCKALL:munlockall(2):pc
 #
 # User space system events.
 #

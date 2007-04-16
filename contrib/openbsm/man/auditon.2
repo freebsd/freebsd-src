@@ -25,37 +25,47 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/auditon.2#8 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/auditon.2#11 $
 .\"
 .Dd April 19, 2005
 .Dt AUDITON 2
 .Os
 .Sh NAME
 .Nm auditon
-.Nd "Configure system audit parameters"
+.Nd "configure system audit parameters"
 .Sh SYNOPSIS
 .In bsm/audit.h
 .Ft int
 .Fn auditon "int cmd" "void *data" "u_int length"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn auditon
 system call is used to manipulate various audit control operations.
-.Ft *data
+The
+.Fa data
+argument
 should point to a structure whose type depends on the command.
-.Ft length
-specifies the size of the 
-.Em data 
+The
+.Fa length
+argument
+specifies the size of
+.Fa *data
 in bytes.
-.Ft cmd
+The
+.Fa cmd
+argument
 may be any of the following:
 .Bl -tag -width ".It Dv A_GETPINFO_ADDR"
 .It Dv A_SETPOLICY
 Set audit policy flags.
-.Ft *data
-must point to a long value set to one of the audit 
+The
+.Fa data
+argument
+must point to a
+.Vt long
+value set to one of the audit
 policy control values defined in
-.Pa audit.h .
+.In bsm/audit.h .
 Currently, only
 .Dv AUDIT_CNT
 and
@@ -76,24 +86,28 @@ Return
 .Er ENOSYS .
 .It Dv A_SETKMASK
 Set the kernel preselection masks (success and failure).
-.Ft *data
+The
+.Fa data
+argument
 must point to a
-.Ft au_mask_t
+.Vt au_mask_t
 structure containing the mask values.
 These masks are used for non-attributable audit event preselection.
 .It Dv A_SETQCTRL
 Set kernel audit queue parameters.
-.Ft *data
+The
+.Fa data
+argument
 must point to a
-.Ft au_qctrl_t
+.Vt au_qctrl_t
 structure containing the
 kernel audit queue control settings:
-.Va high water ,
-.Va low water ,
-.Va output buffer size ,
-.Va percent min free disk space ,
+.Dq "high water" ,
+.Dq "low water" ,
+.Dq "output buffer size" ,
+.Dq "percent min free disk space" ,
 and
-.Em delay
+.Dq delay
 (not currently used).
 .It Dv A_SETSTAT
 Return
@@ -106,8 +120,12 @@ Return
 .Er ENOSYS .
 .It Dv A_SETCOND
 Set the current auditing condition.
-.Ft *data
-must point to a long value containing the new
+The
+.Fa data
+argument
+must point to a
+.Vt long
+value containing the new
 audit condition, one of
 .Dv AUC_AUDITING ,
 .Dv AUC_NOAUDIT ,
@@ -115,43 +133,54 @@ or
 .Dv AUC_DISABLED .
 .It Dv A_SETCLASS
 Set the event class preselection mask for an audit event.
-.Ft *data
+The
+.Fa data
+argument
 must point to a
-.Ft au_evclass_map_t
+.Vt au_evclass_map_t
 structure containing the audit event and mask.
 .It Dv A_SETPMASK
 Set the preselection masks for a process.
-.Ft *data
+The
+.Fa data
+argument
 must point to a
-.Ft auditpinfo_t
-structure that contains the given process's audit 
+.Vt auditpinfo_t
+structure that contains the given process's audit
 preselection masks for both success and failure.
 .It Dv A_SETFSIZE
 Set the maximum size of the audit log file.
-.Ft *data
+The
+.Fa data
+argument
 must point to a
-.Ft au_fstat_t
+.Vt au_fstat_t
 structure with the
-.Ft af_filesz
-field set to the maximum audit log file size. A value of 0
+.Va af_filesz
+field set to the maximum audit log file size.
+A value of 0
 indicates no limit to the size.
 .It Dv A_SETKAUDIT
 Return
 .Er ENOSYS .
 .It Dv A_GETCLASS
 Return the event to class mapping for the designated audit event.
-.Ft *data
-must point to a 
-.Ft au_evclass_map_t
+The
+.Fa data
+argument
+must point to a
+.Vt au_evclass_map_t
 structure.
 .It Dv A_GETKAUDIT
 Return
 .Er ENOSYS .
 .It Dv A_GETPINFO
 Return the audit settings for a process.
-.Ft *data
+The
+.Fa data
+argument
 must point to a
-.Ft auditpinfo_t
+.Vt auditpinfo_t
 structure which will be set to contain
 the audit ID, preselection mask, terminal ID, and audit session
 ID of the given process.
@@ -160,15 +189,21 @@ Return
 .Er ENOSYS .
 .It Dv A_GETKMASK
 Return the current kernel preselection masks.
-.Ft *data
+The
+.Fa data
+argument
 must point to a
-.Ft au_mask_t
-structure which will be set to 
+.Vt au_mask_t
+structure which will be set to
 the current kernel preselection masks for non-attributable events.
 .It Dv A_GETPOLICY
 Return the current audit policy setting.
-.Ft *data
-must point to a long value which will be set to
+The
+.Fa data
+argument
+must point to a
+.Vt long
+value which will be set to
 one of the current audit policy flags.
 Currently, only
 .Dv AUDIT_CNT
@@ -177,22 +212,28 @@ and
 are implemented.
 .It Dv A_GETQCTRL
 Return the current kernel audit queue control parameters.
-.Ft *data
-must point to a 
-.Ft au_qctrl_t
+The
+.Fa data
+argument
+must point to a
+.Vt au_qctrl_t
 structure which will be set to the current
 kernel audit queue control parameters.
 .It Dv A_GETFSIZE
 Returns the maximum size of the audit log file.
-.Ft *data
+The
+.Fa data
+argument
 must point to a
-.Ft au_fstat_t
-structure. The
-.Ft af_filesz
+.Vt au_fstat_t
+structure.
+The
+.Va af_filesz
 field will be set to the maximum audit log file size.
 A value of 0 indicates no limit to the size.
 The
-.Ft af_currsz
+.Va af_currsz
+field
 will be set to the current audit log file size.
 .It Dv A_GETCWD
 .\" [COMMENTED OUT]: Valid description, not yet implemented.
@@ -212,16 +253,24 @@ Return
 .Er ENOSYS .
 .It Dv A_GETCOND
 Return the current auditing condition.
-.Ft *data
-must point to a long value which will be set to
+The
+.Fa data
+argument
+must point to a
+.Vt long
+value which will be set to
 the current audit condition, either
 .Dv AUC_AUDITING
 or
 .Dv AUC_NOAUDIT .
 .It Dv A_SENDTRIGGER
 Send a trigger to the audit daemon.
-.Fr *data
-must point to a long value set to one of the acceptable
+The
+.Fa data
+argument
+must point to a
+.Vt long
+value set to one of the acceptable
 trigger values:
 .Dv AUDIT_TRIGGER_LOW_SPACE
 (low disk space where the audit log resides),
@@ -264,17 +313,26 @@ and Mac OS X implementations, and is not present in Solaris.
 .Sh SEE ALSO
 .Xr audit 2 ,
 .Xr auditctl 2 ,
-.Xr getauid 2 ,
-.Xr setauid 2 ,
 .Xr getaudit 2 ,
-.Xr setaudit 2 ,
 .Xr getaudit_addr 2 ,
+.Xr getauid 2 ,
+.Xr setaudit 2 ,
 .Xr setaudit_addr 2 ,
+.Xr setauid 2 ,
 .Xr libbsm 3
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
 .Sh AUTHORS
+.An -nosplit
 This software was created by McAfee Research, the security research division
 of McAfee, Inc., under contract to Apple Computer Inc.
-Additional authors include Wayne Salamon, Robert Watson, and SPARTA Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
 .Pp
 The Basic Security Module (BSM) interface to audit records and audit event
 stream format were defined by Sun Microsystems.
@@ -284,8 +342,3 @@ This manual page was written by
 .An Robert Watson Aq rwatson@FreeBSD.org ,
 and
 .An Wayne Salamon Aq wsalamon@FreeBSD.org .
-.Sh HISTORY
-The OpenBSM implementation was created by McAfee Research, the security
-division of McAfee Inc., under contract to Apple Computer Inc. in 2003.
-It was subsequently adopted by the TrustedBSD Project as the foundation for
-the OpenBSM distribution.

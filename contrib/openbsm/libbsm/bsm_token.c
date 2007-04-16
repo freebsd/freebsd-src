@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#52 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#62 $
  */
 
 #include <sys/types.h>
@@ -212,9 +212,46 @@ au_to_attr32(struct vnode_au_info *vni)
 token_t *
 au_to_attr64(struct vnode_au_info *vni)
 {
+	token_t *t;
+	u_char *dptr = NULL;
+	u_int16_t pad0_16 = 0;
+	u_int16_t pad0_32 = 0;
 
-	errno = ENOTSUP;
-	return (NULL);
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 2 * sizeof(u_int16_t) +
+	    3 * sizeof(u_int32_t) + sizeof(u_int64_t) * 2);
+	if (t == NULL)
+		return (NULL);
+
+	ADD_U_CHAR(dptr, AUT_ATTR64);
+
+	/*
+	 * Darwin defines the size for the file mode
+	 * as 2 bytes; BSM defines 4 so pad with 0
+	 */
+	ADD_U_INT16(dptr, pad0_16);
+	ADD_U_INT16(dptr, vni->vn_mode);
+
+	ADD_U_INT32(dptr, vni->vn_uid);
+	ADD_U_INT32(dptr, vni->vn_gid);
+	ADD_U_INT32(dptr, vni->vn_fsid);
+
+	/*
+	 * Some systems use 32-bit file ID's, other's use 64-bit file IDs.
+	 * Attempt to handle both, and let the compiler sort it out.  If we
+	 * could pick this out at compile-time, it would be better, so as to
+	 * avoid the else case below.
+	 */
+	if (sizeof(vni->vn_fileid) == sizeof(uint32_t)) {
+		ADD_U_INT32(dptr, pad0_32);
+		ADD_U_INT32(dptr, vni->vn_fileid);
+	} else if (sizeof(vni->vn_fileid) == sizeof(uint64_t))
+		ADD_U_INT64(dptr, vni->vn_fileid);
+	else
+		ADD_U_INT64(dptr, 0LL);
+
+	ADD_U_INT64(dptr, vni->vn_dev);
+
+	return (t);
 }
 
 token_t *
@@ -308,7 +345,7 @@ token_t *
 au_to_groups(int *groups)
 {
 
-	return (au_to_newgroups(AUDIT_MAX_GROUPS, groups));
+	return (au_to_newgroups(AUDIT_MAX_GROUPS, (gid_t*)groups));
 }
 
 /*
@@ -382,6 +419,8 @@ au_to_in_addr_ex(struct in6_addr *internet_addr)
 /*
  * token ID                1 byte
  * ip header		   20 bytes
+ *
+ * The IP header should be submitted in network byte order.
  */
 token_t *
 au_to_ip(struct ip *ip)
@@ -394,9 +433,6 @@ au_to_ip(struct ip *ip)
 		return (NULL);
 
 	ADD_U_CHAR(dptr, AUT_IP);
-	/*
-	 * XXXRW: Any byte order work needed on the IP header before writing?
-	 */
 	ADD_MEM(dptr, ip, sizeof(struct ip));
 
 	return (t);
@@ -650,19 +686,34 @@ au_to_process32(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
 }
 
 token_t *
-au_to_process64(__unused au_id_t auid, __unused uid_t euid,
-    __unused gid_t egid, __unused uid_t ruid, __unused gid_t rgid,
-    __unused pid_t pid, __unused au_asid_t sid, __unused au_tid_t *tid)
+au_to_process64(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
+    pid_t pid, au_asid_t sid, au_tid_t *tid)
 {
+	token_t *t;
+	u_char *dptr = NULL;
 
-	errno = ENOTSUP;
-	return (NULL);
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 8 * sizeof(u_int32_t) +
+	    sizeof(u_int64_t));
+	if (t == NULL)
+		return (NULL);
+
+	ADD_U_CHAR(dptr, AUT_PROCESS64);
+	ADD_U_INT32(dptr, auid);
+	ADD_U_INT32(dptr, euid);
+	ADD_U_INT32(dptr, egid);
+	ADD_U_INT32(dptr, ruid);
+	ADD_U_INT32(dptr, rgid);
+	ADD_U_INT32(dptr, pid);
+	ADD_U_INT32(dptr, sid);
+	ADD_U_INT64(dptr, tid->port);
+	ADD_MEM(dptr, &tid->machine, sizeof(u_int32_t));
+
+	return (t);
 }
 
 token_t *
-au_to_process(__unused au_id_t auid, __unused uid_t euid,
-    __unused gid_t egid, __unused uid_t ruid, __unused gid_t rgid,
-    __unused pid_t pid, __unused au_asid_t sid, __unused au_tid_t *tid)
+au_to_process(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
+    pid_t pid, au_asid_t sid, au_tid_t *tid)
 {
 
 	return (au_to_process32(auid, euid, egid, ruid, rgid, pid, sid,
@@ -713,11 +764,11 @@ au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	ADD_U_INT32(dptr, sid);
 	ADD_U_INT32(dptr, tid->at_port);
 	ADD_U_INT32(dptr, tid->at_type);
-	ADD_U_INT32(dptr, tid->at_addr[0]);
+	ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
 	if (tid->at_type == AU_IPv6) {
-		ADD_U_INT32(dptr, tid->at_addr[1]);
-		ADD_U_INT32(dptr, tid->at_addr[2]);
-		ADD_U_INT32(dptr, tid->at_addr[3]);
+		ADD_MEM(dptr, &tid->at_addr[1], sizeof(u_int32_t));
+		ADD_MEM(dptr, &tid->at_addr[2], sizeof(u_int32_t));
+		ADD_MEM(dptr, &tid->at_addr[3], sizeof(u_int32_t));
 	}
 
 	return (t);
@@ -727,9 +778,42 @@ token_t *
 au_to_process64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
     gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
 {
+	token_t *t;
+	u_char *dptr = NULL;
 
-	errno = ENOTSUP;
-	return (NULL);
+	if (tid->at_type == AU_IPv4)
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
+		    7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
+		    2 * sizeof(u_int32_t));
+	else if (tid->at_type == AU_IPv6)
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
+		    7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
+		    5 * sizeof(u_int32_t));
+	else {
+		errno = EINVAL;
+		return (NULL);
+	}
+	if (t == NULL)
+		return (NULL);
+
+	ADD_U_CHAR(dptr, AUT_PROCESS64_EX);
+	ADD_U_INT32(dptr, auid);
+	ADD_U_INT32(dptr, euid);
+	ADD_U_INT32(dptr, egid);
+	ADD_U_INT32(dptr, ruid);
+	ADD_U_INT32(dptr, rgid);
+	ADD_U_INT32(dptr, pid);
+	ADD_U_INT32(dptr, sid);
+	ADD_U_INT64(dptr, tid->at_port);
+	ADD_U_INT32(dptr, tid->at_type);
+	ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
+	if (tid->at_type == AU_IPv6) {
+		ADD_MEM(dptr, &tid->at_addr[1], sizeof(u_int32_t));
+		ADD_MEM(dptr, &tid->at_addr[2], sizeof(u_int32_t));
+		ADD_MEM(dptr, &tid->at_addr[3], sizeof(u_int32_t));
+	}
+
+	return (t);
 }
 
 token_t *
@@ -944,9 +1028,26 @@ token_t *
 au_to_subject64(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
     pid_t pid, au_asid_t sid, au_tid_t *tid)
 {
+	token_t *t;
+	u_char *dptr = NULL;
 
-	errno = ENOTSUP;
-	return (NULL);
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 7 * sizeof(u_int32_t) +
+	    sizeof(u_int64_t) + sizeof(u_int32_t));
+	if (t == NULL)
+		return (NULL);
+
+	ADD_U_CHAR(dptr, AUT_SUBJECT64);
+	ADD_U_INT32(dptr, auid);
+	ADD_U_INT32(dptr, euid);
+	ADD_U_INT32(dptr, egid);
+	ADD_U_INT32(dptr, ruid);
+	ADD_U_INT32(dptr, rgid);
+	ADD_U_INT32(dptr, pid);
+	ADD_U_INT32(dptr, sid);
+	ADD_U_INT64(dptr, tid->port);
+	ADD_MEM(dptr, &tid->machine, sizeof(u_int32_t));
+
+	return (t);
 }
 
 token_t *
@@ -1002,12 +1103,10 @@ au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	ADD_U_INT32(dptr, sid);
 	ADD_U_INT32(dptr, tid->at_port);
 	ADD_U_INT32(dptr, tid->at_type);
-	ADD_U_INT32(dptr, tid->at_addr[0]);
-	if (tid->at_type == AU_IPv6) {
-		ADD_U_INT32(dptr, tid->at_addr[1]);
-		ADD_U_INT32(dptr, tid->at_addr[2]);
-		ADD_U_INT32(dptr, tid->at_addr[3]);
-	}
+	if (tid->at_type == AU_IPv6)
+		ADD_MEM(dptr, &tid->at_addr[0], 4 * sizeof(u_int32_t));
+	else
+		ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
 
 	return (t);
 }
@@ -1016,9 +1115,40 @@ token_t *
 au_to_subject64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
     gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
 {
+	token_t *t;
+	u_char *dptr = NULL;
 
-	errno = ENOTSUP;
-	return (NULL);
+	if (tid->at_type == AU_IPv4)
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
+		    7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
+		    2 * sizeof(u_int32_t));
+	else if (tid->at_type == AU_IPv6)
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
+		    7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
+		    5 * sizeof(u_int32_t));
+	else {
+		errno = EINVAL;
+		return (NULL);
+	}
+	if (t == NULL)
+		return (NULL);
+
+	ADD_U_CHAR(dptr, AUT_SUBJECT64_EX);
+	ADD_U_INT32(dptr, auid);
+	ADD_U_INT32(dptr, euid);
+	ADD_U_INT32(dptr, egid);
+	ADD_U_INT32(dptr, ruid);
+	ADD_U_INT32(dptr, rgid);
+	ADD_U_INT32(dptr, pid);
+	ADD_U_INT32(dptr, sid);
+	ADD_U_INT64(dptr, tid->at_port);
+	ADD_U_INT32(dptr, tid->at_type);
+	if (tid->at_type == AU_IPv6)
+		ADD_MEM(dptr, &tid->at_addr[0], 4 * sizeof(u_int32_t));
+	else
+		ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
+
+	return (t);
 }
 
 token_t *
@@ -1086,6 +1216,27 @@ au_to_exec_args(char **argv)
 		ADD_MEM(dptr, nextarg, strlen(nextarg) + 1);
 	}
 
+	return (t);
+}
+
+/*
+ * token ID                1 byte
+ * zonename length         2 bytes
+ * zonename                N bytes + 1 terminating NULL byte
+ */
+token_t *
+au_to_zonename(char *zonename)
+{
+	u_char *dptr = NULL;
+	u_int16_t textlen;
+	token_t *t;
+
+	textlen = strlen(zonename);
+	textlen += 1;
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int16_t) + textlen);
+	ADD_U_CHAR(dptr, AUT_ZONENAME);
+	ADD_U_INT16(dptr, textlen);
+	ADD_STRING(dptr, zonename, textlen);
 	return (t);
 }
 
@@ -1166,6 +1317,33 @@ au_to_header32_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 	return (t);
 }
 
+token_t *
+au_to_header64_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
+    struct timeval tm)
+{
+	token_t *t;
+	u_char *dptr = NULL;
+	u_int32_t timems;
+
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int32_t) +
+	    sizeof(u_char) + 2 * sizeof(u_int16_t) + 2 * sizeof(u_int64_t));
+	if (t == NULL)
+		return (NULL);
+
+	ADD_U_CHAR(dptr, AUT_HEADER64);
+	ADD_U_INT32(dptr, rec_size);
+	ADD_U_CHAR(dptr, AUDIT_HEADER_VERSION_OPENBSM);
+	ADD_U_INT16(dptr, e_type);
+	ADD_U_INT16(dptr, e_mod);
+
+	timems = tm.tv_usec/1000;
+	/* Add the timestamp */
+	ADD_U_INT64(dptr, tm.tv_sec);
+	ADD_U_INT64(dptr, timems);	/* We need time in ms. */
+
+	return (t);
+}
+
 #if !defined(KERNEL) && !defined(_KERNEL)
 token_t *
 au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod)
@@ -1181,9 +1359,11 @@ token_t *
 au_to_header64(__unused int rec_size, __unused au_event_t e_type,
     __unused au_emod_t e_mod)
 {
+	struct timeval tm;
 
-	errno = ENOTSUP;
-	return (NULL);
+	if (gettimeofday(&tm, NULL) == -1)
+		return (NULL);
+	return (au_to_header64_tm(rec_size, e_type, e_mod, tm));
 }
 
 token_t *
