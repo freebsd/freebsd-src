@@ -1046,8 +1046,9 @@ _generic_libs+=	usr.sbin/pcvt/keycap
 .for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
 ${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
-	${_+_}@${ECHODIR} "===> ${_lib} (depend,all,install)"; \
+	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
+		${MAKE} DIRPRFX=${_lib}/ obj; \
 		${MAKE} DIRPRFX=${_lib}/ depend; \
 		${MAKE} DIRPRFX=${_lib}/ all; \
 		${MAKE} DIRPRFX=${_lib}/ install
@@ -1058,8 +1059,9 @@ ${_lib}__L: .PHONY
 # static PAM library, and dynamic PAM library before dynamic PAM
 # modules.
 lib/libpam__L: .PHONY
-	${_+_}@${ECHODIR} "===> lib/libpam (depend,all,install)"; \
+	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
 		cd ${.CURDIR}/lib/libpam; \
+		${MAKE} DIRPRFX=lib/libpam/ obj; \
 		${MAKE} DIRPRFX=lib/libpam/ depend; \
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
