@@ -10,7 +10,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_open.3#5 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_open.3#8 $
 .\"
 .Dd March 4, 2006
 .Dt AU_OPEN 3
@@ -34,13 +34,13 @@
 .Nm au_close_token ,
 .Nm au_open ,
 .Nm au_write
-.Nd "Create and commit audit records"
+.Nd "create and commit audit records"
 .Sh LIBRARY
 .Lb libbsm
 .Sh SYNOPSIS
-.In libbsm.h
+.In bsm/libbsm.h
 .Ft int
-.Fn au_open "void"
+.Fn au_open void
 .Ft int
 .Fn au_write "int d" "token_t *tok"
 .Ft int
@@ -73,7 +73,7 @@ function is used to commit an audit record to the system audit log, or
 abandon the record.
 In either cases, all resources associated with the record will be released.
 The
-.Va keep
+.Fa keep
 argument determines the behavior: a value of
 .Dv AU_TO_WRITE
 causes the record to be committed; a value of
@@ -81,28 +81,30 @@ causes the record to be committed; a value of
 causes it to be abandoned.
 When the audit record is committed, a BSM header will be inserted before
 tokens added to the record, using the event identifier passed via
-.Va event ,
+.Fa event ,
 and a trailer added to the end.
 Committing a record to the system audit log requires privilege.
 .Pp
 The
 .Fn au_close_buffer
 function writes the resulting record to an in-memory buffer of size
-.Va *buflen ;
+.Fa *buflen ;
 it will write back the filled buffer length into the same variable.
 The argument
-.Va short
+.Fa event
 is the event identifier to use in the record header.
 .Pp
 The
 .Fn au_close_token
 function generates the BSM stream output for a single token,
-.Va tok ,
+.Fa tok ,
 in the passed buffer
-.Va buffer .
+.Fa buffer .
 The initial buffer size and resulting data size are passed via
-.Va *buflen .
+.Fa *buflen .
+The
 .Fn au_close_token
+function
 will free the token before returning.
 .Sh RETURN VALUES
 The function
@@ -123,18 +125,23 @@ information in
 .Sh SEE ALSO
 .Xr audit_submit 3 ,
 .Xr libbsm 3
-.Sh AUTHORS
-This software was created by Robert Watson, Wayne Salamon, and Suresh
-Krishnaswamy for McAfee Research, the security research division of McAfee,
-Inc., under contract to Apple Computer, Inc.
-.Pp
-The Basic Security Module (BSM) interface to audit records and audit event
-stream format were defined by Sun Microsystems.
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security
 division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
 It was subsequently adopted by the TrustedBSD Project as the foundation for
 the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by
+.An Robert Watson ,
+.An Wayne Salamon ,
+and
+.An Suresh Krishnaswamy
+for McAfee Research, the security research division of McAfee,
+Inc., under contract to Apple Computer, Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
 .Sh BUGS
 Currently,
 .Fn au_open

@@ -23,18 +23,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd.8#2 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd.8#4 $
 .\"
-.Dd March 27, 2006
+.Dd October 3, 2006
 .Dt AUDITFILTERD 8
 .Os
 .Sh NAME
 .Nm auditfilterd
 .Nd audit filter daemon
 .Sh SYNOPSIS
-.Nm auditfilterd
+.Nm
 .Op Fl d
 .Op Fl c Ar conffile
+.Op Fl p Ar pipefile
 .Op Fl t Ar trailfile
 .Sh DESCRIPTION
 The
@@ -44,18 +45,23 @@ modules to track audit events from a live audit source.
 It is configured using the
 .Xr audit_filter 5
 configuration file.
+The source can either be a pipe or a file.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
-.It Fl d
-Starts the daemon in debug mode - it will not daemonize.
+.Bl -tag -width indent
 .It Fl c Ar conffile
 Specify an alternative configuration file.
+.It Fl d
+Starts the daemon in debug mode \[em] it will not daemonize.
+.It Fl p Ar pipefile
+Specify a pipe as an alternative source of audit event records.
+Default is
+.Pa /dev/auditpipe .
 .It Fl t Ar trailfile
-Specify an alternative source of audit event records.
+Specify a file as an alternative source of audit event records.
 .El
 .Sh FILES
-.Bl -tag -width "/etc/security/audit_filterd" -compact
+.Bl -tag -width ".Pa /etc/security/audit_filterd" -compact
 .It Pa /etc/security/audit_filterd
 Default configuration file for
 .Nm .
@@ -66,12 +72,13 @@ Default audit record source for
 .Sh SEE ALSO
 .Xr audit 8 ,
 .Xr auditd 8
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
 .Sh AUTHORS
 The
 .Nm
-daemon and audit filter APIs were created by Robert Watson.
-.Sh HISTORY
-The OpenBSM implementation was created by McAfee Research, the security
-division of McAfee Inc., under contract to Apple Computer Inc. in 2004.
-It was subsequently adopted by the TrustedBSD Project as the foundation for
-the OpenBSM distribution.
+daemon and audit filter APIs were created by
+.An Robert Watson .
