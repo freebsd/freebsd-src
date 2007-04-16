@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#23 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#25 $
  */
 
 #include <sys/types.h>
@@ -865,7 +865,7 @@ setup(void)
 		syslog(LOG_ERR, "Could not create audit startup event.");
 	else {
 		/*
-		 * XXXCSJP Perhaps we wan't more robust audit records for
+		 * XXXCSJP Perhaps we want more robust audit records for
 		 * audit start up and shutdown. This might include capturing
 		 * failures to initialize the audit subsystem?
 		 */
@@ -896,7 +896,7 @@ main(int argc, char **argv)
 	int debug = 0;
 	int rc;
 
-	while ((ch = getopt(argc, argv, "dhs")) != -1) {
+	while ((ch = getopt(argc, argv, "d")) != -1) {
 		switch(ch) {
 		case 'd':
 			/* Debug option. */

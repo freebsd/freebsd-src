@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Apple Computer, Inc.
+ * Copyright (c) 2006 Martin Voros
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.c#9 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.c#11 $
  */
 
 /*
@@ -34,7 +35,7 @@
  */
 
 /*
- * praudit [-lrs] [-ddel] [filenames]
+ * praudit [-lpx] [-r | -s] [-d del] [file ...]
  */
 
 #include <bsm/libbsm.h>
@@ -51,12 +52,14 @@ static int	 oneline = 0;
 static int	 raw = 0;
 static int	 shortfrm = 0;
 static int	 partial = 0;
+static int	 xml = 0;
 
 static void
-usage()
+usage(void)
 {
 
-	fprintf(stderr, "Usage: praudit [-lrs] [-ddel] [filenames]\n");
+	fprintf(stderr, "usage: praudit [-lpx] [-r | -s] [-d del] "
+	    "[file ...]\n");
 	exit(1);
 }
 
@@ -88,11 +91,17 @@ print_tokens(FILE *fp)
 			if (-1 == au_fetch_tok(&tok, buf + bytesread,
 			    reclen - bytesread))
 				break;
-			au_print_tok(stdout, &tok, del, raw, shortfrm);
-			bytesread += tok.len;
-			if (oneline)
-				printf("%s", del);
+			if (xml)
+				au_print_tok_xml(stdout, &tok, del, raw,
+				    shortfrm);
 			else
+				au_print_tok(stdout, &tok, del, raw,
+				    shortfrm);
+			bytesread += tok.len;
+			if (oneline) {
+				if (!xml)
+					printf("%s", del);
+			} else
 				printf("\n");
 		}
 		free(buf);
@@ -109,10 +118,18 @@ main(int argc, char **argv)
 	int i;
 	FILE *fp;
 
-	while ((ch = getopt(argc, argv, "lprsd:")) != -1) {
+	while ((ch = getopt(argc, argv, "d:lprsx")) != -1) {
 		switch(ch) {
+		case 'd':
+			del = optarg;
+			break;
+
 		case 'l':
 			oneline = 1;
+			break;
+
+		case 'p':
+			partial = 1;
 			break;
 
 		case 'r':
@@ -127,12 +144,8 @@ main(int argc, char **argv)
 			shortfrm = 1;
 			break;
 
-		case 'd':
-			del = optarg;
-			break;
-
-		case 'p':
-			partial = 1;
+		case 'x':
+			xml = 1;
 			break;
 
 		case '?':
@@ -140,6 +153,9 @@ main(int argc, char **argv)
 			usage();
 		}
 	}
+
+	if (xml)
+		au_print_xml_header(stdout);
 
 	/* For each of the files passed as arguments dump the contents. */
 	if (optind == argc) {
@@ -153,5 +169,9 @@ main(int argc, char **argv)
 		if (fp != NULL)
 			fclose(fp);
 	}
+
+	if (xml)
+		au_print_xml_footer(stdout);
+
 	return (1);
 }

@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_notify.c#12 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_notify.c#13 $
  */
 
 /*
@@ -66,7 +66,8 @@ uint32_t
 au_notify_initialize(void)
 {
 #if AUDIT_NOTIFICATION_ENABLED
-	uint32_t status, ignore_first;
+	uint32_t status;
+	int ignore_first;
 
 	status = notify_register_check(__BSM_INTERNAL_NOTIFY_KEY, &token);
 	if (status != NOTIFY_STATUS_OK)
@@ -108,7 +109,7 @@ int
 au_get_state(void)
 {
 #if AUDIT_NOTIFICATION_ENABLED
-	uint32_t did_notify;
+	int did_notify;
 #endif
 	int status;
 
