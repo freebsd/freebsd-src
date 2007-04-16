@@ -2,17 +2,18 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	libavl
-SUBDIR+=libnvpair
-SUBDIR+=libumem
-SUBDIR+=libuutil
-.if ${MK_CDDL} != "no"
-SUBDIR+=libzfs
-SUBDIR+=${_libzpool}
-.endif
+SUBDIR=	libavl \
+	libnvpair \
+	libumem \
+	libuutil \
+	${_libzfs} \
+	${_libzpool}
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MK_ZFS} != "no"
+_libzfs=	libzfs
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _libzpool=	libzpool
+.endif
 .endif
 
 .include <bsd.subdir.mk>
