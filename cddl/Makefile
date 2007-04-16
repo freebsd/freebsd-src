@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	lib
-SUBDIR+=sbin
-SUBDIR+=usr.bin
-SUBDIR+=usr.sbin
+SUBDIR=	lib sbin usr.bin usr.sbin
 
 .include <bsd.subdir.mk>

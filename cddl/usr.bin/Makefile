@@ -2,12 +2,12 @@
 
 .include <bsd.own.mk>
 
-.if ${MK_ZFS} != "no"
 SUBDIR=	${_ztest}
-.endif
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MK_ZFS} != "no"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _ztest=	ztest
+.endif
 .endif
 
 .include <bsd.subdir.mk>
