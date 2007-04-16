@@ -223,8 +223,8 @@ sgcleanup(struct cam_periph *periph)
 
 	softc = (struct sg_softc *)periph->softc;
 	devstat_remove_entry(softc->device_stats);
-	destroy_dev(softc->dev);
 	destroy_dev(softc->devalias);
+	destroy_dev(softc->dev);
 	if (bootverbose) {
 		xpt_print(periph->path, "removing device entry\n");
 	}
