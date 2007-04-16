@@ -223,11 +223,12 @@ read_archive(struct bsdtar *bsdtar, char mode)
 				    archive_entry_pathname(entry));
 				fflush(stderr);
 			}
-			if (bsdtar->option_stdout) {
-				/* TODO: Catch/recover any errors here. */
-				archive_read_data_into_fd(a, 1);
-			} else if (archive_read_extract(a, entry,
-				       bsdtar->extract_flags)) {
+			if (bsdtar->option_stdout)
+				r = archive_read_data_into_fd(a, 1);
+			else
+				r = archive_read_extract(a, entry,
+				    bsdtar->extract_flags);
+			if (r != ARCHIVE_OK) {
 				if (!bsdtar->verbose)
 					safe_fprintf(stderr, "%s",
 					    archive_entry_pathname(entry));
@@ -235,14 +236,12 @@ read_archive(struct bsdtar *bsdtar, char mode)
 				    archive_error_string(a));
 				if (!bsdtar->verbose)
 					fprintf(stderr, "\n");
-				/*
-				 * TODO: Decide how to handle
-				 * extraction error... <sigh>
-				 */
 				bsdtar->return_value = 1;
 			}
 			if (bsdtar->verbose)
 				fprintf(stderr, "\n");
+			if (r == ARCHIVE_FATAL)
+				break;
 		}
 	}
 
