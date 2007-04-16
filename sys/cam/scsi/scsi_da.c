@@ -939,13 +939,9 @@ dacleanup(struct cam_periph *periph)
 	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
 		xpt_print(periph->path, "can't remove sysctl context\n");
 	}
-	disk_destroy(softc->disk);
 
-	/*
-	 * XXX Gotta drop the periph lock so that the drain can complete with
-	 * deadlocking on the lock.  Hopefully dropping here is safe.
-	 */
 	cam_periph_unlock(periph);
+	disk_destroy(softc->disk);
 	callout_drain(&softc->sendordered_c);
 	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);

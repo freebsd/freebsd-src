@@ -486,7 +486,9 @@ cdcleanup(struct cam_periph *periph)
 		xpt_print(periph->path, "removing changer entry\n");
 		free(softc->changer, M_DEVBUF);
 	}
+	cam_periph_unlock(periph);
 	disk_destroy(softc->disk);
+	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
 }
 
