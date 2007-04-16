@@ -95,6 +95,8 @@ archive_read_extract(struct archive *_a, struct archive_entry *entry, int flags)
 	archive_write_disk_set_skip_file(a->extract->ad,
 	    a->skip_file_dev, a->skip_file_ino);
 	r = archive_write_header(a->extract->ad, entry);
+	if (r < ARCHIVE_WARN)
+		r = ARCHIVE_WARN;
 	if (r != ARCHIVE_OK)
 		/* If _write_header failed, copy the error. */
 		archive_set_error(&a->archive,
@@ -104,6 +106,8 @@ archive_read_extract(struct archive *_a, struct archive_entry *entry, int flags)
 		/* Otherwise, pour data into the entry. */
 		r = copy_data(_a, a->extract->ad);
 	r2 = archive_write_finish_entry(a->extract->ad);
+	if (r2 < ARCHIVE_WARN)
+		r2 = ARCHIVE_WARN;
 	/* Use the first message. */
 	if (r2 != ARCHIVE_OK && r == ARCHIVE_OK)
 		archive_set_error(&a->archive,
@@ -142,6 +146,8 @@ copy_data(struct archive *ar, struct archive *aw)
 		if (r != ARCHIVE_OK)
 			return (r);
 		r = archive_write_data_block(aw, buff, size, offset);
+		if (r < ARCHIVE_WARN)
+			r = ARCHIVE_WARN;
 		if (r != ARCHIVE_OK) {
 			archive_set_error(ar, archive_errno(aw),
 			    "%s", archive_error_string(aw));
