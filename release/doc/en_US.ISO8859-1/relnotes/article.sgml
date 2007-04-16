@@ -372,6 +372,12 @@
     <para>&os; now supports concurrent &man.read.2;/&man.readv.2;
       access to a file.</para>
 
+    <para>The kernel's &man.sx.9; locks have been optimized to use
+      simple atomic operations for the common cases of obtaining and 
+      releasing shared and exclusive locks.  While this change is not
+      generally user-visible, it is the basis for some substantial
+      performance improvements.</para>
+
     <para>The ULE process scheduler has been revised to improve its
       behavior, in particular interactivity under load.  This
       implementation can commonly be referred to as <quote>ULE
@@ -1403,6 +1409,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       and other related primaries, which can be used to create expressions
       based on a file's creation time. &merged;</para>
 
+    <para>T/TCP support in &man.finger.1; (and the <option>-T</option>
+      flag used to enable it) has been removed.</para>
+
     <para>A bug in the &man.find.1; program which prevents
       numeric arguments for <option>-user</option> and
       <option>-group</option> from working as expected
@@ -1513,6 +1522,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.libarchive.3; library now supports
       POSIX.1e-style Extended Attributes.</para>
+
+    <para>The &man.libarchive.3; library now contains support for
+      &man.ar.1;-style archives.</para>
 
     <para>The <application>libc</application> library now includes
       initial implementation of symbol maps and symbol version
@@ -1713,6 +1725,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       function has been added to
       allow lookups for a specific version of a given symbol.</para>
 
+    <para>The &man.rpc.lockd.8; and &man.rpc.statd.8; programs now
+      accept <option>-p</option> options to indicate which port they
+      should bind to. &merged;</para>
+
     <para>A bug in the &man.sed.1; utility which can cause
       incorrect calculation of pattern space length in some cases
       has been fixed.</para>
@@ -1749,6 +1765,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.time.1; utility now prints the time that a given
       command has been running if sent a <literal>SIGINFO</literal> signal.</para>
+
+    <para>The &man.top.1; program now supports a <option>-a</option>
+      flag to display process titles from their argument vectors;
+      this feature is useful for watching processes that change their
+      titles via &man.setproctitle.3;.</para>
 
     <para>The &man.traceroute.8; program now supports
       a <option>-D</option> flag, which causes it to display the
