@@ -1795,7 +1795,7 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 		error = 0;
 		break;
 	case MOD_UNLOAD:
-		if (spa_busy() || /* zfs_busy() || */ zvol_busy() ||
+		if (spa_busy() || zfs_busy() || zvol_busy() ||
 		    zio_injection_enabled) {
 			error = EBUSY;
 			break;
