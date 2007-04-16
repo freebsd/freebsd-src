@@ -1,0 +1,120 @@
+# $FreeBSD$
+
+# This file is meant to show the infrastructural organization of the
+# FreeBSD Project; what kind of teams we have and how they relate to
+# each other.
+# For a detailed description of the responsibilities and duties of the listed
+# teams, please see our Administration page at
+# http://www.freebsd.org/administration.html .
+# 
+# The graphical output can be generated from this file with the following
+# command:
+# $ dot -T png -o file.png organization.dot
+#
+# The dot binary is part of the graphics/graphviz port.
+
+digraph org {
+
+node [color=lightblue2, style=filled, bgcolor=black];
+
+# Meta-categories go here
+
+_devel [label="FreeBSD Developers"]
+_admin [label="FreeBSD Infrastructure Administrators"]
+_misc [label="Miscellaneous Hats"]
+
+# Development teams go here alphabetically sorted
+
+core [label="Core Team\ncore@FreeBSD.org\nwilko, brooks, keramida, imp,\ngnn, wes, hrs, murray,\nrwatson"]
+coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\njoel"]
+doccommitters [label="Doc/www Committers\ndoc-committers@FreeBSD.org"]
+doceng [label="Documentation Engineering Team\ndoceng@FreeBSD.org\nnik, blackend, hrs,\nmurray"]
+portscommitters [label="Ports Committers\nports-committers@FreeBSD.org"]
+portmgr [label="Port Management Team\nportmgr@FreeBSD.org\nmarcus, kris, clement,\nerwin, linimon, pav,\nkrion"]
+portmgrsecretary [label="Port Management Team Secretary\nportmgr-secretary@FreeBSD.org\nerwin"]
+re [label="Primary Release Engineering Team\nre@FreeBSD.org\nmux, bmah, hrs, kensmith,\nmurray, rwatson, dwhite"]
+realpha [label="FreeBSD/alpha Release Engineering Team\nre-alpha@FreeBSD.org\nwilko, murray, rwatson"]
+reamd64 [label="FreeBSD/amd64 Release Engineering Team\nre-amd64@FreeBSD.org\nobrien"]
+rei386 [label="FreeBSD/i386 Release Engineering Team\nre-i386@FreeBSD.org\nmurray, rwatson"]
+reia64 [label="FreeBSD/ia64 Release Engineering Team\nre-ia64@FreeBSD.org\nmarcel"]
+repc98 [label="FreeBSD/pc98 Release Engineering Team\nre-pc98@FreeBSD.org\nnyan"]
+reppc [label="FreeBSD/ppc Release Engineering Team\nre-ppc@FreeBSD.org\ngrehan"]
+resparc64 [label="FreeBSD/sparc64 Release Engineering Team\nre-sparc64@FreeBSD.org\njake, phk, tmm, obrien,\nkensmith, murray, rwatson"]
+secteam [label="Security Team\nsecteam@FreeBSD.org\nmnag, remko, gnn, simon, philip,\ncperciva, csjp, des,\nnectar, rwatson"]
+secteamsecretary [label="Security Team Secretary\nsecteam-secretary@FreeBSD.org\nremko"]
+securityofficer [label="Security Officer Team\nsecurity-officer@FreeBSD.org\ncperciva, simon, nectar"]
+srccommitters [label="Src Committers\nsrc-committers@FreeBSD.org"]
+
+# Admin teams go here alphabetically sorted
+
+accounts [label="Accounts Team\naccounts@FreeBSD.org\nmarkm, simon, kensmith,\ndhw"]
+backups [label="Backup Administrators\nbackups@FreeBSD.org\nsimon, kensmith,\ndhw"]
+bugmeister [label="Bugmeister Team\nbugmeister@FreeBSD.org\nceri, linimon, remko"]
+clusteradm [label="Cluster Administrators\nclusteradm@FreeBSD.org\nbillf, simon, ps,\nkensmith, peter"]
+cvsupmaster [label="CVSup Mirror Site Coordinators\ncvsup-master@FreeBSD.org\nkuriyama, jdp,\nkensmith"]
+dcvs [label="CVS doc/www Repository Managers\ndcvs@FreeBSD.org\njoe, kuriyama, markm,\nsimon"]
+dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nbillf, dg, ps,\nkensmith, peter"]
+mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nkuriyama, kensmith"]
+ncvs [label="CVS src Repository Managers\nncvs@FreeBSD.org\njoe, kuriyama, markm,\nsimon, peter"]
+pcvs [label="CVS ports Repository Managers\npcvs@FreeBSD.org\nmarcus, joe, kuriyama,\nmarkm, simon"]
+perforceadmin [label="Perforce Repository Administrators\nperforce-admin@FreeBSD.org\nscottl, kensmith, gordon,\nrwatson, peter, dhw"]
+postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\njmb, brd, dhw"]
+refadm [label="Reference Systems Administrators\nrefadm@FreeBSD.org\njake, billf, markm, simon,\nobrien, ps, kensmith,\npeter, dhw"]
+webmaster [label="Webmaster Team\nwebmaster@FreeBSD.org\nnik, kuriyama, simon,\njesusr, wosch"]
+
+# Misc hats go here alphabetically sorted
+
+donations [label="Donations Team\ndonations@FreeBSD.org\nwilko, brueffer,\nobrien, trhodes, ds,\nrwatson"]
+marketing [label="Marketing Team\nmarketing@FreeBSD.org\nSteven Beedle, Denise Ebery, deb,\njkoshy, Dru Lavigne, mwlucas, imp,\nKris Moore, murray, mattt,\nJeremy C. Reed, rwatson"]
+vendorrelations [label="Vendor Relations Team\nvendor-relations@FreeBSD.org\nbrueffer, gioria, jmg, rik,\nphilip, hmp, marks,\nmurray"]
+
+# Here are the team relationships.
+# Group together all the entries for the superior team.
+# Keep the list sorted by the superior team entry.
+
+_admin -> accounts
+_admin -> backups
+_admin -> bugmeister
+_admin -> clusteradm
+_admin -> ncvs
+_admin -> pcvs
+_admin -> dcvs
+_admin -> cvsupmaster
+_admin -> dnsadm
+_admin -> mirroradmin
+_admin -> perforceadmin
+_admin -> refadm
+_admin -> postmaster
+_admin -> webmaster
+
+_devel -> core
+
+_misc -> donations
+_misc -> marketing
+_misc -> vendorrelations
+
+core -> coresecretary
+core -> doceng
+core -> portmgr
+core -> re
+core -> securityofficer
+core -> srccommitters
+
+doceng -> doccommitters
+
+portmgr -> portmgrsecretary
+portmgr -> portscommitters
+
+re -> realpha
+re -> reamd64
+re -> rei386
+re -> reia64
+re -> repc98
+re -> reppc
+re -> resparc64
+
+securityofficer -> secteam
+
+secteam -> secteamsecretary
+
+}
