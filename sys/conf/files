@@ -1527,7 +1527,7 @@ net/bpf_jitter.c		optional bpf_jitter
 net/bpf_filter.c		optional bpf | netgraph_bpf
 net/bridgestp.c			optional if_bridge
 net/bsd_comp.c			optional ppp_bsdcomp
-net/ieee8023ad_lacp.c		optional trunk
+net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
 net/if_arcsubr.c		optional arcnet
 net/if_atmsubr.c		optional atm
@@ -1544,6 +1544,7 @@ net/if_fwsubr.c			optional fwip
 net/if_gif.c			optional gif
 net/if_gre.c			optional gre
 net/if_iso88025subr.c		optional token
+net/if_lagg.c			optional lagg
 net/if_loop.c			optional loop
 net/if_media.c			standard
 net/if_mib.c			standard
@@ -1554,7 +1555,6 @@ net/if_spppsubr.c		optional i4bisppp | sppp
 net/if_stf.c			optional stf
 net/if_tun.c			optional tun
 net/if_tap.c			optional tap
-net/if_trunk.c			optional trunk
 net/if_vlan.c			optional vlan
 net/netisr.c			standard
 net/ppp_deflate.c		optional ppp_deflate

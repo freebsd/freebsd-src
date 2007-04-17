@@ -1367,18 +1367,18 @@ cost to 0.
 The minimum is 1 and the maximum is 200000000.
 .El
 .Pp
-The following parameters are specific to trunk interfaces:
+The following parameters are specific to lagg interfaces:
 .Bl -tag -width indent
-.It Cm trunkport Ar interface
+.It Cm laggport Ar interface
 Add the interface named by
 .Ar interface
-as a port of the trunk.
-.It Cm -trunkport Ar interface
+as a port of the aggregation interface.
+.It Cm -laggport Ar interface
 Remove the interface named by
 .Ar interface
-from the trunk.
-.It Cm trunkproto Ar proto
-Set the trunking protocol.
+from the aggregation interface.
+.It Cm laggproto Ar proto
+Set the aggregation protocol.
 The default is failover.
 The available options are failover, fec, lacp, loadbalance, roundrobin and
 none.

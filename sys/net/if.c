@@ -96,7 +96,7 @@ SYSCTL_INT(_net_link, OID_AUTO, log_link_state_change, CTLFLAG_RW,
 
 void	(*bstp_linkstate_p)(struct ifnet *ifp, int state);
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
-void	(*trunk_linkstate_p)(struct ifnet *ifp, int state);
+void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
 
 struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
 
@@ -1379,9 +1379,9 @@ do_link_state_change(void *arg, int pending)
 		KASSERT(bstp_linkstate_p != NULL,("if_bridge bstp not loaded!"));
 		(*bstp_linkstate_p)(ifp, link_state);
 	}
-	if (ifp->if_trunk) {
-		KASSERT(trunk_linkstate_p != NULL,("if_trunk not loaded!"));
-		(*trunk_linkstate_p)(ifp, link_state);
+	if (ifp->if_lagg) {
+		KASSERT(lagg_linkstate_p != NULL,("if_lagg not loaded!"));
+		(*lagg_linkstate_p)(ifp, link_state);
 	}
 
 	devctl_notify("IFNET", ifp->if_xname,
