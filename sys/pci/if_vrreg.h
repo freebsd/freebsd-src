@@ -455,8 +455,6 @@ struct vr_mii_frame {
 struct vr_softc {
 	struct ifnet		*vr_ifp;	/* interface info */
 	device_t		vr_dev;
-	bus_space_handle_t	vr_bhandle;	/* bus space handle */
-	bus_space_tag_t		vr_btag;	/* bus space tag */
 	struct resource		*vr_res;
 	struct resource		*vr_irq;
 	void			*vr_intrhand;
@@ -485,19 +483,13 @@ struct vr_softc {
 /*
  * register space access macros
  */
-#define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->vr_btag, sc->vr_bhandle, reg, val)
-#define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->vr_btag, sc->vr_bhandle, reg, val)
-#define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->vr_btag, sc->vr_bhandle, reg, val)
+#define CSR_WRITE_4(sc, reg, val)	bus_write_4(sc->vr_res, reg, val)
+#define CSR_WRITE_2(sc, reg, val)	bus_write_2(sc->vr_res, reg, val)
+#define CSR_WRITE_1(sc, reg, val)	bus_write_1(sc->vr_res, reg, val)
 
-#define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->vr_btag, sc->vr_bhandle, reg)
-#define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->vr_btag, sc->vr_bhandle, reg)
-#define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->vr_btag, sc->vr_bhandle, reg)
+#define CSR_READ_4(sc, reg)		bus_read_4(sc->vr_res, reg)
+#define CSR_READ_2(sc, reg)		bus_read_2(sc->vr_res, reg)
+#define CSR_READ_1(sc, reg)		bus_read_1(sc->vr_res, reg)
 
 #define VR_TIMEOUT		1000
 #define ETHER_ALIGN		2
