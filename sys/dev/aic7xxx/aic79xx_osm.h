@@ -133,6 +133,7 @@ struct ahd_platform_data {
 	void			*ih;
 	eventhandler_tag	 eh;
 	struct proc		*recovery_thread;
+	struct mtx		mtx;
 };
 
 struct scb_platform_data {
@@ -189,66 +190,25 @@ ahd_flush_device_writes(struct ahd_softc *ahd)
 /**************************** Locking Primitives ******************************/
 /* Lock protecting internal data structures */
 static __inline void ahd_lockinit(struct ahd_softc *);
-static __inline void ahd_lock(struct ahd_softc *, unsigned long *flags);
-static __inline void ahd_unlock(struct ahd_softc *, unsigned long *flags);
-
-/* Lock held during command compeletion to the upper layer */
-static __inline void ahd_done_lockinit(struct ahd_softc *);
-static __inline void ahd_done_lock(struct ahd_softc *, unsigned long *flags);
-static __inline void ahd_done_unlock(struct ahd_softc *, unsigned long *flags);
-
-/* Lock held during ahd_list manipulation and ahd softc frees */
-static __inline void ahd_list_lockinit(void);
-static __inline void ahd_list_lock(unsigned long *flags);
-static __inline void ahd_list_unlock(unsigned long *flags);
+static __inline void ahd_lock(struct ahd_softc *);
+static __inline void ahd_unlock(struct ahd_softc *);
 
 static __inline void
 ahd_lockinit(struct ahd_softc *ahd)
 {
+	mtx_init(&ahd->platform_data->mtx, "ahd_lock", NULL, MTX_DEF);
 }
 
 static __inline void
-ahd_lock(struct ahd_softc *ahd, unsigned long *flags)
+ahd_lock(struct ahd_softc *ahd)
 {
-	*flags = splcam();
+	mtx_lock(&ahd->platform_data->mtx);
 }
 
 static __inline void
-ahd_unlock(struct ahd_softc *ahd, unsigned long *flags)
+ahd_unlock(struct ahd_softc *ahd)
 {
-	splx(*flags);
-}
-
-/* Lock held during command compeletion to the upper layer */
-static __inline void
-ahd_done_lockinit(struct ahd_softc *ahd)
-{
-}
-
-static __inline void
-ahd_done_lock(struct ahd_softc *ahd, unsigned long *flags)
-{
-}
-
-static __inline void
-ahd_done_unlock(struct ahd_softc *ahd, unsigned long *flags)
-{
-}
-
-/* Lock held during ahd_list manipulation and ahd softc frees */
-static __inline void
-ahd_list_lockinit(void)
-{
-}
-
-static __inline void
-ahd_list_lock(unsigned long *flags)
-{
-}
-
-static __inline void
-ahd_list_unlock(unsigned long *flags)
-{
+	mtx_unlock(&ahd->platform_data->mtx);
 }
 
 /********************************** PCI ***************************************/

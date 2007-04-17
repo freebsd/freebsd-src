@@ -785,7 +785,6 @@ ahc_find_pci_device(aic_dev_softc_t pci)
 int
 ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 {
-	u_long	 l;
 	u_int	 command;
 	u_int	 our_id;
 	u_int	 sxfrctl1;
@@ -1045,12 +1044,12 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	if (error != 0)
 		return (error);
 
-	ahc_list_lock(&l);
+	ahc_lock(ahc);
 	/*
 	 * Link this softc in with all other ahc instances.
 	 */
 	ahc_softc_insert(ahc);
-	ahc_list_unlock(&l);
+	ahc_unlock(ahc);
 	return (0);
 }
 

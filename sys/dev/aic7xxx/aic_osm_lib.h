@@ -143,7 +143,7 @@ aic_wakeup_recovery_thread(struct aic_softc *aic)
 	bus_dma_tag_create(parent_tag, alignment, boundary,		\
 			   lowaddr, highaddr, filter, filterarg,	\
 			   maxsize, nsegments, maxsegsz, flags,		\
-			   busdma_lock_mutex, &Giant,			\
+			   busdma_lock_mutex, &aic->platform_data->mtx,			\
 			   dma_tagp)
 #else
 #define aic_dma_tag_create(aic, parent_tag, alignment, boundary,	\
@@ -187,7 +187,7 @@ aic_wakeup_recovery_thread(struct aic_softc *aic)
 
 /***************************** Timer Facilities *******************************/
 #if __FreeBSD_version >= 500000
-#define aic_timer_init(timer) callout_init(timer, /*mpsafe*/0)
+#define aic_timer_init(timer) callout_init(timer, /*mpsafe*/1)
 #else
 #define aic_timer_init callout_init
 #endif
@@ -223,10 +223,7 @@ aic_scb_timer_reset(struct scb *scb, u_int msec)
 	time = msec;
 	time *= hz;
 	time /= 1000;
-	untimeout(aic_platform_timeout, (caddr_t)scb,
-		  scb->io_ctx->ccb_h.timeout_ch);
-	scb->io_ctx->ccb_h.timeout_ch =
-	    timeout(aic_platform_timeout, scb, time);
+	callout_reset(&scb->io_timer, time, aic_platform_timeout, scb);
 }
 
 static __inline void
@@ -235,13 +232,7 @@ aic_scb_timer_start(struct scb *scb)
 	
 	if (AIC_SCB_DATA(scb->aic_softc)->recovery_scbs == 0
 	 && scb->io_ctx->ccb_h.timeout != CAM_TIME_INFINITY) {
-		uint64_t time;
-
-		time = scb->io_ctx->ccb_h.timeout;
-		time *= hz;
-		time /= 1000;
-		scb->io_ctx->ccb_h.timeout_ch =
-		    timeout(aic_platform_timeout, scb, time);
+		aic_scb_timer_reset(scb, scb->io_ctx->ccb_h.timeout);
 	}
 }
 
