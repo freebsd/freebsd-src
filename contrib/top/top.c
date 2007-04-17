@@ -195,9 +195,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCao";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCa";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCaj";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -222,8 +222,9 @@ char *argv[];
 #define CMD_viewsys	18
 #define	CMD_wcputog	19
 #define	CMD_showargs	20
+#define	CMD_jidtog	21
 #ifdef ORDER
-#define CMD_order       21
+#define CMD_order       22
 #endif
 
     /* set the buffer for stdout */
@@ -255,6 +256,7 @@ char *argv[];
     ps.uid     = -1;
     ps.thread  = No;
     ps.wcpu    = 1;
+    ps.jail    = No;
     ps.command = NULL;
 
     /* get preset options from the environment */
@@ -280,7 +282,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHabinquvs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHabijnquvs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -399,6 +401,10 @@ char *argv[];
 
 	      case 'H':
 		ps.thread = !ps.thread;
+		break;
+
+	      case 'j':
+		ps.jail = !ps.jail;
 		break;
 
 	      default:
@@ -1055,6 +1061,15 @@ restart:
 				}
 				break;
 #endif
+			    case CMD_jidtog:
+				ps.jail = !ps.jail;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying jail id.",
+				    ps.jail ? "D" : "Not d");
+				header_text = format_header(uname_field);
+				reset_display();
+				putchar('\r');
+				break;
 	    
 			    default:
 				new_message(MT_standout, " BAD CASE IN SWITCH!");
