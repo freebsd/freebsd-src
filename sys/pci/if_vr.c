@@ -689,9 +689,6 @@ vr_attach(dev)
 		goto fail;
 	}
 
-	sc->vr_btag = rman_get_bustag(sc->vr_res);
-	sc->vr_bhandle = rman_get_bushandle(sc->vr_res);
-
 	/* Allocate interrupt */
 	rid = 0;
 	sc->vr_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
