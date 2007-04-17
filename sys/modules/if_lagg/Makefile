@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 .PATH:	${.CURDIR}/../../net
-KMOD=	if_trunk
-SRCS=	if_trunk.c ieee8023ad_lacp.c opt_inet.h opt_inet6.h
+KMOD=	if_lagg
+SRCS=	if_lagg.c ieee8023ad_lacp.c opt_inet.h opt_inet6.h
 
 .if !defined(KERNBUILDDIR)
 opt_inet.h:

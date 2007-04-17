@@ -17,24 +17,24 @@
 .\" $FreeBSD$
 .\"
 .Dd April 10, 2007
-.Dt TRUNK 4
+.Dt LAGG 4
 .Os
 .Sh NAME
-.Nm trunk
+.Nm lagg
 .Nd link aggregation and link failover interface
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device trunk"
+.Cd "device lagg"
 .Ed
 .Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-if_trunk_load="YES"
+if_lagg_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -46,19 +46,19 @@ interface for the purpose of providing fault-tolerance and high-speed links.
 A
 .Nm
 interface can be created using the
-.Ic ifconfig trunk Ns Ar N Ic create
+.Ic ifconfig lagg Ns Ar N Ic create
 command.
 It can use different link aggregation protocols specified
 using the
-.Ic trunkproto Ar proto
+.Ic laggproto Ar proto
 option.
 Child interfaces can be added using the
-.Ic trunkport Ar child-iface
+.Ic laggport Ar child-iface
 option and removed using the
-.Ic -trunkport Ar child-iface
+.Ic -laggport Ar child-iface
 option.
 .Pp
-The driver currently supports the trunk protocols
+The driver currently supports the aggregation protocols
 .Ic failover
 (the default),
 .Ic fec ,
@@ -123,24 +123,24 @@ command or using the
 variable in
 .Xr rc.conf 5 .
 .Sh EXAMPLES
-Create a 802.3ad trunk using LACP with two
+Create a 802.3ad link aggregation using LACP with two
 .Xr bge 4
 Gigabit Ethernet interfaces:
 .Bd -literal -offset indent
 # ifconfig bge0 up
 # ifconfig bge1 up
-# ifconfig trunk0 trunkproto lacp trunkport bge0 trunkport bge1 \e
+# ifconfig lagg0 laggproto lacp laggport bge0 laggport bge1 \e
 	192.168.1.1 netmask 255.255.255.0
 .Ed
 .Pp
-The following example uses an active failover trunk to set up roaming
+The following example uses an active failover interface to set up roaming
 between wired and wireless networks using two network devices.
 Whenever the wired master interface is unplugged, the wireless failover
 device will be used:
 .Bd -literal -offset indent
 # ifconfig em0 up
 # ifconfig ath0 nwid my_net up
-# ifconfig trunk0 trunkproto failover trunkport em0 trunkport ath0 \e
+# ifconfig lagg0 laggproto failover laggport em0 laggport ath0 \e
 	192.168.1.1 netmask 255.255.255.0
 .Ed
 .Sh SEE ALSO
@@ -169,4 +169,4 @@ The current implementation always performs active-mode LACP and uses 0x8000 as
 system and port priorities.
 .Pp
 WPA security does not currently work correctly with a wireless interface added
-to the trunk.
+to the lagg port.

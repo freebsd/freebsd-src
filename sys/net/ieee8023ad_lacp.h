@@ -177,7 +177,7 @@ struct lacp_port {
 	TAILQ_ENTRY(lacp_port)	lp_dist_q;
 	LIST_ENTRY(lacp_port)	lp_next;
 	struct lacp_softc	*lp_lsc;
-	struct trunk_port	*lp_trunk;
+	struct lagg_port	*lp_lagg;
 	struct ifnet		*lp_ifp;
 	struct lacp_peerinfo	lp_partner;
 	struct lacp_peerinfo	lp_actor;
@@ -205,7 +205,7 @@ struct lacp_aggregator {
 };
 
 struct lacp_softc {
-	struct trunk_softc	*lsc_trunk;
+	struct lagg_softc	*lsc_lagg;
 	struct lacp_aggregator	*lsc_active_aggregator;
 	TAILQ_HEAD(, lacp_aggregator) lsc_aggregators;
 	boolean_t		lsc_suppress_distributing;
@@ -258,20 +258,20 @@ struct markerdu {
 #define	LACP_STATE_EQ(s1, s2, mask)	\
 	((((s1) ^ (s2)) & (mask)) == 0)
 
-#define	LACP_PORT(_tp)	((struct lacp_port *)(_tp)->tp_psc)
-#define	LACP_SOFTC(_tr)	((struct lacp_softc *)(_tr)->tr_psc)
+#define	LACP_PORT(_lp)	((struct lacp_port *)(_lp)->lp_psc)
+#define	LACP_SOFTC(_sc)	((struct lacp_softc *)(_sc)->sc_psc)
 
-int 		lacp_input(struct trunk_port *, struct mbuf *);
-int		lacp_marker_input(struct trunk_port *, struct mbuf *);
-struct trunk_port *lacp_select_tx_port(struct trunk_softc *, struct mbuf *);
-int		lacp_attach(struct trunk_softc *);
-int		lacp_detach(struct trunk_softc *);
-void		lacp_init(struct trunk_softc *);
-void		lacp_stop(struct trunk_softc *);
-int		lacp_port_create(struct trunk_port *);
-void		lacp_port_destroy(struct trunk_port *);
-void		lacp_linkstate(struct trunk_port *);
-int		lacp_port_isactive(struct trunk_port *);
+int 		lacp_input(struct lagg_port *, struct mbuf *);
+int		lacp_marker_input(struct lagg_port *, struct mbuf *);
+struct lagg_port *lacp_select_tx_port(struct lagg_softc *, struct mbuf *);
+int		lacp_attach(struct lagg_softc *);
+int		lacp_detach(struct lagg_softc *);
+void		lacp_init(struct lagg_softc *);
+void		lacp_stop(struct lagg_softc *);
+int		lacp_port_create(struct lagg_port *);
+void		lacp_port_destroy(struct lagg_port *);
+void		lacp_linkstate(struct lagg_port *);
+int		lacp_port_isactive(struct lagg_port *);
 
 /* following constants don't include terminating NUL */
 #define	LACP_MACSTR_MAX		(2*6 + 5)
