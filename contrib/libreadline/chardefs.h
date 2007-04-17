@@ -86,6 +86,8 @@
 /* Some systems define these; we want our definitions. */
 #undef ISPRINT
 
+/* Beware:  these only work with single-byte ASCII characters. */
+
 #define ISALNUM(c)	(IN_CTYPE_DOMAIN (c) && isalnum (c))
 #define ISALPHA(c)	(IN_CTYPE_DOMAIN (c) && isalpha (c))
 #define ISDIGIT(c)	(IN_CTYPE_DOMAIN (c) && isdigit (c))

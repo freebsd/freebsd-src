@@ -10,7 +10,7 @@ use these features.  There is a document entitled "readline.texinfo"
 which contains both end-user and programmer documentation for the
 GNU Readline Library.
 
-Copyright (C) 1988-2004 Free Software Foundation, Inc.
+Copyright (C) 1988-2006 Free Software Foundation, Inc.
 
 Authored by Brian Fox and Chet Ramey.
 
@@ -336,7 +336,9 @@ file is taken from the value of the shell variable @env{INPUTRC}.  If
 @ifclear BashFeatures
 file is taken from the value of the environment variable @env{INPUTRC}.  If
 @end ifclear
-that variable is unset, the default is @file{~/.inputrc}.
+that variable is unset, the default is @file{~/.inputrc}.  If that
+file does not exist or cannot be read, the ultimate default is
+@file{/etc/inputrc}.
 
 When a program which uses the Readline library starts up, the
 init file is read, and the key bindings are set.
@@ -383,7 +385,11 @@ set editing-mode vi
 @end example
 
 Variable names and values, where appropriate, are recognized without regard
-to case. 
+to case.  Unrecognized variable names are ignored.
+
+Boolean variables (those that can be set to on or off) are set to on if
+the value is null or empty, @var{on} (case-insensitive), or 1.  Any other
+value results in the variable being set to off.
 
 @ifset BashFeatures
 The @w{@code{bind -V}} command lists the current Readline variable names
@@ -404,6 +410,12 @@ If set to @samp{none}, Readline never rings the bell.  If set to
 If set to @samp{audible} (the default), Readline attempts to ring
 the terminal's bell.
 
+@item bind-tty-special-chars
+@vindex bind-tty-special-chars
+If set to @samp{on}, Readline attempts to bind the control characters  
+treated specially by the kernel's terminal driver to their Readline
+equivalents.
+
 @item comment-begin
 @vindex comment-begin
 The string to insert at the beginning of the line when the
@@ -423,6 +435,7 @@ If the number of possible completions is greater than this value,
 Readline will ask the user whether or not he wishes to view
 them; otherwise, they are simply listed.
 This variable must be set to an integer value greater than or equal to 0.
+A negative value means Readline should never ask.
 The default limit is @code{100}.
 
 @item convert-meta
@@ -456,10 +469,11 @@ arrow keys.  The default is @samp{off}.
 If set to @samp{on}, tilde expansion is performed when Readline
 attempts word completion.  The default is @samp{off}.
 
+@item history-preserve-point
 @vindex history-preserve-point
 If set to @samp{on}, the history code attempts to place point at the
 same location on each history line retrieved with @code{previous-history}
-or @code{next-history}.
+or @code{next-history}.  The default is @samp{off}.
 
 @item horizontal-scroll-mode
 @vindex horizontal-scroll-mode
@@ -581,9 +595,11 @@ the command does.
 Once you know the name of the command, simply place on a line
 in the init file the name of the key
 you wish to bind the command to, a colon, and then the name of the
-command.  The name of the key
-can be expressed in different ways, depending on what you find most
-comfortable.
+command.
+There can be no space between the key name and the colon -- that will be
+interpreted as part of the key name.
+The name of the key can be expressed in different ways, depending on
+what you find most comfortable.
 
 In addition to command names, readline allows keys to be bound
 to a string that is inserted when the key is pressed (a @var{macro}).
@@ -1012,6 +1028,8 @@ With an argument @var{n},
 insert the @var{n}th word from the previous command (the words
 in the previous command begin with word 0).  A negative argument
 inserts the @var{n}th word from the end of the previous command.
+Once the argument @var{n} is computed, the argument is extracted
+as if the @samp{!@var{n}} history expansion had been specified.
 
 @item yank-last-arg (M-. or M-_)
 Insert last argument to the previous command (the last word of the
@@ -1019,6 +1037,8 @@ previous history entry).  With an
 argument, behave exactly like @code{yank-nth-arg}.
 Successive calls to @code{yank-last-arg} move back through the history
 list, inserting the last argument of each line in turn.
+The history expansion facilities are used to extract the last argument,
+as if the @samp{!$} history expansion had been specified.
 
 @end ftable
 
@@ -1530,7 +1550,7 @@ special variable as delimiters.
 Shell quoting is honored.
 Each word is then expanded using
 brace expansion, tilde expansion, parameter and variable expansion,
-command substitution, arithmetic expansion, and pathname expansion,
+command substitution, and arithmetic expansion,
 as described above (@pxref{Shell Expansions}).
 The results are split using the rules described above
 (@pxref{Word Splitting}).
@@ -1693,6 +1713,12 @@ shell functions specified with @option{-F}.
 @item nospace
 Tell Readline not to append a space (the default) to words completed at
 the end of the line.
+
+@item plusdirs
+After any matches defined by the compspec are generated, 
+directory name completion is attempted and any
+matches are added to the results of the other actions.
+
 @end table
 
 @item -A @var{action}

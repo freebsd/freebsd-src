@@ -5,10 +5,10 @@
 
 @ifinfo
 This document describes the GNU Readline Library, a utility for aiding
-in the consitency of user interface across discrete programs that need
+in the consistency of user interface across discrete programs that need
 to provide a command line interface.
 
-Copyright (C) 1988-2004 Free Software Foundation, Inc.
+Copyright (C) 1988-2006 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -284,6 +284,8 @@ negative argument.
 
 A command function should return 0 if its action completes successfully,
 and a non-zero value if some error occurs.
+This is the convention obeyed by all of the builtin Readline bindable
+command functions.
 
 @node Readline Variables
 @section Readline Variables
@@ -396,6 +398,12 @@ If @code{NULL}, Readline defaults to @var{stdin}.
 @deftypevar {FILE *} rl_outstream
 The stdio stream to which Readline performs output.
 If @code{NULL}, Readline defaults to @var{stdout}.
+@end deftypevar
+
+@deftypevar int rl_prefer_env_winsize
+If non-zero, Readline gives values found in the @env{LINES} and
+@env{COLUMNS} environment variables greater precedence than values fetched
+from the kernel when computing the screen dimensions.
 @end deftypevar
 
 @deftypevar {rl_command_func_t *} rl_last_func
@@ -909,10 +917,14 @@ possibly containing conversion specifications such as @samp{%d}, and
 any additional arguments necessary to satisfy the conversion specifications.
 The resulting string is displayed in the @dfn{echo area}.  The echo area
 is also used to display numeric arguments and search strings.
+You should call @code{rl_save_prompt} to save the prompt information
+before calling this function.
 @end deftypefun
 
 @deftypefun int rl_clear_message (void)
-Clear the message in the echo area.
+Clear the message in the echo area.  If the prompt was saved with a call to
+@code{rl_save_prompt} before the last call to @code{rl_message},
+call @code{rl_restore_prompt} before calling this function.
 @end deftypefun
 
 @deftypefun void rl_save_prompt (void)
@@ -923,6 +935,9 @@ displaying a new message in the message area with @code{rl_message()}.
 @deftypefun void rl_restore_prompt (void)
 Restore the local Readline prompt display state saved by the most
 recent call to @code{rl_save_prompt}.
+if @code{rl_save_prompt} was called to save the prompt before a call
+to @code{rl_message}, this function should be called before the
+corresponding call to @code{rl_clear_message}.
 @end deftypefun
 
 @deftypefun int rl_expand_prompt (char *prompt)
@@ -1018,8 +1033,10 @@ pending input has not already been read with @code{rl_read_key()}.
 @deftypefun int rl_set_keyboard_input_timeout (int u)
 While waiting for keyboard input in @code{rl_read_key()}, Readline will
 wait for @var{u} microseconds for input before calling any function
-assigned to @code{rl_event_hook}.  The default waiting period is
-one-tenth of a second.  Returns the old timeout value.
+assigned to @code{rl_event_hook}.  @var{u} must be greater than or equal
+to zero (a zero-length timeout is equivalent to a poll).
+The default waiting period is one-tenth of a second.
+Returns the old timeout value.
 @end deftypefun
 
 @node Terminal Management
@@ -1147,6 +1164,11 @@ Make the Readline variable @var{variable} have @var{value}.
 This behaves as if the readline command
 @samp{set @var{variable} @var{value}} had been executed in an @code{inputrc}
 file (@pxref{Readline Init File Syntax}).
+@end deftypefun
+
+@deftypefun {char *} rl_variable_value (const char *variable)
+Return a string representing the value of the Readline variable @var{variable}.
+For boolean variables, this string is either @samp{on} or @samp{off}.
 @end deftypefun
 
 @deftypefun void rl_variable_dumper (int readable)
@@ -1378,7 +1400,8 @@ Update Readline's internal screen size by reading values from the kernel.
 
 @deftypefun void rl_set_screen_size (int rows, int cols)
 Set Readline's idea of the terminal size to @var{rows} rows and
-@var{cols} columns.
+@var{cols} columns.  If either @var{rows} or @var{columns} is less than
+or equal to 0, Readline's idea of that terminal dimension is unchanged.
 @end deftypefun
 
 If an application does not want to install a @code{SIGWINCH} handler, but
@@ -1388,6 +1411,10 @@ size may be queried.
 @deftypefun void rl_get_screen_size (int *rows, int *cols)
 Return Readline's idea of the terminal's size in the
 variables pointed to by the arguments.
+@end deftypefun
+
+@deftypefun void rl_reset_screen_size (void)
+Cause Readline to reobtain the screen size and recalculate its dimensions.
 @end deftypefun
 
 The following functions install and remove Readline's signal handlers.
@@ -1643,6 +1670,9 @@ the directory portion of the pathname the user typed.
 It returns an integer that should be non-zero if the function modifies
 its directory argument.
 It could be used to expand symbolic links or shell variables in pathnames.
+At the least, even if no other expansion is performed, this function should
+remove any quote characters from the directory name, because its result will
+be passed directly to @code{opendir()}.
 @end deftypevar
 
 @deftypevar {rl_compdisp_func_t *} rl_completion_display_matches_hook
@@ -1707,8 +1737,9 @@ shell variables and hostnames.
 
 @deftypevar int rl_completion_query_items
 Up to this many items will be displayed in response to a
-possible-completions call.  After that, we ask the user if she is sure
-she wants to see them all.  The default value is 100.
+possible-completions call.  After that, readline asks the user if she is sure
+she wants to see them all.  The default value is 100.  A negative value 
+indicates that Readline should never ask the user.
 @end deftypevar
 
 @deftypevar {int} rl_completion_append_character
@@ -2237,7 +2268,7 @@ too_dangerous (caller)
      char *caller;
 @{
   fprintf (stderr,
-           "%s: Too dangerous for me to distribute.\n"
+           "%s: Too dangerous for me to distribute.\n",
            caller);
   fprintf (stderr, "Write it yourself.\n");
 @}

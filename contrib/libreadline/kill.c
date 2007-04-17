@@ -582,6 +582,7 @@ rl_yank_nth_arg_internal (count, ignore, history_skip)
   if (!arg || !*arg)
     {
       rl_ding ();
+      FREE (arg);
       return -1;
     }
 

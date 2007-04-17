@@ -3,7 +3,7 @@
 # shlib-install - install a shared library and do any necessary host-specific
 #		  post-installation configuration (like ldconfig)
 #
-# usage: shlib-install [-D] -O host_os -d installation-dir -i install-prog [-U] library
+# usage: shlib-install [-D] -O host_os -d installation-dir [-b bin-dir] -i install-prog [-U] library
 #
 # Chet Ramey
 # chet@po.cwru.edu
@@ -15,7 +15,7 @@ INSTALLDIR=/usr/local/lib
 LDCONFIG=ldconfig
 
 PROGNAME=`basename $0`
-USAGE="$PROGNAME [-D] -O host_os -d installation-dir -i install-prog [-U] library"
+USAGE="$PROGNAME [-D] -O host_os -d installation-dir [-b bin-dir] -i install-prog [-U] library"
 
 # process options
 
@@ -23,6 +23,7 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 	-O)	shift; host_os="$1"; shift ;;
 	-d)	shift; INSTALLDIR="$1"; shift ;;
+	-b)	shift; BINDIR="$1" ; shift ;;
 	-i)	shift; INSTALLPROG="$1" ; shift ;;
 	-D)	echo=echo ; shift ;;
 	-U)	uninstall=true ; shift ;;
@@ -64,11 +65,31 @@ fi
 # post-install/uninstall
 
 # HP-UX and Darwin/MacOS X require that a shared library have execute permission
+# Linux does, too, and ldd warns about it
+# Cygwin installs both a dll (which must go in $BINDIR) and an implicit
+# link library (in $libdir)
 case "$host_os" in
-hpux*|darwin*|macosx*)
+hpux*|darwin*|macosx*|linux*)
 	if [ -z "$uninstall" ]; then
 		chmod 555 ${INSTALLDIR}/${LIBNAME}
 	fi ;;
+cygwin*)
+	IMPLIBNAME=`echo ${LIBNAME} \
+		| sed -e 's,^cyg,lib,' -e 's,[0-9]*.dll$,.dll.a,'`
+	if [ -z "$uninstall" ]; then
+		${echo} $RM ${BINDIR}/${LIBNAME}.${OLDSUFF}
+		if [ -f "$BINDIR/$LIBNAME" ]; then
+			${echo} $MV $BINDIR/$LIBNAME $BINDIR/$LIBNAME.$OLDSUFF
+		fi
+		${echo} $MV ${INSTALLDIR}/${LIBNAME} ${BINDIR}/${LIBNAME}
+		${echo} chmod a+x ${BINDIR}/${LIBNAME}
+		${echo} eval ${INSTALLPROG} ${LIBNAME}.a \
+			${INSTALLDIR}/${IMPLIBNAME}
+	else
+		${echo} ${RM} ${BINDIR}/${LIBNAME}
+		${echo} ${RM} ${INSTALLDIR}/${IMPLIBNAME}
+	fi ;;
+
 *)	;;
 esac
 
@@ -161,6 +182,12 @@ hpux1*)
 	if [ -z "$uninstall" ]; then
 		eval $INSTALL_LINK1
 	fi
+	;;
+
+cygwin*)
+	# Links to .dlls don't work.  Hence shobj-conf used DLLVERSION.dll
+	# instead of so.SHLIB_MAJOR.SHLIB_MINOR.  The postinstall above
+	# took care of everything else.
 	;;
 
 *)	;;

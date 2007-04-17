@@ -3,6 +3,7 @@
 #
 doc		d
 examples	d
+examples/rlfe	d
 support		d
 shlib		d
 COPYING		f
@@ -106,12 +107,23 @@ examples/manexamp.c	f
 examples/readlinebuf.h	f
 examples/rl-fgets.c	f
 examples/rlcat.c	f
-examples/rlfe.c		f
 examples/rltest.c	f
 examples/rl.c		f
+examples/rlptytest.c	f
 examples/rlversion.c	f
 examples/histexamp.c	f
 examples/Inputrc	f
+examples/rlfe/ChangeLog		f
+examples/rlfe/Makefile.in	f
+examples/rlfe/README		f
+examples/rlfe/config.h.in	f
+examples/rlfe/configure		f
+examples/rlfe/configure.in	f
+examples/rlfe/extern.h		f
+examples/rlfe/os.h		f
+examples/rlfe/pty.c		f
+examples/rlfe/rlfe.c		f
+examples/rlfe/screen.h		f
 # formatted documentation, from MANIFEST.doc
 doc/readline.ps		f
 doc/history.ps		f

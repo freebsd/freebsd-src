@@ -56,8 +56,6 @@
 
 typedef int _hist_search_func_t PARAMS((const char *, int));
 
-extern int rl_byte_oriented;	/* declared in mbutil.c */
-
 static char error_pointer;
 
 static char *subst_lhs;
@@ -206,23 +204,24 @@ get_history_event (string, caller_index, delimiting_quote)
 
   /* Only a closing `?' or a newline delimit a substring search string. */
   for (local_index = i; c = string[i]; i++)
+    {
 #if defined (HANDLE_MULTIBYTE)
-    if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
-      {
-	int v;
-	mbstate_t ps;
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  int v;
+	  mbstate_t ps;
 
-	memset (&ps, 0, sizeof (mbstate_t));
-	/* These produce warnings because we're passing a const string to a
-	   function that takes a non-const string. */
-	_rl_adjust_point ((char *)string, i, &ps);
-	if ((v = _rl_get_char_len ((char *)string + i, &ps)) > 1)
-	  {
-	    i += v - 1;
-	    continue;
-	  }
-      }
-    else
+	  memset (&ps, 0, sizeof (mbstate_t));
+	  /* These produce warnings because we're passing a const string to a
+	     function that takes a non-const string. */
+	  _rl_adjust_point ((char *)string, i, &ps);
+	  if ((v = _rl_get_char_len ((char *)string + i, &ps)) > 1)
+	    {
+	      i += v - 1;
+	      continue;
+	    }
+        }
+
 #endif /* HANDLE_MULTIBYTE */
       if ((!substring_okay && (whitespace (c) || c == ':' ||
 	  (history_search_delimiter_chars && member (c, history_search_delimiter_chars)) ||
@@ -230,6 +229,7 @@ get_history_event (string, caller_index, delimiting_quote)
 	  string[i] == '\n' ||
 	  (substring_okay && string[i] == '?'))
 	break;
+    }
 
   which = i - local_index;
   temp = (char *)xmalloc (1 + which);
@@ -562,12 +562,12 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 #if defined (HANDLE_MULTIBYTE)
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
 	{
-	  int c, l;
+	  int ch, l;
 	  l = _rl_find_prev_mbchar (string, i, MB_FIND_ANY);
-	  c = string[l];
+	  ch = string[l];
 	  /* XXX - original patch had i - 1 ???  If i == 0 it would fail. */
-	  if (i && (c == '\'' || c == '"'))
-	    quoted_search_delimiter = c;
+	  if (i && (ch == '\'' || ch == '"'))
+	    quoted_search_delimiter = ch;
 	}
       else
 #endif /* HANDLE_MULTIBYTE */	  
@@ -1427,6 +1427,8 @@ history_tokenize_word (string, ind)
       if (peek == string[i] && peek != '$')
 	{
 	  if (peek == '<' && string[i + 2] == '-')
+	    i++;
+	  else if (peek == '<' && string[i + 2] == '<')
 	    i++;
 	  i += 2;
 	  return i;

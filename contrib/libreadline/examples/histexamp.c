@@ -26,6 +26,8 @@
 #  include <readline/history.h>
 #endif
 
+#include <string.h>
+
 main (argc, argv)
      int argc;
      char **argv;

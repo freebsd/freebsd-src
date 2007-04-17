@@ -1,8 +1,7 @@
 /* $FreeBSD$ */
-
 /* util.c -- readline utility functions */
 
-/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -46,6 +45,7 @@
 
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
+#include "rlmbutil.h"
 
 #if defined (TIOCSTAT_IN_SYS_IOCTL)
 #  include <sys/ioctl.h>
@@ -80,13 +80,29 @@ rl_alphabetic (c)
 	    strchr (pathname_alphabetic_chars, c) != NULL);
 }
 
+#if defined (HANDLE_MULTIBYTE)
+int
+_rl_walphabetic (wc)
+     wchar_t wc;
+{
+  int c;
+
+  if (iswalnum (wc))
+    return (1);     
+
+  c = wc & 0177;
+  return (_rl_allow_pathname_alphabetic_chars &&
+	    strchr (pathname_alphabetic_chars, c) != NULL);
+}
+#endif
+
 /* How to abort things. */
 int
 _rl_abort_internal ()
 {
   rl_ding ();
   rl_clear_message ();
-  _rl_init_argument ();
+  _rl_reset_argument ();
   rl_clear_pending_input ();
 
   RL_UNSETSTATE (RL_STATE_MACRODEF);

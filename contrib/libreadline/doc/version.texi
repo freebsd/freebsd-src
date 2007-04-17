@@ -1,10 +1,10 @@
 @ignore
-Copyright (C) 1988-2004 Free Software Foundation, Inc. 
+Copyright (C) 1988-2006 Free Software Foundation, Inc. 
 @end ignore
 
-@set EDITION 5.0
-@set VERSION 5.0
-@set UPDATED 28 January 2004
-@set UPDATED-MONTH January 2004
+@set EDITION 5.2
+@set VERSION 5.2
+@set UPDATED 26 April 2006
+@set UPDATED-MONTH April 2006
 
-@set LASTCHANGE Wed Jan 28 15:46:54 EST 2004
+@set LASTCHANGE Wed Apr 26 09:22:57 EDT 2006
