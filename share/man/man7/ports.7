@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2006
+.Dd October 24, 2006
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -199,6 +199,8 @@ Show list of files that would be retrieved by
 .It Cm pretty-print-run-depends-list , pretty-print-build-depends-list
 Print a list of all the compile and run dependencies, and dependencies
 of those dependencies.
+.It Cm missing
+Print a list of missing dependencies to be installed for the port.
 .It Cm clean
 Remove the expanded source code.
 This recurses to dependencies unless
@@ -404,6 +406,12 @@ site for all files.
 Try going to these sites for all files and patches, first.
 .It Va MASTER_SITE_BACKUP
 Try going to these sites for all files and patches, last.
+.It Va RANDOMIZE_MASTER_SITES
+Try the download locations in a random order.
+.It Va MASTER_SORT
+Sort the download locations according to user supplied pattern.
+Example:
+.Dl .dk .sunet.se .se dk.php.net .no .de heanet.dl.sourceforge.net
 .It Va MASTER_SITE_INDEX
 Where to get
 .Pa INDEX
@@ -439,22 +447,21 @@ Location of
 If defined, only operate on a port if it requires interaction.
 .It Va BATCH
 If defined, only operate on a port if it can be installed 100% automatically.
-.It Va OPTIONS
-If defined, list of what
-.Va WITH_*
-options this port accepts.
-.Em Note :
-to make
-.Va OPTIONS
-actually work, it is necessary to include
-.Pa bsd.port.pre.mk
-before starting to test the
-.Va WITH_*
-variables.
 .It Va DISABLE_VULNERABILITIES
 If defined, disable check for security vulnerabilities using
 .Xr portaudit 1 Pq Pa ports/security/portaudit
 when installing new ports.
+.It Va NO_IGNORE
+If defined, allow installation of ports marked as
+.Aq Va FORBIDDEN .
+The default behavior of the Ports framework is to abort when the
+installation of a forbidden port is attempted.
+Setting
+.Va NO_IGNORE
+Of course, these ports may not work as expected, but if you really know
+what you are doing and are sure about installing a forbidden port, then
+.Va NO_IGNORE
+lets you do it.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
@@ -479,7 +486,6 @@ The big Kahuna.
 .Pp
 The following are part of the ports collection:
 .Pp
-.Xr pib 1 ,
 .Xr portaudit 1 ,
 .Xr portcheckout 1 ,
 .Xr portlint 1
