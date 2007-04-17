@@ -314,7 +314,6 @@ int
 ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 {
 	struct scb_data *shared_scb_data;
-	u_long		 l;
 	u_int		 command;
 	uint32_t	 devconfig;
 	uint16_t	 device; 
@@ -423,12 +422,12 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	if (error != 0)
 		return (error);
 
-	ahd_list_lock(&l);
+	ahd_lock(ahd);
 	/*
 	 * Link this softc in with all other ahd instances.
 	 */
 	ahd_softc_insert(ahd);
-	ahd_list_unlock(&l);
+	ahd_unlock(ahd);
 	return (0);
 }
 

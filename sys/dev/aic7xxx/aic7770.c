@@ -126,7 +126,6 @@ aic7770_find_device(uint32_t id)
 int
 aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 {
-	u_long	l;
 	int	error;
 	int	have_seeprom;
 	u_int	hostconf;
@@ -254,7 +253,7 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 	if (error != 0)
 		return (error);
 
-	ahc_list_lock(&l);
+	ahc_lock(ahc);
 	/*
 	 * Link this softc in with all other ahc instances.
 	 */
@@ -265,7 +264,7 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 	 */
 	ahc_outb(ahc, BCTL, ENABLE);
 
-	ahc_list_unlock(&l);
+	ahc_unlock(ahc);
 
 	return (0);
 }
