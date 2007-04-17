@@ -41,9 +41,13 @@ SHOBJ_LIBS=
 
 SHLIB_XLDFLAGS=
 SHLIB_LIBS=
+
+SHLIB_DOT='.'
+SHLIB_LIBPREF='lib'
 SHLIB_LIBSUFF='so'
 
 SHLIB_LIBVERSION='$(SHLIB_LIBSUFF)'
+SHLIB_DLLVERSION='$(SHLIB_MAJOR)'
 
 PROGNAME=`basename $0`
 USAGE="$PROGNAME [-C compiler] -c host_cpu -o host_os -v host_vendor"
@@ -78,10 +82,14 @@ sunos4*)
 sunos5*-*gcc*|solaris2*-*gcc*)
 	SHOBJ_CFLAGS=-fpic
 	SHOBJ_LD='${CC}'
-	# This line works for the Solaris linker in /usr/ccs/bin/ld
-	SHOBJ_LDFLAGS='-shared -Wl,-i -Wl,-h,$@'
-	# This line works for the GNU ld
-#	SHOBJ_LDFLAGS='-shared -Wl,-h,$@'
+	ld_used=`gcc -print-prog-name=ld`
+	if ${ld_used} -V 2>&1 | grep GNU >/dev/null 2>&1; then
+		# This line works for the GNU ld
+		SHOBJ_LDFLAGS='-shared -Wl,-h,$@'
+	else
+		# This line works for the Solaris linker in /usr/ccs/bin/ld
+		SHOBJ_LDFLAGS='-shared -Wl,-i -Wl,-h,$@'
+	fi
 
 #	SHLIB_XLDFLAGS='-R $(libdir)'
 	SHLIB_LIBVERSION='$(SHLIB_LIBSUFF).$(SHLIB_MAJOR)'
@@ -116,7 +124,7 @@ freebsd2* | netbsd*)
 	;;
 
 # FreeBSD-3.x ELF
-freebsd[3-9]*|freebsdelf[3-9]*|freebsdaout[3-9]*)
+freebsd[3-9]*|freebsdelf[3-9]*|freebsdaout[3-9]*|dragonfly*)
 	SHOBJ_CFLAGS=-fpic
 	SHOBJ_LD='${CC}'
 
@@ -134,6 +142,23 @@ freebsd[3-9]*|freebsdelf[3-9]*|freebsdaout[3-9]*)
 	;;
 
 # Darwin/MacOS X
+darwin8*)
+	SHOBJ_STATUS=supported
+	SHLIB_STATUS=supported
+	
+	SHOBJ_CFLAGS='-fno-common'
+
+	SHOBJ_LD='MACOSX_DEPLOYMENT_TARGET=10.3 ${CC}'
+
+	SHLIB_LIBVERSION='$(SHLIB_MAJOR)$(SHLIB_MINOR).$(SHLIB_LIBSUFF)'
+	SHLIB_LIBSUFF='dylib'
+
+	SHOBJ_LDFLAGS='-undefined dynamic_lookup'
+	SHLIB_XLDFLAGS='-dynamiclib -arch_only `/usr/bin/arch` -install_name $(libdir)/$@ -current_version $(SHLIB_MAJOR)$(SHLIB_MINOR) -compatibility_version $(SHLIB_MAJOR) -v'
+
+	SHLIB_LIBS='-lncurses'	# see if -lcurses works on MacOS X 10.1 
+	;;
+
 darwin*|macosx*)
 	SHOBJ_STATUS=unsupported
 	SHLIB_STATUS=supported
@@ -146,7 +171,7 @@ darwin*|macosx*)
 	SHLIB_LIBSUFF='dylib'
 
 	case "${host_os}" in
-	darwin7*)	SHOBJ_LDFLAGS=''
+	darwin[78]*)	SHOBJ_LDFLAGS=''
 			SHLIB_XLDFLAGS='-dynamiclib -arch_only `/usr/bin/arch` -install_name $(libdir)/$@ -current_version $(SHLIB_MAJOR)$(SHLIB_MINOR) -compatibility_version $(SHLIB_MAJOR) -v'
 			;;
 	*)		SHOBJ_LDFLAGS='-dynamic'
@@ -408,7 +433,39 @@ sysv5uw7*)
 
 	SHLIB_LIBVERSION='$(SHLIB_LIBSUFF).$(SHLIB_MAJOR)'
 	;;
-	
+
+sysv5UnixWare*-*gcc*)
+	SHOBJ_CFLAGS=-fpic
+	SHOBJ_LD='${CC}'
+	SHOBJ_LDFLAGS='-shared'
+
+	SHLIB_LIBVERSION='$(SHLIB_LIBSUFF).$(SHLIB_MAJOR)'
+	;;
+
+sysv5UnixWare*)
+	SHOBJ_CFLAGS='-K PIC'
+	SHOBJ_LD=ld
+	SHOBJ_LDFLAGS='-G -dy -z text -h $@'
+
+	SHLIB_LIBVERSION='$(SHLIB_LIBSUFF).$(SHLIB_MAJOR)'
+	;;
+
+sysv5OpenUNIX*-*gcc*)
+	SHOBJ_CFLAGS=-fpic
+	SHOBJ_LD='${CC}'
+	SHOBJ_LDFLAGS='-shared'
+
+	SHLIB_LIBVERSION='$(SHLIB_LIBSUFF).$(SHLIB_MAJOR)'
+	;;
+
+sysv5OpenUNIX*)
+	SHOBJ_CFLAGS='-K PIC'
+	SHOBJ_LD=ld
+	SHOBJ_LDFLAGS='-G -dy -z text -h $@'
+
+	SHLIB_LIBVERSION='$(SHLIB_LIBSUFF).$(SHLIB_MAJOR)'
+	;;
+
 dgux*-*gcc*)
 	SHOBJ_CFLAGS=-fpic
 	SHOBJ_LD='${CC}'
@@ -428,6 +485,24 @@ dgux*)
 msdos*)
 	SHOBJ_STATUS=unsupported
 	SHLIB_STATUS=unsupported
+	;;
+
+cygwin*)
+	SHOBJ_LD='$(CC)'
+        SHOBJ_LDFLAGS='-shared -Wl,--enable-auto-import -Wl,--enable-auto-image-base -Wl,--export-all -Wl,--out-implib=$(@).a'
+        SHLIB_LIBPREF='cyg'
+        SHLIB_LIBSUFF='dll'
+        SHLIB_LIBVERSION='$(SHLIB_DLLVERSION).$(SHLIB_LIBSUFF)'
+        SHLIB_LIBS='$(TERMCAP_LIB)'
+
+	SHLIB_DOT=
+        # For official cygwin releases, DLLVERSION will be defined in the
+        # environment of configure, and will be incremented any time the API
+        # changes in a non-backwards compatible manner.  Otherwise, it is just
+        # SHLIB_MAJOR.
+        if [ -n "$DLLVERSION" ] ; then
+		SHLIB_DLLVERSION="$DLLVERSION"
+        fi
 	;;
 
 #
@@ -457,8 +532,14 @@ echo SHOBJ_LIBS=\'"$SHOBJ_LIBS"\'
 
 echo SHLIB_XLDFLAGS=\'"$SHLIB_XLDFLAGS"\'
 echo SHLIB_LIBS=\'"$SHLIB_LIBS"\'
+
+echo SHLIB_DOT=\'"$SHLIB_DOT"\'
+
+echo SHLIB_LIBPREF=\'"$SHLIB_LIBPREF"\'
 echo SHLIB_LIBSUFF=\'"$SHLIB_LIBSUFF"\'
+
 echo SHLIB_LIBVERSION=\'"$SHLIB_LIBVERSION"\'
+echo SHLIB_DLLVERSION=\'"$SHLIB_DLLVERSION"\'
 
 echo SHOBJ_STATUS=\'"$SHOBJ_STATUS"\'
 echo SHLIB_STATUS=\'"$SHLIB_STATUS"\'

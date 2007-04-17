@@ -176,6 +176,7 @@ static FUNMAP default_funmap[] = {
   { "vi-put", rl_vi_put },
   { "vi-redo", rl_vi_redo },
   { "vi-replace", rl_vi_replace },
+  { "vi-rubout", rl_vi_rubout },
   { "vi-search", rl_vi_search },
   { "vi-search-again", rl_vi_search_again },
   { "vi-set-mark", rl_vi_set_mark },
