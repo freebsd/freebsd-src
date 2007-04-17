@@ -59,10 +59,10 @@ struct icee_softc {
 	int		wr_sz;		/* What's the write page size */
 };
 
-#define ICEE_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
-#define	ICEE_UNLOCK(_sc)	mtx_unlock_spin(&(_sc)->sc_mtx)
+#define ICEE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	ICEE_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
 #define ICEE_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), "icee", MTX_SPIN)
+	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), "icee", MTX_DEF)
 #define ICEE_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
 #define ICEE_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define ICEE_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
