@@ -5403,7 +5403,7 @@ read_options:
 				errx(EX_USAGE,
 				    "limit cannot be part of an or block");
 			if (have_state)
-				errx(EX_USAGE, "only one of keep-state and"
+				errx(EX_USAGE, "only one of keep-state and "
 				    "limit is allowed");
 			have_state = cmd;
 
