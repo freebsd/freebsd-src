@@ -112,20 +112,27 @@ MODULE_DEPEND(vr, miibus, 1, 1, 1);
  * Various supported device vendors/types and their names.
  */
 static struct vr_type vr_devs[] = {
-	{ VIA_VENDORID, VIA_DEVICEID_RHINE, 1,
-		"VIA VT3043 Rhine I 10/100BaseTX" },
-	{ VIA_VENDORID, VIA_DEVICEID_RHINE_II, 1,
-		"VIA VT86C100A Rhine II 10/100BaseTX" },
-	{ VIA_VENDORID, VIA_DEVICEID_RHINE_II_2, 0,
-		"VIA VT6102 Rhine II 10/100BaseTX" },
-	{ VIA_VENDORID, VIA_DEVICEID_RHINE_III, 1,
-		"VIA VT6105 Rhine III 10/100BaseTX" },
-	{ VIA_VENDORID, VIA_DEVICEID_RHINE_III_M, 0,
-		"VIA VT6105M Rhine III 10/100BaseTX" },
-	{ DELTA_VENDORID, DELTA_DEVICEID_RHINE_II, 1,
-		"Delta Electronics Rhine II 10/100BaseTX" },
-	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_RHINE_II, 1,
-		"Addtron Technology Rhine II 10/100BaseTX" },
+	{ VIA_VENDORID, VIA_DEVICEID_RHINE,
+	    VR_Q_NEEDALIGN,
+	    "VIA VT3043 Rhine I 10/100BaseTX" },
+	{ VIA_VENDORID, VIA_DEVICEID_RHINE_II,
+	    VR_Q_NEEDALIGN,
+	    "VIA VT86C100A Rhine II 10/100BaseTX" },
+	{ VIA_VENDORID, VIA_DEVICEID_RHINE_II_2,
+	    0,
+	    "VIA VT6102 Rhine II 10/100BaseTX" },
+	{ VIA_VENDORID, VIA_DEVICEID_RHINE_III,
+	    0,
+	    "VIA VT6105 Rhine III 10/100BaseTX" },
+	{ VIA_VENDORID, VIA_DEVICEID_RHINE_III_M,
+	    VR_Q_CSUM,
+	    "VIA VT6105M Rhine III 10/100BaseTX" },
+	{ DELTA_VENDORID, DELTA_DEVICEID_RHINE_II,
+	    VR_Q_NEEDALIGN,
+	    "Delta Electronics Rhine II 10/100BaseTX" },
+	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_RHINE_II,
+	    VR_Q_NEEDALIGN,
+	    "Addtron Technology Rhine II 10/100BaseTX" },
 	{ 0, 0, 0, NULL }
 };
 
@@ -718,7 +725,18 @@ vr_attach(dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, VR_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_maxlen = VR_TX_LIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
+
+	if (sc->vr_quirks & VR_Q_CSUM) {
+		ifp->if_hwassist = (CSUM_IP | CSUM_TCP | CSUM_UDP);
+		ifp->if_capabilities |= IFCAP_HWCSUM;
+	}
+
 	ifp->if_capenable = ifp->if_capabilities;
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		ifp->if_hwassist = (CSUM_IP | CSUM_TCP | CSUM_UDP);
+	else
+		ifp->if_hwassist = 0;
+		
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
@@ -960,7 +978,7 @@ vr_rxeof(struct vr_softc *sc)
 	struct ifnet		*ifp;
 	struct vr_chain_onefrag	*cur_rx;
 	int			total_len = 0;
-	uint32_t		rxstat;
+	uint32_t		rxstat, rxctl;
 
 	VR_LOCK_ASSERT(sc);
 	ifp = sc->vr_ifp;
@@ -1010,6 +1028,17 @@ vr_rxeof(struct vr_softc *sc)
 
 		/* No errors; receive the packet. */
 		total_len = VR_RXBYTES(cur_rx->vr_ptr->vr_status);
+		if (ifp->if_capenable & IFCAP_RXCSUM) {
+			rxctl = cur_rx->vr_ptr->vr_ctl;
+			if ((rxctl & VR_RXCTL_GOODIP) == VR_RXCTL_GOODIP)
+				m->m_pkthdr.csum_flags |= 
+				    CSUM_IP_CHECKED | CSUM_IP_VALID;
+			if ((rxctl & VR_RXCTL_GOODTCPUDP)) {
+				m->m_pkthdr.csum_flags |=
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
 
 		/*
 		 * XXX The VIA Rhine chip includes the CRC with every
@@ -1370,7 +1399,7 @@ vr_start_locked(struct ifnet *ifp)
 		 * waste time trying to decide when to copy and when not
 		 * to copy, just do it all the time.
 		 */
-		if (sc->vr_quirks) {
+		if (sc->vr_quirks & VR_Q_NEEDALIGN) {
 			m = m_defrag(m_head, M_DONTWAIT);
 			if (m == NULL) {
 				/* Rollback, send what we were able to encap. */
@@ -1408,6 +1437,17 @@ vr_start_locked(struct ifnet *ifp)
 			f->vr_data = vtophys(mtod(m, caddr_t));
 			cval = m->m_len;
 			cval |= VR_TXCTL_TLINK;
+
+			if ((ifp->if_capenable & IFCAP_TXCSUM) &&
+			    m_head->m_pkthdr.csum_flags) {
+				if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+					cval |= VR_TXCTL_IPCSUM;
+				if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+					cval |= VR_TXCTL_TCPCSUM;
+				if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
+					cval |= VR_TXCTL_UDPCSUM;
+			}
+
 			if (m == m_head)
 				cval |= VR_TXCTL_FIRSTFRAG;
 			f->vr_ctl = cval;
@@ -1638,6 +1678,11 @@ vr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			return (error);
 		}
 #endif /* DEVICE_POLLING */
+		ifp->if_capenable = ifr->ifr_reqcap;
+		if (ifp->if_capenable & IFCAP_TXCSUM)
+			ifp->if_hwassist = (CSUM_IP | CSUM_TCP | CSUM_UDP);
+		else
+			ifp->if_hwassist = 0;
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
