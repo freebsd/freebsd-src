@@ -305,11 +305,7 @@ dnlc_init(void *arg __unused)
 	 */
 	if (ncsize == -1) {
 		/* calculate a reasonable size for the low water */
-#if 0
-		dnlc_nentries_low_water = 4 * (v.v_proc + maxusers) + 320;
-#else
 		dnlc_nentries_low_water = (desiredvnodes * 49) / 100;
-#endif
 		ncsize = dnlc_nentries_low_water +
 		    (dnlc_nentries_low_water / dnlc_low_water_divisor);
 	} else {
