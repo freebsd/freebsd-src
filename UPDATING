@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070417:
+	The new trunk(4) driver has been renamed to lagg(4) as it better
+	reflects its purpose. ifconfig will need to be recompiled.
+
 20070408:
 	sendmail(8) has been updated to version 8.14.1.  Mail filters
 	(aka, milters) compiled against the libmilter included in the
