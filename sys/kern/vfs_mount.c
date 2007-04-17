@@ -80,8 +80,6 @@ __FBSDID("$FreeBSD$");
 
 static int	vfs_domount(struct thread *td, const char *fstype,
 		    char *fspath, int fsflags, void *fsdata);
-static struct mount *vfs_mount_alloc(struct vnode *dvp, struct vfsconf *vfsp,
-		    const char *fspath, struct thread *td);
 static int	vfs_mountroot_ask(void);
 static int	vfs_mountroot_try(const char *mountfrom);
 static int	vfs_donmount(struct thread *td, int fsflags,
@@ -465,7 +463,7 @@ mount_fini(void *mem, int size)
 /*
  * Allocate and initialize the mount point struct.
  */
-static struct mount *
+struct mount *
 vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
     const char *fspath, struct thread *td)
 {
