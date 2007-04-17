@@ -147,7 +147,7 @@ isa_find_memory(device_t child, struct isa_config *config,
 			     end = config->ic_mem[i].ir_end,
 			     align = config->ic_mem[i].ir_align;
 		     start + size - 1 <= end && start + size > start;
-		     start += align) {
+		     start += MAX(align, 1)) {
 			bus_set_resource(child, SYS_RES_MEMORY, i,
 					 start, size);
 			res[i] = bus_alloc_resource(child,
