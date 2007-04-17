@@ -30,7 +30,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/security/audit/audit_bsm_token.c#23 $
  * $FreeBSD$
  */
 
