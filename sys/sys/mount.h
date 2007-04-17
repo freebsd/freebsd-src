@@ -682,6 +682,8 @@ void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
 void	vfs_ref(struct mount *);
 void	vfs_rel(struct mount *);
+struct mount *vfs_mount_alloc(struct vnode *, struct vfsconf *, const char *,
+	    struct thread *);
 int	vfs_suser(struct mount *, struct thread *);
 void	vfs_unbusy(struct mount *, struct thread *);
 void	vfs_unmountall(void);
