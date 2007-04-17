@@ -597,6 +597,7 @@ struct scb {
 	struct ahc_dma_seg 	 *sg_list;
 	bus_addr_t		  sg_list_phys;
 	u_int			  sg_count;/* How full ahc_dma_seg is */
+	aic_timer_t		  io_timer;
 };
 
 struct scb_data {
@@ -1224,7 +1225,6 @@ void			 ahc_pause_and_flushwork(struct ahc_softc *ahc);
 int			 ahc_suspend(struct ahc_softc *ahc); 
 int			 ahc_resume(struct ahc_softc *ahc);
 void			 ahc_softc_insert(struct ahc_softc *);
-struct ahc_softc	*ahc_find_softc(struct ahc_softc *ahc);
 void			 ahc_set_unit(struct ahc_softc *, int);
 void			 ahc_set_name(struct ahc_softc *, char *);
 void			 ahc_alloc_scbs(struct ahc_softc *ahc);

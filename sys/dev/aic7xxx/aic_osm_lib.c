@@ -57,8 +57,7 @@ aic_set_recoveryscb(struct aic_softc *aic, struct scb *scb)
 			union ccb *ccb;
 
 			ccb = list_scb->io_ctx;
-			untimeout(aic_platform_timeout, list_scb,
-				  ccb->ccb_h.timeout_ch);
+			callout_stop(&scb->io_timer);
 		}
 	}
 }
@@ -67,12 +66,11 @@ void
 aic_platform_timeout(void *arg)
 {
 	struct	scb *scb;
-	u_long	s;
 	
 	scb = (struct scb *)arg; 
-	aic_lock(scb->aic_softc, &s);
+	aic_lock(scb->aic_softc);
 	aic_timeout(scb);
-	aic_unlock(scb->aic_softc, &s);
+	aic_unlock(scb->aic_softc);
 }
 
 int
@@ -93,11 +91,8 @@ aic_spawn_recovery_thread(struct aic_softc *aic)
 void
 aic_terminate_recovery_thread(struct aic_softc *aic)
 {
-	u_long s;
 
-	aic_lock(aic, &s);
 	if (aic->platform_data->recovery_thread == NULL) {
-		aic_unlock(aic, &s);
 		return;
 	}
 	aic->flags |= AIC_SHUTDOWN_RECOVERY;
@@ -106,40 +101,32 @@ aic_terminate_recovery_thread(struct aic_softc *aic)
 	 * Sleep on a slightly different location 
 	 * for this interlock just for added safety.
 	 */
-	tsleep(aic->platform_data, PUSER, "thtrm", 0);
-	aic_unlock(aic, &s);
+	msleep(aic->platform_data, &aic->platform_data->mtx, PUSER, "thtrm", 0);
 }
 
 static void
 aic_recovery_thread(void *arg)
 {
 	struct aic_softc *aic;
-	u_long s;
 
-#if __FreeBSD_version >= 500000
-	mtx_lock(&Giant);
-#endif
 	aic = (struct aic_softc *)arg;
-	aic_lock(aic, &s);
+	aic_lock(aic);
 	for (;;) {
 		
 		if (LIST_EMPTY(&aic->timedout_scbs) != 0
 		 && (aic->flags & AIC_SHUTDOWN_RECOVERY) == 0)
-			tsleep(aic, PUSER, "idle", 0);
+			msleep(aic, &aic->platform_data->mtx, PUSER, "idle", 0);
 
 		if ((aic->flags & AIC_SHUTDOWN_RECOVERY) != 0)
 			break;
 
-		aic_unlock(aic, &s);
+		aic_unlock(aic);
 		aic_recover_commands(aic);
-		aic_lock(aic, &s);
+		aic_lock(aic);
 	}
 	aic->platform_data->recovery_thread = NULL;
 	wakeup(aic->platform_data);
-	aic_unlock(aic, &s);
-#if __FreeBSD_version >= 500000
-	mtx_unlock(&Giant);
-#endif
+	aic_unlock(aic);
 	kthread_exit(0);
 }
 
