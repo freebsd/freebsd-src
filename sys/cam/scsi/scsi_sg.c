@@ -103,7 +103,6 @@ struct sg_softc {
 	struct devstat		*device_stats;
 	TAILQ_HEAD(, sg_rdwr)	rdwr_done;
 	struct cdev		*dev;
-	struct cdev		*devalias;
 	int			sg_timeout;
 	int			sg_user_timeout;
 	uint8_t			pd_type;
@@ -223,7 +222,6 @@ sgcleanup(struct cam_periph *periph)
 
 	softc = (struct sg_softc *)periph->softc;
 	devstat_remove_entry(softc->device_stats);
-	destroy_dev(softc->devalias);
 	destroy_dev(softc->dev);
 	if (bootverbose) {
 		xpt_print(periph->path, "removing device entry\n");
@@ -323,8 +321,7 @@ sgregister(struct cam_periph *periph, void *arg)
 	softc->dev = make_dev(&sg_cdevsw, unit2minor(periph->unit_number),
 			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 			      periph->periph_name, periph->unit_number);
-	softc->devalias = make_dev_alias(softc->dev, "sg%c",
-					 'a' + periph->unit_number);
+	(void)make_dev_alias(softc->dev, "sg%c", 'a' + periph->unit_number);
 	cam_periph_lock(periph);
 	softc->dev->si_drv1 = periph;
 
