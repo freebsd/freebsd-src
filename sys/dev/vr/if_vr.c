@@ -112,21 +112,21 @@ MODULE_DEPEND(vr, miibus, 1, 1, 1);
  * Various supported device vendors/types and their names.
  */
 static struct vr_type vr_devs[] = {
-	{ VIA_VENDORID, VIA_DEVICEID_RHINE,
+	{ VIA_VENDORID, VIA_DEVICEID_RHINE, 1,
 		"VIA VT3043 Rhine I 10/100BaseTX" },
-	{ VIA_VENDORID, VIA_DEVICEID_RHINE_II,
+	{ VIA_VENDORID, VIA_DEVICEID_RHINE_II, 1,
 		"VIA VT86C100A Rhine II 10/100BaseTX" },
-	{ VIA_VENDORID, VIA_DEVICEID_RHINE_II_2,
+	{ VIA_VENDORID, VIA_DEVICEID_RHINE_II_2, 0,
 		"VIA VT6102 Rhine II 10/100BaseTX" },
-	{ VIA_VENDORID, VIA_DEVICEID_RHINE_III,
+	{ VIA_VENDORID, VIA_DEVICEID_RHINE_III, 1,
 		"VIA VT6105 Rhine III 10/100BaseTX" },
-	{ VIA_VENDORID, VIA_DEVICEID_RHINE_III_M,
+	{ VIA_VENDORID, VIA_DEVICEID_RHINE_III_M, 0,
 		"VIA VT6105M Rhine III 10/100BaseTX" },
-	{ DELTA_VENDORID, DELTA_DEVICEID_RHINE_II,
+	{ DELTA_VENDORID, DELTA_DEVICEID_RHINE_II, 1,
 		"Delta Electronics Rhine II 10/100BaseTX" },
-	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_RHINE_II,
+	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_RHINE_II, 1,
 		"Addtron Technology Rhine II 10/100BaseTX" },
-	{ 0, 0, NULL }
+	{ 0, 0, 0, NULL }
 };
 
 static int vr_probe(device_t);
@@ -135,7 +135,6 @@ static int vr_detach(device_t);
 
 static int vr_newbuf(struct vr_softc *, struct vr_chain_onefrag *,
 		struct mbuf *);
-static int vr_encap(struct vr_softc *, struct vr_chain *, struct mbuf * );
 
 static void vr_rxeof(struct vr_softc *);
 static void vr_rxeoc(struct vr_softc *);
@@ -617,22 +616,34 @@ vr_reset(struct vr_softc *sc)
 
 /*
  * Probe for a VIA Rhine chip. Check the PCI vendor and device
+ * IDs against our list and return a match or NULL
+ */
+static struct vr_type *
+vr_match(device_t dev)
+{
+	struct vr_type	*t = vr_devs;
+
+	for (t = vr_devs; t->vr_name != NULL; t++)
+		if ((pci_get_vendor(dev) == t->vr_vid) &&
+		    (pci_get_device(dev) == t->vr_did))
+			return (t);
+	return (NULL);
+}
+
+/*
+ * Probe for a VIA Rhine chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
 static int
 vr_probe(device_t dev)
 {
-	struct vr_type	*t = vr_devs;
+	struct vr_type	*t;
 
-	while (t->vr_name != NULL) {
-		if ((pci_get_vendor(dev) == t->vr_vid) &&
-		    (pci_get_device(dev) == t->vr_did)) {
-			device_set_desc(dev, t->vr_name);
-			return (BUS_PROBE_DEFAULT);
-		}
-		t++;
+	t = vr_match(dev);
+	if (t != NULL) {
+		device_set_desc(dev, t->vr_name);
+		return (BUS_PROBE_DEFAULT);
 	}
-
 	return (ENXIO);
 }
 
@@ -649,10 +660,15 @@ vr_attach(dev)
 	struct vr_softc		*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
+	struct vr_type		*t;
 
 	sc = device_get_softc(dev);
 	sc->vr_dev = dev;
 	unit = device_get_unit(dev);
+	t = vr_match(dev);
+	KASSERT(t != NULL, ("Lost if_vr device match"));
+	sc->vr_quirks = t->vr_quirks;
+	device_printf(dev, "Quirks: 0x%x\n", sc->vr_quirks);
 
 	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -1073,7 +1089,7 @@ vr_txeof(struct vr_softc *sc)
 	 * frames that have been transmitted.
 	 */
 	cur_tx = sc->vr_cdata.vr_tx_cons;
-	while (cur_tx->vr_mbuf != NULL) {
+	while (cur_tx != sc->vr_cdata.vr_tx_prod) {
 		uint32_t		txstat;
 		int			i;
 
@@ -1090,7 +1106,7 @@ vr_txeof(struct vr_softc *sc)
 				sc->vr_flags |= VR_F_RESTART;
 				break;
 			}
-			VR_TXOWN(cur_tx) = VR_TXSTAT_OWN;
+			atomic_set_acq_32(&VR_TXOWN(cur_tx), VR_TXSTAT_OWN);
 			CSR_WRITE_4(sc, VR_TXADDR, vtophys(cur_tx->vr_ptr));
 			break;
 		}
@@ -1109,7 +1125,8 @@ vr_txeof(struct vr_softc *sc)
 		ifp->if_collisions +=(txstat & VR_TXSTAT_COLLCNT) >> 3;
 
 		ifp->if_opackets++;
-		m_freem(cur_tx->vr_mbuf);
+		if (cur_tx->vr_mbuf != NULL)
+			m_freem(cur_tx->vr_mbuf);
 		cur_tx->vr_mbuf = NULL;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
@@ -1253,6 +1270,7 @@ vr_intr(void *arg)
 
 	for (;;) {
 		status = CSR_READ_2(sc, VR_ISR);
+
 		if (status)
 			CSR_WRITE_2(sc, VR_ISR, status);
 
@@ -1314,49 +1332,6 @@ done_locked:
 }
 
 /*
- * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
- * pointers to the fragment pointers.
- */
-static int
-vr_encap(struct vr_softc *sc, struct vr_chain *c, struct mbuf *m_head)
-{
-	struct vr_desc		*f = NULL;
-	struct mbuf		*m;
-
-	VR_LOCK_ASSERT(sc);
-	/*
-	 * The VIA Rhine wants packet buffers to be longword
-	 * aligned, but very often our mbufs aren't. Rather than
-	 * waste time trying to decide when to copy and when not
-	 * to copy, just do it all the time.
-	 */
-	m = m_defrag(m_head, M_DONTWAIT);
-	if (m == NULL)
-		return (1);
-
-	/*
-	 * The Rhine chip doesn't auto-pad, so we have to make
-	 * sure to pad short frames out to the minimum frame length
-	 * ourselves.
-	 */
-	if (m->m_len < VR_MIN_FRAMELEN) {
-		m->m_pkthdr.len += VR_MIN_FRAMELEN - m->m_len;
-		m->m_len = m->m_pkthdr.len;
-	}
-
-	c->vr_mbuf = m;
-	f = c->vr_ptr;
-	f->vr_data = vtophys(mtod(m, caddr_t));
-	f->vr_ctl = m->m_len;
-	f->vr_ctl |= VR_TXCTL_TLINK|VR_TXCTL_FIRSTFRAG;
-	f->vr_status = 0;
-	f->vr_ctl |= VR_TXCTL_LASTFRAG|VR_TXCTL_FINT;
-	f->vr_next = vtophys(c->vr_nextdesc->vr_ptr);
-
-	return (0);
-}
-
-/*
  * Main transmit routine. To avoid having to do mbuf copies, we put pointers
  * to the mbuf data regions directly in the transmit lists. We also save a
  * copy of the pointers since the transmit list fragment pointers are
@@ -1377,47 +1352,93 @@ static void
 vr_start_locked(struct ifnet *ifp)
 {
 	struct vr_softc		*sc = ifp->if_softc;
-	struct mbuf		*m_head;
-	struct vr_chain		*cur_tx;
+	struct mbuf		*m, *m_head;
+	struct vr_chain		*cur_tx, *n_tx;
+	struct vr_desc		*f = NULL;
+	uint32_t		cval;
 
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
-	cur_tx = sc->vr_cdata.vr_tx_prod;
-	while (cur_tx->vr_mbuf == NULL) {
+	for (cur_tx = sc->vr_cdata.vr_tx_prod;
+	    cur_tx->vr_nextdesc != sc->vr_cdata.vr_tx_cons; ) {
        	        IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
-		/* Pack the data into the descriptor. */
-		if (vr_encap(sc, cur_tx, m_head)) {
-			/* Rollback, send what we were able to encap. */
-               		IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			break;
+		VR_LOCK_ASSERT(sc);
+		/*
+		 * Some VIA Rhine wants packet buffers to be longword
+		 * aligned, but very often our mbufs aren't. Rather than
+		 * waste time trying to decide when to copy and when not
+		 * to copy, just do it all the time.
+		 */
+		if (sc->vr_quirks) {
+			m = m_defrag(m_head, M_DONTWAIT);
+			if (m == NULL) {
+				/* Rollback, send what we were able to encap. */
+				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+				break;
+			}
+			m_head = m;
+		} 
+
+		/*
+		 * The Rhine chip doesn't auto-pad, so we have to make
+		 * sure to pad short frames out to the minimum frame length
+		 * ourselves.
+		 */
+		if (m_head->m_pkthdr.len < VR_MIN_FRAMELEN) {
+			if (m_head->m_next != NULL) 
+				m_head = m_defrag(m_head, M_DONTWAIT);
+			m_head->m_pkthdr.len += VR_MIN_FRAMELEN - m_head->m_len;
+			m_head->m_len = m_head->m_pkthdr.len;
+			/* XXX: bzero the padding bytes */
 		}
 
-		VR_TXOWN(cur_tx) = VR_TXSTAT_OWN;
+		n_tx = cur_tx;
+		for (m = m_head; m != NULL; m = m->m_next) {
+			if (m->m_len == 0)
+				continue;
+			if (n_tx->vr_nextdesc == sc->vr_cdata.vr_tx_cons) {
+				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+				sc->vr_cdata.vr_tx_prod = cur_tx;
+				return;
+			}
+			KASSERT(n_tx->vr_mbuf == NULL, ("if_vr_tx overrun"));
+			
+			f = n_tx->vr_ptr;
+			f->vr_data = vtophys(mtod(m, caddr_t));
+			cval = m->m_len;
+			cval |= VR_TXCTL_TLINK;
+			if (m == m_head)
+				cval |= VR_TXCTL_FIRSTFRAG;
+			f->vr_ctl = cval;
+			f->vr_status = 0;
+			n_tx = n_tx->vr_nextdesc;
+			f->vr_next = vtophys(n_tx->vr_ptr);
+			KASSERT(!(f->vr_next & 0xf),
+			    ("vr_next not 16 byte aligned 0x%x", f->vr_next));
+		}
+
+		f->vr_ctl |= VR_TXCTL_LASTFRAG|VR_TXCTL_FINT;
+		cur_tx->vr_mbuf = m_head;
+		atomic_set_acq_32(&VR_TXOWN(cur_tx), VR_TXSTAT_OWN);
+
+		/* Tell the chip to start transmitting. */
+		VR_SETBIT16(sc, VR_COMMAND, /*VR_CMD_TX_ON|*/ VR_CMD_TX_GO);
+
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		ifp->if_timer = 5;
 
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		BPF_MTAP(ifp, cur_tx->vr_mbuf);
-
-		cur_tx = cur_tx->vr_nextdesc;
+		BPF_MTAP(ifp, m_head);
+		cur_tx = n_tx;
 	}
-	if (cur_tx != sc->vr_cdata.vr_tx_prod || cur_tx->vr_mbuf != NULL) {
-		sc->vr_cdata.vr_tx_prod = cur_tx;
-
-		/* Tell the chip to start transmitting. */
-		VR_SETBIT16(sc, VR_COMMAND, /*VR_CMD_TX_ON|*/ VR_CMD_TX_GO);
-
-		/* Set a timeout in case the chip goes out to lunch. */
-		ifp->if_timer = 5;
-
-		if (cur_tx->vr_mbuf != NULL)
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	}
+	sc->vr_cdata.vr_tx_prod = cur_tx;
 }
 
 static void

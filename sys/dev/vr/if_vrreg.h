@@ -390,7 +390,7 @@ struct vr_desc {
 
 #define VR_MAXFRAGS		16
 #define VR_RX_LIST_CNT		64
-#define VR_TX_LIST_CNT		128
+#define VR_TX_LIST_CNT		256
 #define VR_MIN_FRAMELEN		60
 #define VR_FRAMELEN		1536
 #define VR_RXLEN		1520
@@ -427,6 +427,7 @@ struct vr_chain_data {
 struct vr_type {
 	u_int16_t		vr_vid;
 	u_int16_t		vr_did;
+	int			vr_quirks;
 	char			*vr_name;
 };
 
@@ -469,6 +470,7 @@ struct vr_softc {
 	struct callout		vr_stat_callout;
 	struct mtx		vr_mtx;
 	int			suspended;	/* if 1, sleeping/detaching */
+	int			vr_quirks;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
