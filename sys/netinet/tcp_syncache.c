@@ -960,8 +960,8 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * entry and insert the new one.
 		 */
 		tcpstat.tcps_sc_zonefail++;
-		sc = TAILQ_LAST(&sch->sch_bucket, sch_head);
-		syncache_drop(sc, sch);
+		if ((sc = TAILQ_LAST(&sch->sch_bucket, sch_head)) != NULL)
+			syncache_drop(sc, sch);
 		sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT | M_ZERO);
 		if (sc == NULL) {
 			if (tcp_syncookies) {
