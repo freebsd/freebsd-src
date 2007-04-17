@@ -1103,7 +1103,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	devices will marked <literal>up</literal> upon creation.  &merged;
 	</para>
 
-      <para>The &man.trunk.4; driver, ported from OpenBSD and NetBSD,
+      <para>The &man.lagg.4; driver, ported from OpenBSD and NetBSD,
 	has been added to support a variety of protocols and algorithms
 	for link aggregation, failover, and fault tolerance.</para>
 
