@@ -36,8 +36,8 @@ CFLAGS+=	-I${.CURDIR}/../../../contrib/opensolaris/head
 CFLAGS+=	-I${.CURDIR}/../../../cddl/lib/libumem
 CFLAGS+=	-I${.CURDIR}/../../../contrib/opensolaris/lib/libnvpair
 
-DPADD=		${LIBTHR} ${LIBZ}
-LDADD=		-lthr -lz
+DPADD=		${LIBPTHREAD} ${LIBZ}
+LDADD=		-lpthread -lz
 
 # atomic.S doesn't like profiling.
 NO_PROFILE=
