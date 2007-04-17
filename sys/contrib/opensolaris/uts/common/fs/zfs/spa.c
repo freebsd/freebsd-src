@@ -598,8 +598,12 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 			goto out;
 		}
 
+		/*
+		 * hostid is set after the root file system is mounted, so
+		 * ignore the check until it's done.
+		 */
 		if (nvlist_lookup_uint64(newconfig, ZPOOL_CONFIG_HOSTID,
-		    &hostid) == 0) {
+		    &hostid) == 0 && root_mounted()) {
 			char *hostname;
 			unsigned long myhostid = 0;
 
