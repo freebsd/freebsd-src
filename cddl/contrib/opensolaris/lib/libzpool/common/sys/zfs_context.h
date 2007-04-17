@@ -480,6 +480,7 @@ extern uint64_t physmem;
 #define	readdir64(d)		readdir(d)
 #define	SIGPENDING(td)		(0)
 #define	root_mount_wait()	do { } while (0)
+#define	root_mounted()		(1)
 
 struct file {
 	void *dummy;
