@@ -108,12 +108,12 @@ SUBDIR=	${_3dfx} \
 	if_faith \
 	if_gif \
 	if_gre \
+	if_lagg \
 	${_if_ndis} \
 	if_ppp \
 	if_sl \
 	if_stf \
 	if_tap \
-	if_trunk \
 	if_tun \
 	if_vlan \
 	${_iir} \

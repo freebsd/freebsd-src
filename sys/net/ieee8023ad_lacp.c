@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 
-#include <net/if_trunk.h>
+#include <net/if_lagg.h>
 #include <net/ieee8023ad_lacp.h>
 
 /*
@@ -206,13 +206,13 @@ static const lacp_timer_func_t lacp_timer_funcs[LACP_NTIMER] = {
  * lacp_input: process lacpdu
  */
 int
-lacp_input(struct trunk_port *tp, struct mbuf *m)
+lacp_input(struct lagg_port *lgp, struct mbuf *m)
 {
-	struct lacp_port *lp = LACP_PORT(tp);
+	struct lacp_port *lp = LACP_PORT(lgp);
 	struct lacpdu *du;
 	int error = 0;
 
-	TRUNK_LOCK_ASSERT(tp->tp_trunk);
+	LAGG_LOCK_ASSERT(lgp->lp_lagg);
 
 	if (__predict_false(lp->lp_flags & LACP_PORT_DETACHING)) {
 		goto bad;
@@ -284,12 +284,12 @@ bad:
 static void
 lacp_fill_actorinfo(struct lacp_port *lp, struct lacp_peerinfo *info)
 {
-	struct trunk_port *tp = lp->lp_trunk;
-	struct trunk_softc *tr = tp->tp_trunk;
+	struct lagg_port *lgp = lp->lp_lagg;
+	struct lagg_softc *lgs = lgp->lp_lagg;
 
 	info->lip_systemid.lsi_prio = htons(LACP_SYSTEM_PRIO);
 	memcpy(&info->lip_systemid.lsi_mac,
-	    IF_LLADDR(tr->tr_ifp), ETHER_ADDR_LEN);
+	    IF_LLADDR(lgs->sc_ifp), ETHER_ADDR_LEN);
 	info->lip_portid.lpi_prio = htons(LACP_PORT_PRIO);
 	info->lip_portid.lpi_portno = htons(lp->lp_ifp->if_index);
 	info->lip_state = lp->lp_state;
@@ -298,12 +298,12 @@ lacp_fill_actorinfo(struct lacp_port *lp, struct lacp_peerinfo *info)
 static int
 lacp_xmit_lacpdu(struct lacp_port *lp)
 {
-	struct trunk_port *tp = lp->lp_trunk;
+	struct lagg_port *lgp = lp->lp_lagg;
 	struct mbuf *m;
 	struct lacpdu *du;
 	int error;
 
-	TRUNK_LOCK_ASSERT(tp->tp_trunk);
+	LAGG_LOCK_ASSERT(lgp->lp_lagg);
 
 	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
@@ -316,7 +316,7 @@ lacp_xmit_lacpdu(struct lacp_port *lp)
 
 	memcpy(&du->ldu_eh.ether_dhost, ethermulticastaddr_slowprotocols,
 	    ETHER_ADDR_LEN);
-	memcpy(&du->ldu_eh.ether_shost, tp->tp_lladdr, ETHER_ADDR_LEN);
+	memcpy(&du->ldu_eh.ether_shost, lgp->lp_lladdr, ETHER_ADDR_LEN);
 	du->ldu_eh.ether_type = htons(ETHERTYPE_SLOW);
 
 	du->ldu_sph.sph_subtype = SLOWPROTOCOLS_SUBTYPE_LACP;
@@ -345,22 +345,22 @@ lacp_xmit_lacpdu(struct lacp_port *lp)
 	 * otherwise network congestion can break aggregation.
 	 */
 
-	error = trunk_enqueue(lp->lp_ifp, m);
+	error = lagg_enqueue(lp->lp_ifp, m);
 	return (error);
 }
 
 void
-lacp_linkstate(struct trunk_port *tp)
+lacp_linkstate(struct lagg_port *lgp)
 {
-	struct lacp_port *lp = LACP_PORT(tp);
-	struct ifnet *ifp = tp->tp_ifp;
+	struct lacp_port *lp = LACP_PORT(lgp);
+	struct ifnet *ifp = lgp->lp_ifp;
 	struct ifmediareq ifmr;
 	int error = 0;
 	u_int media;
 	uint8_t old_state;
 	uint16_t old_key;
 
-	TRUNK_LOCK_ASSERT(tp->tp_trunk);
+	LAGG_LOCK_ASSERT(lgp->lp_lagg);
 
 	bzero((char *)&ifmr, sizeof(ifmr));
 	error = (*ifp->if_ioctl)(ifp, SIOCGIFMEDIA, (caddr_t)&ifmr);
@@ -407,12 +407,12 @@ lacp_tick(void *arg)
 }
 
 int
-lacp_port_create(struct trunk_port *tp)
+lacp_port_create(struct lagg_port *lgp)
 {
-	struct trunk_softc *tr = tp->tp_trunk;
-	struct lacp_softc *lsc = LACP_SOFTC(tr);
+	struct lagg_softc *lgs = lgp->lp_lagg;
+	struct lacp_softc *lsc = LACP_SOFTC(lgs);
 	struct lacp_port *lp;
-	struct ifnet *ifp = tp->tp_ifp;
+	struct ifnet *ifp = lgp->lp_ifp;
 	struct sockaddr_dl sdl;
 	struct ifmultiaddr *rifma = NULL;
 	int error;
@@ -420,7 +420,7 @@ lacp_port_create(struct trunk_port *tp)
 	boolean_t active = TRUE; /* XXX should be configurable */
 	boolean_t fast = FALSE; /* XXX should be configurable */
 
-	TRUNK_LOCK_ASSERT(tr);
+	LAGG_LOCK_ASSERT(lgs);
 
 	bzero((char *)&sdl, sizeof(sdl));
 	sdl.sdl_len = sizeof(sdl);
@@ -433,7 +433,7 @@ lacp_port_create(struct trunk_port *tp)
 	    LLADDR(&sdl), ETHER_ADDR_LEN);
 	error = if_addmulti(ifp, (struct sockaddr *)&sdl, &rifma);
 	if (error) {
-		printf("%s: ADDMULTI failed on %s\n", __func__, tp->tp_ifname);
+		printf("%s: ADDMULTI failed on %s\n", __func__, lgp->lp_ifname);
 		return (error);
 	}
 
@@ -442,9 +442,9 @@ lacp_port_create(struct trunk_port *tp)
 	if (lp == NULL)
 		return (ENOMEM);
 
-	tp->tp_psc = (caddr_t)lp;
+	lgp->lp_psc = (caddr_t)lp;
 	lp->lp_ifp = ifp;
-	lp->lp_trunk = tp;
+	lp->lp_lagg = lgp;
 	lp->lp_lsc = lsc;
 
 	LIST_INSERT_HEAD(&lsc->lsc_ports, lp, lp_next);
@@ -454,21 +454,21 @@ lacp_port_create(struct trunk_port *tp)
 	    (active ? LACP_STATE_ACTIVITY : 0) |
 	    (fast ? LACP_STATE_TIMEOUT : 0);
 	lp->lp_aggregator = NULL;
-	lacp_linkstate(tp);
+	lacp_linkstate(lgp);
 	lacp_sm_rx_set_expired(lp);
 
 	return (0);
 }
 
 void
-lacp_port_destroy(struct trunk_port *tp)
+lacp_port_destroy(struct lagg_port *lgp)
 {
-	struct lacp_port *lp = LACP_PORT(tp);
-	struct ifnet *ifp = tp->tp_ifp;
+	struct lacp_port *lp = LACP_PORT(lgp);
+	struct ifnet *ifp = lgp->lp_ifp;
 	struct sockaddr_dl sdl;
 	int i, error;
 
-	TRUNK_LOCK_ASSERT(tp->tp_trunk);
+	LAGG_LOCK_ASSERT(lgp->lp_lagg);
 
 	for (i = 0; i < LACP_NTIMER; i++) {
 		LACP_TIMER_DISARM(lp, i);
@@ -489,16 +489,16 @@ lacp_port_destroy(struct trunk_port *tp)
 	    LLADDR(&sdl), ETHER_ADDR_LEN);
 	error = if_delmulti(ifp, (struct sockaddr *)&sdl);
 	if (error)
-		printf("%s: DELMULTI failed on %s\n", __func__, tp->tp_ifname);
+		printf("%s: DELMULTI failed on %s\n", __func__, lgp->lp_ifname);
 
 	LIST_REMOVE(lp, lp_next);
 	free(lp, M_DEVBUF);
 }
 
 int
-lacp_port_isactive(struct trunk_port *tp)
+lacp_port_isactive(struct lagg_port *lgp)
 {
-	struct lacp_port *lp = LACP_PORT(tp);
+	struct lacp_port *lp = LACP_PORT(lgp);
 	struct lacp_softc *lsc = lp->lp_lsc;
 	struct lacp_aggregator *la = lp->lp_aggregator;
 
@@ -512,23 +512,23 @@ lacp_port_isactive(struct trunk_port *tp)
 static void
 lacp_disable_collecting(struct lacp_port *lp)
 {
-	struct trunk_port *tp = lp->lp_trunk;
+	struct lagg_port *lgp = lp->lp_lagg;
 
 	LACP_DPRINTF((lp, "collecting disabled\n"));
 
 	lp->lp_state &= ~LACP_STATE_COLLECTING;
-	tp->tp_flags &= ~TRUNK_PORT_COLLECTING;
+	lgp->lp_flags &= ~LAGG_PORT_COLLECTING;
 }
 
 static void
 lacp_enable_collecting(struct lacp_port *lp)
 {
-	struct trunk_port *tp = lp->lp_trunk;
+	struct lagg_port *lgp = lp->lp_lagg;
 
 	LACP_DPRINTF((lp, "collecting enabled\n"));
 
 	lp->lp_state |= LACP_STATE_COLLECTING;
-	tp->tp_flags |= TRUNK_PORT_COLLECTING;
+	lgp->lp_flags |= LAGG_PORT_COLLECTING;
 }
 
 static void
@@ -536,12 +536,12 @@ lacp_disable_distributing(struct lacp_port *lp)
 {
 	struct lacp_aggregator *la = lp->lp_aggregator;
 	struct lacp_softc *lsc = lp->lp_lsc;
-	struct trunk_port *tp = lp->lp_trunk;
+	struct lagg_port *lgp = lp->lp_lagg;
 #if defined(LACP_DEBUG)
 	char buf[LACP_LAGIDSTR_MAX+1];
 #endif /* defined(LACP_DEBUG) */
 
-	TRUNK_LOCK_ASSERT(tp->tp_trunk);
+	LAGG_LOCK_ASSERT(lgp->lp_lagg);
 
 	if (la == NULL || (lp->lp_state & LACP_STATE_DISTRIBUTING) == 0) {
 		return;
@@ -562,7 +562,7 @@ lacp_disable_distributing(struct lacp_port *lp)
 	lacp_suppress_distributing(lsc, la);
 
 	lp->lp_state &= ~LACP_STATE_DISTRIBUTING;
-	tp->tp_flags &= ~TRUNK_PORT_DISTRIBUTING;
+	lgp->lp_flags &= ~LAGG_PORT_DISTRIBUTING;
 
 	if (lsc->lsc_active_aggregator == la) {
 		lacp_select_active_aggregator(lsc);
@@ -574,12 +574,12 @@ lacp_enable_distributing(struct lacp_port *lp)
 {
 	struct lacp_aggregator *la = lp->lp_aggregator;
 	struct lacp_softc *lsc = lp->lp_lsc;
-	struct trunk_port *tp = lp->lp_trunk;
+	struct lagg_port *lgp = lp->lp_lagg;
 #if defined(LACP_DEBUG)
 	char buf[LACP_LAGIDSTR_MAX+1];
 #endif /* defined(LACP_DEBUG) */
 
-	TRUNK_LOCK_ASSERT(tp->tp_trunk);
+	LAGG_LOCK_ASSERT(lgp->lp_lagg);
 
 	if ((lp->lp_state & LACP_STATE_DISTRIBUTING) != 0) {
 		return;
@@ -597,7 +597,7 @@ lacp_enable_distributing(struct lacp_port *lp)
 	lacp_suppress_distributing(lsc, la);
 
 	lp->lp_state |= LACP_STATE_DISTRIBUTING;
-	tp->tp_flags |= TRUNK_PORT_DISTRIBUTING;
+	lgp->lp_flags |= LAGG_PORT_DISTRIBUTING;
 
 	if (lsc->lsc_active_aggregator != la) {
 		lacp_select_active_aggregator(lsc);
@@ -614,46 +614,46 @@ lacp_transit_expire(void *vp)
 }
 
 int
-lacp_attach(struct trunk_softc *tr)
+lacp_attach(struct lagg_softc *lgs)
 {
 	struct lacp_softc *lsc;
 
-	TRUNK_LOCK_ASSERT(tr);
+	LAGG_LOCK_ASSERT(lgs);
 
 	lsc = malloc(sizeof(struct lacp_softc),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (lsc == NULL)
 		return (ENOMEM);
 
-	tr->tr_psc = (caddr_t)lsc;
-	lsc->lsc_trunk = tr;
+	lgs->sc_psc = (caddr_t)lsc;
+	lsc->lsc_lagg = lgs;
 
 	lsc->lsc_hashkey = arc4random();
 	lsc->lsc_active_aggregator = NULL;
 	TAILQ_INIT(&lsc->lsc_aggregators);
 	LIST_INIT(&lsc->lsc_ports);
 
-	callout_init_mtx(&lsc->lsc_transit_callout, &tr->tr_mtx, 0);
-	callout_init_mtx(&lsc->lsc_callout, &tr->tr_mtx, 0);
+	callout_init_mtx(&lsc->lsc_transit_callout, &lgs->sc_mtx, 0);
+	callout_init_mtx(&lsc->lsc_callout, &lgs->sc_mtx, 0);
 
-	/* if the trunk is already up then do the same */
-	if (tr->tr_ifp->if_drv_flags & IFF_DRV_RUNNING)
-		lacp_init(tr);
+	/* if the lagg is already up then do the same */
+	if (lgs->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		lacp_init(lgs);
 
 	return (0);
 }
 
 int
-lacp_detach(struct trunk_softc *tr)
+lacp_detach(struct lagg_softc *lgs)
 {
-	struct lacp_softc *lsc = LACP_SOFTC(tr);
+	struct lacp_softc *lsc = LACP_SOFTC(lgs);
 
 	KASSERT(TAILQ_EMPTY(&lsc->lsc_aggregators),
 	    ("aggregators still active"));
 	KASSERT(lsc->lsc_active_aggregator == NULL,
 	    ("aggregator still attached"));
 
-	tr->tr_psc = NULL;
+	lgs->sc_psc = NULL;
 	callout_drain(&lsc->lsc_transit_callout);
 	callout_drain(&lsc->lsc_callout);
 
@@ -662,32 +662,32 @@ lacp_detach(struct trunk_softc *tr)
 }
 
 void
-lacp_init(struct trunk_softc *tr)
+lacp_init(struct lagg_softc *lgs)
 {
-	struct lacp_softc *lsc = LACP_SOFTC(tr);
+	struct lacp_softc *lsc = LACP_SOFTC(lgs);
 
 	callout_reset(&lsc->lsc_callout, hz, lacp_tick, lsc);
 }
 
 void
-lacp_stop(struct trunk_softc *tr)
+lacp_stop(struct lagg_softc *lgs)
 {
-	struct lacp_softc *lsc = LACP_SOFTC(tr);
+	struct lacp_softc *lsc = LACP_SOFTC(lgs);
 
 	callout_stop(&lsc->lsc_transit_callout);
 	callout_stop(&lsc->lsc_callout);
 }
 
-struct trunk_port *
-lacp_select_tx_port(struct trunk_softc *tr, struct mbuf *m)
+struct lagg_port *
+lacp_select_tx_port(struct lagg_softc *lgs, struct mbuf *m)
 {
-	struct lacp_softc *lsc = LACP_SOFTC(tr);
+	struct lacp_softc *lsc = LACP_SOFTC(lgs);
 	struct lacp_aggregator *la;
 	struct lacp_port *lp;
 	uint32_t hash;
 	int nports;
 
-	TRUNK_LOCK_ASSERT(tr);
+	LAGG_LOCK_ASSERT(lgs);
 
 	if (__predict_false(lsc->lsc_suppress_distributing)) {
 		LACP_DPRINTF((NULL, "%s: waiting transit\n", __func__));
@@ -703,7 +703,7 @@ lacp_select_tx_port(struct trunk_softc *tr, struct mbuf *m)
 	nports = la->la_nports;
 	KASSERT(nports > 0, ("no ports available"));
 
-	hash = trunk_hashmbuf(m, lsc->lsc_hashkey);
+	hash = lagg_hashmbuf(m, lsc->lsc_hashkey);
 	hash %= nports;
 	lp = TAILQ_FIRST(&la->la_ports);
 	while (hash--) {
@@ -713,7 +713,7 @@ lacp_select_tx_port(struct trunk_softc *tr, struct mbuf *m)
 	KASSERT((lp->lp_state & LACP_STATE_DISTRIBUTING) != 0,
 	    ("aggregated port is not distributing"));
 
-	return (lp->lp_trunk);
+	return (lp->lp_lagg);
 }
 /*
  * lacp_suppress_distributing: drop transmit packets for a while
@@ -780,7 +780,7 @@ lacp_aggregator_bandwidth(struct lacp_aggregator *la)
 
 /*
  * lacp_select_active_aggregator: select an aggregator to be used to transmit
- * packets from trunk(4) interface.
+ * packets from lagg(4) interface.
  */
 
 static void
@@ -843,8 +843,8 @@ lacp_select_active_aggregator(struct lacp_softc *lsc)
 static uint16_t
 lacp_compose_key(struct lacp_port *lp)
 {
-	struct trunk_port *tp = lp->lp_trunk;
-	struct trunk_softc *tr = tp->tp_trunk;
+	struct lagg_port *lgp = lp->lp_lagg;
+	struct lagg_softc *lgs = lgp->lp_lagg;
 	u_int media = lp->lp_media;
 	uint16_t key;
 
@@ -869,8 +869,8 @@ lacp_compose_key(struct lacp_port *lp)
 
 		/* bit 0..4:	IFM_SUBTYPE */
 		key = subtype;
-		/* bit 5..14:	(some bits of) if_index of trunk device */
-		key |= 0x7fe0 & ((tr->tr_ifp->if_index) << 5);
+		/* bit 5..14:	(some bits of) if_index of lagg device */
+		key |= 0x7fe0 & ((lgs->sc_ifp->if_index) << 5);
 		/* bit 15:	0 */
 	}
 	return (htons(key));
@@ -1529,13 +1529,13 @@ lacp_run_timers(struct lacp_port *lp)
 }
 
 int
-lacp_marker_input(struct trunk_port *tp, struct mbuf *m)
+lacp_marker_input(struct lagg_port *lgp, struct mbuf *m)
 {
-	struct lacp_port *lp = LACP_PORT(tp);
+	struct lacp_port *lp = LACP_PORT(lgp);
 	struct markerdu *mdu;
 	int error = 0;
 
-	TRUNK_LOCK_ASSERT(tp->tp_trunk);
+	LAGG_LOCK_ASSERT(lgp->lp_lagg);
 
 	if (__predict_false(lp->lp_flags & LACP_PORT_DETACHING)) {
 		goto bad;
@@ -1582,8 +1582,8 @@ lacp_marker_input(struct trunk_port *tp, struct mbuf *m)
 		memcpy(&mdu->mdu_eh.ether_dhost,
 		    &ethermulticastaddr_slowprotocols, ETHER_ADDR_LEN);
 		memcpy(&mdu->mdu_eh.ether_shost,
-		    tp->tp_lladdr, ETHER_ADDR_LEN);
-		error = trunk_enqueue(lp->lp_ifp, m);
+		    lgp->lp_lladdr, ETHER_ADDR_LEN);
+		error = lagg_enqueue(lp->lp_ifp, m);
 		break;
 
 	case MARKER_TYPE_RESPONSE:
