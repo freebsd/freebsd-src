@@ -153,9 +153,6 @@ traverse(vnode_t **cvpp)
 	return (error);
 }
 
-extern struct mount *vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
-    const char *fspath, struct thread *td);
-
 int
 domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
     char *fspec, int fsflags)
@@ -205,10 +202,12 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	/*
 	 * Set the mount level flags.
 	 */
+	MNT_ILOCK(mp);
 	if (fsflags & MNT_RDONLY)
 		mp->mnt_flag |= MNT_RDONLY;
 	mp->mnt_flag &=~ MNT_UPDATEMASK;
 	mp->mnt_flag |= fsflags & (MNT_UPDATEMASK | MNT_FORCE | MNT_ROOTFS);
+	MNT_IUNLOCK(mp);
 	/*
 	 * Mount the filesystem.
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
@@ -231,7 +230,9 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	/*
 	 * Put the new filesystem on the mount list after root.
 	 */
-//	cache_purge(vp);
+#ifdef FREEBSD_NAMECACHE
+	cache_purge(vp);
+#endif
 	if (!error) {
 		vnode_t *mvp;
 
