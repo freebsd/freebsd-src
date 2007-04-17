@@ -364,6 +364,8 @@ struct vr_desc {
 #define VR_RXCTL_BUFLEN_EXT	0x00007800
 #define VR_RXCTL_CHAIN		0x00008000
 #define VR_RXCTL_RX_INTR	0x00800000
+#define VR_RXCTL_GOODIP		0x00280000
+#define VR_RXCTL_GOODTCPUDP	0x00100000
 
 #define VR_RXCTL (VR_RXCTL_CHAIN|VR_RXCTL_RX_INTR)
 
@@ -383,13 +385,18 @@ struct vr_desc {
 #define VR_TXCTL_BUFLEN		0x000007FF
 #define VR_TXCTL_BUFLEN_EXT	0x00007800
 #define VR_TXCTL_TLINK		0x00008000
+#define VR_TXCTL_NOCRC		0x00010000
+#define VR_TXCTL_INSERTTAG	0x00020000
+#define VR_TXCTL_IPCSUM		0x00040000
+#define VR_TXCTL_UDPCSUM	0x00080000
+#define VR_TXCTL_TCPCSUM	0x00100000
 #define VR_TXCTL_FIRSTFRAG	0x00200000
 #define VR_TXCTL_LASTFRAG	0x00400000
 #define VR_TXCTL_FINT		0x00800000
 
 
 #define VR_MAXFRAGS		16
-#define VR_RX_LIST_CNT		64
+#define VR_RX_LIST_CNT		256
 #define VR_TX_LIST_CNT		256
 #define VR_MIN_FRAMELEN		60
 #define VR_FRAMELEN		1536
@@ -423,6 +430,9 @@ struct vr_chain_data {
 	struct vr_chain		*vr_tx_cons;
 	struct vr_chain		*vr_tx_prod;
 };
+
+#define VR_Q_NEEDALIGN		(1<<0)
+#define VR_Q_CSUM		(1<<1)
 
 struct vr_type {
 	u_int16_t		vr_vid;
