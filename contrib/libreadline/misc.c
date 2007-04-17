@@ -1,6 +1,6 @@
 /* misc.c -- miscellaneous bindable readline functions. */
 
-/* Copyright (C) 1987-2004 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -63,6 +63,8 @@ void _rl_free_history_entry PARAMS((HIST_ENTRY *));
    to preserve the value of rl_point from line to line. */
 int _rl_history_preserve_point = 0;
 
+_rl_arg_cxt _rl_argcxt;
+
 /* Saved target point for when _rl_history_preserve_point is set.  Special
    value of -1 means that point is at the end of the line. */
 int _rl_history_saved_point = -1;
@@ -73,77 +75,74 @@ int _rl_history_saved_point = -1;
 /*								    */
 /* **************************************************************** */
 
-/* Handle C-u style numeric args, as well as M--, and M-digits. */
-static int
-rl_digit_loop ()
+int
+_rl_arg_overflow ()
 {
-  int key, c, sawminus, sawdigits;
-
-  rl_save_prompt ();
-
-  RL_SETSTATE(RL_STATE_NUMERICARG);
-  sawminus = sawdigits = 0;
-  while (1)
+  if (rl_numeric_arg > 1000000)
     {
-      if (rl_numeric_arg > 1000000)
+      _rl_argcxt = 0;
+      rl_explicit_arg = rl_numeric_arg = 0;
+      rl_ding ();
+      rl_restore_prompt ();
+      rl_clear_message ();
+      RL_UNSETSTATE(RL_STATE_NUMERICARG);
+      return 1;
+    }
+  return 0;
+}
+
+void
+_rl_arg_init ()
+{
+  rl_save_prompt ();
+  _rl_argcxt = 0;
+  RL_SETSTATE(RL_STATE_NUMERICARG);
+}
+
+int
+_rl_arg_getchar ()
+{
+  int c;
+
+  rl_message ("(arg: %d) ", rl_arg_sign * rl_numeric_arg);
+  RL_SETSTATE(RL_STATE_MOREINPUT);
+  c = rl_read_key ();
+  RL_UNSETSTATE(RL_STATE_MOREINPUT);
+
+  return c;
+}
+
+/* Process C as part of the current numeric argument.  Return -1 if the
+   argument should be aborted, 0 if we should not read any more chars, and
+   1 if we should continue to read chars. */
+int
+_rl_arg_dispatch (cxt, c)
+     _rl_arg_cxt cxt;
+     int c;
+{
+  int key, r;
+
+  key = c;
+
+  /* If we see a key bound to `universal-argument' after seeing digits,
+      it ends the argument but is otherwise ignored. */
+  if (_rl_keymap[c].type == ISFUNC && _rl_keymap[c].function == rl_universal_argument)
+    {
+      if ((cxt & NUM_SAWDIGITS) == 0)
 	{
-	  sawdigits = rl_explicit_arg = rl_numeric_arg = 0;
-	  rl_ding ();
-	  rl_restore_prompt ();
-	  rl_clear_message ();
-	  RL_UNSETSTATE(RL_STATE_NUMERICARG);
+	  rl_numeric_arg *= 4;
 	  return 1;
 	}
-      rl_message ("(arg: %d) ", rl_arg_sign * rl_numeric_arg);
-      RL_SETSTATE(RL_STATE_MOREINPUT);
-      key = c = rl_read_key ();
-      RL_UNSETSTATE(RL_STATE_MOREINPUT);
-
-      if (c < 0)
-	{
-	  _rl_abort_internal ();
-	  return -1;
-	}
-
-      /* If we see a key bound to `universal-argument' after seeing digits,
-	 it ends the argument but is otherwise ignored. */
-      if (_rl_keymap[c].type == ISFUNC &&
-	  _rl_keymap[c].function == rl_universal_argument)
-	{
-	  if (sawdigits == 0)
-	    {
-	      rl_numeric_arg *= 4;
-	      continue;
-	    }
-	  else
-	    {
-	      RL_SETSTATE(RL_STATE_MOREINPUT);
-	      key = rl_read_key ();
-	      RL_UNSETSTATE(RL_STATE_MOREINPUT);
-	      rl_restore_prompt ();
-	      rl_clear_message ();
-	      RL_UNSETSTATE(RL_STATE_NUMERICARG);
-	      return (_rl_dispatch (key, _rl_keymap));
-	    }
-	}
-
-      c = UNMETA (c);
-
-      if (_rl_digit_p (c))
-	{
-	  rl_numeric_arg = rl_explicit_arg ? (rl_numeric_arg * 10) + c - '0' : c - '0';
-	  sawdigits = rl_explicit_arg = 1;
-	}
-      else if (c == '-' && rl_explicit_arg == 0)
-	{
-	  rl_numeric_arg = sawminus = 1;
-	  rl_arg_sign = -1;
-	}
+      else if (RL_ISSTATE (RL_STATE_CALLBACK))
+        {
+          _rl_argcxt |= NUM_READONE;
+          return 0;	/* XXX */
+        }
       else
 	{
-	  /* Make M-- command equivalent to M--1 command. */
-	  if (sawminus && rl_numeric_arg == 1 && rl_explicit_arg == 0)
-	    rl_explicit_arg = 1;
+	  RL_SETSTATE(RL_STATE_MOREINPUT);
+	  key = rl_read_key ();
+	  RL_UNSETSTATE(RL_STATE_MOREINPUT);
 	  rl_restore_prompt ();
 	  rl_clear_message ();
 	  RL_UNSETSTATE(RL_STATE_NUMERICARG);
@@ -151,35 +150,98 @@ rl_digit_loop ()
 	}
     }
 
-  /*NOTREACHED*/
+  c = UNMETA (c);
+
+  if (_rl_digit_p (c))
+    {
+      r = _rl_digit_value (c);    	
+      rl_numeric_arg = rl_explicit_arg ? (rl_numeric_arg * 10) +  r : r;
+      rl_explicit_arg = 1;
+      _rl_argcxt |= NUM_SAWDIGITS;
+    }
+  else if (c == '-' && rl_explicit_arg == 0)
+    {
+      rl_numeric_arg = 1;
+      _rl_argcxt |= NUM_SAWMINUS;
+      rl_arg_sign = -1;
+    }
+  else
+    {
+      /* Make M-- command equivalent to M--1 command. */
+      if ((_rl_argcxt & NUM_SAWMINUS) && rl_numeric_arg == 1 && rl_explicit_arg == 0)
+	rl_explicit_arg = 1;
+      rl_restore_prompt ();
+      rl_clear_message ();
+      RL_UNSETSTATE(RL_STATE_NUMERICARG);
+
+      r = _rl_dispatch (key, _rl_keymap);
+      if (RL_ISSTATE (RL_STATE_CALLBACK))
+	{
+	  /* At worst, this will cause an extra redisplay.  Otherwise,
+	     we have to wait until the next character comes in. */
+	  if (rl_done == 0)
+	    (*rl_redisplay_function) ();
+	  r = 0;
+	}
+      return r;
+    }
+
+  return 1;
 }
 
-/* Add the current digit to the argument in progress. */
+/* Handle C-u style numeric args, as well as M--, and M-digits. */
+static int
+rl_digit_loop ()
+{
+  int c, r;
+
+  while (1)
+    {
+      if (_rl_arg_overflow ())
+	return 1;
+
+      c = _rl_arg_getchar ();
+
+      if (c < 0)
+	{
+	  _rl_abort_internal ();
+	  return -1;
+	}
+
+      r = _rl_arg_dispatch (_rl_argcxt, c);
+      if (r <= 0 || (RL_ISSTATE (RL_STATE_NUMERICARG) == 0))
+        break;
+    }
+
+  return r;
+}
+
+/* Create a default argument. */
+void
+_rl_reset_argument ()
+{
+  rl_numeric_arg = rl_arg_sign = 1;
+  rl_explicit_arg = 0;
+  _rl_argcxt = 0;
+}
+
+/* Start a numeric argument with initial value KEY */
 int
 rl_digit_argument (ignore, key)
      int ignore, key;
 {
-  rl_execute_next (key);
-  return (rl_digit_loop ());
-}
-
-/* What to do when you abort reading an argument. */
-int
-rl_discard_argument ()
-{
-  rl_ding ();
-  rl_clear_message ();
-  _rl_init_argument ();
-  return 0;
-}
-
-/* Create a default argument. */
-int
-_rl_init_argument ()
-{
-  rl_numeric_arg = rl_arg_sign = 1;
-  rl_explicit_arg = 0;
-  return 0;
+  _rl_arg_init ();
+  if (RL_ISSTATE (RL_STATE_CALLBACK))
+    {
+      _rl_arg_dispatch (_rl_argcxt, key);
+      rl_message ("(arg: %d) ", rl_arg_sign * rl_numeric_arg);
+      return 0;
+    }
+  else
+    {
+      rl_execute_next (key);
+      return (rl_digit_loop ());
+    }
 }
 
 /* C-u, universal argument.  Multiply the current argument by 4.
@@ -189,8 +251,43 @@ int
 rl_universal_argument (count, key)
      int count, key;
 {
+  _rl_arg_init ();
   rl_numeric_arg *= 4;
-  return (rl_digit_loop ());
+
+  return (RL_ISSTATE (RL_STATE_CALLBACK) ? 0 : rl_digit_loop ());
+}
+
+int
+_rl_arg_callback (cxt)
+     _rl_arg_cxt cxt;
+{
+  int c, r;
+
+  c = _rl_arg_getchar ();
+
+  if (_rl_argcxt & NUM_READONE)
+    {
+      _rl_argcxt &= ~NUM_READONE;
+      rl_restore_prompt ();
+      rl_clear_message ();
+      RL_UNSETSTATE(RL_STATE_NUMERICARG);
+      rl_execute_next (c);
+      return 0;
+    }
+
+  r = _rl_arg_dispatch (cxt, c);
+  return (r != 1);
+}
+
+/* What to do when you abort reading an argument. */
+int
+rl_discard_argument ()
+{
+  rl_ding ();
+  rl_clear_message ();
+  _rl_reset_argument ();
+
+  return 0;
 }
 
 /* **************************************************************** */
@@ -225,8 +322,10 @@ _rl_free_history_entry (entry)
 {
   if (entry == 0)
     return;
-  if (entry->line)
-    free (entry->line);
+
+  FREE (entry->line);
+  FREE (entry->timestamp);
+
   free (entry);
 }
 
@@ -242,6 +341,7 @@ rl_maybe_replace_line ()
     {
       temp = replace_history_entry (where_history (), rl_line_buffer, (histdata_t)rl_undo_list);
       free (temp->line);
+      FREE (temp->timestamp);
       free (temp);
     }
   return 0;
@@ -274,6 +374,7 @@ rl_maybe_save_line ()
     {
       _rl_saved_line_for_history = (HIST_ENTRY *)xmalloc (sizeof (HIST_ENTRY));
       _rl_saved_line_for_history->line = savestring (rl_line_buffer);
+      _rl_saved_line_for_history->timestamp = (char *)NULL;
       _rl_saved_line_for_history->data = (char *)rl_undo_list;
     }
 

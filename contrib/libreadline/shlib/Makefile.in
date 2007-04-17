@@ -53,6 +53,7 @@ host_os = @host_os@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 includedir = @includedir@
+bindir = @bindir@
 libdir = @libdir@
 datadir = @datadir@
 localedir = $(datadir)/locale
@@ -65,7 +66,7 @@ LOCAL_CFLAGS = @LOCAL_CFLAGS@ -DRL_LIBRARY_VERSION='"$(RL_LIBRARY_VERSION)"'
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@ @LOCAL_LDFLAGS@ @CFLAGS@
 
-DEFS = @DEFS@
+DEFS = @DEFS@ @CROSS_COMPILE@
 LOCAL_DEFS = @LOCAL_DEFS@
 
 #
@@ -84,11 +85,17 @@ SHOBJ_LIBS = @SHOBJ_LIBS@
 
 SHLIB_XLDFLAGS = @LDFLAGS@ @SHLIB_XLDFLAGS@
 SHLIB_LIBS = @SHLIB_LIBS@
+
+SHLIB_DOT = @SHLIB_DOT@
+SHLIB_LIBPREF = @SHLIB_LIBPREF@
 SHLIB_LIBSUFF = @SHLIB_LIBSUFF@
 
 SHLIB_LIBVERSION = @SHLIB_LIBVERSION@
+SHLIB_DLLVERSION = @SHLIB_DLLVERSION@
 
 SHLIB_STATUS = @SHLIB_STATUS@
+
+TERMCAP_LIB = @TERMCAP_LIB@
 
 # shared library versioning
 SHLIB_MAJOR=		@SHLIB_MAJOR@
@@ -109,8 +116,8 @@ CCFLAGS = $(DEFS) $(LOCAL_DEFS) $(CPPFLAGS) $(INCLUDES) $(LOCAL_CFLAGS) $(CFLAGS
 
 # The name of the main library target.
 
-SHARED_READLINE = libreadline.$(SHLIB_LIBVERSION)
-SHARED_HISTORY = libhistory.$(SHLIB_LIBVERSION)
+SHARED_READLINE = $(SHLIB_LIBPREF)readline$(SHLIB_DOT)$(SHLIB_LIBVERSION)
+SHARED_HISTORY = $(SHLIB_LIBPREF)history$(SHLIB_DOT)$(SHLIB_LIBVERSION)
 SHARED_LIBS = $(SHARED_READLINE) $(SHARED_HISTORY)
 
 # The C code source files for this library.
@@ -174,13 +181,13 @@ installdirs: $(topdir)/support/mkdirs
 	-$(SHELL) $(topdir)/support/mkdirs $(DESTDIR)$(libdir)
 
 install: installdirs $(SHLIB_STATUS)
-	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -i "$(INSTALL_DATA)" $(SHARED_HISTORY)
-	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -i "$(INSTALL_DATA)" $(SHARED_READLINE)
+	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -b $(DESTDIR)$(bindir) -i "$(INSTALL_DATA)" $(SHARED_HISTORY)
+	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -b $(DESTDIR)$(bindir) -i "$(INSTALL_DATA)" $(SHARED_READLINE)
 	@echo install: you may need to run ldconfig
 
 uninstall:
-	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -U $(SHARED_HISTORY)
-	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -U $(SHARED_READLINE)
+	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -b $(DESTDIR)$(bindir) -U $(SHARED_HISTORY)
+	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -b $(DESTDIR)$(bindir) -U $(SHARED_READLINE)
 	@echo uninstall: you may need to run ldconfig
 
 clean mostlyclean:	force

@@ -256,7 +256,11 @@ read_history_range (filename, from, to)
   for (line_end = line_start; line_end < bufend; line_end++)
     if (*line_end == '\n')
       {
-	*line_end = '\0';
+	/* Change to allow Windows-like \r\n end of line delimiter. */
+	if (line_end > line_start && line_end[-1] == '\r')
+	  line_end[-1] = '\0';
+	else
+	  *line_end = '\0';
 
 	if (*line_start)
 	  {

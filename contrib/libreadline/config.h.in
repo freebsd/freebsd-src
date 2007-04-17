@@ -26,11 +26,35 @@
 /* Define if the `S_IS*' macros in <sys/stat.h> do not work properly.  */
 #undef STAT_MACROS_BROKEN
 
+/* Define if you have the fcntl function. */
+#undef HAVE_FCNTL
+
+/* Define if you have the getpwent function. */
+#undef HAVE_GETPWENT
+
+/* Define if you have the getpwnam function. */
+#undef HAVE_GETPWNAM
+
+/* Define if you have the getpwuid function. */
+#undef HAVE_GETPWUID
+
 /* Define if you have the isascii function. */
 #undef HAVE_ISASCII
 
+/* Define if you have the iswctype function.  */
+#undef HAVE_ISWCTYPE
+
+/* Define if you have the iswlower function.  */
+#undef HAVE_ISWLOWER
+
+/* Define if you have the iswupper function.  */
+#undef HAVE_ISWUPPER
+
 /* Define if you have the isxdigit function. */
 #undef HAVE_ISXDIGIT
+
+/* Define if you have the kill function. */
+#undef HAVE_KILL
 
 /* Define if you have the lstat function. */
 #undef HAVE_LSTAT
@@ -73,11 +97,23 @@
 /* Define if you have the tcgetattr function.  */
 #undef HAVE_TCGETATTR
 
+/* Define if you have the towlower function.  */
+#undef HAVE_TOWLOWER
+
+/* Define if you have the towupper function.  */
+#undef HAVE_TOWUPPER
+
 /* Define if you have the vsnprintf function.  */
 #undef HAVE_VSNPRINTF
 
-/* Define if you have the wctomb function.  */
-#undef HAVE_WCTOMB 
+/* Define if you have the wcrtomb function.  */
+#undef HAVE_WCRTOMB 
+
+/* Define if you have the wcscoll function.  */
+#undef HAVE_WCSCOLL
+
+/* Define if you have the wctype function.  */
+#undef HAVE_WCTYPE
 
 /* Define if you have the wcwidth function.  */
 #undef HAVE_WCWIDTH
@@ -86,6 +122,9 @@
 
 /* Define if you have the <dirent.h> header file.  */
 #undef HAVE_DIRENT_H
+
+/* Define if you have the <fcntl.h> header file.  */
+#undef HAVE_FCNTL_H
 
 /* Define if you have the <langinfo.h> header file.  */
 #undef HAVE_LANGINFO_H
@@ -101,6 +140,9 @@
 
 /* Define if you have the <ndir.h> header file.  */
 #undef HAVE_NDIR_H
+
+/* Define if you have the <pwd.h> header file.  */
+#undef HAVE_PWD_H
 
 /* Define if you have the <stdarg.h> header file.  */
 #undef HAVE_STDARG_H
@@ -153,10 +195,19 @@
 /* Define if you have the <wchar.h> header file.  */
 #undef HAVE_WCHAR_H
 
-/* Define if you have the <varargs.h> header file.  */
+/* Define if you have the <wctype.h> header file.  */
 #undef HAVE_WCTYPE_H
 
 #undef HAVE_MBSTATE_T
+
+/* Define if you have wchar_t in <wctype.h>. */
+#undef HAVE_WCHAR_T 
+
+/* Define if you have wctype_t in <wctype.h>. */
+#undef HAVE_WCTYPE_T
+
+/* Define if you have wint_t in <wctype.h>. */  
+#undef HAVE_WINT_T  
 
 /* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
 #undef HAVE_LANGINFO_CODESET

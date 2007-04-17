@@ -1,3 +1,206 @@
+This document details the changes between this version, readline-5.2,
+and the previous version, readline-5.1.
+
+1.  Changes to Readline
+
+a.  Fixed a problem that caused segmentation faults when using readline in
+    callback mode and typing consecutive DEL characters on an empty line.
+
+b.  Fixed several redisplay problems with multibyte characters, all having to
+    do with the different code paths and variable meanings between single-byte
+    and multibyte character redisplay.
+
+c.  Fixed a problem with key sequence translation when presented with the
+    sequence \M-\C-x.
+
+d.  Fixed a problem that prevented the `a' command in vi mode from being
+    undone and redone properly.
+
+e.  Fixed a problem that prevented empty inserts in vi mode from being undone
+    properly.
+
+f.  Fixed a problem that caused readline to initialize with an incorrect idea
+    of whether or not the terminal can autowrap.
+
+g.  Fixed output of key bindings (like bash `bind -p') to honor the setting of
+    convert-meta and use \e where appropriate.
+
+h.  Changed the default filename completion function to call the filename
+    dequoting function if the directory completion hook isn't set.  This means
+    that any directory completion hooks need to dequote the directory name,
+    since application-specific hooks need to know how the word was quoted,
+    even if no other changes are made.
+
+i.  Fixed a bug with creating the prompt for a non-interactive search string
+    when there are non-printing characters in the primary prompt.
+
+j.  Fixed a bug that caused prompts with invisible characters to be redrawn
+    multiple times in a multibyte locale.
+
+k.  Fixed a bug that could cause the key sequence scanning code to return the
+    wrong function.
+
+l.  Fixed a problem with the callback interface that caused it to fail when
+    using multi-character keyboard macros.
+
+m.  Fixed a bug that could cause a core dump when an edited history entry was
+    re-executed under certain conditions.
+
+n.  Fixed a bug that caused readline to reference freed memory when attmpting
+    to display a portion of the prompt.
+
+o.  Fixed a bug with prompt redisplay in a multi-byte locale to avoid redrawing
+    the prompt and input line multiple times.
+
+p.  Fixed history expansion to not be confused by here-string redirection.
+
+q.  Readline no longer treats read errors by converting them to newlines, as
+    it does with EOF.  This caused partial lines to be returned from readline().
+
+r.  Fixed a redisplay bug that occurred in multibyte-capable locales when the
+    prompt was one character longer than the screen width.
+
+2.  New Features in Readline
+
+a.  Calling applications can now set the keyboard timeout to 0, allowing
+    poll-like behavior.
+
+b.  The value of SYS_INPUTRC (configurable at compilation time) is now used as
+    the default last-ditch startup file.
+
+c.  The history file reading functions now allow windows-like \r\n line
+    terminators.
+
+-------------------------------------------------------------------------------
+This document details the changes between this version, readline-5.1,
+and the previous version, readline-5.0.
+
+1.  Changes to Readline
+
+a.  Fixed a bug that caused multiliine prompts to be wrapped and displayed
+    incorrectly.
+
+b.  Fixed a bug that caused ^P/^N in emacs mode to fail to display the current
+    line correctly.
+
+c.  Fixed a problem in computing the number of invisible characters on the first
+    line of a prompt whose length exceeds the screen width.
+
+d.  Fixed vi-mode searching so that failure preserves the current line rather
+    than the last line in the history list.
+
+e.  Fixed the vi-mode `~' command (change-case) to have the correct behavior at
+    end-of-line when manipulating multibyte characters.
+
+f.  Fixed the vi-mode `r' command (change-char) to have the correct behavior at
+    end-of-line when manipulating multibyte characters.
+
+g.  Fixed multiple bugs in the redisplay of multibyte characters:  displaying
+    prompts longer than the screen width containing multibyte characters,
+
+h.  Fix the calculation of the number of physical characters in the prompt
+    string when it contains multibyte characters.
+
+i.  A non-zero value for the `rl_complete_suppress_append' variable now causes
+    no `/' to be appended to a directory name.
+
+j.  Fixed forward-word and backward-word to work when words contained
+    multibyte characters.
+
+k.  Fixed a bug in finding the delimiter of a `?' substring when performing
+    history expansion in a locale that supports multibyte characters.
+
+l.  Fixed a memory leak caused by not freeing the timestamp in a history entry.
+
+m.  Fixed a bug that caused "\M-x" style key bindings to not obey the setting
+    of the `convert-meta' variable.
+
+n.  Fixed saving and restoring primary prompt when prompting for incremental   
+    and non-incremental searches; search prompts now display multibyte
+    characters correctly.
+
+o.  Fixed a bug that caused keys originally bound to self-insert but shadowed
+    by a multi-character key sequence to not be inserted.
+
+p.  Fixed code so rl_prep_term_function and rl_deprep_term_function aren't
+    dereferenced if NULL (matching the documentation).
+
+q.  Extensive changes to readline to add enough state so that commands
+    requiring additional characters (searches, multi-key sequences, numeric
+    arguments, commands requiring an additional specifier character like
+    vi-mode change-char, etc.) work without synchronously waiting for
+    additional input.
+
+r.  Lots of changes so readline builds and runs on MinGW.
+
+s.  Readline no longer tries to modify the terminal settings when running in
+    callback mode.
+
+t.  The Readline display code no longer sets the location of the last invisible
+    character in the prompt if the \[\] sequence is empty.
+
+u.  The `change-case' command now correctly changes the case of multibyte
+    characters.
+
+v.  Changes to the shared library construction scripts to deal with Windows
+    DLL naming conventions for Cygwin.
+
+w.  Fixed the redisplay code to avoid core dumps resulting from a poorly-timed
+    SIGWINCH.
+
+x.  Fixed the non-incremental search code in vi mode to dispose of any current
+    undo list when copying a line from the history into the current editing
+    buffer.
+
+y.  Fixed a bug that caused reversing the incremental search direction to
+    not work correctly.  
+    
+z.  Fixed the vi-mode `U' command to only undo up to the first time insert mode
+    was entered, as Posix specifies.
+
+aa. Fixed a bug in the vi-mode `r' command that left the cursor in the wrong
+    place.
+
+bb. Fixed a redisplay bug caused by moving the cursor vertically to a line
+    with invisible characters in the prompt in a multibyte locale.
+
+cc. Fixed a bug that could cause the terminal special chars to be bound in the
+    wrong keymap in vi mode.
+
+2.  New Features in Readline
+
+a.  The key sequence sent by the keypad `delete' key is now automatically   
+    bound to delete-char.
+
+b.  A negative argument to menu-complete now cycles backward through the
+    completion list.
+
+c.  A new bindable readline variable:  bind-tty-special-chars.  If non-zero,
+    readline will bind the terminal special characters to their readline
+    equivalents when it's called (on by default).
+
+d.  New bindable command: vi-rubout.  Saves deleted text for possible  
+    reinsertion, as with any vi-mode `text modification' command; `X' is bound
+    to this in vi command mode.
+
+e.  If the rl_completion_query_items is set to a value < 0, readline never
+    asks the user whether or not to view the possible completions.
+
+f.  The `C-w' binding in incremental search now understands multibyte
+    characters.
+
+g.  New application-callable auxiliary function, rl_variable_value, returns 
+    a string corresponding to a readline variable's value.
+
+h.  When parsing inputrc files and variable binding commands, the parser
+    strips trailing whitespace from values assigned to boolean variables
+    before checking them.
+
+i.  A new external application-controllable variable that allows the LINES   
+    and COLUMNS environment variables to set the window size regardless of
+    what the kernel returns.
+
+-------------------------------------------------------------------------------
 This document details the changes between this version, readline-5.0,
 and the previous version, readline-4.3.
 

@@ -933,7 +933,7 @@ AC_DEFINE(HAVE_STRUCT_STAT_ST_BLOCKS)
 fi
 ])
 
-AC_DEFUN(BASH_CHECK_LIB_TERMCAP,
+AC_DEFUN([BASH_CHECK_LIB_TERMCAP],
 [
 if test "X$bash_cv_termcap_lib" = "X"; then
 _bash_needmsg=yes
@@ -1540,13 +1540,24 @@ fi
 AC_DEFUN(BASH_CHECK_DEV_FD,
 [AC_MSG_CHECKING(whether /dev/fd is available)
 AC_CACHE_VAL(bash_cv_dev_fd,
-[if test -d /dev/fd  && test -r /dev/fd/0 < /dev/null; then
-   bash_cv_dev_fd=standard
- elif test -d /proc/self/fd && test -r /proc/self/fd/0 < /dev/null; then
-   bash_cv_dev_fd=whacky
- else
-   bash_cv_dev_fd=absent
- fi
+[bash_cv_dev_fd=""
+if test -d /dev/fd  && test -r /dev/fd/0 < /dev/null; then
+# check for systems like FreeBSD 5 that only provide /dev/fd/[012]
+   exec 3</dev/null
+   if test -r /dev/fd/3; then
+     bash_cv_dev_fd=standard
+   else
+     bash_cv_dev_fd=absent
+   fi
+   exec 3<&-
+fi
+if test -z "$bash_cv_dev_fd" ; then 
+  if test -d /proc/self/fd && test -r /proc/self/fd/0 < /dev/null; then
+    bash_cv_dev_fd=whacky
+  else
+    bash_cv_dev_fd=absent
+  fi
+fi
 ])
 AC_MSG_RESULT($bash_cv_dev_fd)
 if test $bash_cv_dev_fd = "standard"; then
@@ -1660,6 +1671,8 @@ fi
 dnl
 dnl check for availability of multibyte characters and functions
 dnl
+dnl geez, I wish I didn't have to check for all of this stuff separately
+dnl
 AC_DEFUN(BASH_CHECK_MULTIBYTE,
 [
 AC_CHECK_HEADERS(wctype.h)
@@ -1667,22 +1680,21 @@ AC_CHECK_HEADERS(wchar.h)
 AC_CHECK_HEADERS(langinfo.h)
 
 AC_CHECK_FUNC(mbsrtowcs, AC_DEFINE(HAVE_MBSRTOWCS))
-AC_CHECK_FUNC(mbrtowc, AC_DEFINE(HAVE_MBRTOWC))
 AC_CHECK_FUNC(mbrlen, AC_DEFINE(HAVE_MBRLEN))
-AC_CHECK_FUNC(wctomb, AC_DEFINE(HAVE_WCTOMB))
-AC_CHECK_FUNC(wcwidth, AC_DEFINE(HAVE_WCWIDTH))
-AC_CHECK_FUNC(wcsdup, AC_DEFINE(HAVE_WCSDUP))
 
-AC_CACHE_CHECK([for mbstate_t], bash_cv_have_mbstate_t,
-[AC_TRY_COMPILE([
-#include <wchar.h>], [
-  mbstate_t ps;
-  mbstate_t *psp;
-  psp = (mbstate_t *)0;
-], bash_cv_have_mbstate_t=yes,  bash_cv_have_mbstate_t=no)])
-if test $bash_cv_have_mbstate_t = yes; then
+AC_CHECK_FUNC(wcrtomb, AC_DEFINE(HAVE_WCRTOMB))
+AC_CHECK_FUNC(wcscoll, AC_DEFINE(HAVE_WCSCOLL))
+AC_CHECK_FUNC(wcsdup, AC_DEFINE(HAVE_WCSDUP))
+AC_CHECK_FUNC(wcwidth, AC_DEFINE(HAVE_WCWIDTH))
+AC_CHECK_FUNC(wctype, AC_DEFINE(HAVE_WCTYPE))
+
+dnl checks for both mbrtowc and mbstate_t
+AC_FUNC_MBRTOWC
+if test $ac_cv_func_mbrtowc = yes; then
 	AC_DEFINE(HAVE_MBSTATE_T)
 fi
+
+AC_CHECK_FUNCS(iswlower iswupper towlower towupper iswctype)
 
 AC_CACHE_CHECK([for nl_langinfo and CODESET], bash_cv_langinfo_codeset,
 [AC_TRY_LINK(
@@ -1693,6 +1705,43 @@ if test $bash_cv_langinfo_codeset = yes; then
   AC_DEFINE(HAVE_LANGINFO_CODESET)
 fi
 
+dnl check for wchar_t in <wchar.h>
+AC_CACHE_CHECK([for wchar_t in wchar.h], bash_cv_type_wchar_t,
+[AC_TRY_COMPILE(
+[#include <wchar.h>
+],
+[
+        wchar_t foo;
+        foo = 0;
+], bash_cv_type_wchar_t=yes, bash_cv_type_wchar_t=no)])
+if test $bash_cv_type_wchar_t = yes; then
+        AC_DEFINE(HAVE_WCHAR_T, 1, [systems should define this type here])
+fi
+
+dnl check for wctype_t in <wctype.h>
+AC_CACHE_CHECK([for wctype_t in wctype.h], bash_cv_type_wctype_t,
+[AC_TRY_COMPILE(
+[#include <wctype.h>],
+[
+        wctype_t foo;
+        foo = 0;
+], bash_cv_type_wctype_t=yes, bash_cv_type_wctype_t=no)])
+if test $bash_cv_type_wctype_t = yes; then
+        AC_DEFINE(HAVE_WCTYPE_T, 1, [systems should define this type here])
+fi
+
+dnl check for wint_t in <wctype.h>
+AC_CACHE_CHECK([for wint_t in wctype.h], bash_cv_type_wint_t,
+[AC_TRY_COMPILE(
+[#include <wctype.h>],
+[
+        wint_t foo;
+        foo = 0;
+], bash_cv_type_wint_t=yes, bash_cv_type_wint_t=no)])
+if test $bash_cv_type_wint_t = yes; then
+        AC_DEFINE(HAVE_WINT_T, 1, [systems should define this type here])
+fi
+
 ])
 
 dnl need: prefix exec_prefix libdir includedir CC TERMCAP_LIB
@@ -1700,7 +1749,7 @@ dnl require:
 dnl	AC_PROG_CC
 dnl	BASH_CHECK_LIB_TERMCAP
 
-AC_DEFUN(RL_LIB_READLINE_VERSION,
+AC_DEFUN([RL_LIB_READLINE_VERSION],
 [
 AC_REQUIRE([BASH_CHECK_LIB_TERMCAP])
 
@@ -1733,12 +1782,18 @@ AC_CACHE_VAL(ac_cv_rl_version,
 #include <stdio.h>
 #include <readline/readline.h>
 
+extern int rl_gnu_readline_p;
+
 main()
 {
 	FILE *fp;
 	fp = fopen("conftest.rlv", "w");
-	if (fp == 0) exit(1);
-	fprintf(fp, "%s\n", rl_library_version ? rl_library_version : "0.0");
+	if (fp == 0)
+		exit(1);
+	if (rl_gnu_readline_p != 1)
+		fprintf(fp, "0.0\n");
+	else
+		fprintf(fp, "%s\n", rl_library_version ? rl_library_version : "0.0");
 	fclose(fp);
 	exit(0);
 }
@@ -1849,6 +1904,39 @@ char	*v[];
 AC_MSG_RESULT($bash_cv_func_ctype_nonascii)
 if test $bash_cv_func_ctype_nonascii = yes; then
 AC_DEFINE(CTYPE_NON_ASCII)
+fi
+])
+
+AC_DEFUN(BASH_CHECK_WCONTINUED,
+[
+AC_MSG_CHECKING(whether WCONTINUED flag to waitpid is unavailable or available but broken)
+AC_CACHE_VAL(bash_cv_wcontinued_broken,
+[AC_TRY_RUN([
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <errno.h>
+
+#ifndef errno
+extern int errno;
+#endif
+main()
+{
+	int	x;
+
+	x = waitpid(-1, (int *)0, WNOHANG|WCONTINUED);
+	if (x == -1 && errno == EINVAL)
+		exit (1);
+	else
+		exit (0);
+}
+], bash_cv_wcontinued_broken=no,bash_cv_wcontinued_broken=yes,
+   [AC_MSG_WARN(cannot check WCONTINUED if cross compiling -- defaulting to no)
+    bash_cv_wcontinued_broken=no]
+)])
+AC_MSG_RESULT($bash_cv_wcontinued_broken)
+if test $bash_cv_wcontinued_broken = yes; then
+AC_DEFINE(WCONTINUED_BROKEN)
 fi
 ])
 

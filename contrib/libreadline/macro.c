@@ -100,6 +100,8 @@ _rl_with_macro_input (string)
 int
 _rl_next_macro_key ()
 {
+  int c;
+
   if (rl_executing_macro == 0)
     return (0);
 
@@ -109,7 +111,14 @@ _rl_next_macro_key ()
       return (_rl_next_macro_key ());
     }
 
+#if defined (READLINE_CALLBACKS)
+  c = rl_executing_macro[executing_macro_index++];
+  if (RL_ISSTATE (RL_STATE_CALLBACK) && RL_ISSTATE (RL_STATE_READCMD|RL_STATE_MOREINPUT) && rl_executing_macro[executing_macro_index] == 0)
+      _rl_pop_executing_macro ();
+  return c;
+#else
   return (rl_executing_macro[executing_macro_index++]);
+#endif
 }
 
 /* Save the currently executing macro on a stack of saved macros. */
