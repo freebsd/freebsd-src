@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070417: trunk(4) renamed to lagg(4)
+OLD_FILES+=usr/include/net/if_trunk.h
 # 20070409: uuidgen moved to /bin/
 OLD_FILES+=usr/bin/uuidgen
 # 20070328: bzip2 1.0.4
