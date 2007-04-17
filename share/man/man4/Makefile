@@ -136,6 +136,7 @@ MAN=	aac.4 \
 	kld.4 \
 	ktr.4 \
 	kue.4 \
+	lagg.4 \
 	le.4 \
 	led.4 \
 	lge.4 \
@@ -348,7 +349,6 @@ MAN=	aac.4 \
 	ti.4 \
 	tl.4 \
 	trm.4 \
-	trunk.4 \
 	tty.4 \
 	tun.4 \
 	twa.4 \
