@@ -460,6 +460,7 @@ MLINKS+=ipw.4 if_ipw.4
 MLINKS+=iwi.4 if_iwi.4
 MLINKS+=ixgb.4 if_ixgb.4
 MLINKS+=kue.4 if_kue.4
+MLINKS+=lagg.4 trunk.4
 MLINKS+=le.4 if_le.4
 MLINKS+=lge.4 if_lge.4
 MLINKS+=lo.4 loop.4
