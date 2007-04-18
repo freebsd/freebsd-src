@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -91,7 +92,7 @@ main(int argc, char *argv[])
 	int ch;
 	const char *acctfile;
 	int flags = 0;
-	int write_text = 0;
+	bool write_text = false;
 
 	acctfile = _PATH_ACCT;
 	while ((ch = getopt(argc, argv, "f:uwsecSE")) != -1)
@@ -103,7 +104,7 @@ main(int argc, char *argv[])
 			flags |= AC_UTIME; /* user time */
 			break;
 		case 'w':
-			write_text = 1; /* user time */
+			write_text = true; /* export */
 			break;
 		case 's':
 			flags |= AC_STIME; /* system time */
@@ -232,6 +233,9 @@ main(int argc, char *argv[])
 		printf("\n");
 
  	} while (size > 0);
+
+	if (fflush(stdout))
+		err(1, "stdout");
  	exit(0);
 }
 
