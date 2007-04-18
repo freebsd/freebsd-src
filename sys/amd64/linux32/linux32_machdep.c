@@ -526,7 +526,9 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 
 	td2 = FIRST_THREAD_IN_PROC(p2);
 
-	/* make it run */
+	/*
+	 * Make this runnable after we are finished with it.
+	 */
 	mtx_lock_spin(&sched_lock);
 	TD_SET_CAN_RUN(td2);
 	sched_add(td2, SRQ_BORING);
@@ -572,8 +574,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	/*
 	 * XXX: In Linux, sharing of fs info (chroot/cwd/umask)
 	 * and open files is independant.  In FreeBSD, its in one
-	 * structure but in reality it does not make any problems
-	 * because both of these flags are set at once usually.
+	 * structure but in reality it does not cause any problems
+	 * because both of these flags are usually set together.
 	 */
 	if (!(args->flags & (LINUX_CLONE_FILES | LINUX_CLONE_FS)))
 		ff |= RFFDG;
@@ -660,15 +662,15 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (args->flags & LINUX_CLONE_SETTLS) {
 		struct user_segment_descriptor sd;
 		struct l_user_desc info;
-	   	int a[2];
+		int a[2];
 
-	   	error = copyin((void *)td->td_frame->tf_rsi, &info,
+		error = copyin((void *)td->td_frame->tf_rsi, &info,
 		    sizeof(struct l_user_desc));
 		if (error) {
 			printf(LMSG("copyin failed!"));
 		} else {
 			/* We might copy out the entry_number as GUGS32_SEL. */
-		   	info.entry_number = GUGS32_SEL;
+			info.entry_number = GUGS32_SEL;
 			error = copyout(&info, (void *)td->td_frame->tf_rsi,
 			    sizeof(struct l_user_desc));
 			if (error)
@@ -871,7 +873,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 *
 		 * Our mmap with MAP_STACK takes addr as the maximum
 		 * downsize limit on BOS, and as len the max size of
-		 * the region.  It them maps the top SGROWSIZ bytes,
+		 * the region.  It then maps the top SGROWSIZ bytes,
 		 * and auto grows the region down, up to the limit
 		 * in addr.
 		 *
@@ -1269,7 +1271,7 @@ linux_set_thread_area(struct thread *td,
 
 #ifdef DEBUG
 	if (ldebug(set_thread_area))
-	   	printf(ARGS(set_thread_area, "%i, %x, %x, %i, %i, %i, "
+		printf(ARGS(set_thread_area, "%i, %x, %x, %i, %i, %i, "
 		    "%i, %i, %i"), info.entry_number, info.base_addr,
 		    info.limit, info.seg_32bit, info.contents,
 		    info.read_exec_only, info.limit_in_pages,
@@ -1288,9 +1290,10 @@ linux_set_thread_area(struct thread *td,
 	 * The tls_array[] is used only in [gs]et_thread_area() syscalls and
 	 * for loading the GDT descriptors. We use just one GDT descriptor
 	 * for TLS, so we will load just one.
-	 * XXX: This doesnt work when user-space process tries to use more
+	 *
+	 * XXX: This doesn't work when a user space process tries to use more
 	 * than one TLS segment. Comment in the Linux source says wine might
-	 * do that.
+	 * do this.
 	 */
 
 	/*
@@ -1311,8 +1314,9 @@ linux_set_thread_area(struct thread *td,
 
 	/*
 	 * We have to copy out the GDT entry we use.
-	 * XXX: What if userspace program does not check return value and
-	 * tries to use 6, 7 or 8?
+	 *
+	 * XXX: What if a user space program does not check the return value
+	 * and tries to use 6, 7 or 8?
 	 */
 	error = copyout(&info, args->desc, sizeof(struct l_user_desc));
 	if (error)
