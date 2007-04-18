@@ -64,7 +64,6 @@ DUMMY(pivot_root);
 DUMMY(mincore);
 DUMMY(fadvise64);
 DUMMY(ptrace);
-DUMMY(settimeofday);
 DUMMY(lookup_dcookie);
 DUMMY(epoll_create);
 DUMMY(epoll_ctl);

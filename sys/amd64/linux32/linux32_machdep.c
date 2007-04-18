@@ -1178,6 +1178,33 @@ linux_gettimeofday(struct thread *td, struct linux_gettimeofday_args *uap)
 }
 
 int
+linux_settimeofday(struct thread *td, struct linux_settimeofday_args *uap)
+{
+	l_timeval atv32;
+	struct timeval atv, *tvp;
+	struct timezone atz, *tzp;
+	int error;
+
+	if (uap->tp) {
+		error = copyin(uap->tp, &atv32, sizeof(atv32));
+		if (error)
+			return (error);
+		atv.tv_sec = atv32.tv_sec;
+		atv.tv_usec = atv32.tv_usec;
+		tvp = &atv;
+	} else
+		tvp = NULL;
+	if (uap->tzp) {
+		error = copyin(uap->tzp, &atz, sizeof(atz));
+		if (error)
+			return (error);
+		tzp = &atz;
+	} else
+		tzp = NULL;
+	return (kern_settimeofday(td, tvp, tzp));
+}
+
+int
 linux_getrusage(struct thread *td, struct linux_getrusage_args *uap)
 {
 	struct l_rusage s32;
