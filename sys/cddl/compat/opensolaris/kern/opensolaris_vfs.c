@@ -169,9 +169,6 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
 		return (ENAMETOOLONG);
 
-	if ((error = priv_check(td, PRIV_VFS_MOUNT)) != 0)
-		return (error);
-
 	vfsp = vfs_byname_kld(fstype, td, &error);
 	if (vfsp == NULL)
 		return (ENODEV);
@@ -207,6 +204,13 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 		mp->mnt_flag |= MNT_RDONLY;
 	mp->mnt_flag &=~ MNT_UPDATEMASK;
 	mp->mnt_flag |= fsflags & (MNT_UPDATEMASK | MNT_FORCE | MNT_ROOTFS);
+	/*
+	 * Unprivileged user can trigger mounting a snapshot, but we don't want
+	 * him to unmount it, so we switch to privileged credential.
+	 */
+	crfree(mp->mnt_cred);
+	mp->mnt_cred = crdup(kcred);
+	mp->mnt_stat.f_owner = mp->mnt_cred->cr_uid;
 	MNT_IUNLOCK(mp);
 	/*
 	 * Mount the filesystem.
@@ -260,12 +264,9 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, td);
 		vfs_unbusy(mp, td);
 		vfs_mount_destroy(mp);
-		if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE) {
-			printf("%s:%u: vnode vp=%p not locked\n", __func__, __LINE__, vp);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		}
 	}
 	return (error);
 }
