@@ -32,7 +32,7 @@
 .\"	From: @(#)lastcomm.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2007
+.Dd April 18, 2007
 .Dt LASTCOMM 1
 .Os
 .Sh NAME
@@ -40,7 +40,11 @@
 .Nd show last commands executed
 .Sh SYNOPSIS
 .Nm
+.Oo
 .Op Fl EScesu
+|
+.Op Fl w
+.Oc
 .Op Fl f Ar file
 .Op Ar command ...\&
 .Op Ar user ...\&
@@ -68,6 +72,17 @@ Print the amount of elapsed time used by the process.
 Print the amount of system time used by the process.
 .It Fl u
 Print the amount of user time used by the process.
+.It Fl w
+Write out the complete contents of each accounting record in a text format
+that can be parsed by programs.
+The elements are written in the order defined in
+.Xr acct 5 .
+Time intervals are printed in seconds using the C
+.Xr printf 3
+.Ql %g
+format specifier,
+the starting time is printed in seconds since the epoch,
+and the various identifiers are printed using their symbolic names.
 .It Fl f Ar file
 Read from
 .Ar file
