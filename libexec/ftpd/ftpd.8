@@ -40,7 +40,7 @@
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46ADdEhMmOoRrSUvW
+.Op Fl 468ADdEhMmOoRrSUvW
 .Op Fl l Op Fl l
 .Op Fl a Ar address
 .Op Fl P Ar port
@@ -78,6 +78,21 @@ When
 is specified, accept connections via
 .Dv AF_INET6
 socket.
+.It Fl 8
+The server is running in transparent UTF-8 mode.
+That is, it just encourages RFC\ 2640 compliant clients to send
+paths encoded in UTF-8 in their commands.
+In particular, the names of files uploaded by such clients will
+have UTF-8 encoding.
+The clients will also assume that server replies and existing file
+names have UTF-8 encoding, too.
+The names of files preloaded to the server should meet this expectation
+for the clients to present the correct file names to their users.
+Own messages of
+.Nm
+are always encoded in ASCII, which in fact is a subset of UTF-8.
+.Pp
+Note that this option does not make the server do any encoding conversion.
 .It Fl A
 Allow only anonymous ftp access.
 .It Fl a
@@ -250,6 +265,7 @@ is specified.
 .It DELE Ta "delete a file [RW]"
 .It EPRT Ta "specify data connection port, multiprotocol"
 .It EPSV Ta "prepare for server-to-server transfer, multiprotocol"
+.It FEAT Ta "give information on extended features of server"
 .It HELP Ta "give help information"
 .It LIST Ta "give list files in a directory" Pq Dq Li "ls -lgA"
 .It LPRT Ta "specify data connection port, multiprotocol"
