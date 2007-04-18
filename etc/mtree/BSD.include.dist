@@ -209,8 +209,6 @@
     ..
     pccard
     ..
-    posix4
-    ..
     protocols
     ..
     readline
