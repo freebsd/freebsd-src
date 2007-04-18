@@ -386,6 +386,14 @@ printcpuinfo(void)
 		case 0x590:
 			strcat(cpu_model, "K6-III");
 			break;
+		case 0x5a0:
+			strcat(cpu_model, "Geode LX");
+			/*
+			 * Make sure the TSC runs through suspension,
+			 * otherwise we can't use it as timecounter
+			 */
+			wrmsr(0x1900, rdmsr(0x1900) | 0x20ULL);
+			break;
 		default:
 			strcat(cpu_model, "Unknown");
 			break;
