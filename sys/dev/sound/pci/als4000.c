@@ -221,7 +221,7 @@ alschan_init(kobj_t obj, void *devinfo,
 	ch->buffer = b;
 	snd_mtxunlock(sc->lock);
 
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0)
 		return NULL;
 
 	return ch;

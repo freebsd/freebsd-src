@@ -54,6 +54,7 @@ struct snd_dbuf {
 	u_int32_t flags;
 	bus_dmamap_t dmamap;
 	bus_dma_tag_t dmatag;
+	int dmaflags;
 	u_int32_t buf_addr;
 	struct selinfo sel;
 	struct pcm_channel *channel;
@@ -65,7 +66,7 @@ void sndbuf_destroy(struct snd_dbuf *b);
 
 void sndbuf_dump(struct snd_dbuf *b, char *s, u_int32_t what);
 
-int sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, unsigned int size);
+int sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, int dmaflags, unsigned int size);
 int sndbuf_setup(struct snd_dbuf *b, void *buf, unsigned int size);
 void sndbuf_free(struct snd_dbuf *b);
 int sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz);

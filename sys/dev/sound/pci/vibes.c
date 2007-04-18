@@ -192,7 +192,7 @@ svchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 	ch->channel = c;
 	ch->dir = dir;
 
-	if (sndbuf_alloc(b, sc->parent_dmat, sc->bufsz) != 0) {
+	if (sndbuf_alloc(b, sc->parent_dmat, 0, sc->bufsz) != 0) {
 		DEB(printf("svchan_init failed\n"));
 		return NULL;
 	}

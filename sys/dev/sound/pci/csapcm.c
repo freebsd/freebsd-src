@@ -534,7 +534,7 @@ csachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-	if (sndbuf_alloc(ch->buffer, csa->parent_dmat, CS461x_BUFFSIZE) != 0)
+	if (sndbuf_alloc(ch->buffer, csa->parent_dmat, 0, CS461x_BUFFSIZE) != 0)
 		return NULL;
 	return ch;
 }
