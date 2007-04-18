@@ -699,7 +699,7 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	if (error)
 		goto out_hdr;
 
-	ccb = xpt_alloc_ccb(periph->sim);
+	ccb = xpt_alloc_ccb();
 	if (ccb == NULL) {
 		error = ENOMEM;
 		goto out_hdr;
