@@ -2509,10 +2509,18 @@ re_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFFLAGS:
 		RL_LOCK(sc);
-		if (ifp->if_flags & IFF_UP)
-			re_init_locked(sc);
-		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			re_stop(sc);
+		if ((ifp->if_flags & IFF_UP) != 0) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				if (((ifp->if_flags ^ sc->rl_if_flags)
+				    & IFF_PROMISC) != 0)
+					re_setmulti(sc);
+			} else
+				re_init_locked(sc);
+		} else {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+				re_stop(sc);
+		}
+		sc->rl_if_flags = ifp->if_flags;
 		RL_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
