@@ -1072,7 +1072,7 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 		case XPT_ENG_INQ:
 		case XPT_SCAN_LUN:
 
-			ccb = xpt_alloc_ccb(bus->sim);
+			ccb = xpt_alloc_ccb();
 
 			CAM_SIM_LOCK(bus->sim);
 
@@ -4979,26 +4979,20 @@ xpt_done(union ccb *done_ccb)
 }
 
 union ccb *
-xpt_alloc_ccb(struct cam_sim *sim)
+xpt_alloc_ccb()
 {
 	union ccb *new_ccb;
 
 	new_ccb = malloc(sizeof(*new_ccb), M_CAMXPT, M_WAITOK);
-	if ((sim != NULL) && ((sim->flags & CAM_SIM_MPSAFE) == 0)) {
-		callout_handle_init(&new_ccb->ccb_h.timeout_ch);
-	}
 	return (new_ccb);
 }
 
 union ccb *
-xpt_alloc_ccb_nowait(struct cam_sim *sim)
+xpt_alloc_ccb_nowait()
 {
 	union ccb *new_ccb;
 
 	new_ccb = malloc(sizeof(*new_ccb), M_CAMXPT, M_NOWAIT);
-	if ((sim != NULL) && ((sim->flags & CAM_SIM_MPSAFE) == 0)) {
-		callout_handle_init(&new_ccb->ccb_h.timeout_ch);
-	}
 	return (new_ccb);
 }
 
@@ -5029,11 +5023,13 @@ xpt_get_ccb(struct cam_ed *device)
 	s = splsoftcam();
 	sim = device->sim;
 	if ((new_ccb = (union ccb *)SLIST_FIRST(&sim->ccb_freeq)) == NULL) {
-		new_ccb = xpt_alloc_ccb_nowait(sim);
+		new_ccb = xpt_alloc_ccb_nowait();
                 if (new_ccb == NULL) {
 			splx(s);
 			return (NULL);
 		}
+		if ((sim->flags & CAM_SIM_MPSAFE) == 0)
+			callout_handle_init(&new_ccb->ccb_h.timeout_ch);
 		SLIST_INSERT_HEAD(&sim->ccb_freeq, &new_ccb->ccb_h,
 				  xpt_links.sle);
 		sim->ccb_count++;
@@ -5353,7 +5349,12 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		u_int	initiator_id;
 
 		/* Find out the characteristics of the bus */
-		work_ccb = xpt_alloc_ccb_nowait(periph->sim);
+		work_ccb = xpt_alloc_ccb_nowait();
+		if (work_ccb == NULL) {
+			request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+			xpt_done(request_ccb);
+			return;
+		}
 		xpt_setup_ccb(&work_ccb->ccb_h, request_ccb->ccb_h.path,
 			      request_ccb->ccb_h.pinfo.priority);
 		work_ccb->ccb_h.func_code = XPT_PATH_INQ;
@@ -5418,7 +5419,14 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_done(request_ccb);
 				break;
 			}
-			work_ccb = xpt_alloc_ccb_nowait(periph->sim);
+			work_ccb = xpt_alloc_ccb_nowait();
+			if (work_ccb == NULL) {
+				free(scan_info, M_TEMP);
+				xpt_free_path(path);
+				request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+				xpt_done(request_ccb);
+				break;
+			}
 			xpt_setup_ccb(&work_ccb->ccb_h, path,
 				      request_ccb->ccb_h.pinfo.priority);
 			work_ccb->ccb_h.func_code = XPT_SCAN_LUN;
@@ -6970,7 +6978,12 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 		cam_status status;
 		int can_negotiate;
 
-		work_ccb = xpt_alloc_ccb_nowait(bus->sim);
+		work_ccb = xpt_alloc_ccb_nowait();
+		if (work_ccb == NULL) {
+			busses_to_config--;
+			xpt_finishconfig(xpt_periph, NULL);
+			return(0);
+		}
 		if ((status = xpt_create_path(&path, xpt_periph, bus->path_id,
 					      CAM_TARGET_WILDCARD,
 					      CAM_LUN_WILDCARD)) !=CAM_REQ_CMP){

@@ -966,7 +966,7 @@ scsi_low_rescan_bus_cam(slp)
 	struct scsi_low_softc *slp;
 {
   	struct cam_path *path;
-	union ccb *ccb = xpt_alloc_ccb(NULL);
+	union ccb *ccb = xpt_alloc_ccb();
 	cam_status status;
 
 	bzero(ccb, sizeof(union ccb));
