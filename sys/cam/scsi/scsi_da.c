@@ -775,10 +775,13 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	if (periph == NULL)
 		return (ENXIO);
 	softc = (struct da_softc *)periph->softc;
+	cam_periph_lock(periph);
 	secsize = softc->params.secsize;
 	
-	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0)
+	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
+		cam_periph_unlock(periph);
 		return (ENXIO);
+	}
 
 	if (length > 0) {
 		periph->flags |= CAM_PERIPH_POLLED;
@@ -810,6 +813,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 			periph->flags |= CAM_PERIPH_POLLED;
 			return(EIO);
 		}
+		cam_periph_unlock(periph);
 		return(0);
 	}
 		
@@ -851,6 +855,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 		}
 	}
 	periph->flags &= ~CAM_PERIPH_POLLED;
+	cam_periph_unlock(periph);
 	return (0);
 }
 
@@ -1977,6 +1982,8 @@ dashutdown(void * arg, int howto)
 
 	TAILQ_FOREACH(periph, &dadriver.units, unit_links) {
 		union ccb ccb;
+
+		cam_periph_lock(periph);
 		softc = (struct da_softc *)periph->softc;
 
 		/*
@@ -2027,7 +2034,7 @@ dashutdown(void * arg, int howto)
 					 /*reduction*/0,
 					 /*timeout*/0,
 					 /*getcount_only*/0);
-
+		cam_periph_unlock(periph);
 	}
 }
 
