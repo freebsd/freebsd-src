@@ -2148,7 +2148,7 @@ isp_make_here(ispsoftc_t *isp, int tgt)
 	 * Allocate a CCB, create a wildcard path for this bus,
 	 * and schedule a rescan.
 	 */
-	ccb = xpt_alloc_ccb_nowait(isp->isp_osinfo.sim);
+	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
 		isp_prt(isp, ISP_LOGWARN, "unable to alloc CCB for rescan");
 		CAMLOCK_2_ISPLOCK(mpt);
