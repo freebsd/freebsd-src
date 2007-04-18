@@ -538,7 +538,7 @@ esschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0)
 		return NULL;
 	ch->hwch = 1;
 	if ((dir == PCMDIR_PLAY) && (sc->duplex))

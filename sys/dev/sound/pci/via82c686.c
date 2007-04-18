@@ -270,7 +270,7 @@ viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->dir = dir;
 	snd_mtxunlock(via->lock);
 
-	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, 0, via->bufsz) != 0)
 		return NULL;
 
 	return ch;

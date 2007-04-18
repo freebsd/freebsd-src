@@ -602,7 +602,7 @@ emurchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct pcm
 	ch->irqmask = INTE_ADCBUFENABLE;
 	ch->iprmask = IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL;
 
-	if (sndbuf_alloc(ch->buffer, emu_gettag(sc->card), sc->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, emu_gettag(sc->card), 0, sc->bufsz) != 0)
 		return (NULL);
 	else {
 		emu_wrptr(sc->card, 0, ch->basereg, sndbuf_getbufaddr(ch->buffer));
@@ -761,7 +761,7 @@ emufxrchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct p
 	ch->channel = c;
 	ch->blksz = sc->bufsz;
 
-	if (sndbuf_alloc(ch->buffer, emu_gettag(sc->card), sc->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, emu_gettag(sc->card), 0, sc->bufsz) != 0)
 		return (NULL);
 	else {
 		emu_wrptr(sc->card, 0, ch->basereg, sndbuf_getbufaddr(ch->buffer));
