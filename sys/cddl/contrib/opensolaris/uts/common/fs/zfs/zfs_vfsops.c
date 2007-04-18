@@ -578,10 +578,6 @@ zfs_mount(vfs_t *vfsp, kthread_t *td)
 	char *from;
 	int error;
 
-	/* TODO: For now deny user mounts. */
-	if ((error = priv_check(td, PRIV_VFS_MOUNT)) != 0)
-		return (error);
-
 	/*
 	 * When doing a remount, we simply refresh our temporary properties
 	 * according to those options set in the current VFS options.
