@@ -132,27 +132,40 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	/* Open the file. */
-	if ((fp = fopen(acctfile, "r")) == NULL || fstat(fileno(fp), &sb))
-		err(1, "could not open %s", acctfile);
+	if (strcmp(acctfile, "-") == 0)
+		fp = stdin;
+	else {
+		/* Open the file. */
+		if ((fp = fopen(acctfile, "r")) == NULL ||
+		    fstat(fileno(fp), &sb))
+			err(1, "could not open %s", acctfile);
 
-	/*
-	 * Round off to integral number of accounting records, probably
-	 * not necessary, but it doesn't hurt.
-	 */
-	size = sb.st_size - sb.st_size % sizeof(struct acct);
+		/*
+		 * Round off to integral number of accounting records,
+		 * probably not necessary, but it doesn't hurt.
+		 */
+		size = sb.st_size - sb.st_size % sizeof(struct acct);
 
-	/* Check if any records to display. */
-	if ((unsigned)size < sizeof(struct acct))
-		exit(0);
+		/* Check if any records to display. */
+		if ((unsigned)size < sizeof(struct acct))
+			exit(0);
+	}
 
 	do {
 		int rv;
-		size -= sizeof(struct acct);
-		if (fseeko(fp, size, SEEK_SET) == -1)
-			err(1, "seek %s failed", acctfile);
-		if ((rv = fread(&ab, sizeof(struct acct), 1, fp)) != 1)
-			err(1, "read %s returned %d", acctfile, rv);
+
+		if (fp != stdin) {
+			size -= sizeof(struct acct);
+			if (fseeko(fp, size, SEEK_SET) == -1)
+				err(1, "seek %s failed", acctfile);
+		}
+
+		if ((rv = fread(&ab, sizeof(struct acct), 1, fp)) != 1) {
+			if (feof(fp))
+				break;
+			else
+				err(1, "read %s returned %d", acctfile, rv);
+		}
 
 		if (ab.ac_comm[0] == '\0') {
 			ab.ac_comm[0] = '?';
