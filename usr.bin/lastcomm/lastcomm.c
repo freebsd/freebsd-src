@@ -68,7 +68,7 @@ char	*flagbits(int);
 const	 char *getdev(dev_t);
 int	 requested(char *[], struct acct *);
 static	 void usage(void);
-static void write_record(struct acct *acp);
+static void export_record(struct acct *acp);
 
 #define AC_UTIME 1 /* user */
 #define AC_STIME 2 /* system */
@@ -92,10 +92,10 @@ main(int argc, char *argv[])
 	int ch;
 	const char *acctfile;
 	int flags = 0;
-	bool write_text = false;
+	bool export_text = false;
 
 	acctfile = _PATH_ACCT;
-	while ((ch = getopt(argc, argv, "f:uwsecSE")) != -1)
+	while ((ch = getopt(argc, argv, "f:usecSEX")) != -1)
 		switch((char)ch) {
 		case 'f':
 			acctfile = optarg;
@@ -103,8 +103,8 @@ main(int argc, char *argv[])
 		case 'u': 
 			flags |= AC_UTIME; /* user time */
 			break;
-		case 'w':
-			write_text = true; /* export */
+		case 'X':
+			export_text = true; /* export */
 			break;
 		case 's':
 			flags |= AC_STIME; /* system time */
@@ -130,10 +130,10 @@ main(int argc, char *argv[])
 		}
 
 	/* default user + system time and starting time */
-	if (!flags && !write_text)
+	if (!flags && !export_text)
 	    flags = AC_CTIME | AC_BTIME;
 
-	if (flags && write_text)
+	if (flags && export_text)
 		usage();
 
 	argc -= optind;
@@ -161,7 +161,7 @@ main(int argc, char *argv[])
 	do {
 		int rv;
 
-		if (fp != stdin && !write_text) {
+		if (fp != stdin && !export_text) {
 			size -= sizeof(struct acct);
 			if (fseeko(fp, size, SEEK_SET) == -1)
 				err(1, "seek %s failed", acctfile);
@@ -185,8 +185,8 @@ main(int argc, char *argv[])
 		if (*argv && !requested(argv, &ab))
 			continue;
 
-		if (write_text) {
-			write_record(&ab);
+		if (export_text) {
+			export_record(&ab);
 			continue;
 		}
 
@@ -307,12 +307,12 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: lastcomm [[-EScesu] | [-w]] [-f file] [command ...] [user ...] [terminal ...]\n");
+"usage: lastcomm [[-EScesu] | [-X]] [-f file] [command ...] [user ...] [terminal ...]\n");
 	exit(1);
 }
 
 static void
-write_record(struct acct *acp)
+export_record(struct acct *acp)
 {
 	(void)printf("%s %g %g %g",
 	    acp->ac_comm,
