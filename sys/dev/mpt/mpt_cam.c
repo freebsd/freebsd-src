@@ -2087,7 +2087,6 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 	{
 		union ccb *ccb;
 		uint32_t pathid;
-		struct cam_sim *sim;
 		/*
 		 * In general this means a device has been added to the loop.
 		 */
@@ -2096,17 +2095,16 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			break;
 		}
 		if (mpt->phydisk_sim) {
-			sim = mpt->phydisk_sim;
+			pathid = cam_sim_path(mpt->phydisk_sim);
 		} else {
-			sim = mpt->sim;
+			pathid = cam_sim_path(mpt->sim);
 		}
-		pathid = cam_sim_path(sim);
 		MPTLOCK_2_CAMLOCK(mpt);
 		/*
 		 * Allocate a CCB, create a wildcard path for this bus,
 		 * and schedule a rescan.
 		 */
-		ccb = xpt_alloc_ccb_nowait(sim);
+		ccb = xpt_alloc_ccb_nowait();
 		if (ccb == NULL) {
 			mpt_prt(mpt, "unable to alloc CCB for rescan\n");
 			CAMLOCK_2_MPTLOCK(mpt);

@@ -490,7 +490,7 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 						inccb->ccb_h.pinfo.priority);
 			ccb_malloced = 0;
 		} else {
-			ccb = xpt_alloc_ccb_nowait(periph->sim);
+			ccb = xpt_alloc_ccb_nowait();
 
 			if (ccb != NULL)
 				xpt_setup_ccb(&ccb->ccb_h, periph->path,
