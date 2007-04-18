@@ -340,17 +340,17 @@ diff -r original copy-bzip2-bunzip2 || echo XXX FAILED XXX
 # Ensure that archive listing works
 echo "  bsdtar -c | bsdtar -t"
 (cd original && find .) | sort > list-original
-(cd original && ${BSDTAR} -cf - .) | ${BSDTAR} -tf - | sort > list-default
+(cd original && ${BSDTAR} -cf - .) | ${BSDTAR} -tf - | sed 's|/$||' | sort > list-default
 diff list-original list-default || echo XXX FAILED XXX
 
 # Ensure that listing of deflated archives works
 echo "  bsdtar -cz | bsdtar -t"
-(cd original && ${BSDTAR} -czf - .) | ${BSDTAR} -tf - | sort > list-gzip
+(cd original && ${BSDTAR} -czf - .) | ${BSDTAR} -tf - | sed 's|/$||' | sort > list-gzip
 diff list-original list-gzip || echo XXX FAILED XXX
 
 # Ensure that listing of bzip2ed archives works
 echo "  bsdtar -cy | bsdtar -t"
-(cd original && ${BSDTAR} -cyf - .) | ${BSDTAR} -tf - | sort > list-bzip2
+(cd original && ${BSDTAR} -cyf - .) | ${BSDTAR} -tf - | sed 's|/$||' |  sort > list-bzip2
 diff list-original list-bzip2 || echo XXX FAILED XXX
 
 # Filtering exercises different areas of the library.
