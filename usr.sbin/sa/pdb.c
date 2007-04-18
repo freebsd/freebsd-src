@@ -340,8 +340,8 @@ print_ci(const struct cmdinfo *cip, const struct cmdinfo *totalcip)
 	printf("%8ju ", (uintmax_t)cip->ci_calls);
 	if (cflag) {
 		if (cip != totalcip)
-			printf(" %4.2f%%  ",
-			    cip->ci_calls / (double) totalcip->ci_calls);
+			printf(" %4.1f%%  ", cip->ci_calls /
+			    (double)totalcip->ci_calls * 100);
 		else
 			printf(" %4s   ", "");
 	}
@@ -352,8 +352,8 @@ print_ci(const struct cmdinfo *cip, const struct cmdinfo *totalcip)
 		printf("%11.2fre ", cip->ci_etime / (60.0 * AHZ));
 	if (cflag) {
 		if (cip != totalcip)
-			printf(" %4.2f%%  ",
-			    cip->ci_etime / (double) totalcip->ci_etime);
+			printf(" %4.1f%%  ", cip->ci_etime /
+			    (double)totalcip->ci_etime * 100);
 		else
 			printf(" %4s   ", "");
 	}
@@ -365,9 +365,10 @@ print_ci(const struct cmdinfo *cip, const struct cmdinfo *totalcip)
 			printf("%11.2fcp ", t / 60.0);
 		if (cflag) {
 			if (cip != totalcip)
-				printf(" %4.2f%%  ",
-				    (cip->ci_utime + cip->ci_stime) / (double)
-				    (totalcip->ci_utime + totalcip->ci_stime));
+				printf(" %4.1f%%  ",
+				    (double)(cip->ci_utime + cip->ci_stime) /
+				    (totalcip->ci_utime + totalcip->ci_stime) *
+				    100);
 			else
 				printf(" %4s   ", "");
 		}
@@ -378,7 +379,8 @@ print_ci(const struct cmdinfo *cip, const struct cmdinfo *totalcip)
 			printf("%11.2fu ", cip->ci_utime / (60.0 * AHZ));
 		if (cflag) {
 			if (cip != totalcip)
-				printf(" %4.2f%%  ", cip->ci_utime / (double) totalcip->ci_utime);
+				printf(" %4.1f%%  ", cip->ci_utime /
+				    (double)totalcip->ci_utime * 100);
 			else
 				printf(" %4s   ", "");
 		}
@@ -388,7 +390,8 @@ print_ci(const struct cmdinfo *cip, const struct cmdinfo *totalcip)
 			printf("%11.2fs ", cip->ci_stime / (60.0 * AHZ));
 		if (cflag) {
 			if (cip != totalcip)
-				printf(" %4.2f%%  ", cip->ci_stime / (double) totalcip->ci_stime);
+				printf(" %4.1f%%  ", cip->ci_stime /
+				    (double)totalcip->ci_stime * 100);
 			else
 				printf(" %4s   ", "");
 		}
