@@ -67,6 +67,7 @@ char	*flagbits(int);
 const	 char *getdev(dev_t);
 int	 requested(char *[], struct acct *);
 static	 void usage(void);
+static void write_record(struct acct *acp);
 
 #define AC_UTIME 1 /* user */
 #define AC_STIME 2 /* system */
@@ -90,16 +91,19 @@ main(int argc, char *argv[])
 	int ch;
 	const char *acctfile;
 	int flags = 0;
+	int write_text = 0;
 
 	acctfile = _PATH_ACCT;
-	while ((ch = getopt(argc, argv, "f:usecSE")) != -1)
+	while ((ch = getopt(argc, argv, "f:uwsecSE")) != -1)
 		switch((char)ch) {
 		case 'f':
 			acctfile = optarg;
 			break;
-
 		case 'u': 
 			flags |= AC_UTIME; /* user time */
+			break;
+		case 'w':
+			write_text = 1; /* user time */
 			break;
 		case 's':
 			flags |= AC_STIME; /* system time */
@@ -125,9 +129,11 @@ main(int argc, char *argv[])
 		}
 
 	/* default user + system time and starting time */
-	if (!flags) {
+	if (!flags && !write_text)
 	    flags = AC_CTIME | AC_BTIME;
-	}
+
+	if (flags && write_text)
+		usage();
 
 	argc -= optind;
 	argv += optind;
@@ -154,7 +160,7 @@ main(int argc, char *argv[])
 	do {
 		int rv;
 
-		if (fp != stdin) {
+		if (fp != stdin && !write_text) {
 			size -= sizeof(struct acct);
 			if (fseeko(fp, size, SEEK_SET) == -1)
 				err(1, "seek %s failed", acctfile);
@@ -177,6 +183,11 @@ main(int argc, char *argv[])
 					*p = '?';
 		if (*argv && !requested(argv, &ab))
 			continue;
+
+		if (write_text) {
+			write_record(&ab);
+			continue;
+		}
 
 		(void)printf("%-*.*s %-7s %-*s %-*s",
 			     AC_COMM_LEN, AC_COMM_LEN, ab.ac_comm,
@@ -292,6 +303,30 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: lastcomm [-EScesu] [-f file] [command ...] [user ...] [terminal ...]\n");
+"usage: lastcomm [[-EScesu] | [-w]] [-f file] [command ...] [user ...] [terminal ...]\n");
 	exit(1);
+}
+
+static void
+write_record(struct acct *acp)
+{
+	(void)printf("%s %g %g %g",
+	    acp->ac_comm,
+	    expand(acp->ac_utime) / AC_HZ,
+	    expand(acp->ac_stime) / AC_HZ,
+	    expand(acp->ac_etime) / AC_HZ);
+
+	/* See if time_t is signed and use appropriate format. */
+	if ((time_t)-1 < 0)
+		(void)printf(" %ld", (long)(acp->ac_btime));
+	else
+		(void)printf(" %lu", (unsigned long)(acp->ac_btime));
+
+	(void)printf(" %s %s %d %g %s %s\n",
+	    user_from_uid(acp->ac_uid, 0),
+	    group_from_gid(acp->ac_gid, 0),
+	    acp->ac_mem,
+	    expand(acp->ac_io) / AC_HZ,
+	    getdev(acp->ac_tty),
+	    flagbits(acp->ac_flag));
 }
