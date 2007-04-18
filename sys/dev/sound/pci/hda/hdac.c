@@ -2710,7 +2710,7 @@ hdac_channel_init(kobj_t obj, void *data, struct snd_dbuf *b,
 		return (NULL);
 	}
 
-	if (sndbuf_alloc(ch->b, sc->chan_dmat, sc->chan_size) != 0)
+	if (sndbuf_alloc(ch->b, sc->chan_dmat, 0, sc->chan_size) != 0)
 		return (NULL);
 
 	hdac_dma_attr((vm_offset_t)ch->b->buf, sndbuf_getmaxsize(ch->b),

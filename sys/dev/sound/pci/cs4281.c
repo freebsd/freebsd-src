@@ -314,7 +314,7 @@ cs4281chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channe
     struct sc_chinfo *ch = (dir == PCMDIR_PLAY) ? &sc->pch : &sc->rch;
 
     ch->buffer = b;
-    if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
+    if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0) {
 	return NULL;
     }
     ch->parent = sc;
