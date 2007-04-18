@@ -252,7 +252,7 @@ linux32_copyinuio(struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
 	if (iovcnt > UIO_MAXIOV)
 		return (EINVAL);
 	iovlen = iovcnt * sizeof(struct iovec);
-	uio = malloc(iovlen + sizeof *uio, M_IOV, M_WAITOK);
+	uio = malloc(iovlen + sizeof(*uio), M_IOV, M_WAITOK);
 	iov = (struct iovec *)(uio + 1);
 	for (i = 0; i < iovcnt; i++) {
 		error = copyin(&iovp[i], &iov32, sizeof(struct iovec32));
@@ -1167,12 +1167,12 @@ linux_gettimeofday(struct thread *td, struct linux_gettimeofday_args *uap)
 		microtime(&atv);
 		atv32.tv_sec = atv.tv_sec;
 		atv32.tv_usec = atv.tv_usec;
-		error = copyout(&atv32, uap->tp, sizeof (atv32));
+		error = copyout(&atv32, uap->tp, sizeof(atv32));
 	}
 	if (error == 0 && uap->tzp != NULL) {
 		rtz.tz_minuteswest = tz_minuteswest;
 		rtz.tz_dsttime = tz_dsttime;
-		error = copyout(&rtz, uap->tzp, sizeof (rtz));
+		error = copyout(&rtz, uap->tzp, sizeof(rtz));
 	}
 	return (error);
 }
