@@ -1943,9 +1943,9 @@ tcp_twrespond(struct tcptw *tw, int flags)
 	struct tcphdr *th;
 	struct mbuf *m;
 	struct ip *ip = NULL;
-	u_int8_t *optp;
 	u_int hdrlen, optlen;
 	int error;
+	struct tcpopt to;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6 = inp->inp_inc.inc_isipv6;
@@ -1976,23 +1976,18 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		th = (struct tcphdr *)(ip + 1);
 		tcpip_fillheaders(inp, ip, th);
 	}
-	optp = (u_int8_t *)(th + 1);
+	to.to_flags = 0;
 
 	/*
 	 * Send a timestamp and echo-reply if both our side and our peer
 	 * have sent timestamps in our SYN's and this is not a RST.
 	 */
 	if (tw->t_recent && flags == TH_ACK) {
-		u_int32_t *lp = (u_int32_t *)optp;
-
-		/* Form timestamp option as shown in appendix A of RFC 1323. */
-		*lp++ = htonl(TCPOPT_TSTAMP_HDR);
-		*lp++ = htonl(ticks);
-		*lp   = htonl(tw->t_recent);
-		optp += TCPOLEN_TSTAMP_APPA;
+		to.to_flags |= TOF_TS;
+		to.to_tsval = ticks;
+		to.to_tsecr = tw->t_recent;
 	}
-
-	optlen = optp - (u_int8_t *)(th + 1);
+	optlen = tcp_addoptions(&to, (u_char *)(th + 1));
 
 	m->m_len = hdrlen + optlen;
 	m->m_pkthdr.len = m->m_len;
