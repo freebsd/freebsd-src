@@ -78,16 +78,18 @@ sndbuf_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
  */
 
 int
-sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, unsigned int size)
+sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, int dmaflags,
+    unsigned int size)
 {
 	int ret;
 
 	b->dmatag = dmatag;
+	b->dmaflags = dmaflags | BUS_DMA_NOWAIT;
 	b->maxsize = size;
 	b->bufsize = b->maxsize;
 	b->buf_addr = 0;
 	b->flags |= SNDBUF_F_MANAGED;
-	if (bus_dmamem_alloc(b->dmatag, (void **)&b->buf, BUS_DMA_NOWAIT,
+	if (bus_dmamem_alloc(b->dmatag, (void **)&b->buf, b->dmaflags,
 	    &b->dmamap)) {
 		sndbuf_free(b);
 		return (ENOMEM);

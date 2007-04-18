@@ -349,7 +349,7 @@ cmichan_init(kobj_t obj, void *devinfo,
 	ch->spd        = DSP_DEFAULT_SPEED;
 	ch->buffer     = b;
 	ch->dma_active = 0;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0) {
 		DEB(printf("cmichan_init failed\n"));
 		return NULL;
 	}

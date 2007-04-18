@@ -490,7 +490,7 @@ ds1pchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	ch->run = 0;
-	if (sndbuf_alloc(ch->buffer, sc->buffer_dmat, sc->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, sc->buffer_dmat, 0, sc->bufsz) != 0)
 		return NULL;
 	else {
 		ch->lsnum = sc->pslotfree;
@@ -621,7 +621,7 @@ ds1rchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->dir = dir;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
-	if (sndbuf_alloc(ch->buffer, sc->buffer_dmat, sc->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, sc->buffer_dmat, 0, sc->bufsz) != 0)
 		return NULL;
 	else {
 		ch->slot = (ch->num == DS1_RECPRIMARY)? sc->rbank + 2: sc->rbank;

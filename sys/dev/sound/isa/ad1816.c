@@ -318,7 +318,7 @@ ad1816chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channe
 	ch->parent = ad1816;
 	ch->channel = c;
 	ch->buffer = b;
-	if (sndbuf_alloc(ch->buffer, ad1816->parent_dmat, ad1816->bufsize) != 0)
+	if (sndbuf_alloc(ch->buffer, ad1816->parent_dmat, 0, ad1816->bufsize) != 0)
 		return NULL;
 	return ch;
 }

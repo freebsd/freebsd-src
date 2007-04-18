@@ -671,7 +671,7 @@ via8233wr_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	via_wr(via, ch->rbase + VIA_WR_RP_SGD_FORMAT, WR_FIFO_ENABLE, 1);
 	snd_mtxunlock(via->lock);
 
-	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, 0, via->bufsz) != 0)
 		return (NULL);
 
 	snd_mtxlock(via->lock);
@@ -705,7 +705,7 @@ via8233dxs_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	via->n_dxs_registered++;
 	snd_mtxunlock(via->lock);
 
-	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, 0, via->bufsz) != 0)
 		return (NULL);
 
 	snd_mtxlock(via->lock);
@@ -730,7 +730,7 @@ via8233msgd_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->rbase = VIA_MC_SGD_STATUS;
 	ch->blkcnt = via->blkcnt;
 
-	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, 0, via->bufsz) != 0)
 		return (NULL);
 
 	snd_mtxlock(via->lock);

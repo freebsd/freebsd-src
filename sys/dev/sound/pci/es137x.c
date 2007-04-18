@@ -471,7 +471,7 @@ eschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->blksz = ch->bufsz / ch->blkcnt;
 	ch->dir = dir;
 	ES_UNLOCK(es);
-	if (sndbuf_alloc(ch->buffer, es->parent_dmat, ch->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, es->parent_dmat, 0, ch->bufsz) != 0)
 		return (NULL);
 	ES_LOCK(es);
 	if (dir == PCMDIR_PLAY) {

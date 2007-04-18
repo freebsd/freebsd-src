@@ -459,7 +459,7 @@ atiixp_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	atiixp_unlock(sc);
 
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) == -1)
 		return (NULL);
 
 	atiixp_lock(sc);

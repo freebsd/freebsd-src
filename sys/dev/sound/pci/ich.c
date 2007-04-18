@@ -393,7 +393,7 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 		ch->spdreg = 0;
 
 	ICH_UNLOCK(sc);
-	if (sndbuf_alloc(ch->buffer, sc->dmat, sc->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, sc->dmat, 0, sc->bufsz) != 0)
 		return (NULL);
 
 	ICH_LOCK(sc);

@@ -1036,7 +1036,7 @@ cs4231_chan_init(kobj_t obj, void *dev, struct snd_dbuf *b,
 		else
 			dmat = sc->sc_dmat[0];
 	}
-	if (sndbuf_alloc(ch->buffer, dmat, sc->sc_bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, dmat, 0, sc->sc_bufsz) != 0)
 		return (NULL);
 	DPRINTF(("%s channel addr: 0x%lx\n", dir == PCMDIR_PLAY ? "playback" :
 	    "capture", sndbuf_getbufaddr(ch->buffer)));
