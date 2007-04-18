@@ -95,6 +95,7 @@ extern	char proctitle[];
 extern	int usedefault;
 extern  char tmpline[];
 extern	int readonly;
+extern	int assumeutf8;
 extern	int noepsv;
 extern	int noretr;
 extern	int noguestretr;
@@ -135,7 +136,7 @@ extern int epsvall;
 	ABOR	DELE	CWD	LIST	NLST	SITE
 	STAT	HELP	NOOP	MKD	RMD	PWD
 	CDUP	STOU	SMNT	SYST	SIZE	MDTM
-	LPRT	LPSV	EPRT	EPSV
+	LPRT	LPSV	EPRT	EPSV	FEAT
 
 	UMASK	IDLE	CHMOD	MDFIVE
 
@@ -687,6 +688,25 @@ cmd
 			if ($4 != NULL)
 				free($4);
 		}
+	| FEAT CRLF
+		{
+			lreply(211, "Extensions supported:");
+#if 0
+			/* XXX these two keywords are non-standard */
+			printf(" EPRT\r\n");
+			if (!noepsv)
+				printf(" EPSV\r\n");
+#endif
+			printf(" MDTM\r\n");
+			printf(" REST STREAM\r\n");
+			printf(" SIZE\r\n");
+			if (assumeutf8) {
+				/* TVFS requires UTF8, see RFC 3659 */
+				printf(" TVFS\r\n");
+				printf(" UTF8\r\n");
+			}
+			reply(211, "End.");
+		}
 	| SYST check_login CRLF
 		{
 			if ($2) {
@@ -1112,6 +1132,7 @@ struct tab cmdtab[] = {		/* In order defined in RFC 765 */
 	{ "NLST", NLST, OSTR, 1,	"[ <sp> path-name ]" },
 	{ "SITE", SITE, SITECMD, 1,	"site-cmd [ <sp> arguments ]" },
 	{ "SYST", SYST, ARGS, 1,	"(get type of operating system)" },
+	{ "FEAT", FEAT, ARGS, 1,	"(get extended features)" },
 	{ "STAT", STAT, OSTR, 1,	"[ <sp> path-name ]" },
 	{ "HELP", HELP, OSTR, 1,	"[ <sp> <string> ]" },
 	{ "NOOP", NOOP, ARGS, 1,	"" },
