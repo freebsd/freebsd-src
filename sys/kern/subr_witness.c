@@ -85,6 +85,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_witness.h"
 
 #include <sys/param.h>
@@ -289,6 +290,9 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "session", &lock_class_mtx_sleep },
 	{ "uidinfo hash", &lock_class_mtx_sleep },
 	{ "uidinfo struct", &lock_class_mtx_sleep },
+#ifdef	HWPMC_HOOKS
+	{ "pmc-sleep", &lock_class_mtx_sleep },
+#endif
 	{ NULL, NULL },
 	/*
 	 * Sockets
@@ -396,6 +400,9 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "zstty", &lock_class_mtx_spin },
 	{ "fast_taskqueue", &lock_class_mtx_spin },
 	{ "intr table", &lock_class_mtx_spin },
+#ifdef	HWPMC_HOOKS
+	{ "pmc-per-proc", &lock_class_mtx_spin },
+#endif
 	{ "sleepq chain", &lock_class_mtx_spin },
 	{ "sched lock", &lock_class_mtx_spin },
 	{ "turnstile chain", &lock_class_mtx_spin },
@@ -434,6 +441,9 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "tw_cl_io_lock", &lock_class_mtx_spin },
 	{ "tw_cl_intr_lock", &lock_class_mtx_spin },
 	{ "tw_cl_gen_lock", &lock_class_mtx_spin },
+#ifdef	HWPMC_HOOKS
+	{ "pmc-leaf", &lock_class_mtx_spin },
+#endif
 	{ NULL, NULL },
 	{ NULL, NULL }
 };
