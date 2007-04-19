@@ -550,26 +550,6 @@ camperiphfree(struct cam_periph *periph)
 }
 
 /*
- * Wait interruptibly for an exclusive lock.
- */
-void
-cam_periph_lock(struct cam_periph *periph)
-{
-
-	mtx_lock(periph->sim->mtx);
-}
-
-/*
- * Unlock and wake up any waiters.
- */
-void
-cam_periph_unlock(struct cam_periph *periph)
-{
-
-	mtx_unlock(periph->sim->mtx);
-}
-
-/*
  * Map user virtual pointers into kernel virtual address space, so we can
  * access the memory.  This won't work on physical pointers, for now it's
  * up to the caller to check for that.  (XXX KDM -- should we do that here
