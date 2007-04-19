@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 
 #include <netinet/in.h>
 
@@ -47,7 +48,7 @@
 
 #define	TEST_PORT	5678
 #define	TEST_MAGIC	0x4440f7bb
-#define	TEST_PAGES	3
+#define	TEST_PAGES	4
 #define	TEST_SECONDS	30
 
 struct test_header {
@@ -223,8 +224,18 @@ send_test(int connect_socket, u_int32_t header_length, u_int32_t offset,
 	    0) < 0)
 		err(-1, "sendfile");
 
-	if (off != length)
-		errx(-1, "sendfile: off %llu", off);
+	if (length == 0) {
+		struct stat sb;
+
+		if (fstat(file_fd, &sb) < 0)
+			err(-1, "fstat");
+		length = sb.st_size;
+	}
+
+	if (off != length) {
+		errx(-1, "sendfile: off(%llu) != length(%llu)", off,
+		    (unsigned long long)length);
+	}
 
 	if (header != NULL)
 		free(header);
@@ -261,6 +272,30 @@ run_parent(void)
 
 	connect_socket = new_test_socket();
 	send_test(connect_socket, 0, getpagesize(), getpagesize());
+	close(connect_socket);
+
+	sleep(1);
+
+	connect_socket = new_test_socket();
+	send_test(connect_socket, 0, 0, 2 * getpagesize());
+	close(connect_socket);
+
+	sleep(1);
+
+	connect_socket = new_test_socket();
+	send_test(connect_socket, 0, 0, 0);
+	close(connect_socket);
+
+	sleep(1);
+
+	connect_socket = new_test_socket();
+	send_test(connect_socket, 0, getpagesize(), 0);
+	close(connect_socket);
+
+	sleep(1);
+
+	connect_socket = new_test_socket();
+	send_test(connect_socket, 0, 2 * getpagesize(), 0);
 	close(connect_socket);
 
 	sleep(1);
