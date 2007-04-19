@@ -139,8 +139,7 @@ intsmb_attach(device_t dev)
 	}
 	device_printf(dev, "intr %s %s ", str,
 	    (value & 1) ? "enabled" : "disabled");
-	value = pci_read_config(dev, PCI_REVID_SMB, 1);
-	printf("revision %d\n", value);
+	printf("revision %d\n", pci_read_config(dev, PCI_REVID_SMB, 1));
 
 	if ((value & 0xe) != PCI_INTR_SMB_IRQ9) {
 		device_printf(dev, "Unsupported interrupt mode\n");
