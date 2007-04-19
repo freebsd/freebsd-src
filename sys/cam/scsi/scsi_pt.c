@@ -303,9 +303,11 @@ ptctor(struct cam_periph *periph, void *arg)
 			  SID_TYPE(&cgd->inq_data) | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_OTHER);
 
+	cam_periph_unlock(periph);
 	softc->dev = make_dev(&pt_cdevsw, periph->unit_number, UID_ROOT,
 			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
 			      periph->unit_number);
+	cam_periph_lock(periph);
 	softc->dev->si_drv1 = periph;
 
 	/*
