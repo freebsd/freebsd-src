@@ -21,17 +21,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
-20070418:
-	A new acct(5) format is imminent.  If you want to maintain access
-	to your accounting files, use the new lastcomm(1) -X functionality to
-	export them into text format, and keep around a copy of the lastcomm
-	binary.  An updated lastcomm(1) program will allow you to import
-	the text files into the new acct(5) format.  The change will also
-	invalidate the condensed summary files /var/account/savacct and
-	/var/account/usracct.  If your process accounting system relies
-	on them, you will need to save their contents in a readable format
-	before the switch.
-
 20070417:
 	The new trunk(4) driver has been renamed to lagg(4) as it better
 	reflects its purpose. ifconfig will need to be recompiled.
