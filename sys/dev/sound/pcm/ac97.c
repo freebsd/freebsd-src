@@ -54,6 +54,7 @@ struct ac97_info {
 	device_t dev;
 	void *devinfo;
 	u_int32_t id;
+	u_int32_t subvendor;
 	unsigned count, caps, se, extcaps, extid, extstat, noext:1;
 	u_int32_t flags;
 	struct ac97mixtable_entry mix[32];
@@ -152,7 +153,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x414c4740, 0x0f, 0, "ALC202", 	0 },
 	{ 0x414c4720, 0x0f, 0, "ALC650", 	0 },
 	{ 0x414c4752, 0x0f, 0, "ALC250",	0 },
-	{ 0x414c4760, 0x0f, 0, "ALC655",	0 },
+	{ 0x414c4760, 0x0f, 0, "ALC655",	alc655_patch },
 	{ 0x414c4770, 0x0f, 0, "ALC203",	0 },
 	{ 0x414c4780, 0x0f, 0, "ALC658",	0 },
 	{ 0x414c4790, 0x0f, 0, "ALC850",	0 },
@@ -405,6 +406,12 @@ ac97_getcaps(struct ac97_info *codec)
 	return codec->caps;
 }
 
+u_int32_t
+ac97_getsubvendor(struct ac97_info *codec)
+{
+	return codec->subvendor;
+}
+
 static int
 ac97_setrecsrc(struct ac97_info *codec, int channel)
 {
@@ -627,6 +634,9 @@ ac97_initmixer(struct ac97_info *codec)
 	}
 
 	codec->id = id;
+	codec->subvendor = (u_int32_t)pci_get_subdevice(codec->dev) << 16;
+	codec->subvendor |= (u_int32_t)pci_get_subvendor(codec->dev) &
+	    0x0000ffff;
 	codec->noext = 0;
 	codec_patch = NULL;
 
@@ -913,7 +923,6 @@ ac97mix_init(struct snd_mixer *m)
 {
 	struct ac97_info *codec = mix_getdevinfo(m);
 	struct snddev_info *d;
-	u_int32_t subvendor;
 	u_int32_t i, mask;
 
 	if (codec == NULL)
@@ -924,20 +933,18 @@ ac97mix_init(struct snd_mixer *m)
 
 	switch (codec->id) {
 	case 0x41445374:	/* AD1981B */
-		subvendor = (u_int32_t)pci_get_subdevice(codec->dev) << 16;
-		subvendor |= (u_int32_t)pci_get_subvendor(codec->dev) &
-		    0x0000ffff;
-		/* IBM Thinkcentre */
-		if (subvendor == 0x02d91014) {
-			/* Enable headphone jack sensing */
-			ac97_wrcd(codec, 0x72, ac97_rdcd(codec, 0x72) |
-			    0x0800);
+		if (codec->subvendor == 0x02d91014) {
+			/*
+			 * IBM Thinkcentre:
+			 * Tie "ogain" and "phone" to "vol" since its
+			 * master volume is basically useless and can't
+			 * control anything.
+			 */
 			mask = 0;
 			if (codec->mix[SOUND_MIXER_OGAIN].enable)
 				mask |= SOUND_MASK_OGAIN;
 			if (codec->mix[SOUND_MIXER_PHONEOUT].enable)
 				mask |= SOUND_MASK_PHONEOUT;
-			/* Tie ogain/phone to master volume */
 			if (codec->mix[SOUND_MIXER_VOLUME].enable)
 				mix_setparentchild(m, SOUND_MIXER_VOLUME,
 				    mask);
