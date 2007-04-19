@@ -475,7 +475,8 @@ bios16(struct bios_args *args, char *fmt, ...)
     return (i);
 }
 
-int bios_oem_strings(struct bios_oem *oem, u_char *buffer, size_t maxlen)
+int
+bios_oem_strings(struct bios_oem *oem, u_char *buffer, size_t maxlen)
 {
 	size_t idx = 0;
 	struct bios_oem_signature *sig;
