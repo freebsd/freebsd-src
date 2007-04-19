@@ -1521,6 +1521,7 @@ saregister(struct cam_periph *periph, void *arg)
 	    DEVSTAT_BS_UNAVAILABLE, SID_TYPE(&cgd->inq_data) |
 	    DEVSTAT_TYPE_IF_SCSI, DEVSTAT_PRIORITY_TAPE);
 
+	cam_periph_unlock(periph);
 	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
 	    periph->unit_number, 0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
 	    0660, "%s%d.ctl", periph->periph_name, periph->unit_number);
@@ -1563,6 +1564,7 @@ saregister(struct cam_periph *periph, void *arg)
 			alias->si_drv1 = periph;
 		}
 	}
+	cam_periph_lock(periph);
 
 	/*
 	 * Add an async callback so that we get
