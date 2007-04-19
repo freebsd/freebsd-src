@@ -415,6 +415,7 @@ struct sctp_stream_queue_pending {
 	uint8_t addr_over;
 	uint8_t pr_sctp_on;
 	uint8_t sender_all_done;
+	uint8_t put_last_out;
 };
 
 /*
@@ -463,6 +464,8 @@ struct sctp_tsn_log {
 	uint32_t tsn;
 	uint16_t strm;
 	uint16_t seq;
+	uint16_t sz;
+	uint16_t flgs;
 };
 
 /*
@@ -499,8 +502,6 @@ struct sctp_association {
 	/* Free chunk list */
 	struct sctpchunk_listhead free_chunks;
 
-	/* Free stream output control list */
-	struct sctp_streamhead free_strmoq;
 
 	/* Control chunk queue */
 	struct sctpchunk_listhead control_send_queue;
@@ -680,6 +681,8 @@ struct sctp_association {
 	struct sctp_tsn_log out_tsnlog[SCTP_TSN_LOG_SIZE];
 	uint16_t tsn_in_at;
 	uint16_t tsn_out_at;
+	uint16_t tsn_in_wrapped;
+	uint16_t tsn_out_wrapped;
 #endif				/* SCTP_ASOCLOG_OF_TSNS */
 	/*
 	 * window state information and smallest MTU that I use to bound
@@ -823,7 +826,6 @@ struct sctp_association {
 	uint16_t ecn_echo_cnt_onq;
 
 	uint16_t free_chunk_cnt;
-	uint16_t free_strmoq_cnt;
 
 	uint8_t stream_locked;
 	uint8_t authenticated;	/* packet authenticated ok */

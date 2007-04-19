@@ -899,6 +899,8 @@ struct sctpstat {
 	u_long sctps_read_peeks;/* Number of times recv was called with peek */
 	u_long sctps_cached_chk;/* Number of cached chunks used */
 	u_long sctps_cached_strmoq;	/* Number of cached stream oq's used */
+	u_long sctps_left_abandon;	/* Number of unread message abandonded
+					 * by close */
 };
 
 #define SCTP_STAT_INCR(_x) SCTP_STAT_INCR_BY(_x,1)
