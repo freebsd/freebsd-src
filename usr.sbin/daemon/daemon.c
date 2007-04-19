@@ -55,7 +55,7 @@ main(int argc, char *argv[])
 
 	nochdir = noclose = 1;
 	pidfile = user = NULL;
-	while ((ch = getopt(argc, argv, "-cf:p:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "-cfp:u:")) != -1) {
 		switch (ch) {
 		case 'c':
 			nochdir = 0;
