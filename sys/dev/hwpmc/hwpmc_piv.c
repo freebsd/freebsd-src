@@ -662,7 +662,7 @@ p4_init(int cpu)
 		*pescr++ = P4_INVALID_PMC_INDEX;
 	pmc_pcpu[cpu] = (struct pmc_cpu *) pcs;
 
-	mtx_init(&pcs->pc_mtx, "p4-pcpu", "pmc", MTX_SPIN);
+	mtx_init(&pcs->pc_mtx, "p4-pcpu", "pmc-leaf", MTX_SPIN);
 
 	return 0;
 }

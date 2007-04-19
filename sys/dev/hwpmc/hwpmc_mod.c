@@ -495,33 +495,32 @@ pmc_debugflags_sysctl_handler(SYSCTL_HANDLER_ARGS)
  *
  * The driver uses four locking strategies for its operation:
  *
- * - There is a 'global' SX lock "pmc_sx" that is used to protect
- *   the its 'meta-data'.
+ * - The global SX lock "pmc_sx" is used to protect internal
+ *   data structures.
  *
- *   Calls into the module (via syscall() or by the kernel) start with
- *   this lock being held in exclusive mode.  Depending on the requested
- *   operation, the lock may be downgraded to 'shared' mode to allow
- *   more concurrent readers into the module.
+ *   Calls into the module by syscall() start with this lock being
+ *   held in exclusive mode.  Depending on the requested operation,
+ *   the lock may be downgraded to 'shared' mode to allow more
+ *   concurrent readers into the module.  Calls into the module from
+ *   other parts of the kernel acquire the lock in shared mode.
  *
  *   This SX lock is held in exclusive mode for any operations that
  *   modify the linkages between the driver's internal data structures.
  *
  *   The 'pmc_hook' function pointer is also protected by this lock.
  *   It is only examined with the sx lock held in exclusive mode.  The
- *   kernel module is allowed to be unloaded only with the sx lock
- *   held in exclusive mode.  In normal syscall handling, after
- *   acquiring the pmc_sx lock we first check that 'pmc_hook' is
- *   non-null before proceeding.  This prevents races between the
- *   thread unloading the module and other threads seeking to use the
- *   module.
+ *   kernel module is allowed to be unloaded only with the sx lock held
+ *   in exclusive mode.  In normal syscall handling, after acquiring the
+ *   pmc_sx lock we first check that 'pmc_hook' is non-null before
+ *   proceeding.  This prevents races between the thread unloading the module
+ *   and other threads seeking to use the module.
  *
  * - Lookups of target process structures and owner process structures
  *   cannot use the global "pmc_sx" SX lock because these lookups need
  *   to happen during context switches and in other critical sections
  *   where sleeping is not allowed.  We protect these lookup tables
  *   with their own private spin-mutexes, "pmc_processhash_mtx" and
- *   "pmc_ownerhash_mtx".  These are 'leaf' mutexes, in that no other
- *   lock is acquired with these locks held.
+ *   "pmc_ownerhash_mtx".
  *
  * - Interrupt handlers work in a lock free manner.  At interrupt
  *   time, handlers look at the PMC pointer (phw->phw_pmc) configured
@@ -574,6 +573,14 @@ pmc_debugflags_sysctl_handler(SYSCTL_HANDLER_ARGS)
  *     doing the PMCRELEASE operation waits by repeatedly doing a
  *     pause() till the runcount comes to zero.
  *
+ * The contents of a PMC descriptor (struct pmc) are protected using
+ * a spin-mutex.  In order to save space, we use a mutex pool.
+ *
+ * In terms of lock types used by witness(4), we use:
+ * - Type "pmc-sx", used by the global SX lock.
+ * - Type "pmc-sleep", for sleep mutexes used by logger threads.
+ * - Type "pmc-per-proc", for protecting PMC owner descriptors.
+ * - Type "pmc-leaf", used for all other spin mutexes.
  */
 
 /*
@@ -1756,7 +1763,7 @@ pmc_allocate_owner_descriptor(struct proc *p)
 	LIST_INSERT_HEAD(poh, po, po_next); /* insert into hash table */
 
 	TAILQ_INIT(&po->po_logbuffers);
-	mtx_init(&po->po_mtx, "pmc-owner-mtx", "pmc", MTX_SPIN);
+	mtx_init(&po->po_mtx, "pmc-owner-mtx", "pmc-per-proc", MTX_SPIN);
 
 	PMCDBG(OWN,ALL,1, "allocate-owner proc=%p (%d, %s) pmc-owner=%p",
 	    p, p->p_pid, p->p_comm, po);
@@ -4184,13 +4191,15 @@ pmc_initialize(void)
 
 	pmc_processhash = hashinit(pmc_hashsize, M_PMC,
 	    &pmc_processhashmask);
-	mtx_init(&pmc_processhash_mtx, "pmc-process-hash", "pmc", MTX_SPIN);
+	mtx_init(&pmc_processhash_mtx, "pmc-process-hash", "pmc-leaf",
+	    MTX_SPIN);
 
 	LIST_INIT(&pmc_ss_owners);
 	pmc_ss_count = 0;
 
 	/* allocate a pool of spin mutexes */
-	pmc_mtxpool = mtx_pool_create("pmc", pmc_mtxpool_size, MTX_SPIN);
+	pmc_mtxpool = mtx_pool_create("pmc-leaf", pmc_mtxpool_size,
+	    MTX_SPIN);
 
 	PMCDBG(MOD,INI,1, "pmc_ownerhash=%p, mask=0x%lx "
 	    "targethash=%p mask=0x%lx", pmc_ownerhash, pmc_ownerhashmask,

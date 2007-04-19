@@ -973,8 +973,9 @@ pmclog_initialize()
 		PMCLOG_INIT_BUFFER_DESCRIPTOR(plb);
 		TAILQ_INSERT_HEAD(&pmc_bufferlist, plb, plb_next);
 	}
-	mtx_init(&pmc_bufferlist_mtx, "pmc-buffer-list", "pmc", MTX_SPIN);
-	mtx_init(&pmc_kthread_mtx, "pmc-kthread", "pmc", MTX_DEF);
+	mtx_init(&pmc_bufferlist_mtx, "pmc-buffer-list", "pmc-leaf",
+	    MTX_SPIN);
+	mtx_init(&pmc_kthread_mtx, "pmc-kthread", "pmc-sleep", MTX_DEF);
 }
 
 /*
