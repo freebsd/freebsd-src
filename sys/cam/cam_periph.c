@@ -131,7 +131,6 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	lun_id_t	lun_id;
 	cam_status	status;
 	u_int		init_level;
-	int s;
 
 	init_level = 0;
 	/*
@@ -200,7 +199,6 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	if (status != CAM_REQ_CMP)
 		goto failure;
 
-	s = splsoftcam();
 	cur_periph = TAILQ_FIRST(&(*p_drv)->units);
 	while (cur_periph != NULL
 	    && cur_periph->unit_number < periph->unit_number)
@@ -212,8 +210,6 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 		TAILQ_INSERT_TAIL(&(*p_drv)->units, periph, unit_links);
 		(*p_drv)->generation++;
 	}
-
-	splx(s);
 
 	init_level++;
 
@@ -228,9 +224,7 @@ failure:
 		/* Initialized successfully */
 		break;
 	case 3:
-		s = splsoftcam();
 		TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
-		splx(s);
 		xpt_remove_periph(periph);
 		/* FALLTHROUGH */
 	case 2:
@@ -258,24 +252,25 @@ cam_periph_find(struct cam_path *path, char *name)
 {
 	struct periph_driver **p_drv;
 	struct cam_periph *periph;
-	int s;
 
+	xpt_lock_buses();
 	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
 
 		if (name != NULL && (strcmp((*p_drv)->driver_name, name) != 0))
 			continue;
 
-		s = splsoftcam();
 		TAILQ_FOREACH(periph, &(*p_drv)->units, unit_links) {
 			if (xpt_path_comp(periph->path, path) == 0) {
-				splx(s);
+				xpt_unlock_buses();
 				return(periph);
 			}
 		}
-		splx(s);
-		if (name != NULL)
+		if (name != NULL) {
+			xpt_unlock_buses();
 			return(NULL);
+		}
 	}
+	xpt_unlock_buses();
 	return(NULL);
 }
 
@@ -372,11 +367,9 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 {
 	struct	cam_periph *periph;
 	char	*periph_name;
-	int	s;
 	int	i, val, dunit, r;
 	const char *dname, *strval;
 
-	s = splsoftcam();
 	periph_name = p_drv->driver_name;
 	for (;;newunit++) {
 
@@ -422,7 +415,6 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 		if (r != 0)
 			break;
 	}
-	splx(s);
 	return (newunit);
 }
 
@@ -480,8 +472,7 @@ cam_periph_invalidate(struct cam_periph *periph)
 
 	/*
 	 * We only call this routine the first time a peripheral is
-	 * invalidated.  The oninvalidate() routine is always called at
-	 * splsoftcam().
+	 * invalidated.
 	 */
 	if (((periph->flags & CAM_PERIPH_INVALID) == 0)
 	 && (periph->periph_oninval != NULL))
@@ -788,9 +779,7 @@ cam_periph_ccbwait(union ccb *ccb)
 {
 	struct mtx *mtx;
 	struct cam_sim *sim;
-	int s;
 
-	s = splsoftcam();
 	sim = xpt_path_sim(ccb->ccb_h.path);
 	if (sim->mtx == &Giant)
 		mtx = NULL;
@@ -799,8 +788,6 @@ cam_periph_ccbwait(union ccb *ccb)
 	if ((ccb->ccb_h.pinfo.index != CAM_UNQUEUED_INDEX)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG))
 		msleep(&ccb->ccb_h.cbfcnp, mtx, PRIBIO, "cbwait", 0);
-
-	splx(s);
 }
 
 int
@@ -1205,11 +1192,8 @@ cam_periph_freeze_after_event(struct cam_periph *periph,
 {
 	struct timeval delta;
 	struct timeval duration_tv;
-	int s;
 
-	s = splclock();
 	microtime(&delta);
-	splx(s);
 	timevalsub(&delta, event_time);
 	duration_tv.tv_sec = duration_ms / 1000;
 	duration_tv.tv_usec = (duration_ms % 1000) * 1000;
