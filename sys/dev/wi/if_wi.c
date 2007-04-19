@@ -1093,9 +1093,6 @@ wi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m0,
 
 			k = ieee80211_crypto_encap(ic, ni, m0);
 			if (k == NULL) {
-				if (ni != NULL)
-					ieee80211_free_node(ni);
-				m_freem(m0);
 				rc = ENOMEM;
 				goto out;
 			}
@@ -1116,16 +1113,20 @@ wi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m0,
 	frmhdr.wi_dat_len = htole16(m0->m_pkthdr.len);
 	if (IFF_DUMPPKTS(ifp))
 		wi_dump_pkt(&frmhdr, NULL, -1);
-	if (ni != NULL)
-		ieee80211_free_node(ni);
-	rc = wi_start_tx(ifp, &frmhdr, m0);
-	if (rc)
+	if (wi_start_tx(ifp, &frmhdr, m0) < 0) {
+		m0 = NULL;
+		rc = EIO;
 		goto out;
+	}
+	m0 = NULL;
 
 	sc->sc_txnext = cur = (cur + 1) % sc->sc_ntxbuf;
 out:
 	WI_UNLOCK(sc);
 
+	if (m0 != NULL)
+		m_freem(m0);
+	ieee80211_free_node(ni);
 	return rc;
 }
 

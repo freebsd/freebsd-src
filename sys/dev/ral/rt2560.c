@@ -1716,8 +1716,10 @@ rt2560_tx_raw(struct rt2560_softc *sc, struct mbuf *m0,
 
 	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
 	/* XXX validate */
-	if (rate == 0)
+	if (rate == 0) {
+		m_freem(m0);
 		return EINVAL;
+	}
 
 	error = bus_dmamap_load_mbuf_sg(sc->prioq.data_dmat, data->map, m0,
 	    segs, &nsegs, 0);
@@ -2782,11 +2784,15 @@ rt2560_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/* prevent management frames from being sent if we're not ready */
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		RAL_UNLOCK(sc);
+		m_freem(m);
+		ieee80211_free_node(ni);
 		return ENETDOWN;
 	}
 	if (sc->prioq.queued >= RT2560_PRIO_RING_COUNT) {
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		RAL_UNLOCK(sc);
+		m_freem(m);
+		ieee80211_free_node(ni);
 		return ENOBUFS;		/* XXX */
 	}
 
