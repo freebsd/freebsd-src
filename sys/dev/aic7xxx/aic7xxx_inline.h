@@ -363,7 +363,8 @@ ahc_get_scb(struct ahc_softc *ahc)
 	struct scb *scb;
 
 	if ((scb = SLIST_FIRST(&ahc->scb_data->free_scbs)) == NULL) {
-		ahc_alloc_scbs(ahc);
+		if (ahc_alloc_scbs(ahc) == 0)
+			return (NULL);
 		scb = SLIST_FIRST(&ahc->scb_data->free_scbs);
 		if (scb == NULL)
 			return (NULL);
