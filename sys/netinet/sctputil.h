@@ -86,6 +86,11 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
+#ifdef SCTP_ASOCLOG_OF_TSNS
+void sctp_print_out_track_log(struct sctp_tcb *stcb);
+
+#endif
+
 #ifdef SCTP_MBUF_LOGGING
 struct mbuf *sctp_m_free(struct mbuf *m);
 void sctp_m_freem(struct mbuf *m);
