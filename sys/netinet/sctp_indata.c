@@ -1608,9 +1608,12 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	asoc->in_tsnlog[asoc->tsn_in_at].tsn = tsn;
 	asoc->in_tsnlog[asoc->tsn_in_at].strm = strmno;
 	asoc->in_tsnlog[asoc->tsn_in_at].seq = strmseq;
+	asoc->in_tsnlog[asoc->tsn_in_at].sz = chk_length;
+	asoc->in_tsnlog[asoc->tsn_in_at].flgs = chunk_flags;
 	asoc->tsn_in_at++;
 	if (asoc->tsn_in_at >= SCTP_TSN_LOG_SIZE) {
 		asoc->tsn_in_at = 0;
+		asoc->tsn_in_wrapped = 1;
 	}
 #endif
 	if ((chunk_flags & SCTP_DATA_FIRST_FRAG) &&
@@ -4077,8 +4080,14 @@ sctp_fs_audit(struct sctp_association *asoc)
 			acked++;
 		}
 	}
+
 	if ((inflight > 0) || (inbetween > 0)) {
+#ifdef INVARIANTS
 		panic("Flight size-express incorrect? \n");
+#else
+		printf("Flight size-express incorrect inflight:%d inbetween:%d\n",
+		    inflight, inbetween);
+#endif
 	}
 }
 
@@ -4986,11 +4995,13 @@ skip_segments:
 		}
 		if ((TAILQ_FIRST(&asoc->sent_queue) == NULL) &&
 		    (asoc->total_flight > 0)) {
+#ifdef INVARIANTS
 			panic("Warning flight size is postive and should be 0");
-/*
-  printf("Warning flight size incorrect should be 0 is %d\n",
-  asoc->total_flight);
-*/
+#else
+
+			printf("Warning flight size incorrect should be 0 is %d\n",
+			    asoc->total_flight);
+#endif
 			asoc->total_flight = 0;
 		}
 		if (tp1->data) {
