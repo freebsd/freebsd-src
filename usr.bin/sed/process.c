@@ -285,8 +285,17 @@ applies(struct s_command *cp)
 			if (MATCH(cp->a2)) {
 				cp->inrange = 0;
 				lastaddr = 1;
-			}
-			r = 1;
+				r = 1;
+			} else if (cp->a2->type == AT_LINE &&
+				   linenum > cp->a2->u.l) {
+				/*
+				 * We missed the 2nd address due to a branch,
+				 * so just close the range and return false.
+				 */
+				cp->inrange = 0;
+				r = 0;
+			} else
+				r = 1;
 		} else if (MATCH(cp->a1)) {
 			/*
 			 * If the second address is a number less than or
