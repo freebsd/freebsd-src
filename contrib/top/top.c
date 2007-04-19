@@ -410,7 +410,7 @@ char *argv[];
 	      default:
 		fprintf(stderr,
 "Top version %s\n"
-"Usage: %s [-bCHIinqStuv] [-d count] [-m io | cpu] [-o field] [-s time]\n"
+"Usage: %s [-abCHIijnqStuv] [-d count] [-m io | cpu] [-o field] [-s time]\n"
 "       [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
