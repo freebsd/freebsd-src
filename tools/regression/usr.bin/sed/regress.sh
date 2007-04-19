@@ -2,7 +2,7 @@
 
 REGRESSION_START($1)
 
-echo '1..9'
+echo '1..13'
 
 REGRESSION_TEST(`G', `sed G < regress.in')
 REGRESSION_TEST(`P', `sed P < regress.in')
@@ -13,5 +13,17 @@ REGRESSION_TEST(`sg', `echo foo | sed s/,*/,/g')
 REGRESSION_TEST(`s3', `echo foo | sed s/,*/,/3')
 REGRESSION_TEST(`s4', `echo foo | sed s/,*/,/4')
 REGRESSION_TEST(`s5', `echo foo | sed s/,*/,/5')
+REGRESSION_TEST(`c0', `sed ''`c\
+foo
+''`< regress.in')
+REGRESSION_TEST(`c1', `sed ''`4,$c\
+foo
+''`< regress.in')
+REGRESSION_TEST(`c2', `sed ''`3,9c\
+foo
+''`< regress.in')
+REGRESSION_TEST(`c3', `sed ''`3,/no such string/c\
+foo
+''`< regress.in')
 
 REGRESSION_END()
