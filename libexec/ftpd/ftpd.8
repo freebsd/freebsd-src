@@ -32,7 +32,7 @@
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2006
+.Dd April 19, 2007
 .Dt FTPD 8
 .Os
 .Sh NAME
@@ -79,20 +79,19 @@ is specified, accept connections via
 .Dv AF_INET6
 socket.
 .It Fl 8
-The server is running in transparent UTF-8 mode.
-That is, it just encourages RFC\ 2640 compliant clients to send
-paths encoded in UTF-8 in their commands.
-In particular, the names of files uploaded by such clients will
-have UTF-8 encoding.
-The clients will also assume that server replies and existing file
-names have UTF-8 encoding, too.
-The names of files preloaded to the server should meet this expectation
-for the clients to present the correct file names to their users.
-Own messages of
-.Nm
-are always encoded in ASCII, which in fact is a subset of UTF-8.
+Enable transparent UTF-8 mode.
+RFC\ 2640 compliant clients will be told that the character encoding
+used by the server is UTF-8, which is the only effect of the option.
 .Pp
-Note that this option does not make the server do any encoding conversion.
+This option does not enable any encoding conversion for server file names;
+it implies instead that the names of files on the server are encoded
+in UTF-8.
+As for files uploaded via FTP, it is the duty of the RFC\ 2640 compliant
+client to convert their names from the client's local encoding to UTF-8.
+FTP command names and own
+.Nm
+messages are always encoded in ASCII, which is a subset of UTF-8.
+Hence no need for server-side conversion at all.
 .It Fl A
 Allow only anonymous ftp access.
 .It Fl a
