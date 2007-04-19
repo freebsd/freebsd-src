@@ -1991,8 +1991,10 @@ dashutdown(void * arg, int howto)
 		 * if the drive is capable of it..
 		 */
 		if (((softc->flags & DA_FLAG_OPEN) == 0)
-		 || (softc->quirks & DA_Q_NO_SYNC_CACHE))
+		 || (softc->quirks & DA_Q_NO_SYNC_CACHE)) {
+			cam_periph_unlock(periph);
 			continue;
+		}
 
 		xpt_setup_ccb(&ccb.ccb_h, periph->path, /*priority*/1);
 
