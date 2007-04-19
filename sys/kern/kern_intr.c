@@ -83,7 +83,7 @@ void	*vm_ih;
 
 static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
 
-static int intr_storm_threshold = 500;
+static int intr_storm_threshold = 1000;
 TUNABLE_INT("hw.intr_storm_threshold", &intr_storm_threshold);
 SYSCTL_INT(_hw, OID_AUTO, intr_storm_threshold, CTLFLAG_RW,
     &intr_storm_threshold, 0,
@@ -698,11 +698,11 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 	 */
 	if (intr_storm_threshold != 0 && ie->ie_count >= intr_storm_threshold &&
 	    !(ie->ie_flags & IE_SOFT)) {
-		if (ie->ie_warned == 0) {
+		/* Report the message only once every second. */
+		if (ppsratecheck(&ie->ie_warntm, &ie->ie_warncnt, 1)) {
 			printf(
-	"Interrupt storm detected on \"%s\"; throttling interrupt source\n",
+	"interrupt storm detected on \"%s\"; throttling interrupt source\n",
 			    ie->ie_name);
-			ie->ie_warned = 1;
 		}
 		pause("istorm", 1);
 	} else
