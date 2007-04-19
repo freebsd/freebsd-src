@@ -74,7 +74,8 @@ struct intr_event {
 	void		(*ie_enable)(void *);
 	int		ie_flags;
 	int		ie_count;	/* Loop counter. */
-	int		ie_warned;	/* Warned about interrupt storm. */
+	int		ie_warncnt;	/* Rate-check interrupt storm warns. */
+	struct timeval	ie_warntm;
 };
 
 /* Interrupt event flags kept in ie_flags. */
