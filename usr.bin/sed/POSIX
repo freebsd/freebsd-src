@@ -1,4 +1,5 @@
 #	@(#)POSIX	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 Comments on the IEEE P1003.2 Draft 12
      Part 2: Shell and Utilities
@@ -117,10 +118,15 @@ All uses of "POSIX" refer to section 4.55, Draft 12 of POSIX 1003.2.
 	1,3c\
 		text
 
-	Historic implementations, and this implementation, do not output
-	the text in the above example.  The general rule, therefore,
-	is that a range whose second address is never matched extends to
-	the end of the input.
+	Historic implementations did not output the text in the above
+	example.  Therefore it was believed that a range whose second
+	address was never matched extended to the end of the input.
+	However, the current practice adopted by this implementation,
+	as well as by those from GNU and SUN, is as follows:  The text
+	from the 'c' command still isn't output because the second address
+	isn't actually matched; but the range is reset after all if its
+	second address is a line number.  In the above example, only the
+	first line of the input will be deleted.
 
 13.	Historical implementations allow an output suppressing #n at the
 	beginning of -e arguments as well as in a script file.  POSIX
