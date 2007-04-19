@@ -150,6 +150,7 @@ struct tv32 {
 #define ICMP6ECHOLEN	8	/* icmp echo header len excluding time */
 #define ICMP6ECHOTMLEN sizeof(struct tv32)
 #define ICMP6_NIQLEN	(ICMP6ECHOLEN + 8)
+# define CONTROLLEN	10240	/* ancillary data buffer size RFC3542 20.1 */
 /* FQDN case, 64 bits of nonce + 32 bits ttl */
 #define ICMP6_NIRLEN	(ICMP6ECHOLEN + 12)
 #define	EXTRA		256	/* for AH and various other headers. weird. */
@@ -269,8 +270,8 @@ char *dnsdecode(const u_char **, const u_char *, const u_char *,
 	char *, size_t);
 void	 pr_pack(u_char *, int, struct msghdr *);
 void	 pr_exthdrs(struct msghdr *);
-void	 pr_ip6opt(void *);
-void	 pr_rthdr(void *);
+void	 pr_ip6opt(void *, size_t);
+void	 pr_rthdr(void *, size_t);
 int	 pr_bitrange(u_int32_t, int, int);
 void	 pr_retip(struct ip6_hdr *, u_char *);
 void	 summary(void);
@@ -307,6 +308,7 @@ main(argc, argv)
 	char *e, *target, *ifname = NULL, *gateway = NULL;
 	int ip6optlen = 0;
 	struct cmsghdr *scmsgp = NULL;
+	struct cmsghdr *cm;
 #if defined(SO_SNDBUF) && defined(SO_RCVBUF)
 	u_long lsockbufsize;
 	int sockbufsize = 0;
@@ -1057,10 +1059,13 @@ main(argc, argv)
 	seeninfo = 0;
 #endif
 
+	/* For control (ancillary) data received from recvmsg() */
+	cm = (struct cmsghdr *)malloc(CONTROLLEN);
+	if (cm == NULL)
+		err(1, "malloc");
+
 	for (;;) {
 		struct msghdr m;
-		struct cmsghdr *cm;
-		u_char buf[1024];
 		struct iovec iov[2];
 
 		/* signal handling */
@@ -1127,9 +1132,9 @@ main(argc, argv)
 		iov[0].iov_len = packlen;
 		m.msg_iov = iov;
 		m.msg_iovlen = 1;
-		cm = (struct cmsghdr *)buf;
-		m.msg_control = (caddr_t)buf;
-		m.msg_controllen = sizeof(buf);
+		memset(cm, 0, CONTROLLEN);
+		m.msg_control = (void *)cm;
+		m.msg_controllen = CONTROLLEN;
 
 		cc = recvmsg(s, &m, 0);
 		if (cc < 0) {
@@ -1493,6 +1498,9 @@ pr_pack(buf, cc, mhdr)
 			    pr_addr(from, fromlen));
 		return;
 	}
+	if (((mhdr->msg_flags & MSG_CTRUNC) != 0) &&
+	    (options & F_VERBOSE) != 0)
+		warnx("some control data discarded, insufficient buffer size");
 	icp = (struct icmp6_hdr *)buf;
 	ni = (struct icmp6_nodeinfo *)buf;
 	off = 0;
@@ -1735,28 +1743,35 @@ void
 pr_exthdrs(mhdr)
 	struct msghdr *mhdr;
 {
+	ssize_t	bufsize;
+	void	*bufp;
 	struct cmsghdr *cm;
 
+	bufsize = 0;
+	bufp = mhdr->msg_control;
 	for (cm = (struct cmsghdr *)CMSG_FIRSTHDR(mhdr); cm;
 	     cm = (struct cmsghdr *)CMSG_NXTHDR(mhdr, cm)) {
 		if (cm->cmsg_level != IPPROTO_IPV6)
 			continue;
 
+		bufsize = CONTROLLEN - ((caddr_t)CMSG_DATA(cm) - (caddr_t)bufp);
+		if (bufsize <= 0)
+			continue; 
 		switch (cm->cmsg_type) {
 		case IPV6_HOPOPTS:
 			printf("  HbH Options: ");
-			pr_ip6opt(CMSG_DATA(cm));
+			pr_ip6opt(CMSG_DATA(cm), (size_t)bufsize);
 			break;
 		case IPV6_DSTOPTS:
 #ifdef IPV6_RTHDRDSTOPTS
 		case IPV6_RTHDRDSTOPTS:
 #endif
 			printf("  Dst Options: ");
-			pr_ip6opt(CMSG_DATA(cm));
+			pr_ip6opt(CMSG_DATA(cm), (size_t)bufsize);
 			break;
 		case IPV6_RTHDR:
 			printf("  Routing: ");
-			pr_rthdr(CMSG_DATA(cm));
+			pr_rthdr(CMSG_DATA(cm), (size_t)bufsize);
 			break;
 		}
 	}
@@ -1764,12 +1779,12 @@ pr_exthdrs(mhdr)
 
 #ifdef USE_RFC2292BIS
 void
-pr_ip6opt(void *extbuf)
+pr_ip6opt(void *extbuf, size_t bufsize)
 {
 	struct ip6_hbh *ext;
 	int currentlen;
 	u_int8_t type;
-	socklen_t extlen, len;
+	socklen_t extlen, len, origextlen;
 	void *databuf;
 	size_t offset;
 	u_int16_t value2;
@@ -1779,6 +1794,18 @@ pr_ip6opt(void *extbuf)
 	extlen = (ext->ip6h_len + 1) * 8;
 	printf("nxt %u, len %u (%lu bytes)\n", ext->ip6h_nxt,
 	    (unsigned int)ext->ip6h_len, (unsigned long)extlen);
+
+	/*
+	 * Bounds checking on the ancillary data buffer:
+	 *     subtract the size of a cmsg structure from the buffer size.
+	 */
+	if (bufsize < (extlen  + CMSG_SPACE(0))) {
+		origextlen = extlen;
+		extlen = bufsize - CMSG_SPACE(0);
+		warnx("options truncated, showing only %u (total=%u)",
+		    (unsigned int)(extlen / 8 - 1),
+		    (unsigned int)(ext->ip6h_len));
+	}
 
 	currentlen = 0;
 	while (1) {
@@ -1816,7 +1843,7 @@ pr_ip6opt(void *extbuf)
 #else  /* !USE_RFC2292BIS */
 /* ARGSUSED */
 void
-pr_ip6opt(void *extbuf)
+pr_ip6opt(void *extbuf, size_t bufsize __unused)
 {
 	putchar('\n');
 	return;
@@ -1825,21 +1852,43 @@ pr_ip6opt(void *extbuf)
 
 #ifdef USE_RFC2292BIS
 void
-pr_rthdr(void *extbuf)
+pr_rthdr(void *extbuf, size_t bufsize)
 {
 	struct in6_addr *in6;
 	char ntopbuf[INET6_ADDRSTRLEN];
 	struct ip6_rthdr *rh = (struct ip6_rthdr *)extbuf;
-	int i, segments;
+	int i, segments, origsegs, rthsize, size0, size1;
 
 	/* print fixed part of the header */
 	printf("nxt %u, len %u (%d bytes), type %u, ", rh->ip6r_nxt,
 	    rh->ip6r_len, (rh->ip6r_len + 1) << 3, rh->ip6r_type);
-	if ((segments = inet6_rth_segments(extbuf)) >= 0)
+	if ((segments = inet6_rth_segments(extbuf)) >= 0) {
 		printf("%d segments, ", segments);
-	else
+		printf("%d left\n", rh->ip6r_segleft);
+	} else {
 		printf("segments unknown, ");
-	printf("%d left\n", rh->ip6r_segleft);
+		printf("%d left\n", rh->ip6r_segleft);
+		return;
+	}
+
+	/*
+	 * Bounds checking on the ancillary data buffer. When calculating
+	 * the number of items to show keep in mind:
+	 *	- The size of the cmsg structure
+	 *	- The size of one segment (the size of a Type 0 routing header)
+	 *	- When dividing add a fudge factor of one in case the
+	 *	  dividend is not evenly divisible by the divisor
+	 */
+	rthsize = (rh->ip6r_len + 1) * 8;
+	if (bufsize < (rthsize + CMSG_SPACE(0))) {
+		origsegs = segments;
+		size0 = inet6_rth_space(IPV6_RTHDR_TYPE_0, 0);
+		size1 = inet6_rth_space(IPV6_RTHDR_TYPE_0, 1);
+		segments -= (rthsize - (bufsize - CMSG_SPACE(0))) /
+		    (size1 - size0) + 1;
+		warnx("segments truncated, showing only %d (total=%d)",
+		    segments, origsegs);
+	}
 
 	for (i = 0; i < segments; i++) {
 		in6 = inet6_rth_getaddr(extbuf, i);
@@ -1860,7 +1909,7 @@ pr_rthdr(void *extbuf)
 #else  /* !USE_RFC2292BIS */
 /* ARGSUSED */
 void
-pr_rthdr(void *extbuf)
+pr_rthdr(void *extbuf, size_t bufsize __unused)
 {
 	putchar('\n');
 	return;
