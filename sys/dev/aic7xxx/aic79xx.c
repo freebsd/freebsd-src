@@ -5693,7 +5693,8 @@ ahd_init_scbdata(struct ahd_softc *ahd)
 	scb_data->init_level++;
 
 	/* Perform initial CCB allocation */
-	ahd_alloc_scbs(ahd);
+	while (ahd_alloc_scbs(ahd) != 0)
+		;
 
 	if (scb_data->numscbs == 0) {
 		printf("%s: ahd_init_scbdata - "
@@ -5940,7 +5941,8 @@ look_again:
 
 		if (tries++ != 0)
 			return (NULL);
-		ahd_alloc_scbs(ahd);
+		if (ahd_alloc_scbs(ahd) == 0)
+			return (NULL);
 		goto look_again;
 	}
 	LIST_REMOVE(scb, links.le);
@@ -6011,7 +6013,7 @@ ahd_free_scb(struct ahd_softc *ahd, struct scb *scb)
 	aic_platform_scb_free(ahd, scb);
 }
 
-void
+int
 ahd_alloc_scbs(struct ahd_softc *ahd)
 {
 	struct scb_data *scb_data;
@@ -6031,7 +6033,7 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 	scb_data = &ahd->scb_data;
 	if (scb_data->numscbs >= AHD_SCB_MAX_ALLOC)
 		/* Can't allocate any more */
-		return;
+		return (0);
 
 	if (scb_data->scbs_left != 0) {
 		int offset;
@@ -6044,14 +6046,14 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		hscb_map = malloc(sizeof(*hscb_map), M_DEVBUF, M_NOWAIT);
 
 		if (hscb_map == NULL)
-			return;
+			return (0);
 
 		/* Allocate the next batch of hardware SCBs */
 		if (aic_dmamem_alloc(ahd, scb_data->hscb_dmat,
 				     (void **)&hscb_map->vaddr,
 				     BUS_DMA_NOWAIT, &hscb_map->dmamap) != 0) {
 			free(hscb_map, M_DEVBUF);
-			return;
+			return (0);
 		}
 
 		SLIST_INSERT_HEAD(&scb_data->hscb_maps, hscb_map, links);
@@ -6077,14 +6079,14 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		sg_map = malloc(sizeof(*sg_map), M_DEVBUF, M_NOWAIT);
 
 		if (sg_map == NULL)
-			return;
+			return (0);
 
 		/* Allocate the next batch of S/G lists */
 		if (aic_dmamem_alloc(ahd, scb_data->sg_dmat,
 				     (void **)&sg_map->vaddr,
 				     BUS_DMA_NOWAIT, &sg_map->dmamap) != 0) {
 			free(sg_map, M_DEVBUF);
-			return;
+			return (0);
 		}
 
 		SLIST_INSERT_HEAD(&scb_data->sg_maps, sg_map, links);
@@ -6114,14 +6116,14 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		sense_map = malloc(sizeof(*sense_map), M_DEVBUF, M_NOWAIT);
 
 		if (sense_map == NULL)
-			return;
+			return (0);
 
 		/* Allocate the next batch of sense buffers */
 		if (aic_dmamem_alloc(ahd, scb_data->sense_dmat,
 				     (void **)&sense_map->vaddr,
 				     BUS_DMA_NOWAIT, &sense_map->dmamap) != 0) {
 			free(sense_map, M_DEVBUF);
-			return;
+			return (0);
 		}
 
 		SLIST_INSERT_HEAD(&scb_data->sense_maps, sense_map, links);
@@ -6210,6 +6212,7 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		sense_busaddr += AHD_SENSE_BUFSIZE;
 		scb_data->numscbs++;
 	}
+	return (i);
 }
 
 void
