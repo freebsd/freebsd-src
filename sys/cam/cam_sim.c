@@ -95,6 +95,7 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	}
 
 	SLIST_INIT(&sim->ccb_freeq);
+	TAILQ_INIT(&sim->sim_doneq);
 
 	return (sim);
 }

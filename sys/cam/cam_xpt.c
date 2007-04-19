@@ -665,8 +665,9 @@ static struct xpt_softc xsoftc;
 
 /* Queues for our software interrupt handler */
 typedef TAILQ_HEAD(cam_isrq, ccb_hdr) cam_isrq_t;
-static cam_isrq_t cam_bioq;
-static struct mtx cam_bioq_lock;
+typedef TAILQ_HEAD(cam_simq, cam_sim) cam_simq_t;
+static cam_simq_t cam_simq;
+static struct mtx cam_simq_lock;
 
 /* Pointers to software interrupt handlers */
 static void *cambio_ih;
@@ -821,6 +822,7 @@ static void	 xpt_finishconfig(struct cam_periph *periph, union ccb *ccb);
 static void	 xptaction(struct cam_sim *sim, union ccb *work_ccb);
 static void	 xptpoll(struct cam_sim *sim);
 static void	 camisr(void *);
+static void	 camisr_runqueue(void *);
 static dev_match_ret	xptbusmatch(struct dev_match_pattern *patterns,
 				    u_int num_patterns, struct cam_eb *bus);
 static dev_match_ret	xptdevicematch(struct dev_match_pattern *patterns,
@@ -1472,12 +1474,12 @@ xpt_init(void *dummy)
 	cam_status status;
 
 	TAILQ_INIT(&xsoftc.xpt_busses);
-	TAILQ_INIT(&cam_bioq);
+	TAILQ_INIT(&cam_simq);
 	TAILQ_INIT(&xsoftc.ccb_scanq);
 	STAILQ_INIT(&xsoftc.highpowerq);
 	xsoftc.num_highpower = CAM_MAX_HIGHPOWER;
 
-	mtx_init(&cam_bioq_lock, "CAM BIOQ lock", NULL, MTX_DEF);
+	mtx_init(&cam_simq_lock, "CAM SIMQ lock", NULL, MTX_DEF);
 	mtx_init(&xsoftc.xpt_lock, "XPT lock", NULL, MTX_DEF);
 	mtx_init(&xsoftc.xpt_topo_lock, "XPT topology lock", NULL, MTX_DEF);
 
@@ -1551,7 +1553,7 @@ xpt_init(void *dummy)
 		printf("xpt_init: failed to create rescan thread\n");
 	}
 	/* Install our software interrupt handlers */
-	swi_add(NULL, "cambio", camisr, &cam_bioq, SWI_CAMBIO, INTR_MPSAFE, &cambio_ih);
+	swi_add(NULL, "cambio", camisr, NULL, SWI_CAMBIO, INTR_MPSAFE, &cambio_ih);
 
 	return (0);
 }
@@ -3639,7 +3641,7 @@ xpt_polled_action(union ccb *start_ccb)
 	   dev->ccbq.dev_openings < 0) && (--timeout > 0)) {
 		DELAY(1000);
 		(*(sim->sim_poll))(sim);
-		camisr(&cam_bioq);
+		camisr_runqueue(&sim->sim_doneq);
 	}
 	
 	dev->ccbq.devq_openings++;
@@ -3649,7 +3651,7 @@ xpt_polled_action(union ccb *start_ccb)
 		xpt_action(start_ccb);
 		while(--timeout > 0) {
 			(*(sim->sim_poll))(sim);
-			camisr(&cam_bioq);
+			camisr_runqueue(&sim->sim_doneq);
 			if ((start_ccb->ccb_h.status  & CAM_STATUS_MASK)
 			    != CAM_REQ_INPROG)
 				break;
@@ -4490,6 +4492,7 @@ xpt_bus_deregister(path_id_t pathid)
 
 	/* The SIM may be gone, so use a dummy SIM for any stray operations. */
 	devq = bus_path.bus->sim->devq;
+	ccbsim = bus_path.bus->sim;
 	bus_path.bus->sim = &cam_dead_sim;
 
 	/* Execute any pending operations now. */
@@ -4504,7 +4507,6 @@ xpt_bus_deregister(path_id_t pathid)
 				devq->active_dev = device;
 				cam_ccbq_remove_ccb(&device->ccbq, work_ccb);
 				cam_ccbq_send_ccb(&device->ccbq, work_ccb);
-				ccbsim = work_ccb->ccb_h.path->bus->sim;
 				(*(ccbsim->sim_action))(ccbsim, work_ccb);
 			}
 
@@ -4516,8 +4518,8 @@ xpt_bus_deregister(path_id_t pathid)
 	}
 
 	/* Make sure all completed CCBs are processed. */
-	while (!TAILQ_EMPTY(&cam_bioq)) {
-		camisr(&cam_bioq);
+	while (!TAILQ_EMPTY(&ccbsim->sim_doneq)) {
+		camisr_runqueue(&ccbsim->sim_doneq);
 
 		/* Repeat the async's for the benefit of any new devices. */
 		xpt_async(AC_LOST_DEVICE, &bus_path, NULL);
@@ -4527,10 +4529,6 @@ xpt_bus_deregister(path_id_t pathid)
 	/* Release the reference count held while registered. */
 	xpt_release_bus(bus_path.bus);
 	xpt_release_path(&bus_path);
-
-	/* Recheck for more completed CCBs. */
-	while (!TAILQ_EMPTY(&cam_bioq))
-		camisr(&cam_bioq);
 
 	return (CAM_REQ_CMP);
 }
@@ -4949,6 +4947,7 @@ xpt_release_simq_timeout(void *arg)
 void
 xpt_done(union ccb *done_ccb)
 {
+	struct cam_sim *sim;
 	int s;
 
 	s = splcam();
@@ -4959,13 +4958,19 @@ xpt_done(union ccb *done_ccb)
 		 * Queue up the request for handling by our SWI handler
 		 * any of the "non-immediate" type of ccbs.
 		 */
+		sim = done_ccb->ccb_h.path->bus->sim;
 		switch (done_ccb->ccb_h.path->periph->type) {
 		case CAM_PERIPH_BIO:
-			mtx_lock(&cam_bioq_lock);
-			TAILQ_INSERT_TAIL(&cam_bioq, &done_ccb->ccb_h,
+			TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
 					  sim_links.tqe);
 			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-			mtx_unlock(&cam_bioq_lock);
+			if ((sim->flags & CAM_SIM_ON_DONEQ) == 0) {
+				mtx_lock(&cam_simq_lock);
+				TAILQ_INSERT_TAIL(&cam_simq, sim,
+						  links);
+				sim->flags |= CAM_SIM_ON_DONEQ;
+				mtx_unlock(&cam_simq_lock);
+			}
 			if ((done_ccb->ccb_h.path->periph->flags &
 			    CAM_PERIPH_POLLED) == 0)
 				swi_sched(cambio_ih, 0);
@@ -7231,31 +7236,36 @@ xpt_unlock_buses(void)
 }
 
 static void
-camisr(void *V_queue)
+camisr(void *dummy)
 {
-	cam_isrq_t *oqueue = V_queue;
-	cam_isrq_t queue;
-	int	s;
-	struct	ccb_hdr *ccb_h;
-	struct	cam_sim	*sim;
+	cam_simq_t queue;
+	struct cam_sim *sim;
 
-	/*
-	 * Transfer the ccb_bioq list to a temporary list so we can operate
-	 * on it without needing to lock/unlock on every loop.  The concat
-	 * function with re-init the real list for us.
-	 */
-	s = splcam();
-	mtx_lock(&cam_bioq_lock);
+	mtx_lock(&cam_simq_lock);
 	TAILQ_INIT(&queue);
-	TAILQ_CONCAT(&queue, oqueue, sim_links.tqe);
-	mtx_unlock(&cam_bioq_lock);
+	TAILQ_CONCAT(&queue, &cam_simq, links);
+	mtx_unlock(&cam_simq_lock);
 
-	while ((ccb_h = TAILQ_FIRST(&queue)) != NULL) {
+	while ((sim = TAILQ_FIRST(&queue)) != NULL) {
+		TAILQ_REMOVE(&queue, sim, links);
+		mtx_lock(sim->mtx);
+		sim->flags &= ~CAM_SIM_ON_DONEQ;
+		camisr_runqueue(&sim->sim_doneq);
+		mtx_unlock(sim->mtx);
+	}
+}
+
+static void
+camisr_runqueue(void *V_queue)
+{
+	cam_isrq_t *queue = V_queue;
+	struct	ccb_hdr *ccb_h;
+
+	while ((ccb_h = TAILQ_FIRST(queue)) != NULL) {
 		int	runq;
 
-		TAILQ_REMOVE(&queue, ccb_h, sim_links.tqe);
+		TAILQ_REMOVE(queue, ccb_h, sim_links.tqe);
 		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
-		splx(s);
 
 		CAM_DEBUG(ccb_h->path, CAM_DEBUG_TRACE,
 			  ("camisr\n"));
@@ -7290,22 +7300,17 @@ camisr(void *V_queue)
 				mtx_unlock(&xsoftc.xpt_lock);
 		}
 
-		sim = ccb_h->path->bus->sim;
-		mtx_lock(sim->mtx);
-
 		if ((ccb_h->func_code & XPT_FC_USER_CCB) == 0) {
 			struct cam_ed *dev;
 
 			dev = ccb_h->path->device;
 
-			s = splcam();
 			cam_ccbq_ccb_done(&dev->ccbq, (union ccb *)ccb_h);
 
 			if (!SIM_DEAD(ccb_h->path->bus->sim)) {
 				ccb_h->path->bus->sim->devq->send_active--;
 				ccb_h->path->bus->sim->devq->send_openings++;
 			}
-			splx(s);
 			
 			if (((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0
 			  && (ccb_h->status&CAM_STATUS_MASK) != CAM_REQUEUE_REQ)
@@ -7346,12 +7351,7 @@ camisr(void *V_queue)
 
 		/* Call the peripheral driver's callback */
 		(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
-
-		/* Raise IPL for while test */
-		mtx_unlock(sim->mtx);
-		s = splcam();
 	}
-	splx(s);
 }
 
 static void
