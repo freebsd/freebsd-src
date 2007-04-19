@@ -4444,7 +4444,8 @@ ahc_init_scbdata(struct ahc_softc *ahc)
 	/* Perform initial CCB allocation */
 	memset(scb_data->hscbs, 0,
 	       AHC_SCB_MAX_ALLOC * sizeof(struct hardware_scb));
-	ahc_alloc_scbs(ahc);
+	while (ahc_alloc_scbs(ahc) != 0)
+		;
 
 	if (scb_data->numscbs == 0) {
 		printf("%s: ahc_init_scbdata - "
@@ -4522,7 +4523,7 @@ ahc_fini_scbdata(struct ahc_softc *ahc)
 		free(scb_data->scbarray, M_DEVBUF);
 }
 
-void
+int
 ahc_alloc_scbs(struct ahc_softc *ahc)
 {
 	struct scb_data *scb_data;
@@ -4536,21 +4537,21 @@ ahc_alloc_scbs(struct ahc_softc *ahc)
 	scb_data = ahc->scb_data;
 	if (scb_data->numscbs >= AHC_SCB_MAX_ALLOC)
 		/* Can't allocate any more */
-		return;
+		return (0);
 
 	next_scb = &scb_data->scbarray[scb_data->numscbs];
 
 	sg_map = malloc(sizeof(*sg_map), M_DEVBUF, M_NOWAIT);
 
 	if (sg_map == NULL)
-		return;
+		return (0);
 
 	/* Allocate S/G space for the next batch of SCBS */
 	if (aic_dmamem_alloc(ahc, scb_data->sg_dmat,
 			     (void **)&sg_map->sg_vaddr,
 			     BUS_DMA_NOWAIT, &sg_map->sg_dmamap) != 0) {
 		free(sg_map, M_DEVBUF);
-		return;
+		return (0);
 	}
 
 	SLIST_INSERT_HEAD(&scb_data->sg_maps, sg_map, links);
@@ -4599,6 +4600,7 @@ ahc_alloc_scbs(struct ahc_softc *ahc)
 		next_scb++;
 		ahc->scb_data->numscbs++;
 	}
+	return (i);
 }
 
 void
