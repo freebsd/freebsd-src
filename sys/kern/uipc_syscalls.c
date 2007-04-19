@@ -2016,12 +2016,12 @@ retry_space:
 			 */
 			pgoff = (vm_offset_t)(off & PAGE_MASK);
 			xfsize = omin(PAGE_SIZE - pgoff,
-			    obj->un_pager.vnp.vnp_size - off -
+			    obj->un_pager.vnp.vnp_size - uap->offset -
 			    sbytes - loopbytes);
 			if (uap->nbytes)
 				rem = (uap->nbytes - sbytes - loopbytes);
 			else
-				rem = obj->un_pager.vnp.vnp_size - off -
+				rem = obj->un_pager.vnp.vnp_size - uap->offset -
 				    sbytes - loopbytes;
 			xfsize = omin(rem, xfsize);
 			if (xfsize <= 0) {
