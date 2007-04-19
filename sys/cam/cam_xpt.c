@@ -4988,7 +4988,7 @@ xpt_alloc_ccb()
 {
 	union ccb *new_ccb;
 
-	new_ccb = malloc(sizeof(*new_ccb), M_CAMXPT, M_WAITOK);
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMXPT, M_ZERO|M_WAITOK);
 	return (new_ccb);
 }
 
@@ -4997,7 +4997,7 @@ xpt_alloc_ccb_nowait()
 {
 	union ccb *new_ccb;
 
-	new_ccb = malloc(sizeof(*new_ccb), M_CAMXPT, M_NOWAIT);
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMXPT, M_ZERO|M_NOWAIT);
 	return (new_ccb);
 }
 
