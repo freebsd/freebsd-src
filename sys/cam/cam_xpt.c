@@ -1428,7 +1428,7 @@ xpt_scanner_thread(void *dummy)
 			TAILQ_REMOVE(&queue, &ccb->ccb_h, sim_links.tqe);
 
 			sim = ccb->ccb_h.path->bus->sim;
-			mtx_lock(sim->mtx);
+			CAM_SIM_LOCK(sim);
 
 			ccb->ccb_h.func_code = XPT_SCAN_BUS;
 			ccb->ccb_h.cbfcnp = xptdone;
@@ -1436,7 +1436,7 @@ xpt_scanner_thread(void *dummy)
 			cam_periph_runccb(ccb, NULL, 0, 0, NULL);
 			xpt_free_path(ccb->ccb_h.path);
 			xpt_free_ccb(ccb);
-			mtx_unlock(sim->mtx);
+			CAM_SIM_UNLOCK(sim);
 		}
 	}
 }
@@ -2661,9 +2661,9 @@ xptbustraverse(struct cam_eb *start_bus, xpt_busfunc_t *tr_func, void *arg)
 		next_bus = TAILQ_NEXT(bus, links);
 
 		mtx_unlock(&xsoftc.xpt_topo_lock);
-		mtx_lock(bus->sim->mtx);
+		CAM_SIM_LOCK(bus->sim);
 		retval = tr_func(bus, arg);
-		mtx_unlock(bus->sim->mtx);
+		CAM_SIM_UNLOCK(bus->sim);
 		if (retval == 0)
 			return(retval);
 		mtx_lock(&xsoftc.xpt_topo_lock);
@@ -4068,12 +4068,12 @@ xpt_create_path_unlocked(struct cam_path **new_path_ptr,
 		bus = xpt_find_bus(path_id);
 		if (bus != NULL) {
 			need_unlock = 1;
-			mtx_lock(bus->sim->mtx);
+			CAM_SIM_LOCK(bus->sim);
 		}
 	}
 	status = xpt_compile_path(path, periph, path_id, target_id, lun_id);
 	if (need_unlock)
-		mtx_unlock(bus->sim->mtx);
+		CAM_SIM_UNLOCK(bus->sim);
 	if (status != CAM_REQ_CMP) {
 		free(path, M_CAMXPT);
 		path = NULL;
@@ -7248,10 +7248,10 @@ camisr(void *dummy)
 
 	while ((sim = TAILQ_FIRST(&queue)) != NULL) {
 		TAILQ_REMOVE(&queue, sim, links);
-		mtx_lock(sim->mtx);
+		CAM_SIM_LOCK(sim);
 		sim->flags &= ~CAM_SIM_ON_DONEQ;
 		camisr_runqueue(&sim->sim_doneq);
-		mtx_unlock(sim->mtx);
+		CAM_SIM_UNLOCK(sim);
 	}
 }
 
