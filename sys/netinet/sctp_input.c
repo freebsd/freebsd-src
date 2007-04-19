@@ -545,6 +545,9 @@ sctp_handle_abort(struct sctp_abort_chunk *cp,
 	    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 		SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 	}
+#ifdef SCTP_ASOCLOG_OF_TSNS
+	sctp_print_out_track_log(stcb);
+#endif
 	sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_6);
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_INPUT2) {

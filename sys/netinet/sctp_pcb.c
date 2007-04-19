@@ -2689,6 +2689,10 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	inp->sctp_ep.signature_change.type = SCTP_TIMER_TYPE_NONE;
 	/* Clear the read queue */
 	while ((sq = TAILQ_FIRST(&inp->read_queue)) != NULL) {
+		/* Its only abandoned if it had data left */
+		if (sq->length)
+			SCTP_STAT_INCR(sctps_left_abandon);
+
 		TAILQ_REMOVE(&inp->read_queue, sq, next);
 		sctp_free_remote_addr(sq->whoFrom);
 		if (so)
@@ -3774,19 +3778,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			SCTP_DECR_STRMOQ_COUNT();
 			sp = TAILQ_FIRST(&outs->outqueue);
 		}
-	}
-
-	while ((sp = TAILQ_FIRST(&asoc->free_strmoq)) != NULL) {
-		TAILQ_REMOVE(&asoc->free_strmoq, sp, next);
-		if (sp->data) {
-			sctp_m_freem(sp->data);
-			sp->data = NULL;
-			sp->tail_mbuf = NULL;
-		}
-		/* Free the zone stuff  */
-		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_strmoq, sp);
-		SCTP_DECR_STRMOQ_COUNT();
-		atomic_add_int(&sctppcbinfo.ipi_free_strmoq, -1);
 	}
 
 	while ((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) {
