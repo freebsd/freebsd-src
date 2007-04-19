@@ -35,6 +35,7 @@
 #include <err.h>
 #include <limits.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,6 +80,7 @@ static void
 signal_alarm(int signum)
 {
 
+	(void)signum;
 }
 
 static void
@@ -107,25 +109,25 @@ receive_test(int accept_socket)
 
 	len = read(accept_socket, &th, sizeof(th));
 	if (len < 0)
-		err(-1, "read");
-	if (len < sizeof(th))
-		errx(-1, "read: %d", len);
+		err(1, "read");
+	if ((size_t)len < sizeof(th))
+		errx(1, "read: %zd", len);
 
 	if (test_th(&th, &header_length, &offset, &length) == 0)
-		errx(-1, "test_th: bad");
+		errx(1, "test_th: bad");
 
 	counter = 0;
 	while (1) {
 		len = read(accept_socket, &ch, sizeof(ch));
 		if (len < 0)
-			err(-1, "read");
+			err(1, "read");
 		if (len == 0)
 			break;
 		counter++;
 		/* XXXRW: Validate byte here. */
 	}
 	if (counter != header_length + length)
-		errx(-1, "receive_test: expected (%d, %d) received %d",
+		errx(1, "receive_test: expected (%d, %d) received %d",
 		    header_length, length, counter);
 }
 
@@ -151,7 +153,7 @@ new_test_socket(void)
 
 	connect_socket = socket(PF_INET, SOCK_STREAM, 0);
 	if (connect_socket < 0)
-		err(-1, "socket");
+		err(1, "socket");
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
@@ -160,7 +162,7 @@ new_test_socket(void)
 	sin.sin_port = htons(TEST_PORT);
 
 	if (connect(connect_socket, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "connect");
+		err(1, "connect");
 
 	return (connect_socket);
 }
@@ -190,22 +192,22 @@ send_test(int connect_socket, u_int32_t header_length, u_int32_t offset,
 
 	len = lseek(file_fd, 0, SEEK_SET);
 	if (len < 0)
-		err(-1, "lseek");
+		err(1, "lseek");
 	if (len != 0)
-		errx(-1, "lseek: %d", len);
+		errx(1, "lseek: %zd", len);
 
 	init_th(&th, header_length, offset, length);
 
 	len = write(connect_socket, &th, sizeof(th));
 	if (len < 0)
-		err(-1, "send");
+		err(1, "send");
 	if (len != sizeof(th))
-		err(-1, "send: %d", len);
+		err(1, "send: %zd", len);
 
 	if (header_length != 0) {
 		header = malloc(header_length);
 		if (header == NULL)
-			err(-1, "malloc");
+			err(1, "malloc");
 		hdtrp = &hdtr;
 		bzero(&headers, sizeof(headers));
 		headers.iov_base = header;
@@ -222,19 +224,19 @@ send_test(int connect_socket, u_int32_t header_length, u_int32_t offset,
 
 	if (sendfile(file_fd, connect_socket, offset, length, hdtrp, &off,
 	    0) < 0)
-		err(-1, "sendfile");
+		err(1, "sendfile");
 
 	if (length == 0) {
 		struct stat sb;
 
 		if (fstat(file_fd, &sb) < 0)
-			err(-1, "fstat");
+			err(1, "fstat");
 		length = sb.st_size;
 	}
 
 	if (off != length) {
-		errx(-1, "sendfile: off(%llu) != length(%llu)", off,
-		    (unsigned long long)length);
+		errx(1, "sendfile: off(%ju) != length(%ju)",
+		    (uintmax_t)off, (uintmax_t)length);
 	}
 
 	if (header != NULL)
@@ -304,7 +306,7 @@ run_parent(void)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	char path[PATH_MAX], *page_buffer;
 	struct sockaddr_in sin;
@@ -314,12 +316,12 @@ main(int argc, char *argv[])
 	pagesize = getpagesize();
 	page_buffer = malloc(TEST_PAGES * pagesize);
 	if (page_buffer == NULL)
-		err(-1, "malloc");
+		err(1, "malloc");
 	bzero(page_buffer, TEST_PAGES * pagesize);
 
 	listen_socket = socket(PF_INET, SOCK_STREAM, 0);
 	if (listen_socket < 0)
-		err(-1, "socket");
+		err(1, "socket");
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
@@ -333,24 +335,24 @@ main(int argc, char *argv[])
 
 	len = write(file_fd, page_buffer, TEST_PAGES * pagesize);
 	if (len < 0)
-		err(-1, "write");
+		err(1, "write");
 
 	len = lseek(file_fd, 0, SEEK_SET);
 	if (len < 0)
-		err(-1, "lseek");
+		err(1, "lseek");
 	if (len != 0)
-		errx(-1, "lseek: %d", len);
+		errx(1, "lseek: %zd", len);
 
 	if (bind(listen_socket, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "bind");
+		err(1, "bind");
 
 	if (listen(listen_socket, -1) < 0)
-		err(-1, "listen");
+		err(1, "listen");
 
 	parent_pid = getpid();
 	child_pid = fork();
 	if (child_pid < 0)
-		err(-1, "fork");
+		err(1, "fork");
 	if (child_pid == 0) {
 		child_pid = getpid();
 		run_child();
