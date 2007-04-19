@@ -1222,8 +1222,12 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    ural_txeof);
 
 	error = usbd_transfer(data->xfer);
-	if (error != USBD_NORMAL_COMPLETION && error != USBD_IN_PROGRESS)
+	if (error != USBD_NORMAL_COMPLETION && error != USBD_IN_PROGRESS) {
+		m_freem(m0);
+		data->m = NULL;
+		data->ni = NULL;
 		return error;
+	}
 
 	sc->tx_queued++;
 
@@ -1246,8 +1250,10 @@ ural_tx_raw(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 
 	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
 	/* XXX validate */
-	if (rate == 0)
+	if (rate == 0) {
+		m_freem(m0);
 		return EINVAL;
+	}
 
 	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct ural_tx_radiotap_header *tap = &sc->sc_txtap;
@@ -1379,8 +1385,12 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    ural_txeof);
 
 	error = usbd_transfer(data->xfer);
-	if (error != USBD_NORMAL_COMPLETION && error != USBD_IN_PROGRESS)
+	if (error != USBD_NORMAL_COMPLETION && error != USBD_IN_PROGRESS) {
+		m_freem(m0);
+		data->m = NULL;
+		data->ni = NULL;
 		return error;
+	}
 
 	sc->tx_queued++;
 
@@ -1411,9 +1421,10 @@ ural_start(struct ifnet *ifp)
 			if (bpf_peers_present(ic->ic_rawbpf))
 				bpf_mtap(ic->ic_rawbpf, m0);
 
-			if (ural_tx_mgt(sc, m0, ni) != 0)
+			if (ural_tx_mgt(sc, m0, ni) != 0) {
+				ieee80211_free_node(ni);
 				break;
-
+			}
 		} else {
 			if (ic->ic_state != IEEE80211_S_RUN)
 				break;
@@ -2310,10 +2321,15 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ural_softc *sc = ifp->if_softc;
 
 	/* prevent management frames from being sent if we're not ready */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		m_freem(m);
+		ieee80211_free_node(ni);
 		return ENETDOWN;
+	}
 	if (sc->tx_queued >= RAL_TX_LIST_COUNT) {
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		m_freem(m);
+		ieee80211_free_node(ni);
 		return EIO;
 	}
 

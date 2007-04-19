@@ -5838,6 +5838,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ath_buf *bf;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid) {
+		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENETDOWN;
 	}
@@ -5854,6 +5855,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 			__func__);
 		sc->sc_stats.ast_tx_qstop++;
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENOBUFS;
 	}
