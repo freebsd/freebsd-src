@@ -197,6 +197,18 @@ Build name (used to construct the working directory names).
 Path to the source tree used to build the image.
 .It Va NANO_KERNEL
 Name of the kernel configuration file used to build the kernel.
+.It Va NANO_BOOT0CFG
+Controls the options passed to
+.Xr boot0cfg 8
+; these dictate boot0's behaviour.
+.It Va NANO_BOOTLOADER
+The boot0 loader to use relative to the ${NANO_WORLDDIR} variable.
+This defaults to
+.Pa boot/boot0sio
+and should be overridden to
+.Pa boot/boot0
+to provide a VGA
+console.
 .It Va CONF_BUILD
 Options passed to the
 .Cm buildworld
@@ -293,6 +305,8 @@ customize_cmd cust_etc_size
 .Ed
 .Sh SEE ALSO
 .Xr make.conf 5 ,
+.Xr boot 8 ,
+.Xr boot0cfg 8 ,
 .Xr picobsd 8
 .Sh HISTORY
 The
