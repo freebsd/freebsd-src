@@ -1859,8 +1859,7 @@ sched_add(struct thread *td, int flags)
 			CTR2(KTR_ULE, "ithd %d < %d",
 			    td->td_priority, PRI_MAX_ITHD);
 			ts->ts_cpu = cpuid;
-		}
-		if (pick_pri)
+		} else if (pick_pri)
 			ts->ts_cpu = tdq_pickpri(tdq, ts, flags);
 		else
 			ts->ts_cpu = tdq_pickidle(tdq, ts);
