@@ -832,22 +832,22 @@ findpcb:
 				tcp_dooptions(&to, optp, optlen, 0);
 				if (!syncache_expand(&inc, &to, th, &so, m)) {
 					/*
-					 * No syncache entry, or ACK was not
+					 * No syncache entry or ACK was not
 					 * for our SYN/ACK.  Send a RST.
 					 */
-					tcpstat.tcps_badsyn++;
 					rstreason = BANDLIM_RST_OPENPORT;
 					goto dropwithreset;
 				}
 				if (so == NULL) {
 					/*
-					 * Could not complete 3-way handshake,
-					 * connection is being closed down, and
-					 * syncache has free'd mbuf.
+					 * We completed the 3-way handshake
+					 * but could not allocate a socket
+					 * either due to memory shortage,
+					 * listen queue length limits or
+					 * global socket limits.
 					 */
-					INP_UNLOCK(inp);
-					INP_INFO_WUNLOCK(&tcbinfo);
-					return;
+					rstreason = BANDLIM_UNLIMITED;
+					goto dropwithreset;
 				}
 				/*
 				 * Socket is created in state SYN_RECEIVED.
