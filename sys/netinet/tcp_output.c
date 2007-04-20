@@ -1319,7 +1319,7 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 				optlen += TCPOLEN_NOP;
 				*optp++ = TCPOPT_NOP;
 			}
-			if (MAX_TCPOPTLEN - optlen < TCPOLEN_SIGNATURE)
+			if (TCP_MAXOLEN - optlen < TCPOLEN_SIGNATURE)
 				continue;
 			optlen += TCPOLEN_SIGNATURE;
 			*optp++ = TCPOPT_SIGNATURE;
@@ -1339,12 +1339,12 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 				optlen += TCPOLEN_NOP;
 				*optp++ = TCPOPT_NOP;
 			}
-			if (MAX_TCPOPTLEN - optlen < 2 + TCPOLEN_SACK)
+			if (TCP_MAXOLEN - optlen < 2 + TCPOLEN_SACK)
 				continue;
 			optlen += TCPOLEN_SACKHDR;
 			*optp++ = TCPOPT_SACK;
 			sackblks = min(to->to_nsacks,
-					(MAX_TCPOPTLEN - optlen) / TCPOLEN_SACK);
+					(TCP_MAXOLEN - optlen) / TCPOLEN_SACK);
 			*optp++ = TCPOLEN_SACKHDR + sackblks * TCPOLEN_SACK;
 			while (sackblks--) {
 				sack_seq = htonl(sack->start);
@@ -1375,6 +1375,6 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 		*optp++ = TCPOPT_NOP;
 	}
 
-	KASSERT(optlen <= MAX_TCPOPTLEN, ("%s: TCP options too long", __func__));
+	KASSERT(optlen <= TCP_MAXOLEN, ("%s: TCP options too long", __func__));
 	return (optlen);
 }
