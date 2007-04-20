@@ -1108,7 +1108,7 @@ syncache_respond(struct syncache *sc)
 		mssopt = max( min(sc->sc_peer_mss, mssopt), tcp_minmss);
 
 	/* XXX: Assume that the entire packet will fit in a header mbuf. */
-	KASSERT(max_linkhdr + tlen + MAX_TCPOPTLEN <= MHLEN,
+	KASSERT(max_linkhdr + tlen + TCP_MAXOLEN <= MHLEN,
 	    ("syncache: mbuf too small"));
 
 	/* Create the IP+TCP header from scratch. */
