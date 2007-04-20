@@ -348,7 +348,8 @@ mb_free_vec(struct mbuf *m)
 		int type = mbuf_vec_get_type(mv, i);
 		void *cl = mv->mv_vec[i].mi_base;
 
-		if (refcnt && *refcnt != 1 && atomic_fetchadd_int(refcnt, -1) != 1)
+		if ((type != EXT_MBUF) && *refcnt != 1 &&
+		    atomic_fetchadd_int(refcnt, -1) != 1)
 			continue;
 
 		DPRINTF("freeing idx=%d refcnt=%p type=%d cl=%p\n", i, refcnt, type, cl);
