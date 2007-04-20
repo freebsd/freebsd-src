@@ -74,6 +74,7 @@
 
 #include <sys/rman.h>
 
+#include "ofw_bus_if.h"
 #include "pic_if.h"
 
 /*
@@ -124,6 +125,11 @@ static int	nexus_deactivate_resource(device_t, device_t, int, int,
 static int	nexus_release_resource(device_t, device_t, int, int,
 		    struct resource *);
 
+static phandle_t	 nexus_ofw_get_node(device_t, device_t);
+static const char	*nexus_ofw_get_name(device_t, device_t);
+static const char	*nexus_ofw_get_type(device_t, device_t);
+static const char	*nexus_ofw_get_compat(device_t, device_t);
+
 /*
  * Local routines
  */
@@ -150,6 +156,12 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
+
+	/* OFW bus interface */
+	DEVMETHOD(ofw_bus_get_node, nexus_ofw_get_node),
+	DEVMETHOD(ofw_bus_get_name, nexus_ofw_get_name),
+	DEVMETHOD(ofw_bus_get_type, nexus_ofw_get_type),
+	DEVMETHOD(ofw_bus_get_compat, nexus_ofw_get_compat),
 
 	{ 0, 0 }
 };
@@ -415,4 +427,48 @@ nexus_install_intcntlr(device_t dev)
 	sc->sc_pic = dev;
 
 	return (0);
+}
+
+static const char *
+nexus_ofw_get_name(device_t bus, device_t dev)
+{
+	struct nexus_devinfo *dinfo;
+
+	if ((dinfo = device_get_ivars(dev)) == NULL)
+		return (NULL);
+	
+	return (dinfo->ndi_name);
+}
+
+static phandle_t
+nexus_ofw_get_node(device_t bus, device_t dev)
+{
+	struct nexus_devinfo *dinfo;
+
+	if ((dinfo = device_get_ivars(dev)) == NULL)
+		return (0);
+	
+	return (dinfo->ndi_node);
+}
+
+static const char *
+nexus_ofw_get_type(device_t bus, device_t dev)
+{
+	struct nexus_devinfo *dinfo;
+
+	if ((dinfo = device_get_ivars(dev)) == NULL)
+		return (NULL);
+	
+	return (dinfo->ndi_device_type);
+}
+
+static const char *
+nexus_ofw_get_compat(device_t bus, device_t dev)
+{
+	struct nexus_devinfo *dinfo;
+
+	if ((dinfo = device_get_ivars(dev)) == NULL)
+		return (NULL);
+	
+	return (dinfo->ndi_compatible);
 }
