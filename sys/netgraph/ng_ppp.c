@@ -177,6 +177,9 @@ MALLOC_DEFINE(M_NETGRAPH_PPP, "netgraph_ppp", "netgraph ppp node");
 /* Fragment queue scanner period */
 #define MP_FRAGTIMER_INTERVAL	(hz/2)
 
+/* Average link overhead. XXX: Should be given by user-level */
+#define MP_AVERAGE_LINK_OVERHEAD	16
+
 /* Keep this equal to ng_ppp_hook_names lower! */
 #define HOOK_INDEX_MAX		13
 
@@ -1289,8 +1292,14 @@ ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 
 		/* bytesInQueue and lastWrite required only for mp_strategy. */
 		if (priv->conf.enableMultilink && !priv->allLinksEqual) {
-		    link->bytesInQueue += len;
-		    getmicrouptime(&link->lastWrite);
+		    /* If queue was empty, then mark this time. */
+		    if (link->bytesInQueue == 0)
+			getmicrouptime(&link->lastWrite);
+		    link->bytesInQueue += len + MP_AVERAGE_LINK_OVERHEAD;
+		    /* Limit max queue length to 50 pkts. BW can be defined
+		       incorrectly and link may not signal overload. */
+		    if (link->bytesInQueue > 50 * 1600)
+			link->bytesInQueue = 50 * 1600;
 		}
 	}
 	return (error);
@@ -2103,13 +2112,17 @@ ng_ppp_mp_strategy(node_p node, int len, int *distrib)
 		/* Compute time delta since last write */
 		diff = now;
 		timevalsub(&diff, &alink->lastWrite);
+		
+		/* alink->bytesInQueue will be changed, mark change time. */
+		alink->lastWrite = now;
+
 		if (now.tv_sec < 0 || diff.tv_sec >= 10) {	/* sanity */
 			alink->bytesInQueue = 0;
 			continue;
 		}
 
 		/* How many bytes could have transmitted since last write? */
-		xmitBytes = (alink->conf.bandwidth * diff.tv_sec)
+		xmitBytes = (alink->conf.bandwidth * 10 * diff.tv_sec)
 		    + (alink->conf.bandwidth * (diff.tv_usec / 1000)) / 100;
 		alink->bytesInQueue -= xmitBytes;
 		if (alink->bytesInQueue < 0)
@@ -2290,13 +2303,16 @@ ng_ppp_update(node_p node, int newConf)
 		for (i = 0; i < NG_PPP_MAX_LINKS; i++) {
 			int hdrBytes;
 
-			hdrBytes = (priv->links[i].conf.enableACFComp ? 0 : 2)
+			if (priv->links[i].conf.bandwidth == 0)
+			    continue;
+			    
+			hdrBytes = MP_AVERAGE_LINK_OVERHEAD
+			    + (priv->links[i].conf.enableACFComp ? 0 : 2)
 			    + (priv->links[i].conf.enableProtoComp ? 1 : 2)
 			    + (priv->conf.xmitShortSeq ? 2 : 4);
 			priv->links[i].latency =
 			    priv->links[i].conf.latency +
-			    ((hdrBytes * priv->links[i].conf.bandwidth) + 50)
-				/ 100;
+			    (hdrBytes / priv->links[i].conf.bandwidth + 50) / 100;
 		}
 	}
 
