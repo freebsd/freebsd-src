@@ -258,7 +258,7 @@ _m_collapse(struct mbuf *m, int maxbufs, struct mbuf **mnew)
 {
 	struct mbuf *m0, *lmvec[MAX_BUFS];
 	struct mbuf **mnext;
-	struct mbuf **vec = &lmvec[0];
+	struct mbuf **vec = lmvec;
 	struct mbuf *mhead = NULL;
 	struct mbuf_vec *mv;
 	int err, i, j, max, len, nhbufs;
@@ -273,9 +273,9 @@ _m_collapse(struct mbuf *m, int maxbufs, struct mbuf **mnew)
 	}
 
 	if ((err = m_vectorize(m, maxbufs, vec, &max)) != 0)
-		return (err);
+		goto out;
 	if ((err = m_findmbufs(vec, max, dvec, MAX_HVEC, &nhbufs)) != 0)
-		return (err);
+		goto out;
 
 	KASSERT(max > 0, ("invalid mbuf count"));
 	KASSERT(nhbufs > 0, ("invalid header mbuf count"));
@@ -322,7 +322,10 @@ _m_collapse(struct mbuf *m, int maxbufs, struct mbuf **mnew)
 		}
 	
 	*mnew = mhead;
-	return (0);
+out:
+	if (vec != lmvec)
+		free(vec, M_DEVBUF);
+	return (err);
 }
 
 void
