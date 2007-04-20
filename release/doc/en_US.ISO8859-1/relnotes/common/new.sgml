@@ -342,7 +342,9 @@
     <title>Contributed Software</title>
 
     <para><application>sendmail</application> has been updated from
-      version 8.13.1 to version 8.14.1.</para>
+      version 8.13.1 to version 8.14.1.  This upgrade includes a new
+      libmilter library which requires all dynamically linked milters
+      to be recompiled.</para>
 
     <para>The timezone database has been updated from the
       <application>tzdata2004g</application> release to the
