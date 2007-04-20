@@ -796,6 +796,9 @@ findpcb:
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct in_conninfo inc;
 
+		KASSERT(tp->t_state == TCPS_LISTEN, ("%s: so accepting but "
+		    "tp not listening", __func__));
+
 		bzero(&inc, sizeof(inc));
 		inc.inc_isipv6 = isipv6;
 #ifdef INET6
@@ -2519,6 +2522,7 @@ dodata:							/* XXX */
 check_delack:
 	KASSERT(headlocked == 0, ("%s: check_delack: head locked",
 	    __func__));
+	INP_INFO_UNLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(tp->t_inpcb);
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
