@@ -1882,27 +1882,35 @@ ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto)
 	if ((m = ng_ppp_addproto(m, proto, 1)) == NULL)
 		return (ENOBUFS);
 
+	/* Clear distribution plan */
+	bzero(&distrib, priv->numActiveLinks * sizeof(distrib[0]));
+
 	/* Round-robin strategy */
-	if (priv->conf.enableRoundRobin ||
-	    (m->m_pkthdr.len < priv->numActiveLinks * MP_MIN_FRAG_LEN)) {
+	if (priv->conf.enableRoundRobin) {
 		activeLinkNum = priv->lastLink++ % priv->numActiveLinks;
-		bzero(&distrib, priv->numActiveLinks * sizeof(distrib[0]));
 		distrib[activeLinkNum] = m->m_pkthdr.len;
 		goto deliver;
 	}
 
 	/* Strategy when all links are equivalent (optimize the common case) */
 	if (priv->allLinksEqual) {
-		const int fraction = m->m_pkthdr.len / priv->numActiveLinks;
-		int i, remain;
+		int	numFrags, fraction, remain;
+		int	i;
+		
+		/* Calculate optimal fragment count */
+		numFrags = priv->numActiveLinks;
+		if (numFrags > m->m_pkthdr.len / MP_MIN_FRAG_LEN)
+		    numFrags = m->m_pkthdr.len / MP_MIN_FRAG_LEN;
+		if (numFrags == 0)
+		    numFrags = 1;
 
-		for (i = 0; i < priv->numActiveLinks; i++)
+		fraction = m->m_pkthdr.len / numFrags;
+		remain = m->m_pkthdr.len - (fraction * numFrags);
+		
+		/* Assign distribution */
+		for (i = 0; i < numFrags; i++) {
 			distrib[priv->lastLink++ % priv->numActiveLinks]
-			    = fraction;
-		remain = m->m_pkthdr.len - (fraction * priv->numActiveLinks);
-		while (remain > 0) {
-			distrib[priv->lastLink++ % priv->numActiveLinks]++;
-			remain--;
+			    = fraction + (((remain--) > 0)?1:0);
 		}
 		goto deliver;
 	}
@@ -2162,7 +2170,6 @@ ng_ppp_mp_strategy(node_p node, int len, int *distrib)
 	t0 = ((len * 100) + topSum + botSum / 2) / botSum;
 
 	/* Compute f_i(t_0) all i */
-	bzero(distrib, priv->numActiveLinks * sizeof(*distrib));
 	for (total = i = 0; i < numFragments; i++) {
 		int bw = priv->links[
 		    priv->activeLinks[sortByLatency[i]]].conf.bandwidth;
