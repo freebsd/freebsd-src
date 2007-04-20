@@ -2038,35 +2038,15 @@ retry_space:
 				VM_OBJECT_UNLOCK(obj);
 				break;
 			}
-retry_lookup:
+
 			/*
 			 * Attempt to look up the page.
 			 * Allocate if not found or
 			 * wait and loop if busy.
 			 */
 			pindex = OFF_TO_IDX(off);
-			pg = vm_page_lookup(obj, pindex);
-			if (pg == NULL) {
-				pg = vm_page_alloc(obj, pindex,
-				    VM_ALLOC_NOBUSY | VM_ALLOC_NORMAL |
-				    VM_ALLOC_WIRED);
-				if (pg == NULL) {
-					VM_OBJECT_UNLOCK(obj);
-					VM_WAIT;
-					VM_OBJECT_LOCK(obj);
-					goto retry_lookup;
-				}
-			} else if (vm_page_sleep_if_busy(pg, TRUE, "sfpbsy"))
-				goto retry_lookup;
-			else {
-				/*
-				 * Wire the page so it does not get
-				 * ripped out from under us.
-				 */
-				vm_page_lock_queues();
-				vm_page_wire(pg);
-				vm_page_unlock_queues();
-			}
+			pg = vm_page_grab(obj, pindex, VM_ALLOC_NOBUSY |
+			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_RETRY);
 
 			/*
 			 * Check if page is valid for what we need,
