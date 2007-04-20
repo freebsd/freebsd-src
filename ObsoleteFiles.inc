@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070421: worm.4 removed
+OLD_FILES+=usr/share/man/man4/worm.4.gz
 # 20070417: trunk(4) renamed to lagg(4)
 OLD_FILES+=usr/include/net/if_trunk.h
 # 20070409: uuidgen moved to /bin/
