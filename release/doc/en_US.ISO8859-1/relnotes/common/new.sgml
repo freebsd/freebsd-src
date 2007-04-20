@@ -262,7 +262,8 @@
       included in OpenBSD 3.9.</para>
 
     <para><application>sendmail</application> has been updated from
-      8.13.6 to 8.14.1.</para>
+      8.13.6 to 8.14.1.  This upgrade includes a new libmilter library
+      which requires all dynamically linked milters to be recompiled.</para>
 
     <para>The timezone database has been updated from the
       <application>tzdata2006g</application> release to the
