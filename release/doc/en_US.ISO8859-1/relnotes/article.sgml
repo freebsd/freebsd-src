@@ -499,6 +499,9 @@
       <para>[&arch.pc98;] A bootable CDROM loader has been implemented
 	for the pc98 platform. &merged;</para>
 
+      <para>[&arch.pc98;] The <application>IPLware</application> support
+	in boot0.5 has been enhanced to support version 3.33.</para>
+
       <para>[&arch.i386;] A bug in the i386 boot loader, which could
 	cause file system corruption if
 	a <filename>nextboot.conf</filename> file was used and landed
@@ -978,6 +981,10 @@ pipe tablearg ip from table(1) to any</programlisting>
         IPv6 support, it should be used instead.  Please note that some rules might need
         to be adjusted.</para>
 
+      <para>The &man.lagg.4; driver, ported from OpenBSD and NetBSD,
+	has been added to support a variety of protocols and algorithms
+	for link aggregation, failover, and fault tolerance.</para>
+
       <para>The &man.natm.4;, Native Mode ATM protocol layer is now MPSAFE.</para>
 
       <para>A new &man.ng.deflate.4; Netgraph node type has been
@@ -1103,10 +1110,6 @@ pipe tablearg ip from table(1) to any</programlisting>
 	devices will marked <literal>up</literal> upon creation.  &merged;
 	</para>
 
-      <para>The &man.lagg.4; driver, ported from OpenBSD and NetBSD,
-	has been added to support a variety of protocols and algorithms
-	for link aggregation, failover, and fault tolerance.</para>
-
       <para>Support for &man.kqueue.2; operations has been added to
 	the &man.tun.4; driver. &merged;</para>
 
@@ -1133,6 +1136,10 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>The &man.arcmsr.4; driver has been updated to version
 	1.20.00.13. &merged;</para>
 
+      <para>The &man.ahc.4; driver is now MPSAFE.</para>
+
+      <para>The &man.ahd.4; driver is now MPSAFE.</para>
+
       <para>The &man.ata.4; driver now supports a workaround
 	for some controllers whose DMA does not work properly
 	in 48bit mode.  For affected controllers,
@@ -1157,6 +1164,8 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The &man.ataraid.4; driver now supports
 	JMicron ATA RAID metadata.  &merged;</para>
+
+      <para>The CAM subsystem is now MPSAFE.</para>
 
       <para>The <literal>GEOM_LABEL</literal> class now supports
 	Ext2FS, NTFS, and ReiserFS.  &merged;</para>
@@ -1295,8 +1304,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <para>A part of the FreeBSD NFS subsystem (the interface with
 	the protocol stack and callouts, the NFS client side) is now MPSAFE.</para>
 
-      <para>Initial (read-only) support for SGI's XFS file system has been
-	added.</para>
+      <para>The &man.pseudofs.9; pseudo file system construction kit and
+	all of its consumers (&man.procfs.5;, &man.linprocfs.5; and
+	&man.linsysfs.5;), are now MPSAFE.</para>
 
       <para>The unionfs file system has been re-implemented.  This
 	version solves many crashing and locking issues compared to
@@ -1312,6 +1322,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	on the <ulink url="http://www.opensolaris.org/os/community/zfs/">
 	  OpenSolaris ZFS page</ulink>.</para>
 
+      <para>Initial (read-only) support for SGI's XFS file system has been
+	added.</para>
     </sect3>
   </sect2>
 
@@ -1424,6 +1436,12 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <filename>/var/run/ftpd.pid</filename> even when
       no <option>-p</option> option is specified.  &merged;</para>
 
+    <para>The &man.ftpd.8; utility now has support for RFC2389 (FEAT)
+      and rudimentary support for RFC2640 (UTF8).  The RFC2640 support
+      is optional and can be enabled using the new <option>-8</option>
+      flag.  More information can be found in the &man.ftpd.8; manual
+      page.</para>
+
     <para>The &man.gbde.8; utility now supports
       <option>-k</option> and <option>-K</option> options
       to specify a key file in addition to a passphrase.</para>
@@ -1519,6 +1537,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       option to open kmem-based targets in read-write mode.
       This allows one to use kgdb on <filename>/dev/mem</filename>
       and be able to patch memory on a live system.</para>
+
+    <para>The &man.lastcomm.1; utility now supports a <option>-X</option>
+      flag to export accounting data in a text format.</para>
 
     <para>The &man.libarchive.3; library now supports
       POSIX.1e-style Extended Attributes.</para>
@@ -1992,7 +2013,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       0.9.7e to 0.9.8e.</para>
 
     <para><application>ncurses</application> has been updated from
-      5.2-20010512 to 5.6-20061217.  ncurses now also has wide
+      5.2-20020615 to 5.6-20061217.  ncurses now also has wide
       character support.  &merged;</para>
 
     <para><application>hostapd</application>
@@ -2015,12 +2036,12 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       snapshot from OpenBSD as of 20060831.</para>
 
     <para>TrustedBSD <application>OpenBSM</application>,
-      version 1.0 alpha 12, an implementation of the documented Sun Basic
+      version 1.0 alpha 14, an implementation of the documented Sun Basic
       Security Module (BSM) Audit API and file format, as well as local
       extensions to support the Mac OS X and &os; operating systems
       has been added.  This also includes command line tools for audit
-      trail reduction and conversion to text, as well as documentation
-      of the commands, file format, and APIs.
+      trail reduction and conversion to text and XML, as well as
+      documentation of the commands, file format, and APIs.
       For this functionality, the <literal>AUDIT</literal> kernel option,
       <filename>/var/audit</filename> directory, and
       <literal>audit</literal> group have been added. &merged;</para>
