@@ -302,6 +302,12 @@ run_parent(void)
 
 	sleep(1);
 
+	connect_socket = new_test_socket();
+	send_test(connect_socket, 0, TEST_PAGES * getpagesize(), 0);
+	close(connect_socket);
+
+	sleep(1);
+
 	(void)kill(child_pid, SIGKILL);
 }
 
