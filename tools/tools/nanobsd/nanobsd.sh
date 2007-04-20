@@ -103,6 +103,10 @@ NANO_RAM_TMPVARSIZE=10240
 NANO_SECTS=32
 NANO_HEADS=16
 
+# boot0 flags/options and configuration
+NANO_BOOT0CFG="-o packet -s 1 -m 3"
+NANO_BOOTLOADER="boot/boot0sio"
+
 #######################################################################
 # Not a variable at this time
 
@@ -364,7 +368,7 @@ create_i386_diskimage ( ) (
 	fdisk ${MD}
 	# XXX: params
 	# XXX: pick up cached boot* files, they may not be in image anymore.
-	boot0cfg -B -b ${NANO_WORLDDIR}/boot/boot0sio -o packet -s 1 -m 3 ${MD}
+	boot0cfg -B -b ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ${NANO_BOOT0CFG} ${MD}
 	bsdlabel -w -B -b ${NANO_WORLDDIR}/boot/boot ${MD}s1
 	bsdlabel ${MD}s1
 
@@ -573,6 +577,8 @@ export NANO_SECTS
 export NANO_SRC
 export NANO_TOOLS
 export NANO_WORLDDIR
+export NANO_BOOT0CFG
+export NANO_BOOTLOADER
 
 #######################################################################
 # And then it is as simple as that...
