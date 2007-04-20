@@ -4357,7 +4357,7 @@ ipfw_init(void)
 	layer3_chain.busy_count = 0;
 	cv_init(&layer3_chain.cv, "Condition variable for IPFW rw locks");
 	IPFW_LOCK_INIT(&layer3_chain);
-	ipfw_dyn_rule_zone = uma_zcreate("IPFW dynamic rule zone",
+	ipfw_dyn_rule_zone = uma_zcreate("IPFW dynamic rule",
 	    sizeof(ipfw_dyn_rule), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	IPFW_DYN_LOCK_INIT();
