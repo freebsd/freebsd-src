@@ -481,9 +481,7 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 		if ((sd->flags & RX_SW_DESC_MAP_CREATED) == 0) {
 			if ((err = bus_dmamap_create(q->entry_tag, 0, &sd->map))) {
 				log(LOG_WARNING, "bus_dmamap_create failed %d\n", err);
-				/*
-				 * XXX free cluster
-				 */
+				uma_zfree(q->zone, cl);
 				goto done;
 			}
 			sd->flags |= RX_SW_DESC_MAP_CREATED;
