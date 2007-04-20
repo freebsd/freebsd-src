@@ -348,13 +348,11 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 			if (! file->fp)
 				continue;
 			if (Fflag && file->fp && fileno(file->fp) != STDIN_FILENO) {
-				if (stat(file->file_name, &sb2) != 0) {
-					/* file was rotated, skip it until it reappears */
-					continue;
-				}
-				if (sb2.st_ino != file->st.st_ino ||
-				    sb2.st_dev != file->st.st_dev ||
-				    sb2.st_nlink == 0) {
+				if (stat(file->file_name, &sb2) == 0 &&
+				    (sb2.st_ino != file->st.st_ino ||
+				     sb2.st_dev != file->st.st_dev ||
+				     sb2.st_nlink == 0)) {
+					show(file);
 					file->fp = freopen(file->file_name, "r", file->fp);
 					if (file->fp == NULL) {
 						ierr();
