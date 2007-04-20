@@ -1946,6 +1946,7 @@ deliver:
 					NG_FREE_M(m);
 					return (ENOMEM);
 				}
+				m_tag_copy_chain(n, m, M_DONTWAIT);
 				m = n;
 			}
 
