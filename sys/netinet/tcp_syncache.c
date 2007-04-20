@@ -160,7 +160,7 @@ static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
 struct syncache *syncache_lookup(struct in_conninfo *, struct syncache_head **);
-static int	 syncache_respond(struct syncache *, struct mbuf *);
+static int	 syncache_respond(struct syncache *);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
 static void	 syncache_timer(void *);
@@ -403,7 +403,7 @@ syncache_timer(void *xsch)
 			continue;
 		}
 
-		(void) syncache_respond(sc, NULL);
+		(void) syncache_respond(sc);
 		tcpstat.tcps_sc_retransmitted++;
 		SYNCACHE_TIMEOUT(sc, sch, 0);
 	}
@@ -890,10 +890,9 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 
 #ifdef MAC
 	if (mac_init_syncache(&maclabel) != 0) {
-		*lsop = NULL;
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
-		return (1);
+		goto done;
 	} else
 		mac_init_syncache_from_inpcb(maclabel, inp);
 #endif
@@ -943,7 +942,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		KASSERT(sc->sc_label != NULL,
 		    ("%s: label not initialized", __func__));
 #endif
-		if (syncache_respond(sc, m) == 0) {
+		if (syncache_respond(sc) == 0) {
 			SYNCACHE_TIMEOUT(sc, sch, 1);
 			tcpstat.tcps_sndacks++;
 			tcpstat.tcps_sndtotal++;
@@ -1071,36 +1070,34 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	/*
 	 * Do a standard 3-way handshake.
 	 */
-	if (syncache_respond(sc, m) == 0) {
+	if (syncache_respond(sc) == 0) {
 		if (tcp_syncookies && tcp_syncookiesonly && sc != &scs)
 			syncache_free(sc);
 		else if (sc != &scs)
 			syncache_insert(sc, sch);   /* locks and unlocks sch */
-#ifdef MAC
-		else
-			mac_destroy_syncache(&sc->sc_label);
-#endif
 		tcpstat.tcps_sndacks++;
 		tcpstat.tcps_sndtotal++;
 	} else {
 		if (sc != &scs)
 			syncache_free(sc);
-#ifdef MAC
-		else
-			mac_destroy_syncache(&sc->sc_label);
-#endif
 		tcpstat.tcps_sc_dropped++;
 	}
 
 done:
+#ifdef MAC
+	if (sc == &scs)
+		mac_destroy_syncache(&maclabel);
+#endif
 	*lsop = NULL;
+	m_freem(m);
 	return (1);
 }
 
 static int
-syncache_respond(struct syncache *sc, struct mbuf *m)
+syncache_respond(struct syncache *sc)
 {
 	struct ip *ip = NULL;
+	struct mbuf *m;
 	struct tcphdr *th;
 	int optlen, error;
 	u_int16_t hlen, tlen, mssopt;
@@ -1126,9 +1123,6 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 	    ("syncache: mbuf too small"));
 
 	/* Create the IP+TCP header from scratch. */
-	if (m)
-		m_freem(m);
-
 	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
