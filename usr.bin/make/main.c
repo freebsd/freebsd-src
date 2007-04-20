@@ -704,6 +704,7 @@ Remake_Makefiles(void)
 		Boolean saveTouchFlag = touchFlag;
 		Boolean saveQueryFlag = queryFlag;
 		Boolean saveNoExecute = noExecute;
+		int mtime;
 
 		/*
 		 * Create node
@@ -767,6 +768,7 @@ Remake_Makefiles(void)
 		/*
 		 * Check and remake the makefile
 		 */
+		mtime = Dir_MTime(gn);
 		Compat_Make(gn, gn);
 
 		/*
@@ -785,9 +787,18 @@ Remake_Makefiles(void)
 		 *	ABORTED	  gn was not remade because one of its inferiors
 		 *		  could not be made due to errors.
 		 */
-		if (gn->made == MADE)
-			remade_cnt++;
-		else if (gn->made == ERROR)
+		if (gn->made == MADE) {
+			if (mtime != Dir_MTime(gn)) {
+				DEBUGF(MAKE,
+				    ("%s updated (%d -> %d).\n",
+				     gn->name, mtime, gn->mtime));
+				remade_cnt++;
+			} else {
+				DEBUGF(MAKE,
+				    ("%s not updated: skipping restart.\n",
+				     gn->name));
+			}
+		} else if (gn->made == ERROR)
 			error_cnt++;
 		else if (gn->made == ABORTED) {
 			printf("`%s' not remade because of errors.\n",
