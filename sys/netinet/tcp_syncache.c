@@ -832,7 +832,7 @@ failed:
  * consume all available buffer space if it were ACKed.  By not ACKing
  * the data, we avoid this DoS scenario.
  */
-int
+void
 syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
     struct inpcb *inp, struct socket **lsop, struct mbuf *m)
 {
@@ -1079,7 +1079,7 @@ done:
 #endif
 	*lsop = NULL;
 	m_freem(m);
-	return (1);
+	return;
 }
 
 static int
