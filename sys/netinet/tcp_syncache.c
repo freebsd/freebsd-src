@@ -930,8 +930,10 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		/*
 		 * Update timestamp if present.
 		 */
-		if (sc->sc_flags & SCF_TIMESTAMP)
+		if ((sc->sc_flags & SCF_TIMESTAMP) && (to->to_flags & TOF_TS))
 			sc->sc_tsreflect = to->to_tsval;
+		else
+			sc->sc_flags &= ~SCF_TIMESTAMP;
 #ifdef MAC
 		/*
 		 * Since we have already unconditionally allocated label
