@@ -231,7 +231,7 @@ send_test(int connect_socket, u_int32_t header_length, u_int32_t offset,
 
 		if (fstat(file_fd, &sb) < 0)
 			err(1, "fstat");
-		length = sb.st_size;
+		length = sb.st_size - offset;
 	}
 
 	if (off != length) {
