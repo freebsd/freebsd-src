@@ -170,6 +170,7 @@ typedef struct GNode {
 	int	unmade;		/* The number of unmade children */
 	int	mtime;		/* Its modification time */
 	int	cmtime;		/* Modification time of its youngest child */
+	struct GNode *cmtime_gn;/* Youngest child */
 
 	/*
 	 * Links to parents for which this is an implied source, if any. (nodes

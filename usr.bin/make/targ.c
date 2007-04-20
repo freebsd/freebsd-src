@@ -141,6 +141,7 @@ Targ_NewGN(const char *name)
 	gn->childMade = FALSE;
 	gn->order = 0;
 	gn->mtime = gn->cmtime = 0;
+	gn->cmtime_gn = NULL;
 	Lst_Init(&gn->iParents);
 	Lst_Init(&gn->cohorts);
 	Lst_Init(&gn->parents);
