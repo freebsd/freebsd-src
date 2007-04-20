@@ -2716,7 +2716,8 @@ tcp_dooptions(struct tcpopt *to, u_char *cp, int cnt, int flags)
 		case TCPOPT_SIGNATURE:
 			if (optlen != TCPOLEN_SIGNATURE)
 				continue;
-			to->to_flags |= (TOF_SIGNATURE | TOF_SIGLEN);
+			to->to_flags |= TOF_SIGNATURE;
+			to->to_signature = cp + 2;
 			break;
 #endif
 		case TCPOPT_SACK_PERMITTED:
