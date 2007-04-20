@@ -758,7 +758,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
-	struct socket *so;
 	struct syncache scs;
 
 	/*
@@ -803,25 +802,12 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	if (th->th_ack != sc->sc_iss + 1)
 		goto failed;
 
-	so = syncache_socket(sc, *lsop, m);
+	*lsop = syncache_socket(sc, *lsop, m);
 
-	if (so == NULL) {
-#if 0
-resetandabort:
-		/* XXXjlemon check this - is this correct? */
-		(void) tcp_respond(NULL, m, m, th,
-		    th->th_seq + tlen, (tcp_seq)0, TH_RST|TH_ACK);
-#endif
-		m_freem(m);			/* XXX: only needed for above */
+	if (*lsop == NULL)
 		tcpstat.tcps_sc_aborted++;
-		if (sc != &scs) {
-			syncache_insert(sc, sch);  /* try again later */
-			sc = NULL;
-		}
-		goto failed;
-	} else
+	else
 		tcpstat.tcps_sc_completed++;
-	*lsop = so;
 
 	if (sc != &scs)
 		syncache_free(sc);
@@ -829,6 +815,7 @@ resetandabort:
 failed:
 	if (sc != NULL && sc != &scs)
 		syncache_free(sc);
+	*lsop = NULL;
 	return (0);
 }
 
