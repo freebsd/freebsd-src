@@ -966,24 +966,18 @@ findpcb:
 		 * SYN appears to be valid.  Create compressed TCP state
 		 * for syncache.
 		 */
-		if (so->so_qlen <= so->so_qlimit) {
 #ifdef TCPDEBUG
-			if (so->so_options & SO_DEBUG)
-				tcp_trace(TA_INPUT, ostate, tp,
-				    (void *)tcp_saveipgen, &tcp_savetcp, 0);
+		if (so->so_options & SO_DEBUG)
+			tcp_trace(TA_INPUT, ostate, tp,
+			    (void *)tcp_saveipgen, &tcp_savetcp, 0);
 #endif
-			tcp_dooptions(&to, optp, optlen, TO_SYN);
-			if (!syncache_add(&inc, &to, th, inp, &so, m))
-				goto dropunlock;
-			/*
-			 * Entry added to syncache, mbuf used to
-			 * send SYN-ACK packet.  Everything unlocked
-			 * already.
-			 */
-			return;
-		}
-		/* Catch all.  Everthing that makes it down here is junk. */
-		goto dropunlock;
+		tcp_dooptions(&to, optp, optlen, TO_SYN);
+		syncache_add(&inc, &to, th, inp, &so, m);
+		/*
+		 * Entry added to syncache and mbuf consumed.
+		 * Everything unlocked already by syncache_add().
+		 */
+		return;
 	}
 
 	/*
