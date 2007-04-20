@@ -304,6 +304,8 @@ static int	ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto,
 static int	ng_ppp_bypass(node_p node, item_p item, uint16_t proto,
 		    uint16_t linkNum);
 
+static void	ng_ppp_bump_mseq(node_p node, int32_t new_mseq);
+static int	ng_ppp_frag_drop(node_p node);
 static int	ng_ppp_check_packet(node_p node);
 static void	ng_ppp_get_packet(node_p node, struct mbuf **mp);
 static int	ng_ppp_frag_process(node_p node);
@@ -1527,6 +1529,28 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
  ************************************************************************/
 
 /*
+ * If new mseq > current then set it and update all active links
+ */
+static void
+ng_ppp_bump_mseq(node_p node, int32_t new_mseq)
+{
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	int i;
+	
+	if (MP_RECV_SEQ_DIFF(priv, priv->mseq, new_mseq) < 0) {
+		priv->mseq = new_mseq;
+		for (i = 0; i < priv->numActiveLinks; i++) {
+			struct ng_ppp_link *const alink =
+			    &priv->links[priv->activeLinks[i]];
+
+			if (MP_RECV_SEQ_DIFF(priv,
+			    alink->seq, new_mseq) < 0)
+				alink->seq = new_mseq;
+		}
+	}
+}
+
+/*
  * Examine our list of fragments, and determine if there is a
  * complete and deliverable packet at the head of the list.
  * Return 1 if so, zero otherwise.
@@ -1587,8 +1611,11 @@ ng_ppp_get_packet(node_p node, struct mbuf **mp)
 		}
 		while (tail->m_next != NULL)
 			tail = tail->m_next;
-		if (qent->last)
+		if (qent->last) {
 			qnext = NULL;
+			/* Bump MSEQ if necessary */
+			ng_ppp_bump_mseq(node, qent->seq);
+		}
 		FREE(qent, M_NETGRAPH_PPP);
 		priv->qlen--;
 	}
@@ -1647,6 +1674,39 @@ ng_ppp_frag_trim(node_p node)
 }
 
 /*
+ * Drop fragments on queue overflow.
+ * Returns 1 if fragments were removed, zero otherwise.
+ */
+static int
+ng_ppp_frag_drop(node_p node)
+{
+	const priv_p priv = NG_NODE_PRIVATE(node);
+
+	/* Check queue length */
+	if (priv->qlen > MP_MAX_QUEUE_LEN) {
+		struct ng_ppp_frag *qent;
+
+		/* Get oldest fragment */
+		KASSERT(!TAILQ_EMPTY(&priv->frags),
+		    ("%s: empty q", __func__));
+		qent = TAILQ_FIRST(&priv->frags);
+
+		/* Bump MSEQ if necessary */
+		ng_ppp_bump_mseq(node, qent->seq);
+
+		/* Drop it */
+		priv->bundleStats.dropFragments++;
+		TAILQ_REMOVE(&priv->frags, qent, f_qent);
+		NG_FREE_M(qent->data);
+		FREE(qent, M_NETGRAPH_PPP);
+		priv->qlen--;
+
+		return (1);
+	}
+	return (0);
+}
+
+/*
  * Run the queue, restoring the queue invariants
  */
 static int
@@ -1657,23 +1717,8 @@ ng_ppp_frag_process(node_p node)
 	item_p item;
 	uint16_t proto;
 
-	/* Deliver any deliverable packets */
-	while (ng_ppp_check_packet(node)) {
-		ng_ppp_get_packet(node, &m);
-		if ((m = ng_ppp_cutproto(m, &proto)) == NULL)
-			continue;
-		if (!PROT_VALID(proto)) {
-			priv->bundleStats.badProtos++;
-			NG_FREE_M(m);
-			continue;
-		}
-		if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL)
-			ng_ppp_crypt_recv(node, item, proto,
-				NG_PPP_BUNDLE_LINKNUM);
-	}
-
-	/* Delete dead fragments and try again */
-	if (ng_ppp_frag_trim(node)) {
+	do {
+		/* Deliver any deliverable packets */
 		while (ng_ppp_check_packet(node)) {
 			ng_ppp_get_packet(node, &m);
 			if ((m = ng_ppp_cutproto(m, &proto)) == NULL)
@@ -1687,41 +1732,8 @@ ng_ppp_frag_process(node_p node)
 				ng_ppp_crypt_recv(node, item, proto,
 					NG_PPP_BUNDLE_LINKNUM);
 		}
-	}
-
-	/* Check queue length */
-	if (priv->qlen > MP_MAX_QUEUE_LEN) {
-		struct ng_ppp_frag *qent;
-		int i;
-
-		/* Get oldest fragment */
-		KASSERT(!TAILQ_EMPTY(&priv->frags),
-		    ("%s: empty q", __func__));
-		qent = TAILQ_FIRST(&priv->frags);
-
-		/* Bump MSEQ if necessary */
-		if (MP_RECV_SEQ_DIFF(priv, priv->mseq, qent->seq) < 0) {
-			priv->mseq = qent->seq;
-			for (i = 0; i < priv->numActiveLinks; i++) {
-				struct ng_ppp_link *const alink =
-				    &priv->links[priv->activeLinks[i]];
-
-				if (MP_RECV_SEQ_DIFF(priv,
-				    alink->seq, priv->mseq) < 0)
-					alink->seq = priv->mseq;
-			}
-		}
-
-		/* Drop it */
-		priv->bundleStats.dropFragments++;
-		TAILQ_REMOVE(&priv->frags, qent, f_qent);
-		NG_FREE_M(qent->data);
-		FREE(qent, M_NETGRAPH_PPP);
-		priv->qlen--;
-
-		/* Process queue again */
-		return ng_ppp_frag_process(node);
-	}
+	  /* Delete dead fragments and try again */
+	} while (ng_ppp_frag_trim(node) || ng_ppp_frag_drop(node));
 
 	/* Done */
 	return (0);
@@ -1746,7 +1758,7 @@ ng_ppp_frag_checkstale(node_p node)
 	struct ng_ppp_frag *qent, *beg, *end;
 	struct timeval now, age;
 	struct mbuf *m;
-	int i, seq;
+	int seq;
 	item_p item;
 	int endseq;
 	uint16_t proto;
@@ -1801,19 +1813,6 @@ ng_ppp_frag_checkstale(node_p node)
 		/* Extract completed packet */
 		endseq = end->seq;
 		ng_ppp_get_packet(node, &m);
-
-		/* Bump MSEQ if necessary */
-		if (MP_RECV_SEQ_DIFF(priv, priv->mseq, endseq) < 0) {
-			priv->mseq = endseq;
-			for (i = 0; i < priv->numActiveLinks; i++) {
-				struct ng_ppp_link *const alink =
-				    &priv->links[priv->activeLinks[i]];
-
-				if (MP_RECV_SEQ_DIFF(priv,
-				    alink->seq, priv->mseq) < 0)
-					alink->seq = priv->mseq;
-			}
-		}
 
 		if ((m = ng_ppp_cutproto(m, &proto)) == NULL)
 			continue;
