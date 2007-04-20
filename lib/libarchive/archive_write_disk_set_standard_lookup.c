@@ -72,6 +72,7 @@ struct bucket {
 	id_t	 id;
 };
 
+static const size_t cache_size = 127;
 static unsigned int	hash(const char *);
 static gid_t	lookup_gid(void *, const char *uname, gid_t);
 static uid_t	lookup_uid(void *, const char *uname, uid_t);
@@ -99,10 +100,10 @@ static void	cleanup(void *);
 int
 archive_write_disk_set_standard_lookup(struct archive *a)
 {
-	struct bucket *ucache = malloc(sizeof(struct bucket[127]));
-	struct bucket *gcache = malloc(sizeof(struct bucket[127]));
-	memset(ucache, 0, sizeof(struct bucket[127]));
-	memset(gcache, 0, sizeof(struct bucket[127]));
+	struct bucket *ucache = malloc(sizeof(struct bucket[cache_size]));
+	struct bucket *gcache = malloc(sizeof(struct bucket[cache_size]));
+	memset(ucache, 0, sizeof(struct bucket[cache_size]));
+	memset(gcache, 0, sizeof(struct bucket[cache_size]));
 	archive_write_disk_set_group_lookup(a, gcache, lookup_gid, cleanup);
 	archive_write_disk_set_user_lookup(a, ucache, lookup_uid, cleanup);
 	return (ARCHIVE_OK);
@@ -113,10 +114,7 @@ lookup_gid(void *private_data, const char *gname, gid_t gid)
 {
 	int h;
 	struct bucket *b;
-	int cache_size;
 	struct bucket *gcache = (struct bucket *)private_data;
-
-	cache_size = 127;
 
 	/* If no gname, just use the gid provided. */
 	if (gname == NULL || *gname == '\0')
@@ -153,10 +151,7 @@ lookup_uid(void *private_data, const char *uname, uid_t uid)
 {
 	int h;
 	struct bucket *b;
-	int cache_size;
 	struct bucket *ucache = (struct bucket *)private_data;
-
-	cache_size = 127;
 
 	/* If no uname, just use the uid provided. */
 	if (uname == NULL || *uname == '\0')
@@ -191,7 +186,12 @@ lookup_uid(void *private_data, const char *uname, uid_t uid)
 static void
 cleanup(void *private)
 {
-	free(private);
+	size_t i;
+	struct bucket *cache = (struct bucket *)private;
+
+	for (i = 0; i < cache_size; i++)
+		free(cache[i].name);
+	free(cache);
 }
 
 
