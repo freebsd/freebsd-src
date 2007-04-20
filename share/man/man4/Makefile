@@ -404,7 +404,6 @@ MAN=	aac.4 \
 	wlan_tkip.4 \
 	wlan_wep.4 \
 	wlan_xauth.4 \
-	worm.4 \
 	xe.4 \
 	xl.4 \
 	xpt.4 \
