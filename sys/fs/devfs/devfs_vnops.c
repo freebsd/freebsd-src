@@ -425,7 +425,7 @@ devfs_getattr(struct vop_getattr_args *ap)
 
 #define fix(aa)							\
 	do {							\
-		if ((aa).tv_sec == 0) {				\
+		if ((aa).tv_sec <= 3600) {			\
 			(aa).tv_sec = boottime.tv_sec;		\
 			(aa).tv_nsec = boottime.tv_usec * 1000; \
 		}						\
