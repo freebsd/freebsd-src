@@ -101,9 +101,12 @@ int aflag, eflag, nflag;
 int rflags = 0;
 static int rval;		/* Exit status */
 
+static int ispan;		/* Whether inplace editing spans across files */
+
 /*
  * Current file and line number; line numbers restart across compilation
- * units, but span across input files.
+ * units, but span across input files.  The latter is optional if editing
+ * in place.
  */
 const char *fname;		/* File name. */
 const char *outfname;		/* Output file name */
@@ -127,10 +130,14 @@ main(int argc, char *argv[])
 	fflag = 0;
 	inplace = NULL;
 
-	while ((c = getopt(argc, argv, "Eae:f:i:ln")) != -1)
+	while ((c = getopt(argc, argv, "EI:ae:f:i:ln")) != -1)
 		switch (c) {
 		case 'E':
 			rflags = REG_EXTENDED;
+			break;
+		case 'I':
+			inplace = optarg;
+			ispan = 1;	/* span across input files */
 			break;
 		case 'a':
 			aflag = 1;
@@ -149,6 +156,7 @@ main(int argc, char *argv[])
 			break;
 		case 'i':
 			inplace = optarg;
+			ispan = 0;	/* don't span across input files */
 			break;
 		case 'l':
 			if(setlinebuf(stdout) != 0)
@@ -307,7 +315,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 		/* stdin? */
 		if (files->fname == NULL) {
 			if (inplace != NULL)
-				errx(1, "-i may not be used with stdin");
+				errx(1, "-I or -i may not be used with stdin");
 			infile = stdin;
 			fname = "stdin";
 			outfile = stdout;
@@ -380,6 +388,10 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 			fchown(fileno(outfile), sb.st_uid, sb.st_gid);
 			fchmod(fileno(outfile), sb.st_mode & ALLPERMS);
 			outfname = tmpfname;
+			if (!ispan) {
+				linenum = 0;
+				resetranges();
+			}
 		} else {
 			outfile = stdout;
 			outfname = "stdout";
@@ -448,7 +460,7 @@ lastline(void)
 {
 	int ch;
 
-	if (files->next != NULL)
+	if (files->next != NULL && (inplace == NULL || ispan))
 		return (0);
 	if ((ch = getc(infile)) == EOF)
 		return (1);
