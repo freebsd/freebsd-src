@@ -165,10 +165,8 @@ zfs_open(ap)
 	int flag = ap->a_mode;
 
 	/* Keep a count of the synchronous opens in the znode */
-	if (flag & FFSYNC) {
+	if (flag & FFSYNC)
 		atomic_inc_32(&zp->z_sync_cnt);
-		ZFS_LOG(0, "Unexpected code path, report to pjd@FreeBSD.org");
-	}
 
 	vnode_create_vobject(vp, zp->z_phys->zp_size, ap->a_td);
 	return (0);
@@ -188,10 +186,8 @@ zfs_close(ap)
 	int flag = ap->a_fflag;
 
 	/* Decrement the synchronous opens in the znode */
-	if (flag & FFSYNC) {
+	if (flag & FFSYNC)
 		atomic_dec_32(&zp->z_sync_cnt);
-		ZFS_LOG(0, "Unexpected code path, report to pjd@FreeBSD.org");
-	}
 
 	return (0);
 }
@@ -362,6 +358,7 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 	vm_page_t m;
 	struct sf_buf *sf;
 	int64_t start, off;
+	caddr_t va;
 	int len = nbytes;
 	int error = 0;
 
@@ -378,8 +375,6 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 again:
 		if ((m = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
 		    vm_page_is_valid(m, (vm_offset_t)off, bytes)) {
-			caddr_t va;
-
 			if (vm_page_sleep_if_busy(m, FALSE, "zfsmrb"))
 				goto again;
 			vm_page_busy(m);
@@ -392,6 +387,21 @@ again:
 			sched_unpin();
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
+		} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
+			if (vm_page_sleep_if_busy(m, FALSE, "zfsmrb"))
+				goto again;
+			vm_page_busy(m);
+			VM_OBJECT_UNLOCK(obj);
+			sched_pin();
+			sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
+			va = (caddr_t)sf_buf_kva(sf);
+			error = dmu_read(os, zp->z_id, start + off, bytes,
+			    (void *)(va + off));
+			sf_buf_free(sf);
+			sched_unpin();
+			VM_OBJECT_LOCK(obj);
+			vm_page_wakeup(m);
+			uio->uio_resid -= bytes;
 		} else {
 			VM_OBJECT_UNLOCK(obj);
 			error = dmu_read_uio(os, zp->z_id, uio, bytes);
@@ -2461,7 +2471,7 @@ top:
 		if (tvp)
 			vrele(tvp);
 		else {
-			ZFS_LOG(0, "Unexpected code path, report to pjd@FreeBSD.org");
+			ZFS_LOG(0x100, "Unexpected code path, report to pjd@FreeBSD.org");
 			tvp = ZTOV(tzp);
 			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, curthread);
 		}
