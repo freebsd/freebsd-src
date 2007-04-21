@@ -110,6 +110,7 @@ kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2006/09/30"]
 marks [label="Mark Santcroos\nmarks@FreeBSD.org\n2004/03/18"]
+markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2006/06/01"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
 mav [label="Alexander Motin\nmav@FreeBSD.org\n2007/04/12"]
 maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
@@ -211,6 +212,8 @@ dwmalone -> peadar
 
 eivind -> des
 eivind -> rwatson
+
+emax -> markus
 
 gallatin -> ticso
 
