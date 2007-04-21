@@ -206,7 +206,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	mp->mnt_flag |= fsflags & (MNT_UPDATEMASK | MNT_FORCE | MNT_ROOTFS);
 	/*
 	 * Unprivileged user can trigger mounting a snapshot, but we don't want
-	 * him to unmount it, so we switch to privileged credential.
+	 * him to unmount it, so we switch to privileged credentials.
 	 */
 	crfree(mp->mnt_cred);
 	mp->mnt_cred = crdup(kcred);
