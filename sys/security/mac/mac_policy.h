@@ -62,6 +62,7 @@
 #include <sys/acl.h>	/* XXX acl_type_t */
 
 struct acl;
+struct auditinfo;
 struct bpf_d;
 struct cdev;
 struct componentname;
@@ -455,6 +456,9 @@ typedef int	(*mpo_check_proc_debug_t)(struct ucred *cred,
 		    struct proc *proc);
 typedef int	(*mpo_check_proc_sched_t)(struct ucred *cred,
 		    struct proc *proc);
+typedef int	(*mpo_check_proc_setaudit_t)(struct ucred *cred,
+		    struct auditinfo *ai);
+typedef int	(*mpo_check_proc_setauid_t)(struct ucred *cred, uid_t auid);
 typedef int	(*mpo_check_proc_setuid_t)(struct ucred *cred, uid_t uid);
 typedef int	(*mpo_check_proc_seteuid_t)(struct ucred *cred, uid_t euid);
 typedef int	(*mpo_check_proc_setgid_t)(struct ucred *cred, gid_t gid);
@@ -504,6 +508,11 @@ typedef int	(*mpo_check_socket_visible_t)(struct ucred *cred,
 typedef int	(*mpo_check_sysarch_ioperm_t)(struct ucred *cred);
 typedef int	(*mpo_check_system_acct_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vlabel);
+typedef int	(*mpo_check_system_audit_t)(struct ucred *cred, void *record,
+		    int length);
+typedef int	(*mpo_check_system_auditctl_t)(struct ucred *cred,
+		    struct vnode *vp, struct label *vplabel);
+typedef int	(*mpo_check_system_auditon_t)(struct ucred *cred, int cmd);
 typedef int	(*mpo_check_system_nfsd_t)(struct ucred *cred);
 typedef int	(*mpo_check_system_reboot_t)(struct ucred *cred, int howto);
 typedef int	(*mpo_check_system_settime_t)(struct ucred *cred);
@@ -827,6 +836,8 @@ struct mac_policy_ops {
 	mpo_check_posix_sem_wait_t		mpo_check_posix_sem_wait;
 	mpo_check_proc_debug_t			mpo_check_proc_debug;
 	mpo_check_proc_sched_t			mpo_check_proc_sched;
+	mpo_check_proc_setaudit_t		mpo_check_proc_setaudit;
+	mpo_check_proc_setauid_t		mpo_check_proc_setauid;
 	mpo_check_proc_setuid_t			mpo_check_proc_setuid;
 	mpo_check_proc_seteuid_t		mpo_check_proc_seteuid;
 	mpo_check_proc_setgid_t			mpo_check_proc_setgid;
@@ -853,6 +864,9 @@ struct mac_policy_ops {
 	mpo_check_socket_visible_t		mpo_check_socket_visible;
 	mpo_check_sysarch_ioperm_t		mpo_check_sysarch_ioperm;
 	mpo_check_system_acct_t			mpo_check_system_acct;
+	mpo_check_system_audit_t		mpo_check_system_audit;
+	mpo_check_system_auditctl_t		mpo_check_system_auditctl;
+	mpo_check_system_auditon_t		mpo_check_system_auditon;
 	mpo_check_system_nfsd_t			mpo_check_system_nfsd;
 	mpo_check_system_reboot_t		mpo_check_system_reboot;
 	mpo_check_system_settime_t		mpo_check_system_settime;

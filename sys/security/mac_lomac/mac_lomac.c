@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -2046,6 +2046,65 @@ mac_lomac_check_socket_visible(struct ucred *cred, struct socket *socket,
 }
 
 static int
+mac_lomac_check_system_acct(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct mac_lomac *subj, *obj;
+
+	if (!mac_lomac_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(label);
+
+	if (mac_lomac_subject_privileged(subj))
+		return (EPERM);
+
+	if (!mac_lomac_high_single(obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_lomac_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct mac_lomac *subj, *obj;
+
+	if (!mac_lomac_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(label);
+
+	if (mac_lomac_subject_privileged(subj))
+		return (EPERM);
+
+	if (!mac_lomac_high_single(obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_lomac_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct mac_lomac *subj;
+
+	if (!mac_lomac_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+
+	if (mac_lomac_subject_privileged(subj))
+		return (EPERM);
+
+	return (0);
+}
+
+static int
 mac_lomac_check_system_swapon(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
@@ -2700,6 +2759,9 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_check_socket_deliver = mac_lomac_check_socket_deliver,
 	.mpo_check_socket_relabel = mac_lomac_check_socket_relabel,
 	.mpo_check_socket_visible = mac_lomac_check_socket_visible,
+	.mpo_check_system_acct = mac_lomac_check_system_acct,
+	.mpo_check_system_auditctl = mac_lomac_check_system_auditctl,
+	.mpo_check_system_swapoff = mac_lomac_check_system_swapoff,
 	.mpo_check_system_swapon = mac_lomac_check_system_swapon,
 	.mpo_check_system_sysctl = mac_lomac_check_system_sysctl,
 	.mpo_check_vnode_access = mac_lomac_check_vnode_open,
