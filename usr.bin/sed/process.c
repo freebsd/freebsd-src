@@ -317,6 +317,19 @@ applies(struct s_command *cp)
 }
 
 /*
+ * Reset all inrange markers.
+ */
+void
+resetranges(void)
+{
+	struct s_command *cp;
+
+	for (cp = prog; cp; cp = cp->code == '{' ? cp->u.c : cp->next)
+		if (cp->a2)
+			cp->inrange = 0;
+}
+
+/*
  * substitute --
  *	Do substitutions in the pattern space.  Currently, we build a
  *	copy of the new pattern space in the substitute space structure

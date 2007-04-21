@@ -2,7 +2,7 @@
 
 REGRESSION_START($1)
 
-echo '1..16'
+echo '1..20'
 
 REGRESSION_TEST(`G', `sed G < regress.in')
 REGRESSION_TEST(`P', `sed P < regress.in')
@@ -27,6 +27,40 @@ foo
 ''`< regress.in')
 REGRESSION_TEST(`b2a', `sed ''`2,3b
 1,2d''` < regress.in')
+
+`
+inplace_test()
+{
+	expr="$1"
+	rc=0
+	ns=$(jot 5)
+	ins= outs= _ins=
+	for n in $ns; do
+		jot -w "l${n}_%d" 9 | tee lines.in.$n lines._in.$n | \
+		    sed "$expr" > lines.out.$n
+		ins="$ins lines.in.$n"
+		outs="$outs lines.out.$n"
+		_ins="$_ins lines._in.$n"
+	done
+	sed "$expr" $_ins > lines.out
+
+	sed -i "" "$expr" $ins
+	sed -I "" "$expr" $_ins
+
+	for n in $ns; do
+		diff -u lines.out.$n lines.in.$n || rc=1
+	done
+	cat $_ins | diff -u lines.out - || rc=1
+	rm -f $ins $outs $_ins lines.out
+
+	return $rc
+}
+'
+
+REGRESSION_TEST_FREEFORM(`inplace1', `inplace_test 3,6d')
+REGRESSION_TEST_FREEFORM(`inplace2', `inplace_test 8,30d')
+REGRESSION_TEST_FREEFORM(`inplace3', `inplace_test 20,99d')
+REGRESSION_TEST_FREEFORM(`inplace4', `inplace_test "{;{;8,30d;};}"')
 
 REGRESSION_TEST(`hanoi', `echo ":abcd: : :" | sed -f hanoi.sed')
 REGRESSION_TEST(`math', `echo "4+7*3+2^7/3" | sed -f math.sed')
