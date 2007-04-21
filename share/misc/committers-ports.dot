@@ -112,6 +112,7 @@ trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
 tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
+xride [label="Soeren Straarup\nxride@FreeBSD.org\n2006/09/27"]
 
 # Here are the mentor/mentee relationships.
 # Group together all the mentees for a particular mentor.
@@ -161,6 +162,7 @@ garga -> acm
 garga -> alepulver
 garga -> mm
 garga -> vd
+garga -> xride
 
 ijliao -> leeym
 
@@ -220,5 +222,6 @@ sem -> stas
 steve -> netchild
 
 tmclaugh -> itetcu
+tmclaugh -> xride
 
 }
