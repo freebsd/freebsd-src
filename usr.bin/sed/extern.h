@@ -52,4 +52,5 @@ char	*cu_fgets(char *, int, int *);
 int	 mf_fgets(SPACE *, enum e_spflag);
 int	 lastline(void);
 void	 process(void);
+void	 resetranges(void);
 char	*strregerror(int, regex_t *);
