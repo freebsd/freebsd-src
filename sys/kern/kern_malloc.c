@@ -178,6 +178,10 @@ u_int vm_kmem_size;
 SYSCTL_UINT(_vm, OID_AUTO, kmem_size, CTLFLAG_RD, &vm_kmem_size, 0,
     "Size of kernel memory");
 
+u_int vm_kmem_size_min;
+SYSCTL_UINT(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RD, &vm_kmem_size_min, 0,
+    "Minimum size of kernel memory");
+
 u_int vm_kmem_size_max;
 SYSCTL_UINT(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RD, &vm_kmem_size_max, 0,
     "Maximum size of kernel memory");
@@ -556,6 +560,14 @@ kmeminit(void *dummy)
 	if (vm_kmem_size_scale > 0 &&
 	    (mem_size / vm_kmem_size_scale) > (vm_kmem_size / PAGE_SIZE))
 		vm_kmem_size = (mem_size / vm_kmem_size_scale) * PAGE_SIZE;
+
+#if defined(VM_KMEM_SIZE_MIN)
+	vm_kmem_size_min = VM_KMEM_SIZE_MIN;
+#endif
+	TUNABLE_INT_FETCH("vm.kmem_size_min", &vm_kmem_size_min);
+	if (vm_kmem_size_min > 0 && vm_kmem_size < vm_kmem_size_min) {
+		vm_kmem_size = vm_kmem_size_min;
+	}
 
 #if defined(VM_KMEM_SIZE_MAX)
 	vm_kmem_size_max = VM_KMEM_SIZE_MAX;
