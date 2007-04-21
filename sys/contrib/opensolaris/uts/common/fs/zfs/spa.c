@@ -499,10 +499,9 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 	/*
 	 * Try to open all vdevs, loading each label in the process.
 	 */
-	if (vdev_open(rvd) != 0) {
-		error = ENXIO;
+	error = vdev_open(rvd);
+	if (error != 0)
 		goto out;
-	}
 
 	/*
 	 * Validate the labels for all leaf vdevs.  We need to grab the config
@@ -513,10 +512,8 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 	error = vdev_validate(rvd);
 	spa_config_exit(spa, FTAG);
 
-	if (error != 0) {
-		error = EBADF;
+	if (error != 0)
 		goto out;
-	}
 
 	if (rvd->vdev_state <= VDEV_STATE_CANT_OPEN) {
 		error = ENXIO;
