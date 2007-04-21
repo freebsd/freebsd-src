@@ -37,9 +37,12 @@
 
 #include <sys/param.h>		/* types, important constants */
 #include <sys/kernel.h>		/* SYSINIT for load-time initializations */
+#include <sys/lock.h>		/* needed by <sys/mutex.h> */
 #include <sys/malloc.h>		/* malloc(9) */
 #include <sys/module.h>		/* module(9) */
 #include <sys/mbuf.h>		/* mbuf(9) */
+#include <sys/mutex.h>		/* mutex(9) */
+#include <sys/queue.h>		/* queue(3) to keep the list of interfaces */
 #include <sys/socket.h>		/* struct ifreq */
 #include <sys/sockio.h>		/* socket ioctl's */
 /* #include <sys/systm.h> if you need printf(9) or other all-purpose globals */
@@ -61,13 +64,15 @@ struct edsc_softc {
 	 * A non-null driver can keep various things here, for instance,
 	 * the hardware revision, cached values of write-only registers, etc.
 	 */
+
+	LIST_ENTRY(edsc_softc)	 sc_list;	/* for MOD_UNLOAD handler */
 };
 
 /*
  * Simple cloning methods.
  * IFC_SIMPLE_DECLARE() expects precisely these names.
  */
-static int	edsc_clone_create(struct if_clone *, int, caddr_t);
+static int	edsc_clone_create(struct if_clone *, int);
 static void	edsc_clone_destroy(struct ifnet *);
 
 /*
@@ -84,6 +89,15 @@ static void	edsc_start(struct ifnet *ifp);
 static		MALLOC_DEFINE(M_EDSC, "edsc", "Ethernet discard interface");
 
 /*
+ * We have to keep the list of interface instances
+ * so that we can destroy all of them upon unloading this driver.
+ * The list is protected by the mutex so that different threads
+ * won't try to modify it at the same time.
+ */
+static LIST_HEAD(, edsc_softc)	edsc_softc_list;
+static struct mtx		edsc_mtx;
+
+/*
  * Attach to the interface cloning framework under the name of "edsc".
  * The second argument is the number of units to be created from
  * the outset.  It's also the minimum number of units allowed.
@@ -95,7 +109,7 @@ IFC_SIMPLE_DECLARE(edsc, 0);
  * Create an interface instance.
  */
 static int
-edsc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+edsc_clone_create(struct if_clone *ifc, int unit)
 {
 	struct edsc_softc	*sc;
 	struct ifnet		*ifp;
@@ -131,8 +145,8 @@ edsc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	 * enabled via edsc_ioctl() when needed.
 	 */
 	ifp->if_capabilities =
-	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM |
-	    IFCAP_HWCSUM | IFCAP_TSO |
+	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
+	    IFCAP_HWCSUM |
 	    IFCAP_JUMBO_MTU;
 	ifp->if_capenable = 0;
 
@@ -157,12 +171,38 @@ edsc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ether_ifattach(ifp, eaddr);
 
 	/*
+	 * Insert this interface in the list we have to keep.
+	 */
+	mtx_lock(&edsc_mtx);
+	LIST_INSERT_HEAD(&edsc_softc_list, sc, sc_list);
+	mtx_unlock(&edsc_mtx);
+
+	/*
 	 * Now we can mark the interface as running, i.e., ready
 	 * for operation.
 	 */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	return (0);
+}
+
+/*
+ * Code shared by the handlers for clone destruction and MOD_UNLOAD.
+ */
+static void
+edsc_destroy(struct edsc_softc *sc)
+{
+
+	/*
+	 * Detach from the network interface framework.
+	 */
+	ether_ifdetach(sc->sc_ifp);
+
+	/*
+	 * Free memory occupied by ifnet and softc.
+	 */
+	if_free(sc->sc_ifp);
+	free(sc, M_EDSC);
 }
 
 /*
@@ -173,16 +213,11 @@ edsc_clone_destroy(struct ifnet *ifp)
 {
 	struct edsc_softc	*sc = ifp->if_softc;
 
-	/*
-	 * Detach from the network interface framework.
-	 */
-	ether_ifdetach(ifp);
+	mtx_lock(&edsc_mtx);
+	LIST_REMOVE(sc, sc_list);
+	mtx_unlock(&edsc_mtx);
 
-	/*
-	 * Free memory occupied by ifnet and softc.
-	 */
-	if_free(ifp);
-	free(sc, M_EDSC);
+	edsc_destroy(sc);
 }
 
 /*
@@ -318,9 +353,12 @@ edsc_start(struct ifnet *ifp)
 static int
 edsc_modevent(module_t mod, int type, void *data)
 {
+	struct edsc_softc	*sc;
 
 	switch (type) {
 	case MOD_LOAD:
+		mtx_init(&edsc_mtx, "edsc_mtx", NULL, MTX_DEF);
+		LIST_INIT(&edsc_softc_list);
 		/*
 		 * Connect to the network interface cloning framework.
 		 */
@@ -329,10 +367,27 @@ edsc_modevent(module_t mod, int type, void *data)
 
 	case MOD_UNLOAD:
 		/*
-		 * Disconnect from the cloning framework.
-		 * Existing interfaces will be disposed of properly.
+		 * First of all, disconnect from the cloning framework
+		 * so that no new interfaces can appear.
 		 */
 		if_clone_detach(&edsc_cloner);
+
+		/*
+		 * Now we have to destroy the interfaces by ourselves.
+		 */
+		mtx_lock(&edsc_mtx);
+		while ((sc = LIST_FIRST(&edsc_softc_list)) != NULL) {
+			LIST_REMOVE(sc, sc_list);
+			mtx_unlock(&edsc_mtx);
+			edsc_destroy(sc);
+			mtx_lock(&edsc_mtx);
+		}
+		mtx_unlock(&edsc_mtx);
+
+		/*
+		 * Don't forget to destroy our mutex.
+		 */
+		mtx_destroy(&edsc_mtx);
 		break;
 
 	default:

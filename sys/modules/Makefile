@@ -105,6 +105,7 @@ SUBDIR=	${_3dfx} \
 	${_ie} \
 	if_bridge \
 	if_disc \
+	if_edsc \
 	if_ef \
 	if_faith \
 	if_gif \
