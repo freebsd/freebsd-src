@@ -99,21 +99,30 @@ getline(FILE *fd, const char *skip)
 /*
  * Function translate options to a format acceptable by exports(5), eg.
  *
- *	-ro -network=192.168.0.0 -mask=255.255.255.0 -maproot=0
+ *	-ro -network=192.168.0.0 -mask=255.255.255.0 -maproot=0 freefall.freebsd.org 69.147.83.54
  *
  * Accepted input formats:
  *
- *	ro,network=192.168.0.0,mask=255.255.255.0,maproot=0
- *	ro network=192.168.0.0 mask=255.255.255.0 maproot=0
- *	-ro,-network=192.168.0.0,-mask=255.255.255.0,-maproot=0
- *	-ro -network=192.168.0.0 -mask=255.255.255.0 -maproot=0
+ *	ro,network=192.168.0.0,mask=255.255.255.0,maproot=0,freefall.freebsd.org
+ *	ro network=192.168.0.0 mask=255.255.255.0 maproot=0 freefall.freebsd.org
+ *	-ro,-network=192.168.0.0,-mask=255.255.255.0,-maproot=0,freefall.freebsd.org
+ *	-ro -network=192.168.0.0 -mask=255.255.255.0 -maproot=0 freefall.freebsd.org
+ *
+ * Recognized keywords:
+ *
+ *	ro, maproot, mapall, mask, network, alldirs, public, webnfs, index, quiet
+ *
  */
+static const char *known_opts[] = { "ro", "maproot", "mapall", "mask",
+    "network", "alldirs", "public", "webnfs", "index", "quiet", NULL };
 static char *
 translate_opts(const char *shareopts)
 {
 	static char newopts[OPTSSIZE];
-	char oldopts[OPTSSIZE], opt[64];
+	char oldopts[OPTSSIZE];
 	char *o, *s = NULL;
+	unsigned int i;
+	size_t len;
 
 	strlcpy(oldopts, shareopts, sizeof(oldopts));
 	newopts[0] = '\0';
@@ -121,8 +130,16 @@ translate_opts(const char *shareopts)
 	while ((o = strsep(&s, "-, ")) != NULL) {
 		if (o[0] == '\0')
 			continue;
-		snprintf(opt, sizeof(opt), "-%s ", o);
-		strlcat(newopts, opt, sizeof(newopts));
+		for (i = 0; known_opts[i] != NULL; i++) {
+			len = strlen(known_opts[i]);
+			if (strncmp(known_opts[i], o, len) == 0 &&
+			    (o[len] == '\0' || o[len] == '=')) {
+				strlcat(newopts, "-", sizeof(newopts));
+				break;
+			}
+		}
+		strlcat(newopts, o, sizeof(newopts));
+		strlcat(newopts, " ", sizeof(newopts));
 	}
 	return (newopts);
 }
