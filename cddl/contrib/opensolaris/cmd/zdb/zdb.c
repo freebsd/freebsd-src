@@ -932,11 +932,11 @@ dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header)
 
 	if (doi.doi_checksum != ZIO_CHECKSUM_INHERIT || verbosity >= 6)
 		(void) snprintf(aux + strlen(aux), sizeof (aux), " (K=%s)",
-		    zio_checksum_table[doi.doi_checksum].ci_name);
+		zio_checksum_table[doi.doi_checksum].ci_name);
 
 	if (doi.doi_compress != ZIO_COMPRESS_INHERIT || verbosity >= 6)
 		(void) snprintf(aux + strlen(aux), sizeof (aux), " (Z=%s)",
-		    zio_compress_table[doi.doi_compress].ci_name);
+		zio_compress_table[doi.doi_compress].ci_name);
 
 	(void) printf("%10lld  %3u  %5s  %5s  %5s  %5s  %s%s\n",
 	    (u_longlong_t)object, doi.doi_indirection, iblk, dblk, lsize,
@@ -1441,7 +1441,7 @@ zdb_blkptr_cb(traverse_blk_cache_t *bc, spa_t *spa, void *arg)
 		    (u_longlong_t)zb->zb_objset,
 		    (u_longlong_t)zb->zb_object,
 		    (u_longlong_t)blkid2offset(bc->bc_dnode,
-		    zb->zb_level, zb->zb_blkid),
+			zb->zb_level, zb->zb_blkid),
 		    blkbuf);
 	}
 
@@ -1951,8 +1951,8 @@ zdb_read_block(char *thing, spa_t **spap)
 			spa_close(spa, (void *)zdb_read_block);
 		error = spa_open(spa_name, spap, (void *)zdb_read_block);
 		if (error)
-			fatal("Failed to open pool '%s': errno = %d\n",
-			    spa_name, error);
+			fatal("Failed to open pool '%s': %s",
+			    spa_name, strerror(error));
 		spa = *spap;
 	}
 
@@ -2156,7 +2156,7 @@ main(int argc, char **argv)
 	}
 
 	if (error)
-		fatal("can't open %s: error %d", argv[0], error);
+		fatal("can't open %s: %s", argv[0], strerror(error));
 
 	argv++;
 	if (--argc > 0) {

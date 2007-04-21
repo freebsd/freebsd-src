@@ -74,21 +74,15 @@ void
 namespace_clear(libzfs_handle_t *hdl)
 {
 	if (hdl->libzfs_ns_avl) {
-		uu_avl_walk_t *walk;
 		config_node_t *cn;
+		void *cookie = NULL;
 
-		if ((walk = uu_avl_walk_start(hdl->libzfs_ns_avl,
-		    UU_WALK_ROBUST)) == NULL)
-			return;
-
-		while ((cn = uu_avl_walk_next(walk)) != NULL) {
-			uu_avl_remove(hdl->libzfs_ns_avl, cn);
+		while ((cn = uu_avl_teardown(hdl->libzfs_ns_avl,
+		    &cookie)) != NULL) {
 			nvlist_free(cn->cn_config);
 			free(cn->cn_name);
 			free(cn);
 		}
-
-		uu_avl_walk_end(walk);
 
 		uu_avl_destroy(hdl->libzfs_ns_avl);
 		hdl->libzfs_ns_avl = NULL;
@@ -110,7 +104,7 @@ namespace_reload(libzfs_handle_t *hdl)
 	config_node_t *cn;
 	nvpair_t *elem;
 	zfs_cmd_t zc = { 0 };
-	uu_avl_walk_t *walk;
+	void *cookie;
 
 	if (hdl->libzfs_ns_gen == 0) {
 		/*
@@ -172,20 +166,12 @@ namespace_reload(libzfs_handle_t *hdl)
 	/*
 	 * Clear out any existing configuration information.
 	 */
-	if ((walk = uu_avl_walk_start(hdl->libzfs_ns_avl,
-	    UU_WALK_ROBUST)) == NULL) {
-		nvlist_free(config);
-		return (no_memory(hdl));
-	}
-
-	while ((cn = uu_avl_walk_next(walk)) != NULL) {
-		uu_avl_remove(hdl->libzfs_ns_avl, cn);
+	cookie = NULL;
+	while ((cn = uu_avl_teardown(hdl->libzfs_ns_avl, &cookie)) != NULL) {
 		nvlist_free(cn->cn_config);
 		free(cn->cn_name);
 		free(cn);
 	}
-
-	uu_avl_walk_end(walk);
 
 	elem = NULL;
 	while ((elem = nvlist_next_nvpair(config, elem)) != NULL) {
@@ -222,7 +208,7 @@ namespace_reload(libzfs_handle_t *hdl)
 }
 
 /*
- * Retrive the configuration for the given pool.  The configuration is a nvlist
+ * Retrieve the configuration for the given pool.  The configuration is a nvlist
  * describing the vdevs, as well as the statistics associated with each one.
  */
 nvlist_t *

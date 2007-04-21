@@ -339,21 +339,14 @@ void
 changelist_free(prop_changelist_t *clp)
 {
 	prop_changenode_t *cn;
-	uu_list_walk_t *walk;
+	void *cookie;
 
 	if (clp->cl_list) {
-		verify((walk = uu_list_walk_start(clp->cl_list,
-		    UU_WALK_ROBUST)) != NULL);
-
-		while ((cn = uu_list_walk_next(walk)) != NULL) {
-
-			uu_list_remove(clp->cl_list, cn);
-
+		cookie = NULL;
+		while ((cn = uu_list_teardown(clp->cl_list, &cookie)) != NULL) {
 			zfs_close(cn->cn_handle);
 			free(cn);
 		}
-
-		uu_list_walk_end(walk);
 
 		uu_list_destroy(clp->cl_list);
 	}
@@ -418,7 +411,7 @@ change_one(zfs_handle_t *zhp, void *data)
 		} else {
 			ASSERT(!clp->cl_alldependents);
 			verify(uu_list_insert_before(clp->cl_list,
-				uu_list_first(clp->cl_list), cn) == 0);
+			    uu_list_first(clp->cl_list), cn) == 0);
 		}
 
 		if (!clp->cl_alldependents)

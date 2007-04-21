@@ -931,7 +931,7 @@ vdev_validate(vdev_t *vd)
 
 	for (c = 0; c < vd->vdev_children; c++)
 		if (vdev_validate(vd->vdev_child[c]) != 0)
-			return (-1);
+			return (EBADF);
 
 	/*
 	 * If the device has already failed, or was marked offline, don't do
@@ -974,7 +974,7 @@ vdev_validate(vdev_t *vd)
 
 		if (spa->spa_load_state == SPA_LOAD_OPEN &&
 		    state != POOL_STATE_ACTIVE)
-			return (-1);
+			return (EBADF);
 	}
 
 	/*
