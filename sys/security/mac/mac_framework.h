@@ -50,6 +50,7 @@
 #error "no user-serviceable parts inside"
 #endif
 
+struct auditinfo;
 struct bpf_d;
 struct cdev;
 struct componentname;
@@ -297,6 +298,8 @@ int	mac_check_posix_sem_unlink(struct ucred *cred, struct ksem *ksemptr);
 int	mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ksemptr);
 int	mac_check_proc_debug(struct ucred *cred, struct proc *proc);
 int	mac_check_proc_sched(struct ucred *cred, struct proc *proc);
+int	mac_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai);
+int	mac_check_proc_setauid(struct ucred *cred, uid_t auid);
 int	mac_check_proc_setuid(struct proc *proc,  struct ucred *cred,
 	    uid_t uid);
 int	mac_check_proc_seteuid(struct proc *proc, struct ucred *cred,
@@ -334,6 +337,9 @@ int	mac_check_socket_stat(struct ucred *cred, struct socket *so);
 int	mac_check_socket_visible(struct ucred *cred, struct socket *so);
 int	mac_check_sysarch_ioperm(struct ucred *cred);
 int	mac_check_system_acct(struct ucred *cred, struct vnode *vp);
+int	mac_check_system_audit(struct ucred *cred, void *record, int length);
+int	mac_check_system_auditctl(struct ucred *cred, struct vnode *vp);
+int	mac_check_system_auditon(struct ucred *cred, int cmd);
 int	mac_check_system_nfsd(struct ucred *cred);
 int	mac_check_system_reboot(struct ucred *cred, int howto);
 int	mac_check_system_settime(struct ucred *cred);

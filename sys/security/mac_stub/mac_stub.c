@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
@@ -920,6 +920,20 @@ stub_check_proc_wait(struct ucred *cred, struct proc *proc)
 }
 
 static int
+stub_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai)
+{
+
+	return (0);
+}
+
+static int
+stub_check_proc_setauid(struct ucred *cred, uid_t auid)
+{
+
+	return (0);
+}
+
+static int
 stub_check_proc_setuid(struct ucred *cred, uid_t uid)
 {
 
@@ -1096,6 +1110,28 @@ stub_check_system_acct(struct ucred *cred, struct vnode *vp,
 }
 
 static int
+stub_check_system_audit(struct ucred *cred, void *record, int length)
+{
+
+	return (0);
+}
+
+static int
+stub_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+    struct label *vlabel)
+{
+
+	return (0);
+}
+
+static int
+stub_check_system_auditon(struct ucred *cred, int cmd)
+{
+
+	return (0);
+}
+
+static int
 stub_check_system_nfsd(struct ucred *cred)
 {
 
@@ -1117,7 +1153,7 @@ stub_check_system_settime(struct ucred *cred)
 }
 
 static int
-stub_check_system_swapon(struct ucred *cred, struct vnode *vp,
+stub_check_system_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
@@ -1125,7 +1161,7 @@ stub_check_system_swapon(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+stub_check_system_swapon(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
@@ -1576,6 +1612,8 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_posix_sem_wait = stub_check_posix_sem_wait,
 	.mpo_check_proc_debug = stub_check_proc_debug,
 	.mpo_check_proc_sched = stub_check_proc_sched,
+	.mpo_check_proc_setaudit = stub_check_proc_setaudit,
+	.mpo_check_proc_setauid = stub_check_proc_setauid,
 	.mpo_check_proc_setuid = stub_check_proc_setuid,
 	.mpo_check_proc_seteuid = stub_check_proc_seteuid,
 	.mpo_check_proc_setgid = stub_check_proc_setgid,
@@ -1601,11 +1639,14 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_socket_visible = stub_check_socket_visible,
 	.mpo_check_sysarch_ioperm = stub_check_sysarch_ioperm,
 	.mpo_check_system_acct = stub_check_system_acct,
+	.mpo_check_system_audit = stub_check_system_audit,
+	.mpo_check_system_auditctl = stub_check_system_auditctl,
+	.mpo_check_system_auditon = stub_check_system_auditon,
 	.mpo_check_system_nfsd = stub_check_system_nfsd,
 	.mpo_check_system_reboot = stub_check_system_reboot,
 	.mpo_check_system_settime = stub_check_system_settime,
-	.mpo_check_system_swapon = stub_check_system_swapon,
 	.mpo_check_system_swapoff = stub_check_system_swapoff,
+	.mpo_check_system_swapon = stub_check_system_swapon,
 	.mpo_check_system_sysctl = stub_check_system_sysctl,
 	.mpo_check_vnode_access = stub_check_vnode_access,
 	.mpo_check_vnode_chdir = stub_check_vnode_chdir,

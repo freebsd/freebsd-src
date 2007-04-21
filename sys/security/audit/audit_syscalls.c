@@ -29,6 +29,8 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
@@ -41,8 +43,10 @@
 
 #include <bsm/audit.h>
 #include <bsm/audit_kevents.h>
+
 #include <security/audit/audit.h>
 #include <security/audit/audit_private.h>
+#include <security/mac/mac_framework.h>
 
 #ifdef AUDIT
 
@@ -109,6 +113,12 @@ audit(struct thread *td, struct audit_args *uap)
 		goto free_out;
 	}
 
+#ifdef MAC
+	error = mac_check_system_audit(td->td_ucred, rec, uap->length);
+	if (error)
+		goto free_out;
+#endif
+
 	/*
 	 * Attach the user audit record to the kernel audit record. Because
 	 * this system call is an auditable event, we will write the user
@@ -153,6 +163,13 @@ auditon(struct thread *td, struct auditon_args *uap)
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
 	AUDIT_ARG(cmd, uap->cmd);
+
+#ifdef MAC
+	error = mac_check_system_auditon(td->td_ucred, uap->cmd);
+	if (error)
+		return (error);
+#endif
+
 	error = priv_check(td, PRIV_AUDIT_CONTROL);
 	if (error)
 		return (error);
@@ -451,6 +468,12 @@ setauid(struct thread *td, struct setauid_args *uap)
 
 	audit_arg_auid(id);
 
+#ifdef MAC
+	error = mac_check_proc_setauid(td->td_ucred, id);
+	if (error)
+		return (error);
+#endif
+
 	/*
 	 * XXX: Integer write on static pointer dereference: doesn't need
 	 * locking?
@@ -519,6 +542,12 @@ setaudit(struct thread *td, struct setaudit_args *uap)
 
 	audit_arg_auditinfo(&ai);
 
+#ifdef MAC
+	error = mac_check_proc_setaudit(td->td_ucred, &ai);
+	if (error)
+		return (error);
+#endif
+
 	/*
 	 * XXXRW: Test privilege while holding the proc lock?
 	*/
@@ -568,6 +597,11 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	if (error)
 		return (error);
 
+#ifdef MAC
+	error = mac_check_proc_setaudit(td->td_ucred, NULL);
+	if (error)
+		return (error);
+#endif
 	error = copyin(uap->auditinfo_addr, &aia, sizeof(aia));
 	if (error)
 		return (error);
@@ -617,7 +651,17 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
+#ifdef MAC
+	error = mac_check_system_auditctl(td->td_ucred, vp);
 	VOP_UNLOCK(vp, 0, td);
+	if (error) {
+		vn_close(vp, AUDIT_CLOSE_FLAGS, td->td_ucred, td);
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (error);
+	}
+#else
+	VOP_UNLOCK(vp, 0, td);
+#endif
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (vp->v_type != VREG) {
 		vn_close(vp, AUDIT_CLOSE_FLAGS, td->td_ucred, td);
