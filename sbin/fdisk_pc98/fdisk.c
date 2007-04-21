@@ -153,7 +153,7 @@ static void print_s0(int which);
 static void print_part(int i);
 static void init_sector0(unsigned long start);
 static void init_boot(void);
-static void change_part(int i);
+static void change_part(int i, int force);
 static void print_params(void);
 static void change_active(int which);
 static void change_code(void);
@@ -254,16 +254,16 @@ main(int argc, char *argv[])
 			err(1, "read_s0");
 		printf("%s: %d cyl %d hd %d sec\n", disk, dos_cyls, dos_heads,
 		    dos_sectors);
-		printf("Part  %11s %11s %4s %4s\n", "Start", "Size", "MID",
-		    "SID");
+		printf("Part  %11s %11s %4s %4s %-16s\n", "Start", "Size", "MID",
+		    "SID", "Name");
 		for (i = 0; i < NDOSPART; i++) {
 			partp = ((struct pc98_partition *) &mboot.parts) + i;
 			if (partp->dp_sid == 0)
 				continue;
-			printf("%4d: %11u %11u 0x%02x 0x%02x\n", i + 1,
+			printf("%4d: %11u %11u 0x%02x 0x%02x %-16.16s\n", i + 1,
 			    partp->dp_scyl * cylsecs,
 			    (partp->dp_ecyl - partp->dp_scyl + 1) * cylsecs,
-			    partp->dp_mid, partp->dp_sid);
+			    partp->dp_mid, partp->dp_sid, partp->dp_name);
 		}
 		exit(0);
 	}
@@ -276,6 +276,7 @@ main(int argc, char *argv[])
 		partp = (struct pc98_partition *) (&mboot.parts[0]);
 		partp->dp_mid = DOSMID_386BSD;
 		partp->dp_sid = DOSSID_386BSD;
+		strncpy(partp->dp_name, "FreeBSD", sizeof(partp->dp_name));
 		/* Start c/h/s. */
 		partp->dp_scyl = partp->dp_ipl_cyl = 1;
 		partp->dp_shd = partp->dp_ipl_head = 1;
@@ -312,9 +313,9 @@ main(int argc, char *argv[])
 	    printf("Information from DOS bootblock is:\n");
 	    if (partition == -1)
 		for (i = 1; i <= NDOSPART; i++)
-		    change_part(i);
+		    change_part(i, v_flag);
 	    else
-		change_part(partition);
+		change_part(partition, 1);
 
 	    if (u_flag || a_flag)
 		change_active(partition);
@@ -349,6 +350,17 @@ usage()
         exit(1);
 }
 
+static struct pc98_partition mtpart;
+
+static int
+part_unused(int i)
+{
+	struct	  pc98_partition *partp;
+
+	partp = ((struct pc98_partition *) &mboot.parts) + i - 1;
+	return (bcmp(partp, &mtpart, sizeof (struct pc98_partition)) == 0);
+}
+
 static void
 print_s0(int which)
 {
@@ -356,14 +368,16 @@ print_s0(int which)
 
 	print_params();
 	printf("Information from DOS bootblock is:\n");
-	if (which == -1)
+	if (which == -1) {
 		for (i = 1; i <= NDOSPART; i++)
-			printf("%d: ", i), print_part(i);
+			if (v_flag || !part_unused(i)) {
+				printf("%d: ", i);
+				print_part(i);
+			}
+	}
 	else
 		print_part(which);
 }
-
-static struct pc98_partition mtpart;
 
 static void
 print_part(int i)
@@ -371,15 +385,14 @@ print_part(int i)
 	struct	  pc98_partition *partp;
 	u_int64_t part_sz, part_mb;
 
-	partp = ((struct pc98_partition *) &mboot.parts) + i - 1;
-
-	if (!bcmp(partp, &mtpart, sizeof (struct pc98_partition))) {
+	if (part_unused(i)) {
 		printf("<UNUSED>\n");
 		return;
 	}
 	/*
 	 * Be careful not to overflow.
 	 */
+	partp = ((struct pc98_partition *) &mboot.parts) + i - 1;
 	part_sz = (partp->dp_ecyl - partp->dp_scyl + 1) * cylsecs;
 	part_mb = part_sz * secsize;
 	part_mb /= (1024 * 1024);
@@ -422,66 +435,68 @@ init_sector0(unsigned long start)
 }
 
 static void
-change_part(int i)
+change_part(int i, int force)
 {
 	struct pc98_partition *partp =
 		((struct pc98_partition *) &mboot.parts) + i - 1;
 
-    printf("The data for partition %d is:\n", i);
-    print_part(i);
+	if (!force && part_unused(i))
+		return;
 
-    if (u_flag && ok("Do you want to change it?")) {
-	int tmp;
+	printf("The data for partition %d is:\n", i);
+	print_part(i);
 
-	if (i_flag) {
-		bzero((char *)partp, sizeof (struct pc98_partition));
-		if (i == 1) {
-			init_sector0(1);
-			printf("\nThe static data for the slice 1 has been reinitialized to:\n");
-			print_part(i);
+	if (u_flag && ok("Do you want to change it?")) {
+		int tmp;
+
+		if (i_flag) {
+			bzero((char *)partp, sizeof (struct pc98_partition));
+			if (i == 1) {
+				init_sector0(1);
+				printf("\nThe static data for the slice 1 has been reinitialized to:\n");
+				print_part(i);
+			}
 		}
+		do {
+			int x_start = partp->dp_scyl * cylsecs ;
+			int x_size  = (partp->dp_ecyl - partp->dp_scyl + 1) * cylsecs;
+			Decimal("sysmid", partp->dp_mid, tmp);
+			Decimal("syssid", partp->dp_sid, tmp);
+			String ("system name", partp->dp_name, 16);
+			Decimal("start", x_start, tmp);
+			Decimal("size", x_size, tmp);
+
+			if (ok("Explicitly specify beg/end address ?"))
+			{
+				int	tsec,tcyl,thd;
+				tcyl = partp->dp_scyl;
+				thd = partp->dp_shd;
+				tsec = partp->dp_ssect;
+				Decimal("beginning cylinder", tcyl, tmp);
+				Decimal("beginning head", thd, tmp);
+				Decimal("beginning sector", tsec, tmp);
+				partp->dp_scyl = tcyl;
+				partp->dp_ssect = tsec;
+				partp->dp_shd = thd;
+				partp->dp_ipl_cyl = partp->dp_scyl;
+				partp->dp_ipl_sct = partp->dp_ssect;
+				partp->dp_ipl_head = partp->dp_shd;
+
+				tcyl = partp->dp_ecyl;
+				thd = partp->dp_ehd;
+				tsec = partp->dp_esect;
+				Decimal("ending cylinder", tcyl, tmp);
+				Decimal("ending head", thd, tmp);
+				Decimal("ending sector", tsec, tmp);
+				partp->dp_ecyl = tcyl;
+				partp->dp_esect = tsec;
+				partp->dp_ehd = thd;
+			} else
+				dos(x_start, x_size, partp);
+
+			print_part(i);
+		} while (!ok("Are we happy with this entry?"));
 	}
-
-	do {
-		int x_start = partp->dp_scyl * cylsecs ;
-		int x_size  = (partp->dp_ecyl - partp->dp_scyl + 1) * cylsecs;
-		Decimal("sysmid", partp->dp_mid, tmp);
-		Decimal("syssid", partp->dp_sid, tmp);
-		String ("system name", partp->dp_name, 16);
-		Decimal("start", x_start, tmp);
-		Decimal("size", x_size, tmp);
-
-		if (ok("Explicitly specify beg/end address ?"))
-		{
-			int	tsec,tcyl,thd;
-			tcyl = partp->dp_scyl;
-			thd = partp->dp_shd;
-			tsec = partp->dp_ssect;
-			Decimal("beginning cylinder", tcyl, tmp);
-			Decimal("beginning head", thd, tmp);
-			Decimal("beginning sector", tsec, tmp);
-			partp->dp_scyl = tcyl;
-			partp->dp_ssect = tsec;
-			partp->dp_shd = thd;
-			partp->dp_ipl_cyl = partp->dp_scyl;
-			partp->dp_ipl_sct = partp->dp_ssect;
-			partp->dp_ipl_head = partp->dp_shd;
-
-			tcyl = partp->dp_ecyl;
-			thd = partp->dp_ehd;
-			tsec = partp->dp_esect;
-			Decimal("ending cylinder", tcyl, tmp);
-			Decimal("ending head", thd, tmp);
-			Decimal("ending sector", tsec, tmp);
-			partp->dp_ecyl = tcyl;
-			partp->dp_esect = tsec;
-			partp->dp_ehd = thd;
-		} else
-			dos(x_start, x_size, partp);
-
-		print_part(i);
-	} while (!ok("Are we happy with this entry?"));
-    }
 }
 
 static void
