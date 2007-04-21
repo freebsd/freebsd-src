@@ -607,7 +607,9 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  simultaneous BPF clients programs runnable.  DHCP requires bpf.
 #  The `disc' device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
-#  included for testing purposes.  This shows up as the `ds' interface.
+#  included for testing and benchmarking purposes.
+#  The `edsc' device implements a minimal Ethernet interface,
+#  which discards all packets sent and receives none.
 #  The `tap' device is a pty-like virtual Ethernet interface
 #  The `tun' device implements (user-)ppp and nos-tun
 #  The `gif' device implements IPv6 over IP4 tunneling,
@@ -649,7 +651,8 @@ device		arcnet			#Generic Arcnet
 device		sppp			#Generic Synchronous PPP
 device		loop			#Network loopback device
 device		bpf			#Berkeley packet filter
-device		disc			#Discard device (ds0, ds1, etc)
+device		disc			#Discard device based on loopback
+device		edsc			#Ethernet discard device
 device		tap			#Virtual Ethernet driver
 device		tun			#Tunnel driver (ppp(8), nos-tun(8))
 device		sl			#Serial Line IP

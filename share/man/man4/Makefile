@@ -67,6 +67,7 @@ MAN=	aac.4 \
 	dpt.4 \
 	dummynet.4 \
 	ed.4 \
+	edsc.4 \
 	ef.4 \
 	ehci.4 \
 	em.4 \
@@ -419,6 +420,7 @@ MLINKS+=dc.4 if_dc.4
 MLINKS+=de.4 if_de.4
 MLINKS+=disc.4 if_disc.4
 MLINKS+=ed.4 if_ed.4
+MLINKS+=edsc.4 if_edsc.4
 MLINKS+=ef.4 if_ef.4
 MLINKS+=em.4 if_em.4
 MLINKS+=en.4 if_en.4
