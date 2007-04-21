@@ -1712,6 +1712,24 @@ mac_test_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 }
 
 static int
+mac_test_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
+mac_test_check_proc_setauid(struct ucred *cred, uid_t auid)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
 mac_test_check_proc_setuid(struct ucred *cred, uid_t uid)
 {
 
@@ -1942,6 +1960,40 @@ mac_test_check_system_acct(struct ucred *cred, struct vnode *vp,
 {
 
 	ASSERT_CRED_LABEL(cred->cr_label);
+	if (label != NULL) {
+		ASSERT_VNODE_LABEL(label);
+	}
+
+	return (0);
+}
+
+static int
+mac_test_check_system_audit(struct ucred *cred, void *record, int length)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
+mac_test_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+	if (label != NULL) {
+		ASSERT_VNODE_LABEL(label);
+	}
+
+	return (0);
+}
+
+static int
+mac_test_check_system_auditon(struct ucred *cred, int cmd)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1965,7 +2017,7 @@ mac_test_check_system_settime(struct ucred *cred)
 }
 
 static int
-mac_test_check_system_swapon(struct ucred *cred, struct vnode *vp,
+mac_test_check_system_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
@@ -1976,7 +2028,7 @@ mac_test_check_system_swapon(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_test_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+mac_test_check_system_swapon(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
@@ -2515,6 +2567,8 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_posix_sem_wait = mac_test_check_posix_sem,
 	.mpo_check_proc_debug = mac_test_check_proc_debug,
 	.mpo_check_proc_sched = mac_test_check_proc_sched,
+	.mpo_check_proc_setaudit = mac_test_check_proc_setaudit,
+	.mpo_check_proc_setauid = mac_test_check_proc_setauid,
 	.mpo_check_proc_setuid = mac_test_check_proc_setuid,
 	.mpo_check_proc_seteuid = mac_test_check_proc_seteuid,
 	.mpo_check_proc_setgid = mac_test_check_proc_setgid,
@@ -2539,10 +2593,13 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_socket_visible = mac_test_check_socket_visible,
 	.mpo_check_sysarch_ioperm = mac_test_check_sysarch_ioperm,
 	.mpo_check_system_acct = mac_test_check_system_acct,
+	.mpo_check_system_audit = mac_test_check_system_audit,
+	.mpo_check_system_auditctl = mac_test_check_system_auditctl,
+	.mpo_check_system_auditon = mac_test_check_system_auditon,
 	.mpo_check_system_reboot = mac_test_check_system_reboot,
 	.mpo_check_system_settime = mac_test_check_system_settime,
-	.mpo_check_system_swapon = mac_test_check_system_swapon,
 	.mpo_check_system_swapoff = mac_test_check_system_swapoff,
+	.mpo_check_system_swapon = mac_test_check_system_swapon,
 	.mpo_check_system_sysctl = mac_test_check_system_sysctl,
 	.mpo_check_vnode_access = mac_test_check_vnode_access,
 	.mpo_check_vnode_chdir = mac_test_check_vnode_chdir,

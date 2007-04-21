@@ -488,6 +488,30 @@ mac_bsdextended_check_vp(struct ucred *cred, struct vnode *vp, int acc_mode)
 }
 
 static int
+mac_bsdextended_check_system_acct(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+}
+
+static int
+mac_bsdextended_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+}
+
+static int
+mac_bsdextended_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+}
+
+static int
 mac_bsdextended_check_system_swapon(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
@@ -739,6 +763,9 @@ static struct mac_policy_ops mac_bsdextended_ops =
 {
 	.mpo_destroy = mac_bsdextended_destroy,
 	.mpo_init = mac_bsdextended_init,
+	.mpo_check_system_acct = mac_bsdextended_check_system_acct,
+	.mpo_check_system_auditctl = mac_bsdextended_check_system_auditctl,
+	.mpo_check_system_swapoff = mac_bsdextended_check_system_swapoff,
 	.mpo_check_system_swapon = mac_bsdextended_check_system_swapon,
 	.mpo_check_vnode_access = mac_bsdextended_check_vnode_access,
 	.mpo_check_vnode_chdir = mac_bsdextended_check_vnode_chdir,
