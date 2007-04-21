@@ -438,14 +438,19 @@
       statistics via a binary structure stream.</para>
 
     <para>The sysctl variable <varname>hw.pci.do_powerstate</varname>
-      has been changed from a boolean to a range.
+      has been split into two sysctl variables
+      <varname>hw.pci.do_powerstate_nodriver</varname>
+      and <varname>hw.pci.do_powerstate_resume</varname>.
+      Also, these variables have been changed from a boolean to a range.
       <literal>0</literal> means no power management,
       <literal>1</literal> means conservative power management which
       any device class that has caused problems is added to the watch list,
       <literal>2</literal> means aggressive power management where
       any device class that is not fundamental to the system is added to the list,
       and <literal>3</literal> means power them all down unconditionally.
-      The default is <literal>1</literal>.</para>
+      The default values are <literal>0</literal> for
+      <varname>hw.pci.do_powerstate_nodriver</varname> and
+      <literal>1</literal> for <varname>hw.pci.do_powerstate_resume</varname>.</para>
 
     <para>[&arch.ia64;] The <filename>GENERIC</filename> kernel now enables
       SMP support by default.</para>
