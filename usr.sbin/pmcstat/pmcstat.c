@@ -708,7 +708,7 @@ main(int argc, char **argv)
 	 */
 	if ((args.pa_flags & FLAG_HAS_COUNTING_PMCS) &&
 	    (args.pa_flags & FLAG_HAS_SAMPLING_PMCS) &&
-	    ((args.pa_required & FLAG_HAS_OUTPUT_LOGFILE) == 0))
+	    ((args.pa_flags & FLAG_HAS_OUTPUT_LOGFILE) == 0))
 		errx(EX_USAGE, "ERROR: option -O is required if counting and "
 		    "sampling PMCs are specified together.");
 
