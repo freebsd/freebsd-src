@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/socket.h>
@@ -84,6 +85,10 @@ static int
 nfslock_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	int error;
+
+	error = priv_check(td, PRIV_NFS_LOCKD);
+	if (error)
+		return (error);
 
 	mtx_lock(&nfslock_mtx);
 	if (!nfslock_isopen) {
@@ -339,17 +344,6 @@ static int
 nfslockdans(struct thread *td, struct lockd_ans *ansp)
 {
 	struct proc *targetp;
-	int error;
-
-	/* Let root, or someone who once was root (lockd generally
-	 * switches to the daemon uid once it is done setting up) make
-	 * this call.
-	 *
-	 * XXX This authorization check is probably not right.
-	 */
-	if ((error = suser(td)) != 0 &&
-	    td->td_ucred->cr_svuid != 0)
-		return (error);
 
 	/* the version should match, or we're out of sync */
 	if (ansp->la_vers != LOCKD_ANS_VERSION)
