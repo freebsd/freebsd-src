@@ -194,11 +194,9 @@ in6_pcbbind(inp, nam, cred)
 			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
 			    SUSER_ALLOWJAIL))
 				return (EACCES);
-			/*
-			 * XXXRW: What priv to use here?
-			 */
 			if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr) &&
-			    suser_cred(so->so_cred, SUSER_ALLOWJAIL) != 0) {
+			    priv_check_cred(so->so_cred,
+			    PRIV_NETINET_REUSEPORT, SUSER_ALLOWJAIL) != 0) {
 				t = in6_pcblookup_local(pcbinfo,
 				    &sin6->sin6_addr, lport,
 				    INPLOOKUP_WILDCARD);
