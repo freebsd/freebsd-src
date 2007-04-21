@@ -139,7 +139,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	if (error)
 		return (error);
 #endif
-	error = priv_check(td, PRIV_NFSD);
+	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error)
 		return (error);
 	NET_LOCK_GIANT();

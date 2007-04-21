@@ -72,7 +72,6 @@
 #define	PRIV_MAXPROC		4	/* Exceed system processes limit. */
 #define	PRIV_KTRACE		5	/* Set/clear KTRFAC_ROOT on ktrace. */
 #define	PRIV_SETDUMPER		6	/* Configure dump device. */
-#define	PRIV_NFSD		7	/* Can become NFS daemon. */
 #define	PRIV_REBOOT		8	/* Can reboot system. */
 #define	PRIV_SWAPON		9	/* Can swapon(). */
 #define	PRIV_SWAPOFF		10	/* Can swapoff(). */
@@ -234,6 +233,12 @@
 					   injection framework. */
 #define	PRIV_ZFS_JAIL		282	/* Can attach/detach ZFS file systems
 					   to/from jails. */
+
+/*
+ * NFS-specific privileges.
+ */
+#define	PRIV_NFS_DAEMON		290	/* Can become the NFS daemon. */
+#define	PRIV_NFS_LOCKD		291	/* Can become NFS lock daemon. */
 
 /*
  * VFS privileges.
