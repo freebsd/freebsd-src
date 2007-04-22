@@ -223,6 +223,15 @@ struct sctp_paramhdr {
 /* Debug things that need to be purged */
 #define SCTP_SET_INITIAL_DBG_SEQ	0x00009f00
 
+
+/* fragment interleave constants
+ * setting must be one of these or
+ * EINVAL returned.
+ */
+#define SCTP_FRAG_LEVEL_0    0x00000000
+#define SCTP_FRAG_LEVEL_1    0x00000001
+#define SCTP_FRAG_LEVEL_2    0x00000002
+
 /*
  * user state values
  */
