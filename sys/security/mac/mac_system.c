@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
