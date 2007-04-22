@@ -35,7 +35,15 @@ from Tkinter import *
 # - Add KTR_SCHED to KTR_COMPILE and KTR_MASK in your KERNCONF
 # - It is encouraged to increase KTR_ENTRIES size to 32768 to gather
 #    enough information for analysis.
-# - Rebuild kernel with proper changes to KERNCONF.
+# - Rebuild kernel with proper changes to KERNCONF and boot new kernel.
+# - Run your workload to be profiled.
+# - While the workload is continuing (i.e. before it finishes), disable
+#   KTR tracing by setting 'sysctl debug.ktr.mask=0'.  This is necessary
+#   to avoid a race condition while running ktrdump, i.e. the KTR ring buffer
+#   will cycle a bit while ktrdump runs, and this confuses schedgraph because
+#   the timestamps appear to go backwards at some point.  Stopping KTR logging
+#   while the workload is still running is to avoid wasting log entries on
+#   "idle" time at the end.
 # - Dump the trace to a file: 'ktrdump -ct > ktr.out'
 # - Run the python script: 'python schedgraph.py ktr.out'
 #
@@ -44,6 +52,12 @@ from Tkinter import *
 # 2)  Add bounding box style zoom.
 # 3)  Click to center.
 # 4)  Implement some sorting mechanism.
+#
+# BUGS: 1) Only 8 CPUs are supported, more CPUs require more choices of
+#          colours to represent them ;-)
+#       2) Extremely short traces may cause a crash because the code
+#          assumes there is always at least one stathz entry logged, and
+#          the number of such events is used as a denominator
 
 ticksps = None
 status = None
