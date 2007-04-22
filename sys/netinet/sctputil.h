@@ -242,7 +242,7 @@ void sctp_print_address_pkt(struct ip *, struct sctphdr *);
 
 void
 sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb,
-    uint32_t error, int no_lock);
+    uint32_t error, int no_lock, uint32_t strseq);
 
 int
 sctp_release_pr_sctp_chunk(struct sctp_tcb *, struct sctp_tmit_chunk *,

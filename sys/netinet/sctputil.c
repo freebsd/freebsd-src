@@ -3002,7 +3002,7 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb,
 /* This always must be called with the read-queue LOCKED in the INP */
 void
 sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb,
-    uint32_t error, int nolock)
+    uint32_t error, int nolock, uint32_t val)
 {
 	struct mbuf *m_notify;
 	struct sctp_pdapi_event *pdapi;
@@ -3023,6 +3023,8 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb,
 	pdapi->pdapi_flags = 0;
 	pdapi->pdapi_length = sizeof(struct sctp_pdapi_event);
 	pdapi->pdapi_indication = error;
+	pdapi->pdapi_stream = (val >> 16);
+	pdapi->pdapi_seq = (val & 0x0000ffff);
 	pdapi->pdapi_assoc_id = sctp_get_associd(stcb);
 
 	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_pdapi_event);
@@ -3265,7 +3267,13 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		sctp_notify_adaptation_layer(stcb, error);
 		break;
 	case SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION:
-		sctp_notify_partial_delivery_indication(stcb, error, 0);
+		{
+			uint32_t val;
+
+			val = *((uint32_t *) data);
+
+			sctp_notify_partial_delivery_indication(stcb, error, 0, val);
+		}
 		break;
 	case SCTP_NOTIFY_STRDATA_ERR:
 		break;
@@ -4803,8 +4811,31 @@ restart_nosblocks:
 			/* find a more suitable one then this */
 			ctl = TAILQ_NEXT(control, next);
 			while (ctl) {
-				if ((ctl->stcb != control->stcb) && (ctl->length)) {
-					/* found one */
+				if ((ctl->stcb != control->stcb) && (ctl->length) &&
+				    (ctl->some_taken ||
+				    ((ctl->do_not_ref_stcb == 0) &&
+				    (ctl->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started == 0)))
+				    ) {
+					/*-
+					 * If we have a different TCB next, and there is data
+					 * present. If we have already taken some (pdapi), OR we can
+					 * ref the tcb and no delivery as started on this stream, we
+					 * take it.
+					 */
+					control = ctl;
+					goto found_one;
+				} else if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_INTERLEAVE_STRMS)) &&
+					    (ctl->length) &&
+					    ((ctl->some_taken) ||
+					    ((ctl->do_not_ref_stcb == 0) &&
+					    (ctl->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started == 0)))
+				    ) {
+					/*-
+					 * If we have the same tcb, and there is data present, and we
+					 * have the strm interleave feature present. Then if we have
+					 * taken some (pdapi) or we can refer to tht tcb AND we have
+					 * not started a delivery for this stream, we can take it.
+					 */
 					control = ctl;
 					goto found_one;
 				}
@@ -4831,6 +4862,10 @@ found_one:
 	 * If we reach here, control has a some data for us to read off.
 	 * Note that stcb COULD be NULL.
 	 */
+	if (control->do_not_ref_stcb == 0) {
+		control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 1;
+	}
+	control->some_taken = 1;
 	if (hold_sblock) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		hold_sblock = 0;
@@ -4874,21 +4909,22 @@ found_one:
 			struct sctp_extrcvinfo *s_extra;
 
 			s_extra = (struct sctp_extrcvinfo *)sinfo;
-			if (nxt) {
-				s_extra->next_flags = SCTP_NEXT_MSG_AVAIL;
+			if ((nxt) &&
+			    (nxt->length)) {
+				s_extra->sreinfo_next_flags = SCTP_NEXT_MSG_AVAIL;
 				if (nxt->sinfo_flags & SCTP_UNORDERED) {
-					s_extra->next_flags |= SCTP_NEXT_MSG_IS_UNORDERED;
+					s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_IS_UNORDERED;
 				}
 				if (nxt->spec_flags & M_NOTIFICATION) {
-					s_extra->next_flags |= SCTP_NEXT_MSG_IS_NOTIFICATION;
+					s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_IS_NOTIFICATION;
 				}
-				s_extra->next_asocid = nxt->sinfo_assoc_id;
-				s_extra->next_length = nxt->length;
-				s_extra->next_ppid = nxt->sinfo_ppid;
-				s_extra->next_stream = nxt->sinfo_stream;
+				s_extra->sreinfo_next_aid = nxt->sinfo_assoc_id;
+				s_extra->sreinfo_next_length = nxt->length;
+				s_extra->sreinfo_next_ppid = nxt->sinfo_ppid;
+				s_extra->sreinfo_next_stream = nxt->sinfo_stream;
 				if (nxt->tail_mbuf != NULL) {
 					if (nxt->end_added) {
-						s_extra->next_flags |= SCTP_NEXT_MSG_ISCOMPLETE;
+						s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_ISCOMPLETE;
 					}
 				}
 			} else {
@@ -4898,11 +4934,12 @@ found_one:
 				 * sinfo_ that is on the control's structure
 				 * :-D
 				 */
-				s_extra->next_flags = SCTP_NO_NEXT_MSG;
-				s_extra->next_asocid = 0;
-				s_extra->next_length = 0;
-				s_extra->next_ppid = 0;
-				s_extra->next_stream = 0;
+				nxt = NULL;
+				s_extra->sreinfo_next_flags = SCTP_NO_NEXT_MSG;
+				s_extra->sreinfo_next_aid = 0;
+				s_extra->sreinfo_next_length = 0;
+				s_extra->sreinfo_next_ppid = 0;
+				s_extra->sreinfo_next_stream = 0;
 			}
 		}
 		/*
@@ -5023,6 +5060,8 @@ get_more_data:
 				if ((SCTP_BUF_NEXT(m) == NULL) &&
 				    (control->end_added)) {
 					out_flags |= MSG_EOR;
+					if (control->do_not_ref_stcb == 0)
+						control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 0;
 				}
 				if (control->spec_flags & M_NOTIFICATION) {
 					out_flags |= MSG_NOTIFICATION;
@@ -5293,8 +5332,15 @@ wait_some_more:
 			if (control->end_added == 1) {
 				/* he aborted, or is done i.e.did a shutdown */
 				out_flags |= MSG_EOR;
-				if (control->pdapi_aborted)
+				if (control->pdapi_aborted) {
+					if (control->do_not_ref_stcb == 0)
+						control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 0;
+
 					out_flags |= MSG_TRUNC;
+				} else {
+					if (control->do_not_ref_stcb == 0)
+						control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 0;
+				}
 				goto done_with_control;
 			}
 			if (so->so_rcv.sb_cc > held_length) {
@@ -5343,6 +5389,8 @@ get_more_data2:
 			}
 			if (control->end_added) {
 				out_flags |= MSG_EOR;
+				if (control->do_not_ref_stcb == 0)
+					control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 0;
 			}
 			if (control->spec_flags & M_NOTIFICATION) {
 				out_flags |= MSG_NOTIFICATION;
@@ -5405,8 +5453,11 @@ get_more_data2:
 					 * shutdown
 					 */
 					out_flags |= MSG_EOR;
-					if (control->pdapi_aborted)
+					if (control->pdapi_aborted) {
 						out_flags |= MSG_TRUNC;
+						if (control->do_not_ref_stcb == 0)
+							control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 0;
+					}
 					goto done_with_control;
 				}
 				if (so->so_rcv.sb_cc > held_length) {
@@ -5535,6 +5586,15 @@ release_unlocked:
 	if (msg_flags)
 		*msg_flags |= out_flags;
 out:
+	if (((out_flags & MSG_EOR) == 0) &&
+	    ((in_flags & MSG_PEEK) == 0) &&
+	    (sinfo) &&
+	    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXT_RCVINFO))) {
+		struct sctp_extrcvinfo *s_extra;
+
+		s_extra = (struct sctp_extrcvinfo *)sinfo;
+		s_extra->sreinfo_next_flags = SCTP_NO_NEXT_MSG;
+	}
 	if (hold_rlock == 1) {
 		SCTP_INP_READ_UNLOCK(inp);
 		hold_rlock = 0;

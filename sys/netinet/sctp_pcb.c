@@ -3606,9 +3606,12 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 						 * added right after this
 						 * msg.
 						 */
+						uint32_t strseq;
+
 						stcb->asoc.control_pdapi = sq;
+						strseq = (sq->sinfo_stream << 16) | sq->sinfo_ssn;
 						sctp_notify_partial_delivery_indication(stcb,
-						    SCTP_PARTIAL_DELIVERY_ABORTED, 1);
+						    SCTP_PARTIAL_DELIVERY_ABORTED, 1, strseq);
 						stcb->asoc.control_pdapi = NULL;
 					}
 				}
