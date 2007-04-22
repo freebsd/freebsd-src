@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/sysarch.h>
 
 #include <security/audit/audit.h>
-#include <security/mac/mac_framework.h>
 
 #include <vm/vm_kern.h>		/* for kernel_map */
 
@@ -289,10 +288,6 @@ i386_set_ioperm(td, uap)
 	int i, error;
 	char *iomap;
 
-#ifdef MAC
-	if ((error = mac_check_sysarch_ioperm(td->td_ucred)) != 0)
-		return (error);
-#endif
 	if ((error = priv_check(td, PRIV_IO)) != 0)
 		return (error);
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)

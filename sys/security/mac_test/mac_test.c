@@ -1536,17 +1536,6 @@ mac_test_check_kld_stat(struct ucred *cred)
 	return (0);
 }
 
-COUNTER_DECL(check_kld_unload);
-static int
-mac_test_check_kld_unload(struct ucred *cred)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(check_kld_unload);
-
-	return (0);
-}
-
 COUNTER_DECL(check_mount_stat);
 static int
 mac_test_check_mount_stat(struct ucred *cred, struct mount *mp,
@@ -1968,17 +1957,6 @@ mac_test_check_socket_visible(struct ucred *cred, struct socket *socket,
 	return (0);
 }
 
-COUNTER_DECL(check_sysarch_ioperm);
-static int
-mac_test_check_sysarch_ioperm(struct ucred *cred)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(check_sysarch_ioperm);
-
-	return (0);
-}
-
 COUNTER_DECL(check_system_acct);
 static int
 mac_test_check_system_acct(struct ucred *cred, struct vnode *vp,
@@ -2034,17 +2012,6 @@ mac_test_check_system_reboot(struct ucred *cred, int how)
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	COUNTER_INC(check_system_reboot);
-
-	return (0);
-}
-
-COUNTER_DECL(check_system_settime);
-static int
-mac_test_check_system_settime(struct ucred *cred)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(check_system_settime);
 
 	return (0);
 }
@@ -2645,7 +2612,6 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_kenv_unset = mac_test_check_kenv_unset,
 	.mpo_check_kld_load = mac_test_check_kld_load,
 	.mpo_check_kld_stat = mac_test_check_kld_stat,
-	.mpo_check_kld_unload = mac_test_check_kld_unload,
 	.mpo_check_mount_stat = mac_test_check_mount_stat,
 	.mpo_check_pipe_ioctl = mac_test_check_pipe_ioctl,
 	.mpo_check_pipe_poll = mac_test_check_pipe_poll,
@@ -2685,13 +2651,11 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_socket_send = mac_test_check_socket_send,
 	.mpo_check_socket_stat = mac_test_check_socket_stat,
 	.mpo_check_socket_visible = mac_test_check_socket_visible,
-	.mpo_check_sysarch_ioperm = mac_test_check_sysarch_ioperm,
 	.mpo_check_system_acct = mac_test_check_system_acct,
 	.mpo_check_system_audit = mac_test_check_system_audit,
 	.mpo_check_system_auditctl = mac_test_check_system_auditctl,
 	.mpo_check_system_auditon = mac_test_check_system_auditon,
 	.mpo_check_system_reboot = mac_test_check_system_reboot,
-	.mpo_check_system_settime = mac_test_check_system_settime,
 	.mpo_check_system_swapoff = mac_test_check_system_swapoff,
 	.mpo_check_system_swapon = mac_test_check_system_swapon,
 	.mpo_check_system_sysctl = mac_test_check_system_sysctl,

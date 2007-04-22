@@ -420,7 +420,6 @@ typedef int	(*mpo_check_kenv_unset_t)(struct ucred *cred, char *name);
 typedef int	(*mpo_check_kld_load_t)(struct ucred *cred, struct vnode *vp,
 		    struct label *vlabel);
 typedef int	(*mpo_check_kld_stat_t)(struct ucred *cred);
-typedef int	(*mpo_check_kld_unload_t)(struct ucred *cred);
 typedef int	(*mpo_mpo_placeholder19_t)(void);
 typedef int	(*mpo_mpo_placeholder20_t)(void);
 typedef int	(*mpo_check_mount_stat_t)(struct ucred *cred,
@@ -505,7 +504,6 @@ typedef int	(*mpo_check_socket_stat_t)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
 typedef int	(*mpo_check_socket_visible_t)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
-typedef int	(*mpo_check_sysarch_ioperm_t)(struct ucred *cred);
 typedef int	(*mpo_check_system_acct_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vlabel);
 typedef int	(*mpo_check_system_audit_t)(struct ucred *cred, void *record,
@@ -513,9 +511,7 @@ typedef int	(*mpo_check_system_audit_t)(struct ucred *cred, void *record,
 typedef int	(*mpo_check_system_auditctl_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel);
 typedef int	(*mpo_check_system_auditon_t)(struct ucred *cred, int cmd);
-typedef int	(*mpo_check_system_nfsd_t)(struct ucred *cred);
 typedef int	(*mpo_check_system_reboot_t)(struct ucred *cred, int howto);
-typedef int	(*mpo_check_system_settime_t)(struct ucred *cred);
 typedef int	(*mpo_check_system_swapon_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *label);
 typedef int	(*mpo_check_system_swapoff_t)(struct ucred *cred,
@@ -817,7 +813,6 @@ struct mac_policy_ops {
 	mpo_check_kenv_unset_t			mpo_check_kenv_unset;
 	mpo_check_kld_load_t			mpo_check_kld_load;
 	mpo_check_kld_stat_t			mpo_check_kld_stat;
-	mpo_check_kld_unload_t			mpo_check_kld_unload;
 	mpo_placeholder_t			_mpo_placeholder19;
 	mpo_placeholder_t			_mpo_placeholder20;
 	mpo_check_mount_stat_t			mpo_check_mount_stat;
@@ -862,14 +857,11 @@ struct mac_policy_ops {
 	mpo_check_socket_send_t			mpo_check_socket_send;
 	mpo_check_socket_stat_t			mpo_check_socket_stat;
 	mpo_check_socket_visible_t		mpo_check_socket_visible;
-	mpo_check_sysarch_ioperm_t		mpo_check_sysarch_ioperm;
 	mpo_check_system_acct_t			mpo_check_system_acct;
 	mpo_check_system_audit_t		mpo_check_system_audit;
 	mpo_check_system_auditctl_t		mpo_check_system_auditctl;
 	mpo_check_system_auditon_t		mpo_check_system_auditon;
-	mpo_check_system_nfsd_t			mpo_check_system_nfsd;
 	mpo_check_system_reboot_t		mpo_check_system_reboot;
-	mpo_check_system_settime_t		mpo_check_system_settime;
 	mpo_check_system_swapon_t		mpo_check_system_swapon;
 	mpo_check_system_swapoff_t		mpo_check_system_swapoff;
 	mpo_check_system_sysctl_t		mpo_check_system_sysctl;
