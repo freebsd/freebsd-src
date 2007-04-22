@@ -147,7 +147,7 @@ struct vr_softc {
 	struct vr_chain_data	vr_cdata;
 	struct callout		vr_stat_callout;
 	struct mtx		vr_mtx;
-	int			suspended;	/* if 1, sleeping/detaching */
+	int			vr_suspended;	/* if 1, sleeping/detaching */
 	int			vr_quirks;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
@@ -158,7 +158,7 @@ static int vr_probe(device_t);
 static int vr_attach(device_t);
 static int vr_detach(device_t);
 
-static int vr_newbuf(struct vr_chain_onefrag *, struct mbuf *);
+static int vr_newbuf(struct vr_chain *, struct mbuf *);
 
 static void vr_rxeof(struct vr_softc *);
 static void vr_rxeoc(struct vr_softc *);
@@ -786,7 +786,7 @@ vr_attach(device_t dev)
 	/* Call MI attach routine. */
 	ether_ifattach(ifp, eaddr);
 
-	sc->suspended = 0;
+	sc->vr_suspended = 0;
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->vr_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -828,7 +828,7 @@ vr_detach(device_t dev)
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		VR_LOCK(sc);
-		sc->suspended = 1;
+		sc->vr_suspended = 1;
 		vr_stop(sc);
 		VR_UNLOCK(sc);
 		callout_drain(&sc->vr_stat_callout);
@@ -901,19 +901,18 @@ vr_list_rx_init(struct vr_softc *sc)
 	ld = sc->vr_ldata;
 
 	for (i = 0; i < VR_RX_LIST_CNT; i++) {
-		cd->vr_rx_chain[i].vr_ptr =
-			(struct vr_desc *)&ld->vr_rx_list[i];
+		cd->vr_rx_chain[i].vr_ptr = &ld->vr_rx_list[i];
 		if (vr_newbuf(&cd->vr_rx_chain[i], NULL) == ENOBUFS)
 			return (ENOBUFS);
 		if (i == (VR_RX_LIST_CNT - 1)) {
 			cd->vr_rx_chain[i].vr_nextdesc =
 					&cd->vr_rx_chain[0];
-			ld->vr_rx_list[i].vr_next =
+			ld->vr_rx_list[i].vr_nextphys =
 					vtophys(&ld->vr_rx_list[0]);
 		} else {
 			cd->vr_rx_chain[i].vr_nextdesc =
 					&cd->vr_rx_chain[i + 1];
-			ld->vr_rx_list[i].vr_next =
+			ld->vr_rx_list[i].vr_nextphys =
 					vtophys(&ld->vr_rx_list[i + 1]);
 		}
 	}
@@ -931,7 +930,7 @@ vr_list_rx_init(struct vr_softc *sc)
  * overflow the field and make a mess.
  */
 static int
-vr_newbuf(struct vr_chain_onefrag *c, struct mbuf *m)
+vr_newbuf(struct vr_chain *c, struct mbuf *m)
 {
 	struct mbuf		*m_new = NULL;
 
@@ -971,7 +970,7 @@ vr_rxeof(struct vr_softc *sc)
 {
 	struct mbuf		*m, *m0;
 	struct ifnet		*ifp;
-	struct vr_chain_onefrag	*cur_rx;
+	struct vr_chain		*cur_rx;
 	int			total_len = 0;
 	uint32_t		rxstat, rxctl;
 
@@ -1265,7 +1264,7 @@ vr_intr(void *arg)
 
 	VR_LOCK(sc);
 
-	if (sc->suspended) {
+	if (sc->vr_suspended) {
 		/*
 		 * Forcibly disable interrupts.
 		 * XXX: Mobile VIA based platforms may need
@@ -1448,9 +1447,10 @@ vr_start_locked(struct ifnet *ifp)
 			f->vr_ctl = cval;
 			f->vr_status = 0;
 			n_tx = n_tx->vr_nextdesc;
-			f->vr_next = vtophys(n_tx->vr_ptr);
-			KASSERT(!(f->vr_next & 0xf),
-			    ("vr_next not 16 byte aligned 0x%x", f->vr_next));
+			f->vr_nextphys = vtophys(n_tx->vr_ptr);
+			KASSERT(!(f->vr_nextphys & 0xf),
+			    ("vr_nextphys not 16 byte aligned 0x%x",
+			    f->vr_nextphys));
 		}
 
 		KASSERT(f != NULL, ("if_vr: no packet processed"));
