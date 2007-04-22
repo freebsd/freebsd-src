@@ -870,12 +870,17 @@ vr_list_tx_init(struct vr_softc *sc)
 	ld = sc->vr_ldata;
 	for (i = 0; i < VR_TX_LIST_CNT; i++) {
 		cd->vr_tx_chain[i].vr_ptr = &ld->vr_tx_list[i];
-		if (i == (VR_TX_LIST_CNT - 1))
+		if (i == (VR_TX_LIST_CNT - 1)) {
 			cd->vr_tx_chain[i].vr_nextdesc =
-				&cd->vr_tx_chain[0];
-		else
+			    &cd->vr_tx_chain[0];
+			ld->vr_tx_list[i].vr_nextphys =
+			    vtophys(&ld->vr_tx_list[0]);
+		} else {
 			cd->vr_tx_chain[i].vr_nextdesc =
 				&cd->vr_tx_chain[i + 1];
+			ld->vr_tx_list[i].vr_nextphys =
+			    vtophys(&ld->vr_tx_list[i + 1]);
+		}
 	}
 	cd->vr_tx_cons = cd->vr_tx_prod = &cd->vr_tx_chain[0];
 
@@ -1447,10 +1452,6 @@ vr_start_locked(struct ifnet *ifp)
 			f->vr_ctl = cval;
 			f->vr_status = 0;
 			n_tx = n_tx->vr_nextdesc;
-			f->vr_nextphys = vtophys(n_tx->vr_ptr);
-			KASSERT(!(f->vr_nextphys & 0xf),
-			    ("vr_nextphys not 16 byte aligned 0x%x",
-			    f->vr_nextphys));
 		}
 
 		KASSERT(f != NULL, ("if_vr: no packet processed"));
