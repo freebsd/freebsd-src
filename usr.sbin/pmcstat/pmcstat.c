@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
 #include <sys/wait.h>
@@ -71,18 +72,49 @@ __FBSDID("$FreeBSD$");
  * profiles, one per program executed.  When creating gprof(1)
  * profiles it can optionally merge entries from multiple processes
  * for a given executable into a single profile file.
+ *
+ * pmcstat(8) can also execute a command line and attach PMCs to the
+ * resulting child process.  The protocol used is as follows:
+ *
+ * - parent creates a socketpair for two way communication and
+ *   fork()s.
+ * - subsequently:
+ *
+ *   /Parent/				/Child/
+ *
+ *   - Wait for childs token.
+ *					- Sends token.
+ *					- Awaits signal to start.
+ *  - Attaches PMCs to the child's pid
+ *    and starts them. Sets up
+ *    monitoring for the child.
+ *  - Signals child to start.
+ *					- Recieves signal, attempts exec().
+ *
+ * After this point normal processing can happen.
  */
 
 /* Globals */
 
 int	pmcstat_interrupt = 0;
 int	pmcstat_displayheight = DEFAULT_DISPLAY_HEIGHT;
-int	pmcstat_pipefd[NPIPEFD];
+int	pmcstat_sockpair[NSOCKPAIRFD];
 int	pmcstat_kq;
 
-/*
- * cleanup
- */
+void
+pmcstat_attach_pmcs(struct pmcstat_args *a)
+{
+	struct pmcstat_ev *ev;
+
+	/* Attach all process PMCs to the child process. */
+	STAILQ_FOREACH(ev, &a->pa_head, ev_next)
+	    if (PMC_IS_VIRTUAL_MODE(ev->ev_mode) &&
+		pmc_attach(ev->ev_pmcid, a->pa_pid) != 0)
+		    err(EX_OSERR, "ERROR: cannot attach pmc \"%s\" to "
+			"process %d", ev->ev_name, (int) a->pa_pid);
+
+}
+
 
 void
 pmcstat_cleanup(struct pmcstat_args *a)
@@ -115,6 +147,111 @@ pmcstat_cleanup(struct pmcstat_args *a)
 }
 
 void
+pmcstat_clone_event_descriptor(struct pmcstat_args *a, struct pmcstat_ev *ev,
+    uint32_t cpumask)
+{
+	int cpu;
+	struct pmcstat_ev *ev_clone;
+
+	while ((cpu = ffs(cpumask)) > 0) {
+		cpu--;
+
+		if ((ev_clone = malloc(sizeof(*ev_clone))) == NULL)
+			errx(EX_SOFTWARE, "ERROR: Out of memory");
+		(void) memset(ev_clone, 0, sizeof(*ev_clone));
+
+		ev_clone->ev_count = ev->ev_count;
+		ev_clone->ev_cpu   = cpu;
+		ev_clone->ev_cumulative = ev->ev_cumulative;
+		ev_clone->ev_flags = ev->ev_flags;
+		ev_clone->ev_mode  = ev->ev_mode;
+		ev_clone->ev_name  = strdup(ev->ev_name);
+		ev_clone->ev_pmcid = ev->ev_pmcid;
+		ev_clone->ev_saved = ev->ev_saved;
+		ev_clone->ev_spec  = strdup(ev->ev_spec);
+
+		STAILQ_INSERT_TAIL(&a->pa_head, ev_clone, ev_next);
+
+		cpumask &= ~(1 << cpu);
+	}
+}
+
+void
+pmcstat_create_process(struct pmcstat_args *a)
+{
+	char token;
+	struct kevent kev;
+
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, pmcstat_sockpair) < 0)
+		err(EX_OSERR, "ERROR: cannot create socket pair");
+
+	switch (a->pa_pid = fork()) {
+	case -1:
+		err(EX_OSERR, "ERROR: cannot fork");
+		/*NOTREACHED*/
+
+	case 0:		/* child */
+		(void) close(pmcstat_sockpair[PARENTSOCKET]);
+
+		/* Write a token to tell our parent we've started executing. */
+		if (write(pmcstat_sockpair[CHILDSOCKET], "+", 1) != 1)
+			err(EX_OSERR, "ERROR (child): cannot write token");
+
+		/* Wait for our parent to signal us to start. */
+		if (read(pmcstat_sockpair[CHILDSOCKET], &token, 1) < 0)
+			err(EX_OSERR, "ERROR (child): cannot read token");
+		(void) close(pmcstat_sockpair[CHILDSOCKET]);
+
+		/* exec() the program requested */
+		execvp(*a->pa_argv, a->pa_argv);
+		/* and if that fails, notify the parent */
+		kill(getppid(), SIGCHLD);
+		err(EX_OSERR, "ERROR: execvp \"%s\" failed", *a->pa_argv);
+		/*NOTREACHED*/
+
+	default:	/* parent */
+		(void) close(pmcstat_sockpair[CHILDSOCKET]);
+		break;
+	}
+
+	/* Ask to be notified via a kevent when the target process exits. */
+	EV_SET(&kev, a->pa_pid, EVFILT_PROC, EV_ADD|EV_ONESHOT, NOTE_EXIT, 0,
+	    NULL);
+	if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
+		err(EX_OSERR, "ERROR: cannot monitor child process %d",
+		    a->pa_pid);
+
+	/* Wait for the child to signal that its ready to go. */
+	if (read(pmcstat_sockpair[PARENTSOCKET], &token, 1) < 0)
+		err(EX_OSERR, "ERROR (parent): cannot read token");
+
+	return;
+}
+
+uint32_t
+pmcstat_get_cpumask(const char *cpuspec)
+{
+	uint32_t cpumask;
+	int cpu;
+	const char *s;
+	char *end;
+
+	s = cpuspec;
+	cpumask = 0ULL;
+
+	do {
+		cpu = strtol(s, &end, 0);
+		if (cpu < 0 || end == s)
+			errx(EX_USAGE, "ERROR: Illegal CPU specification "
+			    "\"%s\".", cpuspec);
+		cpumask |= (1 << cpu);
+		s = end + strspn(end, ", \t");
+	} while (*s);
+
+	return (cpumask);
+}
+
+void
 pmcstat_start_pmcs(struct pmcstat_args *a)
 {
 	struct pmcstat_ev *ev;
@@ -137,7 +274,7 @@ void
 pmcstat_print_headers(struct pmcstat_args *a)
 {
 	struct pmcstat_ev *ev;
-	int c;
+	int c, w;
 
 	(void) fprintf(a->pa_printfile, PRINT_HEADER_PREFIX);
 
@@ -147,14 +284,17 @@ pmcstat_print_headers(struct pmcstat_args *a)
 
 		c = PMC_IS_SYSTEM_MODE(ev->ev_mode) ? 's' : 'p';
 
-		if (ev->ev_fieldskip != 0) {
-			(void) fprintf(a->pa_printfile, "%*s%c/%*s ",
-			    ev->ev_fieldskip, "", c,
-			    ev->ev_fieldwidth - ev->ev_fieldskip - 2,
+		if (ev->ev_fieldskip != 0)
+			(void) fprintf(a->pa_printfile, "%*s",
+			    ev->ev_fieldskip, "");
+		w = ev->ev_fieldwidth - ev->ev_fieldskip - 2;
+
+		if (c == 's')
+			(void) fprintf(a->pa_printfile, "s/%02d/%-*s ",
+			    ev->ev_cpu, w-3, ev->ev_name);
+		else
+			(void) fprintf(a->pa_printfile, "p/%*s ", w,
 			    ev->ev_name);
-		} else
-			(void) fprintf(a->pa_printfile, "%c/%*s ",
-			    c, ev->ev_fieldwidth - 2, ev->ev_name);
 	}
 
 	(void) fflush(a->pa_printfile);
@@ -224,87 +364,13 @@ pmcstat_print_pmcs(struct pmcstat_args *a)
  */
 
 void
-pmcstat_setup_process(struct pmcstat_args *a)
+pmcstat_start_process(void)
 {
-	char token;
-	struct pmcstat_ev *ev;
-	struct kevent kev;
+	/* Signal the child to proceed. */
+	if (write(pmcstat_sockpair[PARENTSOCKET], "!", 1) != 1)
+		err(EX_OSERR, "ERROR (parent): write of token failed");
 
-	if (a->pa_flags & FLAG_HAS_PID) {
-		STAILQ_FOREACH(ev, &a->pa_head, ev_next)
-		    if (pmc_attach(ev->ev_pmcid, a->pa_pid) != 0)
-			    err(EX_OSERR, "ERROR: cannot attach pmc \"%s\" to "
-				"process %d", ev->ev_name, (int) a->pa_pid);
-	} else {
-
-		/*
-		 * We need to fork a new process and startup the child
-		 * using execvp().  Before doing the exec() the child
-		 * process reads its pipe for a token so that the parent
-		 * can finish doing its pmc_attach() calls.
-		 */
-		if (pipe(pmcstat_pipefd) < 0)
-			err(EX_OSERR, "ERROR: cannot create pipe");
-
-		switch (a->pa_pid = fork()) {
-		case -1:
-			err(EX_OSERR, "ERROR: cannot fork");
-			/*NOTREACHED*/
-
-		case 0:		/* child */
-
-			/* wait for our parent to signal us */
-			(void) close(pmcstat_pipefd[WRITEPIPEFD]);
-			if (read(pmcstat_pipefd[READPIPEFD], &token, 1) < 0)
-				err(EX_OSERR, "ERROR (child): cannot read "
-				    "token");
-			(void) close(pmcstat_pipefd[READPIPEFD]);
-
-			/* exec() the program requested */
-			execvp(*a->pa_argv, a->pa_argv);
-			/* and if that fails, notify the parent */
-			kill(getppid(), SIGCHLD);
-			err(EX_OSERR, "ERROR: execvp \"%s\" failed",
-			    *a->pa_argv);
-			/*NOTREACHED*/
-
-		default:	/* parent */
-
-			(void) close(pmcstat_pipefd[READPIPEFD]);
-
-			/* attach all our PMCs to the child */
-			STAILQ_FOREACH(ev, &args.pa_head, ev_next)
-			    if (PMC_IS_VIRTUAL_MODE(ev->ev_mode) &&
-				pmc_attach(ev->ev_pmcid, a->pa_pid) != 0)
-				    err(EX_OSERR, "ERROR: cannot attach pmc "
-					"\"%s\" to process %d", ev->ev_name,
-					(int) a->pa_pid);
-
-		}
-	}
-
-	/* Ask to be notified via a kevent when the target process exits */
-	EV_SET(&kev, a->pa_pid, EVFILT_PROC, EV_ADD|EV_ONESHOT, NOTE_EXIT, 0,
-	    NULL);
-	if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
-		err(EX_OSERR, "ERROR: cannot monitor child process %d",
-		    a->pa_pid);
-	return;
-}
-
-void
-pmcstat_start_process(struct pmcstat_args *a)
-{
-
-	/* nothing to do: target is already running */
-	if (a->pa_flags & FLAG_HAS_PID)
-		return;
-
-	/* write token to child to state that we are ready */
-	if (write(pmcstat_pipefd[WRITEPIPEFD], "+", 1) != 1)
-		err(EX_OSERR, "ERROR: write failed");
-
-	(void) close(pmcstat_pipefd[WRITEPIPEFD]);
+	(void) close(pmcstat_sockpair[PARENTSOCKET]);
 }
 
 void
@@ -324,7 +390,7 @@ pmcstat_show_usage(void)
 	    "\t -R file\t read events from \"file\"\n"
 	    "\t -S spec\t allocate a system-wide sampling PMC\n"
 	    "\t -W\t\t (toggle) show counts per context switch\n"
-	    "\t -c cpu\t\t set cpu for subsequent system-wide PMCs\n"
+	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
 	    "\t -d\t\t (toggle) track descendants\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
 	    "\t -k dir\t\t set the path to the kernel\n"
@@ -352,8 +418,10 @@ main(int argc, char **argv)
 	int c, check_driver_stats, current_cpu, current_sampling_count;
 	int do_print, do_descendants;
 	int do_logproccsw, do_logprocexit;
+	size_t dummy;
 	int pipefd[2];
 	int use_cumulative_counts;
+	uint32_t cpumask;
 	pid_t pid;
 	char *end, *tmp;
 	const char *errmsg;
@@ -389,6 +457,11 @@ main(int argc, char **argv)
 	bzero(&ds_end, sizeof(ds_end));
 	ev = NULL;
 
+	dummy = sizeof(ncpu);
+	if (sysctlbyname("hw.ncpu", &ncpu, &dummy, NULL, 0) < 0)
+		err(EX_OSERR, "ERROR: Cannot determine #cpus");
+	cpumask = (1 << ncpu) - 1;
+
 	while ((option = getopt(argc, argv,
 	    "CD:EM:O:P:R:S:Wc:dgk:n:o:p:qr:s:t:vw:")) != -1)
 		switch (option) {
@@ -398,11 +471,12 @@ main(int argc, char **argv)
 			break;
 
 		case 'c':	/* CPU */
-			current_cpu = strtol(optarg, &end, 0);
-			if (*end != '\0' || current_cpu < 0)
-				errx(EX_USAGE,
-				    "ERROR: Illegal CPU number \"%s\".",
-				    optarg);
+
+			if (optarg[0] == '*' && optarg[1] == '\0')
+				cpumask = (1 << ncpu) - 1;
+			else
+				cpumask = pmcstat_get_cpumask(optarg);
+
 			args.pa_required |= FLAG_HAS_SYSTEM_PMCS;
 			break;
 
@@ -412,7 +486,7 @@ main(int argc, char **argv)
 				    optarg);
 			if (!S_ISDIR(sb.st_mode))
 				errx(EX_USAGE, "ERROR: \"%s\" is not a "
-				    "directory", optarg);
+				    "directory.", optarg);
 			args.pa_samplesdir = optarg;
 			args.pa_flags     |= FLAG_HAS_SAMPLESDIR;
 			args.pa_required  |= FLAG_DO_GPROF;
@@ -484,7 +558,7 @@ main(int argc, char **argv)
 				ev->ev_count = -1;
 
 			if (option == 'S' || option == 's')
-				ev->ev_cpu = current_cpu;
+				ev->ev_cpu = ffs(cpumask) - 1;
 			else
 				ev->ev_cpu = PMC_CPU_ANY;
 
@@ -508,6 +582,10 @@ main(int argc, char **argv)
 			*(ev->ev_name + c) = '\0';
 
 			STAILQ_INSERT_TAIL(&args.pa_head, ev, ev_next);
+
+			if (option == 's' || option == 'S')
+				pmcstat_clone_event_descriptor(&args, ev,
+				    cpumask & ~(1 << ev->ev_cpu));
 
 			break;
 
@@ -740,7 +818,7 @@ main(int argc, char **argv)
 				    "directory.", buffer);
 		}
 	}
-		
+
 	/* if we've been asked to process a log file, do that and exit */
 	if (args.pa_flags & FLAG_READ_LOGFILE) {
 		/*
@@ -764,10 +842,6 @@ main(int argc, char **argv)
 	if (pmc_init() < 0)
 		err(EX_UNAVAILABLE,
 		    "ERROR: Initialization of the pmc(3) library failed");
-
-	if ((ncpu = pmc_ncpu()) < 0)
-		err(EX_OSERR, "ERROR: Cannot determine the number CPUs "
-		    "on the system");
 
 	if ((npmc = pmc_npmc(0)) < 0) /* assume all CPUs are identical */
 		err(EX_OSERR, "ERROR: Cannot determine the number of PMCs "
@@ -841,8 +915,11 @@ main(int argc, char **argv)
 		int header_width;
 
 		(void) pmc_width(ev->ev_pmcid, &counter_width);
-		header_width = strlen(ev->ev_name) + 2; /* prefix '%c|' */
+		header_width = strlen(ev->ev_name) + 2; /* prefix '%c/' */
 		display_width = (int) floor(counter_width / 3.32193) + 1;
+
+		if (PMC_IS_SYSTEM_MODE(ev->ev_mode))
+			header_width += 3; /* 2 digit CPU number + '/' */
 
 		if (header_width > display_width) {
 			ev->ev_fieldskip = 0;
@@ -903,18 +980,22 @@ main(int argc, char **argv)
 	}
 
 	/* attach PMCs to the target process, starting it if specified */
-	if (args.pa_flags & (FLAG_HAS_PID | FLAG_HAS_COMMANDLINE))
-		pmcstat_setup_process(&args);
+	if (args.pa_flags & FLAG_HAS_COMMANDLINE)
+		pmcstat_create_process(&args);
 
 	if (check_driver_stats && pmc_get_driver_stats(&ds_start) < 0)
 		err(EX_OSERR, "ERROR: Cannot retrieve driver statistics");
+
+	/* Attach process pmcs to the target process. */
+	if (args.pa_pid != -1)
+		pmcstat_attach_pmcs(&args);
 
 	/* start the pmcs */
 	pmcstat_start_pmcs(&args);
 
 	/* start the (commandline) process if needed */
 	if (args.pa_flags & FLAG_HAS_COMMANDLINE)
-		pmcstat_start_process(&args);
+		pmcstat_start_process();
 
 	/* initialize logging if printing the configured log */
 	if ((args.pa_flags & FLAG_DO_PRINT) &&
