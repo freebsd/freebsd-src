@@ -268,15 +268,6 @@ mac_test_init_mount_label(struct label *label)
 	COUNTER_INC(init_mount_label);
 }
 
-COUNTER_DECL(init_mount_fs_label);
-static void
-mac_test_init_mount_fs_label(struct label *label)
-{
-
-	LABEL_INIT(label, MAGIC_MOUNT);
-	COUNTER_INC(init_mount_fs_label);
-}
-
 COUNTER_DECL(init_socket_label);
 static int
 mac_test_init_socket_label(struct label *label, int flag)
@@ -459,15 +450,6 @@ mac_test_destroy_mount_label(struct label *label)
 	COUNTER_INC(destroy_mount_label);
 }
 
-COUNTER_DECL(destroy_mount_fs_label);
-static void
-mac_test_destroy_mount_fs_label(struct label *label)
-{
-
-	LABEL_DESTROY(label, MAGIC_MOUNT);
-	COUNTER_INC(destroy_mount_fs_label);
-}
-
 COUNTER_DECL(destroy_socket_label);
 static void
 mac_test_destroy_socket_label(struct label *label)
@@ -612,12 +594,12 @@ mac_test_internalize_label(struct label *label, char *element_name,
  */
 COUNTER_DECL(associate_vnode_devfs);
 static void
-mac_test_associate_vnode_devfs(struct mount *mp, struct label *fslabel,
+mac_test_associate_vnode_devfs(struct mount *mp, struct label *mntlabel,
     struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
     struct label *vlabel)
 {
 
-	LABEL_CHECK(fslabel, MAGIC_MOUNT);
+	LABEL_CHECK(mntlabel, MAGIC_MOUNT);
 	LABEL_CHECK(delabel, MAGIC_DEVFS);
 	LABEL_CHECK(vlabel, MAGIC_VNODE);
 	COUNTER_INC(associate_vnode_devfs);
@@ -625,11 +607,11 @@ mac_test_associate_vnode_devfs(struct mount *mp, struct label *fslabel,
 
 COUNTER_DECL(associate_vnode_extattr);
 static int
-mac_test_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
+mac_test_associate_vnode_extattr(struct mount *mp, struct label *mntlabel,
     struct vnode *vp, struct label *vlabel)
 {
 
-	LABEL_CHECK(fslabel, MAGIC_MOUNT);
+	LABEL_CHECK(mntlabel, MAGIC_MOUNT);
 	LABEL_CHECK(vlabel, MAGIC_VNODE);
 	COUNTER_INC(associate_vnode_extattr);
 
@@ -639,10 +621,10 @@ mac_test_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
 COUNTER_DECL(associate_vnode_singlelabel);
 static void
 mac_test_associate_vnode_singlelabel(struct mount *mp,
-    struct label *fslabel, struct vnode *vp, struct label *vlabel)
+    struct label *mntlabel, struct vnode *vp, struct label *vlabel)
 {
 
-	LABEL_CHECK(fslabel, MAGIC_MOUNT);
+	LABEL_CHECK(mntlabel, MAGIC_MOUNT);
 	LABEL_CHECK(vlabel, MAGIC_VNODE);
 	COUNTER_INC(associate_vnode_singlelabel);
 }
@@ -685,12 +667,12 @@ mac_test_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 COUNTER_DECL(create_vnode_extattr);
 static int
 mac_test_create_vnode_extattr(struct ucred *cred, struct mount *mp,
-    struct label *fslabel, struct vnode *dvp, struct label *dlabel,
+    struct label *mntlabel, struct vnode *dvp, struct label *dlabel,
     struct vnode *vp, struct label *vlabel, struct componentname *cnp)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(fslabel, MAGIC_MOUNT);
+	LABEL_CHECK(mntlabel, MAGIC_MOUNT);
 	LABEL_CHECK(dlabel, MAGIC_VNODE);
 	COUNTER_INC(create_vnode_extattr);
 
@@ -700,12 +682,11 @@ mac_test_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 COUNTER_DECL(create_mount);
 static void
 mac_test_create_mount(struct ucred *cred, struct mount *mp,
-    struct label *mntlabel, struct label *fslabel)
+    struct label *mntlabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(mntlabel, MAGIC_MOUNT);
-	LABEL_CHECK(fslabel, MAGIC_MOUNT);
 	COUNTER_INC(create_mount);
 }
 
@@ -2490,7 +2471,6 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_init_ipq_label = mac_test_init_ipq_label,
 	.mpo_init_mbuf_label = mac_test_init_mbuf_label,
 	.mpo_init_mount_label = mac_test_init_mount_label,
-	.mpo_init_mount_fs_label = mac_test_init_mount_fs_label,
 	.mpo_init_pipe_label = mac_test_init_pipe_label,
 	.mpo_init_posix_sem_label = mac_test_init_posix_sem_label,
 	.mpo_init_proc_label = mac_test_init_proc_label,
@@ -2510,7 +2490,6 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_destroy_ipq_label = mac_test_destroy_ipq_label,
 	.mpo_destroy_mbuf_label = mac_test_destroy_mbuf_label,
 	.mpo_destroy_mount_label = mac_test_destroy_mount_label,
-	.mpo_destroy_mount_fs_label = mac_test_destroy_mount_fs_label,
 	.mpo_destroy_pipe_label = mac_test_destroy_pipe_label,
 	.mpo_destroy_posix_sem_label = mac_test_destroy_posix_sem_label,
 	.mpo_destroy_proc_label = mac_test_destroy_proc_label,

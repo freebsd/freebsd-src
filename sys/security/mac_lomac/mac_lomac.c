@@ -949,14 +949,12 @@ mac_lomac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 
 static void
 mac_lomac_create_mount(struct ucred *cred, struct mount *mp,
-    struct label *mntlabel, struct label *fslabel)
+    struct label *mntlabel)
 {
 	struct mac_lomac *source, *dest;
 
 	source = SLOT(cred->cr_label);
 	dest = SLOT(mntlabel);
-	mac_lomac_copy_single(source, dest);
-	dest = SLOT(fslabel);
 	mac_lomac_copy_single(source, dest);
 }
 
@@ -986,7 +984,7 @@ mac_lomac_update_devfsdirent(struct mount *mp,
 }
 
 static void
-mac_lomac_associate_vnode_devfs(struct mount *mp, struct label *fslabel,
+mac_lomac_associate_vnode_devfs(struct mount *mp, struct label *mntlabel,
     struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
     struct label *vlabel)
 {
@@ -999,13 +997,13 @@ mac_lomac_associate_vnode_devfs(struct mount *mp, struct label *fslabel,
 }
 
 static int
-mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
+mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *mntlabel,
     struct vnode *vp, struct label *vlabel)
 {
 	struct mac_lomac temp, *source, *dest;
 	int buflen, error;
 
-	source = SLOT(fslabel);
+	source = SLOT(mntlabel);
 	dest = SLOT(vlabel);
 
 	buflen = sizeof(temp);
@@ -1014,7 +1012,7 @@ mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
 	error = vn_extattr_get(vp, IO_NODELOCKED, MAC_LOMAC_EXTATTR_NAMESPACE,
 	    MAC_LOMAC_EXTATTR_NAME, &buflen, (char *)&temp, curthread);
 	if (error == ENOATTR || error == EOPNOTSUPP) {
-		/* Fall back to the fslabel. */
+		/* Fall back to the mntlabel. */
 		mac_lomac_copy_single(source, dest);
 		return (0);
 	} else if (error)
@@ -1047,11 +1045,11 @@ mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
 
 static void
 mac_lomac_associate_vnode_singlelabel(struct mount *mp,
-    struct label *fslabel, struct vnode *vp, struct label *vlabel)
+    struct label *mntlabel, struct vnode *vp, struct label *vlabel)
 {
 	struct mac_lomac *source, *dest;
 
-	source = SLOT(fslabel);
+	source = SLOT(mntlabel);
 	dest = SLOT(vlabel);
 
 	mac_lomac_copy_single(source, dest);
@@ -1059,7 +1057,7 @@ mac_lomac_associate_vnode_singlelabel(struct mount *mp,
 
 static int
 mac_lomac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
-    struct label *fslabel, struct vnode *dvp, struct label *dlabel,
+    struct label *mntlabel, struct vnode *dvp, struct label *dlabel,
     struct vnode *vp, struct label *vlabel, struct componentname *cnp)
 {
 	struct mac_lomac *source, *dest, *dir, temp;
@@ -2833,7 +2831,6 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_init_ipq_label = mac_lomac_init_label_waitcheck,
 	.mpo_init_mbuf_label = mac_lomac_init_label_waitcheck,
 	.mpo_init_mount_label = mac_lomac_init_label,
-	.mpo_init_mount_fs_label = mac_lomac_init_label,
 	.mpo_init_pipe_label = mac_lomac_init_label,
 	.mpo_init_proc_label = mac_lomac_init_proc_label,
 	.mpo_init_socket_label = mac_lomac_init_label_waitcheck,
@@ -2848,7 +2845,6 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_destroy_ipq_label = mac_lomac_destroy_label,
 	.mpo_destroy_mbuf_label = mac_lomac_destroy_label,
 	.mpo_destroy_mount_label = mac_lomac_destroy_label,
-	.mpo_destroy_mount_fs_label = mac_lomac_destroy_label,
 	.mpo_destroy_pipe_label = mac_lomac_destroy_label,
 	.mpo_destroy_proc_label = mac_lomac_destroy_proc_label,
 	.mpo_destroy_syncache_label = mac_lomac_destroy_label,
