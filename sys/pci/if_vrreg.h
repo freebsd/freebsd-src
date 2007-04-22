@@ -462,44 +462,6 @@ struct vr_mii_frame {
 #define VR_FLAG_SCHEDDELAY	2
 #define VR_FLAG_DELAYTIMEO	3	
 
-struct vr_softc {
-	struct ifnet		*vr_ifp;	/* interface info */
-	device_t		vr_dev;
-	struct resource		*vr_res;
-	struct resource		*vr_irq;
-	void			*vr_intrhand;
-	device_t		vr_miibus;
-	struct vr_type		*vr_info;	/* Rhine adapter info */
-	u_int8_t		vr_type;
-	u_int8_t		vr_revid;	/* Rhine chip revision */
-	u_int8_t                vr_flags;       /* See VR_F_* below */
-	struct vr_list_data	*vr_ldata;
-	struct vr_chain_data	vr_cdata;
-	struct callout		vr_stat_callout;
-	struct mtx		vr_mtx;
-	int			suspended;	/* if 1, sleeping/detaching */
-	int			vr_quirks;
-#ifdef DEVICE_POLLING
-	int			rxcycles;
-#endif
-};
-
-#define VR_F_RESTART		0x01		/* Restart unit on next tick */
-
-#define	VR_LOCK(_sc)		mtx_lock(&(_sc)->vr_mtx)
-#define	VR_UNLOCK(_sc)		mtx_unlock(&(_sc)->vr_mtx)
-#define	VR_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->vr_mtx, MA_OWNED)
-
-/*
- * register space access macros
- */
-#define CSR_WRITE_4(sc, reg, val)	bus_write_4(sc->vr_res, reg, val)
-#define CSR_WRITE_2(sc, reg, val)	bus_write_2(sc->vr_res, reg, val)
-#define CSR_WRITE_1(sc, reg, val)	bus_write_1(sc->vr_res, reg, val)
-
-#define CSR_READ_4(sc, reg)		bus_read_4(sc->vr_res, reg)
-#define CSR_READ_2(sc, reg)		bus_read_2(sc->vr_res, reg)
-#define CSR_READ_1(sc, reg)		bus_read_1(sc->vr_res, reg)
 
 #define VR_TIMEOUT		1000
 #define ETHER_ALIGN		2

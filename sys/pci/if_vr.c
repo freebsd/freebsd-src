@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -89,10 +88,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #define VR_USEIOSPACE
@@ -136,12 +133,32 @@ static struct vr_type vr_devs[] = {
 	{ 0, 0, 0, NULL }
 };
 
+
+struct vr_softc {
+	struct ifnet		*vr_ifp;	/* interface info */
+	device_t		vr_dev;
+	struct resource		*vr_res;
+	struct resource		*vr_irq;
+	void			*vr_intrhand;
+	device_t		vr_miibus;
+	u_int8_t		vr_revid;	/* Rhine chip revision */
+	u_int8_t                vr_flags;       /* See VR_F_* below */
+	struct vr_list_data	*vr_ldata;
+	struct vr_chain_data	vr_cdata;
+	struct callout		vr_stat_callout;
+	struct mtx		vr_mtx;
+	int			suspended;	/* if 1, sleeping/detaching */
+	int			vr_quirks;
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif
+};
+
 static int vr_probe(device_t);
 static int vr_attach(device_t);
 static int vr_detach(device_t);
 
-static int vr_newbuf(struct vr_softc *, struct vr_chain_onefrag *,
-		struct mbuf *);
+static int vr_newbuf(struct vr_chain_onefrag *, struct mbuf *);
 
 static void vr_rxeof(struct vr_softc *);
 static void vr_rxeoc(struct vr_softc *);
@@ -163,15 +180,15 @@ static void vr_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static void vr_mii_sync(struct vr_softc *);
 static void vr_mii_send(struct vr_softc *, uint32_t, int);
 #endif
-static int vr_mii_readreg(struct vr_softc *, struct vr_mii_frame *);
-static int vr_mii_writereg(struct vr_softc *, struct vr_mii_frame *);
+static int vr_mii_readreg(const struct vr_softc *, struct vr_mii_frame *);
+static int vr_mii_writereg(const struct vr_softc *, const struct vr_mii_frame *);
 static int vr_miibus_readreg(device_t, uint16_t, uint16_t);
 static int vr_miibus_writereg(device_t, uint16_t, uint16_t, uint16_t);
 static void vr_miibus_statchg(device_t);
 
 static void vr_setcfg(struct vr_softc *, int);
 static void vr_setmulti(struct vr_softc *);
-static void vr_reset(struct vr_softc *);
+static void vr_reset(const struct vr_softc *);
 static int vr_list_rx_init(struct vr_softc *);
 static int vr_list_tx_init(struct vr_softc *);
 
@@ -212,40 +229,34 @@ static devclass_t vr_devclass;
 
 DRIVER_MODULE(vr, pci, vr_driver, vr_devclass, 0, 0);
 DRIVER_MODULE(miibus, vr, miibus_driver, miibus_devclass, 0, 0);
+#define VR_F_RESTART		0x01		/* Restart unit on next tick */
 
-#define VR_SETBIT(sc, reg, x)				\
-	CSR_WRITE_1(sc, reg,				\
-		CSR_READ_1(sc, reg) | (x))
+#define	VR_LOCK(_sc)		mtx_lock(&(_sc)->vr_mtx)
+#define	VR_UNLOCK(_sc)		mtx_unlock(&(_sc)->vr_mtx)
+#define	VR_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->vr_mtx, MA_OWNED)
 
-#define VR_CLRBIT(sc, reg, x)				\
-	CSR_WRITE_1(sc, reg,				\
-		CSR_READ_1(sc, reg) & ~(x))
+/*
+ * register space access macros
+ */
+#define CSR_WRITE_4(sc, reg, val)	bus_write_4(sc->vr_res, reg, val)
+#define CSR_WRITE_2(sc, reg, val)	bus_write_2(sc->vr_res, reg, val)
+#define CSR_WRITE_1(sc, reg, val)	bus_write_1(sc->vr_res, reg, val)
 
-#define VR_SETBIT16(sc, reg, x)				\
-	CSR_WRITE_2(sc, reg,				\
-		CSR_READ_2(sc, reg) | (x))
+#define CSR_READ_2(sc, reg)		bus_read_2(sc->vr_res, reg)
+#define CSR_READ_1(sc, reg)		bus_read_1(sc->vr_res, reg)
 
-#define VR_CLRBIT16(sc, reg, x)				\
-	CSR_WRITE_2(sc, reg,				\
-		CSR_READ_2(sc, reg) & ~(x))
+#define VR_SETBIT(sc, reg, x) CSR_WRITE_1(sc, reg, CSR_READ_1(sc, reg) | (x))
+#define VR_CLRBIT(sc, reg, x) CSR_WRITE_1(sc, reg, CSR_READ_1(sc, reg) & ~(x))
 
-#define VR_SETBIT32(sc, reg, x)				\
-	CSR_WRITE_4(sc, reg,				\
-		CSR_READ_4(sc, reg) | (x))
-
-#define VR_CLRBIT32(sc, reg, x)				\
-	CSR_WRITE_4(sc, reg,				\
-		CSR_READ_4(sc, reg) & ~(x))
-
-#define SIO_SET(x)					\
-	CSR_WRITE_1(sc, VR_MIICMD,			\
-		CSR_READ_1(sc, VR_MIICMD) | (x))
-
-#define SIO_CLR(x)					\
-	CSR_WRITE_1(sc, VR_MIICMD,			\
-		CSR_READ_1(sc, VR_MIICMD) & ~(x))
+#define VR_SETBIT16(sc, reg, x) CSR_WRITE_2(sc, reg, CSR_READ_2(sc, reg) | (x))
+#define VR_CLRBIT16(sc, reg, x) CSR_WRITE_2(sc, reg, CSR_READ_2(sc, reg) & ~(x))
 
 #ifdef VR_USESWSHIFT
+
+#define CSR_READ_4(sc, reg)		bus_read_4(sc->vr_res, reg)
+#define SIO_SET(x) CSR_WRITE_1(sc, VR_MIICMD, CSR_READ_1(sc, VR_MIICMD) | (x))
+#define SIO_CLR(x) CSR_WRITE_1(sc, VR_MIICMD, CSR_READ_1(sc, VR_MIICMD) & ~(x))
+
 /*
  * Sync the PHYs by setting data bit and strobing the clock 32 times.
  */
@@ -292,7 +303,7 @@ vr_mii_send(struct vr_softc *sc, uint32_t bits, int cnt)
  * Read an PHY register through the MII.
  */
 static int
-vr_mii_readreg(struct vr_softc *sc, struct vr_mii_frame *frame)
+vr_mii_readreg(const struct vr_softc *sc, struct vr_mii_frame *frame)
 #ifdef VR_USESWSHIFT
 {
 	int	i, ack;
@@ -397,7 +408,7 @@ fail:
  * Write to a PHY register through the MII.
  */
 static int
-vr_mii_writereg(struct vr_softc *sc, struct vr_mii_frame *frame)
+vr_mii_writereg(const struct vr_softc *sc, const struct vr_mii_frame *frame)
 #ifdef VR_USESWSHIFT
 {
 	CSR_WRITE_1(sc, VR_MIICMD, 0);
@@ -461,22 +472,13 @@ vr_miibus_readreg(device_t dev, uint16_t phy, uint16_t reg)
 	struct vr_mii_frame	frame;
 	struct vr_softc		*sc = device_get_softc(dev);
 
-	switch (sc->vr_revid) {
-	case REV_ID_VT6102_APOLLO:
-		if (phy != 1) {
-			frame.mii_data = 0;
-			goto out;
-		}
-	default:
-		break;
-	}
+	if (sc->vr_revid == REV_ID_VT6102_APOLLO && phy != 1)
+		return (0);
 
 	bzero((char *)&frame, sizeof(frame));
 	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
 	vr_mii_readreg(sc, &frame);
-
-out:
 	return (frame.mii_data);
 }
 
@@ -486,13 +488,8 @@ vr_miibus_writereg(device_t dev, uint16_t phy, uint16_t reg, uint16_t data)
 	struct vr_mii_frame	frame;
 	struct vr_softc		*sc = device_get_softc(dev);
 
-	switch (sc->vr_revid) {
-	case REV_ID_VT6102_APOLLO:
-		if (phy != 1)
-			return (0);
-	default:
-		break;
-	}
+	if (sc->vr_revid == REV_ID_VT6102_APOLLO && phy != 1)
+		return (0);
 
 	bzero((char *)&frame, sizeof(frame));
 	frame.mii_phyaddr = phy;
@@ -594,7 +591,7 @@ vr_setcfg(struct vr_softc *sc, int media)
 }
 
 static void
-vr_reset(struct vr_softc *sc)
+vr_reset(const struct vr_softc *sc)
 {
 	register int	i;
 
@@ -659,19 +656,17 @@ vr_probe(device_t dev)
  * setup and ethernet/BPF attach.
  */
 static int
-vr_attach(dev)
-	device_t		dev;
+vr_attach(device_t dev)
 {
 	int			i;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct vr_softc		*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	int			error = 0, rid;
 	struct vr_type		*t;
 
 	sc = device_get_softc(dev);
 	sc->vr_dev = dev;
-	unit = device_get_unit(dev);
 	t = vr_match(dev);
 	KASSERT(t != NULL, ("Lost if_vr device match"));
 	sc->vr_quirks = t->vr_quirks;
@@ -908,7 +903,7 @@ vr_list_rx_init(struct vr_softc *sc)
 	for (i = 0; i < VR_RX_LIST_CNT; i++) {
 		cd->vr_rx_chain[i].vr_ptr =
 			(struct vr_desc *)&ld->vr_rx_list[i];
-		if (vr_newbuf(sc, &cd->vr_rx_chain[i], NULL) == ENOBUFS)
+		if (vr_newbuf(&cd->vr_rx_chain[i], NULL) == ENOBUFS)
 			return (ENOBUFS);
 		if (i == (VR_RX_LIST_CNT - 1)) {
 			cd->vr_rx_chain[i].vr_nextdesc =
@@ -936,7 +931,7 @@ vr_list_rx_init(struct vr_softc *sc)
  * overflow the field and make a mess.
  */
 static int
-vr_newbuf(struct vr_softc *sc, struct vr_chain_onefrag *c, struct mbuf *m)
+vr_newbuf(struct vr_chain_onefrag *c, struct mbuf *m)
 {
 	struct mbuf		*m_new = NULL;
 
@@ -1022,7 +1017,7 @@ vr_rxeof(struct vr_softc *sc)
 			if (rxstat & VR_RXSTAT_BUFFERR)
 				printf("rx buffer error");
 			printf("\n");
-			vr_newbuf(sc, cur_rx, m);
+			vr_newbuf(cur_rx, m);
 			continue;
 		}
 
@@ -1051,7 +1046,7 @@ vr_rxeof(struct vr_softc *sc)
 
 		m0 = m_devget(mtod(m, char *), total_len, ETHER_ALIGN, ifp,
 		    NULL);
-		vr_newbuf(sc, cur_rx, m);
+		vr_newbuf(cur_rx, m);
 		if (m0 == NULL) {
 			ifp->if_ierrors++;
 			continue;
@@ -1458,6 +1453,7 @@ vr_start_locked(struct ifnet *ifp)
 			    ("vr_next not 16 byte aligned 0x%x", f->vr_next));
 		}
 
+		KASSERT(f != NULL, ("if_vr: no packet processed"));
 		f->vr_ctl |= VR_TXCTL_LASTFRAG|VR_TXCTL_FINT;
 		cur_tx->vr_mbuf = m_head;
 		atomic_set_acq_32(&VR_TXOWN(cur_tx), VR_TXSTAT_OWN);
