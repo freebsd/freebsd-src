@@ -163,7 +163,7 @@ stub_internalize_label(struct label *label, char *element_name,
  * a lot like file system objects.
  */
 static void
-stub_associate_vnode_devfs(struct mount *mp, struct label *fslabel,
+stub_associate_vnode_devfs(struct mount *mp, struct label *mntlabel,
     struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
     struct label *vlabel)
 {
@@ -171,7 +171,7 @@ stub_associate_vnode_devfs(struct mount *mp, struct label *fslabel,
 }
 
 static int
-stub_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
+stub_associate_vnode_extattr(struct mount *mp, struct label *mntlabel,
     struct vnode *vp, struct label *vlabel)
 {
 
@@ -180,7 +180,7 @@ stub_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
 
 static void
 stub_associate_vnode_singlelabel(struct mount *mp,
-    struct label *fslabel, struct vnode *vp, struct label *vlabel)
+    struct label *mntlabel, struct vnode *vp, struct label *vlabel)
 {
 
 }
@@ -215,7 +215,7 @@ stub_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 
 static int
 stub_create_vnode_extattr(struct ucred *cred, struct mount *mp,
-    struct label *fslabel, struct vnode *dvp, struct label *dlabel,
+    struct label *mntlabel, struct vnode *dvp, struct label *dlabel,
     struct vnode *vp, struct label *vlabel, struct componentname *cnp)
 {
 
@@ -224,7 +224,7 @@ stub_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 
 static void
 stub_create_mount(struct ucred *cred, struct mount *mp,
-    struct label *mntlabel, struct label *fslabel)
+    struct label *mntlabel)
 {
 
 }
@@ -1447,7 +1447,6 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_init_ipq_label = stub_init_label_waitcheck,
 	.mpo_init_mbuf_label = stub_init_label_waitcheck,
 	.mpo_init_mount_label = stub_init_label,
-	.mpo_init_mount_fs_label = stub_init_label,
 	.mpo_init_pipe_label = stub_init_label,
 	.mpo_init_posix_sem_label = stub_init_label,
 	.mpo_init_socket_label = stub_init_label_waitcheck,
@@ -1465,7 +1464,6 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_destroy_ipq_label = stub_destroy_label,
 	.mpo_destroy_mbuf_label = stub_destroy_label,
 	.mpo_destroy_mount_label = stub_destroy_label,
-	.mpo_destroy_mount_fs_label = stub_destroy_label,
 	.mpo_destroy_pipe_label = stub_destroy_label,
 	.mpo_destroy_posix_sem_label = stub_destroy_label,
 	.mpo_destroy_socket_label = stub_destroy_label,

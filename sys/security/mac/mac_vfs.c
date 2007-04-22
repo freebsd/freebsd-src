@@ -2,7 +2,7 @@
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 McAfee, Inc.
- * Copyright (c) 2005 SPARTA, Inc.
+ * Copyright (c) 2005-2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -107,22 +107,11 @@ mac_mount_label_alloc(void)
 	return (label);
 }
 
-static struct label *
-mac_mount_fs_label_alloc(void)
-{
-	struct label *label;
-
-	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(init_mount_fs_label, label);
-	return (label);
-}
-
 void
 mac_init_mount(struct mount *mp)
 {
 
-	mp->mnt_mntlabel = mac_mount_label_alloc();
-	mp->mnt_fslabel = mac_mount_fs_label_alloc();
+	mp->mnt_label = mac_mount_label_alloc();
 }
 
 struct label *
@@ -166,22 +155,12 @@ mac_mount_label_free(struct label *label)
 	mac_labelzone_free(label);
 }
 
-static void
-mac_mount_fs_label_free(struct label *label)
-{
-
-	MAC_PERFORM(destroy_mount_fs_label, label);
-	mac_labelzone_free(label);
-}
-
 void
 mac_destroy_mount(struct mount *mp)
 {
 
-	mac_mount_fs_label_free(mp->mnt_fslabel);
-	mp->mnt_fslabel = NULL;
-	mac_mount_label_free(mp->mnt_mntlabel);
-	mp->mnt_mntlabel = NULL;
+	mac_mount_label_free(mp->mnt_label);
+	mp->mnt_label = NULL;
 }
 
 void
@@ -242,7 +221,7 @@ mac_associate_vnode_devfs(struct mount *mp, struct devfs_dirent *de,
     struct vnode *vp)
 {
 
-	MAC_PERFORM(associate_vnode_devfs, mp, mp->mnt_fslabel, de,
+	MAC_PERFORM(associate_vnode_devfs, mp, mp->mnt_label, de,
 	    de->de_label, vp, vp->v_label);
 }
 
@@ -253,7 +232,7 @@ mac_associate_vnode_extattr(struct mount *mp, struct vnode *vp)
 
 	ASSERT_VOP_LOCKED(vp, "mac_associate_vnode_extattr");
 
-	MAC_CHECK(associate_vnode_extattr, mp, mp->mnt_fslabel, vp,
+	MAC_CHECK(associate_vnode_extattr, mp, mp->mnt_label, vp,
 	    vp->v_label);
 
 	return (error);
@@ -263,7 +242,7 @@ void
 mac_associate_vnode_singlelabel(struct mount *mp, struct vnode *vp)
 {
 
-	MAC_PERFORM(associate_vnode_singlelabel, mp, mp->mnt_fslabel, vp,
+	MAC_PERFORM(associate_vnode_singlelabel, mp, mp->mnt_label, vp,
 	    vp->v_label);
 }
 
@@ -295,8 +274,8 @@ mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 	} else if (error)
 		return (error);
 
-	MAC_CHECK(create_vnode_extattr, cred, mp, mp->mnt_fslabel,
-	    dvp, dvp->v_label, vp, vp->v_label, cnp);
+	MAC_CHECK(create_vnode_extattr, cred, mp, mp->mnt_label, dvp,
+	    dvp->v_label, vp, vp->v_label, cnp);
 
 	if (error) {
 		VOP_CLOSEEXTATTR(vp, 0, NOCRED, curthread);
@@ -788,8 +767,7 @@ void
 mac_create_mount(struct ucred *cred, struct mount *mp)
 {
 
-	MAC_PERFORM(create_mount, cred, mp, mp->mnt_mntlabel,
-	    mp->mnt_fslabel);
+	MAC_PERFORM(create_mount, cred, mp, mp->mnt_label);
 }
 
 int
@@ -797,7 +775,7 @@ mac_check_mount_stat(struct ucred *cred, struct mount *mount)
 {
 	int error;
 
-	MAC_CHECK(check_mount_stat, cred, mount, mount->mnt_mntlabel);
+	MAC_CHECK(check_mount_stat, cred, mount, mount->mnt_label);
 
 	return (error);
 }

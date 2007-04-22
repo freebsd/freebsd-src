@@ -168,8 +168,7 @@ struct mount {
 	time_t		mnt_time;		/* last time written*/
 	int		mnt_iosize_max;		/* max size for clusters, etc */
 	struct netexport *mnt_export;		/* export list */
-	struct label	*mnt_mntlabel;		/* MAC label for the mount */
-	struct label	*mnt_fslabel;		/* MAC label for the fs */
+	struct label	*mnt_label;		/* MAC label for the fs */
 	u_int		mnt_hashseed;		/* Random seed for vfs_hash */
 	int		mnt_markercnt;		/* marker vnodes in use */
 	int		mnt_holdcnt;		/* hold count */
