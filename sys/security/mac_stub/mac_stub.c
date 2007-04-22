@@ -781,13 +781,6 @@ stub_check_kld_stat(struct ucred *cred)
 }
 
 static int
-stub_check_kld_unload(struct ucred *cred)
-{
-
-	return (0);
-}
-
-static int
 stub_check_mount_stat(struct ucred *cred, struct mount *mp,
     struct label *mntlabel)
 {
@@ -1095,13 +1088,6 @@ stub_check_socket_visible(struct ucred *cred, struct socket *socket,
 }
 
 static int
-stub_check_sysarch_ioperm(struct ucred *cred)
-{
-
-	return (0);
-}
-
-static int
 stub_check_system_acct(struct ucred *cred, struct vnode *vp,
     struct label *vlabel)
 {
@@ -1132,21 +1118,7 @@ stub_check_system_auditon(struct ucred *cred, int cmd)
 }
 
 static int
-stub_check_system_nfsd(struct ucred *cred)
-{
-
-	return (0);
-}
-
-static int
 stub_check_system_reboot(struct ucred *cred, int how)
-{
-
-	return (0);
-}
-
-static int
-stub_check_system_settime(struct ucred *cred)
 {
 
 	return (0);
@@ -1596,7 +1568,6 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_kenv_unset = stub_check_kenv_unset,
 	.mpo_check_kld_load = stub_check_kld_load,
 	.mpo_check_kld_stat = stub_check_kld_stat,
-	.mpo_check_kld_unload = stub_check_kld_unload,
 	.mpo_check_mount_stat = stub_check_mount_stat,
 	.mpo_check_pipe_ioctl = stub_check_pipe_ioctl,
 	.mpo_check_pipe_poll = stub_check_pipe_poll,
@@ -1637,14 +1608,11 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_socket_send = stub_check_socket_send,
 	.mpo_check_socket_stat = stub_check_socket_stat,
 	.mpo_check_socket_visible = stub_check_socket_visible,
-	.mpo_check_sysarch_ioperm = stub_check_sysarch_ioperm,
 	.mpo_check_system_acct = stub_check_system_acct,
 	.mpo_check_system_audit = stub_check_system_audit,
 	.mpo_check_system_auditctl = stub_check_system_auditctl,
 	.mpo_check_system_auditon = stub_check_system_auditon,
-	.mpo_check_system_nfsd = stub_check_system_nfsd,
 	.mpo_check_system_reboot = stub_check_system_reboot,
-	.mpo_check_system_settime = stub_check_system_settime,
 	.mpo_check_system_swapoff = stub_check_system_swapoff,
 	.mpo_check_system_swapon = stub_check_system_swapon,
 	.mpo_check_system_sysctl = stub_check_system_sysctl,
