@@ -287,14 +287,8 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 		 * supported) when the INIT-ACK arrives.
 		 */
 		TAILQ_INIT(&asoc->strmin[i].inqueue);
-		/*
-		 * we are not on any wheel, pr-sctp streams will go on the
-		 * wheel when they have data waiting for reorder.
-		 */
-		asoc->strmin[i].next_spoke.tqe_next = 0;
-		asoc->strmin[i].next_spoke.tqe_prev = 0;
+		asoc->strmin[i].delivery_started = 0;
 	}
-
 	/*
 	 * load_address_from_init will put the addresses into the
 	 * association when the COOKIE is processed or the INIT-ACK is

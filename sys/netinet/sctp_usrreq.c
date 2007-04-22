@@ -1516,7 +1516,15 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 			uint32_t *value;
 
 			SCTP_CHECK_AND_CAST(value, optval, uint32_t, *optsize);
-			*value = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE);
+			if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE)) {
+				if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_INTERLEAVE_STRMS)) {
+					*value = SCTP_FRAG_LEVEL_2;
+				} else {
+					*value = SCTP_FRAG_LEVEL_1;
+				}
+			} else {
+				*value = SCTP_FRAG_LEVEL_0;
+			}
 			*optsize = sizeof(uint32_t);
 		}
 		break;
@@ -2457,13 +2465,21 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_FRAGMENT_INTERLEAVE:
 		/* not yet until we re-write sctp_recvmsg() */
 		{
-			uint32_t *on_off;
+			uint32_t *level;
 
-			SCTP_CHECK_AND_CAST(on_off, optval, uint32_t, optsize);
-			if (*on_off) {
+			SCTP_CHECK_AND_CAST(level, optval, uint32_t, optsize);
+			if (*level == SCTP_FRAG_LEVEL_2) {
 				sctp_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE);
+				sctp_feature_on(inp, SCTP_PCB_FLAGS_INTERLEAVE_STRMS);
+			} else if (*level == SCTP_FRAG_LEVEL_1) {
+				sctp_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE);
+				sctp_feature_off(inp, SCTP_PCB_FLAGS_INTERLEAVE_STRMS);
+			} else if (*level == SCTP_FRAG_LEVEL_0) {
+				sctp_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE);
+				sctp_feature_off(inp, SCTP_PCB_FLAGS_INTERLEAVE_STRMS);
+
 			} else {
-				sctp_feature_off(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE);
+				error = EINVAL;
 			}
 		}
 		break;

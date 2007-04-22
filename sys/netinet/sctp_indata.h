@@ -70,7 +70,7 @@ sctp_build_readq_entry(struct sctp_tcb *stcb,
 		(_ctl)->do_not_ref_stcb = 0; \
 		(_ctl)->end_added = 0; \
 		(_ctl)->pdapi_aborted = 0; \
-		(_ctl)->resv = 0; \
+		(_ctl)->some_taken = 0; \
 	} \
 } while (0)
 
