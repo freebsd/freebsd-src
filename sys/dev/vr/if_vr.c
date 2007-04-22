@@ -106,9 +106,18 @@ MODULE_DEPEND(vr, miibus, 1, 1, 1);
 #undef VR_USESWSHIFT
 
 /*
- * Various supported device vendors/types and their names.
+ * Various supported device vendors/types, their names & quirks
  */
-static struct vr_type vr_devs[] = {
+
+#define VR_Q_NEEDALIGN		(1<<0)
+#define VR_Q_CSUM		(1<<1)
+
+static struct vr_type {
+	u_int16_t		vr_vid;
+	u_int16_t		vr_did;
+	int			vr_quirks;
+	char			*vr_name;
+} vr_devs[] = {
 	{ VIA_VENDORID, VIA_DEVICEID_RHINE,
 	    VR_Q_NEEDALIGN,
 	    "VIA VT3043 Rhine I 10/100BaseTX" },
@@ -133,6 +142,10 @@ static struct vr_type vr_devs[] = {
 	{ 0, 0, 0, NULL }
 };
 
+struct vr_list_data {
+	struct vr_desc		vr_rx_list[VR_RX_LIST_CNT];
+	struct vr_desc		vr_tx_list[VR_TX_LIST_CNT];
+};
 
 struct vr_softc {
 	struct ifnet		*vr_ifp;	/* interface info */
@@ -144,11 +157,13 @@ struct vr_softc {
 	u_int8_t		vr_revid;	/* Rhine chip revision */
 	u_int8_t                vr_flags;       /* See VR_F_* below */
 	struct vr_list_data	*vr_ldata;
-	struct vr_chain_data	vr_cdata;
 	struct callout		vr_stat_callout;
 	struct mtx		vr_mtx;
 	int			vr_suspended;	/* if 1, sleeping/detaching */
 	int			vr_quirks;
+	struct vr_desc		*vr_rx_head;
+	struct vr_desc		*vr_tx_cons;
+	struct vr_desc		*vr_tx_prod;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
@@ -158,7 +173,7 @@ static int vr_probe(device_t);
 static int vr_attach(device_t);
 static int vr_detach(device_t);
 
-static int vr_newbuf(struct vr_chain *, struct mbuf *);
+static int vr_newbuf(struct vr_desc *, struct mbuf *);
 
 static void vr_rxeof(struct vr_softc *);
 static void vr_rxeoc(struct vr_softc *);
@@ -862,27 +877,24 @@ vr_detach(device_t dev)
 static int
 vr_list_tx_init(struct vr_softc *sc)
 {
-	struct vr_chain_data	*cd;
 	struct vr_list_data	*ld;
 	int			i;
 
-	cd = &sc->vr_cdata;
 	ld = sc->vr_ldata;
 	for (i = 0; i < VR_TX_LIST_CNT; i++) {
-		cd->vr_tx_chain[i].vr_ptr = &ld->vr_tx_list[i];
 		if (i == (VR_TX_LIST_CNT - 1)) {
-			cd->vr_tx_chain[i].vr_nextdesc =
-			    &cd->vr_tx_chain[0];
+			ld->vr_tx_list[i].vr_next =
+			    &ld->vr_tx_list[0];
 			ld->vr_tx_list[i].vr_nextphys =
 			    vtophys(&ld->vr_tx_list[0]);
 		} else {
-			cd->vr_tx_chain[i].vr_nextdesc =
-				&cd->vr_tx_chain[i + 1];
+			ld->vr_tx_list[i].vr_next =
+				&ld->vr_tx_list[i + 1];
 			ld->vr_tx_list[i].vr_nextphys =
 			    vtophys(&ld->vr_tx_list[i + 1]);
 		}
 	}
-	cd->vr_tx_cons = cd->vr_tx_prod = &cd->vr_tx_chain[0];
+	sc->vr_tx_cons = sc->vr_tx_prod = &ld->vr_tx_list[0];
 
 	return (0);
 }
@@ -896,33 +908,29 @@ vr_list_tx_init(struct vr_softc *sc)
 static int
 vr_list_rx_init(struct vr_softc *sc)
 {
-	struct vr_chain_data	*cd;
 	struct vr_list_data	*ld;
 	int			i;
 
 	VR_LOCK_ASSERT(sc);
 
-	cd = &sc->vr_cdata;
 	ld = sc->vr_ldata;
 
 	for (i = 0; i < VR_RX_LIST_CNT; i++) {
-		cd->vr_rx_chain[i].vr_ptr = &ld->vr_rx_list[i];
-		if (vr_newbuf(&cd->vr_rx_chain[i], NULL) == ENOBUFS)
+		if (vr_newbuf(&ld->vr_rx_list[i], NULL) == ENOBUFS)
 			return (ENOBUFS);
 		if (i == (VR_RX_LIST_CNT - 1)) {
-			cd->vr_rx_chain[i].vr_nextdesc =
-					&cd->vr_rx_chain[0];
+			ld->vr_rx_list[i].vr_next = &ld->vr_rx_list[0];
 			ld->vr_rx_list[i].vr_nextphys =
 					vtophys(&ld->vr_rx_list[0]);
 		} else {
-			cd->vr_rx_chain[i].vr_nextdesc =
-					&cd->vr_rx_chain[i + 1];
+			ld->vr_rx_list[i].vr_next =
+					&ld->vr_rx_list[i + 1];
 			ld->vr_rx_list[i].vr_nextphys =
 					vtophys(&ld->vr_rx_list[i + 1]);
 		}
 	}
 
-	cd->vr_rx_head = &cd->vr_rx_chain[0];
+	sc->vr_rx_head = &ld->vr_rx_list[0];
 
 	return (0);
 }
@@ -935,21 +943,14 @@ vr_list_rx_init(struct vr_softc *sc)
  * overflow the field and make a mess.
  */
 static int
-vr_newbuf(struct vr_chain *c, struct mbuf *m)
+vr_newbuf(struct vr_desc *c, struct mbuf *m)
 {
 	struct mbuf		*m_new = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (m_new == NULL)
 			return (ENOBUFS);
-
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			m_freem(m_new);
-			return (ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	} else {
 		m_new = m;
 		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
@@ -959,9 +960,9 @@ vr_newbuf(struct vr_chain *c, struct mbuf *m)
 	m_adj(m_new, sizeof(uint64_t));
 
 	c->vr_mbuf = m_new;
-	c->vr_ptr->vr_status = VR_RXSTAT;
-	c->vr_ptr->vr_data = vtophys(mtod(m_new, caddr_t));
-	c->vr_ptr->vr_ctl = VR_RXCTL | VR_RXLEN;
+	c->vr_status = VR_RXSTAT;
+	c->vr_data = vtophys(mtod(m_new, caddr_t));
+	c->vr_ctl = VR_RXCTL | VR_RXLEN;
 
 	return (0);
 }
@@ -975,14 +976,14 @@ vr_rxeof(struct vr_softc *sc)
 {
 	struct mbuf		*m, *m0;
 	struct ifnet		*ifp;
-	struct vr_chain		*cur_rx;
+	struct vr_desc		*cur_rx;
 	int			total_len = 0;
 	uint32_t		rxstat, rxctl;
 
 	VR_LOCK_ASSERT(sc);
 	ifp = sc->vr_ifp;
 
-	while (!((rxstat = sc->vr_cdata.vr_rx_head->vr_ptr->vr_status) &
+	while (!((rxstat = sc->vr_rx_head->vr_status) &
 	    VR_RXSTAT_OWN)) {
 #ifdef DEVICE_POLLING
 		if (ifp->if_capenable & IFCAP_POLLING) {
@@ -992,8 +993,8 @@ vr_rxeof(struct vr_softc *sc)
 		}
 #endif
 		m0 = NULL;
-		cur_rx = sc->vr_cdata.vr_rx_head;
-		sc->vr_cdata.vr_rx_head = cur_rx->vr_nextdesc;
+		cur_rx = sc->vr_rx_head;
+		sc->vr_rx_head = cur_rx->vr_next;
 		m = cur_rx->vr_mbuf;
 
 		/*
@@ -1026,9 +1027,9 @@ vr_rxeof(struct vr_softc *sc)
 		}
 
 		/* No errors; receive the packet. */
-		total_len = VR_RXBYTES(cur_rx->vr_ptr->vr_status);
+		total_len = VR_RXBYTES(cur_rx->vr_status);
 		if (ifp->if_capenable & IFCAP_RXCSUM) {
-			rxctl = cur_rx->vr_ptr->vr_ctl;
+			rxctl = cur_rx->vr_ctl;
 			if ((rxctl & VR_RXCTL_GOODIP) == VR_RXCTL_GOODIP)
 				m->m_pkthdr.csum_flags |= 
 				    CSUM_IP_CHECKED | CSUM_IP_VALID;
@@ -1092,7 +1093,7 @@ vr_rxeoc(struct vr_softc *sc)
 
 	vr_rxeof(sc);
 
-	CSR_WRITE_4(sc, VR_RXADDR, vtophys(sc->vr_cdata.vr_rx_head->vr_ptr));
+	CSR_WRITE_4(sc, VR_RXADDR, vtophys(sc->vr_rx_head));
 	VR_SETBIT16(sc, VR_COMMAND, VR_CMD_RX_ON);
 	VR_SETBIT16(sc, VR_COMMAND, VR_CMD_RX_GO);
 }
@@ -1104,7 +1105,7 @@ vr_rxeoc(struct vr_softc *sc)
 static void
 vr_txeof(struct vr_softc *sc)
 {
-	struct vr_chain		*cur_tx;
+	struct vr_desc		*cur_tx;
 	struct ifnet		*ifp = sc->vr_ifp;
 
 	VR_LOCK_ASSERT(sc);
@@ -1113,12 +1114,12 @@ vr_txeof(struct vr_softc *sc)
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been transmitted.
 	 */
-	cur_tx = sc->vr_cdata.vr_tx_cons;
-	while (cur_tx != sc->vr_cdata.vr_tx_prod) {
+	cur_tx = sc->vr_tx_cons;
+	while (cur_tx != sc->vr_tx_prod) {
 		uint32_t		txstat;
 		int			i;
 
-		txstat = cur_tx->vr_ptr->vr_status;
+		txstat = cur_tx->vr_status;
 
 		if ((txstat & VR_TXSTAT_ABRT) ||
 		    (txstat & VR_TXSTAT_UDF)) {
@@ -1131,8 +1132,8 @@ vr_txeof(struct vr_softc *sc)
 				sc->vr_flags |= VR_F_RESTART;
 				break;
 			}
-			atomic_set_acq_32(&VR_TXOWN(cur_tx), VR_TXSTAT_OWN);
-			CSR_WRITE_4(sc, VR_TXADDR, vtophys(cur_tx->vr_ptr));
+			atomic_set_acq_32(&cur_tx->vr_status, VR_TXSTAT_OWN);
+			CSR_WRITE_4(sc, VR_TXADDR, vtophys(cur_tx));
 			break;
 		}
 
@@ -1155,9 +1156,9 @@ vr_txeof(struct vr_softc *sc)
 		cur_tx->vr_mbuf = NULL;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-		cur_tx = cur_tx->vr_nextdesc;
+		cur_tx = cur_tx->vr_next;
 	}
-	sc->vr_cdata.vr_tx_cons = cur_tx;
+	sc->vr_tx_cons = cur_tx;
 	if (cur_tx->vr_mbuf == NULL)
 		ifp->if_timer = 0;
 }
@@ -1251,7 +1252,7 @@ vr_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		    (status & VR_ISR_TX_ABRT2) ||
 		    (status & VR_ISR_TX_ABRT)) {
 			ifp->if_oerrors++;
-			if (sc->vr_cdata.vr_tx_cons->vr_mbuf != NULL) {
+			if (sc->vr_tx_cons->vr_mbuf != NULL) {
 				VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_ON);
 				VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_GO);
 			}
@@ -1336,7 +1337,7 @@ vr_intr(void *arg)
 			    (status & VR_ISR_TX_ABRT2) ||
 			    (status & VR_ISR_TX_ABRT)) {
 				ifp->if_oerrors++;
-				if (sc->vr_cdata.vr_tx_cons->vr_mbuf != NULL) {
+				if (sc->vr_tx_cons->vr_mbuf != NULL) {
 					VR_SETBIT16(sc, VR_COMMAND,
 					    VR_CMD_TX_ON);
 					VR_SETBIT16(sc, VR_COMMAND,
@@ -1378,15 +1379,15 @@ vr_start_locked(struct ifnet *ifp)
 {
 	struct vr_softc		*sc = ifp->if_softc;
 	struct mbuf		*m, *m_head;
-	struct vr_chain		*cur_tx, *n_tx;
+	struct vr_desc		*cur_tx, *n_tx;
 	struct vr_desc		*f = NULL;
 	uint32_t		cval;
 
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
-	for (cur_tx = sc->vr_cdata.vr_tx_prod;
-	    cur_tx->vr_nextdesc != sc->vr_cdata.vr_tx_cons; ) {
+	for (cur_tx = sc->vr_tx_prod;
+	    cur_tx->vr_next != sc->vr_tx_cons; ) {
        	        IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -1425,14 +1426,14 @@ vr_start_locked(struct ifnet *ifp)
 		for (m = m_head; m != NULL; m = m->m_next) {
 			if (m->m_len == 0)
 				continue;
-			if (n_tx->vr_nextdesc == sc->vr_cdata.vr_tx_cons) {
+			if (n_tx->vr_next == sc->vr_tx_cons) {
 				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-				sc->vr_cdata.vr_tx_prod = cur_tx;
+				sc->vr_tx_prod = cur_tx;
 				return;
 			}
 			KASSERT(n_tx->vr_mbuf == NULL, ("if_vr_tx overrun"));
 			
-			f = n_tx->vr_ptr;
+			f = n_tx;
 			f->vr_data = vtophys(mtod(m, caddr_t));
 			cval = m->m_len;
 			cval |= VR_TXCTL_TLINK;
@@ -1451,13 +1452,13 @@ vr_start_locked(struct ifnet *ifp)
 				cval |= VR_TXCTL_FIRSTFRAG;
 			f->vr_ctl = cval;
 			f->vr_status = 0;
-			n_tx = n_tx->vr_nextdesc;
+			n_tx = n_tx->vr_next;
 		}
 
 		KASSERT(f != NULL, ("if_vr: no packet processed"));
 		f->vr_ctl |= VR_TXCTL_LASTFRAG|VR_TXCTL_FINT;
 		cur_tx->vr_mbuf = m_head;
-		atomic_set_acq_32(&VR_TXOWN(cur_tx), VR_TXSTAT_OWN);
+		atomic_set_acq_32(&cur_tx->vr_status, VR_TXSTAT_OWN);
 
 		/* Tell the chip to start transmitting. */
 		VR_SETBIT16(sc, VR_COMMAND, /*VR_CMD_TX_ON|*/ VR_CMD_TX_GO);
@@ -1472,7 +1473,7 @@ vr_start_locked(struct ifnet *ifp)
 		BPF_MTAP(ifp, m_head);
 		cur_tx = n_tx;
 	}
-	sc->vr_cdata.vr_tx_prod = cur_tx;
+	sc->vr_tx_prod = cur_tx;
 }
 
 static void
@@ -1555,7 +1556,7 @@ vr_init_locked(struct vr_softc *sc)
 	/*
 	 * Load the address of the RX list.
 	 */
-	CSR_WRITE_4(sc, VR_RXADDR, vtophys(sc->vr_cdata.vr_rx_head->vr_ptr));
+	CSR_WRITE_4(sc, VR_RXADDR, vtophys(sc->vr_rx_head));
 
 	/* Enable receiver and transmitter. */
 	CSR_WRITE_2(sc, VR_COMMAND, VR_CMD_TX_NOPOLL|VR_CMD_START|
@@ -1736,24 +1737,18 @@ vr_stop(struct vr_softc *sc)
 	/*
 	 * Free data in the RX lists.
 	 */
-	for (i = 0; i < VR_RX_LIST_CNT; i++) {
-		if (sc->vr_cdata.vr_rx_chain[i].vr_mbuf != NULL) {
-			m_freem(sc->vr_cdata.vr_rx_chain[i].vr_mbuf);
-			sc->vr_cdata.vr_rx_chain[i].vr_mbuf = NULL;
-		}
-	}
+	for (i = 0; i < VR_RX_LIST_CNT; i++)
+		if (sc->vr_ldata->vr_rx_list[i].vr_mbuf != NULL)
+			m_freem(sc->vr_ldata->vr_rx_list[i].vr_mbuf);
 	bzero((char *)&sc->vr_ldata->vr_rx_list,
 	    sizeof(sc->vr_ldata->vr_rx_list));
 
 	/*
 	 * Free the TX list buffers.
 	 */
-	for (i = 0; i < VR_TX_LIST_CNT; i++) {
-		if (sc->vr_cdata.vr_tx_chain[i].vr_mbuf != NULL) {
-			m_freem(sc->vr_cdata.vr_tx_chain[i].vr_mbuf);
-			sc->vr_cdata.vr_tx_chain[i].vr_mbuf = NULL;
-		}
-	}
+	for (i = 0; i < VR_TX_LIST_CNT; i++)
+		if (sc->vr_ldata->vr_tx_list[i].vr_mbuf != NULL)
+			m_freem(sc->vr_ldata->vr_tx_list[i].vr_mbuf);
 	bzero((char *)&sc->vr_ldata->vr_tx_list,
 	    sizeof(sc->vr_ldata->vr_tx_list));
 }
