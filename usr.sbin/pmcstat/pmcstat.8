@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2006 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2003-2007 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2006
+.Dd April 22, 2007
 .Os
 .Dt PMCSTAT 8
 .Sh NAME
@@ -40,7 +40,7 @@
 .Op Fl R Ar logfilename
 .Op Fl S Ar event-spec
 .Op Fl W
-.Op Fl c Ar cpu
+.Op Fl c Ar cpu-spec
 .Op Fl d
 .Op Fl g
 .Op Fl k Ar kerneldir
@@ -180,11 +180,16 @@ This is an experimental feature intended to help analyse the
 dynamic behaviour of processes in the system.
 It may incur substantial overhead if enabled.
 The default is for this feature to be disabled.
-.It Fl c Ar cpu
-Set the cpu for subsequent system mode PMCs specified on the
+.It Fl c Ar cpu-spec
+Set the cpus for subsequent system mode PMCs specified on the
 command line to
-.Ar cpu .
-The default is to allocate system mode PMCs on CPU zero.
+.Ar cpu-spec .
+Argument
+.Ar cpu-spec
+is a comma separated list of CPU numbers, or the literal
+.Sq *
+denoting all CPUs.
+The default is to allocate system mode PMCs on all CPUs.
 .It Fl d
 Toggle between process mode PMCs measuring events for the target
 process' current and future children or only measuring events for
@@ -268,8 +273,12 @@ and measure the number of data cache misses suffered
 by it and its children every 12 seconds on an AMD Athlon, use:
 .Dl "pmcstat -d -w 12 -p k7-dc-misses mozilla"
 .Pp
-To perform system-wide sampling based on processor instructions
-retired use:
+To count instruction tlb-misses on CPUs 0 and 2 on a Intel
+Pentium Pro/Pentium III SMP system use:
+.Dl "pmcstat -c 0,2 -s p6-itlb-miss"
+.Pp
+To perform system-wide sampling on all configured processors
+based on processor instructions retired use:
 .Dl "pmcstat -S instructions -O /tmp/sample.out"
 .Pp
 To send the generated event log to a remote machine use:
