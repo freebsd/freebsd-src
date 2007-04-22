@@ -5,7 +5,6 @@
 
 # PROVIDE: zfs
 # REQUIRE: mountcritlocal
-# KEYWORD: nojail
 
 . /etc/rc.subr
 
@@ -15,7 +14,14 @@ start_cmd="zfs_start"
 stop_cmd="zfs_stop"
 required_modules="zfs"
 
-zfs_start()
+zfs_start_jail()
+{
+	if [ `$SYSCTL_N security.jail.mount_allowed` -eq 1 ]; then
+		zfs mount -a
+	fi
+}
+
+zfs_start_main()
 {
 	zfs volinit
 	zfs mount -a
@@ -34,7 +40,23 @@ zfs_start()
 	done
 }
 
-zfs_stop()
+zfs_start()
+{
+	if [ `$SYSCTL_N security.jail.jailed` -eq 1 ]; then
+		zfs_start_jail
+	else
+		zfs_start_main
+	fi
+}
+
+zfs_stop_jail()
+{
+	if [ `$SYSCTL_N security.jail.mount_allowed` -eq 1 ]; then
+		zfs unmount -a
+	fi
+}
+
+zfs_stop_main()
 {
 	# Disable swap on ZVOLs with property org.freebsd:swap=on.
 	zfs list -H -o org.freebsd:swap,name -t volume | \
@@ -48,6 +70,15 @@ zfs_stop()
 	zfs unshare -a
 	zfs unmount -a
 	zfs volfini
+}
+
+zfs_stop()
+{
+	if [ `$SYSCTL_N security.jail.jailed` -eq 1 ]; then
+		zfs_stop_jail
+	else
+		zfs_stop_main
+	fi
 }
 
 load_rc_config $name
