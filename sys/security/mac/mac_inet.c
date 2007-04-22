@@ -163,36 +163,34 @@ mac_create_inpcb_from_socket(struct socket *so, struct inpcb *inp)
 }
 
 void
-mac_create_datagram_from_ipq(struct ipq *ipq, struct mbuf *datagram)
+mac_create_datagram_from_ipq(struct ipq *ipq, struct mbuf *m)
 {
 	struct label *label;
 
-	label = mac_mbuf_to_label(datagram);
+	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(create_datagram_from_ipq, ipq, ipq->ipq_label,
-	    datagram, label);
+	MAC_PERFORM(create_datagram_from_ipq, ipq, ipq->ipq_label, m, label);
 }
 
 void
-mac_create_fragment(struct mbuf *datagram, struct mbuf *fragment)
+mac_create_fragment(struct mbuf *m, struct mbuf *frag)
 {
-	struct label *datagramlabel, *fragmentlabel;
+	struct label *mlabel, *fraglabel;
 
-	datagramlabel = mac_mbuf_to_label(datagram);
-	fragmentlabel = mac_mbuf_to_label(fragment);
+	mlabel = mac_mbuf_to_label(m);
+	fraglabel = mac_mbuf_to_label(frag);
 
-	MAC_PERFORM(create_fragment, datagram, datagramlabel, fragment,
-	    fragmentlabel);
+	MAC_PERFORM(create_fragment, m, mlabel, frag, fraglabel);
 }
 
 void
-mac_create_ipq(struct mbuf *fragment, struct ipq *ipq)
+mac_create_ipq(struct mbuf *m, struct ipq *ipq)
 {
 	struct label *label;
 
-	label = mac_mbuf_to_label(fragment);
+	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(create_ipq, fragment, label, ipq, ipq->ipq_label);
+	MAC_PERFORM(create_ipq, m, label, ipq, ipq->ipq_label);
 }
 
 void
@@ -207,16 +205,15 @@ mac_create_mbuf_from_inpcb(struct inpcb *inp, struct mbuf *m)
 }
 
 int
-mac_fragment_match(struct mbuf *fragment, struct ipq *ipq)
+mac_fragment_match(struct mbuf *m, struct ipq *ipq)
 {
 	struct label *label;
 	int result;
 
-	label = mac_mbuf_to_label(fragment);
+	label = mac_mbuf_to_label(m);
 
 	result = 1;
-	MAC_BOOLEAN(fragment_match, &&, fragment, label, ipq,
-	    ipq->ipq_label);
+	MAC_BOOLEAN(fragment_match, &&, m, label, ipq, ipq->ipq_label);
 
 	return (result);
 }
@@ -230,6 +227,7 @@ mac_reflect_mbuf_icmp(struct mbuf *m)
 
 	MAC_PERFORM(reflect_mbuf_icmp, m, label);
 }
+
 void
 mac_reflect_mbuf_tcp(struct mbuf *m)
 {
@@ -241,13 +239,13 @@ mac_reflect_mbuf_tcp(struct mbuf *m)
 }
 
 void
-mac_update_ipq(struct mbuf *fragment, struct ipq *ipq)
+mac_update_ipq(struct mbuf *m, struct ipq *ipq)
 {
 	struct label *label;
 
-	label = mac_mbuf_to_label(fragment);
+	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(update_ipq, fragment, label, ipq, ipq->ipq_label);
+	MAC_PERFORM(update_ipq, m, label, ipq, ipq->ipq_label);
 }
 
 int
@@ -331,9 +329,9 @@ mac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
 void
 mac_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m)
 {
-	struct label *mbuf_label;
+	struct label *mlabel;
 
 	M_ASSERTPKTHDR(m);
-	mbuf_label = mac_mbuf_to_label(m);
-	MAC_PERFORM(create_mbuf_from_syncache, sc_label, m, mbuf_label);
+	mlabel = mac_mbuf_to_label(m);
+	MAC_PERFORM(create_mbuf_from_syncache, sc_label, m, mlabel);
 }
