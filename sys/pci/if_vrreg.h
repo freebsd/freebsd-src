@@ -332,6 +332,10 @@ struct vr_desc {
 	u_int32_t		vr_ctl;
 	u_int32_t		vr_data;
 	u_int32_t		vr_nextphys;
+	struct mbuf		*vr_mbuf;
+	struct vr_desc		*vr_next;
+	u_int32_t		*vxr1;
+	u_int32_t		*vxr2;
 };
 
 
@@ -398,39 +402,6 @@ struct vr_desc {
 #define VR_MIN_FRAMELEN		60
 #define VR_FRAMELEN		1536
 #define VR_RXLEN		1520
-
-#define VR_TXOWN(x)		x->vr_ptr->vr_status
-
-struct vr_list_data {
-	struct vr_desc		vr_rx_list[VR_RX_LIST_CNT];
-	struct vr_desc		vr_tx_list[VR_TX_LIST_CNT];
-};
-
-struct vr_chain {
-	struct vr_desc		*vr_ptr;
-	struct mbuf		*vr_mbuf;
-	struct vr_chain		*vr_nextdesc;
-};
-
-struct vr_chain_data {
-	struct vr_chain		vr_rx_chain[VR_RX_LIST_CNT];
-	struct vr_chain		vr_tx_chain[VR_TX_LIST_CNT];
-
-	struct vr_chain		*vr_rx_head;
-
-	struct vr_chain		*vr_tx_cons;
-	struct vr_chain		*vr_tx_prod;
-};
-
-#define VR_Q_NEEDALIGN		(1<<0)
-#define VR_Q_CSUM		(1<<1)
-
-struct vr_type {
-	u_int16_t		vr_vid;
-	u_int16_t		vr_did;
-	int			vr_quirks;
-	char			*vr_name;
-};
 
 struct vr_mii_frame {
 	u_int8_t		mii_stdelim;
