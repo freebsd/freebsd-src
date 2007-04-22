@@ -10879,6 +10879,13 @@ sctp_lower_sosend(struct socket *so,
 		non_blocking = 1;
 	}
 	asoc = &stcb->asoc;
+
+	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NO_FRAGMENT)) {
+		if (sndlen > asoc->smallest_mtu) {
+			error = EMSGSIZE;
+			goto out_unlocked;
+		}
+	}
 	/* would we block? */
 	if (non_blocking) {
 		if ((SCTP_SB_LIMIT_SND(so) <

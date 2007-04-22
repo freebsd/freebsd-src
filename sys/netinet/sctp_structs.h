@@ -375,7 +375,7 @@ struct sctp_queued_to_read {	/* sinfo structure Pluse more */
 	uint8_t do_not_ref_stcb;
 	uint8_t end_added;
 	uint8_t pdapi_aborted;
-	uint8_t resv;
+	uint8_t some_taken;
 };
 
 /* This data structure will be on the outbound
@@ -425,9 +425,9 @@ struct sctp_stream_queue_pending {
 TAILQ_HEAD(sctpwheelunrel_listhead, sctp_stream_in);
 struct sctp_stream_in {
 	struct sctp_readhead inqueue;
-	              TAILQ_ENTRY(sctp_stream_in) next_spoke;
 	uint16_t stream_no;
 	uint16_t last_sequence_delivered;	/* used for re-order */
+	uint8_t delivery_started;
 };
 
 /* This struct is used to track the traffic on outbound streams */

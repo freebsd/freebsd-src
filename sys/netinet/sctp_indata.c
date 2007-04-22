@@ -211,6 +211,7 @@ sctp_build_readq_entry(struct sctp_tcb *stcb,
 	read_queue_e->port_from = stcb->rport;
 	read_queue_e->do_not_ref_stcb = 0;
 	read_queue_e->end_added = 0;
+	read_queue_e->some_taken = 0;
 	read_queue_e->pdapi_aborted = 0;
 failed_build:
 	return (read_queue_e);
@@ -249,6 +250,7 @@ sctp_build_readq_entry_chk(struct sctp_tcb *stcb,
 	read_queue_e->spec_flags = 0;
 	read_queue_e->do_not_ref_stcb = 0;
 	read_queue_e->end_added = 0;
+	read_queue_e->some_taken = 0;
 	read_queue_e->pdapi_aborted = 0;
 failed_build:
 	return (read_queue_e);
@@ -5810,6 +5812,8 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 				 */
 				if ((asoc->fragmented_delivery_inprogress) &&
 				    (chk->rec.data.rcv_flags & SCTP_DATA_FIRST_FRAG)) {
+					uint32_t str_seq;
+
 					/*
 					 * Special case PD-API is up and
 					 * what we fwd-tsn' over includes
@@ -5817,8 +5821,10 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 					 * longer need to do the PD-API.
 					 */
 					asoc->fragmented_delivery_inprogress = 0;
+
+					str_seq = (asoc->str_of_pdapi << 16) | asoc->ssn_of_pdapi;
 					sctp_ulp_notify(SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION,
-					    stcb, SCTP_PARTIAL_DELIVERY_ABORTED, (void *)NULL);
+					    stcb, SCTP_PARTIAL_DELIVERY_ABORTED, (void *)&str_seq);
 
 				}
 				break;
@@ -5831,8 +5837,11 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 		 * Ok we removed cnt_gone chunks in the PD-API queue that
 		 * were being delivered. So now we must turn off the flag.
 		 */
+		uint32_t str_seq;
+
+		str_seq = (asoc->str_of_pdapi << 16) | asoc->ssn_of_pdapi;
 		sctp_ulp_notify(SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION,
-		    stcb, SCTP_PARTIAL_DELIVERY_ABORTED, (void *)NULL);
+		    stcb, SCTP_PARTIAL_DELIVERY_ABORTED, (void *)&str_seq);
 		asoc->fragmented_delivery_inprogress = 0;
 	}
 	/*************************************************************/
