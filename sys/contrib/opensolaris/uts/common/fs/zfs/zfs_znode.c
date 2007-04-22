@@ -271,6 +271,12 @@ zfs_init_fs(zfsvfs_t *zfsvfs, znode_t **zpp, cred_t *cr)
 #ifndef	MAXMIN64
 #define	MAXMIN64	0xffffffffUL
 #endif
+#ifndef major
+#define	major(x)	((int)(((u_int)(x) >> 8)&0xff))	/* major number */
+#endif
+#ifndef minor
+#define	minor(x)	((int)((x)&0xffff00ff))		/* minor number */
+#endif
 
 /*
  * Create special expldev for ZFS private use.
@@ -283,7 +289,7 @@ zfs_init_fs(zfsvfs_t *zfsvfs, znode_t **zpp, cred_t *cr)
 static uint64_t
 zfs_expldev(dev_t dev)
 {
-	return ((uint64_t)0);
+	return (((uint64_t)major(dev) << NBITSMINOR64) | minor(dev));
 }
 /*
  * Special cmpldev for ZFS private use.
@@ -295,7 +301,7 @@ zfs_expldev(dev_t dev)
 dev_t
 zfs_cmpldev(uint64_t dev)
 {
-	return ((dev_t)0);
+	return (makedev((dev >> NBITSMINOR64), (dev & MAXMIN64)));
 }
 
 /*

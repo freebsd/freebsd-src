@@ -1934,6 +1934,7 @@ zfs_getattr(ap)
 	vap->va_nlink = MIN(pzp->zp_links, UINT32_MAX);	/* nlink_t limit! */
 	vap->va_size = pzp->zp_size;
 	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
+	vap->va_rdev = zfs_cmpldev(pzp->zp_rdev);
 	vap->va_seq = zp->z_seq;
 	vap->va_flags = 0;	/* FreeBSD: Reset chflags(2) flags. */
 
