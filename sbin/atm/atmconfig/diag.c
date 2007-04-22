@@ -868,7 +868,7 @@ diagif_fetch_vcc(struct diagif *aif, int fd)
 		return;
 
 	strncpy(ifr.ifr_name, aif->ifname, IFNAMSIZ);
-	ifr.ifr_name[IFNAMSIZ] = '\0';
+	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
 
 	aif->vtab = malloc(sizeof(*aif->vtab) + sizeof(aif->vtab->vccs[0]) *
 	    aif->mib.max_vccs);
