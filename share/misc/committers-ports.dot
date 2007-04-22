@@ -29,9 +29,11 @@ node [color=grey62, style=filled, bgcolor=black];
 # Alumni go here.. Try to keep things sorted.
 
 adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16\n2006/09/25"]
+billf [label="Bill Fumerola\nbillf@FreeBSD.org\n1998/11/11\n2006/12/14"]
 bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2000/08/23\n2006/12/19"]
 jmallett [label="Juli Mallett\njmallett@FreeBSD.org\n2003/01/16\n2006/08/10"]
 steve [label="Steve Price\nsteve@FreeBSD.org\nxxxx/xx/xx\nxxxx/xx/xx"]
+will [label="Will Andrews\nwill@FreeBSD.org\n2000/03/20\n2006/09/01"]
 
 node [color=lightblue2, style=filled, bgcolor=black];
 
@@ -83,6 +85,7 @@ laszlof [label="Frank Laszlo\nlaszlof@FreeBSD.org\n2006/11/07"]
 lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
 lbr [label="Lars Balker Rasmussen\nlbr@FreeBSD.org\n2006/04/30"]
 leeym [label="Yen-Ming Lee\nleeym@FreeBSD.org\n2002/08/14"]
+lioux [label="Mario Sergio Fujikawa Ferriera\nlioux@FreeBSD.org\n2000/10/14"]
 lth [label="Lars Thegler\nlth@FreeBSD.org\n2004/05/04"]
 lwhsu [label="Li-Wen Hsu\nlwhsu@FreeBSD.org\n2007/04/03"]
 maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
@@ -98,6 +101,7 @@ nobutaka [label="Nobutaka Mantani\nnobutaka@FreeBSD.org\n2001/11/02"]
 nork [label="Norikatsu Shigemura\nnork@FreeBSD.org\n2002/04/01"]
 novel [label="Roman Bogorodskiy\nnovel@FreeBSD.org\n2005/03/07"]
 nox [label="Juergen Lock\nnox@FreeBSD.org\n2006/12/22"]
+pat [label="Patrick Li\npat@FreeBSD.org\n2001/11/14"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2003/11/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
@@ -106,6 +110,7 @@ sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
 shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2005/01/08"]
+sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
 stas [label="Stanislav Sedov\nstas@FreeBSD.org\n2006/09/18"]
 stefan [label="Stefan Walter\nstefan@FreeBSD.org\n2006/05/07"]
 tdb [label="Tim Bishop\ntdb@FreeBSD.org\n2005/11/30"]
@@ -129,6 +134,9 @@ ahze -> tmclaugh
 
 arved -> markus
 arved -> stefan
+
+billf -> sobomax
+billf -> will
 
 clement -> tdb
 clement -> lawrance
@@ -189,6 +197,8 @@ lawrance -> itetcu
 
 leeym -> clsung
 
+lioux -> pat
+
 marcus -> ahze
 marcus -> bland
 marcus -> eik
@@ -210,6 +220,8 @@ nork -> ale
 novel -> alexbl
 novel -> ehaupt
 
+pat -> adamw
+
 pav -> ahze
 pav -> flz
 pav -> josef
@@ -223,9 +235,13 @@ sem -> anray
 sem -> delphij
 sem -> stas
 
+sobomax -> marcus
+
 steve -> netchild
 
 tmclaugh -> itetcu
 tmclaugh -> xride
+
+will -> lioux
 
 }
