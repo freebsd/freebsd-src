@@ -330,12 +330,9 @@
 struct vr_desc {
 	u_int32_t		vr_status;
 	u_int32_t		vr_ctl;
-	u_int32_t		vr_ptr1;
-	u_int32_t		vr_ptr2;
+	u_int32_t		vr_data;
+	u_int32_t		vr_nextphys;
 };
-
-#define vr_data		vr_ptr1
-#define vr_next		vr_ptr2
 
 
 #define VR_RXSTAT_RXERR		0x00000001
@@ -415,17 +412,11 @@ struct vr_chain {
 	struct vr_chain		*vr_nextdesc;
 };
 
-struct vr_chain_onefrag {
-	struct vr_desc		*vr_ptr;
-	struct mbuf		*vr_mbuf;
-	struct vr_chain_onefrag	*vr_nextdesc;
-};
-
 struct vr_chain_data {
-	struct vr_chain_onefrag	vr_rx_chain[VR_RX_LIST_CNT];
+	struct vr_chain		vr_rx_chain[VR_RX_LIST_CNT];
 	struct vr_chain		vr_tx_chain[VR_TX_LIST_CNT];
 
-	struct vr_chain_onefrag	*vr_rx_head;
+	struct vr_chain		*vr_rx_head;
 
 	struct vr_chain		*vr_tx_cons;
 	struct vr_chain		*vr_tx_prod;
