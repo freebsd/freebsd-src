@@ -36,7 +36,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -73,8 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfs.h>
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
-
-#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_NFSSVC, "nfss_srvsock", "Nfs server structure");
 
@@ -134,11 +131,6 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 
 	KASSERT(!mtx_owned(&Giant), ("nfssvc(): called with Giant"));
 
-#ifdef MAC
-	error = mac_check_system_nfsd(td->td_ucred);
-	if (error)
-		return (error);
-#endif
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error)
 		return (error);
