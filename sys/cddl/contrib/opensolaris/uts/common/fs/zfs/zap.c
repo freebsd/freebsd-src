@@ -48,6 +48,7 @@
 #include <sys/refcount.h>
 #include <sys/zap_impl.h>
 #include <sys/zap_leaf.h>
+#include <sys/zfs_znode.h>
 
 int fzap_default_block_shift = 14; /* 16k blocksize */
 
@@ -907,7 +908,7 @@ zap_value_search(objset_t *os, uint64_t zapobj, uint64_t value, char *name)
 	for (zap_cursor_init(&zc, os, zapobj);
 	    (err = zap_cursor_retrieve(&zc, za)) == 0;
 	    zap_cursor_advance(&zc)) {
-		if (za->za_first_integer == value) {
+		if (ZFS_DIRENT_OBJ(za->za_first_integer) == value) {
 			(void) strcpy(name, za->za_name);
 			break;
 		}
