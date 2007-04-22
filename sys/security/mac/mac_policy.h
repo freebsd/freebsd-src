@@ -127,7 +127,6 @@ typedef void	(*mpo_init_sysv_shm_label_t)(struct label *label);
 typedef int	(*mpo_init_ipq_label_t)(struct label *label, int flag);
 typedef int	(*mpo_init_mbuf_label_t)(struct label *label, int flag);
 typedef void	(*mpo_init_mount_label_t)(struct label *label);
-typedef void	(*mpo_init_mount_fs_label_t)(struct label *label);
 typedef int	(*mpo_init_socket_label_t)(struct label *label, int flag);
 typedef int	(*mpo_init_socket_peer_label_t)(struct label *label,
 		    int flag);
@@ -147,7 +146,6 @@ typedef void	(*mpo_destroy_sysv_shm_label_t)(struct label *label);
 typedef void	(*mpo_destroy_ipq_label_t)(struct label *label);
 typedef void	(*mpo_destroy_mbuf_label_t)(struct label *label);
 typedef void	(*mpo_destroy_mount_label_t)(struct label *label);
-typedef void	(*mpo_destroy_mount_fs_label_t)(struct label *label);
 typedef void	(*mpo_destroy_socket_label_t)(struct label *label);
 typedef void	(*mpo_destroy_socket_peer_label_t)(struct label *label);
 typedef void	(*mpo_destroy_pipe_label_t)(struct label *label);
@@ -198,14 +196,14 @@ typedef int	(*mpo_internalize_vnode_label_t)(struct label *label,
  * like file system objects.
  */
 typedef void	(*mpo_associate_vnode_devfs_t)(struct mount *mp,
-		    struct label *fslabel, struct devfs_dirent *de,
+		    struct label *mntlabel, struct devfs_dirent *de,
 		    struct label *delabel, struct vnode *vp,
 		    struct label *vlabel);
 typedef int	(*mpo_associate_vnode_extattr_t)(struct mount *mp,
-		    struct label *fslabel, struct vnode *vp,
+		    struct label *mntlabel, struct vnode *vp,
 		    struct label *vlabel);
 typedef void	(*mpo_associate_vnode_singlelabel_t)(struct mount *mp,
-		    struct label *fslabel, struct vnode *vp,
+		    struct label *mntlabel, struct vnode *vp,
 		    struct label *vlabel);
 typedef void	(*mpo_create_devfs_device_t)(struct ucred *cred,
 		    struct mount *mp, struct cdev *dev,
@@ -218,12 +216,12 @@ typedef void	(*mpo_create_devfs_symlink_t)(struct ucred *cred,
 		    struct label *ddlabel, struct devfs_dirent *de,
 		    struct label *delabel);
 typedef int	(*mpo_create_vnode_extattr_t)(struct ucred *cred,
-		    struct mount *mp, struct label *fslabel,
+		    struct mount *mp, struct label *mntlabel,
 		    struct vnode *dvp, struct label *dlabel,
 		    struct vnode *vp, struct label *vlabel,
 		    struct componentname *cnp);
 typedef void	(*mpo_create_mount_t)(struct ucred *cred, struct mount *mp,
-		    struct label *mntlabel, struct label *fslabel);
+		    struct label *mntlabel);
 typedef void	(*mpo_relabel_vnode_t)(struct ucred *cred, struct vnode *vp,
 		    struct label *vnodelabel, struct label *label);
 typedef int	(*mpo_setlabel_vnode_extattr_t)(struct ucred *cred,
@@ -645,7 +643,6 @@ struct mac_policy_ops {
 	mpo_init_ipq_label_t			mpo_init_ipq_label;
 	mpo_init_mbuf_label_t			mpo_init_mbuf_label;
 	mpo_init_mount_label_t			mpo_init_mount_label;
-	mpo_init_mount_fs_label_t		mpo_init_mount_fs_label;
 	mpo_init_socket_label_t			mpo_init_socket_label;
 	mpo_init_socket_peer_label_t		mpo_init_socket_peer_label;
 	mpo_init_pipe_label_t			mpo_init_pipe_label;
@@ -665,7 +662,6 @@ struct mac_policy_ops {
 	mpo_destroy_ipq_label_t			mpo_destroy_ipq_label;
 	mpo_destroy_mbuf_label_t		mpo_destroy_mbuf_label;
 	mpo_destroy_mount_label_t		mpo_destroy_mount_label;
-	mpo_destroy_mount_fs_label_t		mpo_destroy_mount_fs_label;
 	mpo_destroy_socket_label_t		mpo_destroy_socket_label;
 	mpo_destroy_socket_peer_label_t		mpo_destroy_socket_peer_label;
 	mpo_destroy_pipe_label_t		mpo_destroy_pipe_label;
