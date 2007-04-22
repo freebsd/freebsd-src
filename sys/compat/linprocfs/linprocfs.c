@@ -312,9 +312,11 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	int error;
 
 	/* resolve symlinks etc. in the emulation tree prefix */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, linux_emul_path, td);
 	flep = NULL;
-	if (namei(&nd) != 0 || vn_fullpath(td, nd.ni_vp, &dlep, &flep) != 0)
+	error = namei(&nd);
+	VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
+	if (error != 0 || vn_fullpath(td, nd.ni_vp, &dlep, &flep) != 0)
 		lep = linux_emul_path;
 	else
 		lep = dlep;
