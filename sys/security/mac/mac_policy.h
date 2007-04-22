@@ -196,65 +196,64 @@ typedef int	(*mpo_internalize_vnode_label_t)(struct label *label,
  * like file system objects.
  */
 typedef void	(*mpo_associate_vnode_devfs_t)(struct mount *mp,
-		    struct label *mntlabel, struct devfs_dirent *de,
+		    struct label *mplabel, struct devfs_dirent *de,
 		    struct label *delabel, struct vnode *vp,
-		    struct label *vlabel);
+		    struct label *vplabel);
 typedef int	(*mpo_associate_vnode_extattr_t)(struct mount *mp,
-		    struct label *mntlabel, struct vnode *vp,
-		    struct label *vlabel);
+		    struct label *mplabel, struct vnode *vp,
+		    struct label *vplabel);
 typedef void	(*mpo_associate_vnode_singlelabel_t)(struct mount *mp,
-		    struct label *mntlabel, struct vnode *vp,
-		    struct label *vlabel);
+		    struct label *mplabel, struct vnode *vp,
+		    struct label *vplabel);
 typedef void	(*mpo_create_devfs_device_t)(struct ucred *cred,
 		    struct mount *mp, struct cdev *dev,
-		    struct devfs_dirent *de, struct label *label);
+		    struct devfs_dirent *de, struct label *delabel);
 typedef void	(*mpo_create_devfs_directory_t)(struct mount *mp,
 		    char *dirname, int dirnamelen, struct devfs_dirent *de,
-		    struct label *label);
+		    struct label *delabel);
 typedef void	(*mpo_create_devfs_symlink_t)(struct ucred *cred,
 		    struct mount *mp, struct devfs_dirent *dd,
 		    struct label *ddlabel, struct devfs_dirent *de,
 		    struct label *delabel);
 typedef int	(*mpo_create_vnode_extattr_t)(struct ucred *cred,
-		    struct mount *mp, struct label *mntlabel,
-		    struct vnode *dvp, struct label *dlabel,
-		    struct vnode *vp, struct label *vlabel,
+		    struct mount *mp, struct label *mplabel,
+		    struct vnode *dvp, struct label *dvplabel,
+		    struct vnode *vp, struct label *vplabel,
 		    struct componentname *cnp);
 typedef void	(*mpo_create_mount_t)(struct ucred *cred, struct mount *mp,
-		    struct label *mntlabel);
+		    struct label *mplabel);
 typedef void	(*mpo_relabel_vnode_t)(struct ucred *cred, struct vnode *vp,
-		    struct label *vnodelabel, struct label *label);
+		    struct label *vplabel, struct label *label);
 typedef int	(*mpo_setlabel_vnode_extattr_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *vlabel,
+		    struct vnode *vp, struct label *vplabel,
 		    struct label *intlabel);
 typedef void	(*mpo_update_devfsdirent_t)(struct mount *mp,
-		    struct devfs_dirent *devfs_dirent,
-		    struct label *direntlabel, struct vnode *vp,
-		    struct label *vnodelabel);
+		    struct devfs_dirent *de, struct label *delabel,
+		    struct vnode *vp, struct label *vplabel);
 
 /*
  * Labeling event operations: IPC objects.
  */
 typedef void	(*mpo_create_mbuf_from_socket_t)(struct socket *so,
-		    struct label *socketlabel, struct mbuf *m,
-		    struct label *mbuflabel);
+		    struct label *solabel, struct mbuf *m,
+		    struct label *mlabel);
 typedef void	(*mpo_create_socket_t)(struct ucred *cred, struct socket *so,
-		    struct label *socketlabel);
-typedef void	(*mpo_create_socket_from_socket_t)(struct socket *oldsocket,
-		    struct label *oldsocketlabel, struct socket *newsocket,
-		    struct label *newsocketlabel);
+		    struct label *solabel);
+typedef void	(*mpo_create_socket_from_socket_t)(struct socket *oldso,
+		    struct label *oldsolabel, struct socket *newso,
+		    struct label *newsolabel);
 typedef void	(*mpo_relabel_socket_t)(struct ucred *cred, struct socket *so,
 		    struct label *oldlabel, struct label *newlabel);
 typedef void	(*mpo_relabel_pipe_t)(struct ucred *cred, struct pipepair *pp,
 		    struct label *oldlabel, struct label *newlabel);
-typedef void	(*mpo_set_socket_peer_from_mbuf_t)(struct mbuf *mbuf,
-		    struct label *mbuflabel, struct socket *so,
-		    struct label *socketpeerlabel);
-typedef void	(*mpo_set_socket_peer_from_socket_t)(struct socket *oldsocket,
-		    struct label *oldsocketlabel, struct socket *newsocket,
-		    struct label *newsocketpeerlabel);
+typedef void	(*mpo_set_socket_peer_from_mbuf_t)(struct mbuf *m,
+		    struct label *mlabel, struct socket *so,
+		    struct label *sopeerlabel);
+typedef void	(*mpo_set_socket_peer_from_socket_t)(struct socket *oldso,
+		    struct label *oldsolabel, struct socket *newso,
+		    struct label *newsopeerlabel);
 typedef void	(*mpo_create_pipe_t)(struct ucred *cred, struct pipepair *pp,
-		    struct label *pipelabel);
+		    struct label *pplabel);
 
 /*
  * Labeling event operations: System V IPC primitives.
@@ -279,53 +278,49 @@ typedef void	(*mpo_create_posix_sem_t)(struct ucred *cred,
  * Labeling event operations: network objects.
  */
 typedef void	(*mpo_create_bpfdesc_t)(struct ucred *cred,
-		    struct bpf_d *bpf_d, struct label *bpflabel);
-typedef void	(*mpo_create_ifnet_t)(struct ifnet *ifnet,
-		    struct label *ifnetlabel);
+		    struct bpf_d *d, struct label *dlabel);
+typedef void	(*mpo_create_ifnet_t)(struct ifnet *ifp,
+		    struct label *ifplabel);
 typedef void	(*mpo_create_inpcb_from_socket_t)(struct socket *so,
 		    struct label *solabel, struct inpcb *inp,
 		    struct label *inplabel);
-typedef void	(*mpo_create_ipq_t)(struct mbuf *fragment,
-		    struct label *fragmentlabel, struct ipq *ipq,
-		    struct label *ipqlabel);
+typedef void	(*mpo_create_ipq_t)(struct mbuf *m, struct label *mlabel,
+		    struct ipq *ipq, struct label *ipqlabel);
 typedef void	(*mpo_create_datagram_from_ipq)
-		    (struct ipq *ipq, struct label *ipqlabel,
-		    struct mbuf *datagram, struct label *datagramlabel);
-typedef void	(*mpo_create_fragment_t)(struct mbuf *datagram,
-		    struct label *datagramlabel, struct mbuf *fragment,
-		    struct label *fragmentlabel);
+		    (struct ipq *ipq, struct label *ipqlabel, struct mbuf *m,
+		    struct label *mlabel);
+typedef void	(*mpo_create_fragment_t)(struct mbuf *m,
+		    struct label *mlabel, struct mbuf *frag,
+		    struct label *fraglabel);
 typedef void	(*mpo_create_mbuf_from_inpcb_t)(struct inpcb *inp,
 		    struct label *inplabel, struct mbuf *m,
 		    struct label *mlabel);
-typedef void	(*mpo_create_mbuf_linklayer_t)(struct ifnet *ifnet,
-		    struct label *ifnetlabel, struct mbuf *mbuf,
-		    struct label *mbuflabel);
-typedef void	(*mpo_create_mbuf_from_bpfdesc_t)(struct bpf_d *bpf_d,
-		    struct label *bpflabel, struct mbuf *mbuf,
-		    struct label *mbuflabel);
-typedef void	(*mpo_create_mbuf_from_ifnet_t)(struct ifnet *ifnet,
-		    struct label *ifnetlabel, struct mbuf *mbuf,
-		    struct label *mbuflabel);
-typedef void	(*mpo_create_mbuf_multicast_encap_t)(struct mbuf *oldmbuf,
-		    struct label *oldmbuflabel, struct ifnet *ifnet,
-		    struct label *ifnetlabel, struct mbuf *newmbuf,
-		    struct label *newmbuflabel);
-typedef void	(*mpo_create_mbuf_netlayer_t)(struct mbuf *oldmbuf,
-		    struct label *oldmbuflabel, struct mbuf *newmbuf,
-		    struct label *newmbuflabel);
-typedef int	(*mpo_fragment_match_t)(struct mbuf *fragment,
-		    struct label *fragmentlabel, struct ipq *ipq,
-		    struct label *ipqlabel);
+typedef void	(*mpo_create_mbuf_linklayer_t)(struct ifnet *ifp,
+		    struct label *ifplabel, struct mbuf *m,
+		    struct label *mlabel);
+typedef void	(*mpo_create_mbuf_from_bpfdesc_t)(struct bpf_d *d,
+		    struct label *dlabel, struct mbuf *m,
+		    struct label *mlabel);
+typedef void	(*mpo_create_mbuf_from_ifnet_t)(struct ifnet *ifp,
+		    struct label *ifplabel, struct mbuf *m,
+		    struct label *mlabel);
+typedef void	(*mpo_create_mbuf_multicast_encap_t)(struct mbuf *m,
+		    struct label *mlabel, struct ifnet *ifp,
+		    struct label *ifplabel, struct mbuf *mnew,
+		    struct label *mnewlabel);
+typedef void	(*mpo_create_mbuf_netlayer_t)(struct mbuf *m,
+		    struct label *mlabel, struct mbuf *mnew,
+		    struct label *mnewlabel);
+typedef int	(*mpo_fragment_match_t)(struct mbuf *m, struct label *mlabel,
+		    struct ipq *ipq, struct label *ipqlabel);
 typedef void	(*mpo_reflect_mbuf_icmp_t)(struct mbuf *m,
 		    struct label *mlabel);
 typedef void	(*mpo_reflect_mbuf_tcp_t)(struct mbuf *m,
 		    struct label *mlabel);
-typedef void	(*mpo_relabel_ifnet_t)(struct ucred *cred,
-		    struct ifnet *ifnet, struct label *ifnetlabel,
-		    struct label *newlabel);
-typedef void	(*mpo_update_ipq_t)(struct mbuf *fragment,
-		    struct label *fragmentlabel, struct ipq *ipq,
-		    struct label *ipqlabel);
+typedef void	(*mpo_relabel_ifnet_t)(struct ucred *cred, struct ifnet *ifp,
+		    struct label *ifplabel, struct label *newlabel);
+typedef void	(*mpo_update_ipq_t)(struct mbuf *m, struct label *mlabel,
+		    struct ipq *ipq, struct label *ipqlabel);
 typedef void	(*mpo_inpcb_sosetlabel_t)(struct socket *so,
 		    struct label *label, struct inpcb *inp,
 		    struct label *inplabel);
@@ -337,16 +332,16 @@ typedef int	(*mpo_init_syncache_label_t)(struct label *label, int flag);
 typedef void	(*mpo_init_syncache_from_inpcb_t)(struct label *label,
 		    struct inpcb *inp);
 typedef void	(*mpo_create_mbuf_from_syncache_t)(struct label *sc_label,
-		    struct mbuf *m, struct label *mbuf_label);
+		    struct mbuf *m, struct label *mlabel);
 /*
  * Labeling event operations: processes.
  */
 typedef void	(*mpo_execve_transition_t)(struct ucred *old,
 		    struct ucred *new, struct vnode *vp,
-		    struct label *vnodelabel, struct label *interpvnodelabel,
+		    struct label *vplabel, struct label *interpvnodelabel,
 		    struct image_params *imgp, struct label *execlabel);
 typedef int	(*mpo_execve_will_transition_t)(struct ucred *old,
-		    struct vnode *vp, struct label *vnodelabel,
+		    struct vnode *vp, struct label *vplabel,
 		    struct label *interpvnodelabel,
 		    struct image_params *imgp, struct label *execlabel);
 typedef void	(*mpo_create_proc0_t)(struct ucred *cred);
@@ -358,19 +353,19 @@ typedef void	(*mpo_thread_userret_t)(struct thread *thread);
 /*
  * Access control checks.
  */
-typedef	int	(*mpo_check_bpfdesc_receive_t)(struct bpf_d *bpf_d,
-		    struct label *bpflabel, struct ifnet *ifnet,
-		    struct label *ifnetlabel);
+typedef	int	(*mpo_check_bpfdesc_receive_t)(struct bpf_d *d,
+		    struct label *dlabel, struct ifnet *ifp,
+		    struct label *ifplabel);
 typedef int	(*mpo_check_cred_relabel_t)(struct ucred *cred,
 		    struct label *newlabel);
-typedef int	(*mpo_check_cred_visible_t)(struct ucred *u1,
-		    struct ucred *u2);
+typedef int	(*mpo_check_cred_visible_t)(struct ucred *cr1,
+		    struct ucred *cr2);
 typedef int	(*mpo_check_ifnet_relabel_t)(struct ucred *cred,
-		    struct ifnet *ifnet, struct label *ifnetlabel,
+		    struct ifnet *ifp, struct label *ifplabel,
 		    struct label *newlabel);
-typedef int	(*mpo_check_ifnet_transmit_t)(struct ifnet *ifnet,
-		    struct label *ifnetlabel, struct mbuf *m,
-		    struct label *mbuflabel);
+typedef int	(*mpo_check_ifnet_transmit_t)(struct ifnet *ifp,
+		    struct label *ifplabel, struct mbuf *m,
+		    struct label *mlabel);
 typedef int	(*mpo_check_inpcb_deliver_t)(struct inpcb *inp,
 		    struct label *inplabel, struct mbuf *m,
 		    struct label *mlabel);
@@ -416,27 +411,27 @@ typedef int	(*mpo_check_kenv_set_t)(struct ucred *cred, char *name,
 		    char *value);
 typedef int	(*mpo_check_kenv_unset_t)(struct ucred *cred, char *name);
 typedef int	(*mpo_check_kld_load_t)(struct ucred *cred, struct vnode *vp,
-		    struct label *vlabel);
+		    struct label *vplabel);
 typedef int	(*mpo_check_kld_stat_t)(struct ucred *cred);
 typedef int	(*mpo_mpo_placeholder19_t)(void);
 typedef int	(*mpo_mpo_placeholder20_t)(void);
 typedef int	(*mpo_check_mount_stat_t)(struct ucred *cred,
-		    struct mount *mp, struct label *mntlabel);
+		    struct mount *mp, struct label *mplabel);
 typedef int	(*mpo_mpo_placeholder21_t)(void);
 typedef int	(*mpo_check_pipe_ioctl_t)(struct ucred *cred,
-		    struct pipepair *pp, struct label *pipelabel,
+		    struct pipepair *pp, struct label *pplabel,
 		    unsigned long cmd, void *data);
 typedef int	(*mpo_check_pipe_poll_t)(struct ucred *cred,
-		    struct pipepair *pp, struct label *pipelabel);
+		    struct pipepair *pp, struct label *pplabel);
 typedef int	(*mpo_check_pipe_read_t)(struct ucred *cred,
-		    struct pipepair *pp, struct label *pipelabel);
+		    struct pipepair *pp, struct label *pplabel);
 typedef int	(*mpo_check_pipe_relabel_t)(struct ucred *cred,
-		    struct pipepair *pp, struct label *pipelabel,
+		    struct pipepair *pp, struct label *pplabel,
 		    struct label *newlabel);
 typedef int	(*mpo_check_pipe_stat_t)(struct ucred *cred,
-		    struct pipepair *pp, struct label *pipelabel);
+		    struct pipepair *pp, struct label *pplabel);
 typedef int	(*mpo_check_pipe_write_t)(struct ucred *cred,
-		    struct pipepair *pp, struct label *pipelabel);
+		    struct pipepair *pp, struct label *pplabel);
 typedef int	(*mpo_check_posix_sem_destroy_t)(struct ucred *cred,
 		    struct ksem *ksemptr, struct label *ks_label);
 typedef int	(*mpo_check_posix_sem_getvalue_t)(struct ucred *cred,
@@ -450,9 +445,9 @@ typedef int	(*mpo_check_posix_sem_unlink_t)(struct ucred *cred,
 typedef int	(*mpo_check_posix_sem_wait_t)(struct ucred *cred,
 		    struct ksem *ksemptr, struct label *ks_label);
 typedef int	(*mpo_check_proc_debug_t)(struct ucred *cred,
-		    struct proc *proc);
+		    struct proc *p);
 typedef int	(*mpo_check_proc_sched_t)(struct ucred *cred,
-		    struct proc *proc);
+		    struct proc *p);
 typedef int	(*mpo_check_proc_setaudit_t)(struct ucred *cred,
 		    struct auditinfo *ai);
 typedef int	(*mpo_check_proc_setauid_t)(struct ucred *cred, uid_t auid);
@@ -475,35 +470,35 @@ typedef int	(*mpo_check_proc_signal_t)(struct ucred *cred,
 typedef int	(*mpo_check_proc_wait_t)(struct ucred *cred,
 		    struct proc *proc);
 typedef int	(*mpo_check_socket_accept_t)(struct ucred *cred,
-		    struct socket *so, struct label *socketlabel);
+		    struct socket *so, struct label *solabel);
 typedef int	(*mpo_check_socket_bind_t)(struct ucred *cred,
-		    struct socket *so, struct label *socketlabel,
-		    struct sockaddr *sockaddr);
+		    struct socket *so, struct label *solabel,
+		    struct sockaddr *sa);
 typedef int	(*mpo_check_socket_connect_t)(struct ucred *cred,
-		    struct socket *so, struct label *socketlabel,
-		    struct sockaddr *sockaddr);
+		    struct socket *so, struct label *solabel,
+		    struct sockaddr *sa);
 typedef int	(*mpo_check_socket_create_t)(struct ucred *cred, int domain,
 		    int type, int protocol);
 typedef int	(*mpo_check_socket_deliver_t)(struct socket *so,
-		    struct label *socketlabel, struct mbuf *m,
-		    struct label *mbuflabel);
+		    struct label *solabel, struct mbuf *m,
+		    struct label *mlabel);
 typedef int	(*mpo_check_socket_listen_t)(struct ucred *cred,
-		    struct socket *so, struct label *socketlabel);
+		    struct socket *so, struct label *solabel);
 typedef int	(*mpo_check_socket_poll_t)(struct ucred *cred,
-		    struct socket *so, struct label *socketlabel);
+		    struct socket *so, struct label *solabel);
 typedef int	(*mpo_check_socket_receive_t)(struct ucred *cred,
-		    struct socket *so, struct label *socketlabel);
+		    struct socket *so, struct label *solabel);
 typedef int	(*mpo_check_socket_relabel_t)(struct ucred *cred,
-		    struct socket *so, struct label *socketlabel,
+		    struct socket *so, struct label *solabel,
 		    struct label *newlabel);
 typedef int	(*mpo_check_socket_send_t)(struct ucred *cred,
-		    struct socket *so, struct label *socketlabel);
+		    struct socket *so, struct label *solabel);
 typedef int	(*mpo_check_socket_stat_t)(struct ucred *cred,
-		    struct socket *so, struct label *socketlabel);
+		    struct socket *so, struct label *solabel);
 typedef int	(*mpo_check_socket_visible_t)(struct ucred *cred,
-		    struct socket *so, struct label *socketlabel);
+		    struct socket *so, struct label *solabel);
 typedef int	(*mpo_check_system_acct_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *vlabel);
+		    struct vnode *vp, struct label *vplabel);
 typedef int	(*mpo_check_system_audit_t)(struct ucred *cred, void *record,
 		    int length);
 typedef int	(*mpo_check_system_auditctl_t)(struct ucred *cred,
@@ -511,101 +506,104 @@ typedef int	(*mpo_check_system_auditctl_t)(struct ucred *cred,
 typedef int	(*mpo_check_system_auditon_t)(struct ucred *cred, int cmd);
 typedef int	(*mpo_check_system_reboot_t)(struct ucred *cred, int howto);
 typedef int	(*mpo_check_system_swapon_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label);
+		    struct vnode *vp, struct label *vplabel);
 typedef int	(*mpo_check_system_swapoff_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label);
+		    struct vnode *vp, struct label *vplabel);
 typedef int	(*mpo_check_system_sysctl_t)(struct ucred *cred,
 		    struct sysctl_oid *oidp, void *arg1, int arg2,
 		    struct sysctl_req *req);
 typedef int	(*mpo_check_vnode_access_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, int acc_mode);
+		    struct vnode *vp, struct label *vplabel, int acc_mode);
 typedef int	(*mpo_check_vnode_chdir_t)(struct ucred *cred,
-		    struct vnode *dvp, struct label *dlabel);
+		    struct vnode *dvp, struct label *dvplabel);
 typedef int	(*mpo_check_vnode_chroot_t)(struct ucred *cred,
-		    struct vnode *dvp, struct label *dlabel);
+		    struct vnode *dvp, struct label *dvplabel);
 typedef int	(*mpo_check_vnode_create_t)(struct ucred *cred,
-		    struct vnode *dvp, struct label *dlabel,
+		    struct vnode *dvp, struct label *dvplabel,
 		    struct componentname *cnp, struct vattr *vap);
 typedef int	(*mpo_check_vnode_delete_t)(struct ucred *cred,
-		    struct vnode *dvp, struct label *dlabel,
-		    struct vnode *vp, struct label *label,
+		    struct vnode *dvp, struct label *dvplabel,
+		    struct vnode *vp, struct label *vplabel,
 		    struct componentname *cnp);
 typedef int	(*mpo_check_vnode_deleteacl_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, acl_type_t type);
+		    struct vnode *vp, struct label *vplabel,
+		    acl_type_t type);
 typedef int	(*mpo_check_vnode_deleteextattr_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, int attrnamespace,
-		    const char *name);
+		    struct vnode *vp, struct label *vplabel,
+		    int attrnamespace, const char *name);
 typedef int	(*mpo_check_vnode_exec_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label,
+		    struct vnode *vp, struct label *vplabel,
 		    struct image_params *imgp, struct label *execlabel);
 typedef int	(*mpo_check_vnode_getacl_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, acl_type_t type);
+		    struct vnode *vp, struct label *vplabel,
+		    acl_type_t type);
 typedef int	(*mpo_check_vnode_getextattr_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, int attrnamespace,
-		    const char *name, struct uio *uio);
+		    struct vnode *vp, struct label *vplabel,
+		    int attrnamespace, const char *name, struct uio *uio);
 typedef int	(*mpo_check_vnode_link_t)(struct ucred *cred,
-		    struct vnode *dvp, struct label *dlabel, struct vnode *vp,
-		    struct label *label, struct componentname *cnp);
+		    struct vnode *dvp, struct label *dvplabel,
+		    struct vnode *vp, struct label *vplabel,
+		    struct componentname *cnp);
 typedef int	(*mpo_check_vnode_listextattr_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label,
+		    struct vnode *vp, struct label *vplabel,
 		    int attrnamespace);
 typedef int	(*mpo_check_vnode_lookup_t)(struct ucred *cred,
-		    struct vnode *dvp, struct label *dlabel,
+		    struct vnode *dvp, struct label *dvplabel,
 		    struct componentname *cnp);
 typedef int	(*mpo_check_vnode_mmap_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, int prot,
 		    int flags);
 typedef void	(*mpo_check_vnode_mmap_downgrade_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, int *prot);
+		    struct vnode *vp, struct label *vplabel, int *prot);
 typedef int	(*mpo_check_vnode_mprotect_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, int prot);
+		    struct vnode *vp, struct label *vplabel, int prot);
 typedef int	(*mpo_check_vnode_open_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, int acc_mode);
+		    struct vnode *vp, struct label *vplabel, int acc_mode);
 typedef int	(*mpo_check_vnode_poll_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
-		    struct label *label);
+		    struct label *vplabel);
 typedef int	(*mpo_check_vnode_read_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
-		    struct label *label);
+		    struct label *vplabel);
 typedef int	(*mpo_check_vnode_readdir_t)(struct ucred *cred,
-		    struct vnode *dvp, struct label *dlabel);
+		    struct vnode *dvp, struct label *dvplabel);
 typedef int	(*mpo_check_vnode_readlink_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label);
+		    struct vnode *vp, struct label *vplabel);
 typedef int	(*mpo_check_vnode_relabel_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *vnodelabel,
+		    struct vnode *vp, struct label *vplabel,
 		    struct label *newlabel);
 typedef int	(*mpo_check_vnode_rename_from_t)(struct ucred *cred,
-		    struct vnode *dvp, struct label *dlabel,
-		    struct vnode *vp, struct label *label,
+		    struct vnode *dvp, struct label *dvplabel,
+		    struct vnode *vp, struct label *vplabel,
 		    struct componentname *cnp);
 typedef int	(*mpo_check_vnode_rename_to_t)(struct ucred *cred,
-		    struct vnode *dvp, struct label *dlabel,
-		    struct vnode *vp, struct label *label, int samedir,
+		    struct vnode *dvp, struct label *dvplabel,
+		    struct vnode *vp, struct label *vplabel, int samedir,
 		    struct componentname *cnp);
 typedef int	(*mpo_check_vnode_revoke_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label);
+		    struct vnode *vp, struct label *vplabel);
 typedef int	(*mpo_check_vnode_setacl_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, acl_type_t type,
+		    struct vnode *vp, struct label *vplabel, acl_type_t type,
 		    struct acl *acl);
 typedef int	(*mpo_check_vnode_setextattr_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, int attrnamespace,
-		    const char *name, struct uio *uio);
+		    struct vnode *vp, struct label *vplabel,
+		    int attrnamespace, const char *name, struct uio *uio);
 typedef int	(*mpo_check_vnode_setflags_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, u_long flags);
+		    struct vnode *vp, struct label *vplabel, u_long flags);
 typedef int	(*mpo_check_vnode_setmode_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, mode_t mode);
+		    struct vnode *vp, struct label *vplabel, mode_t mode);
 typedef int	(*mpo_check_vnode_setowner_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, uid_t uid,
+		    struct vnode *vp, struct label *vplabel, uid_t uid,
 		    gid_t gid);
 typedef int	(*mpo_check_vnode_setutimes_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *label,
+		    struct vnode *vp, struct label *vplabel,
 		    struct timespec atime, struct timespec mtime);
 typedef int	(*mpo_check_vnode_stat_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
-		    struct label *label);
+		    struct label *vplabel);
 typedef int	(*mpo_check_vnode_write_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
-		    struct label *label);
+		    struct label *vplabel);
 typedef void	(*mpo_associate_nfsd_label_t)(struct ucred *cred);
 typedef int	(*mpo_priv_check_t)(struct ucred *cred, int priv);
 typedef int	(*mpo_priv_grant_t)(struct ucred *cred, int priv);

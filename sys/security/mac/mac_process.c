@@ -446,163 +446,168 @@ mac_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 }
 
 int
-mac_check_cred_visible(struct ucred *u1, struct ucred *u2)
+mac_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 {
 	int error;
 
-	MAC_CHECK(check_cred_visible, u1, u2);
+	MAC_CHECK(check_cred_visible, cr1, cr2);
 
 	return (error);
 }
 
 int
-mac_check_proc_debug(struct ucred *cred, struct proc *proc)
+mac_check_proc_debug(struct ucred *cred, struct proc *p)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	MAC_CHECK(check_proc_debug, cred, proc);
+	MAC_CHECK(check_proc_debug, cred, p);
 
 	return (error);
 }
 
 int
-mac_check_proc_sched(struct ucred *cred, struct proc *proc)
+mac_check_proc_sched(struct ucred *cred, struct proc *p)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	MAC_CHECK(check_proc_sched, cred, proc);
+	MAC_CHECK(check_proc_sched, cred, p);
 
 	return (error);
 }
 
 int
-mac_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
+mac_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	MAC_CHECK(check_proc_signal, cred, proc, signum);
+	MAC_CHECK(check_proc_signal, cred, p, signum);
 
 	return (error);
 }
 
 int
-mac_check_proc_setuid(struct proc *proc, struct ucred *cred, uid_t uid)
+mac_check_proc_setuid(struct proc *p, struct ucred *cred, uid_t uid)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(check_proc_setuid, cred, uid);
 	return (error);
 }
 
 int
-mac_check_proc_seteuid(struct proc *proc, struct ucred *cred, uid_t euid)
+mac_check_proc_seteuid(struct proc *p, struct ucred *cred, uid_t euid)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(check_proc_seteuid, cred, euid);
 	return (error);
 }
 
 int
-mac_check_proc_setgid(struct proc *proc, struct ucred *cred, gid_t gid)
+mac_check_proc_setgid(struct proc *p, struct ucred *cred, gid_t gid)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(check_proc_setgid, cred, gid);
+
 	return (error);
 }
 
 int
-mac_check_proc_setegid(struct proc *proc, struct ucred *cred, gid_t egid)
+mac_check_proc_setegid(struct proc *p, struct ucred *cred, gid_t egid)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(check_proc_setegid, cred, egid);
+
 	return (error);
 }
 
 int
-mac_check_proc_setgroups(struct proc *proc, struct ucred *cred,
-	int ngroups, gid_t *gidset)
+mac_check_proc_setgroups(struct proc *p, struct ucred *cred, int ngroups,
+    gid_t *gidset)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(check_proc_setgroups, cred, ngroups, gidset);
 	return (error);
 }
 
 int
-mac_check_proc_setreuid(struct proc *proc, struct ucred *cred, uid_t ruid,
-	uid_t euid)
+mac_check_proc_setreuid(struct proc *p, struct ucred *cred, uid_t ruid,
+    uid_t euid)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(check_proc_setreuid, cred, ruid, euid);
+
 	return (error);
 }
 
 int
 mac_check_proc_setregid(struct proc *proc, struct ucred *cred, gid_t rgid,
-	gid_t egid)
+    gid_t egid)
 {
 	int error;
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
 
 	MAC_CHECK(check_proc_setregid, cred, rgid, egid);
+
 	return (error);
 }
 
 int
-mac_check_proc_setresuid(struct proc *proc, struct ucred *cred, uid_t ruid,
-	uid_t euid, uid_t suid)
+mac_check_proc_setresuid(struct proc *p, struct ucred *cred, uid_t ruid,
+    uid_t euid, uid_t suid)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(check_proc_setresuid, cred, ruid, euid, suid);
 	return (error);
 }
 
 int
-mac_check_proc_setresgid(struct proc *proc, struct ucred *cred, gid_t rgid,
-	gid_t egid, gid_t sgid)
+mac_check_proc_setresgid(struct proc *p, struct ucred *cred, gid_t rgid,
+    gid_t egid, gid_t sgid)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(check_proc_setresgid, cred, rgid, egid, sgid);
+
 	return (error);
 }
 
 int
-mac_check_proc_wait(struct ucred *cred, struct proc *proc)
+mac_check_proc_wait(struct ucred *cred, struct proc *p)
 {
 	int error;
 
-	PROC_LOCK_ASSERT(proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	MAC_CHECK(check_proc_wait, cred, proc);
+	MAC_CHECK(check_proc_wait, cred, p);
 
 	return (error);
 }

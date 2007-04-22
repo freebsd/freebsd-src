@@ -155,13 +155,13 @@ mac_socket_peer_label_free(struct label *label)
 }
 
 void
-mac_destroy_socket(struct socket *socket)
+mac_destroy_socket(struct socket *so)
 {
 
-	mac_socket_label_free(socket->so_label);
-	socket->so_label = NULL;
-	mac_socket_peer_label_free(socket->so_peerlabel);
-	socket->so_peerlabel = NULL;
+	mac_socket_label_free(so->so_label);
+	so->so_label = NULL;
+	mac_socket_peer_label_free(so->so_peerlabel);
+	so->so_peerlabel = NULL;
 }
 
 void
@@ -204,47 +204,47 @@ mac_internalize_socket_label(struct label *label, char *string)
 }
 
 void
-mac_create_socket(struct ucred *cred, struct socket *socket)
+mac_create_socket(struct ucred *cred, struct socket *so)
 {
 
-	MAC_PERFORM(create_socket, cred, socket, socket->so_label);
+	MAC_PERFORM(create_socket, cred, so, so->so_label);
 }
 
 void
-mac_create_socket_from_socket(struct socket *oldsocket,
-    struct socket *newsocket)
+mac_create_socket_from_socket(struct socket *oldso, struct socket *newso)
 {
 
-	SOCK_LOCK_ASSERT(oldsocket);
-	MAC_PERFORM(create_socket_from_socket, oldsocket, oldsocket->so_label,
-	    newsocket, newsocket->so_label);
+	SOCK_LOCK_ASSERT(oldso);
+
+	MAC_PERFORM(create_socket_from_socket, oldso, oldso->so_label, newso,
+	    newso->so_label);
 }
 
 static void
-mac_relabel_socket(struct ucred *cred, struct socket *socket,
+mac_relabel_socket(struct ucred *cred, struct socket *so,
     struct label *newlabel)
 {
 
-	SOCK_LOCK_ASSERT(socket);
-	MAC_PERFORM(relabel_socket, cred, socket, socket->so_label, newlabel);
+	SOCK_LOCK_ASSERT(so);
+
+	MAC_PERFORM(relabel_socket, cred, so, so->so_label, newlabel);
 }
 
 void
-mac_set_socket_peer_from_mbuf(struct mbuf *mbuf, struct socket *socket)
+mac_set_socket_peer_from_mbuf(struct mbuf *m, struct socket *so)
 {
 	struct label *label;
 
-	SOCK_LOCK_ASSERT(socket);
+	SOCK_LOCK_ASSERT(so);
 
-	label = mac_mbuf_to_label(mbuf);
+	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(set_socket_peer_from_mbuf, mbuf, label, socket,
-	    socket->so_peerlabel);
+	MAC_PERFORM(set_socket_peer_from_mbuf, m, label, so,
+	    so->so_peerlabel);
 }
 
 void
-mac_set_socket_peer_from_socket(struct socket *oldsocket,
-    struct socket *newsocket)
+mac_set_socket_peer_from_socket(struct socket *oldso, struct socket *newso)
 {
 
 	/*
@@ -252,97 +252,94 @@ mac_set_socket_peer_from_socket(struct socket *oldsocket,
 	 * is the original, and one is the new.  However, it's called in both
 	 * directions, so we can't assert the lock here currently.
 	 */
-	MAC_PERFORM(set_socket_peer_from_socket, oldsocket,
-	    oldsocket->so_label, newsocket, newsocket->so_peerlabel);
+	MAC_PERFORM(set_socket_peer_from_socket, oldso, oldso->so_label,
+	    newso, newso->so_peerlabel);
 }
 
 void
-mac_create_mbuf_from_socket(struct socket *socket, struct mbuf *mbuf)
+mac_create_mbuf_from_socket(struct socket *so, struct mbuf *m)
 {
 	struct label *label;
 
-	label = mac_mbuf_to_label(mbuf);
+	SOCK_LOCK_ASSERT(so);
 
-	SOCK_LOCK_ASSERT(socket);
-	MAC_PERFORM(create_mbuf_from_socket, socket, socket->so_label, mbuf,
-	    label);
+	label = mac_mbuf_to_label(m);
+
+	MAC_PERFORM(create_mbuf_from_socket, so, so->so_label, m, label);
 }
 
 int
-mac_check_socket_accept(struct ucred *cred, struct socket *socket)
+mac_check_socket_accept(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(socket);
+	SOCK_LOCK_ASSERT(so);
 
-	MAC_CHECK(check_socket_accept, cred, socket, socket->so_label);
+	MAC_CHECK(check_socket_accept, cred, so, so->so_label);
 
 	return (error);
 }
 
 int
-mac_check_socket_bind(struct ucred *ucred, struct socket *socket,
-    struct sockaddr *sockaddr)
+mac_check_socket_bind(struct ucred *ucred, struct socket *so,
+    struct sockaddr *sa)
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(socket);
+	SOCK_LOCK_ASSERT(so);
 
-	MAC_CHECK(check_socket_bind, ucred, socket, socket->so_label,
-	    sockaddr);
+	MAC_CHECK(check_socket_bind, ucred, so, so->so_label, sa);
 
 	return (error);
 }
 
 int
-mac_check_socket_connect(struct ucred *cred, struct socket *socket,
-    struct sockaddr *sockaddr)
+mac_check_socket_connect(struct ucred *cred, struct socket *so,
+    struct sockaddr *sa)
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(socket);
+	SOCK_LOCK_ASSERT(so);
 
-	MAC_CHECK(check_socket_connect, cred, socket, socket->so_label,
-	    sockaddr);
+	MAC_CHECK(check_socket_connect, cred, so, so->so_label, sa);
 
 	return (error);
 }
 
 int
-mac_check_socket_create(struct ucred *cred, int domain, int type,
-    int protocol)
+mac_check_socket_create(struct ucred *cred, int domain, int type, int proto)
 {
 	int error;
 
-	MAC_CHECK(check_socket_create, cred, domain, type, protocol);
+	MAC_CHECK(check_socket_create, cred, domain, type, proto);
 
 	return (error);
 }
 
 int
-mac_check_socket_deliver(struct socket *socket, struct mbuf *mbuf)
+mac_check_socket_deliver(struct socket *so, struct mbuf *m)
 {
 	struct label *label;
 	int error;
 
-	SOCK_LOCK_ASSERT(socket);
+	SOCK_LOCK_ASSERT(so);
 
-	label = mac_mbuf_to_label(mbuf);
+	label = mac_mbuf_to_label(m);
 
-	MAC_CHECK(check_socket_deliver, socket, socket->so_label, mbuf,
-	    label);
+	MAC_CHECK(check_socket_deliver, so, so->so_label, m, label);
 
 	return (error);
 }
 
 int
-mac_check_socket_listen(struct ucred *cred, struct socket *socket)
+mac_check_socket_listen(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(socket);
+	SOCK_LOCK_ASSERT(so);
 
-	MAC_CHECK(check_socket_listen, cred, socket, socket->so_label);
+	MAC_CHECK(check_socket_listen, cred, so, so->so_label);
+
 	return (error);
 }
 
@@ -354,6 +351,7 @@ mac_check_socket_poll(struct ucred *cred, struct socket *so)
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(check_socket_poll, cred, so, so->so_label);
+
 	return (error);
 }
 
@@ -370,15 +368,14 @@ mac_check_socket_receive(struct ucred *cred, struct socket *so)
 }
 
 static int
-mac_check_socket_relabel(struct ucred *cred, struct socket *socket,
+mac_check_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *newlabel)
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(socket);
+	SOCK_LOCK_ASSERT(so);
 
-	MAC_CHECK(check_socket_relabel, cred, socket, socket->so_label,
-	    newlabel);
+	MAC_CHECK(check_socket_relabel, cred, so, so->so_label, newlabel);
 
 	return (error);
 }
@@ -408,13 +405,13 @@ mac_check_socket_stat(struct ucred *cred, struct socket *so)
 }
 
 int
-mac_check_socket_visible(struct ucred *cred, struct socket *socket)
+mac_check_socket_visible(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(socket);
+	SOCK_LOCK_ASSERT(so);
 
-	MAC_CHECK(check_socket_visible, cred, socket, socket->so_label);
+	MAC_CHECK(check_socket_visible, cred, so, so->so_label);
 
 	return (error);
 }
