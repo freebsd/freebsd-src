@@ -36,6 +36,7 @@
 
 /*
  * Developed by the TrustedBSD Project.
+ *
  * Biba fixed label mandatory integrity policy.
  */
 
@@ -47,6 +48,7 @@
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
@@ -1913,19 +1915,6 @@ mac_biba_check_kld_load(struct ucred *cred, struct vnode *vp,
 
 
 static int
-mac_biba_check_kld_unload(struct ucred *cred)
-{
-	struct mac_biba *subj;
-
-	if (!mac_biba_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-
-	return (mac_biba_subject_privileged(subj));
-}
-
-static int
 mac_biba_check_mount_stat(struct ucred *cred, struct mount *mp,
     struct label *mntlabel)
 {
@@ -2259,8 +2248,13 @@ mac_biba_check_socket_visible(struct ucred *cred, struct socket *socket,
 	return (0);
 }
 
+/*
+ * Some system privileges are allowed regardless of integrity grade; others
+ * are allowed only when running with privilege with respect to the Biba
+ * policy as they might otherwise allow bypassing of the integrity policy.
+ */
 static int
-mac_biba_check_sysarch_ioperm(struct ucred *cred)
+mac_biba_priv_check(struct ucred *cred, int priv)
 {
 	struct mac_biba *subj;
 	int error;
@@ -2268,12 +2262,178 @@ mac_biba_check_sysarch_ioperm(struct ucred *cred)
 	if (!mac_biba_enabled)
 		return (0);
 
-	subj = SLOT(cred->cr_label);
+	/*
+	 * Exempt only specific privileges from the Biba integrity policy.
+	 */
+	switch (priv) {
+	case PRIV_KTRACE:
+	case PRIV_MSGBUF:
 
-	error = mac_biba_subject_privileged(subj);
-	if (error)
-		return (error);
+	/*
+	 * Allow processes to manipulate basic process audit properties, and
+	 * to submit audit records.
+	 */
+	case PRIV_AUDIT_GETAUDIT:
+	case PRIV_AUDIT_SETAUDIT:
+	case PRIV_AUDIT_SUBMIT:
 
+	/*
+	 * Allow processes to manipulate their regular UNIX credentials.
+	 */
+	case PRIV_CRED_SETUID:
+	case PRIV_CRED_SETEUID:
+	case PRIV_CRED_SETGID:
+	case PRIV_CRED_SETEGID:
+	case PRIV_CRED_SETGROUPS:
+	case PRIV_CRED_SETREUID:
+	case PRIV_CRED_SETREGID:
+	case PRIV_CRED_SETRESUID:
+	case PRIV_CRED_SETRESGID:
+
+	/*
+	 * Allow processes to perform system monitoring.
+	 */
+	case PRIV_SEEOTHERGIDS:
+	case PRIV_SEEOTHERUIDS:
+		break;
+
+	/*
+	 * Allow access to general process debugging facilities.  We
+	 * separately control debugging based on MAC label.
+	 */
+	case PRIV_DEBUG_DIFFCRED:
+	case PRIV_DEBUG_SUGID:
+	case PRIV_DEBUG_UNPRIV:
+
+	/*
+	 * Allow manipulating jails.
+	 */
+	case PRIV_JAIL_ATTACH:
+
+	/*
+	 * Allow privilege with respect to the Partition policy, but not the
+	 * Privs policy.
+	 */
+	case PRIV_MAC_PARTITION:
+
+	/*
+	 * Allow privilege with respect to process resource limits and login
+	 * context.
+	 */
+	case PRIV_PROC_LIMIT:
+	case PRIV_PROC_SETLOGIN:
+	case PRIV_PROC_SETRLIMIT:
+
+	/*
+	 * Allow System V and POSIX IPC privileges.
+	 */
+	case PRIV_IPC_READ:
+	case PRIV_IPC_WRITE:
+	case PRIV_IPC_ADMIN:
+	case PRIV_IPC_MSGSIZE:
+	case PRIV_MQ_ADMIN:
+
+	/*
+	 * Allow certain scheduler manipulations -- possibly this should be
+	 * controlled by more fine-grained policy, as potentially low
+	 * integrity processes can deny CPU to higher integrity ones.
+	 */
+	case PRIV_SCHED_DIFFCRED:
+	case PRIV_SCHED_SETPRIORITY:
+	case PRIV_SCHED_RTPRIO:
+	case PRIV_SCHED_SETPOLICY:
+	case PRIV_SCHED_SET:
+	case PRIV_SCHED_SETPARAM:
+
+	/*
+	 * More IPC privileges.
+	 */
+	case PRIV_SEM_WRITE:
+
+	/*
+	 * Allow signaling privileges subject to integrity policy.
+	 */
+	case PRIV_SIGNAL_DIFFCRED:
+	case PRIV_SIGNAL_SUGID:
+
+	/*
+	 * Allow access to only limited sysctls from lower integrity levels;
+	 * piggy-back on the Jail definition.
+	 */
+	case PRIV_SYSCTL_WRITEJAIL:
+
+	/*
+	 * Allow TTY-based privileges, subject to general device access using
+	 * labels on TTY device nodes, but not console privilege.
+	 */
+	case PRIV_TTY_DRAINWAIT:
+	case PRIV_TTY_DTRWAIT:
+	case PRIV_TTY_EXCLUSIVE:
+	case PRIV_TTY_PRISON:
+	case PRIV_TTY_STI:
+	case PRIV_TTY_SETA:
+
+	/*
+	 * Grant most VFS privileges, as almost all are in practice bounded
+	 * by more specific checks using labels.
+	 */
+	case PRIV_VFS_READ:
+	case PRIV_VFS_WRITE:
+	case PRIV_VFS_ADMIN:
+	case PRIV_VFS_EXEC:
+	case PRIV_VFS_LOOKUP:
+	case PRIV_VFS_CHFLAGS_DEV:
+	case PRIV_VFS_CHOWN:
+	case PRIV_VFS_CHROOT:
+	case PRIV_VFS_RETAINSUGID:
+	case PRIV_VFS_EXCEEDQUOTA:
+	case PRIV_VFS_FCHROOT:
+	case PRIV_VFS_FHOPEN:
+	case PRIV_VFS_FHSTATFS:
+	case PRIV_VFS_GENERATION:
+	case PRIV_VFS_GETFH:
+	case PRIV_VFS_GETQUOTA:
+	case PRIV_VFS_LINK:
+	case PRIV_VFS_MOUNT:
+	case PRIV_VFS_MOUNT_OWNER:
+	case PRIV_VFS_MOUNT_PERM:
+	case PRIV_VFS_MOUNT_SUIDDIR:
+	case PRIV_VFS_MOUNT_NONUSER:
+	case PRIV_VFS_SETGID:
+	case PRIV_VFS_STICKYFILE:
+	case PRIV_VFS_SYSFLAGS:
+	case PRIV_VFS_UNMOUNT:
+
+	/*
+	 * Allow VM privileges; it would be nice if these were subject to
+	 * resource limits.
+	 */
+	case PRIV_VM_MADV_PROTECT:
+	case PRIV_VM_MLOCK:
+	case PRIV_VM_MUNLOCK:
+
+	/*
+	 * Allow some but not all network privileges.  In general, dont allow
+	 * reconfiguring the network stack, just normal use.
+	 */
+	case PRIV_NETATALK_RESERVEDPORT:
+	case PRIV_NETINET_RESERVEDPORT:
+	case PRIV_NETINET_RAW:
+	case PRIV_NETINET_REUSEPORT:
+	case PRIV_NETIPX_RESERVEDPORT:
+	case PRIV_NETIPX_RAW:
+		break;
+
+	/*
+	 * All remaining system privileges are allow only if the process
+	 * holds privilege with respect to the Biba policy.
+	 */
+	default:
+		subj = SLOT(cred->cr_label);
+		error = mac_biba_subject_privileged(subj);
+		if (error)
+			return (error);
+	}
 	return (0);
 }
 
@@ -2331,24 +2491,6 @@ mac_biba_check_system_auditctl(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_biba_check_system_auditon(struct ucred *cred, int cmd)
-{
-	struct mac_biba *subj;
-	int error;
-
-	if (!mac_biba_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-
-	error = mac_biba_subject_privileged(subj);
-	if (error)
-		return (error);
-
-	return (0);
-}
-
-static int
-mac_biba_check_system_settime(struct ucred *cred)
 {
 	struct mac_biba *subj;
 	int error;
@@ -3226,7 +3368,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_sysv_shmctl = mac_biba_check_sysv_shmctl,
 	.mpo_check_sysv_shmget = mac_biba_check_sysv_shmget,
 	.mpo_check_kld_load = mac_biba_check_kld_load,
-	.mpo_check_kld_unload = mac_biba_check_kld_unload,
 	.mpo_check_mount_stat = mac_biba_check_mount_stat,
 	.mpo_check_pipe_ioctl = mac_biba_check_pipe_ioctl,
 	.mpo_check_pipe_poll = mac_biba_check_pipe_poll,
@@ -3246,11 +3387,9 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_socket_deliver = mac_biba_check_socket_deliver,
 	.mpo_check_socket_relabel = mac_biba_check_socket_relabel,
 	.mpo_check_socket_visible = mac_biba_check_socket_visible,
-	.mpo_check_sysarch_ioperm = mac_biba_check_sysarch_ioperm,
 	.mpo_check_system_acct = mac_biba_check_system_acct,
 	.mpo_check_system_auditctl = mac_biba_check_system_auditctl,
 	.mpo_check_system_auditon = mac_biba_check_system_auditon,
-	.mpo_check_system_settime = mac_biba_check_system_settime,
 	.mpo_check_system_swapon = mac_biba_check_system_swapon,
 	.mpo_check_system_swapoff = mac_biba_check_system_swapoff,
 	.mpo_check_system_sysctl = mac_biba_check_system_sysctl,
@@ -3287,6 +3426,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_vnode_write = mac_biba_check_vnode_write,
 	.mpo_associate_nfsd_label = mac_biba_associate_nfsd_label,
 	.mpo_create_mbuf_from_firewall = mac_biba_create_mbuf_from_firewall,
+	.mpo_priv_check = mac_biba_priv_check,
 };
 
 MAC_POLICY_SET(&mac_biba_ops, mac_biba, "TrustedBSD MAC/Biba",

@@ -1,11 +1,15 @@
 /*-
  * Copyright (c) 2002, 2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * Portions of this software were developed by Robert Watson for the
+ * TrustedBSD Project.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +33,16 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * MAC Framework entry points relating to overall operation of system,
+ * including global services such as the kernel environment and loadable
+ * modules.
+ *
+ * System checks often align with existing privilege checks, but provide
+ * additional security context that may be relevant to policies, such as the
+ * specific object being operated on.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -47,12 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
-
-/*
- * XXXRW: Some of these checks now duplicate privilege checks.  However,
- * others provide additional security context that may be useful to policies.
- * We need to review these and remove ones that are pure duplicates.
- */
 
 int
 mac_check_kenv_dump(struct ucred *cred)
@@ -117,25 +125,6 @@ mac_check_kld_stat(struct ucred *cred)
 }
 
 int
-mac_check_kld_unload(struct ucred *cred)
-{
-	int error;
-
-	MAC_CHECK(check_kld_unload, cred);
-
-	return (error);
-}
-
-int
-mac_check_sysarch_ioperm(struct ucred *cred)
-{
-	int error;
-
-	MAC_CHECK(check_sysarch_ioperm, cred);
-	return (error);
-}
-
-int
 mac_check_system_acct(struct ucred *cred, struct vnode *vp)
 {
 	int error;
@@ -151,31 +140,11 @@ mac_check_system_acct(struct ucred *cred, struct vnode *vp)
 }
 
 int
-mac_check_system_nfsd(struct ucred *cred)
-{
-	int error;
-
-	MAC_CHECK(check_system_nfsd, cred);
-
-	return (error);
-}
-
-int
 mac_check_system_reboot(struct ucred *cred, int howto)
 {
 	int error;
 
 	MAC_CHECK(check_system_reboot, cred, howto);
-
-	return (error);
-}
-
-int
-mac_check_system_settime(struct ucred *cred)
-{
-	int error;
-
-	MAC_CHECK(check_system_settime, cred);
 
 	return (error);
 }
@@ -203,8 +172,8 @@ mac_check_system_swapoff(struct ucred *cred, struct vnode *vp)
 }
 
 int
-mac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp, void *arg1,
-    int arg2, struct sysctl_req *req)
+mac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
+    void *arg1, int arg2, struct sysctl_req *req)
 {
 	int error;
 

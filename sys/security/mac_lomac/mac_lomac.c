@@ -36,6 +36,7 @@
 
 /*
  * Developed by the TrustedBSD Project.
+ *
  * Low-watermark floating label mandatory integrity policy.
  */
 
@@ -1786,22 +1787,6 @@ mac_lomac_check_kld_load(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_kld_unload(struct ucred *cred)
-{
-	struct mac_lomac *subj;
-
-	if (!mac_lomac_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-
-	if (mac_lomac_subject_privileged(subj))
-		return (EPERM);
-
-	return (0);
-}
-
-static int
 mac_lomac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, unsigned long cmd, void /* caddr_t */ *data)
 {
@@ -2044,6 +2029,196 @@ mac_lomac_check_socket_visible(struct ucred *cred, struct socket *socket,
 
 	return (0);
 }
+
+/*
+ * Some system privileges are allowed regardless of integrity grade; others
+ * are allowed only when running with privilege with respect to the LOMAC 
+ * policy as they might otherwise allow bypassing of the integrity policy.
+ */
+static int
+mac_lomac_priv_check(struct ucred *cred, int priv)
+{
+	struct mac_lomac *subj;
+	int error;
+
+	if (!mac_lomac_enabled)
+		return (0);
+
+	/*
+	 * Exempt only specific privileges from the LOMAC integrity policy.
+	 */
+	switch (priv) {
+	case PRIV_KTRACE:
+	case PRIV_MSGBUF:
+
+	/*
+	 * Allow processes to manipulate basic process audit properties, and
+	 * to submit audit records.
+	 */
+	case PRIV_AUDIT_GETAUDIT:
+	case PRIV_AUDIT_SETAUDIT:
+	case PRIV_AUDIT_SUBMIT:
+
+	/*
+	 * Allow processes to manipulate their regular UNIX credentials.
+	 */
+	case PRIV_CRED_SETUID:
+	case PRIV_CRED_SETEUID:
+	case PRIV_CRED_SETGID:
+	case PRIV_CRED_SETEGID:
+	case PRIV_CRED_SETGROUPS:
+	case PRIV_CRED_SETREUID:
+	case PRIV_CRED_SETREGID:
+	case PRIV_CRED_SETRESUID:
+	case PRIV_CRED_SETRESGID:
+
+	/*
+	 * Allow processes to perform system monitoring.
+	 */
+	case PRIV_SEEOTHERGIDS:
+	case PRIV_SEEOTHERUIDS:
+		break;
+
+	/*
+	 * Allow access to general process debugging facilities.  We
+	 * separately control debugging based on MAC label.
+	 */
+	case PRIV_DEBUG_DIFFCRED:
+	case PRIV_DEBUG_SUGID:
+	case PRIV_DEBUG_UNPRIV:
+
+	/*
+	 * Allow manipulating jails.
+	 */
+	case PRIV_JAIL_ATTACH:
+
+	/*
+	 * Allow privilege with respect to the Partition policy, but not the
+	 * Privs policy.
+	 */
+	case PRIV_MAC_PARTITION:
+
+	/*
+	 * Allow privilege with respect to process resource limits and login
+	 * context.
+	 */
+	case PRIV_PROC_LIMIT:
+	case PRIV_PROC_SETLOGIN:
+	case PRIV_PROC_SETRLIMIT:
+
+	/*
+	 * Allow System V and POSIX IPC privileges.
+	 */
+	case PRIV_IPC_READ:
+	case PRIV_IPC_WRITE:
+	case PRIV_IPC_ADMIN:
+	case PRIV_IPC_MSGSIZE:
+	case PRIV_MQ_ADMIN:
+
+	/*
+	 * Allow certain scheduler manipulations -- possibly this should be
+	 * controlled by more fine-grained policy, as potentially low
+	 * integrity processes can deny CPU to higher integrity ones.
+	 */
+	case PRIV_SCHED_DIFFCRED:
+	case PRIV_SCHED_SETPRIORITY:
+	case PRIV_SCHED_RTPRIO:
+	case PRIV_SCHED_SETPOLICY:
+	case PRIV_SCHED_SET:
+	case PRIV_SCHED_SETPARAM:
+
+	/*
+	 * More IPC privileges.
+	 */
+	case PRIV_SEM_WRITE:
+
+	/*
+	 * Allow signaling privileges subject to integrity policy.
+	 */
+	case PRIV_SIGNAL_DIFFCRED:
+	case PRIV_SIGNAL_SUGID:
+
+	/*
+	 * Allow access to only limited sysctls from lower integrity levels;
+	 * piggy-back on the Jail definition.
+	 */
+	case PRIV_SYSCTL_WRITEJAIL:
+
+	/*
+	 * Allow TTY-based privileges, subject to general device access using
+	 * labels on TTY device nodes, but not console privilege.
+	 */
+	case PRIV_TTY_DRAINWAIT:
+	case PRIV_TTY_DTRWAIT:
+	case PRIV_TTY_EXCLUSIVE:
+	case PRIV_TTY_PRISON:
+	case PRIV_TTY_STI:
+	case PRIV_TTY_SETA:
+
+	/*
+	 * Grant most VFS privileges, as almost all are in practice bounded
+	 * by more specific checks using labels.
+	 */
+	case PRIV_VFS_READ:
+	case PRIV_VFS_WRITE:
+	case PRIV_VFS_ADMIN:
+	case PRIV_VFS_EXEC:
+	case PRIV_VFS_LOOKUP:
+	case PRIV_VFS_CHFLAGS_DEV:
+	case PRIV_VFS_CHOWN:
+	case PRIV_VFS_CHROOT:
+	case PRIV_VFS_RETAINSUGID:
+	case PRIV_VFS_EXCEEDQUOTA:
+	case PRIV_VFS_FCHROOT:
+	case PRIV_VFS_FHOPEN:
+	case PRIV_VFS_FHSTATFS:
+	case PRIV_VFS_GENERATION:
+	case PRIV_VFS_GETFH:
+	case PRIV_VFS_GETQUOTA:
+	case PRIV_VFS_LINK:
+	case PRIV_VFS_MOUNT:
+	case PRIV_VFS_MOUNT_OWNER:
+	case PRIV_VFS_MOUNT_PERM:
+	case PRIV_VFS_MOUNT_SUIDDIR:
+	case PRIV_VFS_MOUNT_NONUSER:
+	case PRIV_VFS_SETGID:
+	case PRIV_VFS_STICKYFILE:
+	case PRIV_VFS_SYSFLAGS:
+	case PRIV_VFS_UNMOUNT:
+
+	/*
+	 * Allow VM privileges; it would be nice if these were subject to
+	 * resource limits.
+	 */
+	case PRIV_VM_MADV_PROTECT:
+	case PRIV_VM_MLOCK:
+	case PRIV_VM_MUNLOCK:
+
+	/*
+	 * Allow some but not all network privileges.  In general, dont allow
+	 * reconfiguring the network stack, just normal use.
+	 */
+	case PRIV_NETATALK_RESERVEDPORT:
+	case PRIV_NETINET_RESERVEDPORT:
+	case PRIV_NETINET_RAW:
+	case PRIV_NETINET_REUSEPORT:
+	case PRIV_NETIPX_RESERVEDPORT:
+	case PRIV_NETIPX_RAW:
+		break;
+
+	/*
+	 * All remaining system privileges are allow only if the process
+	 * holds privilege with respect to the LOMAC policy.
+	 */
+	default:
+		subj = SLOT(cred->cr_label);
+		error = mac_lomac_subject_privileged(subj);
+		if (error)
+			return (error);
+	}
+	return (0);
+}
+
 
 static int
 mac_lomac_check_system_acct(struct ucred *cred, struct vnode *vp,
@@ -2748,7 +2923,6 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_check_ifnet_transmit = mac_lomac_check_ifnet_transmit,
 	.mpo_check_inpcb_deliver = mac_lomac_check_inpcb_deliver,
 	.mpo_check_kld_load = mac_lomac_check_kld_load,
-	.mpo_check_kld_unload = mac_lomac_check_kld_unload,
 	.mpo_check_pipe_ioctl = mac_lomac_check_pipe_ioctl,
 	.mpo_check_pipe_read = mac_lomac_check_pipe_read,
 	.mpo_check_pipe_relabel = mac_lomac_check_pipe_relabel,
@@ -2786,6 +2960,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_check_vnode_write = mac_lomac_check_vnode_write,
 	.mpo_thread_userret = mac_lomac_thread_userret,
 	.mpo_create_mbuf_from_firewall = mac_lomac_create_mbuf_from_firewall,
+	.mpo_priv_check = mac_lomac_priv_check,
 };
 
 MAC_POLICY_SET(&mac_lomac_ops, mac_lomac, "TrustedBSD MAC/LOMAC",

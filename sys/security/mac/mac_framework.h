@@ -282,7 +282,6 @@ int	mac_check_kenv_set(struct ucred *cred, char *name, char *value);
 int	mac_check_kenv_unset(struct ucred *cred, char *name);
 int	mac_check_kld_load(struct ucred *cred, struct vnode *vp);
 int	mac_check_kld_stat(struct ucred *cred);
-int	mac_check_kld_unload(struct ucred *cred);
 int	mac_check_mount_stat(struct ucred *cred, struct mount *mp);
 int	mac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
 	    unsigned long cmd, void *data);
@@ -335,14 +334,11 @@ int	mac_check_socket_receive(struct ucred *cred, struct socket *so);
 int	mac_check_socket_send(struct ucred *cred, struct socket *so);
 int	mac_check_socket_stat(struct ucred *cred, struct socket *so);
 int	mac_check_socket_visible(struct ucred *cred, struct socket *so);
-int	mac_check_sysarch_ioperm(struct ucred *cred);
 int	mac_check_system_acct(struct ucred *cred, struct vnode *vp);
 int	mac_check_system_audit(struct ucred *cred, void *record, int length);
 int	mac_check_system_auditctl(struct ucred *cred, struct vnode *vp);
 int	mac_check_system_auditon(struct ucred *cred, int cmd);
-int	mac_check_system_nfsd(struct ucred *cred);
 int	mac_check_system_reboot(struct ucred *cred, int howto);
-int	mac_check_system_settime(struct ucred *cred);
 int	mac_check_system_swapon(struct ucred *cred, struct vnode *vp);
 int	mac_check_system_swapoff(struct ucred *cred, struct vnode *vp);
 int	mac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,

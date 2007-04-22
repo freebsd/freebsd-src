@@ -32,8 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/limits.h>
@@ -55,8 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/timers.h>
 #include <sys/timetc.h>
 #include <sys/vnode.h>
-
-#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -272,11 +268,6 @@ kern_clock_settime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 	struct timeval atv;
 	int error;
 
-#ifdef MAC
-	error = mac_check_system_settime(td->td_ucred);
-	if (error)
-		return (error);
-#endif
 	if ((error = priv_check(td, PRIV_CLOCK_SETTIME)) != 0)
 		return (error);
 	if (clock_id != CLOCK_REALTIME)
@@ -479,11 +470,6 @@ kern_settimeofday(struct thread *td, struct timeval *tv, struct timezone *tzp)
 {
 	int error;
 
-#ifdef MAC
-	error = mac_check_system_settime(td->td_ucred);
-	if (error)
-		return (error);
-#endif
 	error = priv_check(td, PRIV_SETTIMEOFDAY);
 	if (error)
 		return (error);
