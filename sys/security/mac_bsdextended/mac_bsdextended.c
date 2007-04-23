@@ -489,7 +489,7 @@ mac_bsdextended_check_vp(struct ucred *cred, struct vnode *vp, int acc_mode)
 
 static int
 mac_bsdextended_check_system_acct(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+    struct label *vplabel)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
@@ -497,7 +497,7 @@ mac_bsdextended_check_system_acct(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_system_auditctl(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+    struct label *vplabel)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
@@ -505,7 +505,7 @@ mac_bsdextended_check_system_auditctl(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_system_swapoff(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+    struct label *vplabel)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
@@ -513,7 +513,7 @@ mac_bsdextended_check_system_swapoff(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_system_swapon(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+    struct label *vplabel)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
@@ -521,7 +521,7 @@ mac_bsdextended_check_system_swapon(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_access(struct ucred *cred, struct vnode *vp,
-    struct label *label, int acc_mode)
+    struct label *vplabel, int acc_mode)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, acc_mode));
@@ -529,7 +529,7 @@ mac_bsdextended_check_vnode_access(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
-    struct label *dlabel)
+    struct label *dvplabel)
 {
 
 	return (mac_bsdextended_check_vp(cred, dvp, MBI_EXEC));
@@ -537,7 +537,7 @@ mac_bsdextended_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_bsdextended_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
-    struct label *dlabel)
+    struct label *dvplabel)
 {
 
 	return (mac_bsdextended_check_vp(cred, dvp, MBI_EXEC));
@@ -545,7 +545,7 @@ mac_bsdextended_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_bsdextended_check_create_vnode(struct ucred *cred, struct vnode *dvp,
-    struct label *dlabel, struct componentname *cnp, struct vattr *vap)
+    struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
 {
 
 	return (mac_bsdextended_check_vp(cred, dvp, MBI_WRITE));
@@ -553,7 +553,7 @@ mac_bsdextended_check_create_vnode(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_bsdextended_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
-    struct label *dlabel, struct vnode *vp, struct label *label,
+    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
 	int error;
@@ -567,15 +567,16 @@ mac_bsdextended_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_bsdextended_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
-    struct label *label, acl_type_t type)
+    struct label *vplabel, acl_type_t type)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
 }
 
 static int
-mac_bsdextended_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
-    struct label *label, int attrnamespace, const char *name)
+mac_bsdextended_check_vnode_deleteextattr(struct ucred *cred,
+    struct vnode *vp, struct label *vplabel, int attrnamespace,
+    const char *name)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
@@ -583,7 +584,7 @@ mac_bsdextended_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_exec(struct ucred *cred, struct vnode *vp,
-    struct label *label, struct image_params *imgp,
+    struct label *vplabel, struct image_params *imgp,
     struct label *execlabel)
 {
 
@@ -592,7 +593,7 @@ mac_bsdextended_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
-    struct label *label, acl_type_t type)
+    struct label *vplabel, acl_type_t type)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_STAT));
@@ -600,7 +601,8 @@ mac_bsdextended_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
-    struct label *label, int attrnamespace, const char *name, struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name,
+    struct uio *uio)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_READ));
@@ -608,7 +610,7 @@ mac_bsdextended_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_link(struct ucred *cred, struct vnode *dvp,
-    struct label *dlabel, struct vnode *vp, struct label *label,
+    struct label *dvplabel, struct vnode *vp, struct label *label,
     struct componentname *cnp)
 {
 	int error;
@@ -625,7 +627,7 @@ mac_bsdextended_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_bsdextended_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
-    struct label *label, int attrnamespace)
+    struct label *vplabel, int attrnamespace)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_READ));
@@ -633,7 +635,7 @@ mac_bsdextended_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
-    struct label *dlabel, struct componentname *cnp)
+    struct label *dvplabel, struct componentname *cnp)
 {
 
 	return (mac_bsdextended_check_vp(cred, dvp, MBI_EXEC));
@@ -641,7 +643,7 @@ mac_bsdextended_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_bsdextended_check_vnode_open(struct ucred *cred, struct vnode *vp,
-    struct label *filelabel, int acc_mode)
+    struct label *vplabel, int acc_mode)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, acc_mode));
@@ -649,7 +651,7 @@ mac_bsdextended_check_vnode_open(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
-    struct label *dlabel)
+    struct label *dvplabel)
 {
 
 	return (mac_bsdextended_check_vp(cred, dvp, MBI_READ));
@@ -657,7 +659,7 @@ mac_bsdextended_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_bsdextended_check_vnode_readdlink(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+    struct label *vplabel)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_READ));
@@ -665,7 +667,7 @@ mac_bsdextended_check_vnode_readdlink(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
-    struct label *dlabel, struct vnode *vp, struct label *label,
+    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
 	int error;
@@ -680,8 +682,8 @@ mac_bsdextended_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_bsdextended_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
-    struct label *dlabel, struct vnode *vp, struct label *label, int samedir,
-    struct componentname *cnp)
+    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
+    int samedir, struct componentname *cnp)
 {
 	int error;
 
@@ -697,7 +699,7 @@ mac_bsdextended_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_bsdextended_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+    struct label *vplabel)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
@@ -705,7 +707,7 @@ mac_bsdextended_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_setacl_vnode(struct ucred *cred, struct vnode *vp,
-    struct label *label, acl_type_t type, struct acl *acl)
+    struct label *vplabel, acl_type_t type, struct acl *acl)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
@@ -713,7 +715,8 @@ mac_bsdextended_check_setacl_vnode(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
-    struct label *label, int attrnamespace, const char *name, struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name,
+    struct uio *uio)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
@@ -721,7 +724,7 @@ mac_bsdextended_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
-    struct label *label, u_long flags)
+    struct label *vplabel, u_long flags)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
@@ -729,7 +732,7 @@ mac_bsdextended_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
-    struct label *label, mode_t mode)
+    struct label *vplabel, mode_t mode)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
@@ -737,7 +740,7 @@ mac_bsdextended_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
-    struct label *label, uid_t uid, gid_t gid)
+    struct label *vplabel, uid_t uid, gid_t gid)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
@@ -745,7 +748,7 @@ mac_bsdextended_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
-    struct label *label, struct timespec atime, struct timespec utime)
+    struct label *vplabel, struct timespec atime, struct timespec utime)
 {
 
 	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
@@ -753,7 +756,7 @@ mac_bsdextended_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_stat(struct ucred *active_cred,
-    struct ucred *file_cred, struct vnode *vp, struct label *label)
+    struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
 {
 
 	return (mac_bsdextended_check_vp(active_cred, vp, MBI_STAT));
