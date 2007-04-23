@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2006 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2007 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
