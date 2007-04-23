@@ -641,7 +641,7 @@ cpu_reset_real()
 	}
 #endif /* PC98 */
 
-	printf("No known reset method did work, attempting CPU shutdown\n");
+	printf("No known reset method worked, attempting CPU shutdown\n");
 	DELAY(1000000); /* wait 1 sec for printf to complete */
 
 	/* Force a shutdown by unmapping entire address space. */
