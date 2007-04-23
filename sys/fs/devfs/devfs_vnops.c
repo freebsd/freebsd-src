@@ -1229,7 +1229,7 @@ devfs_setlabel(struct vop_setlabel_args *ap)
 	de = vp->v_data;
 
 	mac_relabel_vnode(ap->a_cred, vp, ap->a_label);
-	mac_update_devfsdirent(vp->v_mount, de, vp);
+	mac_update_devfs(vp->v_mount, de, vp);
 
 	return (0);
 }

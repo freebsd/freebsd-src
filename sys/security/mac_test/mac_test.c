@@ -164,13 +164,13 @@ mac_test_init_cred_label(struct label *label)
 	COUNTER_INC(init_cred_label);
 }
 
-COUNTER_DECL(init_devfsdirent_label);
+COUNTER_DECL(init_devfs_label);
 static void
-mac_test_init_devfsdirent_label(struct label *label)
+mac_test_init_devfs_label(struct label *label)
 {
 
 	LABEL_INIT(label, MAGIC_DEVFS);
-	COUNTER_INC(init_devfsdirent_label);
+	COUNTER_INC(init_devfs_label);
 }
 
 COUNTER_DECL(init_ifnet_label);
@@ -352,13 +352,13 @@ mac_test_destroy_cred_label(struct label *label)
 	COUNTER_INC(destroy_cred_label);
 }
 
-COUNTER_DECL(destroy_devfsdirent_label);
+COUNTER_DECL(destroy_devfs_label);
 static void
-mac_test_destroy_devfsdirent_label(struct label *label)
+mac_test_destroy_devfs_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_DEVFS);
-	COUNTER_INC(destroy_devfsdirent_label);
+	COUNTER_INC(destroy_devfs_label);
 }
 
 COUNTER_DECL(destroy_ifnet_label);
@@ -716,16 +716,15 @@ mac_test_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
 	return (0);
 }
 
-COUNTER_DECL(update_devfsdirent);
+COUNTER_DECL(update_devfs);
 static void
-mac_test_update_devfsdirent(struct mount *mp,
-    struct devfs_dirent *devfs_dirent, struct label *direntlabel,
-    struct vnode *vp, struct label *vplabel)
+mac_test_update_devfs(struct mount *mp, struct devfs_dirent *devfs_dirent,
+    struct label *direntlabel, struct vnode *vp, struct label *vplabel)
 {
 
 	LABEL_CHECK(direntlabel, MAGIC_DEVFS);
 	LABEL_CHECK(vplabel, MAGIC_VNODE);
-	COUNTER_INC(update_devfsdirent);
+	COUNTER_INC(update_devfs);
 }
 
 /*
@@ -2463,7 +2462,7 @@ static struct mac_policy_ops mac_test_ops =
 {
 	.mpo_init_bpfdesc_label = mac_test_init_bpfdesc_label,
 	.mpo_init_cred_label = mac_test_init_cred_label,
-	.mpo_init_devfsdirent_label = mac_test_init_devfsdirent_label,
+	.mpo_init_devfs_label = mac_test_init_devfs_label,
 	.mpo_init_ifnet_label = mac_test_init_ifnet_label,
 	.mpo_init_sysv_msgmsg_label = mac_test_init_sysv_msgmsg_label,
 	.mpo_init_sysv_msgqueue_label = mac_test_init_sysv_msgqueue_label,
@@ -2481,7 +2480,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_init_vnode_label = mac_test_init_vnode_label,
 	.mpo_destroy_bpfdesc_label = mac_test_destroy_bpfdesc_label,
 	.mpo_destroy_cred_label = mac_test_destroy_cred_label,
-	.mpo_destroy_devfsdirent_label = mac_test_destroy_devfsdirent_label,
+	.mpo_destroy_devfs_label = mac_test_destroy_devfs_label,
 	.mpo_destroy_ifnet_label = mac_test_destroy_ifnet_label,
 	.mpo_destroy_sysv_msgmsg_label = mac_test_destroy_sysv_msgmsg_label,
 	.mpo_destroy_sysv_msgqueue_label =
@@ -2525,7 +2524,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_create_mount = mac_test_create_mount,
 	.mpo_relabel_vnode = mac_test_relabel_vnode,
 	.mpo_setlabel_vnode_extattr = mac_test_setlabel_vnode_extattr,
-	.mpo_update_devfsdirent = mac_test_update_devfsdirent,
+	.mpo_update_devfs = mac_test_update_devfs,
 	.mpo_create_mbuf_from_socket = mac_test_create_mbuf_from_socket,
 	.mpo_create_pipe = mac_test_create_pipe,
 	.mpo_create_posix_sem = mac_test_create_posix_sem,

@@ -971,7 +971,7 @@ mac_lomac_relabel_vnode(struct ucred *cred, struct vnode *vp,
 }
 
 static void
-mac_lomac_update_devfsdirent(struct mount *mp, struct devfs_dirent *de,
+mac_lomac_update_devfs(struct mount *mp, struct devfs_dirent *de,
     struct label *delabel, struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -2821,7 +2821,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_init = mac_lomac_init,
 	.mpo_init_bpfdesc_label = mac_lomac_init_label,
 	.mpo_init_cred_label = mac_lomac_init_label,
-	.mpo_init_devfsdirent_label = mac_lomac_init_label,
+	.mpo_init_devfs_label = mac_lomac_init_label,
 	.mpo_init_ifnet_label = mac_lomac_init_label,
 	.mpo_init_syncache_label = mac_lomac_init_label_waitcheck,
 	.mpo_init_inpcb_label = mac_lomac_init_label_waitcheck,
@@ -2836,7 +2836,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_init_syncache_from_inpcb = mac_lomac_init_syncache_from_inpcb,
 	.mpo_destroy_bpfdesc_label = mac_lomac_destroy_label,
 	.mpo_destroy_cred_label = mac_lomac_destroy_label,
-	.mpo_destroy_devfsdirent_label = mac_lomac_destroy_label,
+	.mpo_destroy_devfs_label = mac_lomac_destroy_label,
 	.mpo_destroy_ifnet_label = mac_lomac_destroy_label,
 	.mpo_destroy_inpcb_label = mac_lomac_destroy_label,
 	.mpo_destroy_ipq_label = mac_lomac_destroy_label,
@@ -2870,7 +2870,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_create_devfs_symlink = mac_lomac_create_devfs_symlink,
 	.mpo_create_mount = mac_lomac_create_mount,
 	.mpo_relabel_vnode = mac_lomac_relabel_vnode,
-	.mpo_update_devfsdirent = mac_lomac_update_devfsdirent,
+	.mpo_update_devfs = mac_lomac_update_devfs,
 	.mpo_associate_vnode_devfs = mac_lomac_associate_vnode_devfs,
 	.mpo_associate_vnode_extattr = mac_lomac_associate_vnode_extattr,
 	.mpo_associate_vnode_singlelabel =
