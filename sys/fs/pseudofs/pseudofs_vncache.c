@@ -150,10 +150,15 @@ retry:
 
 	/* nope, get a new one */
 	MALLOC(pvd, struct pfs_vdata *, sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
+	mtx_lock(&pfs_vncache_mutex);
 	if (++pfs_vncache_entries > pfs_vncache_maxentries)
 		pfs_vncache_maxentries = pfs_vncache_entries;
+	mtx_unlock(&pfs_vncache_mutex);
 	error = getnewvnode("pseudofs", mp, &pfs_vnodeops, vpp);
 	if (error) {
+		mtx_lock(&pfs_vncache_mutex);
+		--pfs_vncache_entries;
+		mtx_unlock(&pfs_vncache_mutex);
 		FREE(pvd, M_PFSVNCACHE);
 		return (error);
 	}
@@ -195,6 +200,9 @@ retry:
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, curthread);
 	error = insmntque(*vpp, mp);
 	if (error != 0) {
+		mtx_lock(&pfs_vncache_mutex);
+		--pfs_vncache_entries;
+		mtx_unlock(&pfs_vncache_mutex);
 		FREE(pvd, M_PFSVNCACHE);
 		*vpp = NULLVP;
 		return (error);
@@ -226,9 +234,9 @@ pfs_vncache_free(struct vnode *vp)
 		pvd->pvd_prev->pvd_next = pvd->pvd_next;
 	else
 		pfs_vncache = pvd->pvd_next;
+	--pfs_vncache_entries;
 	mtx_unlock(&pfs_vncache_mutex);
 
-	--pfs_vncache_entries;
 	FREE(pvd, M_PFSVNCACHE);
 	vp->v_data = NULL;
 	return (0);
