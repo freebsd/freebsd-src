@@ -242,6 +242,12 @@ static struct cdevsw led_cdevsw = {
 struct cdev *
 led_create(led_t *func, void *priv, char const *name)
 {
+
+	return (led_create_state(func, priv, name, 0));
+}
+struct cdev *
+led_create_state(led_t *func, void *priv, char const *name, int state)
+{
 	struct ledsc	*sc;
 
 	sc = malloc(sizeof *sc, M_LED, M_WAITOK | M_ZERO);
@@ -259,7 +265,7 @@ led_create(led_t *func, void *priv, char const *name)
 	if (LIST_EMPTY(&led_list))
 		callout_reset(&led_ch, hz / 10, led_timeout, NULL);
 	LIST_INSERT_HEAD(&led_list, sc, list);
-	sc->func(sc->private, 0);
+	sc->func(sc->private, state != 0);
 	mtx_unlock(&led_mtx);
 
 	return (sc->dev);
