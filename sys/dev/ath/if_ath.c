@@ -5349,6 +5349,27 @@ ath_sysctl_softled(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+ath_sysctl_ledpin(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int ledpin = sc->sc_ledpin;
+	int error;
+
+	error = sysctl_handle_int(oidp, &ledpin, 0, req);
+	if (error || !req->newptr)
+		return error;
+	if (ledpin != sc->sc_ledpin) {
+		sc->sc_ledpin = ledpin;
+		if (sc->sc_softled) {
+			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin);
+			ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin,
+				!sc->sc_ledon);
+		}
+	}
+	return 0;
+}
+
+static int
 ath_sysctl_txantenna(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
@@ -5582,9 +5603,9 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"softled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_softled, "I", "enable/disable software LED support");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"ledpin", CTLFLAG_RW, &sc->sc_ledpin, 0,
-		"GPIO pin connected to LED");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"ledpin", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_ledpin, "I", "GPIO pin connected to LED");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledon", CTLFLAG_RW, &sc->sc_ledon, 0,
 		"setting to turn LED on");
