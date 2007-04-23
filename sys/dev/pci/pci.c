@@ -706,7 +706,7 @@ pci_pending_msix(device_t dev, u_int index)
 	uint32_t offset, bit;
 
 	KASSERT(cfg->msix.msix_alloc > index, ("bogus index"));
-	offset = cfg->msix.msix_pba_offset + (index / 4) * 4;
+	offset = cfg->msix.msix_pba_offset + (index / 32) * 4;
 	bit = 1 << index % 32;
 	return (bus_read_4(cfg->msix.msix_pba_res, offset) & bit);
 }
