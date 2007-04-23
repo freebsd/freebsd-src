@@ -143,6 +143,7 @@ MLINKS=	libbsm.3 bsm.3							\
 	au_token.3 au_to_header32.3					\
 	au_token.3 au_to_header64.3					\
 	au_token.3 au_to_trailer.3					\
+	au_token.3 au_to_zonename.3					\
 	au_user.3 setauuser.3						\
 	au_user.3 endauuser.3						\
 	au_user.3 getauuserent.3					\
