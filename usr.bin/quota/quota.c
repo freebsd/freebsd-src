@@ -355,7 +355,7 @@ showquotas(int type, u_long id, const char *name)
 				prthumanval(6, dbtob(qup->dqblk.dqb_bsoftlimit));
 				prthumanval(7, dbtob(qup->dqblk.dqb_bhardlimit));
 			} else {
-				printf("%8lu%c%7lu%8lu"
+				printf(" %7lu%c %6lu %7lu"
 					, (u_long) (dbtob(qup->dqblk.dqb_curblocks)
 						    / 1024)
 					, (msgb == (char *)0) ? ' ' : '*'
@@ -368,7 +368,7 @@ showquotas(int type, u_long id, const char *name)
 				bgrace = timeprt(qup->dqblk.dqb_btime, &bfree);
 			if (msgi != NULL)
 				igrace = timeprt(qup->dqblk.dqb_itime, &ifree);
-			printf("%8s%8lu%c%7lu%8lu%8s\n"
+			printf(" %7s %7lu%c %6lu %7lu %7s\n"
 				, (msgb == (char *)0) ? "" : bgrace
 				, (u_long)qup->dqblk.dqb_curinodes
 				, (msgi == (char *)0) ? ' ' : '*'
@@ -422,7 +422,7 @@ heading(int type, u_long id, const char *name, const char *tag)
 	printf("Disk quotas for %s %s (%cid %lu): %s\n", qfextension[type],
 	    name, *qfextension[type], id, tag);
 	if (!qflag && tag[0] == '\0') {
-		printf("%15s%8s %7s%8s%8s%8s %7s%8s%8s\n"
+		printf("%15s %7s  %6s %7s %7s %7s  %6s %7s %7s\n"
 			, "Filesystem"
 			, "usage"
 			, "quota"
