@@ -245,7 +245,7 @@ stub_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
 }
 
 static void
-stub_update_devfsdirent(struct mount *mp, struct devfs_dirent *de,
+stub_update_devfs(struct mount *mp, struct devfs_dirent *de,
     struct label *delabel, struct vnode *vp, struct label *vplabel)
 {
 
@@ -1434,7 +1434,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_syscall = stub_syscall,
 	.mpo_init_bpfdesc_label = stub_init_label,
 	.mpo_init_cred_label = stub_init_label,
-	.mpo_init_devfsdirent_label = stub_init_label,
+	.mpo_init_devfs_label = stub_init_label,
 	.mpo_init_ifnet_label = stub_init_label,
 	.mpo_init_inpcb_label = stub_init_label_waitcheck,
 	.mpo_init_sysv_msgmsg_label = stub_init_label,
@@ -1451,7 +1451,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_init_vnode_label = stub_init_label,
 	.mpo_destroy_bpfdesc_label = stub_destroy_label,
 	.mpo_destroy_cred_label = stub_destroy_label,
-	.mpo_destroy_devfsdirent_label = stub_destroy_label,
+	.mpo_destroy_devfs_label = stub_destroy_label,
 	.mpo_destroy_ifnet_label = stub_destroy_label,
 	.mpo_destroy_inpcb_label = stub_destroy_label,
 	.mpo_destroy_sysv_msgmsg_label = stub_destroy_label,
@@ -1498,7 +1498,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_create_mount = stub_create_mount,
 	.mpo_relabel_vnode = stub_relabel_vnode,
 	.mpo_setlabel_vnode_extattr = stub_setlabel_vnode_extattr,
-	.mpo_update_devfsdirent = stub_update_devfsdirent,
+	.mpo_update_devfs = stub_update_devfs,
 	.mpo_create_mbuf_from_socket = stub_create_mbuf_from_socket,
 	.mpo_create_pipe = stub_create_pipe,
 	.mpo_create_posix_sem = stub_create_posix_sem,

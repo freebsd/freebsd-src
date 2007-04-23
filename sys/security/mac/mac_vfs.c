@@ -81,20 +81,20 @@ static int	mac_setlabel_vnode_extattr(struct ucred *cred,
 		    struct vnode *vp, struct label *intlabel);
 
 static struct label *
-mac_devfsdirent_label_alloc(void)
+mac_devfs_label_alloc(void)
 {
 	struct label *label;
 
 	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(init_devfsdirent_label, label);
+	MAC_PERFORM(init_devfs_label, label);
 	return (label);
 }
 
 void
-mac_init_devfsdirent(struct devfs_dirent *de)
+mac_init_devfs(struct devfs_dirent *de)
 {
 
-	de->de_label = mac_devfsdirent_label_alloc();
+	de->de_label = mac_devfs_label_alloc();
 }
 
 static struct label *
@@ -132,18 +132,18 @@ mac_init_vnode(struct vnode *vp)
 }
 
 static void
-mac_devfsdirent_label_free(struct label *label)
+mac_devfs_label_free(struct label *label)
 {
 
-	MAC_PERFORM(destroy_devfsdirent_label, label);
+	MAC_PERFORM(destroy_devfs_label, label);
 	mac_labelzone_free(label);
 }
 
 void
-mac_destroy_devfsdirent(struct devfs_dirent *de)
+mac_destroy_devfs(struct devfs_dirent *de)
 {
 
-	mac_devfsdirent_label_free(de->de_label);
+	mac_devfs_label_free(de->de_label);
 	de->de_label = NULL;
 }
 
@@ -208,12 +208,10 @@ mac_internalize_vnode_label(struct label *label, char *string)
 }
 
 void
-mac_update_devfsdirent(struct mount *mp, struct devfs_dirent *de,
-    struct vnode *vp)
+mac_update_devfs(struct mount *mp, struct devfs_dirent *de, struct vnode *vp)
 {
 
-	MAC_PERFORM(update_devfsdirent, mp, de, de->de_label, vp,
-	    vp->v_label);
+	MAC_PERFORM(update_devfs, mp, de, de->de_label, vp, vp->v_label);
 }
 
 void

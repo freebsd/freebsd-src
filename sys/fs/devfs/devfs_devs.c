@@ -182,7 +182,7 @@ devfs_newdirent(char *name, int namelen)
 	de->de_links = 1;
 	de->de_holdcnt = 1;
 #ifdef MAC
-	mac_init_devfsdirent(de);
+	mac_init_devfs(de);
 #endif
 	return (de);
 }
@@ -274,7 +274,7 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
 		de->de_symlink = NULL;
 	}
 #ifdef MAC
-	mac_destroy_devfsdirent(de);
+	mac_destroy_devfs(de);
 #endif
 	if (de->de_inode > DEVFS_ROOTINO) {
 		free_unr(devfs_inos, de->de_inode);
