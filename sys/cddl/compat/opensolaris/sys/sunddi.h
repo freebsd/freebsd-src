@@ -26,43 +26,11 @@
  * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_SYS_TYPES_H_
-#define	_OPENSOLARIS_SYS_TYPES_H_
+#ifndef _OPENSOLARIS_SYS_SUNDDI_H_
+#define	_OPENSOLARIS_SYS_SUNDDI_H_
 
-/*
- * This is a bag of dirty hacks to keep things compiling.
- */
+#define	ddi_copyin(from, to, size, flag)	(bcopy((from), (to), (size)), 0)
+#define	ddi_copyout(from, to, size, flag)	(bcopy((from), (to), (size)), 0)
+int ddi_strtoul(const char *str, char **nptr, int base, unsigned long *result);
 
-#include <sys/stdint.h>
-#include_next <sys/types.h>
-
-#define	MAXNAMELEN	256
-
-typedef	struct timespec	timestruc_t;
-
-#ifdef _KERNEL
-
-#define	B_FALSE	0
-#define	B_TRUE	1
-
-typedef	short		index_t;
-typedef	off_t		offset_t;
-typedef	long		ptrdiff_t;	/* pointer difference */
-typedef	void		pathname_t;
-typedef	int64_t		rlim64_t;
-
-#else
-
-typedef	longlong_t	offset_t;
-typedef	u_longlong_t	u_offset_t;
-typedef	uint64_t	upad64_t;
-typedef	struct timespec	timespec_t;
-typedef	short		pri_t;
-typedef	int32_t		daddr32_t;
-typedef	int32_t		time32_t;
-typedef	u_longlong_t	diskaddr_t;
-typedef	ushort_t	o_mode_t;	/* old file attribute type */
-
-#endif	/* !_KERNEL */
-
-#endif	/* !_OPENSOLARIS_SYS_TYPES_H_ */
+#endif	/* _OPENSOLARIS_SYS_SUNDDI_H_ */

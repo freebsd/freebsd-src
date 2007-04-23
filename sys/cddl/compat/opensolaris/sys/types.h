@@ -49,6 +49,7 @@ typedef	short		index_t;
 typedef	off_t		offset_t;
 typedef	long		ptrdiff_t;	/* pointer difference */
 typedef	void		pathname_t;
+typedef	int64_t		rlim64_t;
 
 #else
 

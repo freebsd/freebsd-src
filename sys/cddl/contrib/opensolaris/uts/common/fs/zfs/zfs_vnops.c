@@ -55,6 +55,8 @@
 #include <sys/dbuf.h>
 #include <sys/zap.h>
 #include <sys/dirent.h>
+#include <sys/policy.h>
+#include <sys/sunddi.h>
 #include <sys/filio.h>
 #include <sys/zfs_ctldir.h>
 #include <sys/dnlc.h>
@@ -152,42 +154,31 @@
  */
 /* ARGSUSED */
 static int
-zfs_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int a_mode;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+zfs_open(vnode_t **vpp, int flag, cred_t *cr)
 {
-	vnode_t	*vp = ap->a_vp;
-	znode_t	*zp = VTOZ(vp);
-	int flag = ap->a_mode;
+	znode_t	*zp = VTOZ(*vpp);
 
 	/* Keep a count of the synchronous opens in the znode */
-	if (flag & FFSYNC)
+	if (flag & (FSYNC | FDSYNC))
 		atomic_inc_32(&zp->z_sync_cnt);
-
-	vnode_create_vobject(vp, zp->z_phys->zp_size, ap->a_td);
 	return (0);
 }
 
 /* ARGSUSED */
 static int
-zfs_close(ap)
-	struct vop_close_args /* {
-		struct vnode *a_vp;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+zfs_close(vnode_t *vp, int flag, int count, offset_t offset, cred_t *cr)
 {
-	znode_t	*zp = VTOZ(ap->a_vp);
-	int flag = ap->a_fflag;
+	znode_t	*zp = VTOZ(vp);
 
 	/* Decrement the synchronous opens in the znode */
-	if (flag & FFSYNC)
+	if (flag & (FSYNC | FDSYNC))
 		atomic_dec_32(&zp->z_sync_cnt);
+
+	/*
+	 * Clean up any locks held by this process on the vp.
+	 */
+	cleanlocks(vp, ddi_get_pid(), 0);
+	cleanshares(vp, ddi_get_pid());
 
 	return (0);
 }
@@ -197,7 +188,7 @@ zfs_close(ap)
  * data (cmd == _FIO_SEEK_DATA). "off" is an in/out parameter.
  */
 static int
-zfs_holey(vnode_t *vp, unsigned long cmd, offset_t *off)
+zfs_holey(vnode_t *vp, int cmd, offset_t *off)
 {
 	znode_t	*zp = VTOZ(vp);
 	uint64_t noff = (uint64_t)*off; /* new offset */
@@ -210,7 +201,7 @@ zfs_holey(vnode_t *vp, unsigned long cmd, offset_t *off)
 		return (ENXIO);
 	}
 
-	if (cmd == FIOSEEKHOLE)
+	if (cmd == _FIO_SEEK_HOLE)
 		hole = B_TRUE;
 	else
 		hole = B_FALSE;
@@ -237,27 +228,29 @@ zfs_holey(vnode_t *vp, unsigned long cmd, offset_t *off)
 
 /* ARGSUSED */
 static int
-zfs_ioctl(ap)
-	struct vop_ioctl_args /* {
-		struct vnode *a_vp;
-		u_long a_command;
-		caddr_t a_data;
-		int fflag;
-		struct ucred *cred;
-		struct thread *td;
-	} */ *ap;
+zfs_ioctl(vnode_t *vp, int com, intptr_t data, int flag, cred_t *cred,
+    int *rvalp)
 {
-	vnode_t		*vp = ap->a_vp;
-	int		com = ap->a_command;
-	caddr_t		data = ap->a_data;
-	offset_t	off;
-	zfsvfs_t	*zfsvfs;
-	int		error;
+	offset_t off;
+	int error;
+	zfsvfs_t *zfsvfs;
 
 	switch (com) {
-	case FIOSEEKDATA:
-	case FIOSEEKHOLE:
-		off = *(offset_t *)data;
+	    case _FIOFFS:
+		return (0);
+
+		/*
+		 * The following two ioctls are used by bfu.  Faking out,
+		 * necessary to avoid bfu errors.
+		 */
+	    case _FIOGDIO:
+	    case _FIOSDIO:
+		return (0);
+
+	    case _FIO_SEEK_DATA:
+	    case _FIO_SEEK_HOLE:
+		if (ddi_copyin((void *)data, &off, sizeof (off), flag))
+			return (EFAULT);
 
 		zfsvfs = VTOZ(vp)->z_zfsvfs;
 		ZFS_ENTER(zfsvfs);
@@ -267,7 +260,8 @@ zfs_ioctl(ap)
 		ZFS_EXIT(zfsvfs);
 		if (error)
 			return (error);
-		*(offset_t *)data = off;
+		if (ddi_copyout(&off, (void *)data, sizeof (off), flag))
+			return (EFAULT);
 		return (0);
 	}
 	return (ENOTTY);
@@ -388,6 +382,13 @@ again:
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
 		} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
+			/*
+			 * The code below is here to make sendfile(2) work
+			 * correctly with ZFS. As pointed out by ups@
+			 * sendfile(2) should be changed to use VOP_GETPAGES(),
+			 * but it pessimize performance of sendfile/UFS, that's
+			 * why I handle this special case in ZFS code.
+			 */
 			if (vm_page_sleep_if_busy(m, FALSE, "zfsmrb"))
 				goto again;
 			vm_page_busy(m);
@@ -437,17 +438,8 @@ offset_t zfs_read_chunk_size = 1024 * 1024; /* Tunable */
  */
 /* ARGSUSED */
 static int
-zfs_read(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
+zfs_read(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 {
-	vnode_t		*vp = ap->a_vp;
-	uio_t		*uio = ap->a_uio;
-	int		ioflag = ap->a_ioflag;
 	znode_t		*zp = VTOZ(vp);
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
 	objset_t	*os = zfsvfs->z_os;
@@ -474,9 +466,20 @@ zfs_read(ap)
 	}
 
 	/*
+	 * Check for mandatory locks
+	 */
+	if (MANDMODE((mode_t)zp->z_phys->zp_mode)) {
+		if (error = chklock(vp, FREAD,
+		    uio->uio_loffset, uio->uio_resid, uio->uio_fmode, ct)) {
+			ZFS_EXIT(zfsvfs);
+			return (error);
+		}
+	}
+
+	/*
 	 * If we're in FRSYNC mode, sync out this znode before reading it.
 	 */
-	if (ioflag & IO_SYNC)
+	if (ioflag & FRSYNC)
 		zil_commit(zfsvfs->z_log, zp->z_last_itx, zp->z_id);
 
 	/*
@@ -506,6 +509,7 @@ zfs_read(ap)
 			error = dmu_read_uio(os, zp->z_id, uio, nbytes);
 		if (error)
 			break;
+
 		n -= nbytes;
 	}
 
@@ -514,7 +518,6 @@ out:
 
 	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
 	ZFS_EXIT(zfsvfs);
-
 	return (error);
 }
 
@@ -584,19 +587,10 @@ zfs_prefault_write(ssize_t n, struct uio *uio)
  */
 /* ARGSUSED */
 static int
-zfs_write(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
+zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 {
-	vnode_t		*vp = ap->a_vp;
-	uio_t		*uio = ap->a_uio;
-	int		ioflag = ap->a_ioflag;
-	cred_t		*cr = ap->a_cred;
 	znode_t		*zp = VTOZ(vp);
+	rlim64_t	limit = MAXOFFSET_T;
 	ssize_t		start_resid = uio->uio_resid;
 	ssize_t		tx_bytes;
 	uint64_t	end_size;
@@ -615,6 +609,9 @@ zfs_write(ap)
 	n = start_resid;
 	if (n == 0)
 		return (0);
+
+	if (limit == RLIM64_INFINITY || limit > MAXOFFSET_T)
+		limit = MAXOFFSET_T;
 
 	ZFS_ENTER(zfsvfs);
 
@@ -661,6 +658,24 @@ zfs_write(ap)
 		rl = zfs_range_lock(zp, woff, n, RL_WRITER);
 	}
 
+	if (woff >= limit) {
+		zfs_range_unlock(rl);
+		ZFS_EXIT(zfsvfs);
+		return (EFBIG);
+	}
+
+	if ((woff + n) > limit || woff > (limit - n))
+		n = limit - woff;
+
+	/*
+	 * Check for mandatory locks
+	 */
+	if (MANDMODE((mode_t)zp->z_phys->zp_mode) &&
+	    (error = chklock(vp, FWRITE, woff, n, uio->uio_fmode, ct)) != 0) {
+		zfs_range_unlock(rl);
+		ZFS_EXIT(zfsvfs);
+		return (error);
+	}
 	end_size = MAX(zp->z_phys->zp_size, woff + n);
 
 	/*
@@ -714,10 +729,10 @@ zfs_write(ap)
 		nbytes = MIN(n, max_blksz - P2PHASE(woff, max_blksz));
 		rw_enter(&zp->z_map_lock, RW_READER);
 
-		tx_bytes = uio->uio_resid;
 		if (woff + nbytes > zp->z_phys->zp_size)
 			vnode_pager_setsize(vp, woff + nbytes);
 
+		tx_bytes = uio->uio_resid;
 		if (vn_has_cached_data(vp)) {
 			rw_exit(&zp->z_map_lock);
 			error = mappedwrite(vp, nbytes, uio, tx);
@@ -790,7 +805,7 @@ zfs_write(ap)
 		return (error);
 	}
 
-	if (ioflag & IO_SYNC)
+	if (ioflag & (FSYNC | FDSYNC))
 		zil_commit(zilog, zp->z_last_itx, zp->z_id);
 
 	ZFS_EXIT(zfsvfs);
@@ -918,21 +933,14 @@ out:
 
 /*ARGSUSED*/
 static int
-zfs_access(ap)
-	struct vop_access_args /* {
-		struct vnode *a_vp;
-		int  a_mode;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+zfs_access(vnode_t *vp, int mode, int flags, cred_t *cr)
 {
-	vnode_t *vp = ap->a_vp;
 	znode_t *zp = VTOZ(vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	int error;
 
 	ZFS_ENTER(zfsvfs);
-	error = zfs_zaccess_rwx(zp, ap->a_mode, ap->a_cred);
+	error = zfs_zaccess_rwx(zp, mode, cr);
 	ZFS_EXIT(zfsvfs);
 	return (error);
 }
@@ -957,28 +965,14 @@ zfs_access(ap)
  *	NA
  */
 /* ARGSUSED */
-int
-zfs_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-	} */ *ap;
+static int
+zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
+     int nameiop, cred_t *cr, kthread_t *td)
 {
-	kthread_t	*td = ap->a_cnp->cn_thread;	
-	struct componentname *cnp = ap->a_cnp;
-	vnode_t		*dvp = ap->a_dvp;
-	vnode_t		**vpp = ap->a_vpp;
-	u_long		flags = cnp->cn_flags;
-	cred_t		*cr = cnp->cn_cred;
-	int		nameiop = cnp->cn_nameiop;
-	char		nm[NAME_MAX + 1];
-	znode_t		*zdp = VTOZ(dvp);
-	zfsvfs_t	*zfsvfs = zdp->z_zfsvfs;
-	int		error;
 
-	ASSERT(cnp->cn_namelen < sizeof(nm));
-	strlcpy(nm, cnp->cn_nameptr, MIN(cnp->cn_namelen + 1, sizeof(nm)));
+	znode_t *zdp = VTOZ(dvp);
+	zfsvfs_t *zfsvfs = zdp->z_zfsvfs;
+	int	error;
 
 	ZFS_ENTER(zfsvfs);
 
@@ -1035,7 +1029,22 @@ zfs_lookup(ap)
 		return (error);
 	}
 
-	error = zfs_dirlook(zdp, nm, vpp);
+	if ((error = zfs_dirlook(zdp, nm, vpp)) == 0) {
+
+		/*
+		 * Convert device special files
+		 */
+		if (IS_DEVVP(*vpp)) {
+			vnode_t	*svp;
+
+			svp = specvp(*vpp, (*vpp)->v_rdev, (*vpp)->v_type, cr);
+			VN_RELE(*vpp);
+			if (svp == NULL)
+				error = ENOSYS;
+			else
+				*vpp = svp;
+		}
+	}
 
 	ZFS_EXIT(zfsvfs);
 
@@ -1057,10 +1066,10 @@ zfs_lookup(ap)
 		}
 	}
 	if (error == 0 && (nm[0] != '.' || nm[1] != '\0')) {
-		if (flags & ISDOTDOT)
+		if (cnp->cn_flags & ISDOTDOT)
 			VOP_UNLOCK(dvp, 0, td);
 		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
-		if (flags & ISDOTDOT)
+		if (cnp->cn_flags & ISDOTDOT)
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
 
@@ -1108,19 +1117,9 @@ zfs_lookup(ap)
  */
 /* ARGSUSED */
 static int
-zfs_create(ap)
-	struct vop_create_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-		struct vattr *a_vap;
-	} */ *ap;
+zfs_create(vnode_t *dvp, char *name, vattr_t *vap, int excl, int mode,
+    vnode_t **vpp, cred_t *cr, kthread_t *td)
 {
-	vnode_t		*dvp = ap->a_dvp;
-	vnode_t		**vpp = ap->a_vpp;
-	vattr_t		*vap = ap->a_vap;
-	cred_t		*cr = ap->a_cnp->cn_cred;
-	char		*name = ap->a_cnp->cn_nameptr;
 	znode_t		*zp, *dzp = VTOZ(dvp);
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
 	zilog_t		*zilog = zfsvfs->z_log;
@@ -1129,12 +1128,6 @@ zfs_create(ap)
 	dmu_tx_t	*tx;
 	int		error;
 	uint64_t	zoid;
-	int		mode;
-
-	ASSERT(ap->a_cnp->cn_flags & SAVENAME);
-
-	vattr_init_mask(vap);
-	mode = vap->va_mode & ALLPERMS;
 
 	ZFS_ENTER(zfsvfs);
 
@@ -1212,7 +1205,13 @@ top:
 		/*
 		 * A directory entry already exists for this name.
 		 */
-
+		/*
+		 * Can't truncate an existing file if in exclusive mode.
+		 */
+		if (excl == EXCL) {
+			error = EEXIST;
+			goto out;
+		}
 		/*
 		 * Can't open a directory for writing.
 		 */
@@ -1251,7 +1250,7 @@ out:
 
 	if (error == 0) {
 		*vpp = ZTOV(zp);
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, ap->a_cnp->cn_thread);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
 
 	if (dl)
@@ -1260,6 +1259,21 @@ out:
 	if (error) {
 		if (zp)
 			VN_RELE(ZTOV(zp));
+	} else {
+		*vpp = ZTOV(zp);
+		/*
+		 * If vnode is for a device return a specfs vnode instead.
+		 */
+		if (IS_DEVVP(*vpp)) {
+			struct vnode *svp;
+
+			svp = specvp(*vpp, (*vpp)->v_rdev, (*vpp)->v_type, cr);
+			VN_RELE(*vpp);
+			if (svp == NULL) {
+				error = ENOSYS;
+			}
+			*vpp = svp;
+		}
 	}
 
 	ZFS_EXIT(zfsvfs);
@@ -1281,30 +1295,19 @@ out:
  *	 vp - ctime (if nlink > 0)
  */
 static int
-zfs_remove(ap)
-	struct vop_remove_args /* {
-		struct vnode *a_dvp;
-		struct vnode *a_vp;
-		struct componentname *a_cnp;
-	} */ *ap;
+zfs_remove(vnode_t *dvp, char *name, cred_t *cr)
 {
-	vnode_t		*dvp = ap->a_dvp;
-	cred_t		*cr = ap->a_cnp->cn_cred;
-	char		*name = ap->a_cnp->cn_nameptr;
 	znode_t		*zp, *dzp = VTOZ(dvp);
-#if 0
 	znode_t		*xzp = NULL;
-#endif
 	vnode_t		*vp;
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
 	zilog_t		*zilog = zfsvfs->z_log;
-	uint64_t	xattr_obj;
+	uint64_t	acl_obj, xattr_obj;
 	zfs_dirlock_t	*dl;
 	dmu_tx_t	*tx;
+	boolean_t	may_delete_now, delete_now = FALSE;
 	boolean_t	unlinked;
 	int		error;
-
-	ASSERT(ap->a_cnp->cn_flags & SAVENAME);
 
 	ZFS_ENTER(zfsvfs);
 
@@ -1318,16 +1321,24 @@ top:
 	}
 
 	vp = ZTOV(zp);
-	ASSERT(vp == ap->a_vp);
-	ASSERT(vp->v_type != VDIR);
-	/* Drop an extra reference from zfs_dirent_lock(). */
-	VN_RELE(vp);
-	ASSERT(vp->v_count > 0);
 
-	if (error = zfs_zaccess_delete(dzp, zp, cr))
+	if (error = zfs_zaccess_delete(dzp, zp, cr)) {
 		goto out;
+	}
+
+	/*
+	 * Need to use rmdir for removing directories.
+	 */
+	if (vp->v_type == VDIR) {
+		error = EPERM;
+		goto out;
+	}
+
+	vnevent_remove(vp);
 
 	dnlc_remove(dvp, name);
+
+	may_delete_now = FALSE;
 
 	/*
 	 * We may delete the znode now, or we may put it in the unlinked set;
@@ -1338,6 +1349,8 @@ top:
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_zap(tx, dzp->z_id, FALSE, name);
 	dmu_tx_hold_bonus(tx, zp->z_id);
+	if (may_delete_now)
+		dmu_tx_hold_free(tx, zp->z_id, 0, DMU_OBJECT_END);
 
 	/* are there any extended attributes? */
 	if ((xattr_obj = zp->z_phys->zp_xattr) != 0) {
@@ -1345,12 +1358,18 @@ top:
 		dmu_tx_hold_bonus(tx, xattr_obj);
 	}
 
+	/* are there any additional acls */
+	if ((acl_obj = zp->z_phys->zp_acl.z_acl_extern_obj) != 0 &&
+	    may_delete_now)
+		dmu_tx_hold_free(tx, acl_obj, 0, DMU_OBJECT_END);
+
 	/* charge as an update -- would be nice not to charge at all */
 	dmu_tx_hold_zap(tx, zfsvfs->z_unlinkedobj, FALSE, NULL);
 
 	error = dmu_tx_assign(tx, zfsvfs->z_assign);
 	if (error) {
 		zfs_dirent_unlock(dl);
+		VN_RELE(vp);
 		if (error == ERESTART && zfsvfs->z_assign == TXG_NOWAIT) {
 			dmu_tx_wait(tx);
 			dmu_tx_abort(tx);
@@ -1371,14 +1390,52 @@ top:
 		goto out;
 	}
 
-	if (unlinked)
+	if (0 && unlinked) {
+		VI_LOCK(vp);
+		delete_now = may_delete_now &&
+		    vp->v_count == 1 && !vn_has_cached_data(vp) &&
+		    zp->z_phys->zp_xattr == xattr_obj &&
+		    zp->z_phys->zp_acl.z_acl_extern_obj == acl_obj;
+		VI_UNLOCK(vp);
+	}
+
+	if (delete_now) {
+		if (zp->z_phys->zp_xattr) {
+			error = zfs_zget(zfsvfs, zp->z_phys->zp_xattr, &xzp);
+			ASSERT3U(error, ==, 0);
+			ASSERT3U(xzp->z_phys->zp_links, ==, 2);
+			dmu_buf_will_dirty(xzp->z_dbuf, tx);
+			mutex_enter(&xzp->z_lock);
+			xzp->z_unlinked = 1;
+			xzp->z_phys->zp_links = 0;
+			mutex_exit(&xzp->z_lock);
+			zfs_unlinked_add(xzp, tx);
+			zp->z_phys->zp_xattr = 0; /* probably unnecessary */
+		}
+		mutex_enter(&zp->z_lock);
+		VI_LOCK(vp);
+		vp->v_count--;
+		ASSERT3U(vp->v_count, ==, 0);
+		VI_UNLOCK(vp);
+		mutex_exit(&zp->z_lock);
+		zfs_znode_delete(zp, tx);
+		VFS_RELE(zfsvfs->z_vfs);
+	} else if (unlinked) {
 		zfs_unlinked_add(zp, tx);
+	}
 
 	zfs_log_remove(zilog, tx, TX_REMOVE, dzp, name);
 
 	dmu_tx_commit(tx);
 out:
 	zfs_dirent_unlock(dl);
+
+	if (!delete_now) {
+		VN_RELE(vp);
+	} else if (xzp) {
+		/* this rele delayed to prevent nesting transactions */
+		VN_RELE(ZTOV(xzp));
+	}
 
 	ZFS_EXIT(zfsvfs);
 	return (error);
@@ -1403,19 +1460,8 @@ out:
  *	 vp - ctime|mtime|atime updated
  */
 static int
-zfs_mkdir(ap)
-	struct vop_mkdir_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-		struct vattr *a_vap;
-	} */ *ap;
+zfs_mkdir(vnode_t *dvp, char *dirname, vattr_t *vap, vnode_t **vpp, cred_t *cr)
 {
-	vnode_t		*dvp = ap->a_dvp;
-	vnode_t		**vpp = ap->a_vpp;
-	vattr_t		*vap = ap->a_vap;
-	cred_t		*cr = ap->a_cnp->cn_cred;
-	char		*dirname = ap->a_cnp->cn_nameptr;
 	znode_t		*zp, *dzp = VTOZ(dvp);
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
 	zilog_t		*zilog = zfsvfs->z_log;
@@ -1424,9 +1470,7 @@ zfs_mkdir(ap)
 	dmu_tx_t	*tx;
 	int		error;
 
-	ASSERT(ap->a_cnp->cn_flags & SAVENAME);
 	ASSERT(vap->va_type == VDIR);
-	vattr_init_mask(vap);
 
 	ZFS_ENTER(zfsvfs);
 
@@ -1488,7 +1532,7 @@ top:
 	zfs_log_create(zilog, tx, TX_MKDIR, dzp, zp, dirname);
 	dmu_tx_commit(tx);
 
-	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, ap->a_cnp->cn_thread);
+	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, curthread);
 
 	zfs_dirent_unlock(dl);
 
@@ -1513,16 +1557,8 @@ top:
  *	dvp - ctime|mtime updated
  */
 static int
-zfs_rmdir(ap)
-	struct vop_rmdir_args /* {
-		struct vnode *a_dvp;
-		struct vnode *a_vp;
-		struct componentname *a_cnp;
-	} */ *ap;
+zfs_rmdir(vnode_t *dvp, char *name, vnode_t *cwd, cred_t *cr)
 {
-	vnode_t		*dvp = ap->a_dvp;
-	cred_t		*cr = ap->a_cnp->cn_cred;
-	char		*name = ap->a_cnp->cn_nameptr;
 	znode_t		*dzp = VTOZ(dvp);
 	znode_t		*zp;
 	vnode_t		*vp;
@@ -1532,9 +1568,8 @@ zfs_rmdir(ap)
 	dmu_tx_t	*tx;
 	int		error;
 
-	ASSERT(ap->a_cnp->cn_flags & SAVENAME);
-
 	ZFS_ENTER(zfsvfs);
+
 top:
 	zp = NULL;
 
@@ -1547,15 +1582,22 @@ top:
 	}
 
 	vp = ZTOV(zp);
-	ASSERT(vp == ap->a_vp);
-	ASSERT(vp->v_type == VDIR);
-	/* Drop an extra reference from zfs_dirent_lock(). */
-	VN_RELE(vp);
-	ASSERT(vp->v_count > 0);
 
 	if (error = zfs_zaccess_delete(dzp, zp, cr)) {
 		goto out;
 	}
+
+	if (vp->v_type != VDIR) {
+		error = ENOTDIR;
+		goto out;
+	}
+
+	if (vp == cwd) {
+		error = EINVAL;
+		goto out;
+	}
+
+	vnevent_rmdir(vp);
 
 	/*
 	 * Grab a lock on the directory to make sure that noone is
@@ -1578,6 +1620,7 @@ top:
 		rw_exit(&zp->z_parent_lock);
 		rw_exit(&zp->z_name_lock);
 		zfs_dirent_unlock(dl);
+		VN_RELE(vp);
 		if (error == ERESTART && zfsvfs->z_assign == TXG_NOWAIT) {
 			dmu_tx_wait(tx);
 			dmu_tx_abort(tx);
@@ -1606,6 +1649,8 @@ top:
 #endif
 out:
 	zfs_dirent_unlock(dl);
+
+	VN_RELE(vp);
 
 	ZFS_EXIT(zfsvfs);
 	return (error);
@@ -1637,19 +1682,8 @@ out:
  */
 /* ARGSUSED */
 static int
-zfs_readdir(ap)
-	struct vop_readdir_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		struct ucred *a_cred;
-		int *a_eofflag;
-		int *ncookies;
-		u_long **a_cookies;
-	} */ *ap;
+zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_long **cookies)
 {
-	vnode_t		*vp = ap->a_vp;
-	uio_t		*uio = ap->a_uio;
-	int		*eofp = ap->a_eofflag;
 	znode_t		*zp = VTOZ(vp);
 	iovec_t		*iovp;
 	dirent64_t	*odp;
@@ -1666,8 +1700,8 @@ zfs_readdir(ap)
 	int		error;
 	uint8_t		prefetch;
 	uint8_t		type;
-	int		ncookies;
-	u_long		*cookies = NULL;
+	int		ncooks;
+	u_long		*cooks = NULL;
 
 	ZFS_ENTER(zfsvfs);
 
@@ -1728,14 +1762,14 @@ zfs_readdir(ap)
 		odp = (struct dirent64 *)iovp->iov_base;
 	}
 
-	if (ap->a_ncookies) { 
+	if (ncookies != NULL) { 
 		/*
 		 * Minimum entry size is dirent size and 1 byte for a file name.
 		 */
-		ncookies = uio->uio_resid / (sizeof(struct dirent) - sizeof(((struct dirent *)NULL)->d_name) + 1);
-		cookies = malloc(ncookies * sizeof(u_long), M_TEMP, M_WAITOK);
-		*ap->a_cookies = cookies; 
-		*ap->a_ncookies = ncookies;
+		ncooks = uio->uio_resid / (sizeof(struct dirent) - sizeof(((struct dirent *)NULL)->d_name) + 1);
+		cooks = malloc(ncooks * sizeof(u_long), M_TEMP, M_WAITOK);
+		*cookies = cooks; 
+		*ncookies = ncooks;
 	}
 
 	/*
@@ -1828,17 +1862,17 @@ zfs_readdir(ap)
 			offset += 1;
 		}
 
-		if (cookies != NULL) {
-			*cookies++ = offset;
-			ncookies--;
-			KASSERT(ncookies >= 0, ("ncookies=%d", ncookies));
+		if (cooks != NULL) {
+			*cooks++ = offset;
+			ncooks--;
+			KASSERT(ncooks >= 0, ("ncookies=%d", ncooks));
 		}
 	}
 	zp->z_zn_prefetch = B_FALSE; /* a lookup will re-enable pre-fetching */
 
 	/* Subtract unused cookies */
-	if (ap->a_ncookies)
-		*ap->a_ncookies -= ncookies;
+	if (ncookies != NULL)
+		*ncookies -= ncooks;
 
 	if (uio->uio_segflg == UIO_SYSSPACE && uio->uio_iovcnt == 1) {
 		iovp->iov_base += outcount;
@@ -1864,20 +1898,18 @@ update:
 	uio->uio_loffset = offset;
 	ZFS_EXIT(zfsvfs);
 	if (error != 0) {
-		free(*ap->a_cookies, M_TEMP);
-		*ap->a_cookies = NULL;
-		*ap->a_ncookies = 0;
+		free(*cookies, M_TEMP);
+		*cookies = NULL;
+		*ncookies = 0;
 	}
 	return (error);
 }
 
 static int
-zfs_fsync(struct vop_fsync_args *ap)
+zfs_fsync(vnode_t *vp, int syncflag, cred_t *cr)
 {
-	znode_t		*zp = VTOZ(ap->a_vp);
-	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
-
-	vop_stdfsync(ap);
+	znode_t	*zp = VTOZ(vp);
+	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 
 	ZFS_ENTER(zfsvfs);
 	zil_commit(zfsvfs->z_log, zp->z_last_itx, zp->z_id);
@@ -1900,23 +1932,14 @@ zfs_fsync(struct vop_fsync_args *ap)
  */
 /* ARGSUSED */
 static int
-zfs_getattr(ap)
-	struct vop_getattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr)
 {
-        vnode_t		*vp = ap->a_vp;
-        vattr_t		*vap = ap->a_vap;
-	cred_t		*cr = ap->a_cred;
-	znode_t		*zp = VTOZ(vp);
-	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
-	znode_phys_t	*pzp = zp->z_phys;
-	uint32_t	blksize;
-	u_longlong_t	nblocks;
-	int		error;
+	znode_t *zp = VTOZ(vp);
+	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
+	znode_phys_t *pzp = zp->z_phys;
+	uint32_t blksize;
+	u_longlong_t nblocks;
+	int	error;
 
 	ZFS_ENTER(zfsvfs);
 
@@ -1991,41 +2014,28 @@ zfs_getattr(ap)
  */
 /* ARGSUSED */
 static int
-zfs_setattr(ap)
-	struct vop_setattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
+	caller_context_t *ct)
 {
-	vnode_t		*vp = ap->a_vp;
-	vattr_t		*vap = ap->a_vap;
-	cred_t		*cr = ap->a_cred;
-	znode_t		*zp = VTOZ(vp);
+	struct znode	*zp = VTOZ(vp);
 	znode_phys_t	*pzp = zp->z_phys;
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
 	zilog_t		*zilog = zfsvfs->z_log;
 	dmu_tx_t	*tx;
 	vattr_t		oldva;
-	uint_t		mask;
+	uint_t		mask = vap->va_mask;
 	uint_t		saved_mask;
 	int		trim_mask = 0;
 	uint64_t	new_mode;
 	znode_t		*attrzp;
 	int		need_policy = FALSE;
-	int		flags = 0;
 	int		err;
-
-	/* No support for FreeBSD's chflags(2). */
-	if (vap->va_flags != VNOVAL)
-		return (EOPNOTSUPP);
-
-	vattr_init_mask(vap);
-	mask = vap->va_mask;
 
 	if (mask == 0)
 		return (0);
+
+	if (mask & AT_NOSET)
+		return (EINVAL);
 
 	if (mask & AT_SIZE && vp->v_type == VDIR)
 		return (EISDIR);
@@ -2126,12 +2136,12 @@ top:
 
 	if (mask & AT_MODE) {
 		if (zfs_zaccess_v4_perm(zp, ACE_WRITE_ACL, cr) == 0) {
-                        err = secpolicy_setid_setsticky_clear(vp, vap,
-                            &oldva, cr);
-                        if (err) {
-                                ZFS_EXIT(zfsvfs);
-                                return (err);
-                        }
+			err = secpolicy_setid_setsticky_clear(vp, vap,
+			    &oldva, cr);
+			if (err) {
+				ZFS_EXIT(zfsvfs);
+				return (err);
+			}
 			trim_mask |= AT_MODE;
 		} else {
 			need_policy = TRUE;
@@ -2383,50 +2393,29 @@ zfs_rename_lock(znode_t *szp, znode_t *tdzp, znode_t *sdzp, zfs_zlock_t **zlpp)
  *	sdvp,tdvp - ctime|mtime updated
  */
 static int
-zfs_rename(ap)
-	struct vop_rename_args  /* {
-		struct vnode *a_fdvp;
-		struct vnode *a_fvp;
-		struct componentname *a_fcnp;
-		struct vnode *a_tdvp;
-		struct vnode *a_tvp;
-		struct componentname *a_tcnp;
-	} */ *ap;
+zfs_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm, cred_t *cr)
 {
-	vnode_t		*svp = ap->a_fvp;
-	vnode_t		*tvp = ap->a_tvp;
-	vnode_t		*sdvp = ap->a_fdvp;
-	vnode_t		*tdvp = ap->a_tdvp;
-	char		*snm = ap->a_fcnp->cn_nameptr;
-	char		*tnm = ap->a_tcnp->cn_nameptr;
-	cred_t		*cr = ap->a_fcnp->cn_cred;
 	znode_t		*tdzp, *szp, *tzp;
 	znode_t		*sdzp = VTOZ(sdvp);
 	zfsvfs_t	*zfsvfs = sdzp->z_zfsvfs;
 	zilog_t		*zilog = zfsvfs->z_log;
+	vnode_t		*realvp;
 	zfs_dirlock_t	*sdl, *tdl;
 	dmu_tx_t	*tx;
 	zfs_zlock_t	*zl;
-	int		serr, terr, error;
-
-	ASSERT(ap->a_fcnp->cn_flags & SAVENAME);
-	ASSERT(ap->a_tcnp->cn_flags & SAVENAME);
+	int		cmp, serr, terr, error;
 
 	ZFS_ENTER(zfsvfs);
 
+	/*
+	 * Make sure we have the real vp for the target directory.
+	 */
+	if (VOP_REALVP(tdvp, &realvp) == 0)
+		tdvp = realvp;
+
 	if (tdvp->v_vfsp != sdvp->v_vfsp) {
-		error = EXDEV;
-abort:
 		ZFS_EXIT(zfsvfs);
-		if (tdvp == tvp)
-			vrele(tdvp);
-		else
-			vput(tdvp);
-		if (tvp)
-			vput(tvp);
-		vrele(sdvp);    
-		vrele(svp);
-		return (error);
+		return (EXDEV);
 	}
 
 	tdzp = VTOZ(tdvp);
@@ -2442,18 +2431,9 @@ top:
 	 */
 	if ((tdzp->z_phys->zp_flags & ZFS_XATTR) !=
 	    (sdzp->z_phys->zp_flags & ZFS_XATTR)) {
-		error = EINVAL;
-		goto abort;
+		ZFS_EXIT(zfsvfs);
+		return (EINVAL);
 	}
-
-	/*
-	 * POSIX: "If the old argument and the new argument
-	 * both refer to links to the same existing file,
-	 * the rename() function shall return successfully
-	 * and perform no other action."
-	 * This case is already handled in kern_rename().
-	 */
-	ASSERT(svp != tvp);
 
 	/*
 	 * Lock source and target directory entries.  To prevent deadlock,
@@ -2462,46 +2442,52 @@ top:
 	 * the lexically first name.
 	 */
 	if (sdzp->z_id < tdzp->z_id) {
-		serr = zfs_dirent_lock(&sdl, sdzp, snm, &szp, ZEXISTS);
-		terr = zfs_dirent_lock(&tdl, tdzp, tnm, &tzp, 0);
-	} else /* if (sdzp->z_id > tdzp->z_id) */ {
-		terr = zfs_dirent_lock(&tdl, tdzp, tnm, &tzp, 0);
-		serr = zfs_dirent_lock(&sdl, sdzp, snm, &szp, ZEXISTS);
-	}
-	if (!terr && tzp != NULL) {
-		if (tvp)
-			vrele(tvp);
-		else {
-			ZFS_LOG(0x100, "Unexpected code path, report to pjd@FreeBSD.org");
-			tvp = ZTOV(tzp);
-			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, curthread);
+		cmp = -1;
+	} else if (sdzp->z_id > tdzp->z_id) {
+		cmp = 1;
+	} else {
+		cmp = strcmp(snm, tnm);
+		if (cmp == 0) {
+			/*
+			 * POSIX: "If the old argument and the new argument
+			 * both refer to links to the same existing file,
+			 * the rename() function shall return successfully
+			 * and perform no other action."
+			 */
+			ZFS_EXIT(zfsvfs);
+			return (0);
 		}
-		ASSERT(tvp->v_count > 0);
+	}
+	if (cmp < 0) {
+		serr = zfs_dirent_lock(&sdl, sdzp, snm, &szp, ZEXISTS);
+		terr = zfs_dirent_lock(&tdl, tdzp, tnm, &tzp, 0);
+	} else {
+		terr = zfs_dirent_lock(&tdl, tdzp, tnm, &tzp, 0);
+		serr = zfs_dirent_lock(&sdl, sdzp, snm, &szp, ZEXISTS);
 	}
 
-	if (serr || svp != ZTOV(szp)) {
+	if (serr) {
 		/*
 		 * Source entry invalid or not there.
 		 */
-		if (!serr)
-			zfs_dirent_unlock(sdl);
-		if (!terr)
+		if (!terr) {
 			zfs_dirent_unlock(tdl);
+			if (tzp)
+				VN_RELE(ZTOV(tzp));
+		}
 		if (strcmp(snm, ".") == 0 || strcmp(snm, "..") == 0)
 			serr = EINVAL;
-		error = serr;
-		goto abort;
+		ZFS_EXIT(zfsvfs);
+		return (serr);
 	}
 	if (terr) {
 		zfs_dirent_unlock(sdl);
+		VN_RELE(ZTOV(szp));
 		if (strcmp(tnm, "..") == 0)
 			terr = EINVAL;
-		error = terr;
-		goto abort;
+		ZFS_EXIT(zfsvfs);
+		return (terr);
 	}
-	/* Remove an extra reference from zfs_dirent_lock(). */
-	vrele(svp);
-	ASSERT(svp->v_count > 0);
 
 	/*
 	 * Must have write access at the source to remove the old entry
@@ -2513,7 +2499,7 @@ top:
 	if (error = zfs_zaccess_rename(sdzp, szp, tdzp, tzp, cr))
 		goto out;
 
-	if (svp->v_type == VDIR) {
+	if (ZTOV(szp)->v_type == VDIR) {
 		/*
 		 * Check to make sure rename is valid.
 		 * Can't do a move like this: /usr/a/b to /usr/a/b/c/d
@@ -2529,13 +2515,13 @@ top:
 		/*
 		 * Source and target must be the same type.
 		 */
-		if (svp->v_type == VDIR) {
-			if (tvp->v_type != VDIR) {
+		if (ZTOV(szp)->v_type == VDIR) {
+			if (ZTOV(tzp)->v_type != VDIR) {
 				error = ENOTDIR;
 				goto out;
 			}
 		} else {
-			if (tvp->v_type == VDIR) {
+			if (ZTOV(tzp)->v_type == VDIR) {
 				error = EISDIR;
 				goto out;
 			}
@@ -2550,6 +2536,10 @@ top:
 			goto out;
 		}
 	}
+
+	vnevent_rename_src(ZTOV(szp));
+	if (tzp)
+		vnevent_rename_dest(ZTOV(tzp));
 
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_bonus(tx, szp->z_id);	/* nlink changes */
@@ -2567,17 +2557,17 @@ top:
 			zfs_rename_unlock(&zl);
 		zfs_dirent_unlock(sdl);
 		zfs_dirent_unlock(tdl);
+		VN_RELE(ZTOV(szp));
+		if (tzp)
+			VN_RELE(ZTOV(tzp));
 		if (error == ERESTART && zfsvfs->z_assign == TXG_NOWAIT) {
 			dmu_tx_wait(tx);
 			dmu_tx_abort(tx);
-			if (ap->a_tvp == NULL && tvp != NULL) {
-				vput(tvp);
-				tvp = NULL;
-			}
 			goto top;
 		}
 		dmu_tx_abort(tx);
-		goto abort;
+		ZFS_EXIT(zfsvfs);
+		return (error);
 	}
 
 	if (tzp)	/* Attempt to remove the existing target */
@@ -2607,11 +2597,9 @@ out:
 	zfs_dirent_unlock(sdl);
 	zfs_dirent_unlock(tdl);
 
+	VN_RELE(ZTOV(szp));
 	if (tzp)
-		vput(tvp);
-	vput(tdvp);
-	vrele(sdvp);
-	vrele(svp);
+		VN_RELE(ZTOV(tzp));
 
 	ZFS_EXIT(zfsvfs);
 
@@ -2634,20 +2622,8 @@ out:
  *	dvp - ctime|mtime updated
  */
 static int
-zfs_symlink(ap)
-	struct vop_symlink_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-		struct vattr *a_vap;
-		char *a_target;
-	} */ *ap;
+zfs_symlink(vnode_t *dvp, vnode_t **vpp, char *name, vattr_t *vap, char *link, cred_t *cr, kthread_t *td)
 {
-	vnode_t		*dvp = ap->a_dvp;
-	vattr_t		*vap = ap->a_vap;
-	cred_t		*cr = ap->a_cnp->cn_cred;
-	char		*name = ap->a_cnp->cn_nameptr;
-	char		*link = ap->a_target;
 	znode_t		*zp, *dzp = VTOZ(dvp);
 	zfs_dirlock_t	*dl;
 	dmu_tx_t	*tx;
@@ -2657,10 +2633,7 @@ zfs_symlink(ap)
 	int		len = strlen(link);
 	int		error;
 
-	ASSERT(ap->a_cnp->cn_flags & SAVENAME);
-
-	vap->va_type = VLNK;	/* FreeBSD: Syscall only sets va_mode. */
-	vattr_init_mask(vap);
+	ASSERT(vap->va_type == VLNK);
 
 	ZFS_ENTER(zfsvfs);
 top:
@@ -2737,14 +2710,11 @@ top:
 	 * Insert the new object into the directory.
 	 */
 	(void) zfs_link_create(dl, zp, tx, ZNEW);
-
+out:
 	if (error == 0) {
 		zfs_log_symlink(zilog, tx, TX_SYMLINK, dzp, zp, name, link);
-
-		*ap->a_vpp = ZTOV(zp);
-
-		vn_lock(ZTOV(zp), LK_EXCLUSIVE | LK_RETRY,
-		    ap->a_cnp->cn_thread);
+		*vpp = ZTOV(zp);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
 
 	dmu_tx_commit(tx);
@@ -2773,15 +2743,8 @@ top:
  */
 /* ARGSUSED */
 static int
-zfs_readlink(ap)
-	struct vop_readlink_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		struct ucred *a_cred;
-	} */ *ap;
+zfs_readlink(vnode_t *vp, uio_t *uio, cred_t *cr)
 {
-	vnode_t		*vp = ap->a_vp;
-	uio_t		*uio = ap->a_uio;
 	znode_t		*zp = VTOZ(vp);
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
 	size_t		bufsz;
@@ -2827,29 +2790,23 @@ zfs_readlink(ap)
  */
 /* ARGSUSED */
 static int
-zfs_link(ap)
-	struct vop_link_args /* {
-		struct vnode *a_tdvp;
-		struct vnode *a_vp;
-		struct componentname *a_cnp;
-	} */ *ap;
+zfs_link(vnode_t *tdvp, vnode_t *svp, char *name, cred_t *cr)
 {
-	vnode_t		*svp = ap->a_vp;
-	vnode_t		*tdvp = ap->a_tdvp;
-	cred_t		*cr = ap->a_cnp->cn_cred;
-	char		*name = ap->a_cnp->cn_nameptr;
 	znode_t		*dzp = VTOZ(tdvp);
 	znode_t		*tzp, *szp;
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
 	zilog_t		*zilog = zfsvfs->z_log;
 	zfs_dirlock_t	*dl;
 	dmu_tx_t	*tx;
+	vnode_t		*realvp;
 	int		error;
 
-	ASSERT(ap->a_cnp->cn_flags & SAVENAME);
 	ASSERT(tdvp->v_type == VDIR);
 
 	ZFS_ENTER(zfsvfs);
+
+	if (VOP_REALVP(svp, &realvp) == 0)
+		svp = realvp;
 
 	if (svp->v_vfsp != tdvp->v_vfsp) {
 		ZFS_EXIT(zfsvfs);
@@ -2927,22 +2884,12 @@ top:
 	return (error);
 }
 
-static int
-zfs_inactive(ap)
-        struct vop_inactive_args /* {
-                struct vnode *a_vp;
-                struct thread *a_td;
-        } */ *ap;
+void
+zfs_inactive(vnode_t *vp, cred_t *cr)
 {
-	vnode_t		*vp = ap->a_vp;
-	znode_t		*zp = VTOZ(vp);
-	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
-	int		error;
-
-	/*
-	 * Destroy the vm object and flush associated pages.
-	 */
-	vnode_destroy_vobject(vp);
+	znode_t	*zp = VTOZ(vp);
+	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
+	int error;
 
 	rw_enter(&zfsvfs->z_um_lock, RW_READER);
 	if (zfsvfs->z_unmounted2) {
@@ -2960,7 +2907,7 @@ zfs_inactive(ap)
 		}
 		rw_exit(&zfsvfs->z_um_lock);
 		VFS_RELE(zfsvfs->z_vfs);
-		return (0);
+		return;
 	}
 
 	if (zp->z_atime_dirty && zp->z_unlinked == 0) {
@@ -2981,53 +2928,14 @@ zfs_inactive(ap)
 
 	zfs_zinactive(zp);
 	rw_exit(&zfsvfs->z_um_lock);
-	return (0);
-}
-
-static int
-zfs_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
-{
-        vnode_t	*vp = ap->a_vp;
-	znode_t	*zp = VTOZ(vp);
-
-	if (zp != NULL)
-		mutex_enter(&zp->z_lock);
-#if 0	/*
-	 * We do it from zfs_inactive(), because after zfs_inactive() we can't
-	 * VOP_WRITE() to the vnode.
-	 */
-	/*
-	 * Destroy the vm object and flush associated pages.
-	 */
-	vnode_destroy_vobject(vp);
-#endif
-	VI_LOCK(vp);
-	vp->v_data = NULL;
-	if (zp != NULL)
-		zp->z_vnode = NULL;
-	ASSERT(vp->v_holdcnt > 1);
-	vdropl(vp);
-	if (zp != NULL)
-		mutex_exit(&zp->z_lock);
-	return (0);
 }
 
 CTASSERT(sizeof(struct zfid_short) <= sizeof(struct fid));
 CTASSERT(sizeof(struct zfid_long) <= sizeof(struct fid));
 
 static int
-zfs_fid(ap)
-	struct vop_fid_args /* {
-		struct vnode *a_vp;
-		struct fid *a_fid;
-	} */ *ap;
+zfs_fid(vnode_t *vp, fid_t *fidp)
 {
-	vnode_t		*vp = ap->a_vp;
-	fid_t		*fidp = (void *)ap->a_fid;
 	znode_t		*zp = VTOZ(vp);
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
 	uint32_t	gen = (uint32_t)zp->z_phys->zp_gen;
@@ -3072,22 +2980,12 @@ zfs_fid(ap)
 }
 
 static int
-zfs_pathconf(ap)
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		register_t *a_retval;
-	} */ *ap;
+zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr)
 {
-	int		cmd = ap->a_name;
-	register_t	*valp = ap->a_retval;
-#if 0
-	vnode_t		*vp = ap->a_vp;
 	znode_t		*zp, *xzp;
 	zfsvfs_t	*zfsvfs;
 	zfs_dirlock_t	*dl;
 	int		error;
-#endif
 
 	switch (cmd) {
 	case _PC_LINK_MAX:
@@ -3131,7 +3029,7 @@ zfs_pathconf(ap)
 		return (0);
 
 	default:
-		return (vop_stdpathconf(ap));
+		return (EOPNOTSUPP);
 	}
 }
 
@@ -3168,11 +3066,413 @@ zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr)
 }
 #endif	/* TODO */
 
+static int
+zfs_freebsd_open(ap)
+	struct vop_open_args /* {
+		struct vnode *a_vp;
+		int a_mode;
+		struct ucred *a_cred;
+		struct thread *a_td;
+	} */ *ap;
+{
+	vnode_t	*vp = ap->a_vp;
+	znode_t *zp = VTOZ(vp);
+	int error;
+
+	error = zfs_open(&vp, ap->a_mode, ap->a_cred);
+	if (error == 0)
+		vnode_create_vobject(vp, zp->z_phys->zp_size, ap->a_td);
+	return (error);
+}
+
+static int
+zfs_freebsd_close(ap)
+	struct vop_close_args /* {
+		struct vnode *a_vp;
+		int  a_fflag;
+		struct ucred *a_cred;
+		struct thread *a_td;
+	} */ *ap;
+{
+
+	return (zfs_close(ap->a_vp, ap->a_fflag, 0, 0, ap->a_cred));
+}
+
+static int
+zfs_freebsd_ioctl(ap)
+	struct vop_ioctl_args /* {
+		struct vnode *a_vp;
+		u_long a_command;
+		caddr_t a_data;
+		int a_fflag;
+		struct ucred *cred;
+		struct thread *td;
+	} */ *ap;
+{
+
+	return (zfs_ioctl(ap->a_vp, (int)ap->a_command, (intptr_t)ap->a_data,
+	    ap->a_fflag, ap->a_cred, NULL));
+}
+
+static int
+zfs_freebsd_read(ap)
+	struct vop_read_args /* {
+		struct vnode *a_vp;
+		struct uio *a_uio;
+		int a_ioflag;
+		struct ucred *a_cred;
+	} */ *ap;
+{
+
+	return (zfs_read(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
+}
+
+static int
+zfs_freebsd_write(ap)
+	struct vop_write_args /* {
+		struct vnode *a_vp;
+		struct uio *a_uio;
+		int a_ioflag;
+		struct ucred *a_cred;
+	} */ *ap;
+{
+
+	return (zfs_write(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
+}
+
+static int
+zfs_freebsd_access(ap)
+	struct vop_access_args /* {
+		struct vnode *a_vp;
+		int  a_mode;
+		struct ucred *a_cred;
+		struct thread *a_td;
+	} */ *ap;
+{
+
+	return (zfs_access(ap->a_vp, ap->a_mode, 0, ap->a_cred));
+}
+
+static int
+zfs_freebsd_lookup(ap)
+	struct vop_lookup_args /* {
+		struct vnode *a_dvp;
+		struct vnode **a_vpp;
+		struct componentname *a_cnp;
+	} */ *ap;
+{
+	struct componentname *cnp = ap->a_cnp;
+	char nm[NAME_MAX + 1];
+
+	ASSERT(cnp->cn_namelen < sizeof(nm));
+	strlcpy(nm, cnp->cn_nameptr, MIN(cnp->cn_namelen + 1, sizeof(nm)));
+
+	return (zfs_lookup(ap->a_dvp, nm, ap->a_vpp, cnp, cnp->cn_nameiop,
+	    cnp->cn_cred, cnp->cn_thread));
+}
+
+static int
+zfs_freebsd_create(ap)
+	struct vop_create_args /* {
+		struct vnode *a_dvp;
+		struct vnode **a_vpp;
+		struct componentname *a_cnp;
+		struct vattr *a_vap;
+	} */ *ap;
+{
+	struct componentname *cnp = ap->a_cnp;
+	vattr_t *vap = ap->a_vap;
+	int mode;
+
+	ASSERT(cnp->cn_flags & SAVENAME);
+
+	vattr_init_mask(vap);
+	mode = vap->va_mode & ALLPERMS;
+
+	return (zfs_create(ap->a_dvp, cnp->cn_nameptr, vap, !EXCL, mode,
+	    ap->a_vpp, cnp->cn_cred, cnp->cn_thread));
+}
+
+static int
+zfs_freebsd_remove(ap)
+	struct vop_remove_args /* {
+		struct vnode *a_dvp;
+		struct vnode *a_vp;
+		struct componentname *a_cnp;
+	} */ *ap;
+{
+
+	ASSERT(ap->a_cnp->cn_flags & SAVENAME);
+
+	return (zfs_remove(ap->a_dvp, ap->a_cnp->cn_nameptr,
+	    ap->a_cnp->cn_cred));
+}
+
+static int
+zfs_freebsd_mkdir(ap)
+	struct vop_mkdir_args /* {
+		struct vnode *a_dvp;
+		struct vnode **a_vpp;
+		struct componentname *a_cnp;
+		struct vattr *a_vap;
+	} */ *ap;
+{
+	vattr_t *vap = ap->a_vap;
+
+	ASSERT(ap->a_cnp->cn_flags & SAVENAME);
+
+	vattr_init_mask(vap);
+
+	return (zfs_mkdir(ap->a_dvp, ap->a_cnp->cn_nameptr, vap, ap->a_vpp,
+	    ap->a_cnp->cn_cred));
+}
+
+static int
+zfs_freebsd_rmdir(ap)
+	struct vop_rmdir_args /* {
+		struct vnode *a_dvp;
+		struct vnode *a_vp;
+		struct componentname *a_cnp;
+	} */ *ap;
+{
+	struct componentname *cnp = ap->a_cnp;
+
+	ASSERT(cnp->cn_flags & SAVENAME);
+
+	return (zfs_rmdir(ap->a_dvp, cnp->cn_nameptr, NULL, cnp->cn_cred));
+}
+
+static int
+zfs_freebsd_readdir(ap)
+	struct vop_readdir_args /* {
+		struct vnode *a_vp;
+		struct uio *a_uio;
+		struct ucred *a_cred;
+		int *a_eofflag;
+		int *a_ncookies;
+		u_long **a_cookies;
+	} */ *ap;
+{
+
+	return (zfs_readdir(ap->a_vp, ap->a_uio, ap->a_cred, ap->a_eofflag,
+	    ap->a_ncookies, ap->a_cookies));
+}
+
+static int
+zfs_freebsd_fsync(ap)
+	struct vop_fsync_args /* {
+		struct vnode *a_vp;
+		int a_waitfor;
+		struct thread *a_td;
+	} */ *ap;
+{
+
+	vop_stdfsync(ap);
+	return (zfs_fsync(ap->a_vp, 0, ap->a_td->td_ucred));
+}
+
+static int
+zfs_freebsd_getattr(ap)
+	struct vop_getattr_args /* {
+		struct vnode *a_vp;
+		struct vattr *a_vap;
+		struct ucred *a_cred;
+		struct thread *a_td;
+	} */ *ap;
+{
+
+	return (zfs_getattr(ap->a_vp, ap->a_vap, 0, ap->a_cred));
+}
+
+static int
+zfs_freebsd_setattr(ap)
+	struct vop_setattr_args /* {
+		struct vnode *a_vp;
+		struct vattr *a_vap;
+		struct ucred *a_cred;
+		struct thread *a_td;
+	} */ *ap;
+{
+	vattr_t *vap = ap->a_vap;
+
+	/* No support for FreeBSD's chflags(2). */
+	if (vap->va_flags != VNOVAL)
+		return (EOPNOTSUPP);
+
+	vattr_init_mask(vap);
+
+	return (zfs_setattr(ap->a_vp, vap, 0, ap->a_cred, NULL));
+}
+
+static int
+zfs_freebsd_rename(ap)
+	struct vop_rename_args  /* {
+		struct vnode *a_fdvp;
+		struct vnode *a_fvp;
+		struct componentname *a_fcnp;
+		struct vnode *a_tdvp;
+		struct vnode *a_tvp;
+		struct componentname *a_tcnp;
+	} */ *ap;
+{
+	vnode_t *fdvp = ap->a_fdvp;
+	vnode_t *fvp = ap->a_fvp;
+	vnode_t *tdvp = ap->a_tdvp;
+	vnode_t *tvp = ap->a_tvp;
+	int error;
+
+	ASSERT(ap->a_fcnp->cn_flags & SAVENAME);
+	ASSERT(ap->a_tcnp->cn_flags & SAVENAME);
+
+	error = zfs_rename(fdvp, ap->a_fcnp->cn_nameptr, tdvp,
+	    ap->a_tcnp->cn_nameptr, ap->a_fcnp->cn_cred);
+
+	if (tdvp == tvp)
+		VN_RELE(tdvp);
+	else
+		VN_URELE(tdvp);
+	if (tvp)
+		VN_URELE(tvp);
+	VN_RELE(fdvp);
+	VN_RELE(fvp);
+
+	return (error);
+}
+
+static int
+zfs_freebsd_symlink(ap)
+	struct vop_symlink_args /* {
+		struct vnode *a_dvp;
+		struct vnode **a_vpp;
+		struct componentname *a_cnp;
+		struct vattr *a_vap;
+		char *a_target;
+	} */ *ap;
+{
+	struct componentname *cnp = ap->a_cnp;
+	vattr_t *vap = ap->a_vap;
+
+	ASSERT(cnp->cn_flags & SAVENAME);
+
+	vap->va_type = VLNK;	/* FreeBSD: Syscall only sets va_mode. */
+	vattr_init_mask(vap);
+
+	return (zfs_symlink(ap->a_dvp, ap->a_vpp, cnp->cn_nameptr, vap,
+	    ap->a_target, cnp->cn_cred, cnp->cn_thread));
+}
+
+static int
+zfs_freebsd_readlink(ap)
+	struct vop_readlink_args /* {
+		struct vnode *a_vp;
+		struct uio *a_uio;
+		struct ucred *a_cred;
+	} */ *ap;
+{
+
+	return (zfs_readlink(ap->a_vp, ap->a_uio, ap->a_cred));
+}
+
+static int
+zfs_freebsd_link(ap)
+	struct vop_link_args /* {
+		struct vnode *a_tdvp;
+		struct vnode *a_vp;
+		struct componentname *a_cnp;
+	} */ *ap;
+{
+	struct componentname *cnp = ap->a_cnp;
+
+	ASSERT(cnp->cn_flags & SAVENAME);
+
+	return (zfs_link(ap->a_tdvp, ap->a_vp, cnp->cn_nameptr, cnp->cn_cred));
+}
+
+static int
+zfs_freebsd_inactive(ap)
+        struct vop_inactive_args /* {
+                struct vnode *a_vp;
+                struct thread *a_td;
+        } */ *ap;
+{
+	vnode_t *vp = ap->a_vp;
+
+	/*
+	 * Destroy the vm object and flush associated pages.
+	 */
+	vnode_destroy_vobject(vp);
+
+	zfs_inactive(vp, ap->a_td->td_ucred);
+	return (0);
+}
+
+static int
+zfs_freebsd_reclaim(ap)
+	struct vop_reclaim_args /* {
+		struct vnode *a_vp;
+		struct thread *a_td;
+	} */ *ap;
+{
+        vnode_t	*vp = ap->a_vp;
+	znode_t	*zp = VTOZ(vp);
+
+	if (zp != NULL)
+		mutex_enter(&zp->z_lock);
+#if 0	/*
+	 * We do it from zfs_inactive(), because after zfs_inactive() we can't
+	 * VOP_WRITE() to the vnode.
+	 */
+	/*
+	 * Destroy the vm object and flush associated pages.
+	 */
+	vnode_destroy_vobject(vp);
+#endif
+	VI_LOCK(vp);
+	vp->v_data = NULL;
+	if (zp != NULL)
+		zp->z_vnode = NULL;
+	ASSERT(vp->v_holdcnt > 1);
+	vdropl(vp);
+	if (zp != NULL)
+		mutex_exit(&zp->z_lock);
+	return (0);
+}
+
+static int
+zfs_freebsd_fid(ap)
+	struct vop_fid_args /* {
+		struct vnode *a_vp;
+		struct fid *a_fid;
+	} */ *ap;
+{
+
+	return (zfs_fid(ap->a_vp, (void *)ap->a_fid));
+}
+
+static int
+zfs_freebsd_pathconf(ap)
+	struct vop_pathconf_args /* {
+		struct vnode *a_vp;
+		int a_name;
+		register_t *a_retval;
+	} */ *ap;
+{
+	ulong_t val;
+	int error;
+
+	error = zfs_pathconf(ap->a_vp, ap->a_name, &val, curthread->td_ucred);
+	if (error == 0)
+		*ap->a_retval = val;
+	else if (error == EOPNOTSUPP)
+		error = vop_stdpathconf(ap);
+	return (error);
+}
+
 /*
  * Advisory record locking support
  */
 static int
-zfs_advlock(ap)
+zfs_freebsd_advlock(ap)
 	struct vop_advlock_args /* {
 		struct vnode *a_vp;
 		caddr_t  a_id;
@@ -3191,48 +3491,48 @@ struct vop_vector zfs_fifoops;
 
 struct vop_vector zfs_vnodeops = {
 	.vop_default =	&default_vnodeops,
-	.vop_inactive =	zfs_inactive,
-	.vop_reclaim =	zfs_reclaim,
-	.vop_access =	zfs_access,
+	.vop_inactive =	zfs_freebsd_inactive,
+	.vop_reclaim =	zfs_freebsd_reclaim,
+	.vop_access =	zfs_freebsd_access,
 #ifdef FREEBSD_NAMECACHE
 	.vop_lookup =	vfs_cache_lookup,
-	.vop_cachedlookup = zfs_lookup,
+	.vop_cachedlookup = zfs_freebsd_lookup,
 #else
-	.vop_lookup =	zfs_lookup,
+	.vop_lookup =	zfs_freebsd_lookup,
 #endif
-	.vop_getattr =	zfs_getattr,
-	.vop_setattr =	zfs_setattr,
-	.vop_create =	zfs_create,
-	.vop_mknod =	zfs_create,
-	.vop_mkdir =	zfs_mkdir,
-	.vop_readdir =	zfs_readdir,
-	.vop_fsync =	zfs_fsync,
-	.vop_open =	zfs_open,
-	.vop_close =	zfs_close,
-	.vop_rmdir =	zfs_rmdir,
-	.vop_ioctl =	zfs_ioctl,
-	.vop_link =	zfs_link,
-	.vop_symlink =	zfs_symlink,
-	.vop_readlink =	zfs_readlink,
-	.vop_read =	zfs_read,
-	.vop_write =	zfs_write,
-	.vop_remove =	zfs_remove,
-	.vop_rename =	zfs_rename,
-	.vop_advlock =	zfs_advlock,
-	.vop_pathconf =	zfs_pathconf,
+	.vop_getattr =	zfs_freebsd_getattr,
+	.vop_setattr =	zfs_freebsd_setattr,
+	.vop_create =	zfs_freebsd_create,
+	.vop_mknod =	zfs_freebsd_create,
+	.vop_mkdir =	zfs_freebsd_mkdir,
+	.vop_readdir =	zfs_freebsd_readdir,
+	.vop_fsync =	zfs_freebsd_fsync,
+	.vop_open =	zfs_freebsd_open,
+	.vop_close =	zfs_freebsd_close,
+	.vop_rmdir =	zfs_freebsd_rmdir,
+	.vop_ioctl =	zfs_freebsd_ioctl,
+	.vop_link =	zfs_freebsd_link,
+	.vop_symlink =	zfs_freebsd_symlink,
+	.vop_readlink =	zfs_freebsd_readlink,
+	.vop_read =	zfs_freebsd_read,
+	.vop_write =	zfs_freebsd_write,
+	.vop_remove =	zfs_freebsd_remove,
+	.vop_rename =	zfs_freebsd_rename,
+	.vop_advlock =	zfs_freebsd_advlock,
+	.vop_pathconf =	zfs_freebsd_pathconf,
 	.vop_bmap =	VOP_EOPNOTSUPP,
-	.vop_fid =	zfs_fid,
+	.vop_fid =	zfs_freebsd_fid,
 };
 
 struct vop_vector zfs_fifoops = { 
 	.vop_default =	&fifo_specops,
 	.vop_fsync =	VOP_PANIC,
-	.vop_access =	zfs_access,
-	.vop_getattr =	zfs_getattr,
-	.vop_inactive =	zfs_inactive,
+	.vop_access =	zfs_freebsd_access,
+	.vop_getattr =	zfs_freebsd_getattr,
+	.vop_inactive =	zfs_freebsd_inactive,
 	.vop_read =	VOP_PANIC,
-	.vop_reclaim =	zfs_reclaim,
-	.vop_setattr =	zfs_setattr,
+	.vop_reclaim =	zfs_freebsd_reclaim,
+	.vop_setattr =	zfs_freebsd_setattr,
 	.vop_write =	VOP_PANIC,
-	.vop_fid =	zfs_fid,
+	.vop_fid =	zfs_freebsd_fid,
 };

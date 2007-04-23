@@ -29,12 +29,17 @@
 #ifndef _OPENSOLARIS_SYS_MISC_H_
 #define	_OPENSOLARIS_SYS_MISC_H_
 
+#define	_FIOFFS		(INT_MIN)
+#define	_FIOGDIO	(INT_MIN+1)
+#define	_FIOSDIO	(INT_MIN+2)
+
+#define	_FIO_SEEK_DATA	FIOSEEKDATA
+#define	_FIO_SEEK_HOLE	FIOSEEKHOLE
+
 struct opensolaris_utsname {
 	char *nodename;
 };
 
 extern char hw_serial[11];
 extern struct opensolaris_utsname utsname;
-
-int ddi_strtoul(const char *str, char **nptr, int base, unsigned long *result);
 #endif	/* _OPENSOLARIS_SYS_MISC_H_ */
