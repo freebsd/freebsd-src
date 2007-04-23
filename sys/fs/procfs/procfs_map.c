@@ -42,6 +42,7 @@
 #include <sys/lock.h>
 #include <sys/filedesc.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
@@ -81,12 +82,13 @@ int
 procfs_doprocmap(PFS_FILL_ARGS)
 {
 	int len;
-	int error;
+	int error, vfslocked;
 	vm_map_t map = &p->p_vmspace->vm_map;
-	pmap_t pmap = vmspace_pmap(p->p_vmspace);
-	vm_map_entry_t entry;
+	vm_map_entry_t entry, tmp_entry;
+	struct vnode *vp;
 	char mebuffer[MEBUFFERSIZE];
 	char *fullpath, *freepath;
+	unsigned int last_timestamp;
 #ifdef COMPAT_IA32
 	int wrap32 = 0;
 #endif
@@ -111,11 +113,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
         }
 #endif
 
-	mtx_lock(&Giant);
-
-	error = 0;
-	if (map != &curthread->td_proc->p_vmspace->vm_map)
-		vm_map_lock_read(map);
+	vm_map_lock_read(map);
 	for (entry = map->header.next;
 		((uio->uio_resid > 0) && (entry != &map->header));
 		entry = entry->next) {
@@ -128,22 +126,29 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
 
+		privateresident = 0;
 		obj = entry->object.vm_object;
-		if (obj && (obj->shadow_count == 1))
-			privateresident = obj->resident_page_count;
-		else
-			privateresident = 0;
+		if (obj != NULL) {
+			VM_OBJECT_LOCK(obj);
+			if (obj->shadow_count == 1)
+				privateresident = obj->resident_page_count;
+		}
 
 		resident = 0;
 		addr = entry->start;
 		while (addr < entry->end) {
-			if (pmap_extract( pmap, addr))
+			if (pmap_extract(map->pmap, addr))
 				resident++;
 			addr += PAGE_SIZE;
 		}
 
-		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object)
+		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
+			if (tobj != obj)
+				VM_OBJECT_LOCK(tobj);
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
 			lobj = tobj;
+		}
 
 		freepath = NULL;
 		fullpath = "-";
@@ -152,25 +157,36 @@ procfs_doprocmap(PFS_FILL_ARGS)
 			default:
 			case OBJT_DEFAULT:
 				type = "default";
+				vp = NULL;
 				break;
 			case OBJT_VNODE:
 				type = "vnode";
-				vn_fullpath(td,
-				    (struct vnode *)lobj->handle,
-				    &fullpath,
-				    &freepath);
+				vp = lobj->handle;
+				vref(vp);
 				break;
 			case OBJT_SWAP:
 				type = "swap";
+				vp = NULL;
 				break;
 			case OBJT_DEVICE:
 				type = "device";
+				vp = NULL;
 				break;
 			}
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
 
 			flags = obj->flags;
 			ref_count = obj->ref_count;
 			shadow_count = obj->shadow_count;
+			VM_OBJECT_UNLOCK(obj);
+			if (vp != NULL) {
+				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+				vn_fullpath(td, vp, &fullpath, &freepath);
+				vput(vp);
+				VFS_UNLOCK_GIANT(vfslocked);
+			}
 		} else {
 			type = "none";
 			flags = 0;
@@ -207,14 +223,22 @@ procfs_doprocmap(PFS_FILL_ARGS)
 			error = EFBIG;
 			break;
 		}
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
 		error = uiomove(mebuffer, len, uio);
+		vm_map_lock_read(map);
 		if (error)
 			break;
+		if (last_timestamp + 1 != map->timestamp) {
+			/*
+			 * Look again for the entry because the map was
+			 * modified while it was unlocked.  Specifically,
+			 * the entry may have been clipped, merged, or deleted.
+			 */
+			vm_map_lookup_entry(map, addr - 1, &tmp_entry);
+			entry = tmp_entry;
+		}
 	}
-	if (map != &curthread->td_proc->p_vmspace->vm_map)
-		vm_map_unlock_read(map);
-
-	mtx_unlock(&Giant);
-
+	vm_map_unlock_read(map);
 	return (error);
 }
