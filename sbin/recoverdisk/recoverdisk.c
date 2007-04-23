@@ -56,6 +56,21 @@ static struct lump *lp;
 static char *wworklist = NULL;
 static char *rworklist = NULL;
 
+
+#define PRINT_HEADER \
+	printf("%13s %7s %13s %5s %13s %13s %9s\n", \
+		"start", "size", "block-len", "state", "done", "remaining", "% done")
+
+#define PRINT_STATUS(start, i, len, state, d, t) \
+	printf("\r%13jd %7zu %13jd %5d %13jd %13jd %9.5f", \
+		(intmax_t)start, \
+		i,  \
+		(intmax_t)len, \
+		state, \
+		(intmax_t)d, \
+		(intmax_t)(t - d), \
+		100*(double)d/(double)t)
+
 /* Save the worklist if -w was given */
 static void
 save_worklist(void)
@@ -138,9 +153,9 @@ main(int argc, char * const argv[])
 {
 	int ch;
 	int fdr, fdw;
-	off_t t, d;
+	off_t t, d, start, len;
 	size_t i, j;
-	int error, flags;
+	int error, flags, state;
 	u_char *buf;
 	u_int sectorsize;
 	time_t t1, t2;
@@ -221,13 +236,18 @@ main(int argc, char * const argv[])
 		signal(SIGINT, sighandler);
 
 	t1 = 0;
-	printf("%13s %7s %13s %5s %13s %13s %9s\n",
-	    "start", "size", "len", "state", "done", "remaining", "% done");
+	start = len = i = state = 0;
+	PRINT_HEADER;
 	for (;;) {
 		lp = TAILQ_FIRST(&lumps);
 		if (lp == NULL)
 			break;
 		while (lp->len > 0 && !aborting) {
+			/* These are only copied for printing stats */
+			start = lp->start;
+			len = lp->len;
+			state = lp->state;
+
 			i = MIN(lp->len, (off_t)bigsize);
 			if (lp->state == 1)
 				i = MIN(lp->len, (off_t)medsize);
@@ -235,14 +255,7 @@ main(int argc, char * const argv[])
 				i = MIN(lp->len, (off_t)minsize);
 			time(&t2);
 			if (t1 != t2 || lp->len < (off_t)bigsize) {
-				printf("\r%13jd %7zu %13jd %5d %13jd %13jd %.7f",
-				    (intmax_t)lp->start,
-				    i, 
-				    (intmax_t)lp->len,
-				    lp->state,
-				    (intmax_t)d,
-				    (intmax_t)(t - d),
-				    (double)d/(double)t);
+				PRINT_STATUS(start, i, len, state, d, t);
 				t1 = t2;
 			}
 			if (i == 0) {
@@ -275,6 +288,7 @@ main(int argc, char * const argv[])
 		TAILQ_REMOVE(&lumps, lp, list);
 		free(lp);
 	}
+	PRINT_STATUS(start, i, len, state, d, t);
 	printf("\nCompleted\n");
 	return (0);
 }
