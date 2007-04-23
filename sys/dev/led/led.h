@@ -14,6 +14,7 @@
 
 typedef	void led_t(void *, int);
 
+struct cdev *led_create_state(led_t *, void *, char const *, int);
 struct cdev *led_create(led_t *, void *, char const *);
 void	led_destroy(struct cdev *);
 
