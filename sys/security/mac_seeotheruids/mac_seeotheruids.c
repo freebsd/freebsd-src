@@ -36,6 +36,7 @@
 
 /*
  * Developed by the TrustedBSD Project.
+ *
  * Prevent processes owned by a particular uid from seeing various transient
  * kernel objects associated with other uids.
  */
@@ -92,27 +93,28 @@ SYSCTL_INT(_security_mac_seeotheruids, OID_AUTO, specificgid, CTLFLAG_RW,
     &specificgid, 0, "Specific gid to be exempt from seeotheruids policy");
 
 static int
-mac_seeotheruids_check(struct ucred *u1, struct ucred *u2)
+mac_seeotheruids_check(struct ucred *cr1, struct ucred *cr2)
 {
 
 	if (!mac_seeotheruids_enabled)
 		return (0);
 
 	if (primarygroup_enabled) {
-		if (u1->cr_rgid == u2->cr_rgid)
+		if (cr1->cr_rgid == cr2->cr_rgid)
 			return (0);
 	}
 
 	if (specificgid_enabled) {
-		if (u1->cr_rgid == specificgid || groupmember(specificgid, u1))
+		if (cr1->cr_rgid == specificgid ||
+		    groupmember(specificgid, cr1))
 			return (0);
 	}
 
-	if (u1->cr_ruid == u2->cr_ruid)
+	if (cr1->cr_ruid == cr2->cr_ruid)
 		return (0);
 
 	if (suser_privileged) {
-		if (priv_check_cred(u1, PRIV_SEEOTHERUIDS, SUSER_ALLOWJAIL)
+		if (priv_check_cred(cr1, PRIV_SEEOTHERUIDS, SUSER_ALLOWJAIL)
 		    == 0)
 			return (0);
 	}
@@ -121,40 +123,40 @@ mac_seeotheruids_check(struct ucred *u1, struct ucred *u2)
 }
 
 static int
-mac_seeotheruids_check_cred_visible(struct ucred *u1, struct ucred *u2)
+mac_seeotheruids_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 {
 
-	return (mac_seeotheruids_check(u1, u2));
+	return (mac_seeotheruids_check(cr1, cr2));
 }
 
 static int
-mac_seeotheruids_check_proc_signal(struct ucred *cred, struct proc *proc,
+mac_seeotheruids_check_proc_signal(struct ucred *cred, struct proc *p,
     int signum)
 {
 
-	return (mac_seeotheruids_check(cred, proc->p_ucred));
+	return (mac_seeotheruids_check(cred, p->p_ucred));
 }
 
 static int
-mac_seeotheruids_check_proc_sched(struct ucred *cred, struct proc *proc)
+mac_seeotheruids_check_proc_sched(struct ucred *cred, struct proc *p)
 {
 
-	return (mac_seeotheruids_check(cred, proc->p_ucred));
+	return (mac_seeotheruids_check(cred, p->p_ucred));
 }
 
 static int
-mac_seeotheruids_check_proc_debug(struct ucred *cred, struct proc *proc)
+mac_seeotheruids_check_proc_debug(struct ucred *cred, struct proc *p)
 {
 
-	return (mac_seeotheruids_check(cred, proc->p_ucred));
+	return (mac_seeotheruids_check(cred, p->p_ucred));
 }
 
 static int
-mac_seeotheruids_check_socket_visible(struct ucred *cred, struct socket *socket,
-    struct label *socketlabel)
+mac_seeotheruids_check_socket_visible(struct ucred *cred, struct socket *so,
+    struct label *solabel)
 {
 
-	return (mac_seeotheruids_check(cred, socket->so_cred));
+	return (mac_seeotheruids_check(cred, so->so_cred));
 }
 
 static struct mac_policy_ops mac_seeotheruids_ops =
