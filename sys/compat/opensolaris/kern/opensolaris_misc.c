@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/misc.h>
+#include <sys/sunddi.h>
 
 char hw_serial[11] = "0";
 

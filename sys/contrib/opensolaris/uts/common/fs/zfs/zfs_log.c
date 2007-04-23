@@ -37,6 +37,7 @@
 #include <sys/zfs_dir.h>
 #include <sys/zil.h>
 #include <sys/byteorder.h>
+#include <sys/policy.h>
 #include <sys/stat.h>
 #include <sys/acl.h>
 #include <sys/dmu.h>
@@ -234,7 +235,7 @@ zfs_log_write(zilog_t *zilog, dmu_tx_t *tx, int txtype,
 	 */
 	if (len > zfs_immediate_write_sz)
 		write_state = WR_INDIRECT;
-	else if (ioflag & IO_SYNC)
+	else if (ioflag & FDSYNC)
 		write_state = WR_COPIED;
 	else
 		write_state = WR_NEED_COPY;

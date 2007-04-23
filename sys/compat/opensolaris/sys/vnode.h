@@ -40,6 +40,7 @@
 
 typedef	struct vnode	vnode_t;
 typedef	struct vattr	vattr_t;
+typedef	void		caller_context_t;
 
 typedef	struct vop_vector	vnodeops_t;
 #define	vop_fid		vop_vptofh
@@ -63,10 +64,24 @@ vn_is_readonly(vnode_t *vp)
 #define	VN_RELE(v)	vrele(v)
 #define	VN_URELE(v)	vput(v)
 
+#define	VOP_REALVP(vp, vpp)	(*(vpp) = (vp), 0)
+
+#define	vnevent_remove(vp)	do { } while (0)
+#define	vnevent_rmdir(vp)	do { } while (0)
+#define	vnevent_rename_src(vp)	do { } while (0)
+#define	vnevent_rename_dest(vp)	do { } while (0)
+
+
 #define	IS_DEVVP(vp)	\
 	((vp)->v_type == VCHR || (vp)->v_type == VBLK || (vp)->v_type == VFIFO)
 
 #define	MODEMASK	ALLPERMS
+
+#define	specvp(vp, rdev, type, cr)	(VN_HOLD(vp), (vp))
+#define	MANDMODE(mode)	(0)
+#define	chklock(vp, op, offset, size, mode, ct)	(0)
+#define	cleanlocks(vp, pid, foo)	do { } while (0)
+#define	cleanshares(vp, pid)		do { } while (0)
 
 /*
  * We will use va_spare is place of Solaris' va_mask.
@@ -79,6 +94,9 @@ vn_is_readonly(vnode_t *vp)
 #define	va_nblocks	va_bytes
 #define	va_blksize	va_blocksize
 #define	va_seq		va_gen
+
+#define	MAXOFFSET_T	OFF_MAX
+#define	EXCL		0
 
 #define	AT_TYPE		0x0001
 #define	AT_MODE		0x0002
@@ -95,6 +113,8 @@ vn_is_readonly(vnode_t *vp)
 #define	AT_BLKSIZE	0x1000
 #define	AT_NBLOCKS	0x2000
 #define	AT_SEQ		0x4000
+#define	AT_NOSET	(AT_NLINK|AT_RDEV|AT_FSID|AT_NODEID|AT_TYPE|\
+			 AT_BLKSIZE|AT_NBLOCKS|AT_SEQ)
 
 #define	ACCESSED		(AT_ATIME)
 #define	STATE_CHANGED		(AT_CTIME)
@@ -122,10 +142,15 @@ vattr_init_mask(vattr_t *vap)
 		vap->va_mask |= AT_MODE;
 }
 
-enum create	{ CRCREAT };
 #define	FCREAT	O_CREAT
 #define	FTRUNC	O_TRUNC
+#define	FDSYNC	FFSYNC
+#define	FRSYNC	FFSYNC
+#define	FSYNC	FFSYNC
 #define	FOFFMAX	0x00
+
+enum create	{ CRCREAT };
+
 static __inline int
 zfs_vn_open(char *pnamep, enum uio_seg seg, int filemode, int createmode,
     vnode_t **vpp, enum create crwhy, mode_t umask)
@@ -185,7 +210,6 @@ zfs_vn_rdwr(enum uio_rw rw, vnode_t *vp, caddr_t base, ssize_t len,
 #define	vn_rdwr(rw, vp, base, len, offset, seg, ioflag, ulimit, cr, residp) \
 	zfs_vn_rdwr((rw), (vp), (base), (len), (offset), (seg), (ioflag), (ulimit), (cr), (residp))
 
-#define	FSYNC	MNT_WAIT
 static __inline int
 zfs_vop_fsync(vnode_t *vp, int flag, cred_t *cr)
 {
@@ -199,7 +223,7 @@ zfs_vop_fsync(vnode_t *vp, int flag, cred_t *cr)
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_FSYNC(vp, flag, td);
+	error = VOP_FSYNC(vp, MNT_WAIT, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 drop:

@@ -25,6 +25,7 @@
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -35,6 +36,7 @@
 #include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/uio.h>
+#include <sys/buf.h>
 #include <sys/file.h>
 #include <sys/kmem.h>
 #include <sys/conf.h>
@@ -50,6 +52,9 @@
 #include <sys/dsl_dir.h>
 #include <sys/dsl_dataset.h>
 #include <sys/dsl_prop.h>
+#include <sys/sunddi.h>
+#include <sys/policy.h>
+#include <sys/zone.h>
 #include <sys/nvpair.h>
 #include <sys/mount.h>
 #include <sys/taskqueue.h>

@@ -35,6 +35,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/utsname.h>
+#include <sys/sunddi.h>
 #ifdef _KERNEL
 #include <sys/kobj.h>
 #endif
