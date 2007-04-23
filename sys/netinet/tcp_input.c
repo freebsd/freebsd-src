@@ -751,9 +751,9 @@ findpcb:
 	if (inp->inp_vflag & INP_TIMEWAIT) {
 		if (thflags & TH_SYN)
 			tcp_dooptions(&to, optp, optlen, TO_SYN);
+		/* NB: tcp_timewait unlocks the INP and frees the mbuf. */
 		if (tcp_timewait(inp, &to, th, m, tlen))
 			goto findpcb;
-		/* tcp_timewait unlocks inp. */
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
 	}
@@ -764,7 +764,6 @@ findpcb:
 	 */
 	tp = intotcpcb(inp);
 	if (tp == NULL) {
-		INP_UNLOCK(inp);
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
 	}
@@ -833,6 +832,10 @@ findpcb:
 				 * timestamp.
 				 */
 				tcp_dooptions(&to, optp, optlen, 0);
+				/*
+				 * NB: syncache_expand() doesn't unlock
+				 * inp and tcpinfo locks.
+				 */
 				if (!syncache_expand(&inc, &to, th, &so, m)) {
 					/*
 					 * No syncache entry or ACK was not
@@ -925,8 +928,6 @@ findpcb:
 
 			if ((ia6 = ip6_getdstifaddr(m)) &&
 			    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
-				INP_UNLOCK(inp);
-				tp = NULL;
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 			}
@@ -998,7 +999,7 @@ dropwithreset:
 	m = NULL;	/* mbuf chain got consumed. */
 dropunlock:
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	if (tp != NULL)
+	if (inp != NULL)
 		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
 drop:
