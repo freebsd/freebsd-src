@@ -1122,6 +1122,10 @@ ng_l2tp_recv_data(node_p node, item_p item, hookpriv_p hpriv)
 	hpriv->stats.xmitPackets++;
 	hpriv->stats.xmitOctets += m->m_pkthdr.len;
 
+	/* And the global one. */
+	priv->stats.xmitPackets++;
+	priv->stats.xmitOctets += m->m_pkthdr.len;
+
 	/* Send packet */
 	NG_FWD_NEW_DATA(error, item, priv->lower, m);
 	return (error);
