@@ -53,6 +53,7 @@ BEGIN {
 			symver = $1;
 			versions[symver] = 1;
 			successors[symver] = "";
+			generated[symver] = 0;
 			version_count++;
 		}
 		else if (/^[ \t]*} *[a-zA-Z0-9._]+ *;/) {
@@ -141,26 +142,42 @@ BEGIN {
 	    FILENAME, FNR, $0) > stderr;
 }
 
+function print_version(v)
+{
+	# This function is recursive, so return if this version
+	# has already been printed.  Otherwise, if there is an
+	# ancestral version, recursively print its symbols before
+	# printing the symbols for this version.
+	#
+	if (generated[v] == 1)
+		return;
+	if (successors[v] != "")
+		print_version(successors[v]);
+
+	printf("%s {\n", v);
+
+	# The version count is always one more that actual,
+	# so the loop ranges from 1 to n-1.
+	#
+	for (i = 1; i < versions[v]; i++) {
+		if (i == 1)
+			printf("global:\n");
+		printf("\t%s\n", symbols[v, i]);
+	}
+	if (successors[v] == "") {
+		# This version succeeds no other version.
+		printf("local:\n");
+		printf("\t*;\n");
+		printf("};\n");
+	}
+	else
+		printf("} %s;\n", successors[v]);
+	printf("\n");
+
+	generated[v] = 1;
+    }
 END {
 	for (v in versions) {
-		printf("\n");
-		printf("%s {\n", v);
-
-		# The version count is always one more that actual,
-		# so the loop ranges from 1 to n-1.
-		#
-		for (i = 1; i < versions[v]; i++) {
-			if (i == 1)
-				printf("global:\n");
-			printf("\t%s\n", symbols[v, i]);
-		}
-		if (successors[v] == "") {
-			# This version succeeds no other version.
-			printf("local:\n");
-			printf("\t*;\n");
-			printf("};\n");
-		}
-		else
-			printf("} %s;\n", successors[v]);
+		print_version(v);
 	}
 }
