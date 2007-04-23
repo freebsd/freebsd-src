@@ -57,6 +57,7 @@
 #include <sys/dsl_synctask.h>
 #include <sys/fs/zfs.h>
 #include <sys/callb.h>
+#include <sys/sunddi.h>
 
 int zio_taskq_threads = 0;
 SYSCTL_DECL(_vfs_zfs);
