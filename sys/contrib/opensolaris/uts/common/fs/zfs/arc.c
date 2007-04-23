@@ -2802,13 +2802,14 @@ arc_init(void)
 #ifdef _KERNEL
 	/* Warn about ZFS memory requirements. */
 	if (((uint64_t)physmem * PAGESIZE) < (256 + 128 + 64) * (1 << 20)) {
-		printf("ZFS WARNING: Recomended minimum of RAM size is 512MB, "
-		    "expect unstable behaviour.\n");
+		printf("ZFS WARNING: Recommended minimum RAM size is 512MB; "
+		    "expect unstable behavior.\n");
 	} else if (kmem_size() < 256 * (1 << 20)) {
-		printf("ZFS WARNING: Recomended minimum of kmem_map size is "
-		    "256MB, expect unstable behaviour.\n");
-		printf("             Consider tunning vm.kmem_size and "
-		    "vm.kmem_size_max in /boot/loader.conf.\n");
+		printf("ZFS WARNING: Recommended minimum kmem_size is 256MB; "
+		    "expect unstable behavior.\n");
+		printf("             Consider tuning vm.kmem_size or "
+		    "vm.kmem_size_min\n");
+		printf("             in /boot/loader.conf.\n");
 	}
 #endif
 }
