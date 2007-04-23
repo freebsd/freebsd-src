@@ -401,7 +401,7 @@ struct vr_desc {
 #define VR_TX_LIST_CNT		256
 #define VR_MIN_FRAMELEN		60
 #define VR_FRAMELEN		1536
-#define VR_RXLEN		1520
+#define VR_RXLEN		1524
 
 struct vr_mii_frame {
 	u_int8_t		mii_stdelim;
