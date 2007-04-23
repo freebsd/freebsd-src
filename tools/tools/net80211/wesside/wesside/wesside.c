@@ -116,6 +116,7 @@ unsigned short floodsport = 53;
 
 unsigned char* netip = 0;
 int netip_arg = 0;
+int max_chan = 11;
 
 unsigned char* rtrmac = 0;
 
@@ -155,7 +156,7 @@ unsigned int min_prga =  128;
 #define CRACK_LOCAL_CMD "../aircrack/aircrack"
 #define CRACK_INSTALL_CMD "/usr/local/bin/aircrack"
 
-#define INCR 30000
+#define INCR 10000
 int thresh_incr = INCR;
 
 #define MAGIC_TTL_PAD 69
@@ -1104,6 +1105,11 @@ void stuff_for_us(struct ieee80211_frame* wh, int len) {
 				time_print("Associated (ID=%x)\n", aid);
 				state = GOT_ASSOC;
 				return;
+		        } else if (*sc == 12) {
+                                time_print("Assoc rejected..."
+                                           " trying to spoof mac.\n");
+                                state = SPOOF_MAC;
+                                return;
 			} else {
 				time_print("got assoc %x\n", *sc);
 				exit(1);
@@ -2105,9 +2111,11 @@ void can_write(int tx) {
 void save_key(unsigned char *key, int len)
 {
 	char tmp[16];
-	char k[32];
+	char k[64];
 	int fd;
 	int rd;
+
+	assert(len*3 < sizeof(k));
 
 	k[0] = 0;
 	while (len--) {
@@ -2178,11 +2186,6 @@ void try_crack() {
 		err(1, "gettimeofday");
 
 	
-	// XXX lame...
-	if (wep_thresh == 3000000) {
-		crack_dur *= 10;
-		thresh_incr *= 10;
-	}
 	wep_thresh += thresh_incr;
 }
 
@@ -2641,7 +2644,7 @@ void own(int wifd) {
 				int chan = chaninfo.chan;
 				chan++;
 
-				if(chan > 11)
+				if(chan > max_chan)
 					chan = 1;
 				
 				set_chan(chan);
@@ -2731,6 +2734,8 @@ void usage(char* pname) {
 	printf("-p\t\t<min prga>\n");
 	printf("-4\t\t64 bit key\n");
 	printf("-v\t\tvictim mac\n");
+	printf("-t\t\t<crack thresh>\n");
+	printf("-f\t\t<max chan>\n");
 	exit(0);
 }
 
@@ -2773,7 +2778,7 @@ int main(int argc, char *argv[]) {
 
 	state = FIND_VICTIM;
 
-	while ((ch = getopt(argc, argv, "hi:s:m:r:a:n:cp:4v:")) != -1) {
+	while ((ch = getopt(argc, argv, "hi:s:m:r:a:n:cp:4v:t:f:")) != -1) {
 		switch (ch) {
 			case 'a':
 				str2mac(mymac, optarg);
@@ -2813,6 +2818,14 @@ int main(int argc, char *argv[]) {
 
 			case 'p':
 				min_prga = atoi(optarg);
+				break;
+
+			case 't':
+				thresh_incr = wep_thresh = atoi(optarg);
+				break;
+
+			case 'f':
+				max_chan = atoi(optarg);
 				break;
 
 			case '4':
