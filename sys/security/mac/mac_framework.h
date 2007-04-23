@@ -91,7 +91,7 @@ struct vop_setlabel_args;
  */
 void	mac_init_bpfdesc(struct bpf_d *);
 void	mac_init_cred(struct ucred *);
-void	mac_init_devfsdirent(struct devfs_dirent *);
+void	mac_init_devfs(struct devfs_dirent *);
 void	mac_init_ifnet(struct ifnet *);
 int	mac_init_inpcb(struct inpcb *, int);
 void	mac_init_sysv_msgmsg(struct msg *);
@@ -112,7 +112,7 @@ void	mac_copy_mbuf_tag(struct m_tag *, struct m_tag *);
 void	mac_copy_vnode_label(struct label *, struct label *);
 void	mac_destroy_bpfdesc(struct bpf_d *);
 void	mac_destroy_cred(struct ucred *);
-void	mac_destroy_devfsdirent(struct devfs_dirent *);
+void	mac_destroy_devfs(struct devfs_dirent *);
 void	mac_destroy_ifnet(struct ifnet *);
 void	mac_destroy_inpcb(struct inpcb *);
 void	mac_destroy_sysv_msgmsg(struct msg *);
@@ -152,7 +152,7 @@ int	mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 void	mac_create_mount(struct ucred *cred, struct mount *mp);
 void	mac_relabel_vnode(struct ucred *cred, struct vnode *vp,
 	    struct label *newlabel);
-void	mac_update_devfsdirent(struct mount *mp, struct devfs_dirent *de,
+void	mac_update_devfs(struct mount *mp, struct devfs_dirent *de,
 	    struct vnode *vp);
 
 /*

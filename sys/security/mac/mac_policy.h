@@ -117,7 +117,7 @@ typedef void	(*mpo_placeholder_t)(void);
  */
 typedef void	(*mpo_init_bpfdesc_label_t)(struct label *label);
 typedef void	(*mpo_init_cred_label_t)(struct label *label);
-typedef void	(*mpo_init_devfsdirent_label_t)(struct label *label);
+typedef void	(*mpo_init_devfs_label_t)(struct label *label);
 typedef void	(*mpo_init_ifnet_label_t)(struct label *label);
 typedef int	(*mpo_init_inpcb_label_t)(struct label *label, int flag);
 typedef void	(*mpo_init_sysv_msgmsg_label_t)(struct label *label);
@@ -136,7 +136,7 @@ typedef void	(*mpo_init_proc_label_t)(struct label *label);
 typedef void	(*mpo_init_vnode_label_t)(struct label *label);
 typedef void	(*mpo_destroy_bpfdesc_label_t)(struct label *label);
 typedef void	(*mpo_destroy_cred_label_t)(struct label *label);
-typedef void	(*mpo_destroy_devfsdirent_label_t)(struct label *label);
+typedef void	(*mpo_destroy_devfs_label_t)(struct label *label);
 typedef void	(*mpo_destroy_ifnet_label_t)(struct label *label);
 typedef void	(*mpo_destroy_inpcb_label_t)(struct label *label);
 typedef void	(*mpo_destroy_sysv_msgmsg_label_t)(struct label *label);
@@ -227,7 +227,7 @@ typedef void	(*mpo_relabel_vnode_t)(struct ucred *cred, struct vnode *vp,
 typedef int	(*mpo_setlabel_vnode_extattr_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel,
 		    struct label *intlabel);
-typedef void	(*mpo_update_devfsdirent_t)(struct mount *mp,
+typedef void	(*mpo_update_devfs_t)(struct mount *mp,
 		    struct devfs_dirent *de, struct label *delabel,
 		    struct vnode *vp, struct label *vplabel);
 
@@ -630,7 +630,7 @@ struct mac_policy_ops {
 	 */
 	mpo_init_bpfdesc_label_t		mpo_init_bpfdesc_label;
 	mpo_init_cred_label_t			mpo_init_cred_label;
-	mpo_init_devfsdirent_label_t		mpo_init_devfsdirent_label;
+	mpo_init_devfs_label_t			mpo_init_devfs_label;
 	mpo_placeholder_t			_mpo_placeholder0;
 	mpo_init_ifnet_label_t			mpo_init_ifnet_label;
 	mpo_init_inpcb_label_t			mpo_init_inpcb_label;
@@ -649,7 +649,7 @@ struct mac_policy_ops {
 	mpo_init_vnode_label_t			mpo_init_vnode_label;
 	mpo_destroy_bpfdesc_label_t		mpo_destroy_bpfdesc_label;
 	mpo_destroy_cred_label_t		mpo_destroy_cred_label;
-	mpo_destroy_devfsdirent_label_t		mpo_destroy_devfsdirent_label;
+	mpo_destroy_devfs_label_t		mpo_destroy_devfs_label;
 	mpo_placeholder_t			_mpo_placeholder1;
 	mpo_destroy_ifnet_label_t		mpo_destroy_ifnet_label;
 	mpo_destroy_inpcb_label_t		mpo_destroy_inpcb_label;
@@ -706,7 +706,7 @@ struct mac_policy_ops {
 	mpo_create_mount_t			mpo_create_mount;
 	mpo_relabel_vnode_t			mpo_relabel_vnode;
 	mpo_setlabel_vnode_extattr_t		mpo_setlabel_vnode_extattr;
-	mpo_update_devfsdirent_t		mpo_update_devfsdirent;
+	mpo_update_devfs_t			mpo_update_devfs;
 
 	/*
 	 * Labeling event operations: IPC objects.
