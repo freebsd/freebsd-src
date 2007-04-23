@@ -214,12 +214,31 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 void
 _pthread_set_name_np(pthread_t thread, char *name)
 {
-	/* Check if the caller has specified a valid thread: */
-	if (thread != NULL && thread->magic == THR_MAGIC) {
-		if (thread->name != NULL) {
-			/* Free space for previous name. */
-			free(thread->name);
-		}
-		thread->name = strdup(name);
+	struct pthread *curthread = _get_curthread();
+	char *new_name;
+	char *prev_name;
+	int ret;
+
+	new_name = strdup(name);
+	/* Add a reference to the target thread. */
+	if (_thr_ref_add(curthread, thread, 0) != 0) {
+		free(new_name);
+		ret = ESRCH;
 	}
+	else {
+		THR_THREAD_LOCK(curthread, thread);
+		prev_name = thread->name;
+		thread->name = new_name;
+		THR_THREAD_UNLOCK(curthread, thread);
+		_thr_ref_delete(curthread, thread);
+		if (prev_name != NULL) {
+			/* Free space for previous name. */
+			free(prev_name);
+		}
+		ret = 0;
+	}
+#if 0
+	/* XXX - Should return error code. */
+	return (ret);
+#endif
 }
