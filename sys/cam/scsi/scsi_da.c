@@ -39,20 +39,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif /* _KERNEL */
-
-#include <sys/devicestat.h>
 #include <sys/conf.h>
+#include <sys/devicestat.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
-
-#include <machine/md_var.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
 #include <geom/geom_disk.h>
+#endif /* _KERNEL */
 
 #ifndef _KERNEL
 #include <stdio.h>
