@@ -174,60 +174,61 @@ mac_partition_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 }
 
 static int
-mac_partition_check_cred_visible(struct ucred *u1, struct ucred *u2)
+mac_partition_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 {
 	int error;
 
-	error = label_on_label(u1->cr_label, u2->cr_label);
+	error = label_on_label(cr1->cr_label, cr2->cr_label);
 
 	return (error == 0 ? 0 : ESRCH);
 }
 
 static int
-mac_partition_check_proc_debug(struct ucred *cred, struct proc *proc)
+mac_partition_check_proc_debug(struct ucred *cred, struct proc *p)
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, proc->p_ucred->cr_label);
+	error = label_on_label(cred->cr_label, p->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
 
 static int
-mac_partition_check_proc_sched(struct ucred *cred, struct proc *proc)
+mac_partition_check_proc_sched(struct ucred *cred, struct proc *p)
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, proc->p_ucred->cr_label);
+	error = label_on_label(cred->cr_label, p->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
 
 static int
-mac_partition_check_proc_signal(struct ucred *cred, struct proc *proc,
+mac_partition_check_proc_signal(struct ucred *cred, struct proc *p,
     int signum)
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, proc->p_ucred->cr_label);
+	error = label_on_label(cred->cr_label, p->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
 
 static int
-mac_partition_check_socket_visible(struct ucred *cred, struct socket *socket,
-    struct label *socketlabel)
+mac_partition_check_socket_visible(struct ucred *cred, struct socket *so,
+    struct label *solabel)
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, socketlabel);
+	error = label_on_label(cred->cr_label, solabel);
 
 	return (error ? ENOENT : 0);
 }
 
 static int
 mac_partition_check_vnode_exec(struct ucred *cred, struct vnode *vp,
-    struct label *label, struct image_params *imgp, struct label *execlabel)
+    struct label *vplabel, struct image_params *imgp,
+    struct label *execlabel)
 {
 
 	if (execlabel != NULL) {

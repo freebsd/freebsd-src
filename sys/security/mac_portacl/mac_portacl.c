@@ -432,7 +432,7 @@ rules_check(struct ucred *cred, int family, int type, u_int16_t port)
  */
 static int
 check_socket_bind(struct ucred *cred, struct socket *so,
-    struct label *socketlabel, struct sockaddr *sockaddr)
+    struct label *solabel, struct sockaddr *sa)
 {
 	struct sockaddr_in *sin;
 	struct inpcb *inp;
@@ -454,13 +454,12 @@ check_socket_bind(struct ucred *cred, struct socket *so,
 		return (0);
 
 	/* Reject addresses we don't understand; fail closed. */
-	if (sockaddr->sa_family != AF_INET &&
-	    sockaddr->sa_family != AF_INET6)
+	if (sa->sa_family != AF_INET && sa->sa_family != AF_INET6)
 		return (EINVAL);
 
 	family = so->so_proto->pr_domain->dom_family;
 	type = so->so_type;
-	sin = (struct sockaddr_in *) sockaddr;
+	sin = (struct sockaddr_in *) sa;
 	port = ntohs(sin->sin_port);
 
 	/*
