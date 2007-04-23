@@ -52,7 +52,10 @@ smfi_register(smfilter)
 	(void) sm_strlcpy(smfi->xxfi_name, smfilter.xxfi_name, len);
 
 	/* compare milter version with hard coded version */
-	if (smfi->xxfi_version != SMFI_VERSION)
+	if (smfi->xxfi_version != SMFI_VERSION &&
+	    smfi->xxfi_version != 2 &&
+	    smfi->xxfi_version != 3 &&
+	    smfi->xxfi_version != 4)
 	{
 		/* hard failure for now! */
 		smi_log(SMI_LOG_ERR,
