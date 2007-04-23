@@ -575,6 +575,7 @@ vr_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_HWCSUM;
 	}
 
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	if (ifp->if_capenable & IFCAP_TXCSUM)
 		ifp->if_hwassist = (CSUM_IP | CSUM_TCP | CSUM_UDP);
