@@ -1046,31 +1046,8 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	/*
-	 * There should be 2 references on the file, one from the descriptor
-	 * table, and one for us.
-	 *
-	 * Handle the case where someone closed the file (via its file
-	 * descriptor) while we were blocked.  The end result should look
-	 * like opening the file succeeded but it was immediately closed.
-	 * We call vn_close() manually because we haven't yet hooked up
-	 * the various 'struct file' fields.
-	 */
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	FILE_LOCK(fp);
-	if (fp->f_count == 1) {
-		mp = vp->v_mount;
-		KASSERT(fdp->fd_ofiles[indx] != fp,
-		    ("Open file descriptor lost all refs"));
-		FILE_UNLOCK(fp);
-		FILEDESC_UNLOCK(fdp);
-		VOP_UNLOCK(vp, 0, td);
-		vn_close(vp, flags & FMASK, fp->f_cred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
-		fdrop(fp, td);
-		td->td_retval[0] = indx;
-		return (0);
-	}
 	fp->f_vnode = vp;
 	if (fp->f_data == NULL)
 		fp->f_data = vp;
@@ -1080,7 +1057,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	fp->f_seqcount = 1;
 	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
 	FILE_UNLOCK(fp);
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 
 	VOP_UNLOCK(vp, 0, td);
 	if (flags & (O_EXLOCK | O_SHLOCK)) {
