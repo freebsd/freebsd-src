@@ -49,8 +49,11 @@
 
 #include <netinet/icmp6.h>
 
+#if 0
 static int ip6_rthdr0 __P((struct mbuf *, struct ip6_hdr *,
     struct ip6_rthdr0 *));
+
+#endif /* Disable route header processing. */
 
 int
 route6_input(mp, offp, proto)
@@ -87,6 +90,7 @@ route6_input(mp, offp, proto)
 #endif
 
 	switch (rh->ip6r_type) {
+#if 0
 	case IPV6_RTHDR_TYPE_0:
 		rhlen = (rh->ip6r_len + 1) << 3;
 #ifndef PULLDOWN_TEST
@@ -114,6 +118,7 @@ route6_input(mp, offp, proto)
 		if (ip6_rthdr0(m, ip6, (struct ip6_rthdr0 *)rh))
 			return (IPPROTO_DONE);
 		break;
+#endif /* Disable route header 0 */
 	default:
 		/* unknown routing type */
 		if (rh->ip6r_segleft == 0) {
@@ -136,6 +141,7 @@ route6_input(mp, offp, proto)
  * RFC2292 backward compatibility warning: no support for strict/loose bitmap,
  * as it was dropped between RFC1883 and RFC2460.
  */
+#if 0
 static int
 ip6_rthdr0(m, ip6, rh0)
 	struct mbuf *m;
@@ -233,3 +239,4 @@ ip6_rthdr0(m, ip6, rh0)
 	m_freem(m);
 	return (-1);
 }
+#endif
