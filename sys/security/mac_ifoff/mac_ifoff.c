@@ -79,31 +79,31 @@ SYSCTL_INT(_security_mac_ifoff, OID_AUTO, bpfrecv_enabled, CTLFLAG_RW,
 TUNABLE_INT("security.mac.ifoff.bpfrecv.enabled", &mac_ifoff_bpfrecv_enabled);
 
 static int
-check_ifnet_outgoing(struct ifnet *ifnet)
+check_ifnet_outgoing(struct ifnet *ifp)
 {
 
 	if (!mac_ifoff_enabled)
 		return (0);
 
-	if (mac_ifoff_lo_enabled && ifnet->if_type == IFT_LOOP)
+	if (mac_ifoff_lo_enabled && ifp->if_type == IFT_LOOP)
 		return (0);
 
-	if (mac_ifoff_other_enabled && ifnet->if_type != IFT_LOOP)
+	if (mac_ifoff_other_enabled && ifp->if_type != IFT_LOOP)
 		return (0);
 
 	return (EPERM);
 }
 
 static int
-check_ifnet_incoming(struct ifnet *ifnet, int viabpf)
+check_ifnet_incoming(struct ifnet *ifp, int viabpf)
 {
 	if (!mac_ifoff_enabled)
 		return (0);
 
-	if (mac_ifoff_lo_enabled && ifnet->if_type == IFT_LOOP)
+	if (mac_ifoff_lo_enabled && ifp->if_type == IFT_LOOP)
 		return (0);
 
-	if (mac_ifoff_other_enabled && ifnet->if_type != IFT_LOOP)
+	if (mac_ifoff_other_enabled && ifp->if_type != IFT_LOOP)
 		return (0);
 
 	if (viabpf && mac_ifoff_bpfrecv_enabled)
@@ -113,19 +113,19 @@ check_ifnet_incoming(struct ifnet *ifnet, int viabpf)
 }
 
 static int
-mac_ifoff_check_bpfdesc_receive(struct bpf_d *bpf_d, struct label *bpflabel,
-    struct ifnet *ifnet, struct label *ifnetlabel)
+mac_ifoff_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
+    struct ifnet *ifp, struct label *ifplabel)
 {
 
-	return (check_ifnet_incoming(ifnet, 1));
+	return (check_ifnet_incoming(ifp, 1));
 }
 
 static int
-mac_ifoff_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
-    struct mbuf *m, struct label *mbuflabel)
+mac_ifoff_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
 {
 
-	return (check_ifnet_outgoing(ifnet));
+	return (check_ifnet_outgoing(ifp));
 }
 
 static int
@@ -141,8 +141,8 @@ mac_ifoff_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 }
 
 static int
-mac_ifoff_check_socket_deliver(struct socket *so, struct label *socketlabel,
-    struct mbuf *m, struct label *mbuflabel)
+mac_ifoff_check_socket_deliver(struct socket *so, struct label *solabel,
+    struct mbuf *m, struct label *mlabel)
 {
 
 	M_ASSERTPKTHDR(m);
