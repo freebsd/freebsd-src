@@ -2,7 +2,7 @@
 .\" Copyright 1989 AT&T
 .\" Copyright 1991 Sun Microsystems, Inc.
 .\" $FreeBSD$
-.Dd November 29, 2006
+.Dd April 23, 2007
 .Dt RPCBIND 8
 .Os
 .Sh NAME
@@ -10,7 +10,7 @@
 .Nd universal addresses to RPC program number mapper
 .Sh SYNOPSIS
 .Nm
-.Op Fl adiLls
+.Op Fl 6adiLls
 .Op Fl h Ar bindip
 .Sh DESCRIPTION
 The
@@ -68,6 +68,8 @@ The
 utility can only be started by the super-user.
 .Sh OPTIONS
 .Bl -tag -width indent
+.It Fl 6
+Bind to AF_INET6 (IPv6) addresses only.
 .It Fl a
 When debugging
 .Pq Fl d ,
@@ -83,7 +85,7 @@ is also specified.
 With this option, the name-to-address translation consistency
 checks are shown in detail.
 .It Fl h Ar bindip
-Specify specific IP addresses to bind to for UDP requests.
+Specify specific IP addresses to bind to for TCP and UDP requests.
 This option
 may be specified multiple times and is typically necessary when running
 on a multi-homed host.
