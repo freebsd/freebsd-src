@@ -188,7 +188,7 @@ zfs_close(vnode_t *vp, int flag, int count, offset_t offset, cred_t *cr)
  * data (cmd == _FIO_SEEK_DATA). "off" is an in/out parameter.
  */
 static int
-zfs_holey(vnode_t *vp, int cmd, offset_t *off)
+zfs_holey(vnode_t *vp, u_long cmd, offset_t *off)
 {
 	znode_t	*zp = VTOZ(vp);
 	uint64_t noff = (uint64_t)*off; /* new offset */
@@ -228,7 +228,7 @@ zfs_holey(vnode_t *vp, int cmd, offset_t *off)
 
 /* ARGSUSED */
 static int
-zfs_ioctl(vnode_t *vp, int com, intptr_t data, int flag, cred_t *cred,
+zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
     int *rvalp)
 {
 	offset_t off;
@@ -3110,7 +3110,7 @@ zfs_freebsd_ioctl(ap)
 	} */ *ap;
 {
 
-	return (zfs_ioctl(ap->a_vp, (int)ap->a_command, (intptr_t)ap->a_data,
+	return (zfs_ioctl(ap->a_vp, ap->a_command, (intptr_t)ap->a_data,
 	    ap->a_fflag, ap->a_cred, NULL));
 }
 
