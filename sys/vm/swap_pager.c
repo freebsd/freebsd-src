@@ -1955,7 +1955,8 @@ swapon(struct thread *td, struct swapon_args *uap)
 		goto done;
 	}
 
-	NDINIT(&nd, LOOKUP, ISOPEN | FOLLOW, UIO_USERSPACE, uap->name, td);
+	NDINIT(&nd, LOOKUP, ISOPEN | FOLLOW | AUDITVNODE1, UIO_USERSPACE,
+	    uap->name, td);
 	error = namei(&nd);
 	if (error)
 		goto done;
@@ -2084,7 +2085,8 @@ swapoff(struct thread *td, struct swapoff_args *uap)
 	    tsleep(&swdev_syscall_active, PUSER - 1, "swpoff", 0);
 	swdev_syscall_active = 1;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->name, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->name,
+	    td);
 	error = namei(&nd);
 	if (error)
 		goto done;
