@@ -43,11 +43,13 @@
  * run before opening and using a device.
  */
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/errno.h>
 #include <sys/uio.h>
 #include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/kmem.h>
 #include <sys/conf.h>
 #include <sys/cmn_err.h>
@@ -56,8 +58,11 @@
 #include <sys/spa.h>
 #include <sys/zio.h>
 #include <sys/dsl_prop.h>
+#include <sys/dkio.h>
 #include <sys/byteorder.h>
+#include <sys/sunddi.h>
 #include <sys/dirent.h>
+#include <sys/policy.h>
 #include <sys/fs/zfs.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/zil.h>

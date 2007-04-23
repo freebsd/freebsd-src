@@ -47,9 +47,11 @@
 #include <sys/spa.h>
 #include <sys/zap.h>
 #include <sys/varargs.h>
+#include <sys/policy.h>
 #include <sys/atomic.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/zfs_ctldir.h>
+#include <sys/sunddi.h>
 #include <sys/dnlc.h>
 
 struct mtx atomic_mtx;
