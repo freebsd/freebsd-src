@@ -4863,7 +4863,7 @@ found_one:
 	 * Note that stcb COULD be NULL.
 	 */
 	if (control->do_not_ref_stcb == 0) {
-		control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 1;
+		control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 1;
 	}
 	control->some_taken = 1;
 	if (hold_sblock) {
@@ -5061,7 +5061,7 @@ get_more_data:
 				    (control->end_added)) {
 					out_flags |= MSG_EOR;
 					if (control->do_not_ref_stcb == 0)
-						control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 0;
+						control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 				}
 				if (control->spec_flags & M_NOTIFICATION) {
 					out_flags |= MSG_NOTIFICATION;
@@ -5334,12 +5334,12 @@ wait_some_more:
 				out_flags |= MSG_EOR;
 				if (control->pdapi_aborted) {
 					if (control->do_not_ref_stcb == 0)
-						control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 0;
+						control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 
 					out_flags |= MSG_TRUNC;
 				} else {
 					if (control->do_not_ref_stcb == 0)
-						control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 0;
+						control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 				}
 				goto done_with_control;
 			}
@@ -5390,7 +5390,7 @@ get_more_data2:
 			if (control->end_added) {
 				out_flags |= MSG_EOR;
 				if (control->do_not_ref_stcb == 0)
-					control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 0;
+					control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 			}
 			if (control->spec_flags & M_NOTIFICATION) {
 				out_flags |= MSG_NOTIFICATION;
@@ -5456,7 +5456,7 @@ get_more_data2:
 					if (control->pdapi_aborted) {
 						out_flags |= MSG_TRUNC;
 						if (control->do_not_ref_stcb == 0)
-							control->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started = 0;
+							control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 					}
 					goto done_with_control;
 				}
