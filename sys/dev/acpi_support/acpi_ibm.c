@@ -412,7 +412,7 @@ acpi_ibm_attach(device_t dev)
 
 	/* Hook up light to led(4) */
 	if (sc->light_set_supported)
-		sc->led_dev = led_create(ibm_led, sc, "thinklight");
+		sc->led_dev = led_create_state(ibm_led, sc, "thinklight", sc->light_val);
 
 	return (0);
 }
@@ -810,7 +810,8 @@ acpi_ibm_sysctl_init(struct acpi_ibm_softc *sc, int method)
 
 	case ACPI_IBM_METHOD_THINKLIGHT:
 		sc->cmos_handle = NULL;
-		sc->light_get_supported = ACPI_SUCCESS(acpi_GetInteger(sc->ec_handle, IBM_NAME_KEYLIGHT, &dummy));
+		sc->light_get_supported = ACPI_SUCCESS(acpi_GetInteger(
+		    sc->ec_handle, IBM_NAME_KEYLIGHT, &sc->light_val));
 
 		if ((ACPI_SUCCESS(AcpiGetHandle(sc->handle, "\\UCMS", &sc->light_handle)) ||
 		     ACPI_SUCCESS(AcpiGetHandle(sc->handle, "\\CMOS", &sc->light_handle)) ||
@@ -831,12 +832,15 @@ acpi_ibm_sysctl_init(struct acpi_ibm_softc *sc, int method)
 		sc->light_set_supported = (sc->light_handle &&
 		    ACPI_FAILURE(AcpiGetHandle(sc->ec_handle, "LEDB", &ledb_handle)));
 
-		if (sc->light_get_supported || sc->light_set_supported) {
+		if (sc->light_get_supported)
+			return (TRUE);
+
+		if (sc->light_set_supported) {
 			sc->light_val = 0;
 			return (TRUE);
 		}
-		else
-			return (FALSE);
+
+		return (FALSE);
 
 	case ACPI_IBM_METHOD_BLUETOOTH:
 	case ACPI_IBM_METHOD_WLAN:
