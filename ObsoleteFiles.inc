@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070423: rc.bluetooth (examples) removed
+OLD_FILES+=usr/share/examples/netgraph/bluetooth/rc.bluetooth 
 # 20070421: worm.4 removed
 OLD_FILES+=usr/share/man/man4/worm.4.gz
 # 20070417: trunk(4) renamed to lagg(4)
