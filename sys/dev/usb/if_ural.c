@@ -143,7 +143,7 @@ static void		ural_read_multi(struct ural_softc *, uint16_t, void *,
 			    int);
 static void		ural_write(struct ural_softc *, uint16_t, uint16_t);
 static void		ural_write_multi(struct ural_softc *, uint16_t, void *,
-			    int);
+			    int) __unused;
 static void		ural_bbp_write(struct ural_softc *, uint8_t, uint8_t);
 static uint8_t		ural_bbp_read(struct ural_softc *, uint8_t);
 static void		ural_rf_write(struct ural_softc *, uint8_t, uint32_t);
@@ -2129,7 +2129,6 @@ ural_init(void *priv)
 	struct ural_softc *sc = priv;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct ieee80211_key *wk;
 	struct ural_rx_data *data;
 	uint16_t tmp;
 	usbd_status error;
@@ -2178,15 +2177,6 @@ ural_init(void *priv)
 
 	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
 	ural_set_macaddr(sc, ic->ic_myaddr);
-
-	/*
-	 * Copy WEP keys into adapter's memory (SEC_CSR0 to SEC_CSR31).
-	 */
-	for (i = 0; i < IEEE80211_WEP_NKID; i++) {
-		wk = &ic->ic_crypto.cs_nw_keys[i];
-		ural_write_multi(sc, wk->wk_keyix * IEEE80211_KEYBUF_SIZE +
-		    RAL_SEC_CSR0, wk->wk_key, IEEE80211_KEYBUF_SIZE);
-	}
 
 	/*
 	 * Allocate xfer for AMRR statistics requests.
