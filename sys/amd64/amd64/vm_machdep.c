@@ -457,6 +457,7 @@ cpu_reset()
 static void
 cpu_reset_real()
 {
+	struct region_descriptor null_idt;
 	int b;
 
 	disable_intr();
@@ -494,14 +495,18 @@ cpu_reset_real()
 		outb(0x92, b | 0x1);
 		DELAY(500000);  /* wait 0.5 sec to see if that did it */
 	}
+
 	printf("No known reset method worked, attempting CPU shutdown\n");
 	DELAY(1000000);	/* wait 1 sec for printf to complete */
 
-	/* Force a shutdown by unmapping entire address space. */
-	bzero((caddr_t)PML4map, PAGE_SIZE);
+	/* Wipe the IDT. */
+	null_idt.rd_limit = 0;
+	null_idt.rd_base = 0;
+	lidt(&null_idt);
 
 	/* "good night, sweet prince .... <THUNK!>" */
-	invltlb();
+	breakpoint();
+
 	/* NOTREACHED */
 	while(1);
 }
