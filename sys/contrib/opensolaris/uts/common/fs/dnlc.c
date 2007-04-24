@@ -203,7 +203,11 @@ struct nc_stats ncs = {
 	{ "pick_last",			KSTAT_DATA_UINT64 },
 };
 
+#ifdef FREEBSD_NAMECACHE
+static int doingcache = 0;
+#else
 static int doingcache = 1;
+#endif
 TUNABLE_INT("vfs.zfs.dnlc.enable", &doingcache);
 SYSCTL_INT(_vfs_zfs_dnlc, OID_AUTO, enable, CTLFLAG_RDTUN, &doingcache, 0,
     "Enable/disable name cache");
