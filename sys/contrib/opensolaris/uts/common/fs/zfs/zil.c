@@ -70,7 +70,7 @@
 int zil_disable = 0;	/* disable intent logging */
 SYSCTL_DECL(_vfs_zfs);
 TUNABLE_INT("vfs.zfs.zil_disable", &zil_disable);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_disable, CTLFLAG_RDTUN, &zil_disable, 0,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_disable, CTLFLAG_RW, &zil_disable, 0,
     "Disable ZFS Intent Log (ZIL)");
 
 /*
