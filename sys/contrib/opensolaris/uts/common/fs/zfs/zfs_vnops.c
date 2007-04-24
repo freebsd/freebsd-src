@@ -3400,11 +3400,6 @@ zfs_freebsd_inactive(ap)
 {
 	vnode_t *vp = ap->a_vp;
 
-	/*
-	 * Destroy the vm object and flush associated pages.
-	 */
-	vnode_destroy_vobject(vp);
-
 	zfs_inactive(vp, ap->a_td->td_ucred);
 	return (0);
 }
@@ -3416,28 +3411,38 @@ zfs_freebsd_reclaim(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	vnode_t	*vp = ap->a_vp;
+        vnode_t	*vp = ap->a_vp;
 	znode_t	*zp = VTOZ(vp);
+	zfsvfs_t *zfsvfs;
+	int rele = 1;
 
-	if (zp != NULL)
-		mutex_enter(&zp->z_lock);
-#if 0	/*
-	 * We do it from zfs_inactive(), because after zfs_inactive() we can't
-	 * VOP_WRITE() to the vnode.
-	 */
+	ASSERT(zp != NULL);
+
 	/*
 	 * Destroy the vm object and flush associated pages.
 	 */
 	vnode_destroy_vobject(vp);
-#endif
+
+	mutex_enter(&zp->z_lock);
+	ASSERT(zp->z_phys);
+	ASSERT(zp->z_dbuf_held);
+	zfsvfs = zp->z_zfsvfs;
+	if (!zp->z_unlinked) {
+		zp->z_dbuf_held = 0;
+		ZTOV(zp) = NULL;
+		mutex_exit(&zp->z_lock);
+		dmu_buf_rele(zp->z_dbuf, NULL);
+	} else {
+		mutex_exit(&zp->z_lock);
+	}
 	VI_LOCK(vp);
+	if (vp->v_count > 0)
+		rele = 0;
 	vp->v_data = NULL;
-	if (zp != NULL)
-		zp->z_vnode = NULL;
 	ASSERT(vp->v_holdcnt > 1);
 	vdropl(vp);
-	if (zp != NULL)
-		mutex_exit(&zp->z_lock);
+	if (!zp->z_unlinked && rele)
+		VFS_RELE(zfsvfs->z_vfs);
 	return (0);
 }
 
