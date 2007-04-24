@@ -61,6 +61,9 @@ SRCS+=	vdev_geom.c
 # Use UMA for ZIO allocation. This is not stable.
 #CFLAGS+=-DZIO_USE_UMA
 
+# Use FreeBSD's namecache.
+CFLAGS+=-DFREEBSD_NAMECACHE
+
 CWARNFLAGS=-Wall
 CWARNFLAGS+=-Wno-unknown-pragmas
 CWARNFLAGS+=-Wno-missing-braces
