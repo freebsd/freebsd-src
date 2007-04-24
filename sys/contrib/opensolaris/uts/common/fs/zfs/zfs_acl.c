@@ -41,6 +41,7 @@
 #include <sys/unistd.h>
 #include <sys/sdt.h>
 #include <sys/fs/zfs.h>
+#include <sys/policy.h>
 #include <sys/zfs_znode.h>
 #include <sys/zfs_acl.h>
 #include <sys/zfs_dir.h>
