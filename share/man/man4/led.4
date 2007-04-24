@@ -35,6 +35,8 @@
 .Pp
 .Fd "typedef void led_t(void *priv, int onoff);"
 .Ft struct cdev *
+.Fn led_create_state "led_t *func" "void *priv" "char const *name" "int state"
+.Ft struct cdev *
 .Fn led_create "led_t *func" "void *priv" "char const *name"
 .Ft void
 .Fn led_destroy "struct cdev *"
