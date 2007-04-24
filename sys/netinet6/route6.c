@@ -48,6 +48,8 @@
 
 #include <netinet/icmp6.h>
 
+extern int ip6_rthdr0_allowed;
+
 static int ip6_rthdr0 __P((struct mbuf *, struct ip6_hdr *,
     struct ip6_rthdr0 *));
 
@@ -87,6 +89,8 @@ route6_input(mp, offp, proto)
 
 	switch (rh->ip6r_type) {
 	case IPV6_RTHDR_TYPE_0:
+		if (!ip6_rthdr0_allowed)
+			return (IPPROTO_DONE);
 		rhlen = (rh->ip6r_len + 1) << 3;
 #ifndef PULLDOWN_TEST
 		/*
