@@ -366,6 +366,7 @@ struct thread {
 #define	TDP_SOFTDEP	0x00020000 /* Stuck processing softdep worklist */
 #define	TDP_NORUNNINGBUF 0x00040000 /* Ignore runningbufspace check */
 #define	TDP_WAKEUP	0x00080000 /* Don't sleep in umtx cond_wait */
+#define	TDP_INBDFLUSH	0x00100000 /* Already in BO_BDFLUSH, do not recurse */
 
 /*
  * Reasons that the current thread can not be run yet.
