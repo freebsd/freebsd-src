@@ -683,12 +683,8 @@ zfs_zinactive(znode_t *zp)
 	}
 	ASSERT(zp->z_phys);
 	ASSERT(zp->z_dbuf_held);
-
-	zp->z_dbuf_held = 0;
 	mutex_exit(&zp->z_lock);
-	dmu_buf_rele(zp->z_dbuf, NULL);
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
-	VFS_RELE(zfsvfs->z_vfs);
 }
 
 /*
