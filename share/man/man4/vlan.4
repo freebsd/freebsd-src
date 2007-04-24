@@ -108,8 +108,8 @@ help in processing VLANs.
 Such interfaces are automatically recognized by their capabilities.
 Depending on the level of sophistication found in a physical
 interface, it may do full VLAN processing or just be able to
-receive and transmit frames exceeding the maximum Ethernet frame size
-by the length of a 802.1Q header.
+receive and transmit long frames (up to 1522 bytes including an Ethernet
+header and FCS).
 The capabilities may be user-controlled by the respective parameters to
 .Xr ifconfig 8 ,
 .Cm vlanhwtag
@@ -139,7 +139,7 @@ VLANs using software emulation in the
 .Nm
 driver.
 However, most of them lack the capability
-of transmitting and receiving oversized frames.
+of transmitting and receiving long frames.
 Assigning such an interface as the parent to
 .Nm
 will result in a reduced MTU on the corresponding
@@ -171,12 +171,12 @@ and
 .Pp
 The
 .Nm
-driver automatically recognizes devices that natively support oversized frames
+driver automatically recognizes devices that natively support long frames
 for
 .Nm
 use and calculates the appropriate frame MTU based on the
 capabilities of the parent interface.
-Some other interfaces not listed above may handle oversized frames,
+Some other interfaces not listed above may handle long frames,
 but they do not advertise this ability of theirs.
 The MTU setting on
 .Nm
