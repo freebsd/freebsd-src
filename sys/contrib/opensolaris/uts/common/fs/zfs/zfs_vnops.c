@@ -2963,7 +2963,7 @@ zfs_fid(vnode_t *vp, fid_t *fidp)
 
 	if (size == LONG_FID_LEN) {
 		uint64_t	objsetid = dmu_objset_id(zfsvfs->z_os);
-		zfid_long_t     *zlfid;
+		zfid_long_t	*zlfid;
 
 		zlfid = (zfid_long_t *)fidp;
 
@@ -3413,7 +3413,7 @@ zfs_freebsd_reclaim(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-        vnode_t	*vp = ap->a_vp;
+	vnode_t	*vp = ap->a_vp;
 	znode_t	*zp = VTOZ(vp);
 
 	if (zp != NULL)
