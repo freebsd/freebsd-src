@@ -151,61 +151,23 @@ connectivity problems due to massive, inadequate
 .Xr icmp 4
 filtering that breaks the Path MTU Discovery mechanism.
 .Pp
-The interfaces that support oversized frames are as follows:
-.Bl -tag -width ".Xr fxp 4 " -offset indent
-.It Xr bfe 4
-supports long frames for
+The following interfaces support long frames for
 .Nm
-natively.
-.It Xr dc 4
-supports long frames for
-.Nm
-natively.
-.It Xr fxp 4
-supports long frames for
-.Nm
-natively.
-.It Xr gem 4
-supports long frames for
-.Nm
-natively.
-.It Xr hme 4
-supports long frames for
-.Nm
-natively.
-.It Xr le 4
-supports long frames for
-.Nm
-natively.
-.It Xr rl 4
-supports long frames for
-.Nm
-natively.
-.It Xr sis 4
-supports long frames for
-.Nm
-natively.
-.It Xr sk 4
-supports long frames for
-.Nm
-natively.
-.It Xr ste 4
-supports long frames for
-.Nm
-natively.
-.It Xr tx 4
-supports long frames for
-.Nm
-natively.
-.It Xr vr 4
-supports long frames for
-.Nm
-natively.
-.It Xr xl 4
-supports long frames for
-.Nm
-natively.
-.El
+natively:
+.Xr bfe 4 ,
+.Xr dc 4 ,
+.Xr fxp 4 ,
+.Xr gem 4 ,
+.Xr hme 4 ,
+.Xr le 4 ,
+.Xr rl 4 ,
+.Xr sis 4 ,
+.Xr sk 4 ,
+.Xr ste 4 ,
+.Xr tx 4 ,
+.Xr vr 4 ,
+and
+.Xr xl 4 .
 .Pp
 The
 .Nm
@@ -214,11 +176,11 @@ for
 .Nm
 use and calculates the appropriate frame MTU based on the
 capabilities of the parent interface.
-The other interfaces listed above can handle oversized frames,
+Some other interfaces not listed above may handle oversized frames,
 but they do not advertise this ability of theirs.
 The MTU setting on
 .Nm
-can be corrected manually if used in conjunction with such parent interface.
+can be corrected manually if used in conjunction with such a parent interface.
 .Sh SEE ALSO
 .Xr kqueue 2 ,
 .Xr miibus 4 ,
