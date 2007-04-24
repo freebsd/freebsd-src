@@ -625,14 +625,26 @@ cpu_reset_real()
 	outb(IO_KBD + 4, 0xFE);
 	DELAY(500000);	/* wait 0.5 sec to see if that did it */
 #endif
-	/* Try the PCI reset */
+
+	/*
+	 * Attempt to force a reset via the Reset Control register at
+	 * I/O port 0xcf9.  Bit 2 forces a system reset when it is
+	 * written as 1.  Bit 1 selects the type of reset to attempt:
+	 * 0 selects a "soft" reset, and 1 selects a "hard" reset.  We
+	 * try to do a "soft" reset first, and then a "hard" reset.
+	 */
 	outb(0xcf9, 0x2);
 	outb(0xcf9, 0x6);
 	DELAY(500000);  /* wait 0.5 sec to see if that did it */
 
-	/* Try port 0x92 fast reset */
+	/*
+	 * Attempt to force a reset via the Fast A20 and Init register
+	 * at I/O port 0x92.  Bit 1 serves as an alternate A20 gate.
+	 * Bit 0 asserts INIT# when set to 1.  We are careful to only
+	 * preserve bit 1 while setting bit 0.  We also must clear bit
+	 * 0 before setting it if it isn't already clear.
+	 */
 	b = inb(0x92);
-	/* Check the the hardware actually has the port in question */
 	if (b != 0xff) {
 		if ((b & 0x1) != 0)
 			outb(0x92, b & 0xfe);
