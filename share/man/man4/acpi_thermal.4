@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2006
+.Dd March 17, 2007
 .Dt ACPI_THERMAL 4
 .Os
 .Sh NAME
@@ -97,9 +97,12 @@ The lower the _ACx value, the higher the cooling power.
 .El
 .Pp
 All temperatures are printed in Celsius.
+Values can be set in Celsius (by providing a trailing
+.Qq C )
+or Kelvin (by leaving off any trailing letter).
 When setting a value by
 .Xr sysctl 8 ,
-do not specify a trailing decimal (i.e., 90 instead of 90.0C).
+do not specify a trailing decimal (i.e., 90C instead of 90.0C).
 .Sh NOTIFIES
 Notifies are passed to userland via
 .Xr devd 8 .
