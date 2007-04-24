@@ -1356,7 +1356,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.arp.8; utility now allows the <option>-i</option>
       option together with the <option>-d</option> and <option>-a</option> options
-      to allow all entries for a given interface to be removed.</para>
+      to allow all entries for a given interface to be removed. &merged;</para>
 
     <para>The OpenBSM userland tools, including &man.audit.8;,
       &man.auditd.8;,
@@ -1490,16 +1490,17 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.ifconfig.8; utility now supports
       a <option>-k</option> flag to allow printing
       potentially sensitive keying material to standard output.
-      This sensitive information will not be printed by default.</para>
+      This sensitive information will not be printed by default.
+      &merged;</para>
 
     <para>The &man.ifconfig.8; utility now supports a <option>-tunnel</option>
       parameter, which is just an alias for <option>deletetunnel</option>,
-      yet is more convenient and easier to type.</para>
+      yet is more convenient and easier to type. &merged;</para>
 
     <para>The <option>-vlandev</option> parameter to &man.ifconfig.8;
       no longer requires a network interface as its argument.  The
       argument still is supported for backward compatibility, but
-      is now deprecated and its use is discouraged.</para>
+      is now deprecated and its use is discouraged. &merged;</para>
 
     <para>The &man.iostat.8; utility now supports
       a <option>-x</option> flag (inspired by Solaris) to print
