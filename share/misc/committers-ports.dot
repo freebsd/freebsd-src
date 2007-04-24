@@ -114,6 +114,7 @@ sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
 stas [label="Stanislav Sedov\nstas@FreeBSD.org\n2006/09/18"]
 stefan [label="Stefan Walter\nstefan@FreeBSD.org\n2006/05/07"]
 tdb [label="Tim Bishop\ntdb@FreeBSD.org\n2005/11/30"]
+trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2007/04/12"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
 tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15"]
@@ -210,6 +211,7 @@ mezz -> tmclaugh
 
 miwi -> farrokhi
 miwi -> nox
+miwi -> trasz
 
 mnag -> jmelo
 
