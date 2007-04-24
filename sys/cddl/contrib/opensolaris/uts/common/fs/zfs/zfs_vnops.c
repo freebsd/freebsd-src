@@ -318,6 +318,9 @@ again:
 			sf_buf_free(sf);
 			sched_unpin();
 			VM_OBJECT_LOCK(obj);
+			vm_page_lock_queues();
+			vm_page_set_validclean(m, off, bytes);
+			vm_page_unlock_queues();
 			vm_page_wakeup(m);
 		} else {
 			VM_OBJECT_UNLOCK(obj);
