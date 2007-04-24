@@ -1047,16 +1047,16 @@ ng_l2tp_recv_ctrl(node_p node, item_p item)
 	seq->xwin[i] = m;
 
 	/* Sanity check receive ack timer state */
-	KASSERT((i == 0) ^ callout_pending(&seq->rack_timer),
+	KASSERT((i == 0) ^ callout_active(&seq->rack_timer),
 	    ("%s: xwin %d full but rack timer %s running",
-	    __func__, i, callout_pending(&seq->rack_timer) ? "" : "not "));
+	    __func__, i, callout_active(&seq->rack_timer) ? "" : "not "));
 
 	/* If peer's receive window is already full, nothing else to do */
 	if (i >= seq->cwnd)
 		return (0);
 
 	/* Start retransmit timer if not already running */
-	if (!callout_pending(&seq->rack_timer))
+	if (!callout_active(&seq->rack_timer))
 		ng_callout(&seq->rack_timer, node, NULL,
 		    hz, ng_l2tp_seq_rack_timeout, NULL, 0);
 
@@ -1330,7 +1330,7 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 	}
 
 	/* Stop xmit timer */
-	if (callout_pending(&seq->rack_timer))
+	if (callout_active(&seq->rack_timer))
 		ng_uncallout(&seq->rack_timer, priv->node);
 
 	/* If transmit queue is empty, we're done for now */
@@ -1385,7 +1385,7 @@ ng_l2tp_seq_recv_ns(priv_p priv, u_int16_t ns)
 	seq->nr++;
 
 	/* Start receive ack timer, if not already running */
-	if (!callout_pending(&seq->xack_timer))
+	if (!callout_active(&seq->xack_timer))
 		ng_callout(&seq->xack_timer, priv->node, NULL,
 		    L2TP_DELAYED_ACK, ng_l2tp_seq_xack_timeout, NULL, 0);
 
@@ -1403,14 +1403,21 @@ ng_l2tp_seq_xack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct l2tp_seq *const seq = &priv->seq;
 
+	/* Make sure callout is still active before doing anything */
+	if (callout_pending(&seq->xack_timer) ||
+	    (!callout_active(&seq->xack_timer)))
+		return;
+
 	/* Sanity check */
 	L2TP_SEQ_CHECK(seq);
 
-	/* If ack is still outstanding, send a ZLB */
-	if (seq->xack != seq->nr)
-		ng_l2tp_xmit_ctrl(priv, NULL, seq->ns);
+	/* Send a ZLB */
+	ng_l2tp_xmit_ctrl(priv, NULL, seq->ns);
 
-	/* Done */
+	/* callout_deactivate() is not needed here 
+	    as ng_uncallout() was called by ng_l2tp_xmit_ctrl() */
+
+	/* Sanity check */
 	L2TP_SEQ_CHECK(seq);
 }
 
@@ -1426,12 +1433,13 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	struct mbuf *m;
 	u_int delay;
 
+	/* Make sure callout is still active before doing anything */
+	if (callout_pending(&seq->rack_timer) ||
+	    (!callout_active(&seq->rack_timer)))
+		return;
+
 	/* Sanity check */
 	L2TP_SEQ_CHECK(seq);
-
-	/* Make sure peer's ack is still outstanding before doing anything */
-	if (seq->rack == seq->ns)
-		goto done;
 
 	priv->stats.xmitRetransmits++;
 
@@ -1457,8 +1465,10 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	else
 		ng_l2tp_xmit_ctrl(priv, m, seq->rack);
 
-done:
-	/* Done */
+	/* callout_deactivate() is not needed here 
+	    as ng_callout() is getting called each time */
+
+	/* Sanity check */
 	L2TP_SEQ_CHECK(seq);
 }
 
@@ -1472,6 +1482,13 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 	struct l2tp_seq *const seq = &priv->seq;
 	u_int16_t session_id = 0;
 	int error;
+
+	/* Stop ack timer: we're sending an ack with this packet.
+	   Doing this before to keep state predictable after error. */
+	if (callout_active(&seq->xack_timer))
+		ng_uncallout(&seq->xack_timer, priv->node);
+
+	seq->xack = seq->nr;
 
 	/* If no mbuf passed, send an empty packet (ZLB) */
 	if (m == NULL) {
@@ -1515,12 +1532,6 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 	priv->stats.xmitPackets++;
 	priv->stats.xmitOctets += m->m_pkthdr.len;
 
-	/* Stop ack timer: we're sending an ack with this packet */
-	if (callout_pending(&seq->xack_timer))
-		ng_uncallout(&seq->xack_timer, priv->node);
-
-	seq->xack = seq->nr;
-
 	/* Send packet */
 	NG_SEND_DATA_ONLY(error, priv->lower, m);
 	return (error);
@@ -1551,8 +1562,8 @@ ng_l2tp_seq_check(struct l2tp_seq *seq)
 	CHECK(self_unack >= 0);
 	CHECK(peer_unack >= 0);
 	CHECK(peer_unack <= seq->wmax);
-	CHECK((self_unack == 0) ^ callout_pending(&seq->xack_timer));
-	CHECK((peer_unack == 0) ^ callout_pending(&seq->rack_timer));
+	CHECK((self_unack == 0) ^ callout_active(&seq->xack_timer));
+	CHECK((peer_unack == 0) ^ callout_active(&seq->rack_timer));
 	for (i = 0; i < peer_unack; i++)
 		CHECK(seq->xwin[i] != NULL);
 	for ( ; i < seq->cwnd; i++)	    /* verify peer's recv window full */
