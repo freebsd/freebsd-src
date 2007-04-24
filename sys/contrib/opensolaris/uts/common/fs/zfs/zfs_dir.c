@@ -41,6 +41,7 @@
 #include <sys/stat.h>
 #include <sys/unistd.h>
 #include <sys/random.h>
+#include <sys/policy.h>
 #include <sys/kcondvar.h>
 #include <sys/callb.h>
 #include <sys/smp.h>
