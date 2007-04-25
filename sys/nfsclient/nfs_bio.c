@@ -105,7 +105,8 @@ nfs_getpages(struct vop_getpages_args *ap)
 		return VM_PAGER_ERROR;
 	}
 
-	if (!nfs_directio_allow_mmap && (np->n_flag & NNONCACHE) && 
+	if (nfs_directio_enable && !nfs_directio_allow_mmap && 
+	    (np->n_flag & NNONCACHE) && 
 	    (vp->v_type == VREG)) {
 		printf("nfs_getpages: called on non-cacheable vnode??\n");
 		return VM_PAGER_ERROR;
@@ -287,8 +288,8 @@ nfs_putpages(struct vop_putpages_args *ap)
 		(void)nfs_fsinfo(nmp, vp, cred, td);
 	}
 
-	if (!nfs_directio_allow_mmap && (np->n_flag & NNONCACHE) && 
-	    (vp->v_type == VREG))
+	if (nfs_directio_enable && !nfs_directio_allow_mmap && 
+	    (np->n_flag & NNONCACHE) && (vp->v_type == VREG))
 		printf("nfs_putpages: called on noncache-able vnode??\n");
 
 	for (i = 0; i < npages; i++)
@@ -1333,7 +1334,8 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 			goto out;
 		error = vinvalbuf(vp, flags, td, 0, slptimeo);
 	}
-	np->n_flag &= ~NMODIFIED;
+	if (np->n_directio_asyncwr == 0)
+		np->n_flag &= ~NMODIFIED;
 out:
  	if (old_lock != LK_EXCLUSIVE) {
  		if (old_lock == LK_SHARED) {
@@ -1470,6 +1472,8 @@ again:
 		BUF_KERNPROC(bp);
 		TAILQ_INSERT_TAIL(&nmp->nm_bufq, bp, b_freelist);
 		nmp->nm_bufqlen++;
+		if ((bp->b_flags & B_DIRECT) && bp->b_iocmd == BIO_WRITE)
+			VTONFS(bp->b_vp)->n_directio_asyncwr++;
 		return (0);
 	}
 
@@ -1496,6 +1500,15 @@ nfs_doio_directwrite(struct buf *bp)
 	free(iov_base, M_NFSDIRECTIO);
 	free(uiop->uio_iov, M_NFSDIRECTIO);
 	free(uiop, M_NFSDIRECTIO);
+	if ((bp->b_flags & B_DIRECT) && bp->b_iocmd == BIO_WRITE) {
+		struct nfsnode *np = VTONFS(bp->b_vp);
+		
+		np->n_directio_asyncwr--;
+		if ((np->n_flag & NFSYNCWAIT) && np->n_directio_asyncwr == 0) {
+			np->n_flag &= ~NFSYNCWAIT;
+			wakeup((caddr_t)&np->n_directio_asyncwr);
+		}
+	}
 	vdrop(bp->b_vp);
 	bp->b_vp = NULL;
 	relpbuf(bp, &nfs_pbuf_freecnt);
