@@ -826,13 +826,11 @@ do_sync:
 				bp->b_wcred = NOCRED;			
 			bp->b_caller1 = (void *)t_uio;
 			bp->b_vp = vp;
-			vhold(vp);
 			error = nfs_asyncio(nmp, bp, NOCRED, td);
 			if (error) {
 				free(t_iov->iov_base, M_NFSDIRECTIO);
 				free(t_iov, M_NFSDIRECTIO);
 				free(t_uio, M_NFSDIRECTIO);
-				vdrop(bp->b_vp);
 				bp->b_vp = NULL;
 				relpbuf(bp, &nfs_pbuf_freecnt);
 				if (error == EINTR)
@@ -1470,6 +1468,7 @@ again:
 		nmp->nm_bufqlen++;
 		if ((bp->b_flags & B_DIRECT) && bp->b_iocmd == BIO_WRITE) {
 			mtx_lock(&(VTONFS(bp->b_vp))->n_mtx);			
+			VTONFS(bp->b_vp)->n_flag |= NMODIFIED;
 			VTONFS(bp->b_vp)->n_directio_asyncwr++;
 			mtx_unlock(&(VTONFS(bp->b_vp))->n_mtx);
 		}
@@ -1506,13 +1505,15 @@ nfs_doio_directwrite(struct buf *bp)
 		struct nfsnode *np = VTONFS(bp->b_vp);
 		mtx_lock(&np->n_mtx);
 		np->n_directio_asyncwr--;
-		if ((np->n_flag & NFSYNCWAIT) && np->n_directio_asyncwr == 0) {
-			np->n_flag &= ~NFSYNCWAIT;
-			wakeup((caddr_t)&np->n_directio_asyncwr);
+		if (np->n_directio_asyncwr == 0) {
+			VTONFS(bp->b_vp)->n_flag &= ~NMODIFIED;
+			if ((np->n_flag & NFSYNCWAIT)) {
+				np->n_flag &= ~NFSYNCWAIT;
+				wakeup((caddr_t)&np->n_directio_asyncwr);
+			}
 		}
 		mtx_unlock(&np->n_mtx);
 	}
-	vdrop(bp->b_vp);
 	bp->b_vp = NULL;
 	relpbuf(bp, &nfs_pbuf_freecnt);
 }
