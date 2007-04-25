@@ -127,6 +127,7 @@ struct nfsnode {
 	uint32_t		n_namelen;
 	daddr_t			ra_expect_lbn;
 	int			n_directio_opens;
+	int			n_directio_asyncwr;
 };
 
 #define n_atim		n_un1.nf_atim
@@ -150,6 +151,8 @@ struct nfsnode {
 #define	NTRUNCATE	0x1000	/* Opened by nfs_setattr() */
 #define	NSIZECHANGED	0x2000  /* File size has changed: need cache inval */
 #define NNONCACHE	0x4000  /* Node marked as noncacheable */
+#define NFSYNCWAIT	0x8000  /* fsync waiting for all directio async writes 
+				   to drain */
 
 /*
  * Convert between nfsnode pointers and vnode pointers
