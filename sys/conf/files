@@ -1550,8 +1550,8 @@ net/if_media.c			standard
 net/if_mib.c			standard
 net/if_ppp.c			optional ppp
 net/if_sl.c			optional sl
-net/if_spppfr.c			optional i4bisppp | sppp
-net/if_spppsubr.c		optional i4bisppp | sppp
+net/if_spppfr.c			optional i4bisppp | sppp | netgraph_sppp
+net/if_spppsubr.c		optional i4bisppp | sppp | netgraph_sppp
 net/if_stf.c			optional stf
 net/if_tun.c			optional tun
 net/if_tap.c			optional tap
@@ -1565,9 +1565,10 @@ net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
 net/rtsock.c			standard
-net/slcompress.c		optional netgraph_vjc | ppp | sl | sppp
+net/slcompress.c		optional netgraph_vjc | ppp | sl | sppp | \
+					 netgraph_sppp
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
-					 ppp_deflate
+					 ppp_deflate | netgraph_deflate
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan_acl
 net80211/ieee80211_amrr.c	optional wlan_amrr
@@ -1800,11 +1801,11 @@ netinet/tcp_syncache.c		optional inet
 netinet/tcp_timer.c		optional inet
 netinet/tcp_usrreq.c		optional inet
 netinet/udp_usrreq.c		optional inet
-netinet/libalias/alias.c	optional libalias
-netinet/libalias/alias_db.c	optional libalias
-netinet/libalias/alias_mod.c	optional libalias
-netinet/libalias/alias_proxy.c	optional libalias
-netinet/libalias/alias_util.c	optional libalias
+netinet/libalias/alias.c	optional libalias | netgraph_nat
+netinet/libalias/alias_db.c	optional libalias | netgraph_nat
+netinet/libalias/alias_mod.c	optional libalias | netgraph_nat
+netinet/libalias/alias_proxy.c	optional libalias | netgraph_nat
+netinet/libalias/alias_util.c	optional libalias | netgraph_nat
 netinet6/ah_aesxcbcmac.c	optional ipsec
 netinet6/ah_core.c		optional ipsec
 netinet6/ah_input.c		optional ipsec
