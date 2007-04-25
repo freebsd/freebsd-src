@@ -96,6 +96,7 @@ mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
 mm [label="Martin Matuska\nmm@FreeBSD.org\n2007/04/04"]
 mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
+nemoliu [label="Tong Liu\nnemoliu@FreeBSD.org\n2007/04/25"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2002/03/19"]
 nobutaka [label="Nobutaka Mantani\nnobutaka@FreeBSD.org\n2001/11/02"]
 nork [label="Norikatsu Shigemura\nnork@FreeBSD.org\n2002/04/01"]
@@ -144,6 +145,7 @@ clement -> lawrance
 
 clsung -> lwhsu
 
+delphij -> nemoliu
 delphij -> rafan
 
 demon -> mat
