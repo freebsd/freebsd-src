@@ -1034,7 +1034,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
      * the request from our system resource regions.  If we can't, pass the
      * request up to the parent.
      */
-    if (!(start == 0UL && end == ~0UL) && rm != NULL)
+    if (start + count - 1 == end && rm != NULL)
 	res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
 	    child);
     if (res == NULL) {
