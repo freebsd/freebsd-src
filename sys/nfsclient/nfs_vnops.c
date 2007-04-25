@@ -2878,6 +2878,7 @@ loop:
 			VI_UNLOCK(vp);
 			goto loop;
 		}
+		VI_UNLOCK(vp);
 		/* 
 		 * Wait for all the async IO requests to drain 
 		 */
@@ -2893,8 +2894,8 @@ loop:
 			}
 		}
 
-	}
-	VI_UNLOCK(vp);
+	} else
+		VI_UNLOCK(vp);
 	if (np->n_flag & NWRITEERR) {
 		error = np->n_error;
 		np->n_flag &= ~NWRITEERR;
