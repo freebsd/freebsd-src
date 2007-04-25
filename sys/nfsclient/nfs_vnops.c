@@ -603,6 +603,10 @@ nfs_close(struct vop_close_args *ap)
 	    }
 	    mtx_unlock(&np->n_mtx);
 	}
+	if (nfs_directio_enable)
+		KASSERT((np->n_directio_asyncwr == 0),
+			("nfs_close: dirty unflushed (%d) directio buffers\n",
+			 np->n_directio_asyncwr));
 	if (nfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
 		mtx_lock(&np->n_mtx);
 		KASSERT((np->n_directio_opens > 0), 
