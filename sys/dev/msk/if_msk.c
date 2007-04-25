@@ -2706,7 +2706,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
-			tcp = mtod(m, struct tcphdr *);
+			tcp = (struct tcphdr *)(mtod(m, char *) + offset);
 			offset += (tcp->th_off << 2);
 		}
 		*m_head = m;
