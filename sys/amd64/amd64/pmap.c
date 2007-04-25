@@ -205,7 +205,7 @@ static pv_entry_t get_pv_entry(void);
 static void	pmap_clear_ptes(vm_page_t m, long bit);
 
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq,
-		vm_offset_t sva, pd_entry_t ptepde);
+		vm_offset_t sva, pd_entry_t ptepde, vm_page_t *free);
 static void pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 		vm_offset_t va);
@@ -215,8 +215,9 @@ static vm_page_t pmap_allocpde(pmap_t pmap, vm_offset_t va, int flags);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags);
-static int _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m);
-static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t);
+static int _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m,
+                vm_page_t* free);
+static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t, vm_page_t *);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 
 CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
@@ -967,24 +968,36 @@ pmap_qremove(vm_offset_t sva, int count)
 /***************************************************
  * Page table page management routines.....
  ***************************************************/
+static PMAP_INLINE void
+pmap_free_zero_pages(vm_page_t free)
+{
+	vm_page_t m;
+
+	while (free != NULL) {
+		m = free;
+		free = m->right;
+		vm_page_free_zero(m);
+	}
+}
 
 /*
  * This routine unholds page table pages, and if the hold count
  * drops to zero, then it decrements the wire count.
  */
 static PMAP_INLINE int
-pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
+pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t *free)
 {
 
 	--m->wire_count;
 	if (m->wire_count == 0)
-		return _pmap_unwire_pte_hold(pmap, va, m);
+		return _pmap_unwire_pte_hold(pmap, va, m, free);
 	else
 		return 0;
 }
 
 static int 
-_pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
+_pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m, 
+    vm_page_t *free)
 {
 	vm_offset_t pteva;
 
@@ -1016,14 +1029,14 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		vm_page_t pdpg;
 
 		pdpg = PHYS_TO_VM_PAGE(*pmap_pdpe(pmap, va) & PG_FRAME);
-		pmap_unwire_pte_hold(pmap, va, pdpg);
+		pmap_unwire_pte_hold(pmap, va, pdpg, free);
 	}
 	if (m->pindex >= NUPDE && m->pindex < (NUPDE + NUPDPE)) {
 		/* We just released a PD, unhold the matching PDP */
 		vm_page_t pdppg;
 
 		pdppg = PHYS_TO_VM_PAGE(*pmap_pml4e(pmap, va) & PG_FRAME);
-		pmap_unwire_pte_hold(pmap, va, pdppg);
+		pmap_unwire_pte_hold(pmap, va, pdppg, free);
 	}
 
 	/*
@@ -1032,7 +1045,13 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	 */
 	pmap_invalidate_page(pmap, pteva);
 
-	vm_page_free_zero(m);
+	/* 
+	 * Put page on a list so that it is released after
+	 * *ALL* TLB shootdown is done
+	 */
+	m->right = *free;
+	*free = m;
+	
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	return 1;
 }
@@ -1042,7 +1061,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
  * conditionally free the page, and manage the hold/wire counts.
  */
 static int
-pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde)
+pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde, vm_page_t *free)
 {
 	vm_page_t mpte;
 
@@ -1050,7 +1069,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde)
 		return 0;
 	KASSERT(ptepde != 0, ("pmap_unuse_pt: ptepde != 0"));
 	mpte = PHYS_TO_VM_PAGE(ptepde & PG_FRAME);
-	return pmap_unwire_pte_hold(pmap, va, mpte);
+	return pmap_unwire_pte_hold(pmap, va, mpte, free);
 }
 
 void
@@ -1270,7 +1289,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags)
 {
 	vm_pindex_t ptepindex;
 	pd_entry_t *pd;
-	vm_page_t m;
+	vm_page_t m, free;
 
 	KASSERT((flags & (M_NOWAIT | M_WAITOK)) == M_NOWAIT ||
 	    (flags & (M_NOWAIT | M_WAITOK)) == M_WAITOK,
@@ -1294,8 +1313,10 @@ retry:
 		*pd = 0;
 		pd = 0;
 		pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
-		pmap_unuse_pt(pmap, va, *pmap_pdpe(pmap, va));
+		free = NULL;
+		pmap_unuse_pt(pmap, va, *pmap_pdpe(pmap, va), &free);
 		pmap_invalidate_all(kernel_pmap);
+		pmap_free_zero_pages(free);
 	}
 
 	/*
@@ -1531,7 +1552,8 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
  * pmap_remove_pte: do the things to unmap a page in a process
  */
 static int
-pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, pd_entry_t ptepde)
+pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, 
+    pd_entry_t ptepde, vm_page_t *free)
 {
 	pt_entry_t oldpte;
 	vm_page_t m;
@@ -1564,7 +1586,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, pd_entry_t ptepde)
 			vm_page_flag_set(m, PG_REFERENCED);
 		pmap_remove_entry(pmap, m, va);
 	}
-	return (pmap_unuse_pt(pmap, va, ptepde));
+	return (pmap_unuse_pt(pmap, va, ptepde, free));
 }
 
 /*
@@ -1574,6 +1596,7 @@ static void
 pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde)
 {
 	pt_entry_t *pte;
+	vm_page_t free = NULL;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if ((*pde & PG_V) == 0)
@@ -1581,8 +1604,9 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde)
 	pte = pmap_pde_to_pte(pde, va);
 	if ((*pte & PG_V) == 0)
 		return;
-	pmap_remove_pte(pmap, pte, va, *pde);
+	pmap_remove_pte(pmap, pte, va, *pde, &free);
 	pmap_invalidate_page(pmap, va);
+	pmap_free_zero_pages(free);
 }
 
 /*
@@ -1599,6 +1623,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pdp_entry_t *pdpe;
 	pd_entry_t ptpaddr, *pde;
 	pt_entry_t *pte;
+	vm_page_t free = NULL;
 	int anyvalid;
 
 	/*
@@ -1662,7 +1687,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if ((ptpaddr & PG_PS) != 0) {
 			*pde = 0;
 			pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
-			pmap_unuse_pt(pmap, sva, *pdpe);
+			pmap_unuse_pt(pmap, sva, *pdpe, &free);
 			anyvalid = 1;
 			continue;
 		}
@@ -1679,15 +1704,23 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		    sva += PAGE_SIZE) {
 			if (*pte == 0)
 				continue;
-			anyvalid = 1;
-			if (pmap_remove_pte(pmap, pte, sva, ptpaddr))
+
+			/*
+			 * The TLB entry for a PG_G mapping is invalidated
+			 * by pmap_remove_pte().
+			 */
+			if ((*pte & PG_G) == 0)
+				anyvalid = 1;
+			if (pmap_remove_pte(pmap, pte, sva, ptpaddr, &free))
 				break;
 		}
 	}
 out:
-	vm_page_unlock_queues();
-	if (anyvalid)
+	if (anyvalid) {
 		pmap_invalidate_all(pmap);
+		pmap_free_zero_pages(free);
+	}
+	vm_page_unlock_queues();	
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1710,6 +1743,7 @@ pmap_remove_all(vm_page_t m)
 	register pv_entry_t pv;
 	pt_entry_t *pte, tpte;
 	pd_entry_t ptepde;
+	vm_page_t free;
 
 #if defined(PMAP_DIAGNOSTIC)
 	/*
@@ -1745,11 +1779,13 @@ pmap_remove_all(vm_page_t m)
 			if (pmap_track_modified(pv->pv_va))
 				vm_page_dirty(m);
 		}
+		free = NULL;
+		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, ptepde, &free);
 		pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+		pmap_free_zero_pages(free);
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
-		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, ptepde);
 		PMAP_UNLOCK(pv->pv_pmap);
 		free_pv_entry(pv);
 	}
@@ -1854,9 +1890,9 @@ retry:
 			}
 		}
 	}
-	vm_page_unlock_queues();
 	if (anychanged)
 		pmap_invalidate_all(pmap);
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -2125,7 +2161,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pte = vtopte(va);
 	if (*pte) {
 		if (mpte != NULL) {
-			pmap_unwire_pte_hold(pmap, va, mpte);
+			mpte->wire_count--;
 			mpte = NULL;
 		}
 		goto out;
@@ -2382,7 +2418,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				dst_pmap->pm_stats.resident_count +=
 				    NBPDR / PAGE_SIZE;
 			} else
-				pmap_unwire_pte_hold(dst_pmap, addr, dstmpde);
+				dstmpde->wire_count--;
 			continue;
 		}
 
@@ -2425,7 +2461,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					dst_pmap->pm_stats.resident_count++;
 					pmap_insert_entry(dst_pmap, addr, m);
 	 			} else
-					pmap_unwire_pte_hold(dst_pmap, addr, dstmpte);
+					dstmpte->wire_count--;
 				if (dstmpte->wire_count >= srcmpte->wire_count)
 					break;
 			}
@@ -2541,7 +2577,7 @@ pmap_remove_pages(pmap, sva, eva)
 	vm_offset_t sva, eva;
 {
 	pt_entry_t *pte, tpte;
-	vm_page_t m;
+	vm_page_t m, free = NULL;
 	pv_entry_t pv, npv;
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
@@ -2607,10 +2643,11 @@ pmap_remove_pages(pmap, sva, eva)
 		if (TAILQ_EMPTY(&m->md.pv_list))
 			vm_page_flag_clear(m, PG_WRITEABLE);
 
-		pmap_unuse_pt(pmap, pv->pv_va, *vtopde(pv->pv_va));
+		pmap_unuse_pt(pmap, pv->pv_va, *vtopde(pv->pv_va), &free);
 		free_pv_entry(pv);
 	}
 	pmap_invalidate_all(pmap);
+	pmap_free_zero_pages(free);
 	PMAP_UNLOCK(pmap);
 	vm_page_unlock_queues();
 }
