@@ -2069,6 +2069,7 @@ bstp_modevent(module_t mod, int type, void *data)
 		bstp_linkstate_p = bstp_linkstate;
 		break;
 	case MOD_UNLOAD:
+		bstp_linkstate_p = NULL;
 		mtx_destroy(&bstp_list_mtx);
 		break;
 	default:
@@ -2087,8 +2088,7 @@ DECLARE_MODULE(bridgestp, bstp_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(bridgestp, 1);
 
 void
-bstp_attach(struct bstp_state *bs, bstp_state_cb_t state_callback,
-    bstp_rtage_cb_t rtage_callback)
+bstp_attach(struct bstp_state *bs, struct bstp_cb_ops *cb)
 {
 	BSTP_LOCK_INIT(bs);
 	callout_init_mtx(&bs->bs_bstpcallout, &bs->bs_mtx, 0);
@@ -2102,8 +2102,8 @@ bstp_attach(struct bstp_state *bs, bstp_state_cb_t state_callback,
 	bs->bs_migration_delay = BSTP_DEFAULT_MIGRATE_DELAY;
 	bs->bs_txholdcount = BSTP_DEFAULT_HOLD_COUNT;
 	bs->bs_protover = BSTP_PROTO_STP;
-	bs->bs_state_cb = state_callback;
-	bs->bs_rtage_cb = rtage_callback;
+	bs->bs_state_cb = cb->bcb_state;
+	bs->bs_rtage_cb = cb->bcb_rtage;
 
 	getmicrotime(&bs->bs_last_tc_time);
 
