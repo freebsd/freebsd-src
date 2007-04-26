@@ -128,6 +128,7 @@ usr.bin/bluetooth	emax	Pre-commit review preferred.
 usr.sbin/bluetooth	emax	Pre-commit review preferred.
 gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
 BSD.{local,x11*}.dist	portmgr	Pre-commit review requested, since these files interface with ports.
+usb		core	Please contact core@ before any major changes
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
