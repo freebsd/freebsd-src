@@ -317,6 +317,7 @@ wpa_driver_bsd_set_key(void *priv, wpa_alg alg,
 		wk.ik_flags |= IEEE80211_KEY_DEFAULT;
 	wk.ik_keylen = key_len;
 	memcpy(&wk.ik_keyrsc, seq, seq_len);
+	wk.ik_keyrsc = le64toh(wk.ik_keyrsc);
 	memcpy(wk.ik_keydata, key, key_len);
 
 	return set80211var(drv, IEEE80211_IOC_WPAKEY, &wk, sizeof(wk));
