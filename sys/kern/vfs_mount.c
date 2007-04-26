@@ -1168,14 +1168,12 @@ dounmount(mp, flags, td)
 		mnt_gen_r = mp->mnt_gen;
 		VI_LOCK(coveredvp);
 		vholdl(coveredvp);
-		error = vn_lock(coveredvp, LK_EXCLUSIVE | LK_INTERLOCK, td);
+		vn_lock(coveredvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY, td);
 		vdrop(coveredvp);
 		/*
 		 * Check for mp being unmounted while waiting for the
 		 * covered vnode lock.
 		 */
-		if (error)
-			return (error);
 		if (coveredvp->v_mountedhere != mp ||
 		    coveredvp->v_mountedhere->mnt_gen != mnt_gen_r) {
 			VOP_UNLOCK(coveredvp, 0, td);
