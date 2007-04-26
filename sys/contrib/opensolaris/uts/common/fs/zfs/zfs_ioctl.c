@@ -1085,7 +1085,7 @@ zfs_ioc_set_prop(zfs_cmd_t *zc)
 }
 
 static int
-zfs_ioc_pool_props_set(zfs_cmd_t *zc)
+zfs_ioc_pool_set_props(zfs_cmd_t *zc)
 {
 	nvlist_t *nvl;
 	int error, reset_bootfs = 0;
@@ -1181,7 +1181,7 @@ zfs_ioc_pool_props_set(zfs_cmd_t *zc)
 }
 
 static int
-zfs_ioc_pool_props_get(zfs_cmd_t *zc)
+zfs_ioc_pool_get_props(zfs_cmd_t *zc)
 {
 	spa_t *spa;
 	int error;
@@ -1692,8 +1692,8 @@ static zfs_ioc_vec_t zfs_ioc_vec[] = {
 	{ zfs_ioc_snapshot,		zfs_secpolicy_operator,	dataset_name },
 	{ zfs_ioc_dsobj_to_dsname,	zfs_secpolicy_config,	pool_name },
 	{ zfs_ioc_obj_to_path,		zfs_secpolicy_config,	no_name },
-	{ zfs_ioc_pool_props_set,	zfs_secpolicy_config,	pool_name },
-	{ zfs_ioc_pool_props_get,	zfs_secpolicy_read,	pool_name },
+	{ zfs_ioc_pool_set_props,	zfs_secpolicy_config,	pool_name },
+	{ zfs_ioc_pool_get_props,	zfs_secpolicy_read,	pool_name },
 	{ zfs_ioc_jail,			zfs_secpolicy_config,	dataset_name },
 	{ zfs_ioc_unjail,		zfs_secpolicy_config,	dataset_name }
 };
