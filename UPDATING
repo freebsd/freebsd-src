@@ -8,7 +8,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
-20070209	p11	FreeBSD-SA-07:02.bind
+20070426:	p12	FreeBSD-SA-07:03.ipv6
+	Disable processing of IPv6 type 0 Routing Headers.  This behaviour
+	can be changed via the (newly added) net.inet6.ip6.rthdr0_allowed
+	sysctl.
+
+20070209:	p11	FreeBSD-SA-07:02.bind
 	Correct two remote denials of service in BIND involving DNSSEC and
 	recursive DNS queries respectively.
 

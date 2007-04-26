@@ -314,6 +314,8 @@ time_t	ip6_log_time = (time_t)0L;
 #ifdef IPSTEALTH
 int	ip6stealth = 0;
 #endif
+int     ip6_rthdr0_allowed = 0; /* Disallow use of routing header 0 */
+				/* by default. */
 
 /* icmp6 */
 /*
@@ -452,6 +454,9 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS,
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_STEALTH, stealth, CTLFLAG_RW,
 	&ip6stealth, 0, "");
 #endif
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTHDR0_ALLOWED, 
+	   rthdr0_allowed, CTLFLAG_RW, &ip6_rthdr0_allowed, 0, "");
+
 
 /* net.inet6.icmp6 */
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT,
