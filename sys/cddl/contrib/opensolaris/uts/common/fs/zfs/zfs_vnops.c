@@ -288,6 +288,7 @@ mappedwrite(vnode_t *vp, int nbytes, uio_t *uio, dmu_tx_t *tx)
 	int64_t start, off;
 	int len = nbytes;
 	int error = 0;
+	uint64_t dirbytes;
 
 	ASSERT(vp->v_mount != NULL);
 	obj = vp->v_object;
@@ -295,39 +296,46 @@ mappedwrite(vnode_t *vp, int nbytes, uio_t *uio, dmu_tx_t *tx)
 
 	start = uio->uio_loffset;
 	off = start & PAGEOFFSET;
+	dirbytes = 0;
 	VM_OBJECT_LOCK(obj);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
 		uint64_t bytes = MIN(PAGESIZE - off, len);
+		uint64_t fsize;
 
 again:
 		if ((m = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
 		    vm_page_is_valid(m, (vm_offset_t)off, bytes)) {
-			uint64_t woff, dmubytes;
+			uint64_t woff;
 			caddr_t va;
 
 			if (vm_page_sleep_if_busy(m, FALSE, "zfsmwb"))
 				goto again;
-			woff = uio->uio_loffset;
-			dmubytes = MIN(PAGESIZE,
-			    obj->un_pager.vnp.vnp_size - (woff - off));
+			fsize = obj->un_pager.vnp.vnp_size;
 			vm_page_busy(m);
 			vm_page_lock_queues();
 			vm_page_undirty(m);
 			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(obj);
-			sched_pin();
-			sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-			va = (caddr_t)sf_buf_kva(sf);
-			error = uiomove(va + off, bytes, UIO_WRITE, uio);
-			dmu_write(os, zp->z_id, woff - off, dmubytes, va, tx);
-			sf_buf_free(sf);
-			sched_unpin();
+			if (dirbytes > 0) {
+				error = dmu_write_uio(os, zp->z_id, uio,
+				    dirbytes, tx);
+				dirbytes = 0;
+			}
+			if (error == 0) {
+				sched_pin();
+				sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
+				va = (caddr_t)sf_buf_kva(sf);
+				woff = uio->uio_loffset - off;
+				error = uiomove(va + off, bytes, UIO_WRITE, uio);
+				dmu_write(os, zp->z_id, woff,
+				    MIN(PAGESIZE, fsize - woff), va, tx);
+				sf_buf_free(sf);
+				sched_unpin();
+			}
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
 		} else {
-			VM_OBJECT_UNLOCK(obj);
-			error = dmu_write_uio(os, zp->z_id, uio, bytes, tx);
-			VM_OBJECT_LOCK(obj);
+			dirbytes += bytes;
 		}
 		len -= bytes;
 		off = 0;
@@ -335,6 +343,8 @@ again:
 			break;
 	}
 	VM_OBJECT_UNLOCK(obj);
+	if (error == 0 && dirbytes > 0)
+		error = dmu_write_uio(os, zp->z_id, uio, dirbytes, tx);
 	return (error);
 }
 
@@ -360,6 +370,7 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 	caddr_t va;
 	int len = nbytes;
 	int error = 0;
+	uint64_t dirbytes;
 
 	ASSERT(vp->v_mount != NULL);
 	obj = vp->v_object;
@@ -367,6 +378,7 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 
 	start = uio->uio_loffset;
 	off = start & PAGEOFFSET;
+	dirbytes = 0;
 	VM_OBJECT_LOCK(obj);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
 		uint64_t bytes = MIN(PAGESIZE - off, len);
@@ -378,12 +390,19 @@ again:
 				goto again;
 			vm_page_busy(m);
 			VM_OBJECT_UNLOCK(obj);
-			sched_pin();
-			sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-			va = (caddr_t)sf_buf_kva(sf);
-			error = uiomove(va + off, bytes, UIO_READ, uio);
-			sf_buf_free(sf);
-			sched_unpin();
+			if (dirbytes > 0) {
+				error = dmu_read_uio(os, zp->z_id, uio,
+				    dirbytes);
+				dirbytes = 0;
+			}
+			if (error == 0) {
+				sched_pin();
+				sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
+				va = (caddr_t)sf_buf_kva(sf);
+				error = uiomove(va + off, bytes, UIO_READ, uio);
+				sf_buf_free(sf);
+				sched_unpin();
+			}
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
 		} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
@@ -398,20 +417,26 @@ again:
 				goto again;
 			vm_page_busy(m);
 			VM_OBJECT_UNLOCK(obj);
-			sched_pin();
-			sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-			va = (caddr_t)sf_buf_kva(sf);
-			error = dmu_read(os, zp->z_id, start + off, bytes,
-			    (void *)(va + off));
-			sf_buf_free(sf);
-			sched_unpin();
+			if (dirbytes > 0) {
+				error = dmu_read_uio(os, zp->z_id, uio,
+				    dirbytes);
+				dirbytes = 0;
+			}
+			if (error == 0) {
+				sched_pin();
+				sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
+				va = (caddr_t)sf_buf_kva(sf);
+				error = dmu_read(os, zp->z_id, start + off,
+				    bytes, (void *)(va + off));
+				sf_buf_free(sf);
+				sched_unpin();
+			}
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
-			uio->uio_resid -= bytes;
+			if (error == 0)
+				uio->uio_resid -= bytes;
 		} else {
-			VM_OBJECT_UNLOCK(obj);
-			error = dmu_read_uio(os, zp->z_id, uio, bytes);
-			VM_OBJECT_LOCK(obj);
+			dirbytes += bytes;
 		}
 		len -= bytes;
 		off = 0;
@@ -419,6 +444,8 @@ again:
 			break;
 	}
 	VM_OBJECT_UNLOCK(obj);
+	if (error == 0 && dirbytes > 0)
+		error = dmu_read_uio(os, zp->z_id, uio, dirbytes);
 	return (error);
 }
 
