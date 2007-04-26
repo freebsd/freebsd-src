@@ -596,7 +596,8 @@ struct ip6_mtuinfo {
 /* New entries should be added here from current IPV6CTL_MAXID value. */
 /* to define items, should talk with KAME guys first, for *BSD compatibility */
 #define IPV6CTL_STEALTH		45
-#define IPV6CTL_MAXID		46
+#define IPV6CTL_RTHDR0_ALLOWED  46
+#define IPV6CTL_MAXID		47
 #endif /* __BSD_VISIBLE */
 
 /*

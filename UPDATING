@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070426:	p16	FreeBSD-SA-07:03.ipv6
+	Disable processing of IPv6 type 0 Routing Headers.  This behaviour
+	can be changed via the (newly added) net.inet6.ip6.rthdr0_allowed
+	sysctl.
+
 20070228:	p15	FreeBSD-EN-07:04.zoneinfo
 	Update zoneinfo files for change in Daylight Savings Time that
 	begins in 2007.
