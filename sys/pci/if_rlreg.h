@@ -727,6 +727,7 @@ struct rl_softc {
 	uint32_t		rl_hwrev;
 	uint32_t		rl_rxlenmask;
 	int			rl_testmode;
+	int			rl_if_flags;
 	int			suspended;	/* 0 = normal  1 = suspended */
 #ifdef DEVICE_POLLING
 	int			rxcycles;
