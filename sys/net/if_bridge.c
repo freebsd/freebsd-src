@@ -317,6 +317,11 @@ static int	bridge_ip6_checkbasic(struct mbuf **mp);
 static int	bridge_fragment(struct ifnet *, struct mbuf *,
 		    struct ether_header *, int, struct llc *);
 
+static struct bstp_cb_ops bridge_ops = {
+	.bcb_state = bridge_state_change,
+	.bcb_rtage = bridge_rtable_expire
+};
+
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
 
@@ -453,7 +458,6 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_input_p = bridge_input;
 		bridge_output_p = bridge_output;
 		bridge_dn_p = bridge_dummynet;
-		bstp_linkstate_p = bstp_linkstate;
 		bridge_detach_cookie = EVENTHANDLER_REGISTER(
 		    ifnet_departure_event, bridge_ifdetach, NULL,
 		    EVENTHANDLER_PRI_ANY);
@@ -468,7 +472,6 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_input_p = NULL;
 		bridge_output_p = NULL;
 		bridge_dn_p = NULL;
-		bstp_linkstate_p = NULL;
 		mtx_destroy(&bridge_list_mtx);
 		break;
 	default:
@@ -584,7 +587,7 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 		mtx_unlock(&bridge_list_mtx);
 	}
 
-	bstp_attach(&sc->sc_stp, bridge_state_change, bridge_rtable_expire);
+	bstp_attach(&sc->sc_stp, &bridge_ops);
 	ether_ifattach(ifp, eaddr);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;

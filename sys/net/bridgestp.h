@@ -185,6 +185,10 @@
  */
 typedef void (*bstp_state_cb_t)(struct ifnet *, int);
 typedef void (*bstp_rtage_cb_t)(struct ifnet *, int);
+struct bstp_cb_ops {
+	bstp_state_cb_t	bcb_state;
+	bstp_rtage_cb_t	bcb_rtage;
+};
 
 /*
  * Because BPDU's do not make nicely aligned structures, two different
@@ -365,7 +369,7 @@ extern const uint8_t bstp_etheraddr[];
 
 extern	void (*bstp_linkstate_p)(struct ifnet *ifp, int state);
 
-void	bstp_attach(struct bstp_state *, bstp_state_cb_t, bstp_rtage_cb_t);
+void	bstp_attach(struct bstp_state *, struct bstp_cb_ops *);
 void	bstp_detach(struct bstp_state *);
 void	bstp_init(struct bstp_state *);
 void	bstp_stop(struct bstp_state *);
