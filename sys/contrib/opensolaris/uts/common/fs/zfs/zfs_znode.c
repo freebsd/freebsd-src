@@ -369,7 +369,7 @@ zfs_znode_dmu_init(znode_t *zp)
 
 	mutex_enter(&zp->z_lock);
 
-	nzp = dmu_buf_set_user(db, zp, &zp->z_phys, znode_pageout_func);
+	nzp = dmu_buf_set_user_ie(db, zp, &zp->z_phys, znode_pageout_func);
 
 	/*
 	 * there should be no
