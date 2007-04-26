@@ -277,8 +277,6 @@ ad_strategy(struct bio *bp)
 	request->u.ata.feature = 0;
 	request->bytecount = 0;
 	request->transfersize = 0;
-	request->timeout = 1;
-	request->retries = 0;
 	request->flags = ATA_R_CONTROL;
 	request->u.ata.command = ATA_FLUSHCACHE;
 	break;
