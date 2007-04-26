@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 
 uint32_t collapse_free = 0;
 uint32_t mb_free_vec_free = 0;
-int      collapse_mbufs = 1;
+int      collapse_mbufs = 0;
 
 #define USE_GTS 0
 
