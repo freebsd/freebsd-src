@@ -2565,10 +2565,6 @@ vmspace_fork(struct vmspace *vm1)
 	new_map = &vm2->vm_map;	/* XXX */
 	new_map->timestamp = 1;
 
-	/* Do not inherit the MAP_WIREFUTURE property. */
-	if ((new_map->flags & MAP_WIREFUTURE) == MAP_WIREFUTURE)
-		new_map->flags &= ~MAP_WIREFUTURE;
-
 	old_entry = old_map->header.next;
 
 	while (old_entry != &old_map->header) {
