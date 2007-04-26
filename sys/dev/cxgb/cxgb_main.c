@@ -183,6 +183,10 @@ TUNABLE_INT("hw.cxgb.msi_allowed", &msi_allowed);
 SYSCTL_NODE(_hw, OID_AUTO, cxgb, CTLFLAG_RD, 0, "CXGB driver parameters");
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, msi_allowed, CTLFLAG_RDTUN, &msi_allowed, 0,
     "MSI-X, MSI, INTx selector");
+/*
+ * Multiple queues need further tuning
+ */
+static int singleq = 1;
 
 enum {
 	MAX_TXQ_ENTRIES      = 16384,
@@ -442,7 +446,8 @@ cxgb_controller_attach(device_t dev)
 	}
 	t3_write_reg(sc, A_ULPRX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
 
-	if (sc->flags & USING_MSIX)
+
+	if ((singleq == 0) && (sc->flags & USING_MSIX))
 		port_qsets = min((SGE_QSETS/(sc)->params.nports), mp_ncpus);
 
 	/*
