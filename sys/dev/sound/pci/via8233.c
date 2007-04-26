@@ -1049,6 +1049,7 @@ bad:
 	if (via->irq) bus_release_resource(dev, SYS_RES_IRQ, via->irqid, via->irq);
 	if (via->parent_dmat) bus_dma_tag_destroy(via->parent_dmat);
 	if (via->sgd_dmamap) bus_dmamap_unload(via->sgd_dmat, via->sgd_dmamap);
+	if (via->sgd_table) bus_dmamem_free(via->sgd_dmat, via->sgd_table, via->sgd_dmamap);
 	if (via->sgd_dmat) bus_dma_tag_destroy(via->sgd_dmat);
 	if (via->lock) snd_mtxfree(via->lock);
 	if (via) free(via, M_DEVBUF);
@@ -1070,6 +1071,7 @@ via_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_IRQ, via->irqid, via->irq);
 	bus_dma_tag_destroy(via->parent_dmat);
 	bus_dmamap_unload(via->sgd_dmat, via->sgd_dmamap);
+	bus_dmamem_free(via->sgd_dmat, via->sgd_table, via->sgd_dmamap);
 	bus_dma_tag_destroy(via->sgd_dmat);
 	snd_mtxfree(via->lock);
 	free(via, M_DEVBUF);

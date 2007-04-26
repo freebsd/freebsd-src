@@ -913,6 +913,8 @@ bad:
 		    sc->nabmbarid, sc->nabmbar);
 	if (sc->dtmap)
 		bus_dmamap_unload(sc->dmat, sc->dtmap);
+	if (sc->dtbl)
+		bus_dmamem_free(sc->dmat, sc->dtbl, sc->dtmap);
 	if (sc->dmat)
 		bus_dma_tag_destroy(sc->dmat);
 	if (sc->ich_lock)
@@ -937,6 +939,7 @@ ich_pci_detach(device_t dev)
 	bus_release_resource(dev, sc->regtype, sc->nambarid, sc->nambar);
 	bus_release_resource(dev, sc->regtype, sc->nabmbarid, sc->nabmbar);
 	bus_dmamap_unload(sc->dmat, sc->dtmap);
+	bus_dmamem_free(sc->dmat, sc->dtbl, sc->dtmap);
 	bus_dma_tag_destroy(sc->dmat);
 	snd_mtxfree(sc->ich_lock);
 	free(sc, M_DEVBUF);

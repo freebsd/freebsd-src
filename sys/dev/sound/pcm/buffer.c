@@ -46,10 +46,7 @@ sndbuf_create(device_t dev, char *drv, char *desc, struct pcm_channel *channel)
 void
 sndbuf_destroy(struct snd_dbuf *b)
 {
-	if (b->tmpbuf)
-		free(b->tmpbuf, M_DEVBUF);
-	if (!(b->flags & SNDBUF_F_MANAGED) && b->buf)
-		free(b->buf, M_DEVBUF);
+	sndbuf_free(b);
 	free(b, M_DEVBUF);
 }
 
@@ -91,24 +88,27 @@ sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, unsigned int size)
 	b->buf_addr = 0;
 	b->flags |= SNDBUF_F_MANAGED;
 	if (bus_dmamem_alloc(b->dmatag, (void **)&b->buf, BUS_DMA_NOWAIT,
-	    &b->dmamap))
+	    &b->dmamap)) {
+		sndbuf_free(b);
 		return (ENOMEM);
+	}
 	if (bus_dmamap_load(b->dmatag, b->dmamap, b->buf, b->maxsize,
 	    sndbuf_setmap, b, 0) != 0 || b->buf_addr == 0) {
-		bus_dmamem_free(b->dmatag, b->buf, b->dmamap);
-		b->dmamap = NULL;
+		sndbuf_free(b);
 		return (ENOMEM);
 	}
 
 	ret = sndbuf_resize(b, 2, b->maxsize / 2);
 	if (ret != 0)
 		sndbuf_free(b);
+
 	return (ret);
 }
 
 int
 sndbuf_setup(struct snd_dbuf *b, void *buf, unsigned int size)
 {
+	b->flags &= ~SNDBUF_F_MANAGED;
 	if (buf)
 		b->flags |= SNDBUF_F_MANAGED;
 	b->buf = buf;
@@ -122,18 +122,21 @@ sndbuf_free(struct snd_dbuf *b)
 {
 	if (b->tmpbuf)
 		free(b->tmpbuf, M_DEVBUF);
+
+	if (b->buf) {
+		if (b->flags & SNDBUF_F_MANAGED) {
+			if (b->dmamap)
+				bus_dmamap_unload(b->dmatag, b->dmamap);
+			if (b->dmatag)
+				bus_dmamem_free(b->dmatag, b->buf, b->dmamap);
+		} else
+			free(b->buf, M_DEVBUF);
+	}
+
 	b->tmpbuf = NULL;
-
-	if (!(b->flags & SNDBUF_F_MANAGED) && b->buf)
-		free(b->buf, M_DEVBUF);
-
-	if (b->dmamap)
-		bus_dmamap_unload(b->dmatag, b->dmamap);
-
-	if (b->dmamap && b->buf)
-		bus_dmamem_free(b->dmatag, b->buf, b->dmamap);
-	b->dmamap = NULL;
 	b->buf = NULL;
+	b->dmatag = NULL;
+	b->dmamap = NULL;
 }
 
 int
