@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2006
+.Dd March 27, 2007
 .Dt PAM_UNIX 8
 .Os
 .Sh NAME
@@ -142,8 +142,20 @@ provides a function to perform account management,
 .Fn pam_sm_acct_mgmt .
 The function verifies
 that the authenticated user
-is allowed to login to the local user account
-by checking the password expiry date.
+is allowed to log into the local user account
+by checking the following criteria:
+.Bl -dash -offset indent
+.It
+locked status of the account compatible with
+.Xr pw 8
+.Cm lock ;
+.It
+the password expiry date from
+.Xr passwd 5 ;
+.It
+.Xr login.conf 5
+restrictions on the remote host, login time, and tty.
+.El
 .Pp
 The following options may be passed to the management module:
 .Bl -tag -width ".Cm use_first_pass"
@@ -199,4 +211,5 @@ password database.
 .Xr nsswitch.conf 5 ,
 .Xr passwd 5 ,
 .Xr pam 8 ,
+.Xr pw 8 ,
 .Xr yp 8

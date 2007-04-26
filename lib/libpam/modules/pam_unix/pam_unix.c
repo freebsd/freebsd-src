@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #define DEFAULT_WARN		(2L * 7L * 86400L)  /* Two weeks */
 #define	SALTSIZE		32
 
+#define	LOCKED_PREFIX		"*LOCKED*"
+#define	LOCKED_PREFIX_LEN	(sizeof(LOCKED_PREFIX) - 1)
+
 static void makesalt(char []);
 
 static char password_hash[] =		PASSWORD_HASH;
@@ -175,6 +178,9 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	if (*pwd->pw_passwd == '\0' &&
 	    (flags & PAM_DISALLOW_NULL_AUTHTOK) != 0)
 		return (PAM_NEW_AUTHTOK_REQD);
+
+	if (strncmp(pwd->pw_passwd, LOCKED_PREFIX, LOCKED_PREFIX_LEN) == 0)
+		return (PAM_AUTH_ERR);
 
 	lc = login_getpwclass(pwd);
 	if (lc == NULL) {
