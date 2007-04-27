@@ -42,7 +42,7 @@
 #include <sys/ttydev.h>
 
 #ifdef USE_OLD_TTY
-#warning "Old BSD tty API used, please upgrade"
+#warning "Old BSD tty API used and depends on COMPAT_43TTY. Use termios.h instead"
 #endif
 
 struct tchars {
