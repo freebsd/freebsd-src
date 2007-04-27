@@ -7017,10 +7017,12 @@ xpt_finishconfig(struct cam_periph *periph, union ccb *done_ccb)
 		}
 	}
 
-	task = malloc(sizeof(struct xpt_task), M_CAMXPT, M_NOWAIT);
-	if (task != NULL) {
-		TASK_INIT(&task->task, 0, xpt_finishconfig_task, task);
-		taskqueue_enqueue(taskqueue_thread, &task->task);
+	if (busses_to_config == 0) {
+		task = malloc(sizeof(struct xpt_task), M_CAMXPT, M_NOWAIT);
+		if (task != NULL) {
+			TASK_INIT(&task->task, 0, xpt_finishconfig_task, task);
+			taskqueue_enqueue(taskqueue_thread, &task->task);
+		}
 	}
 
 	if (done_ccb != NULL)
