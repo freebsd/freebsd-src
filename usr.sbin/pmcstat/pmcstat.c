@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2006, Joseph Koshy
+ * Copyright (c) 2003-2007, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,23 +29,27 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
+#include <sys/user.h>
 #include <sys/wait.h>
 
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <kvm.h>
 #include <libgen.h>
 #include <limits.h>
 #include <math.h>
 #include <pmc.h>
 #include <pmclog.h>
+#include <regex.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -100,19 +104,32 @@ int	pmcstat_interrupt = 0;
 int	pmcstat_displayheight = DEFAULT_DISPLAY_HEIGHT;
 int	pmcstat_sockpair[NSOCKPAIRFD];
 int	pmcstat_kq;
+kvm_t	*pmcstat_kvm;
+struct kinfo_proc *pmcstat_plist;
 
 void
 pmcstat_attach_pmcs(struct pmcstat_args *a)
 {
 	struct pmcstat_ev *ev;
+	struct pmcstat_target *pt;
+	int count;
 
-	/* Attach all process PMCs to the child process. */
-	STAILQ_FOREACH(ev, &a->pa_head, ev_next)
-	    if (PMC_IS_VIRTUAL_MODE(ev->ev_mode) &&
-		pmc_attach(ev->ev_pmcid, a->pa_pid) != 0)
-		    err(EX_OSERR, "ERROR: cannot attach pmc \"%s\" to "
-			"process %d", ev->ev_name, (int) a->pa_pid);
+	/* Attach all process PMCs to target processes. */
+	count = 0;
+	STAILQ_FOREACH(ev, &a->pa_events, ev_next) {
+		if (PMC_IS_SYSTEM_MODE(ev->ev_mode))
+			continue;
+		SLIST_FOREACH(pt, &a->pa_targets, pt_next)
+			if (pmc_attach(ev->ev_pmcid, pt->pt_pid) == 0)
+				count++;
+			else if (errno != ESRCH)
+				err(EX_OSERR, "ERROR: cannot attach pmc "
+				    "\"%s\" to process %d", ev->ev_name,
+				    (int) pt->pt_pid);
+	}
 
+	if (count == 0)
+		errx(EX_DATAERR, "ERROR: No processes were attached to.");
 }
 
 
@@ -122,14 +139,14 @@ pmcstat_cleanup(struct pmcstat_args *a)
 	struct pmcstat_ev *ev, *tmp;
 
 	/* release allocated PMCs. */
-	STAILQ_FOREACH_SAFE(ev, &a->pa_head, ev_next, tmp)
+	STAILQ_FOREACH_SAFE(ev, &a->pa_events, ev_next, tmp)
 	    if (ev->ev_pmcid != PMC_ID_INVALID) {
 		if (pmc_release(ev->ev_pmcid) < 0)
 			err(EX_OSERR, "ERROR: cannot release pmc "
 			    "0x%x \"%s\"", ev->ev_pmcid, ev->ev_name);
 		free(ev->ev_name);
 		free(ev->ev_spec);
-		STAILQ_REMOVE(&a->pa_head, ev, pmcstat_ev, ev_next);
+		STAILQ_REMOVE(&a->pa_events, ev, pmcstat_ev, ev_next);
 		free(ev);
 	    }
 
@@ -170,7 +187,7 @@ pmcstat_clone_event_descriptor(struct pmcstat_args *a, struct pmcstat_ev *ev,
 		ev_clone->ev_saved = ev->ev_saved;
 		ev_clone->ev_spec  = strdup(ev->ev_spec);
 
-		STAILQ_INSERT_TAIL(&a->pa_head, ev_clone, ev_next);
+		STAILQ_INSERT_TAIL(&a->pa_events, ev_clone, ev_next);
 
 		cpumask &= ~(1 << cpu);
 	}
@@ -180,12 +197,14 @@ void
 pmcstat_create_process(struct pmcstat_args *a)
 {
 	char token;
+	pid_t pid;
 	struct kevent kev;
+	struct pmcstat_target *pt;
 
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, pmcstat_sockpair) < 0)
 		err(EX_OSERR, "ERROR: cannot create socket pair");
 
-	switch (a->pa_pid = fork()) {
+	switch (pid = fork()) {
 	case -1:
 		err(EX_OSERR, "ERROR: cannot fork");
 		/*NOTREACHED*/
@@ -215,17 +234,82 @@ pmcstat_create_process(struct pmcstat_args *a)
 	}
 
 	/* Ask to be notified via a kevent when the target process exits. */
-	EV_SET(&kev, a->pa_pid, EVFILT_PROC, EV_ADD|EV_ONESHOT, NOTE_EXIT, 0,
+	EV_SET(&kev, pid, EVFILT_PROC, EV_ADD|EV_ONESHOT, NOTE_EXIT, 0,
 	    NULL);
 	if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
-		err(EX_OSERR, "ERROR: cannot monitor child process %d",
-		    a->pa_pid);
+		err(EX_OSERR, "ERROR: cannot monitor child process %d", pid);
+
+	if ((pt = malloc(sizeof(*pt))) == NULL)
+		errx(EX_SOFTWARE, "ERROR: Out of memory.");
+
+	pt->pt_pid = pid;
+	SLIST_INSERT_HEAD(&a->pa_targets, pt, pt_next);
 
 	/* Wait for the child to signal that its ready to go. */
 	if (read(pmcstat_sockpair[PARENTSOCKET], &token, 1) < 0)
 		err(EX_OSERR, "ERROR (parent): cannot read token");
 
 	return;
+}
+
+void
+pmcstat_find_targets(struct pmcstat_args *a, const char *spec)
+{
+	int n, nproc, pid, rv;
+	struct pmcstat_target *pt;
+	char errbuf[_POSIX2_LINE_MAX], *end;
+	static struct kinfo_proc *kp;
+	regex_t reg;
+	regmatch_t regmatch;
+
+	/* First check if we've been given a process id. */
+      	pid = strtol(spec, &end, 0);
+	if (end != spec && pid >= 0) {
+		if ((pt = malloc(sizeof(*pt))) == NULL)
+			goto outofmemory;
+		pt->pt_pid = pid;
+		SLIST_INSERT_HEAD(&a->pa_targets, pt, pt_next);
+		return;
+	}
+
+	/* Otherwise treat arg as a regular expression naming processes. */
+	if (pmcstat_kvm == NULL) {
+		if ((pmcstat_kvm = kvm_openfiles(NULL, "/dev/null", NULL, 0,
+		    errbuf)) == NULL)
+			err(EX_OSERR, "ERROR: Cannot open kernel \"%s\"",
+			    errbuf);
+		if ((pmcstat_plist = kvm_getprocs(pmcstat_kvm, KERN_PROC_PROC,
+		    0, &nproc)) == NULL)
+			err(EX_OSERR, "ERROR: Cannot get process list: %s",
+			    kvm_geterr(pmcstat_kvm));
+	}
+
+	if ((rv = regcomp(&reg, spec, REG_EXTENDED|REG_NOSUB)) != 0) {
+		regerror(rv, &reg, errbuf, sizeof(errbuf));
+		err(EX_DATAERR, "ERROR: Failed to compile regex \"%s\": %s",
+		    spec, errbuf);
+	}
+
+	for (n = 0, kp = pmcstat_plist; n < nproc; n++, kp++) {
+		if ((rv = regexec(&reg, kp->ki_comm, 1, &regmatch, 0)) == 0) {
+			if ((pt = malloc(sizeof(*pt))) == NULL)
+				goto outofmemory;
+			pt->pt_pid = kp->ki_pid;
+			SLIST_INSERT_HEAD(&a->pa_targets, pt, pt_next);
+		} else if (rv != REG_NOMATCH) {
+			regerror(rv, &reg, errbuf, sizeof(errbuf));
+			errx(EX_SOFTWARE, "ERROR: Regex evalation failed: %s",
+			    errbuf);
+		}
+	}
+
+	regfree(&reg);
+
+	return;
+
+ outofmemory:
+	errx(EX_SOFTWARE, "Out of memory.");
+	/*NOTREACHED*/
 }
 
 uint32_t
@@ -252,11 +336,29 @@ pmcstat_get_cpumask(const char *cpuspec)
 }
 
 void
+pmcstat_kill_process(struct pmcstat_args *a)
+{
+	struct pmcstat_target *pt;
+
+	assert(a->pa_flags & FLAG_HAS_COMMANDLINE);
+
+	/*
+	 * If a command line was specified, it would be the very first
+	 * in the list, before any other processes specified by -t.
+	 */
+	pt = SLIST_FIRST(&a->pa_targets);
+	assert(pt != NULL);
+
+	if (kill(pt->pt_pid, SIGINT) != 0)
+		err(EX_OSERR, "ERROR: cannot signal child process");
+}
+
+void
 pmcstat_start_pmcs(struct pmcstat_args *a)
 {
 	struct pmcstat_ev *ev;
 
-	STAILQ_FOREACH(ev, &args.pa_head, ev_next) {
+	STAILQ_FOREACH(ev, &args.pa_events, ev_next) {
 
 	    assert(ev->ev_pmcid != PMC_ID_INVALID);
 
@@ -278,7 +380,7 @@ pmcstat_print_headers(struct pmcstat_args *a)
 
 	(void) fprintf(a->pa_printfile, PRINT_HEADER_PREFIX);
 
-	STAILQ_FOREACH(ev, &a->pa_head, ev_next) {
+	STAILQ_FOREACH(ev, &a->pa_events, ev_next) {
 		if (PMC_IS_SAMPLING_MODE(ev->ev_mode))
 			continue;
 
@@ -309,7 +411,7 @@ pmcstat_print_counters(struct pmcstat_args *a)
 
 	extra_width = sizeof(PRINT_HEADER_PREFIX) - 1;
 
-	STAILQ_FOREACH(ev, &a->pa_head, ev_next) {
+	STAILQ_FOREACH(ev, &a->pa_events, ev_next) {
 
 		/* skip sampling mode counters */
 		if (PMC_IS_SAMPLING_MODE(ev->ev_mode))
@@ -422,7 +524,6 @@ main(int argc, char **argv)
 	int pipefd[2];
 	int use_cumulative_counts;
 	uint32_t cpumask;
-	pid_t pid;
 	char *end, *tmp;
 	const char *errmsg;
 	enum pmcstat_state runstate;
@@ -444,7 +545,6 @@ main(int argc, char **argv)
 	args.pa_required	= 0;
 	args.pa_flags		= 0;
 	args.pa_verbosity	= 1;
-	args.pa_pid		= (pid_t) -1;
 	args.pa_logfd		= -1;
 	args.pa_fsroot		= "";
 	args.pa_kernel		= strdup("/boot/kernel");
@@ -452,7 +552,8 @@ main(int argc, char **argv)
 	args.pa_printfile	= stderr;
 	args.pa_interval	= DEFAULT_WAIT_INTERVAL;
 	args.pa_mapfilename	= NULL;
-	STAILQ_INIT(&args.pa_head);
+	STAILQ_INIT(&args.pa_events);
+	SLIST_INIT(&args.pa_targets);
 	bzero(&ds_start, sizeof(ds_start));
 	bzero(&ds_end, sizeof(ds_end));
 	ev = NULL;
@@ -535,7 +636,7 @@ main(int argc, char **argv)
 			if (option == 'P' || option == 'p') {
 				args.pa_flags |= FLAG_HAS_PROCESS_PMCS;
 				args.pa_required |= (FLAG_HAS_COMMANDLINE |
-				    FLAG_HAS_PID);
+				    FLAG_HAS_TARGET);
 			}
 
 			if (option == 'P' || option == 'S') {
@@ -581,7 +682,7 @@ main(int argc, char **argv)
 			(void) strncpy(ev->ev_name, optarg, c);
 			*(ev->ev_name + c) = '\0';
 
-			STAILQ_INSERT_TAIL(&args.pa_head, ev, ev_next);
+			STAILQ_INSERT_TAIL(&args.pa_events, ev, ev_next);
 
 			if (option == 's' || option == 'S')
 				pmcstat_clone_event_descriptor(&args, ev,
@@ -633,15 +734,11 @@ main(int argc, char **argv)
 			args.pa_flags |= FLAG_READ_LOGFILE;
 			break;
 
-		case 't':	/* target pid */
-			pid = strtol(optarg, &end, 0);
-			if (*end != '\0' || pid <= 0)
-				errx(EX_USAGE, "ERROR: Illegal pid value "
-				    "\"%s\".", optarg);
+		case 't':	/* target pid or process name */
+			pmcstat_find_targets(&args, optarg);
 
-			args.pa_flags |= FLAG_HAS_PID;
+			args.pa_flags |= FLAG_HAS_TARGET;
 			args.pa_required |= FLAG_HAS_PROCESS_PMCS;
-			args.pa_pid = pid;
 			break;
 
 		case 'v':	/* verbose */
@@ -690,32 +787,32 @@ main(int argc, char **argv)
 		errmsg = NULL;
 		if (args.pa_flags & FLAG_HAS_COMMANDLINE)
 			errmsg = "a command line specification";
-		else if (args.pa_flags & FLAG_HAS_PID)
+		else if (args.pa_flags & FLAG_HAS_TARGET)
 			errmsg = "option -t";
-		else if (!STAILQ_EMPTY(&args.pa_head))
+		else if (!STAILQ_EMPTY(&args.pa_events))
 			errmsg = "a PMC event specification";
 		if (errmsg)
 			errx(EX_USAGE, "ERROR: option -R may not be used with "
 			    "%s.", errmsg);
-	} else if (STAILQ_EMPTY(&args.pa_head))
+	} else if (STAILQ_EMPTY(&args.pa_events))
 		/* All other uses require a PMC spec. */
 		pmcstat_show_usage();
 
 	/* check for -t pid without a process PMC spec */
-	if ((args.pa_required & FLAG_HAS_PID) &&
+	if ((args.pa_required & FLAG_HAS_TARGET) &&
 	    (args.pa_flags & FLAG_HAS_PROCESS_PMCS) == 0)
 		errx(EX_USAGE, "ERROR: option -t requires a process mode PMC "
 		    "to be specified.");
 
 	/* check for process-mode options without a command or -t pid */
 	if ((args.pa_required & FLAG_HAS_PROCESS_PMCS) &&
-	    (args.pa_flags & (FLAG_HAS_COMMANDLINE | FLAG_HAS_PID)) == 0)
+	    (args.pa_flags & (FLAG_HAS_COMMANDLINE | FLAG_HAS_TARGET)) == 0)
 		errx(EX_USAGE, "ERROR: options -d, -E, -p, -P, and -W require "
 		    "a command line or target process.");
 
 	/* check for -p | -P without a target process of some sort */
-	if ((args.pa_required & (FLAG_HAS_COMMANDLINE | FLAG_HAS_PID)) &&
-	    (args.pa_flags & (FLAG_HAS_COMMANDLINE | FLAG_HAS_PID)) == 0)
+	if ((args.pa_required & (FLAG_HAS_COMMANDLINE | FLAG_HAS_TARGET)) &&
+	    (args.pa_flags & (FLAG_HAS_COMMANDLINE | FLAG_HAS_TARGET)) == 0)
 		errx(EX_USAGE, "ERROR: options -P and -p require a "
 		    "target process or a command line.");
 
@@ -742,12 +839,6 @@ main(int argc, char **argv)
 	    (args.pa_flags & FLAG_HAS_SAMPLING_PMCS) == 0)
 		errx(EX_USAGE, "ERROR: options -n and -O require at least "
 		    "one sampling mode PMC to be specified.");
-
-	if ((args.pa_flags & (FLAG_HAS_PID | FLAG_HAS_COMMANDLINE)) ==
-	    (FLAG_HAS_PID | FLAG_HAS_COMMANDLINE))
-		errx(EX_USAGE,
-		    "ERROR: option -t cannot be specified with a command "
-		    "line.");
 
 	/* check if -g is being used correctly */
 	if ((args.pa_flags & FLAG_DO_GPROF) &&
@@ -894,7 +985,7 @@ main(int argc, char **argv)
 	 * Allocate PMCs.
 	 */
 
-	STAILQ_FOREACH(ev, &args.pa_head, ev_next) {
+	STAILQ_FOREACH(ev, &args.pa_events, ev_next) {
 	    if (pmc_allocate(ev->ev_spec, ev->ev_mode,
 		    ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid) < 0)
 		    err(EX_OSERR, "ERROR: Cannot allocate %s-mode pmc with "
@@ -909,7 +1000,7 @@ main(int argc, char **argv)
 	}
 
 	/* compute printout widths */
-	STAILQ_FOREACH(ev, &args.pa_head, ev_next) {
+	STAILQ_FOREACH(ev, &args.pa_events, ev_next) {
 		int counter_width;
 		int display_width;
 		int header_width;
@@ -987,8 +1078,18 @@ main(int argc, char **argv)
 		err(EX_OSERR, "ERROR: Cannot retrieve driver statistics");
 
 	/* Attach process pmcs to the target process. */
-	if (args.pa_pid != -1)
-		pmcstat_attach_pmcs(&args);
+	if (args.pa_flags & FLAG_HAS_TARGET) {
+		if (SLIST_EMPTY(&args.pa_targets))
+			errx(EX_DATAERR, "ERROR: No matching target "
+			    "processes.");
+		else
+			pmcstat_attach_pmcs(&args);
+
+		if (pmcstat_kvm) {
+			kvm_close(pmcstat_kvm);
+			pmcstat_kvm = NULL;
+		}
+	}
 
 	/* start the pmcs */
 	pmcstat_start_pmcs(&args);
@@ -1069,9 +1170,7 @@ main(int argc, char **argv)
 			} else if (kev.ident == SIGINT) {
 				/* Kill the child process if we started it */
 				if (args.pa_flags & FLAG_HAS_COMMANDLINE)
-					if (kill(args.pa_pid, SIGINT) != 0)
-						err(EX_OSERR, "ERROR: cannot "
-						    "signal child process");
+					pmcstat_kill_process(&args);
 				runstate = PMCSTAT_FINISHED;
 			} else if (kev.ident == SIGWINCH) {
 				if (ioctl(fileno(args.pa_printfile),
