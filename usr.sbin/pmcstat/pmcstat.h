@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Joseph Koshy
+ * Copyright (c) 2005-2007, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 #ifndef	_PMCSTAT_H_
 #define	_PMCSTAT_H_
 
-#define	FLAG_HAS_PID			0x00000001	/* explicit pid */
+#define	FLAG_HAS_TARGET			0x00000001	/* process target */
 #define	FLAG_HAS_WAIT_INTERVAL		0x00000002	/* -w secs */
 #define	FLAG_HAS_OUTPUT_LOGFILE		0x00000004	/* -O file or pipe */
 #define	FLAG_HAS_COMMANDLINE		0x00000008	/* command */
@@ -94,11 +94,15 @@ struct pmcstat_ev {
 	char	       *ev_spec;  /* event specification */
 };
 
+struct pmcstat_target {
+	SLIST_ENTRY(pmcstat_target) pt_next;
+	pid_t		pt_pid;
+};
+
 struct pmcstat_args {
 	int	pa_flags;		/* argument flags */
 	int	pa_required;		/* required features */
 	int	pa_verbosity;		/* verbosity level */
-	pid_t	pa_pid;			/* attached to pid */
 	FILE	*pa_printfile;		/* where to send printed output */
 	int	pa_logfd;		/* output log file */
 	char	*pa_inputpath;		/* path to input log */
@@ -111,7 +115,8 @@ struct pmcstat_args {
 	double	pa_interval;		/* printing interval in seconds */
 	int	pa_argc;
 	char	**pa_argv;
-	STAILQ_HEAD(, pmcstat_ev) pa_head;
+	STAILQ_HEAD(, pmcstat_ev) pa_events;
+	SLIST_HEAD(, pmcstat_target) pa_targets;
 } args;
 
 /* Function prototypes */
@@ -121,7 +126,9 @@ void	pmcstat_clone_event_descriptor(struct pmcstat_args *_a,
     struct pmcstat_ev *_ev, uint32_t _cpumask);
 int	pmcstat_close_log(struct pmcstat_args *_a);
 void	pmcstat_create_process(struct pmcstat_args *_a);
+void	pmcstat_find_targets(struct pmcstat_args *_a, const char *_arg);
 void	pmcstat_initialize_logging(struct pmcstat_args *_a);
+void	pmcstat_kill_process(struct pmcstat_args *_a);
 int	pmcstat_open_log(const char *_p, int _mode);
 void	pmcstat_print_counters(struct pmcstat_args *_a);
 void	pmcstat_print_headers(struct pmcstat_args *_a);

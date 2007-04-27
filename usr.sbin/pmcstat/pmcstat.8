@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2007
+.Dd April 23, 2007
 .Os
 .Dt PMCSTAT 8
 .Sh NAME
@@ -50,7 +50,7 @@
 .Op Fl q
 .Op Fl r Ar fsroot
 .Op Fl s Ar event-spec
-.Op Fl t Ar pid
+.Op Fl t Ar process-spec
 .Op Fl v
 .Op Fl w Ar secs
 .Op Ar command Op Ar args
@@ -63,18 +63,21 @@ utility measures system performance using the facilities provided by
 The
 .Nm
 utility can measure both hardware events seen by the system as a
-whole, and those seen when a specified process is executing on the
-system's CPUs.
-If a specific process is being targeted (for example,
+whole, and those seen when a specified set of processes are executing
+on the system's CPUs.
+If a specific set of processes is being targeted (for example,
 if the
-.Fl t Ar pid
+.Fl t Ar process-spec
 option is specified, or if a command line is specified using
 .Ar command ) ,
-then measurement occurs till the target process exits or
-the
+then measurement occurs till
+.Ar command
+exits, or till all target processes specified by the
+.Fl t Ar process-spec
+options exit, or till the
 .Nm
 utility is interrupted by the user.
-If a specific process is not targeted for measurement, then
+If a specific set of processes is not targeted for measurement, then
 .Nm
 will perform system-wide measurements till interrupted by the
 user.
@@ -237,12 +240,13 @@ The default is
 Allocate a system mode counting PMC measuring hardware events
 specified in
 .Ar event-spec .
-.It Fl t Ar pid
-Attach all process mode PMCs allocated to the process with PID
-.Ar pid .
-The option is not allowed in conjunction with specifying a
-command using
-.Ar command .
+.It Fl t Ar process-spec
+Attach process mode PMCs to the processes named by argument
+.Ar process-spec .
+Argument
+.Ar process-spec
+may be a non-negative integer denoting a specific process id, or a
+regular expression for selecting processes based on their command names.
 .It Fl v
 Increase verbosity.
 .It Fl w Ar secs
@@ -272,6 +276,11 @@ To execute
 and measure the number of data cache misses suffered
 by it and its children every 12 seconds on an AMD Athlon, use:
 .Dl "pmcstat -d -w 12 -p k7-dc-misses mozilla"
+.Pp
+To measure processor instructions retired for all processes named
+.Dq emacs
+use:
+.Dl "pmcstat -t '^emacs$' -p instructions"
 .Pp
 To count instruction tlb-misses on CPUs 0 and 2 on a Intel
 Pentium Pro/Pentium III SMP system use:
