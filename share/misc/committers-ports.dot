@@ -46,6 +46,7 @@ ale [label="Alex Dupre\nale@FreeBSD.org\n2004/01/12"]
 alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
 alexbl [label="Alexander Botero-Lowry\nalexbl@FreeBSD.org\n2006/09/11"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
+araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26"]
 arved [label="Tilman Linneweh\narved@FreeBSD.org\n2002/10/15"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
 bland [label="Alexander Nedotsukov\nbland@FreeBSD.org\n2003/08/14"]
@@ -179,6 +180,7 @@ garga -> xride
 
 ijliao -> leeym
 
+itetcu -> araujo
 itetcu -> dryice
 
 joerg -> netchild
@@ -240,6 +242,8 @@ sem -> delphij
 sem -> stas
 
 sobomax -> marcus
+
+stas -> araujo
 
 steve -> netchild
 
