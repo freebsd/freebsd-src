@@ -1831,14 +1831,30 @@ mxge_rx_csum(struct mbuf *m, int csum)
 	struct ip *ip;
 
 	eh = mtod(m, struct ether_header *);
-	if (__predict_true(eh->ether_type ==  htons(ETHERTYPE_IP))) {
-		ip = (struct ip *)(eh + 1);
-		if (__predict_true(ip->ip_p == IPPROTO_TCP ||
-				   ip->ip_p == IPPROTO_UDP)) {
-			m->m_pkthdr.csum_data = csum;
-			m->m_pkthdr.csum_flags = CSUM_DATA_VALID;
-		}
-	}
+
+	/* only deal with IPv4 TCP & UDP for now */
+	if (__predict_false(eh->ether_type != htons(ETHERTYPE_IP)))
+		return;
+	ip = (struct ip *)(eh + 1);
+	if (__predict_false(ip->ip_p != IPPROTO_TCP &&
+			    ip->ip_p != IPPROTO_UDP))
+		return;
+
+	/* 
+	 *  Myri10GE hardware checksums are not valid if the sender
+	 *  padded the frame with non-zero padding.  This is because
+	 *  the firmware just does a simple 16-bit 1s complement
+	 *  checksum across the entire frame, excluding the first 14
+	 *  bytes.  It is easiest to simply to assume the worst, and
+	 *  only apply hardware checksums to non-padded frames.  This
+	 *  is what nearly every other OS does by default.
+	 */
+
+	if (__predict_true(m->m_pkthdr.len == 
+			   (ntohs(ip->ip_len) + ETHER_HDR_LEN))) {
+		m->m_pkthdr.csum_data = csum;
+		m->m_pkthdr.csum_flags = CSUM_DATA_VALID;
+	} 
 }
 
 static inline void 
@@ -1894,13 +1910,13 @@ mxge_rx_done_big(mxge_softc_t *sc, int len, int csum)
 	 * there is any garbage, len will be negative */
 	m->m_len += len;
 
+	m_head->m_pkthdr.rcvif = ifp;
+	ifp->if_ipackets++;
 	/* if the checksum is valid, mark it in the mbuf header */
 	if (sc->csum_flag)
 		mxge_rx_csum(m_head, csum);
 
 	/* pass the frame up the stack */
-	m_head->m_pkthdr.rcvif = ifp;
-	ifp->if_ipackets++;
 	(*ifp->if_input)(ifp, m_head);
 	return;
 
@@ -1971,14 +1987,14 @@ mxge_rx_done_small(mxge_softc_t *sc, uint32_t len, uint32_t csum)
 	 * aligned */
 	m->m_data += MXGEFW_PAD;
 
+	m->m_pkthdr.rcvif = ifp;
+	m->m_len = m->m_pkthdr.len = len;
+	ifp->if_ipackets++;
 	/* if the checksum is valid, mark it in the mbuf header */
 	if (sc->csum_flag)
 		mxge_rx_csum(m, csum);
 
 	/* pass the frame up the stack */
-	m->m_pkthdr.rcvif = ifp;
-	m->m_len = m->m_pkthdr.len = len;
-	ifp->if_ipackets++;
 	(*ifp->if_input)(ifp, m);
 }
 
@@ -2147,13 +2163,13 @@ mxge_free_mbufs(mxge_softc_t *sc)
 		sc->rx_big.info[i].m = NULL;
 	}
 
-	for (i = 0; i <= sc->rx_big.mask; i++) {
-		if (sc->rx_big.info[i].m == NULL)
+	for (i = 0; i <= sc->rx_small.mask; i++) {
+		if (sc->rx_small.info[i].m == NULL)
 			continue;
-		bus_dmamap_unload(sc->rx_big.dmat,
-				  sc->rx_big.info[i].map);
-		m_freem(sc->rx_big.info[i].m);
-		sc->rx_big.info[i].m = NULL;
+		bus_dmamap_unload(sc->rx_small.dmat,
+				  sc->rx_small.info[i].map);
+		m_freem(sc->rx_small.info[i].m);
+		sc->rx_small.info[i].m = NULL;
 	}
 
 	for (i = 0; i <= sc->tx.mask; i++) {
