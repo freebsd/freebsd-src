@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2006 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2007 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -927,9 +927,9 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			ctx->ctx_pflags |= SMFIP_NOEOH;
 		if (smfi->xxfi_body == NULL)
 			ctx->ctx_pflags |= SMFIP_NOBODY;
-		if (smfi->xxfi_data == NULL)
+		if (smfi->xxfi_version <= 3 || smfi->xxfi_data == NULL)
 			ctx->ctx_pflags |= SMFIP_NODATA;
-		if (smfi->xxfi_unknown == NULL)
+		if (smfi->xxfi_version <= 2 || smfi->xxfi_unknown == NULL)
 			ctx->ctx_pflags |= SMFIP_NOUNKNOWN;
 
 #if _FFR_WORKERS_POOL
