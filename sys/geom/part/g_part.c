@@ -52,7 +52,7 @@ static kobj_method_t g_part_null_methods[] = {
 };
 
 static struct g_part_scheme g_part_null_scheme = {
-	NULL,
+	"n/a",
 	g_part_null_methods,
 	sizeof(struct g_part_table),
 };
@@ -1249,6 +1249,8 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    (uintmax_t)pp->mediasize);
 		G_PART_DUMPCONF(table, entry, sb, indent);
 	} else {			/* Geom configuration. */
+		sbuf_printf(sb, "%s<scheme>%s</scheme>\n", indent,
+		    table->gpt_scheme->name);
 		sbuf_printf(sb, "%s<entries>%u</entries>\n", indent,
 		    table->gpt_entries);
 		sbuf_printf(sb, "%s<first>%ju</first>\n", indent,
