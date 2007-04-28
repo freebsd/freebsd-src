@@ -359,6 +359,7 @@ vendor LOGITEC		0x0789	Logitec
 vendor BRIMAX		0x078e	Brimax
 vendor AXIS		0x0792	Axis
 vendor ABL		0x0794	ABL
+vendor SAGEM		0x079b	Sagem
 vendor SUNCOMM		0x079c	Sun Communications
 vendor ALFADATA		0x079d	Alfadata
 vendor NATIONALTECH	0x07a2	National Technical
@@ -518,6 +519,7 @@ vendor RALINK		0x148f	Ralink Technology
 vendor IMAGINATION	0x149a	Imagination Technologies
 vendor CONCEPTRONIC	0x14b2	Conceptronic
 vendor SILICONPORTALS	0x1527	Silicon Portals
+vendor UBIQUAM		0x1529	UBIQUAM Co., Ltd.
 vendor PNY		0x154b	PNY
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX
@@ -770,7 +772,8 @@ product CHIC CYPRESS		0x0003	Cypress USB Mouse
 product CHICONY KB8933		0x0001	KB-8933 keyboard
 
 /* CMOTECH products */
-product CMOTECH CDMAMODEM	0x5141	CMOTECH CDMA Technologies USB modem
+product CMOTECH CNU510		0x5141	CMOTECH CDMA Technologies USB modem
+product CMOTECH CNU550		0x5543	CDMA 2000 1xRTT/1xEVDO USB modem
 
 /* Compaq products */
 product COMPAQ PJB100		0x504a	Personal Jukebox PJB100
@@ -806,6 +809,8 @@ product CONCEPTRONIC C54U	0x3c02	C54U wireless adapter
 product CTX EX1300		0x9999	Ex1300 hub
 
 /* Curitel products */
+product CURITEL HX550C		0x1101	CDMA 2000 1xRTT USB modem (HX-550C)
+product CURITEL HX57XB		0x2101	CDMA 2000 1xRTT USB modem (HX-570/575B/PR-600)
 product CURITEL PC5740		0x3701	Broadband wireless modem
 
 /* Cypress Semiconductor products */
@@ -1444,6 +1449,7 @@ product PROLIFIC2 WSIM		0x2001  Willcom WSIM
 product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
 
 /* Qualcomm products */
+product QUALCOMM RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
 product QUALCOMM CDMA_MSM	0x3196	CDMA Technologies MSM modem
 product QUALCOMM2 CDMA_MSM	0x6000	CDMA Technologies MSM phone
 
@@ -1476,6 +1482,9 @@ product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
 
 /* RATOC Systems products */
 product RATOC REXUSB60		0xb000	REX-USB60
+
+/* Sagem products */
+product SAGEM USBSERIAL		0x0027	USB-Serial Controller
 
 /* Samsung products */
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
@@ -1652,6 +1661,9 @@ product TRUMPION C3310		0x1100	Comotron C3310 MP3 player
 
 /* TwinMOS */
 product TWINMOS MDIV		0x1325	Memory Disk IV
+
+/* Ubiquam products */
+product UBIQUAM UALL		0x3100	CDMA 1xRTT USB Modem (U-100/105/200/300/520)
 
 /* Ultima products */
 product ULTIMA 1200UBPLUS	0x4002	1200 UB Plus scanner
