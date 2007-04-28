@@ -209,7 +209,13 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The scsi_sg driver, which emulates a significant
+	subset of the Linux SCSI SG passthrough device API, has
+	been added.  It is
+	intended to allow programs running under Linux emulation
+	(as well as native &os; applications) to access the
+	<filename>/dev/sg<replaceable>*</replaceable></filename>
+	devices supported by Linux.</para>
 
     </sect3>
 
@@ -233,6 +239,10 @@
 
     <para>A bug in &man.freebsd-update.8;, which caused it not
       to update SMP kernels correctly, has been fixed.</para>
+
+    <para>The &man.rpc.lockd.8; and &man.rpc.statd.8; programs now
+      accept <option>-p</option> options to indicate which port they
+      should bind to.</para>
 
     <para>The &man.wpa.passphrase.8; utility has been added.  It
       generates a 256-bit pre-shared WPA key from an ASCII
