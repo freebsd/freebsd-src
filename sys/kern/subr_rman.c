@@ -155,10 +155,6 @@ rman_init(struct rman *rm)
 	return 0;
 }
 
-/*
- * NB: this interface is not robust against programming errors which
- * add multiple copies of the same region.
- */
 int
 rman_manage_region(struct rman *rm, u_long start, u_long end)
 {
