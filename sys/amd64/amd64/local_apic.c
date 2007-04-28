@@ -325,6 +325,29 @@ lapic_setup(int boot)
 
 	/* XXX: Error and thermal LVTs */
 
+	if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+		/*
+		 * Detect the presence of C1E capability mostly on latest
+		 * dual-cores (or future) k8 family.  This feature renders
+		 * the local APIC timer dead, so we disable it by reading
+		 * the Interrupt Pending Message register and clearing both
+		 * C1eOnCmpHalt (bit 28) and SmiOnCmpHalt (bit 27).
+		 * 
+		 * Reference:
+		 *   "BIOS and Kernel Developer's Guide for AMD NPT
+		 *    Family 0Fh Processors"
+		 *   #32559 revision 3.00
+		 */
+		if ((cpu_id & 0x00000f00) == 0x00000f00 &&
+		    (cpu_id & 0x0fff0000) >=  0x00040000) {
+			uint64_t msr;
+
+			msr = rdmsr(0xc0010055);
+			if (msr & 0x18000000)
+				wrmsr(0xc0010055, msr & ~0x18000000ULL);
+		}
+	}
+
 	intr_restore(eflags);
 }
 
