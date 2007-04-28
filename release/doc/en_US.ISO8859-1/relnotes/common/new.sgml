@@ -173,6 +173,12 @@
       information, see security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:02.bind.asc">FreeBSD-SA-07:02.bind</ulink>.</para>
 
+    <para>Processing of IPv6 type 0 Routing Headers is now
+      controlled by the <varname>net.inet6.ip6.rthdr0_allowed</varname>
+      sysctl variable, which defaults to <literal>0</literal> (off).
+      For more information, see security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:03.ipv6.asc">FreeBSD-SA-07:03.ipv6</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
