@@ -546,7 +546,7 @@ contigmalloc2(vm_page_t m, vm_pindex_t npages, int flags)
 	for (i = 0; i < npages; i++) {
 		vm_page_insert(&m[i], object,
 		    OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
-		if ((flags & M_ZERO) && !(m->flags & PG_ZERO))
+		if ((flags & M_ZERO) && !(m[i].flags & PG_ZERO))
 			pmap_zero_page(&m[i]);
 		tmp_addr += PAGE_SIZE;
 	}
