@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2005
+.Dd April 28, 2007
 .Dt RMAN 9
 .Os
 .Sh NAME
@@ -140,6 +140,12 @@ function initializes the region descriptor, pointed to by the
 .Fa rm
 argument, for use with the resource management functions.
 It also initializes any mutexes associated with the structure.
+If
+.Fn rman_init
+fails to initalize the mutex, it will return
+.Er ENOMEM ; otherwise it will return 0 and
+.Fa rm
+will be initalized.
 .Pp
 The
 .Fn rman_fini
@@ -167,10 +173,15 @@ The
 and
 .Fa end
 arguments specify the bounds of the region.
-.Pp
-.Em NOTE :
-This interface is not robust against programming errors which
-add multiple copies of the same region.
+If successful,
+.Fn rman_manage_region
+will return 0.
+If the region overlaps with an existing region, it will return
+.Er EBUSY .
+.Er ENOMEM
+will be return when
+.Fn rman_manage_region
+failed to allocate memory for the region.
 .Pp
 The
 .Fn rman_reserve_resource_bound
