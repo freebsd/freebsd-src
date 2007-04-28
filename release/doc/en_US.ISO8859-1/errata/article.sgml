@@ -135,6 +135,11 @@
 	    <entry>9&nbsp;February&nbsp;2007</entry>
 	    <entry><para>Multiple Denial of Service vulnerabilities in &man.named.8;</para></entry>
 	  </row>
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:03.ipv6.asc">SA-07:03.ipv6</ulink></entry>
+	    <entry>26&nbsp;April&nbsp;2007</entry>
+	    <entry><para>IPv6 Routing Header 0 is dangerous</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
