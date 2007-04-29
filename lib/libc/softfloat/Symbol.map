@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	_fpgetmask;
@@ -15,7 +17,7 @@ FBSD_1.0 {
 	fpsetsticky;
 };
 
-FBSDprivate {
+FBSDprivate_1.0 {
 	_softfloat_float_exception_flags;
 	_softfloat_float_exception_mask;
 	_softfloat_float_rounding_mode;

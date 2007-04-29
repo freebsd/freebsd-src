@@ -1,12 +1,14 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
-#
-# This only needs to contain symbols that are not listed in
-# symbol maps from other parts of libc (i.e., not found in
-# stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
-#
+/*
+ * This only needs to contain symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
+ */ 
 FBSD_1.0 {
-	# PSEUDO syscalls
+	/* PSEUDO syscalls */
 	_exit;
 
 	_setjmp;
@@ -39,7 +41,7 @@ FBSD_1.0 {
 	sbrk;
 	vfork;
 
-	# SCD libc 64 psABI
+	/* SCD libc 64 psABI */
 	_Qp_sqrt;
 	_Qp_add;
 	_Qp_div;
@@ -69,8 +71,8 @@ FBSD_1.0 {
 	__sparc_utrap_install;
 };
 
-FBSDprivate {
-	# PSEUDO syscalls
+FBSDprivate_1.0 {
+	/* PSEUDO syscalls */
 	__sys_getlogin;
 	_getlogin;
 	__sys_exit;
@@ -95,6 +97,6 @@ FBSDprivate {
 	__sys_vfork;
 	_vfork;
 
-	# used in src/lib/csu/sparc64/crt1.c
+	/* used in src/lib/csu/sparc64/crt1.c */
 	__sparc_utrap_setup;
 };

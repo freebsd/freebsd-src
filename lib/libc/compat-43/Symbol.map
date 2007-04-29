@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	creat;
@@ -15,7 +17,7 @@ FBSD_1.0 {
 	sigvec;
 };
 
-FBSDprivate {
+FBSDprivate_1.0 {
 	__creat;
 	_creat;
 };

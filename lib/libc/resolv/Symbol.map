@@ -1,7 +1,9 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
-	#h_nerr;	# Why is this not staticized in net/herror.c?
+	/* h_nerr; */	/* Why is this not staticized in net/herror.c? */
 	h_errlist;
 	herror;
 	hstrerror;
@@ -66,8 +68,6 @@ FBSD_1.0 {
 	__res_mkupdrec;
 	__res_mkupdate;
 	__res_opt;
-	#__res_get_nibblesuffix;	# Excluded
-	#__res_get_nibblesuffix2;	# Excluded
 	__res_getservers;
 	__res_hostalias;
 	__res_nametoclass;
