@@ -84,7 +84,7 @@
 #define	LT10_COMPAT_PRIVATE(sym)			\
 	LT10_COMPAT(sym);				\
 	WEAK_REF(sym, SYM_FBP10(sym));			\
-	SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate)
+	SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate_1.0)
 #else
 #define	LT10_COMPAT_DEFAULT(sym)
 #define	LT10_COMPAT_PRIVATE(sym)
