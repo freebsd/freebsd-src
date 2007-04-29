@@ -84,13 +84,13 @@ vdev_geom_orphan(struct g_consumer *cp)
 
 	ZFS_LOG(1, "Closing access to %s.", cp->provider->name);
 	g_access(cp, -cp->acr, -cp->acw, -cp->ace);
-	g_detach(cp);
 	ZFS_LOG(1, "Destroyed consumer to %s.", cp->provider->name);
+	g_detach(cp);
 	g_destroy_consumer(cp);
 	/* Destroy geom if there are no consumers left. */
 	if (LIST_EMPTY(&gp->consumer)) {
 		ZFS_LOG(1, "Destroyed geom %s.", gp->name);
-		g_wither_geom(cp->geom, error);
+		g_wither_geom(gp, error);
 	}
 	vdev_geom_release(vd);
 	/* Both methods below work, but in a bit different way. */
