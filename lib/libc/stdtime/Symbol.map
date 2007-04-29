@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	_time32_to_time;

@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	td_init;
@@ -20,12 +22,14 @@ FBSD_1.0 {
 	td_thr_get_info;
 	td_thr_getfpregs;
 	td_thr_getgregs;
-	td_thr_getxmmregs;	# x86 only
+#if defined(i386)
+	td_thr_getxmmregs;
+	td_thr_setxmmregs;
+#endif
 	td_thr_set_event;
 	td_thr_setfpregs;
 	td_thr_setgregs;
-	td_thr_setxmmregs;	# x86 only
-	td_thr_sstep;		# FreeBSD extension to GDB<->thread interface
+	td_thr_sstep;	/* FreeBSD extension to GDB<->thread interface */
 	td_thr_tls_get_addr;
 	td_thr_validate;
 };

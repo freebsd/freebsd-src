@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	btowc;
@@ -94,7 +96,7 @@ FBSD_1.0 {
 	wcwidth;
 };
 
-FBSDprivate {
+FBSDprivate_1.0 {
 	_PathLocale;
 	__detect_path_locale;
 	__collate_load_error;

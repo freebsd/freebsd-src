@@ -1,9 +1,12 @@
-# $FreeBSD$
-#
-# It'd be nice to have this automatically generated, but we don't
-# know to what version they will eventually belong, so for now
-# it has to be manual.
-#
+/*
+ * $FreeBSD$
+ */
+
+/*
+ * It'd be nice to have this automatically generated, but we don't
+ * know to what version they will eventually belong, so for now
+ * it has to be manual.
+ */
 FBSD_1.0 {
 	__acl_aclcheck_fd;
 	__acl_aclcheck_file;
@@ -139,8 +142,8 @@ FBSD_1.0 {
 	kldunload;
 	kldunloadf;
 	kqueue;
-	kmq_notify;		# Do we want these to be publc interfaces?
-	kmq_open;		# librt uses them to provide mq_xxx.
+	kmq_notify;		/* Do we want these to be publc interfaces? */
+	kmq_open;		/* librt uses them to provide mq_xxx. */
 	kmq_setattr;
 	kmq_timedreceive;
 	kmq_timedsend;
@@ -301,8 +304,8 @@ FBSD_1.0 {
 	thr_set_name;
 	thr_suspend;
 	thr_wake;
-	ktimer_create;		# Do we want these to be publc interfaces?
-	ktimer_delete;		# librt uses them to provide timer_xxx.
+	ktimer_create;		/* Do we want these to be publc interfaces? */
+	ktimer_delete;		/* librt uses them to provide timer_xxx. */
 	ktimer_getoverrun;
 	ktimer_gettime;
 	ktimer_settime;
@@ -327,7 +330,7 @@ FBSD_1.0 {
 	truncate;
 };
 
-FBSDprivate {
+FBSDprivate_1.0 {
 	___acl_aclcheck_fd;
 	__sys___acl_aclcheck_fd;
 	___acl_aclcheck_file;

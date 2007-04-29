@@ -1,3 +1,5 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 FBSD_1.0 {
 };

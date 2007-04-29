@@ -1,6 +1,6 @@
-#
-# $FreeBSD$
-#
+/*
+ * $FreeBSD$
+ */
 FBSD_1.0 {
 global:
 	elf32_checksum;
@@ -90,10 +90,10 @@ local:
 	*;
 };
 
-#
-# Private symbols, mostly test hooks
-#
-FBSDprivate {
+/*
+ * Private symbols, mostly test hooks
+ */
+FBSDprivate_1.0 {
 global:
 	_libelf_set_error;
 	_libelf_get_max_error;

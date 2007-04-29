@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	xdr_free;
@@ -40,6 +42,6 @@ FBSD_1.0 {
 	xdrrec_endofrecord;
 	xdr_reference;
 	xdr_pointer;
-	#xdr_sizeof;	# Why is xdr_sizeof.c not included in Makefileinc?
+	/* xdr_sizeof; */ /* Why is xdr_sizeof.c not included in Makefileinc? */
 	xdrstdio_create;
 };
