@@ -8,5 +8,5 @@ FBSD_1.0 {
 # strictly for use only by other FreeBSD applications and libraries
 # are listed here.  We use a separate namespace so we can write
 # simple ABI-checking tools.
-FBSDprivate {
+FBSDprivate_1.0 {
 };
