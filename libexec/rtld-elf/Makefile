@@ -21,9 +21,10 @@ LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic
 
-.if defined(SYMVER_ENABLED) && 0
+.if defined(SYMVER_ENABLED)
+LIBCDIR=	${.CURDIR}/../../lib/libc
+VERSION_DEF=	${LIBCDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
-VERSION_DEF=	${.CURDIR}/Versions.def
 VERSION_MAP=	Version.map
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 
