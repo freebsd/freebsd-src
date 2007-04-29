@@ -3,5 +3,5 @@
 FBSD_1.0 {
 };
 
-FBSDprivate {
+FBSDprivate_1.0 {
 };
