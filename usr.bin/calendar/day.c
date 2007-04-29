@@ -457,10 +457,8 @@ getdayvar(s)
 	switch(*(s + offs - 2)) {
 	case '-':
 	    return(-(atoi(s + offs - 1)));
-	    break;
 	case '+':
 	    return(atoi(s + offs - 1));
-	    break;
 	}
 
 
