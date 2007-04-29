@@ -346,9 +346,7 @@
 
     <para>&man.hwpmc.4; and &man.pmcstat.8; now support profiling
       of dynamically loaded kernel modules and
-      shared objects loaded with &man.dlopen.3;.
-      &man.pmcstat.8; can now log over a network socket
-      to a remote host.</para>
+      shared objects loaded with &man.dlopen.3;.</para>
 
     <para>A new <varname>kern.hostuuid</varname> sysctl variable
       has been added to hold a host's Universally Unique Identifier
@@ -361,8 +359,9 @@
       It is enabled in the GENERIC kernel (thus there is no change in
       functionality) for all platforms except &arch.sun4v;.</para>
 
-    <para>Support for Message Signaled Interrupts (MSI) has been added to
-      the &man.pci.4; driver.  &merged;</para>
+    <para>Support for Message Signaled Interrupts (MSI) and Extended
+      Message Signaled Interrupts (MSI-X) has been added to the kernel's
+      PCI support code.  &merged;</para>
 
     <para>The &man.priv.9; kernel interface has been added.  Its purpose
       is checking the availability of privilege for threads and credentials.
@@ -738,6 +737,9 @@
 	  API and is now MPSAFE.</para>
 
 	<para>The &man.ed.4; driver is now MPSAFE.</para>
+
+	<para>The &man.edsc.4; driver, which provides Ethernet discard network
+	  interfaces, has been added.  &merged;</para>
 
 	<para>The &man.el.4; driver has been removed due to lack of use.</para>
 
@@ -1720,6 +1722,14 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       scripts.  Symbolic links from its former location have been
       created for backward compatibility. &merged;</para>
 
+    <para>The &man.pmcstat.8; program has seen several enhancements:
+      It can now log over a network socket to a remote host.  The
+      <option>-c</option> now takes a comma-seperated list of CPUs
+      to configure for PMC allocation.  The <option>-t</option> option
+      has been enhanced to take a regular expression for selecting
+      processes based on their command names.  &man.pmcstat.8; now
+      allocates system PMCs on all CPUs by default, not just CPU 0.</para>
+
     <para>The &man.powerd.8; program now supports a
       <option>-P</option> option, which specifies a pidfile to use.</para>
 
@@ -1746,8 +1756,17 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       The supported names are: DUN (Dial-Up Networking), FAX (Fax),
       LAN (LAN Access Using PPP), and SP (Serial Port).  &merged;</para>
 
+    <para>The &man.rpcbind.8; program can now bind its TCP listening
+      socket to an IP address other than INADDR_ANY using the
+      <option>-h</option> flag.  The new <option>-6</option> flag allows
+      it to bind to IPv6 addresses only.</para>
+
     <para>The &man.rpcgen.1; utility now generates headers and stub files
       that can be used with ANSI C compilers by default.</para>
+
+    <para>The &man.rpc.lockd.8; and &man.rpc.statd.8; programs now
+      accept <option>-p</option> options to indicate which port they
+      should bind to. &merged;</para>
 
     <para>The &man.rtld.1; runtime linker now supports ELF symbol versioning
       using GNU semantics.  This implementation aims to be compatible
@@ -1756,10 +1775,6 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       and LSB 3.0.  Also, <function>dlvsym()</function>
       function has been added to
       allow lookups for a specific version of a given symbol.</para>
-
-    <para>The &man.rpc.lockd.8; and &man.rpc.statd.8; programs now
-      accept <option>-p</option> options to indicate which port they
-      should bind to. &merged;</para>
 
     <para>A bug in the &man.sed.1; utility which can cause
       incorrect calculation of pattern space length in some cases
