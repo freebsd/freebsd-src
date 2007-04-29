@@ -1818,12 +1818,15 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 		if (offset == 0) {
 			(void) strcpy(zap.za_name, ".");
 			objnum = zp->z_id;
+			type = DT_DIR;
 		} else if (offset == 1) {
 			(void) strcpy(zap.za_name, "..");
 			objnum = zp->z_phys->zp_parent;
+			type = DT_DIR;
 		} else if (offset == 2 && zfs_show_ctldir(zp)) {
 			(void) strcpy(zap.za_name, ZFS_CTLDIR_NAME);
 			objnum = ZFSCTL_INO_ROOT;
+			type = DT_DIR;
 		} else {
 			/*
 			 * Grab next entry.
