@@ -2184,6 +2184,7 @@ cpmip(sep, ctrl)
 	 */
 
 	if (sep->se_maxcpm > 0 && 
+	   (sep->se_family == AF_INET || sep->se_family == AF_INET6) &&
 	    getpeername(ctrl, (struct sockaddr *)&rss, &rssLen) == 0 ) {
 		time_t t = time(NULL);
 		int hv = 0xABC3D20F;
