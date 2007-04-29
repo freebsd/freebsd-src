@@ -28,7 +28,7 @@
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2006
+.Dd September 14, 2006
 .Dt INETD 8
 .Os
 .Sh NAME
@@ -116,11 +116,11 @@ Usually a hostname is specified when
 .Nm
 is run inside a
 .Xr jail 8 ,
-in which case the hostname corresponds to the
+in which case the hostname corresponds to that of the
 .Xr jail 8
 environment.
 .Pp
-When hostname specification is used
+When the hostname specification is used
 and both IPv4 and IPv6 bindings are desired,
 one entry with the appropriate
 .Em protocol
@@ -160,13 +160,13 @@ The
 fields of the configuration file are as follows:
 .Pp
 .Bd -unfilled -offset indent -compact
-service name
-socket type
+service-name
+socket-type
 protocol
 {wait|nowait}[/max-child[/max-connections-per-ip-per-minute[/max-child-per-ip]]]
 user[:group][/login-class]
-server program
-server program arguments
+server-program
+server-program-arguments
 .Ed
 .Pp
 To specify an
@@ -174,12 +174,12 @@ To specify an
 service, the entry would contain these fields:
 .Pp
 .Bd -unfilled -offset indent -compact
-service name/version
-socket type
+service-name/version
+socket-type
 rpc/protocol
 user[:group][/login-class]
-server program
-server program arguments
+server-program
+server-program-arguments
 .Ed
 .Pp
 There are two types of services that
@@ -221,7 +221,7 @@ be the official name of the service (that is, the first entry in
 .Pa /etc/services ) .
 When used to specify an
 .Tn "ONC RPC" Ns -based
-service, this field is a valid RPC service name in
+service, this field is a valid RPC service name listed in
 the file
 .Pa /etc/rpc .
 The part on the right of the
@@ -350,11 +350,10 @@ Datagram servers which process all incoming datagrams
 on a socket and eventually time out are said to be
 .Dq single-threaded .
 The
-.Xr comsat 8 ,
-.Pq Xr biff 1
+.Xr comsat 8
 and
 .Xr talkd 8
-utilities are both examples of the latter type of
+utilities are examples of the latter type of
 datagram server.
 The
 .Xr tftpd 8
@@ -420,18 +419,18 @@ entry should contain the user name of the user as whom the server
 should run.
 This allows for servers to be given less permission
 than root.
-Optional
+The optional
 .Em group
 part separated by
 .Dq \&:
-allows to specify group name different
-than default group for this user.
-Optional
+allows a group name other
+than the default group for this user to be specified.
+The optional
 .Em login-class
 part separated by
 .Dq /
-allows to specify login class different
-than default
+allows specification of a login class other
+than the default
 .Dq daemon
 login class.
 .Pp
@@ -448,9 +447,10 @@ be
 .Dq internal .
 .Pp
 The
-.Em server program arguments
-should be just as arguments
-normally are, starting with argv[0], which is the name of
+.Em server-program-arguments
+entry lists the arguments to be passed to the
+.Em server-program ,
+starting with argv[0], which usually is the name of
 the program.
 If the service is provided internally, the
 .Em service-name
@@ -602,6 +602,9 @@ utility rereads its configuration file when it receives a hangup signal,
 Services may be added, deleted or modified when the configuration file
 is reread.
 Except when started in debugging mode,
+or configured otherwise with the
+.Fl p
+option,
 .Nm
 records its process ID in the file
 .Pa /var/run/inetd.pid
@@ -690,7 +693,7 @@ The special service name
 .Dq help
 causes
 .Nm
-to list TCPMUX services in
+to list the TCPMUX services which are enabled in
 .Pa inetd.conf .
 .Ss IPsec
 The implementation includes a tiny hack
@@ -756,7 +759,7 @@ is running as.
 The default mode only allows the socket's owner to connect.
 .Pp
 .Sy WARNING :
-while creating
+while creating a
 .Ux
 domain socket,
 .Nm
@@ -768,12 +771,12 @@ Do
 .Em NOT
 use
 .Nm
-to create sockets in world writable directories,
+to create sockets in world writable directories
 such as
-.Pa /tmp ,
-instead use
+.Pa /tmp ;
+use
 .Pa /var/run
-or a similar directory.
+or a similar directory instead.
 .Pp
 Internal services may be run on
 .Ux
@@ -782,6 +785,11 @@ In this case
 the name of the internal service
 is determined using
 the last component of the socket's pathname.
+For example, specifying a socket named
+.Pa /var/run/chargen
+would invoke the
+.Dq chargen
+service when a connection is received on that socket.
 .Sh "FILES"
 .Bl -tag -width /var/run/inetd.pid -compact
 .It Pa /etc/inetd.conf
@@ -934,6 +942,7 @@ database.
 .Xr rlogind 8 ,
 .Xr rpcbind 8 ,
 .Xr rshd 8 ,
+.Xr talkd 8 ,
 .Xr telnetd 8 ,
 .Xr tftpd 8
 .Rs
