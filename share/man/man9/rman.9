@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2007
+.Dd April 29, 2007
 .Dt RMAN 9
 .Os
 .Sh NAME
@@ -139,6 +139,21 @@ The
 function initializes the region descriptor, pointed to by the
 .Fa rm
 argument, for use with the resource management functions.
+It is required that the fields
+.Va rm_type
+and
+.Va rm_descr
+of
+.Vt "struct rman"
+be set before calling
+.Fn rman_init .
+The field
+.Va rm_type
+shall be set to
+.Dv RMAN_ARRAY .
+The field
+.Va rm_descr
+shall be set to a string that describes the resource to be managed.
 It also initializes any mutexes associated with the structure.
 If
 .Fn rman_init
