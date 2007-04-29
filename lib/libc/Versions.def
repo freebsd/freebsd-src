@@ -9,4 +9,4 @@ FBSD_1.0 {
 # are listed here.  We use a separate namespace so we can write
 # simple ABI-checking tools.
 FBSDprivate_1.0 {
-};
+} FBSD_1.0;
