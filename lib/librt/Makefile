@@ -11,6 +11,8 @@ SRCS+= aio.c mq.c sigev_thread.c timer.c
 
 PRECIOUSLIB=
 
+.if defined(SYMVER_ENABLED)
 VERSION_MAP=	${.CURDIR}/Version.map
+.endif
 
 .include <bsd.lib.mk>
