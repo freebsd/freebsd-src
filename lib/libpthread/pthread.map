@@ -1,14 +1,15 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
-#
-# Hack.  libpthread had versioning before libc, but we need to
-# reside in the same namespace as libc if we want to override
-# libc functions.  Use this so we don't break older applications
-# that require symbols from "LIBTHREAD_1_0".
-# 
-# From now on, use the same naming scheme as libc.
-# 
-#
+/*
+ * Hack.  libpthread had versioning before libc, but we need to
+ * reside in the same namespace as libc if we want to override
+ * libc functions.  Use this so we don't break older applications
+ * that require symbols from "LIBTHREAD_1_0".
+ * 
+ * From now on, use the same naming scheme as libc.
+ */
 LIBTHREAD_1_0 {
 global:
 	___creat;
@@ -341,7 +342,7 @@ global:
 	write;
 	writev;
 
-	# Debugger needs these.
+	/* Debugger needs these. */
 	_libkse_debug;
 	_thread_activated;
 	_thread_active_threads;
@@ -369,9 +370,9 @@ local:
 	*;
 };
 
-#
-# Use the same naming scheme as libc.
-#
+/*
+ * Use the same naming scheme as libc.
+ */
 FBSD_1.0 {
 global:
 	__error;
@@ -531,11 +532,11 @@ local:
 	*;
 };
 
-#
-# List the private interfaces reserved for use in FreeBSD libraries.
-# These are not part of our application ABI.
-#
-FBSDprivate {
+/*
+ * List the private interfaces reserved for use in FreeBSD libraries.
+ * These are not part of our application ABI.
+ */
+FBSDprivate_1.0 {
 global:
 	___creat;
 	__accept;
@@ -706,7 +707,7 @@ global:
 	_wait;
 	_waitpid;
 
-	# Debugger needs these.
+	/* Debugger needs these. */
 	_libkse_debug;
 	_thread_activated;
 	_thread_active_threads;

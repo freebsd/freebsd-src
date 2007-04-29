@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	flockfile;
@@ -24,7 +26,7 @@ FBSD_1.0 {
 	__stdinp;
 	__stdoutp;
 	__stderrp;
-	f_prealloc;	# deprecated???
+	f_prealloc;	/* deprecated??? */
 	fopen;
 	fprintf;
 	fpurge;
@@ -135,7 +137,7 @@ FBSD_1.0 {
 	__printf_render_vis;
 };
 
-FBSDprivate {
+FBSDprivate_1.0 {
 	_flockfile;
 	_flockfile_debug_stub;
 	_flockfile_debug;

@@ -1,12 +1,14 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
-#
-# This only needs to contain symbols that are not listed in
-# symbol maps from other parts of libc (i.e., not found in
-# stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
-#
+/*
+ * This only needs to contain symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
+ */
 FBSD_1.0 {
-	# PSEUDO syscalls
+	/* PSEUDO syscalls */
 	_exit;
 
 	_setjmp;
@@ -31,13 +33,13 @@ FBSD_1.0 {
 	__ntohs;
 	vfork;
 	brk;
-	cerror;		# XXX - Should this be .cerror (see sys/cerror.S)?
+	cerror;		/* XXX - Should this be .cerror (see sys/cerror.S)? */
 	fork;
 	sbrk;
 };
 
-FBSDprivate {
-	# PSEUDO syscalls
+FBSDprivate_1.0 {
+	/* PSEUDO syscalls */
 	__sys_getlogin;
 	_getlogin;
 	__sys_exit;
@@ -56,7 +58,7 @@ FBSDprivate {
 	__sys_vfork;
 	_vfork;
 	_brk;
-	end;		# XXX - Should this be _end (see sys/brk.S)?
+	end;		/* XXX - Should this be _end (see sys/brk.S)? */
 	curbrk;
 	minbrk;
 	_brk;

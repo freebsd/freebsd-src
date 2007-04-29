@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	__xuname;
@@ -166,8 +168,10 @@ FBSD_1.0 {
 	getgrnam;
 	getgrgid;
 	getgrent;
-	#  Why are __gr_parse_entry() and __gr_match_entry() not static in
-	#  gen/getgrent.c?
+	/*
+	 * Why are __gr_parse_entry() and __gr_match_entry() not static in
+	 * gen/getgrent.c?
+	 */
 	getgrouplist;
 	gethostname;
 	getloadavg;
@@ -309,10 +313,13 @@ FBSD_1.0 {
 	cfmakeraw;
 	tcsendbreak;
 	_init_tls;
+#if defined(i386)
+	___tls_get_addr;
+#endif
+	__tls_get_addr;
 	tcdrain;
 	tcflush;
 	tcflow;
-	__tls_get_addr;
 	ualarm;
 	ulimit;
 	uname;
@@ -332,8 +339,8 @@ FBSD_1.0 {
 	wordfree;
 };
 
-FBSDprivate {
-	# needed by thread libraries
+FBSDprivate_1.0 {
+	/* needed by thread libraries */
 	__thr_jtable;
 
 	_pthread_atfork;
@@ -398,22 +405,22 @@ FBSDprivate {
 	_spinlock;
 	_spinlock_debug;
 	_spinunlock;
-	_rtld_error;		# for private use
-	_rtld_thread_init;	# for private use
+	_rtld_error;		/* for private use */
+	_rtld_thread_init;	/* for private use */
 	_err;
 	_warn;
 	__fmtcheck;
-	# __pw_match_entry;
-	# __pw_parse_entry;
-	__fdnlist;	# used by libkvm
-	# __aout_fdnlist;
-	# __elf_is_okay__;
-	# __elf_fdnlist;
+	/* __pw_match_entry; */
+	/* __pw_parse_entry; */
+	__fdnlist;	/* used by libkvm */
+	/* __aout_fdnlist; */
+	/* __elf_is_okay__; */
+	/* __elf_fdnlist; */
 	__opendir2;
 	__pause;
 	_pause;
 	__pselect;
-	__pw_scan;	# Used by (at least) libutil
+	__pw_scan;	/* Used by (at least) libutil */
 	__raise;
 	_raise;
 	__sem_init;
@@ -430,6 +437,10 @@ FBSDprivate {
 	_sleep;
 	_rtld_allocate_tls;
 	_rtld_free_tls;
+#if defined(i386)
+	___libc_tls_get_addr;	/* x86 only */
+#endif
+	__libc_tls_get_addr;
 	__tcdrain;
 	_tcdrain;
 	__usleep;
