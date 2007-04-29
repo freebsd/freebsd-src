@@ -11,4 +11,6 @@ SRCS+= aio.c mq.c sigev_thread.c timer.c
 
 PRECIOUSLIB=
 
+VERSION_MAP=	${.CURDIR}/Version.map
+
 .include <bsd.lib.mk>
