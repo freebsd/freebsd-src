@@ -1929,7 +1929,7 @@ update:
 
 	uio->uio_loffset = offset;
 	ZFS_EXIT(zfsvfs);
-	if (error != 0) {
+	if (error != 0 && *cookies != NULL) {
 		free(*cookies, M_TEMP);
 		*cookies = NULL;
 		*ncookies = 0;
