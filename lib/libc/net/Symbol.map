@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	__b64_ntop;
@@ -122,12 +124,12 @@ FBSD_1.0 {
 	in6addr_linklocal_allnodes;
 };
 
-FBSDprivate {
+FBSDprivate_1.0 {
 	_nsdispatch;
-	_nsyyerror;	# generated from nslexer.l
-	_nsyylex;	# generated from nslexer.l
-	_nsyyparse;	# generated from nsparser.y
-	_nsyylineno;	# generated from nsparser.y
+	_nsyyerror;	/* generated from nslexer.l */
+	_nsyylex;	/* generated from nslexer.l */
+	_nsyyparse;	/* generated from nsparser.y */
+	_nsyylineno;	/* generated from nsparser.y */
 	__dns_getanswer;
 	__ivaliduser;
 	__ivaliduser_af;

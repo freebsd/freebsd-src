@@ -1,4 +1,7 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
+
 LIBTHREAD_1_0 {
 global:
 	___creat;
@@ -343,7 +346,7 @@ global:
 	write;
 	writev;
 
-	# Debugger needs these.
+	/* Debugger needs these. */
 	_libthr_debug;
 	_thread_active_threads;
 	_thread_bp_create;
@@ -373,9 +376,9 @@ local:
 	*;
 };
 
-#
-# Use the same naming scheme as libc.
-#
+/*
+ * Use the same naming scheme as libc.
+ */
 FBSD_1.0 {
 global:
 	__error;
@@ -547,11 +550,11 @@ local:
 	*;
 };
 
-#
-# List the private interfaces reserved for use in FreeBSD libraries.
-# These are not part of our application ABI.
-#
-FBSDprivate {
+/*
+ * List the private interfaces reserved for use in FreeBSD libraries.
+ * These are not part of our application ABI.
+ */
+FBSDprivate_1.0 {
 global:
 	___creat;
 	___pause;
@@ -730,7 +733,7 @@ global:
 	_spinunlock;
 	_vfork;
 
-	# Debugger needs these.
+	/* Debugger needs these. */
 	_libthr_debug;
 	_thread_active_threads;
 	_thread_bp_create;

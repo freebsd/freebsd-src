@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	dbopen;
@@ -22,7 +24,7 @@ FBSD_1.0 {
 	mpool_stat;
 };
 
-FBSDprivate {
+FBSDprivate_1.0 {
 	__bt_open;
 	__dbpanic;
 	__hash_open;

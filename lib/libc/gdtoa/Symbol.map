@@ -1,8 +1,12 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
-	# Standard functions from contrib/gdtoa
-	#   (dtoa is renamed to __dtoa and not exported)
+	/*
+	 * Standard functions from contrib/gdtoa
+	 *   (dtoa is renamed to __dtoa and not exported)
+	 */
 	freedtoa;
 	g_Qfmt;
 	g_ddfmt;
@@ -34,6 +38,6 @@ FBSD_1.0 {
 	strtorx;
 	strtorxL;
 
-	# FreeBSD additions
+	/* FreeBSD additions */
 	strtold;
 };

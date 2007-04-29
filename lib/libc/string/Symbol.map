@@ -1,4 +1,6 @@
-# $FreeBSD$
+/*
+ * $FreeBSD$
+ */
 
 FBSD_1.0 {
 	bcmp;
@@ -75,6 +77,6 @@ FBSD_1.0 {
 	wmemset;
 };
 
-FBSDprivate {
+FBSDprivate_1.0 {
 	__strtok_r;
 };
