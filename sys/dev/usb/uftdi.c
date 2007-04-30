@@ -179,6 +179,9 @@ USB_MATCH(uftdi)
 	if (uaa->vendor == USB_VENDOR_BBELECTRONICS &&
 	    (uaa->product == USB_PRODUCT_BBELECTRONICS_USOTL4))
 		return (UMATCH_VENDOR_PRODUCT);
+	if (uaa->vendor == USB_VENDOR_MELCO &&
+	    (uaa->product == USB_PRODUCT_MELCO_PCOPRS1))
+		return (UMATCH_VENDOR_PRODUCT);
 
 	return (UMATCH_NONE);
 }
@@ -284,6 +287,18 @@ USB_ATTACH(uftdi)
 	case USB_VENDOR_BBELECTRONICS:
 		switch( uaa->product ){
 		case USB_PRODUCT_BBELECTRONICS_USOTL4:
+			sc->sc_type = UFTDI_TYPE_8U232AM;
+			sc->sc_hdrlen = 0;
+			break;
+
+		default:		/* Can't happen */
+			goto bad;
+		}
+		break;
+
+	case USB_VENDOR_MELCO:
+		switch( uaa->product ){
+		case USB_PRODUCT_MELCO_PCOPRS1:
 			sc->sc_type = UFTDI_TYPE_8U232AM;
 			sc->sc_hdrlen = 0;
 			break;

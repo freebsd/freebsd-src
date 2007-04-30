@@ -1298,6 +1298,7 @@ product MELCO KG54YB		0x005e	WLI-U2-KG54-YB WLAN
 product MELCO KG54		0x0066	WLI-U2-KG54 WLAN
 product MELCO KG54AI		0x0067	WLI-U2-KG54-AI WLAN
 product MELCO NINWIFI		0x008b	Nintendo Wi-Fi
+product MELCO PCOPRS1		0x00b3	PC-OP-RS1 RemoteStation
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
