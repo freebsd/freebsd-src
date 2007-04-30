@@ -399,8 +399,8 @@ main(int argc, char *argv[])
 	login_close(lc);
 
 	/* set leading environment variables, like eval(1) */
-	while (*argv && (p = strchr(*argv, '=')))
-	    (void)setenv(*argv++, ++p, 1);
+	while (*argv && strchr(*argv, '=') != NULL)
+	    (void)putenv(strdup(*argv++));
 
 	/* Set limits */
 	for (rcswhich = 0; rcswhich < RLIM_NLIMITS; rcswhich++) {
