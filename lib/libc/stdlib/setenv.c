@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+char **__alloced;       /* if allocated space before */
+
 char *__findenv(const char *, int *);
 
 /*
@@ -52,7 +54,6 @@ setenv(name, value, rewrite)
 	int rewrite;
 {
 	extern char **environ;
-	static char **alloced;			/* if allocated space before */
 	char *c;
 	int l_value, offset;
 
@@ -74,26 +75,25 @@ setenv(name, value, rewrite)
 		char **p;
 
 		for (p = environ, cnt = 0; *p; ++p, ++cnt);
-		if (alloced == environ) {			/* just increase size */
+		if (__alloced == environ) {                       /* just increase size */
 			p = (char **)realloc((char *)environ,
 			    (size_t)(sizeof(char *) * (cnt + 2)));
 			if (!p)
 				return (-1);
-			alloced = environ = p;
 		}
 		else {				/* get new space */
 						/* copy old entries into it */
-			p = malloc((size_t)(sizeof(char *) * (cnt + 2)));
+			p = (char **)malloc((size_t)(sizeof(char *) * (cnt + 2)));
 			if (!p)
 				return (-1);
 			bcopy(environ, p, cnt * sizeof(char *));
-			alloced = environ = p;
 		}
+		__alloced = environ = p;
 		environ[cnt + 1] = NULL;
 		offset = cnt;
 	}
 	if (!(environ[offset] =			/* name + `=' + value */
-	    malloc((size_t)(strlen(name) + l_value + 2))))
+	    (char *)malloc((size_t)(strlen(name) + l_value + 2))))
 		return (-1);
 	for (c = environ[offset]; (*c = *name++) && *c != '='; ++c);
 	for (*c++ = '='; (*c++ = *value++); );
