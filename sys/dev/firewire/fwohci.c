@@ -2683,13 +2683,16 @@ fwohci_get_plen(struct fwohci_softc *sc, struct fwohci_dbch *dbch, struct fw_pkt
 	if ((info->flag & FWTI_BLOCK_ASY) != 0)
 		r += roundup2(fp->mode.wreqb.len, sizeof(uint32_t));
 
-	if (r == sizeof(uint32_t))
+	if (r == sizeof(uint32_t)) {
 		/* XXX */
 		device_printf(sc->fc.dev, "Unknown tcode %d\n",
 						fp->mode.common.tcode);
+		return (-1);
+	}
 
 	if (r > dbch->xferq.psize) {
 		device_printf(sc->fc.dev, "Invalid packet length %d\n", r);
+		return (-1);
 		/* panic ? */
 	}
 
@@ -2697,7 +2700,8 @@ fwohci_get_plen(struct fwohci_softc *sc, struct fwohci_dbch *dbch, struct fw_pkt
 }
 
 static void
-fwohci_arcv_free_buf(struct fwohci_dbch *dbch, struct fwohcidb_tr *db_tr)
+fwohci_arcv_free_buf(struct fwohci_softc *sc, struct fwohci_dbch *dbch,
+    struct fwohcidb_tr *db_tr, uint32_t off, int wake)
 {
 	struct fwohcidb *db = &db_tr->db[0];
 
@@ -2706,6 +2710,9 @@ fwohci_arcv_free_buf(struct fwohci_dbch *dbch, struct fwohcidb_tr *db_tr)
 	FWOHCI_DMA_SET(dbch->bottom->db[0].db.desc.depend, 1);
 	fwdma_sync_multiseg_all(dbch->am, BUS_DMASYNC_PREWRITE);
 	dbch->bottom = db_tr;
+
+	if (wake)
+		OWRITE(sc, OHCI_DMACTL(off), OHCI_CNTL_DMA_WAKE);
 }
 
 static void
@@ -2717,7 +2724,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 	int nvec;
 	struct fw_pkt *fp;
 	uint8_t *ld;
-	uint32_t stat, off, status;
+	uint32_t stat, off, status, event;
 	u_int spd;
 	int len, plen, hlen, pcnt, offset;
 	int s;
@@ -2740,10 +2747,13 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 	fwdma_sync_multiseg_all(dbch->am, BUS_DMASYNC_POSTWRITE);
 	status = FWOHCI_DMA_READ(db_tr->db[0].db.desc.res) >> OHCI_STATUS_SHIFT;
 	resCount = FWOHCI_DMA_READ(db_tr->db[0].db.desc.res) & OHCI_COUNT_MASK;
-#if 0
-	printf("status 0x%04x, resCount 0x%04x\n", status, resCount);
-#endif
 	while (status & OHCI_CNTL_DMA_ACTIVE) {
+#if 0
+
+		if (off == OHCI_ARQOFF)
+			printf("buf 0x%08x, status 0x%04x, resCount 0x%04x\n",
+			    db_tr->bus_addr, status, resCount);
+#endif
 		len = dbch->xferq.psize - resCount;
 		ld = (uint8_t *)db_tr->buf;
 		if (dbch->pdb_tr == NULL) {
@@ -2783,8 +2793,9 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 					ld += rlen;
 					len -= rlen;
 					hlen = fwohci_arcv_swap(&pktbuf, sizeof(pktbuf));
-					if (hlen < 0) {
-						printf("hlen < 0 shouldn't happen");
+					if (hlen <= 0) {
+						printf("hlen should be positive.");
+						goto err;
 					}
 					offset = sizeof(pktbuf);
 					vec[0].iov_base = (char *)&pktbuf;
@@ -2802,16 +2813,16 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				fp=(struct fw_pkt *)ld;
 				hlen = fwohci_arcv_swap(fp, len);
 				if (hlen == 0)
-					/* XXX need reset */
-					goto out;
+					goto err;
 				if (hlen < 0) {
 					dbch->pdb_tr = db_tr;
 					dbch->buf_offset = - dbch->buf_offset;
 					/* sanity check */
-					if (resCount != 0) 
-						printf("resCount = %d !?\n",
-						    resCount);
-					/* XXX clear pdb_tr */
+					if (resCount != 0)  {
+						printf("resCount=%d hlen=%d\n",
+						    resCount, hlen);
+						    goto err;
+					}
 					goto out;
 				}
 				offset = 0;
@@ -2823,8 +2834,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				= sizeof(fw_pkt) so this shouldn't happens */
 				printf("plen(%d) is negative! offset=%d\n",
 				    plen, offset);
-				/* XXX clear pdb_tr */
-				goto out;
+				goto err;
 			}
 			if (plen > 0) {
 				len -= plen;
@@ -2833,10 +2843,12 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 					if (firewire_debug)
 						printf("splitted payload\n");
 					/* sanity check */
-					if (resCount != 0) 
-						printf("resCount = %d !?\n",
-						    resCount);
-					/* XXX clear pdb_tr */
+					if (resCount != 0)  {
+						printf("resCount=%d plen=%d"
+						    " len=%d\n",
+						    resCount, plen, len);
+						goto err;
+					}
 					goto out;
 				}
 				vec[nvec].iov_base = ld;
@@ -2849,18 +2861,14 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				printf("nvec == 0\n");
 
 /* DMA result-code will be written at the tail of packet */
-#if BYTE_ORDER == BIG_ENDIAN
-			stat = FWOHCI_DMA_READ(((struct fwohci_trailer *)(ld - sizeof(struct fwohci_trailer)))->stat) >> 16;
-#else
-			stat = ((struct fwohci_trailer *)(ld - sizeof(struct fwohci_trailer)))->stat;
-#endif
+			stat = FWOHCI_DMA_READ(*(uint32_t *)(ld - sizeof(struct fwohci_trailer)));
 #if 0
 			printf("plen: %d, stat %x\n",
 			    plen ,stat);
 #endif
-			spd = (stat >> 5) & 0x3;
-			stat &= 0x1f;
-			switch(stat){
+			spd = (stat >> 21) & 0x3;
+			event = (stat >> 16) & 0x1f;
+			switch (event) {
 			case FWOHCIEV_ACKPEND:
 #if 0
 				printf("fwohci_arcv: ack pending tcode=0x%x..\n", fp->mode.common.tcode);
@@ -2885,15 +2893,23 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 					printf("got BUSRST packet!?\n");
 				break;
 			default:
-				device_printf(sc->fc.dev, "Async DMA Receive error err = %02x %s\n", stat, fwohcicode[stat]);
-#if 0 /* XXX */
-				goto out;
+				device_printf(sc->fc.dev,
+				    "Async DMA Receive error err=%02x %s"
+				    " plen=%d offset=%d len=%d status=0x%08x"
+				    " tcode=0x%x, stat=0x%08x\n",
+				    event, fwohcicode[event], plen,
+				    dbch->buf_offset, len,
+				    OREAD(sc, OHCI_DMACTL(off)),
+				    fp->mode.common.tcode, stat);
+#if 1 /* XXX */
+				goto err;
 #endif
 				break;
 			}
 			pcnt ++;
 			if (dbch->pdb_tr != NULL) {
-				fwohci_arcv_free_buf(dbch, dbch->pdb_tr);
+				fwohci_arcv_free_buf(sc, dbch, dbch->pdb_tr,
+				    off, 1);
 				dbch->pdb_tr = NULL;
 			}
 
@@ -2902,7 +2918,7 @@ out:
 		if (resCount == 0) {
 			/* done on this buffer */
 			if (dbch->pdb_tr == NULL) {
-				fwohci_arcv_free_buf(dbch, db_tr);
+				fwohci_arcv_free_buf(sc, dbch, db_tr, off, 1);
 				dbch->buf_offset = 0;
 			} else
 				if (dbch->pdb_tr != db_tr)
@@ -2924,5 +2940,25 @@ out:
 	if (pcnt < 1)
 		printf("fwohci_arcv: no packets\n");
 #endif
+	splx(s);
+	return;
+
+err:
+	device_printf(sc->fc.dev, "AR DMA status=%x, ",
+					OREAD(sc, OHCI_DMACTL(off)));
+	dbch->pdb_tr = NULL;
+	/* skip until resCount != 0 */
+	printf(" skip buffer");
+	while (resCount == 0) {
+		printf(" #");
+		fwohci_arcv_free_buf(sc, dbch, db_tr, off, 0);
+		db_tr = STAILQ_NEXT(db_tr, link);
+		resCount = FWOHCI_DMA_READ(db_tr->db[0].db.desc.res)
+						& OHCI_COUNT_MASK;
+	} while (resCount == 0)
+	printf(" done\n");
+	dbch->top = db_tr;
+	dbch->buf_offset = dbch->xferq.psize - resCount;
+	OWRITE(sc, OHCI_DMACTL(off), OHCI_CNTL_DMA_WAKE);
 	splx(s);
 }

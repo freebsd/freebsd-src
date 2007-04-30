@@ -396,8 +396,13 @@ struct fwohci_txpkthdr{
 	}mode;
 };
 struct fwohci_trailer{
+#if BYTE_ORDER == BIG_ENDIAN
+	uint32_t stat:16,
+		  time:16;
+#else
 	uint32_t time:16,
 		  stat:16;
+#endif
 };
 
 #define	OHCI_CNTL_CYCSRC	(0x1 << 22)
