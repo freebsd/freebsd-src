@@ -50,6 +50,8 @@ typedef	struct proc fw_proc;
 
 #define	splfw splimp
 
+STAILQ_HEAD(fw_xferlist, fw_xfer);
+
 struct fw_device{
 	uint16_t dst;
 	struct fw_eui64 eui;
@@ -134,7 +136,7 @@ struct firewire_comm{
 	struct fw_eui64 eui;
 	struct fw_xferq
 		*arq, *atq, *ars, *ats, *it[FW_MAX_DMACH],*ir[FW_MAX_DMACH];
-	STAILQ_HEAD(, fw_xfer) tlabels[0x40];
+	struct fw_xferlist tlabels[0x40];
 	STAILQ_HEAD(, fw_bind) binds;
 	STAILQ_HEAD(, fw_device) devices;
 	u_int  sid_cnt;
@@ -190,11 +192,10 @@ struct fw_xferq {
 #define FWXFERQ_WAKEUP (1 << 17)
 	void (*start) (struct firewire_comm*);
 	int dmach;
-	STAILQ_HEAD(, fw_xfer) q;
+	struct fw_xferlist q;
 	u_int queued;
 	u_int maxq;
 	u_int psize;
-	STAILQ_HEAD(, fw_bind) binds;
 	struct fwdma_alloc_multi *buf;
 	u_int bnchunk;
 	u_int bnpacket;
@@ -220,14 +221,10 @@ struct fw_bulkxfer{
 struct fw_bind{
 	u_int64_t start;
 	u_int64_t end;
-	STAILQ_HEAD(, fw_xfer) xferlist;
+	struct fw_xferlist xferlist;
 	STAILQ_ENTRY(fw_bind) fclist;
 	STAILQ_ENTRY(fw_bind) chlist;
-#define FWACT_NULL	0
-#define FWACT_XFER	2
-#define FWACT_CH	3
-	uint8_t act_type;
-	uint8_t sub;
+	void *sc;
 };
 
 struct fw_xfer{
@@ -278,6 +275,9 @@ int fw_tbuf_update (struct firewire_comm *, int, int);
 int fw_rbuf_update (struct firewire_comm *, int, int);
 int fw_bindadd (struct firewire_comm *, struct fw_bind *);
 int fw_bindremove (struct firewire_comm *, struct fw_bind *);
+int fw_xferlist_add (struct fw_xferlist *, struct malloc_type *, int, int, int,
+    struct firewire_comm *, void *, void (*)(struct fw_xfer *));
+void fw_xferlist_remove (struct fw_xferlist *);
 int fw_asyreq (struct firewire_comm *, int, struct fw_xfer*);
 void fw_busreset (struct firewire_comm *, uint32_t);
 uint16_t fw_crc16 (uint32_t *, uint32_t);
