@@ -319,7 +319,7 @@ setvareq(char *s, int flags)
 			if (vp == &vmpath || (vp == &vmail && ! mpathset()))
 				chkmail(1);
 			if ((vp->flags & VEXPORT) && localevar(s)) {
-				(void) putenv((vp->flags & VTEXTFIXED) ? vp->text : savestr(vp->text));
+				(void) putenv(savestr(s));
 				(void) setlocale(LC_ALL, "");
 			}
 			INTON;
@@ -335,7 +335,7 @@ setvareq(char *s, int flags)
 	INTOFF;
 	*vpp = vp;
 	if ((vp->flags & VEXPORT) && localevar(s)) {
-		(void) putenv((vp->flags & VTEXTFIXED) ? vp->text : savestr(vp->text));
+		(void) putenv(savestr(s));
 		(void) setlocale(LC_ALL, "");
 	}
 	INTON;
@@ -596,7 +596,7 @@ exportcmd(int argc, char **argv)
 
 						vp->flags |= flag;
 						if ((vp->flags & VEXPORT) && localevar(vp->text)) {
-							(void) putenv((vp->flags & VTEXTFIXED) ? vp->text : savestr(vp->text));
+							(void) putenv(savestr(vp->text));
 							(void) setlocale(LC_ALL, "");
 						}
 						goto found;
