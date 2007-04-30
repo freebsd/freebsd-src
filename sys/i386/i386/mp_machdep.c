@@ -1095,8 +1095,8 @@ mptable_hyperthread_fixup(u_int id_mask)
 		 * are available, use them.
 		 */
 		if (cpu_high >= 4) {
-			/* Ask the processor about up to 32 caches. */
-			for (i = 0; i < 32; i++) {
+			/* Ask the processor about the L1 cache. */
+			for (i = 0; i < 1; i++) {
 				cpuid_count(4, i, p);
 				threads_per_cache = ((p[0] & 0x3ffc000) >> 14) + 1;
 				if (hyperthreading_cpus < threads_per_cache)
