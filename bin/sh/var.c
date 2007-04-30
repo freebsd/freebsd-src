@@ -319,7 +319,7 @@ setvareq(char *s, int flags)
 			if (vp == &vmpath || (vp == &vmail && ! mpathset()))
 				chkmail(1);
 			if ((vp->flags & VEXPORT) && localevar(s)) {
-				putenv(s);
+				(void) putenv((vp->flags & VTEXTFIXED) ? vp->text : savestr(vp->text));
 				(void) setlocale(LC_ALL, "");
 			}
 			INTON;
@@ -335,7 +335,7 @@ setvareq(char *s, int flags)
 	INTOFF;
 	*vpp = vp;
 	if ((vp->flags & VEXPORT) && localevar(s)) {
-		putenv(s);
+		(void) putenv((vp->flags & VTEXTFIXED) ? vp->text : savestr(vp->text));
 		(void) setlocale(LC_ALL, "");
 	}
 	INTON;
@@ -596,7 +596,7 @@ exportcmd(int argc, char **argv)
 
 						vp->flags |= flag;
 						if ((vp->flags & VEXPORT) && localevar(vp->text)) {
-							putenv(vp->text);
+							(void) putenv((vp->flags & VTEXTFIXED) ? vp->text : savestr(vp->text));
 							(void) setlocale(LC_ALL, "");
 						}
 						goto found;
@@ -776,6 +776,7 @@ unsetcmd(int argc __unused, char **argv __unused)
 int
 unsetvar(char *s)
 {
+	char *eqp, *ss;
 	struct var **vpp;
 	struct var *vp;
 
@@ -788,7 +789,11 @@ unsetvar(char *s)
 			if (*(strchr(vp->text, '=') + 1) != '\0')
 				setvar(s, nullstr, 0);
 			if ((vp->flags & VEXPORT) && localevar(vp->text)) {
-				unsetenv(s);
+				ss = savestr(s);
+				if ((eqp = strchr(ss, '=')) != NULL)
+					*eqp = '\0';
+				(void) unsetenv(ss);
+				ckfree(ss);
 				setlocale(LC_ALL, "");
 			}
 			vp->flags &= ~VEXPORT;
