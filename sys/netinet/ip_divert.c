@@ -147,14 +147,15 @@ div_init(void)
 {
 	INP_INFO_LOCK_INIT(&divcbinfo, "div");
 	LIST_INIT(&divcb);
-	divcbinfo.listhead = &divcb;
+	divcbinfo.ipi_listhead = &divcb;
 	/*
 	 * XXX We don't use the hash list for divert IP, but it's easier
 	 * to allocate a one entry hash list than it is to check all
 	 * over the place for hashbase == NULL.
 	 */
-	divcbinfo.hashbase = hashinit(1, M_PCB, &divcbinfo.hashmask);
-	divcbinfo.porthashbase = hashinit(1, M_PCB, &divcbinfo.porthashmask);
+	divcbinfo.ipi_hashbase = hashinit(1, M_PCB, &divcbinfo.ipi_hashmask);
+	divcbinfo.ipi_porthashbase = hashinit(1, M_PCB,
+	    &divcbinfo.ipi_porthashmask);
 	divcbinfo.ipi_zone = uma_zcreate("divcb", sizeof(struct inpcb),
 	    NULL, NULL, div_inpcb_init, div_inpcb_fini, UMA_ALIGN_PTR,
 	    UMA_ZONE_NOFREE);
@@ -575,7 +576,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		return ENOMEM;
 	
 	INP_INFO_RLOCK(&divcbinfo);
-	for (inp = LIST_FIRST(divcbinfo.listhead), i = 0; inp && i < n;
+	for (inp = LIST_FIRST(divcbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&

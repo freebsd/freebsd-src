@@ -44,11 +44,12 @@
 struct inpcbpolicy;
 
 /*
- * Common structure pcb for internet protocol implementation.
- * Here are stored pointers to local and foreign host table
- * entries, local and foreign socket numbers, and pointers
- * up (to a socket structure) and down (to a protocol-specific)
- * control block.
+ * Struct inpcb is the ommon structure pcb for the Internet Protocol
+ * implementation.
+ *
+ * Pointers to local and foreign host table entries, local and foreign socket
+ * numbers, and pointers up (to a socket structure) and down (to a
+ * protocol-specific control block) are stored here.
  */
 LIST_HEAD(inpcbhead, inpcb);
 LIST_HEAD(inpcbporthead, inpcbport);
@@ -56,8 +57,8 @@ typedef	u_quad_t	inp_gen_t;
 
 /*
  * PCB with AF_INET6 null bind'ed laddr can receive AF_INET input packet.
- * So, AF_INET6 null laddr is also used as AF_INET null laddr,
- * by utilize following structure. (At last, same as INRIA)
+ * So, AF_INET6 null laddr is also used as AF_INET null laddr, by utilizing
+ * the following structure.
  */
 struct in_addr_4in6 {
 	u_int32_t	ia46_pad32[3];
@@ -65,8 +66,8 @@ struct in_addr_4in6 {
 };
 
 /*
- * NOTE: ipv6 addrs should be 64-bit aligned, per RFC 2553.
- * in_conninfo has some extra padding to accomplish this.
+ * NOTE: ipv6 addrs should be 64-bit aligned, per RFC 2553.  in_conninfo has
+ * some extra padding to accomplish this.
  */
 struct in_endpoints {
 	u_int16_t	ie_fport;		/* foreign port */
@@ -89,8 +90,8 @@ struct in_endpoints {
 };
 
 /*
- * XXX
- * the defines for inc_* are hacks and should be changed to direct references
+ * XXX The defines for inc_* are hacks and should be changed to direct
+ * references.
  */
 struct in_conninfo {
 	u_int8_t	inc_flags;
@@ -137,7 +138,7 @@ struct inpcb {
 	u_char	inp_ip_p;		/* protocol proto */
 	u_char	inp_ip_minttl;		/* minimum TTL or drop */
 
-	/* Protocol dependent part; options. */
+	/* Protocol-dependent part; options. */
 	struct {
 		u_char	inp4_ip_tos;		/* type of service proto */
 		struct	mbuf *inp4_options;	/* IP options */
@@ -187,15 +188,15 @@ struct inpcb {
 #define	in6p_ppcb	inp_ppcb  /* for KAME src sync over BSD*'s */
 };
 /*
- * The range of the generation count, as used in this implementation,
- * is 9e19.  We would have to create 300 billion connections per
- * second for this number to roll over in a year.  This seems sufficiently
- * unlikely that we simply don't concern ourselves with that possibility.
+ * The range of the generation count, as used in this implementation, is 9e19.
+ * We would have to create 300 billion connections per second for this number
+ * to roll over in a year.  This seems sufficiently unlikely that we simply
+ * don't concern ourselves with that possibility.
  */
 
 /*
- * Interface exported to userland by various protocols which use
- * inpcbs.  Hack alert -- only define if struct xsocket is in scope.
+ * Interface exported to userland by various protocols which use inpcbs.  Hack
+ * alert -- only define if struct xsocket is in scope.
  */
 #ifdef _SYS_SOCKETVAR_H_
 struct	xinpcb {
@@ -219,19 +220,48 @@ struct inpcbport {
 	u_short phd_port;
 };
 
-struct inpcbinfo {		/* XXX documentation, prefixes */
-	struct	inpcbhead *hashbase;
-	u_long	hashmask;
-	struct	inpcbporthead *porthashbase;
-	u_long	porthashmask;
-	struct	inpcbhead *listhead;
-	u_short	lastport;
-	u_short	lastlow;
-	u_short	lasthi;
-	struct	uma_zone *ipi_zone; /* zone to allocate pcbs from */
-	u_int	ipi_count;	/* number of pcbs in this list */
-	u_quad_t ipi_gencnt;	/* current generation count */
-	struct	mtx ipi_mtx;
+/*
+ * Global data structure for each high-level protocol (UDP, TCP, ...) in both
+ * IPv4 and IPv6.  Holds inpcb lists and information for managing them.
+ */
+struct inpcbinfo {
+	/*
+	 * Global list of inpcbs on the protocol.
+	 */
+	struct inpcbhead	*ipi_listhead;
+	u_int			 ipi_count;
+
+	/*
+	 * Global hash of inpcbs, hashed by local and foreign addresses and
+	 * port numbers.
+	 */
+	struct inpcbhead	*ipi_hashbase;
+	u_long			 ipi_hashmask;
+
+	/*
+	 * Global hash of inpcbs, hashed by only local port number.
+	 */
+	struct inpcbporthead	*ipi_porthashbase;
+	u_long			 ipi_porthashmask;
+
+	/*
+	 * Fields associated with port lookup and allocation.
+	 */
+	u_short			 ipi_lastport;
+	u_short			 ipi_lastlow;
+	u_short			 ipi_lasthi;
+
+	/*
+	 * UMA zone from which inpcbs are allocated for this protocol.
+	 */
+	struct	uma_zone	*ipi_zone;
+
+	/*
+	 * Generation count--incremented each time a connection is allocated
+	 * or freed.
+	 */
+	u_quad_t		 ipi_gencnt;
+	struct mtx		 ipi_mtx;
 };
 
 #define INP_LOCK_INIT(inp, d, t) \

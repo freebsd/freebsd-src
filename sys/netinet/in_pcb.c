@@ -216,7 +216,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 			inp->inp_flags |= IN6P_IPV6_V6ONLY;
 	}
 #endif
-	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
+	LIST_INSERT_HEAD(pcbinfo->ipi_listhead, inp, inp_list);
 	pcbinfo->ipi_count++;
 	so->so_pcb = (caddr_t)inp;
 #ifdef INET6
@@ -408,7 +408,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		if (inp->inp_flags & INP_HIGHPORT) {
 			first = ipport_hifirstauto;	/* sysctl */
 			last  = ipport_hilastauto;
-			lastport = &pcbinfo->lasthi;
+			lastport = &pcbinfo->ipi_lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
 			error = priv_check_cred(cred,
 			    PRIV_NETINET_RESERVEDPORT, SUSER_ALLOWJAIL);
@@ -416,11 +416,11 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				return error;
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */
-			lastport = &pcbinfo->lastlow;
+			lastport = &pcbinfo->ipi_lastlow;
 		} else {
 			first = ipport_firstauto;	/* sysctl */
 			last  = ipport_lastauto;
-			lastport = &pcbinfo->lastport;
+			lastport = &pcbinfo->ipi_lastport;
 		}
 		/*
 		 * For UDP, use random port allocation as long as the user
@@ -846,7 +846,7 @@ in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr faddr, int errno,
 	struct inpcbhead *head;
 
 	INP_INFO_WLOCK(pcbinfo);
-	head = pcbinfo->listhead;
+	head = pcbinfo->ipi_listhead;
 	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
 		INP_LOCK(inp);
 		ninp = LIST_NEXT(inp, inp_list);
@@ -875,7 +875,7 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 	int i, gap;
 
 	INP_INFO_RLOCK(pcbinfo);
-	LIST_FOREACH(inp, pcbinfo->listhead, inp_list) {
+	LIST_FOREACH(inp, pcbinfo->ipi_listhead, inp_list) {
 		INP_LOCK(inp);
 		imo = inp->inp_moptions;
 		if ((inp->inp_vflag & INP_IPV4) &&
@@ -932,7 +932,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 		 * Look for an unconnected (wildcard foreign addr) PCB that
 		 * matches the local address and port we're looking for.
 		 */
-		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
+		    0, pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
 			if ((inp->inp_vflag & INP_IPV4) == 0)
@@ -961,8 +962,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 		 * First see if this local port is in use by looking on the
 		 * port hash list.
 		 */
-		porthash = &pcbinfo->porthashbase[INP_PCBPORTHASH(lport,
-		    pcbinfo->porthashmask)];
+		porthash = &pcbinfo->ipi_porthashbase[INP_PCBPORTHASH(lport,
+		    pcbinfo->ipi_porthashmask)];
 		LIST_FOREACH(phd, porthash, phd_hash) {
 			if (phd->phd_port == lport)
 				break;
@@ -1035,8 +1036,8 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	/*
 	 * First look for an exact match.
 	 */
-	head = &pcbinfo->hashbase[INP_PCBHASH(faddr.s_addr, lport, fport,
-	    pcbinfo->hashmask)];
+	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(faddr.s_addr, lport, fport,
+	    pcbinfo->ipi_hashmask)];
 	LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV4) == 0)
@@ -1058,8 +1059,8 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 		struct inpcb *local_wild_mapped = NULL;
 #endif
 
-		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0,
-		    pcbinfo->hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
+		    0, pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
 			if ((inp->inp_vflag & INP_IPV4) == 0)
@@ -1114,11 +1115,11 @@ in_pcbinshash(struct inpcb *inp)
 #endif /* INET6 */
 	hashkey_faddr = inp->inp_faddr.s_addr;
 
-	pcbhash = &pcbinfo->hashbase[INP_PCBHASH(hashkey_faddr,
-		 inp->inp_lport, inp->inp_fport, pcbinfo->hashmask)];
+	pcbhash = &pcbinfo->ipi_hashbase[INP_PCBHASH(hashkey_faddr,
+		 inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
 
-	pcbporthash = &pcbinfo->porthashbase[INP_PCBPORTHASH(inp->inp_lport,
-	    pcbinfo->porthashmask)];
+	pcbporthash = &pcbinfo->ipi_porthashbase[
+	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask)];
 
 	/*
 	 * Go through port list and look for a head for this lport.
@@ -1168,8 +1169,8 @@ in_pcbrehash(struct inpcb *inp)
 #endif /* INET6 */
 	hashkey_faddr = inp->inp_faddr.s_addr;
 
-	head = &pcbinfo->hashbase[INP_PCBHASH(hashkey_faddr,
-		inp->inp_lport, inp->inp_fport, pcbinfo->hashmask)];
+	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(hashkey_faddr,
+		inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
 
 	LIST_REMOVE(inp, inp_hash);
 	LIST_INSERT_HEAD(head, inp, inp_hash);
