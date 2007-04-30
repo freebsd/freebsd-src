@@ -1400,10 +1400,8 @@ print_ext6hdr( ipfw_insn *cmd )
 #define	HAVE_PROTO	0x0001
 #define	HAVE_SRCIP	0x0002
 #define	HAVE_DSTIP	0x0004
-#define	HAVE_MAC	0x0008
-#define	HAVE_MACTYPE	0x0010
-#define	HAVE_PROTO4	0x0040
-#define	HAVE_PROTO6	0x0080
+#define	HAVE_PROTO4	0x0008
+#define	HAVE_PROTO6	0x0010
 #define	HAVE_OPTIONS	0x8000
 
 #define	HAVE_IP		(HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP)
@@ -1415,16 +1413,6 @@ show_prerequisites(int *flags, int want, int cmd)
 	if ( (*flags & HAVE_IP) == HAVE_IP)
 		*flags |= HAVE_OPTIONS;
 
-	if ( (*flags & (HAVE_MAC|HAVE_MACTYPE|HAVE_OPTIONS)) == HAVE_MAC &&
-	     cmd != O_MAC_TYPE) {
-		/*
-		 * mac-type was optimized out by the compiler,
-		 * restore it
-		 */
-		printf(" any");
-		*flags |= HAVE_MACTYPE | HAVE_OPTIONS;
-		return;
-	}
 	if ( !(*flags & HAVE_OPTIONS)) {
 		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO))
 			if ( (*flags & HAVE_PROTO4))
@@ -1680,28 +1668,6 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		case O_PROBE_STATE:
 			break; /* no need to print anything here */
 
-		case O_MACADDR2: {
-			ipfw_insn_mac *m = (ipfw_insn_mac *)cmd;
-
-			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
-			if (cmd->len & F_NOT)
-				printf(" not");
-			printf(" MAC");
-			flags |= HAVE_MAC;
-			print_mac(m->addr, m->mask);
-			print_mac(m->addr + 6, m->mask + 6);
-			}
-			break;
-
-		case O_MAC_TYPE:
-			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
-			print_newports((ipfw_insn_u16 *)cmd, IPPROTO_ETHERTYPE,
-				(flags & HAVE_OPTIONS) ? cmd->opcode : 0);
-			flags |= HAVE_MAC | HAVE_MACTYPE | HAVE_OPTIONS;
-			break;
-
 		case O_IP_SRC:
 		case O_IP_SRC_LOOKUP:
 		case O_IP_SRC_MASK:
@@ -1809,6 +1775,21 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			if (cmd->len & F_NOT && cmd->opcode != O_IN)
 				printf(" not");
 			switch(cmd->opcode) {
+			case O_MACADDR2: {
+				ipfw_insn_mac *m = (ipfw_insn_mac *)cmd;
+
+				printf(" MAC");
+				print_mac(m->addr, m->mask);
+				print_mac(m->addr + 6, m->mask + 6);
+				}
+				break;
+
+			case O_MAC_TYPE:
+				print_newports((ipfw_insn_u16 *)cmd,
+						IPPROTO_ETHERTYPE, cmd->opcode);
+				break;
+
+
 			case O_FRAG:
 				printf(" frag");
 				break;
