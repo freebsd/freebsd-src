@@ -56,7 +56,7 @@ main(int argc, char **argv)
 	/* XXX */
 	char *p = getenv("TERM");
 	if (p && strcmp(p, "cons25") == 0)
-	    putenv("TERM=cons25w");
+	    (void)putenv(strdup("TERM=cons25w"));
     }
 #endif
 
