@@ -130,8 +130,9 @@
 
     <para>&man.acpi.4; now has support for the HPET time counter.</para>
 
-    <para>Support for Message Signaled Interrupts (MSI) has been added to
-     the &man.pci.4; driver.</para>
+    <para>Support for Message Signaled Interrupts (MSI) and Extended
+      Message Signaled Interrupts (MSI-X) has been added to the kernel's
+      PCI support code.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -167,6 +168,9 @@
 	<para>The &man.cxgb.4; driver has been added.  It provides support for
 	  10 Gigabit Ethernet adapters based on the Chelsio T3 and T3B chipsets.
 	  </para>
+
+	<para>The &man.edsc.4; driver, which provides Ethernet discard network
+	  interfaces, has been added.</para>
 
 	<para>The &man.msk.4; driver has been added.  It supports
 	  network interfaces using the Marvell/SysKonnect Yukon II
@@ -260,7 +264,7 @@
       replaced with a modified version of gzip ported from NetBSD.</para>
 
     <para><application>ncurses</application> has been updated from
-      5.2-20010512 to 5.6-20061217.  ncurses now also has wide
+      5.2-20020615 to 5.6-20061217.  ncurses now also has wide
       character support.</para>
 
     <para><application>GNU Readline library</application> has been
