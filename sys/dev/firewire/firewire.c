@@ -496,6 +496,7 @@ fw_xferq_drain(struct fw_xferq *xferq)
 		STAILQ_REMOVE_HEAD(&xferq->q, link);
 		xferq->queued --;
 		xfer->resp = EAGAIN;
+		xfer->state = FWXF_SENTERR;
 		fw_xfer_done(xfer);
 	}
 }
@@ -1824,10 +1825,10 @@ fw_rcv(struct fw_rcv_buf *rb)
 					(fp->mode.hdr.tlrt >> 2)^3);
 			if (rb->xfer == NULL) {
 				printf("no use...\n");
-				goto err;
+				return;
 			}
 #else
-			goto err;
+			return;
 #endif
 		}
 		fw_rcv_copy(rb);
@@ -1871,7 +1872,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 			    fp->mode.hdr.src, ntohl(fp->mode.wreqq.data));
 			if (rb->fc->status == FWBUSRESET) {
 				printf("fw_rcv: cannot respond(bus reset)!\n");
-				goto err;
+				return;
 			}
 			rb->xfer = fw_xfer_alloc(M_FWXFER);
 			if(rb->xfer == NULL){
@@ -1909,15 +1910,17 @@ fw_rcv(struct fw_rcv_buf *rb)
 				fw_xfer_free(rb->xfer);
 				return;
 			}
-			goto err;
+			return;
 		}
 		len = 0;
 		for (i = 0; i < rb->nvec; i ++)
 			len += rb->vec[i].iov_len;
 		rb->xfer = STAILQ_FIRST(&bind->xferlist);
 		if (rb->xfer == NULL) {
+#if 1
 			printf("Discard a packet for this bind.\n");
-			goto err;
+#endif
+			return;
 		}
 		STAILQ_REMOVE_HEAD(&bind->xferlist, link);
 		fw_rcv_copy(rb);
@@ -1935,13 +1938,14 @@ fw_rcv(struct fw_rcv_buf *rb)
 #endif
 		if(xferq->queued >= xferq->maxq) {
 			printf("receive queue is full\n");
-			goto err;
+			return;
 		}
 		/* XXX get xfer from xfer queue, we don't need copy for 
 			per packet mode */
 		rb->xfer = fw_xfer_alloc_buf(M_FWXFER, 0, /* XXX */
 						vec[0].iov_len);
-		if (rb->xfer == NULL) goto err;
+		if (rb->xfer == NULL)
+			return;
 		fw_rcv_copy(rb)
 		s = splfw();
 		xferq->queued++;
@@ -1969,8 +1973,6 @@ fw_rcv(struct fw_rcv_buf *rb)
 		printf("fw_rcv: unknow tcode %d\n", tcode);
 		break;
 	}
-err:
-	return;
 }
 
 /*
