@@ -354,7 +354,6 @@ found:
 
 		fwip->fwb.start = INET_FIFO;
 		fwip->fwb.end = INET_FIFO + 16384; /* S3200 packet size */
-		fwip->fwb.act_type = FWACT_XFER;
 
 		/* pre-allocate xfer */
 		STAILQ_INIT(&fwip->fwb.xferlist);

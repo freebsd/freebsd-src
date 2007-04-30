@@ -1610,8 +1610,6 @@ sbp_targ_attach(device_t dev)
 {
 	struct sbp_targ_softc *sc;
 	struct cam_devq *devq;
-	struct fw_xfer *xfer;
-	int i;
 
         sc = (struct sbp_targ_softc *) device_get_softc(dev);
 	bzero((void *)sc, sizeof(struct sbp_targ_softc));
@@ -1644,19 +1642,12 @@ sbp_targ_attach(device_t dev)
 
 	sc->fwb.start = SBP_TARG_BIND_START;
 	sc->fwb.end = SBP_TARG_BIND_END;
-	sc->fwb.act_type = FWACT_XFER;
 
 	/* pre-allocate xfer */
 	STAILQ_INIT(&sc->fwb.xferlist);
-	for (i = 0; i < MAX_LUN /* XXX */; i ++) {
-		xfer = fw_xfer_alloc_buf(M_SBP_TARG,
-			/* send */ 0,
-			/* recv */ SBP_TARG_RECV_LEN);
-		xfer->hand = sbp_targ_recv;
-		xfer->fc = sc->fd.fc;
-		xfer->sc = (caddr_t)sc;
-		STAILQ_INSERT_TAIL(&sc->fwb.xferlist, xfer, link);
-	}
+	fw_xferlist_add(&sc->fwb.xferlist, M_SBP_TARG,
+	    /*send*/ 0, /*recv*/ SBP_TARG_RECV_LEN, MAX_LUN /* XXX */,
+	    sc->fd.fc, (void *)sc, sbp_targ_recv);
 	fw_bindadd(sc->fd.fc, &sc->fwb);
 	return 0;
 
@@ -1670,7 +1661,6 @@ sbp_targ_detach(device_t dev)
 {
 	struct sbp_targ_softc *sc;
 	struct sbp_targ_lstate *lstate;
-	struct fw_xfer *xfer, *next;
 	int i;
 
 	sc = (struct sbp_targ_softc *)device_get_softc(dev);
@@ -1692,13 +1682,8 @@ sbp_targ_detach(device_t dev)
 		free(sc->black_hole, M_SBP_TARG);
 	}
 			
-	for (xfer = STAILQ_FIRST(&sc->fwb.xferlist);
-	    xfer != NULL; xfer = next) {
-		next = STAILQ_NEXT(xfer, link);
-		fw_xfer_free_buf(xfer);
-	}
-	STAILQ_INIT(&sc->fwb.xferlist);
 	fw_bindremove(sc->fd.fc, &sc->fwb);
+	fw_xferlist_remove(&sc->fwb.xferlist);
 
 	return 0;
 }

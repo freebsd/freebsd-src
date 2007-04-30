@@ -716,9 +716,6 @@ void fw_init(struct firewire_comm *fc)
 
 		STAILQ_INIT(&fc->it[i]->q);
 		STAILQ_INIT(&fc->ir[i]->q);
-
-		STAILQ_INIT(&fc->it[i]->binds);
-		STAILQ_INIT(&fc->ir[i]->binds);
 	}
 
 	fc->arq->maxq = FWMAXQUEUE;
@@ -811,7 +808,7 @@ fw_bindlookup(struct firewire_comm *fc, uint16_t dest_hi, uint32_t dest_lo)
 
 	addr = ((u_int64_t)dest_hi << 32) | dest_lo;
 	STAILQ_FOREACH(tfw, &fc->binds, fclist)
-		if (tfw->act_type != FWACT_NULL && BIND_CMP(addr, tfw) == 0)
+		if (BIND_CMP(addr, tfw) == 0)
 			return(tfw);
 	return(NULL);
 }
@@ -836,20 +833,15 @@ fw_bindadd(struct firewire_comm *fc, struct fw_bind *fwb)
 	}
 	if (prev == NULL) {
 		STAILQ_INSERT_HEAD(&fc->binds, fwb, fclist);
-		goto out;
+		return (0);
 	}
 	if (prev->end < fwb->start) {
 		STAILQ_INSERT_AFTER(&fc->binds, prev, fwb, fclist);
-		goto out;
+		return (0);
 	}
 
 	printf("%s: bind failed\n", __func__);
 	return (EBUSY);
-
-out:
-	if (fwb->act_type == FWACT_CH)
-		STAILQ_INSERT_HEAD(&fc->ir[fwb->sub]->binds, fwb, chlist);
-	return (0);
 }
 
 /*
@@ -886,6 +878,40 @@ found:
 
 	splx(s);
 	return 0;
+}
+
+int
+fw_xferlist_add(struct fw_xferlist *q, struct malloc_type *type,
+    int slen, int rlen, int n,
+    struct firewire_comm *fc, void *sc, void (*hand)(struct fw_xfer *))
+{
+	int i, s;
+	struct fw_xfer *xfer;
+
+	for (i = 0; i < n; i++) {
+		xfer = fw_xfer_alloc_buf(type, slen, rlen);
+		if (xfer == NULL)
+			return (n);
+		xfer->fc = fc;
+		xfer->sc = sc;
+		xfer->hand = hand;
+		s = splfw();
+		STAILQ_INSERT_TAIL(q, xfer, link);
+		splx(s);
+	}
+	return (n);
+}
+
+void
+fw_xferlist_remove(struct fw_xferlist *q)
+{
+	struct fw_xfer *xfer, *next;
+
+	for (xfer = STAILQ_FIRST(q); xfer != NULL; xfer = next) {
+                next = STAILQ_NEXT(xfer, link);
+                fw_xfer_free_buf(xfer);
+        }
+        STAILQ_INIT(q);
 }
 
 /*
@@ -1760,7 +1786,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 {
 	struct fw_pkt *fp, *resfp;
 	struct fw_bind *bind;
-	int tcode, s;
+	int tcode;
 	int i, len, oldstate;
 #if 0
 	{
@@ -1888,50 +1914,15 @@ fw_rcv(struct fw_rcv_buf *rb)
 		len = 0;
 		for (i = 0; i < rb->nvec; i ++)
 			len += rb->vec[i].iov_len;
-		switch(bind->act_type){
-		case FWACT_XFER:
-			/* splfw()?? */
-			rb->xfer = STAILQ_FIRST(&bind->xferlist);
-			if (rb->xfer == NULL) {
-				printf("Discard a packet for this bind.\n");
-				goto err;
-			}
-			STAILQ_REMOVE_HEAD(&bind->xferlist, link);
-			fw_rcv_copy(rb);
-			rb->xfer->hand(rb->xfer);
-			return;
-			break;
-		case FWACT_CH:
-			if(rb->fc->ir[bind->sub]->queued >=
-				rb->fc->ir[bind->sub]->maxq){
-				device_printf(rb->fc->bdev,
-					"Discard a packet %x %d\n",
-					bind->sub,
-					rb->fc->ir[bind->sub]->queued);
-				goto err;
-			}
-			rb->xfer = STAILQ_FIRST(&bind->xferlist);
-			if (rb->xfer == NULL) {
-				printf("Discard packet for this bind\n");
-				goto err;
-			}
-			STAILQ_REMOVE_HEAD(&bind->xferlist, link);
-			fw_rcv_copy(rb);
-			s = splfw();
-			rb->fc->ir[bind->sub]->queued++;
-			STAILQ_INSERT_TAIL(&rb->fc->ir[bind->sub]->q,
-			    rb->xfer, link);
-			splx(s);
-
-			wakeup((caddr_t)rb->fc->ir[bind->sub]);
-
-			return;
-			break;
-		default:
+		rb->xfer = STAILQ_FIRST(&bind->xferlist);
+		if (rb->xfer == NULL) {
+			printf("Discard a packet for this bind.\n");
 			goto err;
-			break;
 		}
-		break;
+		STAILQ_REMOVE_HEAD(&bind->xferlist, link);
+		fw_rcv_copy(rb);
+		rb->xfer->hand(rb->xfer);
+		return;
 #if 0 /* shouldn't happen ?? or for GASP */
 	case FWTCODE_STREAM:
 	{
