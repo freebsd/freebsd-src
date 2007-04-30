@@ -44,7 +44,6 @@ inline char *__findenv(const char *, int *);
  *	Returns pointer to value associated with name, if any, else NULL.
  *	Sets offset to be the offset of the name/value combination in the
  *	environmental array, for use by setenv(3) and unsetenv(3).
- *	Explicitly removes '=' in argument name.
  *
  *	This routine *should* be a static; don't use it.
  */
@@ -58,11 +57,9 @@ __findenv(name, offset)
 	const char *np;
 	char **p, *cp;
 
-	if (name == NULL || environ == NULL)
+	if (environ == NULL)
 		return (NULL);
-	for (np = name; *np && *np != '='; ++np)
-		continue;
-	len = np - name;
+	len = strlen(name);
 	for (p = environ; (cp = *p) != NULL; ++p) {
 		for (np = name, i = len; i && *cp; i--)
 			if (*cp++ != *np++)
@@ -84,6 +81,9 @@ getenv(name)
 	const char *name;
 {
 	int offset;
+
+	if (name == NULL || !*name || strchr(name, '=') != NULL)
+		return (NULL);
 
 	return (__findenv(name, &offset));
 }
