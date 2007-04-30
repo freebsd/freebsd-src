@@ -89,7 +89,8 @@ to the given
 The
 .Fn putenv
 function takes an argument of the form ``name=value'' and
-puts it directly into the current environment.
+puts it directly into the current environment,
+so altering the argument shall change the environment.
 If the variable
 .Fa name
 does not exist in the list,
