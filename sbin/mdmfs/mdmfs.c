@@ -583,12 +583,13 @@ run(int *ofd, const char *cmdline, ...)
 	argv = (char **)malloc(sizeof(*argv) * (argc + 1));
 	assert(argv != NULL);
 	for (p = cmd, argvp = argv; (*argvp = strsep(&p, " ")) != NULL;)
-		if (**argv != '\0')
+		if (**argvp != '\0')
 			if (++argvp >= &argv[argc]) {
 				*argvp = NULL;
 				break;
 			}
 	assert(*argv);
+	/* The argv array ends up NULL-terminated here. */
 
 	/* Make sure the above loop works as expected. */
 	if (debug) {
