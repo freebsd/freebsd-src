@@ -516,10 +516,10 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 
 	switch (ccb_h->flags & CAM_DIR_MASK) {
 	case CAM_DIR_IN:
-	     request_flags |= ATA_R_READ|ATA_R_DMA;
+	     request_flags |= ATA_R_READ;
 	     break;
 	case CAM_DIR_OUT:
-	     request_flags |= ATA_R_WRITE|ATA_R_DMA;
+	     request_flags |= ATA_R_WRITE;
 	     break;
 	case CAM_DIR_NONE:
 	     /* No flags need to be set */
@@ -528,8 +528,6 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	     device_printf(softc->dev, "unknown IO operation\n");
 	     goto action_invalid;
 	}
-	if (softc->atadev[tid]->mode < ATA_DMA)
-	    request_flags &= ~ATA_R_DMA;
 
 	if ((hcb = allocate_hcb(softc, unit, bus, ccb)) == NULL) {
 	    printf("cannot allocate ATAPI/CAM hcb\n");
@@ -594,7 +592,24 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    request->u.atapi.ccb[3] = request->u.atapi.ccb[1] & 0x1f;
 	    request->u.atapi.ccb[2] = 0;
 	    request->u.atapi.ccb[1] = 0;
+	    /* FALLTHROUGH */
+
+	case READ_10:
+	    /* FALLTHROUGH */
+	case WRITE_10:
+	    /* FALLTHROUGH */
+	case READ_12:
+	    /* FALLTHROUGH */
+	case WRITE_12:
+	    /*
+	     * Enable DMA (if target supports it) for READ and WRITE commands
+	     * only, as some combinations of drive, controller and chipset do
+	     * not behave correctly when DMA is enabled for other commands.
+	     */
+	    if (softc->atadev[tid]->mode >= ATA_DMA)
+		request_flags |= ATA_R_DMA;
 	    break;
+
 	}
 
 	if ((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_IN && (len & 1)) {
