@@ -746,7 +746,7 @@ export_pam_environment()
 	if (pam_env != NULL) {
 		for (pp = pam_env; *pp != NULL; pp++) {
 			(void)export(*pp);
-			free(*pp);
+			/* Don't free putenv() memory! */
 		}
 	}
 }
