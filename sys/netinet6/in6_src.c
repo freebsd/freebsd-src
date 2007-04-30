@@ -773,7 +773,7 @@ in6_pcbsetport(laddr, inp, cred)
 	if (inp->inp_flags & INP_HIGHPORT) {
 		first = ipport_hifirstauto;	/* sysctl */
 		last  = ipport_hilastauto;
-		lastport = &pcbinfo->lasthi;
+		lastport = &pcbinfo->ipi_lasthi;
 	} else if (inp->inp_flags & INP_LOWPORT) {
 		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
 		    SUSER_ALLOWJAIL);
@@ -781,11 +781,11 @@ in6_pcbsetport(laddr, inp, cred)
 			return error;
 		first = ipport_lowfirstauto;	/* 1023 */
 		last  = ipport_lowlastauto;	/* 600 */
-		lastport = &pcbinfo->lastlow;
+		lastport = &pcbinfo->ipi_lastlow;
 	} else {
 		first = ipport_firstauto;	/* sysctl */
 		last  = ipport_lastauto;
-		lastport = &pcbinfo->lastport;
+		lastport = &pcbinfo->ipi_lastport;
 	}
 	/*
 	 * Simple check to ensure all ports are not used up causing

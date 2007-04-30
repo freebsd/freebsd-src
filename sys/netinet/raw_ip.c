@@ -133,14 +133,15 @@ rip_init()
 {
 	INP_INFO_LOCK_INIT(&ripcbinfo, "rip");
 	LIST_INIT(&ripcb);
-	ripcbinfo.listhead = &ripcb;
+	ripcbinfo.ipi_listhead = &ripcb;
 	/*
 	 * XXX We don't use the hash list for raw IP, but it's easier
 	 * to allocate a one entry hash list than it is to check all
 	 * over the place for hashbase == NULL.
 	 */
-	ripcbinfo.hashbase = hashinit(1, M_PCB, &ripcbinfo.hashmask);
-	ripcbinfo.porthashbase = hashinit(1, M_PCB, &ripcbinfo.porthashmask);
+	ripcbinfo.ipi_hashbase = hashinit(1, M_PCB, &ripcbinfo.ipi_hashmask);
+	ripcbinfo.ipi_porthashbase = hashinit(1, M_PCB,
+	    &ripcbinfo.ipi_porthashmask);
 	ripcbinfo.ipi_zone = uma_zcreate("ripcb", sizeof(struct inpcb),
 	    NULL, NULL, rip_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(ripcbinfo.ipi_zone, maxsockets);
@@ -858,7 +859,7 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 		return ENOMEM;
 	
 	INP_INFO_RLOCK(&ripcbinfo);
-	for (inp = LIST_FIRST(ripcbinfo.listhead), i = 0; inp && i < n;
+	for (inp = LIST_FIRST(ripcbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&

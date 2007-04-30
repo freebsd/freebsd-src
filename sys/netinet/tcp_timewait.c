@@ -315,16 +315,17 @@ tcp_init(void)
 
 	INP_INFO_LOCK_INIT(&tcbinfo, "tcp");
 	LIST_INIT(&tcb);
-	tcbinfo.listhead = &tcb;
+	tcbinfo.ipi_listhead = &tcb;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
 	if (!powerof2(hashsize)) {
 		printf("WARNING: TCB hash size not a power of 2\n");
 		hashsize = 512; /* safe default */
 	}
 	tcp_tcbhashsize = hashsize;
-	tcbinfo.hashbase = hashinit(hashsize, M_PCB, &tcbinfo.hashmask);
-	tcbinfo.porthashbase = hashinit(hashsize, M_PCB,
-					&tcbinfo.porthashmask);
+	tcbinfo.ipi_hashbase = hashinit(hashsize, M_PCB,
+	    &tcbinfo.ipi_hashmask);
+	tcbinfo.ipi_porthashbase = hashinit(hashsize, M_PCB,
+	    &tcbinfo.ipi_porthashmask);
 	tcbinfo.ipi_zone = uma_zcreate("inpcb", sizeof(struct inpcb),
 	    NULL, NULL, tcp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcbinfo.ipi_zone, maxsockets);
@@ -856,7 +857,7 @@ tcp_drain(void)
 	 *	usefull.
 	 */
 		INP_INFO_RLOCK(&tcbinfo);
-		LIST_FOREACH(inpb, tcbinfo.listhead, inp_list) {
+		LIST_FOREACH(inpb, tcbinfo.ipi_listhead, inp_list) {
 			if (inpb->inp_vflag & INP_TIMEWAIT)
 				continue;
 			INP_LOCK(inpb);
@@ -977,8 +978,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 
 	INP_INFO_RLOCK(&tcbinfo);
-	for (inp = LIST_FIRST(tcbinfo.listhead), i = 0; inp != NULL && i < n;
-	     inp = LIST_NEXT(inp, inp_list)) {
+	for (inp = LIST_FIRST(tcbinfo.ipi_listhead), i = 0; inp != NULL && i
+	    < n; inp = LIST_NEXT(inp, inp_list)) {
 		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			/*
