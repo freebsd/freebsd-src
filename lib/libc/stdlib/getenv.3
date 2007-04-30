@@ -50,21 +50,17 @@
 .Ft int
 .Fn setenv "const char *name" "const char *value" "int overwrite"
 .Ft int
-.Fn putenv "const char *string"
-.Ft void
+.Fn putenv "char *string"
+.Ft int
 .Fn unsetenv "const char *name"
 .Sh DESCRIPTION
 These functions set, unset and fetch environment variables from the
 host
 .Em environment list .
 For compatibility with differing environment conventions,
-the given arguments
-.Fa name
-and
+the given argument
 .Fa value
-may be appended and prepended,
-respectively,
-with an equal sign
+may be prepended with an equal sign
 .Dq Li \&= .
 .Pp
 The
@@ -121,9 +117,21 @@ is not in the current environment,
 .Dv NULL
 is returned.
 .Pp
-.Rv -std setenv putenv
+.Rv -std setenv putenv unsetenv
 .Sh ERRORS
 .Bl -tag -width Er
+.It Bq Er EINVAL
+The function
+.Fn setenv
+or
+.Fn unsetenv
+failed because the
+.Fa name
+is a
+.Dv NULL
+pointer, points to an empty string, or points to a string containing an
+.Dq Li \&=
+character.
 .It Bq Er ENOMEM
 The function
 .Fn setenv
@@ -141,6 +149,12 @@ The
 .Fn getenv
 function conforms to
 .St -isoC .
+The
+.Fn setenv
+and
+.Fn unsetenv
+functions conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The functions
 .Fn setenv
