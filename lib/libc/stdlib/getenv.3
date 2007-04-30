@@ -88,11 +88,17 @@ to the given
 .Pp
 The
 .Fn putenv
-function takes an argument of the form ``name=value'' and is
-equivalent to:
-.Bd -literal -offset indent
-setenv(name, value, 1);
-.Ed
+function takes an argument of the form ``name=value'' and
+puts it directly into the current environment.
+If the variable
+.Fa name
+does not exist in the list,
+it is inserted with the given
+.Fa value .
+If the variable
+.Fa name
+does exist, it is reset to the given
+.Fa value .
 .Pp
 The
 .Fn unsetenv
@@ -145,7 +151,8 @@ The
 function conforms to
 .St -isoC .
 The
-.Fn setenv
+.Fn setenv ,
+.Fn putenv
 and
 .Fn unsetenv
 functions conforms to
