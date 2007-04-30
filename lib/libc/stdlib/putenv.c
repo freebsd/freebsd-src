@@ -33,24 +33,28 @@ static char sccsid[] = "@(#)putenv.c	8.2 (Berkeley) 3/27/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
 int
 putenv(str)
-	const char *str;
+	char *str;
 {
 	char *p, *equal;
-	int rval;
+	int rval, serrno;
 
 	if ((p = strdup(str)) == NULL)
 		return (-1);
 	if ((equal = index(p, '=')) == NULL) {
 		(void)free(p);
+		errno = EINVAL;
 		return (-1);
 	}
 	*equal = '\0';
 	rval = setenv(p, equal + 1, 1);
+	serrno = errno;
 	(void)free(p);
+	errno = serrno;
 	return (rval);
 }
