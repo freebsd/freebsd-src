@@ -33,6 +33,7 @@ static char sccsid[] = "@(#)setenv.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,6 +55,11 @@ setenv(name, value, rewrite)
 	static char **alloced;			/* if allocated space before */
 	char *c;
 	int l_value, offset;
+
+	if (name == NULL || !*name || strchr(name, '=') != NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 
 	if (*value == '=')			/* no `=' in value */
 		++value;
@@ -88,9 +94,8 @@ setenv(name, value, rewrite)
 		environ[cnt + 1] = NULL;
 		offset = cnt;
 	}
-	for (c = (char *)name; *c && *c != '='; ++c);	/* no `=' in name */
 	if (!(environ[offset] =			/* name + `=' + value */
-	    malloc((size_t)((int)(c - name) + l_value + 2))))
+	    malloc((size_t)(strlen(name) + l_value + 2))))
 		return (-1);
 	for (c = environ[offset]; (*c = *name++) && *c != '='; ++c);
 	for (*c++ = '='; (*c++ = *value++); );
@@ -101,7 +106,7 @@ setenv(name, value, rewrite)
  * unsetenv(name) --
  *	Delete environmental variable "name".
  */
-void
+int
 unsetenv(name)
 	const char *name;
 {
@@ -109,8 +114,14 @@ unsetenv(name)
 	char **p;
 	int offset;
 
+	if (name == NULL || !*name || strchr(name, '=') != NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
 	while (__findenv(name, &offset))	/* if set multiple times */
 		for (p = &environ[offset];; ++p)
 			if (!(*p = *(p + 1)))
 				break;
+	return (0);
 }
