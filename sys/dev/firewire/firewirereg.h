@@ -134,7 +134,7 @@ struct firewire_comm{
 	struct fw_eui64 eui;
 	struct fw_xferq
 		*arq, *atq, *ars, *ats, *it[FW_MAX_DMACH],*ir[FW_MAX_DMACH];
-	STAILQ_HEAD(, tlabel) tlabels[0x40];
+	STAILQ_HEAD(, fw_xfer) tlabels[0x40];
 	STAILQ_HEAD(, fw_bind) binds;
 	STAILQ_HEAD(, fw_device) devices;
 	u_int  sid_cnt;
@@ -217,11 +217,6 @@ struct fw_bulkxfer{
 	int resp;
 };
 
-struct tlabel{
-	struct fw_xfer  *xfer;
-	STAILQ_ENTRY(tlabel) link;
-};
-
 struct fw_bind{
 	u_int64_t start;
 	u_int64_t end;
@@ -249,7 +244,7 @@ struct fw_xfer{
 #define FWXF_BUSY 8
 #define FWXF_RCVD 10
 	uint8_t state;
-	uint8_t tl;
+	int8_t tl;
 	void (*hand) (struct fw_xfer *);
 	struct {
 		struct fw_pkt hdr;
@@ -259,6 +254,7 @@ struct fw_xfer{
 	} send, recv;
 	struct mbuf *mbuf;
 	STAILQ_ENTRY(fw_xfer) link;
+	STAILQ_ENTRY(fw_xfer) tlabel;
 	struct malloc_type *malloc;
 };
 

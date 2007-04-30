@@ -198,7 +198,7 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 {
 	int err = 0;
 	struct fw_xferq *xferq;
-	int tl = 0, len;
+	int tl = -1, len;
 	struct fw_pkt *fp;
 	int tcode;
 	struct tcode_info *info;
@@ -330,7 +330,6 @@ static void
 firewire_xfer_timeout(struct firewire_comm *fc)
 {
 	struct fw_xfer *xfer;
-	struct tlabel *tl;
 	struct timeval tv;
 	struct timeval split_timeout;
 	int i, s;
@@ -343,8 +342,7 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 
 	s = splfw();
 	for (i = 0; i < 0x40; i ++) {
-		while ((tl = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
-			xfer = tl->xfer;
+		while ((xfer = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
 			if (timevalcmp(&xfer->tv, &tv, >))
 				/* the rests are newer than this */
 				break;
@@ -910,18 +908,26 @@ found:
 static void
 fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 {
-	struct tlabel *tl;
-	int s = splfw();
+	struct fw_xfer *txfer;
+	int s;
 
-	for( tl = STAILQ_FIRST(&fc->tlabels[xfer->tl]); tl != NULL;
-		tl = STAILQ_NEXT(tl, link)){
-		if(tl->xfer == xfer){
-			STAILQ_REMOVE(&fc->tlabels[xfer->tl], tl, tlabel, link);
-			free(tl, M_FW);
-			splx(s);
-			return;
-		}
+	if (xfer->tl < 0)
+		return;
+
+	s = splfw();
+#if 1	/* make sure the label is allocated */
+	STAILQ_FOREACH(txfer, &fc->tlabels[xfer->tl], tlabel)
+		if(txfer == xfer)
+			break;
+	if (txfer == NULL) {
+		printf("%s: the xfer is not in the tlabel(%d)\n",
+		    __FUNCTION__, xfer->tl);
+		splx(s);
+		return;
 	}
+#endif
+
+	STAILQ_REMOVE(&fc->tlabels[xfer->tl], xfer, fw_xfer, tlabel);
 	splx(s);
 	return;
 }
@@ -933,19 +939,15 @@ static struct fw_xfer *
 fw_tl2xfer(struct firewire_comm *fc, int node, int tlabel)
 {
 	struct fw_xfer *xfer;
-	struct tlabel *tl;
 	int s = splfw();
 
-	for( tl = STAILQ_FIRST(&fc->tlabels[tlabel]); tl != NULL;
-		tl = STAILQ_NEXT(tl, link)){
-		if(tl->xfer->send.hdr.mode.hdr.dst == node){
-			xfer = tl->xfer;
+	STAILQ_FOREACH(xfer, &fc->tlabels[tlabel], tlabel)
+		if(xfer->send.hdr.mode.hdr.dst == node) {
 			splx(s);
 			if (firewire_debug > 2)
 				printf("fw_tl2xfer: found tl=%d\n", tlabel);
 			return(xfer);
 		}
-	}
 	if (firewire_debug > 1)
 		printf("fw_tl2xfer: not found tl=%d\n", tlabel);
 	splx(s);
@@ -1683,27 +1685,19 @@ static int
 fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 {
 	u_int i;
-	struct tlabel *tl, *tmptl;
+	struct fw_xfer *txfer;
 	int s;
 	static uint32_t label = 0;
 
 	s = splfw();
 	for( i = 0 ; i < 0x40 ; i ++){
 		label = (label + 1) & 0x3f;
-		for(tmptl = STAILQ_FIRST(&fc->tlabels[label]);
-			tmptl != NULL; tmptl = STAILQ_NEXT(tmptl, link)){
-			if (tmptl->xfer->send.hdr.mode.hdr.dst ==
+		STAILQ_FOREACH(txfer, &fc->tlabels[label], tlabel)
+			if (txfer->send.hdr.mode.hdr.dst ==
 			    xfer->send.hdr.mode.hdr.dst)
 				break;
-		}
-		if(tmptl == NULL) {
-			tl = malloc(sizeof(struct tlabel),M_FW,M_NOWAIT);
-			if (tl == NULL) {
-				splx(s);
-				return (-1);
-			}
-			tl->xfer = xfer;
-			STAILQ_INSERT_TAIL(&fc->tlabels[label], tl, link);
+		if(txfer == NULL) {
+			STAILQ_INSERT_TAIL(&fc->tlabels[label], xfer, tlabel);
 			splx(s);
 			if (firewire_debug > 1)
 				printf("fw_get_tlabel: dst=%d tl=%d\n",
