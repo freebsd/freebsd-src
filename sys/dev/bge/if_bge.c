@@ -106,6 +106,13 @@ __FBSDID("$FreeBSD$");
 #include "miidevs.h"
 #include <dev/mii/brgphyreg.h>
 
+#ifdef __sparc64__
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/openfirm.h>
+#include <machine/ofw_machdep.h>
+#include <machine/ver.h>
+#endif
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -348,6 +355,7 @@ static int bge_init_tx_ring(struct bge_softc *);
 static int bge_chipinit(struct bge_softc *);
 static int bge_blockinit(struct bge_softc *);
 
+static int bge_has_eeprom(struct bge_softc *);
 static uint32_t bge_readmem_ind(struct bge_softc *, int);
 static void bge_writemem_ind(struct bge_softc *, int, int);
 #ifdef notdef
@@ -427,6 +435,50 @@ SYSCTL_INT(_hw_bge, OID_AUTO, fake_autoneg, CTLFLAG_RD, &bge_fake_autoneg, 0,
 	"Enable fake autonegotiation for certain blade systems");
 SYSCTL_INT(_hw_bge, OID_AUTO, allow_asf, CTLFLAG_RD, &bge_allow_asf, 0,
 	"Allow ASF mode if available");
+
+#define	SPARC64_BLADE_1500_MODEL	"SUNW,Sun-Blade-1500"
+#define	SPARC64_BLADE_1500_PATH_BGE	"/pci@1f,700000/network@2"
+#define	SPARC64_BLADE_2500_MODEL	"SUNW,Sun-Blade-2500"
+#define	SPARC64_BLADE_2500_PATH_BGE	"/pci@1c,600000/network@3"
+#define	SPARC64_OFW_SUBVENDOR		"subsystem-vendor-id"
+
+static int
+bge_has_eeprom(struct bge_softc *sc)
+{
+#ifdef __sparc64__
+	char buf[sizeof(SPARC64_BLADE_1500_PATH_BGE)];
+	device_t dev;
+	uint32_t subvendor;
+
+	dev = sc->bge_dev;
+
+	/*
+	 * The on-board BGEs found in sun4u machines aren't fitted with
+	 * an EEPROM which means that we have to obtain the MAC address
+	 * via OFW and that some tests will always fail. We distinguish
+	 * such BGEs by the subvendor ID, which also has to be obtained
+	 * from OFW instead of the PCI configuration space as the latter
+	 * indicates Broadcom as the subvendor of the netboot interface.
+	 * For early Blade 1500 and 2500 we even have to check the OFW
+	 * device path as the subvendor ID always defaults to Broadcom
+	 * there.
+	 */
+	if (OF_getprop(ofw_bus_get_node(dev), SPARC64_OFW_SUBVENDOR,
+	    &subvendor, sizeof(subvendor)) == sizeof(subvendor) &&
+	    subvendor == SUN_VENDORID)
+		return (0);
+	memset(buf, 0, sizeof(buf));
+	if (OF_package_to_path(ofw_bus_get_node(dev), buf, sizeof(buf)) > 0) {
+		if (strcmp(sparc64_model, SPARC64_BLADE_1500_MODEL) == 0 &&
+		    strcmp(buf, SPARC64_BLADE_1500_PATH_BGE) == 0)
+			return (0);
+		if (strcmp(sparc64_model, SPARC64_BLADE_2500_MODEL) == 0 &&
+		    strcmp(buf, SPARC64_BLADE_2500_PATH_BGE) == 0)
+			return (0);
+	}
+#endif
+	return (1);
+}
 
 static uint32_t
 bge_readmem_ind(struct bge_softc *sc, int off)
@@ -1100,9 +1152,12 @@ bge_chipinit(struct bge_softc *sc)
 
 	/*
 	 * Check the 'ROM failed' bit on the RX CPU to see if
-	 * self-tests passed.
+	 * self-tests passed. Skip this check when there's no
+	 * EEPROM fitted, since in that case it will always
+	 * fail.
 	 */
-	if (CSR_READ_4(sc, BGE_RXCPU_MODE) & BGE_RXCPUMODE_ROMFAIL) {
+	if ((sc->bge_flags & BGE_FLAG_EEPROM) &&
+	    CSR_READ_4(sc, BGE_RXCPU_MODE) & BGE_RXCPUMODE_ROMFAIL) {
 		device_printf(sc->bge_dev, "RX CPU self-diagnostics failed!\n");
 		return (ENODEV);
 	}
@@ -2171,8 +2226,8 @@ bge_attach(device_t dev)
 	struct bge_softc *sc;
 	uint32_t hwcfg = 0;
 	uint32_t mac_tmp = 0;
-	u_char eaddr[6];
-	int error = 0, rid, trys, reg;
+	u_char eaddr[ETHER_ADDR_LEN];
+	int error, reg, rid, trys;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2202,6 +2257,9 @@ bge_attach(device_t dev)
 	    BGE_PCIMISCCTL_ASICREV;
 	sc->bge_asicrev = BGE_ASICREV(sc->bge_chipid);
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
+
+	if (bge_has_eeprom(sc))
+		sc->bge_flags |= BGE_FLAG_EEPROM;
 
 	/* Save chipset family. */
 	switch (sc->bge_asicrev) {
@@ -2316,7 +2374,6 @@ bge_attach(device_t dev)
 	/* Try to reset the chip. */
 	if (bge_reset(sc)) {
 		device_printf(sc->bge_dev, "chip reset failed\n");
-		bge_release_resources(sc);
 		error = ENXIO;
 		goto fail;
 	}
@@ -2339,7 +2396,6 @@ bge_attach(device_t dev)
 	bge_sig_pre_reset(sc, BGE_RESET_STOP);
 	if (bge_reset(sc)) {
 		device_printf(sc->bge_dev, "chip reset failed\n");
-		bge_release_resources(sc);
 		error = ENXIO;
 		goto fail;
 	}
@@ -2349,29 +2405,32 @@ bge_attach(device_t dev)
 
 	if (bge_chipinit(sc)) {
 		device_printf(sc->bge_dev, "chip initialization failed\n");
-		bge_release_resources(sc);
 		error = ENXIO;
 		goto fail;
 	}
 
-	/*
-	 * Get station address from the EEPROM.
-	 */
-	mac_tmp = bge_readmem_ind(sc, 0x0C14);
-	if ((mac_tmp >> 16) == 0x484B) {
-		eaddr[0] = (u_char)(mac_tmp >> 8);
-		eaddr[1] = (u_char)mac_tmp;
-		mac_tmp = bge_readmem_ind(sc, 0x0C18);
-		eaddr[2] = (u_char)(mac_tmp >> 24);
-		eaddr[3] = (u_char)(mac_tmp >> 16);
-		eaddr[4] = (u_char)(mac_tmp >> 8);
-		eaddr[5] = (u_char)mac_tmp;
-	} else if (bge_read_eeprom(sc, eaddr,
-	    BGE_EE_MAC_OFFSET + 2, ETHER_ADDR_LEN)) {
-		device_printf(sc->bge_dev, "failed to read station address\n");
-		bge_release_resources(sc);
-		error = ENXIO;
-		goto fail;
+#ifdef __sparc64__
+	if ((sc->bge_flags & BGE_FLAG_EEPROM) == 0)
+		OF_getetheraddr(dev, eaddr);
+	else
+#endif
+	{
+		mac_tmp = bge_readmem_ind(sc, 0x0C14);
+		if ((mac_tmp >> 16) == 0x484B) {
+			eaddr[0] = (u_char)(mac_tmp >> 8);
+			eaddr[1] = (u_char)mac_tmp;
+			mac_tmp = bge_readmem_ind(sc, 0x0C18);
+			eaddr[2] = (u_char)(mac_tmp >> 24);
+			eaddr[3] = (u_char)(mac_tmp >> 16);
+			eaddr[4] = (u_char)(mac_tmp >> 8);
+			eaddr[5] = (u_char)mac_tmp;
+		} else if (bge_read_eeprom(sc, eaddr,
+		    BGE_EE_MAC_OFFSET + 2, ETHER_ADDR_LEN)) {
+			device_printf(sc->bge_dev,
+			    "failed to read station address\n");
+			error = ENXIO;
+			goto fail;
+		}
 	}
 
 	/* 5705 limits RX return ring to 512 entries. */
@@ -2383,7 +2442,6 @@ bge_attach(device_t dev)
 	if (bge_dma_alloc(dev)) {
 		device_printf(sc->bge_dev,
 		    "failed to allocate DMA resources\n");
-		bge_release_resources(sc);
 		error = ENXIO;
 		goto fail;
 	}
@@ -2399,7 +2457,6 @@ bge_attach(device_t dev)
 	ifp = sc->bge_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(sc->bge_dev, "failed to if_alloc()\n");
-		bge_release_resources(sc);
 		error = ENXIO;
 		goto fail;
 	}
@@ -2445,11 +2502,10 @@ bge_attach(device_t dev)
 	 */
 	if (bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_SIG) == BGE_MAGIC_NUMBER)
 		hwcfg = bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_NICCFG);
-	else {
+	else if (sc->bge_flags & BGE_FLAG_EEPROM) {
 		if (bge_read_eeprom(sc, (caddr_t)&hwcfg, BGE_EE_HWCFG_OFFSET,
 		    sizeof(hwcfg))) {
 			device_printf(sc->bge_dev, "failed to read EEPROM\n");
-			bge_release_resources(sc);
 			error = ENXIO;
 			goto fail;
 		}
@@ -2495,7 +2551,6 @@ again:
 			}
 
 			device_printf(sc->bge_dev, "MII without any PHY!\n");
-			bge_release_resources(sc);
 			error = ENXIO;
 			goto fail;
 		}
@@ -2543,7 +2598,11 @@ again:
 
 	bge_add_sysctls(sc);
 
+	return (0);
+
 fail:
+	bge_release_resources(sc);
+
 	return (error);
 }
 
@@ -2726,8 +2785,8 @@ bge_reset(struct bge_softc *sc)
 
 	/*
 	 * Poll until we see the 1's complement of the magic number.
-	 * This indicates that the firmware initialization
-	 * is complete.
+	 * This indicates that the firmware initialization is complete.
+	 * We expect this to fail if no EEPROM is fitted though.
 	 */
 	for (i = 0; i < BGE_TIMEOUT; i++) {
 		val = bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM);
@@ -2736,10 +2795,9 @@ bge_reset(struct bge_softc *sc)
 		DELAY(10);
 	}
 
-	if (i == BGE_TIMEOUT) {
+	if ((sc->bge_flags & BGE_FLAG_EEPROM) && i == BGE_TIMEOUT)
 		device_printf(sc->bge_dev, "firmware handshake timed out, "
 		    "found 0x%08x\n", val);
-	}
 
 	/*
 	 * XXX Wait for the value of the PCISTATE register to
