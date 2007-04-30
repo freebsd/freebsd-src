@@ -1706,7 +1706,7 @@ fw_rcv_copy(struct fw_rcv_buf *rb)
 	struct tcode_info *tinfo;
 	u_int res, i, len, plen;
 
-	rb->xfer->recv.spd -= rb->spd;
+	rb->xfer->recv.spd = rb->spd;
 
 	pkt = (struct fw_pkt *)rb->vec->iov_base;
 	tinfo = &rb->fc->tcode[pkt->mode.hdr.tcode];
