@@ -1910,7 +1910,6 @@ sbp_attach(device_t dev)
 {
 	struct sbp_softc *sbp;
 	struct cam_devq *devq;
-	struct fw_xfer *xfer;
 	int i, s, error;
 
 	if (DFLTPHYS > SBP_MAXPHYS)
@@ -1987,20 +1986,11 @@ END_DEBUG
 	/* We reserve 16 bit space (4 bytes X 64 targets X 256 luns) */
 	sbp->fwb.start = ((u_int64_t)SBP_BIND_HI << 32) | SBP_DEV2ADDR(0, 0);
 	sbp->fwb.end = sbp->fwb.start + 0xffff;
-	sbp->fwb.act_type = FWACT_XFER;
 	/* pre-allocate xfer */
 	STAILQ_INIT(&sbp->fwb.xferlist);
-	for (i = 0; i < SBP_NUM_OCB/2; i ++) {
-		xfer = fw_xfer_alloc_buf(M_SBP,
-			/* send */0,
-			/* recv */SBP_RECV_LEN);
-		xfer->hand = sbp_recv;
-#if NEED_RESPONSE
-		xfer->fc = sbp->fd.fc;
-#endif
-		xfer->sc = (caddr_t)sbp;
-		STAILQ_INSERT_TAIL(&sbp->fwb.xferlist, xfer, link);
-	}
+	fw_xferlist_add(&sbp->fwb.xferlist, M_SBP,
+	    /*send*/ 0, /*recv*/ SBP_RECV_LEN, SBP_NUM_OCB/2,
+	    sbp->fd.fc, (void *)sbp, sbp_recv);
 	fw_bindadd(sbp->fd.fc, &sbp->fwb);
 
 	sbp->fd.post_busreset = sbp_post_busreset;
@@ -2102,7 +2092,6 @@ sbp_detach(device_t dev)
 {
 	struct sbp_softc *sbp = ((struct sbp_softc *)device_get_softc(dev));
 	struct firewire_comm *fc = sbp->fd.fc;
-	struct fw_xfer *xfer, *next;
 	int i;
 
 SBP_DEBUG(0)
@@ -2124,13 +2113,8 @@ END_DEBUG
 	for (i = 0 ; i < SBP_NUM_TARGETS ; i ++)
 		sbp_free_target(&sbp->targets[i]);
 
-	for (xfer = STAILQ_FIRST(&sbp->fwb.xferlist);
-				xfer != NULL; xfer = next) {
-		next = STAILQ_NEXT(xfer, link);
-		fw_xfer_free_buf(xfer);
-	}
-	STAILQ_INIT(&sbp->fwb.xferlist);
 	fw_bindremove(fc, &sbp->fwb);
+	fw_xferlist_remove(&sbp->fwb.xferlist);
 
 	bus_dma_tag_destroy(sbp->dmat);
 
