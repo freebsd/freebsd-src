@@ -269,20 +269,6 @@ fw_asy_callback(struct fw_xfer *xfer){
 	wakeup(xfer);
 	return;
 }
-/*
- * Postpone to later retry.
- */
-void fw_asybusy(struct fw_xfer *xfer){
-	printf("fw_asybusy\n");
-/*
-	xfer->ch =  timeout((timeout_t *)fw_asystart, (void *)xfer, 20000);
-*/
-#if 0
-	DELAY(20000);
-#endif
-	fw_asystart(xfer);
-	return;
-}
 
 /*
  * Async. request with given xfer structure.
