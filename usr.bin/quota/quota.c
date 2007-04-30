@@ -316,7 +316,7 @@ showquotas(int type, u_long id, const char *name)
 				printf("%s\n", qup->fsname);
 				nam = "";
 			} 
-			printf("%15s%8lu%c%7lu%8lu%8s"
+			printf("%15s %7lu%c %6lu %7lu %7s"
 				, nam
 				, (u_long) (dbtob(qup->dqblk.dqb_curblocks)
 					    / 1024)
@@ -327,7 +327,7 @@ showquotas(int type, u_long id, const char *name)
 					    / 1024)
 				, (msgb == (char *)0) ? ""
 				    :timeprt(qup->dqblk.dqb_btime));
-			printf("%8lu%c%7lu%8lu%8s\n"
+			printf(" %7lu%c %6lu %7lu %7s\n"
 				, (u_long)qup->dqblk.dqb_curinodes
 				, (msgi == (char *)0) ? ' ' : '*'
 				, (u_long)qup->dqblk.dqb_isoftlimit
@@ -350,7 +350,7 @@ heading(int type, u_long id, const char *name, const char *tag)
 	printf("Disk quotas for %s %s (%cid %lu): %s\n", qfextension[type],
 	    name, *qfextension[type], id, tag);
 	if (!qflag && tag[0] == '\0') {
-		printf("%15s%8s %7s%8s%8s%8s %7s%8s%8s\n"
+		printf("%15s %7s  %6s %7s %7s %7s  %6s %7s %7s\n"
 			, "Filesystem"
 			, "usage"
 			, "quota"
