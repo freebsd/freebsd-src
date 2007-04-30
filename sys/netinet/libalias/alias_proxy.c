@@ -173,7 +173,7 @@ inet_aton(cp, addr)
 
 		l = strtoul(c, &endptr, 0);
 
-		if (l == ULONG_MAX || l == 0)
+		if (l == ULONG_MAX || (l == 0 && endptr == c))
 			return (0);
 
 		val = (in_addr_t)l;	
