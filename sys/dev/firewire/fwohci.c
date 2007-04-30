@@ -47,6 +47,7 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
@@ -75,6 +76,11 @@
 #endif
 
 #undef OHCI_DEBUG
+
+static int nocyclemaster = 0;
+SYSCTL_DECL(_hw_firewire);
+SYSCTL_INT(_hw_firewire, OID_AUTO, nocyclemaster, CTLFLAG_RW, &nocyclemaster, 0,
+        "Do not send cycle start packets");
 
 static char dbcode[16][0x10]={"OUTM", "OUTL","INPM","INPL",
 		"STOR","LOAD","NOP ","STOP",};
@@ -1900,8 +1906,10 @@ busresetout:
 		/* Allow async. request to us */
 		OWRITE(sc, OHCI_AREQHI, 1 << 31);
 		/* XXX insecure ?? */
+		/* allow from all nodes */
 		OWRITE(sc, OHCI_PREQHI, 0x7fffffff);
 		OWRITE(sc, OHCI_PREQLO, 0xffffffff);
+		/* 0 to 4GB regison */
 		OWRITE(sc, OHCI_PREQUPPER, 0x10000);
 		/* Set ATRetries register */
 		OWRITE(sc, OHCI_ATRETRY, 1<<(13+16) | 0xfff);
@@ -1922,7 +1930,7 @@ busresetout:
 		/* cycle timer */
 		sc->cycle_lost = 0;
 		OWRITE(sc, FWOHCI_INTMASK,  OHCI_INT_CYC_LOST);
-		if (node_id & OHCI_NODE_ROOT) {
+		if ((node_id & OHCI_NODE_ROOT) && !nocyclemaster) {
 			printf("CYCLEMASTER mode\n");
 			OWRITE(sc, OHCI_LNKCTL,
 				OHCI_CNTL_CYCMTR | OHCI_CNTL_CYCTIMER);
