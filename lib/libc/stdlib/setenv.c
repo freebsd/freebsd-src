@@ -61,8 +61,6 @@ setenv(name, value, rewrite)
 		return (-1);
 	}
 
-	if (*value == '=')			/* no `=' in value */
-		++value;
 	l_value = strlen(value);
 	if ((c = __findenv(name, &offset))) {	/* find if already exists */
 		if (!rewrite)
