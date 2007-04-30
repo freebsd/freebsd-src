@@ -523,15 +523,19 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			val = REG(ptr + PCIR_HT_COMMAND, 2);
 			switch (val & PCIM_HTCMD_CAP_MASK) {
 			case PCIM_HTCAP_MSI_MAPPING:
-				/* Sanity check the mapping window. */
-				addr = REG(ptr + PCIR_HTMSI_ADDRESS_HI, 4);
-				addr <<= 32;
-				addr = REG(ptr + PCIR_HTMSI_ADDRESS_LO, 4);
-				if (addr != MSI_INTEL_ADDR_BASE)
-					device_printf(pcib,
+				if (!(val & PCIM_HTCMD_MSI_FIXED)) {
+					/* Sanity check the mapping window. */
+					addr = REG(ptr + PCIR_HTMSI_ADDRESS_HI,
+					    4);
+					addr <<= 32;
+					addr = REG(ptr + PCIR_HTMSI_ADDRESS_LO,
+					    4);
+					if (addr != MSI_INTEL_ADDR_BASE)
+						device_printf(pcib,
 		    "HT Bridge at %d:%d:%d has non-default MSI window 0x%llx\n",
-					    cfg->bus, cfg->slot, cfg->func,
-					    (long long)addr);
+						    cfg->bus, cfg->slot,
+						    cfg->func, (long long)addr);
+				}
 
 				/* Enable MSI -> HT mapping. */
 				val |= PCIM_HTCMD_MSI_ENABLE;
