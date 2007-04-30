@@ -276,7 +276,6 @@ struct fw_xfer *fw_xfer_alloc_buf (struct malloc_type *, int, int);
 void fw_init (struct firewire_comm *);
 int fw_tbuf_update (struct firewire_comm *, int, int);
 int fw_rbuf_update (struct firewire_comm *, int, int);
-void fw_asybusy (struct fw_xfer *);
 int fw_bindadd (struct firewire_comm *, struct fw_bind *);
 int fw_bindremove (struct firewire_comm *, struct fw_bind *);
 int fw_asyreq (struct firewire_comm *, int, struct fw_xfer*);
