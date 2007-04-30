@@ -636,26 +636,48 @@ ip_stats(u_long off __unused, const char *name, int af1 __unused)
 #undef p1a
 }
 
-static	const char *icmpnames[] = {
-	"echo reply",
+static	const char *icmpnames[ICMP_MAXTYPE + 1] = {
+	"echo reply",			/* RFC 792 */
 	"#1",
 	"#2",
-	"destination unreachable",
-	"source quench",
-	"routing redirect",
+	"destination unreachable",	/* RFC 792 */
+	"source quench",		/* RFC 792 */
+	"routing redirect",		/* RFC 792 */
 	"#6",
 	"#7",
-	"echo",
-	"router advertisement",
-	"router solicitation",
-	"time exceeded",
-	"parameter problem",
-	"time stamp",
-	"time stamp reply",
-	"information request",
-	"information request reply",
-	"address mask request",
-	"address mask reply",
+	"echo",				/* RFC 792 */
+	"router advertisement",		/* RFC 1256 */
+	"router solicitation",		/* RFC 1256 */
+	"time exceeded",		/* RFC 792 */
+	"parameter problem",		/* RFC 792 */
+	"time stamp",			/* RFC 792 */
+	"time stamp reply",		/* RFC 792 */
+	"information request",		/* RFC 792 */
+	"information request reply",	/* RFC 792 */
+	"address mask request",		/* RFC 950 */
+	"address mask reply",		/* RFC 950 */
+	"#19",
+	"#20",
+	"#21",
+	"#22",
+	"#23",
+	"#24",
+	"#25",
+	"#26",
+	"#27",
+	"#28",
+	"#29",
+	"icmp traceroute",		/* RFC 1393 */
+	"datagram conversion error",	/* RFC 1475 */
+	"mobile host redirect",
+	"IPv6 where-are-you",
+	"IPv6 i-am-here",
+	"mobile registration req",
+	"mobile registration reply",
+	"domain name request",		/* RFC 1788 */
+	"domain name reply",		/* RFC 1788 */
+	"icmp SKIP",
+	"icmp photuris",		/* RFC 2521 */
 };
 
 /*
@@ -701,8 +723,12 @@ icmp_stats(u_long off __unused, const char *name, int af1 __unused)
 				printf("\tOutput histogram:\n");
 				first = 0;
 			}
-			printf("\t\t%s: %lu\n", icmpnames[i],
-				icmpstat.icps_outhist[i]);
+			if (icmpnames[i] != NULL)
+				printf("\t\t%s: %lu\n", icmpnames[i],
+					icmpstat.icps_outhist[i]);
+			else
+				printf("\t\tunknown ICMP #%d: %lu\n", i,
+					icmpstat.icps_outhist[i]);
 		}
 	p(icps_badcode, "\t%lu message%s with bad code fields\n");
 	p(icps_tooshort, "\t%lu message%s < minimum length\n");
@@ -716,8 +742,12 @@ icmp_stats(u_long off __unused, const char *name, int af1 __unused)
 				printf("\tInput histogram:\n");
 				first = 0;
 			}
-			printf("\t\t%s: %lu\n", icmpnames[i],
-				icmpstat.icps_inhist[i]);
+			if (icmpnames[i] != NULL)
+				printf("\t\t%s: %lu\n", icmpnames[i],
+			 		icmpstat.icps_inhist[i]);
+			else
+				printf("\t\tunknown ICMP #%d: %lu\n", i,
+					icmpstat.icps_inhist[i]);
 		}
 	p(icps_reflect, "\t%lu message response%s generated\n");
 	p2(icps_badaddr, "\t%lu invalid return address%s\n");
