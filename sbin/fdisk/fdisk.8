@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2006
+.Dd April 30, 2007
 .Dt FDISK 8
 .Os
 .Sh NAME
@@ -8,7 +8,7 @@
 .Nd PC slice table maintenance utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl BIaistu
+.Op Fl BIaipstu
 .Op Fl b Ar bootcode
 .Op Fl 1234
 .Op Ar disk
@@ -109,6 +109,12 @@ Initialize sector 0 slice table
 for one
 .Fx
 slice covering the entire disk.
+.It Fl p
+Print a slice table in
+.Nm
+configuration file format and exit; see
+.Sx CONFIGURATION FILE ,
+below.
 .It Fl s
 Print summary information and exit.
 .It Fl t

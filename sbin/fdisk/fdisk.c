@@ -120,6 +120,7 @@ static int s_flag  = 0;		/* Print a summary and exit */
 static int t_flag  = 0;		/* test only */
 static char *f_flag = NULL;	/* Read config info from file */
 static int v_flag  = 0;		/* Be verbose */
+static int print_config_flag = 0;
 
 static struct part_type
 {
@@ -247,7 +248,7 @@ main(int argc, char *argv[])
 	int	partition = -1;
 	struct	dos_partition *partp;
 
-	while ((c = getopt(argc, argv, "BIab:f:istuv1234")) != -1)
+	while ((c = getopt(argc, argv, "BIab:f:ipstuv1234")) != -1)
 		switch (c) {
 		case 'B':
 			B_flag = 1;
@@ -266,6 +267,9 @@ main(int argc, char *argv[])
 			break;
 		case 'i':
 			i_flag = 1;
+			break;
+		case 'p':
+			print_config_flag = 1;
 			break;
 		case 's':
 			s_flag = 1;
@@ -322,6 +326,28 @@ main(int argc, char *argv[])
 	free(mboot.bootinst);
 	mboot.bootinst = NULL;
 
+	if (print_config_flag) {
+		if (read_s0())
+			err(1, "read_s0");
+
+		printf("# %s\n", disk);
+		printf("g c%d h%d s%d\n", dos_cyls, dos_heads, dos_sectors);
+
+		for (i = 0; i < NDOSPART; i++) {
+			partp = ((struct dos_partition *)&mboot.parts) + i;
+
+			if (partp->dp_start == 0 && partp->dp_size == 0)
+				continue;
+
+			printf("p %d 0x%02x %lu %lu\n", i + 1, partp->dp_typ,
+			    (u_long)partp->dp_start, (u_long)partp->dp_size);
+
+			/* Fill flags for the partition. */
+			if (partp->dp_flag & 0x80)
+				printf("a %d\n", i + 1);
+		}
+		exit(0);
+	}
 	if (s_flag) {
 		if (read_s0())
 			err(1, "read_s0");
@@ -413,7 +439,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s%s",
-		"usage: fdisk [-BIaistu] [-b bootcode] [-1234] [disk]\n",
+		"usage: fdisk [-BIaipstu] [-b bootcode] [-1234] [disk]\n",
  		"       fdisk -f configfile [-itv] [disk]\n");
         exit(1);
 }
