@@ -514,9 +514,11 @@
 #define	PCIM_HTCAP_DIRECT_ROUTE		0xb000	/* 10110 */
 #define	PCIM_HTCAP_VCSET		0xb800	/* 10111 */
 #define	PCIM_HTCAP_RETRY_MODE		0xc000	/* 11000 */
+#define	PCIM_HTCAP_X86_ENCODING		0xc800	/* 11001 */
 
 /* HT MSI Mapping Capability definitions. */
 #define	PCIM_HTCMD_MSI_ENABLE		0x0001
+#define	PCIM_HTCMD_MSI_FIXED		0x0002
 #define	PCIR_HTMSI_ADDRESS_LO	0x4
 #define	PCIR_HTMSI_ADDRESS_HI	0x8
 
