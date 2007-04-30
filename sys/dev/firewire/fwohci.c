@@ -1810,7 +1810,7 @@ fwohci_intr_body(struct fwohci_softc *sc, uint32_t stat, int count)
 #ifndef ACK_ALL
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_PHY_BUS_R);
 #endif
-		fw_busreset(fc);
+		fw_busreset(fc, FWBUSRESET);
 		OWRITE(sc, OHCI_CROMHDR, ntohl(sc->fc.config_rom[0]));
 		OWRITE(sc, OHCI_BUS_OPT, ntohl(sc->fc.config_rom[2]));
 	}

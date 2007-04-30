@@ -419,6 +419,7 @@ firewire_attach(device_t dev)
 	bus_generic_attach(dev);
 
 	/* bus_reset */
+	fw_busreset(fc, FWBUSNOTREADY);
 	fc->ibr(fc);
 
 	return 0;
@@ -644,7 +645,7 @@ fw_reset_crom(struct firewire_comm *fc)
  * Called after bus reset.
  */
 void
-fw_busreset(struct firewire_comm *fc)
+fw_busreset(struct firewire_comm *fc, uint32_t new_status)
 {
 	struct firewire_dev_comm *fdc;
 	struct crom_src *src;
@@ -659,7 +660,7 @@ fw_busreset(struct firewire_comm *fc)
 	default:
 		break;
 	}
-	fc->status = FWBUSRESET;
+	fc->status = new_status;
 	fw_reset_csr(fc);
 	fw_reset_crom(fc);
 
