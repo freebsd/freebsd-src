@@ -243,16 +243,21 @@ cap_ht(int fd, struct pci_conf *p, uint8_t ptr)
 			printf("address mapping");
 			break;
 		case PCIM_HTCAP_MSI_MAPPING:
-			printf("MSI address window %s at 0x",
+			printf("MSI %saddress window %s at 0x",
+			    command & PCIM_HTCMD_MSI_FIXED ? "fixed " : "",
 			    command & PCIM_HTCMD_MSI_ENABLE ? "enabled" :
 			    "disabled");
-			reg = read_config(fd, &p->pc_sel,
-			    ptr + PCIR_HTMSI_ADDRESS_HI, 4);
-			if (reg != 0)
+			if (command & PCIM_HTCMD_MSI_FIXED)
+				printf("fee00000");
+			else {
+				reg = read_config(fd, &p->pc_sel,
+				    ptr + PCIR_HTMSI_ADDRESS_HI, 4);
+				if (reg != 0)
+					printf("%08x", reg);
+				reg = read_config(fd, &p->pc_sel,
+				    ptr + PCIR_HTMSI_ADDRESS_LO, 4);
 				printf("%08x", reg);
-			reg = read_config(fd, &p->pc_sel,
-			    ptr + PCIR_HTMSI_ADDRESS_LO, 4);
-			printf("%08x", reg);
+			}
 			break;
 		case PCIM_HTCAP_DIRECT_ROUTE:
 			printf("direct route");
