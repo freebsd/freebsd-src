@@ -156,10 +156,11 @@ udp_init()
 {
 	INP_INFO_LOCK_INIT(&udbinfo, "udp");
 	LIST_INIT(&udb);
-	udbinfo.listhead = &udb;
-	udbinfo.hashbase = hashinit(UDBHASHSIZE, M_PCB, &udbinfo.hashmask);
-	udbinfo.porthashbase = hashinit(UDBHASHSIZE, M_PCB,
-	    &udbinfo.porthashmask);
+	udbinfo.ipi_listhead = &udb;
+	udbinfo.ipi_hashbase = hashinit(UDBHASHSIZE, M_PCB,
+	    &udbinfo.ipi_hashmask);
+	udbinfo.ipi_porthashbase = hashinit(UDBHASHSIZE, M_PCB,
+	    &udbinfo.ipi_porthashmask);
 	udbinfo.ipi_zone = uma_zcreate("udpcb", sizeof(struct inpcb), NULL,
 	    NULL, udp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
@@ -633,7 +634,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 
 	INP_INFO_RLOCK(&udbinfo);
-	for (inp = LIST_FIRST(udbinfo.listhead), i = 0; inp && i < n;
+	for (inp = LIST_FIRST(udbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&

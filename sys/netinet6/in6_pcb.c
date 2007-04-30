@@ -650,7 +650,7 @@ in6_pcbnotify(pcbinfo, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
 			notify = in6_rtchange;
 	}
 	errno = inet6ctlerrmap[cmd];
-	head = pcbinfo->listhead;
+	head = pcbinfo->ipi_listhead;
 	INP_INFO_WLOCK(pcbinfo);
  	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
 		INP_LOCK(inp);
@@ -734,8 +734,8 @@ in6_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 		 * Look for an unconnected (wildcard foreign addr) PCB that
 		 * matches the local address and port we're looking for.
 		 */
-		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0,
-						      pcbinfo->hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
+		    0, pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 			if ((inp->inp_vflag & INP_IPV6) == 0)
 				continue;
@@ -762,8 +762,8 @@ in6_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 		 * First see if this local port is in use by looking on the
 		 * port hash list.
 		 */
-		porthash = &pcbinfo->porthashbase[INP_PCBPORTHASH(lport,
-		    pcbinfo->porthashmask)];
+		porthash = &pcbinfo->ipi_porthashbase[INP_PCBPORTHASH(lport,
+		    pcbinfo->ipi_porthashmask)];
 		LIST_FOREACH(phd, porthash, phd_hash) {
 			if (phd->phd_port == lport)
 				break;
@@ -813,7 +813,7 @@ in6_pcbpurgeif0(pcbinfo, ifp)
 	struct in6_multi_mship *imm, *nimm;
 
 	INP_INFO_RLOCK(pcbinfo);
-	LIST_FOREACH(in6p, pcbinfo->listhead, inp_list) {
+	LIST_FOREACH(in6p, pcbinfo->ipi_listhead, inp_list) {
 		INP_LOCK(in6p);
 		im6o = in6p->in6p_moptions;
 		if ((in6p->inp_vflag & INP_IPV6) &&
@@ -903,9 +903,9 @@ in6_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard, ifp)
 	/*
 	 * First look for an exact match.
 	 */
-	head = &pcbinfo->hashbase[INP_PCBHASH(faddr->s6_addr32[3] /* XXX */,
-					      lport, fport,
-					      pcbinfo->hashmask)];
+	head = &pcbinfo->ipi_hashbase[
+	    INP_PCBHASH(faddr->s6_addr32[3] /* XXX */, lport, fport,
+	    pcbinfo->ipi_hashmask)];
 	LIST_FOREACH(inp, head, inp_hash) {
 		if ((inp->inp_vflag & INP_IPV6) == 0)
 			continue;
@@ -922,8 +922,8 @@ in6_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard, ifp)
 	if (wildcard) {
 		struct inpcb *local_wild = NULL;
 
-		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0,
-						      pcbinfo->hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
+		    0, pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 			if ((inp->inp_vflag & INP_IPV6) == 0)
 				continue;
