@@ -138,7 +138,7 @@ brgphy_probe(device_t dev)
 	error = mii_phy_dev_probe(dev, brgphys, BUS_PROBE_DEFAULT);
 	if (error != BUS_PROBE_DEFAULT)
 		return (error);
-	
+
 	ma = device_get_ivars(dev);
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5706C) {
@@ -164,16 +164,20 @@ brgphy_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
-	const char *sep = "";
-	struct bge_softc *bge_sc = NULL;
-	struct bce_softc *bce_sc = NULL;
-	int fast_ether_only = FALSE;
 
 	bsc = device_get_softc(dev);
 	sc = &bsc->mii_sc;
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
 	mii = device_get_softc(sc->mii_dev);
+
+	/*
+	 * At least some variants wedge when isolating, so never allow
+	 * non-zero instances! At least some also don't support loopback.
+	 */
+	if (mii->mii_instance != 0)
+		panic("%s: ignoring this PHY, non-zero instance", __func__);
+
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
 	sc->mii_inst = mii->mii_instance;
@@ -181,59 +185,19 @@ brgphy_attach(device_t dev)
 	sc->mii_service = brgphy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOISOLATE;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
 	mii->mii_instance++;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-#define PRINT(s)	printf("%s%s", sep, s); sep = ", "
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
-#if 0
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP | BMCR_S100);
-#endif
 
 	bsc->mii_model = MII_MODEL(ma->mii_id2);
 	bsc->mii_rev = MII_REV(ma->mii_id2);
 	brgphy_reset(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	sc->mii_capabilities &= ~BMSR_ANEG;
+	if (sc->mii_capabilities & BMSR_EXTSTAT)
+		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 	device_printf(dev, " ");
-	mii_add_media(sc);
-
-	/* Find the driver associated with this PHY. */
-	if (strcmp(mii->mii_ifp->if_dname, "bge") == 0)	{
-		bge_sc = mii->mii_ifp->if_softc;
-	} else if (strcmp(mii->mii_ifp->if_dname, "bce") == 0) {
-		bce_sc = mii->mii_ifp->if_softc;
-	}
-
-	/* The 590x chips are 10/100 only. */
-	if (strcmp(mii->mii_ifp->if_dname, "bge") == 0 &&
-	    pci_get_vendor(bge_sc->bge_dev) == BCOM_VENDORID &&
-	    (pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901 ||
-	    pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901A2))
-		fast_ether_only = TRUE;
-
-	if (fast_ether_only == FALSE) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, 0,
-		    sc->mii_inst), BRGPHY_BMCR_FDX);
-		PRINT(", 1000baseTX");
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T,
-		    IFM_FDX, sc->mii_inst), 0);
-		PRINT("1000baseTX-FDX");
-		sc->mii_anegticks = MII_ANEGTICKS_GIGE;
-	} else
-		sc->mii_anegticks = MII_ANEGTICKS;
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
-	PRINT("auto");
-
+	mii_phy_add_media(sc);
 	printf("\n");
-#undef ADD
-#undef PRINT
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
@@ -252,16 +216,6 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			return (0);
 		break;
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			PHY_WRITE(sc, MII_BMCR,
-			    PHY_READ(sc, MII_BMCR) | BMCR_ISO);
-			return (0);
-		}
-
 		/* If the interface is not up, don't do anything. */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
@@ -283,12 +237,6 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			brgphy_setmedia(sc, ife->ifm_media,
 			    mii->mii_ifp->if_flags & IFF_LINK0);
 			break;
-#ifdef foo
-		case IFM_NONE:
-			PHY_WRITE(sc, MII_BMCR, BMCR_ISO | BMCR_PDOWN);
-			break;
-#endif
-		case IFM_100_T4:
 		default:
 			return (EINVAL);
 		}
