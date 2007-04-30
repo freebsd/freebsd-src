@@ -140,16 +140,16 @@ main(int argc, char *argv[])
 				cflag = 1;
 				break;
 			case 'h':
-				putenv("BLOCKSIZE=512");
+				putenv(strdup("BLOCKSIZE=512"));
 				hflag = 1;
 				break;
 			case 'k':
 				hflag = 0;
-				putenv("BLOCKSIZE=1024");
+				putenv(strdup("BLOCKSIZE=1024"));
 				break;
 			case 'm':
 				hflag = 0;
-				putenv("BLOCKSIZE=1048576");
+				putenv(strdup("BLOCKSIZE=1048576"));
 				break;
 			case 'n':
 				nodumpflag = 1;
