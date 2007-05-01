@@ -53,7 +53,7 @@ geom_getxml()
 		free(p);
 	}
 	l = 0;
-	i = sysctlbyname("kern.geom.confxml", p, &l, NULL, 0);
+	i = sysctlbyname("kern.geom.confxml", NULL, &l, NULL, 0);
 	if (i != 0)
 		return (NULL);
 	p = malloc(l + 4096);
