@@ -303,15 +303,12 @@ uninorth_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 		switch (width) {
 		case 1:
 			out8rb(caoff, val);
-			(void)in8rb(caoff);
 			break;
 		case 2:
 			out16rb(caoff, val);
-			(void)in16rb(caoff);
 			break;
 		case 4:
 			out32rb(caoff, val);
-			(void)in32rb(caoff);
 			break;
 		}
 	}
