@@ -10,7 +10,7 @@ top \- display and update information about the top cpu processes
 .SH SYNOPSIS
 .B top
 [
-.B \-bCHIinqStuv
+.B \-bCHIijnqStuv
 ] [
 .BI \-d count
 ] [
@@ -95,6 +95,11 @@ intelligent terminal.
 .B \-I
 Do not display idle processes.
 By default, top displays both active and idle processes.
+.TP
+.B \-j
+Display the
+.IR jail (8)
+id.
 .TP
 .B \-t
 Do not display the
@@ -277,6 +282,11 @@ command.
 .BR I )
 Toggle the display of idle processes.
 .TP
+.B j
+Toggle the display of
+.IR jail (8)
+id.
+.TP
 .B t
 Toggle the display of the
 .I top
@@ -302,8 +312,11 @@ It also includes information about physical and virtual memory allocation.
 The remainder of the screen displays information about individual
 processes.  This display is similar in spirit to
 .IR ps (1)
-but it is not exactly the same.  PID is the process id, USERNAME is the name
-of the process's owner (if
+but it is not exactly the same.  PID is the process id, 
+JID, when displayed, is the 
+.IR jail (8)
+ID corresponding to the process,
+USERNAME is the name of the process's owner (if
 .B \-u
 is specified, a UID column will be substituted for USERNAME),
 PRI is the current priority of the process,

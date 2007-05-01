@@ -193,9 +193,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCjo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSC";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCj";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -219,8 +219,9 @@ char *argv[];
 #define CMD_viewtog	17
 #define CMD_viewsys	18
 #define	CMD_wcputog	19
+#define	CMD_jidtog	20
 #ifdef ORDER
-#define CMD_order       20
+#define CMD_order       21
 #endif
 
     /* set the buffer for stdout */
@@ -252,6 +253,7 @@ char *argv[];
     ps.uid     = -1;
     ps.thread  = No;
     ps.wcpu    = 1;
+    ps.jail    = No;
     ps.command = NULL;
 
     /* get preset options from the environment */
@@ -277,7 +279,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHbinquvs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHbijnquvs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -394,10 +396,14 @@ char *argv[];
 		ps.thread = !ps.thread;
 		break;
 
+	      case 'j':
+		ps.jail = !ps.jail;
+		break;
+
 	      default:
 		fprintf(stderr,
 "Top version %s\n"
-"Usage: %s [-bCHIinqStuv] [-d count] [-m io | cpu] [-o field] [-s time]\n"
+"Usage: %s [-bCHIijnqStuv] [-d count] [-m io | cpu] [-o field] [-s time]\n"
 "       [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
@@ -1044,6 +1050,15 @@ restart:
 				}
 				break;
 #endif
+			    case CMD_jidtog:
+				ps.jail = !ps.jail;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying jail id.",
+				    ps.jail ? "D" : "Not d");
+				header_text = format_header(uname_field);
+				reset_display();
+				putchar('\r');
+				break;
 	    
 			    default:
 				new_message(MT_standout, " BAD CASE IN SWITCH!");
