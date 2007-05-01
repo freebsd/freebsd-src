@@ -33,50 +33,24 @@ static char sccsid[] = "@(#)putenv.c	8.2 (Berkeley) 3/27/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
-extern char **__alloced;        /* if allocated space before */
-
-char *__findenv(const char *, int *);
-
 int
 putenv(str)
-	char *str;
+	const char *str;
 {
-	extern char **environ;
-	char *eq;
-	int offset;
+	char *p, *equal;
+	int rval;
 
-	if (str == NULL || (eq = strchr(str, '=')) == NULL || eq == str) {
-		errno = EINVAL;
+	if ((p = strdup(str)) == NULL)
+		return (-1);
+	if ((equal = index(p, '=')) == NULL) {
+		(void)free(p);
 		return (-1);
 	}
-
-	/* Trimmed version of setenv(3). */
-	if (__findenv(str, &offset) == NULL) {
-		int cnt;
-		char **p;
-
-		for (p = environ, cnt = 0; *p; ++p, ++cnt);
-		if (__alloced == environ) {                       /* just increase size */
-			p = (char **)realloc((char *)environ,
-			    (size_t)(sizeof(char *) * (cnt + 2)));
-			if (!p)
-				return (-1);
-		}
-		else {				/* get new space */
-						/* copy old entries into it */
-			p = (char **)malloc((size_t)(sizeof(char *) * (cnt + 2)));
-			if (!p)
-				return (-1);
-			bcopy(environ, p, cnt * sizeof(char *));
-		}
-		__alloced = environ = p;
-		environ[cnt + 1] = NULL;
-		offset = cnt;
-	}
-	environ[offset] = str;
-	return (0);
+	*equal = '\0';
+	rval = setenv(p, equal + 1, 1);
+	(void)free(p);
+	return (rval);
 }

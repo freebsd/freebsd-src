@@ -131,14 +131,14 @@ main(int argc, char *argv[])
 			 */
 			if (kflag)
 				break;
-			putenv(strdup("BLOCKSIZE=512"));
+			putenv("BLOCKSIZE=512");
 			hflag = 0;
 			break;
 		case 'c':
 			cflag = 1;
 			break;
 		case 'g':
-			putenv(strdup("BLOCKSIZE=1g"));
+			putenv("BLOCKSIZE=1g");
 			hflag = 0;
 			break;
 		case 'H':
@@ -152,7 +152,7 @@ main(int argc, char *argv[])
 			break;
 		case 'k':
 			kflag++;
-			putenv(strdup("BLOCKSIZE=1024"));
+			putenv("BLOCKSIZE=1024");
 			hflag = 0;
 			break;
 		case 'l':
@@ -162,7 +162,7 @@ main(int argc, char *argv[])
 			lflag = 1;
 			break;
 		case 'm':
-			putenv(strdup("BLOCKSIZE=1m"));
+			putenv("BLOCKSIZE=1m");
 			hflag = 0;
 			break;
 		case 'n':

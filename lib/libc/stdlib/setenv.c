@@ -33,12 +33,9 @@ static char sccsid[] = "@(#)setenv.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-
-char **__alloced;       /* if allocated space before */
 
 char *__findenv(const char *, int *);
 
@@ -54,14 +51,12 @@ setenv(name, value, rewrite)
 	int rewrite;
 {
 	extern char **environ;
+	static char **alloced;			/* if allocated space before */
 	char *c;
 	int l_value, offset;
 
-	if (name == NULL || !*name || strchr(name, '=') != NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-
+	if (*value == '=')			/* no `=' in value */
+		++value;
 	l_value = strlen(value);
 	if ((c = __findenv(name, &offset))) {	/* find if already exists */
 		if (!rewrite)
@@ -75,25 +70,27 @@ setenv(name, value, rewrite)
 		char **p;
 
 		for (p = environ, cnt = 0; *p; ++p, ++cnt);
-		if (__alloced == environ) {                       /* just increase size */
+		if (alloced == environ) {			/* just increase size */
 			p = (char **)realloc((char *)environ,
 			    (size_t)(sizeof(char *) * (cnt + 2)));
 			if (!p)
 				return (-1);
+			alloced = environ = p;
 		}
 		else {				/* get new space */
 						/* copy old entries into it */
-			p = (char **)malloc((size_t)(sizeof(char *) * (cnt + 2)));
+			p = malloc((size_t)(sizeof(char *) * (cnt + 2)));
 			if (!p)
 				return (-1);
 			bcopy(environ, p, cnt * sizeof(char *));
+			alloced = environ = p;
 		}
-		__alloced = environ = p;
 		environ[cnt + 1] = NULL;
 		offset = cnt;
 	}
+	for (c = (char *)name; *c && *c != '='; ++c);	/* no `=' in name */
 	if (!(environ[offset] =			/* name + `=' + value */
-	    (char *)malloc((size_t)(strlen(name) + l_value + 2))))
+	    malloc((size_t)((int)(c - name) + l_value + 2))))
 		return (-1);
 	for (c = environ[offset]; (*c = *name++) && *c != '='; ++c);
 	for (*c++ = '='; (*c++ = *value++); );
@@ -104,7 +101,7 @@ setenv(name, value, rewrite)
  * unsetenv(name) --
  *	Delete environmental variable "name".
  */
-int
+void
 unsetenv(name)
 	const char *name;
 {
@@ -112,14 +109,8 @@ unsetenv(name)
 	char **p;
 	int offset;
 
-	if (name == NULL || !*name || strchr(name, '=') != NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-
 	while (__findenv(name, &offset))	/* if set multiple times */
 		for (p = &environ[offset];; ++p)
 			if (!(*p = *(p + 1)))
 				break;
-	return (0);
 }

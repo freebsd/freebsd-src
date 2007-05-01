@@ -567,9 +567,8 @@ export_pam_environment(void)
 
 	for (pp = environ_pam; *pp != NULL; pp++) {
 		if (ok_to_export(*pp))
-			(void)putenv(*pp);
-		else
-			free(*pp);
+			putenv(*pp);
+		free(*pp);
 	}
 }
 

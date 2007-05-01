@@ -312,7 +312,7 @@ pvariable_set(char *var)
     if (index(var, '=') == NULL)
 	msgFatal("Invalid variable format: %s", var);
     strlcat(tmp, var, 1024); 
-    (void)putenv(strdup(tmp));
+    putenv(tmp);
 }
 
 char *
