@@ -1355,6 +1355,8 @@ stge_watchdog(struct stge_softc *sc)
 	if_printf(sc->sc_ifp, "device timeout\n");
 	ifp->if_oerrors++;
 	stge_init_locked(sc);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		stge_start_locked(ifp);
 }
 
 /*
