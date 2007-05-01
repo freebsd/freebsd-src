@@ -70,7 +70,10 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 	int ival;
 #endif
 
-	PROC_LOCK(p);
+	KASSERT(p != NULL,
+	    ("%s() called without a process", __func__));
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
 	error = 0;
 	switch (cmd) {
 #if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
@@ -124,8 +127,10 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 	case PIOCWAIT:
 		while (p->p_step == 0 && (p->p_flag & P_WEXIT) == 0) {
 			/* sleep until p stops */
+			_PHOLD(p);
 			error = msleep(&p->p_stype, &p->p_mtx,
 			    PWAIT|PCATCH, "pioctl", 0);
+			_PRELE(p);
 			if (error != 0)
 				break;
 		}
@@ -142,8 +147,10 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 	case PIOCWAIT32:
 		while (p->p_step == 0 && (p->p_flag & P_WEXIT) == 0) {
 			/* sleep until p stops */
+			_PHOLD(p);
 			error = msleep(&p->p_stype, &p->p_mtx,
 			    PWAIT|PCATCH, "pioctl", 0);
+			_PRELE(p);
 			if (error != 0)
 				break;
 		}
@@ -193,7 +200,6 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 	default:
 		error = (ENOTTY);
 	}
-	PROC_UNLOCK(p);
 
 	return (error);
 }
