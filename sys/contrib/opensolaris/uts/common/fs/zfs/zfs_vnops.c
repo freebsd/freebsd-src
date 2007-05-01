@@ -1109,9 +1109,14 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	if (error == 0 && (nm[0] != '.' || nm[1] != '\0')) {
 		if (cnp->cn_flags & ISDOTDOT)
 			VOP_UNLOCK(dvp, 0, td);
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
+		error = vn_lock(*vpp, LK_EXCLUSIVE, td);
 		if (cnp->cn_flags & ISDOTDOT)
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (error != 0) {
+			VN_RELE(*vpp);
+			*vpp = NULL;
+			return (error);
+		}
 	}
 
 #ifdef FREEBSD_NAMECACHE
