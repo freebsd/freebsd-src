@@ -1008,7 +1008,7 @@ zfs_access(vnode_t *vp, int mode, int flags, cred_t *cr)
 /* ARGSUSED */
 static int
 zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
-     int nameiop, cred_t *cr, kthread_t *td)
+    int nameiop, cred_t *cr, kthread_t *td)
 {
 
 	znode_t *zdp = VTOZ(dvp);
@@ -1120,9 +1120,9 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	 */
 	if (error == ENOENT && (cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
 		cache_enter(dvp, *vpp, cnp);
-        /*
-         * Insert name into cache if appropriate.
-         */
+	/*
+	 * Insert name into cache if appropriate.
+	 */
 	if (error == 0 && (cnp->cn_flags & MAKEENTRY)) {
 		if (!(cnp->cn_flags & ISLASTCN) ||
 		    (nameiop != DELETE && nameiop != RENAME)) {
@@ -1803,13 +1803,13 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 		odp = (struct dirent64 *)iovp->iov_base;
 	}
 
-	if (ncookies != NULL) { 
+	if (ncookies != NULL) {
 		/*
 		 * Minimum entry size is dirent size and 1 byte for a file name.
 		 */
 		ncooks = uio->uio_resid / (sizeof(struct dirent) - sizeof(((struct dirent *)NULL)->d_name) + 1);
 		cooks = malloc(ncooks * sizeof(u_long), M_TEMP, M_WAITOK);
-		*cookies = cooks; 
+		*cookies = cooks;
 		*ncookies = ncooks;
 	}
 
@@ -3434,10 +3434,10 @@ zfs_freebsd_link(ap)
 
 static int
 zfs_freebsd_inactive(ap)
-        struct vop_inactive_args /* {
-                struct vnode *a_vp;
-                struct thread *a_td;
-        } */ *ap;
+	struct vop_inactive_args /* {
+		struct vnode *a_vp;
+		struct thread *a_td;
+	} */ *ap;
 {
 	vnode_t *vp = ap->a_vp;
 
@@ -3452,7 +3452,7 @@ zfs_freebsd_reclaim(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-        vnode_t	*vp = ap->a_vp;
+	vnode_t	*vp = ap->a_vp;
 	znode_t	*zp = VTOZ(vp);
 	zfsvfs_t *zfsvfs;
 	int rele = 1;
@@ -3573,7 +3573,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_fid =	zfs_freebsd_fid,
 };
 
-struct vop_vector zfs_fifoops = { 
+struct vop_vector zfs_fifoops = {
 	.vop_default =	&fifo_specops,
 	.vop_fsync =	VOP_PANIC,
 	.vop_access =	zfs_freebsd_access,
