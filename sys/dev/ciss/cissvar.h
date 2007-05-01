@@ -224,9 +224,10 @@ struct ciss_softc
     TAILQ_HEAD(,ciss_request)	ciss_notify;		/* requests which are defered for processing */
     struct proc			*ciss_notify_thread;
 
-    struct callout_handle	ciss_periodic;		/* periodic event handling */
+    struct callout		ciss_periodic;		/* periodic event handling */
     struct ciss_request		*ciss_periodic_notify;	/* notify callback request */
 
+    struct mtx			ciss_mtx;
     struct ciss_ldrive		**ciss_logical;
     struct ciss_pdrive		**ciss_physical;
     union ciss_device_address	*ciss_controllers;	/* controller address */
