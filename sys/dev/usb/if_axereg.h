@@ -138,9 +138,7 @@ struct axe_softc {
 	int			axe_if_flags;
 	struct ue_cdata		axe_cdata;
 	struct callout_handle	axe_stat_ch;
-#if __FreeBSD_version >= 500000
 	struct mtx		axe_mtx;
-#endif
 	struct sx		axe_sleeplock;
 	char			axe_dying;
 	int			axe_link;
