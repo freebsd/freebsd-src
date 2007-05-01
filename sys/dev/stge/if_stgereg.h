@@ -652,6 +652,7 @@ struct stge_softc {
 	int			sc_rxint_dmawait;
 	int			sc_nerr;
 	int			sc_watchdog_timer;
+	int			sc_link;
 
 	struct task		sc_link_task;
 	struct mtx		sc_mii_mtx;	/* MII mutex */
