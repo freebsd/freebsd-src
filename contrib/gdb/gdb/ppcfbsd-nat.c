@@ -143,9 +143,21 @@ fill_gregset (char *regs, int regnum)
 }
 
 void
+supply_gregset (char *regs)
+{
+  ppcfbsd_supply_reg (regs, -1);
+}
+
+void
 fill_fpregset (char *fpregs, int regnum)
 {
   ppcfbsd_fill_fpreg (fpregs, regnum);
+}
+
+void
+supply_fpregset (char *fpregs)
+{
+  ppcfbsd_supply_fpreg (fpregs, -1);
 }
 
 /* Provide a prototype to silence -Wmissing-prototypes.  */
