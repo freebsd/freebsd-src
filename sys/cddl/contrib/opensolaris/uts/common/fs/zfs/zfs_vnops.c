@@ -327,6 +327,15 @@ again:
 				va = (caddr_t)sf_buf_kva(sf);
 				woff = uio->uio_loffset - off;
 				error = uiomove(va + off, bytes, UIO_WRITE, uio);
+				/*
+				 * The uiomove() above could have been partially
+				 * successful, that's why we call dmu_write()
+				 * below unconditionally. The page was marked
+				 * non-dirty above and we would lose the changes
+				 * without doing so. If the uiomove() failed
+				 * entirely, well, we just write what we got
+				 * before one more time.
+				 */
 				dmu_write(os, zp->z_id, woff,
 				    MIN(PAGESIZE, fsize - woff), va, tx);
 				sf_buf_free(sf);
