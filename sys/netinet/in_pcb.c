@@ -796,8 +796,7 @@ in_sockaddr(in_port_t port, struct in_addr *addr_p)
  * because there actually /is/ a programming error somewhere... XXX)
  */
 int
-in_setsockaddr(struct socket *so, struct sockaddr **nam,
-    struct inpcbinfo *pcbinfo)
+in_setsockaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct inpcb *inp;
 	struct in_addr addr;
@@ -819,8 +818,7 @@ in_setsockaddr(struct socket *so, struct sockaddr **nam,
  * The wrapper function will pass down the pcbinfo for this function to lock.
  */
 int
-in_setpeeraddr(struct socket *so, struct sockaddr **nam,
-    struct inpcbinfo *pcbinfo)
+in_setpeeraddr(struct socket *so, struct sockaddr **nam)
 {
 	struct inpcb *inp;
 	struct in_addr addr;
