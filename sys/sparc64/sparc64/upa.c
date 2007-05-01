@@ -172,7 +172,8 @@ upa_attach(device_t dev)
 	uint32_t portid;
 	int i, rid;
 #if 1
-	device_t *children, schizo = NULL;
+	device_t *children, schizo;
+	u_long scount, sstart, ucount, ustart;
 	int j, nchildren;
 #endif
 
@@ -180,10 +181,14 @@ upa_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	for (i = UPA_CFG; i <= UPA_IMR2; i++) {
 		rid = i;
-		/* UPA_IMR1 is shared with the Schizo PCI bus B CSR bank. */
+		/*
+		 * The UPA_IMR{1,2} resources are shared with that of the
+		 * Schizo PCI bus B CSR bank.
+		 */
 #if 0
 		sc->sc_res[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-		    &rid, (i == UPA_IMR1 ? RF_SHAREABLE : 0) | RF_ACTIVE);
+		    &rid, ((i == UPA_IMR1 || i == UPA_IMR2) ? RF_SHAREABLE :
+		    0) | RF_ACTIVE);
 		if (sc->sc_res[i] == NULL) {
 			device_printf(dev,
 			    "could not allocate resource %d\n", i);
@@ -196,22 +201,29 @@ upa_attach(device_t dev)
 		 * Workaround for the fact that rman(9) only allows to
 		 * share resources of the same size.
 		 */
-		if (i == UPA_IMR1) {
+		if (i == UPA_IMR1 || i == UPA_IMR2) {
+			if (bus_get_resource(dev, SYS_RES_MEMORY, i, &ustart,
+			    &ucount) != 0) {
+				device_printf(dev,
+				    "could not determine UPA resource\n");
+				goto fail;
+			}
 			if (device_get_children(device_get_parent(dev),
 			    &children, &nchildren) != 0) {
 				device_printf(dev, "could not get children\n");
 				goto fail;
 			}
+			schizo = NULL;
 			for (j = 0; j < nchildren; j++) {
-				if (ofw_bus_get_type(children[i]) != NULL &&
-				    strcmp(ofw_bus_get_type(children[i]),
+				if (ofw_bus_get_type(children[j]) != NULL &&
+				    strcmp(ofw_bus_get_type(children[j]),
 				    "pci") == 0 &&
-				    ofw_bus_get_compat(children[i]) != NULL &&
-				    strcmp(ofw_bus_get_compat(children[i]),
+				    ofw_bus_get_compat(children[j]) != NULL &&
+				    strcmp(ofw_bus_get_compat(children[j]),
 				    "pci108e,8001") == 0 &&
-				    ((bus_get_resource_start(children[i],
+				    ((bus_get_resource_start(children[j],
 				    SYS_RES_MEMORY, 0) >> 20) & 1) == 1) {
-				    	schizo = children[i];
+				    	schizo = children[j];
 					break;
 				}
 			}
@@ -220,14 +232,15 @@ upa_attach(device_t dev)
 				device_printf(dev, "could not find Schizo\n");
 				goto fail;
 			}
-			rid = 0;
-			sc->sc_res[i] = bus_alloc_resource_any(schizo,
-			    SYS_RES_MEMORY, &rid, RF_SHAREABLE | RF_ACTIVE);
-			if (sc->sc_res[i] == NULL) {
+			if (bus_get_resource(schizo, SYS_RES_MEMORY, 0,
+			    &sstart, &scount) != 0) {
 				device_printf(dev,
-				    "could not allocate resource %d\n", i);
+				    "could not determine Schizo resource\n");
 				goto fail;
 			}
+			sc->sc_res[i] = bus_alloc_resource(dev, SYS_RES_MEMORY,
+			    &rid, sstart, sstart + scount - 1, scount,
+			    RF_SHAREABLE | RF_ACTIVE);
 		} else
 			sc->sc_res[i] = bus_alloc_resource_any(dev,
 			    SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -238,11 +251,9 @@ upa_attach(device_t dev)
 		}
 		sc->sc_bt[i] = rman_get_bustag(sc->sc_res[i]);
 		sc->sc_bh[i] = rman_get_bushandle(sc->sc_res[i]);
-		if (i == UPA_IMR1)
+		if (i == UPA_IMR1 || i == UPA_IMR2)
 			bus_space_subregion(sc->sc_bt[i], sc->sc_bh[i],
-			    bus_get_resource_start(dev, SYS_RES_MEMORY,
-			    UPA_IMR1), bus_get_resource_count(dev,
-			    SYS_RES_MEMORY, UPA_IMR1), &sc->sc_bh[i]);
+			    ustart - sstart, ucount, &sc->sc_bh[i]);
 #endif
 	}
 
@@ -311,14 +322,8 @@ upa_attach(device_t dev)
 
  fail:
 	for (i = UPA_CFG; i <= UPA_IMR2 && sc->sc_res[i] != NULL; i++)
-#if 0
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->sc_res[i]), sc->sc_res[i]);
-#else
-		bus_release_resource(i == UPA_IMR1 ? schizo : dev,
-		    SYS_RES_MEMORY, rman_get_rid(sc->sc_res[i]),
-		    sc->sc_res[i]);
-#endif
 	return (ENXIO);
 }
 
@@ -427,7 +432,7 @@ upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 
 	UPA_WRITE(sc, imr, 0x0, intrmap & ~INTMAP_V);
 	(void)UPA_READ(sc, imr, 0x0);
-	error = bus_generic_setup_intr(dev, child, ires, flags, filt, 
+	error = bus_generic_setup_intr(dev, child, ires, flags, filt,
 	    func, arg, cookiep);
 	if (error != 0)
 		return (error);
