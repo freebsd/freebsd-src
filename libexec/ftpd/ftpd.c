@@ -128,6 +128,7 @@ int	logging;
 int	restricted_data_ports = 1;
 int	paranoid = 1;	  /* be extra careful about security */
 int	anon_only = 0;    /* Only anonymous ftp allowed */
+int	assumeutf8 = 0;   /* Assume that server file names are in UTF-8 */
 int	guest;
 int	dochroot;
 char	*chrootdir;
@@ -308,7 +309,7 @@ main(int argc, char *argv[], char **envp)
 	openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 
 	while ((ch = getopt(argc, argv,
-	                    "46a:AdDEhlmMoOp:P:rRSt:T:u:UvW")) != -1) {
+	                    "468a:AdDEhlmMoOp:P:rRSt:T:u:UvW")) != -1) {
 		switch (ch) {
 		case '4':
 			family = (family == AF_INET6) ? AF_UNSPEC : AF_INET;
@@ -316,6 +317,10 @@ main(int argc, char *argv[], char **envp)
 
 		case '6':
 			family = (family == AF_INET) ? AF_UNSPEC : AF_INET6;
+			break;
+
+		case '8':
+			assumeutf8 = 1;
 			break;
 
 		case 'a':

@@ -32,7 +32,7 @@
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2006
+.Dd April 19, 2007
 .Dt FTPD 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46ADdEhMmOoRrSUvW
+.Op Fl 468ADdEhMmOoRrSUvW
 .Op Fl l Op Fl l
 .Op Fl a Ar address
 .Op Fl P Ar port
@@ -78,6 +78,20 @@ When
 is specified, accept connections via
 .Dv AF_INET6
 socket.
+.It Fl 8
+Enable transparent UTF-8 mode.
+RFC\ 2640 compliant clients will be told that the character encoding
+used by the server is UTF-8, which is the only effect of the option.
+.Pp
+This option does not enable any encoding conversion for server file names;
+it implies instead that the names of files on the server are encoded
+in UTF-8.
+As for files uploaded via FTP, it is the duty of the RFC\ 2640 compliant
+client to convert their names from the client's local encoding to UTF-8.
+FTP command names and own
+.Nm
+messages are always encoded in ASCII, which is a subset of UTF-8.
+Hence no need for server-side conversion at all.
 .It Fl A
 Allow only anonymous ftp access.
 .It Fl a
@@ -250,6 +264,7 @@ is specified.
 .It DELE Ta "delete a file [RW]"
 .It EPRT Ta "specify data connection port, multiprotocol"
 .It EPSV Ta "prepare for server-to-server transfer, multiprotocol"
+.It FEAT Ta "give information on extended features of server"
 .It HELP Ta "give help information"
 .It LIST Ta "give list files in a directory" Pq Dq Li "ls -lgA"
 .It LPRT Ta "specify data connection port, multiprotocol"
