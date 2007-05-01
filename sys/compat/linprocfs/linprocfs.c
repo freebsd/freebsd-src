@@ -860,12 +860,14 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 {
 	char mebuffer[512];
 	vm_map_t map = &p->p_vmspace->vm_map;
-	vm_map_entry_t entry;
+	vm_map_entry_t entry, tmp_entry;
 	vm_object_t obj, tobj, lobj;
+	vm_offset_t saved_end;
 	vm_ooffset_t off = 0;
 	char *name = "", *freename = NULL;
 	size_t len;
 	ino_t ino;
+	unsigned int last_timestamp;
 	int ref_count, shadow_count, flags;
 	int error;
 	struct vnode *vp;
@@ -885,8 +887,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		return (0);
 
 	error = 0;
-	if (map != &curthread->td_proc->p_vmspace->vm_map)
-		vm_map_lock_read(map);
+	vm_map_lock_read(map);
 	for (entry = map->header.next;
 	    ((uio->uio_resid > 0) && (entry != &map->header));
 	    entry = entry->next) {
@@ -894,12 +895,16 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		freename = NULL;
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
+		saved_end = entry->end;
 		obj = entry->object.vm_object;
-		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object)
+		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
+			VM_OBJECT_LOCK(tobj);
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
 			lobj = tobj;
+		}
 		ino = 0;
 		if (lobj) {
-			VM_OBJECT_LOCK(lobj);
 			off = IDX_TO_OFF(lobj->size);
 			if (lobj->type == OBJT_VNODE) {
 				vp = lobj->handle;
@@ -908,10 +913,12 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 			}
 			else
 				vp = NULL;
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
 			flags = obj->flags;
 			ref_count = obj->ref_count;
 			shadow_count = obj->shadow_count;
-			VM_OBJECT_UNLOCK(lobj);
+			VM_OBJECT_UNLOCK(obj);
 			if (vp) {
 				vn_fullpath(td, vp, &name, &freename);
 				locked = VFS_LOCK_GIANT(vp->v_mount);
@@ -953,12 +960,23 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 					       * XXX We should probably return
 					       * EFBIG here, as in procfs.
 					       */
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
 		error = uiomove(mebuffer, len, uio);
+		vm_map_lock_read(map);
 		if (error)
 			break;
+		if (last_timestamp + 1 != map->timestamp) {
+			/*
+			 * Look again for the entry because the map was
+			 * modified while it was unlocked.  Specifically,
+			 * the entry may have been clipped, merged, or deleted.
+			 */
+			vm_map_lookup_entry(map, saved_end - 1, &tmp_entry);
+			entry = tmp_entry;
+		}
 	}
-	if (map != &curthread->td_proc->p_vmspace->vm_map)
-		vm_map_unlock_read(map);
+	vm_map_unlock_read(map);
 
 	return (error);
 }
