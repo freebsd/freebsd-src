@@ -598,7 +598,7 @@ zfs_mount(vfs_t *vfsp, kthread_t *td)
 
 static int
 zfs_statfs(vfs_t *vfsp, struct statfs *statp, kthread_t *td)
-{       
+{
 	zfsvfs_t *zfsvfs = vfsp->vfs_data;
 	uint64_t refdbytes, availbytes, usedobjs, availobjs;
 
@@ -691,7 +691,7 @@ zfs_umount(vfs_t *vfsp, int fflag, kthread_t *td)
 	 * Unmount any snapshots mounted under .zfs before unmounting the
 	 * dataset itself.
 	 */
-        if (zfsvfs->z_ctldir != NULL) {
+	if (zfsvfs->z_ctldir != NULL) {
 		if ((ret = zfsctl_umount_snapshots(vfsp, fflag, cr)) != 0)
 			return (ret);
 		ret = vflush(vfsp, 0, 0, td);

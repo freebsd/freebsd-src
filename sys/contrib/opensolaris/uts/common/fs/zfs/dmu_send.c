@@ -65,7 +65,7 @@ dump_bytes(struct backuparg *ba, void *buf, int len)
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_resid = len;
-	auio.uio_segflg = UIO_SYSSPACE; 
+	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_offset = (off_t)-1;
 	auio.uio_td = ba->td;
@@ -473,7 +473,7 @@ restore_bytes(struct restorearg *ra, void *buf, int len, off_t off, int *resid)
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_resid = len;
-	auio.uio_segflg = UIO_SYSSPACE; 
+	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_READ;
 	auio.uio_offset = off;
 	auio.uio_td = ra->td;
