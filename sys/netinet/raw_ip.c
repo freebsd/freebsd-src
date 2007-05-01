@@ -915,7 +915,7 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 static int
 rip_sockaddr(struct socket *so, struct sockaddr **nam)
 {
-	return (in_setsockaddr(so, nam, &ripcbinfo));
+	return (in_setsockaddr(so, nam));
 }
 
 /*
@@ -925,7 +925,7 @@ rip_sockaddr(struct socket *so, struct sockaddr **nam)
 static int
 rip_peeraddr(struct socket *so, struct sockaddr **nam)
 {
-	return (in_setpeeraddr(so, nam, &ripcbinfo));
+	return (in_setpeeraddr(so, nam));
 }
 
 
