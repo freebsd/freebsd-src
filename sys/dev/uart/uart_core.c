@@ -276,7 +276,7 @@ uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan)
 		    uart_cpu_eqres(&sc->sc_bas, &sysdev->bas)) {
 			/* XXX check if ops matches class. */
 			sc->sc_sysdev = sysdev;
-			break;
+			sysdev->bas.rclk = sc->sc_bas.rclk;
 		}
 	}
 
