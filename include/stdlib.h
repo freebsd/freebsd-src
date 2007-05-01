@@ -161,7 +161,7 @@ void	 _Exit(int) __dead2;
 int	 posix_memalign(void **, size_t, size_t); /* (ADV) */
 int	 rand_r(unsigned *);			/* (TSF) */
 int	 setenv(const char *, const char *, int);
-int	 unsetenv(const char *);
+void	 unsetenv(const char *);
 #endif
 
 /*
@@ -197,7 +197,7 @@ long	 mrand48(void);
 long	 nrand48(unsigned short[3]);
 int	 posix_openpt(int);
 char	*ptsname(int);
-int	 putenv(char *);
+int	 putenv(const char *);
 long	 random(void);
 char	*realpath(const char *, char resolved_path[]);
 unsigned short
