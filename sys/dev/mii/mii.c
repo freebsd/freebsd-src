@@ -106,6 +106,11 @@ driver_t miibus_driver = {
 	sizeof(struct mii_data)
 };
 
+struct miibus_ivars {
+	ifm_change_cb_t	ifmedia_upd;
+	ifm_stat_cb_t	ifmedia_sts;
+};
+
 /*
  * Helper function used by network interface drivers, attaches PHYs
  * to the network interface driver parent.
@@ -166,9 +171,7 @@ miibus_probe(device_t dev)
 int
 miibus_attach(device_t dev)
 {
-	void			**v;
-	ifm_change_cb_t		ifmedia_upd;
-	ifm_stat_cb_t		ifmedia_sts;
+	struct miibus_ivars	*ivars;
 	struct mii_data		*mii;
 
 	mii = device_get_softc(dev);
@@ -177,10 +180,9 @@ miibus_attach(device_t dev)
 	 * XXX: EVIL HACK!
 	 */
 	mii->mii_ifp = *(struct ifnet**)device_get_softc(device_get_parent(dev));
-	v = device_get_ivars(dev);
-	ifmedia_upd = v[0];
-	ifmedia_sts = v[1];
-	ifmedia_init(&mii->mii_media, 0, ifmedia_upd, ifmedia_sts);
+	ivars = device_get_ivars(dev);
+	ifmedia_init(&mii->mii_media, IFM_IMASK, ivars->ifmedia_upd,
+	    ivars->ifmedia_sts);
 	bus_generic_attach(dev);
 
 	return(0);
@@ -324,17 +326,16 @@ int
 mii_phy_probe(device_t dev, device_t *child, ifm_change_cb_t ifmedia_upd,
     ifm_stat_cb_t ifmedia_sts)
 {
-	void			**v;
+	struct miibus_ivars	*ivars;
 	int			bmsr, i;
 
-	v = malloc(sizeof(vm_offset_t) * 2, M_DEVBUF, M_NOWAIT);
-	if (v == 0) {
+	ivars = malloc(sizeof(*ivars), M_DEVBUF, M_NOWAIT);
+	if (ivars == NULL)
 		return (ENOMEM);
-	}
-	v[0] = ifmedia_upd;
-	v[1] = ifmedia_sts;
+	ivars->ifmedia_upd = ifmedia_upd;
+	ivars->ifmedia_sts = ifmedia_sts;
 	*child = device_add_child(dev, "miibus", -1);
-	device_set_ivars(*child, v);
+	device_set_ivars(*child, ivars);
 
 	for (i = 0; i < MII_NPHY; i++) {
 		bmsr = MIIBUS_READREG(dev, i, MII_BMSR);
