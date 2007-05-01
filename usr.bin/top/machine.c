@@ -67,6 +67,7 @@ static int cmdlengthdelta;
 
 /* Prototypes for top internals */
 void quit(int);
+int compare_jid(const void *a, const void *b);
 int compare_pid(const void *a, const void *b);
 
 /* get_process_info passes back a handle.  This is what it looks like: */
@@ -99,26 +100,26 @@ struct handle
  */
 
 static char io_header[] =
-	"  PID %-*.*s   VCSW  IVCSW   READ  WRITE  FAULT  TOTAL PERCENT COMMAND";
+	"  PID%s %-*.*s   VCSW  IVCSW   READ  WRITE  FAULT  TOTAL PERCENT COMMAND";
 
 #define io_Proc_format \
-	"%5d %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s"
+	"%5d%s %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s"
 
 static char smp_header_thr[] =
- 	"  PID %-*.*s  THR PRI NICE   SIZE    RES STATE  C   TIME %6s COMMAND";
+	"  PID%s %-*.*s  THR PRI NICE   SIZE    RES STATE  C   TIME %6s COMMAND";
 static char smp_header[] =
- 	"  PID %-*.*s "   "PRI NICE   SIZE    RES STATE  C   TIME %6s COMMAND";
+	"  PID%s %-*.*s "   "PRI NICE   SIZE    RES STATE  C   TIME %6s COMMAND";
 
 #define smp_Proc_format \
- 	"%5d %-*.*s %s%3d %4d%7s %6s %-6.6s %1x%7s %5.2f%% %.*s"
+ 	"%5d%s %-*.*s %s%3d %4d%7s %6s %-6.6s %1x%7s %5.2f%% %.*s"
 
 static char up_header_thr[] =
- 	"  PID %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME %6s COMMAND";
+	"  PID%s %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME %6s COMMAND";
 static char up_header[] =
- 	"  PID %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME %6s COMMAND";
+	"  PID%s %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME %6s COMMAND";
 
 #define up_Proc_format \
- 	"%5d %-*.*s %s%3d %4d%7s %6s %-6.6s%.0d%7s %5.2f%% %.*s"
+	"%5d%s %-*.*s %s%3d %4d%7s %6s %-6.6s%.0d%7s %5.2f%% %.*s"
 
 
 /* process state names for the "STATE" column of the display */
@@ -218,7 +219,8 @@ long percentages();
  */
 char *ordernames[] = {
 	"cpu", "size", "res", "time", "pri", "threads",
-	"total", "read", "write", "fault", "vcsw", "ivcsw", NULL
+	"total", "read", "write", "fault", "vcsw", "ivcsw",
+	"jid", NULL
 };
 #endif
 
@@ -299,12 +301,14 @@ format_header(char *uname_field)
 		    (ps.thread ? smp_header : smp_header_thr) :
 		    (ps.thread ? up_header : up_header_thr);
 		snprintf(Header, sizeof(Header), prehead,
+		    ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field,
 		    ps.wcpu ? "WCPU" : "CPU");
 		break;
 	case DISP_IO:
 		prehead = io_header;
 		snprintf(Header, sizeof(Header), prehead,
+		    ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field);
 		break;
 	}
@@ -658,7 +662,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 	int state;
 	struct rusage ru, *rup;
 	long p_tot, s_tot;
-	char *proc_fmt, thr_buf[6];
+	char *proc_fmt, thr_buf[6], jid_buf[6];
 
 	/* find and remember the next proc structure */
 	hp = (struct handle *)handle;
@@ -719,6 +723,12 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 		break;
 	}
 
+	if (ps.jail == 0) 
+		jid_buf[0] = '\0';
+	else
+		snprintf(jid_buf, sizeof(jid_buf), " %*d",
+		    sizeof(jid_buf) - 3, pp->ki_jid);
+
 	if (displaymode == DISP_IO) {
 		oldp = get_old_proc(pp);
 		if (oldp != NULL) {
@@ -736,6 +746,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 
 		sprintf(fmt, io_Proc_format,
 		    pp->ki_pid,
+		    jid_buf,
 		    namelength, namelength,
 		    (*get_userid)(pp->ki_ruid),
 		    rup->ru_nvcsw,
@@ -761,6 +772,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 
 	sprintf(fmt, proc_fmt,
 	    pp->ki_pid,
+	    jid_buf,
 	    namelength, namelength,
 	    (*get_userid)(pp->ki_ruid),
 	    thr_buf,
@@ -892,6 +904,12 @@ static int sorted_state[] =
 		return (diff > 0 ? 1 : -1); \
 } while (0)
 
+#define ORDERKEY_JID(a, b) do { \
+	int diff = (int)(b)->ki_jid - (int)(a)->ki_jid; \
+	if (diff != 0) \
+		return (diff > 0 ? 1 : -1); \
+} while (0)
+
 /* compare_cpu - the comparison function for sorting by cpu percentage */
 
 int
@@ -933,6 +951,7 @@ int (*compares[])() = {
 	compare_iofault,
 	compare_vcsw,
 	compare_ivcsw,
+	compare_jid,
 	NULL
 };
 
@@ -1026,6 +1045,25 @@ compare_threads(void *arg1, void *arg2)
 	return (0);
 }
 #endif
+
+/* compare_jid - the comparison function for sorting by jid */
+
+int
+compare_jid(const void *arg1, const void *arg2)
+{
+	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
+	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+
+	ORDERKEY_JID(p1, p2);
+	ORDERKEY_PCTCPU(p1, p2);
+	ORDERKEY_CPTICKS(p1, p2);
+	ORDERKEY_STATE(p1, p2);
+	ORDERKEY_PRIO(p1, p2);
+	ORDERKEY_RSSIZE(p1, p2);
+	ORDERKEY_MEM(p1, p2);
+
+	return (0);
+}
 
 /* compare_io - the comparison function for sorting by total io */
 
