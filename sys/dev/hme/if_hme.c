@@ -223,7 +223,7 @@ hme_config(struct hme_softc *sc)
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, 2048, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-	    1, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW, busdma_lock_mutex,
+	    1, BUS_SPACE_MAXSIZE_32BIT, 0, busdma_lock_mutex,
 	    &sc->sc_lock, &sc->sc_cdmatag);
 	if (error)
 		goto fail_ptag;
