@@ -162,6 +162,13 @@ g_uzip_done(struct bio *bp)
 		ulen = MIN(sc->blksz - uoff, bp2->bio_length - upos);
 		len = sc->offsets[i + 1] - sc->offsets[i];
 
+		if (len == 0) {
+			/* All zero block: no cache update */
+			bzero(bp2->bio_data + upos, ulen);
+			upos += ulen;
+			bp2->bio_completed += ulen;
+			continue;
+		}
 		zs.next_in = bp->bio_data + pos;
 		zs.avail_in = len;
 		zs.next_out = sc->last_buf;
