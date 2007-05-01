@@ -37,21 +37,37 @@ __FBSDID("$FreeBSD$");
 void
 pt_reg_to_ucontext(const struct reg *r, ucontext_t *uc)
 {
+	mcontext_t *mc = &uc->uc_mcontext;
+
+	memcpy(mc->mc_frame, r, MIN(sizeof(mc->mc_frame), sizeof(*r)));
 }
 
 void
 pt_ucontext_to_reg(const ucontext_t *uc, struct reg *r)
 {
+	const mcontext_t *mc = &uc->uc_mcontext;
+
+	memcpy(r, mc->mc_frame, MIN(sizeof(mc->mc_frame), sizeof(*r)));
 }
 
 void
-pt_fpreg_to_ucontext(const struct fpreg* r, ucontext_t *uc)
+pt_fpreg_to_ucontext(const struct fpreg *r, ucontext_t *uc)
 {
+	mcontext_t *mc = &uc->uc_mcontext;
+
+	memcpy(mc->mc_fpreg, r, MIN(sizeof(mc->mc_fpreg), sizeof(*r)));
+	mc->mc_flags |= _MC_FP_VALID;
 }
 
 void
 pt_ucontext_to_fpreg(const ucontext_t *uc, struct fpreg *r)
 {
+	const mcontext_t *mc = &uc->uc_mcontext;
+
+	if (mc->mc_flags & _MC_FP_VALID)
+		memcpy(r, mc->mc_fpreg, MIN(sizeof(mc->mc_fpreg), sizeof(*r)));
+	else
+		memset(r, 0, sizeof(*r));
 }
 
 void
@@ -62,4 +78,6 @@ pt_md_init(void)
 int
 pt_reg_sstep(struct reg *reg, int step)
 {
+
+	/* XXX */
 }
