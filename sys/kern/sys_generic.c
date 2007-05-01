@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
-#include <vm/vm.h>
-#include <vm/vm_page.h>
 
 static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
