@@ -356,13 +356,20 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	cache_init(child);
 	uma_set_align(cache.dc_linesize - 1);
 
+	cpu_block_copy = bcopy;
+	cpu_block_zero = bzero;
 	getenv_int("machdep.use_vis", &cpu_use_vis);
 	if (cpu_use_vis) {
-		cpu_block_copy = spitfire_block_copy;
-		cpu_block_zero = spitfire_block_zero;
-	} else {
-		cpu_block_copy = bcopy;
-		cpu_block_zero = bzero;
+		switch (cpu_impl) {
+		case CPU_IMPL_SPARC64:
+		case CPU_IMPL_ULTRASPARCI:
+		case CPU_IMPL_ULTRASPARCII:
+		case CPU_IMPL_ULTRASPARCIIi:
+		case CPU_IMPL_ULTRASPARCIIe:
+			cpu_block_copy = spitfire_block_copy;
+			cpu_block_zero = spitfire_block_zero;
+			break;
+		}
 	}
 
 #ifdef SMP
