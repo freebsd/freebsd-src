@@ -19,6 +19,7 @@ extern initialize_file_ftype _initialize_kernel_u_addr;
 extern initialize_file_ftype _initialize_infptrace;
 extern initialize_file_ftype _initialize_inftarg;
 extern initialize_file_ftype _initialize_ppcfbsd_nat;
+extern initialize_file_ftype _initialize_thread_db;
 extern initialize_file_ftype _initialize_remote;
 extern initialize_file_ftype _initialize_dcache;
 extern initialize_file_ftype _initialize_sr_support;
@@ -131,6 +132,7 @@ initialize_all_files (void)
   _initialize_infptrace ();
   _initialize_inftarg ();
   _initialize_ppcfbsd_nat ();
+  _initialize_thread_db ();
 #endif
   _initialize_remote ();
   _initialize_dcache ();
