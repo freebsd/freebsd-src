@@ -745,8 +745,8 @@ export_pam_environment()
 	pam_env = pam_getenvlist(pamh);
 	if (pam_env != NULL) {
 		for (pp = pam_env; *pp != NULL; pp++) {
-			if (!export(*pp))
-				free(*pp);
+			(void)export(*pp);
+			free(*pp);
 		}
 	}
 }
