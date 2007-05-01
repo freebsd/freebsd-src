@@ -1053,7 +1053,7 @@ eli_backup(struct gctl_req *req)
 	}
 	if (provfd == -1) {
 		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
-		return;
+		goto out;
 	}
 	filefd = open(file, O_WRONLY | O_TRUNC | O_CREAT, 0600);
 	if (filefd == -1) {
@@ -1066,13 +1066,13 @@ eli_backup(struct gctl_req *req)
 	if (mediasize == 0 || secsize == 0) {
 		gctl_error(req, "Cannot get informations about %s: %s.", prov,
 		    strerror(errno));
-		return;
+		goto out;
 	}
 
 	sector = malloc(secsize);
 	if (sector == NULL) {
 		gctl_error(req, "Cannot allocate memory.");
-		return;
+		goto out;
 	}
 
 	/* Read metadata from the provider. */
@@ -1139,7 +1139,7 @@ eli_restore(struct gctl_req *req)
 	}
 	if (provfd == -1) {
 		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
-		return;
+		goto out;
 	}
 
 	mediasize = g_get_mediasize(prov);
@@ -1147,13 +1147,13 @@ eli_restore(struct gctl_req *req)
 	if (mediasize == 0 || secsize == 0) {
 		gctl_error(req, "Cannot get informations about %s: %s.", prov,
 		    strerror(errno));
-		return;
+		goto out;
 	}
 
 	sector = malloc(secsize);
 	if (sector == NULL) {
 		gctl_error(req, "Cannot allocate memory.");
-		return;
+		goto out;
 	}
 
 	/* Read metadata from the backup file. */
