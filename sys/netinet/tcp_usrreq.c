@@ -694,7 +694,7 @@ out:
 static int
 tcp_sockaddr(struct socket *so, struct sockaddr **nam)
 {
-	return (in_setsockaddr(so, nam, &tcbinfo));
+	return (in_setsockaddr(so, nam));
 }
 
 /*
@@ -704,7 +704,7 @@ tcp_sockaddr(struct socket *so, struct sockaddr **nam)
 static int
 tcp_peeraddr(struct socket *so, struct sockaddr **nam)
 {
-	return (in_setpeeraddr(so, nam, &tcbinfo));
+	return (in_setpeeraddr(so, nam));
 }
 
 /*
