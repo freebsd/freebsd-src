@@ -605,30 +605,30 @@ zfsctl_snapdir_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm,
 static int
 zfsctl_snapdir_remove(vnode_t *dvp, char *name, vnode_t *cwd, cred_t *cr)
 {
-        zfsctl_snapdir_t *sdp = dvp->v_data;
-        char snapname[MAXNAMELEN];
-        int err;
+	zfsctl_snapdir_t *sdp = dvp->v_data;
+	char snapname[MAXNAMELEN];
+	int err;
 
-        err = zfsctl_snapshot_zname(dvp, name, MAXNAMELEN, snapname);
-        if (err)
-                return (err);
-        err = zfs_secpolicy_write(snapname, cr);
-        if (err)
-                return (err);
+	err = zfsctl_snapshot_zname(dvp, name, MAXNAMELEN, snapname);
+	if (err)
+		return (err);
+	err = zfs_secpolicy_write(snapname, cr);
+	if (err)
+		return (err);
 
-        mutex_enter(&sdp->sd_lock);
+	mutex_enter(&sdp->sd_lock);
 
-        err = zfsctl_unmount_snap(dvp, name, 0, cr);
-        if (err) {
-                mutex_exit(&sdp->sd_lock);
-                return (err);
-        }
+	err = zfsctl_unmount_snap(dvp, name, 0, cr);
+	if (err) {
+		mutex_exit(&sdp->sd_lock);
+		return (err);
+	}
 
-        err = dmu_objset_destroy(snapname);
+	err = dmu_objset_destroy(snapname);
 
-        mutex_exit(&sdp->sd_lock);
+	mutex_exit(&sdp->sd_lock);
 
-        return (err);
+	return (err);
 }
 #endif
 
