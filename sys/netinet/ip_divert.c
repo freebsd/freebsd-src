@@ -630,7 +630,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 static int
 div_sockaddr(struct socket *so, struct sockaddr **nam)
 {
-	return (in_setsockaddr(so, nam, &divcbinfo));
+	return (in_setsockaddr(so, nam));
 }
 
 /*
@@ -640,7 +640,7 @@ div_sockaddr(struct socket *so, struct sockaddr **nam)
 static int
 div_peeraddr(struct socket *so, struct sockaddr **nam)
 {
-	return (in_setpeeraddr(so, nam, &divcbinfo));
+	return (in_setpeeraddr(so, nam));
 }
 
 #ifdef SYSCTL_NODE

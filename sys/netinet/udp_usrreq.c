@@ -1139,7 +1139,7 @@ static int
 udp_sockaddr(struct socket *so, struct sockaddr **nam)
 {
 
-	return (in_setsockaddr(so, nam, &udbinfo));
+	return (in_setsockaddr(so, nam));
 }
 
 /*
@@ -1150,7 +1150,7 @@ static int
 udp_peeraddr(struct socket *so, struct sockaddr **nam)
 {
 
-	return (in_setpeeraddr(so, nam, &udbinfo));
+	return (in_setpeeraddr(so, nam));
 }
 
 struct pr_usrreqs udp_usrreqs = {
