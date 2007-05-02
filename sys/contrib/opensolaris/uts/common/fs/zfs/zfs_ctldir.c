@@ -934,7 +934,7 @@ zfsctl_traverse_begin(vnode_t **vpp, kthread_t *td)
 		return (ENOENT);
 	err = traverse(vpp);
 	if (err == 0)
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(*vpp, LK_SHARED | LK_RETRY, td);
 	return (err);
 }
 
