@@ -373,7 +373,7 @@ lacp_linkstate(struct lagg_port *lgp)
 	old_key = lp->lp_key;
 
 	lp->lp_media = media;
-	if ((media & IFM_HDX) != 0 || ifp->if_link_state == LINK_STATE_DOWN) {
+	if ((media & IFM_FDX) == 0 || ifp->if_link_state == LINK_STATE_DOWN) {
 		lacp_port_disable(lp);
 	} else {
 		lacp_port_enable(lp);
