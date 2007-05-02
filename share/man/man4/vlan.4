@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2006
+.Dd April 24, 2007
 .Dt VLAN 4
 .Os
 .Sh NAME
@@ -108,8 +108,8 @@ help in processing VLANs.
 Such interfaces are automatically recognized by their capabilities.
 Depending on the level of sophistication found in a physical
 interface, it may do full VLAN processing or just be able to
-receive and transmit frames exceeding the maximum Ethernet frame size
-by the length of a 802.1Q header.
+receive and transmit long frames (up to 1522 bytes including an Ethernet
+header and FCS).
 The capabilities may be user-controlled by the respective parameters to
 .Xr ifconfig 8 ,
 .Cm vlanhwtag
@@ -138,8 +138,8 @@ The rest of the Ethernet interfaces can run
 VLANs using software emulation in the
 .Nm
 driver.
-However, most of them lack the capability
-of transmitting and receiving oversized frames.
+However, some of them lack the capability
+of transmitting and receiving long frames.
 Assigning such an interface as the parent to
 .Nm
 will result in a reduced MTU on the corresponding
@@ -151,79 +151,35 @@ connectivity problems due to massive, inadequate
 .Xr icmp 4
 filtering that breaks the Path MTU Discovery mechanism.
 .Pp
-The interfaces that support oversized frames are as follows:
-.Bl -tag -width ".Xr fxp 4 " -offset indent
-.It Xr bfe 4
-supports long frames for
+The following interfaces support long frames for
 .Nm
-natively.
-.It Xr dc 4
-supports long frames for
-.Nm
-natively.
-.It Xr de 4
-requires defining
-.Dv BIG_PACKET
-in the
-.Pa /usr/src/sys/pci/if_de.c
-source file and rebuilding the kernel
-or module.
-The hack works only for the 21041, 21140, and 21140A chips.
-.It Xr fxp 4
-supports long frames for
-.Nm
-natively.
-.It Xr gem 4
-supports long frames for
-.Nm
-natively.
-.It Xr hme 4
-supports long frames for
-.Nm
-natively.
-.It Xr le 4
-supports long frames for
-.Nm
-natively.
-.It Xr rl 4
-supports long frames for
-.Nm
-natively.
-.It Xr sis 4
-supports long frames for
-.Nm
-natively.
-.It Xr sk 4
-supports long frames for
-.Nm
-natively.
-.It Xr ste 4
-supports long frames for
-.Nm
-natively.
-.It Xr tl 4
-has support for long frames.
-.It Xr tx 4
-supports long frames for
-.Nm
-natively.
-.It Xr xl 4
-supports long frames only if the card is built on a newer chip
-(Cyclone and above).
-.El
+natively:
+.Xr bfe 4 ,
+.Xr dc 4 ,
+.Xr fxp 4 ,
+.Xr gem 4 ,
+.Xr hme 4 ,
+.Xr le 4 ,
+.Xr rl 4 ,
+.Xr sis 4 ,
+.Xr sk 4 ,
+.Xr ste 4 ,
+.Xr tx 4 ,
+and
+.Xr xl 4 .
 .Pp
 The
 .Nm
-driver automatically recognizes devices that natively support oversized frames
+driver automatically recognizes devices that natively support long frames
 for
 .Nm
 use and calculates the appropriate frame MTU based on the
 capabilities of the parent interface.
-The other interfaces listed above can handle oversized frames,
+Some other interfaces not listed above may handle long frames,
 but they do not advertise this ability of theirs.
 The MTU setting on
 .Nm
-can be corrected manually if used in conjunction with such parent interface.
+can be corrected manually if used in conjunction with such a parent interface.
 .Sh SEE ALSO
 .Xr kqueue 2 ,
 .Xr miibus 4 ,
