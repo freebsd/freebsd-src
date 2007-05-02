@@ -413,8 +413,53 @@ pmap_bootstrap(firstaddr, loadaddr)
 	for (i = 0; i < NKPT; i++)
 		PTD[i] = 0;
 
+	/* Initialize the PAT MSR if present. */
+	pmap_init_pat();
+
 	/* Turn on PG_G on kernel page(s) */
 	pmap_set_pg();
+}
+
+/*
+ * Setup the PAT MSR.
+ */
+void
+pmap_init_pat(void)
+{
+	uint64_t pat_msr;
+
+	/* Bail if this CPU doesn't implement PAT. */
+	if (!(cpu_feature & CPUID_PAT))
+		return;
+
+#ifdef PAT_WORKS
+	/*
+	 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
+	 * Program 4 and 5 as WP and WC.
+	 * Leave 6 and 7 as UC and UC-.
+	 */
+	pat_msr = rdmsr(MSR_PAT);
+	pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
+	pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
+	    PAT_VALUE(5, PAT_WRITE_COMBINING);
+#else
+	/*
+	 * Due to some Intel errata, we can only safely use the lower 4
+	 * PAT entries.  Thus, just replace PAT Index 2 with WC instead
+	 * of UC-.
+	 *
+	 *   Intel Pentium III Processor Specification Update
+	 * Errata E.27 (Upper Four PAT Entries Not Usable With Mode B
+	 * or Mode C Paging)
+	 *
+	 *   Intel Pentium IV  Processor Specification Update
+	 * Errata N46 (PAT Index MSB May Be Calculated Incorrectly)
+	 */
+	pat_msr = rdmsr(MSR_PAT);
+	pat_msr &= ~PAT_MASK(2);
+	pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
+#endif
+	wrmsr(MSR_PAT, pat_msr);
 }
 
 /*

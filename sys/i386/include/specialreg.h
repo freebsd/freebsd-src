@@ -185,6 +185,7 @@
 #define MSR_MTRR64kBase		0x250
 #define MSR_MTRR16kBase		0x258
 #define MSR_MTRR4kBase		0x268
+#define	MSR_PAT			0x277
 #define MSR_MTRRdefType		0x2ff
 #define MSR_MC0_CTL		0x400
 #define MSR_MC0_STATUS		0x401
@@ -214,6 +215,18 @@
 #define	APICBASE_BSP		0x00000100
 #define	APICBASE_ENABLED	0x00000800
 #define	APICBASE_ADDRESS	0xfffff000
+
+/*
+ * PAT modes.
+ */
+#define	PAT_UNCACHEABLE		0x00
+#define	PAT_WRITE_COMBINING	0x01
+#define	PAT_WRITE_THROUGH	0x04
+#define	PAT_WRITE_PROTECTED	0x05
+#define	PAT_WRITE_BACK		0x06
+#define	PAT_UNCACHED		0x07
+#define	PAT_VALUE(i, m)		((long long)(m) << (8 * (i)))
+#define	PAT_MASK(i)		PAT_VALUE(i, 0xff)
 
 /*
  * Constants related to MTRRs
