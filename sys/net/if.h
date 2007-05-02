@@ -187,7 +187,7 @@ struct if_data {
  *   contains the optional features & capabilities a particular interface
  *   supports (not only the driver but also the detected hw revision).
  *   Capabilities are defined by IFCAP_* below.
- * struct ifnet.if_capenabled
+ * struct ifnet.if_capenable
  *   contains the enabled (either by default or through ifconfig) optional
  *   features & capabilities on this interface.
  *   Capabilities are defined by IFCAP_* below.
@@ -195,7 +195,7 @@ struct if_data {
  *   contains the enabled optional feature & capabilites that can be used
  *   individually per packet and are specified in the mbuf pkthdr.csum_flags
  *   field.  IFCAP_* and CSUM_* do not match one to one and CSUM_* may be
- *   more detailed or differenciated that IFCAP_*.
+ *   more detailed or differenciated than IFCAP_*.
  *   Hwassist features are defined CSUM_* in sys/mbuf.h
  */
 #define IFCAP_RXCSUM		0x0001  /* can offload checksum on RX */
