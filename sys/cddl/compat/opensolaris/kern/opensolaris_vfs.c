@@ -187,7 +187,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	/*
 	 * Allocate and initialize the filesystem.
 	 */
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_SHARED | LK_RETRY, td);
 	mp = vfs_mount_alloc(vp, vfsp, fspath, td);
 	VOP_UNLOCK(vp, 0, td);
 

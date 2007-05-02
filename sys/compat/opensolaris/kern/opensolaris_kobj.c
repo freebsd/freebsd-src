@@ -123,7 +123,7 @@ kobj_get_filesize_vnode(struct _buf *file, uint64_t *size)
 	struct vattr va;
 	int error;
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_SHARED | LK_RETRY, td);
 	error = VOP_GETATTR(vp, &va, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	if (error == 0)
@@ -176,7 +176,7 @@ kobj_read_file_vnode(struct _buf *file, char *buf, unsigned size, unsigned off)
 	auio.uio_resid = size;
 	auio.uio_td = td;
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_SHARED | LK_RETRY, td);
 	error = VOP_READ(vp, &auio, IO_UNIT | IO_SYNC, td->td_ucred);
 	VOP_UNLOCK(vp, 0, td);
 	return (error != 0 ? -1 : size - auio.uio_resid);
