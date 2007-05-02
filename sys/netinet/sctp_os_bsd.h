@@ -226,6 +226,7 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_HEADER_TO_CHAIN(m) (m)
 #define SCTP_HEADER_LEN(m) (m->m_pkthdr.len)
 #define SCTP_GET_HEADER_FOR_OUTPUT(len) sctp_get_mbuf_for_msg(len, 1, M_DONTWAIT, 1, MT_DATA)
+#define SCTP_RELEASE_PAK(i_pak)
 
 /* Attach the chain of data into the sendable packet. */
 #define SCTP_ATTACH_CHAIN(pak, m, packet_length) do { \
@@ -242,7 +243,6 @@ typedef struct callout sctp_os_timer_t;
  * into the chain of data holders, for BSD
  * its a NOP.
  */
-#define SCTP_PAK_TO_BUF(i_pak) (i_pak)
 
 /* Macro's for getting length from V6/V4 header */
 #define SCTP_GET_IPV4_LENGTH(iph) (iph->ip_len)
@@ -271,6 +271,11 @@ typedef struct callout sctp_os_timer_t;
  * routes, output, etc.
  */
 typedef struct route sctp_route_t;
+
+
+struct mbuf *
+sctp_get_mbuf_for_msg(unsigned int space_needed,
+    int want_header, int how, int allonebuf, int type);
 
 
 /*

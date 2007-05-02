@@ -1595,6 +1595,18 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			sctp_queue_op_err(stcb, mb);
 		}
 		SCTP_STAT_INCR(sctps_badsid);
+		SCTP_SET_TSN_PRESENT(asoc->mapping_array, gap);
+		if (compare_with_wrap(tsn, asoc->highest_tsn_inside_map, MAX_TSN)) {
+			/* we have a new high score */
+			asoc->highest_tsn_inside_map = tsn;
+#ifdef SCTP_MAP_LOGGING
+			sctp_log_map(0, 2, asoc->highest_tsn_inside_map, SCTP_MAP_SLIDE_RESULT);
+#endif
+		}
+		if (tsn == (asoc->cumulative_tsn + 1)) {
+			/* Update cum-ack */
+			asoc->cumulative_tsn = tsn;
+		}
 		return (0);
 	}
 	/*
@@ -1631,10 +1643,6 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			    asoc->strmin[strmno].last_sequence_delivered);
 		}
 #endif
-		/*
-		 * throw it in the stream so it gets cleaned up in
-		 * association destruction
-		 */
 		oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + 3 * sizeof(uint32_t)),
 		    0, M_DONTWAIT, 1, MT_DATA);
 		if (oper) {
@@ -2014,7 +2022,7 @@ failed_pdapi_express_del:
 			struct sctp_stream_reset_list *liste;
 
 			if (((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) &&
-			    ((compare_with_wrap(tsn, liste->tsn, MAX_TSN)) ||
+			    ((compare_with_wrap(tsn, ntohl(liste->tsn), MAX_TSN)) ||
 			    (tsn == ntohl(liste->tsn)))
 			    ) {
 				/*
@@ -2181,6 +2189,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 	all_ones = 1;
 	at = 0;
 	for (i = 0; i < stcb->asoc.mapping_array_size; i++) {
+
 		if (asoc->mapping_array[i] == 0xff) {
 			at += 8;
 			last_all_ones = 1;
@@ -2294,8 +2303,8 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 	}
 	/* check the special flag for stream resets */
 	if (((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) &&
-	    ((compare_with_wrap(asoc->cumulative_tsn, liste->tsn, MAX_TSN)) ||
-	    (asoc->cumulative_tsn == liste->tsn))
+	    ((compare_with_wrap(asoc->cumulative_tsn, ntohl(liste->tsn), MAX_TSN)) ||
+	    (asoc->cumulative_tsn == ntohl(liste->tsn)))
 	    ) {
 		/*
 		 * we have finished working through the backlogged TSN's now
@@ -2322,7 +2331,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 			}
 		} else if (ctl) {
 			/* more than one in queue */
-			while (!compare_with_wrap(ctl->sinfo_tsn, liste->tsn, MAX_TSN)) {
+			while (!compare_with_wrap(ctl->sinfo_tsn, ntohl(liste->tsn), MAX_TSN)) {
 				/*
 				 * if ctl->sinfo_tsn is <= liste->tsn we can
 				 * process it which is the NOT of
@@ -2522,12 +2531,13 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	 */
 	asoc->last_data_chunk_from = net;
 
-	/*
+	/*-
 	 * Now before we proceed we must figure out if this is a wasted
 	 * cluster... i.e. it is a small packet sent in and yet the driver
 	 * underneath allocated a full cluster for it. If so we must copy it
 	 * to a smaller mbuf and free up the cluster mbuf. This will help
-	 * with cluster starvation.
+	 * with cluster starvation. Note for __Panda__ we don't do this
+	 * since it has clusters all the way down to 64 bytes.
 	 */
 	if (SCTP_BUF_LEN(m) < (long)MLEN && SCTP_BUF_NEXT(m) == NULL) {
 		/* we only handle mbufs that are singletons.. not chains */
@@ -3082,6 +3092,11 @@ sctp_check_for_revoked(struct sctp_tcb *stcb,
 			 * time i.e. revoked.  If it is MARKED it was ACK'ed
 			 * again.
 			 */
+			if (compare_with_wrap(tp1->rec.data.TSN_seq, biggest_tsn_acked,
+			    MAX_TSN))
+				break;
+
+
 			if (tp1->sent == SCTP_DATAGRAM_ACKED) {
 				/* it has been revoked */
 				tp1->sent = SCTP_DATAGRAM_SENT;
@@ -4148,13 +4163,32 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	uint32_t old_rwnd;
 	int win_probe_recovery = 0;
 	int win_probe_recovered = 0;
-	int j, done_once;;
+	int j, done_once = 0;
 
+
+#ifdef SCTP_LOG_SACK_ARRIVALS
+	sctp_misc_ints(SCTP_SACK_LOG_EXPRESS, cumack,
+	    rwnd, stcb->asoc.last_acked_seq, stcb->asoc.peers_rwnd);
+#endif
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
+	old_rwnd = asoc->peers_rwnd;
 	if (compare_with_wrap(asoc->last_acked_seq, cumack, MAX_TSN)) {
 		/* old ack */
 		return;
+	} else if (asoc->last_acked_seq == cumack) {
+		/* Window update sack */
+		asoc->peers_rwnd = sctp_sbspace_sub(rwnd,
+		    (uint32_t) (asoc->total_flight + (asoc->sent_queue_cnt * sctp_peer_chunk_oh)));
+		if (asoc->peers_rwnd < stcb->sctp_ep->sctp_ep.sctp_sws_sender) {
+			/* SWS sender side engages */
+			asoc->peers_rwnd = 0;
+		}
+		if (asoc->peers_rwnd > old_rwnd) {
+			goto again;
+		}
+		return;
+
 	}
 	/* First setup for CC stuff */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
@@ -4210,7 +4244,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 #endif
 		}
 	}
-	old_rwnd = asoc->peers_rwnd;
 	asoc->this_sack_highest_gap = cumack;
 	stcb->asoc.overall_error_count = 0;
 	if (compare_with_wrap(cumack, asoc->last_acked_seq, MAX_TSN)) {
@@ -4411,7 +4444,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		win_probe_recovery = 1;
 	}
 	/* Now assure a timer where data is queued at */
-	done_once = 0;
 again:
 	j = 0;
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
@@ -4574,7 +4606,7 @@ again:
 
 void
 sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
-    struct sctp_nets *net_from, int *abort_now)
+    struct sctp_nets *net_from, int *abort_now, int sack_len, uint32_t rwnd)
 {
 	struct sctp_association *asoc;
 	struct sctp_sack *sack;
@@ -4624,22 +4656,18 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 	/* CMT DAC algo */
 	this_sack_lowest_newack = 0;
 	j = 0;
-	sack_length = ntohs(ch->ch.chunk_length);
-	if (sack_length < sizeof(struct sctp_sack_chunk)) {
-#ifdef SCTP_DEBUG
-		if (sctp_debug_on & SCTP_DEBUG_INDATA1) {
-			printf("Bad size on sack chunk .. to small\n");
-		}
-#endif
-		return;
-	}
+	sack_length = (unsigned int)sack_len;
 	/* ECN Nonce */
 	SCTP_STAT_INCR(sctps_slowpath_sack);
 	nonce_sum_flag = ch->ch.chunk_flags & SCTP_SACK_NONCE_SUM;
 	cum_ack = last_tsn = ntohl(sack->cum_tsn_ack);
 	num_seg = ntohs(sack->num_gap_ack_blks);
-	a_rwnd = (uint32_t) ntohl(sack->a_rwnd);
+	a_rwnd = rwnd;
 
+#ifdef SCTP_LOG_SACK_ARRIVALS
+	sctp_misc_ints(SCTP_SACK_LOG_NORMAL, cum_ack,
+	    rwnd, stcb->asoc.last_acked_seq, stcb->asoc.peers_rwnd);
+#endif
 	/* CMT DAC algo */
 	cmt_dac_flag = ch->ch.chunk_flags & SCTP_SACK_CMT_DAC;
 	num_dup = ntohs(sack->num_dup_tsns);

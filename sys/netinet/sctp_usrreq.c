@@ -3331,15 +3331,15 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 
 			SCTP_CHECK_AND_CAST(sspp, optval, struct sctp_setpeerprim, optsize);
 			SCTP_FIND_STCB(inp, stcb, sspp->sspp_assoc_id);
-
-			if (stcb) {
+			if (stcb != NULL) {
 				if (sctp_set_primary_ip_address_sa(stcb, (struct sockaddr *)&sspp->sspp_addr) != 0) {
 					error = EINVAL;
 				}
+				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				error = EINVAL;
 			}
-			SCTP_TCB_UNLOCK(stcb);
+
 		}
 		break;
 	case SCTP_BINDX_ADD_ADDR:
@@ -3651,6 +3651,7 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 	error = solisten_proto_check(so);
 	if (error) {
 		SOCK_UNLOCK(so);
+		SCTP_INP_RUNLOCK(inp);
 		return (error);
 	}
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
@@ -3674,7 +3675,6 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 	}
 	/* It appears for 7.0 and on, we must always call this. */
 	solisten_proto(so, backlog);
-
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) {
 		/* remove the ACCEPTCONN flag for one-to-many sockets */
 		so->so_options &= ~SO_ACCEPTCONN;
