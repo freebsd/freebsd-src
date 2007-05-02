@@ -3160,43 +3160,6 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, int cpsize)
 	return (0);
 }
 
-
-struct mbuf *
-sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
-    int how, int allonebuf, int type)
-{
-	struct mbuf *m = NULL;
-
-	m = m_getm2(NULL, space_needed, how, type, want_header ? M_PKTHDR : 0);
-	if (allonebuf) {
-		int siz;
-
-		if (SCTP_BUF_IS_EXTENDED(m)) {
-			siz = SCTP_BUF_EXTEND_SIZE(m);
-		} else {
-			if (want_header)
-				siz = MHLEN;
-			else
-				siz = MLEN;
-		}
-		if (siz < space_needed) {
-			m_freem(m);
-			return (NULL);
-		}
-	}
-	if (SCTP_BUF_NEXT(m)) {
-		sctp_m_freem(SCTP_BUF_NEXT(m));
-		SCTP_BUF_NEXT(m) = NULL;
-	}
-#ifdef SCTP_MBUF_LOGGING
-	if (SCTP_BUF_IS_EXTENDED(m)) {
-		sctp_log_mb(m, SCTP_MBUF_IALLOC);
-	}
-#endif
-	return (m);
-}
-
-
 static struct mbuf *
 sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
     struct mbuf *initack, int initack_offset, struct sctp_state_cookie *stc_in)
@@ -3569,10 +3532,11 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			printf("RTP route is %p through\n", ro->ro_rt);
 		}
 #endif
-
+#ifdef _WHY_THIS_CODE
 		if ((have_mtu) && (net) && (have_mtu > net->mtu)) {
 			ro->ro_rt->rt_ifp->if_mtu = net->mtu;
 		}
+#endif
 		if (ro != &iproute) {
 			memcpy(&iproute, ro, sizeof(*ro));
 		}
@@ -3580,9 +3544,11 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		    ro, o_flgs, inp->ip_inp.inp.inp_moptions
 		    ,(struct inpcb *)NULL
 		    );
+#ifdef _WHY_THIS_CODE
 		if ((ro->ro_rt) && (have_mtu) && (net) && (have_mtu > net->mtu)) {
 			ro->ro_rt->rt_ifp->if_mtu = have_mtu;
 		}
+#endif
 		SCTP_STAT_INCR(sctps_sendpackets);
 		SCTP_STAT_INCR_COUNTER64(sctps_outpackets);
 		if (ret)
@@ -4150,9 +4116,9 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 	struct sctp_paramhdr *phdr, params;
 
 	struct mbuf *mat, *op_err;
-	char tempbuf[SCTP_CHUNK_BUFFER_SIZE];
+	char tempbuf[SCTP_PARAM_BUFFER_SIZE];
 	int at, limit, pad_needed;
-	uint16_t ptype, plen;
+	uint16_t ptype, plen, padded_size;
 	int err_at;
 
 	*abort_processing = 0;
@@ -4166,105 +4132,164 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 	while ((phdr != NULL) && ((size_t)limit >= sizeof(struct sctp_paramhdr))) {
 		ptype = ntohs(phdr->param_type);
 		plen = ntohs(phdr->param_length);
-		limit -= SCTP_SIZE32(plen);
-		if (plen < sizeof(struct sctp_paramhdr)) {
-#ifdef SCTP_DEBUG
-			if (sctp_debug_on & SCTP_DEBUG_OUTPUT4) {
-				printf("sctp_output.c:Impossible length in parameter < %d\n", plen);
-			}
-#endif
-			*abort_processing = 1;
-			break;
+		if ((plen > limit) || (plen < sizeof(struct sctp_paramhdr))) {
+			/* wacked parameter */
+			goto invalid_size;
 		}
-		/*
+		limit -= SCTP_SIZE32(plen);
+		/*-
 		 * All parameters for all chunks that we know/understand are
 		 * listed here. We process them other places and make
 		 * appropriate stop actions per the upper bits. However this
 		 * is the generic routine processor's can call to get back
 		 * an operr.. to either incorporate (init-ack) or send.
 		 */
-		if ((ptype == SCTP_HEARTBEAT_INFO) ||
-		    (ptype == SCTP_IPV4_ADDRESS) ||
-		    (ptype == SCTP_IPV6_ADDRESS) ||
-		    (ptype == SCTP_STATE_COOKIE) ||
-		    (ptype == SCTP_UNRECOG_PARAM) ||
-		    (ptype == SCTP_COOKIE_PRESERVE) ||
-		    (ptype == SCTP_SUPPORTED_ADDRTYPE) ||
-		    (ptype == SCTP_PRSCTP_SUPPORTED) ||
-		    (ptype == SCTP_ADD_IP_ADDRESS) ||
-		    (ptype == SCTP_DEL_IP_ADDRESS) ||
-		    (ptype == SCTP_ECN_CAPABLE) ||
-		    (ptype == SCTP_ULP_ADAPTATION) ||
-		    (ptype == SCTP_ERROR_CAUSE_IND) ||
-		    (ptype == SCTP_RANDOM) ||
-		    (ptype == SCTP_CHUNK_LIST) ||
-		    (ptype == SCTP_CHUNK_LIST) ||
-		    (ptype == SCTP_SET_PRIM_ADDR) ||
-		    (ptype == SCTP_SUCCESS_REPORT) ||
-		    (ptype == SCTP_ULP_ADAPTATION) ||
-		    (ptype == SCTP_SUPPORTED_CHUNK_EXT) ||
-		    (ptype == SCTP_ECN_NONCE_SUPPORTED)
-		    ) {
-			/* no skip it */
-			at += SCTP_SIZE32(plen);
-		} else if (ptype == SCTP_HOSTNAME_ADDRESS) {
-			/* We can NOT handle HOST NAME addresses!! */
-			int l_len;
+		padded_size = SCTP_SIZE32(plen);
+		switch (ptype) {
+			/* Param's with variable size */
+		case SCTP_HEARTBEAT_INFO:
+		case SCTP_STATE_COOKIE:
+		case SCTP_UNRECOG_PARAM:
+		case SCTP_ERROR_CAUSE_IND:
+			/* ok skip fwd */
+			at += padded_size;
+			break;
+			/* Param's with variable size within a range */
+		case SCTP_CHUNK_LIST:
+		case SCTP_SUPPORTED_CHUNK_EXT:
+			if (padded_size > (sizeof(struct sctp_supported_chunk_types_param) + (sizeof(uint8_t) * SCTP_MAX_SUPPORTED_EXT))) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+		case SCTP_SUPPORTED_ADDRTYPE:
+			if (padded_size > SCTP_MAX_ADDR_PARAMS_SIZE) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+		case SCTP_RANDOM:
+			if (padded_size > (sizeof(struct sctp_auth_random) + SCTP_RANDOM_MAX_SIZE)) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+		case SCTP_SET_PRIM_ADDR:
+		case SCTP_DEL_IP_ADDRESS:
+		case SCTP_ADD_IP_ADDRESS:
+			if ((padded_size != sizeof(struct sctp_asconf_addrv4_param)) &&
+			    (padded_size != sizeof(struct sctp_asconf_addr_param))) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+			/* Param's with a fixed size */
+		case SCTP_IPV4_ADDRESS:
+			if (padded_size != sizeof(struct sctp_ipv4addr_param)) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+		case SCTP_IPV6_ADDRESS:
+			if (padded_size != sizeof(struct sctp_ipv6addr_param)) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+		case SCTP_COOKIE_PRESERVE:
+			if (padded_size != sizeof(struct sctp_cookie_perserve_param)) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+		case SCTP_ECN_NONCE_SUPPORTED:
+		case SCTP_PRSCTP_SUPPORTED:
+			if (padded_size != sizeof(struct sctp_paramhdr)) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+		case SCTP_ECN_CAPABLE:
+			if (padded_size != sizeof(struct sctp_ecn_supported_param)) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+		case SCTP_ULP_ADAPTATION:
+			if (padded_size != sizeof(struct sctp_adaptation_layer_indication)) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+		case SCTP_SUCCESS_REPORT:
+			if (padded_size != sizeof(struct sctp_asconf_paramhdr)) {
+				goto invalid_size;
+			}
+			at += padded_size;
+			break;
+		case SCTP_HOSTNAME_ADDRESS:
+			{
+				/* We can NOT handle HOST NAME addresses!! */
+				int l_len;
 
 #ifdef SCTP_DEBUG
-			if (sctp_debug_on & SCTP_DEBUG_OUTPUT4) {
-				printf("Can't handle hostname addresses.. abort processing\n");
-			}
+				if (sctp_debug_on & SCTP_DEBUG_OUTPUT4) {
+					printf("Can't handle hostname addresses.. abort processing\n");
+				}
 #endif
-			*abort_processing = 1;
-			if (op_err == NULL) {
-				/* Ok need to try to get a mbuf */
-				l_len = sizeof(struct ip6_hdr) + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
-				l_len += plen;
-				l_len += sizeof(struct sctp_paramhdr);
-				op_err = sctp_get_mbuf_for_msg(l_len, 0, M_DONTWAIT, 1, MT_DATA);
+				*abort_processing = 1;
+				if (op_err == NULL) {
+					/* Ok need to try to get a mbuf */
+					l_len = sizeof(struct ip6_hdr) + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
+					l_len += plen;
+					l_len += sizeof(struct sctp_paramhdr);
+					op_err = sctp_get_mbuf_for_msg(l_len, 0, M_DONTWAIT, 1, MT_DATA);
+					if (op_err) {
+						SCTP_BUF_LEN(op_err) = 0;
+						/*
+						 * pre-reserve space for ip
+						 * and sctp header  and
+						 * chunk hdr
+						 */
+						SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
+						SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
+						SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
+					}
+				}
 				if (op_err) {
-					SCTP_BUF_LEN(op_err) = 0;
-					/*
-					 * pre-reserve space for ip and sctp
-					 * header  and chunk hdr
-					 */
-					SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
-					SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
-					SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
-				}
-			}
-			if (op_err) {
-				/* If we have space */
-				struct sctp_paramhdr s;
+					/* If we have space */
+					struct sctp_paramhdr s;
 
-				if (err_at % 4) {
-					uint32_t cpthis = 0;
+					if (err_at % 4) {
+						uint32_t cpthis = 0;
 
-					pad_needed = 4 - (err_at % 4);
-					m_copyback(op_err, err_at, pad_needed, (caddr_t)&cpthis);
-					err_at += pad_needed;
+						pad_needed = 4 - (err_at % 4);
+						m_copyback(op_err, err_at, pad_needed, (caddr_t)&cpthis);
+						err_at += pad_needed;
+					}
+					s.param_type = htons(SCTP_CAUSE_UNRESOLVABLE_ADDR);
+					s.param_length = htons(sizeof(s) + plen);
+					m_copyback(op_err, err_at, sizeof(s), (caddr_t)&s);
+					err_at += sizeof(s);
+					phdr = sctp_get_next_param(mat, at, (struct sctp_paramhdr *)tempbuf, min(sizeof(tempbuf), plen));
+					if (phdr == NULL) {
+						sctp_m_freem(op_err);
+						/*
+						 * we are out of memory but
+						 * we still need to have a
+						 * look at what to do (the
+						 * system is in trouble
+						 * though).
+						 */
+						return (NULL);
+					}
+					m_copyback(op_err, err_at, plen, (caddr_t)phdr);
+					err_at += plen;
 				}
-				s.param_type = htons(SCTP_CAUSE_UNRESOLVABLE_ADDR);
-				s.param_length = htons(sizeof(s) + plen);
-				m_copyback(op_err, err_at, sizeof(s), (caddr_t)&s);
-				err_at += sizeof(s);
-				phdr = sctp_get_next_param(mat, at, (struct sctp_paramhdr *)tempbuf, plen);
-				if (phdr == NULL) {
-					sctp_m_freem(op_err);
-					/*
-					 * we are out of memory but we still
-					 * need to have a look at what to do
-					 * (the system is in trouble
-					 * though).
-					 */
-					return (NULL);
-				}
-				m_copyback(op_err, err_at, plen, (caddr_t)phdr);
-				err_at += plen;
+				return (op_err);
+				break;
 			}
-			return (op_err);
-		} else {
+		default:
 			/*
 			 * we do not recognize the parameter figure out what
 			 * we do.
@@ -4304,7 +4329,7 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 					if (plen > sizeof(tempbuf)) {
 						plen = sizeof(tempbuf);
 					}
-					phdr = sctp_get_next_param(mat, at, (struct sctp_paramhdr *)tempbuf, plen);
+					phdr = sctp_get_next_param(mat, at, (struct sctp_paramhdr *)tempbuf, min(sizeof(tempbuf), plen));
 					if (phdr == NULL) {
 						sctp_m_freem(op_err);
 						/*
@@ -4314,6 +4339,7 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 						 * system is in trouble
 						 * though).
 						 */
+						op_err = NULL;
 						goto more_processing;
 					}
 					m_copyback(op_err, err_at, plen, (caddr_t)phdr);
@@ -4327,9 +4353,41 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 				/* skip this chunk and continue processing */
 				at += SCTP_SIZE32(plen);
 			}
+			break;
 
 		}
 		phdr = sctp_get_next_param(mat, at, &params, sizeof(params));
+	}
+	return (op_err);
+invalid_size:
+	*abort_processing = 1;
+	if ((op_err == NULL) && phdr) {
+		int l_len;
+
+		l_len = sizeof(struct ip6_hdr) + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
+		l_len += (2 * sizeof(struct sctp_paramhdr));
+		op_err = sctp_get_mbuf_for_msg(l_len, 0, M_DONTWAIT, 1, MT_DATA);
+		SCTP_BUF_LEN(op_err) = 0;
+		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
+		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
+		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
+	}
+	if ((op_err) && phdr) {
+		struct sctp_paramhdr s;
+
+		if (err_at % 4) {
+			uint32_t cpthis = 0;
+
+			pad_needed = 4 - (err_at % 4);
+			m_copyback(op_err, err_at, pad_needed, (caddr_t)&cpthis);
+			err_at += pad_needed;
+		}
+		s.param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
+		s.param_length = htons(sizeof(s) + sizeof(struct sctp_paramhdr));
+		m_copyback(op_err, err_at, sizeof(s), (caddr_t)&s);
+		err_at += sizeof(s);
+		/* Only copy back the p-hdr that caused the issue */
+		m_copyback(op_err, err_at, sizeof(struct sctp_paramhdr), (caddr_t)phdr);
 	}
 	return (op_err);
 }
@@ -7976,6 +8034,9 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 #endif
 		asoc->sent_queue_cnt = 0;
 		asoc->sent_queue_cnt_removeable = 0;
+		/* send back 0/0 so we enter normal transmission */
+		*cnt_out = 0;
+		return (0);
 	}
 	TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
 		if ((chk->rec.chunk_id.id == SCTP_COOKIE_ECHO) ||
@@ -8444,13 +8505,16 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 {
 	/*-
 	 * Ok this is the generic chunk service queue. we must do the
-	 * following: - See if there are retransmits pending, if so we must
-	 * do these first and return. - Service the stream queue that is
-	 * next, moving any message (note I must get a complete message i.e.
-	 * FIRST/MIDDLE and LAST to the out queue in one pass) and assigning
-	 * TSN's - Check to see if the cwnd/rwnd allows any output, if so we
-	 * go ahead and fomulate and send the low level chunks. Making sure
-	 * to combine any control in the control chunk queue also.
+	 * following:
+	 * - See if there are retransmits pending, if so we must
+	 *   do these first.
+	 * - Service the stream queue that is next, moving any
+	 *   message (note I must get a complete message i.e.
+	 *   FIRST/MIDDLE and LAST to the out queue in one pass) and assigning
+	 *   TSN's
+	 * - Check to see if the cwnd/rwnd allows any output, if so we
+	 *   go ahead and fomulate and send the low level chunks. Making sure
+	 *   to combine any control in the control chunk queue also.
 	 */
 	struct sctp_association *asoc;
 	struct sctp_nets *net;
@@ -8497,7 +8561,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 		 */
 		if (from_where == SCTP_OUTPUT_FROM_COOKIE_ACK) {
 			/*-
-			 *Special hook for handling cookiess discarded
+			 * Special hook for handling cookiess discarded
 			 * by peer that carried data. Send cookie-ack only
 			 * and then the next call with get the retran's.
 			 */
@@ -9064,7 +9128,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	gap_descriptor = (struct sctp_gap_ack_block *)((caddr_t)sack + sizeof(struct sctp_sack_chunk));
 
 	siz = (((asoc->highest_tsn_inside_map - asoc->mapping_array_base_tsn) + 1) + 7) / 8;
-	if (asoc->cumulative_tsn < asoc->mapping_array_base_tsn) {
+	if (compare_with_wrap(asoc->mapping_array_base_tsn, asoc->cumulative_tsn, MAX_TSN)) {
 		offset = 1;
 		/*-
 		 * cum-ack behind the mapping array, so we start and use all
@@ -9075,7 +9139,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 		offset = asoc->mapping_array_base_tsn - asoc->cumulative_tsn;
 		/*-
 		 * we skip the first one when the cum-ack is at or above the
-		 * mapping array base.
+		 * mapping array base. Note this only works if
 		 */
 		jstart = 1;
 	}
@@ -11142,11 +11206,15 @@ sctp_lower_sosend(struct socket *so,
 		}
 		initial_out = uio->uio_resid;
 
+		SCTP_TCB_SEND_LOCK(stcb);
 		if ((asoc->stream_locked) &&
 		    (asoc->stream_locked_on != srcv->sinfo_stream)) {
+			SCTP_TCB_SEND_UNLOCK(stcb);
 			error = EAGAIN;
 			goto out;
 		}
+		SCTP_TCB_SEND_UNLOCK(stcb);
+
 		strm = &stcb->asoc.strmout[srcv->sinfo_stream];
 		user_marks_eor = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXPLICIT_EOR);
 		if (strm->last_msg_incomplete == 0) {

@@ -196,7 +196,10 @@ __FBSDID("$FreeBSD$");
 #define SCTP_FLIGHT_LOG_UP_REVOKE  113
 #define SCTP_FLIGHT_LOG_DOWN_PDRP  114
 #define SCTP_FLIGHT_LOG_DOWN_PMTU  115
-#define SCTP_LOG_MAX_TYPES 116
+#define SCTP_SACK_LOG_NORMAL	   116
+#define SCTP_SACK_LOG_EXPRESS	   117
+
+#define SCTP_LOG_MAX_TYPES 118
 /*
  * To turn on various logging, you must first define SCTP_STAT_LOGGING. Then
  * to get something to log you define one of the logging defines i.e.

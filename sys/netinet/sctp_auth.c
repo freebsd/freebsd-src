@@ -1440,7 +1440,7 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 			if (plen > sizeof(random_store))
 				break;
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)random_store, plen);
+			    (struct sctp_paramhdr *)random_store, min(plen, sizeof(random_store)));
 			if (phdr == NULL)
 				return;
 			/* save the random and length for the key */
@@ -1453,7 +1453,7 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 			if (plen > sizeof(hmacs_store))
 				break;
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)hmacs_store, plen);
+			    (struct sctp_paramhdr *)hmacs_store, min(plen, sizeof(hmacs_store)));
 			if (phdr == NULL)
 				return;
 			/* save the hmacs list and num for the key */
@@ -1475,7 +1475,7 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 			if (plen > sizeof(chunks_store))
 				break;
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)chunks_store, plen);
+			    (struct sctp_paramhdr *)chunks_store, min(plen, sizeof(chunks_store)));
 			if (phdr == NULL)
 				return;
 			chunks = (struct sctp_auth_chunk_list *)phdr;
@@ -1850,7 +1850,7 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 			int num_ent, i;
 
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)&local_store, plen);
+			    (struct sctp_paramhdr *)&local_store, min(plen, sizeof(local_store)));
 			if (phdr == NULL) {
 				return (-1);
 			}
@@ -1889,7 +1889,7 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 			if (plen > sizeof(store))
 				break;
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)store, plen);
+			    (struct sctp_paramhdr *)store, min(plen, sizeof(store)));
 			if (phdr == NULL)
 				return (-1);
 			hmacs = (struct sctp_auth_hmac_algo *)phdr;

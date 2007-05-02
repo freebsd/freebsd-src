@@ -240,6 +240,8 @@ bad:
 	}
 	if (m)
 		m_freem(m);
+	/* For BSD/MAC this does nothing */
+	SCTP_RELEASE_PAK(*i_pak);
 	return IPPROTO_DONE;
 }
 

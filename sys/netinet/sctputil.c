@@ -3846,7 +3846,8 @@ sctp_print_address_pkt(struct ip *iph, struct sctphdr *sh)
 void
 sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
     struct sctp_inpcb *new_inp,
-    struct sctp_tcb *stcb)
+    struct sctp_tcb *stcb,
+    int waitflags)
 {
 	/*
 	 * go through our old INP and pull off any control structures that
@@ -3861,11 +3862,8 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 	old_so = old_inp->sctp_socket;
 	new_so = new_inp->sctp_socket;
 	TAILQ_INIT(&tmp_queue);
-
 	SOCKBUF_LOCK(&(old_so->so_rcv));
-
-	error = sblock(&old_so->so_rcv, 0);
-
+	error = sblock(&old_so->so_rcv, waitflags);
 	SOCKBUF_UNLOCK(&(old_so->so_rcv));
 	if (error) {
 		/*
@@ -3904,13 +3902,11 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 		control = nctl;
 	}
 	SCTP_INP_READ_UNLOCK(old_inp);
-
 	/* Remove the sb-lock on the old socket */
 	SOCKBUF_LOCK(&(old_so->so_rcv));
 
 	sbunlock(&old_so->so_rcv);
 	SOCKBUF_UNLOCK(&(old_so->so_rcv));
-
 	/* Now we move them over to the new socket buffer */
 	control = TAILQ_FIRST(&tmp_queue);
 	SCTP_INP_READ_LOCK(new_inp);
@@ -4295,43 +4291,6 @@ sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr, int holds_loc
 	}
 	if (holds_lock == 0)
 		SCTP_INP_RUNLOCK(inp);
-	return (NULL);
-}
-
-struct sctp_ifa *
-sctp_find_ifa_in_ifn(struct sctp_ifn *sctp_ifnp, struct sockaddr *addr,
-    int holds_lock)
-{
-	struct sctp_ifa *sctp_ifap;
-
-	if (holds_lock == 0)
-		SCTP_IPI_ADDR_LOCK();
-
-	LIST_FOREACH(sctp_ifap, &sctp_ifnp->ifalist, next_ifa) {
-		if (addr->sa_family != sctp_ifap->address.sa.sa_family)
-			continue;
-		if (addr->sa_family == AF_INET) {
-			if (((struct sockaddr_in *)addr)->sin_addr.s_addr ==
-			    sctp_ifap->address.sin.sin_addr.s_addr) {
-				/* found him. */
-				if (holds_lock == 0)
-					SCTP_IPI_ADDR_UNLOCK();
-				return (sctp_ifap);
-				break;
-			}
-		} else if (addr->sa_family == AF_INET6) {
-			if (SCTP6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)addr)->sin6_addr,
-			    &sctp_ifap->address.sin6.sin6_addr)) {
-				/* found him. */
-				if (holds_lock == 0)
-					SCTP_IPI_ADDR_UNLOCK();
-				return (sctp_ifap);
-				break;
-			}
-		}
-	}
-	if (holds_lock == 0)
-		SCTP_IPI_ADDR_UNLOCK();
 	return (NULL);
 }
 
@@ -4741,6 +4700,10 @@ restart_nosblocks:
 		}
 		goto out;
 	}
+	if (hold_sblock == 1) {
+		SOCKBUF_UNLOCK(&so->so_rcv);
+		hold_sblock = 0;
+	}
 	error = sblock(&so->so_rcv, (block_allowed ? M_WAITOK : 0));
 	/* we possibly have data we can read */
 	control = TAILQ_FIRST(&inp->read_queue);
@@ -4862,9 +4825,6 @@ found_one:
 	 * If we reach here, control has a some data for us to read off.
 	 * Note that stcb COULD be NULL.
 	 */
-	if (control->do_not_ref_stcb == 0) {
-		control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 1;
-	}
 	control->some_taken = 1;
 	if (hold_sblock) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
@@ -4900,6 +4860,9 @@ found_one:
 			freed_so_far = stcb->freed_by_sorcv_sincelast;
 			stcb->freed_by_sorcv_sincelast = 0;
 		}
+	}
+	if (stcb && control->do_not_ref_stcb == 0) {
+		stcb->asoc.strmin[control->sinfo_stream].delivery_started = 1;
 	}
 	/* First lets get off the sinfo and sockaddr info */
 	if ((sinfo) && filling_sinfo) {
