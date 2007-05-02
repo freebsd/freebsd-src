@@ -1109,11 +1109,15 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		}
 	}
 	if (error == 0 && (nm[0] != '.' || nm[1] != '\0')) {
-		if (cnp->cn_flags & ISDOTDOT)
+		int ltype = 0;
+
+		if (cnp->cn_flags & ISDOTDOT) {
+			ltype = VOP_ISLOCKED(dvp, td);
 			VOP_UNLOCK(dvp, 0, td);
+		}
 		error = vn_lock(*vpp, cnp->cn_lkflags, td);
 		if (cnp->cn_flags & ISDOTDOT)
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(dvp, ltype | LK_RETRY, td);
 		if (error != 0) {
 			VN_RELE(*vpp);
 			*vpp = NULL;
