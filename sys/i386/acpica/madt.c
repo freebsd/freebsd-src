@@ -203,15 +203,15 @@ madt_probe(void)
 
 	/*
 	 * Map in the RSDP.  Since ACPI uses AcpiOsMapMemory() which in turn
-	 * calls pmap_mapdev() to find the RSDP, we assume that we can use
-	 * pmap_mapdev() to map the RSDP.
+	 * calls pmap_mapbios() to find the RSDP, we assume that we can use
+	 * pmap_mapbios() to map the RSDP.
 	 */
 	if (AcpiOsGetRootPointer(ACPI_LOGICAL_ADDRESSING, &rsdp_ptr) != AE_OK)
 		return (ENXIO);
 #ifdef __i386__
 	KASSERT(rsdp_ptr.Pointer.Physical < KERNLOAD, ("RSDP too high"));
 #endif
-	rsdp = pmap_mapdev(rsdp_ptr.Pointer.Physical, sizeof(RSDP_DESCRIPTOR));
+	rsdp = pmap_mapbios(rsdp_ptr.Pointer.Physical, sizeof(RSDP_DESCRIPTOR));
 	if (rsdp == NULL) {
 		if (bootverbose)
 			printf("MADT: Failed to map RSDP\n");
@@ -261,7 +261,7 @@ madt_probe(void)
 				break;
 		madt_unmap_table(rsdt);
 	}
-	pmap_unmapdev((vm_offset_t)rsdp, sizeof(RSDP_DESCRIPTOR));
+	pmap_unmapbios((vm_offset_t)rsdp, sizeof(RSDP_DESCRIPTOR));
 	if (madt_physaddr == 0) {
 		if (bootverbose)
 			printf("MADT: No MADT table found\n");
@@ -335,7 +335,7 @@ static int
 madt_setup_local(void)
 {
 
-	madt = pmap_mapdev(madt_physaddr, madt_length);
+	madt = pmap_mapbios(madt_physaddr, madt_length);
 	lapic_init((uintptr_t)madt->LocalApicAddress);
 	printf("ACPI APIC Table: <%.*s %.*s>\n",
 	    (int)sizeof(madt->OemId), madt->OemId,

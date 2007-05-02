@@ -119,6 +119,8 @@ extern uint64_t pmap_vhpt_base[];
 extern int pmap_vhpt_log2size;
 
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
+#define	pmap_mapbios(pa, sz)	pmap_mapdev(pa, sz)
+#define	pmap_unmapbios(va, sz)	pmap_unmapdev(va, sz)
 
 vm_offset_t pmap_steal_memory(vm_size_t);
 void	pmap_bootstrap(void);
