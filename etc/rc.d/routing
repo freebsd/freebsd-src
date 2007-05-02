@@ -61,15 +61,6 @@ static_start()
 options_start()
 {
 	echo -n 'Additional routing options:'
-	case ${tcp_extensions} in
-	[Yy][Ee][Ss] | '')
-		;;
-	*)
-		echo -n ' tcp extensions=NO'
-		sysctl net.inet.tcp.rfc1323=0 >/dev/null
-		;;
-	esac
-
 	case ${icmp_bmcastecho} in
 	[Yy][Ee][Ss])
 		echo -n ' broadcast ping responses=YES'
@@ -112,20 +103,6 @@ options_start()
 		;;
 	esac
 
-	case ${tcp_keepalive} in
-	[Nn][Oo])
-		echo -n ' TCP keepalive=NO'
-		sysctl net.inet.tcp.always_keepalive=0 >/dev/null
-		;;
-	esac
-
-	case ${tcp_drop_synfin} in
-	[Yy][Ee][Ss])
-		echo -n ' drop SYN+FIN packets=YES'
-		sysctl net.inet.tcp.drop_synfin=1 >/dev/null
-		;;
-	esac
-
 	case ${ipxgateway_enable} in
 	[Yy][Ee][Ss])
 		echo -n ' IPX gateway=YES'
@@ -137,24 +114,6 @@ options_start()
 	[Yy][Ee][Ss])
 		echo -n ' ARP proxyall=YES'
 		sysctl net.link.ether.inet.proxyall=1 >/dev/null
-		;;
-	esac
-
-	case ${ip_portrange_first} in
-	[Nn][Oo] | '')
-		;;
-	*)
-		echo -n " ip_portrange_first=$ip_portrange_first"
-		sysctl net.inet.ip.portrange.first=$ip_portrange_first >/dev/null
-		;;
-	esac
-
-	case ${ip_portrange_last} in
-	[Nn][Oo] | '')
-		;;
-	*)
-		echo -n " ip_portrange_last=$ip_portrange_last"
-		sysctl net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
 		;;
 	esac
 
