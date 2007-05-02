@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 /* METHOD:
  * x < 0: Use reflection formula, G(x) = pi/(sin(pi*x)*x*G(x))
- * 	At negative integers, return +Inf and raise divide-by-zero.
+ * 	At negative integers, return NaN and raise invalid.
  *
  * x < 6.5:
  *	Use argument reduction G(x+1) = xG(x) to reach the
@@ -66,12 +66,12 @@ __FBSDID("$FreeBSD$");
  *	avoid premature round-off.
  *
  * Special values:
- *	-Inf:			return +Inf (without raising any exception!);
- *	negative integer:	return +Inf and raise divide-by-zero;
+ *	-Inf:			return NaN and raise invalid;
+ *	negative integer:	return NaN and raise invalid;
  *	other x ~< 177.79:	return +-0 and raise underflow;
  *	+-0:			return +-Inf and raise divide-by-zero;
- *	finite x ~> 171.63:	return +Inf and raise divide-by-zero(!);
- *	+Inf:			return +Inf and raise divide-by-zero(!);
+ *	finite x ~> 171.63:	return +Inf and raise overflow;
+ *	+Inf:			return +Inf;
  *	NaN: 			return NaN.
  *
  * Accuracy: tgamma(x) is accurate to within
@@ -135,7 +135,7 @@ tgamma(x)
 
 	if (x >= 6) {
 		if(x > 171.63)
-			return(one/zero);
+			return (x / zero);
 		u = large_gam(x);
 		return(__exp__D(u.a, u.b));
 	} else if (x >= 1.0 + LEFT + x0)
@@ -143,12 +143,11 @@ tgamma(x)
 	else if (x > 1.e-17)
 		return (smaller_gam(x));
 	else if (x > -1.e-17) {
-		if (x == 0.0)
-			return (one/x);
-		one+1e-20;		/* Raise inexact flag. */
+		if (x != 0.0)
+			u.a = one - tiny;	/* raise inexact */
 		return (one/x);
 	} else if (!finite(x))
-		return (x*x);		/* x = NaN, -Inf */
+		return (x - x);		/* x is NaN or -Inf */
 	else
 		return (neg_gam(x));
 }
@@ -282,11 +281,13 @@ neg_gam(x)
 	struct Double lg, lsine;
 	double y, z;
 
-	y = floor(x + .5);
+	y = ceil(x);
 	if (y == x)		/* Negative integer. */
-		return (one/zero);
-	z = fabs(x - y);
-	y = .5*ceil(x);
+		return ((x - x) / zero);
+	z = y - x;
+	if (z > 0.5)
+		z = one - z;
+	y = 0.5 * y;
 	if (y == ceil(y))
 		sgn = -1;
 	if (z < .25)
