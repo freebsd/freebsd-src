@@ -264,8 +264,7 @@ IDTVEC(invlrng)
 	iret
 
 /*
- * Forward hardclock to another CPU.  Pushes a clockframe and calls
- * forwarded_hardclock().
+ * Handler for IPIs sent via the per-cpu IPI bitmap.
  */
 	.text
 	SUPERALIGN_TEXT
