@@ -106,14 +106,18 @@ static int
 zfs_znode_cache_constructor(void *buf, void *cdrarg, int kmflags)
 {
 	znode_t *zp = buf;
+	vnode_t *vp;
 	vfs_t *vfsp = cdrarg;
 	int error;
 
 	if (cdrarg != NULL) {
-		error = getnewvnode("zfs", vfsp, &zfs_vnodeops, &zp->z_vnode);
+		error = getnewvnode("zfs", vfsp, &zfs_vnodeops, &vp);
 		ASSERT(error == 0);
-		zp->z_vnode->v_data = (caddr_t)zp;
-		vhold(zp->z_vnode);
+		zp->z_vnode = vp;
+		vp->v_data = (caddr_t)zp;
+		vhold(vp);
+		vp->v_vnlock->lk_flags |= LK_CANRECURSE;
+		vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 	} else {
 		zp->z_vnode = NULL;
 	}
@@ -598,6 +602,8 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 			vp = ZTOV(zp);
 			vp->v_data = (caddr_t)zp;
 			vhold(vp);
+			vp->v_vnlock->lk_flags |= LK_CANRECURSE;
+			vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 			vp->v_type = IFTOVT((mode_t)zp->z_phys->zp_mode);
 			if (vp->v_type == VDIR)
 				zp->z_zn_prefetch = B_TRUE;	/* z_prefetch default is enabled */
