@@ -46,11 +46,10 @@ __FBSDID("$FreeBSD$");
 
 #include <math.h>
 #include "mathimpl.h"
-#include <errno.h>
 
 /* METHOD:
  * x < 0: Use reflection formula, G(x) = pi/(sin(pi*x)*x*G(x))
- * 	At negative integers, return +Inf, and set errno.
+ * 	At negative integers, return +Inf and raise divide-by-zero.
  *
  * x < 6.5:
  *	Use argument reduction G(x+1) = xG(x) to reach the
@@ -67,11 +66,15 @@ __FBSDID("$FreeBSD$");
  *	avoid premature round-off.
  *
  * Special values:
- *	non-positive integer:	Set overflow trap; return +Inf;
- *	x > 171.63:		Set overflow trap; return +Inf;
- *	NaN: 			Set invalid trap;  return NaN
+ *	-Inf:			return +Inf (without raising any exception!);
+ *	negative integer:	return +Inf and raise divide-by-zero;
+ *	other x ~< 177.79:	return +-0 and raise underflow;
+ *	+-0:			return +-Inf and raise divide-by-zero;
+ *	finite x ~> 171.63:	return +Inf and raise divide-by-zero(!);
+ *	+Inf:			return +Inf and raise divide-by-zero(!);
+ *	NaN: 			return NaN.
  *
- * Accuracy: Gamma(x) is accurate to within
+ * Accuracy: tgamma(x) is accurate to within
  *	x > 0:  error provably < 0.9ulp.
  *	Maximum observed in 1,000,000 trials was .87ulp.
  *	x < 0:
