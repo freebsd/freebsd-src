@@ -671,6 +671,84 @@ pmap_track_modified(vm_offset_t va)
 		return 0;
 }
 
+/*
+ * Determine the appropriate bits to set in a PTE or PDE for a specified
+ * caching mode.
+ */
+static int
+pmap_cache_bits(int mode, boolean_t is_pde)
+{
+	int pat_flag, pat_index, cache_bits;
+
+	/* The PAT bit is different for PTE's and PDE's. */
+	pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
+
+	/* If we don't support PAT, map extended modes to older ones. */
+	if (!(cpu_feature & CPUID_PAT)) {
+		switch (mode) {
+		case PAT_UNCACHEABLE:
+		case PAT_WRITE_THROUGH:
+		case PAT_WRITE_BACK:
+			break;
+		case PAT_UNCACHED:
+		case PAT_WRITE_COMBINING:
+		case PAT_WRITE_PROTECTED:
+			mode = PAT_UNCACHEABLE;
+			break;
+		}
+	}
+	
+	/* Map the caching mode to a PAT index. */
+	switch (mode) {
+#ifdef PAT_WORKS
+	case PAT_UNCACHEABLE:
+		pat_index = 3;
+		break;
+	case PAT_WRITE_THROUGH:
+		pat_index = 1;
+		break;
+	case PAT_WRITE_BACK:
+		pat_index = 0;
+		break;
+	case PAT_UNCACHED:
+		pat_index = 2;
+		break;
+	case PAT_WRITE_COMBINING:
+		pat_index = 5;
+		break;
+	case PAT_WRITE_PROTECTED:
+		pat_index = 4;
+		break;
+#else
+	case PAT_UNCACHED:
+	case PAT_UNCACHEABLE:
+	case PAT_WRITE_PROTECTED:
+		pat_index = 3;
+		break;
+	case PAT_WRITE_THROUGH:
+		pat_index = 1;
+		break;
+	case PAT_WRITE_BACK:
+		pat_index = 0;
+		break;
+	case PAT_WRITE_COMBINING:
+		pat_index = 2;
+		break;
+#endif
+	default:
+		panic("Unknown caching mode %d\n", mode);
+	}	
+
+	/* Map the 3-bit index value into the PAT, PCD, and PWT bits. */
+	cache_bits = 0;
+	if (pat_index & 0x4)
+		cache_bits |= pat_flag;
+	if (pat_index & 0x2)
+		cache_bits |= PG_NC_PCD;
+	if (pat_index & 0x1)
+		cache_bits |= PG_NC_PWT;
+	return (cache_bits);
+}
 #ifdef SMP
 /*
  * For SMP, these functions have to use the IPI mechanism for coherence.
@@ -966,6 +1044,15 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 
 	pte = vtopte(va);
 	pte_store(pte, pa | PG_RW | PG_V | PG_G);
+}
+
+PMAP_INLINE void 
+pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode)
+{
+	pt_entry_t *pte;
+
+	pte = vtopte(va);
+	pte_store(pte, pa | PG_RW | PG_V | PG_G | pmap_cache_bits(mode, 0));
 }
 
 /*
@@ -2937,6 +3024,46 @@ pmap_clear_reference(vm_page_t m)
  * Miscellaneous support routines follow
  */
 
+/* Adjust the cache mode for a 4KB page mapped via a PTE. */
+static __inline void
+pmap_pte_attr(vm_offset_t va, int mode)
+{
+	pt_entry_t *pte;
+	u_int opte, npte;
+
+	pte = vtopte(va);
+
+	/*
+	 * The cache mode bits are all in the low 32-bits of the
+	 * PTE, so we can just spin on updating the low 32-bits.
+	 */
+	do {
+		opte = *(u_int *)pte;
+		npte = opte & ~(PG_PTE_PAT | PG_NC_PCD | PG_NC_PWT);
+		npte |= pmap_cache_bits(mode, 0);
+	} while (npte != opte && !atomic_cmpset_int((u_int *)pte, opte, npte));
+}
+
+/* Adjust the cache mode for a 2MB page mapped via a PDE. */
+static __inline void
+pmap_pde_attr(vm_offset_t va, int mode)
+{
+	pd_entry_t *pde;
+	u_int opde, npde;
+
+	pde = pmap_pde(kernel_pmap, va);
+
+	/*
+	 * The cache mode bits are all in the low 32-bits of the
+	 * PDE, so we can just spin on updating the low 32-bits.
+	 */
+	do {
+		opde = *(u_int *)pde;
+		npde = opde & ~(PG_PDE_PAT | PG_NC_PCD | PG_NC_PWT);
+		npde |= pmap_cache_bits(mode, 1);
+	} while (npde != opde && !atomic_cmpset_int((u_int *)pde, opde, npde));
+}
+
 /*
  * Map a set of physical memory pages into the kernel virtual
  * address space. Return a pointer to where it is mapped. This
@@ -2944,14 +3071,15 @@ pmap_clear_reference(vm_page_t m)
  * NOT real memory.
  */
 void *
-pmap_mapdev(pa, size)
-	vm_paddr_t pa;
-	vm_size_t size;
+pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 {
 	vm_offset_t va, tmpva, offset;
 
-	/* If this fits within the direct map window, use it */
-	if (pa < dmaplimit && (pa + size) < dmaplimit)
+	/*
+	 * If this fits within the direct map window and use WB caching
+	 * mode, use the direct map.
+	 */
+	if (pa < dmaplimit && (pa + size) < dmaplimit && mode == PAT_WRITE_BACK)
 		return ((void *)PHYS_TO_DMAP(pa));
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
@@ -2960,13 +3088,28 @@ pmap_mapdev(pa, size)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 	pa = trunc_page(pa);
 	for (tmpva = va; size > 0; ) {
-		pmap_kenter(tmpva, pa);
+		pmap_kenter_attr(tmpva, pa, mode);
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
 		pa += PAGE_SIZE;
 	}
 	pmap_invalidate_range(kernel_pmap, va, tmpva);
+	pmap_invalidate_cache();
 	return ((void *)(va + offset));
+}
+
+void *
+pmap_mapdev(vm_paddr_t pa, vm_size_t size)
+{
+
+	return (pmap_mapdev_attr(pa, size, PAT_UNCACHEABLE));
+}
+
+void *
+pmap_mapbios(vm_paddr_t pa, vm_size_t size)
+{
+
+	return (pmap_mapdev_attr(pa, size, PAT_WRITE_BACK));
 }
 
 void
@@ -2986,6 +3129,73 @@ pmap_unmapdev(va, size)
 		pmap_kremove(tmpva);
 	pmap_invalidate_range(kernel_pmap, va, tmpva);
 	kmem_free(kernel_map, base, size);
+}
+
+int
+pmap_change_attr(va, size, mode)
+	vm_offset_t va;
+	vm_size_t size;
+	int mode;
+{
+	vm_offset_t base, offset, tmpva;
+	pd_entry_t *pde;
+	pt_entry_t *pte;
+
+	base = va & PG_FRAME;
+	offset = va & PAGE_MASK;
+	size = roundup(offset + size, PAGE_SIZE);
+
+	/* Only supported on kernel virtual addresses. */
+	if (base <= VM_MAXUSER_ADDRESS)
+		return (EINVAL);
+
+	/*
+	 * XXX: We have to support tearing 2MB pages down into 4k pages if
+	 * needed here.
+	 */
+	/* Pages that aren't mapped aren't supported. */
+	for (tmpva = base; tmpva < (base + size); ) {
+		pde = pmap_pde(kernel_pmap, tmpva);
+		if (*pde == 0)
+			return (EINVAL);
+		if (*pde & PG_PS) {
+			/* Handle 2MB pages that are completely contained. */
+			if (size >= NBPDR) {
+				tmpva += NBPDR;
+				continue;
+			}
+			return (EINVAL);
+		}
+		pte = vtopte(va);
+		if (*pte == 0)
+			return (EINVAL);
+		tmpva += PAGE_SIZE;
+	}
+
+	/*
+	 * Ok, all the pages exist, so run through them updating their
+	 * cache mode.
+	 */
+	for (tmpva = base; size > 0; ) {
+		pde = pmap_pde(kernel_pmap, tmpva);
+		if (*pde & PG_PS) {
+			pmap_pde_attr(tmpva, mode);
+			tmpva += NBPDR;
+			size -= NBPDR;
+		} else {
+			pmap_pte_attr(tmpva, mode);
+			tmpva += PAGE_SIZE;
+			size -= PAGE_SIZE;
+		}
+	}
+
+	/*
+	 * Flush CPU caches to make sure any data isn't cached that shouldn't
+	 * be, etc.
+	 */    
+	pmap_invalidate_range(kernel_pmap, base, tmpva);
+	pmap_invalidate_cache();
+	return (0);
 }
 
 /*
