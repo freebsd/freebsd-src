@@ -3003,7 +3003,7 @@ pmap_clear_reference(vm_page_t m)
  * NOT real memory.
  */
 void *
-pmap_mapdev(vm_paddr_t pa, vm_size_t, size)
+pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 {
 	vm_offset_t va, tmpva, offset;
 
@@ -3030,7 +3030,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t, size)
 }
 
 void *
-pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
+pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
 
 	return (pmap_mapdev_attr(pa, size, PAT_UNCACHEABLE));
