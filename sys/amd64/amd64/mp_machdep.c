@@ -491,6 +491,9 @@ init_secondary(void)
 	while (!aps_ready)
 		ia32_pause();
 
+	/* Initialize the PAT MSR. */
+	pmap_init_pat();
+
 	/* set up CPU registers and state */
 	cpu_setregs();
 
