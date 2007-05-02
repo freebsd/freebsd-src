@@ -222,8 +222,7 @@ IDTVEC(invlrng)
 	iretq
 
 /*
- * Forward hardclock to another CPU.  Pushes a clockframe and calls
- * forwarded_hardclock().
+ * Handler for IPIs sent via the per-cpu IPI bitmap.
  */
 	.text
 	SUPERALIGN_TEXT
@@ -262,11 +261,7 @@ IDTVEC(cpuast)
 	jmp	doreti
 
 /*
- * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
- *
- *  - Signals its receipt.
- *  - Waits for permission to restart.
- *  - Signals its restart.
+ * Executed by a CPU when it receives an IPI_STOP from another CPU.
  */
 	.text
 	SUPERALIGN_TEXT
