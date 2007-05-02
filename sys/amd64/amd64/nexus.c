@@ -108,9 +108,9 @@ static	int nexus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
 static void nexus_delete_resource(device_t, device_t, int, int);
 static	int nexus_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs);
 static	int nexus_release_msi(device_t pcib, device_t dev, int count, int *irqs);
-static	int nexus_alloc_msix(device_t pcib, device_t dev, int index, int *irq);
-static	int nexus_remap_msix(device_t pcib, device_t dev, int index, int irq);
+static	int nexus_alloc_msix(device_t pcib, device_t dev, int *irq);
 static	int nexus_release_msix(device_t pcib, device_t dev, int irq);
+static	int nexus_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data);
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -140,8 +140,8 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(pcib_alloc_msi,	nexus_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	nexus_release_msi),
 	DEVMETHOD(pcib_alloc_msix,	nexus_alloc_msix),
-	DEVMETHOD(pcib_remap_msix,	nexus_remap_msix),
 	DEVMETHOD(pcib_release_msix,	nexus_release_msix),
+	DEVMETHOD(pcib_map_msi,		nexus_map_msi),
 
 	{ 0, 0 }
 };
@@ -504,21 +504,14 @@ nexus_delete_resource(device_t dev, device_t child, int type, int rid)
 }
 
 static int
-nexus_alloc_msix(device_t pcib, device_t dev, int index, int *irq)
+nexus_alloc_msix(device_t pcib, device_t dev, int *irq)
 {
 	int error, new;
 
-	error = msix_alloc(dev, index, irq, &new);
+	error = msix_alloc(dev, irq, &new);
 	if (new)
 		rman_manage_region(&irq_rman, *irq, *irq);
 	return (error);
-}
-
-static int
-nexus_remap_msix(device_t pcib, device_t dev, int index, int irq)
-{
-
-	return (msix_remap(index, irq));
 }
 
 static int
@@ -549,6 +542,13 @@ nexus_release_msi(device_t pcib, device_t dev, int count, int *irqs)
 {
 
 	return (msi_release(irqs, count));
+}
+
+static int
+nexus_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data)
+{
+
+	return (msi_map(irq, addr, data));
 }
 
 /* Placeholder for system RAM. */

@@ -127,7 +127,8 @@ METHOD int alloc_msix {
 METHOD int remap_msix {
 	device_t	dev;
 	device_t	child;
-	u_int		*indices;
+	int		count;
+	const u_int	*vectors;
 };
 
 METHOD int release_msi {

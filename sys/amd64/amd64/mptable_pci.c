@@ -72,7 +72,7 @@ mptable_hostb_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
-/* Pass MSI alloc requests up to the nexus. */
+/* Pass MSI requests up to the nexus. */
 static int
 mptable_hostb_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
     int *irqs)
@@ -85,12 +85,22 @@ mptable_hostb_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
 }
 
 static int
-mptable_hostb_alloc_msix(device_t pcib, device_t dev, int index, int *irq)
+mptable_hostb_alloc_msix(device_t pcib, device_t dev, int *irq)
 {
 	device_t bus;
 
 	bus = device_get_parent(pcib);
-	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, index, irq));
+	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, irq));
+}
+
+static int
+mptable_hostb_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data));
 }
 
 static device_method_t mptable_hostb_methods[] = {
@@ -120,8 +130,8 @@ static device_method_t mptable_hostb_methods[] = {
 	DEVMETHOD(pcib_alloc_msi,	mptable_hostb_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
 	DEVMETHOD(pcib_alloc_msix,	mptable_hostb_alloc_msix),
-	DEVMETHOD(pcib_remap_msix,	pcib_remap_msix),
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
+	DEVMETHOD(pcib_map_msi,		mptable_hostb_map_msi),
 
 	{ 0, 0 }
 };
@@ -177,8 +187,8 @@ static device_method_t mptable_pcib_pci_methods[] = {
 	DEVMETHOD(pcib_alloc_msi,	pcib_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
 	DEVMETHOD(pcib_alloc_msix,	pcib_alloc_msix),
-	DEVMETHOD(pcib_remap_msix,	pcib_remap_msix),
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
+	DEVMETHOD(pcib_map_msi,		pcib_map_msi),
 
 	{0, 0}
 };
