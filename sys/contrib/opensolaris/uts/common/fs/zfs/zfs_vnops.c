@@ -23,6 +23,8 @@
  * Use is subject to license terms.
  */
 
+/* Portions Copyright 2007 Jeremy Teo */
+
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
@@ -1280,7 +1282,6 @@ top:
 		 * Truncate regular files if requested.
 		 */
 		if ((ZTOV(zp)->v_type == VREG) &&
-		    (zp->z_phys->zp_size != 0) &&
 		    (vap->va_mask & AT_SIZE) && (vap->va_size == 0)) {
 			error = zfs_freesp(zp, 0, 0, mode, TRUE);
 			if (error == ERESTART &&
