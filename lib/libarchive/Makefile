@@ -32,7 +32,7 @@ INCS=	archive.h archive_entry.h
 # Note: FreeBSD has inttypes.h, so enable that include in archive.h.in
 archive.h:	archive.h.in Makefile
 	cat ${.CURDIR}/archive.h.in |					\
-		sed 's/@VERSION@/${VERSION}/g' | 			\
+		sed 's/@ARCHIVE_VERSION@/${VERSION}/g' | 		\
 		sed 's/@SHLIB_MAJOR@/${SHLIB_MAJOR}/g' |		\
 		sed 's/@ARCHIVE_API_MAJOR@/${ARCHIVE_API_MAJOR}/g' |	\
 		sed 's/@ARCHIVE_API_MINOR@/${ARCHIVE_API_MINOR}/g' |	\

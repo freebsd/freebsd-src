@@ -30,7 +30,7 @@
 
 /*
  * This header file corresponds to:
- *   Library version @VERSION@
+ *   Library version @ARCHIVE_VERSION@
  *   Shared library version @SHLIB_MAJOR@
  */
 
@@ -73,7 +73,7 @@ int		archive_api_version(void);
 #define	ARCHIVE_API_FEATURE	@ARCHIVE_API_MINOR@
 int		archive_api_feature(void);
 /* Textual name/version of the library. */
-#define	ARCHIVE_LIBRARY_VERSION	"libarchive @VERSION@"
+#define	ARCHIVE_LIBRARY_VERSION	"libarchive @ARCHIVE_VERSION@"
 const char *	archive_version(void);
 
 #define	ARCHIVE_BYTES_PER_RECORD	  512
