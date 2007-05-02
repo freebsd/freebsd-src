@@ -23,6 +23,8 @@
  * Use is subject to license terms.
  */
 
+/* Portions Copyright 2007 Jeremy Teo */
+
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef _KERNEL
@@ -830,7 +832,7 @@ zfs_freesp(znode_t *zp, uint64_t off, uint64_t len, int flag, boolean_t log)
 	 * Nothing to do if file already at desired length.
 	 */
 	size = zp->z_phys->zp_size;
-	if (len == 0 && size == off) {
+	if (len == 0 && size == off && off != 0) {
 		zfs_range_unlock(rl);
 		return (0);
 	}
