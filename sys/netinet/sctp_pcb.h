@@ -403,11 +403,11 @@ struct sctp_ifa *
 sctp_add_addr_to_vrf(uint32_t vrfid,
     void *ifn, uint32_t ifn_index, uint32_t ifn_type,
     const char *if_name,
-    void *ifa, struct sockaddr *addr, uint32_t ifa_flags);
+    void *ifa, struct sockaddr *addr, uint32_t ifa_flags, int dynamic_add);
 
 void sctp_free_ifa(struct sctp_ifa *sctp_ifap);
 
-struct sctp_ifa *
+void
 sctp_del_addr_from_vrf(uint32_t vrfid, struct sockaddr *addr,
     uint32_t ifn_index);
 
