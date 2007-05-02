@@ -1665,18 +1665,41 @@ ciss_free(struct ciss_softc *sc)
     sc->ciss_flags |= CISS_FLAG_ABORTING;
 
     /* terminate the periodic heartbeat routine */
-    mtx_unlock(&sc->ciss_mtx);
-    callout_drain(&sc->ciss_periodic);
-    mtx_lock(&sc->ciss_mtx);
+    callout_stop(&sc->ciss_periodic);
 
     /* cancel the Event Notify chain */
     ciss_notify_abort(sc);
 
     ciss_kill_notify_thread(sc);
 
+    /* disconnect from CAM */
+    if (sc->ciss_cam_sim) {
+	for (i = 0; i < sc->ciss_max_logical_bus; i++) {
+	    if (sc->ciss_cam_sim[i]) {
+		xpt_bus_deregister(cam_sim_path(sc->ciss_cam_sim[i]));
+		cam_sim_free(sc->ciss_cam_sim[i], 0);
+	    }
+	}
+	for (i = CISS_PHYSICAL_BASE; i < sc->ciss_max_physical_bus +
+	     CISS_PHYSICAL_BASE; i++) {
+	    if (sc->ciss_cam_sim[i]) {
+		xpt_bus_deregister(cam_sim_path(sc->ciss_cam_sim[i]));
+		cam_sim_free(sc->ciss_cam_sim[i], 0);
+	    }
+	}
+	free(sc->ciss_cam_sim, CISS_MALLOC_CLASS);
+    }
+    if (sc->ciss_cam_devq)
+	cam_simq_free(sc->ciss_cam_devq);
+
     /* remove the control device */
+    mtx_unlock(&sc->ciss_mtx);
     if (sc->ciss_dev_t != NULL)
 	destroy_dev(sc->ciss_dev_t);
+
+    /* Final cleanup of the callout. */
+    callout_drain(&sc->ciss_periodic);
+    mtx_destroy(&sc->ciss_mtx);
 
     /* free the controller data */
     if (sc->ciss_id != NULL)
@@ -1711,27 +1734,6 @@ ciss_free(struct ciss_softc *sc)
     }
     if (sc->ciss_command_dmat)
 	bus_dma_tag_destroy(sc->ciss_command_dmat);
-
-    /* disconnect from CAM */
-    if (sc->ciss_cam_sim) {
-	for (i = 0; i < sc->ciss_max_logical_bus; i++) {
-	    if (sc->ciss_cam_sim[i]) {
-		xpt_bus_deregister(cam_sim_path(sc->ciss_cam_sim[i]));
-		cam_sim_free(sc->ciss_cam_sim[i], 0);
-	    }
-	}
-	for (i = CISS_PHYSICAL_BASE; i < sc->ciss_max_physical_bus +
-	     CISS_PHYSICAL_BASE; i++) {
-	    if (sc->ciss_cam_sim[i]) {
-		xpt_bus_deregister(cam_sim_path(sc->ciss_cam_sim[i]));
-		cam_sim_free(sc->ciss_cam_sim[i], 0);
-	    }
-	}
-	free(sc->ciss_cam_sim, CISS_MALLOC_CLASS);
-    }
-    if (sc->ciss_cam_devq)
-	cam_simq_free(sc->ciss_cam_devq);
-    mtx_destroy(&sc->ciss_mtx);
 
     if (sc->ciss_logical) {
 	for (i = 0; i <= sc->ciss_max_logical_bus; i++) {
@@ -3097,8 +3099,7 @@ ciss_periodic(void *arg)
     /*
      * Reschedule.
      */
-    if (!(sc->ciss_flags & CISS_FLAG_ABORTING))
-	callout_reset(&sc->ciss_periodic, CISS_HEARTBEAT_RATE * hz, ciss_periodic, sc);
+    callout_reset(&sc->ciss_periodic, CISS_HEARTBEAT_RATE * hz, ciss_periodic, sc);
 }
 
 /************************************************************************
