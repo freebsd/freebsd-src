@@ -615,7 +615,7 @@ lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 	switch (sc->sc_proto) {
 		case LAGG_PROTO_FAILOVER:
 			if (lp == sc->sc_primary)
-				lp->lp_flags |= LAGG_PORT_MASTER;
+				rp->rp_flags |= LAGG_PORT_MASTER;
 			/* FALLTHROUGH */
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
