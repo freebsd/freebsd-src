@@ -105,8 +105,8 @@ METHOD int alloc_msi {
 };
 
 #
-# Release 'count' MSI message mapped onto 'count' IRQs stored in the
-# array pointed to by 'irq'.
+# Release 'count' MSI messages mapped onto 'count' IRQs stored in the
+# array pointed to by 'irqs'.
 #
 METHOD int release_msi {
 	device_t	pcib;
@@ -121,18 +121,7 @@ METHOD int release_msi {
 METHOD int alloc_msix {
 	device_t	pcib;
 	device_t	dev;
-	int		index;
 	int		*irq;
-};
-
-#
-# Remap a single MSI-X message to a different index.
-#
-METHOD int remap_msix {
-	device_t	pcib;
-	device_t	dev;
-	int		index;
-	int		irq;
 };
 
 #
@@ -142,4 +131,16 @@ METHOD int release_msix {
 	device_t	pcib;
 	device_t	dev;
 	int		irq;
+};
+
+#
+# Determine the MSI/MSI-X message address and data for 'irq'.  The address
+# is returned in '*addr', and the data in '*data'.
+#
+METHOD int map_msi {
+	device_t	pcib;
+	device_t	dev;
+	int		irq;
+	uint64_t	*addr;
+	uint32_t	*data;
 };
