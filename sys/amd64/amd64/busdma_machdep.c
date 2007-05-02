@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
+#include <machine/specialreg.h>
 
 #define MAX_BPAGES 8192
 
@@ -522,6 +523,9 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	} else if ((uintptr_t)*vaddr & (dmat->alignment - 1)) {
 		printf("bus_dmamem_alloc failed to align memory properly.\n");
 	}
+	if (flags & BUS_DMA_NOCACHE)
+		pmap_change_attr((vm_offset_t)*vaddr, dmat->maxsize,
+		    PAT_UNCACHEABLE);
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->flags, ENOMEM);
 	return (0);
@@ -540,6 +544,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 */
 	if (map != NULL)
 		panic("bus_dmamem_free: Invalid map freed\n");
+	pmap_change_attr((vm_offset_t)vaddr, dmat->maxsize, PAT_WRITE_BACK);
 	if ((dmat->maxsize <= PAGE_SIZE) &&
 	   (dmat->alignment < dmat->maxsize) &&
 	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem))
