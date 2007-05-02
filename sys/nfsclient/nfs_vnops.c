@@ -552,6 +552,10 @@ nfs_close(struct vop_close_args *ap)
 		error = np->n_error;
 	    }
 	}
+	if (nfs_directio_enable)
+		KASSERT((np->n_directio_asyncwr == 0),
+			("nfs_close: dirty unflushed (%d) directio buffers\n",
+			 np->n_directio_asyncwr));
 	if (nfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
 		KASSERT((np->n_directio_opens > 0), 
 			("nfs_close: unexpectedly value (0) of n_directio_opens\n"));		
