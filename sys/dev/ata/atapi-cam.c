@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
+#include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 #include <cam/scsi/scsi_all.h>
 
@@ -210,14 +211,16 @@ atapi_cam_attach(device_t dev)
     }
 
     if ((sim = cam_sim_alloc(atapi_action, atapi_poll, "ata",
-		 (void *)scp, unit, &Giant, 1, 1, devq)) == NULL) {
+		 (void *)scp, unit, &scp->state_lock, 1, 1, devq)) == NULL) {
 	error = ENOMEM;
 	goto out;
     }
     scp->sim = sim;
 
+    mtx_lock(&scp->state_lock);
     if (xpt_bus_register(sim, 0) != CAM_SUCCESS) {
 	error = EINVAL;
+	mtx_unlock(&scp->state_lock);
 	goto out;
     }
     scp->flags |= BUS_REGISTERED;
@@ -226,6 +229,7 @@ atapi_cam_attach(device_t dev)
 		cam_sim_path(sim), CAM_TARGET_WILDCARD,
 		CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 	error = ENOMEM;
+	mtx_unlock(&scp->state_lock);
 	goto out;
     }
     scp->path = path;
@@ -235,6 +239,7 @@ atapi_cam_attach(device_t dev)
     setup_async_cb(scp, AC_LOST_DEVICE);
     reinit_bus(scp, cold ? BOOT_ATTACH : ATTACH);
     error = 0;
+    mtx_unlock(&scp->state_lock);
 
 out:
     if (error != 0)
@@ -248,10 +253,8 @@ atapi_cam_detach(device_t dev)
 {
     struct atapi_xpt_softc *scp = device_get_softc(dev);
 
-    mtx_lock(&Giant);
-    xpt_freeze_simq(scp->sim, 1 /*count*/);
-    mtx_unlock(&Giant);
     mtx_lock(&scp->state_lock);
+    xpt_freeze_simq(scp->sim, 1 /*count*/);
     scp->flags |= DETACHING;
     mtx_unlock(&scp->state_lock);
     free_softc(scp);
@@ -268,7 +271,9 @@ atapi_cam_reinit(device_t dev) {
      */
 
     if (scp != NULL) {
+	mtx_lock(&scp->state_lock);
 	reinit_bus(scp, RESET);
+	mtx_unlock(&scp->state_lock);
     }
     return (0);
 }
@@ -283,7 +288,6 @@ reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason) {
 	return;
     }
 
-    mtx_lock(&scp->state_lock);
     old_atadev[0] = scp->atadev[0];
     old_atadev[1] = scp->atadev[1];
     scp->atadev[0] = NULL;
@@ -303,7 +307,6 @@ reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason) {
     }
     dev_changed = (old_atadev[0] != scp->atadev[0])
 	       || (old_atadev[1] != scp->atadev[1]);
-    mtx_unlock(&scp->state_lock);
     free(children, M_TEMP);
 
     switch (reason) {
@@ -327,14 +330,12 @@ setup_async_cb(struct atapi_xpt_softc *scp, uint32_t events)
 {
     struct ccb_setasync csa;
 
-    mtx_lock(&Giant);
     xpt_setup_ccb(&csa.ccb_h, scp->path, /*priority*/ 5);
     csa.ccb_h.func_code = XPT_SASYNC_CB;
     csa.event_enable = events;
     csa.callback = &atapi_async;
     csa.callback_arg = scp->sim;
     xpt_action((union ccb *) &csa);
-    mtx_unlock(&Giant);
 }
 
 static void
@@ -377,11 +378,9 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->protocol_version = SCSI_REV_2;
 
 	if (softc->ata_ch && tid != CAM_TARGET_WILDCARD) {
-	    mtx_lock(&softc->state_lock);
 	    if (softc->atadev[tid] == NULL) {
 		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 		xpt_done(ccb);
-		mtx_unlock(&softc->state_lock);
 		return;
 	    }
 	    switch (softc->atadev[ccb_h->target_id]->mode) {
@@ -414,7 +413,6 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    default:
 		break;
 	    }
-	    mtx_unlock(&softc->state_lock);
 	}
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
@@ -425,7 +423,9 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	int tid = ccb_h->target_id;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("dev reset\n"));
+	mtx_unlock(&softc->state_lock);
 	ata_controlcmd(softc->atadev[tid]->dev, ATA_DEVICE_RESET, 0, 0, 0);
+	mtx_lock(&softc->state_lock);
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
@@ -433,7 +433,9 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 
     case XPT_RESET_BUS:
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("bus reset\n"));
+	mtx_unlock(&softc->state_lock);
 	ata_reinit(softc->parent);
+	mtx_lock(&softc->state_lock);
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
@@ -475,18 +477,15 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 
 	CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, ("XPT_SCSI_IO\n"));
 
-	mtx_lock(&softc->state_lock);
 	if (softc->flags & DETACHING) {
 	    ccb->ccb_h.status = CAM_REQ_ABORTED;
 	    xpt_done(ccb);
-	    mtx_unlock(&softc->state_lock);
 	    return;
 	}
 
 	if (softc->atadev[tid] == NULL) {
 	    ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 	    xpt_done(ccb);
-	    mtx_unlock(&softc->state_lock);
 	    return;
 	}
 
@@ -494,7 +493,6 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	if ((ccb_h->status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
 	    printf("XPT_SCSI_IO received but already in progress?\n");
 	    xpt_done(ccb);
-	    mtx_unlock(&softc->state_lock);
 	    return;
 	}
 	if (lid > 0) {
@@ -641,6 +639,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	mtx_unlock(&softc->state_lock);
 
 	ata_queue_request(request);
+	mtx_lock(&softc->state_lock);
 	return;
     }
 
@@ -657,21 +656,19 @@ action_oom:
 	ata_free_request(request);
     if (hcb != NULL)
 	free_hcb(hcb);
-    mtx_unlock(&softc->state_lock);
-    mtx_lock(&Giant);
     xpt_print_path(ccb_h->path);
     printf("out of memory, freezing queue.\n");
     softc->flags |= RESOURCE_SHORTAGE;
     xpt_freeze_simq(sim, /*count*/ 1);
-    mtx_unlock(&Giant);
     ccb_h->status = CAM_REQUEUE_REQ;
     xpt_done(ccb);
+    mtx_unlock(&softc->state_lock);
     return;
 
 action_invalid:
-    mtx_unlock(&softc->state_lock);
     ccb_h->status = CAM_REQ_INVALID;
     xpt_done(ccb);
+    mtx_unlock(&softc->state_lock);
     return;
 }
 
@@ -829,20 +826,22 @@ cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 		      ("Rescan succeeded\n"));
 	}
 	xpt_free_path(ccb->ccb_h.path);
-	free(ccb, M_ATACAM);
+	xpt_free_ccb(ccb);
 }
 
 static void
 cam_rescan(struct cam_sim *sim)
 {
     struct cam_path *path;
-    union ccb *ccb = malloc(sizeof(union ccb), M_ATACAM, M_WAITOK | M_ZERO);
+    union ccb *ccb;
 
-    mtx_lock(&Giant);
+    ccb = xpt_alloc_ccb_nowait();
+    if (ccb == NULL)
+	return;
+
     if (xpt_create_path(&path, xpt_periph, cam_sim_path(sim),
 			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-	mtx_unlock(&Giant);
-	free(ccb, M_ATACAM);
+	xpt_free_ccb(ccb);
 	return;
     }
 
@@ -853,7 +852,6 @@ cam_rescan(struct cam_sim *sim)
     ccb->crcn.flags = CAM_FLAG_NONE;
     xpt_action(ccb);
     /* scan is in progress now */
-    mtx_unlock(&Giant);
 }
 
 static struct atapi_hcb *
@@ -891,8 +889,6 @@ free_softc(struct atapi_xpt_softc *scp)
 	TAILQ_FOREACH(hcb, &scp->pending_hcbs, chain) {
 	    free_hcb_and_ccb_done(hcb, CAM_UNREC_HBA_ERROR);
 	}
-	mtx_unlock(&scp->state_lock);
-	mtx_lock(&Giant);
 	if (scp->path != NULL) {
 	    setup_async_cb(scp, 0);
 	    xpt_free_path(scp->path);
@@ -908,7 +904,6 @@ free_softc(struct atapi_xpt_softc *scp)
 		printf("Can't free %s SIM (still registered)\n",
 		       cam_sim_name(scp->sim));
 	}
-	mtx_unlock(&Giant);
 	mtx_destroy(&scp->state_lock);
     }
 }
