@@ -64,13 +64,17 @@ struct sctp_cookie_perserve_param {
 };
 
 #define SCTP_ARRAY_MIN_LEN 1
-
 /* Host Name Address */
 struct sctp_host_name_param {
 	struct sctp_paramhdr ph;/* type=SCTP_HOSTNAME_ADDRESS */
 	char name[SCTP_ARRAY_MIN_LEN];	/* host name */
 };
 
+/*
+ * This is the maximum padded size of a s-a-p
+ * so paramheadr + 3 address types (6 bytes) + 2 byte pad = 12
+ */
+#define SCTP_MAX_ADDR_PARAMS_SIZE 12
 /* supported address type */
 struct sctp_supported_addr_param {
 	struct sctp_paramhdr ph;/* type=SCTP_SUPPORTED_ADDRTYPE */
@@ -120,6 +124,8 @@ struct sctp_asconf_addrv4_param {	/* an ASCONF address (v4) parameter */
 	struct sctp_asconf_paramhdr aph;	/* asconf "parameter" */
 	struct sctp_ipv4addr_param addrp;	/* max storage size */
 };
+
+#define SCTP_MAX_SUPPORTED_EXT 256
 
 struct sctp_supported_chunk_types_param {
 	struct sctp_paramhdr ph;/* type = 0x8008  len = x */
@@ -490,6 +496,9 @@ struct sctp_stream_reset_resp_tsn {
 /*
  * Authenticated chunks support draft-ietf-tsvwg-sctp-auth
  */
+
+/* Should we make the max be 32? */
+#define SCTP_RANDOM_MAX_SIZE 256
 struct sctp_auth_random {
 	struct sctp_paramhdr ph;/* type = 0x8002 */
 	uint8_t random_data[0];

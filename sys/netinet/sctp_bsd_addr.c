@@ -44,13 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctputil.h>
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_asconf.h>
+#include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_indata.h>
 #include <sys/unistd.h>
-
-#ifdef SCTP_DEBUG
-extern uint32_t sctp_debug_on;
-
-#endif
 
 
 #if defined(SCTP_USE_THREAD_BASED_ITERATOR)
@@ -211,7 +207,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 				    ifn->if_xname,
 				    (void *)ifa,
 				    ifa->ifa_addr,
-				    ifa_flags
+				    ifa_flags, 0
 				    );
 				if (sctp_ifa) {
 					sctp_ifa->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
@@ -245,7 +241,6 @@ static uint8_t first_time = 0;
 void
 sctp_addr_change(struct ifaddr *ifa, int cmd)
 {
-	struct sctp_laddr *wi;
 	struct sctp_ifa *ifap = NULL;
 	uint32_t ifa_flags = 0;
 	struct in6_ifaddr *ifa6;
@@ -293,58 +288,53 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		ifap = sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID, (void *)ifa->ifa_ifp,
 		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type,
 		    ifa->ifa_ifp->if_xname,
-		    (void *)ifa, ifa->ifa_addr, ifa_flags);
-		/*
-		 * Bump up the refcount so that when the timer completes it
-		 * will drop back down.
-		 */
-		if (ifap)
-			atomic_add_int(&ifap->refcount, 1);
+		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);
 
 	} else if (cmd == RTM_DELETE) {
 
-		ifap = sctp_del_addr_from_vrf(SCTP_DEFAULT_VRFID, ifa->ifa_addr, ifa->ifa_ifp->if_index);
+		sctp_del_addr_from_vrf(SCTP_DEFAULT_VRFID, ifa->ifa_addr, ifa->ifa_ifp->if_index);
 		/*
 		 * We don't bump refcount here so when it completes the
 		 * final delete will happen.
 		 */
 	}
-	if (ifap == NULL)
-		return;
+}
 
-	wi = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_laddr, struct sctp_laddr);
-	if (wi == NULL) {
-		/*
-		 * Gak, what can we do? We have lost an address change can
-		 * you say HOSED?
-		 */
-#ifdef SCTP_DEBUG
-		if (sctp_debug_on & SCTP_DEBUG_PCB1) {
-			printf("Lost and address change ???\n");
+struct mbuf *
+sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
+    int how, int allonebuf, int type)
+{
+	struct mbuf *m = NULL;
+
+	m = m_getm2(NULL, space_needed, how, type, want_header ? M_PKTHDR : 0);
+	if (m == NULL) {
+		/* bad, no memory */
+		return (m);
+	}
+	if (allonebuf) {
+		int siz;
+
+		if (SCTP_BUF_IS_EXTENDED(m)) {
+			siz = SCTP_BUF_EXTEND_SIZE(m);
+		} else {
+			if (want_header)
+				siz = MHLEN;
+			else
+				siz = MLEN;
 		}
-#endif				/* SCTP_DEBUG */
-
-		/* Opps, must decrement the count */
-		sctp_free_ifa(ifap);
-		return;
+		if (siz < space_needed) {
+			m_freem(m);
+			return (NULL);
+		}
 	}
-	SCTP_INCR_LADDR_COUNT();
-	bzero(wi, sizeof(*wi));
-	wi->ifa = ifap;
-	if (cmd == RTM_ADD) {
-		wi->action = SCTP_ADD_IP_ADDRESS;
-	} else if (cmd == RTM_DELETE) {
-		wi->action = SCTP_DEL_IP_ADDRESS;
+	if (SCTP_BUF_NEXT(m)) {
+		sctp_m_freem(SCTP_BUF_NEXT(m));
+		SCTP_BUF_NEXT(m) = NULL;
 	}
-	SCTP_IPI_ITERATOR_WQ_LOCK();
-	/*
-	 * Should this really be a tailq? As it is we will process the
-	 * newest first :-0
-	 */
-	LIST_INSERT_HEAD(&sctppcbinfo.addr_wq, wi, sctp_nxt_addr);
-	sctp_timer_start(SCTP_TIMER_TYPE_ADDR_WQ,
-	    (struct sctp_inpcb *)NULL,
-	    (struct sctp_tcb *)NULL,
-	    (struct sctp_nets *)NULL);
-	SCTP_IPI_ITERATOR_WQ_UNLOCK();
+#ifdef SCTP_MBUF_LOGGING
+	if (SCTP_BUF_IS_EXTENDED(m)) {
+		sctp_log_mb(m, SCTP_MBUF_IALLOC);
+	}
+#endif
+	return (m);
 }

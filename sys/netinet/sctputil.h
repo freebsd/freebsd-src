@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
  * Any new logging added must also define SCTP_STAT_LOGGING if
  * its not already defined.
  */
+
 #if defined(SCTP_LOG_MAXBURST) || defined(SCTP_LOG_RWND) || defined(SCTP_LOG_RWND)
 #ifndef SCTP_STAT_LOGGING
 #define SCTP_STAT_LOGGING 1
@@ -86,6 +87,13 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
+#if defined(SCTP_LOG_SACK_ARRIVALS)
+#ifndef SCTP_STAT_LOGGING
+#define SCTP_STAT_LOGGING 1
+#endif
+#endif
+
+
 #ifdef SCTP_ASOCLOG_OF_TSNS
 void sctp_print_out_track_log(struct sctp_tcb *stcb);
 
@@ -112,9 +120,6 @@ sctp_get_ifa_hash_val(struct sockaddr *addr);
 
 struct sctp_ifa *
          sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr, int hold_lock);
-struct sctp_ifa *
-sctp_find_ifa_in_ifn(struct sctp_ifn *sctp_ifnp, struct sockaddr *addr,
-    int holds_lock);
 
 struct sctp_ifa *
          sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock);
@@ -188,7 +193,7 @@ void sctp_ulp_notify(uint32_t, struct sctp_tcb *, uint32_t, void *);
 void
 sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
     struct sctp_inpcb *new_inp,
-    struct sctp_tcb *stcb);
+    struct sctp_tcb *stcb, int waitflags);
 
 
 void sctp_stop_timers_for_shutdown(struct sctp_tcb *);

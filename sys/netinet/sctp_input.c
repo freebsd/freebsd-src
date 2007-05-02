@@ -2231,7 +2231,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			 * another and get the tcb in the right place.
 			 */
 			sctp_move_pcb_and_assoc(*inp_p, inp, *stcb);
-			sctp_pull_off_control_to_new_inp((*inp_p), inp, *stcb);
+			sctp_pull_off_control_to_new_inp((*inp_p), inp, *stcb, M_NOWAIT);
 
 			/*
 			 * now we must check to see if we were aborted while
@@ -2798,9 +2798,11 @@ sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chu
 
 	asoc = &stcb->asoc;
 	if (TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
+		asoc->stream_reset_outstanding = 0;
 		return (NULL);
 	}
 	if (stcb->asoc.str_reset == NULL) {
+		asoc->stream_reset_outstanding = 0;
 		return (NULL);
 	}
 	chk = stcb->asoc.str_reset;
@@ -3154,6 +3156,7 @@ sctp_handle_stream_reset(struct sctp_tcb *stcb, struct sctp_stream_reset_out_req
 		return (ret_code);
 	}
 	chk->rec.chunk_id.id = SCTP_STREAM_RESET;
+	chk->rec.chunk_id.can_take_data = 0;
 	chk->asoc = &stcb->asoc;
 	chk->no_fr_allowed = 0;
 	chk->book_size = chk->send_size = sizeof(struct sctp_chunkhdr);
@@ -3181,7 +3184,6 @@ strres_nochunk:
 	ch->chunk_flags = 0;
 	ch->chunk_length = htons(chk->send_size);
 	SCTP_BUF_LEN(chk->data) = SCTP_SIZE32(chk->send_size);
-
 	ph = (struct sctp_paramhdr *)&sr_req->sr_req;
 	while ((size_t)chk_length >= sizeof(struct sctp_stream_reset_tsn_request)) {
 		param_len = ntohs(ph->param_length);
@@ -3726,7 +3728,8 @@ process_control_chunks:
 		 * because we don't have to process the peer's COOKIE. All
 		 * others get a complete chunk.
 		 */
-		if (ch->chunk_type == SCTP_INITIATION_ACK) {
+		if ((ch->chunk_type == SCTP_INITIATION_ACK) ||
+		    (ch->chunk_type == SCTP_INITIATION)) {
 			/* get an init-ack chunk */
 			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 			    sizeof(struct sctp_init_ack_chunk), chunk_buf);
@@ -3736,6 +3739,29 @@ process_control_chunks:
 					SCTP_TCB_UNLOCK(locked_tcb);
 				return (NULL);
 			}
+		} else if (ch->chunk_type == SCTP_COOKIE_ECHO) {
+			if (chk_length > sizeof(chunk_buf)) {
+				/*
+				 * use just the size of the chunk buffer so
+				 * the front part of our cookie is intact.
+				 * The rest of cookie processing should use
+				 * the sctp_m_getptr() function to access
+				 * the other parts.
+				 */
+				ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
+				    (sizeof(chunk_buf) - 4),
+				    chunk_buf);
+				if (ch == NULL) {
+					*offset = length;
+					if (locked_tcb)
+						SCTP_TCB_UNLOCK(locked_tcb);
+					return (NULL);
+				}
+			} else {
+				/* We can fit it all */
+				goto all_fits;
+			}
+
 		} else {
 			/* get a complete chunk... */
 			if ((size_t)chk_length > sizeof(chunk_buf)) {
@@ -3743,21 +3769,25 @@ process_control_chunks:
 				struct sctp_paramhdr *phdr;
 
 				oper = NULL;
-				oper = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
-				    0, M_DONTWAIT, 1, MT_DATA);
-				if (oper) {
-					/* pre-reserve some space */
-					SCTP_BUF_RESV_UF(oper, sizeof(struct sctp_chunkhdr));
-					SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr);
-					phdr = mtod(oper, struct sctp_paramhdr *);
-					phdr->param_type = htons(SCTP_CAUSE_OUT_OF_RESC);
-					phdr->param_length = htons(sizeof(struct sctp_paramhdr));
-					sctp_queue_op_err(stcb, oper);
+				if (stcb) {
+					oper = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
+					    0, M_DONTWAIT, 1, MT_DATA);
+
+					if (oper) {
+						/* pre-reserve some space */
+						SCTP_BUF_RESV_UF(oper, sizeof(struct sctp_chunkhdr));
+						SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr);
+						phdr = mtod(oper, struct sctp_paramhdr *);
+						phdr->param_type = htons(SCTP_CAUSE_OUT_OF_RESC);
+						phdr->param_length = htons(sizeof(struct sctp_paramhdr));
+						sctp_queue_op_err(stcb, oper);
+					}
 				}
 				if (locked_tcb)
 					SCTP_TCB_UNLOCK(locked_tcb);
 				return (NULL);
 			}
+	all_fits:
 			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 			    chk_length, chunk_buf);
 			if (ch == NULL) {
@@ -3902,8 +3932,16 @@ process_control_chunks:
 				uint16_t num_seg;
 				int nonce_sum_flag;
 
+				if (chk_length < sizeof(struct sctp_sack_chunk)) {
+#ifdef SCTP_DEBUG
+					if (sctp_debug_on & SCTP_DEBUG_INDATA1) {
+						printf("Bad size on sack chunk .. to small\n");
+					}
+#endif
+					*offset = length;
+					return (NULL);
+				}
 				sack = (struct sctp_sack_chunk *)ch;
-
 				nonce_sum_flag = ch->chunk_flags & SCTP_SACK_NONCE_SUM;
 				cum_ack = ntohl(sack->sack.cum_tsn_ack);
 				num_seg = ntohs(sack->sack.num_gap_ack_blks);
@@ -3925,9 +3963,10 @@ process_control_chunks:
 					 * with no missing segments to go
 					 * this way too.
 					 */
-					sctp_express_handle_sack(stcb, cum_ack, a_rwnd, nonce_sum_flag, &abort_now);
+					sctp_express_handle_sack(stcb, cum_ack, a_rwnd, nonce_sum_flag,
+					    &abort_now);
 				} else {
-					sctp_handle_sack(sack, stcb, *netp, &abort_now);
+					sctp_handle_sack(sack, stcb, *netp, &abort_now, chk_length, a_rwnd);
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
@@ -3955,7 +3994,11 @@ process_control_chunks:
 				printf("SCTP_HEARTBEAT-ACK\n");
 			}
 #endif				/* SCTP_DEBUG */
-
+			if (chk_length != sizeof(struct sctp_heartbeat_chunk)) {
+				/* Its not ours */
+				*offset = length;
+				return (NULL);
+			}
 			/* He's alive so give him credit */
 			stcb->asoc.overall_error_count = 0;
 			SCTP_STAT_INCR(sctps_recvheartbeatack);
@@ -3979,7 +4022,11 @@ process_control_chunks:
 				printf("SCTP_SHUTDOWN\n");
 			}
 #endif				/* SCTP_DEBUG */
-			{
+			if (chk_length != sizeof(struct sctp_shutdown_chunk)) {
+				*offset = length;
+				return (NULL);
+
+			} {
 				int abort_flag = 0;
 
 				sctp_handle_shutdown((struct sctp_shutdown_chunk *)ch,
@@ -4162,6 +4209,11 @@ process_control_chunks:
 			}
 #endif				/* SCTP_DEBUG */
 			/* He's alive so give him credit */
+			if (chk_length != sizeof(struct sctp_ecne_chunk)) {
+				/* Its not ours */
+				*offset = length;
+				return (NULL);
+			}
 			stcb->asoc.overall_error_count = 0;
 			sctp_handle_ecn_echo((struct sctp_ecne_chunk *)ch,
 			    stcb);
@@ -4173,6 +4225,11 @@ process_control_chunks:
 			}
 #endif				/* SCTP_DEBUG */
 			/* He's alive so give him credit */
+			if (chk_length != sizeof(struct sctp_cwr_chunk)) {
+				/* Its not ours */
+				*offset = length;
+				return (NULL);
+			}
 			stcb->asoc.overall_error_count = 0;
 
 			sctp_handle_ecn_cwr((struct sctp_cwr_chunk *)ch, stcb);
@@ -4215,6 +4272,11 @@ process_control_chunks:
 				printf("SCTP_ASCONF-ACK\n");
 			}
 #endif				/* SCTP_DEBUG */
+			if (chk_length < sizeof(struct sctp_asconf_ack_chunk)) {
+				/* Its not ours */
+				*offset = length;
+				return (NULL);
+			}
 			/* He's alive so give him credit */
 			stcb->asoc.overall_error_count = 0;
 
@@ -4227,6 +4289,11 @@ process_control_chunks:
 				printf("SCTP_FWD-TSN\n");
 			}
 #endif				/* SCTP_DEBUG */
+			if (chk_length < sizeof(struct sctp_forward_tsn_chunk)) {
+				/* Its not ours */
+				*offset = length;
+				return (NULL);
+			}
 			/* He's alive so give him credit */
 			{
 				int abort_flag = 0;
@@ -4258,6 +4325,11 @@ process_control_chunks:
 #endif				/* SCTP_DEBUG */
 			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 			    chk_length, chunk_buf);
+			if (chk_length < sizeof(struct sctp_stream_reset_tsn_req)) {
+				/* Its not ours */
+				*offset = length;
+				return (NULL);
+			}
 			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
 				/* We are not interested anymore */
 				sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_29);
@@ -4285,6 +4357,11 @@ process_control_chunks:
 			}
 #endif				/* SCTP_DEBUG */
 			/* re-get it all please */
+			if (chk_length < sizeof(struct sctp_pktdrop_chunk)) {
+				/* Its not ours */
+				*offset = length;
+				return (NULL);
+			}
 			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 			    chk_length, chunk_buf);
 
@@ -4311,6 +4388,12 @@ process_control_chunks:
 				}
 				/* skip this chunk (temporarily) */
 				goto next_chunk;
+			}
+			if ((chk_length < (sizeof(struct sctp_auth_chunk))) ||
+			    (chk_length > (sizeof(struct sctp_auth_chunk) + SCTP_AUTH_DIGEST_LEN_MAX))) {
+				/* Its not ours */
+				*offset = length;
+				return (NULL);
 			}
 			if (got_auth == 1) {
 				/* skip this chunk... it's already auth'd */
@@ -4902,5 +4985,7 @@ bad:
 	if (m) {
 		sctp_m_freem(m);
 	}
+	/* For BSD/MAC this does nothing */
+	SCTP_RELEASE_PAK(i_pak);
 	return;
 }
