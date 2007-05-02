@@ -347,9 +347,9 @@ acpi_machdep_quirks(int *quirks)
 	int year;
 
 	/* BIOS address 0xffff5 contains the date in the format mm/dd/yy. */
-	va = pmap_mapdev(0xffff0, 16);
+	va = pmap_mapbios(0xffff0, 16);
 	sscanf(va + 11, "%2d", &year);
-	pmap_unmapdev((vm_offset_t)va, 16);
+	pmap_unmapbios((vm_offset_t)va, 16);
 
 	/* 
 	 * Date must be >= 1/1/1999 or we don't trust ACPI.  Note that this
