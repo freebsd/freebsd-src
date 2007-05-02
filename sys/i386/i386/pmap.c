@@ -591,6 +591,16 @@ pmap_invalidate_all(pmap_t pmap)
 	}
 	sched_unpin();
 }
+
+void
+pmap_invalidate_cache(void)
+{
+
+	sched_pin();
+	wbinvd();
+	smp_cache_flush();
+	sched_unpin();
+}
 #else /* !SMP */
 /*
  * Normal, non-SMP, 486+ invalidation functions.
@@ -620,6 +630,13 @@ pmap_invalidate_all(pmap_t pmap)
 
 	if (pmap == kernel_pmap || pmap->pm_active)
 		invltlb();
+}
+
+PMAP_INLINE void
+pmap_invalidate_cache(void)
+{
+
+	wbinvd();
 }
 #endif /* !SMP */
 

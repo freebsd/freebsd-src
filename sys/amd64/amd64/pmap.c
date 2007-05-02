@@ -738,6 +738,30 @@ pmap_invalidate_all(pmap_t pmap)
 	else
 		critical_exit();
 }
+
+void
+pmap_invalidate_cache(void)
+{
+
+	if (smp_started) {
+		if (!(read_rflags() & PSL_I))
+			panic("%s: interrupts disabled", __func__);
+		mtx_lock_spin(&smp_ipi_mtx);
+	} else
+		critical_enter();
+	/*
+	 * We need to disable interrupt preemption but MUST NOT have
+	 * interrupts disabled here.
+	 * XXX we may need to hold schedlock to get a coherent pm_active
+	 * XXX critical sections disable interrupts again
+	 */
+	wbinvd();
+	smp_cache_flush();
+	if (smp_started)
+		mtx_unlock_spin(&smp_ipi_mtx);
+	else
+		critical_exit();
+}
 #else /* !SMP */
 /*
  * Normal, non-SMP, invalidation functions.
@@ -767,6 +791,13 @@ pmap_invalidate_all(pmap_t pmap)
 
 	if (pmap == kernel_pmap || pmap->pm_active)
 		invltlb();
+}
+
+PMAP_INLINE void
+pmap_invalidate_cache(void)
+{
+
+	wbinvd();
 }
 #endif /* !SMP */
 

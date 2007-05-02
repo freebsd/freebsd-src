@@ -191,6 +191,7 @@ static u_long *ipi_ast_counts[MAXCPU];
 u_long *ipi_invltlb_counts[MAXCPU];
 u_long *ipi_invlrng_counts[MAXCPU];
 u_long *ipi_invlpg_counts[MAXCPU];
+u_long *ipi_invlcache_counts[MAXCPU];
 u_long *ipi_rendezvous_counts[MAXCPU];
 u_long *ipi_lazypmap_counts[MAXCPU];
 #endif
@@ -386,7 +387,11 @@ cpu_mp_start(void)
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(IPI_INVLRNG, IDTVEC(invlrng),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	
+
+	/* Install an inter-CPU IPI for cache invalidation. */
+	setidt(IPI_INVLCACHE, IDTVEC(invlcache),
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
 	/* Install an inter-CPU IPI for lazy pmap release */
 	setidt(IPI_LAZYPMAP, IDTVEC(lazypmap),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
@@ -1061,6 +1066,14 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
 	mtx_unlock_spin(&smp_ipi_mtx);
+}
+
+void
+smp_cache_flush(void)
+{
+
+	if (smp_started)
+		smp_tlb_shootdown(IPI_INVLCACHE, 0, 0);
 }
 
 void
