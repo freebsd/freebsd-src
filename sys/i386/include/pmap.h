@@ -366,6 +366,7 @@ void	pmap_set_pg(void);
 void	pmap_invalidate_page(pmap_t, vm_offset_t);
 void	pmap_invalidate_range(pmap_t, vm_offset_t, vm_offset_t);
 void	pmap_invalidate_all(pmap_t);
+void	pmap_invalidate_cache(void);
 
 #endif /* _KERNEL */
 

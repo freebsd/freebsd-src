@@ -222,6 +222,25 @@ IDTVEC(invlrng)
 	iretq
 
 /*
+ * Invalidate cache.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(invlcache)
+	pushq	%rax
+
+	wbinvd
+
+	movq	lapic, %rax
+	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+
+	lock
+	incl	smp_tlb_wait
+
+	popq	%rax
+	iretq
+
+/*
  * Handler for IPIs sent via the per-cpu IPI bitmap.
  */
 	.text

@@ -264,6 +264,39 @@ IDTVEC(invlrng)
 	iret
 
 /*
+ * Invalidate cache.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(invlcache)
+	pushl	%eax
+	pushl	%ds
+	movl	$KDSEL, %eax		/* Kernel data selector */
+	movl	%eax, %ds
+
+#ifdef COUNT_IPIS
+	pushl	%fs
+	movl	$KPSEL, %eax		/* Private space selector */
+	movl	%eax, %fs
+	movl	PCPU(CPUID), %eax
+	popl	%fs
+	movl	ipi_invlcache_counts(,%eax,4),%eax
+	incl	(%eax)
+#endif
+
+	wbinvd
+
+	movl	lapic, %eax
+	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
+
+	lock
+	incl	smp_tlb_wait
+
+	popl	%ds
+	popl	%eax
+	iret
+
+/*
  * Handler for IPIs sent via the per-cpu IPI bitmap.
  */
 	.text
