@@ -340,14 +340,6 @@ db_print_sbflags(short sb_flags)
 	int comma;
 
 	comma = 0;
-	if (sb_flags & SB_LOCK) {
-		db_printf("%sSB_LOCK", comma ? ", " : "");
-		comma = 1;
-	}
-	if (sb_flags & SB_WANT) {
-		db_printf("%sSB_WANT", comma ? ", " : "");
-		comma = 1;
-	}
 	if (sb_flags & SB_WAIT) {
 		db_printf("%sSB_WAIT", comma ? ", " : "");
 		comma = 1;

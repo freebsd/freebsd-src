@@ -1920,9 +1920,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	}
 
 	/* Protect against multiple writers to the socket. */
-	SOCKBUF_LOCK(&so->so_snd);
 	(void) sblock(&so->so_snd, M_WAITOK);
-	SOCKBUF_UNLOCK(&so->so_snd);
 
 	/*
 	 * Loop through the pages of the file, starting with the requested
@@ -2196,9 +2194,7 @@ retry_space:
 	}
 
 done:
-	SOCKBUF_LOCK(&so->so_snd);
 	sbunlock(&so->so_snd);
-	SOCKBUF_UNLOCK(&so->so_snd);
 out:
 	/*
 	 * If there was no error we have to clear td->td_retval[0]

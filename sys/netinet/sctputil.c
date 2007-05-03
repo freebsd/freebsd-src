@@ -3862,9 +3862,7 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 	old_so = old_inp->sctp_socket;
 	new_so = new_inp->sctp_socket;
 	TAILQ_INIT(&tmp_queue);
-	SOCKBUF_LOCK(&(old_so->so_rcv));
 	error = sblock(&old_so->so_rcv, waitflags);
-	SOCKBUF_UNLOCK(&(old_so->so_rcv));
 	if (error) {
 		/*
 		 * Gak, can't get sblock, we have a problem. data will be
@@ -3903,10 +3901,8 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 	}
 	SCTP_INP_READ_UNLOCK(old_inp);
 	/* Remove the sb-lock on the old socket */
-	SOCKBUF_LOCK(&(old_so->so_rcv));
 
 	sbunlock(&old_so->so_rcv);
-	SOCKBUF_UNLOCK(&(old_so->so_rcv));
 	/* Now we move them over to the new socket buffer */
 	control = TAILQ_FIRST(&tmp_queue);
 	SCTP_INP_READ_LOCK(new_inp);
@@ -4521,6 +4517,7 @@ sctp_sorecvmsg(struct socket *so,
 	int alen = 0;
 	int slen = 0;
 	int held_length = 0;
+	int sockbuf_lock = 0;
 
 	if (msg_flags) {
 		in_flags = *msg_flags;
@@ -4558,8 +4555,6 @@ sctp_sorecvmsg(struct socket *so,
 	sctp_misc_ints(SCTP_SORECV_ENTER,
 	    rwnd_req, in_eeor_mode, so->so_rcv.sb_cc, uio->uio_resid);
 #endif
-	SOCKBUF_LOCK(&so->so_rcv);
-	hold_sblock = 1;
 #ifdef SCTP_RECV_RWND_LOGGING
 	sctp_misc_ints(SCTP_SORECV_ENTERPL,
 	    rwnd_req, block_allowed, so->so_rcv.sb_cc, uio->uio_resid);
@@ -4567,15 +4562,12 @@ sctp_sorecvmsg(struct socket *so,
 
 
 	error = sblock(&so->so_rcv, (block_allowed ? M_WAITOK : 0));
+	sockbuf_lock = 1;
 	if (error) {
 		goto release_unlocked;
 	}
 restart:
-	if (hold_sblock == 0) {
-		SOCKBUF_LOCK(&so->so_rcv);
-		hold_sblock = 1;
-	}
-	sbunlock(&so->so_rcv);
+
 
 restart_nosblocks:
 	if (hold_sblock == 0) {
@@ -4704,7 +4696,6 @@ restart_nosblocks:
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		hold_sblock = 0;
 	}
-	error = sblock(&so->so_rcv, (block_allowed ? M_WAITOK : 0));
 	/* we possibly have data we can read */
 	control = TAILQ_FIRST(&inp->read_queue);
 	if (control == NULL) {
@@ -5529,11 +5520,12 @@ release:
 		SCTP_INP_READ_UNLOCK(inp);
 		hold_rlock = 0;
 	}
-	if (hold_sblock == 0) {
-		SOCKBUF_LOCK(&so->so_rcv);
-		hold_sblock = 1;
+	if (hold_sblock == 1) {
+		SOCKBUF_UNLOCK(&so->so_rcv);
+		hold_sblock = 0;
 	}
 	sbunlock(&so->so_rcv);
+	sockbuf_lock = 0;
 
 release_unlocked:
 	if (hold_sblock) {
@@ -5565,6 +5557,9 @@ out:
 	if (hold_sblock) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		hold_sblock = 0;
+	}
+	if (sockbuf_lock) {
+		sbunlock(&so->so_rcv);
 	}
 	if (freecnt_applied) {
 		/*
