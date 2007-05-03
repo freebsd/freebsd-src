@@ -34,8 +34,8 @@
 #define LAGG_PORT_MASTER	0x00000001	/* primary port */
 #define LAGG_PORT_STACK		0x00000002	/* stacked lagg port */
 #define LAGG_PORT_ACTIVE	0x00000004	/* port is active */
-#define LAGG_PORT_COLLECTING	0x00000008	/* port is active */
-#define LAGG_PORT_DISTRIBUTING	0x00000010	/* port is active */
+#define LAGG_PORT_COLLECTING	0x00000008	/* port is receiving frames */
+#define LAGG_PORT_DISTRIBUTING	0x00000010	/* port is sending frames */
 #define LAGG_PORT_DISABLED	0x00000020	/* port is disabled */
 #define LAGG_PORT_GLOBAL	0x80000000	/* IOCTL: global flag */
 #define LAGG_PORT_BITS		"\20\01MASTER\02STACK\03ACTIVE\04COLLECTING" \
