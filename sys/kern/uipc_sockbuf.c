@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 
 /*
@@ -132,27 +133,25 @@ sbwait(struct sockbuf *sb)
 	    sb->sb_timeo));
 }
 
-/*
- * Lock a sockbuf already known to be locked; return any error returned from
- * sleep (EINTR).
- */
 int
-sb_lock(struct sockbuf *sb)
+sblock(struct sockbuf *sb, int flags)
 {
-	int error;
 
-	SOCKBUF_LOCK_ASSERT(sb);
-
-	while (sb->sb_flags & SB_LOCK) {
-		sb->sb_flags |= SB_WANT;
-		error = msleep(&sb->sb_flags, &sb->sb_mtx,
-		    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK|PCATCH,
-		    "sblock", 0);
-		if (error)
-			return (error);
+	if (flags == M_WAITOK) {
+		sx_xlock(&sb->sb_sx);
+		return (0);
+	} else {
+		if (sx_try_xlock(&sb->sb_sx) == 0)
+			return (EWOULDBLOCK);
+		return (0);
 	}
-	sb->sb_flags |= SB_LOCK;
-	return (0);
+}
+
+void
+sbunlock(struct sockbuf *sb)
+{
+
+	sx_xunlock(&sb->sb_sx);
 }
 
 /*
@@ -797,8 +796,6 @@ static void
 sbflush_internal(struct sockbuf *sb)
 {
 
-	if (sb->sb_flags & SB_LOCK)
-		panic("sbflush_internal: locked");
 	while (sb->sb_mbcnt) {
 		/*
 		 * Don't call sbdrop(sb, 0) if the leading mbuf is non-empty:

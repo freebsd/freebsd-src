@@ -2,7 +2,7 @@
  * Copyright (c) 1982, 1986, 1988, 1990, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2004 The FreeBSD Foundation
- * Copyright (c) 2004-2006 Robert N. M. Watson
+ * Copyright (c) 2004-2007 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -124,6 +124,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/jail.h>
@@ -273,6 +274,8 @@ soalloc(void)
 #endif
 	SOCKBUF_LOCK_INIT(&so->so_snd, "so_snd");
 	SOCKBUF_LOCK_INIT(&so->so_rcv, "so_rcv");
+	sx_init(&so->so_snd.sb_sx, "so_snd_sx");
+	sx_init(&so->so_rcv.sb_sx, "so_rcv_sx");
 	TAILQ_INIT(&so->so_aiojobq);
 	mtx_lock(&so_global_mtx);
 	so->so_gencnt = ++so_gencnt;
@@ -312,6 +315,8 @@ sodealloc(struct socket *so)
 	mac_destroy_socket(so);
 #endif
 	crfree(so->so_cred);
+	sx_destroy(&so->so_snd.sb_sx);
+	sx_destroy(&so->so_rcv.sb_sx);
 	SOCKBUF_LOCK_DESTROY(&so->so_snd);
 	SOCKBUF_LOCK_DESTROY(&so->so_rcv);
 	uma_zfree(socket_zone, so);
@@ -624,11 +629,8 @@ sofree(so)
 	 *
 	 * Notice that the socket buffer and kqueue state are torn down
 	 * before calling pru_detach.  This means that protocols shold not
-	 * assume they can perform socket wakeups, etc, in their detach
-	 * code.
+	 * assume they can perform socket wakeups, etc, in their detach code.
 	 */
-	KASSERT((so->so_snd.sb_flags & SB_LOCK) == 0, ("sofree: snd sblock"));
-	KASSERT((so->so_rcv.sb_flags & SB_LOCK) == 0, ("sofree: rcv sblock"));
 	sbdestroy(&so->so_snd, so);
 	sbdestroy(&so->so_rcv, so);
 	knlist_destroy(&so->so_rcv.sb_sel.si_note);
@@ -1123,7 +1125,6 @@ out:
  * counts if EINTR/ERESTART are returned.  Data and control buffers are freed
  * on return.
  */
-#define	snderr(errno)	{ error = (errno); goto release; }
 int
 sosend_generic(so, addr, uio, top, control, flags, td)
 	struct socket *so;
@@ -1165,19 +1166,22 @@ sosend_generic(so, addr, uio, top, control, flags, td)
 	if (control != NULL)
 		clen = control->m_len;
 
-	SOCKBUF_LOCK(&so->so_snd);
-restart:
-	SOCKBUF_LOCK_ASSERT(&so->so_snd);
 	error = sblock(&so->so_snd, SBLOCKWAIT(flags));
 	if (error)
-		goto out_locked;
+		goto out;
+
+restart:
 	do {
-		SOCKBUF_LOCK_ASSERT(&so->so_snd);
-		if (so->so_snd.sb_state & SBS_CANTSENDMORE)
-			snderr(EPIPE);
+		SOCKBUF_LOCK(&so->so_snd);
+		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+			SOCKBUF_UNLOCK(&so->so_snd);
+			error = EPIPE;
+			goto release;
+		}
 		if (so->so_error) {
 			error = so->so_error;
 			so->so_error = 0;
+			SOCKBUF_UNLOCK(&so->so_snd);
 			goto release;
 		}
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
@@ -1190,26 +1194,40 @@ restart:
 			if ((so->so_proto->pr_flags & PR_CONNREQUIRED) &&
 			    (so->so_proto->pr_flags & PR_IMPLOPCL) == 0) {
 				if ((so->so_state & SS_ISCONFIRMING) == 0 &&
-				    !(resid == 0 && clen != 0))
-					snderr(ENOTCONN);
-			} else if (addr == NULL)
-			    snderr(so->so_proto->pr_flags & PR_CONNREQUIRED ?
-				   ENOTCONN : EDESTADDRREQ);
+				    !(resid == 0 && clen != 0)) {
+					SOCKBUF_UNLOCK(&so->so_snd);
+					error = ENOTCONN;
+					goto release;
+				}
+			} else if (addr == NULL) {
+				SOCKBUF_UNLOCK(&so->so_snd);
+				if (so->so_proto->pr_flags & PR_CONNREQUIRED)
+					error = ENOTCONN;
+				else
+					error = EDESTADDRREQ;
+				goto release;
+			}
 		}
 		space = sbspace(&so->so_snd);
 		if (flags & MSG_OOB)
 			space += 1024;
 		if ((atomic && resid > so->so_snd.sb_hiwat) ||
-		    clen > so->so_snd.sb_hiwat)
-			snderr(EMSGSIZE);
+		    clen > so->so_snd.sb_hiwat) {
+			SOCKBUF_UNLOCK(&so->so_snd);
+			error = EMSGSIZE;
+			goto release;
+		}
 		if (space < resid + clen &&
 		    (atomic || space < so->so_snd.sb_lowat || space < clen)) {
-			if ((so->so_state & SS_NBIO) || (flags & MSG_NBIO))
-				snderr(EWOULDBLOCK);
-			sbunlock(&so->so_snd);
+			if ((so->so_state & SS_NBIO) || (flags & MSG_NBIO)) {
+				SOCKBUF_UNLOCK(&so->so_snd);
+				error = EWOULDBLOCK;
+				goto release;
+			}
 			error = sbwait(&so->so_snd);
 			if (error)
-				goto out_locked;
+				goto release;
+			SOCKBUF_UNLOCK(&so->so_snd);
 			goto restart;
 		}
 		SOCKBUF_UNLOCK(&so->so_snd);
@@ -1223,10 +1241,8 @@ restart:
 #ifdef ZERO_COPY_SOCKETS
 				error = sosend_copyin(uio, &top, atomic,
 				    &space, flags);
-				if (error != 0) {
-					SOCKBUF_LOCK(&so->so_snd);
+				if (error != 0)
 					goto release;
-				}
 #else
 				/*
 				 * Copy the data from userland into a mbuf
@@ -1238,7 +1254,6 @@ restart:
 				    (atomic ? M_PKTHDR : 0) |
 				    ((flags & MSG_EOR) ? M_EOR : 0));
 				if (top == NULL) {
-					SOCKBUF_LOCK(&so->so_snd);
 					error = EFAULT; /* only possible error */
 					goto release;
 				}
@@ -1283,20 +1298,13 @@ restart:
 			clen = 0;
 			control = NULL;
 			top = NULL;
-			if (error) {
-				SOCKBUF_LOCK(&so->so_snd);
+			if (error)
 				goto release;
-			}
 		} while (resid && space > 0);
-		SOCKBUF_LOCK(&so->so_snd);
 	} while (resid);
 
 release:
-	SOCKBUF_LOCK_ASSERT(&so->so_snd);
 	sbunlock(&so->so_snd);
-out_locked:
-	SOCKBUF_LOCK_ASSERT(&so->so_snd);
-	SOCKBUF_UNLOCK(&so->so_snd);
 out:
 	if (top != NULL)
 		m_freem(top);
@@ -1304,7 +1312,6 @@ out:
 		m_freem(control);
 	return (error);
 }
-#undef snderr
 
 int
 sosend(so, addr, uio, top, control, flags, td)
@@ -1462,13 +1469,12 @@ soreceive_generic(so, psa, uio, mp0, controlp, flagsp)
 	    && uio->uio_resid)
 		(*pr->pr_usrreqs->pru_rcvd)(so, 0);
 
-	SOCKBUF_LOCK(&so->so_rcv);
-restart:
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	error = sblock(&so->so_rcv, SBLOCKWAIT(flags));
 	if (error)
-		goto out;
+		return (error);
 
+restart:
+	SOCKBUF_LOCK(&so->so_rcv);
 	m = so->so_rcv.sb_mb;
 	/*
 	 * If we have less data than requested, block awaiting more (subject
@@ -1495,14 +1501,16 @@ restart:
 			error = so->so_error;
 			if ((flags & MSG_PEEK) == 0)
 				so->so_error = 0;
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			goto release;
 		}
 		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
-			if (m)
-				goto dontblock;
-			else
+			if (m == NULL) {
+				SOCKBUF_UNLOCK(&so->so_rcv);
 				goto release;
+			} else
+				goto dontblock;
 		}
 		for (; m != NULL; m = m->m_next)
 			if (m->m_type == MT_OOBDATA  || (m->m_flags & M_EOR)) {
@@ -1511,22 +1519,26 @@ restart:
 			}
 		if ((so->so_state & (SS_ISCONNECTED|SS_ISCONNECTING)) == 0 &&
 		    (so->so_proto->pr_flags & PR_CONNREQUIRED)) {
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			error = ENOTCONN;
 			goto release;
 		}
-		if (uio->uio_resid == 0)
+		if (uio->uio_resid == 0) {
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			goto release;
+		}
 		if ((so->so_state & SS_NBIO) ||
 		    (flags & (MSG_DONTWAIT|MSG_NBIO))) {
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			error = EWOULDBLOCK;
 			goto release;
 		}
 		SBLASTRECORDCHK(&so->so_rcv);
 		SBLASTMBUFCHK(&so->so_rcv);
-		sbunlock(&so->so_rcv);
 		error = sbwait(&so->so_rcv);
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		if (error)
-			goto out;
+			goto release;
 		goto restart;
 	}
 dontblock:
@@ -1721,6 +1733,7 @@ dontblock:
 				if (m && pr->pr_flags & PR_ATOMIC &&
 				    ((flags & MSG_PEEK) == 0))
 					(void)sbdroprecord_locked(&so->so_rcv);
+				SOCKBUF_UNLOCK(&so->so_rcv);
 				goto release;
 			}
 		} else
@@ -1822,8 +1835,10 @@ dontblock:
 			SBLASTRECORDCHK(&so->so_rcv);
 			SBLASTMBUFCHK(&so->so_rcv);
 			error = sbwait(&so->so_rcv);
-			if (error)
+			if (error) {
+				SOCKBUF_UNLOCK(&so->so_rcv);
 				goto release;
+			}
 			m = so->so_rcv.sb_mb;
 			if (m != NULL)
 				nextrecord = m->m_nextpkt;
@@ -1867,18 +1882,15 @@ dontblock:
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	if (orig_resid == uio->uio_resid && orig_resid &&
 	    (flags & MSG_EOR) == 0 && (so->so_rcv.sb_state & SBS_CANTRCVMORE) == 0) {
-		sbunlock(&so->so_rcv);
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		goto restart;
 	}
+	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	if (flagsp != NULL)
 		*flagsp |= flags;
 release:
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	sbunlock(&so->so_rcv);
-out:
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-	SOCKBUF_UNLOCK(&so->so_rcv);
 	return (error);
 }
 
@@ -1933,27 +1945,22 @@ sorflush(so)
 	 * however, we have to initialize and destroy the mutex in the copy
 	 * so that dom_dispose() and sbrelease() can lock t as needed.
 	 */
+	(void) sblock(sb, M_WAITOK);
 	SOCKBUF_LOCK(sb);
 	sb->sb_flags |= SB_NOINTR;
-	(void) sblock(sb, M_WAITOK);
-	/*
-	 * socantrcvmore_locked() drops the socket buffer mutex so that it
-	 * can safely perform wakeups.  Re-acquire the mutex before
-	 * continuing.
-	 */
 	socantrcvmore_locked(so);
-	SOCKBUF_LOCK(sb);
-	sbunlock(sb);
 	/*
 	 * Invalidate/clear most of the sockbuf structure, but leave selinfo
 	 * and mutex data unchanged.
 	 */
+	SOCKBUF_LOCK(sb);
 	bzero(&asb, offsetof(struct sockbuf, sb_startzero));
 	bcopy(&sb->sb_startzero, &asb.sb_startzero,
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
 	bzero(&sb->sb_startzero,
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
 	SOCKBUF_UNLOCK(sb);
+	sbunlock(sb);
 
 	SOCKBUF_LOCK_INIT(&asb, "so_rcv");
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)

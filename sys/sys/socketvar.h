@@ -37,6 +37,7 @@
 #include <sys/selinfo.h>		/* for struct selinfo */
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_sx.h>
 
 /*
  * Kernel structure per socket.
@@ -97,6 +98,7 @@ struct socket {
 	struct sockbuf {
 		struct	selinfo sb_sel;	/* process selecting read/write */
 		struct	mtx sb_mtx;	/* sockbuf lock */
+		struct	sx sb_sx;	/* prevent I/O interlacing */
 		short	sb_state;	/* (c/d) socket state on sockbuf */
 #define	sb_startzero	sb_mb
 		struct	mbuf *sb_mb;	/* (c/d) the mbuf chain */
@@ -121,8 +123,6 @@ struct socket {
 /*
  * Constants for sb_flags field of struct sockbuf.
  */
-#define	SB_LOCK		0x01		/* lock on data queue */
-#define	SB_WANT		0x02		/* someone is waiting to lock */
 #define	SB_WAIT		0x04		/* someone is waiting for data/space */
 #define	SB_SEL		0x08		/* someone is selecting */
 #define	SB_ASYNC	0x10		/* ASYNC I/O, need signals */
@@ -332,25 +332,6 @@ struct xsocket {
 }
 
 /*
- * Set lock on sockbuf sb; sleep if lock is already held.
- * Unless SB_NOINTR is set on sockbuf, sleep is interruptible.
- * Returns error without lock if sleep is interrupted.
- */
-#define sblock(sb, wf) ((sb)->sb_flags & SB_LOCK ? \
-		(((wf) == M_WAITOK) ? sb_lock(sb) : EWOULDBLOCK) : \
-		((sb)->sb_flags |= SB_LOCK), 0)
-
-/* release lock on sockbuf sb */
-#define	sbunlock(sb) do { \
-	SOCKBUF_LOCK_ASSERT(sb); \
-	(sb)->sb_flags &= ~SB_LOCK; \
-	if ((sb)->sb_flags & SB_WANT) { \
-		(sb)->sb_flags &= ~SB_WANT; \
-		wakeup(&(sb)->sb_flags); \
-	} \
-} while (0)
-
-/*
  * soref()/sorele() ref-count the socket structure.  Note that you must
  * still explicitly close the socket, but the last ref count will free
  * the structure.
@@ -503,7 +484,8 @@ struct mbuf *
 	sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff);
 void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
 int	sbwait(struct sockbuf *sb);
-int	sb_lock(struct sockbuf *sb);
+int	sblock(struct sockbuf *sb, int flags);
+void	sbunlock(struct sockbuf *sb);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
 int	socheckuid(struct socket *so, uid_t uid);
