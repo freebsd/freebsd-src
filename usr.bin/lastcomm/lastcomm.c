@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <pwd.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -139,9 +140,10 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (strcmp(acctfile, "-") == 0)
+	if (strcmp(acctfile, "-") == 0) {
 		fp = stdin;
-	else {
+		size = sizeof(struct acct); /* Always one more to read. */
+	} else {
 		/* Open the file. */
 		if ((fp = fopen(acctfile, "r")) == NULL ||
 		    fstat(fileno(fp), &sb))
