@@ -255,6 +255,9 @@ Change the number of seconds to delay between displays
 .B S
 Toggle the display of system processes.
 .TP
+.B a
+Toggle the display of process titles.
+.TP
 .B k
 Send a signal (\*(lqkill\*(rq by default) to a list of processes.  This
 acts similarly to the command

@@ -89,6 +89,7 @@ o       - specify sort order (vcsw, ivcsw, read, write, fault, total)\n", stdout
 r       - renice a process\n\
 s       - change number of seconds to delay between updates\n\
 S       - toggle the displaying of system processes\n\
+a       - toggle the displaying of process titles\n\
 t       - toggle the display of this process\n\
 u       - display processes for only one user (+ selects all users)\n\
 \n\
