@@ -1028,6 +1028,7 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 	struct ifnet *trifp = sc->sc_ifp;
 
 	if ((trifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    (lp->lp_flags & LAGG_PORT_DISABLED) ||
 	    sc->sc_proto == LAGG_PROTO_NONE) {
 		m_freem(m);
 		return (NULL);
