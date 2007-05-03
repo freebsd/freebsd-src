@@ -613,7 +613,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 
 	/*
 	 * no retries are to be performed at the ATA level; any retries
-	 * will be done by CAM .
+	 * will be done by CAM.
 	 */
 	request->retries = 0;
 
@@ -726,7 +726,7 @@ atapi_cb(struct ata_request *request)
 		 * issued a REQUEST SENSE automatically and that operation
 		 * returned without error.
 		 */
-		if (request->u.atapi.saved_cmd != 0 && request->error == 0) {
+		if (request->u.atapi.sense.key != 0 && request->error == 0) {
 		    bcopy (&request->u.atapi.sense, &csio->sense_data, sizeof(struct atapi_sense));
 		    csio->ccb_h.status |= CAM_AUTOSNS_VALID;
 		}
