@@ -368,12 +368,19 @@ lacp_linkstate(struct lagg_port *lgp)
 		return;
 
 	media = ifmr.ifm_active;
-	LACP_DPRINTF((lp, "media changed 0x%x -> 0x%x\n", lp->lp_media, media));
+	LACP_DPRINTF((lp, "media changed 0x%x -> 0x%x, ether = %d, fdx = %d, "
+	    "link = %d\n", lp->lp_media, media, IFM_TYPE(media) == IFM_ETHER,
+	    (media & IFM_FDX) != 0, ifp->if_link_state == LINK_STATE_UP));
 	old_state = lp->lp_state;
 	old_key = lp->lp_key;
 
 	lp->lp_media = media;
-	if ((media & IFM_FDX) == 0 || ifp->if_link_state == LINK_STATE_DOWN) {
+	/* 
+	 * If the port is not an active full duplex Ethernet link then it can
+	 * not be aggregated.
+	 */
+	if (IFM_TYPE(media) != IFM_ETHER || (media & IFM_FDX) == 0 ||
+	    ifp->if_link_state != LINK_STATE_UP) {
 		lacp_port_disable(lp);
 	} else {
 		lacp_port_enable(lp);
@@ -477,6 +484,7 @@ lacp_port_destroy(struct lagg_port *lgp)
 	lacp_disable_collecting(lp);
 	lacp_disable_distributing(lp);
 	lacp_unselect(lp);
+	lgp->lp_flags &= ~LAGG_PORT_DISABLED;
 
 	bzero((char *)&sdl, sizeof(sdl));
 	sdl.sdl_len = sizeof(sdl);
@@ -848,8 +856,6 @@ lacp_compose_key(struct lacp_port *lp)
 	u_int media = lp->lp_media;
 	uint16_t key;
 
-	KASSERT(IFM_TYPE(media) == IFM_ETHER, ("invalid interface type"));
-
 	if ((lp->lp_state & LACP_STATE_AGGREGATION) == 0) {
 
 		/*
@@ -865,7 +871,8 @@ lacp_compose_key(struct lacp_port *lp)
 	} else {
 		u_int subtype = IFM_SUBTYPE(media);
 
-		KASSERT((media & IFM_HDX) == 0, ("aggregating HDX interface"));
+		KASSERT(IFM_TYPE(media) == IFM_ETHER, ("invalid media type"));
+		KASSERT((media & IFM_FDX) != 0, ("aggregating HDX interface"));
 
 		/* bit 0..4:	IFM_SUBTYPE */
 		key = subtype;
@@ -1011,12 +1018,17 @@ lacp_peerinfo_is_compatible(const struct lacp_peerinfo *a,
 static void
 lacp_port_enable(struct lacp_port *lp)
 {
+	struct lagg_port *lgp = lp->lp_lagg;
+
 	lp->lp_state |= LACP_STATE_AGGREGATION;
+	lgp->lp_flags &= ~LAGG_PORT_DISABLED;
 }
 
 static void
 lacp_port_disable(struct lacp_port *lp)
 {
+	struct lagg_port *lgp = lp->lp_lagg;
+
 	lacp_set_mux(lp, LACP_MUX_DETACHED);
 
 	lp->lp_state &= ~LACP_STATE_AGGREGATION;
@@ -1024,6 +1036,7 @@ lacp_port_disable(struct lacp_port *lp)
 	lacp_sm_rx_record_default(lp);
 	lp->lp_partner.lip_state &= ~LACP_STATE_AGGREGATION;
 	lp->lp_state &= ~LACP_STATE_EXPIRED;
+	lgp->lp_flags |= LAGG_PORT_DISABLED;
 }
 
 /*
