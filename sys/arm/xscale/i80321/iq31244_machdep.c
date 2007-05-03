@@ -125,8 +125,6 @@ struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 extern void *_end;
 
-extern vm_offset_t sa1_cache_clean_addr;
-
 extern int *end;
 
 struct pcpu __pcpu;
