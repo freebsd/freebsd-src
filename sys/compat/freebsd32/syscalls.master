@@ -704,12 +704,13 @@
 418	AUE_NULL	UNIMPL	__xstat
 419	AUE_NULL	UNIMPL	__xfstat
 420	AUE_NULL	UNIMPL	__xlstat
-; XXX implement
-421	AUE_NULL	UNIMPL	getcontext
-; XXX implement
-422	AUE_NULL	UNIMPL	setcontext
-; XXX implement
-423	AUE_NULL	UNIMPL	swapcontext
+421	AUE_NULL	STD	{ int freebsd32_getcontext( \
+				    struct freebsd32_ucontext *ucp); }
+422	AUE_NULL	STD	{ int freebsd32_setcontext( \
+				    const struct freebsd32_ucontext *ucp); }
+423	AUE_NULL	STD	{ int freebsd32_swapcontext( \
+				    struct freebsd32_ucontext *oucp, \
+				    const struct freebsd32_ucontext *ucp); }
 424	AUE_SWAPOFF	UNIMPL	swapoff
 425	AUE_NULL	UNIMPL	__acl_get_link
 426	AUE_NULL	UNIMPL	__acl_set_link
