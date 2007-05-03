@@ -1061,7 +1061,7 @@ softdep_waitidle(struct mount *mp)
 	error = 0;
 	if (i == 10) {
 		error = EBUSY;
-		printf("softdep_waitidle: Failed to flush worklist for %p",
+		printf("softdep_waitidle: Failed to flush worklist for %p\n",
 		    mp);
 	}
 
