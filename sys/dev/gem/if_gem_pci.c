@@ -72,15 +72,6 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-struct gem_pci_softc {
-	struct	gem_softc	gsc_gem;	/* GEM device */
-	struct	resource	*gsc_sres;
-	int			gsc_srid;
-	struct	resource	*gsc_ires;
-	int			gsc_irid;
-	void			*gsc_ih;
-};
-
 static int	gem_pci_probe(device_t);
 static int	gem_pci_attach(device_t);
 static int	gem_pci_detach(device_t);
@@ -112,7 +103,7 @@ static device_method_t gem_pci_methods[] = {
 static driver_t gem_pci_driver = {
 	"gem",
 	gem_pci_methods,
-	sizeof(struct gem_pci_softc)
+	sizeof(struct gem_softc)
 };
 
 
@@ -142,15 +133,14 @@ gem_pci_probe(dev)
 {
 	int i;
 	u_int32_t devid;
-	struct gem_pci_softc *gsc;
+	struct gem_softc *sc;
 
 	devid = pci_get_devid(dev);
 	for (i = 0; gem_pci_devlist[i].gpd_desc != NULL; i++) {
 		if (devid == gem_pci_devlist[i].gpd_devid) {
 			device_set_desc(dev, gem_pci_devlist[i].gpd_desc);
-			gsc = device_get_softc(dev);
-			gsc->gsc_gem.sc_variant =
-			    gem_pci_devlist[i].gpd_variant;
+			sc = device_get_softc(dev);
+			sc->sc_variant = gem_pci_devlist[i].gpd_variant;
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
@@ -158,12 +148,17 @@ gem_pci_probe(dev)
 	return (ENXIO);
 }
 
+static struct resource_spec gem_pci_res_spec[] = {
+	{ SYS_RES_MEMORY, PCI_GEM_BASEADDR, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_SHAREABLE | RF_ACTIVE },
+	{ -1, 0 }
+};
+
 static int
 gem_pci_attach(dev)
 	device_t dev;
 {
-	struct gem_pci_softc *gsc = device_get_softc(dev);
-	struct gem_softc *sc = &gsc->gsc_gem;
+	struct gem_softc *sc = device_get_softc(dev);
 
 	pci_enable_busmaster(dev);
 
@@ -177,26 +172,13 @@ gem_pci_attach(dev)
 	sc->sc_dev = dev;
 	sc->sc_pci = 1;		/* XXX */
 
+	if (bus_alloc_resources(dev, gem_pci_res_spec, sc->sc_res)) {
+		device_printf(dev, "failed to allocate resources\n");
+		bus_release_resources(dev, gem_pci_res_spec, sc->sc_res);
+		return (ENXIO);
+	}
+
 	GEM_LOCK_INIT(sc, device_get_nameunit(dev));
-
-	gsc->gsc_srid = PCI_GEM_BASEADDR;
-	gsc->gsc_sres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &gsc->gsc_srid, RF_ACTIVE);
-	if (gsc->gsc_sres == NULL) {
-		device_printf(dev, "failed to allocate bus space resource\n");
-		goto fail_mtx;
-	}
-
-	gsc->gsc_irid = 0;
-	gsc->gsc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-       	    &gsc->gsc_irid, RF_SHAREABLE | RF_ACTIVE);
-	if (gsc->gsc_ires == NULL) {
-		device_printf(dev, "failed to allocate interrupt resource\n");
-		goto fail_sres;
-	}
-
-	sc->sc_bustag = rman_get_bustag(gsc->gsc_sres);
-	sc->sc_h = rman_get_bushandle(gsc->gsc_sres);
 
 	/* All platform that this driver is used on must provide this. */
 	OF_getetheraddr(dev, sc->sc_enaddr);
@@ -206,22 +188,19 @@ gem_pci_attach(dev)
 	 */
 	if (gem_attach(sc) != 0) {
 		device_printf(dev, "could not be configured\n");
-		goto fail_ires;
+		goto fail;
 	}
 
-	if (bus_setup_intr(dev, gsc->gsc_ires, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, gem_intr, sc, &gsc->gsc_ih) != 0) {
+	if (bus_setup_intr(dev, sc->sc_res[1], INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, gem_intr, sc, &sc->sc_ih) != 0) {
 		device_printf(dev, "failed to set up interrupt\n");
 		gem_detach(sc);
-		goto fail_ires;
+		goto fail;
 	}
 	return (0);
 
-fail_ires:
-	bus_release_resource(dev, SYS_RES_IRQ, gsc->gsc_irid, gsc->gsc_ires);
-fail_sres:
-	bus_release_resource(dev, SYS_RES_MEMORY, gsc->gsc_srid, gsc->gsc_sres);
-fail_mtx:
+fail:
+	bus_release_resources(dev, gem_pci_res_spec, sc->sc_res);
 	GEM_LOCK_DESTROY(sc);
 	return (ENXIO);
 }
@@ -230,14 +209,12 @@ static int
 gem_pci_detach(dev)
 	device_t dev;
 {
-	struct gem_pci_softc *gsc = device_get_softc(dev);
-	struct gem_softc *sc = &gsc->gsc_gem;
+	struct gem_softc *sc = device_get_softc(dev);
 
-	bus_teardown_intr(dev, gsc->gsc_ires, gsc->gsc_ih);
+	bus_teardown_intr(dev, sc->sc_res[1], sc->sc_ih);
 	gem_detach(sc);
-	bus_release_resource(dev, SYS_RES_IRQ, gsc->gsc_irid, gsc->gsc_ires);
-	bus_release_resource(dev, SYS_RES_MEMORY, gsc->gsc_srid, gsc->gsc_sres);
 	GEM_LOCK_DESTROY(sc);
+	bus_release_resources(dev, gem_pci_res_spec, sc->sc_res);
 	return (0);
 }
 
@@ -245,8 +222,7 @@ static int
 gem_pci_suspend(dev)
 	device_t dev;
 {
-	struct gem_pci_softc *gsc = device_get_softc(dev);
-	struct gem_softc *sc = &gsc->gsc_gem;
+	struct gem_softc *sc = device_get_softc(dev);
 
 	gem_suspend(sc);
 	return (0);
@@ -256,8 +232,7 @@ static int
 gem_pci_resume(dev)
 	device_t dev;
 {
-	struct gem_pci_softc *gsc = device_get_softc(dev);
-	struct gem_softc *sc = &gsc->gsc_gem;
+	struct gem_softc *sc = device_get_softc(dev);
 
 	gem_resume(sc);
 	return (0);

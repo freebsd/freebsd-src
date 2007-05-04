@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/rman.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -257,10 +258,10 @@ gem_attach(sc)
 
 	/* Get RX FIFO size */
 	sc->sc_rxfifosize = 64 *
-	    bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_RX_FIFO_SIZE);
+	    bus_read_4(sc->sc_res[0], GEM_RX_FIFO_SIZE);
 
 	/* Get TX FIFO size */
-	v = bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_TX_FIFO_SIZE);
+	v = bus_read_4(sc->sc_res[0], GEM_TX_FIFO_SIZE);
 	device_printf(sc->sc_dev, "%ukB RX FIFO, %ukB TX FIFO\n",
 	    sc->sc_rxfifosize / 1024, v / 16);
 
@@ -315,7 +316,7 @@ gem_attach(sc)
 #endif
 		sc->sc_mif_config &= ~GEM_MIF_CONFIG_PHY_SEL;
 	}
-	bus_space_write_4(sc->sc_bustag, sc->sc_h, GEM_MIF_CONFIG,
+	bus_write_4(sc->sc_res[0], GEM_MIF_CONFIG,
 	    sc->sc_mif_config);
 	/* Attach the interface. */
 	ether_ifattach(ifp, sc->sc_enaddr);
@@ -559,7 +560,7 @@ gem_bitwait(sc, r, clr, set)
 	u_int32_t reg;
 
 	for (i = TRIES; i--; DELAY(100)) {
-		reg = bus_space_read_4(sc->sc_bustag, sc->sc_h, r);
+		reg = bus_read_4(sc->sc_res[0], r);
 		if ((r & clr) == 0 && (r & set) == set)
 			return (1);
 	}
@@ -570,8 +571,6 @@ void
 gem_reset(sc)
 	struct gem_softc *sc;
 {
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t h = sc->sc_h;
 
 #ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_reset", device_get_name(sc->sc_dev));
@@ -580,7 +579,7 @@ gem_reset(sc)
 	gem_reset_tx(sc);
 
 	/* Do a full reset */
-	bus_space_write_4(t, h, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX);
+	bus_write_4(sc->sc_res[0], GEM_RESET, GEM_RESET_RX | GEM_RESET_TX);
 	if (!gem_bitwait(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX, 0))
 		device_printf(sc->sc_dev, "cannot reset device\n");
 }
@@ -668,15 +667,13 @@ int
 gem_reset_rx(sc)
 	struct gem_softc *sc;
 {
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t h = sc->sc_h;
 
 	/*
 	 * Resetting while DMA is in progress can cause a bus hang, so we
 	 * disable DMA first.
 	 */
 	gem_disable_rx(sc);
-	bus_space_write_4(t, h, GEM_RX_CONFIG, 0);
+	bus_write_4(sc->sc_res[0], GEM_RX_CONFIG, 0);
 	/* Wait till it finishes */
 	if (!gem_bitwait(sc, GEM_RX_CONFIG, 1, 0))
 		device_printf(sc->sc_dev, "cannot disable read dma\n");
@@ -685,7 +682,7 @@ gem_reset_rx(sc)
 	DELAY(5000);
 
 	/* Finally, reset the ERX */
-	bus_space_write_4(t, h, GEM_RESET, GEM_RESET_RX);
+	bus_write_4(sc->sc_res[0], GEM_RESET, GEM_RESET_RX);
 	/* Wait till it finishes */
 	if (!gem_bitwait(sc, GEM_RESET, GEM_RESET_TX, 0)) {
 		device_printf(sc->sc_dev, "cannot reset receiver\n");
@@ -702,8 +699,6 @@ static int
 gem_reset_tx(sc)
 	struct gem_softc *sc;
 {
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t h = sc->sc_h;
 	int i;
 
 	/*
@@ -711,7 +706,7 @@ gem_reset_tx(sc)
 	 * disable DMA first.
 	 */
 	gem_disable_tx(sc);
-	bus_space_write_4(t, h, GEM_TX_CONFIG, 0);
+	bus_write_4(sc->sc_res[0], GEM_TX_CONFIG, 0);
 	/* Wait till it finishes */
 	if (!gem_bitwait(sc, GEM_TX_CONFIG, 1, 0))
 		device_printf(sc->sc_dev, "cannot disable read dma\n");
@@ -720,10 +715,10 @@ gem_reset_tx(sc)
 	DELAY(5000);
 
 	/* Finally, reset the ETX */
-	bus_space_write_4(t, h, GEM_RESET, GEM_RESET_TX);
+	bus_write_4(sc->sc_res[0], GEM_RESET, GEM_RESET_TX);
 	/* Wait till it finishes */
 	for (i = TRIES; i--; DELAY(100))
-		if ((bus_space_read_4(t, h, GEM_RESET) & GEM_RESET_TX) == 0)
+		if ((bus_read_4(sc->sc_res[0], GEM_RESET) & GEM_RESET_TX) == 0)
 			break;
 	if (!gem_bitwait(sc, GEM_RESET, GEM_RESET_TX, 0)) {
 		device_printf(sc->sc_dev, "cannot reset receiver\n");
@@ -739,14 +734,12 @@ static int
 gem_disable_rx(sc)
 	struct gem_softc *sc;
 {
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t h = sc->sc_h;
 	u_int32_t cfg;
 
 	/* Flip the enable bit */
-	cfg = bus_space_read_4(t, h, GEM_MAC_RX_CONFIG);
+	cfg = bus_read_4(sc->sc_res[0], GEM_MAC_RX_CONFIG);
 	cfg &= ~GEM_MAC_RX_ENABLE;
-	bus_space_write_4(t, h, GEM_MAC_RX_CONFIG, cfg);
+	bus_write_4(sc->sc_res[0], GEM_MAC_RX_CONFIG, cfg);
 
 	/* Wait for it to finish */
 	return (gem_bitwait(sc, GEM_MAC_RX_CONFIG, GEM_MAC_RX_ENABLE, 0));
@@ -759,14 +752,12 @@ static int
 gem_disable_tx(sc)
 	struct gem_softc *sc;
 {
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t h = sc->sc_h;
 	u_int32_t cfg;
 
 	/* Flip the enable bit */
-	cfg = bus_space_read_4(t, h, GEM_MAC_TX_CONFIG);
+	cfg = bus_read_4(sc->sc_res[0], GEM_MAC_TX_CONFIG);
 	cfg &= ~GEM_MAC_TX_ENABLE;
-	bus_space_write_4(t, h, GEM_MAC_TX_CONFIG, cfg);
+	bus_write_4(sc->sc_res[0], GEM_MAC_TX_CONFIG, cfg);
 
 	/* Wait for it to finish */
 	return (gem_bitwait(sc, GEM_MAC_TX_CONFIG, GEM_MAC_TX_ENABLE, 0));
@@ -882,8 +873,6 @@ gem_init_locked(sc)
 	struct gem_softc *sc;
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t h = sc->sc_h;
 	u_int32_t v;
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
@@ -919,34 +908,34 @@ gem_init_locked(sc)
 
 	/* step 6 & 7. Program Descriptor Ring Base Addresses */
 	/* NOTE: we use only 32-bit DMA addresses here. */
-	bus_space_write_4(t, h, GEM_TX_RING_PTR_HI, 0);
-	bus_space_write_4(t, h, GEM_TX_RING_PTR_LO, GEM_CDTXADDR(sc, 0));
+	bus_write_4(sc->sc_res[0], GEM_TX_RING_PTR_HI, 0);
+	bus_write_4(sc->sc_res[0], GEM_TX_RING_PTR_LO, GEM_CDTXADDR(sc, 0));
 
-	bus_space_write_4(t, h, GEM_RX_RING_PTR_HI, 0);
-	bus_space_write_4(t, h, GEM_RX_RING_PTR_LO, GEM_CDRXADDR(sc, 0));
+	bus_write_4(sc->sc_res[0], GEM_RX_RING_PTR_HI, 0);
+	bus_write_4(sc->sc_res[0], GEM_RX_RING_PTR_LO, GEM_CDRXADDR(sc, 0));
 #ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "loading rx ring %lx, tx ring %lx, cddma %lx",
 	    GEM_CDRXADDR(sc, 0), GEM_CDTXADDR(sc, 0), sc->sc_cddma);
 #endif
 
 	/* step 8. Global Configuration & Interrupt Mask */
-	bus_space_write_4(t, h, GEM_INTMASK,
+	bus_write_4(sc->sc_res[0], GEM_INTMASK,
 		      ~(GEM_INTR_TX_INTME|
 			GEM_INTR_TX_EMPTY|
 			GEM_INTR_RX_DONE|GEM_INTR_RX_NOBUF|
 			GEM_INTR_RX_TAG_ERR|GEM_INTR_PCS|
 			GEM_INTR_MAC_CONTROL|GEM_INTR_MIF|
 			GEM_INTR_BERR));
-	bus_space_write_4(t, h, GEM_MAC_RX_MASK,
+	bus_write_4(sc->sc_res[0], GEM_MAC_RX_MASK,
 			GEM_MAC_RX_DONE|GEM_MAC_RX_FRAME_CNT);
-	bus_space_write_4(t, h, GEM_MAC_TX_MASK, 0xffff); /* XXXX */
-	bus_space_write_4(t, h, GEM_MAC_CONTROL_MASK, 0); /* XXXX */
+	bus_write_4(sc->sc_res[0], GEM_MAC_TX_MASK, 0xffff); /* XXXX */
+	bus_write_4(sc->sc_res[0], GEM_MAC_CONTROL_MASK, 0); /* XXXX */
 
 	/* step 9. ETX Configuration: use mostly default values */
 
 	/* Enable DMA */
 	v = gem_ringsize(GEM_NTXDESC /*XXX*/);
-	bus_space_write_4(t, h, GEM_TX_CONFIG,
+	bus_write_4(sc->sc_res[0], GEM_TX_CONFIG,
 		v|GEM_TX_CONFIG_TXDMA_EN|
 		((0x400<<10)&GEM_TX_CONFIG_TXFIFO_TH));
 
@@ -956,7 +945,7 @@ gem_init_locked(sc)
 	v = gem_ringsize(GEM_NRXDESC /*XXX*/);
 
 	/* Enable DMA */
-	bus_space_write_4(t, h, GEM_RX_CONFIG,
+	bus_write_4(sc->sc_res[0], GEM_RX_CONFIG,
 		v|(GEM_THRSH_1024<<GEM_RX_CONFIG_FIFO_THRS_SHIFT)|
 		(2<<GEM_RX_CONFIG_FBOFF_SHFT)|GEM_RX_CONFIG_RXDMA_EN|
 		(0<<GEM_RX_CONFIG_CXM_START_SHFT));
@@ -964,23 +953,23 @@ gem_init_locked(sc)
 	 * The following value is for an OFF Threshold of about 3/4 full
 	 * and an ON Threshold of 1/4 full.
 	 */
-	bus_space_write_4(t, h, GEM_RX_PAUSE_THRESH,
+	bus_write_4(sc->sc_res[0], GEM_RX_PAUSE_THRESH,
 	    (3 * sc->sc_rxfifosize / 256) |
 	    (   (sc->sc_rxfifosize / 256) << 12));
-	bus_space_write_4(t, h, GEM_RX_BLANKING, (6<<12)|6);
+	bus_write_4(sc->sc_res[0], GEM_RX_BLANKING, (6<<12)|6);
 
 	/* step 11. Configure Media */
 	mii_mediachg(sc->sc_mii);
 
 	/* step 12. RX_MAC Configuration Register */
-	v = bus_space_read_4(t, h, GEM_MAC_RX_CONFIG);
+	v = bus_read_4(sc->sc_res[0], GEM_MAC_RX_CONFIG);
 	v |= GEM_MAC_RX_ENABLE;
-	bus_space_write_4(t, h, GEM_MAC_RX_CONFIG, v);
+	bus_write_4(sc->sc_res[0], GEM_MAC_RX_CONFIG, v);
 
 	/* step 14. Issue Transmit Pending command */
 
 	/* step 15.  Give the reciever a swift kick */
-	bus_space_write_4(t, h, GEM_RX_KICK, GEM_NRXDESC-4);
+	bus_write_4(sc->sc_res[0], GEM_RX_KICK, GEM_NRXDESC-4);
 
 	/* Start the one second timer. */
 	sc->sc_wdog_timer = 0;
@@ -1046,8 +1035,6 @@ static void
 gem_init_regs(sc)
 	struct gem_softc *sc;
 {
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t h = sc->sc_h;
 	const u_char *laddr = IF_LLADDR(sc->sc_ifp);
 	u_int32_t v;
 
@@ -1055,83 +1042,83 @@ gem_init_regs(sc)
 	if (!sc->sc_inited) {
 
 		/* Wooo.  Magic values. */
-		bus_space_write_4(t, h, GEM_MAC_IPG0, 0);
-		bus_space_write_4(t, h, GEM_MAC_IPG1, 8);
-		bus_space_write_4(t, h, GEM_MAC_IPG2, 4);
+		bus_write_4(sc->sc_res[0], GEM_MAC_IPG0, 0);
+		bus_write_4(sc->sc_res[0], GEM_MAC_IPG1, 8);
+		bus_write_4(sc->sc_res[0], GEM_MAC_IPG2, 4);
 
-		bus_space_write_4(t, h, GEM_MAC_MAC_MIN_FRAME, ETHER_MIN_LEN);
+		bus_write_4(sc->sc_res[0], GEM_MAC_MAC_MIN_FRAME, ETHER_MIN_LEN);
 		/* Max frame and max burst size */
-		bus_space_write_4(t, h, GEM_MAC_MAC_MAX_FRAME,
+		bus_write_4(sc->sc_res[0], GEM_MAC_MAC_MAX_FRAME,
 		    (ETHER_MAX_LEN + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN) |
 		    (0x2000 << 16));
 
-		bus_space_write_4(t, h, GEM_MAC_PREAMBLE_LEN, 0x7);
-		bus_space_write_4(t, h, GEM_MAC_JAM_SIZE, 0x4);
-		bus_space_write_4(t, h, GEM_MAC_ATTEMPT_LIMIT, 0x10);
+		bus_write_4(sc->sc_res[0], GEM_MAC_PREAMBLE_LEN, 0x7);
+		bus_write_4(sc->sc_res[0], GEM_MAC_JAM_SIZE, 0x4);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ATTEMPT_LIMIT, 0x10);
 		/* Dunno.... */
-		bus_space_write_4(t, h, GEM_MAC_CONTROL_TYPE, 0x8088);
-		bus_space_write_4(t, h, GEM_MAC_RANDOM_SEED,
+		bus_write_4(sc->sc_res[0], GEM_MAC_CONTROL_TYPE, 0x8088);
+		bus_write_4(sc->sc_res[0], GEM_MAC_RANDOM_SEED,
 		    ((laddr[5]<<8)|laddr[4])&0x3ff);
 
 		/* Secondary MAC addr set to 0:0:0:0:0:0 */
-		bus_space_write_4(t, h, GEM_MAC_ADDR3, 0);
-		bus_space_write_4(t, h, GEM_MAC_ADDR4, 0);
-		bus_space_write_4(t, h, GEM_MAC_ADDR5, 0);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADDR3, 0);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADDR4, 0);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADDR5, 0);
 
 		/* MAC control addr set to 01:80:c2:00:00:01 */
-		bus_space_write_4(t, h, GEM_MAC_ADDR6, 0x0001);
-		bus_space_write_4(t, h, GEM_MAC_ADDR7, 0xc200);
-		bus_space_write_4(t, h, GEM_MAC_ADDR8, 0x0180);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADDR6, 0x0001);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADDR7, 0xc200);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADDR8, 0x0180);
 
 		/* MAC filter addr set to 0:0:0:0:0:0 */
-		bus_space_write_4(t, h, GEM_MAC_ADDR_FILTER0, 0);
-		bus_space_write_4(t, h, GEM_MAC_ADDR_FILTER1, 0);
-		bus_space_write_4(t, h, GEM_MAC_ADDR_FILTER2, 0);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADDR_FILTER0, 0);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADDR_FILTER1, 0);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADDR_FILTER2, 0);
 
-		bus_space_write_4(t, h, GEM_MAC_ADR_FLT_MASK1_2, 0);
-		bus_space_write_4(t, h, GEM_MAC_ADR_FLT_MASK0, 0);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADR_FLT_MASK1_2, 0);
+		bus_write_4(sc->sc_res[0], GEM_MAC_ADR_FLT_MASK0, 0);
 
 		sc->sc_inited = 1;
 	}
 
 	/* Counters need to be zeroed */
-	bus_space_write_4(t, h, GEM_MAC_NORM_COLL_CNT, 0);
-	bus_space_write_4(t, h, GEM_MAC_FIRST_COLL_CNT, 0);
-	bus_space_write_4(t, h, GEM_MAC_EXCESS_COLL_CNT, 0);
-	bus_space_write_4(t, h, GEM_MAC_LATE_COLL_CNT, 0);
-	bus_space_write_4(t, h, GEM_MAC_DEFER_TMR_CNT, 0);
-	bus_space_write_4(t, h, GEM_MAC_PEAK_ATTEMPTS, 0);
-	bus_space_write_4(t, h, GEM_MAC_RX_FRAME_COUNT, 0);
-	bus_space_write_4(t, h, GEM_MAC_RX_LEN_ERR_CNT, 0);
-	bus_space_write_4(t, h, GEM_MAC_RX_ALIGN_ERR, 0);
-	bus_space_write_4(t, h, GEM_MAC_RX_CRC_ERR_CNT, 0);
-	bus_space_write_4(t, h, GEM_MAC_RX_CODE_VIOL, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_NORM_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_FIRST_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_EXCESS_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_LATE_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_DEFER_TMR_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_PEAK_ATTEMPTS, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_RX_FRAME_COUNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_RX_LEN_ERR_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_RX_ALIGN_ERR, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_RX_CRC_ERR_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_RX_CODE_VIOL, 0);
 
 	/* Un-pause stuff */
 #if 0
-	bus_space_write_4(t, h, GEM_MAC_SEND_PAUSE_CMD, 0x1BF0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_SEND_PAUSE_CMD, 0x1BF0);
 #else
-	bus_space_write_4(t, h, GEM_MAC_SEND_PAUSE_CMD, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_SEND_PAUSE_CMD, 0);
 #endif
 
 	/*
 	 * Set the station address.
 	 */
-	bus_space_write_4(t, h, GEM_MAC_ADDR0, (laddr[4]<<8)|laddr[5]);
-	bus_space_write_4(t, h, GEM_MAC_ADDR1, (laddr[2]<<8)|laddr[3]);
-	bus_space_write_4(t, h, GEM_MAC_ADDR2, (laddr[0]<<8)|laddr[1]);
+	bus_write_4(sc->sc_res[0], GEM_MAC_ADDR0, (laddr[4]<<8)|laddr[5]);
+	bus_write_4(sc->sc_res[0], GEM_MAC_ADDR1, (laddr[2]<<8)|laddr[3]);
+	bus_write_4(sc->sc_res[0], GEM_MAC_ADDR2, (laddr[0]<<8)|laddr[1]);
 
 	/*
 	 * Enable MII outputs.  Enable GMII if there is a gigabit PHY.
 	 */
-	sc->sc_mif_config = bus_space_read_4(t, h, GEM_MIF_CONFIG);
+	sc->sc_mif_config = bus_read_4(sc->sc_res[0], GEM_MIF_CONFIG);
 	v = GEM_MAC_XIF_TX_MII_ENA;
 	if (sc->sc_mif_config & GEM_MIF_CONFIG_MDI1) {
 		v |= GEM_MAC_XIF_FDPLX_LED;
 		if (sc->sc_flags & GEM_GIGABIT)
 			v |= GEM_MAC_XIF_GMII_MODE;
 	}
-	bus_space_write_4(t, h, GEM_MAC_XIF_CONFIG, v);
+	bus_write_4(sc->sc_res[0], GEM_MAC_XIF_CONFIG, v);
 }
 
 static void
@@ -1204,7 +1191,7 @@ gem_start_locked(ifp)
 		CTR2(KTR_GEM, "%s: gem_start: kicking tx %d",
 		    device_get_name(sc->sc_dev), sc->sc_txnext);
 #endif
-		bus_space_write_4(sc->sc_bustag, sc->sc_h, GEM_TX_KICK,
+		bus_write_4(sc->sc_res[0], GEM_TX_KICK,
 			sc->sc_txnext);
 
 		BPF_MTAP(ifp, m0);
@@ -1240,8 +1227,6 @@ gem_tint(sc)
 	struct gem_softc *sc;
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t mac = sc->sc_h;
 	struct gem_txsoft *txs;
 	int txlast;
 	int progress = 0;
@@ -1255,18 +1240,18 @@ gem_tint(sc)
 	 * Unload collision counters
 	 */
 	ifp->if_collisions +=
-		bus_space_read_4(t, mac, GEM_MAC_NORM_COLL_CNT) +
-		bus_space_read_4(t, mac, GEM_MAC_FIRST_COLL_CNT) +
-		bus_space_read_4(t, mac, GEM_MAC_EXCESS_COLL_CNT) +
-		bus_space_read_4(t, mac, GEM_MAC_LATE_COLL_CNT);
+		bus_read_4(sc->sc_res[0], GEM_MAC_NORM_COLL_CNT) +
+		bus_read_4(sc->sc_res[0], GEM_MAC_FIRST_COLL_CNT) +
+		bus_read_4(sc->sc_res[0], GEM_MAC_EXCESS_COLL_CNT) +
+		bus_read_4(sc->sc_res[0], GEM_MAC_LATE_COLL_CNT);
 
 	/*
 	 * then clear the hardware counters.
 	 */
-	bus_space_write_4(t, mac, GEM_MAC_NORM_COLL_CNT, 0);
-	bus_space_write_4(t, mac, GEM_MAC_FIRST_COLL_CNT, 0);
-	bus_space_write_4(t, mac, GEM_MAC_EXCESS_COLL_CNT, 0);
-	bus_space_write_4(t, mac, GEM_MAC_LATE_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_NORM_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_FIRST_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_EXCESS_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_LATE_COLL_CNT, 0);
 
 	/*
 	 * Go through our Tx list and free mbufs for those
@@ -1298,7 +1283,7 @@ gem_tint(sc)
 		 * GEM_TX_COMPLETION points to the last descriptor
 		 * processed +1.
 		 */
-		txlast = bus_space_read_4(t, mac, GEM_TX_COMPLETION);
+		txlast = bus_read_4(sc->sc_res[0], GEM_TX_COMPLETION);
 #ifdef GEM_DEBUG
 		CTR3(KTR_GEM, "gem_tint: txs->txs_firstdesc = %d, "
 		    "txs->txs_lastdesc = %d, txlast = %d",
@@ -1340,12 +1325,12 @@ gem_tint(sc)
 	CTR3(KTR_GEM, "gem_tint: GEM_TX_STATE_MACHINE %x "
 		"GEM_TX_DATA_PTR %llx "
 		"GEM_TX_COMPLETION %x",
-		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_TX_STATE_MACHINE),
-		((long long) bus_space_read_4(sc->sc_bustag, sc->sc_h,
+		bus_read_4(sc->sc_res[0], GEM_TX_STATE_MACHINE),
+		((long long) bus_read_4(sc->sc_res[0],
 			GEM_TX_DATA_PTR_HI) << 32) |
-			     bus_space_read_4(sc->sc_bustag, sc->sc_h,
+			     bus_read_4(sc->sc_res[0],
 			GEM_TX_DATA_PTR_LO),
-		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_TX_COMPLETION));
+		bus_read_4(sc->sc_res[0], GEM_TX_COMPLETION));
 #endif
 
 	if (progress) {
@@ -1385,8 +1370,6 @@ gem_rint(sc)
 	struct gem_softc *sc;
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t h = sc->sc_h;
 	struct gem_rxsoft *rxs;
 	struct mbuf *m;
 	u_int64_t rxstat;
@@ -1404,7 +1387,7 @@ gem_rint(sc)
 	 * Read the completion register once.  This limits
 	 * how long the following loop can execute.
 	 */
-	rxcomp = bus_space_read_4(t, h, GEM_RX_COMPLETION);
+	rxcomp = bus_read_4(sc->sc_res[0], GEM_RX_COMPLETION);
 
 #ifdef GEM_DEBUG
 	CTR2(KTR_GEM, "gem_rint: sc->rxptr %d, complete %d",
@@ -1488,12 +1471,12 @@ gem_rint(sc)
 			device_printf(sc->sc_dev, "rint: ring wrap\n");
 		}
 		sc->sc_rxptr = i;
-		bus_space_write_4(t, h, GEM_RX_KICK, GEM_PREVRX(i));
+		bus_write_4(sc->sc_res[0], GEM_RX_KICK, GEM_PREVRX(i));
 	}
 
 #ifdef GEM_DEBUG
 	CTR2(KTR_GEM, "gem_rint: done sc->rxptr %d, complete %d",
-		sc->sc_rxptr, bus_space_read_4(t, h, GEM_RX_COMPLETION));
+		sc->sc_rxptr, bus_read_4(sc->sc_res[0], GEM_RX_COMPLETION));
 #endif
 }
 
@@ -1571,12 +1554,10 @@ gem_intr(v)
 	void *v;
 {
 	struct gem_softc *sc = (struct gem_softc *)v;
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t seb = sc->sc_h;
 	u_int32_t status;
 
 	GEM_LOCK(sc);
-	status = bus_space_read_4(t, seb, GEM_STATUS);
+	status = bus_read_4(sc->sc_res[0], GEM_STATUS);
 #ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "%s: gem_intr: cplt %x, status %x",
 		device_get_name(sc->sc_dev), (status>>19),
@@ -1594,7 +1575,7 @@ gem_intr(v)
 
 	/* We should eventually do more than just print out error stats. */
 	if (status & GEM_INTR_TX_MAC) {
-		int txstat = bus_space_read_4(t, seb, GEM_MAC_TX_STATUS);
+		int txstat = bus_read_4(sc->sc_res[0], GEM_MAC_TX_STATUS);
 		if (txstat & ~GEM_MAC_TX_XMIT_DONE)
 			device_printf(sc->sc_dev, "MAC tx fault, status %x\n",
 			    txstat);
@@ -1602,7 +1583,7 @@ gem_intr(v)
 			gem_init_locked(sc);
 	}
 	if (status & GEM_INTR_RX_MAC) {
-		int rxstat = bus_space_read_4(t, seb, GEM_MAC_RX_STATUS);
+		int rxstat = bus_read_4(sc->sc_res[0], GEM_MAC_RX_STATUS);
 		/*
 		 * On some chip revisions GEM_MAC_RX_OVERFLOW happen often
 		 * due to a silicon bug so handle them silently.
@@ -1626,14 +1607,14 @@ gem_watchdog(sc)
 #ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "gem_watchdog: GEM_RX_CONFIG %x GEM_MAC_RX_STATUS %x "
 		"GEM_MAC_RX_CONFIG %x",
-		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_RX_CONFIG),
-		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_MAC_RX_STATUS),
-		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_MAC_RX_CONFIG));
+		bus_read_4(sc->sc_res[0], GEM_RX_CONFIG),
+		bus_read_4(sc->sc_res[0], GEM_MAC_RX_STATUS),
+		bus_read_4(sc->sc_res[0], GEM_MAC_RX_CONFIG));
 	CTR3(KTR_GEM, "gem_watchdog: GEM_TX_CONFIG %x GEM_MAC_TX_STATUS %x "
 		"GEM_MAC_TX_CONFIG %x",
-		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_TX_CONFIG),
-		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_MAC_TX_STATUS),
-		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_MAC_TX_CONFIG));
+		bus_read_4(sc->sc_res[0], GEM_TX_CONFIG),
+		bus_read_4(sc->sc_res[0], GEM_MAC_TX_STATUS),
+		bus_read_4(sc->sc_res[0], GEM_MAC_TX_CONFIG));
 #endif
 
 	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0)
@@ -1654,13 +1635,11 @@ static void
 gem_mifinit(sc)
 	struct gem_softc *sc;
 {
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t mif = sc->sc_h;
 
 	/* Configure the MIF in frame mode */
-	sc->sc_mif_config = bus_space_read_4(t, mif, GEM_MIF_CONFIG);
+	sc->sc_mif_config = bus_read_4(sc->sc_res[0], GEM_MIF_CONFIG);
 	sc->sc_mif_config &= ~GEM_MIF_CONFIG_BB_ENA;
-	bus_space_write_4(t, mif, GEM_MIF_CONFIG, sc->sc_mif_config);
+	bus_write_4(sc->sc_res[0], GEM_MIF_CONFIG, sc->sc_mif_config);
 }
 
 /*
@@ -1683,8 +1662,6 @@ gem_mii_readreg(dev, phy, reg)
 	int phy, reg;
 {
 	struct gem_softc *sc = device_get_softc(dev);
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t mif = sc->sc_h;
 	int n;
 	u_int32_t v;
 
@@ -1694,23 +1671,23 @@ gem_mii_readreg(dev, phy, reg)
 
 #if 0
 	/* Select the desired PHY in the MIF configuration register */
-	v = bus_space_read_4(t, mif, GEM_MIF_CONFIG);
+	v = bus_read_4(sc->sc_res[0], GEM_MIF_CONFIG);
 	/* Clear PHY select bit */
 	v &= ~GEM_MIF_CONFIG_PHY_SEL;
 	if (phy == GEM_PHYAD_EXTERNAL)
 		/* Set PHY select bit to get at external device */
 		v |= GEM_MIF_CONFIG_PHY_SEL;
-	bus_space_write_4(t, mif, GEM_MIF_CONFIG, v);
+	bus_write_4(sc->sc_res[0], GEM_MIF_CONFIG, v);
 #endif
 
 	/* Construct the frame command */
 	v = (reg << GEM_MIF_REG_SHIFT)	| (phy << GEM_MIF_PHY_SHIFT) |
 		GEM_MIF_FRAME_READ;
 
-	bus_space_write_4(t, mif, GEM_MIF_FRAME, v);
+	bus_write_4(sc->sc_res[0], GEM_MIF_FRAME, v);
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
-		v = bus_space_read_4(t, mif, GEM_MIF_FRAME);
+		v = bus_read_4(sc->sc_res[0], GEM_MIF_FRAME);
 		if (v & GEM_MIF_FRAME_TA0)
 			return (v & GEM_MIF_FRAME_DATA);
 	}
@@ -1725,8 +1702,6 @@ gem_mii_writereg(dev, phy, reg, val)
 	int phy, reg, val;
 {
 	struct gem_softc *sc = device_get_softc(dev);
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t mif = sc->sc_h;
 	int n;
 	u_int32_t v;
 
@@ -1736,13 +1711,13 @@ gem_mii_writereg(dev, phy, reg, val)
 
 #if 0
 	/* Select the desired PHY in the MIF configuration register */
-	v = bus_space_read_4(t, mif, GEM_MIF_CONFIG);
+	v = bus_read_4(sc->sc_res[0], GEM_MIF_CONFIG);
 	/* Clear PHY select bit */
 	v &= ~GEM_MIF_CONFIG_PHY_SEL;
 	if (phy == GEM_PHYAD_EXTERNAL)
 		/* Set PHY select bit to get at external device */
 		v |= GEM_MIF_CONFIG_PHY_SEL;
-	bus_space_write_4(t, mif, GEM_MIF_CONFIG, v);
+	bus_write_4(sc->sc_res[0], GEM_MIF_CONFIG, v);
 #endif
 	/* Construct the frame command */
 	v = GEM_MIF_FRAME_WRITE			|
@@ -1750,10 +1725,10 @@ gem_mii_writereg(dev, phy, reg, val)
 	    (reg << GEM_MIF_REG_SHIFT)		|
 	    (val & GEM_MIF_FRAME_DATA);
 
-	bus_space_write_4(t, mif, GEM_MIF_FRAME, v);
+	bus_write_4(sc->sc_res[0], GEM_MIF_FRAME, v);
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
-		v = bus_space_read_4(t, mif, GEM_MIF_FRAME);
+		v = bus_read_4(sc->sc_res[0], GEM_MIF_FRAME);
 		if (v & GEM_MIF_FRAME_TA0)
 			return (1);
 	}
@@ -1770,8 +1745,6 @@ gem_mii_statchg(dev)
 #ifdef GEM_DEBUG
 	int instance;
 #endif
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t mac = sc->sc_h;
 	u_int32_t v;
 
 #ifdef GEM_DEBUG
@@ -1782,21 +1755,21 @@ gem_mii_statchg(dev)
 #endif
 
 	/* Set tx full duplex options */
-	bus_space_write_4(t, mac, GEM_MAC_TX_CONFIG, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_TX_CONFIG, 0);
 	DELAY(10000); /* reg must be cleared and delay before changing. */
 	v = GEM_MAC_TX_ENA_IPG0|GEM_MAC_TX_NGU|GEM_MAC_TX_NGU_LIMIT|
 		GEM_MAC_TX_ENABLE;
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) & IFM_FDX) != 0) {
 		v |= GEM_MAC_TX_IGN_CARRIER|GEM_MAC_TX_IGN_COLLIS;
 	}
-	bus_space_write_4(t, mac, GEM_MAC_TX_CONFIG, v);
+	bus_write_4(sc->sc_res[0], GEM_MAC_TX_CONFIG, v);
 
 	/* XIF Configuration */
 	v = GEM_MAC_XIF_LINK_LED;
 	v |= GEM_MAC_XIF_TX_MII_ENA;
 
 	/* If an external transceiver is connected, enable its MII drivers */
-	sc->sc_mif_config = bus_space_read_4(t, mac, GEM_MIF_CONFIG);
+	sc->sc_mif_config = bus_read_4(sc->sc_res[0], GEM_MIF_CONFIG);
 	if ((sc->sc_mif_config & GEM_MIF_CONFIG_MDI1) != 0) {
 		/* External MII needs echo disable if half duplex. */
 		if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) & IFM_FDX) != 0)
@@ -1814,7 +1787,7 @@ gem_mii_statchg(dev)
 		/* Internal MII needs buf enable */
 		v |= GEM_MAC_XIF_MII_BUF_ENA;
 	}
-	bus_space_write_4(t, mac, GEM_MAC_XIF_CONFIG, v);
+	bus_write_4(sc->sc_res[0], GEM_MAC_XIF_CONFIG, v);
 }
 
 int
@@ -1911,8 +1884,6 @@ gem_setladrf(sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ifmultiaddr *inm;
-	bus_space_tag_t t = sc->sc_bustag;
-	bus_space_handle_t h = sc->sc_h;
 	u_int32_t crc;
 	u_int32_t hash[16];
 	u_int32_t v;
@@ -1921,7 +1892,7 @@ gem_setladrf(sc)
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
 	/* Get current RX configuration */
-	v = bus_space_read_4(t, h, GEM_MAC_RX_CONFIG);
+	v = bus_read_4(sc->sc_res[0], GEM_MAC_RX_CONFIG);
 
 	/*
 	 * Turn off promiscuous mode, promiscuous group mode (all multicast),
@@ -1974,11 +1945,11 @@ gem_setladrf(sc)
 
 	/* Now load the hash table into the chip (if we are using it) */
 	for (i = 0; i < 16; i++) {
-		bus_space_write_4(t, h,
+		bus_write_4(sc->sc_res[0],
 		    GEM_MAC_HASH0 + i * (GEM_MAC_HASH1-GEM_MAC_HASH0),
 		    hash[i]);
 	}
 
 chipit:
-	bus_space_write_4(t, h, GEM_MAC_RX_CONFIG, v);
+	bus_write_4(sc->sc_res[0], GEM_MAC_RX_CONFIG, v);
 }
