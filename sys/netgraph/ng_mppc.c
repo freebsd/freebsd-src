@@ -545,16 +545,18 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 #ifdef NETGRAPH_MPPC_ENCRYPTION
 	if ((d->cfg.bits & MPPE_BITS) != 0) {
 
-		/* Set header bits; need to reset key if we say we did */
+		/* Set header bits */
 		header |= MPPC_FLAG_ENCRYPTED;
-		if ((header & MPPC_FLAG_FLUSHED) != 0)
-			rc4_init(&d->rc4, d->key, KEYLEN(d->cfg.bits));
 
 		/* Update key if it's time */
 		if ((d->cfg.bits & MPPE_STATELESS) != 0
 		    || (d->cc & MPPE_UPDATE_MASK) == MPPE_UPDATE_FLAG) {
-			  ng_mppc_updatekey(d->cfg.bits,
-			      d->cfg.startkey, d->key, &d->rc4);
+			ng_mppc_updatekey(d->cfg.bits,
+			    d->cfg.startkey, d->key, &d->rc4);
+		} else if ((header & MPPC_FLAG_FLUSHED) != 0) {
+			/* Need to reset key if we say we did 
+			   and ng_mppc_updatekey wasn't called to do it also. */
+			rc4_init(&d->rc4, d->key, KEYLEN(d->cfg.bits));
 		}
 
 		/* Encrypt packet */
