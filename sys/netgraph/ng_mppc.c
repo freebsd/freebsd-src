@@ -477,7 +477,9 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	/* Initialize */
 	*resultp = NULL;
 	header = d->cc;
-	if (d->flushed) {
+
+	/* Always set the flushed bit in stateless mode */
+	if (d->flushed || ((d->cfg.bits & MPPE_STATELESS) != 0)) {
 		header |= MPPC_FLAG_FLUSHED;
 		d->flushed = 0;
 	}
@@ -538,10 +540,6 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		outlen = MPPC_HDRLEN + inlen;
 	}
 	FREE(inbuf, M_NETGRAPH_MPPC);
-
-	/* Always set the flushed bit in stateless mode */
-	if ((d->cfg.bits & MPPE_STATELESS) != 0)
-		header |= MPPC_FLAG_FLUSHED;
 
 	/* Now encrypt packet (if encryption enabled) */
 #ifdef NETGRAPH_MPPC_ENCRYPTION
