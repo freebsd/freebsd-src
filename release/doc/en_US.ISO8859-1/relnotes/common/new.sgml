@@ -248,6 +248,9 @@
       accept <option>-p</option> options to indicate which port they
       should bind to.</para>
 
+    <para>The &man.top.1; program now supports a <option>-j</option>
+      flag to display &man.jail.8; id for each process.</para>
+
     <para>The &man.wpa.passphrase.8; utility has been added.  It
       generates a 256-bit pre-shared WPA key from an ASCII
       passphrase.</para>
