@@ -81,6 +81,7 @@ struct userconf
 	char	*newmail;		/* Mail to send to new accounts */
 	char	*logfile;		/* Where to log changes */
 	char	*home;			/* Where to create home directory */
+	mode_t	homemode;		/* Home directory permissions */
 	char	*shelldir;		/* Where shells are located */
 	char	**shells;		/* List of shells */
 	char	*shell_default;		/* Default shell */
