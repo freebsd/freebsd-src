@@ -664,7 +664,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				return EX_IOERR;
 			}
 			line[b] = '\0';
-			if ((p = strpbrk(line, " \t\r\n")) != NULL)
+			if ((p = strpbrk(line, "\r\n")) != NULL)
 				*p = '\0';
 			if (!*line)
 				errx(EX_DATAERR, "empty password read on file descriptor %d", fd);
