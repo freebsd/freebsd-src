@@ -2614,9 +2614,6 @@ emu_uninit(struct emu_sc_info *sc)
 	emu_wrptr(sc, 0, SOLEL, 0);
 	emu_wrptr(sc, 0, SOLEH, 0);
 
-	if (sc->mem.dmat)
-		bus_dma_tag_destroy(sc->mem.dmat);
-
 	if (!SLIST_EMPTY(&sc->mem.blocks))
 		device_printf(sc->dev, "warning: memblock list not empty\n");
 
@@ -3103,6 +3100,10 @@ emu_pci_detach(device_t dev)
 	if (r)
 		return (r);
 	emu_rm_uninit(sc);
+
+	if (sc->mem.dmat)
+		bus_dma_tag_destroy(sc->mem.dmat);
+
 	if (sc->reg)
 		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0), sc->reg);
 	bus_teardown_intr(dev, sc->irq, sc->ih);
