@@ -1,8 +1,8 @@
 $FreeBSD$
-FreeBSD* Driver for the Intel(R) PRO/1000 Family of Adapters
+FreeBSD Driver for the Gigabit Family of Adapters
 ============================================================
 
-May 2, 2006
+April 18, 2007
 
 
 Contents
@@ -21,11 +21,11 @@ Contents
 Overview
 ========
 
-This file describes the FreeBSD* driver for the Intel(R) PRO/1000 Family of
+This file describes the FreeBSD* driver for the Gigabit Family of
 Adapters. This driver has been developed for use with FreeBSD, Release 6.x.
 
 For questions related to hardware requirements, refer to the documentation
-supplied with your Intel PRO/1000 adapter. All hardware requirements listed
+supplied with your Gigabit adapter. All hardware requirements listed
 apply to use with FreeBSD.
 
 
@@ -62,7 +62,7 @@ name of the driver tar file.
 
 2. Untar/unzip the archive:
 
-        tar xvfz em-x.x.x.tar.gz
+        tar xzvf em-x.x.x.tar.gz
 
    This will create an em-x.x.x directory.
 
@@ -74,7 +74,7 @@ name of the driver tar file.
                   cd em-x.x.x
                   make
 
-        b. To install the compiled module in system directory:
+        b. To install the compiled module to the system directory:
 
                   make install
 
@@ -84,35 +84,26 @@ name of the driver tar file.
 
                   if_em_load="YES"
 
-4. To compile the driver into the kernel:
+4. To compile the driver into the kernel, enter:
 
         cd em-x.x.x/src
-
-        cp if_em* /usr/src/sys/dev/em
-
+        cp *.[ch] /usr/src/sys/dev/em
         cp Makefile.kernel /usr/src/sys/modules/em/Makefile
 
-   Edit the /usr/src/sys/conf/files file, and add the following lines only if
-   they don't already exist:
+        NOTE: At this point you MUST install a patch, kernbuild.patch, which is
+        located in the patches directory. This is applied as shown below where
+        "$PATH_TO_KERNBUILD_PATCH" is the location of the kernbuild.patch:
 
-        dev/em/if_em.c optional em
+        cd /usr/src/sys; patch -p1 < $PATH_TO_KERNBUILD_PATCH
 
-        dev/em/if_em_hw.c optional em
-
-   Remove the following lines from the /usr/src/sys/conf/files file,
-   if they exist:
-
-        dev/em/if_em_fxhw.c optional em
-        dev/em/if_em_phy.c optional em
-
-   Edit the kernel configuration file (i.e., GENERIC or MYKERNEL) in
-   /usr/src/sys/i386/conf, and ensure the following line is present:
+        Edit the kernel configuration file (i.e., GENERIC or MYKERNEL) in
+        /usr/src/sys/i386/conf, and ensure the following line is present:
 
         device em
 
-   Compile and install the kernel. The system must be rebooted for the kernel
-   updates to take effect. For additional information on compiling the
-   kernel, consult the FreeBSD operating system documentation.
+        Compile and install the kernel. The system must be rebooted for the
+        kernel updates to take effect. For additional information on compiling
+        the kernel, consult the FreeBSD operating system documentation.
 
 5. To assign an IP address to the interface, enter the following:
 
@@ -149,6 +140,12 @@ configure the speed and duplex settings on the adapter. Example usage:
    NOTE: Only use mediaopt to set the driver to full-duplex. If mediaopt is
          not specified and you are not running at gigabit speed, the driver
          defaults to half-duplex.
+
+If the interface is currently forced to 100 full duplex, in order to change
+to half duplex you must use this command:
+
+        ifconfig em<interface_num> <IP_address> media 100baseTX -mediaopt
+            full-duplex
 
 
 This driver supports the following media type options:
@@ -207,8 +204,8 @@ Identifying Your Adapter section.
   - Some Intel gigabit adapters that support Jumbo Frames have a frame size
     limit of 9238 bytes, with a corresponding MTU size limit of 9216 bytes.
     The adapters with this limitation are based on the Intel(R) 82571EB,
-    82572EI, 82573L and 80003ES2LAN controller.  These correspond to the
-    following product names:
+    82572EI, 82573L, 82566, 82562, and 80003ES2LAN controller.  These
+    correspond to the following product names:
      Intel(R) PRO/1000 PT Server Adapter
      Intel(R) PRO/1000 PT Desktop Adapter
      Intel(R) PRO/1000 PT Network Connection
@@ -221,6 +218,7 @@ Identifying Your Adapter section.
      Intel(R) PRO/1000 PL Network Connection
      Intel(R) PRO/1000 EB Network Connection with I/O Acceleration
      Intel(R) PRO/1000 EB Backplane Connection with I/O Acceleration
+     Intel(R) 82566DM-2 Gigabit Network Connection
 
   - Adapters based on the Intel(R) 82542 and 82573V/E controller do not
     support Jumbo Frames. These correspond to the following product names:
@@ -236,7 +234,12 @@ Identifying Your Adapter section.
     Intel(R) 82566DC Gigabit Network Connection
     Intel(R) 82566MM Gigabit Network Connection
     Intel(R) 82566MC Gigabit Network Connection
-
+    Intel(R) 82562GT 10/100 Network Connection
+    Intel(R) 82562G 10/100 Network Connection
+    Intel(R) 82566DC-2 Gigabit Network Connection
+    Intel(R) 82562V-2 10/100 Network Connection
+    Intel(R) 82562G-2 10/100 Network Connection
+    Intel(R) 82562GT-2 10/100 Network Connection
 
   VLANs
   -----
@@ -252,9 +255,9 @@ Identifying Your Adapter section.
 
   Example:
 
-        ifconfig vlan10 10.0.0.1 netmask 255.255.255.0 vlan10 vlandev em0
+        ifconfig vlan10 10.0.0.1 netmask 255.255.255.0 vlan 10 vlandev em0
 
-  In this example, all packets will be marked on egress with  802.1Q VLAN
+  In this example, all packets will be marked on egress with 802.1Q VLAN
   tags, specifying a VLAN ID of 10.
 
   To remove a VLAN interface:
@@ -264,6 +267,12 @@ Identifying Your Adapter section.
 
   Polling
   -------
+  NOTES: Device Polling is only valid for non-SMP (Symmetric MultiProcessing)
+  kernels.
+
+        The driver has to be compiled into the kernel for Device Polling to be
+        enabled in the driver.
+
   To enable polling in the driver, add the following options to the kernel
   configuration, and then recompile the kernel:
 
@@ -271,9 +280,9 @@ Identifying Your Adapter section.
         options HZ=1000
 
   At runtime use:
-        ifconfig em0 polling to turn polling on
+        sysctl kern.polling.enable=1 to turn polling on
   Use:
-        ifconfig em0 -polling to turn polling off
+        sysctl kern.polling.enable=0 to turn polling off
 
 
   Checksum Offload
@@ -306,16 +315,51 @@ Identifying Your Adapter section.
   See the ifconfig man page for further information.
 
 
+  TSO
+  ---
+  The FreeBSD driver now offers support for TSO (TCP Segmentation Offload).
+  To enable this support perform the following:
+
+  Patch the kernel with the patch supplied in the tarball.
+  Rebuild and install the kernel.
+  Recompile the driver. You must alter the Makefile to build the driver with
+  E1000_TSO defined.
+
+  Enable or disable TSO:
+          sysctl net.inet.tcp.tso=1 or 0
+          0=disabled, 1=enabled (TSO is enabled by default).
+
+  NOTE: TSO is not supported on 82547 and 82544-based adapters, as well as
+  older adapters.
+
+
 Known Limitations
 =================
 
+  Detected Tx Unit Hang in Quad Port Adapters
+  -------------------------------------------
+
+  In some cases ports 3 and 4 wont pass traffic. Ports 1 and 2 don't show
+  any errors and will pass traffic.
+
+  This issue MAY be resolved by updating to the latest BIOS. You can
+  check your system's BIOS by downloading the Linux Firmware Developer Kit
+  that can be obtained at http://www.linuxfirmwarekit.org/
+
+  FreeBSD version 4.x with Symmetric MultiProcessing (SMP)
+  --------------------------------------------------------
+
   In FreeBSD version 4.x with Symmetric MultiProcessing (SMP), there is a known
-  issue on some newer hardware.  The problem is generic kernel and only in SMP
+  issue on some newer hardware.  The problem is kernel generic and only in SMP
   mode.  The workaround is to either use FreeBSD version 4.x in single processor
   mode, or use FreeBSD 5.4 or later.
 
   There are known performance issues with this driver when running UDP traffic
   with Jumbo Frames.
+  ----------------------------------------------------------------------------
+
+  82541/82547 can't link or is slow to link with some link partners
+  -----------------------------------------------------------------
 
   There is a known compatibility issue where time to link is slow or link is not
   established between 82541/82547 controllers and some switches.  Known switches
@@ -325,12 +369,12 @@ Known Limitations
 
   The driver can be compiled with the following changes:
 
-  Edit ./em.x.x.x/src/if_em.h to uncomment the #define EM_MASTER_SLAVE
+  Edit ./em.x.x.x/src/if_em.h to uncomment the #define E1000_MASTER_SLAVE
   from within the comments.  For example, change from:
 
-      /* #define EM_MASTER_SLAVE  2 */
+      /* #define E1000_MASTER_SLAVE   2 */
   to:
-      #define EM_MASTER_SLAVE  2
+      #define E1000_MASTER_SLAVE   2
 
   Use one of the following options:
       1 = Master mode
