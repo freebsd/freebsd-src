@@ -784,7 +784,7 @@ ng_mppc_getkey(const u_char *h, u_char *h2, int len)
 	SHA1Init(&c);
 	SHA1Update(&c, h, len);
 	for (k = 0; k < 4; k++)
-		SHA1Update(&c, pad1, sizeof(pad2));
+		SHA1Update(&c, pad1, sizeof(pad1));
 	SHA1Update(&c, h2, len);
 	for (k = 0; k < 4; k++)
 		SHA1Update(&c, pad2, sizeof(pad2));
