@@ -614,6 +614,8 @@ dev/em/e1000_82543.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/em"
 dev/em/e1000_82571.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_82575.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
 dev/em/e1000_api.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/em"
 dev/em/e1000_ich8lan.c		optional em \
