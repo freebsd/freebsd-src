@@ -30,7 +30,9 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-$FreeBSD$
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 
 #include "e1000_phy.h"
