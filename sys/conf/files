@@ -600,7 +600,7 @@ dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
-dev/em/if_e1000.c		optional em \
+dev/em/if_em.c			optional em \
 	compile-with "${NORMAL_C} -I$S/dev/em"
 dev/em/e1000_80003es2lan.c	optional em \
 	compile-with "${NORMAL_C} -I$S/dev/em"
