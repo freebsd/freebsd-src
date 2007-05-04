@@ -985,9 +985,9 @@ findpcb:
 	}
 
 	/*
-	 * Segment belongs to a connection in SYN_SENT, ESTABLISHED or
-	 * later state.  tcp_do_segment() always consumes the mbuf chain
-	 * and unlocks the inpcb.
+	 * Segment belongs to a connection in SYN_SENT, ESTABLISHED or late
+	 * state.  tcp_do_segment() always consumes the mbuf chain, unlocks the
+	 * inpcb, and unlocks the pcbinfo.
 	 */
 	if (tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen))
 		goto findpcb;	/* XXX: TIME_WAIT was nuked. */
