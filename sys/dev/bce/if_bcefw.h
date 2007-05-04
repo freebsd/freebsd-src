@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Broadcom Corporation
+ * Copyright (c) 2006-2007 Broadcom Corporation
  *	David Christensen <davidch@broadcom.com>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
