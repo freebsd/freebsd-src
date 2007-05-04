@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,7 +49,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 
@@ -67,29 +71,43 @@
 #include <netinet/tcp_debug.h>
 
 #ifdef TCPDEBUG
-static int	tcpconsdebug = 0;
+static int		tcpconsdebug = 0;
 #endif
 
-static struct tcp_debug tcp_debug[TCP_NDEBUG];
-static int	tcp_debx;
+/*
+ * Global ring buffer of TCP debugging state.  Each entry captures a snapshot
+ * of TCP connection state at any given moment.  tcp_debx addresses at the
+ * next available slot.  There is no explicit export of this data structure;
+ * it will be read via /dev/kmem by debugging tools.
+ */
+static struct tcp_debug	tcp_debug[TCP_NDEBUG];
+static int		tcp_debx;
 
 /*
- * Tcp debug routines
+ * All global state is protected by tcp_debug_mtx; tcp_trace() is split into
+ * two parts, one of which saves connection and other state into the global
+ * array (locked by tcp_debug_mtx).
+ */
+struct mtx		tcp_debug_mtx;
+MTX_SYSINIT(tcp_debug_mtx, &tcp_debug_mtx, "tcp_debug_mtx", MTX_DEF);
+
+/*
+ * Save TCP state at a given moment; optionally, both tcpcb and TCP packet
+ * header state will be saved.
  */
 void
-tcp_trace(act, ostate, tp, ipgen, th, req)
-	short act, ostate;
-	struct tcpcb *tp;
-	void *ipgen;
-	struct tcphdr *th;
-	int req;
+tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
+    struct tcphdr *th, int req)
 {
 #ifdef INET6
 	int isipv6;
 #endif /* INET6 */
 	tcp_seq seq, ack;
 	int len, flags;
-	struct tcp_debug *td = &tcp_debug[tcp_debx++];
+	struct tcp_debug *td;
+
+	mtx_lock(&tcp_debug_mtx);
+	td = &tcp_debug[tcp_debx++];
 
 #ifdef INET6
 	isipv6 = (ipgen != NULL && ((struct ip *)ipgen)->ip_v == 6) ? 1 : 0;
@@ -158,6 +176,7 @@ tcp_trace(act, ostate, tp, ipgen, th, req)
 		bzero((caddr_t)&td->td_ti6.th, sizeof(td->td_ti6.th));
 	}
 	td->td_req = req;
+	mtx_unlock(&tcp_debug_mtx);
 #ifdef TCPDEBUG
 	if (tcpconsdebug == 0)
 		return;
