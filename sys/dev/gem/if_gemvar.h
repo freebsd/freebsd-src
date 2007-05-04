@@ -133,13 +133,13 @@ struct gem_softc {
 	int		sc_wdog_timer;	/* watchdog timer */
 
 	/* The following bus handles are to be provided by the bus front-end */
-	bus_space_tag_t	sc_bustag;	/* bus tag */
+	void		*sc_ih;
+	struct resource *sc_res[2];
 	bus_dma_tag_t	sc_pdmatag;	/* parent bus dma tag */
 	bus_dma_tag_t	sc_rdmatag;	/* RX bus dma tag */
 	bus_dma_tag_t	sc_tdmatag;	/* TX bus dma tag */
 	bus_dma_tag_t	sc_cdmatag;	/* control data bus dma tag */
 	bus_dmamap_t	sc_dmamap;	/* bus dma handle */
-	bus_space_handle_t sc_h;	/* bus space handle for all regs */
 
 	int		sc_phys[2];	/* MII instance -> PHY map */
 
