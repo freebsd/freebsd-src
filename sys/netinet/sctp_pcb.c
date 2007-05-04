@@ -521,6 +521,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 			continue;
 		}
 		if (lport != inp->sctp_lport) {
+ 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
 		if (inp->def_vrf_id != vrf_id) {
