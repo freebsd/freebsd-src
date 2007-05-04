@@ -76,6 +76,9 @@ INCLUDES+= -I$S/contrib/ngatm
 # .. and the same for twa
 INCLUDES+= -I$S/dev/twa
 
+# .. and the same for em
+INCLUDES+= -I$S/dev/em
+
 # ...  and XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 

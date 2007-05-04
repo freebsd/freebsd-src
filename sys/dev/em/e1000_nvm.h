@@ -1,4 +1,4 @@
-$FreeBSD$
+/*******************************************************************************
 
   Copyright (c) 2001-2007, Intel Corporation 
   All rights reserved.
@@ -29,3 +29,40 @@ $FreeBSD$
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
+*******************************************************************************/
+$FreeBSD$
+
+
+#ifndef _E1000_NVM_H_
+#define _E1000_NVM_H_
+
+#include "e1000_api.h"
+
+s32  e1000_acquire_nvm_generic(struct e1000_hw *hw);
+
+s32  e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int ee_reg);
+s32  e1000_read_mac_addr_generic(struct e1000_hw *hw);
+s32  e1000_read_part_num_generic(struct e1000_hw *hw, u32 *part_num);
+s32  e1000_read_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
+s32  e1000_read_nvm_microwire(struct e1000_hw *hw, u16 offset,
+                              u16 words, u16 *data);
+s32  e1000_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
+s32  e1000_valid_led_default_generic(struct e1000_hw *hw, u16 *data);
+s32  e1000_validate_nvm_checksum_generic(struct e1000_hw *hw);
+s32  e1000_write_nvm_eewr(struct e1000_hw *hw, u16 offset,
+                          u16 words, u16 *data);
+s32  e1000_write_nvm_microwire(struct e1000_hw *hw, u16 offset,
+                               u16 words, u16 *data);
+s32  e1000_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
+s32  e1000_update_nvm_checksum_generic(struct e1000_hw *hw);
+void e1000_stop_nvm(struct e1000_hw *hw);
+void e1000_release_nvm_generic(struct e1000_hw *hw);
+void e1000_reload_nvm_generic(struct e1000_hw *hw);
+
+/* Function pointers */
+s32  e1000_acquire_nvm(struct e1000_hw *hw);
+void e1000_release_nvm(struct e1000_hw *hw);
+
+#define E1000_STM_OPCODE  0xDB00
+
+#endif

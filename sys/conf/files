@@ -600,8 +600,32 @@ dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
-dev/em/if_em.c			optional em
-dev/em/if_em_hw.c		optional em
+dev/em/if_e1000.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_80003es2lan.c	optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_82540.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_82541.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_82542.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_82543.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_82571.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_api.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_ich8lan.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_mac.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_manage.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_nvm.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_phy.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/em"
 dev/en/if_en_pci.c		optional en pci
 dev/en/midway.c			optional en
 dev/ep/if_ep.c			optional ep
