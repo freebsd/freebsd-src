@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2006
+.Dd March 30, 2007
 .Dt PW 8
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@
 .Op Fl g Ar group
 .Op Fl G Ar grouplist
 .Op Fl m
+.Op Fl M Ar mode
 .Op Fl k Ar dir
 .Op Fl w Ar method
 .Op Fl s Ar shell
@@ -68,6 +69,7 @@
 .Op Fl g Ar group
 .Op Fl G Ar grouplist
 .Op Fl k Ar dir
+.Op Fl M Ar mode
 .Op Fl u Ar min , Ns Ar max
 .Op Fl i Ar min , Ns Ar max
 .Op Fl w Ar method
@@ -97,6 +99,7 @@
 .Op Fl G Ar grouplist
 .Op Fl l Ar name
 .Op Fl m
+.Op Fl M Ar mode
 .Op Fl k Ar dir
 .Op Fl w Ar method
 .Op Fl s Ar shell
@@ -449,6 +452,16 @@ option (see below), bearing the name of the new account.
 This can be overridden by the
 .Fl d
 option on the command line, if desired.
+.It Fl M Ar mode
+Create the user's home directory with the specified
+.Ar mode ,
+modified by the current
+.Xr umask 2 .
+If omitted, it is derived from the parent process'
+.Xr umask 2 .
+This option is only useful in combination with the
+.Fl m
+flag.
 .It Fl k Ar dir
 Set the
 .Ar skeleton
@@ -959,6 +972,7 @@ No base home directory configured.
 .Sh SEE ALSO
 .Xr chpass 1 ,
 .Xr passwd 1 ,
+.Xr umask 2 ,
 .Xr group 5 ,
 .Xr login.conf 5 ,
 .Xr passwd 5 ,

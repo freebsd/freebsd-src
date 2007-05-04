@@ -106,9 +106,9 @@ main(int argc, char *argv[])
 	static const char *opts[W_NUM][M_NUM] =
 	{
 		{ /* user */
-			"V:C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:H:Db:NPy:Y",
+			"V:C:qn:u:c:d:e:p:g:G:mM:k:s:oL:i:w:h:H:Db:NPy:Y",
 			"V:C:qn:u:rY",
-			"V:C:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:H:FNPY",
+			"V:C:qn:u:c:d:e:p:g:G:mM:l:k:s:w:L:h:H:FNPY",
 			"V:C:qn:u:FPa7",
 			"V:C:q",
 			"V:C:q",
@@ -129,7 +129,6 @@ main(int argc, char *argv[])
 		pw_group
 	};
 
-	umask(0);		/* We wish to handle this manually */
 	LIST_INIT(&arglist);
 
 	(void)setlocale(LC_ALL, "");
@@ -311,6 +310,7 @@ cmdhelp(int mode, int which)
 				"\t-g grp         initial group\n"
 				"\t-G grp1,grp2   additional groups\n"
 				"\t-m [ -k dir ]  create and set up home\n"
+				"\t-M mode        home directory permissions\n"
 				"\t-s shell       name of login shell\n"
 				"\t-o             duplicate uid ok\n"
 				"\t-L class       user class\n"
@@ -328,6 +328,7 @@ cmdhelp(int mode, int which)
 				"\t-G grp1,grp2   additional groups\n"
 				"\t-L class       default user class\n"
 				"\t-k dir         default home skeleton\n"
+				"\t-M mode        home directory permissions\n"
 				"\t-u min,max     set min,max uids\n"
 				"\t-i min,max     set min,max gids\n"
 				"\t-w method      set default password method\n"
@@ -355,6 +356,7 @@ cmdhelp(int mode, int which)
 				"\t-l name        new login name\n"
 				"\t-L class       user class\n"
 				"\t-m [ -k dir ]  create and set up home\n"
+				"\t-M mode        home directory permissions\n"
 				"\t-s shell       name of login shell\n"
 				"\t-w method      set new password using method\n"
 				"\t-h fd          read password on fd\n"
