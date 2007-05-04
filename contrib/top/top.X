@@ -99,7 +99,7 @@ By default, top displays both active and idle processes.
 .B \-j
 Display the
 .IR jail (8)
-id.
+ID.
 .TP
 .B \-t
 Do not display the
@@ -285,7 +285,7 @@ Toggle the display of idle processes.
 .B j
 Toggle the display of
 .IR jail (8)
-id.
+ID.
 .TP
 .B t
 Toggle the display of the
