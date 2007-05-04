@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 1996
+.Dd March 30, 2007
 .Dt PW.CONF 5
 .Os
 .Sh NAME
@@ -78,6 +78,8 @@ mail to send to new users
 log user/group modifications to this file
 .It home
 root directory for home directories
+.It homemode
+permissions for home directory
 .It shellpath
 paths in which to locate shell programs
 .It shells
@@ -204,6 +206,12 @@ This specifies the location of the directory in which all new user
 home directories are created.
 .Pp
 The
+.Ar homemode
+keyword is optional.
+It specifies the creation mask of the user's home directory and is modified by
+.Xr umask 2 .
+.Pp
+The
 .Ar shellpath
 keyword specifies a list of directories - separated by colons
 .Ql \&:
@@ -303,6 +311,7 @@ as comments.
 .El
 .Sh SEE ALSO
 .Xr passwd 1 ,
+.Xr umask 2 ,
 .Xr group 5 ,
 .Xr login.conf 5 ,
 .Xr passwd 5 ,
