@@ -7,9 +7,7 @@ SHARED_SRCS = e1000_api.c e1000_phy.c e1000_nvm.c e1000_mac.c e1000_manage.c
 SHARED_SRCS += e1000_80003es2lan.c e1000_82542.c e1000_82541.c e1000_82543.c
 SHARED_SRCS += e1000_82540.c e1000_ich8lan.c e1000_82571.c
 
-# NOTE: this absolute path is somewhat of a hack, but necessary for
-# the new shared code
-CFLAGS  += -I/usr/src/sys/dev/em
+CFLAGS+= -I${.CURDIR}/../../dev/em
 
 # DEVICE_POLLING gives you Legacy interrupt handling
 #CFLAGS  += -DDEVICE_POLLING
