@@ -30,7 +30,10 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-$FreeBSD$
+
+/*
+ * $FreeBSD$
+ */
 
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_
