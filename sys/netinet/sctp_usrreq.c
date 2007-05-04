@@ -513,7 +513,10 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 #ifdef SCTP_LOG_CLOSING
 			sctp_log_closing(inp, NULL, 15);
 #endif
+ 			SCTP_INP_WUNLOCK(inp);
 			sctp_inpcb_free(inp, 1, 0);
+		} else {
+ 			SCTP_INP_WUNLOCK(inp);
 		}
 		return error;
 	}
