@@ -113,6 +113,8 @@ MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node ");
 #define MPPC_FLAG_ENCRYPTED	0x1000		/* packet is encrypted */
 #define MPPC_CCOUNT_MASK	0x0fff		/* sequence number mask */
 
+#define MPPC_CCOUNT_INC(d)	((d) = (((d) + 1) & MPPC_CCOUNT_MASK))
+
 #define MPPE_UPDATE_MASK	0xff		/* coherency count when we're */
 #define MPPE_UPDATE_FLAG	0xff		/*   supposed to update key */
 
@@ -563,8 +565,8 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	}
 #endif
 
-	/* Update sequence number */
-	d->cc++;
+	/* Update coherency count for next time (12 bit arithmetic) */
+	MPPC_CCOUNT_INC(d->cc);
 
 	/* Install header */
 	*((u_int16_t *)outbuf) = htons(header);
@@ -635,7 +637,7 @@ ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 					ng_mppc_updatekey(d->cfg.bits,
 					    d->cfg.startkey, d->key, &d->rc4);
 				}
-				d->cc++;
+				MPPC_CCOUNT_INC(d->cc);
 			}
 
 			/* Reset key (except in stateless mode, see below) */
@@ -683,7 +685,7 @@ ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	}
 
 	/* Update coherency count for next time (12 bit arithmetic) */
-	d->cc++;
+	MPPC_CCOUNT_INC(d->cc);
 
 	/* Check for unexpected compressed packet */
 	if ((header & MPPC_FLAG_COMPRESSED) != 0
