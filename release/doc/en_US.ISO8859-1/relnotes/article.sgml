@@ -1818,6 +1818,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       this feature is useful for watching processes that change their
       titles via &man.setproctitle.3;.</para>
 
+    <para>The &man.top.1; program now supports a <option>-j</option>
+      flag to display &man.jail.8; id for each process.  &merged;</para>
+
     <para>The &man.traceroute.8; program now supports
       a <option>-D</option> flag, which causes it to display the
       differences between the sent and received
