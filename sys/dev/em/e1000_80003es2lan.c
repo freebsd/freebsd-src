@@ -30,7 +30,9 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-$FreeBSD$
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* e1000_80003es2lan
  */
