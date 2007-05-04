@@ -1053,7 +1053,7 @@ restart:
 			    case CMD_jidtog:
 				ps.jail = !ps.jail;
 				new_message(MT_standout | MT_delayed,
-				    " %sisplaying jail id.",
+				    " %sisplaying jail ID.",
 				    ps.jail ? "D" : "Not d");
 				header_text = format_header(uname_field);
 				reset_display();
