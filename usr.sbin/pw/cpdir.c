@@ -48,6 +48,8 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 {
 	char            src[MAXPATHLEN];
 	char            dst[MAXPATHLEN];
+	char            lnk[MAXPATHLEN];
+	int             len;
 
 	if (mkdir(dir, mode) != 0 && errno != EEXIST) {
 		warn("mkdir(%s)", dir);
@@ -71,7 +73,7 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 
 					if (snprintf(src, sizeof(src), "%s/%s", skel, p) >= (int)sizeof(src))
 						warn("warning: pathname too long '%s/%s' (skel not copied)", skel, p);
-					else if (stat(src, &st) == 0) {
+					else if (lstat(src, &st) == 0) {
 						if (strncmp(p, "dot.", 4) == 0)	/* Conversion */
 							p += 3;
 						if (snprintf(dst, sizeof(dst), "%s/%s", dir, p) >= (int)sizeof(dst))
@@ -81,6 +83,10 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 							if (strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0)
 								copymkdir(dst, src, (st.st_mode & 0777), uid, gid);
 								chflags(dst, st.st_flags);	/* propogate flags */
+						    } else if (S_ISLNK(st.st_mode) && (len = readlink(src, lnk, sizeof(lnk))) != -1) {
+							lnk[len] = '\0';
+							symlink(lnk, dst);
+							lchown(dst, uid, gid);
 							/*
 							 * Note: don't propogate special attributes
 							 * but do propogate file flags
