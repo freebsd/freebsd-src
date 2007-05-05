@@ -704,6 +704,8 @@ mpt_intr(void *arg)
 
 	mpt = (struct mpt_softc *)arg;
 	mpt_lprt(mpt, MPT_PRT_DEBUG2, "enter mpt_intr\n");
+	MPT_LOCK_ASSERT(mpt);
+
 	while ((reply_desc = mpt_pop_reply_queue(mpt)) != MPT_REPLY_EMPTY) {
 		request_t	  *req;
 		MSG_DEFAULT_REPLY *reply_frame;
@@ -1171,7 +1173,7 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	}
 	KASSERT(req->state != REQ_STATE_FREE, ("freeing free request"));
 	KASSERT(!(req->state & REQ_STATE_LOCKED), ("freeing locked request"));
-	KASSERT(MPT_OWNED(mpt), ("mpt_free_request: mpt not locked\n"));
+	MPT_LOCK_ASSERT(mpt);
 	KASSERT(mpt_req_on_free_list(mpt, req) == 0,
 	    ("mpt_free_request: req %p:%u func %x already on freelist",
 	    req, req->serno, ((MSG_REQUEST_HEADER *)req->req_vbuf)->Function));
@@ -1220,7 +1222,7 @@ mpt_get_request(struct mpt_softc *mpt, int sleep_ok)
 	request_t *req;
 
 retry:
-	KASSERT(MPT_OWNED(mpt), ("mpt_get_request: mpt not locked\n"));
+	MPT_LOCK_ASSERT(mpt);
 	req = TAILQ_FIRST(&mpt->request_free_list);
 	if (req != NULL) {
 		KASSERT(req == &mpt->request_pool[req->index],
@@ -2107,18 +2109,20 @@ mpt_core_load(struct mpt_personality *pers)
 int
 mpt_core_attach(struct mpt_softc *mpt)
 {
-        int val;
+        int val, error;
 
 	LIST_INIT(&mpt->ack_frames);
 	/* Put all request buffers on the free list */
 	TAILQ_INIT(&mpt->request_pending_list);
 	TAILQ_INIT(&mpt->request_free_list);
 	TAILQ_INIT(&mpt->request_timeout_list);
+	MPT_LOCK(mpt);
 	for (val = 0; val < MPT_MAX_REQUESTS(mpt); val++) {
 		request_t *req = &mpt->request_pool[val];
 		req->state = REQ_STATE_ALLOCATED;
 		mpt_free_request(mpt, req);
 	}
+	MPT_UNLOCK(mpt);
 	for (val = 0; val < MPT_MAX_LUNS; val++) {
 		STAILQ_INIT(&mpt->trt[val].atios);
 		STAILQ_INIT(&mpt->trt[val].inots);
@@ -2132,7 +2136,12 @@ mpt_core_attach(struct mpt_softc *mpt)
 	mpt_sysctl_attach(mpt);
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "doorbell req = %s\n",
 	    mpt_ioc_diag(mpt_read(mpt, MPT_OFFSET_DOORBELL)));
-	return (mpt_configure_ioc(mpt, 0, 0));
+
+	MPT_LOCK(mpt);
+	error = mpt_configure_ioc(mpt, 0, 0);
+	MPT_UNLOCK(mpt);
+
+	return (error);
 }
 
 int
@@ -2143,6 +2152,7 @@ mpt_core_enable(struct mpt_softc *mpt)
 	 * not enabled, ports not enabled and interrupts
 	 * not enabled.
 	 */
+	MPT_LOCK(mpt);
 
 	/*
 	 * Enable asynchronous event reporting- all personalities
@@ -2177,8 +2187,10 @@ mpt_core_enable(struct mpt_softc *mpt)
 	 */
 	if (mpt_send_port_enable(mpt, 0) != MPT_OK) {
 		mpt_prt(mpt, "failed to enable port 0\n");
+		MPT_UNLOCK(mpt);
 		return (ENXIO);
 	}
+	MPT_UNLOCK(mpt);
 	return (0);
 }
 

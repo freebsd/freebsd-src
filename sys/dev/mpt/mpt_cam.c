@@ -217,6 +217,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	int		 maxq;
 	int		 error;
 
+	MPT_LOCK(mpt);
 	TAILQ_INIT(&mpt->request_timeout_list);
 	maxq = (mpt->ioc_facts.GlobalCredits < MPT_MAX_REQUESTS(mpt))?
 	    mpt->ioc_facts.GlobalCredits : MPT_MAX_REQUESTS(mpt);
@@ -225,14 +226,16 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 				     &scsi_io_handler_id);
 	if (error != 0) {
-		goto cleanup0;
+		MPT_UNLOCK(mpt);
+		goto cleanup;
 	}
 
 	handler.reply_handler = mpt_scsi_tmf_reply_handler;
 	error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 				     &scsi_tmf_handler_id);
 	if (error != 0) {
-		goto cleanup0;
+		MPT_UNLOCK(mpt);
+		goto cleanup;
 	}
 
 	/*
@@ -244,11 +247,13 @@ mpt_cam_attach(struct mpt_softc *mpt)
 		error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 		    &fc_els_handler_id);
 		if (error != 0) {
-			goto cleanup0;
+			MPT_UNLOCK(mpt);
+			goto cleanup;
 		}
 		if (mpt_add_els_buffers(mpt) == FALSE) {
 			error = ENOMEM;
-			goto cleanup0;
+			MPT_UNLOCK(mpt);
+			goto cleanup;
 		}
 		maxq -= mpt->els_cmds_allocated;
 	}
@@ -263,7 +268,8 @@ mpt_cam_attach(struct mpt_softc *mpt)
 		error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 		    &mpt->scsi_tgt_handler_id);
 		if (error != 0) {
-			goto cleanup0;
+			MPT_UNLOCK(mpt);
+			goto cleanup;
 		}
 	}
 
@@ -274,7 +280,8 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	if (mpt->tmf_req == NULL) {
 		mpt_prt(mpt, "Unable to allocate dedicated TMF request!\n");
 		error = ENOMEM;
-		goto cleanup0;
+		MPT_UNLOCK(mpt);
+		goto cleanup;
 	}
 
 	/*
@@ -286,16 +293,16 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	mpt->tmf_req->state = REQ_STATE_FREE;
 	maxq--;
 
-	if (mpt_spawn_recovery_thread(mpt) != 0) {
-		mpt_prt(mpt, "Unable to spawn recovery thread!\n");
-		error = ENOMEM;
-		goto cleanup0;
-	}
-
 	/*
 	 * The rest of this is CAM foo, for which we need to drop our lock
 	 */
-	MPTLOCK_2_CAMLOCK(mpt);
+	MPT_UNLOCK(mpt);
+
+	if (mpt_spawn_recovery_thread(mpt) != 0) {
+		mpt_prt(mpt, "Unable to spawn recovery thread!\n");
+		error = ENOMEM;
+		goto cleanup;
+	}
 
 	/*
 	 * Create the device queue for our SIM(s).
@@ -310,8 +317,8 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	/*
 	 * Construct our SIM entry.
 	 */
-	mpt->sim = cam_sim_alloc(mpt_action, mpt_poll, "mpt", mpt,
-	    mpt->unit, &Giant, 1, maxq, devq);
+	mpt->sim =
+	    mpt_sim_alloc(mpt_action, mpt_poll, "mpt", mpt, 1, maxq, devq);
 	if (mpt->sim == NULL) {
 		mpt_prt(mpt, "Unable to allocate CAM SIM!\n");
 		cam_simq_free(devq);
@@ -322,9 +329,11 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	/*
 	 * Register exactly this bus.
 	 */
+	MPT_LOCK(mpt);
 	if (xpt_bus_register(mpt->sim, 0) != CAM_SUCCESS) {
 		mpt_prt(mpt, "Bus registration Failed!\n");
 		error = ENOMEM;
+		MPT_UNLOCK(mpt);
 		goto cleanup;
 	}
 
@@ -332,23 +341,24 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		mpt_prt(mpt, "Unable to allocate Path!\n");
 		error = ENOMEM;
+		MPT_UNLOCK(mpt);
 		goto cleanup;
 	}
+	MPT_UNLOCK(mpt);
 
 	/*
 	 * Only register a second bus for RAID physical
 	 * devices if the controller supports RAID.
 	 */
 	if (mpt->ioc_page2 == NULL || mpt->ioc_page2->MaxPhysDisks == 0) {
-		CAMLOCK_2_MPTLOCK(mpt);
 		return (0);
 	}
 
 	/*
 	 * Create a "bus" to export all hidden disks to CAM.
 	 */
-	mpt->phydisk_sim = cam_sim_alloc(mpt_action, mpt_poll, "mpt", mpt,
-	    mpt->unit, &Giant, 1, maxq, devq);
+	mpt->phydisk_sim =
+	    mpt_sim_alloc(mpt_action, mpt_poll, "mpt", mpt, 1, maxq, devq);
 	if (mpt->phydisk_sim == NULL) {
 		mpt_prt(mpt, "Unable to allocate Physical Disk CAM SIM!\n");
 		error = ENOMEM;
@@ -358,9 +368,11 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	/*
 	 * Register this bus.
 	 */
+	MPT_LOCK(mpt);
 	if (xpt_bus_register(mpt->phydisk_sim, 1) != CAM_SUCCESS) {
 		mpt_prt(mpt, "Physical Disk Bus registration Failed!\n");
 		error = ENOMEM;
+		MPT_UNLOCK(mpt);
 		goto cleanup;
 	}
 
@@ -369,15 +381,14 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		mpt_prt(mpt, "Unable to allocate Physical Disk Path!\n");
 		error = ENOMEM;
+		MPT_UNLOCK(mpt);
 		goto cleanup;
 	}
-	CAMLOCK_2_MPTLOCK(mpt);
+	MPT_UNLOCK(mpt);
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "attached cam\n");
 	return (0);
 
 cleanup:
-	CAMLOCK_2_MPTLOCK(mpt);
-cleanup0:
 	mpt_cam_detach(mpt);
 	return (error);
 }
@@ -445,6 +456,7 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 	    mpt->mpt_fcport_page0.WWPN.Low,
 	    mpt->mpt_fcport_speed);
 #if __FreeBSD_version >= 500000
+	MPT_UNLOCK(mpt);
 	{
 		struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(mpt->dev);
 		struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
@@ -468,6 +480,7 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 		       "World Wide Port Name");
 
 	}
+	MPT_LOCK(mpt);
 #endif
 	return (0);
 }
@@ -800,29 +813,38 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 int
 mpt_cam_enable(struct mpt_softc *mpt)
 {
+	int error;
+
+	MPT_LOCK(mpt);
+
+	error = EIO;
 	if (mpt->is_fc) {
 		if (mpt_read_config_info_fc(mpt)) {
-			return (EIO);
+			goto out;
 		}
 		if (mpt_set_initial_config_fc(mpt)) {
-			return (EIO);
+			goto out;
 		}
 	} else if (mpt->is_sas) {
 		if (mpt_read_config_info_sas(mpt)) {
-			return (EIO);
+			goto out;
 		}
 		if (mpt_set_initial_config_sas(mpt)) {
-			return (EIO);
+			goto out;
 		}
 	} else if (mpt->is_spi) {
 		if (mpt_read_config_info_spi(mpt)) {
-			return (EIO);
+			goto out;
 		}
 		if (mpt_set_initial_config_spi(mpt)) {
-			return (EIO);
+			goto out;
 		}
 	}
-	return (0);
+	error = 0;
+
+out:
+	MPT_UNLOCK(mpt);
+	return (error);
 }
 
 void
@@ -850,6 +872,7 @@ mpt_cam_detach(struct mpt_softc *mpt)
 {
 	mpt_handler_t handler;
 
+	MPT_LOCK(mpt);
 	mpt->ready = 0;
 	mpt_terminate_recovery_thread(mpt); 
 
@@ -871,23 +894,20 @@ mpt_cam_detach(struct mpt_softc *mpt)
 		mpt_free_request(mpt, mpt->tmf_req);
 		mpt->tmf_req = NULL;
 	}
+	MPT_UNLOCK(mpt);
 
 	if (mpt->sim != NULL) {
-		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_free_path(mpt->path);
 		xpt_bus_deregister(cam_sim_path(mpt->sim));
 		cam_sim_free(mpt->sim, TRUE);
 		mpt->sim = NULL;
-		CAMLOCK_2_MPTLOCK(mpt);
 	}
 
 	if (mpt->phydisk_sim != NULL) {
-		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_free_path(mpt->phydisk_path);
 		xpt_bus_deregister(cam_sim_path(mpt->phydisk_sim));
 		cam_sim_free(mpt->phydisk_sim, TRUE);
 		mpt->phydisk_sim = NULL;
-		CAMLOCK_2_MPTLOCK(mpt);
 	}
 }
 
@@ -899,9 +919,7 @@ mpt_poll(struct cam_sim *sim)
 	struct mpt_softc *mpt;
 
 	mpt = (struct mpt_softc *)cam_sim_softc(sim);
-	MPT_LOCK(mpt);
 	mpt_intr(mpt);
-	MPT_UNLOCK(mpt);
 }
 
 /*
@@ -1307,11 +1325,10 @@ out:
 
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
-		ccb->ccb_h.timeout_ch =
-			timeout(mpt_timeout, (caddr_t)ccb,
-				(ccb->ccb_h.timeout * hz) / 1000);
+		mpt_req_timeout(req, (ccb->ccb_h.timeout * hz) / 1000,
+		    mpt_timeout, ccb);
 	} else {
-		callout_handle_init(&ccb->ccb_h.timeout_ch);
+		mpt_req_timeout_init(req);
 	}
 	if (mpt->verbose > MPT_PRT_DEBUG) {
 		int nc = 0;
@@ -1709,11 +1726,10 @@ out:
 
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
-		ccb->ccb_h.timeout_ch =
-			timeout(mpt_timeout, (caddr_t)ccb,
-				(ccb->ccb_h.timeout * hz) / 1000);
+		mpt_req_timeout(req, (ccb->ccb_h.timeout * hz) / 1000,
+		    mpt_timeout, ccb);
 	} else {
-		callout_handle_init(&ccb->ccb_h.timeout_ch);
+		mpt_req_timeout_init(req);
 	}
 	if (mpt->verbose > MPT_PRT_DEBUG) {
 		int nc = 0;
@@ -2281,7 +2297,7 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 	}
 
 	tgt = scsi_req->TargetID;
-	untimeout(mpt_timeout, ccb, ccb->ccb_h.timeout_ch);
+	mpt_req_untimeout(req, mpt_timeout, ccb);
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
@@ -2904,8 +2920,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("mpt_action\n"));
 
 	mpt = (struct mpt_softc *)cam_sim_softc(sim);
-	KASSERT(MPT_OWNED(mpt) == 0, ("mpt owned on entrance to mpt_action"));
 	raid_passthru = (sim == mpt->phydisk_sim);
+	MPT_LOCK_ASSERT(mpt);
 
 	tgt = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
@@ -3652,9 +3668,6 @@ mpt_recovery_thread(void *arg)
 {
 	struct mpt_softc *mpt;
 
-#if __FreeBSD_version >= 500000
-	mtx_lock(&Giant);
-#endif
 	mpt = (struct mpt_softc *)arg;
 	MPT_LOCK(mpt);
 	for (;;) {
@@ -3671,9 +3684,6 @@ mpt_recovery_thread(void *arg)
 	mpt->recovery_thread = NULL;
 	wakeup(&mpt->recovery_thread);
 	MPT_UNLOCK(mpt);
-#if __FreeBSD_version >= 500000
-	mtx_unlock(&Giant);
-#endif
 	kthread_exit(0);
 }
 
@@ -4613,7 +4623,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 	    req->serno, tgt->resid);
 	if (ccb) {
 		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
-		ccb->ccb_h.timeout_ch = timeout(mpt_timeout, ccb, 60 * hz);
+		mpt_req_timeout(req, 60 * hz, mpt_timeout, ccb);
 	}
 	mpt_send_cmd(mpt, req);
 }
@@ -5028,7 +5038,7 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 			}
 			tgt->ccb = NULL;
 			tgt->nxfers++;
-			untimeout(mpt_timeout, ccb, ccb->ccb_h.timeout_ch);
+			mpt_req_untimeout(req, mpt_timeout, ccb);
 			mpt_lprt(mpt, MPT_PRT_DEBUG,
 			    "TARGET_ASSIST %p (req %p:%u) done tag 0x%x\n",
 			    ccb, tgt->req, tgt->req->serno, ccb->csio.tag_id);
@@ -5093,8 +5103,7 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 				    TGT_STATE_MOVING_DATA_AND_STATUS) {
 					tgt->nxfers++;
 				}
-				untimeout(mpt_timeout, ccb,
-				    ccb->ccb_h.timeout_ch);
+				mpt_req_untimeout(req, mpt_timeout, ccb);
 				if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
 					ccb->ccb_h.status |= CAM_SENT_SENSE;
 				}

@@ -597,12 +597,9 @@ mpt_pci_attach(device_t dev)
 
 	/* Initialize the hardware */
 	if (mpt->disabled == 0) {
-		MPT_LOCK(mpt);
 		if (mpt_attach(mpt) != 0) {
-			MPT_UNLOCK(mpt);
 			goto bad;
 		}
-		MPT_UNLOCK(mpt);
 	} else {
 		mpt_prt(mpt, "device disabled at user request\n");
 		goto bad;
@@ -613,12 +610,9 @@ mpt_pci_attach(device_t dev)
 
 	if (mpt->eh == NULL) {
 		mpt_prt(mpt, "shutdown event registration failed\n");
-		MPT_LOCK(mpt);
 		(void) mpt_detach(mpt);
-		MPT_UNLOCK(mpt);
 		goto bad;
 	}
-	KASSERT(MPT_OWNED(mpt) == 0, ("leaving attach with device locked"));
 	return (0);
 
 bad:
@@ -681,7 +675,6 @@ mpt_pci_detach(device_t dev)
 	mpt  = (struct mpt_softc*)device_get_softc(dev);
 
 	if (mpt) {
-		MPT_LOCK(mpt);
 		mpt_disable_ints(mpt);
 		mpt_detach(mpt);
 		mpt_reset(mpt, /*reinit*/FALSE);
@@ -691,7 +684,6 @@ mpt_pci_detach(device_t dev)
 		if (mpt->eh != NULL) {
                         EVENTHANDLER_DEREGISTER(shutdown_final, mpt->eh);
 		}
-		MPT_UNLOCK(mpt);
 	}
 	return(0);
 }
@@ -708,9 +700,7 @@ mpt_pci_shutdown(device_t dev)
 	mpt = (struct mpt_softc *)device_get_softc(dev);
 	if (mpt) {
 		int r;
-		MPT_LOCK(mpt);
 		r = mpt_shutdown(mpt);
-		MPT_UNLOCK(mpt);
 		return (r);
 	}
 	return(0);
