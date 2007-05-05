@@ -42,6 +42,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/disk.h>
 
 struct disk;
 
@@ -83,6 +84,7 @@ struct disk {
 	u_int			d_maxsize;
 	u_int			d_stripeoffset;
 	u_int			d_stripesize;
+	char			d_ident[DISK_IDENT_SIZE];
 
 	/* Fields private to the driver */
 	void			*d_drv1;
@@ -99,7 +101,8 @@ void disk_destroy(struct disk *disk);
 void disk_gone(struct disk *disk);
 
 #define DISK_VERSION_00		0x58561059
-#define DISK_VERSION		DISK_VERSION_00
+#define DISK_VERSION_01		0x5856105a
+#define DISK_VERSION		DISK_VERSION_01
 
 #endif /* _KERNEL */
 #endif /* _GEOM_GEOM_DISK_H_ */
