@@ -818,6 +818,11 @@ nd6_na_input(m, off, icmp6len)
 	if (ln->ln_hold) {
 		struct mbuf *m_hold, *m_hold_next;
 
+		/*
+		 * reset the ln_hold in advance, to explicitly
+		 * prevent a ln_hold lookup in nd6_output()
+		 * (wouldn't happen, though...)
+		 */
 		for (m_hold = ln->ln_hold, ln->ln_hold = NULL;
 		    m_hold; m_hold = m_hold_next) {
 			m_hold_next = m_hold->m_nextpkt;
