@@ -790,20 +790,35 @@ g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val)
 }
 
 int
+g_handleattr_str(struct bio *bp, const char *attribute, char *str)
+{
+
+	return (g_handleattr(bp, attribute, str, 0));
+}
+
+int
 g_handleattr(struct bio *bp, const char *attribute, void *val, int len)
 {
-	int error;
+	int error = 0;
 
 	if (strcmp(bp->bio_attribute, attribute))
 		return (0);
-	if (bp->bio_length != len) {
-		printf("bio_length %jd len %d -> EFAULT\n",
-		    (intmax_t)bp->bio_length, len);
-		error = EFAULT;
-	} else {
-		error = 0;
+	if (len == 0) {
+		bzero(bp->bio_data, bp->bio_length);
+		if (strlcpy(bp->bio_data, val, bp->bio_length) >=
+		    bp->bio_length) {
+			printf("%s: %s bio_length %jd len %zu -> EFAULT\n",
+			    __func__, bp->bio_to->name,
+			    (intmax_t)bp->bio_length, strlen(val));
+			error = EFAULT;
+		}
+	} else if (bp->bio_length == len) {
 		bcopy(val, bp->bio_data, len);
 		bp->bio_completed = len;
+	} else {
+		printf("%s: %s bio_length %jd len %d -> EFAULT\n", __func__,
+		    bp->bio_to->name, (intmax_t)bp->bio_length, len);
+		error = EFAULT;
 	}
 	g_io_deliver(bp, error);
 	return (1);
