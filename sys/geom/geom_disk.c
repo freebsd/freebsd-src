@@ -399,7 +399,7 @@ g_disk_destroy(void *ptr, int flag)
 }
 
 /*
- * We only allow [a-zA-Z0-9-_@#%.] characters, the rest is converted to 'x<HH>'.
+ * We only allow [a-zA-Z0-9-_@#%.:] characters, the rest is converted to 'x<HH>'.
  */
 static void
 g_disk_ident_adjust(char *ident, size_t size)
@@ -428,6 +428,7 @@ g_disk_ident_adjust(char *ident, size_t size)
 		case '#':
 		case '%':
 		case '.':
+		case ':':
 			newid[len++] = *p;
 			break;
 		}
