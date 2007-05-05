@@ -66,4 +66,36 @@ void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 	 * which may apply to the device.
 	 */
 
+#define	DIOCGFLUSH _IO('d', 135)		/* Flush write cache */
+	/*-
+	 * Flush write cache of the device.
+	 */
+
+#define	DIOCGDELETE _IOW('d', 136, off_t[2])	/* Delete data */
+	/*-
+	 * Mark data on the device as unused.
+	 */
+
+#define	DISK_IDENT_SIZE	256
+#define	DIOCGIDENT _IOR('d', 137, char[DISK_IDENT_SIZE])
+	/*-
+	 * Get the ident of the given provider. Ident is (most of the time)
+	 * a uniqe and fixed provider's identifier. Ident's properties are as
+	 * follow:
+	 * - ident value is preserved between reboots,
+	 * - provider can be detached/attached and ident is preserved,
+	 * - provider's name can change - ident can't,
+	 * - ident value should not be based on on-disk metadata; in other
+	 *   words copying whole data from one disk to another should not
+	 *   yield the same ident for the other disk,
+	 * - there could be more than one provider with the same ident, but
+	 *   only if they point at exactly the same physical storage, this is
+	 *   the case for multipathing for example,
+	 * - GEOM classes that consumes single providers and provide single
+	 *   providers, like geli, gbde, should just attach class name to the
+	 *   ident of the underlying provider,
+	 * - ident is an ASCII string (is printable),
+	 * - ident is optional and applications can't relay on its presence.
+	 */
+
 #endif /* _SYS_DISK_H_ */
