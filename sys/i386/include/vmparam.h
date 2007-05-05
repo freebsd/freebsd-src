@@ -82,6 +82,11 @@
 
 
 /*
+ * The physical address space is densely populated.
+ */
+#define	VM_PHYSSEG_DENSE
+
+/*
  * Kernel physical load address.
  */
 #ifndef KERNLOAD

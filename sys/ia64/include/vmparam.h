@@ -113,6 +113,11 @@
 #define UMA_MD_SMALL_ALLOC
 
 /*
+ * The physical address space is sparsely populated.
+ */
+#define	VM_PHYSSEG_SPARSE
+
+/*
  * Manipulating region bits of an address.
  */
 #define IA64_RR_BASE(n)         (((u_int64_t) (n)) << 61)
