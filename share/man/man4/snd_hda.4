@@ -81,13 +81,27 @@ file:
 .It Va hint.pcm.%d.config
 Configures a range of possible options.
 Possible values are:
+.Dq Li dmapos ,
+.Dq Li eapdinv ,
 .Dq Li gpio0 ,
 .Dq Li gpio1 ,
 .Dq Li gpio2 ,
+.Dq Li gpio3 ,
+.Dq Li gpio4 ,
+.Dq Li gpio5 ,
+.Dq Li gpio6 ,
+.Dq Li gpio7 ,
 .Dq Li gpioflush ,
-.Dq Li eapdinv ,
+.Dq Li ivref ,
+.Dq Li ivref50 ,
+.Dq Li ivref80 ,
+.Dq Li ivref100 ,
 .Dq Li fixedrate ,
 .Dq Li forcestereo ,
+.Dq Li ovref ,
+.Dq Li ovref50 ,
+.Dq Li ovref80 ,
+.Dq Li ovref100 ,
 .Dq Li softpcmvol ,
 and
 .Dq Li vref .
@@ -161,6 +175,8 @@ Analog Device AD1983
 .It
 Analog Device AD1986A
 .It
+Analog Device AD1988
+.It
 CMedia CMI9880
 .It
 Conexant Venice
@@ -169,13 +185,19 @@ Conexant Waikiki
 .It
 Realtek ALC260
 .It
+Realtek ALC262
+.It
 Realtek ALC861
+.It
+Realtek ALC861VD
 .It
 Realtek ALC880
 .It
 Realtek ALC882
 .It
 Realtek ALC883
+.It
+Realtek ALC885
 .It
 Realtek ALC888
 .It
@@ -190,6 +212,10 @@ Sigmatel STAC9221D
 Sigmatel STAC9227
 .It
 Sigmatel STAC9271D
+.It
+VIA VT1708
+.It
+VIA VT1709
 .El
 .Sh SEE ALSO
 .Xr sound 4 ,
