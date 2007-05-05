@@ -172,6 +172,8 @@ natural performance boundaries for most disk technologies.
 Please see
 .Pa src/sys/geom/notes
 for details.
+.It Vt char Va d_ident[DISK_IDENT_SIZE]
+This field can and should be used to store disk's serial number.
 .El
 .Ss Driver Private Data
 This field may be used by the device driver to store a pointer to
