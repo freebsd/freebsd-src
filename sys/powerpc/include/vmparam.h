@@ -107,6 +107,11 @@ struct pmap_physseg {
 #define	VM_PHYSSEG_STRAT	VM_PSTRAT_BSEARCH
 #define	VM_PHYSSEG_NOADD		/* can't add RAM after vm_mem_init */
 
+/*
+ * The physical address space is densely populated.
+ */
+#define	VM_PHYSSEG_DENSE
+
 #define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
 

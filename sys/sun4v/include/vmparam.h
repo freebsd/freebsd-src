@@ -78,6 +78,11 @@
 #define	MAXSLP			20
 
 /*
+ * The physical address space is densely populated.
+ */
+#define	VM_PHYSSEG_DENSE
+
+/*
  * Address space layout.
  *
  * UltraSPARC I and II implement a 44 bit virtual address space.  The address
