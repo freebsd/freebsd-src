@@ -109,6 +109,7 @@
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
+#include <sys/devicestat.h>
 #else
 #include <sys/lock.h>
 #include <sys/kernel.h>
@@ -241,7 +242,7 @@ int mpt_modevent(module_t, int, void *);
 	bus_dma_tag_create(parent_tag, alignment, boundary,		\
 			   lowaddr, highaddr, filter, filterarg,	\
 			   maxsize, nsegments, maxsegsz, flags,		\
-			   busdma_lock_mutex, &Giant,			\
+			   busdma_lock_mutex, &(mpt)->mpt_lock,		\
 			   dma_tagp)
 #else
 #define mpt_dma_tag_create(mpt, parent_tag, alignment, boundary,	\
@@ -280,7 +281,7 @@ void mpt_map_rquest(void *, bus_dma_segment_t *, int, int);
 
 /****************************** Timer Facilities ******************************/
 #if __FreeBSD_version > 500000
-#define mpt_callout_init(c)	callout_init(c, /*mpsafe*/0);
+#define mpt_callout_init(c)	callout_init(c, /*mpsafe*/1);
 #else
 #define mpt_callout_init(c)	callout_init(c);
 #endif
@@ -337,6 +338,7 @@ struct req_entry {
 	bus_addr_t	sense_pbuf;	/* Physical Address of sense data */
 	bus_dmamap_t	dmap;		/* DMA map for data buffers */
 	struct req_entry *chain;	/* for SGE overallocations */
+	struct callout  callout;	/* Timeout for the request */
 };
 
 /**************************** MPI Target State Info ***************************/
@@ -741,6 +743,7 @@ mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
 #define	MPT_LOCK(mpt)		mpt_lockspl(mpt)
 #define	MPT_UNLOCK(mpt)		mpt_unlockspl(mpt)
 #define	MPT_OWNED(mpt)		mpt->mpt_islocked
+#define	MPT_LOCK_ASSERT(mpt)
 #define	MPTLOCK_2_CAMLOCK	MPT_UNLOCK
 #define	CAMLOCK_2_MPTLOCK	MPT_LOCK
 #define	MPT_LOCK_SETUP(mpt)
@@ -793,9 +796,15 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 	return (error);
 }
 
+#define mpt_req_timeout(req, ticks, func, arg) \
+	callout_reset(&(req)->callout, (ticks), (func), (arg));
+#define mpt_req_untimeout(req, func, arg) \
+	callout_stop(&(req)->callout)
+#define mpt_req_timeout_init(req) \
+	callout_init(&(req)->callout)
+
 #else
-#ifdef	LOCKING_WORKED_AS_IT_SHOULD
-#error "Shouldn't Be Here!"
+#if 1
 #define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 #define	MPT_LOCK_SETUP(mpt)						\
 		mtx_init(&mpt->mpt_lock, "mpt", NULL, MTX_DEF);		\
@@ -809,53 +818,46 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 #define	MPT_LOCK(mpt)		mtx_lock(&(mpt)->mpt_lock)
 #define	MPT_UNLOCK(mpt)		mtx_unlock(&(mpt)->mpt_lock)
 #define	MPT_OWNED(mpt)		mtx_owned(&(mpt)->mpt_lock)
-#define	MPTLOCK_2_CAMLOCK(mpt)	\
-	mtx_unlock(&(mpt)->mpt_lock); mtx_lock(&Giant)
-#define	CAMLOCK_2_MPTLOCK(mpt)	\
-	mtx_unlock(&Giant); mtx_lock(&(mpt)->mpt_lock)
+#define	MPT_LOCK_ASSERT(mpt)	mtx_assert(&(mpt)->mpt_lock, MA_OWNED)
+#define	MPTLOCK_2_CAMLOCK(mpt)
+#define	CAMLOCK_2_MPTLOCK(mpt)
 #define mpt_sleep(mpt, ident, priority, wmesg, timo) \
 	msleep(ident, &(mpt)->mpt_lock, priority, wmesg, timo)
+#define mpt_req_timeout(req, ticks, func, arg) \
+	callout_reset(&(req)->callout, (ticks), (func), (arg));
+#define mpt_req_untimeout(req, func, arg) \
+	callout_stop(&(req)->callout)
+#define mpt_req_timeout_init(req) \
+	callout_init(&(req)->callout, 1)
 
 #else
 
 #define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY
 #define	MPT_LOCK_SETUP(mpt)	do { } while (0)
 #define	MPT_LOCK_DESTROY(mpt)	do { } while (0)
-#if	0
-#define	MPT_LOCK(mpt)		\
-	device_printf(mpt->dev, "LOCK %s:%d\n", __FILE__, __LINE__); 	\
-	KASSERT(mpt->mpt_locksetup == 0,				\
-	    ("recursive lock acquire at %s:%d", __FILE__, __LINE__));	\
-	mpt->mpt_locksetup = 1
-#define	MPT_UNLOCK(mpt)		\
-	device_printf(mpt->dev, "UNLK %s:%d\n", __FILE__, __LINE__); 	\
-	KASSERT(mpt->mpt_locksetup == 1,				\
-	    ("release unowned lock at %s:%d", __FILE__, __LINE__));	\
-	mpt->mpt_locksetup = 0
-#else
-#define	MPT_LOCK(mpt)							\
-	KASSERT(mpt->mpt_locksetup == 0,				\
-	    ("recursive lock acquire at %s:%d", __FILE__, __LINE__));	\
-	mpt->mpt_locksetup = 1
-#define	MPT_UNLOCK(mpt)							\
-	KASSERT(mpt->mpt_locksetup == 1,				\
-	    ("release unowned lock at %s:%d", __FILE__, __LINE__));	\
-	mpt->mpt_locksetup = 0
-#endif
-#define	MPT_OWNED(mpt)		mpt->mpt_locksetup
-#define	MPTLOCK_2_CAMLOCK(mpt)	MPT_UNLOCK(mpt)
-#define	CAMLOCK_2_MPTLOCK(mpt)	MPT_LOCK(mpt)
+#define	MPT_LOCK_ASSERT(mpt)	mtx_assert(&Giant, MA_OWNED)
+#define	MPT_LOCK(mpt)		mtx_lock(&Giant)
+#define	MPT_UNLOCK(mpt)		mtx_unlock(&Giant)
+#define	MPTLOCK_2_CAMLOCK(mpt)
+#define	CAMLOCK_2_MPTLOCK(mpt)
 
 static __inline int
 mpt_sleep(struct mpt_softc *, void *, int, const char *, int);
+
+#define mpt_ccb_timeout(ccb, ticks, func, arg) \
+	do {	\
+		(ccb)->ccb_h.timeout_ch = timeout((func), (arg), (ticks)); \
+	} while (0)
+#define mpt_ccb_untimeout(ccb, func, arg) \
+	untimeout((func), (arg), (ccb)->ccb_h.timeout_ch)
+#define mpt_ccb_timeout_init(ccb) \
+	callout_handle_init(&(ccb)->ccb_h.timeout_ch)
 
 static __inline int
 mpt_sleep(struct mpt_softc *mpt, void *i, int p, const char *w, int t)
 {
 	int r;
-	MPT_UNLOCK(mpt);
 	r = tsleep(i, p, w, t);
-	MPT_LOCK(mpt);
 	return (r);
 }
 #endif

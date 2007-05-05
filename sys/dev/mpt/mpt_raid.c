@@ -116,12 +116,14 @@ static timeout_t mpt_raid_timer;
 static void mpt_enable_vol(struct mpt_softc *mpt,
 			   struct mpt_raid_volume *mpt_vol, int enable);
 #endif
-static void mpt_verify_mwce(struct mpt_softc *mpt,
-			    struct mpt_raid_volume *mpt_vol);
-static void mpt_adjust_queue_depth(struct mpt_softc *mpt,
-				   struct mpt_raid_volume *mpt_vol,
-				   struct cam_path *path);
-static void mpt_raid_sysctl_attach(struct mpt_softc *mpt);
+static void mpt_verify_mwce(struct mpt_softc *, struct mpt_raid_volume *);
+static void mpt_adjust_queue_depth(struct mpt_softc *, struct mpt_raid_volume *,
+    struct cam_path *);
+#if __FreeBSD_version < 500000
+#define	mpt_raid_sysctl_attach(x)	do { } while (0)
+#else
+static void mpt_raid_sysctl_attach(struct mpt_softc *);
+#endif
 
 static uint32_t raid_handler_id = MPT_HANDLER_ID_NONE;
 
@@ -270,6 +272,13 @@ mpt_raid_attach(struct mpt_softc *mpt)
 
 	mpt_callout_init(&mpt->raid_timer);
 
+	error = mpt_spawn_raid_thread(mpt);
+	if (error != 0) {
+		mpt_prt(mpt, "Unable to spawn RAID thread!\n");
+		goto cleanup;
+	}
+ 
+	MPT_LOCK(mpt);
 	handler.reply_handler = mpt_raid_reply_handler;
 	error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 				     &raid_handler_id);
@@ -278,28 +287,22 @@ mpt_raid_attach(struct mpt_softc *mpt)
 		goto cleanup;
 	}
 
-	error = mpt_spawn_raid_thread(mpt);
-	if (error != 0) {
-		mpt_prt(mpt, "Unable to spawn RAID thread!\n");
-		goto cleanup;
-	}
- 
 	xpt_setup_ccb(&csa.ccb_h, mpt->path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_FOUND_DEVICE;
 	csa.callback = mpt_raid_async;
 	csa.callback_arg = mpt;
-	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_action((union ccb *)&csa);
-	CAMLOCK_2_MPTLOCK(mpt);
 	if (csa.ccb_h.status != CAM_REQ_CMP) {
 		mpt_prt(mpt, "mpt_raid_attach: Unable to register "
 			"CAM async handler.\n");
 	}
+	MPT_UNLOCK(mpt);
 
 	mpt_raid_sysctl_attach(mpt);
 	return (0);
 cleanup:
+	MPT_UNLOCK(mpt);
 	mpt_raid_detach(mpt);
 	return (error);
 }
@@ -317,6 +320,7 @@ mpt_raid_detach(struct mpt_softc *mpt)
 	mpt_handler_t handler;
 
 	callout_stop(&mpt->raid_timer);
+	MPT_LOCK(mpt);
 	mpt_terminate_raid_thread(mpt); 
 
 	handler.reply_handler = mpt_raid_reply_handler;
@@ -327,9 +331,8 @@ mpt_raid_detach(struct mpt_softc *mpt)
 	csa.event_enable = 0;
 	csa.callback = mpt_raid_async;
 	csa.callback_arg = mpt;
-	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_action((union ccb *)&csa);
-	CAMLOCK_2_MPTLOCK(mpt);
+	MPT_UNLOCK(mpt);
 }
 
 static void
@@ -620,12 +623,17 @@ mpt_spawn_raid_thread(struct mpt_softc *mpt)
 	 * reject I/O to an ID we later determine is for a
 	 * hidden physdisk.
 	 */
+	MPT_LOCK(mpt);
 	xpt_freeze_simq(mpt->phydisk_sim, 1);
+	MPT_UNLOCK(mpt);
 	error = mpt_kthread_create(mpt_raid_thread, mpt,
 	    &mpt->raid_thread, /*flags*/0, /*altstack*/0,
 	    "mpt_raid%d", mpt->unit);
-	if (error != 0)
+	if (error != 0) {
+		MPT_LOCK(mpt);
 		xpt_release_simq(mpt->phydisk_sim, /*run_queue*/FALSE);
+		MPT_UNLOCK(mpt);
+	}
 	return (error);
 }
 
@@ -658,9 +666,6 @@ mpt_raid_thread(void *arg)
 	struct mpt_softc *mpt;
 	int firstrun;
 
-#if __FreeBSD_version >= 500000
-	mtx_lock(&Giant);
-#endif
 	mpt = (struct mpt_softc *)arg;
 	firstrun = 1;
 	MPT_LOCK(mpt);
@@ -717,9 +722,6 @@ mpt_raid_thread(void *arg)
 	mpt->raid_thread = NULL;
 	wakeup(&mpt->raid_thread);
 	MPT_UNLOCK(mpt);
-#if __FreeBSD_version >= 500000
-	mtx_unlock(&Giant);
-#endif
 	kthread_exit(0);
 }
 
@@ -756,8 +758,7 @@ mpt_raid_quiesce_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk,
 		if (rv != 0)
 			return (CAM_REQ_CMP_ERR);
 
-		ccb->ccb_h.timeout_ch =
-			timeout(mpt_raid_quiesce_timeout, (caddr_t)ccb, 5 * hz);
+		mpt_req_timeout(req, mpt_raid_quiesce_timeout, ccb, 5 * hz);
 #if 0
 		if (rv == ETIMEDOUT) {
 			mpt_disk_prt(mpt, mpt_disk, "mpt_raid_quiesce_disk: "
@@ -1605,6 +1606,7 @@ mpt_raid_free_mem(struct mpt_softc *mpt)
 	mpt->raid_max_disks =  0;
 }
 
+#if __FreeBSD_version >= 500000
 static int
 mpt_raid_set_vol_resync_rate(struct mpt_softc *mpt, u_int rate)
 {
@@ -1718,7 +1720,6 @@ mpt_raid_set_vol_mwce(struct mpt_softc *mpt, mpt_raid_mwce_t mwce)
 	MPT_UNLOCK(mpt);
 	return (0);
 }
-
 const char *mpt_vol_mwce_strs[] =
 {
 	"On",
@@ -1807,7 +1808,6 @@ mpt_raid_sysctl_vol_queue_depth(SYSCTL_HANDLER_ARGS)
 static void
 mpt_raid_sysctl_attach(struct mpt_softc *mpt)
 {
-#if __FreeBSD_version >= 500000
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(mpt->dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
 
@@ -1829,5 +1829,5 @@ mpt_raid_sysctl_attach(struct mpt_softc *mpt)
 			"nonoptimal_volumes", CTLFLAG_RD,
 			&mpt->raid_nonopt_volumes, 0,
 			"number of nonoptimal volumes");
-#endif
 }
+#endif
