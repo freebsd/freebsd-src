@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2006
+.Dd May 5, 2007
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -574,20 +574,19 @@ Limits the amount of KVM to be used to hold swap
 meta information, which directly governs the
 maximum amount of swap the system can support.
 This value is specified in bytes of KVA space
-and defaults to around 70MBytes.
+and defaults to 32MBytes on i386 and amd64.
 Care should be taken
 to not reduce this value such that the actual
 amount of configured swap exceeds 1/2 the
 kernel-supported swap.
-The default 70MB allows
-the kernel to support a maximum of (approximately)
-14GB of configured swap.
-Only mess around with
+The default of 32MB allows
+the kernel to support a maximum of ~7GB of swap.
+Only change
 this parameter if you need to greatly extend the
 KVM reservation for other resources such as the
 buffer cache or
 .Va kern.ipc.nmbclusters .
-Modifies
+Modifies kernel option
 .Dv VM_SWZONE_SIZE_MAX .
 .It Va kern.maxbcache
 Limits the amount of KVM reserved for use by the
