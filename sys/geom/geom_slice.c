@@ -172,6 +172,28 @@ g_slice_finish_hot(struct bio *bp)
 }
 
 static void
+g_slice_done(struct bio *bp)
+{
+
+	KASSERT(bp->bio_cmd == BIO_GETATTR &&
+	    strcmp(bp->bio_attribute, "GEOM::ident") == 0,
+	    ("bio_cmd=0x%x bio_attribute=%s", bp->bio_cmd, bp->bio_attribute));
+
+	if (bp->bio_error == 0 && bp->bio_data[0] != '\0') {
+		char idx[8];
+
+		/* Add index to the ident received. */
+		snprintf(idx, sizeof(idx), "s%d",
+		    bp->bio_parent->bio_to->index);
+		if (strlcat(bp->bio_data, idx, bp->bio_length) >=
+		    bp->bio_length) {
+			bp->bio_error = EFAULT;
+		}
+	}
+	g_std_done(bp);
+}
+
+static void
 g_slice_start(struct bio *bp)
 {
 	struct bio *bp2;
@@ -251,6 +273,16 @@ g_slice_start(struct bio *bp)
 		/* Give the real method a chance to override */
 		if (gsp->start != NULL && gsp->start(bp))
 			return;
+		if (!strcmp("GEOM::ident", bp->bio_attribute)) {
+			bp2 = g_clone_bio(bp);
+			if (bp2 == NULL) {
+				g_io_deliver(bp, ENOMEM);
+				return;
+			}
+			bp2->bio_done = g_slice_done;
+			g_io_request(bp2, cp);
+			return;
+		}
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			struct g_kerneldump *gkd;
 
