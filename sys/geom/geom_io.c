@@ -646,6 +646,28 @@ g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 	return (error);
 }
 
+int
+g_delete_data(struct g_consumer *cp, off_t offset, off_t length)
+{
+	struct bio *bp;
+	int error;
+
+	KASSERT(length > 0 && length >= cp->provider->sectorsize &&
+	    length <= MAXPHYS, ("g_delete_data(): invalid length %jd",
+	    (intmax_t)length));
+
+	bp = g_alloc_bio();
+	bp->bio_cmd = BIO_DELETE;
+	bp->bio_done = NULL;
+	bp->bio_offset = offset;
+	bp->bio_length = length;
+	bp->bio_data = NULL;
+	g_io_request(bp, cp);
+	error = biowait(bp, "gdelete");
+	g_destroy_bio(bp);
+	return (error);
+}
+
 void
 g_print_bio(struct bio *bp)
 {
