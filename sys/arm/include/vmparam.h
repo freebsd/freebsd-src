@@ -73,6 +73,11 @@
 #define	VM_PHYSSEG_NOADD
 
 /*
+ * The physical address space is densely populated.
+ */
+#define	VM_PHYSSEG_DENSE
+
+/*
  * we support 2 free lists:
  *
  *	- DEFAULT for all systems

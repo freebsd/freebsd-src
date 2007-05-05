@@ -240,6 +240,9 @@ extern struct pq_coloring page_queue_coloring;
 #define ACT_MAX			64
 
 #ifdef _KERNEL
+
+#include <vm/vm_param.h>
+
 /*
  * Each pageable resident page falls into one of four lists:
  *
@@ -275,8 +278,23 @@ extern long first_page;			/* first physical page number */
 
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
 
-#define PHYS_TO_VM_PAGE(pa) \
-		(&vm_page_array[atop(pa) - first_page ])
+static __inline vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
+
+static __inline vm_page_t
+PHYS_TO_VM_PAGE(vm_paddr_t pa)
+{
+#ifdef VM_PHYSSEG_SPARSE
+	int i, j = 0;
+
+	for (i = 0; phys_avail[i + 1] <= pa || phys_avail[i] > pa; i += 2)
+		j += atop(phys_avail[i + 1] - phys_avail[i]);
+	return (&vm_page_array[j + atop(pa - phys_avail[i])]);
+#elif defined(VM_PHYSSEG_DENSE)
+	return (&vm_page_array[atop(pa) - first_page]);
+#else
+#error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
+#endif
+}
 
 extern struct mtx vm_page_queue_mtx;
 #define vm_page_lock_queues()   mtx_lock(&vm_page_queue_mtx)

@@ -298,7 +298,15 @@ vm_page_startup(vm_offset_t vaddr)
 	 * page).
 	 */
 	first_page = low_water / PAGE_SIZE;
+#ifdef VM_PHYSSEG_SPARSE
+	page_range = 0;
+	for (i = 0; phys_avail[i + 1] != 0; i += 2)
+		page_range += atop(phys_avail[i + 1] - phys_avail[i]);
+#elif defined(VM_PHYSSEG_DENSE)
 	page_range = high_water / PAGE_SIZE - first_page;
+#else
+#error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
+#endif
 	npages = (total - (page_range * sizeof(struct vm_page)) -
 	    (end - new_end)) / PAGE_SIZE;
 	end = new_end;
