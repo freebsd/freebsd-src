@@ -301,6 +301,8 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (g_handleattr_off_t(bp, "GEOM::frontstuff", 0))
 			break;
+		else if (g_handleattr_str(bp, "GEOM::ident", dp->d_ident))
+			break;
 		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_disk_kerneldump(bp, dp);
 		else 
@@ -408,7 +410,7 @@ disk_alloc()
 void
 disk_create(struct disk *dp, int version)
 {
-	if (version != DISK_VERSION_00) {
+	if (version != DISK_VERSION_00 && version != DISK_VERSION_01) {
 		printf("WARNING: Attempt to add disk %s%d %s",
 		    dp->d_name, dp->d_unit,
 		    " using incompatible ABI version of disk(9)\n");
