@@ -1794,6 +1794,12 @@ fail:
 
 			if (ln->ln_hold) {
 				struct mbuf *m_hold, *m_hold_next;
+
+				/*
+				 * reset the ln_hold in advance, to explicitly
+				 * prevent a ln_hold lookup in nd6_output()
+				 * (wouldn't happen, though...)
+				 */
 				for (m_hold = ln->ln_hold, ln->ln_hold = NULL;
 				    m_hold; m_hold = m_hold_next) {
 					m_hold_next = m_hold->m_nextpkt;
@@ -1808,7 +1814,6 @@ fail:
 					     (struct sockaddr_in6 *)rt_key(rt),
 					     rt);
 				}
-				ln->ln_hold = NULL;
 			}
 		} else if (ln->ln_state == ND6_LLINFO_INCOMPLETE) {
 			/* probe right away */
