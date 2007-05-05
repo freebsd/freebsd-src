@@ -398,6 +398,44 @@ g_disk_destroy(void *ptr, int flag)
 	g_free(dp);
 }
 
+/*
+ * We only allow [a-zA-Z0-9-_@#%.] characters, the rest is converted to 'x<HH>'.
+ */
+static void
+g_disk_ident_adjust(char *ident, size_t size)
+{
+	char newid[DISK_IDENT_SIZE], tmp[4];
+	size_t len;
+	char *p;
+
+	bzero(newid, sizeof(newid));
+	len = 0;
+	for (p = ident; *p != '\0' && len < sizeof(newid) - 1; p++) {
+		switch (*p) {
+		default:
+			if ((*p < 'a' || *p > 'z') &&
+			    (*p < 'A' || *p > 'Z') &&
+			    (*p < '0' || *p > '9')) {
+				snprintf(tmp, sizeof(tmp), "x%02hhx", *p);
+				strlcat(newid, tmp, sizeof(newid));
+				len += 3;
+				break;
+			}
+			/* FALLTHROUGH */
+		case '-':
+		case '_':
+		case '@':
+		case '#':
+		case '%':
+		case '.':
+			newid[len++] = *p;
+			break;
+		}
+	}
+	bzero(ident, size);
+	strlcpy(ident, newid, size);
+}
+
 struct disk *
 disk_alloc()
 {
@@ -427,6 +465,7 @@ disk_create(struct disk *dp, int version)
 		    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
 		    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	dp->d_geom = NULL;
+	g_disk_ident_adjust(dp->d_ident, sizeof(dp->d_ident));
 	g_post_event(g_disk_create, dp, M_WAITOK, dp, NULL);
 }
 
