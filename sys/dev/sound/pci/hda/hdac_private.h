@@ -251,6 +251,7 @@ struct hdac_devinfo {
 			struct hdac_audio_ctl *ctl;
 			uint32_t mvol;
 			uint32_t quirks;
+			uint32_t gpio;
 			int ossidx;
 			int playcnt, reccnt;
 			int parsing_strategy;
@@ -268,6 +269,7 @@ struct hdac_chan {
 	uint32_t spd, fmt, fmtlist[8], pcmrates[16];
 	uint32_t supp_stream_formats, supp_pcm_size_rate;
 	uint32_t ptr, prevptr, blkcnt, blksz;
+	uint32_t *dmapos;
 	int active;
 	int dir;
 	int off;
@@ -292,6 +294,7 @@ struct hdac_softc {
 	struct hdac_irq	irq;
 	uint32_t pci_subvendor;
 
+	int		nocache;
 
 	int		num_iss;
 	int		num_oss;
@@ -307,6 +310,8 @@ struct hdac_softc {
 	struct hdac_dma	rirb_dma;
 	int		rirb_rp;
 
+	struct hdac_dma	pos_dma;
+
 	struct hdac_chan	play, rec;
 	bus_dma_tag_t		chan_dmat;
 	int			chan_size;
@@ -317,8 +322,10 @@ struct hdac_softc {
 	 */
 	int			polling;
 	int			poll_ticks;
+	int			poll_ival;
 	struct callout		poll_hda;
 	struct callout		poll_hdac;
+	struct callout		poll_jack;
 
 #define HDAC_UNSOLQ_MAX		64
 #define HDAC_UNSOLQ_READY	0
