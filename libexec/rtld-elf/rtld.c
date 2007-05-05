@@ -3022,6 +3022,7 @@ free_tls(void *tls, size_t tcbsize, size_t tcbalign)
     }
 
     free((void*) tlsstart);
+    free((void*) dtv);
 }
 
 #endif
