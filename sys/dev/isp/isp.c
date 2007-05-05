@@ -5121,20 +5121,11 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			isp->isp_mboxtmp[0] = MBOX_HOST_INTERFACE_ERROR;
 			MBOX_NOTIFY_COMPLETE(isp);
 		}
-#ifdef	ISP_FW_CRASH_DUMP
 		/*
-		 * If we have crash dumps enabled, it's up to the handler
-		 * for isp_async to reinit stuff and restart the firmware
-		 * after performing the crash dump. The reason we do things
-		 * this way is that we may need to activate a kernel thread
-		 * to do all the crash dump goop.
+		 * It's up to the handler for isp_async to reinit stuff and
+		 * restart the firmware
 		 */
 		isp_async(isp, ISPASYNC_FW_CRASH, NULL);
-#else
-		isp_async(isp, ISPASYNC_FW_CRASH, NULL);
-		isp_reinit(isp);
-		isp_async(isp, ISPASYNC_FW_RESTARTED, NULL);
-#endif
 		rval = -1;
 		break;
 
@@ -5401,13 +5392,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			break;
 		case ISP_CONN_FATAL:
 			isp_prt(isp, ISP_LOGERR, "FATAL CONNECTION ERROR");
-#ifdef	ISP_FW_CRASH_DUMP
 			isp_async(isp, ISPASYNC_FW_CRASH, NULL);
-#else
-			isp_async(isp, ISPASYNC_FW_CRASH, NULL);
-			isp_reinit(isp);
-			isp_async(isp, ISPASYNC_FW_RESTARTED, NULL);
-#endif
 			return (-1);
 		case ISP_CONN_LOOPBACK:
 			isp_prt(isp, ISP_LOGWARN,

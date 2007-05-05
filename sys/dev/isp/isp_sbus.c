@@ -60,8 +60,6 @@ isp_sbus_rd_isr(ispsoftc_t *, uint32_t *, uint16_t *, uint16_t *);
 static int isp_sbus_mbxdma(ispsoftc_t *);
 static int
 isp_sbus_dmasetup(ispsoftc_t *, XS_T *, ispreq_t *, uint32_t *, uint32_t);
-static void
-isp_sbus_dmateardown(ispsoftc_t *, XS_T *, uint32_t);
 
 static void isp_sbus_reset0(ispsoftc_t *);
 static void isp_sbus_reset1(ispsoftc_t *);
@@ -73,7 +71,7 @@ static struct ispmdvec mdvec = {
 	isp_sbus_wr_reg,
 	isp_sbus_mbxdma,
 	isp_sbus_dmasetup,
-	isp_sbus_dmateardown,
+	isp_common_dmateardown,
 	isp_sbus_reset0,
 	isp_sbus_reset1,
 	isp_sbus_dumpregs,
@@ -91,8 +89,6 @@ struct isp_sbussoftc {
 	struct resource *		sbus_reg;
 	void *				ih;
 	int16_t				sbus_poff[_NREG_BLKS];
-	bus_dma_tag_t			dmat;
-	bus_dmamap_t			*dmaps;
 	sdparam				sbus_param;
 	struct ispmdvec			sbus_mdvec;
 	struct resource *		sbus_ires;
@@ -105,7 +101,6 @@ static device_method_t isp_sbus_methods[] = {
 	DEVMETHOD(device_attach,	isp_sbus_attach),
 	{ 0, 0 }
 };
-static void isp_sbus_intr(void *);
 
 static driver_t isp_sbus_driver = {
 	"isp", isp_sbus_methods, sizeof (struct isp_sbussoftc)
@@ -309,8 +304,8 @@ isp_sbus_attach(device_t dev)
 		goto bad;
 	}
 
-	if (isp_setup_intr(dev, sbs->sbus_ires, ISP_IFLAGS,
-	    NULL, isp_sbus_intr, isp, &sbs->ih)) {
+	if (isp_setup_intr(dev, sbs->sbus_ires, ISP_IFLAGS, NULL,
+	    isp_platform_intr, isp, &sbs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}
@@ -331,26 +326,21 @@ isp_sbus_attach(device_t dev)
 	/*
 	 * Make sure we're in reset state.
 	 */
-	ISP_LOCK(isp);
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
 		isp_uninit(isp);
-		ISP_UNLOCK(isp);
 		goto bad;
 	}
 	isp_init(isp);
 	if (isp->isp_role != ISP_ROLE_NONE && isp->isp_state != ISP_INITSTATE) {
 		isp_uninit(isp);
-		ISP_UNLOCK(isp);
 		goto bad;
 	}
 	isp_attach(isp);
 	if (isp->isp_role != ISP_ROLE_NONE && isp->isp_state != ISP_RUNSTATE) {
 		isp_uninit(isp);
-		ISP_UNLOCK(isp);
 		goto bad;
 	}
-	ISP_UNLOCK(isp);
 	return (0);
 
 bad:
@@ -378,23 +368,6 @@ bad:
 		free(sbs, M_DEVBUF);
 	}
 	return (ENXIO);
-}
-
-static void
-isp_sbus_intr(void *arg)
-{
-	ispsoftc_t *isp = arg;
-	uint32_t isr;
-	uint16_t sema, mbox;
-
-	ISP_LOCK(isp);
-	isp->isp_intcnt++;
-	if (ISP_READ_ISR(isp, &isr, &sema, &mbox) == 0) {
-		isp->isp_intbogus++;
-	} else {
-		isp_intr(isp, isr, sema, mbox);
-	}
-	ISP_UNLOCK(isp);
 }
 
 #define	IspVirt2Off(a, x)	\
@@ -490,13 +463,13 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 
 	ISP_UNLOCK(isp);
 
-	if (isp_dma_tag_create(BUS_DMA_ROOTARG(sbs->sbus_dev), 1,
-	    BUS_SPACE_MAXADDR_24BIT+1, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR_32BIT, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT,
-	    ISP_NSEGS, BUS_SPACE_MAXADDR_24BIT, 0, &sbs->dmat)) {
-		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
+	len = sizeof (struct isp_pcmd) * isp->isp_maxcmds;
+	isp->isp_osinfo.pcmd_pool = (struct isp_pcmd *)
+	    malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	if (isp->isp_osinfo.pcmd_pool == NULL) {
+		isp_prt(isp, ISP_LOGERR, "cannot alloc pcmd pool");
 		ISP_LOCK(isp);
-		return(1);
+		return (1);
 	}
 
 	len = sizeof (XS_T **) * isp->isp_maxcmds;
@@ -507,12 +480,16 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 		return (1);
 	}
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
-	sbs->dmaps = (bus_dmamap_t *) malloc(len, M_DEVBUF,  M_WAITOK);
-	if (sbs->dmaps == NULL) {
-		isp_prt(isp, ISP_LOGERR, "can't alloc dma map storage");
+
+	if (isp_dma_tag_create(BUS_DMA_ROOTARG(sbs->sbus_dev), 1,
+	    BUS_SPACE_MAXADDR_24BIT+1, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR_32BIT, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT,
+	    ISP_NSEGS, BUS_SPACE_MAXADDR_24BIT, 0, &isp->isp_osinfo.dmat)) {
+		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
+		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
 		ISP_LOCK(isp);
-		return (1);
+		return(1);
 	}
 
 	/*
@@ -522,13 +499,13 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 
 	ns = (len / PAGE_SIZE) + 1;
-	if (bus_dma_tag_create(sbs->dmat, QENTRY_LEN, BUS_SPACE_MAXADDR_24BIT+1,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR_32BIT, NULL, NULL,
-	    len, ns, BUS_SPACE_MAXADDR_24BIT, 0, busdma_lock_mutex, &Giant,
-	    &isp->isp_cdmat)) {
+	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN,
+	    BUS_SPACE_MAXADDR_24BIT+1, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR_32BIT, NULL, NULL, len, ns,
+	    BUS_SPACE_MAXADDR_24BIT, 0, &isp->isp_cdmat)) {
 		isp_prt(isp, ISP_LOGERR,
 		    "cannot create a dma tag for control spaces");
-		free(sbs->dmaps, M_DEVBUF);
+		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
 		ISP_LOCK(isp);
 		return (1);
@@ -539,23 +516,32 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 		isp_prt(isp, ISP_LOGERR,
 		    "cannot allocate %d bytes of CCB memory", len);
 		bus_dma_tag_destroy(isp->isp_cdmat);
+		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
-		free(sbs->dmaps, M_DEVBUF);
 		ISP_LOCK(isp);
 		return (1);
 	}
 
 	for (i = 0; i < isp->isp_maxcmds; i++) {
-		error = bus_dmamap_create(sbs->dmat, 0, &sbs->dmaps[i]);
+		struct isp_pcmd *pcmd = &isp->isp_osinfo.pcmd_pool[i];
+		error = bus_dmamap_create(isp->isp_osinfo.dmat, 0, &pcmd->dmap);
 		if (error) {
 			isp_prt(isp, ISP_LOGERR,
 			    "error %d creating per-cmd DMA maps", error);
 			while (--i >= 0) {
-				bus_dmamap_destroy(sbs->dmat, sbs->dmaps[i]);
+				bus_dmamap_destroy(isp->isp_osinfo.dmat,
+				    isp->isp_osinfo.pcmd_pool[i].dmap);
 			}
 			goto bad;
 		}
+		isp_callout_init(&pcmd->wdog);
+		if (i == isp->isp_maxcmds-1) {
+			pcmd->next = NULL;
+		} else {
+			pcmd->next = &isp->isp_osinfo.pcmd_pool[i+1];
+		}
 	}
+	isp->isp_osinfo.pcmd_free = &isp->isp_osinfo.pcmd_pool[0];
 
 	im.isp = isp;
 	im.error = 0;
@@ -568,17 +554,17 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 
 	isp->isp_rquest = base;
 	base += ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
-	ISP_LOCK(isp);
 	isp->isp_result = base;
+	ISP_LOCK(isp);
 	return (0);
 
 bad:
 	bus_dmamem_free(isp->isp_cdmat, base, isp->isp_cdmap);
 	bus_dma_tag_destroy(isp->isp_cdmat);
 	free(isp->isp_xflist, M_DEVBUF);
-	free(sbs->dmaps, M_DEVBUF);
-	ISP_LOCK(isp);
+	free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 	isp->isp_rquest = NULL;
+	ISP_LOCK(isp);
 	return (1);
 }
 
@@ -602,8 +588,6 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	mush_t *mp;
 	ispsoftc_t *isp;
 	struct ccb_scsiio *csio;
-	struct isp_sbussoftc *sbs;
-	bus_dmamap_t *dp;
 	bus_dma_segment_t *eseg;
 	ispreq_t *rq;
 	int seglim, datalen;
@@ -623,14 +607,14 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	csio = mp->cmd_token;
 	isp = mp->isp;
 	rq = mp->rq;
-	sbs = (struct isp_sbussoftc *)mp->isp;
-	dp = &sbs->dmaps[isp_handle_index(rq->req_handle & ISP_HANDLE_MASK)];
 	nxti = *mp->nxtip;
 
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-		bus_dmamap_sync(sbs->dmat, *dp, BUS_DMASYNC_PREREAD);
+		bus_dmamap_sync(isp->isp_osinfo.dmat,
+		    PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
 	} else {
-		bus_dmamap_sync(sbs->dmat, *dp, BUS_DMASYNC_PREWRITE);
+		bus_dmamap_sync(isp->isp_osinfo.dmat,
+		    PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREWRITE);
 	}
 
 	datalen = XS_XFRLEN(csio);
@@ -704,9 +688,7 @@ static int
 isp_sbus_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 	uint32_t *nxtip, uint32_t optr)
 {
-	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *)isp;
 	ispreq_t *qep;
-	bus_dmamap_t *dp = NULL;
 	mush_t mush, *mp;
 	void (*eptr)(void *, bus_dma_segment_t *, int, int);
 
@@ -734,14 +716,12 @@ isp_sbus_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 
 	if ((csio->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
 		if ((csio->ccb_h.flags & CAM_DATA_PHYS) == 0) {
-			int error, s;
-			dp = &sbs->dmaps[isp_handle_index(
-			    rq->req_handle & ISP_HANDLE_MASK)];
-			s = splsoftvm();
-			error = bus_dmamap_load(sbs->dmat, *dp,
-			    csio->data_ptr, csio->dxfer_len, eptr, mp, 0);
+			int error = bus_dmamap_load(isp->isp_osinfo.dmat,
+			    PISP_PCMD(csio)->dmap, csio->data_ptr,
+			    csio->dxfer_len, eptr, mp, 0);
 			if (error == EINPROGRESS) {
-				bus_dmamap_unload(sbs->dmat, *dp);
+				bus_dmamap_unload(isp->isp_osinfo.dmat,
+				    PISP_PCMD(csio)->dmap);
 				mp->error = EINVAL;
 				isp_prt(isp, ISP_LOGERR,
 				    "deferred dma allocation not supported");
@@ -752,7 +732,6 @@ isp_sbus_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 #endif
 				mp->error = error;
 			}
-			splx(s);
 		} else {
 			/* Pointer to physical buffer */
 			struct bus_dma_segment seg;
@@ -804,20 +783,6 @@ mbxsync:
 		break;
 	}
 	return (CMD_QUEUED);
-}
-
-static void
-isp_sbus_dmateardown(ispsoftc_t *isp, XS_T *xs, uint32_t handle)
-{
-	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *)isp;
-	bus_dmamap_t *dp;
-	dp = &sbs->dmaps[isp_handle_index(handle & ISP_HANDLE_MASK)];
-	if ((xs->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-		bus_dmamap_sync(sbs->dmat, *dp, BUS_DMASYNC_POSTREAD);
-	} else {
-		bus_dmamap_sync(sbs->dmat, *dp, BUS_DMASYNC_POSTWRITE);
-	}
-	bus_dmamap_unload(sbs->dmat, *dp);
 }
 
 static void
