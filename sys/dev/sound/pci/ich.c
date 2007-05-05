@@ -44,6 +44,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ICH_DEFAULT_BLKCNT	2
 #define ICH_MAX_BLKCNT		32
 #define ICH_MIN_BLKCNT		2
+#define ICH_MIN_BLKSZ		64
 
 #define INTEL_VENDORID	0x8086
 #define SIS_VENDORID	0x1039
@@ -81,8 +82,15 @@ SND_DECLARE_FILE("$FreeBSD$");
 	stmt				\
 } while(0)
 #else
-#define ICH_DEBUG(stmt)
+#define ICH_DEBUG(...)
 #endif
+
+#define ICH_CALIBRATE_DONE	(1 << 0)
+#define ICH_IGNORE_PCR		(1 << 1)
+#define ICH_IGNORE_RESET	(1 << 2)
+#define ICH_FIXED_RATE		(1 << 3)
+#define ICH_DMA_NOCACHE		(1 << 4)
+#define ICH_HIGH_LATENCY	(1 << 5)
 
 static const struct ich_type {
         uint16_t	vendor;
@@ -164,27 +172,26 @@ struct sc_info {
 	device_t dev;
 	int hasvra, hasvrm, hasmic;
 	unsigned int chnum, bufsz, blkcnt;
-	int sample_size, swap_reg, fixedrate;
+	int sample_size, swap_reg;
 
 	struct resource *nambar, *nabmbar, *irq;
 	int regtype, nambarid, nabmbarid, irqid;
 	bus_space_tag_t nambart, nabmbart;
 	bus_space_handle_t nambarh, nabmbarh;
-	bus_dma_tag_t dmat;
+	bus_dma_tag_t dmat, chan_dmat;
 	bus_dmamap_t dtmap;
 	void *ih;
 
 	struct ac97_info *codec;
 	struct sc_chinfo ch[3];
-	int ac97rate, calibrated;
+	int ac97rate;
 	struct ich_desc *dtbl;
+	unsigned int dtbl_size;
 	bus_addr_t desc_addr;
 	struct intr_config_hook	intrhook;
-	int use_intrhook;
 	uint16_t vendor;
 	uint16_t devid;
 	uint32_t flags;
-#define IGNORE_PCR	0x01
 	struct mtx *ich_lock;
 };
 
@@ -244,7 +251,7 @@ ich_waitcd(void *devinfo)
 			return (0);
 		DELAY(1);
 	}
-	if ((sc->flags & IGNORE_PCR) != 0)
+	if ((sc->flags & ICH_IGNORE_PCR) != 0)
 		return (0);
 	device_printf(sc->dev, "CODEC semaphore timeout\n");
 	return (ETIMEDOUT);
@@ -333,7 +340,18 @@ ich_resetchan(struct sc_info *sc, int num)
 		cr = ich_rd(sc, regbase + ICH_REG_X_CR, 1);
 		if (cr == 0)
 			return (0);
+		DELAY(1);
 	}
+
+	if (sc->flags & ICH_IGNORE_RESET)
+		return (0);
+#if 0
+	else if (sc->vendor == NVIDIA_VENDORID) {
+	    	sc->flags |= ICH_IGNORE_RESET;
+		device_printf(sc->dev, "ignoring reset failure!\n");
+		return (0);
+	}
+#endif
 
 	device_printf(sc->dev, "cannot reset channel %d\n", num);
 	return (ENXIO);
@@ -358,8 +376,8 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->parent = sc;
 	ch->run = 0;
 	ch->dtbl = sc->dtbl + (ch->num * ICH_DTBL_LENGTH);
-	ch->desc_addr = sc->desc_addr + (ch->num * ICH_DTBL_LENGTH) *
-		sizeof(struct ich_desc);
+	ch->desc_addr = sc->desc_addr +
+	    (ch->num * ICH_DTBL_LENGTH * sizeof(struct ich_desc));
 	ch->blkcnt = sc->blkcnt;
 	ch->blksz = sc->bufsz / ch->blkcnt;
 
@@ -389,11 +407,13 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 		return (NULL);
 	}
 
-	if (sc->fixedrate != 0)
+	if (sc->flags & ICH_FIXED_RATE)
 		ch->spdreg = 0;
 
 	ICH_UNLOCK(sc);
-	if (sndbuf_alloc(ch->buffer, sc->dmat, 0, sc->bufsz) != 0)
+	if (sndbuf_alloc(ch->buffer, sc->chan_dmat,
+	    ((sc->flags & ICH_DMA_NOCACHE) ? BUS_DMA_NOCACHE : 0),
+	    sc->bufsz) != 0)
 		return (NULL);
 
 	ICH_LOCK(sc);
@@ -410,7 +430,7 @@ ichchan_setformat(kobj_t obj, void *data, uint32_t format)
 	ICH_DEBUG(
 		struct sc_chinfo *ch = data;
 		struct sc_info *sc = ch->parent;
-		if (sc->calibrated == 0)
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
 			device_printf(sc->dev,
 			    "WARNING: %s() called before calibration!\n",
 			    __func__);
@@ -426,7 +446,7 @@ ichchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	struct sc_info *sc = ch->parent;
 
 	ICH_DEBUG(
-		if (sc->calibrated == 0)
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
 			device_printf(sc->dev,
 			    "WARNING: %s() called before calibration!\n",
 			    __func__);
@@ -460,12 +480,18 @@ ichchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	struct sc_info *sc = ch->parent;
 
 	ICH_DEBUG(
-		if (sc->calibrated == 0)
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
 			device_printf(sc->dev,
 			    "WARNING: %s() called before calibration!\n",
 			    __func__);
 	);
 
+	if (sc->flags & ICH_HIGH_LATENCY)
+		blocksize = sndbuf_getmaxsize(ch->buffer) / ch->blkcnt;
+
+	if (blocksize < ICH_MIN_BLKSZ)
+		blocksize = ICH_MIN_BLKSZ;
+	blocksize &= ~(ICH_MIN_BLKSZ - 1);
 	ch->blksz = blocksize;
 	ich_filldtbl(ch);
 	ICH_LOCK(sc);
@@ -482,7 +508,7 @@ ichchan_trigger(kobj_t obj, void *data, int go)
 	struct sc_info *sc = ch->parent;
 
 	ICH_DEBUG(
-		if (sc->calibrated == 0)
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
 			device_printf(sc->dev,
 			    "WARNING: %s() called before calibration!\n",
 			    __func__);
@@ -515,7 +541,7 @@ ichchan_getptr(kobj_t obj, void *data)
       	uint32_t pos;
 
 	ICH_DEBUG(
-		if (sc->calibrated == 0)
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
 			device_printf(sc->dev,
 			    "WARNING: %s() called before calibration!\n",
 			    __func__);
@@ -538,7 +564,7 @@ ichchan_getcaps(kobj_t obj, void *data)
 	ICH_DEBUG(
 		struct sc_info *sc = ch->parent;
 
-		if (sc->calibrated == 0)
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
 			device_printf(ch->parent->dev,
 			    "WARNING: %s() called before calibration!\n",
 			    __func__);
@@ -573,7 +599,7 @@ ich_intr(void *p)
 	ICH_LOCK(sc);
 
 	ICH_DEBUG(
-		if (sc->calibrated == 0)
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
 			device_printf(sc->dev,
 			    "WARNING: %s() called before calibration!\n",
 			    __func__);
@@ -660,6 +686,10 @@ ich_setstatus(struct sc_info *sc)
 	    rman_get_start(sc->nambar), rman_get_start(sc->nabmbar),
 	    rman_get_start(sc->irq), sc->bufsz,PCM_KLDSTRING(snd_ich));
 
+	if (bootverbose && (sc->flags & ICH_DMA_NOCACHE))
+		device_printf(sc->dev,
+		    "PCI Master abort workaround enabled\n");
+
 	pcm_setstatus(sc->dev, status);
 }
 
@@ -681,8 +711,10 @@ ich_calibrate(void *arg)
 	ICH_LOCK(sc);
 	ch = &sc->ch[1];
 
-	if (sc->use_intrhook)
+	if (sc->intrhook.ich_func != NULL) {
 		config_intrhook_disestablish(&sc->intrhook);
+		sc->intrhook.ich_func = NULL;
+	}
 
 	/*
 	 * Grab audio from input for fixed interval and compare how
@@ -695,11 +727,11 @@ ich_calibrate(void *arg)
 
 	oblkcnt = ch->blkcnt;
 	ch->blkcnt = 2;
-	sc->calibrated = 1;
+	sc->flags |= ICH_CALIBRATE_DONE;
 	ICH_UNLOCK(sc);
 	ichchan_setblocksize(0, ch, sndbuf_getmaxsize(ch->buffer) >> 1);
 	ICH_LOCK(sc);
-	sc->calibrated = 0;
+	sc->flags &= ~ICH_CALIBRATE_DONE;
 
 	/*
 	 * our data format is stereo, 16 bit so each sample is 4 bytes.
@@ -743,7 +775,7 @@ ich_calibrate(void *arg)
 
 	if (nciv == ociv) {
 		device_printf(sc->dev, "ac97 link rate calibration timed out after %d us\n", wait_us);
-		sc->calibrated = 1;
+		sc->flags |= ICH_CALIBRATE_DONE;
 		ICH_UNLOCK(sc);
 		ich_setstatus(sc);
 		return;
@@ -763,7 +795,7 @@ ich_calibrate(void *arg)
 			printf(", will use %d Hz", sc->ac97rate);
 	 	printf("\n");
 	}
-	sc->calibrated = 1;
+	sc->flags |= ICH_CALIBRATE_DONE;
 	ICH_UNLOCK(sc);
 
 	ich_setstatus(sc);
@@ -797,7 +829,7 @@ ich_init(struct sc_info *sc)
 		    sc->devid == INTEL_82801DB || sc->devid == INTEL_82801EB ||
 		    sc->devid == INTEL_6300ESB || sc->devid == INTEL_82801FB ||
 		    sc->devid == INTEL_82801GB)) {
-			sc->flags |= IGNORE_PCR;
+			sc->flags |= ICH_IGNORE_PCR;
 			device_printf(sc->dev, "primary codec not ready!\n");
 		}
 	}
@@ -870,6 +902,15 @@ ich_pci_attach(device_t dev)
 	}
 
 	/*
+	 * Intel 440MX Errata #36
+	 * - AC97 Soft Audio and Soft Modem Master Abort Errata
+	 *
+	 * http://www.intel.com/design/chipsets/specupdt/245051.htm
+	 */
+	if (vendor == INTEL_VENDORID && devid == INTEL_82440MX)
+		sc->flags |= ICH_DMA_NOCACHE;
+
+	/*
 	 * Enable bus master. On ich4/5 this may prevent the detection of
 	 * the primary codec becoming ready in ich_init().
 	 */
@@ -913,8 +954,8 @@ ich_pci_attach(device_t dev)
 	sc->bufsz = pcm_getbuffersize(dev,
 	    ICH_MIN_BUFSZ, ICH_DEFAULT_BUFSZ, ICH_MAX_BUFSZ);
 
-	if (resource_int_value(device_get_name(sc->dev),
-	    device_get_unit(sc->dev), "blocksize", &i) == 0 && i > 0) {
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "blocksize", &i) == 0 && i > 0) {
 		sc->blkcnt = sc->bufsz / i;
 		i = 0;
 		while (sc->blkcnt >> i)
@@ -927,25 +968,21 @@ ich_pci_attach(device_t dev)
 	} else
 		sc->blkcnt = ICH_DEFAULT_BLKCNT;
 
-	if (resource_int_value(device_get_name(sc->dev),
-	    device_get_unit(sc->dev), "fixedrate", &i) == 0 &&
-	    i != 0)
-		sc->fixedrate = 1;
-	else
-		sc->fixedrate = 0;
-
-	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
-			       BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			       NULL, NULL, sc->bufsz, 1, 0x3ffff, 0,
-			       NULL, NULL, &sc->dmat) != 0) {
-		device_printf(dev, "unable to create dma tag\n");
-		goto bad;
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "highlatency", &i) == 0 && i != 0) {
+		sc->flags |= ICH_HIGH_LATENCY;
+		sc->blkcnt = ICH_MIN_BLKCNT;
 	}
+
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "fixedrate", &i) == 0 && i != 0)
+		sc->flags |= ICH_FIXED_RATE;
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
-		RF_ACTIVE | RF_SHAREABLE);
-	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ich_intr, sc, &sc->ih)) {
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ich_intr,
+	    sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -954,15 +991,6 @@ ich_pci_attach(device_t dev)
 		device_printf(dev, "unable to initialize the card\n");
 		goto bad;
 	}
-
-	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->dtbl,
-		    BUS_DMA_NOWAIT, &sc->dtmap))
-		goto bad;
-
-	if (bus_dmamap_load(sc->dmat, sc->dtmap, sc->dtbl,
-		    sizeof(struct ich_desc) * ICH_DTBL_LENGTH * 3,
-		    ich_setmap, sc, 0))
-		goto bad;
 
 	sc->codec = AC97_CREATE(dev, sc, ich_ac97);
 	if (sc->codec == NULL)
@@ -999,6 +1027,34 @@ ich_pci_attach(device_t dev)
 	sc->hasmic = ac97_getcaps(sc->codec) & AC97_CAP_MICCHANNEL;
 	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm);
 
+	sc->dtbl_size = sizeof(struct ich_desc) * ICH_DTBL_LENGTH *
+	    ((sc->hasmic) ? 3 : 2);
+
+	/* BDL tag */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    sc->dtbl_size, 1, 0x3ffff, 0, NULL, NULL, &sc->dmat) != 0) {
+		device_printf(dev, "unable to create dma tag\n");
+		goto bad;
+	}
+
+	/* PCM channel tag */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), ICH_MIN_BLKSZ, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    sc->bufsz, 1, 0x3ffff, 0, NULL, NULL, &sc->chan_dmat) != 0) {
+		device_printf(dev, "unable to create dma tag\n");
+		goto bad;
+	}
+
+	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->dtbl, BUS_DMA_NOWAIT |
+	    ((sc->flags & ICH_DMA_NOCACHE) ? BUS_DMA_NOCACHE : 0),
+	    &sc->dtmap))
+		goto bad;
+
+	if (bus_dmamap_load(sc->dmat, sc->dtmap, sc->dtbl, sc->dtbl_size,
+	    ich_setmap, sc, 0))
+		goto bad;
+
 	if (pcm_register(dev, sc, 1, (sc->hasmic) ? 2 : 1))
 		goto bad;
 
@@ -1007,20 +1063,19 @@ ich_pci_attach(device_t dev)
 	if (sc->hasmic)
 		pcm_addchan(dev, PCMDIR_REC, &ichchan_class, sc);	/* record mic */
 
-	if (sc->fixedrate == 0) {
+	if (sc->flags & ICH_FIXED_RATE) {
+		sc->flags |= ICH_CALIBRATE_DONE;
+		ich_setstatus(sc);
+	} else {
 		ich_initsys(sc);
 
 		sc->intrhook.ich_func = ich_calibrate;
 		sc->intrhook.ich_arg = sc;
-		sc->use_intrhook = 1;
-		if (config_intrhook_establish(&sc->intrhook) != 0) {
-			device_printf(dev, "Cannot establish calibration hook, will calibrate now\n");
-			sc->use_intrhook = 0;
+		if (cold == 0 ||
+		    config_intrhook_establish(&sc->intrhook) != 0) {
+			sc->intrhook.ich_func = NULL;
 			ich_calibrate(sc);
 		}
-	} else {
-		sc->calibrated = 1;
-		ich_setstatus(sc);
 	}
 
 	return (0);
@@ -1042,6 +1097,8 @@ bad:
 		bus_dmamap_unload(sc->dmat, sc->dtmap);
 	if (sc->dtbl)
 		bus_dmamem_free(sc->dmat, sc->dtbl, sc->dtmap);
+	if (sc->chan_dmat)
+		bus_dma_tag_destroy(sc->chan_dmat);
 	if (sc->dmat)
 		bus_dma_tag_destroy(sc->dmat);
 	if (sc->ich_lock)
@@ -1067,6 +1124,7 @@ ich_pci_detach(device_t dev)
 	bus_release_resource(dev, sc->regtype, sc->nabmbarid, sc->nabmbar);
 	bus_dmamap_unload(sc->dmat, sc->dtmap);
 	bus_dmamem_free(sc->dmat, sc->dtbl, sc->dtmap);
+	bus_dma_tag_destroy(sc->chan_dmat);
 	bus_dma_tag_destroy(sc->dmat);
 	snd_mtxfree(sc->ich_lock);
 	free(sc, M_DEVBUF);
