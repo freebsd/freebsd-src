@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 #endif
 
-#include <net80211/ieee80211.h>
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_amrr.h>
 
@@ -162,3 +161,4 @@ static moduledata_t amrr_mod = {
 };
 DECLARE_MODULE(wlan_amrr, amrr_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(wlan_amrr, 1);
+MODULE_DEPEND(wlan_amrr, wlan, 1, 1, 1);
