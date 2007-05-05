@@ -245,6 +245,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_kerneldump kd;
+	off_t offset, length;
 	int i, error;
 	u_int u;
 
@@ -293,6 +294,25 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		error = g_io_getattr("GEOM::kerneldump", cp, &i, &kd);
 		if (!error)
 			dev->si_flags |= SI_DUMPDEV;
+		break;
+	case DIOCGFLUSH:
+		error = g_io_flush(cp);
+		break;
+	case DIOCGDELETE:
+		offset = ((off_t *)data)[0];
+		length = ((off_t *)data)[1];
+		if ((offset % cp->provider->sectorsize) != 0 ||
+		    (length % cp->provider->sectorsize) != 0 ||
+		     length <= 0 || length > MAXPHYS) {
+			printf("%s: offset=%jd length=%jd\n", __func__, offset,
+			    length);
+			error = EINVAL;
+			break;
+		}
+		error = g_delete_data(cp, offset, length);
+		break;
+	case DIOCGIDENT:
+		error = g_io_getattr("GEOM::ident", cp, &i, data);
 		break;
 
 	default:
