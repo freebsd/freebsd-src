@@ -274,6 +274,7 @@ MAN=	aac.4 \
 	rp.4 \
 	${_rr232x.4} \
 	rue.4 \
+	rum.4 \
 	sa.4 \
 	safe.4 \
 	sbp.4 \
@@ -486,6 +487,7 @@ MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
 MLINKS+=rue.4 if_rue.4
+MLINKS+=rum.4 if_rum.4
 MLINKS+=sbsh.4 if_sbsh.4
 MLINKS+=scsi.4 CAM.4 \
 	scsi.4 cam.4 \
