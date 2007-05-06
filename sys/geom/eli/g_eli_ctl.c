@@ -684,6 +684,11 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 			G_ELI_DEBUG(0, "Cannot store metadata on %s "
 			    "(error=%d).", pp->name, error);
 		}
+		/*
+		 * Flush write cache so we don't overwrite data N times in cache
+		 * and only once on disk.
+		 */
+		g_io_flush(cp);
 	}
 	bzero(&md, sizeof(md));
 	bzero(sector, sizeof(sector));
