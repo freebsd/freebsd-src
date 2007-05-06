@@ -193,6 +193,7 @@ static struct part_type
 	,{0xA7, "NeXTSTEP"}
 	,{0xA9, "NetBSD"}
 	,{0xAC, "IBM JFS"}
+	,{0xAF, "HFS+"}
 	,{0xB7, "BSDI BSD/386 file system"}
 	,{0xB8, "BSDI BSD/386 swap"}
 	,{0xBE, "Solaris x86 boot"}
