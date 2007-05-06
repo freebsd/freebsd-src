@@ -658,7 +658,8 @@ tcp_newtcpcb(struct inpcb *inp)
 
 	if (tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
-	tp->sack_enable = tcp_do_sack;
+	if (tcp_do_sack)
+		tp->t_flags |= TF_SACK_PERMIT;
 	TAILQ_INIT(&tp->snd_holes);
 	tp->t_inpcb = inp;	/* XXX */
 	/*
@@ -1607,7 +1608,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	tp->snd_nxt = tp->snd_una;
 	tcp_free_sackholes(tp);
 	tp->snd_recover = tp->snd_max;
-	if (tp->sack_enable)
+	if (tp->t_flags & TF_SACK_PERMIT)
 		EXIT_FASTRECOVERY(tp);
 	tcp_output(tp);
 	return (inp);

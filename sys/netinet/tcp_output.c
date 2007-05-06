@@ -197,7 +197,8 @@ again:
 	 * snd_nxt.  There may be SACK information that allows us to avoid
 	 * resending already delivered data.  Adjust snd_nxt accordingly.
 	 */
-	if (tp->sack_enable && SEQ_LT(tp->snd_nxt, tp->snd_max))
+	if ((tp->t_flags & TF_SACK_PERMIT) &&
+	    SEQ_LT(tp->snd_nxt, tp->snd_max))
 		tcp_sack_adjust(tp);
 	sendalot = 0;
 	off = tp->snd_nxt - tp->snd_una;
@@ -219,7 +220,7 @@ again:
 	sack_bytes_rxmt = 0;
 	len = 0;
 	p = NULL;
-	if (tp->sack_enable && IN_FASTRECOVERY(tp) &&
+	if ((tp->t_flags & TF_SACK_PERMIT) && IN_FASTRECOVERY(tp) &&
 	    (p = tcp_sack_output(tp, &sack_bytes_rxmt))) {
 		long cwin;
 		
@@ -566,7 +567,8 @@ after_sack_rexmit:
 	 * after the retransmission timer has been turned off.  Make sure
 	 * that the retransmission timer is set.
 	 */
-	if (tp->sack_enable && SEQ_GT(tp->snd_max, tp->snd_una) &&
+	if ((tp->t_flags & TF_SACK_PERMIT) &&
+	    SEQ_GT(tp->snd_max, tp->snd_una) &&
 	    !tcp_timer_active(tp, TT_REXMT) &&
 	    !tcp_timer_active(tp, TT_PERSIST)) {
 		tcp_timer_activate(tp, TT_REXMT, tp->t_rxtcur);
@@ -656,7 +658,7 @@ send:
 				tp->rfbuf_ts = ticks;
 		}
 		/* Selective ACK's. */
-		if (tp->sack_enable) {
+		if (tp->t_flags & TF_SACK_PERMIT) {
 			if (flags & TH_SYN)
 				to.to_flags |= TOF_SACKPERM;
 			else if (TCPS_HAVEESTABLISHED(tp->t_state) &&

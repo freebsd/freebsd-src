@@ -713,10 +713,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		if (sc->sc_flags & SCF_SIGNATURE)
 			tp->t_flags |= TF_SIGNATURE;
 #endif
-		if (sc->sc_flags & SCF_SACK) {
-			tp->sack_enable = 1;
+		if (sc->sc_flags & SCF_SACK)
 			tp->t_flags |= TF_SACK_PERMIT;
-		}
 	}
 
 	/*
