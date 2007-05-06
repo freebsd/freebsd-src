@@ -1235,7 +1235,7 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 	ti->tcpi_state = tp->t_state;
 	if ((tp->t_flags & TF_REQ_TSTMP) && (tp->t_flags & TF_RCVD_TSTMP))
 		ti->tcpi_options |= TCPI_OPT_TIMESTAMPS;
-	if (tp->sack_enable)
+	if (tp->t_flags & TF_SACK_PERMIT)
 		ti->tcpi_options |= TCPI_OPT_SACK;
 	if ((tp->t_flags & TF_REQ_SCALE) && (tp->t_flags & TF_RCVD_SCALE)) {
 		ti->tcpi_options |= TCPI_OPT_WSCALE;
@@ -1863,8 +1863,8 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->snd_recover_prev, tp->t_badrxtwin);
 
 	db_print_indent(indent);
-	db_printf("sack_enable: %d   snd_numholes: %d  snd_holes first: %p\n",
-	    tp->sack_enable, tp->snd_numholes, TAILQ_FIRST(&tp->snd_holes));
+	db_printf("snd_numholes: %d  snd_holes first: %p\n",
+	    tp->snd_numholes, TAILQ_FIRST(&tp->snd_holes));
 
 	db_print_indent(indent);
 	db_printf("snd_fack: 0x%08x   rcv_numsacks: %d   sack_newdata: "
