@@ -770,10 +770,11 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		 * Perhaps we should use SPA_MAXBLOCKSIZE chunks?
 		 */
 		nbytes = MIN(n, max_blksz - P2PHASE(woff, max_blksz));
-		rw_enter(&zp->z_map_lock, RW_READER);
 
 		if (woff + nbytes > zp->z_phys->zp_size)
 			vnode_pager_setsize(vp, woff + nbytes);
+
+		rw_enter(&zp->z_map_lock, RW_READER);
 
 		tx_bytes = uio->uio_resid;
 		if (vn_has_cached_data(vp)) {
