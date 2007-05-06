@@ -1090,13 +1090,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tp->snd_wnd = th->th_win;
 		if (to.to_flags & TOF_MSS)
 			tcp_mss(tp, to.to_mss);
-		if (tp->sack_enable) {
-			if (!(to.to_flags & TOF_SACKPERM))
-				tp->sack_enable = 0;
-			else
-				tp->t_flags |= TF_SACK_PERMIT;
-		}
-
+		if ((tp->t_flags & TF_SACK_PERMIT) &&
+		    (to.to_flags & TOF_SACKPERM) == 0)
+			tp->t_flags &= ~TF_SACK_PERMIT;
 	}
 
 	/*
@@ -1142,9 +1138,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if (SEQ_GT(th->th_ack, tp->snd_una) &&
 			    SEQ_LEQ(th->th_ack, tp->snd_max) &&
 			    tp->snd_cwnd >= tp->snd_wnd &&
-			    ((!tcp_do_newreno && !tp->sack_enable &&
+			    ((!tcp_do_newreno &&
+			      !(tp->t_flags & TF_SACK_PERMIT) &&
 			      tp->t_dupacks < tcprexmtthresh) ||
-			     ((tcp_do_newreno || tp->sack_enable) &&
+			     ((tcp_do_newreno ||
+			       (tp->t_flags & TF_SACK_PERMIT)) &&
 			      !IN_FASTRECOVERY(tp) &&
 			      (to.to_flags & TOF_SACK) == 0 &&
 			      TAILQ_EMPTY(&tp->snd_holes)))) {
@@ -1253,7 +1251,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * we have enough buffer space to take it.
 			 */
 			/* Clean receiver SACK report if present */
-			if (tp->sack_enable && tp->rcv_numsacks)
+			if ((tp->t_flags & TF_SACK_PERMIT) && tp->rcv_numsacks)
 				tcp_clean_sackreport(tp);
 			++tcpstat.tcps_preddat;
 			tp->rcv_nxt += tlen;
@@ -1860,7 +1858,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tcpstat.tcps_rcvacktoomuch++;
 			goto dropafterack;
 		}
-		if (tp->sack_enable &&
+		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    ((to.to_flags & TOF_SACK) ||
 		     !TAILQ_EMPTY(&tp->snd_holes)))
 			tcp_sack_doack(tp, &to, th->th_ack);
@@ -1895,9 +1893,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				    th->th_ack != tp->snd_una)
 					tp->t_dupacks = 0;
 				else if (++tp->t_dupacks > tcprexmtthresh ||
-				    ((tcp_do_newreno || tp->sack_enable) &&
+				    ((tcp_do_newreno ||
+				      (tp->t_flags & TF_SACK_PERMIT)) &&
 				     IN_FASTRECOVERY(tp))) {
-					if (tp->sack_enable && IN_FASTRECOVERY(tp)) {
+					if ((tp->t_flags & TF_SACK_PERMIT) &&
+					    IN_FASTRECOVERY(tp)) {
 						int awnd;
 						
 						/*
@@ -1928,7 +1928,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					 * check to see if we're in newreno
 					 * recovery.
 					 */
-					if (tp->sack_enable) {
+					if (tp->t_flags & TF_SACK_PERMIT) {
 						if (IN_FASTRECOVERY(tp)) {
 							tp->t_dupacks = 0;
 							break;
@@ -1949,7 +1949,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tp->snd_recover = tp->snd_max;
 					tcp_timer_activate(tp, TT_REXMT, 0);
 					tp->t_rtttime = 0;
-					if (tp->sack_enable) {
+					if (tp->t_flags & TF_SACK_PERMIT) {
 						tcpstat.tcps_sack_recovery_episode++;
 						tp->sack_newdata = tp->snd_nxt;
 						tp->snd_cwnd = tp->t_maxseg;
@@ -2010,10 +2010,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * If the congestion window was inflated to account
 		 * for the other side's cached packets, retract it.
 		 */
-		if (tcp_do_newreno || tp->sack_enable) {
+		if (tcp_do_newreno || (tp->t_flags & TF_SACK_PERMIT)) {
 			if (IN_FASTRECOVERY(tp)) {
 				if (SEQ_LT(th->th_ack, tp->snd_recover)) {
-					if (tp->sack_enable)
+					if (tp->t_flags & TF_SACK_PERMIT)
 						tcp_sack_partialack(tp, th);
 					else
 						tcp_newreno_partial_ack(tp, th);
@@ -2144,7 +2144,7 @@ process_ACK:
 		 * Otherwise open linearly: maxseg per window
 		 * (maxseg^2 / cwnd per packet).
 		 */
-		if ((!tcp_do_newreno && !tp->sack_enable) ||
+		if ((!tcp_do_newreno && !(tp->t_flags & TF_SACK_PERMIT)) ||
 		    !IN_FASTRECOVERY(tp)) {
 			u_int cw = tp->snd_cwnd;
 			u_int incr = tp->t_maxseg;
@@ -2164,17 +2164,17 @@ process_ACK:
 		}
 		sowwakeup_locked(so);
 		/* detect una wraparound */
-		if ((tcp_do_newreno || tp->sack_enable) &&
+		if ((tcp_do_newreno || (tp->t_flags & TF_SACK_PERMIT)) &&
 		    !IN_FASTRECOVERY(tp) &&
 		    SEQ_GT(tp->snd_una, tp->snd_recover) &&
 		    SEQ_LEQ(th->th_ack, tp->snd_recover))
 			tp->snd_recover = th->th_ack - 1;
-		if ((tcp_do_newreno || tp->sack_enable) &&
+		if ((tcp_do_newreno || (tp->t_flags & TF_SACK_PERMIT)) &&
 		    IN_FASTRECOVERY(tp) &&
 		    SEQ_GEQ(th->th_ack, tp->snd_recover))
 			EXIT_FASTRECOVERY(tp);
 		tp->snd_una = th->th_ack;
-		if (tp->sack_enable) {
+		if (tp->t_flags & TF_SACK_PERMIT) {
 			if (SEQ_GT(tp->snd_una, tp->snd_recover))
 				tp->snd_recover = tp->snd_una;
 		}
@@ -2385,7 +2385,7 @@ dodata:							/* XXX */
 			thflags = tcp_reass(tp, th, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
-		if (tlen > 0 && tp->sack_enable)
+		if (tlen > 0 && (tp->t_flags & TF_SACK_PERMIT))
 			tcp_update_sack_list(tp, save_start, save_end);
 #if 0
 		/*
