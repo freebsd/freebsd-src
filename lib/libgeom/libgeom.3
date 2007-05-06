@@ -1,4 +1,5 @@
 .\" Copyright (c) 2003 Poul-Henning Kamp
+.\" Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2004
+.Dd May 6, 2007
 .Dt LIBGEOM 3
 .Os
 .Sh NAME
@@ -44,7 +45,16 @@
 .Nm gctl_rw_param ,
 .Nm gctl_issue ,
 .Nm gctl_free ,
-.Nm gctl_dump
+.Nm gctl_dump ,
+.Nm g_open ,
+.Nm g_close ,
+.Nm g_mediasize ,
+.Nm g_sectorsize ,
+.Nm g_flush ,
+.Nm g_delete ,
+.Nm g_get_ident ,
+.Nm g_get_name ,
+.Nm g_open_by_ident
 .Nd userland API library for kernel GEOM subsystem
 .Sh LIBRARY
 .Lb libgeom
@@ -80,6 +90,25 @@
 .Fn gctl_free "struct gctl_req *req"
 .Ft void
 .Fn gctl_dump "struct gctl_req *req" "FILE *f"
+.Ss "Utility Functions"
+.Ft int
+.Fn g_open "const char *name" "int write"
+.Ft int
+.Fn g_close "int fd"
+.Ft off_t
+.Fn g_mediasize "int fd"
+.Ft ssize_t
+.Fn g_sectorsize "int fd"
+.Ft int
+.Fn g_flush "int fd"
+.Ft int
+.Fn g_delete "int fd" "off_t offset" "off_t length"
+.Ft int
+.Fn g_get_ident "int fd" "char *ident" "size_t size"
+.Ft int
+.Fn g_get_name "const char *ident" "char *name" "size_t size"
+.Ft int
+.Fn g_open_by_ident "const char *ident" "int write" "char *name" "size_t size"
 .Sh DESCRIPTION
 The
 .Nm geom
@@ -232,6 +261,76 @@ which returns
 .Dv NULL
 on success, or an error message corresponding to the
 first error which happened.
+.Ss "Utility Functions"
+The
+.Fn g_*
+functions are used to communicate with GEOM providers.
+.Pp
+The
+.Fn g_open
+function opens the given provider and returns file descriptor number, which can
+be used with other functions.
+The
+.Fa write
+argument indicates if operations that modify the provider (like
+.Fn g_flush
+or
+.Fn g_delete )
+are going to be called.
+.Pp
+The
+.Fn g_close
+function closes the provider.
+.Pp
+The
+.Fn g_mediasize
+function returns size of the given provider.
+.Pp
+The
+.Fn g_sectorsize
+function returns sector size of the given provider.
+.Pp
+The
+.Fn g_flush
+function sends
+.Dv BIO_FLUSH
+request to flush write cache of the provider.
+.Pp
+The
+.Fn g_delete
+function tells the provider that the given data range is no longer used.
+.Pp
+The
+.Fn g_get_ident
+function returns provider's fixed and unique identifier.
+The
+.Fa ident
+argument should be at least
+.Dv DISK_IDENT_SIZE
+big.
+.Pp
+The
+.Fn g_get_name
+function returns name of the provider, which identifier is equal to the
+.Fa ident
+string.
+.Pp
+The
+.Fn g_open_by_ident
+function opens provider using its ident, unlike
+.Fn g_open
+which uses provider's name.
+If the
+.Fa name
+argument is not
+.Dv NULL ,
+the function will store provider's name there.
+.Pp
+All functions return value greater than or equal to
+.Va 0
+on success or
+.Va -1
+on failure.
 .Sh EXAMPLES
 Create a request that is to be sent to the CCD class, and tell
 it to destroy a specific geom:
@@ -256,3 +355,4 @@ library appeared in
 .Sh AUTHORS
 .An Poul-Henning Kamp Aq phk@FreeBSD.org
 .An Lukas Ertl Aq le@FreeBSD.org
+.An Pawel Jakub Dawidek pjd@FreeBSD.org

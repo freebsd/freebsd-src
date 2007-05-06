@@ -144,6 +144,17 @@ const char *gctl_issue(struct gctl_req *req);
 void gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* val);
 void gctl_rw_param(struct gctl_req *req, const char *name, int len, void* val);
 
+/* geom_util.c */
+int g_open(const char *name, int write);
+int g_close(int fd);
+off_t g_mediasize(int fd);
+ssize_t g_sectorsize(int fd);
+int g_flush(int fd);
+int g_delete(int fd, off_t offset, off_t length);
+int g_get_ident(int fd, char *ident, size_t size);
+int g_get_name(const char *ident, char *name, size_t size);
+int g_open_by_ident(const char *ident, int write, char *name, size_t size);
+
 __END_DECLS
 
 #endif /* _LIBGEOM_H_ */
