@@ -1850,8 +1850,8 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->snd_scale, tp->rcv_scale, tp->request_r_scale);
 
 	db_print_indent(indent);
-	db_printf("requested_s_scale: %u   ts_recent: %u   ts_recent_age: "
-	    "%lu\n", tp->requested_s_scale, tp->ts_recent, tp->ts_recent_age);
+	db_printf("ts_recent: %u   ts_recent_age: %lu\n",
+	    tp->ts_recent, tp->ts_recent_age);
 
 	db_print_indent(indent);
 	db_printf("ts_offset: %u   last_ack_sent: 0x%08x   snd_cwnd_prev: "

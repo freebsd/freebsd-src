@@ -170,7 +170,6 @@ struct tcpcb {
 	u_char	snd_scale;		/* window scaling for send window */
 	u_char	rcv_scale;		/* window scaling for recv window */
 	u_char	request_r_scale;	/* pending window scaling */
-	u_char	requested_s_scale;	/* unused, to be reused later */
 	u_int32_t  ts_recent;		/* timestamp echo data */
 	u_long	ts_recent_age;		/* when last updated */
 	u_int32_t  ts_offset;		/* our timestamp offset */
