@@ -44,10 +44,10 @@ void geom_stats_close(void);
 void geom_stats_resync(void);
 int geom_stats_open(void);
 void *geom_stats_snapshot_get(void);
-void geom_stats_snapshot_free(void *arg);
-void geom_stats_snapshot_timestamp(void *arg, struct timespec *tp);
-void geom_stats_snapshot_reset(void *arg);
-struct devstat *geom_stats_snapshot_next(void *arg);
+void geom_stats_snapshot_free(void *);
+void geom_stats_snapshot_timestamp(void *, struct timespec *);
+void geom_stats_snapshot_reset(void *);
+struct devstat *geom_stats_snapshot_next(void *);
 
 char *geom_getxml(void);
 
@@ -126,34 +126,34 @@ struct gprovider {
 	struct gconf		lg_config;
 };
 
-struct gident * geom_lookupid(struct gmesh *gmp, const void *id);
-int geom_xml2tree(struct gmesh *gmp, char *p);
-int geom_gettree(struct gmesh *gmp);
-void geom_deletetree(struct gmesh *gmp);
+struct gident * geom_lookupid(struct gmesh *, const void *);
+int geom_xml2tree(struct gmesh *, char *);
+int geom_gettree(struct gmesh *);
+void geom_deletetree(struct gmesh *);
 
 /* geom_ctl.c */
 
 struct gctl_req;
 
 #ifdef _STDIO_H_			/* limit #include pollution */
-void gctl_dump(struct gctl_req *req, FILE *f);
+void gctl_dump(struct gctl_req *, FILE *);
 #endif
-void gctl_free(struct gctl_req *req);
+void gctl_free(struct gctl_req *);
 struct gctl_req *gctl_get_handle(void);
-const char *gctl_issue(struct gctl_req *req);
-void gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* val);
-void gctl_rw_param(struct gctl_req *req, const char *name, int len, void* val);
+const char *gctl_issue(struct gctl_req *);
+void gctl_ro_param(struct gctl_req *, const char *, int, const void *);
+void gctl_rw_param(struct gctl_req *, const char *, int, void *);
 
 /* geom_util.c */
-int g_open(const char *name, int write);
-int g_close(int fd);
-off_t g_mediasize(int fd);
-ssize_t g_sectorsize(int fd);
-int g_flush(int fd);
-int g_delete(int fd, off_t offset, off_t length);
-int g_get_ident(int fd, char *ident, size_t size);
-int g_get_name(const char *ident, char *name, size_t size);
-int g_open_by_ident(const char *ident, int write, char *name, size_t size);
+int g_open(const char *, int);
+int g_close(int);
+off_t g_mediasize(int);
+ssize_t g_sectorsize(int);
+int g_flush(int);
+int g_delete(int, off_t, off_t);
+int g_get_ident(int, char *, size_t);
+int g_get_name(const char *, char *, size_t);
+int g_open_by_ident(const char *, int, char *, size_t);
 
 __END_DECLS
 
