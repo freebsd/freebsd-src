@@ -695,9 +695,6 @@ zfs_zinactive(znode_t *zp)
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
 }
 
-/*
- * FreeBSD: Should be called from ->vop_reclaim().
- */
 void
 zfs_znode_free(znode_t *zp)
 {
@@ -991,6 +988,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, dmu_tx_t *tx)
 	error = zap_add(os, moid, ZFS_ROOT_OBJ, 8, 1, &roid, tx);
 	ASSERT(error == 0);
 
+	mutex_destroy(&zfsvfs.z_znodes_lock);
 	kmem_cache_free(znode_cache, rootzp);
 }
 #endif /* _KERNEL */
