@@ -9,7 +9,8 @@ LIB=	zfs
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
-SRCS=	mnttab.c \
+SRCS=	deviceid.c \
+	mnttab.c \
 	mkdirp.c \
 	zmount.c \
 	fsshare.c \
