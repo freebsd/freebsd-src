@@ -6,6 +6,7 @@ SRCS+=	geom_getxml.c
 SRCS+=	geom_stats.c
 SRCS+=	geom_xml2tree.c
 SRCS+=	geom_ctl.c
+SRCS+=	geom_util.c
 INCS=	libgeom.h
 
 CFLAGS += -I${.CURDIR}
@@ -31,6 +32,15 @@ MLINKS+= \
 	libgeom.3 gctl_rw_param.3 \
 	libgeom.3 gctl_issue.3 \
 	libgeom.3 gctl_free.3 \
-	libgeom.3 gctl_dump.3
+	libgeom.3 gctl_dump.3 \
+	libgeom.3 g_close.3 \
+	libgeom.3 g_delete.3 \
+	libgeom.3 g_flush.3 \
+	libgeom.3 g_get_ident.3 \
+	libgeom.3 g_get_name.3 \
+	libgeom.3 g_mediasize.3 \
+	libgeom.3 g_open.3 \
+	libgeom.3 g_open_by_ident.3 \
+	libgeom.3 g_sectorsize.3
 
 .include <bsd.lib.mk>
