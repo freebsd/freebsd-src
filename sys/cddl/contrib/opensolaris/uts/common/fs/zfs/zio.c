@@ -977,6 +977,8 @@ zio_done(zio_t *zio)
 		cv_broadcast(&zio->io_cv);
 		mutex_exit(&zio->io_lock);
 	} else {
+		cv_destroy(&zio->io_cv);
+		mutex_destroy(&zio->io_lock);
 		kmem_cache_free(zio_cache, zio);
 	}
 }
