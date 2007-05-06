@@ -159,18 +159,14 @@ out:
 static boolean_t
 is_provider(const char *name)
 {
-	off_t mediasize;
 	int fd;
 
-	fd = open(name, O_RDONLY);
-	if (fd == -1)
-		return (B_FALSE);
-	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) == -1) {
-		close(fd);
-		return (B_FALSE);
+	fd = g_open(name, 0);
+	if (fd >= 0) {
+		g_close(fd);
+		return (B_TRUE);
 	}
-	close(fd);      
-	return (B_TRUE);
+	return (B_FALSE);
 
 }
 /*
@@ -183,9 +179,11 @@ is_provider(const char *name)
 nvlist_t *
 make_leaf_vdev(const char *arg)
 {
-	char path[MAXPATHLEN];
+	char ident[DISK_IDENT_SIZE], path[MAXPATHLEN];
+	struct stat64 statbuf;
 	nvlist_t *vdev = NULL;
 	char *type = NULL;
+	boolean_t wholedisk = B_FALSE;
 
 	if (strncmp(arg, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
 		strlcpy(path, arg, sizeof (path));
@@ -211,6 +209,41 @@ make_leaf_vdev(const char *arg)
 	if (strcmp(type, VDEV_TYPE_DISK) == 0)
 		verify(nvlist_add_uint64(vdev, ZPOOL_CONFIG_WHOLE_DISK,
 		    (uint64_t)B_FALSE) == 0);
+
+	/*
+	 * For a whole disk, defer getting its devid until after labeling it.
+	 */
+	if (1 || (S_ISBLK(statbuf.st_mode) && !wholedisk)) {
+		/*
+		 * Get the devid for the device.
+		 */
+		int fd;
+		ddi_devid_t devid;
+		char *minor = NULL, *devid_str = NULL;
+
+		if ((fd = open(path, O_RDONLY)) < 0) {
+			(void) fprintf(stderr, gettext("cannot open '%s': "
+			    "%s\n"), path, strerror(errno));
+			nvlist_free(vdev);
+			return (NULL);
+		}
+
+		if (devid_get(fd, &devid) == 0) {
+			if (devid_get_minor_name(fd, &minor) == 0 &&
+			    (devid_str = devid_str_encode(devid, minor)) !=
+			    NULL) {
+				verify(nvlist_add_string(vdev,
+				    ZPOOL_CONFIG_DEVID, devid_str) == 0);
+			}
+			if (devid_str != NULL)
+				devid_str_free(devid_str);
+			if (minor != NULL)
+				devid_str_free(minor);
+			devid_free(devid);
+		}
+
+		(void) close(fd);
+	}
 
 	return (vdev);
 }
