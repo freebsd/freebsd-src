@@ -175,7 +175,7 @@ struct inpcbhead tcb;
 struct inpcbinfo tcbinfo;
 
 static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
-static int	 tcp_do_segment(struct mbuf *, struct tcphdr *,
+static void	 tcp_do_segment(struct mbuf *, struct tcphdr *,
 		     struct socket *, struct tcpcb *, int, int);
 static void	 tcp_dropwithreset(struct mbuf *, struct tcphdr *,
 		     struct tcpcb *, int, int);
@@ -867,13 +867,10 @@ findpcb:
 				 * Process the segment and the data it
 				 * contains.  tcp_do_segment() consumes
 				 * the mbuf chain and unlocks the inpcb.
-				 * XXX: The potential return value of
-				 * TIME_WAIT nuked is supposed to be
-				 * handled above.
 				 */
-				if (tcp_do_segment(m, th, so, tp,
-						   drop_hdrlen, tlen))
-					goto findpcb;	/* TIME_WAIT nuked */
+				tcp_do_segment(m, th, so, tp, drop_hdrlen,
+						tlen);
+				INP_INFO_UNLOCK_ASSERT(&tcbinfo);
 				return;
 			}
 			if (thflags & TH_RST) {
@@ -989,8 +986,8 @@ findpcb:
 	 * state.  tcp_do_segment() always consumes the mbuf chain, unlocks the
 	 * inpcb, and unlocks the pcbinfo.
 	 */
-	if (tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen))
-		goto findpcb;	/* XXX: TIME_WAIT was nuked. */
+	tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen);
+	INP_INFO_UNLOCK_ASSERT(&tcbinfo);
 	return;
 
 dropwithreset:
@@ -1009,7 +1006,7 @@ drop:
 	return;
 }
 
-static int
+static void
 tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, int drop_hdrlen, int tlen)
 {
@@ -1032,7 +1029,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(tp->t_inpcb);
-	KASSERT(tp->t_state > TCPS_LISTEN, ("%s: TCPS_LISTEN", __func__));
+	KASSERT(tp->t_state > TCPS_LISTEN, ("%s: TCPS_LISTEN",
+	    __func__));
+	KASSERT(tp->t_state != TCPS_TIME_WAIT, ("%s: TCPS_TIME_WAIT",
+	    __func__));
 
 	/*
 	 * Segment received on connection.
@@ -1512,9 +1512,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	case TCPS_LAST_ACK:
 	case TCPS_CLOSING:
-	case TCPS_TIME_WAIT:
-		KASSERT(tp->t_state != TCPS_TIME_WAIT, ("%s: timewait",
-		    __func__));
 		break;  /* continue normal processing */
 	}
 
@@ -1615,11 +1612,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				KASSERT(headlocked, ("%s: trimthenstep6: "
 				    "tcp_close.2: head not locked", __func__));
 				tp = tcp_close(tp);
-				break;
-
-			case TCPS_TIME_WAIT:
-				KASSERT(tp->t_state != TCPS_TIME_WAIT,
-				    ("%s: timewait", __func__));
 				break;
 			}
 		}
@@ -1738,23 +1730,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tcpstat.tcps_rcvpackafterwin++;
 		if (todrop >= tlen) {
 			tcpstat.tcps_rcvbyteafterwin += tlen;
-			/*
-			 * If a new connection request is received
-			 * while in TIME_WAIT, drop the old connection
-			 * and start over if the sequence numbers
-			 * are above the previous ones.
-			 */
-			KASSERT(tp->t_state != TCPS_TIME_WAIT, ("%s: timewait",
-			    __func__));
-			if (thflags & TH_SYN &&
-			    tp->t_state == TCPS_TIME_WAIT &&
-			    SEQ_GT(th->th_seq, tp->rcv_nxt)) {
-				KASSERT(headlocked, ("%s: trimthenstep6: "
-				    "tcp_close.4: head not locked", __func__));
-				tp = tcp_close(tp);
-				/* XXX: Shouldn't be possible. */
-				return (1);
-			}
 			/*
 			 * If window is closed can only take segments at
 			 * window edge, and have to drop data and PUSH from
@@ -1884,9 +1859,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	case TCPS_CLOSE_WAIT:
 	case TCPS_CLOSING:
 	case TCPS_LAST_ACK:
-	case TCPS_TIME_WAIT:
-		KASSERT(tp->t_state != TCPS_TIME_WAIT, ("%s: timewait",
-		    __func__));
 		if (SEQ_GT(th->th_ack, tp->snd_max)) {
 			tcpstat.tcps_rcvacktoomuch++;
 			goto dropafterack;
@@ -2258,7 +2230,7 @@ process_ACK:
 				INP_INFO_WUNLOCK(&tcbinfo);
 				headlocked = 0;
 				m_freem(m);
-				return (0);
+				return;
 			}
 			break;
 
@@ -2276,17 +2248,6 @@ process_ACK:
 				goto drop;
 			}
 			break;
-
-		/*
-		 * In TIME_WAIT state the only thing that should arrive
-		 * is a retransmission of the remote FIN.  Acknowledge
-		 * it and restart the finack timer.
-		 */
-		case TCPS_TIME_WAIT:
-			KASSERT(tp->t_state != TCPS_TIME_WAIT,
-			    ("%s: timewait", __func__));
-			tcp_timer_activate(tp, TT_2MSL, 2 * tcp_msl);
-			goto dropafterack;
 		}
 	}
 
@@ -2494,16 +2455,7 @@ dodata:							/* XXX */
 			    "TCP_FIN_WAIT_2: head not locked", __func__));
 			tcp_twstart(tp);
 			INP_INFO_WUNLOCK(&tcbinfo);
-			return (0);
-
-		/*
-		 * In TIME_WAIT state restart the 2 MSL time_wait timer.
-		 */
-		case TCPS_TIME_WAIT:
-			KASSERT(tp->t_state != TCPS_TIME_WAIT,
-			    ("%s: timewait", __func__));
-			tcp_timer_activate(tp, TT_2MSL, 2 * tcp_msl);
-			break;
+			return;
 		}
 	}
 	INP_INFO_WUNLOCK(&tcbinfo);
@@ -2530,7 +2482,7 @@ check_delack:
 		tcp_timer_activate(tp, TT_DELACK, tcp_delacktime);
 	}
 	INP_UNLOCK(tp->t_inpcb);
-	return (0);
+	return;
 
 dropafterack:
 	KASSERT(headlocked, ("%s: dropafterack: head not locked", __func__));
@@ -2566,7 +2518,7 @@ dropafterack:
 	(void) tcp_output(tp);
 	INP_UNLOCK(tp->t_inpcb);
 	m_freem(m);
-	return (0);
+	return;
 
 dropwithreset:
 	KASSERT(headlocked, ("%s: dropwithreset: head not locked", __func__));
@@ -2577,7 +2529,7 @@ dropwithreset:
 		INP_UNLOCK(tp->t_inpcb);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
-	return (0);
+	return;
 
 drop:
 	/*
@@ -2593,7 +2545,7 @@ drop:
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
 	m_freem(m);
-	return (0);
+	return;
 }
 
 
