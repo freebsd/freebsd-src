@@ -233,7 +233,7 @@ example_start(struct bio *bp)
 	struct bio *cbp;
 
 	printf("Request received: ");
-	g_print_bio();
+	g_print_bio(bp);
 	printf("\\n");
 
 	sc = bp->bio_to->geom->softc;
