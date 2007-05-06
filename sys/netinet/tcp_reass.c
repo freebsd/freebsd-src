@@ -1113,16 +1113,18 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * (the reassembly queue is empty), add the data to
 	 * the socket buffer and note that we need a delayed ack.
 	 * Make sure that the hidden state-flags are also off.
-	 * Since we check for TCPS_ESTABLISHED above, it can only
+	 * Since we check for TCPS_ESTABLISHED first, it can only
 	 * be TH_NEEDSYN.
 	 */
 	if (tp->t_state == TCPS_ESTABLISHED &&
+	    th->th_seq == tp->rcv_nxt &&
 	    (thflags & (TH_SYN|TH_FIN|TH_RST|TH_URG|TH_ACK)) == TH_ACK &&
+	    tp->snd_nxt == tp->snd_max &&
+	    tiwin && tiwin == tp->snd_wnd && 
 	    ((tp->t_flags & (TF_NEEDSYN|TF_NEEDFIN)) == 0) &&
+	    LIST_EMPTY(&tp->t_segq) &&
 	    ((to.to_flags & TOF_TS) == 0 ||
-	     TSTMP_GEQ(to.to_tsval, tp->ts_recent)) &&
-	     th->th_seq == tp->rcv_nxt && tiwin && tiwin == tp->snd_wnd &&
-	     tp->snd_nxt == tp->snd_max) {
+	     TSTMP_GEQ(to.to_tsval, tp->ts_recent)) ) {
 
 		/*
 		 * If last ACK falls within this segment's sequence numbers,
