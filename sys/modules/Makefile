@@ -218,6 +218,7 @@ SUBDIR=	${_3dfx} \
 	rp \
 	${_rr232x} \
 	rue \
+	rum \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
