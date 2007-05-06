@@ -65,6 +65,12 @@ static struct intsrc *interrupt_sources[NUM_IO_INTS];
 static struct mtx intr_table_lock;
 static STAILQ_HEAD(, pic) pics;
 
+#ifdef INTR_FILTER
+static void intr_eoi_src(void *arg);
+static void intr_disab_eoi_src(void *arg);
+static void intr_event_stray(void *cookie);
+#endif
+
 #ifdef SMP
 static int assign_cpu;
 
@@ -125,8 +131,14 @@ intr_register_source(struct intsrc *isrc)
 	vector = isrc->is_pic->pic_vector(isrc);
 	if (interrupt_sources[vector] != NULL)
 		return (EEXIST);
+#ifdef INTR_FILTER
+	error = intr_event_create(&isrc->is_event, isrc, 0,
+	    (mask_fn)isrc->is_pic->pic_enable_source,
+	    intr_eoi_src, intr_disab_eoi_src, "irq%d:", vector);
+#else
 	error = intr_event_create(&isrc->is_event, isrc, 0,
 	    (mask_fn)isrc->is_pic->pic_enable_source, "irq%d:", vector);
+#endif
 	if (error)
 		return (error);
 	mtx_lock_spin(&intr_table_lock);
@@ -160,7 +172,7 @@ intr_add_handler(const char *name, int vector, driver_filter_t filter,
 	if (isrc == NULL)
 		return (EINVAL);
 	error = intr_event_add_handler(isrc->is_event, name, filter, handler,
-	     arg, intr_priority(flags), flags, cookiep);
+	    arg, intr_priority(flags), flags, cookiep);
 	if (error == 0) {
 		intrcnt_updatename(isrc);
 		mtx_lock_spin(&intr_table_lock);
@@ -203,6 +215,77 @@ intr_config_intr(int vector, enum intr_trigger trig, enum intr_polarity pol)
 	return (isrc->is_pic->pic_config_intr(isrc, trig, pol));
 }
 
+#ifdef INTR_FILTER
+void
+intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
+{
+	struct thread *td;
+	struct intr_event *ie;
+	int vector;
+
+	td = curthread;
+
+	/*
+	 * We count software interrupts when we process them.  The
+	 * code here follows previous practice, but there's an
+	 * argument for counting hardware interrupts when they're
+	 * processed too.
+	 */
+	(*isrc->is_count)++;
+	PCPU_LAZY_INC(cnt.v_intr);
+
+	ie = isrc->is_event;
+
+	/*
+	 * XXX: We assume that IRQ 0 is only used for the ISA timer
+	 * device (clk).
+	 */
+	vector = isrc->is_pic->pic_vector(isrc);
+	if (vector == 0)
+		clkintr_pending = 1;
+
+	if (intr_event_handle(ie, frame) != 0)
+		intr_event_stray(isrc);		
+}
+
+static void
+intr_event_stray(void *cookie)
+{
+	struct intsrc *isrc;
+
+	isrc = cookie;
+	/*
+	 * For stray interrupts, mask and EOI the source, bump the
+	 * stray count, and log the condition.
+	 */
+	isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
+	(*isrc->is_straycount)++;
+	if (*isrc->is_straycount < MAX_STRAY_LOG)
+		log(LOG_ERR, "stray irq%d\n", isrc->is_pic->pic_vector(isrc));
+	else if (*isrc->is_straycount == MAX_STRAY_LOG)
+		log(LOG_CRIT,
+		    "too many stray irq %d's: not logging anymore\n",
+		    isrc->is_pic->pic_vector(isrc));
+}
+
+static void
+intr_eoi_src(void *arg)
+{
+	struct intsrc *isrc;
+
+	isrc = arg;
+	isrc->is_pic->pic_eoi_source(isrc);
+}
+
+static void
+intr_disab_eoi_src(void *arg)
+{
+	struct intsrc *isrc;
+
+	isrc = arg;
+	isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
+}
+#else
 void
 intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 {
@@ -289,6 +372,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	}
 	td->td_intr_nesting_level--;
 }
+#endif
 
 void
 intr_resume(void)

@@ -92,9 +92,19 @@ static TAILQ_HEAD(, intr_event) event_list =
     TAILQ_HEAD_INITIALIZER(event_list);
 
 static void	intr_event_update(struct intr_event *ie);
+#ifdef INTR_FILTER
+static struct intr_thread *ithread_create(const char *name,
+			      struct intr_handler *ih);
+#else
 static struct intr_thread *ithread_create(const char *name);
+#endif
 static void	ithread_destroy(struct intr_thread *ithread);
-static void	ithread_execute_handlers(struct proc *p, struct intr_event *ie);
+static void	ithread_execute_handlers(struct proc *p, 
+		    struct intr_event *ie);
+#ifdef INTR_FILTER
+static void	priv_ithread_execute_handler(struct proc *p, 
+		    struct intr_handler *ih);
+#endif
 static void	ithread_loop(void *);
 static void	ithread_update(struct intr_thread *ithd);
 static void	start_softintr(void *);
@@ -227,6 +237,7 @@ intr_event_update(struct intr_event *ie)
 	CTR2(KTR_INTR, "%s: updated %s", __func__, ie->ie_fullname);
 }
 
+#ifndef INTR_FILTER
 int
 intr_event_create(struct intr_event **event, void *source, int flags,
     void (*enable)(void *), const char *fmt, ...)
@@ -256,6 +267,40 @@ intr_event_create(struct intr_event **event, void *source, int flags,
 	CTR2(KTR_INTR, "%s: created %s", __func__, ie->ie_name);
 	return (0);
 }
+#else
+int
+intr_event_create(struct intr_event **event, void *source, int flags,
+    void (*enable)(void *), void (*eoi)(void *), void (*disab)(void *), 
+    const char *fmt, ...)
+{
+	struct intr_event *ie;
+	va_list ap;
+
+	/* The only valid flag during creation is IE_SOFT. */
+	if ((flags & ~IE_SOFT) != 0)
+		return (EINVAL);
+	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
+	ie->ie_source = source;
+	ie->ie_enable = enable;
+	ie->ie_eoi = eoi;
+	ie->ie_disab = disab;
+	ie->ie_flags = flags;
+	TAILQ_INIT(&ie->ie_handlers);
+	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
+
+	va_start(ap, fmt);
+	vsnprintf(ie->ie_name, sizeof(ie->ie_name), fmt, ap);
+	va_end(ap);
+	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
+	mtx_pool_lock(mtxpool_sleep, &event_list);
+	TAILQ_INSERT_TAIL(&event_list, ie, ie_list);
+	mtx_pool_unlock(mtxpool_sleep, &event_list);
+	if (event != NULL)
+		*event = ie;
+	CTR2(KTR_INTR, "%s: created %s", __func__, ie->ie_name);
+	return (0);
+}
+#endif
 
 int
 intr_event_destroy(struct intr_event *ie)
@@ -281,6 +326,7 @@ intr_event_destroy(struct intr_event *ie)
 	return (0);
 }
 
+#ifndef INTR_FILTER
 static struct intr_thread *
 ithread_create(const char *name)
 {
@@ -305,6 +351,32 @@ ithread_create(const char *name)
 	CTR2(KTR_INTR, "%s: created %s", __func__, name);
 	return (ithd);
 }
+#else
+static struct intr_thread *
+ithread_create(const char *name, struct intr_handler *ih)
+{
+	struct intr_thread *ithd;
+	struct thread *td;
+	struct proc *p;
+	int error;
+
+	ithd = malloc(sizeof(struct intr_thread), M_ITHREAD, M_WAITOK | M_ZERO);
+
+	error = kthread_create(ithread_loop, ih, &p, RFSTOPPED | RFHIGHPID,
+	    0, "%s", name);
+	if (error)
+		panic("kthread_create() failed with %d", error);
+	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
+	mtx_lock_spin(&sched_lock);
+	sched_class(td, PRI_ITHD);
+	TD_SET_IWAIT(td);
+	mtx_unlock_spin(&sched_lock);
+	td->td_pflags |= TDP_ITHREAD;
+	ithd->it_thread = td;
+	CTR2(KTR_INTR, "%s: created %s", __func__, name);
+	return (ithd);
+}
+#endif
 
 static void
 ithread_destroy(struct intr_thread *ithread)
@@ -322,6 +394,7 @@ ithread_destroy(struct intr_thread *ithread)
 	mtx_unlock_spin(&sched_lock);
 }
 
+#ifndef INTR_FILTER
 int
 intr_event_add_handler(struct intr_event *ie, const char *name,
     driver_filter_t filter, driver_intr_t handler, void *arg, u_char pri,
@@ -394,6 +467,89 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 		*cookiep = ih;
 	return (0);
 }
+#else
+int
+intr_event_add_handler(struct intr_event *ie, const char *name,
+    driver_filter_t filter, driver_intr_t handler, void *arg, u_char pri,
+    enum intr_type flags, void **cookiep)
+{
+	struct intr_handler *ih, *temp_ih;
+	struct intr_thread *it;
+
+	if (ie == NULL || name == NULL || (handler == NULL && filter == NULL))
+		return (EINVAL);
+
+	/* Allocate and populate an interrupt handler structure. */
+	ih = malloc(sizeof(struct intr_handler), M_ITHREAD, M_WAITOK | M_ZERO);
+	ih->ih_filter = filter;
+	ih->ih_handler = handler;
+	ih->ih_argument = arg;
+	ih->ih_name = name;
+	ih->ih_event = ie;
+	ih->ih_pri = pri;
+	if (flags & INTR_EXCL)
+		ih->ih_flags = IH_EXCLUSIVE;
+	if (flags & INTR_MPSAFE)
+		ih->ih_flags |= IH_MPSAFE;
+	if (flags & INTR_ENTROPY)
+		ih->ih_flags |= IH_ENTROPY;
+
+	/* We can only have one exclusive handler in a event. */
+	mtx_lock(&ie->ie_lock);
+	if (!TAILQ_EMPTY(&ie->ie_handlers)) {
+		if ((flags & INTR_EXCL) ||
+		    (TAILQ_FIRST(&ie->ie_handlers)->ih_flags & IH_EXCLUSIVE)) {
+			mtx_unlock(&ie->ie_lock);
+			free(ih, M_ITHREAD);
+			return (EINVAL);
+		}
+	}
+
+	/* Add the new handler to the event in priority order. */
+	TAILQ_FOREACH(temp_ih, &ie->ie_handlers, ih_next) {
+		if (temp_ih->ih_pri > ih->ih_pri)
+			break;
+	}
+	if (temp_ih == NULL)
+		TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_next);
+	else
+		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
+	intr_event_update(ie);
+
+	/* For filtered handlers, create a private ithread to run on. */
+	if (filter != NULL && handler != NULL) { 
+		mtx_unlock(&ie->ie_lock);
+		it = ithread_create("intr: newborn", ih);		
+		mtx_lock(&ie->ie_lock);
+		it->it_event = ie; 
+		ih->ih_thread = it;
+		ithread_update(it); // XXX - do we really need this?!?!?
+	} else { /* Create the global per-event thread if we need one. */
+		while (ie->ie_thread == NULL && handler != NULL) {
+			if (ie->ie_flags & IE_ADDING_THREAD)
+				msleep(ie, &ie->ie_lock, 0, "ithread", 0);
+			else {
+				ie->ie_flags |= IE_ADDING_THREAD;
+				mtx_unlock(&ie->ie_lock);
+				it = ithread_create("intr: newborn", ih);
+				mtx_lock(&ie->ie_lock);
+				ie->ie_flags &= ~IE_ADDING_THREAD;
+				ie->ie_thread = it;
+				it->it_event = ie;
+				ithread_update(it);
+				wakeup(ie);
+			}
+		}
+	}
+	CTR3(KTR_INTR, "%s: added %s to %s", __func__, ih->ih_name,
+	    ie->ie_name);
+	mtx_unlock(&ie->ie_lock);
+
+	if (cookiep != NULL)
+		*cookiep = ih;
+	return (0);
+}
+#endif
 
 /*
  * Return the ie_source field from the intr_event an intr_handler is
@@ -415,6 +571,7 @@ intr_handler_source(void *cookie)
 	return (ie->ie_source);
 }
 
+#ifndef INTR_FILTER
 int
 intr_event_remove_handler(void *cookie)
 {
@@ -560,6 +717,161 @@ intr_event_schedule_thread(struct intr_event *ie)
 
 	return (0);
 }
+#else
+int
+intr_event_remove_handler(void *cookie)
+{
+	struct intr_handler *handler = (struct intr_handler *)cookie;
+	struct intr_event *ie;
+	struct intr_thread *it;
+#ifdef INVARIANTS
+	struct intr_handler *ih;
+#endif
+#ifdef notyet
+	int dead;
+#endif
+
+	if (handler == NULL)
+		return (EINVAL);
+	ie = handler->ih_event;
+	KASSERT(ie != NULL,
+	    ("interrupt handler \"%s\" has a NULL interrupt event",
+	    handler->ih_name));
+	mtx_lock(&ie->ie_lock);
+	CTR3(KTR_INTR, "%s: removing %s from %s", __func__, handler->ih_name,
+	    ie->ie_name);
+#ifdef INVARIANTS
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next)
+		if (ih == handler)
+			goto ok;
+	mtx_unlock(&ie->ie_lock);
+	panic("interrupt handler \"%s\" not found in interrupt event \"%s\"",
+	    ih->ih_name, ie->ie_name);
+ok:
+#endif
+	/*
+	 * If there are no ithreads (per event and per handler), then
+	 * just remove the handler and return.  
+	 * XXX: Note that an INTR_FAST handler might be running on another CPU!
+	 */
+	if (ie->ie_thread == NULL && handler->ih_thread == NULL) {
+		TAILQ_REMOVE(&ie->ie_handlers, handler, ih_next);
+		mtx_unlock(&ie->ie_lock);
+		free(handler, M_ITHREAD);
+		return (0);
+	}
+
+	/* Private or global ithread? */
+	it = (handler->ih_thread) ? handler->ih_thread : ie->ie_thread;
+	/*
+	 * If the interrupt thread is already running, then just mark this
+	 * handler as being dead and let the ithread do the actual removal.
+	 *
+	 * During a cold boot while cold is set, msleep() does not sleep,
+	 * so we have to remove the handler here rather than letting the
+	 * thread do it.
+	 */
+	mtx_lock_spin(&sched_lock);
+	if (!TD_AWAITING_INTR(it->it_thread) && !cold) {
+		handler->ih_flags |= IH_DEAD;
+
+		/*
+		 * Ensure that the thread will process the handler list
+		 * again and remove this handler if it has already passed
+		 * it on the list.
+		 */
+		it->it_need = 1;
+	} else
+		TAILQ_REMOVE(&ie->ie_handlers, handler, ih_next);
+	mtx_unlock_spin(&sched_lock);
+	while (handler->ih_flags & IH_DEAD)
+		msleep(handler, &ie->ie_lock, 0, "iev_rmh", 0);
+	/* 
+	 * At this point, the handler has been disconnected from the event,
+	 * so we can kill the private ithread if any.
+	 */
+	if (handler->ih_thread) {
+		ithread_destroy(handler->ih_thread);
+		handler->ih_thread = NULL;
+	}
+	intr_event_update(ie);
+#ifdef notyet
+	/*
+	 * XXX: This could be bad in the case of ppbus(8).  Also, I think
+	 * this could lead to races of stale data when servicing an
+	 * interrupt.
+	 */
+	dead = 1;
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
+		if (handler != NULL) {
+			dead = 0;
+			break;
+		}
+	}
+	if (dead) {
+		ithread_destroy(ie->ie_thread);
+		ie->ie_thread = NULL;
+	}
+#endif
+	mtx_unlock(&ie->ie_lock);
+	free(handler, M_ITHREAD);
+	return (0);
+}
+
+int
+intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
+{
+	struct intr_entropy entropy;
+	struct thread *td;
+	struct thread *ctd;
+	struct proc *p;
+
+	/*
+	 * If no ithread or no handlers, then we have a stray interrupt.
+	 */
+	if (ie == NULL || TAILQ_EMPTY(&ie->ie_handlers) || it == NULL)
+		return (EINVAL);
+
+	ctd = curthread;
+	td = it->it_thread;
+	p = td->td_proc;
+
+	/*
+	 * If any of the handlers for this ithread claim to be good
+	 * sources of entropy, then gather some.
+	 */
+	if (harvest.interrupt && ie->ie_flags & IE_ENTROPY) {
+		CTR3(KTR_INTR, "%s: pid %d (%s) gathering entropy", __func__,
+		    p->p_pid, p->p_comm);
+		entropy.event = (uintptr_t)ie;
+		entropy.td = ctd;
+		random_harvest(&entropy, sizeof(entropy), 2, 0,
+		    RANDOM_INTERRUPT);
+	}
+
+	KASSERT(p != NULL, ("ithread %s has no process", ie->ie_name));
+
+	/*
+	 * Set it_need to tell the thread to keep running if it is already
+	 * running.  Then, grab sched_lock and see if we actually need to
+	 * put this thread on the runqueue.
+	 */
+	it->it_need = 1;
+	mtx_lock_spin(&sched_lock);
+	if (TD_AWAITING_INTR(td)) {
+		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
+		    p->p_comm);
+		TD_CLR_IWAIT(td);
+		sched_add(td, SRQ_INTR);
+	} else {
+		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
+		    __func__, p->p_pid, p->p_comm, it->it_need, td->td_state);
+	}
+	mtx_unlock_spin(&sched_lock);
+
+	return (0);
+}
+#endif
 
 /*
  * Add a software interrupt handler to a specified event.  If a given event
@@ -572,7 +884,7 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	struct intr_event *ie;
 	int error;
 
-	if (flags & (INTR_FAST | INTR_ENTROPY))
+	if (flags & INTR_ENTROPY)
 		return (EINVAL);
 
 	ie = (eventp != NULL) ? *eventp : NULL;
@@ -581,8 +893,13 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (!(ie->ie_flags & IE_SOFT))
 			return (EINVAL);
 	} else {
-		error = intr_event_create(&ie, NULL, IE_SOFT, NULL,
-		    "swi%d:", pri);
+#ifdef INTR_FILTER
+		error = intr_event_create(&ie, NULL, IE_SOFT,
+		    NULL, NULL, NULL, "swi%d:", pri);
+#else
+		error = intr_event_create(&ie, NULL, IE_SOFT,
+		    NULL, "swi%d:", pri);
+#endif
 		if (error)
 			return (error);
 		if (eventp != NULL)
@@ -615,7 +932,11 @@ swi_sched(void *cookie, int flags)
 
 	if (!(flags & SWI_DELAY)) {
 		PCPU_LAZY_INC(cnt.v_soft);
+#ifdef INTR_FILTER
+		error = intr_event_schedule_thread(ie, ie->ie_thread);
+#else
 		error = intr_event_schedule_thread(ie);
+#endif
 		KASSERT(error == 0, ("stray software interrupt"));
 	}
 }
@@ -632,6 +953,39 @@ swi_remove(void *cookie)
 
 	return (intr_event_remove_handler(cookie));
 }
+
+#ifdef INTR_FILTER
+static void
+priv_ithread_execute_handler(struct proc *p, struct intr_handler *ih)
+{
+	struct intr_event *ie;
+
+	ie = ih->ih_event;
+	/*
+	 * If this handler is marked for death, remove it from
+	 * the list of handlers and wake up the sleeper.
+	 */
+	if (ih->ih_flags & IH_DEAD) {
+		mtx_lock(&ie->ie_lock);
+		TAILQ_REMOVE(&ie->ie_handlers, ih, ih_next);
+		ih->ih_flags &= ~IH_DEAD;
+		wakeup(ih);
+		mtx_unlock(&ie->ie_lock);
+		return;
+	}
+	
+	/* Execute this handler. */
+	CTR6(KTR_INTR, "%s: pid %d exec %p(%p) for %s flg=%x",
+	     __func__, p->p_pid, (void *)ih->ih_handler, ih->ih_argument,
+	     ih->ih_name, ih->ih_flags);
+	
+	if (!(ih->ih_flags & IH_MPSAFE))
+		mtx_lock(&Giant);
+	ih->ih_handler(ih->ih_argument);
+	if (!(ih->ih_flags & IH_MPSAFE))
+		mtx_unlock(&Giant);
+}
+#endif
 
 static void
 ithread_execute_handlers(struct proc *p, struct intr_event *ie)
@@ -674,8 +1028,8 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 
 		/* Execute this handler. */
 		CTR6(KTR_INTR, "%s: pid %d exec %p(%p) for %s flg=%x",
-		    __func__, p->p_pid, (void *)ih->ih_handler, ih->ih_argument,
-		    ih->ih_name, ih->ih_flags);
+		    __func__, p->p_pid, (void *)ih->ih_handler, 
+		    ih->ih_argument, ih->ih_name, ih->ih_flags);
 
 		if (!(ih->ih_flags & IH_MPSAFE))
 			mtx_lock(&Giant);
@@ -716,6 +1070,7 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 		ie->ie_enable(ie->ie_source);
 }
 
+#ifndef INTR_FILTER
 /*
  * This is the main code for interrupt threads.
  */
@@ -782,6 +1137,215 @@ ithread_loop(void *arg)
 		mtx_unlock_spin(&sched_lock);
 	}
 }
+#else
+/*
+ * This is the main code for interrupt threads.
+ */
+static void
+ithread_loop(void *arg)
+{
+	struct intr_thread *ithd;
+	struct intr_handler *ih;
+	struct intr_event *ie;
+	struct thread *td;
+	struct proc *p;
+	int priv;
+
+	td = curthread;
+	p = td->td_proc;
+	ih = (struct intr_handler *)arg;
+	priv = (ih->ih_thread != NULL) ? 1 : 0;
+	ithd = (priv) ? ih->ih_thread : ih->ih_event->ie_thread;
+	KASSERT(ithd->it_thread == td,
+	    ("%s: ithread and proc linkage out of sync", __func__));
+	ie = ithd->it_event;
+	ie->ie_count = 0;
+
+	/*
+	 * As long as we have interrupts outstanding, go through the
+	 * list of handlers, giving each one a go at it.
+	 */
+	for (;;) {
+		/*
+		 * If we are an orphaned thread, then just die.
+		 */
+		if (ithd->it_flags & IT_DEAD) {
+			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
+			    p->p_pid, p->p_comm);
+			free(ithd, M_ITHREAD);
+			kthread_exit(0);
+		}
+
+		/*
+		 * Service interrupts.  If another interrupt arrives while
+		 * we are running, it will set it_need to note that we
+		 * should make another pass.
+		 */
+		while (ithd->it_need) {
+			/*
+			 * This might need a full read and write barrier
+			 * to make sure that this write posts before any
+			 * of the memory or device accesses in the
+			 * handlers.
+			 */
+			atomic_store_rel_int(&ithd->it_need, 0);
+			if (priv)
+				priv_ithread_execute_handler(p, ih);
+			else 
+				ithread_execute_handlers(p, ie);
+		}
+		WITNESS_WARN(WARN_PANIC, NULL, "suspending ithread");
+		mtx_assert(&Giant, MA_NOTOWNED);
+
+		/*
+		 * Processed all our interrupts.  Now get the sched
+		 * lock.  This may take a while and it_need may get
+		 * set again, so we have to check it again.
+		 */
+		mtx_lock_spin(&sched_lock);
+		if (!ithd->it_need && !(ithd->it_flags & IT_DEAD)) {
+			TD_SET_IWAIT(td);
+			ie->ie_count = 0;
+			mi_switch(SW_VOL, NULL);
+		}
+		mtx_unlock_spin(&sched_lock);
+	}
+}
+
+/* 
+ * Main loop for interrupt filter.
+ *
+ * Some architectures (i386, amd64 and arm) require the optional frame 
+ * parameter, and use it as the main argument for fast handler execution
+ * when ih_argument == NULL.
+ *
+ * Return value:
+ * o FILTER_STRAY:              No filter recognized the event, and no
+ *                              filter-less handler is registered on this 
+ *                              line.
+ * o FILTER_HANDLED:            A filter claimed the event and served it.
+ * o FILTER_SCHEDULE_THREAD:    No filter claimed the event, but there's at
+ *                              least one filter-less handler on this line.
+ * o FILTER_HANDLED | 
+ *   FILTER_SCHEDULE_THREAD:    A filter claimed the event, and asked for
+ *                              scheduling the per-handler ithread.
+ *
+ * In case an ithread has to be scheduled, in *ithd there will be a 
+ * pointer to a struct intr_thread containing the thread to be
+ * scheduled.
+ */
+
+int
+intr_filter_loop(struct intr_event *ie, struct trapframe *frame, 
+		 struct intr_thread **ithd) 
+{
+	struct intr_handler *ih;
+	void *arg;
+	int ret, thread_only;
+
+	ret = 0;
+	thread_only = 0;
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
+		/*
+		 * Execute fast interrupt handlers directly.
+		 * To support clock handlers, if a handler registers
+		 * with a NULL argument, then we pass it a pointer to
+		 * a trapframe as its argument.
+		 */
+		arg = ((ih->ih_argument == NULL) ? frame : ih->ih_argument);
+		
+		CTR5(KTR_INTR, "%s: exec %p/%p(%p) for %s", __func__,
+		     ih->ih_filter, ih->ih_handler, arg, ih->ih_name);
+
+		if (ih->ih_filter != NULL)
+			ret = ih->ih_filter(arg);
+		else {
+			thread_only = 1;
+			continue;
+		}
+
+		KASSERT(ret != FILTER_SCHEDULE_THREAD, 
+			("intr_filter_loop: FILTER_SCHEDULE_THREAD from filter"));
+
+		if (ret & FILTER_STRAY)
+			continue;
+		else { 
+			*ithd = ih->ih_thread;
+			return (ret);
+		}
+	}
+
+	/*
+	 * No filters handled the interrupt and we have at least
+	 * one handler without a filter.  In this case, we schedule
+	 * all of the filter-less handlers to run in the ithread.
+	 */	
+	if (thread_only) {
+		*ithd = ie->ie_thread;
+		return (FILTER_SCHEDULE_THREAD);
+	}
+	return (FILTER_STRAY);
+}
+
+/*
+ * Main interrupt handling body.
+ *
+ * Input:
+ * o ie:                        the event connected to this interrupt.
+ * o frame:                     some archs (i.e. i386) pass a frame to some.
+ *                              handlers as their main argument.
+ * Return value:
+ * o 0:                         everything ok.
+ * o EINVAL:                    stray interrupt.
+ */
+int
+intr_event_handle(struct intr_event *ie, struct trapframe *frame)
+{
+	struct intr_thread *ithd;
+	struct thread *td;
+	int thread;
+
+	ithd = NULL;
+	td = curthread;
+
+	if (ie == NULL || TAILQ_EMPTY(&ie->ie_handlers))
+		return (EINVAL);
+
+	td->td_intr_nesting_level++;
+	thread = 0;
+	critical_enter();
+	thread = intr_filter_loop(ie, frame, &ithd);
+	
+	/*
+	 * If the interrupt was fully served, send it an EOI but leave
+	 * it unmasked. Otherwise, mask the source as well as sending
+	 * it an EOI.
+	 */
+	if (thread & FILTER_HANDLED) {
+		if (ie->ie_eoi != NULL)
+			ie->ie_eoi(ie->ie_source);
+	} else {
+		if (ie->ie_disab != NULL)
+			ie->ie_disab(ie->ie_source);
+	}
+	critical_exit();
+	
+	/* Interrupt storm logic */
+	if (thread & FILTER_STRAY) {
+		ie->ie_count++;
+		if (ie->ie_count < intr_storm_threshold)
+			printf("Interrupt stray detection not present\n");
+	}
+
+	/* Schedule an ithread if needed. */
+	if (thread & FILTER_SCHEDULE_THREAD) {
+		if (intr_event_schedule_thread(ie, ithd) != 0)
+			panic("%s: impossible stray interrupt", __func__);
+	}
+	td->td_intr_nesting_level--;
+	return (0);
+}
+#endif
 
 #ifdef DDB
 /*
