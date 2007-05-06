@@ -446,10 +446,6 @@ extern char hw_serial[];
 extern int ddi_strtoul(const char *str, char **nptr, int base,
     unsigned long *result);
 
-#ifdef	__cplusplus
-}
-#endif
-
 /* ZFS Boot Related stuff. */
 
 struct _buf {
@@ -506,6 +502,10 @@ struct file {
 
 #ifndef	ERESTART
 #define	ERESTART	(-1)
+#endif
+
+#ifdef	__cplusplus
+}
 #endif
 
 #endif	/* _SYS_ZFS_CONTEXT_H */
