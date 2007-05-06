@@ -453,13 +453,13 @@ tcp_timer_2msl(struct tcpcb *tp, struct inpcb *inp)
 	    tp->t_inpcb->inp_socket && 
 	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
 		tcpstat.tcps_finwait2_drops++;
-		return (1);		/* tcp_close() */
+		return (1);		/* tcp_close */
 	} else {
 		if (tp->t_state != TCPS_TIME_WAIT &&
 		   (ticks - tp->t_rcvtime) <= tcp_maxidle)
 			tcp_timer_activate(tp, TT_2MSL, tcp_keepintvl);
 		else
-			return (1);	/* tcp_close( */
+			return (1);	/* tcp_close */
 	}
 
 #ifdef TCPDEBUG
