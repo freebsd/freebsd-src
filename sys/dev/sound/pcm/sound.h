@@ -107,33 +107,27 @@ struct snd_mixer;
 #define SOUND_MAXVER	SOUND_MODVER
 
 /*
-PROPOSAL:
-each unit needs:
-status, mixer, dsp, dspW, audio, sequencer, midi-in, seq2, sndproc = 9 devices
-dspW and audio are deprecated.
-dsp needs min 64 channels, will give it 256
-
-minor = (unit << 20) + (dev << 16) + channel
-currently minor = (channel << 16) + (unit << 4) + dev
-
-nomenclature:
-	/dev/pcmX/dsp.(0..255)
-	/dev/pcmX/dspW
-	/dev/pcmX/audio
-	/dev/pcmX/status
-	/dev/pcmX/mixer
-	[etc.]
-*/
+ * We're abusing the fact that MAXMINOR still have enough room
+ * for our bit twiddling and nobody ever need 2048 unique soundcards,
+ * 32 unique device types and 256 unique cloneable devices for the
+ * next 100 years... or until the NextPCM.
+ *
+ * MAXMINOR 0xffff00ff
+ *             |    |
+ *             |    +--- PCMMAXCHAN
+ *             |
+ *             +-------- ((PCMMAXUNIT << 5) | PCMMAXDEV) << 16
+ */
 
 #define PCMMAXCHAN		0xff
-#define PCMMAXDEV		0x0f
-#define PCMMAXUNIT		0x0f
-#define PCMMINOR(x)		(minor(x))
-#define PCMCHAN(x)		((PCMMINOR(x) >> 16) & PCMMAXCHAN)
-#define PCMUNIT(x)		((PCMMINOR(x) >> 4) & PCMMAXUNIT)
-#define PCMDEV(x)		(PCMMINOR(x) & PCMMAXDEV)
-#define PCMMKMINOR(u, d, c)	((((c) & PCMMAXCHAN) << 16) | \
-				(((u) & PCMMAXUNIT) << 4) | ((d) & PCMMAXDEV))
+#define PCMMAXDEV		0x1f
+#define PCMMAXUNIT		0x7ff
+#define PCMMINOR(x)		minor(x)
+#define PCMCHAN(x)		(PCMMINOR(x) & PCMMAXCHAN)
+#define PCMUNIT(x)		((PCMMINOR(x) >> 21) & PCMMAXUNIT)
+#define PCMDEV(x)		((PCMMINOR(x) >> 16) & PCMMAXDEV)
+#define PCMMKMINOR(u, d, c)	((((u) & PCMMAXUNIT) << 21) | 	\
+				(((d) & PCMMAXDEV) << 16) | ((c) & PCMMAXCHAN))
 
 #define SD_F_SIMPLEX		0x00000001
 #define SD_F_AUTOVCHAN		0x00000002
