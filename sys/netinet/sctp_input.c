@@ -3938,6 +3938,8 @@ process_control_chunks:
 						printf("Bad size on sack chunk .. to small\n");
 					}
 #endif
+ 					if (locked_tcb)
+ 						SCTP_TCB_UNLOCK(locked_tcb);
 					*offset = length;
 					return (NULL);
 				}
@@ -3970,6 +3972,8 @@ process_control_chunks:
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
+ 					if (locked_tcb)
+ 						SCTP_TCB_UNLOCK(locked_tcb);
 					*offset = length;
 					return (NULL);
 				}
@@ -3996,6 +4000,8 @@ process_control_chunks:
 #endif				/* SCTP_DEBUG */
 			if (chk_length != sizeof(struct sctp_heartbeat_chunk)) {
 				/* Its not ours */
+				if (locked_tcb)
+					SCTP_TCB_UNLOCK(locked_tcb);
 				*offset = length;
 				return (NULL);
 			}
@@ -4024,6 +4030,8 @@ process_control_chunks:
 #endif				/* SCTP_DEBUG */
 			if (chk_length != sizeof(struct sctp_shutdown_chunk)) {
 				*offset = length;
+				if (locked_tcb)
+					SCTP_TCB_UNLOCK(locked_tcb);
 				return (NULL);
 
 			} {
@@ -4211,6 +4219,8 @@ process_control_chunks:
 			/* He's alive so give him credit */
 			if (chk_length != sizeof(struct sctp_ecne_chunk)) {
 				/* Its not ours */
+				if (locked_tcb)
+					SCTP_TCB_UNLOCK(locked_tcb);
 				*offset = length;
 				return (NULL);
 			}
@@ -4227,6 +4237,8 @@ process_control_chunks:
 			/* He's alive so give him credit */
 			if (chk_length != sizeof(struct sctp_cwr_chunk)) {
 				/* Its not ours */
+				if (locked_tcb)
+					SCTP_TCB_UNLOCK(locked_tcb);
 				*offset = length;
 				return (NULL);
 			}
@@ -4274,6 +4286,8 @@ process_control_chunks:
 #endif				/* SCTP_DEBUG */
 			if (chk_length < sizeof(struct sctp_asconf_ack_chunk)) {
 				/* Its not ours */
+				if (locked_tcb)
+					SCTP_TCB_UNLOCK(locked_tcb);
 				*offset = length;
 				return (NULL);
 			}
@@ -4291,6 +4305,8 @@ process_control_chunks:
 #endif				/* SCTP_DEBUG */
 			if (chk_length < sizeof(struct sctp_forward_tsn_chunk)) {
 				/* Its not ours */
+				if (locked_tcb)
+					SCTP_TCB_UNLOCK(locked_tcb);
 				*offset = length;
 				return (NULL);
 			}
@@ -4327,6 +4343,8 @@ process_control_chunks:
 			    chk_length, chunk_buf);
 			if (chk_length < sizeof(struct sctp_stream_reset_tsn_req)) {
 				/* Its not ours */
+				if (locked_tcb)
+					SCTP_TCB_UNLOCK(locked_tcb);
 				*offset = length;
 				return (NULL);
 			}
@@ -4359,6 +4377,8 @@ process_control_chunks:
 			/* re-get it all please */
 			if (chk_length < sizeof(struct sctp_pktdrop_chunk)) {
 				/* Its not ours */
+				if (locked_tcb)
+					SCTP_TCB_UNLOCK(locked_tcb);
 				*offset = length;
 				return (NULL);
 			}
@@ -4392,6 +4412,8 @@ process_control_chunks:
 			if ((chk_length < (sizeof(struct sctp_auth_chunk))) ||
 			    (chk_length > (sizeof(struct sctp_auth_chunk) + SCTP_AUTH_DIGEST_LEN_MAX))) {
 				/* Its not ours */
+				if (locked_tcb)
+					SCTP_TCB_UNLOCK(locked_tcb);
 				*offset = length;
 				return (NULL);
 			}
