@@ -4526,7 +4526,8 @@ sctp_sorecvmsg(struct socket *so,
 	} else {
 		in_flags = 0;
 	}
-	slen = uio->uio_resid;
+	if (uio) 
+		slen = uio->uio_resid;
 	/* Pull in and set up our int flags */
 	if (in_flags & MSG_OOB) {
 		/* Out of band's NOT supported */
@@ -4553,11 +4554,11 @@ sctp_sorecvmsg(struct socket *so,
 	in_eeor_mode = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXPLICIT_EOR);
 #ifdef SCTP_RECV_RWND_LOGGING
 	sctp_misc_ints(SCTP_SORECV_ENTER,
-	    rwnd_req, in_eeor_mode, so->so_rcv.sb_cc, uio->uio_resid);
+	    rwnd_req, in_eeor_mode, so->so_rcv.sb_cc, slen);
 #endif
 #ifdef SCTP_RECV_RWND_LOGGING
 	sctp_misc_ints(SCTP_SORECV_ENTERPL,
-	    rwnd_req, block_allowed, so->so_rcv.sb_cc, uio->uio_resid);
+	    rwnd_req, block_allowed, so->so_rcv.sb_cc, slen);
 #endif
 
 
@@ -4592,7 +4593,7 @@ restart_nosblocks:
 		/* we need to wait for data */
 #ifdef SCTP_RECV_DETAIL_RWND_LOGGING
 		sctp_misc_ints(SCTP_SORECV_BLOCKSA,
-		    0, 0, so->so_rcv.sb_cc, uio->uio_resid);
+		    0, 0, so->so_rcv.sb_cc, slen);
 #endif
 		if ((so->so_rcv.sb_cc == 0) &&
 		    ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
@@ -4767,6 +4768,7 @@ restart_nosblocks:
 			while (ctl) {
 				if ((ctl->stcb != control->stcb) && (ctl->length) &&
 				    (ctl->some_taken ||
+ 				    (ctl->spec_flags & M_NOTIFICATION) ||
 				    ((ctl->do_not_ref_stcb == 0) &&
 				    (ctl->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started == 0)))
 				    ) {
@@ -4782,6 +4784,7 @@ restart_nosblocks:
 					    (ctl->length) &&
 					    ((ctl->some_taken) ||
 					    ((ctl->do_not_ref_stcb == 0) &&
+- 					    ((ctl->spec_flags & M_NOTIFICATION) == 0) &&
 					    (ctl->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started == 0)))
 				    ) {
 					/*-
@@ -4852,7 +4855,9 @@ found_one:
 			stcb->freed_by_sorcv_sincelast = 0;
 		}
 	}
-	if (stcb && control->do_not_ref_stcb == 0) {
+	if (stcb && 
+ 	    ((control->spec_flags & M_NOTIFICATION) == 0) &&
+	    control->do_not_ref_stcb == 0) {
 		stcb->asoc.strmin[control->sinfo_stream].delivery_started = 1;
 	}
 	/* First lets get off the sinfo and sockaddr info */
@@ -5014,7 +5019,7 @@ get_more_data:
 				if ((SCTP_BUF_NEXT(m) == NULL) &&
 				    (control->end_added)) {
 					out_flags |= MSG_EOR;
-					if (control->do_not_ref_stcb == 0)
+					if ((control->do_not_ref_stcb == 0) && ((control->spec_flags & M_NOTIFICATION) == 0))
 						control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 				}
 				if (control->spec_flags & M_NOTIFICATION) {
@@ -5287,12 +5292,12 @@ wait_some_more:
 				/* he aborted, or is done i.e.did a shutdown */
 				out_flags |= MSG_EOR;
 				if (control->pdapi_aborted) {
-					if (control->do_not_ref_stcb == 0)
+					if ((control->do_not_ref_stcb == 0) && ((control->spec_flags & M_NOTIFICATION) == 0))
 						control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 
 					out_flags |= MSG_TRUNC;
 				} else {
-					if (control->do_not_ref_stcb == 0)
+					if ((control->do_not_ref_stcb == 0) && ((control->spec_flags & M_NOTIFICATION) == 0))
 						control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 				}
 				goto done_with_control;
@@ -5343,7 +5348,7 @@ get_more_data2:
 			}
 			if (control->end_added) {
 				out_flags |= MSG_EOR;
-				if (control->do_not_ref_stcb == 0)
+				if ((control->do_not_ref_stcb == 0) && ((control->spec_flags & M_NOTIFICATION) == 0))
 					control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 			}
 			if (control->spec_flags & M_NOTIFICATION) {
@@ -5409,7 +5414,7 @@ get_more_data2:
 					out_flags |= MSG_EOR;
 					if (control->pdapi_aborted) {
 						out_flags |= MSG_TRUNC;
-						if (control->do_not_ref_stcb == 0)
+						if ((control->do_not_ref_stcb == 0) && ((control->spec_flags & M_NOTIFICATION) == 0))
 							control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 					}
 					goto done_with_control;
