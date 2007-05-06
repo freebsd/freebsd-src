@@ -112,6 +112,23 @@ prior to calling
 .Fn make_dev .
 .Pp
 The
+.Fa cdev
+returned by
+.Fn make_dev
+and
+.Fn make_dev_alias
+has two fields,
+.Fa si_drv1
+and
+.Fa si_drv2 ,
+that are available to store state.  Both fields are of type
+.Ft void * .
+These are designed to replace the
+.Fa minor
+argument to
+.Fn make_dev .
+.Pp
+The
 .Fn destroy_dev
 function takes the returned
 .Fa cdev
