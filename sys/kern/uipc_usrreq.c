@@ -375,7 +375,7 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	struct vattr vattr;
-	int error, namelen;
+	int error, namelen, vfslocked;
 	struct nameidata nd;
 	struct unpcb *unp;
 	struct vnode *vp;
@@ -414,16 +414,16 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
 	strlcpy(buf, soun->sun_path, namelen + 1);
 
-	mtx_lock(&Giant);
 restart:
-	mtx_assert(&Giant, MA_OWNED);
-	NDINIT(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME, UIO_SYSSPACE,
-	    buf, td);
+	vfslocked = 0;
+	NDINIT(&nd, CREATE, MPSAFE | NOFOLLOW | LOCKPARENT | SAVENAME,
+	    UIO_SYSSPACE, buf, td);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error)
 		goto error;
 	vp = nd.ni_vp;
+	vfslocked = NDHASGIANT(&nd);
 	if (vp != NULL || vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == vp)
@@ -438,6 +438,7 @@ restart:
 		error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH);
 		if (error)
 			goto error;
+		VFS_UNLOCK_GIANT(vfslocked);
 		goto restart;
 	}
 	VATTR_NULL(&vattr);
@@ -471,15 +472,15 @@ restart:
 	UNP_GLOBAL_WUNLOCK();
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	free(buf, M_TEMP);
 	return (0);
 
 error:
+	VFS_UNLOCK_GIANT(vfslocked);
 	UNP_PCB_LOCK(unp);
 	unp->unp_flags &= ~UNP_BINDING;
 	UNP_PCB_UNLOCK(unp);
-	mtx_unlock(&Giant);
 	free(buf, M_TEMP);
 	return (error);
 }
@@ -1121,7 +1122,7 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct vnode *vp;
 	struct socket *so2, *so3;
 	struct unpcb *unp, *unp2, *unp3;
-	int error, len;
+	int error, len, vfslocked;
 	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
@@ -1146,14 +1147,15 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	UNP_PCB_UNLOCK(unp);
 
 	sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
-	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, buf, td);
+	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | LOCKLEAF, UIO_SYSSPACE, buf,
+	    td);
 	error = namei(&nd);
 	if (error)
 		vp = NULL;
 	else
 		vp = nd.ni_vp;
 	ASSERT_VOP_LOCKED(vp, "unp_connect");
+	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error)
 		goto bad;
@@ -1170,7 +1172,7 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
 	if (error)
 		goto bad;
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
@@ -1259,12 +1261,16 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	UNP_PCB_UNLOCK(unp);
 bad2:
 	UNP_GLOBAL_WUNLOCK();
-	mtx_lock(&Giant);
+	if (vfslocked)
+		/* 
+		 * Giant has been previously acquired. This means filesystem
+		 * isn't MPSAFE. Do it once again.
+		 */
+		mtx_lock(&Giant);
 bad:
-	mtx_assert(&Giant, MA_OWNED);
 	if (vp != NULL)
 		vput(vp);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	free(sa, M_SONAME);
 	UNP_GLOBAL_WLOCK();
 	UNP_PCB_LOCK(unp);
