@@ -1906,7 +1906,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 	}
 
-	if (prot & VM_PROT_WRITE)
+	if ((prot & (VM_PROT_WRITE|VM_PROT_EXECUTE)) ==
+	    (VM_PROT_WRITE|VM_PROT_EXECUTE))
 		return;
 
 	anychanged = 0;
@@ -1942,7 +1943,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		 * Check for large page.
 		 */
 		if ((ptpaddr & PG_PS) != 0) {
-			*pde &= ~(PG_M|PG_RW);
+			if ((prot & VM_PROT_WRITE) == 0)
+				*pde &= ~(PG_M|PG_RW);
+			if ((prot & VM_PROT_EXECUTE) == 0)
+				*pde |= pg_nx;
 			anychanged = 1;
 			continue;
 		}
@@ -1957,6 +1961,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 retry:
 			obits = pbits = *pte;
+			if ((pbits & PG_V) == 0)
+				continue;
 			if (pbits & PG_MANAGED) {
 				m = NULL;
 				if (pbits & PG_A) {
@@ -1972,7 +1978,10 @@ retry:
 				}
 			}
 
-			pbits &= ~(PG_RW | PG_M);
+			if ((prot & VM_PROT_WRITE) == 0)
+				pbits &= ~(PG_RW | PG_M);
+			if ((prot & VM_PROT_EXECUTE) == 0)
+				pbits |= pg_nx;
 
 			if (pbits != obits) {
 				if (!atomic_cmpset_long(pte, obits, pbits))
@@ -2007,6 +2016,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	   boolean_t wired)
 {
 	vm_paddr_t pa;
+	pd_entry_t *pde;
 	register pt_entry_t *pte;
 	vm_paddr_t opa;
 	pt_entry_t origpte, newpte;
@@ -2044,7 +2054,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 #endif
 
-	pte = pmap_pte(pmap, va);
+	pde = pmap_pde(pmap, va);
+	if (pde != NULL) {
+		if ((*pde & PG_PS) != 0)
+			panic("pmap_enter: attempted pmap_enter on 2MB page");
+		pte = pmap_pde_to_pte(pde, va);
+	} else
+		pte = NULL;
 
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
@@ -2056,9 +2072,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	om = NULL;
 	origpte = *pte;
 	opa = origpte & PG_FRAME;
-
-	if (origpte & PG_PS)
-		panic("pmap_enter: attempted pmap_enter on 2MB page");
 
 	/*
 	 * Mapping has not changed, must be protection or wiring change.
@@ -2563,11 +2576,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			 * we only virtual copy managed pages
 			 */
 			if ((ptetemp & PG_MANAGED) != 0) {
-				/*
-				 * We have to check after allocpte for the
-				 * pte still being around...  allocpte can
-				 * block.
-				 */
 				dstmpte = pmap_allocpte(dst_pmap, addr,
 				    M_NOWAIT);
 				if (dstmpte == NULL)
@@ -3086,7 +3094,7 @@ pmap_change_attr(va, size, mode)
 	pd_entry_t *pde;
 	pt_entry_t *pte;
 
-	base = va & PG_FRAME;
+	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 
@@ -3209,7 +3217,6 @@ pmap_mincore(pmap, addr)
 void
 pmap_activate(struct thread *td)
 {
-	struct proc *p = td->td_proc;
 	pmap_t	pmap, oldpmap;
 	u_int64_t  cr3;
 
@@ -3226,18 +3233,7 @@ if (oldpmap)	/* XXX FIXME */
 	pmap->pm_active |= PCPU_GET(cpumask);
 #endif
 	cr3 = vtophys(pmap->pm_pml4);
-	/* XXXKSE this is wrong.
-	 * pmap_activate is for the current thread on the current cpu
-	 */
-	if (p->p_flag & P_SA) {
-		/* Make sure all other cr3 entries are updated. */
-		/* what if they are running?  XXXKSE (maybe abort them) */
-		FOREACH_THREAD_IN_PROC(p, td) {
-			td->td_pcb->pcb_cr3 = cr3;
-		}
-	} else {
-		td->td_pcb->pcb_cr3 = cr3;
-	}
+	td->td_pcb->pcb_cr3 = cr3;
 	load_cr3(cr3);
 	critical_exit();
 }
