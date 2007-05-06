@@ -1241,7 +1241,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				goto check_delack;
 			}
 		} else if (th->th_ack == tp->snd_una &&
-		    LIST_EMPTY(&tp->t_segq) &&
 		    tlen <= sbspace(&so->so_rcv)) {
 			int newsize = 0;	/* automatic sockbuf scaling */
 
@@ -1406,15 +1405,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			rstreason = BANDLIM_UNLIMITED;
 			goto dropwithreset;
 		}
-		if (thflags & TH_RST) {
-			if (thflags & TH_ACK) {
-				KASSERT(headlocked, ("%s: after_listen: "
-				    "tcp_drop.2: head not locked", __func__));
-				tp = tcp_drop(tp, ECONNREFUSED);
-			}
+		if ((thflags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST))
+			tp = tcp_drop(tp, ECONNREFUSED);
+		if (thflags & TH_RST)
 			goto drop;
-		}
-		if ((thflags & TH_SYN) == 0)
+		if (!(thflags & TH_SYN))
 			goto drop;
 
 		tp->irs = th->th_seq;
@@ -1727,7 +1722,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * If segment ends after window, drop trailing data
 	 * (and PUSH and FIN); if nothing left, just ACK.
 	 */
-	todrop = (th->th_seq+tlen) - (tp->rcv_nxt+tp->rcv_wnd);
+	todrop = (th->th_seq + tlen) - (tp->rcv_nxt + tp->rcv_wnd);
 	if (todrop > 0) {
 		tcpstat.tcps_rcvpackafterwin++;
 		if (todrop >= tlen) {
@@ -2550,10 +2545,10 @@ drop:
 	return;
 }
 
-
 /*
- * Issue RST on TCP segment.  The mbuf must still include the original
- * packet header.
+ * Issue RST and make ACK acceptable to originator of segment.
+ * The mbuf must still include the original packet header.
+ * tp may be NULL.
  */
 static void
 tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
@@ -2563,12 +2558,7 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 #ifdef INET6
 	struct ip6_hdr *ip6;
 #endif
-	/*
-	 * Generate a RST, dropping incoming segment.
-	 * Make ACK acceptable to originator of segment.
-	 * Don't bother to respond if destination was broadcast/multicast.
-	 * tp may be NULL.
-	 */
+	/* Don't bother if destination was broadcast/multicast. */
 	if ((th->th_flags & TH_RST) || m->m_flags & (M_BCAST|M_MCAST))
 		goto drop;
 #ifdef INET6
