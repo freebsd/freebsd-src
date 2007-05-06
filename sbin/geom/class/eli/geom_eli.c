@@ -1005,14 +1005,14 @@ eli_kill(struct gctl_req *req)
 	 * How '-a' option combine with a list of providers:
 	 * Delete Master Keys from all attached providers:
 	 * geli kill -a
-	 * Delete Master Keys from all attached provider and from
+	 * Delete Master Keys from all attached providers and from
 	 * detached da0 and da1:
 	 * geli kill -a da0 da1
 	 * Delete Master Keys from (attached or detached) da0 and da1:
 	 * geli kill da0 da1
 	 */
 
-	/* First detached provider. */
+	/* First detached providers. */
 	for (i = 0; i < nargs; i++) {
 		prov = gctl_get_ascii(req, "arg%d", i);
 		if (!eli_is_attached(prov))
