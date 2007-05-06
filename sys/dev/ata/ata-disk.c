@@ -161,6 +161,8 @@ ad_attach(device_t dev)
     adp->disk->d_unit = device_get_unit(dev);
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	adp->disk->d_flags = DISKFLAG_CANFLUSHCACHE;
+    snprintf(adp->disk->d_ident, sizeof(adp->disk->d_ident), "ad:%s",
+	atadev->param.serial);
     disk_create(adp->disk, DISK_VERSION);
     device_add_child(dev, "subdisk", device_get_unit(dev));
     ad_firmware_geom_adjust(dev, adp->disk);
