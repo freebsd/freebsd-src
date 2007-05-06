@@ -1191,7 +1191,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	if ((xferlen % 64) == 0)
 		xferlen += 4;
 
-	DPRINTFN(10, ("sending mgt frame len=%u rate=%u xfer len=%u\n",
+	DPRINTFN(10, ("sending mgt frame len=%d rate=%d xfer len=%d\n",
 	    m0->m_pkthdr.len + RT2573_TX_DESC_SIZE, rate, xferlen));
 	
 	usbd_setup_xfer(data->xfer, sc->sc_tx_pipeh, data, data->buf, xferlen,
@@ -1353,7 +1353,7 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	if ((xferlen % 64) == 0)
 		xferlen += 4;
 
-	DPRINTFN(10, ("sending frame len=%u rate=%u xfer len=%u\n",
+	DPRINTFN(10, ("sending frame len=%d rate=%d xfer len=%d\n",
 	    m0->m_pkthdr.len + RT2573_TX_DESC_SIZE, rate, xferlen));
 
 	usbd_setup_xfer(data->xfer, sc->sc_tx_pipeh, data, data->buf, xferlen,
