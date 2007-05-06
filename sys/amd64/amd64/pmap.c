@@ -2494,6 +2494,7 @@ void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	  vm_offset_t src_addr)
 {
+	vm_page_t   free;
 	vm_offset_t addr;
 	vm_offset_t end_addr = src_addr + len;
 	vm_offset_t va_next;
@@ -2590,8 +2591,15 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					*dst_pte = ptetemp & ~(PG_W | PG_M |
 					    PG_A);
 					dst_pmap->pm_stats.resident_count++;
-	 			} else
-					dstmpte->wire_count--;
+	 			} else {
+					free = NULL;
+					if (pmap_unwire_pte_hold(dst_pmap,
+					    addr, dstmpte, &free)) {
+					    	pmap_invalidate_page(dst_pmap,
+					 	    addr);
+				    	    	pmap_free_zero_pages(free);
+					}
+				}
 				if (dstmpte->wire_count >= srcmpte->wire_count)
 					break;
 			}
