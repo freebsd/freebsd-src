@@ -140,6 +140,13 @@ struct lagg_mc {
 	SLIST_ENTRY(lagg_mc)	mc_entries;
 };
 
+/* List of interfaces to have the MAC address modified */
+struct lagg_llq {
+	struct ifnet		*llq_ifp;
+	uint8_t			llq_lladdr[ETHER_ADDR_LEN];
+	SLIST_ENTRY(lagg_llq)	llq_entries;
+};
+
 struct lagg_softc {
 	struct ifnet			*sc_ifp;	/* virtual interface */
 	struct mtx			sc_mtx;
@@ -151,6 +158,10 @@ struct lagg_softc {
 
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
+
+	struct task			sc_lladdr_task;
+	SLIST_HEAD(__llqhd, lagg_llq)	sc_llq_head;	/* interfaces to program
+							   the lladdr on */
 
 	/* lagg protocol callbacks */
 	int	(*sc_detach)(struct lagg_softc *);
