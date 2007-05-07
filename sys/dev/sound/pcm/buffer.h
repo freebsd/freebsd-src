@@ -54,8 +54,8 @@ struct snd_dbuf {
 	u_int32_t flags;
 	bus_dmamap_t dmamap;
 	bus_dma_tag_t dmatag;
+	bus_addr_t buf_addr;
 	int dmaflags;
-	u_int32_t buf_addr;
 	struct selinfo sel;
 	struct pcm_channel *channel;
 	char name[SNDBUF_NAMELEN];
