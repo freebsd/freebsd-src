@@ -275,9 +275,6 @@ lagg_clone_destroy(struct ifnet *ifp)
 	if (sc->sc_detach != NULL)
 		(*sc->sc_detach)(sc);
 
-	/* Remove any multicast groups that we may have joined. */
-	lagg_ether_purgemulti(sc);
-
 	LAGG_UNLOCK(sc);
 
 	ifmedia_removeall(&sc->sc_media);
