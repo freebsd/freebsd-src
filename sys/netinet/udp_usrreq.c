@@ -117,14 +117,14 @@ static int	strict_mcast_mship = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, strict_mcast_mship, CTLFLAG_RW,
     &strict_mcast_mship, 0, "Only send multicast to member sockets");
 
-struct	inpcbhead udb;		/* from udp_var.h */
-struct	inpcbinfo udbinfo;
+struct inpcbhead	udb;		/* from udp_var.h */
+struct inpcbinfo	udbinfo;
 
 #ifndef UDBHASHSIZE
-#define UDBHASHSIZE 16
+#define	UDBHASHSIZE	16
 #endif
 
-struct	udpstat udpstat;	/* from udp_var.h */
+struct udpstat	udpstat;	/* from udp_var.h */
 SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW, &udpstat,
     udpstat, "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
@@ -145,15 +145,17 @@ udp_zone_change(void *tag)
 static int
 udp_inpcb_init(void *mem, int size, int flags)
 {
-	struct inpcb *inp = mem;
+	struct inpcb *inp;
 
+	inp = mem;
 	INP_LOCK_INIT(inp, "inp", "udpinp");
 	return (0);
 }
 
 void
-udp_init()
+udp_init(void)
 {
+
 	INP_INFO_LOCK_INIT(&udbinfo, "udp");
 	LIST_INIT(&udb);
 	udbinfo.ipi_listhead = &udb;
@@ -165,7 +167,7 @@ udp_init()
 	    NULL, udp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
-		EVENTHANDLER_PRI_ANY);
+	    EVENTHANDLER_PRI_ANY);
 }
 
 void
@@ -224,8 +226,8 @@ udp_input(struct mbuf *m, int off)
 	udp_in.sin_addr = ip->ip_src;
 
 	/*
-	 * Make mbuf data length reflect UDP length.
-	 * If not enough data to reflect UDP length, drop.
+	 * Make mbuf data length reflect UDP length.  If not enough data to
+	 * reflect UDP length, drop.
 	 */
 	len = ntohs((u_short)uh->uh_ulen);
 	if (ip->ip_len != len) {
@@ -258,6 +260,7 @@ udp_input(struct mbuf *m, int off)
 			uh->uh_sum ^= 0xffff;
 		} else {
 			char b[9];
+
 			bcopy(((struct ipovly *)ip)->ih_x1, b, 9);
 			bzero(((struct ipovly *)ip)->ih_x1, 9);
 			((struct ipovly *)ip)->ih_len = uh->uh_ulen;
@@ -295,7 +298,6 @@ udp_input(struct mbuf *m, int off)
 #endif
 
 	INP_INFO_RLOCK(&udbinfo);
-
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 	    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif)) {
 		struct inpcb *last;
@@ -340,8 +342,8 @@ udp_input(struct mbuf *m, int off)
 			 * sent to sockets with multicast memberships for the
 			 * packet's destination address and arrival interface
 			 */
-#define MSHIP(_inp, n) ((_inp)->inp_moptions->imo_membership[(n)])
-#define NMSHIPS(_inp) ((_inp)->inp_moptions->imo_num_memberships)
+#define	MSHIP(_inp, n)	((_inp)->inp_moptions->imo_membership[(n)])
+#define	NMSHIPS(_inp)	((_inp)->inp_moptions->imo_num_memberships)
 			INP_LOCK(inp);
 			if (strict_mcast_mship && inp->inp_moptions != NULL) {
 				int mship, foundmship = 0;
@@ -566,10 +568,10 @@ udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	 * DoS attack on machines with many connections.
 	 */
 	if (cmd == PRC_HOSTDEAD)
-		ip = 0;
+		ip = NULL;
 	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
-	if (ip) {
+	if (ip != NULL) {
 		uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
 		INP_INFO_RLOCK(&udbinfo);
 		inp = in_pcblookup_hash(&udbinfo, faddr, uh->uh_dport,
@@ -763,8 +765,8 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		    control->m_data += CMSG_ALIGN(cm->cmsg_len),
 		    control->m_len -= CMSG_ALIGN(cm->cmsg_len)) {
 			cm = mtod(control, struct cmsghdr *);
-			if (control->m_len < sizeof(*cm) || cm->cmsg_len == 0 ||
-			    cm->cmsg_len > control->m_len) {
+			if (control->m_len < sizeof(*cm) || cm->cmsg_len == 0
+			    || cm->cmsg_len > control->m_len) {
 				error = EINVAL;
 				break;
 			}
@@ -782,8 +784,10 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 				src.sin_family = AF_INET;
 				src.sin_len = sizeof(src);
 				src.sin_port = inp->inp_lport;
-				src.sin_addr = *(struct in_addr *)CMSG_DATA(cm);
+				src.sin_addr =
+				    *(struct in_addr *)CMSG_DATA(cm);
 				break;
+
 			default:
 				error = ENOPROTOOPT;
 				break;
@@ -957,6 +961,7 @@ u_long	udp_recvspace = 40 * (1024 +
 				      sizeof(struct sockaddr_in)
 #endif
 				      );
+
 SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &udp_recvspace, 0, "Maximum space for incoming UDP datagrams");
 
