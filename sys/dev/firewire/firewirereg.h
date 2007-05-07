@@ -110,9 +110,7 @@ struct firewire_comm{
 	u_int irm;
 	u_int max_node;
 	u_int max_hop;
-	u_int max_asyretry;
 #define FWPHYASYST (1 << 0)
-	u_int retry_count;
 	uint32_t ongobus:10,
 		  ongonode:6,
 		  ongoaddr:16;
@@ -152,7 +150,6 @@ struct firewire_comm{
 	struct callout busprobe_callout;
 	struct callout bmr_callout;
 	struct callout timeout_callout;
-	struct callout retry_probe_callout;
 	uint32_t (*cyctimer) (struct  firewire_comm *);
 	void (*ibr) (struct firewire_comm *);
 	uint32_t (*set_bmr) (struct firewire_comm *, uint32_t);
@@ -252,12 +249,8 @@ struct fw_xfer{
 #define FWXF_BUSY 8
 #define FWXF_RCVD 10
 	uint8_t state;
-	uint8_t retry;
 	uint8_t tl;
-	void (*retry_req) (struct fw_xfer *);
-	union{
-		void (*hand) (struct fw_xfer *);
-	} act;
+	void (*hand) (struct fw_xfer *);
 	struct {
 		struct fw_pkt hdr;
 		uint32_t *payload;
