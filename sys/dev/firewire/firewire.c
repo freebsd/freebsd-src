@@ -198,7 +198,7 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 {
 	int err = 0;
 	struct fw_xferq *xferq;
-	int tl = 0, len;
+	int tl = -1, len;
 	struct fw_pkt *fp;
 	int tcode;
 	struct tcode_info *info;
@@ -269,20 +269,6 @@ fw_asy_callback(struct fw_xfer *xfer){
 	wakeup(xfer);
 	return;
 }
-/*
- * Postpone to later retry.
- */
-void fw_asybusy(struct fw_xfer *xfer){
-	printf("fw_asybusy\n");
-/*
-	xfer->ch =  timeout((timeout_t *)fw_asystart, (void *)xfer, 20000);
-*/
-#if 0
-	DELAY(20000);
-#endif
-	fw_asystart(xfer);
-	return;
-}
 
 /*
  * Async. request with given xfer structure.
@@ -330,7 +316,6 @@ static void
 firewire_xfer_timeout(struct firewire_comm *fc)
 {
 	struct fw_xfer *xfer;
-	struct tlabel *tl;
 	struct timeval tv;
 	struct timeval split_timeout;
 	int i, s;
@@ -343,8 +328,7 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 
 	s = splfw();
 	for (i = 0; i < 0x40; i ++) {
-		while ((tl = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
-			xfer = tl->xfer;
+		while ((xfer = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
 			if (timevalcmp(&xfer->tv, &tv, >))
 				/* the rests are newer than this */
 				break;
@@ -512,6 +496,7 @@ fw_xferq_drain(struct fw_xferq *xferq)
 		STAILQ_REMOVE_HEAD(&xferq->q, link);
 		xferq->queued --;
 		xfer->resp = EAGAIN;
+		xfer->state = FWXF_SENTERR;
 		fw_xfer_done(xfer);
 	}
 }
@@ -732,9 +717,6 @@ void fw_init(struct firewire_comm *fc)
 
 		STAILQ_INIT(&fc->it[i]->q);
 		STAILQ_INIT(&fc->ir[i]->q);
-
-		STAILQ_INIT(&fc->it[i]->binds);
-		STAILQ_INIT(&fc->ir[i]->binds);
 	}
 
 	fc->arq->maxq = FWMAXQUEUE;
@@ -827,7 +809,7 @@ fw_bindlookup(struct firewire_comm *fc, uint16_t dest_hi, uint32_t dest_lo)
 
 	addr = ((u_int64_t)dest_hi << 32) | dest_lo;
 	STAILQ_FOREACH(tfw, &fc->binds, fclist)
-		if (tfw->act_type != FWACT_NULL && BIND_CMP(addr, tfw) == 0)
+		if (BIND_CMP(addr, tfw) == 0)
 			return(tfw);
 	return(NULL);
 }
@@ -852,20 +834,15 @@ fw_bindadd(struct firewire_comm *fc, struct fw_bind *fwb)
 	}
 	if (prev == NULL) {
 		STAILQ_INSERT_HEAD(&fc->binds, fwb, fclist);
-		goto out;
+		return (0);
 	}
 	if (prev->end < fwb->start) {
 		STAILQ_INSERT_AFTER(&fc->binds, prev, fwb, fclist);
-		goto out;
+		return (0);
 	}
 
 	printf("%s: bind failed\n", __func__);
 	return (EBUSY);
-
-out:
-	if (fwb->act_type == FWACT_CH)
-		STAILQ_INSERT_HEAD(&fc->ir[fwb->sub]->binds, fwb, chlist);
-	return (0);
 }
 
 /*
@@ -904,24 +881,66 @@ found:
 	return 0;
 }
 
+int
+fw_xferlist_add(struct fw_xferlist *q, struct malloc_type *type,
+    int slen, int rlen, int n,
+    struct firewire_comm *fc, void *sc, void (*hand)(struct fw_xfer *))
+{
+	int i, s;
+	struct fw_xfer *xfer;
+
+	for (i = 0; i < n; i++) {
+		xfer = fw_xfer_alloc_buf(type, slen, rlen);
+		if (xfer == NULL)
+			return (n);
+		xfer->fc = fc;
+		xfer->sc = sc;
+		xfer->hand = hand;
+		s = splfw();
+		STAILQ_INSERT_TAIL(q, xfer, link);
+		splx(s);
+	}
+	return (n);
+}
+
+void
+fw_xferlist_remove(struct fw_xferlist *q)
+{
+	struct fw_xfer *xfer, *next;
+
+	for (xfer = STAILQ_FIRST(q); xfer != NULL; xfer = next) {
+                next = STAILQ_NEXT(xfer, link);
+                fw_xfer_free_buf(xfer);
+        }
+        STAILQ_INIT(q);
+}
+
 /*
  * To free transaction label.
  */
 static void
 fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 {
-	struct tlabel *tl;
-	int s = splfw();
+	struct fw_xfer *txfer;
+	int s;
 
-	for( tl = STAILQ_FIRST(&fc->tlabels[xfer->tl]); tl != NULL;
-		tl = STAILQ_NEXT(tl, link)){
-		if(tl->xfer == xfer){
-			STAILQ_REMOVE(&fc->tlabels[xfer->tl], tl, tlabel, link);
-			free(tl, M_FW);
-			splx(s);
-			return;
-		}
+	if (xfer->tl < 0)
+		return;
+
+	s = splfw();
+#if 1	/* make sure the label is allocated */
+	STAILQ_FOREACH(txfer, &fc->tlabels[xfer->tl], tlabel)
+		if(txfer == xfer)
+			break;
+	if (txfer == NULL) {
+		printf("%s: the xfer is not in the tlabel(%d)\n",
+		    __FUNCTION__, xfer->tl);
+		splx(s);
+		return;
 	}
+#endif
+
+	STAILQ_REMOVE(&fc->tlabels[xfer->tl], xfer, fw_xfer, tlabel);
 	splx(s);
 	return;
 }
@@ -933,19 +952,15 @@ static struct fw_xfer *
 fw_tl2xfer(struct firewire_comm *fc, int node, int tlabel)
 {
 	struct fw_xfer *xfer;
-	struct tlabel *tl;
 	int s = splfw();
 
-	for( tl = STAILQ_FIRST(&fc->tlabels[tlabel]); tl != NULL;
-		tl = STAILQ_NEXT(tl, link)){
-		if(tl->xfer->send.hdr.mode.hdr.dst == node){
-			xfer = tl->xfer;
+	STAILQ_FOREACH(xfer, &fc->tlabels[tlabel], tlabel)
+		if(xfer->send.hdr.mode.hdr.dst == node) {
 			splx(s);
 			if (firewire_debug > 2)
 				printf("fw_tl2xfer: found tl=%d\n", tlabel);
 			return(xfer);
 		}
-	}
 	if (firewire_debug > 1)
 		printf("fw_tl2xfer: not found tl=%d\n", tlabel);
 	splx(s);
@@ -1683,27 +1698,19 @@ static int
 fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 {
 	u_int i;
-	struct tlabel *tl, *tmptl;
+	struct fw_xfer *txfer;
 	int s;
 	static uint32_t label = 0;
 
 	s = splfw();
 	for( i = 0 ; i < 0x40 ; i ++){
 		label = (label + 1) & 0x3f;
-		for(tmptl = STAILQ_FIRST(&fc->tlabels[label]);
-			tmptl != NULL; tmptl = STAILQ_NEXT(tmptl, link)){
-			if (tmptl->xfer->send.hdr.mode.hdr.dst ==
+		STAILQ_FOREACH(txfer, &fc->tlabels[label], tlabel)
+			if (txfer->send.hdr.mode.hdr.dst ==
 			    xfer->send.hdr.mode.hdr.dst)
 				break;
-		}
-		if(tmptl == NULL) {
-			tl = malloc(sizeof(struct tlabel),M_FW,M_NOWAIT);
-			if (tl == NULL) {
-				splx(s);
-				return (-1);
-			}
-			tl->xfer = xfer;
-			STAILQ_INSERT_TAIL(&fc->tlabels[label], tl, link);
+		if(txfer == NULL) {
+			STAILQ_INSERT_TAIL(&fc->tlabels[label], xfer, tlabel);
 			splx(s);
 			if (firewire_debug > 1)
 				printf("fw_get_tlabel: dst=%d tl=%d\n",
@@ -1726,7 +1733,7 @@ fw_rcv_copy(struct fw_rcv_buf *rb)
 	struct tcode_info *tinfo;
 	u_int res, i, len, plen;
 
-	rb->xfer->recv.spd -= rb->spd;
+	rb->xfer->recv.spd = rb->spd;
 
 	pkt = (struct fw_pkt *)rb->vec->iov_base;
 	tinfo = &rb->fc->tcode[pkt->mode.hdr.tcode];
@@ -1780,7 +1787,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 {
 	struct fw_pkt *fp, *resfp;
 	struct fw_bind *bind;
-	int tcode, s;
+	int tcode;
 	int i, len, oldstate;
 #if 0
 	{
@@ -1818,10 +1825,10 @@ fw_rcv(struct fw_rcv_buf *rb)
 					(fp->mode.hdr.tlrt >> 2)^3);
 			if (rb->xfer == NULL) {
 				printf("no use...\n");
-				goto err;
+				return;
 			}
 #else
-			goto err;
+			return;
 #endif
 		}
 		fw_rcv_copy(rb);
@@ -1865,7 +1872,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 			    fp->mode.hdr.src, ntohl(fp->mode.wreqq.data));
 			if (rb->fc->status == FWBUSRESET) {
 				printf("fw_rcv: cannot respond(bus reset)!\n");
-				goto err;
+				return;
 			}
 			rb->xfer = fw_xfer_alloc(M_FWXFER);
 			if(rb->xfer == NULL){
@@ -1903,55 +1910,22 @@ fw_rcv(struct fw_rcv_buf *rb)
 				fw_xfer_free(rb->xfer);
 				return;
 			}
-			goto err;
+			return;
 		}
 		len = 0;
 		for (i = 0; i < rb->nvec; i ++)
 			len += rb->vec[i].iov_len;
-		switch(bind->act_type){
-		case FWACT_XFER:
-			/* splfw()?? */
-			rb->xfer = STAILQ_FIRST(&bind->xferlist);
-			if (rb->xfer == NULL) {
-				printf("Discard a packet for this bind.\n");
-				goto err;
-			}
-			STAILQ_REMOVE_HEAD(&bind->xferlist, link);
-			fw_rcv_copy(rb);
-			rb->xfer->hand(rb->xfer);
+		rb->xfer = STAILQ_FIRST(&bind->xferlist);
+		if (rb->xfer == NULL) {
+#if 1
+			printf("Discard a packet for this bind.\n");
+#endif
 			return;
-			break;
-		case FWACT_CH:
-			if(rb->fc->ir[bind->sub]->queued >=
-				rb->fc->ir[bind->sub]->maxq){
-				device_printf(rb->fc->bdev,
-					"Discard a packet %x %d\n",
-					bind->sub,
-					rb->fc->ir[bind->sub]->queued);
-				goto err;
-			}
-			rb->xfer = STAILQ_FIRST(&bind->xferlist);
-			if (rb->xfer == NULL) {
-				printf("Discard packet for this bind\n");
-				goto err;
-			}
-			STAILQ_REMOVE_HEAD(&bind->xferlist, link);
-			fw_rcv_copy(rb);
-			s = splfw();
-			rb->fc->ir[bind->sub]->queued++;
-			STAILQ_INSERT_TAIL(&rb->fc->ir[bind->sub]->q,
-			    rb->xfer, link);
-			splx(s);
-
-			wakeup((caddr_t)rb->fc->ir[bind->sub]);
-
-			return;
-			break;
-		default:
-			goto err;
-			break;
 		}
-		break;
+		STAILQ_REMOVE_HEAD(&bind->xferlist, link);
+		fw_rcv_copy(rb);
+		rb->xfer->hand(rb->xfer);
+		return;
 #if 0 /* shouldn't happen ?? or for GASP */
 	case FWTCODE_STREAM:
 	{
@@ -1964,13 +1938,14 @@ fw_rcv(struct fw_rcv_buf *rb)
 #endif
 		if(xferq->queued >= xferq->maxq) {
 			printf("receive queue is full\n");
-			goto err;
+			return;
 		}
 		/* XXX get xfer from xfer queue, we don't need copy for 
 			per packet mode */
 		rb->xfer = fw_xfer_alloc_buf(M_FWXFER, 0, /* XXX */
 						vec[0].iov_len);
-		if (rb->xfer == NULL) goto err;
+		if (rb->xfer == NULL)
+			return;
 		fw_rcv_copy(rb)
 		s = splfw();
 		xferq->queued++;
@@ -1998,8 +1973,6 @@ fw_rcv(struct fw_rcv_buf *rb)
 		printf("fw_rcv: unknow tcode %d\n", tcode);
 		break;
 	}
-err:
-	return;
 }
 
 /*
