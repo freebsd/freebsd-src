@@ -332,7 +332,8 @@ lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr)
 	struct ifnet *ifp = lp->lp_ifp;
 	int error;
 
-	if (memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0)
+	if (lp->lp_detaching ||
+	    memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0)
 		return;
 
 	/* Set the link layer address */
@@ -467,9 +468,15 @@ lagg_port_destroy(struct lagg_port *lp, int runpd)
 	if (runpd && sc->sc_port_destroy != NULL)
 		(*sc->sc_port_destroy)(lp);
 
-	/* Remove multicast addresses and interface flags from this port */
-	lagg_ether_cmdmulti(lp, 0);
-	lagg_setflags(lp, 0);
+	/*
+	 * Remove multicast addresses and interface flags from this port and
+	 * reset the MAC address, skip if the interface is being detached.
+	 */
+	if (!lp->lp_detaching) {
+		lagg_ether_cmdmulti(lp, 0);
+		lagg_setflags(lp, 0);
+		lagg_port_lladdr(lp, lp->lp_lladdr);
+	}
 
 	/* Restore interface */
 	ifp->if_type = lp->lp_iftype;
@@ -498,9 +505,6 @@ lagg_port_destroy(struct lagg_port *lp, int runpd)
 		SLIST_FOREACH(lp_ptr, &sc->sc_ports, lp_entries)
 			lagg_port_lladdr(lp_ptr, lladdr);
 	}
-
-	/* Reset the port lladdr */
-	lagg_port_lladdr(lp, lp->lp_lladdr);
 
 	if (lp->lp_ifflags)
 		if_printf(ifp, "%s: lp_ifflags unclean\n", __func__);
@@ -598,6 +602,7 @@ lagg_port_ifdetach(void *arg __unused, struct ifnet *ifp)
 	sc = lp->lp_lagg;
 
 	LAGG_LOCK(sc);
+	lp->lp_detaching = 1;
 	lagg_port_destroy(lp, 1);
 	LAGG_UNLOCK(sc);
 }
