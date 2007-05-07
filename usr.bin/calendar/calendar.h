@@ -41,7 +41,8 @@ extern int doall;
 extern struct iovec header[];
 extern struct tm *tp;
 extern const char *calendarFile;
-extern char *optarg;
+extern int *cumdays;
+extern struct fixs neaster, npaskha;
 
 void	 cal(void);
 void	 closecal(FILE *);
