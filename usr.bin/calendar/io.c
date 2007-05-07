@@ -85,7 +85,7 @@ struct iovec header[] = {
 
 
 void
-cal()
+cal(void)
 {
 	int printing;
 	char *p;
@@ -166,9 +166,7 @@ cal()
 }
 
 int
-getfield(p, endp, flags)
-	char *p, **endp;
-	int *flags;
+getfield(char *p, char **endp, int *flags)
 {
 	int val, var;
 	char *start, savech;
@@ -233,7 +231,7 @@ getfield(p, endp, flags)
 char path[MAXPATHLEN];
 
 FILE *
-opencal()
+opencal(void)
 {
 	uid_t uid;
 	size_t i;
@@ -312,8 +310,7 @@ opencal()
 }
 
 void
-closecal(fp)
-	FILE *fp;
+closecal(FILE *fp)
 {
 	uid_t uid;
 	struct stat sbuf;
