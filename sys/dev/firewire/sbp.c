@@ -936,7 +936,7 @@ SBP_DEBUG(0)
 END_DEBUG
 
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0);
-	xfer->act.hand = sbp_reset_start_callback;
+	xfer->hand = sbp_reset_start_callback;
 	fp = &xfer->send.hdr;
 	fp->mode.wreqq.dest_hi = 0xffff;
 	fp->mode.wreqq.dest_lo = 0xf0000000 | RESET_START;
@@ -1127,9 +1127,9 @@ END_DEBUG
 	if (xfer == NULL)
 		return;
 	if (sdev->status == SBP_DEV_ATTACHED || sdev->status == SBP_DEV_PROBE)
-		xfer->act.hand = sbp_agent_reset_callback;
+		xfer->hand = sbp_agent_reset_callback;
 	else
-		xfer->act.hand = sbp_do_attach;
+		xfer->hand = sbp_do_attach;
 	fp = &xfer->send.hdr;
 	fp->mode.wreqq.data = htonl(0xf);
 	fw_asyreq(xfer->fc, -1, xfer);
@@ -1161,7 +1161,7 @@ SBP_DEBUG(0)
 END_DEBUG
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0);
 
-	xfer->act.hand = sbp_busy_timeout_callback;
+	xfer->hand = sbp_busy_timeout_callback;
 	fp = &xfer->send.hdr;
 	fp->mode.wreqq.dest_hi = 0xffff;
 	fp->mode.wreqq.dest_lo = 0xf0000000 | BUSY_TIMEOUT;
@@ -1219,7 +1219,7 @@ END_DEBUG
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQB, 0x08);
 	if (xfer == NULL)
 		return;
-	xfer->act.hand = sbp_orb_pointer_callback;
+	xfer->hand = sbp_orb_pointer_callback;
 
 	fp = &xfer->send.hdr;
 	fp->mode.wreqb.len = 8;
@@ -1276,7 +1276,7 @@ END_DEBUG
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0x10);
 	if (xfer == NULL)
 		return;
-	xfer->act.hand = sbp_doorbell_callback;
+	xfer->hand = sbp_doorbell_callback;
 	fp = &xfer->send.hdr;
 	fp->mode.wreqq.data = htonl(0xf);
 	fw_asyreq(xfer->fc, -1, xfer);
@@ -1320,7 +1320,6 @@ sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
 		xfer->recv.pay_len = 0;
 		xfer->send.spd = min(sdev->target->fwdev->speed, max_speed);
 		xfer->fc = sdev->target->sbp->fd.fc;
-		xfer->retry_req = fw_asybusy;
 	}
 
 	if (tcode == FWTCODE_WREQB)
@@ -1419,7 +1418,7 @@ start:
 	if(xfer == NULL){
 		return;
 	}
-	xfer->act.hand = sbp_mgm_callback;
+	xfer->hand = sbp_mgm_callback;
 
 	fp = &xfer->send.hdr;
 	fp->mode.wreqb.dest_hi = sdev->target->mgm_hi;
@@ -1877,8 +1876,7 @@ done0:
 	sfp->mode.wres.dst = rfp->mode.wreqb.src;
 	xfer->dst = sfp->mode.wres.dst;
 	xfer->spd = min(sdev->target->fwdev->speed, max_speed);
-	xfer->act.hand = sbp_loginres_callback;
-	xfer->retry_req = fw_asybusy;
+	xfer->hand = sbp_loginres_callback;
 
 	sfp->mode.wres.tlrt = rfp->mode.wreqb.tlrt;
 	sfp->mode.wres.tcode = FWTCODE_WRES;
@@ -1995,7 +1993,7 @@ END_DEBUG
 		xfer = fw_xfer_alloc_buf(M_SBP,
 			/* send */0,
 			/* recv */SBP_RECV_LEN);
-		xfer->act.hand = sbp_recv;
+		xfer->hand = sbp_recv;
 #if NEED_RESPONSE
 		xfer->fc = sbp->fd.fc;
 #endif
