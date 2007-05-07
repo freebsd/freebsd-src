@@ -838,48 +838,16 @@ out:
 static int
 lagg_ether_setmulti(struct lagg_softc *sc)
 {
-	struct ifnet		*trifp = sc->sc_ifp;
-	struct ifnet		*ifp;
-	struct ifmultiaddr	*ifma, *rifma = NULL;
-	struct lagg_port	*lp;
-	struct lagg_mc		*mc;
-	struct sockaddr_dl	sdl;
-	int			error;
+	struct lagg_port *lp;
 
 	LAGG_LOCK_ASSERT(sc);
-
-	bzero((char *)&sdl, sizeof(sdl));
-	sdl.sdl_len = sizeof(sdl);
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_type = IFT_ETHER;
-	sdl.sdl_alen = ETHER_ADDR_LEN;
 
 	/* First, remove any existing filter entries. */
 	lagg_ether_purgemulti(sc);
 
-	/* Now program new ones. */
-	TAILQ_FOREACH(ifma, &trifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		mc = malloc(sizeof(struct lagg_mc), M_DEVBUF, M_NOWAIT);
-		if (mc == NULL)
-			return (ENOMEM);
-		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-		    (char *)&mc->mc_addr, ETHER_ADDR_LEN);
-		SLIST_INSERT_HEAD(&sc->sc_mc_head, mc, mc_entries);
-		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-		    LLADDR(&sdl), ETHER_ADDR_LEN);
-
-		/* do all the ports */
-		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
-			ifp = lp->lp_ifp;
-			sdl.sdl_index = ifp->if_index;
-			error = if_addmulti(ifp, (struct sockaddr *)&sdl, &rifma);
-			if (error)
-				return (error);
-		}	
-	}
-
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+		lagg_ether_cmdmulti(lp, 1);
+	}	
 	return (0);
 }
 
@@ -887,11 +855,12 @@ static int
 lagg_ether_cmdmulti(struct lagg_port *lp, int set)
 {
 	struct lagg_softc *sc = lp->lp_lagg;
-	struct ifnet *ifp = lp->lp_ifp;;
-	struct lagg_mc		*mc;
-	struct ifmultiaddr	*rifma = NULL;
-	struct sockaddr_dl	sdl;
-	int			error;
+	struct ifnet *ifp = lp->lp_ifp;
+	struct ifnet *trifp = sc->sc_ifp;
+	struct lagg_mc *mc;
+	struct ifmultiaddr *ifma, *rifma = NULL;
+	struct sockaddr_dl sdl;
+	int error;
 
 	LAGG_LOCK_ASSERT(sc);
 
@@ -902,18 +871,27 @@ lagg_ether_cmdmulti(struct lagg_port *lp, int set)
 	sdl.sdl_alen = ETHER_ADDR_LEN;
 	sdl.sdl_index = ifp->if_index;
 
-	SLIST_FOREACH(mc, &sc->sc_mc_head, mc_entries) {
-		bcopy((char *)&mc->mc_addr, LLADDR(&sdl), ETHER_ADDR_LEN);
+	if (set) {
+		TAILQ_FOREACH(ifma, &trifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+			    LLADDR(&sdl), ETHER_ADDR_LEN);
 
-		if (set)
 			error = if_addmulti(ifp, (struct sockaddr *)&sdl, &rifma);
-		else
-			error = if_delmulti(ifp, (struct sockaddr *)&sdl);
-
-		if (error) {
-			printf("cmdmulti error on %s, set = %d\n",
-			    ifp->if_xname, set);
-			return (error);
+			if (error)
+				return (error);
+			mc = malloc(sizeof(struct lagg_mc), M_DEVBUF, M_NOWAIT);
+			if (mc == NULL)
+				return (ENOMEM);
+			mc->mc_ifma = rifma;
+			SLIST_INSERT_HEAD(&lp->lp_mc_head, mc, mc_entries);
+		}
+	} else {
+		while ((mc = SLIST_FIRST(&lp->lp_mc_head)) != NULL) {
+			SLIST_REMOVE(&lp->lp_mc_head, mc, lagg_mc, mc_entries);
+			if_delmulti_ifma(mc->mc_ifma);
+			free(mc, M_DEVBUF);
 		}
 	}
 	return (0);
@@ -923,18 +901,11 @@ static void
 lagg_ether_purgemulti(struct lagg_softc *sc)
 {
 	struct lagg_port *lp;
-	struct lagg_mc *mc;
 
 	LAGG_LOCK_ASSERT(sc);
 
-	/* remove from ports */
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
 		lagg_ether_cmdmulti(lp, 0);
-
-	while ((mc = SLIST_FIRST(&sc->sc_mc_head)) != NULL) {
-		SLIST_REMOVE(&sc->sc_mc_head, mc, lagg_mc, mc_entries);
-		free(mc, M_DEVBUF);
-	}
 }
 
 /* Handle a ref counted flag that should be set on the lagg port as well */
