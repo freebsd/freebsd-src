@@ -1135,29 +1135,6 @@ udp_shutdown(struct socket *so)
 	return (0);
 }
 
-/*
- * This is the wrapper function for in_setsockaddr.  We just pass down the
- * pcbinfo for in_setsockaddr() to lock.  We don't want to do the locking
- * here because in_setsockaddr() will call malloc and might block.
- */
-static int
-udp_sockaddr(struct socket *so, struct sockaddr **nam)
-{
-
-	return (in_setsockaddr(so, nam));
-}
-
-/*
- * This is the wrapper function for in_setpeeraddr().  We just pass down the
- * pcbinfo for in_setpeeraddr() to lock.
- */
-static int
-udp_peeraddr(struct socket *so, struct sockaddr **nam)
-{
-
-	return (in_setpeeraddr(so, nam));
-}
-
 struct pr_usrreqs udp_usrreqs = {
 	.pru_abort =		udp_abort,
 	.pru_attach =		udp_attach,
@@ -1166,11 +1143,11 @@ struct pr_usrreqs udp_usrreqs = {
 	.pru_control =		in_control,
 	.pru_detach =		udp_detach,
 	.pru_disconnect =	udp_disconnect,
-	.pru_peeraddr =		udp_peeraddr,
+	.pru_peeraddr =		in_setpeeraddr,
 	.pru_send =		udp_send,
 	.pru_sosend =		sosend_dgram,
 	.pru_shutdown =		udp_shutdown,
-	.pru_sockaddr =		udp_sockaddr,
+	.pru_sockaddr =		in_setsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		udp_close,
 };
