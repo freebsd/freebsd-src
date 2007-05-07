@@ -190,6 +190,7 @@ struct lacp_port {
 	int			lp_flags;
 	u_int			lp_media; /* XXX redundant */
 	int			lp_timer[LACP_NTIMER];
+	struct ifmultiaddr	*lp_ifma;
 
 	struct lacp_aggregator	*lp_aggregator;
 };
