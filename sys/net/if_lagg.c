@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/hash.h>
+#include <sys/taskqueue.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -81,6 +82,7 @@ static void	lagg_clone_destroy(struct ifnet *);
 static void	lagg_lladdr(struct lagg_softc *, uint8_t *);
 static int	lagg_capabilities(struct lagg_softc *);
 static void	lagg_port_lladdr(struct lagg_port *, uint8_t *);
+static void	lagg_port_setlladdr(void *, int);
 static int	lagg_port_create(struct lagg_softc *, struct ifnet *);
 static int	lagg_port_destroy(struct lagg_port *, int);
 static struct mbuf *lagg_input(struct ifnet *, struct mbuf *);
@@ -221,6 +223,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	}
 	LAGG_LOCK_INIT(sc);
 	SLIST_INIT(&sc->sc_ports);
+	TASK_INIT(&sc->sc_lladdr_task, 0, lagg_port_setlladdr, sc);
 
 	/* Initialise pseudo media types */
 	ifmedia_init(&sc->sc_media, 0, lagg_media_change,
@@ -285,6 +288,7 @@ lagg_clone_destroy(struct ifnet *ifp)
 	SLIST_REMOVE(&lagg_list, sc, lagg_softc, sc_entries);
 	mtx_unlock(&lagg_list_mtx);
 
+	taskqueue_drain(taskqueue_swi, &sc->sc_lladdr_task);
 	LAGG_LOCK_DESTROY(sc);
 	free(sc, M_DEVBUF);
 }
@@ -329,18 +333,74 @@ lagg_capabilities(struct lagg_softc *sc)
 static void
 lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr)
 {
+	struct lagg_softc *sc = lp->lp_lagg;
 	struct ifnet *ifp = lp->lp_ifp;
-	int error;
+	struct lagg_llq *llq;
+	int pending = 0;
+
+	LAGG_LOCK_ASSERT(sc);
 
 	if (lp->lp_detaching ||
 	    memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0)
 		return;
 
-	/* Set the link layer address */
-	error = if_setlladdr(ifp, lladdr, ETHER_ADDR_LEN);
-	if (error)
-		printf("%s: setlladdr failed on %s\n", __func__, lp->lp_ifname);
+	/* Check to make sure its not already queued to be changed */
+	SLIST_FOREACH(llq, &sc->sc_llq_head, llq_entries) {
+		if (llq->llq_ifp == ifp) {
+			pending = 1;
+			break;
+		}
+	}
 
+	if (!pending) {
+		llq = malloc(sizeof(struct lagg_llq), M_DEVBUF, M_NOWAIT);
+		if (llq == NULL)	/* XXX what to do */
+			return;
+	}
+
+	/* Update the lladdr even if pending, it may have changed */
+	llq->llq_ifp = ifp;
+	bcopy(lladdr, llq->llq_lladdr, ETHER_ADDR_LEN);
+
+	if (!pending)
+		SLIST_INSERT_HEAD(&sc->sc_llq_head, llq, llq_entries);
+
+	taskqueue_enqueue(taskqueue_swi, &sc->sc_lladdr_task);
+}
+
+/*
+ * Set the interface MAC address from a taskqueue to avoid a LOR.
+ */
+static void
+lagg_port_setlladdr(void *arg, int pending)
+{
+	struct lagg_softc *sc = (struct lagg_softc *)arg;
+	struct lagg_llq *llq, *head;
+	struct ifnet *ifp;
+	int error;
+
+	/* Grab a local reference of the queue and remove it from the softc */
+	LAGG_LOCK(sc);
+	head = SLIST_FIRST(&sc->sc_llq_head);
+	SLIST_FIRST(&sc->sc_llq_head) = NULL;
+	LAGG_UNLOCK(sc);
+
+	/*
+	 * Traverse the queue and set the lladdr on each ifp. It is safe to do
+	 * unlocked as we have the only reference to it.
+	 */
+	for (llq = head; llq != NULL; llq = head) {
+		ifp = llq->llq_ifp;
+
+		/* Set the link layer address */
+		error = if_setlladdr(ifp, llq->llq_lladdr, ETHER_ADDR_LEN);
+		if (error)
+			printf("%s: setlladdr failed on %s\n", __func__,
+			    ifp->if_xname);
+
+		head = SLIST_NEXT(llq, llq_entries);
+		free(llq, M_DEVBUF);
+	}
 }
 
 static int
@@ -461,6 +521,7 @@ lagg_port_destroy(struct lagg_port *lp, int runpd)
 {
 	struct lagg_softc *sc = lp->lp_lagg;
 	struct lagg_port *lp_ptr;
+	struct lagg_llq *llq;
 	struct ifnet *ifp = lp->lp_ifp;
 
 	LAGG_LOCK_ASSERT(sc);
@@ -504,6 +565,18 @@ lagg_port_destroy(struct lagg_port *lp, int runpd)
 		/* Update link layer address for each port */
 		SLIST_FOREACH(lp_ptr, &sc->sc_ports, lp_entries)
 			lagg_port_lladdr(lp_ptr, lladdr);
+	}
+
+	/* Remove any pending lladdr changes from the queue */
+	if (lp->lp_detaching) {
+		SLIST_FOREACH(llq, &sc->sc_llq_head, llq_entries) {
+			if (llq->llq_ifp == ifp) {
+				SLIST_REMOVE(&sc->sc_llq_head, llq, lagg_llq,
+				    llq_entries);
+				free(llq, M_DEVBUF);
+				break;	/* Only appears once */
+			}
+		}
 	}
 
 	if (lp->lp_ifflags)
