@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 
 int	decode(char *, CODE *);
 int	pencode(char *);
-static void	logmessage(int, char *, char *, char *);
+static void	logmessage(int, const char *, const char *, const char *);
 static void	usage(void);
 
 struct socks {
@@ -89,7 +89,8 @@ int
 main(int argc, char *argv[])
 {
 	int ch, logflags, pri;
-	char *tag, *host, *svcname, buf[1024];
+	char *tag, *host, buf[1024];
+	const char *svcname;
 
 	tag = NULL;
 	host = NULL;
@@ -175,7 +176,7 @@ main(int argc, char *argv[])
  *  Send the message to syslog, either on the local host, or on a remote host
  */
 void 
-logmessage(int pri, char *host, char *svcname, char *buf)
+logmessage(int pri, const char *host, const char *svcname, const char *buf)
 {
 	static struct socks *socks;
 	static int nsock = 0;
