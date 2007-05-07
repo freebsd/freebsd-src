@@ -530,6 +530,7 @@ nve_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = TX_RING_SIZE - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
 
 	/* Attach to OS's managers. */
 	ether_ifattach(ifp, eaddr);
