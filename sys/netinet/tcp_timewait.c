@@ -1811,8 +1811,8 @@ tcp_twstart(struct tcpcb *tp)
 	tcp_discardcb(tp);
 	so = inp->inp_socket;
 	soisdisconnected(so);
-	SOCK_LOCK(so);
 	tw->tw_cred = crhold(so->so_cred);
+	SOCK_LOCK(so);
 	tw->tw_so_options = so->so_options;
 	SOCK_UNLOCK(so);
 	if (acknow)
