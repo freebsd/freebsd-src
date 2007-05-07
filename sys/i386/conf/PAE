@@ -79,6 +79,7 @@ nodevice	wlan
 nodevice	wlan_wep	# 802.11 WEP support
 nodevice	wlan_ccmp	# 802.11 CCMP support
 nodevice	wlan_tkip	# 802.11 TKIP support
+nodevice	wlan_amrr	# AMRR transmit rate control algorithm
 nodevice	an
 nodevice	ath		# Atheros pci/cardbus NIC's
 nodevice	ath_hal		# Atheros HAL (Hardware Access Layer)
@@ -99,6 +100,7 @@ nodevice	umass
 nodevice	ums
 nodevice	ural
 nodevice	urio
+nodevice	rum
 nodevice	uscanner
 nodevice	aue
 nodevice	axe
