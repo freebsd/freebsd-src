@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <strings.h>
+#include <unistd.h>
 
 #include "login.h"
 
@@ -109,7 +111,7 @@ au_login_success(void)
  * login attempts: header, subject, text, return.
  */
 void
-au_login_fail(char *errmsg, int na)
+au_login_fail(const char *errmsg, int na)
 {
 	token_t *tok;
 	int aufd;
@@ -170,8 +172,6 @@ audit_logout(void)
 {
 	token_t *tok;
 	int aufd;
-	au_mask_t aumask;
-	auditinfo_t auinfo;
 	uid_t uid = pwd->pw_uid;
 	gid_t gid = pwd->pw_gid;
 	pid_t pid = getpid();
