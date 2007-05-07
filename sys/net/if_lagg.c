@@ -98,7 +98,6 @@ static void	lagg_stop(struct lagg_softc *);
 static int	lagg_ioctl(struct ifnet *, u_long, caddr_t);
 static int	lagg_ether_setmulti(struct lagg_softc *);
 static int	lagg_ether_cmdmulti(struct lagg_port *, int);
-static void	lagg_ether_purgemulti(struct lagg_softc *);
 static	int	lagg_setflag(struct lagg_port *, int, int,
 		    int (*func)(struct ifnet *, int));
 static	int	lagg_setflags(struct lagg_port *, int status);
@@ -624,7 +623,7 @@ lagg_port_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 
 fallback:
-	if (lp != NULL)
+	if (lp->lp_ioctl != NULL)
 		return ((*lp->lp_ioctl)(ifp, cmd, data));
 
 	return (EINVAL);
@@ -917,12 +916,12 @@ lagg_ether_setmulti(struct lagg_softc *sc)
 
 	LAGG_LOCK_ASSERT(sc);
 
-	/* First, remove any existing filter entries. */
-	lagg_ether_purgemulti(sc);
-
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+		/* First, remove any existing filter entries. */
+		lagg_ether_cmdmulti(lp, 0);
+		/* copy all addresses from the lagg interface to the port */
 		lagg_ether_cmdmulti(lp, 1);
-	}	
+	}
 	return (0);
 }
 
@@ -970,17 +969,6 @@ lagg_ether_cmdmulti(struct lagg_port *lp, int set)
 		}
 	}
 	return (0);
-}
-
-static void
-lagg_ether_purgemulti(struct lagg_softc *sc)
-{
-	struct lagg_port *lp;
-
-	LAGG_LOCK_ASSERT(sc);
-
-	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
-		lagg_ether_cmdmulti(lp, 0);
 }
 
 /* Handle a ref counted flag that should be set on the lagg port as well */
@@ -1118,9 +1106,10 @@ lagg_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	imr->ifm_active = IFM_ETHER | IFM_AUTO;
 
 	LAGG_LOCK(sc);
-	lp = sc->sc_primary;
-	if (lp != NULL && lp->lp_ifp->if_flags & IFF_UP)
-		imr->ifm_status |= IFM_ACTIVE;
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+		if (LAGG_PORTACTIVE(lp))
+			imr->ifm_status |= IFM_ACTIVE;
+	}
 	LAGG_UNLOCK(sc);
 }
 
