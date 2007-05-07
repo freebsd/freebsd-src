@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
  * Astronomical Almanac".
  */
 
-int easter (year)
-    int year;            /* 0 ... abcd, NOT since 1900 */
+int
+easter(int year) /* 0 ... abcd, NOT since 1900 */
 {
     int G,	/* Golden number - 1 */
 	C,	/* Century */
@@ -73,12 +73,9 @@ int easter (year)
  */
 
 int
-geteaster(s, year)
-	char *s;
-        int year;
+geteaster(char *s, int year)
 {
 	int offset = 0;
-	extern struct fixs neaster;
 
 #define EASTER "easter"
 #define EASTERNAMELEN (sizeof(EASTER) - 1)
