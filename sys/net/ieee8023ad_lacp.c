@@ -453,6 +453,7 @@ lacp_port_create(struct lagg_port *lgp)
 	lp->lp_ifp = ifp;
 	lp->lp_lagg = lgp;
 	lp->lp_lsc = lsc;
+	lp->lp_ifma = rifma;
 
 	LIST_INSERT_HEAD(&lsc->lsc_ports, lp, lp_next);
 
@@ -471,9 +472,7 @@ void
 lacp_port_destroy(struct lagg_port *lgp)
 {
 	struct lacp_port *lp = LACP_PORT(lgp);
-	struct ifnet *ifp = lgp->lp_ifp;
-	struct sockaddr_dl sdl;
-	int i, error;
+	int i;
 
 	LAGG_LOCK_ASSERT(lgp->lp_lagg);
 
@@ -486,18 +485,7 @@ lacp_port_destroy(struct lagg_port *lgp)
 	lacp_unselect(lp);
 	lgp->lp_flags &= ~LAGG_PORT_DISABLED;
 
-	bzero((char *)&sdl, sizeof(sdl));
-	sdl.sdl_len = sizeof(sdl);
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_index = ifp->if_index;
-	sdl.sdl_type = IFT_ETHER;
-	sdl.sdl_alen = ETHER_ADDR_LEN;
-
-	bcopy(&ethermulticastaddr_slowprotocols,
-	    LLADDR(&sdl), ETHER_ADDR_LEN);
-	error = if_delmulti(ifp, (struct sockaddr *)&sdl);
-	if (error)
-		printf("%s: DELMULTI failed on %s\n", __func__, lgp->lp_ifname);
+	if_delmulti_ifma(lp->lp_ifma);
 
 	LIST_REMOVE(lp, lp_next);
 	free(lp, M_DEVBUF);
