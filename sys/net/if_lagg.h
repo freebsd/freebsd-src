@@ -136,12 +136,8 @@ struct lagg_lb {
 };
 
 struct lagg_mc {
-	union {
-		struct ether_multi	*mcu_enm;
-	} mc_u;
-	struct sockaddr_storage		mc_addr;
-
-	SLIST_ENTRY(lagg_mc)		mc_entries;
+	struct ifmultiaddr      *mc_ifma;
+	SLIST_ENTRY(lagg_mc)	mc_entries;
 };
 
 struct lagg_softc {
@@ -155,8 +151,6 @@ struct lagg_softc {
 
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
-
-	SLIST_HEAD(__mclhd, lagg_mc)	sc_mc_head;	/* multicast addresses */
 
 	/* lagg protocol callbacks */
 	int	(*sc_detach)(struct lagg_softc *);
@@ -182,6 +176,8 @@ struct lagg_port {
 	int				lp_ifflags;	/* saved ifp flags */
 	void				*lh_cookie;	/* if state hook */
 	caddr_t				lp_psc;		/* protocol data */
+
+	SLIST_HEAD(__mclhd, lagg_mc)	lp_mc_head;	/* multicast addresses */
 
 	/* Redirected callbacks */
 	int	(*lp_ioctl)(struct ifnet *, u_long, caddr_t);
