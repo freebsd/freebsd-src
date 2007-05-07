@@ -81,6 +81,7 @@ typedef struct fwohci_softc {
 	uint32_t intstat;
 	struct task fwohci_task_complete;
 #endif
+	int cycle_lost;
 } fwohci_softc_t;
 
 void fwohci_intr (void *arg);
