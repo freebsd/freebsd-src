@@ -485,7 +485,9 @@ lacp_port_destroy(struct lagg_port *lgp)
 	lacp_unselect(lp);
 	lgp->lp_flags &= ~LAGG_PORT_DISABLED;
 
-	if_delmulti_ifma(lp->lp_ifma);
+	/* The address may have already been removed by if_purgemaddrs() */
+	if (!lgp->lp_detaching)
+		if_delmulti_ifma(lp->lp_ifma);
 
 	LIST_REMOVE(lp, lp_next);
 	free(lp, M_DEVBUF);

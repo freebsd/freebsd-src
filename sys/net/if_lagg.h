@@ -176,6 +176,7 @@ struct lagg_port {
 	int				lp_ifflags;	/* saved ifp flags */
 	void				*lh_cookie;	/* if state hook */
 	caddr_t				lp_psc;		/* protocol data */
+	int				lp_detaching;	/* ifnet is detaching */
 
 	SLIST_HEAD(__mclhd, lagg_mc)	lp_mc_head;	/* multicast addresses */
 
