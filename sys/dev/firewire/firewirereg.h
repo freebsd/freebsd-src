@@ -291,7 +291,7 @@ void fw_asybusy (struct fw_xfer *);
 int fw_bindadd (struct firewire_comm *, struct fw_bind *);
 int fw_bindremove (struct firewire_comm *, struct fw_bind *);
 int fw_asyreq (struct firewire_comm *, int, struct fw_xfer*);
-void fw_busreset (struct firewire_comm *);
+void fw_busreset (struct firewire_comm *, uint32_t);
 uint16_t fw_crc16 (uint32_t *, uint32_t);
 void fw_xfer_timeout (void *);
 void fw_xfer_done (struct fw_xfer *);
