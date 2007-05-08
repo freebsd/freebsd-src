@@ -69,7 +69,8 @@ sctp6_input(i_pak, offp, proto)
 	struct sctp_inpcb *in6p = NULL;
 	struct sctp_nets *net;
 	int refcount_up = 0;
-	uint32_t check, calc_check, vrf_id;
+	uint32_t check, calc_check;
+	uint32_t vrf_id = 0, table_id = 0;
 	struct inpcb *in6p_ip;
 	struct sctp_chunkhdr *ch;
 	int length, mlen, offset, iphlen;
@@ -77,9 +78,16 @@ sctp6_input(i_pak, offp, proto)
 	struct sctp_tcb *stcb = NULL;
 	int off = *offp;
 
-	vrf_id = SCTP_DEFAULT_VRFID;
+	/* get the VRF and table id's */
+	if (SCTP_GET_PKT_VRFID(*i_pak, vrf_id)) {
+		SCTP_RELEASE_PKT(*i_pak);
+		return (-1);
+	}
+	if (SCTP_GET_PKT_TABLEID(*i_pak, table_id)) {
+		SCTP_RELEASE_PKT(*i_pak);
+		return (-1);
+	}
 	m = SCTP_HEADER_TO_CHAIN(*i_pak);
-
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	/* Ensure that (sctphdr + sctp_chunkhdr) in a row. */
@@ -104,8 +112,7 @@ sctp6_input(i_pak, offp, proto)
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_INPUT1) {
 		printf("V6 input gets a packet iphlen:%d pktlen:%d\n", iphlen,
-		    SCTP_HEADER_LEN((*i_pak))
-		    );
+		    SCTP_HEADER_LEN((*i_pak)));
 	}
 #endif
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
@@ -181,14 +188,16 @@ sctp_skip_csum:
 			sh->v_tag = init_chk->init.initiate_tag;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
-			sctp_send_shutdown_complete2(m, iphlen, sh);
+			sctp_send_shutdown_complete2(m, iphlen, sh, vrf_id,
+			    table_id);
 			goto bad;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_COMPLETE) {
 			goto bad;
 		}
 		if (ch->chunk_type != SCTP_ABORT_ASSOCIATION)
-			sctp_send_abort(m, iphlen, sh, 0, NULL);
+			sctp_send_abort(m, iphlen, sh, 0, NULL, vrf_id,
+			    table_id);
 		goto bad;
 	} else if (stcb == NULL) {
 		refcount_up = 1;
@@ -215,11 +224,11 @@ sctp_skip_csum:
 	length = ntohs(ip6->ip6_plen) + iphlen;
 
 	(void)sctp_common_input_processing(&m, iphlen, offset, length, sh, ch,
-	    in6p, stcb, net, ecn_bits);
+	    in6p, stcb, net, ecn_bits, vrf_id, table_id);
 	/* inp's ref-count reduced && stcb unlocked */
 	/* XXX this stuff below gets moved to appropriate parts later... */
 	if (m)
-		m_freem(m);
+		sctp_m_freem(m);
 	if ((in6p) && refcount_up) {
 		/* reduce ref-count */
 		SCTP_INP_WLOCK(in6p);
@@ -239,9 +248,10 @@ bad:
 		SCTP_INP_WUNLOCK(in6p);
 	}
 	if (m)
-		m_freem(m);
+		sctp_m_freem(m);
 	/* For BSD/MAC this does nothing */
-	SCTP_RELEASE_PAK(*i_pak);
+	SCTP_DETACH_HEADER_FROM_CHAIN(*i_pak);
+	SCTP_RELEASE_HEADER(*i_pak);
 	return IPPROTO_DONE;
 }
 
@@ -803,7 +813,6 @@ sctp_sendm(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *p);
 
 
-
 static int
 sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *p)
@@ -821,10 +830,10 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
 		if (control) {
-			m_freem(control);
+			SCTP_RELEASE_PKT(control);
 			control = NULL;
 		}
-		m_freem(m);
+		SCTP_RELEASE_PKT(m);
 		return EINVAL;
 	}
 	in_inp = (struct inpcb *)inp;
@@ -838,9 +847,9 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		goto connected_type;
 	}
 	if (addr == NULL) {
-		m_freem(m);
+		SCTP_RELEASE_PKT(m);
 		if (control) {
-			m_freem(control);
+			SCTP_RELEASE_PKT(control);
 			control = NULL;
 		}
 		return (EDESTADDRREQ);
@@ -878,7 +887,7 @@ connected_type:
 	if (control) {
 		if (inp->control) {
 			printf("huh? control set?\n");
-			m_freem(inp->control);
+			SCTP_RELEASE_PKT(inp->control);
 			inp->control = NULL;
 		}
 		inp->control = control;

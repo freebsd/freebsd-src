@@ -837,7 +837,7 @@ sctp_fill_random_store(struct sctp_pcb *m)
 	 * our counter. The result becomes our good random numbers and we
 	 * then setup to give these out. Note that we do no locking to
 	 * protect this. This is ok, since if competing folks call this we
-	 * will get more gobbled gook in the random store whic is what we
+	 * will get more gobbled gook in the random store which is what we
 	 * want. There is a danger that two guys will use the same random
 	 * numbers, but thats ok too since that is random as well :->
 	 */
@@ -1025,6 +1025,10 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 	asoc->peers_rwnd = SCTP_SB_LIMIT_RCV(m->sctp_socket);
 
 	asoc->smallest_mtu = m->sctp_frag_point;
+#ifdef SCTP_PRINT_FOR_B_AND_M
+	printf("smallest_mtu init'd with asoc to :%d\n",
+	    asoc->smallest_mtu);
+#endif
 	asoc->minrto = m->sctp_ep.sctp_minrto;
 	asoc->maxrto = m->sctp_ep.sctp_maxrto;
 
@@ -2424,6 +2428,10 @@ sctp_mtu_size_reset(struct sctp_inpcb *inp,
 	struct sctp_tmit_chunk *chk;
 	unsigned int eff_mtu, ovh;
 
+#ifdef SCTP_PRINT_FOR_B_AND_M
+	printf("sctp_mtu_size_reset(%p, asoc:%p mtu:%d\n",
+	    inp, asoc, mtu);
+#endif
 	asoc->smallest_mtu = mtu;
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
 		ovh = SCTP_MIN_OVERHEAD;
@@ -3207,6 +3215,15 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		/* Can't send up to a closed socket any notifications */
 		return;
 	}
+	if (stcb && ((stcb->asoc.state & SCTP_STATE_COOKIE_WAIT) ||
+	    (stcb->asoc.state & SCTP_STATE_COOKIE_ECHOED))) {
+		if ((notification == SCTP_NOTIFY_INTERFACE_DOWN) ||
+		    (notification == SCTP_NOTIFY_INTERFACE_UP) ||
+		    (notification == SCTP_NOTIFY_INTERFACE_CONFIRMED)) {
+			/* Don't report these in front states */
+			return;
+		}
+	}
 	if (stcb && (stcb->asoc.assoc_up_sent == 0) && (notification != SCTP_NOTIFY_ASSOC_UP)) {
 		if ((notification != SCTP_NOTIFY_ASSOC_DOWN) &&
 		    (notification != SCTP_NOTIFY_ASSOC_ABORTED) &&
@@ -3478,7 +3495,8 @@ sctp_abort_notification(struct sctp_tcb *stcb, int error)
 
 void
 sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    struct mbuf *m, int iphlen, struct sctphdr *sh, struct mbuf *op_err)
+    struct mbuf *m, int iphlen, struct sctphdr *sh, struct mbuf *op_err,
+    uint32_t vrf_id, uint32_t table_id)
 {
 	uint32_t vtag;
 
@@ -3487,8 +3505,11 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		/* We have a TCB to abort, send notification too */
 		vtag = stcb->asoc.peer_vtag;
 		sctp_abort_notification(stcb, 0);
+		/* get the assoc vrf id and table id */
+		vrf_id = stcb->asoc.vrf_id;
+		table_id = stcb->asoc.table_id;
 	}
-	sctp_send_abort(m, iphlen, sh, vtag, op_err);
+	sctp_send_abort(m, iphlen, sh, vtag, op_err, vrf_id, table_id);
 	if (stcb != NULL) {
 		/* Ok, now lets free it */
 		sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTPUTIL + SCTP_LOC_4);
@@ -3597,7 +3618,8 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 void
 sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
-    struct sctp_inpcb *inp, struct mbuf *op_err)
+    struct sctp_inpcb *inp, struct mbuf *op_err, uint32_t vrf_id,
+    uint32_t table_id)
 {
 	struct sctp_chunkhdr *ch, chunk_buf;
 	unsigned int chk_length;
@@ -3631,7 +3653,8 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 			 */
 			return;
 		case SCTP_SHUTDOWN_ACK:
-			sctp_send_shutdown_complete2(m, iphlen, sh);
+			sctp_send_shutdown_complete2(m, iphlen, sh, vrf_id,
+			    table_id);
 			return;
 		default:
 			break;
@@ -3640,7 +3663,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, offset,
 		    sizeof(*ch), (uint8_t *) & chunk_buf);
 	}
-	sctp_send_abort(m, iphlen, sh, 0, op_err);
+	sctp_send_abort(m, iphlen, sh, 0, op_err, vrf_id, table_id);
 }
 
 /*
@@ -3996,7 +4019,10 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 	TAILQ_INSERT_TAIL(&inp->read_queue, control, next);
 	SCTP_INP_READ_UNLOCK(inp);
 	if (inp && inp->sctp_socket) {
-		sctp_sorwakeup(inp, inp->sctp_socket);
+		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
+			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
+		} else
+			sctp_sorwakeup(inp, inp->sctp_socket);
 	}
 }
 
@@ -4114,7 +4140,10 @@ get_out:
 		SCTP_INP_READ_UNLOCK(inp);
 	}
 	if (inp && inp->sctp_socket) {
-		sctp_sorwakeup(inp, inp->sctp_socket);
+		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
+			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
+		} else
+			sctp_sorwakeup(inp, inp->sctp_socket);
 	}
 	return (0);
 }
@@ -4333,11 +4362,11 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 	}
 	hash_of_addr = sctp_get_ifa_hash_val(addr);
 
-	hash_head = &vrf->vrf_addr_hash[(hash_of_addr & vrf->vrf_hashmark)];
+	hash_head = &vrf->vrf_addr_hash[(hash_of_addr & vrf->vrf_addr_hashmark)];
 	if (hash_head == NULL) {
 		printf("hash_of_addr:%x mask:%x table:%x - ",
-		    (u_int)hash_of_addr, (u_int)vrf->vrf_hashmark,
-		    (u_int)(hash_of_addr & vrf->vrf_hashmark));
+		    (u_int)hash_of_addr, (u_int)vrf->vrf_addr_hashmark,
+		    (u_int)(hash_of_addr & vrf->vrf_addr_hashmark));
 		sctp_print_address(addr);
 		printf("No such bucket for address\n");
 		if (holds_lock == 0)
@@ -4519,6 +4548,9 @@ sctp_sorecvmsg(struct socket *so,
 	int held_length = 0;
 	int sockbuf_lock = 0;
 
+	if (uio == NULL) {
+		return (EINVAL);
+	}
 	if (msg_flags) {
 		in_flags = *msg_flags;
 		if (in_flags & MSG_PEEK)
@@ -4526,8 +4558,8 @@ sctp_sorecvmsg(struct socket *so,
 	} else {
 		in_flags = 0;
 	}
-	if (uio) 
-		slen = uio->uio_resid;
+	slen = uio->uio_resid;
+
 	/* Pull in and set up our int flags */
 	if (in_flags & MSG_OOB) {
 		/* Out of band's NOT supported */
@@ -4554,11 +4586,11 @@ sctp_sorecvmsg(struct socket *so,
 	in_eeor_mode = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXPLICIT_EOR);
 #ifdef SCTP_RECV_RWND_LOGGING
 	sctp_misc_ints(SCTP_SORECV_ENTER,
-	    rwnd_req, in_eeor_mode, so->so_rcv.sb_cc, slen);
+	    rwnd_req, in_eeor_mode, so->so_rcv.sb_cc, uio->uio_resid);
 #endif
 #ifdef SCTP_RECV_RWND_LOGGING
 	sctp_misc_ints(SCTP_SORECV_ENTERPL,
-	    rwnd_req, block_allowed, so->so_rcv.sb_cc, slen);
+	    rwnd_req, block_allowed, so->so_rcv.sb_cc, uio->uio_resid);
 #endif
 
 
@@ -4593,7 +4625,7 @@ restart_nosblocks:
 		/* we need to wait for data */
 #ifdef SCTP_RECV_DETAIL_RWND_LOGGING
 		sctp_misc_ints(SCTP_SORECV_BLOCKSA,
-		    0, 0, so->so_rcv.sb_cc, slen);
+		    0, 0, so->so_rcv.sb_cc, uio->uio_resid);
 #endif
 		if ((so->so_rcv.sb_cc == 0) &&
 		    ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
@@ -4768,7 +4800,7 @@ restart_nosblocks:
 			while (ctl) {
 				if ((ctl->stcb != control->stcb) && (ctl->length) &&
 				    (ctl->some_taken ||
- 				    (ctl->spec_flags & M_NOTIFICATION) ||
+				    (ctl->spec_flags & M_NOTIFICATION) ||
 				    ((ctl->do_not_ref_stcb == 0) &&
 				    (ctl->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started == 0)))
 				    ) {
@@ -4776,7 +4808,8 @@ restart_nosblocks:
 					 * If we have a different TCB next, and there is data
 					 * present. If we have already taken some (pdapi), OR we can
 					 * ref the tcb and no delivery as started on this stream, we
-					 * take it.
+					 * take it. Note we allow a notification on a different
+					 * assoc to be delivered..
 					 */
 					control = ctl;
 					goto found_one;
@@ -4784,7 +4817,7 @@ restart_nosblocks:
 					    (ctl->length) &&
 					    ((ctl->some_taken) ||
 					    ((ctl->do_not_ref_stcb == 0) &&
-- 					    ((ctl->spec_flags & M_NOTIFICATION) == 0) &&
+					    ((ctl->spec_flags & M_NOTIFICATION) == 0) &&
 					    (ctl->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started == 0)))
 				    ) {
 					/*-
@@ -4792,6 +4825,8 @@ restart_nosblocks:
 					 * have the strm interleave feature present. Then if we have
 					 * taken some (pdapi) or we can refer to tht tcb AND we have
 					 * not started a delivery for this stream, we can take it.
+					 * Note we do NOT allow a notificaiton on the same assoc to
+					 * be delivered.
 					 */
 					control = ctl;
 					goto found_one;
@@ -4855,8 +4890,8 @@ found_one:
 			stcb->freed_by_sorcv_sincelast = 0;
 		}
 	}
-	if (stcb && 
- 	    ((control->spec_flags & M_NOTIFICATION) == 0) &&
+	if (stcb &&
+	    ((control->spec_flags & M_NOTIFICATION) == 0) &&
 	    control->do_not_ref_stcb == 0) {
 		stcb->asoc.strmin[control->sinfo_stream].delivery_started = 1;
 	}
@@ -5188,6 +5223,10 @@ get_more_data:
 					control->held_length = 0;
 					wakeup_read_socket = 1;
 				}
+				if (control->aux_data) {
+					sctp_m_free(control->aux_data);
+					control->aux_data = NULL;
+				}
 				no_rcv_needed = control->do_not_ref_stcb;
 				sctp_free_remote_addr(control->whoFrom);
 				control->data = NULL;
@@ -5325,199 +5364,48 @@ wait_some_more:
 		}
 		goto get_more_data;
 	} else {
-		/* copy out the mbuf chain */
-get_more_data2:
-		/*
-		 * Do we have a uio, I doubt it if so we grab the size from
-		 * it, if not you get it all
+		/*-
+		 * Give caller back the mbuf chain,
+		 * store in uio_resid the length
 		 */
-		if (uio)
-			cp_len = uio->uio_resid;
-		else
-			cp_len = control->length;
-
-		if ((uint32_t) cp_len >= control->length) {
-			/* easy way */
-			if ((control->end_added == 0) ||
-			    (TAILQ_NEXT(control, next) == NULL)) {
-				/* Need to get rlock */
-				if (hold_rlock == 0) {
-					SCTP_INP_READ_LOCK(inp);
-					hold_rlock = 1;
-				}
+		wakeup_read_socket = 0;
+		if ((control->end_added == 0) ||
+		    (TAILQ_NEXT(control, next) == NULL)) {
+			/* Need to get rlock */
+			if (hold_rlock == 0) {
+				SCTP_INP_READ_LOCK(inp);
+				hold_rlock = 1;
 			}
-			if (control->end_added) {
-				out_flags |= MSG_EOR;
-				if ((control->do_not_ref_stcb == 0) && ((control->spec_flags & M_NOTIFICATION) == 0))
-					control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
-			}
-			if (control->spec_flags & M_NOTIFICATION) {
-				out_flags |= MSG_NOTIFICATION;
-			}
-			if (uio)
-				uio->uio_resid -= control->length;
-			*mp = control->data;
-			m = control->data;
-			while (m) {
+		}
+		if (control->end_added) {
+			out_flags |= MSG_EOR;
+			if ((control->do_not_ref_stcb == 0) && ((control->spec_flags & M_NOTIFICATION) == 0))
+				control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
+		}
+		if (control->spec_flags & M_NOTIFICATION) {
+			out_flags |= MSG_NOTIFICATION;
+		}
+		uio->uio_resid = control->length;
+		*mp = control->data;
+		m = control->data;
+		while (m) {
 #ifdef SCTP_SB_LOGGING
-				sctp_sblog(&so->so_rcv,
-				    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, SCTP_BUF_LEN(m));
+			sctp_sblog(&so->so_rcv,
+			    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, SCTP_BUF_LEN(m));
 #endif
-				sctp_sbfree(control, stcb, &so->so_rcv, m);
-				freed_so_far += SCTP_BUF_LEN(m);
+			sctp_sbfree(control, stcb, &so->so_rcv, m);
+			freed_so_far += SCTP_BUF_LEN(m);
 #ifdef SCTP_SB_LOGGING
-				sctp_sblog(&so->so_rcv,
-				    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
+			sctp_sblog(&so->so_rcv,
+			    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 #endif
-				m = SCTP_BUF_NEXT(m);
-			}
-			control->data = control->tail_mbuf = NULL;
-			control->length = 0;
-			if (out_flags & MSG_EOR) {
-				/* Done with this control */
-				goto done_with_control;
-			}
-			/* still more to do with this conntrol */
-			/* do we really support msg_waitall here? */
-			if ((block_allowed == 0) ||
-			    ((in_flags & MSG_WAITALL) == 0)) {
-				goto release;
-			}
-	wait_some_more2:
-			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
-				goto release;
-			if (hold_rlock == 1) {
-				SCTP_INP_READ_UNLOCK(inp);
-				hold_rlock = 0;
-			}
-			if (hold_sblock == 0) {
-				SOCKBUF_LOCK(&so->so_rcv);
-				hold_sblock = 1;
-			}
-			if (so->so_rcv.sb_cc <= control->held_length) {
-				error = sbwait(&so->so_rcv);
-				if (error) {
-					goto release;
-				}
-			}
-			if (hold_sblock) {
-				SOCKBUF_UNLOCK(&so->so_rcv);
-				hold_sblock = 0;
-			}
-			if (control->length == 0) {
-				/* still nothing here */
-				if (control->end_added == 1) {
-					/*
-					 * he aborted, or is done i.e.
-					 * shutdown
-					 */
-					out_flags |= MSG_EOR;
-					if (control->pdapi_aborted) {
-						out_flags |= MSG_TRUNC;
-						if ((control->do_not_ref_stcb == 0) && ((control->spec_flags & M_NOTIFICATION) == 0))
-							control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
-					}
-					goto done_with_control;
-				}
-				if (so->so_rcv.sb_cc > held_length) {
-					control->held_length = so->so_rcv.sb_cc;
-					/*
-					 * We don't use held_length while
-					 * getting a message
-					 */
-					held_length = 0;
-				}
-				goto wait_some_more2;
-			}
-			goto get_more_data2;
-		} else {
-			/* hard way mbuf by mbuf */
-			m = control->data;
-			if (control->end_added == 0) {
-				/* need the rlock */
-				if (hold_rlock == 0) {
-					SCTP_INP_READ_LOCK(inp);
-					hold_rlock = 1;
-				}
-			}
-			if (control->spec_flags & M_NOTIFICATION) {
-				out_flags |= MSG_NOTIFICATION;
-			}
-			while ((m) && (cp_len > 0)) {
-				if (cp_len >= SCTP_BUF_LEN(m)) {
-					*mp = m;
-					atomic_subtract_int(&control->length, SCTP_BUF_LEN(m));
-					if (uio)
-						uio->uio_resid -= SCTP_BUF_LEN(m);
-					cp_len -= SCTP_BUF_LEN(m);
-					control->data = SCTP_BUF_NEXT(m);
-					SCTP_BUF_NEXT(m) = NULL;
-#ifdef SCTP_SB_LOGGING
-					sctp_sblog(&so->so_rcv,
-					    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, SCTP_BUF_LEN(m));
-#endif
-					sctp_sbfree(control, stcb, &so->so_rcv, m);
-					freed_so_far += SCTP_BUF_LEN(m);
-#ifdef SCTP_SB_LOGGING
-					sctp_sblog(&so->so_rcv,
-					    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
-#endif
-					mp = &SCTP_BUF_NEXT(m);
-					m = control->data;
-				} else {
-					/*
-					 * got all he wants and its part of
-					 * this mbuf only.
-					 */
-					if (uio)
-						uio->uio_resid -= SCTP_BUF_LEN(m);
-					cp_len -= SCTP_BUF_LEN(m);
-					if (hold_rlock) {
-						SCTP_INP_READ_UNLOCK(inp);
-						hold_rlock = 0;
-					}
-					if (hold_sblock) {
-						SOCKBUF_UNLOCK(&so->so_rcv);
-						hold_sblock = 0;
-					}
-					*mp = SCTP_M_COPYM(m, 0, cp_len,
-					    M_TRYWAIT
-					    );
-#ifdef SCTP_LOCK_LOGGING
-					sctp_log_lock(inp, stcb, SCTP_LOG_LOCK_SOCKBUF_R);
-#endif
-					if (hold_sblock == 0) {
-						SOCKBUF_LOCK(&so->so_rcv);
-						hold_sblock = 1;
-					}
-					if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)
-						goto release;
-
-					if (stcb &&
-					    stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
-						no_rcv_needed = 1;
-					}
-					SCTP_BUF_RESV_UF(m, cp_len);
-					SCTP_BUF_LEN(m) -= cp_len;
-#ifdef SCTP_SB_LOGGING
-					sctp_sblog(&so->so_rcv, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, cp_len);
-#endif
-					freed_so_far += cp_len;
-					atomic_subtract_int(&so->so_rcv.sb_cc, cp_len);
-					if (stcb) {
-						atomic_subtract_int(&stcb->asoc.sb_cc, cp_len);
-						if ((freed_so_far >= rwnd_req) &&
-						    (control->do_not_ref_stcb == 0) &&
-						    (no_rcv_needed == 0))
-							sctp_user_rcvd(stcb, &freed_so_far, hold_rlock, rwnd_req);
-					}
-#ifdef SCTP_SB_LOGGING
-					sctp_sblog(&so->so_rcv, control->do_not_ref_stcb ? NULL : stcb,
-					    SCTP_LOG_SBRESULT, 0);
-#endif
-					goto release;
-				}
-			}
+			m = SCTP_BUF_NEXT(m);
+		}
+		control->data = control->tail_mbuf = NULL;
+		control->length = 0;
+		if (out_flags & MSG_EOR) {
+			/* Done with this control */
+			goto done_with_control;
 		}
 	}
 release:
@@ -5670,13 +5558,12 @@ sctp_dynamic_set_primary(struct sockaddr *sa, uint32_t vrf_id)
 
 
 int
-sctp_soreceive(so, psa, uio, mp0, controlp, flagsp)
-	struct socket *so;
-	struct sockaddr **psa;
-	struct uio *uio;
-	struct mbuf **mp0;
-	struct mbuf **controlp;
-	int *flagsp;
+sctp_soreceive(struct socket *so,
+    struct sockaddr **psa,
+    struct uio *uio,
+    struct mbuf **mp0,
+    struct mbuf **controlp,
+    int *flagsp)
 {
 	int error, fromlen;
 	uint8_t sockbuf[256];
@@ -5724,4 +5611,156 @@ sctp_soreceive(so, psa, uio, mp0, controlp, flagsp)
 		}
 	}
 	return (error);
+}
+
+
+int 
+sctp_l_soreceive(struct socket *so,
+    struct sockaddr **name,
+    struct uio *uio,
+    char **controlp,
+    int *controllen,
+    int *flag)
+{
+	int error, fromlen;
+	uint8_t sockbuf[256];
+	struct sockaddr *from;
+	struct sctp_extrcvinfo sinfo;
+	int filling_sinfo = 1;
+	struct sctp_inpcb *inp;
+
+	inp = (struct sctp_inpcb *)so->so_pcb;
+	/* pickup the assoc we are reading from */
+	if (inp == NULL) {
+		return (EINVAL);
+	}
+	if ((sctp_is_feature_off(inp,
+	    SCTP_PCB_FLAGS_RECVDATAIOEVNT)) ||
+	    (controlp == NULL)) {
+		/* user does not want the sndrcv ctl */
+		filling_sinfo = 0;
+	}
+	if (name) {
+		from = (struct sockaddr *)sockbuf;
+		fromlen = sizeof(sockbuf);
+		from->sa_len = 0;
+	} else {
+		from = NULL;
+		fromlen = 0;
+	}
+
+	error = sctp_sorecvmsg(so, uio,
+	    (struct mbuf **)NULL,
+	    from, fromlen, flag,
+	    (struct sctp_sndrcvinfo *)&sinfo,
+	    filling_sinfo);
+	if ((controlp) && (filling_sinfo)) {
+		/*
+		 * copy back the sinfo in a CMSG format note that the caller
+		 * has reponsibility for freeing the memory.
+		 */
+		if (filling_sinfo)
+			*controlp = sctp_build_ctl_cchunk(inp,
+			    controllen,
+			    (struct sctp_sndrcvinfo *)&sinfo);
+	}
+	if (name) {
+		/* copy back the address info */
+		if (from && from->sa_len) {
+			*name = sodupsockaddr(from, M_WAIT);
+		} else {
+			*name = NULL;
+		}
+	}
+	return (error);
+}
+
+
+
+
+
+
+
+int
+sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr, int totaddr, int *error)
+{
+	int added = 0;
+	int i;
+	struct sctp_inpcb *inp;
+	struct sockaddr *sa;
+	size_t incr = 0;
+
+	sa = addr;
+	inp = stcb->sctp_ep;
+	*error = 0;
+	for (i = 0; i < totaddr; i++) {
+		if (sa->sa_family == AF_INET) {
+			incr = sizeof(struct sockaddr_in);
+			if (sctp_add_remote_addr(stcb, sa, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
+				/* assoc gone no un-lock */
+				sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_7);
+				*error = ENOBUFS;
+				goto out_now;
+			}
+			added++;
+		} else if (sa->sa_family == AF_INET6) {
+			incr = sizeof(struct sockaddr_in6);
+			if (sctp_add_remote_addr(stcb, sa, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
+				/* assoc gone no un-lock */
+				sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_8);
+				*error = ENOBUFS;
+				goto out_now;
+			}
+			added++;
+		}
+		sa = (struct sockaddr *)((caddr_t)sa + incr);
+	}
+out_now:
+	return (added);
+}
+
+struct sctp_tcb *
+sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr, int *totaddr,
+    int *num_v4, int *num_v6, int *error, int max)
+{
+	struct sockaddr *sa;
+	struct sctp_tcb *stcb = NULL;
+	size_t incr, at, i;
+
+	at = incr = 0;
+	sa = addr;
+	*error = *num_v6 = *num_v4 = 0;
+	/* account and validate addresses */
+	for (i = 0; i < *totaddr; i++) {
+		if (sa->sa_family == AF_INET) {
+			(*num_v4) += 1;
+			incr = sizeof(struct sockaddr_in);
+		} else if (sa->sa_family == AF_INET6) {
+			struct sockaddr_in6 *sin6;
+
+			sin6 = (struct sockaddr_in6 *)sa;
+			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+				/* Must be non-mapped for connectx */
+				*error = EINVAL;
+				return (NULL);
+			}
+			(*num_v6) += 1;
+			incr = sizeof(struct sockaddr_in6);
+		} else {
+			*totaddr = i;
+			/* we are done */
+			break;
+		}
+		stcb = sctp_findassociation_ep_addr(&inp, sa, NULL, NULL, NULL);
+		if (stcb != NULL) {
+			/* Already have or am bring up an association */
+			return (stcb);
+		}
+		if ((at + incr) > max) {
+			*totaddr = i;
+			break;
+		}
+		sa = (struct sockaddr *)((caddr_t)sa + incr);
+	}
+	return ((struct sctp_tcb *)NULL);
 }

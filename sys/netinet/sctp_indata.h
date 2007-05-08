@@ -64,6 +64,7 @@ sctp_build_readq_entry(struct sctp_tcb *stcb,
 		(_ctl)->whoFrom = net; \
 		(_ctl)->data = dm; \
 		(_ctl)->tail_mbuf = NULL; \
+	        (_ctl)->aux_data = NULL; \
 		(_ctl)->stcb = (in_it); \
 		(_ctl)->port_from = (in_it)->rport; \
 		(_ctl)->spec_flags = 0; \
@@ -78,6 +79,11 @@ sctp_build_readq_entry(struct sctp_tcb *stcb,
 
 struct mbuf *
 sctp_build_ctl_nchunk(struct sctp_inpcb *inp,
+    struct sctp_sndrcvinfo *sinfo);
+
+char *
+sctp_build_ctl_cchunk(struct sctp_inpcb *inp,
+    int *control_len,
     struct sctp_sndrcvinfo *sinfo);
 
 void sctp_set_rwnd(struct sctp_tcb *, struct sctp_association *);

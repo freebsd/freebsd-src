@@ -895,6 +895,10 @@ struct sctpstat {
 	u_long sctps_cached_strmoq;	/* Number of cached stream oq's used */
 	u_long sctps_left_abandon;	/* Number of unread message abandonded
 					 * by close */
+	u_long sctps_send_burst_avoid;	/* Send burst avoidance, already max
+					 * burst inflight to net */
+	u_long sctps_send_cwnd_avoid;	/* Send cwnd full  avoidance, already
+					 * max burst inflight to net */
 };
 
 #define SCTP_STAT_INCR(_x) SCTP_STAT_INCR_BY(_x,1)
@@ -929,6 +933,7 @@ struct xsctp_inpcb {
 	uint32_t total_sends;
 	uint32_t total_recvs;
 	uint32_t total_nospaces;
+	uint32_t fragmentation_point;
 	/* add more endpoint specific data here */
 };
 
@@ -955,6 +960,7 @@ struct xsctp_tcb {
 	uint32_t highest_tsn;
 	uint32_t cumulative_tsn;
 	uint32_t cumulative_tsn_ack;
+	uint32_t mtu;
 	/* add more association specific data here */
 	uint16_t number_local_addresses;
 	uint16_t number_remote_addresses;
@@ -977,6 +983,7 @@ struct xsctp_raddr {
 	uint32_t RemAddrErrorCounter;	/* */
 	uint32_t RemAddrCwnd;	/* */
 	uint32_t RemAddrFlightSize;	/* */
+	uint32_t RemAddrMTU;	/* */
 	struct timeval RemAddrStartTime;	/* sctpAssocLocalRemEntry 8   */
 	/* add more remote address specific data */
 };
@@ -989,8 +996,7 @@ int
 sctp_lower_sosend(struct socket *so,
     struct sockaddr *addr,
     struct uio *uio,
-
-    struct mbuf *top,
+    struct mbuf *i_pak,
     struct mbuf *control,
     int flags,
     int use_rcvinfo,
@@ -1007,7 +1013,6 @@ sctp_sorecvmsg(struct socket *so,
     int *msg_flags,
     struct sctp_sndrcvinfo *sinfo,
     int filling_sinfo);
-
 
 #endif
 
@@ -1027,7 +1032,7 @@ int sctp_getladdrs __P((int, sctp_assoc_t, struct sockaddr **));
 void sctp_freeladdrs __P((struct sockaddr *));
 int sctp_opt_info __P((int, sctp_assoc_t, int, void *, socklen_t *));
 
-ssize_t sctp_sendmsg
+ssize_t sctp_sendmsg 
 __P((int, const void *, size_t,
     const struct sockaddr *,
     socklen_t, uint32_t, uint32_t, uint16_t, uint32_t, uint32_t));
@@ -1035,17 +1040,15 @@ __P((int, const void *, size_t,
 	ssize_t sctp_send __P((int sd, const void *msg, size_t len,
               const struct sctp_sndrcvinfo *sinfo, int flags));
 
-	ssize_t
-	sctp_sendx __P((int sd, const void *msg, size_t len,
+	ssize_t sctp_sendx __P((int sd, const void *msg, size_t len,
                struct sockaddr *addrs, int addrcnt,
                struct sctp_sndrcvinfo *sinfo, int flags));
-	ssize_t
-	sctp_sendmsgx __P((int sd, const void *, size_t,
+
+	ssize_t sctp_sendmsgx __P((int sd, const void *, size_t,
                   struct sockaddr *, int,
                   uint32_t, uint32_t, uint16_t, uint32_t, uint32_t));
 
-sctp_assoc_t
-sctp_getassocid __P((int sd, struct sockaddr *sa));
+	sctp_assoc_t sctp_getassocid __P((int sd, struct sockaddr *sa));
 
 	ssize_t sctp_recvmsg __P((int, void *, size_t, struct sockaddr *,
                  socklen_t *, struct sctp_sndrcvinfo *, int *));

@@ -207,16 +207,23 @@ void sctp_abort_notification(struct sctp_tcb *, int);
 /* We abort responding to an IP packet for some reason */
 void
 sctp_abort_association(struct sctp_inpcb *, struct sctp_tcb *,
-    struct mbuf *, int, struct sctphdr *, struct mbuf *);
+    struct mbuf *, int, struct sctphdr *, struct mbuf *, uint32_t, uint32_t);
+
 
 /* We choose to abort via user input */
 void
 sctp_abort_an_association(struct sctp_inpcb *, struct sctp_tcb *, int,
     struct mbuf *);
 
-void
+void 
 sctp_handle_ootb(struct mbuf *, int, int, struct sctphdr *,
-    struct sctp_inpcb *, struct mbuf *);
+    struct sctp_inpcb *, struct mbuf *, uint32_t, uint32_t);
+
+int sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr, int totaddr, int *error);
+
+struct sctp_tcb *
+sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr, int *totaddr,
+    int *num_v4, int *num_v6, int *error, int max);
 
 int sctp_is_there_an_abort_here(struct mbuf *, int, uint32_t *);
 uint32_t sctp_is_same_scope(struct sockaddr_in6 *, struct sockaddr_in6 *);
@@ -321,6 +328,19 @@ sctp_soreceive(struct socket *so, struct sockaddr **psa,
     struct mbuf **mp0,
     struct mbuf **controlp,
     int *flagsp);
+
+
+/* For those not passing mbufs, this does the
+ * translations for you. Caller owns memory
+ * of size controllen returned in controlp.
+ */
+int 
+sctp_l_soreceive(struct socket *so,
+    struct sockaddr **name,
+    struct uio *uio,
+    char **controlp,
+    int *controllen,
+    int *flag);
 
 
 #ifdef SCTP_STAT_LOGGING

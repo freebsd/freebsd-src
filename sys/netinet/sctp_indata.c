@@ -207,6 +207,7 @@ sctp_build_readq_entry(struct sctp_tcb *stcb,
 	read_queue_e->data = dm;
 	read_queue_e->spec_flags = 0;
 	read_queue_e->tail_mbuf = NULL;
+	read_queue_e->aux_data = NULL;
 	read_queue_e->stcb = stcb;
 	read_queue_e->port_from = stcb->rport;
 	read_queue_e->do_not_ref_stcb = 0;
@@ -241,6 +242,7 @@ sctp_build_readq_entry_chk(struct sctp_tcb *stcb,
 	read_queue_e->sinfo_cumtsn = chk->rec.data.TSN_seq;
 	read_queue_e->sinfo_assoc_id = sctp_get_associd(stcb);
 	read_queue_e->whoFrom = chk->whoTo;
+	read_queue_e->aux_data = NULL;
 	read_queue_e->length = 0;
 	atomic_add_int(&chk->whoTo->ref_count, 1);
 	read_queue_e->data = chk->data;
@@ -301,6 +303,50 @@ sctp_build_ctl_nchunk(struct sctp_inpcb *inp,
 	}
 	SCTP_BUF_LEN(ret) = cmh->cmsg_len;
 	return (ret);
+}
+
+
+char *
+sctp_build_ctl_cchunk(struct sctp_inpcb *inp,
+    int *control_len,
+    struct sctp_sndrcvinfo *sinfo)
+{
+	struct sctp_sndrcvinfo *outinfo;
+	struct cmsghdr *cmh;
+	char *buf;
+	int len;
+	int use_extended = 0;
+
+	if (sctp_is_feature_off(inp, SCTP_PCB_FLAGS_RECVDATAIOEVNT)) {
+		/* user does not want the sndrcv ctl */
+		return (NULL);
+	}
+	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXT_RCVINFO)) {
+		use_extended = 1;
+		len = CMSG_LEN(sizeof(struct sctp_extrcvinfo));
+	} else {
+		len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
+	}
+	SCTP_MALLOC(buf, char *, len, "SCTP_CMSG");
+	if (buf == NULL) {
+		/* No space */
+		return (buf);
+	}
+	/* We need a CMSG header followed by the struct  */
+	cmh = (struct cmsghdr *)buf;
+	outinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmh);
+	cmh->cmsg_level = IPPROTO_SCTP;
+	if (use_extended) {
+		cmh->cmsg_type = SCTP_EXTRCV;
+		cmh->cmsg_len = len;
+		memcpy(outinfo, sinfo, len);
+	} else {
+		cmh->cmsg_type = SCTP_SNDRCV;
+		cmh->cmsg_len = len;
+		*outinfo = *sinfo;
+	}
+	*control_len = len;
+	return (buf);
 }
 
 
@@ -1453,6 +1499,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	int ordered;
 	uint32_t protocol_id;
 	uint8_t chunk_flags;
+	struct sctp_stream_reset_list *liste;
 
 	chk = NULL;
 	tsn = ntohl(ch->dp.tsn);
@@ -2106,6 +2153,57 @@ finish_express_del:
 	    asoc->highest_tsn_inside_map, SCTP_MAP_PREPARE_SLIDE);
 #endif
 	SCTP_SET_TSN_PRESENT(asoc->mapping_array, gap);
+	/* check the special flag for stream resets */
+	if (((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) &&
+	    ((compare_with_wrap(asoc->cumulative_tsn, ntohl(liste->tsn), MAX_TSN)) ||
+	    (asoc->cumulative_tsn == ntohl(liste->tsn)))
+	    ) {
+		/*
+		 * we have finished working through the backlogged TSN's now
+		 * time to reset streams. 1: call reset function. 2: free
+		 * pending_reply space 3: distribute any chunks in
+		 * pending_reply_queue.
+		 */
+		struct sctp_queued_to_read *ctl;
+
+		sctp_reset_in_stream(stcb, liste->number_entries, liste->req.list_of_streams);
+		TAILQ_REMOVE(&asoc->resetHead, liste, next_resp);
+		SCTP_FREE(liste);
+		liste = TAILQ_FIRST(&asoc->resetHead);
+		ctl = TAILQ_FIRST(&asoc->pending_reply_queue);
+		if (ctl && (liste == NULL)) {
+			/* All can be removed */
+			while (ctl) {
+				TAILQ_REMOVE(&asoc->pending_reply_queue, ctl, next);
+				sctp_queue_data_to_stream(stcb, asoc, ctl, abort_flag);
+				if (*abort_flag) {
+					return (0);
+				}
+				ctl = TAILQ_FIRST(&asoc->pending_reply_queue);
+			}
+		} else if (ctl) {
+			/* more than one in queue */
+			while (!compare_with_wrap(ctl->sinfo_tsn, ntohl(liste->tsn), MAX_TSN)) {
+				/*
+				 * if ctl->sinfo_tsn is <= liste->tsn we can
+				 * process it which is the NOT of
+				 * ctl->sinfo_tsn > liste->tsn
+				 */
+				TAILQ_REMOVE(&asoc->pending_reply_queue, ctl, next);
+				sctp_queue_data_to_stream(stcb, asoc, ctl, abort_flag);
+				if (*abort_flag) {
+					return (0);
+				}
+				ctl = TAILQ_FIRST(&asoc->pending_reply_queue);
+			}
+		}
+		/*
+		 * Now service re-assembly to pick up anything that has been
+		 * held on reassembly queue?
+		 */
+		sctp_deliver_reasm_check(stcb, asoc);
+		need_reasm_check = 0;
+	}
 	if (need_reasm_check) {
 		/* Another one waits ? */
 		sctp_deliver_reasm_check(stcb, asoc);
@@ -2166,7 +2264,6 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 	unsigned char aux_array[64];
 
 #endif
-	struct sctp_stream_reset_list *liste;
 
 	asoc = &stcb->asoc;
 	at = 0;
@@ -2300,56 +2397,6 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 			    SCTP_MAP_SLIDE_RESULT);
 #endif
 		}
-	}
-	/* check the special flag for stream resets */
-	if (((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) &&
-	    ((compare_with_wrap(asoc->cumulative_tsn, ntohl(liste->tsn), MAX_TSN)) ||
-	    (asoc->cumulative_tsn == ntohl(liste->tsn)))
-	    ) {
-		/*
-		 * we have finished working through the backlogged TSN's now
-		 * time to reset streams. 1: call reset function. 2: free
-		 * pending_reply space 3: distribute any chunks in
-		 * pending_reply_queue.
-		 */
-		struct sctp_queued_to_read *ctl;
-
-		sctp_reset_in_stream(stcb, liste->number_entries, liste->req.list_of_streams);
-		TAILQ_REMOVE(&asoc->resetHead, liste, next_resp);
-		SCTP_FREE(liste);
-		liste = TAILQ_FIRST(&asoc->resetHead);
-		ctl = TAILQ_FIRST(&asoc->pending_reply_queue);
-		if (ctl && (liste == NULL)) {
-			/* All can be removed */
-			while (ctl) {
-				TAILQ_REMOVE(&asoc->pending_reply_queue, ctl, next);
-				sctp_queue_data_to_stream(stcb, asoc, ctl, abort_flag);
-				if (*abort_flag) {
-					return;
-				}
-				ctl = TAILQ_FIRST(&asoc->pending_reply_queue);
-			}
-		} else if (ctl) {
-			/* more than one in queue */
-			while (!compare_with_wrap(ctl->sinfo_tsn, ntohl(liste->tsn), MAX_TSN)) {
-				/*
-				 * if ctl->sinfo_tsn is <= liste->tsn we can
-				 * process it which is the NOT of
-				 * ctl->sinfo_tsn > liste->tsn
-				 */
-				TAILQ_REMOVE(&asoc->pending_reply_queue, ctl, next);
-				sctp_queue_data_to_stream(stcb, asoc, ctl, abort_flag);
-				if (*abort_flag) {
-					return;
-				}
-				ctl = TAILQ_FIRST(&asoc->pending_reply_queue);
-			}
-		}
-		/*
-		 * Now service re-assembly to pick up anything that has been
-		 * held on reassembly queue?
-		 */
-		sctp_deliver_reasm_check(stcb, asoc);
 	}
 	/*
 	 * Now we need to see if we need to queue a sack or just start the
@@ -2609,7 +2656,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				}
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen, sh,
-				    op_err);
+				    op_err, 0, 0);
 				return (2);
 			}
 #ifdef SCTP_AUDITING_ENABLED
@@ -2672,7 +2719,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					struct mbuf *op_err;
 
 					op_err = sctp_generate_invmanparam(SCTP_CAUSE_PROTOCOL_VIOLATION);
-					sctp_abort_association(inp, stcb, m, iphlen, sh, op_err);
+					sctp_abort_association(inp, stcb, m, iphlen, sh, op_err, 0, 0);
 					return (2);
 				}
 				break;
@@ -5713,14 +5760,37 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 		gap = new_cum_tsn + (MAX_TSN - asoc->mapping_array_base_tsn) + 1;
 	}
 
-	if (gap > m_size || gap < 0) {
+	if (gap > m_size) {
 		asoc->highest_tsn_inside_map = back_out_htsn;
 		if ((long)gap > sctp_sbspace(&stcb->asoc, &stcb->sctp_socket->so_rcv)) {
+			struct mbuf *oper;
+
 			/*
 			 * out of range (of single byte chunks in the rwnd I
-			 * give out) too questionable. better to drop it
-			 * silently
+			 * give out). This must be an attacker.
 			 */
+			*abort_flag = 1;
+			oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + 3 * sizeof(uint32_t)),
+			    0, M_DONTWAIT, 1, MT_DATA);
+			if (oper) {
+				struct sctp_paramhdr *ph;
+				uint32_t *ippp;
+
+				SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr) +
+				    (sizeof(uint32_t) * 3);
+				ph = mtod(oper, struct sctp_paramhdr *);
+				ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
+				ph->param_length = htons(SCTP_BUF_LEN(oper));
+				ippp = (uint32_t *) (ph + 1);
+				*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_33);
+				ippp++;
+				*ippp = asoc->highest_tsn_inside_map;
+				ippp++;
+				*ippp = new_cum_tsn;
+			}
+			stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_33;
+			sctp_abort_an_association(stcb->sctp_ep, stcb,
+			    SCTP_PEER_FAULTY, oper);
 			return;
 		}
 		if (asoc->highest_tsn_inside_map >
