@@ -54,6 +54,7 @@ typedef enum {
     QIN_HBA_REG=99,     /* the argument is a pointer to a hba_register_t */
     QIN_GETINFO,        /* the argument is a pointer to a info_t */
     QIN_SETINFO,        /* the argument is a pointer to a info_t */
+    QIN_GETDLIST,       /* the argument is a pointer to a fc_dlist_t */
     QIN_ENABLE,         /* the argument is a pointer to a enadis_t */
     QIN_DISABLE,        /* the argument is a pointer to a enadis_t */
     QIN_TMD_CONT,       /* the argument is a pointer to a tmd_cmd_t */
@@ -72,7 +73,7 @@ typedef enum {
  * in, and the external module to call back with a QIN_HBA_REG that
  * passes back the corresponding information.
  */
-#define    QR_VERSION    15
+#define    QR_VERSION    16
 typedef struct {
     /* NB: tags from here to r_version must never change */
     void *                  r_identity;
@@ -87,8 +88,7 @@ typedef struct {
 } hba_register_t;
 
 /*
- * An information structure that is used to get or set per-channel
- * transport layer parameters.
+ * An information structure that is used to get or set per-channel transport layer parameters.
  */
 typedef struct {
     void *                  i_identity;
@@ -108,6 +108,16 @@ typedef struct {
     }                       i_id;
 } info_t;
 
+/*
+ * An information structure to return a list of logged in WWPNs. FC specific.
+ */
+typedef struct {
+    void *                  d_identity;
+    int                     d_channel;
+    int                     d_error;
+    int                     d_count;
+    uint64_t *              d_wwpns;
+} fc_dlist_t;
 /*
  * Notify structure
  */
@@ -324,12 +334,14 @@ typedef struct tmd_cmd {
 
 #define L0LUN_TO_FLATLUN(lptr)              ((((lptr)[0] & 0x3f) << 8) | ((lptr)[1]))
 #define FLATLUN_TO_L0LUN(lptr, lun)                 \
-    (lptr)[1] = lun;                                \
+    (lptr)[1] = lun & 0xff;                         \
     if (sizeof (lun) == 1) {                        \
         (lptr)[0] = 0;                              \
     } else {                                        \
-        int nl = (lun);                             \
-        if (nl < 256) {                             \
+        uint16_t nl = lun;                          \
+        if (nl == LUN_ANY) {                        \
+            (lptr)[0] = (nl >> 8) & 0xff;           \
+        } else if (nl < 256) {                      \
             (lptr)[0] = 0;                          \
         } else {                                    \
             (lptr)[0] = 0x40 | ((nl >> 8) & 0x3f);  \
