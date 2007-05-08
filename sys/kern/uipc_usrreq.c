@@ -251,6 +251,10 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct mount *mp;
 	char *buf;
 
+	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
+	if (namelen <= 0)
+		return (EINVAL);
+
 	UNP_LOCK();
 	unp = sotounpcb(so);
 	if (unp == NULL) {
@@ -259,22 +263,24 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 
 	/*
-	 * XXXRW: This test-and-set of unp_vnode is non-atomic; the unlocked
-	 * read here is fine, but the value of unp_vnode needs to be tested
-	 * again after we do all the lookups to see if the pcb is still
-	 * unbound?
+	 * We don't allow simultaneous bind() calls on a single UNIX domain
+	 * socket, so flag in-progress operations, and return an error if an
+	 * operation is already in progress.
+	 *
+	 * Historically, we have not allowed a socket to be rebound, so this
+	 * also returns an error.  Not allowing re-binding certainly
+	 * simplifies the implementation and avoids a great many possible
+	 * failure modes.
 	 */
 	if (unp->unp_vnode != NULL) {
 		UNP_UNLOCK();
 		return (EINVAL);
 	}
-
-	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
-	if (namelen <= 0) {
+	if (unp->unp_flags & UNP_BINDING) {
 		UNP_UNLOCK();
-		return (EINVAL);
+		return (EALREADY);
 	}
-
+	unp->unp_flags |= UNP_BINDING;
 	UNP_UNLOCK();
 
 	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
@@ -288,7 +294,7 @@ restart:
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error)
-		goto done;
+		goto error;
 	vp = nd.ni_vp;
 	if (vp != NULL || vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -299,11 +305,11 @@ restart:
 		if (vp != NULL) {
 			vrele(vp);
 			error = EADDRINUSE;
-			goto done;
+			goto error;
 		}
 		error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH);
 		if (error)
-			goto done;
+			goto error;
 		goto restart;
 	}
 	VATTR_NULL(&vattr);
@@ -321,7 +327,7 @@ restart:
 	vput(nd.ni_dvp);
 	if (error) {
 		vn_finished_write(mp);
-		goto done;
+		goto error;
 	}
 	vp = nd.ni_vp;
 	ASSERT_VOP_LOCKED(vp, "uipc_bind");
@@ -330,10 +336,17 @@ restart:
 	vp->v_socket = unp->unp_socket;
 	unp->unp_vnode = vp;
 	unp->unp_addr = soun;
+	unp->unp_flags &= ~UNP_BINDING;
 	UNP_UNLOCK();
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
-done:
+	mtx_unlock(&Giant);
+	free(buf, M_TEMP);
+	return (0);
+error:
+	UNP_LOCK();
+	unp->unp_flags &= ~UNP_BINDING;
+	UNP_UNLOCK();
 	mtx_unlock(&Giant);
 	free(buf, M_TEMP);
 	return (error);
@@ -970,6 +983,11 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (len <= 0)
 		return (EINVAL);
 	strlcpy(buf, soun->sun_path, len + 1);
+	if (unp->unp_flags & UNP_CONNECTING) {
+		UNP_UNLOCK();
+		return (EALREADY);
+	}
+	unp->unp_flags |= UNP_CONNECTING;
 	UNP_UNLOCK();
 	sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 	mtx_lock(&Giant);
@@ -1073,6 +1091,7 @@ bad:
 	mtx_unlock(&Giant);
 	free(sa, M_SONAME);
 	UNP_LOCK();
+	unp->unp_flags &= ~UNP_CONNECTING;
 	return (error);
 }
 
