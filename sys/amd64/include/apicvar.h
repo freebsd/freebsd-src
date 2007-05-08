@@ -79,6 +79,7 @@
  * I/O device!
  */
 
+#define	MAX_APIC_ID	0xfe
 #define	APIC_ID_ALL	0xff
 
 /* I/O Interrupts are used for external devices such as ISA, PCI, etc. */
