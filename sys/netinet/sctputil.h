@@ -136,7 +136,7 @@ int
 sctp_timer_start(int, struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *);
 
-int
+void
 sctp_timer_stop(int, struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *, uint32_t);
 

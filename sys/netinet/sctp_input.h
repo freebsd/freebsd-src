@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #define __sctp_input_h__
 
 #if defined(_KERNEL)
-int
+void
 sctp_common_input_processing(struct mbuf **, int, int, int,
     struct sctphdr *, struct sctp_chunkhdr *, struct sctp_inpcb *,
     struct sctp_tcb *, struct sctp_nets *, uint8_t, uint32_t, uint32_t);
