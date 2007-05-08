@@ -272,10 +272,11 @@ static int
 gpt_parse_type(const char *type, struct uuid *uuid)
 {
 	struct uuid tmp;
+	const char *alias;
 	int error;
 
-	if (type[0] != '@') {
-		error = parse_uuid(type, &tmp);
+	if (type[0] == '!') {
+		error = parse_uuid(type + 1, &tmp);
 		if (error)
 			return (error);
 		if (EQUUID(&tmp, &gpt_uuid_unused))
@@ -283,21 +284,37 @@ gpt_parse_type(const char *type, struct uuid *uuid)
 		*uuid = tmp;
 		return (0);
 	}
-	if (!strcmp(type, g_part_alias_name(G_PART_ALIAS_EFI)))
+	alias = g_part_alias_name(G_PART_ALIAS_EFI);
+	if (!strcasecmp(type, alias)) {
 		*uuid = gpt_uuid_efi;
-	else if (!strcmp(type, g_part_alias_name(G_PART_ALIAS_FREEBSD)))
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
+	if (!strcasecmp(type, alias)) {
 		*uuid = gpt_uuid_freebsd;
-	else if (!strcmp(type, g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP)))
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
+	if (!strcasecmp(type, alias)) {
 		*uuid = gpt_uuid_freebsd_swap;
-	else if (!strcmp(type, g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS)))
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS);
+	if (!strcasecmp(type, alias)) {
 		*uuid = gpt_uuid_freebsd_ufs;
-	else if (!strcmp(type, g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM)))
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM);
+	if (!strcasecmp(type, alias)) {
 		*uuid = gpt_uuid_freebsd_vinum;
-	else if (!strcmp(type, g_part_alias_name(G_PART_ALIAS_MBR)))
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_MBR);
+	if (!strcasecmp(type, alias)) {
 		*uuid = gpt_uuid_mbr;
-	else
-		return (EINVAL);
-	return (0);
+		return (0);
+	}
+	return (EINVAL);
 }
 
 static int
@@ -391,9 +408,11 @@ g_part_gpt_modify(struct g_part_table *basetable,
 	int error;
 
 	entry = (struct g_part_gpt_entry *)baseentry;
-	error = gpt_parse_type(gpp->gpp_type, &entry->ent.ent_type);
-	if (error)
-		return (error);
+	if (gpp->gpp_parms & G_PART_PARM_TYPE) {
+		error = gpt_parse_type(gpp->gpp_type, &entry->ent.ent_type);
+		if (error)
+			return (error);
+	}
 	/* XXX label */
 	return (0);
 }
@@ -636,6 +655,8 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	le32enc(buf + 84, table->hdr.hdr_entsz);
 
 	LIST_FOREACH(baseentry, &basetable->gpt_entry, gpe_entry) {
+		if (baseentry->gpe_deleted)
+			continue;
 		entry = (struct g_part_gpt_entry *)baseentry;
 		index = baseentry->gpe_index - 1;
 		bp = buf + pp->sectorsize + table->hdr.hdr_entsz * index;
