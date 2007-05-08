@@ -456,7 +456,7 @@ sctp_must_try_again:
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 16);
 #endif
-		sctp_inpcb_free(inp, 1, 0);
+		sctp_inpcb_free(inp, 1, 1);
 		SOCK_LOCK(so);
 		SCTP_SB_CLEAR(so->so_snd);
 		/*
@@ -521,7 +521,7 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 			sctp_log_closing(inp, NULL, 15);
 #endif
 			SCTP_INP_WUNLOCK(inp);
-			sctp_inpcb_free(inp, 1, 0);
+			sctp_inpcb_free(inp, 1, 1);
 		} else {
 			SCTP_INP_WUNLOCK(inp);
 		}
@@ -1354,7 +1354,7 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 		stcb->asoc.delayed_connection = 1;
 		sctp_timer_start(SCTP_TIMER_TYPE_INIT, inp, stcb, stcb->asoc.primary_destination);
 	} else {
-		SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
+		(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 		sctp_send_initiate(inp, stcb);
 	}
 	SCTP_TCB_UNLOCK(stcb);
@@ -2814,7 +2814,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 			if (stcb->asoc.delayed_connection == 1) {
 				stcb->asoc.delayed_connection = 0;
-				SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
+				(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 				sctp_timer_stop(SCTP_TIMER_TYPE_INIT, inp, stcb,
 				    stcb->asoc.primary_destination,
 				    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_9);
@@ -3031,7 +3031,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					/************************NET SPECIFIC SET ******************/
 					if (paddrp->spp_flags & SPP_HB_DEMAND) {
 						/* on demand HB */
-						sctp_send_hb(stcb, 1, net);
+						(void)sctp_send_hb(stcb, 1, net);
 					}
 					if (paddrp->spp_flags & SPP_HB_DISABLE) {
 						net->dest_state |= SCTP_ADDR_NOHB;
@@ -3575,7 +3575,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		soisconnecting(so);
 	}
 	stcb->asoc.state = SCTP_STATE_COOKIE_WAIT;
-	SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
+	(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 
 	/* initialize authentication parameters for the assoc */
 	sctp_initialize_auth_params(inp, stcb);

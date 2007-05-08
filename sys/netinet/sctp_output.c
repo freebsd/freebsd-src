@@ -3245,7 +3245,7 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 	sig_offset = 0;
 	signature = (uint8_t *) (mtod(sig, caddr_t)+sig_offset);
 	/* Time to sign the cookie */
-	sctp_hmac_m(SCTP_HMAC,
+	(void)sctp_hmac_m(SCTP_HMAC,
 	    (uint8_t *) inp->sctp_ep.secret_key[(int)(inp->sctp_ep.current_secret_number)],
 	    SCTP_SECRET_SIZE, mret, sizeof(struct sctp_paramhdr),
 	    (uint8_t *) signature);
@@ -4111,7 +4111,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	    m, 0, NULL, 0, 0, NULL, 0);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 	sctp_timer_start(SCTP_TIMER_TYPE_INIT, inp, stcb, net);
-	SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
+	(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
 }
 
 struct mbuf *
@@ -4625,7 +4625,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	SCTP_BUF_LEN(m) = sizeof(struct sctp_init_msg);
 
 	/* the time I built cookie */
-	SCTP_GETTIME_TIMEVAL(&stc.time_entered);
+	(void)SCTP_GETTIME_TIMEVAL(&stc.time_entered);
 
 	/* populate any tie tags */
 	if (asoc != NULL) {
@@ -5384,7 +5384,7 @@ sctp_set_prsctp_policy(struct sctp_tcb *stcb,
 			{
 				struct timeval tv;
 
-				SCTP_GETTIME_TIMEVAL(&sp->ts);
+				(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
 				tv.tv_sec = sp->timetolive / 1000;
 				tv.tv_usec = (sp->timetolive * 1000) % 1000000;
 				timevaladd(&sp->ts, &tv);
@@ -5463,7 +5463,7 @@ sctp_msg_append(struct sctp_tcb *stcb,
 		sp->addr_over = 0;
 	}
 	atomic_add_int(&sp->net->ref_count, 1);
-	SCTP_GETTIME_TIMEVAL(&sp->ts);
+	(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
 	sp->stream = srcv->sinfo_stream;
 	sp->msg_is_complete = 1;
 	sp->sender_all_done = 1;
@@ -7193,7 +7193,7 @@ again_one_more_time:
 						/* error, could not output */
 						if (hbflag) {
 							if (*now_filled == 0) {
-								SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
+								(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
 								*now_filled = 1;
 								*now = net->last_sent_time;
 							} else {
@@ -7216,7 +7216,7 @@ again_one_more_time:
 					/* Only HB or ASCONF advances time */
 					if (hbflag) {
 						if (*now_filled == 0) {
-							SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
+							(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
 							*now_filled = 1;
 							*now = net->last_sent_time;
 						} else {
@@ -7468,7 +7468,7 @@ again_one_more_time:
 #endif
 				if (hbflag) {
 					if (*now_filled == 0) {
-						SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
+						(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
 						*now_filled = 1;
 						*now = net->last_sent_time;
 					} else {
@@ -7502,7 +7502,7 @@ again_one_more_time:
 			if (bundle_at || hbflag) {
 				/* For data/asconf and hb set time */
 				if (*now_filled == 0) {
-					SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
+					(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
 					*now_filled = 1;
 					*now = net->last_sent_time;
 				} else {
@@ -7750,7 +7750,7 @@ sctp_send_heartbeat_ack(struct sctp_tcb *stcb,
 	chk->asoc->ctrl_queue_cnt++;
 }
 
-int
+void
 sctp_send_cookie_ack(struct sctp_tcb *stcb)
 {
 	/* formulate and queue a cookie-ack back to sender */
@@ -7764,14 +7764,14 @@ sctp_send_cookie_ack(struct sctp_tcb *stcb)
 	cookie_ack = sctp_get_mbuf_for_msg(sizeof(struct sctp_chunkhdr), 0, M_DONTWAIT, 1, MT_HEADER);
 	if (cookie_ack == NULL) {
 		/* no mbuf's */
-		return (-1);
+		return;
 	}
 	SCTP_BUF_RESV_UF(cookie_ack, SCTP_MIN_OVERHEAD);
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
 		/* no memory */
 		sctp_m_freem(cookie_ack);
-		return (-1);
+		return;
 	}
 	chk->copy_by_ref = 0;
 	chk->send_size = sizeof(struct sctp_chunkhdr);
@@ -7795,11 +7795,11 @@ sctp_send_cookie_ack(struct sctp_tcb *stcb)
 	SCTP_BUF_LEN(cookie_ack) = chk->send_size;
 	TAILQ_INSERT_TAIL(&chk->asoc->control_send_queue, chk, sctp_next);
 	chk->asoc->ctrl_queue_cnt++;
-	return (0);
+	return;
 }
 
 
-int
+void
 sctp_send_shutdown_ack(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	/* formulate and queue a SHUTDOWN-ACK back to the sender */
@@ -7810,14 +7810,14 @@ sctp_send_shutdown_ack(struct sctp_tcb *stcb, struct sctp_nets *net)
 	m_shutdown_ack = sctp_get_mbuf_for_msg(sizeof(struct sctp_shutdown_ack_chunk), 0, M_DONTWAIT, 1, MT_HEADER);
 	if (m_shutdown_ack == NULL) {
 		/* no mbuf's */
-		return (-1);
+		return;
 	}
 	SCTP_BUF_RESV_UF(m_shutdown_ack, SCTP_MIN_OVERHEAD);
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
 		/* no memory */
 		sctp_m_freem(m_shutdown_ack);
-		return (-1);
+		return;
 	}
 	chk->copy_by_ref = 0;
 
@@ -7839,10 +7839,10 @@ sctp_send_shutdown_ack(struct sctp_tcb *stcb, struct sctp_nets *net)
 	SCTP_BUF_LEN(m_shutdown_ack) = chk->send_size;
 	TAILQ_INSERT_TAIL(&chk->asoc->control_send_queue, chk, sctp_next);
 	chk->asoc->ctrl_queue_cnt++;
-	return (0);
+	return;
 }
 
-int
+void
 sctp_send_shutdown(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	/* formulate and queue a SHUTDOWN to the sender */
@@ -7853,14 +7853,14 @@ sctp_send_shutdown(struct sctp_tcb *stcb, struct sctp_nets *net)
 	m_shutdown = sctp_get_mbuf_for_msg(sizeof(struct sctp_shutdown_chunk), 0, M_DONTWAIT, 1, MT_HEADER);
 	if (m_shutdown == NULL) {
 		/* no mbuf's */
-		return (-1);
+		return;
 	}
 	SCTP_BUF_RESV_UF(m_shutdown, SCTP_MIN_OVERHEAD);
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
 		/* no memory */
 		sctp_m_freem(m_shutdown);
-		return (-1);
+		return;
 	}
 	chk->copy_by_ref = 0;
 	chk->send_size = sizeof(struct sctp_shutdown_chunk);
@@ -7882,10 +7882,10 @@ sctp_send_shutdown(struct sctp_tcb *stcb, struct sctp_nets *net)
 	SCTP_BUF_LEN(m_shutdown) = chk->send_size;
 	TAILQ_INSERT_TAIL(&chk->asoc->control_send_queue, chk, sctp_next);
 	chk->asoc->ctrl_queue_cnt++;
-	return (0);
+	return;
 }
 
-int
+void
 sctp_send_asconf(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	/*
@@ -7902,14 +7902,14 @@ sctp_send_asconf(struct sctp_tcb *stcb, struct sctp_nets *net)
 	/* compose an ASCONF chunk, maximum length is PMTU */
 	m_asconf = sctp_compose_asconf(stcb, &len);
 	if (m_asconf == NULL) {
-		return (-1);
+		return;
 	}
 	acp = mtod(m_asconf, struct sctp_asconf_chunk *);
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
 		/* no memory */
 		sctp_m_freem(m_asconf);
-		return (-1);
+		return;
 	}
 	chk->copy_by_ref = 0;
 	chk->data = m_asconf;
@@ -7924,10 +7924,10 @@ sctp_send_asconf(struct sctp_tcb *stcb, struct sctp_nets *net)
 	atomic_add_int(&chk->whoTo->ref_count, 1);
 	TAILQ_INSERT_TAIL(&chk->asoc->control_send_queue, chk, sctp_next);
 	chk->asoc->ctrl_queue_cnt++;
-	return (0);
+	return;
 }
 
-int
+void
 sctp_send_asconf_ack(struct sctp_tcb *stcb, uint32_t retrans)
 {
 	/*
@@ -7940,21 +7940,21 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb, uint32_t retrans)
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	/* is there a asconf-ack mbuf chain to send? */
 	if (stcb->asoc.last_asconf_ack_sent == NULL) {
-		return (-1);
+		return;
 	}
 	/* copy the asconf_ack */
 	m_ack = SCTP_M_COPYM(stcb->asoc.last_asconf_ack_sent, 0, M_COPYALL, M_DONTWAIT);
 	if (m_ack == NULL) {
 		/* couldn't copy it */
 
-		return (-1);
+		return;
 	}
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
 		/* no memory */
 		if (m_ack)
 			sctp_m_freem(m_ack);
-		return (-1);
+		return;
 	}
 	chk->copy_by_ref = 0;
 	/* figure out where it goes to */
@@ -8001,7 +8001,7 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb, uint32_t retrans)
 	atomic_add_int(&chk->whoTo->ref_count, 1);
 	TAILQ_INSERT_TAIL(&chk->asoc->control_send_queue, chk, sctp_next);
 	chk->asoc->ctrl_queue_cnt++;
-	return (0);
+	return;
 }
 
 
@@ -8136,7 +8136,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 		 * We don't want to mark the net->sent time here since this
 		 * we use this for HB and retrans cannot measure RTT
 		 */
-		/* SCTP_GETTIME_TIMEVAL(&chk->whoTo->last_sent_time); */
+		/* (void)SCTP_GETTIME_TIMEVAL(&chk->whoTo->last_sent_time); */
 		*cnt_out += 1;
 		chk->sent = SCTP_DATAGRAM_SENT;
 		sctp_ucount_decr(asoc->sent_queue_retran_cnt);
@@ -8376,12 +8376,12 @@ one_chunk_around:
 			 * since this we use this for HB and retrans cannot
 			 * measure RTT
 			 */
-			/* SCTP_GETTIME_TIMEVAL(&net->last_sent_time); */
+			/* (void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time); */
 
 			/* For auto-close */
 			cnt_thru++;
 			if (*now_filled == 0) {
-				SCTP_GETTIME_TIMEVAL(&asoc->time_last_sent);
+				(void)SCTP_GETTIME_TIMEVAL(&asoc->time_last_sent);
 				*now = asoc->time_last_sent;
 				*now_filled = 1;
 			} else {
@@ -8522,7 +8522,7 @@ sctp_timer_validation(struct sctp_inpcb *inp,
 	return (ret);
 }
 
-int
+void
 sctp_chunk_output(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     int from_where)
@@ -8568,7 +8568,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	    (TAILQ_EMPTY(&asoc->control_send_queue)) &&
 	    (asoc->sent_queue_retran_cnt == 0)) {
 		/* Nothing to do unless there is something to be sent left */
-		return (error);
+		return;
 	}
 	/*
 	 * Do we have something to send, data or control AND a sack timer
@@ -8592,7 +8592,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			(void)sctp_med_chunk_output(inp, stcb, asoc, &num_out, &reason_code, 1,
 			    &cwnd_full, from_where,
 			    &now, &now_filled, frag_point);
-			return (0);
+			return;
 		} else if (from_where != SCTP_OUTPUT_FROM_HB_TMR) {
 			/* if its not from a HB then do it */
 			fr_done = 0;
@@ -8620,7 +8620,8 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 #ifdef SCTP_AUDITING_ENABLED
 			sctp_auditing(8, inp, stcb, NULL);
 #endif
-			return (sctp_timer_validation(inp, stcb, asoc, ret));
+			sctp_timer_validation(inp, stcb, asoc, ret);
+			return;
 		}
 		if (ret < 0) {
 			/*-
@@ -8631,7 +8632,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			sctp_auditing(9, inp, stcb, NULL);
 #endif
 			if (ret == SCTP_RETRAN_EXIT) {
-				return (-1);
+				return;
 			}
 			break;
 		}
@@ -8643,11 +8644,11 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			/* Push out any control */
 			(void)sctp_med_chunk_output(inp, stcb, asoc, &num_out, &reason_code, 1, &cwnd_full, from_where,
 			    &now, &now_filled, frag_point);
-			return (ret);
+			return;
 		}
 		if (tot_frs > asoc->max_burst) {
 			/* Hit FR burst limit */
-			return (0);
+			return;
 		}
 		if ((num_out == 0) && (ret == 0)) {
 
@@ -8794,7 +8795,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	 */
 	if (stcb->asoc.ecn_echo_cnt_onq)
 		sctp_fix_ecn_echo(asoc);
-	return (error);
+	return;
 }
 
 
@@ -9330,7 +9331,7 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr)
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 }
 
-int
+void
 sctp_send_shutdown_complete(struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
@@ -9341,7 +9342,7 @@ sctp_send_shutdown_complete(struct sctp_tcb *stcb,
 	m_shutdown_comp = sctp_get_mbuf_for_msg(sizeof(struct sctp_shutdown_complete_msg), 0, M_DONTWAIT, 1, MT_HEADER);
 	if (m_shutdown_comp == NULL) {
 		/* no mbuf's */
-		return (-1);
+		return;
 	}
 	comp_cp = mtod(m_shutdown_comp, struct sctp_shutdown_complete_msg *);
 	comp_cp->shut_cmp.ch.chunk_type = SCTP_SHUTDOWN_COMPLETE;
@@ -9357,10 +9358,10 @@ sctp_send_shutdown_complete(struct sctp_tcb *stcb,
 	    (struct sockaddr *)&net->ro._l_addr,
 	    m_shutdown_comp, 0, NULL, 1, 0, NULL, 0);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
-	return (0);
+	return;
 }
 
-int
+void
 sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
     uint32_t vrf_id, uint32_t table_id)
 {
@@ -9378,7 +9379,7 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 
 	mout = sctp_get_mbuf_for_msg(len, 1, M_DONTWAIT, 1, MT_DATA);
 	if (mout == NULL) {
-		return (-1);
+		return;
 	}
 	SCTP_BUF_LEN(mout) = len;
 	iph = mtod(m, struct ip *);
@@ -9430,12 +9431,12 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 		    (caddr_t)ip6_out + offset_out);
 	} else {
 		/* Currently not supported. */
-		return (-1);
+		return;
 	}
 	if (SCTP_GET_HEADER_FOR_OUTPUT(o_pak)) {
 		/* no mbuf's */
 		sctp_m_freem(mout);
-		return (-1);
+		return;
 	}
 	/* Now copy in and fill in the ABORT tags etc. */
 	comp_cp->sh.src_port = sh->dest_port;
@@ -9487,7 +9488,7 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 	SCTP_STAT_INCR(sctps_sendpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_outpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
-	return (0);
+	return;
 
 }
 
@@ -9497,7 +9498,7 @@ sctp_select_hb_destination(struct sctp_tcb *stcb, struct timeval *now)
 	struct sctp_nets *net, *hnet;
 	int ms_goneby, highest_ms, state_overide = 0;
 
-	SCTP_GETTIME_TIMEVAL(now);
+	(void)SCTP_GETTIME_TIMEVAL(now);
 	highest_ms = 0;
 	hnet = NULL;
 	SCTP_TCB_LOCK_ASSERT(stcb);
@@ -9602,7 +9603,7 @@ sctp_send_hb(struct sctp_tcb *stcb, int user_req, struct sctp_nets *u_net)
 		if (net == NULL) {
 			return (0);
 		}
-		SCTP_GETTIME_TIMEVAL(&now);
+		(void)SCTP_GETTIME_TIMEVAL(&now);
 	}
 	sin = (struct sockaddr_in *)&net->ro._l_addr;
 	if (sin->sin_family != AF_INET) {
@@ -10605,7 +10606,7 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	sp->ppid = srcv->sinfo_ppid;
 	sp->context = srcv->sinfo_context;
 	sp->strseq = 0;
-	SCTP_GETTIME_TIMEVAL(&sp->ts);
+	(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
 
 	sp->stream = srcv->sinfo_stream;
 	sp->length = min(uio->uio_resid, max_send_len);
@@ -10935,7 +10936,7 @@ sctp_lower_sosend(struct socket *so,
 			queue_only = 1;
 			asoc = &stcb->asoc;
 			asoc->state = SCTP_STATE_COOKIE_WAIT;
-			SCTP_GETTIME_TIMEVAL(&asoc->time_entered);
+			(void)SCTP_GETTIME_TIMEVAL(&asoc->time_entered);
 
 			/* initialize authentication params for the assoc */
 			sctp_initialize_auth_params(inp, stcb);

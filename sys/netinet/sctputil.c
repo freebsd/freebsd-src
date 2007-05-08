@@ -796,15 +796,15 @@ sctp_stop_timers_for_shutdown(struct sctp_tcb *stcb)
 
 	asoc = &stcb->asoc;
 
-	SCTP_OS_TIMER_STOP(&asoc->hb_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->hb_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		SCTP_OS_TIMER_STOP(&net->fr_timer.timer);
-		SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
+		(void)SCTP_OS_TIMER_STOP(&net->fr_timer.timer);
+		(void)SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
 	}
 }
 
@@ -883,7 +883,7 @@ sctp_select_a_tag(struct sctp_inpcb *m)
 	u_long x, not_done;
 	struct timeval now;
 
-	SCTP_GETTIME_TIMEVAL(&now);
+	(void)SCTP_GETTIME_TIMEVAL(&now);
 	not_done = 1;
 	while (not_done) {
 		x = sctp_select_initial_TSN(&m->sctp_ep);
@@ -936,7 +936,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 	if (override_tag) {
 		struct timeval now;
 
-		SCTP_GETTIME_TIMEVAL(&now);
+		(void)SCTP_GETTIME_TIMEVAL(&now);
 		if (sctp_is_vtag_good(m, override_tag, &now)) {
 			asoc->my_vtag = override_tag;
 		} else {
@@ -1112,9 +1112,8 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 	asoc->timoheartbeat = 0;
 	asoc->timocookie = 0;
 	asoc->timoshutdownack = 0;
-	SCTP_GETTIME_TIMEVAL(&asoc->start_time);
-	SCTP_GETTIME_TIMEVAL(&asoc->discontinuity_time);
-
+	(void)SCTP_GETTIME_TIMEVAL(&asoc->start_time);
+	asoc->discontinuity_time = asoc->start_time;
 	return (0);
 }
 
@@ -1573,7 +1572,7 @@ sctp_timeout_handler(void *t)
 			int i, secret;
 
 			SCTP_STAT_INCR(sctps_timosecret);
-			SCTP_GETTIME_TIMEVAL(&tv);
+			(void)SCTP_GETTIME_TIMEVAL(&tv);
 			SCTP_INP_WLOCK(inp);
 			inp->sctp_ep.time_of_secret_change = tv.tv_sec;
 			inp->sctp_ep.last_secret_number =
@@ -2067,7 +2066,7 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	return (0);
 }
 
-int
+void
 sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct sctp_nets *net, uint32_t from)
 {
@@ -2075,7 +2074,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 	if ((t_type != SCTP_TIMER_TYPE_ADDR_WQ) &&
 	    (inp == NULL))
-		return (EFAULT);
+		return;
 
 	tmr = NULL;
 	if (stcb) {
@@ -2087,7 +2086,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		break;
 	case SCTP_TIMER_TYPE_EARLYFR:
 		if ((stcb == NULL) || (net == NULL)) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &net->fr_timer;
 		SCTP_STAT_INCR(sctps_earlyfrstop);
@@ -2102,37 +2101,37 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		break;
 	case SCTP_TIMER_TYPE_SEND:
 		if ((stcb == NULL) || (net == NULL)) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_INIT:
 		if ((stcb == NULL) || (net == NULL)) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_RECV:
 		if (stcb == NULL) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &stcb->asoc.dack_timer;
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWN:
 		if ((stcb == NULL) || (net == NULL)) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_HEARTBEAT:
 		if (stcb == NULL) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &stcb->asoc.hb_timer;
 		break;
 	case SCTP_TIMER_TYPE_COOKIE:
 		if ((stcb == NULL) || (net == NULL)) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &net->rxt_timer;
 		break;
@@ -2149,7 +2148,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * Stop the asoc kill timer.
 		 */
 		if (stcb == NULL) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &stcb->asoc.strreset_timer;
 		break;
@@ -2164,37 +2163,37 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		break;
 	case SCTP_TIMER_TYPE_PATHMTURAISE:
 		if ((stcb == NULL) || (net == NULL)) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &net->pmtu_timer;
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWNACK:
 		if ((stcb == NULL) || (net == NULL)) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWNGUARD:
 		if (stcb == NULL) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &stcb->asoc.shut_guard_timer;
 		break;
 	case SCTP_TIMER_TYPE_STRRESET:
 		if (stcb == NULL) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &stcb->asoc.strreset_timer;
 		break;
 	case SCTP_TIMER_TYPE_ASCONF:
 		if (stcb == NULL) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &stcb->asoc.asconf_timer;
 		break;
 	case SCTP_TIMER_TYPE_AUTOCLOSE:
 		if (stcb == NULL) {
-			return (EFAULT);
+			return;
 		}
 		tmr = &stcb->asoc.autoclose_timer;
 		break;
@@ -2208,7 +2207,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		break;
 	};
 	if (tmr == NULL) {
-		return (EFAULT);
+		return;
 	}
 	if ((tmr->type != t_type) && tmr->type) {
 		/*
@@ -2217,7 +2216,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * running the timer that the caller wants stopped.  So just
 		 * return.
 		 */
-		return (0);
+		return;
 	}
 	if (t_type == SCTP_TIMER_TYPE_SEND) {
 		stcb->asoc.num_send_timers_up--;
@@ -2227,8 +2226,8 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	}
 	tmr->self = NULL;
 	tmr->stopped_from = from;
-	SCTP_OS_TIMER_STOP(&tmr->timer);
-	return (0);
+	(void)SCTP_OS_TIMER_STOP(&tmr->timer);
+	return;
 }
 
 #ifdef SCTP_USE_ADLER32
@@ -2477,7 +2476,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/* 1. calculate new RTT */
 	/************************/
 	/* get the current time */
-	SCTP_GETTIME_TIMEVAL(&now);
+	(void)SCTP_GETTIME_TIMEVAL(&now);
 	/* compute the RTT value */
 	if ((u_long)now.tv_sec > (u_long)old->tv_sec) {
 		calc_time = ((u_long)now.tv_sec - (u_long)old->tv_sec) * 1000;
