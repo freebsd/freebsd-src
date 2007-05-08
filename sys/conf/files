@@ -1377,7 +1377,6 @@ kern/uipc_cow.c			optional zero_copy_sockets
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard
 kern/uipc_mbuf2.c		standard
-kern/uipc_proto.c		standard
 kern/uipc_sem.c			optional p1003_1b_semaphores
 kern/uipc_socket.c		standard
 kern/uipc_socket2.c		standard

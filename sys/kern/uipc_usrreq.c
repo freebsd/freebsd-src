@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.
- * Copyright 2004-2005 Robert N. M. Watson
+ * Copyright (c) 2004-2006 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -135,17 +135,18 @@ static u_long	unpdg_recvspace = 4*1024;
 
 static int	unp_rights;			/* file descriptors in flight */
 
-SYSCTL_DECL(_net_local_stream);
+SYSCTL_NODE(_net, PF_LOCAL, local, CTLFLAG_RW, 0, "Local domain");
+SYSCTL_NODE(_net_local, SOCK_STREAM, stream, CTLFLAG_RW, 0, "SOCK_STREAM");
+SYSCTL_NODE(_net_local, SOCK_DGRAM, dgram, CTLFLAG_RW, 0, "SOCK_DGRAM");
+
 SYSCTL_ULONG(_net_local_stream, OID_AUTO, sendspace, CTLFLAG_RW,
 	   &unpst_sendspace, 0, "");
 SYSCTL_ULONG(_net_local_stream, OID_AUTO, recvspace, CTLFLAG_RW,
 	   &unpst_recvspace, 0, "");
-SYSCTL_DECL(_net_local_dgram);
 SYSCTL_ULONG(_net_local_dgram, OID_AUTO, maxdgram, CTLFLAG_RW,
 	   &unpdg_sendspace, 0, "");
 SYSCTL_ULONG(_net_local_dgram, OID_AUTO, recvspace, CTLFLAG_RW,
 	   &unpdg_recvspace, 0, "");
-SYSCTL_DECL(_net_local);
 SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, "");
 
 /*
@@ -926,6 +927,37 @@ unp_attach(struct socket *so)
 
 	return (0);
 }
+
+/*
+ * Definitions of protocols supported in the LOCAL domain.
+ */
+static struct domain localdomain;
+static struct protosw localsw[] = {
+{
+	.pr_type =		SOCK_STREAM,
+	.pr_domain =		&localdomain,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
+	.pr_ctloutput =		&uipc_ctloutput,
+	.pr_usrreqs =		&uipc_usrreqs
+},
+{
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&localdomain,
+	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
+	.pr_usrreqs =		&uipc_usrreqs
+},
+};
+
+static struct domain localdomain = {
+	.dom_family =		AF_LOCAL,
+	.dom_name =		"local",
+	.dom_init =		unp_init,
+	.dom_externalize =	unp_externalize,
+	.dom_dispose =		unp_dispose,
+	.dom_protosw =		localsw,
+	.dom_protoswNPROTOSW =	&localsw[sizeof(localsw)/sizeof(localsw[0])]
+};
+DOMAIN_SET(local);
 
 static void
 unp_detach(struct unpcb *unp)
