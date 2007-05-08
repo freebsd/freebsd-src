@@ -1545,7 +1545,11 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		    {
 			ipfw_insn_sa *s = (ipfw_insn_sa *)cmd;
 
-			printf("fwd %s", inet_ntoa(s->sa.sin_addr));
+			if (s->sa.sin_addr.s_addr == INADDR_ANY) {
+				printf("fwd tablearg");
+			} else {
+				printf("fwd %s", inet_ntoa(s->sa.sin_addr));
+			}
 			if (s->sa.sin_port)
 				printf(",%d", s->sa.sin_port);
 		    }
@@ -4043,11 +4047,13 @@ chkarg:
 				    "illegal forwarding port ``%s''", s);
 			p->sa.sin_port = (u_short)i;
 		}
-		lookup_host(*av, &(p->sa.sin_addr));
-		}
+		if (_substrcmp(*av, "tablearg") == 0) 
+			p->sa.sin_addr.s_addr = INADDR_ANY;
+		else
+			lookup_host(*av, &(p->sa.sin_addr));
 		ac--; av++;
 		break;
-
+	    }
 	case TOK_COMMENT:
 		/* pretend it is a 'count' rule followed by the comment */
 		action->opcode = O_COUNT;
@@ -4956,9 +4962,21 @@ table_handler(int ac, char *av[])
 		if (lookup_host(*av, (struct in_addr *)&ent.addr) != 0)
 			errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
 		ac--; av++;
-		if (do_add && ac)
-			ent.value = strtoul(*av, NULL, 0);
-		else
+		if (do_add && ac) {
+			unsigned int tval;
+			/* isdigit is a bit of a hack here.. */
+			if (strchr(*av, (int)'.') == NULL && isdigit(**av))  {
+				ent.value = strtoul(*av, NULL, 0);
+			} else {
+		        	if (lookup_host(*av, (struct in_addr *)&tval) == 0) {
+					/* The value must be stored in host order	 *
+					 * so that the values < 65k can be distinguished */
+		       			ent.value = ntohl(tval); 
+				} else {
+					errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
+				}
+			}
+		} else
 			ent.value = 0;
 		if (do_cmd(do_add ? IP_FW_TABLE_ADD : IP_FW_TABLE_DEL,
 		    &ent, sizeof(ent)) < 0) {
@@ -4991,9 +5009,23 @@ table_handler(int ac, char *av[])
 		if (do_cmd(IP_FW_TABLE_LIST, tbl, (uintptr_t)&l) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_TABLE_LIST)");
 		for (a = 0; a < tbl->cnt; a++) {
-			printf("%s/%u %u\n",
-			    inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
-			    tbl->ent[a].masklen, tbl->ent[a].value);
+			/* Heuristic to print it the right way */
+			/* values < 64k are printed as numbers */
+			unsigned int tval;
+			tval = tbl->ent[a].value;
+			if (tval > 0xffff) {
+			    char tbuf[128];
+			    strncpy(tbuf, inet_ntoa(*(struct in_addr *)
+				&tbl->ent[a].addr), 127);
+			    /* inet_ntoa expects host order */
+			    tval = htonl(tval);
+			    printf("%s/%u %s\n", tbuf, tbl->ent[a].masklen,
+			        inet_ntoa(*(struct in_addr *)&tval));
+			} else {
+			    printf("%s/%u %u\n",
+			        inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
+			        tbl->ent[a].masklen, tbl->ent[a].value);
+			}
 		}
 	} else
 		errx(EX_USAGE, "invalid table command %s", *av);
