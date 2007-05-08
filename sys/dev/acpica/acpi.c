@@ -331,13 +331,13 @@ acpi_identify(driver_t *driver, device_t parent)
     if (device_find_child(parent, "acpi", 0) != NULL)
 	return_VOID;
 
+    snprintf(acpi_ca_version, sizeof(acpi_ca_version), "%x", ACPI_CA_VERSION);
+
     /* Initialize root tables. */
     if (ACPI_FAILURE(acpi_Startup())) {
 	printf("ACPI: Try disabling either ACPI or apic support.\n");
 	return_VOID;
     }
-
-    snprintf(acpi_ca_version, sizeof(acpi_ca_version), "%x", ACPI_CA_VERSION);
 
     /* Attach the actual ACPI device. */
     if ((child = BUS_ADD_CHILD(parent, 10, "acpi", 0)) == NULL) {
