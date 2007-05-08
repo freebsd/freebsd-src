@@ -757,7 +757,7 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 	volatile mcp_cmd_response_t *response = sc->cmd;
 	volatile char *cmd_addr = sc->sram + MXGEFW_ETH_CMD;
 	uint32_t dma_low, dma_high;
-	int sleep_total = 0;
+	int err, sleep_total = 0;
 
 	/* ensure buf is aligned to 8 bytes */
 	buf = (mcp_cmd_t *)((unsigned long)(buf_bytes + 7) & ~7UL);
@@ -777,35 +777,42 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 	mxge_pio_copy((volatile void *)cmd_addr, buf, sizeof (*buf));
 
 	/* wait up to 20ms */
+	err = EAGAIN;
 	for (sleep_total = 0; sleep_total <  20; sleep_total++) {
 		bus_dmamap_sync(sc->cmd_dma.dmat, 
 				sc->cmd_dma.map, BUS_DMASYNC_POSTREAD);
 		mb();
-		if (response->result != 0xffffffff) {
-			if (response->result == 0) {
-				data->data0 = be32toh(response->data);
-				mtx_unlock(&sc->cmd_mtx);
-				return 0;
-			} else if (be32toh(response->result) ==
-				   MXGEFW_CMD_ERROR_UNALIGNED) {
-				mtx_unlock(&sc->cmd_mtx);
-				return E2BIG;
-			} else {
-				device_printf(sc->dev, 
-					      "mxge: command %d "
-					      "failed, result = %d\n",
-					      cmd, be32toh(response->result));
-				mtx_unlock(&sc->cmd_mtx);
-				return ENXIO;
-			}
+		switch (be32toh(response->result)) {
+		case 0:
+			data->data0 = be32toh(response->data);
+			err = 0;
+			break;
+		case 0xffffffff:
+			DELAY(1000);
+			break;
+		case MXGEFW_CMD_UNKNOWN:
+			err = ENOSYS;
+			break;
+		case MXGEFW_CMD_ERROR_UNALIGNED:
+			err = E2BIG;
+			break;
+		default:
+			device_printf(sc->dev, 
+				      "mxge: command %d "
+				      "failed, result = %d\n",
+				      cmd, be32toh(response->result));
+			err = ENXIO;
+			break;
 		}
-		DELAY(1000);
+		if (err != EAGAIN)
+			break;
 	}
+	if (err == EAGAIN)
+		device_printf(sc->dev, "mxge: command %d timed out"
+			      "result = %d\n",
+			      cmd, be32toh(response->result));
 	mtx_unlock(&sc->cmd_mtx);
-	device_printf(sc->dev, "mxge: command %d timed out"
-		      "result = %d\n",
-		      cmd, be32toh(response->result));
-	return EAGAIN;
+	return err;
 }
 
 static int
