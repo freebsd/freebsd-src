@@ -124,9 +124,13 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
-	lock_state = class->lc_unlock(lock);
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_release(cvp);
+	lock_state = class->lc_unlock(lock);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_lock(cvp);
 	sleepq_wait(cvp);
 
 #ifdef KTRACE
@@ -173,9 +177,13 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
-	class->lc_unlock(lock);
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_release(cvp);
+	class->lc_unlock(lock);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_lock(cvp);
 	sleepq_wait(cvp);
 
 #ifdef KTRACE
@@ -226,10 +234,14 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
-	lock_state = class->lc_unlock(lock);
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_release(cvp);
+	lock_state = class->lc_unlock(lock);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_lock(cvp);
 	rval = sleepq_wait_sig(cvp);
 
 #ifdef KTRACE
@@ -282,10 +294,14 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
-	lock_state = class->lc_unlock(lock);
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
 	sleepq_set_timeout(cvp, timo);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_release(cvp);
+	lock_state = class->lc_unlock(lock);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_lock(cvp);
 	rval = sleepq_timedwait(cvp);
 
 #ifdef KTRACE
@@ -341,11 +357,15 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
-	lock_state = class->lc_unlock(lock);
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
 	sleepq_set_timeout(cvp, timo);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_release(cvp);
+	lock_state = class->lc_unlock(lock);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_lock(cvp);
 	rval = sleepq_timedwait_sig(cvp);
 
 #ifdef KTRACE
