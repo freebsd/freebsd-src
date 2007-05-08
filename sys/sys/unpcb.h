@@ -98,6 +98,14 @@ struct unpcb {
 #define	UNP_WANTCRED			0x004	/* credentials wanted */
 #define	UNP_CONNWAIT			0x008	/* connect blocks until accepted */
 
+/*
+ * These flags are used to handle non-atomicity in connect() and bind()
+ * operations on a socket: in particular, to avoid races between multiple
+ * threads or processes operating simultaneously on the same socket.
+ */
+#define	UNP_CONNECTING			0x010	/* Currently connecting. */
+#define	UNP_BINDING			0x020	/* Currently binding. */
+
 #define	sotounpcb(so)	((struct unpcb *)((so)->so_pcb))
 
 /* Hack alert -- this structure depends on <sys/socketvar.h>. */
