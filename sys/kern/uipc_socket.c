@@ -1225,9 +1225,9 @@ restart:
 				goto release;
 			}
 			error = sbwait(&so->so_snd);
+			SOCKBUF_UNLOCK(&so->so_snd);
 			if (error)
 				goto release;
-			SOCKBUF_UNLOCK(&so->so_snd);
 			goto restart;
 		}
 		SOCKBUF_UNLOCK(&so->so_snd);
