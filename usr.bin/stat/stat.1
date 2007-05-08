@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2003
+.Dd April 27, 2007
 .Dt STAT 1
 .Os
 .Sh NAME
@@ -455,7 +455,7 @@ $ echo $st_size $st_mtimespec
 1148 1015432481
 .Ed
 .Pp
-In order to get a list of the kind of files including files pointed to if the
+In order to get a list of file types including files pointed to if the
 file is a symbolic link, you could use the following format:
 .Bd -literal -offset indent
 $ stat -f "%N: %HT%SY" /tmp/*
@@ -496,6 +496,31 @@ you could use the following format:
 Apr 25 11:47:00 2002 /tmp/blah
 Apr 25 10:36:34 2002 /tmp/bar
 Apr 24 16:47:35 2002 /tmp/foo
+.Ed
+.Pp
+To display a file's modification time:
+.Bd -literal -offset indent
+\*[Gt] stat -f %m /tmp/foo
+1177697733
+.Ed
+.Pp
+To display the same modification time in a readable format:
+.Bd -literal -offset indent
+\*[Gt] stat -f %Sm /tmp/foo
+Apr 27 11:15:33 2007
+.Ed
+.Pp
+To display the same modification time in a readable and sortable format:
+.Bd -literal -offset indent
+\*[Gt] stat -f %Sm -t %Y%m%d%H%M%S /tmp/foo
+20070427111533
+.Ed
+.Pp
+To display the same in UTC:
+.Bd -literal -offset indent
+\*[Gt] sh
+$ TZ= stat -f %Sm -t %Y%m%d%H%M%S /tmp/foo
+20070427181533
 .Ed
 .Sh SEE ALSO
 .Xr file 1 ,
