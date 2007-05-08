@@ -133,6 +133,7 @@ rw_destroy(struct rwlock *rw)
 {
 
 	KASSERT(rw->rw_lock == RW_UNLOCKED, ("rw lock not unlocked"));
+	rw->rw_lock = RW_DESTROYED;
 	lock_profile_object_destroy(&rw->lock_object);
 	lock_destroy(&rw->lock_object);
 }
@@ -157,6 +158,8 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(rw->rw_lock != RW_DESTROYED,
+	    ("rw_wlock() of destroyed rwlock @ %s:%d", file, line));
 	KASSERT(rw_wowner(rw) != curthread,
 	    ("%s (%s): wlock already held @ %s:%d", __func__,
 	    rw->lock_object.lo_name, file, line));
@@ -173,6 +176,8 @@ _rw_wunlock(struct rwlock *rw, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(rw->rw_lock != RW_DESTROYED,
+	    ("rw_wunlock() of destroyed rwlock @ %s:%d", file, line));
 	_rw_assert(rw, RA_WLOCKED, file, line);
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&rw->lock_object, LOP_EXCLUSIVE, file, line);
@@ -191,6 +196,8 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	int contested = 0;
 	uintptr_t x;
 
+	KASSERT(rw->rw_lock != RW_DESTROYED,
+	    ("rw_rlock() of destroyed rwlock @ %s:%d", file, line));
 	KASSERT(rw_wowner(rw) != curthread,
 	    ("%s (%s): wlock already held @ %s:%d", __func__,
 	    rw->lock_object.lo_name, file, line));
@@ -332,6 +339,8 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 	struct turnstile *ts;
 	uintptr_t x;
 
+	KASSERT(rw->rw_lock != RW_DESTROYED,
+	    ("rw_runlock() of destroyed rwlock @ %s:%d", file, line));
 	_rw_assert(rw, RA_RLOCKED, file, line);
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&rw->lock_object, 0, file, line);
@@ -657,6 +666,8 @@ _rw_try_upgrade(struct rwlock *rw, const char *file, int line)
 	uintptr_t v, tid;
 	int success;
 
+	KASSERT(rw->rw_lock != RW_DESTROYED,
+	    ("rw_try_upgrade() of destroyed rwlock @ %s:%d", file, line));
 	_rw_assert(rw, RA_RLOCKED, file, line);
 
 	/*
@@ -716,6 +727,8 @@ _rw_downgrade(struct rwlock *rw, const char *file, int line)
 	struct turnstile *ts;
 	uintptr_t tid, v;
 
+	KASSERT(rw->rw_lock != RW_DESTROYED,
+	    ("rw_downgrade() of destroyed rwlock @ %s:%d", file, line));
 	_rw_assert(rw, RA_WLOCKED, file, line);
 
 	WITNESS_DOWNGRADE(&rw->lock_object, 0, file, line);
@@ -851,7 +864,10 @@ db_show_rwlock(struct lock_object *lock)
 	db_printf(" state: ");
 	if (rw->rw_lock == RW_UNLOCKED)
 		db_printf("UNLOCKED\n");
-	else if (rw->rw_lock & RW_LOCK_READ)
+	else if (rw->rw_lock == RW_DESTROYED) {
+		db_printf("DESTROYED\n");
+		return;
+	} else if (rw->rw_lock & RW_LOCK_READ)
 		db_printf("RLOCK: %ju locks\n",
 		    (uintmax_t)(RW_READERS(rw->rw_lock)));
 	else {
