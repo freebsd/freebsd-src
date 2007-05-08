@@ -147,6 +147,8 @@ static u_int32_t lapic_timer_divisors[] = {
 	APIC_TDCR_32, APIC_TDCR_64, APIC_TDCR_128
 };
 
+extern inthand_t IDTVEC(rsvd);
+
 volatile lapic_t *lapic;
 vm_paddr_t lapic_paddr;
 static u_long lapic_timer_divisor, lapic_timer_period, lapic_timer_hz;
@@ -837,6 +839,17 @@ apic_enable_vector(u_int vector)
 	KASSERT(ioint_handlers[vector / 32] != NULL,
 	    ("No ISR handler for vector %u", vector));
 	setidt(vector, ioint_handlers[vector / 32], SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+}
+
+void
+apic_disable_vector(u_int vector)
+{
+
+	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
+	KASSERT(ioint_handlers[vector / 32] != NULL,
+	    ("No ISR handler for vector %u", vector));
+	setidt(vector, &IDTVEC(rsvd), SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 }
 

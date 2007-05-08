@@ -114,6 +114,7 @@ static void	ioapic_enable_source(struct intsrc *isrc);
 static void	ioapic_disable_source(struct intsrc *isrc, int eoi);
 static void	ioapic_eoi_source(struct intsrc *isrc);
 static void	ioapic_enable_intr(struct intsrc *isrc);
+static void	ioapic_disable_intr(struct intsrc *isrc);
 static int	ioapic_vector(struct intsrc *isrc);
 static int	ioapic_source_pending(struct intsrc *isrc);
 static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
@@ -125,8 +126,8 @@ static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
 struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
 			       ioapic_eoi_source, ioapic_enable_intr,
-			       ioapic_vector, ioapic_source_pending,
-			       NULL, ioapic_resume,
+			       ioapic_disable_intr, ioapic_vector,
+			       ioapic_source_pending, NULL, ioapic_resume,
 			       ioapic_config_intr, ioapic_assign_cpu };
 
 static int next_ioapic_base;
@@ -356,6 +357,23 @@ ioapic_enable_intr(struct intsrc *isrc)
 		}
 		ioapic_program_intpin(intpin);
 		apic_enable_vector(intpin->io_vector);
+	}
+}
+
+static void
+ioapic_disable_intr(struct intsrc *isrc)
+{
+	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
+	u_int vector;
+
+	if (intpin->io_vector != 0) {
+		/* Mask this interrupt pin and free its APIC vector. */
+		vector = intpin->io_vector;
+		apic_disable_vector(vector);
+		intpin->io_masked = 1;
+		intpin->io_vector = 0;
+		ioapic_program_intpin(intpin);
+		apic_free_vector(vector, intpin->io_irq);
 	}
 }
 
