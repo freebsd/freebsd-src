@@ -63,7 +63,7 @@ sctp_early_fr_timer(struct sctp_inpcb *inp,
 	unsigned int cur_rtt, cnt = 0, cnt_resend = 0;
 
 	/* an early FR is occuring. */
-	SCTP_GETTIME_TIMEVAL(&now);
+	(void)SCTP_GETTIME_TIMEVAL(&now);
 	/* get cur rto in micro-seconds */
 	if (net->lastsa == 0) {
 		/* Hmm no rtt estimate yet? */
@@ -477,7 +477,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	 * figure out how long a data chunk must be pending before we can
 	 * mark it ..
 	 */
-	SCTP_GETTIME_TIMEVAL(&now);
+	(void)SCTP_GETTIME_TIMEVAL(&now);
 	/* get cur rto in micro-seconds */
 	cur_rtt = (((net->lastsa >> 2) + net->lastsv) >> 1);
 	cur_rtt *= 1000;
@@ -894,7 +894,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 				struct timeval now;
 				unsigned int ms_goneby;
 
-				SCTP_GETTIME_TIMEVAL(&now);
+				(void)SCTP_GETTIME_TIMEVAL(&now);
 				if (net->last_sent_time.tv_sec) {
 					ms_goneby = (now.tv_sec - net->last_sent_time.tv_sec) * 1000;
 				} else {
@@ -905,7 +905,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 					 * no recent feed back in an RTO or
 					 * more, request a RTT update
 					 */
-					sctp_send_hb(stcb, 1, net);
+					(void)sctp_send_hb(stcb, 1, net);
 				}
 			}
 		}
@@ -1576,7 +1576,7 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 	struct sctp_association *asoc;
 	int ticks_gone_by;
 
-	SCTP_GETTIME_TIMEVAL(&tn);
+	(void)SCTP_GETTIME_TIMEVAL(&tn);
 	if (stcb->asoc.sctp_autoclose_ticks &&
 	    sctp_is_feature_on(inp, SCTP_PCB_FLAGS_AUTOCLOSE)) {
 		/* Auto close is on */
@@ -1661,7 +1661,7 @@ done_with_iterator:
 		TAILQ_REMOVE(&sctppcbinfo.iteratorhead, it, sctp_nxt_itr);
 		/* stopping the callout is not needed, in theory */
 		SCTP_INP_INFO_WUNLOCK();
-		SCTP_OS_TIMER_STOP(&it->tmr.timer);
+		(void)SCTP_OS_TIMER_STOP(&it->tmr.timer);
 		if (it->function_atend != NULL) {
 			(*it->function_atend) (it->pointer, it->val);
 		}

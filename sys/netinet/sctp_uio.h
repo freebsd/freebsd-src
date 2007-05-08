@@ -904,7 +904,7 @@ struct sctpstat {
 #define SCTP_STAT_INCR(_x) SCTP_STAT_INCR_BY(_x,1)
 #define SCTP_STAT_DECR(_x) SCTP_STAT_DECR_BY(_x,1)
 #define SCTP_STAT_INCR_BY(_x,_d) atomic_add_long(&sctpstat._x, _d)
-#define SCTP_STAT_DECR_BY(_x,_d) atomic_add_long(&sctpstat._x, -(_d))
+#define SCTP_STAT_DECR_BY(_x,_d) atomic_subtract_long(&sctpstat._x, _d)
 /* The following macros are for handling MIB values, */
 #define SCTP_STAT_INCR_COUNTER32(_x) SCTP_STAT_INCR(_x)
 #define SCTP_STAT_INCR_COUNTER64(_x) SCTP_STAT_INCR(_x)
