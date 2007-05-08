@@ -64,12 +64,12 @@ struct g_part_alias_list {
 	const char *lexeme;
 	enum g_part_alias alias;
 } g_part_alias_list[G_PART_ALIAS_COUNT] = {
-	{ "@efi", G_PART_ALIAS_EFI },
-	{ "@freebsd", G_PART_ALIAS_FREEBSD },
-	{ "@freebsd-swap", G_PART_ALIAS_FREEBSD_SWAP },
-	{ "@freebsd-ufs", G_PART_ALIAS_FREEBSD_UFS },
-	{ "@freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
-	{ "@mbr", G_PART_ALIAS_MBR }
+	{ "efi", G_PART_ALIAS_EFI },
+	{ "freebsd", G_PART_ALIAS_FREEBSD },
+	{ "freebsd-swap", G_PART_ALIAS_FREEBSD_SWAP },
+	{ "freebsd-ufs", G_PART_ALIAS_FREEBSD_UFS },
+	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
+	{ "mbr", G_PART_ALIAS_MBR }
 };
 
 /*
@@ -111,7 +111,6 @@ enum g_part_ctl {
 	G_PART_CTL_DESTROY,
 	G_PART_CTL_MODIFY,
 	G_PART_CTL_MOVE,
-	G_PART_CTL_QUERY,
 	G_PART_CTL_RECOVER,
 	G_PART_CTL_RESIZE,
 	G_PART_CTL_UNDO
@@ -247,7 +246,7 @@ g_part_parm_scheme(const char *p, struct g_part_scheme **v)
 	SET_FOREACH(iter, g_part_scheme_set) {
 		if ((*iter)->name == NULL)
 			continue;
-		if (!strcmp((*iter)->name, p)) {
+		if (!strcasecmp((*iter)->name, p)) {
 			s = *iter;
 			break;
 		}
@@ -732,13 +731,6 @@ g_part_ctl_move(struct gctl_req *req, struct g_part_parms *gpp)
 } 
 
 static int
-g_part_ctl_query(struct gctl_req *req, struct g_part_parms *gpp)
-{
-	gctl_error(req, "%d verb 'query'", ENOSYS);
-	return (ENOSYS);
-} 
-
-static int
 g_part_ctl_recover(struct gctl_req *req, struct g_part_parms *gpp)
 {
 	gctl_error(req, "%d verb 'recover'", ENOSYS);
@@ -863,83 +855,67 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 
 	ctlreq = G_PART_CTL_NONE;
 	modifies = 0;
-	mparms = oparms = 0;
+	mparms = 0;
+	oparms = G_PART_PARM_FLAGS | G_PART_PARM_OUTPUT | G_PART_PARM_VERSION;
 	switch (*verb) {
 	case 'a':
 		if (!strcmp(verb, "add")) {
 			ctlreq = G_PART_CTL_ADD;
 			modifies = 1;
-			mparms = G_PART_PARM_GEOM | G_PART_PARM_SIZE |
+			mparms |= G_PART_PARM_GEOM | G_PART_PARM_SIZE |
 			    G_PART_PARM_START | G_PART_PARM_TYPE;
-			oparms = G_PART_PARM_FLAGS | G_PART_PARM_INDEX |
-			    G_PART_PARM_LABEL;
+			oparms |= G_PART_PARM_INDEX | G_PART_PARM_LABEL;
 		}
 		break;
 	case 'c':
 		if (!strcmp(verb, "commit")) {
 			ctlreq = G_PART_CTL_COMMIT;
-			mparms = G_PART_PARM_GEOM;
-			oparms = G_PART_PARM_FLAGS;
+			mparms |= G_PART_PARM_GEOM;
 		} else if (!strcmp(verb, "create")) {
 			ctlreq = G_PART_CTL_CREATE;
 			modifies = 1;
-			mparms = G_PART_PARM_PROVIDER |
-			    G_PART_PARM_SCHEME;
-			oparms = G_PART_PARM_ENTRIES | G_PART_PARM_FLAGS;
+			mparms |= G_PART_PARM_PROVIDER | G_PART_PARM_SCHEME;
+			oparms |= G_PART_PARM_ENTRIES;
 		}
 		break;
 	case 'd':
 		if (!strcmp(verb, "delete")) {
 			ctlreq = G_PART_CTL_DELETE;
 			modifies = 1;
-			mparms = G_PART_PARM_GEOM | G_PART_PARM_INDEX;
-			oparms = G_PART_PARM_FLAGS;
+			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX;
 		} else if (!strcmp(verb, "destroy")) {
 			ctlreq = G_PART_CTL_DESTROY;
 			modifies = 1;
-			mparms = G_PART_PARM_GEOM;
-			oparms = G_PART_PARM_FLAGS;
+			mparms |= G_PART_PARM_GEOM;
 		}
 		break;
 	case 'm':
 		if (!strcmp(verb, "modify")) {
 			ctlreq = G_PART_CTL_MODIFY;
 			modifies = 1;
-			mparms = G_PART_PARM_GEOM | G_PART_PARM_INDEX;
-			oparms = G_PART_PARM_FLAGS | G_PART_PARM_LABEL |
-			    G_PART_PARM_TYPE;
+			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX;
+			oparms |= G_PART_PARM_LABEL | G_PART_PARM_TYPE;
 		} else if (!strcmp(verb, "move")) {
 			ctlreq = G_PART_CTL_MOVE;
 			modifies = 1;
-			mparms = G_PART_PARM_GEOM | G_PART_PARM_INDEX;
-			oparms = G_PART_PARM_FLAGS;
-		}
-		break;
-	case 'q':
-		if (!strcmp(verb, "query")) {
-			ctlreq = G_PART_CTL_QUERY;
-			mparms = G_PART_PARM_REQUEST | G_PART_PARM_RESPONSE;
-			oparms = G_PART_PARM_FLAGS | G_PART_PARM_GEOM;
+			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX;
 		}
 		break;
 	case 'r':
 		if (!strcmp(verb, "recover")) {
 			ctlreq = G_PART_CTL_RECOVER;
 			modifies = 1;
-			mparms = G_PART_PARM_GEOM;
-			oparms = G_PART_PARM_FLAGS;
+			mparms |= G_PART_PARM_GEOM;
 		} else if (!strcmp(verb, "resize")) {
 			ctlreq = G_PART_CTL_RESIZE;
 			modifies = 1;
-			mparms = G_PART_PARM_GEOM | G_PART_PARM_INDEX;
-			oparms = G_PART_PARM_FLAGS;
+			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX;
 		}
 		break;
 	case 'u':
 		if (!strcmp(verb, "undo")) {
 			ctlreq = G_PART_CTL_UNDO;
-			mparms = G_PART_PARM_GEOM;
-			oparms = G_PART_PARM_FLAGS;
+			mparms |= G_PART_PARM_GEOM;
 		}
 		break;
 	}
@@ -977,15 +953,13 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			if (!strcmp(ap->name, "label"))
 				parm = G_PART_PARM_LABEL;
 			break;
+		case 'o':
+			if (!strcmp(ap->name, "output"))
+				parm = G_PART_PARM_OUTPUT;
+			break;
 		case 'p':
 			if (!strcmp(ap->name, "provider"))
 				parm = G_PART_PARM_PROVIDER;
-			break;
-		case 'r':
-			if (!strcmp(ap->name, "request"))
-				parm = G_PART_PARM_REQUEST;
-			else if (!strcmp(ap->name, "response"))
-				parm = G_PART_PARM_RESPONSE;
 			break;
 		case 's':
 			if (!strcmp(ap->name, "scheme"))
@@ -1002,6 +976,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		case 'v':
 			if (!strcmp(ap->name, "verb"))
 				continue;
+			else if (!strcmp(ap->name, "version"))
+				parm = G_PART_PARM_VERSION;
 			break;
 		}
 		if ((parm & (mparms | oparms)) == 0) {
@@ -1029,14 +1005,11 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		case G_PART_PARM_LABEL:
 			error = g_part_parm_str(p, &gpp.gpp_label);
 			break;
+		case G_PART_PARM_OUTPUT:
+			error = 0;	/* Write-only parameter */
+			break;
 		case G_PART_PARM_PROVIDER:
 			error = g_part_parm_provider(p, &gpp.gpp_provider);
-			break;
-		case G_PART_PARM_REQUEST:
-			error = g_part_parm_str(p, &gpp.gpp_request);
-			break;
-		case G_PART_PARM_RESPONSE:
-			error = 0;	/* Write-only parameter. */
 			break;
 		case G_PART_PARM_SCHEME:
 			error = g_part_parm_scheme(p, &gpp.gpp_scheme);
@@ -1049,6 +1022,9 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			break;
 		case G_PART_PARM_TYPE:
 			error = g_part_parm_str(p, &gpp.gpp_type);
+			break;
+		case G_PART_PARM_VERSION:
+			error = g_part_parm_uint(p, &gpp.gpp_version);
 			break;
 		default:
 			error = EDOOFUS;
@@ -1105,9 +1081,6 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		break;
 	case G_PART_CTL_MOVE:
 		error = g_part_ctl_move(req, &gpp);
-		break;
-	case G_PART_CTL_QUERY:
-		error = g_part_ctl_query(req, &gpp);
 		break;
 	case G_PART_CTL_RECOVER:
 		error = g_part_ctl_recover(req, &gpp);

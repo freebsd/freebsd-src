@@ -99,8 +99,10 @@ G_PART_SCHEME_DECLARE(g_part_apm_scheme);
 static int
 apm_parse_type(const char *type, char *buf, size_t bufsz)
 {
+	const char *alias;
 
-	if (type[0] != '@') {
+	if (type[0] == '!') {
+		type++;
 		if (strlen(type) > bufsz)
 			return (EINVAL);
 		if (!strcmp(type, APM_ENT_TYPE_SELF) ||
@@ -109,17 +111,27 @@ apm_parse_type(const char *type, char *buf, size_t bufsz)
 		strncpy(buf, type, bufsz);
 		return (0);
 	}
-	if (!strcmp(type, g_part_alias_name(G_PART_ALIAS_FREEBSD)))
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
+	if (!strcasecmp(type, alias)) {
 		strcpy(buf, APM_ENT_TYPE_FREEBSD);
-	else if (!strcmp(type, g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP)))
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
+	if (!strcasecmp(type, alias)) {
 		strcpy(buf, APM_ENT_TYPE_FREEBSD_SWAP);
-	else if (!strcmp(type, g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS)))
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS);
+	if (!strcasecmp(type, alias)) {
 		strcpy(buf, APM_ENT_TYPE_FREEBSD_UFS);
-	else if (!strcmp(type, g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM)))
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM);
+	if (!strcasecmp(type, alias)) {
 		strcpy(buf, APM_ENT_TYPE_FREEBSD_VINUM);
-	else
-		return (EINVAL);
-	return (0);
+		return (0);
+	}
+	return (EINVAL);
 }
 
 static int
@@ -392,15 +404,15 @@ g_part_apm_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	baseentry = LIST_FIRST(&basetable->gpt_entry);
 	for (index = 1; index <= basetable->gpt_entries; index++) {
-		if (baseentry != NULL && index == baseentry->gpe_index) {
-			entry = (struct g_part_apm_entry *)baseentry;
+		entry = (baseentry != NULL && index == baseentry->gpe_index)
+		    ? (struct g_part_apm_entry *)baseentry : NULL;
+		if (entry != NULL && !baseentry->gpe_deleted) {
 			be32enc(buf + 8, entry->ent.ent_start);
 			be32enc(buf + 12, entry->ent.ent_size);
 			bcopy(entry->ent.ent_name, buf + 16,
 			    sizeof(entry->ent.ent_name));
 			bcopy(entry->ent.ent_type, buf + 48,
 			    sizeof(entry->ent.ent_type));
-			baseentry = LIST_NEXT(baseentry, gpe_entry);
 		} else {
 			bzero(buf + 8, 4 + 4 + 32 + 32);
 			strcpy(buf + 48, APM_ENT_TYPE_UNUSED);
@@ -408,6 +420,8 @@ g_part_apm_write(struct g_part_table *basetable, struct g_consumer *cp)
 		error = g_write_data(cp, (index + 1) * 512, buf, sizeof(buf));
 		if (error)
 			return (error);
+		if (entry != NULL)
+			baseentry = LIST_NEXT(baseentry, gpe_entry);
 	}
 
 	return (0);
