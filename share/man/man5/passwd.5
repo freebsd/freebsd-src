@@ -67,32 +67,34 @@ manually.
 The
 .Nm master.passwd
 file is readable only by root, and consists of newline separated
-records, one per user, containing ten colon (``:'') separated
+records, one per user, containing ten colon
+.Pq Ql \&:
+separated
 fields.
 These fields are as follows:
 .Pp
-.Bl -tag -width password -offset indent
-.It name
+.Bl -tag -width ".Ar password" -offset indent
+.It Ar name
 User's login name.
-.It password
+.It Ar password
 User's
 .Em encrypted
 password.
-.It uid
+.It Ar uid
 User's id.
-.It gid
+.It Ar gid
 User's login group id.
-.It class
+.It Ar class
 User's login class.
-.It change
+.It Ar change
 Password change time.
-.It expire
+.It Ar expire
 Account expiration time.
-.It gecos
+.It Ar gecos
 General information about the user.
-.It home_dir
+.It Ar home_dir
 User's home directory.
-.It shell
+.It Ar shell
 User's login shell.
 .El
 .Pp
@@ -102,7 +104,13 @@ file is generated from the
 .Nm master.passwd
 file by
 .Xr pwd_mkdb 8 ,
-has the class, change, and expire fields removed, and the password
+has the
+.Ar class ,
+.Ar change ,
+and
+.Ar expire
+fields removed, and the
+.Ar password
 field replaced by a
 .Ql *
 character.
@@ -122,17 +130,25 @@ Routines
 that manipulate these files will often return only one of the multiple
 entries, and that one by random selection.
 .Pp
-The login name must never begin with a hyphen (``-''); also, it is strongly
-suggested that neither upper-case characters or dots (``.'') be part
+The login name must never begin with a hyphen
+.Pq Ql - ;
+also, it is strongly
+suggested that neither upper-case characters or dots
+.Pq Ql \&.
+be part
 of the name, as this tends to confuse mailers.
 No field may contain a
-colon (``:'') as this has been used historically to separate the fields
+colon
+.Pq Ql \&:
+as this has been used historically to separate the fields
 in the user database.
 .Pp
 In the
 .Nm master.passwd
 file,
-the password field is the
+the
+.Ar password
+field is the
 .Em encrypted
 form of the password, see
 .Xr crypt 3 .
@@ -164,7 +180,9 @@ and no one can log into it using any authentication.
 For a convenient command-line interface to account locking, see
 .Xr pw 8 .
 .Pp
-The group field is the group that the user will be placed in upon login.
+The
+.Ar group
+field is the group that the user will be placed in upon login.
 Since this system supports multiple groups (see
 .Xr groups 1 )
 this field currently has little special meaning.
@@ -198,36 +216,52 @@ This field may be left empty to turn off the account aging feature.
 .Pp
 The
 .Ar gecos
-field normally contains comma (``,'') separated subfields as follows:
+field normally contains comma
+.Pq Ql \&,
+separated subfields as follows:
 .Pp
-.Bl -tag -width office -offset indent -compact
-.It name
+.Bl -tag -width ".Ar office" -offset indent -compact
+.It Ar name
 user's full name
-.It office
+.It Ar office
 user's office number
-.It wphone
+.It Ar wphone
 user's work phone number
-.It hphone
+.It Ar hphone
 user's home phone number
 .El
 .Pp
-The full name may contain a ampersand (``&'') which will be replaced by
-the capitalized login name when the gecos field is displayed or used
+The full
+.Ar name
+may contain a ampersand
+.Pq Ql &
+which will be replaced by
+the capitalized login
+.Ar name
+when the
+.Ar gecos
+field is displayed or used
 by various programs such as
 .Xr finger 1 ,
 .Xr sendmail 8 ,
 etc.
 .Pp
-The office and phone number subfields are used by the
+The
+.Ar office
+and phone number subfields are used by the
 .Xr finger 1
 program, and possibly other applications.
 .Pp
-The user's home directory is the full
+The user's home directory,
+.Ar home_dir ,
+is the full
 .Ux
 path name where the user
 will be placed on login.
 .Pp
-The shell field is the command interpreter the user prefers.
+The
+.Ar shell
+field is the command interpreter the user prefers.
 If there is nothing in the
 .Ar shell
 field, the Bourne shell
@@ -235,7 +269,9 @@ field, the Bourne shell
 is assumed.
 The conventional way to disable logging into an account once and for all,
 as it is done for system accounts,
-is to set its shell to
+is to set its
+.Ar shell
+to
 .Xr nologin 8 .
 .Sh HESIOD SUPPORT
 If
@@ -285,10 +321,16 @@ file also supports standard
 .Sq +/-
 exclusions and inclusions, based on user names and netgroups.
 .Pp
-Lines beginning with a ``-'' (minus sign) are entries marked as being excluded
-from any following inclusions, which are marked with a ``+'' (plus sign).
+Lines beginning with a
+.Ql -
+(minus sign) are entries marked as being excluded
+from any following inclusions, which are marked with a
+.Ql +
+(plus sign).
 .Pp
-If the second character of the line is a ``@'' (at sign), the operation
+If the second character of the line is a
+.Ql @
+(at sign), the operation
 involves the user fields of all entries in the netgroup specified by the
 remaining characters of the
 .Ar name
@@ -297,7 +339,9 @@ Otherwise, the remainder of the
 .Ar name
 field is assumed to be a specific user name.
 .Pp
-The ``+'' token may also be alone in the
+The
+.Ql +
+token may also be alone in the
 .Ar name
 field, which causes all users from either the Hesiod domain
 .Nm
@@ -352,10 +396,10 @@ The password file format has changed since
 The following awk script can be used to convert your old-style password
 file into a new style password file.
 The additional fields
-.Dq class ,
-.Dq change
+.Ar class ,
+.Ar change
 and
-.Dq expire
+.Ar expire
 are added, but are turned off by default.
 Class is currently not implemented, but change and expire are; to set them,
 use the current day in seconds from the epoch + whatever number of seconds
