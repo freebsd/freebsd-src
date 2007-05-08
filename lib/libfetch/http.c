@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #define HTTP_MOVED_PERM		301
 #define HTTP_MOVED_TEMP		302
 #define HTTP_SEE_OTHER		303
+#define HTTP_TEMP_REDIRECT	307
 #define HTTP_NEED_AUTH		401
 #define HTTP_NEED_PROXY_AUTH	407
 #define HTTP_BAD_RANGE		416
@@ -99,6 +100,7 @@ __FBSDID("$FreeBSD$");
 
 #define HTTP_REDIRECT(xyz) ((xyz) == HTTP_MOVED_PERM \
 			    || (xyz) == HTTP_MOVED_TEMP \
+			    || (xyz) == HTTP_TEMP_REDIRECT \
 			    || (xyz) == HTTP_SEE_OTHER)
 
 #define HTTP_ERROR(xyz) ((xyz) > 400 && (xyz) < 599)
