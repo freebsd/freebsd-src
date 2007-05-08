@@ -128,6 +128,8 @@ extern void isp_put_rft_id(ispsoftc_t *, rft_id_t *, rft_id_t *);
 extern void isp_get_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 extern void isp_put_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 
+#define	ISP_HANDLE_MASK		0x7fff
+
 #ifdef	ISP_TARGET_MODE
 #if	defined(__NetBSD__) || defined(__OpenBSD__)
 #include <dev/ic/isp_target.h>
