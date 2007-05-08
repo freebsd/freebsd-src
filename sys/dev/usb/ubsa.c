@@ -214,6 +214,8 @@ static const struct ubsa_product {
 	uint16_t	vendor;
 	uint16_t	product;
 } ubsa_products [] = {
+	/* AnyData ADU-E100A/H */
+	{ USB_VENDOR_ANYDATA, USB_PRODUCT_ANYDATA_ADU_E100X },
 	/* BELKIN F5U103 */
 	{ USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5U103 },
 	/* BELKIN F5U120 */
