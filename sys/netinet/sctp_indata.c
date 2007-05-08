@@ -2792,7 +2792,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 		 */
 		SCTP_STAT_INCR(sctps_recvpktwithdata);
 		stcb->asoc.overall_error_count = 0;
-		SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_last_rcvd);
+		(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_last_rcvd);
 	}
 	/* now service all of the reassm queue if needed */
 	if (!(TAILQ_EMPTY(&asoc->reasmqueue)))
@@ -3234,7 +3234,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		}
 	}
 	if (stcb->asoc.peer_supports_prsctp) {
-		SCTP_GETTIME_TIMEVAL(&now);
+		(void)SCTP_GETTIME_TIMEVAL(&now);
 	}
 	tp1 = TAILQ_FIRST(&asoc->sent_queue);
 	while (tp1) {
@@ -3653,7 +3653,7 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 			break;
 		}
 		if (!now_filled) {
-			SCTP_GETTIME_TIMEVAL(&now);
+			(void)SCTP_GETTIME_TIMEVAL(&now);
 			now_filled = 1;
 		}
 		tp2 = TAILQ_NEXT(tp1, sctp_next);
