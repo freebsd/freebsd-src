@@ -1050,6 +1050,11 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		error = ENOTSOCK;
 		goto bad;
 	}
+#ifdef MAC
+	error = mac_check_vnode_open(td->td_ucred, vp, VWRITE | VREAD);
+	if (error)
+		goto bad;
+#endif
 	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
 	if (error)
 		goto bad;
