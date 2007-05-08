@@ -2247,7 +2247,7 @@ bge_attach(device_t dev)
   	/*
 	 * Check if this is a PCI-X or PCI Express device.
   	 */
-#if __FreeBSD_version > 700010
+#if __FreeBSD_version > 602101
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
 		/*
 		 * Found a PCI Express capabilities register, this
