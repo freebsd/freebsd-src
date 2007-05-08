@@ -78,7 +78,7 @@ dorounding(char *s0, int ndigits, int sign, int *decpt)
 		break;
 	case 1:		/* to nearest, halfway rounds to even */
 		if ((s0[ndigits] > 8) ||
-		    (s0[ndigits] == 8 && s0[ndigits - 1] & 1))
+		    (s0[ndigits] == 8 && s0[ndigits + 1] & 1))
 			adjust = roundup(s0, ndigits);
 		break;
 	case 2:		/* toward +inf */
