@@ -2533,7 +2533,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	/*
 	 * First time through we have the socket lock, after that no more.
 	 */
-	if (from == 1) {
+	if (from == SCTP_CALLED_AFTER_CMPSET_OFCLOSE) {
 		/*
 		 * Once we are in we can remove the flag from = 1 is only
 		 * passed from the actual closing routines that are called
@@ -2556,7 +2556,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	ip_pcb = &inp->ip_inp.inp;	/* we could just cast the main pointer
 					 * here but I will be nice :> (i.e.
 					 * ip_pcb = ep;) */
-	if (immediate == 0) {
+	if (immediate == SCTP_FREE_SHOULD_USE_GRACEFUL_CLOSE) {
 		int cnt_in_sd;
 
 		cnt_in_sd = 0;
@@ -4192,7 +4192,9 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			 * if the socket closes at the same time we are here
 			 * we might collide in the cleanup.
 			 */
-			sctp_inpcb_free(inp, 0, 0);
+			sctp_inpcb_free(inp,
+			    SCTP_FREE_SHOULD_USE_GRACEFUL_CLOSE,
+			    SCTP_CALLED_DIRECTLY_NOCMPSET);
 			SCTP_INP_DECR_REF(inp);
 			goto out_of;
 		} else {
