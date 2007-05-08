@@ -1144,16 +1144,6 @@ unp_disconnect(struct unpcb *unp)
 	}
 }
 
-#ifdef notdef
-void
-unp_abort(struct unpcb *unp)
-{
-
-	unp_detach(unp);
-	UNP_UNLOCK_ASSERT();
-}
-#endif
-
 /*
  * unp_pcblist() assumes that UNIX domain socket memory is never reclaimed
  * by the zone (UMA_ZONE_NOFREE), and as such potentially stale pointers
@@ -1304,14 +1294,6 @@ unp_drop(struct unpcb *unp, int errno)
 	so->so_error = errno;
 	unp_disconnect(unp);
 }
-
-#ifdef notdef
-void
-unp_drain(void)
-{
-
-}
-#endif
 
 static void
 unp_freerights(struct file **rp, int fdcount)
