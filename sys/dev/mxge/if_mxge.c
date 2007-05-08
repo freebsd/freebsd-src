@@ -124,6 +124,9 @@ static devclass_t mxge_devclass;
 DRIVER_MODULE(mxge, pci, mxge_driver, mxge_devclass, 0, 0);
 MODULE_DEPEND(mxge, firmware, 1, 1, 1);
 
+static int mxge_load_firmware(mxge_softc_t *sc);
+static int mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data);
+
 static int
 mxge_probe(device_t dev)
 {
@@ -282,15 +285,49 @@ mxge_parse_strings(mxge_softc_t *sc)
 }
 
 #if #cpu(i386) || defined __i386 || defined i386 || defined __i386__ || #cpu(x86_64) || defined __x86_64__
-static int
-mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
+static void
+mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 {
 	uint32_t val;
-	unsigned long off;
+	unsigned long base, off;
 	char *va, *cfgptr;
-	uint16_t vendor_id, device_id;
+	device_t pdev, mcp55;
+	uint16_t vendor_id, device_id, word;
 	uintptr_t bus, slot, func, ivend, idev;
 	uint32_t *ptr32;
+
+
+	if (!mxge_nvidia_ecrc_enable)
+		return;
+
+	pdev = device_get_parent(device_get_parent(sc->dev));
+	if (pdev == NULL) {
+		device_printf(sc->dev, "could not find parent?\n");
+		return;
+	}
+	vendor_id = pci_read_config(pdev, PCIR_VENDOR, 2);
+	device_id = pci_read_config(pdev, PCIR_DEVICE, 2);
+
+	if (vendor_id != 0x10de)
+		return;
+
+	base = 0;
+
+	if (device_id == 0x005d) {
+		/* ck804, base address is magic */
+		base = 0xe0000000UL;
+	} else if (device_id >= 0x0374 && device_id <= 0x378) {
+		/* mcp55, base address stored in chipset */
+		mcp55 = pci_find_bsf(0, 0, 0);
+		if (mcp55 &&
+		    0x10de == pci_read_config(mcp55, PCIR_VENDOR, 2) &&
+		    0x0369 == pci_read_config(mcp55, PCIR_DEVICE, 2)) {
+			word = pci_read_config(mcp55, 0x90, 2);
+			base = ((unsigned long)word & 0x7ffeU) << 25;
+		}
+	}
+	if (!base)
+		return;
 
 	/* XXXX
 	   Test below is commented because it is believed that doing
@@ -306,7 +343,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
 	if (val != 0xffffffff) {
 		val |= 0x40;
 		pci_write_config(pdev, 0x178, val, 4);
-		return 0;
+		return;
 	}
 #endif
 	/* Rather than using normal pci config space writes, we must
@@ -328,7 +365,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
 	BUS_READ_IVAR(device_get_parent(pdev), pdev,
 		      PCI_IVAR_DEVICE, &idev);
 					
-	off =  0xe0000000UL 
+	off =  base
 		+ 0x00100000UL * (unsigned long)bus
 		+ 0x00001000UL * (unsigned long)(func
 						 + 8 * slot);
@@ -339,7 +376,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
 
 	if (va == NULL) {
 		device_printf(sc->dev, "pmap_kenter_temporary didn't\n");
-		return EIO;
+		return;
 	}
 	/* get a pointer to the config space mapped into the kernel */
 	cfgptr = va + (off & PAGE_MASK);
@@ -351,7 +388,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
 		device_printf(sc->dev, "mapping failed: 0x%x:0x%x\n",
 			      vendor_id, device_id);
 		pmap_unmapdev((vm_offset_t)va, PAGE_SIZE);
-		return EIO;
+		return;
 	}
 
 	ptr32 = (uint32_t*)(cfgptr + 0x178);
@@ -360,7 +397,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
 	if (val == 0xffffffff) {
 		device_printf(sc->dev, "extended mapping failed\n");
 		pmap_unmapdev((vm_offset_t)va, PAGE_SIZE);
-		return EIO;
+		return;
 	}
 	*ptr32 = val | 0x40;
 	pmap_unmapdev((vm_offset_t)va, PAGE_SIZE);
@@ -369,17 +406,80 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
 			      "Enabled ECRC on upstream Nvidia bridge "
 			      "at %d:%d:%d\n",
 			      (int)bus, (int)slot, (int)func);
-	return 0;
+	return;
 }
 #else
-static int
+static void
 mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
 {
 	device_printf(sc->dev,
 		      "Nforce 4 chipset on non-x86/amd64!?!?!\n");
-	return ENXIO;
+	return;
 }
 #endif
+
+
+static int
+mxge_dma_test(mxge_softc_t *sc, int test_type)
+{
+	mxge_cmd_t cmd;
+	bus_addr_t dmatest_bus = sc->dmabench_dma.bus_addr;
+	int status;
+	uint32_t len;
+	char *test = " ";
+
+
+	/* Run a small DMA test.
+	 * The magic multipliers to the length tell the firmware
+	 * to do DMA read, write, or read+write tests.  The
+	 * results are returned in cmd.data0.  The upper 16
+	 * bits of the return is the number of transfers completed.
+	 * The lower 16 bits is the time in 0.5us ticks that the
+	 * transfers took to complete.
+	 */
+
+	len = sc->tx.boundary;
+
+	cmd.data0 = MXGE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MXGE_HIGHPART_TO_U32(dmatest_bus);
+	cmd.data2 = len * 0x10000;
+	status = mxge_send_cmd(sc, test_type, &cmd);
+	if (status != 0) {
+		test = "read";
+		goto abort;
+	}
+	sc->read_dma = ((cmd.data0>>16) * len * 2) /
+		(cmd.data0 & 0xffff);
+	cmd.data0 = MXGE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MXGE_HIGHPART_TO_U32(dmatest_bus);
+	cmd.data2 = len * 0x1;
+	status = mxge_send_cmd(sc, test_type, &cmd);
+	if (status != 0) {
+		test = "write";
+		goto abort;
+	}
+	sc->write_dma = ((cmd.data0>>16) * len * 2) /
+		(cmd.data0 & 0xffff);
+
+	cmd.data0 = MXGE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MXGE_HIGHPART_TO_U32(dmatest_bus);
+	cmd.data2 = len * 0x10001;
+	status = mxge_send_cmd(sc, test_type, &cmd);
+	if (status != 0) {
+		test = "read/write";
+		goto abort;
+	}
+	sc->read_write_dma = ((cmd.data0>>16) * len * 2 * 2) /
+		(cmd.data0 & 0xffff);
+
+abort:
+	if (status != 0 && test_type != MXGEFW_CMD_UNALIGNED_TEST)
+		device_printf(sc->dev, "DMA %s benchmark failed: %d\n",
+			      test, status);
+
+	return status;
+}
+
 /*
  * The Lanai Z8E PCI-E interface achieves higher Read-DMA throughput
  * when the PCI-E Completion packets are aligned on an 8-byte
@@ -399,12 +499,63 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
  * firmware image, and set tx.boundary to 4KB.
  */
 
-static void
+static int
+mxge_firmware_probe(mxge_softc_t *sc)
+{
+	device_t dev = sc->dev;
+	int reg, status;
+	uint16_t pectl;
+
+	sc->tx.boundary = 4096;
+	/*
+	 * Verify the max read request size was set to 4KB
+	 * before trying the test with 4KB.
+	 */
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+		pectl = pci_read_config(dev, reg + 0x8, 2);
+		if ((pectl & (5 << 12)) != (5 << 12)) {
+			device_printf(dev, "Max Read Req. size != 4k (0x%x\n",
+				      pectl);
+			sc->tx.boundary = 2048;
+		}
+	}
+
+	/* 
+	 * load the optimized firmware (which assumes aligned PCIe
+	 * completions) in order to see if it works on this host.
+	 */
+	sc->fw_name = mxge_fw_aligned;
+	status = mxge_load_firmware(sc);
+	if (status != 0) {
+		return status;
+	}
+
+	/* 
+	 * Enable ECRC if possible
+	 */
+	mxge_enable_nvidia_ecrc(sc);
+
+	/* 
+	 * Run a DMA test which watches for unaligned completions and
+	 * aborts on the first one seen.
+	 */
+
+	status = mxge_dma_test(sc, MXGEFW_CMD_UNALIGNED_TEST);
+	if (status == 0)
+		return 0; /* keep the aligned firmware */
+
+	if (status != E2BIG)
+		device_printf(dev, "DMA test failed: %d\n", status);
+	if (status == ENOSYS)
+		device_printf(dev, "Falling back to ethp! "
+			      "Please install up to date fw\n");
+	return status;
+}
+
+static int
 mxge_select_firmware(mxge_softc_t *sc)
 {
-	int err, aligned = 0;
-	device_t pdev;
-	uint16_t pvend, pdid;
+	int aligned = 0;
 
 
 	if (mxge_force_firmware != 0) {
@@ -429,40 +580,8 @@ mxge_select_firmware(mxge_softc_t *sc)
 		goto abort;
 	}
 
-	pdev = device_get_parent(device_get_parent(sc->dev));
-	if (pdev == NULL) {
-		device_printf(sc->dev, "could not find parent?\n");
-		goto abort;
-	}
-	pvend = pci_read_config(pdev, PCIR_VENDOR, 2);
-	pdid = pci_read_config(pdev, PCIR_DEVICE, 2);
-
-	/* see if we can enable ECRC's on an upstream
-	   Nvidia bridge */
-	if (mxge_nvidia_ecrc_enable &&
-	    (pvend == 0x10de && pdid == 0x005d)) {
-		err = mxge_enable_nvidia_ecrc(sc, pdev);
-		if (err == 0) {
-			aligned = 1;
-			if (mxge_verbose)
-				device_printf(sc->dev, 
-					      "Assuming aligned completions"
-					      " (ECRC)\n");
-		}
-	}
-	/* see if the upstream bridge is known to
-	   provided aligned completions */
-	if (/* HT2000 */ (pvend == 0x1166 && pdid == 0x0132) ||
-	    /* PLX */    (pvend == 0x10b5 && pdid == 0x8532) || 
-	    /* Intel */  (pvend == 0x8086 && 
-	      /* E5000 NorthBridge*/((pdid >= 0x25f7 && pdid <= 0x25fa) ||
-	      /* E5000 SouthBridge*/ (pdid >= 0x3510 && pdid <= 0x351b)))) {
-		aligned = 1;
-		if (mxge_verbose)
-			device_printf(sc->dev,
-				      "Assuming aligned completions "
-				      "(0x%x:0x%x)\n", pvend, pdid);
-	}
+	if (0 == mxge_firmware_probe(sc))
+		return 0;
 
 abort:
 	if (aligned) {
@@ -472,6 +591,7 @@ abort:
 		sc->fw_name = mxge_fw_unaligned;
 		sc->tx.boundary = 2048;
 	}
+	return (mxge_load_firmware(sc));
 }
 
 union qualhack
@@ -666,6 +786,10 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 				data->data0 = be32toh(response->data);
 				mtx_unlock(&sc->cmd_mtx);
 				return 0;
+			} else if (be32toh(response->result) ==
+				   MXGEFW_CMD_ERROR_UNALIGNED) {
+				mtx_unlock(&sc->cmd_mtx);
+				return E2BIG;
 			} else {
 				device_printf(sc->dev, 
 					      "mxge: command %d "
@@ -941,7 +1065,6 @@ mxge_set_multicast_list(mxge_softc_t *sc)
 	}
 }
 
-
 static int
 mxge_reset(mxge_softc_t *sc)
 {
@@ -993,41 +1116,7 @@ mxge_reset(mxge_softc_t *sc)
 
 	
 	/* run a DMA benchmark */
-	sc->read_dma = sc->write_dma = sc->read_write_dma = 0;
-
-	/* Read DMA */
-	cmd.data0 = MXGE_LOWPART_TO_U32(sc->dmabench_dma.bus_addr);
-	cmd.data1 = MXGE_HIGHPART_TO_U32(sc->dmabench_dma.bus_addr);
-	cmd.data2 = sc->tx.boundary * 0x10000;
-
-	status = mxge_send_cmd(sc, MXGEFW_DMA_TEST, &cmd);
-	if (status != 0)
-		device_printf(sc->dev, "read dma benchmark failed\n");
-	else
-		sc->read_dma = ((cmd.data0>>16) * sc->tx.boundary * 2) /
-			(cmd.data0 & 0xffff);
-
-	/* Write DMA */
-	cmd.data0 = MXGE_LOWPART_TO_U32(sc->dmabench_dma.bus_addr);
-	cmd.data1 = MXGE_HIGHPART_TO_U32(sc->dmabench_dma.bus_addr);
-	cmd.data2 = sc->tx.boundary * 0x1;
-	status = mxge_send_cmd(sc, MXGEFW_DMA_TEST, &cmd);
-	if (status != 0)
-		device_printf(sc->dev, "write dma benchmark failed\n");
-	else
-		sc->write_dma = ((cmd.data0>>16) * sc->tx.boundary * 2) /
-			(cmd.data0 & 0xffff);
-	/* Read/Write DMA */
-	cmd.data0 = MXGE_LOWPART_TO_U32(sc->dmabench_dma.bus_addr);
-	cmd.data1 = MXGE_HIGHPART_TO_U32(sc->dmabench_dma.bus_addr);
-	cmd.data2 = sc->tx.boundary * 0x10001;
-	status = mxge_send_cmd(sc, MXGEFW_DMA_TEST, &cmd);
-	if (status != 0)
-		device_printf(sc->dev, "read/write dma benchmark failed\n");
-	else
-		sc->read_write_dma = 
-			((cmd.data0>>16) * sc->tx.boundary * 2 * 2) /
-			(cmd.data0 & 0xffff);
+	(void) mxge_dma_test(sc, MXGEFW_DMA_TEST);
 
 	/* reset mcp/driver shared state back to 0 */
 	bzero(sc->rx_done.entry, bytes);
@@ -3025,10 +3114,8 @@ mxge_attach(device_t dev)
 		device_printf(dev, "using %s irq %ld\n",
 			      sc->msi_enabled ? "MSI" : "INTx",
 			      rman_get_start(sc->irq_res));
-	/* load the firmware */
-	mxge_select_firmware(sc);
-
-	err = mxge_load_firmware(sc);
+	/* select & load the firmware */
+	err = mxge_select_firmware(sc);
 	if (err != 0)
 		goto abort_with_irq_res;
 	sc->intr_coal_delay = mxge_intr_coal_delay;
