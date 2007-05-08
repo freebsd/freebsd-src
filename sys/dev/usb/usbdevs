@@ -543,6 +543,7 @@ vendor ACTIONTEC	0x1668	Actiontec
 vendor ATHEROS		0x168c	Atheros Communications
 vendor GIGASET		0x1690	Gigaset
 vendor GLOBALSUN	0x16ab	Global Sun Technology
+vendor ANYDATA		0x16d5	AnyData Corporation
 vendor CMOTECH		0x16d8	CMOTECH CO., LTD.
 vendor AMIT		0x18c5	AMIT
 vendor QCOM		0x18e8	Qcom
@@ -693,6 +694,9 @@ product AMIT CGWLUSB2GO		0x0002	CG-WLUSB2GO
 /* Anchor products */
 product ANCHOR EZUSB		0x2131	EZUSB
 product ANCHOR EZLINK		0x2720	EZLINK
+
+/* AnyData products */
+product ANYDATA ADU_E100X	0x6501	CDMA 2000 1xRTT/EV-DO USB Modem
 
 /* AOX, Inc. products */
 product AOX USB101		0x0008	Ethernet
