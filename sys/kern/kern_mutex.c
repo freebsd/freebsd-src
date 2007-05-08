@@ -90,6 +90,8 @@ __FBSDID("$FreeBSD$");
  */
 #define mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
 
+#define	mtx_destroyed(m) ((m)->mtx_lock == MTX_DESTROYED)
+
 #define	mtx_owner(m)	((struct thread *)((m)->mtx_lock & ~MTX_FLAGMASK))
 
 #ifdef DDB
@@ -790,6 +792,8 @@ db_show_mtx(struct lock_object *lock)
 	db_printf(" state: {");
 	if (mtx_unowned(m))
 		db_printf("UNOWNED");
+	else if (mtx_destroyed(m))
+		db_printf("DESTROYED");
 	else {
 		db_printf("OWNED");
 		if (m->mtx_lock & MTX_CONTESTED)
@@ -798,7 +802,7 @@ db_show_mtx(struct lock_object *lock)
 			db_printf(", RECURSED");
 	}
 	db_printf("}\n");
-	if (!mtx_unowned(m)) {
+	if (!mtx_unowned(m) && !mtx_destroyed(m)) {
 		td = mtx_owner(m);
 		db_printf(" owner: %p (tid %d, pid %d, \"%s\")\n", td,
 		    td->td_tid, td->td_proc->p_pid, td->td_proc->p_comm);
