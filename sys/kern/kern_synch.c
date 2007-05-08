@@ -182,7 +182,7 @@ _sleep(ident, lock, priority, wmesg, timo)
 	    td->td_tid, p->p_pid, p->p_comm, wmesg, ident);
 
 	DROP_GIANT();
-	if (lock != NULL) {
+	if (lock != NULL && !(class->lc_flags & LC_SLEEPABLE)) {
 		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 	} else
@@ -201,6 +201,12 @@ _sleep(ident, lock, priority, wmesg, timo)
 	sleepq_add(ident, ident == &lbolt ? NULL : lock, wmesg, flags, 0);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
+	if (lock != NULL && class->lc_flags & LC_SLEEPABLE) {
+		sleepq_release(ident);
+		WITNESS_SAVE(lock, lock_witness);
+		lock_state = class->lc_unlock(lock);
+		sleepq_lock(ident);
+	}
 
 	/*
 	 * Adjust this thread's priority, if necessary.
