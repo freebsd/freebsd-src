@@ -194,6 +194,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 		xinpcb.total_sends = inp->total_sends;
 		xinpcb.total_recvs = inp->total_recvs;
 		xinpcb.total_nospaces = inp->total_nospaces;
+		xinpcb.fragmentation_point = inp->sctp_frag_point;
 		SCTP_INP_INCR_REF(inp);
 		SCTP_INP_RUNLOCK(inp);
 		SCTP_INP_INFO_RUNLOCK();
@@ -249,6 +250,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			xstcb.highest_tsn = stcb->asoc.sending_seq - 1;
 			xstcb.cumulative_tsn = stcb->asoc.last_acked_seq;
 			xstcb.cumulative_tsn_ack = stcb->asoc.cumulative_tsn;
+			xstcb.mtu = stcb->asoc.smallest_mtu;
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_INP_INFO_RUNLOCK();
 			error = SYSCTL_OUT(req, &xstcb, sizeof(struct xsctp_tcb));
@@ -268,6 +270,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 				xraddr.RemAddrCwnd = net->cwnd;
 				xraddr.RemAddrFlightSize = net->flight_size;
 				xraddr.RemAddrStartTime = net->start_time;
+				xraddr.RemAddrMTU = net->mtu;
 				error = SYSCTL_OUT(req, &xraddr, sizeof(struct xsctp_raddr));
 				if (error) {
 					atomic_add_int(&stcb->asoc.refcnt, -1);

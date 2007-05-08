@@ -200,7 +200,6 @@ sctp_audit_retranmission_queue(struct sctp_association *asoc)
 #endif				/* SCTP_DEBUG */
 }
 
-
 int
 sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct sctp_nets *net, uint16_t threshold)
@@ -354,20 +353,10 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 			alt = TAILQ_FIRST(&stcb->asoc.nets);
 		}
 		if (alt->ro.ro_rt == NULL) {
-			struct sockaddr_in6 *sin6;
-
-			sin6 = (struct sockaddr_in6 *)&alt->ro._l_addr;
-			if (sin6->sin6_family == AF_INET6) {
-				(void)sa6_embedscope(sin6, ip6_use_defzone);
-			}
-			rtalloc_ign((struct route *)&alt->ro, 0UL);
-
-			if (sin6->sin6_family == AF_INET6) {
-				(void)sa6_recoverscope(sin6);
-			}
 			if (alt->ro._s_addr) {
 				sctp_free_ifa(alt->ro._s_addr);
 				alt->ro._s_addr = NULL;
+
 			}
 			alt->src_addr_selected = 0;
 		}
@@ -936,6 +925,22 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 	if (net->dest_state & SCTP_ADDR_NOT_REACHABLE) {
 		/* Move all pending over too */
 		sctp_move_all_chunks_to_alt(stcb, net, alt);
+
+		/*
+		 * Get the address that failed, to force a new src address
+		 * selecton and a route allocation.
+		 */
+		if (net->ro._s_addr) {
+			sctp_free_ifa(net->ro._s_addr);
+			net->ro._s_addr = NULL;
+		}
+		net->src_addr_selected = 0;
+
+		/* Force a route allocation too */
+		if (net->ro.ro_rt) {
+			RTFREE(net->ro.ro_rt);
+			net->ro.ro_rt = NULL;
+		}
 		/* Was it our primary? */
 		if ((stcb->asoc.primary_destination == net) && (alt != net)) {
 			/*
@@ -949,11 +954,6 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 			    (struct sockaddr *)NULL,
 			    alt) == 0) {
 				net->dest_state |= SCTP_ADDR_WAS_PRIMARY;
-				if (net->ro._s_addr) {
-					sctp_free_ifa(net->ro._s_addr);
-					net->ro._s_addr = NULL;
-				}
-				net->src_addr_selected = 0;
 			}
 		}
 	}
@@ -1538,16 +1538,27 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 	if (next_mtu <= net->mtu) {
 		/* nothing to do */
 		return;
-	}
-	if (net->ro.ro_rt != NULL) {
-		/*
-		 * only if we have a route and interface do we set anything.
-		 * Note we always restart the timer though just in case it
-		 * is updated (i.e. the ifp) or route/ifp is populated.
-		 */
-		if (net->ro.ro_rt->rt_ifp != NULL) {
-			if (net->ro.ro_rt->rt_ifp->if_mtu > next_mtu) {
-				/* ok it will fit out the door */
+	} {
+		uint32_t mtu;
+
+		if ((net->src_addr_selected == 0) ||
+		    (net->ro._s_addr == NULL) ||
+		    (net->ro._s_addr->localifa_flags & SCTP_BEING_DELETED)) {
+			if ((net->ro._s_addr == NULL) && (net->ro._s_addr->localifa_flags & SCTP_BEING_DELETED)) {
+				sctp_free_ifa(net->ro._s_addr);
+				net->ro._s_addr = NULL;
+				net->src_addr_selected = 0;
+			}
+			net->ro._s_addr = sctp_source_address_selection(inp,
+			    stcb,
+			    (sctp_route_t *) & net->ro,
+			    net, 0, stcb->asoc.vrf_id);
+			if (net->ro._s_addr)
+				net->src_addr_selected = 1;
+		}
+		if (net->ro._s_addr) {
+			mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._s_addr.sa, net->ro.ro_rt);
+			if (mtu > next_mtu) {
 				net->mtu = next_mtu;
 			}
 		}
