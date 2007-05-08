@@ -125,9 +125,10 @@ inthand_t
 
 #define	ATPIC(io, base, eoi, imenptr)					\
      	{ { atpic_enable_source, atpic_disable_source, (eoi),		\
-	    atpic_enable_intr, atpic_vector, atpic_source_pending, NULL, \
-	    atpic_resume, atpic_config_intr, atpic_assign_cpu }, (io),  \
-	    (base), IDT_IO_INTS + (base), (imenptr) }
+	    atpic_enable_intr, atpic_disable_intr, atpic_vector,	\
+	    atpic_source_pending, NULL,	atpic_resume, atpic_config_intr,\
+	    atpic_assign_cpu }, (io), (base), IDT_IO_INTS + (base),	\
+	    (imenptr) }
 
 #define	INTSRC(irq)							\
 	{ { &atpics[(irq) / 8].at_pic }, IDTVEC(atpic_intr ## irq ),	\
@@ -155,6 +156,7 @@ static void atpic_disable_source(struct intsrc *isrc, int eoi);
 static void atpic_eoi_master(struct intsrc *isrc);
 static void atpic_eoi_slave(struct intsrc *isrc);
 static void atpic_enable_intr(struct intsrc *isrc);
+static void atpic_disable_intr(struct intsrc *isrc);
 static int atpic_vector(struct intsrc *isrc);
 static void atpic_resume(struct pic *pic);
 static int atpic_source_pending(struct intsrc *isrc);
@@ -283,6 +285,12 @@ static void
 atpic_enable_intr(struct intsrc *isrc)
 {
 }
+
+static void
+atpic_disable_intr(struct intsrc *isrc)
+{
+}
+
 
 static int
 atpic_vector(struct intsrc *isrc)
