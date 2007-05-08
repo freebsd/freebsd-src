@@ -52,6 +52,7 @@ static const char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,7 +63,8 @@ int	rw(char *, struct stat *, int);
 void	stime_arg1(char *, struct timeval *);
 void	stime_arg2(char *, int, struct timeval *);
 void	stime_file(char *, struct timeval *);
-void	usage(void);
+int	timeoffset(char *);
+void	usage(char *);
 
 int
 main(int argc, char *argv[])
@@ -71,17 +73,22 @@ main(int argc, char *argv[])
 	struct timeval tv[2];
 	int (*stat_f)(const char *, struct stat *);
 	int (*utimes_f)(const char *, const struct timeval *);
-	int aflag, cflag, fflag, mflag, ch, fd, len, rval, timeset;
+	int Aflag, aflag, cflag, fflag, mflag, ch, fd, len, rval, timeset;
 	char *p;
+	char *myname;
 
-	aflag = cflag = fflag = mflag = timeset = 0;
+	myname = basename(argv[0]);
+	Aflag = aflag = cflag = fflag = mflag = timeset = 0;
 	stat_f = stat;
 	utimes_f = utimes;
 	if (gettimeofday(&tv[0], NULL))
 		err(1, "gettimeofday");
 
-	while ((ch = getopt(argc, argv, "acfhmr:t:")) != -1)
+	while ((ch = getopt(argc, argv, "A:acfhmr:t:")) != -1)
 		switch(ch) {
+		case 'A':
+			Aflag = timeoffset(optarg);
+			break;
 		case 'a':
 			aflag = 1;
 			break;
@@ -109,34 +116,50 @@ main(int argc, char *argv[])
 			break;
 		case '?':
 		default:
-			usage();
+			usage(myname);
 		}
 	argc -= optind;
 	argv += optind;
 
-	/* Default is both -a and -m. */
 	if (aflag == 0 && mflag == 0)
 		aflag = mflag = 1;
 
-	/*
-	 * If no -r or -t flag, at least two operands, the first of which
-	 * is an 8 or 10 digit number, use the obsolete time specification.
-	 */
-	if (!timeset && argc > 1) {
-		(void)strtol(argv[0], &p, 10);
-		len = p - argv[0];
-		if (*p == '\0' && (len == 8 || len == 10)) {
-			timeset = 1;
-			stime_arg2(*argv++, len == 10, tv);
+	if (timeset) {
+		if (Aflag) {
+			/*
+			 * We're setting the time to an offset from a specified
+			 * time.  God knows why, but it means that we can set
+			 * that time once and for all here.
+			 */
+			if (aflag)
+				tv[0].tv_sec += Aflag;
+			if (mflag)
+				tv[1].tv_sec += Aflag;
+			Aflag = 0;		/* done our job */
 		}
+	} else {
+		/*
+		 * If no -r or -t flag, at least two operands, the first of
+		 * which is an 8 or 10 digit number, use the obsolete time
+		 * specification, otherwise use the current time.
+		 */
+		if (argc > 1) {
+			strtol(argv[0], &p, 10);
+			len = p - argv[0];
+			if (*p == '\0' && (len == 8 || len == 10)) {
+				timeset = 1;
+				stime_arg2(*argv++, len == 10, tv);
+			}
+		}
+		/* Both times default to the same. */
+		tv[1] = tv[0];
 	}
 
-	/* Otherwise use the current time of day. */
-	if (!timeset)
-		tv[1] = tv[0];
-
 	if (*argv == NULL)
-		usage();
+		usage(myname);
+
+	if (Aflag)
+		cflag = 1;
 
 	for (rval = 0; *argv; ++argv) {
 		/* See if the file exists. */
@@ -162,6 +185,21 @@ main(int argc, char *argv[])
 			TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atimespec);
 		if (!mflag)
 			TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
+
+		/*
+		 * We're adjusting the times based on the file times, not a
+		 * specified time (that gets handled above).
+		 */
+		if (Aflag) {
+			if (aflag) {
+				TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atimespec);
+				tv[0].tv_sec += Aflag;
+			}
+			if (mflag) {
+				TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
+				tv[1].tv_sec += Aflag;
+			}
+		}
 
 		/* Try utimes(2). */
 		if (!utimes_f(*argv, tv))
@@ -286,6 +324,36 @@ stime_arg2(char *arg, int year, struct timeval *tvp)
 	tvp[0].tv_usec = tvp[1].tv_usec = 0;
 }
 
+/* Calculate a time offset in seconds, given an arg of the format [-]HHMMSS. */
+int
+timeoffset(char *arg)
+{
+	int offset;
+	int isneg;
+
+	offset = 0;
+	isneg = *arg == '-';
+	if (isneg)
+		arg++;
+	switch (strlen(arg)) {
+	default:				/* invalid */
+		errx(1, "Invalid offset spec, must be [-][[HH]MM]SS");
+
+	case 6:					/* HHMMSS */
+		offset = ATOI2(arg);
+		/* FALLTHROUGH */
+	case 4:					/* MMSS */
+		offset = offset * 60 + ATOI2(arg);
+		/* FALLTHROUGH */
+	case 2:					/* SS */
+		offset = offset * 60 + ATOI2(arg);
+	}
+	if (isneg)
+		return (-offset);
+	else
+		return (offset);
+}
+
 void
 stime_file(char *fname, struct timeval *tvp)
 {
@@ -347,8 +415,9 @@ err:			rval = 1;
 }
 
 void
-usage(void)
+usage(char *myname)
 {
-	(void)fprintf(stderr, "usage: touch [-acfhm] [-r file] [-t [[CC]YY]MMDDhhmm[.SS]] file ...\n");
+	fprintf(stderr, "usage:\n" "%s [-A [-][[hh]mm]SS] [-acfhm] [-r file] "
+		"[-t [[CC]YY]MMDDhhmm[.SS]] file ...\n", myname);
 	exit(1);
 }
