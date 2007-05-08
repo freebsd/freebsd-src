@@ -727,6 +727,7 @@ __FBSDID("$FreeBSD$");
 
 #define SCTP_INITIAL_CWND 4380
 
+#define SCTP_DEFAULT_MTU 1500	/* emegency default MTU */
 /* amount peer is obligated to have in rwnd or I will abort */
 #define SCTP_MIN_RWND	1500
 
@@ -843,6 +844,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_LOC_30 0x0000001e
 #define SCTP_LOC_31 0x0000001f
 #define SCTP_LOC_32 0x00000020
+#define SCTP_LOC_33 0x00000021
 
 
 /* Free assoc codes */
