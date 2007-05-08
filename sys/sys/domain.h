@@ -66,7 +66,6 @@ struct domain {
 #ifdef _KERNEL
 extern int	domain_init_status;
 extern struct	domain *domains;
-extern struct	domain localdomain;
 extern void	net_add_domain(void *);
 
 #define DOMAIN_SET(name) \
