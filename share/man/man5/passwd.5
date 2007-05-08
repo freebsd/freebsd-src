@@ -47,17 +47,17 @@ The
 .Nm
 files are the local source of password information.
 They can be used in conjunction with the Hesiod domains
-.Sq passwd
+.Sq Li passwd
 and
-.Sq uid ,
+.Sq Li uid ,
 and the
 .Tn NIS
 maps
-.Sq passwd.byname ,
-.Sq passwd.byuid ,
-.Sq master.passwd.byname ,
+.Sq Li passwd.byname ,
+.Sq Li passwd.byuid ,
+.Sq Li master.passwd.byname ,
 and
-.Sq master.passwd.byuid ,
+.Sq Li master.passwd.byuid ,
 as controlled by
 .Xr nsswitch.conf 5 .
 .Pp
@@ -275,50 +275,50 @@ to
 .Xr nologin 8 .
 .Sh HESIOD SUPPORT
 If
-.Sq dns
+.Sq Li dns
 is specified for the
-.Sq passwd
+.Sq Li passwd
 database in
 .Xr nsswitch.conf 5 ,
 then
 .Nm
 lookups occur from the
-.Sq passwd
+.Sq Li passwd
 Hesiod domain.
 .Sh NIS SUPPORT
 If
-.Sq nis
+.Sq Li nis
 is specified for the
-.Sq passwd
+.Sq Li passwd
 database in
 .Xr nsswitch.conf 5 ,
 then
 .Nm
 lookups occur from the
-.Sq passwd.byname ,
-.Sq passwd.byuid ,
-.Sq master.passwd.byname ,
+.Sq Li passwd.byname ,
+.Sq Li passwd.byuid ,
+.Sq Li master.passwd.byname ,
 and
-.Sq master.passwd.byuid
+.Sq Li master.passwd.byuid
 .Tn NIS
 maps.
 .Sh COMPAT SUPPORT
 If
-.Sq compat
+.Sq Li compat
 is specified for the
-.Sq passwd
+.Sq Li passwd
 database, and either
-.Sq dns
+.Sq Li dns
 or
-.Sq nis
+.Sq Li nis
 is specified for the
-.Sq passwd_compat
+.Sq Li passwd_compat
 database in
 .Xr nsswitch.conf 5 ,
 then the
 .Nm
 file also supports standard
-.Sq +/-
+.Sq Li + Ns / Ns Li -
 exclusions and inclusions, based on user names and netgroups.
 .Pp
 Lines beginning with a
@@ -346,14 +346,14 @@ token may also be alone in the
 field, which causes all users from either the Hesiod domain
 .Nm
 (with
-.Sq passwd_compat: dns )
+.Sq Li passwd_compat: dns )
 or
-.Sq passwd.byname
+.Sq Li passwd.byname
 and
-.Sq passwd.byuid
+.Sq Li passwd.byuid
 .Tn NIS
 maps (with
-.Sq passwd_compat: nis )
+.Sq Li passwd_compat: nis )
 to be included.
 .Pp
 If the entry contains non-empty
@@ -447,6 +447,6 @@ Project, where it first appeared in
 User information should (and eventually will) be stored elsewhere.
 .Pp
 Placing
-.Sq compat
+.Sq Li compat
 exclusions in the file after any inclusions will have
 unexpected results.
