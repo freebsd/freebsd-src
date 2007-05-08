@@ -104,13 +104,13 @@ struct g_part_entry *g_part_new_entry(struct g_part_table *, int, quad_t,
 #define	G_PART_PARM_GEOM	0x0004
 #define	G_PART_PARM_INDEX	0x0008
 #define	G_PART_PARM_LABEL	0x0010
-#define	G_PART_PARM_PROVIDER	0x0020
-#define	G_PART_PARM_REQUEST	0x0040
-#define	G_PART_PARM_RESPONSE	0x0080
-#define	G_PART_PARM_SCHEME	0x0100
-#define	G_PART_PARM_SIZE	0x0200
-#define	G_PART_PARM_START	0x0400
-#define	G_PART_PARM_TYPE	0x0800
+#define	G_PART_PARM_OUTPUT	0x0020
+#define	G_PART_PARM_PROVIDER	0x0040
+#define	G_PART_PARM_SCHEME	0x0080
+#define	G_PART_PARM_SIZE	0x0100
+#define	G_PART_PARM_START	0x0200
+#define	G_PART_PARM_TYPE	0x0400
+#define	G_PART_PARM_VERSION	0x0800
 
 struct g_part_parms {
 	unsigned int	gpp_parms;
@@ -120,11 +120,11 @@ struct g_part_parms {
 	unsigned int	gpp_index;
 	const char	*gpp_label;
 	struct g_provider *gpp_provider;
-	const char	*gpp_request;
 	struct g_part_scheme *gpp_scheme;
 	quad_t		gpp_size;
 	quad_t		gpp_start;
 	const char	*gpp_type;
+	unsigned int	gpp_version;
 };
 
 #endif /* !_GEOM_PART_H_ */
