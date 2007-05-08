@@ -1085,11 +1085,12 @@ usbd_new_device(device_t parent, usbd_bus_handle bus, int depth,
 		return (err);
 	}
 
-	/* Set the address.  Do this early; some devices need that. */
+	dd = &dev->ddesc;
 	/* Try a few times in case the device is slow (i.e. outside specs.) */
 	DPRINTFN(5,("usbd_new_device: setting device address=%d\n", addr));
 	for (i = 0; i < 15; i++) {
-		err = usbd_set_address(dev, addr);
+		/* Get the first 8 bytes of the device descriptor. */
+		err = usbd_get_desc(dev, UDESC_DEVICE, 0, USB_MAX_IPACKET, dd);
 		if (!err)
 			break;
 		usbd_delay_ms(dev, 200);
@@ -1098,30 +1099,8 @@ usbd_new_device(device_t parent, usbd_bus_handle bus, int depth,
 			    "failed - trying a port reset\n", addr));
 			usbd_reset_port(up->parent, port, &ps);
 		}
-	}
-	if (err) {
-		DPRINTFN(-1,("usb_new_device: set address %d failed\n", addr));
-		err = USBD_SET_ADDR_FAILED;
-		usbd_remove_device(dev, up);
-		return (err);
-	}
-	/* Allow device time to set new address */
-	usbd_delay_ms(dev, USB_SET_ADDRESS_SETTLE);
-	dev->address = addr;	/* New device address now */
-	bus->devices[addr] = dev;
 
-	/* Re-establish the default pipe with the new address. */
-	usbd_kill_pipe(dev->default_pipe);
-	err = usbd_setup_pipe(dev, 0, &dev->def_ep, USBD_DEFAULT_INTERVAL,
-	    &dev->default_pipe);
-	if (err) {
-		usbd_remove_device(dev, up);
-		return (err);
 	}
-
-	dd = &dev->ddesc;
-	/* Get the first 8 bytes of the device descriptor. */
-	err = usbd_get_desc(dev, UDESC_DEVICE, 0, USB_MAX_IPACKET, dd);
 	if (err) {
 		DPRINTFN(-1, ("usbd_new_device: addr=%d, getting first desc "
 			      "failed\n", addr));
@@ -1175,6 +1154,30 @@ usbd_new_device(device_t parent, usbd_bus_handle bus, int depth,
 	if (err) {
 		DPRINTFN(-1, ("usbd_new_device: addr=%d, getting full desc "
 			      "failed\n", addr));
+		usbd_remove_device(dev, up);
+		return (err);
+	}
+
+	/* Set the address */
+	DPRINTFN(5,("usbd_new_device: setting device address=%d\n", addr));
+	err = usbd_set_address(dev, addr);
+	if (err) {
+		DPRINTFN(-1,("usb_new_device: set address %d failed\n", addr));
+		err = USBD_SET_ADDR_FAILED;
+		usbd_remove_device(dev, up);
+		return (err);
+	}
+
+	/* Allow device time to set new address */
+	usbd_delay_ms(dev, USB_SET_ADDRESS_SETTLE);
+	dev->address = addr;	/* New device address now */
+	bus->devices[addr] = dev;
+
+	/* Re-establish the default pipe with the new address. */
+	usbd_kill_pipe(dev->default_pipe);
+	err = usbd_setup_pipe(dev, 0, &dev->def_ep, USBD_DEFAULT_INTERVAL,
+	    &dev->default_pipe);
+	if (err) {
 		usbd_remove_device(dev, up);
 		return (err);
 	}
