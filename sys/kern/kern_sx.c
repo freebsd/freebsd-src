@@ -193,6 +193,7 @@ sx_destroy(struct sx *sx)
 
 	KASSERT(sx->sx_lock == SX_LOCK_UNLOCKED, ("sx lock still held"));
 	KASSERT(sx->sx_recurse == 0, ("sx lock still recursed"));
+	sx->sx_lock = SX_LOCK_DESTROYED;
 	lock_profile_object_destroy(&sx->lock_object);
 	lock_destroy(&sx->lock_object);
 }
@@ -202,6 +203,8 @@ _sx_slock(struct sx *sx, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
+	    ("sx_slock() of destroyed sx @ %s:%d", file, line));
 	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER, file, line);
 	__sx_slock(sx, file, line);
 	LOCK_LOG_LOCK("SLOCK", &sx->lock_object, 0, 0, file, line);
@@ -215,6 +218,8 @@ _sx_try_slock(struct sx *sx, const char *file, int line)
 	uintptr_t x;
 
 	x = sx->sx_lock;
+	KASSERT(x != SX_LOCK_DESTROYED,
+	    ("sx_try_slock() of destroyed sx @ %s:%d", file, line));
 	if ((x & SX_LOCK_SHARED) && atomic_cmpset_acq_ptr(&sx->sx_lock, x,
 	    x + SX_ONE_SHARER)) {
 		LOCK_LOG_TRY("SLOCK", &sx->lock_object, 0, 1, file, line);
@@ -232,6 +237,8 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
+	    ("sx_xlock() of destroyed sx @ %s:%d", file, line));
 	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
 	    line);
 	__sx_xlock(sx, curthread, file, line);
@@ -246,6 +253,8 @@ _sx_try_xlock(struct sx *sx, const char *file, int line)
 	int rval;
 
 	MPASS(curthread != NULL);
+	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
+	    ("sx_try_xlock() of destroyed sx @ %s:%d", file, line));
 
 	if (sx_xlocked(sx)) {
 		sx->sx_recurse++;
@@ -269,6 +278,8 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
+	    ("sx_sunlock() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SX_SLOCKED, file, line);
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
@@ -283,6 +294,8 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
+	    ("sx_xunlock() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SX_XLOCKED, file, line);
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
@@ -304,6 +317,8 @@ _sx_try_upgrade(struct sx *sx, const char *file, int line)
 	uintptr_t x;
 	int success;
 
+	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
+	    ("sx_try_upgrade() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SX_SLOCKED, file, line);
 
 	/*
@@ -329,6 +344,8 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
 
+	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
+	    ("sx_downgrade() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SX_XLOCKED | SX_NOTRECURSED, file, line);
 #ifndef INVARIANTS
 	if (sx_recursed(sx))
@@ -916,7 +933,10 @@ db_show_sx(struct lock_object *lock)
 	db_printf(" state: ");
 	if (sx->sx_lock == SX_LOCK_UNLOCKED)
 		db_printf("UNLOCKED\n");
-	else if (sx->sx_lock & SX_LOCK_SHARED)
+	else if (sx->sx_lock == SX_LOCK_DESTROYED) {
+		db_printf("DESTROYED\n");
+		return;
+	} else if (sx->sx_lock & SX_LOCK_SHARED)
 		db_printf("SLOCK: %ju\n", (uintmax_t)SX_SHARERS(sx->sx_lock));
 	else {
 		td = sx_xholder(sx);
