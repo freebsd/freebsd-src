@@ -895,7 +895,6 @@ unp_attach(struct socket *so)
 
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		switch (so->so_type) {
-
 		case SOCK_STREAM:
 			error = soreserve(so, unpst_sendspace, unpst_recvspace);
 			break;
@@ -921,8 +920,8 @@ unp_attach(struct socket *so)
 	UNP_LOCK();
 	unp->unp_gencnt = ++unp_gencnt;
 	unp_count++;
-	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead
-			 : &unp_shead, unp, unp_link);
+	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead : &unp_shead,
+	    unp, unp_link);
 	UNP_UNLOCK();
 
 	return (0);
@@ -1153,7 +1152,6 @@ unp_connect2(struct socket *so, struct socket *so2, int req)
 	unp2 = sotounpcb(so2);
 	unp->unp_conn = unp2;
 	switch (so->so_type) {
-
 	case SOCK_DGRAM:
 		LIST_INSERT_HEAD(&unp2->unp_refs, unp, unp_reflink);
 		soisconnected(so);
