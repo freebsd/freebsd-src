@@ -51,7 +51,6 @@ TAILQ_HEAD(sctp_readhead, sctp_queued_to_read);
 TAILQ_HEAD(sctp_streamhead, sctp_stream_queue_pending);
 
 #include <netinet/sctp_structs.h>
-#include <netinet/sctp_uio.h>
 #include <netinet/sctp_auth.h>
 
 #define SCTP_PCBHASH_ALLADDR(port, mask) (port & mask)
@@ -60,17 +59,21 @@ TAILQ_HEAD(sctp_streamhead, sctp_stream_queue_pending);
 struct sctp_vrf {
 	LIST_ENTRY(sctp_vrf) next_vrf;
 	struct sctp_ifalist *vrf_addr_hash;
+	struct sctp_ifnlist *vrf_ifn_hash;
 	struct sctp_ifnlist ifnlist;
 	uint32_t vrf_id;
 	uint32_t total_ifa_count;
-	u_long vrf_hashmark;
+	u_long vrf_addr_hashmark;
+	u_long vrf_ifn_hashmark;
 };
 
 struct sctp_ifn {
 	struct sctp_ifalist ifalist;
 	struct sctp_vrf *vrf;
 	         LIST_ENTRY(sctp_ifn) next_ifn;
+	         LIST_ENTRY(sctp_ifn) next_bucket;
 	void *ifn_p;		/* never access without appropriate lock */
+	uint32_t ifn_mtu;
 	uint32_t ifn_type;
 	uint32_t ifn_index;	/* shorthand way to look at ifn for reference */
 	uint32_t refcount;	/* number of reference held should be >=
@@ -105,7 +108,8 @@ struct sctp_ifa {
 	uint8_t src_is_loop;
 	uint8_t src_is_priv;
 	uint8_t src_is_glob;
-	uint8_t in_ifa_list;
+	uint8_t resv;
+
 };
 
 struct sctp_laddr {
@@ -197,9 +201,19 @@ struct sctp_epinfo {
 	/* socket queue zone info */
 	uint32_t ipi_count_strmoq;
 
+	/* Number of vrfs */
+	uint32_t ipi_count_vrfs;
+
+	/* Number of ifns */
+	uint32_t ipi_count_ifns;
+
+	/* Number of ifas */
+	uint32_t ipi_count_ifas;
+
 	/* system wide number of free chunks hanging around */
 	uint32_t ipi_free_chunks;
 	uint32_t ipi_free_strmoq;
+
 
 	struct sctpvtaghead vtag_timewait[SCTP_STACK_VTAG_HASH_SIZE];
 
@@ -345,6 +359,7 @@ struct sctp_inpcb {
 	struct mtx inp_rdata_mtx;
 	int32_t refcount;
 	uint32_t def_vrf_id;
+	uint32_t def_table_id;
 	uint32_t total_sends;
 	uint32_t total_recvs;
 	uint32_t last_abort_code;
@@ -405,12 +420,15 @@ sctp_add_addr_to_vrf(uint32_t vrfid,
     const char *if_name,
     void *ifa, struct sockaddr *addr, uint32_t ifa_flags, int dynamic_add);
 
+void sctp_update_ifn_mtu(uint32_t vrf_id, uint32_t ifn_index, uint32_t mtu);
+
+void sctp_free_ifn(struct sctp_ifn *sctp_ifnp);
 void sctp_free_ifa(struct sctp_ifa *sctp_ifap);
 
-void
+
+void 
 sctp_del_addr_from_vrf(uint32_t vrfid, struct sockaddr *addr,
     uint32_t ifn_index);
-
 
 
 

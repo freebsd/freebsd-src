@@ -1917,7 +1917,7 @@ sctp_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 			struct sctp_nets *net;
 
 			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-				struct rtentry *rt;
+				sctp_rtentry_t *rt;
 
 				/* delete this address if cached */
 				if (net->ro._s_addr &&
