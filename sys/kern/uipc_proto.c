@@ -61,11 +61,6 @@ static struct protosw localsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
 	.pr_usrreqs =		&uipc_usrreqs
 },
-{
-	.pr_ctlinput =		raw_ctlinput,
-	.pr_init =		raw_init,
-	.pr_usrreqs =		&raw_usrreqs
-}
 };
 
 struct domain localdomain = {
