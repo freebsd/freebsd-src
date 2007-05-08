@@ -206,6 +206,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 				fprintf(out, "\n");
 				bsdtar_warnc(bsdtar, 0, "%s",
 				    archive_error_string(a));
+				bsdtar->return_value = 1;
 				break;
 			}
 			fprintf(out, "\n");
