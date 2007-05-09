@@ -25,12 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 20, 2006
+.Dd May 9, 2007
 .Dt TWA 4
 .Os
 .Sh NAME
 .Nm twa
-.Nd 3ware 9000/9500/9550 series SATA RAID controllers driver
+.Nd 3ware 9000/9500/9550/9650 series SATA RAID controllers driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -49,7 +49,7 @@ twa_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for AMCC's 3ware 9000/9500/9550 series
+driver provides support for AMCC's 3ware 9000/9500/9550/9650 series
 SATA controllers.
 .Pp
 These controllers are available in 4, 8, 12 or 16-port configurations,
@@ -102,6 +102,18 @@ AMCC's 3ware 9550SX-12
 AMCC's 3ware 9550SX-12MI
 .It
 AMCC's 3ware 9550SX-16ML
+.It
+AMCC's 3ware 9650SE-2LP
+.It
+AMCC's 3ware 9650SE-4LPML
+.It
+AMCC's 3ware 9650SE-8LPML
+.It
+AMCC's 3ware 9650SE-12ML
+.It
+AMCC's 3ware 9650SE-16ML
+.It
+AMCC's 3ware 9650SE-24M8
 .El
 .Sh DIAGNOSTICS
 Whenever the driver encounters a command failure, it prints out an error code in
