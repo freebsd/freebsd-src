@@ -486,13 +486,13 @@ int sctp_free_assoc(struct sctp_inpcb *, struct sctp_tcb *, int, int);
 void
      sctp_add_vtag_to_timewait(struct sctp_inpcb *, uint32_t, uint32_t);
 
-int sctp_add_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *, uint32_t);
+void sctp_add_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *, uint32_t);
 
 int sctp_insert_laddr(struct sctpladdr *, struct sctp_ifa *, uint32_t);
 
 void sctp_remove_laddr(struct sctp_laddr *);
 
-int sctp_del_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *);
+void sctp_del_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *);
 
 void sctp_set_initial_cc_param(struct sctp_tcb *, struct sctp_nets *net);
 
@@ -505,9 +505,9 @@ int sctp_del_remote_addr(struct sctp_tcb *, struct sockaddr *);
 
 void sctp_pcb_init(void);
 
-int sctp_add_local_addr_assoc(struct sctp_tcb *, struct sctp_ifa *, int);
+void sctp_add_local_addr_assoc(struct sctp_tcb *, struct sctp_ifa *, int);
 
-int sctp_del_local_addr_assoc(struct sctp_tcb *, struct sctp_ifa *);
+void sctp_del_local_addr_assoc(struct sctp_tcb *, struct sctp_ifa *);
 
 int
 sctp_load_addresses_from_init(struct sctp_tcb *, struct mbuf *, int, int,
