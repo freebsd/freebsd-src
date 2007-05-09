@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
  * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
+ * Modifications by: Adam Radford
  */
 
 
@@ -134,7 +135,6 @@
 
 
 /* Misc defines. */
-#define TWA_BUNDLED_FW_VERSION_STRING	"3.02.00.004"
 #define TWA_SHUTDOWN_MESSAGE_CREDITS	0x001
 #define TWA_64BIT_SG_ADDRESSES		0x00000001
 #define TWA_EXTENDED_INIT_CONNECT	0x00000002
@@ -152,8 +152,6 @@
 #define TWA_ARCH_ID_9K_X		0x6	/* 9000 PCI-X controllers */
 #define TWA_CTLR_FW_SAME_OR_NEWER	0x00000001
 #define TWA_CTLR_FW_COMPATIBLE		0x00000002
-#define TWA_BUNDLED_FW_SAFE_TO_FLASH	0x00000004
-#define TWA_CTLR_FW_RECOMMENDS_FLASH	0x00000008
 #define TWA_SENSE_DATA_LENGTH		18
 
 
