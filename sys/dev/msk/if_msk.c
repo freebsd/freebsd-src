@@ -1445,11 +1445,19 @@ msk_attach(device_t dev)
 	 */
 	ifp->if_capabilities = IFCAP_TXCSUM;
 	ifp->if_hwassist = MSK_CSUM_FEATURES;
+#if 0
+	/*
+	 * Under certain circumtances, if TSO is active, Yukon II generates
+	 * corrupted IP packets. Disable TSO until we find a working
+	 * workaround or a new silicon revision that doesn't have this
+	 * hardware bug.
+	 */
 	if (sc->msk_hw_id != CHIP_ID_YUKON_EC_U) {
 		/* It seems Yukon EC Ultra doesn't support TSO. */
 		ifp->if_capabilities |= IFCAP_TSO4;
 		ifp->if_hwassist |= CSUM_TSO;
 	}
+#endif
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = msk_ioctl;
 	ifp->if_start = msk_start;
