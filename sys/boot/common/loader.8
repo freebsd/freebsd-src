@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2007
+.Dd May 8, 2007
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -615,6 +615,15 @@ Sets the size of kernel memory (bytes).
 This overrides the value determined when the kernel was compiled.
 Modifies
 .Dv VM_KMEM_SIZE .
+.It Va vm.kmem_size_min
+.It Va vm.kmem_size_max
+Sets the minimum and maximum (respectively) amount of kernel memory
+that will be automatically allocated by the kernel.
+These override the values determined when the kernel was compiled.
+Modifies
+.Dv VM_KMEM_SIZE_MIN
+and
+.Dv VM_KMEM_SIZE_MAX .
 .El
 .Ss BUILTIN PARSER
 When a builtin command is executed, the rest of the line is taken
