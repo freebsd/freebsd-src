@@ -389,7 +389,7 @@ next:
 	g_topology_unlock();
 	vdev_geom_free_id(id);
 	if (cp == NULL && vd->vdev_devid != NULL) {
-		ZFS_LOG(0, "Searching by ID [%s].", vd->vdev_devid);
+		ZFS_LOG(1, "Searching by ID [%s].", vd->vdev_devid);
 		cp = vdev_geom_attach_by_id(vd->vdev_devid,
 		    !!(spa_mode & FWRITE));
 		if (cp != NULL) {
