@@ -137,7 +137,7 @@ static int	stge_resume(device_t);
 static int	stge_encap(struct stge_softc *, struct mbuf **);
 static void	stge_start(struct ifnet *);
 static void	stge_start_locked(struct ifnet *);
-static void	stge_watchdog(struct ifnet *);
+static void	stge_watchdog(struct stge_softc *);
 static int	stge_ioctl(struct ifnet *, u_long, caddr_t);
 static void	stge_init(void *);
 static void	stge_init_locked(struct stge_softc *);
@@ -748,7 +748,8 @@ stge_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = stge_ioctl;
 	ifp->if_start = stge_start;
-	ifp->if_watchdog = stge_watchdog;
+	ifp->if_timer = 0;
+	ifp->if_watchdog = NULL;
 	ifp->if_init = stge_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_drv_maxlen = STGE_TX_RING_CNT - 1;
@@ -1366,27 +1367,29 @@ stge_start_locked(struct ifnet *ifp)
 		CSR_WRITE_4(sc, STGE_DMACtrl, DMAC_TxDMAPollNow);
 
 		/* Set a timeout in case the chip goes out to lunch. */
-		ifp->if_timer = 5;
+		sc->sc_watchdog_timer = 5;
 	}
 }
 
 /*
- * stge_watchdog:	[ifnet interface function]
+ * stge_watchdog:
  *
  *	Watchdog timer handler.
  */
 static void
-stge_watchdog(struct ifnet *ifp)
+stge_watchdog(struct stge_softc *sc)
 {
-	struct stge_softc *sc;
+	struct ifnet *ifp;
 
-	sc = ifp->if_softc;
+	STGE_LOCK_ASSERT(sc);
 
-	STGE_LOCK(sc);
+	if (sc->sc_watchdog_timer == 0 || --sc->sc_watchdog_timer)
+		return;
+
+	ifp = sc->sc_ifp;
 	if_printf(sc->sc_ifp, "device timeout\n");
 	ifp->if_oerrors++;
 	stge_init_locked(sc);
-	STGE_UNLOCK(sc);
 }
 
 /*
@@ -1688,7 +1691,7 @@ stge_txeof(struct stge_softc *sc)
 	}
 	sc->sc_cdata.stge_tx_cons = cons;
 	if (sc->sc_cdata.stge_tx_cnt == 0)
-		ifp->if_timer = 0;
+		sc->sc_watchdog_timer = 0;
 
         bus_dmamap_sync(sc->sc_cdata.stge_tx_ring_tag,
 	    sc->sc_cdata.stge_tx_ring_map,
@@ -1960,6 +1963,8 @@ stge_tick(void *arg)
 	 */
 	if (sc->sc_cdata.stge_tx_cnt != 0)
 		stge_txeof(sc);
+
+	stge_watchdog(sc);
 
 	callout_reset(&sc->sc_tick_ch, hz, stge_tick, sc);
 }
@@ -2312,6 +2317,7 @@ stge_stop(struct stge_softc *sc)
 	 * Stop the one second clock.
 	 */
 	callout_stop(&sc->sc_tick_ch);
+	sc->sc_watchdog_timer = 0;
 
 	/*
 	 * Reset the chip to a known state.
@@ -2372,7 +2378,6 @@ stge_stop(struct stge_softc *sc)
 	 */
 	ifp = sc->sc_ifp;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	ifp->if_timer = 0;
 }
 
 static void
