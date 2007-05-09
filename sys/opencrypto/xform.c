@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <crypto/blowfish/blowfish.h>
 #include <crypto/des/des.h>
 #include <crypto/rijndael/rijndael.h>
+#include <crypto/camellia/camellia.h>
 #include <crypto/sha1.h>
 
 #include <opencrypto/cast.h>
@@ -74,24 +75,28 @@ static	int blf_setkey(u_int8_t **, u_int8_t *, int);
 static	int cast5_setkey(u_int8_t **, u_int8_t *, int);
 static	int skipjack_setkey(u_int8_t **, u_int8_t *, int);
 static	int rijndael128_setkey(u_int8_t **, u_int8_t *, int);
+static	int cml_setkey(u_int8_t **, u_int8_t *, int);
 static	void des1_encrypt(caddr_t, u_int8_t *);
 static	void des3_encrypt(caddr_t, u_int8_t *);
 static	void blf_encrypt(caddr_t, u_int8_t *);
 static	void cast5_encrypt(caddr_t, u_int8_t *);
 static	void skipjack_encrypt(caddr_t, u_int8_t *);
 static	void rijndael128_encrypt(caddr_t, u_int8_t *);
+static	void cml_encrypt(caddr_t, u_int8_t *);
 static	void des1_decrypt(caddr_t, u_int8_t *);
 static	void des3_decrypt(caddr_t, u_int8_t *);
 static	void blf_decrypt(caddr_t, u_int8_t *);
 static	void cast5_decrypt(caddr_t, u_int8_t *);
 static	void skipjack_decrypt(caddr_t, u_int8_t *);
 static	void rijndael128_decrypt(caddr_t, u_int8_t *);
+static	void cml_decrypt(caddr_t, u_int8_t *);
 static	void des1_zerokey(u_int8_t **);
 static	void des3_zerokey(u_int8_t **);
 static	void blf_zerokey(u_int8_t **);
 static	void cast5_zerokey(u_int8_t **);
 static	void skipjack_zerokey(u_int8_t **);
 static	void rijndael128_zerokey(u_int8_t **);
+static	void cml_zerokey(u_int8_t **);
 
 static	void null_init(void *);
 static	int null_update(void *, u_int8_t *, u_int16_t);
@@ -182,6 +187,15 @@ struct enc_xform enc_xform_arc4 = {
 	NULL,
 	NULL,
 	NULL,
+};
+
+struct enc_xform enc_xform_camellia = {
+	CRYPTO_CAMELLIA_CBC, "Camellia",
+	CAMELLIA_BLOCK_LEN, 8, 32,
+	cml_encrypt,
+	cml_decrypt,
+	cml_setkey,
+	cml_zerokey,
 };
 
 /* Authentication instances */
@@ -529,6 +543,45 @@ static void
 rijndael128_zerokey(u_int8_t **sched)
 {
 	bzero(*sched, sizeof(rijndael_ctx));
+	FREE(*sched, M_CRYPTO_DATA);
+	*sched = NULL;
+}
+
+static void
+cml_encrypt(caddr_t key, u_int8_t *blk)
+{
+	camellia_encrypt((camellia_ctx *) key, (u_char *) blk, (u_char *) blk);
+}
+
+static void
+cml_decrypt(caddr_t key, u_int8_t *blk)
+{
+	camellia_decrypt(((camellia_ctx *) key), (u_char *) blk,
+	    (u_char *) blk);
+}
+
+static int
+cml_setkey(u_int8_t **sched, u_int8_t *key, int len)
+{
+	int err;
+
+	if (len != 16 && len != 24 && len != 32)
+		return (EINVAL);
+	MALLOC(*sched, u_int8_t *, sizeof(camellia_ctx), M_CRYPTO_DATA,
+	    M_NOWAIT|M_ZERO);
+	if (*sched != NULL) {
+		camellia_set_key((camellia_ctx *) *sched, (u_char *) key,
+		    len * 8);
+		err = 0;
+	} else
+		err = ENOMEM;
+	return err;
+}
+
+static void
+cml_zerokey(u_int8_t **sched)
+{
+	bzero(*sched, sizeof(camellia_ctx));
 	FREE(*sched, M_CRYPTO_DATA);
 	*sched = NULL;
 }
