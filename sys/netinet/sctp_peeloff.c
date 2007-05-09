@@ -113,12 +113,7 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 	struct sctp_inpcb *inp, *n_inp;
 	struct sctp_tcb *stcb;
 
-#ifdef SCTP_DEBUG
-	if (sctp_debug_on & SCTP_DEBUG_PEEL1) {
-		printf("SCTP peel-off called\n");
-	}
-#endif				/* SCTP_DEBUG */
-
+	SCTPDBG(SCTP_DEBUG_PEEL1, "SCTP peel-off called\n");
 	inp = (struct sctp_inpcb *)head->so_pcb;
 	if (inp == NULL) {
 		*error = EFAULT;
@@ -132,11 +127,7 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 	newso = sonewconn(head, SS_ISCONNECTED
 	    );
 	if (newso == NULL) {
-#ifdef SCTP_DEBUG
-		if (sctp_debug_on & SCTP_DEBUG_PEEL1) {
-			printf("sctp_peeloff:sonewconn failed err\n");
-		}
-#endif				/* SCTP_DEBUG */
+		SCTPDBG(SCTP_DEBUG_PEEL1, "sctp_peeloff:sonewconn failed\n");
 		*error = ENOMEM;
 		SCTP_TCB_UNLOCK(stcb);
 		return (NULL);

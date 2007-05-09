@@ -124,12 +124,20 @@ __FBSDID("$FreeBSD$");
 	}								\
     } while (0);							\
 }
-#define SCTP_PRINTF(params...)	printf(params)
+#define SCTPDBG_PKT(level, iph, sh)					\
+{									\
+    do {								\
+	    if (sctp_debug_on & level) {				\
+		    sctp_print_address_pkt(iph, sh);			\
+	    }								\
+    } while (0);							\
+}
 #else
 #define SCTPDBG(level, params...)
 #define SCTPDBG_ADDR(level, addr)
-#define SCTP_PRINTF(params...)
+#define SCTPDBG_PKT(level, iph, sh)
 #endif
+#define SCTP_PRINTF(params...)	printf(params)
 
 /*
  * Local address and interface list handling
