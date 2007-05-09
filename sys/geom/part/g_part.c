@@ -330,11 +330,12 @@ done:
 static int
 g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 {
-	char buf[16];
+	char buf[32];
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_part_entry *delent, *last, *entry;
 	struct g_part_table *table;
+	struct sbuf *sb;
 	quad_t end;
 	unsigned int index;
 	int error;
@@ -395,8 +396,6 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 		gctl_error(req, "%d index '%d'", EEXIST, gpp->gpp_index);
 		return (EEXIST);
 	}
-	snprintf(buf, sizeof(buf), "%d", index);
-	gctl_set_param(req, "index", buf, strlen(buf) + 1);
 
 	entry = (delent == NULL) ? g_malloc(table->gpt_scheme->gps_entrysz,
 	    M_WAITOK | M_ZERO) : delent;
@@ -421,6 +420,15 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 		entry->gpe_modified = 1;
 	}
 	g_part_new_provider(gp, table, entry);
+
+	/* Provide feedback if so requested. */
+	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
+		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+		sbuf_printf(sb, "%s%s added\n", gp->name,
+		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		sbuf_delete(sb);
+	}
 	return (0);
 }
 
@@ -509,6 +517,7 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	struct g_provider *pp;
 	struct g_part_scheme *scheme;
 	struct g_part_table *null, *table;
+	struct sbuf *sb;
 	int attr, error;
 
 	pp = gpp->gpp_provider;
@@ -582,6 +591,14 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	table->gpt_created = 1;
 	if (null != NULL)
 		kobj_delete((kobj_t)null, M_GEOM);
+
+	/* Provide feedback if so requested. */
+	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
+		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+		sbuf_printf(sb, "%s created\n", gp->name);
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		sbuf_delete(sb);
+	}
 	return (0);
 
 fail:
@@ -600,10 +617,12 @@ fail:
 static int
 g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 {
+	char buf[32];
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_part_entry *entry;
 	struct g_part_table *table;
+	struct sbuf *sb;
 
 	gp = gpp->gpp_geom;
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
@@ -638,6 +657,15 @@ g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 		entry->gpe_deleted = 1;
 	}
 	g_wither_provider(pp, ENXIO);
+
+	/* Provide feedback if so requested. */
+	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
+		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+		sbuf_printf(sb, "%s%s deleted\n", gp->name,
+		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		sbuf_delete(sb);
+	}
 	return (0);
 }
 
@@ -647,6 +675,7 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 	struct g_geom *gp;
 	struct g_part_entry *entry;
 	struct g_part_table *null, *table;
+	struct sbuf *sb;
 	int error;
 
 	gp = gpp->gpp_geom;
@@ -684,15 +713,24 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 	}
 	kobj_delete((kobj_t)table, M_GEOM);
 
+	/* Provide feedback if so requested. */
+	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
+		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+		sbuf_printf(sb, "%s destroyed\n", gp->name);
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		sbuf_delete(sb);
+	}
 	return (0);
 }
 
 static int
 g_part_ctl_modify(struct gctl_req *req, struct g_part_parms *gpp)
 {
+	char buf[32];
 	struct g_geom *gp;
 	struct g_part_entry *entry;
 	struct g_part_table *table;
+	struct sbuf *sb;
 	int error;
 
 	gp = gpp->gpp_geom;
@@ -720,6 +758,15 @@ g_part_ctl_modify(struct gctl_req *req, struct g_part_parms *gpp)
 
 	if (!entry->gpe_created)
 		entry->gpe_modified = 1;
+
+	/* Provide feedback if so requested. */
+	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
+		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+		sbuf_printf(sb, "%s%s modified\n", gp->name,
+		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		sbuf_delete(sb);
+	}
 	return (0);
 }
 
