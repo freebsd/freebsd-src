@@ -10,7 +10,7 @@
 .Nm
 .Op Fl BIaistuv
 .Op Fl b Ar bootcode
-.Op Fl 1234
+.Op Fl 12345678
 .Op Ar disk
 .Nm
 .Fl f Ar configfile
@@ -57,9 +57,6 @@ Change the active partition only.
 Ignored if
 .Fl f
 is given.
-.It Fl b Ar bootcode
-Get the boot code from the file
-.Ar bootcode .
 .It Fl B
 Reinitialize the boot code contained in sector 0 of the disk.
 Ignored
@@ -459,13 +456,10 @@ Example: to make partition 1 the active partition:
 a       1
 .Ed
 .El
-.Sh FILES
-.Bl -tag -width /boot/mbr -compact
-.It Pa /boot/mbr
-The default boot code
-.El
 .Sh SEE ALSO
-.Xr disklabel 8
+.Xr boot98cfg 8 ,
+.Xr bsdlabel 8 ,
+.Xr newfs 8
 .Sh BUGS
 The default boot code will not necessarily handle all partition types
 correctly, in particular those introduced since MS-DOS 6.x.
@@ -481,5 +475,5 @@ in order to conform with the terms used elsewhere.
 You cannot use this command to completely dedicate a disk to
 .Fx .
 The
-.Xr disklabel 8
+.Xr bsdlabel 8
 command must be used for this.
