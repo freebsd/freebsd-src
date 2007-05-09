@@ -109,12 +109,8 @@ sctp6_input(i_pak, offp, proto)
 #endif				/* NFAITH defined and > 0 */
 	SCTP_STAT_INCR(sctps_recvpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
-#ifdef SCTP_DEBUG
-	if (sctp_debug_on & SCTP_DEBUG_INPUT1) {
-		printf("V6 input gets a packet iphlen:%d pktlen:%d\n", iphlen,
-		    SCTP_HEADER_LEN((*i_pak)));
-	}
-#endif
+	SCTPDBG(SCTP_DEBUG_INPUT1, "V6 input gets a packet iphlen:%d pktlen:%d\n",
+	    iphlen, SCTP_HEADER_LEN((*i_pak)));
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		/* No multi-cast support in SCTP */
 		goto bad;
@@ -141,13 +137,8 @@ sctp6_input(i_pak, offp, proto)
 		sh->checksum = 0;	/* prepare for calc */
 		calc_check = sctp_calculate_sum(m, &mlen, iphlen);
 		if (calc_check != check) {
-#ifdef SCTP_DEBUG
-			if (sctp_debug_on & SCTP_DEBUG_INPUT1) {
-				printf("Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
-				    calc_check, check, m,
-				    mlen, iphlen);
-			}
-#endif
+			SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
+			    calc_check, check, m, mlen, iphlen);
 			stcb = sctp_findassociation_addr(m, iphlen, offset - sizeof(*ch),
 			    sh, ch, &in6p, &net, vrf_id);
 			/* in6p's ref-count increased && stcb locked */
@@ -185,7 +176,10 @@ sctp_skip_csum:
 			init_chk = (struct sctp_init_chunk *)sctp_m_getptr(m,
 			    iphlen + sizeof(*sh), sizeof(*init_chk),
 			    (uint8_t *) & chunk_buf);
-			sh->v_tag = init_chk->init.initiate_tag;
+			if (init_chk)
+				sh->v_tag = init_chk->init.initiate_tag;
+			else
+				sh->v_tag = 0;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
 			sctp_send_shutdown_complete2(m, iphlen, sh, vrf_id,
@@ -238,9 +232,9 @@ sctp_skip_csum:
 	return IPPROTO_DONE;
 
 bad:
-	if (stcb)
+	if (stcb) {
 		SCTP_TCB_UNLOCK(stcb);
-
+	}
 	if ((in6p) && refcount_up) {
 		/* reduce ref-count */
 		SCTP_INP_WLOCK(in6p);
@@ -249,9 +243,6 @@ bad:
 	}
 	if (m)
 		sctp_m_freem(m);
-	/* For BSD/MAC this does nothing */
-	SCTP_DETACH_HEADER_FROM_CHAIN(*i_pak);
-	SCTP_RELEASE_HEADER(*i_pak);
 	return IPPROTO_DONE;
 }
 
@@ -327,8 +318,9 @@ sctp6_notify_mbuf(struct sctp_inpcb *inp,
 	}
 	sctp_timer_start(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, NULL);
 out:
-	if (stcb)
+	if (stcb) {
 		SCTP_TCB_UNLOCK(stcb);
+	}
 }
 
 
@@ -889,7 +881,7 @@ connected_type:
 	/* now what about control */
 	if (control) {
 		if (inp->control) {
-			printf("huh? control set?\n");
+			SCTP_PRINTF("huh? control set?\n");
 			SCTP_RELEASE_PKT(inp->control);
 			inp->control = NULL;
 		}
@@ -1003,8 +995,9 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	/* Now do we connect? */
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) {
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
-		if (stcb)
+		if (stcb) {
 			SCTP_TCB_UNLOCK(stcb);
+		}
 		SCTP_INP_RUNLOCK(inp);
 	} else {
 		SCTP_INP_RUNLOCK(inp);
@@ -1038,7 +1031,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		soisconnecting(so);
 	}
 	stcb->asoc.state = SCTP_STATE_COOKIE_WAIT;
-	SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
+	(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 
 	/* initialize authentication parameters for the assoc */
 	sctp_initialize_auth_params(inp, stcb);
@@ -1174,8 +1167,9 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 	}
 	SCTP_INP_RLOCK(inp);
 	stcb = LIST_FIRST(&inp->sctp_asoc_list);
-	if (stcb)
+	if (stcb) {
 		SCTP_TCB_LOCK(stcb);
+	}
 	SCTP_INP_RUNLOCK(inp);
 	if (stcb == NULL) {
 		SCTP_FREE_SONAME(sin6);
