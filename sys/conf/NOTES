@@ -1433,7 +1433,6 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 # bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
 #      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
 # esp: NCR53c9x.  Only for SBUS hardware right now.
-# hptiop: Highpoint RocketRaid 3xxx series SATA RAID
 # isp: Qlogic ISP 1020, 1040 and 1040B PCI SCSI host adapters,
 #      ISP 1240 Dual Ultra SCSI, ISP 1080 and 1280 (Dual) Ultra2,
 #      ISP 12160 Ultra3 SCSI,
@@ -1470,7 +1469,6 @@ device		ahc
 device		ahd
 device		amd
 device		esp
-device		hptiop
 device		isp
 hint.isp.0.disable="1"
 hint.isp.0.role="3"

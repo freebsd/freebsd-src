@@ -93,8 +93,8 @@ SUBDIR=	${_3dfx} \
 	${_hfa} \
 	hifn \
 	hme \
+	${_hptiop} \
 	${_hptmv} \
-	hptiop \
 	hwpmc \
 	${_i2c} \
 	${_ibcs2} \
@@ -426,6 +426,7 @@ _ctau=		ctau
 _cx=		cx
 _dpt=		dpt
 _ex=		ex
+_hptiop=	hptiop
 _hptmv=		hptmv
 _ichwd=		ichwd
 _ida=		ida
@@ -478,6 +479,7 @@ _ed=		ed
 _em=		em
 _exca=		exca
 _ext2fs=	ext2fs
+_hptiop=	hptiop
 _hptmv=		hptmv
 _i2c=		i2c
 _ichwd=		ichwd
