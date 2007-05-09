@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap.
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
  * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
+ * Modifications by: Adam Radford
  */
 
 
@@ -129,6 +130,7 @@ tw_osli_cam_attach(struct twa_softc *sc)
 			0x2102,
 			"Failed to register the bus",
 			ENXIO);
+		mtx_unlock(&Giant);
 		return(ENXIO);
 	}
 
@@ -146,6 +148,7 @@ tw_osli_cam_attach(struct twa_softc *sc)
 			0x2103,
 			"Failed to create path",
 			ENXIO);
+		mtx_unlock(&Giant);
 		return(ENXIO);
 	}
 
@@ -594,8 +597,11 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 	bzero(ccb, sizeof(union ccb));
 	mtx_lock(&Giant);
 	if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->sim),
-		CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		free(ccb, M_TEMP);
+		mtx_unlock(&Giant);
 		return(EIO);
+	}
 
 	xpt_setup_ccb(&ccb->ccb_h, path, 5);
 	ccb->ccb_h.func_code = XPT_SCAN_BUS;
