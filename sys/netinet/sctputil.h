@@ -132,7 +132,7 @@ int sctp_init_asoc(struct sctp_inpcb *, struct sctp_association *, int, uint32_t
 
 void sctp_fill_random_store(struct sctp_pcb *);
 
-int
+void
 sctp_timer_start(int, struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *);
 
@@ -272,16 +272,16 @@ sctp_free_bufspace(struct sctp_tcb *, struct sctp_association *,
 #define sctp_free_bufspace(stcb, asoc, tp1, chk_cnt)  \
 do { \
 	if (tp1->data != NULL) { \
-                atomic_add_int(&((asoc)->chunks_on_out_queue), -chk_cnt); \
+                atomic_subtract_int(&((asoc)->chunks_on_out_queue), chk_cnt); \
 		if ((asoc)->total_output_queue_size >= tp1->book_size) { \
-			atomic_add_int(&((asoc)->total_output_queue_size), -tp1->book_size); \
+			atomic_subtract_int(&((asoc)->total_output_queue_size), tp1->book_size); \
 		} else { \
 			(asoc)->total_output_queue_size = 0; \
 		} \
    	        if (stcb->sctp_socket && ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) || \
 	            (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) { \
 			if (stcb->sctp_socket->so_snd.sb_cc >= tp1->book_size) { \
-				atomic_add_int(&((stcb)->sctp_socket->so_snd.sb_cc), -tp1->book_size); \
+				atomic_subtract_int(&((stcb)->sctp_socket->so_snd.sb_cc), tp1->book_size); \
 			} else { \
 				stcb->sctp_socket->so_snd.sb_cc = 0; \
 			} \
@@ -294,16 +294,16 @@ do { \
 #define sctp_free_spbufspace(stcb, asoc, sp)  \
 do { \
  	if (sp->data != NULL) { \
-                atomic_add_int(&(asoc)->chunks_on_out_queue, -1); \
+                atomic_subtract_int(&(asoc)->chunks_on_out_queue, 1); \
 		if ((asoc)->total_output_queue_size >= sp->length) { \
-			atomic_add_int(&(asoc)->total_output_queue_size,sp->length); \
+			atomic_subtract_int(&(asoc)->total_output_queue_size, sp->length); \
 		} else { \
 			(asoc)->total_output_queue_size = 0; \
 		} \
    	        if (stcb->sctp_socket && ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) || \
 	            (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) { \
 			if (stcb->sctp_socket->so_snd.sb_cc >= sp->length) { \
-				atomic_add_int(&stcb->sctp_socket->so_snd.sb_cc,sp->length); \
+				atomic_subtract_int(&stcb->sctp_socket->so_snd.sb_cc,sp->length); \
 			} else { \
 				stcb->sctp_socket->so_snd.sb_cc = 0; \
 			} \
