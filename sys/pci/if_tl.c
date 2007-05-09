@@ -1267,6 +1267,8 @@ tl_attach(dev)
 	ifp->if_init = tl_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = TL_TX_LIST_CNT - 1;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
 	callout_init_mtx(&sc->tl_stat_callout, &sc->tl_mtx, 0);
 
 	/* Reset the adapter again. */
