@@ -359,6 +359,12 @@
       It is enabled in the GENERIC kernel (thus there is no change in
       functionality) for all platforms except &arch.sun4v;.</para>
 
+    <para>The Linux ABI support was enhanced to support emulation of
+      Linux 2.6.16.  This is not enabled by default.  To turn it on
+      the <varname>compat.linux.osrelease</varname> sysctl variable
+      has to be set to <literal>2.6.16</literal>.  Note that this
+      support is still experimental.</para>
+
     <para>Support for Message Signaled Interrupts (MSI) and Extended
       Message Signaled Interrupts (MSI-X) has been added to the kernel's
       PCI support code.  &merged;</para>
@@ -747,8 +753,8 @@
 	  architectures such as sparc64.  &merged;</para>
 
 	<para>The &man.em.4; driver has been updated to
-	  version 6.2.9 from Intel.  Among other changes, it now supports
-	  80003, 82571, 82571EB and 82572 based adapters, as well as
+	  version 6.5.0 from Intel.  Among other changes, it now supports
+	  80003, 82571, 82571EB, 82572 and 82575 based adapters, as well as
 	  onboard-NICs on ICH8-based motherboards. &merged;</para>
 
 	<para>The &man.em.4; driver now includes
@@ -830,6 +836,10 @@
 
 	<para>The &man.re.4; driver now supports the D-Link DGE-528(T)
 	  Gigabit Ethernet card.</para>
+
+	<para>The &man.rum.4; driver has been added.  It supports
+	  WLAN adapters based on the Ralink RT2501USB and RT2601USB
+	  chipsets.</para>
 
 	<para>The &man.sf.4; driver is now MPSAFE. &merged;</para>
 
@@ -1179,6 +1189,8 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The CAM subsystem is now MPSAFE.</para>
 
+      <para>The &man.ciss.4; driver is now MPSAFE.</para>
+
       <para>The <literal>GEOM_LABEL</literal> class now supports
 	Ext2FS, NTFS, and ReiserFS.  &merged;</para>
 
@@ -1234,8 +1246,13 @@ pipe tablearg ip from table(1) to any</programlisting>
 	has been renamed to <filename>geom_md.ko</filename>
 	for consistency.</para>
 
+      <para>[&arch.amd64;, &arch.i386;] The hptiop(4) driver has been added.
+	It supports the Highpoint RocketRAID 3xxx series of controllers.</para>
+
       <para>[&arch.amd64;, &arch.i386;] The &man.hptmv.4; driver has been updated and now supports
 	amd64 as well as PAE.</para>
+
+      <para>The &man.isp.4; driver is now MPSAFE.</para>
 
       <para>The &man.mfi.4; driver, which supports
 	the LSI MegaRAID SAS controller family, has been added.
@@ -1251,7 +1268,9 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>The &man.mpt.4; driver now supports SAS HBA (partially),
 	64-bit PCI, and large data transfer.</para>
 
-      <para>The &man.twa.4; driver has been updated to the 9.3.0.1
+      <para>The &man.mpt.4; driver is now MPSAFE.</para>
+
+      <para>The &man.twa.4; driver has been updated to the 3.60.03.006
 	release on the 3ware Web site.  &merged;</para>
 
       <para>A new GEOM-based disk encryption facility, GEOM_ELI, has been
@@ -1819,7 +1838,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       titles via &man.setproctitle.3;.</para>
 
     <para>The &man.top.1; program now supports a <option>-j</option>
-      flag to display &man.jail.8; id for each process.  &merged;</para>
+      flag to display the &man.jail.8; ID for each process.  &merged;</para>
 
     <para>The &man.traceroute.8; program now supports
       a <option>-D</option> flag, which causes it to display the
