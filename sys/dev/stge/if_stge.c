@@ -467,32 +467,9 @@ static void
 stge_miibus_statchg(device_t dev)
 {
 	struct stge_softc *sc;
-	struct mii_data *mii;
 
 	sc = device_get_softc(dev);
-	mii = device_get_softc(sc->sc_miibus);
-
-	STGE_MII_LOCK(sc);
-	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_NONE) {
-		STGE_MII_UNLOCK(sc);
-		return;
-	}
-
-	sc->sc_MACCtrl = 0;
-	if (((mii->mii_media_active & IFM_GMASK) & IFM_FDX) != 0)
-		sc->sc_MACCtrl |= MC_DuplexSelect;
-	if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG0) != 0)
-		sc->sc_MACCtrl |= MC_RxFlowControlEnable;
-	if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG1) != 0)
-		sc->sc_MACCtrl |= MC_TxFlowControlEnable;
-	/*
-	 * We can't access STGE_MACCtrl register in this context due to
-	 * the races between MII layer and driver which accesses this
-	 * register to program MAC. In order to solve the race, we defer
-	 * STGE_MACCtrl programming until we know we are out of MII.
-	 */
 	taskqueue_enqueue(taskqueue_swi, &sc->sc_link_task);
-	STGE_MII_UNLOCK(sc);
 }
 
 /*
@@ -1329,7 +1306,7 @@ stge_start_locked(struct ifnet *ifp)
 	STGE_LOCK_ASSERT(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
+	    IFF_DRV_RUNNING || sc->sc_link == 0)
 		return;
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
@@ -1502,11 +1479,27 @@ static void
 stge_link_task(void *arg, int pending)
 {
 	struct stge_softc *sc;
+	struct mii_data *mii;
 	uint32_t v, ac;
 	int i;
 
 	sc = (struct stge_softc *)arg;
 	STGE_LOCK(sc);
+
+	mii = device_get_softc(sc->sc_miibus);
+	if (mii->mii_media_status & IFM_ACTIVE) {
+		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
+			sc->sc_link = 1;
+	} else
+		sc->sc_link = 0;
+
+	sc->sc_MACCtrl = 0;
+	if (((mii->mii_media_active & IFM_GMASK) & IFM_FDX) != 0)
+		sc->sc_MACCtrl |= MC_DuplexSelect;
+	if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG0) != 0)
+		sc->sc_MACCtrl |= MC_RxFlowControlEnable;
+	if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG1) != 0)
+		sc->sc_MACCtrl |= MC_TxFlowControlEnable;
 	/*
 	 * Update STGE_MACCtrl register depending on link status.
 	 * (duplex, flow control etc)
@@ -2256,6 +2249,7 @@ stge_init_locked(struct stge_softc *sc)
 	stge_start_tx(sc);
 	stge_start_rx(sc);
 
+	sc->sc_link = 0;
 	/*
 	 * Set the current media.
 	 */
@@ -2378,6 +2372,7 @@ stge_stop(struct stge_softc *sc)
 	 */
 	ifp = sc->sc_ifp;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	sc->sc_link = 0;
 }
 
 static void
