@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
  * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
+ * Modifications by: Adam Radford
  */
 
 
@@ -49,11 +50,6 @@
 #define TW_CLI_REQUEST_TIMEOUT_PERIOD	60 /* seconds */
 #define TW_CLI_RESET_TIMEOUT_PERIOD	60 /* seconds */
 #define TW_CLI_MAX_RESET_ATTEMPTS	2
-
-#ifdef TW_OSL_FLASH_FIRMWARE
-/* Number of chunks the fw image is broken into, while flashing. */
-#define TW_CLI_NUM_FW_IMAGE_CHUNKS	500
-#endif /* TW_OSL_FLASH_FIRMWARE */
 
 /* Possible values of ctlr->state. */
 /* Initialization done, and controller is active. */
@@ -144,19 +140,6 @@ struct tw_cli_ctlr_context {
 							OSL & CL. */
 	struct tw_cli_req_context *req_ctxt_buf;/* pointer to the array of CL's
 						internal request context pkts */
-
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-
-	TW_UINT32		free_req_ids[TW_CL_MAX_SIMULTANEOUS_REQUESTS];
-						/* Array of free req_id's */
-	struct tw_cli_req_context *busy_reqs[TW_CL_MAX_SIMULTANEOUS_REQUESTS + 1];
-				/* Array of busy reqs -- index is req_id */
-	TW_UINT32		free_req_head;
-	TW_UINT32		free_req_tail;
-	TW_UINT32		num_free_req_ids;
-
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
-
 	struct tw_cl_command_packet *cmd_pkt_buf;/* ptr to array of cmd pkts */
 
 	TW_UINT64		cmd_pkt_phys;	/* phys addr of cmd_pkt_buf */
@@ -170,11 +153,6 @@ struct tw_cli_ctlr_context {
 
 	/* Request queues and arrays. */
 	struct tw_cl_link	req_q_head[TW_CLI_Q_COUNT];
-
-#ifdef TW_OSL_FLASH_FIRMWARE
-	TW_VOID			*flash_dma_mem;	/* mem for flashing fw image */
-	TW_UINT64		flash_dma_mem_phys;/* flash_dma_mem phys addr */
-#endif /* TW_OSL_FLASH_FIRMWARE */
 
 	TW_UINT8		*internal_req_data;/* internal req data buf */
 	TW_UINT64		internal_req_data_phys;/* phys addr of internal
@@ -294,13 +272,6 @@ tw_cli_req_q_insert_head(struct tw_cli_req_context *req, TW_UINT8 q_type)
 {
 	struct tw_cli_ctlr_context	*ctlr = req->ctlr;
 
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-	if ((q_type == TW_CLI_BUSY_Q) || (q_type == TW_CLI_COMPLETE_Q) ||
-		((q_type == TW_CLI_PENDING_Q) &&
-		(!(req->flags & TW_CLI_REQ_FLAGS_INTERNAL))))
-		return;
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
-
 	tw_osl_get_lock(ctlr->ctlr_handle, ctlr->gen_lock);
 	TW_CL_Q_INSERT_HEAD(&(ctlr->req_q_head[q_type]), &(req->link));
 	TW_CLI_Q_INSERT(ctlr, q_type);
@@ -314,45 +285,6 @@ static __inline TW_VOID
 tw_cli_req_q_insert_tail(struct tw_cli_req_context *req, TW_UINT8 q_type)
 {
 	struct tw_cli_ctlr_context	*ctlr = req->ctlr;
-
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-	if ((q_type == TW_CLI_BUSY_Q) || (q_type == TW_CLI_COMPLETE_Q) ||
-		((q_type == TW_CLI_PENDING_Q) &&
-		(!(req->flags & TW_CLI_REQ_FLAGS_INTERNAL))))
-		return;
-	if ((q_type == TW_CLI_FREE_Q) &&
-		(!(req->flags & TW_CLI_REQ_FLAGS_INTERNAL))) {
-		TW_SYNC_HANDLE		sync_handle;
-
-		tw_osl_get_lock(ctlr->ctlr_handle, ctlr->gen_lock);
-		if (req->state == TW_CLI_REQ_STATE_COMPLETE) {
-			if (ctlr->flags & TW_CL_DEFERRED_INTR_USED)
-				tw_osl_sync_io_block(ctlr->ctlr_handle,
-					&sync_handle);
-		} else {
-			if (!(ctlr->flags & TW_CL_DEFERRED_INTR_USED))
-				tw_osl_sync_isr_block(ctlr->ctlr_handle,
-					&sync_handle);
-		}
-		ctlr->free_req_ids[ctlr->free_req_tail] = req->request_id;
-		ctlr->busy_reqs[req->request_id] = TW_CL_NULL;
-		ctlr->free_req_tail = (ctlr->free_req_tail + 1) %
-			(ctlr->max_simult_reqs - 1);
-		ctlr->num_free_req_ids++;
-
-		if (req->state == TW_CLI_REQ_STATE_COMPLETE) {
-			if (ctlr->flags & TW_CL_DEFERRED_INTR_USED)
-				tw_osl_sync_io_unblock(ctlr->ctlr_handle,
-					&sync_handle);
-		} else {
-			if (!(ctlr->flags & TW_CL_DEFERRED_INTR_USED))
-				tw_osl_sync_isr_unblock(ctlr->ctlr_handle,
-					&sync_handle);
-		}
-		tw_osl_free_lock(ctlr->ctlr_handle, ctlr->gen_lock);
-		return;
-	}
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 
 	tw_osl_get_lock(ctlr->ctlr_handle, ctlr->gen_lock);
 	TW_CL_Q_INSERT_TAIL(&(ctlr->req_q_head[q_type]), &(req->link));
@@ -368,11 +300,6 @@ tw_cli_req_q_remove_head(struct tw_cli_ctlr_context *ctlr, TW_UINT8 q_type)
 {
 	struct tw_cli_req_context	*req = TW_CL_NULL;
 	struct tw_cl_link		*link;
-
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-	if ((q_type == TW_CLI_BUSY_Q) || (q_type == TW_CLI_COMPLETE_Q))
-		return(req);
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 
 	tw_osl_get_lock(ctlr->ctlr_handle, ctlr->gen_lock);
 	if ((link = TW_CL_Q_FIRST_ITEM(&(ctlr->req_q_head[q_type]))) !=
@@ -393,13 +320,6 @@ static __inline TW_VOID
 tw_cli_req_q_remove_item(struct tw_cli_req_context *req, TW_UINT8 q_type)
 {
 	struct tw_cli_ctlr_context	*ctlr = req->ctlr;
-
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-	if ((q_type == TW_CLI_BUSY_Q) || (q_type == TW_CLI_COMPLETE_Q) ||
-		((q_type == TW_CLI_PENDING_Q) &&
-		(!(req->flags & TW_CLI_REQ_FLAGS_INTERNAL))))
-		return;
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 
 	tw_osl_get_lock(ctlr->ctlr_handle, ctlr->gen_lock);
 	TW_CL_Q_REMOVE_ITEM(&(ctlr->req_q_head[q_type]), &(req->link));

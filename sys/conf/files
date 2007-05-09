@@ -1022,8 +1022,6 @@ dev/tdfx/tdfx_linux.c		optional tdfx_linux tdfx compat_linux
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/ti/if_ti.c			optional ti pci
 dev/trm/trm.c			optional trm
-dev/twa/tw_cl_fwimg.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
 dev/twa/tw_cl_init.c		optional twa \
 	compile-with "${NORMAL_C} -I$S/dev/twa"
 dev/twa/tw_cl_intr.c		optional twa \

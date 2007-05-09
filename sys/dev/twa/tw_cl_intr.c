@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
  * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
+ * Modifications by: Adam Radford
  */
 
 
@@ -69,6 +70,10 @@ tw_cl_interrupt(struct tw_cl_ctlr_handle *ctlr_handle)
 
 	tw_cli_dbg_printf(10, ctlr_handle, tw_osl_cur_func(), "entered");
 
+	/* If we don't have controller context, bail */
+	if (ctlr == NULL)
+		goto out;
+
 	/*
 	 * Synchronize access between writes to command and control registers
 	 * in 64-bit environments, on G66.
@@ -79,7 +84,7 @@ tw_cl_interrupt(struct tw_cl_ctlr_handle *ctlr_handle)
 	/* Read the status register to determine the type of interrupt. */
 	status_reg = TW_CLI_READ_STATUS_REGISTER(ctlr_handle);
 	if (tw_cli_check_ctlr_state(ctlr, status_reg))
-		goto out;
+		goto out_unlock;
 
 	/* Clear the interrupt. */
 	if (status_reg & TWA_STATUS_HOST_INTERRUPT) {
@@ -114,10 +119,10 @@ tw_cl_interrupt(struct tw_cl_ctlr_handle *ctlr_handle)
 		ctlr->resp_intr_pending = 1;
 		rc |= TW_CL_TRUE; /* request for a deferred isr call */
 	}
-out:
+out_unlock:
 	if (ctlr->state & TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED)
 		tw_osl_free_lock(ctlr_handle, ctlr->io_lock);
-
+out:
 	return(rc);
 }
 
@@ -290,11 +295,6 @@ tw_cli_process_resp_intr(struct tw_cli_ctlr_context *ctlr)
 
 		/* Response queue is not empty. */
 		resp = TW_CLI_READ_RESPONSE_QUEUE(ctlr->ctlr_handle);
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-		if (GET_RESP_ID(resp) >= 1)
-			req = ctlr->busy_reqs[GET_RESP_ID(resp)];
-		else
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 		{
 			req = &(ctlr->req_ctxt_buf[GET_RESP_ID(resp)]);
 		}
@@ -322,13 +322,6 @@ tw_cli_process_resp_intr(struct tw_cli_ctlr_context *ctlr)
 		req->state = TW_CLI_REQ_STATE_COMPLETE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_COMPLETE_Q);
 
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-		tw_osl_free_lock(ctlr->ctlr_handle, ctlr->intr_lock);
-		/* Call the CL internal callback, if there's one. */
-		if (req->tw_cli_callback)
-			req->tw_cli_callback(req);
-		tw_osl_get_lock(ctlr->ctlr_handle, ctlr->intr_lock);
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 	}
 
 	/* Unmask the response interrupt. */
@@ -337,10 +330,8 @@ tw_cli_process_resp_intr(struct tw_cli_ctlr_context *ctlr)
 
 	tw_osl_free_lock(ctlr->ctlr_handle, ctlr->intr_lock);
 
-#ifndef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
 	/* Complete this, and other requests in the complete queue. */
 	tw_cli_process_complete_queue(ctlr);
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 	
 	return(error);
 }
