@@ -377,6 +377,10 @@ device		hptmv
 device		rr232x
 
 #
+# Highpoint RocketRaid 3xxx series SATA RAID
+device		hptiop
+
+#
 # IBM (now Adaptec) ServeRAID controllers
 device		ips
 
