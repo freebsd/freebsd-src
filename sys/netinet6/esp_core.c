@@ -68,6 +68,7 @@
 #include <netinet6/esp6.h>
 #endif
 #include <netinet6/esp_rijndael.h>
+#include <netinet6/esp_camellia.h>
 #include <netinet6/esp_aesctr.h>
 #include <net/pfkeyv2.h>
 #include <netkey/keydb.h>
@@ -162,6 +163,11 @@ static const struct esp_algorithm esp_algorithms[] = {
 	{ 16, 8, esp_aesctr_mature, 160, 288, esp_aesctr_schedlen, "aes-ctr",
 		esp_common_ivlen, esp_aesctr_decrypt,
 		esp_aesctr_encrypt, esp_aesctr_schedule },
+	{ 16, 16, esp_cbc_mature, 128, 256, esp_camellia_schedlen,
+		"camellia-cbc",
+		esp_common_ivlen, esp_cbc_decrypt,
+		esp_cbc_encrypt, esp_camellia_schedule,
+		esp_camellia_blockdecrypt, esp_camellia_blockencrypt },
 };
 
 const struct esp_algorithm *
@@ -184,6 +190,8 @@ esp_algorithm_lookup(idx)
 		return &esp_algorithms[5];
 	case SADB_X_EALG_AESCTR:
 		return &esp_algorithms[6];
+	case SADB_X_EALG_CAMELLIACBC:
+		return &esp_algorithms[7];
 	default:
 		return NULL;
 	}
@@ -442,6 +450,7 @@ esp_cbc_mature(sav)
 	case SADB_X_EALG_CAST128CBC:
 		break;
 	case SADB_X_EALG_RIJNDAELCBC:
+	case SADB_X_EALG_CAMELLIACBC:
 		/* allows specific key sizes only */
 		if (!(keylen == 128 || keylen == 192 || keylen == 256)) {
 			ipseclog((LOG_ERR,

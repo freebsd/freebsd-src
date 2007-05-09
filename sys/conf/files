@@ -340,6 +340,8 @@ contrib/pf/net/pf_osfp.c	optional pf \
 contrib/pf/netinet/in4_cksum.c	optional pf inet
 crypto/blowfish/bf_ecb.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_skey.c	optional crypto | ipsec ipsec_esp
+crypto/camellia/camellia.c	optional crypto | ipsec ipsec_esp
+crypto/camellia/camellia-api.c	optional crypto | ipsec ipsec_esp
 crypto/des/des_ecb.c		optional crypto | ipsec ipsec_esp | netsmb
 crypto/des/des_setkey.c		optional crypto | ipsec ipsec_esp | netsmb
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption
@@ -1842,6 +1844,7 @@ netinet6/esp_core.c		optional ipsec ipsec_esp
 netinet6/esp_input.c		optional ipsec ipsec_esp
 netinet6/esp_output.c		optional ipsec ipsec_esp
 netinet6/esp_rijndael.c		optional ipsec ipsec_esp
+netinet6/esp_camellia.c		optional ipsec ipsec_esp
 netinet6/frag6.c		optional inet6
 netinet6/icmp6.c		optional inet6
 netinet6/in6.c			optional inet6
