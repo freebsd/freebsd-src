@@ -791,8 +791,12 @@ g_part_ctl_undo(struct gctl_req *req, struct g_part_parms *gpp)
 			goto fail;
 		}
 		error = g_part_probe(gp, cp, table->gpt_depth);
-		if (error)
-			goto fail;
+		if (error) {
+			g_topology_lock();
+			g_access(cp, -1, -1, -1);
+			g_part_wither(gp, error);
+			return (0);
+		}
 		table = gp->softc;
 	}
 
