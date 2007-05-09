@@ -97,6 +97,7 @@
 #define CAST128_BLOCK_LEN	8
 #define RIJNDAEL128_BLOCK_LEN	16
 #define AES_BLOCK_LEN		RIJNDAEL128_BLOCK_LEN
+#define CAMELLIA_BLOCK_LEN	16
 #define EALG_MAX_BLOCK_LEN	AES_BLOCK_LEN /* Keep this updated */
 
 #define	CRYPTO_ALGORITHM_MIN	1
@@ -121,7 +122,8 @@
 #define	CRYPTO_SHA2_256_HMAC	18
 #define	CRYPTO_SHA2_384_HMAC	19
 #define	CRYPTO_SHA2_512_HMAC	20
-#define	CRYPTO_ALGORITHM_MAX	20 /* Keep updated - see below */
+#define CRYPTO_CAMELLIA_CBC	21
+#define	CRYPTO_ALGORITHM_MAX	21 /* Keep updated - see below */
 
 /* Algorithm flags */
 #define	CRYPTO_ALG_FLAG_SUPPORTED	0x01 /* Algorithm is supported */

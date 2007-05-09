@@ -325,6 +325,8 @@ struct sadb_x_ipsecrequest {
 #define SADB_X_EALG_BLOWFISHCBC	7
 #define SADB_X_EALG_RIJNDAELCBC	12
 #define SADB_X_EALG_AES		12
+/* private allocations - based on RFC4312/IANA assignment */
+#define SADB_X_EALG_CAMELLIACBC		22
 /* private allocations should use 249-255 (RFC2407) */
 #define SADB_X_EALG_SKIPJACK	249	/*250*/ /* for FAST_IPSEC */
 #define SADB_X_EALG_AESCTR	250	/*249*/ /* draft-ietf-ipsec-ciph-aes-ctr-03 */

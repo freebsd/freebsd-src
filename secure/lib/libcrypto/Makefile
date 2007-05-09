@@ -95,6 +95,13 @@ SRCS+=	c_enc.c
 .endif
 INCS+=	cast.h
 
+# camellia
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+SRCS+=	camellia.c cmll_cbc.c cmll_cfb.c cmll_ctr.c cmll_ecb.c \
+	cmll_misc.c cmll_ofb.c
+INCS+=	camellia.h
+.endif
+
 # comp
 SRCS+=	c_rle.c c_zlib.c comp_err.c comp_lib.c
 INCS+=	comp.h
@@ -164,6 +171,9 @@ SRCS+=	bio_b64.c bio_enc.c bio_md.c bio_ok.c c_all.c c_allc.c c_alld.c \
 	m_mdc2.c m_null.c m_ripemd.c m_sha.c m_sha1.c names.c \
 	openbsd_hw.c p5_crpt.c p5_crpt2.c p_dec.c p_enc.c p_lib.c \
 	p_open.c p_seal.c p_sign.c p_verify.c
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+SRCS+=	e_camellia.c
+.endif
 INCS+=	evp.h
 
 # fips
@@ -381,6 +391,7 @@ _ideapath=	${LCRYPTO_SRC}/crypto/idea
 	${LCRYPTO_SRC}/crypto/bn \
 	${LCRYPTO_SRC}/crypto/buffer \
 	${LCRYPTO_SRC}/crypto/cast \
+	${LCRYPTO_SRC}/crypto/camellia \
 	${LCRYPTO_SRC}/crypto/comp \
 	${LCRYPTO_SRC}/crypto/conf \
 	${LCRYPTO_SRC}/crypto/des \
