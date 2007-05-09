@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
  * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
+ * Modifications by: Adam Radford
  */
 
 
@@ -314,23 +315,10 @@ tw_cli_drain_aen_queue(struct tw_cli_ctlr_context *ctlr)
 
 	for (;;) {
 		if ((req = tw_cli_get_request(ctlr
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-			, TW_CL_NULL
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 			)) == TW_CL_NULL) {
 			error = TW_OSL_EBUSY;
 			break;
 		}
-
-#ifdef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
-
-		req->cmd_pkt = ctlr->cmd_pkt_buf;
-		req->cmd_pkt_phys = ctlr->cmd_pkt_phys;
-		tw_osl_memzero(req->cmd_pkt,
-			sizeof(struct tw_cl_command_header) +
-			28 /* max bytes before sglist */);
-
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
 
 		req->flags |= TW_CLI_REQ_FLAGS_INTERNAL;
 		req->tw_cli_callback = TW_CL_NULL;
@@ -601,31 +589,12 @@ tw_cl_create_event(struct tw_cl_ctlr_handle *ctlr_handle,
  */
 struct tw_cli_req_context *
 tw_cli_get_request(struct tw_cli_ctlr_context *ctlr
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-	, struct tw_cl_req_packet *req_pkt
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 	)
 {
 	struct tw_cli_req_context	*req;
 
 	tw_cli_dbg_printf(4, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-
-	if (req_pkt) {
-		if (ctlr->num_free_req_ids == 0)
-			return(TW_CL_NULL);
-
-		ctlr->num_free_req_ids--;
-		req = (struct tw_cli_req_context *)(req_pkt->non_dma_mem);
-		req->ctlr = ctlr;
-		req->request_id = ctlr->free_req_ids[ctlr->free_req_head];
-		ctlr->busy_reqs[req->request_id] = req;
-		ctlr->free_req_head = (ctlr->free_req_head + 1) %
-			(ctlr->max_simult_reqs - 1);
-	} else
-
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 	{
 		/* Get a free request packet. */
 		req = tw_cli_req_q_remove_head(ctlr, TW_CLI_FREE_Q);
@@ -643,8 +612,6 @@ tw_cli_get_request(struct tw_cli_ctlr_context *ctlr
 		req->orig_req = TW_CL_NULL;
 		req->tw_cli_callback = TW_CL_NULL;
 
-#ifndef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
-
 		/*
 		 * Look at the status field in the command packet to see how
 		 * it completed the last time it was used, and zero out only
@@ -659,7 +626,6 @@ tw_cli_get_request(struct tw_cli_ctlr_context *ctlr
 			tw_osl_memzero(&(req->cmd_pkt->command),
 				28 /* max bytes before sglist */);
 
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
 	}
 	return(req);
 }
@@ -843,13 +809,14 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 		}
 
 		if (status_reg & TWA_STATUS_QUEUE_ERROR_INTERRUPT) {
-			tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
-				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
-				0x1305, 0x1, TW_CL_SEVERITY_ERROR_STRING,
-				"Controller queue error: clearing... ",
-				"status reg = 0x%x %s",
-				status_reg,
-				tw_cli_describe_bits(status_reg, desc));
+			if (ctlr->device_id != TW_CL_DEVICE_ID_9K_E)
+				tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
+						   TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
+						   0x1305, 0x1, TW_CL_SEVERITY_ERROR_STRING,
+						   "Controller queue error: clearing... ",
+						   "status reg = 0x%x %s",
+						   status_reg,
+						   tw_cli_describe_bits(status_reg, desc));
 			TW_CLI_WRITE_CONTROL_REGISTER(ctlr->ctlr_handle,
 				TWA_CONTROL_CLEAR_QUEUE_ERROR);
 		}
