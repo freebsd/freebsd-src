@@ -31,8 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
@@ -256,6 +255,7 @@ static void	em_receive_checksum(struct adapter *, struct e1000_rx_desc *,
 		    struct mbuf *);
 static void	em_transmit_checksum_setup(struct adapter *, struct mbuf *,
 		    uint32_t *, uint32_t *);
+static boolean_t em_tx_adv_ctx_setup(struct adapter *, struct mbuf *);
 static boolean_t em_tso_setup(struct adapter *, struct mbuf *, uint32_t *,
 		    uint32_t *);
 static boolean_t em_tso_adv_setup(struct adapter *, struct mbuf *, uint32_t *);
@@ -268,7 +268,6 @@ static int	em_get_buf(struct adapter *, int);
 static void	em_enable_vlans(struct adapter *);
 static int	em_encap(struct adapter *, struct mbuf **);
 static int	em_adv_encap(struct adapter *, struct mbuf **);
-static void	em_tx_adv_ctx_setup(struct adapter *, struct mbuf *);
 static void	em_smartspeed(struct adapter *);
 static int	em_82547_fifo_workaround(struct adapter *, int);
 static void	em_82547_update_fifo_head(struct adapter *, int);
@@ -934,7 +933,7 @@ em_start_locked(struct ifnet *ifp)
 		}
 
 		/* Send a copy of the frame to the BPF listener */
-		BPF_MTAP(ifp, m_head);
+		ETHER_BPF_MTAP(ifp, m_head);
 
 		/* Set timeout in case hardware has problems transmitting. */
 		adapter->watchdog_timer = EM_TX_TIMEOUT;
@@ -1267,6 +1266,16 @@ em_init_locked(struct adapter *adapter)
 	/* Get the latest mac address, User can use a LAA */
         bcopy(IF_LLADDR(adapter->ifp), adapter->hw.mac.addr,
               ETHER_ADDR_LEN);
+
+	/* Put the address into the Receive Address Array */
+	e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+
+	/*
+	 * With 82571 controllers, LAA may be overwritten
+	 * due to controller reset from the other port.
+	 */
+	if (adapter->hw.mac.type == e1000_82571)
+                e1000_set_laa_state_82571(&adapter->hw, TRUE);
 
 	/* Initialize the hardware */
 	if (em_hardware_init(adapter)) {
@@ -1954,6 +1963,8 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
  *  used by the 82575 adapter. It also needs no workarounds.
  *  
  **********************************************************************/
+#define CSUM_OFFLOAD	7  /* Checksum bits */
+
 static int
 em_adv_encap(struct adapter *adapter, struct mbuf **m_headp)
 {
@@ -1963,12 +1974,11 @@ em_adv_encap(struct adapter *adapter, struct mbuf **m_headp)
 	union e1000_adv_tx_desc	*txd = NULL;
 	struct mbuf		*m_head;
 	u32			olinfo_status = 0, cmd_type_len = 0;
-	u32			do_tso, paylen = 0;
+	u32			paylen = 0;
 	int			nsegs, i, j, error, first, last = 0;
 
 	m_head = *m_headp;
 
-	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
 
 	/* Set basic descriptor constants */
 	cmd_type_len |= E1000_ADVTXD_DTYP_DATA;
@@ -2052,16 +2062,15 @@ em_adv_encap(struct adapter *adapter, struct mbuf **m_headp)
 	 * This includes CSUM, VLAN, and TSO. It
 	 * will use the first descriptor.
          */
-	if (m_head->m_pkthdr.csum_flags) {
-		/* All offloads set this */
+	/* First try TSO */
+	if (em_tso_adv_setup(adapter, m_head, &paylen)) {
+		cmd_type_len |= E1000_ADVTXD_DCMD_TSE;
+		olinfo_status |= E1000_TXD_POPTS_IXSM << 8;
 		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
-		/* First try TSO */
-		if ((do_tso) && em_tso_adv_setup(adapter, m_head, &paylen)) {
-			cmd_type_len |= E1000_ADVTXD_DCMD_TSE;
-			olinfo_status |= E1000_TXD_POPTS_IXSM << 8;
-			olinfo_status |= paylen << E1000_ADVTXD_PAYLEN_SHIFT;
-		} else	/* Just checksum offload */
-			em_tx_adv_ctx_setup(adapter, m_head);
+		olinfo_status |= paylen << E1000_ADVTXD_PAYLEN_SHIFT;
+	} else if (m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) {
+		if (em_tx_adv_ctx_setup(adapter, m_head))
+			olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
 	}
 
 	/* Set up our transmit descriptors */
@@ -3514,7 +3523,8 @@ em_tso_adv_setup(struct adapter *adapter, struct mbuf *mp, u32 *paylen)
 	struct ip *ip;
 	struct tcphdr *th;
 
-	if (mp->m_pkthdr.len <= EM_TX_BUFFER_SIZE)
+	if (((mp->m_pkthdr.csum_flags & CSUM_TSO) == 0) ||
+	     (mp->m_pkthdr.len <= EM_TX_BUFFER_SIZE))
 		return FALSE;
 
 	/*
@@ -3589,7 +3599,7 @@ em_tso_adv_setup(struct adapter *adapter, struct mbuf *mp, u32 *paylen)
  *
  **********************************************************************/
 
-static void
+static boolean_t
 em_tx_adv_ctx_setup(struct adapter *adapter, struct mbuf *mp)
 {
 	struct e1000_adv_tx_context_desc *TXD;
@@ -3639,7 +3649,7 @@ em_tx_adv_ctx_setup(struct adapter *adapter, struct mbuf *mp)
 			ip = (struct ip *)(mp->m_data + ehdrlen);
 			ip_hlen = ip->ip_hl << 2;
 			if (mp->m_len < ehdrlen + ip_hlen)
-				return; /* failure */
+				return FALSE; /* failure */
 			ipproto = ip->ip_p;
 			type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_IPV4;
 			break;
@@ -3647,12 +3657,12 @@ em_tx_adv_ctx_setup(struct adapter *adapter, struct mbuf *mp)
 			ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
 			ip_hlen = sizeof(struct ip6_hdr);
 			if (mp->m_len < ehdrlen + ip_hlen)
-				return; /* failure */
+				return FALSE; /* failure */
 			ipproto = ip6->ip6_nxt;
 			type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_IPV6;
 			break;
 		default:
-			return;
+			return FALSE;
 	}
 
 	vlan_macip_lens |= ip_hlen;
@@ -3684,7 +3694,7 @@ em_tx_adv_ctx_setup(struct adapter *adapter, struct mbuf *mp)
 	adapter->next_avail_tx_desc = ctxd;
 	--adapter->num_tx_desc_avail;
 
-        return;
+        return TRUE;
 }
 
 
