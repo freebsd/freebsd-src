@@ -50,13 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_amrr.h>
 #include <net80211/ieee80211_radiotap.h>
-
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -105,6 +100,7 @@ static const struct usb_devno ural_devs[] = {
 };
 
 MODULE_DEPEND(ural, wlan, 1, 1, 1);
+MODULE_DEPEND(ural, wlan_amrr, 1, 1, 1);
 
 static int		ural_alloc_tx_list(struct ural_softc *);
 static void		ural_free_tx_list(struct ural_softc *);
@@ -132,7 +128,7 @@ static int		ural_tx_mgt(struct ural_softc *, struct mbuf *,
 static int		ural_tx_data(struct ural_softc *, struct mbuf *,
 			    struct ieee80211_node *);
 static void		ural_start(struct ifnet *);
-static void		ural_watchdog(struct ifnet *);
+static void		ural_watchdog(void *);
 static int		ural_reset(struct ifnet *);
 static int		ural_ioctl(struct ifnet *, u_long, caddr_t);
 static void		ural_set_testmode(struct ural_softc *);
@@ -171,8 +167,6 @@ static void		ural_amrr_start(struct ural_softc *,
 static void		ural_amrr_timeout(void *);
 static void		ural_amrr_update(usbd_xfer_handle, usbd_private_handle,
 			    usbd_status status);
-static void		ural_ratectl(struct ural_amrr *,
-			    struct ieee80211_node *);
 
 /*
  * Default values for MAC registers; values taken from the reference driver.
@@ -410,6 +404,7 @@ USB_ATTACH(ural)
 	    MTX_DEF | MTX_RECURSE);
 
 	usb_init_task(&sc->sc_task, ural_task, sc);
+	callout_init_mtx(&sc->watchdog_ch, &sc->sc_mtx, 0);
 	callout_init(&sc->scan_ch, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
 	callout_init(&sc->amrr_ch, 0);
 
@@ -435,7 +430,6 @@ USB_ATTACH(ural)
 	ifp->if_init = ural_init;
 	ifp->if_ioctl = ural_ioctl;
 	ifp->if_start = ural_start;
-	ifp->if_watchdog = ural_watchdog;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
@@ -494,6 +488,8 @@ USB_ATTACH(ural)
 	ic->ic_raw_xmit = ural_raw_xmit;
 	ieee80211_media_init(ic, ural_media_change, ieee80211_media_status);
 
+	ieee80211_amrr_init(&sc->amrr, ic, 1, 15);
+
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
 	    sizeof (struct ieee80211_frame) + 64, &sc->sc_drvbpf);
 
@@ -519,6 +515,7 @@ USB_DETACH(ural)
 
 	ural_stop(sc);
 	usb_rem_task(sc->sc_udev, &sc->sc_task);
+	callout_stop(&sc->watchdog_ch);
 	callout_stop(&sc->scan_ch);
 	callout_stop(&sc->amrr_ch);
 
@@ -719,6 +716,8 @@ ural_task(void *arg)
 
 	ostate = ic->ic_state;
 
+	RAL_LOCK(sc);
+
 	switch (sc->sc_state) {
 	case IEEE80211_S_INIT:
 		if (ostate == IEEE80211_S_RUN) {
@@ -785,7 +784,8 @@ ural_task(void *arg)
 		break;
 	}
 
-	sc->sc_newstate(ic, sc->sc_state, -1);
+	RAL_UNLOCK(sc);
+	sc->sc_newstate(ic, sc->sc_state, sc->sc_arg);
 }
 
 static int
@@ -793,14 +793,18 @@ ural_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
 	struct ural_softc *sc = ic->ic_ifp->if_softc;
 
-	usb_rem_task(sc->sc_udev, &sc->sc_task);
 	callout_stop(&sc->scan_ch);
 	callout_stop(&sc->amrr_ch);
 
 	/* do it in a process context */
 	sc->sc_state = nstate;
-	usb_add_task(sc->sc_udev, &sc->sc_task, USB_TASKQ_DRIVER);
+	sc->sc_arg = arg;
 
+	usb_rem_task(sc->sc_udev, &sc->sc_task);
+	if (nstate == IEEE80211_S_INIT)
+		sc->sc_newstate(ic, nstate, arg);
+	else
+		usb_add_task(sc->sc_udev, &sc->sc_task, USB_TASKQ_DRIVER);
 	return 0;
 }
 
@@ -1466,34 +1470,27 @@ ural_start(struct ifnet *ifp)
 		}
 
 		sc->sc_tx_timer = 5;
-		ifp->if_timer = 1;
+		callout_reset(&sc->watchdog_ch, hz, ural_watchdog, sc);
 	}
 }
 
 static void
-ural_watchdog(struct ifnet *ifp)
+ural_watchdog(void *arg)
 {
-	struct ural_softc *sc = ifp->if_softc;
+	struct ural_softc *sc = (struct ural_softc *)arg;
 	struct ieee80211com *ic = &sc->sc_ic;
-
-	RAL_LOCK(sc);
-
-	ifp->if_timer = 0;
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
 			/*ural_init(sc); XXX needs a process context! */
-			ifp->if_oerrors++;
-			RAL_UNLOCK(sc);
+			sc->sc_ifp->if_oerrors++;
 			return;
 		}
-		ifp->if_timer = 1;
+		callout_reset(&sc->watchdog_ch, hz, ural_watchdog, sc);
 	}
 
 	ieee80211_watchdog(ic);
-
-	RAL_UNLOCK(sc);
 }
 
 /*
@@ -2268,11 +2265,10 @@ ural_stop(void *priv)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
-	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
-
 	sc->sc_tx_timer = 0;
-	ifp->if_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+
+	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 
 	/* disable Rx */
 	ural_write(sc, RAL_TXRX_CSR2, RAL_DISABLE_RX);
@@ -2344,7 +2340,7 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 			goto bad;
 	}
 	sc->sc_tx_timer = 5;
-	ifp->if_timer = 1;
+	callout_reset(&sc->watchdog_ch, hz, ural_watchdog, sc);
 
 	return 0;
 bad:
@@ -2353,22 +2349,15 @@ bad:
 	return EIO;		/* XXX */
 }
 
-#define URAL_AMRR_MIN_SUCCESS_THRESHOLD	 1
-#define URAL_AMRR_MAX_SUCCESS_THRESHOLD	10
-
 static void
 ural_amrr_start(struct ural_softc *sc, struct ieee80211_node *ni)
 {
-	struct ural_amrr *amrr = &sc->amrr;
 	int i;
 
 	/* clear statistic registers (STA_CSR0 to STA_CSR10) */
 	ural_read_multi(sc, RAL_STA_CSR0, sc->sta, sizeof sc->sta);
 
-	amrr->success = 0;
-	amrr->recovery = 0;
-	amrr->txcnt = amrr->retrycnt = 0;
-	amrr->success_threshold = URAL_AMRR_MIN_SUCCESS_THRESHOLD;
+	ieee80211_amrr_node_init(&sc->amrr, &sc->amn);
 
 	/* set rate to some reasonable initial value */
 	for (i = ni->ni_rates.rs_nrates - 1;
@@ -2406,7 +2395,6 @@ ural_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
     usbd_status status)
 {
 	struct ural_softc *sc = (struct ural_softc *)priv;
-	struct ural_amrr *amrr = &sc->amrr;
 	struct ifnet *ifp = sc->sc_ic.ic_ifp;
 
 	if (status != USBD_NORMAL_COMPLETION) {
@@ -2418,85 +2406,18 @@ ural_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
 	/* count TX retry-fail as Tx errors */
 	ifp->if_oerrors += sc->sta[9];
 
-	amrr->retrycnt =
+	sc->amn.amn_retrycnt =
 	    sc->sta[7] +	/* TX one-retry ok count */
 	    sc->sta[8] +	/* TX more-retry ok count */
 	    sc->sta[9];		/* TX retry-fail count */
 
-	amrr->txcnt =
-	    amrr->retrycnt +
+	sc->amn.amn_txcnt =
+	    sc->amn.amn_retrycnt +
 	    sc->sta[6];		/* TX no-retry ok count */
 
-	ural_ratectl(amrr, sc->sc_ic.ic_bss);
+	ieee80211_amrr_choose(&sc->amrr, sc->sc_ic.ic_bss, &sc->amn);
 
 	callout_reset(&sc->amrr_ch, hz, ural_amrr_timeout, sc);
-}
-
-/*-
- * Naive implementation of the Adaptive Multi Rate Retry algorithm:
- *     "IEEE 802.11 Rate Adaptation: A Practical Approach"
- *     Mathieu Lacage, Hossein Manshaei, Thierry Turletti
- *     INRIA Sophia - Projet Planete
- *     http://www-sop.inria.fr/rapports/sophia/RR-5208.html
- *
- * This algorithm is particularly well suited for ural since it does not
- * require per-frame retry statistics.  Note however that since h/w does
- * not provide per-frame stats, we can't do per-node rate adaptation and
- * thus automatic rate adaptation is only enabled in STA operating mode.
- */
-#define is_success(amrr)	\
-	((amrr)->retrycnt < (amrr)->txcnt / 10)
-#define is_failure(amrr)	\
-	((amrr)->retrycnt > (amrr)->txcnt / 3)
-#define is_enough(amrr)		\
-	((amrr)->txcnt > 10)
-#define is_min_rate(ni)		\
-	((ni)->ni_txrate == 0)
-#define is_max_rate(ni)		\
-	((ni)->ni_txrate == (ni)->ni_rates.rs_nrates - 1)
-#define increase_rate(ni)	\
-	((ni)->ni_txrate++)
-#define decrease_rate(ni)	\
-	((ni)->ni_txrate--)
-#define reset_cnt(amrr)		\
-	do { (amrr)->txcnt = (amrr)->retrycnt = 0; } while (0)
-static void
-ural_ratectl(struct ural_amrr *amrr, struct ieee80211_node *ni)
-{
-	int need_change = 0;
-
-	if (is_success(amrr) && is_enough(amrr)) {
-		amrr->success++;
-		if (amrr->success >= amrr->success_threshold &&
-		    !is_max_rate(ni)) {
-			amrr->recovery = 1;
-			amrr->success = 0;
-			increase_rate(ni);
-			need_change = 1;
-		} else {
-			amrr->recovery = 0;
-		}
-	} else if (is_failure(amrr)) {
-		amrr->success = 0;
-		if (!is_min_rate(ni)) {
-			if (amrr->recovery) {
-				amrr->success_threshold *= 2;
-				if (amrr->success_threshold >
-				    URAL_AMRR_MAX_SUCCESS_THRESHOLD)
-					amrr->success_threshold =
-					    URAL_AMRR_MAX_SUCCESS_THRESHOLD;
-			} else {
-				amrr->success_threshold =
-				    URAL_AMRR_MIN_SUCCESS_THRESHOLD;
-			}
-			decrease_rate(ni);
-			need_change = 1;
-		}
-		amrr->recovery = 0;	/* original paper was incorrect */
-	}
-
-	if (is_enough(amrr) || need_change)
-		reset_cnt(amrr);
 }
 
 DRIVER_MODULE(ural, uhub, ural_driver, ural_devclass, usbd_driver_load, 0);
