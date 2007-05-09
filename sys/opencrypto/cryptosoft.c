@@ -661,6 +661,9 @@ swcr_newsession(device_t dev, u_int32_t *sid, struct cryptoini *cri)
 		case CRYPTO_RIJNDAEL128_CBC:
 			txf = &enc_xform_rijndael128;
 			goto enccommon;
+		case CRYPTO_CAMELLIA_CBC:
+			txf = &enc_xform_camellia;
+			goto enccommon;
 		case CRYPTO_NULL_CBC:
 			txf = &enc_xform_null;
 			goto enccommon;
@@ -816,6 +819,7 @@ swcr_freesession(device_t dev, u_int64_t tid)
 		case CRYPTO_CAST_CBC:
 		case CRYPTO_SKIPJACK_CBC:
 		case CRYPTO_RIJNDAEL128_CBC:
+		case CRYPTO_CAMELLIA_CBC:
 		case CRYPTO_NULL_CBC:
 			txf = swd->sw_exf;
 
@@ -928,6 +932,7 @@ swcr_process(device_t dev, struct cryptop *crp, int hint)
 		case CRYPTO_CAST_CBC:
 		case CRYPTO_SKIPJACK_CBC:
 		case CRYPTO_RIJNDAEL128_CBC:
+		case CRYPTO_CAMELLIA_CBC:
 			if ((crp->crp_etype = swcr_encdec(crd, sw,
 			    crp->crp_buf, crp->crp_flags)) != 0)
 				goto done;
@@ -1019,6 +1024,7 @@ swcr_attach(device_t dev)
 	REGISTER(CRYPTO_MD5);
 	REGISTER(CRYPTO_SHA1);
 	REGISTER(CRYPTO_RIJNDAEL128_CBC);
+ 	REGISTER(CRYPTO_CAMELLIA_CBC);
 	REGISTER(CRYPTO_DEFLATE_COMP);
 #undef REGISTER
 

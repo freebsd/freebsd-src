@@ -113,6 +113,8 @@ esp_algorithm_lookup(int alg)
 		return &enc_xform_skipjack;
 	case SADB_EALG_NULL:
 		return &enc_xform_null;
+	case SADB_X_EALG_CAMELLIACBC:
+		return &enc_xform_camellia;
 	}
 	return NULL;
 }
@@ -1006,6 +1008,7 @@ esp_attach(void)
 	MAXIV(enc_xform_cast5);		/* SADB_X_EALG_CAST128CBC */
 	MAXIV(enc_xform_skipjack);	/* SADB_X_EALG_SKIPJACK */
 	MAXIV(enc_xform_null);		/* SADB_EALG_NULL */
+	MAXIV(enc_xform_camellia);	/* SADB_X_EALG_CAMELLIACBC */
 
 	xform_register(&esp_xformsw);
 #undef MAXIV
