@@ -780,11 +780,11 @@ findpcb:
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG) {
 		ostate = tp->t_state;
+		if (isipv6) {
 #ifdef INET6
-		if (isipv6)
 			bcopy((char *)ip6, (char *)tcp_saveipgen, sizeof(*ip6));
-		else
-#endif /* INET6 */
+#endif
+		} else
 			bcopy((char *)ip, (char *)tcp_saveipgen, sizeof(*ip));
 		tcp_savetcp = *th;
 	}
