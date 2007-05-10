@@ -28,11 +28,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/file.h>
 #include <sys/stat.h>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <unistd.h>
+
+#include <libutil.h>
 
 int
 flopen(const char *path, int flags, ...)
