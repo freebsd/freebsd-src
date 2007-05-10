@@ -359,7 +359,7 @@ twa_attach(device_t dev)
 		return(ENXIO);
 	}
 	if ((error = bus_setup_intr(sc->bus_dev, sc->irq_res,
-			INTR_TYPE_CAM | INTR_MPSAFE,
+			INTR_TYPE_CAM,
 #ifdef TW_OSLI_DEFERRED_INTR_USED
 			twa_pci_intr_fast, NULL,
 #else
