@@ -259,8 +259,7 @@ tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_start, tcp_seq rcv_end)
  * Delete all receiver-side SACK information.
  */
 void
-tcp_clean_sackreport(tp)
-	struct tcpcb *tp;
+tcp_clean_sackreport(struct tcpcb *tp)
 {
 	int i;
 

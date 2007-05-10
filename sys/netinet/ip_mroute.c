@@ -2550,8 +2550,8 @@ expire_bw_meter_process(void *unused)
  *
  */
 static int
-pim_register_send(struct ip *ip, struct vif *vifp,
-	struct mbuf *m, struct mfc *rt)
+pim_register_send(struct ip *ip, struct vif *vifp, struct mbuf *m,
+    struct mfc *rt)
 {
     struct mbuf *mb_copy, *mm;
 
@@ -2648,7 +2648,7 @@ pim_register_prepare(struct ip *ip, struct mbuf *m)
  */
 static int
 pim_register_send_upcall(struct ip *ip, struct vif *vifp,
-	struct mbuf *mb_copy, struct mfc *rt)
+    struct mbuf *mb_copy, struct mfc *rt)
 {
     struct mbuf *mb_first;
     int len = ntohs(ip->ip_len);
@@ -2701,8 +2701,8 @@ pim_register_send_upcall(struct ip *ip, struct vif *vifp,
  * Encapsulate the data packet in PIM Register message and send it to the RP.
  */
 static int
-pim_register_send_rp(struct ip *ip, struct vif *vifp,
-	struct mbuf *mb_copy, struct mfc *rt)
+pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
+    struct mfc *rt)
 {
     struct mbuf *mb_first;
     struct ip *ip_outer;

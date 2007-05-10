@@ -145,6 +145,7 @@ div_inpcb_fini(void *mem, int size)
 void
 div_init(void)
 {
+
 	INP_INFO_LOCK_INIT(&divcbinfo, "div");
 	LIST_INIT(&divcb);
 	divcbinfo.ipi_listhead = &divcb;
@@ -298,8 +299,8 @@ divert_packet(struct mbuf *m, int incoming)
  * the interface with that address.
  */
 static int
-div_output(struct socket *so, struct mbuf *m,
-	struct sockaddr_in *sin, struct mbuf *control)
+div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
+    struct mbuf *control)
 {
 	struct m_tag *mtag;
 	struct divert_tag *dt;
@@ -502,7 +503,7 @@ div_shutdown(struct socket *so)
 
 static int
 div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-	 struct mbuf *control, struct thread *td)
+    struct mbuf *control, struct thread *td)
 {
 	/* Packet must have a header (but that's about it) */
 	if (m->m_len < sizeof (struct ip) &&
@@ -630,6 +631,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 static int
 div_sockaddr(struct socket *so, struct sockaddr **nam)
 {
+
 	return (in_setsockaddr(so, nam));
 }
 
@@ -640,6 +642,7 @@ div_sockaddr(struct socket *so, struct sockaddr **nam)
 static int
 div_peeraddr(struct socket *so, struct sockaddr **nam)
 {
+
 	return (in_setpeeraddr(so, nam));
 }
 

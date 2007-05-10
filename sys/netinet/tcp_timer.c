@@ -128,7 +128,7 @@ static int	tcp_timer_rexmt(struct tcpcb *, struct inpcb *);
  * causes finite state machine actions if timers expire.
  */
 void
-tcp_slowtimo()
+tcp_slowtimo(void)
 {
 
 	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
@@ -148,7 +148,6 @@ static int tcp_totbackoff = 2559;	/* sum of tcp_backoff[] */
 static int tcp_timer_race;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, timer_race, CTLFLAG_RD, &tcp_timer_race,
     0, "Count of t_inpcb races on tcp_discardcb");
-
 
 void
 tcp_timer_activate(struct tcpcb *tp, int timer_type, u_int delta)
@@ -416,7 +415,6 @@ shutdown:
 	INP_INFO_WUNLOCK(&tcbinfo);
 	return;
 }
-
 
 /*
  * TCP timer processing.
