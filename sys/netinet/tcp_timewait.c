@@ -300,8 +300,8 @@ tcp_inpcb_init(void *mem, int size, int flags)
 void
 tcp_init(void)
 {
-	int hashsize = TCBHASHSIZE;
 
+	int hashsize = TCBHASHSIZE;
 	tcp_delacktime = TCPTV_DELACK;
 	tcp_keepinit = TCPTV_KEEP_INIT;
 	tcp_keepidle = TCPTV_KEEP_IDLE;
@@ -465,8 +465,8 @@ tcpip_maketemplate(struct inpcb *inp)
  * NOTE: If m != NULL, then ti must point to *inside* the mbuf.
  */
 void
-tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th,
-    struct mbuf *m, tcp_seq ack, tcp_seq seq, int flags)
+tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
+    tcp_seq ack, tcp_seq seq, int flags)
 {
 	int tlen;
 	int win = 0;

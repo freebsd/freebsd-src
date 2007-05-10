@@ -143,10 +143,7 @@ arptimer(void *arg)
  * Parallel to llc_rtrequest.
  */
 static void
-arp_rtrequest(req, rt, info)
-	int req;
-	struct rtentry *rt;
-	struct rt_addrinfo *info;
+arp_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 {
 	struct sockaddr *gate;
 	struct llinfo_arp *la;
@@ -308,10 +305,8 @@ arp_rtrequest(req, rt, info)
  *	- arp header source ethernet address
  */
 static void
-arprequest(ifp, sip, tip, enaddr)
-	struct ifnet *ifp;
-	struct in_addr *sip, *tip;
-	u_char *enaddr;
+arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr *tip,
+    u_char *enaddr)
 {
 	struct mbuf *m;
 	struct arphdr *ah;
@@ -358,7 +353,7 @@ arprequest(ifp, sip, tip, enaddr)
  */
 int
 arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
-	struct sockaddr *dst, u_char *desten)
+    struct sockaddr *dst, u_char *desten)
 {
 	struct llinfo_arp *la = NULL;
 	struct rtentry *rt = NULL;
@@ -562,8 +557,7 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_permanent_modify, CTLFLAG_RW,
 
 
 static void
-in_arpinput(m)
-	struct mbuf *m;
+in_arpinput(struct mbuf *m)
 {
 	struct arphdr *ah;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
@@ -894,9 +888,7 @@ drop:
  * Lookup or enter a new address in arptab.
  */
 static struct rtentry *
-arplookup(addr, create, proxy)
-	u_long addr;
-	int create, proxy;
+arplookup(u_long addr, int create, int proxy)
 {
 	struct rtentry *rt;
 	struct sockaddr_inarp sin;
@@ -943,9 +935,7 @@ arplookup(addr, create, proxy)
 }
 
 void
-arp_ifinit(ifp, ifa)
-	struct ifnet *ifp;
-	struct ifaddr *ifa;
+arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 {
 	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY)
 		arprequest(ifp, &IA_SIN(ifa)->sin_addr,
@@ -955,10 +945,7 @@ arp_ifinit(ifp, ifa)
 }
 
 void
-arp_ifinit2(ifp, ifa, enaddr)
-	struct ifnet *ifp;
-	struct ifaddr *ifa;
-	u_char *enaddr;
+arp_ifinit2(struct ifnet *ifp, struct ifaddr *ifa, u_char *enaddr)
 {
 	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY)
 		arprequest(ifp, &IA_SIN(ifa)->sin_addr,

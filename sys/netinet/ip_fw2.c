@@ -770,8 +770,8 @@ static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
  */
 static void
 ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
-	struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg,
-	struct ip  *ip)
+    struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg,
+    struct ip *ip)
 {
 	struct ether_header *eh = args->eh;
 	char *action;
@@ -1158,7 +1158,7 @@ next:
  */
 static ipfw_dyn_rule *
 lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
-	struct tcphdr *tcp)
+    struct tcphdr *tcp)
 {
 	/*
 	 * stateful ipfw extensions.
@@ -1301,7 +1301,7 @@ done:
 
 static ipfw_dyn_rule *
 lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
-	struct tcphdr *tcp)
+    struct tcphdr *tcp)
 {
 	ipfw_dyn_rule *q;
 
@@ -1776,7 +1776,7 @@ lookup_next_rule(struct ip_fw *me)
 
 static int
 add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-	uint8_t mlen, uint32_t value)
+    uint8_t mlen, uint32_t value)
 {
 	struct radix_node_head *rnh;
 	struct table_entry *ent;
@@ -1804,7 +1804,7 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 
 static int
 del_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-	uint8_t mlen)
+    uint8_t mlen)
 {
 	struct radix_node_head *rnh;
 	struct table_entry *ent;
@@ -1885,7 +1885,7 @@ init_tables(struct ip_fw_chain *ch)
 
 static int
 lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-	uint32_t *val)
+    uint32_t *val)
 {
 	struct radix_node_head *rnh;
 	struct table_entry *ent;
@@ -1977,11 +1977,10 @@ fill_ugid_cache(struct inpcb *inp, struct ip_fw_ugid *ugp)
 }
 
 static int
-check_uidgid(ipfw_insn_u32 *insn,
-	int proto, struct ifnet *oif,
-	struct in_addr dst_ip, u_int16_t dst_port,
-	struct in_addr src_ip, u_int16_t src_port,
-	struct ip_fw_ugid *ugp, int *lookup, struct inpcb *inp)
+check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
+    struct in_addr dst_ip, u_int16_t dst_port, struct in_addr src_ip,
+    u_int16_t src_port, struct ip_fw_ugid *ugp, int *lookup,
+    struct inpcb *inp)
 {
 	struct inpcbinfo *pi;
 	int wildcard;
@@ -2066,7 +2065,8 @@ check_uidgid(ipfw_insn_u32 *insn,
 static eventhandler_tag ifaddr_event_tag;
 
 static void 
-ifaddr_change(void *arg __unused, struct ifnet *ifp) {
+ifaddr_change(void *arg __unused, struct ifnet *ifp)
+{
 	struct cfg_nat *ptr;
 	struct ifaddr *ifa;
 
@@ -2092,7 +2092,8 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp) {
 }
 
 static void
-flush_nat_ptrs(const int i) {
+flush_nat_ptrs(const int i)
+{
 	struct ip_fw *rule;
 
 	IPFW_WLOCK_ASSERT(&layer3_chain);
@@ -2106,7 +2107,8 @@ flush_nat_ptrs(const int i) {
 }
 
 static struct cfg_nat *
-lookup_nat(const int i) {
+lookup_nat(const int i)
+{
 	struct cfg_nat *ptr;
 
 	LIST_FOREACH(ptr, &layer3_chain.nat, _next)
@@ -2134,7 +2136,8 @@ lookup_nat(const int i) {
 } while (0)
 
 static void
-del_redir_spool_cfg(struct cfg_nat *n, struct redir_chain *head) {
+del_redir_spool_cfg(struct cfg_nat *n, struct redir_chain *head)
+{
 	struct cfg_redir *r, *tmp_r;
 	struct cfg_spool *s, *tmp_s;
 	int i, num;
@@ -2168,7 +2171,8 @@ del_redir_spool_cfg(struct cfg_nat *n, struct redir_chain *head) {
 }
 
 static int
-add_redir_spool_cfg(char *buf, struct cfg_nat *ptr) {
+add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
+{
 	struct cfg_redir *r, *ser_r;
 	struct cfg_spool *s, *ser_s;
 	int cnt, off, i;
@@ -3798,7 +3802,8 @@ done:
  * Arguments are not checked, so they better be correct.
  */
 static struct ip_fw *
-remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule, struct ip_fw *prev)
+remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
+    struct ip_fw *prev)
 {
 	struct ip_fw *n;
 	int l = RULESIZE(rule);
