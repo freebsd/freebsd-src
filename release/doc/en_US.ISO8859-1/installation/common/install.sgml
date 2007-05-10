@@ -138,7 +138,7 @@ from {alpha,i386}/INSTALL.TXT.
   <title>Floppy Disk Image Instructions</title>
 
   <para arch="i386,alpha,pc98">Depending on how you choose to install &os;, you may need to
-  create a set of floppy disks (usually three) to begin the installation
+  create a set of floppy disks (usually four) to begin the installation
   process.  This section briefly describes how to create these disks,
   either from a CDROM installation or from the Internet.  Note that in
   the common case of installing &os; from CDROM, on a machine that
