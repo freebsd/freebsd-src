@@ -1552,7 +1552,7 @@ skc_attach(dev)
 	struct sk_softc		*sc;
 	int			error = 0, *port;
 	uint8_t			skrs;
-	const char		*pname;
+	const char		*pname = NULL;
 	char			*revstr;
 
 	sc = device_get_softc(dev);
@@ -1671,16 +1671,14 @@ skc_attach(dev)
 	case DEVICEID_DLINK_DGE530T_A1:
 	case DEVICEID_DLINK_DGE530T_B1:
 		/* Stay with VPD PN. */
-		if (pci_get_vpd_ident(dev, &pname))
-			goto vpdfailed;
+		(void) pci_get_vpd_ident(dev, &pname);
 		break;
 	case DEVICEID_SK_V2:
 		/* YUKON VPD PN might bear no resemblance to reality. */
 		switch (sc->sk_type) {
 		case SK_GENESIS:
 			/* Stay with VPD PN. */
-			if (pci_get_vpd_ident(dev, &pname))
-				goto vpdfailed;
+			(void) pci_get_vpd_ident(dev, &pname);
 			break;
 		case SK_YUKON:
 			pname = "Marvell Yukon Gigabit Ethernet";
@@ -1717,7 +1715,6 @@ skc_attach(dev)
 		}
 		break;
 	default:
-vpdfailed:
 		device_printf(dev, "unknown device: vendor=%04x, device=%04x, "
 			"chipver=%02x, rev=%x\n",
 			pci_get_vendor(dev), pci_get_device(dev),
@@ -1746,8 +1743,9 @@ vpdfailed:
 	}
 
 	/* Announce the product name and more VPD data if there. */
-	device_printf(dev, "%s rev. %s(0x%x)\n",
-		pname != NULL ? pname : "<unknown>", revstr, sc->sk_rev);
+	if (pname != NULL)
+		device_printf(dev, "%s rev. %s(0x%x)\n",
+			pname, revstr, sc->sk_rev);
 
 	if (bootverbose) {
 		device_printf(dev, "chip ver  = 0x%02x\n", sc->sk_type);
