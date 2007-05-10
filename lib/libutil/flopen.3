@@ -60,6 +60,17 @@ Thus, it is well suited for opening lock files, PID files, spool
 files, mailboxes and other kinds of files which are used for
 synchronization between processes.
 .Pp
+If
+.Va flags
+includes
+.Dv O_NONBLOCK
+and the file is already locked,
+.Fn flopen
+will fail and set
+.Va errno
+to
+.Dv EWOULDBLOCK .
+.Pp
 As with
 .Fn flopen ,
 the additional
@@ -68,7 +79,18 @@ argument is required if
 .Va flags
 includes
 .Dv O_CREAT .
+.Sh RETURN VALUES
+If successful,
+.Fn flopen
+returns a valid file descriptor.
+Otherwise, it returns -1, and sets
+.Va errno
+as described in
+.Xr flock 2
+and
+.Xr open 2 .
 .Sh SEE ALSO
+.Xr errno 2 ,
 .Xr flock 2 ,
 .Xr open 2
 .Sh AUTHORS

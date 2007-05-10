@@ -39,29 +39,32 @@ __FBSDID("$FreeBSD$");
 int
 flopen(const char *path, int flags, ...)
 {
+	int fd, operation, serrno;
 	struct stat sb, fsb;
 	mode_t mode;
-	int fd, serrno;
 
 #ifdef O_EXLOCK
 	flags &= ~O_EXLOCK;
 #endif
 
+	mode = 0;
 	if (flags & O_CREAT) {
 		va_list ap;
 
 		va_start(ap, flags);
 		mode = va_arg(ap, int); /* mode_t promoted to int */
 		va_end(ap);
-	} else {
-		mode = 0;
 	}
+
+	operation = LOCK_EX;
+	if (flags & O_NONBLOCK)
+		operation |= LOCK_NB;
 
 	for (;;) {
 		if ((fd = open(path, flags, mode)) == -1)
 			/* non-existent or no access */
 			return (-1);
-		if (flock(fd, LOCK_EX) == -1) {
+		if (flock(fd, operation) == -1) {
 			/* unsupported or interrupted */
 			serrno = errno;
 			close(fd);
