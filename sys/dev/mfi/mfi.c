@@ -1363,7 +1363,6 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	struct mfi_frame_header *hdr;
 	struct mfi_ld_info *ld_info;
 	struct mfi_softc *sc;
-	struct mfi_ld *ld;
 	device_t child;
 
 	sc = cm->cm_sc;
@@ -1377,25 +1376,13 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	}
 	mfi_release_command(cm);
 
-	ld = malloc(sizeof(struct mfi_ld), M_MFIBUF, M_NOWAIT|M_ZERO);
-	if (ld == NULL) {
-		device_printf(sc->mfi_dev, "Cannot allocate ld\n");
-		free(ld_info, M_MFIBUF);
-		return;
-	}
-
 	if ((child = device_add_child(sc->mfi_dev, "mfid", -1)) == NULL) {
 		device_printf(sc->mfi_dev, "Failed to add logical disk\n");
-		free(ld, M_MFIBUF);
 		free(ld_info, M_MFIBUF);
 		return;
 	}
 
-	ld->ld_id = ld_info->ld_config.properties.ld.v.target_id;
-	ld->ld_disk = child;
-	ld->ld_info = ld_info;
-
-	device_set_ivars(child, ld);
+	device_set_ivars(child, ld_info);
 	device_set_desc(child, "MFI Logical Disk");
 	mtx_unlock(&sc->mfi_io_lock);
 	mtx_lock(&Giant);
@@ -1802,6 +1789,30 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			break;
 		}
 		break;
+	case MFIIO_QUERY_DISK:
+	{
+		struct mfi_query_disk *qd;
+		struct mfi_disk *ld;
+
+		qd = (struct mfi_query_disk *)arg;
+		mtx_lock(&sc->mfi_io_lock);
+		TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link) {
+			if (ld->ld_id == qd->array_id)
+				break;
+		}
+		if (ld == NULL) {
+			qd->present = 0;
+			mtx_unlock(&sc->mfi_io_lock);
+			return (0);
+		}
+		qd->present = 1;
+		if (ld->ld_flags & MFI_DISK_FLAGS_OPEN)
+			qd->open = 1;
+		bzero(qd->devname, SPECNAMELEN + 1);
+		snprintf(qd->devname, SPECNAMELEN, "mfid%d", ld->ld_unit);
+		mtx_unlock(&sc->mfi_io_lock);
+		break;
+	}
 	case MFI_CMD:
 		ioc = (struct mfi_ioc_packet *)arg;
 

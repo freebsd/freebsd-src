@@ -195,21 +195,23 @@ static int
 mfi_pci_detach(device_t dev)
 {
 	struct mfi_softc *sc;
-	struct mfi_ld *ld;
+	struct mfi_disk *ld;
 	int error;
 
 	sc = device_get_softc(dev);
 
-	if ((sc->mfi_flags & MFI_FLAGS_OPEN) != 0)
+	mtx_lock(&sc->mfi_io_lock);
+	if ((sc->mfi_flags & MFI_FLAGS_OPEN) != 0) {
+		mtx_unlock(&sc->mfi_io_lock);
 		return (EBUSY);
+	}
 
-        while ((ld = TAILQ_FIRST(&sc->mfi_ld_tqh)) != NULL) {
-                error = device_delete_child(dev, ld->ld_disk);
-		if (error)
+	while ((ld = TAILQ_FIRST(&sc->mfi_ld_tqh)) != NULL) {
+		if ((error = device_delete_child(dev, ld->ld_dev)) != 0) {
+			mtx_unlock(&sc->mfi_io_lock);
 			return (error);
+		}
 		TAILQ_REMOVE(&sc->mfi_ld_tqh, ld, ld_link);
-		free(ld->ld_info, M_MFIBUF);
-		free(ld, M_MFIBUF);
 	}
 
 	EVENTHANDLER_DEREGISTER(shutdown_final, sc->mfi_eh);
