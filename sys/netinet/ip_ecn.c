@@ -90,11 +90,9 @@
  * modify outer ECN (TOS) field on ingress operation (tunnel encapsulation).
  */
 void
-ip_ecn_ingress(mode, outer, inner)
-	int mode;
-	u_int8_t *outer;
-	const u_int8_t *inner;
+ip_ecn_ingress(int mode, u_int8_t *outer, const u_int8_t *inner)
 {
+
 	if (!outer || !inner)
 		panic("NULL pointer passed to ip_ecn_ingress");
 
@@ -124,11 +122,9 @@ ip_ecn_ingress(mode, outer, inner)
  * the caller should drop the packet if the return value is 0.
  */
 int
-ip_ecn_egress(mode, outer, inner)
-	int mode;
-	const u_int8_t *outer;
-	u_int8_t *inner;
+ip_ecn_egress(int mode, const u_int8_t *outer, u_int8_t *inner)
 {
+
 	if (!outer || !inner)
 		panic("NULL pointer passed to ip_ecn_egress");
 
@@ -160,10 +156,7 @@ ip_ecn_egress(mode, outer, inner)
 
 #ifdef INET6
 void
-ip6_ecn_ingress(mode, outer, inner)
-	int mode;
-	u_int32_t *outer;
-	const u_int32_t *inner;
+ip6_ecn_ingress(int mode, u_int32_t *outer, const u_int32_t *inner)
 {
 	u_int8_t outer8, inner8;
 
@@ -177,10 +170,7 @@ ip6_ecn_ingress(mode, outer, inner)
 }
 
 int
-ip6_ecn_egress(mode, outer, inner)
-	int mode;
-	const u_int32_t *outer;
-	u_int32_t *inner;
+ip6_ecn_egress(int mode, const u_int32_t *outer, u_int32_t *inner)
 {
 	u_int8_t outer8, inner8, oinner8;
 

@@ -108,15 +108,13 @@ LIST_HEAD(, encaptab) encaptab = LIST_HEAD_INITIALIZER(&encaptab);
  * it's referenced by KAME pieces in netinet6.
  */
 void
-encap_init()
+encap_init(void)
 {
 }
 
 #ifdef INET
 void
-encap4_input(m, off)
-	struct mbuf *m;
-	int off;
+encap4_input(struct mbuf *m, int off)
 {
 	struct ip *ip;
 	int proto;
@@ -201,10 +199,7 @@ encap4_input(m, off)
 
 #ifdef INET6
 int
-encap6_input(mp, offp, proto)
-	struct mbuf **mp;
-	int *offp;
-	int proto;
+encap6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6;
@@ -272,8 +267,7 @@ encap6_input(mp, offp, proto)
 
 /*lint -sem(encap_add, custodial(1)) */
 static void
-encap_add(ep)
-	struct encaptab *ep;
+encap_add(struct encaptab *ep)
 {
 
 	mtx_assert(&encapmtx, MA_OWNED);
@@ -286,13 +280,9 @@ encap_add(ep)
  * Return value will be necessary as input (cookie) for encap_detach().
  */
 const struct encaptab *
-encap_attach(af, proto, sp, sm, dp, dm, psw, arg)
-	int af;
-	int proto;
-	const struct sockaddr *sp, *sm;
-	const struct sockaddr *dp, *dm;
-	const struct protosw *psw;
-	void *arg;
+encap_attach(int af, int proto, const struct sockaddr *sp,
+    const struct sockaddr *sm, const struct sockaddr *dp,
+    const struct sockaddr *dm, const struct protosw *psw, void *arg)
 {
 	struct encaptab *ep;
 
@@ -346,12 +336,9 @@ encap_attach(af, proto, sp, sm, dp, dm, psw, arg)
 }
 
 const struct encaptab *
-encap_attach_func(af, proto, func, psw, arg)
-	int af;
-	int proto;
-	int (*func)(const struct mbuf *, int, int, void *);
-	const struct protosw *psw;
-	void *arg;
+encap_attach_func(int af, int proto,
+    int (*func)(const struct mbuf *, int, int, void *),
+    const struct protosw *psw, void *arg)
 {
 	struct encaptab *ep;
 
@@ -377,8 +364,7 @@ encap_attach_func(af, proto, func, psw, arg)
 }
 
 int
-encap_detach(cookie)
-	const struct encaptab *cookie;
+encap_detach(const struct encaptab *cookie)
 {
 	const struct encaptab *ep = cookie;
 	struct encaptab *p;
@@ -398,10 +384,8 @@ encap_detach(cookie)
 }
 
 static int
-mask_match(ep, sp, dp)
-	const struct encaptab *ep;
-	const struct sockaddr *sp;
-	const struct sockaddr *dp;
+mask_match(const struct encaptab *ep, const struct sockaddr *sp,
+    const struct sockaddr *dp)
 {
 	struct sockaddr_storage s;
 	struct sockaddr_storage d;
@@ -451,9 +435,7 @@ mask_match(ep, sp, dp)
 }
 
 static void
-encap_fillarg(m, ep)
-	struct mbuf *m;
-	const struct encaptab *ep;
+encap_fillarg(struct mbuf *m, const struct encaptab *ep)
 {
 	struct m_tag *tag;
 
@@ -465,8 +447,7 @@ encap_fillarg(m, ep)
 }
 
 void *
-encap_getarg(m)
-	struct mbuf *m;
+encap_getarg(struct mbuf *m)
 {
 	void *p = NULL;
 	struct m_tag *tag;

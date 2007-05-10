@@ -224,8 +224,9 @@ tcp_reass_zone_change(void *tag)
 
 uma_zone_t	tcp_reass_zone;
 void
-tcp_reass_init()
+tcp_reass_init(void)
 {
+
 	tcp_reass_maxseg = nmbclusters / 16;
 	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",
 	    &tcp_reass_maxseg);

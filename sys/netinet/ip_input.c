@@ -209,10 +209,10 @@ static void	ip_freef(struct ipqhead *, struct ipq *);
  * All protocols not implemented in kernel go to raw IP protocol handler.
  */
 void
-ip_init()
+ip_init(void)
 {
-	register struct protosw *pr;
-	register int i;
+	struct protosw *pr;
+	int i;
 
 	TAILQ_INIT(&in_ifaddrhead);
 	in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &in_ifaddrhmask);
@@ -268,9 +268,10 @@ ip_init()
 	netisr_register(NETISR_IP, ip_input, &ipintrq, NETISR_MPSAFE);
 }
 
-void ip_fini(xtp)
-	void *xtp;
+void
+ip_fini(void *xtp)
 {
+
 	callout_stop(&ipport_tick_callout);
 }
 
@@ -738,7 +739,6 @@ SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLTYPE_INT|CTLFLAG_RW,
  * to the first packet/fragment are preserved.
  * The IP header is *NOT* adjusted out of iplen.
  */
-
 struct mbuf *
 ip_reass(struct mbuf *m)
 {
@@ -1054,11 +1054,9 @@ done:
  * associated datagrams.
  */
 static void
-ip_freef(fhp, fp)
-	struct ipqhead *fhp;
-	struct ipq *fp;
+ip_freef(struct ipqhead *fhp, struct ipq *fp)
 {
-	register struct mbuf *q;
+	struct mbuf *q;
 
 	IPQ_LOCK_ASSERT();
 
@@ -1078,9 +1076,9 @@ ip_freef(fhp, fp)
  * queue, discard it.
  */
 void
-ip_slowtimo()
+ip_slowtimo(void)
 {
-	register struct ipq *fp;
+	struct ipq *fp;
 	int i;
 
 	IPQ_LOCK();
@@ -1117,7 +1115,7 @@ ip_slowtimo()
  * Drain off all datagram fragments.
  */
 void
-ip_drain()
+ip_drain(void)
 {
 	int     i;
 
@@ -1198,8 +1196,7 @@ ipproto_unregister(u_char ipproto)
  * return internet address info of interface to be used to get there.
  */
 struct in_ifaddr *
-ip_rtaddr(dst)
-	struct in_addr dst;
+ip_rtaddr(struct in_addr dst)
 {
 	struct route sro;
 	struct sockaddr_in *sin;
@@ -1436,11 +1433,8 @@ ip_forward(struct mbuf *m, int srcrt)
 }
 
 void
-ip_savecontrol(inp, mp, ip, m)
-	register struct inpcb *inp;
-	register struct mbuf **mp;
-	register struct ip *ip;
-	register struct mbuf *m;
+ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
+    struct mbuf *m)
 {
 	if (inp->inp_socket->so_options & (SO_BINTIME | SO_TIMESTAMP)) {
 		struct bintime bt;

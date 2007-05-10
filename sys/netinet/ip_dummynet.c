@@ -506,8 +506,8 @@ transmit_event(struct dn_pipe *pipe, struct mbuf **head, struct mbuf **tail)
  * and put into delay line (p_queue)
  */
 static void
-move_pkt(struct mbuf *pkt, struct dn_flow_queue *q,
-	struct dn_pipe *p, int len)
+move_pkt(struct mbuf *pkt, struct dn_flow_queue *q, struct dn_pipe *p,
+    int len)
 {
     struct dn_pkt_tag *dt = dn_tag_get(pkt);
 
@@ -721,6 +721,7 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 static void
 dummynet(void * __unused unused)
 {
+
 	taskqueue_enqueue(dn_tq, &dn_task);
 }
 
@@ -730,7 +731,6 @@ dummynet(void * __unused unused)
 static void
 dummynet_task(void *context, int pending)
 {
-
 	struct mbuf *head = NULL, *tail = NULL;
 	struct dn_pipe *pipe;
 	struct dn_heap *heaps[3];
@@ -1551,7 +1551,7 @@ dn_rule_delete(void *r)
  * setup RED parameters
  */
 static int
-config_red(struct dn_flow_set *p, struct dn_flow_set * x)
+config_red(struct dn_flow_set *p, struct dn_flow_set *x)
 {
 	int i;
 
@@ -1818,7 +1818,7 @@ pipe_remove_from_heap(struct dn_heap *h, struct dn_pipe *p)
  * drain all queues. Called in case of severe mbuf shortage.
  */
 void
-dummynet_drain()
+dummynet_drain(void)
 {
     struct dn_flow_set *fs;
     struct dn_pipe *pipe;
@@ -1855,6 +1855,7 @@ dummynet_drain()
 static int
 delete_pipe(struct dn_pipe *p)
 {
+
     if (p->pipe_nr == 0 && p->fs.fs_nr == 0)
 	return EINVAL ;
     if (p->pipe_nr != 0 && p->fs.fs_nr != 0)
@@ -2170,6 +2171,7 @@ ip_dn_destroy(void)
 static int
 dummynet_modevent(module_t mod, int type, void *data)
 {
+
 	switch (type) {
 	case MOD_LOAD:
 		if (DUMMYNET_LOADED) {
