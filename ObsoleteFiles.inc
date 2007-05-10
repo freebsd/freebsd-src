@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070510: zpool/zfs moved to /sbin
+OLD_FILES+=usr/sbin/zfs
+OLD_FILES+=usr/sbin/zpool
 # 20070423: rc.bluetooth (examples) removed
 OLD_FILES+=usr/share/examples/netgraph/bluetooth/rc.bluetooth 
 # 20070421: worm.4 removed
