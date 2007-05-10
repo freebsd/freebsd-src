@@ -107,8 +107,8 @@ extern	struct protosw inetsw[];
  * inserted, so must have a NULL opt pointer.
  */
 int
-ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
-	int flags, struct ip_moptions *imo, struct inpcb *inp)
+ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
+    struct ip_moptions *imo, struct inpcb *inp)
 {
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
@@ -626,7 +626,7 @@ bad:
  */
 int
 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
-	    u_long if_hwassist_flags, int sw_csum)
+    u_long if_hwassist_flags, int sw_csum)
 {
 	int error = 0;
 	int hlen = ip->ip_hl << 2;
@@ -814,9 +814,7 @@ in_delayed_cksum(struct mbuf *m)
  * IP socket option processing.
  */
 int
-ip_ctloutput(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+ip_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	struct	inpcb *inp = sotoinpcb(so);
 	int	error, optval;
@@ -1145,9 +1143,7 @@ ip_ctloutput(so, sopt)
  * following RFC1724 section 3.3, 0.0.0.0/8 is interpreted as interface index.
  */
 static struct ifnet *
-ip_multicast_if(a, ifindexp)
-	struct in_addr *a;
-	int *ifindexp;
+ip_multicast_if(struct in_addr *a, int *ifindexp)
 {
 	int ifindex;
 	struct ifnet *ifp;
@@ -1594,8 +1590,7 @@ ip_getmoptions(struct inpcb *inp, struct sockopt *sopt)
  * Discard the IP multicast options.
  */
 void
-ip_freemoptions(imo)
-	register struct ip_moptions *imo;
+ip_freemoptions(struct ip_moptions *imo)
 {
 	register int i;
 
@@ -1615,11 +1610,8 @@ ip_freemoptions(imo)
  * replicating that code here.
  */
 static void
-ip_mloopback(ifp, m, dst, hlen)
-	struct ifnet *ifp;
-	register struct mbuf *m;
-	register struct sockaddr_in *dst;
-	int hlen;
+ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
+    int hlen)
 {
 	register struct ip *ip;
 	struct mbuf *copym;

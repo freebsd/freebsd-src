@@ -369,10 +369,7 @@ bad:
  * to be picked up later by ip_srcroute if the receiver is interested.
  */
 static void
-save_rte(m, option, dst)
-	struct mbuf *m;
-	u_char *option;
-	struct in_addr dst;
+save_rte(struct mbuf *m, u_char *option, struct in_addr dst)
 {
 	unsigned olen;
 	struct ipopt_tag *opts;
@@ -399,8 +396,7 @@ save_rte(m, option, dst)
  * The first hop is placed before the options, will be removed later.
  */
 struct mbuf *
-ip_srcroute(m0)
-	struct mbuf *m0;
+ip_srcroute(struct mbuf *m0)
 {
 	register struct in_addr *p, *q;
 	register struct mbuf *m;
@@ -461,9 +457,7 @@ ip_srcroute(m0)
  * XXX should be deleted; last arg currently ignored.
  */
 void
-ip_stripoptions(m, mopt)
-	register struct mbuf *m;
-	struct mbuf *mopt;
+ip_stripoptions(struct mbuf *m, struct mbuf *mopt)
 {
 	register int i;
 	struct ip *ip = mtod(m, struct ip *);
@@ -489,10 +483,7 @@ ip_stripoptions(m, mopt)
  * XXX This routine assumes that the packet has no options in place.
  */
 struct mbuf *
-ip_insertoptions(m, opt, phlen)
-	register struct mbuf *m;
-	struct mbuf *opt;
-	int *phlen;
+ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 {
 	register struct ipoption *p = mtod(opt, struct ipoption *);
 	struct mbuf *n;
@@ -545,8 +536,7 @@ ip_insertoptions(m, opt, phlen)
  * omitting those not copied during fragmentation.
  */
 int
-ip_optcopy(ip, jp)
-	struct ip *ip, *jp;
+ip_optcopy(struct ip *ip, struct ip *jp)
 {
 	register u_char *cp, *dp;
 	int opt, optlen, cnt;

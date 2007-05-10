@@ -95,8 +95,7 @@ extern struct inpcbinfo udbinfo;
  * Otherwise, it includes only the directly-connected (sub)nets.
  */
 int
-in_localaddr(in)
-	struct in_addr in;
+in_localaddr(struct in_addr in)
 {
 	register u_long i = ntohl(in.s_addr);
 	register struct in_ifaddr *ia;
@@ -118,8 +117,7 @@ in_localaddr(in)
  * on one of its interfaces.
  */
 int
-in_localip(in)
-	struct in_addr in;
+in_localip(struct in_addr in)
 {
 	struct in_ifaddr *ia;
 
@@ -136,8 +134,7 @@ in_localip(in)
  * may be forwarded.
  */
 int
-in_canforward(in)
-	struct in_addr in;
+in_canforward(struct in_addr in)
 {
 	register u_long i = ntohl(in.s_addr);
 	register u_long net;
@@ -156,8 +153,7 @@ in_canforward(in)
  * Trim a mask in a sockaddr
  */
 static void
-in_socktrim(ap)
-struct sockaddr_in *ap;
+in_socktrim(struct sockaddr_in *ap)
 {
     register char *cplim = (char *) &ap->sin_addr;
     register char *cp = (char *) (&ap->sin_addr + 1);
@@ -193,9 +189,7 @@ in_mask2len(mask)
 }
 
 static void
-in_len2mask(mask, len)
-	struct in_addr *mask;
-	int len;
+in_len2mask(struct in_addr *mask, int len)
 {
 	int i;
 	u_char *p;
@@ -214,12 +208,8 @@ in_len2mask(mask, len)
  */
 /* ARGSUSED */
 int
-in_control(so, cmd, data, ifp, td)
-	struct socket *so;
-	u_long cmd;
-	caddr_t data;
-	register struct ifnet *ifp;
-	struct thread *td;
+in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
+    struct thread *td)
 {
 	register struct ifreq *ifr = (struct ifreq *)data;
 	register struct in_ifaddr *ia = 0, *iap;
@@ -558,12 +548,8 @@ in_control(so, cmd, data, ifp, td)
  *	other values may be returned from in_ioctl()
  */
 static int
-in_lifaddr_ioctl(so, cmd, data, ifp, td)
-	struct socket *so;
-	u_long cmd;
-	caddr_t	data;
-	struct ifnet *ifp;
-	struct thread *td;
+in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
+    struct ifnet *ifp, struct thread *td)
 {
 	struct if_laddrreq *iflr = (struct if_laddrreq *)data;
 	struct ifaddr *ifa;
@@ -723,10 +709,9 @@ in_lifaddr_ioctl(so, cmd, data, ifp, td)
  * Delete any existing route for an interface.
  */
 void
-in_ifscrub(ifp, ia)
-	register struct ifnet *ifp;
-	register struct in_ifaddr *ia;
+in_ifscrub(struct ifnet *ifp, struct in_ifaddr *ia)
 {
+
 	in_scrubprefix(ia);
 }
 
@@ -735,11 +720,8 @@ in_ifscrub(ifp, ia)
  * and routing table entry.
  */
 static int
-in_ifinit(ifp, ia, sin, scrub)
-	register struct ifnet *ifp;
-	register struct in_ifaddr *ia;
-	struct sockaddr_in *sin;
-	int scrub;
+in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
+    int scrub)
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	struct sockaddr_in oldaddr;
@@ -834,9 +816,7 @@ in_ifinit(ifp, ia, sin, scrub)
  * accordingly.
  */
 static int
-in_addprefix(target, flags)
-	struct in_ifaddr *target;
-	int flags;
+in_addprefix(struct in_ifaddr *target, int flags)
 {
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
@@ -895,8 +875,7 @@ in_addprefix(target, flags)
  * otherwise.
  */
 static int
-in_scrubprefix(target)
-	struct in_ifaddr *target;
+in_scrubprefix(struct in_ifaddr *target)
 {
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p;
@@ -962,9 +941,7 @@ in_scrubprefix(target)
  * Return 1 if the address might be a local broadcast address.
  */
 int
-in_broadcast(in, ifp)
-	struct in_addr in;
-	struct ifnet *ifp;
+in_broadcast(struct in_addr in, struct ifnet *ifp)
 {
 	register struct ifaddr *ifa;
 	u_long t;
@@ -1175,8 +1152,7 @@ in_purgemaddrs(struct ifnet *ifp)
  * On interface removal, clean up IPv4 data structures hung off of the ifnet.
  */
 void
-in_ifdetach(ifp)
-	struct ifnet *ifp;
+in_ifdetach(struct ifnet *ifp)
 {
 
 	in_pcbpurgeif0(&ripcbinfo, ifp);

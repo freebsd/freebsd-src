@@ -129,8 +129,9 @@ rip_inpcb_init(void *mem, int size, int flags)
 }
 
 void
-rip_init()
+rip_init(void)
 {
+
 	INP_INFO_LOCK_INIT(&ripcbinfo, "rip");
 	LIST_INIT(&ripcb);
 	ripcbinfo.ipi_listhead = &ripcb;
@@ -790,7 +791,7 @@ rip_shutdown(struct socket *so)
 
 static int
 rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-	 struct mbuf *control, struct thread *td)
+    struct mbuf *control, struct thread *td)
 {
 	struct inpcb *inp;
 	u_long dst;
@@ -915,6 +916,7 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 static int
 rip_sockaddr(struct socket *so, struct sockaddr **nam)
 {
+
 	return (in_setsockaddr(so, nam));
 }
 
@@ -925,6 +927,7 @@ rip_sockaddr(struct socket *so, struct sockaddr **nam)
 static int
 rip_peeraddr(struct socket *so, struct sockaddr **nam)
 {
+
 	return (in_setpeeraddr(so, nam));
 }
 

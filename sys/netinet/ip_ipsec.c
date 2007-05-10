@@ -293,8 +293,8 @@ ip_ipsec_mtu(struct mbuf *m)
  */
 int
 ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
-	     struct route **ro, struct route *iproute, struct sockaddr_in **dst,
-	     struct in_ifaddr **ia, struct ifnet **ifp)
+    struct route **ro, struct route *iproute, struct sockaddr_in **dst,
+    struct in_ifaddr **ia, struct ifnet **ifp)
 {
 	struct secpolicy *sp = NULL;
 	struct ip *ip = mtod(*m, struct ip *);
@@ -576,4 +576,3 @@ bad:
 #endif /* FAST_IPSEC */
 	return 0;
 }
-
