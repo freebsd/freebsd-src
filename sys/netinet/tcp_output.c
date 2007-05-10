@@ -1030,7 +1030,7 @@ send:
 		 * of retransmit time.
 		 */
 timer:
-		if (!tcp_timer_active(tp, TT_PERSIST) &&
+		if (!tcp_timer_active(tp, TT_REXMT) &&
 		    ((sack_rxmit && tp->snd_nxt != tp->snd_max) ||
 		     (tp->snd_nxt != tp->snd_una))) {
 			if (tcp_timer_active(tp, TT_PERSIST)) {
