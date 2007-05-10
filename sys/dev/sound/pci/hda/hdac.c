@@ -5606,7 +5606,6 @@ hdac_release_resources(struct hdac_softc *sc)
 	hdac_unlock(sc);
 	callout_drain(&sc->poll_hdac);
 	callout_drain(&sc->poll_jack);
-	hdac_lock(sc);
 
 	hdac_irq_free(sc);
 
