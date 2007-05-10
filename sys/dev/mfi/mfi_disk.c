@@ -65,15 +65,6 @@ static dumper_t		mfi_disk_dump;
 
 static devclass_t	mfi_disk_devclass;
 
-struct mfi_disk {
-	device_t	ld_dev;
-	int		ld_id;
-	int		ld_unit;
-	struct mfi_softc *ld_controller;
-	struct mfi_ld	*ld_ld;
-	struct disk	*ld_disk;
-};
-
 static device_method_t mfi_disk_methods[] = {
 	DEVMETHOD(device_probe,		mfi_disk_probe),
 	DEVMETHOD(device_attach,	mfi_disk_attach),
@@ -100,25 +91,26 @@ static int
 mfi_disk_attach(device_t dev)
 {
 	struct mfi_disk *sc;
-	struct mfi_ld *ld;
+	struct mfi_ld_info *ld_info;
 	uint64_t sectors;
 	uint32_t secsize;
 	char *state;
 
 	sc = device_get_softc(dev);
-	ld = device_get_ivars(dev);
+	ld_info = device_get_ivars(dev);
 
 	sc->ld_dev = dev;
-	sc->ld_id = ld->ld_id;
+	sc->ld_id = ld_info->ld_config.properties.ld.v.target_id;
 	sc->ld_unit = device_get_unit(dev);
-	sc->ld_ld = device_get_ivars(dev);
+	sc->ld_info = ld_info;
 	sc->ld_controller = device_get_softc(device_get_parent(dev));
+	sc->ld_flags = 0;
 
-	sectors = ld->ld_info->size;
+	sectors = ld_info->size;
 	secsize = MFI_SECTOR_LEN;
-	TAILQ_INSERT_TAIL(&sc->ld_controller->mfi_ld_tqh, ld, ld_link);
+	TAILQ_INSERT_TAIL(&sc->ld_controller->mfi_ld_tqh, sc, ld_link);
 
-	switch (ld->ld_info->ld_config.params.state) {
+	switch (ld_info->ld_config.params.state) {
 	case MFI_LD_STATE_OFFLINE:
 		state = "offline";
 		break;
@@ -137,7 +129,7 @@ mfi_disk_attach(device_t dev)
 	}
 	device_printf(dev, "%juMB (%ju sectors) RAID volume '%s' is %s\n",
 		      sectors / (1024 * 1024 / secsize), sectors,
-		      ld->ld_info->ld_config.properties.name,
+		      ld_info->ld_config.properties.name,
 		      state);
 
 	sc->ld_disk = disk_alloc();
@@ -170,9 +162,11 @@ mfi_disk_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->ld_disk->d_flags & DISKFLAG_OPEN)
+	if ((sc->ld_disk->d_flags & DISKFLAG_OPEN) ||
+	    (sc->ld_flags & MFI_DISK_FLAGS_OPEN))
 		return (EBUSY);
 
+	free(sc->ld_info, M_MFIBUF);
 	disk_destroy(sc->ld_disk);
 	return (0);
 }
@@ -180,6 +174,12 @@ mfi_disk_detach(device_t dev)
 static int
 mfi_disk_open(struct disk *dp)
 {
+	struct mfi_disk *sc;
+
+	sc = dp->d_drv1;
+	mtx_lock(&sc->ld_controller->mfi_io_lock);
+	sc->ld_flags |= MFI_DISK_FLAGS_OPEN;
+	mtx_unlock(&sc->ld_controller->mfi_io_lock);
 
 	return (0);
 }
@@ -187,6 +187,12 @@ mfi_disk_open(struct disk *dp)
 static int
 mfi_disk_close(struct disk *dp)
 {
+	struct mfi_disk *sc;
+
+	sc = dp->d_drv1;
+	mtx_lock(&sc->ld_controller->mfi_io_lock);
+	sc->ld_flags &= ~MFI_DISK_FLAGS_OPEN;
+	mtx_unlock(&sc->ld_controller->mfi_io_lock);
 
 	return (0);
 }
