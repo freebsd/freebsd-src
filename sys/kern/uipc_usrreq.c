@@ -349,13 +349,13 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	unp->unp_socket = so;
 	so->so_pcb = unp;
 	unp->unp_refcount = 1;
-	locked = 0;
 
 	/*
 	 * uipc_attach() may be called indirectly from within the UNIX domain
 	 * socket code via sonewconn() in unp_connect().  Since rwlocks can
 	 * not be recursed, we do the closest thing.
 	 */
+	locked = 0;
 	if (!UNP_GLOBAL_WOWNED()) {
 		UNP_GLOBAL_WLOCK();
 		locked = 1;
@@ -395,9 +395,8 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	 * operation is already in progress.
 	 *
 	 * Historically, we have not allowed a socket to be rebound, so this
-	 * also returns an error.  Not allowing re-binding certainly
-	 * simplifies the implementation and avoids a great many possible
-	 * failure modes.
+	 * also returns an error.  Not allowing re-binding simplifies the
+	 * implementation and avoids a great many possible failure modes.
 	 */
 	UNP_PCB_LOCK(unp);
 	if (unp->unp_vnode != NULL) {
@@ -708,15 +707,12 @@ uipc_rcvd(struct socket *so, int flags)
 	/*
 	 * Adjust backpressure on sender and wakeup any waiting to write.
 	 *
-	 * The consistency requirements here are a bit complex: we must
-	 * acquire the lock for our own unpcb in order to prevent it from
-	 * disconnecting while in use, changing the unp_conn peer.  We do not
-	 * need unp2's lock, since the unp2->unp_socket pointer will remain
-	 * static as long as the unp2 pcb is valid, which it will be until we
-	 * release unp's lock to allow a disconnect.  We do need socket
-	 * mutexes for both socket endpoints since we manipulate fields in
-	 * both; we hold both locks at once since we access both
-	 * simultaneously.
+	 * The unp lock is acquired to maintain the validity of the unp_conn
+	 * pointer; no lock on unp2 is required as unp2->unp_socket will be
+	 * static as long as we don't permit unp2 to disconnect from unp,
+	 * which is prevented by the lock on unp.  We cache values from
+	 * so_rcv to avoid holding the so_rcv lock over the entire
+	 * transaction on the remote so_snd.
 	 */
 	SOCKBUF_LOCK(&so->so_rcv);
 	mbcnt = so->so_rcv.sb_mbcnt;
@@ -785,11 +781,6 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			if (error)
 				break;
 			unp2 = unp->unp_conn;
-		} else {
-			if (unp2 == NULL) {
-				error = ENOTCONN;
-				break;
-			}
 		}
 		/*
 		 * Because connect() and send() are non-atomic in a sendto()
@@ -861,13 +852,11 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		 * return the slightly counter-intuitive but otherwise
 		 * correct error that the socket is not connected.
 		 *
-		 * Lock order here has to be handled carefully: we hold the
-		 * global lock, so acquiring two unpcb locks is OK.  We must
-		 * acquire both before acquiring any socket mutexes.  We must
-		 * also acquire the local socket send mutex before the remote
-		 * socket receive mutex.  The only tricky thing is making
-		 * sure to acquire the unp2 lock before the local socket send
-		 * lock, or we will experience deadlocks.
+		 * Locking here must be done carefully: the global lock
+		 * prevents interconnections between unpcbs from changing, so
+		 * we can traverse from unp to unp2 without acquiring unp's
+		 * lock.  Socket buffer locks follow unpcb locks, so we can
+		 * acquire both remote and lock socket buffer locks.
 		 */
 		unp2 = unp->unp_conn;
 		if (unp2 == NULL) {
@@ -1195,9 +1184,8 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		if (so2->so_options & SO_ACCEPTCONN) {
 			/*
 			 * We can't drop the global lock here or 'so2' may
-			 * become invalid, meaning that we will later recurse
-			 * back into the UNIX domain socket code while
-			 * holding the global lock.
+			 * become invalid.  As a result, we need to handle
+			 * possibly lock recursion in uipc_attach.
 			 */
 			so3 = sonewconn(so2, 0);
 		} else
@@ -1350,12 +1338,11 @@ unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 }
 
 /*
- * unp_pcblist() assumes that UNIX domain socket memory is never reclaimed by
- * the zone (UMA_ZONE_NOFREE), and as such potentially stale pointers are
- * safe to reference.  It first scans the list of struct unpcb's to generate
- * a pointer list, then it rescans its list one entry at a time to
- * externalize and copyout.  It checks the generation number to see if a
- * struct unpcb has been reused, and will skip it if so.
+ * unp_pcblist() walks the global list of struct unpcb's to generate a
+ * pointer list, bumping the refcount on each unpcb.  It then copies them out
+ * sequentially, validating the generation number on each to see if it has
+ * been detached.  All of this is necessary because copyout() may sleep on
+ * disk I/O.
  */
 static int
 unp_pcblist(SYSCTL_HANDLER_ARGS)
@@ -1427,10 +1414,6 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	UNP_GLOBAL_RUNLOCK();
 	n = i;			/* In case we lost some during malloc. */
 
-	/*
-	 * XXXRW: The logic below asumes that it is OK to lock a mutex in
-	 * an unpcb that may have been freed.
-	 */
 	error = 0;
 	xu = malloc(sizeof(*xu), M_TEMP, M_WAITOK | M_ZERO);
 	for (i = 0; i < n; i++) {
