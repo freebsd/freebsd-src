@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,12 +32,13 @@
  */
 
 #ifndef _NETINET_IP_H_
-#define _NETINET_IP_H_
+#define	_NETINET_IP_H_
 
 #include <sys/cdefs.h>
 
 /*
  * Definitions for internet protocol version 4.
+ *
  * Per RFC 791, September 1981.
  */
 #define	IPVERSION	4
@@ -74,7 +76,7 @@ CTASSERT(sizeof (struct ip) == 20);
 #define	IP_MAXPACKET	65535		/* maximum packet size */
 
 /*
- * Definitions for IP type of service (ip_tos)
+ * Definitions for IP type of service (ip_tos).
  */
 #define	IPTOS_LOWDELAY		0x10
 #define	IPTOS_THROUGHPUT	0x08
@@ -87,7 +89,7 @@ CTASSERT(sizeof (struct ip) == 20);
 #endif
 
 /*
- * Definitions for IP precedence (also in ip_tos) (hopefully unused)
+ * Definitions for IP precedence (also in ip_tos) (hopefully unused).
  */
 #define	IPTOS_PREC_NETCONTROL		0xe0
 #define	IPTOS_PREC_INTERNETCONTROL	0xc0
@@ -99,8 +101,8 @@ CTASSERT(sizeof (struct ip) == 20);
 #define	IPTOS_PREC_ROUTINE		0x00
 
 /*
- * ECN (Explicit Congestion Notification) codepoints in RFC3168
- * mapped to the lower 2 bits of the TOS field.
+ * ECN (Explicit Congestion Notification) codepoints in RFC3168 mapped to the
+ * lower 2 bits of the TOS field.
  */
 #define	IPTOS_ECN_NOTECT	0x00	/* not-ECT */
 #define	IPTOS_ECN_ECT1		0x01	/* ECN-capable transport (1) */
@@ -138,7 +140,7 @@ CTASSERT(sizeof (struct ip) == 20);
  */
 #define	IPOPT_OPTVAL		0		/* option ID */
 #define	IPOPT_OLEN		1		/* option length */
-#define IPOPT_OFFSET		2		/* offset within option */
+#define	IPOPT_OFFSET		2		/* offset within option */
 #define	IPOPT_MINOFF		4		/* min value of above */
 
 /*
@@ -165,12 +167,12 @@ struct	ip_timestamp {
 	} ipt_timestamp;
 };
 
-/* flag bits for ipt_flg */
+/* Flag bits for ipt_flg. */
 #define	IPOPT_TS_TSONLY		0		/* timestamps only */
 #define	IPOPT_TS_TSANDADDR	1		/* timestamps and addresses */
 #define	IPOPT_TS_PRESPEC	3		/* specified modules only */
 
-/* bits for security (not byte swapped) */
+/* Bits for security (not byte swapped). */
 #define	IPOPT_SECUR_UNCLASS	0x0000
 #define	IPOPT_SECUR_CONFID	0xf135
 #define	IPOPT_SECUR_EFTO	0x789a
@@ -186,7 +188,6 @@ struct	ip_timestamp {
 #define	IPDEFTTL	64		/* default ttl, from RFC 1340 */
 #define	IPFRAGTTL	60		/* time to live for frags, slowhz */
 #define	IPTTLDEC	1		/* subtracted when forwarding */
-
 #define	IP_MSS		576		/* default maximum segment size */
 
 /*
