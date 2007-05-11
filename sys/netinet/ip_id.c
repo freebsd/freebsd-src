@@ -37,7 +37,7 @@
  * $FreeBSD$
  */
 
-/*
+/*-
  * seed = random 15bit
  * n = prime, g0 = generator to n,
  * j = random so that gcd(j,n-1) == 1
@@ -52,9 +52,9 @@
  * The transaction id is determined by:
  * id[n] = seed xor (g^X[n] mod n)
  *
- * Effectivly the id is restricted to the lower 15 bits, thus
- * yielding two different cycles by toggling the msb on and off.
- * This avoids reuse issues caused by reseeding.
+ * Effectivly the id is restricted to the lower 15 bits, thus yielding two
+ * different cycles by toggling the msb on and off.  This avoids reuse issues
+ * caused by reseeding.
  */
 
 #include "opt_pf.h"
@@ -63,14 +63,14 @@
 #include <sys/kernel.h>
 #include <sys/random.h>
 
-#define RU_OUT  180		/* Time after wich will be reseeded */
-#define RU_MAX	30000		/* Uniq cycle, avoid blackjack prediction */
-#define RU_GEN	2		/* Starting generator */
-#define RU_N	32749		/* RU_N-1 = 2*2*3*2729 */
-#define RU_AGEN	7		/* determine ru_a as RU_AGEN^(2*rand) */
-#define RU_M	31104		/* RU_M = 2^7*3^5 - don't change */
+#define	RU_OUT  180		/* Time after wich will be reseeded */
+#define	RU_MAX	30000		/* Uniq cycle, avoid blackjack prediction */
+#define	RU_GEN	2		/* Starting generator */
+#define	RU_N	32749		/* RU_N-1 = 2*2*3*2729 */
+#define	RU_AGEN	7		/* determine ru_a as RU_AGEN^(2*rand) */
+#define	RU_M	31104		/* RU_M = 2^7*3^5 - don't change */
 
-#define PFAC_N 3
+#define	PFAC_N 3
 const static u_int16_t pfacts[PFAC_N] = {
 	2,
 	3,
@@ -86,23 +86,17 @@ static u_int16_t ru_msb = 0;
 static long ru_reseed;
 static u_int32_t tmp;		/* Storage for unused random */
 
-static u_int16_t pmod(u_int16_t, u_int16_t, u_int16_t);
-static void ip_initid(void);
-u_int16_t ip_randomid(void);
+static u_int16_t	pmod(u_int16_t, u_int16_t, u_int16_t);
+static void		ip_initid(void);
+u_int16_t		ip_randomid(void);
 
 /*
- * Do a fast modular exponation, returned value will be in the range
- * of 0 - (mod-1)
+ * Do a fast modular exponation, returned value will be in the range of 0 -
+ * (mod-1).
  */
 
-#ifdef __STDC__
 static u_int16_t
 pmod(u_int16_t gen, u_int16_t exp, u_int16_t mod)
-#else
-static u_int16_t
-pmod(gen, exp, mod)
-	u_int16_t gen, exp, mod;
-#endif
 {
 	u_int16_t s, t, u;
 
@@ -120,12 +114,12 @@ pmod(gen, exp, mod)
 }
 
 /*
- * Initalizes the seed and chooses a suitable generator. Also toggles
- * the msb flag. The msb flag is used to generate two distinct
- * cycles of random numbers and thus avoiding reuse of ids.
+ * Initalizes the seed and chooses a suitable generator.  Also toggles the
+ * msb flag.  The msb flag is used to generate two distinct cycles of random
+ * numbers and thus avoiding reuse of ids.
  *
- * This function is called from id_randomid() when needed, an
- * application does not have to worry about it.
+ * This function is called from id_randomid() when needed, an application
+ * does not have to worry about it.
  */
 static void
 ip_initid(void)
@@ -138,14 +132,14 @@ ip_initid(void)
 	read_random((void *) &tmp, sizeof(tmp));
 	ru_x = (tmp & 0xFFFF) % RU_M;
 
-	/* 15 bits of random seed */
+	/* 15 bits of random seed. */
 	ru_seed = (tmp >> 16) & 0x7FFF;
 	read_random((void *) &tmp, sizeof(tmp));
 	ru_seed2 = tmp & 0x7FFF;
 
 	read_random((void *) &tmp, sizeof(tmp));
 
-	/* Determine the LCG we use */
+	/* Determine the LCG we use. */
 	ru_b = (tmp & 0xfffe) | 1;
 	ru_a = pmod(RU_AGEN, (tmp >> 16) & 0xfffe, RU_M);
 	while (ru_b % 3 == 0)
@@ -156,11 +150,9 @@ ip_initid(void)
 	tmp = tmp >> 16;
 
 	/*
-	 * Do a fast gcd(j,RU_N-1), so we can find a j with
-	 * gcd(j, RU_N-1) == 1, giving a new generator for
-	 * RU_GEN^j mod RU_N
+	 * Do a fast gcd(j,RU_N-1), so we can find a j with gcd(j, RU_N-1) ==
+	 * 1, giving a new generator for RU_GEN^j mod RU_N.
 	 */
-
 	while (noprime) {
 		for (i=0; i<PFAC_N; i++)
 			if (j%pfacts[i] == 0)
@@ -193,17 +185,16 @@ ip_randomid(void)
 	if (!tmp)
 		read_random((void *) &tmp, sizeof(tmp));
 
-	/* Skip a random number of ids */
+	/* Skip a random number of ids. */
 	n = tmp & 0x3; tmp = tmp >> 2;
 	if (ru_counter + n >= RU_MAX)
 		ip_initid();
 
 	for (i = 0; i <= n; i++)
-		/* Linear Congruential Generator */
+		/* Linear Congruential Generator. */
 		ru_x = (ru_a*ru_x + ru_b) % RU_M;
 
 	ru_counter += i;
 
 	return (ru_seed ^ pmod(ru_g,ru_seed2 ^ ru_x,RU_N)) | ru_msb;
 }
-
