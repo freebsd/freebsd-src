@@ -481,7 +481,7 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	}
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
 
-	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_SBD(isp), 1,
+	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_SBD(isp)), 1,
 	    BUS_SPACE_MAXADDR_24BIT+1, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR_32BIT, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT,
 	    ISP_NSEGS, BUS_SPACE_MAXADDR_24BIT, 0, &isp->isp_osinfo.dmat)) {
