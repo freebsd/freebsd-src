@@ -2506,7 +2506,8 @@ em_allocate_pci_resources(struct adapter *adapter)
 	adapter->hw.hw_addr = (uint8_t *)&adapter->osdep.mem_bus_space_handle;
 
 	/* Only older adapters use IO mapping */
-	if (adapter->hw.mac.type <= e1000_82543) {
+	if ((adapter->hw.mac.type > e1000_82542) &&
+	    (adapter->hw.mac.type < e1000_82571)) {
 		/* Figure our where our IO BAR is ? */
 		for (rid = PCIR_BAR(0); rid < PCIR_CIS;) {
 			val = pci_read_config(dev, rid, 4);
