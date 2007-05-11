@@ -154,9 +154,9 @@ static ng_disconnect_t	ng_mppc_disconnect;
 
 /* Helper functions */
 static int	ng_mppc_compress(node_p node,
-			struct mbuf *m, struct mbuf **resultp);
+			struct mbuf **datap);
 static int	ng_mppc_decompress(node_p node,
-			struct mbuf *m, struct mbuf **resultp);
+			struct mbuf **datap);
 static void	ng_mppc_getkey(const u_char *h, u_char *h2, int len);
 static void	ng_mppc_updatekey(u_int32_t bits,
 			u_char *key0, u_char *key, struct rc4_state *rc4);
@@ -356,7 +356,6 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 {
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct mbuf *out;
 	int error;
 	struct mbuf *m;
 
@@ -368,13 +367,11 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 			NG_FREE_ITEM(item);
 			return (ENXIO);
 		}
-		if ((error = ng_mppc_compress(node, m, &out)) != 0) {
-			NG_FREE_M(m);
+		if ((error = ng_mppc_compress(node, &m)) != 0) {
 			NG_FREE_ITEM(item);
 			return(error);
 		}
-		NG_FREE_M(m);
-		NG_FWD_NEW_DATA(error, item, priv->xmit.hook, out);
+		NG_FWD_NEW_DATA(error, item, priv->xmit.hook, m);
 		return (error);
 	}
 
@@ -385,8 +382,7 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 			NG_FREE_ITEM(item);
 			return (ENXIO);
 		}
-		if ((error = ng_mppc_decompress(node, m, &out)) != 0) {
-			NG_FREE_M(m);
+		if ((error = ng_mppc_decompress(node, &m)) != 0) {
 			NG_FREE_ITEM(item);
 			if (error == EINVAL && priv->ctrlnode != 0) {
 				struct ng_mesg *msg;
@@ -401,8 +397,7 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 			}
 			return (error);
 		}
-		NG_FREE_M(m);
-		NG_FWD_NEW_DATA(error, item, priv->recv.hook, out);
+		NG_FWD_NEW_DATA(error, item, priv->recv.hook, m);
 		return (error);
 	}
 
@@ -466,16 +461,14 @@ ng_mppc_disconnect(hook_p hook)
  * The original mbuf is not free'd.
  */
 static int
-ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
+ng_mppc_compress(node_p node, struct mbuf **datap)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mppc_dir *const d = &priv->xmit;
-	u_char *inbuf, *outbuf;
-	int outlen, inlen;
 	u_int16_t header;
+	struct mbuf *m = *datap;
 
 	/* Initialize */
-	*resultp = NULL;
 	header = d->cc;
 
 	/* Always set the flushed bit in stateless mode */
@@ -484,35 +477,38 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		d->flushed = 0;
 	}
 
-	/* Work with contiguous regions of memory */
-	inlen = m->m_pkthdr.len;
-	MALLOC(inbuf, u_char *, inlen, M_NETGRAPH_MPPC, M_NOWAIT);
-	if (inbuf == NULL)
-		return (ENOMEM);
-	m_copydata(m, 0, inlen, (caddr_t)inbuf);
-	if ((d->cfg.bits & MPPC_BIT) != 0)
-		outlen = MPPC_MAX_BLOWUP(inlen);
-	else
-		outlen = MPPC_HDRLEN + inlen;
-	MALLOC(outbuf, u_char *, outlen, M_NETGRAPH_MPPC, M_NOWAIT);
-	if (outbuf == NULL) {
-		FREE(inbuf, M_NETGRAPH_MPPC);
-		return (ENOMEM);
-	}
-
-	/* Compress "inbuf" into "outbuf" (if compression enabled) */
+	/* Compress packet (if compression enabled) */
 #ifdef NETGRAPH_MPPC_COMPRESSION
 	if ((d->cfg.bits & MPPC_BIT) != 0) {
 		u_short flags = MPPC_MANDATORY_COMPRESS_FLAGS;
+		u_char *inbuf, *outbuf;
+		int outlen, inlen;
 		u_char *source, *dest;
 		u_long sourceCnt, destCnt;
 		int rtn;
 
+		/* Work with contiguous regions of memory. */
+		inlen = m->m_pkthdr.len;
+		inbuf = malloc(inlen, M_NETGRAPH_MPPC, M_NOWAIT);
+		if (inbuf == NULL) {
+			m_freem(m);
+			return (ENOMEM);
+		}
+		m_copydata(m, 0, inlen, (caddr_t)inbuf);
+
+		outlen = MPPC_MAX_BLOWUP(inlen);
+		outbuf = malloc(outlen, M_NETGRAPH_MPPC, M_NOWAIT);
+		if (outbuf == NULL) {
+			m_freem(m);
+			free(inbuf, M_NETGRAPH_MPPC);
+			return (ENOMEM);
+		}
+
 		/* Prepare to compress */
 		source = inbuf;
 		sourceCnt = inlen;
-		dest = outbuf + MPPC_HDRLEN;
-		destCnt = outlen - MPPC_HDRLEN;
+		dest = outbuf;
+		destCnt = outlen;
 		if ((d->cfg.bits & MPPE_STATELESS) == 0)
 			flags |= MPPC_SAVE_HISTORY;
 
@@ -528,22 +524,27 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 			header |= MPPC_FLAG_COMPRESSED;
 			if ((rtn & MPPC_RESTART_HISTORY) != 0)
 				header |= MPPC_FLAG_RESTART;  
+				
+			/* Replace m by the compresed one. */
+			m_freem(m);
+			m = m_devget((caddr_t)outbuf, outlen, 0, NULL, NULL);
 		}
 		d->flushed = (rtn & MPPC_EXPANDED) != 0
 		    || (flags & MPPC_SAVE_HISTORY) == 0;
+
+		free(inbuf, M_NETGRAPH_MPPC);
+		free(outbuf, M_NETGRAPH_MPPC);
+
+		/* Check m_devget() result. */
+		if (m == NULL)
+			return (ENOMEM);
 	}
 #endif
-
-	/* If we did not compress this packet, copy it to output buffer */
-	if ((header & MPPC_FLAG_COMPRESSED) == 0) {
-		bcopy(inbuf, outbuf + MPPC_HDRLEN, inlen);
-		outlen = MPPC_HDRLEN + inlen;
-	}
-	FREE(inbuf, M_NETGRAPH_MPPC);
 
 	/* Now encrypt packet (if encryption enabled) */
 #ifdef NETGRAPH_MPPC_ENCRYPTION
 	if ((d->cfg.bits & MPPE_BITS) != 0) {
+		struct mbuf *m1;
 
 		/* Set header bits */
 		header |= MPPC_FLAG_ENCRYPTED;
@@ -559,9 +560,18 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 			rc4_init(&d->rc4, d->key, KEYLEN(d->cfg.bits));
 		}
 
+		/* We must own the mbuf chain exclusively to modify it. */
+		m = m_unshare(m, M_DONTWAIT);
+		if (m == NULL)
+			return (ENOMEM);
+
 		/* Encrypt packet */
-		rc4_crypt(&d->rc4, outbuf + MPPC_HDRLEN,
-			outbuf + MPPC_HDRLEN, outlen - MPPC_HDRLEN);
+		m1 = m;
+		while (m1) {
+			rc4_crypt(&d->rc4, mtod(m1, u_char *),
+			    mtod(m1, u_char *), m1->m_len);
+			m1 = m1->m_next;
+		}
 	}
 #endif
 
@@ -569,12 +579,12 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	MPPC_CCOUNT_INC(d->cc);
 
 	/* Install header */
-	*((u_int16_t *)outbuf) = htons(header);
+	M_PREPEND(m, MPPC_HDRLEN, M_DONTWAIT);
+	if (m != NULL)
+		*(mtod(m, uint16_t *)) = htons(header);
 
-	/* Return packet in an mbuf */
-	*resultp = m_devget((caddr_t)outbuf, outlen, 0, NULL, NULL);
-	FREE(outbuf, M_NETGRAPH_MPPC);
-	return (*resultp == NULL ? ENOBUFS : 0);
+	*datap = m;
+	return (*datap == NULL ? ENOBUFS : 0);
 }
 
 /*
@@ -582,28 +592,23 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
  * The original mbuf is not free'd.
  */
 static int
-ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
+ng_mppc_decompress(node_p node, struct mbuf **datap)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mppc_dir *const d = &priv->recv;
 	u_int16_t header, cc;
 	u_int numLost;
-	u_char *buf;
-	int len;
+	struct mbuf *m = *datap;
 
 	/* Pull off header */
-	if (m->m_pkthdr.len < MPPC_HDRLEN)
+	if (m->m_pkthdr.len < MPPC_HDRLEN) {
+		m_freem(m);
 		return (EINVAL);
+	}
 	m_copydata(m, 0, MPPC_HDRLEN, (caddr_t)&header);
 	header = ntohs(header);
 	cc = (header & MPPC_CCOUNT_MASK);
-
-	/* Copy payload into a contiguous region of memory */
-	len = m->m_pkthdr.len - MPPC_HDRLEN;
-	MALLOC(buf, u_char *, len, M_NETGRAPH_MPPC, M_NOWAIT);
-	if (buf == NULL)
-		return (ENOMEM);
-	m_copydata(m, MPPC_HDRLEN, len, (caddr_t)buf);
+	m_adj(m, MPPC_HDRLEN);
 
 	/* Check for an unexpected jump in the sequence number */
 	numLost = ((cc - d->cc) & MPPC_CCOUNT_MASK);
@@ -655,6 +660,9 @@ ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 
 	/* Decrypt packet */
 	if ((header & MPPC_FLAG_ENCRYPTED) != 0) {
+#ifdef NETGRAPH_MPPC_ENCRYPTION
+		struct mbuf *m1;
+#endif
 
 		/* Are we not expecting encryption? */
 		if ((d->cfg.bits & MPPE_BITS) == 0) {
@@ -671,8 +679,18 @@ ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 			    d->cfg.startkey, d->key, &d->rc4);
 		}
 
+		/* We must own the mbuf chain exclusively to modify it. */
+		m = m_unshare(m, M_DONTWAIT);
+		if (m == NULL)
+			return (ENOMEM);
+
 		/* Decrypt packet */
-		rc4_crypt(&d->rc4, buf, buf, len);
+		m1 = m;
+		while (m1 != NULL) {
+			rc4_crypt(&d->rc4, mtod(m1, u_char *),
+			    mtod(m1, u_char *), m1->m_len);
+			m1 = m1->m_next;
+		}
 #endif
 	} else {
 
@@ -693,7 +711,7 @@ ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		log(LOG_ERR, "%s: rec'd unexpectedly %s packet",
 			__func__, "compressed");
 failed:
-		FREE(buf, M_NETGRAPH_MPPC);
+		m_freem(m);
 		return (EINVAL);
 	}
 
@@ -704,12 +722,24 @@ failed:
 		u_char *decompbuf, *source, *dest;
 		u_long sourceCnt, destCnt;
 		int decomplen, rtn;
+		u_char *buf;
+		int len;
+
+		/* Copy payload into a contiguous region of memory. */
+		len = m->m_pkthdr.len;
+		buf = malloc(len, M_NETGRAPH_MPPC, M_NOWAIT);
+		if (buf == NULL) {
+			m_freem(m);
+			return (ENOMEM);
+		}
+		m_copydata(m, 0, len, (caddr_t)buf);
 
 		/* Allocate a buffer for decompressed data */
-		MALLOC(decompbuf, u_char *, MPPC_DECOMP_BUFSIZE
-		    + MPPC_DECOMP_SAFETY, M_NETGRAPH_MPPC, M_NOWAIT);
+		decompbuf = malloc(MPPC_DECOMP_BUFSIZE + MPPC_DECOMP_SAFETY,
+		    M_NETGRAPH_MPPC, M_NOWAIT);
 		if (decompbuf == NULL) {
-			FREE(buf, M_NETGRAPH_MPPC);
+			m_freem(m);
+			free(buf, M_NETGRAPH_MPPC);
 			return (ENOMEM);
 		}
 		decomplen = MPPC_DECOMP_BUFSIZE;
@@ -732,21 +762,24 @@ failed:
 		    || (rtn & MPPC_DECOMP_OK) != MPPC_DECOMP_OK) {
 			log(LOG_ERR, "%s: decomp returned 0x%x",
 			    __func__, rtn);
-			FREE(decompbuf, M_NETGRAPH_MPPC);
+			free(buf, M_NETGRAPH_MPPC);
+			free(decompbuf, M_NETGRAPH_MPPC);
 			goto failed;
 		}
 
 		/* Replace compressed data with decompressed data */
-		FREE(buf, M_NETGRAPH_MPPC);
-		buf = decompbuf;
+		free(buf, M_NETGRAPH_MPPC);
 		len = decomplen - destCnt;
+	
+		m_freem(m);
+		m = m_devget((caddr_t)decompbuf, len, 0, NULL, NULL);
+		free(decompbuf, M_NETGRAPH_MPPC);
 	}
 #endif
 
 	/* Return result in an mbuf */
-	*resultp = m_devget((caddr_t)buf, len, 0, NULL, NULL);
-	FREE(buf, M_NETGRAPH_MPPC);
-	return (*resultp == NULL ? ENOBUFS : 0);
+	*datap = m;
+	return (*datap == NULL ? ENOBUFS : 0);
 }
 
 /*
