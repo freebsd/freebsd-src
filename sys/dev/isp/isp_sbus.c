@@ -83,6 +83,7 @@ static int isp_sbus_probe (device_t);
 static int isp_sbus_attach (device_t);
 
 
+#define	ISP_SBD(isp)	((struct isp_sbussoftc *)isp)->sbus_dev
 struct isp_sbussoftc {
 	ispsoftc_t			sbus_isp;
 	device_t			sbus_dev;
@@ -448,7 +449,6 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 isp_sbus_mbxdma(ispsoftc_t *isp)
 {
-	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *)isp;
 	caddr_t base;
 	uint32_t len;
 	int i, error, ns;
@@ -481,7 +481,7 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	}
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
 
-	if (isp_dma_tag_create(BUS_DMA_ROOTARG(sbs->sbus_dev), 1,
+	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_SBD(isp), 1,
 	    BUS_SPACE_MAXADDR_24BIT+1, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR_32BIT, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT,
 	    ISP_NSEGS, BUS_SPACE_MAXADDR_24BIT, 0, &isp->isp_osinfo.dmat)) {
