@@ -237,6 +237,13 @@ softclock(void *dummy)
 				curr_cancelled = 0;
 				mtx_unlock_spin(&callout_lock);
 				if (c_mtx != NULL) {
+					if (c_flags & CALLOUT_NETGIANT) {
+						mtx_lock(&Giant);
+						gcalls++;
+						CTR3(KTR_CALLOUT, "netgiant"
+						    " %p func %p arg %p",
+						    c, c_func, c_arg);
+					}
 					mtx_lock(c_mtx);
 					/*
 					 * The callout may have been cancelled
@@ -291,6 +298,8 @@ softclock(void *dummy)
 #endif
 				if ((c_flags & CALLOUT_RETURNUNLOCKED) == 0)
 					mtx_unlock(c_mtx);
+				if (c_flags & CALLOUT_NETGIANT)
+					mtx_unlock(&Giant);
 			skip:
 				mtx_lock_spin(&callout_lock);
 				curr_callout = NULL;
@@ -584,12 +593,12 @@ callout_init_mtx(c, mtx, flags)
 {
 	bzero(c, sizeof *c);
 	c->c_mtx = mtx;
-	KASSERT((flags & ~CALLOUT_RETURNUNLOCKED) == 0,
+	KASSERT((flags & ~(CALLOUT_RETURNUNLOCKED|CALLOUT_NETGIANT)) == 0,
 	    ("callout_init_mtx: bad flags %d", flags));
 	/* CALLOUT_RETURNUNLOCKED makes no sense without a mutex. */
 	KASSERT(mtx != NULL || (flags & CALLOUT_RETURNUNLOCKED) == 0,
 	    ("callout_init_mtx: CALLOUT_RETURNUNLOCKED with no mutex"));
-	c->c_flags = flags & CALLOUT_RETURNUNLOCKED;
+	c->c_flags = flags & (CALLOUT_RETURNUNLOCKED|CALLOUT_NETGIANT);
 }
 
 #ifdef APM_FIXUP_CALLTODO
