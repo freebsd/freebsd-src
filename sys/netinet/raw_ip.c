@@ -909,29 +909,6 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-/*
- * This is the wrapper function for in_setsockaddr.  We just pass down
- * the pcbinfo for in_setpeeraddr to lock.
- */
-static int
-rip_sockaddr(struct socket *so, struct sockaddr **nam)
-{
-
-	return (in_setsockaddr(so, nam));
-}
-
-/*
- * This is the wrapper function for in_setpeeraddr.  We just pass down
- * the pcbinfo for in_setpeeraddr to lock.
- */
-static int
-rip_peeraddr(struct socket *so, struct sockaddr **nam)
-{
-
-	return (in_setpeeraddr(so, nam));
-}
-
-
 SYSCTL_PROC(_net_inet_raw, OID_AUTO/*XXX*/, pcblist, CTLFLAG_RD, 0, 0,
 	    rip_pcblist, "S,xinpcb", "List of active raw IP sockets");
 
@@ -943,10 +920,10 @@ struct pr_usrreqs rip_usrreqs = {
 	.pru_control =		in_control,
 	.pru_detach =		rip_detach,
 	.pru_disconnect =	rip_disconnect,
-	.pru_peeraddr =		rip_peeraddr,
+	.pru_peeraddr =		in_setpeeraddr,
 	.pru_send =		rip_send,
 	.pru_shutdown =		rip_shutdown,
-	.pru_sockaddr =		rip_sockaddr,
+	.pru_sockaddr =		in_setsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		rip_close,
 };
