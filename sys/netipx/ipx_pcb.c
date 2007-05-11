@@ -333,7 +333,7 @@ ipx_pcbfree(ipxp)
 }
 
 void
-ipx_setsockaddr(ipxp, nam)
+ipx_getsockaddr(ipxp, nam)
 	register struct ipxpcb *ipxp;
 	struct sockaddr **nam;
 {
@@ -350,7 +350,7 @@ ipx_setsockaddr(ipxp, nam)
 }
 
 void
-ipx_setpeeraddr(ipxp, nam)
+ipx_getpeeraddr(ipxp, nam)
 	register struct ipxpcb *ipxp;
 	struct sockaddr **nam;
 {

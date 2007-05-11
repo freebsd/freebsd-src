@@ -586,7 +586,7 @@ ipx_peeraddr(so, nam)
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
 	KASSERT(ipxp != NULL, ("ipx_peeraddr: ipxp == NULL"));
-	ipx_setpeeraddr(ipxp, nam);
+	ipx_getpeeraddr(ipxp, nam);
 	return (0);
 }
 
@@ -671,7 +671,7 @@ ipx_sockaddr(so, nam)
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
 	KASSERT(ipxp != NULL, ("ipx_sockaddr: ipxp == NULL"));
-	ipx_setsockaddr(ipxp, nam);
+	ipx_getsockaddr(ipxp, nam);
 	return (0);
 }
 
