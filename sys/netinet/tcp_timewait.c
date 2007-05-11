@@ -1781,10 +1781,13 @@ tcp_twstart(struct tcpcb *tp)
 	 * Set t_recent if timestamps are used on the connection.
 	 */
 	if ((tp->t_flags & (TF_REQ_TSTMP|TF_RCVD_TSTMP|TF_NOOPT)) ==
-	    (TF_REQ_TSTMP|TF_RCVD_TSTMP))
+	    (TF_REQ_TSTMP|TF_RCVD_TSTMP)) {
 		tw->t_recent = tp->ts_recent;
-	else
+		tw->ts_offset = tp->ts_offset;
+	} else {
 		tw->t_recent = 0;
+		tw->ts_offset = 0;
+	}
 
 	tw->snd_nxt = tp->snd_nxt;
 	tw->rcv_nxt = tp->rcv_nxt;
@@ -1986,7 +1989,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 	 */
 	if (tw->t_recent && flags == TH_ACK) {
 		to.to_flags |= TOF_TS;
-		to.to_tsval = ticks;
+		to.to_tsval = ticks + tw->ts_offset;
 		to.to_tsecr = tw->t_recent;
 	}
 	optlen = tcp_addoptions(&to, (u_char *)(th + 1));
