@@ -1392,10 +1392,6 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 
 	unp_list = malloc(n * sizeof *unp_list, M_TEMP, M_WAITOK);
 
-	/*
-	 * XXXRW: Note, this code relies very explicitly in pcb's being type
-	 * stable.
-	 */
 	UNP_GLOBAL_RLOCK();
 	for (unp = LIST_FIRST(head), i = 0; unp && i < n;
 	     unp = LIST_NEXT(unp, unp_link)) {
