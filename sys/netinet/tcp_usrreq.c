@@ -687,29 +687,6 @@ out:
 #endif /* INET6 */
 
 /*
- * This is the wrapper function for in_setsockaddr. We just pass down
- * the pcbinfo for in_setsockaddr to lock. We don't want to do the locking
- * here because in_setsockaddr will call malloc and can block.
- */
-static int
-tcp_sockaddr(struct socket *so, struct sockaddr **nam)
-{
-
-	return (in_setsockaddr(so, nam));
-}
-
-/*
- * This is the wrapper function for in_setpeeraddr. We just pass down
- * the pcbinfo for in_setpeeraddr to lock.
- */
-static int
-tcp_peeraddr(struct socket *so, struct sockaddr **nam)
-{
-
-	return (in_setpeeraddr(so, nam));
-}
-
-/*
  * Mark the connection as being incapable of further output.
  */
 static int
@@ -1059,12 +1036,12 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_detach =		tcp_usr_detach,
 	.pru_disconnect =	tcp_usr_disconnect,
 	.pru_listen =		tcp_usr_listen,
-	.pru_peeraddr =		tcp_peeraddr,
+	.pru_peeraddr =		in_setpeeraddr,
 	.pru_rcvd =		tcp_usr_rcvd,
 	.pru_rcvoob =		tcp_usr_rcvoob,
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
-	.pru_sockaddr =		tcp_sockaddr,
+	.pru_sockaddr =		in_setsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };
