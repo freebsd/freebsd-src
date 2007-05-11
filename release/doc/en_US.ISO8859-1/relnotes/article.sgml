@@ -303,6 +303,10 @@
       configuration option.  More information can be found in the
       &man.audit.4; manual page.</para>
 
+    <para>Support for the Camellia block cipher has been added to the
+      &os; kernel.  It can now be specified as a cipher in IPsec.  More
+      information on Camellia can be found in RFC 4132.</para>
+
     <para>The <literal>options COMPAT_43</literal> kernel
       configuration option has been deemed unnecessary and has been
       removed from <filename>GENERIC</filename> and related kernel
@@ -442,6 +446,10 @@
       which initialize network interfaces do not have any labeling support.
       This variable is set as <literal>0</literal> (disabled) by default.
       &merged;</para>
+
+    <para>A new loader tunable <varname>vm.kmem_size_min</varname> has been
+      added.  This allows to specify a minimal size for
+      <varname>vm.kmem_size</varname>.</para>
 
     <para>A new sysctl variable <varname>vm.zone_stats</varname>
       has been added.  This allows to export &man.uma.9; allocator
@@ -992,6 +1000,11 @@ pipe tablearg ip from table(1) to any</programlisting>
 	for example, by using <literal>tagged</literal>
 	rule option.  For more details, see &man.ipfw.8;. &merged;</para>
 
+      <para>The &man.ipfw.4; packet filter now supports filtering on
+	Routing Header Type 0 and Mobile IPv6 Routing Header Type 2
+	in addition to filtering on the non-differentiated presence
+	of any Routing Header.</para>
+
       <para>The <literal>IPFIREWALL_FORWARD_EXTENDED</literal> kernel
 	option has been removed.  This option was used to permit
 	&man.ipfw.4; to redirect packets with local destinations.
@@ -1270,7 +1283,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The &man.mpt.4; driver is now MPSAFE.</para>
 
-      <para>The &man.twa.4; driver has been updated to the 3.60.03.006
+      <para>The &man.twa.4; driver has been updated to the 3.70.03.006
 	release on the 3ware Web site.  &merged;</para>
 
       <para>A new GEOM-based disk encryption facility, GEOM_ELI, has been
@@ -1439,6 +1452,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.dump.8; and &man.restore.8; programs now attempt to
       save and restore extended attribute information on files.</para>
+
+    <para>The &man.fdisk.8; program now supports a <option>-p</option>
+      flag to print the slice table in fdisk configuration format.</para>
 
     <para>The &man.fsdb.8; utility now supports changing the birth
       time of files on UFS2 file systems using the new 
@@ -1766,6 +1782,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <literal>%Q</literal> (double-quoted, escaped string),
       <literal>%V</literal> (&man.strvis.3;-format string),
       &merged;</para>
+
+    <para>The &man.pw.8; program now supports a <option>-M</option>
+      option to set the permissions of a user's newly created home
+      directory.  &merged;</para>
 
     <para>The DNS resolver library in &os;'s <application>libc</application>
       has been updated to that from BIND 9.3.3. &merged;</para>
