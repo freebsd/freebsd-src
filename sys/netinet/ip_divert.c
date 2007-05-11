@@ -624,28 +624,6 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-/*
- * This is the wrapper function for in_setsockaddr.  We just pass down
- * the pcbinfo for in_setpeeraddr to lock.
- */
-static int
-div_sockaddr(struct socket *so, struct sockaddr **nam)
-{
-
-	return (in_setsockaddr(so, nam));
-}
-
-/*
- * This is the wrapper function for in_setpeeraddr. We just pass down
- * the pcbinfo for in_setpeeraddr to lock.
- */
-static int
-div_peeraddr(struct socket *so, struct sockaddr **nam)
-{
-
-	return (in_setpeeraddr(so, nam));
-}
-
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet, IPPROTO_DIVERT, divert, CTLFLAG_RW, 0, "IPDIVERT");
 SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist, CTLFLAG_RD, 0, 0,
@@ -657,10 +635,10 @@ struct pr_usrreqs div_usrreqs = {
 	.pru_bind =		div_bind,
 	.pru_control =		in_control,
 	.pru_detach =		div_detach,
-	.pru_peeraddr =		div_peeraddr,
+	.pru_peeraddr =		in_setpeeraddr,
 	.pru_send =		div_send,
 	.pru_shutdown =		div_shutdown,
-	.pru_sockaddr =		div_sockaddr,
+	.pru_sockaddr =		in_setsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel
 };
 
