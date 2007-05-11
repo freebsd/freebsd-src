@@ -466,7 +466,7 @@ ngd_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
  * Used for both data and control sockets
  */
 static int
-ng_setsockaddr(struct socket *so, struct sockaddr **addr)
+ng_getsockaddr(struct socket *so, struct sockaddr **addr)
 {
 	struct ngpcb *pcbp;
 	struct sockaddr_ng *sg;
@@ -1053,7 +1053,7 @@ static struct pr_usrreqs ngc_usrreqs = {
 	.pru_peeraddr =		NULL,
 	.pru_send =		ngc_send,
 	.pru_shutdown =		NULL,
-	.pru_sockaddr =		ng_setsockaddr,
+	.pru_sockaddr =		ng_getsockaddr,
 	.pru_close =		NULL,
 };
 
@@ -1067,7 +1067,7 @@ static struct pr_usrreqs ngd_usrreqs = {
 	.pru_peeraddr =		NULL,
 	.pru_send =		ngd_send,
 	.pru_shutdown =		NULL,
-	.pru_sockaddr =		ng_setsockaddr,
+	.pru_sockaddr =		ng_getsockaddr,
 	.pru_close =		NULL,
 };
 

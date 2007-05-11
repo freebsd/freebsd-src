@@ -501,18 +501,8 @@ in6_v4mapsin6_sockaddr(port, addr_p)
 	return (struct sockaddr *)sin6_p;
 }
 
-/*
- * The calling convention of in6_setsockaddr() and in6_setpeeraddr() was
- * modified to match the pru_sockaddr() and pru_peeraddr() entry points
- * in struct pr_usrreqs, so that protocols can just reference then directly
- * without the need for a wrapper function.  The socket must have a valid
- * (i.e., non-nil) PCB, but it should be impossible to get an invalid one
- * except through a kernel programming error, so it is acceptable to panic
- * (or in this case trap) if the PCB is invalid.  (Actually, we don't trap
- * because there actually /is/ a programming error somewhere... XXX)
- */
 int
-in6_setsockaddr(so, nam)
+in6_getsockaddr(so, nam)
 	struct socket *so;
 	struct sockaddr **nam;
 {
@@ -521,7 +511,7 @@ in6_setsockaddr(so, nam)
 	in_port_t port;
 
 	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("in6_setsockaddr: inp == NULL"));
+	KASSERT(inp != NULL, ("in6_getsockaddr: inp == NULL"));
 
 	INP_LOCK(inp);
 	port = inp->inp_lport;
@@ -533,7 +523,7 @@ in6_setsockaddr(so, nam)
 }
 
 int
-in6_setpeeraddr(so, nam)
+in6_getpeeraddr(so, nam)
 	struct socket *so;
 	struct sockaddr **nam;
 {
@@ -542,7 +532,7 @@ in6_setpeeraddr(so, nam)
 	in_port_t port;
 
 	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("in6_setpeeraddr: inp == NULL"));
+	KASSERT(inp != NULL, ("in6_getpeeraddr: inp == NULL"));
 
 	INP_LOCK(inp);
 	port = inp->inp_fport;
@@ -563,12 +553,12 @@ in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam)
 	KASSERT(inp != NULL, ("in6_mapped_sockaddr: inp == NULL"));
 
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
-		error = in_setsockaddr(so, nam);
+		error = in_getsockaddr(so, nam);
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
 	} else {
-		/* scope issues will be handled in in6_setsockaddr(). */
-		error = in6_setsockaddr(so, nam);
+		/* scope issues will be handled in in6_getsockaddr(). */
+		error = in6_getsockaddr(so, nam);
 	}
 
 	return error;
@@ -584,12 +574,12 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
 	KASSERT(inp != NULL, ("in6_mapped_peeraddr: inp == NULL"));
 
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
-		error = in_setpeeraddr(so, nam);
+		error = in_getpeeraddr(so, nam);
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
 	} else
-	/* scope issues will be handled in in6_setpeeraddr(). */
-	error = in6_setpeeraddr(so, nam);
+	/* scope issues will be handled in in6_getpeeraddr(). */
+	error = in6_getpeeraddr(so, nam);
 
 	return error;
 }

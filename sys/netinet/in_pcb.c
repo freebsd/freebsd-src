@@ -772,6 +772,9 @@ in_pcbdrop(struct inpcb *inp)
 	}
 }
 
+/*
+ * Common routines to return the socket addresses associated with inpcbs.
+ */
 struct sockaddr *
 in_sockaddr(in_port_t port, struct in_addr *addr_p)
 {
@@ -787,23 +790,15 @@ in_sockaddr(in_port_t port, struct in_addr *addr_p)
 	return (struct sockaddr *)sin;
 }
 
-/*
- * The wrapper function will pass down the pcbinfo for this function to lock.
- * The socket must have a valid
- * (i.e., non-nil) PCB, but it should be impossible to get an invalid one
- * except through a kernel programming error, so it is acceptable to panic
- * (or in this case trap) if the PCB is invalid.  (Actually, we don't trap
- * because there actually /is/ a programming error somewhere... XXX)
- */
 int
-in_setsockaddr(struct socket *so, struct sockaddr **nam)
+in_getsockaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct inpcb *inp;
 	struct in_addr addr;
 	in_port_t port;
 
 	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("in_setsockaddr: inp == NULL"));
+	KASSERT(inp != NULL, ("in_getsockaddr: inp == NULL"));
 
 	INP_LOCK(inp);
 	port = inp->inp_lport;
@@ -814,18 +809,15 @@ in_setsockaddr(struct socket *so, struct sockaddr **nam)
 	return 0;
 }
 
-/*
- * The wrapper function will pass down the pcbinfo for this function to lock.
- */
 int
-in_setpeeraddr(struct socket *so, struct sockaddr **nam)
+in_getpeeraddr(struct socket *so, struct sockaddr **nam)
 {
 	struct inpcb *inp;
 	struct in_addr addr;
 	in_port_t port;
 
 	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("in_setpeeraddr: inp == NULL"));
+	KASSERT(inp != NULL, ("in_getpeeraddr: inp == NULL"));
 
 	INP_LOCK(inp);
 	port = inp->inp_fport;

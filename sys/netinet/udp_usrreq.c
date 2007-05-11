@@ -1143,11 +1143,11 @@ struct pr_usrreqs udp_usrreqs = {
 	.pru_control =		in_control,
 	.pru_detach =		udp_detach,
 	.pru_disconnect =	udp_disconnect,
-	.pru_peeraddr =		in_setpeeraddr,
+	.pru_peeraddr =		in_getpeeraddr,
 	.pru_send =		udp_send,
 	.pru_sosend =		sosend_dgram,
 	.pru_shutdown =		udp_shutdown,
-	.pru_sockaddr =		in_setsockaddr,
+	.pru_sockaddr =		in_getsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		udp_close,
 };
