@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 1982, 1986, 1993
- *	The Regents of the University of California.  All rights reserved.
- * Copyright (c) 2005
- *	Andre Oppermann, Internet Business Solutions AG.  All right reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 2005 Andre Oppermann, Internet Business Solutions AG.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,13 +49,11 @@ struct ipopt_tag {
 
 extern	int	ip_doopts;		/* process or ignore IP options */
 
-int	ip_dooptions(struct mbuf *, int);
-struct mbuf *
-	ip_insertoptions(struct mbuf *, struct mbuf *, int *);
-int	ip_optcopy(struct ip *, struct ip *);
-int	ip_pcbopts(struct inpcb *, int, struct mbuf *);
-void	ip_stripoptions(struct mbuf *, struct mbuf *);
-struct mbuf *
-	ip_srcroute(struct mbuf *);
+int		 ip_dooptions(struct mbuf *, int);
+struct mbuf	*ip_insertoptions(struct mbuf *, struct mbuf *, int *);
+int		 ip_optcopy(struct ip *, struct ip *);
+int		 ip_pcbopts(struct inpcb *, int, struct mbuf *);
+void		 ip_stripoptions(struct mbuf *, struct mbuf *);
+struct mbuf	*ip_srcroute(struct mbuf *);
 
 #endif /* !_NETINET_IP_OPTIONS_H_ */

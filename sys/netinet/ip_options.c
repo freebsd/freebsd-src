@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 1982, 1986, 1988, 1993
- *      The Regents of the University of California.  All rights reserved.
- * Copyright (c) 2005
- *      Andre Oppermann, Internet Business Solutions AG.  All right reserved.
+ *      The Regents of the University of California.
+ * Copyright (c) 2005 Andre Oppermann, Internet Business Solutions AG.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,7 +37,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-/* #include <sys/malloc.h> */
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -83,16 +82,16 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, process_options, CTLFLAG_RW,
 static void	save_rte(struct mbuf *m, u_char *, struct in_addr);
 
 /*
- * Do option processing on a datagram,
- * possibly discarding it if bad options are encountered,
- * or forwarding it if source-routed.
- * The pass argument is used when operating in the IPSTEALTH
- * mode to tell what options to process:
- * [LS]SRR (pass 0) or the others (pass 1).
- * The reason for as many as two passes is that when doing IPSTEALTH,
- * non-routing options should be processed only if the packet is for us.
- * Returns 1 if packet has been forwarded/freed,
- * 0 if the packet should be processed further.
+ * Do option processing on a datagram, possibly discarding it if bad options
+ * are encountered, or forwarding it if source-routed.
+ *
+ * The pass argument is used when operating in the IPSTEALTH mode to tell
+ * what options to process: [LS]SRR (pass 0) or the others (pass 1).  The
+ * reason for as many as two passes is that when doing IPSTEALTH, non-routing
+ * options should be processed only if the packet is for us.
+ *
+ * Returns 1 if packet has been forwarded/freed, 0 if the packet should be
+ * processed further.
  */
 int
 ip_dooptions(struct mbuf *m, int pass)
@@ -105,7 +104,7 @@ ip_dooptions(struct mbuf *m, int pass)
 	n_time ntime;
 	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
 
-	/* ignore or reject packets with IP options */
+	/* Ignore or reject packets with IP options. */
 	if (ip_doopts == 0)
 		return 0;
 	else if (ip_doopts == 2) {
@@ -140,13 +139,12 @@ ip_dooptions(struct mbuf *m, int pass)
 			break;
 
 		/*
-		 * Source routing with record.
-		 * Find interface with current destination address.
-		 * If none on this machine then drop if strictly routed,
-		 * or do nothing if loosely routed.
-		 * Record interface address and bring up next address
-		 * component.  If strictly routed make sure next
-		 * address is on directly accessible net.
+		 * Source routing with record.  Find interface with current
+		 * destination address.  If none on this machine then drop if
+		 * strictly routed, or do nothing if loosely routed.  Record
+		 * interface address and bring up next address component.  If
+		 * strictly routed make sure next address is on directly
+		 * accessible net.
 		 */
 		case IPOPT_LSRR:
 		case IPOPT_SSRR:
@@ -197,7 +195,8 @@ ip_dooptions(struct mbuf *m, int pass)
 				if (ipforwarding) {
 					char buf[16]; /* aaa.bbb.ccc.ddd\0 */
 					/*
-					 * Acting as a router, so generate ICMP
+					 * Acting as a router, so generate
+					 * ICMP
 					 */
 nosourcerouting:
 					strcpy(buf, inet_ntoa(ip->ip_dst));
@@ -209,7 +208,8 @@ nosourcerouting:
 					goto bad;
 				} else {
 					/*
-					 * Not acting as a router, so silently drop.
+					 * Not acting as a router, so
+					 * silently drop.
 					 */
 #ifdef IPSTEALTH
 dropit:
@@ -270,8 +270,9 @@ dropit:
 			(void)memcpy(&ipaddr.sin_addr, &ip->ip_dst,
 			    sizeof(ipaddr.sin_addr));
 			/*
-			 * locate outgoing interface; if we're the destination,
-			 * use the incoming interface (should be same).
+			 * Locate outgoing interface; if we're the
+			 * destination, use the incoming interface (should be
+			 * same).
 			 */
 			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) == NULL &&
 			    (ia = ip_rtaddr(ipaddr.sin_addr)) == NULL) {
@@ -365,8 +366,8 @@ bad:
 }
 
 /*
- * Save incoming source route for use in replies,
- * to be picked up later by ip_srcroute if the receiver is interested.
+ * Save incoming source route for use in replies, to be picked up later by
+ * ip_srcroute if the receiver is interested.
  */
 static void
 save_rte(struct mbuf *m, u_char *option, struct in_addr dst)
@@ -375,7 +376,7 @@ save_rte(struct mbuf *m, u_char *option, struct in_addr dst)
 	struct ipopt_tag *opts;
 
 	opts = (struct ipopt_tag *)m_tag_get(PACKET_TAG_IPOPTIONS,
-					sizeof(struct ipopt_tag), M_NOWAIT);
+	    sizeof(struct ipopt_tag), M_NOWAIT);
 	if (opts == NULL)
 		return;
 
@@ -391,15 +392,15 @@ save_rte(struct mbuf *m, u_char *option, struct in_addr dst)
 }
 
 /*
- * Retrieve incoming source route for use in replies,
- * in the same form used by setsockopt.
- * The first hop is placed before the options, will be removed later.
+ * Retrieve incoming source route for use in replies, in the same form used
+ * by setsockopt.  The first hop is placed before the options, will be
+ * removed later.
  */
 struct mbuf *
 ip_srcroute(struct mbuf *m0)
 {
-	register struct in_addr *p, *q;
-	register struct mbuf *m;
+	struct in_addr *p, *q;
+	struct mbuf *m;
 	struct ipopt_tag *opts;
 
 	opts = (struct ipopt_tag *)m_tag_find(m0, PACKET_TAG_IPOPTIONS, NULL);
@@ -419,7 +420,7 @@ ip_srcroute(struct mbuf *m0)
 	    sizeof(struct in_addr) + OPTSIZ;
 
 	/*
-	 * First save first hop for return route
+	 * First, save first hop for return route.
 	 */
 	p = &(opts->ip_srcrt.route[opts->ip_nhops - 1]);
 	*(mtod(m, struct in_addr *)) = *p--;
@@ -435,8 +436,8 @@ ip_srcroute(struct mbuf *m0)
 	    sizeof(struct in_addr) + OPTSIZ);
 #undef OPTSIZ
 	/*
-	 * Record return path as an IP source route,
-	 * reversing the path (pointers are now aligned).
+	 * Record return path as an IP source route, reversing the path
+	 * (pointers are now aligned).
 	 */
 	while (p >= opts->ip_srcrt.route) {
 		*q++ = *p--;
@@ -450,18 +451,18 @@ ip_srcroute(struct mbuf *m0)
 }
 
 /*
- * Strip out IP options, at higher
- * level protocol in the kernel.
- * Second argument is buffer to which options
- * will be moved, and return value is their length.
+ * Strip out IP options, at higher level protocol in the kernel.  Second
+ * argument is buffer to which options will be moved, and return value is
+ * their length.
+ *
  * XXX should be deleted; last arg currently ignored.
  */
 void
 ip_stripoptions(struct mbuf *m, struct mbuf *mopt)
 {
-	register int i;
+	int i;
 	struct ip *ip = mtod(m, struct ip *);
-	register caddr_t opts;
+	caddr_t opts;
 	int olen;
 
 	olen = (ip->ip_hl << 2) - sizeof (struct ip);
@@ -476,18 +477,18 @@ ip_stripoptions(struct mbuf *m, struct mbuf *mopt)
 }
 
 /*
- * Insert IP options into preformed packet.
- * Adjust IP destination as required for IP source routing,
- * as indicated by a non-zero in_addr at the start of the options.
+ * Insert IP options into preformed packet.  Adjust IP destination as
+ * required for IP source routing, as indicated by a non-zero in_addr at the
+ * start of the options.
  *
  * XXX This routine assumes that the packet has no options in place.
  */
 struct mbuf *
 ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 {
-	register struct ipoption *p = mtod(opt, struct ipoption *);
+	struct ipoption *p = mtod(opt, struct ipoption *);
 	struct mbuf *n;
-	register struct ip *ip = mtod(m, struct ip *);
+	struct ip *ip = mtod(m, struct ip *);
 	unsigned optlen;
 
 	optlen = opt->m_len - sizeof(p->ipopt_dst);
@@ -532,13 +533,13 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 }
 
 /*
- * Copy options from ip to jp,
- * omitting those not copied during fragmentation.
+ * Copy options from ip to jp, omitting those not copied during
+ * fragmentation.
  */
 int
 ip_optcopy(struct ip *ip, struct ip *jp)
 {
-	register u_char *cp, *dp;
+	u_char *cp, *dp;
 	int opt, optlen, cnt;
 
 	cp = (u_char *)(ip + 1);
@@ -561,7 +562,7 @@ ip_optcopy(struct ip *ip, struct ip *jp)
 		KASSERT(optlen >= IPOPT_OLEN + sizeof(*cp) && optlen <= cnt,
 		    ("ip_optcopy: malformed ipv4 option"));
 
-		/* bogus lengths should have been caught by ip_dooptions */
+		/* Bogus lengths should have been caught by ip_dooptions. */
 		if (optlen > cnt)
 			optlen = cnt;
 		if (IPOPT_COPIED(opt)) {
@@ -575,15 +576,15 @@ ip_optcopy(struct ip *ip, struct ip *jp)
 }
 
 /*
- * Set up IP options in pcb for insertion in output packets.
- * Store in mbuf with pointer in pcbopt, adding pseudo-option
- * with destination address if source routed.
+ * Set up IP options in pcb for insertion in output packets.  Store in mbuf
+ * with pointer in pcbopt, adding pseudo-option with destination address if
+ * source routed.
  */
 int
 ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 {
-	register int cnt, optlen;
-	register u_char *cp;
+	int cnt, optlen;
+	u_char *cp;
 	struct mbuf **pcbopt;
 	u_char opt;
 
@@ -607,9 +608,8 @@ ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 	if (m->m_len % sizeof(int32_t))
 		goto bad;
 	/*
-	 * IP first-hop destination address will be stored before
-	 * actual options; move other options back
-	 * and clear it when none present.
+	 * IP first-hop destination address will be stored before actual
+	 * options; move other options back and clear it when none present.
 	 */
 	if (m->m_data + m->m_len + sizeof(struct in_addr) >= &m->m_dat[MLEN])
 		goto bad;
@@ -640,12 +640,15 @@ ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 		case IPOPT_LSRR:
 		case IPOPT_SSRR:
 			/*
-			 * user process specifies route as:
+			 * User process specifies route as:
+			 *
 			 *	->A->B->C->D
+			 *
 			 * D must be our final destination (but we can't
 			 * check that since we may not have connected yet).
-			 * A is first hop destination, which doesn't appear in
-			 * actual IP option, but is stored before the options.
+			 * A is first hop destination, which doesn't appear
+			 * in actual IP option, but is stored before the
+			 * options.
 			 */
 			if (optlen < IPOPT_MINOFF - 1 + sizeof(struct in_addr))
 				goto bad;
