@@ -131,8 +131,8 @@ void	ipx_pcbdisconnect(struct ipxpcb *ipxp);
 void	ipx_pcbfree(struct ipxpcb *ipxp);
 struct ipxpcb *
 	ipx_pcblookup(struct ipx_addr *faddr, int lport, int wildp);
-void	ipx_setpeeraddr(struct ipxpcb *ipxp, struct sockaddr **nam);
-void	ipx_setsockaddr(struct ipxpcb *ipxp, struct sockaddr **nam);
+void	ipx_getpeeraddr(struct ipxpcb *ipxp, struct sockaddr **nam);
+void	ipx_getsockaddr(struct ipxpcb *ipxp, struct sockaddr **nam);
 
 #define	IPX_LIST_LOCK_INIT()	mtx_init(&ipxpcb_list_mtx, "ipx_list_mtx", \
 				    NULL, MTX_DEF | MTX_RECURSE)

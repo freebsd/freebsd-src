@@ -635,10 +635,10 @@ struct pr_usrreqs div_usrreqs = {
 	.pru_bind =		div_bind,
 	.pru_control =		in_control,
 	.pru_detach =		div_detach,
-	.pru_peeraddr =		in_setpeeraddr,
+	.pru_peeraddr =		in_getpeeraddr,
 	.pru_send =		div_send,
 	.pru_shutdown =		div_shutdown,
-	.pru_sockaddr =		in_setsockaddr,
+	.pru_sockaddr =		in_getsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel
 };
 

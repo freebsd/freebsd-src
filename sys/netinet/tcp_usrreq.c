@@ -618,7 +618,7 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	TCPDEBUG1();
 
 	/*
-	 * We inline in_setpeeraddr and COMMON_END here, so that we can
+	 * We inline in_getpeeraddr and COMMON_END here, so that we can
 	 * copy the data of interest and defer the malloc until after we
 	 * release the lock.
 	 */
@@ -1036,12 +1036,12 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_detach =		tcp_usr_detach,
 	.pru_disconnect =	tcp_usr_disconnect,
 	.pru_listen =		tcp_usr_listen,
-	.pru_peeraddr =		in_setpeeraddr,
+	.pru_peeraddr =		in_getpeeraddr,
 	.pru_rcvd =		tcp_usr_rcvd,
 	.pru_rcvoob =		tcp_usr_rcvoob,
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
-	.pru_sockaddr =		in_setsockaddr,
+	.pru_sockaddr =		in_getsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };

@@ -819,9 +819,9 @@ struct pr_usrreqs rip6_usrreqs = {
 	.pru_control =		in6_control,
 	.pru_detach =		rip6_detach,
 	.pru_disconnect =	rip6_disconnect,
-	.pru_peeraddr =		in6_setpeeraddr,
+	.pru_peeraddr =		in6_getpeeraddr,
 	.pru_send =		rip6_send,
 	.pru_shutdown =		rip6_shutdown,
-	.pru_sockaddr =		in6_setsockaddr,
+	.pru_sockaddr =		in6_getsockaddr,
 	.pru_close =		rip6_close,
 };

@@ -95,8 +95,8 @@ struct sockaddr *
 	in6_sockaddr __P((in_port_t port, struct in6_addr *addr_p));
 struct sockaddr *
 	in6_v4mapsin6_sockaddr __P((in_port_t port, struct in_addr *addr_p));
-int	in6_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
-int	in6_setsockaddr __P((struct socket *so, struct sockaddr **nam));
+int	in6_getpeeraddr __P((struct socket *so, struct sockaddr **nam));
+int	in6_getsockaddr __P((struct socket *so, struct sockaddr **nam));
 int	in6_mapped_sockaddr __P((struct socket *so, struct sockaddr **nam));
 int	in6_mapped_peeraddr __P((struct socket *so, struct sockaddr **nam));
 int	in6_selecthlim __P((struct in6pcb *, struct ifnet *));
