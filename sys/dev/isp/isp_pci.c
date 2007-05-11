@@ -329,6 +329,7 @@ static int isp_pci_attach (device_t);
 static int isp_pci_detach (device_t);
 
 
+#define	ISP_PCD(isp)	((struct isp_pcisoftc *)isp)->pci_dev
 struct isp_pcisoftc {
 	ispsoftc_t			pci_isp;
 	device_t			pci_dev;
@@ -1739,9 +1740,8 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	}
 #endif
 
-	if (isp_dma_tag_create(
-	    BUS_DMA_ROOTARG(((struct isp_pcisoftc *)isp)->pci_dev),
-	    1, slim, llim, hlim, NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS,
+	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_PCD(isp)), 1,
+	    slim, llim, hlim, NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS,
 	    slim, 0, &isp->isp_osinfo.dmat)) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		ISP_LOCK(isp);
