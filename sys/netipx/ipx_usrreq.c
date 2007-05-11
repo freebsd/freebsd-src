@@ -151,11 +151,9 @@ struct	pr_usrreqs ripx_usrreqs = {
  *  This may also be called for raw listeners.
  */
 void
-ipx_input(m, ipxp)
-	struct mbuf *m;
-	register struct ipxpcb *ipxp;
+ipx_input(struct mbuf *m, struct ipxpcb *ipxp)
 {
-	register struct ipx *ipx = mtod(m, struct ipx *);
+	struct ipx *ipx = mtod(m, struct ipx *);
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct sockaddr_ipx ipx_ipx;
 
@@ -171,7 +169,7 @@ ipx_input(m, ipxp)
 	ipx_ipx.sipx_zero[0] = '\0';
 	ipx_ipx.sipx_zero[1] = '\0';
 	if (ipx_neteqnn(ipx->ipx_sna.x_net, ipx_zeronet) && ifp != NULL) {
-		register struct ifaddr *ifa;
+		struct ifaddr *ifa;
 
 		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa != NULL;
 		     ifa = TAILQ_NEXT(ifa, ifa_link)) {
@@ -200,9 +198,7 @@ ipx_input(m, ipxp)
  * the specified error.
  */
 void
-ipx_drop(ipxp, errno)
-	register struct ipxpcb *ipxp;
-	int errno;
+ipx_drop(struct ipxpcb *ipxp, int errno)
 {
 	struct socket *so = ipxp->ipxp_socket;
 
@@ -226,14 +222,12 @@ ipx_drop(ipxp, errno)
 }
 
 static int
-ipx_output(ipxp, m0)
-	struct ipxpcb *ipxp;
-	struct mbuf *m0;
+ipx_output(struct ipxpcb *ipxp, struct mbuf *m0)
 {
-	register struct ipx *ipx;
-	register struct socket *so;
-	register int len = 0;
-	register struct route *ro;
+	struct ipx *ipx;
+	struct socket *so;
+	int len = 0;
+	struct route *ro;
 	struct mbuf *m;
 	struct mbuf *mprev = NULL;
 
@@ -328,7 +322,7 @@ ipx_output(ipxp, m0)
 
 			}
 			if ((ro->ro_rt->rt_flags & RTF_GATEWAY) == 0) {
-				register struct ipx_addr *dst =
+				struct ipx_addr *dst =
 						&satoipx_addr(ro->ro_dst);
 				dst->x_host = ipx->ipx_dna.x_host;
 			}
@@ -348,9 +342,7 @@ ipx_output(ipxp, m0)
 }
 
 int
-ipx_ctloutput(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+ipx_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int mask, error, optval;
@@ -459,8 +451,7 @@ ipx_ctloutput(so, sopt)
 }
 
 static void
-ipx_usr_abort(so)
-	struct socket *so;
+ipx_usr_abort(struct socket *so)
 {
 
 	/* XXXRW: Possibly ipx_disconnect() here? */
@@ -468,10 +459,7 @@ ipx_usr_abort(so)
 }
 
 static int
-ipx_attach(so, proto, td)
-	struct socket *so;
-	int proto;
-	struct thread *td;
+ipx_attach(struct socket *so, int proto, struct thread *td)
 {
 #ifdef INVARIANTS
 	struct ipxpcb *ipxp = sotoipxpcb(so);
@@ -489,10 +477,7 @@ ipx_attach(so, proto, td)
 }
 
 static int
-ipx_bind(so, nam, td)
-	struct socket *so;
-	struct sockaddr *nam;
-	struct thread *td;
+ipx_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int error;
@@ -507,8 +492,7 @@ ipx_bind(so, nam, td)
 }
 
 static void
-ipx_usr_close(so)
-	struct socket *so;
+ipx_usr_close(struct socket *so)
 {
 
 	/* XXXRW: Possibly ipx_disconnect() here? */
@@ -516,10 +500,7 @@ ipx_usr_close(so)
 }
 
 static int
-ipx_connect(so, nam, td)
-	struct socket *so;
-	struct sockaddr *nam;
-	struct thread *td;
+ipx_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int error;
@@ -541,8 +522,7 @@ out:
 }
 
 static void
-ipx_detach(so)
-	struct socket *so;
+ipx_detach(struct socket *so)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
@@ -556,8 +536,7 @@ ipx_detach(so)
 }
 
 static int
-ipx_disconnect(so)
-	struct socket *so;
+ipx_disconnect(struct socket *so)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int error;
@@ -579,9 +558,7 @@ out:
 }
 
 int
-ipx_peeraddr(so, nam)
-	struct socket *so;
-	struct sockaddr **nam;
+ipx_peeraddr(struct socket *so, struct sockaddr **nam)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
@@ -591,13 +568,8 @@ ipx_peeraddr(so, nam)
 }
 
 static int
-ipx_send(so, flags, m, nam, control, td)
-	struct socket *so;
-	int flags;
-	struct mbuf *m;
-	struct sockaddr *nam;
-	struct mbuf *control;
-	struct thread *td;
+ipx_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
+    struct mbuf *control, struct thread *td)
 {
 	int error;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
@@ -664,9 +636,7 @@ ipx_shutdown(so)
 }
 
 int
-ipx_sockaddr(so, nam)
-	struct socket *so;
-	struct sockaddr **nam;
+ipx_sockaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
@@ -676,10 +646,7 @@ ipx_sockaddr(so, nam)
 }
 
 static int
-ripx_attach(so, proto, td)
-	struct socket *so;
-	int proto;
-	struct thread *td;
+ripx_attach(struct socket *so, int proto, struct thread *td)
 {
 	int error = 0;
 	struct ipxpcb *ipxp = sotoipxpcb(so);

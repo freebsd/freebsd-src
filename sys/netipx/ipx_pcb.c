@@ -84,12 +84,9 @@ static struct	ipx_addr zeroipx_addr;
 static u_short	ipxpcb_lport_cache;
 
 int
-ipx_pcballoc(so, head, td)
-	struct socket *so;
-	struct ipxpcbhead *head;
-	struct thread *td;
+ipx_pcballoc(struct socket *so, struct ipxpcbhead *head, struct thread *td)
 {
-	register struct ipxpcb *ipxp;
+	struct ipxpcb *ipxp;
 
 	KASSERT(so->so_pcb == NULL, ("ipx_pcballoc: so_pcb != NULL"));
 	IPX_LIST_LOCK_ASSERT();
@@ -107,12 +104,9 @@ ipx_pcballoc(so, head, td)
 }
 
 int
-ipx_pcbbind(ipxp, nam, td)
-	register struct ipxpcb *ipxp;
-	struct sockaddr *nam;
-	struct thread *td;
+ipx_pcbbind(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 {
-	register struct sockaddr_ipx *sipx;
+	struct sockaddr_ipx *sipx;
 	u_short lport = 0;
 
 	IPX_LIST_LOCK_ASSERT();
@@ -162,15 +156,12 @@ noname:
  * then pick one.
  */
 int
-ipx_pcbconnect(ipxp, nam, td)
-	struct ipxpcb *ipxp;
-	struct sockaddr *nam;
-	struct thread *td;
+ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 {
 	struct ipx_ifaddr *ia;
-	register struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)nam;
-	register struct ipx_addr *dst;
-	register struct route *ro;
+	struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)nam;
+	struct ipx_addr *dst;
+	struct route *ro;
 	struct ifnet *ifp;
 
 	IPX_LIST_LOCK_ASSERT();
@@ -292,8 +283,7 @@ ipx_pcbconnect(ipxp, nam, td)
 }
 
 void
-ipx_pcbdisconnect(ipxp)
-	struct ipxpcb *ipxp;
+ipx_pcbdisconnect(struct ipxpcb *ipxp)
 {
 
 	IPX_LIST_LOCK_ASSERT();
@@ -303,8 +293,7 @@ ipx_pcbdisconnect(ipxp)
 }
 
 void
-ipx_pcbdetach(ipxp)
-	struct ipxpcb *ipxp;
+ipx_pcbdetach(struct ipxpcb *ipxp)
 {
 	struct socket *so = ipxp->ipxp_socket;
 
@@ -316,8 +305,7 @@ ipx_pcbdetach(ipxp)
 }
 
 void
-ipx_pcbfree(ipxp)
-	struct ipxpcb *ipxp;
+ipx_pcbfree(struct ipxpcb *ipxp)
 {
 
 	KASSERT(ipxp->ipxp_socket == NULL,
@@ -333,9 +321,7 @@ ipx_pcbfree(ipxp)
 }
 
 void
-ipx_getsockaddr(ipxp, nam)
-	register struct ipxpcb *ipxp;
-	struct sockaddr **nam;
+ipx_getsockaddr(struct ipxpcb *ipxp, struct sockaddr **nam)
 {
 	struct sockaddr_ipx *sipx, ssipx;
 
@@ -350,9 +336,7 @@ ipx_getsockaddr(ipxp, nam)
 }
 
 void
-ipx_getpeeraddr(ipxp, nam)
-	register struct ipxpcb *ipxp;
-	struct sockaddr **nam;
+ipx_getpeeraddr(struct ipxpcb *ipxp, struct sockaddr **nam)
 {
 	struct sockaddr_ipx *sipx, ssipx;
 
@@ -367,12 +351,9 @@ ipx_getpeeraddr(ipxp, nam)
 }
 
 struct ipxpcb *
-ipx_pcblookup(faddr, lport, wildp)
-	struct ipx_addr *faddr;
-	u_short lport;
-	int wildp;
+ipx_pcblookup(struct ipx_addr *faddr, u_short lport, int wildp)
 {
-	register struct ipxpcb *ipxp, *match = NULL;
+	struct ipxpcb *ipxp, *match = NULL;
 	int matchwild = 3, wildcard;
 	u_short fport;
 

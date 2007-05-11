@@ -73,7 +73,8 @@ __FBSDID("$FreeBSD$");
 #define SUMADV	sum += *w++
 
 u_short
-ipx_cksum(struct mbuf *m, int len) {
+ipx_cksum(struct mbuf *m, int len)
+{
 	u_int32_t sum = 0;
 	u_char *w;
 	u_char oldtc;

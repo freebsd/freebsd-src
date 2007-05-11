@@ -90,12 +90,8 @@ static	int spx_debx;
  * spx debug routines
  */
 void
-spx_trace(act, ostate, sp, si, req)
-	short act;
-	u_char ostate;
-	struct spxpcb *sp;
-	struct spx *si;
-	int req;
+spx_trace(short act, u_char ostate, struct spxpcb *sp, struct spx *si,
+    int req)
 {
 #ifdef INET
 #ifdef TCPDEBUG

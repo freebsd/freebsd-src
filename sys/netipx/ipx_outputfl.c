@@ -77,13 +77,10 @@ __FBSDID("$FreeBSD$");
 static int ipx_copy_output = 0;
 
 int
-ipx_outputfl(m0, ro, flags)
-	struct mbuf *m0;
-	struct route *ro;
-	int flags;
+ipx_outputfl(struct mbuf *m0, struct route *ro, int flags)
 {
-	register struct ipx *ipx = mtod(m0, struct ipx *);
-	register struct ifnet *ifp = NULL;
+	struct ipx *ipx = mtod(m0, struct ipx *);
+	struct ifnet *ifp = NULL;
 	int error = 0;
 	struct sockaddr_ipx *dst;
 	struct route ipxroute;
@@ -182,10 +179,9 @@ done:
  * that have ipx configured and isn't in the list yet.
  */
 int
-ipx_output_type20(m)
-	struct mbuf *m;
+ipx_output_type20(struct mbuf *m)
 {
-	register struct ipx *ipx;
+	struct ipx *ipx;
 	union ipx_net *nbnet;
 	struct ipx_ifaddr *ia, *tia = NULL;
 	int error = 0;
