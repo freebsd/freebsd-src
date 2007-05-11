@@ -134,7 +134,7 @@ static	void ipxintr(struct mbuf *m);
  */
 
 void
-ipx_init()
+ipx_init(void)
 {
 
 	read_random(&ipx_pexseq, sizeof ipx_pexseq);
@@ -162,8 +162,8 @@ ipx_init()
 static void
 ipxintr(struct mbuf *m)
 {
-	register struct ipx *ipx;
-	register struct ipxpcb *ipxp;
+	struct ipx *ipx;
+	struct ipxpcb *ipxp;
 	struct ipx_ifaddr *ia;
 	int len;
 
@@ -334,11 +334,10 @@ static struct route ipx_droute;
 static struct route ipx_sroute;
 
 static void
-ipx_forward(m)
-struct mbuf *m;
+ipx_forward(struct mbuf *m)
 {
-	register struct ipx *ipx = mtod(m, struct ipx *);
-	register int error;
+	struct ipx *ipx = mtod(m, struct ipx *);
+	int error;
 	int agedelta = 1;
 	int flags = IPX_FORWARDING;
 	int ok_there = 0;
@@ -424,9 +423,7 @@ cleanup:
 }
 
 static int
-ipx_do_route(src, ro)
-struct ipx_addr *src;
-struct route *ro;
+ipx_do_route(struct ipx_addr *src, struct route *ro)
 {
 	struct sockaddr_ipx *dst;
 
@@ -446,9 +443,9 @@ struct route *ro;
 }
 
 static void
-ipx_undo_route(ro)
-register struct route *ro;
+ipx_undo_route(struct route *ro)
 {
+
 	if (ro->ro_rt != NULL) {
 		RTFREE(ro->ro_rt);
 	}
@@ -459,13 +456,12 @@ register struct route *ro;
  * back into the socket code from the IPX output path.
  */
 void
-ipx_watch_output(m, ifp)
-struct mbuf *m;
-struct ifnet *ifp;
+ipx_watch_output(struct mbuf *m, struct ifnet *ifp)
 {
-	register struct ipxpcb *ipxp;
-	register struct ifaddr *ifa;
-	register struct ipx_ifaddr *ia;
+	struct ipxpcb *ipxp;
+	struct ifaddr *ifa;
+	struct ipx_ifaddr *ia;
+
 	/*
 	 * Give any raw listeners a crack at the packet
 	 */
@@ -473,7 +469,7 @@ struct ifnet *ifp;
 	LIST_FOREACH(ipxp, &ipxrawpcb_list, ipxp_list) {
 		struct mbuf *m0 = m_copy(m, 0, (int)M_COPYALL);
 		if (m0 != NULL) {
-			register struct ipx *ipx;
+			struct ipx *ipx;
 
 			M_PREPEND(m0, sizeof(*ipx), M_DONTWAIT);
 			if (m0 == NULL)
