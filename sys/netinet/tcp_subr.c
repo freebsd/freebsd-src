@@ -653,8 +653,12 @@ tcp_newtcpcb(struct inpcb *inp)
 		tcp_mssdflt;
 
 	/* Set up our timeouts. */
-	callout_init_mtx(&tp->t_timers->tt_timer, &inp->inp_mtx,
-			 CALLOUT_RETURNUNLOCKED);
+	if (NET_CALLOUT_MPSAFE)
+		callout_init_mtx(&tp->t_timers->tt_timer, &inp->inp_mtx,
+		    CALLOUT_RETURNUNLOCKED);
+	else
+		callout_init_mtx(&tp->t_timers->tt_timer, &inp->inp_mtx,
+		    (CALLOUT_RETURNUNLOCKED|CALLOUT_NETGIANT));
 
 	if (tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
