@@ -920,10 +920,10 @@ struct pr_usrreqs rip_usrreqs = {
 	.pru_control =		in_control,
 	.pru_detach =		rip_detach,
 	.pru_disconnect =	rip_disconnect,
-	.pru_peeraddr =		in_setpeeraddr,
+	.pru_peeraddr =		in_getpeeraddr,
 	.pru_send =		rip_send,
 	.pru_shutdown =		rip_shutdown,
-	.pru_sockaddr =		in_setsockaddr,
+	.pru_sockaddr =		in_getsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		rip_close,
 };

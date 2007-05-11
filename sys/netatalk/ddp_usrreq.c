@@ -285,19 +285,19 @@ ddp_clean(void)
 #endif
 
 static int
-at_setpeeraddr(struct socket *so, struct sockaddr **nam)
+at_getpeeraddr(struct socket *so, struct sockaddr **nam)
 {
 
 	return (EOPNOTSUPP);
 }
 
 static int
-at_setsockaddr(struct socket *so, struct sockaddr **nam)
+at_getsockaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct ddpcb	*ddp;
 
 	ddp = sotoddpcb(so);
-	KASSERT(ddp != NULL, ("at_setsockaddr: ddp == NULL"));
+	KASSERT(ddp != NULL, ("at_getsockaddr: ddp == NULL"));
 
 	DDP_LOCK(ddp);
 	at_sockaddr(ddp, nam);
@@ -313,9 +313,9 @@ struct pr_usrreqs ddp_usrreqs = {
 	.pru_control =		at_control,
 	.pru_detach =		ddp_detach,
 	.pru_disconnect =	ddp_disconnect,
-	.pru_peeraddr =		at_setpeeraddr,
+	.pru_peeraddr =		at_getpeeraddr,
 	.pru_send =		ddp_send,
 	.pru_shutdown =		ddp_shutdown,
-	.pru_sockaddr =		at_setsockaddr,
+	.pru_sockaddr =		at_getsockaddr,
 	.pru_close =		ddp_close,
 };
