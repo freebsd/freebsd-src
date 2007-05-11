@@ -100,7 +100,8 @@ MAN=	aac.4 \
 	hfa.4 \
 	hifn.4 \
 	hme.4 \
-	hptmv.4 \
+	${_hptiop.4} \
+	${_hptmv.4} \
 	hwpmc.4 \
 	ichsmb.4 \
 	icmp.4 \
@@ -531,6 +532,8 @@ MLINKS+=watchdog.4 SW_WATCHDOG.4
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _acpi_dock.4=	acpi_dock.4
 _amdsmb.4=	amdsmb.4
+_hptiop.4=	hptiop.4
+_hptmv.4=	hptmv.4
 _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
 _ipmi.4=	ipmi.4
