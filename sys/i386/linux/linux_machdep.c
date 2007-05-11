@@ -400,11 +400,12 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 #endif
 
 	exit_signal = args->flags & 0x000000ff;
-	if (!LINUX_SIG_VALID(exit_signal) && exit_signal != 0)
+	if (LINUX_SIG_VALID(exit_signal)) {
+		if (exit_signal <= LINUX_SIGTBLSZ)
+			exit_signal =
+			    linux_to_bsd_signal[_SIG_IDX(exit_signal)];
+	} else if (exit_signal != 0)
 		return (EINVAL);
-
-	if (exit_signal <= LINUX_SIGTBLSZ)
-		exit_signal = linux_to_bsd_signal[_SIG_IDX(exit_signal)];
 
 	if (args->flags & LINUX_CLONE_VM)
 		ff |= RFMEM;
