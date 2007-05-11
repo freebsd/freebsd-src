@@ -89,16 +89,12 @@ static	int ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
  * Generic internet control operations (ioctl's).
  */
 int
-ipx_control(so, cmd, data, ifp, td)
-	struct socket *so;
-	u_long cmd;
-	caddr_t data;
-	register struct ifnet *ifp;
-	struct thread *td;
+ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
+    struct thread *td)
 {
-	register struct ifreq *ifr = (struct ifreq *)data;
-	register struct ipx_aliasreq *ifra = (struct ipx_aliasreq *)data;
-	register struct ipx_ifaddr *ia;
+	struct ifreq *ifr = (struct ifreq *)data;
+	struct ipx_aliasreq *ifra = (struct ipx_aliasreq *)data;
+	struct ipx_ifaddr *ia;
 	struct ifaddr *ifa;
 	struct ipx_ifaddr *oia;
 	int dstIsNew, hostIsNew;
@@ -262,10 +258,9 @@ ipx_control(so, cmd, data, ifp, td)
 * Delete any previous route for an old address.
 */
 static void
-ipx_ifscrub(ifp, ia)
-	register struct ifnet *ifp;
-	register struct ipx_ifaddr *ia;
+ipx_ifscrub(struct ifnet *ifp, struct ipx_ifaddr *ia)
 {
+
 	if (ia->ia_flags & IFA_ROUTE) {
 		if (ifp->if_flags & IFF_POINTOPOINT) {
 			rtinit(&(ia->ia_ifa), (int)RTM_DELETE, RTF_HOST);
@@ -279,11 +274,8 @@ ipx_ifscrub(ifp, ia)
  * and routing table entry.
  */
 static int
-ipx_ifinit(ifp, ia, sipx, scrub)
-	register struct ifnet *ifp;
-	register struct ipx_ifaddr *ia;
-	register struct sockaddr_ipx *sipx;
-	int scrub;
+ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
+    struct sockaddr_ipx *sipx, int scrub)
 {
 	struct sockaddr_ipx oldaddr;
 	int s = splimp(), error;
@@ -335,12 +327,11 @@ ipx_ifinit(ifp, ia, sipx, scrub)
  * Return address info for specified internet network.
  */
 struct ipx_ifaddr *
-ipx_iaonnetof(dst)
-	register struct ipx_addr *dst;
+ipx_iaonnetof(struct ipx_addr *dst)
 {
-	register struct ipx_ifaddr *ia;
-	register struct ipx_addr *compare;
-	register struct ifnet *ifp;
+	struct ipx_ifaddr *ia;
+	struct ipx_addr *compare;
+	struct ifnet *ifp;
 	struct ipx_ifaddr *ia_maybe = NULL;
 	union ipx_net net = dst->x_net;
 
@@ -363,13 +354,12 @@ ipx_iaonnetof(dst)
 
 
 void
-ipx_printhost(addr)
-register struct ipx_addr *addr;
+ipx_printhost(struct ipx_addr *addr)
 {
 	u_short port;
 	struct ipx_addr work = *addr;
-	register char *p; register u_char *q;
-	register char *net = "", *host = "";
+	char *p; u_char *q;
+	char *net = "", *host = "";
 	char cport[10], chost[15], cnet[15];
 
 	port = ntohs(work.x_port);

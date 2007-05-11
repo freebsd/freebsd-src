@@ -121,16 +121,15 @@ extern struct mtx	ipxpcb_list_mtx;
 
 #ifdef _KERNEL
 int	ipx_pcballoc(struct socket *so, struct ipxpcbhead *head,
-			  struct thread *p);
+	    struct thread *p);
 int	ipx_pcbbind(struct ipxpcb *ipxp, struct sockaddr *nam,
-			 struct thread *p);
+	    struct thread *p);
 int	ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam,
-			    struct thread *p);
+	    struct thread *p);
 void	ipx_pcbdetach(struct ipxpcb *ipxp);
 void	ipx_pcbdisconnect(struct ipxpcb *ipxp);
 void	ipx_pcbfree(struct ipxpcb *ipxp);
-struct ipxpcb *
-	ipx_pcblookup(struct ipx_addr *faddr, int lport, int wildp);
+struct ipxpcb *ipx_pcblookup(struct ipx_addr *faddr, u_short lport, int wildp);
 void	ipx_getpeeraddr(struct ipxpcb *ipxp, struct sockaddr **nam);
 void	ipx_getsockaddr(struct ipxpcb *ipxp, struct sockaddr **nam);
 
