@@ -7,7 +7,7 @@ SRCS=	config.y main.c lang.l mkmakefile.c mkheaders.c \
 	mkoptions.c y.tab.h kernconf.c
 
 kernconf.c: kernconf.tmpl
-	file2c 'char kernconfstr[] = {' ',0};' < kernconf.tmpl > kernconf.c
+	file2c 'char kernconfstr[] = {' ',0};' < ${.CURDIR}/kernconf.tmpl > kernconf.c
 
 WARNS?=	6
 CFLAGS+= -I. -I${.CURDIR}
