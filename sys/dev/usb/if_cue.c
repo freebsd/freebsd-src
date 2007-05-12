@@ -70,9 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>
 #include <machine/bus.h>
-#if __FreeBSD_version < 500000
-#include <machine/clock.h>
-#endif
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -357,11 +354,7 @@ cue_setmulti(struct cue_softc *sc)
 
 	/* now program new ones */
 	IF_ADDR_LOCK(ifp);
-#if __FreeBSD_version >= 500000
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-#else
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-#endif
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -375,11 +368,7 @@ cue_setmulti(struct cue_softc *sc)
 	 * so we can receive broadcast frames.
  	 */
 	if (ifp->if_flags & IFF_BROADCAST) {
-#if __FreeBSD_version >= 500000
 		h = cue_mchash(ifp->if_broadcastaddr);
-#else
-		h = cue_mchash(etherbroadcastaddr);
-#endif
 		sc->cue_mctab[h >> 3] |= 1 << (h & 0x7);
 	}
 
@@ -487,10 +476,8 @@ USB_ATTACH(cue)
 		}
 	}
 
-#if __FreeBSD_version >= 500000
 	mtx_init(&sc->cue_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-#endif
 	CUE_LOCK(sc);
 
 #ifdef notdef
@@ -506,9 +493,7 @@ USB_ATTACH(cue)
 	if (ifp == NULL) {
 		printf("cue%d: can not if_alloc()\n", sc->cue_unit);
 		CUE_UNLOCK(sc);
-#if __FreeBSD_version >= 500000
 		mtx_destroy(&sc->cue_mtx);
-#endif
 		USB_ATTACH_ERROR_RETURN;
 	}
 	ifp->if_softc = sc;
@@ -529,11 +514,7 @@ USB_ATTACH(cue)
 	/*
 	 * Call MI attach routine.
 	 */
-#if __FreeBSD_version >= 500000
 	ether_ifattach(ifp, eaddr);
-#else
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-#endif
 	callout_handle_init(&sc->cue_stat_ch);
 	usb_register_netisr();
 	sc->cue_dying = 0;
@@ -554,12 +535,8 @@ cue_detach(device_t dev)
 
 	sc->cue_dying = 1;
 	untimeout(cue_tick, sc, sc->cue_stat_ch);
-#if __FreeBSD_version >= 500000
 	ether_ifdetach(ifp);
 	if_free(ifp);
-#else
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
-#endif
 
 	if (sc->cue_ep[CUE_ENDPT_TX] != NULL)
 		usbd_abort_pipe(sc->cue_ep[CUE_ENDPT_TX]);
@@ -569,9 +546,7 @@ cue_detach(device_t dev)
 		usbd_abort_pipe(sc->cue_ep[CUE_ENDPT_INTR]);
 
 	CUE_UNLOCK(sc);
-#if __FreeBSD_version >= 500000
 	mtx_destroy(&sc->cue_mtx);
-#endif
 
 	return(0);
 }
