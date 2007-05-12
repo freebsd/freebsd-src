@@ -154,9 +154,7 @@ struct cue_softc {
 	u_int16_t		cue_rxfilt;
 	struct ue_cdata		cue_cdata;
 	struct callout_handle	cue_stat_ch;
-#if __FreeBSD_version >= 500000
 	struct mtx		cue_mtx;
-#endif
 	char			cue_dying;
 	struct timeval		cue_rx_notice;
 	struct usb_qdat		cue_qdat;
