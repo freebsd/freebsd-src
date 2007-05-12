@@ -147,9 +147,7 @@ struct kue_softc {
 	u_int16_t		kue_rxfilt;
 	u_int8_t		*kue_mcfilters;
 	struct ue_cdata		kue_cdata;
-#if __FreeBSD_version >= 500000
 	struct mtx		kue_mtx;
-#endif
 	char			kue_dying;
 	struct timeval		kue_rx_notice;
 	struct usb_qdat		kue_qdat;
