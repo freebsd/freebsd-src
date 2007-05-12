@@ -501,7 +501,9 @@ USB_ATTACH(axe)
 	ifp->if_start = axe_start;
 	ifp->if_watchdog = axe_watchdog;
 	ifp->if_init = axe_init;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	sc->axe_qdat.ifp = ifp;
 	sc->axe_qdat.if_rxstart = axe_rxstart;
@@ -750,7 +752,7 @@ axe_tick_task(void *xsc)
 	if (!sc->axe_link && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->axe_link++;
-		if (ifp->if_snd.ifq_head != NULL)
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			axe_start(ifp);
 	}
 
@@ -815,14 +817,14 @@ axe_start(struct ifnet *ifp)
 		return;
 	}
 
-	IF_DEQUEUE(&ifp->if_snd, m_head);
+	IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 	if (m_head == NULL) {
 		AXE_UNLOCK(sc);
 		return;
 	}
 
 	if (axe_encap(sc, m_head, 0)) {
-		IF_PREPEND(&ifp->if_snd, m_head);
+		IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		AXE_UNLOCK(sc);
 		return;
@@ -1045,7 +1047,7 @@ axe_watchdog(struct ifnet *ifp)
 
 	AXE_UNLOCK(sc);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		axe_start(ifp);
 
 	return;
