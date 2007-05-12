@@ -158,6 +158,12 @@ to customize the trace output and are used by
 option and allows
 .Xr ldd 1
 to be operated as a filter more conveniently.
+If the dependency name starts with string
+.Pa lib ,
+.Ev LD_TRACE_LOADED_OBJECTS_FMT1
+is used, otherwise
+.Ev LD_TRACE_LOADED_OBJECTS_FMT2
+is used.
 The following conversions can be used:
 .Bl -tag -width 4n
 .It Li %a
