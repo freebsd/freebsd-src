@@ -638,7 +638,6 @@ static int cp_detach (device_t dev)
 
 	/* Disable the interrupt request. */
 	bus_teardown_intr (dev, bd->cp_irq, bd->cp_intrhand);
-	bus_deactivate_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
 	bus_release_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
 	bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->cp_res);
 

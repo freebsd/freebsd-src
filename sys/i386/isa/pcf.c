@@ -175,8 +175,6 @@ pcf_probe(device_t pcfdev)
 	return (0);
 error:
 	if (pcf->res_ioport != 0) {
-		bus_deactivate_resource(pcfdev, SYS_RES_IOPORT, pcf->rid_ioport,
-					pcf->res_ioport);
 		bus_release_resource(pcfdev, SYS_RES_IOPORT, pcf->rid_ioport,
 				     pcf->res_ioport);
 	}
