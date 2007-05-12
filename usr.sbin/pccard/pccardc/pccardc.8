@@ -138,7 +138,7 @@ is the address (hex) to map the memory to in the computer's address space, and
 is the size of memory window (kb).
 .It Fl a Ar iobase
 .Ar iobase
-specifies the port a number to be mapped to the I/O window (hex)
+specifies the port number to be mapped to the I/O window (hex)
 .It Fl i Ar irq
 .Ar irq
 specifies the IRQ (decimal from 1 to 15) the card will use for interrupts.
@@ -164,7 +164,7 @@ Prints help for
 .It
 .Ic pccardmem Ar addr
 .Pp
-Specifies the host address using PC-CARD controller(PCIC)
+Specifies the host address range PC-CARD controller(PCIC)
 will use to map cards to.
 Because the PCIC needs a contiguous 16KB memory, and most machines
 have other ROMs or devices at other places in the ISA I/O memory
