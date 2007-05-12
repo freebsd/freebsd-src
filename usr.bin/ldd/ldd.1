@@ -32,9 +32,16 @@ The argument is a format string passed to
 and allows customization of
 .Nm Ns 's
 output.
+If one is given, it sets
+.Ev LD_TRACE_LOADED_OBJECTS_FMT1 .
+If two are given, they set
+.Ev LD_TRACE_LOADED_OBJECTS_FMT1
+and
+.Ev LD_TRACE_LOADED_OBJECTS_FMT2 ,
+respectively.
 See
 .Xr rtld 1
-for a list of recognized conversion characters.
+for details, including a list of recognized conversion characters.
 .Pp
 The
 .Fl a
