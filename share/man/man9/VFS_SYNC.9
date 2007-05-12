@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_SYNC "struct mount *mp" "int waitfor" "struct ucred *cred" "struct thread *td"
+.Fn VFS_SYNC "struct mount *mp" "int waitfor" "struct thread *td"
 .Sh DESCRIPTION
 The
 .Fn VFS_SYNC
@@ -61,8 +61,6 @@ start all I/O, but do not wait for it
 .It Dv MNT_LAZY
 push data not written by file system syncer
 .El
-.It Fa cred
-The caller's credentials.
 .It Fa td
 The calling thread.
 .El
