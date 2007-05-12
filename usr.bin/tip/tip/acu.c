@@ -100,10 +100,10 @@ con(void)
 	if ((acu = acutype(AT)) == NOACU)
 		return ("unknown ACU type");
 	if (*cp != '@') {
-		while (cp != NULL && *cp) {
+		while (*cp) {
 			phnum = cp;
-			cp = strpbrk(cp, ",");
-			if (cp != NULL && *cp != '\0')
+			cp += strcspn(cp, ",");
+			if (*cp != '\0')
 				*cp++ = '\0';
 
 			if (strlen(phnum) == 0)
