@@ -43,9 +43,12 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/sbuf.h>
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/param.h>
+
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
@@ -73,11 +76,19 @@ char 	srcdir[MAXPATHLEN];
 int	debugging;
 int	profiling;
 int	found_defaults;
+int	incignore;
+
+/*
+ * Preserve old behaviour in INCLUDE_CONFIG_FILE handling (files are included
+ * literally).
+ */
+int	filebased = 0;
 
 static void configfile(void);
 static void get_srcdir(void);
 static void usage(void);
 static void cleanheaders(char *);
+static void kernconfdump(const char *);
 
 struct hdr_list {
 	char *h_name;
@@ -96,13 +107,14 @@ main(int argc, char **argv)
 	int ch, len;
 	char *p;
 	char xxx[MAXPATHLEN];
-	FILE *fp;
+	char *kernfile;
 
-	while ((ch = getopt(argc, argv, "d:gpV")) != -1)
+	kernfile = NULL;
+	while ((ch = getopt(argc, argv, "Cd:gpVx:")) != -1)
 		switch (ch) {
-		case 'V':
-			printf("%d\n", CONFIGVERS);
-			exit(0);
+		case 'C':
+			filebased = 1;
+			break;
 		case 'd':
 			if (*destdir == '\0')
 				strlcpy(destdir, optarg, sizeof(destdir));
@@ -115,6 +127,12 @@ main(int argc, char **argv)
 		case 'p':
 			profiling++;
 			break;
+		case 'V':
+			printf("%d\n", CONFIGVERS);
+			exit(0);
+		case 'x':
+			kernfile = optarg;
+			break;
 		case '?':
 		default:
 			usage();
@@ -122,23 +140,23 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (kernfile != NULL) {
+		kernconfdump(kernfile);
+		exit(EXIT_SUCCESS);
+	}
+
 	if (argc != 1)
 		usage();
 
 	PREFIX = *argv;
-	fp = fopen(PREFIX, "r");
-	if (fp == NULL)
+	/*
+	 * We mark lack of DEFAULTS here. Once we hit EOF in PREFIX, yywrap()
+	 * will try to bring DEFAULTS to the playground, if this exists.
+	 */
+	found_defaults = 0;
+	if (freopen(PREFIX, "r", stdin) == NULL)
 		err(2, "%s", PREFIX);
-	fclose(fp);
-	if (freopen("DEFAULTS", "r", stdin) != NULL) {
-		found_defaults = 1;
-		yyfile = "DEFAULTS";
-	} else {
-		if (freopen(PREFIX, "r", stdin) == NULL)
-			err(2, "%s", PREFIX);
-		yyfile = PREFIX;
-	}
-
+	yyfile = PREFIX;
 	if (*destdir != '\0') {
 		len = strlen(destdir);
 		while (len > 1 && destdir[len - 1] == '/')
@@ -156,11 +174,16 @@ main(int argc, char **argv)
 	} else if (!S_ISDIR(buf.st_mode))
 		errx(2, "%s isn't a directory", p);
 
+	SLIST_INIT(&cputype);
+	SLIST_INIT(&mkopt);
+	SLIST_INIT(&opt);
+	SLIST_INIT(&rmopts);
+	STAILQ_INIT(&cfgfiles);
 	STAILQ_INIT(&dtab);
 	STAILQ_INIT(&fntab);
-	SLIST_INIT(&cputype);
 	STAILQ_INIT(&ftab);
 	STAILQ_INIT(&hints);
+	STAILQ_INIT(&rmdtab);
 	if (yyparse())
 		exit(3);
 
@@ -206,12 +229,12 @@ main(int argc, char **argv)
 		(void) unlink(path(machinearch));
 		(void) symlink(xxx, path(machinearch));
 	}
+	configfile();			/* put config file into kernel*/
 	options();			/* make options .h files */
 	makefile();			/* build Makefile */
 	makeenv();			/* build env.c */
 	makehints();			/* build hints.c */
 	headers();			/* make a lot of .h files */
-	configfile();			/* put config file into kernel*/
 	cleanheaders(p);
 	printf("Kernel build directory is %s\n", p);
 	printf("Don't forget to do ``make cleandepend && make depend''\n");
@@ -235,8 +258,9 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: config [-Vgp] [-d destdir] sysname\n");
-	exit(1);
+	fprintf(stderr, "usage: config [-CgpV] [-d destdir] sysname\n");
+	fprintf(stderr, "       config -x kernel\n");
+	exit(EX_USAGE);
 }
 
 /*
@@ -362,40 +386,119 @@ path(const char *file)
 	return (cp);
 }
 
+/*
+ * Generate configuration file based on actual settings. With this mode, user
+ * will be able to obtain and build conifguration file with one command.
+ */
+static void
+configfile_dynamic(struct sbuf *sb)
+{
+	struct cputype *cput;
+	struct device *d;
+	struct opt *ol;
+	char *lend;
+
+	asprintf(&lend, "\\n\\\n");
+	assert(lend != NULL);
+	sbuf_printf(sb, "options\t%s%s", OPT_AUTOGEN, lend);
+	sbuf_printf(sb, "ident\t%s%s", ident, lend);
+	sbuf_printf(sb, "machine\t%s%s", machinename, lend);
+	SLIST_FOREACH(cput, &cputype, cpu_next)
+		sbuf_printf(sb, "cpu\t%s%s", cput->cpu_name, lend);
+	SLIST_FOREACH(ol, &mkopt, op_next)
+		sbuf_printf(sb, "makeoptions\t%s=%s%s", ol->op_name,
+		    ol->op_value, lend);
+	SLIST_FOREACH(ol, &opt, op_next) {
+		if (strncmp(ol->op_name, "DEV_", 4) == 0)
+			continue;
+		sbuf_printf(sb, "options\t%s", ol->op_name);
+		if (ol->op_value != NULL) {
+			sbuf_printf(sb, "=%s%s", ol->op_value, lend);
+		} else {
+			sbuf_printf(sb, "%s", lend);
+		}
+	}
+	/*
+	 * Mark this file as containing everything we need.
+	 */
+	STAILQ_FOREACH(d, &dtab, d_next)
+		sbuf_printf(sb, "device\t%s%s", d->d_name, lend);
+	free(lend);
+}
+
+/*
+ * Generate file from the configuration files.
+ */
+static void
+configfile_filebased(struct sbuf *sb)
+{
+	FILE *cff;
+	struct cfgfile *cf;
+	int i;
+
+	STAILQ_FOREACH(cf, &cfgfiles, cfg_next) {
+		cff = fopen(cf->cfg_path, "r");
+		if (cff == NULL) {
+			warn("Couldn't open file %s", cf->cfg_path);
+			continue;
+		}
+		while ((i = getc(cff)) != EOF) {
+			if (i == '\n')
+				sbuf_printf(sb, "\\n\\\n");
+			else if (i == '"' || i == '\'')
+				sbuf_printf(sb, "\\%c", i);
+			else
+				sbuf_putc(sb, i);
+		}
+		fclose(cff);
+	}
+}
+
 static void
 configfile(void)
 {
-	FILE *fi, *fo;
+	FILE *fo;
+	struct sbuf *sb;
 	char *p;
-	int i;
-	
-	fi = fopen(PREFIX, "r");
-	if (!fi)
-		err(2, "%s", PREFIX);
-	fo = fopen(p=path("config.c.new"), "w");
+
+	/* Add main configuration file to the list of files to be included */
+	cfgfile_add(PREFIX);
+	p = path("config.c.new");
+	fo = fopen(p, "w");
 	if (!fo)
 		err(2, "%s", p);
-	fprintf(fo, "#include \"opt_config.h\"\n");
-	fprintf(fo, "#ifdef INCLUDE_CONFIG_FILE \n");
-	fprintf(fo, "const char config[] = \"\\\n");
-	fprintf(fo, "START CONFIG FILE %s\\n\\\n___", PREFIX);
-	while (EOF != (i=getc(fi))) {
-		if (i == '\n') {
-			fprintf(fo, "\\n\\\n___");
-		} else if (i == '\"') {
-			fprintf(fo, "\\\"");
-		} else if (i == '\\') {
-			fprintf(fo, "\\\\");
-		} else {
-			putc(i, fo);
-		}
+	sb = sbuf_new(NULL, NULL, 2048, SBUF_AUTOEXTEND);
+	assert(sb != NULL);
+	sbuf_clear(sb);
+	/*
+	 * Try to read all configuration files. Since those will be present as
+	 * C string in the macro, we have to slash their ends then the line
+	 * wraps.
+	 */
+	if (filebased) {
+		/* Is needed, can be used for backward compatibility. */
+		configfile_filebased(sb);
+	} else {
+		configfile_dynamic(sb);
 	}
-	fprintf(fo, "\\n\\\nEND CONFIG FILE %s\\n\\\n", PREFIX);
-	fprintf(fo, "\";\n");
-	fprintf(fo, "\n#endif /* INCLUDE_CONFIG_FILE */\n");
-	fclose(fi);
+	sbuf_finish(sb);
+	/* 
+	 * We print first part of the tamplate, replace our tag with
+	 * configuration files content and later continue writing our
+	 * template.
+	 */
+	p = strstr(kernconfstr, KERNCONFTAG);
+	if (p == NULL)
+		errx(EXIT_FAILURE, "Something went terribly wrong!");
+	*p = '\0';
+	fprintf(fo, "%s", kernconfstr);
+	fprintf(fo, "%s", sbuf_data(sb));
+	p += strlen(KERNCONFTAG);
+	fprintf(fo, "%s", p);
+	sbuf_delete(sb);
 	fclose(fo);
 	moveifchanged(path("config.c.new"), path("config.c"));
+	cfgfile_removeall();
 }
 
 /*
@@ -523,4 +626,58 @@ remember(const char *file)
 	hl->h_name = s;
 	hl->h_next = htab;
 	htab = hl;
+}
+
+/*
+ * This one is quick hack. Will be probably moved to elf(3) interface.
+ * It takes kernel configuration file name, passes it as an argument to
+ * elfdump -a, which output is parsed by some UNIX tools...
+ */
+static void
+kernconfdump(const char *file)
+{
+	struct stat st;
+	FILE *fp, *pp;
+	int error, len, osz, r;
+	unsigned int off, size;
+	char *cmd, *o;
+
+	r = open(file, O_RDONLY);
+	if (r == -1)
+		errx(EXIT_FAILURE, "Couldn't open file '%s'", file);
+	error = fstat(r, &st);
+	if (error == -1)
+		errx(EXIT_FAILURE, "fstat() failed");
+	if (S_ISDIR(st.st_mode))
+		errx(EXIT_FAILURE, "'%s' is a directory", file);
+	fp = fdopen(r, "r");
+	if (fp == NULL)
+		errx(EXIT_FAILURE, "fdopen() failed");
+	osz = 1024;
+	o = calloc(1, osz);
+	if (o == NULL)
+		errx(EXIT_FAILURE, "Couldn't allocate memory");
+	/* ELF note section header. */
+	asprintf(&cmd, "/usr/bin/elfdump -c %s | grep -A 5 kern_conf"
+	    "| tail -2 | cut -d ' ' -f 2 | paste - - -", file);
+	if (cmd == NULL)
+		errx(EXIT_FAILURE, "asprintf() failed");
+	pp = popen(cmd, "r");
+	if (pp == NULL)
+		errx(EXIT_FAILURE, "popen() failed");
+	free(cmd);
+	len = fread(o, osz, 1, pp);
+	pclose(pp);
+	r = sscanf(o, "%d\t%d", &off, &size);
+	free(o);
+	if (r != 2)
+		errx(EXIT_FAILURE, "File %s doesn't contain configuration "
+		    "file. Either unsupported, or not compiled with "
+		    "INCLUDE_CONFIG_FILE", file);
+	r = fseek(fp, off, SEEK_CUR);
+	if (r != 0)
+		errx(EXIT_FAILURE, "fseek() failed");
+	while ((r = fgetc(fp)) != EOF && size-- > 0)
+		fputc(r, stdout);
+	fclose(fp);
 }
