@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
+#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -397,6 +398,7 @@ configfile_dynamic(struct sbuf *sb)
 	struct device *d;
 	struct opt *ol;
 	char *lend;
+	unsigned int i;
 
 	asprintf(&lend, "\\n\\\n");
 	assert(lend != NULL);
@@ -413,7 +415,16 @@ configfile_dynamic(struct sbuf *sb)
 			continue;
 		sbuf_printf(sb, "options\t%s", ol->op_name);
 		if (ol->op_value != NULL) {
-			sbuf_printf(sb, "=%s%s", ol->op_value, lend);
+			sbuf_putc(sb, '=');
+			for (i = 0; i < strlen(ol->op_value); i++) {
+				if (ol->op_value[i] == '"')
+					sbuf_printf(sb, "\\%c",
+					    ol->op_value[i]);
+				else
+					sbuf_printf(sb, "%c",
+					    ol->op_value[i]);
+			}
+			sbuf_printf(sb, "%s", lend);
 		} else {
 			sbuf_printf(sb, "%s", lend);
 		}
