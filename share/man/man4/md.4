@@ -50,7 +50,14 @@ A regular file is used as backing store.
 This allows for mounting ISO images without the tedious
 detour over actual physical media.
 .It Cm swap
-Backing store is allocated from swap space.
+Backing store is allocated from buffer memory.
+Pages get pushed out to the swap when the system is under memory
+pressure, otherwise they stay in the operating memory.
+Using
+.Cm swap
+backing is generally preferable over
+.Cm malloc
+backing.
 .El
 .Pp
 For more information, please see
