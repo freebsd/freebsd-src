@@ -207,6 +207,30 @@ hex(const char *str)
 	return num;
 }
 
+void
+cfgfile_add(const char *fname)
+{
+	struct cfgfile *cf;
+
+	cf = calloc(1, sizeof(*cf));
+	assert(cf != NULL);
+	asprintf(&cf->cfg_path, "%s", fname);
+	STAILQ_INSERT_TAIL(&cfgfiles, cf, cfg_next);
+}
+
+void
+cfgfile_removeall(void)
+{
+	struct cfgfile *cf;
+
+	while (!STAILQ_EMPTY(&cfgfiles)) {
+		cf = STAILQ_FIRST(&cfgfiles);
+		STAILQ_REMOVE_HEAD(&cfgfiles, cfg_next);
+		if (cf->cfg_path != NULL)
+			free(cf->cfg_path);
+		free(cf);
+	}
+}
 
 /*
  * Open the named file for inclusion at the current point.  Returns 0 on
@@ -222,6 +246,7 @@ include(const char *fname, int ateof)
 	struct incl *in;
 	char *fnamebuf;
 
+	fnamebuf = NULL;
 	fp = fopen(fname, "r");
 	if (fp == NULL && fname[0] != '.' && fname[0] != '/') {
 		asprintf(&fnamebuf, "../../conf/%s", fname);
@@ -234,6 +259,7 @@ include(const char *fname, int ateof)
 		yyerror("cannot open included file");
 		return (-1);
 	}
+	cfgfile_add(fnamebuf == NULL ? fname : fnamebuf);
 	in = malloc(sizeof(*in));
 	assert(in != NULL);
 	in->in_prev = inclp;
