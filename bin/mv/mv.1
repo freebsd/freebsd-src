@@ -113,9 +113,9 @@ Cause
 to be verbose, showing files after they are moved.
 .El
 .Pp
-It is an error for either the
+It is an error for the
 .Ar source
-operand or the destination path to specify a directory unless both do.
+operand to specify a directory if the target exists and is not a directory.
 .Pp
 If the destination path does not have a mode which permits writing,
 .Nm
