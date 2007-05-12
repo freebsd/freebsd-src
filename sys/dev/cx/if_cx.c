@@ -947,13 +947,10 @@ static int cx_detach (device_t dev)
 	}
 	CX_UNLOCK (bd);
 	bus_teardown_intr (dev, bd->irq_res, bd->intrhand);
-	bus_deactivate_resource (dev, SYS_RES_IRQ, bd->irq_rid, bd->irq_res);
 	bus_release_resource (dev, SYS_RES_IRQ, bd->irq_rid, bd->irq_res);
 	
-	bus_deactivate_resource (dev, SYS_RES_DRQ, bd->drq_rid, bd->drq_res);
 	bus_release_resource (dev, SYS_RES_DRQ, bd->drq_rid, bd->drq_res);
 	
-	bus_deactivate_resource (dev, SYS_RES_IOPORT, bd->base_rid, bd->irq_res);
 	bus_release_resource (dev, SYS_RES_IOPORT, bd->base_rid, bd->base_res);
 
 	CX_LOCK (bd);
