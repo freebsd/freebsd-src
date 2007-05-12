@@ -28,7 +28,7 @@
 .\"     @(#)config.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2004
+.Dd May 8, 2007
 .Dt CONFIG 8
 .Os
 .Sh NAME
@@ -36,9 +36,11 @@
 .Nd build system configuration files
 .Sh SYNOPSIS
 .Nm
-.Op Fl Vgp
+.Op Fl CVgp
 .Op Fl d Ar destdir
 .Ar SYSTEM_NAME
+.Nm
+.Op Fl x Ar kernel
 .Sh DESCRIPTION
 .\" This is the old version of the
 .\" .Nm
@@ -76,6 +78,11 @@ Available options and operands:
 Print the
 .Nm
 version number.
+.It Fl C
+If the INCLUDE_CONFIG_FILE is present in a configuration file,
+kernel image will contain full configuration files included
+literally (preserving comments).
+This flag is kept for backward compatibility.
 .It Fl d Ar destdir
 Use
 .Ar destdir
@@ -87,6 +94,12 @@ does not append
 to the directory given.
 .It Fl g
 Configure a system for debugging.
+.It Fl x Ar kernel
+Print kernel configuration file embedded into a kernel
+file.
+This option makes sense only if 
+.Cd "options INCLUDE_CONFIG_FILE"
+entry was present in your configuration file.
 .It Fl p
 Configure a system for profiling; for example,
 .Xr kgmon 8
@@ -151,17 +164,6 @@ the problems in the configuration file should be corrected and
 should be run again.
 Attempts to compile a system that had configuration errors
 are likely to fail.
-.Pp
-If the
-.Cd "options INCLUDE_CONFIG_FILE"
-is used in the configuration file the
-entire input file is embedded in the new kernel.
-This means that
-.Xr strings 1
-can be used to extract it from a kernel:
-to extract the configuration information, use the command
-.Pp
-.Dl "strings -n 3 kernel | sed -n 's/^___//p'"
 .Sh DEBUG KERNELS
 Traditional
 .Bx
@@ -254,5 +256,19 @@ The
 .Nm
 utility appeared in
 .Bx 4.1 .
+.Pp
+Before support for 
+.Fl x
+was introduced,
+.Cd "options INCLUDE_CONFIG_FILE"
+included entire configuration file that used to be embedded in
+the new kernel.
+This meant that
+.Xr strings 1
+could be used to extract it from a kernel:
+to extract the configuration information, you had to use 
+the command:
+.Pp
+.Dl "strings -n 3 kernel | sed -n 's/^___//p'"
 .Sh BUGS
 The line numbers reported in error messages are usually off by one.
