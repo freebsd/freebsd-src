@@ -888,7 +888,6 @@ static int ce_detach (device_t dev)
 
 	/* Disable the interrupt request. */
 	bus_teardown_intr (dev, bd->ce_irq, bd->ce_intrhand);
-	bus_deactivate_resource (dev, SYS_RES_IRQ, 0, bd->ce_irq);
 	bus_release_resource (dev, SYS_RES_IRQ, 0, bd->ce_irq);
 	TAU32_DestructiveHalt (b->ddk.pControllerObject, 0);
 	bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->ce_res);
