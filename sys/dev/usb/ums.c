@@ -53,11 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/tty.h>
 #include <sys/file.h>
-#if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
-#else
-#include <sys/select.h>
-#endif
 #include <sys/poll.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
@@ -71,11 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_quirks.h>
 #include <dev/usb/hid.h>
 
-#if __FreeBSD_version >= 500000
 #include <sys/mouse.h>
-#else
-#include <machine/mouse.h>
-#endif
 
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (umsdebug) logprintf x

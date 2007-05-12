@@ -167,17 +167,10 @@ usb_block_allocmem(bus_dma_tag_t tag, size_t size, size_t align,
 	if (p == NULL)
 		return (USBD_NOMEM);
 
-#if __FreeBSD_version >= 500000
 	if (bus_dma_tag_create(tag, align, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    size, sizeof(p->segs) / sizeof(p->segs[0]), size,
 	    0, NULL, NULL, &p->tag) == ENOMEM)
-#else
-	if (bus_dma_tag_create(tag, align, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    size, sizeof(p->segs) / sizeof(p->segs[0]), size,
-	    0, &p->tag) == ENOMEM)
-#endif
 	{
 		goto free;
 	}
