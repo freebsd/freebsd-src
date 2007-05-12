@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
@@ -294,6 +295,38 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel,
     CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0, sysctl_kern_securelvl,
     "I", "Current secure level");
+
+/* Actual kernel configuration options. */
+extern char kernconfstring[];
+
+static int
+sysctl_kern_config(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf *sb;
+	int error;
+	char *p;
+
+	sb = sbuf_new(NULL, NULL, 2048, SBUF_AUTOEXTEND);
+	if (sb == NULL)
+		return (ENOMEM);
+	sbuf_clear(sb);
+	p = kernconfstring;
+	if (p == NULL || *p == '\0') {
+		sbuf_printf(sb, "No kernel configuration\n");
+	} else {
+		sbuf_printf(sb, "%s", p);
+	}
+	sbuf_trim(sb);
+	sbuf_putc(sb, '\n');
+	sbuf_finish(sb);
+	error = sysctl_handle_string(oidp, sbuf_data(sb), sbuf_len(sb), req);
+	if (error)
+		return (error);
+	sbuf_delete(sb);
+	return (error);
+}
+SYSCTL_PROC(_kern, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RW, 
+    0, 0, sysctl_kern_config, "", "Kernel configuration file");
 
 char domainname[MAXHOSTNAMELEN];
 SYSCTL_STRING(_kern, KERN_NISDOMAINNAME, domainname, CTLFLAG_RW,

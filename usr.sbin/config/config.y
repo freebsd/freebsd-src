@@ -70,6 +70,7 @@
  * $FreeBSD$
  */
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
@@ -77,7 +78,7 @@
 
 #include "config.h"
 
-struct	device_head dtab;
+struct	device_head dtab, rmdtab;
 char	*ident;
 char	*env;
 int	envmode;
@@ -104,6 +105,9 @@ devopt(char *dev)
 	return ret;
 }
 
+static void	rmoptall(struct opt_head *list, struct opt_head *torem);
+static void	rmdevall(struct device_head *dh, struct device_head *torem);
+
 %}
 %%
 Configuration:
@@ -122,7 +126,10 @@ Spec:
 	Config_spec SEMICOLON
 		|
 	INCLUDE ID SEMICOLON
-	      = { include($2, 0); };
+	      = {
+	          if (incignore == 0)
+		  	include($2, 0);
+		};
 		|
 	FILES ID SEMICOLON
 	      = { newfile($2); };
@@ -170,11 +177,11 @@ Config_spec:
 	OPTIONS Opt_list
 		|
 	NOOPTION Save_id
-	      = { rmopt(&opt, $2); } |
+	      = { rmopt_schedule(&rmopts, $2); } |
 	MAKEOPTIONS Mkopt_list
 		|
 	NOMAKEOPTION Save_id
-	      = { rmopt(&mkopt, $2); } |
+	      = { rmopt_schedule(&mkopt, $2); } |
 	IDENT ID
 	      = { ident = $2; } |
 	System_spec
@@ -298,10 +305,10 @@ NoDevice:
 	      = {
 		char *s = devopt($1);
 
-		rmopt(&opt, s);
+		rmopt_schedule(&rmopts, s);
 		free(s);
 		/* and the device part */
-		rmdev($1);
+		rmdev_schedule(&rmdtab, $1);
 		} ;
 
 %%
@@ -317,14 +324,16 @@ int
 yywrap(void)
 {
 
-	if (found_defaults) {
-		if (freopen(PREFIX, "r", stdin) == NULL)
-			err(2, "%s", PREFIX);		
-		yyfile = PREFIX;
+	if (found_defaults == 0 && incignore == 0) {
+		if (freopen("DEFAULTS", "r", stdin) == NULL)
+			return 1;
+		yyfile = "DEFAULTS";
 		yyline = 0;
-		found_defaults = 0;
+		found_defaults = 1;
 		return 0;
 	}
+	rmoptall(&opt, &rmopts);
+	rmdevall(&dtab, &rmdtab);
 	return 1;
 }
 
@@ -345,11 +354,11 @@ newfile(char *name)
  * Find a device in the list of devices.
  */
 static struct device *
-finddev(char *name)
+finddev(struct device_head *dlist, char *name)
 {
 	struct device *dp;
 
-	STAILQ_FOREACH(dp, &dtab, d_next)
+	STAILQ_FOREACH(dp, dlist, d_next)
 		if (eq(dp->d_name, name))
 			return (dp);
 
@@ -364,7 +373,7 @@ newdev(char *name)
 {
 	struct device *np;
 
-	if (finddev(name)) {
+	if (finddev(&dtab, name)) {
 		printf("WARNING: duplicate device `%s' encountered.\n", name);
 		return;
 	}
@@ -375,17 +384,36 @@ newdev(char *name)
 }
 
 /*
- * Remove a device from the list of devices.
+ * Schedule a device to removal.
  */
 static void
-rmdev(char *name)
+rmdev_schedule(struct device_head *dh, char *name)
 {
 	struct device *dp;
 
-	dp = finddev(name);
-	if (dp != NULL) {
-		STAILQ_REMOVE(&dtab, dp, device, d_next);
-		free(dp->d_name);
+	dp = calloc(1, sizeof(struct device));
+	dp->d_name = strdup(name);
+	assert(dp->d_name != NULL);
+	STAILQ_INSERT_HEAD(dh, dp, d_next);
+}
+
+/*
+ * Take care a devices previously scheduled for removal.
+ */
+static void
+rmdevall(struct device_head *dh, struct device_head *torem)
+{
+	struct device *dp, *rdp;
+
+	while (!STAILQ_EMPTY(torem)) {
+		dp = STAILQ_FIRST(torem);
+		STAILQ_REMOVE_HEAD(torem, d_next);
+		rdp = finddev(dh, dp->d_name);
+		if (rdp != NULL) {
+			STAILQ_REMOVE(dh, rdp, device, d_next);
+			free(rdp->d_name);
+			free(rdp);
+		}
 		free(dp);
 	}
 }
@@ -413,6 +441,14 @@ newopt(struct opt_head *list, char *name, char *value)
 {
 	struct opt *op;
 
+	/*
+	 * Ignore inclusions listed explicitly for configuration files.
+	 */
+	if (eq(name, OPT_AUTOGEN)) {
+		incignore = 1;
+		return;
+	}
+
 	if (findopt(list, name)) {
 		printf("WARNING: duplicate option `%s' encountered.\n", name);
 		return;
@@ -429,16 +465,35 @@ newopt(struct opt_head *list, char *name, char *value)
  * Remove an option from the list of options.
  */
 static void
-rmopt(struct opt_head *list, char *name)
+rmopt_schedule(struct opt_head *list, char *name)
 {
 	struct opt *op;
 
-	op = findopt(list, name);
-	if (op != NULL) {
-		SLIST_REMOVE(list, op, opt, op_next);
-		free(op->op_name);
-		if (op->op_value != NULL)
-			free(op->op_value);
+	op = calloc(1, sizeof(*op));
+	op->op_name = ns(name);
+	SLIST_INSERT_HEAD(list, op, op_next);
+}
+
+/*
+ * Remove all options that were scheduled for removal.
+ */
+static void
+rmoptall(struct opt_head *list, struct opt_head *torem)
+{
+	struct opt *op, *rop;
+
+	op = rop = NULL;
+	while (!SLIST_EMPTY(torem)) {
+		op = SLIST_FIRST(torem);
+		SLIST_REMOVE_HEAD(torem, op_next);
+		rop = findopt(list, op->op_name);
+		if (rop != NULL) {
+			SLIST_REMOVE(list, rop, opt, op_next);
+			free(rop->op_name);
+			if (rop->op_value != NULL)
+				free(rop->op_value);
+			free(rop);
+		}
 		free(op);
 	}
 }
