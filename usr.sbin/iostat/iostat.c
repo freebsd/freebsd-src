@@ -673,9 +673,13 @@ devstats(int perf_select, long double etime, int havelast)
 			printf("           cpu ");
 		printf("\n");
 		if (Iflag == 0)
-			printf("device     r/s   w/s    kr/s    kw/s wait svc_t  %%b  ");
+			printf("%s%s%s%s%s%s%s%s",
+			    "device", "     r/s", "   w/s", "    kr/s",
+			    "    kw/s", " wait", " svc_t", "  %b  ");
 		else
-			printf("device     r/i   w/i    kr/i    kw/i wait svc_t  %%b  ");
+			printf("%s%s%s%s%s%s%s%s",
+			    "device", "     r/i", "   w/i", "    kr/i",
+			    "    kw/i", " wait", " svc_t", "  %b  ");
 		if (Tflag > 0)
 			printf("tin tout ");
 		if (Cflag > 0)
@@ -745,16 +749,20 @@ devstats(int perf_select, long double etime, int havelast)
 					    devname, transfers_per_second_read,
 					    transfers_per_second_write,
 					    mb_per_second_read * 1024,
-					    mb_per_second_write * 1024, queue_len,
+					    mb_per_second_write * 1024,
+					    queue_len,
 					    ms_per_transaction, busy_pct);
 				else
 					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
-					    devname, (long double)total_transfers_read,
+					    devname,
+					    (long double)total_transfers_read,
 					    (long double)total_transfers_write,
-					    (long double)total_bytes_read / 1024,
-					    (long double)total_bytes_write / 1024, queue_len,
+					    (long double)
+					        total_bytes_read / 1024,
+					    (long double)
+					        total_bytes_write / 1024,
+					    queue_len,
 					    ms_per_transaction, busy_pct);
-				
 				if (firstline) {
 					/*
 					 * If this is the first device
