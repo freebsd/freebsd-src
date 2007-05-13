@@ -1135,18 +1135,14 @@ RM_I=-v
 
 delete-old-files:
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
-.for file in ${OLD_FILES}
 # Ask for every old file if the user really wants to remove it.
 # It's annoying, but better safe than sorry.
-	@if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then \
-		rm ${RM_I} "${DESTDIR}/${file}" || true; \
-		if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then\
-			echo "Removing schg flag on ${DESTDIR}/${file}"; \
-			chflags noschg "${DESTDIR}/${file}"; \
-			rm ${RM_I} "${DESTDIR}/${file}"; \
+	@(cd ${DESTDIR}/ && for file in ${OLD_FILES}; do \
+		if [ -f "./$${file}" -o -L "./$${file}" ]; then \
+			chflags noschg "./$${file}" 2>/dev/null || true; \
+			rm ${RM_I} "${DESTDIR}/$${file}" || true; \
 		fi; \
-	fi
-.endfor
+	done)
 # Remove catpages without corresponding manpages.
 	@3<&0; \
 	find ${DESTDIR}/usr/share/man/cat* ! -type d | \
@@ -1161,11 +1157,11 @@ delete-old-files:
 
 check-old-files:
 	@echo ">>> Checking for old files"
-.for file in ${OLD_FILES}
-	@if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then \
-		 echo "${DESTDIR}/${file}"; \
-	fi
-.endfor
+	@(cd ${DESTDIR}/ && for file in ${OLD_FILES}; do \
+		if [ -f "./$${file}" -o -L "./$${file}" ]; then \
+		 	echo "${DESTDIR}/$${file}"; \
+		fi; \
+	done)
 # Check for catpages without corresponding manpages.
 	@find ${DESTDIR}/usr/share/man/cat* ! -type d | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
@@ -1179,25 +1175,21 @@ check-old-files:
 delete-old-libs:
 	@echo ">>> Removing old libraries"
 	@echo "${OLD_LIBS_MESSAGE}" | fmt
-.for file in ${OLD_LIBS}
-	@if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then \
-		rm ${RM_I} "${DESTDIR}/${file}" || true; \
-		if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then\
-			echo "Removing schg flag on ${DESTDIR}/${file}"; \
-			chflags noschg "${DESTDIR}/${file}"; \
-			rm ${RM_I} "${DESTDIR}/${file}"; \
+	@(cd ${DESTDIR}/ && for file in ${OLD_LIBS}; do \
+		if [ -f "./$${file}" -o -L "./$${file}" ]; then \
+			chflags noschg "./$${file}" 2>/dev/null || true; \
+			rm ${RM_I} "${DESTDIR}/$${file}" || true; \
 		fi; \
-	fi
-.endfor
+	done)
 	@echo ">>> Old libraries removed"
 
 check-old-libs:
 	@echo ">>> Checking for old libraries"
-.for file in ${OLD_LIBS}
-	@if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then \
-		echo "${DESTDIR}/${file}"; \
-	fi
-.endfor
+	@(cd ${DESTDIR}/ && for file in ${OLD_LIBS}; do \
+		if [ -f "./$${file}" -o -L "./$${file}" ]; then \
+			echo "${DESTDIR}/$${file}"; \
+		fi; \
+	done)
 
 delete-old-dirs:
 	@echo ">>> Removing old directories"
