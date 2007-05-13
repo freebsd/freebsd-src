@@ -75,6 +75,18 @@ struct tcptemp {
 
 #define tcp6cb		tcpcb  /* for KAME src sync over BSD*'s */
 
+/* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
+#ifdef INET6
+#define ND6_HINT(tp)						\
+do {								\
+	if ((tp) && (tp)->t_inpcb &&				\
+	    ((tp)->t_inpcb->inp_vflag & INP_IPV6) != 0)		\
+		nd6_nud_hint(NULL, NULL, 0);			\
+} while (0)
+#else
+#define ND6_HINT(tp)
+#endif
+
 /*
  * Tcp control block, one per tcp; fields:
  * Organized for 16 byte cacheline efficiency.
@@ -508,6 +520,7 @@ void	 tcp_drain(void);
 void	 tcp_fasttimo(void);
 void	 tcp_init(void);
 void	 tcp_fini(void *);
+int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
 void	 tcp_reass_init(void);
 void	 tcp_input(struct mbuf *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, int *);
@@ -523,6 +536,8 @@ struct tcpcb *
 int	 tcp_output(struct tcpcb *);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
+void	 tcp_tw_init(void);
+void	 tcp_tw_zone_change(void);
 int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
