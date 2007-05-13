@@ -4,8 +4,7 @@
 # Makefile for i386 links, tags file
 
 # SYS is normally set in Make.tags.inc
-# SYS=/sys
-SYS=/nsys
+SYS=/sys
 
 TAGDIR=	i386
 
@@ -25,7 +24,8 @@ links::
 	-for i in ${DI386}; do \
 	    (cd $$i && { rm -f tags; ln -s ../tags tags; }) done
 
-SI386=	${SYS}/i386/apm/*.[ch] \
+SI386=	${SYS}/i386/acpica/*.[ch] ${SYS}/i386/bios/*.[ch] \
+	${SYS}/i386/cpufreq/*.[ch] ${SYS}/i386/pci/*.[ch] \
 	${SYS}/i386/i386/*.[ch] ${SYS}/i386/ibcs2/*.[ch] \
 	${SYS}/i386/include/*.[ch] ${SYS}/i386/isa/*.[ch] \
 	${SYS}/i386/linux/*.[ch]
