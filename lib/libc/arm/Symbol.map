@@ -11,6 +11,7 @@ FBSD_1.0 {
 	/* PSEUDO syscalls */
 	_exit;
 
+	_mcount;
 	_setjmp;
 	_longjmp;
 	alloca;
@@ -22,7 +23,7 @@ FBSD_1.0 {
 	setjmp;
 	longjmp;
 	sigsetjmp;
-	siglongjmp
+	siglongjmp;
 	htonl;
 	__htonl;
 	htons;
@@ -65,4 +66,26 @@ FBSDprivate_1.0 {
 	__sys_fork;
 	_fork;
 	_sbrk;
+
+	/* softfloat */
+	__addsf3;
+	__adddf3;
+	__subsf3;
+	__subdf3;
+	__mulsf3;
+	__muldf3;
+	__divsf3;
+	__divdf3;
+	__floatsisf;
+	__floatsidf;
+	__floatdisf;
+	__floatdidf;
+	__fixsfsi;
+	__fixdfsi;
+	__fixsfdi;
+	__fixdfdi;
+	__fixunssfsi;
+	__fixunsdfsi;
+	__extendsfdf2;
+	__truncdfsf2;
 };
