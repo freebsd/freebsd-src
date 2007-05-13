@@ -1965,11 +1965,15 @@ device		sound
 #			4281)
 # snd_ds1:		Yamaha DS-1 PCI.
 # snd_emu10k1:		Creative EMU10K1 PCI and EMU10K2 (Audigy) PCI.
+# snd_envy24:		VIA Envy24 and compatible, needs snd_spicds.
+# snd_envy24ht:		VIA Envy24HT and compatible, needs snd_spicds.
 # snd_es137x:		Ensoniq AudioPCI ES137x PCI.
 # snd_ess:		Ensoniq ESS ISA PnP/non-PnP, to be used in
 #			conjunction with snd_sbc.
 # snd_fm801:		Forte Media FM801 PCI.
 # snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
+# snd_hda:		Intel High Definition Audio (Controller) and
+#			compatible.
 # snd_ich:		Intel ICH PCI and some more audio controllers
 #			embedded in a chipset, for example nVidia
 #			nForce controllers.
@@ -2001,10 +2005,13 @@ device		snd_cs4281
 device		snd_csa
 device		snd_ds1
 device		snd_emu10k1
+device		snd_envy24
+device		snd_envy24ht
 device		snd_es137x
 device		snd_ess
 device		snd_fm801
 device		snd_gusc
+device		snd_hda
 device		snd_ich
 device		snd_maestro
 device		snd_maestro3
@@ -2014,6 +2021,7 @@ device		snd_sb16
 device		snd_sb8
 device		snd_sbc
 device		snd_solo
+device		snd_spicds
 device		snd_t4dwave
 device		snd_via8233
 device		snd_via82c686
