@@ -47,6 +47,9 @@ struct snd_mixer {
 	u_int32_t recdevs;
 	u_int32_t recsrc;
 	u_int16_t level[32];
+	u_int8_t parent[32];
+	u_int32_t child[32];
+	u_int8_t realdev[32];
 	char name[MIXER_NAMELEN];
 	struct mtx *lock;
 };
@@ -112,48 +115,94 @@ mixer_lookup(char *devname)
 #endif
 
 static int
-mixer_set(struct snd_mixer *mixer, unsigned dev, unsigned lev)
+mixer_set_softpcmvol(struct snd_mixer *mixer, struct snddev_info *d,
+						unsigned left, unsigned right)
+{
+	struct snddev_channel *sce;
+	struct pcm_channel *ch;
+#ifdef USING_MUTEX
+	int locked = (mixer->lock && mtx_owned((struct mtx *)(mixer->lock))) ? 1 : 0;
+
+	if (locked)
+		snd_mtxunlock(mixer->lock);
+#endif
+	SLIST_FOREACH(sce, &d->channels, link) {
+		ch = sce->channel;
+		CHN_LOCK(ch);
+		if (ch->direction == PCMDIR_PLAY &&
+				(ch->feederflags & (1 << FEEDER_VOLUME)))
+			chn_setvolume(ch, left, right);
+		CHN_UNLOCK(ch);
+	}
+#ifdef USING_MUTEX
+	if (locked)
+		snd_mtxlock(mixer->lock);
+#endif
+	return 0;
+}
+
+static int
+mixer_set(struct snd_mixer *m, unsigned dev, unsigned lev)
 {
 	struct snddev_info *d;
-	unsigned l, r;
-	int v;
+	unsigned l, r, tl, tr;
+	u_int32_t parent = SOUND_MIXER_NONE, child = 0;
+	u_int32_t realdev;
+	int i;
 
-	if ((dev >= SOUND_MIXER_NRDEVICES) || (0 == (mixer->devs & (1 << dev))))
+	if (m == NULL || dev >= SOUND_MIXER_NRDEVICES ||
+	    (0 == (m->devs & (1 << dev))))
 		return -1;
 
 	l = min((lev & 0x00ff), 100);
 	r = min(((lev & 0xff00) >> 8), 100);
+	realdev = m->realdev[dev];
 
-	d = device_get_softc(mixer->dev);
-	if (dev == SOUND_MIXER_PCM && d &&
-			(d->flags & SD_F_SOFTVOL)) {
-		struct snddev_channel *sce;
-		struct pcm_channel *ch;
-#ifdef USING_MUTEX
-		int locked = (mixer->lock && mtx_owned((struct mtx *)(mixer->lock))) ? 1 : 0;
+	d = device_get_softc(m->dev);
+	if (d == NULL)
+		return -1;
 
-		if (locked)
-			snd_mtxunlock(mixer->lock);
-#endif
-		SLIST_FOREACH(sce, &d->channels, link) {
-			ch = sce->channel;
-			CHN_LOCK(ch);
-			if (ch->direction == PCMDIR_PLAY &&
-					(ch->feederflags & (1 << FEEDER_VOLUME)))
-				chn_setvolume(ch, l, r);
-			CHN_UNLOCK(ch);
+	/* TODO: recursive handling */
+	parent = m->parent[dev];
+	if (parent >= SOUND_MIXER_NRDEVICES)
+		parent = SOUND_MIXER_NONE;
+	if (parent == SOUND_MIXER_NONE)
+		child = m->child[dev];
+
+	if (parent != SOUND_MIXER_NONE) {
+		tl = (l * (m->level[parent] & 0x00ff)) / 100;
+		tr = (r * ((m->level[parent] & 0xff00) >> 8)) / 100;
+		if (dev == SOUND_MIXER_PCM && (d->flags & SD_F_SOFTPCMVOL))
+			mixer_set_softpcmvol(m, d, tl, tr);
+		else if (realdev != SOUND_MIXER_NONE &&
+		    MIXER_SET(m, realdev, tl, tr) < 0)
+			return -1;
+	} else if (child != 0) {
+		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+			if (!(child & (1 << i)) || m->parent[i] != dev)
+				continue;
+			realdev = m->realdev[i];
+			tl = (l * (m->level[i] & 0x00ff)) / 100;
+			tr = (r * ((m->level[i] & 0xff00) >> 8)) / 100;
+			if (i == SOUND_MIXER_PCM && (d->flags & SD_F_SOFTPCMVOL))
+				mixer_set_softpcmvol(m, d, tl, tr);
+			else if (realdev != SOUND_MIXER_NONE)
+				MIXER_SET(m, realdev, tl, tr);
 		}
-#ifdef USING_MUTEX
-		if (locked)
-			snd_mtxlock(mixer->lock);
-#endif
+		realdev = m->realdev[dev];
+		if (realdev != SOUND_MIXER_NONE &&
+		    MIXER_SET(m, realdev, l, r) < 0)
+				return -1;
 	} else {
-		v = MIXER_SET(mixer, dev, l, r);
-		if (v < 0)
+		if (dev == SOUND_MIXER_PCM && (d->flags & SD_F_SOFTPCMVOL))
+			mixer_set_softpcmvol(m, d, l, r);
+		else if (realdev != SOUND_MIXER_NONE &&
+		    MIXER_SET(m, realdev, l, r) < 0)
 			return -1;
 	}
 
-	mixer->level[dev] = l | (r << 8);
+	m->level[dev] = l | (r << 8);
+
 	return 0;
 }
 
@@ -184,9 +233,20 @@ mixer_getrecsrc(struct snd_mixer *mixer)
 void
 mix_setdevs(struct snd_mixer *m, u_int32_t v)
 {
-	struct snddev_info *d = device_get_softc(m->dev);
-	if (d && (d->flags & SD_F_SOFTVOL))
+	struct snddev_info *d;
+	int i;
+
+	if (m == NULL)
+		return;
+
+	d = device_get_softc(m->dev);
+	if (d != NULL && (d->flags & SD_F_SOFTPCMVOL))
 		v |= SOUND_MASK_PCM;
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+		if (m->parent[i] < SOUND_MIXER_NRDEVICES)
+			v |= 1 << m->parent[i];
+		v |= m->child[i];
+	}
 	m->devs = v;
 }
 
@@ -194,6 +254,54 @@ void
 mix_setrecdevs(struct snd_mixer *m, u_int32_t v)
 {
 	m->recdevs = v;
+}
+
+void
+mix_setparentchild(struct snd_mixer *m, u_int32_t parent, u_int32_t childs)
+{
+	u_int32_t mask = 0;
+	int i;
+
+	if (m == NULL || parent >= SOUND_MIXER_NRDEVICES)
+		return;
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+		if (i == parent)
+			continue;
+		if (childs & (1 << i)) {
+			mask |= 1 << i;
+			if (m->parent[i] < SOUND_MIXER_NRDEVICES)
+				m->child[m->parent[i]] &= ~(1 << i);
+			m->parent[i] = parent;
+			m->child[i] = 0;
+		}
+	}
+	mask &= ~(1 << parent);
+	m->child[parent] = mask;
+}
+
+void
+mix_setrealdev(struct snd_mixer *m, u_int32_t dev, u_int32_t realdev)
+{
+	if (m == NULL || dev >= SOUND_MIXER_NRDEVICES ||
+	    !(realdev == SOUND_MIXER_NONE || realdev < SOUND_MIXER_NRDEVICES))
+		return;
+	m->realdev[dev] = realdev;
+}
+
+u_int32_t
+mix_getparent(struct snd_mixer *m, u_int32_t dev)
+{
+	if (m == NULL || dev >= SOUND_MIXER_NRDEVICES)
+		return SOUND_MIXER_NONE;
+	return m->parent[dev];
+}
+
+u_int32_t
+mix_getchild(struct snd_mixer *m, u_int32_t dev)
+{
+	if (m == NULL || dev >= SOUND_MIXER_NRDEVICES)
+		return 0;
+	return m->child[dev];
 }
 
 u_int32_t
@@ -230,6 +338,11 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	m->devinfo = devinfo;
 	m->busy = 0;
 	m->dev = dev;
+	for (i = 0; i < 32; i++) {
+		m->parent[i] = SOUND_MIXER_NONE;
+		m->child[i] = 0;
+		m->realdev[i] = i;
+	}
 
 	if (MIXER_INIT(m))
 		goto bad;
@@ -255,6 +368,30 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	pdev->si_drv1 = m;
 	snddev = device_get_softc(dev);
 	snddev->mixer_dev = pdev;
+
+	if (bootverbose) {
+		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+			if (!(m->devs & (1 << i)))
+				continue;
+			if (m->realdev[i] != i) {
+				device_printf(dev, "Mixer \"%s\" -> \"%s\":",
+				    snd_mixernames[i],
+				    (m->realdev[i] < SOUND_MIXER_NRDEVICES) ?
+				    snd_mixernames[m->realdev[i]] : "none");
+			} else {
+				device_printf(dev, "Mixer \"%s\":",
+				    snd_mixernames[i]);
+			}
+			if (m->parent[i] < SOUND_MIXER_NRDEVICES)
+				printf(" parent=\"%s\"",
+				    snd_mixernames[m->parent[i]]);
+			if (m->child[i] != 0)
+				printf(" child=0x%08x", m->child[i]);
+			printf("\n");
+		}
+		if (snddev->flags & SD_F_SOFTPCMVOL)
+			device_printf(dev, "Soft PCM mixer ENABLED\n");
+	}
 
 	return 0;
 
