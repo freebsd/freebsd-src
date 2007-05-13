@@ -76,11 +76,9 @@ CFLAGS+= -DNS_CACHING
 CFLAGS+=-D_FREEFALL_CONFIG
 .endif
 
-.if defined(SYMVER_ENABLED)
 VERSION_DEF=${.CURDIR}/Versions.def
 SYMBOL_MAPS=${SYM_MAPS}
 CFLAGS+= -DSYMBOL_VERSIONING
-.endif
 
 # If there are no machine dependent sources, append all the
 # machine-independent sources:

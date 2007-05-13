@@ -7,6 +7,13 @@
 # To included legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
+
+.if defined(DEFAULT_THREAD_LIB) && (${DEFAULT_THREAD_LIB} == "libc_r")
+SHLIBDIR?= /lib
+.endif
+
+.include <bsd.own.mk>
+
 LIB=c_r
 SHLIB_MAJOR= 6
 CFLAGS+=-DPTHREAD_KERNEL 
@@ -25,7 +32,7 @@ PRECIOUSLIB=
 .include "${.CURDIR}/uthread/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${DEFAULT_THREAD_LIB} == "libc_r"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so

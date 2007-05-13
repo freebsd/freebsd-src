@@ -63,10 +63,8 @@ LIBCDIR=	${.CURDIR}/../libc
 CFLAGS+=	-I${LIBCDIR}/include -I${LIBCDIR}/${MACHINE_ARCH}
 SYM_MAPS+=	${.CURDIR}/Symbol.map
 
-.if defined(SYMVER_ENABLED)
 VERSION_DEF=	${LIBCDIR}/Versions.def
 SYMBOL_MAPS=	${SYM_MAPS}
-.endif
 
 # C99 long double functions
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_modfl.c
