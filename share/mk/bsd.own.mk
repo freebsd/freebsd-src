@@ -162,6 +162,8 @@ NLSOWN?=	${SHAREOWN}
 NLSGRP?=	${SHAREGRP}
 NLSMODE?=	${NOBINMODE}
 
+DEFAULT_THREAD_LIB?=	libthr
+
 INCLUDEDIR?=	/usr/include
 
 # Common variables
@@ -348,6 +350,7 @@ WITH_IDEA=
     SENDMAIL \
     SETUID_LOGIN \
     SHAREDOCS \
+    SYMVER \
     SYSCONS \
     TCSH \
     TOOLCHAIN \

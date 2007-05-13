@@ -64,7 +64,7 @@
  * LIBTHREAD_1_0, we need to provide a compatible interface for
  * those symbols.
  */
-#if defined(SYMBOL_VERSIONING) && defined(PIC)
+#if 0
 #define	SYM_LT10(sym)			__CONCAT(sym, _lt10)
 #define	SYM_FB10(sym)			__CONCAT(sym, _fb10)
 #define	SYM_FBP10(sym)			__CONCAT(sym, _fbp10)
