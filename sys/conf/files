@@ -1823,10 +1823,12 @@ netinet/tcp_debug.c		optional tcpdebug
 netinet/tcp_hostcache.c		optional inet
 netinet/tcp_input.c		optional inet
 netinet/tcp_output.c		optional inet
+netinet/tcp_reass.c		optional inet
 netinet/tcp_sack.c		optional inet
 netinet/tcp_subr.c		optional inet
 netinet/tcp_syncache.c		optional inet
 netinet/tcp_timer.c		optional inet
+netinet/tcp_timewait.c		optional inet
 netinet/tcp_usrreq.c		optional inet
 netinet/udp_usrreq.c		optional inet
 netinet/libalias/alias.c	optional libalias | netgraph_nat

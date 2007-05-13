@@ -30,10 +30,8 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipsec.h"
 #include "opt_mac.h"
 #include "opt_tcpdebug.h"
 
@@ -44,9 +42,6 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#ifdef INET6
-#include <sys/domain.h>
-#endif
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
@@ -91,26 +86,7 @@
 #endif
 #include <netinet6/ip6protosw.h>
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#ifdef INET6
-#include <netinet6/ipsec6.h>
-#endif
-#include <netkey/key.h>
-#endif /*IPSEC*/
-
-#ifdef FAST_IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/xform.h>
-#ifdef INET6
-#include <netipsec/ipsec6.h>
-#endif
-#include <netipsec/key.h>
-#define	IPSEC
-#endif /*FAST_IPSEC*/
-
 #include <machine/in_cksum.h>
-#include <sys/md5.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -151,6 +127,7 @@ sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
 		}
 	return (error);
 }
+
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
@@ -160,11 +137,8 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_RW,
     &nolocaltimewait, 0,
     "Do not create compressed TCP TIME_WAIT entries for local connections");
 
-/*
- * TCP initialization.
- */
-static void
-tcp_zone_change(void *tag)
+void
+tcp_tw_zone_change(void)
 {
 
 	if (maxtcptw == 0)
@@ -172,7 +146,7 @@ tcp_zone_change(void *tag)
 }
 
 void
-tcp_init(void)
+tcp_tw_init(void)
 {
 
 	tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw),

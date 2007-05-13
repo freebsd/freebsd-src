@@ -30,27 +30,19 @@
  * $FreeBSD$
  */
 
-#include "opt_ipfw.h"		/* for ipfw_fwd	*/
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipsec.h"
-#include "opt_mac.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/proc.h>		/* for proc0 declaration */
-#include <sys/protosw.h>
-#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
-
-#include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
 #include <vm/uma.h>
 
@@ -62,12 +54,9 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
-#include <netinet/ip_icmp.h>	/* required for icmp_var.h */
-#include <netinet/icmp_var.h>	/* for ICMP_BANDLIM */
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
 #include <netinet/ip6.h>
-#include <netinet/icmp6.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
@@ -81,21 +70,6 @@
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
-
-#ifdef FAST_IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif /*FAST_IPSEC*/
-
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netinet6/ipsec6.h>
-#include <netkey/key.h>
-#endif /*IPSEC*/
-
-#include <machine/in_cksum.h>
-
-#include <security/mac/mac_framework.h>
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
@@ -120,10 +94,6 @@ SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
     &tcp_reass_overflows, 0,
     "Global number of TCP Segment Reassembly Queue Overflows");
 
-static int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *,
-		     struct mbuf *);
-
-
 /* Initialize TCP reassembly queue */
 static void
 tcp_reass_zone_change(void *tag)
@@ -134,6 +104,7 @@ tcp_reass_zone_change(void *tag)
 }
 
 uma_zone_t	tcp_reass_zone;
+
 void
 tcp_reass_init(void)
 {
@@ -148,7 +119,7 @@ tcp_reass_init(void)
 	    tcp_reass_zone_change, NULL, EVENTHANDLER_PRI_ANY);
 }
 
-static int
+int
 tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 {
 	struct tseg_qent *q;
