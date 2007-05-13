@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1995 Bill Paul <wpaul@ctr.columbia.edu>.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,53 +68,67 @@ __FBSDID("$FreeBSD$");
 int
 ether_line(const char *l, struct ether_addr *e, char *hostname)
 {
-        int i, o[6];
+	int i, o[6];
 
-        i = sscanf(l, "%x:%x:%x:%x:%x:%x %s", &o[0], &o[1], &o[2], &o[3],
+	i = sscanf(l, "%x:%x:%x:%x:%x:%x %s", &o[0], &o[1], &o[2], &o[3],
 	    &o[4], &o[5], hostname);
 	if (i != 7)
-                return (i);
-        for (i=0; i<6; i++)
-                e->octet[i] = o[i];
-        return (0);
+		return (i);
+	for (i=0; i<6; i++)
+		e->octet[i] = o[i];
+	return (0);
 }
 
 /*
  * Convert an ASCII representation of an ethernet address to binary form.
  */
 struct ether_addr *
-ether_aton(const char *a)
+ether_aton_r(const char *a, struct ether_addr *e)
 {
-        int i;
-	static struct ether_addr o;
+	int i;
 	unsigned int o0, o1, o2, o3, o4, o5;
 
-        i = sscanf(a, "%x:%x:%x:%x:%x:%x", &o0, &o1, &o2, &o3, &o4, &o5);
-        if (i != 6)
-                return (NULL);
-        o.octet[0]=o0;
-	o.octet[1]=o1;
-	o.octet[2]=o2;
-	o.octet[3]=o3;
-	o.octet[4]=o4;
-	o.octet[5]=o5;
-        return ((struct ether_addr *)&o);
+	i = sscanf(a, "%x:%x:%x:%x:%x:%x", &o0, &o1, &o2, &o3, &o4, &o5);
+	if (i != 6)
+		return (NULL);
+	e->octet[0]=o0;
+	e->octet[1]=o1;
+	e->octet[2]=o2;
+	e->octet[3]=o3;
+	e->octet[4]=o4;
+	e->octet[5]=o5;
+	return (e);
+}
+
+struct ether_addr *
+ether_aton(const char *a)
+{
+	static struct ether_addr e;
+
+	return (ether_aton_r(a, &e));
 }
 
 /*
  * Convert a binary representation of an ethernet address to an ASCII string.
  */
 char *
+ether_ntoa_r(const struct ether_addr *n, char *a)
+{
+	int i;
+
+	i = sprintf(a, "%02x:%02x:%02x:%02x:%02x:%02x", n->octet[0],
+	    n->octet[1], n->octet[2], n->octet[3], n->octet[4], n->octet[5]);
+	if (i < 17)
+		return (NULL);
+	return (a);
+}
+
+char *
 ether_ntoa(const struct ether_addr *n)
 {
-        int i;
 	static char a[18];
 
-        i = sprintf(a, "%02x:%02x:%02x:%02x:%02x:%02x", n->octet[0],
-	    n->octet[1], n->octet[2], n->octet[3], n->octet[4], n->octet[5]);
-        if (i < 17)
-                return (NULL);
-        return ((char *)&a);
+	return (ether_ntoa_r(n, a));
 }
 
 /*
