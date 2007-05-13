@@ -108,7 +108,7 @@ all: objwarn
 
 # Allow librararies to specify their own version map or have it
 # automatically generated (see bsd.symver.mk above).
-.if !empty(VERSION_MAP)
+.if (${MK_SYMVER} == "yes") && !empty(VERSION_MAP)
 ${SHLIB_NAME}:	${VERSION_MAP}
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 .endif
