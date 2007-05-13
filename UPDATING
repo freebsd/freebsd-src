@@ -21,6 +21,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070513:
+	Symbol versioning is enabled by default.  To disable it, use
+	option WITHOUT_SYMVER.  It is not advisable to attempt to
+	disable symbol versioning once it is enabled; your installworld
+	will break because a symbol version-less libc will get installed
+	before the install tools.  As a result, the old install tools,
+	which previously had symbol dependencies to FBSD_1.0, will fail
+	because the freshly installed libc will not have them.
+
+	The default threading library has been changed to libthr.  If
+	you wish to have libpthread as your default, use option
+	DEFAULT_THREAD_LIB=libpthread for the buildworld.
+
 20070423:
         The ABI breakage in sendmail(8)'s libmilter has been repaired
         so it is no longer necessary to recompile mail filters (aka,
