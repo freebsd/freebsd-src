@@ -13,9 +13,7 @@ WARNS?= 1
 CFLAGS+=-I. -I${.CURDIR}
 SYM_MAPS+=${.CURDIR}/Symbol.map
 
-.if defined(SYMVER_ENABLED)
 SYMBOL_MAPS=${SYM_MAPS}
 VERSION_DEF=${.CURDIR}/../libc/Versions.def
-.endif
 
 .include <bsd.lib.mk>

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG?=		ld-elf.so.1
 SRCS=		rtld_start.S \
 		reloc.c rtld.c rtld_lock.c map_object.c \
@@ -21,7 +23,7 @@ LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic
 
-.if defined(SYMVER_ENABLED)
+.if ${MK_SYMVER} == "yes"
 LIBCDIR=	${.CURDIR}/../../lib/libc
 VERSION_DEF=	${LIBCDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map

@@ -7,12 +7,14 @@
 # To included legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
-.if ${MACHINE_ARCH} == "sparc64"
-LIB=kse
-.else
-LIB=pthread
+
+.if defined(DEFAULT_THREAD_LIB) && (${DEFAULT_THREAD_LIB} == "libpthread")
 SHLIBDIR?= /lib
 .endif
+
+.include <bsd.own.mk>
+
+LIB=kse
 SHLIB_MAJOR= 2
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
@@ -37,18 +39,21 @@ CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
 
 VERSION_MAP=${.CURDIR}/pthread.map
 
-.if defined(SYMVER_ENABLED)
-# Remove this if library version is bumped and LIBPTHREAD_1_0
-# compatability hacks are removed (see thread/thr_private.h).
-LDFLAGS+=-Wl,-zmuldefs
-CFLAGS+=-DSYMBOL_VERSIONING
-.endif
-
 PRECIOUSLIB=
 
 .include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 .include "${.CURDIR}/support/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
+
+.if ${DEFAULT_THREAD_LIB} == "libpthread"
+SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
+.if !defined(NO_PIC)
+SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
+.endif
+.if ${MK_PROFILE} != "no"
+SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
+.endif
+.endif
 
 .include <bsd.lib.mk>
