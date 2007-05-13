@@ -146,12 +146,15 @@ isp_attach(ispsoftc_t *isp)
 
 	isp->isp_osinfo.ehook.ich_func = isp_intr_enable;
 	isp->isp_osinfo.ehook.ich_arg = isp;
+	ISP_UNLOCK(isp);
 	if (config_intrhook_establish(&isp->isp_osinfo.ehook) != 0) {
+		ISP_LOCK(isp);
 		cam_sim_free(sim, TRUE);
 		isp_prt(isp, ISP_LOGERR,
 		    "could not establish interrupt enable hook");
 		return;
 	}
+	ISP_LOCK(isp);
 
 	if (xpt_bus_register(sim, primary) != CAM_SUCCESS) {
 		cam_sim_free(sim, TRUE);
