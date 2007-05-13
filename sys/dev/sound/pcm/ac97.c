@@ -581,9 +581,8 @@ ac97_fix_volume(struct ac97_info *codec)
 	ac97_wrcd(codec, AC97_MIX_PCM, 0);
 	bzero(&codec->mix[SOUND_MIXER_PCM],
 		sizeof(codec->mix[SOUND_MIXER_PCM]));
-	codec->flags |= AC97_F_SOFTVOL;
 	if (d)
-		d->flags |= SD_F_SOFTVOL;
+		d->flags |= SD_F_SOFTPCMVOL;
 	return;
 #endif
 	switch (codec->id) {
@@ -600,9 +599,8 @@ ac97_fix_volume(struct ac97_info *codec)
 	}
 	bzero(&codec->mix[SOUND_MIXER_PCM],
 			sizeof(codec->mix[SOUND_MIXER_PCM]));
-	codec->flags |= AC97_F_SOFTVOL;
 	if (d)
-		d->flags |= SD_F_SOFTVOL;
+		d->flags |= SD_F_SOFTPCMVOL;
 }
 
 static const char*
@@ -787,8 +785,6 @@ ac97_initmixer(struct ac97_info *codec)
 	if (bootverbose) {
 		if (codec->flags & AC97_F_RDCD_BUG)
 			device_printf(codec->dev, "Buggy AC97 Codec: aggressive ac97_rdcd() workaround enabled\n");
-		if (codec->flags & AC97_F_SOFTVOL)
-			device_printf(codec->dev, "Soft PCM volume\n");
 		device_printf(codec->dev, "Codec features ");
 		for (i = j = 0; i < 10; i++)
 			if (codec->caps & (1 << i))
