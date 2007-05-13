@@ -86,7 +86,7 @@
 SND_DECLARE_FILE("$FreeBSD$");
 
 #define HDA_BOOTVERBOSE(stmt)	do {			\
-	if (bootverbose != 0 || snd_verbose > 3) {	\
+	if (bootverbose != 0) {				\
 		stmt					\
 	}						\
 } while(0)
@@ -100,6 +100,18 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define hdac_unlock(sc)		snd_mtxunlock((sc)->lock)
 #define hdac_lockassert(sc)	snd_mtxassert((sc)->lock)
 #define hdac_lockowned(sc)	mtx_owned((sc)->lock)
+
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/specialreg.h>
+#define HDAC_DMA_ATTR(sc, v, s, attr)	do {				\
+	vm_offset_t va = (vm_offset_t)(v);				\
+	vm_size_t sz = (vm_size_t)(s);					\
+	if ((sc) != NULL && (sc)->nocache != 0 && va != 0 && sz != 0)	\
+		(void)pmap_change_attr(va, sz, (attr));			\
+} while(0)
+#else
+#define HDAC_DMA_ATTR(...)
+#endif
 
 #define HDA_FLAG_MATCH(fl, v)	(((fl) & (v)) == (v))
 #define HDA_DEV_MATCH(fl, v)	((fl) == (v) || \
@@ -2950,11 +2962,30 @@ hdac_channel_init(kobj_t obj, void *data, struct snd_dbuf *b,
 		return (NULL);
 	}
 
-	if (sndbuf_alloc(ch->b, sc->chan_dmat,
-	    (sc->nocache != 0) ? BUS_DMA_NOCACHE : 0, sc->chan_size) != 0)
+	if (sndbuf_alloc(ch->b, sc->chan_dmat, sc->chan_size) != 0)
 		return (NULL);
 
+	HDAC_DMA_ATTR(sc, sndbuf_getbuf(ch->b), sndbuf_getmaxsize(ch->b),
+	    PAT_UNCACHEABLE);
+
 	return (ch);
+}
+
+static int
+hdac_channel_free(kobj_t obj, void *data)
+{
+	struct hdac_softc *sc;
+	struct hdac_chan *ch;
+
+	ch = (struct hdac_chan *)data;
+	sc = (ch != NULL && ch->devinfo != NULL && ch->devinfo->codec != NULL) ?
+	    ch->devinfo->codec->sc : NULL;
+	if (ch != NULL && sc != NULL) {
+		HDAC_DMA_ATTR(sc, sndbuf_getbuf(ch->b),
+		    sndbuf_getmaxsize(ch->b), PAT_WRITE_BACK);
+	}
+
+	return (1);
 }
 
 static int
@@ -3177,10 +3208,10 @@ hdac_channel_getcaps(kobj_t obj, void *data)
 
 static kobj_method_t hdac_channel_methods[] = {
 	KOBJMETHOD(channel_init,		hdac_channel_init),
+	KOBJMETHOD(channel_free,		hdac_channel_free),
 	KOBJMETHOD(channel_setformat,		hdac_channel_setformat),
 	KOBJMETHOD(channel_setspeed,		hdac_channel_setspeed),
 	KOBJMETHOD(channel_setblocksize,	hdac_channel_setblocksize),
-	KOBJMETHOD(channel_setfragments,	hdac_channel_setfragments),
 	KOBJMETHOD(channel_trigger,		hdac_channel_trigger),
 	KOBJMETHOD(channel_getptr,		hdac_channel_getptr),
 	KOBJMETHOD(channel_getcaps,		hdac_channel_getcaps),
