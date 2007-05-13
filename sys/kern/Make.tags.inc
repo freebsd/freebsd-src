@@ -14,11 +14,8 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/dev/aha/*.[ch] \
 	${SYS}/dev/aic7xxx/*.[ch] \
 	${SYS}/dev/buslogic/*.[ch] \
-	${SYS}/dev/ccd/*.[ch] \
-	${SYS}/dev/dec/*.[ch] \
 	${SYS}/dev/dpt/*.[ch] \
 	${SYS}/dev/en/*.[ch] \
-	${SYS}/dev/hea/*.[ch] \
 	${SYS}/dev/hfa/*.[ch] \
 	${SYS}/dev/iicbus/*.[ch] \
 	${SYS}/dev/isp/*.[ch] \
@@ -26,17 +23,22 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/dev/ppbus/*.[ch] \
 	${SYS}/dev/smbus/*.[ch] \
 	${SYS}/dev/vx/*.[ch] \
+	${SYS}/fs/cd9660/*.[ch] \
 	${SYS}/fs/deadfs/*.[ch] \
+	${SYS}/fs/devfs/*.[ch] \
 	${SYS}/fs/fdescfs/*.[ch] \
 	${SYS}/fs/fifofs/*.[ch] \
+	${SYS}/fs/hpfs/*.[ch] \
 	${SYS}/fs/msdosfs/*.[ch] \
+	${SYS}/fs/ntfs/*.[ch] \
 	${SYS}/fs/nullfs/*.[ch] \
+	${SYS}/fs/nwfs/*.[ch] \
 	${SYS}/fs/portalfs/*.[ch] \
 	${SYS}/fs/procfs/*.[ch] \
-	${SYS}/fs/specfs/*.[ch] \
+	${SYS}/fs/smbfs/*.[ch] \
+	${SYS}/fs/udf/*.[ch] \
 	${SYS}/fs/umapfs/*.[ch] \
 	${SYS}/fs/unionfs/*.[ch] \
-	${SYS}/isofs/cd9660/*.[ch] \
 	${SYS}/kern/*.[ch] \
 	${SYS}/net/*.[ch] \
 	${SYS}/netatalk/*.[ch] \
@@ -46,6 +48,8 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/netkey/*.[ch] \
 	${SYS}/netnatm/*.[ch] \
 	${SYS}/nfs/*.[ch] \
+	${SYS}/nfsclient/*.[ch] \
+	${SYS}/nfsserver/*.[ch] \
 	${SYS}/pci/*.[ch] \
 	${SYS}/ufs/ffs/*.[ch] \
 	${SYS}/ufs/ufs/*.[ch] \
