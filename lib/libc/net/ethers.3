@@ -1,5 +1,6 @@
-.\" Copyright (c) 1995
-.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\" Copyright (c) 1995 Bill Paul <wpaul@ctr.columbia.edu>.
+.\" Copyright (c) 2007 Robert N. M. Watson
+.\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -30,14 +31,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 12, 1995
+.Dd May 13, 2007
 .Dt ETHERS 3
 .Os
 .Sh NAME
 .Nm ethers ,
 .Nm ether_line ,
 .Nm ether_aton ,
+.Nm ether_aton_r ,
 .Nm ether_ntoa ,
+.Nm ether_ntoa_r ,
 .Nm ether_ntohost ,
 .Nm ether_hostton
 .Nd Ethernet address conversion and lookup routines
@@ -51,8 +54,12 @@
 .Fn ether_line "const char *l" "struct ether_addr *e" "char *hostname"
 .Ft struct ether_addr *
 .Fn ether_aton "const char *a"
+.Ft struct ether_addr *
+.Fn ether_aton_r "const char *a" "struct ether_addr *e"
 .Ft char *
 .Fn ether_ntoa "const struct ether_addr *n"
+.Ft char *
+.Fn ether_ntoa_r "const struct ether_addr *n" "char *buf"
 .Ft int
 .Fn ether_ntohost "char *hostname" "const struct ether_addr *e"
 .Ft int
@@ -95,18 +102,23 @@ into their component parts.
 .Pp
 The
 .Fn ether_aton
-function converts an
+and
+.Fn ether_aton_r
+functions convert
 .Tn ASCII
-representation of an ethernet address into an
+representation of ethernet addresses into
 .Vt ether_addr
-structure.
-Likewise,
+structures.
+Likewise, the
 .Fn ether_ntoa
-converts an ethernet address specified as an
+and
+.Fn ether_ntoa_r
+functions
+convert ethernet addresses specified as
 .Vt ether_addr
-structure into an
+structures into
 .Tn ASCII
-string.
+strings.
 .Pp
 The
 .Fn ether_ntohost
@@ -138,7 +150,9 @@ and the hostname in the supplied string
 .Pp
 On success,
 .Fn ether_ntoa
-returns a pointer to a string containing an
+and
+.Fn ether_ntoa_r
+functions return a pointer to a string containing an
 .Tn ASCII
 representation of an ethernet address.
 If it is unable to convert
@@ -147,13 +161,25 @@ the supplied
 structure, it returns a
 .Dv NULL
 pointer.
+.Fn ether_ntoa
+stores the result in a static buffer;
+.Fn ether_ntoa_r
+stores the result in a user-passed buffer.
+.Pp
+
 Likewise,
 .Fn ether_aton
-returns a pointer to an
+and
+.Fn ether_aton_r
+return a pointer to an
 .Vt ether_addr
 structure on success and a
 .Dv NULL
 pointer on failure.
+.Fn ether_aton
+stores the result in a static buffer;
+.Fn ether_aton_r
+stores the result in a user-passed buffer.
 .Pp
 The
 .Fn ether_ntohost
@@ -192,6 +218,8 @@ This particular implementation of the
 .Nm
 library functions were written for and first appeared in
 .Fx 2.1 .
+Thread-safe function variants first appeared in
+.Fx 7.0 .
 .Sh BUGS
 The
 .Fn ether_aton
@@ -199,3 +227,8 @@ and
 .Fn ether_ntoa
 functions returns values that are stored in static memory areas
 which may be overwritten the next time they are called.
+.Pp
+.Fn ether_ntoa_r
+accepts a character buffer pointer, but not a buffer length.
+The caller must ensure adequate space is available in the buffer in order to
+avoid a buffer overflow.
