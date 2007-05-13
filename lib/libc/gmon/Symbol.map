@@ -3,7 +3,6 @@
  */
 
 FBSD_1.0 {
-	.mcount;
 	_mcleanup;
 	monstartup;
 	moncontrol;
