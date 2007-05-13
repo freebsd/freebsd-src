@@ -243,12 +243,20 @@ ua_mixer_init(struct snd_mixer *m)
 	d = device_get_softc(ua->sc_dev);
 
 	mask = uaudio_query_mix_info(pa_dev);
-	if (d && !(mask & SOUND_MIXER_PCM)) {
-		/*
-		 * Emulate missing pcm mixer controller
-		 * through FEEDER_VOLUME
-		 */
-		 d->flags |= SD_F_SOFTVOL;
+	if (d != NULL) {
+		if (!(mask & SOUND_MASK_PCM)) {
+			/*
+			 * Emulate missing pcm mixer controller
+			 * through FEEDER_VOLUME
+			 */
+			 d->flags |= SD_F_SOFTPCMVOL;
+		}
+		if (!(mask & SOUND_MASK_VOLUME)) {
+			mix_setparentchild(m, SOUND_MIXER_VOLUME,
+			    SOUND_MASK_PCM);
+			mix_setrealdev(m, SOUND_MIXER_VOLUME,
+			    SOUND_MIXER_NONE);
+		}
 	}
 	mix_setdevs(m,	mask);
 
