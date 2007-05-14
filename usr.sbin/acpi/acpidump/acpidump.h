@@ -278,8 +278,7 @@ struct HPETbody {
 			:1,
 			block_legacy_capable:1,
 			block_pcivendor:16;
-	u_int32_t	base_addr;
-	u_int64_t	reserved1;
+	struct ACPIgas  genaddr;
 	u_int8_t	hpet_number;
 	u_int16_t	clock_tick __packed;
 } __packed;
