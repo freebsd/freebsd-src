@@ -867,13 +867,14 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	</question>
 	<answer>
 	  <para>If your machine is already running DOS and has little
-	  or no free space available for &os;'s installation, all is
-	  not lost!  You may find the <application>FIPS</application>
+	  or no free space available for &os;'s installation, there
+	  are several alternatives for resizing existing partitions so
+	  that you can install &os;.</para>
+
+	  <para>The <application>FIPS</application>
 	  utility, provided in the <filename>tools/</filename>
 	  subdirectory on the &os; CDROM or on the various &os; ftp
-	  sites, to be quite useful.</para>
-
-	  <para><application>FIPS</application> allows you to split an
+	  sites, can resize an existing FAT partition.  It allows you to split an
 	  existing DOS partition into two pieces, preserving the
 	  original partition and allowing you to install onto the
 	  second free piece.  You first <quote>defrag</quote> your DOS
@@ -889,17 +890,15 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  simply delete the extra DOS Primary partition (making sure
 	  it's the right one by examining its size).</para>
 
-	  <para><application>FIPS</application> does NOT currently
-          work with NTFS style partitions.  To split up such a
-          partition, you will need a commercial product such as
-          <application>Partition Magic</application>.  Sorry, but this
-          is just the breaks if you've got a Windows partition hogging
-          your whole disk and you don't want to reinstall from
-          scratch.</para>
-	  
-	  <para><application>FIPS</application> does not work on
-	  extended DOS partitions.  Windows 95/98/ME FAT32 primary
-	  partitions are supported.</para>
+	  <para>For systems with NTFS partitions, a different tool,
+	  such as <application>ntfsresize</application> or the
+	  commercially-available <application>Partition
+	  Magic</application>, is
+	  required.  <application>ntfsresize</application>, as well as
+	  the <application>QTParted</application> graphical interface
+	  for partition resizing, is available on a number of Live CD
+	  Linux distributions, such as 
+	  <ulink url="http://www.sysresccd.org/">SystemRescueCD</ulink>.</para>
 
 	</answer>
       </qandaentry>
