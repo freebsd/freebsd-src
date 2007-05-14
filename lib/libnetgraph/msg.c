@@ -235,16 +235,17 @@ NgDeliverMsg(int cs, const char *path,
 
 	/* Wait for reply if there should be one. */
 	if (msg->header.cmd & NGM_HASREPLY) {
-		fd_set rfds;
+		struct pollfd rfds;
 		int n;
 
-		FD_ZERO(&rfds);
-		FD_SET(cs, &rfds);
-		n = select(cs + 1, &rfds, NULL, NULL, NULL);
+		rfds.fd = cs;
+		rfds.events = POLLIN;
+		rfds.revents = 0;
+		n = poll(&rfds, 1, INFTIM);
 		if (n == -1) {
 			errnosv = errno;
 			if (_gNgDebugLevel >= 1)
-				NGLOG("select");
+				NGLOG("poll");
 			rtn = -1;
 		}
 	}
