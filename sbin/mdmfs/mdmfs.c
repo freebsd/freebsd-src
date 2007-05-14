@@ -127,7 +127,7 @@ main(int argc, char **argv)
 	}
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:Nn:O:o:Pp:Ss:t:Uv:w:X")) != -1)
+	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:NnO:o:Pp:Ss:t:Uv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -188,7 +188,7 @@ main(int argc, char **argv)
 			norun = true;
 			break;
 		case 'n':
-			argappend(&newfs_arg, "-n %s", optarg);
+			argappend(&newfs_arg, "-n");
 			break;
 		case 'O':
 			argappend(&newfs_arg, "-o %s", optarg);
@@ -656,10 +656,10 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: %s [-DLlMNPSUX] [-a maxcontig] [-b block-size]\n"
+"usage: %s [-DLlMNnPSUX] [-a maxcontig] [-b block-size]\n"
 "\t[-c blocks-per-cylinder-group][-d max-extent-size] [-E path-mdconfig]\n"
 "\t[-e maxbpg] [-F file] [-f frag-size] [-i bytes] [-m percent-free]\n"
-"\t[-n rotational-positions] [-O optimization] [-o mount-options]\n"
+"\t[-O optimization] [-o mount-options]\n"
 "\t[-p permissions] [-s size] [-v version] [-w user:group]\n"
 "\tmd-device mount-point\n", getprogname());
 	exit(1);
