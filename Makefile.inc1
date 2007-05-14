@@ -1140,7 +1140,7 @@ delete-old-files:
 	@(cd ${DESTDIR}/ && for file in ${OLD_FILES}; do \
 		if [ -f "./$${file}" -o -L "./$${file}" ]; then \
 			chflags noschg "./$${file}" 2>/dev/null || true; \
-			rm ${RM_I} "${DESTDIR}/$${file}" || true; \
+			rm ${RM_I} "${DESTDIR}/$${file}"; \
 		fi; \
 	done)
 # Remove catpages without corresponding manpages.
@@ -1178,7 +1178,7 @@ delete-old-libs:
 	@(cd ${DESTDIR}/ && for file in ${OLD_LIBS}; do \
 		if [ -f "./$${file}" -o -L "./$${file}" ]; then \
 			chflags noschg "./$${file}" 2>/dev/null || true; \
-			rm ${RM_I} "${DESTDIR}/$${file}" || true; \
+			rm ${RM_I} "${DESTDIR}/$${file}"; \
 		fi; \
 	done)
 	@echo ">>> Old libraries removed"
