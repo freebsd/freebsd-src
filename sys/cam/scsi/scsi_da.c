@@ -548,6 +548,8 @@ static struct periph_driver dadriver =
 
 PERIPHDRIVER_DECLARE(da, dadriver);
 
+MALLOC_DEFINE(M_SCSIDA, "scsi_da", "scsi_da buffers");
+
 static int
 daopen(struct disk *dp)
 {
@@ -1329,7 +1331,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 		struct scsi_read_capacity_data *rcap;
 
 		rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcap),
-								M_TEMP,
+								M_SCSIDA,
 								M_NOWAIT);
 		if (rcap == NULL) {
 			printf("dastart: Couldn't malloc read_capacity data\n");
@@ -1355,7 +1357,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 		struct scsi_read_capacity_data_long *rcaplong;
 
 		rcaplong = (struct scsi_read_capacity_data_long *)
-			malloc(sizeof(*rcaplong), M_TEMP, M_NOWAIT);
+			malloc(sizeof(*rcaplong), M_SCSIDA, M_NOWAIT);
 		if (rcaplong == NULL) {
 			printf("dastart: Couldn't malloc read_capacity data\n");
 			/* da_free_periph??? */
@@ -1547,7 +1549,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				if (maxsector == 0xffffffff) {
 					softc->state = DA_STATE_PROBE2;
-					free(rdcap, M_TEMP);
+					free(rdcap, M_SCSIDA);
 					xpt_release_ccb(done_ccb);
 					xpt_schedule(periph, /*priority*/5);
 					return;
@@ -1675,7 +1677,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				} 
 			}
 		}
-		free(csio->data_ptr, M_TEMP);
+		free(csio->data_ptr, M_SCSIDA);
 		if (announce_buf[0] != '\0') {
 			xpt_announce_periph(periph, announce_buf);
 			/*
@@ -1816,7 +1818,7 @@ dagetcapacity(struct cam_periph *periph)
 
 	/* Do a read capacity */
 	rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcaplong),
-							M_TEMP,
+							M_SCSIDA,
 							M_NOWAIT);
 	if (rcap == NULL)
 		return (ENOMEM);
@@ -1890,7 +1892,7 @@ done:
 
 	xpt_release_ccb(ccb);
 
-	free(rcap, M_TEMP);
+	free(rcap, M_SCSIDA);
 
 	return (error);
 }
