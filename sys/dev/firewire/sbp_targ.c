@@ -1226,6 +1226,7 @@ found:
 		return (NULL);
 	}
 
+	login->id = i;
 	login->fwdev = fwdev;
 	login->lstate = lstate;
 	login->last_hi = 0xffff;
@@ -1619,7 +1620,7 @@ sbp_targ_attach(device_t dev)
 	sc->fd.post_explore = (void *) sbp_targ_post_explore;
 	sc->fd.post_busreset = (void *) sbp_targ_post_busreset;
 
-        devq = cam_simq_alloc(/*maxopenings*/1);
+        devq = cam_simq_alloc(/*maxopenings*/MAX_LUN*MAX_INITIATORS);
 	if (devq == NULL)
 		return (ENXIO);
 
