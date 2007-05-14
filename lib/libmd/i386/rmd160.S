@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* Run the C pre-processor over this file with one of the following defined
  * ELF - elf object files,
  * OUT - a.out object files,
@@ -2005,7 +2006,7 @@ ripemd160_block_x86:
 	movl	112(%esp),	%esi
 	cmpl	%esi,		%edi
 	movl	108(%esp),	%edi
-	jge	.L000start
+	jae	.L000start
 	addl	$88,		%esp
 	popl	%ebx
 	popl	%ebp
