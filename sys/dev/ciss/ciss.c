@@ -2552,7 +2552,7 @@ ciss_cam_rescan_target(struct ciss_softc *sc, int bus, int target)
 
     debug_called(1);
 
-    if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_NOWAIT | M_ZERO)) == NULL) {
+    if ((ccb = malloc(sizeof(union ccb), CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO)) == NULL) {
 	ciss_printf(sc, "rescan failed (can't allocate CCB)\n");
 	return;
     }
@@ -2560,7 +2560,7 @@ ciss_cam_rescan_target(struct ciss_softc *sc, int bus, int target)
     if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->ciss_cam_sim[bus]),
 			target, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 	ciss_printf(sc, "rescan failed (can't create path)\n");
-	free(ccb, M_TEMP);
+	free(ccb, CISS_MALLOC_CLASS);
 	return;
     }
 
@@ -2591,7 +2591,7 @@ static void
 ciss_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 {
     xpt_free_path(ccb->ccb_h.path);
-    free(ccb, M_TEMP);
+    free(ccb, CISS_MALLOC_CLASS);
 }
 
 /************************************************************************
