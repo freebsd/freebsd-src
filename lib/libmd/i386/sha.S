@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* -*- Fundamental -*- Emacs' assembler mode hoses this file */
 #ifndef PIC
 /* Run the C pre-processor over this file with one of the following defined
@@ -1935,7 +1936,7 @@ sha1_block_x86:
 	movl	%edi,		16(%ebp)
 	cmpl	%esi,		%eax
 	movl	%ebx,		4(%ebp)
-	jl	.L001end
+	jb	.L001end
 	movl	(%esi),		%eax
 	jmp	.L000start
 .L001end:
