@@ -657,11 +657,25 @@ passin:
 		nxt = hbh->ip6h_nxt;
 
 		/*
-		 * accept the packet if a router alert option is included
-		 * and we act as an IPv6 router.
+		 * If we are acting as a router and the packet contains a
+		 * router alert option, see if we know the option value.
+		 * Currently, we only support the option value for MLD, in which
+		 * case we should pass the packet to the multicast routing
+		 * daemon.
 		 */
-		if (rtalert != ~0 && ip6_forwarding)
-			ours = 1;
+		if (rtalert != ~0 && ip6_forwarding) {
+			switch (rtalert) {
+			case IP6OPT_RTALERT_MLD:
+				ours = 1;
+				break;
+			default:
+				/*
+				 * RFC2711 requires unrecognized values must be
+				 * silently ignored.
+				 */
+				break;
+			}
+		}
 	} else
 		nxt = ip6->ip6_nxt;
 
