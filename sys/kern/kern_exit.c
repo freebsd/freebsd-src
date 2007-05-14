@@ -406,6 +406,16 @@ retry:
 	sx_xunlock(&allproc_lock);
 
 	/*
+	 * Call machine-dependent code to release any
+	 * machine-dependent resources other than the address space.
+	 * The address space is released by "vmspace_exitfree(p)" in
+	 * vm_waitproc().
+	 */
+	cpu_exit(td);
+
+	WITNESS_WARN(WARN_PANIC, NULL, "process (pid %d) exiting", p->p_pid);
+
+	/*
 	 * Reparent all of our children to init.
 	 */
 	sx_xlock(&proctree_lock);
@@ -484,22 +494,6 @@ retry:
 		else	/* LINUX thread */
 			psignal(p->p_pptr, p->p_sigparent);
 	}
-	PROC_UNLOCK(p->p_pptr);
-	PROC_UNLOCK(p);
-
-	/*
-	 * Finally, call machine-dependent code to release the remaining
-	 * resources including address space.
-	 * The address space is released by "vmspace_exitfree(p)" in
-	 * vm_waitproc().
-	 */
-	cpu_exit(td);
-
-	WITNESS_WARN(WARN_PANIC, &proctree_lock.lock_object,
-	    "process (pid %d) exiting", p->p_pid);
-
-	PROC_LOCK(p);
-	PROC_LOCK(p->p_pptr);
 	sx_xunlock(&proctree_lock);
 
 	/*
