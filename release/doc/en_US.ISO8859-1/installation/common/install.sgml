@@ -895,7 +895,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  commercially-available <application>Partition
 	  Magic</application>, is
 	  required.  <application>ntfsresize</application>, as well as
-	  the <application>QTParted</application> graphical interface
+	  the <application>GParted</application> graphical interface
 	  for partition resizing, is available on a number of Live CD
 	  Linux distributions, such as 
 	  <ulink url="http://www.sysresccd.org/">SystemRescueCD</ulink>.</para>
