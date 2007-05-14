@@ -34,7 +34,7 @@
 
 #include <bsm/audit.h>
 
-struct proc;
+struct rlimit;
 struct sysent;
 struct thread;
 struct ksiginfo;
@@ -98,7 +98,7 @@ struct sysentvec {
 	int		sv_stackprot;	/* vm protection for stack */
 	register_t	*(*sv_copyout_strings)(struct image_params *);
 	void		(*sv_setregs)(struct thread *, u_long, u_long, u_long);
-	void		(*sv_fixlimits)(struct proc *);
+	void		(*sv_fixlimit)(struct rlimit *, int);
 };
 
 #ifdef _KERNEL
