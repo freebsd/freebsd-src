@@ -102,7 +102,8 @@ periphdriver_register(void *data)
 	int ndrivers;
 
 	ndrivers = nperiph_drivers + 2;
-	newdrivers = malloc(sizeof(*newdrivers) * ndrivers, M_TEMP, M_WAITOK);
+	newdrivers = malloc(sizeof(*newdrivers) * ndrivers, M_CAMPERIPH,
+			    M_WAITOK);
 	if (periph_drivers)
 		bcopy(periph_drivers, newdrivers,
 		      sizeof(*newdrivers) * nperiph_drivers);
@@ -111,7 +112,7 @@ periphdriver_register(void *data)
 	old = periph_drivers;
 	periph_drivers = newdrivers;
 	if (old)
-		free(old, M_TEMP);
+		free(old, M_CAMPERIPH);
 	nperiph_drivers++;
 }
 
