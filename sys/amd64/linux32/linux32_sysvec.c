@@ -121,7 +121,7 @@ static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td, u_long entry,
 				   u_long stack, u_long ps_strings);
-static void	linux32_fixlimits(struct proc *p);
+static void	linux32_fixlimit(struct rlimit *rl, int which);
 
 extern LIST_HEAD(futex_list, futex) futex_list;
 extern struct sx futex_sx;
@@ -965,42 +965,36 @@ static u_long	linux32_maxvmem = LINUX32_MAXVMEM;
 SYSCTL_ULONG(_compat_linux32, OID_AUTO, maxvmem, CTLFLAG_RW,
     &linux32_maxvmem, 0, "");
 
-/*
- * XXX copied from ia32_sysvec.c.
- */
 static void
-linux32_fixlimits(struct proc *p)
+linux32_fixlimit(struct rlimit *rl, int which)
 {
-	struct plimit *oldlim, *newlim;
 
-	if (linux32_maxdsiz == 0 && linux32_maxssiz == 0 &&
-	    linux32_maxvmem == 0)
-		return;
-	newlim = lim_alloc();
-	PROC_LOCK(p);
-	oldlim = p->p_limit;
-	lim_copy(newlim, oldlim);
-	if (linux32_maxdsiz != 0) {
-		if (newlim->pl_rlimit[RLIMIT_DATA].rlim_cur > linux32_maxdsiz)
-		    newlim->pl_rlimit[RLIMIT_DATA].rlim_cur = linux32_maxdsiz;
-		if (newlim->pl_rlimit[RLIMIT_DATA].rlim_max > linux32_maxdsiz)
-		    newlim->pl_rlimit[RLIMIT_DATA].rlim_max = linux32_maxdsiz;
+	switch (which) {
+	case RLIMIT_DATA:
+		if (linux32_maxdsiz != 0) {			
+			if (rl->rlim_cur > linux32_maxdsiz)
+				rl->rlim_cur = linux32_maxdsiz;
+			if (rl->rlim_max > linux32_maxdsiz)
+				rl->rlim_max = linux32_maxdsiz;
+		}
+		break;
+	case RLIMIT_STACK:
+		if (linux32_maxssiz != 0) {
+			if (rl->rlim_cur > linux32_maxssiz)
+				rl->rlim_cur = linux32_maxssiz;
+			if (rl->rlim_max > linux32_maxssiz)
+				rl->rlim_max = linux32_maxssiz;
+		}
+		break;
+	case RLIMIT_VMEM:
+		if (linux32_maxvmem != 0) {
+			if (rl->rlim_cur > linux32_maxvmem)
+				rl->rlim_cur = linux32_maxvmem;
+			if (rl->rlim_max > linux32_maxvmem)
+				rl->rlim_max = linux32_maxvmem;
+		}
+		break;
 	}
-	if (linux32_maxssiz != 0) {
-		if (newlim->pl_rlimit[RLIMIT_STACK].rlim_cur > linux32_maxssiz)
-		    newlim->pl_rlimit[RLIMIT_STACK].rlim_cur = linux32_maxssiz;
-		if (newlim->pl_rlimit[RLIMIT_STACK].rlim_max > linux32_maxssiz)
-		    newlim->pl_rlimit[RLIMIT_STACK].rlim_max = linux32_maxssiz;
-	}
-	if (linux32_maxvmem != 0) {
-		if (newlim->pl_rlimit[RLIMIT_VMEM].rlim_cur > linux32_maxvmem)
-		    newlim->pl_rlimit[RLIMIT_VMEM].rlim_cur = linux32_maxvmem;
-		if (newlim->pl_rlimit[RLIMIT_VMEM].rlim_max > linux32_maxvmem)
-		    newlim->pl_rlimit[RLIMIT_VMEM].rlim_max = linux32_maxvmem;
-	}
-	p->p_limit = newlim;
-	PROC_UNLOCK(p);
-	lim_free(oldlim);
 }
 
 struct sysentvec elf_linux_sysvec = {
@@ -1029,7 +1023,7 @@ struct sysentvec elf_linux_sysvec = {
 	VM_PROT_ALL,
 	linux_copyout_strings,
 	exec_linux_setregs,
-	linux32_fixlimits
+	linux32_fixlimit
 };
 
 static Elf32_Brandinfo linux_brand = {
