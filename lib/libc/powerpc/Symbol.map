@@ -41,6 +41,7 @@ FBSD_1.0 {
 	exect;
 	pipe;
 	sbrk;
+	vfork;
 };
 
 FBSDprivate_1.0 {
