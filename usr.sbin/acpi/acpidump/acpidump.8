@@ -145,6 +145,12 @@ Store the DSDT data block from physical memory into the specified file.
 .It Pa /dev/mem
 .El
 .Sh EXAMPLES
+If a developer requests a copy of your ASL, please use the following
+command to dump all tables and compress the result.
+.Bd -literal -offset indent
+# acpidump -dt | gzip -c9 > my_computer.asl.gz
+.Ed
+.Pp
 This example dumps the DSDT from physical memory to foo.dsdt.
 It also prints the contents of various system tables and disassembles
 the AML contained in the DSDT to stdout, redirecting the output
