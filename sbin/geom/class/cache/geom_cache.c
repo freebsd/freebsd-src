@@ -53,7 +53,7 @@ static void cache_dump(struct gctl_req *req);
 static void cache_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, cache_main, G_NULL_OPTS,
+	{ "clear", G_FLAG_VERBOSE, cache_main, G_NULL_OPTS, NULL,
 	    "[-v] prov ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
@@ -62,7 +62,7 @@ struct g_command class_commands[] = {
 		{ 's', "size", &size_configure, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-v] [-b blocksize] [-s size] name"
+	    NULL, "[-v] [-b blocksize] [-s size] name"
 	},
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
@@ -70,16 +70,16 @@ struct g_command class_commands[] = {
 		{ 's', "size", &size_label, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-v] [-b blocksize] [-s size] name prov"
+	    NULL, "[-v] [-b blocksize] [-s size] name prov"
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-fv] name ..."
+	    NULL, "[-fv] name ..."
 	},
-	{ "dump", 0, cache_main, G_NULL_OPTS,
+	{ "dump", 0, cache_main, G_NULL_OPTS, NULL,
 	    "prov ..."
 	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, cache_main,
@@ -88,9 +88,9 @@ struct g_command class_commands[] = {
 		{ 's', "size", &size_label, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-v] [-b blocksize] [-s size] name prov"
+	    NULL, "[-v] [-b blocksize] [-s size] name prov"
 	},
-	{ "reset", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	{ "reset", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
 	    "[-v] name ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
@@ -98,7 +98,7 @@ struct g_command class_commands[] = {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-fv] name ..."
+	    NULL, "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };
