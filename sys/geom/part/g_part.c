@@ -1159,7 +1159,7 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		    (gpp.gpp_parms & G_PART_PARM_FLAGS) &&
 		    strchr(gpp.gpp_flags, 'C') != NULL) ? 1 : 0;
 		if (auto_commit) {
-			KASSERT(gpp->gpp_parms & G_PART_PARM_GEOM, (__func__));
+			KASSERT(gpp.gpp_parms & G_PART_PARM_GEOM, (__func__));
 			error = g_part_ctl_commit(req, &gpp);
 		}
 	}
