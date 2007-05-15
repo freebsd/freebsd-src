@@ -1199,7 +1199,7 @@ uint32_t
 lagg_hashmbuf(struct mbuf *m, uint32_t key)
 {
 	uint16_t etype;
-	uint32_t flow, p = 0;
+	uint32_t p = 0;
 	int off;
 	struct ether_header *eh;
 	struct ether_vlan_header vlanbuf;
@@ -1211,6 +1211,7 @@ lagg_hashmbuf(struct mbuf *m, uint32_t key)
 #ifdef INET6
 	const struct ip6_hdr *ip6;
 	struct ip6_hdr ip6buf;
+	uint32_t flow;
 #endif
 
 	off = sizeof(*eh);
