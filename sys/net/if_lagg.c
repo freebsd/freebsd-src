@@ -1199,7 +1199,7 @@ uint32_t
 lagg_hashmbuf(struct mbuf *m, uint32_t key)
 {
 	uint16_t etype;
-	uint32_t p = 0;
+	uint32_t flow, p = 0;
 	int off;
 	struct ether_header *eh;
 	struct ether_vlan_header vlanbuf;
@@ -1254,6 +1254,8 @@ lagg_hashmbuf(struct mbuf *m, uint32_t key)
 
 		p = hash32_buf(&ip6->ip6_src, sizeof(struct in6_addr), p);
 		p = hash32_buf(&ip6->ip6_dst, sizeof(struct in6_addr), p);
+		flow = ip6->ip6_flow & IPV6_FLOWLABEL_MASK;
+		p = hash32_buf(&flow, sizeof(flow), p);	/* IPv6 flow label */
 		break;
 #endif
 	}
