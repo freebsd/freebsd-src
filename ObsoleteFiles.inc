@@ -442,11 +442,6 @@ OLD_FILES+=usr/share/man/man1/sasc.1.gz
 OLD_FILES+=usr/share/man/man1/sgsc.1.gz
 OLD_FILES+=usr/share/man/man4/i386/stl.4.gz
 OLD_FILES+=usr/share/man/man8/raidctl.8.gz
-.if ${TARGET_ARCH} != "sparc64"
-# 20040130: libkse renamed to libpthread
-OLD_FILES+=usr/lib/libkse.a
-OLD_FILES+=usr/lib/libkse.so
-.endif
 # 20040119: installed as `isdntel' in newer systems
 OLD_FILES+=etc/isdn/isdntel.sh
 # 200XYYZZ: /lib transition clitches
