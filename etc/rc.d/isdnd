@@ -15,6 +15,7 @@
 name="isdnd"
 rcvar=`set_rcvar isdn`
 pidfile="/var/run/${name}.pid"
+command="/usr/sbin/isdnd"
 start_cmd="isdnd_start"
 
 isdnd_start()
