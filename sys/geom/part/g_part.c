@@ -592,6 +592,13 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	if (null != NULL)
 		kobj_delete((kobj_t)null, M_GEOM);
 
+	/*
+	 * Support automatic commit by filling in the gpp_geom
+	 * parameter.
+	 */
+	gpp->gpp_parms |= G_PART_PARM_GEOM;
+	gpp->gpp_geom = gp;
+
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
@@ -899,20 +906,20 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	const char *p;
 	enum g_part_ctl ctlreq;
 	unsigned int i, mparms, oparms, parm;
+	int auto_commit, close_on_error;
 	int error, modifies;
 
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, verb));
 	g_topology_assert();
 
 	ctlreq = G_PART_CTL_NONE;
-	modifies = 0;
+	modifies = 1;
 	mparms = 0;
 	oparms = G_PART_PARM_FLAGS | G_PART_PARM_OUTPUT | G_PART_PARM_VERSION;
 	switch (*verb) {
 	case 'a':
 		if (!strcmp(verb, "add")) {
 			ctlreq = G_PART_CTL_ADD;
-			modifies = 1;
 			mparms |= G_PART_PARM_GEOM | G_PART_PARM_SIZE |
 			    G_PART_PARM_START | G_PART_PARM_TYPE;
 			oparms |= G_PART_PARM_INDEX | G_PART_PARM_LABEL;
@@ -922,9 +929,9 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		if (!strcmp(verb, "commit")) {
 			ctlreq = G_PART_CTL_COMMIT;
 			mparms |= G_PART_PARM_GEOM;
+			modifies = 0;
 		} else if (!strcmp(verb, "create")) {
 			ctlreq = G_PART_CTL_CREATE;
-			modifies = 1;
 			mparms |= G_PART_PARM_PROVIDER | G_PART_PARM_SCHEME;
 			oparms |= G_PART_PARM_ENTRIES;
 		}
@@ -932,34 +939,28 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	case 'd':
 		if (!strcmp(verb, "delete")) {
 			ctlreq = G_PART_CTL_DELETE;
-			modifies = 1;
 			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX;
 		} else if (!strcmp(verb, "destroy")) {
 			ctlreq = G_PART_CTL_DESTROY;
-			modifies = 1;
 			mparms |= G_PART_PARM_GEOM;
 		}
 		break;
 	case 'm':
 		if (!strcmp(verb, "modify")) {
 			ctlreq = G_PART_CTL_MODIFY;
-			modifies = 1;
 			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX;
 			oparms |= G_PART_PARM_LABEL | G_PART_PARM_TYPE;
 		} else if (!strcmp(verb, "move")) {
 			ctlreq = G_PART_CTL_MOVE;
-			modifies = 1;
 			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX;
 		}
 		break;
 	case 'r':
 		if (!strcmp(verb, "recover")) {
 			ctlreq = G_PART_CTL_RECOVER;
-			modifies = 1;
 			mparms |= G_PART_PARM_GEOM;
 		} else if (!strcmp(verb, "resize")) {
 			ctlreq = G_PART_CTL_RESIZE;
-			modifies = 1;
 			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX;
 		}
 		break;
@@ -967,6 +968,7 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		if (!strcmp(verb, "undo")) {
 			ctlreq = G_PART_CTL_UNDO;
 			mparms |= G_PART_PARM_GEOM;
+			modifies = 0;
 		}
 		break;
 	}
@@ -1045,6 +1047,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			error = g_part_parm_uint(p, &gpp.gpp_entries);
 			break;
 		case G_PART_PARM_FLAGS:
+			if (p[0] == '\0')
+				continue;
 			error = g_part_parm_str(p, &gpp.gpp_flags);
 			break;
 		case G_PART_PARM_GEOM:
@@ -1054,7 +1058,9 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			error = g_part_parm_uint(p, &gpp.gpp_index);
 			break;
 		case G_PART_PARM_LABEL:
-			error = g_part_parm_str(p, &gpp.gpp_label);
+			/* An empty label is always valid. */
+			gpp.gpp_label = p;
+			error = 0;
 			break;
 		case G_PART_PARM_OUTPUT:
 			error = 0;	/* Write-only parameter */
@@ -1094,6 +1100,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	}
 
 	/* Obtain permissions if possible/necessary. */
+	close_on_error = 0;
+	table = NULL;	/* Suppress uninit. warning. */
 	if (modifies && (gpp.gpp_parms & G_PART_PARM_GEOM)) {
 		table = gpp.gpp_geom->softc;
 		if (table != NULL && !table->gpt_opened) {
@@ -1105,6 +1113,7 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 				return;
 			}
 			table->gpt_opened = 1;
+			close_on_error = 1;
 		}
 	}
 
@@ -1142,6 +1151,22 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	case G_PART_CTL_UNDO:
 		error = g_part_ctl_undo(req, &gpp);
 		break;
+	}
+
+	/* Implement automatic commit. */
+	if (!error) {
+		auto_commit = (modifies &&
+		    (gpp.gpp_parms & G_PART_PARM_FLAGS) &&
+		    strchr(gpp.gpp_flags, 'C') != NULL) ? 1 : 0;
+		if (auto_commit) {
+			KASSERT(gpp->gpp_parms & G_PART_PARM_GEOM, (__func__));
+			error = g_part_ctl_commit(req, &gpp);
+		}
+	}
+
+	if (error && close_on_error) {
+		g_access(LIST_FIRST(&gpp.gpp_geom->consumer), -1, -1, -1);
+		table->gpt_opened = 0;
 	}
 }
 
