@@ -191,6 +191,7 @@ MAN=	aac.4 \
 	ng_bridge.4 \
 	ng_bt3c.4 \
 	ng_btsocket.4 \
+	ng_car.4 \
 	ng_ccatm.4 \
 	ng_cisco.4 \
 	ng_deflate.4 \
