@@ -12,6 +12,7 @@ SUBDIR+=label
 SUBDIR+=mirror
 SUBDIR+=multipath
 SUBDIR+=nop
+SUBDIR+=part
 SUBDIR+=raid3
 SUBDIR+=shsec
 SUBDIR+=stripe

@@ -55,10 +55,10 @@ static void journal_dump(struct gctl_req *req);
 static void journal_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, journal_main, G_NULL_OPTS,
+	{ "clear", G_FLAG_VERBOSE, journal_main, G_NULL_OPTS, NULL,
 	    "[-v] prov ..."
 	},
-	{ "dump", 0, journal_main, G_NULL_OPTS,
+	{ "dump", 0, journal_main, G_NULL_OPTS, NULL,
 	    "prov ..."
 	},
 	{ "label", G_FLAG_VERBOSE, journal_main,
@@ -69,16 +69,16 @@ struct g_command class_commands[] = {
 		{ 's', "jsize", &default_jsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-cfhv] [-s jsize] dataprov [jprov]"
+	    NULL, "[-cfhv] [-s jsize] dataprov [jprov]"
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-fv] name ..."
+	    NULL, "[-fv] name ..."
 	},
-	{ "sync", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	{ "sync", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
 	    "[-v]"
 	},
 	G_CMD_SENTINEL

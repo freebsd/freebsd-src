@@ -48,7 +48,7 @@
 
 #define G_OPT_SENTINEL	{ '\0', NULL, NULL, G_TYPE_NONE }
 #define G_NULL_OPTS	{ G_OPT_SENTINEL }
-#define	G_CMD_SENTINEL	{ NULL, 0, NULL, G_NULL_OPTS, NULL }
+#define	G_CMD_SENTINEL	{ NULL, 0, NULL, G_NULL_OPTS, NULL, NULL }
 
 struct g_option {
 	char		 go_char;
@@ -62,6 +62,7 @@ struct g_command {
 	unsigned	 gc_flags;
 	void		(*gc_func)(struct gctl_req *, unsigned);
 	struct g_option	gc_options[G_OPT_MAX];
+	const char	*gc_argname;
 	const char	*gc_usage;
 };
 #endif	/* !_GEOM_H_ */
