@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 
 ACPI_SERIAL_DECL(hpet, "ACPI HPET support");
 
+static devclass_t acpi_hpet_devclass;
+
 /* ACPI CA debugging */
 #define _COMPONENT	ACPI_TIMER
 ACPI_MODULE_NAME("HPET")
@@ -78,12 +80,48 @@ hpet_get_timecount(struct timecounter *tc)
 	return (bus_read_4(sc->mem_res, HPET_OFFSET_VALUE));
 }
 
+#define DEV_HPET(x)		(acpi_get_magic(x) == (int)&acpi_hpet_devclass)
+
+void 
+acpi_hpet_table_probe(device_t parent)
+{
+	ACPI_TABLE_HPET *hpet;
+	ACPI_TABLE_HEADER *hdr;
+	ACPI_STATUS	status;
+	device_t	child;
+
+	/*Currently, id and minimam clock tick info. is discarded.*/
+
+	status = AcpiGetTable(ACPI_SIG_HPET, 1, (ACPI_TABLE_HEADER **)&hdr);
+	if (ACPI_FAILURE(status))
+		return;
+	
+	hpet = (ACPI_TABLE_HPET *) hdr;
+
+	/*unit No.hdr->Sequence*/
+	if(hpet->Sequence)
+		printf("HPET TABLE:Sequense is non zero %d\n", hpet->Sequence);
+	
+	child = BUS_ADD_CHILD(parent, 0, "acpi_hpet", 0);
+
+	if (child == NULL) {
+		printf("%s: can't add child\n", __func__);
+		return;
+	}
+	
+	acpi_set_magic(child, (int)&acpi_hpet_devclass);
+	bus_set_resource(child, SYS_RES_MEMORY, 0, hpet->Address.Address, HPET_MEM_WIDTH);
+	if(device_probe_and_attach(child) != 0)
+		device_delete_child(parent, child);
+}
+
 static int
 acpi_hpet_probe(device_t dev)
 {
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
-	if (acpi_disabled("hpet") ||
+	if (acpi_disabled("hpet")||
+	    !DEV_HPET(dev) ||
 	    ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids) == NULL ||
 	    device_get_unit(dev) != 0)
 		return (ENXIO);
@@ -211,7 +249,6 @@ static driver_t	acpi_hpet_driver = {
 	sizeof(struct acpi_hpet_softc),
 };
 
-static devclass_t acpi_hpet_devclass;
 
 DRIVER_MODULE(acpi_hpet, acpi, acpi_hpet_driver, acpi_hpet_devclass, 0, 0);
 MODULE_DEPEND(acpi_hpet, acpi, 1, 1, 1);
