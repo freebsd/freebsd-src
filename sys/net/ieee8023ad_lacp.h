@@ -214,6 +214,8 @@ struct lacp_softc {
 	struct callout		lsc_callout;
 	LIST_HEAD(, lacp_port)	lsc_ports;
 	u_int32_t		lsc_hashkey;
+	struct task		lsc_qtask;
+	struct ifqueue		lsc_queue;	/* pdu input queue */
 };
 
 #define	LACP_TYPE_ACTORINFO	1
@@ -262,8 +264,7 @@ struct markerdu {
 #define	LACP_PORT(_lp)	((struct lacp_port *)(_lp)->lp_psc)
 #define	LACP_SOFTC(_sc)	((struct lacp_softc *)(_sc)->sc_psc)
 
-int 		lacp_input(struct lagg_port *, struct mbuf *);
-int		lacp_marker_input(struct lagg_port *, struct mbuf *);
+void		lacp_input(struct lagg_port *, struct mbuf *);
 struct lagg_port *lacp_select_tx_port(struct lagg_softc *, struct mbuf *);
 int		lacp_attach(struct lagg_softc *);
 int		lacp_detach(struct lagg_softc *);
