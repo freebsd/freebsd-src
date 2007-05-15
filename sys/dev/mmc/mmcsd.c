@@ -50,6 +50,7 @@ struct mmcsd_softc {
 	struct disk *disk;
 	struct proc *p;
 	struct bio_queue_head bio_queue;
+	int running;
 };
 
 #define	MULTI_BLOCK_READ_BROKEN
@@ -104,6 +105,8 @@ mmcsd_attach(device_t dev)
 	sc->disk->d_unit = device_get_unit(dev);
 	disk_create(sc->disk, DISK_VERSION);
 	bioq_init(&sc->bio_queue);
+
+	sc->running = 1;
 	kthread_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
 
 	return (0);
@@ -112,7 +115,27 @@ mmcsd_attach(device_t dev)
 static int
 mmcsd_detach(device_t dev)
 {
-	return (EBUSY);	/* XXX */
+	struct mmcsd_softc *sc = device_get_softc(dev);
+
+	/* kill thread */
+	MMCSD_LOCK(sc);
+	sc->running = 0;
+	wakeup(sc);
+	MMCSD_UNLOCK(sc);
+
+	/* wait for thread to finish.  XXX probably want timeout.  -sorbo */
+	MMCSD_LOCK(sc);
+	while (sc->running != -1)
+		msleep(sc, &sc->sc_mtx, PRIBIO, "detach", 0);
+	MMCSD_UNLOCK(sc);
+
+	/* kill disk */
+	disk_destroy(sc->disk);
+	/* XXX destroy anything in queue */
+
+	MMCSD_LOCK_DESTROY(sc);
+
+	return 0;
 }
 
 static int
@@ -153,15 +176,18 @@ mmcsd_task(void *arg)
 	device_t dev;
 
 	dev = sc->dev;
-	for (;;) {
+	while (sc->running) {
 		MMCSD_LOCK(sc);
 		do {
 			bp = bioq_first(&sc->bio_queue);
 			if (bp == NULL)
 				msleep(sc, &sc->sc_mtx, PRIBIO, "jobqueue", 0);
-		} while (bp == NULL);
-		bioq_remove(&sc->bio_queue, bp);
+		} while (bp == NULL && sc->running);
+		if (bp)
+			bioq_remove(&sc->bio_queue, bp);
 		MMCSD_UNLOCK(sc);
+		if (!sc->running)
+			break;
 		MMCBUS_ACQUIRE_BUS(device_get_parent(dev), dev);
 //		printf("mmc_task: request %p for block %lld\n", bp, bp->bio_pblkno);
 		sz = sc->disk->d_sectorsize;
@@ -224,6 +250,14 @@ mmcsd_task(void *arg)
 		MMCBUS_RELEASE_BUS(device_get_parent(dev), dev);
 		biodone(bp);
 	}
+
+	/* tell parent we're done */
+	MMCSD_LOCK(sc);
+	sc->running = -1;
+	wakeup(sc);
+	MMCSD_UNLOCK(sc);
+
+	kthread_exit(0);
 }
 
 static device_method_t mmcsd_methods[] = {
