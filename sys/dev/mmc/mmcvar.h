@@ -31,7 +31,6 @@
 enum mmc_device_ivars {
     MMC_IVAR_DSR_IMP,
     MMC_IVAR_MEDIA_SIZE,
-    MMC_IVAR_MODE,
     MMC_IVAR_RCA,
     MMC_IVAR_SECTOR_SIZE,
     MMC_IVAR_TRAN_SPEED,
@@ -46,7 +45,6 @@ enum mmc_device_ivars {
 
 MMC_ACCESSOR(dsr_imp, DSR_IMP, int)
 MMC_ACCESSOR(media_size, MEDIA_SIZE, int)
-MMC_ACCESSOR(mode, MODE, int)
 MMC_ACCESSOR(rca, RCA, int)
 MMC_ACCESSOR(sector_size, SECTOR_SIZE, int)
 MMC_ACCESSOR(tran_speed, TRAN_SPEED, int)
