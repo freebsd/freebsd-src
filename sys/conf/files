@@ -1742,6 +1742,7 @@ netgraph/ng_atmllc.c		optional netgraph_atmllc
 netgraph/ng_base.c		optional netgraph
 netgraph/ng_bpf.c		optional netgraph_bpf
 netgraph/ng_bridge.c		optional netgraph_bridge
+netgraph/ng_car.c		optional netgraph_car
 netgraph/ng_cisco.c		optional netgraph_cisco
 netgraph/ng_deflate.c		optional netgraph_deflate
 netgraph/ng_device.c		optional netgraph_device
