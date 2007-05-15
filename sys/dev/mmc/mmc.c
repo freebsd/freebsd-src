@@ -117,7 +117,26 @@ mmc_attach(device_t dev)
 static int
 mmc_detach(device_t dev)
 {
-	return (EBUSY);	/* XXX */
+	struct mmc_softc *sc = device_get_softc(dev);
+	device_t *kids;
+	int i, nkid;
+
+	/* kill children [ph33r].  -sorbo */
+	if (device_get_children(sc->dev, &kids, &nkid) != 0)
+		return 0;
+	for (i = 0; i < nkid; i++) {
+		device_t kid = kids[i];
+		void *ivar = device_get_ivars(kid);
+		
+		device_detach(kid);
+		device_delete_child(sc->dev, kid);
+		free(ivar, M_DEVBUF);
+	}
+	free(kids, M_TEMP);
+
+	MMC_LOCK_DESTROY(sc);
+
+	return 0;
 }
 
 static int
@@ -553,6 +572,8 @@ mmc_discover_cards(struct mmc_softc *sc)
 
 	while (1) {
 		ivar = malloc(sizeof(struct mmc_ivars), M_DEVBUF, M_WAITOK);
+		if (!ivar)
+			return;
 		err = mmc_all_send_cid(sc, ivar->raw_cid);
 		if (err == MMC_ERR_TIMEOUT)
 			break;
@@ -568,13 +589,15 @@ mmc_discover_cards(struct mmc_softc *sc)
 			// RO check
 			mmc_send_csd(sc, ivar->rca, ivar->raw_csd);
 			mmc_decode_csd(1, ivar->raw_csd, &ivar->csd);
-			printf("SD CARD: %lld bytes\n", ivar->csd.capacity);
+			printf("SD CARD: %lld bytes\n", (long long)
+			    ivar->csd.capacity);
 			child = device_add_child(sc->dev, NULL, -1);
 			device_set_ivars(child, ivar);
-			break;
+			return;
 		}
 		panic("Write MMC card code here");
 	}
+	free(ivar, M_DEVBUF);
 }
 
 static void
@@ -679,9 +702,6 @@ mmc_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	case MMC_IVAR_MEDIA_SIZE:
 		*(int *)result = ivar->csd.capacity;
 		break;
-	case MMC_IVAR_MODE:
-		*(int *)result = ivar->mode;
-		break;
 	case MMC_IVAR_RCA:
 		*(int *)result = ivar->rca;
 		break;
@@ -743,3 +763,4 @@ static devclass_t mmc_devclass;
 
 
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, 0, 0);
+DRIVER_MODULE(mmc, sdh, mmc_driver, mmc_devclass, 0, 0);
