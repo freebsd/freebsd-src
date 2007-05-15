@@ -669,6 +669,7 @@ options 	NETGRAPH_BLUETOOTH_UBT		# ng_ubt(4)
 options 	NETGRAPH_BLUETOOTH_UBTBCMFW	# ubtbcmfw(4)
 options 	NETGRAPH_BPF
 options 	NETGRAPH_BRIDGE
+options 	NETGRAPH_CAR
 options 	NETGRAPH_CISCO
 options 	NETGRAPH_DEFLATE
 options 	NETGRAPH_DEVICE
