@@ -301,10 +301,13 @@ MAN=	aac.4 \
 	snd_csa.4 \
 	snd_ds1.4 \
 	snd_emu10k1.4 \
+	snd_envy24.4 \
+	snd_envy24ht.4 \
 	snd_es137x.4 \
 	snd_ess.4 \
 	snd_fm801.4 \
 	snd_gusc.4 \
+	snd_hda.4 \
 	snd_ich.4 \
 	snd_maestro.4 \
 	snd_maestro3.4 \
@@ -312,6 +315,7 @@ MAN=	aac.4 \
 	snd_neomagic.4 \
 	snd_sbc.4 \
 	snd_solo.4 \
+	snd_spicds.4 \
 	snd_t4dwave.4 \
 	snd_uaudio.4 \
 	snd_via8233.4 \
