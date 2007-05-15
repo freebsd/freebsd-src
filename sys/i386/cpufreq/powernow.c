@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 #include <machine/cputypes.h>
-#include <machine/clock.h>
 #include <machine/vmparam.h>
 #include <sys/rman.h>
 
@@ -55,6 +54,15 @@ __FBSDID("$FreeBSD$");
 
 #define PN7_TYPE	0
 #define PN8_TYPE	1
+
+/* Flags for some hardware bugs. */
+#define A0_ERRATA	0x1	/* Bugs for the rev. A0 of Athlon (K7):
+				 * Interrupts must be disabled and no half
+				 * multipliers are allowed */
+#define PENDING_STUCK	0x2	/* With some buggy chipset and some newer AMD64
+				 * processor (Rev. G?):
+				 * the pending bit from the msr FIDVID_STATUS
+				 * is set forever.  No workaround :( */
 
 /* Legacy configuration via BIOS table PSB. */
 #define PSB_START	0
@@ -141,11 +149,6 @@ struct pst_header {
 	wrmsr(MSR_AMDK7_FIDVID_CTL,	\
 	    (((ctrl) << 32) | (1ULL << 16) | ((vid) << 8) | (fid)))
 
-#define READ_PENDING_WAIT(status)	\
-	do {			\
-		(status) = rdmsr(MSR_AMDK7_FIDVID_STATUS);	\
-	} while (PN8_STA_PENDING(status))
-
 #define COUNT_OFF_IRT(irt)	DELAY(10 * (1 << (irt)))
 #define COUNT_OFF_VST(vst)	DELAY(20 * (vst))
 
@@ -165,11 +168,15 @@ static int pn7_fid_to_mult[32] = {
 };
 
 
-static int pn8_fid_to_mult[32] = {
-	40, 50, 60, 70, 80, 90, 100, 110,
-	120, 130, 140, 150, 160, 170, 180, 190,
-	220, 230, 240, 250, 260, 270, 280, 290,
-	300, 310, 320, 330, 340, 350,
+static int pn8_fid_to_mult[64] = {
+	40, 45, 50, 55, 60, 65, 70, 75,
+	80, 85, 90, 95, 100, 105, 110, 115,
+	120, 125, 130, 135, 140, 145, 150, 155,
+	160, 165, 170, 175, 180, 185, 190, 195,
+	200, 205, 210, 215, 220, 225, 230, 235,
+	240, 245, 250, 255, 260, 265, 270, 275,
+	280, 285, 290, 295, 300, 305, 310, 315,
+	320, 325, 330, 335, 340, 345, 350, 355,
 };
 
 /*
@@ -220,7 +227,7 @@ struct pn_softc {
 	int			 low;
 	int			 powernow_max_states;
 	u_int			 powernow_state;
-	int			 errata_a0;
+	u_int			 errata;
 	int			*vid_to_volts;
 };
 
@@ -286,7 +293,7 @@ pn7_setfidvid(struct pn_softc *sc, int fid, int vid)
 	ctl |= PN7_CTR_VID(vid);
 	ctl |= PN7_CTR_SGTC(sc->sgtc);
 
-	if (sc->errata_a0)
+	if (sc->errata & A0_ERRATA)
 		disable_intr();
 
 	if (pn7_fid_to_mult[fid] < pn7_fid_to_mult[cfid]) {
@@ -299,10 +306,34 @@ pn7_setfidvid(struct pn_softc *sc, int fid, int vid)
 			wrmsr(MSR_AMDK7_FIDVID_CTL, ctl | PN7_CTR_FIDC);
 	}
 
-	if (sc->errata_a0)
+	if (sc->errata & A0_ERRATA)
 		enable_intr();
 
 	return (0);
+}
+
+static int
+pn8_read_pending_wait(uint64_t *status)
+{
+	int i = 10000;
+
+	do
+		*status = rdmsr(MSR_AMDK7_FIDVID_STATUS);
+	while (PN8_STA_PENDING(*status) && --i);
+
+	return (i == 0 ? ENXIO : 0);
+}
+
+static int
+pn8_write_fidvid(u_int fid, u_int vid, uint64_t ctrl, uint64_t *status)
+{
+	int i = 100;
+
+	do
+		WRITE_FIDVID(fid, vid, ctrl);
+	while (pn8_read_pending_wait(status) && --i);
+
+	return (i == 0 ? ENXIO : 0);
 }
 
 static int
@@ -311,9 +342,13 @@ pn8_setfidvid(struct pn_softc *sc, int fid, int vid)
 	uint64_t status;
 	int cfid, cvid;
 	int rvo;
+	int rv;
 	u_int val;
 
-	READ_PENDING_WAIT(status);
+	rv = pn8_read_pending_wait(&status);
+	if (rv)
+		return (rv);
+
 	cfid = PN8_STA_CFID(status);
 	cvid = PN8_STA_CVID(status);
 
@@ -326,8 +361,11 @@ pn8_setfidvid(struct pn_softc *sc, int fid, int vid)
 	 */
 	while (cvid > vid) {
 		val = cvid - (1 << sc->mvs);
-		WRITE_FIDVID(cfid, (val > 0) ? val : 0, 1ULL);
-		READ_PENDING_WAIT(status);
+		rv = pn8_write_fidvid(cfid, (val > 0) ? val : 0, 1ULL, &status);
+		if (rv) {
+			sc->errata |= PENDING_STUCK;
+			return (rv);
+		}
 		cvid = PN8_STA_CVID(status);
 		COUNT_OFF_VST(sc->vst);
 	}
@@ -337,54 +375,67 @@ pn8_setfidvid(struct pn_softc *sc, int fid, int vid)
 		/* XXX It's not clear from spec if we have to do that
 		 * in 0.25 step or in MVS.  Therefore do it as it's done
 		 * under Linux */
-		WRITE_FIDVID(cfid, cvid - 1, 1ULL);
-		READ_PENDING_WAIT(status);
+		rv = pn8_write_fidvid(cfid, cvid - 1, 1ULL, &status);
+		if (rv) {
+			sc->errata |= PENDING_STUCK;
+			return (rv);
+		}
 		cvid = PN8_STA_CVID(status);
 		COUNT_OFF_VST(sc->vst);
 	}
 
 	/* Phase 2: change to requested core frequency */
 	if (cfid != fid) {
-		u_int vco_fid, vco_cfid;
+		u_int vco_fid, vco_cfid, fid_delta;
 
 		vco_fid = FID_TO_VCO_FID(fid);
 		vco_cfid = FID_TO_VCO_FID(cfid);
 
 		while (abs(vco_fid - vco_cfid) > 2) {
+			fid_delta = (vco_cfid & 1) ? 1 : 2;
 			if (fid > cfid) {
-				if (cfid > 6)
-					val = cfid + 2;
+				if (cfid > 7)
+					val = cfid + fid_delta;
 				else
-					val = FID_TO_VCO_FID(cfid) + 2;
+					val = FID_TO_VCO_FID(cfid) + fid_delta;
 			} else
-				val = cfid - 2;
-			WRITE_FIDVID(val, cvid, sc->pll * (uint64_t) sc->fsb);
-			READ_PENDING_WAIT(status);
+				val = cfid - fid_delta;
+			rv = pn8_write_fidvid(val, cvid,
+			    sc->pll * (uint64_t) sc->fsb,
+			    &status);
+			if (rv) {
+				sc->errata |= PENDING_STUCK;
+				return (rv);
+			}
 			cfid = PN8_STA_CFID(status);
 			COUNT_OFF_IRT(sc->irt);
 
 			vco_cfid = FID_TO_VCO_FID(cfid);
 		}
 
-		WRITE_FIDVID(fid, cvid, sc->pll * (uint64_t) sc->fsb);
-		READ_PENDING_WAIT(status);
+		rv = pn8_write_fidvid(fid, cvid,
+		    sc->pll * (uint64_t) sc->fsb,
+		    &status);
+		if (rv) {
+			sc->errata |= PENDING_STUCK;
+			return (rv);
+		}
 		cfid = PN8_STA_CFID(status);
 		COUNT_OFF_IRT(sc->irt);
 	}
 
 	/* Phase 3: change to requested voltage */
 	if (cvid != vid) {
-		WRITE_FIDVID(cfid, vid, 1ULL);
-		READ_PENDING_WAIT(status);
+		rv = pn8_write_fidvid(cfid, vid, 1ULL, &status);
 		cvid = PN8_STA_CVID(status);
 		COUNT_OFF_VST(sc->vst);
 	}
 
 	/* Check if transition failed. */
 	if (cfid != fid || cvid != vid)
-		return (ENXIO);
+		rv = ENXIO;
 
-	return (0);
+	return (rv);
 }
 
 static int
@@ -398,6 +449,9 @@ pn_set(device_t dev, const struct cf_setting *cf)
 	if (cf == NULL)
 		return (EINVAL);
 	sc = device_get_softc(dev);
+
+	if (sc->errata & PENDING_STUCK)
+		return (ENXIO);
 
 	for (i = 0; i < sc->powernow_max_states; ++i)
 		if (CPUFREQ_CMP(sc->powernow_states[i].freq / 1000, cf->freq))
@@ -431,6 +485,8 @@ pn_get(device_t dev, struct cf_setting *cf)
 	if (cf == NULL)
 		return (EINVAL);
 	sc = device_get_softc(dev);
+	if (sc->errata & PENDING_STUCK)
+		return (ENXIO);
 
 	status = rdmsr(MSR_AMDK7_FIDVID_STATUS);
 
@@ -518,13 +574,12 @@ decode_pst(struct pn_softc *sc, uint8_t *p, int npstates)
 		switch (sc->pn_type) {
 		case PN7_TYPE:
 			state.freq = 100 * pn7_fid_to_mult[state.fid] * sc->fsb;
-			if (sc->errata_a0 &&
+			if ((sc->errata & A0_ERRATA) &&
 			    (pn7_fid_to_mult[state.fid] % 10) == 5)
 				continue;
 			break;
 		case PN8_TYPE:
-			state.freq = 100 * pn8_fid_to_mult[state.fid >> 1] *
-			    sc->fsb;
+			state.freq = 100 * pn8_fid_to_mult[state.fid] * sc->fsb;
 			break;
 		}
 
@@ -541,7 +596,7 @@ decode_pst(struct pn_softc *sc, uint8_t *p, int npstates)
 	}
 
 	/*
-	 * Fix powernow_max_states, if errata_a0 give us less states
+	 * Fix powernow_max_states, if errata a0 give us less states
 	 * than expected.
 	 */
 	sc->powernow_max_states = n;
@@ -597,7 +652,7 @@ pn_decode_pst(device_t dev)
 	cpuid = regs[0];
 
 	if ((cpuid & 0xfff) == 0x760)
-		sc->errata_a0 = TRUE;
+		sc->errata |= A0_ERRATA;
 
 	status = rdmsr(MSR_AMDK7_FIDVID_STATUS);
 
@@ -749,7 +804,7 @@ pn_decode_acpi(device_t dev, device_t perf_dev)
 	do_cpuid(0x80000001, regs);
 	cpuid = regs[0];
 	if ((cpuid & 0xfff) == 0x760)
-		sc->errata_a0 = TRUE;
+		sc->errata |= A0_ERRATA;
 
 	ctrl = 0;
 	sc->sgtc = 0;
@@ -759,7 +814,7 @@ pn_decode_acpi(device_t dev, device_t perf_dev)
 		case PN7_TYPE:
 			state.fid = ACPI_PN7_CTRL_TO_FID(ctrl);
 			state.vid = ACPI_PN7_CTRL_TO_VID(ctrl);
-			if (sc->errata_a0 &&
+			if ((sc->errata & A0_ERRATA) &&
 			    (pn7_fid_to_mult[state.fid] % 10) == 5)
 				continue;
 			state.freq = 100 * pn7_fid_to_mult[state.fid] * sc->fsb;
@@ -767,8 +822,7 @@ pn_decode_acpi(device_t dev, device_t perf_dev)
 		case PN8_TYPE:
 			state.fid = ACPI_PN8_CTRL_TO_FID(ctrl);
 			state.vid = ACPI_PN8_CTRL_TO_VID(ctrl);
-			state.freq = 100 * pn8_fid_to_mult[state.fid >> 1] *
-			    sc->fsb;
+			state.freq = 100 * pn8_fid_to_mult[state.fid] * sc->fsb;
 			break;
 		}
 
@@ -854,7 +908,7 @@ pn_probe(device_t dev)
 	u_int sfid, mfid, cfid;
 
 	sc = device_get_softc(dev);
-	sc->errata_a0 = FALSE;
+	sc->errata = 0;
 	status = rdmsr(MSR_AMDK7_FIDVID_STATUS);
 
 	pc = cpu_get_pcpu(dev);
@@ -891,7 +945,7 @@ pn_probe(device_t dev)
 		cfid = PN8_STA_CFID(status);
 		sc->pn_type = PN8_TYPE;
 		sc->vid_to_volts = pn8_vid_to_volts;
-		sc->fsb = rate / 100000 / pn8_fid_to_mult[cfid >> 1];
+		sc->fsb = rate / 100000 / pn8_fid_to_mult[cfid];
 
 		if (PN8_STA_SFID(status) != PN8_STA_MFID(status))
 			device_set_desc(dev, "PowerNow! K8");
