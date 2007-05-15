@@ -9,6 +9,7 @@ SUBDIR=	async \
 	${_bluetooth} \
 	bpf \
 	bridge \
+	car \
 	cisco \
 	deflate \
 	device \
