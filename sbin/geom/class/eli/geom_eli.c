@@ -105,7 +105,7 @@ struct g_command class_commands[] = {
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-bPv] [-a aalgo] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
+	    NULL, "[-bPv] [-a aalgo] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -119,7 +119,7 @@ struct g_command class_commands[] = {
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "- an alias for 'init'"
+	    NULL, "- an alias for 'init'"
 	},
 	{ "attach", G_FLAG_VERBOSE | G_FLAG_LOADKLD, eli_main,
 	    {
@@ -129,7 +129,7 @@ struct g_command class_commands[] = {
 		{ 'r', "readonly", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-dprv] [-k keyfile] prov"
+	    NULL, "[-dprv] [-k keyfile] prov"
 	},
 	{ "detach", 0, NULL,
 	    {
@@ -137,7 +137,7 @@ struct g_command class_commands[] = {
 		{ 'l', "last", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-fl] prov ..."
+	    NULL, "[-fl] prov ..."
 	},
 	{ "stop", 0, NULL,
 	    {
@@ -145,7 +145,7 @@ struct g_command class_commands[] = {
 		{ 'l', "last", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "- an alias for 'detach'"
+	    NULL, "- an alias for 'detach'"
 	},
 	{ "onetime", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
@@ -156,7 +156,7 @@ struct g_command class_commands[] = {
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov ..."
+	    NULL, "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -164,7 +164,7 @@ struct g_command class_commands[] = {
 		{ 'B', "noboot", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-bB] prov ..."
+	    NULL, "[-bB] prov ..."
 	},
 	{ "setkey", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -176,7 +176,7 @@ struct g_command class_commands[] = {
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-pPv] [-n keyno] [-i iterations] [-k keyfile] [-K newkeyfile] prov"
+	    NULL, "[-pPv] [-n keyno] [-i iterations] [-k keyfile] [-K newkeyfile] prov"
 	},
 	{ "delkey", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -185,25 +185,25 @@ struct g_command class_commands[] = {
 		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-afv] [-n keyno] prov"
+	    NULL, "[-afv] [-n keyno] prov"
 	},
 	{ "kill", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "all", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-av] [prov ...]"
+	    NULL, "[-av] [prov ...]"
 	},
-	{ "backup", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
+	{ "backup", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
 	    "[-v] prov file"
 	},
-	{ "restore", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
+	{ "restore", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
 	    "[-v] file prov"
 	},
-	{ "clear", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
+	{ "clear", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
 	    "[-v] prov ..."
 	},
-	{ "dump", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
+	{ "dump", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
 	    "[-v] prov ..."
 	},
 	G_CMD_SENTINEL

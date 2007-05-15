@@ -52,11 +52,11 @@ static void mp_clear(struct gctl_req *);
 struct g_command class_commands[] = {
 	{
 		"label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, mp_main, G_NULL_OPTS,
-		"[-v] name prov ..."
+		NULL, "[-v] name prov ..."
 	},
 	{
 		"clear", G_FLAG_VERBOSE, mp_main, G_NULL_OPTS,
-		"[-v] prov ..."
+		NULL, "[-v] prov ..."
 	},
 	G_CMD_SENTINEL
 };
