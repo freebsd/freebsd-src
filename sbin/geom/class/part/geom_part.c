@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2007 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,54 +29,63 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <readpassphrase.h>
+#include <string.h>
+#include <strings.h>
 #include <libgeom.h>
-#include <geom/nop/g_nop.h>
+#include <paths.h>
+#include <errno.h>
+#include <assert.h>
 
 #include "core/geom.h"
-
+#include "misc/subr.h"
 
 uint32_t lib_version = G_LIB_VERSION;
-uint32_t version = G_NOP_VERSION;
+uint32_t version = 0;
 
-static intmax_t error = -1;
-static intmax_t rfailprob = -1;
-static intmax_t wfailprob = -1;
-static intmax_t offset = 0;
-static intmax_t secsize = 0;
-static intmax_t size = 0;
+static char optional[] = "";
+static char flags[] = "C";
 
 struct g_command class_commands[] = {
-	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
-	    {
-		{ 'e', "error", &error, G_TYPE_NUMBER },
-		{ 'o', "offset", &offset, G_TYPE_NUMBER },
-		{ 'r', "rfailprob", &rfailprob, G_TYPE_NUMBER },
-		{ 's', "size", &size, G_TYPE_NUMBER },
-		{ 'S', "secsize", &secsize, G_TYPE_NUMBER },
-		{ 'w', "wfailprob", &wfailprob, G_TYPE_NUMBER },
-		G_OPT_SENTINEL
-	    },
-	    NULL, "[-v] [-e error] [-o offset] [-r rfailprob] [-s size] "
-	    "[-S secsize] [-w wfailprob] dev ..."
+	{ "add", 0, NULL, {
+		{ 'b', "start", NULL, G_TYPE_STRING },
+		{ 's', "size", NULL, G_TYPE_STRING },
+		{ 't', "type", NULL, G_TYPE_STRING },
+		{ 'i', "index", optional, G_TYPE_STRING },
+		{ 'l', "label", optional, G_TYPE_STRING },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "geom", NULL,
 	},
-	{ "configure", G_FLAG_VERBOSE, NULL,
-	    {
-		{ 'e', "error", &error, G_TYPE_NUMBER },
-		{ 'r', "rfailprob", &rfailprob, G_TYPE_NUMBER },
-		{ 'w', "wfailprob", &wfailprob, G_TYPE_NUMBER },
-		G_OPT_SENTINEL
-	    },
-	    NULL, "[-v] [-e error] [-r rfailprob] [-w wfailprob] prov ..."
+	{ "commit", 0, NULL, G_NULL_OPTS, "geom", NULL },
+	{ "create", 0, NULL, {
+		{ 's', "scheme", NULL, G_TYPE_STRING },
+		{ 'n', "entries", optional, G_TYPE_STRING },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "provider", NULL
 	},
-	{ "destroy", G_FLAG_VERBOSE, NULL,
-	    {
-		{ 'f', "force", NULL, G_TYPE_BOOL },
-		G_OPT_SENTINEL
-	    },
-	    NULL, "[-fv] prov ..."
+	{ "delete", 0, NULL, {
+		{ 'i', "index", NULL, G_TYPE_STRING },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "geom", NULL
 	},
-	{ "reset", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
-	    "[-v] prov ..."
+	{ "destroy", 0, NULL, {
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "geom", NULL },
+	{ "modify", 0, NULL, {
+		{ 'i', "index", NULL, G_TYPE_STRING },
+		{ 'l', "label", optional, G_TYPE_STRING },
+		{ 't', "type", optional, G_TYPE_STRING },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "geom", NULL
 	},
+	{ "undo", 0, NULL, G_NULL_OPTS, "geom", NULL },
 	G_CMD_SENTINEL
 };

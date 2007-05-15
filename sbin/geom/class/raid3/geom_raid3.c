@@ -51,7 +51,7 @@ static void raid3_dump(struct gctl_req *req);
 static void raid3_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, raid3_main, G_NULL_OPTS,
+	{ "clear", G_FLAG_VERBOSE, raid3_main, G_NULL_OPTS, NULL,
 	    "[-v] prov ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
@@ -68,9 +68,9 @@ struct g_command class_commands[] = {
 		{ 'W', "noverify", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-adfFhnrRvwW] name"
+	    NULL, "[-adfFhnrRvwW] name"
 	},
-	{ "dump", 0, raid3_main, G_NULL_OPTS,
+	{ "dump", 0, raid3_main, G_NULL_OPTS, NULL,
 	    "prov ..."
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL,
@@ -79,7 +79,7 @@ struct g_command class_commands[] = {
 		{ 'n', "number", NULL, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-hv] <-n number> name prov"
+	    NULL, "[-hv] <-n number> name prov"
 	},
 	{ "label", G_FLAG_VERBOSE, raid3_main,
 	    {
@@ -90,9 +90,9 @@ struct g_command class_commands[] = {
 		{ 'w', "verify", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-hFnrvw] name prov prov prov ..."
+	    NULL, "[-hFnrvw] name prov prov prov ..."
 	},
-	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
 	    "[-v] name prov"
 	},
 	{ "remove", G_FLAG_VERBOSE, NULL,
@@ -100,14 +100,14 @@ struct g_command class_commands[] = {
 		{ 'n', "number", NULL, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-v] <-n number> name"
+	    NULL, "[-v] <-n number> name"
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-fv] name ..."
+	    NULL, "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };

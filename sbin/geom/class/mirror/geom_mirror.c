@@ -56,10 +56,10 @@ static void mirror_dump(struct gctl_req *req);
 static void mirror_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "activate", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS,
+	{ "activate", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS, NULL,
 	    "[-v] name prov ..."
 	},
-	{ "clear", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS,
+	{ "clear", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS, NULL,
 	    "[-v] prov ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
@@ -74,15 +74,15 @@ struct g_command class_commands[] = {
 		{ 's', "slice", &configure_slice, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-adfFhnv] [-b balance] [-s slice] name"
+	    NULL, "[-adfFhnv] [-b balance] [-s slice] name"
 	},
-	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
 	    "[-v] name prov ..."
 	},
-	{ "dump", 0, mirror_main, G_NULL_OPTS,
+	{ "dump", 0, mirror_main, G_NULL_OPTS, NULL,
 	    "prov ..."
 	},
-	{ "forget", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	{ "forget", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
 	    "name ..."
 	},
 	{ "label", G_FLAG_VERBOSE, mirror_main,
@@ -94,7 +94,7 @@ struct g_command class_commands[] = {
 		{ 's', "slice", &label_slice, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-Fhnv] [-b balance] [-s slice] name prov ..."
+	    NULL, "[-Fhnv] [-b balance] [-s slice] name prov ..."
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
@@ -103,12 +103,12 @@ struct g_command class_commands[] = {
 		{ 'p', "priority", &insert_priority, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-hiv] [-p priority] name prov ..."
+	    NULL, "[-hiv] [-p priority] name prov ..."
 	},
-	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
 	    "[-v] name prov ..."
 	},
-	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
 	    "[-v] name prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
@@ -116,7 +116,7 @@ struct g_command class_commands[] = {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-fv] name ..."
+	    NULL, "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };

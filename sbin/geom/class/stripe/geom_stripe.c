@@ -54,7 +54,7 @@ static void stripe_dump(struct gctl_req *req);
 static void stripe_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, stripe_main, G_NULL_OPTS,
+	{ "clear", G_FLAG_VERBOSE, stripe_main, G_NULL_OPTS, NULL,
 	    "[-v] prov ..."
 	},
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
@@ -62,16 +62,16 @@ struct g_command class_commands[] = {
 		{ 's', "stripesize", &default_stripesize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-hv] [-s stripesize] name prov prov ..."
+	    NULL, "[-hv] [-s stripesize] name prov prov ..."
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-fv] name ..."
+	    NULL, "[-fv] name ..."
 	},
-	{ "dump", 0, stripe_main, G_NULL_OPTS,
+	{ "dump", 0, stripe_main, G_NULL_OPTS, NULL,
 	    "dump prov ..."
 	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, stripe_main,
@@ -80,14 +80,14 @@ struct g_command class_commands[] = {
 		{ 's', "stripesize", &default_stripesize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-hv] [-s stripesize] name prov prov ..."
+	    NULL, "[-hv] [-s stripesize] name prov prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-fv] name ..."
+	    NULL, "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };

@@ -69,8 +69,8 @@ static void std_load(struct gctl_req *req, unsigned flags);
 static void std_unload(struct gctl_req *req, unsigned flags);
 
 struct g_command std_commands[] = {
-	{ "help", 0, std_help, G_NULL_OPTS, NULL },
-	{ "list", 0, std_list, G_NULL_OPTS,
+	{ "help", 0, std_help, G_NULL_OPTS, NULL, NULL },
+	{ "list", 0, std_list, G_NULL_OPTS, NULL, 
 	    "[name ...]"
 	},
 	{ "status", 0, std_status,
@@ -78,10 +78,11 @@ struct g_command std_commands[] = {
 		{ 's', "script", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-s] [name ...]"
+	    NULL, "[-s] [name ...]"
 	},
-	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS, NULL },
-	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS, NULL },
+	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS,
+	    NULL, NULL },
+	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS, NULL, NULL },
 	G_CMD_SENTINEL
 };
 
@@ -112,6 +113,8 @@ usage_command(struct g_command *cmd, const char *prefix)
 		if (opt->go_val != NULL || G_OPT_TYPE(opt) == G_TYPE_BOOL)
 			fprintf(stderr, "]");
 	}
+	if (cmd->gc_argname)
+		fprintf(stderr, " %s", cmd->gc_argname);
 	fprintf(stderr, "\n");
 }
 
@@ -327,23 +330,31 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 					gctl_ro_param(req, opt->go_name,
 					    sizeof(intmax_t), opt->go_val);
 				} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
-					gctl_ro_param(req, opt->go_name, -1,
-					    opt->go_val);
+					if (*(char *)opt->go_val != '\0')
+						gctl_ro_param(req, opt->go_name,
+						    -1, opt->go_val);
 				} else {
 					assert(!"Invalid type");
 				}
 			}
 		}
 	}
-	/*
-	 * Add rest of given arguments.
-	 */
-	gctl_ro_param(req, "nargs", sizeof(int), argc);
-	for (i = 0; i < (unsigned)*argc; i++) {
-		char argname[16];
 
-		snprintf(argname, sizeof(argname), "arg%u", i);
-		gctl_ro_param(req, argname, -1, (*argv)[i]);
+	if (cmd->gc_argname == NULL) {
+		/*
+		 * Add rest of given arguments.
+		 */
+		gctl_ro_param(req, "nargs", sizeof(int), argc);
+		for (i = 0; i < (unsigned)*argc; i++) {
+			char argname[16];
+
+			snprintf(argname, sizeof(argname), "arg%u", i);
+			gctl_ro_param(req, argname, -1, (*argv)[i]);
+		}
+	} else {
+		if (*argc != 1)
+			usage();
+		gctl_ro_param(req, cmd->gc_argname, -1, (*argv)[0]);
 	}
 }
 
