@@ -30,9 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 
 /* e1000_82542 (rev 1 & 2)
@@ -59,7 +57,7 @@ struct e1000_dev_spec_82542 {
 
 /**
  *  e1000_init_phy_params_82542 - Init PHY func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -78,7 +76,7 @@ e1000_init_phy_params_82542(struct e1000_hw *hw)
 
 /**
  *  e1000_init_nvm_params_82542 - Init NVM func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -108,7 +106,7 @@ e1000_init_nvm_params_82542(struct e1000_hw *hw)
 
 /**
  *  e1000_init_mac_params_82542 - Init MAC func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -171,7 +169,7 @@ e1000_init_mac_params_82542(struct e1000_hw *hw)
 
 /**
  *  e1000_init_function_pointers_82542 - Init func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  The only function explicitly called by the api module to initialize
  *  all function pointers and parameters.
@@ -188,7 +186,7 @@ e1000_init_function_pointers_82542(struct e1000_hw *hw)
 
 /**
  *  e1000_get_bus_info_82542 - Obtain bus information for adapter
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This will obtain information about the HW bus for which the
  *  adaper is attached and stores it in the hw structure.  This is a function
@@ -208,7 +206,7 @@ e1000_get_bus_info_82542(struct e1000_hw *hw)
 
 /**
  *  e1000_reset_hw_82542 - Reset hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This resets the hardware into a known state.  This is a
  *  function pointer entry point called by the api module.
@@ -260,7 +258,7 @@ e1000_reset_hw_82542(struct e1000_hw *hw)
 
 /**
  *  e1000_init_hw_82542 - Initialize hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This inits the hardware readying it for operation.  This is a
  *  function pointer entry point called by the api module.
@@ -332,7 +330,7 @@ e1000_init_hw_82542(struct e1000_hw *hw)
 
 /**
  *  e1000_setup_link_82542 - Setup flow control and link settings
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Determines which flow control settings to use, then configures flow
  *  control.  Calls the appropriate media-specific link configuration
@@ -393,7 +391,7 @@ out:
 
 /**
  *  e1000_led_on_82542 - Turn on SW controllable LED
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Turns the SW defined LED on.  This is a function pointer entry point
  *  called by the api module.
@@ -414,7 +412,7 @@ e1000_led_on_82542(struct e1000_hw *hw)
 
 /**
  *  e1000_led_off_82542 - Turn off SW controllable LED
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Turns the SW defined LED off.  This is a function pointer entry point
  *  called by the api module.
@@ -435,7 +433,7 @@ e1000_led_off_82542(struct e1000_hw *hw)
 
 /**
  *  e1000_translate_register_82542 - Translate the proper regiser offset
- *  @reg - e1000 register to be read
+ *  @reg: e1000 register to be read
  *
  *  Registers in 82542 are located in different offsets than other adapters
  *  even though they function in the same manner.  This function takes in
@@ -532,7 +530,7 @@ e1000_translate_register_82542(u32 reg)
 
 /**
  *  e1000_clear_hw_cntrs_82542 - Clear device specific hardware counters
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Clears the hardware counters by reading the counter registers.
  **/

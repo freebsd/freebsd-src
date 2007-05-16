@@ -30,16 +30,11 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_MANAGE_H_
 #define _E1000_MANAGE_H_
-
-#include "e1000_api.h"
 
 boolean_t e1000_check_mng_mode_generic(struct e1000_hw *hw);
 boolean_t e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw);

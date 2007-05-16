@@ -30,15 +30,14 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 
 /* e1000_82543
  * e1000_82544
  */
 
+#include "e1000_api.h"
 #include "e1000_82543.h"
 
 void e1000_init_function_pointers_82543(struct e1000_hw *hw);
@@ -84,7 +83,7 @@ struct e1000_dev_spec_82543 {
 
 /**
  *  e1000_init_phy_params_82543 - Init PHY func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -167,7 +166,7 @@ out:
 
 /**
  *  e1000_init_nvm_params_82543 - Init NVM func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -197,7 +196,7 @@ e1000_init_nvm_params_82543(struct e1000_hw *hw)
 
 /**
  *  e1000_init_mac_params_82543 - Init MAC func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -285,7 +284,7 @@ out:
 
 /**
  *  e1000_init_function_pointers_82543 - Init func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  The only function explicitly called by the api module to initialize
  *  all function pointers and parameters.
@@ -302,7 +301,7 @@ e1000_init_function_pointers_82543(struct e1000_hw *hw)
 
 /**
  *  e1000_tbi_compatibility_enabled_82543 - Returns TBI compat status
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Returns the curent status of 10-bit Interface (TBI) compatibility
  *  (enabled/disabled).
@@ -336,8 +335,8 @@ out:
 
 /**
  *  e1000_set_tbi_compatibility_82543 - Set TBI compatibility
- *  @hw - pointer to the HW structure
- *  @state - enable/disable TBI compatibility
+ *  @hw: pointer to the HW structure
+ *  @state: enable/disable TBI compatibility
  *
  *  Enables or disabled 10-bit Interface (TBI) compatibility.
  **/
@@ -371,7 +370,7 @@ out:
 
 /**
  *  e1000_tbi_sbp_enabled_82543 - Returns TBI SBP status
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Returns the curent status of 10-bit Interface (TBI) store bad packet (SBP)
  *  (enabled/disabled).
@@ -405,8 +404,8 @@ out:
 
 /**
  *  e1000_set_tbi_sbp_82543 - Set TBI SBP
- *  @hw - pointer to the HW structure
- *  @state - enable/disable TBI store bad packet
+ *  @hw: pointer to the HW structure
+ *  @state: enable/disable TBI store bad packet
  *
  *  Enables or disabled 10-bit Interface (TBI) store bad packet (SBP).
  **/
@@ -429,7 +428,7 @@ e1000_set_tbi_sbp_82543(struct e1000_hw *hw, boolean_t state)
 
 /**
  *  e1000_init_phy_disabled_82543 - Returns init PHY status
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Returns the current status of whether PHY initialization is disabled.
  *  True if PHY initialization is disabled else false.
@@ -463,10 +462,10 @@ out:
 
 /**
  *  e1000_tbi_adjust_stats_82543 - Adjust stats when TBI enabled
- *  @hw - pointer to the HW structure
- *  @stats - Struct containing statistic register values
- *  @frame_len - The length of the frame in question
- *  @mac_addr - The Ethernet destination address of the frame in question
+ *  @hw: pointer to the HW structure
+ *  @stats: Struct containing statistic register values
+ *  @frame_len: The length of the frame in question
+ *  @mac_addr: The Ethernet destination address of the frame in question
  *
  *  Adjusts the statistic counters when a frame is accepted by TBI_ACCEPT
  **/
@@ -547,9 +546,9 @@ out:
 
 /**
  *  e1000_read_phy_reg_82543 - Read PHY register
- *  @hw - pointer to the HW structure
- *  @offset - register offset to be read
- *  @data - pointer to the read data
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
  *
  *  Reads the PHY at offset and stores the information read to data.
  **/
@@ -601,9 +600,9 @@ out:
 
 /**
  *  e1000_write_phy_reg_82543 - Write PHY register
- *  @hw - pointer to the HW structure
- *  @offset - register offset to be written
- *  @data - pointer to the data to be written at offset
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be written
+ *  @data: pointer to the data to be written at offset
  *
  *  Writes data to the PHY at offset.
  **/
@@ -647,8 +646,8 @@ out:
 
 /**
  *  e1000_raise_mdi_clk_82543 - Raise Management Data Input clock
- *  @hw - pointer to the HW structure
- *  @ctrl - pointer to the control register
+ *  @hw: pointer to the HW structure
+ *  @ctrl: pointer to the control register
  *
  *  Raise the management data input clock by setting the MDC bit in the control
  *  register.
@@ -666,8 +665,8 @@ e1000_raise_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl)
 
 /**
  *  e1000_lower_mdi_clk_82543 - Lower Management Data Input clock
- *  @hw - pointer to the HW structure
- *  @ctrl - pointer to the control register
+ *  @hw: pointer to the HW structure
+ *  @ctrl: pointer to the control register
  *
  *  Lower the management data input clock by clearing the MDC bit in the control
  *  register.
@@ -685,9 +684,9 @@ e1000_lower_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl)
 
 /**
  *  e1000_shift_out_mdi_bits_82543 - Shift data bits our to the PHY
- *  @hw - pointer to the HW structure
- *  @data - data to send to the PHY
- *  @count - number of bits to shift out
+ *  @hw: pointer to the HW structure
+ *  @data: data to send to the PHY
+ *  @count: number of bits to shift out
  *
  *  We need to shift 'count' bits out to the PHY.  So, the value in the
  *  "data" parameter will be shifted out to the PHY one bit at a time.
@@ -734,7 +733,7 @@ e1000_shift_out_mdi_bits_82543(struct e1000_hw *hw, u32 data, u16 count)
 
 /**
  *  e1000_shift_in_mdi_bits_82543 - Shift data bits in from the PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  In order to read a register from the PHY, we need to shift 18 bits
  *  in from the PHY.  Bits are "shifted in" by raising the clock input to
@@ -792,7 +791,7 @@ e1000_shift_in_mdi_bits_82543(struct e1000_hw *hw)
 
 /**
  *  e1000_phy_force_speed_duplex_82543 - Force speed/duplex for PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Calls the function to force speed and duplex for the m88 PHY, and
  *  if the PHY is not auto-negotiating and the speed is forced to 10Mbit,
@@ -819,7 +818,7 @@ out:
 
 /**
  *  e1000_polarity_reversal_workaround_82543 - Workaround polarity reversal
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  When forcing link to 10 Full or 10 Half, the PHY can reverse the polarity
  *  inadvertantly.  To workaround the issue, we disable the transmitter on
@@ -907,7 +906,7 @@ out:
 
 /**
  *  e1000_phy_hw_reset_82543 - PHY hardware reset
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Sets the PHY_RESET_DIR bit in the extended device control register
  *  to put the PHY into a reset and waits for completion.  Once the reset
@@ -948,7 +947,7 @@ e1000_phy_hw_reset_82543(struct e1000_hw *hw)
 
 /**
  *  e1000_reset_hw_82543 - Reset hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This resets the hardware into a known state.  This is a
  *  function pointer entry point called by the api module.
@@ -1002,7 +1001,7 @@ e1000_reset_hw_82543(struct e1000_hw *hw)
 
 /**
  *  e1000_init_hw_82543 - Initialize hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This inits the hardware readying it for operation.
  **/
@@ -1066,7 +1065,7 @@ out:
 
 /**
  *  e1000_setup_link_82543 - Setup flow control and link settings
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Read the EEPROM to determine the initial polarity value and write the
  *  extended device control register with the information before calling
@@ -1112,7 +1111,7 @@ out:
 
 /**
  *  e1000_setup_copper_link_82543 - Configure copper link settings
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Configures the link for auto-neg or forced speed and duplex.  Then we check
  *  for link, once link is established calls to configure collision distance
@@ -1199,7 +1198,7 @@ out:
 
 /**
  *  e1000_setup_fiber_link_82543 - Setup link for fiber
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Configures collision distance and flow control for fiber links.  Upon
  *  successful setup, poll for link.
@@ -1245,7 +1244,7 @@ out:
 
 /**
  *  e1000_check_for_copper_link_82543 - Check for link (Copper)
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Checks the phy for link, if link exists, do the following:
  *   - check for downshift
@@ -1379,7 +1378,7 @@ out:
 
 /**
  *  e1000_check_for_fiber_link_82543 - Check for link (Fiber)
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Checks for link up on the hardware.  If link is not up and we have
  *  a signal, then we need to force link up.
@@ -1448,7 +1447,7 @@ out:
 
 /**
  *  e1000_config_mac_to_phy_82543 - Configure MAC to PHY settings
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  For the 82543 silicon, we need to set the MAC to match the settings
  *  of the PHY, even if the PHY is auto-negotiating.
@@ -1496,9 +1495,9 @@ out:
 
 /**
  *  e1000_write_vfta_82543 - Write value to VLAN filter table
- *  @hw - pointer to the HW structure
- *  @offset - the 32-bit offset in which to write the value to.
- *  @value - the 32-bit value to write at location offset.
+ *  @hw: pointer to the HW structure
+ *  @offset: the 32-bit offset in which to write the value to.
+ *  @value: the 32-bit value to write at location offset.
  *
  *  This writes a 32-bit value to a 32-bit offset in the VLAN filter
  *  table.
@@ -1522,8 +1521,8 @@ e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset, u32 value)
 
 /**
  *  e1000_mta_set_82543 - Set multicast filter table address
- *  @hw - pointer to the HW structure
- *  @hash_value - determines the MTA register and bit to set
+ *  @hw: pointer to the HW structure
+ *  @hash_value: determines the MTA register and bit to set
  *
  *  The multicast table address is a register array of 32-bit registers.
  *  The hash_value is used to determine what register the bit is in, the
@@ -1560,7 +1559,7 @@ e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value)
 
 /**
  *  e1000_led_on_82543 - Turn on SW controllable LED
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Turns the SW defined LED on.  This is a function pointer entry point
  *  called by the api module.
@@ -1589,7 +1588,7 @@ e1000_led_on_82543(struct e1000_hw *hw)
 
 /**
  *  e1000_led_off_82543 - Turn off SW controllable LED
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Turns the SW defined LED off.  This is a function pointer entry point
  *  called by the api module.
@@ -1617,7 +1616,7 @@ e1000_led_off_82543(struct e1000_hw *hw)
 
 /**
  *  e1000_clear_hw_cntrs_82543 - Clear device specific hardware counters
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Clears the hardware counters by reading the counter registers.
  **/
