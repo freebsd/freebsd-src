@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_posix.h"
+#include "opt_config.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -296,8 +297,12 @@ SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel,
     CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0, sysctl_kern_securelvl,
     "I", "Current secure level");
 
+#ifdef INCLUDE_CONFIG_FILE
 /* Actual kernel configuration options. */
 extern char kernconfstring[];
+#else
+char kernconfstring[] = "\0";
+#endif
 
 static int
 sysctl_kern_config(SYSCTL_HANDLER_ARGS)
