@@ -1192,7 +1192,6 @@ check-old-libs:
 delete-old-dirs:
 	@echo ">>> Removing old directories"
 	@(for dir in ${OLD_DIRS}; do \
-# Don't fail if an old directory isn't empty.
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			rmdir -v "${DESTDIR}/$${dir}" || true; \
 		elif [ -L "${DESTDIR}/$${dir}" ]; then \
