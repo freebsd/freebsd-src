@@ -59,7 +59,7 @@ FBSDprivate_1.0 {
 	__sys_vfork;
 	_vfork;
 	_brk;
-	end;		/* XXX - Should this be _end (see sys/brk.S)? */
+	_end;
 	curbrk;
 	minbrk;
 	_brk;
