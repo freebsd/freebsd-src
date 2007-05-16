@@ -36,7 +36,7 @@
 .Sh DESCRIPTION
 The
 .Nm car
-node type limits traffic flowing through it using: 
+node type limits traffic flowing through it using:
 .Pp
 .Bl -bullet -compact
 .It
@@ -61,45 +61,52 @@ Traffic flowing from
 .Va upper
 to
 .Va lower
-is considered 
+is considered
 .Sy downstream
 traffic.
-Traffic flowing from 
+Traffic flowing from
 .Va lower
 to
-.Va upper 
-is considered 
-.Sy upstream 
+.Va upper
+is considered
+.Sy upstream
 traffic.
 .Sh MODES OF OPERATION
-Each hook can operate in one of modes:
+Each hook can operate in one of the following modes:
 .Bl -tag -width indent
 .It Dv NG_CAR_SINGLE_RATE
 Single rate three color marker as described on RFC 2697.
-Committed burst packets are counted as green, extended burst packets are counted as yellow
-and exceeding packets are counted as red. Committed burst getting refilled with cir speed. 
+Committed burst packets are counted as green, extended burst packets are
+counted as yellow and exceeding packets are counted as red.
+Committed burst getting refilled with CIR (Committed Information Rate) speed.
 When it is full, exceeded burst getting refilled.
 .It Dv NG_CAR_DOUBLE_RATE
 Two rate three color marker as described on RFC 2698.
-Committed burst packets are counted as green, peak burst packets are counted as yellow
-and exceeding packets are counted as red. Committed burst getting refilled with cir speed. 
-Peak burst getting refilled with pir speed at the same time. 
+Committed burst packets are counted as green, peak burst packets are counted
+as yellow and exceeding packets are counted as red.
+Committed burst getting refilled with CIR speed.
+Peak burst getting refilled with PIR (Peak Information Rate) speed at the
+same time.
 .It Dv NG_CAR_RED
-Alike to NG_CAR_SINGLE_RATE, but with different understanding of extended burst.
-When normal burst exceeded and extended burst is used, packets are counted red with 
-probability equal to part of extended burst consumed. Extended burst getting refilled first. 
-When it is full, committed burst getting refilled. This behavior is alike to RED 
-active queue management algorithm.
+Similar to
+.Dv NG_CAR_SINGLE_RATE ,
+but with different understanding of extended burst.
+When normal burst exceeded and extended burst is used, packets are counted
+red with probability equal to part of extended burst consumed.
+Extended burst getting refilled first.
+When it is full, committed burst getting refilled.
+This behavior is similar to RED active queue management algorithm.
 .Pp
 This algorithm is more polite to the TCP traffic then NG_CAR_SINGLE_RATE.
 .It Dv NG_CAR_SHAPE
-Committed burst packets are counted as green, exceeding packets are delayed 
-by queue with RED management and counted as yellow. Packets dropped by queue counted as red.
+Committed burst packets are counted as green, exceeding packets are delayed
+by queue with RED management and counted as yellow.
+Packets dropped by queue counted as red.
 Queue parameters are hardcoded: length 99 packets, min_th 8 packets, max_p 100%.
 .Pp
-Traffic shaping is much more polite to the TCP traffic then rate limit on links with 
-bandwidth * delay product less then 6-8 TCP segments, but it consumes additional system 
-resources for queue processing.
+Traffic shaping is much more polite to the TCP traffic then rate limit on
+links with bandwidth * delay product less then 6-8 TCP segments, but it
+consumes additional system resources for queue processing.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages and the following
@@ -111,7 +118,7 @@ Set node configuration to the specified at
 .It Dv NGM_CAR_GET_CONF Pq Li getconf
 Return current node configuration as
 .Vt "struct ng_car_bulkconf"
-.Bd -literal -offset 4n
+.Bd -literal
 struct ng_car_hookconf {
 	u_int64_t cbs;		/* Committed burst size (bytes) */
 	u_int64_t ebs;		/* Exceeded/Peak burst size (bytes) */
@@ -132,7 +139,7 @@ struct ng_car_bulkconf {
 .It Dv NGM_CAR_GET_STATS Pq Li getstats
 Return node statistics as
 .Vt "struct ng_car_bulkstats"
-.Bd -literal -offset 4n
+.Bd -literal
 struct ng_car_hookstats {
 	u_int64_t passed_pkts;
 	u_int64_t droped_pkts;
@@ -173,4 +180,4 @@ control message, or when all hooks have been disconnected.
 .An Nuno Antunes Aq nuno.antunes@gmail.com
 .An Alexander Motin Aq mav@alkar.net
 .Sh BUGS
-For this moment only DROP and FORWARD actions are implemented.
+At this moment only DROP and FORWARD actions are implemented.
