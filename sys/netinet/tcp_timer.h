@@ -169,14 +169,10 @@ extern int tcp_msl;
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
 
-struct tcptw;
-
 extern int tcp_finwait2_timeout;
 extern int tcp_fast_finwait2_recycle;
 
 void	tcp_timer_init(void);
-void	tcp_timer_2msl_reset(struct tcptw *_tw, int rearm);
-void	tcp_timer_2msl_stop(struct tcptw *_tw);
 struct tcptw *
 	tcp_tw_2msl_scan(int _reuse);		/* XXX temporary */
 
