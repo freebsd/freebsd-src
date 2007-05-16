@@ -1197,6 +1197,7 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			error = ENOTSUP;
 			break;
 		}
+		xpt_release_bus(bus);
 		break;
 	}
 	/*
