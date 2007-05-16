@@ -2945,9 +2945,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 	}
 	printf(" at device %d.%d (no driver attached)\n",
 	    pci_get_slot(child), pci_get_function(child));
-	if (pci_do_power_nodriver)
-		pci_cfg_save(child,
-		    (struct pci_devinfo *) device_get_ivars(child), 1);
+	pci_cfg_save(child, (struct pci_devinfo *)device_get_ivars(child), 1);
 	return;
 }
 
