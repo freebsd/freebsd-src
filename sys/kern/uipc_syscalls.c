@@ -153,7 +153,7 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp, u_int *fflagp)
 int
 socket(td, uap)
 	struct thread *td;
-	register struct socket_args /* {
+	struct socket_args /* {
 		int	domain;
 		int	type;
 		int	protocol;
@@ -198,7 +198,7 @@ socket(td, uap)
 int
 bind(td, uap)
 	struct thread *td;
-	register struct bind_args /* {
+	struct bind_args /* {
 		int	s;
 		caddr_t	name;
 		int	namelen;
@@ -251,7 +251,7 @@ done2:
 int
 listen(td, uap)
 	struct thread *td;
-	register struct listen_args /* {
+	struct listen_args /* {
 		int	s;
 		int	backlog;
 	} */ *uap;
@@ -287,7 +287,7 @@ done:
 static int
 accept1(td, uap, compat)
 	struct thread *td;
-	register struct accept_args /* {
+	struct accept_args /* {
 		int	s;
 		struct sockaddr	* __restrict name;
 		socklen_t	* __restrict anamelen;
@@ -520,7 +520,7 @@ oaccept(td, uap)
 int
 connect(td, uap)
 	struct thread *td;
-	register struct connect_args /* {
+	struct connect_args /* {
 		int	s;
 		caddr_t	name;
 		int	namelen;
@@ -603,14 +603,14 @@ done2:
 int
 socketpair(td, uap)
 	struct thread *td;
-	register struct socketpair_args /* {
+	struct socketpair_args /* {
 		int	domain;
 		int	type;
 		int	protocol;
 		int	*rsv;
 	} */ *uap;
 {
-	register struct filedesc *fdp = td->td_proc->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp1, *fp2;
 	struct socket *so1, *so2;
 	int fd, error, sv[2];
@@ -690,9 +690,9 @@ done2:
 
 static int
 sendit(td, s, mp, flags)
-	register struct thread *td;
+	struct thread *td;
 	int s;
-	register struct msghdr *mp;
+	struct msghdr *mp;
 	int flags;
 {
 	struct mbuf *control;
@@ -725,7 +725,7 @@ sendit(td, s, mp, flags)
 			goto bad;
 #ifdef COMPAT_OLDSOCK
 		if (mp->msg_flags == MSG_COMPAT) {
-			register struct cmsghdr *cm;
+			struct cmsghdr *cm;
 
 			M_PREPEND(control, sizeof(*cm), M_TRYWAIT);
 			if (control == 0) {
@@ -834,7 +834,7 @@ bad2:
 int
 sendto(td, uap)
 	struct thread *td;
-	register struct sendto_args /* {
+	struct sendto_args /* {
 		int	s;
 		caddr_t	buf;
 		size_t	len;
@@ -865,7 +865,7 @@ sendto(td, uap)
 int
 osend(td, uap)
 	struct thread *td;
-	register struct osend_args /* {
+	struct osend_args /* {
 		int	s;
 		caddr_t	buf;
 		int	len;
@@ -1131,7 +1131,7 @@ recvit(td, s, mp, namelenp)
 int
 recvfrom(td, uap)
 	struct thread *td;
-	register struct recvfrom_args /* {
+	struct recvfrom_args /* {
 		int	s;
 		caddr_t	buf;
 		size_t	len;
@@ -1180,7 +1180,7 @@ orecvfrom(td, uap)
 int
 orecv(td, uap)
 	struct thread *td;
-	register struct orecv_args /* {
+	struct orecv_args /* {
 		int	s;
 		caddr_t	buf;
 		int	len;
@@ -1276,7 +1276,7 @@ recvmsg(td, uap)
 int
 shutdown(td, uap)
 	struct thread *td;
-	register struct shutdown_args /* {
+	struct shutdown_args /* {
 		int	s;
 		int	how;
 	} */ *uap;
@@ -1300,7 +1300,7 @@ shutdown(td, uap)
 int
 setsockopt(td, uap)
 	struct thread *td;
-	register struct setsockopt_args /* {
+	struct setsockopt_args /* {
 		int	s;
 		int	level;
 		int	name;
@@ -1364,7 +1364,7 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 int
 getsockopt(td, uap)
 	struct thread *td;
-	register struct getsockopt_args /* {
+	struct getsockopt_args /* {
 		int	s;
 		int	level;
 		int	name;
@@ -1448,7 +1448,7 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 static int
 getsockname1(td, uap, compat)
 	struct thread *td;
-	register struct getsockname_args /* {
+	struct getsockname_args /* {
 		int	fdes;
 		struct sockaddr * __restrict asa;
 		socklen_t * __restrict alen;
@@ -1544,7 +1544,7 @@ ogetsockname(td, uap)
 static int
 getpeername1(td, uap, compat)
 	struct thread *td;
-	register struct getpeername_args /* {
+	struct getpeername_args /* {
 		int	fdes;
 		struct sockaddr * __restrict	asa;
 		socklen_t * __restrict	alen;
@@ -1645,8 +1645,8 @@ sockargs(mp, buf, buflen, type)
 	caddr_t buf;
 	int buflen, type;
 {
-	register struct sockaddr *sa;
-	register struct mbuf *m;
+	struct sockaddr *sa;
+	struct mbuf *m;
 	int error;
 
 	if ((u_int)buflen > MLEN) {
