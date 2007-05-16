@@ -95,7 +95,17 @@ int		pci_child_pnpinfo_str_method(device_t cbdev, device_t child,
 int		pci_assign_interrupt_method(device_t dev, device_t child);
 int		pci_resume(device_t dev);
 int		pci_suspend(device_t dev);
+
+/** Restore the config register state.  The state must be previously
+ * saved with pci_cfg_save.  However, the pci bus driver takes care of
+ * that.  This function will also return the device to PCI_POWERSTATE_D0
+ * if it is currently in a lower power mode.
+ */
 void		pci_cfg_restore(device_t, struct pci_devinfo *);
+
+/** Save the config register state.  Optionally set the power state to D3
+ * if the third argument is non-zero.
+ */
 void		pci_cfg_save(device_t, struct pci_devinfo *, int);
 
 #endif /* _PCI_PRIVATE_H_ */
