@@ -538,6 +538,8 @@ void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
 void	 tcp_tw_init(void);
 void	 tcp_tw_zone_change(void);
+int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
+	    struct mbuf *, int);
 int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE

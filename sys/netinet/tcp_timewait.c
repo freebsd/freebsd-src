@@ -93,6 +93,17 @@
 static uma_zone_t tcptw_zone;
 static int	maxtcptw;
 
+/*
+ * The timed wait queue contains references to each of the TCP sessions
+ * currently in the TIME_WAIT state.  The queue pointers, including the
+ * queue pointers in each tcptw structure, are protected using the global
+ * tcbinfo lock, which must be held over queue iteration and modification.
+ */
+static TAILQ_HEAD(, tcptw)	twq_2msl;
+
+static void	tcp_tw_2msl_reset(struct tcptw *, int);
+static void	tcp_tw_2msl_stop(struct tcptw *);
+
 static int
 tcptw_auto_size(void)
 {
@@ -156,6 +167,7 @@ tcp_tw_init(void)
 		uma_zone_set_max(tcptw_zone, tcptw_auto_size());
 	else
 		uma_zone_set_max(tcptw_zone, maxtcptw);
+	TAILQ_INIT(&twq_2msl);
 }
 
 /*
@@ -171,7 +183,7 @@ tcp_twstart(struct tcpcb *tp)
 	int acknow;
 	struct socket *so;
 
-	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_timer_2msl_reset(). */
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_tw_2msl_reset(). */
 	INP_LOCK_ASSERT(inp);
 
 	if (nolocaltimewait && in_localip(inp->inp_faddr)) {
@@ -183,7 +195,7 @@ tcp_twstart(struct tcpcb *tp)
 
 	tw = uma_zalloc(tcptw_zone, M_NOWAIT);
 	if (tw == NULL) {
-		tw = tcp_timer_2msl_tw(1);
+		tw = tcp_tw_2msl_scan(1);
 		if (tw == NULL) {
 			tp = tcp_close(tp);
 			if (tp != NULL)
@@ -243,7 +255,7 @@ tcp_twstart(struct tcpcb *tp)
 		tcp_twrespond(tw, TH_ACK);
 	inp->inp_ppcb = tw;
 	inp->inp_vflag |= INP_TIMEWAIT;
-	tcp_timer_2msl_reset(tw, 0);
+	tcp_tw_2msl_reset(tw, 0);
 
 	/*
 	 * If the inpcb owns the sole reference to the socket, then we can
@@ -295,6 +307,145 @@ tcp_twrecycleable(struct tcptw *tw)
 }
 #endif
 
+/*
+ * Returns 1 if the TIME_WAIT state was killed and we should start over,
+ * looking for a pcb in the listen state.  Returns 0 otherwise.
+ */
+int
+tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
+    struct mbuf *m, int tlen)
+{
+	struct tcptw *tw;
+	int thflags;
+	tcp_seq seq;
+#ifdef INET6
+	int isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
+#else
+	const int isipv6 = 0;
+#endif
+
+	/* tcbinfo lock required for tcp_twclose(), tcp_tw_2msl_reset(). */
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	INP_LOCK_ASSERT(inp);
+
+	/*
+	 * XXXRW: Time wait state for inpcb has been recycled, but inpcb is
+	 * still present.  This is undesirable, but temporarily necessary
+	 * until we work out how to handle inpcb's who's timewait state has
+	 * been removed.
+	 */
+	tw = intotw(inp);
+	if (tw == NULL)
+		goto drop;
+
+	thflags = th->th_flags;
+
+	/*
+	 * NOTE: for FIN_WAIT_2 (to be added later),
+	 * must validate sequence number before accepting RST
+	 */
+
+	/*
+	 * If the segment contains RST:
+	 *	Drop the segment - see Stevens, vol. 2, p. 964 and
+	 *      RFC 1337.
+	 */
+	if (thflags & TH_RST)
+		goto drop;
+
+#if 0
+/* PAWS not needed at the moment */
+	/*
+	 * RFC 1323 PAWS: If we have a timestamp reply on this segment
+	 * and it's less than ts_recent, drop it.
+	 */
+	if ((to.to_flags & TOF_TS) != 0 && tp->ts_recent &&
+	    TSTMP_LT(to.to_tsval, tp->ts_recent)) {
+		if ((thflags & TH_ACK) == 0)
+			goto drop;
+		goto ack;
+	}
+	/*
+	 * ts_recent is never updated because we never accept new segments.
+	 */
+#endif
+
+	/*
+	 * If a new connection request is received
+	 * while in TIME_WAIT, drop the old connection
+	 * and start over if the sequence numbers
+	 * are above the previous ones.
+	 */
+	if ((thflags & TH_SYN) && SEQ_GT(th->th_seq, tw->rcv_nxt)) {
+		tcp_twclose(tw, 0);
+		return (1);
+	}
+
+	/*
+	 * Drop the the segment if it does not contain an ACK.
+	 */
+	if ((thflags & TH_ACK) == 0)
+		goto drop;
+
+	/*
+	 * Reset the 2MSL timer if this is a duplicate FIN.
+	 */
+	if (thflags & TH_FIN) {
+		seq = th->th_seq + tlen + (thflags & TH_SYN ? 1 : 0);
+		if (seq + 1 == tw->rcv_nxt)
+			tcp_tw_2msl_reset(tw, 1);
+	}
+
+	/*
+	 * Acknowledge the segment if it has data or is not a duplicate ACK.
+	 */
+	if (thflags != TH_ACK || tlen != 0 ||
+	    th->th_seq != tw->rcv_nxt || th->th_ack != tw->snd_nxt)
+		tcp_twrespond(tw, TH_ACK);
+	goto drop;
+
+	/*
+	 * Generate a RST, dropping incoming segment.
+	 * Make ACK acceptable to originator of segment.
+	 * Don't bother to respond if destination was broadcast/multicast.
+	 */
+	if (m->m_flags & (M_BCAST|M_MCAST))
+		goto drop;
+	if (isipv6) {
+		struct ip6_hdr *ip6;
+
+		/* IPv6 anycast check is done at tcp6_input() */
+		ip6 = mtod(m, struct ip6_hdr *);
+		if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
+		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src))
+			goto drop;
+	} else {
+		struct ip *ip;
+
+		ip = mtod(m, struct ip *);
+		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
+		    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
+		    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
+		    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
+			goto drop;
+	}
+	if (thflags & TH_ACK) {
+		tcp_respond(NULL,
+		    mtod(m, void *), th, m, 0, th->th_ack, TH_RST);
+	} else {
+		seq = th->th_seq + (thflags & TH_SYN ? 1 : 0);
+		tcp_respond(NULL,
+		    mtod(m, void *), th, m, seq, 0, TH_RST|TH_ACK);
+	}
+	INP_UNLOCK(inp);
+	return (0);
+
+drop:
+	INP_UNLOCK(inp);
+	m_freem(m);
+	return (0);
+}
+
 void
 tcp_twclose(struct tcptw *tw, int reuse)
 {
@@ -313,11 +464,11 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	inp = tw->tw_inpcb;
 	KASSERT((inp->inp_vflag & INP_TIMEWAIT), ("tcp_twclose: !timewait"));
 	KASSERT(intotw(inp) == tw, ("tcp_twclose: inp_ppcb != tw"));
-	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_timer_2msl_stop(). */
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_tw_2msl_stop(). */
 	INP_LOCK_ASSERT(inp);
 
 	tw->tw_inpcb = NULL;
-	tcp_timer_2msl_stop(tw);
+	tcp_tw_2msl_stop(tw);
 	inp->inp_ppcb = NULL;
 	in_pcbdrop(inp);
 
@@ -453,4 +604,42 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		tcpstat.tcps_sndctrl++;
 	tcpstat.tcps_sndtotal++;
 	return (error);
+}
+
+static void
+tcp_tw_2msl_reset(struct tcptw *tw, int rearm)
+{
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	INP_LOCK_ASSERT(tw->tw_inpcb);
+	if (rearm)
+		TAILQ_REMOVE(&twq_2msl, tw, tw_2msl);
+	tw->tw_time = ticks + 2 * tcp_msl;
+	TAILQ_INSERT_TAIL(&twq_2msl, tw, tw_2msl);
+}
+
+static void
+tcp_tw_2msl_stop(struct tcptw *tw)
+{
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	TAILQ_REMOVE(&twq_2msl, tw, tw_2msl);
+}
+
+struct tcptw *
+tcp_tw_2msl_scan(int reuse)
+{
+	struct tcptw *tw;
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	for (;;) {
+		tw = TAILQ_FIRST(&twq_2msl);
+		if (tw == NULL || (!reuse && tw->tw_time > ticks))
+			break;
+		INP_LOCK(tw->tw_inpcb);
+		tcp_twclose(tw, reuse);
+		if (reuse)
+			return (tw);
+	}
+	return (NULL);
 }
