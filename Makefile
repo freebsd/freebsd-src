@@ -17,9 +17,14 @@
 # kernel              - buildkernel + installkernel.
 # doxygen             - Build API documentation of the kernel, needs doxygen.
 # update              - Convenient way to update your source tree (cvs).
-# check-old           - Print a list of old files/directories in the system.
-# delete-old          - Delete obsolete files and directories interactively.
-# delete-old-libs     - Delete obsolete libraries interactively.
+# check-old           - List obsolete directories/files/libraries.
+# check-old-dirs      - List obsolete directories.
+# check-old-files     - List obsolete files.
+# check-old-libs      - List obsolete libraries.
+# delete-old          - Delete obsolete directories/files/libraries.
+# delete-old-dirs     - Delete obsolete directories.
+# delete-old-files    - Delete obsolete files.
+# delete-old-libs     - Delete obsolete libraries.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -70,8 +75,10 @@
 # developer convenience only.  They are intentionally not documented and
 # completely subject to change without notice.
 #
-TGTS=	all all-man buildenv buildenvvars buildkernel buildworld check-old \
-	checkdpadd clean cleandepend cleandir delete-old delete-old-libs \
+TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
+	check-old check-old-dirs check-old-files check-old-libs \
+	checkdpadd clean cleandepend cleandir \
+	delete-old delete-old-dirs delete-old-files delete-old-libs \
 	depend distribute distributeworld distrib-dirs distribution doxygen \
 	everything hierarchy install installcheck installkernel \
 	installkernel.debug reinstallkernel reinstallkernel.debug \
