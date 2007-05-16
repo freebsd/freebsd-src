@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mfi/mfivar.h>
 
 static int	mfi_alloc_commands(struct mfi_softc *);
-static void	mfi_release_command(struct mfi_command *cm);
 static int	mfi_comms_init(struct mfi_softc *);
 static int	mfi_wait_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_get_controller_info(struct mfi_softc *);
@@ -188,6 +187,7 @@ mfi_attach(struct mfi_softc *sc)
 	mtx_init(&sc->mfi_io_lock, "MFI I/O lock", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->mfi_ld_tqh);
 	TAILQ_INIT(&sc->mfi_aen_pids);
+	TAILQ_INIT(&sc->mfi_cam_ccbq);
 
 	mfi_initq_free(sc);
 	mfi_initq_ready(sc);
@@ -394,6 +394,9 @@ mfi_attach(struct mfi_softc *sc)
 	if (sc->mfi_cdev != NULL)
 		sc->mfi_cdev->si_drv1 = sc;
 
+	device_add_child(sc->mfi_dev, "mfip", -1);
+	bus_generic_attach(sc->mfi_dev);
+
 	/* Start the timeout watchdog */
 	callout_init(&sc->mfi_watchdog_callout, 1);
 	callout_reset(&sc->mfi_watchdog_callout, MFI_CMD_TIMEOUT * hz,
@@ -438,7 +441,7 @@ mfi_alloc_commands(struct mfi_softc *sc)
 	return (0);
 }
 
-static void
+void
 mfi_release_command(struct mfi_command *cm)
 {
 	struct mfi_frame_header *hdr;
@@ -465,6 +468,7 @@ mfi_release_command(struct mfi_command *cm)
 	cm->cm_flags = 0;
 	cm->cm_complete = NULL;
 	cm->cm_private = NULL;
+	cm->cm_data = NULL;
 	cm->cm_sg = 0;
 	cm->cm_total_frame_size = 0;
 
@@ -1376,16 +1380,18 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	}
 	mfi_release_command(cm);
 
+	mtx_unlock(&sc->mfi_io_lock);
+	mtx_lock(&Giant);
 	if ((child = device_add_child(sc->mfi_dev, "mfid", -1)) == NULL) {
 		device_printf(sc->mfi_dev, "Failed to add logical disk\n");
 		free(ld_info, M_MFIBUF);
+		mtx_unlock(&Giant);
+		mtx_lock(&sc->mfi_io_lock);
 		return;
 	}
 
 	device_set_ivars(child, ld_info);
 	device_set_desc(child, "MFI Logical Disk");
-	mtx_unlock(&sc->mfi_io_lock);
-	mtx_lock(&Giant);
 	bus_generic_attach(sc->mfi_dev);
 	mtx_unlock(&Giant);
 	mtx_lock(&sc->mfi_io_lock);
@@ -1469,6 +1475,7 @@ void
 mfi_startio(struct mfi_softc *sc)
 {
 	struct mfi_command *cm;
+	struct ccb_hdr *ccbh;
 
 	for (;;) {
 		/* Don't bother if we're short on resources */
@@ -1477,6 +1484,11 @@ mfi_startio(struct mfi_softc *sc)
 
 		/* Try a command that has already been prepared */
 		cm = mfi_dequeue_ready(sc);
+
+		if (cm == NULL) {
+			if ((ccbh = TAILQ_FIRST(&sc->mfi_cam_ccbq)) != NULL)
+				cm = sc->mfi_cam_start(ccbh);
+		}
 
 		/* Nope, so look for work on the bioq */
 		if (cm == NULL)
