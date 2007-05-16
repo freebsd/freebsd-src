@@ -1710,11 +1710,11 @@ install_unschg () {
 
 	# Remove flags
 	while read F; do
-		if ! [ -e ${F} ]; then
+		if ! [ -e ${BASEDIR}/${F} ]; then
 			continue
 		fi
 
-		chflags noschg ${F} || return 1
+		chflags noschg ${BASEDIR}/${F} || return 1
 	done < filelist
 
 	# Clean up
@@ -1743,7 +1743,7 @@ install_from_index () {
 				rm ${HASH}
 			else
 				# Create a hard link.
-				ln -f ${LINK} ${BASEDIR}/${FPATH}
+				ln -f ${BASEDIR}/${LINK} ${BASEDIR}/${FPATH}
 			fi
 			;;
 		L)
