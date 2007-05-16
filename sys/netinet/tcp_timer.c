@@ -133,7 +133,7 @@ tcp_slowtimo(void)
 
 	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
 	INP_INFO_WLOCK(&tcbinfo);
-	(void) tcp_timer_2msl_tw(0);
+	(void) tcp_tw_2msl_scan(0);
 	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
@@ -466,59 +466,6 @@ tcp_timer_2msl(struct tcpcb *tp, struct inpcb *inp)
 			  PRU_SLOWTIMO);
 #endif
 	return (0);
-}
-
-/*
- * The timed wait queue contains references to each of the TCP sessions
- * currently in the TIME_WAIT state.  The queue pointers, including the
- * queue pointers in each tcptw structure, are protected using the global
- * tcbinfo lock, which must be held over queue iteration and modification.
- */
-static TAILQ_HEAD(, tcptw)	twq_2msl;
-
-void
-tcp_timer_init(void)
-{
-
-	TAILQ_INIT(&twq_2msl);
-}
-
-void
-tcp_timer_2msl_reset(struct tcptw *tw, int rearm)
-{
-
-	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	INP_LOCK_ASSERT(tw->tw_inpcb);
-	if (rearm)
-		TAILQ_REMOVE(&twq_2msl, tw, tw_2msl);
-	tw->tw_time = ticks + 2 * tcp_msl;
-	TAILQ_INSERT_TAIL(&twq_2msl, tw, tw_2msl);
-}
-
-void
-tcp_timer_2msl_stop(struct tcptw *tw)
-{
-
-	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	TAILQ_REMOVE(&twq_2msl, tw, tw_2msl);
-}
-
-struct tcptw *
-tcp_timer_2msl_tw(int reuse)
-{
-	struct tcptw *tw;
-
-	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	for (;;) {
-		tw = TAILQ_FIRST(&twq_2msl);
-		if (tw == NULL || (!reuse && tw->tw_time > ticks))
-			break;
-		INP_LOCK(tw->tw_inpcb);
-		tcp_twclose(tw, reuse);
-		if (reuse)
-			return (tw);
-	}
-	return (NULL);
 }
 
 static int
