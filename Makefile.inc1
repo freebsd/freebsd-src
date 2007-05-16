@@ -1114,7 +1114,10 @@ par-${__target}: ${SUBDIR:S/$/.${__target}__D/}
 
 .include <bsd.subdir.mk>
 
-.if make(delete-old) || make(delete-old-libs) || make(check-old)
+.if make(check-old) || make(check-old-dirs) || \
+    make(check-old-files) || make(check-old-libs) || \
+    make(delete-old) || make(delete-old-dirs) || \
+    make(delete-old-files) || make(delete-old-libs)
 
 #
 # check for / delete old files section
