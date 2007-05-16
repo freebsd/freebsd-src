@@ -451,7 +451,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 
 	space = *start & PCIM_CIS_ASI_MASK;
 	switch (space) {
-	case PCIM_CIS_ASI_TUPLE:
+	case PCIM_CIS_ASI_CONFIG:
 		if (cardbus_cis_debug)
 			device_printf(cbdev, "CIS in PCI config space\n");
 		/* CIS in PCI config space need no initialization */
