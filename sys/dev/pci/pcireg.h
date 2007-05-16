@@ -116,8 +116,9 @@
 /* config registers for header type 0 devices */
 
 #define	PCIR_BARS	0x10
-#define	PCIR_BAR(x)	(PCIR_BARS + (x) * 4)
-#define	PCI_RID2BAR(rid) (((rid)-PCIR_BARS)/4)
+#define	PCIR_BAR(x)		(PCIR_BARS + (x) * 4)
+#define	PCI_MAX_BAR_0		5	/* Number of standard bars */
+#define	PCI_RID2BAR(rid)	(((rid) - PCIR_BARS) / 4)
 #define	PCI_BAR_IO(x)		(((x) & PCIM_BAR_SPACE) == PCIM_BAR_IO_SPACE)
 #define	PCI_BAR_MEM(x)		(((x) & PCIM_BAR_SPACE) == PCIM_BAR_MEM_SPACE)
 #define	PCIM_BAR_SPACE		0x00000001
@@ -133,7 +134,7 @@
 #define	PCIM_BAR_IO_BASE	0xfffffffc
 #define	PCIR_CIS	0x28
 #define	PCIM_CIS_ASI_MASK	0x7
-#define	PCIM_CIS_ASI_TUPLE	0
+#define	PCIM_CIS_ASI_CONFIG	0
 #define	PCIM_CIS_ASI_BAR0	1
 #define	PCIM_CIS_ASI_BAR1	2
 #define	PCIM_CIS_ASI_BAR2	3
@@ -143,6 +144,7 @@
 #define	PCIM_CIS_ASI_ROM	7
 #define	PCIM_CIS_ADDR_MASK	0x0ffffff8
 #define	PCIM_CIS_ROM_MASK	0xf0000000
+#define PCIM_CIS_CONFIG_MASK	0xff
 #define	PCIR_SUBVEND_0	0x2c
 #define	PCIR_SUBDEV_0	0x2e
 #define	PCIR_BIOS	0x30
