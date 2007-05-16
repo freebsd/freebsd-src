@@ -1168,7 +1168,7 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 	res = BUS_ALLOC_RESOURCE(device_get_parent(brdev), child, type, rid,
 	    start, end, count, flags & ~RF_ACTIVE);
 	if (res == NULL) {
-		printf("cbb alloc res fail\n");
+		printf("cbb alloc res fail type %d rid %x\n", type, *rid);
 		return (NULL);
 	}
 	cbb_insert_res(sc, res, type, *rid);
