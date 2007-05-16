@@ -48,20 +48,23 @@
 #include <sys/sysctl.h>
 #include <sys/queue.h>
 
+#include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-
-#include <net/bpf.h>
 
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/if_ether.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -4474,7 +4477,6 @@ struct l2_fhdr {
 #define TOTAL_TX_BD (TOTAL_TX_BD_PER_PAGE * TX_PAGES)
 #define USABLE_TX_BD (USABLE_TX_BD_PER_PAGE * TX_PAGES)
 #define MAX_TX_BD (TOTAL_TX_BD - 1)
-#define BCE_TX_SLACK_SPACE 16
 
 #define RX_PAGES	2
 #define TOTAL_RX_BD_PER_PAGE  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
@@ -4482,7 +4484,6 @@ struct l2_fhdr {
 #define TOTAL_RX_BD (TOTAL_RX_BD_PER_PAGE * RX_PAGES)
 #define USABLE_RX_BD (USABLE_RX_BD_PER_PAGE * RX_PAGES)
 #define MAX_RX_BD (TOTAL_RX_BD - 1)
-#define BCE_RX_SLACK_SPACE (MAX_RX_BD - 8)
 
 #define NEXT_TX_BD(x) (((x) & USABLE_TX_BD_PER_PAGE) ==	\
 		(USABLE_TX_BD_PER_PAGE - 1)) ?					  	\
@@ -4604,7 +4605,10 @@ struct fw_info {
 
 #define BCE_TX_TIMEOUT					5
 
-#define BCE_MAX_SEGMENTS				8
+#define BCE_MAX_SEGMENTS				32
+#define BCE_TSO_MAX_SIZE				65536
+#define BCE_TSO_MAX_SEG_SIZE			4096
+
 #define BCE_DMA_ALIGN		 			8
 #define BCE_DMA_BOUNDARY				0
 
@@ -4663,12 +4667,12 @@ struct bce_softc
 	struct ifnet		*bce_ifp;			/* Interface info */
 	device_t			bce_dev;			/* Parent device handle */
 	u_int8_t			bce_unit;			/* Interface number */
-	struct resource		*bce_res;			/* Device resource handle */
+	struct resource		*bce_res_mem;  		/* Device resource handle */
 	struct ifmedia		bce_ifmedia;		/* TBI media info */
 	bus_space_tag_t		bce_btag;			/* Device bus tag */
 	bus_space_handle_t	bce_bhandle;		/* Device bus handle */
 	vm_offset_t			bce_vhandle;		/* Device virtual memory handle */
-	struct resource		*bce_irq;			/* IRQ Resource Handle */
+	struct resource		*bce_res_irq;		/* IRQ Resource Handle */
 	struct mtx			bce_mtx;			/* Mutex */
 	void				*bce_intrhand;		/* Interrupt handler */
 
@@ -4683,14 +4687,14 @@ struct bce_softc
 #define BCE_NO_WOL_FLAG			0x08
 #define BCE_USING_DAC_FLAG		0x10
 #define BCE_USING_MSI_FLAG 		0x20
-#define BCE_MFW_ENABLE_FLAG		0x40
+#define BCE_MFW_ENABLE_FLAG		0x40		/* Management F/W is enabled */
 
 	/* PHY specific flags. */
 	u32					bce_phy_flags;
-#define BCE_PHY_SERDES_FLAG					1
-#define BCE_PHY_CRC_FIX_FLAG				2
-#define BCE_PHY_PARALLEL_DETECT_FLAG		4
-#define BCE_PHY_2_5G_CAPABLE_FLAG			8
+#define BCE_PHY_SERDES_FLAG					0x001
+#define BCE_PHY_CRC_FIX_FLAG				0x002
+#define BCE_PHY_PARALLEL_DETECT_FLAG		0x004
+#define BCE_PHY_2_5G_CAPABLE_FLAG			0x008
 #define BCE_PHY_INT_MODE_MASK_FLAG			0x300
 #define BCE_PHY_INT_MODE_AUTO_POLLING_FLAG	0x100
 #define BCE_PHY_INT_MODE_LINK_READY_FLAG	0x200
@@ -4816,7 +4820,9 @@ struct bce_softc
 
 	/* Track the number of rx_bd and tx_bd's in use. */
 	u16 free_rx_bd;
+	u16 max_rx_bd;
 	u16 used_tx_bd;
+	u16 max_tx_bd;
 
 	/* Provides access to hardware statistics through sysctl. */
 	u64 stat_IfHCInOctets;
@@ -4890,11 +4896,15 @@ struct bce_softc
 	u32 tx_interrupts;
 
 	u32	rx_low_watermark;			/* Lowest number of rx_bd's free. */
+	u32 rx_empty_count;				/* Number of times the RX chain was empty. */
 	u32 tx_hi_watermark;			/* Greatest number of tx_bd's used. */
+	u32	tx_full_count;				/* Number of times the TX chain was full. */
 	u32	mbuf_alloc_failed;			/* Mbuf allocation failure counter. */
 	u32 l2fhdr_status_errors;
 	u32 unexpected_attentions;
 	u32	lost_status_block_updates;
+
+	u32	requested_tso_frames;		/* Number of TSO frames enqueued. */
 #endif
 };
 
