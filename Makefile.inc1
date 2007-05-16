@@ -1140,11 +1140,11 @@ delete-old-files:
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
 # Ask for every old file if the user really wants to remove it.
 # It's annoying, but better safe than sorry.
-	@(for file in ${OLD_FILES}; do \
+	@for file in ${OLD_FILES}; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			rm ${RM_I} "${DESTDIR}/$${file}"; \
 		fi; \
-	done)
+	done
 # Remove catpages without corresponding manpages.
 	@3<&0; \
 	find ${DESTDIR}/usr/share/man/cat* ! -type d | \
@@ -1159,11 +1159,11 @@ delete-old-files:
 
 check-old-files:
 	@echo ">>> Checking for old files"
-	@(for file in ${OLD_FILES}; do \
+	@for file in ${OLD_FILES}; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 		 	echo "${DESTDIR}/$${file}"; \
 		fi; \
-	done)
+	done
 # Check for catpages without corresponding manpages.
 	@find ${DESTDIR}/usr/share/man/cat* ! -type d | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
@@ -1177,41 +1177,41 @@ check-old-files:
 delete-old-libs:
 	@echo ">>> Removing old libraries"
 	@echo "${OLD_LIBS_MESSAGE}" | fmt
-	@(for file in ${OLD_LIBS}; do \
+	@for file in ${OLD_LIBS}; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			rm ${RM_I} "${DESTDIR}/$${file}"; \
 		fi; \
-	done)
+	done
 	@echo ">>> Old libraries removed"
 
 check-old-libs:
 	@echo ">>> Checking for old libraries"
-	@(for file in ${OLD_LIBS}; do \
+	@for file in ${OLD_LIBS}; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			echo "${DESTDIR}/$${file}"; \
 		fi; \
-	done)
+	done
 
 delete-old-dirs:
 	@echo ">>> Removing old directories"
-	@(for dir in ${OLD_DIRS}; do \
+	@for dir in ${OLD_DIRS}; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			rmdir -v "${DESTDIR}/$${dir}" || true; \
 		elif [ -L "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir} is a link, please remove everything manually."; \
 		fi; \
-	done)
+	done
 	@echo ">>> Old directories removed"
 
 check-old-dirs:
 	@echo ">>> Checking for old directories"
-	@(for dir in ${OLD_DIRS}; do \
+	@for dir in ${OLD_DIRS}; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir}"; \
 		elif [ -L "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir} is a link, please remove everything manually."; \
 		fi; \
-	done)
+	done
 
 delete-old: delete-old-files delete-old-dirs
 	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
