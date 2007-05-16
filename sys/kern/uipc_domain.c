@@ -197,11 +197,11 @@ socket_zone_change(void *tag)
 static void
 domaininit(void *dummy)
 {
+
 	/*
 	 * Before we do any setup, make sure to initialize the
 	 * zone allocator we get struct sockets from.
 	 */
-
 	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(socket_zone, maxsockets);
@@ -229,6 +229,7 @@ domaininit(void *dummy)
 static void
 domainfinalize(void *dummy)
 {
+
 	mtx_lock(&dom_mtx);
 	KASSERT(domain_init_status == 1, ("domainfinalize called too late!"));
 	domain_init_status = 2;
@@ -239,12 +240,10 @@ domainfinalize(void *dummy)
 }
 
 struct protosw *
-pffindtype(family, type)
-	int family;
-	int type;
+pffindtype(int family, int type)
 {
-	register struct domain *dp;
-	register struct protosw *pr;
+	struct domain *dp;
+	struct protosw *pr;
 
 	for (dp = domains; dp; dp = dp->dom_next)
 		if (dp->dom_family == family)
@@ -258,13 +257,10 @@ found:
 }
 
 struct protosw *
-pffindproto(family, protocol, type)
-	int family;
-	int protocol;
-	int type;
+pffindproto(int family, int protocol, int type)
 {
-	register struct domain *dp;
-	register struct protosw *pr;
+	struct domain *dp;
+	struct protosw *pr;
 	struct protosw *maybe = 0;
 
 	if (family == 0)
@@ -290,9 +286,7 @@ found:
  * accept requests before it is registered.
  */
 int
-pf_proto_register(family, npr)
-	int family;
-	struct protosw *npr;
+pf_proto_register(int family, struct protosw *npr)
 {
 	struct domain *dp;
 	struct protosw *pr, *fpr;
@@ -359,10 +353,7 @@ found:
  * all sockets and release all locks and memory references.
  */
 int
-pf_proto_unregister(family, protocol, type)
-	int family;
-	int protocol;
-	int type;
+pf_proto_unregister(int family, int protocol, int type)
 {
 	struct domain *dp;
 	struct protosw *pr, *dpr;
@@ -427,12 +418,10 @@ found:
 }
 
 void
-pfctlinput(cmd, sa)
-	int cmd;
-	struct sockaddr *sa;
+pfctlinput(int cmd, struct sockaddr *sa)
 {
-	register struct domain *dp;
-	register struct protosw *pr;
+	struct domain *dp;
+	struct protosw *pr;
 
 	for (dp = domains; dp; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
@@ -441,10 +430,7 @@ pfctlinput(cmd, sa)
 }
 
 void
-pfctlinput2(cmd, sa, ctlparam)
-	int cmd;
-	struct sockaddr *sa;
-	void *ctlparam;
+pfctlinput2(int cmd, struct sockaddr *sa, void *ctlparam)
 {
 	struct domain *dp;
 	struct protosw *pr;
@@ -467,11 +453,10 @@ pfctlinput2(cmd, sa, ctlparam)
 }
 
 static void
-pfslowtimo(arg)
-	void *arg;
+pfslowtimo(void *arg)
 {
-	register struct domain *dp;
-	register struct protosw *pr;
+	struct domain *dp;
+	struct protosw *pr;
 
 	NET_ASSERT_GIANT();
 
@@ -483,11 +468,10 @@ pfslowtimo(arg)
 }
 
 static void
-pffasttimo(arg)
-	void *arg;
+pffasttimo(void *arg)
 {
-	register struct domain *dp;
-	register struct protosw *pr;
+	struct domain *dp;
+	struct protosw *pr;
 
 	NET_ASSERT_GIANT();
 
