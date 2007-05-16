@@ -298,7 +298,6 @@ tcp_init(void)
 	tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcpcb_zone, maxsockets);
-	tcp_timer_init();
 	tcp_tw_init();
 	syncache_init();
 	tcp_hc_init();
