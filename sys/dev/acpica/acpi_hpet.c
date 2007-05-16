@@ -64,6 +64,8 @@ static char *hpet_ids[] = { "PNP0103", NULL };
 #define HPET_OFFSET_ENABLE	0x10	/* Location of enable word */
 #define HPET_OFFSET_VALUE	0xf0	/* Location of actual timer value */
 
+#define DEV_HPET(x)		(acpi_get_magic(x) == (int)&acpi_hpet_devclass)
+
 struct timecounter hpet_timecounter = {
 	.tc_get_timecount =	hpet_get_timecount,
 	.tc_counter_mask =	~0u,
@@ -80,8 +82,7 @@ hpet_get_timecount(struct timecounter *tc)
 	return (bus_read_4(sc->mem_res, HPET_OFFSET_VALUE));
 }
 
-#define DEV_HPET(x)		(acpi_get_magic(x) == (int)&acpi_hpet_devclass)
-
+/* Discover the HPET via the ACPI table of the same name. */
 void 
 acpi_hpet_table_probe(device_t parent)
 {
@@ -90,28 +91,31 @@ acpi_hpet_table_probe(device_t parent)
 	ACPI_STATUS	status;
 	device_t	child;
 
-	/*Currently, id and minimam clock tick info. is discarded.*/
+	/* Currently, ID and minimum clock tick info is unused. */
 
 	status = AcpiGetTable(ACPI_SIG_HPET, 1, (ACPI_TABLE_HEADER **)&hdr);
 	if (ACPI_FAILURE(status))
 		return;
-	
-	hpet = (ACPI_TABLE_HPET *) hdr;
 
-	/*unit No.hdr->Sequence*/
-	if(hpet->Sequence)
-		printf("HPET TABLE:Sequense is non zero %d\n", hpet->Sequence);
-	
+	/*
+	 * The unit number could be derived from hdr->Sequence but we only
+	 * support one HPET device.
+	 */
+	hpet = (ACPI_TABLE_HPET *)hdr;
+	if (hpet->Sequence != 0)
+		printf("ACPI HPET table warning: Sequence is non-zero (%d)\n",
+		    hpet->Sequence);
 	child = BUS_ADD_CHILD(parent, 0, "acpi_hpet", 0);
-
 	if (child == NULL) {
 		printf("%s: can't add child\n", __func__);
 		return;
 	}
-	
+
+	/* Record a magic value so we can detect this device later. */
 	acpi_set_magic(child, (int)&acpi_hpet_devclass);
-	bus_set_resource(child, SYS_RES_MEMORY, 0, hpet->Address.Address, HPET_MEM_WIDTH);
-	if(device_probe_and_attach(child) != 0)
+	bus_set_resource(child, SYS_RES_MEMORY, 0, hpet->Address.Address,
+	    HPET_MEM_WIDTH);
+	if (device_probe_and_attach(child) != 0)
 		device_delete_child(parent, child);
 }
 
@@ -120,10 +124,11 @@ acpi_hpet_probe(device_t dev)
 {
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
-	if (acpi_disabled("hpet")||
-	    !DEV_HPET(dev) ||
-	    ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids) == NULL ||
-	    device_get_unit(dev) != 0)
+	if (acpi_disabled("hpet"))
+		return (ENXIO);
+	if (!DEV_HPET(dev) &&
+	    (ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids) == NULL ||
+	    device_get_unit(dev) != 0))
 		return (ENXIO);
 
 	device_set_desc(dev, "High Precision Event Timer");
