@@ -289,6 +289,7 @@ filt_netdev(struct knote *kn, long hint)
  * Routines with ifa_ifwith* names take sockaddr *'s as
  * parameters.
  */
+
 /* ARGSUSED*/
 static void
 if_init(void *dummy __unused)
@@ -347,7 +348,9 @@ if_check(void *dummy __unused)
 }
 
 /*
- * Allocate a struct ifnet and in index for an interface.
+ * Allocate a struct ifnet and an index for an interface.  A layer 2
+ * common structure will also be allocated if an allocation routine is
+ * registered for the passed type.
  */
 struct ifnet*
 if_alloc(u_char type)
@@ -391,14 +394,24 @@ if_alloc(u_char type)
 	return (ifp);
 }
 
+/*
+ * Free the struct ifnet, the associated index, and the layer 2 common
+ * structure if needed.  All the work is done in if_free_type().
+ *
+ * Do not add code to this function!  Add it to if_free_type().
+ */
 void
 if_free(struct ifnet *ifp)
 {
 
-	/* Do not add code to this function!  Add it to if_free_type(). */
 	if_free_type(ifp, ifp->if_type);
 }
 
+/*
+ * Do the actual work of freeing a struct ifnet, associated index, and
+ * layer 2 common structure.  This version should only be called by
+ * intefaces that switch their type after calling if_alloc().
+ */
 void
 if_free_type(struct ifnet *ifp, u_char type)
 {
@@ -424,8 +437,16 @@ if_free_type(struct ifnet *ifp, u_char type)
 };
 
 /*
- * Attach an interface to the
- * list of "active" interfaces.
+ * Perform generic interface initalization tasks and attach the interface
+ * to the list of "active" interfaces.
+ *
+ * XXX:
+ *  - The decision to return void and thus require this function to
+ *    succeed is questionable.
+ *  - We do more initialization here then is probably a good idea.
+ *    Some of this should probably move to if_alloc().
+ *  - We should probably do more sanity checking.  For instance we don't
+ *    do anything to insure if_xname is unique or non-empty.
  */
 void
 if_attach(struct ifnet *ifp)
@@ -443,13 +464,7 @@ if_attach(struct ifnet *ifp)
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
 	IF_AFDATA_LOCK_INIT(ifp);
 	ifp->if_afdata_initialized = 0;
-	/*
-	 * XXX -
-	 * The old code would work if the interface passed a pre-existing
-	 * chain of ifaddrs to this code.  We don't trust our callers to
-	 * properly initialize the tailq, however, so we no longer allow
-	 * this unlikely case.
-	 */
+
 	TAILQ_INIT(&ifp->if_addrhead);
 	TAILQ_INIT(&ifp->if_prefixhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
@@ -588,7 +603,6 @@ if_attachdomain1(struct ifnet *ifp)
 /*
  * Remove any unicast or broadcast network addresses from an interface.
  */
-
 void
 if_purgeaddrs(struct ifnet *ifp)
 {
