@@ -89,7 +89,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "Version - 6.5.0";
+char em_driver_version[] = "Version - 6.5.2";
 
 
 /*********************************************************************
@@ -1291,9 +1291,9 @@ em_init_locked(struct adapter *adapter)
 	ifp->if_hwassist = 0;
 	if (adapter->hw.mac.type >= e1000_82543) {
 		if (ifp->if_capenable & IFCAP_TXCSUM)
-			ifp->if_hwassist |= EM_CHECKSUM_FEATURES;
-		if (ifp->if_capenable & IFCAP_TSO)
-			ifp->if_hwassist |= EM_TCPSEG_FEATURES;
+			ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
+		if (ifp->if_capenable & IFCAP_TSO4)
+			ifp->if_hwassist |= CSUM_TSO;
 	}
 
 	/* Configure for OS presence */
@@ -1683,7 +1683,6 @@ em_media_change(struct ifnet *ifp)
 static int
 em_encap(struct adapter *adapter, struct mbuf **m_headp)
 {
-	struct ifnet		*ifp = adapter->ifp;
 	bus_dma_segment_t	segs[EM_MAX_SCATTER];
 	bus_dmamap_t		map;
 	struct em_buffer	*tx_buffer, *tx_buffer_mapped;
@@ -1804,15 +1803,12 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	m_head = *m_headp;
 
 	/* Do hardware assists */
-	if (ifp->if_hwassist > 0) {
-        	if (do_tso && em_tso_setup(adapter, m_head,
-		    &txd_upper, &txd_lower)) {
-			/* we need to make a final sentinel transmit desc */
-			tso_desc = TRUE;
-		} else
-			em_transmit_checksum_setup(adapter,  m_head,
-			    &txd_upper, &txd_lower);
-	}
+	if (em_tso_setup(adapter, m_head, &txd_upper, &txd_lower))
+		/* we need to make a final sentinel transmit desc */
+		tso_desc = TRUE;
+	else if (m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)
+		em_transmit_checksum_setup(adapter,  m_head,
+		    &txd_upper, &txd_lower);
 
 	i = adapter->next_avail_tx_desc;
 	if (adapter->pcix_82544) 
@@ -1963,7 +1959,6 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
  *  used by the 82575 adapter. It also needs no workarounds.
  *  
  **********************************************************************/
-#define CSUM_OFFLOAD	7  /* Checksum bits */
 
 static int
 em_adv_encap(struct adapter *adapter, struct mbuf **m_headp)
@@ -2774,9 +2769,8 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 		ifp->if_capenable |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
 	}
 
-	/* Enable TSO if available */
-	if ((adapter->hw.mac.type > e1000_82544) &&
-	    (adapter->hw.mac.type != e1000_82547)) { 
+	/* Enable TSO for PCI Express adapters */
+	if (adapter->hw.bus.type == e1000_bus_type_pci_express) {
 		ifp->if_capabilities |= IFCAP_TSO4;
 		ifp->if_capenable |= IFCAP_TSO4;
 	}
@@ -3370,8 +3364,9 @@ em_tso_setup(struct adapter *adapter, struct mbuf *mp, uint32_t *txd_upper,
 	 * in true failure cases as well.  Should do -1 (failure), 0 (no)
 	 * and 1 (success).
 	 */
-	if (mp->m_pkthdr.len <= EM_TX_BUFFER_SIZE)
-		return FALSE;	/* 0 */
+	if (((mp->m_pkthdr.csum_flags & CSUM_TSO) == 0) ||
+	     (mp->m_pkthdr.len <= EM_TX_BUFFER_SIZE))
+		return FALSE;
 
 	/*
 	 * This function could/should be extended to support IP/IPv6

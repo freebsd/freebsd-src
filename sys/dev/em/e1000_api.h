@@ -30,10 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_API_H_
@@ -121,7 +118,7 @@ void      e1000_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
                                                       boolean_t state);
 void      e1000_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);
 void      e1000_gig_downshift_workaround_ich8lan(struct e1000_hw *hw);
-u32       e1000_translate_register_adoram(u32 reg);
+
 
 /* TBI_ACCEPT macro definition:
  *

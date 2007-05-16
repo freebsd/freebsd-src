@@ -30,11 +30,10 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 
+#include "e1000_api.h"
 #include "e1000_phy.h"
 
 static s32  e1000_get_phy_cfg_done(struct e1000_hw *hw);
@@ -65,7 +64,7 @@ u16 e1000_igp_2_cable_length_table[] =
 
 /**
  *  e1000_check_reset_block_generic - Check if PHY reset is blocked
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Read the PHY management control register and check whether a PHY reset
  *  is blocked.  If a reset is not blocked return E1000_SUCCESS, otherwise
@@ -86,7 +85,7 @@ e1000_check_reset_block_generic(struct e1000_hw *hw)
 
 /**
  *  e1000_get_phy_id - Retrieve the PHY ID and revision
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reads the PHY registers and stores the PHY ID and possibly the PHY
  *  revision in the hardware structure.
@@ -119,7 +118,7 @@ out:
 
 /**
  *  e1000_phy_reset_dsp_generic - Reset PHY DSP
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reset the digital signal processor.
  **/
@@ -142,9 +141,9 @@ out:
 
 /**
  *  e1000_read_phy_reg_mdic - Read MDI control register
- *  @hw - pointer to the HW structure
- *  @offset - register offset to be read
- *  @data - pointer to the read data
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
  *
  *  Reads the MDI control regsiter in the PHY at offset and stores the
  *  information read to data.
@@ -199,9 +198,9 @@ out:
 
 /**
  *  e1000_write_phy_reg_mdic - Write MDI control register
- *  @hw - pointer to the HW structure
- *  @offset - register offset to write to
- *  @data - data to write to register at offset
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write to register at offset
  *
  *  Writes data to MDI control register in the PHY at offset.
  **/
@@ -250,9 +249,9 @@ out:
 
 /**
  *  e1000_read_phy_reg_m88 - Read m88 PHY register
- *  @hw - pointer to the HW structure
- *  @offset - register offset to be read
- *  @data - pointer to the read data
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
  *
  *  Acquires semaphore, if necessary, then reads the PHY register at offset
  *  and storing the retrieved information in data.  Release any acquired
@@ -281,9 +280,9 @@ out:
 
 /**
  *  e1000_write_phy_reg_m88 - Write m88 PHY register
- *  @hw - pointer to the HW structure
- *  @offset - register offset to write to
- *  @data - data to write at register offset
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write at register offset
  *
  *  Acquires semaphore, if necessary, then writes the data to PHY register
  *  at the offset.  Release any acquired semaphores before exiting.
@@ -311,9 +310,9 @@ out:
 
 /**
  *  e1000_read_phy_reg_igp - Read igp PHY register
- *  @hw - pointer to the HW structure
- *  @offset - register offset to be read
- *  @data - pointer to the read data
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
  *
  *  Acquires semaphore, if necessary, then reads the PHY register at offset
  *  and storing the retrieved information in data.  Release any acquired
@@ -352,9 +351,9 @@ out:
 
 /**
  *  e1000_write_phy_reg_igp - Write igp PHY register
- *  @hw - pointer to the HW structure
- *  @offset - register offset to write to
- *  @data - data to write at register offset
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write at register offset
  *
  *  Acquires semaphore, if necessary, then writes the data to PHY register
  *  at the offset.  Release any acquired semaphores before exiting.
@@ -392,9 +391,9 @@ out:
 
 /**
  *  e1000_read_kmrn_reg_generic - Read kumeran register
- *  @hw - pointer to the HW structure
- *  @offset - register offset to be read
- *  @data - pointer to the read data
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
  *
  *  Acquires semaphore, if necessary.  Then reads the PHY register at offset
  *  using the kumeran interface.  The information retrieved is stored in data.
@@ -429,9 +428,9 @@ out:
 
 /**
  *  e1000_write_kmrn_reg_generic - Write kumeran register
- *  @hw - pointer to the HW structure
- *  @offset - register offset to write to
- *  @data - data to write at register offset
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write at register offset
  *
  *  Acquires semaphore, if necessary.  Then write the data to PHY register
  *  at the offset using the kumeran interface.  Release any acquired semaphores
@@ -462,7 +461,7 @@ out:
 
 /**
  *  e1000_copper_link_setup_m88 - Setup m88 PHY's for copper link
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Sets up MDI/MDI-X and polarity for m88 PHY's.  If necessary, transmit clock
  *  and downshift values are set also.
@@ -571,7 +570,7 @@ out:
 
 /**
  *  e1000_copper_link_setup_igp - Setup igp PHY's for copper link
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Sets up LPLU, MDI/MDI-X, polarity, Smartspeed and Master/Slave config for
  *  igp PHY's.
@@ -705,7 +704,7 @@ out:
 
 /**
  *  e1000_copper_link_autoneg - Setup/Enable autoneg for copper link
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Performs initial bounds checking on autoneg advertisement parameter, then
  *  configure to advertise the full capability.  Setup the PHY to autoneg
@@ -772,7 +771,7 @@ out:
 
 /**
  *  e1000_phy_setup_autoneg - Configure PHY for auto-negotiation
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reads the MII auto-neg advertisement register and/or the 1000T control
  *  register and if the PHY is already setup for auto-negotiation, then
@@ -934,7 +933,7 @@ out:
 
 /**
  *  e1000_setup_copper_link_generic - Configure copper link settings
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Calls the appropriate function to configure the link for auto-neg or forced
  *  speed and duplex.  Then we check for link, once link is established calls
@@ -990,7 +989,7 @@ out:
 
 /**
  *  e1000_phy_force_speed_duplex_igp - Force speed/duplex for igp PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Calls the PHY setup function to force speed and duplex.  Clears the
  *  auto-crossover to force MDI manually.  Waits for link and returns
@@ -1063,7 +1062,7 @@ out:
 
 /**
  *  e1000_phy_force_speed_duplex_m88 - Force speed/duplex for m88 PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Calls the PHY setup function to force speed and duplex.  Clears the
  *  auto-crossover to force MDI manually.  Resets the PHY to commit the
@@ -1172,8 +1171,8 @@ out:
 
 /**
  *  e1000_phy_force_speed_duplex_setup - Configure forced PHY speed/duplex
- *  @hw - pointer to the HW structure
- *  @phy_ctrl - pointer to current value of PHY_CONTROL
+ *  @hw: pointer to the HW structure
+ *  @phy_ctrl: pointer to current value of PHY_CONTROL
  *
  *  Forces speed and duplex on the PHY by doing the following: disable flow
  *  control, force speed/duplex on the MAC, disable auto speed detection,
@@ -1235,8 +1234,8 @@ e1000_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl)
 
 /**
  *  e1000_set_d3_lplu_state_generic - Sets low power link up state for D3
- *  @hw - pointer to the HW structure
- *  @active boolean used to enable/disable lplu
+ *  @hw: pointer to the HW structure
+ *  @active: boolean used to enable/disable lplu
  *
  *  Success returns 0, Failure returns 1
  *
@@ -1327,7 +1326,7 @@ out:
 
 /**
  *  e1000_check_downshift_generic - Checks whether a downshift in speed occured
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Success returns 0, Failure returns 1
  *
@@ -1372,7 +1371,7 @@ out:
 
 /**
  *  e1000_check_polarity_m88 - Checks the polarity.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Success returns 0, Failure returns -E1000_ERR_PHY (-2)
  *
@@ -1399,7 +1398,7 @@ e1000_check_polarity_m88(struct e1000_hw *hw)
 
 /**
  *  e1000_check_polarity_igp - Checks the polarity.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Success returns 0, Failure returns -E1000_ERR_PHY (-2)
  *
@@ -1446,7 +1445,7 @@ out:
 
 /**
  *  e1000_wait_autoneg_generic - Wait for auto-neg compeletion
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Waits for auto-negotiation to complete or for the auto-negotiation time
  *  limit to expire, which ever happens first.
@@ -1480,10 +1479,10 @@ e1000_wait_autoneg_generic(struct e1000_hw *hw)
 
 /**
  *  e1000_phy_has_link_generic - Polls PHY for link
- *  @hw - pointer to the HW structure
- *  @iterations - number of times to poll for link
- *  @usec_interval - delay between polling attempts
- *  @success - pointer to whether polling was successful or not
+ *  @hw: pointer to the HW structure
+ *  @iterations: number of times to poll for link
+ *  @usec_interval: delay between polling attempts
+ *  @success: pointer to whether polling was successful or not
  *
  *  Polls the PHY status register for link, 'iterations' number of times.
  **/
@@ -1522,7 +1521,7 @@ e1000_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
 
 /**
  *  e1000_get_cable_length_m88 - Determine cable length for m88 PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reads the PHY specific status register to retrieve the cable length
  *  information.  The cable length is determined by averaging the minimum and
@@ -1561,7 +1560,7 @@ out:
 
 /**
  *  e1000_get_cable_length_igp_2 - Determine cable length for igp2 PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  The automatic gain control (agc) normalizes the amplitude of the
  *  received signal, adjusting for the attenuation produced by the
@@ -1634,7 +1633,7 @@ out:
 
 /**
  *  e1000_get_phy_info_m88 - Retrieve PHY information
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Valid for only copper links.  Read the PHY status register (sticky read)
  *  to verify that link is up.  Read the PHY special control register to
@@ -1715,7 +1714,7 @@ out:
 
 /**
  *  e1000_get_phy_info_igp - Retrieve igp PHY information
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Read PHY status to determine if link is up.  If link is up, then
  *  set/determine 10base-T extended distance and polarity correction.  Read
@@ -1783,7 +1782,7 @@ out:
 
 /**
  *  e1000_phy_sw_reset_generic - PHY software reset
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Does a software reset of the PHY by reading the PHY control register and
  *  setting/write the control register reset bit to the PHY.
@@ -1813,7 +1812,7 @@ out:
 
 /**
  *  e1000_phy_hw_reset_generic - PHY hardware reset
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Verify the reset block is not blocking us from resetting.  Acquire
  *  semaphore (if necessary) and read/set/write the device control reset
@@ -1860,7 +1859,7 @@ out:
 
 /**
  *  e1000_get_cfg_done_generic - Generic configuration done
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Generic function to wait 10 milli-seconds for configuration to complete
  *  and return success.
@@ -1879,7 +1878,7 @@ e1000_get_cfg_done_generic(struct e1000_hw *hw)
 
 /**
  *  e1000_get_phy_cfg_done - Generic PHY configuration done
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Return success if silicon family did not implement a family specific
  *  get_cfg_done function.
@@ -1895,7 +1894,7 @@ e1000_get_phy_cfg_done(struct e1000_hw *hw)
 
 /**
  *  e1000_release_phy - Generic release PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Return if silicon family does not require a semaphore when accessing the
  *  PHY.
@@ -1909,7 +1908,7 @@ e1000_release_phy(struct e1000_hw *hw)
 
 /**
  *  e1000_acquire_phy - Generic acquire PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Return success if silicon family does not require a semaphore when
  *  accessing the PHY.
@@ -1925,7 +1924,7 @@ e1000_acquire_phy(struct e1000_hw *hw)
 
 /**
  *  e1000_phy_force_speed_duplex - Generic force PHY speed/duplex
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  When the silicon family has not implemented a forced speed/duplex
  *  function for the PHY, simply return E1000_SUCCESS.
@@ -1941,7 +1940,7 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 
 /**
  *  e1000_phy_init_script_igp3 - Inits the IGP3 PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Initializes a Intel Gigabit PHY3 when an EEPROM is not present.
  **/
@@ -2022,3 +2021,44 @@ e1000_phy_init_script_igp3(struct e1000_hw *hw)
 
 	return E1000_SUCCESS;
 }
+
+/**
+ *  e1000_get_phy_type_from_id - Get PHY type from id
+ *  @phy_id: phy_id read from the phy
+ *
+ *  Returns the phy type from the id.
+ **/
+e1000_phy_type
+e1000_get_phy_type_from_id(u32 phy_id)
+{
+	e1000_phy_type phy_type = e1000_phy_unknown;
+
+	switch (phy_id)	{
+	case M88E1000_I_PHY_ID:
+	case M88E1000_E_PHY_ID:
+	case M88E1111_I_PHY_ID:
+	case M88E1011_I_PHY_ID:
+		phy_type = e1000_phy_m88;
+		break;
+	case IGP01E1000_I_PHY_ID: /* IGP 1 & 2 share this */
+		phy_type = e1000_phy_igp_2;
+		break;
+	case GG82563_E_PHY_ID:
+		phy_type = e1000_phy_gg82563;
+		break;
+	case IGP03E1000_E_PHY_ID:
+		phy_type = e1000_phy_igp_3;
+		break;
+	case IFE_E_PHY_ID:
+	case IFE_PLUS_E_PHY_ID:
+	case IFE_C_E_PHY_ID:
+		phy_type = e1000_phy_ife;
+		break;
+	default:
+		phy_type = e1000_phy_unknown;
+		break;
+	}
+	return phy_type;
+}
+
+

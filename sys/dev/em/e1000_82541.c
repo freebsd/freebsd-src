@@ -30,9 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 
 /* e1000_82541
@@ -41,6 +39,7 @@ __FBSDID("$FreeBSD$");
  * e1000_82547_rev_2
  */
 
+#include "e1000_api.h"
 #include "e1000_82541.h"
 
 void e1000_init_function_pointers_82541(struct e1000_hw *hw);
@@ -88,7 +87,7 @@ struct e1000_dev_spec_82541 {
 
 /**
  *  e1000_init_phy_params_82541 - Init PHY func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -133,7 +132,7 @@ out:
 
 /**
  *  e1000_init_nvm_params_82541 - Init NVM func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -231,7 +230,7 @@ out:
 
 /**
  *  e1000_init_mac_params_82541 - Init MAC func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -299,7 +298,7 @@ e1000_init_mac_params_82541(struct e1000_hw *hw)
 
 /**
  *  e1000_init_function_pointers_82541 - Init func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  The only function explicitly called by the api module to initialize
  *  all function pointers and parameters.
@@ -316,7 +315,7 @@ e1000_init_function_pointers_82541(struct e1000_hw *hw)
 
 /**
  *  e1000_reset_hw_82541 - Reset hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This resets the hardware into a known state.  This is a
  *  function pointer entry point called by the api module.
@@ -393,7 +392,7 @@ e1000_reset_hw_82541(struct e1000_hw *hw)
 
 /**
  *  e1000_init_hw_82541 - Initialize hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This inits the hardware readying it for operation.  This is a
  *  function pointer entry point called by the api module.
@@ -454,9 +453,9 @@ out:
 
 /**
  * e1000_get_link_up_info_82541 - Report speed and duplex
- * @hw - pointer to the HW structure
- * @speed - pointer to speed buffer
- * @duplex - pointer to duplex buffer
+ * @hw: pointer to the HW structure
+ * @speed: pointer to speed buffer
+ * @duplex: pointer to duplex buffer
  *
  * Retrieve the current speed and duplex configuration.
  * This is a function pointer entry point called by the api module.
@@ -508,7 +507,7 @@ out:
 
 /**
  *  e1000_phy_hw_reset_82541 - PHY hardware reset
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Verify the reset block is not blocking us from resetting.  Acquire
  *  semaphore (if necessary) and read/set/write the device control reset
@@ -544,7 +543,7 @@ out:
 
 /**
  *  e1000_setup_copper_link_82541 - Configure copper link settings
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Calls the appropriate function to configure the link for auto-neg or forced
  *  speed and duplex.  Then we check for link, once link is established calls
@@ -601,7 +600,7 @@ out:
 
 /**
  *  e1000_check_for_link_82541 - Check/Store link connection
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This checks the link condition of the adapter and stores the
  *  results in the hw->mac structure. This is a function pointer entry
@@ -677,8 +676,8 @@ out:
 
 /**
  *  e1000_config_dsp_after_link_change_82541 - Config DSP after link
- *  @hw - pointer to the HW structure
- *  @link_up - boolean flag for link up status
+ *  @hw: pointer to the HW structure
+ *  @link_up: boolean flag for link up status
  *
  *  Return E1000_ERR_PHY when failing to read/write the PHY, else E1000_SUCCESS
  *  at any other case.
@@ -888,7 +887,7 @@ out:
 
 /**
  *  e1000_get_cable_length_igp_82541 - Determine cable length for igp PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  The automatic gain control (agc) normalizes the amplitude of the
  *  received signal, adjusting for the attenuation produced by the
@@ -961,8 +960,8 @@ out:
 
 /**
  *  e1000_set_d3_lplu_state_82541 - Sets low power link up state for D3
- *  @hw - pointer to the HW structure
- *  @active boolean used to enable/disable lplu
+ *  @hw: pointer to the HW structure
+ *  @active: boolean used to enable/disable lplu
  *
  *  Success returns 0, Failure returns 1
  *
@@ -1061,7 +1060,7 @@ out:
 
 /**
  *  e1000_setup_led_82541 - Configures SW controllable LED
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This prepares the SW controllable LED for use and saves the current state
  *  of the LED so it can be later restored.  This is a function pointer entry
@@ -1098,7 +1097,7 @@ out:
 
 /**
  *  e1000_cleanup_led_82541 - Set LED config to default operation
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Remove the current LED configuration and set the LED configuration
  *  to the default value, saved from the EEPROM.  This is a function pointer
@@ -1128,7 +1127,7 @@ out:
 
 /**
  *  e1000_phy_init_script_82541 - Initialize GbE PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Initializes the IGP PHY.
  **/
@@ -1242,8 +1241,8 @@ out:
 
 /**
  *  e1000_init_script_state_82541 - Enable/Disable PHY init script
- *  @hw - pointer to the HW structure
- *  @state - boolean value used to enable/disable PHY init script
+ *  @hw: pointer to the HW structure
+ *  @state: boolean value used to enable/disable PHY init script
  *
  *  Allows the driver to enable/disable the PHY init script, if the PHY is an
  *  IGP PHY.  This is a function pointer entry point called by the api module.
@@ -1275,7 +1274,7 @@ out:
 
 /**
  *  e1000_clear_hw_cntrs_82541 - Clear device specific hardware counters
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Clears the hardware counters by reading the counter registers.
  **/
