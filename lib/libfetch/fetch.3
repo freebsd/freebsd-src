@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 1998
+.Dd April 22, 2007
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -334,6 +334,16 @@ If no user name or password is given, the
 .Nm fetch
 library will attempt an anonymous login, with user name "anonymous"
 and password "anonymous@<hostname>".
+.Pp
+By default,
+.Nm fetch
+changes directories one at a time for the best compatibility with a wide
+variety of servers.
+If it is compiled with the
+.Ql FTP_COMBINE_CWDS
+flag, it will first try a single change directory command for the entire
+path and fall back to the default scheme if an error occurred.
+This can save latency when used with a slow network link.
 .Sh HTTP SCHEME
 The
 .Fn fetchXGetHTTP ,
