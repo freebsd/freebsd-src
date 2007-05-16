@@ -212,7 +212,7 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt, sctp_assoc_t * 
 	aa = (int *)buf;
 	*aa = cnt;
 	ret = setsockopt(sd, IPPROTO_SCTP, SCTP_CONNECT_X, (void *)buf,
-	    (socklen_t)len);
+	    (socklen_t) len);
 	if ((ret == 0) && id) {
 		p_id = (sctp_assoc_t *) buf;
 		*id = *p_id;
@@ -269,22 +269,8 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 	if (arg == NULL) {
 		return (EINVAL);
 	}
-	if ((opt == SCTP_RTOINFO) ||
-	    (opt == SCTP_ASSOCINFO) ||
-	    (opt == SCTP_PRIMARY_ADDR) ||
-	    (opt == SCTP_SET_PEER_PRIMARY_ADDR) ||
-	    (opt == SCTP_PEER_ADDR_PARAMS) ||
-	    (opt == SCTP_STATUS) ||
-	    (opt == SCTP_GET_PEER_ADDR_INFO) ||
-	    (opt == SCTP_AUTH_ACTIVE_KEY) ||
-	    (opt == SCTP_PEER_AUTH_CHUNKS) ||
-	    (opt == SCTP_LOCAL_AUTH_CHUNKS)) {
-		*(sctp_assoc_t *) arg = id;
-		return (getsockopt(sd, IPPROTO_SCTP, opt, arg, size));
-	} else {
-		errno = EOPNOTSUPP;
-		return (-1);
-	}
+	*(sctp_assoc_t *) arg = id;
+	return (getsockopt(sd, IPPROTO_SCTP, opt, arg, size));
 }
 
 int
@@ -420,7 +406,7 @@ sctp_sendmsg(int s,
     const void *data,
     size_t len,
     const struct sockaddr *to,
-    socklen_t tolen __attribute__((unused)),
+    socklen_t tolen,
     u_int32_t ppid,
     u_int32_t flags,
     u_int16_t stream_no,
@@ -465,21 +451,36 @@ sctp_sendmsg(int s,
   (u_int)context);
   fflush(io);
 */
-	if (to) {
-		if (to->sa_len == 0) {
-			/*
-			 * For the lazy app, that did not set sa_len, we
-			 * attempt to set for them.
-			 */
-			if (to->sa_family == AF_INET) {
-				memcpy(&addr, to, sizeof(struct sockaddr_in));
-				addr.in.sin_len = sizeof(struct sockaddr_in);
-			} else if (to->sa_family == AF_INET6) {
-				memcpy(&addr, to, sizeof(struct sockaddr_in6));
-				addr.in6.sin6_len = sizeof(struct sockaddr_in6);
+	if ((tolen > 0) && ((to == NULL) || (tolen < sizeof(struct sockaddr)))) {
+		errno = EINVAL;
+		return -1;
+	}
+	if (to && (tolen > 0)) {
+		if (to->sa_family == AF_INET) {
+			if (tolen != sizeof(struct sockaddr_in)) {
+				errno = EINVAL;
+				return -1;
 			}
+			if ((to->sa_len > 0) && (to->sa_len != sizeof(struct sockaddr_in))) {
+				errno = EINVAL;
+				return -1;
+			}
+			memcpy(&addr, to, sizeof(struct sockaddr_in));
+			addr.in.sin_len = sizeof(struct sockaddr_in);
+		} else if (to->sa_family == AF_INET6) {
+			if (tolen != sizeof(struct sockaddr_in6)) {
+				errno = EINVAL;
+				return -1;
+			}
+			if ((to->sa_len > 0) && (to->sa_len != sizeof(struct sockaddr_in6))) {
+				errno = EINVAL;
+				return -1;
+			}
+			memcpy(&addr, to, sizeof(struct sockaddr_in6));
+			addr.in6.sin6_len = sizeof(struct sockaddr_in6);
 		} else {
-			memcpy(&addr, to, to->sa_len);
+			errno = EAFNOSUPPORT;
+			return -1;
 		}
 		who = (struct sockaddr *)&addr;
 	}
@@ -488,7 +489,7 @@ sctp_sendmsg(int s,
 	iov[1].iov_base = NULL;
 	iov[1].iov_len = 0;
 
-	if (to) {
+	if (who) {
 		msg.msg_name = (caddr_t)who;
 		msg.msg_namelen = who->sa_len;
 	} else {
