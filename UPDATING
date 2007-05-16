@@ -21,6 +21,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070516:
+	Improved INCLUDE_CONFIG_FILE support has been introduced to the
+	config(8) utility. In order to take advantage of this new
+	functionality, you are expected to recompile and install
+	src/usr.sbin/config. If you don't rebuild config(8), and your
+	kernel configuration depends on INCLUDE_CONFIG_FILE, the kernel
+	build will be broken because of a missing "kernconfstring"
+	symbol.
+
 20070513:
 	Symbol versioning is enabled by default.  To disable it, use
 	option WITHOUT_SYMVER.  It is not advisable to attempt to
