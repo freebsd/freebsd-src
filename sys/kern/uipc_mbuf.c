@@ -1169,7 +1169,7 @@ extpacket:
  */
 struct mbuf *
 m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
-	 void (*copy)(char *from, caddr_t to, u_int len))
+    void (*copy)(char *from, caddr_t to, u_int len))
 {
 	struct mbuf *m;
 	struct mbuf *top = NULL, **mp = &top;
