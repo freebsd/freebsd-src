@@ -30,10 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_PHY_H_
@@ -51,8 +48,6 @@ typedef enum {
 	e1000_smart_speed_on,
 	e1000_smart_speed_off
 } e1000_smart_speed;
-
-#include "e1000_api.h"
 
 s32  e1000_check_downshift_generic(struct e1000_hw *hw);
 s32  e1000_check_polarity_m88(struct e1000_hw *hw);
@@ -88,8 +83,8 @@ s32  e1000_phy_reset_dsp(struct e1000_hw *hw);
 s32  e1000_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
                                 u32 usec_interval, boolean_t *success);
 s32  e1000_phy_init_script_igp3(struct e1000_hw *hw);
-
-
+e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id);
+#define E1000_MAX_PHY_ADDR                4
 
 /* IGP01E1000 Specific Registers */
 #define IGP01E1000_PHY_PORT_CONFIG        0x10 /* Port Config */
@@ -100,6 +95,17 @@ s32  e1000_phy_init_script_igp3(struct e1000_hw *hw);
 #define IGP01E1000_PHY_CHANNEL_QUALITY    0x15 /* PHY Channel Quality */
 #define IGP02E1000_PHY_POWER_MGMT         0x19 /* Power Management */
 #define IGP01E1000_PHY_PAGE_SELECT        0x1F /* Page Select */
+#define IGP4_PHY_PAGE_SELECT              22   /* Page Select for IGP 4 */
+#define IGP_PAGE_SHIFT                    5
+#define PHY_REG_MASK                      0x1F
+
+#define IGP4_WUC_PAGE                     800
+#define IGP4_WUC_ADDRESS_OPCODE           0x11
+#define IGP4_WUC_DATA_OPCODE              0x12
+#define IGP4_WUC_ENABLE_PAGE              769
+#define IGP4_WUC_ENABLE_REG               17
+#define IGP4_WUC_ENABLE_BIT               (1 << 2)
+#define IGP4_WUC_HOST_WU_BIT              (1 << 4)
 
 #define IGP01E1000_PHY_PCS_INIT_REG       0x00B4
 #define IGP01E1000_PHY_POLARITY_MASK      0x0078

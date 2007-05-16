@@ -30,16 +30,11 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_MAC_H_
 #define _E1000_MAC_H_
-
-#include "e1000_api.h"
 
 /* Functions that should not be called directly from drivers but can be used
  * by other files in this 'shared code'

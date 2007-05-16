@@ -30,11 +30,10 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 
+#include "e1000_api.h"
 #include "e1000_mac.h"
 #include "e1000_nvm.h"
 #include "e1000_phy.h"
@@ -52,7 +51,7 @@ extern void    e1000_init_function_pointers_82575(struct e1000_hw *hw);
 
 /**
  *  e1000_init_mac_params - Initialize MAC function pointers
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This function initializes the function pointers for the MAC
  *  set of functions.  Called by drivers or by e1000_setup_init_funcs.
@@ -79,7 +78,7 @@ out:
 
 /**
  *  e1000_init_nvm_params - Initialize NVM function pointers
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This function initializes the function pointers for the NVM
  *  set of functions.  Called by drivers or by e1000_setup_init_funcs.
@@ -106,7 +105,7 @@ out:
 
 /**
  *  e1000_init_phy_params - Initialize PHY function pointers
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This function initializes the function pointers for the PHY
  *  set of functions.  Called by drivers or by e1000_setup_init_funcs.
@@ -133,7 +132,7 @@ out:
 
 /**
  *  e1000_set_mac_type - Sets MAC type
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This function sets the mac type of the adapter based on the
  *  device ID stored in the hw structure.
@@ -214,6 +213,8 @@ e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_82571EB_COPPER:
 	case E1000_DEV_ID_82571EB_FIBER:
 	case E1000_DEV_ID_82571EB_SERDES:
+	case E1000_DEV_ID_82571EB_SERDES_DUAL:
+	case E1000_DEV_ID_82571EB_SERDES_QUAD:
 	case E1000_DEV_ID_82571EB_QUAD_COPPER:
 	case E1000_DEV_ID_82571EB_QUAD_FIBER:
 	case E1000_DEV_ID_82571EB_QUAD_COPPER_LP:
@@ -270,8 +271,8 @@ e1000_set_mac_type(struct e1000_hw *hw)
 
 /**
  *  e1000_setup_init_funcs - Initializes function pointers
- *  @hw - pointer to the HW structure
- *  @init_device - TRUE will initialize the rest of the function pointers
+ *  @hw: pointer to the HW structure
+ *  @init_device: TRUE will initialize the rest of the function pointers
  *                 getting the device ready for use.  FALSE will only set
  *                 MAC type and the function pointers for the other init
  *                 functions.  Passing FALSE will not generate any hardware
@@ -384,7 +385,7 @@ out:
 
 /**
  *  e1000_remove_device - Free device specific structure
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  If a device specific structure was allocated, this function will
  *  free it. This is a function pointer entry point called by drivers.
@@ -398,7 +399,7 @@ e1000_remove_device(struct e1000_hw *hw)
 
 /**
  *  e1000_get_bus_info - Obtain bus information for adapter
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This will obtain information about the HW bus for which the
  *  adaper is attached and stores it in the hw structure. This is a
@@ -415,7 +416,7 @@ e1000_get_bus_info(struct e1000_hw *hw)
 
 /**
  *  e1000_clear_vfta - Clear VLAN filter table
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This clears the VLAN filter table on the adapter. This is a function
  *  pointer entry point called by drivers.
@@ -429,9 +430,9 @@ e1000_clear_vfta(struct e1000_hw *hw)
 
 /**
  *  e1000_write_vfta - Write value to VLAN filter table
- *  @hw - pointer to the HW structure
- *  @offset - the 32-bit offset in which to write the value to.
- *  @value - the 32-bit value to write at location offset.
+ *  @hw: pointer to the HW structure
+ *  @offset: the 32-bit offset in which to write the value to.
+ *  @value: the 32-bit value to write at location offset.
  *
  *  This writes a 32-bit value to a 32-bit offset in the VLAN filter
  *  table. This is a function pointer entry point called by drivers.
@@ -445,11 +446,11 @@ e1000_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 
 /**
  *  e1000_mc_addr_list_update - Update Multicast addresses
- *  @hw - pointer to the HW structure
- *  @mc_addr_list - array of multicast addresses to program
- *  @mc_addr_count - number of multicast addresses to program
- *  @rar_used_count - the first RAR register free to program
- *  @rar_count - total number of supported Receive Address Registers
+ *  @hw: pointer to the HW structure
+ *  @mc_addr_list: array of multicast addresses to program
+ *  @mc_addr_count: number of multicast addresses to program
+ *  @rar_used_count: the first RAR register free to program
+ *  @rar_count: total number of supported Receive Address Registers
  *
  *  Updates the Receive Address Registers and Multicast Table Array.
  *  The caller must have a packed mc_addr_list of multicast addresses.
@@ -475,7 +476,7 @@ e1000_mc_addr_list_update(struct e1000_hw *hw,
 
 /**
  *  e1000_force_mac_fc - Force MAC flow control
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Force the MAC's flow control settings. Currently no func pointer exists
  *  and all implementations are handled in the generic version of this
@@ -489,7 +490,7 @@ e1000_force_mac_fc(struct e1000_hw *hw)
 
 /**
  *  e1000_check_for_link - Check/Store link connection
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This checks the link condition of the adapter and stores the
  *  results in the hw->mac structure. This is a function pointer entry
@@ -506,7 +507,7 @@ e1000_check_for_link(struct e1000_hw *hw)
 
 /**
  *  e1000_check_mng_mode - Check management mode
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This checks if the adapter has manageability enabled.
  *  This is a function pointer entry point called by drivers.
@@ -522,9 +523,9 @@ e1000_check_mng_mode(struct e1000_hw *hw)
 
 /**
  *  e1000_mng_write_dhcp_info - Writes DHCP info to host interface
- *  @hw - pointer to the HW structure
- *  @buffer - pointer to the host interface
- *  @length - size of the buffer
+ *  @hw: pointer to the HW structure
+ *  @buffer: pointer to the host interface
+ *  @length: size of the buffer
  *
  *  Writes the DHCP information to the host interface.
  **/
@@ -536,7 +537,7 @@ e1000_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length)
 
 /**
  *  e1000_reset_hw - Reset hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This resets the hardware into a known state. This is a function pointer
  *  entry point called by drivers.
@@ -552,7 +553,7 @@ e1000_reset_hw(struct e1000_hw *hw)
 
 /**
  *  e1000_init_hw - Initialize hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This inits the hardware readying it for operation. This is a function
  *  pointer entry point called by drivers.
@@ -568,7 +569,7 @@ e1000_init_hw(struct e1000_hw *hw)
 
 /**
  *  e1000_setup_link - Configures link and flow control
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This configures link and flow control settings for the adapter. This
  *  is a function pointer entry point called by drivers. While modules can
@@ -585,9 +586,9 @@ e1000_setup_link(struct e1000_hw *hw)
 
 /**
  *  e1000_get_speed_and_duplex - Returns current speed and duplex
- *  @hw - pointer to the HW structure
- *  @speed - pointer to a 16-bit value to store the speed
- *  @duplex - pointer to a 16-bit value to store the duplex.
+ *  @hw: pointer to the HW structure
+ *  @speed: pointer to a 16-bit value to store the speed
+ *  @duplex: pointer to a 16-bit value to store the duplex.
  *
  *  This returns the speed and duplex of the adapter in the two 'out'
  *  variables passed in. This is a function pointer entry point called
@@ -604,7 +605,7 @@ e1000_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex)
 
 /**
  *  e1000_setup_led - Configures SW controllable LED
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This prepares the SW controllable LED for use and saves the current state
  *  of the LED so it can be later restored. This is a function pointer entry
@@ -621,7 +622,7 @@ e1000_setup_led(struct e1000_hw *hw)
 
 /**
  *  e1000_cleanup_led - Restores SW controllable LED
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This restores the SW controllable LED to the value saved off by
  *  e1000_setup_led. This is a function pointer entry point called by drivers.
@@ -637,7 +638,7 @@ e1000_cleanup_led(struct e1000_hw *hw)
 
 /**
  *  e1000_blink_led - Blink SW controllable LED
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This starts the adapter LED blinking. Request the LED to be setup first
  *  and cleaned up after. This is a function pointer entry point called by
@@ -654,7 +655,7 @@ e1000_blink_led(struct e1000_hw *hw)
 
 /**
  *  e1000_led_on - Turn on SW controllable LED
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Turns the SW defined LED on. This is a function pointer entry point
  *  called by drivers.
@@ -670,7 +671,7 @@ e1000_led_on(struct e1000_hw *hw)
 
 /**
  *  e1000_led_off - Turn off SW controllable LED
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Turns the SW defined LED off. This is a function pointer entry point
  *  called by drivers.
@@ -686,7 +687,7 @@ e1000_led_off(struct e1000_hw *hw)
 
 /**
  *  e1000_reset_adaptive - Reset adaptive IFS
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Resets the adaptive IFS. Currently no func pointer exists and all
  *  implementations are handled in the generic version of this function.
@@ -699,7 +700,7 @@ e1000_reset_adaptive(struct e1000_hw *hw)
 
 /**
  *  e1000_update_adaptive - Update adaptive IFS
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Updates adapter IFS. Currently no func pointer exists and all
  *  implementations are handled in the generic version of this function.
@@ -712,7 +713,7 @@ e1000_update_adaptive(struct e1000_hw *hw)
 
 /**
  *  e1000_disable_pcie_master - Disable PCI-Express master access
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Disables PCI-Express master access and verifies there are no pending
  *  requests. Currently no func pointer exists and all implementations are
@@ -726,7 +727,7 @@ e1000_disable_pcie_master(struct e1000_hw *hw)
 
 /**
  *  e1000_config_collision_dist - Configure collision distance
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Configures the collision distance to the default value and is used
  *  during link setup.
@@ -740,9 +741,9 @@ e1000_config_collision_dist(struct e1000_hw *hw)
 
 /**
  *  e1000_rar_set - Sets a receive address register
- *  @hw - pointer to the HW structure
- *  @addr - address to set the RAR to
- *  @index - the RAR to set
+ *  @hw: pointer to the HW structure
+ *  @addr: address to set the RAR to
+ *  @index: the RAR to set
  *
  *  Sets a Receive Address Register (RAR) to the specified address.
  **/
@@ -755,7 +756,7 @@ e1000_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 
 /**
  *  e1000_validate_mdi_setting - Ensures valid MDI/MDIX SW state
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Ensures that the MDI/MDIX SW state is valid.
  **/
@@ -770,8 +771,8 @@ e1000_validate_mdi_setting(struct e1000_hw *hw)
 
 /**
  *  e1000_mta_set - Sets multicast table bit
- *  @hw - pointer to the HW structure
- *  @hash_value - Multicast hash value.
+ *  @hw: pointer to the HW structure
+ *  @hash_value: Multicast hash value.
  *
  *  This sets the bit in the multicast table corresponding to the
  *  hash value.  This is a function pointer entry point called by drivers.
@@ -785,8 +786,8 @@ e1000_mta_set(struct e1000_hw *hw, u32 hash_value)
 
 /**
  *  e1000_hash_mc_addr - Determines address location in multicast table
- *  @hw - pointer to the HW structure
- *  @mc_addr - Multicast address to hash.
+ *  @hw: pointer to the HW structure
+ *  @mc_addr: Multicast address to hash.
  *
  *  This hashes an address to determine its location in the multicast
  *  table. Currently no func pointer exists and all implementations
@@ -800,7 +801,7 @@ e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 
 /**
  *  e1000_enable_tx_pkt_filtering - Enable packet filtering on TX
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Enables packet filtering on transmit packets if manageability is enabled
  *  and host interface is enabled.
@@ -815,11 +816,11 @@ e1000_enable_tx_pkt_filtering(struct e1000_hw *hw)
 
 /**
  *  e1000_mng_host_if_write - Writes to the manageability host interface
- *  @hw - pointer to the HW structure
- *  @buffer - pointer to the host interface buffer
- *  @length - size of the buffer
- *  @offset - location in the buffer to write to
- *  @sum - sum of the data (not checksum)
+ *  @hw: pointer to the HW structure
+ *  @buffer: pointer to the host interface buffer
+ *  @length: size of the buffer
+ *  @offset: location in the buffer to write to
+ *  @sum: sum of the data (not checksum)
  *
  *  This function writes the buffer content at the offset given on the host if.
  *  It also does alignment considerations to do the writes in most efficient
@@ -838,8 +839,8 @@ e1000_mng_host_if_write(struct e1000_hw * hw, u8 *buffer, u16 length,
 
 /**
  *  e1000_mng_write_cmd_header - Writes manageability command header
- *  @hw - pointer to the HW structure
- *  @hdr - pointer to the host interface command header
+ *  @hw: pointer to the HW structure
+ *  @hdr: pointer to the host interface command header
  *
  *  Writes the command header after does the checksum calculation.
  **/
@@ -855,7 +856,7 @@ e1000_mng_write_cmd_header(struct e1000_hw *hw,
 
 /**
  *  e1000_mng_enable_host_if - Checks host interface is enabled
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Returns E1000_success upon success, else E1000_ERR_HOST_INTERFACE_COMMAND
  *
@@ -874,7 +875,7 @@ e1000_mng_enable_host_if(struct e1000_hw * hw)
 
 /**
  *  e1000_wait_autoneg - Waits for autonegotiation completion
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Waits for autoneg to complete. Currently no func pointer exists and all
  *  implementations are handled in the generic version of this function.
@@ -890,7 +891,7 @@ e1000_wait_autoneg(struct e1000_hw *hw)
 
 /**
  *  e1000_check_reset_block - Verifies PHY can be reset
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Checks if the PHY is in a state that can be reset or if manageability
  *  has it tied up. This is a function pointer entry point called by drivers.
@@ -906,9 +907,9 @@ e1000_check_reset_block(struct e1000_hw *hw)
 
 /**
  *  e1000_read_phy_reg - Reads PHY register
- *  @hw - pointer to the HW structure
- *  @offset - the register to read
- *  @data - the buffer to store the 16-bit read.
+ *  @hw: pointer to the HW structure
+ *  @offset: the register to read
+ *  @data: the buffer to store the 16-bit read.
  *
  *  Reads the PHY register and returns the value in data.
  *  This is a function pointer entry point called by drivers.
@@ -924,9 +925,9 @@ e1000_read_phy_reg(struct e1000_hw *hw, u32 offset, u16 *data)
 
 /**
  *  e1000_write_phy_reg - Writes PHY register
- *  @hw - pointer to the HW structure
- *  @offset - the register to write
- *  @data - the value to write.
+ *  @hw: pointer to the HW structure
+ *  @offset: the register to write
+ *  @data: the value to write.
  *
  *  Writes the PHY register at offset with the value in data.
  *  This is a function pointer entry point called by drivers.
@@ -942,9 +943,9 @@ e1000_write_phy_reg(struct e1000_hw *hw, u32 offset, u16 data)
 
 /**
  *  e1000_read_kmrn_reg - Reads register using Kumeran interface
- *  @hw - pointer to the HW structure
- *  @offset - the register to read
- *  @data - the location to store the 16-bit value read.
+ *  @hw: pointer to the HW structure
+ *  @offset: the register to read
+ *  @data: the location to store the 16-bit value read.
  *
  *  Reads a register out of the Kumeran interface. Currently no func pointer
  *  exists and all implementations are handled in the generic version of
@@ -958,9 +959,9 @@ e1000_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data)
 
 /**
  *  e1000_write_kmrn_reg - Writes register using Kumeran interface
- *  @hw - pointer to the HW structure
- *  @offset - the register to write
- *  @data - the value to write.
+ *  @hw: pointer to the HW structure
+ *  @offset: the register to write
+ *  @data: the value to write.
  *
  *  Writes a register to the Kumeran interface. Currently no func pointer
  *  exists and all implementations are handled in the generic version of
@@ -974,7 +975,7 @@ e1000_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data)
 
 /**
  *  e1000_get_cable_length - Retrieves cable length estimation
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This function estimates the cable length and stores them in
  *  hw->phy.min_length and hw->phy.max_length. This is a function pointer
@@ -991,7 +992,7 @@ e1000_get_cable_length(struct e1000_hw *hw)
 
 /**
  *  e1000_get_phy_info - Retrieves PHY information from registers
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This function gets some information from various PHY registers and
  *  populates hw->phy values with it. This is a function pointer entry
@@ -1008,7 +1009,7 @@ e1000_get_phy_info(struct e1000_hw *hw)
 
 /**
  *  e1000_phy_hw_reset - Hard PHY reset
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Performs a hard PHY reset. This is a function pointer entry point called
  *  by drivers.
@@ -1024,7 +1025,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
 
 /**
  *  e1000_phy_commit - Soft PHY reset
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Performs a soft PHY reset on those that apply. This is a function pointer
  *  entry point called by drivers.
@@ -1040,8 +1041,8 @@ e1000_phy_commit(struct e1000_hw *hw)
 
 /**
  *  e1000_set_d3_lplu_state - Sets low power link up state for D0
- *  @hw - pointer to the HW structure
- *  @active boolean used to enable/disable lplu
+ *  @hw: pointer to the HW structure
+ *  @active: boolean used to enable/disable lplu
  *
  *  Success returns 0, Failure returns 1
  *
@@ -1063,8 +1064,8 @@ e1000_set_d0_lplu_state(struct e1000_hw *hw, boolean_t active)
 
 /**
  *  e1000_set_d3_lplu_state - Sets low power link up state for D3
- *  @hw - pointer to the HW structure
- *  @active boolean used to enable/disable lplu
+ *  @hw: pointer to the HW structure
+ *  @active: boolean used to enable/disable lplu
  *
  *  Success returns 0, Failure returns 1
  *
@@ -1086,7 +1087,7 @@ e1000_set_d3_lplu_state(struct e1000_hw *hw, boolean_t active)
 
 /**
  *  e1000_read_mac_addr - Reads MAC address
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reads the MAC address out of the adapter and stores it in the HW structure.
  *  Currently no func pointer exists and all implementations are handled in the
@@ -1100,8 +1101,8 @@ e1000_read_mac_addr(struct e1000_hw *hw)
 
 /**
  *  e1000_read_part_num - Read device part number
- *  @hw - pointer to the HW structure
- *  @part_num - pointer to device part number
+ *  @hw: pointer to the HW structure
+ *  @part_num: pointer to device part number
  *
  *  Reads the product board assembly (PBA) number from the EEPROM and stores
  *  the value in part_num.
@@ -1116,7 +1117,7 @@ e1000_read_part_num(struct e1000_hw *hw, u32 *part_num)
 
 /**
  *  e1000_validate_nvm_checksum - Verifies NVM (EEPROM) checksum
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Validates the NVM checksum is correct. This is a function pointer entry
  *  point called by drivers.
@@ -1132,7 +1133,7 @@ e1000_validate_nvm_checksum(struct e1000_hw *hw)
 
 /**
  *  e1000_update_nvm_checksum - Updates NVM (EEPROM) checksum
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Updates the NVM checksum. Currently no func pointer exists and all
  *  implementations are handled in the generic version of this function.
@@ -1148,7 +1149,7 @@ e1000_update_nvm_checksum(struct e1000_hw *hw)
 
 /**
  *  e1000_reload_nvm - Reloads EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reloads the EEPROM by setting the "Reinitialize from EEPROM" bit in the
  *  extended control register.
@@ -1162,10 +1163,10 @@ e1000_reload_nvm(struct e1000_hw *hw)
 
 /**
  *  e1000_read_nvm - Reads NVM (EEPROM)
- *  @hw - pointer to the HW structure
- *  @offset - the word offset to read
- *  @words - number of 16-bit words to read
- *  @data - pointer to the properly sized buffer for the data.
+ *  @hw: pointer to the HW structure
+ *  @offset: the word offset to read
+ *  @words: number of 16-bit words to read
+ *  @data: pointer to the properly sized buffer for the data.
  *
  *  Reads 16-bit chunks of data from the NVM (EEPROM). This is a function
  *  pointer entry point called by drivers.
@@ -1181,10 +1182,10 @@ e1000_read_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 
 /**
  *  e1000_write_nvm - Writes to NVM (EEPROM)
- *  @hw - pointer to the HW structure
- *  @offset - the word offset to read
- *  @words - number of 16-bit words to write
- *  @data - pointer to the properly sized buffer for the data.
+ *  @hw: pointer to the HW structure
+ *  @offset: the word offset to read
+ *  @words: number of 16-bit words to write
+ *  @data: pointer to the properly sized buffer for the data.
  *
  *  Writes 16-bit chunks of data to the NVM (EEPROM). This is a function
  *  pointer entry point called by drivers.
@@ -1200,10 +1201,10 @@ e1000_write_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 
 /**
  *  e1000_write_8bit_ctrl_reg - Writes 8bit Control register
- *  @hw - pointer to the HW structure
- *  @reg - 32bit register offset
- *  @offset - the register to write
- *  @data - the value to write.
+ *  @hw: pointer to the HW structure
+ *  @reg: 32bit register offset
+ *  @offset: the register to write
+ *  @data: the value to write.
  *
  *  Writes the PHY register at offset with the value in data.
  *  This is a function pointer entry point called by drivers.

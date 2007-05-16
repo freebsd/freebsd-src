@@ -30,16 +30,11 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
-
-#include "e1000_api.h"
 
 /* Receive Address Register Count
  * Number of high/low register pairs in the RAR.  The RAR (Receive Address
@@ -74,7 +69,6 @@ struct e1000_adv_data_desc {
 #define E1000_TXD_DTYP_ADV_C    0x2  /* Advanced Context Descriptor */
 #define E1000_TXD_DTYP_ADV_D    0x3  /* Advanced Data Descriptor */
 #define E1000_ADV_TXD_CMD_DEXT  0x20 /* Descriptor extension (0 = legacy) */
-#define E1000_ADV_TUCMD_SNAP    0x1  /* SNAP indication */
 #define E1000_ADV_TUCMD_IPV4    0x2  /* IP Packet Type: 1=IPv4 */
 #define E1000_ADV_TUCMD_IPV6    0x0  /* IP Packet Type: 0=IPv6 */
 #define E1000_ADV_TUCMD_L4T_UDP 0x0  /* L4 Packet TYPE of UDP */
@@ -155,14 +149,14 @@ struct e1000_adv_context_desc {
 /* Immediate Interrupt RX (A.K.A. Low Latency Interrupt) */
 #define E1000_IMIR_PORT_IM_EN     0x00010000  /* TCP port enable */
 #define E1000_IMIR_PORT_BP        0x00020000  /* TCP port check bypass */
-#define E1000_IMIREX_SIZE_BP      0x00001000  /* Packet size bypass */
-#define E1000_IMIREX_CTRL_URG     0x00002000  /* Check URG bit in header */
-#define E1000_IMIREX_CTRL_ACK     0x00004000  /* Check ACK bit in header */
-#define E1000_IMIREX_CTRL_PSH     0x00008000  /* Check PSH bit in header */
-#define E1000_IMIREX_CTRL_RST     0x00010000  /* Check RST bit in header */
-#define E1000_IMIREX_CTRL_SYN     0x00020000  /* Check SYN bit in header */
-#define E1000_IMIREX_CTRL_FIN     0x00040000  /* Check FIN bit in header */
-#define E1000_IMIREX_CTRL_BP      0x00080000  /* Bypass check of control bits */
+#define E1000_IMIREXT_SIZE_BP     0x00001000  /* Packet size bypass */
+#define E1000_IMIREXT_CTRL_URG    0x00002000  /* Check URG bit in header */
+#define E1000_IMIREXT_CTRL_ACK    0x00004000  /* Check ACK bit in header */
+#define E1000_IMIREXT_CTRL_PSH    0x00008000  /* Check PSH bit in header */
+#define E1000_IMIREXT_CTRL_RST    0x00010000  /* Check RST bit in header */
+#define E1000_IMIREXT_CTRL_SYN    0x00020000  /* Check SYN bit in header */
+#define E1000_IMIREXT_CTRL_FIN    0x00040000  /* Check FIN bit in header */
+#define E1000_IMIREXT_CTRL_BP     0x00080000  /* Bypass check of control bits */
 
 /* Receive Descriptor - Advanced */
 union e1000_adv_rx_desc {
@@ -203,11 +197,11 @@ union e1000_adv_rx_desc {
 
 /* RSS Hash results */
 #define E1000_RXDADV_RSSTYPE_NONE        0x00000000
-#define E1000_RXDADV_RSSTYPE_IPV4        0x00000001
-#define E1000_RXDADV_RSSTYPE_IPV4_TCP    0x00000002
-#define E1000_RXDADV_RSSTYPE_IPV6        0x00000003
-#define E1000_RXDADV_RSSTYPE_IPV6_TCP    0x00000004
-#define E1000_RXDADV_RSSTYPE_IPV6_EX     0x00000005
+#define E1000_RXDADV_RSSTYPE_IPV4_TCP    0x00000001
+#define E1000_RXDADV_RSSTYPE_IPV4        0x00000002
+#define E1000_RXDADV_RSSTYPE_IPV6_TCP    0x00000003
+#define E1000_RXDADV_RSSTYPE_IPV6_EX     0x00000004
+#define E1000_RXDADV_RSSTYPE_IPV6        0x00000005
 #define E1000_RXDADV_RSSTYPE_IPV6_TCP_EX 0x00000006
 #define E1000_RXDADV_RSSTYPE_IPV4_UDP    0x00000007
 #define E1000_RXDADV_RSSTYPE_IPV6_UDP    0x00000008
@@ -238,8 +232,8 @@ union e1000_adv_tx_desc {
 #define E1000_ADVTXD_DCMD_DEXT    0x20000000 /* Descriptor extension (1=Adv) */
 #define E1000_ADVTXD_DCMD_VLE     0x40000000 /* VLAN pkt enable */
 #define E1000_ADVTXD_DCMD_TSE     0x80000000 /* TCP Seg enable */
-#define E1000_ADV_MAC_LINKSEC     0x00040000 /* Apply LinkSec on packet */
-#define E1000_ADV_MAC_TSTAMP      0x00080000 /* IEEE1588 Timestamp packet */
+#define E1000_ADVTXD_MAC_LINKSEC  0x00040000 /* Apply LinkSec on packet */
+#define E1000_ADVTXD_MAC_TSTAMP   0x00080000 /* IEEE1588 Timestamp packet */
 #define E1000_ADVTXD_STAT_SN_CRC  0x00000002 /* NXTSEQ/SEED present in WB */
 #define E1000_ADVTXD_IDX_SHIFT    4  /* Adv desc Index shift */
 #define E1000_ADVTXD_POPTS_EOM    0x00000400 /* Enable L bit in RDMA DDP hdr */
@@ -247,6 +241,7 @@ union e1000_adv_tx_desc {
 #define E1000_ADVTXD_POPTS_ISCO_MDL  0x00000800 /* Middle TSO of iSCSI PDU */
 #define E1000_ADVTXD_POPTS_ISCO_LAST 0x00001000 /* Last TSO of iSCSI PDU */
 #define E1000_ADVTXD_POPTS_ISCO_FULL 0x00001800 /* 1st&Last TSO-full iSCSI PDU*/
+#define E1000_ADVTXD_POPTS_IPSEC     0x00000400 /* IPSec offload request */
 #define E1000_ADVTXD_PAYLEN_SHIFT    14 /* Adv desc PAYLEN shift */
 
 /* Context descriptors */
@@ -259,14 +254,20 @@ struct e1000_adv_tx_context_desc {
 
 #define E1000_ADVTXD_MACLEN_SHIFT    9  /* Adv ctxt desc mac len shift */
 #define E1000_ADVTXD_VLAN_SHIFT     16  /* Adv ctxt vlan tag shift */
-#define E1000_ADVTXD_TUCMD_SNAP    0x00000200  /* SNAP indication */
 #define E1000_ADVTXD_TUCMD_IPV4    0x00000400  /* IP Packet Type: 1=IPv4 */
 #define E1000_ADVTXD_TUCMD_IPV6    0x00000000  /* IP Packet Type: 0=IPv6 */
 #define E1000_ADVTXD_TUCMD_L4T_UDP 0x00000000  /* L4 Packet TYPE of UDP */
 #define E1000_ADVTXD_TUCMD_L4T_TCP 0x00000800  /* L4 Packet TYPE of TCP */
+#define E1000_ADVTXD_TUCMD_IPSEC_TYPE_ESP    0x00002000 /* IPSec Type ESP */
+/* IPSec Encrypt Enable for ESP */
+#define E1000_ADVTXD_TUCMD_IPSEC_ENCRYPT_EN  0x00004000
 #define E1000_ADVTXD_TUCMD_MKRREQ  0x00002000 /* Req requires Markers and CRC */
 #define E1000_ADVTXD_L4LEN_SHIFT     8  /* Adv ctxt L4LEN shift */
 #define E1000_ADVTXD_MSS_SHIFT      16  /* Adv ctxt MSS shift */
+/* Adv ctxt IPSec SA IDX mask */
+#define E1000_ADVTXD_IPSEC_SA_INDEX_MASK     0x000000FF
+/* Adv ctxt IPSec ESP len mask */
+#define E1000_ADVTXD_IPSEC_ESP_LEN_MASK      0x000000FF
 
 /* Additional Transmit Descriptor Control definitions */
 #define E1000_TXDCTL_QUEUE_ENABLE  0x02000000 /* Enable specific Tx Queue */
@@ -279,9 +280,19 @@ struct e1000_adv_tx_context_desc {
 #define E1000_RXDCTL_SWFLSH        0x04000000 /* Rx Desc. write-back flushing */
 
 /* Direct Cache Access (DCA) definitions */
-#define E1000_DCA_RXCTRL_DESC_DCA_EN (1 << 5)
-#define E1000_DCA_RXCTRL_HEAD_DCA_EN (1 << 6)
-#define E1000_DCA_RXCTRL_DATA_DCA_EN (1 << 7)
+#define E1000_DCA_CTRL_DCA_ENABLE  0x00000000 /* DCA Enable */
+#define E1000_DCA_CTRL_DCA_DISABLE 0x00000001 /* DCA Disable */
 
-#define E1000_DCA_TXCTRL_DESC_DCA_EN (1 << 5)
+#define E1000_DCA_CTRL_DCA_MODE_CB1 0x00 /* DCA Mode CB1 */
+#define E1000_DCA_CTRL_DCA_MODE_CB2 0x02 /* DCA Mode CB2 */
+
+#define E1000_DCA_RXCTRL_CPUID_MASK 0x0000001F /* Rx CPUID Mask */
+#define E1000_DCA_RXCTRL_DESC_DCA_EN (1 << 5) /* DCA Rx Desc enable */
+#define E1000_DCA_RXCTRL_HEAD_DCA_EN (1 << 6) /* DCA Rx Desc header enable */
+#define E1000_DCA_RXCTRL_DATA_DCA_EN (1 << 7) /* DCA Rx Desc payload enable */
+
+#define E1000_DCA_TXCTRL_CPUID_MASK 0x0000001F /* Tx CPUID Mask */
+#define E1000_DCA_TXCTRL_DESC_DCA_EN (1 << 5) /* DCA Tx Desc enable */
+
+
 #endif

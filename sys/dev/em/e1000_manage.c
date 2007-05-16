@@ -30,19 +30,18 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 
+#include "e1000_api.h"
 #include "e1000_manage.h"
 
 static u8 e1000_calculate_checksum(u8 *buffer, u32 length);
 
 /**
  *  e1000_calculate_checksum - Calculate checksum for buffer
- *  @buffer - pointer to EEPROM
- *  @length - size of EEPROM to calculate a checksum for
+ *  @buffer: pointer to EEPROM
+ *  @length: size of EEPROM to calculate a checksum for
  *
  *  Calculates the checksum for some buffer on a specified length.  The
  *  checksum calculated is returned.
@@ -66,7 +65,7 @@ e1000_calculate_checksum(u8 *buffer, u32 length)
 
 /**
  *  e1000_mng_enable_host_if_generic - Checks host interface is enabled
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Returns E1000_success upon success, else E1000_ERR_HOST_INTERFACE_COMMAND
  *
@@ -110,7 +109,7 @@ out:
 
 /**
  *  e1000_check_mng_mode_generic - Generic check managament mode
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reads the firmware semaphore register and returns true (>0) if
  *  manageability is enabled, else false (0).
@@ -130,7 +129,7 @@ e1000_check_mng_mode_generic(struct e1000_hw *hw)
 
 /**
  *  e1000_enable_tx_pkt_filtering_generic - Enable packet filtering on TX
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Enables packet filtering on transmit packets if manageability is enabled
  *  and host interface is enabled.
@@ -194,9 +193,9 @@ out:
 
 /**
  *  e1000_mng_write_dhcp_info_generic - Writes DHCP info to host interface
- *  @hw - pointer to the HW structure
- *  @buffer - pointer to the host interface
- *  @length - size of the buffer
+ *  @hw: pointer to the HW structure
+ *  @buffer: pointer to the host interface
+ *  @length: size of the buffer
  *
  *  Writes the DHCP information to the host interface.
  **/
@@ -241,8 +240,8 @@ out:
 
 /**
  *  e1000_mng_write_cmd_header_generic - Writes manageability command header
- *  @hw - pointer to the HW structure
- *  @hdr - pointer to the host interface command header
+ *  @hw: pointer to the HW structure
+ *  @hdr: pointer to the host interface command header
  *
  *  Writes the command header after does the checksum calculation.
  **/
@@ -270,11 +269,11 @@ e1000_mng_write_cmd_header_generic(struct e1000_hw * hw,
 
 /**
  *  e1000_mng_host_if_write_generic - Writes to the manageability host interface
- *  @hw - pointer to the HW structure
- *  @buffer - pointer to the host interface buffer
- *  @length - size of the buffer
- *  @offset - location in the buffer to write to
- *  @sum - sum of the data (not checksum)
+ *  @hw: pointer to the HW structure
+ *  @buffer: pointer to the host interface buffer
+ *  @length: size of the buffer
+ *  @offset: location in the buffer to write to
+ *  @sum: sum of the data (not checksum)
  *
  *  This function writes the buffer content at the offset given on the host if.
  *  It also does alignment considerations to do the writes in most efficient
@@ -348,7 +347,7 @@ out:
 
 /**
  *  e1000_enable_mng_pass_thru - Enable processing of ARP's
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Verifies the hardware needs to allow ARPs to be processed by the host.
  **/

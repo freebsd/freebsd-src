@@ -30,10 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_HW_H_
@@ -86,6 +83,8 @@ struct e1000_hw;
 #define E1000_DEV_ID_82571EB_COPPER           0x105E
 #define E1000_DEV_ID_82571EB_FIBER            0x105F
 #define E1000_DEV_ID_82571EB_SERDES           0x1060
+#define E1000_DEV_ID_82571EB_SERDES_DUAL      0x10D9
+#define E1000_DEV_ID_82571EB_SERDES_QUAD      0x10DA
 #define E1000_DEV_ID_82571EB_QUAD_COPPER      0x10A4
 #define E1000_DEV_ID_82571EB_QUAD_FIBER       0x10A5
 #define E1000_DEV_ID_82571EB_QUAD_COPPER_LP   0x10BC
@@ -150,7 +149,7 @@ typedef enum {
 	e1000_ich8lan,
 	e1000_ich9lan,
 	e1000_82575,
-	e1000_num_macs
+	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
 } e1000_mac_type;
 
 typedef enum {

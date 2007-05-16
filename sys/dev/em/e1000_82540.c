@@ -30,9 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 
 /* e1000_82540
@@ -60,7 +58,7 @@ STATIC s32  e1000_setup_fiber_serdes_link_82540(struct e1000_hw *hw);
 
 /**
  * e1000_init_phy_params_82540 - Init PHY func ptrs.
- * @hw - pointer to the HW structure
+ * @hw: pointer to the HW structure
  *
  * This is a function pointer entry point called by the api module.
  **/
@@ -113,7 +111,7 @@ out:
 
 /**
  * e1000_init_nvm_params_82540 - Init NVM func ptrs.
- * @hw - pointer to the HW structure
+ * @hw: pointer to the HW structure
  *
  * This is a function pointer entry point called by the api module.
  **/
@@ -158,7 +156,7 @@ e1000_init_nvm_params_82540(struct e1000_hw *hw)
 
 /**
  * e1000_init_mac_params_82540 - Init MAC func ptrs.
- * @hw - pointer to the HW structure
+ * @hw: pointer to the HW structure
  *
  * This is a function pointer entry point called by the api module.
  **/
@@ -253,7 +251,7 @@ out:
 
 /**
  * e1000_init_function_pointers_82540 - Init func ptrs.
- * @hw - pointer to the HW structure
+ * @hw: pointer to the HW structure
  *
  * The only function explicitly called by the api module to initialize
  * all function pointers and parameters.
@@ -270,7 +268,7 @@ e1000_init_function_pointers_82540(struct e1000_hw *hw)
 
 /**
  *  e1000_reset_hw_82540 - Reset hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This resets the hardware into a known state.  This is a
  *  function pointer entry point called by the api module.
@@ -328,7 +326,7 @@ e1000_reset_hw_82540(struct e1000_hw *hw)
 
 /**
  *  e1000_init_hw_82540 - Initialize hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This inits the hardware readying it for operation.  This is a
  *  function pointer entry point called by the api module.
@@ -407,7 +405,7 @@ out:
 
 /**
  *  e1000_setup_copper_link_82540 - Configure copper link settings
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Calls the appropriate function to configure the link for auto-neg or forced
  *  speed and duplex.  Then we check for link, once link is established calls
@@ -456,7 +454,7 @@ out:
 
 /**
  *  e1000_setup_fiber_serdes_link_82540 - Setup link for fiber/serdes
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Set the output amplitude to the value in the EEPROM and adjust the VCO
  *  speed to improve Bit Error Rate (BER) performance.  Configures collision
@@ -499,7 +497,7 @@ out:
 
 /**
  *  e1000_adjust_serdes_amplitude_82540 - Adjust amplitude based on EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Adjust the SERDES ouput amplitude based on the EEPROM settings.
  **/
@@ -532,7 +530,7 @@ out:
 
 /**
  *  e1000_set_vco_speed_82540 - Set VCO speed for better performance
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Set the VCO speed to improve Bit Error Rate (BER) performance.
  **/
@@ -590,7 +588,7 @@ out:
 
 /**
  *  e1000_set_phy_mode_82540 - Set PHY to class A mode
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Sets the PHY to class A mode and assumes the following operations will
  *  follow to enable the new class mode:
@@ -639,7 +637,7 @@ out:
 
 /**
  *  e1000_clear_hw_cntrs_82540 - Clear device specific hardware counters
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Clears the hardware counters by reading the counter registers.
  **/

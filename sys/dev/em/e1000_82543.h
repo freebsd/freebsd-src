@@ -30,16 +30,11 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_82543_H_
 #define _E1000_82543_H_
-
-#include "e1000_api.h"
 
 #define PHY_PREAMBLE      0xFFFFFFFF
 #define PHY_PREAMBLE_SIZE 32
