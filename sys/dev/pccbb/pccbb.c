@@ -332,13 +332,13 @@ cbb_detach(device_t brdev)
 	/*
 	 * Wait for the thread to die.  kthread_exit will do a wakeup
 	 * on the event thread's struct thread * so that we know it is
-	 * save to proceed.  IF the thread is running, set the please
+	 * safe to proceed.  IF the thread is running, set the please
 	 * die flag and wait for it to comply.  Since the wakeup on
 	 * the event thread happens only in kthread_exit, we don't
 	 * need to loop here.
 	 */
-	mtx_lock(&sc->mtx);
 	bus_teardown_intr(brdev, sc->irq_res, sc->intrhand);
+	mtx_lock(&sc->mtx);
 	sc->flags |= CBB_KTHREAD_DONE;
 	while (sc->flags & CBB_KTHREAD_RUNNING) {
 		DEVPRINTF((sc->dev, "Waiting for thread to die\n"));
@@ -469,8 +469,8 @@ cbb_event_thread(void *arg)
 
 	mtx_lock(&sc->mtx);
 	sc->flags |= CBB_KTHREAD_RUNNING;
-	mtx_unlock(&sc->mtx);
 	while ((sc->flags & CBB_KTHREAD_DONE) == 0) {
+		mtx_unlock(&sc->mtx);
 		/*
 		 * We take out Giant here because we need it deep,
 		 * down in the bowels of the vm system for mapping the
@@ -527,10 +527,8 @@ cbb_event_thread(void *arg)
 		while (err != EWOULDBLOCK &&
 		    (sc->flags & CBB_KTHREAD_DONE) == 0)
 			err = cv_timedwait(&sc->cv, &sc->mtx, hz / 4);
-		mtx_unlock(&sc->mtx);
 	}
 	DEVPRINTF((sc->dev, "Thread terminating\n"));
-	mtx_lock(&sc->mtx);
 	sc->flags &= ~CBB_KTHREAD_RUNNING;
 	mtx_unlock(&sc->mtx);
 	kthread_exit(0);
