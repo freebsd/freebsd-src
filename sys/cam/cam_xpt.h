@@ -79,6 +79,8 @@ void			xpt_async(u_int32_t async_code, struct cam_path *path,
 void			xpt_rescan(union ccb *ccb);
 void			xpt_lock_buses(void);
 void			xpt_unlock_buses(void);
+cam_status		xpt_register_async(int event, ac_callback_t *cbfunc,
+					   void *cbarg, struct cam_path *path);
 #endif /* _KERNEL */
 
 #endif /* _CAM_CAM_XPT_H */
