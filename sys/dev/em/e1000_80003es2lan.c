@@ -30,13 +30,12 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 /* e1000_80003es2lan
  */
 
+#include "e1000_api.h"
 #include "e1000_80003es2lan.h"
 
 void e1000_init_function_pointers_80003es2lan(struct e1000_hw *hw);
@@ -69,9 +68,7 @@ static s32  e1000_acquire_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask);
 static s32  e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex);
 static s32  e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw);
-static s32  e1000_get_hw_semaphore_80003es2lan(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_80003es2lan(struct e1000_hw *hw);
-static void e1000_put_hw_semaphore_80003es2lan(struct e1000_hw *hw);
 static void e1000_release_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask);
 
 /* A table for the GG82563 cable length where the range is defined
@@ -87,7 +84,7 @@ u16 e1000_gg82563_cable_length_table[] =
 
 /**
  *  e1000_init_phy_params_80003es2lan - Init ESB2 PHY func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -140,7 +137,7 @@ out:
 
 /**
  *  e1000_init_nvm_params_80003es2lan - Init ESB2 NVM func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -196,7 +193,7 @@ e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 
 /**
  *  e1000_init_mac_params_80003es2lan - Init ESB2 MAC func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -293,7 +290,7 @@ out:
 
 /**
  *  e1000_init_function_pointers_80003es2lan - Init ESB2 func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  The only function explicitly called by the api module to initialize
  *  all function pointers and parameters.
@@ -310,7 +307,7 @@ e1000_init_function_pointers_80003es2lan(struct e1000_hw *hw)
 
 /**
  *  e1000_acquire_phy_80003es2lan - Acquire rights to access PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  A wrapper to acquire access rights to the correct PHY.  This is a
  *  function pointer entry point called by the api module.
@@ -329,7 +326,7 @@ e1000_acquire_phy_80003es2lan(struct e1000_hw *hw)
 
 /**
  *  e1000_release_phy_80003es2lan - Release rights to access PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  A wrapper to release access rights to the correct PHY.  This is a
  *  function pointer entry point called by the api module.
@@ -347,7 +344,7 @@ e1000_release_phy_80003es2lan(struct e1000_hw *hw)
 
 /**
  *  e1000_acquire_nvm_80003es2lan - Acquire rights to access NVM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Acquire the semaphore to access the EEPROM.  This is a function
  *  pointer entry point called by the api module.
@@ -374,7 +371,7 @@ out:
 
 /**
  *  e1000_release_nvm_80003es2lan - Relinquish rights to access NVM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Release the semaphore used to access the EEPROM.  This is a
  *  function pointer entry point called by the api module.
@@ -389,74 +386,9 @@ e1000_release_nvm_80003es2lan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_get_hw_semaphore_80003es2lan - Acquire HW semaphore for PHY/NVM access
- *  @hw - pointer to the HW structure
- *
- *  Acquire the HW semaphore to access the PHY or NVM
- **/
-static s32
-e1000_get_hw_semaphore_80003es2lan(struct e1000_hw *hw)
-{
-	u32 swsm;
-	s32 ret_val = E1000_SUCCESS;
-	s32 timeout = hw->nvm.word_size + 1;
-	s32 i = 0;
-
-	DEBUGFUNC("e1000_get_hw_semaphore_80003es2lan");
-
-	/* Get the SW semaphore. */
-	while (i < timeout) {
-		swsm = E1000_READ_REG(hw, E1000_SWSM);
-		if (!(swsm & E1000_SWSM_SMBI))
-			break;
-
-		msec_delay_irq(1);
-		i++;
-	}
-
-	if (i == timeout) {
-		DEBUGOUT("Driver can't access device "
-			 "- SMBI bit is set.\n");
-		ret_val = -E1000_ERR_NVM;
-		goto out;
-	}
-
-	/* Get the FW semaphore. */
-	ret_val = e1000_get_hw_semaphore_generic(hw);
-	if (ret_val) {
-		/* Release 80003es2lan semaphores */
-		e1000_put_hw_semaphore_80003es2lan(hw);
-		goto out;
-	}
-
-out:
-	return ret_val;
-}
-
-/**
- *  e1000_put_hw_semaphore_80003es2lan - Release HW semaphore for PHY/NVM access
- *  @hw - pointer to the HW structure
- *
- *  Release the HW semaphore used to access the PHY or NVM
- **/
-static void
-e1000_put_hw_semaphore_80003es2lan(struct e1000_hw *hw)
-{
-	u32 swsm;
-
-	DEBUGFUNC("e1000_put_hw_semaphore_80003es2lan");
-
-	swsm = E1000_READ_REG(hw, E1000_SWSM);
-
-	swsm &= ~(E1000_SWSM_SMBI | E1000_SWSM_SWESMBI);
-
-	E1000_WRITE_REG(hw, E1000_SWSM, swsm);
-}
-
-/**
  *  e1000_acquire_swfw_sync_80003es2lan - Acquire SW/FW semaphore
- *  @hw - pointer to the HW structure
- *  @mask - specifies which semaphore to acquire
+ *  @hw: pointer to the HW structure
+ *  @mask: specifies which semaphore to acquire
  *
  *  Acquire the SW/FW semaphore to access the PHY or NVM.  The mask
  *  will also specify which port we're acquiring the lock for.
@@ -473,7 +405,7 @@ e1000_acquire_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 	DEBUGFUNC("e1000_acquire_swfw_sync_80003es2lan");
 
 	while (i < timeout) {
-		if (e1000_get_hw_semaphore_80003es2lan(hw)) {
+		if (e1000_get_hw_semaphore_generic(hw)) {
 			ret_val = -E1000_ERR_SWFW_SYNC;
 			goto out;
 		}
@@ -484,7 +416,7 @@ e1000_acquire_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 
 		/* Firmware currently using resource (fwmask)
 		 * or other software thread using resource (swmask) */
-		e1000_put_hw_semaphore_80003es2lan(hw);
+		e1000_put_hw_semaphore_generic(hw);
 		msec_delay_irq(5);
 		i++;
 	}
@@ -498,7 +430,7 @@ e1000_acquire_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 	swfw_sync |= swmask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
-	e1000_put_hw_semaphore_80003es2lan(hw);
+	e1000_put_hw_semaphore_generic(hw);
 
 out:
 	return ret_val;
@@ -506,8 +438,8 @@ out:
 
 /**
  *  e1000_release_swfw_sync_80003es2lan - Release SW/FW semaphore
- *  @hw - pointer to the HW structure
- *  @mask - specifies which semaphore to acquire
+ *  @hw: pointer to the HW structure
+ *  @mask: specifies which semaphore to acquire
  *
  *  Release the SW/FW semaphore used to access the PHY or NVM.  The mask
  *  will also specify which port we're releasing the lock for.
@@ -519,21 +451,21 @@ e1000_release_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 
 	DEBUGFUNC("e1000_release_swfw_sync_80003es2lan");
 
-	while (e1000_get_hw_semaphore_80003es2lan(hw) != E1000_SUCCESS);
+	while (e1000_get_hw_semaphore_generic(hw) != E1000_SUCCESS);
 	/* Empty */
 
 	swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
 	swfw_sync &= ~mask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
-	e1000_put_hw_semaphore_80003es2lan(hw);
+	e1000_put_hw_semaphore_generic(hw);
 }
 
 /**
  *  e1000_read_phy_reg_gg82563_80003es2lan - Read GG82563 PHY register
- *  @hw - pointer to the HW structure
- *  @offset - offset of the register to read
- *  @data - pointer to the data returned from the operation
+ *  @hw: pointer to the HW structure
+ *  @offset: offset of the register to read
+ *  @data: pointer to the data returned from the operation
  *
  *  Read the GG82563 PHY register.  This is a function pointer entry
  *  point called by the api module.
@@ -591,9 +523,9 @@ out:
 
 /**
  *  e1000_write_phy_reg_gg82563_80003es2lan - Write GG82563 PHY register
- *  @hw - pointer to the HW structure
- *  @offset - offset of the register to read
- *  @data - value to write to the register
+ *  @hw: pointer to the HW structure
+ *  @offset: offset of the register to read
+ *  @data: value to write to the register
  *
  *  Write to the GG82563 PHY register.  This is a function pointer entry
  *  point called by the api module.
@@ -652,10 +584,10 @@ out:
 
 /**
  *  e1000_write_nvm_80003es2lan - Write to ESB2 NVM
- *  @hw - pointer to the HW structure
- *  @offset - offset of the register to read
- *  @words - number of words to write
- *  @data - buffer of data to write to the NVM
+ *  @hw: pointer to the HW structure
+ *  @offset: offset of the register to read
+ *  @words: number of words to write
+ *  @data: buffer of data to write to the NVM
  *
  *  Write "words" of data to the ESB2 NVM.  This is a function
  *  pointer entry point called by the api module.
@@ -671,7 +603,7 @@ e1000_write_nvm_80003es2lan(struct e1000_hw *hw, u16 offset,
 
 /**
  *  e1000_get_cfg_done_80003es2lan - Wait for configuration to complete
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Wait a specific amount of time for manageability processes to complete.
  *  This is a function pointer entry point called by the phy module.
@@ -706,7 +638,7 @@ out:
 
 /**
  *  e1000_phy_force_speed_duplex_80003es2lan - Force PHY speed and duplex
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Force the speed and duplex settings onto the PHY.  This is a
  *  function pointer entry point called by the phy module.
@@ -799,7 +731,7 @@ out:
 
 /**
  *  e1000_get_cable_length_80003es2lan - Set approximate cable length
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Find the approximate cable length as measured by the GG82563 PHY.
  *  This is a function pointer entry point called by the phy module.
@@ -829,9 +761,9 @@ out:
 
 /**
  *  e1000_get_link_up_info_80003es2lan - Report speed and duplex
- *  @hw - pointer to the HW structure
- *  @speed - pointer to speed buffer
- *  @duplex - pointer to duplex buffer
+ *  @hw: pointer to the HW structure
+ *  @speed: pointer to speed buffer
+ *  @duplex: pointer to duplex buffer
  *
  *  Retrieve the current speed and duplex configuration.
  *  This is a function pointer entry point called by the api module.
@@ -865,7 +797,7 @@ out:
 
 /**
  *  e1000_reset_hw_80003es2lan - Reset the ESB2 controller
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Perform a global reset to the ESB2 controller.
  *  This is a function pointer entry point called by the api module.
@@ -915,7 +847,7 @@ out:
 
 /**
  *  e1000_init_hw_80003es2lan - Initialize the ESB2 controller
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Initialize the hw bits, LED, VFTA, MTA, link and hw counters.
  *  This is a function pointer entry point called by the api module.
@@ -1000,7 +932,7 @@ out:
 
 /**
  *  e1000_initialize_hw_bits_80003es2lan - Init hw bits of ESB2
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Initializes required hardware-dependent bits needed for normal operation.
  **/
@@ -1045,7 +977,7 @@ out:
 
 /**
  *  e1000_copper_link_setup_gg82563_80003es2lan - Configure GG82563 Link
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Setup some GG82563 PHY registers for obtaining link
  **/
@@ -1194,7 +1126,7 @@ out:
 
 /**
  *  e1000_setup_copper_link_80003es2lan - Setup Copper Link for ESB2
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Essentially a wrapper for setting up all things "copper" related.
  *  This is a function pointer entry point called by the mac module.
@@ -1250,8 +1182,8 @@ out:
 
 /**
  *  e1000_cfg_kmrn_10_100_80003es2lan - Apply "quirks" for 10/100 operation
- *  @hw - pointer to the HW structure
- *  @duplex - current duplex setting
+ *  @hw: pointer to the HW structure
+ *  @duplex: current duplex setting
  *
  *  Configure the KMRN interface by applying last minute quirks for
  *  10/100 operation.
@@ -1261,7 +1193,8 @@ e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 {
 	s32 ret_val = E1000_SUCCESS;
 	u32 tipg;
-	u16 reg_data;
+	u32 i = 0;
+	u16 reg_data, reg_data2;
 
 	DEBUGFUNC("e1000_configure_kmrn_for_10_100");
 
@@ -1278,9 +1211,19 @@ e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 	tipg |= DEFAULT_TIPG_IPGT_10_100_80003ES2LAN;
 	E1000_WRITE_REG(hw, E1000_TIPG, tipg);
 
-	ret_val = e1000_read_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL, &reg_data);
-	if (ret_val)
-		goto out;
+
+	do {
+		ret_val = e1000_read_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
+		                             &reg_data);
+		if (ret_val)
+			goto out;
+
+		ret_val = e1000_read_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
+		                             &reg_data2);
+		if (ret_val)
+			goto out;
+		i++;
+	} while ((reg_data != reg_data2) && (i < GG82563_MAX_KMRN_RETRY));
 
 	if (duplex == HALF_DUPLEX)
 		reg_data |= GG82563_KMCR_PASS_FALSE_CARRIER;
@@ -1295,7 +1238,7 @@ out:
 
 /**
  *  e1000_cfg_kmrn_1000_80003es2lan - Apply "quirks" for gigabit operation
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Configure the KMRN interface by applying last minute quirks for
  *  gigabit operation.
@@ -1304,8 +1247,9 @@ static s32
 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
-	u16 reg_data;
+	u16 reg_data, reg_data2;
 	u32 tipg;
+	u32 i = 0;
 
 	DEBUGFUNC("e1000_configure_kmrn_for_1000");
 
@@ -1322,9 +1266,19 @@ e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 	tipg |= DEFAULT_TIPG_IPGT_1000_80003ES2LAN;
 	E1000_WRITE_REG(hw, E1000_TIPG, tipg);
 
-	ret_val = e1000_read_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL, &reg_data);
-	if (ret_val)
-		goto out;
+
+	do {
+		ret_val = e1000_read_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
+		                             &reg_data);
+		if (ret_val)
+			goto out;
+
+		ret_val = e1000_read_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
+		                             &reg_data2);
+		if (ret_val)
+			goto out;
+		i++;
+	} while ((reg_data != reg_data2) && (i < GG82563_MAX_KMRN_RETRY));
 
 	reg_data &= ~GG82563_KMCR_PASS_FALSE_CARRIER;
 	ret_val = e1000_write_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL, reg_data);
@@ -1335,7 +1289,7 @@ out:
 
 /**
  *  e1000_clear_hw_cntrs_80003es2lan - Clear device specific hardware counters
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Clears the hardware counters by reading the counter registers.
  **/

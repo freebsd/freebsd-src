@@ -30,10 +30,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_
@@ -136,16 +133,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_RADV                         64
 
 /*
- * Inform the stack about transmit checksum offload capabilities.
- */
-#define EM_CHECKSUM_FEATURES            (CSUM_TCP | CSUM_UDP)
-
-/*
- * Inform the stack about transmit segmentation offload capabilities.
- */
-#define EM_TCPSEG_FEATURES            CSUM_TSO
-
-/*
  * This parameter controls the duration of transmit watchdog timer.
  */
 #define EM_TX_TIMEOUT                   5    /* set to 5 seconds */
@@ -155,7 +142,7 @@ POSSIBILITY OF SUCH DAMAGE.
  * transmit descriptors.
  */
 #define EM_TX_CLEANUP_THRESHOLD	(adapter->num_tx_desc / 8)
-#define EM_TX_OP_THRESHOLD		(adapter->num_tx_desc / 32)
+#define EM_TX_OP_THRESHOLD	(adapter->num_tx_desc / 32)
 
 /*
  * This parameter controls whether or not autonegotation is enabled.
@@ -243,6 +230,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_TSO_SEG_SIZE		4096	/* Max dma segment size */
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
+#define CSUM_OFFLOAD		7	/* Offload bits in csum flags */
 
 struct adapter;
 

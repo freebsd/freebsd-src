@@ -30,10 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_DEFINES_H_
@@ -57,7 +54,7 @@
 #define E1000_TXD_CMD_IP     0x02000000 /* IP packet */
 #define E1000_TXD_CMD_TSE    0x04000000 /* TCP Seg enable */
 #define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
-
+/* Extended desc bits for Linksec and timesync */
 /* Number of Transmit and Receive Descriptors must be a multiple of 8 */
 #define REQ_TX_DESCRIPTOR_MULTIPLE  8
 #define REQ_RX_DESCRIPTOR_MULTIPLE  8
@@ -150,10 +147,10 @@
 #define E1000_CTRL_EXT_WR_WMARK_320   0x01000000
 #define E1000_CTRL_EXT_WR_WMARK_384   0x02000000
 #define E1000_CTRL_EXT_WR_WMARK_448   0x03000000
-#define E1000_CTRL_EXT_CANC           0x04000000  /* Interrupt delay cancellation */
-#define E1000_CTRL_EXT_DRV_LOAD       0x10000000  /* Driver loaded bit for FW */
-#define E1000_CTRL_EXT_IAME           0x08000000  /* Interrupt acknowledge Auto-mask */
-#define E1000_CTRL_EXT_INT_TIMER_CLR  0x20000000  /* Clear Interrupt timers after IMS clear */
+#define E1000_CTRL_EXT_CANC           0x04000000 /* Interrupt delay cancellation */
+#define E1000_CTRL_EXT_DRV_LOAD       0x10000000 /* Driver loaded bit for FW */
+#define E1000_CTRL_EXT_IAME           0x08000000 /* Interrupt acknowledge Auto-mask */
+#define E1000_CTRL_EXT_INT_TIMER_CLR  0x20000000 /* Clear Interrupt timers after IMS clear */
 #define E1000_CRTL_EXT_PB_PAREN       0x01000000 /* packet buffer parity error detection enabled */
 #define E1000_CTRL_EXT_DF_PAREN       0x02000000 /* descriptor FIFO parity error detection enable */
 #define E1000_CTRL_EXT_GHOST_PAREN    0x40000000

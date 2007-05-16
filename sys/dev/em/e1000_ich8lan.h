@@ -30,16 +30,11 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_ICH8LAN_H_
 #define _E1000_ICH8LAN_H_
-
-#include "e1000_api.h"
 
 #define ICH_FLASH_GFPREG                 0x0000
 #define ICH_FLASH_HSFSTS                 0x0004

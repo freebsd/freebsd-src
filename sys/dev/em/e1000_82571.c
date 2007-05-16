@@ -30,9 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 
 /* e1000_82571
@@ -40,6 +38,7 @@ __FBSDID("$FreeBSD$");
  * e1000_82573
  */
 
+#include "e1000_api.h"
 #include "e1000_82571.h"
 
 void e1000_init_function_pointers_82571(struct e1000_hw *hw);
@@ -67,8 +66,10 @@ STATIC s32  e1000_setup_copper_link_82571(struct e1000_hw *hw);
 STATIC s32  e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw);
 STATIC s32  e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data);
 STATIC void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw);
+static s32  e1000_get_hw_semaphore_82571(struct e1000_hw *hw);
 static s32  e1000_fix_nvm_checksum_82571(struct e1000_hw *hw);
 static s32  e1000_get_phy_id_82571(struct e1000_hw *hw);
+static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw);
 static s32  e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
                                        u16 words, u16 *data);
@@ -79,7 +80,7 @@ struct e1000_dev_spec_82571 {
 
 /**
  *  e1000_init_phy_params_82571 - Init PHY func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -101,10 +102,10 @@ e1000_init_phy_params_82571(struct e1000_hw *hw)
 	phy->autoneg_mask                = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 	phy->reset_delay_us              = 100;
 
-	func->acquire_phy                = e1000_get_hw_semaphore_generic;
+	func->acquire_phy                = e1000_get_hw_semaphore_82571;
 	func->check_polarity             = e1000_check_polarity_igp;
 	func->check_reset_block          = e1000_check_reset_block_generic;
-	func->release_phy                = e1000_put_hw_semaphore_generic;
+	func->release_phy                = e1000_put_hw_semaphore_82571;
 	func->reset_phy                  = e1000_phy_hw_reset_generic;
 	func->set_d0_lplu_state          = e1000_set_d0_lplu_state_82571;
 	func->set_d3_lplu_state          = e1000_set_d3_lplu_state_generic;
@@ -166,7 +167,7 @@ out:
 
 /**
  *  e1000_init_nvm_params_82571 - Init NVM func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -238,7 +239,7 @@ e1000_init_nvm_params_82571(struct e1000_hw *hw)
 
 /**
  *  e1000_init_mac_params_82571 - Init MAC func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -259,6 +260,8 @@ e1000_init_mac_params_82571(struct e1000_hw *hw)
 		hw->media_type = e1000_media_type_fiber;
 		break;
 	case E1000_DEV_ID_82571EB_SERDES:
+	case E1000_DEV_ID_82571EB_SERDES_DUAL:
+	case E1000_DEV_ID_82571EB_SERDES_QUAD:
 	case E1000_DEV_ID_82572EI_SERDES:
 		hw->media_type = e1000_media_type_internal_serdes;
 		break;
@@ -349,7 +352,7 @@ out:
 
 /**
  *  e1000_init_function_pointers_82571 - Init func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  The only function explicitly called by the api module to initialize
  *  all function pointers and parameters.
@@ -366,7 +369,7 @@ e1000_init_function_pointers_82571(struct e1000_hw *hw)
 
 /**
  *  e1000_get_phy_id_82571 - Retrieve the PHY ID and revision
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reads the PHY registers and stores the PHY ID and possibly the PHY
  *  revision in the hardware structure.
@@ -400,8 +403,68 @@ e1000_get_phy_id_82571(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_get_hw_semaphore_82571 - Acquire hardware semaphore
+ *  @hw: pointer to the HW structure
+ *
+ *  Acquire the HW semaphore to access the PHY or NVM
+ **/
+s32
+e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
+{
+	u32 swsm;
+	s32 ret_val = E1000_SUCCESS;
+	s32 timeout = hw->nvm.word_size + 1;
+	s32 i = 0;
+
+	DEBUGFUNC("e1000_get_hw_semaphore_82571");
+
+	/* Get the FW semaphore. */
+	for (i = 0; i < timeout; i++) {
+		swsm = E1000_READ_REG(hw, E1000_SWSM);
+		E1000_WRITE_REG(hw, E1000_SWSM, swsm | E1000_SWSM_SWESMBI);
+
+		/* Semaphore acquired if bit latched */
+		if (E1000_READ_REG(hw, E1000_SWSM) & E1000_SWSM_SWESMBI)
+			break;
+
+		usec_delay(50);
+	}
+
+	if (i == timeout) {
+		/* Release semaphores */
+		e1000_put_hw_semaphore_generic(hw);
+		DEBUGOUT("Driver can't access the NVM\n");
+		ret_val = -E1000_ERR_NVM;
+		goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_put_hw_semaphore_82571 - Release hardware semaphore
+ *  @hw: pointer to the HW structure
+ *
+ *  Release hardware semaphore used to access the PHY or NVM
+ **/
+void
+e1000_put_hw_semaphore_82571(struct e1000_hw *hw)
+{
+	u32 swsm;
+
+	DEBUGFUNC("e1000_put_hw_semaphore_82571");
+
+	swsm = E1000_READ_REG(hw, E1000_SWSM);
+
+	swsm &= ~E1000_SWSM_SWESMBI;
+
+	E1000_WRITE_REG(hw, E1000_SWSM, swsm);
+}
+
+/**
  *  e1000_acquire_nvm_82571 - Request for access to the EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  To gain access to the EEPROM, first we must obtain a hardware semaphore.
  *  Then for non-82573 hardware, set the EEPROM access request bit and wait
@@ -415,7 +478,7 @@ e1000_acquire_nvm_82571(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_acquire_nvm_82571");
 
-	ret_val = e1000_get_hw_semaphore_generic(hw);
+	ret_val = e1000_get_hw_semaphore_82571(hw);
 	if (ret_val)
 		goto out;
 
@@ -423,7 +486,7 @@ e1000_acquire_nvm_82571(struct e1000_hw *hw)
 		ret_val = e1000_acquire_nvm_generic(hw);
 
 	if (ret_val)
-		e1000_put_hw_semaphore_generic(hw);
+		e1000_put_hw_semaphore_82571(hw);
 
 out:
 	return ret_val;
@@ -431,7 +494,7 @@ out:
 
 /**
  *  e1000_release_nvm_82571 - Release exclusive access to EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Stop any current commands to the EEPROM and clear the EEPROM request bit.
  **/
@@ -441,15 +504,15 @@ e1000_release_nvm_82571(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_release_nvm_82571");
 
 	e1000_release_nvm_generic(hw);
-	e1000_put_hw_semaphore_generic(hw);
+	e1000_put_hw_semaphore_82571(hw);
 }
 
 /**
  *  e1000_write_nvm_82571 - Write to EEPROM using appropriate interface
- *  @hw - pointer to the HW structure
- *  @offset - offset within the EEPROM to be written to
- *  @words - number of words to write
- *  @data - 16 bit word(s) to be written to the EEPROM
+ *  @hw: pointer to the HW structure
+ *  @offset: offset within the EEPROM to be written to
+ *  @words: number of words to write
+ *  @data: 16 bit word(s) to be written to the EEPROM
  *
  *  For non-82573 silicon, write data to EEPROM at offset using SPI interface.
  *
@@ -481,7 +544,7 @@ e1000_write_nvm_82571(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 
 /**
  *  e1000_update_nvm_checksum_82571 - Update EEPROM checksum
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Updates the EEPROM checksum by reading/adding each word of the EEPROM
  *  up to the checksum.  Then calculates the EEPROM checksum and writes the
@@ -548,7 +611,7 @@ out:
 
 /**
  *  e1000_validate_nvm_checksum_82571 - Validate EEPROM checksum
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Calculates the EEPROM checksum by reading/adding each word of the EEPROM
  *  and then verifies that the sum of the EEPROM is equal to 0xBABA.
@@ -566,10 +629,10 @@ e1000_validate_nvm_checksum_82571(struct e1000_hw *hw)
 
 /**
  *  e1000_write_nvm_eewr_82571 - Write to EEPROM for 82573 silicon
- *  @hw - pointer to the HW structure
- *  @offset - offset within the EEPROM to be written to
- *  @words - number of words to write
- *  @data - 16 bit word(s) to be written to the EEPROM
+ *  @hw: pointer to the HW structure
+ *  @offset: offset within the EEPROM to be written to
+ *  @words: number of words to write
+ *  @data: 16 bit word(s) to be written to the EEPROM
  *
  *  After checking for invalid values, poll the EEPROM to ensure the previous
  *  command has completed before trying to write the next word.  After write
@@ -619,7 +682,7 @@ out:
 
 /**
  *  e1000_get_cfg_done_82571 - Poll for configuration done
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reads the management control register for the config done bit to be set.
  **/
@@ -649,8 +712,8 @@ out:
 
 /**
  *  e1000_set_d0_lplu_state_82571 - Set Low Power Linkup D0 state
- *  @hw - pointer to the HW structure
- *  @active - TRUE to enable LPLU, FALSE to disable
+ *  @hw: pointer to the HW structure
+ *  @active: TRUE to enable LPLU, FALSE to disable
  *
  *  Sets the LPLU D0 state according to the active flag.  When activating LPLU
  *  this function also disables smart speed and vice versa.  LPLU will not be
@@ -733,7 +796,7 @@ out:
 
 /**
  *  e1000_reset_hw_82571 - Reset hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This resets the hardware into a known state.  This is a
  *  function pointer entry point called by the api module.
@@ -819,7 +882,7 @@ out:
 
 /**
  *  e1000_init_hw_82571 - Initialize hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This inits the hardware readying it for operation.
  **/
@@ -897,7 +960,7 @@ out:
 
 /**
  *  e1000_initialize_hw_bits_82571 - Initialize hardware-dependent bits
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Initializes required hardware-dependent bits needed for normal operation.
  **/
@@ -940,7 +1003,7 @@ e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	case e1000_82571:
 	case e1000_82572:
 		reg &= ~((1 << 29) | (1 << 30));
-		reg |= (1 << 24) | (1 << 25) | (1 << 26);
+		reg |= (1 << 22) | (1 << 24) | (1 << 25) | (1 << 26);
 		if (E1000_READ_REG(hw, E1000_TCTL) & E1000_TCTL_MULR)
 			reg &= ~(1 << 28);
 		else
@@ -972,7 +1035,7 @@ out:
 
 /**
  *  e1000_clear_vfta_82571 - Clear VLAN filter table
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Clears the register array which contains the VLAN filter table by
  *  setting all the values to 0.
@@ -1015,11 +1078,11 @@ e1000_clear_vfta_82571(struct e1000_hw *hw)
 
 /**
  *  e1000_mc_addr_list_update_82571 - Update Multicast addresses
- *  @hw - pointer to the HW structure
- *  @mc_addr_list - array of multicast addresses to program
- *  @mc_addr_count - number of multicast addresses to program
- *  @rar_used_count - the first RAR register free to program
- *  @rar_count - total number of supported Receive Address Registers
+ *  @hw: pointer to the HW structure
+ *  @mc_addr_list: array of multicast addresses to program
+ *  @mc_addr_count: number of multicast addresses to program
+ *  @rar_used_count: the first RAR register free to program
+ *  @rar_count: total number of supported Receive Address Registers
  *
  *  Updates the Receive Address Registers and Multicast Table Array.
  *  The caller must have a packed mc_addr_list of multicast addresses.
@@ -1042,7 +1105,7 @@ e1000_mc_addr_list_update_82571(struct e1000_hw *hw,
 
 /**
  *  e1000_setup_link_82571 - Setup flow control and link settings
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Determines which flow control settings to use, then configures flow
  *  control.  Calls the appropriate media-specific link configuration
@@ -1067,7 +1130,7 @@ e1000_setup_link_82571(struct e1000_hw *hw)
 
 /**
  *  e1000_setup_copper_link_82571 - Configure copper link settings
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Configures the link for auto-neg or forced speed and duplex.  Then we check
  *  for link, once link is established calls to configure collision distance
@@ -1114,7 +1177,7 @@ out:
 
 /**
  *  e1000_setup_fiber_serdes_link_82571 - Setup link for fiber/serdes
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Configures collision distance and flow control for fiber and serdes links.
  *  Upon successful setup, poll for link.
@@ -1144,8 +1207,8 @@ e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw)
 
 /**
  *  e1000_valid_led_default_82571 - Verify a valid default LED config
- *  @hw - pointer to the HW structure
- *  @data - pointer to the NVM (EEPROM)
+ *  @hw: pointer to the HW structure
+ *  @data: pointer to the NVM (EEPROM)
  *
  *  Read the EEPROM for the current default LED configuration.  If the
  *  LED configuration is not valid, set to a valid LED configuration.
@@ -1176,7 +1239,7 @@ out:
 
 /**
  *  e1000_get_laa_state_82571 - Get locally administered address state
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Retrieve and return the current locally administed address state.
  **/
@@ -1201,8 +1264,8 @@ out:
 
 /**
  *  e1000_set_laa_state_82571 - Set locally administered address state
- *  @hw - pointer to the HW structure
- *  @state - enable/disable locally administered address
+ *  @hw: pointer to the HW structure
+ *  @state: enable/disable locally administered address
  *
  *  Enable/Disable the current locally administed address state.
  **/
@@ -1238,7 +1301,7 @@ out:
 
 /**
  *  e1000_fix_nvm_checksum_82571 - Fix EEPROM checksum
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Verifies that the EEPROM has completed the update.  After updating the
  *  EEPROM, we need to check bit 15 in work 0x23 for the checksum fix.  If
@@ -1292,7 +1355,7 @@ out:
 
 /**
  *  e1000_clear_hw_cntrs_82571 - Clear device specific hardware counters
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Clears the hardware counters by reading the counter registers.
  **/

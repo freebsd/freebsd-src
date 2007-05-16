@@ -30,10 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_REGS_H_
@@ -382,22 +379,8 @@
 /* RSS registers */
 #define E1000_CPUVEC    0x02C10 /* CPU Vector Register - RW */
 #define E1000_MRQC      0x05818 /* Multiple Receive Control - RW */
-#define E1000_IMIR0     0x05A80 /* Immediate Interrupt RX 0 - RW */
-#define E1000_IMIR1     0x05A84 /* Immediate Interrupt RX 1 - RW */
-#define E1000_IMIR2     0x05A88 /* Immediate Interrupt RX 2 - RW */
-#define E1000_IMIR3     0x05A8C /* Immediate Interrupt RX 3 - RW */
-#define E1000_IMIR4     0x05A90 /* Immediate Interrupt RX 4 - RW */
-#define E1000_IMIR5     0x05A94 /* Immediate Interrupt RX 5 - RW */
-#define E1000_IMIR6     0x05A98 /* Immediate Interrupt RX 6 - RW */
-#define E1000_IMIR7     0x05A9C /* Immediate Interrupt RX 7 - RW */
-#define E1000_IMIREX0   0x05AA0 /* Immediate Interrupt RX Extended 0 - RW */
-#define E1000_IMIREX1   0x05AA4 /* Immediate Interrupt RX Extended 1 - RW */
-#define E1000_IMIREX2   0x05AA8 /* Immediate Interrupt RX Extended 2 - RW */
-#define E1000_IMIREX3   0x05AAC /* Immediate Interrupt RX Extended 3 - RW */
-#define E1000_IMIREX4   0x05AB0 /* Immediate Interrupt RX Extended 4 - RW */
-#define E1000_IMIREX5   0x05AB4 /* Immediate Interrupt RX Extended 5 - RW */
-#define E1000_IMIREX6   0x05AB8 /* Immediate Interrupt RX Extended 6 - RW */
-#define E1000_IMIREX7   0x05ABC /* Immediate Interrupt RX Extended 7 - RW */
+#define E1000_IMIR(_i)      (0x05A80 + ((_i) * 4))  /* Immediate Interrupt */
+#define E1000_IMIREXT(_i)   (0x05AA0 + ((_i) * 4))  /* Immediate Interrupt Ext*/
 #define E1000_IMIRVP    0x05AC0 /* Immediate Interrupt RX VLAN Priority - RW */
 #define E1000_MSIXBM0   0x01600 /* MSI-X Allocation Register 0 - RW */
 #define E1000_MSIXBM1   0x01604 /* MSI-X Allocation Register 1 - RW */

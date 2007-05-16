@@ -30,16 +30,11 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_80003ES2LAN_H_
 #define _E1000_80003ES2LAN_H_
-
-#include "e1000_api.h"
 
 #define E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL       0x00
 #define E1000_KMRNCTRLSTA_OFFSET_INB_CTRL        0x02
@@ -88,6 +83,9 @@
 
 /* Kumeran Mode Control Register (Page 193, Register 16) */
 #define GG82563_KMCR_PASS_FALSE_CARRIER             0x0800
+
+/* Max number of times Kumeran read/write should be validated */
+#define GG82563_MAX_KMRN_RETRY  0x5
 
 /* Power Management Control Register (Page 193, Register 20) */
 #define GG82563_PMCR_ENABLE_ELECTRICAL_IDLE         0x0001

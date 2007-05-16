@@ -30,17 +30,16 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 
+#include "e1000_api.h"
 #include "e1000_nvm.h"
 
 /**
  *  e1000_raise_eec_clk - Raise EEPROM clock
- *  @hw - pointer to the HW structure
- *  @eecd - pointer to the EEPROM
+ *  @hw: pointer to the HW structure
+ *  @eecd: pointer to the EEPROM
  *
  *  Enable/Raise the EEPROM clock bit.
  **/
@@ -55,8 +54,8 @@ e1000_raise_eec_clk(struct e1000_hw *hw, u32 *eecd)
 
 /**
  *  e1000_lower_eec_clk - Lower EEPROM clock
- *  @hw - pointer to the HW structure
- *  @eecd - pointer to the EEPROM
+ *  @hw: pointer to the HW structure
+ *  @eecd: pointer to the EEPROM
  *
  *  Clear/Lower the EEPROM clock bit.
  **/
@@ -71,9 +70,9 @@ e1000_lower_eec_clk(struct e1000_hw *hw, u32 *eecd)
 
 /**
  *  e1000_shift_out_eec_bits - Shift data bits our to the EEPROM
- *  @hw - pointer to the HW structure
- *  @data - data to send to the EEPROM
- *  @count - number of bits to shift out
+ *  @hw: pointer to the HW structure
+ *  @data: data to send to the EEPROM
+ *  @count: number of bits to shift out
  *
  *  We need to shift 'count' bits out to the EEPROM.  So, the value in the
  *  "data" parameter will be shifted out to the EEPROM one bit at a time.
@@ -117,8 +116,8 @@ e1000_shift_out_eec_bits(struct e1000_hw *hw, u16 data, u16 count)
 
 /**
  *  e1000_shift_in_eec_bits - Shift data bits in from the EEPROM
- *  @hw - pointer to the HW structure
- *  @count - number of bits to shift in
+ *  @hw: pointer to the HW structure
+ *  @count: number of bits to shift in
  *
  *  In order to read a register from the EEPROM, we need to shift 'count' bits
  *  in from the EEPROM.  Bits are "shifted in" by raising the clock input to
@@ -158,8 +157,8 @@ e1000_shift_in_eec_bits(struct e1000_hw *hw, u16 count)
 
 /**
  *  e1000_poll_eerd_eewr_done - Poll for EEPROM read/write completion
- *  @hw - pointer to the HW structure
- *  @ee_reg - EEPROM flag for polling
+ *  @hw: pointer to the HW structure
+ *  @ee_reg: EEPROM flag for polling
  *
  *  Polls the EEPROM status bit for either read or write completion based
  *  upon the value of 'ee_reg'.
@@ -192,7 +191,7 @@ e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int ee_reg)
 
 /**
  *  e1000_acquire_nvm_generic - Generic request for access to EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Set the EEPROM access request bit and wait for EEPROM access grant bit.
  *  Return successful if access grant bit set, else clear the request for
@@ -230,7 +229,7 @@ e1000_acquire_nvm_generic(struct e1000_hw *hw)
 
 /**
  *  e1000_standby_nvm - Return EEPROM to standby state
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Return the EEPROM to a standby state.
  **/
@@ -272,7 +271,7 @@ e1000_standby_nvm(struct e1000_hw *hw)
 
 /**
  *  e1000_stop_nvm - Terminate EEPROM command
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Terminates the current command by inverting the EEPROM's chip select pin.
  **/
@@ -299,7 +298,7 @@ e1000_stop_nvm(struct e1000_hw *hw)
 
 /**
  *  e1000_release_nvm_generic - Release exclusive access to EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Stop any current commands to the EEPROM and clear the EEPROM request bit.
  **/
@@ -319,7 +318,7 @@ e1000_release_nvm_generic(struct e1000_hw *hw)
 
 /**
  *  e1000_ready_nvm_eeprom - Prepares EEPROM for read/write
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Setups the EEPROM for reading and writing.
  **/
@@ -377,10 +376,10 @@ out:
 
 /**
  *  e1000_read_nvm_spi - Read EEPROM's using SPI
- *  @hw - pointer to the HW structure
- *  @offset - offset of word in the EEPROM to read
- *  @words - number of words to read
- *  @data - word read from the EEPROM
+ *  @hw: pointer to the HW structure
+ *  @offset: offset of word in the EEPROM to read
+ *  @words: number of words to read
+ *  @data: word read from the EEPROM
  *
  *  Reads a 16 bit word from the EEPROM.
  **/
@@ -438,10 +437,10 @@ out:
 
 /**
  *  e1000_read_nvm_microwire - Reads EEPROM's using microwire
- *  @hw - pointer to the HW structure
- *  @offset - offset of word in the EEPROM to read
- *  @words - number of words to read
- *  @data - word read from the EEPROM
+ *  @hw: pointer to the HW structure
+ *  @offset: offset of word in the EEPROM to read
+ *  @words: number of words to read
+ *  @data: word read from the EEPROM
  *
  *  Reads a 16 bit word from the EEPROM.
  **/
@@ -493,10 +492,10 @@ out:
 
 /**
  *  e1000_read_nvm_eerd - Reads EEPROM using EERD register
- *  @hw - pointer to the HW structure
- *  @offset - offset of word in the EEPROM to read
- *  @words - number of words to read
- *  @data - word read from the EEPROM
+ *  @hw: pointer to the HW structure
+ *  @offset: offset of word in the EEPROM to read
+ *  @words: number of words to read
+ *  @data: word read from the EEPROM
  *
  *  Reads a 16 bit word from the EEPROM using the EERD register.
  **/
@@ -536,10 +535,10 @@ out:
 
 /**
  *  e1000_write_nvm_spi - Write to EEPROM using SPI
- *  @hw - pointer to the HW structure
- *  @offset - offset within the EEPROM to be written to
- *  @words - number of words to write
- *  @data - 16 bit word(s) to be written to the EEPROM
+ *  @hw: pointer to the HW structure
+ *  @offset: offset within the EEPROM to be written to
+ *  @words: number of words to write
+ *  @data: 16 bit word(s) to be written to the EEPROM
  *
  *  Writes data to EEPROM at offset using SPI interface.
  *
@@ -619,10 +618,10 @@ out:
 
 /**
  *  e1000_write_nvm_microwire - Writes EEPROM using microwire
- *  @hw - pointer to the HW structure
- *  @offset - offset within the EEPROM to be written to
- *  @words - number of words to write
- *  @data - 16 bit word(s) to be written to the EEPROM
+ *  @hw: pointer to the HW structure
+ *  @offset: offset within the EEPROM to be written to
+ *  @words: number of words to write
+ *  @data: 16 bit word(s) to be written to the EEPROM
  *
  *  Writes data to EEPROM at offset using microwire interface.
  *
@@ -707,8 +706,8 @@ out:
 
 /**
  *  e1000_read_part_num_generic - Read device part number
- *  @hw - pointer to the HW structure
- *  @part_num - pointer to device part number
+ *  @hw: pointer to the HW structure
+ *  @part_num: pointer to device part number
  *
  *  Reads the product board assembly (PBA) number from the EEPROM and stores
  *  the value in part_num.
@@ -741,7 +740,7 @@ out:
 
 /**
  *  e1000_read_mac_addr_generic - Read device MAC address
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reads the device MAC address from the EEPROM and stores the value.
  *  Since devices with two ports use the same EEPROM, we increment the
@@ -779,7 +778,7 @@ out:
 
 /**
  *  e1000_validate_nvm_checksum_generic - Validate EEPROM checksum
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Calculates the EEPROM checksum by reading/adding each word of the EEPROM
  *  and then verifies that the sum of the EEPROM is equal to 0xBABA.
@@ -814,7 +813,7 @@ out:
 
 /**
  *  e1000_update_nvm_checksum_generic - Update EEPROM checksum
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Updates the EEPROM checksum by reading/adding each word of the EEPROM
  *  up to the checksum.  Then calculates the EEPROM checksum and writes the
@@ -849,7 +848,7 @@ out:
 
 /**
  *  e1000_reload_nvm_generic - Reloads EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Reloads the EEPROM by setting the "Reinitialize from EEPROM" bit in the
  *  extended control register.
@@ -872,7 +871,7 @@ e1000_reload_nvm_generic(struct e1000_hw *hw)
 
 /**
  *  e1000_acquire_nvm - Acquire exclusive access to EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  For those silicon families which have implemented a NVM acquire function,
  *  run the defined function else return success.
@@ -888,7 +887,7 @@ e1000_acquire_nvm(struct e1000_hw *hw)
 
 /**
  *  e1000_release_nvm - Release exclusive access to EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  For those silicon families which have implemented a NVM release function,
  *  run the defined fucntion else return success.

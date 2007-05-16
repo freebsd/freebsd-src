@@ -30,16 +30,11 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-/*
- * $FreeBSD$
- */
+/*$FreeBSD$*/
 
 
 #ifndef _E1000_NVM_H_
 #define _E1000_NVM_H_
-
-#include "e1000_api.h"
 
 s32  e1000_acquire_nvm_generic(struct e1000_hw *hw);
 

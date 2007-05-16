@@ -30,15 +30,13 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*$FreeBSD$*/
 
 
 /* e1000_82575
- * e1000_adoram
  */
 
+#include "e1000_api.h"
 #include "e1000_82575.h"
 
 void e1000_init_function_pointers_82575(struct e1000_hw *hw);
@@ -69,11 +67,9 @@ STATIC s32       e1000_write_phy_reg_sgmii_82575(struct e1000_hw *hw,
 STATIC void      e1000_clear_hw_cntrs_82575(struct e1000_hw *hw);
 static s32       e1000_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask);
 static s32       e1000_configure_pcs_link_82575(struct e1000_hw *hw);
-static s32       e1000_get_hw_semaphore_82575(struct e1000_hw *hw);
 static s32       e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw,
                                                       u16 *speed, u16 *duplex);
 static s32       e1000_get_phy_id_82575(struct e1000_hw *hw);
-static void      e1000_put_hw_semaphore_82575(struct e1000_hw *hw);
 static void      e1000_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask);
 static boolean_t e1000_sgmii_active_82575(struct e1000_hw *hw);
 STATIC s32       e1000_reset_init_script_82575(struct e1000_hw* hw);
@@ -84,7 +80,7 @@ struct e1000_dev_spec_82575 {
 
 /**
  *  e1000_init_phy_params_82575 - Init PHY func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -153,7 +149,7 @@ out:
 
 /**
  *  e1000_init_nvm_params_82575 - Init NVM func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -209,7 +205,7 @@ e1000_init_nvm_params_82575(struct e1000_hw *hw)
 
 /**
  *  e1000_init_mac_params_82575 - Init MAC func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This is a function pointer entry point called by the api module.
  **/
@@ -313,7 +309,7 @@ out:
 
 /**
  *  e1000_init_function_pointers_82575 - Init func ptrs.
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  The only function explicitly called by the api module to initialize
  *  all function pointers and parameters.
@@ -330,7 +326,7 @@ e1000_init_function_pointers_82575(struct e1000_hw *hw)
 
 /**
  *  e1000_acquire_phy_82575 - Acquire rights to access PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Acquire access rights to the correct PHY.  This is a
  *  function pointer entry point called by the api module.
@@ -349,7 +345,7 @@ e1000_acquire_phy_82575(struct e1000_hw *hw)
 
 /**
  *  e1000_release_phy_82575 - Release rights to access PHY
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  A wrapper to release access rights to the correct PHY.  This is a
  *  function pointer entry point called by the api module.
@@ -367,9 +363,9 @@ e1000_release_phy_82575(struct e1000_hw *hw)
 
 /**
  *  e1000_read_phy_reg_sgmii_82575 - Read PHY register using sgmii
- *  @hw - pointer to the HW structure
- *  @offset - register offset to be read
- *  @data - pointer to the read data
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
  *
  *  Reads the PHY register at offset using the serial gigabit media independent
  *  interface and stores the retrieved information in data.
@@ -421,9 +417,9 @@ e1000_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset, u16 *data)
 
 /**
  *  e1000_write_phy_reg_sgmii_82575 - Write PHY register using sgmii
- *  @hw - pointer to the HW structure
- *  @offset - register offset to write to
- *  @data - data to write at register offset
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write at register offset
  *
  *  Writes the data to PHY register at the offset using the serial gigabit
  *  media independent interface.
@@ -477,7 +473,7 @@ e1000_write_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset, u16 data)
 
 /**
  *  e1000_get_phy_id_82575 - Retreive PHY addr and id
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Retreives the PHY address and ID for both PHY's which do and do not use
  *  sgmi interface.
@@ -537,7 +533,7 @@ out:
 
 /**
  *  e1000_phy_hw_reset_sgmii_82575 - Performs a PHY reset
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Resets the PHY using the serial gigabit media independent interface.
  **/
@@ -569,8 +565,8 @@ out:
 
 /**
  *  e1000_set_d0_lplu_state_82575 - Set Low Power Linkup D0 state
- *  @hw - pointer to the HW structure
- *  @active - TRUE to enable LPLU, FALSE to disable
+ *  @hw: pointer to the HW structure
+ *  @active: TRUE to enable LPLU, FALSE to disable
  *
  *  Sets the LPLU D0 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
@@ -655,7 +651,7 @@ out:
 
 /**
  *  e1000_acquire_nvm_82575 - Request for access to EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Acquire the necessary semaphores for exclussive access to the EEPROM.
  *  Set the EEPROM access request bit and wait for EEPROM access grant bit.
@@ -684,7 +680,7 @@ out:
 
 /**
  *  e1000_release_nvm_82575 - Release exclusive access to EEPROM
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Stop any current commands to the EEPROM and clear the EEPROM request bit,
  *  then release the semaphores acquired.
@@ -699,74 +695,9 @@ e1000_release_nvm_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_get_hw_semaphore_82575 - Acquire HW semaphore for PHY/NVM access
- *  @hw - pointer to the HW structure
- *
- *  Acquire the HW semaphore to access the PHY or NVM
- **/
-static s32
-e1000_get_hw_semaphore_82575(struct e1000_hw *hw)
-{
-	u32 swsm;
-	s32 ret_val = E1000_SUCCESS;
-	s32 timeout = hw->nvm.word_size + 1;
-	s32 i = 0;
-
-	DEBUGFUNC("e1000_get_hw_semaphore_82575");
-
-	/* Get the SW semaphore. */
-	while (i < timeout) {
-		swsm = E1000_READ_REG(hw, E1000_SWSM);
-		if (!(swsm & E1000_SWSM_SMBI))
-			break;
-
-		usec_delay(50);
-		i++;
-	}
-
-	if (i == timeout) {
-		DEBUGOUT("Driver can't access device "
-			 "- SMBI bit is set.\n");
-		ret_val = -E1000_ERR_NVM;
-		goto out;
-	}
-
-	/* Get the FW semaphore. */
-	ret_val = e1000_get_hw_semaphore_generic(hw);
-	if (ret_val) {
-		/* Release 82575 semaphores */
-		e1000_put_hw_semaphore_82575(hw);
-		goto out;
-	}
-
-out:
-	return ret_val;
-}
-
-/**
- *  e1000_put_hw_semaphore_82575 - Release HW semaphore for PHY/NVM access
- *  @hw - pointer to the HW structure
- *
- *  Release the HW semaphore used to access the PHY or NVM
- **/
-static void
-e1000_put_hw_semaphore_82575(struct e1000_hw *hw)
-{
-	u32 swsm;
-
-	DEBUGFUNC("e1000_put_hw_semaphore_82575");
-
-	swsm = E1000_READ_REG(hw, E1000_SWSM);
-
-	swsm &= ~(E1000_SWSM_SMBI | E1000_SWSM_SWESMBI);
-
-	E1000_WRITE_REG(hw, E1000_SWSM, swsm);
-}
-
-/**
  *  e1000_acquire_swfw_sync_82575 - Acquire SW/FW semaphore
- *  @hw - pointer to the HW structure
- *  @mask - specifies which semaphore to acquire
+ *  @hw: pointer to the HW structure
+ *  @mask: specifies which semaphore to acquire
  *
  *  Acquire the SW/FW semaphore to access the PHY or NVM.  The mask
  *  will also specify which port we're acquiring the lock for.
@@ -783,7 +714,7 @@ e1000_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
 	DEBUGFUNC("e1000_acquire_swfw_sync_82575");
 
 	while (i < timeout) {
-		if (e1000_get_hw_semaphore_82575(hw)) {
+		if (e1000_get_hw_semaphore_generic(hw)) {
 			ret_val = -E1000_ERR_SWFW_SYNC;
 			goto out;
 		}
@@ -794,7 +725,7 @@ e1000_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
 
 		/* Firmware currently using resource (fwmask)
 		 * or other software thread using resource (swmask) */
-		e1000_put_hw_semaphore_82575(hw);
+		e1000_put_hw_semaphore_generic(hw);
 		msec_delay_irq(5);
 		i++;
 	}
@@ -808,7 +739,7 @@ e1000_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
 	swfw_sync |= swmask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
-	e1000_put_hw_semaphore_82575(hw);
+	e1000_put_hw_semaphore_generic(hw);
 
 out:
 	return ret_val;
@@ -816,8 +747,8 @@ out:
 
 /**
  *  e1000_release_swfw_sync_82575 - Release SW/FW semaphore
- *  @hw - pointer to the HW structure
- *  @mask - specifies which semaphore to acquire
+ *  @hw: pointer to the HW structure
+ *  @mask: specifies which semaphore to acquire
  *
  *  Release the SW/FW semaphore used to access the PHY or NVM.  The mask
  *  will also specify which port we're releasing the lock for.
@@ -829,19 +760,19 @@ e1000_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
 
 	DEBUGFUNC("e1000_release_swfw_sync_82575");
 
-	while (e1000_get_hw_semaphore_82575(hw) != E1000_SUCCESS);
+	while (e1000_get_hw_semaphore_generic(hw) != E1000_SUCCESS);
 	/* Empty */
 
 	swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
 	swfw_sync &= ~mask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
-	e1000_put_hw_semaphore_82575(hw);
+	e1000_put_hw_semaphore_generic(hw);
 }
 
 /**
  *  e1000_get_cfg_done_82575 - Read config done bit
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Read the management control register for the config done bit for
  *  completion status.  NOTE: silicon which is EEPROM-less will fail trying
@@ -882,9 +813,9 @@ e1000_get_cfg_done_82575(struct e1000_hw *hw)
 
 /**
  *  e1000_get_link_up_info_82575 - Get link speed/duplex info
- *  @hw - pointer to the HW structure
- *  @speed - stores the current speed
- *  @duplex - stores the current duplex
+ *  @hw: pointer to the HW structure
+ *  @speed: stores the current speed
+ *  @duplex: stores the current duplex
  *
  *  This is a wrapper function, if using the serial gigabit media independent
  *  interface, use pcs to retreive the link speed and duplex information.
@@ -910,7 +841,7 @@ e1000_get_link_up_info_82575(struct e1000_hw *hw, u16 *speed, u16 *duplex)
 
 /**
  *  e1000_check_for_link_82575 - Check for link
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  If sgmii is enabled, then use the pcs register to determine link, otherwise
  *  use the generic interface for determining link.
@@ -936,9 +867,9 @@ e1000_check_for_link_82575(struct e1000_hw *hw)
 
 /**
  *  e1000_get_pcs_speed_and_duplex_82575 - Retrieve current speed/duplex
- *  @hw - pointer to the HW structure
- *  @speed - stores the current speed
- *  @duplex - stores the current duplex
+ *  @hw: pointer to the HW structure
+ *  @speed: stores the current speed
+ *  @duplex: stores the current duplex
  *
  *  Using the physical coding sub-layer (PCS), retreive the current speed and
  *  duplex, then store the values in the pointers provided.
@@ -991,9 +922,9 @@ e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 
 /**
  *  e1000_rar_set_82575 - Set receive address register
- *  @hw - pointer to the HW structure
- *  @addr - pointer to the receive address
- *  @index - receive address array register
+ *  @hw: pointer to the HW structure
+ *  @addr: pointer to the receive address
+ *  @index: receive address array register
  *
  *  Sets the receive address array register at index to the address passed
  *  in by addr.
@@ -1014,7 +945,7 @@ out:
 
 /**
  *  e1000_reset_hw_82575 - Reset hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This resets the hardware into a known state.  This is a
  *  function pointer entry point called by the api module.
@@ -1071,7 +1002,7 @@ e1000_reset_hw_82575(struct e1000_hw *hw)
 
 /**
  *  e1000_init_hw_82575 - Initialize hardware
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  This inits the hardware readying it for operation.
  **/
@@ -1119,7 +1050,7 @@ out:
 
 /**
  *  e1000_setup_copper_link_82575 - Configure copper link settings
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Configures the link for auto-neg or forced speed and duplex.  Then we check
  *  for link, once link is established calls to configure collision distance
@@ -1205,7 +1136,7 @@ out:
 
 /**
  *  e1000_setup_fiber_serdes_link_82575 - Setup link for fiber/serdes
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Configures speed and duplex for fiber and serdes links.
  **/
@@ -1266,7 +1197,7 @@ e1000_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 
 /**
  *  e1000_configure_pcs_link_82575 - Configure PCS link
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Configure the physical coding sub-layer (PCS) link.  The PCS link is
  *  only used on copper connections where the serialized gigabit media
@@ -1332,7 +1263,7 @@ out:
 
 /**
  *  e1000_sgmii_active_82575 - Return sgmii state
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  82575 silicon has a serialized gigabit media independent interface (sgmii)
  *  which can be enabled for use in the embedded applications.  Simply
@@ -1360,72 +1291,8 @@ out:
 }
 
 /**
- *  e1000_translate_register_adoram - Translate the proper regiser offset
- *  @reg - e1000 register to be read
- *
- *  Registers in adoram are located in different offsets than other adapters
- *  even though they function in the same manner.  This function takes in
- *  the name of the register to read and returns the correct offset for
- *  adoram silicon.
- **/
-u32
-e1000_translate_register_adoram(u32 reg)
-{
-	/* Some of the Adoram registers are located at different
-	 * offsets than they are in older adapters.
-	 * Despite the difference in location, the registers
-	 * function in the same manner.
-	 */
-	switch (reg) {
-	case E1000_TDBAL:
-		reg = 0x0E000;
-		break;
-	case E1000_TDBAH:
-		reg = 0x0E004;
-		break;
-	case E1000_TDLEN:
-		reg = 0x0E008;
-		break;
-	case E1000_TDH:
-		reg = 0x0E010;
-		break;
-	case E1000_TDT:
-		reg = 0x0E018;
-		break;
-	case E1000_TXDCTL:
-		reg = 0x0E028;
-		break;
-	case E1000_RDBAL:
-		reg = 0x0C000;
-		break;
-	case E1000_RDBAH:
-		reg = 0x0C004;
-		break;
-	case E1000_RDLEN:
-		reg = 0x0C008;
-		break;
-	case E1000_RDH:
-		reg = 0x0C010;
-		break;
-	case E1000_RDT:
-		reg = 0x0C018;
-		break;
-	case E1000_RXDCTL:
-		reg = 0x0C028;
-		break;
-	case E1000_SRRCTL0:
-		reg = 0x0C00C;
-		break;
-	default:
-		break;
-	}
-
-	return reg;
-}
-
-/**
  *  e1000_reset_init_script_82575 - Inits HW defaults after reset
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Inits recommended HW defaults after a reset when there is no EEPROM
  *  detected. This is only for the 82575.
@@ -1464,7 +1331,7 @@ e1000_reset_init_script_82575(struct e1000_hw* hw)
 
 /**
  *  e1000_clear_hw_cntrs_82575 - Clear device specific hardware counters
- *  @hw - pointer to the HW structure
+ *  @hw: pointer to the HW structure
  *
  *  Clears the hardware counters by reading the counter registers.
  **/
