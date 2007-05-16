@@ -160,8 +160,6 @@ static void	 tcp_pulloutofband(struct socket *,
 		     struct tcphdr *, struct mbuf *, int);
 static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
-static int	 tcp_timewait(struct inpcb *, struct tcpopt *,
-		     struct tcphdr *, struct mbuf *, int);
 
 /* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
 #ifdef INET6
@@ -541,8 +539,8 @@ findpcb:
 	if (inp->inp_vflag & INP_TIMEWAIT) {
 		if (thflags & TH_SYN)
 			tcp_dooptions(&to, optp, optlen, TO_SYN);
-		/* NB: tcp_timewait unlocks the INP and frees the mbuf. */
-		if (tcp_timewait(inp, &to, th, m, tlen))
+		/* NB: tcp_twcheck unlocks the INP and frees the mbuf. */
+		if (tcp_twcheck(inp, &to, th, m, tlen))
 			goto findpcb;
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
@@ -2939,143 +2937,4 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 	else
 		tp->snd_cwnd = 0;
 	tp->snd_cwnd += tp->t_maxseg;
-}
-
-/*
- * Returns 1 if the TIME_WAIT state was killed and we should start over,
- * looking for a pcb in the listen state.  Returns 0 otherwise.
- */
-static int
-tcp_timewait(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
-    struct mbuf *m, int tlen)
-{
-	struct tcptw *tw;
-	int thflags;
-	tcp_seq seq;
-#ifdef INET6
-	int isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
-#else
-	const int isipv6 = 0;
-#endif
-
-	/* tcbinfo lock required for tcp_twclose(), tcp_timer_2msl_reset(). */
-	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	INP_LOCK_ASSERT(inp);
-
-	/*
-	 * XXXRW: Time wait state for inpcb has been recycled, but inpcb is
-	 * still present.  This is undesirable, but temporarily necessary
-	 * until we work out how to handle inpcb's who's timewait state has
-	 * been removed.
-	 */
-	tw = intotw(inp);
-	if (tw == NULL)
-		goto drop;
-
-	thflags = th->th_flags;
-
-	/*
-	 * NOTE: for FIN_WAIT_2 (to be added later),
-	 * must validate sequence number before accepting RST
-	 */
-
-	/*
-	 * If the segment contains RST:
-	 *	Drop the segment - see Stevens, vol. 2, p. 964 and
-	 *      RFC 1337.
-	 */
-	if (thflags & TH_RST)
-		goto drop;
-
-#if 0
-/* PAWS not needed at the moment */
-	/*
-	 * RFC 1323 PAWS: If we have a timestamp reply on this segment
-	 * and it's less than ts_recent, drop it.
-	 */
-	if ((to.to_flags & TOF_TS) != 0 && tp->ts_recent &&
-	    TSTMP_LT(to.to_tsval, tp->ts_recent)) {
-		if ((thflags & TH_ACK) == 0)
-			goto drop;
-		goto ack;
-	}
-	/*
-	 * ts_recent is never updated because we never accept new segments.
-	 */
-#endif
-
-	/*
-	 * If a new connection request is received
-	 * while in TIME_WAIT, drop the old connection
-	 * and start over if the sequence numbers
-	 * are above the previous ones.
-	 */
-	if ((thflags & TH_SYN) && SEQ_GT(th->th_seq, tw->rcv_nxt)) {
-		tcp_twclose(tw, 0);
-		return (1);
-	}
-
-	/*
-	 * Drop the the segment if it does not contain an ACK.
-	 */
-	if ((thflags & TH_ACK) == 0)
-		goto drop;
-
-	/*
-	 * Reset the 2MSL timer if this is a duplicate FIN.
-	 */
-	if (thflags & TH_FIN) {
-		seq = th->th_seq + tlen + (thflags & TH_SYN ? 1 : 0);
-		if (seq + 1 == tw->rcv_nxt)
-			tcp_timer_2msl_reset(tw, 1);
-	}
-
-	/*
-	 * Acknowledge the segment if it has data or is not a duplicate ACK.
-	 */
-	if (thflags != TH_ACK || tlen != 0 ||
-	    th->th_seq != tw->rcv_nxt || th->th_ack != tw->snd_nxt)
-		tcp_twrespond(tw, TH_ACK);
-	goto drop;
-
-	/*
-	 * Generate a RST, dropping incoming segment.
-	 * Make ACK acceptable to originator of segment.
-	 * Don't bother to respond if destination was broadcast/multicast.
-	 */
-	if (m->m_flags & (M_BCAST|M_MCAST))
-		goto drop;
-	if (isipv6) {
-		struct ip6_hdr *ip6;
-
-		/* IPv6 anycast check is done at tcp6_input() */
-		ip6 = mtod(m, struct ip6_hdr *);
-		if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
-		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src))
-			goto drop;
-	} else {
-		struct ip *ip;
-
-		ip = mtod(m, struct ip *);
-		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
-		    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
-		    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
-		    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
-			goto drop;
-	}
-	if (thflags & TH_ACK) {
-		tcp_respond(NULL,
-		    mtod(m, void *), th, m, 0, th->th_ack, TH_RST);
-	} else {
-		seq = th->th_seq + (thflags & TH_SYN ? 1 : 0);
-		tcp_respond(NULL,
-		    mtod(m, void *), th, m, seq, 0, TH_RST|TH_ACK);
-	}
-	INP_UNLOCK(inp);
-	return (0);
-
-drop:
-	INP_UNLOCK(inp);
-	m_freem(m);
-	return (0);
 }
