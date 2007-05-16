@@ -290,7 +290,7 @@ ip_input(struct mbuf *m)
 	int dchg = 0;				/* dest changed after fw */
 	struct in_addr odst;			/* original dst address */
 
-  	M_ASSERTPKTHDR(m);
+	M_ASSERTPKTHDR(m);
 
 	if (m->m_flags & M_FASTFWD_OURS) {
 		/*
@@ -301,8 +301,8 @@ ip_input(struct mbuf *m)
 		/* Set up some basics that will be used later. */
 		ip = mtod(m, struct ip *);
 		hlen = ip->ip_hl << 2;
-  		goto ours;
-  	}
+		goto ours;
+	}
 
 	ipstat.ips_total++;
 
