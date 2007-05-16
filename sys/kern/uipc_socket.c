@@ -327,13 +327,8 @@ sodealloc(struct socket *so)
  * closed with soclose().
  */
 int
-socreate(dom, aso, type, proto, cred, td)
-	int dom;
-	struct socket **aso;
-	int type;
-	int proto;
-	struct ucred *cred;
-	struct thread *td;
+socreate(int dom, struct socket **aso, int type, int proto,
+    struct ucred *cred, struct thread *td)
 {
 	struct protosw *prp;
 	struct socket *so;
@@ -406,11 +401,9 @@ SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
  * Note: the ref count on the socket is 0 on return.
  */
 struct socket *
-sonewconn(head, connstatus)
-	register struct socket *head;
-	int connstatus;
+sonewconn(struct socket *head, int connstatus)
 {
-	register struct socket *so;
+	struct socket *so;
 	int over;
 
 	ACCEPT_LOCK();
@@ -492,10 +485,7 @@ sonewconn(head, connstatus)
 }
 
 int
-sobind(so, nam, td)
-	struct socket *so;
-	struct sockaddr *nam;
-	struct thread *td;
+sobind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 
 	return ((*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td));
@@ -514,18 +504,14 @@ sobind(so, nam, td)
  * socket-layer test and set to avoid races at the socket layer.
  */
 int
-solisten(so, backlog, td)
-	struct socket *so;
-	int backlog;
-	struct thread *td;
+solisten(struct socket *so, int backlog, struct thread *td)
 {
 
 	return ((*so->so_proto->pr_usrreqs->pru_listen)(so, backlog, td));
 }
 
 int
-solisten_proto_check(so)
-	struct socket *so;
+solisten_proto_check(struct socket *so)
 {
 
 	SOCK_LOCK_ASSERT(so);
@@ -537,9 +523,7 @@ solisten_proto_check(so)
 }
 
 void
-solisten_proto(so, backlog)
-	struct socket *so;
-	int backlog;
+solisten_proto(struct socket *so, int backlog)
 {
 
 	SOCK_LOCK_ASSERT(so);
@@ -571,8 +555,7 @@ solisten_proto(so, backlog)
  * conditions are right, can succeed.
  */
 void
-sofree(so)
-	struct socket *so;
+sofree(struct socket *so)
 {
 	struct protosw *pr = so->so_proto;
 	struct socket *head;
@@ -647,8 +630,7 @@ sofree(so)
  * not be freed until the ref count reaches zero.
  */
 int
-soclose(so)
-	struct socket *so;
+soclose(struct socket *so)
 {
 	int error = 0;
 
@@ -723,8 +705,7 @@ drop:
  * to review in the future.
  */
 void
-soabort(so)
-	struct socket *so;
+soabort(struct socket *so)
 {
 
 	/*
@@ -747,9 +728,7 @@ soabort(so)
 }
 
 int
-soaccept(so, nam)
-	struct socket *so;
-	struct sockaddr **nam;
+soaccept(struct socket *so, struct sockaddr **nam)
 {
 	int error;
 
@@ -762,10 +741,7 @@ soaccept(so, nam)
 }
 
 int
-soconnect(so, nam, td)
-	struct socket *so;
-	struct sockaddr *nam;
-	struct thread *td;
+soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	int error;
 
@@ -793,17 +769,14 @@ soconnect(so, nam, td)
 }
 
 int
-soconnect2(so1, so2)
-	struct socket *so1;
-	struct socket *so2;
+soconnect2(struct socket *so1, struct socket *so2)
 {
 
 	return ((*so1->so_proto->pr_usrreqs->pru_connect2)(so1, so2));
 }
 
 int
-sodisconnect(so)
-	struct socket *so;
+sodisconnect(struct socket *so)
 {
 	int error;
 
@@ -946,14 +919,8 @@ out:
 #define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? M_NOWAIT : M_WAITOK)
 
 int
-sosend_dgram(so, addr, uio, top, control, flags, td)
-	struct socket *so;
-	struct sockaddr *addr;
-	struct uio *uio;
-	struct mbuf *top;
-	struct mbuf *control;
-	int flags;
-	struct thread *td;
+sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
+    struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
 {
 	long space, resid;
 	int clen = 0, error, dontroute;
@@ -1126,14 +1093,8 @@ out:
  * on return.
  */
 int
-sosend_generic(so, addr, uio, top, control, flags, td)
-	struct socket *so;
-	struct sockaddr *addr;
-	struct uio *uio;
-	struct mbuf *top;
-	struct mbuf *control;
-	int flags;
-	struct thread *td;
+sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
+    struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
 {
 	long space, resid;
 	int clen = 0, error, dontroute;
@@ -1314,14 +1275,8 @@ out:
 }
 
 int
-sosend(so, addr, uio, top, control, flags, td)
-	struct socket *so;
-	struct sockaddr *addr;
-	struct uio *uio;
-	struct mbuf *top;
-	struct mbuf *control;
-	int flags;
-	struct thread *td;
+sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
+    struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
 {
 
 	/* XXXRW: Temporary debugging. */
@@ -1341,10 +1296,7 @@ sosend(so, addr, uio, top, control, flags, td)
  * unable to return an mbuf chain to the caller.
  */
 static int
-soreceive_rcvoob(so, uio, flags)
-	struct socket *so;
-	struct uio *uio;
-	int flags;
+soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 {
 	struct protosw *pr = so->so_proto;
 	struct mbuf *m;
@@ -1437,13 +1389,8 @@ sockbuf_pushsync(struct sockbuf *sb, struct mbuf *nextrecord)
  * the count in uio_resid.
  */
 int
-soreceive_generic(so, psa, uio, mp0, controlp, flagsp)
-	struct socket *so;
-	struct sockaddr **psa;
-	struct uio *uio;
-	struct mbuf **mp0;
-	struct mbuf **controlp;
-	int *flagsp;
+soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
+    struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
 	struct mbuf *m, **mp;
 	int flags, len, error, offset;
@@ -1895,13 +1842,8 @@ release:
 }
 
 int
-soreceive(so, psa, uio, mp0, controlp, flagsp)
-	struct socket *so;
-	struct sockaddr **psa;
-	struct uio *uio;
-	struct mbuf **mp0;
-	struct mbuf **controlp;
-	int *flagsp;
+soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
+    struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
 
 	/* XXXRW: Temporary debugging. */
@@ -1913,9 +1855,7 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 }
 
 int
-soshutdown(so, how)
-	struct socket *so;
-	int how;
+soshutdown(struct socket *so, int how)
 {
 	struct protosw *pr = so->so_proto;
 
@@ -1930,8 +1870,7 @@ soshutdown(so, how)
 }
 
 void
-sorflush(so)
-	struct socket *so;
+sorflush(struct socket *so)
 {
 	struct sockbuf *sb = &so->so_rcv;
 	struct protosw *pr = so->so_proto;
@@ -1977,11 +1916,7 @@ sorflush(so)
  * routines.
  */
 int
-sooptcopyin(sopt, buf, len, minlen)
-	struct	sockopt *sopt;
-	void	*buf;
-	size_t	len;
-	size_t	minlen;
+sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen)
 {
 	size_t	valsize;
 
@@ -2024,9 +1959,7 @@ so_setsockopt(struct socket *so, int level, int optname, void *optval,
 }
 
 int
-sosetopt(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+sosetopt(struct socket *so, struct sockopt *sopt)
 {
 	int	error, optval;
 	struct	linger l;
@@ -2241,9 +2174,7 @@ sooptcopyout(struct sockopt *sopt, const void *buf, size_t len)
 }
 
 int
-sogetopt(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+sogetopt(struct socket *so, struct sockopt *sopt)
 {
 	int	error, optval;
 	struct	linger l;
@@ -2507,9 +2438,9 @@ soopt_mcopyout(struct sockopt *sopt, struct mbuf *m)
  * out-of-band data, which will then notify socket consumers.
  */
 void
-sohasoutofband(so)
-	struct socket *so;
+sohasoutofband(struct socket *so)
 {
+
 	if (so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGURG, 0);
 	selwakeuppri(&so->so_rcv.sb_sel, PSOCK);
@@ -2608,74 +2539,86 @@ soo_kqfilter(struct file *fp, struct knote *kn)
 int
 pru_accept_notsupp(struct socket *so, struct sockaddr **nam)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_attach_notsupp(struct socket *so, int proto, struct thread *td)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_bind_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_connect_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_connect2_notsupp(struct socket *so1, struct socket *so2)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
-	struct ifnet *ifp, struct thread *td)
+    struct ifnet *ifp, struct thread *td)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_disconnect_notsupp(struct socket *so)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_listen_notsupp(struct socket *so, int backlog, struct thread *td)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_peeraddr_notsupp(struct socket *so, struct sockaddr **nam)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_rcvd_notsupp(struct socket *so, int flags)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
-	struct sockaddr *addr, struct mbuf *control, struct thread *td)
+    struct sockaddr *addr, struct mbuf *control, struct thread *td)
 {
+
 	return EOPNOTSUPP;
 }
 
@@ -2686,6 +2629,7 @@ pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
 int
 pru_sense_null(struct socket *so, struct stat *sb)
 {
+
 	sb->st_blksize = so->so_snd.sb_hiwat;
 	return 0;
 }
@@ -2693,34 +2637,38 @@ pru_sense_null(struct socket *so, struct stat *sb)
 int
 pru_shutdown_notsupp(struct socket *so)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_sockaddr_notsupp(struct socket *so, struct sockaddr **nam)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_sosend_notsupp(struct socket *so, struct sockaddr *addr, struct uio *uio,
-	struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
+    struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_soreceive_notsupp(struct socket *so, struct sockaddr **paddr,
-	struct uio *uio, struct mbuf **mp0, struct mbuf **controlp,
-	int *flagsp)
+    struct uio *uio, struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
+
 	return EOPNOTSUPP;
 }
 
 int
 pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
-	struct thread *td)
+    struct thread *td)
 {
+
 	return EOPNOTSUPP;
 }
 
@@ -2866,8 +2814,7 @@ sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
  * here will sometimes cause software-interrupt process scheduling.
  */
 void
-soisconnecting(so)
-	register struct socket *so;
+soisconnecting(struct socket *so)
 {
 
 	SOCK_LOCK(so);
@@ -2877,8 +2824,7 @@ soisconnecting(so)
 }
 
 void
-soisconnected(so)
-	struct socket *so;
+soisconnected(struct socket *so)
 {
 	struct socket *head;
 
@@ -2919,8 +2865,7 @@ soisconnected(so)
 }
 
 void
-soisdisconnecting(so)
-	register struct socket *so;
+soisdisconnecting(struct socket *so)
 {
 
 	/*
@@ -2939,8 +2884,7 @@ soisdisconnecting(so)
 }
 
 void
-soisdisconnected(so)
-	register struct socket *so;
+soisdisconnected(struct socket *so)
 {
 
 	/*
@@ -2984,6 +2928,7 @@ sodupsockaddr(const struct sockaddr *sa, int mflags)
 void
 sotoxsocket(struct socket *so, struct xsocket *xso)
 {
+
 	xso->xso_len = sizeof *xso;
 	xso->xso_so = so;
 	xso->so_type = so->so_type;

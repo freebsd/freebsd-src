@@ -349,7 +349,6 @@ sbdestroy(struct sockbuf *sb, struct socket *so)
 	sbrelease_internal(sb, so);
 }
 
-
 /*
  * Routines to add and remove data from an mbuf queue.
  *
@@ -902,7 +901,6 @@ sbdrop(struct sockbuf *sb, int len)
 	SOCKBUF_UNLOCK(sb);
 }
 
-
 /*
  * Maintain a pointer and offset pair into the socket buffer mbuf chain to
  * avoid traversal of the entire socket buffer for larger offsets.
@@ -981,12 +979,9 @@ sbdroprecord(struct sockbuf *sb)
  * type for presentation on a socket buffer.
  */
 struct mbuf *
-sbcreatecontrol(p, size, type, level)
-	caddr_t p;
-	register int size;
-	int type, level;
+sbcreatecontrol(caddr_t p, int size, int type, int level)
 {
-	register struct cmsghdr *cp;
+	struct cmsghdr *cp;
 	struct mbuf *m;
 
 	if (CMSG_SPACE((u_int)size) > MCLBYTES)
@@ -1020,6 +1015,7 @@ sbcreatecontrol(p, size, type, level)
 void
 sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
 {
+
 	xsb->sb_cc = sb->sb_cc;
 	xsb->sb_hiwat = sb->sb_hiwat;
 	xsb->sb_mbcnt = sb->sb_mbcnt;
