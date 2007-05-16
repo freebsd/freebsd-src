@@ -1989,6 +1989,12 @@ telelpathattack	5011/tcp
 telelpathattack	5011/udp
 mmcc		5050/tcp   #multimedia conference control tool
 mmcc		5050/udp   #multimedia conference control tool
+sds		5059/tcp   #SIP Directory Services
+sds		5059/udp   #SIP Directory Services
+sip		5060/tcp   #Session Initialization Protocol (VoIP)
+sip		5060/udp   #Session Initialization Protocol (VoIP)
+sip-tls		5061/tcp   #SIP over TLS
+sip-tls		5061/udp   #SIP over TLS
 rmonitor_secure	5145/tcp
 rmonitor_secure	5145/udp
 aol		5190/tcp   #America-Online
