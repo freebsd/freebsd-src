@@ -75,8 +75,7 @@ static int	cardbus_attach(device_t cbdev);
 static int	cardbus_attach_card(device_t cbdev);
 static int	cardbus_detach(device_t cbdev);
 static int	cardbus_detach_card(device_t cbdev);
-static void	cardbus_device_setup_regs(device_t brdev, int b, int s, int f,
-		    pcicfgregs *cfg);
+static void	cardbus_device_setup_regs(device_t dev);
 static void	cardbus_driver_added(device_t cbdev, driver_t *driver);
 static int	cardbus_probe(device_t cbdev);
 static int	cardbus_read_ivar(device_t cbdev, device_t child, int which,
@@ -137,23 +136,24 @@ cardbus_resume(device_t self)
 /************************************************************************/
 
 static void
-cardbus_device_setup_regs(device_t brdev, int b, int s, int f, pcicfgregs *cfg)
+cardbus_device_setup_regs(device_t dev)
 {
-	PCIB_WRITE_CONFIG(brdev, b, s, f, PCIR_INTLINE,
-	    pci_get_irq(device_get_parent(brdev)), 1);
-	cfg->intline = PCIB_READ_CONFIG(brdev, b, s, f, PCIR_INTLINE, 1);
+	int i;
 
-	PCIB_WRITE_CONFIG(brdev, b, s, f, PCIR_CACHELNSZ, 0x08, 1);
-	cfg->cachelnsz = PCIB_READ_CONFIG(brdev, b, s, f, PCIR_CACHELNSZ, 1);
+	/*
+	 * Some cards power up with garbage in their BARs.  This
+	 * code clears all that junk out.
+	 */
+	for (i = 0; i < PCI_MAX_BAR_0; i++)
+		pci_write_config(dev, PCIR_BAR(i), 0, 4);
 
-	PCIB_WRITE_CONFIG(brdev, b, s, f, PCIR_LATTIMER, 0xa8, 1);
-	cfg->lattimer = PCIB_READ_CONFIG(brdev, b, s, f, PCIR_LATTIMER, 1);
-
-	PCIB_WRITE_CONFIG(brdev, b, s, f, PCIR_MINGNT, 0x14, 1);
-	cfg->mingnt = PCIB_READ_CONFIG(brdev, b, s, f, PCIR_MINGNT, 1);
-
-	PCIB_WRITE_CONFIG(brdev, b, s, f, PCIR_MAXLAT, 0x14, 1);
-	cfg->maxlat = PCIB_READ_CONFIG(brdev, b, s, f, PCIR_MAXLAT, 1);
+	/* XXXimp is getting the interrpt like this right? */
+	pci_write_config(dev, PCIR_INTLINE,
+	    pci_get_irq(device_get_parent(device_get_parent(dev))), 1);
+	pci_write_config(dev, PCIR_CACHELNSZ, 0x08, 1);
+	pci_write_config(dev, PCIR_LATTIMER, 0xa8, 1);
+	pci_write_config(dev, PCIR_MINGNT, 0x14, 1);
+	pci_write_config(dev, PCIR_MAXLAT, 0x14, 1);
 }
 
 static int
@@ -181,8 +181,6 @@ cardbus_attach_card(device_t cbdev)
 		if (dinfo->pci.cfg.mfdev)
 			cardbusfunchigh = PCI_FUNCMAX;
 
-		cardbus_device_setup_regs(brdev, bus, slot, func,
-		    &dinfo->pci.cfg);
 		child = device_add_child(cbdev, NULL, -1);
 		if (child == NULL) {
 			DEVPRINTF((cbdev, "Cannot add child!\n"));
@@ -196,6 +194,7 @@ cardbus_attach_card(device_t cbdev)
 			DEVPRINTF((cbdev, "Warning: Bogus CIS ignored\n"));
 		pci_cfg_save(dinfo->pci.cfg.dev, &dinfo->pci, 0);
 		pci_cfg_restore(dinfo->pci.cfg.dev, &dinfo->pci);
+		cardbus_device_setup_regs(dinfo->pci.cfg.dev);
 		pci_add_resources(cbdev, child, 1, dinfo->mprefetchable);
 		pci_print_verbose(&dinfo->pci);
 		if (device_probe_and_attach(child) == 0)
