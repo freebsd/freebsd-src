@@ -4139,7 +4139,6 @@ xpt_path_comp(struct cam_path *path1, struct cam_path *path2)
 void
 xpt_print_path(struct cam_path *path)
 {
-	mtx_assert(path->bus->sim->mtx, MA_OWNED);
 
 	if (path == NULL)
 		printf("(nopath): ");
