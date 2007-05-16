@@ -267,6 +267,7 @@ _ftp_cwd(conn_t *conn, const char *file)
 	char pwd[PATH_MAX];
 	int e, i, len;
 
+	/* If no slashes in name, no need to change dirs. */
 	if ((end = strrchr(file, '/')) == NULL)
 		return (0);
 	if ((e = _ftp_cmd(conn, "PWD")) != FTP_WORKING_DIRECTORY ||
@@ -276,7 +277,8 @@ _ftp_cwd(conn_t *conn, const char *file)
 	}
 	for (;;) {
 		len = strlen(pwd);
-		/* look for a common prefix */
+
+		/* Look for a common prefix between PWD and dir to fetch. */
 		for (i = 0; i <= len && i <= end - file; ++i)
 			if (pwd[i] != file[i])
 				break;
@@ -284,6 +286,7 @@ _ftp_cwd(conn_t *conn, const char *file)
 		DEBUG(fprintf(stderr, "have: [%.*s|%s]\n", i, pwd, pwd + i));
 		DEBUG(fprintf(stderr, "want: [%.*s|%s]\n", i, file, file + i));
 #endif
+		/* Keep going up a dir until we have a matching prefix. */
 		if (pwd[i] == '\0' && (file[i - 1] == '/' || file[i] == '/'))
 			break;
 		if ((e = _ftp_cmd(conn, "CDUP")) != FTP_FILE_ACTION_OK ||
@@ -293,6 +296,23 @@ _ftp_cwd(conn_t *conn, const char *file)
 			return (-1);
 		}
 	}
+
+#ifdef FTP_COMBINE_CWDS
+	/* Skip leading slashes, even "////". */
+	for (beg = file + i; beg < end && *beg == '/'; ++beg, ++i)
+		/* nothing */ ;
+
+	/* If there is no trailing dir, we're already there. */
+	if (beg >= end)
+		return (0);
+
+	/* Change to the directory all in one chunk (e.g., foo/bar/baz). */
+	e = _ftp_cmd(conn, "CWD %.*s", (int)(end - beg), beg);
+	if (e == FTP_FILE_ACTION_OK)
+		return (0);
+#endif /* FTP_COMBINE_CWDS */
+
+	/* That didn't work so go back to legacy behavior (multiple CWDs). */
 	for (beg = file + i; beg < end; beg = file + i + 1) {
 		while (*beg == '/')
 			++beg, ++i;
@@ -965,6 +985,8 @@ _ftp_connect(struct url *url, struct url *purl, const char *flags)
 	/* authenticate */
 	if ((e = _ftp_authenticate(conn, url, purl)) != FTP_LOGGED_IN)
 		goto fouch;
+
+	/* TODO: Request extended features supported, if any (RFC 3659). */
 
 	/* done */
 	return (conn);
