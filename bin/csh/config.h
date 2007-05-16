@@ -237,3 +237,6 @@
 #ifndef NO_NLS_CATALOGS
 #define NLS_CATALOGS
 #endif
+
+/* Work around a vendor issue where config_f.h is #undef'ing this setting */
+#define SYSMALLOC
