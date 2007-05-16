@@ -335,7 +335,6 @@ static void
 cdinit(void)
 {
 	cam_status status;
-	struct cam_path *path;
 
 	mtx_init(&changerq_mtx, "cdchangerq", "SCSI CD Changer List", MTX_DEF);
 	STAILQ_INIT(&changerq);
@@ -344,21 +343,7 @@ cdinit(void)
 	 * Install a global async callback.  This callback will
 	 * receive async callbacks like "new device found".
 	 */
-	status = xpt_create_path(&path, /*periph*/NULL, CAM_XPT_PATH_ID,
-				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-
-	if (status == CAM_REQ_CMP) {
-		struct ccb_setasync csa;
-
-                xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
-                csa.ccb_h.func_code = XPT_SASYNC_CB;
-                csa.event_enable = AC_FOUND_DEVICE;
-                csa.callback = cdasync;
-                csa.callback_arg = NULL;
-                xpt_action((union ccb *)&csa);
-		status = csa.ccb_h.status;
-                xpt_free_path(path);
-        }
+	status = xpt_register_async(AC_FOUND_DEVICE, cdasync, NULL, NULL);
 
 	if (status != CAM_REQ_CMP) {
 		printf("cd: Failed to attach master async callback "
@@ -370,20 +355,13 @@ static void
 cdoninvalidate(struct cam_periph *periph)
 {
 	struct cd_softc *softc;
-	struct ccb_setasync csa;
 
 	softc = (struct cd_softc *)periph->softc;
 
 	/*
 	 * De-register any async callbacks.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path,
-		      /* priority */ 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = 0;
-	csa.callback = cdasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(0, cdasync, periph, periph->path);
 
 	softc->flags |= CD_FLAG_INVALID;
 
@@ -639,7 +617,6 @@ static cam_status
 cdregister(struct cam_periph *periph, void *arg)
 {
 	struct cd_softc *softc;
-	struct ccb_setasync csa;
 	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
 	char tmpstr[80];
@@ -751,13 +728,8 @@ cdregister(struct cam_periph *periph, void *arg)
 	 * Add an async callback so that we get
 	 * notified if this device goes away.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path,
-		      /* priority */ 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE;
-	csa.callback = cdasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
+			   cdasync, periph, periph->path);
 
 	/*
 	 * If the target lun is greater than 0, we most likely have a CD

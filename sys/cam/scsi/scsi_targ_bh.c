@@ -156,27 +156,13 @@ static void
 targbhinit(void)
 {
 	cam_status status;
-	struct cam_path *path;
 
 	/*
 	 * Install a global async callback.  This callback will
 	 * receive async callbacks like "new path registered".
 	 */
-	status = xpt_create_path(&path, /*periph*/NULL, CAM_XPT_PATH_ID,
-				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-
-	if (status == CAM_REQ_CMP) {
-		struct ccb_setasync csa;
-
-		xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = AC_PATH_REGISTERED | AC_PATH_DEREGISTERED;
-		csa.callback = targbhasync;
-		csa.callback_arg = NULL;
-		xpt_action((union ccb *)&csa);
-		status = csa.ccb_h.status;
-		xpt_free_path(path);
-        }
+	status = xpt_register_async(AC_PATH_REGISTERED | AC_PATH_DEREGISTERED,
+				    targbhasync, NULL, NULL);
 
 	if (status != CAM_REQ_CMP) {
 		printf("targbh: Failed to attach master async callback "

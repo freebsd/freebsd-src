@@ -1331,29 +1331,11 @@ static void
 sainit(void)
 {
 	cam_status status;
-	struct cam_path *path;
 
 	/*
 	 * Install a global async callback.
 	 */
-	status = xpt_create_path(&path, NULL, CAM_XPT_PATH_ID,
-				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-
-	if (status == CAM_REQ_CMP) {
-		/* Register the async callbacks of interrest */
-		struct ccb_setasync csa; /*
-					  * This is an immediate CCB,
-					  * so using the stack is OK
-					  */
-		xpt_setup_ccb(&csa.ccb_h, path, 5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = AC_FOUND_DEVICE;
-		csa.callback = saasync;
-		csa.callback_arg = NULL;
-		xpt_action((union ccb *)&csa);
-		status = csa.ccb_h.status;
-		xpt_free_path(path);
-	}
+	status = xpt_register_async(AC_FOUND_DEVICE, saasync, NULL, NULL);
 
 	if (status != CAM_REQ_CMP) {
 		printf("sa: Failed to attach master async callback "
@@ -1365,20 +1347,13 @@ static void
 saoninvalidate(struct cam_periph *periph)
 {
 	struct sa_softc *softc;
-	struct ccb_setasync csa;
 
 	softc = (struct sa_softc *)periph->softc;
 
 	/*
 	 * De-register any async callbacks.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path,
-		      /* priority */ 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = 0;
-	csa.callback = saasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(0, saasync, periph, periph->path);
 
 	softc->flags |= SA_FLAG_INVALID;
 
@@ -1462,7 +1437,6 @@ static cam_status
 saregister(struct cam_periph *periph, void *arg)
 {
 	struct sa_softc *softc;
-	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
 	caddr_t match;
 	int i;
@@ -1517,11 +1491,11 @@ saregister(struct cam_periph *periph, void *arg)
 	 * blocksize until we media is inserted.  So, set a flag to
 	 * indicate that the blocksize is unavailable right now.
 	 */
+	cam_periph_unlock(periph);
 	softc->device_stats = devstat_new_entry("sa", periph->unit_number, 0,
 	    DEVSTAT_BS_UNAVAILABLE, SID_TYPE(&cgd->inq_data) |
 	    DEVSTAT_TYPE_IF_SCSI, DEVSTAT_PRIORITY_TAPE);
 
-	cam_periph_unlock(periph);
 	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
 	    periph->unit_number, 0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
 	    0660, "%s%d.ctl", periph->periph_name, periph->unit_number);
@@ -1570,12 +1544,7 @@ saregister(struct cam_periph *periph, void *arg)
 	 * Add an async callback so that we get
 	 * notified if this device goes away.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path, /* priority */ 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = AC_LOST_DEVICE;
-	csa.callback = saasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(AC_LOST_DEVICE, saasync, periph, periph->path);
 
 	xpt_announce_periph(periph, NULL);
 
