@@ -28,7 +28,7 @@
 
 #ifndef _GEOM_H_
 #define	_GEOM_H_
-#define	G_LIB_VERSION	2
+#define	G_LIB_VERSION	3
 
 #define	G_FLAG_NONE	0x0000
 #define	G_FLAG_VERBOSE	0x0001
