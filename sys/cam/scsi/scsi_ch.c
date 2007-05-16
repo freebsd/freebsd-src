@@ -224,27 +224,12 @@ static void
 chinit(void)
 {
 	cam_status status;
-	struct cam_path *path;
 
 	/*
 	 * Install a global async callback.  This callback will
 	 * receive async callbacks like "new device found".
 	 */
-	status = xpt_create_path(&path, /*periph*/NULL, CAM_XPT_PATH_ID,
-				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-
-	if (status == CAM_REQ_CMP) {
-		struct ccb_setasync csa;
-
-                xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
-                csa.ccb_h.func_code = XPT_SASYNC_CB;
-                csa.event_enable = AC_FOUND_DEVICE;
-                csa.callback = chasync;
-                csa.callback_arg = NULL;
-                xpt_action((union ccb *)&csa);
-		status = csa.ccb_h.status;
-                xpt_free_path(path);
-        }
+	status = xpt_register_async(AC_FOUND_DEVICE, chasync, NULL, NULL);
 
 	if (status != CAM_REQ_CMP) {
 		printf("ch: Failed to attach master async callback "
@@ -256,20 +241,13 @@ static void
 choninvalidate(struct cam_periph *periph)
 {
 	struct ch_softc *softc;
-	struct ccb_setasync csa;
 
 	softc = (struct ch_softc *)periph->softc;
 
 	/*
 	 * De-register any async callbacks.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path,
-		      /* priority */ 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = 0;
-	csa.callback = chasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(0, chasync, periph, periph->path);
 
 	softc->flags |= CH_FLAG_INVALID;
 
@@ -338,7 +316,6 @@ static cam_status
 chregister(struct cam_periph *periph, void *arg)
 {
 	struct ch_softc *softc;
-	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -369,6 +346,7 @@ chregister(struct cam_periph *periph, void *arg)
 	 * Changers don't have a blocksize, and obviously don't support
 	 * tagged queueing.
 	 */
+	cam_periph_unlock(periph);
 	softc->device_stats = devstat_new_entry("ch",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
@@ -376,7 +354,6 @@ chregister(struct cam_periph *periph, void *arg)
 			  DEVSTAT_PRIORITY_OTHER);
 
 	/* Register the device */
-	cam_periph_unlock(periph);
 	softc->dev = make_dev(&ch_cdevsw, periph->unit_number, UID_ROOT,
 			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
 			      periph->unit_number);
@@ -387,12 +364,7 @@ chregister(struct cam_periph *periph, void *arg)
 	 * Add an async callback so that we get
 	 * notified if this device goes away.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path, /* priority */ 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = AC_LOST_DEVICE;
-	csa.callback = chasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(AC_LOST_DEVICE, chasync, periph, periph->path);
 
 	/*
 	 * Lock this periph until we are setup.

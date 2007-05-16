@@ -695,8 +695,8 @@ daclose(struct disk *dp)
 
 	softc->flags &= ~DA_FLAG_OPEN;
 	cam_periph_unhold(periph);
-	cam_periph_unlock(periph);
 	cam_periph_release(periph);
+	cam_periph_unlock(periph);
 	return (0);	
 }
 
@@ -858,27 +858,12 @@ static void
 dainit(void)
 {
 	cam_status status;
-	struct cam_path *path;
 
 	/*
 	 * Install a global async callback.  This callback will
 	 * receive async callbacks like "new device found".
 	 */
-	status = xpt_create_path(&path, /*periph*/NULL, CAM_XPT_PATH_ID,
-				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-
-	if (status == CAM_REQ_CMP) {
-		struct ccb_setasync csa;
-
-                xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
-                csa.ccb_h.func_code = XPT_SASYNC_CB;
-                csa.event_enable = AC_FOUND_DEVICE;
-                csa.callback = daasync;
-                csa.callback_arg = NULL;
-                xpt_action((union ccb *)&csa);
-		status = csa.ccb_h.status;
-                xpt_free_path(path);
-        }
+	status = xpt_register_async(AC_FOUND_DEVICE, daasync, NULL, NULL);
 
 	if (status != CAM_REQ_CMP) {
 		printf("da: Failed to attach master async callback "
@@ -896,20 +881,13 @@ static void
 daoninvalidate(struct cam_periph *periph)
 {
 	struct da_softc *softc;
-	struct ccb_setasync csa;
 
 	softc = (struct da_softc *)periph->softc;
 
 	/*
 	 * De-register any async callbacks.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path,
-		      /* priority */ 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = 0;
-	csa.callback = daasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(0, daasync, periph, periph->path);
 
 	softc->flags |= DA_FLAG_PACK_INVALID;
 
@@ -1087,7 +1065,6 @@ static cam_status
 daregister(struct cam_periph *periph, void *arg)
 {
 	struct da_softc *softc;
-	struct ccb_setasync csa;
 	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
 	char tmpstr[80];
@@ -1202,12 +1179,8 @@ daregister(struct cam_periph *periph, void *arg)
 	 * them and the only alternative would be to
 	 * not attach the device on failure.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path, /*priority*/5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE;
-	csa.callback = daasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
+			   daasync, periph, periph->path);
 
 	/*
 	 * Take an exclusive refcount on the periph while dastart is called
