@@ -216,8 +216,6 @@ typedef void if_init_f_t(void *);
 #define	if_iqdrops	if_data.ifi_iqdrops
 #define	if_noproto	if_data.ifi_noproto
 #define	if_lastchange	if_data.ifi_lastchange
-#define if_recvquota	if_data.ifi_recvquota
-#define	if_xmitquota	if_data.ifi_xmitquota
 #define if_rawoutput(if, m, sa) if_output(if, m, sa, (struct rtentry *)NULL)
 
 /* for compatibility with other BSDs */
