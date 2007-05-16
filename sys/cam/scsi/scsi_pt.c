@@ -234,27 +234,12 @@ static void
 ptinit(void)
 {
 	cam_status status;
-	struct cam_path *path;
 
 	/*
 	 * Install a global async callback.  This callback will
 	 * receive async callbacks like "new device found".
 	 */
-	status = xpt_create_path(&path, /*periph*/NULL, CAM_XPT_PATH_ID,
-				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-
-	if (status == CAM_REQ_CMP) {
-		struct ccb_setasync csa;
-
-                xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
-                csa.ccb_h.func_code = XPT_SASYNC_CB;
-                csa.event_enable = AC_FOUND_DEVICE;
-                csa.callback = ptasync;
-                csa.callback_arg = NULL;
-                xpt_action((union ccb *)&csa);
-		status = csa.ccb_h.status;
-                xpt_free_path(path);
-        }
+	status = xpt_register_async(AC_FOUND_DEVICE, ptasync, NULL, NULL);
 
 	if (status != CAM_REQ_CMP) {
 		printf("pt: Failed to attach master async callback "
@@ -266,7 +251,6 @@ static cam_status
 ptctor(struct cam_periph *periph, void *arg)
 {
 	struct pt_softc *softc;
-	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -297,13 +281,13 @@ ptctor(struct cam_periph *periph, void *arg)
 
 	periph->softc = softc;
 	
+	cam_periph_unlock(periph);
 	softc->device_stats = devstat_new_entry("pt",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE,
 			  SID_TYPE(&cgd->inq_data) | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_OTHER);
 
-	cam_periph_unlock(periph);
 	softc->dev = make_dev(&pt_cdevsw, periph->unit_number, UID_ROOT,
 			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
 			      periph->unit_number);
@@ -318,12 +302,8 @@ ptctor(struct cam_periph *periph, void *arg)
 	 * them and the only alternative would be to
 	 * not attach the device on failure.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path, /*priority*/5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE;
-	csa.callback = ptasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
+			   ptasync, periph, periph->path);
 
 	/* Tell the user we've attached to the device */
 	xpt_announce_periph(periph, NULL);
@@ -335,20 +315,13 @@ static void
 ptoninvalidate(struct cam_periph *periph)
 {
 	struct pt_softc *softc;
-	struct ccb_setasync csa;
 
 	softc = (struct pt_softc *)periph->softc;
 
 	/*
 	 * De-register any async callbacks.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path,
-		      /* priority */ 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = 0;
-	csa.callback = ptasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(0, ptasync, periph, periph->path);
 
 	softc->flags |= PT_FLAG_DEVICE_INVALID;
 

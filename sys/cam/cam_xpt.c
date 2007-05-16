@@ -7029,6 +7029,39 @@ xpt_finishconfig(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_free_ccb(done_ccb);
 }
 
+cam_status
+xpt_register_async(int event, ac_callback_t *cbfunc, void *cbarg,
+		   struct cam_path *path)
+{
+	struct ccb_setasync csa;
+	cam_status status;
+	int xptpath = 0;
+
+	if (path == NULL) {
+		mtx_lock(&xsoftc.xpt_lock);
+		status = xpt_create_path(&path, /*periph*/NULL, CAM_XPT_PATH_ID,
+					 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
+		if (status != CAM_REQ_CMP) {
+			mtx_unlock(&xsoftc.xpt_lock);
+			return (status);
+		}
+		xptpath = 1;
+	}
+
+	xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
+	csa.ccb_h.func_code = XPT_SASYNC_CB;
+	csa.event_enable = event;
+	csa.callback = cbfunc;
+	csa.callback_arg = cbarg;
+	xpt_action((union ccb *)&csa);
+	status = csa.ccb_h.status;
+	if (xptpath) {
+		xpt_free_path(path);
+		mtx_unlock(&xsoftc.xpt_lock);
+	}
+	return (status);
+}
+
 static void
 xptaction(struct cam_sim *sim, union ccb *work_ccb)
 {

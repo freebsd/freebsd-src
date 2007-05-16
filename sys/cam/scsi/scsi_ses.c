@@ -190,27 +190,12 @@ static void
 sesinit(void)
 {
 	cam_status status;
-	struct cam_path *path;
 
 	/*
 	 * Install a global async callback.  This callback will
 	 * receive async callbacks like "new device found".
 	 */
-	status = xpt_create_path(&path, NULL, CAM_XPT_PATH_ID,
-	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-
-	if (status == CAM_REQ_CMP) {
-		struct ccb_setasync csa;
-
-                xpt_setup_ccb(&csa.ccb_h, path, 5);
-                csa.ccb_h.func_code = XPT_SASYNC_CB;
-                csa.event_enable = AC_FOUND_DEVICE;
-                csa.callback = sesasync;
-                csa.callback_arg = NULL;
-                xpt_action((union ccb *)&csa);
-		status = csa.ccb_h.status;
-                xpt_free_path(path);
-        }
+	status = xpt_register_async(AC_FOUND_DEVICE, sesasync, NULL, NULL);
 
 	if (status != CAM_REQ_CMP) {
 		printf("ses: Failed to attach master async callback "
@@ -222,19 +207,13 @@ static void
 sesoninvalidate(struct cam_periph *periph)
 {
 	struct ses_softc *softc;
-	struct ccb_setasync csa;
 
 	softc = (struct ses_softc *)periph->softc;
 
 	/*
 	 * Unregister any async callbacks.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path, 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = 0;
-	csa.callback = sesasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(0, sesasync, periph, periph->path);
 
 	softc->ses_flags |= SES_FLAG_INVALID;
 
@@ -310,7 +289,6 @@ static cam_status
 sesregister(struct cam_periph *periph, void *arg)
 {
 	struct ses_softc *softc;
-	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
 	char *tname;
 
@@ -375,12 +353,7 @@ sesregister(struct cam_periph *periph, void *arg)
 	 * Add an async callback so that we get
 	 * notified if this device goes away.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path, 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = AC_LOST_DEVICE;
-	csa.callback = sesasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
+	xpt_register_async(AC_LOST_DEVICE, sesasync, periph, periph->path);
 
 	switch (softc->ses_type) {
 	default:
