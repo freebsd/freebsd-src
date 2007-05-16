@@ -470,7 +470,7 @@ subntbcst_tftp	247/tcp	   #subntbcst_tftp
 subntbcst_tftp	247/udp	   #subntbcst_tftp
 bhfhs		248/tcp
 bhfhs		248/udp
-#		249-255    reserved
+#		249-255	   reserved
 rap		256/tcp
 rap		256/udp
 set		257/tcp	   #secure electronic transaction
@@ -496,7 +496,7 @@ personal-link	281/tcp
 personal-link	281/udp
 cableport-ax	282/tcp	   #cable port a/x
 cableport-ax	282/udp	   #cable port a/x
-#		283-307    unassigned
+#		283-307	   unassigned
 novastorbakcup	308/tcp	   #novastor backup
 novastorbakcup	308/udp	   #novastor backup
 entrusttime	309/tcp
@@ -771,8 +771,8 @@ kpasswd5	464/tcp	   # Kerberos (v5)
 kpasswd5	464/udp	   # Kerberos (v5)
 #PROBLEMS!==============================================================
 # IANA has offically assigned these two ports as ``kpasswd''
-#kpasswd	464/tcp    # Kerberos (v5)
-#kpasswd	464/udp    # Kerberos (v5)
+#kpasswd	464/tcp	   # Kerberos (v5)
+#kpasswd	464/udp	   # Kerberos (v5)
 #PROBLEMS!==============================================================
 smtps		465/tcp	   #smtp protocol over TLS/SSL (was ssmtp)
 smtps		465/udp	   #smtp protocol over TLS/SSL (was ssmtp)
