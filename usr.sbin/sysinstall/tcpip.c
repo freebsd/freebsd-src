@@ -122,7 +122,7 @@ static int
 verifyIP(char *ip, unsigned long *mask, unsigned long *out)
 {
     long a, b, c, d;
-    char *endptr;
+    char *endptr, *endptr_prev;
 
     unsigned long parsedip;
     unsigned long max_addr = (255 << 24) | (255 << 16) | (255 << 8) | 255;
@@ -130,16 +130,19 @@ verifyIP(char *ip, unsigned long *mask, unsigned long *out)
     if (ip == NULL)
 	return 0;
     a = strtol(ip, &endptr, 10);
-    if (*endptr++ != '.')
+    if (endptr - ip == 0 || *endptr++ != '.')
 	return 0;
+    endptr_prev = endptr;
     b = strtol(endptr, &endptr, 10);
-    if (*endptr++ != '.')
+    if (endptr - endptr_prev == 0 || *endptr++ != '.')
 	return 0;
+    endptr_prev = endptr;
     c = strtol(endptr, &endptr, 10);
-    if (*endptr++ != '.')
+    if (endptr - endptr_prev == 0 || *endptr++ != '.')
 	return 0;
+    endptr_prev = endptr;
     d = strtol(endptr, &endptr, 10);
-    if (*endptr != '\0')
+    if (*endptr != '\0' || endptr - endptr_prev == 0)
 	return 0;
     if (!_validByte(a) || !_validByte(b) || !_validByte(c) || !_validByte(d))
 	return 0;
