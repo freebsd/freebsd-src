@@ -330,7 +330,9 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 					gctl_ro_param(req, opt->go_name,
 					    sizeof(intmax_t), opt->go_val);
 				} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
-					if (*(char *)opt->go_val != '\0')
+					if (cmd->gc_argname == NULL ||
+					    opt->go_val == NULL ||
+					    *(char *)opt->go_val != '\0')
 						gctl_ro_param(req, opt->go_name,
 						    -1, opt->go_val);
 				} else {
