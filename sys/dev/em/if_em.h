@@ -209,6 +209,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_BAR_MEM_TYPE_MASK	0x00000006
 #define EM_BAR_MEM_TYPE_32BIT	0x00000000
 #define EM_BAR_MEM_TYPE_64BIT	0x00000004
+#define EM_MSIX_BAR		3	/* On 82575 */
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -263,6 +264,7 @@ struct adapter {
 	struct device	*dev;
 	struct resource *res_memory;
 	struct resource *flash_mem;
+	struct resource *msix_mem;
 	struct resource	*res_ioport;
 	struct resource	*res_interrupt;
 	void		*int_handler_tag;
