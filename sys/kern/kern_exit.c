@@ -407,6 +407,16 @@ retry:
 	LIST_REMOVE(p, p_hash);
 	sx_xunlock(&allproc_lock);
 
+	/*
+	 * Call machine-dependent code to release any
+	 * machine-dependent resources other than the address space.
+	 * The address space is released by "vmspace_exitfree(p)" in
+	 * vm_waitproc().
+	 */
+	cpu_exit(td);
+
+	WITNESS_WARN(WARN_PANIC, NULL, "process (pid %d) exiting", p->p_pid);
+
 	sx_xlock(&proctree_lock);
 	q = LIST_FIRST(&p->p_children);
 	if (q != NULL)		/* only need this if any child is S_ZOMB */
@@ -479,29 +489,13 @@ retry:
 		psignal(p->p_pptr, SIGCHLD);
 	else if (p->p_sigparent != 0)
 		psignal(p->p_pptr, p->p_sigparent);
-	PROC_UNLOCK(p->p_pptr);
+	sx_xunlock(&proctree_lock);
 
 	/*
 	 * If this is a kthread, then wakeup anyone waiting for it to exit.
 	 */
 	if (p->p_flag & P_KTHREAD)
 		wakeup(p);
-	PROC_UNLOCK(p);
-
-	/*
-	 * Finally, call machine-dependent code to release the remaining
-	 * resources including address space.
-	 * The address space is released by "vmspace_exitfree(p)" in
-	 * vm_waitproc().
-	 */
-	cpu_exit(td);
-
-	WITNESS_WARN(WARN_PANIC, &proctree_lock.sx_object,
-	    "process (pid %d) exiting", p->p_pid);
-
-	PROC_LOCK(p);
-	PROC_LOCK(p->p_pptr);
-	sx_xunlock(&proctree_lock);
 
 	/*
 	 * We have to wait until after acquiring all locks before
