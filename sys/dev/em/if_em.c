@@ -447,7 +447,7 @@ em_attach(device_t dev)
 	callout_init_mtx(&adapter->timer, &adapter->mtx, 0);
 	callout_init_mtx(&adapter->tx_fifo_timer, &adapter->mtx, 0);
 
-	/* Determine hardware revision */
+	/* Determine hardware and mac info */
 	em_identify_hardware(adapter);
 
 	/* Setup PCI resources */
@@ -2542,16 +2542,28 @@ em_allocate_pci_resources(struct adapter *adapter)
 	rid = 0x0;
 	if (adapter->hw.mac.type >= e1000_82575) {
 		/*
-		 * Eventually this will be used
+		 * Setup MSI/X
+		 */
+		rid = PCIR_BAR(EM_MSIX_BAR);
+		adapter->msix_mem = bus_alloc_resource_any(dev,
+		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
+        	if (!adapter->msix_mem) {
+                	device_printf(dev,"Unable to map MSIX table \n");
+                        return (ENXIO);
+        	}
+		/*
+		 * Eventually this may be used
 		 * for Multiqueue, for now we will
 		 * just use one vector.
+		 * 
+        	 * val = pci_msix_count(dev); 
 		 */
-        	val = pci_msix_count(dev);
+		val = 1;
 		if ((val) && pci_alloc_msix(dev, &val) == 0) {
                 	rid = 1;
                 	adapter->msi = 1;
 		}
-	} else if (adapter->hw.bus.type == e1000_bus_type_pci_express) {
+	} else if (adapter->hw.mac.type > e1000_82571) {
         	val = pci_msi_count(dev);
         	if (val == 1 && pci_alloc_msi(dev, &val) == 0) {
                 	rid = 1;
@@ -2646,7 +2658,11 @@ em_free_pci_resources(struct adapter *adapter)
 
 	if (adapter->res_interrupt != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ,
-		    0, adapter->res_interrupt);
+		    adapter->msi ? 1 : 0, adapter->res_interrupt);
+
+	if (adapter->msix_mem != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    PCIR_BAR(EM_MSIX_BAR), adapter->msix_mem);
 
 	if (adapter->msi)
 		pci_release_msi(dev);
@@ -2769,11 +2785,16 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 		ifp->if_capenable |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
 	}
 
-	/* Enable TSO for PCI Express adapters */
-	if (adapter->hw.bus.type == e1000_bus_type_pci_express) {
+	/* Identify TSO capable adapters */
+	if ((adapter->hw.mac.type > e1000_82544) &&
+	    (adapter->hw.mac.type != e1000_82547))
 		ifp->if_capabilities |= IFCAP_TSO4;
+	/*
+	 * By default only enable on PCI-E, this
+	 * can be overriden by ifconfig.
+	 */
+	if (adapter->hw.mac.type >= e1000_82571)
 		ifp->if_capenable |= IFCAP_TSO4;
-	}
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
