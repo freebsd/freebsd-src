@@ -136,6 +136,7 @@ MAN=	aac.4 \
 	kld.4 \
 	ktr.4 \
 	kue.4 \
+	lagg.4 \
 	le.4 \
 	led.4 \
 	lge.4 \
@@ -452,6 +453,7 @@ MLINKS+=ipfirewall.4 ipaccounting.4 \
 MLINKS+=ipw.4 if_ipw.4
 MLINKS+=iwi.4 if_iwi.4
 MLINKS+=kue.4 if_kue.4
+MLINKS+=lagg.4 trunk.4
 MLINKS+=le.4 if_le.4
 MLINKS+=lge.4 if_lge.4
 MLINKS+=lo.4 loop.4
