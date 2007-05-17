@@ -120,6 +120,9 @@ int	(*bridge_output_p)(struct ifnet *, struct mbuf *,
 		struct sockaddr *, struct rtentry *);
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
+/* if_lagg(4) support */
+struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *); 
+
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -587,6 +590,17 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		 */
 		m_freem(m);
 		return;
+	}
+
+	/* Handle input from a lagg(4) port */
+	if (ifp->if_type == IFT_IEEE8023ADLAG) {
+		KASSERT(lagg_input_p != NULL,
+		    ("%s: if_lagg not loaded!", __func__));
+		m = (*lagg_input_p)(ifp, m);
+		if (m != NULL)
+			ifp = m->m_pkthdr.rcvif;
+		else
+			return;
 	}
 
 	/* Handle ng_ether(4) processing, if any */
