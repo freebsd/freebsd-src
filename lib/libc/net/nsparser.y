@@ -82,6 +82,9 @@ Lines
 Entry
 	: NL
 	| Database ':' NL
+		{
+			free((char*)curdbt.name);
+		}
 	| Database ':' Srclist NL
 		{
 			_nsdbtput(&curdbt);
@@ -163,6 +166,7 @@ _nsaddsrctomap(elem)
 			syslog(LOG_ERR,
 	    "NSSWITCH(nsparser): %s line %d: 'compat' used with sources, other than 'cache'",
 			    _PATH_NS_CONF, lineno);
+			free((void*)elem);
 			return;
 		}
 	}
@@ -171,6 +175,7 @@ _nsaddsrctomap(elem)
 			syslog(LOG_ERR,
 		       "NSSWITCH(nsparser): %s line %d: duplicate source '%s'",
 			    _PATH_NS_CONF, lineno, elem);
+			free((void*)elem);
 			return;
 		}
 	}
