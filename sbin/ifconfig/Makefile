@@ -27,6 +27,7 @@ SRCS+=	ifcarp.c		# SIOC[GS]VH support
 SRCS+=	ifpfsync.c		# pfsync(4) support
 
 SRCS+=	ifbridge.c		# bridge support
+SRCS+=	iflagg.c		# lagg support
 
 .if !defined(RELEASE_CRUNCH)
 SRCS+=	af_ipx.c		# IPX support
