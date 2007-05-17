@@ -113,7 +113,7 @@ main (int argc, char *argv[])
 		case '?':
 		default:
 			usage();
-	}
+		}
 
 	argc -= optind;
 	argv +=optind;
