@@ -136,8 +136,12 @@ struct lagg_lb {
 };
 
 struct lagg_mc {
-	struct ifmultiaddr      *mc_ifma;
-	SLIST_ENTRY(lagg_mc)	mc_entries;
+	union {
+		struct ether_multi	*mcu_enm;
+	} mc_u;
+	struct sockaddr_storage		mc_addr;
+
+	SLIST_ENTRY(lagg_mc)		mc_entries;
 };
 
 /* List of interfaces to have the MAC address modified */
@@ -149,7 +153,7 @@ struct lagg_llq {
 
 struct lagg_softc {
 	struct ifnet			*sc_ifp;	/* virtual interface */
-	struct rwlock			sc_mtx;
+	struct mtx			sc_mtx;
 	int				sc_proto;	/* lagg protocol */
 	u_int				sc_count;	/* number of ports */
 	struct lagg_port		*sc_primary;	/* primary port */
@@ -159,6 +163,7 @@ struct lagg_softc {
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
 
+	SLIST_HEAD(__mclhd, lagg_mc)	sc_mc_head;	/* multicast addresses */
 	struct task			sc_lladdr_task;
 	SLIST_HEAD(__llqhd, lagg_llq)	sc_llq_head;	/* interfaces to program
 							   the lladdr on */
@@ -189,8 +194,6 @@ struct lagg_port {
 	caddr_t				lp_psc;		/* protocol data */
 	int				lp_detaching;	/* ifnet is detaching */
 
-	SLIST_HEAD(__mclhd, lagg_mc)	lp_mc_head;	/* multicast addresses */
-
 	/* Redirected callbacks */
 	int	(*lp_ioctl)(struct ifnet *, u_long, caddr_t);
 	int	(*lp_output)(struct ifnet *, struct mbuf *, struct sockaddr *,
@@ -199,14 +202,13 @@ struct lagg_port {
 	SLIST_ENTRY(lagg_port)		lp_entries;
 };
 
-#define LAGG_LOCK_INIT(_sc)	rw_init(&(_sc)->sc_mtx, "if_lagg rwlock")
-#define LAGG_LOCK_DESTROY(_sc)	rw_destroy(&(_sc)->sc_mtx)
-#define LAGG_RLOCK(_sc)		rw_rlock(&(_sc)->sc_mtx)
-#define LAGG_WLOCK(_sc)		rw_wlock(&(_sc)->sc_mtx)
-#define LAGG_RUNLOCK(_sc)	rw_runlock(&(_sc)->sc_mtx)
-#define LAGG_WUNLOCK(_sc)	rw_wunlock(&(_sc)->sc_mtx)
-#define LAGG_RLOCK_ASSERT(_sc)	rw_assert(&(_sc)->sc_mtx, RA_RLOCKED)
-#define LAGG_WLOCK_ASSERT(_sc)	rw_assert(&(_sc)->sc_mtx, RA_WLOCKED)
+#define LAGG_LOCK_INIT(_tr)	mtx_init(&(_tr)->sc_mtx, "if_lagg", NULL, \
+				    MTX_DEF)
+#define LAGG_LOCK_DESTROY(_tr)	mtx_destroy(&(_tr)->sc_mtx)
+#define LAGG_LOCK(_tr)		mtx_lock(&(_tr)->sc_mtx)
+#define LAGG_UNLOCK(_tr)	mtx_unlock(&(_tr)->sc_mtx)
+#define LAGG_LOCKED(_tr)	mtx_owned(&(_tr)->sc_mtx)
+#define LAGG_LOCK_ASSERT(_tr)	mtx_assert(&(_tr)->sc_mtx, MA_OWNED)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );
