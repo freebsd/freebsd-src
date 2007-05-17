@@ -412,6 +412,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	if (m->m_flags & (M_BCAST|M_MCAST))
 		goto drop;
 	if (isipv6) {
+#ifdef INET6
 		struct ip6_hdr *ip6;
 
 		/* IPv6 anycast check is done at tcp6_input() */
@@ -419,6 +420,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 		if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
 		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src))
 			goto drop;
+#endif
 	} else {
 		struct ip *ip;
 
