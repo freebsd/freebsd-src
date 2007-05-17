@@ -8,11 +8,11 @@
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
 
-.if defined(DEFAULT_THREAD_LIB) && (${DEFAULT_THREAD_LIB} == "libpthread")
-SHLIBDIR?= /lib
-.endif
-
 .include <bsd.own.mk>
+
+.if ${DEFAULT_THREAD_LIB} == "libpthread"
+SHLIBDIR= /lib
+.endif
 
 LIB=kse
 SHLIB_MAJOR= 2
