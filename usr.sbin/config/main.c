@@ -150,14 +150,14 @@ main(int argc, char **argv)
 		usage();
 
 	PREFIX = *argv;
-	/*
-	 * We mark lack of DEFAULTS here. Once we hit EOF in PREFIX, yywrap()
-	 * will try to bring DEFAULTS to the playground, if this exists.
-	 */
-	found_defaults = 0;
-	if (freopen(PREFIX, "r", stdin) == NULL)
-		err(2, "%s", PREFIX);
-	yyfile = PREFIX;
+	if (freopen("DEFAULTS", "r", stdin) != NULL) {
+		found_defaults = 1;
+		yyfile = "DEFAULTS";
+	} else {
+		if (freopen(PREFIX, "r", stdin) == NULL)
+			err(2, "%s", PREFIX);
+		yyfile = PREFIX;
+	}
 	if (*destdir != '\0') {
 		len = strlen(destdir);
 		while (len > 1 && destdir[len - 1] == '/')
@@ -184,7 +184,6 @@ main(int argc, char **argv)
 	STAILQ_INIT(&fntab);
 	STAILQ_INIT(&ftab);
 	STAILQ_INIT(&hints);
-	STAILQ_INIT(&rmdtab);
 	if (yyparse())
 		exit(3);
 
