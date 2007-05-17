@@ -1364,18 +1364,21 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 		soisconnecting(so);
 	}
 out_now:
-	if (creat_lock_on)
+	if (creat_lock_on) {
 		SCTP_ASOC_CREATE_UNLOCK(inp);
+	}
 	SCTP_INP_DECR_REF(inp);
 	return error;
 }
 
 #define SCTP_FIND_STCB(inp, stcb, assoc_id) { \
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) { \
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||\
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) { \
 		SCTP_INP_RLOCK(inp); \
 		stcb = LIST_FIRST(&inp->sctp_asoc_list); \
-		if (stcb) \
+		if (stcb) { \
 			SCTP_TCB_LOCK(stcb); \
+                } \
 		SCTP_INP_RUNLOCK(inp); \
 	} else if (assoc_id != 0) { \
 		stcb = sctp_findassociation_ep_asocid(inp, assoc_id, 1); \
@@ -1534,49 +1537,41 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 			*optsize = sizeof(*av);
 		}
 		break;
-	case SCTP_GET_ASOC_ID_LIST:
+	case SCTP_GET_ASSOC_NUMBER:
 		{
-			struct sctp_assoc_ids *ids;
-			int cnt, at;
-			uint16_t orig;
+			uint32_t *value, cnt;
 
-			SCTP_CHECK_AND_CAST(ids, optval, struct sctp_assoc_ids, *optsize);
+			SCTP_CHECK_AND_CAST(value, optval, uint32_t, *optsize);
 			cnt = 0;
 			SCTP_INP_RLOCK(inp);
-			stcb = LIST_FIRST(&inp->sctp_asoc_list);
-			if (stcb == NULL) {
-		none_out_now:
-				ids->asls_numb_present = 0;
-				ids->asls_more_to_get = 0;
-				SCTP_INP_RUNLOCK(inp);
-				break;
+			LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
+				cnt++;
 			}
-			orig = ids->asls_assoc_start;
-			stcb = LIST_FIRST(&inp->sctp_asoc_list);
-			while (orig) {
-				stcb = LIST_NEXT(stcb, sctp_tcblist);
-				orig--;
-				cnt--;
-				if (stcb == NULL)
-					goto none_out_now;
-			}
-			if (stcb == NULL)
-				goto none_out_now;
+			SCTP_INP_RUNLOCK(inp);
+			*value = cnt;
+			*optsize = sizeof(uint32_t);
+		}
+		break;
 
+	case SCTP_GET_ASSOC_ID_LIST:
+		{
+			struct sctp_assoc_ids *ids;
+			unsigned int at, limit;
+
+			SCTP_CHECK_AND_CAST(ids, optval, struct sctp_assoc_ids, *optsize);
 			at = 0;
-			ids->asls_numb_present = 0;
-			ids->asls_more_to_get = 1;
-			while (at < MAX_ASOC_IDS_RET) {
-				ids->asls_assoc_id[at] = sctp_get_associd(stcb);
-				at++;
-				ids->asls_numb_present++;
-				stcb = LIST_NEXT(stcb, sctp_tcblist);
-				if (stcb == NULL) {
-					ids->asls_more_to_get = 0;
+			limit = *optsize / sizeof(sctp_assoc_t);
+			SCTP_INP_RLOCK(inp);
+			LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
+				if (at < limit) {
+					ids->gaids_assoc_id[at++] = sctp_get_associd(stcb);
+				} else {
+					error = EINVAL;
 					break;
 				}
 			}
 			SCTP_INP_RUNLOCK(inp);
+			*optsize = at * sizeof(sctp_assoc_t);
 		}
 		break;
 	case SCTP_CONTEXT:
@@ -1896,8 +1891,9 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 			sas = (struct sockaddr_storage *)&saddr->addr[0];
 			limit = *optsize - sizeof(sctp_assoc_t);
 			actual = sctp_fill_up_addresses(inp, stcb, limit, sas);
-			if (stcb)
+			if (stcb) {
 				SCTP_TCB_UNLOCK(stcb);
+			}
 			*optsize = sizeof(struct sockaddr_storage) + actual;
 		}
 		break;
@@ -2143,7 +2139,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 				sasoc->sasoc_number_peer_destinations = stcb->asoc.numnets;
 				sasoc->sasoc_peer_rwnd = stcb->asoc.peers_rwnd;
 				sasoc->sasoc_local_rwnd = stcb->asoc.my_rwnd;
-				sasoc->sasoc_cookie_life = stcb->asoc.cookie_life;
+				sasoc->sasoc_cookie_life = TICKS_TO_MSEC(stcb->asoc.cookie_life);
 				sasoc->sasoc_sack_delay = stcb->asoc.delayed_ack;
 				sasoc->sasoc_sack_freq = stcb->asoc.sack_freq;
 				SCTP_TCB_UNLOCK(stcb);
@@ -2153,7 +2149,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 				sasoc->sasoc_number_peer_destinations = 0;
 				sasoc->sasoc_peer_rwnd = 0;
 				sasoc->sasoc_local_rwnd = sbspace(&inp->sctp_socket->so_rcv);
-				sasoc->sasoc_cookie_life = inp->sctp_ep.def_cookie_life;
+				sasoc->sasoc_cookie_life = TICKS_TO_MSEC(inp->sctp_ep.def_cookie_life);
 				sasoc->sasoc_sack_delay = TICKS_TO_MSEC(inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_RECV]);
 				sasoc->sasoc_sack_freq = inp->sctp_ep.sctp_sack_freq;
 				SCTP_INP_RUNLOCK(inp);
@@ -3146,31 +3142,53 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_RTOINFO:
 		{
 			struct sctp_rtoinfo *srto;
+			uint32_t new_init, new_min, new_max;
 
 			SCTP_CHECK_AND_CAST(srto, optval, struct sctp_rtoinfo, optsize);
 			SCTP_FIND_STCB(inp, stcb, srto->srto_assoc_id);
 
 			if (stcb) {
-				/* Set in ms we hope :-) */
 				if (srto->srto_initial)
-					stcb->asoc.initial_rto = srto->srto_initial;
+					new_init = srto->srto_initial;
+				else
+					new_init = stcb->asoc.initial_rto;
 				if (srto->srto_max)
-					stcb->asoc.maxrto = srto->srto_max;
+					new_max = srto->srto_max;
+				else
+					new_max = stcb->asoc.maxrto;
 				if (srto->srto_min)
-					stcb->asoc.minrto = srto->srto_min;
+					new_min = srto->srto_min;
+				else
+					new_min = stcb->asoc.minrto;
+				if ((new_min <= new_init) && (new_init <= new_max)) {
+					stcb->asoc.initial_rto = new_init;
+					stcb->asoc.maxrto = new_max;
+					stcb->asoc.minrto = new_min;
+				} else {
+					error = EDOM;
+				}
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				SCTP_INP_WLOCK(inp);
-				/*
-				 * If we have a null asoc, its default for
-				 * the endpoint
-				 */
 				if (srto->srto_initial)
-					inp->sctp_ep.initial_rto = srto->srto_initial;
+					new_init = srto->srto_initial;
+				else
+					new_init = inp->sctp_ep.initial_rto;
 				if (srto->srto_max)
-					inp->sctp_ep.sctp_maxrto = srto->srto_max;
+					new_max = srto->srto_max;
+				else
+					new_max = inp->sctp_ep.sctp_maxrto;
 				if (srto->srto_min)
-					inp->sctp_ep.sctp_minrto = srto->srto_min;
+					new_min = srto->srto_min;
+				else
+					new_min = inp->sctp_ep.sctp_minrto;
+				if ((new_min <= new_init) && (new_init <= new_max)) {
+					inp->sctp_ep.initial_rto = new_init;
+					inp->sctp_ep.sctp_maxrto = new_max;
+					inp->sctp_ep.sctp_minrto = new_min;
+				} else {
+					error = EDOM;
+				}
 				SCTP_INP_WUNLOCK(inp);
 			}
 		}
@@ -3188,8 +3206,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				sasoc->sasoc_number_peer_destinations = stcb->asoc.numnets;
 				sasoc->sasoc_peer_rwnd = 0;
 				sasoc->sasoc_local_rwnd = 0;
-				if (stcb->asoc.cookie_life)
-					stcb->asoc.cookie_life = sasoc->sasoc_cookie_life;
+				if (sasoc->sasoc_cookie_life)
+					stcb->asoc.cookie_life = MSEC_TO_TICKS(sasoc->sasoc_cookie_life);
 				stcb->asoc.delayed_ack = sasoc->sasoc_sack_delay;
 				if (sasoc->sasoc_sack_freq) {
 					stcb->asoc.sack_freq = sasoc->sasoc_sack_freq;
@@ -3203,7 +3221,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				sasoc->sasoc_peer_rwnd = 0;
 				sasoc->sasoc_local_rwnd = 0;
 				if (sasoc->sasoc_cookie_life)
-					inp->sctp_ep.def_cookie_life = sasoc->sasoc_cookie_life;
+					inp->sctp_ep.def_cookie_life = MSEC_TO_TICKS(sasoc->sasoc_cookie_life);
 				inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_RECV] = MSEC_TO_TICKS(sasoc->sasoc_sack_delay);
 				if (sasoc->sasoc_sack_freq) {
 					inp->sctp_ep.sctp_sack_freq = sasoc->sasoc_sack_freq;
@@ -3419,8 +3437,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			 */
 			if (addrs->sget_assoc_id == 0) {
 				/* delete the address */
-				(void)sctp_addr_mgmt_ep_sa(inp, addr_touse,
-				    SCTP_DEL_IP_ADDRESS, vrf_id);
+				error = sctp_addr_mgmt_ep_sa(inp, addr_touse,
+				    SCTP_DEL_IP_ADDRESS,
+				    vrf_id);
 			} else {
 				/*
 				 * FIX: decide whether we allow assoc based

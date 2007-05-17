@@ -195,6 +195,12 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 		xinpcb.total_recvs = inp->total_recvs;
 		xinpcb.total_nospaces = inp->total_nospaces;
 		xinpcb.fragmentation_point = inp->sctp_frag_point;
+		if (inp->sctp_socket != NULL) {
+			sotoxsocket(inp->sctp_socket, &xinpcb.xsocket);
+		} else {
+			bzero(&xinpcb.xsocket, sizeof xinpcb.xsocket);
+			xinpcb.xsocket.xso_protocol = IPPROTO_SCTP;
+		}
 		SCTP_INP_INCR_REF(inp);
 		SCTP_INP_RUNLOCK(inp);
 		SCTP_INP_INFO_RUNLOCK();
@@ -407,7 +413,7 @@ SYSCTL_UINT(_net_inet_sctp, OID_AUTO, init_rto_max, CTLFLAG_RW,
 
 SYSCTL_UINT(_net_inet_sctp, OID_AUTO, valid_cookie_life, CTLFLAG_RW,
     &sctp_valid_cookie_life_default, 0,
-    "Default cookie lifetime in sec");
+    "Default cookie lifetime in ticks");
 
 SYSCTL_UINT(_net_inet_sctp, OID_AUTO, init_rtx_max, CTLFLAG_RW,
     &sctp_init_rtx_max_default, 0,

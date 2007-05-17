@@ -1292,6 +1292,7 @@ again:
 		SCTP_IPI_ITERATOR_WQ_UNLOCK();
 		sctp_iterator_work(it);
 		SCTP_IPI_ITERATOR_WQ_LOCK();
+		/* sa_ignore FREED_MEMORY */
 		it = TAILQ_FIRST(&sctppcbinfo.iteratorhead);
 	}
 	if (TAILQ_FIRST(&sctppcbinfo.iteratorhead)) {
@@ -1859,7 +1860,7 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				}
 			}
 			if (cnt_of_unconf) {
-				lnet = NULL;
+				net = lnet = NULL;
 				(void)sctp_heartbeat_timer(inp, stcb, lnet, cnt_of_unconf);
 			}
 			if (stcb->asoc.hb_random_idx > 3) {
@@ -2745,7 +2746,7 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	 */
 	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
-	    ((event == SCTP_COMM_LOST) || (event == SCTP_SHUTDOWN_COMP))) {
+	    ((event == SCTP_COMM_LOST) || (event == SCTP_CANT_STR_ASSOC))) {
 		if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_WAIT)
 			stcb->sctp_socket->so_error = ECONNREFUSED;
 		else
@@ -3444,6 +3445,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock)
 			sp->net = NULL;
 			/* Free the chunk */
 			sctp_free_a_strmoq(stcb, sp);
+			/* sa_ignore FREED_MEMORY */
 			sp = TAILQ_FIRST(&outs->outqueue);
 		}
 	}
@@ -3474,6 +3476,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock)
 				sctp_free_remote_addr(chk->whoTo);
 			chk->whoTo = NULL;
 			sctp_free_a_chunk(stcb, chk);
+			/* sa_ignore FREED_MEMORY */
 			chk = TAILQ_FIRST(&asoc->send_queue);
 		}
 	}
@@ -3504,6 +3507,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock)
 				sctp_free_remote_addr(chk->whoTo);
 			chk->whoTo = NULL;
 			sctp_free_a_chunk(stcb, chk);
+			/* sa_ignore FREED_MEMORY */
 			chk = TAILQ_FIRST(&asoc->sent_queue);
 		}
 	}
@@ -4782,6 +4786,7 @@ restart_nosblocks:
 		hold_sblock = 0;
 	}
 	/* we possibly have data we can read */
+	/* sa_ignore FREED_MEMORY */
 	control = TAILQ_FIRST(&inp->read_queue);
 	if (control == NULL) {
 		/*
