@@ -217,6 +217,7 @@ sctp_skip_csum:
 	/* Length now holds the total packet length payload + iphlen */
 	length = ntohs(ip6->ip6_plen) + iphlen;
 
+	/* sa_ignore NO_NULL_CHK */
 	sctp_common_input_processing(&m, iphlen, offset, length, sh, ch,
 	    in6p, stcb, net, ecn_bits, vrf_id, table_id);
 	/* inp's ref-count reduced && stcb unlocked */

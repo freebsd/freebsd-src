@@ -224,6 +224,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 					    sp, stcb);
 
 					sctp_free_a_strmoq(stcb, sp);
+					/* sa_ignore FREED_MEMORY */
 					sp = TAILQ_FIRST(&outs->outqueue);
 				}
 			}
@@ -294,6 +295,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 	 * removed). Up front when the INIT arrives we will discard it if it
 	 * is a restart and new addresses have been added.
 	 */
+	/* sa_ignore MEMLEAK */
 	return (0);
 }
 
@@ -1921,7 +1923,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	 */
 	(void)SCTP_GETTIME_TIMEVAL(&now);
 	/* Expire time is in Ticks, so we convert to seconds */
-	time_expires.tv_sec = cookie->time_entered.tv_sec + cookie->cookie_life;
+	time_expires.tv_sec = cookie->time_entered.tv_sec + TICKS_TO_SEC(cookie->cookie_life);
 	time_expires.tv_usec = cookie->time_entered.tv_usec;
 	if (timevalcmp(&now, &time_expires, >)) {
 		/* cookie is stale! */
@@ -4485,6 +4487,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 	}
 	if (IS_SCTP_CONTROL(ch)) {
 		/* process the control portion of the SCTP packet */
+		/* sa_ignore NO_NULL_CHK */
 		stcb = sctp_process_control(m, iphlen, &offset, length, sh, ch,
 		    inp, stcb, &net, &fwd_tsn_seen, vrf_id, table_id);
 		if (stcb) {
@@ -4864,6 +4867,7 @@ sctp_skip_csum_4:
 
 	ecn_bits = ip->ip_tos;
 
+	/* sa_ignore NO_NULL_CHK */
 	sctp_common_input_processing(&m, iphlen, offset, length, sh, ch,
 	    inp, stcb, net, ecn_bits, vrf_id,
 	    table_id);

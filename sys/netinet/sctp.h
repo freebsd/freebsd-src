@@ -116,7 +116,8 @@ struct sctp_paramhdr {
 /* authentication support */
 #define SCTP_PEER_AUTH_CHUNKS 		0x00000102
 #define SCTP_LOCAL_AUTH_CHUNKS 		0x00000103
-
+#define SCTP_GET_ASSOC_NUMBER           0x00000104	/* ro */
+#define SCTP_GET_ASSOC_ID_LIST          0x00000105	/* ro */
 
 /*
  * user socket options: BSD implementation specific
@@ -153,9 +154,8 @@ struct sctp_paramhdr {
 /* read only */
 #define SCTP_GET_SNDBUF_USE		0x00001101
 #define SCTP_GET_STAT_LOG		0x00001103
-#define SCTP_GET_ASOC_ID_LIST           0x00001104	/* ro */
-#define SCTP_PCB_STATUS			0x00001105
-#define SCTP_GET_NONCE_VALUES           0x00001106
+#define SCTP_PCB_STATUS			0x00001104
+#define SCTP_GET_NONCE_VALUES           0x00001105
 
 /* Special hook for dynamically setting primary for all assoc's,
  * this is a write only option that requires root privledge.

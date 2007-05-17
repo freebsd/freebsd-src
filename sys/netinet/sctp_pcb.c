@@ -1860,7 +1860,7 @@ sctp_inpcb_alloc(struct socket *so)
 	sctp_timer_start(SCTP_TIMER_TYPE_NEWCOOKIE, inp, NULL, NULL);
 
 	/* How long is a cookie good for ? */
-	m->def_cookie_life = sctp_valid_cookie_life_default;
+	m->def_cookie_life = MSEC_TO_TICKS(sctp_valid_cookie_life_default);
 	/*
 	 * Initialize authentication parameters
 	 */
@@ -1996,7 +1996,6 @@ sctp_isport_inuse(struct sctp_inpcb *inp, uint16_t lport, uint32_t vrf_id)
 
 	head = &sctppcbinfo.sctp_ephash[SCTP_PCBHASH_ALLADDR(lport,
 	    sctppcbinfo.hashmark)];
-
 	LIST_FOREACH(t_inp, head, sctp_hash) {
 		if (t_inp->sctp_lport != lport) {
 			continue;
@@ -2106,9 +2105,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 			return (EAFNOSUPPORT);
 		}
 	}
-	/*
-	 * Setup a vrf_id to be the default for the non-bind-all case.
-	 */
+	/* Setup a vrf_id to be the default for the non-bind-all case. */
 	vrf_id = inp->def_vrf_id;
 
 	SCTP_INP_INFO_WLOCK();
@@ -2210,11 +2207,12 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 			if (port_attempt < IPPORT_RESERVED) {
 				port_attempt += IPPORT_RESERVED;
 			}
+			not_found = 1;
 			vrf_id = inp->def_vrf_id;
-			if (sctp_isport_inuse(inp, htons(port_attempt), vrf_id) == 1) {
+			if (sctp_isport_inuse(inp, htons(port_attempt),
+			    vrf_id) == 1) {
 				/* got a port we can use */
 				not_found = 0;
-				break;
 			}
 			if (not_found == 1) {
 				/* We can use this port */
@@ -2224,17 +2222,19 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 			/* try upper half */
 	next_half:
 			port_attempt = ((port_guess >> 16) & 0x0000ffff);
+
 			if (port_attempt == 0) {
 				goto last_try;
 			}
 			if (port_attempt < IPPORT_RESERVED) {
 				port_attempt += IPPORT_RESERVED;
 			}
+			not_found = 1;
 			vrf_id = inp->def_vrf_id;
-			if (sctp_isport_inuse(inp, htons(port_attempt), vrf_id) == 1) {
+			if (sctp_isport_inuse(inp, htons(port_attempt),
+			    vrf_id) == 1) {
 				/* got a port we can use */
 				not_found = 0;
-				break;
 			}
 			if (not_found == 1) {
 				/* We can use this port */
@@ -2252,11 +2252,11 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 			if (port_attempt < IPPORT_RESERVED) {
 				port_attempt += IPPORT_RESERVED;
 			}
+			not_found = 1;
 			vrf_id = inp->def_vrf_id;
 			if (sctp_isport_inuse(inp, htons(port_attempt), vrf_id) == 1) {
 				/* got a port we can use */
 				not_found = 0;
-				break;
 			}
 			if (not_found == 1) {
 				/* We can use this port */
@@ -2322,7 +2322,8 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 		 * zero out the port to find the address! yuck! can't do
 		 * this earlier since need port for sctp_pcb_findep()
 		 */
-		ifa = sctp_find_ifa_by_addr((struct sockaddr *)&store_sa, vrf_id, 0);
+		ifa = sctp_find_ifa_by_addr((struct sockaddr *)&store_sa,
+		    vrf_id, 0);
 		if (ifa == NULL) {
 			/* Can't find an interface with that address */
 			SCTP_INP_WUNLOCK(inp);
@@ -2340,15 +2341,12 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 		}
 		/* we're not bound all */
 		inp->sctp_flags &= ~SCTP_PCB_FLAGS_BOUNDALL;
-		/* set the automatic addr changes from kernel flag */
+		/* allow bindx() to send ASCONF's for binding changes */
 		sctp_feature_on(inp, SCTP_PCB_FLAGS_DO_ASCONF);
+		/* set the automatic addr changes from kernel flag */
 		if (sctp_auto_asconf == 0) {
 			sctp_feature_off(inp, SCTP_PCB_FLAGS_AUTO_ASCONF);
 		} else {
-			/*
-			 * allow bindx() to send ASCONF's for binding
-			 * changes
-			 */
 			sctp_feature_on(inp, SCTP_PCB_FLAGS_AUTO_ASCONF);
 		}
 
@@ -2752,6 +2750,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 	inp->sctp_ep.signature_change.type = SCTP_TIMER_TYPE_NONE;
 	/* Clear the read queue */
+	/* sa_ignore FREED_MEMORY */
 	while ((sq = TAILQ_FIRST(&inp->read_queue)) != NULL) {
 		/* Its only abandoned if it had data left */
 		if (sq->length)
@@ -2813,6 +2812,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	while (shared_key) {
 		LIST_REMOVE(shared_key, next);
 		sctp_free_sharedkey(shared_key);
+		/* sa_ignore FREED_MEMORY */
 		shared_key = LIST_FIRST(&inp->sctp_ep.shared_keys);
 	}
 
@@ -3885,10 +3885,12 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			/* Free the zone stuff  */
 			SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_strmoq, sp);
 			SCTP_DECR_STRMOQ_COUNT();
+			/* sa_ignore FREED_MEMORY */
 			sp = TAILQ_FIRST(&outs->outqueue);
 		}
 	}
 
+	/* sa_ignore FREED_MEMORY */
 	while ((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) {
 		TAILQ_REMOVE(&asoc->resetHead, liste, next_resp);
 		SCTP_FREE(liste);
@@ -3907,6 +3909,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		/* Free the ctl entry */
 		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_readq, sq);
 		SCTP_DECR_READQ_COUNT();
+		/* sa_ignore FREED_MEMORY */
 		sq = TAILQ_FIRST(&asoc->pending_reply_queue);
 	}
 
@@ -3922,6 +3925,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		SCTP_DECR_CHK_COUNT();
 		atomic_subtract_int(&sctppcbinfo.ipi_free_chunks, 1);
 		asoc->free_chunk_cnt--;
+		/* sa_ignore FREED_MEMORY */
 		chk = TAILQ_FIRST(&asoc->free_chunks);
 	}
 	/* pending send queue SHOULD be empty */
@@ -3937,6 +3941,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			sctp_free_remote_addr(chk->whoTo);
 			SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_chunk, chk);
 			SCTP_DECR_CHK_COUNT();
+			/* sa_ignore FREED_MEMORY */
 			chk = TAILQ_FIRST(&asoc->send_queue);
 		}
 	}
@@ -3959,6 +3964,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			sctp_free_remote_addr(chk->whoTo);
 			SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_chunk, chk);
 			SCTP_DECR_CHK_COUNT();
+			/* sa_ignore FREED_MEMORY */
 			chk = TAILQ_FIRST(&asoc->sent_queue);
 		}
 	}
@@ -3981,6 +3987,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			sctp_free_remote_addr(chk->whoTo);
 			SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_chunk, chk);
 			SCTP_DECR_CHK_COUNT();
+			/* sa_ignore FREED_MEMORY */
 			chk = TAILQ_FIRST(&asoc->control_send_queue);
 		}
 	}
@@ -4002,6 +4009,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			ccnt++;
 			SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_chunk, chk);
 			SCTP_DECR_CHK_COUNT();
+			/* sa_ignore FREED_MEMORY */
 			chk = TAILQ_FIRST(&asoc->reasmqueue);
 		}
 	}
@@ -4052,6 +4060,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	asoc->streamincnt = 0;
 	while (!TAILQ_EMPTY(&asoc->nets)) {
+		/* sa_ignore FREED_MEMORY */
 		net = TAILQ_FIRST(&asoc->nets);
 		/* pull from list */
 		if ((sctppcbinfo.ipi_count_raddr == 0) || (prev == net)) {
@@ -4066,12 +4075,14 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 
 	while (!SCTP_LIST_EMPTY(&asoc->sctp_restricted_addrs)) {
+		/* sa_ignore FREED_MEMORY */
 		laddr = LIST_FIRST(&asoc->sctp_restricted_addrs);
 		sctp_remove_laddr(laddr);
 	}
 
 	/* pending asconf (address) parameters */
 	while (!TAILQ_EMPTY(&asoc->asconf_queue)) {
+		/* sa_ignore FREED_MEMORY */
 		aparam = TAILQ_FIRST(&asoc->asconf_queue);
 		TAILQ_REMOVE(&asoc->asconf_queue, aparam, next);
 		SCTP_FREE(aparam);
@@ -4097,6 +4108,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	while (shared_key) {
 		LIST_REMOVE(shared_key, next);
 		sctp_free_sharedkey(shared_key);
+		/* sa_ignore FREED_MEMORY */
 		shared_key = LIST_FIRST(&asoc->shared_keys);
 	}
 
@@ -5612,5 +5624,6 @@ sctp_initiate_iterator(inp_func inpf,
 	sctp_timer_start(SCTP_TIMER_TYPE_ITERATOR, (struct sctp_inpcb *)it,
 	    NULL, NULL);
 #endif
+	/* sa_ignore MEMLEAK {memory is put on the tailq for the iterator} */
 	return (0);
 }

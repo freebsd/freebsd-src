@@ -490,8 +490,8 @@ __FBSDID("$FreeBSD$");
  */
 #define SCTP_DEFAULT_MBUFS_IN_CHAIN 5
 
-/* How long a cookie lives in seconds */
-#define SCTP_DEFAULT_COOKIE_LIFE	60
+/* How long a cookie lives in milli-seconds */
+#define SCTP_DEFAULT_COOKIE_LIFE	60000
 
 /* resource limit of streams */
 #define MAX_SCTP_STREAMS	2048
