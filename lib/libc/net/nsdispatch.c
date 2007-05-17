@@ -412,6 +412,8 @@ static void
 ns_dbt_free(ns_dbt *dbt)
 {
 	ns_src_free(&dbt->srclist, dbt->srclistsize);
+	if (dbt->name)
+		free((void *)dbt->name);
 }
 
 
