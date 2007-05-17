@@ -116,7 +116,7 @@ main (int argc, char *argv[])
 		}
 
 	argc -= optind;
-	argv +=optind;
+	argv += optind;
 
 	/* If no flags are set, default is -d -u. */
 	if (cflag) {
@@ -142,8 +142,8 @@ main (int argc, char *argv[])
 		err(1, "malloc");
 
 	if (getline(prevline, MAXLINELEN, ifp) == NULL) {
-		if (ferror(ifp))
-			err(1, "%s", ifp == stdin ? "stdin" : argv[0]);
+		if (ferror(ifp) || 1)
+			err(1, "%s", ifn);
 		exit(0);
 	}
 	if (!cflag && uflag && dflag)
@@ -178,7 +178,7 @@ main (int argc, char *argv[])
 			++repeats;
 	}
 	if (ferror(ifp))
-		err(1, "%s", ifp == stdin ? "stdin" : argv[0]);
+		err(1, "%s", ifn);
 	if (cflag || !dflag || !uflag)
 		show(ofp, prevline);
 	exit(0);
