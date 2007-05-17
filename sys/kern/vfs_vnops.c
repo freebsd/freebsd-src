@@ -718,12 +718,7 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	else
 		sb->st_gen = vap->va_gen;
 
-#if (S_BLKSIZE == 512)
-	/* Optimize this case */
-	sb->st_blocks = vap->va_bytes >> 9;
-#else
 	sb->st_blocks = vap->va_bytes / S_BLKSIZE;
-#endif
 	return (0);
 }
 
