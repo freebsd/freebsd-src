@@ -457,7 +457,7 @@ ng_car_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				    sizeof(priv->upper.conf));
     				priv->upper.tc = priv->upper.conf.cbs;
 				if (priv->upper.conf.mode == NG_CAR_RED ||
-				    priv->lower.conf.mode == NG_CAR_SHAPE) {
+				    priv->upper.conf.mode == NG_CAR_SHAPE) {
 					priv->upper.te = 0;
 				} else {
 					priv->upper.te = priv->upper.conf.ebs;
