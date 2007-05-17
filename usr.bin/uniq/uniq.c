@@ -142,7 +142,7 @@ main (int argc, char *argv[])
 		err(1, "malloc");
 
 	if (getline(prevline, MAXLINELEN, ifp) == NULL) {
-		if (ferror(ifp) || 1)
+		if (ferror(ifp))
 			err(1, "%s", ifn);
 		exit(0);
 	}
