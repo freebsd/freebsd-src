@@ -1044,5 +1044,5 @@ endrpcent()
 		{ NULL, NULL, NULL }
 	};
 
-	(void)nsdispatch(NULL, dtab, NSDB_SERVICES, "endrpcent", defaultsrc);
+	(void)nsdispatch(NULL, dtab, NSDB_RPC, "endrpcent", defaultsrc);
 }
