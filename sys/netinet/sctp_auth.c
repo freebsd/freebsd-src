@@ -837,8 +837,8 @@ sctp_get_hmac_block_len(uint16_t hmac_algo)
 		case SCTP_AUTH_HMAC_ID_MD5:
 #ifdef HAVE_SHA224
 		case SCTP_AUTH_HMAC_ID_SHA224:
-		return (64);
 #endif
+		return (64);
 #ifdef HAVE_SHA2
 	case SCTP_AUTH_HMAC_ID_SHA256:
 		return (64);

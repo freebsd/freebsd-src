@@ -389,6 +389,7 @@ sctp_service_reassembly(struct sctp_tcb *stcb, struct sctp_association *asoc)
 			/* Now free the address and data */
 			sctp_free_remote_addr(chk->whoTo);
 			sctp_free_a_chunk(stcb, chk);
+			/* sa_ignore FREED_MEMORY */
 			chk = TAILQ_FIRST(&asoc->reasmqueue);
 		}
 		return;
@@ -515,6 +516,7 @@ sctp_service_reassembly(struct sctp_tcb *stcb, struct sctp_association *asoc)
 			}
 			break;
 		}
+		/* sa_ignore FREED_MEMORY */
 		chk = TAILQ_FIRST(&asoc->reasmqueue);
 	} while (chk);
 }
@@ -2107,6 +2109,7 @@ finish_express_del:
 		sctp_reset_in_stream(stcb, liste->number_entries, liste->req.list_of_streams);
 		TAILQ_REMOVE(&asoc->resetHead, liste, next_resp);
 		SCTP_FREE(liste);
+		/* sa_ignore FREED_MEMORY */
 		liste = TAILQ_FIRST(&asoc->resetHead);
 		ctl = TAILQ_FIRST(&asoc->pending_reply_queue);
 		if (ctl && (liste == NULL)) {
@@ -3458,6 +3461,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				 */
 				tp1->no_fr_allowed = 1;
 				alt = tp1->whoTo;
+				/* sa_ignore NO_NULL_CHK */
 				alt = sctp_find_alternate_net(stcb, alt, 1);
 				if (alt == NULL) {
 					alt = tp1->whoTo;
@@ -3550,6 +3554,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			if (alt != tp1->whoTo) {
 				/* yes, there is an alternate. */
 				sctp_free_remote_addr(tp1->whoTo);
+				/* sa_ignore FREED_MEMORY */
 				tp1->whoTo = alt;
 				atomic_add_int(&alt->ref_count, 1);
 			}
@@ -4443,6 +4448,7 @@ again:
 			 * Find first chunk that was used with window probe
 			 * and clear the sent
 			 */
+			/* sa_ignore FREED_MEMORY */
 			TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
 				if (tp1->window_probe) {
 					/* move back to data send queue */

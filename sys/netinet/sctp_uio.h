@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/socketvar.h>
 #include <netinet/in.h>
 
 typedef uint32_t sctp_assoc_t;
@@ -528,12 +529,8 @@ struct sctp_assoc_value {
 	uint32_t assoc_value;
 };
 
-#define MAX_ASOC_IDS_RET 255
 struct sctp_assoc_ids {
-	uint16_t asls_assoc_start;	/* array of index's start at 0 */
-	uint8_t asls_numb_present;
-	uint8_t asls_more_to_get;
-	sctp_assoc_t asls_assoc_id[MAX_ASOC_IDS_RET];
+	sctp_assoc_t gaids_assoc_id[0];
 };
 
 struct sctp_cwnd_args {
@@ -934,6 +931,7 @@ struct xsctp_inpcb {
 	uint32_t total_recvs;
 	uint32_t total_nospaces;
 	uint32_t fragmentation_point;
+	struct xsocket xsocket;
 	/* add more endpoint specific data here */
 };
 
