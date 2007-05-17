@@ -300,9 +300,6 @@ SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel,
 #ifdef INCLUDE_CONFIG_FILE
 /* Actual kernel configuration options. */
 extern char kernconfstring[];
-#else
-char kernconfstring[] = "\0";
-#endif
 
 static int
 sysctl_kern_config(SYSCTL_HANDLER_ARGS)
@@ -332,6 +329,7 @@ sysctl_kern_config(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RW, 
     0, 0, sysctl_kern_config, "", "Kernel configuration file");
+#endif
 
 char domainname[MAXHOSTNAMELEN];
 SYSCTL_STRING(_kern, KERN_NISDOMAINNAME, domainname, CTLFLAG_RW,
