@@ -1426,7 +1426,7 @@ kern/posix4_mib.c		standard
 kern/sched_4bsd.c		optional sched_4bsd
 kern/sched_core.c		optional sched_core
 kern/sched_ule.c		optional sched_ule
-kern/serdev_if.m		optional puc | scc
+kern/serdev_if.m		standard
 kern/subr_acl_posix1e.c		standard
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
