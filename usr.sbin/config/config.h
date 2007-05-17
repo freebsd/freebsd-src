@@ -177,7 +177,7 @@ void	headers(void);
 void	cfgfile_add(const char *);
 void	cfgfile_removeall(void);
 
-extern STAILQ_HEAD(device_head, device) dtab, rmdtab;
+extern STAILQ_HEAD(device_head, device) dtab;
 
 extern char	errbuf[80];
 extern int	yyline;

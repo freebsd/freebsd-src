@@ -78,7 +78,7 @@
 
 #include "config.h"
 
-struct	device_head dtab, rmdtab;
+struct	device_head dtab;
 char	*ident;
 char	*env;
 int	envmode;
@@ -104,9 +104,6 @@ devopt(char *dev)
 	raisestr(ret);
 	return ret;
 }
-
-static void	rmoptall(struct opt_head *list, struct opt_head *torem);
-static void	rmdevall(struct device_head *dh, struct device_head *torem);
 
 %}
 %%
@@ -177,7 +174,7 @@ Config_spec:
 	OPTIONS Opt_list
 		|
 	NOOPTION Save_id
-	      = { rmopt_schedule(&rmopts, $2); } |
+	      = { rmopt_schedule(&opt, $2); } |
 	MAKEOPTIONS Mkopt_list
 		|
 	NOMAKEOPTION Save_id
@@ -305,10 +302,10 @@ NoDevice:
 	      = {
 		char *s = devopt($1);
 
-		rmopt_schedule(&rmopts, s);
+		rmopt_schedule(&opt, s);
 		free(s);
 		/* and the device part */
-		rmdev_schedule(&rmdtab, $1);
+		rmdev_schedule(&dtab, $1);
 		} ;
 
 %%
@@ -323,17 +320,14 @@ yyerror(const char *s)
 int
 yywrap(void)
 {
-
-	if (found_defaults == 0 && incignore == 0) {
-		if (freopen("DEFAULTS", "r", stdin) == NULL)
-			return 1;
-		yyfile = "DEFAULTS";
+	if (found_defaults) {
+		if (freopen(PREFIX, "r", stdin) == NULL)
+			err(2, "%s", PREFIX);		
+		yyfile = PREFIX;
 		yyline = 0;
-		found_defaults = 1;
+		found_defaults = 0;
 		return 0;
 	}
-	rmoptall(&opt, &rmopts);
-	rmdevall(&dtab, &rmdtab);
 	return 1;
 }
 
@@ -391,29 +385,10 @@ rmdev_schedule(struct device_head *dh, char *name)
 {
 	struct device *dp;
 
-	dp = calloc(1, sizeof(struct device));
-	dp->d_name = strdup(name);
-	assert(dp->d_name != NULL);
-	STAILQ_INSERT_HEAD(dh, dp, d_next);
-}
-
-/*
- * Take care a devices previously scheduled for removal.
- */
-static void
-rmdevall(struct device_head *dh, struct device_head *torem)
-{
-	struct device *dp, *rdp;
-
-	while (!STAILQ_EMPTY(torem)) {
-		dp = STAILQ_FIRST(torem);
-		STAILQ_REMOVE_HEAD(torem, d_next);
-		rdp = finddev(dh, dp->d_name);
-		if (rdp != NULL) {
-			STAILQ_REMOVE(dh, rdp, device, d_next);
-			free(rdp->d_name);
-			free(rdp);
-		}
+	dp = finddev(dh, name);
+	if (dp != NULL) {
+		STAILQ_REMOVE(dh, dp, device, d_next);
+		free(dp->d_name);
 		free(dp);
 	}
 }
@@ -469,31 +444,10 @@ rmopt_schedule(struct opt_head *list, char *name)
 {
 	struct opt *op;
 
-	op = calloc(1, sizeof(*op));
-	op->op_name = ns(name);
-	SLIST_INSERT_HEAD(list, op, op_next);
-}
-
-/*
- * Remove all options that were scheduled for removal.
- */
-static void
-rmoptall(struct opt_head *list, struct opt_head *torem)
-{
-	struct opt *op, *rop;
-
-	op = rop = NULL;
-	while (!SLIST_EMPTY(torem)) {
-		op = SLIST_FIRST(torem);
-		SLIST_REMOVE_HEAD(torem, op_next);
-		rop = findopt(list, op->op_name);
-		if (rop != NULL) {
-			SLIST_REMOVE(list, rop, opt, op_next);
-			free(rop->op_name);
-			if (rop->op_value != NULL)
-				free(rop->op_value);
-			free(rop);
-		}
+	op = findopt(list, name);
+	if (op != NULL) {
+		SLIST_REMOVE(list, op, opt, op_next);
+		free(op->op_name);
 		free(op);
 	}
 }
