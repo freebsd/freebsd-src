@@ -286,8 +286,10 @@ sctp_process_asconf_add_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 			m_reply =
 			    sctp_asconf_success_response(aph->correlation_id);
 		}
-		sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTP_ASCONF + SCTP_LOC_1);
-		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, NULL);
+		sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb,
+		    NULL, SCTP_FROM_SCTP_ASCONF + SCTP_LOC_1);
+		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep,
+		    stcb, NULL);
 	}
 
 	return m_reply;
@@ -864,7 +866,8 @@ sctp_asconf_cleanup(struct sctp_tcb *stcb, struct sctp_nets *net)
 	/*
 	 * clear out any existing asconfs going out
 	 */
-	sctp_timer_stop(SCTP_TIMER_TYPE_ASCONF, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_ASCONF + SCTP_LOC_2);
+	sctp_timer_stop(SCTP_TIMER_TYPE_ASCONF, stcb->sctp_ep, stcb, net,
+	    SCTP_FROM_SCTP_ASCONF + SCTP_LOC_2);
 	stcb->asoc.asconf_seq_out++;
 	/* remove the old ASCONF on our outbound queue */
 	sctp_toss_old_asconf(stcb);
@@ -1328,7 +1331,8 @@ sctp_handle_asconf_ack(struct mbuf *m, int offset,
 		return;
 	}
 	/* stop our timer */
-	sctp_timer_stop(SCTP_TIMER_TYPE_ASCONF, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_ASCONF + SCTP_LOC_3);
+	sctp_timer_stop(SCTP_TIMER_TYPE_ASCONF, stcb->sctp_ep, stcb, net,
+	    SCTP_FROM_SCTP_ASCONF + SCTP_LOC_3);
 
 	/* process the ASCONF-ACK contents */
 	ack_length = ntohs(cp->ch.chunk_length) -
@@ -1664,7 +1668,8 @@ sctp_iterator_ep_end(struct sctp_inpcb *inp, void *ptr, uint32_t val)
 	LIST_FOREACH(l, &asc->list_of_work, sctp_nxt_addr) {
 		ifa = l->ifa;
 		if (l->action == SCTP_ADD_IP_ADDRESS) {
-			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
+			LIST_FOREACH(laddr, &inp->sctp_addr_list,
+			    sctp_nxt_addr) {
 				if (laddr->ifa == ifa) {
 					laddr->action = 0;
 					break;
@@ -1821,7 +1826,6 @@ sctp_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 			/* does the peer do asconf? */
 			if (stcb->asoc.peer_supports_asconf) {
 				/* queue an asconf for this addr */
-
 				status = sctp_asconf_queue_add(stcb, ifa, type);
 				/*
 				 * if queued ok, and in correct state, set
@@ -2175,7 +2179,8 @@ sctp_compose_asconf(struct sctp_tcb *stcb, int *retlen)
 	}
 	/* chain it all together */
 	SCTP_BUF_NEXT(m_asconf_chk) = m_asconf;
-	*retlen = acp->ch.chunk_length = ntohs(SCTP_BUF_LEN(m_asconf_chk) + SCTP_BUF_LEN(m_asconf));
+	*retlen = SCTP_BUF_LEN(m_asconf_chk) + SCTP_BUF_LEN(m_asconf);
+	acp->ch.chunk_length = ntohs(*retlen);
 
 	/* update "sent" flag */
 	stcb->asoc.asconf_sent++;
@@ -2537,7 +2542,8 @@ sctp_check_address_list(struct sctp_tcb *stcb, struct mbuf *m, int offset,
  * sctp_bindx() support
  */
 uint32_t
-sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa, uint32_t type, uint32_t vrf_id)
+sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
+    uint32_t type, uint32_t vrf_id)
 {
 	struct sctp_ifa *ifa;
 
@@ -2559,11 +2565,13 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa, uint32_t type,
 		struct sctp_laddr *wi;
 
 		SCTP_MALLOC(asc, struct sctp_asconf_iterator *,
-		    sizeof(struct sctp_asconf_iterator), "SCTP_ASCONF_ITERATOR");
+		    sizeof(struct sctp_asconf_iterator),
+		    "SCTP_ASCONF_ITERATOR");
 		if (asc == NULL) {
 			return (ENOMEM);
 		}
-		wi = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_laddr, struct sctp_laddr);
+		wi = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_laddr,
+		    struct sctp_laddr);
 		if (wi == NULL) {
 			SCTP_FREE(asc);
 			return (ENOMEM);
@@ -2573,7 +2581,12 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa, uint32_t type,
 		} else if (type == SCTP_DEL_IP_ADDRESS) {
 			struct sctp_laddr *laddr;
 
-			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
+			if (inp->laddr_count < 2) {
+				/* can't delete the last local address */
+				return (EINVAL);
+			}
+			LIST_FOREACH(laddr, &inp->sctp_addr_list,
+			    sctp_nxt_addr) {
 				if (ifa == laddr->ifa) {
 					/* Mark in the delete */
 					laddr->action = type;
@@ -2591,7 +2604,8 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa, uint32_t type,
 		    sctp_iterator_stcb,
 		    sctp_iterator_ep_end,
 		    SCTP_PCB_ANY_FLAGS,
-		    SCTP_PCB_ANY_FEATURES, SCTP_ASOC_ANY_STATE, (void *)asc, 0,
+		    SCTP_PCB_ANY_FEATURES,
+		    SCTP_ASOC_ANY_STATE, (void *)asc, 0,
 		    sctp_iterator_end, inp, 0);
 	} else {
 		/* invalid address! */

@@ -346,6 +346,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 		if (
 		    ((alt->dest_state & SCTP_ADDR_REACHABLE) == SCTP_ADDR_REACHABLE) &&
 		    (alt->ro.ro_rt != NULL) &&
+		/* sa_ignore NO_NULL_CHK */
 		    (!(alt->dest_state & SCTP_ADDR_UNCONFIRMED))
 		    ) {
 			/* Found a reachable address */
@@ -368,6 +369,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 				}
 				alt = TAILQ_FIRST(&stcb->asoc.nets);
 			}
+			/* sa_ignore NO_NULL_CHK */
 			if ((!(alt->dest_state & SCTP_ADDR_UNCONFIRMED)) &&
 			    (alt != net)) {
 				/* Found an alternate address */

@@ -3445,6 +3445,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 					}
 				}
 			}
+			sctp_m_freem(m);
 			return (EHOSTUNREACH);
 		}
 		if (ro != &iproute) {
@@ -4282,10 +4283,12 @@ invalid_size:
 		l_len = sizeof(struct ip6_hdr) + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
 		l_len += (2 * sizeof(struct sctp_paramhdr));
 		op_err = sctp_get_mbuf_for_msg(l_len, 0, M_DONTWAIT, 1, MT_DATA);
-		SCTP_BUF_LEN(op_err) = 0;
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
+		if (op_err) {
+			SCTP_BUF_LEN(op_err) = 0;
+			SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
+			SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
+			SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
+		}
 	}
 	if ((op_err) && phdr) {
 		struct sctp_paramhdr s;
@@ -6112,6 +6115,7 @@ sctp_move_to_outqueue(struct sctp_tcb *stcb, struct sctp_nets *net,
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
 one_more_time:
+	/* sa_ignore FREED_MEMORY */
 	sp = TAILQ_FIRST(&strq->outqueue);
 	if (sp == NULL) {
 		*locked = 0;
@@ -10574,7 +10578,7 @@ sctp_lower_sosend(struct socket *so,
 		error = EFAULT;
 		goto out_unlocked;
 	}
-	if ((uio == NULL) && (top == NULL)) {
+	if ((uio == NULL) && (i_pak == NULL)) {
 		return (EINVAL);
 	}
 	atomic_add_int(&inp->total_sends, 1);
