@@ -109,15 +109,17 @@ can be used instead of a space and a newline.
 This variable is parsed after
 .Xr libmap.conf 5 ,
 and will override its entries.
+This variable is unset for set-user-ID and set-group-ID programs.
 .It Ev LD_LIBMAP_DISABLE
 If set, disables the use of
 .Xr libmap.conf 5
 and
 .Ev LD_LIBMAP .
+This variable is unset for set-user-ID and set-group-ID programs.
 .It Ev LD_LIBRARY_PATH
 A colon separated list of directories, overriding the default search path
 for shared libraries.
-This is ignored for set-user-ID and set-group-ID programs.
+This variable is unset for set-user-ID and set-group-ID programs.
 .It Ev LD_PRELOAD
 A list of shared libraries, separated by colons and/or white space,
 to be linked in before any
@@ -127,7 +129,7 @@ the directories specified by
 .Ev LD_LIBRARY_PATH
 will be searched first
 followed by the set of built-in standard directories.
-This is ignored for set-user-ID and set-group-ID programs.
+This variable is unset for set-user-ID and set-group-ID programs.
 .It Ev LD_BIND_NOW
 When set to a nonempty string, causes
 .Nm
