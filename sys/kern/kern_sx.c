@@ -183,7 +183,6 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 	flags |= opts & SX_ADAPTIVESPIN;
 	sx->sx_lock = SX_LOCK_UNLOCKED;
 	sx->sx_recurse = 0;
-	lock_profile_object_init(&sx->lock_object, &lock_class_sx, description);
 	lock_init(&sx->lock_object, &lock_class_sx, description, NULL, flags);
 }
 
@@ -194,7 +193,6 @@ sx_destroy(struct sx *sx)
 	KASSERT(sx->sx_lock == SX_LOCK_UNLOCKED, ("sx lock still held"));
 	KASSERT(sx->sx_recurse == 0, ("sx lock still recursed"));
 	sx->sx_lock = SX_LOCK_DESTROYED;
-	lock_profile_object_destroy(&sx->lock_object);
 	lock_destroy(&sx->lock_object);
 }
 

@@ -123,7 +123,6 @@ rw_init(struct rwlock *rw, const char *name)
 
 	rw->rw_lock = RW_UNLOCKED;
 
-	lock_profile_object_init(&rw->lock_object, &lock_class_rw, name);
 	lock_init(&rw->lock_object, &lock_class_rw, name, NULL, LO_WITNESS |
 	    LO_RECURSABLE | LO_UPGRADABLE);
 }
@@ -134,7 +133,6 @@ rw_destroy(struct rwlock *rw)
 
 	KASSERT(rw->rw_lock == RW_UNLOCKED, ("rw lock not unlocked"));
 	rw->rw_lock = RW_DESTROYED;
-	lock_profile_object_destroy(&rw->lock_object);
 	lock_destroy(&rw->lock_object);
 }
 

@@ -711,7 +711,6 @@ mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 	m->mtx_lock = MTX_UNOWNED;
 	m->mtx_recurse = 0;
 
-	lock_profile_object_init(&m->lock_object, class, name);
 	lock_init(&m->lock_object, class, name, type, flags);
 }
 
@@ -742,7 +741,6 @@ mtx_destroy(struct mtx *m)
 	}
 
 	m->mtx_lock = MTX_DESTROYED;
-	lock_profile_object_destroy(&m->lock_object);
 	lock_destroy(&m->lock_object);
 }
 
