@@ -96,8 +96,8 @@ __FBSDID("$FreeBSD$");
 } while (0)
 
 /*
- * Returns true if an exclusive lock is recursed.  It curthread
- * currently has an exclusive lock.
+ * Returns true if an exclusive lock is recursed.  It assumes
+ * curthread currently has an exclusive lock.
  */
 #define	sx_recursed(sx)		((sx)->sx_recurse != 0)
 
