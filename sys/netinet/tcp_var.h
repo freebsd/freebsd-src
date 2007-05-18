@@ -488,6 +488,7 @@ struct	xtcpcb {
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet_tcp);
 SYSCTL_DECL(_net_inet_tcp_sack);
+MALLOC_DECLARE(M_TCPLOG);
 #endif
 
 extern	struct inpcbhead tcb;		/* head of queue of active tcpcb's */
@@ -520,6 +521,8 @@ void	 tcp_drain(void);
 void	 tcp_fasttimo(void);
 void	 tcp_init(void);
 void	 tcp_fini(void *);
+char 	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
+	    void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
 void	 tcp_reass_init(void);
 void	 tcp_input(struct mbuf *, int);
