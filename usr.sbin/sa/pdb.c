@@ -63,7 +63,7 @@ pacct_init()
 		DBT key, data;
 		int serr, nerr;
 
-		saved_pacct_db = dbopen(_PATH_SAVACCT, O_RDONLY, 0, DB_BTREE,
+		saved_pacct_db = dbopen(pdb_file, O_RDONLY, 0, DB_BTREE,
 		    NULL);
 		if (saved_pacct_db == NULL) {
 			error = errno == ENOENT ? 0 : -1;
@@ -161,7 +161,7 @@ pacct_update()
 	DBT key, data;
 	int error, serr, nerr;
 
-	saved_pacct_db = dbopen(_PATH_SAVACCT, O_RDWR|O_CREAT|O_TRUNC, 0644,
+	saved_pacct_db = dbopen(pdb_file, O_RDWR|O_CREAT|O_TRUNC, 0644,
 	    DB_BTREE, NULL);
 	if (saved_pacct_db == NULL) {
 		warn("creating process accounting summary");
