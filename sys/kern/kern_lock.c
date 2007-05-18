@@ -550,7 +550,6 @@ lockinit(lkp, prio, wmesg, timo, flags)
 #ifdef DEBUG_LOCKS
 	stack_zero(&lkp->lk_stack);
 #endif
-	lock_profile_object_init(&lkp->lk_object, &lock_class_lockmgr, wmesg);
 	lock_init(&lkp->lk_object, &lock_class_lockmgr, wmesg, NULL,
 	    LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE);
 }
@@ -562,9 +561,9 @@ void
 lockdestroy(lkp)
 	struct lock *lkp;
 {
+
 	CTR2(KTR_LOCK, "lockdestroy(): lkp == %p (lk_wmesg == \"%s\")",
 	    lkp, lkp->lk_wmesg);
-	lock_profile_object_destroy(&lkp->lk_object);
 	lock_destroy(&lkp->lk_object);
 }
 
