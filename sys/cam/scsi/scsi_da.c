@@ -1303,9 +1303,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 		struct ccb_scsiio *csio;
 		struct scsi_read_capacity_data *rcap;
 
-		rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcap),
-								M_SCSIDA,
-								M_NOWAIT);
+		rcap = (struct scsi_read_capacity_data *)
+		    malloc(sizeof(*rcap), M_SCSIDA, M_NOWAIT|M_ZERO);
 		if (rcap == NULL) {
 			printf("dastart: Couldn't malloc read_capacity data\n");
 			/* da_free_periph??? */
@@ -1330,7 +1329,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 		struct scsi_read_capacity_data_long *rcaplong;
 
 		rcaplong = (struct scsi_read_capacity_data_long *)
-			malloc(sizeof(*rcaplong), M_SCSIDA, M_NOWAIT);
+			malloc(sizeof(*rcaplong), M_SCSIDA, M_NOWAIT|M_ZERO);
 		if (rcaplong == NULL) {
 			printf("dastart: Couldn't malloc read_capacity data\n");
 			/* da_free_periph??? */
