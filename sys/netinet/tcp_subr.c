@@ -222,6 +222,7 @@ struct tcpcb_mem {
 };
 
 static uma_zone_t tcpcb_zone;
+MALLOC_DEFINE(M_TCPLOG, "tcplog", "TCP address and flags print buffers");
 struct callout isn_callout;
 static struct mtx isn_mtx;
 
@@ -2062,3 +2063,91 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
     CTLTYPE_STRUCT|CTLFLAG_WR|CTLFLAG_SKIP, NULL,
     0, sysctl_drop, "", "Drop TCP connection");
+
+/*
+ * Generate a standardized TCP log line for use throughout the
+ * tcp subsystem.  Memory allocation is done with M_NOWAIT to
+ * allow use in the interrupt context.
+ *
+ * NB: The caller MUST free(s, M_TCPLOG) the returned string.
+ * NB: The function may return NULL if memory allocation failed.
+ *
+ * Due to header inclusion and ordering limitations the struct ip
+ * and ip6_hdr pointers have to be passed as void pointers.
+ */
+char *
+tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
+    void *ip6hdr)
+{
+	char *s, *sp;
+	size_t size;
+	struct ip *ip;
+#ifdef INET6
+	struct ip6_hdr *ip6;
+
+	ip6 = (struct ip6_hdr *)ip6hdr;
+#endif /* INET6 */
+	ip = (struct ip *)ip4hdr;
+
+	/*
+	 * XXX: The size calculation is evil.
+	 * "TCP: [1.2.3.4]:50332 to [1.2.3.4]:80 tcpflags <RST>"
+	 */
+#ifdef INET6
+	size = 5 + 2 * (INET6_ADDRSTRLEN + 10) + 12 + 12 * 4 + 1;
+#else
+	size = 5 + 2 * (sizeof("192.168.172.190") + 10) + 12 + 12 *4 + 1;
+#endif /* INET6 */
+
+	s = sp = malloc(size, M_TCPLOG, (M_ZERO|M_NOWAIT));
+	if (s == NULL)
+		return (NULL);
+
+	strcat(s, "TCP: [");
+	sp = s + strlen(s);
+
+	if (inc && inc->inc_isipv6 == 0) {
+		inet_ntoa_r(inc->inc_faddr, sp);
+		sp = s + strlen(s);
+		sprintf(sp, "]:%i to [", ntohs(inc->inc_fport));
+		sp = s + strlen(s);
+		inet_ntoa_r(inc->inc_laddr, sp);
+		sp = s + strlen(s);
+		sprintf(sp, "]:%i", ntohs(inc->inc_lport));
+#ifdef INET6
+	} else if (inc) {
+		ip6_sprintf(sp, &inc->inc6_faddr);
+		sp = s + strlen(s);
+		sprintf(sp, "]:%i to [", ntohs(inc->inc_fport));
+		sp = s + strlen(s);
+		ip6_sprintf(sp, &inc->inc6_laddr);
+		sp = s + strlen(s);
+		sprintf(sp, "]:%i", ntohs(inc->inc_lport));
+	} else if (ip6 && th) {
+		ip6_sprintf(sp, &ip6->ip6_src);
+		sp = s + strlen(s);
+		sprintf(sp, "]:%i to [", ntohs(th->th_sport));
+		sp = s + strlen(s);
+		ip6_sprintf(sp, &ip6->ip6_dst);
+		sp = s + strlen(s);
+		sprintf(sp, "]:%i", ntohs(th->th_dport));
+#endif /* INET6 */
+	} else if (ip && th) {
+		inet_ntoa_r(ip->ip_src, sp);
+		sp = s + strlen(s);
+		sprintf(sp, "]:%i to [", ntohs(th->th_sport));
+		sp = s + strlen(s);
+		inet_ntoa_r(ip->ip_dst, sp);
+		sp = s + strlen(s);
+		sprintf(sp, "]:%i", ntohs(th->th_dport));
+	} else {
+		free(s, M_TCPLOG);
+		return (NULL);
+	}
+	sp = s + strlen(s);
+	if (th)
+		sprintf(sp, " tcpflags 0x%b", th->th_flags, PRINT_TH_FLAGS);
+	if (s[size] != '\0')
+		panic("%s: string too long", __func__);
+	return (s);
+}
