@@ -797,12 +797,10 @@ fork_exit(callout, arg, frame)
 	 * cpu_switch()'ed to, but when children start up they arrive here
 	 * instead, so we must do much the same things as mi_switch() would.
 	 */
-
 	if ((td = PCPU_GET(deadthread))) {
 		PCPU_SET(deadthread, NULL);
 		thread_stash(td);
 	}
-	td = curthread;
 	mtx_unlock_spin(&sched_lock);
 
 	/*
