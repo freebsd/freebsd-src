@@ -750,7 +750,7 @@ lacp_select_tx_port(struct lagg_softc *lgs, struct mbuf *m)
 	uint32_t hash;
 	int nports;
 
-	LAGG_WLOCK_ASSERT(lgs);
+	LAGG_RLOCK_ASSERT(lgs);
 
 	if (__predict_false(lsc->lsc_suppress_distributing)) {
 		LACP_DPRINTF((NULL, "%s: waiting transit\n", __func__));

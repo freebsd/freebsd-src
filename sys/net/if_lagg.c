@@ -1138,7 +1138,7 @@ lagg_link_active(struct lagg_softc *sc, struct lagg_port *lp)
 	struct lagg_port *lp_next, *rval = NULL;
 	// int new_link = LINK_STATE_DOWN;
 
-	LAGG_WLOCK_ASSERT(sc);
+	LAGG_RLOCK_ASSERT(sc);
 	/*
 	 * Search a port which reports an active link state.
 	 */
