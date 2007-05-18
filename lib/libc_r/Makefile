@@ -10,7 +10,7 @@
 
 .include <bsd.own.mk>
 
-.if ${DEFAULT_THREAD_LIB} == "libc_r"
+.if ${DEFAULT_THREAD_LIB} == "libc_r" && ${SHLIBDIR} == "/usr/lib"
 SHLIBDIR= /lib
 .endif
 
