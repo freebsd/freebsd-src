@@ -551,7 +551,7 @@ kmeminit(void *dummy)
 	 * so make sure that there is enough space.
 	 */
 	vm_kmem_size = VM_KMEM_SIZE + nmbclusters * PAGE_SIZE;
-	mem_size = cnt.v_page_count;
+	mem_size = VMCNT_GET(page_count);
 
 #if defined(VM_KMEM_SIZE_SCALE)
 	vm_kmem_size_scale = VM_KMEM_SIZE_SCALE;
@@ -589,8 +589,8 @@ kmeminit(void *dummy)
 	 * to something sane. Be careful to not overflow the 32bit
 	 * ints while doing the check.
 	 */
-	if (((vm_kmem_size / 2) / PAGE_SIZE) > cnt.v_page_count)
-		vm_kmem_size = 2 * cnt.v_page_count * PAGE_SIZE;
+	if (((vm_kmem_size / 2) / PAGE_SIZE) > VMCNT_GET(page_count))
+		vm_kmem_size = 2 * VMCNT_GET(page_count) * PAGE_SIZE;
 
 	/*
 	 * Tune settings based on the kernel map's size at this time.
@@ -650,7 +650,8 @@ malloc_init(void *data)
 	struct malloc_type_internal *mtip;
 	struct malloc_type *mtp;
 
-	KASSERT(cnt.v_page_count != 0, ("malloc_register before vm_init"));
+	KASSERT(VMCNT_GET(page_count) != 0,
+	    ("malloc_register before vm_init"));
 
 	mtp = data;
 	mtip = uma_zalloc(mt_zone, M_WAITOK | M_ZERO);

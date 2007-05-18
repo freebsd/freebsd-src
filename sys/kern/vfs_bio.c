@@ -2919,8 +2919,10 @@ allocbuf(struct buf *bp, int size)
 				 */
 				if ((curproc != pageproc) &&
 				    (VM_PAGE_INQUEUE1(m, PQ_CACHE)) &&
-				    ((cnt.v_free_count + cnt.v_cache_count) <
-			 		(cnt.v_free_min + cnt.v_cache_min))) {
+				    ((VMCNT_GET(free_count) +
+				    VMCNT_GET(cache_count)) <
+				    (VMCNT_GET(free_min) +
+				    VMCNT_GET(cache_min)))) {
 					pagedaemon_wakeup();
 				}
 				vm_page_wire(m);
