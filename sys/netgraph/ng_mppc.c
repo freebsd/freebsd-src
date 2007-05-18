@@ -157,9 +157,11 @@ static int	ng_mppc_compress(node_p node,
 			struct mbuf **datap);
 static int	ng_mppc_decompress(node_p node,
 			struct mbuf **datap);
+#ifdef NETGRAPH_MPPC_ENCRYPTION
 static void	ng_mppc_getkey(const u_char *h, u_char *h2, int len);
 static void	ng_mppc_updatekey(u_int32_t bits,
 			u_char *key0, u_char *key, struct rc4_state *rc4);
+#endif
 static void	ng_mppc_reset_req(node_p node);
 
 /* Node type descriptor */
@@ -802,6 +804,7 @@ ng_mppc_reset_req(node_p node)
 	d->flushed = 1;
 }   
 
+#ifdef NETGRAPH_MPPC_ENCRYPTION
 /*
  * Generate a new encryption key
  */
@@ -845,4 +848,5 @@ ng_mppc_updatekey(u_int32_t bits,
 		bcopy(&ng_mppe_weakenkey, key, 1);
 	rc4_init(rc4, key, keylen);
 }
+#endif
 
