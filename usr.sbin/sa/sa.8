@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 1994
+.Dd May 18, 2007
 .Dt SA 8
 .Os
 .Sh NAME
@@ -38,6 +38,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl abcdDfijkKlmnqrstu
+.Op Fl P Ar file
+.Op Fl U Ar file
 .Op Fl v Ar cutoff
 .Op Ar
 .Sh DESCRIPTION
@@ -143,6 +145,12 @@ Separate system and user time; normally they are combined.
 Print per-user statistics rather than per-command statistics.
 .It Fl n
 Sort by number of calls.
+.It Fl P Ar file
+Use the specified
+.Ar file
+for accessing the per-command accounting summary database,
+instead of the default
+.Pa /var/account/savacct .
 .It Fl q
 Create no output other than error messages.
 .It Fl r
@@ -155,6 +163,12 @@ For each command, report the ratio of real time to the sum
 of user and system cpu times.
 If the cpu time is too small to report, ``*ignore*'' appears in
 this field.
+.It Fl U Ar file
+Use the specified
+.Ar file
+for accessing the per-user accounting summary database,
+instead of the default
+.Pa /var/account/usracct .
 .It Fl u
 Superseding all other flags, for each entry
 in the accounting file, print the user ID, total seconds of cpu usage,

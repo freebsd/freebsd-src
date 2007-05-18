@@ -71,6 +71,8 @@ static void	usage(void);
 int aflag, bflag, cflag, dflag, Dflag, fflag, iflag, jflag, kflag;
 int Kflag, lflag, mflag, qflag, rflag, sflag, tflag, uflag, vflag;
 u_quad_t cutoff = 1;
+const char *pdb_file = _PATH_SAVACCT;
+const char *usrdb_file = _PATH_USRACCT;
 
 static char	*dfltargv[] = { NULL };
 static int	dfltargc = (sizeof dfltargv/sizeof(char *));
@@ -86,7 +88,7 @@ main(int argc, char **argv)
 
 	dfltargv[0] = pathacct;
 
-	while ((ch = getopt(argc, argv, "abcdDfijkKlmnqrstuv:")) != -1)
+	while ((ch = getopt(argc, argv, "abcdDfijkKlmnP:qrstuU:v:")) != -1)
 		switch (ch) {
 			case 'a':
 				/* print all commands */
@@ -145,6 +147,10 @@ main(int argc, char **argv)
 				/* sort by number of calls */
 				sa_cmp = cmp_calls;
 				break;
+			case 'P':
+				/* specify program database summary file */
+				pdb_file = optarg;
+				break;
 			case 'q':
 				/* quiet; error messages only */
 				qflag = 1;
@@ -164,6 +170,10 @@ main(int argc, char **argv)
 			case 'u':
 				/* first, print uid and command name */
 				uflag = 1;
+				break;
+			case 'U':
+				/* specify user database summary file */
+				usrdb_file = optarg;
 				break;
 			case 'v':
 				/* cull junk */
@@ -294,7 +304,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-		"usage: sa [-abcdDfijkKlmnqrstu] [-v cutoff] [file ...]\n");
+		"usage: sa [-abcdDfijkKlmnqrstu] [-P file] [-U file] [-v cutoff] [file ...]\n");
 	exit(1);
 }
 
