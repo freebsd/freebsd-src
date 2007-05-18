@@ -240,7 +240,6 @@ tcp_input(struct mbuf *m, int off0)
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
-	char ip6buf[INET6_ADDRSTRLEN];
 #else
 	const int isipv6 = 0;
 #endif
@@ -481,30 +480,17 @@ findpcb:
 		 */
 		if ((tcp_log_in_vain == 1 && (thflags & TH_SYN)) ||
 		    tcp_log_in_vain == 2) {
-#ifndef INET6
-			char dbuf[4*sizeof "123"], sbuf[4*sizeof "123"];
+			char *s;
+#ifdef INET6
+			s = tcp_log_addrs(NULL, th, (void *)ip, (void *)ip6);
 #else
-			char dbuf[INET6_ADDRSTRLEN+2], sbuf[INET6_ADDRSTRLEN+2];
-			if (isipv6) {
-				strcpy(dbuf, "[");
-				strcat(dbuf,
-				    ip6_sprintf(ip6buf, &ip6->ip6_dst));
-				strcat(dbuf, "]");
-				strcpy(sbuf, "[");
-				strcat(sbuf,
-				    ip6_sprintf(ip6buf, &ip6->ip6_src));
-				strcat(sbuf, "]");
-			} else
+			s = tcp_log_addrs(NULL, th, (void *)ip, NULL);
 #endif /* INET6 */
-			{
-				strcpy(dbuf, inet_ntoa(ip->ip_dst));
-				strcpy(sbuf, inet_ntoa(ip->ip_src));
+			if (s != NULL) {
+				log(LOG_INFO, "%s; %s: Connection attempt "
+				    "to closed port\n", s, __func__);
+				free(s, M_TCPLOG);
 			}
-			log(LOG_INFO,
-			    "Connection attempt to TCP %s:%d "
-			    "from %s:%d flags:0x%02x\n",
-			    dbuf, ntohs(th->th_dport), sbuf,
-			    ntohs(th->th_sport), thflags);
 		}
 		/*
 		 * When blackholing do not respond with a RST but
