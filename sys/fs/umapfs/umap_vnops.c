@@ -57,7 +57,7 @@ SYSCTL_INT(_debug, OID_AUTO, umapfs_bug_bypass, CTLFLAG_RW,
 static vop_generic_t	umap_bypass;
 static vop_getattr_t	umap_getattr;
 static vop_inactive_t	umap_inactive;
-static vop_lock_t	umap_lock;
+static vop_lock1_t	umap_lock;
 static vop_print_t	umap_print;
 static vop_reclaim_t	umap_reclaim;
 static vop_rename_t	umap_rename;
@@ -353,7 +353,7 @@ umap_getattr(ap)
  */
 static int
 umap_lock(ap)
-	struct vop_lock_args /* {
+	struct vop_lock1_args /* {
 		struct vnode *a_vp;
 		int a_flags;
 		struct thread *a_td;
@@ -525,7 +525,7 @@ static struct vop_vector umap_vnodeops = {
 
 	.vop_getattr =		umap_getattr,
 	.vop_inactive =		umap_inactive,
-	.vop_lock =		umap_lock,
+	.vop_lock1 =		umap_lock,
 	.vop_print =		umap_print,
 	.vop_reclaim =		umap_reclaim,
 	.vop_rename =		umap_rename,

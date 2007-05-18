@@ -129,7 +129,7 @@ struct vop_vector coda_vnodeops = {
     .vop_readlink = coda_readlink,	/* readlink */
     .vop_inactive = coda_inactive,	/* inactive */
     .vop_reclaim = coda_reclaim,	/* reclaim */
-    ._vop_lock = coda_lock,		/* lock */
+    .vop_lock1 = coda_lock,		/* lock */
     .vop_unlock = coda_unlock,		/* unlock */
     .vop_bmap = coda_bmap,		/* bmap */
     .vop_print = VOP_PANIC,	/* print */
@@ -1627,7 +1627,7 @@ coda_reclaim(struct vop_reclaim_args *ap)
 }
 
 int
-coda_lock(struct _vop_lock_args *ap)
+coda_lock(struct vop_lock1_args *ap)
 {
 /* true args */
     struct vnode *vp = ap->a_vp;
