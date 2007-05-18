@@ -50,6 +50,7 @@
 #include <sys/random.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/syslog.h>
 
 #include <vm/uma.h>
 
@@ -378,6 +379,7 @@ syncache_timer(void *xsch)
 	struct syncache_head *sch = (struct syncache_head *)xsch;
 	struct syncache *sc, *nsc;
 	int tick = ticks;
+	char *s;
 
 	/* NB: syncache_head has already been locked by the callout. */
 	SCH_LOCK_ASSERT(sch);
@@ -398,6 +400,11 @@ syncache_timer(void *xsch)
 		}
 
 		if (sc->sc_rxmits > tcp_syncache.rexmt_limit) {
+			if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
+				log(LOG_DEBUG, "%s; %s: Response timeout\n",
+				    s, __func__);
+				free(s, M_TCPLOG);
+			}
 			syncache_drop(sc, sch);
 			tcpstat.tcps_sc_stale++;
 			continue;
@@ -553,6 +560,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	struct inpcb *inp = NULL;
 	struct socket *so;
 	struct tcpcb *tp;
+	char *s;
 
 	NET_ASSERT_GIANT();
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
@@ -566,10 +574,17 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	so = sonewconn(lso, SS_ISCONNECTED);
 	if (so == NULL) {
 		/*
-		 * Drop the connection; we will send a RST if the peer
-		 * retransmits the ACK,
+		 * Drop the connection; we will either send a RST or
+		 * have the peer retransmit its SYN again after its
+		 * RTO and try again.
 		 */
 		tcpstat.tcps_listendrop++;
+		if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Socket create failed "
+			    "due to limits or memory shortage\n",
+			    s, __func__);
+			free(s, M_TCPLOG);
+		}
 		goto abort2;
 	}
 #ifdef MAC
@@ -757,12 +772,15 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct syncache *sc;
 	struct syncache_head *sch;
 	struct syncache scs;
+	char *s;
 
 	/*
 	 * Global TCP locks are held because we manipulate the PCB lists
 	 * and create a new socket.
 	 */
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK,
+	    ("%s: can handle only ACK", __func__));
 
 	sc = syncache_lookup(inc, &sch);	/* returns locked sch */
 	SCH_LOCK_ASSERT(sch);
@@ -778,13 +796,21 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 */
 		if (!tcp_syncookies) {
 			SCH_UNLOCK(sch);
+			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+				log(LOG_DEBUG, "%s; %s: Spurious ACK\n",
+				    s, __func__);
 			goto failed;
 		}
 		bzero(&scs, sizeof(scs));
 		sc = syncookie_lookup(inc, sch, &scs, to, th, *lsop);
 		SCH_UNLOCK(sch);
-		if (sc == NULL)
+		if (sc == NULL) {
+			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+				log(LOG_DEBUG, "%s; %s: Segment failed "
+				    "SYNCOOKIE authentication\n",
+				    s, __func__);
 			goto failed;
+		}
 		tcpstat.tcps_sc_recvcookie++;
 	} else {
 		/* Pull out the entry to unlock the bucket row. */
@@ -795,10 +821,15 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	}
 
 	/*
-	 * If seg contains an ACK, but not for our SYN/ACK, send a RST.
+	 * Segment validation:
+	 * ACK must match our initial sequence number + 1 (the SYN|ACK).
 	 */
-	if (th->th_ack != sc->sc_iss + 1)
+	if (th->th_ack != sc->sc_iss + 1) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+			log(LOG_DEBUG, "%s; %s: ACK %u != ISS+1 %u\n",
+			    s, __func__, th->th_ack, sc->sc_iss);
 		goto failed;
+	}
 
 	*lsop = syncache_socket(sc, *lsop, m);
 
@@ -813,6 +844,8 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 failed:
 	if (sc != NULL && sc != &scs)
 		syncache_free(sc);
+	if (s != NULL)
+		free(s, M_TCPLOG);
 	*lsop = NULL;
 	return (0);
 }
