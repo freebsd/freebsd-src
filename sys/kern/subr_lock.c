@@ -215,6 +215,7 @@ lock_init(struct lock_object *lock, struct lock_class *class, const char *name,
 	lock->lo_flags |= flags | LO_INITIALIZED;
 	LOCK_LOG_INIT(lock, 0);
 	WITNESS_INIT(lock);
+	lock_profile_object_init(lock, class, name);
 }
 
 void
@@ -222,6 +223,7 @@ lock_destroy(struct lock_object *lock)
 {
 
 	KASSERT(lock_initalized(lock), ("lock %p is not initialized", lock));
+	lock_profile_object_destroy(lock);
 	WITNESS_DESTROY(lock);
 	LOCK_LOG_DESTROY(lock, 0);
 	lock->lo_flags &= ~LO_INITIALIZED;
