@@ -68,7 +68,7 @@ usracct_init()
 		DBT key, data;
 		int serr, nerr;
 
-		saved_usracct_db = dbopen(_PATH_USRACCT, O_RDONLY, 0, DB_BTREE,
+		saved_usracct_db = dbopen(usrdb_file, O_RDONLY, 0, DB_BTREE,
 		    &bti);
 		if (saved_usracct_db == NULL) {
 			error = (errno == ENOENT) ? 0 : -1;
@@ -180,7 +180,7 @@ usracct_update()
 	bzero(&bti, sizeof bti);
 	bti.compare = uid_compare;
 
-	saved_usracct_db = dbopen(_PATH_USRACCT, O_RDWR|O_CREAT|O_TRUNC, 0644,
+	saved_usracct_db = dbopen(usrdb_file, O_RDWR|O_CREAT|O_TRUNC, 0644,
 	    DB_BTREE, &bti);
 	if (saved_usracct_db == NULL) {
 		warn("creating user accounting summary");

@@ -82,6 +82,7 @@ extern int	aflag, bflag, cflag, dflag, Dflag, fflag, iflag, jflag, kflag;
 extern int	Kflag, lflag, mflag, qflag, rflag, sflag, tflag, uflag, vflag;
 extern u_quad_t	cutoff;
 extern cmpf_t	sa_cmp;
+extern const char *pdb_file, *usrdb_file;
 
 /* some #defines to help with db's stupidity */
 
