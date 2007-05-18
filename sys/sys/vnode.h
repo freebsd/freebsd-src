@@ -650,7 +650,7 @@ int	vop_stdgetpages(struct vop_getpages_args *);
 int	vop_stdinactive(struct vop_inactive_args *);
 int	vop_stdislocked(struct vop_islocked_args *);
 int	vop_stdkqfilter(struct vop_kqfilter_args *);
-int	vop_stdlock(struct _vop_lock_args *);
+int	vop_stdlock(struct vop_lock1_args *);
 int	vop_stdputpages(struct vop_putpages_args *);
 int	vop_stdunlock(struct vop_unlock_args *);
 int	vop_nopoll(struct vop_poll_args *);
@@ -704,7 +704,7 @@ void	vop_unlock_pre(void *a);
 		    | (noffset > osize ? NOTE_EXTEND : 0));		\
 	}
 
-#define VOP_LOCK(vp, flags, td) _VOP_LOCK(vp, flags, td, __FILE__, __LINE__)
+#define VOP_LOCK(vp, flags, td) VOP_LOCK1(vp, flags, td, __FILE__, __LINE__)
 
 
 void	vput(struct vnode *vp);
