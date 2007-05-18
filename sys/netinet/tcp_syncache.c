@@ -830,6 +830,44 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    s, __func__, th->th_ack, sc->sc_iss);
 		goto failed;
 	}
+	/*
+	 * The SEQ must match the received initial receive sequence
+	 * number + 1 (the SYN) because we didn't ACK any data that
+	 * may have come with the SYN.
+	 */
+	if (th->th_seq != sc->sc_irs + 1) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+			log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u\n",
+			    s, __func__, th->th_ack, sc->sc_iss);
+		goto failed;
+	}
+	/*
+	 * If timestamps were present in the SYN and we accepted
+	 * them in our SYN|ACK we require them to be present from
+	 * now on.  And vice versa.
+	 */
+	if ((sc->sc_flags & SCF_TIMESTAMP) && !(to->to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+			log(LOG_DEBUG, "%s; %s: Timestamp missing\n",
+			    s, __func__);
+		goto failed;
+	}
+	if (!(sc->sc_flags & SCF_TIMESTAMP) && (to->to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+			log(LOG_DEBUG, "%s; %s: Timestamp not expected\n",
+			    s, __func__);
+		goto failed;
+	}
+	/*
+	 * If timestamps were negotiated the reflected timestamp
+	 * must be equal to what we actually sent in the SYN|ACK.
+	 */
+	if ((to->to_flags & TOF_TS) && to->to_tsecr != sc->sc_ts) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+			log(LOG_DEBUG, "%s; %s: TSECR %u != TS %u\n",
+			    s, __func__, to->to_tsecr, sc->sc_ts);
+		goto failed;
+	}
 
 	*lsop = syncache_socket(sc, *lsop, m);
 
@@ -1031,6 +1069,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 */
 		if (to->to_flags & TOF_TS) {
 			sc->sc_tsreflect = to->to_tsval;
+			sc->sc_ts = ticks;
 			sc->sc_flags |= SCF_TIMESTAMP;
 		}
 		if (to->to_flags & TOF_SCALE) {
@@ -1218,7 +1257,7 @@ syncache_respond(struct syncache *sc)
 		}
 		if (sc->sc_flags & SCF_TIMESTAMP) {
 			/* Virgin timestamp or TCP cookie enhanced one. */
-			to.to_tsval = sc->sc_ts ? sc->sc_ts : ticks;
+			to.to_tsval = sc->sc_ts;
 			to.to_tsecr = sc->sc_tsreflect;
 			to.to_flags |= TOF_TS;
 		}
@@ -1412,8 +1451,7 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc,
 		data ^= md5_buffer[3];
 		sc->sc_ts = data;
 		sc->sc_tsoff = data - ticks;		/* after XOR */
-	} else
-		sc->sc_ts = 0;
+	}
 
 	return;
 }
@@ -1496,6 +1534,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	if (data) {
 		sc->sc_flags |= SCF_TIMESTAMP;
 		sc->sc_tsreflect = to->to_tsval;
+		sc->sc_ts = to->to_tsecr;
 		sc->sc_tsoff = to->to_tsecr - ticks;
 		sc->sc_flags |= (data & 0x1) ? SCF_SIGNATURE : 0;
 		sc->sc_flags |= ((data >> 1) & 0x1) ? SCF_SACK : 0;
