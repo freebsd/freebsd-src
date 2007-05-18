@@ -1888,10 +1888,11 @@ nfs_down(rep, nmp, td, msg, error, flags)
 	} else
 		mtx_unlock(&nmp->nm_mtx);
 #endif
-	mtx_lock(&rep->r_mtx);
-	if (rep)
+	if (rep != NULL) {
+		mtx_lock(&rep->r_mtx);
 		rep->r_flags |= R_TPRINTFMSG;
-	mtx_unlock(&rep->r_mtx);
+		mtx_unlock(&rep->r_mtx);
+	}
 	nfs_msg(td, nmp->nm_mountp->mnt_stat.f_mntfromname, msg, error);
 }
 
