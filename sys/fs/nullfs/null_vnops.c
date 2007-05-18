@@ -510,7 +510,7 @@ null_rename(struct vop_rename_args *ap)
  * vnodes below us on the stack.
  */
 static int
-null_lock(struct _vop_lock_args *ap)
+null_lock(struct vop_lock1_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
@@ -728,7 +728,7 @@ struct vop_vector null_vnodeops = {
 	.vop_getwritemount =	null_getwritemount,
 	.vop_inactive =		null_inactive,
 	.vop_islocked =		null_islocked,
-	._vop_lock =		null_lock,
+	.vop_lock1 =		null_lock,
 	.vop_lookup =		null_lookup,
 	.vop_open =		null_open,
 	.vop_print =		null_print,

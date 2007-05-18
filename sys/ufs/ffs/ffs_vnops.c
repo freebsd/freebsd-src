@@ -104,7 +104,7 @@ __FBSDID("$FreeBSD$");
 extern int	ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 #endif
 static vop_fsync_t	ffs_fsync;
-static _vop_lock_t	ffs_lock;
+static vop_lock1_t	ffs_lock;
 static vop_getpages_t	ffs_getpages;
 static vop_read_t	ffs_read;
 static vop_write_t	ffs_write;
@@ -126,7 +126,7 @@ struct vop_vector ffs_vnodeops1 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
 	.vop_getpages =		ffs_getpages,
-	._vop_lock =		ffs_lock,
+	.vop_lock1 =		ffs_lock,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_write =		ffs_write,
@@ -145,7 +145,7 @@ struct vop_vector ffs_vnodeops2 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
 	.vop_getpages =		ffs_getpages,
-	._vop_lock =		ffs_lock,
+	.vop_lock1 =		ffs_lock,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_write =		ffs_write,
@@ -161,7 +161,7 @@ struct vop_vector ffs_vnodeops2 = {
 struct vop_vector ffs_fifoops2 = {
 	.vop_default =		&ufs_fifoops,
 	.vop_fsync =		ffs_fsync,
-	._vop_lock =		ffs_lock,
+	.vop_lock1 =		ffs_lock,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_strategy =		ffsext_strategy,
 	.vop_closeextattr =	ffs_closeextattr,
@@ -338,7 +338,7 @@ loop:
 
 static int
 ffs_lock(ap)
-	struct _vop_lock_args /* {
+	struct vop_lock1_args /* {
 		struct vnode *a_vp;
 		int a_flags;
 		struct thread *a_td;
@@ -388,11 +388,11 @@ ffs_lock(ap)
 		}
 		break;
 	default:
-		result = _VOP_LOCK_APV(&ufs_vnodeops, ap);
+		result = VOP_LOCK1_APV(&ufs_vnodeops, ap);
 	}
 	return (result);
 #else
-	return (_VOP_LOCK_APV(&ufs_vnodeops, ap));
+	return (VOP_LOCK1_APV(&ufs_vnodeops, ap));
 #endif
 }
 

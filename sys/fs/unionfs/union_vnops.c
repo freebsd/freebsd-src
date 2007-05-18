@@ -1630,7 +1630,7 @@ unionfs_get_llt_revlock(int flags)
 }
 
 static int
-unionfs_lock(struct _vop_lock_args *ap)
+unionfs_lock(struct vop_lock1_args *ap)
 {
 	int		error;
 	int		flags;
@@ -2256,7 +2256,7 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_lease =		unionfs_lease,
 	.vop_link =		unionfs_link,
 	.vop_listextattr =	unionfs_listextattr,
-	._vop_lock =		unionfs_lock,
+	.vop_lock1 =		unionfs_lock,
 	.vop_lookup =		unionfs_lookup,
 	.vop_mkdir =		unionfs_mkdir,
 	.vop_mknod =		unionfs_mknod,

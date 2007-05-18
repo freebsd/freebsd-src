@@ -86,7 +86,7 @@ struct vop_vector default_vnodeops = {
 	.vop_kqfilter =		vop_stdkqfilter,
 	.vop_islocked =		vop_stdislocked,
 	.vop_lease =		VOP_NULL,
-	._vop_lock =		vop_stdlock,
+	.vop_lock1 =		vop_stdlock,
 	.vop_lookup =		vop_nolookup,
 	.vop_open =		VOP_NULL,
 	.vop_pathconf =		VOP_EINVAL,
@@ -253,7 +253,7 @@ vop_stdpathconf(ap)
  */
 int
 vop_stdlock(ap)
-	struct _vop_lock_args /* {
+	struct vop_lock1_args /* {
 		struct vnode *a_vp;
 		int a_flags;
 		struct thread *a_td;
