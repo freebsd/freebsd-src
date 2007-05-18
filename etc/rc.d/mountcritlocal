@@ -43,7 +43,7 @@ mountcritlocal_start()
 	*)
 		echo 'Mounting /etc/fstab filesystems failed,' \
 		    ' startup aborted'
-		kill -QUIT $$
+		stop_boot true
 		;;
 	esac
 }
