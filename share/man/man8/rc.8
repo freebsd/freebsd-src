@@ -35,7 +35,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 19, 2005
+.Dd May 18, 2007
 .Dt RC 8
 .Os
 .Sh NAME
@@ -249,16 +249,11 @@ Extreme care must be taken in using this, as the startup sequence will
 terminate if the script does.
 .It Pa bar
 Scripts that are sourced in a subshell.
-These can stop the boot if necessary with the following shell
-commands:
-.Bd -literal -offset indent
-if [ "$autoboot" = yes ]; then
-	kill -TERM $$
-fi
-exit 1
-.Ed
-.Pp
-Note that this should be used extremely sparingly!
+The boot does not stop if such a script terminates with a non-zero status,
+but a script can stop the boot if necessary by invoking the
+.Fn stop_boot
+function (from
+.Xr rc.subr 8 ).
 .El
 .Pp
 Each script should contain
