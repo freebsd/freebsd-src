@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2006
+.Dd May 18, 2007
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -833,6 +833,23 @@ otherwise source
 .Ar file
 into the current shell.
 .El
+.It Ic stop_boot Op Ar always
+Prevent booting to multiuser mode.
+If the
+.Sy autoboot
+variable is
+.Sq yes ,
+or
+.Ar always
+is
+.Sq true ,
+then a
+.Sy SIGTERM
+signal is sent to the parent
+process (which is assumed to be
+.Xr rc 8 ).
+Otherwise, the shell exits with status
+.Li 1 .
 .It Ic set_rcvar Op Ar base
 Set the variable name required to start a service.
 In
