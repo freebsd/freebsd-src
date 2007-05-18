@@ -10,7 +10,7 @@
 
 .include <bsd.own.mk>
 
-.if ${DEFAULT_THREAD_LIB} == "libpthread"
+.if ${DEFAULT_THREAD_LIB} == "libpthread" && ${SHLIBDIR} == "/usr/lib"
 SHLIBDIR= /lib
 .endif
 
