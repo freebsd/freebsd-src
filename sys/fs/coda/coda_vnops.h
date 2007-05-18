@@ -72,7 +72,7 @@ vop_readdir_t coda_readdir;
 vop_bmap_t coda_bmap;
 vop_strategy_t coda_strategy;
 vop_reclaim_t coda_reclaim;
-_vop_lock_t coda_lock;
+vop_lock1_t coda_lock;
 vop_unlock_t coda_unlock;
 vop_islocked_t coda_islocked;
 int coda_vop_error(void *);

@@ -3048,7 +3048,7 @@ static struct vop_vector sync_vnodeops = {
 	.vop_fsync =	sync_fsync,		/* fsync */
 	.vop_inactive =	sync_inactive,	/* inactive */
 	.vop_reclaim =	sync_reclaim,	/* reclaim */
-	._vop_lock =	vop_stdlock,	/* lock */
+	.vop_lock1 =	vop_stdlock,	/* lock */
 	.vop_unlock =	vop_stdunlock,	/* unlock */
 	.vop_islocked =	vop_stdislocked,	/* islocked */
 };
@@ -3555,7 +3555,7 @@ void
 vop_lock_pre(void *ap)
 {
 #ifdef DEBUG_VFS_LOCKS
-	struct _vop_lock_args *a = ap;
+	struct vop_lock1_args *a = ap;
 
 	if ((a->a_flags & LK_INTERLOCK) == 0)
 		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
@@ -3568,7 +3568,7 @@ void
 vop_lock_post(void *ap, int rc)
 {
 #ifdef DEBUG_VFS_LOCKS
-	struct _vop_lock_args *a = ap;
+	struct vop_lock1_args *a = ap;
 
 	ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
 	if (rc == 0)
