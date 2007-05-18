@@ -138,16 +138,6 @@ FBSD_1.0 {
         sctp_send;
         sctp_sendx;
         sctp_recvmsg;
- 	__nss_compat_getgrnam_r;
- 	__nss_compat_getgrgid_r;
- 	__nss_compat_getgrent_r;
- 	__nss_compat_setgrent;
- 	__nss_compat_endgrent;
- 	__nss_compat_getpwnam_r;
- 	__nss_compat_getpwuid_r;
- 	__nss_compat_getpwent_r;
- 	__nss_compat_setpwent;
- 	__nss_compat_endpwent;
 };
 
 FBSDprivate_1.0 {
@@ -162,4 +152,14 @@ FBSDprivate_1.0 {
 	__ivaliduser_sa;
 	__check_rhosts_file;
 	__rcmd_errstr;
+ 	__nss_compat_getgrnam_r;
+ 	__nss_compat_getgrgid_r;
+ 	__nss_compat_getgrent_r;
+ 	__nss_compat_setgrent;
+ 	__nss_compat_endgrent;
+ 	__nss_compat_getpwnam_r;
+ 	__nss_compat_getpwuid_r;
+ 	__nss_compat_getpwent_r;
+ 	__nss_compat_setpwent;
+ 	__nss_compat_endpwent;
 };
