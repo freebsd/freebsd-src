@@ -70,13 +70,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
+
+#include <vm/uma.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -142,8 +143,7 @@ SYSCTL_UINT(_debug_sleepq, OID_AUTO, max_depth, CTLFLAG_RD, &sleepq_max_depth,
     0, "maxmimum depth achieved of a single chain");
 #endif
 static struct sleepqueue_chain sleepq_chains[SC_TABLESIZE];
-
-static MALLOC_DEFINE(M_SLEEPQUEUE, "sleepqueue", "sleep queues");
+static uma_zone_t sleepq_zone;
 
 /*
  * Prototypes for non-exported routines.
@@ -151,9 +151,14 @@ static MALLOC_DEFINE(M_SLEEPQUEUE, "sleepqueue", "sleep queues");
 static int	sleepq_catch_signals(void *wchan);
 static int	sleepq_check_signals(void);
 static int	sleepq_check_timeout(void);
+#ifdef INVARIANTS
+static void	sleepq_dtor(void *mem, int size, void *arg);
+#endif
+static int	sleepq_init(void *mem, int size, int flags);
+static void	sleepq_resume_thread(struct sleepqueue *sq, struct thread *td,
+		    int pri);
 static void	sleepq_switch(void *wchan);
 static void	sleepq_timeout(void *arg);
-static void	sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri);
 
 /*
  * Early initialization of sleep queues that is called from the sleepinit()
@@ -184,23 +189,24 @@ init_sleepqueues(void)
 		    NULL);
 #endif
 	}
+	sleepq_zone = uma_zcreate("SLEEPQUEUE", sizeof(struct sleepqueue),
+#ifdef INVARIANTS
+	    NULL, sleepq_dtor, sleepq_init, NULL, UMA_ALIGN_CACHE, 0);
+#else
+	    NULL, NULL, sleepq_init, NULL, UMA_ALIGN_CACHE, 0);
+#endif
+	
 	thread0.td_sleepqueue = sleepq_alloc();
 }
 
 /*
- * Malloc and initialize a new sleep queue for a new thread.
+ * Get a sleep queue for a new thread.
  */
 struct sleepqueue *
 sleepq_alloc(void)
 {
-	struct sleepqueue *sq;
-	int i;
 
-	sq = malloc(sizeof(struct sleepqueue), M_SLEEPQUEUE, M_WAITOK | M_ZERO);
-	for (i = 0; i < NR_SLEEPQS; i++)
-		TAILQ_INIT(&sq->sq_blocked[i]);
-	LIST_INIT(&sq->sq_free);
-	return (sq);
+	return (uma_zalloc(sleepq_zone, M_WAITOK));
 }
 
 /*
@@ -209,12 +215,8 @@ sleepq_alloc(void)
 void
 sleepq_free(struct sleepqueue *sq)
 {
-	int i;
 
-	MPASS(sq != NULL);
-	for (i = 0; i < NR_SLEEPQS; i++)
-		MPASS(TAILQ_EMPTY(&sq->sq_blocked[i]));
-	free(sq, M_SLEEPQUEUE);
+	uma_zfree(sleepq_zone, sq);
 }
 
 /*
@@ -664,6 +666,39 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 	if (pri != -1 && td->td_priority > pri)
 		sched_prio(td, pri);
 	setrunnable(td);
+}
+
+#ifdef INVARIANTS
+/*
+ * UMA zone item deallocator.
+ */
+static void
+sleepq_dtor(void *mem, int size, void *arg)
+{
+	struct sleepqueue *sq;
+	int i;
+
+	sq = mem;
+	for (i = 0; i < NR_SLEEPQS; i++)
+		MPASS(TAILQ_EMPTY(&sq->sq_blocked[i]));
+}
+#endif
+
+/*
+ * UMA zone item initializer.
+ */
+static int
+sleepq_init(void *mem, int size, int flags)
+{
+	struct sleepqueue *sq;
+	int i;
+
+	bzero(mem, size);
+	sq = mem;
+	for (i = 0; i < NR_SLEEPQS; i++)
+		TAILQ_INIT(&sq->sq_blocked[i]);
+	LIST_INIT(&sq->sq_free);
+	return (0);
 }
 
 /*
