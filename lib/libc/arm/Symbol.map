@@ -11,7 +11,7 @@ FBSD_1.0 {
 	/* PSEUDO syscalls */
 	_exit;
 
-	_mcount;
+	__mcount;
 	_setjmp;
 	_longjmp;
 	alloca;

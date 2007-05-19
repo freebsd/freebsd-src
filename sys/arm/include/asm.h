@@ -80,7 +80,7 @@
 
 #ifdef GPROF
 #  define _PROF_PROLOGUE	\
-	mov ip, lr; bl _mcount
+	mov ip, lr; bl __mcount
 #else
 # define _PROF_PROLOGUE
 #endif
