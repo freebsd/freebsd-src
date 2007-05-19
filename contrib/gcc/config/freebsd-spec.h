@@ -1,5 +1,5 @@
 /* Base configuration file for all FreeBSD targets.
-   Copyright (C) 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2001, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* $FreeBSD$ */
 
@@ -64,7 +64,7 @@ Boston, MA 02111-1307, USA.  */
     }									\
   while (0)
 
-/* Define the default FreeBSD-specific per-CPU hook code. */
+/* Define the default FreeBSD-specific per-CPU hook code.  */
 #define FBSD_TARGET_CPU_CPP_BUILTINS() do {} while (0)
 
 #ifdef FREEBSD_NATIVE
@@ -77,7 +77,7 @@ Boston, MA 02111-1307, USA.  */
   do {} while (0)
 #endif
 
-/* Provide a CPP_SPEC appropriate for FreeBSD.  We just deal with the GCC 
+/* Provide a CPP_SPEC appropriate for FreeBSD.  We just deal with the GCC
    option `-posix', and PIC issues.  Try to detect support for the
    `long long' type.  Unfortunately the GCC spec parser will not allow us
    to properly detect the "iso9899:1990" and "iso9899:199409" forms of
@@ -87,14 +87,14 @@ Boston, MA 02111-1307, USA.  */
 
 #define FBSD_CPP_SPEC "							\
   %(cpp_cpu)								\
-  %{fPIC|fpic|fPIE|fpie:-D__PIC__ -D__pic__}				\
+  %(cpp_arch)								\
   %{!ansi:%{!std=c89:%{!std=iso9899.1990:%{!std=iso9899.199409:-D_LONGLONG}}}} \
   %{posix:-D_POSIX_SOURCE}"
 
 /* Provide a STARTFILE_SPEC appropriate for FreeBSD.  Here we add the magical
    crtbegin.o file (see crtstuff.c) which provides part of the support for
    getting C++ file-scope static object constructed before entering `main'.  */
-   
+
 #define FBSD_STARTFILE_SPEC "\
   %{!shared: \
     %{pg:gcrt1.o%s} \
@@ -104,8 +104,7 @@ Boston, MA 02111-1307, USA.  */
 	%{profile:gcrt1.o%s} \
 	%{!profile:crt1.o%s}}}} \
   crti.o%s \
-  %{!shared:crtbegin.o%s} \
-  %{shared:crtbeginS.o%s}"
+  %{static:crtbeginT.o%s;shared:crtbeginS.o%s;:crtbegin.o%s}"
 
 /* Provide an ENDFILE_SPEC appropriate for FreeBSD/i386.  Here we tack on
    our own magical crtend.o file (see crtstuff.c) which provides part of
@@ -133,7 +132,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* Provide a LIB_SPEC appropriate for FreeBSD.  Just select the appropriate
    libc, depending on whether we're doing profiling or need threads support.
-   (simular to the default, except no -lg, and no -p).  */
+   (similar to the default, except no -lg, and no -p).  */
 
 #ifdef FBSD_NO_THREADS
 #define FBSD_LIB_SPEC "							\
@@ -155,12 +154,20 @@ is built with the --enable-threads configure-time option.}		\
       %{!pthread:-lc_p}							\
       %{pthread:-lc_r_p}}						\
   }"
-#else
+#elif __FreeBSD_version < 700022
 #define FBSD_LIB_SPEC "							\
   %{!shared:								\
     %{!pg: %{pthread:-lpthread} -lc}					\
     %{pg:  %{pthread:-lpthread_p} -lc_p}				\
   }"
+#else
+#define FBSD_LIB_SPEC "							\
+  %{!shared:								\
+    %{!pg: %{pthread:-lpthread} -lc}					\
+    %{pg:  %{pthread:-lpthread_p} -lc_p}}				\
+  %{shared:								\
+    %{pthread:-lpthread} -lc}						\
+  "
 #endif
 #endif
 
@@ -168,4 +175,13 @@ is built with the --enable-threads configure-time option.}		\
 #define FBSD_DYNAMIC_LINKER "/usr/libexec/ld-elf.so.1"
 #else
 #define FBSD_DYNAMIC_LINKER "/libexec/ld-elf.so.1"
+#endif
+
+#if defined(HAVE_LD_EH_FRAME_HDR)
+#define LINK_EH_SPEC "%{!static:--eh-frame-hdr} "
+#endif
+
+/* Use --as-needed -lgcc_s for eh support.  */
+#ifdef HAVE_LD_AS_NEEDED
+#define USE_LD_AS_NEEDED 1
 #endif

@@ -1,5 +1,5 @@
 /* Definitions for AMD x86-64 running FreeBSD with ELF format
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2004 Free Software Foundation, Inc.
    Contributed by David O'Brien <obrien@FreeBSD.org>
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* $FreeBSD$ */
 
@@ -46,7 +46,6 @@ Boston, MA 02111-1307, USA.  */
 #undef	LINK_SPEC
 #define LINK_SPEC "\
   %{m32:-m elf_i386_fbsd} \
-  %{Wl,*:%*} \
   %{v:-V} \
   %{assert*} %{R*} %{rpath*} %{defsym*} \
   %{shared:-Bshareable %{h*} %{soname*}} \
