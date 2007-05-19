@@ -1,11 +1,11 @@
 /* -*-C-*-
-	
+
    This file contains definitions of the various C++ operators,
    including both overloadable operators (like `+') and
-   non-overloadable operators (like the `?:' ternary operator).  
+   non-overloadable operators (like the `?:' ternary operator).
    Written by Mark Mitchell <mark@codesourcery.com>
 
-   Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002, 2003, 2005 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,8 +21,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* The DEF_OPERATOR macro takes the following arguments:
 
@@ -32,7 +32,7 @@ Boston, MA 02111-1307, USA.  */
      preceding `operator'.  This is the name that would be given in
      the source program.  For `operator +', for example, this would be
      `+'.
-   
+
    CODE
 
      The tree_code for this operator.  For `operator +', for example,
@@ -47,7 +47,7 @@ Boston, MA 02111-1307, USA.  */
      would be "pl".
 
    ARITY
-   
+
      The arity of the operator, or -1 if any arity is allowed.  (As
      for `operator ()'.)  Postincrement and postdecrement operators
      are marked as binary.
@@ -57,12 +57,12 @@ Boston, MA 02111-1307, USA.  */
      A boolean value.  If nonzero, this is an assignment operator.
 
    Before including this file, you should define DEFOPERATOR
-   to take these arguments.  
+   to take these arguments.
 
    There is code (such as in grok_op_properties) that depends on the
    order the operators are presented in this file.  In particular,
    unary operators must precede binary operators.  */
- 
+
 /* Use DEF_SIMPLE_OPERATOR to define a non-assignment operator.  Its
    arguments are as for DEF_OPERATOR, but there is no need to provide
    an ASSIGNMENT_P argument; it is always zero.  */
@@ -84,7 +84,7 @@ DEF_SIMPLE_OPERATOR ("delete", DELETE_EXPR, "dl", -1)
 DEF_SIMPLE_OPERATOR ("delete []", VEC_DELETE_EXPR, "da", -1)
 
 /* Unary operators.  */
-DEF_SIMPLE_OPERATOR ("+", CONVERT_EXPR, "ps", 1)
+DEF_SIMPLE_OPERATOR ("+", UNARY_PLUS_EXPR, "ps", 1)
 DEF_SIMPLE_OPERATOR ("-", NEGATE_EXPR, "ng", 1)
 DEF_SIMPLE_OPERATOR ("&", ADDR_EXPR, "ad", 1)
 DEF_SIMPLE_OPERATOR ("*", INDIRECT_REF, "de", 1)
@@ -129,9 +129,6 @@ DEF_SIMPLE_OPERATOR ("->", COMPONENT_REF, "pt", 2)
 DEF_SIMPLE_OPERATOR ("[]", ARRAY_REF, "ix", 2)
 DEF_SIMPLE_OPERATOR ("++", POSTINCREMENT_EXPR, "pp", 2)
 DEF_SIMPLE_OPERATOR ("--", POSTDECREMENT_EXPR, "mm", 2)
-/* These operators are GNU extensions.  */
-DEF_SIMPLE_OPERATOR ("<?", MIN_EXPR, "v23min", 2)
-DEF_SIMPLE_OPERATOR (">?", MAX_EXPR, "v23max", 2)
 /* This one is needed for mangling.  */
 DEF_SIMPLE_OPERATOR ("::", SCOPE_REF, "sr", 2)
 
@@ -147,9 +144,6 @@ DEF_ASSN_OPERATOR ("|=", BIT_IOR_EXPR, "oR", 2)
 DEF_ASSN_OPERATOR ("^=", BIT_XOR_EXPR, "eO", 2)
 DEF_ASSN_OPERATOR ("<<=", LSHIFT_EXPR, "lS", 2)
 DEF_ASSN_OPERATOR (">>=", RSHIFT_EXPR, "rS", 2)
-/* These operators are GNU extensions.  */
-DEF_ASSN_OPERATOR ("<?=", MIN_EXPR, "v23miN", 2)
-DEF_ASSN_OPERATOR (">?=", MAX_EXPR, "v23maX", 2)
 
 /* Ternary operators.  */
 DEF_SIMPLE_OPERATOR ("?:", COND_EXPR, "qu", 3)

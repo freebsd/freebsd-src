@@ -21,11 +21,13 @@
 @syncodeindex pg cp
 @syncodeindex tp cp
 
+@paragraphindent 1
+
 @c %**end of header
 
 @copying
 Copyright @copyright{} 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.2 or
@@ -46,29 +48,23 @@ included in the section entitled ``GNU Free Documentation License''.
      funds for GNU development.
 @end copying
 @ifnottex
-@dircategory Programming
+@dircategory Software development
 @direntry
 * gccint: (gccint).            Internals of the GNU Compiler Collection.
 @end direntry
 This file documents the internals of the GNU compilers.
 @sp 1
 @insertcopying
+@sp 1
 @end ifnottex
 
 @setchapternewpage odd
 @titlepage
-@center @titlefont{GNU Compiler Collection Internals}
-@sp 2
-@center by Richard M. Stallman and the GCC Developer Community
-@sp 3
-@center Last updated 23 May 2004
-@sp 1
-
-@center for GCC @value{version-GCC}
+@title GNU Compiler Collection Internals
+@versionsubtitle
+@author Richard M. Stallman and the @sc{GCC} Developer Community
 @page
 @vskip 0pt plus 1filll
-For GCC Version @value{version-GCC}@*
-@sp 1
 @insertcopying
 @end titlepage
 @summarycontents
@@ -106,9 +102,13 @@ Additional tutorial information is linked to from
 * Libgcc::          Low-level runtime library used by GCC.
 * Languages::       Languages for which GCC front ends are written.
 * Source Tree::     GCC source tree structure and build system.
+* Options::         Option specification files.
 * Passes::          Order of passes, what they do, and what each file is for.
 * Trees::           The source representation used by the C and C++ front ends.
 * RTL::             The intermediate representation that most passes work on.
+* Control Flow::    Maintaining and manipulating the control flow graph.
+* Tree SSA::        Analysis and optimization of the tree representation.
+* Loop Analysis and Representation:: Analysis and representation of loops
 * Machine Desc::    How to write machine description instruction patterns.
 * Target Macros::   How to write the machine description C macros and functions.
 * Host Config::     Writing the @file{xm-@var{machine}.h} file.
@@ -126,7 +126,7 @@ Additional tutorial information is linked to from
 * Contributors::    People who have contributed to GCC.
 
 * Option Index::    Index to command line options.
-* Index::	    Index of concepts and symbol names.
+* Concept Index::   Index of concepts and symbol names.
 @end menu
 
 @include contribute.texi
@@ -135,9 +135,13 @@ Additional tutorial information is linked to from
 @include libgcc.texi
 @include languages.texi
 @include sourcebuild.texi
+@include options.texi
 @include passes.texi
 @include c-tree.texi
+@include tree-ssa.texi
+@include loop.texi
 @include rtl.texi
+@include cfg.texi
 @include md.texi
 @include tm.texi
 @include hostconfig.texi
@@ -173,8 +177,8 @@ form; it may sometimes be useful to look up both forms.
 
 @printindex op
 
-@node Index
-@unnumbered Index
+@node Concept Index
+@unnumbered Concept Index
 
 @printindex cp
 

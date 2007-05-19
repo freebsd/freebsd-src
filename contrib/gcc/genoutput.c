@@ -1,6 +1,6 @@
 /* Generate code from to output assembler insns as recognized from rtl.
    Copyright (C) 1987, 1988, 1992, 1994, 1995, 1997, 1998, 1999, 2000, 2002,
-   2003, 2004 Free Software Foundation, Inc.
+   2003, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 
 /* This program reads the machine description for the compiler target machine
@@ -54,12 +54,10 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
      a. `predicate', an int-valued function, is the match_operand predicate
      for this operand.
 
-     b. `constraint' is the constraint for this operand.  This exists
-     only if register constraints appear in match_operand rtx's.
+     b. `constraint' is the constraint for this operand.
 
      c. `address_p' indicates that the operand appears within ADDRESS
-     rtx's.  This exists only if there are *no* register constraints
-     in the match_operand rtx's.
+     rtx's.
 
      d. `mode' is the machine mode that that operand is supposed to have.
 
@@ -160,6 +158,7 @@ struct data
   const char *template;
   int code_number;
   int index_number;
+  const char *filename;
   int lineno;
   int n_operands;		/* Number of operands this insn recognizes */
   int n_dups;			/* Number times match_dup appears in pattern */
@@ -188,31 +187,36 @@ static void gen_insn (rtx, int);
 static void gen_peephole (rtx, int);
 static void gen_expand (rtx, int);
 static void gen_split (rtx, int);
+
+#ifdef USE_MD_CONSTRAINTS
+
+struct constraint_data
+{
+  struct constraint_data *next_this_letter;
+  int lineno;
+  unsigned int namelen;
+  const char name[1];
+};
+
+/* This is a complete list (unlike the one in genpreds.c) of constraint
+   letters and modifiers with machine-independent meaning.  The only
+   omission is digits, as these are handled specially.  */
+static const char indep_constraints[] = ",=+%*?!#&<>EFVXgimnoprs";
+
+static struct constraint_data *
+constraints_by_letter_table[1 << CHAR_BIT];
+
+static int mdep_constraint_len (const char *, int, int);
+static void note_constraint (rtx, int);
+
+#else  /* !USE_MD_CONSTRAINTS */
+
 static void check_constraint_len (void);
 static int constraint_len (const char *, int);
+
+#endif /* !USE_MD_CONSTRAINTS */
+
 
-const char *
-get_insn_name (int index)
-{
-  static char buf[100];
-
-  struct data *i, *last_named = NULL;
-  for (i = idata; i ; i = i->next)
-    {
-      if (i->index_number == index)
-	return i->name;
-      if (i->name)
-	last_named = i;
-    }
-
-  if (last_named)
-    sprintf(buf, "%s+%d", last_named->name, index - last_named->index_number);
-  else
-    sprintf(buf, "insn %d", index);
-
-  return buf;
-}
-
 static void
 output_prologue (void)
 {
@@ -240,6 +244,7 @@ output_prologue (void)
   printf ("#include \"toplev.h\"\n");
   printf ("#include \"output.h\"\n");
   printf ("#include \"target.h\"\n");
+  printf ("#include \"tm-constrs.h\"\n");
 }
 
 static void
@@ -291,6 +296,7 @@ output_insn_data (void)
 
   for (d = idata; d; d = d->next)
     {
+      printf ("  /* %s:%d */\n", d->filename, d->lineno);
       printf ("  {\n");
 
       if (d->name)
@@ -377,7 +383,7 @@ output_insn_data (void)
 	  printf ("#endif\n");
 	  break;
 	default:
-	  abort ();
+	  gcc_unreachable ();
 	}
 
       if (d->name && d->name[0] != '*')
@@ -666,7 +672,7 @@ process_template (struct data *d, const char *template)
       printf ("output_%d (rtx *operands ATTRIBUTE_UNUSED, rtx insn ATTRIBUTE_UNUSED)\n",
 	      d->code_number);
       puts ("{");
-
+      print_rtx_ptr_loc (template);
       puts (template + 1);
       puts ("}");
     }
@@ -682,11 +688,22 @@ process_template (struct data *d, const char *template)
 
       for (i = 0, cp = &template[1]; *cp; )
 	{
+	  const char *ep, *sp;
+
 	  while (ISSPACE (*cp))
 	    cp++;
 
 	  printf ("  \"");
-	  while (!IS_VSPACE (*cp) && *cp != '\0')
+
+	  for (ep = sp = cp; !IS_VSPACE (*ep) && *ep != '\0'; ++ep)
+	    if (!ISSPACE (*ep))
+	      sp = ep + 1;
+
+	  if (sp != ep)
+	    message_with_line (d->lineno,
+			       "trailing whitespace in output template");
+
+	  while (cp < sp)
 	    {
 	      putchar (*cp);
 	      cp++;
@@ -734,6 +751,20 @@ validate_insn_alternatives (struct data *d)
 
 	for (p = d->operand[start].constraint; (c = *p); p += len)
 	  {
+#ifdef USE_MD_CONSTRAINTS
+	    if (ISSPACE (c) || strchr (indep_constraints, c))
+	      len = 1;
+	    else if (ISDIGIT (c))
+	      {
+		const char *q = p;
+		do
+		  q++;
+		while (ISDIGIT (*q));
+		len = q - p;
+	      }
+	    else
+	      len = mdep_constraint_len (p, d->lineno, start);
+#else
 	    len = CONSTRAINT_LEN (c, p);
 
 	    if (len < 1 || (len > 1 && strchr (",#*+=&%!0123456789", c)))
@@ -744,6 +775,7 @@ validate_insn_alternatives (struct data *d)
 		len = 1;
 		have_error = 1;
 	      }
+#endif
 
 	    if (c == ',')
 	      {
@@ -807,11 +839,12 @@ validate_insn_operands (struct data *d)
 static void
 gen_insn (rtx insn, int lineno)
 {
-  struct data *d = xmalloc (sizeof (struct data));
+  struct data *d = XNEW (struct data);
   int i;
 
   d->code_number = next_code_number;
   d->index_number = next_index_number;
+  d->filename = read_rtx_filename;
   d->lineno = lineno;
   if (XSTR (insn, 0)[0])
     d->name = XSTR (insn, 0);
@@ -834,7 +867,9 @@ gen_insn (rtx insn, int lineno)
   d->n_operands = max_opno + 1;
   d->n_dups = num_dups;
 
+#ifndef USE_MD_CONSTRAINTS
   check_constraint_len ();
+#endif
   validate_insn_operands (d);
   validate_insn_alternatives (d);
   place_operands (d);
@@ -848,11 +883,12 @@ gen_insn (rtx insn, int lineno)
 static void
 gen_peephole (rtx peep, int lineno)
 {
-  struct data *d = xmalloc (sizeof (struct data));
+  struct data *d = XNEW (struct data);
   int i;
 
   d->code_number = next_code_number;
   d->index_number = next_index_number;
+  d->filename = read_rtx_filename;
   d->lineno = lineno;
   d->name = 0;
 
@@ -886,11 +922,12 @@ gen_peephole (rtx peep, int lineno)
 static void
 gen_expand (rtx insn, int lineno)
 {
-  struct data *d = xmalloc (sizeof (struct data));
+  struct data *d = XNEW (struct data);
   int i;
 
   d->code_number = next_code_number;
   d->index_number = next_index_number;
+  d->filename = read_rtx_filename;
   d->lineno = lineno;
   if (XSTR (insn, 0)[0])
     d->name = XSTR (insn, 0);
@@ -929,11 +966,12 @@ gen_expand (rtx insn, int lineno)
 static void
 gen_split (rtx split, int lineno)
 {
-  struct data *d = xmalloc (sizeof (struct data));
+  struct data *d = XNEW (struct data);
   int i;
 
   d->code_number = next_code_number;
   d->index_number = next_index_number;
+  d->filename = read_rtx_filename;
   d->lineno = lineno;
   d->name = 0;
 
@@ -971,9 +1009,6 @@ main (int argc, char **argv)
 
   progname = "genoutput";
 
-  if (argc <= 1)
-    fatal ("no input file name");
-
   if (init_md_reader_args (argc, argv) != SUCCESS_EXIT_CODE)
     return (FATAL_EXIT_CODE);
 
@@ -991,15 +1026,37 @@ main (int argc, char **argv)
       if (desc == NULL)
 	break;
 
-      if (GET_CODE (desc) == DEFINE_INSN)
-	gen_insn (desc, line_no);
-      if (GET_CODE (desc) == DEFINE_PEEPHOLE)
-	gen_peephole (desc, line_no);
-      if (GET_CODE (desc) == DEFINE_EXPAND)
-	gen_expand (desc, line_no);
-      if (GET_CODE (desc) == DEFINE_SPLIT
-	  || GET_CODE (desc) == DEFINE_PEEPHOLE2)
-	gen_split (desc, line_no);
+      switch (GET_CODE (desc))
+	{
+	case DEFINE_INSN:
+	  gen_insn (desc, line_no);
+	  break;
+
+	case DEFINE_PEEPHOLE:
+	  gen_peephole (desc, line_no);
+	  break;
+
+	case DEFINE_EXPAND:
+	  gen_expand (desc, line_no);
+	  break;
+
+	case DEFINE_SPLIT:
+	case DEFINE_PEEPHOLE2:
+	  gen_split (desc, line_no);
+	  break;
+
+#ifdef USE_MD_CONSTRAINTS
+	case DEFINE_CONSTRAINT:
+	case DEFINE_REGISTER_CONSTRAINT:
+	case DEFINE_ADDRESS_CONSTRAINT:
+	case DEFINE_MEMORY_CONSTRAINT:
+	  note_constraint (desc, line_no);
+	  break;
+#endif
+
+	default:
+	  break;
+	}
       next_index_number++;
     }
 
@@ -1042,7 +1099,7 @@ strip_whitespace (const char *s)
   if (s == 0)
     return 0;
 
-  p = q = xmalloc (strlen (s) + 1);
+  p = q = XNEWVEC (char, strlen (s) + 1);
   while ((ch = *s++) != '\0')
     if (! ISSPACE (ch))
       *p++ = ch;
@@ -1051,6 +1108,102 @@ strip_whitespace (const char *s)
   return q;
 }
 
+#ifdef USE_MD_CONSTRAINTS
+
+/* Record just enough information about a constraint to allow checking
+   of operand constraint strings above, in validate_insn_alternatives.
+   Does not validate most properties of the constraint itself; does
+   enforce no duplicate names, no overlap with MI constraints, and no
+   prefixes.  EXP is the define_*constraint form, LINENO the line number
+   reported by the reader.  */
+static void
+note_constraint (rtx exp, int lineno)
+{
+  const char *name = XSTR (exp, 0);
+  unsigned int namelen = strlen (name);
+  struct constraint_data **iter, **slot, *new;
+
+  if (strchr (indep_constraints, name[0]))
+    {
+      if (name[1] == '\0')
+	message_with_line (lineno, "constraint letter '%s' cannot be "
+			   "redefined by the machine description", name);
+      else
+	message_with_line (lineno, "constraint name '%s' cannot be defined by "
+			   "the machine description, as it begins with '%c'",
+			   name, name[0]);
+      have_error = 1;
+      return;
+    }
+
+  slot = &constraints_by_letter_table[(unsigned int)name[0]];
+  for (iter = slot; *iter; iter = &(*iter)->next_this_letter)
+    {
+      /* This causes slot to end up pointing to the
+	 next_this_letter field of the last constraint with a name
+	 of equal or greater length than the new constraint; hence
+	 the new constraint will be inserted after all previous
+	 constraints with names of the same length.  */
+      if ((*iter)->namelen >= namelen)
+	slot = iter;
+
+      if (!strcmp ((*iter)->name, name))
+	{
+	  message_with_line (lineno, "redefinition of constraint '%s'", name);
+	  message_with_line ((*iter)->lineno, "previous definition is here");
+	  have_error = 1;
+	  return;
+	}
+      else if (!strncmp ((*iter)->name, name, (*iter)->namelen))
+	{
+	  message_with_line (lineno, "defining constraint '%s' here", name);
+	  message_with_line ((*iter)->lineno, "renders constraint '%s' "
+			     "(defined here) a prefix", (*iter)->name);
+	  have_error = 1;
+	  return;
+	}
+      else if (!strncmp ((*iter)->name, name, namelen))
+	{
+	  message_with_line (lineno, "constraint '%s' is a prefix", name);
+	  message_with_line ((*iter)->lineno, "of constraint '%s' "
+			     "(defined here)", (*iter)->name);
+	  have_error = 1;
+	  return;
+	}
+    }
+  new = xmalloc (sizeof (struct constraint_data) + namelen);
+  strcpy ((char *)new + offsetof(struct constraint_data, name), name);
+  new->namelen = namelen;
+  new->lineno = lineno;
+  new->next_this_letter = *slot;
+  *slot = new;
+}
+
+/* Return the length of the constraint name beginning at position S
+   of an operand constraint string, or issue an error message if there
+   is no such constraint.  Does not expect to be called for generic
+   constraints.  */
+static int
+mdep_constraint_len (const char *s, int lineno, int opno)
+{
+  struct constraint_data *p;
+
+  p = constraints_by_letter_table[(unsigned int)s[0]];
+
+  if (p)
+    for (; p; p = p->next_this_letter)
+      if (!strncmp (s, p->name, p->namelen))
+	return p->namelen;
+
+  message_with_line (lineno,
+		     "error: undefined machine-specific constraint "
+		     "at this point: \"%s\"", s);
+  message_with_line (lineno, "note:  in operand %d", opno);
+  have_error = 1;
+  return 1; /* safe */
+}
+
+#else
 /* Verify that DEFAULT_CONSTRAINT_LEN is used properly and not
    tampered with.  This isn't bullet-proof, but it should catch
    most genuine mistakes.  */
@@ -1062,8 +1215,7 @@ check_constraint_len (void)
 
   for (p = ",#*+=&%!1234567890"; *p; p++)
     for (d = -9; d < 9; d++)
-      if (constraint_len (p, d) != d)
-	abort ();
+      gcc_assert (constraint_len (p, d) == d);
 }
 
 static int
@@ -1071,8 +1223,7 @@ constraint_len (const char *p, int genoutput_default_constraint_len)
 {
   /* Check that we still match defaults.h .  First we do a generation-time
      check that fails if the value is not the expected one...  */
-  if (DEFAULT_CONSTRAINT_LEN (*p, p) != 1)
-    abort ();
+  gcc_assert (DEFAULT_CONSTRAINT_LEN (*p, p) == 1);
   /* And now a compile-time check that should give a diagnostic if the
      definition doesn't exactly match.  */
 #define DEFAULT_CONSTRAINT_LEN(C,STR) 1
@@ -1086,3 +1237,4 @@ constraint_len (const char *p, int genoutput_default_constraint_len)
 #undef DEFAULT_CONSTRAINT_LEN
 #define DEFAULT_CONSTRAINT_LEN(C,STR) 1
 }
+#endif

@@ -18,8 +18,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Gcov; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* ??? Print a list of the ten blocks with the highest execution counts,
    and list the line numbers corresponding to those blocks.  Also, perhaps
@@ -47,7 +47,6 @@ Boston, MA 02111-1307, USA.  */
 #include "tm.h"
 #include "intl.h"
 #include "version.h"
-#undef abort
 
 #include <getopt.h>
 
@@ -278,6 +277,10 @@ static unsigned bbg_stamp;
 
 static char *da_file_name;
 
+/* Data file is missing.  */
+
+static int no_data_file;
+
 /* Output branch probabilities.  */
 
 static int flag_branches = 0;
@@ -348,6 +351,9 @@ main (int argc, char **argv)
 {
   int argno;
 
+  /* Unlock the stdio streams.  */
+  unlock_std_streams ();
+
   gcc_init_libintl ();
 
   argno = process_args (argc, argv);
@@ -365,24 +371,13 @@ main (int argc, char **argv)
 }
 
 static void
-fnotice (FILE *file, const char *msgid, ...)
+fnotice (FILE *file, const char *cmsgid, ...)
 {
   va_list ap;
 
-  va_start (ap, msgid);
-  vfprintf (file, _(msgid), ap);
+  va_start (ap, cmsgid);
+  vfprintf (file, _(cmsgid), ap);
   va_end (ap);
-}
-
-/* More 'friendly' abort that prints the line and file.
-   config.h can #define abort fancy_abort if you like that sort of thing.  */
-extern void fancy_abort (void) ATTRIBUTE_NORETURN;
-
-void
-fancy_abort (void)
-{
-  fnotice (stderr, "Internal gcov abort.\n");
-  exit (FATAL_EXIT_CODE);
 }
 
 /* Print a usage message and exit.  If ERROR_P is nonzero, this is an error,
@@ -523,7 +518,7 @@ process_file (const char *file_name)
   for (fn = functions; fn; fn = fn->next)
     solve_flow_graph (fn);
   for (src = sources; src; src = src->next)
-    src->lines = xcalloc (src->num_lines, sizeof (line_t));
+    src->lines = XCNEWVEC (line_t, src->num_lines);
   for (fn = functions; fn; fn = fn->next)
     {
       coverage_t coverage;
@@ -549,16 +544,16 @@ process_file (const char *file_name)
 
 	  if (gcov_file)
 	    {
-	      fnotice (stdout, "%s:creating `%s'\n",
+	      fnotice (stdout, "%s:creating '%s'\n",
 		       src->name, gcov_file_name);
 	      output_lines (gcov_file, src);
 	      if (ferror (gcov_file))
-		    fnotice (stderr, "%s:error writing output file `%s'\n",
+		    fnotice (stderr, "%s:error writing output file '%s'\n",
 			     src->name, gcov_file_name);
 	      fclose (gcov_file);
 	    }
 	  else
-	    fnotice (stderr, "%s:could not open output file `%s'\n",
+	    fnotice (stderr, "%s:could not open output file '%s'\n",
 		     src->name, gcov_file_name);
 	  free (gcov_file_name);
 	}
@@ -630,7 +625,7 @@ create_file_names (const char *file_name)
       struct stat status;
 
       length += strlen (object_directory) + 2;
-      name = xmalloc (length);
+      name = XNEWVEC (char, length);
       name[0] = 0;
 
       base = !stat (object_directory, &status) && S_ISDIR (status.st_mode);
@@ -640,7 +635,7 @@ create_file_names (const char *file_name)
     }
   else
     {
-      name = xmalloc (length + 1);
+      name = XNEWVEC (char, length + 1);
       name[0] = 0;
       base = 1;
     }
@@ -659,14 +654,15 @@ create_file_names (const char *file_name)
 
   length = strlen (name);
   
-  bbg_file_name = xmalloc (length + strlen (GCOV_NOTE_SUFFIX) + 1);
+  bbg_file_name = XNEWVEC (char, length + strlen (GCOV_NOTE_SUFFIX) + 1);
   strcpy (bbg_file_name, name);
   strcpy (bbg_file_name + length, GCOV_NOTE_SUFFIX);
 
-  da_file_name = xmalloc (length + strlen (GCOV_DATA_SUFFIX) + 1);
+  da_file_name = XNEWVEC (char, length + strlen (GCOV_DATA_SUFFIX) + 1);
   strcpy (da_file_name, name);
   strcpy (da_file_name + length, GCOV_DATA_SUFFIX);
 
+  free (name);
   return;
 }
 
@@ -685,7 +681,7 @@ find_source (const char *file_name)
     if (!strcmp (file_name, src->name))
       return src;
 
-  src = xcalloc (1, sizeof (source_t));
+  src = XCNEW (source_t);
   src->name = xstrdup (file_name);
   src->coverage.name = src->name;
   src->index = sources ? sources->index + 1 : 1;
@@ -728,7 +724,7 @@ read_graph_file (void)
       GCOV_UNSIGNED2STRING (v, version);
       GCOV_UNSIGNED2STRING (e, GCOV_VERSION);
 
-      fnotice (stderr, "%s:version `%.4s', prefer `%.4s'\n",
+      fnotice (stderr, "%s:version '%.4s', prefer '%.4s'\n",
 	       bbg_file_name, v, e);
     }
   bbg_stamp = gcov_read_unsigned ();
@@ -751,7 +747,7 @@ read_graph_file (void)
 	  src = find_source (gcov_read_string ());
 	  lineno = gcov_read_unsigned ();
 
-	  fn = xcalloc (1, sizeof (function_t));
+	  fn = XCNEW (function_t);
 	  fn->name = function_name;
 	  fn->ident = ident;
 	  fn->checksum = checksum;
@@ -780,14 +776,14 @@ read_graph_file (void)
       else if (fn && tag == GCOV_TAG_BLOCKS)
 	{
 	  if (fn->blocks)
-	    fnotice (stderr, "%s:already seen blocks for `%s'\n",
+	    fnotice (stderr, "%s:already seen blocks for '%s'\n",
 		     bbg_file_name, fn->name);
 	  else
 	    {
 	      unsigned ix, num_blocks = GCOV_TAG_BLOCKS_NUM (length);
 	      fn->num_blocks = num_blocks;
 
-	      fn->blocks = xcalloc (fn->num_blocks, sizeof (block_t));
+	      fn->blocks = XCNEWVEC (block_t, fn->num_blocks);
 	      for (ix = 0; ix != num_blocks; ix++)
 		fn->blocks[ix].flags = gcov_read_unsigned ();
 	    }
@@ -808,7 +804,7 @@ read_graph_file (void)
 
 	      if (dest >= fn->num_blocks)
 		goto corrupt;
-	      arc = xcalloc (1, sizeof (arc_t));
+	      arc = XCNEW (arc_t);
 
 	      arc->dst = &fn->blocks[dest];
 	      arc->src = &fn->blocks[src];
@@ -853,7 +849,7 @@ read_graph_file (void)
       else if (fn && tag == GCOV_TAG_LINES)
 	{
 	  unsigned blockno = gcov_read_unsigned ();
-	  unsigned *line_nos = xcalloc (length - 1, sizeof (unsigned));
+	  unsigned *line_nos = XCNEWVEC (unsigned, length - 1);
 
 	  if (blockno >= fn->num_blocks || fn->blocks[blockno].u.line.encoding)
 	    goto corrupt;
@@ -896,14 +892,12 @@ read_graph_file (void)
 	}
       gcov_sync (base, length);
       if (gcov_is_error ())
-	break;
-    }
-  if (!gcov_is_eof ())
-    {
-    corrupt:;
-      fnotice (stderr, "%s:corrupted\n", bbg_file_name);
-      gcov_close ();
-      return 1;
+	{
+	corrupt:;
+	  fnotice (stderr, "%s:corrupted\n", bbg_file_name);
+	  gcov_close ();
+	  return 1;
+	}
     }
   gcov_close ();
 
@@ -974,8 +968,10 @@ read_count_file (void)
 
   if (!gcov_open (da_file_name, 1))
     {
-      fnotice (stderr, "%s:cannot open data file\n", da_file_name);
-      return 1;
+      fnotice (stderr, "%s:cannot open data file, assuming not executed\n",
+	       da_file_name);
+      no_data_file = 1;
+      return 0;
     }
   if (!gcov_magic (gcov_read_unsigned (), GCOV_DATA_MAGIC))
     {
@@ -992,7 +988,7 @@ read_count_file (void)
       GCOV_UNSIGNED2STRING (v, version);
       GCOV_UNSIGNED2STRING (e, GCOV_VERSION);
       
-      fnotice (stderr, "%s:version `%.4s', prefer version `%.4s'\n",
+      fnotice (stderr, "%s:version '%.4s', prefer version '%.4s'\n",
 	       da_file_name, v, e);
     }
   tag = gcov_read_unsigned ();
@@ -1024,7 +1020,7 @@ read_count_file (void)
 		fn_n = NULL;
 	      else
 		{
-		  fnotice (stderr, "%s:unknown function `%u'\n",
+		  fnotice (stderr, "%s:unknown function '%u'\n",
 			   da_file_name, ident);
 		  break;
 		}
@@ -1037,7 +1033,7 @@ read_count_file (void)
 	  else if (gcov_read_unsigned () != fn->checksum)
 	    {
 	    mismatch:;
-	      fnotice (stderr, "%s:profile mismatch for `%s'\n",
+	      fnotice (stderr, "%s:profile mismatch for '%s'\n",
 		       da_file_name, fn->name);
 	      goto cleanup;
 	    }
@@ -1048,21 +1044,18 @@ read_count_file (void)
 	    goto mismatch;
 
 	  if (!fn->counts)
-	    fn->counts = xcalloc (fn->num_counts, sizeof (gcov_type));
+	    fn->counts = XCNEWVEC (gcov_type, fn->num_counts);
 
 	  for (ix = 0; ix != fn->num_counts; ix++)
 	    fn->counts[ix] += gcov_read_counter ();
 	}
       gcov_sync (base, length);
       if ((error = gcov_is_error ()))
-	break;
-    }
-
-  if (!gcov_is_eof ())
-    {
-      fnotice (stderr, error < 0 ? "%s:overflowed\n" : "%s:corrupted\n",
-	       da_file_name);
-      goto cleanup;
+	{
+	  fnotice (stderr, error < 0 ? "%s:overflowed\n" : "%s:corrupted\n",
+		   da_file_name);
+	  goto cleanup;
+	}
     }
 
   gcov_close ();
@@ -1083,12 +1076,12 @@ solve_flow_graph (function_t *fn)
   block_t *invalid_blocks = NULL;  /* invalid, but inferable blocks.  */
 
   if (fn->num_blocks < 2)
-    fnotice (stderr, "%s:`%s' lacks entry and/or exit blocks\n",
+    fnotice (stderr, "%s:'%s' lacks entry and/or exit blocks\n",
 	     bbg_file_name, fn->name);
   else
     {
       if (fn->blocks[0].num_pred)
-	fnotice (stderr, "%s:`%s' has arcs to entry block\n",
+	fnotice (stderr, "%s:'%s' has arcs to entry block\n",
 		 bbg_file_name, fn->name);
       else
 	/* We can't deduce the entry block counts from the lack of
@@ -1096,7 +1089,7 @@ solve_flow_graph (function_t *fn)
 	fn->blocks[0].num_pred = ~(unsigned)0;
 
       if (fn->blocks[fn->num_blocks - 1].num_succ)
-	fnotice (stderr, "%s:`%s' has arcs from exit block\n",
+	fnotice (stderr, "%s:'%s' has arcs from exit block\n",
 		 bbg_file_name, fn->name);
       else
 	/* Likewise, we can't deduce exit block counts from the lack
@@ -1304,7 +1297,7 @@ solve_flow_graph (function_t *fn)
   for (ix = 0; ix < fn->num_blocks; ix++)
     if (!fn->blocks[ix].count_valid)
       {
-	fnotice (stderr, "%s:graph is unsolvable for `%s'\n",
+	fnotice (stderr, "%s:graph is unsolvable for '%s'\n",
 		 bbg_file_name, fn->name);
 	break;
       }
@@ -1384,14 +1377,14 @@ format_gcov (gcov_type top, gcov_type bottom, int dp)
 static void
 function_summary (const coverage_t *coverage, const char *title)
 {
-  fnotice (stdout, "%s `%s'\n", title, coverage->name);
+  fnotice (stdout, "%s '%s'\n", title, coverage->name);
 
   if (coverage->lines)
     fnotice (stdout, "Lines executed:%s of %d\n",
 	     format_gcov (coverage->lines_executed, coverage->lines, 2),
 	     coverage->lines);
   else
-    fnotice (stdout, "No executable lines");
+    fnotice (stdout, "No executable lines\n");
 
   if (flag_branches)
     {
@@ -1431,7 +1424,7 @@ static char *
 make_gcov_file_name (const char *input_name, const char *src_name)
 {
   char *cptr;
-  char *name = xmalloc (strlen (src_name) + strlen (input_name) + 10);
+  char *name = XNEWVEC (char, strlen (src_name) + strlen (input_name) + 10);
 
   name[0] = 0;
   if (flag_long_names && strcmp (src_name, input_name))
@@ -1554,7 +1547,7 @@ add_line_counts (coverage_t *coverage, function_t *fn)
 	}
     }
   if (!line)
-    fnotice (stderr, "%s:no lines for `%s'\n", bbg_file_name, fn->name);
+    fnotice (stderr, "%s:no lines for '%s'\n", bbg_file_name, fn->name);
 }
 
 /* Accumulate the line counts of a file.  */
@@ -1738,7 +1731,7 @@ accumulate_line_counts (source_t *src)
     }
 }
 
-/* Ouput information about ARC number IX.  Returns nonzero if
+/* Output information about ARC number IX.  Returns nonzero if
    anything is output.  */
 
 static int
@@ -1791,11 +1784,12 @@ output_lines (FILE *gcov_file, const source_t *src)
   const line_t *line;           /* current line info ptr.  */
   char string[STRING_SIZE];     /* line buffer.  */
   char const *retval = "";	/* status of source file reading.  */
-  function_t *fn = src->functions;
+  function_t *fn = NULL;
 
   fprintf (gcov_file, "%9s:%5d:Source:%s\n", "-", 0, src->name);
   fprintf (gcov_file, "%9s:%5d:Graph:%s\n", "-", 0, bbg_file_name);
-  fprintf (gcov_file, "%9s:%5d:Data:%s\n", "-", 0, da_file_name);
+  fprintf (gcov_file, "%9s:%5d:Data:%s\n", "-", 0,
+	   no_data_file ? "-" : da_file_name);
   fprintf (gcov_file, "%9s:%5d:Runs:%u\n", "-", 0,
 	   object_summary.ctrs[GCOV_COUNTER_ARCS].runs);
   fprintf (gcov_file, "%9s:%5d:Programs:%u\n", "-", 0, program_count);
@@ -1813,12 +1807,15 @@ output_lines (FILE *gcov_file, const source_t *src)
       if (!fstat (fileno (source_file), &status)
 	  && status.st_mtime > bbg_file_time)
 	{
-	  fnotice (stderr, "%s:source file is newer than graph file `%s'\n",
+	  fnotice (stderr, "%s:source file is newer than graph file '%s'\n",
 		   src->name, bbg_file_name);
 	  fprintf (gcov_file, "%9s:%5d:Source is newer than graph\n",
 		   "-", 0);
 	}
     }
+
+  if (flag_branches)
+    fn = src->functions;
 
   for (line_num = 1, line = &src->lines[line_num];
        line_num < src->num_lines; line_num++, line++)
@@ -1827,11 +1824,11 @@ output_lines (FILE *gcov_file, const source_t *src)
 	{
 	  arc_t *arc = fn->blocks[fn->num_blocks - 1].pred;
 	  gcov_type return_count = fn->blocks[fn->num_blocks - 1].count;
-
+	  
 	  for (; arc; arc = arc->pred_next)
 	    if (arc->fake)
 	      return_count -= arc->count;
-
+	  
 	  fprintf (gcov_file, "function %s", fn->name);
 	  fprintf (gcov_file, " called %s",
 		   format_gcov (fn->blocks[0].count, 0, -1));

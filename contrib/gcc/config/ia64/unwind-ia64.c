@@ -1,6 +1,6 @@
 /* Subroutines needed for unwinding IA-64 standard format stack frame
    info for exception handling.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2004, 2005, 2006
    Free Software Foundation, Inc.
    Contributed by Andrew MacLeod  <amacleod@cygnus.com>
 	          Andrew Haley  <aph@cygnus.com>
@@ -20,8 +20,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, if you link this library with other files,
    some of which are compiled with GCC, to produce an executable,
@@ -44,6 +44,7 @@
 #undef ENABLE_MALLOC_CHECKING
 
 #ifndef __USING_SJLJ_EXCEPTIONS__
+
 #define UNW_VER(x)		((x) >> 48)
 #define UNW_FLAG_MASK		0x0000ffff00000000
 #define UNW_FLAG_OSMASK		0x0000f00000000000
@@ -284,10 +285,10 @@ atomic_free (unsigned int *mask, int bit)
 #define PTR_IN(X, P)	((P) >= (X) && (P) < (X) + SIZE (X))
 
 static struct unw_reg_state emergency_reg_state[32];
-static int emergency_reg_state_free = MASK_FOR (emergency_reg_state);
+static unsigned int emergency_reg_state_free = MASK_FOR (emergency_reg_state);
 
 static struct unw_labeled_state emergency_labeled_state[8];
-static int emergency_labeled_state_free = MASK_FOR (emergency_labeled_state);
+static unsigned int emergency_labeled_state_free = MASK_FOR (emergency_labeled_state);
 
 #ifdef ENABLE_MALLOC_CHECKING
 static int reg_state_alloced;
@@ -1703,6 +1704,13 @@ _Unwind_GetIP (struct _Unwind_Context *context)
   return context->rp;
 }
 
+inline _Unwind_Ptr
+_Unwind_GetIPInfo (struct _Unwind_Context *context, int *ip_before_insn)
+{
+  *ip_before_insn = 0;
+  return context->rp;
+}
+
 /* Overwrite the return address for CONTEXT with VAL.  */
 
 inline void
@@ -1754,6 +1762,9 @@ _Unwind_GetBSP (struct _Unwind_Context *context)
   return (_Unwind_Ptr) context->bsp;
 }
 
+#ifdef MD_UNWIND_SUPPORT
+#include MD_UNWIND_SUPPORT
+#endif
 
 static _Unwind_Reason_Code
 uw_frame_state_for (struct _Unwind_Context *context, _Unwind_FrameState *fs)
@@ -1777,7 +1788,8 @@ uw_frame_state_for (struct _Unwind_Context *context, _Unwind_FrameState *fs)
 	 os-specific fallback mechanism.  This will necessarily
 	 not provide a personality routine or LSDA.  */
 #ifdef MD_FALLBACK_FRAME_STATE_FOR
-      MD_FALLBACK_FRAME_STATE_FOR (context, fs, success);
+      if (MD_FALLBACK_FRAME_STATE_FOR (context, fs) == _URC_NO_REASON)
+	return _URC_NO_REASON;
 
       /* [SCRA 11.4.1] A leaf function with no memory stack, no exception
 	 handlers, and which keeps the return value in B0 does not need
@@ -1792,15 +1804,10 @@ uw_frame_state_for (struct _Unwind_Context *context, _Unwind_FrameState *fs)
 	  fs->curr.reg[UNW_REG_RP].where = UNW_WHERE_BR;
 	  fs->curr.reg[UNW_REG_RP].when = -1;
 	  fs->curr.reg[UNW_REG_RP].val = 0;
-	  goto success;
+	  return _URC_NO_REASON;
 	}
-
-      return _URC_END_OF_STACK;
-    success:
-      return _URC_NO_REASON;
-#else
-      return _URC_END_OF_STACK;
 #endif
+      return _URC_END_OF_STACK;
     }
 
   context->region_start = ent->start_offset + segment_base;
@@ -2060,6 +2067,12 @@ uw_update_context (struct _Unwind_Context *context, _Unwind_FrameState *fs)
     }
 }
 
+static void
+uw_advance_context (struct _Unwind_Context *context, _Unwind_FrameState *fs)
+{
+  uw_update_context (context, fs);
+}
+
 /* Fill in CONTEXT for top-of-stack.  The only valid registers at this
    level will be the return address and the CFA.  Note that CFA = SP+16.  */
    
@@ -2111,7 +2124,7 @@ uw_init_context_1 (struct _Unwind_Context *context, void *bsp)
   uw_update_context (context, &fs);
 }
 
-/* Install (ie longjmp to) the contents of TARGET.  */
+/* Install (i.e. longjmp to) the contents of TARGET.  */
 
 static void __attribute__((noreturn))
 uw_install_context (struct _Unwind_Context *current __attribute__((unused)),
@@ -2389,7 +2402,6 @@ uw_identify_context (struct _Unwind_Context *context)
 alias (_Unwind_Backtrace);
 alias (_Unwind_DeleteException);
 alias (_Unwind_FindEnclosingFunction);
-alias (_Unwind_FindTableEntry);
 alias (_Unwind_ForcedUnwind);
 alias (_Unwind_GetBSP);
 alias (_Unwind_GetCFA);

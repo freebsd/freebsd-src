@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    Interix
-   Copyright (C) 1994, 1995, 1999, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994, 1995, 1999, 2002, 2004 Free Software Foundation, Inc.
    Donn Terry, Softway Systems, Inc. (donn@softway.com)
    Modified from code
       Contributed by Douglas B. Rupp (drupp@cs.washington.edu).
@@ -19,12 +19,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
-
-#ifndef TARGET_MEM_FUNCTIONS
-#define TARGET_MEM_FUNCTIONS
-#endif
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* POSIX/Uni-thread only for now.  Look at the winnt version
 for windows/multi thread */

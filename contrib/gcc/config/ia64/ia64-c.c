@@ -1,5 +1,5 @@
 /* Definitions of C specific functions for GNU compiler.
-   Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Steve Ellcey <sje@cup.hp.com>
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
@@ -40,16 +40,16 @@ ia64_hpux_handle_builtin_pragma (cpp_reader *pfile ATTRIBUTE_UNUSED)
   enum cpp_ttype type;
   tree x;
 
-  type = c_lex (&x);
+  type = pragma_lex (&x);
   while (type == CPP_NAME)
     {
       ia64_hpux_add_pragma_builtin (x);
-      type = c_lex (&x);
+      type = pragma_lex (&x);
       if (type == CPP_COMMA)
-	type = c_lex (&x);
+	type = pragma_lex (&x);
     }
   if (type != CPP_EOF)
-    warning ("malformed #pragma builtin");
+    warning (OPT_Wpragmas, "malformed #pragma builtin");
 }
 
 /* List of standard math functions which do not set matherr by default
@@ -60,7 +60,7 @@ ia64_hpux_handle_builtin_pragma (cpp_reader *pfile ATTRIBUTE_UNUSED)
 typedef struct c89_mathlib_names
 {
         const char *realname; /* User visible function name.  */
-        const char *c89name;  /* libm special name needed to set errno. */
+        const char *c89name;  /* libm special name needed to set errno.  */
 } c89_mathlib_names;
 
 static const c89_mathlib_names c89_mathlib_name_list [] =

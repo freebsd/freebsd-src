@@ -1,5 +1,5 @@
 /* Set up combined include path for the preprocessor.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -13,11 +13,21 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 extern void split_quote_chain (void);
-extern void add_path (char *, int, int);
+extern void add_path (char *, int, int, bool);
 extern void register_include_chains (cpp_reader *, const char *,
-				     const char *, int, int, int);
+				     const char *, const char *,
+				     int, int, int);
+extern void add_cpp_dir_path (struct cpp_dir *, int);
+
+struct target_c_incpath_s {
+  /* Do extra includes processing.  STDINC is false iff -nostdinc was given.  */
+  void (*extra_pre_includes) (const char *, const char *, int);
+  void (*extra_includes) (const char *, const char *, int);
+};
+
+extern struct target_c_incpath_s target_c_incpath;
 
 enum { QUOTE = 0, BRACKET, SYSTEM, AFTER };

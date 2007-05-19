@@ -1,6 +1,7 @@
 /* Definitions for code generation pass of GNU compiler.
    Copyright (C) 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,37 +17,32 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+#ifndef GCC_EXPR_H
+#define GCC_EXPR_H
+
+/* For inhibit_defer_pop */
+#include "function.h"
+/* For XEXP, GEN_INT, rtx_code */
+#include "rtl.h"
+/* For optimize_size */
+#include "flags.h"
+/* For host_integerp, tree_low_cst, fold_convert, size_binop, ssize_int,
+   TREE_CODE, TYPE_SIZE, int_size_in_bytes,    */
+#include "tree.h"
+/* For GET_MODE_BITSIZE, word_mode */
+#include "machmode.h"
 
 /* The default branch cost is 1.  */
 #ifndef BRANCH_COST
 #define BRANCH_COST 1
 #endif
 
-/* Macros to access the slots of a QUEUED rtx.
-   Here rather than in rtl.h because only the expansion pass
-   should ever encounter a QUEUED.  */
-
-/* The variable for which an increment is queued.  */
-#define QUEUED_VAR(P) XEXP (P, 0)
-/* If the increment has been emitted, this is the insn
-   that does the increment.  It is zero before the increment is emitted.
-   If more than one insn is emitted, this is the first insn.  */
-#define QUEUED_INSN(P) XEXP (P, 1)
-/* If a pre-increment copy has been generated, this is the copy
-   (it is a temporary reg).  Zero if no copy made yet.  */
-#define QUEUED_COPY(P) XEXP (P, 2)
-/* This is the body to use for the insn to do the increment.
-   It is used to emit the increment.  */
-#define QUEUED_BODY(P) XEXP (P, 3)
-/* Next QUEUED in the queue.  */
-#define QUEUED_NEXT(P) XEXP (P, 4)
-
 /* This is the 4th arg to `expand_expr'.
    EXPAND_STACK_PARM means we are possibly expanding a call param onto
-   the stack.  Choosing a value of 2 isn't special;  It just allows
-   some code optimization in store_expr.
+   the stack.
    EXPAND_SUM means it is ok to return a PLUS rtx or MULT rtx.
    EXPAND_INITIALIZER is similar but also record any labels on forced_labels.
    EXPAND_CONST_ADDRESS means it is ok to return a MEM whose address
@@ -54,7 +50,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    EXPAND_WRITE means we are only going to write to the resulting rtx.
    EXPAND_MEMORY means we are interested in a memory result, even if
     the memory is constant and we could have propagated a constant value.  */
-enum expand_modifier {EXPAND_NORMAL = 0, EXPAND_STACK_PARM = 2, EXPAND_SUM,
+enum expand_modifier {EXPAND_NORMAL = 0, EXPAND_STACK_PARM, EXPAND_SUM,
 		      EXPAND_CONST_ADDRESS, EXPAND_INITIALIZER, EXPAND_WRITE,
 		      EXPAND_MEMORY};
 
@@ -67,10 +63,10 @@ enum expand_modifier {EXPAND_NORMAL = 0, EXPAND_STACK_PARM = 2, EXPAND_SUM,
 #define OK_DEFER_POP (inhibit_defer_pop -= 1)
 
 /* If a memory-to-memory move would take MOVE_RATIO or more simple
-   move-instruction sequences, we will do a movstr or libcall instead.  */
+   move-instruction sequences, we will do a movmem or libcall instead.  */
 
 #ifndef MOVE_RATIO
-#if defined (HAVE_movstrqi) || defined (HAVE_movstrhi) || defined (HAVE_movstrsi) || defined (HAVE_movstrdi) || defined (HAVE_movstrti)
+#if defined (HAVE_movmemqi) || defined (HAVE_movmemhi) || defined (HAVE_movmemsi) || defined (HAVE_movmemdi) || defined (HAVE_movmemti)
 #define MOVE_RATIO 2
 #else
 /* If we are optimizing for space (-Os), cut down the default move ratio.  */
@@ -79,10 +75,10 @@ enum expand_modifier {EXPAND_NORMAL = 0, EXPAND_STACK_PARM = 2, EXPAND_SUM,
 #endif
 
 /* If a clear memory operation would take CLEAR_RATIO or more simple
-   move-instruction sequences, we will do a clrstr or libcall instead.  */
+   move-instruction sequences, we will do a setmem or libcall instead.  */
 
 #ifndef CLEAR_RATIO
-#if defined (HAVE_clrstrqi) || defined (HAVE_clrstrhi) || defined (HAVE_clrstrsi) || defined (HAVE_clrstrdi) || defined (HAVE_clrstrti)
+#if defined (HAVE_setmemqi) || defined (HAVE_setmemhi) || defined (HAVE_setmemsi) || defined (HAVE_setmemdi) || defined (HAVE_setmemti)
 #define CLEAR_RATIO 2
 #else
 /* If we are optimizing for space, cut down the default clear ratio.  */
@@ -121,46 +117,48 @@ struct locate_and_pad_arg_data
   struct args_size alignment_pad;
   /* Which way we should pad this arg.  */
   enum direction where_pad;
+  /* slot_offset is at least this aligned.  */
+  unsigned int boundary;
 };
 
 /* Add the value of the tree INC to the `struct args_size' TO.  */
 
-#define ADD_PARM_SIZE(TO, INC)				\
-do {							\
-  tree inc = (INC);					\
-  if (host_integerp (inc, 0))				\
-    (TO).constant += tree_low_cst (inc, 0);		\
-  else if ((TO).var == 0)				\
-    (TO).var = convert (ssizetype, inc);		\
-  else							\
-    (TO).var = size_binop (PLUS_EXPR, (TO).var,		\
-			   convert (ssizetype, inc));	\
+#define ADD_PARM_SIZE(TO, INC)					\
+do {								\
+  tree inc = (INC);						\
+  if (host_integerp (inc, 0))					\
+    (TO).constant += tree_low_cst (inc, 0);			\
+  else if ((TO).var == 0)					\
+    (TO).var = fold_convert (ssizetype, inc);			\
+  else								\
+    (TO).var = size_binop (PLUS_EXPR, (TO).var,			\
+			   fold_convert (ssizetype, inc));	\
 } while (0)
 
-#define SUB_PARM_SIZE(TO, DEC)				\
-do {							\
-  tree dec = (DEC);					\
-  if (host_integerp (dec, 0))				\
-    (TO).constant -= tree_low_cst (dec, 0);		\
-  else if ((TO).var == 0)				\
-    (TO).var = size_binop (MINUS_EXPR, ssize_int (0),	\
-			   convert (ssizetype, dec));	\
-  else							\
-    (TO).var = size_binop (MINUS_EXPR, (TO).var,	\
-			   convert (ssizetype, dec));	\
+#define SUB_PARM_SIZE(TO, DEC)					\
+do {								\
+  tree dec = (DEC);						\
+  if (host_integerp (dec, 0))					\
+    (TO).constant -= tree_low_cst (dec, 0);			\
+  else if ((TO).var == 0)					\
+    (TO).var = size_binop (MINUS_EXPR, ssize_int (0),		\
+			   fold_convert (ssizetype, dec));	\
+  else								\
+    (TO).var = size_binop (MINUS_EXPR, (TO).var,		\
+			   fold_convert (ssizetype, dec));	\
 } while (0)
 
 /* Convert the implicit sum in a `struct args_size' into a tree
    of type ssizetype.  */
 #define ARGS_SIZE_TREE(SIZE)					\
 ((SIZE).var == 0 ? ssize_int ((SIZE).constant)			\
- : size_binop (PLUS_EXPR, convert (ssizetype, (SIZE).var),	\
+ : size_binop (PLUS_EXPR, fold_convert (ssizetype, (SIZE).var),	\
 	       ssize_int ((SIZE).constant)))
 
 /* Convert the implicit sum in a `struct args_size' into an rtx.  */
 #define ARGS_SIZE_RTX(SIZE)					\
 ((SIZE).var == 0 ? GEN_INT ((SIZE).constant)			\
- : expand_expr (ARGS_SIZE_TREE (SIZE), NULL_RTX, VOIDmode, 0))
+ : expand_normal (ARGS_SIZE_TREE (SIZE)))
 
 /* Supply a default definition for FUNCTION_ARG_PADDING:
    usually pad upward, but pad short args downward on
@@ -186,15 +184,6 @@ do {							\
 
 #ifndef FUNCTION_ARG_BOUNDARY
 #define FUNCTION_ARG_BOUNDARY(MODE, TYPE)	PARM_BOUNDARY
-#endif
-
-tree split_complex_types (tree);
-tree split_complex_values (tree);
-
-/* Nonzero if we do not know how to pass TYPE solely in registers.  */
-extern bool default_must_pass_in_stack (enum machine_mode, tree);
-#ifndef MUST_PASS_IN_STACK
-#define MUST_PASS_IN_STACK(MODE,TYPE) default_must_pass_in_stack(MODE, TYPE)
 #endif
 
 /* Supply a default definition of STACK_SAVEAREA_MODE for emit_stack_save.
@@ -287,8 +276,7 @@ extern void emit_libcall_block (rtx, rtx, rtx, rtx);
 
 /* Create but don't emit one rtl instruction to perform certain operations.
    Modes must match; operands must meet the operation's predicates.
-   Likewise for subtraction and for just copying.
-   These do not call protect_from_queue; caller must do so.  */
+   Likewise for subtraction and for just copying.  */
 extern rtx gen_add2_insn (rtx, rtx);
 extern rtx gen_add3_insn (rtx, rtx, rtx);
 extern rtx gen_sub2_insn (rtx, rtx);
@@ -305,6 +293,11 @@ extern void emit_cmp_and_jump_insns (rtx, rtx, enum rtx_code, rtx,
 /* Generate code to indirectly jump to a location given in the rtx LOC.  */
 extern void emit_indirect_jump (rtx);
 
+/* Generate a conditional trap instruction.  */
+extern rtx gen_cond_trap (enum rtx_code, rtx, rtx, rtx);
+
+#include "insn-config.h"
+
 #ifdef HAVE_conditional_move
 /* Emit a conditional move operation.  */
 rtx emit_conditional_move (rtx, enum rtx_code, rtx, rtx, enum machine_mode,
@@ -317,6 +310,11 @@ int can_conditionally_move_p (enum machine_mode mode);
 rtx emit_conditional_add (rtx, enum rtx_code, rtx, rtx, enum machine_mode,
 			  rtx, rtx, enum machine_mode, int);
 
+rtx expand_val_compare_and_swap (rtx, rtx, rtx, rtx);
+rtx expand_bool_compare_and_swap (rtx, rtx, rtx, rtx);
+rtx expand_sync_operation (rtx, rtx, enum rtx_code);
+rtx expand_sync_fetch_operation (rtx, rtx, enum rtx_code, bool, rtx);
+rtx expand_sync_lock_test_and_set (rtx, rtx, rtx);
 
 /* Functions from expmed.c:  */
 
@@ -334,38 +332,16 @@ extern rtx emit_store_flag (rtx, enum rtx_code, rtx, rtx, enum machine_mode,
 /* Like emit_store_flag, but always succeeds.  */
 extern rtx emit_store_flag_force (rtx, enum rtx_code, rtx, rtx,
 				  enum machine_mode, int, int);
-
-/* Functions from loop.c:  */
-
-/* Given an insn and condition, return a canonical description of
-   the test being made.  */
-extern rtx canonicalize_condition (rtx, rtx, int, rtx *, rtx, int);
-
-/* Given a JUMP_INSN, return a canonical description of the test
-   being made.  */
-extern rtx get_condition (rtx, rtx *, int);
-
-/* Generate a conditional trap instruction.  */
-extern rtx gen_cond_trap (enum rtx_code, rtx, rtx, rtx);
 
 /* Functions from builtins.c:  */
 extern rtx expand_builtin (tree, rtx, rtx, enum machine_mode, int);
 extern tree std_build_builtin_va_list (void);
 extern void std_expand_builtin_va_start (tree, rtx);
-extern rtx std_expand_builtin_va_arg (tree, tree);
-extern rtx expand_builtin_va_arg (tree, tree);
 extern rtx default_expand_builtin (tree, rtx, rtx, enum machine_mode, int);
 extern void expand_builtin_setjmp_setup (rtx, rtx);
 extern void expand_builtin_setjmp_receiver (rtx);
-extern void expand_builtin_longjmp (rtx, rtx);
 extern rtx expand_builtin_saveregs (void);
 extern void expand_builtin_trap (void);
-extern HOST_WIDE_INT get_varargs_alias_set (void);
-extern HOST_WIDE_INT get_frame_alias_set (void);
-extern void record_base_value (unsigned int, rtx, int);
-extern void record_alias_subset (HOST_WIDE_INT, HOST_WIDE_INT);
-extern HOST_WIDE_INT new_alias_set (void);
-extern int can_address_p (tree);
 
 /* Functions from expr.c:  */
 
@@ -375,19 +351,6 @@ extern void init_expr_once (void);
 
 /* This is run at the start of compiling a function.  */
 extern void init_expr (void);
-
-/* This is run at the end of compiling a function.  */
-extern void finish_expr_for_function (void);
-
-/* Use protect_from_queue to convert a QUEUED expression
-   into something that you can put immediately into an instruction.  */
-extern rtx protect_from_queue (rtx, int);
-
-/* Perform all the pending incrementations.  */
-extern void emit_queue (void);
-
-/* Tell if something has a queued subexpression.  */
-extern int queued_subexp_p (rtx);
 
 /* Emit some rtl insns to move data between rtx's, converting machine modes.
    Both modes must be floating or both fixed.  */
@@ -405,7 +368,9 @@ enum block_op_methods
 {
   BLOCK_OP_NORMAL,
   BLOCK_OP_NO_LIBCALL,
-  BLOCK_OP_CALL_PARM
+  BLOCK_OP_CALL_PARM,
+  /* Like BLOCK_OP_NORMAL, but the libcall can be tail call optimized.  */
+  BLOCK_OP_TAILCALL
 };
 
 extern void init_block_move_fn (const char *);
@@ -428,9 +393,15 @@ extern rtx gen_group_rtx (rtx);
    PARALLEL.  */
 extern void emit_group_load (rtx, rtx, tree, int);
 
+/* Similarly, but load into new temporaries.  */
+extern rtx emit_group_load_into_temps (rtx, rtx, tree, int);
+
 /* Move a non-consecutive group of registers represented by a PARALLEL into
    a non-consecutive group of registers represented by a PARALLEL.  */
 extern void emit_group_move (rtx, rtx);
+
+/* Move a group of registers represented by a PARALLEL into pseudos.  */
+extern rtx emit_group_move_into_temps (rtx);
 
 /* Store a BLKmode value from non-consecutive registers represented by a
    PARALLEL.  */
@@ -451,7 +422,10 @@ extern void use_group_regs (rtx *, rtx);
 
 /* Write zeros through the storage of OBJECT.
    If OBJECT has BLKmode, SIZE is its length in bytes.  */
-extern rtx clear_storage (rtx, rtx);
+extern rtx clear_storage (rtx, rtx, enum block_op_methods);
+
+/* Expand a setmem pattern; return true if successful.  */
+extern bool set_storage_via_setmem (rtx, rtx, rtx, unsigned int);
 
 /* Determine whether the LEN bytes can be moved by using several move
    instructions.  Return nonzero if a call to move_by_pieces should
@@ -492,7 +466,7 @@ extern void emit_push_insn (rtx, enum machine_mode, tree, rtx, unsigned int,
 			    int, rtx, int, rtx, rtx, int, rtx);
 
 /* Expand an assignment that stores the value of FROM into TO.  */
-extern rtx expand_assignment (tree, tree, int);
+extern void expand_assignment (tree, tree);
 
 /* Generate code for computing expression EXP,
    and storing the value into TARGET.
@@ -505,22 +479,27 @@ extern rtx store_expr (tree, rtx, int);
    Useful after calling expand_expr with 1 as sum_ok.  */
 extern rtx force_operand (rtx, rtx);
 
-/* Return an object on the placeholder list that matches EXP, a
-   PLACEHOLDER_EXPR.  An object "matches" if it is of the type of the
-   PLACEHOLDER_EXPR or a pointer type to it.  For further information, see
-   tree.def.  If no such object is found, abort.  If PLIST is nonzero, it is
-   a location which initially points to a starting location in the
-   placeholder list (zero means start of the list) and where a pointer into
-   the placeholder list at which the object is found is placed.  */
-extern tree find_placeholder (tree, tree *);
+/* Work horse for expand_expr.  */
+extern rtx expand_expr_real (tree, rtx, enum machine_mode, 
+			     enum expand_modifier, rtx *);
 
 /* Generate code for computing expression EXP.
    An rtx for the computed value is returned.  The value is never null.
    In the case of a void EXP, const0_rtx is returned.  */
-#define expand_expr(EXP, TARGET, MODE, MODIFIER) \
-  expand_expr_real((EXP), (TARGET), (MODE), (MODIFIER), NULL)
-extern rtx expand_expr_real (tree, rtx, enum machine_mode, 
-			     enum expand_modifier, rtx *);
+static inline rtx
+expand_expr (tree exp, rtx target, enum machine_mode mode,
+	     enum expand_modifier modifier)
+{
+  return expand_expr_real (exp, target, mode, modifier, NULL);
+}
+
+static inline rtx
+expand_normal (tree exp)
+{
+  return expand_expr_real (exp, NULL_RTX, VOIDmode, EXPAND_NORMAL, NULL);
+}
+
+extern void expand_var (tree);
 
 /* At the start of a function, record that we have no previously-pushed
    arguments waiting to be popped.  */
@@ -564,6 +543,9 @@ extern int try_tablejump (tree, tree, tree, tree, rtx, rtx);
    XXX Should be a target hook.  */
 extern unsigned int case_values_threshold (void);
 
+/* Functions from alias.c */
+#include "alias.h"
+
 
 /* rtl.h and tree.h were included.  */
 /* Return an rtx for the size in bytes of the value of an expr.  */
@@ -573,22 +555,17 @@ extern rtx expr_size (tree);
    if the size can vary or is larger than an integer.  */
 extern HOST_WIDE_INT int_expr_size (tree);
 
-extern rtx lookup_static_chain (tree);
-
-/* Convert a stack slot address ADDR valid in function FNDECL
-   into an address valid in this function (using a static chain).  */
-extern rtx fix_lexical_addr (rtx, tree);
-
-/* Return the address of the trampoline for entering nested fn FUNCTION.  */
-extern rtx trampoline_address (tree);
-
 /* Return an rtx that refers to the value returned by a function
    in its original home.  This becomes invalid if any more code is emitted.  */
-extern rtx hard_function_value (tree, tree, int);
+extern rtx hard_function_value (tree, tree, tree, int);
 
-extern rtx prepare_call_address (rtx, tree, rtx *, int, int);
+extern rtx prepare_call_address (rtx, rtx, rtx *, int, int);
+
+extern bool shift_return_value (enum machine_mode, bool, rtx);
 
 extern rtx expand_call (tree, rtx, int);
+
+extern void fixup_tail_calls (void);
 
 #ifdef TREE_CODE
 extern rtx expand_shift (enum tree_code, enum machine_mode, rtx, tree, rtx,
@@ -600,7 +577,6 @@ extern rtx expand_divmod (int, enum tree_code, enum machine_mode, rtx, rtx,
 extern void locate_and_pad_parm (enum machine_mode, tree, int, int, tree,
 				 struct args_size *,
 				 struct locate_and_pad_arg_data *);
-extern rtx expand_inline_function (tree, tree, rtx, int, tree, rtx);
 
 /* Return the CODE_LABEL rtx for a LABEL_DECL, creating it if necessary.  */
 extern rtx label_rtx (tree);
@@ -622,23 +598,8 @@ extern rtx eliminate_constant_term (rtx, rtx *);
    by emitting insns to perform arithmetic if nec.  */
 extern rtx memory_address (enum machine_mode, rtx);
 
-/* Like `memory_address' but pretent `flag_force_addr' is 0.  */
+/* Like `memory_address' but pretend `flag_force_addr' is 0.  */
 extern rtx memory_address_noforce (enum machine_mode, rtx);
-
-/* Set the alias set of MEM to SET.  */
-extern void set_mem_alias_set (rtx, HOST_WIDE_INT);
-
-/* Set the alignment of MEM to ALIGN bits.  */
-extern void set_mem_align (rtx, unsigned int);
-
-/* Set the expr for MEM to EXPR.  */
-extern void set_mem_expr (rtx, tree);
-
-/* Set the offset for MEM to OFFSET.  */
-extern void set_mem_offset (rtx, rtx);
-
-/* Set the size for MEM to SIZE.  */
-extern void set_mem_size (rtx, rtx);
 
 /* Return a memory reference like MEMREF, but with its mode changed
    to MODE and its address changed to ADDR.
@@ -674,14 +635,8 @@ extern rtx adjust_automodify_address_1 (rtx, enum machine_mode, rtx,
    known to be in OFFSET (possibly 1).  */
 extern rtx offset_address (rtx, rtx, unsigned HOST_WIDE_INT);
 
-/* Return a memory reference like MEMREF, but with its address changed to
-   ADDR.  The caller is asserting that the actual piece of memory pointed
-   to is the same, just the form of the address is being changed, such as
-   by putting something into a register.  */
-extern rtx replace_equiv_address (rtx, rtx);
-
-/* Likewise, but the reference is not required to be valid.  */
-extern rtx replace_equiv_address_nv (rtx, rtx);
+/* Definitions from emit-rtl.c */
+#include "emit-rtl.h"
 
 /* Return a memory reference like MEMREF, but with its mode widened to
    MODE and adjusted by OFFSET.  */
@@ -691,10 +646,7 @@ extern rtx widen_memory_access (rtx, enum machine_mode, HOST_WIDE_INT);
    valid address.  */
 extern rtx validize_mem (rtx);
 
-/* Given REF, either a MEM or a REG, and T, either the type of X or
-   the expression corresponding to REF, set RTX_UNCHANGING_P if
-   appropriate.  */
-extern void maybe_set_unchanging (rtx, tree);
+extern rtx use_anchored_address (rtx);
 
 /* Given REF, a MEM, and T, either the type of X or the expression
    corresponding to REF, set the memory attributes.  OBJECTP is nonzero
@@ -708,14 +660,6 @@ extern void set_mem_attributes_minus_bitpos (rtx, tree, int, HOST_WIDE_INT);
 
 /* Assemble the static constant template for function entry trampolines.  */
 extern rtx assemble_trampoline_template (void);
-
-/* Given rtx, return new rtx whose address won't be affected by
-   any side effects.  It has been copied to a new temporary reg.  */
-extern rtx stabilize (rtx);
-
-/* Given an rtx, copy all regs it refers to into new temps
-   and return a modified copy that refers to the new temps.  */
-extern rtx copy_all_regs (rtx);
 
 /* Copy given rtx to a new temp reg and return that.  */
 extern rtx copy_to_reg (rtx);
@@ -754,6 +698,9 @@ extern void emit_stack_save (enum save_level, rtx *, rtx);
 /* Restore the stack pointer from a save area of the specified level.  */
 extern void emit_stack_restore (enum save_level, rtx, rtx);
 
+/* Invoke emit_stack_save for the nonlocal_goto_save_area.  */
+extern void update_nonlocal_goto_save_area (void);
+
 /* Allocate some space on the stack dynamically and return its address.  An rtx
    says how many bytes.  */
 extern rtx allocate_dynamic_stack_space (rtx, rtx, int);
@@ -769,10 +716,6 @@ extern void probe_stack_range (HOST_WIDE_INT, rtx);
    in its original home.  This becomes invalid if any more code is emitted.  */
 extern rtx hard_libcall_value (enum machine_mode);
 
-/* Given an rtx, return an rtx for a value rounded up to a multiple
-   of STACK_BOUNDARY / BITS_PER_UNIT.  */
-extern rtx round_push (rtx);
-
 /* Return the mode desired by operand N of a particular bitfield
    insert/extract insn, or MAX_MACHINE_MODE if no such insn is
    available.  */
@@ -782,15 +725,11 @@ extern enum machine_mode
 mode_for_extraction (enum extraction_pattern, int);
 
 extern rtx store_bit_field (rtx, unsigned HOST_WIDE_INT,
-			    unsigned HOST_WIDE_INT, enum machine_mode, rtx,
-			    HOST_WIDE_INT);
+			    unsigned HOST_WIDE_INT, enum machine_mode, rtx);
 extern rtx extract_bit_field (rtx, unsigned HOST_WIDE_INT,
 			      unsigned HOST_WIDE_INT, int, rtx,
-			      enum machine_mode, enum machine_mode,
-			      HOST_WIDE_INT);
+			      enum machine_mode, enum machine_mode);
 extern rtx expand_mult (enum machine_mode, rtx, rtx, rtx, int);
-extern bool const_mult_add_overflow_p (rtx, rtx, rtx, enum machine_mode, int);
-extern rtx expand_mult_add (rtx, rtx, rtx, rtx,enum machine_mode, int);
 extern rtx expand_mult_highpart_adjust (enum machine_mode, rtx, rtx, rtx, rtx, int);
 
 extern rtx assemble_static_space (unsigned HOST_WIDE_INT);
@@ -804,12 +743,6 @@ extern void init_all_optabs (void);
 /* Call this to initialize an optab function entry.  */
 extern rtx init_one_libfunc (const char *);
 
-extern void do_jump_by_parts_equality_rtx (rtx, rtx, rtx);
-extern void do_jump_by_parts_greater_rtx (enum machine_mode, int, rtx, rtx,
-					  rtx, rtx);
-
-extern void mark_seen_cases (tree, unsigned char *, HOST_WIDE_INT, int);
-
 extern int vector_mode_valid_p (enum machine_mode);
 
-extern tree placeholder_list;
+#endif /* GCC_EXPR_H */

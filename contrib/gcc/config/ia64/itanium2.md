@@ -1,5 +1,5 @@
 ;; Itanium2 DFA descriptions for insn scheduling and bundling.
-;; Copyright (C) 2002 Free Software Foundation, Inc.
+;; Copyright (C) 2002, 2004, 2005 Free Software Foundation, Inc.
 ;; Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 ;;
 ;; This file is part of GCC.
@@ -16,8 +16,8 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with GCC; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 59 Temple Place - Suite 330,
-;; Boston, MA 02111-1307, USA.  */
+;; the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+;; Boston, MA 02110-1301, USA.  */
 ;;
 
 /* This is description of pipeline hazards based on DFA.  The
@@ -31,10 +31,10 @@
      DEFINE_AUTOMATON).
 
      All define_reservations and define_cpu_units should have unique
-     names which can not be "nothing".
+     names which cannot be "nothing".
 
    o (exclusion_set string string) means that each CPU function unit
-     in the first string can not be reserved simultaneously with each
+     in the first string cannot be reserved simultaneously with each
      unit whose name is in the second string and vise versa.  CPU
      units in the string are separated by commas. For example, it is
      useful for description CPU with fully pipelined floating point
@@ -42,7 +42,7 @@
      floating point insns or only double floating point insns.
 
    o (presence_set string string) means that each CPU function unit in
-     the first string can not be reserved unless at least one of
+     the first string cannot be reserved unless at least one of
      pattern of units whose names are in the second string is
      reserved.  This is an asymmetric relation.  CPU units or unit
      patterns in the strings are separated by commas.  Pattern is one
@@ -90,13 +90,13 @@
      string are separated by commas.  Pattern is one unit name or unit
      names separated by white-spaces.
 
-     For example, it is useful for description that slot0 can not be
+     For example, it is useful for description that slot0 cannot be
      reserved after slot1 or slot2 reservation for a VLIW processor.
      We could describe it by the following construction
 
         (absence_set "slot2" "slot0, slot1")
 
-     Or slot2 can not be reserved if slot0 and unit b0 are reserved or
+     Or slot2 cannot be reserved if slot0 and unit b0 are reserved or
      slot1 and unit b1 are reserved .  In this case we could write
 
         (absence_set "slot2" "slot0 b0, slot1 b1")
@@ -138,7 +138,7 @@
      case, you describe common part and use one its name (the 1st
      parameter) in regular expression in define_insn_reservation.  All
      define_reservations, define results and define_cpu_units should
-     have unique names which can not be "nothing".
+     have unique names which cannot be "nothing".
 
    o (define_insn_reservation name default_latency condition regexpr)
      describes reservation of cpu functional units (the 3nd operand)
@@ -398,7 +398,7 @@
    "2_stop")
 
 ;;   The issue logic can reorder M slot insns between different subtypes
-;; but can not reorder insn within the same subtypes.  The following
+;; but cannot reorder insn within the same subtypes.  The following
 ;; constraint is enough to describe this.
 (final_presence_set "2_um1" "2_um0")
 (final_presence_set "2_um3" "2_um2")
@@ -484,7 +484,7 @@
 (define_reservation "2_M_only_um01" "2_M0_only_um01|2_M1_only_um01")
 
 ;; I instruction is dispersed to the lowest numbered I unit
-;; not already in use.  Remeber about possible splitting.
+;; not already in use.  Remember about possible splitting.
 (define_reservation "2_I0"
   "2_0mi.i+2_ui0|2_0mii.+(2_ui0|2_ui1)|2_0mmi.+2_ui0\
    |2_0mfi.+2_ui0|2_0mi.b+2_ui0|(2_1mi.i|2_1mi.b)+(2_ui0|2_ui1)\
@@ -731,9 +731,38 @@
             (eq_attr "itanium_class" "fcvtfx"))
        (eq (symbol_ref "bundling_p") (const_int 0))) "2_F")
 (define_insn_reservation "2_fld"     6
-  (and (and (eq_attr "cpu" "itanium2")
-            (eq_attr "itanium_class" "fld"))
-       (eq (symbol_ref "bundling_p") (const_int 0))) "2_M")
+  (and (and (and (and (eq_attr "cpu" "itanium2")
+                      (eq_attr "itanium_class" "fld"))
+                 (eq_attr "data_speculative" "no"))
+            (eq_attr "check_load" "no"))
+       (eq (symbol_ref "bundling_p") (const_int 0)))
+  "2_M")
+(define_insn_reservation "2_flda"    6
+  (and (and (and (eq_attr "cpu" "itanium2")
+                 (eq_attr "itanium_class" "fld"))
+            (eq_attr "data_speculative" "yes"))
+       (eq (symbol_ref "bundling_p") (const_int 0)))
+  "2_M_only_um01")
+(define_insn_reservation "2_fldc"    0
+  (and (and (and (eq_attr "cpu" "itanium2")
+                 (eq_attr "itanium_class" "fld"))
+            (eq_attr "check_load" "yes"))
+       (eq (symbol_ref "bundling_p") (const_int 0)))
+  "2_M_only_um01")
+
+(define_insn_reservation "2_fldp"    6
+  (and (and (and (eq_attr "cpu" "itanium2")
+		 (eq_attr "itanium_class" "fldp"))
+	    (eq_attr "check_load" "no"))
+       (eq (symbol_ref "bundling_p") (const_int 0)))
+  "2_M_only_um01")
+(define_insn_reservation "2_fldpc"   0
+  (and (and (and (eq_attr "cpu" "itanium2")
+		 (eq_attr "itanium_class" "fldp"))
+	    (eq_attr "check_load" "yes"))
+       (eq (symbol_ref "bundling_p") (const_int 0)))
+  "2_M_only_um01")
+
 (define_insn_reservation "2_fmac"    4
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "fmac"))
@@ -786,17 +815,29 @@
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "ilog"))
        (eq (symbol_ref "bundling_p") (const_int 0))) "2_A")
+(define_insn_reservation "2_mmalua"  2
+  (and (and (eq_attr "cpu" "itanium2")
+            (eq_attr "itanium_class" "mmalua"))
+       (eq (symbol_ref "bundling_p") (const_int 0))) "2_A")
 ;; Latency time ???
 (define_insn_reservation "2_ishf"    1
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "ishf"))
        (eq (symbol_ref "bundling_p") (const_int 0)))
   "2_I+2_only_ui0")
+
 (define_insn_reservation "2_ld"      1
-  (and (and (eq_attr "cpu" "itanium2")
-            (eq_attr "itanium_class" "ld"))
+  (and (and (and (eq_attr "cpu" "itanium2")
+                 (eq_attr "itanium_class" "ld"))
+            (eq_attr "check_load" "no"))
        (eq (symbol_ref "bundling_p") (const_int 0)))
   "2_M_only_um01")
+(define_insn_reservation "2_ldc"     0
+  (and (and (eq_attr "cpu" "itanium2")
+            (eq_attr "check_load" "yes"))
+       (eq (symbol_ref "bundling_p") (const_int 0)))
+  "2_M_only_um01")
+
 (define_insn_reservation "2_long_i"  1
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "long_i"))
@@ -900,11 +941,22 @@
             (eq_attr "itanium_class" "xtd"))
        (eq (symbol_ref "bundling_p") (const_int 0))) "2_I")
 
-(define_insn_reservation "2_chk_s"   0
+(define_insn_reservation "2_chk_s_i" 0
   (and (and (eq_attr "cpu" "itanium2")
-            (eq_attr "itanium_class" "chk_s"))
+            (eq_attr "itanium_class" "chk_s_i"))
        (eq (symbol_ref "bundling_p") (const_int 0)))
   "2_I|2_M_only_um23")
+(define_insn_reservation "2_chk_s_f" 0
+  (and (and (eq_attr "cpu" "itanium2")
+            (eq_attr "itanium_class" "chk_s_f"))
+       (eq (symbol_ref "bundling_p") (const_int 0)))
+  "2_M_only_um23")
+(define_insn_reservation "2_chk_a"   0
+  (and (and (eq_attr "cpu" "itanium2")
+            (eq_attr "itanium_class" "chk_a"))
+       (eq (symbol_ref "bundling_p") (const_int 0)))
+  "2_M_only_um01")
+
 (define_insn_reservation "2_lfetch"  0
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "lfetch"))
@@ -1016,23 +1068,24 @@
 (define_bypass  0 "2_tbit" "2_br,2_scall")
 (define_bypass  2 "2_ld" "2_ld"  "ia64_ld_address_bypass_p")
 (define_bypass  2 "2_ld" "2_st"  "ia64_st_address_bypass_p")
-(define_bypass  2 "2_ld" "2_mmmul,2_mmshf")
-(define_bypass  3 "2_ilog" "2_mmmul,2_mmshf")
-(define_bypass  3 "2_ialu" "2_mmmul,2_mmshf")
-(define_bypass  3 "2_mmmul,2_mmshf" "2_ialu,2_ilog,2_ishf,2_st,2_ld")
+(define_bypass  2 "2_ld,2_ldc" "2_mmalua,2_mmmul,2_mmshf")
+(define_bypass  3 "2_ilog" "2_mmalua,2_mmmul,2_mmshf")
+(define_bypass  3 "2_ialu" "2_mmalua,2_mmmul,2_mmshf")
+(define_bypass  3 "2_mmalua,2_mmmul,2_mmshf" "2_ialu,2_ilog,2_ishf,2_st,2_ld,2_ldc")
 (define_bypass  6 "2_tofr"  "2_frfr,2_stf")
 (define_bypass  7 "2_fmac"  "2_frfr,2_stf")
 
 ;; We don't use here fcmp because scall may be predicated.
-(define_bypass  0 "2_fcvtfx,2_fld,2_fmac,2_fmisc,2_frar_i,2_frar_m,\
-                   2_frbr,2_frfr,2_frpr,2_ialu,2_ilog,2_ishf,2_ld,2_long_i,\
-                   2_mmmul,2_mmshf,2_mmshfi,2_toar_m,2_tofr,2_xmpy,2_xtd"
+(define_bypass  0 "2_fcvtfx,2_fld,2_flda,2_fldc,2_fmac,2_fmisc,2_frar_i,2_frar_m,\
+                   2_frbr,2_frfr,2_frpr,2_ialu,2_ilog,2_ishf,2_ld,2_ldc,2_long_i,\
+                   2_mmalua,2_mmmul,2_mmshf,2_mmshfi,2_toar_m,2_tofr,\
+		   2_xmpy,2_xtd"
                   "2_scall")
 
-(define_bypass  0 "2_unknown,2_ignore,2_stop_bit,2_br,2_fcmp,2_fcvtfx,2_fld,\
+(define_bypass  0 "2_unknown,2_ignore,2_stop_bit,2_br,2_fcmp,2_fcvtfx,2_fld,2_flda,2_fldc,\
                    2_fmac,2_fmisc,2_frar_i,2_frar_m,2_frbr,2_frfr,2_frpr,\
-                   2_ialu,2_icmp,2_ilog,2_ishf,2_ld,2_chk_s,\
-                   2_long_i,2_mmmul,2_mmshf,2_mmshfi,2_nop,2_nop_b,2_nop_f,\
+                   2_ialu,2_icmp,2_ilog,2_ishf,2_ld,2_ldc,2_chk_s_i,2_chk_s_f,2_chk_a,2_long_i,\
+		   2_mmalua,2_mmmul,2_mmshf,2_mmshfi,2_nop,2_nop_b,2_nop_f,\
                    2_nop_i,2_nop_m,2_nop_x,2_rse_m,2_scall,2_sem,2_stf,2_st,\
                    2_syst_m0,2_syst_m,2_tbit,2_toar_i,2_toar_m,2_tobr,2_tofr,\
                    2_topr,2_xmpy,2_xtd,2_lfetch" "2_ignore")
@@ -1274,7 +1327,7 @@
    "2b_stop")
 
 ;;   The issue logic can reorder M slot insns between different subtypes
-;; but can not reorder insn within the same subtypes.  The following
+;; but cannot reorder insn within the same subtypes.  The following
 ;; constraint is enough to describe this.
 (final_presence_set "2b_um1" "2b_um0")
 (final_presence_set "2b_um3" "2b_um2")
@@ -1335,7 +1388,7 @@
    +(2b_um2|2b_um3)")
 
 ;; I instruction is dispersed to the lowest numbered I unit
-;; not already in use.  Remeber about possible splitting.
+;; not already in use.  Remember about possible splitting.
 (define_reservation "2b_I"
   "2b_0mi.i+2_2+2b_ui0|2b_0mii.+2_3+(2b_ui0|2b_ui1)|2b_0mmi.+2_3+2b_ui0\
    |2b_0mfi.+2_3+2b_ui0|2b_0mi.b+2_2+2b_ui0\
@@ -1533,9 +1586,38 @@
             (eq_attr "itanium_class" "fcvtfx"))
        (ne (symbol_ref "bundling_p") (const_int 0))) "2b_F")
 (define_insn_reservation "2b_fld"     6
-  (and (and (eq_attr "cpu" "itanium2")
-            (eq_attr "itanium_class" "fld"))
-       (ne (symbol_ref "bundling_p") (const_int 0))) "2b_M")
+  (and (and (and (and (eq_attr "cpu" "itanium2")
+                      (eq_attr "itanium_class" "fld"))
+                 (eq_attr "data_speculative" "no"))
+            (eq_attr "check_load" "no"))
+       (ne (symbol_ref "bundling_p") (const_int 0)))
+  "2b_M")
+(define_insn_reservation "2b_flda"    6
+  (and (and (and (eq_attr "cpu" "itanium2")
+                 (eq_attr "itanium_class" "fld"))
+            (eq_attr "data_speculative" "yes"))
+       (ne (symbol_ref "bundling_p") (const_int 0)))
+  "2b_M_only_um01")
+(define_insn_reservation "2b_fldc"    0
+  (and (and (and (eq_attr "cpu" "itanium2")
+                 (eq_attr "itanium_class" "fld"))
+            (eq_attr "check_load" "yes"))
+       (ne (symbol_ref "bundling_p") (const_int 0)))
+  "2b_M_only_um01")
+
+(define_insn_reservation "2b_fldp"    6
+  (and (and (and (eq_attr "cpu" "itanium2")
+		 (eq_attr "itanium_class" "fldp"))
+	    (eq_attr "check_load" "no"))
+       (ne (symbol_ref "bundling_p") (const_int 0)))
+  "2b_M_only_um01")
+(define_insn_reservation "2b_fldpc"   0
+  (and (and (and (eq_attr "cpu" "itanium2")
+		 (eq_attr "itanium_class" "fldp"))
+	    (eq_attr "check_load" "yes"))
+       (ne (symbol_ref "bundling_p") (const_int 0)))
+  "2b_M_only_um01")
+
 (define_insn_reservation "2b_fmac"    4
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "fmac"))
@@ -1586,17 +1668,30 @@
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "ilog"))
        (ne (symbol_ref "bundling_p") (const_int 0))) "2b_A")
+(define_insn_reservation "2b_mmalua"  2
+  (and (and (eq_attr "cpu" "itanium2")
+            (eq_attr "itanium_class" "mmalua"))
+       (ne (symbol_ref "bundling_p") (const_int 0))) "2b_A")
 ;; Latency time ???
 (define_insn_reservation "2b_ishf"    1
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "ishf"))
        (ne (symbol_ref "bundling_p") (const_int 0)))
   "2b_I+2b_only_ui0")
+
 (define_insn_reservation "2b_ld"      1
-  (and (and (eq_attr "cpu" "itanium2")
-            (eq_attr "itanium_class" "ld"))
+  (and (and (and (eq_attr "cpu" "itanium2")
+                 (eq_attr "itanium_class" "ld"))
+            (eq_attr "check_load" "no"))
        (ne (symbol_ref "bundling_p") (const_int 0)))
   "2b_M_only_um01")
+(define_insn_reservation "2b_ldc"     0
+  (and (and (and (eq_attr "cpu" "itanium2")
+                 (eq_attr "itanium_class" "ld"))
+            (eq_attr "check_load" "yes"))
+       (ne (symbol_ref "bundling_p") (const_int 0)))
+  "2b_M_only_um01")
+
 (define_insn_reservation "2b_long_i"  1
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "long_i"))
@@ -1695,11 +1790,23 @@
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "xtd"))
        (ne (symbol_ref "bundling_p") (const_int 0))) "2b_I")
-(define_insn_reservation "2b_chk_s"   0
+
+(define_insn_reservation "2b_chk_s_i" 0
   (and (and (eq_attr "cpu" "itanium2")
-            (eq_attr "itanium_class" "chk_s"))
+            (eq_attr "itanium_class" "chk_s_i"))
        (ne (symbol_ref "bundling_p") (const_int 0)))
   "2b_I|2b_M_only_um23")
+(define_insn_reservation "2b_chk_s_f" 0
+  (and (and (eq_attr "cpu" "itanium2")
+            (eq_attr "itanium_class" "chk_s_f"))
+       (ne (symbol_ref "bundling_p") (const_int 0)))
+  "2b_M_only_um23")
+(define_insn_reservation "2b_chk_a"   0
+  (and (and (eq_attr "cpu" "itanium2")
+            (eq_attr "itanium_class" "chk_a"))
+       (ne (symbol_ref "bundling_p") (const_int 0)))
+  "2b_M_only_um01")
+
 (define_insn_reservation "2b_lfetch"  0
   (and (and (eq_attr "cpu" "itanium2")
             (eq_attr "itanium_class" "lfetch"))

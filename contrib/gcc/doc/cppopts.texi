@@ -1,4 +1,4 @@
-@c Copyright (c) 1999, 2000, 2001, 2002, 2003, 2004
+@c Copyright (c) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 @c Free Software Foundation, Inc.
 @c This is part of the CPP and GCC manuals.
 @c For copying conditions, see the file gcc.texi.
@@ -16,7 +16,6 @@
 Predefine @var{name} as a macro, with definition @code{1}.
 
 @item -D @var{name}=@var{definition}
-Predefine @var{name} as a macro, with definition @var{definition}.
 The contents of @var{definition} are tokenized and processed as if
 they appeared during translation phase three in a @samp{#define}
 directive.  In particular, the definition will be truncated by
@@ -134,7 +133,7 @@ time it is redefined or undefined.
 Built-in macros, macros defined on the command line, and macros
 defined in include files are not warned about.
 
-@strong{Note:} If a macro is actually used, but only used in skipped
+@emph{Note:} If a macro is actually used, but only used in skipped
 conditional blocks, then CPP will report it as unused.  To avoid the
 warning in such a case, you might improve the scope of the macro's
 definition by, for example, moving it into the first skipped block.
@@ -306,7 +305,7 @@ basename of the input file and applies a @file{.d} suffix.
 
 If @option{-MD} is used in conjunction with @option{-E}, any
 @option{-o} switch is understood to specify the dependency output file
-(but @pxref{dashMF,,-MF}), but if used without @option{-E}, each @option{-o}
+(@pxref{dashMF,,-MF}), but if used without @option{-E}, each @option{-o}
 is understood to specify a target object file.
 
 Since @option{-E} is not implied, @option{-MD} can be used to generate
@@ -315,7 +314,7 @@ a dependency output file as a side-effect of the compilation process.
 @item -MMD
 @opindex MMD
 Like @option{-MD} except mention only user header files, not system
--header files.
+header files.
 
 @ifclear cppmanual
 @item -fpch-deps
@@ -326,6 +325,24 @@ precompiled header's dependencies.  If not specified only the
 precompiled header would be listed and not the files that were used to
 create it because those files are not consulted when a precompiled
 header is used.
+
+@item -fpch-preprocess
+@opindex fpch-preprocess
+This option allows use of a precompiled header (@pxref{Precompiled
+Headers}) together with @option{-E}.  It inserts a special @code{#pragma},
+@code{#pragma GCC pch_preprocess "<filename>"} in the output to mark
+the place where the precompiled header was found, and its filename.  When
+@option{-fpreprocessed} is in use, GCC recognizes this @code{#pragma} and
+loads the PCH@.
+
+This option is off by default, because the resulting preprocessed output
+is only really suitable as input to GCC@.  It is switched on by
+@option{-save-temps}.
+
+You should not write this @code{#pragma} in your own code, but it is
+safe to edit the filename if the PCH file is available in a different
+location.  The filename may be absolute or it may be relative to GCC's
+current directory.
 
 @end ifclear
 @item -x c
@@ -342,7 +359,7 @@ extensions for C++ and assembly are also recognized.  If cpp does not
 recognize the extension, it will treat the file as C; this is the most
 generic mode.
 
-@strong{Note:} Previous versions of cpp accepted a @option{-lang} option
+@emph{Note:} Previous versions of cpp accepted a @option{-lang} option
 which selected both the language and the standards conformance level.
 This option has been removed, because it conflicts with the @option{-l}
 option.
@@ -404,6 +421,7 @@ file directory as the first search directory for @code{@w{#include
 @ifset cppmanual
 @xref{Search Path}.
 @end ifset
+This option has been deprecated.
 
 @item -nostdinc
 @opindex nostdinc
@@ -460,6 +478,16 @@ Append @var{dir} to the prefix specified previously with
 path.  @option{-iwithprefixbefore} puts it in the same place @option{-I}
 would; @option{-iwithprefix} puts it where @option{-idirafter} would.
 
+@item -isysroot @var{dir}
+@opindex isysroot
+This option is like the @option{--sysroot} option, but applies only to
+header files.  See the @option{--sysroot} option for more information.
+
+@item -imultilib @var{dir}
+@opindex imultilib
+Use @var{dir} as a subdirectory of the directory containing
+target-specific C++ headers.
+
 @item -isystem @var{dir}
 @opindex isystem
 Search @var{dir} for header files, after all directories specified by
@@ -470,6 +498,16 @@ is applied to the standard system directories.
 @xref{System Headers}.
 @end ifset
 
+@item -iquote @var{dir}
+@opindex iquote
+Search @var{dir} only for header files requested with
+@code{@w{#include "@var{file}"}}; they are not searched for
+@code{@w{#include <@var{file}>}}, before all directories specified by
+@option{-I} and before the standard system directories.
+@ifset cppmanual
+@xref{Search Path}.
+@end ifset
+
 @item -fdollars-in-identifiers
 @opindex fdollars-in-identifiers
 @anchor{fdollars-in-identifiers}
@@ -477,6 +515,12 @@ Accept @samp{$} in identifiers.
 @ifset cppmanual
   @xref{Identifier characters}.
 @end ifset
+
+@item -fextended-identifiers
+@opindex fextended-identifiers
+Accept universal character names in identifiers.  This option is
+experimental; in a future version of GCC, it will be enabled by
+default for C99 and C++.
 
 @item -fpreprocessed
 @opindex fpreprocessed
@@ -502,27 +546,30 @@ ignored.  The default is 8.
 
 @item -fexec-charset=@var{charset}
 @opindex fexec-charset
+@cindex character set, execution
 Set the execution character set, used for string and character
 constants.  The default is UTF-8.  @var{charset} can be any encoding
 supported by the system's @code{iconv} library routine.
 
 @item -fwide-exec-charset=@var{charset}
 @opindex fwide-exec-charset
+@cindex character set, wide execution
 Set the wide execution character set, used for wide string and
 character constants.  The default is UTF-32 or UTF-16, whichever
 corresponds to the width of @code{wchar_t}.  As with
-@option{-ftarget-charset}, @var{charset} can be any encoding supported
+@option{-fexec-charset}, @var{charset} can be any encoding supported
 by the system's @code{iconv} library routine; however, you will have
 problems with encodings that do not fit exactly in @code{wchar_t}.
 
 @item -finput-charset=@var{charset}
 @opindex finput-charset
+@cindex character set, input
 Set the input character set, used for translation from the character
-set of the input file to the source character set used by GCC. If the
+set of the input file to the source character set used by GCC@.  If the
 locale does not specify, or GCC cannot get this information from the
-locale, the default is UTF-8. This can be overridden by either the locale
-or this command line option. Currently the command line option takes
-precedence if there's a conflict. @var{charset} can be any encoding
+locale, the default is UTF-8.  This can be overridden by either the locale
+or this command line option.  Currently the command line option takes
+precedence if there's a conflict.  @var{charset} can be any encoding
 supported by the system's @code{iconv} library routine.
 
 @item -fworking-directory

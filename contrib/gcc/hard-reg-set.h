@@ -1,5 +1,6 @@
 /* Sets (bit vectors) of hard registers, and operations on them.
-   Copyright (C) 1987, 1992, 1994, 2000, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992, 1994, 2000, 2003, 2004, 2005
+   Free Software Foundation, Inc.
 
 This file is part of GCC
 
@@ -15,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #ifndef GCC_HARD_REG_SET_H
 #define GCC_HARD_REG_SET_H 
@@ -33,22 +34,23 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
    Note that lots of code assumes that the first part of a regset is
    the same format as a HARD_REG_SET.  To help make sure this is true,
-   we only try the widest integer mode (HOST_WIDE_INT) instead of all the
-   smaller types.  This approach loses only if there are a very few
-   registers and then only in the few cases where we have an array of
-   HARD_REG_SETs, so it needn't be as complex as it used to be.  */
+   we only try the widest fast integer mode (HOST_WIDEST_FAST_INT)
+   instead of all the smaller types.  This approach loses only if
+   there are very few registers and then only in the few cases where
+   we have an array of HARD_REG_SETs, so it needn't be as complex as
+   it used to be.  */
 
-typedef unsigned HOST_WIDE_INT HARD_REG_ELT_TYPE;
+typedef unsigned HOST_WIDEST_FAST_INT HARD_REG_ELT_TYPE;
 
-#if FIRST_PSEUDO_REGISTER <= HOST_BITS_PER_WIDE_INT
+#if FIRST_PSEUDO_REGISTER <= HOST_BITS_PER_WIDEST_FAST_INT
 
 #define HARD_REG_SET HARD_REG_ELT_TYPE
 
 #else
 
 #define HARD_REG_SET_LONGS \
- ((FIRST_PSEUDO_REGISTER + HOST_BITS_PER_WIDE_INT - 1)	\
-  / HOST_BITS_PER_WIDE_INT)
+ ((FIRST_PSEUDO_REGISTER + HOST_BITS_PER_WIDEST_FAST_INT - 1)	\
+  / HOST_BITS_PER_WIDEST_FAST_INT)
 typedef HARD_REG_ELT_TYPE HARD_REG_SET[HARD_REG_SET_LONGS];
 
 #endif
@@ -111,7 +113,7 @@ typedef HARD_REG_ELT_TYPE HARD_REG_SET[HARD_REG_SET_LONGS];
 
 #else
 
-#define UHOST_BITS_PER_WIDE_INT ((unsigned) HOST_BITS_PER_WIDE_INT)
+#define UHOST_BITS_PER_WIDE_INT ((unsigned) HOST_BITS_PER_WIDEST_FAST_INT)
 
 #define SET_HARD_REG_BIT(SET, BIT)		\
   ((SET)[(BIT) / UHOST_BITS_PER_WIDE_INT]	\
@@ -125,7 +127,7 @@ typedef HARD_REG_ELT_TYPE HARD_REG_SET[HARD_REG_SET_LONGS];
   (!!((SET)[(BIT) / UHOST_BITS_PER_WIDE_INT]	\
       & (HARD_CONST (1) << ((BIT) % UHOST_BITS_PER_WIDE_INT))))
 
-#if FIRST_PSEUDO_REGISTER <= 2*HOST_BITS_PER_WIDE_INT
+#if FIRST_PSEUDO_REGISTER <= 2*HOST_BITS_PER_WIDEST_FAST_INT
 #define CLEAR_HARD_REG_SET(TO)  \
 do { HARD_REG_ELT_TYPE *scan_tp_ = (TO);			\
      scan_tp_[0] = 0;						\
@@ -179,7 +181,7 @@ do { HARD_REG_ELT_TYPE *scan_xp_ = (X), *scan_yp_ = (Y); 	\
 	goto TO; } while (0)
 
 #else
-#if FIRST_PSEUDO_REGISTER <= 3*HOST_BITS_PER_WIDE_INT
+#if FIRST_PSEUDO_REGISTER <= 3*HOST_BITS_PER_WIDEST_FAST_INT
 #define CLEAR_HARD_REG_SET(TO)  \
 do { HARD_REG_ELT_TYPE *scan_tp_ = (TO);			\
      scan_tp_[0] = 0;						\
@@ -243,7 +245,7 @@ do { HARD_REG_ELT_TYPE *scan_xp_ = (X), *scan_yp_ = (Y); 	\
 	goto TO; } while (0)
 
 #else
-#if FIRST_PSEUDO_REGISTER <= 4*HOST_BITS_PER_WIDE_INT
+#if FIRST_PSEUDO_REGISTER <= 4*HOST_BITS_PER_WIDEST_FAST_INT
 #define CLEAR_HARD_REG_SET(TO)  \
 do { HARD_REG_ELT_TYPE *scan_tp_ = (TO);			\
      scan_tp_[0] = 0;						\
@@ -316,7 +318,7 @@ do { HARD_REG_ELT_TYPE *scan_xp_ = (X), *scan_yp_ = (Y); 	\
 	 && (scan_xp_[3] == scan_yp_[3]))			\
 	goto TO; } while (0)
 
-#else /* FIRST_PSEUDO_REGISTER > 3*HOST_BITS_PER_WIDE_INT */
+#else /* FIRST_PSEUDO_REGISTER > 3*HOST_BITS_PER_WIDEST_FAST_INT */
 
 #define CLEAR_HARD_REG_SET(TO)  \
 do { HARD_REG_ELT_TYPE *scan_tp_ = (TO);			\
@@ -462,14 +464,6 @@ extern HARD_REG_SET reg_class_contents[N_REG_CLASSES];
 
 extern unsigned int reg_class_size[N_REG_CLASSES];
 
-/* For each reg class, table listing all the containing classes.  */
-
-extern enum reg_class reg_class_superclasses[N_REG_CLASSES][N_REG_CLASSES];
-
-/* For each reg class, table listing all the classes contained in it.  */
-
-extern enum reg_class reg_class_subclasses[N_REG_CLASSES][N_REG_CLASSES];
-
 /* For each pair of reg classes,
    a largest reg class contained in their union.  */
 
@@ -480,13 +474,13 @@ extern enum reg_class reg_class_subunion[N_REG_CLASSES][N_REG_CLASSES];
 
 extern enum reg_class reg_class_superunion[N_REG_CLASSES][N_REG_CLASSES];
 
-/* Number of non-fixed registers.  */
-
-extern int n_non_fixed_regs;
-
 /* Vector indexed by hardware reg giving its name.  */
 
 extern const char * reg_names[FIRST_PSEUDO_REGISTER];
+
+/* Vector indexed by reg class giving its name.  */
+
+extern const char * reg_class_names[];
 
 /* Given a hard REGN a FROM mode and a TO mode, return nonzero if
    REGN cannot change modes between the specified modes.  */

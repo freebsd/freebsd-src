@@ -1,5 +1,5 @@
 /* Language-level data type conversion for GNU C.
-   Copyright (C) 1987, 1988, 1991, 1998, 2002, 2003
+   Copyright (C) 1987, 1988, 1991, 1998, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 
 /* This file contains the functions for converting C expressions
@@ -33,7 +33,10 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "flags.h"
 #include "convert.h"
 #include "c-common.h"
+#include "c-tree.h"
+#include "langhooks.h"
 #include "toplev.h"
+#include "target.h"
 
 /* Change of width--truncation and extension of integers or reals--
    is represented with NOP_EXPR.  Proper functioning of many things
@@ -67,14 +70,25 @@ convert (tree type, tree expr)
 {
   tree e = expr;
   enum tree_code code = TREE_CODE (type);
+  const char *invalid_conv_diag;
 
-  if (type == TREE_TYPE (expr)
-      || TREE_CODE (expr) == ERROR_MARK
-      || code == ERROR_MARK || TREE_CODE (TREE_TYPE (expr)) == ERROR_MARK)
+  if (type == error_mark_node
+      || expr == error_mark_node
+      || TREE_TYPE (expr) == error_mark_node)
+    return error_mark_node;
+
+  if ((invalid_conv_diag
+       = targetm.invalid_conversion (TREE_TYPE (expr), type)))
+    {
+      error (invalid_conv_diag);
+      return error_mark_node;
+    }
+
+  if (type == TREE_TYPE (expr))
     return expr;
 
   if (TYPE_MAIN_VARIANT (type) == TYPE_MAIN_VARIANT (TREE_TYPE (expr)))
-    return fold (build1 (NOP_EXPR, type, expr));
+    return fold_convert (type, expr);
   if (TREE_CODE (TREE_TYPE (expr)) == ERROR_MARK)
     return error_mark_node;
   if (TREE_CODE (TREE_TYPE (expr)) == VOID_TYPE)
@@ -83,25 +97,11 @@ convert (tree type, tree expr)
       return error_mark_node;
     }
   if (code == VOID_TYPE)
-    return build1 (CONVERT_EXPR, type, e);
-#if 0
-  /* This is incorrect.  A truncation can't be stripped this way.
-     Extensions will be stripped by the use of get_unwidened.  */
-  if (TREE_CODE (expr) == NOP_EXPR)
-    return convert (type, TREE_OPERAND (expr, 0));
-#endif
+    return fold_convert (type, e);
   if (code == INTEGER_TYPE || code == ENUMERAL_TYPE)
     return fold (convert_to_integer (type, e));
   if (code == BOOLEAN_TYPE)
-    {
-      tree t = c_common_truthvalue_conversion (expr);
-      /* If it returns a NOP_EXPR, we must fold it here to avoid
-	 infinite recursion between fold () and convert ().  */
-      if (TREE_CODE (t) == NOP_EXPR)
-	return fold (build1 (NOP_EXPR, type, TREE_OPERAND (t, 0)));
-      else
-	return fold (build1 (NOP_EXPR, type, t));
-    }
+    return fold_convert (type, c_objc_common_truthvalue_conversion (expr));
   if (code == POINTER_TYPE || code == REFERENCE_TYPE)
     return fold (convert_to_pointer (type, e));
   if (code == REAL_TYPE)
@@ -110,6 +110,9 @@ convert (tree type, tree expr)
     return fold (convert_to_complex (type, e));
   if (code == VECTOR_TYPE)
     return fold (convert_to_vector (type, e));
+  if ((code == RECORD_TYPE || code == UNION_TYPE)
+      && lang_hooks.types_compatible_p (type, TREE_TYPE (expr)))
+      return e;
 
   error ("conversion to non-scalar type requested");
   return error_mark_node;

@@ -1,5 +1,5 @@
 /* Darwin/powerpc host-specific hook definitions.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -15,27 +15,37 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
 #include <signal.h>
 #include <sys/ucontext.h>
-#include <sys/mman.h>
 #include "hosthooks.h"
 #include "hosthooks-def.h"
 #include "toplev.h"
 #include "diagnostic.h"
+#include "config/host-darwin.h"
 
 static void segv_crash_handler (int);
 static void segv_handler (int, siginfo_t *, void *);
 static void darwin_rs6000_extra_signals (void);
 
+#ifndef HAVE_DECL_SIGALTSTACK
 /* This doesn't have a prototype in signal.h in 10.2.x and earlier,
    fixed in later releases.  */
 extern int sigaltstack(const struct sigaltstack *, struct sigaltstack *);
+#endif
+
+/* The fields of the mcontext_t type have acquired underscores in later
+   OS versions.  */
+#ifdef HAS_MCONTEXT_T_UNDERSCORES
+#define MC_FLD(x) __ ## x
+#else
+#define MC_FLD(x) x
+#endif
 
 #undef HOST_HOOKS_EXTRA_SIGNALS
 #define HOST_HOOKS_EXTRA_SIGNALS darwin_rs6000_extra_signals
@@ -58,13 +68,17 @@ segv_handler (int sig ATTRIBUTE_UNUSED,
 	      void *scp)
 {
   ucontext_t *uc = (ucontext_t *)scp;
+  sigset_t sigset;
   unsigned faulting_insn;
 
   /* The fault might have happened when trying to run some instruction, in
      which case the next line will segfault _again_.  Handle this case.  */
   signal (SIGSEGV, segv_crash_handler);
+  sigemptyset (&sigset);
+  sigaddset (&sigset, SIGSEGV);
+  sigprocmask (SIG_UNBLOCK, &sigset, NULL);
 
-  faulting_insn = *(unsigned *)uc->uc_mcontext->ss.srr0;
+  faulting_insn = *(unsigned *)uc->uc_mcontext->MC_FLD(ss).MC_FLD(srr0);
 
   /* Note that this only has to work for GCC, so we don't have to deal
      with all the possible cases (GCC has no AltiVec code, for
@@ -73,7 +87,7 @@ segv_handler (int sig ATTRIBUTE_UNUSED,
      this.  */
 
   if ((faulting_insn & 0xFFFF8000) == 0x94218000  /* stwu %r1, -xxx(%r1) */
-      || (faulting_insn & 0xFFFF03FF) == 0x7C21016E /* stwux %r1, xxx, %r1 */
+      || (faulting_insn & 0xFC1F03FF) == 0x7C01016E /* stwux xxx, %r1, xxx */
       || (faulting_insn & 0xFC1F8000) == 0x90018000 /* stw xxx, -yyy(%r1) */
       || (faulting_insn & 0xFC1F8000) == 0xD8018000 /* stfd xxx, -yyy(%r1) */
       || (faulting_insn & 0xFC1F8000) == 0xBC018000 /* stmw xxx, -yyy(%r1) */)
@@ -101,19 +115,20 @@ segv_handler (int sig ATTRIBUTE_UNUSED,
 	    if (strcmp (shell_commands[i][0], shell_name + 1) == 0)
 	      {
 		fnotice (stderr, 
-			 "Try running `%s' in the shell to raise its limit.\n",
+			 "Try running '%s' in the shell to raise its limit.\n",
 			 shell_commands[i][1]);
 	      }
 	}
       
       if (global_dc->abort_on_error)
-	abort ();
+	fancy_abort (__FILE__, __LINE__, __FUNCTION__);
 
       exit (FATAL_EXIT_CODE);
     }
 
   fprintf (stderr, "[address=%08lx pc=%08x]\n", 
-	   uc->uc_mcontext->es.dar, uc->uc_mcontext->ss.srr0);
+	   uc->uc_mcontext->MC_FLD(es).MC_FLD(dar),
+	   uc->uc_mcontext->MC_FLD(ss).MC_FLD(srr0));
   internal_error ("Segmentation Fault");
   exit (FATAL_EXIT_CODE);
 }
@@ -135,66 +150,6 @@ darwin_rs6000_extra_signals (void)
   sact.sa_sigaction = segv_handler;
   if (sigaction (SIGSEGV, &sact, 0) < 0) 
     fatal_error ("While setting up signal handler: %m");
-}
-
-#undef HOST_HOOKS_GT_PCH_GET_ADDRESS
-#define HOST_HOOKS_GT_PCH_GET_ADDRESS darwin_rs6000_gt_pch_get_address
-#undef HOST_HOOKS_GT_PCH_USE_ADDRESS
-#define HOST_HOOKS_GT_PCH_USE_ADDRESS darwin_rs6000_gt_pch_use_address
-
-/* Yes, this is really supposed to work.  */
-static char pch_address_space[1024*1024*1024] __attribute__((aligned (4096)));
-
-/* Return the address of the PCH address space, if the PCH will fit in it.  */
-
-static void *
-darwin_rs6000_gt_pch_get_address (size_t sz, int fd ATTRIBUTE_UNUSED)
-{
-  if (sz <= sizeof (pch_address_space))
-    return pch_address_space;
-  else
-    return NULL;
-}
-
-/* Check ADDR and SZ for validity, and deallocate (using munmap) that part of
-   pch_address_space beyond SZ.  */
-
-static int
-darwin_rs6000_gt_pch_use_address (void *addr, size_t sz, int fd, size_t off)
-{
-  const size_t pagesize = getpagesize();
-  void *mmap_result;
-  int ret;
-
-  if ((size_t)pch_address_space % pagesize != 0
-      || sizeof (pch_address_space) % pagesize != 0)
-    abort ();
-  
-  ret = (addr == pch_address_space && sz <= sizeof (pch_address_space));
-  if (! ret)
-    sz = 0;
-
-  /* Round the size to a whole page size.  Normally this is a no-op.  */
-  sz = (sz + pagesize - 1) / pagesize * pagesize;
-
-  if (munmap (pch_address_space + sz, sizeof (pch_address_space) - sz) != 0)
-    fatal_error ("couldn't unmap pch_address_space: %m\n");
-
-  if (ret)
-    {
-      mmap_result = mmap (addr, sz,
-			  PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED,
-			  fd, off);
-
-      /* The file might not be mmap-able.  */
-      ret = mmap_result != (void *) MAP_FAILED;
-
-      /* Sanity check for broken MAP_FIXED.  */
-      if (ret && mmap_result != addr)
-	abort ();
-    }
-
-  return ret;
 }
 
 

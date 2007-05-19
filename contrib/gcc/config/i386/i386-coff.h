@@ -1,7 +1,7 @@
 /* Definitions for "naked" Intel 386 using coff object format files
    and coff debugging info.
 
-   Copyright (C) 1994, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994, 2000, 2002, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -17,8 +17,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 
 #define TARGET_VERSION fprintf (stderr, " (80386, COFF BSD syntax)");
@@ -59,5 +59,12 @@ Boston, MA 02111-1307, USA.  */
 #undef  ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(BUF,PREFIX,NUMBER)	\
   sprintf ((BUF), ".%s%ld", (PREFIX), (long)(NUMBER))
+
+/* GNU as expects alignment to be the number of bytes instead of the log for
+   COFF targets.  */
+
+#undef ASM_OUTPUT_ALIGN
+#define ASM_OUTPUT_ALIGN(FILE,LOG) \
+  if ((LOG)!=0) fprintf ((FILE), "\t.align %d\n", 1<<(LOG))
 
 /* end of i386-coff.h */
