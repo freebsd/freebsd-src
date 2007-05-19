@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to not build propolice stack smashing protection library.
