@@ -859,7 +859,7 @@ envy24_delta_ak4524_init(void *codec)
 	spicds_setcif(ptr->info, ptr->parent->cfg->cif);
 	spicds_setformat(ptr->info,
 	    AK452X_FORMAT_I2S | AK452X_FORMAT_256FSN | AK452X_FORMAT_1X);
-	spicds_setdvc(ptr->info, 0);
+	spicds_setdvc(ptr->info, AK452X_DVC_DEMOFF);
 	/* for the time being, init only first codec */
 	if (ptr->num == 0)
 		spicds_init(ptr->info);

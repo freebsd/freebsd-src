@@ -932,7 +932,7 @@ envy24ht_spi_init(void *codec)
 	ptr->parent->cfg->type == SPICDS_TYPE_AK4528) {
 	spicds_setformat(ptr->info,
 	    AK452X_FORMAT_I2S | AK452X_FORMAT_256FSN | AK452X_FORMAT_1X);
-	spicds_setdvc(ptr->info, 0);
+	spicds_setdvc(ptr->info, AK452X_DVC_DEMOFF);
 	}
 
 	/* for the time being, init only first codec */
