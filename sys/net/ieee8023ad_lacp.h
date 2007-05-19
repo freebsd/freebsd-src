@@ -62,6 +62,7 @@
 #define	LACP_STATE_EXPIRED	(1<<7)
 
 #define LACP_PORT_NTT		0x00000001
+#define LACP_PORT_MARK		0x00000002
 #define LACP_PORT_PROMISC	0x00000004
 #define LACP_PORT_LADDRCHANGED	0x00000008
 #define LACP_PORT_ATTACHED	0x00000010
@@ -157,7 +158,30 @@ struct lacpdu {
 	uint8_t			ldu_resv[50];
 } __packed;
 
-#define	LACP_TRANSIT_DELAY	1000	/* in msec */
+/*
+ * IEEE802.3ad marker protocol
+ *
+ * protocol (on-wire) definitions.
+ */
+struct lacp_markerinfo {
+	uint16_t		mi_rq_port;
+	uint8_t			mi_rq_system[ETHER_ADDR_LEN];
+	uint32_t		mi_rq_xid;
+	uint8_t			mi_pad[2];
+} __packed;
+
+struct markerdu {
+	struct ether_header	mdu_eh;
+	struct slowprothdr	mdu_sph;
+
+	struct tlvhdr		mdu_tlv;
+	struct lacp_markerinfo	mdu_info;
+	struct tlvhdr		mdu_tlv_term;
+	uint8_t			mdu_resv[90];
+} __packed;
+
+#define	MARKER_TYPE_INFO	0x01
+#define	MARKER_TYPE_RESPONSE	0x02
 
 enum lacp_selected {
 	LACP_UNSELECTED,
@@ -181,8 +205,10 @@ struct lacp_port {
 	struct ifnet		*lp_ifp;
 	struct lacp_peerinfo	lp_partner;
 	struct lacp_peerinfo	lp_actor;
+	struct lacp_markerinfo	lp_marker;
 #define	lp_state	lp_actor.lip_state
 #define	lp_key		lp_actor.lip_key
+#define	lp_systemid	lp_actor.lip_systemid
 	struct timeval		lp_last_lacpdu;
 	int			lp_lacpdu_sent;
 	enum lacp_mux_state	lp_mux_state;
@@ -229,34 +255,12 @@ struct lacp_softc {
 #define	LACP_LONG_TIMEOUT_TIME		(3 * LACP_SLOW_PERIODIC_TIME)
 #define	LACP_CHURN_DETECTION_TIME	(60)
 #define	LACP_AGGREGATE_WAIT_TIME	(2)
+#define	LACP_TRANSIT_DELAY		3000	/* in msec */
 
 /*
 int tlv_check(const void *, size_t, const struct tlvhdr *,
     const struct tlv_template *, boolean_t);
 */
-
-/*
- * IEEE802.3ad marker protocol
- *
- * protocol (on-wire) definitions.
- */
-
-struct markerdu {
-	struct ether_header	mdu_eh;
-	struct slowprothdr	mdu_sph;
-
-	struct tlvhdr		mdu_tlv;
-	uint16_t		mdu_rq_port;
-	uint8_t			mdu_rq_system[6];
-	uint8_t			mdu_rq_xid[4];
-	uint8_t			mdu_pad[2];
-
-	struct tlvhdr		mdu_tlv_term;
-	uint8_t			mdu_resv[90];
-} __packed;
-
-#define	MARKER_TYPE_INFO	1
-#define	MARKER_TYPE_RESPONSE	2
 
 #define	LACP_STATE_EQ(s1, s2, mask)	\
 	((((s1) ^ (s2)) & (mask)) == 0)
