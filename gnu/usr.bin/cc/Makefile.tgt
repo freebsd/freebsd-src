@@ -2,14 +2,8 @@
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-.if ${TARGET_ARCH} == "alpha"
-GCC_CPU=	alpha
-.elif ${TARGET_ARCH} == "arm"
+.if ${TARGET_ARCH} == "arm"
 GCC_CPU=	arm
-# TARGET_CPU_DEFAULT= TARGET_CPU_xscale
-.if defined(TARGET_BIG_ENDIAN)
-CFLAGS+=	-DTARGET_ENDIAN_DEFAULT=ARM_FLAG_BIG_END
-.endif
 .elif ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "amd64"
 GCC_CPU=	i386
 .elif ${TARGET_ARCH} == "ia64"

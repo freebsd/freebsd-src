@@ -1,14 +1,10 @@
 # $FreeBSD$
 
+
 .include "../Makefile.inc"
 .include "../Makefile.fe"
 
-.PATH: ${GCCDIR} ${GCCDIR}/doc
-
 PROG=	cpp
-SRCS=	gcc.c cppspec.c
-
-DPADD=	${LIBCC_INT}
-LDADD=	${LIBCC_INT}
+SRCS+=	cppspec.c
 
 .include <bsd.prog.mk>
