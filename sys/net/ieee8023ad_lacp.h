@@ -265,6 +265,8 @@ int tlv_check(const void *, size_t, const struct tlvhdr *,
 #define	LACP_STATE_EQ(s1, s2, mask)	\
 	((((s1) ^ (s2)) & (mask)) == 0)
 
+#define	LACP_SYS_PRI(peer)	(peer).lip_systemid.lsi_prio
+
 #define	LACP_PORT(_lp)	((struct lacp_port *)(_lp)->lp_psc)
 #define	LACP_SOFTC(_sc)	((struct lacp_softc *)(_sc)->sc_psc)
 
