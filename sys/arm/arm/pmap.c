@@ -431,10 +431,10 @@ pmap_init_l1(struct l1_ttable *l1, pd_entry_t *l1pt)
 
 	l1->l1_kva = l1pt;
 	l1->l1_domain_use_count = 0;
-	l1->l1_domain_first = 0;
+	l1->l1_domain_first = 1;
 
 	for (i = 0; i < PMAP_DOMAINS; i++)
-		l1->l1_domain_free[i] = i + 1;
+		l1->l1_domain_free[i] = i + 2;
 
 	/*
 	 * Copy the kernel's L1 entries to each new L1.
