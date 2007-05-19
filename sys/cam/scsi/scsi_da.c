@@ -499,8 +499,14 @@ static void		dashutdown(void *arg, int howto);
 #define	DA_DEFAULT_RETRY	4
 #endif
 
+#ifndef	DA_DEFAULT_SEND_ORDERED
+#define	DA_DEFAULT_SEND_ORDERED	1
+#endif
+
+
 static int da_retry_count = DA_DEFAULT_RETRY;
 static int da_default_timeout = DA_DEFAULT_TIMEOUT;
+static int da_send_ordered = DA_DEFAULT_SEND_ORDERED;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, da, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
@@ -510,6 +516,9 @@ TUNABLE_INT("kern.cam.da.retry_count", &da_retry_count);
 SYSCTL_INT(_kern_cam_da, OID_AUTO, default_timeout, CTLFLAG_RW,
            &da_default_timeout, 0, "Normal I/O timeout (in seconds)");
 TUNABLE_INT("kern.cam.da.default_timeout", &da_default_timeout);
+SYSCTL_INT(_kern_cam_da, OID_AUTO, da_send_ordered, CTLFLAG_RW,
+           &da_send_ordered, 0, "Send Ordered Tags");
+TUNABLE_INT("kern.cam.da.da_send_ordered", &da_send_ordered);
 
 /*
  * DA_ORDEREDTAG_INTERVAL determines how often, relative
@@ -859,7 +868,7 @@ dainit(void)
 	if (status != CAM_REQ_CMP) {
 		printf("da: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
-	} else {
+	} else if (da_send_ordered) {
 
 		/*
 		 * Schedule a periodic event to occasionally send an
@@ -1308,9 +1317,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 		struct ccb_scsiio *csio;
 		struct scsi_read_capacity_data *rcap;
 
-		rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcap),
-								M_TEMP,
-								M_NOWAIT);
+		rcap = (struct scsi_read_capacity_data *)
+		    malloc(sizeof(*rcap), M_TEMP, M_NOWAIT|M_ZERO);
 		if (rcap == NULL) {
 			printf("dastart: Couldn't malloc read_capacity data\n");
 			/* da_free_periph??? */
@@ -1335,7 +1343,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 		struct scsi_read_capacity_data_long *rcaplong;
 
 		rcaplong = (struct scsi_read_capacity_data_long *)
-			malloc(sizeof(*rcaplong), M_TEMP, M_NOWAIT);
+			malloc(sizeof(*rcaplong), M_TEMP, M_NOWAIT|M_ZERO);
 		if (rcaplong == NULL) {
 			printf("dastart: Couldn't malloc read_capacity data\n");
 			/* da_free_periph??? */
@@ -1543,15 +1551,30 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				block_size = scsi_4btoul(rcaplong->length);
 				maxsector = scsi_8btou64(rcaplong->addr);
 			}
-			dasetgeom(periph, block_size, maxsector);
-			dp = &softc->params;
-			snprintf(announce_buf, sizeof(announce_buf),
-			        "%juMB (%ju %u byte sectors: %dH %dS/T %dC)",
-				(uintmax_t) (((uintmax_t)dp->secsize *
-				dp->sectors) / (1024*1024)),
-			        (uintmax_t)dp->sectors,
-				dp->secsize, dp->heads, dp->secs_per_track,
-				dp->cylinders);
+
+			/*
+			 * Because GEOM code just will panic us if we
+			 * give them an 'illegal' value we'll avoid that
+			 * here.
+			 */
+			if (block_size >= MAXPHYS || block_size == 0) {
+				xpt_print_path(periph->path);
+				printf("unsupportable block size %ju\n",
+				      (uintmax_t) block_size);
+				announce_buf[0] = '\0';
+				cam_periph_invalidate(periph);
+			} else {
+				dasetgeom(periph, block_size, maxsector);
+				dp = &softc->params;
+				snprintf(announce_buf, sizeof(announce_buf),
+				        "%juMB (%ju %u byte sectors: %dH %dS/T "
+                                        "%dC)", (uintmax_t)
+	                                (((uintmax_t)dp->secsize *
+				        dp->sectors) / (1024*1024)),
+			                (uintmax_t)dp->sectors,
+				        dp->secsize, dp->heads,
+                                        dp->secs_per_track, dp->cylinders);
+			}
 		} else {
 			int	error;
 
@@ -1904,24 +1927,25 @@ dasendorderedtag(void *arg)
 {
 	struct da_softc *softc;
 	int s;
+	if (da_send_ordered) {
+		for (softc = SLIST_FIRST(&softc_list);
+		     softc != NULL;
+		     softc = SLIST_NEXT(softc, links)) {
+			s = splsoftcam();
+			if ((softc->ordered_tag_count == 0) 
+			 && ((softc->flags & DA_FLAG_WENT_IDLE) == 0)) {
+				softc->flags |= DA_FLAG_NEED_OTAG;
+			}
+			if (softc->outstanding_cmds > 0)
+				softc->flags &= ~DA_FLAG_WENT_IDLE;
 
-	for (softc = SLIST_FIRST(&softc_list);
-	     softc != NULL;
-	     softc = SLIST_NEXT(softc, links)) {
-		s = splsoftcam();
-		if ((softc->ordered_tag_count == 0) 
-		 && ((softc->flags & DA_FLAG_WENT_IDLE) == 0)) {
-			softc->flags |= DA_FLAG_NEED_OTAG;
+			softc->ordered_tag_count = 0;
+			splx(s);
 		}
-		if (softc->outstanding_cmds > 0)
-			softc->flags &= ~DA_FLAG_WENT_IDLE;
-
-		softc->ordered_tag_count = 0;
-		splx(s);
+		/* Queue us up again */
+		timeout(dasendorderedtag, NULL,
+			(da_default_timeout * hz) / DA_ORDEREDTAG_INTERVAL);
 	}
-	/* Queue us up again */
-	timeout(dasendorderedtag, NULL,
-		(da_default_timeout * hz) / DA_ORDEREDTAG_INTERVAL);
 }
 
 /*
