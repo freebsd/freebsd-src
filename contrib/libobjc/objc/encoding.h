@@ -1,5 +1,5 @@
 /* Encoding of types for Objective C.
-   Copyright (C) 1993, 1997, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 2002, 2004 Free Software Foundation, Inc.
 
 Author: Kresten Krab Thorup
 
@@ -17,8 +17,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, if you link this library with files
    compiled with GCC to produce an executable, this does not cause
@@ -29,8 +29,12 @@ Boston, MA 02111-1307, USA.  */
 #ifndef __encoding_INCLUDE_GNU
 #define __encoding_INCLUDE_GNU
 
+#include "objc-api.h"
 #include <ctype.h>
-#include "objc/objc-api.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
 #define _C_CONST	'r'
 #define _C_IN		'n'
@@ -95,5 +99,9 @@ void objc_layout_structure_get_info (struct objc_struct_layout *layout,
                                      unsigned int *offset,
                                      unsigned int *align,
                                      const char **type);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* __encoding_INCLUDE_GNU */

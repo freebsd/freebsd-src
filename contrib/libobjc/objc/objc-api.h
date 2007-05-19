@@ -1,5 +1,5 @@
 /* GNU Objective-C Runtime API.
-   Copyright (C) 1993, 1995, 1996, 1997, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996, 1997, 2002, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,8 @@ License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, if you link this library with files compiled
    with GCC to produce an executable, this does not cause the resulting
@@ -27,11 +27,16 @@ Boston, MA 02111-1307, USA.  */
 #ifndef __objc_api_INCLUDE_GNU
 #define __objc_api_INCLUDE_GNU
 
-#include "objc/objc.h"
-#include "objc/hash.h"
-#include "objc/thr.h"
+#include "objc.h"
+#include "hash.h"
+#include "thr.h"
+#include "objc-decls.h"
 #include <stdio.h>
 #include <stdarg.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
 /* For functions which return Method_t */
 #define METHOD_NULL	(Method_t)0
@@ -64,6 +69,7 @@ struct objc_method_description
 #define _C_FLT      'f'
 #define _C_DBL      'd'
 #define _C_BFLD     'b'
+#define _C_BOOL	    'B'
 #define _C_VOID     'v'
 #define _C_UNDEF    '?'
 #define _C_PTR      '^'
@@ -76,6 +82,7 @@ struct objc_method_description
 #define _C_STRUCT_B '{'
 #define _C_STRUCT_E '}'
 #define _C_VECTOR   '!'
+#define _C_COMPLEX   'j'
 
 
 /*
@@ -100,7 +107,7 @@ struct objc_method_description
 extern void objc_error(id object, int code, const char* fmt, ...);
 extern void objc_verror(id object, int code, const char* fmt, va_list ap);
 typedef BOOL (*objc_error_handler)(id, int code, const char *fmt, va_list ap);
-objc_error_handler objc_set_error_handler(objc_error_handler func);
+extern objc_error_handler objc_set_error_handler(objc_error_handler func);
 
 /*
 ** Error codes
@@ -146,7 +153,11 @@ extern BOOL objc_trace;
 struct objc_static_instances
 {
   char *class_name;
+#ifdef __cplusplus
+  id instances[1];
+#else
   id instances[0];
+#endif
 };
 
 /*
@@ -204,14 +215,7 @@ typedef struct objc_module {
 ** The compiler generates one of these structures for a class that has
 ** instance variables defined in its specification. 
 */
-typedef struct objc_ivar* Ivar_t;
-typedef struct objc_ivar_list {
-  int   ivar_count;                             /* Number of structures (Ivar) 
-                                                  contained in the list.  One
-                                                  structure per instance 
-                                                  variable defined in the
-                                                  class. */
-  struct objc_ivar {
+typedef struct objc_ivar {
     const char* ivar_name;                      /* Name of the instance
                                                   variable as entered in the
                                                   class definition. */
@@ -221,8 +225,15 @@ typedef struct objc_ivar_list {
     int        ivar_offset;                    /* Byte offset from the base 
                                                   address of the instance 
                                                   structure to the variable. */
+} *Ivar_t;
 
-  } ivar_list[1];                               /* Variable length 
+typedef struct objc_ivar_list {
+  int   ivar_count;                             /* Number of structures (Ivar) 
+                                                  contained in the list.  One
+                                                  structure per instance 
+                                                  variable defined in the
+                                                  class. */
+  struct objc_ivar ivar_list[1];               /* Variable length 
                                                   structure. */
 } IvarList, *IvarList_t;
 
@@ -235,28 +246,28 @@ typedef struct objc_ivar_list {
 ** and categories can break them across modules. To handle this problem is a
 ** singly linked list of methods. 
 */
-typedef struct objc_method Method;
-typedef Method* Method_t;
+typedef struct objc_method {
+  SEL         method_name;                  /* This variable is the method's 
+                                               name.  It is a char*. 
+                                               The unique integer passed to 
+                                               objc_msg_send is a char* too.  
+                                               It is compared against 
+                                               method_name using strcmp. */
+  const char* method_types;                 /* Description of the method's
+                                               parameter list.  Useful for
+                                               debuggers. */
+  IMP         method_imp;                   /* Address of the method in the 
+                                               executable. */
+} Method, *Method_t;
+
 typedef struct objc_method_list {
-  struct objc_method_list*  method_next;      /* This variable is used to link 
-                                                a method list to another.  It 
-                                                is a singly linked list. */
-  int            method_count;               /* Number of methods defined in 
-                                                this structure. */
-  struct objc_method {
-    SEL         method_name;                  /* This variable is the method's 
-                                                name.  It is a char*. 
-                                                  The unique integer passed to 
-                                                objc_msg_send is a char* too.  
-                                                It is compared against 
-                                                method_name using strcmp. */
-    const char* method_types;                 /* Description of the method's
-                                                parameter list.  Useful for
-                                                debuggers. */
-    IMP         method_imp;                   /* Address of the method in the 
-                                                executable. */
-  } method_list[1];                           /* Variable length 
-                                                structure. */
+  struct objc_method_list*  method_next;    /* This variable is used to link 
+                                               a method list to another.  It 
+                                               is a singly linked list. */
+  int            method_count;              /* Number of methods defined in 
+                                               this structure. */
+  Method method_list[1];                    /* Variable length 
+                                               structure. */
 } MethodList, *MethodList_t;
 
 struct objc_protocol_list {
@@ -342,7 +353,11 @@ typedef struct objc_category {
 typedef struct objc_super {
   id      self;                           /* Id of the object sending
                                                 the message. */
+#ifdef __cplusplus
+  Class super_class;
+#else
   Class class;                              /* Object's super class. */
+#endif
 } Super, *Super_t;
 
 IMP objc_msg_lookup_super(Super_t super, SEL sel);
@@ -357,7 +372,7 @@ retval_t objc_msg_sendv(id, SEL, arglist_t);
 ** This may e.g. try to load in the class using dynamic loading.
 ** The function is guaranteed to be passed a non-NULL name string.
 */
-extern Class (*_objc_lookup_class)(const char *name);
+objc_EXPORT Class (*_objc_lookup_class)(const char *name);
 
 /*
 ** This is a hook which is called by __objc_exec_class every time a class
@@ -365,14 +380,14 @@ extern Class (*_objc_lookup_class)(const char *name);
 ** dynamic loader determine the classes that have been loaded when
 ** an object file is dynamically linked in.
 */
-extern void (*_objc_load_callback)(Class class, Category* category);
+objc_EXPORT void (*_objc_load_callback)(Class _class, Category* category);
 
 /*
 ** Hook functions for allocating, copying and disposing of instances
 */
-extern id (*_objc_object_alloc)(Class class);
-extern id (*_objc_object_copy)(id object);
-extern id (*_objc_object_dispose)(id object);
+objc_EXPORT id (*_objc_object_alloc)(Class _class);
+objc_EXPORT id (*_objc_object_copy)(id object);
+objc_EXPORT id (*_objc_object_dispose)(id object);
 
 /*
 ** Standard functions for memory allocation and disposal.
@@ -408,23 +423,23 @@ objc_free(void *mem);
 ** Users should call the normal objc routines above for
 ** memory allocation and disposal within their programs.
 */
-extern void *(*_objc_malloc)(size_t);
-extern void *(*_objc_atomic_malloc)(size_t);
-extern void *(*_objc_valloc)(size_t);
-extern void *(*_objc_realloc)(void *, size_t);
-extern void *(*_objc_calloc)(size_t, size_t);
-extern void (*_objc_free)(void *);
+objc_EXPORT void *(*_objc_malloc)(size_t);
+objc_EXPORT void *(*_objc_atomic_malloc)(size_t);
+objc_EXPORT void *(*_objc_valloc)(size_t);
+objc_EXPORT void *(*_objc_realloc)(void *, size_t);
+objc_EXPORT void *(*_objc_calloc)(size_t, size_t);
+objc_EXPORT void (*_objc_free)(void *);
 
 /*
 **  Hook for method forwarding. This makes it easy to substitute a
 **  library, such as ffcall, that implements closures, thereby avoiding
 **  gcc's __builtin_apply problems.
 */
-extern IMP (*__objc_msg_forward)(SEL);
+objc_EXPORT IMP (*__objc_msg_forward)(SEL);
 
-Method_t class_get_class_method(MetaClass class, SEL aSel);
+Method_t class_get_class_method(MetaClass _class, SEL aSel);
 
-Method_t class_get_instance_method(Class class, SEL aSel);
+Method_t class_get_instance_method(Class _class, SEL aSel);
 
 Class class_pose_as(Class impostor, Class superclass);
 
@@ -453,66 +468,66 @@ SEL sel_register_typed_name(const char *name, const char*type);
 
 BOOL sel_is_mapped (SEL aSel);
 
-extern id class_create_instance(Class class);
+extern id class_create_instance(Class _class);
 
 static inline const char *
-class_get_class_name(Class class)
+class_get_class_name(Class _class)
 {
-  return CLS_ISCLASS(class)?class->name:((class==Nil)?"Nil":0);
+  return CLS_ISCLASS(_class)?_class->name:((_class==Nil)?"Nil":0);
 }
 
 static inline long
-class_get_instance_size(Class class)
+class_get_instance_size(Class _class)
 {
-  return CLS_ISCLASS(class)?class->instance_size:0;
+  return CLS_ISCLASS(_class)?_class->instance_size:0;
 }
 
 static inline MetaClass
-class_get_meta_class(Class class)
+class_get_meta_class(Class _class)
 {
-  return CLS_ISCLASS(class)?class->class_pointer:Nil;
+  return CLS_ISCLASS(_class)?_class->class_pointer:Nil;
 }
 
 static inline Class
-class_get_super_class(Class class)
+class_get_super_class(Class _class)
 {
-  return CLS_ISCLASS(class)?class->super_class:Nil;
+  return CLS_ISCLASS(_class)?_class->super_class:Nil;
 }
 
 static inline int
-class_get_version(Class class)
+class_get_version(Class _class)
 {
-  return CLS_ISCLASS(class)?class->version:-1;
+  return CLS_ISCLASS(_class)?_class->version:-1;
 }
 
 static inline BOOL
-class_is_class(Class class)
+class_is_class(Class _class)
 {
-  return CLS_ISCLASS(class);
+  return CLS_ISCLASS(_class);
 }
 
 static inline BOOL
-class_is_meta_class(Class class)
+class_is_meta_class(Class _class)
 {
-  return CLS_ISMETA(class);
+  return CLS_ISMETA(_class);
 }
 
 
 static inline void
-class_set_version(Class class, long version)
+class_set_version(Class _class, long version)
 {
-  if (CLS_ISCLASS(class))
-    class->version = version;
+  if (CLS_ISCLASS(_class))
+    _class->version = version;
 }
 
 static inline void *
-class_get_gc_object_type (Class class)
+class_get_gc_object_type (Class _class)
 {
-  return CLS_ISCLASS(class) ? class->gc_object_type : NULL;
+  return CLS_ISCLASS(_class) ? _class->gc_object_type : NULL;
 }
 
 /* Mark the instance variable as innaccessible to the garbage collector */
-extern void class_ivar_set_gcinvisible (Class class,
+extern void class_ivar_set_gcinvisible (Class _class,
 					const char* ivarname,
 					BOOL gcInvisible);
 
@@ -522,7 +537,7 @@ method_get_imp(Method_t method)
   return (method!=METHOD_NULL)?method->method_imp:(IMP)0;
 }
 
-IMP get_imp (Class class, SEL sel);
+IMP get_imp (Class _class, SEL sel);
 
 /* Redefine on NeXTSTEP so as not to conflict with system function */
 #ifdef __NeXT__
@@ -600,6 +615,10 @@ object_is_meta_class (id object)
 
 struct sarray* 
 objc_get_uninstalled_dtable(void);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* not __objc_api_INCLUDE_GNU */
 
