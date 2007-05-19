@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,17 +28,16 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file complex
+ *  This is a Standard C++ Library header.
+ */
+
 //
 // ISO C++ 14882: 26.2  Complex Numbers
 // Note: this is not a conforming implementation.
 // Initially implemented by Ulrich Drepper <drepper@cygnus.com>
 // Improved by Gabriel Dos Reis <dosreis@cmla.ens-cachan.fr>
 //
-
-/** @file complex
- *  This is a Standard C++ Library header.  You should @c #include this header
- *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
- */
 
 #ifndef _GLIBCXX_COMPLEX
 #define _GLIBCXX_COMPLEX 1
@@ -50,9 +49,9 @@
 #include <cmath>
 #include <sstream>
 
-namespace std
-{
-  // Forward declarations
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
+  // Forward declarations.
   template<typename _Tp> class complex;
   template<> class complex<float>;
   template<> class complex<double>;
@@ -87,7 +86,7 @@ namespace std
   template<typename _Tp> complex<_Tp> pow(const complex<_Tp>&, const _Tp&);
   /// Return @a x to the @a y'th power.
   template<typename _Tp> complex<_Tp> pow(const complex<_Tp>&, 
-					   const complex<_Tp>&);
+                                          const complex<_Tp>&);
   /// Return @a x to the @a y'th power.
   template<typename _Tp> complex<_Tp> pow(const _Tp&, const complex<_Tp>&);
   /// Return complex sine of @a z.
@@ -113,9 +112,8 @@ namespace std
    *  @param  Tp  Type of real and imaginary values.
   */
   template<typename _Tp>
-    class complex
+    struct complex
     {
-    public:
       /// Value typedef.
       typedef _Tp value_type;
       
@@ -167,6 +165,8 @@ namespace std
       /// Divide this complex number by @a z.
       template<typename _Up>
         complex<_Tp>& operator/=(const complex<_Up>&);
+
+      const complex& __rep() const;
 
     private:
       _Tp _M_real;
@@ -305,6 +305,10 @@ namespace std
       _M_real = __r / __n;
       return *this;
     }
+
+  template<typename _Tp>
+    inline const complex<_Tp>&
+    complex<_Tp>::__rep() const { return *this; }
     
   // Operators:
   //@{
@@ -542,9 +546,10 @@ namespace std
     imag(const complex<_Tp>& __z)
     { return __z.imag(); }
 
+  // 26.2.7/3 abs(__z):  Returns the magnitude of __z.
   template<typename _Tp>
     inline _Tp
-    abs(const complex<_Tp>& __z)
+    __complex_abs(const complex<_Tp>& __z)
     {
       _Tp __x = __z.real();
       _Tp __y = __z.imag();
@@ -556,10 +561,52 @@ namespace std
       return __s * sqrt(__x * __x + __y * __y);
     }
 
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline float
+  __complex_abs(__complex__ float __z) { return __builtin_cabsf(__z); }
+
+  inline double
+  __complex_abs(__complex__ double __z) { return __builtin_cabs(__z); }
+
+  inline long double
+  __complex_abs(const __complex__ long double& __z)
+  { return __builtin_cabsl(__z); }
+
   template<typename _Tp>
     inline _Tp
-    arg(const complex<_Tp>& __z)
-    { return atan2(__z.imag(), __z.real()); }
+    abs(const complex<_Tp>& __z) { return __complex_abs(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline _Tp
+    abs(const complex<_Tp>& __z) { return __complex_abs(__z); }
+#endif  
+
+
+  // 26.2.7/4: arg(__z): Returns the phase angle of __z.
+  template<typename _Tp>
+    inline _Tp
+    __complex_arg(const complex<_Tp>& __z)
+    { return  atan2(__z.imag(), __z.real()); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline float
+  __complex_arg(__complex__ float __z) { return __builtin_cargf(__z); }
+
+  inline double
+  __complex_arg(__complex__ double __z) { return __builtin_carg(__z); }
+
+  inline long double
+  __complex_arg(const __complex__ long double& __z)
+  { return __builtin_cargl(__z); }
+
+  template<typename _Tp>
+    inline _Tp
+    arg(const complex<_Tp>& __z) { return __complex_arg(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline _Tp
+    arg(const complex<_Tp>& __z) { return __complex_arg(__z); }
+#endif
 
   // 26.2.7/5: norm(__z) returns the squared magintude of __z.
   //     As defined, norm() is -not- a norm is the common mathematical
@@ -593,7 +640,8 @@ namespace std
     inline _Tp
     norm(const complex<_Tp>& __z)
     {
-      return _Norm_helper<__is_floating<_Tp>::_M_type && !_GLIBCXX_FAST_MATH>::_S_do_it(__z);
+      return _Norm_helper<__is_floating<_Tp>::__value 
+	&& !_GLIBCXX_FAST_MATH>::_S_do_it(__z);
     }
 
   template<typename _Tp>
@@ -607,60 +655,190 @@ namespace std
     { return complex<_Tp>(__z.real(), -__z.imag()); }
   
   // Transcendentals
+
+  // 26.2.8/1 cos(__z):  Returns the cosine of __z.
   template<typename _Tp>
     inline complex<_Tp>
-    cos(const complex<_Tp>& __z)
+    __complex_cos(const complex<_Tp>& __z)
     {
       const _Tp __x = __z.real();
       const _Tp __y = __z.imag();
       return complex<_Tp>(cos(__x) * cosh(__y), -sin(__x) * sinh(__y));
     }
 
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_cos(__complex__ float __z) { return __builtin_ccosf(__z); }
+
+  inline __complex__ double
+  __complex_cos(__complex__ double __z) { return __builtin_ccos(__z); }
+
+  inline __complex__ long double
+  __complex_cos(const __complex__ long double& __z)
+  { return __builtin_ccosl(__z); }
+
   template<typename _Tp>
     inline complex<_Tp>
-    cosh(const complex<_Tp>& __z)
+    cos(const complex<_Tp>& __z) { return __complex_cos(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    cos(const complex<_Tp>& __z) { return __complex_cos(__z); }
+#endif
+
+  // 26.2.8/2 cosh(__z): Returns the hyperbolic cosine of __z.
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_cosh(const complex<_Tp>& __z)
     {
       const _Tp __x = __z.real();
       const _Tp __y = __z.imag();
       return complex<_Tp>(cosh(__x) * cos(__y), sinh(__x) * sin(__y));
     }
 
-  template<typename _Tp>
-    inline complex<_Tp>
-    exp(const complex<_Tp>& __z)
-    { return std::polar(exp(__z.real()), __z.imag()); }
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_cosh(__complex__ float __z) { return __builtin_ccoshf(__z); }
+
+  inline __complex__ double
+  __complex_cosh(__complex__ double __z) { return __builtin_ccosh(__z); }
+
+  inline __complex__ long double
+  __complex_cosh(const __complex__ long double& __z)
+  { return __builtin_ccoshl(__z); }
 
   template<typename _Tp>
     inline complex<_Tp>
-    log(const complex<_Tp>& __z)
+    cosh(const complex<_Tp>& __z) { return __complex_cosh(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    cosh(const complex<_Tp>& __z) { return __complex_cosh(__z); }
+#endif
+
+  // 26.2.8/3 exp(__z): Returns the complex base e exponential of x
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_exp(const complex<_Tp>& __z)
+    { return std::polar(exp(__z.real()), __z.imag()); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_exp(__complex__ float __z) { return __builtin_cexpf(__z); }
+
+  inline __complex__ double
+  __complex_exp(__complex__ double __z) { return __builtin_cexp(__z); }
+
+  inline __complex__ long double
+  __complex_exp(const __complex__ long double& __z)
+  { return __builtin_cexpl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    exp(const complex<_Tp>& __z) { return __complex_exp(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    exp(const complex<_Tp>& __z) { return __complex_exp(__z); }
+#endif
+
+  // 26.2.8/5 log(__z): Reurns the natural complex logaritm of __z.
+  //                    The branch cut is along the negative axis.
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_log(const complex<_Tp>& __z)
     { return complex<_Tp>(log(std::abs(__z)), std::arg(__z)); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_log(__complex__ float __z) { return __builtin_clogf(__z); }
+
+  inline __complex__ double
+  __complex_log(__complex__ double __z) { return __builtin_clog(__z); }
+
+  inline __complex__ long double
+  __complex_log(const __complex__ long double& __z)
+  { return __builtin_clogl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    log(const complex<_Tp>& __z) { return __complex_log(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    log(const complex<_Tp>& __z) { return __complex_log(__z); }
+#endif
 
   template<typename _Tp>
     inline complex<_Tp>
     log10(const complex<_Tp>& __z)
     { return std::log(__z) / log(_Tp(10.0)); }
 
+  // 26.2.8/10 sin(__z): Returns the sine of __z.
   template<typename _Tp>
     inline complex<_Tp>
-    sin(const complex<_Tp>& __z)
+    __complex_sin(const complex<_Tp>& __z)
     {
       const _Tp __x = __z.real();
       const _Tp __y = __z.imag();
       return complex<_Tp>(sin(__x) * cosh(__y), cos(__x) * sinh(__y)); 
     }
 
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_sin(__complex__ float __z) { return __builtin_csinf(__z); }
+
+  inline __complex__ double
+  __complex_sin(__complex__ double __z) { return __builtin_csin(__z); }
+
+  inline __complex__ long double
+  __complex_sin(const __complex__ long double& __z)
+  { return __builtin_csinl(__z); }
+
   template<typename _Tp>
     inline complex<_Tp>
-    sinh(const complex<_Tp>& __z)
+    sin(const complex<_Tp>& __z) { return __complex_sin(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    sin(const complex<_Tp>& __z) { return __complex_sin(__z); }
+#endif
+
+  // 26.2.8/11 sinh(__z): Returns the hyperbolic sine of __z.
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_sinh(const complex<_Tp>& __z)
     {
       const _Tp __x = __z.real();
       const _Tp  __y = __z.imag();
       return complex<_Tp>(sinh(__x) * cos(__y), cosh(__x) * sin(__y));
     }
 
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_sinh(__complex__ float __z) { return __builtin_csinhf(__z); }      
+
+  inline __complex__ double
+  __complex_sinh(__complex__ double __z) { return __builtin_csinh(__z); }      
+
+  inline __complex__ long double
+  __complex_sinh(const __complex__ long double& __z)
+  { return __builtin_csinhl(__z); }      
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    sinh(const complex<_Tp>& __z) { return __complex_sinh(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    sinh(const complex<_Tp>& __z) { return __complex_sinh(__z); }
+#endif
+
+  // 26.2.8/13 sqrt(__z): Returns the complex square root of __z.
+  //                     The branch cut is on the negative axis.
   template<typename _Tp>
     complex<_Tp>
-    sqrt(const complex<_Tp>& __z)
+    __complex_sqrt(const complex<_Tp>& __z)
     {
       _Tp __x = __z.real();
       _Tp __y = __z.imag();
@@ -680,31 +858,98 @@ namespace std
         }
     }
 
-  template<typename _Tp>
-    inline complex<_Tp>
-    tan(const complex<_Tp>& __z)
-    {
-      return std::sin(__z) / std::cos(__z);
-    }
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_sqrt(__complex__ float __z) { return __builtin_csqrtf(__z); }
+
+  inline __complex__ double
+  __complex_sqrt(__complex__ double __z) { return __builtin_csqrt(__z); }
+
+  inline __complex__ long double
+  __complex_sqrt(const __complex__ long double& __z)
+  { return __builtin_csqrtl(__z); }
 
   template<typename _Tp>
     inline complex<_Tp>
-    tanh(const complex<_Tp>& __z)
-    {
-      return std::sinh(__z) / std::cosh(__z);
-    }
+    sqrt(const complex<_Tp>& __z) { return __complex_sqrt(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    sqrt(const complex<_Tp>& __z) { return __complex_sqrt(__z); }
+#endif
 
+  // 26.2.8/14 tan(__z):  Return the complex tangent of __z.
+  
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_tan(const complex<_Tp>& __z)
+    { return std::sin(__z) / std::cos(__z); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_tan(__complex__ float __z) { return __builtin_ctanf(__z); }
+
+  inline __complex__ double
+  __complex_tan(__complex__ double __z) { return __builtin_ctan(__z); }
+
+  inline __complex__ long double
+  __complex_tan(const __complex__ long double& __z)
+  { return __builtin_ctanl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    tan(const complex<_Tp>& __z) { return __complex_tan(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    tan(const complex<_Tp>& __z) { return __complex_tan(__z); }
+#endif
+
+
+  // 26.2.8/15 tanh(__z):  Returns the hyperbolic tangent of __z.
+  
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_tanh(const complex<_Tp>& __z)
+    { return std::sinh(__z) / std::cosh(__z); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_tanh(__complex__ float __z) { return __builtin_ctanhf(__z); }
+
+  inline __complex__ double
+  __complex_tanh(__complex__ double __z) { return __builtin_ctanh(__z); }
+
+  inline __complex__ long double
+  __complex_tanh(const __complex__ long double& __z)
+  { return __builtin_ctanhl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    tanh(const complex<_Tp>& __z) { return __complex_tanh(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    tanh(const complex<_Tp>& __z) { return __complex_tanh(__z); }
+#endif
+
+
+  // 26.2.8/9  pow(__x, __y): Returns the complex power base of __x
+  //                          raised to the __y-th power.  The branch
+  //                          cut is on the negative axis.
   template<typename _Tp>
     inline complex<_Tp>
     pow(const complex<_Tp>& __z, int __n)
-    {
-      return std::__pow_helper(__z, __n);
-    }
+    { return std::__pow_helper(__z, __n); }
 
   template<typename _Tp>
     complex<_Tp>
     pow(const complex<_Tp>& __x, const _Tp& __y)
     {
+#ifndef _GLIBCXX_USE_C99_COMPLEX
+      if (__x == _Tp())
+	return _Tp();
+#endif
       if (__x.imag() == _Tp() && __x.real() > _Tp())
         return pow(__x.real(), __y);
 
@@ -714,10 +959,33 @@ namespace std
 
   template<typename _Tp>
     inline complex<_Tp>
+    __complex_pow(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    { return __x == _Tp() ? _Tp() : std::exp(__y * std::log(__x)); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_pow(__complex__ float __x, __complex__ float __y)
+  { return __builtin_cpowf(__x, __y); }
+
+  inline __complex__ double
+  __complex_pow(__complex__ double __x, __complex__ double __y)
+  { return __builtin_cpow(__x, __y); }
+
+  inline __complex__ long double
+  __complex_pow(const __complex__ long double& __x,
+		const __complex__ long double& __y)
+  { return __builtin_cpowl(__x, __y); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
     pow(const complex<_Tp>& __x, const complex<_Tp>& __y)
-    {
-      return __x == _Tp() ? _Tp() : std::exp(__y * std::log(__x));
-    }
+    { return __complex_pow(__x.__rep(), __y.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    pow(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    { return __complex_pow(__x, __y); }
+#endif
 
   template<typename _Tp>
     inline complex<_Tp>
@@ -730,50 +998,49 @@ namespace std
 
   // 26.2.3  complex specializations
   // complex<float> specialization
-  template<> class complex<float>
-  {
-  public:
-    typedef float value_type;
-    
-    complex(float = 0.0f, float = 0.0f);
+  template<>
+    struct complex<float>
+    {
+      typedef float value_type;
+      typedef __complex__ float _ComplexT;
 
-    explicit complex(const complex<double>&);
-    explicit complex(const complex<long double>&);
+      complex(_ComplexT __z) : _M_value(__z) { }
 
-    float& real();
-    const float& real() const;
-    float& imag();
-    const float& imag() const;
+      complex(float = 0.0f, float = 0.0f);
 
-    complex<float>& operator=(float);
-    complex<float>& operator+=(float);
-    complex<float>& operator-=(float);
-    complex<float>& operator*=(float);
-    complex<float>& operator/=(float);
-        
-    // Let's the compiler synthetize the copy and assignment
-    // operator.  It always does a pretty good job.
-    // complex& operator= (const complex&);
-    template<typename _Tp>
-      complex<float>&operator=(const complex<_Tp>&);
-    template<typename _Tp>
-      complex<float>& operator+=(const complex<_Tp>&);
-    template<class _Tp>
-      complex<float>& operator-=(const complex<_Tp>&);
-    template<class _Tp>
-      complex<float>& operator*=(const complex<_Tp>&);
-    template<class _Tp>
-      complex<float>&operator/=(const complex<_Tp>&);
+      explicit complex(const complex<double>&);
+      explicit complex(const complex<long double>&);
 
-  private:
-    typedef __complex__ float _ComplexT;
-    _ComplexT _M_value;
+      float& real();
+      const float& real() const;
+      float& imag();
+      const float& imag() const;
 
-    complex(_ComplexT __z) : _M_value(__z) { }
-        
-    friend class complex<double>;
-    friend class complex<long double>;
-  };
+      complex<float>& operator=(float);
+      complex<float>& operator+=(float);
+      complex<float>& operator-=(float);
+      complex<float>& operator*=(float);
+      complex<float>& operator/=(float);
+
+      // Let's the compiler synthetize the copy and assignment
+      // operator.  It always does a pretty good job.
+      // complex& operator= (const complex&);
+      template<typename _Tp>
+        complex<float>&operator=(const complex<_Tp>&);
+      template<typename _Tp>
+        complex<float>& operator+=(const complex<_Tp>&);
+      template<class _Tp>
+        complex<float>& operator-=(const complex<_Tp>&);
+      template<class _Tp>
+        complex<float>& operator*=(const complex<_Tp>&);
+      template<class _Tp>
+        complex<float>&operator/=(const complex<_Tp>&);
+
+      const _ComplexT& __rep() const { return _M_value; }
+
+    private:
+      _ComplexT _M_value;
+    };
 
   inline float&
   complex<float>::real()
@@ -885,49 +1152,48 @@ namespace std
 
   // 26.2.3  complex specializations
   // complex<double> specialization
-  template<> class complex<double>
-  {
-  public:
-    typedef double value_type;
+  template<>
+    struct complex<double>
+    {
+      typedef double value_type;
+      typedef __complex__ double _ComplexT;
 
-    complex(double = 0.0, double = 0.0);
+      complex(_ComplexT __z) : _M_value(__z) { }
 
-    complex(const complex<float>&);
-    explicit complex(const complex<long double>&);
+      complex(double = 0.0, double = 0.0);
 
-    double& real();
-    const double& real() const;
-    double& imag();
-    const double& imag() const;
-        
-    complex<double>& operator=(double);
-    complex<double>& operator+=(double);
-    complex<double>& operator-=(double);
-    complex<double>& operator*=(double);
-    complex<double>& operator/=(double);
+      complex(const complex<float>&);
+      explicit complex(const complex<long double>&);
 
-    // The compiler will synthetize this, efficiently.
-    // complex& operator= (const complex&);
-    template<typename _Tp>
-      complex<double>& operator=(const complex<_Tp>&);
-    template<typename _Tp>
-      complex<double>& operator+=(const complex<_Tp>&);
-    template<typename _Tp>
-      complex<double>& operator-=(const complex<_Tp>&);
-    template<typename _Tp>
-      complex<double>& operator*=(const complex<_Tp>&);
-    template<typename _Tp>
-      complex<double>& operator/=(const complex<_Tp>&);
+      double& real();
+      const double& real() const;
+      double& imag();
+      const double& imag() const;
 
-  private:
-    typedef __complex__ double _ComplexT;
-    _ComplexT _M_value;
+      complex<double>& operator=(double);
+      complex<double>& operator+=(double);
+      complex<double>& operator-=(double);
+      complex<double>& operator*=(double);
+      complex<double>& operator/=(double);
 
-    complex(_ComplexT __z) : _M_value(__z) { }
-        
-    friend class complex<float>;
-    friend class complex<long double>;
-  };
+      // The compiler will synthetize this, efficiently.
+      // complex& operator= (const complex&);
+      template<typename _Tp>
+        complex<double>& operator=(const complex<_Tp>&);
+      template<typename _Tp>
+        complex<double>& operator+=(const complex<_Tp>&);
+      template<typename _Tp>
+        complex<double>& operator-=(const complex<_Tp>&);
+      template<typename _Tp>
+        complex<double>& operator*=(const complex<_Tp>&);
+      template<typename _Tp>
+        complex<double>& operator/=(const complex<_Tp>&);
+
+      const _ComplexT& __rep() const { return _M_value; }
+
+    private:
+      _ComplexT _M_value;
+    };
 
   inline double&
   complex<double>::real()
@@ -1039,49 +1305,48 @@ namespace std
 
   // 26.2.3  complex specializations
   // complex<long double> specialization
-  template<> class complex<long double>
-  {
-  public:
-    typedef long double value_type;
+  template<>
+    struct complex<long double>
+    {
+      typedef long double value_type;
+      typedef __complex__ long double _ComplexT;
 
-    complex(long double = 0.0L, long double = 0.0L);
+      complex(_ComplexT __z) : _M_value(__z) { }
 
-    complex(const complex<float>&);
-    complex(const complex<double>&);
+      complex(long double = 0.0L, long double = 0.0L);
 
-    long double& real();
-    const long double& real() const;
-    long double& imag();
-    const long double& imag() const;
+      complex(const complex<float>&);
+      complex(const complex<double>&);
 
-    complex<long double>& operator= (long double);
-    complex<long double>& operator+= (long double);
-    complex<long double>& operator-= (long double);
-    complex<long double>& operator*= (long double);
-    complex<long double>& operator/= (long double);
+      long double& real();
+      const long double& real() const;
+      long double& imag();
+      const long double& imag() const;
 
-    // The compiler knows how to do this efficiently
-    // complex& operator= (const complex&);
-    template<typename _Tp>
-      complex<long double>& operator=(const complex<_Tp>&);
-    template<typename _Tp>
-      complex<long double>& operator+=(const complex<_Tp>&);
-    template<typename _Tp>
-      complex<long double>& operator-=(const complex<_Tp>&);
-    template<typename _Tp>
-      complex<long double>& operator*=(const complex<_Tp>&);
-    template<typename _Tp>
-      complex<long double>& operator/=(const complex<_Tp>&);
+      complex<long double>& operator= (long double);
+      complex<long double>& operator+= (long double);
+      complex<long double>& operator-= (long double);
+      complex<long double>& operator*= (long double);
+      complex<long double>& operator/= (long double);
 
-  private:
-    typedef __complex__ long double _ComplexT;
-    _ComplexT _M_value;
+      // The compiler knows how to do this efficiently
+      // complex& operator= (const complex&);
+      template<typename _Tp>
+        complex<long double>& operator=(const complex<_Tp>&);
+      template<typename _Tp>
+        complex<long double>& operator+=(const complex<_Tp>&);
+      template<typename _Tp>
+        complex<long double>& operator-=(const complex<_Tp>&);
+      template<typename _Tp>
+        complex<long double>& operator*=(const complex<_Tp>&);
+      template<typename _Tp>
+        complex<long double>& operator/=(const complex<_Tp>&);
 
-    complex(_ComplexT __z) : _M_value(__z) { }
+      const _ComplexT& __rep() const { return _M_value; }
 
-    friend class complex<float>;
-    friend class complex<double>;
-  };
+    private:
+      _ComplexT _M_value;
+    };
 
   inline
   complex<long double>::complex(long double __r, long double __i)
@@ -1197,30 +1462,28 @@ namespace std
   // inlining.  It suffices that class specializations be defined.
   inline
   complex<float>::complex(const complex<double>& __z)
-  : _M_value(_ComplexT(__z._M_value)) { }
+  : _M_value(__z.__rep()) { }
 
   inline
   complex<float>::complex(const complex<long double>& __z)
-  : _M_value(_ComplexT(__z._M_value)) { }
+  : _M_value(__z.__rep()) { }
 
   inline
   complex<double>::complex(const complex<float>& __z) 
-  : _M_value(_ComplexT(__z._M_value)) { }
+  : _M_value(__z.__rep()) { }
 
   inline
   complex<double>::complex(const complex<long double>& __z)
-  {
-    __real__ _M_value = __z.real();
-    __imag__ _M_value = __z.imag();
-  }
+    : _M_value(__z.__rep()) { }
 
   inline
   complex<long double>::complex(const complex<float>& __z)
-  : _M_value(_ComplexT(__z._M_value)) { }
+  : _M_value(__z.__rep()) { }
 
   inline
   complex<long double>::complex(const complex<double>& __z)
-  : _M_value(_ComplexT(__z._M_value)) { }
-} // namespace std
+  : _M_value(__z.__rep()) { }
+
+_GLIBCXX_END_NAMESPACE
 
 #endif	/* _GLIBCXX_COMPLEX */

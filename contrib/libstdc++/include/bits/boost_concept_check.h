@@ -1,4 +1,6 @@
-// Copyright (C) 2004 Free Software Foundation, Inc.
+// -*- C++ -*-
+
+// Copyright (C) 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -13,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -32,12 +34,12 @@
 // to its suitability for any purpose.
 //
 
-// GCC Note:  based on version 1.12.0 of the Boost library.
-
 /** @file boost_concept_check.h
  *  This is an internal header file, included by other library headers.
  *  You should not attempt to use it directly.
  */
+
+// GCC Note:  based on version 1.12.0 of the Boost library.
 
 #ifndef _BOOST_CONCEPT_CHECK_H
 #define _BOOST_CONCEPT_CHECK_H 1
@@ -48,8 +50,7 @@
 #include <bits/stl_iterator_base_types.h>    // for traits and tags
 #include <utility>                           // for pair<>
 
-namespace __gnu_cxx
-{
+_GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
 
 #define _IsUnused __attribute__ ((__unused__))
 
@@ -923,7 +924,7 @@ struct _Aux_require_same<_Tp,_Tp> { typedef _Tp _Type; };
 
   // HashedAssociativeContainer
 
-} // namespace __gnu_cxx
+_GLIBCXX_END_NAMESPACE
 
 #undef _IsUnused
 

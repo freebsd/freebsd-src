@@ -1,228 +1,267 @@
-2006-03-05  Release Manager
+2007-05-13  Release Manager
 
-	* GCC 3.4.6 released.
+	* GCC 4.2.0 released.
 
-2005-11-30  Release Manager
+2007-04-12  Paolo Carlini  <pcarlini@suse.de>
 
-	* GCC 3.4.5 released.
+	PR libstdc++/28277 (partial: vstring bits)
+	* include/bits/ostream_insert.h: New.
+	* include/Makefile.am: Add.
+	* include/ext/vstring.h (operator<<(basic_ostream<>&,
+	const __versa_string<>&): Forward to __ostream_insert.
+	* include/bits/basic_string.h (operator<<(basic_ostream<>&,
+	const string<>&)): Likewise.
+	* include/std/std_ostream.h (operator<<(basic_ostream<>&, _CharT),
+	operator<<(basic_ostream<char,>&, char), operator<<(basic_ostream<>&,
+	const _CharT*), operator<<(basic_ostream<char,>&, const char*)):
+	Likewise.
+	* include/ext/vstring.tcc (operator<<(basic_ostream<>&,
+	const __versa_string<>&)): Remove.
+	(class basic_ostream): Remove friend declarations.
+	(basic_ostream<>::_M_write(char_type, streamsize),
+	_M_insert(const char_type*, streamsize)): Remove.
+	* include/bits/ostream.tcc (_M_insert(const char_type*, streamsize)):
+	Remove definition.
+	(operator<<(basic_ostream<>&, const char*)): Use __ostream_insert.
+	* include/ext/vstring_util.h: Include <bits/ostream_insert.h>.
+	* include/std/std_string.h: Likewise.
+	* config/abi/pre/gnu.ver: Adjust.
+	* src/ostream-inst.cc: Add __ostream_insert instantiations.
+	* include/Makefile.in: Rebuild.
+	* testsuite/ext/vstring/inserters_extractors/char/28277.cc: New.
+	* testsuite/ext/vstring/inserters_extractors/wchar_t/28277.cc: New.
 
-2005-09-10  Joseph S. Myers  <joseph@codesourcery.com>
+2007-04-07  Paolo Carlini  <pcarlini@suse.de>
 
-	* testsuite/26_numerics/c99_classification_macros_c.cc:
-	XFAIL on *-*-linux*, not *-*-linux-gnu.
+	PR libstdc++/31481
+	* include/ext/type_traits.h (__numeric_traits): Move...
+	* include/ext/numeric_traits.h: ... here; fix type of
+	__max_digits10.
+	* include/Makefile.am: Add.
+	* include/ext/pb_ds/detail/type_utils.hpp: Include 
+	<ext/numeric_traits.h> too.
+	* include/tr1/random: Likewise.
+	* testsuite/ext/type_traits/numeric_traits.cc: Move...
+	* testsuite/ext/numeric_traits/numeric_traits.cc: ... here.
+	* include/Makefile.in: Regenerate.
+	* testsuite/ext/type_traits/remove_unsigned_integer_neg.cc:
+	Adjust dg-error line number.
+	* testsuite/ext/type_traits/add_unsigned_floating_neg.cc:
+	Likewise.
+	* testsuite/ext/type_traits/remove_unsigned_floating_neg.cc:
+	Likewise.
+	* testsuite/ext/type_traits/add_unsigned_integer_neg.cc:
+	Likewise.
 
-2005-09-01  Benjamin Kosnik  <bkoz@redhat.com>
+2007-04-03  Paolo Carlini  <pcarlini@suse.de>
 
-        * include/c_std/std_cmath.h: Declare C99 functions and helper
-        functions as inline.
+	* include/bits/stl_map.h (map<>::insert(iterator, const value_type&):
+	Uglify parameter.
 
-2005-08-29  Paolo Carlini  <pcarlini@suse.de>
+2007-04-02  Paolo Carlini  <pcarlini@suse.de>
 
-        PR libstdc++/23528
-        Port from HEAD/4_0-branch:
-	2004-07-28  Matt Austern  <austern@apple.com>
-	* include/ext/hashtable.h: Use rebind so that allocator_type
-	has correct type for a container's allocator.
-	* testsuite/ext/23528.cc: New.
+	PR libstdc++/31401 (vstring bits)
+	* include/ext/vstring.tcc (find(const _CharT*, size_type,
+	size_type)): Avoid unsigned overflow.
 
-2005-08-24  Lawrence Lim  <llim@redhat.com>
-            Jakub Jelinek  <jakub@redhat.com>
-	    Benjamin Kosnik  <bkoz@redhat.com>
+2007-03-30  Paolo Carlini  <pcarlini@suse.de>
 
-	PR libstdc++/23550
-	* testsuite/21_strings/char_traits/requirements/char/1.cc
-	(test01): Simplify counting.
-	* testsuite/21_strings/char_traits/requirements/wchar_t/1.cc
-	(test02): Same.
+	PR libstdc++/31401
+	* include/bits/basic_string.tcc (find(const _CharT*, size_type,
+	size_type)): Avoid unsigned overflow.
+	* testsuite/21_strings/basic_string/find/char/4.cc: New.
+	* testsuite/21_strings/basic_string/find/wchar_t/4.cc: Likewise.
 
-2005-07-18  Paolo Carlini  <pcarlini@suse.de>
-	    Nathan Myers  <ncm@cantrip.org>
+2007-03-06  Paolo Carlini  <pcarlini@suse.de>
 
-	PR libstdc++/21286
-	* include/bits/fstream.tcc (basic_filebuf<>::xsgetn):
-	Loop on short reads.
+	PR libstdc++/28080 (partial)
+	* include/tr1/random (class random_device): Rework to use simple
+	<cstdio> input, do not include <fstream>.
+	* include/tr1/random.tcc (all inserters and extractors): Refer
+	to ios_base as base class of basic_istream or basic_ostream.
 
-2005-05-27  Mark Mitchell  <mark@codesourcery.com>
+2007-03-05  Joseph Myers  <joseph@codesourcery.com>
 
-	* testsuite/Makefile.in: Regenerate with Automake 1.7.8.
+	PR libstdc++/30675
+	* testsuite/lib/libstdc++.exp (v3-build_support): Use [transform
+	"ar"] and [transform "ranlib"].
 
-2005-05-19  Release Manager
+2007-03-05  Richard Guenther  <rguenther@suse.de>
 
-	* GCC 3.4.4 released.
+	Backport from mainline:
+	2007-02-27  Richard Guenther  <rguenther@suse.de>
 
-2005-05-18  Jonathan Wakely  <redi@gcc.gnu.org>
+	* acinclude.m4: Adjust regular expression for ld version extraction.
+	* configure: Regenerate.
 
-	* docs/html/debug.html: Explain that _GLIBXX_DEBUG_PEDANTIC must
-	be defined for pedantic mode.
+2007-03-05  Paolo Carlini  <pcarlini@suse.de>
 
-2005-05-15  Andreas Schwab  <schwab@suse.de>
+	PR libstdc++/31031
+	* include/bits/istream.tcc: Inhibit implicit instantiation of
+	the _M_insert helpers.
+	* include/bits/ostream.tcc: Likewise for _M_extract.
+	* testsuite/27_io/basic_ostream/inserters_arithmetic/char/
+	31031.cc: New.
+	* testsuite/27_io/basic_ostream/inserters_arithmetic/wchar_t/
+	31031.cc: Likewise.
 
-	* testsuite/Makefile.am (check-local): Really remove.
-	* testsuite/Makefile.in: Regenerated.
+2007-03-03  Paolo Carlini  <pcarlini@suse.de>
 
-2005-05-12  Mark Mitchell  <mark@codesourcery.com>
+	PR libstdc++/28080 (partial)
+	* include/tr1/functional: Split out hash bits to...
+	* include/tr1/functional_hash.h: ...here.
+	* include/Makefile.am: Add.
+	* include/tr1/unordered_set: Include the latter instead.
+	* include/tr1/unordered_map: Likewise.
+	* include/Makefile.in: Regenerate.
 
-	2005-04-04  Mark Mitchell  <mark@codesourcery.com>
-	* testsuite/Makefile.am (check-local): Remove.
-	(curent_symbols.txt): Likewise.
-	(check-abi): Do not depend on current_symbols.txt.
-	* testsuite/Makefile.in: Regenerated.
-	* testsuite/libstdc++-abi/abi.exp: Build current_symbols.txt.
-	2005-04-01  Mark Mitchell  <mark@codesourcery.com>
-	* testsuite/Makefile.am (noinst_PROGRAMS): Remove.
-	(site.exp): Write out the path to the baseline file.
-	(check-abi): Use DejaGNU.
-	(check-abi-verbose): Remove.
-	* testsuite/Makefile.in: Regenerated.
-	* testsuite/abi_check.cc (main): Check the return value from
-	compare_symbols.
-	* testsuite/testsuite_abi.cc (compare_symbols): Return a value.
-	* testsuite/testsuite_abi.h (compare_symbols): Adjust prototype.
-	* testsuite/libstdc++-abi/abi.exp: New file.
-	2004-03-19  Phil Edwards  <phil@codesourcery.com>
-	* testsuite/Makefile.am (site.exp):  New target, based on that
-	created by automake.  Also set libiconv.
+	* include/tr1/utility (get(std::pair<>&), get(const std::pair<>&)):
+	Mark inline.
 
-2005-05-04  Mark Mitchell  <mark@codesourcery.com>
+2007-02-21  Mark Mitchell  <mark@codesourcery.com>
 
-	* testsuite/lib/libstdc++.exp (v3-build_support): Look for
-	__GTHREADS, rather than _GLIBCXX_HAVE_GTHR_DEFAULT, to determine
-	whether or not thread support is available.
+	* testsuite/lib/libstdc++.exp (libstdc++_init): Compile testglue
+	with -fexceptions.
 
-2005-05-04  Mark Mitchell  <mark@codesourcery.com>
+2007-02-07  Hans-Peter Nilsson  <hp@axis.com>
 
-	Backport:
-	2005-03-25  Mark Mitchell  <mark@codesourcery.com>
-	* testsuite/lib/libstdc++.exp (libstdc++_init): Define LOCALEDIR
-	when testing an installed compiler.
-	* testsuite/lib/libstdc++.exp (v3-build_support): Pass -w when
-	compiling support objects.
-	2005-03-23  Mark Mitchell  <mark@codesourcery.com>
-	* testsuite/libstdc++-dg/normal.exp: Read testsuite_files, if it
-	exists.
-	* testsuite/lib/libstdc++.exp (libstdc++_wchar_t): Rename to ...
-	(v3-wchar_t): ... this.
-	(libstdc++_threads): Rename to ...
-	(v3-threads): ... this.
-	(libstdc++_test_objs): Rename to ...
-	(v3-test_objs): ... this.
-	(libstdc++_build_support): Rename to ...
-	(v3-build_support): ... this.
-	* testsuite/libstdc++-dg/normal.exp: Adjust to use new names.
-	* testsuite/lib/libstdc++.exp (libstdc++_init): Improve handling
-	of compilers not in the build directory.
-	(libstdc++_wchar_t): New variable.
-	(libstdc++_threads): Likewise.
-	(libstdc++_test_objs): Likewise.
-	(v3_target_compile): Use libstdc++_test_objs.
-	(v3-list-tests): Remove.
-	(listdc++_build_support): New function.
-	* testsuite/libstdc++-dg/normal.exp: Rework to dynamically
-	generate list of tests.
-	2004-11-23  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
-	* testsuite/lib/libstdc++.exp: Use new procs in target-libpath.exp.
+	PR testsuite/28870
+	* testsuite/27_io/basic_stringbuf/overflow/char/1.cc: Use only
+	10000 iterations for simulator targets.
+	* testsuite/ext/pb_ds/regression/tree_data_map_rand.cc: Use only 5
+	iterations for simulator targets.
+	* testsuite/ext/pb_ds/regression/tree_no_data_map_rand.cc: Ditto.
+	* testsuite/ext/pb_ds/regression/trie_data_map_rand.cc: Ditto.
+	* testsuite/ext/pb_ds/regression/trie_no_data_map_rand.cc: Ditto.
+	* testsuite/ext/pb_ds/regression/hash_no_data_map_rand.cc: Ditto.
+	* testsuite/ext/pb_ds/regression/hash_data_map_rand.cc: Ditto.
+	* testsuite/ext/pb_ds/regression/priority_queue_rand.cc: Ditto.
+	* testsuite/23_containers/set/modifiers/16728.cc: Use only 10
+	iterations for simulator targets.
 
-2005-04-26  Jones Desougi  <jones@ingate.com>
+2007-02-05  Paolo Carlini  <pcarlini@suse.de>
 
-	PR libstdc++/21131
-	* linkage.m4: Fix comments.
+	* include/bits/stl_deque.h (operator<): Qualify call.
 
-2005-04-25  Paolo Carlini  <pcarlini@suse.de>
+2007-02-01  Paolo Carlini  <pcarlini@suse.de>
 
-	PR libstdc++/21035
-	* include/bits/basic_string.h (compare): Adjust the documentation
-	to match the implementation and the standard.
+	PR libstdc++/14493
+	* libsupc++/typeinfo (bad_cast::what, bad_typeid::what): Declare.
+	* libsupc++/tinfo.cc: Define.	
+	* libsupc++/exception (bad_exception::what): Declare.
+	* libsupc++/eh_exception.cc: Define.
+	(exception::what): Adjust, don't use typeid.
+	* libsupc++/new (bad_alloc::what): Declare.
+	* libsupc++/new_handler.cc: Define.
+	* config/abi/pre/gnu.ver: Export the new methods @3.4.9.
+	* testsuite/18_support/14493.cc: New.
 
-2005-02-20  Paolo Carlini  <pcarlini@suse.de>
-	    Jon Grimm  <jgrimm2@us.ibm.com>
-	
-	PR libstdc++/19955
-	* include/bits/locale_facets.h (ctype<char>::_M_narrow_init()):
-	Fix the logic setting _M_narrow_ok: first check whether the
-	transformation is trivial with a dflt == 0, then deal with the
-	special case of zero.
-	* testsuite/22_locale/ctype/narrow/char/19955.cc: New.
+2007-02-01  Paolo Carlini  <pcarlini@suse.de>
 
-	* include/bits/locale_facets.h (ctype<char>::_M_widen_init()):
-	Tweak consistently to use memcmp; minor formatting fixes.
+	PR libstdc++/29496
+	* include/debug/safe_base.h (_Safe_sequence_base::_M_get_mutex,
+	_Safe_iterator_base::_M_get_mutex, _M_attach_single, _M_detach_single):
+	New.
+	* src/debug.cc: Define the latter.
+	(_Safe_sequence_base::_M_detach_all, _M_detach_singular,
+	_M_revalidate_singular, _M_swap): Use the mutex.
+	(_Safe_iterator_base::_M_attach, _M_detach): Adjust, forward to the
+	*_single version.
+	* include/debug/safe_iterator.h (_Safe_iterator<>::_M_attach_single,
+	_M_invalidate_single): New.
+ 	* include/debug/safe_iterator.tcc: Define.
+	(_Safe_iterator<>::_M_invalidate): Adjust, forward to
+	_M_invalidate_single.
+	* include/debug/safe_sequence.h (_Safe_sequence<>::_M_invalidate_if,
+	_M_transfer_iter): Use the mutex, adjust, forward to the *_single
+	versions of _M_invalidate and _M_attach.
+	* config/abi/pre/gnu.ver (_Safe_sequence_base::_M_get_mutex,
+	_Safe_iterator_base::_M_get_mutex, _M_attach_single, _M_detach_single):
+	Add @GLIBCXX_3.4.9; adjust.
 
-2005-02-18  Eric Botcazou  <ebotcazou@libertysurf.fr>
+2007-01-27   Steve LoBasso <slobasso@yahoo.com>
+	     Paolo Carlini  <pcarlini@suse.de>
 
-	* testsuite/thread/pthread1.cc: Do not invoke pthread_setconcurrency
-	on Solaris 2.6 and below.
-	* testsuite/thread/pthread2.cc: Likewise.
-	* testsuite/thread/pthread3.cc: Likewise.
-	* testsuite/thread/pthread4.cc: Likewise.
-	* testsuite/thread/pthread5.cc: Likewise.
-	* testsuite/thread/pthread6.cc: Likewise.
-	* testsuite/thread/pthread7-rope.cc: Likewise.
+	* include/bits/deque.tcc (deque<>::erase(iterator, iterator)):
+	Fix condition.
+	* testsuite/23_containers/deque/modifiers/erase/3.cc: New.
 
-2005-02-16  Paolo Carlini  <pcarlini@suse.de>
+2007-01-26  Paolo Carlini  <pcarlini@suse.de>
 
-	PR libstdc++/19829
-	* testsuite/21_strings/basic_string/find/char/3.cc: Fix the test
-	at line #66 to not access str_lit01 beyond its end.
-	* testsuite/21_strings/basic_string/find/wchar_t/3.cc: Likewise.
+	PR libstdc++/30586
+	* config/cpu/ia64/atomic_word.h: Just include <bits/cxxabi_tweaks.h>.
+	* testsuite/abi/30586.cc: New.
 
-2005-02-15  Jakub Jelinek  <jakub@redhat.com>
+2007-01-26  Benjamin Kosnik  <bkoz@redhat.com>
 
-	PR libstdc++/19946
-	* testsuite/demangle/abi_examples/01.cc (main): Adjust for 2005-02-13
-	demangler change.
-	* testsuite/demangle/abi_examples/02.cc (main): Likewise.
+	Revert.
+      	2006-12-11  Benjamin Kosnik  <bkoz@redhat.com>
+	PR libstdc++/28125
+	* acinclude.m4 (GLIBCXX_CHECK_ICONV_SUPPORT): Remove link test, ie
+	AC_CHECK_LIB for libiconv. Instead, use bits of AM_ICONV.
+        * configure: Regenerate.
+        * scripts/testsuite_flags.in (cxxflags): Add LIBICONV bits.
 
-2005-02-08  Mark Mitchell  <mark@codesourcery.com>
+2007-01-24  Benjamin Kosnik  <bkoz@redhat.com>
 
-	* config/linker-map.gnu (GLIBCXX_3.4): Add _ZNSdC* and _ZNSdD*.
+	PR libstdc++/29722 continued
+	* testsuite/lib/libstdc++.exp (v3_target_compile_as_c): Add
+	libsupc++ library directory.
+	* testsuite/abi/cxx_runtime_only_linkage.cc: Remove hard-coded
+	path specification.
 
-2005-02-02  Paolo Carlini  <pcarlini@suse.de>
+2007-01-21  Paolo Carlini  <pcarlini@suse.de>
 
-	PR libstdc++/19642
-	* config/locale/generic/c_locale.h (__convert_from_v): Switch only
-	LC_NUMERIC, and only when actually != "C".
+	PR libstdc++/29989
+	* include/bits/c++config: #undef min and max.
+	* include/bits/stl_algobase.h: Remove min and max #undefs.
+	* testsuite/18_support/numeric_limits/29989.cc: New.
 
-2005-01-31  Brad Spencer  <spencer@infointeractive.com>
+2007-01-15  Paolo Carlini  <pcarlini@suse.de>
 
-        * crossconfig.m4: Repair Solaris cross bits for strtold and strtof.
-	* configure: Regenerated.
+	* include/std/std_valarray.h (valarray<>::cshift): Fix typo.
 
-2005-01-26  Paolo Carlini  <pcarlini@suse.de>
+2007-01-14  Paolo Carlini  <pcarlini@suse.de>
 
-	* include/std/std_complex.h: Remove usages of the dead
-	_GLIBCXX_BUGGY_COMPLEX macro.
+	* include/bits/stl_algobase.h (fill_n(char*, _Size,
+	const signed char&)): Fix signature.
+	* testsuite/25_algorithms/fill/3.cc: New.
 
-2005-01-21  Volker Reichelt  <reichelt@igpm.rwth-aachen.de>
+2007-01-13  John David Anglin  <dave.anglin@nrc-cnrc.gc>
 
-	PR libstdc++/19510
-	* include/bits/stl_list.h (_List_iterator): Initialize _M_node
-	in constructor.
-	(_List_const_iterator): Likewise.
-	* include/bits/stl_tree.h (_Rb_tree_iterator): Likewise.
-	(_Rb_tree_const_iterator): Likewise.
+	* config/cpu/hppa/atomicity.h (__exchange_and_add): Don't use ordered
+	store.
+	(__atomic_add): Likewise.
 
-	* testsuite/23_containers/map/operators/1_neg.cc: Adjust line numbers.
-	* testsuite/23_containers/set/operators/1_neg.cc: Likewise.
+2007-01-13  Paolo Carlini  <pcarlini@suse.de>
 
-2005-01-18  Paolo Carlini  <pcarlini@suse.de>
+	PR libstdc++/14991
+	* docs/html/17_intro/porting-howto.html ([3]): Mention stdio_filebuf.
+	* docs/html/17_intro/porting-howto.xml: Remove.
 
-	* include/bits/stl_tree.h: Add a few missing std:: qualifications.
+	* docs/html/17_intro/porting-howto.html: Remove spurious end tags
+	pointed out by validator.w3.org.
 
-2005-01-16  Jonathan Wakely  <redi@gcc.gnu.org>
+2007-01-12  Paolo Carlini  <pcarlini@suse.de>
 
-	* include/ext/rope: Qualify calls to std::copy() by sequence_buffer.
-	* testsuite/ext/rope/4.cc: Add.
+	PR libstdc++/30416 (continued)
+	* include/std/std_valarray.h (valarray<>::shift, valarray<>::cshift):
+	Allways return the same variable, thus facilitating NRVO.
 
-2005-01-12  Paolo Carlini  <pcarlini@suse.de>
+2007-01-12  Paolo Carlini  <pcarlini@suse.de>
 
-	* include/bits/stl_algobase.h (lexicographical_compare):
-	Fix concept check.
+	PR libstdc++/30416
+	* include/std/std_valarray.h (valarray<>::shift, valarray<>::cshift):
+	Do not segfault when |n| > size.
+	* testsuite/26_numerics/valarray/30416.cc: New.
 
-2005-01-02  Chris Jefferson  <chris@bubblescope.net>
+2007-01-06  Paolo Carlini  <pcarlini@suse.de>
 
-	* include/bits/stl_algobase.h (mismatch): Correct concept check.
+	PR libstdc++/30365
+	* crossconfig.m4 (case *-linux*): Run GLIBCXX_CHECK_LFS.
+	* configure: Regenerate.
 
-2005-01-01  Paolo Carlini  <pcarlini@suse.de>
+2007-01-06  Matthias Klose  <doko@debian.org>
 
-	* testsuite/ext/enc_filebuf/char/13189.cc: Fix, first include
-	testsuite_hooks.h, to know whether including ext/enc_filebuf.h.
-	* testsuite/ext/enc_filebuf/wchar_t/13189.cc: Likewise.
+	* include/tr1/random (gamma_distribution): Fix typo in formula.
+	* docs/doxygen/user.cfg.in: Use package amsmath.

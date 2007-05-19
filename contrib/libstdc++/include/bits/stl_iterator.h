@@ -1,6 +1,7 @@
 // Iterators -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -65,8 +66,11 @@
 #ifndef _ITERATOR_H
 #define _ITERATOR_H 1
 
-namespace std
-{
+#include <bits/cpp_type_traits.h>
+#include <ext/type_traits.h>
+
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // 24.4.1 Reverse iterators
   /**
    *  "Bidirectional and random access iterators have corresponding reverse
@@ -203,7 +207,8 @@ namespace std
        *
        *  @doctodo
       */
-      reverse_iterator operator--(int)
+      reverse_iterator
+      operator--(int)
       {
 	reverse_iterator __tmp = *this;
 	++current;
@@ -299,7 +304,7 @@ namespace std
   template<typename _Iterator>
     inline bool
     operator<=(const reverse_iterator<_Iterator>& __x,
-		const reverse_iterator<_Iterator>& __y)
+	       const reverse_iterator<_Iterator>& __y)
     { return !(__y < __x); }
 
   template<typename _Iterator>
@@ -319,6 +324,50 @@ namespace std
     operator+(typename reverse_iterator<_Iterator>::difference_type __n,
 	      const reverse_iterator<_Iterator>& __x)
     { return reverse_iterator<_Iterator>(__x.base() - __n); }
+
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // DR 280. Comparison of reverse_iterator to const reverse_iterator.
+  template<typename _IteratorL, typename _IteratorR>
+    inline bool
+    operator==(const reverse_iterator<_IteratorL>& __x,
+	       const reverse_iterator<_IteratorR>& __y)
+    { return __x.base() == __y.base(); }
+
+  template<typename _IteratorL, typename _IteratorR>
+    inline bool
+    operator<(const reverse_iterator<_IteratorL>& __x,
+	      const reverse_iterator<_IteratorR>& __y)
+    { return __y.base() < __x.base(); }
+
+  template<typename _IteratorL, typename _IteratorR>
+    inline bool
+    operator!=(const reverse_iterator<_IteratorL>& __x,
+	       const reverse_iterator<_IteratorR>& __y)
+    { return !(__x == __y); }
+
+  template<typename _IteratorL, typename _IteratorR>
+    inline bool
+    operator>(const reverse_iterator<_IteratorL>& __x,
+	      const reverse_iterator<_IteratorR>& __y)
+    { return __y < __x; }
+
+  template<typename _IteratorL, typename _IteratorR>
+    inline bool
+    operator<=(const reverse_iterator<_IteratorL>& __x,
+	       const reverse_iterator<_IteratorR>& __y)
+    { return !(__y < __x); }
+
+  template<typename _IteratorL, typename _IteratorR>
+    inline bool
+    operator>=(const reverse_iterator<_IteratorL>& __x,
+	       const reverse_iterator<_IteratorR>& __y)
+    { return !(__x < __y); }
+
+  template<typename _IteratorL, typename _IteratorR>
+    inline typename reverse_iterator<_IteratorL>::difference_type
+    operator-(const reverse_iterator<_IteratorL>& __x,
+	      const reverse_iterator<_IteratorR>& __y)
+    { return __y.base() - __x.base(); }
   //@}
 
   // 24.4.2.2.1 back_insert_iterator
@@ -569,10 +618,11 @@ namespace std
       return insert_iterator<_Container>(__x,
 					 typename _Container::iterator(__i));
     }
-} // namespace std
 
-namespace __gnu_cxx
-{
+_GLIBCXX_END_NAMESPACE
+
+_GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
+
   // This iterator adapter is 'normal' in the sense that it does not
   // change the semantics of any of the operators of its iterator
   // parameter.  Its primary purpose is to convert an iterator that is
@@ -604,9 +654,11 @@ namespace __gnu_cxx
 
       // Allow iterator to const_iterator conversion
       template<typename _Iter>
-        inline __normal_iterator(const __normal_iterator<_Iter,
-				 _Container>& __i)
-	: _M_current(__i.base()) { }
+        __normal_iterator(const __normal_iterator<_Iter,
+			  typename __enable_if<
+      	       (std::__are_same<_Iter, typename _Container::pointer>::__value),
+		      _Container>::__type>& __i)
+        : _M_current(__i.base()) { }
 
       // Forward iterator requirements
       reference
@@ -759,14 +811,17 @@ namespace __gnu_cxx
     { return __lhs.base() - __rhs.base(); }
 
   template<typename _Iterator, typename _Container>
+    inline typename __normal_iterator<_Iterator, _Container>::difference_type
+    operator-(const __normal_iterator<_Iterator, _Container>& __lhs,
+	      const __normal_iterator<_Iterator, _Container>& __rhs)
+    { return __lhs.base() - __rhs.base(); }
+
+  template<typename _Iterator, typename _Container>
     inline __normal_iterator<_Iterator, _Container>
     operator+(typename __normal_iterator<_Iterator, _Container>::difference_type
 	      __n, const __normal_iterator<_Iterator, _Container>& __i)
     { return __normal_iterator<_Iterator, _Container>(__i.base() + __n); }
-} // namespace __gnu_cxx
+
+_GLIBCXX_END_NAMESPACE
 
 #endif
-
-// Local Variables:
-// mode:C++
-// End:

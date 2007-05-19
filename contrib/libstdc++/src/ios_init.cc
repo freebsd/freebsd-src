@@ -1,6 +1,6 @@
 // Iostreams base classes -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -36,11 +36,10 @@
 #include <ostream>
 #include <istream>
 #include <fstream>
-#include <bits/atomicity.h>
 #include <ext/stdio_filebuf.h>
 #include <ext/stdio_sync_filebuf.h>
 
-namespace __gnu_internal
+namespace __gnu_internal _GLIBCXX_VISIBILITY(hidden)
 {
   using namespace __gnu_cxx;
 
@@ -64,8 +63,8 @@ namespace __gnu_internal
 #endif
 } // namespace __gnu_internal
 
-namespace std 
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   using namespace __gnu_internal;
   
   extern istream cin;
@@ -82,7 +81,7 @@ namespace std
 
   ios_base::Init::Init()
   {
-    if (__gnu_cxx::__exchange_and_add(&_S_refcount, 1) == 0)
+    if (__gnu_cxx::__exchange_and_add_dispatch(&_S_refcount, 1) == 0)
       {
 	// Standard streams default to synced with "C" operations.
 	_S_synced_with_stdio = true;
@@ -99,7 +98,10 @@ namespace std
 	new (&clog) ostream(&buf_cerr_sync);
 	cin.tie(&cout);
 	cerr.flags(ios_base::unitbuf);
-	
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 455. cerr::tie() and wcerr::tie() are overspecified.
+	cerr.tie(&cout);
+
 #ifdef _GLIBCXX_USE_WCHAR_T
 	new (&buf_wcout_sync) stdio_sync_filebuf<wchar_t>(stdout);
 	new (&buf_wcin_sync) stdio_sync_filebuf<wchar_t>(stdin);
@@ -111,19 +113,20 @@ namespace std
 	new (&wclog) wostream(&buf_wcerr_sync);
 	wcin.tie(&wcout);
 	wcerr.flags(ios_base::unitbuf);
+	wcerr.tie(&wcout);	
 #endif
 	
 	// NB: Have to set refcount above one, so that standard
 	// streams are not re-initialized with uses of ios_base::Init
 	// besides <iostream> static object, ie just using <ios> with
 	// ios_base::Init objects.
-	__gnu_cxx::__atomic_add(&_S_refcount, 1);
+	__gnu_cxx::__atomic_add_dispatch(&_S_refcount, 1);
       }
   }
 
   ios_base::Init::~Init()
   {
-    if (__gnu_cxx::__exchange_and_add(&_S_refcount, -1) == 2)
+    if (__gnu_cxx::__exchange_and_add_dispatch(&_S_refcount, -1) == 2)
       {
 	// Catch any exceptions thrown by basic_ostream::flush()
 	try
@@ -196,4 +199,5 @@ namespace std
       }
     return __ret; 
   }
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE

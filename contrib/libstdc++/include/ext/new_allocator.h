@@ -1,6 +1,6 @@
 // Allocator that wraps operator new -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,21 +27,27 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file ext/new_allocator.h
+ *  This file is a GNU extension to the Standard C++ Library.
+ */
+
 #ifndef _NEW_ALLOCATOR_H
 #define _NEW_ALLOCATOR_H 1
 
 #include <new>
+#include <bits/functexcept.h>
 
-namespace __gnu_cxx
-{
+_GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
+
+  using std::size_t;
+  using std::ptrdiff_t;
+
   /**
    *  @brief  An allocator that uses global new, as per [20.4].
    *
    *  This is precisely the allocator defined in the C++ Standard. 
    *    - all allocation calls operator new
    *    - all deallocation calls operator delete
-   *
-   *  (See @link Allocators allocators info @endlink for more.)
    */
   template<typename _Tp>
     class new_allocator
@@ -78,7 +84,12 @@ namespace __gnu_cxx
       // about what the return value is when __n == 0.
       pointer
       allocate(size_type __n, const void* = 0)
-      { return static_cast<_Tp*>(::operator new(__n * sizeof(_Tp))); }
+      { 
+	if (__builtin_expect(__n > this->max_size(), false))
+	  std::__throw_bad_alloc();
+
+	return static_cast<_Tp*>(::operator new(__n * sizeof(_Tp)));
+      }
 
       // __p is not permitted to be a null pointer.
       void
@@ -108,6 +119,7 @@ namespace __gnu_cxx
     inline bool
     operator!=(const new_allocator<_Tp>&, const new_allocator<_Tp>&)
     { return false; }
-} // namespace __gnu_cxx
+
+_GLIBCXX_END_NAMESPACE
 
 #endif

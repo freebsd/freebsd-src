@@ -1,6 +1,6 @@
 // -*- C++ -*- C math library.
 
-// Copyright (C) 2000, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2003, 2004, 2006 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -29,11 +29,15 @@
 
 // This file was written by Gabriel Dos Reis <gdr@codesourcery.com>
 
+/** @file cmath.tcc
+ *  This is a Standard C++ Library file.
+ */
+
 #ifndef _GLIBCXX_CMATH_TCC
 #define _GLIBCXX_CMATH_TCC 1
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   template<typename _Tp>
     inline _Tp
     __cmath_power(_Tp __x, unsigned int __n)
@@ -49,6 +53,7 @@ namespace std
 
       return __y;
     }
-}
+
+_GLIBCXX_END_NAMESPACE
 
 #endif

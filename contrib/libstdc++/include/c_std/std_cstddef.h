@@ -1,6 +1,7 @@
 // -*- C++ -*- forwarding header.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,30 +28,33 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-//
-// ISO C++ 14882: 18.1  Types
-//
-
 /** @file cstddef
  *  This is a Standard C++ Library file.  You should @c #include this file
  *  in your programs, rather than any of the "*.h" implementation files.
  *
  *  This is the C++ version of the Standard C Library header @c stddef.h,
  *  and its contents are (mostly) the same as that header, but are all
- *  contained in the namespace @c std.
+ *  contained in the namespace @c std (except for names which are defined
+ *  as macros in C).
  */
+
+//
+// ISO C++ 14882: 18.1  Types
+//
 
 #ifndef _GLIBCXX_CSTDDEF
 #define _GLIBCXX_CSTDDEF 1
 
 #pragma GCC system_header
 
+#include <bits/c++config.h>
 #include <stddef.h>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   using ::ptrdiff_t;
   using ::size_t;
-}
+
+_GLIBCXX_END_NAMESPACE
 
 #endif

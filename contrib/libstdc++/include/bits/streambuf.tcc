@@ -1,6 +1,6 @@
 // Stream buffer classes -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,6 +28,11 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file streambuf.tcc
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
+
 //
 // ISO C++ 14882: 27.5  Stream buffers
 //
@@ -37,8 +42,8 @@
 
 #pragma GCC system_header
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   template<typename _CharT, typename _Traits>
     streamsize
     basic_streambuf<_CharT, _Traits>::
@@ -47,11 +52,11 @@ namespace std
       streamsize __ret = 0;
       while (__ret < __n)
 	{
-	  const size_t __buf_len = this->egptr() - this->gptr();
+	  const streamsize __buf_len = this->egptr() - this->gptr();
 	  if (__buf_len)
 	    {
-	      const size_t __remaining = __n - __ret;
-	      const size_t __len = std::min(__buf_len, __remaining);
+	      const streamsize __remaining = __n - __ret;
+	      const streamsize __len = std::min(__buf_len, __remaining);
 	      traits_type::copy(__s, this->gptr(), __len);
 	      __ret += __len;
 	      __s += __len;
@@ -81,11 +86,11 @@ namespace std
       streamsize __ret = 0;
       while (__ret < __n)
 	{
-	  const size_t __buf_len = this->epptr() - this->pptr();
+	  const streamsize __buf_len = this->epptr() - this->pptr();
 	  if (__buf_len)
 	    {
-	      const size_t __remaining = __n - __ret;
-	      const size_t __len = std::min(__buf_len, __remaining);
+	      const streamsize __remaining = __n - __ret;
+	      const streamsize __len = std::min(__buf_len, __remaining);
 	      traits_type::copy(this->pptr(), __s, __len);
 	      __ret += __len;
 	      __s += __len;
@@ -109,37 +114,37 @@ namespace std
 
   // Conceivably, this could be used to implement buffer-to-buffer
   // copies, if this was ever desired in an un-ambiguous way by the
-  // standard. If so, then checks for __ios being zero would be
-  // necessary.
+  // standard.
   template<typename _CharT, typename _Traits>
     streamsize
-    __copy_streambufs(basic_streambuf<_CharT, _Traits>* __sbin,
-		      basic_streambuf<_CharT, _Traits>* __sbout)
+    __copy_streambufs_eof(basic_streambuf<_CharT, _Traits>* __sbin,
+			  basic_streambuf<_CharT, _Traits>* __sbout,
+			  bool& __ineof)
     {
       streamsize __ret = 0;
+      __ineof = true;
       typename _Traits::int_type __c = __sbin->sgetc();
       while (!_Traits::eq_int_type(__c, _Traits::eof()))
 	{
-	  const size_t __n = __sbin->egptr() - __sbin->gptr();
-	  if (__n > 1)
+	  __c = __sbout->sputc(_Traits::to_char_type(__c));
+	  if (_Traits::eq_int_type(__c, _Traits::eof()))
 	    {
-	      const size_t __wrote = __sbout->sputn(__sbin->gptr(), __n);
-	      __sbin->gbump(__wrote);
-	      __ret += __wrote;
-	      if (__wrote < __n)
-		break;
-	      __c = __sbin->underflow();
+	      __ineof = false;
+	      break;
 	    }
-	  else
-	    {
-	      __c = __sbout->sputc(_Traits::to_char_type(__c));
-	      if (_Traits::eq_int_type(__c, _Traits::eof()))
-		break;
-	      ++__ret;
-	      __c = __sbin->snextc();
-	    }
+	  ++__ret;
+	  __c = __sbin->snextc();
 	}
       return __ret;
+    }
+
+  template<typename _CharT, typename _Traits>
+    inline streamsize
+    __copy_streambufs(basic_streambuf<_CharT, _Traits>* __sbin,
+		      basic_streambuf<_CharT, _Traits>* __sbout)
+    {
+      bool __ineof;
+      return __copy_streambufs_eof(__sbin, __sbout, __ineof);
     }
 
   // Inhibit implicit instantiations for required instantiations,
@@ -149,15 +154,26 @@ namespace std
   extern template class basic_streambuf<char>;
   extern template
     streamsize
-    __copy_streambufs(basic_streambuf<char>*, basic_streambuf<char>*);
+    __copy_streambufs(basic_streambuf<char>*,
+		      basic_streambuf<char>*);
+  extern template
+    streamsize
+    __copy_streambufs_eof(basic_streambuf<char>*,
+			  basic_streambuf<char>*, bool&);
 
 #ifdef _GLIBCXX_USE_WCHAR_T
   extern template class basic_streambuf<wchar_t>;
   extern template
     streamsize
-    __copy_streambufs(basic_streambuf<wchar_t>*, basic_streambuf<wchar_t>*);
+    __copy_streambufs(basic_streambuf<wchar_t>*,
+		      basic_streambuf<wchar_t>*);
+  extern template
+    streamsize
+    __copy_streambufs_eof(basic_streambuf<wchar_t>*,
+			  basic_streambuf<wchar_t>*, bool&);
 #endif
 #endif
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif
