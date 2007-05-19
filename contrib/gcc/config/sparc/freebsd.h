@@ -1,5 +1,5 @@
 /* Definitions for Sun SPARC64 running FreeBSD using the ELF format
-   Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2004, 2005, 2006 Free Software Foundation, Inc.
    Contributed by David E. O'Brien <obrien@FreeBSD.org> and BSDi.
 
 This file is part of GCC.
@@ -16,7 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* $FreeBSD$ */
 
@@ -41,8 +42,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define LINK_SPEC "%(link_arch)						\
   %{!mno-relax:%{!r:-relax}}						\
-  %{p:%nconsider using `-pg' instead of `-p' with gprof(1)}				\
-  %{Wl,*:%*}								\
+  %{p:%nconsider using `-pg' instead of `-p' with gprof(1)}		\
   %{assert*} %{R*} %{rpath*} %{defsym*}					\
   %{shared:-Bshareable %{h*} %{soname*}}				\
   %{symbolic:-Bsymbolic}						\
@@ -71,10 +71,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef  LONG_DOUBLE_TYPE_SIZE
 #define LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
 
-/* Constant which presents upper bound of the above value.  */
-#undef  MAX_LONG_DOUBLE_TYPE_SIZE
-#define MAX_LONG_DOUBLE_TYPE_SIZE 128
-
 /* Define this to set long double type size to use in libgcc2.c, which can
    not depend on target_flags.  */
 #if defined(__arch64__) || defined(__LONG_DOUBLE_128__)
@@ -84,11 +80,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 /* Definitions for 64-bit SPARC running systems with ELF. */
-
-#undef  SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES						    \
-  {"long-double-64", -MASK_LONG_DOUBLE_128, N_("Use 64 bit long doubles") },  \
-  {"long-double-128", MASK_LONG_DOUBLE_128, N_("Use 128 bit long doubles") },
 
 #undef  TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (FreeBSD/sparc64 ELF)");
@@ -141,14 +132,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define LOCAL_LABEL_PREFIX  "."
 
 /* XXX2 */
-/* This is how to output a reference to an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.  */
-
-#undef  ASM_OUTPUT_INTERNAL_LABELREF
-#define ASM_OUTPUT_INTERNAL_LABELREF(FILE,PREFIX,NUM)			\
-  fprintf (FILE, ".L%s%d", PREFIX, NUM)
-
-/* XXX2 */
 /* This is how to store into the string LABEL
    the symbol_ref name of an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.
@@ -177,9 +160,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* #define DWARF_OFFSET_SIZE PTR_SIZE */
 
 #undef ENDFILE_SPEC
-#define ENDFILE_SPEC \
-  	"%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s}" \
-	FBSD_ENDFILE_SPEC
+#define ENDFILE_SPEC						\
+  "%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s} "	\
+  FBSD_ENDFILE_SPEC
 
 /* We use GNU ld so undefine this so that attribute((init_priority)) works.  */
 #undef CTORS_SECTION_ASM_OP
