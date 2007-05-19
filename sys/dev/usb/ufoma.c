@@ -256,8 +256,6 @@ static driver_t ufoma_driver = {
 };
 
 
-static devclass_t ucom_devclass;
-
 DRIVER_MODULE(ufoma, uhub, ufoma_driver, ucom_devclass, usbd_driver_load, 0);
 MODULE_DEPEND(ufoma, usb, 1, 1, 1);
 MODULE_DEPEND(ufoma, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
