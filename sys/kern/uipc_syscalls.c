@@ -1819,8 +1819,8 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	struct mbuf *m = NULL;
 	struct sf_buf *sf;
 	struct vm_page *pg;
-	off_t off, xfsize, sbytes = 0, rem = 0;
-	int error, mnw = 0;
+	off_t off, xfsize, fsbytes = 0, sbytes = 0, rem = 0;
+	int error, hdrlen = 0, mnw = 0;
 	int vfslocked;
 
 	NET_LOCK_GIANT();
@@ -1916,6 +1916,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 				error = mnw ? EAGAIN : ENOBUFS;
 				goto out;
 			}
+			hdrlen = m_length(m, NULL);
 		}
 	}
 
@@ -1933,7 +1934,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * The outer loop checks the state and available space of the socket
 	 * and takes care of the overall progress.
 	 */
-	for (off = uap->offset; ; ) {
+	for (off = uap->offset, rem = uap->nbytes; ; ) {
 		int loopbytes = 0;
 		int space = 0;
 		int done = 0;
@@ -1998,6 +1999,13 @@ retry_space:
 		SOCKBUF_UNLOCK(&so->so_snd);
 
 		/*
+		 * Reduce space in the socket buffer by the size of
+		 * the header mbuf chain.
+		 * hdrlen is set to 0 after the first loop.
+		 */
+		space -= hdrlen;
+
+		/*
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
 		 */
@@ -2015,12 +2023,12 @@ retry_space:
 			pgoff = (vm_offset_t)(off & PAGE_MASK);
 			xfsize = omin(PAGE_SIZE - pgoff,
 			    obj->un_pager.vnp.vnp_size - uap->offset -
-			    sbytes - loopbytes);
+			    fsbytes - loopbytes);
 			if (uap->nbytes)
-				rem = (uap->nbytes - sbytes - loopbytes);
+				rem = (uap->nbytes - fsbytes - loopbytes);
 			else
-				rem = obj->un_pager.vnp.vnp_size - uap->offset -
-				    sbytes - loopbytes;
+				rem = obj->un_pager.vnp.vnp_size -
+				    uap->offset - fsbytes - loopbytes;
 			xfsize = omin(rem, xfsize);
 			if (xfsize <= 0) {
 				VM_OBJECT_UNLOCK(obj);
@@ -2038,9 +2046,8 @@ retry_space:
 			}
 
 			/*
-			 * Attempt to look up the page.
-			 * Allocate if not found or
-			 * wait and loop if busy.
+			 * Attempt to look up the page.  Allocate
+			 * if not found or wait and loop if busy.
 			 */
 			pindex = OFF_TO_IDX(off);
 			pg = vm_page_grab(obj, pindex, VM_ALLOC_NOBUSY |
@@ -2161,7 +2168,7 @@ retry_space:
 
 		/* Add the buffer chain to the socket buffer. */
 		if (m != NULL) {
-			int mlen;
+			int mlen, err;
 
 			mlen = m_length(m, NULL);
 			SOCKBUF_LOCK(&so->so_snd);
@@ -2171,10 +2178,27 @@ retry_space:
 				goto done;
 			}
 			SOCKBUF_UNLOCK(&so->so_snd);
-			error = (*so->so_proto->pr_usrreqs->pru_send)
+			/* Avoid error aliasing. */
+			err = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, NULL, NULL, td);
-			if (!error)
+			if (err == 0) {
+				/*
+				 * We need two counters to get the
+				 * file offset and nbytes to send
+				 * right:
+				 * - sbytes contains the total amount
+				 *   of bytes sent, including headers.
+				 * - fsbytes contains the total amount
+				 *   of bytes sent from the file.
+				 */
 				sbytes += mlen;
+				fsbytes += mlen;
+				if (hdrlen) {
+					fsbytes -= hdrlen;
+					hdrlen = 0;
+				}
+			} else if (error == 0)
+				error = err;
 			m = NULL;	/* pru_send always consumes */
 		}
 
