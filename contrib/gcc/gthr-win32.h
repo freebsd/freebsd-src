@@ -1,6 +1,8 @@
 /* Threads compatibility routines for libgcc2 and libobjc.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1999, 2000, 2002, 2003, 2004  Free Software Foundation, Inc.
+
+/* Copyright (C) 1999, 2000, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
    Contributed by Mumit Khan <khan@xraylith.wisc.edu>.
 
 This file is part of GCC.
@@ -17,8 +19,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* As a special exception, if you link this library with other files,
    some of which are compiled with GCC, to produce an executable,
@@ -71,7 +73,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #ifdef _LIBOBJC
 
 /* This is necessary to prevent windef.h (included from windows.h) from
-   defining it's own BOOL as a typedef.  */
+   defining its own BOOL as a typedef.  */
 #ifndef __OBJC__
 #define __OBJC__
 #endif
@@ -88,7 +90,7 @@ static DWORD	__gthread_objc_data_tls = (DWORD) -1;
 int
 __gthread_objc_init_thread_system (void)
 {
-  /* Initialize the thread storage key */
+  /* Initialize the thread storage key.  */
   if ((__gthread_objc_data_tls = TlsAlloc ()) != (DWORD) -1)
     return 0;
   else
@@ -343,9 +345,19 @@ typedef struct {
   void *sema;
 } __gthread_mutex_t;
 
+typedef struct {
+  long counter;
+  long depth;
+  unsigned long owner;
+  void *sema;
+} __gthread_recursive_mutex_t;
+
 #define __GTHREAD_ONCE_INIT {0, -1}
 #define __GTHREAD_MUTEX_INIT_FUNCTION __gthread_mutex_init_function
 #define __GTHREAD_MUTEX_INIT_DEFAULT {-1, 0}
+#define __GTHREAD_RECURSIVE_MUTEX_INIT_FUNCTION \
+  __gthread_recursive_mutex_init_function
+#define __GTHREAD_RECURSIVE_MUTEX_INIT_DEFAULT {-1, 0, 0, 0}
 
 #if __MINGW32_MAJOR_VERSION >= 1 || \
   (__MINGW32_MAJOR_VERSION == 0 && __MINGW32_MINOR_VERSION > 2)
@@ -357,8 +369,12 @@ extern int _CRT_MT;
 extern int __mingwthr_key_dtor (unsigned long, void (*) (void *));
 #endif /* __MINGW32__ version */
 
+/* The Windows95 kernel does not export InterlockedCompareExchange.
+   This provides a substitute.   When building apps that reference
+   gthread_mutex_try_lock, the  __GTHREAD_I486_INLINE_LOCK_PRIMITIVES
+   macro  must be defined if Windows95 is a target.  Currently
+   gthread_mutex_try_lock is not referenced by libgcc or libstdc++.  */
 #ifdef __GTHREAD_I486_INLINE_LOCK_PRIMITIVES
-
 static inline long
 __gthr_i486_lock_cmp_xchg(long *dest, long xchg, long comperand)
 {
@@ -371,13 +387,9 @@ __gthr_i486_lock_cmp_xchg(long *dest, long xchg, long comperand)
 	: "cc");
   return result;
 }
-
 #define __GTHR_W32_InterlockedCompareExchange __gthr_i486_lock_cmp_xchg
-
 #else  /* __GTHREAD_I486_INLINE_LOCK_PRIMITIVES */
-
 #define __GTHR_W32_InterlockedCompareExchange InterlockedCompareExchange
-
 #endif /* __GTHREAD_I486_INLINE_LOCK_PRIMITIVES */
 
 static inline int
@@ -405,6 +417,12 @@ extern void __gthr_win32_mutex_init_function (__gthread_mutex_t *);
 extern int __gthr_win32_mutex_lock (__gthread_mutex_t *);
 extern int __gthr_win32_mutex_trylock (__gthread_mutex_t *);
 extern int __gthr_win32_mutex_unlock (__gthread_mutex_t *);
+extern void
+  __gthr_win32_recursive_mutex_init_function (__gthread_recursive_mutex_t *);
+extern int __gthr_win32_recursive_mutex_lock (__gthread_recursive_mutex_t *);
+extern int
+  __gthr_win32_recursive_mutex_trylock (__gthread_recursive_mutex_t *);
+extern int __gthr_win32_recursive_mutex_unlock (__gthread_recursive_mutex_t *);
 
 static inline int
 __gthread_once (__gthread_once_t *once, void (*func) (void))
@@ -468,6 +486,39 @@ __gthread_mutex_unlock (__gthread_mutex_t *mutex)
 {
   if (__gthread_active_p ())
     return __gthr_win32_mutex_unlock (mutex);
+  else
+    return 0;
+}
+
+static inline void
+__gthread_recursive_mutex_init_function (__gthread_recursive_mutex_t *mutex)
+{
+   __gthr_win32_recursive_mutex_init_function (mutex);
+}
+
+static inline int
+__gthread_recursive_mutex_lock (__gthread_recursive_mutex_t *mutex)
+{
+  if (__gthread_active_p ())
+    return __gthr_win32_recursive_mutex_lock (mutex);
+  else
+    return 0;
+}
+
+static inline int
+__gthread_recursive_mutex_trylock (__gthread_recursive_mutex_t *mutex)
+{
+  if (__gthread_active_p ())
+    return __gthr_win32_recursive_mutex_trylock (mutex);
+  else
+    return 0;
+}
+
+static inline int
+__gthread_recursive_mutex_unlock (__gthread_recursive_mutex_t *mutex)
+{
+  if (__gthread_active_p ())
+    return __gthr_win32_recursive_mutex_unlock (mutex);
   else
     return 0;
 }
@@ -606,6 +657,83 @@ __gthread_mutex_unlock (__gthread_mutex_t *mutex)
     {
       if (InterlockedDecrement (&mutex->counter) >= 0)
 	return ReleaseSemaphore (mutex->sema, 1, NULL) ? 0 : 1;
+    }
+  return 0;
+}
+
+static inline void
+__gthread_recursive_mutex_init_function (__gthread_recursive_mutex_t *mutex)
+{
+  mutex->counter = -1;
+  mutex->depth = 0;
+  mutex->owner = 0;
+  mutex->sema = CreateSemaphore (NULL, 0, 65535, NULL);
+}
+
+static inline int
+__gthread_recursive_mutex_lock (__gthread_recursive_mutex_t *mutex)
+{
+  if (__gthread_active_p ())
+    {
+      DWORD me = GetCurrentThreadId();
+      if (InterlockedIncrement (&mutex->counter) == 0)
+	{
+	  mutex->depth = 1;
+	  mutex->owner = me;
+	}
+      else if (mutex->owner == me)
+	{
+	  InterlockedDecrement (&mutex->counter);
+	  ++(mutex->depth);
+	}
+      else if (WaitForSingleObject (mutex->sema, INFINITE) == WAIT_OBJECT_0)
+	{
+	  mutex->depth = 1;
+	  mutex->owner = me;
+	}
+      else
+	{
+	  /* WaitForSingleObject returns WAIT_FAILED, and we can only do
+	     some best-effort cleanup here.  */
+	  InterlockedDecrement (&mutex->counter);
+	  return 1;
+	}
+    }
+  return 0;
+}
+
+static inline int
+__gthread_recursive_mutex_trylock (__gthread_recursive_mutex_t *mutex)
+{
+  if (__gthread_active_p ())
+    {
+      DWORD me = GetCurrentThreadId();
+      if (__GTHR_W32_InterlockedCompareExchange (&mutex->counter, 0, -1) < 0)
+	{
+	  mutex->depth = 1;
+	  mutex->owner = me;
+	}
+      else if (mutex->owner == me)
+	++(mutex->depth);
+      else
+	return 1;
+    }
+  return 0;
+}
+
+static inline int
+__gthread_recursive_mutex_unlock (__gthread_recursive_mutex_t *mutex)
+{
+  if (__gthread_active_p ())
+    {
+      --(mutex->depth);
+      if (mutex->depth == 0)
+	{
+	  mutex->owner = 0;
+
+	  if (InterlockedDecrement (&mutex->counter) >= 0)
+	    return ReleaseSemaphore (mutex->sema, 1, NULL) ? 0 : 1;
+	}
     }
   return 0;
 }

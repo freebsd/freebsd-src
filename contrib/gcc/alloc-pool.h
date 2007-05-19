@@ -17,8 +17,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 #ifndef ALLOC_POOL_H
 #define ALLOC_POOL_H
 
@@ -49,6 +49,7 @@ typedef struct alloc_pool_def
 
 extern alloc_pool create_alloc_pool (const char *, size_t, size_t);
 extern void free_alloc_pool (alloc_pool);
+extern void free_alloc_pool_if_empty (alloc_pool *);
 extern void *pool_alloc (alloc_pool);
 extern void pool_free (alloc_pool, void *);
 extern void dump_alloc_pool_statistics (void);

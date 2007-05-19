@@ -1,5 +1,6 @@
 /* Definitions of target machine GNU compiler.  IA-64 version.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
    Contributed by James E. Wilson <wilson@cygnus.com> and
    		  David Mosberger <davidm@hpl.hp.com>.
 
@@ -17,16 +18,14 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* ??? Look at ABI group documents for list of preprocessor macros and
    other features required for ABI compliance.  */
 
 /* ??? Functions containing a non-local goto target save many registers.  Why?
    See for instance execute/920428-2.c.  */
-
-/* ??? Add support for short data/bss sections.  */
 
 
 /* Run-time target specifications */
@@ -55,95 +54,9 @@ do {						\
 
 #define ASM_EXTRA_SPEC ""
 
-
-/* This declaration should be present.  */
-extern int target_flags;
-
-/* This series of macros is to allow compiler command arguments to enable or
-   disable the use of optional features of the target machine.  */
-
-#define MASK_BIG_ENDIAN	0x00000001	/* Generate big endian code.  */
-
-#define MASK_GNU_AS	0x00000002	/* Generate code for GNU as.  */
-
-#define MASK_GNU_LD	0x00000004	/* Generate code for GNU ld.  */
-
-#define MASK_NO_PIC	0x00000008	/* Generate code without GP reg.  */
-
-#define MASK_VOL_ASM_STOP 0x00000010	/* Emit stop bits for vol ext asm.  */
-
-#define MASK_ILP32      0x00000020      /* Generate ILP32 code.  */
-
-#define MASK_B_STEP	0x00000040	/* Emit code for Itanium B step.  */
-
-#define MASK_REG_NAMES	0x00000080	/* Use in/loc/out register names.  */
-
-#define MASK_NO_SDATA   0x00000100	/* Disable sdata/scommon/sbss.  */
-
-#define MASK_CONST_GP	0x00000200	/* treat gp as program-wide constant */
-
-#define MASK_AUTO_PIC	0x00000400	/* generate automatically PIC */
-
-#define MASK_INLINE_FLOAT_DIV_LAT 0x00000800 /* inline div, min latency.  */
-
-#define MASK_INLINE_FLOAT_DIV_THR 0x00001000 /* inline div, max throughput.  */
-
-#define MASK_INLINE_INT_DIV_LAT   0x00000800 /* inline div, min latency.  */
-
-#define MASK_INLINE_INT_DIV_THR   0x00001000 /* inline div, max throughput.  */
-
-#define MASK_INLINE_SQRT_LAT      0x00002000 /* inline sqrt, min latency.  */
-
-#define MASK_INLINE_SQRT_THR      0x00004000 /* inline sqrt, max throughput. */
-
-#define MASK_DWARF2_ASM 0x40000000	/* test dwarf2 line info via gas.  */
-
-#define MASK_EARLY_STOP_BITS 0x00002000 /* tune stop bits for the model.  */
-
-#define TARGET_BIG_ENDIAN	(target_flags & MASK_BIG_ENDIAN)
-
-#define TARGET_GNU_AS		(target_flags & MASK_GNU_AS)
-
-#define TARGET_GNU_LD		(target_flags & MASK_GNU_LD)
-
-#define TARGET_NO_PIC		(target_flags & MASK_NO_PIC)
-
-#define TARGET_VOL_ASM_STOP	(target_flags & MASK_VOL_ASM_STOP)
-
-#define TARGET_ILP32            (target_flags & MASK_ILP32)
-
-#define TARGET_B_STEP		(target_flags & MASK_B_STEP)
-
-#define TARGET_REG_NAMES	(target_flags & MASK_REG_NAMES)
-
-#define TARGET_NO_SDATA		(target_flags & MASK_NO_SDATA)
-
-#define TARGET_CONST_GP		(target_flags & MASK_CONST_GP)
-
-#define TARGET_AUTO_PIC		(target_flags & MASK_AUTO_PIC)
-
-#define TARGET_INLINE_FLOAT_DIV_LAT (target_flags & MASK_INLINE_FLOAT_DIV_LAT)
-
-#define TARGET_INLINE_FLOAT_DIV_THR (target_flags & MASK_INLINE_FLOAT_DIV_THR)
-
-#define TARGET_INLINE_INT_DIV_LAT   (target_flags & MASK_INLINE_INT_DIV_LAT)
-
-#define TARGET_INLINE_INT_DIV_THR   (target_flags & MASK_INLINE_INT_DIV_THR)
-
-#define TARGET_INLINE_FLOAT_DIV \
-  (target_flags & (MASK_INLINE_FLOAT_DIV_LAT | MASK_INLINE_FLOAT_DIV_THR))
-
-#define TARGET_INLINE_INT_DIV \
-  (target_flags & (MASK_INLINE_INT_DIV_LAT | MASK_INLINE_INT_DIV_THR))
-
-#define TARGET_INLINE_SQRT_LAT (target_flags & MASK_INLINE_SQRT_LAT)
-
-#define TARGET_INLINE_SQRT_THR (target_flags & MASK_INLINE_SQRT_THR)
-
-#define TARGET_INLINE_SQRT \
-  (target_flags & (MASK_INLINE_SQRT_LAT | MASK_INLINE_SQRT_THR))
-
-#define TARGET_DWARF2_ASM	(target_flags & MASK_DWARF2_ASM)
+/* Variables which are this size or smaller are put in the sdata/sbss
+   sections.  */
+extern unsigned int ia64_section_threshold;
 
 /* If the assembler supports thread-local storage, assume that the
    system does as well.  If a particular target system has an
@@ -154,125 +67,53 @@ extern int target_flags;
 #define TARGET_HAVE_TLS true
 #endif
 
-extern int ia64_tls_size;
 #define TARGET_TLS14		(ia64_tls_size == 14)
 #define TARGET_TLS22		(ia64_tls_size == 22)
 #define TARGET_TLS64		(ia64_tls_size == 64)
-#define TARGET_EARLY_STOP_BITS	(target_flags & MASK_EARLY_STOP_BITS)
 
 #define TARGET_HPUX		0
 #define TARGET_HPUX_LD		0
+
+#ifndef TARGET_ILP32
+#define TARGET_ILP32 0
+#endif
 
 #ifndef HAVE_AS_LTOFFX_LDXMOV_RELOCS
 #define HAVE_AS_LTOFFX_LDXMOV_RELOCS 0
 #endif
 
-/* This macro defines names of command options to set and clear bits in
-   `target_flags'.  Its definition is an initializer with a subgrouping for
-   each command option.  */
+/* Values for TARGET_INLINE_FLOAT_DIV, TARGET_INLINE_INT_DIV, and
+   TARGET_INLINE_SQRT.  */
 
-#define TARGET_SWITCHES							\
-{									\
-  { "big-endian",	MASK_BIG_ENDIAN,				\
-      N_("Generate big endian code") },					\
-  { "little-endian",	-MASK_BIG_ENDIAN,				\
-      N_("Generate little endian code") },				\
-  { "gnu-as",		MASK_GNU_AS,					\
-      N_("Generate code for GNU as") },					\
-  { "no-gnu-as",	-MASK_GNU_AS,					\
-      N_("Generate code for Intel as") },				\
-  { "gnu-ld",		MASK_GNU_LD,					\
-      N_("Generate code for GNU ld") },					\
-  { "no-gnu-ld",	-MASK_GNU_LD,					\
-      N_("Generate code for Intel ld") },				\
-  { "no-pic",		MASK_NO_PIC,					\
-      N_("Generate code without GP reg") },				\
-  { "volatile-asm-stop", MASK_VOL_ASM_STOP,				\
-      N_("Emit stop bits before and after volatile extended asms") },	\
-  { "no-volatile-asm-stop", -MASK_VOL_ASM_STOP,				\
-      N_("Don't emit stop bits before and after volatile extended asms") }, \
-  { "b-step",		MASK_B_STEP,					\
-      N_("Emit code for Itanium (TM) processor B step")},		\
-  { "register-names",	MASK_REG_NAMES,					\
-      N_("Use in/loc/out register names")},				\
-  { "no-sdata",		MASK_NO_SDATA,					\
-      N_("Disable use of sdata/scommon/sbss")},				\
-  { "sdata",		-MASK_NO_SDATA,					\
-      N_("Enable use of sdata/scommon/sbss")},				\
-  { "constant-gp",	MASK_CONST_GP,					\
-      N_("gp is constant (but save/restore gp on indirect calls)") },	\
-  { "auto-pic",		MASK_AUTO_PIC,					\
-      N_("Generate self-relocatable code") },				\
-  { "inline-float-divide-min-latency", MASK_INLINE_FLOAT_DIV_LAT,	\
-      N_("Generate inline floating point division, optimize for latency") },\
-  { "inline-float-divide-max-throughput", MASK_INLINE_FLOAT_DIV_THR,	\
-      N_("Generate inline floating point division, optimize for throughput") },\
-  { "inline-int-divide-min-latency", MASK_INLINE_INT_DIV_LAT,		\
-      N_("Generate inline integer division, optimize for latency") },	\
-  { "inline-int-divide-max-throughput", MASK_INLINE_INT_DIV_THR,	\
-      N_("Generate inline integer division, optimize for throughput") },\
-  { "inline-sqrt-min-latency", MASK_INLINE_SQRT_LAT,			\
-      N_("Generate inline square root, optimize for latency") },	\
-  { "inline-sqrt-max-throughput", MASK_INLINE_SQRT_THR,			\
-      N_("Generate inline square root, optimize for throughput") },     \
-  { "dwarf2-asm", 	MASK_DWARF2_ASM,				\
-      N_("Enable Dwarf 2 line debug info via GNU as")},			\
-  { "no-dwarf2-asm", 	-MASK_DWARF2_ASM,				\
-      N_("Disable Dwarf 2 line debug info via GNU as")},		\
-  { "early-stop-bits", MASK_EARLY_STOP_BITS,				\
-      N_("Enable earlier placing stop bits for better scheduling")},	\
-  { "no-early-stop-bits", -MASK_EARLY_STOP_BITS,			\
-      N_("Disable earlier placing stop bits")},				\
-  SUBTARGET_SWITCHES							\
-  { "",			TARGET_DEFAULT | TARGET_CPU_DEFAULT,		\
-      NULL }								\
-}
+enum ia64_inline_type
+{
+  INL_NO = 0,
+  INL_MIN_LAT = 1,
+  INL_MAX_THR = 2
+};
 
 /* Default target_flags if no switches are specified  */
 
 #ifndef TARGET_DEFAULT
-#define TARGET_DEFAULT MASK_DWARF2_ASM
+#define TARGET_DEFAULT (MASK_DWARF2_ASM)
 #endif
 
 #ifndef TARGET_CPU_DEFAULT
 #define TARGET_CPU_DEFAULT 0
 #endif
 
-#ifndef SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES
-#endif
-
-/* This macro is similar to `TARGET_SWITCHES' but defines names of command
-   options that have values.  Its definition is an initializer with a
-   subgrouping for each command option.  */
-
-extern const char *ia64_fixed_range_string;
-extern const char *ia64_tls_size_string;
-
 /* Which processor to schedule for. The cpu attribute defines a list
-   that mirrors this list, so changes to i64.md must be made at the
+   that mirrors this list, so changes to ia64.md must be made at the
    same time.  */
 
 enum processor_type
 {
-  PROCESSOR_ITANIUM,			/* Original Itanium. */
+  PROCESSOR_ITANIUM,			/* Original Itanium.  */
   PROCESSOR_ITANIUM2,
   PROCESSOR_max
 };
 
 extern enum processor_type ia64_tune;
-
-extern const char *ia64_tune_string;
-
-#define TARGET_OPTIONS \
-{									\
-  { "fixed-range=", 	&ia64_fixed_range_string,			\
-      N_("Specify range of registers to make fixed"), 0},		\
-  { "tls-size=",	&ia64_tls_size_string,				\
-      N_("Specify bit size of immediate TLS offsets"), 0},		\
-  { "tune=",		&ia64_tune_string,				\
-      N_("Schedule code for given CPU"), 0},				\
-}
 
 /* Sometimes certain combinations of command options do not make sense on a
    particular target machine.  You can define a macro `OVERRIDE_OPTIONS' to
@@ -348,12 +189,6 @@ do									\
       (MODE) = SImode;							\
   }									\
 while (0)
-
-/* ??? ABI doesn't allow us to define this.  */
-/* #define PROMOTE_FUNCTION_ARGS */
-
-/* ??? ABI doesn't allow us to define this.  */
-/* #define PROMOTE_FUNCTION_RETURN */
 
 #define PARM_BOUNDARY 64
 
@@ -439,8 +274,6 @@ while (0)
 
 #define LONG_TYPE_SIZE (TARGET_ILP32 ? 32 : 64)
 
-#define MAX_LONG_TYPE_SIZE 64
-
 #define LONG_LONG_TYPE_SIZE 64
 
 #define FLOAT_TYPE_SIZE 32
@@ -448,10 +281,10 @@ while (0)
 #define DOUBLE_TYPE_SIZE 64
 
 /* long double is XFmode normally, TFmode for HPUX.  */
-#define LONG_DOUBLE_TYPE_SIZE (TARGET_HPUX ? 128 : 96)
+#define LONG_DOUBLE_TYPE_SIZE (TARGET_HPUX ? 128 : 80)
 
 /* We always want the XFmode operations from libgcc2.c.  */
-#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 96
+#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 80
 
 #define DEFAULT_SIGNED_CHAR 1
 
@@ -491,6 +324,7 @@ while (0)
 #define ADDL_REGNO_P(REGNO) ((unsigned HOST_WIDE_INT) (REGNO) <= 3)
 #define GR_REGNO_P(REGNO) ((unsigned HOST_WIDE_INT) (REGNO) <= 127)
 #define FR_REGNO_P(REGNO) ((REGNO) >= 128 && (REGNO) <= 255)
+#define FP_REGNO_P(REGNO) ((REGNO) >= 128 && (REGNO) <= 254 && (REGNO) != 159)
 #define PR_REGNO_P(REGNO) ((REGNO) >= 256 && (REGNO) <= 319)
 #define BR_REGNO_P(REGNO) ((REGNO) >= 320 && (REGNO) <= 327)
 #define GENERAL_REGNO_P(REGNO) \
@@ -620,7 +454,7 @@ while (0)
 
 #define CALL_REALLY_USED_REGISTERS \
 { /* General registers.  */				\
-  1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1,	\
+  0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1,	\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,	\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	\
@@ -629,7 +463,7 @@ while (0)
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	\
   0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,	\
   /* Floating-point registers.  */			\
-  1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,	\
+  0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,	\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,	\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,	\
@@ -638,7 +472,7 @@ while (0)
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,	\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,	\
   /* Predicate registers.  */				\
-  1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,	\
+  0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,	\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	\
@@ -672,9 +506,7 @@ while (0)
 #define LOCAL_REGNO(REGNO) \
   (IN_REGNO_P (REGNO) || LOC_REGNO_P (REGNO))
 
-/* Given a comparison code (EQ, NE, etc.) and the first operand of a COMPARE,
-   return the mode to be used for the comparison.  Must be defined if
-   EXTRA_CC_MODES is defined.  */
+/* We define CCImode in ia64-modes.def so we need a selector.  */
 
 #define SELECT_CC_MODE(OP,X,Y)  CCmode
 
@@ -810,6 +642,7 @@ while (0)
    : PR_REGNO_P (REGNO) && (MODE) == BImode ? 2				\
    : PR_REGNO_P (REGNO) && (MODE) == CCImode ? 1			\
    : FR_REGNO_P (REGNO) && (MODE) == XFmode ? 1				\
+   : FR_REGNO_P (REGNO) && (MODE) == XCmode ? 2				\
    : (GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
 
 /* A C expression that is nonzero if it is permissible to store a value of mode
@@ -819,12 +652,12 @@ while (0)
 #define HARD_REGNO_MODE_OK(REGNO, MODE)				\
   (FR_REGNO_P (REGNO) ?						\
      GET_MODE_CLASS (MODE) != MODE_CC &&			\
-     (MODE) != TImode &&					\
      (MODE) != BImode &&					\
      (MODE) != TFmode 						\
    : PR_REGNO_P (REGNO) ?					\
      (MODE) == BImode || GET_MODE_CLASS (MODE) == MODE_CC	\
-   : GR_REGNO_P (REGNO) ? (MODE) != CCImode && (MODE) != XFmode	\
+   : GR_REGNO_P (REGNO) ?					\
+     (MODE) != CCImode && (MODE) != XFmode && (MODE) != XCmode	\
    : AR_REGNO_P (REGNO) ? (MODE) == DImode			\
    : BR_REGNO_P (REGNO) ? (MODE) == DImode			\
    : 0)
@@ -841,7 +674,8 @@ while (0)
    we can't tie it with any other modes.  */
 #define MODES_TIEABLE_P(MODE1, MODE2)			\
   (GET_MODE_CLASS (MODE1) == GET_MODE_CLASS (MODE2)	\
-   && (((MODE1) == XFmode) == ((MODE2) == XFmode))	\
+   && ((((MODE1) == XFmode) || ((MODE1) == XCmode))	\
+       == (((MODE2) == XFmode) || ((MODE2) == XCmode)))	\
    && (((MODE1) == BImode) == ((MODE2) == BImode)))
 
 /* Specify the modes required to caller save a given hard regno.
@@ -887,6 +721,7 @@ enum reg_class
   AR_I_REGS,
   ADDL_REGS,
   GR_REGS,
+  FP_REGS,
   FR_REGS,
   GR_AND_BR_REGS,
   GR_AND_FR_REGS,
@@ -903,7 +738,7 @@ enum reg_class
    constants.  These names are used in writing some of the debugging dumps.  */
 #define REG_CLASS_NAMES \
 { "NO_REGS", "PR_REGS", "BR_REGS", "AR_M_REGS", "AR_I_REGS", \
-  "ADDL_REGS", "GR_REGS", "FR_REGS", \
+  "ADDL_REGS", "GR_REGS", "FP_REGS", "FR_REGS", \
   "GR_AND_BR_REGS", "GR_AND_FR_REGS", "ALL_REGS" }
 
 /* An initializer containing the contents of the register classes, as integers
@@ -940,6 +775,10 @@ enum reg_class
   { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,	\
     0x00000000, 0x00000000, 0x00000000, 0x00000000,	\
     0x00000000, 0x00000000, 0x0100 },			\
+  /* FP_REGS.  */					\
+  { 0x00000000, 0x00000000, 0x00000000, 0x00000000,	\
+    0x7FFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x7FFFFFFF,	\
+    0x00000000, 0x00000000, 0x0000 },			\
   /* FR_REGS.  */					\
   { 0x00000000, 0x00000000, 0x00000000, 0x00000000,	\
     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,	\
@@ -967,7 +806,8 @@ enum reg_class
 #define REGNO_REG_CLASS(REGNO) \
 (ADDL_REGNO_P (REGNO) ? ADDL_REGS	\
  : GENERAL_REGNO_P (REGNO) ? GR_REGS	\
- : FR_REGNO_P (REGNO) ? FR_REGS		\
+ : FR_REGNO_P (REGNO) ? (REGNO) != R_FR (31) \
+			&& (REGNO) != R_FR(127) ? FP_REGS : FR_REGS \
  : PR_REGNO_P (REGNO) ? PR_REGS		\
  : BR_REGNO_P (REGNO) ? BR_REGS		\
  : AR_M_REGNO_P (REGNO) ? AR_M_REGS	\
@@ -998,6 +838,7 @@ enum reg_class
  : (CHAR) == 'c' ? PR_REGS		\
  : (CHAR) == 'd' ? AR_M_REGS		\
  : (CHAR) == 'e' ? AR_I_REGS		\
+ : (CHAR) == 'x' ? FP_REGS		\
  : NO_REGS)
 
 /* A C expression which is nonzero if register number NUM is suitable for use
@@ -1017,18 +858,8 @@ enum reg_class
    The value is a register class; perhaps CLASS, or perhaps another, smaller
    class.  */
 
-/* Don't allow volatile mem reloads into floating point registers.  This
-   is defined to force reload to choose the r/m case instead of the f/f case
-   when reloading (set (reg fX) (mem/v)).
-
-   Do not reload expressions into AR regs.  */
-
 #define PREFERRED_RELOAD_CLASS(X, CLASS) \
-  (CLASS == FR_REGS && GET_CODE (X) == MEM && MEM_VOLATILE_P (X) ? NO_REGS   \
-   : CLASS == FR_REGS && GET_CODE (X) == CONST_DOUBLE ? NO_REGS		     \
-   : GET_RTX_CLASS (GET_CODE (X)) != 'o'				     \
-     && (CLASS == AR_M_REGS || CLASS == AR_I_REGS) ? NO_REGS		     \
-   : CLASS)
+  ia64_preferred_reload_class (X, CLASS)
 
 /* You should define this macro to indicate to the reload phase that it may
    need to allocate at least one register for a reload in addition to the
@@ -1053,8 +884,9 @@ enum reg_class
    with unions should be solved with the addressof fiddling done by
    movxf and friends.  */
 #define SECONDARY_MEMORY_NEEDED(CLASS1, CLASS2, MODE)			\
-  ((MODE) == XFmode && (((CLASS1) == GR_REGS && (CLASS2) == FR_REGS)	\
-			|| ((CLASS1) == FR_REGS && (CLASS2) == GR_REGS)))
+  (((MODE) == XFmode || (MODE) == XCmode)				\
+   && (((CLASS1) == GR_REGS && (CLASS2) == FR_REGS)			\
+       || ((CLASS1) == FR_REGS && (CLASS2) == GR_REGS)))
 #endif
 
 /* A C expression for the maximum number of consecutive registers of
@@ -1063,14 +895,15 @@ enum reg_class
 
 #define CLASS_MAX_NREGS(CLASS, MODE) \
   ((MODE) == BImode && (CLASS) == PR_REGS ? 2			\
-   : ((CLASS) == FR_REGS && (MODE) == XFmode) ? 1		\
+   : (((CLASS) == FR_REGS || (CLASS) == FP_REGS) && (MODE) == XFmode) ? 1 \
+   : (((CLASS) == FR_REGS || (CLASS) == FP_REGS) && (MODE) == XCmode) ? 2 \
    : (GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
 
-/* In FP regs, we can't change FP values to integer values and vice
-   versa, but we can change e.g. DImode to SImode.  */
+/* In FP regs, we can't change FP values to integer values and vice versa,
+   but we can change e.g. DImode to SImode, and V2SFmode into DImode.  */
 
-#define CANNOT_CHANGE_MODE_CLASS(FROM, TO, CLASS) 	\
-  (GET_MODE_CLASS (FROM) != GET_MODE_CLASS (TO)		\
+#define CANNOT_CHANGE_MODE_CLASS(FROM, TO, CLASS) 		\
+  (SCALAR_FLOAT_MODE_P (FROM) != SCALAR_FLOAT_MODE_P (TO)	\
    ? reg_classes_intersect_p (CLASS, FR_REGS) : 0)
 
 /* A C expression that defines the machine-dependent operand constraint
@@ -1097,15 +930,7 @@ enum reg_class
 #define CONST_OK_FOR_P(VALUE) ((VALUE) == 0 || (VALUE) == -1)
 
 #define CONST_OK_FOR_LETTER_P(VALUE, C) \
-((C) == 'I' ? CONST_OK_FOR_I (VALUE)		\
- : (C) == 'J' ? CONST_OK_FOR_J (VALUE)		\
- : (C) == 'K' ? CONST_OK_FOR_K (VALUE)		\
- : (C) == 'L' ? CONST_OK_FOR_L (VALUE)		\
- : (C) == 'M' ? CONST_OK_FOR_M (VALUE)		\
- : (C) == 'N' ? CONST_OK_FOR_N (VALUE)		\
- : (C) == 'O' ? CONST_OK_FOR_O (VALUE)		\
- : (C) == 'P' ? CONST_OK_FOR_P (VALUE)		\
- : 0)
+  ia64_const_ok_for_letter_p (VALUE, C)
 
 /* A C expression that defines the machine-dependent operand constraint letters
    (`G', `H') that specify particular ranges of `const_double' values.  */
@@ -1116,33 +941,21 @@ enum reg_class
    || (VALUE) == CONST1_RTX (GET_MODE (VALUE)))
 
 #define CONST_DOUBLE_OK_FOR_LETTER_P(VALUE, C) \
-  ((C) == 'G' ? CONST_DOUBLE_OK_FOR_G (VALUE) : 0)
+  ia64_const_double_ok_for_letter_p (VALUE, C)
 
 /* A C expression that defines the optional machine-dependent constraint
    letters (`Q', `R', `S', `T', `U') that can be used to segregate specific
    types of operands, usually memory references, for the target machine.  */
 
-/* Non-volatile memory for FP_REG loads/stores.  */
-#define CONSTRAINT_OK_FOR_Q(VALUE) \
-  (memory_operand((VALUE), VOIDmode) && ! MEM_VOLATILE_P (VALUE))
-/* 1..4 for shladd arguments.  */
-#define CONSTRAINT_OK_FOR_R(VALUE) \
-  (GET_CODE (VALUE) == CONST_INT && INTVAL (VALUE) >= 1 && INTVAL (VALUE) <= 4)
-/* Non-post-inc memory for asms and other unsavory creatures.  */
-#define CONSTRAINT_OK_FOR_S(VALUE)				\
-  (GET_CODE (VALUE) == MEM					\
-   && GET_RTX_CLASS (GET_CODE (XEXP ((VALUE), 0))) != 'a'	\
-   && (reload_in_progress || memory_operand ((VALUE), VOIDmode)))
-/* Symbol ref to small-address-area: */
-#define CONSTRAINT_OK_FOR_T(VALUE)						\
-	(GET_CODE (VALUE) == SYMBOL_REF && SYMBOL_REF_SMALL_ADDR_P (VALUE))
-
 #define EXTRA_CONSTRAINT(VALUE, C) \
-  ((C) == 'Q' ? CONSTRAINT_OK_FOR_Q (VALUE)	\
-   : (C) == 'R' ? CONSTRAINT_OK_FOR_R (VALUE)	\
-   : (C) == 'S' ? CONSTRAINT_OK_FOR_S (VALUE)	\
-   : (C) == 'T' ? CONSTRAINT_OK_FOR_T (VALUE)	\
-   : 0)
+  ia64_extra_constraint (VALUE, C)
+
+/* Document the constraints that can accept reloaded memory operands.  This is
+   needed by the extended asm support, and by reload.  'Q' accepts mem, but
+   only non-volatile mem.  Since we can't reload a volatile mem into a
+   non-volatile mem, it can not be listed here.  */
+
+#define EXTRA_MEMORY_CONSTRAINT(C, STR)  ((C) == 'S')
 
 /* Basic Stack Layout */
 
@@ -1150,9 +963,9 @@ enum reg_class
    to a smaller address.  */
 #define STACK_GROWS_DOWNWARD 1
 
-/* Define this macro if the addresses of local variable slots are at negative
-   offsets from the frame pointer.  */
-/* #define FRAME_GROWS_DOWNWARD */
+/* Define this macro to nonzero if the addresses of local variable slots
+   are at negative offsets from the frame pointer.  */
+#define FRAME_GROWS_DOWNWARD 0
 
 /* Offset from the frame pointer to the first local variable slot to
    be allocated.  */
@@ -1203,7 +1016,12 @@ enum reg_class
    beginning of any function, before the prologue.  The top of the frame is
    defined to be the value of the stack pointer in the previous frame, just
    before the call instruction.  */
-#define INCOMING_FRAME_SP_OFFSET 0
+/* The CFA is past the red zone, not at the entry-point stack
+   pointer.  */
+#define INCOMING_FRAME_SP_OFFSET STACK_POINTER_OFFSET
+
+/* We shorten debug info by using CFA-16 as DW_AT_frame_base.  */
+#define CFA_FRAME_BASE_OFFSET(FUNDECL) (-INCOMING_FRAME_SP_OFFSET)
 
 
 /* Register That Address the Stack Frame.  */
@@ -1279,13 +1097,6 @@ enum reg_class
 
 /* Passing Function Arguments on the Stack */
 
-/* Define this macro if an argument declared in a prototype as an integral type
-   smaller than `int' should actually be passed as an `int'.  In addition to
-   avoiding errors in certain cases of mismatch, it also makes for better code
-   on certain machines.  */
-/* ??? Investigate.  */
-/* #define PROMOTE_PROTOTYPES */
-
 /* If defined, the maximum amount of space required for outgoing arguments will
    be computed and placed into the variable
    `current_function_outgoing_args_size'.  */
@@ -1323,29 +1134,6 @@ enum reg_class
 
 #define FUNCTION_INCOMING_ARG(CUM, MODE, TYPE, NAMED) \
   ia64_function_arg (&CUM, MODE, TYPE, NAMED, 1)
-
-/* A C expression for the number of words, at the beginning of an argument,
-   must be put in registers.  The value must be zero for arguments that are
-   passed entirely in registers or that are entirely pushed on the stack.  */
-
-#define FUNCTION_ARG_PARTIAL_NREGS(CUM, MODE, TYPE, NAMED) \
- ia64_function_arg_partial_nregs (&CUM, MODE, TYPE, NAMED)
-
-/* A C expression that indicates when an argument must be passed by reference.
-   If nonzero for an argument, a copy of that argument is made in memory and a
-   pointer to the argument is passed instead of the argument itself.  The
-   pointer is passed in whatever way is appropriate for passing a pointer to
-   that type.  */
-
-#define FUNCTION_ARG_PASS_BY_REFERENCE(CUM, MODE, TYPE, NAMED) \
-  ia64_function_arg_pass_by_reference (&CUM, MODE, TYPE, NAMED)
-
-/* Nonzero if we do not know how to pass TYPE solely in registers.  */
-
-#define MUST_PASS_IN_STACK(MODE, TYPE) \
-  ((TYPE) != 0							\
-   && (TREE_CODE (TYPE_SIZE (TYPE)) != INTEGER_CST		\
-       || TREE_ADDRESSABLE (TYPE)))
 
 /* A C type for declaring a variable that is used as the first argument of
    `FUNCTION_ARG' and other related values.  For some target machines, the type
@@ -1395,15 +1183,11 @@ do {									\
 /* If defined, a C expression that gives the alignment boundary, in bits, of an
    argument with the specified mode and type.  */
 
-/* Arguments with alignment larger than 8 bytes start at the next even
-   boundary.  See ia64_function_arg.  */
+/* Return the alignment boundary in bits for an argument with a specified
+   mode and type.  */
 
 #define FUNCTION_ARG_BOUNDARY(MODE, TYPE) \
-  (((TYPE) ? (TYPE_ALIGN (TYPE) > 8 * BITS_PER_UNIT)		\
-    : (((((MODE) == BLKmode					\
-	  ? int_size_in_bytes (TYPE) : GET_MODE_SIZE (MODE))	\
-	 + UNITS_PER_WORD - 1) / UNITS_PER_WORD) > 1))		\
-    ? 128 : PARM_BOUNDARY)
+  ia64_function_arg_boundary (MODE, TYPE)
 
 /* A C expression that is nonzero if REGNO is the number of a hard register in
    which function arguments are sometimes passed.  This does *not* include
@@ -1413,10 +1197,6 @@ do {									\
 #define FUNCTION_ARG_REGNO_P(REGNO) \
 (((REGNO) >= AR_ARG_FIRST && (REGNO) < (AR_ARG_FIRST + MAX_ARGUMENT_SLOTS)) \
  || ((REGNO) >= FR_ARG_FIRST && (REGNO) < (FR_ARG_FIRST + MAX_ARGUMENT_SLOTS)))
-
-/* Implement `va_arg'.  */
-#define EXPAND_BUILTIN_VA_ARG(valist, type) \
-  ia64_va_arg (valist, type)
 
 /* How Scalar Function Values are Returned */
 
@@ -1445,15 +1225,6 @@ do {									\
 
 
 /* How Large Values are Returned */
-
-/* A nonzero value says to return the function value in memory, just as large
-   structures are always returned.  */
-
-#define RETURN_IN_MEMORY(TYPE) \
-  ia64_return_in_memory (TYPE)
-
-/* If you define this macro to be 0, then the conventions used for structure
-   and union return values are decided by the `RETURN_IN_MEMORY' macro.  */
 
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
@@ -1499,6 +1270,7 @@ do {									\
         fputs ("\tdata8.ua @iplt(", FILE);				\
       else								\
         fputs ("\tdata16.ua @iplt(", FILE);				\
+      mark_decl_referenced (DECL);					\
       assemble_name (FILE, XSTR (XEXP (DECL_RTL (DECL), 0), 0));	\
       fputs (")\n", FILE);						\
       if (TARGET_ILP32)							\
@@ -1512,39 +1284,11 @@ do {									\
    call the profiling subroutine `mcount'.  */
 
 #undef FUNCTION_PROFILER
-#define FUNCTION_PROFILER(FILE, LABELNO)				\
-do {									\
-  char buf[20];								\
-  ASM_GENERATE_INTERNAL_LABEL (buf, "LP", LABELNO);			\
-  fputs ("\talloc out0 = ar.pfs, 8, 0, 4, 0\n", FILE);			\
-  if (TARGET_AUTO_PIC)							\
-    fputs ("\tmovl out3 = @gprel(", FILE);				\
-  else									\
-    fputs ("\taddl out3 = @ltoff(", FILE);				\
-  assemble_name (FILE, buf);						\
-  if (TARGET_AUTO_PIC)							\
-    fputs (");;\n", FILE);						\
-  else									\
-    fputs ("), r1;;\n", FILE);						\
-  fputs ("\tmov out1 = r1\n", FILE);					\
-  fputs ("\tmov out2 = b0\n", FILE);					\
-  fputs ("\tbr.call.sptk.many b0 = _mcount;;\n", FILE);			\
-} while (0)
-
-/* Implementing the Varargs Macros.  */
+#define FUNCTION_PROFILER(FILE, LABELNO) \
+  ia64_output_function_profiler(FILE, LABELNO)
 
-/* Define this macro to store the anonymous register arguments into the stack
-   so that all the arguments appear to have been passed consecutively on the
-   stack.  */
-
-#define SETUP_INCOMING_VARARGS(ARGS_SO_FAR, MODE, TYPE, PRETEND_ARGS_SIZE, SECOND_TIME) \
-    ia64_setup_incoming_varargs (ARGS_SO_FAR, MODE, TYPE, & PRETEND_ARGS_SIZE, SECOND_TIME)
-
-/* Define this macro if the location where a function argument is passed
-   depends on whether or not it is a named argument.  */
-
-#define STRICT_ARGUMENT_NAMING  1
-
+/* Neither hpux nor linux use profile counters.  */
+#define NO_PROFILE_COUNTERS 1
 
 /* Trampolines for Nested Functions.  */
 
@@ -1591,15 +1335,6 @@ do {									\
 
 #define INITIALIZE_TRAMPOLINE(ADDR, FNADDR, STATIC_CHAIN) \
   ia64_initialize_trampoline((ADDR), (FNADDR), (STATIC_CHAIN))
-
-/* Implicit Calls to Library Routines */
-
-/* Define this macro if GCC should generate calls to the System V (and ANSI
-   C) library functions `memcpy' and `memset' rather than the BSD functions
-   `bcopy' and `bzero'.  */
-
-#define TARGET_MEM_FUNCTIONS
-
 
 /* Addressing Modes */
 
@@ -1666,13 +1401,6 @@ do {									\
 
 #define REG_OK_FOR_INDEX_P(X) REG_OK_FOR_BASE_P (X)
 
-/* A C compound statement that attempts to replace X with a valid memory
-   address for an operand of mode MODE.
-
-   This must be present, but there is nothing useful to be done here.  */
-
-#define LEGITIMIZE_ADDRESS(X, OLDX, MODE, WIN)
-
 /* A C statement or compound statement with a conditional `goto LABEL;'
    executed if memory address X (an RTX) can have different meanings depending
    on the machine mode of the memory reference it is used for or if the address
@@ -1685,10 +1413,7 @@ do {									\
 /* A C expression that is nonzero if X is a legitimate constant for an
    immediate operand on the target machine.  */
 
-#define LEGITIMATE_CONSTANT_P(X) \
-  (GET_CODE (X) != CONST_DOUBLE || GET_MODE (X) == VOIDmode	\
-   || GET_MODE (X) == DImode || CONST_DOUBLE_OK_FOR_G (X))	\
-
+#define LEGITIMATE_CONSTANT_P(X) ia64_legitimate_constant_p (X)
 
 /* Condition Code Status */
 
@@ -1708,7 +1433,7 @@ do {									\
 /* A C expression for the cost of moving data of mode M between a
    register and memory.  */
 #define MEMORY_MOVE_COST(MODE,CLASS,IN) \
-  ((CLASS) == GENERAL_REGS || (CLASS) == FR_REGS \
+  ((CLASS) == GENERAL_REGS || (CLASS) == FR_REGS || (CLASS) == FP_REGS \
    || (CLASS) == GR_AND_FR_REGS ? 4 : 10)
 
 /* A C expression for the cost of a branch instruction.  A value of 1 is the
@@ -2014,13 +1739,6 @@ do {									\
   { "loc79", LOC_REG (79) }, 						\
 }
 
-/* Emit a dtp-relative reference to a TLS variable.  */
-
-#ifdef HAVE_AS_TLS
-#define ASM_OUTPUT_DWARF_DTPREL(FILE, SIZE, X) \
-  ia64_output_dwarf_dtprel (FILE, SIZE, X)
-#endif
-
 /* A C compound statement to output to stdio stream STREAM the assembler syntax
    for an instruction operand X.  X is an RTL expression.  */
 
@@ -2065,11 +1783,6 @@ do {									\
   else								\
     fprintf (STREAM, "\tdata8 @pcrel(.L%d)\n", VALUE);		\
   } while (0)
-
-/* This is how to output an element of a case-vector that is absolute.
-   (Ia64 does not use such vectors, but we must define this macro anyway.)  */
-
-#define ASM_OUTPUT_ADDR_VEC_ELT(STREAM, VALUE) abort ()
 
 /* Jump tables only need 8 byte alignment.  */
 
@@ -2159,6 +1872,12 @@ do {									\
 
 #define DWARF2_DEBUGGING_INFO 1
 
+/* We do not want call-frame info to be output, since debuggers are
+   supposed to use the target unwind info.  Leave this undefined it
+   TARGET_UNWIND_INFO might ever be false.  */
+
+#define DWARF2_FRAME_INFO 0
+
 #define DWARF2_ASM_LINE_DEBUG_INFO (TARGET_DWARF2_ASM)
 
 /* Use tags for debug info labels, so that they don't break instruction
@@ -2172,12 +1891,12 @@ do {									\
 /* Use section-relative relocations for debugging offsets.  Unlike other
    targets that fake this by putting the section VMA at 0, IA-64 has
    proper relocations for them.  */
-#define ASM_OUTPUT_DWARF_OFFSET(FILE, SIZE, LABEL)	\
-  do {							\
-    fputs (integer_asm_op (SIZE, FALSE), FILE);		\
-    fputs ("@secrel(", FILE);				\
-    assemble_name (FILE, LABEL);			\
-    fputc (')', FILE);					\
+#define ASM_OUTPUT_DWARF_OFFSET(FILE, SIZE, LABEL, SECTION)	\
+  do {								\
+    fputs (integer_asm_op (SIZE, FALSE), FILE);			\
+    fputs ("@secrel(", FILE);					\
+    assemble_name (FILE, LABEL);				\
+    fputc (')', FILE);						\
   } while (0)
 
 /* Emit a PC-relative relocation.  */
@@ -2205,58 +1924,6 @@ do {									\
 #define SYMBOL_FLAG_SMALL_ADDR		(SYMBOL_FLAG_MACH_DEP << 0)
 #define SYMBOL_REF_SMALL_ADDR_P(X)	\
 	((SYMBOL_REF_FLAGS (X) & SYMBOL_FLAG_SMALL_ADDR) != 0)
-
-/* Define this if you have defined special-purpose predicates in the file
-   `MACHINE.c'.  For each predicate, list all rtl codes that can be in
-   expressions matched by the predicate.  */
-
-#define PREDICATE_CODES \
-{ "call_operand", {SUBREG, REG, SYMBOL_REF}},				\
-{ "got_symbolic_operand", {SYMBOL_REF, CONST, LABEL_REF}},		\
-{ "sdata_symbolic_operand", {SYMBOL_REF, CONST}},			\
-{ "small_addr_symbolic_operand", {SYMBOL_REF}},				\
-{ "symbolic_operand", {SYMBOL_REF, CONST, LABEL_REF}},			\
-{ "function_operand", {SYMBOL_REF}},					\
-{ "setjmp_operand", {SYMBOL_REF}},					\
-{ "destination_operand", {SUBREG, REG, MEM}},				\
-{ "not_postinc_memory_operand", {MEM}},					\
-{ "move_operand", {SUBREG, REG, MEM, CONST_INT, CONST_DOUBLE,		\
-		     CONSTANT_P_RTX, SYMBOL_REF, CONST, LABEL_REF}},	\
-{ "gr_register_operand", {SUBREG, REG}},				\
-{ "fr_register_operand", {SUBREG, REG}},				\
-{ "grfr_register_operand", {SUBREG, REG}},				\
-{ "gr_nonimmediate_operand", {SUBREG, REG, MEM}},			\
-{ "fr_nonimmediate_operand", {SUBREG, REG, MEM}},			\
-{ "grfr_nonimmediate_operand", {SUBREG, REG, MEM}},			\
-{ "gr_reg_or_0_operand", {SUBREG, REG, CONST_INT}},			\
-{ "gr_reg_or_5bit_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},	\
-{ "gr_reg_or_6bit_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},	\
-{ "gr_reg_or_8bit_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},	\
-{ "grfr_reg_or_8bit_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}}, \
-{ "gr_reg_or_8bit_adjusted_operand", {SUBREG, REG, CONST_INT,		\
-				     CONSTANT_P_RTX}},			\
-{ "gr_reg_or_8bit_and_adjusted_operand", {SUBREG, REG, CONST_INT,	\
-					 CONSTANT_P_RTX}},		\
-{ "gr_reg_or_14bit_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}}, \
-{ "gr_reg_or_22bit_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}}, \
-{ "shift_count_operand", {SUBREG, REG, CONST_INT, CONSTANT_P_RTX}},	\
-{ "shift_32bit_count_operand", {SUBREG, REG, CONST_INT,			\
-				  CONSTANT_P_RTX}},			\
-{ "shladd_operand", {CONST_INT}},					\
-{ "fetchadd_operand", {CONST_INT}},					\
-{ "fr_reg_or_fp01_operand", {SUBREG, REG, CONST_DOUBLE}},		\
-{ "normal_comparison_operator", {EQ, NE, GT, LE, GTU, LEU}},		\
-{ "adjusted_comparison_operator", {LT, GE, LTU, GEU}},			\
-{ "signed_inequality_operator", {GE, GT, LE, LT}},			\
-{ "predicate_operator", {NE, EQ}},					\
-{ "condop_operator", {PLUS, MINUS, IOR, XOR, AND}},			\
-{ "ar_lc_reg_operand", {REG}},						\
-{ "ar_ccv_reg_operand", {REG}},						\
-{ "ar_pfs_reg_operand", {REG}},						\
-{ "general_xfmode_operand", {SUBREG, REG, CONST_DOUBLE, MEM}},		\
-{ "destination_xfmode_operand", {SUBREG, REG, MEM}},			\
-{ "xfreg_or_fp01_operand", {REG, CONST_DOUBLE}},			\
-{ "basereg_operand", {SUBREG, REG}},
 
 /* An alias for a machine mode name.  This is the machine mode that elements of
    a jump-table should have.  */
@@ -2336,8 +2003,9 @@ do {									\
 
 extern int ia64_final_schedule;
 
-#define IA64_UNWIND_INFO	1
-#define IA64_UNWIND_EMIT(f,i)	process_for_unwind_directive (f,i)
+#define TARGET_UNWIND_INFO	1
+
+#define TARGET_UNWIND_TABLES_DEFAULT true
 
 #define EH_RETURN_DATA_REGNO(N) ((N) < 4 ? (N) + 15 : INVALID_REGNUM)
 
@@ -2355,66 +2023,9 @@ struct machine_function GTY(())
 
   /* The number of varargs registers to save.  */
   int n_varargs;
-};
 
-
-enum ia64_builtins
-{
-  IA64_BUILTIN_SYNCHRONIZE,
-
-  IA64_BUILTIN_FETCH_AND_ADD_SI,
-  IA64_BUILTIN_FETCH_AND_SUB_SI,
-  IA64_BUILTIN_FETCH_AND_OR_SI,
-  IA64_BUILTIN_FETCH_AND_AND_SI,
-  IA64_BUILTIN_FETCH_AND_XOR_SI,
-  IA64_BUILTIN_FETCH_AND_NAND_SI,
-
-  IA64_BUILTIN_ADD_AND_FETCH_SI,
-  IA64_BUILTIN_SUB_AND_FETCH_SI,
-  IA64_BUILTIN_OR_AND_FETCH_SI,
-  IA64_BUILTIN_AND_AND_FETCH_SI,
-  IA64_BUILTIN_XOR_AND_FETCH_SI,
-  IA64_BUILTIN_NAND_AND_FETCH_SI,
-
-  IA64_BUILTIN_BOOL_COMPARE_AND_SWAP_SI,
-  IA64_BUILTIN_VAL_COMPARE_AND_SWAP_SI,
-
-  IA64_BUILTIN_SYNCHRONIZE_SI,
-
-  IA64_BUILTIN_LOCK_TEST_AND_SET_SI,
-
-  IA64_BUILTIN_LOCK_RELEASE_SI,
-
-  IA64_BUILTIN_FETCH_AND_ADD_DI,
-  IA64_BUILTIN_FETCH_AND_SUB_DI,
-  IA64_BUILTIN_FETCH_AND_OR_DI,
-  IA64_BUILTIN_FETCH_AND_AND_DI,
-  IA64_BUILTIN_FETCH_AND_XOR_DI,
-  IA64_BUILTIN_FETCH_AND_NAND_DI,
-
-  IA64_BUILTIN_ADD_AND_FETCH_DI,
-  IA64_BUILTIN_SUB_AND_FETCH_DI,
-  IA64_BUILTIN_OR_AND_FETCH_DI,
-  IA64_BUILTIN_AND_AND_FETCH_DI,
-  IA64_BUILTIN_XOR_AND_FETCH_DI,
-  IA64_BUILTIN_NAND_AND_FETCH_DI,
-
-  IA64_BUILTIN_BOOL_COMPARE_AND_SWAP_DI,
-  IA64_BUILTIN_VAL_COMPARE_AND_SWAP_DI,
-
-  IA64_BUILTIN_SYNCHRONIZE_DI,
-
-  IA64_BUILTIN_LOCK_TEST_AND_SET_DI,
-
-  IA64_BUILTIN_LOCK_RELEASE_DI,
-
-  IA64_BUILTIN_BSP,
-  IA64_BUILTIN_FLUSHRS
-};
-
-/* Codes for expand_compare_and_swap and expand_swap_and_compare.  */
-enum fetchop_code {
-  IA64_ADD_OP, IA64_SUB_OP, IA64_OR_OP, IA64_AND_OP, IA64_XOR_OP, IA64_NAND_OP
+  /* The number of the next unwind state to copy.  */
+  int state_num;
 };
 
 #define DONT_USE_BUILTIN_SETJMP
@@ -2424,9 +2035,16 @@ enum fetchop_code {
 #undef  PROFILE_BEFORE_PROLOGUE
 #define PROFILE_BEFORE_PROLOGUE 1
 
+/* Initialize library function table. */
+#undef TARGET_INIT_LIBFUNCS
+#define TARGET_INIT_LIBFUNCS ia64_init_libfuncs
 
 
 /* Switch on code for querying unit reservations.  */
 #define CPU_UNITS_QUERY 1
+
+/* Define this to change the optimizations performed by default.  */
+#define OPTIMIZATION_OPTIONS(LEVEL, SIZE) \
+  ia64_optimization_options ((LEVEL), (SIZE))
 
 /* End of ia64.h */

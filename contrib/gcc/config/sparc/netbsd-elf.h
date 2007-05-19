@@ -1,6 +1,6 @@
 /* Definitions of target machine for GCC, for ELF on NetBSD/sparc
    and NetBSD/sparc64.
-   Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Matthew Green (mrg@eterna.com.au).
 
 This file is part of GCC.
@@ -17,8 +17,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #define TARGET_OS_CPP_BUILTINS()			\
   do							\
@@ -51,27 +51,13 @@ Boston, MA 02111-1307, USA.  */
 #undef PTRDIFF_TYPE
 #define PTRDIFF_TYPE "long int"
 
-#undef PREFERRED_DEBUGGING_TYPE
-#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
-
 /* This is the char to use for continuation (in case we need to turn
    continuation back on).  */
 #undef DBX_CONTIN_CHAR
 #define DBX_CONTIN_CHAR '?'
 
-#undef DBX_REGISTER_NUMBER
-#define DBX_REGISTER_NUMBER(REGNO) \
-  (TARGET_FLAT && REGNO == HARD_FRAME_POINTER_REGNUM ? 31 : REGNO)
-
 #undef  LOCAL_LABEL_PREFIX
 #define LOCAL_LABEL_PREFIX  "."
-
-/* This is how to output a reference to an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.  */
-
-#undef  ASM_OUTPUT_INTERNAL_LABELREF
-#define ASM_OUTPUT_INTERNAL_LABELREF(FILE,PREFIX,NUM)	\
-  fprintf (FILE, ".L%s%d", PREFIX, NUM)
 
 /* This is how to store into the string LABEL
    the symbol_ref name of an internal numbered label where
@@ -209,22 +195,12 @@ Boston, MA 02111-1307, USA.  */
   { "netbsd_entry_point",	NETBSD_ENTRY_POINT },
 
 
-/* What extra switches do we need?  */
-#undef  SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES \
-  {"long-double-64", -MASK_LONG_DOUBLE_128, N_("Use 64 bit long doubles") }, \
-  {"long-double-128", MASK_LONG_DOUBLE_128, N_("Use 128 bit long doubles") },
-
-
 /* Build a compiler that supports -m32 and -m64?  */
 
 #ifdef SPARC_BI_ARCH
 
 #undef LONG_DOUBLE_TYPE_SIZE
 #define LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
-
-#undef MAX_LONG_DOUBLE_TYPE_SIZE
-#define MAX_LONG_DOUBLE_TYPE_SIZE 128
 
 #if defined(__arch64__) || defined(__LONG_DOUBLE_128__)
 #define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 128
@@ -245,7 +221,7 @@ Boston, MA 02111-1307, USA.  */
 #define MULTILIB_DEFAULTS { "m64" }
 #endif
 
-/* Name the port. */
+/* Name the port.  */
 #undef TARGET_NAME
 #define TARGET_NAME     (DEFAULT_ARCH32_P ? TARGET_NAME32 : TARGET_NAME64)
 
@@ -256,9 +232,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef LONG_DOUBLE_TYPE_SIZE
 #define LONG_DOUBLE_TYPE_SIZE 128
-
-#undef MAX_LONG_DOUBLE_TYPE_SIZE
-#define MAX_LONG_DOUBLE_TYPE_SIZE 128
 
 #undef LIBGCC2_LONG_DOUBLE_TYPE_SIZE
 #define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 128
@@ -277,9 +250,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef LONG_DOUBLE_TYPE_SIZE
 #define LONG_DOUBLE_TYPE_SIZE 64
-
-#undef MAX_LONG_DOUBLE_TYPE_SIZE
-#define MAX_LONG_DOUBLE_TYPE_SIZE 64
 
 #undef LIBGCC2_LONG_DOUBLE_TYPE_SIZE
 #define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 64

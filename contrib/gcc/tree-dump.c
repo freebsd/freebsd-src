@@ -1,5 +1,6 @@
 /* Tree-dumping functionality for intermediate representation.
-   Copyright (C) 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
    Written by Mark Mitchell <mark@codesourcery.com>
 
 This file is part of GCC.
@@ -16,8 +17,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
@@ -28,14 +29,17 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "diagnostic.h"
 #include "toplev.h"
 #include "tree-dump.h"
+#include "tree-pass.h"
 #include "langhooks.h"
+#include "tree-iterator.h"
+#include "real.h"
 
 static unsigned int queue (dump_info_p, tree, int);
 static void dump_index (dump_info_p, unsigned int);
 static void dequeue_and_dump (dump_info_p);
 static void dump_new_line (dump_info_p);
 static void dump_maybe_newline (dump_info_p);
-static void dump_string_field (dump_info_p, const char *, const char *);
+static int dump_enable_all (int, int);
 
 /* Add T to the end of the queue of nodes to dump.  Returns the index
    assigned to T.  */
@@ -57,10 +61,10 @@ queue (dump_info_p di, tree t, int flags)
       di->free_list = dq->next;
     }
   else
-    dq = xmalloc (sizeof (struct dump_queue));
+    dq = XNEW (struct dump_queue);
 
   /* Create a new entry in the splay-tree.  */
-  dni = xmalloc (sizeof (struct dump_node_info));
+  dni = XNEW (struct dump_node_info);
   dni->index = index;
   dni->binfo_p = ((flags & DUMP_BINFO) != 0);
   dq->node = splay_tree_insert (di->nodes, (splay_tree_key) t,
@@ -176,6 +180,19 @@ dump_int (dump_info_p di, const char *field, int i)
   di->column += 14;
 }
 
+/* Dump the floating point value R, using FIELD to identify it.  */
+
+static void
+dump_real (dump_info_p di, const char *field, const REAL_VALUE_TYPE *r)
+{
+  char buf[32];
+  real_to_decimal (buf, r, sizeof (buf), 0, true);
+  dump_maybe_newline (di);
+  fprintf (di->stream, "%-4s: %s ", field, buf);
+  di->column += strlen (buf) + 7;
+}
+
+
 /* Dump the string S.  */
 
 void
@@ -191,7 +208,7 @@ dump_string (dump_info_p di, const char *string)
 
 /* Dump the string field S.  */
 
-static void
+void
 dump_string_field (dump_info_p di, const char *field, const char *string)
 {
   dump_maybe_newline (di);
@@ -213,7 +230,7 @@ dequeue_and_dump (dump_info_p di)
   tree t;
   unsigned int index;
   enum tree_code code;
-  char code_class;
+  enum tree_code_class code_class;
   const char* code_name;
 
   /* Get the next node from the queue.  */
@@ -249,20 +266,18 @@ dequeue_and_dump (dump_info_p di)
   if (dni->binfo_p)
     {
       unsigned ix;
-      tree bases = BINFO_BASETYPES (t);
-      unsigned n_bases = bases ? TREE_VEC_LENGTH (bases): 0;
-      tree accesses = BINFO_BASEACCESSES (t);
+      tree base;
+      VEC(tree,gc) *accesses = BINFO_BASE_ACCESSES (t);
 
       dump_child ("type", BINFO_TYPE (t));
 
-      if (TREE_VIA_VIRTUAL (t))
-	dump_string (di, "virt");
+      if (BINFO_VIRTUAL_P (t))
+	dump_string_field (di, "spec", "virt");
 
-      dump_int (di, "bases", n_bases);
-      for (ix = 0; ix != n_bases; ix++)
+      dump_int (di, "bases", BINFO_N_BASE_BINFOS (t));
+      for (ix = 0; BINFO_BASE_ITERATE (t, ix, base); ix++)
 	{
-	  tree base = TREE_VEC_ELT (bases, ix);
-	  tree access = (accesses ? TREE_VEC_ELT (accesses, ix)
+	  tree access = (accesses ? VEC_index (tree, accesses, ix)
 			 : access_public_node);
 	  const char *string = NULL;
 
@@ -273,9 +288,9 @@ dequeue_and_dump (dump_info_p di)
 	  else if (access == access_private_node)
 	    string = "priv";
 	  else
-	    abort ();
+	    gcc_unreachable ();
 
-	  dump_string (di, string);
+	  dump_string_field (di, "accs", string);
 	  queue_and_dump_index (di, "binf", base, DUMP_BINFO);
 	}
 
@@ -291,62 +306,67 @@ dequeue_and_dump (dump_info_p di)
 
       switch (code_class)
 	{
-	case '1':
+	case tcc_unary:
 	  dump_child ("op 0", TREE_OPERAND (t, 0));
 	  break;
 
-	case '2':
-	case '<':
+	case tcc_binary:
+	case tcc_comparison:
 	  dump_child ("op 0", TREE_OPERAND (t, 0));
 	  dump_child ("op 1", TREE_OPERAND (t, 1));
 	  break;
 
-	case 'e':
-	case 'r':
-	case 's':
+	case tcc_expression:
+	case tcc_reference:
+	case tcc_statement:
 	  /* These nodes are handled explicitly below.  */
 	  break;
 
 	default:
-	  abort ();
+	  gcc_unreachable ();
 	}
     }
   else if (DECL_P (t))
     {
+      expanded_location xloc;
       /* All declarations have names.  */
       if (DECL_NAME (t))
 	dump_child ("name", DECL_NAME (t));
       if (DECL_ASSEMBLER_NAME_SET_P (t)
 	  && DECL_ASSEMBLER_NAME (t) != DECL_NAME (t))
 	dump_child ("mngl", DECL_ASSEMBLER_NAME (t));
+      if (DECL_ABSTRACT_ORIGIN (t))
+        dump_child ("orig", DECL_ABSTRACT_ORIGIN (t));
       /* And types.  */
       queue_and_dump_type (di, t);
       dump_child ("scpe", DECL_CONTEXT (t));
       /* And a source position.  */
-      if (DECL_SOURCE_FILE (t))
+      xloc = expand_location (DECL_SOURCE_LOCATION (t));
+      if (xloc.file)
 	{
-	  const char *filename = strrchr (DECL_SOURCE_FILE (t), '/');
+	  const char *filename = strrchr (xloc.file, '/');
 	  if (!filename)
-	    filename = DECL_SOURCE_FILE (t);
+	    filename = xloc.file;
 	  else
 	    /* Skip the slash.  */
 	    ++filename;
 
 	  dump_maybe_newline (di);
 	  fprintf (di->stream, "srcp: %s:%-6d ", filename,
-		   DECL_SOURCE_LINE (t));
+		   xloc.line);
 	  di->column += 6 + strlen (filename) + 8;
 	}
       /* And any declaration can be compiler-generated.  */
-      if (DECL_ARTIFICIAL (t))
-	dump_string (di, "artificial");
+      if (CODE_CONTAINS_STRUCT (TREE_CODE (t), TS_DECL_COMMON)
+	  && DECL_ARTIFICIAL (t))
+	dump_string_field (di, "note", "artificial");
       if (TREE_CHAIN (t) && !dump_flag (di, TDF_SLIM, NULL))
 	dump_child ("chan", TREE_CHAIN (t));
     }
-  else if (code_class == 't')
+  else if (code_class == tcc_type)
     {
       /* All types have qualifiers.  */
-      int quals = (*lang_hooks.tree_dump.type_quals) (t);
+      int quals = lang_hooks.tree_dump.type_quals (t);
 
       if (quals != TYPE_UNQUALIFIED)
 	{
@@ -370,14 +390,14 @@ dequeue_and_dump (dump_info_p di)
       /* All types have alignments.  */
       dump_int (di, "algn", TYPE_ALIGN (t));
     }
-  else if (code_class == 'c')
+  else if (code_class == tcc_constant)
     /* All constants can have types.  */
     queue_and_dump_type (di, t);
 
   /* Give the language-specific code a chance to print something.  If
      it's completely taken care of things, don't bother printing
      anything more ourselves.  */
-  if ((*lang_hooks.tree_dump.dump_tree) (di, t))
+  if (lang_hooks.tree_dump.dump_tree (di, t))
     goto done;
 
   /* Now handle the various kinds of nodes.  */
@@ -396,6 +416,18 @@ dequeue_and_dump (dump_info_p di)
       dump_child ("chan", TREE_CHAIN (t));
       break;
 
+    case STATEMENT_LIST:
+      {
+	tree_stmt_iterator it;
+	for (i = 0, it = tsi_start (t); !tsi_end_p (it); tsi_next (&it), i++)
+	  {
+	    char buffer[32];
+	    sprintf (buffer, "%u", i);
+	    dump_child (buffer, tsi_stmt (it));
+	  }
+      }
+      break;
+
     case TREE_VEC:
       dump_int (di, "lngt", TREE_VEC_LENGTH (t));
       for (i = 0; i < TREE_VEC_LENGTH (t); ++i)
@@ -409,8 +441,7 @@ dequeue_and_dump (dump_info_p di)
     case INTEGER_TYPE:
     case ENUMERAL_TYPE:
       dump_int (di, "prec", TYPE_PRECISION (t));
-      if (TREE_UNSIGNED (t))
-	dump_string (di, "unsigned");
+      dump_string_field (di, "sign", TYPE_UNSIGNED (t) ? "unsigned": "signed");
       dump_child ("min", TYPE_MIN_VALUE (t));
       dump_child ("max", TYPE_MAX_VALUE (t));
 
@@ -447,9 +478,9 @@ dequeue_and_dump (dump_info_p di)
     case RECORD_TYPE:
     case UNION_TYPE:
       if (TREE_CODE (t) == RECORD_TYPE)
-	dump_string (di, "struct");
+	dump_string_field (di, "tag", "struct");
       else
-	dump_string (di, "union");
+	dump_string_field (di, "tag", "union");
 
       dump_child ("flds", TYPE_FIELDS (t));
       dump_child ("fncs", TYPE_METHODS (t));
@@ -459,6 +490,11 @@ dequeue_and_dump (dump_info_p di)
 
     case CONST_DECL:
       dump_child ("cnst", DECL_INITIAL (t));
+      break;
+      
+    case SYMBOL_MEMORY_TAG:
+    case NAME_MEMORY_TAG:
+    case STRUCT_FIELD_TAG:
       break;
 
     case VAR_DECL:
@@ -482,18 +518,18 @@ dequeue_and_dump (dump_info_p di)
 	{
 	  dump_int (di, "used", TREE_USED (t));
 	  if (DECL_REGISTER (t))
-	    dump_string (di, "register");
+	    dump_string_field (di, "spec", "register");
 	}
       break;
 
     case FUNCTION_DECL:
       dump_child ("args", DECL_ARGUMENTS (t));
       if (DECL_EXTERNAL (t))
-	dump_string (di, "undefined");
+	dump_string_field (di, "body", "undefined");
       if (TREE_PUBLIC (t))
-	dump_string (di, "extern");
+	dump_string_field (di, "link", "extern");
       else
-	dump_string (di, "static");
+	dump_string_field (di, "link", "static");
       if (DECL_LANG_SPECIFIC (t) && !dump_flag (di, TDF_SLIM, t))
 	dump_child ("body", DECL_SAVED_TREE (t));
       break;
@@ -509,11 +545,19 @@ dequeue_and_dump (dump_info_p di)
       dump_int (di, "lngt", TREE_STRING_LENGTH (t));
       break;
 
+    case REAL_CST:
+      dump_real (di, "valu", TREE_REAL_CST_PTR (t));
+      break;
+
     case TRUTH_NOT_EXPR:
     case ADDR_EXPR:
     case INDIRECT_REF:
+    case ALIGN_INDIRECT_REF:
+    case MISALIGNED_INDIRECT_REF:
     case CLEANUP_POINT_EXPR:
     case SAVE_EXPR:
+    case REALPART_EXPR:
+    case IMAGPART_EXPR:
       /* These nodes are unary, but do not have code class `1'.  */
       dump_child ("op 0", TREE_OPERAND (t, 0));
       break;
@@ -522,9 +566,7 @@ dequeue_and_dump (dump_info_p di)
     case TRUTH_ORIF_EXPR:
     case INIT_EXPR:
     case MODIFY_EXPR:
-    case COMPONENT_REF:
     case COMPOUND_EXPR:
-    case ARRAY_REF:
     case PREDECREMENT_EXPR:
     case PREINCREMENT_EXPR:
     case POSTDECREMENT_EXPR:
@@ -534,10 +576,29 @@ dequeue_and_dump (dump_info_p di)
       dump_child ("op 1", TREE_OPERAND (t, 1));
       break;
 
+    case COMPONENT_REF:
+      dump_child ("op 0", TREE_OPERAND (t, 0));
+      dump_child ("op 1", TREE_OPERAND (t, 1));
+      dump_child ("op 2", TREE_OPERAND (t, 2));
+      break;
+
+    case ARRAY_REF:
+    case ARRAY_RANGE_REF:
+      dump_child ("op 0", TREE_OPERAND (t, 0));
+      dump_child ("op 1", TREE_OPERAND (t, 1));
+      dump_child ("op 2", TREE_OPERAND (t, 2));
+      dump_child ("op 3", TREE_OPERAND (t, 3));
+      break;
+
     case COND_EXPR:
       dump_child ("op 0", TREE_OPERAND (t, 0));
       dump_child ("op 1", TREE_OPERAND (t, 1));
       dump_child ("op 2", TREE_OPERAND (t, 2));
+      break;
+
+    case TRY_FINALLY_EXPR:
+      dump_child ("op 0", TREE_OPERAND (t, 0));
+      dump_child ("op 1", TREE_OPERAND (t, 1));
       break;
 
     case CALL_EXPR:
@@ -546,7 +607,17 @@ dequeue_and_dump (dump_info_p di)
       break;
 
     case CONSTRUCTOR:
-      dump_child ("elts", CONSTRUCTOR_ELTS (t));
+      {
+	unsigned HOST_WIDE_INT cnt;
+	tree index, value;
+	dump_int (di, "lngt", VEC_length (constructor_elt,
+					  CONSTRUCTOR_ELTS (t)));
+	FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (t), cnt, index, value)
+	  {
+	    dump_child ("idx", index);
+	    dump_child ("val", value);
+	  }
+      }
       break;
 
     case BIND_EXPR:
@@ -562,6 +633,10 @@ dequeue_and_dump (dump_info_p di)
       dump_child ("cond", TREE_OPERAND (t, 0));
       break;
 
+    case RETURN_EXPR:
+      dump_child ("expr", TREE_OPERAND (t, 0));
+      break;
+
     case TARGET_EXPR:
       dump_child ("decl", TREE_OPERAND (t, 0));
       dump_child ("init", TREE_OPERAND (t, 1));
@@ -573,10 +648,37 @@ dequeue_and_dump (dump_info_p di)
       dump_child ("init", TREE_OPERAND (t, 3));
       break;
 
-    case EXPR_WITH_FILE_LOCATION:
-      dump_child ("expr", EXPR_WFL_NODE (t));
+    case CASE_LABEL_EXPR:
+      dump_child ("name", CASE_LABEL (t));
+      if (CASE_LOW (t)) {
+        dump_child ("low ", CASE_LOW (t));
+	if (CASE_HIGH (t)) {
+	  dump_child ("high", CASE_HIGH (t));
+	}
+      }
       break;
-
+    case LABEL_EXPR:
+      dump_child ("name", TREE_OPERAND (t,0));
+      break;
+    case GOTO_EXPR:
+      dump_child ("labl", TREE_OPERAND (t, 0));
+      break;
+    case SWITCH_EXPR:
+      dump_child ("cond", TREE_OPERAND (t, 0));
+      dump_child ("body", TREE_OPERAND (t, 1));
+      if (TREE_OPERAND (t, 2))
+        {
+      	  dump_child ("labl", TREE_OPERAND (t,2));
+        }
+      break;
+    case OMP_CLAUSE:
+      {
+	int i;
+	fprintf (di->stream, "%s\n", omp_clause_code_name[OMP_CLAUSE_CODE (t)]);
+	for (i = 0; i < omp_clause_num_ops[OMP_CLAUSE_CODE (t)]; i++)
+	  dump_child ("op: ", OMP_CLAUSE_OPERAND (t, i));
+      }
+      break;
     default:
       /* There are no additional fields to print.  */
       break;
@@ -634,26 +736,32 @@ dump_node (tree t, int flags, FILE *stream)
     }
   splay_tree_delete (di.nodes);
 }
-
-/* Define a tree dump switch.  */
-struct dump_file_info
-{
-  const char *const suffix;	/* suffix to give output file.  */
-  const char *const swtch;	/* command line switch */
-  int flags;			/* user flags */
-  int state;			/* state of play */
-};
+
 
 /* Table of tree dump switches. This must be consistent with the
-   TREE_DUMP_INDEX enumeration in tree.h */
+   TREE_DUMP_INDEX enumeration in tree.h.  */
 static struct dump_file_info dump_files[TDI_end] =
 {
-  {".tu", "translation-unit", 0, 0},
-  {".class", "class-hierarchy", 0, 0},
-  {".original", "tree-original", 0, 0},
-  {".optimized", "tree-optimized", 0, 0},
-  {".inlined", "tree-inlined", 0, 0},
+  {NULL, NULL, NULL, 0, 0, 0, 0},
+  {".cgraph", "ipa-cgraph", NULL, TDF_IPA, 0,  0, 0},
+  {".tu", "translation-unit", NULL, TDF_TREE, 0, 1, 0},
+  {".class", "class-hierarchy", NULL, TDF_TREE, 0, 2, 0},
+  {".original", "tree-original", NULL, TDF_TREE, 0, 3, 0},
+  {".gimple", "tree-gimple", NULL, TDF_TREE, 0, 4, 0},
+  {".nested", "tree-nested", NULL, TDF_TREE, 0, 5, 0},
+  {".inlined", "tree-inlined", NULL, TDF_TREE, 0, 6, 0},
+  {".vcg", "tree-vcg", NULL, TDF_TREE, 0, 7, 0},
+#define FIRST_AUTO_NUMBERED_DUMP 8
+
+  {NULL, "tree-all", NULL, TDF_TREE, 0, 0, 0},
+  {NULL, "rtl-all", NULL, TDF_RTL, 0, 0, 0},
+  {NULL, "ipa-all", NULL, TDF_IPA, 0, 0, 0},
 };
+
+/* Dynamically registered tree dump files and switches.  */
+static struct dump_file_info *extra_dump_files;
+static size_t extra_dump_files_in_use;
+static size_t extra_dump_files_alloced;
 
 /* Define a name->number mapping for a dump flag value.  */
 struct dump_option_value_info
@@ -668,9 +776,99 @@ static const struct dump_option_value_info dump_options[] =
 {
   {"address", TDF_ADDRESS},
   {"slim", TDF_SLIM},
-  {"all", ~0},
+  {"raw", TDF_RAW},
+  {"details", TDF_DETAILS},
+  {"stats", TDF_STATS},
+  {"blocks", TDF_BLOCKS},
+  {"vops", TDF_VOPS},
+  {"lineno", TDF_LINENO},
+  {"uid", TDF_UID},
+  {"stmtaddr", TDF_STMTADDR},
+  {"all", ~(TDF_RAW | TDF_SLIM | TDF_LINENO | TDF_TREE | TDF_RTL | TDF_IPA 
+	    | TDF_STMTADDR | TDF_GRAPH)},
   {NULL, 0}
 };
+
+unsigned int
+dump_register (const char *suffix, const char *swtch, const char *glob,
+	       int flags, int letter)
+{
+  static int next_dump = FIRST_AUTO_NUMBERED_DUMP;
+  int num = next_dump++;
+
+  size_t this = extra_dump_files_in_use++;
+
+  if (this >= extra_dump_files_alloced)
+    {
+      if (extra_dump_files_alloced == 0)
+	extra_dump_files_alloced = 32;
+      else
+	extra_dump_files_alloced *= 2;
+      extra_dump_files = xrealloc (extra_dump_files,
+				   sizeof (struct dump_file_info)
+				   * extra_dump_files_alloced);
+    }
+
+  memset (&extra_dump_files[this], 0, sizeof (struct dump_file_info));
+  extra_dump_files[this].suffix = suffix;
+  extra_dump_files[this].swtch = swtch;
+  extra_dump_files[this].glob = glob;
+  extra_dump_files[this].flags = flags;
+  extra_dump_files[this].num = num;
+  extra_dump_files[this].letter = letter;
+
+  return this + TDI_end;
+}
+
+
+/* Return the dump_file_info for the given phase.  */
+
+struct dump_file_info *
+get_dump_file_info (enum tree_dump_index phase)
+{
+  if (phase < TDI_end)
+    return &dump_files[phase];
+  else if (phase - TDI_end >= extra_dump_files_in_use)
+    return NULL;
+  else
+    return extra_dump_files + (phase - TDI_end);
+}
+
+
+/* Return the name of the dump file for the given phase.
+   If the dump is not enabled, returns NULL.  */
+
+char *
+get_dump_file_name (enum tree_dump_index phase)
+{
+  char dump_id[10];
+  struct dump_file_info *dfi;
+
+  if (phase == TDI_none)
+    return NULL;
+
+  dfi = get_dump_file_info (phase);
+  if (dfi->state == 0)
+    return NULL;
+
+  if (dfi->num < 0)
+    dump_id[0] = '\0';
+  else
+    {
+      char suffix;
+      if (dfi->flags & TDF_TREE)
+	suffix = 't';
+      else if (dfi->flags & TDF_IPA)
+	suffix = 'i';
+      else
+	suffix = 'r';
+
+      if (snprintf (dump_id, sizeof (dump_id), ".%03d%c", dfi->num, suffix) < 0)
+	dump_id[0] = '\0';
+    }
+
+  return concat (dump_base_name, dump_id, dfi->suffix, NULL);
+}
 
 /* Begin a tree dump for PHASE. Stores any user supplied flag in
    *FLAG_PTR and returns a stream to write to. If the dump is not
@@ -680,31 +878,59 @@ static const struct dump_option_value_info dump_options[] =
 FILE *
 dump_begin (enum tree_dump_index phase, int *flag_ptr)
 {
-  FILE *stream;
   char *name;
+  struct dump_file_info *dfi;
+  FILE *stream;
 
-  if (!dump_files[phase].state)
+  if (phase == TDI_none || !dump_enabled_p (phase))
     return NULL;
 
-  name = concat (dump_base_name, dump_files[phase].suffix, NULL);
-  stream = fopen (name, dump_files[phase].state < 0 ? "w" : "a");
+  name = get_dump_file_name (phase);
+  dfi = get_dump_file_info (phase);
+  stream = fopen (name, dfi->state < 0 ? "w" : "a");
   if (!stream)
-    error ("could not open dump file `%s'", name);
+    error ("could not open dump file %qs: %s", name, strerror (errno));
   else
-    dump_files[phase].state = 1;
+    dfi->state = 1;
   free (name);
+
   if (flag_ptr)
-    *flag_ptr = dump_files[phase].flags;
+    *flag_ptr = dfi->flags;
 
   return stream;
 }
 
-/* Returns nonzero if tree dump PHASE is enabled.  */
+/* Returns nonzero if tree dump PHASE is enabled.  If PHASE is
+   TDI_tree_all, return nonzero if any dump is enabled.  */
 
 int
 dump_enabled_p (enum tree_dump_index phase)
 {
-  return dump_files[phase].state;
+  if (phase == TDI_tree_all)
+    {
+      size_t i;
+      for (i = TDI_none + 1; i < (size_t) TDI_end; i++)
+	if (dump_files[i].state)
+	  return 1;
+      for (i = 0; i < extra_dump_files_in_use; i++)
+	if (extra_dump_files[i].state)
+	  return 1;
+      return 0;
+    }
+  else
+    {
+      struct dump_file_info *dfi = get_dump_file_info (phase);
+      return dfi->state;
+    }
+}
+
+/* Returns nonzero if tree dump PHASE has been initialized.  */
+
+int
+dump_initialized_p (enum tree_dump_index phase)
+{
+  struct dump_file_info *dfi = get_dump_file_info (phase);
+  return dfi->state > 0;
 }
 
 /* Returns the switch name of PHASE.  */
@@ -712,7 +938,8 @@ dump_enabled_p (enum tree_dump_index phase)
 const char *
 dump_flag_name (enum tree_dump_index phase)
 {
-  return dump_files[phase].swtch;
+  struct dump_file_info *dfi = get_dump_file_info (phase);
+  return dfi->swtch;
 }
 
 /* Finish a tree dump for PHASE. STREAM is the stream created by
@@ -724,52 +951,141 @@ dump_end (enum tree_dump_index phase ATTRIBUTE_UNUSED, FILE *stream)
   fclose (stream);
 }
 
+/* Enable all tree dumps.  Return number of enabled tree dumps.  */
+
+static int
+dump_enable_all (int flags, int letter)
+{
+  int ir_type = (flags & (TDF_TREE | TDF_RTL | TDF_IPA));
+  int n = 0;
+  size_t i;
+
+  for (i = TDI_none + 1; i < (size_t) TDI_end; i++)
+    if ((dump_files[i].flags & ir_type)
+	&& (letter == 0 || letter == dump_files[i].letter))
+      {
+        dump_files[i].state = -1;
+        dump_files[i].flags |= flags;
+        n++;
+      }
+
+  for (i = 0; i < extra_dump_files_in_use; i++)
+    if ((extra_dump_files[i].flags & ir_type)
+	&& (letter == 0 || letter == extra_dump_files[i].letter))
+      {
+        extra_dump_files[i].state = -1;
+        extra_dump_files[i].flags |= flags;
+	n++;
+      }
+
+  return n;
+}
+
 /* Parse ARG as a dump switch. Return nonzero if it is, and store the
    relevant details in the dump_files array.  */
+
+static int
+dump_switch_p_1 (const char *arg, struct dump_file_info *dfi, bool doglob)
+{
+  const char *option_value;
+  const char *ptr;
+  int flags;
+  
+  if (doglob && !dfi->glob)
+    return 0;
+
+  option_value = skip_leading_substring (arg, doglob ? dfi->glob : dfi->swtch);
+  if (!option_value)
+    return 0;
+
+  ptr = option_value;
+  flags = 0;
+
+  while (*ptr)
+    {
+      const struct dump_option_value_info *option_ptr;
+      const char *end_ptr;
+      unsigned length;
+
+      while (*ptr == '-')
+	ptr++;
+      end_ptr = strchr (ptr, '-');
+      if (!end_ptr)
+	end_ptr = ptr + strlen (ptr);
+      length = end_ptr - ptr;
+
+      for (option_ptr = dump_options; option_ptr->name; option_ptr++)
+	if (strlen (option_ptr->name) == length
+	    && !memcmp (option_ptr->name, ptr, length))
+	  {
+	    flags |= option_ptr->value;
+	    goto found;
+	  }
+      warning (0, "ignoring unknown option %q.*s in %<-fdump-%s%>",
+	       length, ptr, dfi->swtch);
+    found:;
+      ptr = end_ptr;
+    }
+
+  dfi->state = -1;
+  dfi->flags |= flags;
+
+  /* Process -fdump-tree-all and -fdump-rtl-all, by enabling all the
+     known dumps.  */
+  if (dfi->suffix == NULL)
+    dump_enable_all (dfi->flags, 0);
+
+  return 1;
+}
 
 int
 dump_switch_p (const char *arg)
 {
-  unsigned ix;
-  const char *option_value;
+  size_t i;
+  int any = 0;
 
-  for (ix = 0; ix != TDI_end; ix++)
-    if ((option_value = skip_leading_substring (arg, dump_files[ix].swtch)))
-      {
-	const char *ptr = option_value;
-	int flags = 0;
+  for (i = TDI_none + 1; i != TDI_end; i++)
+    any |= dump_switch_p_1 (arg, &dump_files[i], false);
 
-	while (*ptr)
-	  {
-	    const struct dump_option_value_info *option_ptr;
-	    const char *end_ptr;
-	    unsigned length;
+  /* Don't glob if we got a hit already */
+  if (!any)
+    for (i = TDI_none + 1; i != TDI_end; i++)
+      any |= dump_switch_p_1 (arg, &dump_files[i], true);
 
-	    while (*ptr == '-')
-	      ptr++;
-	    end_ptr = strchr (ptr, '-');
-	    if (!end_ptr)
-	      end_ptr = ptr + strlen (ptr);
-	    length = end_ptr - ptr;
+  for (i = 0; i < extra_dump_files_in_use; i++)
+    any |= dump_switch_p_1 (arg, &extra_dump_files[i], false);
+  
+  if (!any)
+    for (i = 0; i < extra_dump_files_in_use; i++)
+      any |= dump_switch_p_1 (arg, &extra_dump_files[i], true);
 
-	    for (option_ptr = dump_options; option_ptr->name;
-		 option_ptr++)
-	      if (strlen (option_ptr->name) == length
-		  && !memcmp (option_ptr->name, ptr, length))
-		{
-		  flags |= option_ptr->value;
-		  goto found;
-		}
-	    warning ("ignoring unknown option `%.*s' in `-fdump-%s'",
-		     length, ptr, dump_files[ix].swtch);
-	  found:;
-	    ptr = end_ptr;
-	  }
 
-	dump_files[ix].state = -1;
-	dump_files[ix].flags = flags;
-
-	return 1;
-      }
-  return 0;
+  return any;
 }
+
+/* Dump FUNCTION_DECL FN as tree dump PHASE.  */
+
+void
+dump_function (enum tree_dump_index phase, tree fn)
+{
+  FILE *stream;
+  int flags;
+
+  stream = dump_begin (phase, &flags);
+  if (stream)
+    {
+      dump_function_to_file (fn, stream, flags);
+      dump_end (phase, stream);
+    }
+}
+
+bool
+enable_rtl_dump_file (int letter)
+{
+  if (letter == 'a')
+    letter = 0;
+
+  return dump_enable_all (TDF_RTL | TDF_DETAILS | TDF_BLOCKS, letter) > 0;
+}
+
+

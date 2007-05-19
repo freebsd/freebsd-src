@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, NetBSD/arm ELF version.
-   Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Wasabi Systems, Inc.
 
    This file is part of GCC.
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /* Run-time Target Specification.  */
 #undef TARGET_VERSION
@@ -35,13 +35,11 @@
 /* Default it to use ATPCS with soft-VFP.  */
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT			\
-  (ARM_FLAG_APCS_32			\
-   | ARM_FLAG_SOFT_FLOAT		\
-   | ARM_FLAG_APCS_FRAME		\
-   | ARM_FLAG_ATPCS			\
-   | ARM_FLAG_VFP			\
-   | ARM_FLAG_MMU_TRAPS			\
+  (MASK_APCS_FRAME			\
    | TARGET_ENDIAN_DEFAULT)
+
+#undef ARM_DEFAULT_ABI
+#define ARM_DEFAULT_ABI ARM_ABI_ATPCS
 
 #define TARGET_OS_CPP_BUILTINS()	\
   do					\
@@ -57,14 +55,11 @@
 #define SUBTARGET_EXTRA_ASM_SPEC	\
   "-matpcs %{fpic|fpie:-k} %{fPIC|fPIE:-k}"
 
-/* Default floating point model is soft-VFP.
-   FIXME: -mhard-float currently implies FPA.  */
+/* Default to full VFP if -mhard-float is specified.  */
 #undef SUBTARGET_ASM_FLOAT_SPEC
 #define SUBTARGET_ASM_FLOAT_SPEC	\
-  "%{mhard-float:-mfpu=fpa} \
-   %{msoft-float:-mfpu=softvfp} \
-   %{!mhard-float: \
-     %{!msoft-float:-mfpu=softvfp}}"
+  "%{mhard-float:{!mfpu=*:-mfpu=vfp}}   \
+   %{mfloat-abi=hard:{!mfpu=*:-mfpu=vfp}}"
 
 #undef SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS				\
@@ -102,7 +97,8 @@
 {							\
   asm_fprintf (STREAM, "\tmov\t%Rip, %Rlr\n");		\
   asm_fprintf (STREAM, "\tbl\t__mcount%s\n",		\
-	       NEED_PLT_RELOC ? "(PLT)" : "");		\
+	       (TARGET_ARM && NEED_PLT_RELOC)		\
+	       ? "(PLT)" : "");				\
 }
 
 /* VERY BIG NOTE: Change of structure alignment for NetBSD/arm.
@@ -140,21 +136,6 @@
 #undef DEFAULT_STRUCTURE_SIZE_BOUNDARY
 #define DEFAULT_STRUCTURE_SIZE_BOUNDARY 8
 
-/* Emit code to set up a trampoline and synchronize the caches.  */
-#undef INITIALIZE_TRAMPOLINE
-#define INITIALIZE_TRAMPOLINE(TRAMP, FNADDR, CXT)			\
-do									\
-  {									\
-    emit_move_insn (gen_rtx (MEM, SImode, plus_constant ((TRAMP), 8)),	\
-		    (CXT));						\
-    emit_move_insn (gen_rtx (MEM, SImode, plus_constant ((TRAMP), 12)),	\
-		    (FNADDR));						\
-    emit_library_call (gen_rtx_SYMBOL_REF (Pmode, "__clear_cache"),	\
-		       0, VOIDmode, 2, TRAMP, Pmode,			\
-		       plus_constant (TRAMP, TRAMPOLINE_SIZE), Pmode);	\
-  }									\
-while (0)
-
 /* Clear the instruction cache from `BEG' to `END'.  This makes a
    call to the ARM_SYNC_ICACHE architecture specific syscall.  */
 #define CLEAR_INSN_CACHE(BEG, END)					\
@@ -171,3 +152,7 @@ do									\
     (void) sysarch (0, &s);						\
   }									\
 while (0)
+
+#undef FPUTYPE_DEFAULT
+#define FPUTYPE_DEFAULT FPUTYPE_VFP
+

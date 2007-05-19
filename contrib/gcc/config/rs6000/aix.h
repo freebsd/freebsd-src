@@ -1,6 +1,7 @@
 /* Definitions of target machine for GNU compiler,
    for IBM RS/6000 POWER running AIX.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 /* Yes!  We are AIX!  */
 #define DEFAULT_ABI ABI_AIX
@@ -32,13 +33,17 @@
 /* AIX allows r13 to be used in 32-bit mode.  */
 #define FIXED_R13 0
 
+/* 32-bit and 64-bit AIX stack boundary is 128.  */
+#undef  STACK_BOUNDARY
+#define STACK_BOUNDARY 128
+
 /* AIX does not support Altivec.  */
 #undef  TARGET_ALTIVEC
 #define TARGET_ALTIVEC 0
 #undef  TARGET_ALTIVEC_ABI
 #define TARGET_ALTIVEC_ABI 0
-#undef  TARGET_ALTIVEC_VRSAVE
-#define TARGET_ALTIVEC_VRSAVE 0
+#undef  TARGET_IEEEQUAD
+#define TARGET_IEEEQUAD 0
 
 /* The AIX linker will discard static constructors in object files before
    collect has a chance to see them, so scan the object files directly.  */
@@ -51,26 +56,52 @@
 #define REAL_NM_FILE_NAME "/usr/ucb/nm"
 
 #define USER_LABEL_PREFIX  ""
+
 /* Don't turn -B into -L if the argument specifies a relative file name.  */
 #define RELATIVE_PREFIX_NOT_LINKDIR
 
 /* Because of the above, we must have gcc search itself to find libgcc.a.  */
 #define LINK_LIBGCC_SPECIAL_1
 
+#define MFWRAP_SPEC " %{static: %{fmudflap|fmudflapth: \
+ -brename:malloc,__wrap_malloc -brename:__real_malloc,malloc \
+ -brename:free,__wrap_free -brename:__real_free,free \
+ -brename:calloc,__wrap_calloc -brename:__real_calloc,calloc \
+ -brename:realloc,__wrap_realloc -brename:__real_realloc,realloc \
+ -brename:mmap,__wrap_mmap -brename:__real_mmap,mmap \
+ -brename:munmap,__wrap_munmap -brename:__real_munmap,munmap \
+ -brename:alloca,__wrap_alloca -brename:__real_alloca,alloca \
+} %{fmudflapth: \
+ -brename:pthread_create,__wrap_pthread_create \
+ -brename:__real_pthread_create,pthread_create \
+ -brename:pthread_join,__wrap_pthread_join \
+ -brename:__real_pthread_join,pthread_join \
+ -brename:pthread_exit,__wrap_pthread_exit \
+ -brename:__real_pthread_exit,pthread_exit \
+}} %{fmudflap|fmudflapth: \
+ -brename:main,__wrap_main -brename:__real_main,main \
+}"
+
+#define MFLIB_SPEC " %{fmudflap: -lmudflap \
+ %{static:%(link_gcc_c_sequence) -lmudflap}} \
+ %{fmudflapth: -lmudflapth -lpthread \
+ %{static:%(link_gcc_c_sequence) -lmudflapth}} "
+
 /* Names to predefine in the preprocessor for this target machine.  */
-#define TARGET_OS_CPP_BUILTINS()         \
-  do                                     \
-    {                                    \
-      builtin_define ("_IBMR2");         \
-      builtin_define ("_POWER");         \
-      builtin_define ("_AIX");           \
-      builtin_define ("_AIX32");         \
-      builtin_define ("_LONG_LONG");     \
-      builtin_assert ("system=unix");    \
-      builtin_assert ("system=aix");     \
-      builtin_assert ("cpu=rs6000");     \
-      builtin_assert ("machine=rs6000"); \
-    }                                    \
+#define TARGET_OS_AIX_CPP_BUILTINS()		\
+  do						\
+    {						\
+      builtin_define ("_IBMR2");		\
+      builtin_define ("_POWER");		\
+      builtin_define ("_AIX");			\
+      builtin_define ("_AIX32");		\
+      builtin_define ("_AIX41");		\
+      builtin_define ("_LONG_LONG");		\
+      if (TARGET_LONG_DOUBLE_128)		\
+        builtin_define ("__LONGDOUBLE128");	\
+      builtin_assert ("system=unix");		\
+      builtin_assert ("system=aix");		\
+    }						\
   while (0)
 
 /* Define appropriate architecture macros for preprocessor depending on
@@ -139,12 +170,12 @@
 
 /* AIX increases natural record alignment to doubleword if the first
    field is an FP double while the FP fields remain word aligned.  */
-#define ROUND_TYPE_ALIGN(STRUCT, COMPUTED, SPECIFIED)				\
-  ((TREE_CODE (STRUCT) == RECORD_TYPE						\
-    || TREE_CODE (STRUCT) == UNION_TYPE						\
-    || TREE_CODE (STRUCT) == QUAL_UNION_TYPE)					\
-   && TARGET_ALIGN_NATURAL == 0							\
-   ? rs6000_special_round_type_align (STRUCT, COMPUTED, SPECIFIED)		\
+#define ROUND_TYPE_ALIGN(STRUCT, COMPUTED, SPECIFIED)			\
+  ((TREE_CODE (STRUCT) == RECORD_TYPE					\
+    || TREE_CODE (STRUCT) == UNION_TYPE					\
+    || TREE_CODE (STRUCT) == QUAL_UNION_TYPE)				\
+   && TARGET_ALIGN_NATURAL == 0						\
+   ? rs6000_special_round_type_align (STRUCT, COMPUTED, SPECIFIED)	\
    : MAX ((COMPUTED), (SPECIFIED)))
 
 /* The AIX ABI isn't explicit on whether aggregates smaller than a
@@ -157,13 +188,6 @@
 #define AGGREGATE_PADDING_FIXED 1
 #define AGGREGATES_PAD_UPWARD_ALWAYS 1
 
-/* We don't want anything in the reg parm area being passed on the
-   stack.  */
-#define MUST_PASS_IN_STACK(MODE, TYPE)				\
-   ((TYPE) != 0							\
-    && (TREE_CODE (TYPE_SIZE (TYPE)) != INTEGER_CST		\
-	|| TREE_ADDRESSABLE (TYPE)))
-
 /* Specify padding for the last element of a block move between
    registers and memory.  FIRST is nonzero if this is the only
    element.  */
@@ -173,19 +197,6 @@
 /* Indicate that jump tables go in the text section.  */
 
 #define JUMP_TABLES_IN_TEXT_SECTION 1
-
-/* Enable AIX XL compiler calling convention breakage compatibility.  */
-#undef TARGET_XL_COMPAT
-#define MASK_XL_COMPAT		0x40000000
-#define	TARGET_XL_COMPAT	(target_flags & MASK_XL_COMPAT)
-#undef  SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES		\
-  {"xl-compat",		MASK_XL_COMPAT,					\
-   N_("Conform more closely to IBM XLC semantics") },			\
-  {"no-xl-compat",	- MASK_XL_COMPAT,				\
-   N_("Default GCC semantics that differ from IBM XLC") },		\
-  SUBSUBTARGET_SWITCHES
-#define SUBSUBTARGET_SWITCHES 
 
 /* Define any extra SPECS that the compiler needs to generate.  */
 #undef  SUBTARGET_EXTRA_SPECS
@@ -244,3 +255,6 @@
    32-bit mode.  */
 #define OS_MISSING_POWERPC64 1
 #define OS_MISSING_ALTIVEC 1
+
+/* WINT_TYPE */
+#define WINT_TYPE "int"

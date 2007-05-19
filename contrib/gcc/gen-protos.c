@@ -1,6 +1,6 @@
 /* gen-protos.c - massages a list of prototypes, for use by fixproto.
    Copyright (C) 1993, 1994, 1995, 1996, 1998,
-   1999, 2003 Free Software Foundation, Inc.
+   1999, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -14,17 +14,16 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bconfig.h"
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
 #include "scan.h"
-#undef abort
+#include "errors.h"
 
 int verbose = 0;
-const char *progname;
 
 static void add_hash (const char *);
 static int parse_fn_proto (char *, char *, struct fn_decl *);
@@ -48,8 +47,7 @@ add_hash (const char *fname)
       for (;;)
 	{
 	  i = (i+1) % HASH_SIZE;
-	  if (i == i0)
-	    abort ();
+	  gcc_assert (i != i0);
 	  if (hash_tab[i] == 0)
 	    break;
 	}
@@ -140,6 +138,9 @@ main (int argc ATTRIBUTE_UNUSED, char **argv)
   i = strlen (argv[0]);
   while (i > 0 && argv[0][i-1] != '/') --i;
   progname = &argv[0][i];
+
+  /* Unlock the stdio streams.  */
+  unlock_std_streams ();
 
   INIT_SSTRING (&linebuf);
 

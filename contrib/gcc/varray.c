@@ -1,5 +1,5 @@
 /* Virtual array support.
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006
    Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
@@ -17,14 +17,14 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to the Free
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include "config.h"
-#include "errors.h"
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "toplev.h"
 #include "varray.h"
 #include "ggc.h"
 #include "hashtab.h"
@@ -33,7 +33,7 @@
 
 #ifdef GATHER_STATISTICS
 
-/* Store infromation about each particular varray.  */
+/* Store information about each particular varray.  */
 struct varray_descriptor
 {
   const char *name;
@@ -99,15 +99,17 @@ static const struct {
   { sizeof (HOST_WIDE_INT), 1 },
   { sizeof (unsigned HOST_WIDE_INT), 1 },
   { sizeof (void *), 1 },
+  { sizeof (void *), 0 },
   { sizeof (char *), 1 },
   { sizeof (struct rtx_def *), 1 },
   { sizeof (struct rtvec_def *), 1 },
   { sizeof (union tree_node *), 1 },
   { sizeof (struct bitmap_head_def *), 1 },
   { sizeof (struct reg_info_def *), 0 },
-  { sizeof (struct const_equiv_data), 0 },
-  { sizeof (struct basic_block_def *), 0 },
+  { sizeof (struct basic_block_def *), 1 },
   { sizeof (struct elt_list *), 1 },
+  { sizeof (struct edge_def *), 1 },
+  { sizeof (tree *), 1 },
 };
 
 /* Allocate a virtual array with NUM_ELEMENT elements, each of which is
@@ -163,7 +165,7 @@ varray_grow (varray_type va, size_t n)
 	va = xrealloc (va, VARRAY_HDR_SIZE + data_size);
       va->num_elements = n;
       if (n > old_elements)
-	memset (&va->data.c[old_data_size], 0, data_size - old_data_size);
+	memset (&va->data.vdt_c[old_data_size], 0, data_size - old_data_size);
 #ifdef GATHER_STATISTICS
       if (oldva != va)
         desc->copied++;
@@ -179,7 +181,7 @@ varray_clear (varray_type va)
 {
   size_t data_size = element[va->type].size * va->num_elements;
 
-  memset (va->data.c, 0, data_size);
+  memset (va->data.vdt_c, 0, data_size);
   va->elements_used = 0;
 }
 
@@ -207,13 +209,19 @@ varray_underflow (varray_type va, const char *file, int line,
 
 #endif
 
+
 /* Output per-varray statistics.  */
 #ifdef GATHER_STATISTICS
+
+/* Used to accumulate statistics about varray sizes.  */
 struct output_info
 {
   int count;
   int size;
 };
+
+/* Called via htab_traverse.  Output varray descriptor pointed out by SLOT
+   and update statistics.  */
 static int
 print_statistics (void **slot, void *b)
 {
@@ -230,7 +238,10 @@ print_statistics (void **slot, void *b)
   return 1;
 }
 #endif
-void dump_varray_statistics (void)
+
+/* Output per-varray memory usage statistics.  */
+void
+dump_varray_statistics (void)
 {
 #ifdef GATHER_STATISTICS
   struct output_info info;

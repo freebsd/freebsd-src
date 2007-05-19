@@ -1,5 +1,5 @@
 /* Definitions for computing resource usage of specific insns.
-   Copyright (C) 1999, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2003, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,13 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+#ifndef GCC_RESOURCE_H
+#define GCC_RESOURCE_H
+
+#include "hard-reg-set.h"
 
 /* Macro to clear all resources.  */
 #define CLEAR_RESOURCE(RES)	\
@@ -49,3 +54,5 @@ extern void incr_ticks_for_insn (rtx);
 extern void mark_end_of_function_resources (rtx, int);
 extern void init_resource_info (rtx);
 extern void free_resource_info (void);
+
+#endif /* GCC_RESOURCE_H */

@@ -1,6 +1,7 @@
 /* Operating system specific defines to be used when targeting GCC for
    Sequent's Dynix/ptx v4 and later.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2003 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2004
+   Free Software Foundation, Inc.
    Generic SysV4 file Contributed by Ron Guilmette (rfg@monkeys.com).
    Renamed and changed to suit Dynix/ptx v4 and later.
    Modified by Tim Wright (timw@sequent.com).
@@ -20,8 +21,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.
 
 */
 
@@ -136,7 +137,7 @@ Boston, MA 02111-1307, USA.
 
 #undef	LINK_SPEC
 #define LINK_SPEC "%{h*} %{v:-V} \
-		   %{b} %{Wl,*:%*} \
+		   %{b} \
 		   %{static:-dn -Bstatic} \
 		   %{shared:-G -dy -z text} \
 		   %{symbolic:-Bsymbolic -G -dy -z text} \
@@ -184,26 +185,13 @@ Boston, MA 02111-1307, USA.
 /* Like block addresses, stabs line numbers are relative to the
    current function.  */
 
-#undef ASM_OUTPUT_SOURCE_LINE
-#define ASM_OUTPUT_SOURCE_LINE(file, line, counter)			\
-do									\
-  {									\
-    fprintf (file, ".stabn 68,0,%d,.LM%d-",				\
-	     line, counter);						\
-    assemble_name (file,						\
-		   XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));\
-    fprintf (file, "\n.LM%d:\n", counter);				\
-  }									\
-while (0)
+#define DBX_LINES_FUNCTION_RELATIVE 1
 
 /* Generate a blank trailing N_SO to mark the end of the .o file, since
    we can't depend upon the linker to mark .o file boundaries with
    embedded stabs.  */
 
-#undef DBX_OUTPUT_MAIN_SOURCE_FILE_END
-#define DBX_OUTPUT_MAIN_SOURCE_FILE_END(FILE, FILENAME)			\
-  fprintf (FILE,							\
-	   "\t.text\n\t.stabs \"\",%d,0,0,.Letext\n.Letext:\n", N_SO)
+#define DBX_OUTPUT_NULL_N_SO_AT_MAIN_SOURCE_FILE_END
 
 /* Define the actual types of some ANSI-mandated types.  (These
    definitions should work for most SVR4 systems).  */

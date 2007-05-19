@@ -1,5 +1,5 @@
 /* Generate the machine mode enumeration and associated tables.
-   Copyright (C) 2003
+   Copyright (C) 2003, 2004
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #include "bconfig.h"
 #include "system.h"
@@ -55,15 +55,16 @@ struct mode_data
   struct mode_data *next;	/* next this class - arbitrary order */
 
   const char *name;		/* printable mode name -- SI, not SImode */
-  enum mode_class class;	/* this mode class */
+  enum mode_class cl;		/* this mode class */
   unsigned int precision;	/* size in bits, equiv to TYPE_PRECISION */
   unsigned int bytesize;	/* storage size in addressable units */
   unsigned int ncomponents;	/* number of subunits */
   unsigned int alignment;	/* mode alignment */
-  const char *format;		/* floating point format - MODE_FLOAT only */
+  const char *format;		/* floating point format - float modes only */
 
   struct mode_data *component;	/* mode of components */
   struct mode_data *wider;	/* next wider mode */
+  struct mode_data *wider_2x;	/* 2x wider mode */
 
   struct mode_data *contained;  /* Pointer to list of modes that have
 				   this mode as a component.  */
@@ -71,6 +72,7 @@ struct mode_data
 
   const char *file;		/* file and line of definition, */
   unsigned int line;		/* for error reporting */
+  unsigned int counter;		/* Rank ordering of modes */
 };
 
 static struct mode_data *modes[MAX_MODE_CLASS];
@@ -79,9 +81,9 @@ static struct mode_data *void_mode;
 
 static const struct mode_data blank_mode = {
   0, "<unknown>", MAX_MODE_CLASS,
-  -1, -1, -1, -1,
-  0, 0, 0, 0, 0,
-  "<unknown>", 0
+  -1U, -1U, -1U, -1U,
+  0, 0, 0, 0, 0, 0,
+  "<unknown>", 0, 0
 };
 
 static htab_t modes_by_name;
@@ -105,27 +107,27 @@ static struct mode_adjust *adj_format;
 
 /* Mode class operations.  */
 static enum mode_class
-complex_class (enum mode_class class)
+complex_class (enum mode_class c)
 {
-  switch (class)
+  switch (c)
     {
     case MODE_INT: return MODE_COMPLEX_INT;
     case MODE_FLOAT: return MODE_COMPLEX_FLOAT;
     default:
-      error ("no complex class for class %s", mode_class_names[class]);
+      error ("no complex class for class %s", mode_class_names[c]);
       return MODE_RANDOM;
     }
 }
 
 static enum mode_class
-vector_class (enum mode_class class)
+vector_class (enum mode_class cl)
 {
-  switch (class)
+  switch (cl)
     {
     case MODE_INT: return MODE_VECTOR_INT;
     case MODE_FLOAT: return MODE_VECTOR_FLOAT;
     default:
-      error ("no vector class for class %s", mode_class_names[class]);
+      error ("no vector class for class %s", mode_class_names[cl]);
       return MODE_RANDOM;
     }
 }
@@ -137,14 +139,15 @@ find_mode (const char *name)
   struct mode_data key;
 
   key.name = name;
-  return htab_find (modes_by_name, &key);
+  return (struct mode_data *) htab_find (modes_by_name, &key);
 }
 
 static struct mode_data *
-new_mode (enum mode_class class, const char *name,
+new_mode (enum mode_class cl, const char *name,
 	  const char *file, unsigned int line)
 {
   struct mode_data *m;
+  static unsigned int count = 0;
 
   m = find_mode (name);
   if (m)
@@ -155,17 +158,18 @@ new_mode (enum mode_class class, const char *name,
       return m;
     }
 
-  m = xmalloc (sizeof (struct mode_data));
+  m = XNEW (struct mode_data);
   memcpy (m, &blank_mode, sizeof (struct mode_data));
-  m->class = class;
+  m->cl = cl;
   m->name = name;
   if (file)
     m->file = trim_filename (file);
   m->line = line;
+  m->counter = count++;
 
-  m->next = modes[class];
-  modes[class] = m;
-  n_modes[class]++;
+  m->next = modes[cl];
+  modes[cl] = m;
+  n_modes[cl]++;
 
   *htab_find_slot (modes_by_name, m, INSERT) = m;
   
@@ -210,7 +214,7 @@ new_adjust (const char *name,
       return;
     }
 
-  if (required_class != MODE_RANDOM && mode->class != required_class)
+  if (required_class != MODE_RANDOM && mode->cl != required_class)
     {
       error ("%s:%d: mode \"%s\" is not class %s",
 	     file, line, name, mode_class_names[required_class] + 5);
@@ -226,7 +230,7 @@ new_adjust (const char *name,
 	return;
       }
 
-  a = xmalloc (sizeof (struct mode_adjust));
+  a = XNEW (struct mode_adjust);
   a->mode = mode;
   a->adjustment = adjustment;
   a->file = file;
@@ -289,13 +293,13 @@ complete_mode (struct mode_data *m)
       error ("%s:%d: mode with no name", m->file, m->line);
       return;
     }
-  if (m->class == MAX_MODE_CLASS)
+  if (m->cl == MAX_MODE_CLASS)
     {
       error ("%s:%d: %smode has no mode class", m->file, m->line, m->name);
       return;
     }
 
-  switch (m->class)
+  switch (m->cl)
     {
     case MODE_RANDOM:
       /* Nothing more need be said.  */
@@ -322,11 +326,12 @@ complete_mode (struct mode_data *m)
 
     case MODE_INT:
     case MODE_FLOAT:
+    case MODE_DECIMAL_FLOAT:
       /* A scalar mode must have a byte size, may have a bit size,
 	 and must not have components.   A float mode must have a
          format.  */
       validate_mode (m, OPTIONAL, SET, UNSET, UNSET,
-		     m->class == MODE_FLOAT ? SET : UNSET);
+		     m->cl != MODE_INT ? SET : UNSET);
 
       m->ncomponents = 1;
       m->component = 0;
@@ -364,13 +369,13 @@ complete_mode (struct mode_data *m)
       break;
 
     default:
-      abort ();
+      gcc_unreachable ();
     }
 
   /* If not already specified, the mode alignment defaults to the largest
      power of two that divides the size of the object.  Complex types are
      not more aligned than their contents.  */
-  if (m->class == MODE_COMPLEX_INT || m->class == MODE_COMPLEX_FLOAT)
+  if (m->cl == MODE_COMPLEX_INT || m->cl == MODE_COMPLEX_FLOAT)
     alignment = m->component->bytesize;
   else
     alignment = m->bytesize;
@@ -390,27 +395,27 @@ static void
 complete_all_modes (void)
 {
   struct mode_data *m;
-  enum mode_class c;
-  
-  for_all_modes (c, m)
+  int cl;
+
+  for_all_modes (cl, m)
     complete_mode (m);
 }
 
 /* For each mode in class CLASS, construct a corresponding complex mode.  */
 #define COMPLEX_MODES(C) make_complex_modes(MODE_##C, __FILE__, __LINE__)
 static void
-make_complex_modes (enum mode_class class,
+make_complex_modes (enum mode_class cl,
 		    const char *file, unsigned int line)
 {
   struct mode_data *m;
   struct mode_data *c;
   char buf[8];
-  enum mode_class cclass = complex_class (class);
+  enum mode_class cclass = complex_class (cl);
 
   if (cclass == MODE_RANDOM)
     return;
-    
-  for (m = modes[class]; m; m = m->next)
+
+  for (m = modes[cl]; m; m = m->next)
     {
       /* Skip BImode.  FIXME: BImode probably shouldn't be MODE_INT.  */
       if (m->precision == 1)
@@ -426,19 +431,24 @@ make_complex_modes (enum mode_class class,
       /* Float complex modes are named SCmode, etc.
 	 Int complex modes are named CSImode, etc.
          This inconsistency should be eliminated.  */
-      if (class == MODE_FLOAT)
+      if (cl == MODE_FLOAT)
 	{
-	  char *p;
+	  char *p, *q = 0;
 	  strncpy (buf, m->name, sizeof buf);
 	  p = strchr (buf, 'F');
 	  if (p == 0)
+	    q = strchr (buf, 'D');
+	  if (p == 0 && q == 0)
 	    {
-	      error ("%s:%d: float mode \"%s\" has no 'F'",
+	      error ("%s:%d: float mode \"%s\" has no 'F' or 'D'",
 		     m->file, m->line, m->name);
 	      continue;
 	    }
 
-	  *p = 'C';
+	  if (p != 0)
+	    *p = 'C';
+	  else
+	    snprintf (buf, sizeof buf, "C%s", m->name);
 	}
       else
 	snprintf (buf, sizeof buf, "C%s", m->name);
@@ -448,23 +458,23 @@ make_complex_modes (enum mode_class class,
     }
 }
 
-/* For all modes in class CLASS, construct vector modes of width
+/* For all modes in class CL, construct vector modes of width
    WIDTH, having as many components as necessary.  */
 #define VECTOR_MODES(C, W) make_vector_modes(MODE_##C, W, __FILE__, __LINE__)
-static void
-make_vector_modes (enum mode_class class, unsigned int width,
+static void ATTRIBUTE_UNUSED
+make_vector_modes (enum mode_class cl, unsigned int width,
 		   const char *file, unsigned int line)
 {
   struct mode_data *m;
   struct mode_data *v;
   char buf[8];
   unsigned int ncomponents;
-  enum mode_class vclass = vector_class (class);
+  enum mode_class vclass = vector_class (cl);
 
   if (vclass == MODE_RANDOM)
     return;
 
-  for (m = modes[class]; m; m = m->next)
+  for (m = modes[cl]; m; m = m->next)
     {
       /* Do not construct vector modes with only one element, or
 	 vector modes where the element size doesn't divide the full
@@ -477,9 +487,9 @@ make_vector_modes (enum mode_class class, unsigned int width,
 
       /* Skip QFmode and BImode.  FIXME: this special case should
 	 not be necessary.  */
-      if (class == MODE_FLOAT && m->bytesize == 1)
+      if (cl == MODE_FLOAT && m->bytesize == 1)
 	continue;
-      if (class == MODE_INT && m->precision == 1)
+      if (cl == MODE_INT && m->precision == 1)
 	continue;
 
       if ((size_t)snprintf (buf, sizeof buf, "V%u%s", ncomponents, m->name)
@@ -503,13 +513,13 @@ make_vector_modes (enum mode_class class, unsigned int width,
 #define CC_MODE(N) _SPECIAL_MODE (CC, N)
 
 static void
-make_special_mode (enum mode_class class, const char *name,
+make_special_mode (enum mode_class cl, const char *name,
 		   const char *file, unsigned int line)
 {
-  new_mode (class, name, file, line);
+  new_mode (cl, name, file, line);
 }
 
-#define INT_MODE(N, Y) FRACTIONAL_INT_MODE (N, -1, Y)
+#define INT_MODE(N, Y) FRACTIONAL_INT_MODE (N, -1U, Y)
 #define FRACTIONAL_INT_MODE(N, B, Y) \
   make_int_mode (#N, B, Y, __FILE__, __LINE__)
 
@@ -523,7 +533,7 @@ make_int_mode (const char *name,
   m->precision = precision;
 }
 
-#define FLOAT_MODE(N, Y, F)             FRACTIONAL_FLOAT_MODE (N, -1, Y, F)
+#define FLOAT_MODE(N, Y, F)             FRACTIONAL_FLOAT_MODE (N, -1U, Y, F)
 #define FRACTIONAL_FLOAT_MODE(N, B, Y, F) \
   make_float_mode (#N, B, Y, #F, __FILE__, __LINE__)
 
@@ -534,6 +544,23 @@ make_float_mode (const char *name,
 		 const char *file, unsigned int line)
 {
   struct mode_data *m = new_mode (MODE_FLOAT, name, file, line);
+  m->bytesize = bytesize;
+  m->precision = precision;
+  m->format = format;
+}
+
+#define DECIMAL_FLOAT_MODE(N, Y, F)	\
+	FRACTIONAL_DECIMAL_FLOAT_MODE (N, -1U, Y, F)
+#define FRACTIONAL_DECIMAL_FLOAT_MODE(N, B, Y, F)	\
+  make_decimal_float_mode (#N, B, Y, #F, __FILE__, __LINE__)
+
+static void
+make_decimal_float_mode (const char *name,
+			 unsigned int precision, unsigned int bytesize,
+			 const char *format,
+			 const char *file, unsigned int line)
+{
+  struct mode_data *m = new_mode (MODE_DECIMAL_FLOAT, name, file, line);
   m->bytesize = bytesize;
   m->precision = precision;
   m->format = format;
@@ -551,9 +578,9 @@ reset_float_format (const char *name, const char *format,
       error ("%s:%d: no mode \"%s\"", file, line, name);
       return;
     }
-  if (m->class != MODE_FLOAT)
+  if (m->cl != MODE_FLOAT && m->cl != MODE_DECIMAL_FLOAT)
     {
-      error ("%s:%d: mode \"%s\" is not class FLOAT", file, line, name);
+      error ("%s:%d: mode \"%s\" is not a FLOAT class", file, line, name);
       return;
     }
   m->format = format;
@@ -562,7 +589,7 @@ reset_float_format (const char *name, const char *format,
 /* Partial integer modes are specified by relation to a full integer mode.
    For now, we do not attempt to narrow down their bit sizes.  */
 #define PARTIAL_INT_MODE(M) \
-  make_partial_integer_mode (#M, "P" #M, -1, __FILE__, __LINE__)
+  make_partial_integer_mode (#M, "P" #M, -1U, __FILE__, __LINE__)
 static void ATTRIBUTE_UNUSED
 make_partial_integer_mode (const char *base, const char *name,
 			   unsigned int precision,
@@ -575,12 +602,12 @@ make_partial_integer_mode (const char *base, const char *name,
       error ("%s:%d: no mode \"%s\"", file, line, name);
       return;
     }
-  if (component->class != MODE_INT)
+  if (component->cl != MODE_INT)
     {
       error ("%s:%d: mode \"%s\" is not class INT", file, line, name);
       return;
     }
-  
+
   m = new_mode (MODE_PARTIAL_INT, name, file, line);
   m->precision = precision;
   m->component = component;
@@ -608,7 +635,9 @@ make_vector_mode (enum mode_class bclass,
       error ("%s:%d: no mode \"%s\"", file, line, base);
       return;
     }
-  if (component->class != bclass)
+  if (component->cl != bclass
+      && (component->cl != MODE_PARTIAL_INT
+	  || bclass != MODE_INT))
     {
       error ("%s:%d: mode \"%s\" is not class %s",
 	     file, line, base, mode_class_names[bclass] + 5);
@@ -619,7 +648,7 @@ make_vector_mode (enum mode_class bclass,
 			ncomponents, base) >= sizeof namebuf)
     {
       error ("%s:%d: mode name \"%s\" is too long",
-	     base, file, line);
+	     file, line, base);
       return;
     }
 
@@ -674,7 +703,12 @@ cmp_modes (const void *a, const void *b)
     return -1;
 
   if (!m->component && !n->component)
-    return 0;
+    {
+      if (m->counter < n->counter)
+	return -1;
+      else
+	return 1;
+    }
 
   if (m->component->bytesize > n->component->bytesize)
     return 1;
@@ -686,13 +720,16 @@ cmp_modes (const void *a, const void *b)
   else if (m->component->precision < n->component->precision)
     return -1;
 
-  return 0;
+  if (m->counter < n->counter)
+    return -1;
+  else
+    return 1;
 }
 
 static void
 calc_wider_mode (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m;
   struct mode_data **sortbuf;
   unsigned int max_n_modes = 0;
@@ -703,7 +740,7 @@ calc_wider_mode (void)
 
   /* Allocate max_n_modes + 1 entries to leave room for the extra null
      pointer assigned after the qsort call below.  */
-  sortbuf = alloca ((max_n_modes + 1) * sizeof (struct mode_data *));
+  sortbuf = (struct mode_data **) alloca ((max_n_modes + 1) * sizeof (struct mode_data *));
 
   for (c = 0; c < MAX_MODE_CLASS; c++)
     {
@@ -717,6 +754,7 @@ calc_wider_mode (void)
 	  for (prev = 0, m = modes[c]; m; m = next)
 	    {
 	      m->wider = void_mode;
+	      m->wider_2x = void_mode;
 
 	      /* this is nreverse */
 	      next = m->next;
@@ -765,7 +803,7 @@ calc_wider_mode (void)
 static void
 emit_insn_modes_h (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m, *first, *last;
 
   printf ("/* Generated automatically from machmode.def%s%s\n",
@@ -866,7 +904,7 @@ emit_min_insn_modes_c_header (void)
 static void
 emit_mode_name (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m;
 
   print_decl ("char *const", "mode_name", "NUM_MACHINE_MODES");
@@ -880,13 +918,13 @@ emit_mode_name (void)
 static void
 emit_mode_class (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m;
 
   print_decl ("unsigned char", "mode_class", "NUM_MACHINE_MODES");
 
   for_all_modes (c, m)
-    tagged_printf ("%s", mode_class_names[m->class], m->name);
+    tagged_printf ("%s", mode_class_names[m->cl], m->name);
 
   print_closer ();
 }
@@ -894,7 +932,7 @@ emit_mode_class (void)
 static void
 emit_mode_precision (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m;
 
   print_decl ("unsigned short", "mode_precision", "NUM_MACHINE_MODES");
@@ -911,7 +949,7 @@ emit_mode_precision (void)
 static void
 emit_mode_size (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m;
 
   print_maybe_const_decl ("%sunsigned char", "mode_size",
@@ -926,7 +964,7 @@ emit_mode_size (void)
 static void
 emit_mode_nunits (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m;
 
   print_decl ("unsigned char", "mode_nunits", "NUM_MACHINE_MODES");
@@ -940,7 +978,7 @@ emit_mode_nunits (void)
 static void
 emit_mode_wider (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m;
 
   print_decl ("unsigned char", "mode_wider", "NUM_MACHINE_MODES");
@@ -951,12 +989,45 @@ emit_mode_wider (void)
 		   m->name);
 
   print_closer ();
+  print_decl ("unsigned char", "mode_2xwider", "NUM_MACHINE_MODES");
+
+  for_all_modes (c, m)
+    {
+      struct mode_data * m2;
+
+      for (m2 = m;
+	   m2 && m2 != void_mode;
+	   m2 = m2->wider)
+	{
+	  if (m2->bytesize < 2 * m->bytesize)
+	    continue;
+	  if (m->precision != (unsigned int) -1)
+	    {
+	      if (m2->precision != 2 * m->precision)
+		continue;
+	    }
+	  else
+	    {
+	      if (m2->precision != (unsigned int) -1)
+		continue;
+	    }
+
+	  break;
+	}
+      if (m2 == void_mode)
+	m2 = 0;
+      tagged_printf ("%smode",
+		     m2 ? m2->name : void_mode->name,
+		     m->name);
+    }
+
+  print_closer ();
 }
 
 static void
 emit_mode_mask (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m;
 
   print_decl ("unsigned HOST_WIDE_INT", "mode_mask_array",
@@ -980,7 +1051,7 @@ emit_mode_mask (void)
 static void
 emit_mode_inner (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m;
 
   print_decl ("unsigned char", "mode_inner", "NUM_MACHINE_MODES");
@@ -996,7 +1067,7 @@ emit_mode_inner (void)
 static void
 emit_mode_base_align (void)
 {
-  enum mode_class c;
+  int c;
   struct mode_data *m;
 
   print_maybe_const_decl ("%sunsigned char",
@@ -1012,7 +1083,7 @@ emit_mode_base_align (void)
 static void
 emit_class_narrowest_mode (void)
 {
-  enum mode_class c;
+  int c;
 
   print_decl ("unsigned char", "class_narrowest_mode", "MAX_MODE_CLASS");
 
@@ -1048,10 +1119,19 @@ emit_real_format_for_mode (void)
 			  format);
 #else
   print_decl ("struct real_format *\n", "real_format_for_mode",
-	      "MAX_MODE_FLOAT - MIN_MODE_FLOAT + 1");
+	      "MAX_MODE_FLOAT - MIN_MODE_FLOAT + 1 "
+	      "+ MAX_MODE_DECIMAL_FLOAT - MIN_MODE_DECIMAL_FLOAT + 1");
 #endif
 
+  /* The beginning of the table is entries for float modes.  */
   for (m = modes[MODE_FLOAT]; m; m = m->next)
+    if (!strcmp (m->format, "0"))
+      tagged_printf ("%s", m->format, m->name);
+    else
+      tagged_printf ("&%s", m->format, m->name);
+
+  /* The end of the table is entries for decimal float modes.  */
+  for (m = modes[MODE_DECIMAL_FLOAT]; m; m = m->next)
     if (!strcmp (m->format, "0"))
       tagged_printf ("%s", m->format, m->name);
     else
@@ -1084,7 +1164,7 @@ emit_mode_adjustments (void)
 
       for (m = a->mode->contained; m; m = m->next_cont)
 	{
-	  switch (m->class)
+	  switch (m->cl)
 	    {
 	    case MODE_COMPLEX_INT:
 	    case MODE_COMPLEX_FLOAT:
@@ -1120,7 +1200,7 @@ emit_mode_adjustments (void)
 
       for (m = a->mode->contained; m; m = m->next_cont)
 	{
-	  switch (m->class)
+	  switch (m->cl)
 	    {
 	    case MODE_COMPLEX_INT:
 	    case MODE_COMPLEX_FLOAT:

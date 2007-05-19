@@ -1,6 +1,6 @@
 /* File format for coverage information
-   Copyright (C) 1996, 1997, 1998, 2000, 2002,
-   2003  Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 2000, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
    Contributed by Bob Manson <manson@cygnus.com>.
    Completely remangled by Nathan Sidwell <nathan@codesourcery.com>.
 
@@ -18,8 +18,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* Routines declared in gcov-io.h.  This file should be #included by
    another source file, after having #included gcov-io.h.  */
@@ -74,8 +74,7 @@ gcov_open (const char *name, int mode)
   s_flock.l_pid = getpid ();
 #endif
   
-  if (gcov_var.file)
-    abort ();
+  gcc_assert (!gcov_var.file);
   gcov_var.start = 0;
   gcov_var.offset = gcov_var.length = 0;
   gcov_var.overread = -1u;
@@ -222,14 +221,14 @@ gcov_write_words (unsigned words)
 {
   gcov_unsigned_t *result;
 
-  GCOV_CHECK_WRITING ();
+  gcc_assert (gcov_var.mode < 0);
 #if IN_LIBGCOV
   if (gcov_var.offset >= GCOV_BLOCK_SIZE)
     {
       gcov_write_block (GCOV_BLOCK_SIZE);
       if (gcov_var.offset)
 	{
-	  GCOV_CHECK (gcov_var.offset == 1);
+	  gcc_assert (gcov_var.offset == 1);
 	  memcpy (gcov_var.buffer, gcov_var.buffer + GCOV_BLOCK_SIZE, 4);
 	}
     }
@@ -268,9 +267,6 @@ gcov_write_counter (gcov_type value)
     buffer[1] = (gcov_unsigned_t) (value >> 32);
   else
     buffer[1] = 0;
-  
-  if (value < 0)
-    gcov_var.error = -1;
 }
 #endif /* IN_LIBGCOV */
 
@@ -327,9 +323,9 @@ gcov_write_length (gcov_position_t position)
   gcov_unsigned_t length;
   gcov_unsigned_t *buffer;
 
-  GCOV_CHECK_WRITING ();
-  GCOV_CHECK (position + 2 <= gcov_var.start + gcov_var.offset);
-  GCOV_CHECK (position >= gcov_var.start);
+  gcc_assert (gcov_var.mode < 0);
+  gcc_assert (position + 2 <= gcov_var.start + gcov_var.offset);
+  gcc_assert (position >= gcov_var.start);
   offset = position - gcov_var.start;
   length = gcov_var.offset - offset - 2;
   buffer = (gcov_unsigned_t *) &gcov_var.buffer[offset];
@@ -384,14 +380,14 @@ gcov_read_words (unsigned words)
   const gcov_unsigned_t *result;
   unsigned excess = gcov_var.length - gcov_var.offset;
   
-  GCOV_CHECK_READING ();
+  gcc_assert (gcov_var.mode > 0);
   if (excess < words)
     {
       gcov_var.start += gcov_var.offset;
 #if IN_LIBGCOV
       if (excess)
 	{
-	  GCOV_CHECK (excess == 1);
+	  gcc_assert (excess == 1);
 	  memcpy (gcov_var.buffer, gcov_var.buffer + gcov_var.offset, 4);
 	}
 #else
@@ -400,7 +396,7 @@ gcov_read_words (unsigned words)
       gcov_var.offset = 0;
       gcov_var.length = excess;
 #if IN_LIBGCOV
-      GCOV_CHECK (!gcov_var.length || gcov_var.length == 1);
+      gcc_assert (!gcov_var.length || gcov_var.length == 1);
       excess = GCOV_BLOCK_SIZE;
 #else
       if (gcov_var.length + words > gcov_var.alloc)
@@ -453,9 +449,7 @@ gcov_read_counter (void)
     value |= ((gcov_type) from_file (buffer[1])) << 32;
   else if (buffer[1])
     gcov_var.error = -1;
-  
-  if (value < 0)
-    gcov_var.error = -1;
+
   return value;
 }
 
@@ -500,7 +494,7 @@ gcov_read_summary (struct gcov_summary *summary)
 GCOV_LINKAGE void
 gcov_sync (gcov_position_t base, gcov_unsigned_t length)
 {
-  GCOV_CHECK_READING ();
+  gcc_assert (gcov_var.mode > 0);
   base += length;
   if (base - gcov_var.start <= gcov_var.length)
     gcov_var.offset = base - gcov_var.start;
@@ -514,16 +508,15 @@ gcov_sync (gcov_position_t base, gcov_unsigned_t length)
 #endif
 
 #if IN_LIBGCOV
-/* Move to the a set position in a gcov file.  BASE is zero to move to
-   the end, and nonzero to move to that position.  */
+/* Move to the a set position in a gcov file.  */
 
 GCOV_LINKAGE void
 gcov_seek (gcov_position_t base)
 {
-  GCOV_CHECK_WRITING ();
+  gcc_assert (gcov_var.mode < 0);
   if (gcov_var.offset)
     gcov_write_block (gcov_var.offset);
-  fseek (gcov_var.file, base << 2, base ? SEEK_SET : SEEK_END);
+  fseek (gcov_var.file, base << 2, SEEK_SET);
   gcov_var.start = ftell (gcov_var.file) >> 2;
 }
 #endif

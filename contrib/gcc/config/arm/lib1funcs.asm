@@ -1,7 +1,7 @@
 @ libgcc routines for ARM cpu.
 @ Division routines, written by Richard Earnshaw, (rearnsha@armltd.co.uk)
 
-/* Copyright 1995, 1996, 1998, 1999, 2000, 2003, 2004
+/* Copyright 1995, 1996, 1998, 1999, 2000, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
 This file is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@ General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 /* ------------------------------------------------------------------------ */
 
 /* We need to know what prefix to add to function names.  */
@@ -60,7 +60,7 @@ Boston, MA 02111-1307, USA.  */
 #define LSYM(x) x
 #endif
 
-/* Function end macros.  Variants for 26 bit APCS and interworking.  */
+/* Function end macros.  Variants for interworking.  */
 
 @ This selects the minimum architecture level required.
 #define __ARM_ARCH__ 3
@@ -74,27 +74,44 @@ Boston, MA 02111-1307, USA.  */
 #endif
 	
 #if defined(__ARM_ARCH_5__) || defined(__ARM_ARCH_5T__) \
-	|| defined(__ARM_ARCH_5TE__)
+	|| defined(__ARM_ARCH_5E__) || defined(__ARM_ARCH_5TE__) \
+	|| defined(__ARM_ARCH_5TEJ__)
 # undef __ARM_ARCH__
 # define __ARM_ARCH__ 5
 #endif
 
+#if defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) \
+	|| defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) \
+	|| defined(__ARM_ARCH_6ZK__)
+# undef __ARM_ARCH__
+# define __ARM_ARCH__ 6
+#endif
+
+#ifndef __ARM_ARCH__
+#error Unable to determine architecture.
+#endif
+
 /* How to return from a function call depends on the architecture variant.  */
 
-#ifdef __APCS_26__
-
-# define RET		movs	pc, lr
-# define RETc(x)	mov##x##s	pc, lr
-
-#elif (__ARM_ARCH__ > 4) || defined(__ARM_ARCH_4T__)
+#if (__ARM_ARCH__ > 4) || defined(__ARM_ARCH_4T__)
 
 # define RET		bx	lr
 # define RETc(x)	bx##x	lr
 
-# if (__ARM_ARCH__ == 4) \
-	&& (defined(__thumb__) || defined(__THUMB_INTERWORK__))
-#  define __INTERWORKING__
-# endif
+/* Special precautions for interworking on armv4t.  */
+# if (__ARM_ARCH__ == 4)
+
+/* Always use bx, not ldr pc.  */
+#  if (defined(__thumb__) || defined(__THUMB_INTERWORK__))
+#    define __INTERWORKING__
+#   endif /* __THUMB__ || __THUMB_INTERWORK__ */
+
+/* Include thumb stub before arm mode code.  */
+#  if defined(__thumb__) && !defined(__THUMB_INTERWORK__)
+#   define __INTERWORKING_STUBS__
+#  endif /* __thumb__ && !__THUMB_INTERWORK__ */
+
+#endif /* __ARM_ARCH == 4 */
 
 #else
 
@@ -103,25 +120,82 @@ Boston, MA 02111-1307, USA.  */
 
 #endif
 
+.macro	cfi_pop		advance, reg, cfa_offset
+#ifdef __ELF__
+	.pushsection	.debug_frame
+	.byte	0x4		/* DW_CFA_advance_loc4 */
+	.4byte	\advance
+	.byte	(0xc0 | \reg)	/* DW_CFA_restore */
+	.byte	0xe		/* DW_CFA_def_cfa_offset */
+	.uleb128 \cfa_offset
+	.popsection
+#endif
+.endm
+.macro	cfi_push	advance, reg, offset, cfa_offset
+#ifdef __ELF__
+	.pushsection	.debug_frame
+	.byte	0x4		/* DW_CFA_advance_loc4 */
+	.4byte	\advance
+	.byte	(0x80 | \reg)	/* DW_CFA_offset */
+	.uleb128 (\offset / -4)
+	.byte	0xe		/* DW_CFA_def_cfa_offset */
+	.uleb128 \cfa_offset
+	.popsection
+#endif
+.endm
+.macro cfi_start	start_label, end_label
+#ifdef __ELF__
+	.pushsection	.debug_frame
+LSYM(Lstart_frame):
+	.4byte	LSYM(Lend_cie) - LSYM(Lstart_cie) @ Length of CIE
+LSYM(Lstart_cie):
+        .4byte	0xffffffff	@ CIE Identifier Tag
+        .byte	0x1	@ CIE Version
+        .ascii	"\0"	@ CIE Augmentation
+        .uleb128 0x1	@ CIE Code Alignment Factor
+        .sleb128 -4	@ CIE Data Alignment Factor
+        .byte	0xe	@ CIE RA Column
+        .byte	0xc	@ DW_CFA_def_cfa
+        .uleb128 0xd
+        .uleb128 0x0
+
+	.align 2
+LSYM(Lend_cie):
+	.4byte	LSYM(Lend_fde)-LSYM(Lstart_fde)	@ FDE Length
+LSYM(Lstart_fde):
+	.4byte	LSYM(Lstart_frame)	@ FDE CIE offset
+	.4byte	\start_label	@ FDE initial location
+	.4byte	\end_label-\start_label	@ FDE address range
+	.popsection
+#endif
+.endm
+.macro cfi_end	end_label
+#ifdef __ELF__
+	.pushsection	.debug_frame
+	.align	2
+LSYM(Lend_fde):
+	.popsection
+\end_label:
+#endif
+.endm
+
 /* Don't pass dirn, it's there just to get token pasting right.  */
 
-.macro	RETLDM	regs=, cond=, dirn=ia
-#ifdef __APCS_26__
+.macro	RETLDM	regs=, cond=, unwind=, dirn=ia
+#if defined (__INTERWORKING__)
 	.ifc "\regs",""
-	ldm\cond\dirn	sp!, {pc}^
-	.else
-	ldm\cond\dirn	sp!, {\regs, pc}^
-	.endif
-#elif defined (__INTERWORKING__)
-	.ifc "\regs",""
-	ldr\cond	lr, [sp], #4
+	ldr\cond	lr, [sp], #8
 	.else
 	ldm\cond\dirn	sp!, {\regs, lr}
+	.endif
+	.ifnc "\unwind", ""
+	/* Mark LR as restored.  */
+97:	cfi_pop 97b - \unwind, 0xe, 0x0
 	.endif
 	bx\cond	lr
 #else
 	.ifc "\regs",""
-	ldr\cond	pc, [sp], #4
+	ldr\cond	pc, [sp], #8
 	.else
 	ldm\cond\dirn	sp!, {\regs, pc}
 	.endif
@@ -129,25 +203,25 @@ Boston, MA 02111-1307, USA.  */
 .endm
 
 
-.macro ARM_LDIV0
-LSYM(Ldiv0):
-	str	lr, [sp, #-4]!
+.macro ARM_LDIV0 name
+	str	lr, [sp, #-8]!
+98:	cfi_push 98b - __\name, 0xe, -0x8, 0x8
 	bl	SYM (__div0) __PLT__
 	mov	r0, #0			@ About as wrong as it could be.
-	RETLDM
+	RETLDM	unwind=98b
 .endm
 
 
-.macro THUMB_LDIV0
-LSYM(Ldiv0):
-	push	{ lr }
+.macro THUMB_LDIV0 name
+	push	{ r1, lr }
+98:	cfi_push 98b - __\name, 0xe, -0x4, 0x8
 	bl	SYM (__div0)
 	mov	r0, #0			@ About as wrong as it could be.
 #if defined (__INTERWORKING__)
-	pop	{ r1 }
-	bx	r1
+	pop	{ r1, r2 }
+	bx	r2
 #else
-	pop	{ pc }
+	pop	{ r1, pc }
 #endif
 .endm
 
@@ -156,12 +230,14 @@ LSYM(Ldiv0):
 .endm
 
 .macro DIV_FUNC_END name
+	cfi_start	__\name, LSYM(Lend_div0)
 LSYM(Ldiv0):
 #ifdef __thumb__
-	THUMB_LDIV0
+	THUMB_LDIV0 \name
 #else
-	ARM_LDIV0
+	ARM_LDIV0 \name
 #endif
+	cfi_end	LSYM(Lend_div0)
 	FUNC_END \name
 .endm
 
@@ -195,15 +271,22 @@ SYM (__\name):
 /* Special function that will always be coded in ARM assembly, even if
    in Thumb-only compilation.  */
 
-#if defined(__thumb__) && !defined(__THUMB_INTERWORK__)
+#if defined(__INTERWORKING_STUBS__)
 .macro	ARM_FUNC_START name
 	FUNC_START \name
 	bx	pc
 	nop
 	.arm
-_L__\name:		/* A hook to tell gdb that we've switched to ARM */
+/* A hook to tell gdb that we've switched to ARM mode.  Also used to call
+   directly from other local arm routines.  */
+_L__\name:		
 .endm
 #define EQUIV .thumb_set
+/* Branch directly to a function declared with ARM_FUNC_START.
+   Must be called in arm mode.  */
+.macro  ARM_CALL name
+	bl	_L__\name
+.endm
 #else
 .macro	ARM_FUNC_START name
 	.text
@@ -214,11 +297,26 @@ _L__\name:		/* A hook to tell gdb that we've switched to ARM */
 SYM (__\name):
 .endm
 #define EQUIV .set
+.macro  ARM_CALL name
+	bl	__\name
+.endm
 #endif
+
+.macro	FUNC_ALIAS new old
+	.globl	SYM (__\new)
+#if defined (__thumb__)
+	.thumb_set	SYM (__\new), SYM (__\old)
+#else
+	.set	SYM (__\new), SYM (__\old)
+#endif
+.endm
 
 .macro	ARM_FUNC_ALIAS new old
 	.globl	SYM (__\new)
 	EQUIV	SYM (__\new), SYM (__\old)
+#if defined(__INTERWORKING_STUBS__)
+	.set	SYM (_L__\new), SYM (_L__\old)
+#endif
 .endm
 
 #ifdef __thumb__
@@ -243,6 +341,25 @@ pc		.req	r15
 /* ------------------------------------------------------------------------ */	
 .macro ARM_DIV_BODY dividend, divisor, result, curbit
 
+#if __ARM_ARCH__ >= 5 && ! defined (__OPTIMIZE_SIZE__)
+
+	clz	\curbit, \dividend
+	clz	\result, \divisor
+	sub	\curbit, \result, \curbit
+	rsbs	\curbit, \curbit, #31
+	addne	\curbit, \curbit, \curbit, lsl #1
+	mov	\result, #0
+	addne	pc, pc, \curbit, lsl #2
+	nop
+	.set	shift, 32
+	.rept	32
+	.set	shift, shift - 1
+	cmp	\dividend, \divisor, lsl #shift
+	adc	\result, \result, \result
+	subcs	\dividend, \dividend, \divisor, lsl #shift
+	.endr
+
+#else /* __ARM_ARCH__ < 5 || defined (__OPTIMIZE_SIZE__) */
 #if __ARM_ARCH__ >= 5
 
 	clz	\curbit, \divisor
@@ -253,7 +370,7 @@ pc		.req	r15
 	mov	\curbit, \curbit, lsl \result
 	mov	\result, #0
 	
-#else
+#else /* __ARM_ARCH__ < 5 */
 
 	@ Initially shift the divisor left 3 bits if possible,
 	@ set curbit accordingly.  This allows for curbit to be located
@@ -284,7 +401,7 @@ pc		.req	r15
 
 	mov	\result, #0
 
-#endif
+#endif /* __ARM_ARCH__ < 5 */
 
 	@ Division loop
 1:	cmp	\dividend, \divisor
@@ -303,6 +420,8 @@ pc		.req	r15
 	movnes	\curbit,   \curbit,  lsr #4	@ No, any more bits to do?
 	movne	\divisor,  \divisor, lsr #4
 	bne	1b
+
+#endif /* __ARM_ARCH__ < 5 || defined (__OPTIMIZE_SIZE__) */
 
 .endm
 /* ------------------------------------------------------------------------ */	
@@ -338,6 +457,22 @@ pc		.req	r15
 /* ------------------------------------------------------------------------ */
 .macro ARM_MOD_BODY dividend, divisor, order, spare
 
+#if __ARM_ARCH__ >= 5 && ! defined (__OPTIMIZE_SIZE__)
+
+	clz	\order, \divisor
+	clz	\spare, \dividend
+	sub	\order, \order, \spare
+	rsbs	\order, \order, #31
+	addne	pc, pc, \order, lsl #3
+	nop
+	.set	shift, 32
+	.rept	32
+	.set	shift, shift - 1
+	cmp	\dividend, \divisor, lsl #shift
+	subcs	\dividend, \dividend, \divisor, lsl #shift
+	.endr
+
+#else /* __ARM_ARCH__ < 5 || defined (__OPTIMIZE_SIZE__) */
 #if __ARM_ARCH__ >= 5
 
 	clz	\order, \divisor
@@ -345,7 +480,7 @@ pc		.req	r15
 	sub	\order, \order, \spare
 	mov	\divisor, \divisor, lsl \order
 	
-#else
+#else /* __ARM_ARCH__ < 5 */
 
 	mov	\order, #0
 
@@ -367,7 +502,7 @@ pc		.req	r15
 	addlo	\order, \order, #1
 	blo	1b
 
-#endif
+#endif /* __ARM_ARCH__ < 5 */
 
 	@ Perform all needed substractions to keep only the reminder.
 	@ Do comparisons in batch of 4 first.
@@ -404,6 +539,9 @@ pc		.req	r15
 4:	cmp	\dividend, \divisor
 	subhs	\dividend, \dividend, \divisor
 5:
+
+#endif /* __ARM_ARCH__ < 5 || defined (__OPTIMIZE_SIZE__) */
+
 .endm
 /* ------------------------------------------------------------------------ */
 .macro THUMB_DIV_MOD_BODY modulo
@@ -568,6 +706,7 @@ LSYM(Lgot_result):
 #ifdef L_udivsi3
 
 	FUNC_START udivsi3
+	FUNC_ALIAS aeabi_uidiv udivsi3
 
 #ifdef __thumb__
 
@@ -614,6 +753,24 @@ LSYM(Lgot_result):
 
 	DIV_FUNC_END udivsi3
 
+FUNC_START aeabi_uidivmod
+#ifdef __thumb__
+	push	{r0, r1, lr}
+	bl	SYM(__udivsi3)
+	POP	{r1, r2, r3}
+	mul	r2, r0
+	sub	r1, r1, r2
+	bx	r3
+#else
+	stmfd	sp!, { r0, r1, lr }
+	bl	SYM(__udivsi3)
+	ldmfd	sp!, { r1, r2, lr }
+	mul	r3, r2, r0
+	sub	r1, r1, r3
+	RET
+#endif
+	FUNC_END aeabi_uidivmod
+	
 #endif /* L_udivsi3 */
 /* ------------------------------------------------------------------------ */
 #ifdef L_umodsi3
@@ -660,6 +817,7 @@ LSYM(Lover10):
 #ifdef L_divsi3
 
 	FUNC_START divsi3	
+	FUNC_ALIAS aeabi_idiv divsi3
 
 #ifdef __thumb__
 	cmp	divisor, #0
@@ -734,6 +892,24 @@ LSYM(Lover12):
 	
 	DIV_FUNC_END divsi3
 
+FUNC_START aeabi_idivmod
+#ifdef __thumb__
+	push	{r0, r1, lr}
+	bl	SYM(__divsi3)
+	POP	{r1, r2, r3}
+	mul	r2, r0
+	sub	r1, r1, r2
+	bx	r3
+#else
+	stmfd	sp!, { r0, r1, lr }
+	bl	SYM(__divsi3)
+	ldmfd	sp!, { r1, r2, lr }
+	mul	r3, r2, r0
+	sub	r1, r1, r3
+	RET
+#endif
+	FUNC_END aeabi_idivmod
+	
 #endif /* L_divsi3 */
 /* ------------------------------------------------------------------------ */
 #ifdef L_modsi3
@@ -799,9 +975,13 @@ LSYM(Lover12):
 #ifdef L_dvmd_tls
 
 	FUNC_START div0
+	FUNC_ALIAS aeabi_idiv0 div0
+	FUNC_ALIAS aeabi_ldiv0 div0
 
 	RET
 
+	FUNC_END aeabi_ldiv0
+	FUNC_END aeabi_idiv0
 	FUNC_END div0
 	
 #endif /* L_divmodsi_tools */
@@ -809,26 +989,143 @@ LSYM(Lover12):
 #ifdef L_dvmd_lnx
 @ GNU/Linux division-by zero handler.  Used in place of L_dvmd_tls
 
-/* Constants taken from <asm/unistd.h> and <asm/signal.h> */
+/* Constant taken from <asm/signal.h>.  */
 #define SIGFPE	8
-#define __NR_SYSCALL_BASE	0x900000
-#define __NR_getpid			(__NR_SYSCALL_BASE+ 20)
-#define __NR_kill			(__NR_SYSCALL_BASE+ 37)
 
 	.code	32
 	FUNC_START div0
 
 	stmfd	sp!, {r1, lr}
-	swi	__NR_getpid
-	cmn	r0, #1000
-	RETLDM	r1 hs
-	mov	r1, #SIGFPE
-	swi	__NR_kill
+	mov	r0, #SIGFPE
+	bl	SYM(raise) __PLT__
 	RETLDM	r1
 
 	FUNC_END div0
 	
 #endif /* L_dvmd_lnx */
+/* ------------------------------------------------------------------------ */
+/* Dword shift operations.  */
+/* All the following Dword shift variants rely on the fact that
+	shft xxx, Reg
+   is in fact done as
+	shft xxx, (Reg & 255)
+   so for Reg value in (32...63) and (-1...-31) we will get zero (in the
+   case of logical shifts) or the sign (for asr).  */
+
+#ifdef __ARMEB__
+#define al	r1
+#define ah	r0
+#else
+#define al	r0
+#define ah	r1
+#endif
+
+/* Prevent __aeabi double-word shifts from being produced on SymbianOS.  */
+#ifndef __symbian__
+
+#ifdef L_lshrdi3
+
+	FUNC_START lshrdi3
+	FUNC_ALIAS aeabi_llsr lshrdi3
+	
+#ifdef __thumb__
+	lsr	al, r2
+	mov	r3, ah
+	lsr	ah, r2
+	mov	ip, r3
+	sub	r2, #32
+	lsr	r3, r2
+	orr	al, r3
+	neg	r2, r2
+	mov	r3, ip
+	lsl	r3, r2
+	orr	al, r3
+	RET
+#else
+	subs	r3, r2, #32
+	rsb	ip, r2, #32
+	movmi	al, al, lsr r2
+	movpl	al, ah, lsr r3
+	orrmi	al, al, ah, lsl ip
+	mov	ah, ah, lsr r2
+	RET
+#endif
+	FUNC_END aeabi_llsr
+	FUNC_END lshrdi3
+
+#endif
+	
+#ifdef L_ashrdi3
+	
+	FUNC_START ashrdi3
+	FUNC_ALIAS aeabi_lasr ashrdi3
+	
+#ifdef __thumb__
+	lsr	al, r2
+	mov	r3, ah
+	asr	ah, r2
+	sub	r2, #32
+	@ If r2 is negative at this point the following step would OR
+	@ the sign bit into all of AL.  That's not what we want...
+	bmi	1f
+	mov	ip, r3
+	asr	r3, r2
+	orr	al, r3
+	mov	r3, ip
+1:
+	neg	r2, r2
+	lsl	r3, r2
+	orr	al, r3
+	RET
+#else
+	subs	r3, r2, #32
+	rsb	ip, r2, #32
+	movmi	al, al, lsr r2
+	movpl	al, ah, asr r3
+	orrmi	al, al, ah, lsl ip
+	mov	ah, ah, asr r2
+	RET
+#endif
+
+	FUNC_END aeabi_lasr
+	FUNC_END ashrdi3
+
+#endif
+
+#ifdef L_ashldi3
+
+	FUNC_START ashldi3
+	FUNC_ALIAS aeabi_llsl ashldi3
+	
+#ifdef __thumb__
+	lsl	ah, r2
+	mov	r3, al
+	lsl	al, r2
+	mov	ip, r3
+	sub	r2, #32
+	lsl	r3, r2
+	orr	ah, r3
+	neg	r2, r2
+	mov	r3, ip
+	lsr	r3, r2
+	orr	ah, r3
+	RET
+#else
+	subs	r3, r2, #32
+	rsb	ip, r2, #32
+	movmi	ah, ah, lsl r2
+	movpl	ah, al, lsl r3
+	orrmi	ah, ah, al, lsr ip
+	mov	al, al, lsl r2
+	RET
+#endif
+	FUNC_END aeabi_llsl
+	FUNC_END ashldi3
+
+#endif
+
+#endif /* __symbian__ */
+
 /* ------------------------------------------------------------------------ */
 /* These next two sections are here despite the fact that they contain Thumb 
    assembler because their presence allows interworked code to be linked even
@@ -836,7 +1133,11 @@ LSYM(Lover12):
 		
 /* Do not build the interworking functions when the target architecture does 
    not support Thumb instructions.  (This can be a multilib option).  */
-#if defined L_call_via_rX && (defined __ARM_ARCH_4T__ || defined __ARM_ARCH_5T__ || defined __ARM_ARCH_5TE__)
+#if defined __ARM_ARCH_4T__ || defined __ARM_ARCH_5T__\
+      || defined __ARM_ARCH_5TE__ || defined __ARM_ARCH_5TEJ__ \
+      || __ARM_ARCH__ >= 6
+
+#if defined L_call_via_rX
 
 /* These labels & instructions are used by the Arm/Thumb interworking code. 
    The address of function to be called is loaded into a register and then 
@@ -874,10 +1175,8 @@ LSYM(Lover12):
 	call_via lr
 
 #endif /* L_call_via_rX */
-/* ------------------------------------------------------------------------ */
-/* Do not build the interworking functions when the target architecture does 
-   not support Thumb instructions.  (This can be a multilib option).  */
-#if defined L_interwork_call_via_rX && (defined __ARM_ARCH_4T__ || defined __ARM_ARCH_5T__ || defined __ARM_ARCH_5TE__)
+
+#if defined L_interwork_call_via_rX
 
 /* These labels & instructions are used by the Arm/Thumb interworking code,
    when the target address is in an unknown instruction set.  The address 
@@ -888,16 +1187,61 @@ LSYM(Lover12):
    the target code cannot be relied upon to return via a BX instruction, so
    instead we have to store the resturn address on the stack and allow the
    called function to return here instead.  Upon return we recover the real
-   return address and use a BX to get back to Thumb mode.  */
+   return address and use a BX to get back to Thumb mode.
+
+   There are three variations of this code.  The first,
+   _interwork_call_via_rN(), will push the return address onto the
+   stack and pop it in _arm_return().  It should only be used if all
+   arguments are passed in registers.
+
+   The second, _interwork_r7_call_via_rN(), instead stores the return
+   address at [r7, #-4].  It is the caller's responsibility to ensure
+   that this address is valid and contains no useful data.
+
+   The third, _interwork_r11_call_via_rN(), works in the same way but
+   uses r11 instead of r7.  It is useful if the caller does not really
+   need a frame pointer.  */
 	
 	.text
 	.align 0
 
 	.code   32
 	.globl _arm_return
+LSYM(Lstart_arm_return):
+	cfi_start	LSYM(Lstart_arm_return) LSYM(Lend_arm_return)
+	cfi_push	0, 0xe, -0x8, 0x8
+	nop	@ This nop is for the benefit of debuggers, so that
+		@ backtraces will use the correct unwind information.
 _arm_return:
-	RETLDM
-	.code   16
+	RETLDM	unwind=LSYM(Lstart_arm_return)
+	cfi_end	LSYM(Lend_arm_return)
+
+	.globl _arm_return_r7
+_arm_return_r7:
+	ldr	lr, [r7, #-4]
+	bx	lr
+
+	.globl _arm_return_r11
+_arm_return_r11:
+	ldr	lr, [r11, #-4]
+	bx	lr
+
+.macro interwork_with_frame frame, register, name, return
+	.code	16
+
+	THUMB_FUNC_START \name
+
+	bx	pc
+	nop
+
+	.code	32
+	tst	\register, #1
+	streq	lr, [\frame, #-4]
+	adreq	lr, _arm_return_\frame
+	bx	\register
+
+	SIZE	(\name)
+.endm
 
 .macro interwork register
 	.code	16
@@ -911,11 +1255,14 @@ _arm_return:
 	.globl LSYM(Lchange_\register)
 LSYM(Lchange_\register):
 	tst	\register, #1
-	streq	lr, [sp, #-4]!
+	streq	lr, [sp, #-8]!
 	adreq	lr, _arm_return
 	bx	\register
 
 	SIZE	(_interwork_call_via_\register)
+
+	interwork_with_frame r7,\register,_interwork_r7_call_via_\register
+	interwork_with_frame r11,\register,_interwork_r11_call_via_\register
 .endm
 	
 	interwork r0
@@ -945,7 +1292,7 @@ LSYM(Lchange_\register):
 	.globl .Lchange_lr
 .Lchange_lr:
 	tst	lr, #1
-	stmeqdb	r13!, {lr}
+	stmeqdb	r13!, {lr, pc}
 	mov	ip, lr
 	adreq	lr, _arm_return
 	bx	ip
@@ -953,7 +1300,10 @@ LSYM(Lchange_\register):
 	SIZE	(_interwork_call_via_lr)
 	
 #endif /* L_interwork_call_via_rX */
+#endif /* Arch supports thumb.  */
 
+#ifndef __symbian__
 #include "ieee754-df.S"
 #include "ieee754-sf.S"
-
+#include "bpabi.S"
+#endif /* __symbian__ */

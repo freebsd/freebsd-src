@@ -1,30 +1,31 @@
 /* Header file for fp-bit.c.  */
-/* Copyright (C) 2000, 2002, 2003
-   Free Software Foundation, Inc.
+/* Copyright (C) 2000, 2002, 2003, 2006 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
-GCC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GCC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+In addition to the permissions in the GNU General Public License, the
+Free Software Foundation gives you unlimited permission to link the
+compiled version of this file into combinations with other programs,
+and to distribute those combinations without any restriction coming
+from the use of this file.  (The General Public License restrictions
+do apply in other respects; for example, they cover modification of
+the file, and distribution when not linked into a combine
+executable.)
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
-
-/* As a special exception, if you link this library with other files,
-   some of which are compiled with GCC, to produce an executable,
-   this library does not by itself cause the resulting executable
-   to be covered by the GNU General Public License.
-   This exception does not however invalidate any other reasons why
-   the executable file might be covered by the GNU General Public License.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #ifndef GCC_FP_BIT_H
 #define GCC_FP_BIT_H
@@ -88,7 +89,9 @@ Boston, MA 02111-1307, USA.  */
 #endif /* ! FINE_GRAINED_LIBRARIES */
 
 #if __LDBL_MANT_DIG__ == 113 || __LDBL_MANT_DIG__ == 106
-# define TMODES
+# if defined(TFLOAT) || defined(L_sf_to_tf) || defined(L_df_to_tf)
+#  define TMODES
+# endif
 #endif
 
 typedef float SFtype __attribute__ ((mode (SF)));
@@ -104,9 +107,10 @@ typedef int DItype __attribute__ ((mode (DI)));
 typedef int TItype __attribute__ ((mode (TI)));
 #endif
 
-/* The type of the result of a fp compare */
+/* The type of the result of a floating point comparison.  This must
+   match `word_mode' in GCC for the target.  */
 #ifndef CMPtype
-#define CMPtype SItype
+typedef int CMPtype __attribute__ ((mode (word)));
 #endif
 
 typedef unsigned int UHItype __attribute__ ((mode (HI)));
@@ -319,7 +323,7 @@ typedef unsigned int UTItype __attribute__ ((mode (TI)));
 #endif
 
 /* Preserve the sticky-bit when shifting fractions to the right.  */
-#define LSHIFT(a) { a = (a & 1) | (a >> 1); }
+#define LSHIFT(a, s) { a = (a >> s) | !!(a & (((fractype) 1 << s) - 1)); }
 
 /* numeric parameters */
 /* F_D_BITOFF is the number of bits offset between the MSB of the mantissa

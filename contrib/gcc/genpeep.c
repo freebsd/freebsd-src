@@ -1,6 +1,6 @@
 /* Generate code from machine description to perform peephole optimizations.
    Copyright (C) 1987, 1989, 1992, 1997, 1998,
-   1999, 2000, 2003 Free Software Foundation, Inc.
+   1999, 2000, 2003, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 
 #include "bconfig.h"
@@ -75,13 +75,13 @@ gen_peephole (rtx peep)
 	  printf ("  do { insn = NEXT_INSN (insn);\n");
 	  printf ("       if (insn == 0) goto L%d; }\n",
 		  insn_code_number);
-	  printf ("  while (GET_CODE (insn) == NOTE\n");
-	  printf ("\t || (GET_CODE (insn) == INSN\n");
+	  printf ("  while (NOTE_P (insn)\n");
+	  printf ("\t || (NONJUMP_INSN_P (insn)\n");
 	  printf ("\t     && (GET_CODE (PATTERN (insn)) == USE\n");
 	  printf ("\t\t || GET_CODE (PATTERN (insn)) == CLOBBER)));\n");
 
-	  printf ("  if (GET_CODE (insn) == CODE_LABEL\n\
-      || GET_CODE (insn) == BARRIER)\n    goto L%d;\n",
+	  printf ("  if (LABEL_P (insn)\n\
+      || BARRIER_P (insn))\n    goto L%d;\n",
 		  insn_code_number);
 	}
 
@@ -359,9 +359,6 @@ main (int argc, char **argv)
 
   progname = "genpeep";
 
-  if (argc <= 1)
-    fatal ("no input file name");
-
   if (init_md_reader_args (argc, argv) != SUCCESS_EXIT_CODE)
     return (FATAL_EXIT_CODE);
 
@@ -379,8 +376,11 @@ from the machine description file `md'.  */\n\n");
   printf ("#include \"output.h\"\n");
   printf ("#include \"real.h\"\n");
   printf ("#include \"recog.h\"\n");
-  printf ("#include \"except.h\"\n\n");
-  printf ("#include \"function.h\"\n\n");
+  printf ("#include \"except.h\"\n");
+  printf ("#include \"function.h\"\n");
+  printf ("#include \"toplev.h\"\n");
+  printf ("#include \"flags.h\"\n");
+  printf ("#include \"tm-constrs.h\"\n\n");
 
   printf ("#ifdef HAVE_peephole\n");
   printf ("extern rtx peep_operand[];\n\n");
@@ -391,7 +391,7 @@ from the machine description file `md'.  */\n\n");
 
   /* Early out: no peepholes for insns followed by barriers.  */
   printf ("  if (NEXT_INSN (ins1)\n");
-  printf ("      && GET_CODE (NEXT_INSN (ins1)) == BARRIER)\n");
+  printf ("      && BARRIER_P (NEXT_INSN (ins1)))\n");
   printf ("    return 0;\n\n");
 
   /* Read the machine description.  */
@@ -428,11 +428,4 @@ from the machine description file `md'.  */\n\n");
 
   fflush (stdout);
   return (ferror (stdout) != 0 ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE);
-}
-
-/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
-const char *
-get_insn_name (int code ATTRIBUTE_UNUSED)
-{
-  return NULL;
 }

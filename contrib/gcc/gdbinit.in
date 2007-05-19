@@ -40,6 +40,24 @@ Print the tree that is $ in C syntax.
 Works only when an inferior is executing.
 end
 
+define pgs
+set debug_generic_stmt ($)
+end
+
+document pgs
+Print the statement that is $ in C syntax.
+Works only when an inferior is executing.
+end
+
+define pge
+set debug_generic_expr ($)
+end
+
+document pge
+Print the expression that is $ in C syntax.
+Works only when an inferior is executing.
+end
+
 define ptc
 output (enum tree_code) $.common.code
 echo \n
@@ -50,7 +68,7 @@ Print the tree-code of the tree node that is $.
 end
 
 define pdn
-output $.decl.name->identifier.id.str
+output $.decl_minimal.name->identifier.id.str
 echo \n
 end
 
@@ -59,7 +77,7 @@ Print the name of the decl-node that is $.
 end
 
 define ptn
-output $.type.name->decl.name->identifier.id.str
+output $.type.name->decl_minimal.name->identifier.id.str
 echo \n
 end
 
@@ -79,7 +97,7 @@ Print the rtx-code and machine mode of the rtx that is $.
 end
 
 define pi
-print $.u.fld[0].rtx@7
+print $.u.fld[0].rt_rtx@7
 end
 
 document pi
@@ -95,9 +113,28 @@ In cc1plus, print the current binding stack, frame by frame, up to and
 including the global binding level.
 end
 
+define pbb
+set dump_bb ($, stderr, 0)
+end
+
+document pbb
+Dump the basic block that is in $, including rtx.
+end
+
+define pbm
+set bitmap_print (stderr, $, "", "\n")
+end
+
+document pbm
+Dump the bitmap that is in $ as a comma-separated list of numbers.
+end
+
 # Put breakpoints at exit and fancy_abort in case abort is mapped
 # to either fprintf/exit or fancy_abort.
 b fancy_abort
+
+# Put a breakpoint on internal_error to help with debugging ICEs.
+b internal_error
 
 # Make gdb complain about symbol reading errors.  This is so that gcc
 # developers can see and fix bugs in gcc debug output.

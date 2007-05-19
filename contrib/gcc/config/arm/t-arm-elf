@@ -1,9 +1,10 @@
 LIB1ASMSRC = arm/lib1funcs.asm
 LIB1ASMFUNCS = _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func \
 	_call_via_rX _interwork_call_via_rX \
+	_lshrdi3 _ashrdi3 _ashldi3 \
 	_negdf2 _addsubdf3 _muldivdf3 _cmpdf2 _unorddf2 _fixdfsi _fixunsdfsi \
 	_truncdfsf2 _negsf2 _addsubsf3 _muldivsf3 _cmpsf2 _unordsf2 \
-	_fixsfsi _fixunssfsi
+	_fixsfsi _fixunssfsi _floatdidf _floatdisf _floatundidf _floatundisf
 
 MULTILIB_OPTIONS     = marm/mthumb
 MULTILIB_DIRNAMES    = arm thumb
@@ -13,7 +14,7 @@ MULTILIB_MATCHES     =
 # MULTILIB_OPTIONS    += mcpu=ep9312
 # MULTILIB_DIRNAMES   += ep9312
 # MULTILIB_EXCEPTIONS += *mthumb/*mcpu=ep9312*
-	
+# 	
 # MULTILIB_OPTIONS     += mlittle-endian/mbig-endian
 # MULTILIB_DIRNAMES    += le be
 # MULTILIB_MATCHES     += mbig-endian=mbe mlittle-endian=mle
@@ -22,13 +23,8 @@ MULTILIB_MATCHES     =
 # MULTILIB_DIRNAMES   += fpu soft
 # MULTILIB_EXCEPTIONS += *mthumb/*mhard-float*
 # 
-# MULTILIB_OPTIONS    += mapcs-32/mapcs-26
-# MULTILIB_DIRNAMES   += 32bit 26bit
-# MULTILIB_EXCEPTIONS += *mthumb/*mapcs-26*
-# 
 # MULTILIB_OPTIONS    += mno-thumb-interwork/mthumb-interwork
 # MULTILIB_DIRNAMES   += normal interwork
-# MULTILIB_EXCEPTIONS += *mapcs-26/*mthumb-interwork*
 # 
 # MULTILIB_OPTIONS    += fno-leading-underscore/fleading-underscore
 # MULTILIB_DIRNAMES   += elf under
@@ -71,7 +67,7 @@ INSTALL_LIBGCC = install-multilib
 # Currently there is a bug somewhere in GCC's alias analysis
 # or scheduling code that is breaking _fpmul_parts in fp-bit.c.
 # Disabling function inlining is a workaround for this problem.
-TARGET_LIBGCC2_CFLAGS = -Dinhibit_libc -fno-inline
+TARGET_LIBGCC2_CFLAGS = -fno-inline
 
 # Assemble startup files.
 $(T)crti.o: $(srcdir)/config/arm/crti.asm $(GCC_PASSES)

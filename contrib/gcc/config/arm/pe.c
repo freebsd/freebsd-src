@@ -1,5 +1,6 @@
 /* Routines for GCC for ARM/pe.
-   Copyright (C) 1995, 1996, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 2000, 2001, 2002, 2004, 2005
+   Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
    This file is part of GCC.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
@@ -95,7 +96,7 @@ arm_dllimport_name_p (symbol)
 }
 
 /* Mark a DECL as being dllexport'd.
-   Note that we override the previous setting (eg: dllimport).  */
+   Note that we override the previous setting (e.g.: dllimport).  */
 
 void
 arm_mark_dllexport (decl)
@@ -107,13 +108,11 @@ arm_mark_dllexport (decl)
   tree idp;
 
   rtlname = XEXP (DECL_RTL (decl), 0);
-  if (GET_CODE (rtlname) == SYMBOL_REF)
-    oldname = XSTR (rtlname, 0);
-  else if (GET_CODE (rtlname) == MEM
-	   && GET_CODE (XEXP (rtlname, 0)) == SYMBOL_REF)
-    oldname = XSTR (XEXP (rtlname, 0), 0);
-  else
-    abort ();
+  if (GET_CODE (rtlname) == MEM)
+    rtlname = XEXP (rtlname, 0);
+  gcc_assert (GET_CODE (rtlname) == SYMBOL_REF);
+  oldname = XSTR (rtlname, 0);
+  
   if (arm_dllimport_name_p (oldname))
     oldname += 9;
   else if (arm_dllexport_name_p (oldname))
@@ -130,7 +129,7 @@ arm_mark_dllexport (decl)
   idp = get_identifier (newname);
 
   XEXP (DECL_RTL (decl), 0) =
-    gen_rtx (SYMBOL_REF, Pmode, IDENTIFIER_POINTER (idp));
+    gen_rtx_SYMBOL_REF (Pmode, IDENTIFIER_POINTER (idp));
 }
 
 /* Mark a DECL as being dllimport'd.  */
@@ -146,17 +145,13 @@ arm_mark_dllimport (decl)
 
   rtlname = XEXP (DECL_RTL (decl), 0);
   
-  if (GET_CODE (rtlname) == SYMBOL_REF)
-    oldname = XSTR (rtlname, 0);
-  else if (GET_CODE (rtlname) == MEM
-	   && GET_CODE (XEXP (rtlname, 0)) == SYMBOL_REF)
-    oldname = XSTR (XEXP (rtlname, 0), 0);
-  else
-    abort ();
+  if (GET_CODE (rtlname) == MEM)
+    rtlname = XEXP (rtlname, 0);
+  gcc_assert (GET_CODE (rtlname) == SYMBOL_REF);
+  oldname = XSTR (rtlname, 0);
   
-  if (arm_dllexport_name_p (oldname))
-    abort (); /* this shouldn't happen */
-  else if (arm_dllimport_name_p (oldname))
+  gcc_assert (!arm_dllexport_name_p (oldname));
+  if (arm_dllimport_name_p (oldname))
     return; /* already done */
 
   /* ??? One can well ask why we're making these checks here,
@@ -167,7 +162,7 @@ arm_mark_dllimport (decl)
       && !DECL_VIRTUAL_P (decl)
       && DECL_INITIAL (decl))
     {
-      error ("%Jinitialized variable '%D' is marked dllimport", decl, decl);
+      error ("initialized variable %q+D is marked dllimport", decl);
       return;
     }
   /* Nor can they be static.  */
@@ -176,7 +171,7 @@ arm_mark_dllimport (decl)
       && !DECL_VIRTUAL_P (decl)
       && 0 /*???*/)
     {
-      error ("%Jstatic variable '%D' is marked dllimport", decl, decl);
+      error ("static variable %q+D is marked dllimport", decl);
       return;
     }
 
@@ -200,9 +195,9 @@ arm_mark_dllimport (decl)
   /* ??? At least I think that's why we do this.  */
   idp = get_identifier (newname);
 
-  newrtl = gen_rtx (MEM, Pmode,
-		    gen_rtx (SYMBOL_REF, Pmode,
-			     IDENTIFIER_POINTER (idp)));
+  newrtl = gen_rtx_MEM (Pmode,
+			gen_rtx_SYMBOL_REF (Pmode,
+					    IDENTIFIER_POINTER (idp)));
   XEXP (DECL_RTL (decl), 0) = newrtl;
 }
 
@@ -213,8 +208,7 @@ arm_pe_encode_section_info (decl, rtl, first)
      int first ATTRIBUTE_UNUSED;
 {
   /* This bit is copied from arm_encode_section_info.  */
-  if (optimize > 0 && TREE_CONSTANT (decl)
-      && (!flag_writable_strings || TREE_CODE (decl) != STRING_CST))
+  if (optimize > 0 && TREE_CONSTANT (decl))
     SYMBOL_REF_FLAG (XEXP (rtl, 0)) = 1;
 
   /* Mark the decl so we can tell from the rtl whether the object is
@@ -236,7 +230,7 @@ arm_pe_encode_section_info (decl, rtl, first)
     {
       const char *oldname = XSTR (XEXP (XEXP (DECL_RTL (decl), 0), 0), 0);
       tree idp = get_identifier (oldname + 9);
-      rtx newrtl = gen_rtx (SYMBOL_REF, Pmode, IDENTIFIER_POINTER (idp));
+      rtx newrtl = gen_rtx_SYMBOL_REF (Pmode, IDENTIFIER_POINTER (idp));
 
       XEXP (DECL_RTL (decl), 0) = newrtl;
 

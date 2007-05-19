@@ -1,5 +1,6 @@
 /* Target definitions for GCC for Intel 80386 running Solaris 2
-   Copyright (C) 1993, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright (C) 1993, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
+   2004
    Free Software Foundation, Inc.
    Contributed by Fred Fish (fnf@cygnus.com).
 
@@ -17,8 +18,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* The Solaris 2.0 x86 linker botches alignment of code sections.
    It tries to align to a 16 byte boundary by padding with 0x00000090
@@ -30,13 +31,23 @@ Boston, MA 02111-1307, USA.  */
    it knows what it is doing.  */
 #define FORCE_CODE_SECTION_ALIGN  asm(ALIGN_ASM_OP "16");
 
-/* Select a format to encode pointers in exception handling data.  CODE
-   is 0 for data, 1 for code labels, 2 for function pointers.  GLOBAL is
-   true if the symbol may be affected by dynamic relocations.  */
+/* Old versions of the Solaris assembler can not handle the difference of
+   labels in different sections, so force DW_EH_PE_datarel.  */
 #undef ASM_PREFERRED_EH_DATA_FORMAT
 #define ASM_PREFERRED_EH_DATA_FORMAT(CODE,GLOBAL)			\
-  (flag_pic ? (GLOBAL ? DW_EH_PE_indirect : 0) | DW_EH_PE_datarel	\
+  (flag_pic ? ((GLOBAL ? DW_EH_PE_indirect : 0)				\
+	       | (TARGET_64BIT ? DW_EH_PE_pcrel | DW_EH_PE_sdata4	\
+		  : DW_EH_PE_datarel))					\
    : DW_EH_PE_absptr)
+
+/* The Solaris linker will not merge a read-only .eh_frame section
+   with a read-write .eh_frame section.  None of the encodings used
+   with non-PIC code require runtime relocations.  In 64-bit mode,
+   since there is no backwards compatibility issue, we use a read-only
+   section for .eh_frame.  In 32-bit mode, we use a writable .eh_frame
+   section in order to be compatible with G++ for Solaris x86.  */
+#undef EH_TABLES_CAN_BE_READ_ONLY
+#define EH_TABLES_CAN_BE_READ_ONLY (TARGET_64BIT)
 
 /* Solaris 2/Intel as chokes on #line directives.  */
 #undef CPP_SPEC
@@ -62,8 +73,10 @@ Boston, MA 02111-1307, USA.  */
 #undef LOCAL_LABEL_PREFIX
 #define LOCAL_LABEL_PREFIX "."
 
-/* The Solaris assembler does not support .quad.  Do not use it.  */
+/* The 32-bit Solaris assembler does not support .quad.  Do not use it.  */
+#ifndef TARGET_BI_ARCH
 #undef ASM_QUAD
+#endif
 
 /* The Solaris assembler wants a .local for non-exported aliases.  */
 #define ASM_OUTPUT_DEF_FROM_DECLS(FILE, DECL, TARGET)	\
@@ -79,3 +92,22 @@ Boston, MA 02111-1307, USA.  */
 	fprintf ((FILE), "\n");				\
       }							\
   } while (0)
+
+/* Solaris-specific #pragmas are implemented on top of attributes.  Hook in
+   the bits from config/sol2.c.  */
+#define SUBTARGET_INSERT_ATTRIBUTES solaris_insert_attributes
+#define SUBTARGET_ATTRIBUTE_TABLE SOLARIS_ATTRIBUTE_TABLE
+
+/* Output a simple call for .init/.fini.  */
+#define ASM_OUTPUT_CALL(FILE, FN)				\
+  do								\
+    {								\
+      fprintf (FILE, "\tcall\t");				\
+      print_operand (FILE, XEXP (DECL_RTL (FN), 0), 'P');	\
+      fprintf (FILE, "\n");					\
+    }								\
+  while (0)
+
+/* We do not need NT_VERSION notes.  */
+#undef X86_FILE_START_VERSION_DIRECTIVE
+#define X86_FILE_START_VERSION_DIRECTIVE false

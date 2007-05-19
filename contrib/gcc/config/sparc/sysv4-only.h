@@ -1,5 +1,5 @@
 /* Target macros for GCC for SPARC running System V.4
-   Copyright (C) 2003
+   Copyright (C) 2003, 2005
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* Provide a set of pre-definitions and pre-assertions appropriate for
    the SPARC running svr4.  __svr4__ is our extension.  */
@@ -26,7 +26,6 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_OS_CPP_BUILTINS()		\
   do						\
     {						\
-	builtin_define_std ("sparc");		\
 	builtin_define_std ("unix");		\
 	builtin_define ("__svr4__");		\
 	builtin_assert ("system=unix");		\

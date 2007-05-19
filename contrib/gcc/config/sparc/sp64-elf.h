@@ -1,5 +1,5 @@
 /* Definitions of target machine for GCC, for SPARC64, ELF.
-   Copyright (C) 1994, 1995, 1996, 1997, 1998, 2000
+   Copyright (C) 1994, 1995, 1996, 1997, 1998, 2000, 2004, 2005
    Free Software Foundation, Inc.
    Contributed by Doug Evans, dje@cygnus.com.
 
@@ -17,19 +17,13 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
-
-/* ??? We're taking the scheme of including another file and then overriding
-   the values we don't like a bit too far here.  The alternative is to more or
-   less duplicate all of svr4.h, sparc/sysv4.h, and sparc/sol2.h here
-   (suitably cleaned up).  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (sparc64-elf)")
 
 /* A 64 bit v9 compiler in a Medium/Anywhere code model environment.  */
-
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT \
 (MASK_V9 + MASK_PTR64 + MASK_64BIT + MASK_HARD_QUAD \
@@ -38,14 +32,8 @@ Boston, MA 02111-1307, USA.  */
 #undef SPARC_DEFAULT_CMODEL
 #define SPARC_DEFAULT_CMODEL CM_EMBMEDANY
 
-/* Target OS builtins for config/sol.h.  */
-#undef TARGET_SUB_OS_CPP_BUILTINS
-#define TARGET_SUB_OS_CPP_BUILTINS()		\
-  do						\
-    {						\
-	builtin_define_std ("sparc");		\
-    }						\
-  while (0)
+/* Don't assume anything about the header files.  */
+#define NO_IMPLICIT_EXTERN_C
 
 /* __svr4__ is used by the C library (FIXME) */
 #undef CPP_SUBTARGET_SPEC
@@ -84,18 +72,33 @@ crtbegin.o%s \
 /* Use the default (for now).  */
 #undef LIB_SPEC
 
-/* V9 chips can handle either endianness.  */
-#undef SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES \
-{"big-endian", -MASK_LITTLE_ENDIAN, N_("Generate code for big endian") }, \
-{"little-endian", MASK_LITTLE_ENDIAN, N_("Generate code for little endian") },
+/* This defines which switch letters take arguments.
+   It is as in svr4.h but with -R added.  */
+#undef SWITCH_TAKES_ARG
+#define SWITCH_TAKES_ARG(CHAR) \
+  (DEFAULT_SWITCH_TAKES_ARG(CHAR) \
+   || (CHAR) == 'R' \
+   || (CHAR) == 'h' \
+   || (CHAR) == 'z')
 
 #undef BYTES_BIG_ENDIAN
 #define BYTES_BIG_ENDIAN (! TARGET_LITTLE_ENDIAN)
 
 #undef WORDS_BIG_ENDIAN
 #define WORDS_BIG_ENDIAN (! TARGET_LITTLE_ENDIAN)
+
+#undef  LOCAL_LABEL_PREFIX
+#define LOCAL_LABEL_PREFIX  "."
 
+/* This is how to store into the string LABEL
+   the symbol_ref name of an internal numbered label where
+   PREFIX is the class of label and NUM is the number within the class.
+   This is suitable for output with `assemble_name'.  */
+
+#undef  ASM_GENERATE_INTERNAL_LABEL
+#define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)	\
+  sprintf ((LABEL), "*.L%s%ld", (PREFIX), (long)(NUM))
+
 /* ??? This should be 32 bits for v9 but what can we do?  */
 #undef WCHAR_TYPE
 #define WCHAR_TYPE "short unsigned int"
@@ -113,12 +116,3 @@ crtbegin.o%s \
    this 0 to not confuse the branch shortening code.  */
 #undef JUMP_TABLES_IN_TEXT_SECTION
 #define JUMP_TABLES_IN_TEXT_SECTION 0
-
-/* System V Release 4 uses DWARF debugging info.
-   GDB doesn't support 64 bit stabs yet and the desired debug format is DWARF
-   anyway so it is the default.  */
-
-#define DBX_DEBUGGING_INFO 1
-
-#undef PREFERRED_DEBUGGING_TYPE
-#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
