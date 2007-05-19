@@ -129,6 +129,9 @@ Instruct
 to ignore this lock.
 .It Dv SX_NOPROFILE
 Do not profile this lock.
+.It Dv SX_RECURSE
+Allow threads to recursively acquire exclusive locks for
+.Fa sx .
 .It Dv SX_QUIET
 Do not log any operations for this lock via
 .Xr ktr 4 .
