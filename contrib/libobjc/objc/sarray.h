@@ -1,5 +1,5 @@
 /* Sparse Arrays for Objective C dispatch tables
-   Copyright (C) 1993, 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996, 2004 Free Software Foundation, Inc.
    Contributed by Kresten Krab Thorup.
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, if you link this library with files
    compiled with GCC to produce an executable, this does not cause
@@ -27,6 +27,8 @@ Boston, MA 02111-1307, USA.  */
 
 #ifndef __sarray_INCLUDE_GNU
 #define __sarray_INCLUDE_GNU
+
+#include "thr.h"
 
 #define OBJC_SPARSE2		/* 2-level sparse array */
 /* #define OBJC_SPARSE3 */      /* 3-level sparse array */
@@ -40,15 +42,16 @@ extern const char* __objc_sparse3_id;
 #endif
 
 #include <stddef.h>
+#include <assert.h>
 
-#include "objc/thr.h"
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
 extern int nbuckets;		/* for stats */
 extern int nindices;
 extern int narrays;
 extern int idxsize;
-
-#include <assert.h>
 
 /* An unsigned integer of same size as a pointer */
 #define SIZET_BITS (sizeof(size_t)*8)
@@ -233,5 +236,9 @@ static inline void* sarray_get_safe(struct sarray* array, sidx indx)
   else
     return (array->empty_bucket->elems[0]);
 }
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* __sarray_INCLUDE_GNU */
