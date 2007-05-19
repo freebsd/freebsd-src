@@ -71,7 +71,9 @@ typedef struct {
 Software IEC/IEEE floating-point underflow tininess-detection mode.
 -------------------------------------------------------------------------------
 */
+#ifndef SOFTFLOAT_FOR_GCC
 extern int float_detect_tininess;
+#endif
 enum {
     float_tininess_after_rounding  = 0,
     float_tininess_before_rounding = 1
