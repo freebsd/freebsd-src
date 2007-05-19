@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap.
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
  * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
+ * Modifications by: Adam Radford
  */
 
 
@@ -133,11 +134,6 @@ struct twa_softc {
 	TW_VOID			*non_dma_mem;
 	TW_VOID			*dma_mem;
 	TW_UINT64		dma_mem_phys;
-#ifdef TW_OSL_FLASH_FIRMWARE
-	TW_VOID			*flash_dma_mem;
-	TW_UINT64		flash_dma_mem_phys;
-#endif /* TW_OSL_FLASH_FIRMWARE */
-
 
 	/* Request queues and arrays. */
 	struct tw_cl_link	req_q_head[TW_OSLI_Q_COUNT];
@@ -164,10 +160,6 @@ struct twa_softc {
 	bus_dma_tag_t		ioctl_tag; /* ioctl data buffer DMA tag */
 	bus_dmamap_t		cmd_map; /* DMA map for CL's DMA'able mem */
 	bus_dmamap_t		ioctl_map; /* DMA map for ioctl data buffers */
-#ifdef TW_OSL_FLASH_FIRMWARE
-	bus_dma_tag_t		flash_tag;/* DMA tag for CL's fw flash mem */
-	bus_dmamap_t		flash_map;/* DMA map for CL's fw flash mem */
-#endif /* TW_OSL_FLASH_FIRMWARE */
 	struct resource		*irq_res;	/* interrupt resource */
 	TW_INT32		irq_res_id;	/* register resource id */
 	TW_VOID			*intr_handle;	/* interrupt handle */

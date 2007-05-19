@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap.
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
  * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
+ * Modifications by: Adam Radford
  */
 
 
@@ -70,15 +71,11 @@
 #define TW_OSL_DEBUG	TWA_DEBUG
 #endif
 
-#ifdef TWA_FLASH_FIRMWARE
-#define TW_OSL_FLASH_FIRMWARE
-#endif
-
 #ifdef TWA_ENCLOSURE_SUPPORT
 #define TW_OSL_ENCLOSURE_SUPPORT
 #endif
 
-#define TW_OSL_DRIVER_VERSION_STRING	"3.60.02.012"
+#define TW_OSL_DRIVER_VERSION_STRING	"3.60.03.006"
 
 #define	TW_OSL_CAN_SLEEP
 
@@ -86,7 +83,6 @@
 typedef TW_VOID			*TW_SLEEP_HANDLE;
 #endif /* TW_OSL_CAN_SLEEP */
 
-/*#define TW_OSL_DMA_MEM_ALLOC_PER_REQUEST*/
 #define TW_OSL_PCI_CONFIG_ACCESSIBLE
 
 #if _BYTE_ORDER == _BIG_ENDIAN
