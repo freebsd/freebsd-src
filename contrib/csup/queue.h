@@ -35,7 +35,7 @@
 #ifndef _QUEUE_H_
 #define	_QUEUE_H_
 
-#undef __ofsetof
+#undef __offsetof
 #define	__offsetof(type, field)	((size_t)(&((type *)0)->field))
 
 /*
