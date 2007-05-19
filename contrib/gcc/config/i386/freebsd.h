@@ -1,5 +1,5 @@
 /* Definitions for Intel 386 running FreeBSD with ELF format
-   Copyright (C) 1996, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1996, 2000, 2002, 2004 Free Software Foundation, Inc.
    Contributed by Eric Youngdale.
    Modified for stabs-in-ELF by H.J. Lu.
    Adapted from GNU/Linux version by John Polstra.
@@ -19,16 +19,13 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* $FreeBSD$ */
 
 #undef  CC1_SPEC
 #define CC1_SPEC "%(cc1_cpu) %{profile:-p}"
-
-#undef  ASM_SPEC
-#define ASM_SPEC	"%{v*: -v}"
 
 /* Provide a LINK_SPEC appropriate for FreeBSD.  Here we provide support
    for the special GCC options -static and -shared, which allow us to
@@ -44,7 +41,6 @@ Boston, MA 02111-1307, USA.  */
 #undef	LINK_SPEC
 #define LINK_SPEC "\
  %{p:%nconsider using `-pg' instead of `-p' with gprof(1) } \
-    %{Wl,*:%*} \
     %{v:-V} \
     %{assert*} %{R*} %{rpath*} %{defsym*} \
     %{shared:-Bshareable %{h*} %{soname*}} \
@@ -88,15 +84,7 @@ Boston, MA 02111-1307, USA.  */
 
 #define TARGET_VERSION	fprintf (stderr, " (i386 FreeBSD/ELF)");
 
-#define MASK_PROFILER_EPILOGUE	010000000000
-
-#define TARGET_PROFILER_EPILOGUE	(target_flags & MASK_PROFILER_EPILOGUE)
 #define TARGET_ELF			1
-
-#undef	SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES						\
-  { "profiler-epilogue",	 MASK_PROFILER_EPILOGUE, "Function profiler epilogue"}, \
-  { "no-profiler-epilogue",	-MASK_PROFILER_EPILOGUE, "No function profiler epilogue"},
 
 /* This goes away when the math emulator is fixed.  */
 #undef  TARGET_SUBTARGET_DEFAULT
@@ -174,17 +162,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  ASM_HACK_SYMBOLREF_CODE	/* BDE will need to fix this. */
 
-#undef  ASM_OUTPUT_ALIGN
-#define ASM_OUTPUT_ALIGN(FILE, LOG)      				\
-  do {					     				\
-    if ((LOG)!=0) {							\
-      if (in_text_section())						\
-	fprintf ((FILE), "\t.p2align %d,0x90\n", (LOG));		\
-      else								\
-	fprintf ((FILE), "\t.p2align %d\n", (LOG));			\
-    }									\
-  } while (0)
-
 /* A C statement to output to the stdio stream FILE an assembler
    command to advance the location counter to a multiple of 1<<LOG
    bytes if it is within MAX_SKIP bytes.
@@ -233,8 +210,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  DBX_REGISTER_NUMBER
 #define DBX_REGISTER_NUMBER(n)	(TARGET_64BIT ? dbx64_register_map[n]	\
-				: (write_symbols == DWARF2_DEBUG	\
-	    			  || write_symbols == DWARF_DEBUG)	\
+				: (write_symbols == DWARF2_DEBUG)	\
 				  ? svr4_dbx_register_map[(n)]		\
 				  : dbx_register_map[(n)])
 
@@ -250,21 +226,21 @@ Boston, MA 02111-1307, USA.  */
 #undef  DBX_OUTPUT_LBRAC
 #define DBX_OUTPUT_LBRAC(FILE, NAME)					\
   do {									\
-    fprintf (asmfile, "%s %d,0,0,", ASM_STABN_OP, N_LBRAC);		\
-    assemble_name (asmfile, NAME);					\
-        fputc ('-', asmfile);						\
-        assemble_name (asmfile,						\
+    fprintf (asm_out_file, "%s %d,0,0,", ASM_STABN_OP, N_LBRAC);	\
+    assemble_name (asm_out_file, NAME);					\
+        fputc ('-', asm_out_file);					\
+        assemble_name (asm_out_file,					\
 	      	 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
-    fprintf (asmfile, "\n");						\
+    fprintf (asm_out_file, "\n");					\
   } while (0)
 
 #undef  DBX_OUTPUT_RBRAC
 #define DBX_OUTPUT_RBRAC(FILE, NAME)					\
   do {									\
-    fprintf (asmfile, "%s %d,0,0,", ASM_STABN_OP, N_RBRAC);		\
-    assemble_name (asmfile, NAME);					\
-        fputc ('-', asmfile);						\
-        assemble_name (asmfile,						\
+    fprintf (asm_out_file, "%s %d,0,0,", ASM_STABN_OP, N_RBRAC);	\
+    assemble_name (asm_out_file, NAME);					\
+        fputc ('-', asm_out_file);					\
+        assemble_name (asm_out_file,					\
 		 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
-    fprintf (asmfile, "\n");						\
+    fprintf (asm_out_file, "\n");					\
   } while (0)
