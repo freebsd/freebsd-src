@@ -1,4 +1,5 @@
-/* Copyright (C) 1989, 1997, 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1997, 1998, 1999, 2000, 2002, 2004
+   Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -14,8 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, if you include this header file into source
    files compiled by GCC, this header file does not by itself cause
@@ -295,7 +296,7 @@ typedef _BSD_RUNE_T_ rune_t;
 #define _BSD_WCHAR_T_DEFINED_
 #define _BSD_RUNE_T_DEFINED_	/* Darwin */
 #if defined (__FreeBSD__) && (__FreeBSD__ < 5)
-/* Why is this file so hard to maintain properly?  In constrast to
+/* Why is this file so hard to maintain properly?  In contrast to
    the comment above regarding BSD/386 1.1, on FreeBSD for as long
    as the symbol has existed, _BSD_RUNE_T_ must not stay defined or
    redundant typedefs will occur when stdlib.h is included after this file. */
@@ -410,16 +411,8 @@ typedef __WINT_TYPE__ wint_t;
 #ifdef _STDDEF_H
 
 /* Offset of member MEMBER in a struct of type TYPE. */
-#ifndef __cplusplus
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#else
-/* The cast to "char &" below avoids problems with user-defined
-   "operator &", which can appear in a POD type.  */
-#define offsetof(TYPE, MEMBER)					\
-  (__offsetof__ (reinterpret_cast <size_t>			\
-                 (&reinterpret_cast <const volatile char &>	\
-                  (static_cast<TYPE *> (0)->MEMBER))))
-#endif /* C++ */
+#define offsetof(TYPE, MEMBER) __builtin_offsetof (TYPE, MEMBER)
+
 #endif /* _STDDEF_H was defined this time */
 
 #endif /* !_STDDEF_H && !_STDDEF_H_ && !_ANSI_STDDEF_H && !__STDDEF_H__
