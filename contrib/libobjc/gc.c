@@ -1,5 +1,5 @@
 /* Basic data types for Objective C.
-   Copyright (C) 1998, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1998, 2002, 2004, 2005, 2006 Free Software Foundation, Inc.
    Contributed by Ovidiu Predescu.
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, if you link this library with files
    compiled with GCC to produce an executable, this does not cause
@@ -26,8 +26,8 @@ Boston, MA 02111-1307, USA.  */
    the executable file might be covered by the GNU General Public License.  */
 
 #include "tconfig.h"
-#include "objc.h"
-#include "encoding.h"
+#include "objc/objc.h"
+#include "objc/encoding.h"
 
 #include <assert.h>
 #include <string.h>
@@ -250,7 +250,7 @@ __objc_class_structure_encoding (Class class, char **type, int *size,
   if (! class)
     {
       strcat (*type, "{");
-      *current++;
+      (*current)++;
       return;
     }
 
@@ -397,30 +397,34 @@ class_ivar_set_gcinvisible (Class class, const char *ivarname,
       if (*type == _C_GCINVISIBLE)
 	{
 	  char *new_type;
+	  size_t len;
 
 	  if (gc_invisible || ! __objc_ivar_pointer (type))
 	    return;	/* The type of the variable already matches the
 			   requested gc_invisible type */
 
-	  /* The variable is gc_invisible and we have to reverse it */
-	  new_type = objc_atomic_malloc (strlen (ivar->ivar_type));
-	  strncpy (new_type, ivar->ivar_type,
-		   (size_t)(type - ivar->ivar_type));
+	  /* The variable is gc_invisible so we make it gc visible.  */
+	  new_type = objc_atomic_malloc (strlen(ivar->ivar_type));
+	  len = (type - ivar->ivar_type);
+	  memcpy (new_type, ivar->ivar_type, len);
+	  new_type[len] = 0;
 	  strcat (new_type, type + 1);
 	  ivar->ivar_type = new_type;
 	}
       else
 	{
 	  char *new_type;
+	  size_t len;
 
 	  if (! gc_invisible || ! __objc_ivar_pointer (type))
 	    return;	/* The type of the variable already matches the
 			   requested gc_invisible type */
 
-	  /* The variable is gc visible and we have to make it gc_invisible */
-	  new_type = objc_malloc (strlen (ivar->ivar_type) + 2);
-	  strncpy (new_type, ivar->ivar_type,
-		   (size_t)(type - ivar->ivar_type));
+	  /* The variable is gc visible so we make it gc_invisible.  */
+	  new_type = objc_malloc (strlen(ivar->ivar_type) + 2);
+	  len = (type - ivar->ivar_type);
+	  memcpy (new_type, ivar->ivar_type, len);
+	  new_type[len] = 0;
 	  strcat (new_type, "!");
 	  strcat (new_type, type);
 	  ivar->ivar_type = new_type;

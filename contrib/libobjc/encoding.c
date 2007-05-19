@@ -1,5 +1,5 @@
 /* Encoding of types for Objective C.
-   Copyright (C) 1993, 1995, 1996, 1997, 1998, 2000, 2002
+   Copyright (C) 1993, 1995, 1996, 1997, 1998, 2000, 2002, 2004
    Free Software Foundation, Inc.
    Contributed by Kresten Krab Thorup
    Bitfield support by Ovidiu Predescu
@@ -18,8 +18,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, if you link this library with files
    compiled with GCC to produce an executable, this does not cause
@@ -32,8 +32,8 @@ Boston, MA 02111-1307, USA.  */
 #include "tconfig.h"
 #include "coretypes.h"
 #include "tm.h"
-#include "objc-api.h"
-#include "encoding.h"
+#include "objc/objc-api.h"
+#include "objc/encoding.h"
 #include <stdlib.h>
 
 #undef  MAX
@@ -67,26 +67,45 @@ Boston, MA 02111-1307, USA.  */
 
 #define VECTOR_TYPE	_C_VECTOR
 
-#define TYPE_FIELDS(TYPE)     objc_skip_typespec (TYPE)
+#define TYPE_FIELDS(TYPE)           ({const char *_field = (TYPE)+1; \
+    while (*_field != _C_STRUCT_E && *_field != _C_STRUCT_B \
+           && *_field != _C_UNION_B && *_field++ != '=') \
+    /* do nothing */; \
+    _field;})
 
 #define DECL_MODE(TYPE) *(TYPE)
 #define TYPE_MODE(TYPE) *(TYPE)
 
 #define DFmode          _C_DBL
 
-#define get_inner_array_type(TYPE)      ((TYPE) + 1)
+#define get_inner_array_type(TYPE)      ({const char *_field = (TYPE); \
+  while (*_field == _C_ARY_B)\
+    {\
+      while (isdigit ((unsigned char)*++_field))\
+	;\
+    }\
+    _field;})
 
 /* Some ports (eg ARM) allow the structure size boundary to be
    selected at compile-time.  We override the normal definition with
    one that has a constant value for this compilation.  */
-#undef STRUCTURE_SIZE_BOUNDARY
+#ifndef BITS_PER_UNIT
+#define BITS_PER_UNIT 8
+#endif
+#undef  STRUCTURE_SIZE_BOUNDARY
 #define STRUCTURE_SIZE_BOUNDARY (BITS_PER_UNIT * sizeof (struct{char a;}))
 
 /* Some ROUND_TYPE_ALIGN macros use TARGET_foo, and consequently
-   target_flags.  Define a dummy entry here to so we don't die.  */
-/* ??? FIXME: As of 2002-06-21, the attribute `unused' doesn't seem to
-   eliminate the warning.  */
-static int __attribute__ ((__unused__)) target_flags = 0;
+   target_flags.  Define a dummy entry here to so we don't die.
+   We have to rename it because target_flags may already have been
+   declared extern.  */
+#define target_flags not_target_flags
+static int __attribute__ ((__unused__)) not_target_flags = 0;
+
+/* Some ROUND_TYPE_ALIGN use ALTIVEC_VECTOR_MODE (rs6000 darwin).
+   Define a dummy ALTIVEC_VECTOR_MODE so it will not die.  */
+#undef ALTIVEC_VECTOR_MODE
+#define ALTIVEC_VECTOR_MODE(MODE) (0)
 
 
 /*  FIXME: while this file has no business including tm.h, this
@@ -94,10 +113,13 @@ static int __attribute__ ((__unused__)) target_flags = 0;
     is only way around without really rewritting this file,
     should look after the branch of 3.4 to fix this.  */
 #define rs6000_special_round_type_align(STRUCT, COMPUTED, SPECIFIED)	\
-  ((TYPE_FIELDS (STRUCT) != 0						\
-    && DECL_MODE (TYPE_FIELDS (STRUCT)) == DFmode)			\
+  ({ const char *_fields = TYPE_FIELDS (STRUCT);				\
+  ((_fields != 0							\
+    && TYPE_MODE (TREE_CODE (TREE_TYPE (_fields)) == ARRAY_TYPE		\
+		    ? get_inner_array_type (_fields)			\
+		    : TREE_TYPE (_fields)) == DFmode)			\
    ? MAX (MAX (COMPUTED, SPECIFIED), 64)				\
-   : MAX (COMPUTED, SPECIFIED))
+   : MAX (COMPUTED, SPECIFIED));})
 
 /*
   return the size of an object specified by type
@@ -114,6 +136,10 @@ objc_sizeof_type (const char *type)
     }
 
   switch (*type) {
+  case _C_BOOL:
+    return sizeof (_Bool);
+    break;
+
   case _C_ID:
     return sizeof (id);
     break;
@@ -209,6 +235,7 @@ objc_sizeof_type (const char *type)
       return endByte - startByte;
     }
 
+  case _C_UNION_B:
   case _C_STRUCT_B:
     {
       struct objc_struct_layout layout;
@@ -221,24 +248,67 @@ objc_sizeof_type (const char *type)
 
       return size;
     }
-
-  case _C_UNION_B:
+    
+  case _C_COMPLEX:
     {
-      int max_size = 0;
-      while (*type != _C_UNION_E && *type++ != '=')
-	/* do nothing */;
-      while (*type != _C_UNION_E)
-	{
-	  /* Skip the variable name if any */
-	  if (*type == '"')
-	    {
-	      for (type++; *type++ != '"';)
-		/* do nothing */;
-	    }
-	  max_size = MAX (max_size, objc_sizeof_type (type));
-	  type = objc_skip_typespec (type);
+      type++; /* Skip after the 'j'. */
+      switch (*type)
+        {
+	    case _C_CHR:
+	      return sizeof (_Complex char);
+	      break;
+
+	    case _C_UCHR:
+	      return sizeof (_Complex unsigned char);
+	      break;
+
+	    case _C_SHT:
+	      return sizeof (_Complex short);
+	      break;
+
+	    case _C_USHT:
+	      return sizeof (_Complex unsigned short);
+	      break;
+
+	    case _C_INT:
+	      return sizeof (_Complex int);
+	      break;
+
+	    case _C_UINT:
+	      return sizeof (_Complex unsigned int);
+	      break;
+
+	    case _C_LNG:
+	      return sizeof (_Complex long);
+	      break;
+
+	    case _C_ULNG:
+	      return sizeof (_Complex unsigned long);
+	      break;
+
+	    case _C_LNG_LNG:
+	      return sizeof (_Complex long long);
+	      break;
+
+	    case _C_ULNG_LNG:
+	      return sizeof (_Complex unsigned long long);
+	      break;
+
+	    case _C_FLT:
+	      return sizeof (_Complex float);
+	      break;
+
+	    case _C_DBL:
+	      return sizeof (_Complex double);
+	      break;
+	    
+	    default:
+	      {
+		objc_error (nil, OBJC_ERR_BAD_TYPE, "unknown complex type %s\n",
+			    type);
+		return 0;
+	      }
 	}
-      return max_size;
     }
 
   default:
@@ -264,6 +334,10 @@ objc_alignof_type (const char *type)
 	/* do nothing */;
     }
   switch (*type) {
+  case _C_BOOL:
+    return __alignof__ (_Bool);
+    break;
+
   case _C_ID:
     return __alignof__ (id);
     break;
@@ -336,6 +410,7 @@ objc_alignof_type (const char *type)
     return objc_alignof_type (type);
 
   case _C_STRUCT_B:
+  case _C_UNION_B:
     {
       struct objc_struct_layout layout;
       unsigned int align;
@@ -347,24 +422,68 @@ objc_alignof_type (const char *type)
 
       return align;
     }
-
-  case _C_UNION_B:
+    
+    
+  case _C_COMPLEX:
     {
-      int maxalign = 0;
-      while (*type != _C_UNION_E && *type++ != '=')
-	/* do nothing */;
-      while (*type != _C_UNION_E)
-	{
-	  /* Skip the variable name if any */
-	  if (*type == '"')
-	    {
-	      for (type++; *type++ != '"';)
-		/* do nothing */;
-	    }
-	  maxalign = MAX (maxalign, objc_alignof_type (type));
-	  type = objc_skip_typespec (type);
+      type++; /* Skip after the 'j'. */
+      switch (*type)
+        {
+	    case _C_CHR:
+	      return __alignof__ (_Complex char);
+	      break;
+
+	    case _C_UCHR:
+	      return __alignof__ (_Complex unsigned char);
+	      break;
+
+	    case _C_SHT:
+	      return __alignof__ (_Complex short);
+	      break;
+
+	    case _C_USHT:
+	      return __alignof__ (_Complex unsigned short);
+	      break;
+
+	    case _C_INT:
+	      return __alignof__ (_Complex int);
+	      break;
+
+	    case _C_UINT:
+	      return __alignof__ (_Complex unsigned int);
+	      break;
+
+	    case _C_LNG:
+	      return __alignof__ (_Complex long);
+	      break;
+
+	    case _C_ULNG:
+	      return __alignof__ (_Complex unsigned long);
+	      break;
+
+	    case _C_LNG_LNG:
+	      return __alignof__ (_Complex long long);
+	      break;
+
+	    case _C_ULNG_LNG:
+	      return __alignof__ (_Complex unsigned long long);
+	      break;
+
+	    case _C_FLT:
+	      return __alignof__ (_Complex float);
+	      break;
+
+	    case _C_DBL:
+	      return __alignof__ (_Complex double);
+	      break;
+	    
+	    default:
+	      {
+		objc_error (nil, OBJC_ERR_BAD_TYPE, "unknown complex type %s\n",
+			    type);
+		return 0;
+	      }
 	}
-      return maxalign;
     }
 
   default:
@@ -487,6 +606,7 @@ objc_skip_typespec (const char *type)
   case _C_INT:
   case _C_UINT:
   case _C_LNG:
+  case _C_BOOL:
   case _C_ULNG:
   case _C_LNG_LNG:
   case _C_ULNG_LNG:
@@ -495,6 +615,10 @@ objc_skip_typespec (const char *type)
   case _C_VOID:
   case _C_UNDEF:
     return ++type;
+    break;
+    
+  case _C_COMPLEX:
+    return type + 2;
     break;
 
   case _C_ARY_B:
@@ -744,13 +868,14 @@ objc_layout_structure (const char *type,
 {
   const char *ntype;
 
-  if (*type++ != _C_STRUCT_B)
+  if (*type != _C_UNION_B && *type != _C_STRUCT_B)
     {
       objc_error (nil, OBJC_ERR_BAD_TYPE,
-                 "record type expected in objc_layout_structure, got %s\n",
+                 "record (or union) type expected in objc_layout_structure, got %s\n",
                  type);
     }
 
+  type ++;
   layout->original_type = type;
 
   /* Skip "<name>=" if any. Avoid embedded structures and unions. */
@@ -783,13 +908,17 @@ objc_layout_structure_next_member (struct objc_struct_layout *layout)
 
   /* The current type without the type qualifiers */
   const char *type;
+  BOOL unionp = layout->original_type[-1] == _C_UNION_B;
 
   /* Add the size of the previous field to the size of the record.  */
   if (layout->prev_type)
     {
       type = objc_skip_type_qualifiers (layout->prev_type);
+      if (unionp)
+        layout->record_size = MAX (layout->record_size,
+				   objc_sizeof_type (type) * BITS_PER_UNIT);
 
-      if (*type != _C_BFLD)
+      else if (*type != _C_BFLD)
         layout->record_size += objc_sizeof_type (type) * BITS_PER_UNIT;
       else {
         /* Get the bitfield's type */
@@ -805,7 +934,8 @@ objc_layout_structure_next_member (struct objc_struct_layout *layout)
       }
     }
 
-  if (*layout->type == _C_STRUCT_E)
+  if ((unionp && *layout->type == _C_UNION_E)
+      || (!unionp && *layout->type == _C_STRUCT_E))
     return NO;
 
   /* Skip the variable name if any */
@@ -905,14 +1035,16 @@ void objc_layout_finish_structure (struct objc_struct_layout *layout,
                                    unsigned int *size,
                                    unsigned int *align)
 {
-  if (layout->type && *layout->type == _C_STRUCT_E)
+  BOOL unionp = layout->original_type[-1] == _C_UNION_B;
+  if (layout->type
+      && ((!unionp && *layout->type == _C_STRUCT_E)
+       	  || (unionp && *layout->type == _C_UNION_E)))
     {
       /* Work out the alignment of the record as one expression and store
          in the record type.  Round it up to a multiple of the record's
          alignment. */
-
 #if defined (ROUND_TYPE_ALIGN) && ! defined (__sparc__)
-      layout->record_align = ROUND_TYPE_ALIGN (layout->original_type,
+      layout->record_align = ROUND_TYPE_ALIGN (layout->original_type-1,
                                                1,
                                                layout->record_align);
 #else

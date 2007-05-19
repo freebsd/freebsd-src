@@ -1,5 +1,5 @@
 /* Sparse Arrays for Objective C dispatch tables
-   Copyright (C) 1993, 1995, 1996, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996, 2002, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, if you link this library with files
    compiled with GCC to produce an executable, this does not cause
@@ -24,8 +24,8 @@ Boston, MA 02111-1307, USA.  */
    This exception does not however invalidate any other reasons why
    the executable file might be covered by the GNU General Public License.  */
 
-#include "sarray.h"
-#include "runtime.h"
+#include "objc/sarray.h"
+#include "objc/runtime.h"
 #include <stdio.h>
 #include "assert.h"
 
@@ -459,7 +459,9 @@ sarray_free (struct sarray *array) {
 
 #endif
   
-  /* If this is a copy, go ahead and decrement/deallocate the original */
+  /* If this is a copy of another array, we free it (which might just
+   * decrement its reference count so it will be freed when no longer in use).
+   */
   if (array->is_copy_of)
     sarray_free (array->is_copy_of);
 
