@@ -20,6 +20,11 @@ CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=
 PRECIOUSLIB=
 
+#
+# Only link with static libgcc.a (no libgcc_eh.a).
+#
+LDFLAGS+= -nodefaultlibs -lgcc
+
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:
 MDSRCS=
