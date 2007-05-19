@@ -139,7 +139,7 @@ unlock_sx(struct lock_object *lock)
 	struct sx *sx;
 
 	sx = (struct sx *)lock;
-	sx_assert(sx, SX_LOCKED | SX_NOTRECURSED);
+	sx_assert(sx, SA_LOCKED | SA_NOTRECURSED);
 	if (sx_xlocked(sx)) {
 		sx_xunlock(sx);
 		return (1);
@@ -273,7 +273,7 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_sunlock() of destroyed sx @ %s:%d", file, line));
-	_sx_assert(sx, SX_SLOCKED, file, line);
+	_sx_assert(sx, SA_SLOCKED, file, line);
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);
@@ -289,7 +289,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_xunlock() of destroyed sx @ %s:%d", file, line));
-	_sx_assert(sx, SX_XLOCKED, file, line);
+	_sx_assert(sx, SA_XLOCKED, file, line);
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("XUNLOCK", &sx->lock_object, 0, sx->sx_recurse, file,
@@ -312,7 +312,7 @@ _sx_try_upgrade(struct sx *sx, const char *file, int line)
 
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_try_upgrade() of destroyed sx @ %s:%d", file, line));
-	_sx_assert(sx, SX_SLOCKED, file, line);
+	_sx_assert(sx, SA_SLOCKED, file, line);
 
 	/*
 	 * Try to switch from one shared lock to an exclusive lock.  We need
@@ -339,7 +339,7 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_downgrade() of destroyed sx @ %s:%d", file, line));
-	_sx_assert(sx, SX_XLOCKED | SX_NOTRECURSED, file, line);
+	_sx_assert(sx, SA_XLOCKED | SA_NOTRECURSED, file, line);
 #ifndef INVARIANTS
 	if (sx_recursed(sx))
 		panic("downgrade of a recursed lock");
@@ -845,16 +845,16 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 	if (panicstr != NULL)
 		return;
 	switch (what) {
-	case SX_SLOCKED:
-	case SX_SLOCKED | SX_NOTRECURSED:
-	case SX_SLOCKED | SX_RECURSED:
+	case SA_SLOCKED:
+	case SA_SLOCKED | SA_NOTRECURSED:
+	case SA_SLOCKED | SA_RECURSED:
 #ifndef WITNESS
 		slocked = 1;
 		/* FALLTHROUGH */
 #endif
-	case SX_LOCKED:
-	case SX_LOCKED | SX_NOTRECURSED:
-	case SX_LOCKED | SX_RECURSED:
+	case SA_LOCKED:
+	case SA_LOCKED | SA_NOTRECURSED:
+	case SA_LOCKED | SA_RECURSED:
 #ifdef WITNESS
 		witness_assert(&sx->lock_object, what, file, line);
 #else
@@ -872,31 +872,31 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 
 		if (!(sx->sx_lock & SX_LOCK_SHARED)) {
 			if (sx_recursed(sx)) {
-				if (what & SX_NOTRECURSED)
+				if (what & SA_NOTRECURSED)
 					panic("Lock %s recursed @ %s:%d\n",
 					    sx->lock_object.lo_name, file,
 					    line);
-			} else if (what & SX_RECURSED)
+			} else if (what & SA_RECURSED)
 				panic("Lock %s not recursed @ %s:%d\n",
 				    sx->lock_object.lo_name, file, line);
 		}
 #endif
 		break;
-	case SX_XLOCKED:
-	case SX_XLOCKED | SX_NOTRECURSED:
-	case SX_XLOCKED | SX_RECURSED:
+	case SA_XLOCKED:
+	case SA_XLOCKED | SA_NOTRECURSED:
+	case SA_XLOCKED | SA_RECURSED:
 		if (sx_xholder(sx) != curthread)
 			panic("Lock %s not exclusively locked @ %s:%d\n",
 			    sx->lock_object.lo_name, file, line);
 		if (sx_recursed(sx)) {
-			if (what & SX_NOTRECURSED)
+			if (what & SA_NOTRECURSED)
 				panic("Lock %s recursed @ %s:%d\n",
 				    sx->lock_object.lo_name, file, line);
-		} else if (what & SX_RECURSED)
+		} else if (what & SA_RECURSED)
 			panic("Lock %s not recursed @ %s:%d\n",
 			    sx->lock_object.lo_name, file, line);
 		break;
-	case SX_UNLOCKED:
+	case SA_UNLOCKED:
 #ifdef WITNESS
 		witness_assert(&sx->lock_object, what, file, line);
 #else
