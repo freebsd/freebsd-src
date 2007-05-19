@@ -517,6 +517,8 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 	}
 
 	m = m_pullup(m, sizeof(uint32_t));
+	if (m == NULL)
+		return;
 	enc = mtod(m, union fw_encap *);
 
 	/*
