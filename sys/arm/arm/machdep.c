@@ -547,7 +547,7 @@ int
 set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
 	struct trapframe *tf = td->td_frame;
-	__greg_t *gr = mcp->__gregs;
+	const __greg_t *gr = mcp->__gregs;
 
 	tf->tf_r0 = gr[_REG_R0];
 	tf->tf_r1 = gr[_REG_R1];
