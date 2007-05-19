@@ -1003,7 +1003,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
     bus_dmamap_callback2_t *callback, void *callback_arg,
     int flags)
 {
-	vm_offset_t lastaddr;
+	vm_offset_t lastaddr = 0;
 #ifdef __CC_SUPPORTS_DYNAMIC_ARRAY_INIT
 	bus_dma_segment_t dm_segments[dmat->nsegments];
 #else
@@ -1079,7 +1079,7 @@ _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 	return;
 }
 
-static __inline void
+static void
 bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 {
 	char _tmp_cl[arm_dcache_align], _tmp_clend[arm_dcache_align];
