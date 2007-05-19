@@ -79,7 +79,7 @@ CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 . if !empty(CFLAGS:M-O[23s]) && empty(CFLAGS:M-fno-strict-aliasing)
 CFLAGS+=	-fno-strict-aliasing
 . endif
-WERROR?=	-Werror
+#WERROR?=	-Werror
 .endif
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
@@ -93,7 +93,7 @@ C_DIALECT=	-std=c99
 NOSTDINC=	-nostdinc
 .endif
 CFLAGS+=	${C_DIALECT}
-CFLAGS:=	${CFLAGS:N-I*} ${NOSTDINC} -I- ${INCLMAGIC} ${CFLAGS:M-I*}
+CFLAGS:=	${CFLAGS:N-I*} ${NOSTDINC} ${INCLMAGIC} ${CFLAGS:M-I*}
 .if defined(KERNBUILDDIR)
 CFLAGS+=	-DHAVE_KERNEL_OPTION_HEADERS -include ${KERNBUILDDIR}/opt_global.h
 .endif
