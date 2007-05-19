@@ -171,7 +171,7 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 	int flags;
 
 	MPASS((opts & ~(SX_QUIET | SX_RECURSE | SX_NOWITNESS | SX_DUPOK |
-	    SX_NOPROFILE)) == 0);
+	    SX_NOPROFILE | SX_ADAPTIVESPIN)) == 0);
 
 	flags = LO_SLEEPABLE | LO_UPGRADABLE | LO_RECURSABLE;
 	if (opts & SX_DUPOK)
