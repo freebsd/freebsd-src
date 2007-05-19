@@ -3,7 +3,7 @@
 
    Written by Ron Guilmette (rfg@netcom.com)
 
-Copyright (C) 1992 Free Software Foundation, Inc.
+Copyright (C) 1992, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -19,8 +19,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* This file is derived from the DWARF specification (a public document)
    Revision 1.0.1 (April 8, 1992) developed by the UNIX International
@@ -219,7 +219,7 @@ enum dwarf_fundamental_type {
   
     /* GNU extensions
        The low order byte must indicate the size (in bytes) for the type.
-       All of these types will probably break "classic" svr4 SDB */
+       All of these types will probably break "classic" svr4 SDB.  */
 
     FT_long_long	= 0x8008,
     FT_signed_long_long	= 0x8108,

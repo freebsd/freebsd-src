@@ -1,6 +1,6 @@
 /* Definitions of floating-point access for GNU compiler.
    Copyright (C) 1989, 1991, 1994, 1996, 1997, 1998, 1999,
-   2000, 2002, 2003 Free Software Foundation, Inc.
+   2000, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef GCC_REAL_H
 #define GCC_REAL_H
@@ -35,20 +35,30 @@ enum real_value_class {
 };
 
 #define SIGNIFICAND_BITS	(128 + HOST_BITS_PER_LONG)
-#define EXP_BITS		(32 - 5)
+#define EXP_BITS		(32 - 6)
 #define MAX_EXP			((1 << (EXP_BITS - 1)) - 1)
 #define SIGSZ			(SIGNIFICAND_BITS / HOST_BITS_PER_LONG)
 #define SIG_MSB			((unsigned long)1 << (HOST_BITS_PER_LONG - 1))
 
 struct real_value GTY(())
 {
-  ENUM_BITFIELD (real_value_class) class : 2;
+  /* Use the same underlying type for all bit-fields, so as to make
+     sure they're packed together, otherwise REAL_VALUE_TYPE_SIZE will
+     be miscomputed.  */
+  unsigned int /* ENUM_BITFIELD (real_value_class) */ cl : 2;
+  unsigned int decimal : 1;
   unsigned int sign : 1;
   unsigned int signalling : 1;
   unsigned int canonical : 1;
-  signed int exp : EXP_BITS;
+  unsigned int uexp : EXP_BITS;
   unsigned long sig[SIGSZ];
 };
+
+#define REAL_EXP(REAL) \
+  ((int)((REAL)->uexp ^ (unsigned int)(1 << (EXP_BITS - 1))) \
+   - (1 << (EXP_BITS - 1)))
+#define SET_REAL_EXP(REAL, EXP) \
+  ((REAL)->uexp = ((unsigned int)(EXP) & (unsigned int)((1 << EXP_BITS) - 1)))
 
 /* Various headers condition prototypes on #ifdef REAL_VALUE_TYPE, so it
    needs to be a macro.  We do need to continue to have a structure tag
@@ -129,8 +139,13 @@ struct real_format
   /* The maximum integer, x, such that b**(x-1) is representable.  */
   int emax;
 
-  /* The bit position of the sign bit, or -1 for a complex encoding.  */
-  int signbit;
+  /* The bit position of the sign bit, for determining whether a value
+     is positive/negative, or -1 for a complex encoding.  */
+  int signbit_ro;
+
+  /* The bit position of the sign bit, for changing the sign of a number,
+     or -1 for a complex encoding.  */
+  int signbit_rw;
 
   /* Properties of the format.  */
   bool has_nans;
@@ -141,17 +156,31 @@ struct real_format
 };
 
 
-/* The target format used for each floating floating point mode.
-   Indexed by MODE - QFmode.  */
+/* The target format used for each floating point mode.
+   Float modes are followed by decimal float modes, with entries for
+   float modes indexed by (MODE - first float mode), and entries for
+   decimal float modes indexed by (MODE - first decimal float mode) +
+   the number of float modes.  */
 extern const struct real_format *
-  real_format_for_mode[MAX_MODE_FLOAT - MIN_MODE_FLOAT + 1];
+  real_format_for_mode[MAX_MODE_FLOAT - MIN_MODE_FLOAT + 1
+		       + MAX_MODE_DECIMAL_FLOAT - MIN_MODE_DECIMAL_FLOAT + 1];
 
-#define REAL_MODE_FORMAT(MODE) (real_format_for_mode[(MODE) - MIN_MODE_FLOAT])
+#define REAL_MODE_FORMAT(MODE)						\
+  (real_format_for_mode[DECIMAL_FLOAT_MODE_P (MODE)			\
+			? ((MODE - MIN_MODE_DECIMAL_FLOAT)		\
+			   + (MAX_MODE_FLOAT - MIN_MODE_FLOAT + 1))	\
+			: (MODE - MIN_MODE_FLOAT)])
+
+/* The following macro determines whether the floating point format is
+   composite, i.e. may contain non-consecutive mantissa bits, in which
+   case compile-time FP overflow may not model run-time overflow.  */
+#define REAL_MODE_FORMAT_COMPOSITE_P(MODE) \
+	((REAL_MODE_FORMAT(MODE))->pnan < (REAL_MODE_FORMAT (MODE))->p)
 
 /* Declare functions in real.c.  */
 
 /* Binary or unary arithmetic on tree_code.  */
-extern void real_arithmetic (REAL_VALUE_TYPE *, int, const REAL_VALUE_TYPE *,
+extern bool real_arithmetic (REAL_VALUE_TYPE *, int, const REAL_VALUE_TYPE *,
 			     const REAL_VALUE_TYPE *);
 
 /* Compare reals by tree_code.  */
@@ -194,6 +223,8 @@ extern void real_to_integer2 (HOST_WIDE_INT *, HOST_WIDE_INT *,
 
 /* Initialize R from a decimal or hexadecimal string.  */
 extern void real_from_string (REAL_VALUE_TYPE *, const char *);
+/* Wrapper to allow different internal representation for decimal floats. */
+extern void real_from_string3 (REAL_VALUE_TYPE *, const char *, enum machine_mode);
 
 /* Initialize R from an integer pair HIGH/LOW.  */
 extern void real_from_integer (REAL_VALUE_TYPE *, enum machine_mode,
@@ -240,6 +271,9 @@ extern const struct real_format i370_double_format;
 extern const struct real_format c4x_single_format;
 extern const struct real_format c4x_extended_format;
 extern const struct real_format real_internal_format;
+extern const struct real_format decimal_single_format;
+extern const struct real_format decimal_double_format;
+extern const struct real_format decimal_quad_format;
 
 
 /* ====================================================================== */
@@ -281,6 +315,19 @@ extern const struct real_format real_internal_format;
 
 #define REAL_VALUE_FROM_UNSIGNED_INT(r, lo, hi, mode) \
   real_from_integer (&(r), mode, lo, hi, 1)
+
+/* Real values to IEEE 754R decimal floats.  */
+
+/* IN is a REAL_VALUE_TYPE.  OUT is an array of longs.  */
+#define REAL_VALUE_TO_TARGET_DECIMAL128(IN, OUT) \
+  real_to_target (OUT, &(IN), mode_for_size (128, MODE_DECIMAL_FLOAT, 0))
+
+#define REAL_VALUE_TO_TARGET_DECIMAL64(IN, OUT) \
+  real_to_target (OUT, &(IN), mode_for_size (64, MODE_DECIMAL_FLOAT, 0))
+
+/* IN is a REAL_VALUE_TYPE.  OUT is a long.  */
+#define REAL_VALUE_TO_TARGET_DECIMAL32(IN, OUT) \
+  ((OUT) = real_to_target (NULL, &(IN), mode_for_size (32, MODE_DECIMAL_FLOAT, 0)))
 
 extern REAL_VALUE_TYPE real_value_truncate (enum machine_mode,
 					    REAL_VALUE_TYPE);
@@ -344,7 +391,7 @@ REAL_VALUE_TYPE real_value_from_int_cst (tree, tree);
 
 /* Given a CONST_DOUBLE in FROM, store into TO the value it represents.  */
 #define REAL_VALUE_FROM_CONST_DOUBLE(to, from) \
-  memcpy (&(to), &CONST_DOUBLE_LOW ((from)), sizeof (REAL_VALUE_TYPE))
+  ((to) = *CONST_DOUBLE_REAL_VALUE (from))
 
 /* Return a CONST_DOUBLE with value R and mode M.  */
 #define CONST_DOUBLE_FROM_REAL_VALUE(r, m) \
@@ -372,5 +419,10 @@ extern void real_floor (REAL_VALUE_TYPE *, enum machine_mode,
 			const REAL_VALUE_TYPE *);
 extern void real_ceil (REAL_VALUE_TYPE *, enum machine_mode,
 		       const REAL_VALUE_TYPE *);
+extern void real_round (REAL_VALUE_TYPE *, enum machine_mode,
+			const REAL_VALUE_TYPE *);
+
+/* Set the sign of R to the sign of X.  */
+extern void real_copysign (REAL_VALUE_TYPE *, const REAL_VALUE_TYPE *);
 
 #endif /* ! GCC_REAL_H */

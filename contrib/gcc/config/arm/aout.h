@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for ARM with a.out
-   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000
+   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2004
    Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rearnsha@armltd.co.uk).
    
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #ifndef ASM_APP_ON
 #define ASM_APP_ON  		""
@@ -49,7 +49,7 @@
 
 /* The assembler's names for the registers.  */
 #ifndef REGISTER_NAMES
-#define REGISTER_NAMES  			   \
+#define REGISTER_NAMES				   \
 {				                   \
   "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",  \
   "r8", "r9", "sl", "fp", "ip", "sp", "lr", "pc",  \
@@ -63,7 +63,12 @@
   "wr0",   "wr1",   "wr2",   "wr3",		   \
   "wr4",   "wr5",   "wr6",   "wr7",		   \
   "wr8",   "wr9",   "wr10",  "wr11",		   \
-  "wr12",  "wr13",  "wr14",  "wr15"		   \
+  "wr12",  "wr13",  "wr14",  "wr15",		   \
+  "s0",  "s1",  "s2",  "s3",  "s4",  "s5",  "s6",  "s7",  \
+  "s8",  "s9",  "s10", "s11", "s12", "s13", "s14", "s15", \
+  "s16", "s17", "s18", "s19", "s20", "s21", "s22", "s23", \
+  "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31", \
+  "vfpcc"					   \
 }
 #endif
 
@@ -152,7 +157,23 @@
   {"mvdx12", 39},				\
   {"mvdx13", 40},				\
   {"mvdx14", 41},				\
-  {"mvdx15", 42}				\
+  {"mvdx15", 42},				\
+  {"d0", 63},					\
+  {"d1", 65},					\
+  {"d2", 67},					\
+  {"d3", 69},					\
+  {"d4", 71},					\
+  {"d5", 73},					\
+  {"d6", 75},					\
+  {"d7", 77},					\
+  {"d8", 79},					\
+  {"d9", 81},					\
+  {"d10", 83},					\
+  {"d11", 85},					\
+  {"d12", 87},					\
+  {"d13", 89},					\
+  {"d14", 91},					\
+  {"d15", 93},					\
 }
 #endif
 
@@ -172,19 +193,6 @@
 #define DBX_CONTIN_LENGTH  0
 #endif
 
-/* Output a source filename for the debugger. RISCiX dbx insists that the
-   ``desc'' field is set to compiler version number >= 315 (sic).  */
-#define DBX_OUTPUT_MAIN_SOURCE_FILENAME(STREAM, NAME)			\
-  do									\
-    {									\
-      fprintf (STREAM, ".stabs ");					\
-      output_quoted_string (STREAM, NAME);				\
-      fprintf (STREAM, ",%d,0,315,%s\n", N_SO, &ltext_label_name[1]);	\
-      text_section ();							\
-      (*targetm.asm_out.internal_label) (STREAM, "Ltext", 0);			\
-    }									\
-  while (0)
-  
 /* Output a function label definition.  */
 #ifndef ASM_DECLARE_FUNCTION_NAME
 #define ASM_DECLARE_FUNCTION_NAME(STREAM, NAME, DECL)	\
@@ -265,7 +273,7 @@
 #define ASM_OUTPUT_ALIGNED_LOCAL(STREAM, NAME, SIZE, ALIGN)		\
   do									\
     {									\
-      bss_section ();							\
+      switch_to_section (bss_section);					\
       ASM_OUTPUT_ALIGN (STREAM, floor_log2 (ALIGN / BITS_PER_UNIT));	\
       ASM_OUTPUT_LABEL (STREAM, NAME);					\
       fprintf (STREAM, "\t.space\t%d\n", (int)(SIZE));			\

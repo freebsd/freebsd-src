@@ -1,5 +1,6 @@
-/* Control and data flow functions for trees.
-   Copyright 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+/* Top-level control of tree optimizations.
+   Copyright 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   Contributed by Diego Novillo <dnovillo@redhat.com>
 
 This file is part of GCC.
 
@@ -15,92 +16,402 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "toplev.h"
-#include "tree.h"
-#include "tree-inline.h"
-#include "flags.h"
-#include "langhooks.h"
-#include "cgraph.h"
-#include "timevar.h"
 #include "tm.h"
+#include "tree.h"
+#include "rtl.h"
+#include "tm_p.h"
+#include "hard-reg-set.h"
+#include "basic-block.h"
+#include "output.h"
+#include "expr.h"
+#include "diagnostic.h"
+#include "basic-block.h"
+#include "flags.h"
+#include "tree-flow.h"
+#include "tree-dump.h"
+#include "timevar.h"
 #include "function.h"
+#include "langhooks.h"
+#include "toplev.h"
+#include "flags.h"
+#include "cgraph.h"
+#include "tree-inline.h"
+#include "tree-mudflap.h"
+#include "tree-pass.h"
 #include "ggc.h"
+#include "cgraph.h"
+#include "graph.h"
+#include "cfgloop.h"
+#include "except.h"
 
 
-/* Called to move the SAVE_EXPRs for parameter declarations in a
-   nested function into the nested function.  DATA is really the
-   nested FUNCTION_DECL.  */
+/* Gate: execute, or not, all of the non-trivial optimizations.  */
 
-static tree
-set_save_expr_context (tree *tp,
-		       int *walk_subtrees,
-		       void *data)
+static bool
+gate_all_optimizations (void)
 {
-  if (TREE_CODE (*tp) == SAVE_EXPR && !SAVE_EXPR_CONTEXT (*tp))
-    SAVE_EXPR_CONTEXT (*tp) = (tree) data;
-  /* Do not walk back into the SAVE_EXPR_CONTEXT; that will cause
-     circularity.  */
-  else if (DECL_P (*tp))
-    *walk_subtrees = 0;
-
-  return NULL;
+  return (optimize >= 1
+	  /* Don't bother doing anything if the program has errors.  */
+	  && !(errorcount || sorrycount));
 }
 
-/* Clear out the DECL_RTL for the non-static local variables in BLOCK and
-   its sub-blocks.  DATA is the decl of the function being processed.  */
-
-static tree
-clear_decl_rtl (tree *tp, int *walk_subtrees ATTRIBUTE_UNUSED, void *data)
+struct tree_opt_pass pass_all_optimizations =
 {
-  bool nonstatic_p, local_p;
-  tree t = *tp;
+  NULL,					/* name */
+  gate_all_optimizations,		/* gate */
+  NULL,					/* execute */
+  NULL,					/* sub */
+  NULL,					/* next */
+  0,					/* static_pass_number */
+  0,					/* tv_id */
+  0,					/* properties_required */
+  0,					/* properties_provided */
+  0,					/* properties_destroyed */
+  0,					/* todo_flags_start */
+  0,					/* todo_flags_finish */
+  0					/* letter */
+};
 
-  switch (TREE_CODE (t))
+struct tree_opt_pass pass_early_local_passes =
+{
+  NULL,					/* name */
+  gate_all_optimizations,		/* gate */
+  NULL,					/* execute */
+  NULL,					/* sub */
+  NULL,					/* next */
+  0,					/* static_pass_number */
+  0,					/* tv_id */
+  0,					/* properties_required */
+  0,					/* properties_provided */
+  0,					/* properties_destroyed */
+  0,					/* todo_flags_start */
+  0,					/* todo_flags_finish */
+  0					/* letter */
+};
+
+/* Pass: cleanup the CFG just before expanding trees to RTL.
+   This is just a round of label cleanups and case node grouping
+   because after the tree optimizers have run such cleanups may
+   be necessary.  */
+
+static unsigned int
+execute_cleanup_cfg_pre_ipa (void)
+{
+  cleanup_tree_cfg ();
+  return 0;
+}
+
+struct tree_opt_pass pass_cleanup_cfg =
+{
+  "cleanup_cfg",			/* name */
+  NULL,					/* gate */
+  execute_cleanup_cfg_pre_ipa,		/* execute */
+  NULL,					/* sub */
+  NULL,					/* next */
+  0,					/* static_pass_number */
+  0,					/* tv_id */
+  PROP_cfg,				/* properties_required */
+  0,					/* properties_provided */
+  0,					/* properties_destroyed */
+  0,					/* todo_flags_start */
+  TODO_dump_func,					/* todo_flags_finish */
+  0					/* letter */
+};
+
+
+/* Pass: cleanup the CFG just before expanding trees to RTL.
+   This is just a round of label cleanups and case node grouping
+   because after the tree optimizers have run such cleanups may
+   be necessary.  */
+
+static unsigned int
+execute_cleanup_cfg_post_optimizing (void)
+{
+  fold_cond_expr_cond ();
+  cleanup_tree_cfg ();
+  cleanup_dead_labels ();
+  group_case_labels ();
+  return 0;
+}
+
+struct tree_opt_pass pass_cleanup_cfg_post_optimizing =
+{
+  "final_cleanup",			/* name */
+  NULL,					/* gate */
+  execute_cleanup_cfg_post_optimizing,	/* execute */
+  NULL,					/* sub */
+  NULL,					/* next */
+  0,					/* static_pass_number */
+  0,					/* tv_id */
+  PROP_cfg,				/* properties_required */
+  0,					/* properties_provided */
+  0,					/* properties_destroyed */
+  0,					/* todo_flags_start */
+  TODO_dump_func,					/* todo_flags_finish */
+  0					/* letter */
+};
+
+/* Pass: do the actions required to finish with tree-ssa optimization
+   passes.  */
+
+static unsigned int
+execute_free_datastructures (void)
+{
+  /* ??? This isn't the right place for this.  Worse, it got computed
+     more or less at random in various passes.  */
+  free_dominance_info (CDI_DOMINATORS);
+  free_dominance_info (CDI_POST_DOMINATORS);
+
+  /* Remove the ssa structures.  Do it here since this includes statement
+     annotations that need to be intact during disband_implicit_edges.  */
+  delete_tree_ssa ();
+  return 0;
+}
+
+struct tree_opt_pass pass_free_datastructures =
+{
+  NULL,					/* name */
+  NULL,					/* gate */
+  execute_free_datastructures,			/* execute */
+  NULL,					/* sub */
+  NULL,					/* next */
+  0,					/* static_pass_number */
+  0,					/* tv_id */
+  PROP_cfg,				/* properties_required */
+  0,					/* properties_provided */
+  0,					/* properties_destroyed */
+  0,					/* todo_flags_start */
+  0,					/* todo_flags_finish */
+  0					/* letter */
+};
+/* Pass: free cfg annotations.  */
+
+static unsigned int
+execute_free_cfg_annotations (void)
+{
+  basic_block bb;
+  block_stmt_iterator bsi;
+
+  /* Emit gotos for implicit jumps.  */
+  disband_implicit_edges ();
+
+  /* Remove annotations from every tree in the function.  */
+  FOR_EACH_BB (bb)
+    for (bsi = bsi_start (bb); !bsi_end_p (bsi); bsi_next (&bsi))
+      {
+	tree stmt = bsi_stmt (bsi);
+	ggc_free (stmt->common.ann);
+	stmt->common.ann = NULL;
+      }
+
+  /* And get rid of annotations we no longer need.  */
+  delete_tree_cfg_annotations ();
+
+#ifdef ENABLE_CHECKING
+  /* Once the statement annotations have been removed, we can verify
+     the integrity of statements in the EH throw table.  */
+  verify_eh_throw_table_statements ();
+#endif
+  return 0;
+}
+
+struct tree_opt_pass pass_free_cfg_annotations =
+{
+  NULL,					/* name */
+  NULL,					/* gate */
+  execute_free_cfg_annotations,		/* execute */
+  NULL,					/* sub */
+  NULL,					/* next */
+  0,					/* static_pass_number */
+  0,					/* tv_id */
+  PROP_cfg,				/* properties_required */
+  0,					/* properties_provided */
+  0,					/* properties_destroyed */
+  0,					/* todo_flags_start */
+  0,					/* todo_flags_finish */
+  0					/* letter */
+};
+
+/* Return true if BB has at least one abnormal outgoing edge.  */
+
+static inline bool
+has_abnormal_outgoing_edge_p (basic_block bb)
+{
+  edge e;
+  edge_iterator ei;
+
+  FOR_EACH_EDGE (e, ei, bb->succs)
+    if (e->flags & EDGE_ABNORMAL)
+      return true;
+
+  return false;
+}
+
+/* Pass: fixup_cfg.  IPA passes, compilation of earlier functions or inlining
+   might have changed some properties, such as marked functions nothrow or
+   added calls that can potentially go to non-local labels.  Remove redundant
+   edges and basic blocks, and create new ones if necessary.  */
+
+static unsigned int
+execute_fixup_cfg (void)
+{
+  basic_block bb;
+  block_stmt_iterator bsi;
+
+  if (cfun->eh)
+    FOR_EACH_BB (bb)
+      {
+	for (bsi = bsi_start (bb); !bsi_end_p (bsi); bsi_next (&bsi))
+	  {
+	    tree stmt = bsi_stmt (bsi);
+	    tree call = get_call_expr_in (stmt);
+
+	    if (call && call_expr_flags (call) & (ECF_CONST | ECF_PURE))
+	      TREE_SIDE_EFFECTS (call) = 0;
+	    if (!tree_could_throw_p (stmt) && lookup_stmt_eh_region (stmt))
+	      remove_stmt_from_eh_region (stmt);
+	  }
+	tree_purge_dead_eh_edges (bb);
+      }
+
+  if (current_function_has_nonlocal_label)
+    FOR_EACH_BB (bb)
+      {
+	for (bsi = bsi_start (bb); !bsi_end_p (bsi); bsi_next (&bsi))
+	  {
+	    tree stmt = bsi_stmt (bsi);
+	    if (tree_can_make_abnormal_goto (stmt))
+	      {
+		if (stmt == bsi_stmt (bsi_last (bb)))
+		  {
+		    if (!has_abnormal_outgoing_edge_p (bb))
+		      make_abnormal_goto_edges (bb, true);
+		  }
+		else
+		  {
+		    edge e = split_block (bb, stmt);
+		    bb = e->src;
+		    make_abnormal_goto_edges (bb, true);
+		  }
+		break;
+	      }
+	  }
+      }
+
+  cleanup_tree_cfg ();
+
+  /* Dump a textual representation of the flowgraph.  */
+  if (dump_file)
+    dump_tree_cfg (dump_file, dump_flags);
+
+  return 0;
+}
+
+struct tree_opt_pass pass_fixup_cfg =
+{
+  "fixupcfg",				/* name */
+  NULL,					/* gate */
+  execute_fixup_cfg,			/* execute */
+  NULL,					/* sub */
+  NULL,					/* next */
+  0,					/* static_pass_number */
+  0,					/* tv_id */
+  PROP_cfg,				/* properties_required */
+  0,					/* properties_provided */
+  0,					/* properties_destroyed */
+  0,					/* todo_flags_start */
+  0,					/* todo_flags_finish */
+  0					/* letter */
+};
+
+/* Do the actions required to initialize internal data structures used
+   in tree-ssa optimization passes.  */
+
+static unsigned int
+execute_init_datastructures (void)
+{
+  /* Allocate hash tables, arrays and other structures.  */
+  init_tree_ssa ();
+  return 0;
+}
+
+struct tree_opt_pass pass_init_datastructures =
+{
+  NULL,					/* name */
+  NULL,					/* gate */
+  execute_init_datastructures,		/* execute */
+  NULL,					/* sub */
+  NULL,					/* next */
+  0,					/* static_pass_number */
+  0,					/* tv_id */
+  PROP_cfg,				/* properties_required */
+  0,					/* properties_provided */
+  0,					/* properties_destroyed */
+  0,					/* todo_flags_start */
+  0,					/* todo_flags_finish */
+  0					/* letter */
+};
+
+void
+tree_lowering_passes (tree fn)
+{
+  tree saved_current_function_decl = current_function_decl;
+
+  current_function_decl = fn;
+  push_cfun (DECL_STRUCT_FUNCTION (fn));
+  tree_register_cfg_hooks ();
+  bitmap_obstack_initialize (NULL);
+  execute_pass_list (all_lowering_passes);
+  free_dominance_info (CDI_POST_DOMINATORS);
+  compact_blocks ();
+  current_function_decl = saved_current_function_decl;
+  bitmap_obstack_release (NULL);
+  pop_cfun ();
+}
+
+/* Update recursively all inlined_to pointers of functions
+   inlined into NODE to INLINED_TO.  */
+static void
+update_inlined_to_pointers (struct cgraph_node *node,
+			    struct cgraph_node *inlined_to)
+{
+  struct cgraph_edge *e;
+  for (e = node->callees; e; e = e->next_callee)
     {
-    case VAR_DECL:
-      nonstatic_p = !TREE_STATIC (t) && !DECL_EXTERNAL (t);
-      local_p = decl_function_context (t) == data;
-      break;
-
-    case PARM_DECL:
-    case LABEL_DECL:
-      nonstatic_p = true;
-      local_p = decl_function_context (t) == data;
-      break;
-
-    case RESULT_DECL:
-      nonstatic_p = local_p = true;
-      break;
-
-    default:
-      nonstatic_p = local_p = false;
-      break;
+      if (e->callee->global.inlined_to)
+	{
+	  e->callee->global.inlined_to = inlined_to;
+	  update_inlined_to_pointers (e->callee, inlined_to);
+	}
     }
-
-  if (nonstatic_p && local_p)
-    SET_DECL_RTL (t, NULL);
-
-  return NULL;
 }
 
+
 /* For functions-as-trees languages, this performs all optimization and
    compilation for FNDECL.  */
 
 void
-tree_rest_of_compilation (tree fndecl, bool nested_p)
+tree_rest_of_compilation (tree fndecl)
 {
   location_t saved_loc;
+  struct cgraph_node *node;
 
   timevar_push (TV_EXPAND);
 
-  if (flag_unit_at_a_time && !cgraph_global_info_ready)
-    abort ();
+  gcc_assert (!flag_unit_at_a_time || cgraph_global_info_ready);
+
+  node = cgraph_node (fndecl);
+
+  /* We might need the body of this function so that we can expand
+     it inline somewhere else.  */
+  if (cgraph_preserve_function_body_p (fndecl))
+    save_inline_function_body (node);
 
   /* Initialize the RTL code for the function.  */
   current_function_decl = fndecl;
@@ -108,68 +419,56 @@ tree_rest_of_compilation (tree fndecl, bool nested_p)
   input_location = DECL_SOURCE_LOCATION (fndecl);
   init_function_start (fndecl);
 
-  /* This function is being processed in whole-function mode.  */
-  cfun->x_whole_function_mode_p = 1;
-
   /* Even though we're inside a function body, we still don't want to
      call expand_expr to calculate the size of a variable-sized array.
      We haven't necessarily assigned RTL to all variables yet, so it's
      not safe to try to expand expressions involving them.  */
-  immediate_size_expand = 0;
   cfun->x_dont_save_pending_sizes_p = 1;
+  cfun->after_inlining = true;
 
-  /* If the function has a variably modified type, there may be
-     SAVE_EXPRs in the parameter types.  Their context must be set to
-     refer to this function; they cannot be expanded in the containing
-     function.  */
-  if (decl_function_context (fndecl)
-      && variably_modified_type_p (TREE_TYPE (fndecl)))
-    walk_tree (&TREE_TYPE (fndecl), set_save_expr_context, fndecl,
-	       NULL);
+  if (flag_inline_trees)
+    {
+      struct cgraph_edge *e;
+      for (e = node->callees; e; e = e->next_callee)
+	if (!e->inline_failed || warn_inline)
+	  break;
+      if (e)
+	{
+	  timevar_push (TV_INTEGRATION);
+	  optimize_inline_calls (fndecl);
+	  timevar_pop (TV_INTEGRATION);
+	}
+    }
+  /* In non-unit-at-a-time we must mark all referenced functions as needed.
+     */
+  if (!flag_unit_at_a_time)
+    {
+      struct cgraph_edge *e;
+      for (e = node->callees; e; e = e->next_callee)
+	if (e->callee->analyzed)
+          cgraph_mark_needed_node (e->callee);
+    }
 
-  /* Set up parameters and prepare for return, for the function.  */
-  expand_function_start (fndecl, 0);
+  /* We are not going to maintain the cgraph edges up to date.
+     Kill it so it won't confuse us.  */
+  cgraph_node_remove_callees (node);
 
-  /* Allow language dialects to perform special processing.  */
-  (*lang_hooks.rtl_expand.start) ();
 
-  /* If this function is `main', emit a call to `__main'
-     to run global initializers, etc.  */
-  if (DECL_NAME (fndecl)
-      && MAIN_NAME_P (DECL_NAME (fndecl))
-      && DECL_FILE_SCOPE_P (fndecl))
-    expand_main_function ();
+  /* Initialize the default bitmap obstack.  */
+  bitmap_obstack_initialize (NULL);
+  bitmap_obstack_initialize (&reg_obstack); /* FIXME, only at RTL generation*/
+  
+  tree_register_cfg_hooks ();
+  /* Perform all tree transforms and optimizations.  */
+  execute_pass_list (all_passes);
+  
+  bitmap_obstack_release (&reg_obstack);
 
-  /* Generate the RTL for this function.  */
-  (*lang_hooks.rtl_expand.stmt) (DECL_SAVED_TREE (fndecl));
-
-  /* We hard-wired immediate_size_expand to zero above.
-     expand_function_end will decrement this variable.  So, we set the
-     variable to one here, so that after the decrement it will remain
-     zero.  */
-  immediate_size_expand = 1;
-
-  /* Allow language dialects to perform special processing.  */
-  (*lang_hooks.rtl_expand.end) ();
-
-  /* Generate rtl for function exit.  */
-  expand_function_end ();
-
-  /* If this is a nested function, protect the local variables in the stack
-     above us from being collected while we're compiling this function.  */
-  if (nested_p)
-    ggc_push_context ();
-
-  /* There's no need to defer outputting this function any more; we
-     know we want to output it.  */
-  DECL_DEFER_OUTPUT (fndecl) = 0;
-
-  /* Run the optimizers and output the assembler code for this function.  */
-  rest_of_compilation (fndecl);
-
-  /* Undo the GC context switch.  */
-  if (nested_p)
-    ggc_pop_context ();
+  /* Release the default bitmap obstack.  */
+  bitmap_obstack_release (NULL);
+  
+  DECL_SAVED_TREE (fndecl) = NULL;
+  cfun = 0;
 
   /* If requested, warn about function definitions where the function will
      return a value (usually of some struct or union type) which itself will
@@ -187,45 +486,32 @@ tree_rest_of_compilation (tree fndecl, bool nested_p)
 	    = TREE_INT_CST_LOW (TYPE_SIZE_UNIT (ret_type));
 
 	  if (compare_tree_int (TYPE_SIZE_UNIT (ret_type), size_as_int) == 0)
-	    warning ("%Jsize of return value of '%D' is %u bytes",
-                     fndecl, fndecl, size_as_int);
+	    warning (0, "size of return value of %q+D is %u bytes",
+                     fndecl, size_as_int);
 	  else
-	    warning ("%Jsize of return value of '%D' is larger than %wd bytes",
-                     fndecl, fndecl, larger_than_size);
+	    warning (0, "size of return value of %q+D is larger than %wd bytes",
+                     fndecl, larger_than_size);
 	}
     }
 
-  if (! DECL_DEFER_OUTPUT (fndecl) || !cgraph_node (fndecl)->origin)
+  if (!flag_inline_trees)
     {
-      /* Since we don't need the RTL for this function anymore, stop pointing
-	 to it.  That's especially important for LABEL_DECLs, since you can
-	 reach all the instructions in the function from the CODE_LABEL stored
-	 in the DECL_RTL for the LABEL_DECL.  Walk the BLOCK-tree, clearing
-	 DECL_RTL for LABEL_DECLs and non-static local variables.  Note that
-	 we must check the context of the variables, otherwise processing a
-	 nested function can kill the rtl of a variable from an outer
-	 function.  */
-      walk_tree_without_duplicates (&DECL_SAVED_TREE (fndecl),
-				    clear_decl_rtl,
-				    fndecl);
-      if (!cgraph_function_possibly_inlined_p (fndecl))
+      DECL_SAVED_TREE (fndecl) = NULL;
+      if (DECL_STRUCT_FUNCTION (fndecl) == 0
+	  && !cgraph_node (fndecl)->origin)
 	{
-	  DECL_SAVED_TREE (fndecl) = NULL;
-	  if (DECL_SAVED_INSNS (fndecl) == 0
-	      && !cgraph_node (fndecl)->origin)
-	    {
-	      /* Stop pointing to the local nodes about to be freed.
-		 But DECL_INITIAL must remain nonzero so we know this
-		 was an actual function definition.
-		 For a nested function, this is done in c_pop_function_context.
-		 If rest_of_compilation set this to 0, leave it 0.  */
-	      if (DECL_INITIAL (fndecl) != 0)
-		DECL_INITIAL (fndecl) = error_mark_node;
-	    }
+	  /* Stop pointing to the local nodes about to be freed.
+	     But DECL_INITIAL must remain nonzero so we know this
+	     was an actual function definition.
+	     For a nested function, this is done in c_pop_function_context.
+	     If rest_of_compilation set this to 0, leave it 0.  */
+	  if (DECL_INITIAL (fndecl) != 0)
+	    DECL_INITIAL (fndecl) = error_mark_node;
 	}
     }
 
   input_location = saved_loc;
 
+  ggc_collect ();
   timevar_pop (TV_EXPAND);
 }

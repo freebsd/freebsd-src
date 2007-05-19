@@ -1,5 +1,5 @@
 /* Perform optimizations on tree structure.
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2004
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2004, 2005
    Free Software Foundation, Inc.
    Written by Mark Michell (mark@codesourcery.com).
 
@@ -17,8 +17,8 @@ General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
@@ -34,61 +34,18 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "varray.h"
 #include "params.h"
 #include "hashtab.h"
+#include "target.h"
 #include "debug.h"
 #include "tree-inline.h"
+#include "flags.h"
+#include "langhooks.h"
+#include "diagnostic.h"
+#include "tree-dump.h"
+#include "tree-gimple.h"
 
 /* Prototypes.  */
 
-static tree calls_setjmp_r (tree *, int *, void *);
-static void update_cloned_parm (tree, tree);
-static void dump_function (enum tree_dump_index, tree);
-
-/* Optimize the body of FN.  */
-
-void
-optimize_function (tree fn)
-{
-  dump_function (TDI_original, fn);
-
-  if (flag_inline_trees
-      /* We do not inline thunks, as (a) the backend tries to optimize
-         the call to the thunkee, (b) tree based inlining breaks that
-         optimization, (c) virtual functions are rarely inlineable,
-         and (d) TARGET_ASM_OUTPUT_MI_THUNK is there to DTRT anyway.  */
-      && !DECL_THUNK_P (fn))
-    {
-      optimize_inline_calls (fn);
-      dump_function (TDI_inlined, fn);
-    }
-  
-  dump_function (TDI_optimized, fn);
-}
-
-/* Called from calls_setjmp_p via walk_tree.  */
-
-static tree
-calls_setjmp_r (tree *tp, int *walk_subtrees ATTRIBUTE_UNUSED,
-                void *data ATTRIBUTE_UNUSED)
-{
-  /* We're only interested in FUNCTION_DECLS.  */
-  if (TREE_CODE (*tp) != FUNCTION_DECL)
-    return NULL_TREE;
-
-  return setjmp_call_p (*tp) ? *tp : NULL_TREE;
-}
-
-/* Returns nonzero if FN calls `setjmp' or some other function that
-   can return more than once.  This function is conservative; it may
-   occasionally return a nonzero value even when FN does not actually
-   call `setjmp'.  */
-
-bool
-calls_setjmp_p (tree fn)
-{
-  return walk_tree_without_duplicates (&DECL_SAVED_TREE (fn),
-				       calls_setjmp_r,
-				       NULL) != NULL_TREE;
-}
+static void update_cloned_parm (tree, tree, bool);
 
 /* CLONED_PARM is a copy of CLONE, generated for a cloned constructor
    or destructor.  Update it to ensure that the source-position for
@@ -96,7 +53,7 @@ calls_setjmp_p (tree fn)
    debugging generation code will be able to find the original PARM.  */
 
 static void
-update_cloned_parm (tree parm, tree cloned_parm)
+update_cloned_parm (tree parm, tree cloned_parm, bool first)
 {
   DECL_ABSTRACT_ORIGIN (cloned_parm) = parm;
 
@@ -105,12 +62,15 @@ update_cloned_parm (tree parm, tree cloned_parm)
 
   /* The definition might have different constness.  */
   TREE_READONLY (cloned_parm) = TREE_READONLY (parm);
-  
-  TREE_USED (cloned_parm) = TREE_USED (parm);
-  
+
+  TREE_USED (cloned_parm) = !first || TREE_USED (parm);
+
   /* The name may have changed from the declaration.  */
   DECL_NAME (cloned_parm) = DECL_NAME (parm);
   DECL_SOURCE_LOCATION (cloned_parm) = DECL_SOURCE_LOCATION (parm);
+  TREE_TYPE (cloned_parm) = TREE_TYPE (parm);
+
+  DECL_COMPLEX_GIMPLE_REG_P (cloned_parm) = DECL_COMPLEX_GIMPLE_REG_P (parm);
 }
 
 /* FN is a function that has a complete body.  Clone the body as
@@ -121,6 +81,7 @@ bool
 maybe_clone_body (tree fn)
 {
   tree clone;
+  bool first = true;
 
   /* We only clone constructors and destructors.  */
   if (!DECL_MAYBE_IN_CHARGE_CONSTRUCTOR_P (fn)
@@ -132,9 +93,8 @@ maybe_clone_body (tree fn)
 
   /* We know that any clones immediately follow FN in the TYPE_METHODS
      list.  */
-  for (clone = TREE_CHAIN (fn);
-       clone && DECL_CLONED_FUNCTION_P (clone);
-       clone = TREE_CHAIN (clone))
+  push_to_top_level ();
+  FOR_EACH_CLONE (clone, fn)
     {
       tree parm;
       tree clone_parm;
@@ -155,12 +115,13 @@ maybe_clone_body (tree fn)
       DECL_NOT_REALLY_EXTERN (clone) = DECL_NOT_REALLY_EXTERN (fn);
       TREE_PUBLIC (clone) = TREE_PUBLIC (fn);
       DECL_VISIBILITY (clone) = DECL_VISIBILITY (fn);
+      DECL_VISIBILITY_SPECIFIED (clone) = DECL_VISIBILITY_SPECIFIED (fn);
 
       /* Adjust the parameter names and locations.  */
       parm = DECL_ARGUMENTS (fn);
       clone_parm = DECL_ARGUMENTS (clone);
       /* Update the `this' parameter, which is always first.  */
-      update_cloned_parm (parm, clone_parm);
+      update_cloned_parm (parm, clone_parm, first);
       parm = TREE_CHAIN (parm);
       clone_parm = TREE_CHAIN (clone_parm);
       if (DECL_HAS_IN_CHARGE_PARM_P (fn))
@@ -172,11 +133,10 @@ maybe_clone_body (tree fn)
       for (; parm;
 	   parm = TREE_CHAIN (parm), clone_parm = TREE_CHAIN (clone_parm))
 	/* Update this parameter.  */
-	update_cloned_parm (parm, clone_parm);
+	update_cloned_parm (parm, clone_parm, first);
 
       /* Start processing the function.  */
-      push_to_top_level ();
-      start_function (NULL_TREE, clone, NULL_TREE, SF_PRE_PARSED);
+      start_preparsed_function (clone, NULL_TREE, SF_PRE_PARSED);
 
       /* Remap the parameters.  */
       decl_map = splay_tree_new (splay_tree_compare_pointers, NULL, NULL);
@@ -229,6 +189,13 @@ maybe_clone_body (tree fn)
 	    }
 	}
 
+      if (targetm.cxx.cdtor_returns_this ())
+	{
+	  parm = DECL_RESULT (fn);
+	  clone_parm = DECL_RESULT (clone);
+	  splay_tree_insert (decl_map, (splay_tree_key) parm,
+			     (splay_tree_value) clone_parm);
+	}
       /* Clone the body.  */
       clone_body (clone, fn, decl_map);
 
@@ -242,32 +209,10 @@ maybe_clone_body (tree fn)
       finish_function (0);
       BLOCK_ABSTRACT_ORIGIN (DECL_INITIAL (clone)) = DECL_INITIAL (fn);
       expand_or_defer_fn (clone);
-      pop_from_top_level ();
+      first = false;
     }
+  pop_from_top_level ();
 
   /* We don't need to process the original function any further.  */
   return 1;
-}
-
-/* Dump FUNCTION_DECL FN as tree dump PHASE.  */
-
-static void
-dump_function (enum tree_dump_index phase, tree fn)
-{
-  FILE *stream;
-  int flags;
-
-  stream = dump_begin (phase, &flags);
-  if (stream)
-    {
-      fprintf (stream, "\n;; Function %s",
-	       decl_as_string (fn, TFF_DECL_SPECIFIERS));
-      fprintf (stream, " (%s)\n",
-	       decl_as_string (DECL_ASSEMBLER_NAME (fn), 0));
-      fprintf (stream, ";; enabled by -fdump-%s\n", dump_flag_name (phase));
-      fprintf (stream, "\n");
-      
-      dump_node (fn, TDF_SLIM | flags, stream);
-      dump_end (phase, stream);
-    }
 }

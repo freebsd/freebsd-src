@@ -1,6 +1,6 @@
 /* elfos.h  --  operating system specific defines to be used when
    targeting GCC for some generic ELF system
-   Copyright (C) 1991, 1994, 1995, 1999, 2000, 2001, 2002, 2003
+   Copyright (C) 1991, 1994, 1995, 1999, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
    Based on svr4.h contributed by Ron Guilmette (rfg@netcom.com).
 
@@ -18,8 +18,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #define TARGET_OBJFMT_CPP_BUILTINS()		\
   do						\
@@ -57,10 +57,6 @@ Boston, MA 02111-1307, USA.  */
 #ifndef PCC_BITFIELD_TYPE_MATTERS
 #define PCC_BITFIELD_TYPE_MATTERS 1
 #endif
-
-/* Implicit library calls should use memcpy, not bcopy, etc.  */
-
-#define TARGET_MEM_FUNCTIONS
 
 /* Handle #pragma weak and #pragma pack.  */
 
@@ -225,6 +221,8 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_ASM_SELECT_RTX_SECTION default_elf_select_rtx_section
 #undef	TARGET_ASM_SELECT_SECTION
 #define TARGET_ASM_SELECT_SECTION default_elf_select_section
+#undef  TARGET_HAVE_SWITCHABLE_BSS_SECTIONS
+#define TARGET_HAVE_SWITCHABLE_BSS_SECTIONS true
 
 /* Define the strings used for the special svr4 .type and .size directives.
    These strings generally do not vary from one system running svr4 to
@@ -431,14 +429,15 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_OUTPUT_ASCII(FILE, STR, LENGTH)				\
   do									\
     {									\
-      register const unsigned char *_ascii_bytes =			\
+      const unsigned char *_ascii_bytes =				\
 	(const unsigned char *) (STR);					\
-      register const unsigned char *limit = _ascii_bytes + (LENGTH);	\
-      register unsigned bytes_in_chunk = 0;				\
+      const unsigned char *limit = _ascii_bytes + (LENGTH);		\
+      const unsigned char *last_null = NULL;				\
+      unsigned bytes_in_chunk = 0;					\
 									\
       for (; _ascii_bytes < limit; _ascii_bytes++)			\
         {								\
-	  register const unsigned char *p;				\
+	  const unsigned char *p;					\
 									\
 	  if (bytes_in_chunk >= 60)					\
 	    {								\
@@ -446,8 +445,14 @@ Boston, MA 02111-1307, USA.  */
 	      bytes_in_chunk = 0;					\
 	    }								\
 									\
-	  for (p = _ascii_bytes; p < limit && *p != '\0'; p++)		\
-	    continue;							\
+	  if (_ascii_bytes > last_null)					\
+	    {								\
+	      for (p = _ascii_bytes; p < limit && *p != '\0'; p++)	\
+		continue;						\
+	      last_null = p;						\
+	    }								\
+	  else								\
+	    p = last_null;						\
 									\
 	  if (p < limit && (p - _ascii_bytes) <= (long)STRING_LIMIT)	\
 	    {								\

@@ -1,6 +1,6 @@
 /* Move registers around to reduce number of move instructions needed.
    Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 
 /* This module looks for cases where matching constraints would force
@@ -43,6 +43,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "except.h"
 #include "toplev.h"
 #include "reload.h"
+#include "timevar.h"
+#include "tree-pass.h"
 
 
 /* Turn STACK_GROWS_DOWNWARD into a boolean.  */
@@ -74,12 +76,11 @@ static void flags_set_1 (rtx, rtx, void *);
 static int try_auto_increment (rtx, rtx, rtx, rtx, HOST_WIDE_INT, int);
 static int find_matches (rtx, struct match *);
 static void replace_in_call_usage (rtx *, unsigned int, rtx, rtx);
-static int fixup_match_1 (rtx, rtx, rtx, rtx, rtx, int, int, int, FILE *);
-static int reg_is_remote_constant_p (rtx, rtx, rtx);
+static int fixup_match_1 (rtx, rtx, rtx, rtx, rtx, int, int, int);
 static int stable_and_no_regs_but_for_p (rtx, rtx, rtx);
 static int regclass_compatible_p (int, int);
 static int replacement_quality (rtx);
-static int fixup_match_2 (rtx, rtx, rtx, rtx, FILE *);
+static int fixup_match_2 (rtx, rtx, rtx, rtx);
 
 /* Return nonzero if registers with CLASS1 and CLASS2 can be merged without
    causing too much register allocation problems.  */
@@ -135,7 +136,7 @@ try_auto_increment (rtx insn, rtx inc_insn, rtx inc_insn_set, rtx reg,
 		  /* If there is a REG_DEAD note on this insn, we must
 		     change this not to REG_UNUSED meaning that the register
 		     is set, but the value is dead.  Failure to do so will
-		     result in a sched1 abort -- when it recomputes lifetime
+		     result in a sched1 dieing -- when it recomputes lifetime
 		     information, the number of REG_DEAD notes will have
 		     changed.  */
 		  rtx note = find_reg_note (insn, REG_DEAD, reg);
@@ -167,7 +168,7 @@ discover_flags_reg (void)
 {
   rtx tmp;
   tmp = gen_rtx_REG (word_mode, 10000);
-  tmp = gen_add3_insn (tmp, tmp, GEN_INT (2));
+  tmp = gen_add3_insn (tmp, tmp, const2_rtx);
 
   /* If we get something that isn't a simple set, or a
      [(set ..) (clobber ..)], this whole function will go wrong.  */
@@ -188,10 +189,10 @@ discover_flags_reg (void)
 	 scratch or something.  We only care about hard regs.
 	 Moreover we don't like the notion of subregs of hard regs.  */
       if (GET_CODE (tmp) == SUBREG
-	  && GET_CODE (SUBREG_REG (tmp)) == REG
+	  && REG_P (SUBREG_REG (tmp))
 	  && REGNO (SUBREG_REG (tmp)) < FIRST_PSEUDO_REGISTER)
 	return pc_rtx;
-      found = (GET_CODE (tmp) == REG && REGNO (tmp) < FIRST_PSEUDO_REGISTER);
+      found = (REG_P (tmp) && REGNO (tmp) < FIRST_PSEUDO_REGISTER);
 
       return (found ? tmp : NULL_RTX);
     }
@@ -246,7 +247,7 @@ mark_flags_life_zones (rtx flags)
   flags_nregs = 1;
 #else
   flags_regno = REGNO (flags);
-  flags_nregs = HARD_REGNO_NREGS (flags_regno, GET_MODE (flags));
+  flags_nregs = hard_regno_nregs[flags_regno][GET_MODE (flags)];
 #endif
   flags_set_1_rtx = flags;
 
@@ -266,7 +267,7 @@ mark_flags_life_zones (rtx flags)
       {
 	int i;
 	for (i = 0; i < flags_nregs; ++i)
-	  live |= REGNO_REG_SET_P (block->global_live_at_start,
+	  live |= REGNO_REG_SET_P (block->il.rtl->global_live_at_start,
 				   flags_regno + i);
       }
 #endif
@@ -291,7 +292,7 @@ mark_flags_life_zones (rtx flags)
 #endif
 	      PUT_MODE (insn, (live ? HImode : VOIDmode));
 
-	      /* In either case, birth is denoted simply by it's presence
+	      /* In either case, birth is denoted simply by its presence
 		 as the destination of a set.  */
 	      flags_set_1_set = 0;
 	      note_stores (PATTERN (insn), flags_set_1, NULL);
@@ -334,7 +335,7 @@ replacement_quality (rtx reg)
   int src_regno;
 
   /* Bad if this isn't a register at all.  */
-  if (GET_CODE (reg) != REG)
+  if (!REG_P (reg))
     return 0;
 
   /* If this register is not meant to get a hard register,
@@ -431,6 +432,9 @@ optimize_reg_copy_1 (rtx insn, rtx dest, rtx src)
 	  || (sregno < FIRST_PSEUDO_REGISTER
 	      && asm_noperands (PATTERN (p)) >= 0
 	      && reg_overlap_mentioned_p (src, PATTERN (p)))
+	  /* Don't change hard registers used by a call.  */
+	  || (CALL_P (p) && sregno < FIRST_PSEUDO_REGISTER
+	      && find_reg_fusage (p, USE, src))
 	  /* Don't change a USE of a register.  */
 	  || (GET_CODE (PATTERN (p)) == USE
 	      && reg_overlap_mentioned_p (src, XEXP (PATTERN (p), 0))))
@@ -491,7 +495,7 @@ optimize_reg_copy_1 (rtx insn, rtx dest, rtx src)
 
 	      /* If the insn in which SRC dies is a CALL_INSN, don't count it
 		 as a call that has been crossed.  Otherwise, count it.  */
-	      if (q != p && GET_CODE (q) == CALL_INSN)
+	      if (q != p && CALL_P (q))
 		{
 		  /* Similarly, total calls for SREGNO, total calls beyond
 		     the death note for DREGNO.  */
@@ -620,7 +624,7 @@ optimize_reg_copy_2 (rtx insn, rtx dest, rtx src)
 		  PATTERN (q) = replace_rtx (PATTERN (q), dest, src);
 
 
-	      if (GET_CODE (q) == CALL_INSN)
+	      if (CALL_P (q))
 		{
 		  REG_N_CALLS_CROSSED (dregno)--;
 		  REG_N_CALLS_CROSSED (sregno)++;
@@ -636,7 +640,7 @@ optimize_reg_copy_2 (rtx insn, rtx dest, rtx src)
 
       if (reg_set_p (src, p)
 	  || find_reg_note (p, REG_DEAD, dest)
-	  || (GET_CODE (p) == CALL_INSN && REG_N_CALLS_CROSSED (sregno) == 0))
+	  || (CALL_P (p) && REG_N_CALLS_CROSSED (sregno) == 0))
 	break;
     }
 }
@@ -652,7 +656,7 @@ optimize_reg_copy_3 (rtx insn, rtx dest, rtx src)
   rtx src_reg = XEXP (src, 0);
   int src_no = REGNO (src_reg);
   int dst_no = REGNO (dest);
-  rtx p, set, subreg;
+  rtx p, set;
   enum machine_mode old_mode;
 
   if (src_no < FIRST_PSEUDO_REGISTER
@@ -671,7 +675,7 @@ optimize_reg_copy_3 (rtx insn, rtx dest, rtx src)
     return;
 
   if (! (set = single_set (p))
-      || GET_CODE (SET_SRC (set)) != MEM
+      || !MEM_P (SET_SRC (set))
       /* If there's a REG_EQUIV note, this must be an insn that loads an
 	 argument.  Prefer keeping the note over doing this optimization.  */
       || find_reg_note (p, REG_EQUIV, NULL_RTX)
@@ -700,14 +704,15 @@ optimize_reg_copy_3 (rtx insn, rtx dest, rtx src)
 
   /* Now walk forward making additional replacements.  We want to be able
      to undo all the changes if a later substitution fails.  */
-  subreg = gen_lowpart_SUBREG (old_mode, src_reg);
   while (p = NEXT_INSN (p), p != insn)
     {
       if (! INSN_P (p))
 	continue;
 
       /* Make a tentative change.  */
-      validate_replace_rtx_group (src_reg, subreg, p);
+      validate_replace_rtx_group (src_reg,
+				  gen_lowpart_SUBREG (old_mode, src_reg),
+				  p);
     }
 
   validate_replace_rtx_group (src, src_reg, insn);
@@ -752,10 +757,9 @@ copy_src_to_dest (rtx insn, rtx src, rtx dest, int old_max_uid)
      parameter when there is no frame pointer that is not allocated a register.
      For now, we just reject them, rather than incrementing the live length.  */
 
-  if (GET_CODE (src) == REG
+  if (REG_P (src)
       && REG_LIVE_LENGTH (REGNO (src)) > 0
-      && GET_CODE (dest) == REG
-      && !RTX_UNCHANGING_P (dest)
+      && REG_P (dest)
       && REG_LIVE_LENGTH (REGNO (dest)) > 0
       && (set = single_set (insn)) != NULL_RTX
       && !reg_mentioned_p (dest, SET_SRC (set))
@@ -831,11 +835,16 @@ copy_src_to_dest (rtx insn, rtx src, rtx dest, int old_max_uid)
 
       if (REGNO_LAST_UID (src_regno) == insn_uid)
 	REGNO_LAST_UID (src_regno) = move_uid;
-
-      if (REGNO_LAST_NOTE_UID (src_regno) == insn_uid)
-	REGNO_LAST_NOTE_UID (src_regno) = move_uid;
     }
 }
+
+/* reg_set_in_bb[REGNO] points to basic block iff the register is set
+   only once in the given block and has REG_EQUAL note.  */
+
+basic_block *reg_set_in_bb;
+
+/* Size of reg_set_in_bb array.  */
+static unsigned int max_reg_computed;
 
 
 /* Return whether REG is set in only one location, and is set to a
@@ -848,51 +857,57 @@ copy_src_to_dest (rtx insn, rtx src, rtx dest, int old_max_uid)
    is used in a different basic block as well as this one?).  FIRST is
    the first insn in the function.  */
 
-static int
-reg_is_remote_constant_p (rtx reg, rtx insn, rtx first)
+static bool
+reg_is_remote_constant_p (rtx reg, rtx insn)
 {
+  basic_block bb;
   rtx p;
+  int max;
 
-  if (REG_N_SETS (REGNO (reg)) != 1)
-    return 0;
-
-  /* Look for the set.  */
-  for (p = LOG_LINKS (insn); p; p = XEXP (p, 1))
+  if (!reg_set_in_bb)
     {
-      rtx s;
+      max_reg_computed = max = max_reg_num ();
+      reg_set_in_bb = xcalloc (max, sizeof (*reg_set_in_bb));
 
-      if (REG_NOTE_KIND (p) != 0)
-	continue;
-      s = single_set (XEXP (p, 0));
-      if (s != 0
-	  && GET_CODE (SET_DEST (s)) == REG
-	  && REGNO (SET_DEST (s)) == REGNO (reg))
+      FOR_EACH_BB (bb)
+	for (p = BB_HEAD (bb); p != NEXT_INSN (BB_END (bb));
+	     p = NEXT_INSN (p))
 	{
-	  /* The register is set in the same basic block.  */
-	  return 0;
+	  rtx s;
+
+	  if (!INSN_P (p))
+	    continue;
+	  s = single_set (p);
+	  /* This is the instruction which sets REG.  If there is a
+	     REG_EQUAL note, then REG is equivalent to a constant.  */
+	  if (s != 0
+	      && REG_P (SET_DEST (s))
+	      && REG_N_SETS (REGNO (SET_DEST (s))) == 1
+	      && find_reg_note (p, REG_EQUAL, NULL_RTX))
+	    reg_set_in_bb[REGNO (SET_DEST (s))] = bb;
 	}
     }
-
-  for (p = first; p && p != insn; p = NEXT_INSN (p))
+  gcc_assert (REGNO (reg) < max_reg_computed);
+  if (reg_set_in_bb[REGNO (reg)] == NULL)
+    return false;
+  if (reg_set_in_bb[REGNO (reg)] != BLOCK_FOR_INSN (insn))
+    return true;
+  /* Look for the set.  */
+  for (p = BB_HEAD (BLOCK_FOR_INSN (insn)); p != insn; p = NEXT_INSN (p))
     {
       rtx s;
 
-      if (! INSN_P (p))
+      if (!INSN_P (p))
 	continue;
       s = single_set (p);
       if (s != 0
-	  && GET_CODE (SET_DEST (s)) == REG
-	  && REGNO (SET_DEST (s)) == REGNO (reg))
+	  && REG_P (SET_DEST (s)) && REGNO (SET_DEST (s)) == REGNO (reg))
 	{
-	  /* This is the instruction which sets REG.  If there is a
-             REG_EQUAL note, then REG is equivalent to a constant.  */
-	  if (find_reg_note (p, REG_EQUAL, NULL_RTX))
-	    return 1;
-	  return 0;
+	  /* The register is set in the same basic block.  */
+	  return false;
 	}
     }
-
-  return 0;
+  return true;
 }
 
 /* INSN is adding a CONST_INT to a REG.  We search backwards looking for
@@ -914,7 +929,7 @@ reg_is_remote_constant_p (rtx reg, rtx insn, rtx first)
    hard register as ultimate source, like the frame pointer.  */
 
 static int
-fixup_match_2 (rtx insn, rtx dst, rtx src, rtx offset, FILE *regmove_dump_file)
+fixup_match_2 (rtx insn, rtx dst, rtx src, rtx offset)
 {
   rtx p, dst_death = 0;
   int length, num_calls = 0;
@@ -963,16 +978,16 @@ fixup_match_2 (rtx insn, rtx dst, rtx src, rtx offset, FILE *regmove_dump_file)
 		  REG_N_CALLS_CROSSED (REGNO (dst)) += num_calls;
 		}
 
-	      if (regmove_dump_file)
-		fprintf (regmove_dump_file,
+	      if (dump_file)
+		fprintf (dump_file,
 			 "Fixed operand of insn %d.\n",
 			  INSN_UID (insn));
 
 #ifdef AUTO_INC_DEC
 	      for (p = PREV_INSN (insn); p; p = PREV_INSN (p))
 		{
-		  if (GET_CODE (p) == CODE_LABEL
-		      || GET_CODE (p) == JUMP_INSN)
+		  if (LABEL_P (p)
+		      || JUMP_P (p))
 		    break;
 		  if (! INSN_P (p))
 		    continue;
@@ -985,8 +1000,8 @@ fixup_match_2 (rtx insn, rtx dst, rtx src, rtx offset, FILE *regmove_dump_file)
 		}
 	      for (p = NEXT_INSN (insn); p; p = NEXT_INSN (p))
 		{
-		  if (GET_CODE (p) == CODE_LABEL
-		      || GET_CODE (p) == JUMP_INSN)
+		  if (LABEL_P (p)
+		      || JUMP_P (p))
 		    break;
 		  if (! INSN_P (p))
 		    continue;
@@ -1010,7 +1025,7 @@ fixup_match_2 (rtx insn, rtx dst, rtx src, rtx offset, FILE *regmove_dump_file)
       /* reg_set_p is overly conservative for CALL_INSNS, thinks that all
 	 hard regs are clobbered.  Thus, we only use it for src for
 	 non-call insns.  */
-      if (GET_CODE (p) == CALL_INSN)
+      if (CALL_P (p))
 	{
 	  if (! dst_death)
 	    num_calls++;
@@ -1035,8 +1050,8 @@ fixup_match_2 (rtx insn, rtx dst, rtx src, rtx offset, FILE *regmove_dump_file)
    REGMOVE_DUMP_FILE is a stream for output of a trace of actions taken
    (or 0 if none should be output).  */
 
-void
-regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
+static void
+regmove_optimize (rtx f, int nregs)
 {
   int old_max_uid = get_max_uid ();
   rtx insn;
@@ -1055,10 +1070,10 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
      can suppress some optimizations in those zones.  */
   mark_flags_life_zones (discover_flags_reg ());
 
-  regno_src_regno = xmalloc (sizeof *regno_src_regno * nregs);
+  regno_src_regno = XNEWVEC (int, nregs);
   for (i = nregs; --i >= 0; ) regno_src_regno[i] = -1;
 
-  regmove_bb_head = xmalloc (sizeof (int) * (old_max_uid + 1));
+  regmove_bb_head = XNEWVEC (int, old_max_uid + 1);
   for (i = old_max_uid; i >= 0; i--) regmove_bb_head[i] = -1;
   FOR_EACH_BB (bb)
     regmove_bb_head[INSN_UID (BB_HEAD (bb))] = bb->index;
@@ -1070,8 +1085,8 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
       if (! flag_regmove && pass >= flag_expensive_optimizations)
 	goto done;
 
-      if (regmove_dump_file)
-	fprintf (regmove_dump_file, "Starting %s pass...\n",
+      if (dump_file)
+	fprintf (dump_file, "Starting %s pass...\n",
 		 pass ? "backward" : "forward");
 
       for (insn = pass ? get_last_insn () : f; insn;
@@ -1087,13 +1102,13 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 	  if (flag_expensive_optimizations && ! pass
 	      && (GET_CODE (SET_SRC (set)) == SIGN_EXTEND
 		  || GET_CODE (SET_SRC (set)) == ZERO_EXTEND)
-	      && GET_CODE (XEXP (SET_SRC (set), 0)) == REG
-	      && GET_CODE (SET_DEST (set)) == REG)
+	      && REG_P (XEXP (SET_SRC (set), 0))
+	      && REG_P (SET_DEST (set)))
 	    optimize_reg_copy_3 (insn, SET_DEST (set), SET_SRC (set));
 
 	  if (flag_expensive_optimizations && ! pass
-	      && GET_CODE (SET_SRC (set)) == REG
-	      && GET_CODE (SET_DEST (set)) == REG)
+	      && REG_P (SET_SRC (set))
+	      && REG_P (SET_DEST (set)))
 	    {
 	      /* If this is a register-register copy where SRC is not dead,
 		 see if we can optimize it.  If this optimization succeeds,
@@ -1142,7 +1157,7 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 	      src = recog_data.operand[op_no];
 	      dst = recog_data.operand[match_no];
 
-	      if (GET_CODE (src) != REG)
+	      if (!REG_P (src))
 		continue;
 
 	      src_subreg = src;
@@ -1150,12 +1165,13 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 		  && GET_MODE_SIZE (GET_MODE (dst))
 		     >= GET_MODE_SIZE (GET_MODE (SUBREG_REG (dst))))
 		{
-		  src_subreg
-		    = gen_rtx_SUBREG (GET_MODE (SUBREG_REG (dst)),
-				      src, SUBREG_BYTE (dst));
 		  dst = SUBREG_REG (dst);
+		  src_subreg = lowpart_subreg (GET_MODE (dst),
+					       src, GET_MODE (src));
+		  if (!src_subreg)
+		    continue;
 		}
-	      if (GET_CODE (dst) != REG
+	      if (!REG_P (dst)
 		  || REGNO (dst) < FIRST_PSEUDO_REGISTER)
 		continue;
 
@@ -1206,8 +1222,7 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 		continue;
 
 	      if (fixup_match_1 (insn, set, src, src_subreg, dst, pass,
-				 op_no, match_no,
-				 regmove_dump_file))
+				 op_no, match_no))
 		break;
 	    }
 	}
@@ -1215,8 +1230,8 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 
   /* A backward pass.  Replace input operands with output operands.  */
 
-  if (regmove_dump_file)
-    fprintf (regmove_dump_file, "Starting backward pass...\n");
+  if (dump_file)
+    fprintf (dump_file, "Starting backward pass...\n");
 
   for (insn = get_last_insn (); insn; insn = PREV_INSN (insn))
     {
@@ -1253,13 +1268,12 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 	      dst = recog_data.operand[match_no];
 	      src = recog_data.operand[op_no];
 
-	      if (GET_CODE (src) != REG)
+	      if (!REG_P (src))
 		continue;
 
-	      if (GET_CODE (dst) != REG
+	      if (!REG_P (dst)
 		  || REGNO (dst) < FIRST_PSEUDO_REGISTER
 		  || REG_LIVE_LENGTH (REGNO (dst)) < 0
-		  || RTX_UNCHANGING_P (dst)
 		  || GET_MODE (src) != GET_MODE (dst))
 		continue;
 
@@ -1306,8 +1320,7 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 		      && GET_CODE (XEXP (SET_SRC (set), 1)) == CONST_INT
 		      && XEXP (SET_SRC (set), 0) == src
 		      && fixup_match_2 (insn, dst, src,
-					XEXP (SET_SRC (set), 1),
-					regmove_dump_file))
+					XEXP (SET_SRC (set), 1)))
 		    break;
 		  continue;
 		}
@@ -1355,7 +1368,7 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 		 it for this optimization, as this would make it
 		 no longer equivalent to a constant.  */
 
-	      if (reg_is_remote_constant_p (src, insn, f))
+	      if (reg_is_remote_constant_p (src, insn))
 		{
 		  if (!copy_src)
 		    {
@@ -1366,8 +1379,8 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 		}
 
 
-	      if (regmove_dump_file)
-		fprintf (regmove_dump_file,
+	      if (dump_file)
+		fprintf (dump_file,
 			 "Could fix operand %d of insn %d matching operand %d.\n",
 			 op_no, INSN_UID (insn), match_no);
 
@@ -1423,7 +1436,7 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 		  /* If we have passed a call instruction, and the
 		     pseudo-reg DST is not already live across a call,
 		     then don't perform the optimization.  */
-		  if (GET_CODE (p) == CALL_INSN)
+		  if (CALL_P (p))
 		    {
 		      num_calls++;
 
@@ -1470,8 +1483,8 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
 			REG_LIVE_LENGTH (srcno) = 2;
 		    }
 
-		  if (regmove_dump_file)
-		    fprintf (regmove_dump_file,
+		  if (dump_file)
+		    fprintf (dump_file,
 			     "Fixed operand %d of insn %d matching operand %d.\n",
 			     op_no, INSN_UID (insn), match_no);
 
@@ -1504,6 +1517,11 @@ regmove_optimize (rtx f, int nregs, FILE *regmove_dump_file)
   /* Clean up.  */
   free (regno_src_regno);
   free (regmove_bb_head);
+  if (reg_set_in_bb)
+    {
+      free (reg_set_in_bb);
+      reg_set_in_bb = NULL;
+    }
 }
 
 /* Returns nonzero if INSN's pattern has matching constraints for any operand.
@@ -1641,8 +1659,7 @@ replace_in_call_usage (rtx *loc, unsigned int dst_reg, rtx src, rtx insn)
 
 static int
 fixup_match_1 (rtx insn, rtx set, rtx src, rtx src_subreg, rtx dst,
-	       int backward, int operand_number, int match_number,
-	       FILE *regmove_dump_file)
+	       int backward, int operand_number, int match_number)
 {
   rtx p;
   rtx post_inc = 0, post_inc_set = 0, search_end = 0;
@@ -1653,12 +1670,6 @@ fixup_match_1 (rtx insn, rtx set, rtx src, rtx src_subreg, rtx dst,
   rtx overlap = 0; /* need to move insn ? */
   rtx src_note = find_reg_note (insn, REG_DEAD, src), dst_note = NULL_RTX;
   int length, s_length;
-
-  /* If SRC is marked as unchanging, we may not change it.
-     ??? Maybe we could get better code by removing the unchanging bit
-     instead, and changing it back if we don't succeed?  */
-  if (RTX_UNCHANGING_P (src))
-    return 0;
 
   if (! src_note)
     {
@@ -1683,8 +1694,8 @@ fixup_match_1 (rtx insn, rtx set, rtx src, rtx src_subreg, rtx dst,
 	code = NOTE;
     }
 
-  if (regmove_dump_file)
-    fprintf (regmove_dump_file,
+  if (dump_file)
+    fprintf (dump_file,
 	     "Could fix operand %d of insn %d matching operand %d.\n",
 	     operand_number, INSN_UID (insn), match_number);
 
@@ -1692,7 +1703,7 @@ fixup_match_1 (rtx insn, rtx set, rtx src, rtx src_subreg, rtx dst,
      then do not use it for this optimization.  We want the equivalence
      so that if we have to reload this register, we can reload the
      constant, rather than extending the lifespan of the register.  */
-  if (reg_is_remote_constant_p (src, insn, get_insns ()))
+  if (reg_is_remote_constant_p (src, insn))
     return 0;
 
   /* Scan forward to find the next instruction that
@@ -1702,7 +1713,7 @@ fixup_match_1 (rtx insn, rtx set, rtx src, rtx src_subreg, rtx dst,
 
   for (length = s_length = 0, p = NEXT_INSN (insn); p; p = NEXT_INSN (p))
     {
-      if (GET_CODE (p) == CALL_INSN)
+      if (CALL_P (p))
 	replace_in_call_usage (& CALL_INSN_FUNCTION_USAGE (p),
 			       REGNO (dst), src, p);
 
@@ -1779,7 +1790,7 @@ fixup_match_1 (rtx insn, rtx set, rtx src, rtx src_subreg, rtx dst,
 			 hard register.  */
 		      && ! (dst_note && ! REG_N_CALLS_CROSSED (REGNO (dst))
 			    && single_set (p)
-			    && GET_CODE (SET_DEST (single_set (p))) == REG
+			    && REG_P (SET_DEST (single_set (p)))
 			    && (REGNO (SET_DEST (single_set (p)))
 				< FIRST_PSEUDO_REGISTER))
 		      /* We may only emit an insn directly after P if we
@@ -1839,7 +1850,7 @@ fixup_match_1 (rtx insn, rtx set, rtx src, rtx src_subreg, rtx dst,
 
       /* If we have passed a call instruction, and the pseudo-reg SRC is not
 	 already live across a call, then don't perform the optimization.  */
-      if (GET_CODE (p) == CALL_INSN)
+      if (CALL_P (p))
 	{
 	  if (REG_N_CALLS_CROSSED (REGNO (src)) == 0)
 	    break;
@@ -1930,7 +1941,7 @@ fixup_match_1 (rtx insn, rtx set, rtx src, rtx src_subreg, rtx dst,
 		  q = 0;
 		  break;
 		}
-	      if (GET_CODE (p) == CALL_INSN)
+	      if (CALL_P (p))
 		num_calls2++;
 	    }
 	  if (q && set2 && SET_DEST (set2) == src && CONSTANT_P (SET_SRC (set2))
@@ -2024,8 +2035,8 @@ fixup_match_1 (rtx insn, rtx set, rtx src, rtx src_subreg, rtx dst,
       if (REG_LIVE_LENGTH (REGNO (dst)) < 2)
 	REG_LIVE_LENGTH (REGNO (dst)) = 2;
     }
-  if (regmove_dump_file)
-    fprintf (regmove_dump_file,
+  if (dump_file)
+    fprintf (dump_file,
 	     "Fixed operand %d of insn %d matching operand %d.\n",
 	     operand_number, INSN_UID (insn), match_number);
   return 1;
@@ -2036,17 +2047,20 @@ fixup_match_1 (rtx insn, rtx set, rtx src, rtx src_subreg, rtx dst,
    mentioning SRC or mentioning / changing DST .  If in doubt, presume
    it is unstable.
    The rationale is that we want to check if we can move an insn easily
-   while just paying attention to SRC and DST.  A register is considered
-   stable if it has the RTX_UNCHANGING_P bit set, but that would still
-   leave the burden to update REG_DEAD / REG_UNUSED notes, so we don't
-   want any registers but SRC and DST.  */
+   while just paying attention to SRC and DST.  */
 static int
 stable_and_no_regs_but_for_p (rtx x, rtx src, rtx dst)
 {
   RTX_CODE code = GET_CODE (x);
   switch (GET_RTX_CLASS (code))
     {
-    case '<': case '1': case 'c': case '2': case 'b': case '3':
+    case RTX_UNARY:
+    case RTX_BIN_ARITH:
+    case RTX_COMM_ARITH:
+    case RTX_COMPARE:
+    case RTX_COMM_COMPARE:
+    case RTX_TERNARY:
+    case RTX_BITFIELD_OPS:
       {
 	int i;
 	const char *fmt = GET_RTX_FORMAT (code);
@@ -2056,7 +2070,7 @@ stable_and_no_regs_but_for_p (rtx x, rtx src, rtx dst)
 	      return 0;
 	return 1;
       }
-    case 'o':
+    case RTX_OBJ:
       if (code == REG)
 	return x == src || x == dst;
       /* If this is a MEM, look inside - there might be a register hidden in
@@ -2114,7 +2128,7 @@ static int record_stack_memrefs (rtx *, void *);
 
 /* Main entry point for stack adjustment combination.  */
 
-void
+static void
 combine_stack_adjustments (void)
 {
   basic_block bb;
@@ -2128,7 +2142,7 @@ combine_stack_adjustments (void)
 static int
 stack_memref_p (rtx x)
 {
-  if (GET_CODE (x) != MEM)
+  if (!MEM_P (x))
     return 0;
   x = XEXP (x, 0);
 
@@ -2153,7 +2167,7 @@ single_set_for_csa (rtx insn)
   if (tmp)
     return tmp;
 
-  if (GET_CODE (insn) != INSN
+  if (!NONJUMP_INSN_P (insn)
       || GET_CODE (PATTERN (insn)) != PARALLEL)
     return NULL_RTX;
 
@@ -2198,7 +2212,7 @@ record_one_stack_memref (rtx insn, rtx *mem, struct csa_memlist *next_memlist)
 {
   struct csa_memlist *ml;
 
-  ml = xmalloc (sizeof (*ml));
+  ml = XNEW (struct csa_memlist);
 
   if (XEXP (*mem, 0) == stack_pointer_rtx)
     ml->sp_offset = 0;
@@ -2405,7 +2419,7 @@ combine_stack_adjustments_for_block (basic_block bb)
 	     turn it into a direct store.  Obviously we can't do this if
 	     there were any intervening uses of the stack pointer.  */
 	  if (memlist == NULL
-	      && GET_CODE (dest) == MEM
+	      && MEM_P (dest)
 	      && ((GET_CODE (XEXP (dest, 0)) == PRE_DEC
 		   && (last_sp_adjust
 		       == (HOST_WIDE_INT) GET_MODE_SIZE (GET_MODE (dest))))
@@ -2435,7 +2449,7 @@ combine_stack_adjustments_for_block (basic_block bb)
 
       data.insn = insn;
       data.memlist = memlist;
-      if (GET_CODE (insn) != CALL_INSN && last_sp_set
+      if (!CALL_P (insn) && last_sp_set
 	  && !for_each_rtx (&PATTERN (insn), record_stack_memrefs, &data))
 	{
 	   memlist = data.memlist;
@@ -2446,7 +2460,7 @@ combine_stack_adjustments_for_block (basic_block bb)
       /* Otherwise, we were not able to process the instruction.
 	 Do not continue collecting data across such a one.  */
       if (last_sp_set
-	  && (GET_CODE (insn) == CALL_INSN
+	  && (CALL_P (insn)
 	      || reg_mentioned_p (stack_pointer_rtx, PATTERN (insn))))
 	{
 	  if (last_sp_set && last_sp_adjust == 0)
@@ -2460,4 +2474,86 @@ combine_stack_adjustments_for_block (basic_block bb)
 
   if (last_sp_set && last_sp_adjust == 0)
     delete_insn (last_sp_set);
+
+  if (memlist)
+    free_csa_memlist (memlist);
 }
+
+static bool
+gate_handle_regmove (void)
+{
+  return (optimize > 0 && flag_regmove);
+}
+
+
+/* Register allocation pre-pass, to reduce number of moves necessary
+   for two-address machines.  */
+static unsigned int
+rest_of_handle_regmove (void)
+{
+  regmove_optimize (get_insns (), max_reg_num ());
+  cleanup_cfg (CLEANUP_EXPENSIVE | CLEANUP_UPDATE_LIFE);
+  return 0;
+}
+
+struct tree_opt_pass pass_regmove =
+{
+  "regmove",                            /* name */
+  gate_handle_regmove,                  /* gate */
+  rest_of_handle_regmove,               /* execute */
+  NULL,                                 /* sub */
+  NULL,                                 /* next */
+  0,                                    /* static_pass_number */
+  TV_REGMOVE,                           /* tv_id */
+  0,                                    /* properties_required */
+  0,                                    /* properties_provided */
+  0,                                    /* properties_destroyed */
+  0,                                    /* todo_flags_start */
+  TODO_dump_func |
+  TODO_ggc_collect,                     /* todo_flags_finish */
+  'N'                                   /* letter */
+};
+
+
+static bool
+gate_handle_stack_adjustments (void)
+{
+  return (optimize > 0);
+}
+
+static unsigned int
+rest_of_handle_stack_adjustments (void)
+{
+  life_analysis (PROP_POSTRELOAD);
+  cleanup_cfg (CLEANUP_EXPENSIVE | CLEANUP_UPDATE_LIFE
+               | (flag_crossjumping ? CLEANUP_CROSSJUMP : 0));
+
+  /* This is kind of a heuristic.  We need to run combine_stack_adjustments
+     even for machines with possibly nonzero RETURN_POPS_ARGS
+     and ACCUMULATE_OUTGOING_ARGS.  We expect that only ports having
+     push instructions will have popping returns.  */
+#ifndef PUSH_ROUNDING
+  if (!ACCUMULATE_OUTGOING_ARGS)
+#endif
+    combine_stack_adjustments ();
+  return 0;
+}
+
+struct tree_opt_pass pass_stack_adjustments =
+{
+  "csa",                                /* name */
+  gate_handle_stack_adjustments,        /* gate */
+  rest_of_handle_stack_adjustments,     /* execute */
+  NULL,                                 /* sub */
+  NULL,                                 /* next */
+  0,                                    /* static_pass_number */
+  0,                                    /* tv_id */
+  0,                                    /* properties_required */
+  0,                                    /* properties_provided */
+  0,                                    /* properties_destroyed */
+  0,                                    /* todo_flags_start */
+  TODO_dump_func |
+  TODO_ggc_collect,                     /* todo_flags_finish */
+  0                                     /* letter */
+};
+

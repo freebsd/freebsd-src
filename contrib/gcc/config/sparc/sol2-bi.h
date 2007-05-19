@@ -1,9 +1,11 @@
 /* Definitions of target machine for GCC, for bi-arch SPARC
    running Solaris 2 using the system assembler and linker.  */
 
-/* The default code model.  */
+/* The default code model used to be CM_MEDANY on Solaris
+   but even Sun eventually found it to be quite wasteful
+   and changed it to CM_MEDMID in the Studio 9 compiler.  */
 #undef SPARC_DEFAULT_CMODEL
-#define SPARC_DEFAULT_CMODEL CM_MEDANY
+#define SPARC_DEFAULT_CMODEL CM_MEDMID
 
 #define AS_SPARC64_FLAG	"-xarch=v9"
 
@@ -37,6 +39,15 @@
 #define ASM_CPU64_DEFAULT_SPEC AS_SPARC64_FLAG "b"
 #endif
 
+#if TARGET_CPU_DEFAULT == TARGET_CPU_niagara
+#undef CPP_CPU64_DEFAULT_SPEC
+#define CPP_CPU64_DEFAULT_SPEC ""
+#undef ASM_CPU32_DEFAULT_SPEC
+#define ASM_CPU32_DEFAULT_SPEC "-xarch=v8plusb"
+#undef ASM_CPU64_DEFAULT_SPEC
+#define ASM_CPU64_DEFAULT_SPEC AS_SPARC64_FLAG "b"
+#endif
+
 #if DEFAULT_ARCH32_P
 #define DEF_ARCH32_SPEC(__str) "%{!m64:" __str "}"
 #define DEF_ARCH64_SPEC(__str) "%{m64:" __str "}"
@@ -55,7 +66,7 @@
 %{mcpu=sparclite|mcpu-f930|mcpu=f934:-D__sparclite__} \
 %{mcpu=v8:" DEF_ARCH32_SPEC("-D__sparcv8") "} \
 %{mcpu=supersparc:-D__supersparc__ " DEF_ARCH32_SPEC("-D__sparcv8") "} \
-%{mcpu=v9|mcpu=ultrasparc|mcpu=ultrasparc3:" DEF_ARCH32_SPEC("-D__sparcv8") "} \
+%{mcpu=v9|mcpu=ultrasparc|mcpu=ultrasparc3|mcpu=niagara:" DEF_ARCH32_SPEC("-D__sparcv8") "} \
 %{!mcpu*:%{!mcypress:%{!msparclite:%{!mf930:%{!mf934:%{!mv8:%{!msupersparc:%(cpp_cpu_default)}}}}}}} \
 "
 
@@ -64,7 +75,8 @@
 %{mcpu=v9:" DEF_ARCH32_SPEC("-xarch=v8plus") DEF_ARCH64_SPEC(AS_SPARC64_FLAG) "} \
 %{mcpu=ultrasparc:" DEF_ARCH32_SPEC("-xarch=v8plusa") DEF_ARCH64_SPEC(AS_SPARC64_FLAG "a") "} \
 %{mcpu=ultrasparc3:" DEF_ARCH32_SPEC("-xarch=v8plusb") DEF_ARCH64_SPEC(AS_SPARC64_FLAG "b") "} \
-%{!mcpu=ultrasparc3:%{!mcpu=ultrasparc:%{!mcpu=v9:%{mcpu*:" DEF_ARCH32_SPEC("-xarch=v8") DEF_ARCH64_SPEC(AS_SPARC64_FLAG) "}}}} \
+%{mcpu=niagara:" DEF_ARCH32_SPEC("-xarch=v8plusb") DEF_ARCH64_SPEC(AS_SPARC64_FLAG "b") "} \
+%{!mcpu=niagara:%{!mcpu=ultrasparc3:%{!mcpu=ultrasparc:%{!mcpu=v9:%{mcpu*:" DEF_ARCH32_SPEC("-xarch=v8") DEF_ARCH64_SPEC(AS_SPARC64_FLAG) "}}}}} \
 %{!mcpu*:%(asm_cpu_default)} \
 "
 
@@ -235,11 +247,4 @@
 #define MULTILIB_DEFAULTS { "m32" }
 #else
 #define MULTILIB_DEFAULTS { "m64" }
-#endif
-
-#undef PREFERRED_DEBUGGING_TYPE
-#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
-
-#if defined(HAVE_AS_GDWARF2_DEBUG_FLAG) && defined(HAVE_AS_GSTABS_DEBUG_FLAG)
-# define ASM_DEBUG_SPEC "%{gstabs*:--gstabs}%{!gstabs*:%{g*:--gdwarf2}}"
 #endif

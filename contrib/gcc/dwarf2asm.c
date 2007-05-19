@@ -1,5 +1,5 @@
 /* Dwarf2 assembler output helper routines.
-   Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 
 #include "config.h"
@@ -69,13 +69,17 @@ dw2_asm_output_data (int size, unsigned HOST_WIDE_INT value,
 		     const char *comment, ...)
 {
   va_list ap;
+  const char *op = integer_asm_op (size, FALSE);
 
   va_start (ap, comment);
 
   if (size * 8 < HOST_BITS_PER_WIDE_INT)
     value &= ~(~(unsigned HOST_WIDE_INT) 0 << (size * 8));
 
-  dw2_assemble_integer (size, GEN_INT (value));
+  if (op)
+    fprintf (asm_out_file, "%s" HOST_WIDE_INT_PRINT_HEX, op, value);
+  else
+    assemble_integer (GEN_INT (value), size, BITS_PER_UNIT, 1);
 
   if (flag_debug_asm && comment)
     {
@@ -119,14 +123,16 @@ dw2_asm_output_delta (int size, const char *lab1, const char *lab2,
   va_end (ap);
 }
 
-/* Output a section-relative reference to a label.  In general this
-   can only be done for debugging symbols.  E.g. on most targets with
-   the GNU linker, this is accomplished with a direct reference and
-   the knowledge that the debugging section will be placed at VMA 0.
-   Some targets have special relocations for this that we must use.  */
+/* Output a section-relative reference to a LABEL, which was placed in
+   BASE.  In general this can only be done for debugging symbols.
+   E.g. on most targets with the GNU linker, this is accomplished with
+   a direct reference and the knowledge that the debugging section
+   will be placed at VMA 0.  Some targets have special relocations for
+   this that we must use.  */
 
 void
 dw2_asm_output_offset (int size, const char *label,
+		       section *base ATTRIBUTE_UNUSED,
 		       const char *comment, ...)
 {
   va_list ap;
@@ -134,7 +140,7 @@ dw2_asm_output_offset (int size, const char *label,
   va_start (ap, comment);
 
 #ifdef ASM_OUTPUT_DWARF_OFFSET
-  ASM_OUTPUT_DWARF_OFFSET (asm_out_file, size, label);
+  ASM_OUTPUT_DWARF_OFFSET (asm_out_file, size, label, base);
 #else
   dw2_assemble_integer (size, gen_rtx_SYMBOL_REF (Pmode, label));
 #endif
@@ -148,6 +154,8 @@ dw2_asm_output_offset (int size, const char *label,
 
   va_end (ap);
 }
+
+#if 0
 
 /* Output a self-relative reference to a label, possibly in a
    different section or object file.  */
@@ -179,6 +187,7 @@ dw2_asm_output_pcrel (int size ATTRIBUTE_UNUSED,
 
   va_end (ap);
 }
+#endif /* 0 */
 
 /* Output an absolute reference to a label.  */
 
@@ -333,8 +342,9 @@ size_of_encoded_value (int encoding)
       return 4;
     case DW_EH_PE_udata8:
       return 8;
+    default:
+      gcc_unreachable ();
     }
-  abort ();
 }
 
 /* Yield a name for a given pointer encoding.  */
@@ -486,12 +496,12 @@ eh_data_format_name (int format)
 #if HAVE_DESIGNATED_INITIALIZERS
   };
 
-  if (format < 0 || format > 0xff || format_names[format] == NULL)
-    abort ();
+  gcc_assert (format >= 0 && format < 0x100 && format_names[format]);
+  
   return format_names[format];
 #else
   }
-  abort ();
+  gcc_unreachable ();
 #endif
 }
 
@@ -635,7 +645,7 @@ dw2_asm_output_delta_uleb128 (const char *lab1 ATTRIBUTE_UNUSED,
   fputc ('-', asm_out_file);
   assemble_name (asm_out_file, lab2);
 #else
-  abort ();
+  gcc_unreachable ();
 #endif
 
   if (flag_debug_asm && comment)
@@ -647,6 +657,8 @@ dw2_asm_output_delta_uleb128 (const char *lab1 ATTRIBUTE_UNUSED,
 
   va_end (ap);
 }
+
+#if 0
 
 void
 dw2_asm_output_delta_sleb128 (const char *lab1 ATTRIBUTE_UNUSED,
@@ -663,7 +675,7 @@ dw2_asm_output_delta_sleb128 (const char *lab1 ATTRIBUTE_UNUSED,
   fputc ('-', asm_out_file);
   assemble_name (asm_out_file, lab2);
 #else
-  abort ();
+  gcc_unreachable ();
 #endif
 
   if (flag_debug_asm && comment)
@@ -675,8 +687,9 @@ dw2_asm_output_delta_sleb128 (const char *lab1 ATTRIBUTE_UNUSED,
 
   va_end (ap);
 }
+#endif /* 0 */
 
-static rtx dw2_force_const_mem (rtx);
+static rtx dw2_force_const_mem (rtx, bool);
 static int dw2_output_indirect_constant_1 (splay_tree_node, void *);
 
 static GTY((param1_is (char *), param2_is (tree))) splay_tree indirect_pool;
@@ -692,10 +705,11 @@ static GTY(()) int dw2_const_labelno;
 /* Put X, a SYMBOL_REF, in memory.  Return a SYMBOL_REF to the allocated
    memory.  Differs from force_const_mem in that a single pool is used for
    the entire unit of translation, and the memory is not guaranteed to be
-   "near" the function in any interesting sense.  */
+   "near" the function in any interesting sense.  PUBLIC controls whether
+   the symbol can be shared across the entire application (or DSO).  */
 
 static rtx
-dw2_force_const_mem (rtx x)
+dw2_force_const_mem (rtx x, bool public)
 {
   splay_tree_node node;
   const char *str;
@@ -704,10 +718,9 @@ dw2_force_const_mem (rtx x)
   if (! indirect_pool)
     indirect_pool = splay_tree_new_ggc (splay_tree_compare_pointers);
 
-  if (GET_CODE (x) != SYMBOL_REF)
-    abort ();
+  gcc_assert (GET_CODE (x) == SYMBOL_REF);
 
-  str = (* targetm.strip_name_encoding) (XSTR (x, 0));
+  str = targetm.strip_name_encoding (XSTR (x, 0));
   node = splay_tree_lookup (indirect_pool, (splay_tree_key) str);
   if (node)
     decl = (tree) node->value;
@@ -715,7 +728,7 @@ dw2_force_const_mem (rtx x)
     {
       tree id;
 
-      if (USE_LINKONCE_INDIRECT)
+      if (public && USE_LINKONCE_INDIRECT)
 	{
 	  char *ref_name = alloca (strlen (str) + sizeof "DW.ref.");
 
@@ -723,6 +736,7 @@ dw2_force_const_mem (rtx x)
 	  id = get_identifier (ref_name);
 	  decl = build_decl (VAR_DECL, id, ptr_type_node);
 	  DECL_ARTIFICIAL (decl) = 1;
+	  DECL_IGNORED_P (decl) = 1;
 	  TREE_PUBLIC (decl) = 1;
 	  DECL_INITIAL (decl) = decl;
 	  make_decl_one_only (decl);
@@ -736,6 +750,7 @@ dw2_force_const_mem (rtx x)
 	  id = get_identifier (label);
 	  decl = build_decl (VAR_DECL, id, ptr_type_node);
 	  DECL_ARTIFICIAL (decl) = 1;
+	  DECL_IGNORED_P (decl) = 1;
 	  TREE_STATIC (decl) = 1;
 	  DECL_INITIAL (decl) = decl;
 	}
@@ -760,12 +775,14 @@ dw2_output_indirect_constant_1 (splay_tree_node node,
 {
   const char *sym;
   rtx sym_ref;
+  tree decl;
 
   sym = (const char *) node->key;
+  decl = (tree) node->value;
   sym_ref = gen_rtx_SYMBOL_REF (Pmode, sym);
-  if (USE_LINKONCE_INDIRECT)
+  if (TREE_PUBLIC (decl) && USE_LINKONCE_INDIRECT)
     fprintf (asm_out_file, "\t.hidden %sDW.ref.%s\n", user_label_prefix, sym);
-  assemble_variable ((tree) node->value, 1, 1, 1);
+  assemble_variable (decl, 1, 1, 1);
   assemble_integer (sym_ref, POINTER_SIZE / BITS_PER_UNIT, POINTER_SIZE, 1);
 
   return 0;
@@ -780,10 +797,12 @@ dw2_output_indirect_constants (void)
     splay_tree_foreach (indirect_pool, dw2_output_indirect_constant_1, NULL);
 }
 
-/* Like dw2_asm_output_addr_rtx, but encode the pointer as directed.  */
+/* Like dw2_asm_output_addr_rtx, but encode the pointer as directed.
+   If PUBLIC is set and the encoding is DW_EH_PE_indirect, the indirect
+   reference is shared across the entire application (or DSO).  */
 
 void
-dw2_asm_output_encoded_addr_rtx (int encoding, rtx addr,
+dw2_asm_output_encoded_addr_rtx (int encoding, rtx addr, bool public,
 				 const char *comment, ...)
 {
   int size;
@@ -822,9 +841,9 @@ dw2_asm_output_encoded_addr_rtx (int encoding, rtx addr,
 	  /* It is very tempting to use force_const_mem so that we share data
 	     with the normal constant pool.  However, we've already emitted
 	     the constant pool for this function.  Moreover, we'd like to
-	     share these constants across the entire unit of translation,
-	     or better, across the entire application (or DSO).  */
-	  addr = dw2_force_const_mem (addr);
+	     share these constants across the entire unit of translation and
+	     even, if possible, across the entire application (or DSO).  */
+	  addr = dw2_force_const_mem (addr, public);
 	  encoding &= ~DW_EH_PE_indirect;
 	  goto restart;
 	}
@@ -836,8 +855,7 @@ dw2_asm_output_encoded_addr_rtx (int encoding, rtx addr,
 	  break;
 
 	case DW_EH_PE_pcrel:
-	  if (GET_CODE (addr) != SYMBOL_REF)
-	    abort ();
+	  gcc_assert (GET_CODE (addr) == SYMBOL_REF);
 #ifdef ASM_OUTPUT_DWARF_PCREL
 	  ASM_OUTPUT_DWARF_PCREL (asm_out_file, size, XSTR (addr, 0));
 #else
@@ -848,7 +866,7 @@ dw2_asm_output_encoded_addr_rtx (int encoding, rtx addr,
 	default:
 	  /* Other encodings should have been handled by
 	     ASM_MAYBE_OUTPUT_ENCODED_ADDR_RTX.  */
-	  abort ();
+	  gcc_unreachable ();
 	}
 
 #ifdef ASM_MAYBE_OUTPUT_ENCODED_ADDR_RTX

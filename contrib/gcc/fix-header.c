@@ -1,6 +1,6 @@
 /* fix-header.c - Make C header file suitable for C++.
    Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2006 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -14,7 +14,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* This program massages a system include file (such as stdio.h),
    into a form that is compatible with GNU C and GNU C++.
@@ -79,10 +79,27 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "scan.h"
 #include "cpplib.h"
 #include "c-incpath.h"
+#include "errors.h"
 
-static void v_fatal (const char *, va_list)
-     ATTRIBUTE_PRINTF (1,0) ATTRIBUTE_NORETURN;
-static void fatal (const char *, ...) ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+#ifdef TARGET_EXTRA_INCLUDES
+void
+TARGET_EXTRA_INCLUDES (const char *sysroot ATTRIBUTE_UNUSED,
+		       const char *iprefix ATTRIBUTE_UNUSED,
+		       int stdinc ATTRIBUTE_UNUSED)
+{
+}
+#endif
+
+#ifdef TARGET_EXTRA_PRE_INCLUDES 
+void
+TARGET_EXTRA_PRE_INCLUDES (const char *sysroot ATTRIBUTE_UNUSED,
+			   const char *iprefix ATTRIBUTE_UNUSED,
+			   int stdinc ATTRIBUTE_UNUSED)
+{
+}
+#endif
+
+struct line_maps line_table;
 
 sstring buf;
 
@@ -267,7 +284,8 @@ tan\0tanh\0" },
      sigfillset sigismember sigpending sigprocmask sigsuspend"
      because these need sigset_t or struct sigaction.
      Most systems that provide them will also declare them.  */
-  { "signal.h", ANSI_SYMBOL, "kill\0raise\0" },
+  { "signal.h", ANSI_SYMBOL, "raise\0" },
+  { CONTINUED, POSIX1_SYMBOL, "kill\0" },
 
   { "stdio.h", ANSI_SYMBOL,
       "clearerr\0fclose\0feof\0ferror\0fflush\0fgetc\0fgetpos\0\
@@ -286,9 +304,10 @@ tmpnam\0ungetc\0" },
      Should perhaps also add NULL */
   { "stdlib.h", ANSI_SYMBOL,
       "abort\0abs\0atexit\0atof\0atoi\0atol\0bsearch\0calloc\0\
-exit\0free\0getenv\0labs\0malloc\0putenv\0qsort\0rand\0realloc\0\
+exit\0free\0getenv\0labs\0malloc\0qsort\0rand\0realloc\0\
 srand\0strtod\0strtol\0strtoul\0system\0" },
   { CONTINUED, ANSI_SYMBOL|MACRO_SYMBOL, "EXIT_FAILURE\0EXIT_SUCCESS\0" },
+  { CONTINUED, POSIX1_SYMBOL, "putenv\0" },
 
   { "string.h", ANSI_SYMBOL, "memchr\0memcmp\0memcpy\0memmove\0memset\0\
 strcat\0strchr\0strcmp\0strcoll\0strcpy\0strcspn\0strerror\0\
@@ -337,7 +356,8 @@ WTERMSIG\0WNOHANG\0WNOTRACED\0" },
       "cfgetispeed\0cfgetospeed\0cfsetispeed\0cfsetospeed\0tcdrain\0tcflow\0tcflush\0tcgetattr\0tcsendbreak\0tcsetattr\0" },
 
   { "time.h", ANSI_SYMBOL,
-      "asctime\0clock\0ctime\0difftime\0gmtime\0localtime\0mktime\0strftime\0time\0tzset\0" },
+      "asctime\0clock\0ctime\0difftime\0gmtime\0localtime\0mktime\0strftime\0time\0" },
+  { CONTINUED, POSIX1_SYMBOL, "tzset\0" },
 
   { "unistd.h", POSIX1_SYMBOL,
       "_exit\0access\0alarm\0chdir\0chown\0close\0ctermid\0cuserid\0\
@@ -389,14 +409,12 @@ lookup_std_proto (const char *name, int name_length)
 	  && strncmp (fn->fname, name, name_length) == 0)
 	return fn;
       i = (i+1) % HASH_SIZE;
-      if (i == i0)
-	abort ();
+      gcc_assert (i != i0);
     }
 }
 
 char *inc_filename;
 int inc_filename_length;
-const char *progname = "fix-header";
 FILE *outf;
 sstring line;
 
@@ -593,7 +611,8 @@ read_scan_file (char *in_fname, int argc, char **argv)
 
   obstack_init (&scan_file_obstack);
 
-  scan_in = cpp_create_reader (CLK_GNUC89, NULL);
+  linemap_init (&line_table);
+  scan_in = cpp_create_reader (CLK_GNUC89, NULL, &line_table);
   cb = cpp_get_callbacks (scan_in);
   cb->file_change = cb_file_change;
 
@@ -622,12 +641,12 @@ read_scan_file (char *in_fname, int argc, char **argv)
 	      if (argv[i][2] != '\0')
 		{
 		  strings_processed = 1;
-		  add_path (xstrdup (argv[i] + 2), BRACKET, false);
+		  add_path (xstrdup (argv[i] + 2), BRACKET, false, false);
 		}
 	      else if (i + 1 != argc)
 		{
 		  strings_processed = 2;
-		  add_path (xstrdup (argv[i + 1]), BRACKET, false);
+		  add_path (xstrdup (argv[i + 1]), BRACKET, false, false);
 		}
 	    }
 	  else if (argv[i][1] == 'D')
@@ -649,8 +668,8 @@ read_scan_file (char *in_fname, int argc, char **argv)
     exit (FATAL_EXIT_CODE);
 
   register_include_chains (scan_in, NULL /* sysroot */, NULL /* iprefix */,
-			   true /* stdinc */, false /* cxx_stdinc */,
-			   false /* verbose */);
+			   NULL /* imultilib */, true /* stdinc */,
+			   false /* cxx_stdinc */, false /* verbose */);
 
   /* We are scanning a system header, so mark it as such.  */
   cpp_make_system_header (scan_in, 1, 0);
@@ -1064,6 +1083,7 @@ main (int argc, char **argv)
   long int inf_size;
   struct symbol_list *cur_symbols;
 
+  progname = "fix-header";
   if (argv[0] && argv[0][0])
     {
       char *p;
@@ -1169,7 +1189,7 @@ main (int argc, char **argv)
       exit (FATAL_EXIT_CODE);
     }
   inf_size = sbuf.st_size;
-  inf_buffer = xmalloc (inf_size + 2);
+  inf_buffer = XNEWVEC (char, inf_size + 2);
   inf_ptr = inf_buffer;
 
   to_read = inf_size;
@@ -1288,25 +1308,4 @@ main (int argc, char **argv)
   fclose (outf);
 
   return 0;
-}
-
-
-static void
-v_fatal (const char *str, va_list ap)
-{
-  fprintf (stderr, "%s: %s: ", progname, inc_filename);
-  vfprintf (stderr, str, ap);
-  fprintf (stderr, "\n");
-
-  exit (FATAL_EXIT_CODE);
-}
-
-static void
-fatal (const char *str, ...)
-{
-  va_list ap;
-  
-  va_start (ap, str);
-  v_fatal (str, ap);
-  va_end (ap);
 }

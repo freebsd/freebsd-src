@@ -8,11 +8,6 @@
   do						\
     {						\
 	HURD_TARGET_OS_CPP_BUILTINS();		\
-	if (flag_pic)				\
-	  {					\
-	    builtin_define ("__PIC__");		\
-	    builtin_define ("__pic__");		\
-	  }					\
     }						\
   while (0)
 
@@ -40,4 +35,4 @@
    %{!static:%{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
 
 /* FIXME: Is a Hurd-specific fallback mechanism necessary?  */
-#undef MD_FALLBACK_FRAME_STATE_FOR
+#undef MD_UNWIND_SUPPORT

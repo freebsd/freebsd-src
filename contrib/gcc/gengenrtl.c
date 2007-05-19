@@ -1,5 +1,5 @@
 /* Generate code to allocate RTL structures.
-   Copyright (C) 1997, 1998, 1999, 2000, 2002, 2003
+   Copyright (C) 1997, 1998, 1999, 2000, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 
 #include "bconfig.h"
@@ -84,7 +84,7 @@ type_from_format (int c)
     case 'B':
       return "struct basic_block_def *";  /* basic block - typedef not available */
     default:
-      abort ();
+      gcc_unreachable ();
     }
 }
 
@@ -120,7 +120,7 @@ accessor_from_format (int c)
       return "XBBDEF";
 
     default:
-      abort ();
+      gcc_unreachable ();
     }
 }
 
@@ -268,10 +268,8 @@ gendef (const char *format)
      the memory and initializes it.  */
   puts ("{");
   puts ("  rtx rt;");
-  puts ("  rt = ggc_alloc_rtx (code);\n");
+  puts ("  rt = rtx_alloc (code);\n");
 
-  puts ("  memset (rt, 0, RTX_HDR_SIZE);\n");
-  puts ("  PUT_CODE (rt, code);");
   puts ("  PUT_MODE (rt, mode);");
 
   for (p = format, i = j = 0; *p ; ++p, ++i)

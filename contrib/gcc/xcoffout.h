@@ -1,6 +1,6 @@
 /* XCOFF definitions.  These are needed in dbxout.c, final.c,
    and xcoffout.h.
-   Copyright (C) 1998, 2000, 2002, 2003
+   Copyright (C) 1998, 2000, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -17,11 +17,9 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
-
-#define ASM_STABS_OP "\t.stabx\t"
 
 /* Tags and typedefs are C_DECL in XCOFF, not C_LSYM.  */
 
@@ -29,15 +27,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* Use the XCOFF predefined type numbers.  */
 
-/* ??? According to metin, typedef stabx must go in text control section,
-   but he did not make this changes everywhere where such typedef stabx
-   can be emitted, so it is really needed or not?  */
-
-#define DBX_OUTPUT_STANDARD_TYPES(SYMS)		\
-{						\
-  text_section ();				\
-  xcoff_output_standard_types (SYMS);		\
-}
+#define DBX_ASSIGN_FUNDAMENTAL_TYPE_NUMBER(TYPE) \
+  xcoff_assign_fundamental_type_number (TYPE)
 
 /* Any type with a negative type index has already been output.  */
 
@@ -77,32 +68,40 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 /* Define our own finish symbol function, since xcoff stabs have their
    own different format.  */
 
-#define DBX_FINISH_SYMBOL(SYM)					\
-{								\
-  if (current_sym_addr && current_sym_code == N_FUN)		\
-    fprintf (asmfile, "\",.");					\
-  else								\
-    fprintf (asmfile, "\",");					\
-  /* If we are writing a function name, we must ensure that	\
-     there is no storage-class suffix on the name.  */		\
-  if (current_sym_addr && current_sym_code == N_FUN		\
-      && GET_CODE (current_sym_addr) == SYMBOL_REF)		\
-    {								\
-      const char *_p = XSTR (current_sym_addr, 0);		\
-      if (*_p == '*')						\
-	fprintf (asmfile, "%s", _p+1);				\
-      else							\
-	for (; *_p != '[' && *_p; _p++)				\
-	  fprintf (asmfile, "%c", *_p);				\
-    }								\
-  else if (current_sym_addr)					\
-    output_addr_const (asmfile, current_sym_addr);		\
-  else if (current_sym_code == N_GSYM)				\
-    assemble_name (asmfile, XSTR (XEXP (DECL_RTL (sym), 0), 0)); \
-  else								\
-    fprintf (asmfile, "%d", current_sym_value);			\
-  fprintf (asmfile, ",%d,0\n", stab_to_sclass (current_sym_code)); \
-}
+#define DBX_FINISH_STABS(SYM, CODE, LINE, ADDR, LABEL, NUMBER) do {	\
+  if (ADDR)								\
+    {									\
+      /* If we are writing a function name, we must emit a dot in	\
+	 order to refer to the function code, not its descriptor.  */	\
+      if (CODE == N_FUN)						\
+	putc ('.', asm_out_file);					\
+									\
+      /* If we are writing a function name, we must ensure that		\
+	 there is no storage-class suffix on the name.  */		\
+      if (CODE == N_FUN && GET_CODE (ADDR) == SYMBOL_REF)		\
+	{								\
+	  const char *_p = XSTR (ADDR, 0);				\
+	  if (*_p == '*')						\
+	    fputs (_p+1, asm_out_file);					\
+	  else								\
+	    for (; *_p != '[' && *_p; _p++)				\
+	      putc (*_p, asm_out_file);					\
+	}								\
+      else								\
+	output_addr_const (asm_out_file, ADDR);				\
+    }									\
+  /* Another special case: N_GSYM always gets the symbol name,		\
+     whether or not LABEL or NUMBER are set.  */			\
+  else if (CODE == N_GSYM)						\
+    assemble_name (asm_out_file, XSTR (XEXP (DECL_RTL (SYM), 0), 0));	\
+  else if (LABEL)							\
+    assemble_name (asm_out_file, LABEL);				\
+  else									\
+    dbxout_int (NUMBER);						\
+  putc (',', asm_out_file);						\
+  dbxout_int (stab_to_sclass (CODE));					\
+  fputs (",0\n", asm_out_file);						\
+} while (0)
 
 /* These are IBM XCOFF extensions we need to reference in dbxout.c
    and xcoffout.c.  */
@@ -135,7 +134,7 @@ extern char *xcoff_read_only_section_name;
 extern const char *xcoff_lastfile;
 
 /* Don't write out path name for main source file.  */
-#define DBX_OUTPUT_MAIN_SOURCE_DIRECTORY(FILE,FILENAME)
+#define NO_DBX_MAIN_SOURCE_DIRECTORY 1
 
 /* Write out main source file name using ".file" rather than ".stabs".
    We don't actually do this here, because the assembler gets confused if there
@@ -147,7 +146,7 @@ extern const char *xcoff_lastfile;
 
 /* If we are still in an include file, its end must be marked.  */
 #define DBX_OUTPUT_MAIN_SOURCE_FILE_END(FILE, FILENAME)	\
-{							\
+do {							\
   if (xcoff_current_include_file)			\
     {							\
       fputs ("\t.ei\t", (FILE));			\
@@ -155,16 +154,10 @@ extern const char *xcoff_lastfile;
       putc ('\n', (FILE));				\
       xcoff_current_include_file = NULL;		\
     }							\
-}
+} while (0)
 
-/* .stabx has the type in a different place.  */
-#if 0  /* Do not emit any marker for XCOFF until assembler allows XFT_CV.  */
-#define DBX_OUTPUT_GCC_MARKER(FILE) \
-  fprintf ((FILE), "%s\"%s\",0,%d,0\n", ASM_STABS_OP, STABS_GCC_MARKER, \
-	   stab_to_sclass (N_GSYM))
-#else
-#define DBX_OUTPUT_GCC_MARKER(FILE)
-#endif
+/* Do not emit any marker for XCOFF until assembler allows XFT_CV.  */
+#define NO_DBX_GCC_MARKER
 
 /* Do not break .stabs pseudos into continuations.  */
 #define DBX_CONTIN_LENGTH 0
@@ -183,23 +176,11 @@ extern const char *xcoff_lastfile;
 /* Prototype functions in xcoffout.c.  */
 
 extern int stab_to_sclass (int);
-#ifdef BUFSIZ
 extern void xcoffout_begin_prologue (unsigned int, const char *);
 extern void xcoffout_begin_block (unsigned, unsigned);
 extern void xcoffout_end_epilogue (unsigned int, const char *);
 extern void xcoffout_end_function (unsigned int);
 extern void xcoffout_end_block (unsigned, unsigned);
-#endif /* BUFSIZ */
-
-#ifdef TREE_CODE
-extern void xcoff_output_standard_types (tree);
-#ifdef BUFSIZ
+extern int xcoff_assign_fundamental_type_number (tree);
 extern void xcoffout_declare_function (FILE *, tree, const char *);
-#endif /* BUFSIZ */
-#endif /* TREE_CODE */
-
-#ifdef RTX_CODE
-#ifdef BUFSIZ
 extern void xcoffout_source_line (unsigned int, const char *);
-#endif /* BUFSIZ */
-#endif /* RTX_CODE */

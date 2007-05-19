@@ -1,5 +1,5 @@
 /* scan.h - Utility declarations for scan-decls and fix-header programs.
-   Copyright (C) 1993, 1998, 1999, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1998, 1999, 2003, 2004 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -13,7 +13,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include <stdio.h>
 
@@ -70,3 +70,5 @@ extern int source_lineno;
 extern sstring source_filename;
 /* Current physical line number */
 extern int lineno;
+
+extern struct line_maps line_table;

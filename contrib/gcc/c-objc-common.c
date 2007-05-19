@@ -1,5 +1,5 @@
 /* Some code common to C and ObjC front ends.
-   Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
@@ -26,8 +26,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "rtl.h"
 #include "insn-config.h"
 #include "integrate.h"
-#include "expr.h"
 #include "c-tree.h"
+#include "c-pretty-print.h"
 #include "function.h"
 #include "flags.h"
 #include "toplev.h"
@@ -36,14 +36,14 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "varray.h"
 #include "ggc.h"
 #include "langhooks.h"
+#include "tree-mudflap.h"
 #include "target.h"
-#include "cgraph.h"
+#include "c-objc-common.h"
 
-static bool c_tree_printer (pretty_printer *, text_info *);
-static tree start_cdtor (int);
-static void finish_cdtor (tree);
+static bool c_tree_printer (pretty_printer *, text_info *, const char *,
+			    int, bool, bool, bool);
 
-int
+bool
 c_missing_noreturn_ok_p (tree decl)
 {
   /* A missing noreturn is not ok for freestanding implementations and
@@ -69,7 +69,6 @@ int
 c_cannot_inline_tree_fn (tree *fnp)
 {
   tree fn = *fnp;
-  tree t;
   bool do_warning = (warn_inline
 		     && DECL_INLINE (fn)
 		     && DECL_DECLARED_INLINE_P (fn)
@@ -79,50 +78,26 @@ c_cannot_inline_tree_fn (tree *fnp)
       && lookup_attribute ("always_inline", DECL_ATTRIBUTES (fn)) == NULL)
     {
       if (do_warning)
-	warning ("%Jfunction '%F' can never be inlined because it "
-		 "is suppressed using -fno-inline", fn, fn);
+	warning (OPT_Winline, "function %q+F can never be inlined because it "
+		 "is suppressed using -fno-inline", fn);
       goto cannot_inline;
     }
 
   /* Don't auto-inline anything that might not be bound within
      this unit of translation.  */
-  if (!DECL_DECLARED_INLINE_P (fn) && !(*targetm.binds_local_p) (fn))
+  if (!DECL_DECLARED_INLINE_P (fn) && !targetm.binds_local_p (fn))
     {
       if (do_warning)
-	warning ("%Jfunction '%F' can never be inlined because it might not "
-		 "be bound within this unit of translation", fn, fn);
+	warning (OPT_Winline, "function %q+F can never be inlined because it "
+		 "might not be bound within this unit of translation", fn);
       goto cannot_inline;
     }
 
-  if (! function_attribute_inlinable_p (fn))
+  if (!function_attribute_inlinable_p (fn))
     {
       if (do_warning)
-	warning ("%Jfunction '%F' can never be inlined because it uses "
-		 "attributes conflicting with inlining", fn, fn);
-      goto cannot_inline;
-    }
-
-  /* If a function has pending sizes, we must not defer its
-     compilation, and we can't inline it as a tree.  */
-  if (fn == current_function_decl)
-    {
-      t = get_pending_sizes ();
-      put_pending_sizes (t);
-
-      if (t)
-	{
-	  if (do_warning)
-	    warning ("%Jfunction '%F' can never be inlined because it has "
-		     "pending sizes", fn, fn);
-	  goto cannot_inline;
-	}
-    }
-
-  if (DECL_LANG_SPECIFIC (fn)->pending_sizes)
-    {
-      if (do_warning)
-	warning ("%Jfunction '%F' can never be inlined because it has "
-		 "pending sizes", fn, fn);
+	warning (OPT_Winline, "function %q+F can never be inlined because it "
+		 "uses attributes conflicting with inlining", fn);
       goto cannot_inline;
     }
 
@@ -150,24 +125,15 @@ c_warn_unused_global_decl (tree decl)
 bool
 c_objc_common_init (void)
 {
-  static const enum tree_code stmt_codes[] = {
-    c_common_stmt_codes
-  };
-
-  INIT_STATEMENT_CODES (stmt_codes);
-
   c_init_decl_processing ();
 
   if (c_common_init () == false)
     return false;
 
-  lang_expand_decl_stmt = c_expand_decl_stmt;
-
   /* These were not defined in the Objective-C front end, but I'm
      putting them here anyway.  The diagnostic format decoder might
      want an enhanced ObjC implementation.  */
   diagnostic_format_decoder (global_dc) = &c_tree_printer;
-  lang_missing_noreturn_ok_p = &c_missing_noreturn_ok_p;
 
   /* If still unspecified, make it match -std=c99
      (allowing for -pedantic-errors).  */
@@ -182,102 +148,11 @@ c_objc_common_init (void)
   return true;
 }
 
-static tree
-start_cdtor (int method_type)
-{
-  tree fnname = get_file_function_name (method_type);
-  tree void_list_node_1 = build_tree_list (NULL_TREE, void_type_node);
-  tree body;
-
-  start_function (void_list_node_1,
-		  build_nt (CALL_EXPR, fnname,
-			    tree_cons (NULL_TREE, NULL_TREE, void_list_node_1),
-			    NULL_TREE),
-		  NULL_TREE);
-  store_parm_decls ();
-
-  current_function_cannot_inline
-    = "static constructors and destructors cannot be inlined";
-
-  body = c_begin_compound_stmt ();
-
-  pushlevel (0);
-  clear_last_expr ();
-  add_scope_stmt (/*begin_p=*/1, /*partial_p=*/0);
-
-  return body;
-}
-
-static void
-finish_cdtor (tree body)
-{
-  tree scope;
-  tree block;
-
-  scope = add_scope_stmt (/*begin_p=*/0, /*partial_p=*/0);
-  block = poplevel (0, 0, 0);
-  SCOPE_STMT_BLOCK (TREE_PURPOSE (scope)) = block;
-  SCOPE_STMT_BLOCK (TREE_VALUE (scope)) = block;
-
-  RECHAIN_STMTS (body, COMPOUND_BODY (body));
-
-  finish_function ();
-}
-
-/* Called at end of parsing, but before end-of-file processing.  */
-
-void
-c_objc_common_finish_file (void)
-{
-  if (pch_file)
-    c_common_write_pch ();
-
-  /* If multiple translation units were built, copy information between
-     them based on linkage rules.  */
-  merge_translation_unit_decls ();
-
-  cgraph_finalize_compilation_unit ();
-  cgraph_optimize ();
-
-  if (static_ctors)
-    {
-      tree body = start_cdtor ('I');
-
-      for (; static_ctors; static_ctors = TREE_CHAIN (static_ctors))
-	c_expand_expr_stmt (build_function_call (TREE_VALUE (static_ctors),
-						 NULL_TREE));
-
-      finish_cdtor (body);
-    }
-
-  if (static_dtors)
-    {
-      tree body = start_cdtor ('D');
-
-      for (; static_dtors; static_dtors = TREE_CHAIN (static_dtors))
-	c_expand_expr_stmt (build_function_call (TREE_VALUE (static_dtors),
-						 NULL_TREE));
-
-      finish_cdtor (body);
-    }
-
-  {
-    int flags;
-    FILE *stream = dump_begin (TDI_all, &flags);
-
-    if (stream)
-      {
-	dump_node (getdecls (), flags & ~TDF_SLIM, stream);
-	dump_end (TDI_all, stream);
-      }
-  }
-}
-
 /* Called during diagnostic message formatting process to print a
    source-level entity onto BUFFER.  The meaning of the format specifiers
    is as follows:
    %D: a general decl,
-   %E: An expression,
+   %E: an identifier or expression,
    %F: a function declaration,
    %T: a type.
 
@@ -286,30 +161,56 @@ c_objc_common_finish_file (void)
    Please notice when called, the `%' part was already skipped by the
    diagnostic machinery.  */
 static bool
-c_tree_printer (pretty_printer *pp, text_info *text)
+c_tree_printer (pretty_printer *pp, text_info *text, const char *spec,
+		int precision, bool wide, bool set_locus, bool hash)
 {
   tree t = va_arg (*text->args_ptr, tree);
+  tree name;
   const char *n = "({anonymous})";
+  c_pretty_printer *cpp = (c_pretty_printer *) pp;
+  pp->padding = pp_none;
 
-  switch (*text->format_spec)
+  if (precision != 0 || wide || hash)
+    return false;
+
+  if (set_locus && text->locus)
+    *text->locus = DECL_SOURCE_LOCATION (t);
+
+  switch (*spec)
     {
     case 'D':
+      if (DECL_DEBUG_EXPR_IS_FROM (t) && DECL_DEBUG_EXPR (t))
+	{
+	  t = DECL_DEBUG_EXPR (t);
+	  if (!DECL_P (t))
+	    {
+	      pp_c_expression (cpp, t);
+	      return true;
+	    }
+	}
+      /* FALLTHRU */
+
     case 'F':
       if (DECL_NAME (t))
-	n = (*lang_hooks.decl_printable_name) (t, 2);
+	n = lang_hooks.decl_printable_name (t, 2);
       break;
 
     case 'T':
-      if (TREE_CODE (t) == TYPE_DECL)
+      gcc_assert (TYPE_P (t));
+      name = TYPE_NAME (t);
+
+      if (name && TREE_CODE (name) == TYPE_DECL)
 	{
-	  if (DECL_NAME (t))
-	    n = (*lang_hooks.decl_printable_name) (t, 2);
+	  if (DECL_NAME (name))
+	    pp_string (cpp, lang_hooks.decl_printable_name (name, 2));
+	  else
+	    pp_type_id (cpp, t);
+	  return true;
 	}
       else
 	{
-	  t = TYPE_NAME (t);
-	  if (t)
-	    n = IDENTIFIER_POINTER (t);
+	  pp_type_id (cpp, t);
+	  return true;
 	}
       break;
 
@@ -317,13 +218,50 @@ c_tree_printer (pretty_printer *pp, text_info *text)
       if (TREE_CODE (t) == IDENTIFIER_NODE)
 	n = IDENTIFIER_POINTER (t);
       else
-        return false;
+	{
+	  pp_expression (cpp, t);
+	  return true;
+	}
       break;
 
     default:
       return false;
     }
 
-  pp_string (pp, n);
+  pp_string (cpp, n);
   return true;
+}
+
+/* In C and ObjC, all decls have "C" linkage.  */
+bool
+has_c_linkage (tree decl ATTRIBUTE_UNUSED)
+{
+  return true;
+}
+
+void
+c_initialize_diagnostics (diagnostic_context *context)
+{
+  pretty_printer *base = context->printer;
+  c_pretty_printer *pp = XNEW (c_pretty_printer);
+  memcpy (pp_base (pp), base, sizeof (pretty_printer));
+  pp_c_pretty_printer_init (pp);
+  context->printer = (pretty_printer *) pp;
+
+  /* It is safe to free this object because it was previously XNEW()'d.  */
+  XDELETE (base);
+}
+
+int
+c_types_compatible_p (tree x, tree y)
+{
+    return comptypes (TYPE_MAIN_VARIANT (x), TYPE_MAIN_VARIANT (y));
+}
+
+/* Determine if the type is a vla type for the backend.  */
+
+bool
+c_vla_unspec_p (tree x, tree fn ATTRIBUTE_UNUSED)
+{
+  return c_vla_type_p (x);
 }

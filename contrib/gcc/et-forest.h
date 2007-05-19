@@ -1,5 +1,5 @@
 /* Et-forest data structure implementation.
-   Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* This package implements ET forest data structure. Each tree in
    the structure maintains a tree structure and offers logarithmic time
@@ -67,12 +67,14 @@ struct et_node
   struct et_node *left;
   struct et_node *right;	/* The brothers of the node.  */
 
-  struct et_occ *rightmost_occ;	/* The rightmost occurence.  */
-  struct et_occ *parent_occ;	/* The occurence of the parent node.  */
+  struct et_occ *rightmost_occ;	/* The rightmost occurrence.  */
+  struct et_occ *parent_occ;	/* The occurrence of the parent node.  */
 };
 
 struct et_node *et_new_tree (void *data);
 void et_free_tree (struct et_node *);
+void et_free_tree_force (struct et_node *);
+void et_free_pools (void);
 void et_set_father (struct et_node *, struct et_node *);
 void et_split (struct et_node *);
 struct et_node *et_nca (struct et_node *, struct et_node *);

@@ -1,5 +1,5 @@
 /* Debug hooks for GCC.
-   Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -13,7 +13,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef GCC_DEBUG_H
 #define GCC_DEBUG_H
@@ -89,6 +89,17 @@ struct gcc_debug_hooks
      compilation proper has finished.  */
   void (* global_decl) (tree decl);
 
+  /* Debug information for a type DECL.  Called from toplev.c after
+     compilation proper, also from various language front ends to
+     record built-in types.  The second argument is properly a
+     boolean, which indicates whether or not the type is a "local"
+     type as determined by the language.  (It's not a boolean for
+     legacy reasons.)  */
+  void (* type_decl) (tree decl, int local);
+
+  /* Debug information for imported modules and declarations.  */
+  void (* imported_module_or_decl) (tree decl, tree context);
+
   /* DECL is an inline function, whose body is present, but which is
      not being output at this point.  */
   void (* deferred_inline_function) (tree decl);
@@ -105,6 +116,17 @@ struct gcc_debug_hooks
   /* Called after the start and before the end of writing a PCH file.
      The parameter is 0 if after the start, 1 if before the end.  */
   void (* handle_pch) (unsigned int);
+
+  /* Called from final_scan_insn for any NOTE_INSN_VAR_LOCATION note.  */
+  void (* var_location) (rtx);
+
+  /* Called from final_scan_insn if there is a switch between hot and cold
+     text sections.  */
+  void (* switch_text_section) (void);
+
+  /* This is 1 if the debug writer wants to see start and end commands for the
+     main source files, and 0 otherwise.  */
+  int start_end_main_source_file;
 };
 
 extern const struct gcc_debug_hooks *debug_hooks;
@@ -116,6 +138,8 @@ extern void debug_nothing_int_charstar (unsigned int, const char *);
 extern void debug_nothing_int (unsigned int);
 extern void debug_nothing_int_int (unsigned int, unsigned int);
 extern void debug_nothing_tree (tree);
+extern void debug_nothing_tree_int (tree, int);
+extern void debug_nothing_tree_tree (tree, tree);
 extern bool debug_true_tree (tree);
 extern void debug_nothing_rtx (rtx);
 
@@ -124,7 +148,6 @@ extern const struct gcc_debug_hooks do_nothing_debug_hooks;
 extern const struct gcc_debug_hooks dbx_debug_hooks;
 extern const struct gcc_debug_hooks sdb_debug_hooks;
 extern const struct gcc_debug_hooks xcoff_debug_hooks;
-extern const struct gcc_debug_hooks dwarf_debug_hooks;
 extern const struct gcc_debug_hooks dwarf2_debug_hooks;
 extern const struct gcc_debug_hooks vmsdbg_debug_hooks;
 

@@ -16,14 +16,13 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 extern void dwarf2out_decl (tree);
-extern void dwarf2out_frame_debug (rtx);
+extern void dwarf2out_frame_debug (rtx, bool);
 
 extern void debug_dwarf (void);
 struct die_struct;
 extern void debug_dwarf_die (struct die_struct *);
 extern void dwarf2out_set_demangle_name_func (const char *(*) (const char *));
-extern void dwarf2out_add_library_unit_info (const char *, const char *);

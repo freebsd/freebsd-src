@@ -1,4 +1,4 @@
-/* Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+/* Copyright (C) 2002, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -14,8 +14,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* As a special exception, if you include this header file into source
    files compiled by GCC, this header file does not by itself cause
@@ -31,9 +31,9 @@
 typedef unsigned long long __m64, __int64;
 
 /* Internal data types for implementing the intrinsics.  */
-typedef int __v2si __attribute__ ((__mode__ (__V2SI__)));
-typedef int __v4hi __attribute__ ((__mode__ (__V4HI__)));
-typedef int __v8qi __attribute__ ((__mode__ (__V8QI__)));
+typedef int __v2si __attribute__ ((vector_size (8)));
+typedef short __v4hi __attribute__ ((vector_size (8)));
+typedef char __v8qi __attribute__ ((vector_size (8)));
 
 /* "Convert" __m64 and __int64 into each other.  */
 static __inline __m64 
@@ -419,7 +419,7 @@ _mm_madd_pu16 (__m64 __m1, __m64 __m2)
 static __inline __m64
 _mm_mulhi_pi16 (__m64 __m1, __m64 __m2)
 {
-  return (__m64) __builtin_arm_wmulsh ((__v4hi)__m1, (__v4hi)__m2);
+  return (__m64) __builtin_arm_wmulsm ((__v4hi)__m1, (__v4hi)__m2);
 }
 
 /* Multiply four signed 16-bit values in M1 by four signed 16-bit values in
@@ -427,7 +427,7 @@ _mm_mulhi_pi16 (__m64 __m1, __m64 __m2)
 static __inline __m64
 _mm_mulhi_pu16 (__m64 __m1, __m64 __m2)
 {
-  return (__m64) __builtin_arm_wmuluh ((__v4hi)__m1, (__v4hi)__m2);
+  return (__m64) __builtin_arm_wmulum ((__v4hi)__m1, (__v4hi)__m2);
 }
 
 /* Multiply four 16-bit values in M1 by four 16-bit values in M2 and produce
@@ -986,18 +986,18 @@ _mm_setzero_si64 (void)
    the rest are reserved.  */
 
 static __inline void
-_mm_setwcx (const int __regno, const int __value)
+_mm_setwcx (const int __value, const int __regno)
 {
   switch (__regno)
     {
-    case 0:  __builtin_arm_setwcx (0, __value); break;
-    case 1:  __builtin_arm_setwcx (1, __value); break;
-    case 2:  __builtin_arm_setwcx (2, __value); break;
-    case 3:  __builtin_arm_setwcx (3, __value); break;
-    case 8:  __builtin_arm_setwcx (8, __value); break;
-    case 9:  __builtin_arm_setwcx (9, __value); break;
-    case 10: __builtin_arm_setwcx (10, __value); break;
-    case 11: __builtin_arm_setwcx (11, __value); break;
+    case 0:  __builtin_arm_setwcx (__value, 0); break;
+    case 1:  __builtin_arm_setwcx (__value, 1); break;
+    case 2:  __builtin_arm_setwcx (__value, 2); break;
+    case 3:  __builtin_arm_setwcx (__value, 3); break;
+    case 8:  __builtin_arm_setwcx (__value, 8); break;
+    case 9:  __builtin_arm_setwcx (__value, 9); break;
+    case 10: __builtin_arm_setwcx (__value, 10); break;
+    case 11: __builtin_arm_setwcx (__value, 11); break;
     default: break;
     }
 }

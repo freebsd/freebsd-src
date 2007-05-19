@@ -22,8 +22,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* The rest must follow.  */
 
@@ -54,6 +54,8 @@ Boston, MA 02111-1307, USA.  */
 
 #define ASM_LOAD_ADDR(loc, reg)   "     leal " #loc "," #reg "\n"
 
+#define TARGET_DECLSPEC 1
+
 /* cpp handles __STDC__ */
 #define TARGET_OS_CPP_BUILTINS()					\
   do									\
@@ -64,7 +66,6 @@ Boston, MA 02111-1307, USA.  */
 	builtin_define ("_X86_=1");					\
 	builtin_define ("__stdcall=__attribute__((__stdcall__))");	\
 	builtin_define ("__cdecl=__attribute__((__cdecl__))");		\
-	builtin_define ("__declspec(x)=__attribute__((x))");		\
 	builtin_assert ("system=unix");					\
 	builtin_assert ("system=interix");				\
 	if (preprocessing_asm_p ())					\
@@ -83,7 +84,7 @@ Boston, MA 02111-1307, USA.  */
 #undef CPP_SPEC
 /* Write out the correct language type definition for the header files.  
    Unless we have assembler language, write out the symbols for C.
-   mieee is an Alpha specific variant.  Cross polination a bad idea.
+   mieee is an Alpha specific variant.  Cross pollination a bad idea.
    */
 #define CPP_SPEC "-remap %{posix:-D_POSIX_SOURCE} \
 -isystem %$INTERIX_ROOT/usr/include"
@@ -285,7 +286,6 @@ do									\
     }									\
 while (0)
 
-#define HOST_PTR_PRINTF "%p"
 #define HOST_PTR_AS_INT unsigned long
 
 #define PCC_BITFIELD_TYPE_MATTERS 1
@@ -336,14 +336,12 @@ while (0)
    .data$ sections correctly. See corresponding note in i386/interix.c. 
    MK.  */
 
-/* Define this macro if in some cases global symbols from one translation
-   unit may not be bound to undefined symbols in another translation unit
-   without user intervention.  For instance, under Microsoft Windows
-   symbols must be explicitly imported from shared libraries (DLLs).  */
-#define MULTIPLE_SYMBOL_SPACES
+/* Interix uses explicit import from shared libraries.  */
+#define MULTIPLE_SYMBOL_SPACES 1
 
 extern void i386_pe_unique_section (tree, int);
 #define TARGET_ASM_UNIQUE_SECTION i386_pe_unique_section
+#define TARGET_ASM_FUNCTION_RODATA_SECTION default_no_function_rodata_section
 
 #define SUPPORTS_ONE_ONLY 1
 #endif /* 0 */

@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for some generic XCOFF file format
-   Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004, 2007 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #define TARGET_OBJECT_FORMAT OBJECT_XCOFF
 
@@ -56,92 +56,10 @@
 
 #define DOLLARS_IN_IDENTIFIERS 0
 
-/* Define the extra sections we need.  We define three: one is the read-only
-   data section which is used for constants.  This is a csect whose name is
-   derived from the name of the input file.  The second is for initialized
-   global variables.  This is a csect whose name is that of the variable.
-   The third is the TOC.  */
+/* AIX .align pseudo-op accept value from 0 to 12, corresponding to
+   log base 2 of the alignment in bytes; 12 = 4096 bytes = 32768 bits.  */
 
-#define EXTRA_SECTIONS \
-   read_only_data, private_data, read_only_private_data, toc, bss
-
-/* Define the routines to implement these extra sections.
-   BIGGEST_ALIGNMENT is 64, so align the sections that much.  */
-
-#define EXTRA_SECTION_FUNCTIONS				\
-  READ_ONLY_DATA_SECTION_FUNCTION			\
-  PRIVATE_DATA_SECTION_FUNCTION				\
-  READ_ONLY_PRIVATE_DATA_SECTION_FUNCTION		\
-  TOC_SECTION_FUNCTION
-
-#define READ_ONLY_DATA_SECTION_FUNCTION			\
-void							\
-read_only_data_section (void)				\
-{							\
-  if (in_section != read_only_data)			\
-    {							\
-      fprintf (asm_out_file, "\t.csect %s[RO],3\n",	\
-	       xcoff_read_only_section_name);		\
-      in_section = read_only_data;			\
-    }							\
-}
-
-#define PRIVATE_DATA_SECTION_FUNCTION			\
-void							\
-private_data_section (void)				\
-{							\
-  if (in_section != private_data)			\
-    {							\
-      fprintf (asm_out_file, "\t.csect %s[RW],3\n",	\
-	       xcoff_private_data_section_name);	\
-      in_section = private_data;			\
-    }							\
-}
-
-#define READ_ONLY_PRIVATE_DATA_SECTION_FUNCTION		\
-void							\
-read_only_private_data_section (void)			\
-{							\
-  if (in_section != read_only_private_data)		\
-    {							\
-      fprintf (asm_out_file, "\t.csect %s[RO],3\n",	\
-	       xcoff_private_data_section_name);	\
-      in_section = read_only_private_data;		\
-    }							\
-}
-
-#define TOC_SECTION_FUNCTION				\
-void							\
-toc_section (void)					\
-{							\
-  if (TARGET_MINIMAL_TOC)				\
-    {							\
-      /* toc_section is always called at least once	\
-         from rs6000_xcoff_file_start, so this is	\
-	 guaranteed to always be defined once and	\
-	 only once in each file.  */			\
-      if (! toc_initialized)				\
-	{						\
-	  fputs ("\t.toc\nLCTOC..1:\n", asm_out_file);	\
-	  fputs ("\t.tc toc_table[TC],toc_table[RW]\n", asm_out_file); \
-	  toc_initialized = 1;				\
-	}						\
-							\
-      if (in_section != toc)				\
-	fprintf (asm_out_file, "\t.csect toc_table[RW]%s\n",	\
-		 (TARGET_32BIT ? "" : ",3"));		\
-    }							\
-  else							\
-    {							\
-      if (in_section != toc)				\
-        fputs ("\t.toc\n", asm_out_file);		\
-    }							\
-  in_section = toc;					\
-}
-
-/* Define the name of our readonly data section.  */
-
-#define READONLY_DATA_SECTION read_only_data_section
+#define MAX_OFILE_ALIGNMENT 32768
 
 /* Return nonzero if this entry is to be written into the constant
    pool in a special way.  We do so if this is a SYMBOL_REF, LABEL_REF
@@ -164,14 +82,18 @@ toc_section (void)					\
        || (GET_CODE (X) == CONST_DOUBLE					\
 	   && (TARGET_POWERPC64						\
 	       || TARGET_MINIMAL_TOC					\
-	       || (GET_MODE_CLASS (GET_MODE (X)) == MODE_FLOAT		\
+	       || (SCALAR_FLOAT_MODE_P (GET_MODE (X))			\
 		   && ! TARGET_NO_FP_IN_TOC)))))
 
+#define TARGET_ASM_OUTPUT_ANCHOR  rs6000_xcoff_asm_output_anchor
 #define TARGET_ASM_GLOBALIZE_LABEL  rs6000_xcoff_asm_globalize_label
+#define TARGET_ASM_INIT_SECTIONS  rs6000_xcoff_asm_init_sections
+#define TARGET_ASM_RELOC_RW_MASK  rs6000_xcoff_reloc_rw_mask
 #define TARGET_ASM_NAMED_SECTION  rs6000_xcoff_asm_named_section
 #define TARGET_ASM_SELECT_SECTION  rs6000_xcoff_select_section
 #define TARGET_ASM_SELECT_RTX_SECTION  rs6000_xcoff_select_rtx_section
 #define TARGET_ASM_UNIQUE_SECTION  rs6000_xcoff_unique_section
+#define TARGET_ASM_FUNCTION_RODATA_SECTION default_no_function_rodata_section
 #define TARGET_STRIP_NAME_ENCODING  rs6000_xcoff_strip_name_encoding
 #define TARGET_SECTION_TYPE_FLAGS  rs6000_xcoff_section_type_flags
 
@@ -212,9 +134,8 @@ toc_section (void)					\
    On the RS/6000, we need to place an extra '.' in the function name and
    output the function descriptor.
 
-   The csect for the function will have already been created by the
-   `text_section' call previously done.  We do have to go back to that
-   csect, however.
+   The csect for the function will have already been created when
+   text_section was selected.  We do have to go back to that csect, however.
 
    The third and fourth parameters to the .function pseudo-op (16 and 044)
    are placeholders which no longer have any use.  */
@@ -243,8 +164,8 @@ toc_section (void)					\
   fputs (TARGET_32BIT ? "\t.long ." : "\t.llong .", FILE);	\
   RS6000_OUTPUT_BASENAME (FILE, NAME);				\
   fputs (", TOC[tc0], 0\n", FILE);				\
-  in_section = no_section;					\
-  function_section(DECL);					\
+  in_section = NULL;						\
+  switch_to_section (function_section (DECL));			\
   putc ('.', FILE);						\
   RS6000_OUTPUT_BASENAME (FILE, NAME);				\
   fputs (":\n", FILE);						\
@@ -360,10 +281,6 @@ toc_section (void)					\
 /* Output before writable data.
    Align entire section to BIGGEST_ALIGNMENT.  */
 #define DATA_SECTION_ASM_OP "\t.csect .data[RW],3"
-
-/* Define the name of the section to use for the EH language specific
-   data areas (.gcc_except_table on most other systems).  */
-#define TARGET_ASM_EXCEPTION_SECTION data_section
 
 /* Define to prevent DWARF2 unwind info in the data section rather
    than in the .eh_frame section.  We do this because the AIX linker

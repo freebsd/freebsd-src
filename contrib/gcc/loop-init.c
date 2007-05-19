@@ -1,5 +1,5 @@
-/* Loop optimizer initialization routines.
-   Copyright (C) 2002, 2003, 2004 Free Software Foundation, Inc.
+/* Loop optimizer initialization routines and RTL loop optimization passes.
+   Copyright (C) 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
@@ -24,45 +24,50 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "tm.h"
 #include "rtl.h"
 #include "hard-reg-set.h"
+#include "obstack.h"
 #include "basic-block.h"
 #include "cfgloop.h"
 #include "cfglayout.h"
+#include "tree-pass.h"
+#include "timevar.h"
+#include "flags.h"
 
-static void fixup_loop_exit_succesor (basic_block, basic_block);
-
-/* Initialize loop optimizer.  */
+
+/* Initialize loop optimizer.  This is used by the tree and RTL loop
+   optimizers.  FLAGS specify what properties to compute and/or ensure for
+   loops.  */
 
 struct loops *
-loop_optimizer_init (FILE *dumpfile)
+loop_optimizer_init (unsigned flags)
 {
-  struct loops *loops = xcalloc (1, sizeof (struct loops));
+  struct loops *loops = XCNEW (struct loops);
   edge e;
+  edge_iterator ei;
+  static bool first_time = true;
 
-  /* Initialize structures for layout changes.  */
-  cfg_layout_initialize (0);
+  if (first_time)
+    {
+      first_time = false;
+      init_set_costs ();
+    }
 
   /* Avoid annoying special cases of edges going to exit
      block.  */
-  for (e = EXIT_BLOCK_PTR->pred; e; e = e->pred_next)
-    if ((e->flags & EDGE_FALLTHRU) && e->src->succ->succ_next)
+
+  for (ei = ei_start (EXIT_BLOCK_PTR->preds); (e = ei_safe_edge (ei)); )
+    if ((e->flags & EDGE_FALLTHRU) && !single_succ_p (e->src))
       split_edge (e);
+    else
+      ei_next (&ei);
 
   /* Find the loops.  */
 
-  if (flow_loops_find (loops, LOOP_TREE) <= 1)
+  if (flow_loops_find (loops) <= 1)
     {
-      basic_block bb;
-
       /* No loops.  */
       flow_loops_free (loops);
-      free_dominance_info (CDI_DOMINATORS);
       free (loops);
 
-      /* Make chain.  */
-      FOR_EACH_BB (bb)
-	if (bb->next_bb != EXIT_BLOCK_PTR)
-	  bb->rbi->next = bb->next_bb;
-	  cfg_layout_finalize ();
       return NULL;
     }
 
@@ -73,16 +78,22 @@ loop_optimizer_init (FILE *dumpfile)
   loops->cfg.dfs_order = NULL;
 
   /* Create pre-headers.  */
-  create_preheaders (loops, CP_SIMPLE_PREHEADERS);
+  if (flags & LOOPS_HAVE_PREHEADERS)
+    create_preheaders (loops, CP_SIMPLE_PREHEADERS);
 
   /* Force all latches to have only single successor.  */
-  force_single_succ_latches (loops);
+  if (flags & LOOPS_HAVE_SIMPLE_LATCHES)
+    force_single_succ_latches (loops);
 
   /* Mark irreducible loops.  */
-  mark_irreducible_loops (loops);
+  if (flags & LOOPS_HAVE_MARKED_IRREDUCIBLE_REGIONS)
+    mark_irreducible_loops (loops);
+
+  if (flags & LOOPS_HAVE_MARKED_SINGLE_EXITS)
+    mark_single_exit_loops (loops);
 
   /* Dump loops.  */
-  flow_loops_dump (loops, dumpfile, NULL, 1);
+  flow_loops_dump (loops, dump_file, NULL, 1);
 
 #ifdef ENABLE_CHECKING
   verify_dominators (CDI_DOMINATORS);
@@ -92,129 +103,288 @@ loop_optimizer_init (FILE *dumpfile)
   return loops;
 }
 
-/* The first basic block is moved after the second in the reorder chain.  */
-static void
-fixup_loop_exit_succesor (basic_block exit_succ, basic_block latch)
-{
-  basic_block bb = exit_succ;
-  basic_block bb1 = latch;
-
-  if (!(bb && bb->rbi->next))
-    return;
-
-  if (!bb1)
-    return;
- 
-
-  if (bb && bb->rbi->next)
-    {
-      basic_block c = ENTRY_BLOCK_PTR->next_bb;
-
-      while (c->rbi->next != bb)
-	c = c->rbi->next;
-
-      c->rbi->next = bb->rbi->next;
-    }
-
-  if(bb1->rbi->next == NULL)
-    {
-      bb1->rbi->next=bb;
-      bb->rbi->next=NULL;
-    }
-  else
-    
-    {
-      basic_block tmp;
-
-      tmp = bb1->rbi->next;
-      bb1->rbi->next = bb;
-      bb->rbi->next = tmp;
-    }
-}
-
 /* Finalize loop optimizer.  */
 void
-loop_optimizer_finalize (struct loops *loops, FILE *dumpfile)
+loop_optimizer_finalize (struct loops *loops)
 {
-  basic_block bb;
-  unsigned int i;
+  unsigned i;
 
-  /* Finalize layout changes.  */
-  /* Make chain.  */
-  FOR_EACH_BB (bb)
-    if (bb->next_bb != EXIT_BLOCK_PTR)
-      bb->rbi->next = bb->next_bb;
+  if (!loops)
+    return;
 
-  /* Another dump.  */
-  flow_loops_dump (loops, dumpfile, NULL, 1);
-
-  /* For loops ending with a branch and count instruction, move the basic 
-     block found before the unrolling on the fallthru path of this branch,
-     after the unrolled code.  This will allow branch simplification.  */
   for (i = 1; i < loops->num; i++)
-    {
-      struct loop *loop = loops->parray[i];
-      struct loop_desc *desc;
-      basic_block loop_real_latch, bb, bb_exit;
-      edge e;
-
-      if (loop == NULL)
-	continue;
-      if (!loop->simple)
-        continue;
-      if (!loop->has_desc)
-	continue;
-
-      if (loop->lpt_decision.decision != LPT_UNROLL_RUNTIME)
-	continue;
-
-      desc = &loop->desc;
-      if (desc == NULL)
-        continue;
-      if (loop->latch->pred == NULL)
-        continue;
-
-      loop_real_latch = loop->latch->pred->src;
- 
-
-      if (desc->postincr)
-	continue; 
-      if (!is_bct_cond (BB_END (loop_real_latch)))
-	 continue;
-
-      for (e = loop_real_latch->succ; e ; e = e->succ_next)
-	if (e->flags & EDGE_FALLTHRU)
-          break;
-
-      if (e == NULL)
-	continue;
-
-      bb_exit = e->dest;
-     
-      bb = NULL;
-
-      /* Leave the case of the bb_exit falling through to exit to 
-         fixed_fallthru_exit_predecessor */
-      for (e = EXIT_BLOCK_PTR->pred; e; e = e->pred_next)
-         if (e->flags & EDGE_FALLTHRU)
-        bb = e->src;
-  
-      if (bb_exit == bb)
-	continue;
-      
-      fixup_loop_exit_succesor (bb_exit, loop->latch);
-    }
+    if (loops->parray[i])
+      free_simple_loop_desc (loops->parray[i]);
 
   /* Clean up.  */
   flow_loops_free (loops);
-  free_dominance_info (CDI_DOMINATORS);
   free (loops);
-
-  /* Finalize changes.  */
-  cfg_layout_finalize ();
 
   /* Checking.  */
 #ifdef ENABLE_CHECKING
   verify_flow_info ();
 #endif
 }
+
+
+/* Gate for the RTL loop superpass.  The actual passes are subpasses.
+   See passes.c for more on that.  */
+
+static bool
+gate_handle_loop2 (void)
+{
+  return (optimize > 0
+  	  && (flag_move_loop_invariants
+              || flag_unswitch_loops
+              || flag_peel_loops
+              || flag_unroll_loops
+#ifdef HAVE_doloop_end
+	      || (flag_branch_on_count_reg && HAVE_doloop_end)
+#endif
+	      ));
+}
+
+struct tree_opt_pass pass_loop2 =
+{
+  "loop2",                              /* name */
+  gate_handle_loop2, 		        /* gate */
+  NULL,                                 /* execute */
+  NULL,                                 /* sub */
+  NULL,                                 /* next */
+  0,                                    /* static_pass_number */
+  TV_LOOP,                              /* tv_id */
+  0,                                    /* properties_required */
+  0,                                    /* properties_provided */
+  0,                                    /* properties_destroyed */
+  0,                                    /* todo_flags_start */
+  TODO_dump_func |
+  TODO_ggc_collect,                     /* todo_flags_finish */
+  'L'                                   /* letter */
+};
+
+
+/* Initialization of the RTL loop passes.  */
+static unsigned int
+rtl_loop_init (void)
+{
+  if (dump_file)
+    dump_flow_info (dump_file, dump_flags);
+
+  /* Initialize structures for layout changes.  */
+  cfg_layout_initialize (0);
+
+  current_loops = loop_optimizer_init (LOOPS_NORMAL);
+  return 0;
+}
+
+struct tree_opt_pass pass_rtl_loop_init =
+{
+  "loop2_init",                           /* name */
+  NULL,                                 /* gate */
+  rtl_loop_init,                        /* execute */
+  NULL,                                 /* sub */
+  NULL,                                 /* next */
+  0,                                    /* static_pass_number */
+  TV_LOOP,                              /* tv_id */
+  0,                                    /* properties_required */
+  0,                                    /* properties_provided */
+  0,                                    /* properties_destroyed */
+  0,                                    /* todo_flags_start */
+  TODO_dump_func,                       /* todo_flags_finish */
+  'L'                                   /* letter */
+};
+
+
+/* Finalization of the RTL loop passes.  */
+static unsigned int
+rtl_loop_done (void)
+{
+  basic_block bb;
+
+  if (current_loops)
+    loop_optimizer_finalize (current_loops);
+
+  free_dominance_info (CDI_DOMINATORS);
+
+  /* Finalize layout changes.  */
+  FOR_EACH_BB (bb)
+    if (bb->next_bb != EXIT_BLOCK_PTR)
+      bb->aux = bb->next_bb;
+  cfg_layout_finalize ();
+
+  cleanup_cfg (CLEANUP_EXPENSIVE);
+  delete_trivially_dead_insns (get_insns (), max_reg_num ());
+  reg_scan (get_insns (), max_reg_num ());
+  if (dump_file)
+    dump_flow_info (dump_file, dump_flags);
+
+  current_loops = NULL;
+  return 0;
+}
+
+struct tree_opt_pass pass_rtl_loop_done =
+{
+  "loop2_done",                          /* name */
+  NULL,                                 /* gate */
+  rtl_loop_done,                        /* execute */
+  NULL,                                 /* sub */
+  NULL,                                 /* next */
+  0,                                    /* static_pass_number */
+  TV_LOOP,                              /* tv_id */
+  0,                                    /* properties_required */
+  0,                                    /* properties_provided */
+  0,                                    /* properties_destroyed */
+  0,                                    /* todo_flags_start */
+  TODO_dump_func,                       /* todo_flags_finish */
+  'L'                                   /* letter */
+};
+
+
+/* Loop invariant code motion.  */
+static bool
+gate_rtl_move_loop_invariants (void)
+{
+  return flag_move_loop_invariants;
+}
+
+static unsigned int
+rtl_move_loop_invariants (void)
+{
+  if (current_loops)
+    move_loop_invariants (current_loops);
+  return 0;
+}
+
+struct tree_opt_pass pass_rtl_move_loop_invariants =
+{
+  "loop2_invariant",                     /* name */
+  gate_rtl_move_loop_invariants,        /* gate */
+  rtl_move_loop_invariants,             /* execute */
+  NULL,                                 /* sub */
+  NULL,                                 /* next */
+  0,                                    /* static_pass_number */
+  TV_LOOP,                              /* tv_id */
+  0,                                    /* properties_required */
+  0,                                    /* properties_provided */
+  0,                                    /* properties_destroyed */
+  0,                                    /* todo_flags_start */
+  TODO_dump_func,                       /* todo_flags_finish */
+  'L'                                   /* letter */
+};
+
+
+/* Loop unswitching for RTL.  */
+static bool
+gate_rtl_unswitch (void)
+{
+  return flag_unswitch_loops;
+}
+
+static unsigned int
+rtl_unswitch (void)
+{
+  if (current_loops)
+    unswitch_loops (current_loops);
+  return 0;
+}
+
+struct tree_opt_pass pass_rtl_unswitch =
+{
+  "loop2_unswitch",                      /* name */
+  gate_rtl_unswitch,                    /* gate */
+  rtl_unswitch,                         /* execute */
+  NULL,                                 /* sub */
+  NULL,                                 /* next */
+  0,                                    /* static_pass_number */
+  TV_LOOP,                              /* tv_id */
+  0,                                    /* properties_required */
+  0,                                    /* properties_provided */
+  0,                                    /* properties_destroyed */
+  0,                                    /* todo_flags_start */
+  TODO_dump_func,                       /* todo_flags_finish */
+  'L'                                   /* letter */
+};
+
+
+/* Loop unswitching for RTL.  */
+static bool
+gate_rtl_unroll_and_peel_loops (void)
+{
+  return (flag_peel_loops || flag_unroll_loops || flag_unroll_all_loops);
+}
+
+static unsigned int
+rtl_unroll_and_peel_loops (void)
+{
+  if (current_loops)
+    {
+      int flags = 0;
+
+      if (flag_peel_loops)
+	flags |= UAP_PEEL;
+      if (flag_unroll_loops)
+	flags |= UAP_UNROLL;
+      if (flag_unroll_all_loops)
+	flags |= UAP_UNROLL_ALL;
+
+      unroll_and_peel_loops (current_loops, flags);
+    }
+  return 0;
+}
+
+struct tree_opt_pass pass_rtl_unroll_and_peel_loops =
+{
+  "loop2_unroll",                        /* name */
+  gate_rtl_unroll_and_peel_loops,       /* gate */
+  rtl_unroll_and_peel_loops,            /* execute */
+  NULL,                                 /* sub */
+  NULL,                                 /* next */
+  0,                                    /* static_pass_number */
+  TV_LOOP,                              /* tv_id */
+  0,                                    /* properties_required */
+  0,                                    /* properties_provided */
+  0,                                    /* properties_destroyed */
+  0,                                    /* todo_flags_start */
+  TODO_dump_func,                       /* todo_flags_finish */
+  'L'                                   /* letter */
+};
+
+
+/* The doloop optimization.  */
+static bool
+gate_rtl_doloop (void)
+{
+#ifdef HAVE_doloop_end
+  return (flag_branch_on_count_reg && HAVE_doloop_end);
+#else
+  return 0;
+#endif
+}
+
+static unsigned int
+rtl_doloop (void)
+{
+#ifdef HAVE_doloop_end
+  if (current_loops)
+    doloop_optimize_loops (current_loops);
+#endif
+  return 0;
+}
+
+struct tree_opt_pass pass_rtl_doloop =
+{
+  "loop2_doloop",                        /* name */
+  gate_rtl_doloop,                      /* gate */
+  rtl_doloop,                           /* execute */
+  NULL,                                 /* sub */
+  NULL,                                 /* next */
+  0,                                    /* static_pass_number */
+  TV_LOOP,                              /* tv_id */
+  0,                                    /* properties_required */
+  0,                                    /* properties_provided */
+  0,                                    /* properties_destroyed */
+  0,                                    /* todo_flags_start */
+  TODO_dump_func,                       /* todo_flags_finish */
+  'L'                                   /* letter */
+};
+

@@ -1,6 +1,6 @@
 /* CPP Library.
    Copyright (C) 1986, 1987, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2003 Free Software Foundation, Inc.
+   1999, 2000, 2003, 2004, 2006 Free Software Foundation, Inc.
    Contributed by Per Bothner, 1994-95.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef GCC_CPPDEFAULT_H
 #define GCC_CPPDEFAULT_H
@@ -43,12 +43,13 @@ struct default_include
 				   C++.  */
   const char add_sysroot;	/* FNAME should be prefixed by
 				   cpp_SYSROOT.  */
+  const char multilib;		/* FNAME should have the multilib path
+				   specified with -imultilib
+				   appended.  */
 };
 
 extern const struct default_include cpp_include_defaults[];
 extern const char cpp_GCC_INCLUDE_DIR[];
 extern const size_t cpp_GCC_INCLUDE_DIR_len;
-
-extern const char *cpp_SYSROOT;
 
 #endif /* ! GCC_CPPDEFAULT_H */

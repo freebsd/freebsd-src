@@ -1,5 +1,6 @@
 /* Definitions of target machine for GNU compiler, for ARM with PE obj format.
-   Copyright (C) 1995, 1996, 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1999, 2000, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
    
    This file is part of GCC.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /* Enable PE specific code.  */
 #define ARM_PE		1
@@ -39,44 +40,17 @@
 
 /* Get tree.c to declare a target-specific specialization of
    merge_decl_attributes.  */
-#define TARGET_DLLIMPORT_DECL_ATTRIBUTES
+#define TARGET_DLLIMPORT_DECL_ATTRIBUTES 1
 
-/* Support the __declspec keyword by turning them into attributes.
-   We currently only support: naked, dllimport, and dllexport.
-   Note that the current way we do this may result in a collision with
-   predefined attributes later on.  This can be solved by using one attribute,
-   say __declspec__, and passing args to it.  The problem with that approach
-   is that args are not accumulated: each new appearance would clobber any
-   existing args.  */
 #undef  SUBTARGET_CPP_SPEC
-#define SUBTARGET_CPP_SPEC "-D__pe__ -D__declspec(x)=__attribute__((x))"
-
-
-/* Experimental addition for pr 7885.
-   Ignore dllimport for functions.  */
-#define TARGET_FLAG_NOP_FUN	(1 << 24)
-
-#undef  TARGET_NOP_FUN_DLLIMPORT
-#define TARGET_NOP_FUN_DLLIMPORT (target_flags & TARGET_FLAG_NOP_FUN)
-
-#undef  SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES					\
-{ "nop-fun-dllimport",		  TARGET_FLAG_NOP_FUN,		\
-  N_("Ignore dllimport attribute for functions") },		\
-{ "no-nop-fun-dllimport",	- TARGET_FLAG_NOP_FUN, "" },
-
-/* Defaulting to APCS-26 support is a legacy issue.   It has been done
-   that way for a long time, so changing it will probably break some
-   people's worlds.  Support for APCS-32 is now enabled as a multilib,
-   and at some point in the future APCS-32 may become the default.
-   Possibly when chips that support APCS-26 are no longer made.  */
+#define SUBTARGET_CPP_SPEC "-D__pe__"
 
 #undef  TARGET_DEFAULT
-#define TARGET_DEFAULT	(ARM_FLAG_SOFT_FLOAT | TARGET_FLAG_NOP_FUN | ARM_FLAG_MMU_TRAPS)
+#define TARGET_DEFAULT	(MASK_NOP_FUN_DLLIMPORT)
 
 #undef  MULTILIB_DEFAULTS
 #define MULTILIB_DEFAULTS \
-  { "marm", "mlittle-endian", "msoft-float", "mapcs-26", "mno-thumb-interwork" }  
+  { "marm", "mlittle-endian", "msoft-float", "mno-thumb-interwork" }  
 
 #undef  WCHAR_TYPE
 #define WCHAR_TYPE 	"short unsigned int"
@@ -90,13 +64,11 @@
   call_used_regs [11] = 1;
 
 
-/* Define this macro if in some cases global symbols from one translation
-   unit may not be bound to undefined symbols in another translation unit
-   without user intervention.  For instance, under Microsoft Windows
-   symbols must be explicitly imported from shared libraries (DLLs).  */
-#define MULTIPLE_SYMBOL_SPACES
+/* PE/COFF uses explicit import from shared libraries.  */
+#define MULTIPLE_SYMBOL_SPACES 1
 
 #define TARGET_ASM_UNIQUE_SECTION arm_pe_unique_section
+#define TARGET_ASM_FUNCTION_RODATA_SECTION default_no_function_rodata_section
 
 #define SUPPORTS_ONE_ONLY 1
 
@@ -121,7 +93,7 @@
 	  drectve_section ();					\
 	  fprintf (STREAM, "\t.ascii \" -export:%s\"\n",	\
 		   arm_strip_name_encoding (NAME));		\
-	  function_section (DECL);				\
+	  switch_to_section (function_section (DECL));		\
 	}							\
       ARM_DECLARE_FUNCTION_NAME (STREAM, NAME, DECL);		\
       if (TARGET_THUMB)						\
@@ -158,11 +130,11 @@
     {							\
       if (arm_dllexport_name_p (NAME))			\
 	{						\
-	  enum in_section save_section = in_section;	\
+	  section *save_section = in_section;		\
 	  drectve_section ();				\
 	  fprintf (STREAM, "\t.ascii \" -export:%s\"\n",\
 		   arm_strip_name_encoding (NAME));	\
-	  switch_to_section (save_section, (DECL));	\
+	  switch_to_section (save_section);		\
 	}						\
       ASM_OUTPUT_LABEL ((STREAM), (NAME));		\
     }							\
@@ -172,50 +144,6 @@
 
 #define DRECTVE_SECTION_ASM_OP	"\t.section .drectve"
 
-/* A list of other sections which the compiler might be "in" at any
-   given time.  */
-
-#undef  EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_drectve
-
-/* A list of extra section function definitions.  */
-
-#undef  EXTRA_SECTION_FUNCTIONS
-#define EXTRA_SECTION_FUNCTIONS \
-  DRECTVE_SECTION_FUNCTION	\
-  SWITCH_TO_SECTION_FUNCTION
-
-#define DRECTVE_SECTION_FUNCTION \
-void									\
-drectve_section (void)							\
-{									\
-  if (in_section != in_drectve)						\
-    {									\
-      fprintf (asm_out_file, "%s\n", DRECTVE_SECTION_ASM_OP);		\
-      in_section = in_drectve;						\
-    }									\
-}
-
-/* Switch to SECTION (an `enum in_section').
-
-   ??? This facility should be provided by GCC proper.
-   The problem is that we want to temporarily switch sections in
-   ASM_DECLARE_OBJECT_NAME and then switch back to the original section
-   afterwards.  */
-#define SWITCH_TO_SECTION_FUNCTION				\
-static void							\
-switch_to_section (enum in_section section, tree decl)		\
-{								\
-  switch (section)						\
-    {								\
-      case in_text: text_section (); break;			\
-      case in_data: data_section (); break;			\
-      case in_named: named_section (decl, NULL, 0); break;	\
-      case in_readonly_data: readonly_data_section (); break;	\
-      case in_ctors: ctors_section (); break;			\
-      case in_dtors: dtors_section (); break;			\
-      case in_drectve: drectve_section (); break;		\
-      default: abort (); break;					\
-    }								\
-}
-
+#define drectve_section() \
+  (fprintf (asm_out_file, "%s\n", DRECTVE_SECTION_ASM_OP), \
+   in_section = NULL)
