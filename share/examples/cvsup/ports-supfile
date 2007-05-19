@@ -130,6 +130,7 @@ ports-all
 #ports-www
 #ports-x11
 #ports-x11-clocks
+#ports-x11-drivers
 #ports-x11-fm
 #ports-x11-fonts
 #ports-x11-servers
