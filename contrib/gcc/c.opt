@@ -1,5 +1,5 @@
 ; Options for the C, ObjC, C++ and ObjC++ front ends.
-; Copyright (C) 2003 Free Software Foundation, Inc.
+; Copyright (C) 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -7,59 +7,21 @@
 ; the terms of the GNU General Public License as published by the Free
 ; Software Foundation; either version 2, or (at your option) any later
 ; version.
-; 
+;
 ; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
 ; WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ; for more details.
-; 
+;
 ; You should have received a copy of the GNU General Public License
 ; along with GCC; see the file COPYING.  If not, write to the Free
-; Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-; 02111-1307, USA.
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
 
-
-; This file is processed by the script opts.sh.  It is a database of
-; command line options, with each record separated by a blank line,
-; and each field appearing on its own line.  The first field is the
-; command-line switch with the leading "-" removed.  All options
-; beginning with "f" or "W" are implicitly assumed to take a "no-"
-; form; this form should not be listed.  If you do not want this
-; negative form and you want it to be automatically rejected, add
-; RejectNegative to the second field.
-
-; The second field is a space-separated list of which parts of the
-; compiler recognize the switch, as declared by "Language" entries.
-; If the switch takes an argument, then you should also specify
-; "Joined" and/or "Separate" to indicate where the argument can
-; appear.  If a Joined argument can legitimately be omitted, specify
-; "JoinedOrMissing" instead of "Joined".  If the argument to a switch
-; is a non-negative integer, you can specify "UInteger" and the switch
-; decoder will convert the argument for you, or complain to the user
-; if the argument is invalid.
-
-; The third field is the help text to output with --help.  This is
-; automatically line-wrapped on output.  Normally the switch is output
-; automatically, with the help text on the right hand side of the
-; output.  However, if the help text contains a tab character, the
-; text to the left of the tab is output instead of the switch, and the
-; text to its right forms the help.  This is useful for elaborating on
-; what type of argument a switch takes, for example.  If the second
-; field contains "Undocumented" then nothing is output with --help.
-; Only do this with good reason like the switch being internal between
-; the driver and the front end - it is not an excuse to leave a switch
-; undocumented.
-
-; Comments can appear on their own line anwhere in the file, preceded
-; by a semicolon.  Whitespace is permitted before the semicolon.
-
-; For each switch XXX below, an enumeration constant is created by the
-; script opts.sh spelt OPT_XXX, but with all non-alphanumeric
-; characters replaced with an underscore.
-
-; Please try to keep this file in ASCII collating order.
+; See the GCC internals manual for a description of this file's format.
 
 ; $FreeBSD$
+; Please try to keep this file in ASCII collating order.
 
 Language
 C
@@ -95,13 +57,17 @@ C ObjC C++ ObjC++ Joined Separate
 E
 C ObjC C++ ObjC++ Undocumented
 
+F
+C ObjC C++ ObjC++ Joined Separate
+-F <dir>	Add <dir> to the end of the main framework include path
+
 H
 C ObjC C++ ObjC++
 Print the name of header files as they are used
 
 I
 C ObjC C++ ObjC++ Joined Separate
--I <dir>	Add <dir> to the end of the main include path.  -I- gives more include path control; see info documentation
+-I <dir>	Add <dir> to the end of the main include path
 
 M
 C ObjC C++ ObjC++
@@ -148,22 +114,36 @@ C ObjC C++ ObjC++ Joined Separate
 -U<macro>	Undefine <macro>
 
 Wabi
-C++ ObjC++
+C++ ObjC++ Var(warn_abi)
+Warn about things that will change when compiling with an ABI-compliant compiler
+
+Waddress
+C ObjC C++ ObjC++ Var(warn_address)
+Warn about suspicious uses of memory addresses
 
 Wall
 C ObjC C++ ObjC++
 Enable most warning messages
 
+Wassign-intercept
+ObjC ObjC++ Var(warn_assign_intercept)
+Warn whenever an Objective-C assignment is being intercepted by the garbage collector
+
 Wbad-function-cast
-C ObjC
+C ObjC Var(warn_bad_function_cast)
 Warn about casting functions to incompatible types
 
+Wc++-compat
+C ObjC Var(warn_cxx_compat)
+Warn about C constructs that are not in the common subset of C and C++
+
+
 Wcast-qual
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_cast_qual)
 Warn about casts which discard qualifiers
 
 Wchar-subscripts
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_char_subscripts)
 Warn about subscripts whose type is \"char\"
 
 Wcomment
@@ -175,27 +155,27 @@ C ObjC C++ ObjC++
 Synonym for -Wcomment
 
 Wconversion
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_conversion)
 Warn about possibly confusing type conversions
 
 Wctor-dtor-privacy
-C++ ObjC++
+C++ ObjC++ Var(warn_ctor_dtor_privacy)
 Warn when all constructors and destructors are private
 
 Wdeclaration-after-statement
-C ObjC
+C ObjC Var(warn_declaration_after_statement)
 Warn when a declaration is found after a statement
 
 Wdeprecated
-C++ ObjC++
+C++ ObjC++ Var(warn_deprecated) Init(1)
 Warn about deprecated compiler features
 
 Wdiv-by-zero
-C ObjC
+C ObjC C++ ObjC++ Var(warn_div_by_zero) Init(1)
 Warn about compile-time integer division by zero
 
 Weffc++
-C++ ObjC++
+C++ ObjC++ Var(warn_ecpp)
 Warn about violations of Effective C++ style rules
 
 Wendif-labels
@@ -211,7 +191,7 @@ C ObjC RejectNegative
 Make implicit function declarations an error
 
 Wfloat-equal
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_float_equal)
 Warn if testing floating point numbers for equality
 
 Wformat
@@ -219,48 +199,53 @@ C ObjC C++ ObjC++
 Warn about printf/scanf/strftime/strfmon format string anomalies
 
 Wformat-extra-args
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_format_extra_args)
 Warn if passing too many arguments to a function for its format string
 
 Wformat-nonliteral
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_format_nonliteral)
 Warn about format strings that are not literals
 
 Wformat-security
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_format_security)
 Warn about possible security problems with format functions
 
 Wformat-y2k
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_format_y2k)
 Warn about strftime formats yielding 2-digit years
 
 Wformat-zero-length
-C ObjC
+C ObjC Var(warn_format_zero_length)
+Warn about zero-length formats
 
 Wformat=
 C ObjC C++ ObjC++ Joined
 
 Winit-self
-C ObjC C++ ObjC++
-Warn about variables which are initialized to themselves.
+C ObjC C++ ObjC++ Var(warn_init_self)
+Warn about variables which are initialized to themselves
 
 Wimplicit
 C ObjC C++ ObjC++
 
 Wimplicit-function-declaration
-C ObjC
+C ObjC Var(mesg_implicit_function_declaration) Init(-1)
 Warn about implicit function declarations
 
 Wimplicit-int
-C ObjC
+C ObjC Var(warn_implicit_int)
 Warn when a declaration does not specify a type
 
 Wimport
 C ObjC C++ ObjC++
-Deprecated.  This switch has no effect.
+Deprecated.  This switch has no effect
+
+Wint-to-pointer-cast
+C ObjC Var(warn_int_to_pointer_cast) Init(1)
+Warn when there is a cast to a pointer from an integer of a different size
 
 Winvalid-offsetof
-C++ ObjC++
+C++ ObjC++ Var(warn_invalid_offsetof) Init(1)
 Warn about invalid uses of the \"offsetof\" macro
 
 Winvalid-pch
@@ -268,7 +253,7 @@ C ObjC C++ ObjC++
 Warn about PCH files that are found but not used
 
 Wlong-long
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_long_long) Init(1)
 Do not warn about using \"long long\" when -pedantic
 
 Wmain
@@ -276,19 +261,27 @@ C ObjC
 Warn about suspicious declarations of \"main\"
 
 Wmissing-braces
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_missing_braces)
 Warn about possibly missing braces around initializers
 
 Wmissing-declarations
-C ObjC
+C ObjC Var(warn_missing_declarations)
 Warn about global functions without previous declarations
 
+Wmissing-field-initializers
+C ObjC C++ ObjC++ Var(warn_missing_field_initializers) Init(-1)
+Warn about missing fields in struct initializers
+
 Wmissing-format-attribute
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_missing_format_attribute)
 Warn about functions which might be candidates for format attributes
 
+Wmissing-include-dirs
+C ObjC C++ ObjC++
+Warn about user-specified include directories that do not exist
+
 Wmissing-prototypes
-C ObjC
+C ObjC Var(warn_missing_prototypes)
 Warn about global functions without prototypes
 
 Wmultichar
@@ -296,82 +289,111 @@ C ObjC C++ ObjC++
 Warn about use of multi-character character constants
 
 Wnested-externs
-C ObjC
+C ObjC Var(warn_nested_externs)
 Warn about \"extern\" declarations not at file scope
 
 Wnon-template-friend
-C++ ObjC++
+C++ ObjC++ Var(warn_nontemplate_friend) Init(1)
 Warn when non-templatized friend functions are declared within a template
 
 Wnon-virtual-dtor
-C++ ObjC++
+C++ ObjC++ Var(warn_nonvdtor)
 Warn about non-virtual destructors
 
 Wnonnull
-C ObjC
+C ObjC Var(warn_nonnull)
+Warn about NULL being passed to argument slots marked as requiring non-NULL
+
+Wnormalized=
+C ObjC C++ ObjC++ Joined
+-Wnormalized=<id|nfc|nfkc>	Warn about non-normalised Unicode strings
 
 Wold-style-cast
-C++ ObjC++
+C++ ObjC++ Var(warn_old_style_cast)
 Warn if a C-style cast is used in a program
 
 Wold-style-definition
-C ObjC
+C ObjC Var(warn_old_style_definition)
 Warn if an old-style parameter definition is used
 
+Woverlength-strings
+C ObjC C++ ObjC++ Var(warn_overlength_strings) Init(-1)
+Warn if a string is longer than the maximum portable length specified by the standard
+
 Woverloaded-virtual
-C++ ObjC++
+C++ ObjC++ Var(warn_overloaded_virtual)
 Warn about overloaded virtual function names
 
+Woverride-init
+C ObjC Var(warn_override_init) Init(-1)
+Warn about overriding initializers without side effects
+
 Wparentheses
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_parentheses)
 Warn about possibly missing parentheses
 
 Wpmf-conversions
-C++ ObjC++
+C++ ObjC++ Var(warn_pmf2ptr) Init(1)
 Warn when converting the type of pointers to member functions
 
 Wpointer-arith
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_pointer_arith)
 Warn about function pointer arithmetic
 
+Wpointer-to-int-cast
+C ObjC Var(warn_pointer_to_int_cast) Init(1)
+Warn when a pointer is cast to an integer of a different size
+
+Wpragmas
+C ObjC C++ ObjC++ Var(warn_pragmas) Init(1)
+Warn about misuses of pragmas
+
 Wprotocol
-ObjC ObjC++
+ObjC ObjC++ Var(warn_protocol) Init(1)
 Warn if inherited methods are unimplemented
 
 Wredundant-decls
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_redundant_decls)
 Warn about multiple declarations of the same object
 
 Wreorder
-C++ ObjC++
+C++ ObjC++ Var(warn_reorder)
 Warn when the compiler reorders code
 
 Wreturn-type
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_return_type)
 Warn whenever a function's return type defaults to \"int\" (C), or about inconsistent return types (C++)
 
 Wselector
-ObjC ObjC++
+ObjC ObjC++ Var(warn_selector)
 Warn if a selector has multiple methods
 
 Wsequence-point
-C ObjC
+C ObjC C++ ObjC++ Var(warn_sequence_point)
 Warn about possible violations of sequence point rules
 
 Wsign-compare
-C ObjC C++ ObjC++
+C ObjC C++ ObjC++ Var(warn_sign_compare) Init(-1)
 Warn about signed-unsigned comparisons
 
 Wsign-promo
-C++ ObjC++
+C++ ObjC++ Var(warn_sign_promo)
 Warn when overload promotes from unsigned to signed
 
+Wstrict-null-sentinel
+C++ ObjC++
+Warn about uncasted NULL used as sentinel
+
 Wstrict-prototypes
-C ObjC
+C ObjC Var(warn_strict_prototypes)
 Warn about unprototyped function declarations
 
+Wstrict-selector-match
+ObjC ObjC++ Var(warn_strict_selector_match)
+Warn if type signatures of candidate methods do not match exactly
+
 Wsynth
-C++ ObjC++
+C++ ObjC++ Var(warn_synth)
 Warn when synthesis behavior differs from Cfront
 
 Wsystem-headers
@@ -379,7 +401,7 @@ C ObjC C++ ObjC++
 Do not suppress warnings from system headers
 
 Wtraditional
-C ObjC
+C ObjC Var(warn_traditional)
 Warn about features not present in traditional C
 
 Wtrigraphs
@@ -387,7 +409,8 @@ C ObjC C++ ObjC++
 Warn if trigraphs are encountered that might affect the meaning of the program
 
 Wundeclared-selector
-ObjC ObjC++
+ObjC ObjC++ Var(warn_undeclared_selector)
+Warn about @selector()s without previously declared methods
 
 Wundef
 C ObjC C++ ObjC++
@@ -401,13 +424,21 @@ Wunused-macros
 C ObjC C++ ObjC++
 Warn about macros defined in the main file that are not used
 
-Wwrite-strings
+Wvariadic-macros
 C ObjC C++ ObjC++
-Give strings the type \"array of char\"
+Do not warn about using variadic macros when -pedantic
+
+Wwrite-strings
+C ObjC C++ ObjC++ Var(warn_write_strings)
+In C++, nonzero means warn about deprecated conversion from string literals to `char *'.  In C, similar warning, except that the conversion is of course not deprecated by the ISO C standard.
+
+Wpointer-sign
+C ObjC Var(warn_pointer_sign) Init(-1)
+Warn when a pointer differs in signedness in an assignment
 
 ansi
 C ObjC C++ ObjC++
-A synonym for -std=c89 (for C) or -std=c++98 (for C++).
+A synonym for -std=c89 (for C) or -std=c++98 (for C++)
 
 d
 C ObjC C++ ObjC++ Joined
@@ -447,10 +478,6 @@ fconserve-space
 C++ ObjC++
 Reduce the size of object files
 
-fconst-strings
-C++ ObjC++
-Make string literals \"const char[]\" not \"char[]\"
-
 fconstant-string-class=
 ObjC ObjC++ Joined
 -fconst-string-class=<name>	Use class <name> for constant strings
@@ -462,10 +489,6 @@ Inline member functions by default
 fdollars-in-identifiers
 C ObjC C++ ObjC++
 Permit '$' as an identifier character
-
-fdump-
-C ObjC C++ ObjC++ Joined RejectNegative
--fdump-<type>	Dump various compiler internals to a file
 
 felide-constructors
 C++ ObjC++
@@ -481,19 +504,17 @@ fexec-charset=
 C ObjC C++ ObjC++ Joined RejectNegative
 -fexec-charset=<cset>	Convert all strings and character constants to character set <cset>
 
+fextended-identifiers
+C ObjC C++ ObjC++
+Permit universal character names (\\u and \\U) in identifiers
+
 finput-charset=
 C ObjC C++ ObjC++ Joined RejectNegative
--finput-charset=<cset>      Specify the default character set for source files.
+-finput-charset=<cset>	Specify the default character set for source files
 
 
 fexternal-templates
 C++ ObjC++
-
-ffixed-form
-C ObjC
-
-ffixed-line-length-
-C ObjC Joined
 
 ffor-scope
 C++ ObjC++
@@ -510,6 +531,10 @@ Recognize GNU-defined keywords
 fgnu-runtime
 ObjC ObjC++
 Generate code for GNU runtime environment
+
+fgnu89-inline
+C ObjC Var(flag_gnu89_inline) Init(-1)
+Use traditional GNU semantics for inline functions
 
 fguiding-decls
 C++ ObjC++
@@ -540,6 +565,10 @@ fimplicit-templates
 C++ ObjC++
 Emit implicit instantiations of templates
 
+ffriend-injection
+C++ ObjC++ Var(flag_friend_injection)
+Inject friend functions into enclosing namespace
+
 flabels-ok
 C++ ObjC++
 
@@ -567,9 +596,34 @@ C++ ObjC++
 fnonnull-objects
 C++ ObjC++
 
+; Generate special '- .cxx_construct' and '- .cxx_destruct' methods
+; to initialize any non-POD ivars in Objective-C++ classes.
+fobjc-call-cxx-cdtors
+ObjC++ Var(flag_objc_call_cxx_cdtors)
+Generate special Objective-C methods to initialize/destroy non-POD C++ ivars, if needed
+
+fobjc-direct-dispatch
+ObjC ObjC++ Var(flag_objc_direct_dispatch)
+Allow fast jumps to the message dispatcher
+
+; Nonzero means that we will allow new ObjC exception syntax (@throw,
+; @try, etc.) in source code.
 fobjc-exceptions
-ObjC ObjC++
+ObjC ObjC++ Var(flag_objc_exceptions)
 Enable Objective-C exception and synchronization syntax
+
+fobjc-gc
+ObjC ObjC++ Var(flag_objc_gc)
+Enable garbage collection (GC) in Objective-C/Objective-C++ programs
+
+; Nonzero means that we generate NeXT setjmp based exceptions.
+fobjc-sjlj-exceptions
+ObjC ObjC++ Var(flag_objc_sjlj_exceptions) Init(-1)
+Enable Objective-C setjmp exception handling runtime
+
+fopenmp
+C ObjC C++ ObjC++ Var(flag_openmp)
+Enable OpenMP
 
 foperator-names
 C++ ObjC++
@@ -581,6 +635,10 @@ Enable optional diagnostics
 
 fpch-deps
 C ObjC C++ ObjC++
+
+fpch-preprocess
+C ObjC C++ ObjC++
+Look for and use PCH files even when preprocessing
 
 fpermissive
 C++ ObjC++
@@ -614,9 +672,6 @@ fshort-wchar
 C ObjC C++ ObjC++
 Force the underlying type for \"wchar_t\" to be \"unsigned short\"
 
-fshow-column
-C ObjC C++ ObjC++
-
 fsigned-bitfields
 C ObjC C++ ObjC++
 When \"signed\" or \"unsigned\" is not given make the bitfield signed
@@ -640,11 +695,15 @@ C ObjC C++ ObjC++ Joined RejectNegative UInteger
 -ftabstop=<number>	Distance between tab stops for column reporting
 
 ftemplate-depth-
-C++ ObjC++ Joined RejectNegative UInteger 
+C++ ObjC++ Joined RejectNegative UInteger
 -ftemplate-depth-<number>	Specify maximum template instantiation depth
 
 fthis-is-variable
 C++ ObjC++
+
+fthreadsafe-statics
+C++ ObjC++
+-fno-threadsafe-statics	Do not generate thread-safe code for initializing local statics
 
 funsigned-bitfields
 C ObjC C++ ObjC++
@@ -657,6 +716,14 @@ Make \"char\" unsigned by default
 fuse-cxa-atexit
 C++ ObjC++
 Use __cxa_atexit to register destructors
+
+fuse-cxa-get-exception-ptr
+C++ ObjC++
+Use __cxa_get_exception_ptr in exception handling
+
+fvisibility-inlines-hidden
+C++ ObjC++
+Marks all inlined methods as having hidden visibility
 
 fvtable-gc
 C++ ObjC++
@@ -698,6 +765,10 @@ imacros
 C ObjC C++ ObjC++ Joined Separate
 -imacros <file>	Accept definition of macros in <file>
 
+imultilib
+C ObjC C++ ObjC++ Joined Separate
+-imultilib <dir> Set <dir> to be the multilib include subdirectory
+
 include
 C ObjC C++ ObjC++ Joined Separate
 -include <file>	Include the contents of <file> before other files
@@ -714,6 +785,10 @@ isystem
 C ObjC C++ ObjC++ Joined Separate
 -isystem <dir>	Add <dir> to the start of the system include path
 
+iquote
+C ObjC C++ ObjC++ Joined Separate
+-iquote <dir>	Add <dir> to the end of the quote include path
+
 iwithprefix
 C ObjC C++ ObjC++ Joined Separate
 -iwithprefix <dir>	Add <dir> to the end of the system include path
@@ -723,6 +798,9 @@ C ObjC C++ ObjC++ Joined Separate
 -iwithprefixbefore <dir>	Add <dir> to the end of the main include path
 
 lang-asm
+C Undocumented
+
+lang-fortran
 C Undocumented
 
 lang-objc
@@ -751,6 +829,10 @@ C ObjC C++ ObjC++
 print-objc-runtime-info
 ObjC ObjC++
 Generate C header of platform-specific features
+
+print-pch-checksum
+C ObjC C++ ObjC++
+Print a checksum of the executable for PCH validity checking, and stop
 
 remap
 C ObjC C++ ObjC++
@@ -823,9 +905,5 @@ Enable verbose output
 w
 C ObjC C++ ObjC++
 ; Documented in common.opt
-
-fformat-extensions
-C ObjC C++ ObjC++
-Enable FreeBSD format extensions
 
 ; This comment is to ensure we retain the blank line above.
