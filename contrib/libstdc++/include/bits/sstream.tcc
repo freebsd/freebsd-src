@@ -1,6 +1,6 @@
 // String based streams -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2001, 2002, 2003
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,6 +27,11 @@
 // the GNU General Public License.  This exception does not however
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
+
+/** @file sstream.tcc
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
 
 //
 // ISO C++ 14882: 27.7  String-based streams
@@ -39,32 +44,37 @@
 
 #include <sstream>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   template <class _CharT, class _Traits, class _Alloc>
     typename basic_stringbuf<_CharT, _Traits, _Alloc>::int_type
     basic_stringbuf<_CharT, _Traits, _Alloc>::
     pbackfail(int_type __c)
     {
       int_type __ret = traits_type::eof();
-      const bool __testeof = traits_type::eq_int_type(__c, __ret);
-
       if (this->eback() < this->gptr())
 	{
-	  const bool __testeq = traits_type::eq(traits_type::to_char_type(__c),
-						this->gptr()[-1]);
-	  this->gbump(-1);
-
 	  // Try to put back __c into input sequence in one of three ways.
 	  // Order these tests done in is unspecified by the standard.
-	  if (!__testeof && __testeq)
-	    __ret = __c;
-	  else if (__testeof)
-	    __ret = traits_type::not_eof(__c);
+	  const bool __testeof = traits_type::eq_int_type(__c, __ret);
+	  if (!__testeof)
+	    {
+	      const bool __testeq = traits_type::eq(traits_type::
+						    to_char_type(__c),
+						    this->gptr()[-1]);	  
+	      const bool __testout = this->_M_mode & ios_base::out;
+	      if (__testeq || __testout)
+		{
+		  this->gbump(-1);
+		  if (!__testeq)
+		    *this->gptr() = traits_type::to_char_type(__c);
+		  __ret = __c;
+		}
+	    }
 	  else
 	    {
-	      *this->gptr() = traits_type::to_char_type(__c);
-	      __ret = __c;
+	      this->gbump(-1);
+	      __ret = traits_type::not_eof(__c);
 	    }
 	}
       return __ret;
@@ -91,25 +101,34 @@ namespace std
 
       // Try to append __c into output sequence in one of two ways.
       // Order these tests done in is unspecified by the standard.
+      const char_type __conv = traits_type::to_char_type(__c);
       if (!__testput)
 	{
-	  // NB: Start ostringstream buffers at 512 chars. This is an
+	  // NB: Start ostringstream buffers at 512 chars.  This is an
 	  // experimental value (pronounced "arbitrary" in some of the
 	  // hipper english-speaking countries), and can be changed to
 	  // suit particular needs.
-	  // Then, in virtue of DR 169 (TC) we are allowed to grow more
-	  // than one char.
+	  //
+	  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+	  // 169. Bad efficiency of overflow() mandated
+	  // 432. stringbuf::overflow() makes only one write position
+	  //      available
 	  const __size_type __opt_len = std::max(__size_type(2 * __capacity),
 						 __size_type(512));
 	  const __size_type __len = std::min(__opt_len, __max_size);
 	  __string_type __tmp;
 	  __tmp.reserve(__len);
-	  __tmp.assign(_M_string.data(), this->epptr() - this->pbase());
+	  if (this->pbase())
+	    __tmp.assign(this->pbase(), this->epptr() - this->pbase());
+	  __tmp.push_back(__conv);
 	  _M_string.swap(__tmp);
 	  _M_sync(const_cast<char_type*>(_M_string.data()),
 		  this->gptr() - this->eback(), this->pptr() - this->pbase());
 	}
-      return this->sputc(traits_type::to_char_type(__c));
+      else
+	*this->pptr() = __conv;
+      this->pbump(1);
+      return __c;
     }
 
   template <class _CharT, class _Traits, class _Alloc>
@@ -149,28 +168,28 @@ namespace std
 	{
 	  _M_update_egptr();
 
-	  off_type __newoffi = 0;
-	  off_type __newoffo = 0;
+	  off_type __newoffi = __off;
+	  off_type __newoffo = __newoffi;
 	  if (__way == ios_base::cur)
 	    {
-	      __newoffi = this->gptr() - __beg;
-	      __newoffo = this->pptr() - __beg;
+	      __newoffi += this->gptr() - __beg;
+	      __newoffo += this->pptr() - __beg;
 	    }
 	  else if (__way == ios_base::end)
-	    __newoffo = __newoffi = this->egptr() - __beg;
+	    __newoffo = __newoffi += this->egptr() - __beg;
 
 	  if ((__testin || __testboth)
-	      && __newoffi + __off >= 0
-	      && this->egptr() - __beg >= __newoffi + __off)
+	      && __newoffi >= 0
+	      && this->egptr() - __beg >= __newoffi)
 	    {
-	      this->gbump((__beg + __newoffi + __off) - this->gptr());
+	      this->gbump((__beg + __newoffi) - this->gptr());
 	      __ret = pos_type(__newoffi);
 	    }
 	  if ((__testout || __testboth)
-	      && __newoffo + __off >= 0
-	      && this->egptr() - __beg >= __newoffo + __off)
+	      && __newoffo >= 0
+	      && this->egptr() - __beg >= __newoffo)
 	    {
-	      this->pbump((__beg + __newoffo + __off) - this->pptr());
+	      this->pbump((__beg + __newoffo) - this->pptr());
 	      __ret = pos_type(__newoffo);
 	    }
 	}
@@ -187,14 +206,14 @@ namespace std
       const bool __testout = (ios_base::out & this->_M_mode & __mode) != 0;
 
       const char_type* __beg = __testin ? this->eback() : this->pbase();
-      if (__beg)
+      if ((__beg || !off_type(__sp)) && (__testin || __testout))
 	{
 	  _M_update_egptr();
 
-	  off_type __pos(__sp);
-	  const bool __testpos = 0 <= __pos
-	                         && __pos <=  this->egptr() - __beg;
-	  if ((__testin || __testout) && __testpos)
+	  const off_type __pos(__sp);
+	  const bool __testpos = (0 <= __pos
+				  && __pos <= this->egptr() - __beg);
+	  if (__testpos)
 	    {
 	      if (__testin)
 		this->gbump((__beg + __pos) - this->gptr());
@@ -204,6 +223,38 @@ namespace std
 	    }
 	}
       return __ret;
+    }
+
+  template <class _CharT, class _Traits, class _Alloc>
+    void
+    basic_stringbuf<_CharT, _Traits, _Alloc>::
+    _M_sync(char_type* __base, __size_type __i, __size_type __o)
+    {
+      const bool __testin = _M_mode & ios_base::in;
+      const bool __testout = _M_mode & ios_base::out;
+      char_type* __endg = __base + _M_string.size();
+      char_type* __endp = __base + _M_string.capacity();
+
+      if (__base != _M_string.data())
+	{
+	  // setbuf: __i == size of buffer area (_M_string.size() == 0).
+	  __endg += __i;
+	  __i = 0;
+	  __endp = __endg;
+	}
+
+      if (__testin)
+	this->setg(__base, __base + __i, __endg);
+      if (__testout)
+	{
+	  this->setp(__base, __endp);
+	  this->pbump(__o);
+	  // egptr() always tracks the string end.  When !__testin,
+	  // for the correct functioning of the streambuf inlines
+	  // the other get area pointers are identical.
+	  if (!__testin)
+	    this->setg(__endg, __endg, __endg);
+	}
     }
 
   // Inhibit implicit instantiations for required instantiations,
@@ -222,6 +273,7 @@ namespace std
   extern template class basic_stringstream<wchar_t>;
 #endif
 #endif
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif

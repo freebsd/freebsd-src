@@ -18,6 +18,7 @@ Usage:
 		    --install-cxx
 		    --cxxflags
 		    --cxxpchflags
+		    --cxxldflags
 EOF
 }
 
@@ -29,12 +30,12 @@ query=$1
 
 case ${query} in
     --install-includes)
-      INCLUDES="-I${SRC_DIR}/testsuite"
+      INCLUDES="-I${SRC_DIR}/testsuite/util"
       echo ${INCLUDES}
       ;;
     --build-includes)
-      INCLUDES="-nostdinc++ @GLIBCXX_INCLUDES@ -I${SRC_DIR}/libsupc++ 
-                -I${SRC_DIR}/include/backward -I${SRC_DIR}/testsuite"
+      INCLUDES="-nostdinc++ @GLIBCXX_INCLUDES@ 
+                -I${SRC_DIR}/include/backward -I${SRC_DIR}/testsuite/util"
       echo ${INCLUDES}
       ;;
     --install-cxx)
@@ -48,16 +49,20 @@ case ${query} in
       ;;
     --cxxflags)
       CXXFLAGS_save="-g -O2 -D_GLIBCXX_ASSERT"
-      CXXFLAGS_config='@SECTION_FLAGS@ @SECTION_LDFLAGS@ -fmessage-length=0 
- 		      @EXTRA_CXX_FLAGS@ -DLOCALEDIR="@glibcxx_localedir@" '
+      CXXFLAGS_config='@SECTION_FLAGS@ -fmessage-length=0 
+ 		      @CXXFLAGS@ @EXTRA_CXX_FLAGS@ '
       echo ${CXXFLAGS_save} ${CXXFLAGS_config}
       ;;
     --cxxpchflags)
       PCHFLAGS="@glibcxx_PCHFLAGS@"
       echo ${PCHFLAGS}
       ;;
+    --cxxldflags)
+      SECTIONLDFLAGS="@SECTION_LDFLAGS@"
+      echo ${SECTIONLDFLAGS}
+      ;;
     *)
-      print_usagex
+      print_usage
       ;;
 esac
 

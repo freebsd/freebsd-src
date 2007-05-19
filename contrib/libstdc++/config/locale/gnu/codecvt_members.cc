@@ -1,6 +1,6 @@
 // std::codecvt implementation details, GNU version -*- C++ -*-
 
-// Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+// Copyright (C) 2002, 2003, 2005, 2006 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -36,8 +36,8 @@
 #include <locale>
 #include <bits/c++locale_internal.h>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // Specializations.
 #ifdef _GLIBCXX_USE_WCHAR_T
   codecvt_base::result
@@ -95,14 +95,14 @@ namespace std
 	  {
 	    extern_type __buf[MB_LEN_MAX];
 	    __tmp_state = __state;
-	    const size_t __conv = wcrtomb(__buf, *__from_next, &__tmp_state);
-	    if (__conv > static_cast<size_t>(__to_end - __to_next))
+	    const size_t __conv2 = wcrtomb(__buf, *__from_next, &__tmp_state);
+	    if (__conv2 > static_cast<size_t>(__to_end - __to_next))
 	      __ret = partial;
 	    else
 	      {
-		memcpy(__to_next, __buf, __conv);
+		memcpy(__to_next, __buf, __conv2);
 		__state = __tmp_state;
-		__to_next += __conv;
+		__to_next += __conv2;
 		++__from_next;
 	      }
 	  }
@@ -303,4 +303,5 @@ namespace std
     return __ret; 
   }
 #endif
-}
+
+_GLIBCXX_END_NAMESPACE

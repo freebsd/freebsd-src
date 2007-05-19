@@ -1,6 +1,6 @@
 // Position types -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2003, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,15 +28,15 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-//
-// ISO C++ 14882: 27.4.1 - Types
-// ISO C++ 14882: 27.4.3 - Template class fpos
-//
-
 /** @file postypes.h
  *  This is an internal header file, included by other library headers.
  *  You should not attempt to use it directly.
  */
+
+//
+// ISO C++ 14882: 27.4.1 - Types
+// ISO C++ 14882: 27.4.3 - Template class fpos
+//
 
 #ifndef _GLIBCXX_POSTYPES_H
 #define _GLIBCXX_POSTYPES_H 1
@@ -49,8 +49,8 @@
 #include <stdint.h> // For int64_t
 #endif
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // The types streamoff, streampos and wstreampos and the class
   // template fpos<> are described in clauses 21.1.2, 21.1.3, 27.1.2,
   // 27.2, 27.4.1, 27.4.3 and D.6. Despite all this verbage, the
@@ -129,20 +129,6 @@ namespace std
       state() const
       { return _M_state; }
 
-      // The standard only requires that operator== must be an
-      // equivalence relation. In this implementation two fpos<StateT>
-      // objects belong to the same equivalence class if the contained
-      // offsets compare equal.
-      /// Test if equivalent to another position.
-      bool
-      operator==(const fpos& __other) const
-      { return _M_off == __other._M_off; }
-
-      /// Test if not equivalent to another position.
-      bool
-      operator!=(const fpos& __other) const
-      { return _M_off != __other._M_off; }
-
       // The standard requires that this operator must be defined, but
       // gives no semantics. In this implemenation it just adds it's
       // argument to the stored offset and returns *this.
@@ -203,6 +189,21 @@ namespace std
       { return _M_off - __other._M_off; }
     };
 
+  // The standard only requires that operator== must be an
+  // equivalence relation. In this implementation two fpos<StateT>
+  // objects belong to the same equivalence class if the contained
+  // offsets compare equal.
+  /// Test if equivalent to another position.
+  template<typename _StateT>
+    inline bool
+    operator==(const fpos<_StateT>& __lhs, const fpos<_StateT>& __rhs)
+    { return streamoff(__lhs) == streamoff(__rhs); }
+
+  template<typename _StateT>
+    inline bool
+    operator!=(const fpos<_StateT>& __lhs, const fpos<_StateT>& __rhs)
+    { return streamoff(__lhs) != streamoff(__rhs); }
+
   // Clauses 21.1.3.1 and 21.1.3.2 describe streampos and wstreampos
   // as implementation defined types, but clause 27.2 requires that
   // they must both be typedefs for fpos<mbstate_t>
@@ -210,6 +211,7 @@ namespace std
   typedef fpos<mbstate_t> streampos;
   /// File position for wchar_t streams.
   typedef fpos<mbstate_t> wstreampos;
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif

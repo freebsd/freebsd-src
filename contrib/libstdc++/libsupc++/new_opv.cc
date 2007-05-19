@@ -1,6 +1,6 @@
 // Boilerplate support routines for -*- C++ -*- dynamic memory management.
 
-// Copyright (C) 1997, 1998, 1999, 2000 Free Software Foundation
+// Copyright (C) 1997, 1998, 1999, 2000, 2004 Free Software Foundation
 //
 // This file is part of GCC.
 //
@@ -16,8 +16,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with GCC; see the file COPYING.  If not, write to
-// the Free Software Foundation, 59 Temple Place - Suite 330,
-// Boston, MA 02111-1307, USA.
+// the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+// Boston, MA 02110-1301, USA.
 //
 // As a special exception, you may use this file as part of a free software
 // library without restriction.  Specifically, if other files instantiate
@@ -28,9 +28,10 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+#include <bits/c++config.h>
 #include "new"
 
-void *
+_GLIBCXX_WEAK_DEFINITION void*
 operator new[] (std::size_t sz) throw (std::bad_alloc)
 {
   return ::operator new(sz);

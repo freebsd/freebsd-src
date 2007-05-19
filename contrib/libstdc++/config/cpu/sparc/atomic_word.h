@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -34,6 +34,20 @@
   typedef long _Atomic_word;
 #else
   typedef int _Atomic_word;
+#endif
+
+#if defined(__sparc_v9__)
+// These are necessary under the V9 RMO model, though it is almost never
+// used in userspace.
+#define _GLIBCXX_READ_MEM_BARRIER \
+  __asm __volatile ("membar #LoadLoad":::"memory")
+#define _GLIBCXX_WRITE_MEM_BARRIER \
+  __asm __volatile ("membar #StoreStore":::"memory")
+
+#elif defined(__sparc_v8__)
+// This is necessary under the PSO model.
+#define _GLIBCXX_WRITE_MEM_BARRIER __asm __volatile ("stbar":::"memory")
+
 #endif
 
 #endif 

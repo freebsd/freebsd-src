@@ -1,6 +1,6 @@
 // Explicit instantiation file.
 
-// Copyright (C) 2001 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -33,8 +33,8 @@
 
 #include <valarray>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // Some explicit instantiations.
   template void
      __valarray_fill(size_t* __restrict__, size_t, const size_t&);
@@ -47,7 +47,6 @@ namespace std
   template valarray<size_t>::~valarray();
   template size_t valarray<size_t>::size() const;
   template size_t& valarray<size_t>::operator[](size_t);
-
 
   inline size_t
   __valarray_product(const valarray<size_t>& __a)
@@ -110,7 +109,8 @@ namespace std
   
   gslice::_Indexer::_Indexer(size_t __o, const valarray<size_t>& __l,
                              const valarray<size_t>& __s)
-      : _M_count(1), _M_start(__o), _M_size(__l), _M_stride(__s),
-        _M_index(__l.size() == 0 ? 0 : __valarray_product(__l))
+  : _M_count(1), _M_start(__o), _M_size(__l), _M_stride(__s),
+    _M_index(__l.size() == 0 ? 0 : __valarray_product(__l))
   { __gslice_to_index(__o, __l, __s, _M_index); }  
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE

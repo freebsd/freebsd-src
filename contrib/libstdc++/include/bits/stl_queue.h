@@ -1,6 +1,7 @@
 // Queue implementation -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -64,19 +65,7 @@
 #include <bits/concept_check.h>
 #include <debug/debug.h>
 
-namespace std
-{
-  // Forward declarations of operators < and ==, needed for friend declaration.
-  template<typename _Tp, typename _Sequence = deque<_Tp> >
-    class queue;
-
-  template<typename _Tp, typename _Seq>
-    inline bool
-    operator==(const queue<_Tp,_Seq>&, const queue<_Tp,_Seq>&);
-
-  template<typename _Tp, typename _Seq>
-    inline bool
-    operator<(const queue<_Tp,_Seq>&, const queue<_Tp,_Seq>&);
+_GLIBCXX_BEGIN_NAMESPACE(std)
 
   /**
    *  @brief  A standard container giving FIFO behavior.
@@ -102,7 +91,7 @@ namespace std
    *  which is a typedef for the second Sequence parameter, and @c push and
    *  @c pop, which are standard %queue/FIFO operations.
   */
-  template<typename _Tp, typename _Sequence>
+  template<typename _Tp, typename _Sequence = deque<_Tp> >
     class queue
     {
       // concept requirements
@@ -245,10 +234,9 @@ namespace std
    *  linear in the size of the sequences, and queues are considered equivalent
    *  if their sequences compare equal.
   */
-  template<typename _Tp, typename _Sequence>
+  template<typename _Tp, typename _Seq>
     inline bool
-    operator==(const queue<_Tp,_Sequence>& __x,
-	       const queue<_Tp,_Sequence>& __y)
+    operator==(const queue<_Tp, _Seq>& __x, const queue<_Tp, _Seq>& __y)
     { return __x.c == __y.c; }
 
   /**
@@ -264,36 +252,33 @@ namespace std
    *  std::lexicographical_compare() is usually used to make the
    *  determination.
   */
-  template<typename _Tp, typename _Sequence>
+  template<typename _Tp, typename _Seq>
     inline bool
-    operator<(const queue<_Tp,_Sequence>& __x, const queue<_Tp,_Sequence>& __y)
+    operator<(const queue<_Tp, _Seq>& __x, const queue<_Tp, _Seq>& __y)
     { return __x.c < __y.c; }
 
   /// Based on operator==
-  template<typename _Tp, typename _Sequence>
+  template<typename _Tp, typename _Seq>
     inline bool
-    operator!=(const queue<_Tp,_Sequence>& __x,
-	       const queue<_Tp,_Sequence>& __y)
+    operator!=(const queue<_Tp, _Seq>& __x, const queue<_Tp, _Seq>& __y)
     { return !(__x == __y); }
 
   /// Based on operator<
-  template<typename _Tp, typename _Sequence>
+  template<typename _Tp, typename _Seq>
     inline bool
-    operator>(const queue<_Tp,_Sequence>& __x, const queue<_Tp,_Sequence>& __y)
+    operator>(const queue<_Tp, _Seq>& __x, const queue<_Tp, _Seq>& __y)
     { return __y < __x; }
 
   /// Based on operator<
-  template<typename _Tp, typename _Sequence>
+  template<typename _Tp, typename _Seq>
     inline bool
-    operator<=(const queue<_Tp,_Sequence>& __x,
-	       const queue<_Tp,_Sequence>& __y)
+    operator<=(const queue<_Tp, _Seq>& __x, const queue<_Tp, _Seq>& __y)
     { return !(__y < __x); }
 
   /// Based on operator<
-  template<typename _Tp, typename _Sequence>
+  template<typename _Tp, typename _Seq>
     inline bool
-    operator>=(const queue<_Tp,_Sequence>& __x,
-	       const queue<_Tp,_Sequence>& __y)
+    operator>=(const queue<_Tp, _Seq>& __x, const queue<_Tp, _Seq>& __y)
     { return !(__x < __y); }
 
   /**
@@ -304,10 +289,9 @@ namespace std
    *
    *  This is not a true container, but an @e adaptor.  It holds
    *  another container, and provides a wrapper interface to that
-   *  container.  The wrapper is what enforces sorting and
-   *  first-in-first-out %queue behavior.  Very few of the standard
-   *  container/sequence interface requirements are met (e.g.,
-   *  iterators).
+   *  container.  The wrapper is what enforces priority-based sorting 
+   *  and %queue behavior.  Very few of the standard container/sequence
+   *  interface requirements are met (e.g., iterators).
    *
    *  The second template parameter defines the type of the underlying
    *  sequence/container.  It defaults to std::vector, but it can be
@@ -321,8 +305,7 @@ namespace std
    *
    *  Members not found in "normal" containers are @c container_type,
    *  which is a typedef for the second Sequence parameter, and @c
-   *  push, @c pop, and @c top, which are standard %queue/FIFO
-   *  operations.
+   *  push, @c pop, and @c top, which are standard %queue operations.
    *
    *  @note No equality/comparison operators are provided for
    *  %priority_queue.
@@ -344,7 +327,8 @@ namespace std
       __glibcxx_class_requires(_Sequence, _SequenceConcept)
       __glibcxx_class_requires(_Sequence, _RandomAccessContainerConcept)
       __glibcxx_class_requires2(_Tp, _Sequence_value_type, _SameTypeConcept)
-      __glibcxx_class_requires4(_Compare, bool, _Tp,_Tp,_BinaryFunctionConcept)
+      __glibcxx_class_requires4(_Compare, bool, _Tp, _Tp,
+				_BinaryFunctionConcept)
 
     public:
       typedef typename _Sequence::value_type                value_type;
@@ -398,11 +382,13 @@ namespace std
        *  Returns true if the %queue is empty.
        */
       bool
-      empty() const { return c.empty(); }
+      empty() const
+      { return c.empty(); }
 
       /**  Returns the number of elements in the %queue.  */
       size_type
-      size() const { return c.size(); }
+      size() const
+      { return c.size(); }
 
       /**
        *  Returns a read-only (constant) reference to the data at the first
@@ -426,16 +412,8 @@ namespace std
       void
       push(const value_type& __x)
       {
-	try
-        {
-          c.push_back(__x);
-          std::push_heap(c.begin(), c.end(), comp);
-        }
-	catch(...)
-        {
-          c.clear();
-          __throw_exception_again;
-        }
+	c.push_back(__x);
+	std::push_heap(c.begin(), c.end(), comp);
       }
 
       /**
@@ -453,20 +431,13 @@ namespace std
       pop()
       {
 	__glibcxx_requires_nonempty();
-	try
-        {
-          std::pop_heap(c.begin(), c.end(), comp);
-          c.pop_back();
-        }
-	catch(...)
-        {
-          c.clear();
-          __throw_exception_again;
-        }
+	std::pop_heap(c.begin(), c.end(), comp);
+	c.pop_back();
       }
     };
 
   // No equality/comparison operators are provided for priority_queue.
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif /* _QUEUE_H */

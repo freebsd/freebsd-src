@@ -1,6 +1,6 @@
 // Functor implementations -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -61,8 +61,8 @@
 #ifndef _FUNCTION_H
 #define _FUNCTION_H 1
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // 20.3.1 base classes
   /** @defgroup s20_3_1_base Functor Base Classes
    *  Function objects, or @e functors, are objects with an @c operator()
@@ -88,7 +88,7 @@ namespace std
    *  \endcode
    *  The addition and negation functions will be inlined directly.
    *
-   *  The standard functiors are derived from structs named @c unary_function
+   *  The standard functors are derived from structs named @c unary_function
    *  and @c binary_function.  These two classes contain nothing but typedefs,
    *  to aid in generic (template) programming.  If you write your own
    *  functors, you might consider doing the same.
@@ -360,7 +360,7 @@ namespace std
   /** @defgroup s20_3_6_binder Binder Classes
    *  Binders turn functions/functors with two arguments into functors with
    *  a single argument, storing an argument to be applied later.  For
-   *  example, an variable @c B of type @c binder1st is constructed from a
+   *  example, a variable @c B of type @c binder1st is constructed from a
    *  functor @c f and an argument @c x.  Later, B's @c operator() is called
    *  with a single argument @c y.  The return value is the value of @c f(x,y).
    *  @c B can be "called" with various arguments (y1, y2, ...) and will in
@@ -566,19 +566,11 @@ namespace std
 
   // 20.3.8 adaptors pointers members
   /** @defgroup s20_3_8_memadaptors Adaptors for pointers to members
-   *  There are a total of 16 = 2^4 function objects in this family.
+   *  There are a total of 8 = 2^3 function objects in this family.
    *   (1) Member functions taking no arguments vs member functions taking
    *        one argument.
    *   (2) Call through pointer vs call through reference.
-   *   (3) Member function with void return type vs member function with
-   *       non-void return type.
-   *   (4) Const vs non-const member function.
-   *
-   *  Note that choice (3) is nothing more than a workaround: according
-   *   to the draft, compilers should handle void and non-void the same way.
-   *   This feature is not yet widely implemented, though.  You can only use
-   *   member functions returning void if your compiler supports partial
-   *   specialization.
+   *   (3) Const vs non-const member function.
    *
    *  All of this complexity is in the function objects themselves.  You can
    *   ignore it by using the helper function mem_fun and mem_fun_ref,
@@ -714,137 +706,6 @@ namespace std
       _Ret (_Tp::*_M_f)(_Arg) const;
     };
 
-  /// One of the @link s20_3_8_memadaptors adaptors for member pointers@endlink.
-  template <class _Tp>
-    class mem_fun_t<void, _Tp> : public unary_function<_Tp*, void>
-    {
-    public:
-      explicit
-      mem_fun_t(void (_Tp::*__pf)())
-      : _M_f(__pf) {}
-
-      void
-      operator()(_Tp* __p) const
-      { (__p->*_M_f)(); }
-    private:
-      void (_Tp::*_M_f)();
-    };
-
-  /// One of the @link s20_3_8_memadaptors adaptors for member pointers@endlink.
-  template <class _Tp>
-    class const_mem_fun_t<void, _Tp> : public unary_function<const _Tp*, void>
-    {
-    public:
-      explicit
-      const_mem_fun_t(void (_Tp::*__pf)() const)
-      : _M_f(__pf) {}
-
-      void
-      operator()(const _Tp* __p) const
-      { (__p->*_M_f)(); }
-    private:
-      void (_Tp::*_M_f)() const;
-    };
-
-  /// One of the @link s20_3_8_memadaptors adaptors for member pointers@endlink.
-  template <class _Tp>
-    class mem_fun_ref_t<void, _Tp> : public unary_function<_Tp, void>
-    {
-    public:
-      explicit
-      mem_fun_ref_t(void (_Tp::*__pf)())
-      : _M_f(__pf) {}
-
-      void
-      operator()(_Tp& __r) const
-      { (__r.*_M_f)(); }
-    private:
-      void (_Tp::*_M_f)();
-    };
-
-  /// One of the @link s20_3_8_memadaptors adaptors for member pointers@endlink.
-  template <class _Tp>
-    class const_mem_fun_ref_t<void, _Tp> : public unary_function<_Tp, void>
-    {
-    public:
-      explicit
-      const_mem_fun_ref_t(void (_Tp::*__pf)() const)
-      : _M_f(__pf) {}
-
-      void
-      operator()(const _Tp& __r) const
-      { (__r.*_M_f)(); }
-    private:
-      void (_Tp::*_M_f)() const;
-    };
-
-  /// One of the @link s20_3_8_memadaptors adaptors for member pointers@endlink.
-  template <class _Tp, class _Arg>
-    class mem_fun1_t<void, _Tp, _Arg> : public binary_function<_Tp*, _Arg, void>
-    {
-    public:
-      explicit
-      mem_fun1_t(void (_Tp::*__pf)(_Arg))
-      : _M_f(__pf) {}
-
-      void
-      operator()(_Tp* __p, _Arg __x) const
-      { (__p->*_M_f)(__x); }
-    private:
-      void (_Tp::*_M_f)(_Arg);
-    };
-
-  /// One of the @link s20_3_8_memadaptors adaptors for member pointers@endlink.
-  template <class _Tp, class _Arg>
-    class const_mem_fun1_t<void, _Tp, _Arg>
-    : public binary_function<const _Tp*, _Arg, void>
-    {
-    public:
-      explicit
-      const_mem_fun1_t(void (_Tp::*__pf)(_Arg) const)
-      : _M_f(__pf) {}
-
-      void
-      operator()(const _Tp* __p, _Arg __x) const
-      { (__p->*_M_f)(__x); }
-    private:
-      void (_Tp::*_M_f)(_Arg) const;
-    };
-
-  /// One of the @link s20_3_8_memadaptors adaptors for member pointers@endlink.
-  template <class _Tp, class _Arg>
-    class mem_fun1_ref_t<void, _Tp, _Arg>
-    : public binary_function<_Tp, _Arg, void>
-    {
-    public:
-      explicit
-      mem_fun1_ref_t(void (_Tp::*__pf)(_Arg))
-      : _M_f(__pf) {}
-
-      void
-      operator()(_Tp& __r, _Arg __x) const
-      { (__r.*_M_f)(__x); }
-    private:
-      void (_Tp::*_M_f)(_Arg);
-    };
-
-  /// One of the @link s20_3_8_memadaptors adaptors for member pointers@endlink.
-  template <class _Tp, class _Arg>
-    class const_mem_fun1_ref_t<void, _Tp, _Arg>
-    : public binary_function<_Tp, _Arg, void>
-    {
-    public:
-      explicit
-      const_mem_fun1_ref_t(void (_Tp::*__pf)(_Arg) const)
-      : _M_f(__pf) {}
-
-      void
-      operator()(const _Tp& __r, _Arg __x) const
-      { (__r.*_M_f)(__x); }
-    private:
-      void (_Tp::*_M_f)(_Arg) const;
-    };
-
   // Mem_fun adaptor helper functions.  There are only two:
   // mem_fun and mem_fun_ref.
   template <class _Ret, class _Tp>
@@ -889,10 +750,6 @@ namespace std
 
   /** @}  */
 
-} // namespace std
+_GLIBCXX_END_NAMESPACE
 
 #endif /* _FUNCTION_H */
-
-// Local Variables:
-// mode:C++
-// End:
