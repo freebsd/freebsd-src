@@ -1044,12 +1044,14 @@ lagg_start(struct ifnet *ifp)
 		if (sc->sc_proto != LAGG_PROTO_NONE)
 			error = (*sc->sc_start)(sc, m);
 		else
-			m_free(m);
+			m_freem(m);
 
 		if (error == 0)
 			ifp->if_opackets++;
-		else
+		else {
+			m_freem(m); /* sc_start failed */
 			ifp->if_oerrors++;
+		}
 	}
 	LAGG_RUNLOCK(sc);
 
