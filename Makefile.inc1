@@ -994,21 +994,31 @@ hierarchy:
 #
 libraries:
 	cd ${.CURDIR}; \
+	    ${MAKE} -f Makefile.inc1 _prereq_libs; \
 	    ${MAKE} -f Makefile.inc1 _startup_libs; \
 	    ${MAKE} -f Makefile.inc1 _prebuild_libs; \
 	    ${MAKE} -f Makefile.inc1 _generic_libs;
 
+#
+# static libgcc.a prerequisite for shared libc
+#
+_prereq_libs= gnu/lib/libgcc
+
 # These dependencies are not automatically generated:
 #
-# gnu/lib/csu, gnu/lib/libgcc and lib/csu must be built before all
-# shared libraries for ELF.
+# gnu/lib/csu, gnu/lib/libgcc, lib/csu and lib/libc must be built before
+# all shared libraries for ELF.
 #
-_startup_libs=	gnu/lib/csu gnu/lib/libgcc
+_startup_libs=	gnu/lib/csu
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-elf)
 _startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
 .else
 _startup_libs+=	lib/csu/${MACHINE_ARCH}
 .endif
+_startup_libs+=	gnu/lib/libgcc
+_startup_libs+=	lib/libc
+
+gnu/lib/libgcc__L: lib/libc__L
 
 _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
@@ -1068,6 +1078,18 @@ _lib_libypclnt=	lib/libypclnt
 lib/libradius__L: lib/libmd__L
 .endif
 
+.for _lib in ${_prereq_libs}
+${_lib}__PL: .PHONY
+.if exists(${.CURDIR}/${_lib})
+	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
+		cd ${.CURDIR}/${_lib}; \
+		${MAKE} DIRPRFX=${_lib}/ obj; \
+		${MAKE} DIRPRFX=${_lib}/ depend; \
+		${MAKE} -DWITHOUT_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all; \
+		${MAKE} -DWITHOUT_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
+.endif
+.endfor
+
 .for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
 ${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
@@ -1091,6 +1113,7 @@ lib/libpam__L: .PHONY
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
 
+_prereq_libs:  ${_prereq_libs:S/$/__PL/}
 _startup_libs: ${_startup_libs:S/$/__L/}
 _prebuild_libs: ${_prebuild_libs:S/$/__L/}
 _generic_libs: ${_generic_libs:S/$/__L/}
