@@ -32,8 +32,8 @@
 SND_DECLARE_FILE("$FreeBSD$");
 
 #define PCI_VENDOR_FORTEMEDIA	0x1319
-#define PCI_DEVICE_FORTEMEDIA1	0x08011319
-#define PCI_DEVICE_FORTEMEDIA2	0x08021319	/* ??? have no idea what's this... */
+#define PCI_DEVICE_FORTEMEDIA1	0x08011319	/* Audio controller */
+#define PCI_DEVICE_FORTEMEDIA2	0x08021319	/* Joystick controller */
 
 #define FM_PCM_VOLUME           0x00
 #define FM_FM_VOLUME            0x02
@@ -417,15 +417,16 @@ fm801ch_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	struct fm801_chinfo *ch = data;
 	struct fm801_info *fm801 = ch->parent;
 
-	if(ch->dir == PCMDIR_PLAY) {
-		if(fm801->play_flip) return fm801->play_blksize;
+	/*
+	 * Don't mind for play_flip, set the blocksize to the
+	 * desired values in any case - otherwise sound playback
+	 * breaks here.
+	 */
+	if(ch->dir == PCMDIR_PLAY)
 		fm801->play_blksize = blocksize;
-	}
 
-	if(ch->dir == PCMDIR_REC) {
-		if(fm801->rec_flip) return fm801->rec_blksize;
+	if(ch->dir == PCMDIR_REC)
 		fm801->rec_blksize = blocksize;
-	}
 
 	DPRINT("fm801ch_setblocksize %d (dir %d)\n",blocksize, ch->dir);
 
