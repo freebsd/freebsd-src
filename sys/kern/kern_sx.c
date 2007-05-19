@@ -170,6 +170,9 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 {
 	int flags;
 
+	MPASS((opts & ~(SX_QUIET | SX_RECURSE | SX_NOWITNESS | SX_DUPOK |
+	    SX_NOPROFILE)) == 0);
+
 	flags = LO_SLEEPABLE | LO_UPGRADABLE | LO_RECURSABLE;
 	if (opts & SX_DUPOK)
 		flags |= LO_DUPOK;
@@ -180,7 +183,7 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 	if (opts & SX_QUIET)
 		flags |= LO_QUIET;
 
-	flags |= opts & SX_ADAPTIVESPIN;
+	flags |= opts & (SX_ADAPTIVESPIN | SX_RECURSE);
 	sx->sx_lock = SX_LOCK_UNLOCKED;
 	sx->sx_recurse = 0;
 	lock_init(&sx->lock_object, &lock_class_sx, description, NULL, flags);
@@ -254,7 +257,7 @@ _sx_try_xlock(struct sx *sx, const char *file, int line)
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_try_xlock() of destroyed sx @ %s:%d", file, line));
 
-	if (sx_xlocked(sx)) {
+	if (sx_xlocked(sx) && (sx->lock_object.lo_flags & SX_RECURSE) != 0) {
 		sx->sx_recurse++;
 		atomic_set_ptr(&sx->sx_lock, SX_LOCK_RECURSED);
 		rval = 1;
@@ -412,6 +415,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 
 	/* If we already hold an exclusive lock, then recurse. */
 	if (sx_xlocked(sx)) {
+		KASSERT((sx->lock_object.lo_flags & SX_RECURSE) != 0,
+	    ("_sx_xlock_hard: recursed on non-recursive sx %s @ %s:%d\n",
+		    sx->lock_object.lo_name, file, line));		
 		sx->sx_recurse++;
 		atomic_set_ptr(&sx->sx_lock, SX_LOCK_RECURSED);
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
