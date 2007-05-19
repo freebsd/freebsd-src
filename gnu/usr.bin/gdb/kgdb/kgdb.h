@@ -32,7 +32,6 @@
 struct thread_info;
 
 extern kvm_t *kvm;
-extern int verbose;
 
 struct kthr {
 	struct kthr	*next;
