@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 /* Override the defaults, which exist to force the proper definition.  */
 
@@ -27,8 +27,7 @@
 #undef	CPP_OS_FREEBSD_SPEC
 #define CPP_OS_FREEBSD_SPEC	"\
   -D__PPC__ -D__ppc__ -D__PowerPC__ -D__powerpc__ \
-  -Acpu=powerpc -Amachine=powerpc \
-  %{fPIC|fpic|fPIE|fpie:-D__PIC__ -D__pic__} "
+  -Acpu=powerpc -Amachine=powerpc "
 
 #undef	STARTFILE_DEFAULT_SPEC
 #define STARTFILE_DEFAULT_SPEC "%(startfile_freebsd)"
