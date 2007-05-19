@@ -52,7 +52,7 @@
 #define TW_OSLI_MAX_NUM_IOS		TW_CL_MAX_SIMULTANEOUS_REQUESTS
 #define TW_OSLI_MAX_NUM_AENS		0x100
 
-#define TW_OSLI_DEFERRED_INTR_USED
+//#define TW_OSLI_DEFERRED_INTR_USED
 
 /* Possible values of req->state. */
 #define TW_OSLI_REQ_STATE_INIT		0x0	/* being initialized */
