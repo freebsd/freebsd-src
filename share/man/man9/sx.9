@@ -200,22 +200,22 @@ for the assertions specified in
 .Fa what ,
 and panics if they are not met.
 One of the following assertions must be specified:
-.Bl -tag -width ".Dv SX_UNLOCKED"
-.It Dv SX_LOCKED
+.Bl -tag -width ".Dv SA_UNLOCKED"
+.It Dv SA_LOCKED
 Assert that the current thread has either a shared or an exclusive lock on the
 .Vt sx
 lock pointed to by the first argument.
-.It Dv SX_SLOCKED
+.It Dv SA_SLOCKED
 Assert that the current thread has a shared lock on the
 .Vt sx
 lock pointed to by
 the first argument.
-.It Dv SX_XLOCKED
+.It Dv SA_XLOCKED
 Assert that the current thread has an exclusive lock on the
 .Vt sx
 lock pointed to
 by the first argument.
-.It Dv SX_UNLOCKED
+.It Dv SA_UNLOCKED
 Assert that the current thread has no lock on the
 .Vt sx
 lock pointed to
@@ -224,16 +224,16 @@ by the first argument.
 .Pp
 In addition, one of the following optional assertions may be included with
 either an
-.Dv SX_LOCKED ,
-.Dv SX_SLOCKED ,
+.Dv SA_LOCKED ,
+.Dv SA_SLOCKED ,
 or
-.Dv SX_XLOCKED
+.Dv SA_XLOCKED
 assertion:
-.Bl -tag -width ".Dv SX_NOTRECURSED"
-.It Dv SX_RECURSED
+.Bl -tag -width ".Dv SA_NOTRECURSED"
+.It Dv SA_RECURSED
 Assert that the current thread has a recursed lock on
 .Fa sx .
-.It Dv SX_NOTRECURSED
+.It Dv SA_NOTRECURSED
 Assert that the current thread does not have a recursed lock on
 .Fa sx .
 .El
@@ -306,8 +306,8 @@ does not hold a shared lock.
 In the
 .No non- Ns Dv WITNESS
 case, the
-.Dv SX_LOCKED
+.Dv SA_LOCKED
 and
-.Dv SX_SLOCKED
+.Dv SA_SLOCKED
 assertions merely check that some thread holds a shared lock.
 They do not ensure that the current thread holds a shared lock.
