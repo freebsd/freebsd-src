@@ -23,6 +23,7 @@
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
+#include <machine/pcb.h>
 
 /* global symbols in mpboot.S */
 extern char			mptramp_start[];
