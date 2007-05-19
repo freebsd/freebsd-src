@@ -12,7 +12,7 @@ CWARNFLAGS=
 .else
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		${_wundef} -fformat-extensions
+		${_wundef} -Wno-pointer-sign -fformat-extensions
 .if !defined(NO_UNDEF)
 _wundef=	-Wundef
 .endif
@@ -46,7 +46,7 @@ INLINE_LIMIT?=	8000
 # a very small subset of float registers for integer divides.
 #
 .if ${MACHINE_ARCH} == "ia64"
-CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127 -mno-sdata
+CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127 -fpic #-mno-sdata
 INLINE_LIMIT?=	15000
 .endif
 
