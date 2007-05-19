@@ -92,6 +92,9 @@ ia64_mca_save_state(int type)
 	if (mca_info_size[type] == -1)
 		return;
 
+	if (mca_info_block == 0)
+		return;
+
 	while (1) {
 		mtx_lock_spin(&mca_info_block_lock);
 
@@ -198,9 +201,9 @@ ia64_mca_init(void)
 	}
 	max_size = round_page(max_size);
 
-	if (max_size) {
-		p = contigmalloc(max_size, M_TEMP, M_WAITOK, 0ul,
-		    256*1024*1024 - 1, PAGE_SIZE, 256*1024*1024);
+	p = (max_size) ? contigmalloc(max_size, M_TEMP, 0, 0ul,
+	    256*1024*1024 - 1, PAGE_SIZE, 256*1024*1024) : NULL;
+	if (p != NULL) {
 		mca_info_block = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)p));
 
 		if (bootverbose)
