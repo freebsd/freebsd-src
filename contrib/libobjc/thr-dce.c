@@ -15,8 +15,8 @@ details.
 
 You should have received a copy of the GNU General Public License along with
 GCC; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, if you link this library with files compiled with
    GCC to produce an executable, this does not cause the resulting executable
@@ -25,8 +25,8 @@ Boston, MA 02111-1307, USA.  */
    covered by the GNU General Public License.  */
 
 #include <pthread.h>
-#include <thr.h>
-#include "runtime.h"
+#include "objc/thr.h"
+#include "objc/runtime.h"
 
 /* Key structure for maintaining thread specific storage */
 static pthread_key_t _objc_thread_storage;

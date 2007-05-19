@@ -1,6 +1,55 @@
-2006-03-05  Release Manager
+2007-05-13  Release Manager
 
-	* GCC 3.4.6 released.
+	* GCC 4.2.0 released.
+
+2006-10-14  Geoffrey Keating  <geoffk@apple.com>
+
+	* Makefile.in: Use multi_basedir instead of toplevel_srcdir.
+	* configure.ac: Use multi.m4 from aclocal rather than custom
+	code.  Use multi_basedir instead of toplevel_srcdir.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2006-10-10  Brooks Moses  <bmoses@stanford.edu>
+
+	* Makefile.in: Added empty "pdf" target.
+
+2006-07-18  Paolo Bonzini  <bonzini@gnu.org>
+
+	* configure: Regenerate.
+
+2006-05-23  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Makefile.in: Add install-html target. Add install-html to .PHONY
+
+2006-02-21  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	PR libobjc/26309
+	* thr-objc.c (_XOPEN_SOURCE): Don't define on Tru64 UNIX.
+
+2006-01-24  David Ayers  <d.ayers@inode.at>
+
+	PR libobjc/9751
+	* gc.c (class_ivar_set_gcinvisible): Replace strncpy with memcpy
+	and insure the new strings are '\0' termintated.
+
+2006-01-24  David Ayers  <d.ayers@inode.at>
+
+	PR libobjc/13946
+	* configure.ac: Add include directives for --enable-objc-gc.
+	* Makefile.in: Ditto.
+	* configure: Regenerate.
+
+	* gc.c (__objc_class_structure_encoding): Increment the used bytes
+	instead of the local pointer to them.
+
+2005-12-14  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	PR objc/25360
+	* objc/objc-api.c (_C_COMPLEX): New define.
+	* encoding.c (objc_sizeof_type): Handle _C_Complex.
+	(objc_alignof_type): Likewise.
+	(objc_skip_typespec): Likewise.
 
 2005-12-15  David Ayers  <d.ayers@inode.at>
 
@@ -8,13 +57,175 @@
 	* README (+load,+initialize): Fix documentation to reflect
 	intended and implemented semantics for +load and +initialize.
 	
-2005-11-30  Release Manager
+2005-12-12  Andrew Pinski  <pinskia@physics.uc.edu>
 
-	* GCC 3.4.5 released.
+	* encoding.c (TYPE_FIELDS): Fix to skip over just _C_STRUCT_B and
+	the name.
+	(get_inner_array_type): Fix to skip over _C_ARY_B and size.
+	(rs6000_special_round_type_align): Update for the ABI fix.
+	(objc_layout_finish_structure): Correct the encoding which is passed to
+	ROUND_TYPE_ALIGN.
 
-2005-05-19  Release Manager
+2005-12-11  Andrew Pinski  <pinskia@physics.uc.edu>
 
-	* GCC 3.4.4 released.
+	PR libobjc/25347
+	* encoding.c (objc_sizeof_type): Don't handle _C_UNION_B special
+	but use the struct layout functions.
+	(objc_alignof_type): Likewise.
+	(objc_layout_structure): Handle _C_UNION_B also.
+	(objc_layout_structure_next_member): Likewise.
+	(objc_layout_finish_structure): Likewise.
+
+2005-12-11  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	PR libobjc/25346
+	* objc/objc-api.h (_C_BOOL): New define.
+	* encoding.c (objc_sizeof_type): Handle _C_BOOL.
+	(objc_alignof_type): Likewise.
+	(objc_skip_typespec): Likewise.
+
+2005-11-20  David Ayers  <d.ayers@inode.at>
+
+	PR libobjc/19024
+	* objc/hash.h: Remove deprecated hash API.
+	* hash_compat.c: Remove.
+	* Makefile.in: Remove reference to hash_compat.c.
+
+	* configure.ac (VERSION): Bump library version to 2:0:0.
+	* configure: Regenerate.
+
+2005-11-09  Alexandre Oliva  <aoliva@redhat.com>
+
+	PR other/4372
+	* thr-objc.c (_XOPEN_SOURCE): Define.
+
+2005-10-07  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	PR libobjc/23612
+	* objc/objc-api.h (struct objc_ivar): Move definition to
+	global scope.
+
+2005-09-04  Andrew Pinski  <pinskia@physics.uc.edu>
+            Rasmus Hahn  <rassahah@neofonie.de>
+
+	PR libobjc/23108
+	* archive.c (objc_write_type): Correct the element offset.
+	(objc_read_type): Likewise.
+
+2005-08-17  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* All files: Update FSF address.
+
+2005-08-13  Marcin Koziej  <creep@desk.pl>
+            Andrew Pinski  <pinskia@physics.uc.edu>
+
+	PR libobjc/22492
+	* exception.c (PERSONALITY_FUNCTION): Fix the PC with finally.
+
+2005-08-13  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* Makefile.in (extra_ldflags_libobjc): New.
+	(libobjc$(libext).la): Add extra_ldflags_libobjc to the link line.
+	(libobjc_gc$(libext).la): Likewise.
+	* configure.ac (extra_ldflags_libgfortran): Set for *-darwin* to
+	"-Wl,-single_module".
+	* configure: Regenerate.
+	* linking.m (_objcInit): Remove.
+
+2005-07-26  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	PR libobjc/22606
+	* Makefile.in (ALL_CFLAGS): Add -fexceptions.
+
+2005-06-08  David Ayers  <d.ayers@inode.at>
+
+	* objc/NXConstStr.h, objc/Object.h, objc/Protocol.h,
+	objc/encoding.h, objc/hash.h, objc/objc-api.h,
+	objc/runtime.h, objc/sarray.h, objc/thr.h, 
+	objc/typedstream.h: Do not include Objective-C headers as
+	system headers.
+
+2005-06-07  David Ayers  <d.ayers@inode.at>
+
+	* archive.c, init.c, selector.c: Include hash.h.
+	* archive.c, class.c, encoding.c, gc.c, hash.c, hash_compat.c,
+	init.c, misc.c, nil_method.c, objects.c, sarray.c, selector.c,
+	sendmsg.c, thr-dce.c, thr-decosf1.c, thr-irix.c, thr-mach.c,
+	thr-objc.c, thr-os2.c, thr-posix.c, thr-pthreads.c, thr-rtems.c,
+	thr-single.c, thr-solaris.c, thr-vxworks.c, thr-win32.c, thr.c:
+	Include Objective-C headers with quotes and objc/ directory
+	prefix.
+
+2005-05-19  Richard Henderson  <rth@redhat.com>
+
+	* exception.c: Revert last change.
+
+2005-05-19  David Ayers  <d.ayers@inode.at>
+
+	* exception.c: Include tsystem.h for unwind.h.
+
+2005-05-09  Mike Stump  <mrs@apple.com>
+
+	* configure: Regenerate.
+
+2005-04-12  Mike Stump  <mrs@apple.com>
+
+	* configure: Regenerate.
+
+2005-03-21  Zack Weinberg  <zack@codesourcery.com>
+
+	* Makefile.in: Set gcc_version here.
+	* configure.ac: Do not invoke TL_AC_GCC_VERSION.  Adjust quoting
+	in definition of toolexeclibdir so that $(gcc_version) is expanded
+	by the Makefile.
+	* aclocal.m4, configure: Regenerate.
+
+2005-03-03  David Ayers  <d.ayers@inode.at>
+
+	* objc/hash.h (OBJC_IGNORE_DEPRECATED_API): Update deprecated
+	version reference.  Correct typo.
+
+2005-03-02  David Ayers  <d.ayers@inode.at>
+
+	PR libobjc/19024
+	* Makefile.in (OBJS): Add hash_compat.lo.
+	(OBJS_GC): Add hash_compat_gc.lo.
+	(hash_compat_gc.lo): New target and rule.
+	* objc/hash.h (hash_new, hash_delete, hash_add, hash_remove)
+	(hash_next, hash_value_for_key, hash_is_key_in_hash)
+	(hash_ptr, hash_string, compare_ptrs, compare_strings): Prefix
+	with objc_.  Add deprecated non prefixed inlined versions.
+	(OBJC_IGNORE_DEPRECATED_API): New macro to hide deprecated
+	declarations.
+	* hash.c (hash_new, hash_delete, hash_add, hash_remove, hash_next)
+	(hash_value_for_key, hash_is_key_in_hash): Prefix with objc_ and
+	update callers.
+	* hash_compat.c: New file.
+	* archive.c: Update callers.
+	* init.c: Likewise.
+	* selector.c: Likewise.
+	* libobjc.def: Add objc_ versions of hash functions.
+
+2005-02-28  Andrew Pinski <pinskia@physics.uc.edu>
+
+	PR libobjc/20252
+	* Makefile.in (GTHREAD_FLAGS): Remove.
+	(ALL_CFLAGS): Remove usage of GTHREAD_FLAGS.
+	* thr-objc.c: Include config.h.
+	* configure.ac: Instead of looking at GCC's makefile, figure out if
+	GTHREAD_FLAGS should be defined by looking at the `thread model'
+	of the current gcc.
+	* configure: Regenerate.
+	* config.h.in: Regenerate.
+
+2005-02-28  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR bootstrap/17383
+	* configure.ac: Call GCC_TOPLEV_SUBDIRS.
+	(Determine CFLAGS for gthread): Use $host_subdir.
+	* configure: Regenerate.
+	* Makefile.in (host_subdir): New.
+	(INCLUDES): Use it.
 
 2004-12-20  Andrew Pinski  <pinskia@physics.uc.edu>
 
@@ -24,25 +235,370 @@
 	Include limits.h and stdlib.h.
 	Define BITS_PER_WORD.
 
-2004-11-04  Release Manager
+2004-12-12  Alexander Malmberg  <alexander@malmberg.org>
 
-	* GCC 3.4.3 released.
+	* selector.c (__objc_init_selector_tables): Add missing void to
+	definition.
 
-2004-09-06  Release Manager
+2004-12-02  Richard Sandiford  <rsandifo@redhat.com>
 
-	* GCC 3.4.2 released.
+	* configure.ac: Use TL_AC_GCC_VERSION to set gcc_version.
+	* configure, aclocal.m4: Regenerate.
 
-2004-07-01  Release Manager
+2004-11-29  Kelley Cook  <kcook@gcc.gnu.org>
 
-	* GCC 3.4.1 released.
+	* configure: Regenerate for libtool change.
 
-2004-04-18  Release Manager
+2004-11-25  Kelley Cook  <kcook@gcc.gnu.org>
 
-	* GCC 3.4.0 released.
+	* configure: Regenerate for libtool reversion.
+
+2004-11-24  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* configure: Regenerate for libtool change.
+
+2004-11-24  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* aclocal.m4, config.h.in: Regenerate.
+
+2004-10-08  Mike Stump  <mrs@apple.com>
+	    Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* aclocal.m4: Rename to ...
+	* acinclude.m4: here and also use m4_include instead of sinclude.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* configure.ac: Add AM_MAINTAINER_MODE and AM_PROG_CC_C_O.
+	* Makefile.in (configure): Add @MAINT@ infront of configure.ac
+
+2004-10-08  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* archive.c: Fix all the warnings about passing unsigned char*
+	to char* and the other way too.
+
+2004-09-16  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	PR libobjc/16448
+	* exception.c: Include config.h
+	(objc_exception_throw): Change _GLIBCXX_SJLJ_EXCEPTIONS to
+	SJLJ_EXCEPTIONS.
+	* configure.ac: Find out what exception handling code we use.
+	* configure: Regenerate.
+	* config.h.in: New file, regenerate.
+
+2004-09-16  Andrew Pinski  <apinski@apple.com>
+
+	* encoding.c (ALTIVEC_VECTOR_MODE): Define a bogus macro.
+
+2004-08-28  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* configure.ac: Switch from _GCC_TOPLEV_NONCANONICAL_TARGET to
+	ACX_NONCANONICAL_TARGET.
+	* configure: Regenerate.
+
+2004-08-13  Ziemowit Laski  <zlaski@apple.com>
+
+	* objc/sarray.h: Hoist include of assert.h near the top of file,
+	and mark the remainder of the file 'extern "C"'.
+
+2004-08-13  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* objc/Object.h: Move includes out of extern "C" blocks.
+	* objc/encoding.h: Likewise.
+	* objc/hash.h: Likewise.
+	* objc/objc-api.h: Likewise.
+	* objc/runtime.h: Likewise.
+	* objc/sarray.h: Likewise.
+	* objc/typedstream.h: Likewise.
+
+2004-08-12  Ziemowit Laski  <zlaski@apple.com>
+
+	* objc/NXConstStr.h: Update copyright date; bracket with
+	'extern "C"' for C++ use; make include syntax consistent
+	by using <...> instead of "..."; hoist <objc/...> includes
+	above the 'extern "C"' block.
+	* objc/Object.h: Likewise.
+	* objc/Protocol.h: Likewise.
+	* objc/encoding.h: Likewise.
+	* objc/hash.h: Likewise.
+	* objc/runtime.h: Likewise.
+	* objc/sarray.h: Likewise.
+	* objc/thr.h: Likewise.
+	* objc/typedstream.h: Likewise.
+	* objc/objc-api.h: Add 'extern "C"' block for C++ use.
+	(objc_static_instances): For C++ case, do away with
+	zero-sized array.
+	(objc_method): Hoist definition to file scope.
+	(_objc_load_callback, _objc_object_alloc, class_get_class_method,
+	class_get_instance_method, class_create_instance,
+	class_get_class_name, class_get_instance_size,
+	class_get_meta_class, class_get_super_class, class_get_version,
+	class_is_class, class_is_meta_class, class_set_version,
+	class_get_gc_object_type, class_ivar_set_gcinvisible,
+	get_imp): Rename 'class' parameter to '_class'.
+	* objc/objc-list.h: Add 'extern "C"' block for C++ use.
+	* objc/objc.h: Update copyright date.
+	(arglist_t): Provide a union tag.
+
+2004-07-22  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* thr.c (__objc_thread_detach_function): Do not mark as volatile
+	but instead use the attribute noreturn.
+
+2004-06-28  Zack Weinberg  <zack@codesourcery.com>
+
+	* encoding.c: Rename target_flags with a #define to avoid
+	conflict with a prior declaration.
+
+2004-06-24  Andrew Pinski  <apinski@apple.com>
+
+	* objc/encoding.h: Wrap the functions with extern "C" for C++
+	mode.
+	* objc/hash.h: Likewise.
+	* objc/objc-api.h: Likewise.
+	* objc/objc-list.h: Likewise.
+	* objc/runtime.h: Likewise.
+	* objc/sarray.h: Likewise.
+	* objc/thr.h: Likewise.
+	* objc/typedstream.h: Likewise.
+
+
+2004-06-21  Nick Clifton  <nickc@redhat.com>
+
+	* encoding.c (BITS_PER_UNIT): Define if a definition is not
+	provided.
+
+2004-06-20  Alexander Malmberg  <alexander@malmberg.org>
+
+	* Makefile.in (exception.lo): Remove $(OBJC_GCFLAGS).
+	(exception_gc.lo): New.
+	(OBJS_GC): Add exception_gc.lo.
+
+2004-06-17  Richard Henderson  <rth@redhat.com>
+
+	* exception.c: New file.
+	* Makefile.in (exception.lo): New.
+	(OBJS): Add it.
+
+2004-06-14  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* linking.m (_objcInit): New empty function
+	for Darwin only.
+
+2004-06-11  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* configure.ac: Support --enable-shared=libobjc.
+	* configure: Regenerate.
+
+	PR libobjc/15901
+	* configure.ac: Do not disable shared by default.
+	* configure: Regenerate.
+
+2004-06-03  Nicola Pero  <n.pero@mi.flashnet.it>
+
+	* Protocol.m ([-isEqual:]): Small optimizations returning
+	immediately if the argument is equal to self, and accessing
+	the argument's name directly if it's a protocol.
+
+2004-06-03  David Ayers  <d.ayers@inode.at>
+
+	* Protocol.m ([-isEqual:]): Test the class of the argument.
+
+2004-05-25  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* configure.ac (includedir): Rename to ...
+	(includedirname).
+	* Makefile.in: s/includedir/includedirname/.
+
+	PR target/11572
+	* configure.ac (includedir): Set to "include"
+	except for Darwin.
+	(libext) Set to empty except for Darwin.
+	* configure: Regenerate
+	* Makefile.in: s/libobjc.la/libobjc$(libext).la/g.
+	s/include/$(includedir)/g.
+
+2004-05-25  Daniel Jacobowitz  <drow@false.org>
+
+	* Makefile.in: Add .NOEXPORT.
+
+2004-05-25  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	Merge from the libobjc-branch
+	2004-02-09  Andrew Pinski  <pinskia@physics.uc.edu>
+
+		* Makefile.in (OBJC_H): Change objc-deps.h to objc-decls.h.
+
+	2004-02-03  Andrew Pinski  <pinskia@physics.uc.edu>
+
+		* Makefile.in (OBJC_H): Add objc-deps.h.
+
+	2004-01-27  Nicola Pero  <n.pero@mi.flashnet.it>
+
+		* Protocol.m ([-conformsTo:]): If the argument is nil, return NO.
+		([-hash], [-isEqual:]): New methods.
+
+	2004-01-27  Richard Frith-Macdonald <rfm@gnu.org>
+
+		* sarray.c (sarray_free): Add a better comment.
+
+	2004-01-27  Adam Fedor  <fedor@gnu.org>
+
+		* hash.c (hash_add): Cast cachep to int.
+		* selector.c (__sel_register_typed_name): Cast
+		soffset_decode to int.
+
+	2004-01-27  Alexander Malmberg  <alexander@malmberg.org>
+
+		* selector.c: Rename register_selectors_from_list to
+		__objc_register_selectors_from_list. Update caller.
+		(__objc_register_selectors_from_list): Lock __objc_runtime_mutex
+		while registering selectors. Use __sel_register_typed_name instead
+		of sel_register_typed_name. Check for NULL method_name:s.
+		(pool_alloc_selector): New function.
+		(__sel_register_typed_name): Use pool_alloc_selector to allocate
+		selector structures.
+		* sendmsg.c (class_add_method_list): Use
+		__objc_register_selectors_from_list.
+		* objc/runtime.h: Add __objc_register_selectors_from_list.
+
+	2004-01-25  Adam Fedor  <fedor@gnu.org>
+		    Nicola Pero  <n.pero@mi.flashnet.it>
+		    Andrew Pinski  <pinskia@physics.uc.edu>
+
+		* objc/objc-decls.h: New file.
+		* objc/objc-api.h (_objc_lookup_class): Mark as export.
+		(_objc_load_callback): Likewise.
+		(_objc_object_alloc): Likewise.
+		(_objc_object_copy): Likewise.
+		(_objc_object_dispose): Likewise.
+
+	2004-01-25  Andrew Pinski  <pinskia@physics.uc.edu>
+
+		* archive.c: s/__inline__/inline
+		* sendmsg.c: Likewise.
+
+		* encoding.c: Remove FIXME about the warning
+		about unused variable.
+		* sendmsg.c: Add a FIXME comment saying that
+		this should be using libffi.
+
+		* Makefile.in (LIBTOOL): Use @LIBTOOL@ now as it works.
+
+
+2004-05-13  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* archive.c (objc_read_class): Initialize class_name.
+	(objc_read_selector): Initialize selector_name.
+
+2004-05-09  Richard Sandiford  <rsandifo@redhat.com>
+
+	* Makefile.in (toolexecdir): Remove trailing space.
+
+2004-04-15  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	PR libobjc/14948
+	* configure.ac: De-precious CC so multilibs work.
+	* configure: Regenerate.
+
+2004-04-14  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* configure.ac: Restore toolexecdir.
+	* Makefile.in: Restore toolexecdir.
+	* configure: Regenerate.
+
+2004-04-09  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* configure.ac: Remove (unused) glibcpp_prefixdir.
+	* configure: Regenerate.
+
+	* configure.in: Rename to configure.ac.
+	* Makefile.in: Update to match.
+
+	* Makefile.in: Remove toolexecdir, glibcpp_toolexecdir (unused).
+	Replace glibcpp_toolexeclibdir with toolexeclibdir.
+	* configure.in: Remove glibcpp_toolexecdir (unused).
+	Replace glibcpp_toolexeclibdir with toolexeclibdir.  Don't generate
+	config.h or stamp-h (unused).  Move one comment to the right place.
+	* configure: Regenerate.
+	* config.h.in: Remove (unused).
+
+	* config.h.in: Regenerate with autoheader.
+
+	* Makefile.in: Remove (unused) gcc_version_trigger.
+	* configure.in: Remove (unused) glibcpp_builddir.  Don't AC_SUBST
+	gcc_version_trigger.
+	* configure: Regenerate.
+
+	* configure.in: Switch to modern style for AC_INIT, AC_OUTPUT.
+	Sort file into sections.  Remove dnl where appropriate.  Fix
+	other style issues.
+	* configure: Regenerate.
+
+	* configure.in: Replace old AC_PROG_CC hack with new one.
+	Define toplevel_srcdir in terms of srcdir, not top_srcdir (there
+	are no subdirectory output files, so this is fine).  Change prereq
+	to autoconf 2.59.
+	* aclocal.m4: Include ../config/no-executables.m4.
+	* configure: Regenerate with autoconf 2.59.
+
+	* configure.in: Improve comments on gthread_cflags.  Improve m4
+	quotation, and replace 'if test' with 'case', for --enable-objc-gc.
+	* configure: Regenerate.
+
+	* configure.in: Move PACKAGE and VERSION settings up top.  Remove
+	unused call to AC_PROG_LN_S.  Default RANLIB to ':'.  Remove
+	redundant checks for values of RANLIB, AR, INSTALL.
+	* configure: Regenerate.
+
+	* configure.in: Clean up handling of
+	--enable-version-specific-runtime-libs and related variables;
+	replace 'if test' with 'case' where reasonable.  Fix comments.
+	Remove useless libstdcxx_interface.
+	* configure: Regenerate.
+
+	* configure.in: Use _GCC_TOPLEV_NONCANONICAL_TARGET.
+	Replace uses of target_alias with target_noncanonical.
+	* aclocal.m4: Include ../config/acx.m4.
+	* configure: Regenerate.
+	* Makefile.in: Replace uses of target_alias with target_noncanonical.
+	Fix copyright statement.
+
+	* configure.in: Hand-inline bulky, confusing macros from
+	aclocal.m4.  Replace references to "GNU Objective C" with "GCC".
+	Update copyright notice.  Remove stuff for automake, which isn't
+	used in this directory.  Remove emacs local variables.
+	* aclocal.m4: Remove hand-inlined macros.  Update copyright notice.
+	* configure: Regenerate.
+
+2004-03-16  Manfred Hollstein  <mh@suse.com>
+
+	* Makefile.in, configure.in, configure: Update copyright years.
+
+2004-03-15  Manfred Hollstein  <mh@suse.com>
+
+	* Makefile.in (LIBOBJC_VERSION, LIBOBJC_GC_VERSION): Use
+	definition from configure.in.
+	* configure.in (PACKAGE): Add definition.
+	(VERSION): Add definition; substitute it in output files.
+	* configure: Re-generate.
+
+2004-03-05  Ziemowit Laski  <zlaski@apple.com>
+
+	* objc/hash.h (hash_string, compare_strings):
+	Add type-casts to make Objective-C++ happy.
+	* objc/typedstream.h (objc_get_stream_class_version):
+	Rename parameter from 'class' to 'class_name' to make
+	Objective-C++ happy.
 
 2004-03-01  Michael Matz  <matz@suse.de>
 
 	* Makefile.in (ALL_CFLAGS): Add -fno-strict-aliasing.
+
+2004-02-06  Ziemowit Laski  <zlaski@apple.com>
+
+	* objc/objc-api.h (objc_super): The 'class' field shall
+	be named 'super_class' #ifdef __cplusplus.
 
 2004-01-17  Andrew Pinski  <pinskia@physics.uc.edu>
 
