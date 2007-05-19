@@ -1,235 +1,158 @@
-dnl Copyright (C) 1994, 1995-8, 1999, 2001 Free Software Foundation, Inc.
-dnl This file is free software; the Free Software Foundation
-dnl gives unlimited permission to copy and/or distribute it,
-dnl with or without modifications, as long as this notice is preserved.
+# generated automatically by aclocal 1.9.6 -*- Autoconf -*-
 
-dnl This program is distributed in the hope that it will be useful,
-dnl but WITHOUT ANY WARRANTY, to the extent permitted by law; without
-dnl even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-dnl PARTICULAR PURPOSE.
+# Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
+# 2005  Free Software Foundation, Inc.
+# This file is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
 
-dnl
-dnl Initialize configure bits.
-dnl
-dnl GLIBCPP_TOPREL_CONFIGURE
-AC_DEFUN(GLIBCPP_TOPREL_CONFIGURE, [
-  dnl Default to --enable-multilib
-  AC_ARG_ENABLE(multilib,
-  [  --enable-multilib       build hella library versions (default)],
-  [case "${enableval}" in
-    yes) multilib=yes ;;
-    no)  multilib=no ;;
-    *)   AC_MSG_ERROR(bad value ${enableval} for multilib option) ;;
-   esac], [multilib=yes])dnl
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
 
-# When building with srcdir == objdir, links to the source files will
-# be created in directories within the target_subdir.  We have to
-# adjust toplevel_srcdir accordingly, so that configure finds
-# install-sh and other auxiliary files that live in the top-level
-# source directory.
-if test "${srcdir}" = "."; then
-  if test -z "${with_target_subdir}"; then
-    toprel=".."
-  else
-    if test "${with_target_subdir}" != "."; then
-      toprel="${with_multisrctop}../.."
-    else
-      toprel="${with_multisrctop}.."
-    fi
-  fi
+# AM_AUX_DIR_EXPAND                                         -*- Autoconf -*-
+
+# Copyright (C) 2001, 2003, 2005  Free Software Foundation, Inc.
+#
+# This file is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# For projects using AC_CONFIG_AUX_DIR([foo]), Autoconf sets
+# $ac_aux_dir to `$srcdir/foo'.  In other projects, it is set to
+# `$srcdir', `$srcdir/..', or `$srcdir/../..'.
+#
+# Of course, Automake must honor this variable whenever it calls a
+# tool from the auxiliary directory.  The problem is that $srcdir (and
+# therefore $ac_aux_dir as well) can be either absolute or relative,
+# depending on how configure is run.  This is pretty annoying, since
+# it makes $ac_aux_dir quite unusable in subdirectories: in the top
+# source directory, any form will work fine, but in subdirectories a
+# relative path needs to be adjusted first.
+#
+# $ac_aux_dir/missing
+#    fails when called from a subdirectory if $ac_aux_dir is relative
+# $top_srcdir/$ac_aux_dir/missing
+#    fails if $ac_aux_dir is absolute,
+#    fails when called from a subdirectory in a VPATH build with
+#          a relative $ac_aux_dir
+#
+# The reason of the latter failure is that $top_srcdir and $ac_aux_dir
+# are both prefixed by $srcdir.  In an in-source build this is usually
+# harmless because $srcdir is `.', but things will broke when you
+# start a VPATH build or use an absolute $srcdir.
+#
+# So we could use something similar to $top_srcdir/$ac_aux_dir/missing,
+# iff we strip the leading $srcdir from $ac_aux_dir.  That would be:
+#   am_aux_dir='\$(top_srcdir)/'`expr "$ac_aux_dir" : "$srcdir//*\(.*\)"`
+# and then we would define $MISSING as
+#   MISSING="\${SHELL} $am_aux_dir/missing"
+# This will work as long as MISSING is not called from configure, because
+# unfortunately $(top_srcdir) has no meaning in configure.
+# However there are other variables, like CC, which are often used in
+# configure, and could therefore not use this "fixed" $ac_aux_dir.
+#
+# Another solution, used here, is to always expand $ac_aux_dir to an
+# absolute PATH.  The drawback is that using absolute paths prevent a
+# configured tree to be moved without reconfiguration.
+
+AC_DEFUN([AM_AUX_DIR_EXPAND],
+[dnl Rely on autoconf to set up CDPATH properly.
+AC_PREREQ([2.50])dnl
+# expand $ac_aux_dir to an absolute path
+am_aux_dir=`cd $ac_aux_dir && pwd`
+])
+
+# AM_CONDITIONAL                                            -*- Autoconf -*-
+
+# Copyright (C) 1997, 2000, 2001, 2003, 2004, 2005
+# Free Software Foundation, Inc.
+#
+# This file is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# serial 7
+
+# AM_CONDITIONAL(NAME, SHELL-CONDITION)
+# -------------------------------------
+# Define a conditional.
+AC_DEFUN([AM_CONDITIONAL],
+[AC_PREREQ(2.52)dnl
+ ifelse([$1], [TRUE],  [AC_FATAL([$0: invalid condition: $1])],
+	[$1], [FALSE], [AC_FATAL([$0: invalid condition: $1])])dnl
+AC_SUBST([$1_TRUE])
+AC_SUBST([$1_FALSE])
+if $2; then
+  $1_TRUE=
+  $1_FALSE='#'
 else
-  toprel=".."
+  $1_TRUE='#'
+  $1_FALSE=
 fi
-AC_CONFIG_AUX_DIR(${srcdir}/$toprel)
-toplevel_srcdir=\${top_srcdir}/$toprel
-AC_SUBST(toplevel_srcdir)
-])
+AC_CONFIG_COMMANDS_PRE(
+[if test -z "${$1_TRUE}" && test -z "${$1_FALSE}"; then
+  AC_MSG_ERROR([[conditional "$1" was never defined.
+Usually this means the macro was only invoked conditionally.]])
+fi])])
 
-dnl
-dnl Initialize configure bits.
-dnl
-dnl GLIBCPP_CONFIGURE
-AC_DEFUN(GLIBCPP_CONFIGURE, [
-# Export build and source directories.
-# These need to be absolute paths, yet at the same time need to
-# canonicalize only relative paths, because then amd will not unmount
-# drives. Thus the use of PWDCMD: set it to 'pawd' or 'amq -w' if using amd.
-glibcpp_builddir=`${PWDCMD-pwd}`
-case $srcdir in
-[\\/$]* | ?:[\\/]*) glibcpp_srcdir=${srcdir} ;;
-*) glibcpp_srcdir=`cd "$srcdir" && ${PWDCMD-pwd} || echo "$srcdir"` ;;
-esac
-AC_SUBST(glibcpp_builddir)
-AC_SUBST(glibcpp_srcdir)
+# Add --enable-maintainer-mode option to configure.         -*- Autoconf -*-
+# From Jim Meyering
 
-dnl This is here just to satisfy automake.
-ifelse(not,equal,[AC_CONFIG_AUX_DIR(..)])
+# Copyright (C) 1996, 1998, 2000, 2001, 2002, 2003, 2004, 2005
+# Free Software Foundation, Inc.
+#
+# This file is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
 
-# Will set LN_S to either 'ln -s' or 'ln'.  With autoconf 2.50+, can also
-# be 'cp -p' if linking isn't available.
-#ac_cv_prog_LN_S='cp -p'
-AC_PROG_LN_S
+# serial 4
 
-# We use these options to decide which functions to include.
-AC_ARG_WITH(target-subdir,
-[  --with-target-subdir=SUBDIR
-                           configuring in a subdirectory])
-AC_ARG_WITH(cross-host,
-[  --with-cross-host=HOST  configuring with a cross compiler])
+AC_DEFUN([AM_MAINTAINER_MODE],
+[AC_MSG_CHECKING([whether to enable maintainer-specific portions of Makefiles])
+  dnl maintainer-mode is disabled by default
+  AC_ARG_ENABLE(maintainer-mode,
+[  --enable-maintainer-mode  enable make rules and dependencies not useful
+			  (and sometimes confusing) to the casual installer],
+      USE_MAINTAINER_MODE=$enableval,
+      USE_MAINTAINER_MODE=no)
+  AC_MSG_RESULT([$USE_MAINTAINER_MODE])
+  AM_CONDITIONAL(MAINTAINER_MODE, [test $USE_MAINTAINER_MODE = yes])
+  MAINT=$MAINTAINER_MODE_TRUE
+  AC_SUBST(MAINT)dnl
+]
+)
 
-  # Never versions of autoconf add an underscore to these functions.
-  # Prevent future problems ...
-  ifdef([AC_PROG_CC_G],[],[define([AC_PROG_CC_G],defn([_AC_PROG_CC_G]))])
-  ifdef([AC_PROG_CC_GNU],[],[define([AC_PROG_CC_GNU],defn([_AC_PROG_CC_GNU]))])
-  ifdef([AC_PROG_CXX_G],[],[define([AC_PROG_CXX_G],defn([_AC_PROG_CXX_G]))])
-  ifdef([AC_PROG_CXX_GNU],[],[define([AC_PROG_CXX_GNU],defn([_AC_PROG_CXX_GNU]))])
+AU_DEFUN([jm_MAINTAINER_MODE], [AM_MAINTAINER_MODE])
 
-#  AC_PROG_CC
+# Copyright (C) 1999, 2000, 2001, 2003, 2005  Free Software Foundation, Inc.
+#
+# This file is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
 
-# FIXME: We temporarily define our own version of AC_PROG_CC.  This is
-# copied from autoconf 2.12, but does not call AC_PROG_CC_WORKS.  We
-# are probably using a cross compiler, which will not be able to fully
-# link an executable.  This should really be fixed in autoconf
-# itself.
+# serial 3
 
-AC_DEFUN(LIB_AC_PROG_CC,
-[AC_BEFORE([$0], [AC_PROG_CPP])dnl
-dnl Fool anybody using AC_PROG_CC.
-AC_PROVIDE([AC_PROG_CC])
-AC_CHECK_PROG(CC, gcc, gcc)
-if test -z "$CC"; then
-  AC_CHECK_PROG(CC, cc, cc, , , /usr/ucb/cc)
-  test -z "$CC" && AC_MSG_ERROR([no acceptable cc found in \$PATH])
-fi
-
-AC_PROG_CC_GNU
-
-if test $ac_cv_prog_gcc = yes; then
-  GCC=yes
-dnl Check whether -g works, even if CFLAGS is set, in case the package
-dnl plays around with CFLAGS (such as to build both debugging and
-dnl normal versions of a library), tasteless as that idea is.
-  ac_test_CFLAGS="${CFLAGS+set}"
-  ac_save_CFLAGS="$CFLAGS"
-  CFLAGS=
-  AC_PROG_CC_G
-  if test "$ac_test_CFLAGS" = set; then
-    CFLAGS="$ac_save_CFLAGS"
-  elif test $ac_cv_prog_cc_g = yes; then
-    CFLAGS="-g -O2"
-  else
-    CFLAGS="-O2"
-  fi
-else
-  GCC=
-  test "${CFLAGS+set}" = set || CFLAGS="-g"
+# AM_PROG_CC_C_O
+# --------------
+# Like AC_PROG_CC_C_O, but changed for automake.
+AC_DEFUN([AM_PROG_CC_C_O],
+[AC_REQUIRE([AC_PROG_CC_C_O])dnl
+AC_REQUIRE([AM_AUX_DIR_EXPAND])dnl
+# FIXME: we rely on the cache variable name because
+# there is no other way.
+set dummy $CC
+ac_cc=`echo $[2] | sed ['s/[^a-zA-Z0-9_]/_/g;s/^[0-9]/_/']`
+if eval "test \"`echo '$ac_cv_prog_cc_'${ac_cc}_c_o`\" != yes"; then
+   # Losing compiler, so override with the script.
+   # FIXME: It is wrong to rewrite CC.
+   # But if we don't then we get into trouble of one sort or another.
+   # A longer-term fix would be to have automake use am__CC in this case,
+   # and then we could set am__CC="\$(top_srcdir)/compile \$(CC)"
+   CC="$am_aux_dir/compile $CC"
 fi
 ])
 
-LIB_AC_PROG_CC
-
-  AC_CHECK_TOOL(AS, as)
-  AC_CHECK_TOOL(AR, ar)
-  AC_CHECK_TOOL(RANLIB, ranlib, ranlib-not-found-in-path-error)
-  AC_PROG_INSTALL
-
-  # We need AC_EXEEXT to keep automake happy in cygnus mode.  However,
-  # at least currently, we never actually build a program, so we never
-  # need to use $(EXEEXT).  Moreover, the test for EXEEXT normally
-  # fails, because we are probably configuring with a cross compiler
-  # which can't create executables.  So we include AC_EXEEXT to keep
-  # automake happy, but we don't execute it, since we don't care about
-  # the result.
-  if false; then
-    # autoconf 2.50 runs AC_EXEEXT by default, and the macro expands
-    # to nothing, so nothing would remain between `then' and `fi' if it
-    # were not for the `:' below.
-    :
-    AC_EXEEXT
-  fi
-])
-
-
-dnl
-dnl  GLIBCPP_EXPORT_INSTALL_INFO
-dnl  calculates gxx_install_dir
-dnl  exports glibcpp_toolexecdir
-dnl  exports glibcpp_toolexeclibdir
-dnl  exports glibcpp_prefixdir
-dnl
-dnl Assumes cross_compiling bits already done, and with_cross_host in
-dnl particular
-dnl
-dnl GLIBCPP_EXPORT_INSTALL_INFO
-AC_DEFUN(GLIBCPP_EXPORT_INSTALL_INFO, [
-# Assumes glibcpp_builddir, glibcpp_srcdir are alreay set up and
-# exported correctly in GLIBCPP_CONFIGURE.
-glibcpp_toolexecdir=no
-glibcpp_toolexeclibdir=no
-glibcpp_prefixdir=${prefix}
-
-AC_MSG_CHECKING([for interface version number])
-libstdcxx_interface=$INTERFACE
-AC_MSG_RESULT($libstdcxx_interface)
-
-# Process the option "--enable-version-specific-runtime-libs"
-AC_MSG_CHECKING([for --enable-version-specific-runtime-libs])
-AC_ARG_ENABLE(version-specific-runtime-libs,
-[  --enable-version-specific-runtime-libs    Specify that runtime libraries should be installed in a compiler-specific directory ],
-[case "$enableval" in
- yes) version_specific_libs=yes ;;
- no)  version_specific_libs=no ;;
- *)   AC_MSG_ERROR([Unknown argument to enable/disable version-specific libs]);;
- esac],
-version_specific_libs=no)dnl
-# Option set, now we can test it.
-AC_MSG_RESULT($version_specific_libs)
-
-gcc_version_trigger=${srcdir}/../gcc/version.c
-gcc_version_full=`grep version_string ${gcc_version_trigger} | sed -e 's/.*\"\([[^ \"]]*\)[[ \"]].*/\1/'`
-gcc_version=`echo ${gcc_version_full} | sed -e 's/\([^ ]*\) .*/\1/'`
-AC_SUBST(gcc_version)
-AC_SUBST(gcc_version_trigger)
-
-if test $version_specific_libs = yes; then
-  # Need the gcc compiler version to know where to install libraries
-  # and header files if --enable-version-specific-runtime-libs option
-  # is selected.
-  changequote(,)dnl
-  glibcpp_toolexecdir='$(libdir)/gcc/$(target_alias)'
-  glibcpp_toolexeclibdir='$(toolexecdir)/'${gcc_version}'$(MULTISUBDIR)'
-  changequote([,])dnl
-fi
-
-# Calculate glibcpp_toolexecdir, glibcpp_toolexeclibdir
-# Install a library built with a cross compiler in tooldir, not libdir.
-if test x"$glibcpp_toolexecdir" = x"no"; then 
-  if test -n "$with_cross_host" &&
-     test x"$with_cross_host" != x"no"; then
-    glibcpp_toolexecdir='$(exec_prefix)/$(target_alias)'
-    glibcpp_toolexeclibdir='$(toolexecdir)/lib'
-  else
-    glibcpp_toolexecdir='$(libdir)/gcc-lib/$(target_alias)'
-    glibcpp_toolexeclibdir='$(libdir)'
-  fi
-  multi_os_directory=`$CC -print-multi-os-directory`
-  case $multi_os_directory in
-  .) ;; # Avoid trailing /.
-  *) glibcpp_toolexeclibdir=$glibcpp_toolexeclibdir/$multi_os_directory ;;
-  esac
-fi
-
-AC_SUBST(glibcpp_prefixdir)
-AC_SUBST(glibcpp_toolexecdir)
-AC_SUBST(glibcpp_toolexeclibdir)
-])
-
-sinclude(../libtool.m4)
-dnl The lines below arrange for aclocal not to bring an installed
-dnl libtool.m4 into aclocal.m4, while still arranging for automake to
-dnl add a definition of LIBTOOL to Makefile.in.
-ifelse(,,,[AC_SUBST(LIBTOOL)
-AC_DEFUN([AM_PROG_LIBTOOL])
-AC_DEFUN([AC_LIBTOOL_DLOPEN])
-AC_DEFUN([AC_PROG_LD])
-])
+m4_include([../config/multi.m4])
+m4_include([acinclude.m4])
