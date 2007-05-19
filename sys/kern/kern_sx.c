@@ -101,14 +101,6 @@ __FBSDID("$FreeBSD$");
  */
 #define	sx_recursed(sx)		((sx)->sx_recurse != 0)
 
-/*
- * Return a pointer to the owning thread if the lock is exclusively
- * locked.
- */
-#define	sx_xholder(sx)							\
-	((sx)->sx_lock & SX_LOCK_SHARED ? NULL :			\
-	(struct thread *)SX_OWNER((sx)->sx_lock))
-
 #ifdef DDB
 static void	db_show_sx(struct lock_object *lock);
 #endif
