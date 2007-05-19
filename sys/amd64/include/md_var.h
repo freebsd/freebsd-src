@@ -57,8 +57,6 @@ extern	int	szsigcode;
 extern	uint64_t *vm_page_dump;
 extern	int	vm_page_dump_size;
 
-extern	struct pcpu __pcpu[];
-
 typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
 struct	thread;
 struct	reg;
