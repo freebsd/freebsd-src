@@ -53,7 +53,7 @@ C_DIALECT= -std=c99
 NOSTDINC= -nostdinc
 .endif
 
-INCLUDES= ${NOSTDINC} -I- ${INCLMAGIC} -I. -I$S
+INCLUDES= ${NOSTDINC} ${INCLMAGIC} -I. -I$S
 
 # This hack lets us use the OpenBSD altq code without spamming a new
 # include path into contrib'ed source files.
@@ -90,7 +90,7 @@ CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
-WERROR?= -Werror
+#WERROR?= -Werror
 .endif
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
