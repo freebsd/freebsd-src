@@ -235,6 +235,7 @@ struct sx_args {
 #define	SX_NOWITNESS		0x04
 #define	SX_QUIET		0x08
 #define	SX_ADAPTIVESPIN		0x10
+#define	SX_RECURSE		0x20
 
 /*
  * XXX: These options should be renamed as SA_*
