@@ -1,6 +1,6 @@
 /* Prints out trees in human readable form.
    Copyright (C) 1992, 1993, 1994, 1995, 1996, 1998,
-   1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GCC.
@@ -17,8 +17,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* $FreeBSD$ */
 
@@ -28,13 +28,6 @@ Boston, MA 02111-1307, USA.  */
 #include "tm.h"
 #include "tree.h"
 #include "cp-tree.h"
-
-#ifndef HOST_PTR_PRINTF_FORMAT
-#define HOST_PTR_PRINTF_FORMAT HOST_PTR_PRINTF
-#endif
-#ifndef HOST_PTR_PRINTF_TYPE
-#define HOST_PTR_PRINTF_TYPE (void *)
-#endif
 
 void
 cxx_print_decl (FILE *file, tree node, int indent)
@@ -49,21 +42,22 @@ cxx_print_decl (FILE *file, tree node, int indent)
       return;
     }
 
-  if (!DECL_LANG_SPECIFIC (node))
+  if (!CODE_CONTAINS_STRUCT (TREE_CODE (node), TS_DECL_COMMON)
+      || !DECL_LANG_SPECIFIC (node))
     return;
   indent_to (file, indent + 3);
   if (TREE_CODE (node) == FUNCTION_DECL
       && DECL_PENDING_INLINE_INFO (node))
-    fprintf (file, " pending-inline-info " HOST_PTR_PRINTF_FORMAT,
-	     HOST_PTR_PRINTF_TYPE DECL_PENDING_INLINE_INFO (node));
+    fprintf (file, " pending-inline-info %p",
+	     (void *) DECL_PENDING_INLINE_INFO (node));
   if (TREE_CODE (node) == TYPE_DECL
       && DECL_SORTED_FIELDS (node))
-    fprintf (file, " sorted-fields " HOST_PTR_PRINTF_FORMAT,
-	     HOST_PTR_PRINTF_TYPE DECL_SORTED_FIELDS (node));
+    fprintf (file, " sorted-fields %p",
+	     (void *) DECL_SORTED_FIELDS (node));
   if ((TREE_CODE (node) == FUNCTION_DECL || TREE_CODE (node) == VAR_DECL)
       && DECL_TEMPLATE_INFO (node))
-    fprintf (file, " template-info " HOST_PTR_PRINTF_FORMAT,
-	     HOST_PTR_PRINTF_TYPE DECL_TEMPLATE_INFO (node));
+    fprintf (file, " template-info %p",
+	     (void *) DECL_TEMPLATE_INFO (node));
 }
 
 void
@@ -108,8 +102,6 @@ cxx_print_type (FILE *file, tree node, int indent)
     fputs ( "needs-constructor", file);
   if (TYPE_HAS_NONTRIVIAL_DESTRUCTOR (node))
     fputs (" needs-destructor", file);
-  if (TYPE_HAS_DESTRUCTOR (node))
-    fputs (" ~X()", file);
   if (TYPE_HAS_DEFAULT_CONSTRUCTOR (node))
     fputs (" X()", file);
   if (TYPE_HAS_CONVERSION (node))
@@ -131,19 +123,20 @@ cxx_print_type (FILE *file, tree node, int indent)
     fputs (" delete[]", file);
   if (TYPE_HAS_ASSIGN_REF (node))
     fputs (" this=(X&)", file);
-  if (TYPE_USES_MULTIPLE_INHERITANCE (node))
-    fputs (" uses-multiple-inheritance", file);
 
   if (TREE_CODE (node) == RECORD_TYPE)
     {
-      fprintf (file, " n_parents %d", CLASSTYPE_N_BASECLASSES (node));
+      if (TYPE_BINFO (node))
+	fprintf (file, " n_parents=%d",
+		 BINFO_N_BASE_BINFOS (TYPE_BINFO (node)));
+      else
+	fprintf (file, " no-binfo");
+
       fprintf (file, " use_template=%d", CLASSTYPE_USE_TEMPLATE (node));
       if (CLASSTYPE_INTERFACE_ONLY (node))
 	fprintf (file, " interface-only");
       if (CLASSTYPE_INTERFACE_UNKNOWN (node))
 	fprintf (file, " interface-unknown");
-      print_node (file, "member-functions", CLASSTYPE_METHOD_VEC (node),
-		  indent + 4);
     }
 }
 
@@ -151,22 +144,25 @@ cxx_print_type (FILE *file, tree node, int indent)
 static void
 cxx_print_binding (FILE *stream, cxx_binding *binding, const char *prefix)
 {
-  fprintf (stream, "%s <" HOST_PTR_PRINTF_FORMAT ">",
-	   prefix, HOST_PTR_PRINTF_TYPE binding);
+  fprintf (stream, "%s <%p>",
+	   prefix, (void *) binding);
 }
 
 void
 cxx_print_identifier (FILE *file, tree node, int indent)
 {
-  indent_to (file, indent);
+  if (indent == 0)
+    fprintf (file, " ");
+  else
+    indent_to (file, indent);
   cxx_print_binding (file, IDENTIFIER_NAMESPACE_BINDINGS (node), "bindings");
-  print_node (file, "class", IDENTIFIER_CLASS_VALUE (node), indent + 4);
-  indent_to (file, indent);
+  if (indent == 0)
+    fprintf (file, " ");
+  else
+    indent_to (file, indent);
   cxx_print_binding (file, IDENTIFIER_BINDING (node), "local bindings");
   print_node (file, "label", IDENTIFIER_LABEL_VALUE (node), indent + 4);
   print_node (file, "template", IDENTIFIER_TEMPLATE (node), indent + 4);
-  print_node (file, "implicit", IDENTIFIER_IMPLICIT_DECL (node), indent + 4);
-  print_node (file, "error locus", IDENTIFIER_ERROR_LOCUS (node), indent + 4);
 }
 
 void
@@ -174,6 +170,12 @@ cxx_print_xnode (FILE *file, tree node, int indent)
 {
   switch (TREE_CODE (node))
     {
+    case BASELINK:
+      print_node (file, "functions", BASELINK_FUNCTIONS (node), indent + 4);
+      print_node (file, "binfo", BASELINK_BINFO (node), indent + 4);
+      print_node (file, "access_binfo", BASELINK_ACCESS_BINFO (node),
+		  indent + 4);
+      break;
     case OVERLOAD:
       print_node (file, "function", OVL_FUNCTION (node), indent+4);
       print_node (file, "chain", TREE_CHAIN (node), indent+4);
