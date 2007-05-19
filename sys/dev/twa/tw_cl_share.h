@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
  * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
+ * Modifications by: Adam Radford
  */
 
 
@@ -45,9 +46,6 @@
  * and defined by CL.
  */
 
-
-#define TW_CL_VERSION_STRING		"1.00.01.011"
-
 #define TW_CL_NULL			((TW_VOID *)0)
 #define TW_CL_TRUE			1
 #define TW_CL_FALSE			0
@@ -55,6 +53,7 @@
 #define TW_CL_VENDOR_ID			0x13C1	/* 3ware vendor id */
 #define TW_CL_DEVICE_ID_9K		0x1002	/* 9000 PCI series device id */
 #define TW_CL_DEVICE_ID_9K_X		0x1003	/* 9000 PCI-X series device id */
+#define TW_CL_DEVICE_ID_9K_E		0x1004  /* 9000 PCIe series device id */
 
 #define TW_CL_BAR_TYPE_IO		1	/* I/O base address */
 #define TW_CL_BAR_TYPE_MEM		2	/* memory base address */
@@ -64,7 +63,7 @@
 #define TW_CL_MAX_NUM_UNITS		65	/* max # of units we support
 						-- enclosure target id is 64 */
 #else /* TW_OSL_ENCLOSURE_SUPPORT */
-#define TW_CL_MAX_NUM_UNITS		16	/* max # of units we support */
+#define TW_CL_MAX_NUM_UNITS		32	/* max # of units we support */
 #endif /* TW_OSL_ENCLOSURE_SUPPORT */
 
 #define TW_CL_MAX_NUM_LUNS		16	/* max # of LUN's we support */
@@ -86,7 +85,6 @@
 #define TW_CL_64BIT_SG_LENGTH	(1<<1) /* 64 bit SG length */
 #define TW_CL_START_CTLR_ONLY	(1<<2) /* Start ctlr only */
 #define TW_CL_STOP_CTLR_ONLY	(1<<3) /* Stop ctlr only */
-#define TW_CL_FLASH_FIRMWARE	(1<<4) /* Flash firmware */
 #define TW_CL_DEFERRED_INTR_USED (1<<5) /* OS Layer uses deferred intr */
 
 /* Possible error values from the Common Layer. */
@@ -101,9 +99,7 @@
 
 
 /* Possible values of req_pkt->flags */
-#ifndef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
 #define TW_CL_REQ_RETRY_ON_BUSY		(1<<0)
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 #define TW_CL_REQ_CALLBACK_FOR_SGLIST	(1<<1)
 
 
@@ -183,19 +179,6 @@ struct tw_cl_req_packet {
 			struct tw_cl_req_handle *req_handle, TW_VOID *sg_list,
 			TW_UINT32 *num_sgl_entries);
 			/* OSL callback to get SG list. */
-
-#ifdef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
-
-	TW_VOID		*dma_mem;
-	TW_UINT64	dma_mem_phys;
-
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
-
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-
-	TW_VOID		*non_dma_mem;
-
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 
 	union {
 		struct tw_cl_scsi_req_packet		scsi_req; /* SCSI req */
@@ -496,39 +479,6 @@ extern TW_INT8	*tw_osl_strcpy(TW_INT8 *dest, TW_INT8 *src);
 extern TW_INT32	tw_osl_strlen(TW_VOID *str);
 #endif
 
-
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-
-#ifndef tw_osl_sync_io_block
-/* Block new I/O requests from being sent by the OS Layer. */
-extern TW_VOID	tw_osl_sync_io_block(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_SYNC_HANDLE *sync_handle);
-#endif
-
-
-#ifndef tw_osl_sync_io_unblock
-/* Allow new I/O requests from the OS Layer. */
-extern TW_VOID	tw_osl_sync_io_unblock(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_SYNC_HANDLE *sync_handle);
-#endif
-
-
-#ifndef tw_osl_sync_isr_block
-/* Block the ISR from being called by the OS Layer. */
-extern TW_VOID	tw_osl_sync_isr_block(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_SYNC_HANDLE *sync_handle);
-#endif
-
-
-#ifndef tw_osl_sync_isr_unblock
-/* Allow calls to the ISR from the OS Layer. */
-extern TW_VOID	tw_osl_sync_isr_unblock(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_SYNC_HANDLE *sync_handle);
-#endif
-
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
-
-
 #ifndef tw_osl_vsprintf
 /* Standard vsprintf. */
 extern TW_INT32	tw_osl_vsprintf(TW_INT8 *dest, const TW_INT8 *fmt, va_list ap);
@@ -591,15 +541,6 @@ extern TW_INT32	tw_cl_get_mem_requirements(
 	TW_INT32 device_id, TW_INT32 max_simult_reqs, TW_INT32 max_aens,
 	TW_UINT32 *alignment, TW_UINT32 *sg_size_factor,
 	TW_UINT32 *non_dma_mem_size, TW_UINT32 *dma_mem_size
-#ifdef TW_OSL_FLASH_FIRMWARE
-	, TW_UINT32 *flash_dma_mem_size
-#endif /* TW_OSL_FLASH_FIRMWARE */
-#ifdef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
-	, TW_UINT32 *per_req_dma_mem_size
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-	, TW_UINT32 *per_req_non_dma_mem_size
-#endif /* TW_OSL_N0N_DMA_MEM_ALLOC_PER_REQUEST */
 	);
 
 
@@ -613,9 +554,6 @@ extern TW_INT32	tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_UINT32 flags, TW_INT32 device_id, TW_INT32 max_simult_reqs,
 	TW_INT32 max_aens, TW_VOID *non_dma_mem, TW_VOID *dma_mem,
 	TW_UINT64 dma_mem_phys
-#ifdef TW_OSL_FLASH_FIRMWARE
-	, TW_VOID *flash_dma_mem, TW_UINT64 flash_dma_mem_phys
-#endif /* TW_OSL_FLASH_FIRMWARE */
 	);
 
 

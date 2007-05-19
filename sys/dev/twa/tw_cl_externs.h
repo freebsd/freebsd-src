@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
  * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
+ * Modifications by: Adam Radford
  */
 
 
@@ -49,18 +50,6 @@ extern TW_INT8			tw_cli_fw_img[];
 extern TW_INT32			tw_cli_fw_img_size;
 extern TW_INT8			*tw_cli_severity_string_table[];
 
-
-#ifdef TW_OSL_FLASH_FIRMWARE
-
-/* Functions in tw_cl_init.c */
-
-/* Flash bundled firmware image onto controller. */
-extern TW_INT32	tw_cli_flash_firmware(struct tw_cli_ctlr_context *ctlr);
-
-/* Hard reset the controller. */
-extern TW_INT32	tw_cli_hard_reset(struct tw_cli_ctlr_context *ctlr);
-
-#endif /* TW_OSL_FLASH_FIRMWARE */
 
 /* Do controller initialization. */
 extern TW_INT32	tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr);
@@ -197,9 +186,6 @@ extern TW_INT32	tw_cli_poll_status(struct tw_cli_ctlr_context *ctlr,
 /* Get a free CL internal request context packet. */
 extern struct tw_cli_req_context *
 	tw_cli_get_request(struct tw_cli_ctlr_context *ctlr
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-	, struct tw_cl_req_packet *req_pkt
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 	);
 
 /* Notify OSL of controller info (fw/BIOS versions, etc.). */
