@@ -152,6 +152,18 @@ SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD,
     0, PAGE_SIZE, "System memory page size");
 
 static int
+sysctl_kern_arnd(SYSCTL_HANDLER_ARGS)
+{
+	u_long val;
+
+	arc4rand(&val, sizeof(val), 0);
+	return (sysctl_handle_long(oidp, &val, 0, req));
+}
+
+SYSCTL_PROC(_kern, KERN_ARND, arandom, CTLFLAG_RD,
+	0, 0, sysctl_kern_arnd, "L", "arc4rand");
+
+static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
 	u_long val;
