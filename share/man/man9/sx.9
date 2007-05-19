@@ -44,6 +44,7 @@
 .Nm sx_try_upgrade ,
 .Nm sx_downgrade ,
 .Nm sx_sleep ,
+.Nm sx_xholder ,
 .Nm sx_xlocked ,
 .Nm sx_assert ,
 .Nm SX_SYSINIT
@@ -78,6 +79,8 @@
 .Fn sx_downgrade "struct sx *sx"
 .Ft int
 .Fn sx_sleep "void *chan" "struct sx *sx" "int priority" "const char *wmesg" "int timo"
+.Ft "struct thread *"
+.Fn sx_xholder "struct sx *sx"
 .Ft int
 .Fn sx_xlocked "struct sx *sx"
 .Pp
@@ -234,6 +237,15 @@ Assert that the current thread has a recursed lock on
 Assert that the current thread does not have a recursed lock on
 .Fa sx .
 .El
+.Pp
+.Fn sx_xholder
+will return a pointer to the thread which currently holds an exclusive lock on
+.Fa sx .
+If no thread holds an exclusive lock on
+.Fa sx ,
+then
+.Dv NULL
+is returned instead.
 .Pp
 .Fn sx_xlocked
 will return non-zero if the current thread holds the exclusive lock;
