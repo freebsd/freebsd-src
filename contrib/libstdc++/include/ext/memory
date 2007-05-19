@@ -1,6 +1,6 @@
 // Memory extensions -*- C++ -*-
 
-// Copyright (C) 2002 Free Software Foundation, Inc.
+// Copyright (C) 2002, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -55,8 +55,7 @@
 
 /** @file ext/memory
  *  This file is a GNU extension to the Standard C++ Library (possibly
- *  containing extensions from the HP/SGI STL subset).  You should only
- *  include this header if you are using GCC 3 or later.
+ *  containing extensions from the HP/SGI STL subset).
  */
 
 #ifndef _EXT_MEMORY
@@ -67,8 +66,8 @@
 #include <memory>
 #include <bits/stl_tempbuf.h>
 
-namespace __gnu_cxx
-{
+_GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
+
   using std::ptrdiff_t;
   using std::pair;
   using std::__iterator_category;
@@ -82,7 +81,7 @@ namespace __gnu_cxx
       _ForwardIter __cur = __result;
       try
 	{
-	  for ( ; __count > 0 ; --__count, ++__first, ++__cur)
+	  for (; __count > 0 ; --__count, ++__first, ++__cur)
 	    std::_Construct(&*__cur, *__first);
 	  return pair<_InputIter, _ForwardIter>(__first, __cur);
 	}
@@ -100,19 +99,16 @@ namespace __gnu_cxx
 			   std::random_access_iterator_tag)
     {
       _RandomAccessIter __last = __first + __count;
-      return pair<_RandomAccessIter, _ForwardIter>(
-		     __last,
-		     std::uninitialized_copy(__first, __last, __result));
+      return (pair<_RandomAccessIter, _ForwardIter>
+	      (__last, std::uninitialized_copy(__first, __last, __result)));
     }
 
   template<typename _InputIter, typename _Size, typename _ForwardIter>
     inline pair<_InputIter, _ForwardIter>
     __uninitialized_copy_n(_InputIter __first, _Size __count,
 			 _ForwardIter __result)
-    {
-      return __uninitialized_copy_n(__first, __count, __result,
-				    __iterator_category(__first));
-    }
+    { return __uninitialized_copy_n(__first, __count, __result,
+				    __iterator_category(__first)); }
 
   /**
    *  @brief Copies the range [first,last) into result.
@@ -128,11 +124,42 @@ namespace __gnu_cxx
     inline pair<_InputIter, _ForwardIter>
     uninitialized_copy_n(_InputIter __first, _Size __count,
 			 _ForwardIter __result)
+    { return __uninitialized_copy_n(__first, __count, __result,
+				    __iterator_category(__first)); }
+
+
+  // An alternative version of uninitialized_copy_n that constructs
+  // and destroys objects with a user-provided allocator.
+  template<typename _InputIter, typename _Size, typename _ForwardIter,
+           typename _Allocator>
+    pair<_InputIter, _ForwardIter>
+    __uninitialized_copy_n_a(_InputIter __first, _Size __count,
+			     _ForwardIter __result,
+			     _Allocator __alloc)
     {
-      return __uninitialized_copy_n(__first, __count, __result,
-				    __iterator_category(__first));
+      _ForwardIter __cur = __result;
+      try
+	{
+	  for (; __count > 0 ; --__count, ++__first, ++__cur)
+	    __alloc.construct(&*__cur, *__first);
+	  return pair<_InputIter, _ForwardIter>(__first, __cur);
+	}
+      catch(...)
+	{
+	  std::_Destroy(__result, __cur, __alloc);
+	  __throw_exception_again;
+	}
     }
 
+  template<typename _InputIter, typename _Size, typename _ForwardIter,
+           typename _Tp>
+    inline pair<_InputIter, _ForwardIter>
+    __uninitialized_copy_n_a(_InputIter __first, _Size __count,
+			     _ForwardIter __result,
+			     std::allocator<_Tp>)
+    {
+      return uninitialized_copy_n(__first, __count, __result);
+    }
 
   /**
    *  This class provides similar behavior and semantics of the standard
@@ -155,17 +182,18 @@ namespace __gnu_cxx
    *  @ingroup SGIextensions
   */
   template <class _ForwardIterator, class _Tp
-	      = typename std::iterator_traits<_ForwardIterator>::value_type >
-  struct temporary_buffer : public _Temporary_buffer<_ForwardIterator, _Tp>
-  {
-    /// Requests storage large enough to hold a copy of [first,last).
-    temporary_buffer(_ForwardIterator __first, _ForwardIterator __last)
-    : _Temporary_buffer<_ForwardIterator, _Tp>(__first, __last) { }
+	    = typename std::iterator_traits<_ForwardIterator>::value_type >
+    struct temporary_buffer : public _Temporary_buffer<_ForwardIterator, _Tp>
+    {
+      /// Requests storage large enough to hold a copy of [first,last).
+      temporary_buffer(_ForwardIterator __first, _ForwardIterator __last)
+      : _Temporary_buffer<_ForwardIterator, _Tp>(__first, __last) { }
+      
+      /// Destroys objects and frees storage.
+      ~temporary_buffer() { }
+    };
 
-    /// Destroys objects and frees storage.
-    ~temporary_buffer() { }
-  };
-} // namespace __gnu_cxx
+_GLIBCXX_END_NAMESPACE
 
 #endif
 

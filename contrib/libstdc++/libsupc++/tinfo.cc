@@ -1,5 +1,6 @@
 // Methods for type_info for -*- C++ -*- Run Time Type Identification.
-// Copyright (C) 1994, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Copyright (C) 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
+// 2003, 2004, 2005, 2006, 2007
 // Free Software Foundation
 //
 // This file is part of GCC.
@@ -16,8 +17,8 @@
 
 // You should have received a copy of the GNU General Public License
 // along with GCC; see the file COPYING.  If not, write to
-// the Free Software Foundation, 59 Temple Place - Suite 330,
-// Boston, MA 02111-1307, USA. 
+// the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+// Boston, MA 02110-1301, USA. 
 
 // As a special exception, you may use this file as part of a free software
 // library without restriction.  Specifically, if other files instantiate
@@ -43,6 +44,18 @@ std::type_info::
 
 std::bad_cast::~bad_cast() throw() { }
 std::bad_typeid::~bad_typeid() throw() { }
+
+const char* 
+std::bad_cast::what() const throw()
+{
+  return "std::bad_cast";
+}
+
+const char* 
+std::bad_typeid::what() const throw()
+{
+  return "std::bad_typeid";
+}
 
 #if !__GXX_MERGED_TYPEINFO_NAMES
 

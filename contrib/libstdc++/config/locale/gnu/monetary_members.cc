@@ -1,6 +1,6 @@
 // std::moneypunct implementation details, GNU version -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -36,8 +36,8 @@
 #include <locale>
 #include <bits/c++locale_internal.h>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // Construct and return valid pattern consisting of some combination of:
   // space none symbol sign value
   money_base::pattern
@@ -372,12 +372,9 @@ namespace std
 	  _M_data->_M_neg_format = money_base::_S_default_pattern;
 
 	  // Use ctype::widen code without the facet...
-	  unsigned char uc;
 	  for (size_t __i = 0; __i < money_base::_S_end; ++__i)
-	    {
-	      uc = static_cast<unsigned char>(money_base::_S_atoms[__i]);
-	      _M_data->_M_atoms[__i] = btowc(uc);
-	    }
+	    _M_data->_M_atoms[__i] =
+	      static_cast<wchar_t>(money_base::_S_atoms[__i]);
 	}
       else
 	{
@@ -390,12 +387,12 @@ namespace std
 	  setlocale(LC_ALL, __name);
 #endif
 
-	  union __s_and_w { const char *__s; unsigned int __w; } __u;
+	  union { char *__s; wchar_t __w; } __u;
 	  __u.__s = __nl_langinfo_l(_NL_MONETARY_DECIMAL_POINT_WC, __cloc);
-	  _M_data->_M_decimal_point = static_cast<wchar_t>(__u.__w);
+	  _M_data->_M_decimal_point = __u.__w;
 
 	  __u.__s = __nl_langinfo_l(_NL_MONETARY_THOUSANDS_SEP_WC, __cloc);
-	  _M_data->_M_thousands_sep = static_cast<wchar_t>(__u.__w);
+	  _M_data->_M_thousands_sep = __u.__w;
 	  _M_data->_M_grouping = __nl_langinfo_l(__MON_GROUPING, __cloc);
 	  _M_data->_M_grouping_size = strlen(_M_data->_M_grouping);
 
@@ -517,12 +514,9 @@ namespace std
 	  _M_data->_M_neg_format = money_base::_S_default_pattern;
 
 	  // Use ctype::widen code without the facet...
-	  unsigned char uc;
 	  for (size_t __i = 0; __i < money_base::_S_end; ++__i)
-	    {
-	      uc = static_cast<unsigned char>(money_base::_S_atoms[__i]);
-	      _M_data->_M_atoms[__i] = btowc(uc);
-	    }
+	    _M_data->_M_atoms[__i] =
+	      static_cast<wchar_t>(money_base::_S_atoms[__i]);
 	}
       else
 	{
@@ -535,12 +529,12 @@ namespace std
 	  setlocale(LC_ALL, __name);
 #endif
 
-	  union __s_and_w { const char *__s; unsigned int __w; } __u;
+          union { char *__s; wchar_t __w; } __u;
 	  __u.__s = __nl_langinfo_l(_NL_MONETARY_DECIMAL_POINT_WC, __cloc);
-	  _M_data->_M_decimal_point = static_cast<wchar_t>(__u.__w);
+	  _M_data->_M_decimal_point = __u.__w;
 
 	  __u.__s = __nl_langinfo_l(_NL_MONETARY_THOUSANDS_SEP_WC, __cloc);
-	  _M_data->_M_thousands_sep = static_cast<wchar_t>(__u.__w);
+	  _M_data->_M_thousands_sep = __u.__w;
 	  _M_data->_M_grouping = __nl_langinfo_l(__MON_GROUPING, __cloc);
           _M_data->_M_grouping_size = strlen(_M_data->_M_grouping);
 
@@ -658,4 +652,5 @@ namespace std
       delete _M_data;
     }
 #endif
-}
+
+_GLIBCXX_END_NAMESPACE

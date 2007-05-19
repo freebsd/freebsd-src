@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,10 +27,6 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-//
-// ISO C++ 14882: 19.3  Error numbers
-//
-
 /** @file cerrno
  *  This is a Standard C++ Library file.  You should @c #include this file
  *  in your programs, rather than any of the "*.h" implementation files.
@@ -39,6 +35,10 @@
  *  and its contents are (mostly) the same as that header, but are all
  *  contained in the namespace @c std.
  */
+
+//
+// ISO C++ 14882: 19.3  Error numbers
+//
 
 #ifndef _GLIBCXX_CERRNO
 #define _GLIBCXX_CERRNO 1

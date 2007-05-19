@@ -1,6 +1,6 @@
 // Safe sequence/iterator base implementation  -*- C++ -*-
 
-// Copyright (C) 2003, 2004
+// Copyright (C) 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,8 +28,14 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file debug/safe_base.h
+ *  This file is a GNU debug extension to the Standard C++ Library.
+ */
+
 #ifndef _GLIBCXX_DEBUG_SAFE_BASE_H
 #define _GLIBCXX_DEBUG_SAFE_BASE_H 1
+
+#include <ext/concurrence.h>
 
 namespace __gnu_debug
 {
@@ -103,6 +109,9 @@ namespace __gnu_debug
 
     ~_Safe_iterator_base() { this->_M_detach(); }
 
+    /** For use in _Safe_iterator. */
+    __gnu_cxx::__mutex& _M_get_mutex();
+
   public:
     /** Attaches this iterator to the given sequence, detaching it
      *	from whatever sequence it was attached to originally. If the
@@ -111,10 +120,16 @@ namespace __gnu_debug
      */
     void _M_attach(_Safe_sequence_base* __seq, bool __constant);
 
+    /** Likewise, but not thread-safe. */
+    void _M_attach_single(_Safe_sequence_base* __seq, bool __constant);
+
     /** Detach the iterator for whatever sequence it is attached to,
      *	if any.
     */
     void _M_detach();
+
+    /** Likewise, but not thread-safe. */
+    void _M_detach_single();
 
     /** Determines if we are attached to the given sequence. */
     bool _M_attached_to(const _Safe_sequence_base* __seq) const
@@ -195,6 +210,9 @@ namespace __gnu_debug
      */
     void
     _M_swap(_Safe_sequence_base& __x);
+
+    /** For use in _Safe_sequence. */
+    __gnu_cxx::__mutex& _M_get_mutex();
 
   public:
     /** Invalidates all iterators. */

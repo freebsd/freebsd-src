@@ -1,6 +1,6 @@
 // Explicit instantiation file.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2005
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -34,29 +34,18 @@
 
 #include <sstream>
 
-namespace std
-{
-  // stringbuf
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   template class basic_stringbuf<char>;
+  template class basic_istringstream<char>;
+  template class basic_ostringstream<char>;
+  template class basic_stringstream<char>;
+
 #ifdef _GLIBCXX_USE_WCHAR_T
   template class basic_stringbuf<wchar_t>;
-#endif
-
-  // istringstream
-  template class basic_istringstream<char>;
-#ifdef _GLIBCXX_USE_WCHAR_T
   template class basic_istringstream<wchar_t>; 
-#endif
-
-  // ostringstream
-  template class basic_ostringstream<char>;
-#ifdef _GLIBCXX_USE_WCHAR_T
   template class basic_ostringstream<wchar_t>; 
-#endif
-
-  // stringstream
-  template class basic_stringstream<char>;
-#ifdef _GLIBCXX_USE_WCHAR_T
   template class basic_stringstream<wchar_t>; 
 #endif
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE

@@ -1,6 +1,7 @@
 // Output streams -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+// 2006, 2007
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +17,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,14 +29,13 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file ostream
+ *  This is a Standard C++ Library header.
+ */
+
 //
 // ISO C++ 14882: 27.6.2  Output streams
 //
-
-/** @file ostream
- *  This is a Standard C++ Library header.  You should @c #include this header
- *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
- */
 
 #ifndef _GLIBCXX_OSTREAM
 #define _GLIBCXX_OSTREAM 1
@@ -43,9 +43,10 @@
 #pragma GCC system_header
 
 #include <ios>
+#include <bits/ostream_insert.h>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // [27.6.2.1] Template class basic_ostream
   /**
    *  @brief  Controlling output.
@@ -72,26 +73,6 @@ namespace std
       typedef num_put<_CharT, ostreambuf_iterator<_CharT, _Traits> >        
       							__num_put_type;
       typedef ctype<_CharT>           			__ctype_type;
-
-      template<typename _CharT2, typename _Traits2>
-        friend basic_ostream<_CharT2, _Traits2>&
-        operator<<(basic_ostream<_CharT2, _Traits2>&, _CharT2);
- 
-      template<typename _Traits2>
-        friend basic_ostream<char, _Traits2>&
-        operator<<(basic_ostream<char, _Traits2>&, char);
- 
-      template<typename _CharT2, typename _Traits2>
-        friend basic_ostream<_CharT2, _Traits2>&
-        operator<<(basic_ostream<_CharT2, _Traits2>&, const _CharT2*);
- 
-      template<typename _Traits2>
-        friend basic_ostream<char, _Traits2>&
-        operator<<(basic_ostream<char, _Traits2>&, const char*);
- 
-      template<typename _CharT2, typename _Traits2>
-        friend basic_ostream<_CharT2, _Traits2>&
-        operator<<(basic_ostream<_CharT2, _Traits2>&, const char*);
 
       // [27.6.2.2] constructor/destructor
       /**
@@ -127,14 +108,34 @@ namespace std
        *  functions in constructs like "std::cout << std::endl".  For more
        *  information, see the iomanip header.
       */
-      inline __ostream_type&
-      operator<<(__ostream_type& (*__pf)(__ostream_type&));
-      
-      inline __ostream_type&
-      operator<<(__ios_type& (*__pf)(__ios_type&));
-      
-      inline __ostream_type&
-      operator<<(ios_base& (*__pf) (ios_base&));
+      __ostream_type&
+      operator<<(__ostream_type& (*__pf)(__ostream_type&))
+      {
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// DR 60. What is a formatted input function?
+	// The inserters for manipulators are *not* formatted output functions.
+	return __pf(*this);
+      }
+
+      __ostream_type&
+      operator<<(__ios_type& (*__pf)(__ios_type&))
+      {
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// DR 60. What is a formatted input function?
+	// The inserters for manipulators are *not* formatted output functions.
+	__pf(*this);
+	return *this;
+      }
+
+      __ostream_type&
+      operator<<(ios_base& (*__pf) (ios_base&))
+      {
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// DR 60. What is a formatted input function?
+	// The inserters for manipulators are *not* formatted output functions.
+	__pf(*this);
+	return *this;
+      }
       //@}
 
       // [27.6.2.5.2] arithmetic inserters
@@ -165,64 +166,68 @@ namespace std
        *  @c num_get facet) to perform numeric formatting.
       */
       __ostream_type& 
-      operator<<(long __n);
+      operator<<(long __n)
+      { return _M_insert(__n); }
       
       __ostream_type& 
-      operator<<(unsigned long __n);
+      operator<<(unsigned long __n)
+      { return _M_insert(__n); }	
 
       __ostream_type& 
-      operator<<(bool __n);
+      operator<<(bool __n)
+      { return _M_insert(__n); }
 
       __ostream_type& 
-      operator<<(short __n)
-      { 
-	ios_base::fmtflags __fmt = this->flags() & ios_base::basefield;
-	if (__fmt & ios_base::oct || __fmt & ios_base::hex)
-	  return this->operator<<(static_cast<unsigned long>
-				  (static_cast<unsigned short>(__n)));
-	else
-	  return this->operator<<(static_cast<long>(__n));
-      }
+      operator<<(short __n);
 
       __ostream_type& 
       operator<<(unsigned short __n)
-      { return this->operator<<(static_cast<unsigned long>(__n)); }
-
-      __ostream_type& 
-      operator<<(int __n)
-      { 
-	ios_base::fmtflags __fmt = this->flags() & ios_base::basefield;
-	if (__fmt & ios_base::oct || __fmt & ios_base::hex)
-	  return this->operator<<(static_cast<unsigned long>
-				  (static_cast<unsigned int>(__n)));
-	else
-	  return this->operator<<(static_cast<long>(__n));
+      {
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 117. basic_ostream uses nonexistent num_put member functions.
+	return _M_insert(static_cast<unsigned long>(__n));
       }
 
       __ostream_type& 
+      operator<<(int __n);
+
+      __ostream_type& 
       operator<<(unsigned int __n)
-      { return this->operator<<(static_cast<unsigned long>(__n)); }
+      {
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 117. basic_ostream uses nonexistent num_put member functions.
+	return _M_insert(static_cast<unsigned long>(__n));
+      }
 
 #ifdef _GLIBCXX_USE_LONG_LONG
       __ostream_type& 
-      operator<<(long long __n);
+      operator<<(long long __n)
+      { return _M_insert(__n); }
 
       __ostream_type& 
-      operator<<(unsigned long long __n);
+      operator<<(unsigned long long __n)
+      { return _M_insert(__n); }	
 #endif
 
       __ostream_type& 
-      operator<<(double __f);
+      operator<<(double __f)
+      { return _M_insert(__f); }
 
       __ostream_type& 
       operator<<(float __f)
-      { return this->operator<<(static_cast<double>(__f)); }
+      {
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 117. basic_ostream uses nonexistent num_put member functions.
+	return _M_insert(static_cast<double>(__f));
+      }
 
       __ostream_type& 
-      operator<<(long double __f);
+      operator<<(long double __f)
+      { return _M_insert(__f); }
 
       __ostream_type& 
-      operator<<(const void* __p);
+      operator<<(const void* __p)
+      { return _M_insert(__p); }
 
       /**
        *  @brief  Extracting from another streambuf.
@@ -285,7 +290,7 @@ namespace std
       void
       _M_write(const char_type* __s, streamsize __n)
       {
-	streamsize __put = this->rdbuf()->sputn(__s, __n);
+	const streamsize __put = this->rdbuf()->sputn(__s, __n);
 	if (__put != __n)
 	  this->setstate(ios_base::badbit);
       }
@@ -359,6 +364,10 @@ namespace std
     protected:
       explicit 
       basic_ostream() { }
+
+      template<typename _ValueT>
+        __ostream_type&
+        _M_insert(_ValueT __v);
     };
 
   /**
@@ -376,7 +385,7 @@ namespace std
     {
       // Data Members:
       bool 				_M_ok;
-      basic_ostream<_CharT,_Traits>& 	_M_os;
+      basic_ostream<_CharT, _Traits>& 	_M_os;
       
     public:
       /**
@@ -391,7 +400,7 @@ namespace std
        *  true ("okay").
       */
       explicit
-      sentry(basic_ostream<_CharT,_Traits>& __os);
+      sentry(basic_ostream<_CharT, _Traits>& __os);
 
       /**
        *  @brief  Possibly flushes the stream.
@@ -440,27 +449,29 @@ namespace std
    *  @c char, the character is widened before insertion.
   */
   template<typename _CharT, typename _Traits>
-    basic_ostream<_CharT, _Traits>&
-    operator<<(basic_ostream<_CharT, _Traits>& __out, _CharT __c);
+    inline basic_ostream<_CharT, _Traits>&
+    operator<<(basic_ostream<_CharT, _Traits>& __out, _CharT __c)
+    { return __ostream_insert(__out, &__c, 1); }
 
   template<typename _CharT, typename _Traits>
-    basic_ostream<_CharT, _Traits>&
+    inline basic_ostream<_CharT, _Traits>&
     operator<<(basic_ostream<_CharT, _Traits>& __out, char __c)
     { return (__out << __out.widen(__c)); }
 
   // Specialization
   template <class _Traits> 
-    basic_ostream<char, _Traits>&
-    operator<<(basic_ostream<char, _Traits>& __out, char __c);
+    inline basic_ostream<char, _Traits>&
+    operator<<(basic_ostream<char, _Traits>& __out, char __c)
+    { return __ostream_insert(__out, &__c, 1); }
 
   // Signed and unsigned
   template<class _Traits>
-    basic_ostream<char, _Traits>&
+    inline basic_ostream<char, _Traits>&
     operator<<(basic_ostream<char, _Traits>& __out, signed char __c)
     { return (__out << static_cast<char>(__c)); }
   
   template<class _Traits>
-    basic_ostream<char, _Traits>&
+    inline basic_ostream<char, _Traits>&
     operator<<(basic_ostream<char, _Traits>& __out, unsigned char __c)
     { return (__out << static_cast<char>(__c)); }
   //@}
@@ -480,8 +491,16 @@ namespace std
    *  determined by [22.2.2.2.2]).  @c out.width(0) is then called.
   */
   template<typename _CharT, typename _Traits>
-    basic_ostream<_CharT, _Traits>&
-    operator<<(basic_ostream<_CharT, _Traits>& __out, const _CharT* __s);
+    inline basic_ostream<_CharT, _Traits>&
+    operator<<(basic_ostream<_CharT, _Traits>& __out, const _CharT* __s)
+    {
+      if (!__s)
+	__out.setstate(ios_base::badbit);
+      else
+	__ostream_insert(__out, __s,
+			 static_cast<streamsize>(_Traits::length(__s)));
+      return __out;
+    }
 
   template<typename _CharT, typename _Traits>
     basic_ostream<_CharT, _Traits> &
@@ -489,17 +508,25 @@ namespace std
 
   // Partial specializationss
   template<class _Traits>
-    basic_ostream<char, _Traits>&
-    operator<<(basic_ostream<char, _Traits>& __out, const char* __s);
- 
+    inline basic_ostream<char, _Traits>&
+    operator<<(basic_ostream<char, _Traits>& __out, const char* __s)
+    {
+      if (!__s)
+	__out.setstate(ios_base::badbit);
+      else
+	__ostream_insert(__out, __s,
+			 static_cast<streamsize>(_Traits::length(__s)));
+      return __out;
+    }
+
   // Signed and unsigned
   template<class _Traits>
-    basic_ostream<char, _Traits>&
+    inline basic_ostream<char, _Traits>&
     operator<<(basic_ostream<char, _Traits>& __out, const signed char* __s)
     { return (__out << reinterpret_cast<const char*>(__s)); }
 
   template<class _Traits>
-    basic_ostream<char, _Traits> &
+    inline basic_ostream<char, _Traits> &
     operator<<(basic_ostream<char, _Traits>& __out, const unsigned char* __s)
     { return (__out << reinterpret_cast<const char*>(__s)); }
   //@}
@@ -514,7 +541,7 @@ namespace std
    *  on this subject.
   */
   template<typename _CharT, typename _Traits>
-    basic_ostream<_CharT, _Traits>& 
+    inline basic_ostream<_CharT, _Traits>& 
     endl(basic_ostream<_CharT, _Traits>& __os)
     { return flush(__os.put(__os.widen('\n'))); }
 
@@ -525,7 +552,7 @@ namespace std
    *  this correctly writes the ASCII @c NUL character string terminator.
   */
   template<typename _CharT, typename _Traits>
-    basic_ostream<_CharT, _Traits>& 
+    inline basic_ostream<_CharT, _Traits>& 
     ends(basic_ostream<_CharT, _Traits>& __os)
     { return __os.put(_CharT()); }
   
@@ -535,11 +562,11 @@ namespace std
    *  This manipulator simply calls the stream's @c flush() member function.
   */
   template<typename _CharT, typename _Traits>
-    basic_ostream<_CharT, _Traits>& 
+    inline basic_ostream<_CharT, _Traits>& 
     flush(basic_ostream<_CharT, _Traits>& __os)
     { return __os.flush(); }
 
-} // namespace std
+_GLIBCXX_END_NAMESPACE
 
 #ifndef _GLIBCXX_EXPORT_TEMPLATE
 # include <bits/ostream.tcc>

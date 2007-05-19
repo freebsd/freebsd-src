@@ -1,6 +1,6 @@
 // Stream buffer classes -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,17 +28,16 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file streambuf
+ *  This is a Standard C++ Library header.
+ */
+
 //
 // ISO C++ 14882: 27.5  Stream buffers
 //
 
-/** @file streambuf
- *  This is a Standard C++ Library header.  You should @c #include this header
- *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
- */
-
-#ifndef _CLIBXX_STREAMBUF
-#define _CLIBXX_STREAMBUF 1
+#ifndef _GLIBXX_STREAMBUF
+#define _GLIBXX_STREAMBUF 1
 
 #pragma GCC system_header
 
@@ -46,9 +45,11 @@
 #include <iosfwd>
 #include <bits/localefwd.h>
 #include <bits/ios_base.h>
+#include <bits/cpp_type_traits.h>
+#include <ext/type_traits.h>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   /**
    *  @if maint
    *  Does stuff.
@@ -56,9 +57,9 @@ namespace std
   */
   template<typename _CharT, typename _Traits>
     streamsize
-    __copy_streambufs(basic_streambuf<_CharT, _Traits>* __sbin,
-		      basic_streambuf<_CharT, _Traits>* __sbout);
-  
+    __copy_streambufs_eof(basic_streambuf<_CharT, _Traits>*,
+			  basic_streambuf<_CharT, _Traits>*, bool&);
+
   /**
    *  @brief  The actual work of input and output (interface).
    *
@@ -152,9 +153,34 @@ namespace std
       friend class ostreambuf_iterator<char_type, traits_type>;
 
       friend streamsize
-      __copy_streambufs<>(__streambuf_type* __sbin,
-			  __streambuf_type* __sbout);
-      
+      __copy_streambufs_eof<>(__streambuf_type*, __streambuf_type*, bool&);
+
+      template<typename _CharT2>
+        friend typename __gnu_cxx::__enable_if<__is_char<_CharT2>::__value, 
+					       _CharT2*>::__type
+        __copy_aux(istreambuf_iterator<_CharT2>,
+		   istreambuf_iterator<_CharT2>, _CharT2*);
+
+      template<typename _CharT2>
+        friend typename __gnu_cxx::__enable_if<__is_char<_CharT2>::__value,
+				  istreambuf_iterator<_CharT2> >::__type
+        find(istreambuf_iterator<_CharT2>, istreambuf_iterator<_CharT2>,
+	     const _CharT2&);
+
+      template<typename _CharT2, typename _Traits2>
+        friend basic_istream<_CharT2, _Traits2>&
+        operator>>(basic_istream<_CharT2, _Traits2>&, _CharT2*);
+
+      template<typename _CharT2, typename _Traits2, typename _Alloc>
+        friend basic_istream<_CharT2, _Traits2>&
+        operator>>(basic_istream<_CharT2, _Traits2>&,
+		   basic_string<_CharT2, _Traits2, _Alloc>&);
+
+      template<typename _CharT2, typename _Traits2, typename _Alloc>
+        friend basic_istream<_CharT2, _Traits2>&
+        getline(basic_istream<_CharT2, _Traits2>&,
+		basic_string<_CharT2, _Traits2, _Alloc>&, _CharT2);
+
     protected:
       //@{
       /**
@@ -775,7 +801,20 @@ namespace std
       __streambuf_type& 
       operator=(const __streambuf_type&) { return *this; };
     };
-} // namespace std
+
+  // Explicit specialization declarations, defined in src/streambuf.cc.
+  template<>
+    streamsize
+    __copy_streambufs_eof(basic_streambuf<char>* __sbin,
+			  basic_streambuf<char>* __sbout, bool& __ineof);
+#ifdef _GLIBCXX_USE_WCHAR_T
+  template<>
+    streamsize
+    __copy_streambufs_eof(basic_streambuf<wchar_t>* __sbin,
+			  basic_streambuf<wchar_t>* __sbout, bool& __ineof);
+#endif
+
+_GLIBCXX_END_NAMESPACE
 
 #ifndef _GLIBCXX_EXPORT_TEMPLATE
 # include <bits/streambuf.tcc>

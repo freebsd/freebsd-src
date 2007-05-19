@@ -1,6 +1,6 @@
 // File based streams -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,14 +28,13 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file fstream
+ *  This is a Standard C++ Library header.
+ */
+
 //
 // ISO C++ 14882: 27.8  File-based streams
 //
-
-/** @file fstream
- *  This is a Standard C++ Library header.  You should @c #include this header
- *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
- */
 
 #ifndef _GLIBCXX_FSTREAM
 #define _GLIBCXX_FSTREAM 1
@@ -49,8 +48,8 @@
 #include <bits/basic_file.h>
 #include <bits/gthr.h>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // [27.8.1.1] template class basic_filebuf
   /**
    *  @brief  The actual work of input and output (for files).
@@ -76,37 +75,20 @@ namespace std
       typedef typename traits_type::pos_type 		pos_type;
       typedef typename traits_type::off_type 		off_type;
 
-      //@{
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       typedef basic_streambuf<char_type, traits_type>  	__streambuf_type;
       typedef basic_filebuf<char_type, traits_type>     __filebuf_type;
       typedef __basic_file<char>		        __file_type;
       typedef typename traits_type::state_type          __state_type;
       typedef codecvt<char_type, char, __state_type>    __codecvt_type;
-      //@}
 
       friend class ios_base; // For sync_with_stdio.
 
     protected:
       // Data Members:
       // MT lock inherited from libio or other low-level io library.
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       __c_lock          	_M_lock;
 
       // External buffer.
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       __file_type 		_M_file;
 
       /**
@@ -117,30 +99,15 @@ namespace std
       ios_base::openmode 	_M_mode;
 
       // Beginning state type for codecvt.
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       __state_type 		_M_state_beg;
 
       // During output, the state that corresponds to pptr(),
       // during input, the state that corresponds to egptr() and
       // _M_ext_next.
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       __state_type		_M_state_cur;
 
       // Not used for output. During input, the state that corresponds
       // to eback() and _M_ext_buf.
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       __state_type		_M_state_last;
 
       /**
@@ -160,11 +127,6 @@ namespace std
       size_t			_M_buf_size;
 
       // Set iff _M_buf is allocated memory from _M_allocate_internal_buffer.
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       bool			_M_buf_allocated;
 
       /**
@@ -255,7 +217,7 @@ namespace std
 	  {
 	    // Length _M_in_cur moved in the pback buffer.
 	    _M_pback_cur_save += this->gptr() != this->eback();
-	    this->setg(this->_M_buf, _M_pback_cur_save, _M_pback_end_save);
+	    this->setg(_M_buf, _M_pback_cur_save, _M_pback_end_save);
 	    _M_pback_init = false;
 	  }
       }
@@ -282,7 +244,8 @@ namespace std
        *  @brief  Returns true if the external file is open.
       */
       bool
-      is_open() const throw() { return _M_file.is_open(); }
+      is_open() const throw()
+      { return _M_file.is_open(); }
 
       /**
        *  @brief  Opens an external file.
@@ -315,24 +278,13 @@ namespace std
       close() throw();
 
     protected:
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       void
       _M_allocate_internal_buffer();
 
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       void
       _M_destroy_internal_buffer() throw();
 
       // [27.8.1.4] overridden virtual functions
-      // [documentation is inherited]
       virtual streamsize
       showmanyc();
 
@@ -341,11 +293,9 @@ namespace std
       // charater from the real input source when the buffer is empty.
       // Buffered input uses underflow()
 
-      // [documentation is inherited]
       virtual int_type
       underflow();
 
-      // [documentation is inherited]
       virtual int_type
       pbackfail(int_type __c = _Traits::eof());
 
@@ -356,21 +306,11 @@ namespace std
       // character c.
       // 27.5.2.4.5
       // Consume some sequence of the characters in the pending sequence.
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       virtual int_type
       overflow(int_type __c = _Traits::eof());
 
       // Convert internal byte sequence to external, char-based
       // sequence via codecvt.
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       bool
       _M_convert_to_external(char_type*, streamsize);
 
@@ -389,47 +329,31 @@ namespace std
       virtual __streambuf_type*
       setbuf(char_type* __s, streamsize __n);
 
-      // [documentation is inherited]
       virtual pos_type
       seekoff(off_type __off, ios_base::seekdir __way,
 	      ios_base::openmode __mode = ios_base::in | ios_base::out);
 
-      // [documentation is inherited]
       virtual pos_type
       seekpos(pos_type __pos,
 	      ios_base::openmode __mode = ios_base::in | ios_base::out);
 
       // Common code for seekoff and seekpos
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       pos_type
       _M_seek(off_type __off, ios_base::seekdir __way, __state_type __state);
 
-      // [documentation is inherited]
       virtual int
       sync();
 
-      // [documentation is inherited]
       virtual void
       imbue(const locale& __loc);
 
-      // [documentation is inherited]
       virtual streamsize
       xsgetn(char_type* __s, streamsize __n);
 
-      // [documentation is inherited]
       virtual streamsize
       xsputn(const char_type* __s, streamsize __n);
 
       // Flushes output buffer, then writes unshift sequence.
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       bool
       _M_terminate_output();
 
@@ -450,16 +374,16 @@ namespace std
       void
       _M_set_buffer(streamsize __off)
       {
- 	const bool __testin = this->_M_mode & ios_base::in;
- 	const bool __testout = this->_M_mode & ios_base::out;
+ 	const bool __testin = _M_mode & ios_base::in;
+ 	const bool __testout = _M_mode & ios_base::out;
 	
 	if (__testin && __off > 0)
-	  this->setg(this->_M_buf, this->_M_buf, this->_M_buf + __off);
+	  this->setg(_M_buf, _M_buf, _M_buf + __off);
 	else
-	  this->setg(this->_M_buf, this->_M_buf, this->_M_buf);
+	  this->setg(_M_buf, _M_buf, _M_buf);
 
-	if (__testout && __off == 0 && this->_M_buf_size > 1 )
-	  this->setp(this->_M_buf, this->_M_buf + this->_M_buf_size - 1);
+	if (__testout && __off == 0 && _M_buf_size > 1 )
+	  this->setp(_M_buf, _M_buf + _M_buf_size - 1);
 	else
 	  this->setp(NULL, NULL);
       }
@@ -490,11 +414,6 @@ namespace std
       typedef basic_istream<char_type, traits_type>	__istream_type;
 
     private:
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       __filebuf_type	_M_filebuf;
 
     public:
@@ -552,7 +471,14 @@ namespace std
        *  @return  @c rdbuf()->is_open()
       */
       bool
-      is_open() { return _M_filebuf.is_open(); }
+      is_open()
+      { return _M_filebuf.is_open(); }
+
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 365. Lack of const-qualification in clause 27
+      bool
+      is_open() const
+      { return _M_filebuf.is_open(); }
 
       /**
        *  @brief  Opens an external file.
@@ -570,6 +496,10 @@ namespace std
       {
 	if (!_M_filebuf.open(__s, __mode | ios_base::in))
 	  this->setstate(ios_base::failbit);
+	else
+	  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+	  // 409. Closing an fstream should clear error state
+	  this->clear();
       }
 
       /**
@@ -612,11 +542,6 @@ namespace std
       typedef basic_ostream<char_type, traits_type>	__ostream_type;
 
     private:
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       __filebuf_type	_M_filebuf;
 
     public:
@@ -676,7 +601,14 @@ namespace std
        *  @return  @c rdbuf()->is_open()
       */
       bool
-      is_open() { return _M_filebuf.is_open(); }
+      is_open()
+      { return _M_filebuf.is_open(); }
+
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 365. Lack of const-qualification in clause 27
+      bool
+      is_open() const
+      { return _M_filebuf.is_open(); }
 
       /**
        *  @brief  Opens an external file.
@@ -695,6 +627,10 @@ namespace std
       {
 	if (!_M_filebuf.open(__s, __mode | ios_base::out))
 	  this->setstate(ios_base::failbit);
+	else
+	  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+	  // 409. Closing an fstream should clear error state
+	  this->clear();
       }
 
       /**
@@ -738,11 +674,6 @@ namespace std
       typedef basic_iostream<char_type, traits_type>	__iostream_type;
 
     private:
-      /**
-       *  @if maint
-       *  @doctodo
-       *  @endif
-      */
       __filebuf_type	_M_filebuf;
 
     public:
@@ -800,7 +731,14 @@ namespace std
        *  @return  @c rdbuf()->is_open()
       */
       bool
-      is_open() { return _M_filebuf.is_open(); }
+      is_open()
+      { return _M_filebuf.is_open(); }
+
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 365. Lack of const-qualification in clause 27
+      bool
+      is_open() const
+      { return _M_filebuf.is_open(); }
 
       /**
        *  @brief  Opens an external file.
@@ -819,6 +757,10 @@ namespace std
       {
 	if (!_M_filebuf.open(__s, __mode))
 	  this->setstate(ios_base::failbit);
+	else
+	  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+	  // 409. Closing an fstream should clear error state
+	  this->clear();
       }
 
       /**
@@ -834,7 +776,8 @@ namespace std
 	  this->setstate(ios_base::failbit);
       }
     };
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #ifndef _GLIBCXX_EXPORT_TEMPLATE
 # include <bits/fstream.tcc>

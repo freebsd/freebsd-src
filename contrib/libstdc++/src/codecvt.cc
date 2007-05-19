@@ -1,4 +1,4 @@
-// Copyright (C) 2000, 2002, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2002, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -25,23 +25,18 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-// Written by Benjamin Kosnik <bkoz@cygnus.com>
+// Written by Benjamin Kosnik <bkoz@redhat.com>
 
 #include <locale>
 
-namespace std 
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // Definitions for locale::id of standard facets that are specialized.
  locale::id codecvt<char, char, mbstate_t>::id;
 
 #ifdef _GLIBCXX_USE_WCHAR_T  
   locale::id codecvt<wchar_t, char, mbstate_t>::id;
 #endif
-
-#ifdef _GLIBCXX_USE___ENC_TRAITS
-  // Definitions for static const data members of __enc_traits.
-  const int __enc_traits::_S_max_size;
-#endif 
 
   codecvt<char, char, mbstate_t>::
   codecvt(size_t __refs)
@@ -154,4 +149,5 @@ namespace std
   do_always_noconv() const throw()
   { return false; }
 #endif //  _GLIBCXX_USE_WCHAR_T
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
