@@ -1,5 +1,6 @@
 /* Print RTL for GCC.
-   Copyright (C) 1987, 1988, 1992, 1997, 1998, 1999, 2000, 2002, 2003
+   Copyright (C) 1987, 1988, 1992, 1997, 1998, 1999, 2000, 2002, 2003,
+   2004, 2005
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -16,25 +17,31 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
-
+/* This file is compiled twice: once for the generator programs,
+   once for the compiler.  */
+#ifdef GENERATOR_FILE
+#include "bconfig.h"
+#else
 #include "config.h"
+#endif
+
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
 #include "rtl.h"
 
-/* We don't want the tree code checking code for the access to the
-   DECL_NAME to be included in the gen* programs.  */
-#undef ENABLE_TREE_CHECKING
+/* These headers all define things which are not available in
+   generator programs.  */
+#ifndef GENERATOR_FILE
 #include "tree.h"
 #include "real.h"
 #include "flags.h"
 #include "hard-reg-set.h"
 #include "basic-block.h"
-#include "tm_p.h"
+#endif
 
 static FILE *outfile;
 
@@ -60,8 +67,23 @@ int flag_simple = 0;
 /* Nonzero if we are dumping graphical description.  */
 int dump_for_graph;
 
-/* Nonzero to dump all call_placeholder alternatives.  */
-static int debug_call_placeholder_verbose;
+#ifndef GENERATOR_FILE
+static void
+print_decl_name (FILE *outfile, tree node)
+{
+  if (DECL_NAME (node))
+    fputs (IDENTIFIER_POINTER (DECL_NAME (node)), outfile);
+  else
+    {
+      if (TREE_CODE (node) == LABEL_DECL && LABEL_DECL_UID (node) != -1)
+	fprintf (outfile, "L." HOST_WIDE_INT_PRINT_DEC, LABEL_DECL_UID (node));
+      else
+        {
+          char c = TREE_CODE (node) == CONST_DECL ? 'C' : 'D';
+	  fprintf (outfile, "%c.%u", c, DECL_UID (node));
+        }
+    }
+}
 
 void
 print_mem_expr (FILE *outfile, tree expr)
@@ -72,9 +94,8 @@ print_mem_expr (FILE *outfile, tree expr)
 	print_mem_expr (outfile, TREE_OPERAND (expr, 0));
       else
 	fputs (" <variable>", outfile);
-      if (DECL_NAME (TREE_OPERAND (expr, 1)))
-	fprintf (outfile, ".%s",
-		 IDENTIFIER_POINTER (DECL_NAME (TREE_OPERAND (expr, 1))));
+      fputc ('.', outfile);
+      print_decl_name (outfile, TREE_OPERAND (expr, 1));
     }
   else if (TREE_CODE (expr) == INDIRECT_REF)
     {
@@ -82,13 +103,27 @@ print_mem_expr (FILE *outfile, tree expr)
       print_mem_expr (outfile, TREE_OPERAND (expr, 0));
       fputs (")", outfile);
     }
-  else if (DECL_NAME (expr))
-    fprintf (outfile, " %s", IDENTIFIER_POINTER (DECL_NAME (expr)));
+  else if (TREE_CODE (expr) == ALIGN_INDIRECT_REF)
+    {
+      fputs (" (A*", outfile);
+      print_mem_expr (outfile, TREE_OPERAND (expr, 0));
+      fputs (")", outfile);
+    }
+  else if (TREE_CODE (expr) == MISALIGNED_INDIRECT_REF)
+    {
+      fputs (" (M*", outfile);
+      print_mem_expr (outfile, TREE_OPERAND (expr, 0));
+      fputs (")", outfile);
+    }
   else if (TREE_CODE (expr) == RESULT_DECL)
     fputs (" <result>", outfile);
   else
-    fputs (" <anonymous>", outfile);
+    {
+      fputc (' ', outfile);
+      print_decl_name (outfile, expr);
+    }
 }
+#endif
 
 /* Print IN_RTX onto OUTFILE.  This is the recursive part of printing.  */
 
@@ -99,7 +134,6 @@ print_rtx (rtx in_rtx)
   int j;
   const char *format_ptr;
   int is_insn;
-  rtx tem;
 
   if (sawclose)
     {
@@ -128,8 +162,8 @@ print_rtx (rtx in_rtx)
   /* When printing in VCG format we write INSNs, NOTE, LABEL, and BARRIER
      in separate nodes and therefore have to handle them special here.  */
   if (dump_for_graph
-      && (is_insn || GET_CODE (in_rtx) == NOTE
-	  || GET_CODE (in_rtx) == CODE_LABEL || GET_CODE (in_rtx) == BARRIER))
+      && (is_insn || NOTE_P (in_rtx)
+	  || LABEL_P (in_rtx) || BARRIER_P (in_rtx)))
     {
       i = 3;
       indent = 0;
@@ -153,9 +187,6 @@ print_rtx (rtx in_rtx)
 	  if (RTX_FLAG (in_rtx, unchanging))
 	    fputs ("/u", outfile);
 
-	  if (RTX_FLAG (in_rtx, integrated))
-	    fputs ("/i", outfile);
-
 	  if (RTX_FLAG (in_rtx, frame_related))
 	    fputs ("/f", outfile);
 
@@ -165,16 +196,18 @@ print_rtx (rtx in_rtx)
 	  if (RTX_FLAG (in_rtx, call))
 	    fputs ("/c", outfile);
 
-	  if (GET_MODE (in_rtx) != VOIDmode)
-	    {
-	      /* Print REG_NOTE names for EXPR_LIST and INSN_LIST.  */
-	      if (GET_CODE (in_rtx) == EXPR_LIST
-		  || GET_CODE (in_rtx) == INSN_LIST)
-		fprintf (outfile, ":%s",
-			 GET_REG_NOTE_NAME (GET_MODE (in_rtx)));
-	      else
-		fprintf (outfile, ":%s", GET_MODE_NAME (GET_MODE (in_rtx)));
-	    }
+	  if (RTX_FLAG (in_rtx, return_val))
+	    fputs ("/i", outfile);
+
+	  /* Print REG_NOTE names for EXPR_LIST and INSN_LIST.  */
+	  if (GET_CODE (in_rtx) == EXPR_LIST
+	      || GET_CODE (in_rtx) == INSN_LIST)
+	    fprintf (outfile, ":%s",
+		     GET_REG_NOTE_NAME (GET_MODE (in_rtx)));
+
+	  /* For other rtl, print the mode if it's not VOID.  */
+	  else if (GET_MODE (in_rtx) != VOIDmode)
+	    fprintf (outfile, ":%s", GET_MODE_NAME (GET_MODE (in_rtx)));
 	}
     }
 
@@ -216,7 +249,7 @@ print_rtx (rtx in_rtx)
 	   An exception is the third field of a NOTE, where it indicates
 	   that the field has several different valid contents.  */
       case '0':
-	if (i == 1 && GET_CODE (in_rtx) == REG)
+	if (i == 1 && REG_P (in_rtx))
 	  {
 	    if (REGNO (in_rtx) != ORIGINAL_REGNO (in_rtx))
 	      fprintf (outfile, " [%d]", ORIGINAL_REGNO (in_rtx));
@@ -235,7 +268,7 @@ print_rtx (rtx in_rtx)
 	      print_node_brief (outfile, "", decl, 0);
 	  }
 #endif
-	else if (i == 4 && GET_CODE (in_rtx) == NOTE)
+	else if (i == 4 && NOTE_P (in_rtx))
 	  {
 	    switch (NOTE_LINE_NUMBER (in_rtx))
 	      {
@@ -250,20 +283,19 @@ print_rtx (rtx in_rtx)
 
 	      case NOTE_INSN_BLOCK_BEG:
 	      case NOTE_INSN_BLOCK_END:
-		fprintf (outfile, " ");
-		if (flag_dump_unnumbered)
-		  fprintf (outfile, "#");
-		else
-		  fprintf (outfile, HOST_PTR_PRINTF,
-			   (char *) NOTE_BLOCK (in_rtx));
+#ifndef GENERATOR_FILE
+		dump_addr (outfile, " ", NOTE_BLOCK (in_rtx));
+#endif
 		sawclose = 1;
 		break;
 
 	      case NOTE_INSN_BASIC_BLOCK:
 		{
+#ifndef GENERATOR_FILE
 		  basic_block bb = NOTE_BASIC_BLOCK (in_rtx);
 		  if (bb != 0)
 		    fprintf (outfile, " [bb %d]", bb->index);
+#endif
 		  break;
 	        }
 
@@ -276,19 +308,33 @@ print_rtx (rtx in_rtx)
 		break;
 
 	      case NOTE_INSN_DELETED_LABEL:
-		if (NOTE_SOURCE_FILE (in_rtx))
-		  fprintf (outfile, " (\"%s\")", NOTE_SOURCE_FILE (in_rtx));
-		else
-		  fprintf (outfile, " \"\"");
+		{
+		  const char *label = NOTE_DELETED_LABEL_NAME (in_rtx);
+		  if (label)
+		    fprintf (outfile, " (\"%s\")", label);
+		  else
+		    fprintf (outfile, " \"\"");
+		}
 		break;
 
-	      case NOTE_INSN_PREDICTION:
-		if (NOTE_PREDICTION (in_rtx))
-		  fprintf (outfile, " [ %d %d ] ",
-			   (int)NOTE_PREDICTION_ALG (in_rtx),
-			   (int) NOTE_PREDICTION_FLAGS (in_rtx));
-		else
-		  fprintf (outfile, " [ ERROR ]");
+	      case NOTE_INSN_SWITCH_TEXT_SECTIONS:
+		{
+#ifndef GENERATOR_FILE
+		  basic_block bb = NOTE_BASIC_BLOCK (in_rtx);
+		  if (bb != 0)
+		    fprintf (outfile, " [bb %d]", bb->index);
+#endif
+		  break;
+		}
+		
+	      case NOTE_INSN_VAR_LOCATION:
+#ifndef GENERATOR_FILE
+		fprintf (outfile, " (");
+		print_mem_expr (outfile, NOTE_VAR_LOCATION_DECL (in_rtx));
+		fprintf (outfile, " ");
+		print_rtx (NOTE_VAR_LOCATION_LOC (in_rtx));
+		fprintf (outfile, ")");
+#endif
 		break;
 
 	      default:
@@ -370,7 +416,7 @@ print_rtx (rtx in_rtx)
 	      fprintf(outfile, " %s:%i", insn_file (in_rtx), insn_line (in_rtx));
 #endif
 	  }
-	else if (i == 6 && GET_CODE (in_rtx) == NOTE)
+	else if (i == 6 && NOTE_P (in_rtx))
 	  {
 	    /* This field is only used for NOTE_INSN_DELETED_LABEL, and
 	       other times often contains garbage from INSN->NOTE death.  */
@@ -383,10 +429,10 @@ print_rtx (rtx in_rtx)
 	    const char *name;
 
 #ifndef GENERATOR_FILE
-	    if (GET_CODE (in_rtx) == REG && value < FIRST_PSEUDO_REGISTER)
+	    if (REG_P (in_rtx) && value < FIRST_PSEUDO_REGISTER)
 	      fprintf (outfile, " %d %s", REGNO (in_rtx),
 		       reg_names[REGNO (in_rtx)]);
-	    else if (GET_CODE (in_rtx) == REG
+	    else if (REG_P (in_rtx)
 		     && value <= LAST_VIRTUAL_REGISTER)
 	      {
 		if (value == VIRTUAL_INCOMING_ARGS_REGNUM)
@@ -406,12 +452,13 @@ print_rtx (rtx in_rtx)
 	    else
 #endif
 	      if (flag_dump_unnumbered
-		     && (is_insn || GET_CODE (in_rtx) == NOTE))
+		     && (is_insn || NOTE_P (in_rtx)))
 	      fputc ('#', outfile);
 	    else
 	      fprintf (outfile, " %d", value);
 
-	    if (GET_CODE (in_rtx) == REG && REG_ATTRS (in_rtx))
+#ifndef GENERATOR_FILE
+	    if (REG_P (in_rtx) && REG_ATTRS (in_rtx))
 	      {
 		fputs (" [", outfile);
 		if (ORIGINAL_REGNO (in_rtx) != REGNO (in_rtx))
@@ -424,6 +471,7 @@ print_rtx (rtx in_rtx)
 			   REG_OFFSET (in_rtx));
 		fputs (" ]", outfile);
 	      }
+#endif
 
 	    if (is_insn && &INSN_CODE (in_rtx) == &XINT (in_rtx, i)
 		&& XINT (in_rtx, i) >= 0
@@ -478,15 +526,19 @@ print_rtx (rtx in_rtx)
 	break;
 
       case 'b':
+#ifndef GENERATOR_FILE
 	if (XBITMAP (in_rtx, i) == NULL)
 	  fputs (" {null}", outfile);
 	else
 	  bitmap_print (outfile, XBITMAP (in_rtx, i), " {", "}");
+#endif
 	sawclose = 0;
 	break;
 
       case 't':
-	fprintf (outfile, " " HOST_PTR_PRINTF, (void *) XTREE (in_rtx, i));
+#ifndef GENERATOR_FILE
+	dump_addr (outfile, " ", XTREE (in_rtx, i));
+#endif
 	break;
 
       case '*':
@@ -495,15 +547,14 @@ print_rtx (rtx in_rtx)
 	break;
 
       case 'B':
+#ifndef GENERATOR_FILE
 	if (XBBDEF (in_rtx, i))
 	  fprintf (outfile, " %i", XBBDEF (in_rtx, i)->index);
+#endif
 	break;
 
       default:
-	fprintf (stderr,
-		 "switch format wrong in rtl.print_rtx(). format was: %c.\n",
-		 format_ptr[-1]);
-	abort ();
+	gcc_unreachable ();
       }
 
   switch (GET_CODE (in_rtx))
@@ -553,51 +604,8 @@ print_rtx (rtx in_rtx)
 	  case LABEL_STATIC_ENTRY: fputs (" [entry]", outfile); break;
 	  case LABEL_GLOBAL_ENTRY: fputs (" [global entry]", outfile); break;
 	  case LABEL_WEAK_ENTRY: fputs (" [weak entry]", outfile); break;
-	  default: abort();
+	  default: gcc_unreachable ();
 	}
-      break;
-
-    case CALL_PLACEHOLDER:
-      if (debug_call_placeholder_verbose)
-	{
-	  fputs (" (cond [\n  (const_string \"normal\") (sequence [", outfile);
-	  for (tem = XEXP (in_rtx, 0); tem != 0; tem = NEXT_INSN (tem))
-	    {
-	      fputs ("\n    ", outfile);
-	      print_inline_rtx (outfile, tem, 4);
-	    }
-
-	  tem = XEXP (in_rtx, 1);
-	  if (tem)
-	    fputs ("\n    ])\n  (const_string \"tail_call\") (sequence [",
-		   outfile);
-	  for (; tem != 0; tem = NEXT_INSN (tem))
-	    {
-	      fputs ("\n    ", outfile);
-	      print_inline_rtx (outfile, tem, 4);
-	    }
-
-	  tem = XEXP (in_rtx, 2);
-	  if (tem)
-	    fputs ("\n    ])\n  (const_string \"tail_recursion\") (sequence [",
-		   outfile);
-	  for (; tem != 0; tem = NEXT_INSN (tem))
-	    {
-	      fputs ("\n    ", outfile);
-	      print_inline_rtx (outfile, tem, 4);
-	    }
-
-	  fputs ("\n    ])\n  ])", outfile);
-	  break;
-	}
-
-      for (tem = XEXP (in_rtx, 0); tem != 0; tem = NEXT_INSN (tem))
-	if (GET_CODE (tem) == CALL_INSN)
-	  {
-	    fprintf (outfile, " ");
-	    print_rtx (tem);
-	    break;
-	  }
       break;
 
     default:
@@ -605,8 +613,8 @@ print_rtx (rtx in_rtx)
     }
 
   if (dump_for_graph
-      && (is_insn || GET_CODE (in_rtx) == NOTE
-	  || GET_CODE (in_rtx) == CODE_LABEL || GET_CODE (in_rtx) == BARRIER))
+      && (is_insn || NOTE_P (in_rtx)
+	  || LABEL_P (in_rtx) || BARRIER_P (in_rtx)))
     sawclose = 0;
   else
     {
@@ -745,7 +753,7 @@ print_rtl (FILE *outf, rtx rtx_first)
       case BARRIER:
 	for (tmp_rtx = rtx_first; tmp_rtx != 0; tmp_rtx = NEXT_INSN (tmp_rtx))
 	  if (! flag_dump_unnumbered
-	      || GET_CODE (tmp_rtx) != NOTE || NOTE_LINE_NUMBER (tmp_rtx) < 0)
+	      || !NOTE_P (tmp_rtx) || NOTE_LINE_NUMBER (tmp_rtx) < 0)
 	    {
 	      fputs (print_rtx_head, outfile);
 	      print_rtx (tmp_rtx);
@@ -768,7 +776,7 @@ print_rtl_single (FILE *outf, rtx x)
   outfile = outf;
   sawclose = 0;
   if (! flag_dump_unnumbered
-      || GET_CODE (x) != NOTE || NOTE_LINE_NUMBER (x) < 0)
+      || !NOTE_P (x) || NOTE_LINE_NUMBER (x) < 0)
     {
       fputs (print_rtx_head, outfile);
       print_rtx (x);

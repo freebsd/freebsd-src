@@ -1,5 +1,6 @@
 /* coverage.h - Defines data exported from coverage.c
-   Copyright (C) 1998, 1999, 2000, 2001, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2003, 2004, 2005
+   Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #ifndef GCC_COVERAGE_H
 #define GCC_COVERAGE_H
@@ -25,7 +26,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 extern void coverage_init (const char *);
 extern void coverage_finish (void);
-extern void coverage_read_counts_file (void);
 
 /* Complete the coverage information for the current function. Once
    per function.  */
@@ -38,11 +38,13 @@ extern int coverage_begin_output (void);
 /* Allocate some counters. Repeatable per function.  */
 extern int coverage_counter_alloc (unsigned /*counter*/, unsigned/*num*/);
 /* Use a counter from the most recent allocation.  */
-extern rtx coverage_counter_ref (unsigned /*counter*/, unsigned/*num*/);
+extern tree tree_coverage_counter_ref (unsigned /*counter*/, unsigned/*num*/);
 
 /* Get all the counters for the current function.  */
 extern gcov_type *get_coverage_counts (unsigned /*counter*/,
 				       unsigned /*expected*/,
 				       const struct gcov_ctr_summary **);
+
+extern tree get_gcov_type (void);
 
 #endif

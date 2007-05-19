@@ -1,6 +1,6 @@
 /* Definitions for specs for C++.
    Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,8 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* This is the contribution to the `default_compilers' array in gcc.c for
    g++.  */
@@ -26,15 +26,15 @@ Boston, MA 02111-1307, USA.  */
 #define CPLUSPLUS_CPP_SPEC 0
 #endif
 
-  {".cc",  "@c++", 0},
-  {".cp",  "@c++", 0},
-  {".cxx", "@c++", 0},
-  {".cpp", "@c++", 0},
-  {".c++", "@c++", 0},
-  {".C",   "@c++", 0},
-  {".CPP", "@c++", 0},
-  {".H",   "@c++-header", 0},
-  {".hh",  "@c++-header", 0},
+  {".cc",  "@c++", 0, 0, 0},
+  {".cp",  "@c++", 0, 0, 0},
+  {".cxx", "@c++", 0, 0, 0},
+  {".cpp", "@c++", 0, 0, 0},
+  {".c++", "@c++", 0, 0, 0},
+  {".C",   "@c++", 0, 0, 0},
+  {".CPP", "@c++", 0, 0, 0},
+  {".H",   "@c++-header", 0, 0, 0},
+  {".hh",  "@c++-header", 0, 0, 0},
   {"@c++-header",
     "%{E|M|MM:cc1plus -E %(cpp_options) %2 %(cpp_debug_options)}\
      %{!E:%{!M:%{!MM:\
@@ -43,8 +43,8 @@ Boston, MA 02111-1307, USA.  */
       cc1plus %{save-temps|no-integrated-cpp:-fpreprocessed %{save-temps:%b.ii} %{!save-temps:%g.ii}}\
 	      %{!save-temps:%{!no-integrated-cpp:%(cpp_unique_options)}}\
 	%(cc1_options) %2 %{+e1*}\
-        -o %g.s %{!o*:--output-pch=%i.gch} %W{o*:--output-pch=%*}%V}}}",
-     CPLUSPLUS_CPP_SPEC},
+	%{!fsyntax-only:-o %g.s %{!o*:--output-pch=%i.gch} %W{o*:--output-pch=%*}%V}}}}",
+     CPLUSPLUS_CPP_SPEC, 0, 0},
   {"@c++",
     "%{E|M|MM:cc1plus -E %(cpp_options) %2 %(cpp_debug_options)}\
      %{!E:%{!M:%{!MM:\
@@ -54,9 +54,9 @@ Boston, MA 02111-1307, USA.  */
 	      %{!save-temps:%{!no-integrated-cpp:%(cpp_unique_options)}}\
 	%(cc1_options) %2 %{+e1*}\
        %{!fsyntax-only:%(invoke_as)}}}}",
-     CPLUSPLUS_CPP_SPEC},
-  {".ii", "@c++-cpp-output", 0},
+     CPLUSPLUS_CPP_SPEC, 0, 0},
+  {".ii", "@c++-cpp-output", 0, 0, 0},
   {"@c++-cpp-output",
    "%{!M:%{!MM:%{!E:\
     cc1plus -fpreprocessed %i %(cc1_options) %2 %{+e*}\
-    %{!fsyntax-only:%(invoke_as)}}}}", 0},
+    %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 0},

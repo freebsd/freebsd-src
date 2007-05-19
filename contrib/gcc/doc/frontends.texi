@@ -13,10 +13,12 @@
 @cindex Fortran
 @cindex Java
 @cindex Objective-C
+@cindex Objective-C++
 @cindex treelang
 GCC stands for ``GNU Compiler Collection''.  GCC is an integrated
 distribution of compilers for several major programming languages.  These
-languages currently include C, C++, Objective-C, Java, Fortran, and Ada.
+languages currently include C, C++, Objective-C, Objective-C++, Java,
+Fortran, and Ada.
 
 The abbreviation @dfn{GCC} has multiple meanings in common use.  The
 current official meaning is ``GNU Compiler Collection'', which refers
@@ -37,7 +39,7 @@ The part of a compiler that is specific to a particular language is
 called the ``front end''.  In addition to the front ends that are
 integrated components of GCC, there are several other front ends that
 are maintained separately.  These support languages such as Pascal,
-Mercury, and COBOL.  To use these, they must be built together with
+Mercury, and COBOL@.  To use these, they must be built together with
 GCC proper.
 
 @cindex C++
@@ -57,5 +59,5 @@ have been implemented as ``preprocessors'' which emit another high
 level language such as C@.  None of the compilers included in GCC are
 implemented this way; they all generate machine code directly.  This
 sort of preprocessor should not be confused with the @dfn{C
-preprocessor}, which is an integral feature of the C, C++, and
-Objective-C languages.
+preprocessor}, which is an integral feature of the C, C++, Objective-C
+and Objective-C++ languages.

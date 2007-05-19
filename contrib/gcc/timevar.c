@@ -1,5 +1,5 @@
 /* Timing variables for measuring compiler performance.
-   Copyright (C) 2000, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Alex Samuel <samuel@codesourcery.com>
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
@@ -113,7 +113,16 @@ static double clocks_to_msec;
 #include "flags.h"
 #include "timevar.h"
 
-static bool timevar_enable;
+bool timevar_enable;
+
+/* Total amount of memory allocated by garbage collector.  */
+
+size_t timevar_ggc_mem_total;
+
+/* The amount of memory that will cause us to report the timevar even
+   if the time spent is not significant.  */
+
+#define GGC_MEM_BOUND (1 << 20)
 
 /* See timevar.h for an explanation of timing variables.  */
 
@@ -183,6 +192,7 @@ get_time (struct timevar_time_def *now)
   now->user = 0;
   now->sys  = 0;
   now->wall = 0;
+  now->ggc_mem = timevar_ggc_mem_total;
 
   if (!timevar_enable)
     return;
@@ -216,6 +226,7 @@ timevar_accumulate (struct timevar_time_def *timer,
   timer->user += stop_time->user - start_time->user;
   timer->sys += stop_time->sys - start_time->sys;
   timer->wall += stop_time->wall - start_time->wall;
+  timer->ggc_mem += stop_time->ggc_mem - start_time->ggc_mem;
 }
 
 /* Initialize timing variables.  */
@@ -250,21 +261,17 @@ timevar_init (void)
    TIMEVAR cannot be running as a standalone timer.  */
 
 void
-timevar_push (timevar_id_t timevar)
+timevar_push_1 (timevar_id_t timevar)
 {
   struct timevar_def *tv = &timevars[timevar];
   struct timevar_stack_def *context;
   struct timevar_time_def now;
 
-  if (!timevar_enable)
-    return;
-
   /* Mark this timing variable as used.  */
   tv->used = 1;
 
   /* Can't push a standalone timer.  */
-  if (tv->standalone)
-    abort ();
+  gcc_assert (!tv->standalone);
 
   /* What time is it?  */
   get_time (&now);
@@ -286,7 +293,7 @@ timevar_push (timevar_id_t timevar)
       unused_stack_instances = unused_stack_instances->next;
     }
   else
-    context = xmalloc (sizeof (struct timevar_stack_def));
+    context = XNEW (struct timevar_stack_def);
 
   /* Fill it in and put it on the stack.  */
   context->timevar = tv;
@@ -301,21 +308,13 @@ timevar_push (timevar_id_t timevar)
    timing variable.  */
 
 void
-timevar_pop (timevar_id_t timevar)
+timevar_pop_1 (timevar_id_t timevar)
 {
   struct timevar_time_def now;
   struct timevar_stack_def *popped = stack;
 
-  if (!timevar_enable)
-    return;
-
-  if (&timevars[timevar] != stack->timevar)
-    {
-      sorry ("cannot timevar_pop '%s' when top of timevars stack is '%s'",
-             timevars[timevar].name, stack->timevar->name);
-      abort ();
-    }
-
+  gcc_assert (&timevars[timevar] == stack->timevar);
+  
   /* What time is it?  */
   get_time (&now);
 
@@ -352,8 +351,7 @@ timevar_start (timevar_id_t timevar)
 
   /* Don't allow the same timing variable to be started more than
      once.  */
-  if (tv->standalone)
-    abort ();
+  gcc_assert (!tv->standalone);
   tv->standalone = 1;
 
   get_time (&tv->start_time);
@@ -372,36 +370,10 @@ timevar_stop (timevar_id_t timevar)
     return;
 
   /* TIMEVAR must have been started via timevar_start.  */
-  if (!tv->standalone)
-    abort ();
+  gcc_assert (tv->standalone);
 
   get_time (&now);
   timevar_accumulate (&tv->elapsed, &tv->start_time, &now);
-}
-
-/* Fill the elapsed time for TIMEVAR into ELAPSED.  Returns
-   update-to-date information even if TIMEVAR is currently running.  */
-
-void
-timevar_get (timevar_id_t timevar, struct timevar_time_def *elapsed)
-{
-  struct timevar_def *tv = &timevars[timevar];
-  struct timevar_time_def now;
-
-  *elapsed = tv->elapsed;
-
-  /* Is TIMEVAR currently running as a standalone timer?  */
-  if (tv->standalone)
-    {
-      get_time (&now);
-      timevar_accumulate (elapsed, &tv->start_time, &now);
-    }
-  /* Or is TIMEVAR at the top of the timer stack?  */
-  else if (stack->timevar == tv)
-    {
-      get_time (&now);
-      timevar_accumulate (elapsed, &start_time, &now);
-    }
 }
 
 /* Summarize timing variables to FP.  The timing variable TV_TOTAL has
@@ -456,7 +428,8 @@ timevar_print (FILE *fp)
          zeroes.  */
       if (tv->elapsed.user < tiny
 	  && tv->elapsed.sys < tiny
-	  && tv->elapsed.wall < tiny)
+	  && tv->elapsed.wall < tiny
+	  && tv->elapsed.ggc_mem < GGC_MEM_BOUND)
 	continue;
 
       /* The timing variable name.  */
@@ -483,6 +456,13 @@ timevar_print (FILE *fp)
 	       (total->wall == 0 ? 0 : tv->elapsed.wall / total->wall) * 100);
 #endif /* HAVE_WALL_TIME */
 
+      /* Print the amount of ggc memory allocated.  */
+      fprintf (fp, "%8u kB (%2.0f%%) ggc",
+	       (unsigned) (tv->elapsed.ggc_mem >> 10),
+	       (total->ggc_mem == 0
+		? 0
+		: (float) tv->elapsed.ggc_mem / total->ggc_mem) * 100);
+
       putc ('\n', fp);
     }
 
@@ -495,7 +475,13 @@ timevar_print (FILE *fp)
   fprintf (fp, "%7.2f          ", total->sys);
 #endif
 #ifdef HAVE_WALL_TIME
-  fprintf (fp, "%7.2f\n", total->wall);
+  fprintf (fp, "%7.2f           ", total->wall);
+#endif
+  fprintf (fp, "%8u kB\n", (unsigned) (total->ggc_mem >> 10));
+
+#ifdef ENABLE_CHECKING
+  fprintf (fp, "Extra diagnostic checks enabled; compiler may run slowly.\n");
+  fprintf (fp, "Configure with --disable-checking to disable checks.\n");
 #endif
 
 #endif /* defined (HAVE_USER_TIME) || defined (HAVE_SYS_TIME)

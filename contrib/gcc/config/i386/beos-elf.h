@@ -1,5 +1,6 @@
 /* Definitions for Intel x86 running BeOS
-   Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2004
+   Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 
 #define TARGET_VERSION fprintf (stderr, " (i386 BeOS/ELF)");
@@ -55,6 +56,8 @@ Boston, MA 02111-1307, USA.  */
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 16
 
+#define TARGET_DECLSPEC 1
+
 #define TARGET_OS_CPP_BUILTINS()					\
   do									\
     {									\
@@ -63,13 +66,7 @@ Boston, MA 02111-1307, USA.  */
 	builtin_define ("_X86_");					\
 	builtin_define ("__stdcall=__attribute__((__stdcall__))");	\
 	builtin_define ("__cdecl=__attribute__((__cdecl__))");		\
-	builtin_define ("__declspec(x)=__attribute__((x))");		\
 	builtin_assert ("system=beos");					\
-	if (flag_pic)							\
-	  {								\
-	    builtin_define ("__PIC__");					\
-	    builtin_define ("__pic__");					\
-	  }								\
     }									\
   while (0)
     
@@ -234,8 +231,5 @@ Boston, MA 02111-1307, USA.  */
 /* BeOS headers are C++-aware (and often use C++).  */
 #define NO_IMPLICIT_EXTERN_C
 
-/* Define this macro if in some cases global symbols from one translation
-   unit may not be bound to undefined symbols in another translation unit
-   without user intervention.  For instance, under Microsoft Windows
-   symbols must be explicitly imported from shared libraries (DLLs).  */
-#define MULTIPLE_SYMBOL_SPACES
+/* BeOS uses explicit import from shared libraries.  */
+#define MULTIPLE_SYMBOL_SPACES 1

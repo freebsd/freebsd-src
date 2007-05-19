@@ -1,6 +1,6 @@
 /* ET-trees data structure implementation.
    Contributed by Pavel Nejedly
-   Copyright (C) 2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of the libiberty library.
 Libiberty is free software; you can redistribute it and/or
@@ -15,8 +15,8 @@ Library General Public License for more details.
 
 You should have received a copy of the GNU Library General Public
 License along with libiberty; see the file COPYING.LIB.  If
-not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.
+not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.
 
   The ET-forest structure is described in:
     D. D. Sleator and R. E. Tarjan. A data structure for dynamic trees.
@@ -37,7 +37,7 @@ Boston, MA 02111-1307, USA.
 #include "basic-block.h"
 #endif
 
-/* The occurence of a node in the et tree.  */
+/* The occurrence of a node in the et tree.  */
 struct et_occ
 {
   struct et_node *of;		/* The node.  */
@@ -51,12 +51,12 @@ struct et_occ
   int min;			/* The minimum value of the depth in the subtree
 				   is obtained by adding sum of depth fields
 				   on the path to the root.  */
-  struct et_occ *min_occ;	/* The occurence in the subtree with the minimal
+  struct et_occ *min_occ;	/* The occurrence in the subtree with the minimal
 				   depth.  */
 };
 
 static alloc_pool et_nodes;
-static alloc_pool et_occurences;
+static alloc_pool et_occurrences;
 
 /* Changes depth of OCC to D.  */
 
@@ -88,8 +88,7 @@ static inline void
 set_prev (struct et_occ *occ, struct et_occ *t)
 {
 #ifdef DEBUG_ET
-  if (occ == t)
-    abort ();
+  gcc_assert (occ != t);
 #endif
 
   occ->prev = t;
@@ -103,8 +102,7 @@ static inline void
 set_next (struct et_occ *occ, struct et_occ *t)
 {
 #ifdef DEBUG_ET
-  if (occ == t)
-    abort ();
+  gcc_assert (occ != t);
 #endif
 
   occ->next = t;
@@ -112,7 +110,7 @@ set_next (struct et_occ *occ, struct et_occ *t)
     t->parent = occ;
 }
 
-/* Recompute minimum for occurence OCC.  */
+/* Recompute minimum for occurrence OCC.  */
 
 static inline void
 et_recomp_min (struct et_occ *occ)
@@ -137,7 +135,7 @@ et_recomp_min (struct et_occ *occ)
 }
 
 #ifdef DEBUG_ET
-/* Checks whether neighbourhood of OCC seems sane.  */
+/* Checks whether neighborhood of OCC seems sane.  */
 
 static void
 et_check_occ_sanity (struct et_occ *occ)
@@ -145,40 +143,26 @@ et_check_occ_sanity (struct et_occ *occ)
   if (!occ)
     return;
 
-  if (occ->parent == occ)
-    abort ();
-
-  if (occ->prev == occ)
-    abort ();
-
-  if (occ->next == occ)
-    abort ();
-
-  if (occ->next && occ->next == occ->prev)
-    abort ();
+  gcc_assert (occ->parent != occ);
+  gcc_assert (occ->prev != occ);
+  gcc_assert (occ->next != occ);
+  gcc_assert (!occ->next || occ->next != occ->prev);
 
   if (occ->next)
     {
-      if (occ->next == occ->parent)
-	abort ();
-
-      if (occ->next->parent != occ)
-	abort ();
+      gcc_assert (occ->next != occ->parent);
+      gcc_assert (occ->next->parent == occ);
     }
 
   if (occ->prev)
     {
-      if (occ->prev == occ->parent)
-	abort ();
-
-      if (occ->prev->parent != occ)
-	abort ();
+      gcc_assert (occ->prev != occ->parent);
+      gcc_assert (occ->prev->parent == occ);
     }
 
-  if (occ->parent
-      && occ->parent->prev != occ
-      && occ->parent->next != occ)
-    abort ();
+  gcc_assert (!occ->parent
+	      || occ->parent->prev == occ
+	      || occ->parent->next == occ);
 }
 
 /* Checks whether tree rooted at OCC is sane.  */
@@ -206,9 +190,13 @@ et_check_tree_sanity (struct et_occ *occ)
 
 /* For recording the paths.  */
 
+/* An ad-hoc constant; if the function has more blocks, this won't work,
+   but since it is used for debugging only, it does not matter.  */
+#define MAX_NODES 100000
+
 static int len;
-static void *datas[100000];
-static int depths[100000];
+static void *datas[MAX_NODES];
+static int depths[MAX_NODES];
 
 /* Records the path represented by OCC, with depth incremented by DEPTH.  */
 
@@ -228,6 +216,9 @@ record_path_before_1 (struct et_occ *occ, int depth)
     }
 
   fprintf (stderr, "%d (%d); ", ((basic_block) occ->of->data)->index, depth);
+
+  gcc_assert (len < MAX_NODES);
+
   depths[len] = depth;
   datas[len] = occ->of;
   len++;
@@ -239,8 +230,7 @@ record_path_before_1 (struct et_occ *occ, int depth)
 	mn = m;
     }
 
-  if (mn != occ->min + depth - occ->depth)
-    abort ();
+  gcc_assert (mn == occ->min + depth - occ->depth);
 
   return mn;
 }
@@ -277,9 +267,7 @@ check_path_after_1 (struct et_occ *occ, int depth)
     }
 
   len--;
-  if (depths[len] != depth
-      || datas[len] != occ->of)
-    abort ();
+  gcc_assert (depths[len] == depth && datas[len] == occ->of);
 
   if (occ->prev)
     {
@@ -288,8 +276,7 @@ check_path_after_1 (struct et_occ *occ, int depth)
 	mn =  m;
     }
 
-  if (mn != occ->min + depth - occ->depth)
-    abort ();
+  gcc_assert (mn == occ->min + depth - occ->depth);
 
   return mn;
 }
@@ -304,13 +291,12 @@ check_path_after (struct et_occ *occ)
     occ = occ->parent;
 
   check_path_after_1 (occ, 0);
-  if (len != 0)
-    abort ();
+  gcc_assert (!len);
 }
 
 #endif
 
-/* Splay the occurence OCC to the root of the tree.  */
+/* Splay the occurrence OCC to the root of the tree.  */
 
 static void
 et_splay (struct et_occ *occ)
@@ -452,16 +438,16 @@ et_splay (struct et_occ *occ)
 #endif
 }
 
-/* Create a new et tree occurence of NODE.  */
+/* Create a new et tree occurrence of NODE.  */
 
 static struct et_occ *
 et_new_occ (struct et_node *node)
 {
   struct et_occ *nw;
   
-  if (!et_occurences)
-    et_occurences = create_alloc_pool ("et_occ pool", sizeof (struct et_occ), 300);
-  nw = pool_alloc (et_occurences);
+  if (!et_occurrences)
+    et_occurrences = create_alloc_pool ("et_occ pool", sizeof (struct et_occ), 300);
+  nw = pool_alloc (et_occurrences);
 
   nw->of = node;
   nw->parent = NULL;
@@ -509,8 +495,28 @@ et_free_tree (struct et_node *t)
   if (t->father)
     et_split (t);
 
-  pool_free (et_occurences, t->rightmost_occ);
+  pool_free (et_occurrences, t->rightmost_occ);
   pool_free (et_nodes, t);
+}
+
+/* Releases et tree T without maintaining other nodes.  */
+
+void
+et_free_tree_force (struct et_node *t)
+{
+  pool_free (et_occurrences, t->rightmost_occ);
+  if (t->parent_occ)
+    pool_free (et_occurrences, t->parent_occ);
+  pool_free (et_nodes, t);
+}
+
+/* Release the alloc pools, if they are empty.  */
+
+void
+et_free_pools (void)
+{
+  free_alloc_pool_if_empty (&et_occurrences);
+  free_alloc_pool_if_empty (&et_nodes);
 }
 
 /* Sets father of et tree T to FATHER.  */
@@ -602,7 +608,7 @@ et_split (struct et_node *t)
   rmost->depth = 0;
   rmost->min = 0;
 
-  pool_free (et_occurences, p_occ);
+  pool_free (et_occurrences, p_occ);
 
   /* Update the tree.  */
   if (father->son == t)

@@ -1,5 +1,5 @@
 /* Definitions for rtems targeting a SPARC using ELF.
-   Copyright (C) 1996, 1997, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 2000, 2002, 2005 Free Software Foundation, Inc.
    Contributed by Joel Sherrill (joel@OARcorp.com).
 
 This file is part of GCC.
@@ -16,16 +16,19 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* Target OS builtins.  */
-#define TARGET_SUB_OS_CPP_BUILTINS()		\
+#undef TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS()		\
   do						\
     {						\
-	builtin_define_std ("sparc");		\
 	builtin_define ("__rtems__");		\
 	builtin_define ("__USE_INIT_FINI__");	\
 	builtin_assert ("system=rtems");	\
     }						\
   while (0)
+
+/* Use the default */
+#undef LINK_GCC_C_SEQUENCE_SPEC

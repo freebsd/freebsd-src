@@ -1,5 +1,5 @@
 /* Definitions for code generation pass of GNU compiler.
-   Copyright (C) 2001 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #ifndef GCC_LIBFUNCS_H
 #define GCC_LIBFUNCS_H
@@ -27,11 +27,8 @@ enum libfunc_index
   LTI_abort,
   LTI_memcpy,
   LTI_memmove,
-  LTI_bcopy,
   LTI_memcmp,
-  LTI_bcmp,
   LTI_memset,
-  LTI_bzero,
   LTI_setbits,
 
   LTI_unwind_resume,
@@ -45,7 +42,6 @@ enum libfunc_index
   LTI_profile_function_exit,
 
   LTI_gcov_flush,
-  LTI_gcov_init,
 
   LTI_MAX
 };
@@ -59,11 +55,8 @@ extern GTY(()) rtx libfunc_table[LTI_MAX];
 #define abort_libfunc	(libfunc_table[LTI_abort])
 #define memcpy_libfunc	(libfunc_table[LTI_memcpy])
 #define memmove_libfunc	(libfunc_table[LTI_memmove])
-#define bcopy_libfunc	(libfunc_table[LTI_bcopy])
 #define memcmp_libfunc	(libfunc_table[LTI_memcmp])
-#define bcmp_libfunc	(libfunc_table[LTI_bcmp])
 #define memset_libfunc	(libfunc_table[LTI_memset])
-#define bzero_libfunc	(libfunc_table[LTI_bzero])
 #define setbits_libfunc	(libfunc_table[LTI_setbits])
 
 #define unwind_resume_libfunc	(libfunc_table[LTI_unwind_resume])
@@ -78,6 +71,5 @@ extern GTY(()) rtx libfunc_table[LTI_MAX];
 #define profile_function_exit_libfunc	(libfunc_table[LTI_profile_function_exit])
 
 #define gcov_flush_libfunc	(libfunc_table[LTI_gcov_flush])
-#define gcov_init_libfunc	(libfunc_table[LTI_gcov_init])
 
 #endif /* GCC_LIBFUNCS_H */

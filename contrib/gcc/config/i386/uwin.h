@@ -2,7 +2,7 @@
    hosting on U/WIN (Windows32), using GNU tools and the Windows32 API 
    Library, as distinct from winnt.h, which is used to build GCC for use 
    with a windows style library and tool set and uses the Microsoft tools.
-   Copyright (C) 1999, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2002, 2003, 2004 Free Software Foundation, Inc.
    Contributed by Mumit Khan  <khan@xraylith.wisc.edu>.
 
 This file is part of GCC.
@@ -19,8 +19,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* Most of this is the same as for Cygwin32, except for changing some
    specs.  */
@@ -54,9 +54,6 @@ Boston, MA 02111-1307, USA.  */
 #undef LIB_SPEC
 #define LIB_SPEC \
   "%{pg:-lgmon} %{mwindows:-luser32 -lgdi32 -lcomdlg32} -lkernel32 -ladvapi32"
-
-/* This is needed in g77spec.c for now. Will be removed in the future.  */
-#define WIN32_UWIN_TARGET 1
 
 /* Include in the mingw32 libraries with libgcc */
 #undef LIBGCC_SPEC

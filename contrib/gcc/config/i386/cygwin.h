@@ -17,8 +17,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #define TARGET_VERSION fprintf (stderr, " (x86 Cygwin)");
 
@@ -204,7 +204,7 @@ void mingw_scan (int, const char * const *, char **);
 #define GCC_DRIVER_HOST_INITIALIZATION \
 do \
 { \
-  mingw_scan(argc, argv, (char **) &spec_machine); \
+  mingw_scan(argc, (const char * const *) argv, (char **) &spec_machine); \
   } \
 while (0)
 #else
@@ -224,7 +224,17 @@ do \
   add_prefix (&startfile_prefixes,\
 	      concat (standard_startfile_prefix, "w32api", NULL),\
 	      "GCC", PREFIX_PRIORITY_LAST, 0, NULL);\
-  mingw_scan(argc, argv, &spec_machine); \
+  mingw_scan(argc, (const char * const *) argv, &spec_machine); \
   } \
 while (0)
 #endif
+
+/* Binutils does not handle weak symbols from dlls correctly.  For now,
+   do not use them unnecessarily in gthr-posix.h.  */
+#define GTHREAD_USE_WEAK 0
+
+/* Every program on cygwin links against cygwin1.dll which contains 
+   the pthread routines.  There is no need to explicitly link them
+   and the -pthread flag is not recognized.  */
+#undef GOMP_SELF_SPECS
+#define GOMP_SELF_SPECS ""

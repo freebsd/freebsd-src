@@ -1,5 +1,5 @@
 /* Simple garbage collection for the GNU compiler.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003
+   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* Generic garbage collection (GC) functions and data, not specific to
    any particular GC implementation.  */
@@ -60,6 +60,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 /* Avoid #ifdef:s when we can help it.  */
 #define VALGRIND_DISCARD(x)
 #endif
+
+/* When set, ggc_collect will do collection.  */
+bool ggc_force_collect;
 
 /* Statistics about the allocation.  */
 static ggc_statistics *ggc_stats;
@@ -130,24 +133,25 @@ ggc_mark_roots (void)
 
 /* Allocate a block of memory, then clear it.  */
 void *
-ggc_alloc_cleared (size_t size)
+ggc_alloc_cleared_stat (size_t size MEM_STAT_DECL)
 {
-  void *buf = ggc_alloc (size);
+  void *buf = ggc_alloc_stat (size PASS_MEM_STAT);
   memset (buf, 0, size);
   return buf;
 }
 
 /* Resize a block of memory, possibly re-allocating it.  */
 void *
-ggc_realloc (void *x, size_t size)
+ggc_realloc_stat (void *x, size_t size MEM_STAT_DECL)
 {
   void *r;
   size_t old_size;
 
   if (x == NULL)
-    return ggc_alloc (size);
+    return ggc_alloc_stat (size PASS_MEM_STAT);
 
   old_size = ggc_get_size (x);
+
   if (size <= old_size)
     {
       /* Mark the unwanted memory as unaccessible.  We also need to make
@@ -166,7 +170,7 @@ ggc_realloc (void *x, size_t size)
       return x;
     }
 
-  r = ggc_alloc (size);
+  r = ggc_alloc_stat (size PASS_MEM_STAT);
 
   /* Since ggc_get_size returns the size of the pool, not the size of the
      individually allocated object, we'd access parts of the old object
@@ -177,7 +181,7 @@ ggc_realloc (void *x, size_t size)
   memcpy (r, x, old_size);
 
   /* The old object is not supposed to be used anymore.  */
-  VALGRIND_DISCARD (VALGRIND_MAKE_NOACCESS (x, old_size));
+  ggc_free (x);
 
   return r;
 }
@@ -193,16 +197,14 @@ ggc_calloc (size_t s1, size_t s2)
 void *
 ggc_splay_alloc (int sz, void *nl)
 {
-  if (nl != NULL)
-    abort ();
+  gcc_assert (!nl);
   return ggc_alloc (sz);
 }
 
 void
 ggc_splay_dont_free (void * x ATTRIBUTE_UNUSED, void *nl)
 {
-  if (nl != NULL)
-    abort ();
+  gcc_assert (!nl);
 }
 
 /* Print statistics that are independent of the collector in use.  */
@@ -242,6 +244,7 @@ struct ptr_data
   gt_handle_reorder reorder_fn;
   size_t size;
   void *new_addr;
+  enum gt_types_enum type;
 };
 
 #define POINTER_HASH(x) (hashval_t)((long)x >> 3)
@@ -250,7 +253,8 @@ struct ptr_data
 
 int
 gt_pch_note_object (void *obj, void *note_ptr_cookie,
-		    gt_note_pointers note_ptr_fn)
+		    gt_note_pointers note_ptr_fn,
+		    enum gt_types_enum type)
 {
   struct ptr_data **slot;
 
@@ -262,9 +266,8 @@ gt_pch_note_object (void *obj, void *note_ptr_cookie,
 			      INSERT);
   if (*slot != NULL)
     {
-      if ((*slot)->note_ptr_fn != note_ptr_fn
-	  || (*slot)->note_ptr_cookie != note_ptr_cookie)
-	abort ();
+      gcc_assert ((*slot)->note_ptr_fn == note_ptr_fn
+		  && (*slot)->note_ptr_cookie == note_ptr_cookie);
       return 0;
     }
 
@@ -276,6 +279,7 @@ gt_pch_note_object (void *obj, void *note_ptr_cookie,
     (*slot)->size = strlen (obj) + 1;
   else
     (*slot)->size = ggc_get_size (obj);
+  (*slot)->type = type;
   return 1;
 }
 
@@ -291,9 +295,7 @@ gt_pch_note_reorder (void *obj, void *note_ptr_cookie,
     return;
 
   data = htab_find_with_hash (saving_htab, obj, POINTER_HASH (obj));
-  if (data == NULL
-      || data->note_ptr_cookie != note_ptr_cookie)
-    abort ();
+  gcc_assert (data && data->note_ptr_cookie == note_ptr_cookie);
 
   data->reorder_fn = reorder_fn;
 }
@@ -331,7 +333,9 @@ call_count (void **slot, void *state_p)
   struct ptr_data *d = (struct ptr_data *)*slot;
   struct traversal_state *state = (struct traversal_state *)state_p;
 
-  ggc_pch_count_object (state->d, d->obj, d->size, d->note_ptr_fn == gt_pch_p_S);
+  ggc_pch_count_object (state->d, d->obj, d->size,
+			d->note_ptr_fn == gt_pch_p_S,
+			d->type);
   state->count++;
   return 1;
 }
@@ -342,7 +346,9 @@ call_alloc (void **slot, void *state_p)
   struct ptr_data *d = (struct ptr_data *)*slot;
   struct traversal_state *state = (struct traversal_state *)state_p;
 
-  d->new_addr = ggc_pch_alloc_object (state->d, d->obj, d->size, d->note_ptr_fn == gt_pch_p_S);
+  d->new_addr = ggc_pch_alloc_object (state->d, d->obj, d->size,
+				      d->note_ptr_fn == gt_pch_p_S,
+				      d->type);
   state->ptrs[state->ptrs_i++] = d;
   return 1;
 }
@@ -372,8 +378,7 @@ relocate_ptrs (void *ptr_p, void *state_p)
     return;
 
   result = htab_find_with_hash (saving_htab, *ptr, POINTER_HASH (*ptr));
-  if (result == NULL)
-    abort ();
+  gcc_assert (result);
   *ptr = result->new_addr;
 }
 
@@ -430,7 +435,7 @@ gt_pch_save (FILE *f)
   char *this_object = NULL;
   size_t this_object_size = 0;
   struct mmap_info mmi;
-  size_t page_size = getpagesize();
+  const size_t mmap_offset_alignment = host_hooks.gt_pch_alloc_granularity();
 
   gt_pch_save_stringpool ();
 
@@ -463,7 +468,7 @@ gt_pch_save (FILE *f)
       
   ggc_pch_this_base (state.d, mmi.preferred_base);
 
-  state.ptrs = xmalloc (state.count * sizeof (*state.ptrs));
+  state.ptrs = XNEWVEC (struct ptr_data *, state.count);
   state.ptrs_i = 0;
   htab_traverse (saving_htab, call_alloc, &state);
   qsort (state.ptrs, state.count, sizeof (*state.ptrs), compare_ptr_data);
@@ -478,16 +483,15 @@ gt_pch_save (FILE *f)
   write_pch_globals (gt_ggc_rtab, &state);
   write_pch_globals (gt_pch_cache_rtab, &state);
 
-  ggc_pch_prepare_write (state.d, state.f);
-
-  /* Pad the PCH file so that the mmapped area starts on a page boundary.  */
+  /* Pad the PCH file so that the mmapped area starts on an allocation
+     granularity (usually page) boundary.  */
   {
     long o;
     o = ftell (state.f) + sizeof (mmi);
     if (o == -1)
       fatal_error ("can't get position in PCH file: %m");
-    mmi.offset = page_size - o % page_size;
-    if (mmi.offset == page_size)
+    mmi.offset = mmap_offset_alignment - o % mmap_offset_alignment;
+    if (mmi.offset == mmap_offset_alignment)
       mmi.offset = 0;
     mmi.offset += o;
   }
@@ -496,6 +500,8 @@ gt_pch_save (FILE *f)
   if (mmi.offset != 0
       && fseek (state.f, mmi.offset, SEEK_SET) != 0)
     fatal_error ("can't write padding to PCH file: %m");
+
+  ggc_pch_prepare_write (state.d, state.f);
 
   /* Actually write out the objects.  */
   for (i = 0; i < state.count; i++)
@@ -611,76 +617,90 @@ default_gt_pch_use_address (void *base, size_t size, int fd ATTRIBUTE_UNUSED,
   return (addr == base) - 1;
 }
 
+/* Default version of HOST_HOOKS_GT_PCH_GET_ADDRESS.   Return the
+   alignment required for allocating virtual memory. Usually this is the
+   same as pagesize.  */
+
+size_t
+default_gt_pch_alloc_granularity (void)
+{
+  return getpagesize();
+}
+
 #if HAVE_MMAP_FILE
 /* Default version of HOST_HOOKS_GT_PCH_GET_ADDRESS when mmap is present.
    We temporarily allocate SIZE bytes, and let the kernel place the data
-   whereever it will.  If it worked, that's our spot, if not we're likely
+   wherever it will.  If it worked, that's our spot, if not we're likely
    to be in trouble.  */
- 
+
 void *
 mmap_gt_pch_get_address (size_t size, int fd)
 {
   void *ret;
- 
+
   ret = mmap (NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
   if (ret == (void *) MAP_FAILED)
     ret = NULL;
   else
     munmap (ret, size);
- 
+
   return ret;
 }
 
 /* Default version of HOST_HOOKS_GT_PCH_USE_ADDRESS when mmap is present.
    Map SIZE bytes of FD+OFFSET at BASE.  Return 1 if we succeeded at 
    mapping the data at BASE, -1 if we couldn't.
- 
+
    This version assumes that the kernel honors the START operand of mmap
    even without MAP_FIXED if START through START+SIZE are not currently
    mapped with something.  */
- 
+
 int
 mmap_gt_pch_use_address (void *base, size_t size, int fd, size_t offset)
 {
   void *addr;
- 
+
   /* We're called with size == 0 if we're not planning to load a PCH
      file at all.  This allows the hook to free any static space that
      we might have allocated at link time.  */
   if (size == 0)
     return -1;
- 
+
   addr = mmap (base, size, PROT_READ | PROT_WRITE, MAP_PRIVATE,
 	       fd, offset);
 
   return addr == base ? 1 : -1;
- }
+}
 #endif /* HAVE_MMAP_FILE */
 
-/* Modify the bound based on rlimits.  Keep the smallest number found.  */
+/* Modify the bound based on rlimits.  */
 static double
 ggc_rlimit_bound (double limit)
 {
 #if defined(HAVE_GETRLIMIT)
   struct rlimit rlim;
-# ifdef RLIMIT_RSS
-  if (getrlimit (RLIMIT_RSS, &rlim) == 0
-      && rlim.rlim_cur != (rlim_t) RLIM_INFINITY
-      && rlim.rlim_cur < limit)
-    limit = rlim.rlim_cur;
-# endif
-# ifdef RLIMIT_DATA
-  if (getrlimit (RLIMIT_DATA, &rlim) == 0
-      && rlim.rlim_cur != (rlim_t) RLIM_INFINITY
-      && rlim.rlim_cur < limit)
-    limit = rlim.rlim_cur;
-# endif
-# ifdef RLIMIT_AS
+# if defined (RLIMIT_AS)
+  /* RLIMIT_AS is what POSIX says is the limit on mmap.  Presumably
+     any OS which has RLIMIT_AS also has a working mmap that GCC will use.  */
   if (getrlimit (RLIMIT_AS, &rlim) == 0
       && rlim.rlim_cur != (rlim_t) RLIM_INFINITY
       && rlim.rlim_cur < limit)
     limit = rlim.rlim_cur;
-# endif
+# elif defined (RLIMIT_DATA)
+  /* ... but some older OSs bound mmap based on RLIMIT_DATA, or we
+     might be on an OS that has a broken mmap.  (Others don't bound
+     mmap at all, apparently.)  */
+  if (getrlimit (RLIMIT_DATA, &rlim) == 0
+      && rlim.rlim_cur != (rlim_t) RLIM_INFINITY
+      && rlim.rlim_cur < limit
+      /* Darwin has this horribly bogus default setting of
+	 RLIMIT_DATA, to 6144Kb.  No-one notices because RLIMIT_DATA
+	 appears to be ignored.  Ignore such silliness.  If a limit
+	 this small was actually effective for mmap, GCC wouldn't even
+	 start up.  */
+      && rlim.rlim_cur >= 8 * 1024 * 1024)
+    limit = rlim.rlim_cur;
+# endif /* RLIMIT_AS or RLIMIT_DATA */
 #endif /* HAVE_GETRLIMIT */
 
   return limit;
@@ -709,20 +729,39 @@ ggc_min_expand_heuristic (void)
 int
 ggc_min_heapsize_heuristic (void)
 {
-  double min_heap_kbytes = physmem_total();
+  double phys_kbytes = physmem_total();
+  double limit_kbytes = ggc_rlimit_bound (phys_kbytes * 2);
 
-  /* Adjust for rlimits.  */
-  min_heap_kbytes = ggc_rlimit_bound (min_heap_kbytes);
-
-  min_heap_kbytes /= 1024; /* Convert to Kbytes.  */
+  phys_kbytes /= 1024; /* Convert to Kbytes.  */
+  limit_kbytes /= 1024;
 
   /* The heuristic is RAM/8, with a lower bound of 4M and an upper
      bound of 128M (when RAM >= 1GB).  */
-  min_heap_kbytes /= 8;
-  min_heap_kbytes = MAX (min_heap_kbytes, 4 * 1024);
-  min_heap_kbytes = MIN (min_heap_kbytes, 128 * 1024);
+  phys_kbytes /= 8;
 
-  return min_heap_kbytes;
+#if defined(HAVE_GETRLIMIT) && defined (RLIMIT_RSS)
+  /* Try not to overrun the RSS limit while doing garbage collection.  
+     The RSS limit is only advisory, so no margin is subtracted.  */
+ {
+   struct rlimit rlim;
+   if (getrlimit (RLIMIT_RSS, &rlim) == 0
+       && rlim.rlim_cur != (rlim_t) RLIM_INFINITY)
+     phys_kbytes = MIN (phys_kbytes, rlim.rlim_cur / 1024);
+ }
+# endif
+
+  /* Don't blindly run over our data limit; do GC at least when the
+     *next* GC would be within 16Mb of the limit.  If GCC does hit the
+     data limit, compilation will fail, so this tries to be
+     conservative.  */
+  limit_kbytes = MAX (0, limit_kbytes - 16 * 1024);
+  limit_kbytes = (limit_kbytes * 100) / (110 + ggc_min_expand_heuristic());
+  phys_kbytes = MIN (phys_kbytes, limit_kbytes);
+
+  phys_kbytes = MAX (phys_kbytes, 4 * 1024);
+  phys_kbytes = MIN (phys_kbytes, 128 * 1024);
+
+  return phys_kbytes;
 }
 
 void
@@ -731,5 +770,234 @@ init_ggc_heuristics (void)
 #if !defined ENABLE_GC_CHECKING && !defined ENABLE_GC_ALWAYS_COLLECT
   set_param_value ("ggc-min-expand", ggc_min_expand_heuristic());
   set_param_value ("ggc-min-heapsize", ggc_min_heapsize_heuristic());
+#endif
+}
+
+#ifdef GATHER_STATISTICS
+
+/* Datastructure used to store per-call-site statistics.  */
+struct loc_descriptor
+{
+  const char *file;
+  int line;
+  const char *function;
+  int times;
+  size_t allocated;
+  size_t overhead;
+  size_t freed;
+  size_t collected;
+};
+
+/* Hashtable used for statistics.  */
+static htab_t loc_hash;
+
+/* Hash table helpers functions.  */
+static hashval_t
+hash_descriptor (const void *p)
+{
+  const struct loc_descriptor *d = p;
+
+  return htab_hash_pointer (d->function) | d->line;
+}
+
+static int
+eq_descriptor (const void *p1, const void *p2)
+{
+  const struct loc_descriptor *d = p1;
+  const struct loc_descriptor *d2 = p2;
+
+  return (d->file == d2->file && d->line == d2->line
+	  && d->function == d2->function);
+}
+
+/* Hashtable converting address of allocated field to loc descriptor.  */
+static htab_t ptr_hash;
+struct ptr_hash_entry
+{
+  void *ptr;
+  struct loc_descriptor *loc;
+  size_t size;
+};
+
+/* Hash table helpers functions.  */
+static hashval_t
+hash_ptr (const void *p)
+{
+  const struct ptr_hash_entry *d = p;
+
+  return htab_hash_pointer (d->ptr);
+}
+
+static int
+eq_ptr (const void *p1, const void *p2)
+{
+  const struct ptr_hash_entry *p = p1;
+
+  return (p->ptr == p2);
+}
+
+/* Return descriptor for given call site, create new one if needed.  */
+static struct loc_descriptor *
+loc_descriptor (const char *name, int line, const char *function)
+{
+  struct loc_descriptor loc;
+  struct loc_descriptor **slot;
+
+  loc.file = name;
+  loc.line = line;
+  loc.function = function;
+  if (!loc_hash)
+    loc_hash = htab_create (10, hash_descriptor, eq_descriptor, NULL);
+
+  slot = (struct loc_descriptor **) htab_find_slot (loc_hash, &loc, 1);
+  if (*slot)
+    return *slot;
+  *slot = xcalloc (sizeof (**slot), 1);
+  (*slot)->file = name;
+  (*slot)->line = line;
+  (*slot)->function = function;
+  return *slot;
+}
+
+/* Record ALLOCATED and OVERHEAD bytes to descriptor NAME:LINE (FUNCTION).  */
+void
+ggc_record_overhead (size_t allocated, size_t overhead, void *ptr,
+		     const char *name, int line, const char *function)
+{
+  struct loc_descriptor *loc = loc_descriptor (name, line, function);
+  struct ptr_hash_entry *p = XNEW (struct ptr_hash_entry);
+  PTR *slot;
+
+  p->ptr = ptr;
+  p->loc = loc;
+  p->size = allocated + overhead;
+  if (!ptr_hash)
+    ptr_hash = htab_create (10, hash_ptr, eq_ptr, NULL);
+  slot = htab_find_slot_with_hash (ptr_hash, ptr, htab_hash_pointer (ptr), INSERT);
+  gcc_assert (!*slot);
+  *slot = p;
+
+  loc->times++;
+  loc->allocated+=allocated;
+  loc->overhead+=overhead;
+}
+
+/* Helper function for prune_overhead_list.  See if SLOT is still marked and
+   remove it from hashtable if it is not.  */
+static int
+ggc_prune_ptr (void **slot, void *b ATTRIBUTE_UNUSED)
+{
+  struct ptr_hash_entry *p = *slot;
+  if (!ggc_marked_p (p->ptr))
+    {
+      p->loc->collected += p->size;
+      htab_clear_slot (ptr_hash, slot);
+      free (p);
+    }
+  return 1;
+}
+
+/* After live values has been marked, walk all recorded pointers and see if
+   they are still live.  */
+void
+ggc_prune_overhead_list (void)
+{
+  htab_traverse (ptr_hash, ggc_prune_ptr, NULL);
+}
+
+/* Notice that the pointer has been freed.  */
+void
+ggc_free_overhead (void *ptr)
+{
+  PTR *slot = htab_find_slot_with_hash (ptr_hash, ptr, htab_hash_pointer (ptr),
+					NO_INSERT);
+  struct ptr_hash_entry *p = *slot;
+  p->loc->freed += p->size;
+  htab_clear_slot (ptr_hash, slot);
+  free (p);
+}
+
+/* Helper for qsort; sort descriptors by amount of memory consumed.  */
+static int
+cmp_statistic (const void *loc1, const void *loc2)
+{
+  struct loc_descriptor *l1 = *(struct loc_descriptor **) loc1;
+  struct loc_descriptor *l2 = *(struct loc_descriptor **) loc2;
+  return ((l1->allocated + l1->overhead - l1->freed) -
+	  (l2->allocated + l2->overhead - l2->freed));
+}
+
+/* Collect array of the descriptors from hashtable.  */
+struct loc_descriptor **loc_array;
+static int
+add_statistics (void **slot, void *b)
+{
+  int *n = (int *)b;
+  loc_array[*n] = (struct loc_descriptor *) *slot;
+  (*n)++;
+  return 1;
+}
+
+/* Dump per-site memory statistics.  */
+#endif
+void
+dump_ggc_loc_statistics (void)
+{
+#ifdef GATHER_STATISTICS
+  int nentries = 0;
+  char s[4096];
+  size_t collected = 0, freed = 0, allocated = 0, overhead = 0, times = 0;
+  int i;
+
+  ggc_force_collect = true;
+  ggc_collect ();
+
+  loc_array = xcalloc (sizeof (*loc_array), loc_hash->n_elements);
+  fprintf (stderr, "-------------------------------------------------------\n");
+  fprintf (stderr, "\n%-48s %10s       %10s       %10s       %10s       %10s\n",
+	   "source location", "Garbage", "Freed", "Leak", "Overhead", "Times");
+  fprintf (stderr, "-------------------------------------------------------\n");
+  htab_traverse (loc_hash, add_statistics, &nentries);
+  qsort (loc_array, nentries, sizeof (*loc_array), cmp_statistic);
+  for (i = 0; i < nentries; i++)
+    {
+      struct loc_descriptor *d = loc_array[i];
+      allocated += d->allocated;
+      times += d->times;
+      freed += d->freed;
+      collected += d->collected;
+      overhead += d->overhead;
+    }
+  for (i = 0; i < nentries; i++)
+    {
+      struct loc_descriptor *d = loc_array[i];
+      if (d->allocated)
+	{
+	  const char *s1 = d->file;
+	  const char *s2;
+	  while ((s2 = strstr (s1, "gcc/")))
+	    s1 = s2 + 4;
+	  sprintf (s, "%s:%i (%s)", s1, d->line, d->function);
+	  s[48] = 0;
+	  fprintf (stderr, "%-48s %10li:%4.1f%% %10li:%4.1f%% %10li:%4.1f%% %10li:%4.1f%% %10li\n", s,
+		   (long)d->collected,
+		   (d->collected) * 100.0 / collected,
+		   (long)d->freed,
+		   (d->freed) * 100.0 / freed,
+		   (long)(d->allocated + d->overhead - d->freed - d->collected),
+		   (d->allocated + d->overhead - d->freed - d->collected) * 100.0
+		   / (allocated + overhead - freed - collected),
+		   (long)d->overhead,
+		   d->overhead * 100.0 / overhead,
+		   (long)d->times);
+	}
+    }
+  fprintf (stderr, "%-48s %10ld       %10ld       %10ld       %10ld       %10ld\n",
+	   "Total", (long)collected, (long)freed,
+	   (long)(allocated + overhead - freed - collected), (long)overhead,
+	   (long)times);
+  fprintf (stderr, "%-48s %10s       %10s       %10s       %10s       %10s\n",
+	   "source location", "Garbage", "Freed", "Leak", "Overhead", "Times");
+  fprintf (stderr, "-------------------------------------------------------\n");
 #endif
 }

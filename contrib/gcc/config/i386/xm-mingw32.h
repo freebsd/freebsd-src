@@ -17,8 +17,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #define HOST_EXECUTABLE_SUFFIX ".exe"
 
@@ -27,3 +27,10 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* This is the name of the null device on windows.  */
 #define HOST_BIT_BUCKET "nul"
+
+/*  The st_ino field of struct stat is always 0.  */
+#define HOST_LACKS_INODE_NUMBERS
+
+/* MSVCRT does not support the "ll" format specifier for printing
+   "long long" values.  Instead, we use "I64".  */
+#define HOST_LONG_LONG_FORMAT "I64"

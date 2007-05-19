@@ -194,7 +194,6 @@ GCC_3.3.1 {
 %inherit GCC_3.3.2 GCC_3.3.1
 GCC_3.3.2 {
 }
-
 %inherit GCC_3.3.4 GCC_3.3.2
 GCC_3.3.4 {
   __unorddf2
@@ -233,4 +232,45 @@ GCC_3.4.4 {
   __mulvti3
   __negvti2
   __subvti3
+}
+
+%inherit GCC_4.0.0 GCC_3.4.4
+GCC_4.0.0 {
+  # libgcc2 __builtin_powi helpers.
+  __powisf2
+  __powidf2
+  __powixf2
+  __powitf2
+
+  # c99 compliant complex arithmetic
+  __divsc3
+  __divdc3
+  __divxc3
+  __divtc3
+  __mulsc3
+  __muldc3
+  __mulxc3
+  __multc3
+}
+
+%inherit GCC_4.1.0 GCC_4.0.0
+GCC_4.1.0 {
+}
+
+%inherit GCC_4.2.0 GCC_4.1.0
+GCC_4.2.0 {
+  # unsigned-to-floating conversions
+  __floatunsisf
+  __floatunsidf
+  __floatunsixf
+  __floatunsitf
+  __floatundidf
+  __floatundisf
+  __floatundixf
+  __floatunditf
+  __floatuntidf
+  __floatuntisf
+  __floatuntixf
+  __floatuntitf
+  _Unwind_GetIPInfo
 }

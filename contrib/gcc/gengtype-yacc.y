@@ -1,6 +1,6 @@
 /* -*- indented-text -*- */
 /* Process source files and output type information.
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 %{
 #include "bconfig.h"
@@ -44,6 +44,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 %token STRUCT
 %token ENUM
 %token ALIAS
+%token NESTED_PTR
 %token <s>PARAM_IS
 %token NUM
 %token PERCENTPERCENT "%%"
@@ -57,7 +58,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 %type <p> struct_fields yacc_ids yacc_typematch
 %type <t> type lasttype
 %type <o> optionsopt options option optionseq optionseqopt
-%type <s> type_option
+%type <s> type_option stringseq
 
 %%
 
@@ -159,10 +160,10 @@ yacc_ids: /* empty */
 	{ $$ = NULL; }
      | yacc_ids ID
         {
-	  pair_p p = xcalloc (1, sizeof (*p));
+	  pair_p p = XCNEW (struct pair);
 	  p->next = $1;
 	  p->line = lexer_line;
-	  p->opt = xmalloc (sizeof (*(p->opt)));
+	  p->opt = XNEW (struct options);
 	  p->opt->name = "tag";
 	  p->opt->next = NULL;
 	  p->opt->info = (char *)$2;
@@ -170,10 +171,10 @@ yacc_ids: /* empty */
 	}
      | yacc_ids CHAR
         {
-	  pair_p p = xcalloc (1, sizeof (*p));
+	  pair_p p = XCNEW (struct pair);
 	  p->next = $1;
 	  p->line = lexer_line;
-	  p->opt = xmalloc (sizeof (*(p->opt)));
+	  p->opt = XNEW (struct options);
 	  p->opt->name = "tag";
 	  p->opt->next = NULL;
 	  p->opt->info = xasprintf ("'%s'", $2);
@@ -184,7 +185,7 @@ yacc_ids: /* empty */
 struct_fields: { $$ = NULL; }
 	       | type optionsopt ID bitfieldopt ';' struct_fields
 	          {
-	            pair_p p = xmalloc (sizeof (*p));
+	            pair_p p = XNEW (struct pair);
 		    p->type = adjust_field_type ($1, $2);
 		    p->opt = $2;
 		    p->name = $3;
@@ -194,7 +195,7 @@ struct_fields: { $$ = NULL; }
 		  }
 	       | type optionsopt ID ARRAY ';' struct_fields
 	          {
-	            pair_p p = xmalloc (sizeof (*p));
+	            pair_p p = XNEW (struct pair);
 		    p->type = adjust_field_type (create_array ($1, $4), $2);
 		    p->opt = $2;
 		    p->name = $3;
@@ -204,7 +205,7 @@ struct_fields: { $$ = NULL; }
 		  }
 	       | type optionsopt ID ARRAY ARRAY ';' struct_fields
 	          {
-	            pair_p p = xmalloc (sizeof (*p));
+	            pair_p p = XNEW (struct pair);
 		    p->type = create_array (create_array ($1, $5), $4);
 		    p->opt = $2;
 		    p->name = $3;
@@ -212,11 +213,16 @@ struct_fields: { $$ = NULL; }
 		    p->line = lexer_line;
 		    $$ = p;
 		  }
+	       | type ':' bitfieldlen ';' struct_fields
+		  { $$ = $5; }
 	       ;
 
 bitfieldopt: /* empty */
-	     | ':' NUM
-	     | ':' ID
+	     | ':' bitfieldlen
+	     ;
+
+bitfieldlen: NUM | ID
+		{ }
 	     ;
 
 type: SCALAR
@@ -226,17 +232,11 @@ type: SCALAR
       | type '*'
          { $$ = create_pointer ($1); }
       | STRUCT ID '{' struct_fields '}'
-         {
-	   new_structure ($2, 0, &lexer_line, $4, NULL);
-           $$ = find_structure ($2, 0);
-	 }
+         { $$ = new_structure ($2, 0, &lexer_line, $4, NULL); }
       | STRUCT ID
          { $$ = find_structure ($2, 0); }
       | UNION ID '{' struct_fields '}'
-         {
-	   new_structure ($2, 1, &lexer_line, $4, NULL);
-           $$ = find_structure ($2, 1);
-	 }
+         { $$ = new_structure ($2, 1, &lexer_line, $4, NULL); }
       | UNION ID
          { $$ = find_structure ($2, 1); }
       | ENUM ID
@@ -268,20 +268,22 @@ type_option : ALIAS
 	        { $$ = $1; }
 	      ;
 
-option:	type_option '(' type ')'
-	   {
-	     options_p o = xmalloc (sizeof (*o));
-	     o->name = $1;
-	     o->info = adjust_field_type ($3, NULL);
-	     $$ = o;
-	   }
-	| ID '(' STRING ')'
-	   {
-	     options_p o = xmalloc (sizeof (*o));
-	     o->name = $1;
-	     o->info = (void *)$3;
-	     $$ = o;
-	   }
+option:   ID
+	    { $$ = create_option (NULL, $1, (void *)""); }
+        | ID '(' stringseq ')'
+            { $$ = create_option (NULL, $1, (void *)$3); }
+	| type_option '(' type ')'
+	    { $$ = create_option (NULL, $1, adjust_field_type ($3, NULL)); }
+	| NESTED_PTR '(' type ',' stringseq ',' stringseq ')'
+	    {
+	      struct nested_ptr_data d;
+
+	      d.type = adjust_field_type ($3, NULL);
+	      d.convert_to = $5;
+	      d.convert_from = $7;
+	      $$ = create_option (NULL, "nested_ptr",
+				  xmemdup (&d, sizeof (d), sizeof (d)));
+	    }
 	;
 
 optionseq: option
@@ -299,4 +301,17 @@ optionseq: option
 optionseqopt: { $$ = NULL; }
 	      | optionseq { $$ = $1; }
 	      ;
+
+stringseq: STRING
+	     { $$ = $1; }
+	   | stringseq STRING
+	     {
+	       size_t l1 = strlen ($1);
+	       size_t l2 = strlen ($2);
+	       char *s = XRESIZEVEC (char, $1, l1 + l2 + 1);
+	       memcpy (s + l1, $2, l2 + 1);
+	       XDELETE ($2);
+	       $$ = s;
+	     }
+	   ;
 %%
