@@ -1,6 +1,6 @@
 // Debugging string implementation -*- C++ -*-
 
-// Copyright (C) 2003
+// Copyright (C) 2003, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,6 +28,10 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file debug/string
+ *  This file is a GNU debug extension to the Standard C++ Library.
+ */
+
 #ifndef _GLIBCXX_DEBUG_STRING
 #define _GLIBCXX_DEBUG_STRING 1
 
@@ -37,7 +41,8 @@
 
 namespace __gnu_debug
 {
-  template<typename _CharT, typename _Traits, typename _Allocator>
+  template<typename _CharT, typename _Traits = std::char_traits<_CharT>,
+            typename _Allocator = std::allocator<_CharT> >
     class basic_string
     : public std::basic_string<_CharT, _Traits, _Allocator>,
       public __gnu_debug::_Safe_sequence<basic_string<_CharT, _Traits,
@@ -51,12 +56,12 @@ namespace __gnu_debug
     typedef _Traits				       traits_type;
     typedef typename _Traits::char_type		       value_type;
     typedef _Allocator				       allocator_type;
-    typedef typename _Allocator::size_type             size_type;
-    typedef typename _Allocator::difference_type       difference_type;
-    typedef typename _Allocator::reference             reference;
-    typedef typename _Allocator::const_reference       const_reference;
-    typedef typename _Allocator::pointer               pointer;
-    typedef typename _Allocator::const_pointer         const_pointer;
+    typedef typename _Base::size_type                  size_type;
+    typedef typename _Base::difference_type            difference_type;
+    typedef typename _Base::reference                  reference;
+    typedef typename _Base::const_reference            const_reference;
+    typedef typename _Base::pointer                    pointer;
+    typedef typename _Base::const_pointer              const_pointer;
 
     typedef __gnu_debug::_Safe_iterator<typename _Base::iterator, basic_string>
                                                        iterator;
@@ -203,7 +208,7 @@ namespace __gnu_debug
     operator[](size_type __pos) const
     {
       _GLIBCXX_DEBUG_VERIFY(__pos <= this->size(),
-			    _M_message(::__gnu_debug::__msg_subscript_oob)
+			    _M_message(__gnu_debug::__msg_subscript_oob)
 			    ._M_sequence(*this, "this")
 			    ._M_integer(__pos, "__pos")
 			    ._M_integer(this->size(), "size"));
@@ -213,7 +218,16 @@ namespace __gnu_debug
     reference
     operator[](size_type __pos)
     {
+#ifdef _GLIBCXX_DEBUG_PEDANTIC
       __glibcxx_check_subscript(__pos);
+#else
+      // as an extension v3 allows s[s.size()] when s is non-const.
+      _GLIBCXX_DEBUG_VERIFY(__pos <= this->size(),
+			    _M_message(__gnu_debug::__msg_subscript_oob)
+			    ._M_sequence(*this, "this")
+			    ._M_integer(__pos, "__pos")
+			    ._M_integer(this->size(), "size"));
+#endif
       return _M_base()[__pos];
     }
 
@@ -652,7 +666,8 @@ namespace __gnu_debug
     { return _Base::find_first_of(__c, __pos); }
 
     size_type
-    find_last_of(const basic_string& __str, size_type __pos = _Base::npos) const
+    find_last_of(const basic_string& __str, 
+		 size_type __pos = _Base::npos) const
     { return _Base::find_last_of(__str, __pos); }
 
     size_type
@@ -996,6 +1011,13 @@ namespace __gnu_debug
       __str._M_invalidate_all();
       return __res;
     }
+
+  typedef basic_string<char>    string;
+
+#ifdef _GLIBCXX_USE_WCHAR_T
+  typedef basic_string<wchar_t> wstring;
+#endif
+
 } // namespace __gnu_debug
 
 #endif

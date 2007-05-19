@@ -1,6 +1,6 @@
 // Iostreams base classes -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,26 +28,26 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-//
-// ISO C++ 14882: 27.4  Iostreams base classes
-//
-
 /** @file ios_base.h
  *  This is an internal header file, included by other library headers.
  *  You should not attempt to use it directly.
  */
+
+//
+// ISO C++ 14882: 27.4  Iostreams base classes
+//
 
 #ifndef _IOS_BASE_H
 #define _IOS_BASE_H 1
 
 #pragma GCC system_header
 
-#include <bits/atomicity.h>
+#include <ext/atomicity.h>
 #include <bits/localefwd.h>
 #include <bits/locale_classes.h>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // The following definitions of bitmask types are enums, not ints,
   // as permitted (but not required) in the standard, in order to provide
   // better type safety in iostream calls.  A side effect is that
@@ -191,7 +191,7 @@ namespace std
 
   // 27.4.2  Class ios_base
   /**
-   *  @brief  The very top of the I/O class hierarchy.
+   *  @brief  The base of the I/O class hierarchy.
    *
    *  This class defines everything that can be defined about I/O that does
    *  not depend on the type of characters being input or output.  Most
@@ -253,65 +253,65 @@ namespace std
     typedef _Ios_Fmtflags fmtflags;
 
     /// Insert/extract @c bool in alphabetic rather than numeric format.
-    static const fmtflags boolalpha =   fmtflags(__ios_flags::_S_boolalpha);
+    static const fmtflags boolalpha =   _S_boolalpha;
 
     /// Converts integer input or generates integer output in decimal base.
-    static const fmtflags dec =         fmtflags(__ios_flags::_S_dec);
+    static const fmtflags dec =         _S_dec;
 
     /// Generate floating-point output in fixed-point notation.
-    static const fmtflags fixed =       fmtflags(__ios_flags::_S_fixed);
+    static const fmtflags fixed =       _S_fixed;
 
     /// Converts integer input or generates integer output in hexadecimal base.
-    static const fmtflags hex =         fmtflags(__ios_flags::_S_hex);
+    static const fmtflags hex =         _S_hex;
 
     /// Adds fill characters at a designated internal point in certain
     /// generated output, or identical to @c right if no such point is
     /// designated.
-    static const fmtflags internal =    fmtflags(__ios_flags::_S_internal);
+    static const fmtflags internal =    _S_internal;
 
     /// Adds fill characters on the right (final positions) of certain
     /// generated output.  (I.e., the thing you print is flush left.)
-    static const fmtflags left =        fmtflags(__ios_flags::_S_left);
+    static const fmtflags left =        _S_left;
 
     /// Converts integer input or generates integer output in octal base.
-    static const fmtflags oct =         fmtflags(__ios_flags::_S_oct);
+    static const fmtflags oct =         _S_oct;
 
     /// Adds fill characters on the left (initial positions) of certain
     /// generated output.  (I.e., the thing you print is flush right.)
-    static const fmtflags right =       fmtflags(__ios_flags::_S_right);
+    static const fmtflags right =       _S_right;
 
     /// Generates floating-point output in scientific notation.
-    static const fmtflags scientific =  fmtflags(__ios_flags::_S_scientific);
+    static const fmtflags scientific =  _S_scientific;
 
     /// Generates a prefix indicating the numeric base of generated integer
     /// output.
-    static const fmtflags showbase =    fmtflags(__ios_flags::_S_showbase);
+    static const fmtflags showbase =    _S_showbase;
 
     /// Generates a decimal-point character unconditionally in generated
     /// floating-point output.
-    static const fmtflags showpoint =   fmtflags(__ios_flags::_S_showpoint);
+    static const fmtflags showpoint =   _S_showpoint;
 
     /// Generates a + sign in non-negative generated numeric output.
-    static const fmtflags showpos =     fmtflags(__ios_flags::_S_showpos);
+    static const fmtflags showpos =     _S_showpos;
 
     /// Skips leading white space before certain input operations.
-    static const fmtflags skipws =      fmtflags(__ios_flags::_S_skipws);
+    static const fmtflags skipws =      _S_skipws;
 
     /// Flushes output after each output operation.
-    static const fmtflags unitbuf =     fmtflags(__ios_flags::_S_unitbuf);
+    static const fmtflags unitbuf =     _S_unitbuf;
 
     /// Replaces certain lowercase letters with their uppercase equivalents
     /// in generated output.
-    static const fmtflags uppercase =   fmtflags(__ios_flags::_S_uppercase);
+    static const fmtflags uppercase =   _S_uppercase;
 
     /// A mask of left|right|internal.  Useful for the 2-arg form of @c setf.
-    static const fmtflags adjustfield = fmtflags(__ios_flags::_S_adjustfield);
+    static const fmtflags adjustfield = _S_adjustfield;
 
     /// A mask of dec|oct|hex.  Useful for the 2-arg form of @c setf.
-    static const fmtflags basefield =   fmtflags(__ios_flags::_S_basefield);
+    static const fmtflags basefield =   _S_basefield;
 
     /// A mask of scientific|fixed.  Useful for the 2-arg form of @c setf.
-    static const fmtflags floatfield =  fmtflags(__ios_flags::_S_floatfield);
+    static const fmtflags floatfield =  _S_floatfield;
 
     // 27.4.2.1.3  Type ios_base::iostate
     /**
@@ -329,18 +329,18 @@ namespace std
 
     /// Indicates a loss of integrity in an input or output sequence (such
     /// as an irrecoverable read error from a file).
-    static const iostate badbit =	iostate(__ios_flags::_S_badbit);
+    static const iostate badbit =	_S_badbit;
 
     /// Indicates that an input operation reached the end of an input sequence.
-    static const iostate eofbit =	iostate(__ios_flags::_S_eofbit);
+    static const iostate eofbit =	_S_eofbit;
 
     /// Indicates that an input operation failed to read the expected
     /// characters, or that an output operation failed to generate the
     /// desired characters.
-    static const iostate failbit =	iostate(__ios_flags::_S_failbit);
+    static const iostate failbit =	_S_failbit;
 
     /// Indicates all is well.
-    static const iostate goodbit =	iostate(0);
+    static const iostate goodbit =	_S_goodbit;
 
     // 27.4.2.1.4  Type ios_base::openmode
     /**
@@ -359,25 +359,25 @@ namespace std
     typedef _Ios_Openmode openmode;
 
     /// Seek to end before each write.
-    static const openmode app =		openmode(__ios_flags::_S_app);
+    static const openmode app =		_S_app;
 
     /// Open and seek to end immediately after opening.
-    static const openmode ate =		openmode(__ios_flags::_S_ate);
+    static const openmode ate =		_S_ate;
 
     /// Perform input and output in binary mode (as opposed to text mode).
     /// This is probably not what you think it is; see
     /// http://gcc.gnu.org/onlinedocs/libstdc++/27_io/howto.html#3 and
     /// http://gcc.gnu.org/onlinedocs/libstdc++/27_io/howto.html#7 for more.
-    static const openmode binary =	openmode(__ios_flags::_S_bin);
+    static const openmode binary =	_S_bin;
 
     /// Open for input.  Default for @c ifstream and fstream.
-    static const openmode in =		openmode(__ios_flags::_S_in);
+    static const openmode in =		_S_in;
 
     /// Open for output.  Default for @c ofstream and fstream.
-    static const openmode out =		openmode(__ios_flags::_S_out);
+    static const openmode out =		_S_out;
 
     /// Open for input.  Default for @c ofstream.
-    static const openmode trunc =	openmode(__ios_flags::_S_trunc);
+    static const openmode trunc =	_S_trunc;
 
     // 27.4.2.1.5  Type ios_base::seekdir
     /**
@@ -392,15 +392,14 @@ namespace std
     typedef _Ios_Seekdir seekdir;
 
     /// Request a seek relative to the beginning of the stream.
-    static const seekdir beg =		seekdir(0);
+    static const seekdir beg =		_S_beg;
 
     /// Request a seek relative to the current position within the sequence.
-    static const seekdir cur =		seekdir(SEEK_CUR);
+    static const seekdir cur =		_S_cur;
 
     /// Request a seek relative to the current end of the sequence.
-    static const seekdir end =		seekdir(SEEK_END);
+    static const seekdir end =		_S_end;
 
-#ifdef _GLIBCXX_DEPRECATED
     // Annex D.6
     typedef int io_state;
     typedef int open_mode;
@@ -408,7 +407,6 @@ namespace std
 
     typedef std::streampos streampos;
     typedef std::streamoff streamoff;
-#endif
 
     // Callbacks;
     /**
@@ -478,12 +476,12 @@ namespace std
       : _M_next(__cb), _M_fn(__fn), _M_index(__index), _M_refcount(0) { }
 
       void
-      _M_add_reference() { __gnu_cxx::__atomic_add(&_M_refcount, 1); }
+      _M_add_reference() { __gnu_cxx::__atomic_add_dispatch(&_M_refcount, 1); }
 
       // 0 => OK to delete.
       int
       _M_remove_reference() 
-      { return __gnu_cxx::__exchange_and_add(&_M_refcount, -1); }
+      { return __gnu_cxx::__exchange_and_add_dispatch(&_M_refcount, -1); }
     };
 
      _Callback_list*	_M_callbacks;
@@ -507,7 +505,7 @@ namespace std
 
     // Guaranteed storage.
     // The first 5 iword and pword slots are reserved for internal use.
-    static const int	_S_local_word_size = 8;
+    enum { _S_local_word_size = 8 };
     _Words		_M_local_word[_S_local_word_size];
 
     // Allocated storage.
@@ -963,7 +961,8 @@ namespace std
     __base.setf(ios_base::scientific, ios_base::floatfield);
     return __base;
   }
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif /* _IOS_BASE_H */
 

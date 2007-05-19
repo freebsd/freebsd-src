@@ -1,6 +1,6 @@
 // Debugging multiset implementation -*- C++ -*-
 
-// Copyright (C) 2003, 2004
+// Copyright (C) 2003, 2004, 2005
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,6 +28,10 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file debug/multiset.h
+ *  This file is a GNU debug extension to the Standard C++ Library.
+ */
+
 #ifndef _GLIBCXX_DEBUG_MULTISET_H
 #define _GLIBCXX_DEBUG_MULTISET_H 1
 
@@ -35,7 +39,9 @@
 #include <debug/safe_iterator.h>
 #include <utility>
 
-namespace __gnu_debug_def
+namespace std
+{
+namespace __debug
 {
   template<typename _Key, typename _Compare = std::less<_Key>,
 	   typename _Allocator = std::allocator<_Key> >
@@ -53,8 +59,8 @@ namespace __gnu_debug_def
       typedef _Compare				     key_compare;
       typedef _Compare				     value_compare;
       typedef _Allocator			     allocator_type;
-      typedef typename _Allocator::reference	     reference;
-      typedef typename _Allocator::const_reference   const_reference;
+      typedef typename _Base::reference	             reference;
+      typedef typename _Base::const_reference        const_reference;
 
       typedef __gnu_debug::_Safe_iterator<typename _Base::iterator, multiset>
       iterator;
@@ -63,8 +69,8 @@ namespace __gnu_debug_def
 
       typedef typename _Base::size_type              size_type;
       typedef typename _Base::difference_type        difference_type;
-      typedef typename _Allocator::pointer           pointer;
-      typedef typename _Allocator::const_pointer     const_pointer;
+      typedef typename _Base::pointer                pointer;
+      typedef typename _Base::const_pointer          const_pointer;
       typedef std::reverse_iterator<iterator>        reverse_iterator;
       typedef std::reverse_iterator<const_iterator>  const_reverse_iterator;
 
@@ -315,6 +321,7 @@ namespace __gnu_debug_def
     swap(multiset<_Key,_Compare,_Allocator>& __x,
 	 multiset<_Key,_Compare,_Allocator>& __y)
     { return __x.swap(__y); }
-} // namespace __gnu_debug_def
+} // namespace __debug
+} // namespace std
 
 #endif

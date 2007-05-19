@@ -27,6 +27,23 @@ AC_DEFUN([GLIBCXX_CHECK_MATH_DECL_1], [
   AC_MSG_RESULT($glibcxx_cv_func_$1_use)
 ])
 
+
+dnl 
+dnl Define autoheader template for using the underscore functions
+dnl For each parameter, create a macro where if func doesn't exist,
+dnl but _func does, then it will "#define func _func".
+dnl
+dnl GLIBCXX_MAYBE_UNDERSCORED_FUNCS
+AC_DEFUN([GLIBCXX_MAYBE_UNDERSCORED_FUNCS], 
+[AC_FOREACH([glibcxx_ufunc], [$1],
+  [AH_VERBATIM(_[]glibcxx_ufunc,
+[#if defined (]AS_TR_CPP(HAVE__[]glibcxx_ufunc)[) && ! defined (]AS_TR_CPP(HAVE_[]glibcxx_ufunc)[)
+# define ]AS_TR_CPP(HAVE_[]glibcxx_ufunc)[ 1
+# define ]glibcxx_ufunc[ _]glibcxx_ufunc[
+#endif])])
+])
+
+
 dnl
 dnl Check to see if the (math function) argument passed is
 dnl 1) declared when using the c++ compiler
@@ -50,6 +67,7 @@ AC_DEFUN([GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_1], [
       AC_CHECK_FUNCS(_$1)
     fi
   fi
+  GLIBCXX_MAYBE_UNDERSCORED_FUNCS($1)
 ])
 
 
@@ -59,19 +77,36 @@ dnl of functions at once.  It's an all-or-nothing check -- either
 dnl HAVE_XYZ is defined for each of the functions, or for none of them.
 dnl Doing it this way saves significant configure time.
 AC_DEFUN([GLIBCXX_CHECK_MATH_DECLS_AND_LINKAGES_1], [
+  define([funclist],patsubst($3,\(\w+\)\(\W*\),\1 ))dnl
   AC_MSG_CHECKING([for $1 functions])
   AC_CACHE_VAL(glibcxx_cv_func_$2_use, [
     AC_LANG_SAVE
     AC_LANG_CPLUSPLUS
     AC_TRY_COMPILE([#include <math.h>],
-                   [ `for x in $3; do echo "$x (0);"; done` ],
+                   patsubst(funclist,[\w+],[\& (0);]),
                    [glibcxx_cv_func_$2_use=yes],
                    [glibcxx_cv_func_$2_use=no])
     AC_LANG_RESTORE])
   AC_MSG_RESULT($glibcxx_cv_func_$2_use)
   if test x$glibcxx_cv_func_$2_use = x"yes"; then
-    AC_CHECK_FUNCS($3)
+    AC_CHECK_FUNCS(funclist)
+  else
+    AC_MSG_CHECKING([for _$1 functions])
+    AC_CACHE_VAL(glibcxx_cv_func__$2_use, [
+      AC_LANG_SAVE
+      AC_LANG_CPLUSPLUS
+      AC_TRY_COMPILE([#include <math.h>],
+                     patsubst(funclist,[\w+],[_\& (0);]),
+                     [glibcxx_cv_func__$2_use=yes],
+                     [glibcxx_cv_func__$2_use=no])
+      AC_LANG_RESTORE])
+    AC_MSG_RESULT($glibcxx_cv_func__$2_use)
+    if test x$glibcxx_cv_func__$2_use = x"yes"; then
+      AC_CHECK_FUNCS(patsubst(funclist,[\w+],[_\&]))
+    fi
   fi
+  GLIBCXX_MAYBE_UNDERSCORED_FUNCS(funclist)
+  undefine([funclist])
 ])
 
 dnl
@@ -117,6 +152,7 @@ AC_DEFUN([GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_2], [
       AC_CHECK_FUNCS(_$1)
     fi
   fi
+  GLIBCXX_MAYBE_UNDERSCORED_FUNCS($1)
 ])
 
 
@@ -163,6 +199,7 @@ AC_DEFUN([GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_3], [
       AC_CHECK_FUNCS(_$1)
     fi
   fi
+  GLIBCXX_MAYBE_UNDERSCORED_FUNCS($1)
 ])
 
 
@@ -221,6 +258,7 @@ AC_DEFUN([GLIBCXX_CHECK_STDLIB_DECL_AND_LINKAGE_2], [
   if test x$glibcxx_cv_func_$1_use = x"yes"; then
     AC_CHECK_FUNCS($1)
   fi
+  GLIBCXX_MAYBE_UNDERSCORED_FUNCS($1)
 ])
 
 
@@ -289,10 +327,12 @@ AC_DEFUN([GLIBCXX_CHECK_BUILTIN_MATH_DECL_AND_LINKAGE_1], [
       ])
     fi
     AC_MSG_RESULT($glibcxx_cv_func_$1_link)
+    define([NAME], [translit([$1],[abcdefghijklmnopqrstuvwxyz],
+    				  [ABCDEFGHIJKLMNOPQRSTUVWXYZ])])
     if test x$glibcxx_cv_func_$1_link = x"yes"; then
-      ac_tr_func=HAVE_`echo $1 | tr 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
-      AC_DEFINE_UNQUOTED(${ac_tr_func}, 1, [Defined if $1 exists.])
+      AC_DEFINE([HAVE_]NAME, 1, [Define if the compiler/host combination has $1.])
     fi
+    undefine([NAME])
   fi
 ])
 
@@ -411,6 +451,7 @@ AC_DEFUN([GLIBCXX_CHECK_MATH_SUPPORT], [
   GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_1(logf)
   GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_1(log10f)
   GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_2(modff)
+  GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_2(modf)
   GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_2(powf)
   GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_1(sqrtf)
   GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_3(sincosf)
@@ -442,31 +483,6 @@ AC_DEFUN([GLIBCXX_CHECK_MATH_SUPPORT], [
   GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_1(sqrtl)
   GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_3(sincosl)
   GLIBCXX_CHECK_MATH_DECL_AND_LINKAGE_1(finitel)
-
-  dnl Some runtimes have these functions with a preceding underscore. Please
-  dnl keep this sync'd with the one above. And if you add any new symbol,
-  dnl please add the corresponding block in the @BOTTOM@ section of acconfig.h.
-  dnl Check to see if certain C math functions exist.
-
-  dnl Check to see if basic C math functions have float versions.
-  GLIBCXX_CHECK_MATH_DECLS_AND_LINKAGES_1(_float trig,
-                                          _float_trig,
-                                          _acosf _asinf _atanf \
-                                          _cosf _sinf _tanf \
-                                          _coshf _sinhf _tanhf)
-  GLIBCXX_CHECK_MATH_DECLS_AND_LINKAGES_1(_float round,
-                                          _float_round,
-                                          _ceilf _floorf)
-
-  dnl Check to see if basic C math functions have long double versions.
-  GLIBCXX_CHECK_MATH_DECLS_AND_LINKAGES_1(_long double trig,
-                                          _long_double_trig,
-                                          _acosl _asinl _atanl \
-                                          _cosl _sinl _tanl \
-                                          _coshl _sinhl _tanhl)
-  GLIBCXX_CHECK_MATH_DECLS_AND_LINKAGES_1(_long double round,
-                                          _long_double_round,
-                                          _ceill _floorl)
 
   LIBS="$ac_save_LIBS"
   CXXFLAGS="$ac_save_CXXFLAGS"

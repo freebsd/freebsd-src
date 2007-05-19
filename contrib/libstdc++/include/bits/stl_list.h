@@ -1,6 +1,7 @@
 // List implementation -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -63,8 +64,8 @@
 
 #include <bits/concept_check.h>
 
-namespace _GLIBCXX_STD
-{
+_GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
+
   // Supporting structures are split into common and templated types; the
   // latter publicly inherits from the former in an effort to reduce code
   // duplication.  This results in some "needless" static_cast'ing later on,
@@ -110,18 +111,19 @@ namespace _GLIBCXX_STD
   template<typename _Tp>
     struct _List_iterator
     {
-      typedef _List_iterator<_Tp>           _Self;
-      typedef _List_node<_Tp>               _Node;
+      typedef _List_iterator<_Tp>                _Self;
+      typedef _List_node<_Tp>                    _Node;
 
-      typedef ptrdiff_t                     difference_type;
-      typedef bidirectional_iterator_tag    iterator_category;
-      typedef _Tp                           value_type;
-      typedef _Tp*                          pointer;
-      typedef _Tp&                          reference;
+      typedef ptrdiff_t                          difference_type;
+      typedef std::bidirectional_iterator_tag    iterator_category;
+      typedef _Tp                                value_type;
+      typedef _Tp*                               pointer;
+      typedef _Tp&                               reference;
 
       _List_iterator()
       : _M_node() { }
 
+      explicit
       _List_iterator(_List_node_base* __x)
       : _M_node(__x) { }
 
@@ -186,19 +188,20 @@ namespace _GLIBCXX_STD
   template<typename _Tp>
     struct _List_const_iterator
     {
-      typedef _List_const_iterator<_Tp>     _Self;
-      typedef const _List_node<_Tp>         _Node;
-      typedef _List_iterator<_Tp>           iterator;
+      typedef _List_const_iterator<_Tp>          _Self;
+      typedef const _List_node<_Tp>              _Node;
+      typedef _List_iterator<_Tp>                iterator;
 
-      typedef ptrdiff_t                     difference_type;
-      typedef bidirectional_iterator_tag    iterator_category;
-      typedef _Tp                           value_type;
-      typedef const _Tp*                    pointer;
-      typedef const _Tp&                    reference;
+      typedef ptrdiff_t                          difference_type;
+      typedef std::bidirectional_iterator_tag    iterator_category;
+      typedef _Tp                                value_type;
+      typedef const _Tp*                         pointer;
+      typedef const _Tp&                         reference;
 
       _List_const_iterator()
       : _M_node() { }
 
+      explicit
       _List_const_iterator(const _List_node_base* __x)
       : _M_node(__x) { }
 
@@ -290,17 +293,20 @@ namespace _GLIBCXX_STD
       //
       // We put this to the test in the constructors and in
       // get_allocator, where we use conversions between
-      // allocator_type and _Node_Alloc_type. The conversion is
+      // allocator_type and _Node_alloc_type. The conversion is
       // required by table 32 in [20.1.5].
       typedef typename _Alloc::template rebind<_List_node<_Tp> >::other
+        _Node_alloc_type;
 
-      _Node_Alloc_type;
+      typedef typename _Alloc::template rebind<_Tp>::other _Tp_alloc_type;
 
       struct _List_impl 
-	: public _Node_Alloc_type {
+      : public _Node_alloc_type
+      {
 	_List_node_base _M_node;
-	_List_impl (const _Node_Alloc_type& __a)
-	  : _Node_Alloc_type(__a)
+
+	_List_impl(const _Node_alloc_type& __a)
+	: _Node_alloc_type(__a), _M_node()
 	{ }
       };
 
@@ -308,21 +314,33 @@ namespace _GLIBCXX_STD
 
       _List_node<_Tp>*
       _M_get_node()
-      { return _M_impl._Node_Alloc_type::allocate(1); }
+      { return _M_impl._Node_alloc_type::allocate(1); }
       
       void
       _M_put_node(_List_node<_Tp>* __p)
-      { _M_impl._Node_Alloc_type::deallocate(__p, 1); }
+      { _M_impl._Node_alloc_type::deallocate(__p, 1); }
       
   public:
       typedef _Alloc allocator_type;
 
+      _Node_alloc_type&
+      _M_get_Node_allocator()
+      { return *static_cast<_Node_alloc_type*>(&this->_M_impl); }
+
+      const _Node_alloc_type&
+      _M_get_Node_allocator() const
+      { return *static_cast<const _Node_alloc_type*>(&this->_M_impl); }
+
+      _Tp_alloc_type
+      _M_get_Tp_allocator() const
+      { return _Tp_alloc_type(_M_get_Node_allocator()); }
+
       allocator_type
       get_allocator() const
-      { return allocator_type(*static_cast<const _Node_Alloc_type*>(&this->_M_impl)); }
+      { return allocator_type(_M_get_Node_allocator()); }
 
       _List_base(const allocator_type& __a)
-	: _M_impl(__a)
+      : _M_impl(__a)
       { _M_init(); }
 
       // This is what actually destroys the list.
@@ -385,42 +403,41 @@ namespace _GLIBCXX_STD
    *  iterator's next/previous pointers refer to itself, the %list is
    *  %empty.  @endif
   */
-  template<typename _Tp, typename _Alloc = allocator<_Tp> >
+  template<typename _Tp, typename _Alloc = std::allocator<_Tp> >
     class list : protected _List_base<_Tp, _Alloc>
     {
       // concept requirements
+      typedef typename _Alloc::value_type                _Alloc_value_type;
       __glibcxx_class_requires(_Tp, _SGIAssignableConcept)
+      __glibcxx_class_requires2(_Tp, _Alloc_value_type, _SameTypeConcept)
 
-      typedef _List_base<_Tp, _Alloc>                   _Base;
+      typedef _List_base<_Tp, _Alloc>                    _Base;
+      typedef typename _Base::_Tp_alloc_type		 _Tp_alloc_type;
 
     public:
       typedef _Tp                                        value_type;
-      typedef typename _Alloc::pointer                   pointer;
-      typedef typename _Alloc::const_pointer             const_pointer;
-      typedef typename _Alloc::reference                 reference;
-      typedef typename _Alloc::const_reference           const_reference;
+      typedef typename _Tp_alloc_type::pointer           pointer;
+      typedef typename _Tp_alloc_type::const_pointer     const_pointer;
+      typedef typename _Tp_alloc_type::reference         reference;
+      typedef typename _Tp_alloc_type::const_reference   const_reference;
       typedef _List_iterator<_Tp>                        iterator;
       typedef _List_const_iterator<_Tp>                  const_iterator;
       typedef std::reverse_iterator<const_iterator>      const_reverse_iterator;
       typedef std::reverse_iterator<iterator>            reverse_iterator;
       typedef size_t                                     size_type;
       typedef ptrdiff_t                                  difference_type;
-      typedef typename _Base::allocator_type             allocator_type;
+      typedef _Alloc                                     allocator_type;
 
     protected:
       // Note that pointers-to-_Node's can be ctor-converted to
       // iterator types.
-      typedef _List_node<_Tp>				_Node;
+      typedef _List_node<_Tp>				 _Node;
 
-      /** @if maint
-       *  One data member plus two memory-handling functions.  If the
-       *  _Alloc type requires separate instances, then one of those
-       *  will also be included, accumulated from the topmost parent.
-       *  @endif
-       */
       using _Base::_M_impl;
       using _Base::_M_put_node;
       using _Base::_M_get_node;
+      using _Base::_M_get_Tp_allocator;
+      using _Base::_M_get_Node_allocator;
 
       /**
        *  @if maint
@@ -435,29 +452,7 @@ namespace _GLIBCXX_STD
 	_Node* __p = this->_M_get_node();
 	try
 	  {
-	    std::_Construct(&__p->_M_data, __x);
-	  }
-	catch(...)
-	  {
-	    _M_put_node(__p);
-	    __throw_exception_again;
-	  }
-	return __p;
-      }
-
-      /**
-       *  @if maint
-       *  Allocates space for a new node and default-constructs a new
-       *  instance of @c value_type in it.
-       *  @endif
-       */
-      _Node*
-      _M_create_node()
-      {
-	_Node* __p = this->_M_get_node();
-	try
-	  {
-	    std::_Construct(&__p->_M_data);
+	    _M_get_Tp_allocator().construct(&__p->_M_data, __x);
 	  }
 	catch(...)
 	  {
@@ -484,22 +479,11 @@ namespace _GLIBCXX_STD
        *
        *  This constructor fills the %list with @a n copies of @a value.
        */
-      list(size_type __n, const value_type& __value,
+      explicit
+      list(size_type __n, const value_type& __value = value_type(),
 	   const allocator_type& __a = allocator_type())
       : _Base(__a)
-      { this->insert(begin(), __n, __value); }
-
-      /**
-       *  @brief  Create a %list with default elements.
-       *  @param  n  The number of elements to initially create.
-       *
-       *  This constructor fills the %list with @a n copies of a
-       *  default-constructed element.
-       */
-      explicit
-      list(size_type __n)
-      : _Base(allocator_type())
-      { this->insert(begin(), __n, value_type()); }
+      { _M_fill_initialize(__n, __value); }
 
       /**
        *  @brief  %List copy constructor.
@@ -509,8 +493,8 @@ namespace _GLIBCXX_STD
        *  by @a x.
        */
       list(const list& __x)
-      : _Base(__x.get_allocator())
-      { this->insert(begin(), __x.begin(), __x.end()); }
+      : _Base(__x._M_get_Node_allocator())
+      { _M_initialize_dispatch(__x.begin(), __x.end(), __false_type()); }
 
       /**
        *  @brief  Builds a %list from a range.
@@ -520,17 +504,16 @@ namespace _GLIBCXX_STD
        *  Create a %list consisting of copies of the elements from
        *  [@a first,@a last).  This is linear in N (where N is
        *  distance(@a first,@a last)).
-       *
-       *  @if maint
-       *  We don't need any dispatching tricks here, because insert does all of
-       *  that anyway.
-       *  @endif
        */
       template<typename _InputIterator>
         list(_InputIterator __first, _InputIterator __last,
 	     const allocator_type& __a = allocator_type())
         : _Base(__a)
-        { this->insert(begin(), __first, __last); }
+        { 
+	  // Check whether it's an integral type.  If so, it's not an iterator.
+	  typedef typename std::__is_integer<_InputIterator>::__type _Integral;
+	  _M_initialize_dispatch(__first, __last, _Integral());
+	}
 
       /**
        *  No explicit dtor needed as the _Base dtor takes care of
@@ -581,7 +564,7 @@ namespace _GLIBCXX_STD
         assign(_InputIterator __first, _InputIterator __last)
         {
 	  // Check whether it's an integral type.  If so, it's not an iterator.
-	  typedef typename _Is_integer<_InputIterator>::_Integral _Integral;
+	  typedef typename std::__is_integer<_InputIterator>::__type _Integral;
 	  _M_assign_dispatch(__first, __last, _Integral());
 	}
 
@@ -597,7 +580,7 @@ namespace _GLIBCXX_STD
        */
       iterator
       begin()
-      { return this->_M_impl._M_node._M_next; }
+      { return iterator(this->_M_impl._M_node._M_next); }
 
       /**
        *  Returns a read-only (constant) iterator that points to the
@@ -606,7 +589,7 @@ namespace _GLIBCXX_STD
        */
       const_iterator
       begin() const
-      { return this->_M_impl._M_node._M_next; }
+      { return const_iterator(this->_M_impl._M_node._M_next); }
 
       /**
        *  Returns a read/write iterator that points one past the last
@@ -614,7 +597,8 @@ namespace _GLIBCXX_STD
        *  order.
        */
       iterator
-      end() { return &this->_M_impl._M_node; }
+      end()
+      { return iterator(&this->_M_impl._M_node); }
 
       /**
        *  Returns a read-only (constant) iterator that points one past
@@ -623,7 +607,7 @@ namespace _GLIBCXX_STD
        */
       const_iterator
       end() const
-      { return &this->_M_impl._M_node; }
+      { return const_iterator(&this->_M_impl._M_node); }
 
       /**
        *  Returns a read/write reverse iterator that points to the last
@@ -678,7 +662,7 @@ namespace _GLIBCXX_STD
       /**  Returns the size() of the largest possible %list.  */
       size_type
       max_size() const
-      { return size_type(-1); }
+      { return _M_get_Tp_allocator().max_size(); }
 
       /**
        *  @brief Resizes the %list to the specified number of elements.
@@ -691,20 +675,7 @@ namespace _GLIBCXX_STD
        *  extended and new elements are populated with given data.
        */
       void
-      resize(size_type __new_size, const value_type& __x);
-
-      /**
-       *  @brief  Resizes the %list to the specified number of elements.
-       *  @param  new_size  Number of elements the %list should contain.
-       *
-       *  This function will resize the %list to the specified number of
-       *  elements.  If the number is smaller than the %list's current
-       *  size the %list is truncated, otherwise the %list is extended
-       *  and new elements are default-constructed.
-       */
-      void
-      resize(size_type __new_size)
-      { this->resize(__new_size, value_type()); }
+      resize(size_type __new_size, value_type __x = value_type());
 
       // element access
       /**
@@ -729,7 +700,11 @@ namespace _GLIBCXX_STD
        */
       reference
       back()
-      { return *(--end()); }
+      { 
+	iterator __tmp = end();
+	--__tmp;
+	return *__tmp;
+      }
 
       /**
        *  Returns a read-only (constant) reference to the data at the last
@@ -737,7 +712,11 @@ namespace _GLIBCXX_STD
        */
       const_reference
       back() const
-      { return *(--end()); }
+      { 
+	const_iterator __tmp = end();
+	--__tmp;
+	return *__tmp;
+      }
 
       // [23.2.2.3] modifiers
       /**
@@ -797,7 +776,7 @@ namespace _GLIBCXX_STD
        */
       void
       pop_back()
-      { this->_M_erase(this->_M_impl._M_node._M_prev); }
+      { this->_M_erase(iterator(this->_M_impl._M_node._M_prev)); }
 
       /**
        *  @brief  Inserts given value into %list before specified iterator.
@@ -822,13 +801,15 @@ namespace _GLIBCXX_STD
        *  This function will insert a specified number of copies of the
        *  given data before the location specified by @a position.
        *
-       *  Due to the nature of a %list this operation can be done in
-       *  constant time, and does not invalidate iterators and
-       *  references.
+       *  This operation is linear in the number of elements inserted and
+       *  does not invalidate iterators and references.
        */
       void
       insert(iterator __position, size_type __n, const value_type& __x)
-      { _M_fill_insert(__position, __n, __x); }
+      {  
+	list __tmp(__n, __x, _M_get_Node_allocator());
+	splice(__position, __tmp);
+      }
 
       /**
        *  @brief  Inserts a range into the %list.
@@ -840,18 +821,16 @@ namespace _GLIBCXX_STD
        *  first,@a last) into the %list before the location specified by
        *  @a position.
        *
-       *  Due to the nature of a %list this operation can be done in
-       *  constant time, and does not invalidate iterators and
-       *  references.
+       *  This operation is linear in the number of elements inserted and
+       *  does not invalidate iterators and references.
        */
       template<typename _InputIterator>
         void
         insert(iterator __position, _InputIterator __first,
 	       _InputIterator __last)
         {
-	  // Check whether it's an integral type.  If so, it's not an iterator.
-	  typedef typename _Is_integer<_InputIterator>::_Integral _Integral;
-	  _M_insert_dispatch(__position, __first, __last, _Integral());
+	  list __tmp(__first, __last, _M_get_Node_allocator());
+	  splice(__position, __tmp);
 	}
 
       /**
@@ -883,13 +862,12 @@ namespace _GLIBCXX_STD
        *  This function will erase the elements in the range @a
        *  [first,last) and shorten the %list accordingly.
        *
-       *  Due to the nature of a %list this operation can be done in
-       *  constant time, and only invalidates iterators/references to
-       *  the element being removed.  The user is also cautioned that
-       *  this function only erases the elements, and that if the
-       *  elements themselves are pointers, the pointed-to memory is not
-       *  touched in any way.  Managing the pointer is the user's
-       *  responsibilty.
+       *  This operation is linear time in the size of the range and only
+       *  invalidates iterators/references to the element being removed.
+       *  The user is also cautioned that this function only erases the
+       *  elements, and that if the elements themselves are pointers, the
+       *  pointed-to memory is not touched in any way.  Managing the pointer
+       *  is the user's responsibilty.
        */
       iterator
       erase(iterator __first, iterator __last)
@@ -910,7 +888,14 @@ namespace _GLIBCXX_STD
        */
       void
       swap(list& __x)
-      { _List_node_base::swap(this->_M_impl._M_node,__x._M_impl._M_node); }
+      {
+	_List_node_base::swap(this->_M_impl._M_node, __x._M_impl._M_node);
+
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 431. Swapping containers with unequal allocators.
+	std::__alloc_swap<typename _Base::_Node_alloc_type>::
+	  _S_do_it(_M_get_Node_allocator(), __x._M_get_Node_allocator());
+      }
 
       /**
        *  Erases all the elements.  Note that this function only erases
@@ -934,12 +919,18 @@ namespace _GLIBCXX_STD
        *  The elements of @a x are inserted in constant time in front of
        *  the element referenced by @a position.  @a x becomes an empty
        *  list.
+       *
+       *  Requires this != @a x.
        */
       void
       splice(iterator __position, list& __x)
       {
 	if (!__x.empty())
-	  this->_M_transfer(__position, __x.begin(), __x.end());
+	  {
+	    _M_check_equal_allocators(__x);
+
+	    this->_M_transfer(__position, __x.begin(), __x.end());
+	  }
       }
 
       /**
@@ -952,12 +943,16 @@ namespace _GLIBCXX_STD
        *  inserts it into the current list before @a position.
        */
       void
-      splice(iterator __position, list&, iterator __i)
+      splice(iterator __position, list& __x, iterator __i)
       {
 	iterator __j = __i;
 	++__j;
 	if (__position == __i || __position == __j)
 	  return;
+
+	if (this != &__x)
+	  _M_check_equal_allocators(__x);
+
 	this->_M_transfer(__position, __i, __j);
       }
 
@@ -974,10 +969,15 @@ namespace _GLIBCXX_STD
        *  Undefined if @a position is in [first,last).
        */
       void
-      splice(iterator __position, list&, iterator __first, iterator __last)
+      splice(iterator __position, list& __x, iterator __first, iterator __last)
       {
 	if (__first != __last)
-	  this->_M_transfer(__position, __first, __last);
+	  {
+	    if (this != &__x)
+	      _M_check_equal_allocators(__x);
+
+	    this->_M_transfer(__position, __first, __last);
+	  }
       }
 
       /**
@@ -1006,8 +1006,8 @@ namespace _GLIBCXX_STD
        *  responsibilty.
        */
       template<typename _Predicate>
-      void
-      remove_if(_Predicate);
+        void
+        remove_if(_Predicate);
 
       /**
        *  @brief  Remove consecutive duplicate elements.
@@ -1095,6 +1095,37 @@ namespace _GLIBCXX_STD
         sort(_StrictWeakOrdering);
 
     protected:
+      // Internal constructor functions follow.
+
+      // Called by the range constructor to implement [23.1.1]/9
+      template<typename _Integer>
+        void
+        _M_initialize_dispatch(_Integer __n, _Integer __x, __true_type)
+        {
+	  _M_fill_initialize(static_cast<size_type>(__n),
+			     static_cast<value_type>(__x));
+	}
+
+      // Called by the range constructor to implement [23.1.1]/9
+      template<typename _InputIterator>
+        void
+        _M_initialize_dispatch(_InputIterator __first, _InputIterator __last,
+			       __false_type)
+        {
+	  for (; __first != __last; ++__first)
+	    push_back(*__first);
+	}
+
+      // Called by list(n,v,a), and the range constructor when it turns out
+      // to be the same thing.
+      void
+      _M_fill_initialize(size_type __n, const value_type& __x)
+      {
+	for (; __n > 0; --__n)
+	  push_back(__x);
+      }
+
+
       // Internal assign functions follow.
 
       // Called by the range assign to implement [23.1.1]/9
@@ -1118,43 +1149,10 @@ namespace _GLIBCXX_STD
       _M_fill_assign(size_type __n, const value_type& __val);
 
 
-      // Internal insert functions follow.
-
-      // Called by the range insert to implement [23.1.1]/9
-      template<typename _Integer>
-        void
-        _M_insert_dispatch(iterator __pos, _Integer __n, _Integer __x,
-			   __true_type)
-        {
-	  _M_fill_insert(__pos, static_cast<size_type>(__n),
-			 static_cast<value_type>(__x));
-	}
-
-      // Called by the range insert to implement [23.1.1]/9
-      template<typename _InputIterator>
-        void
-        _M_insert_dispatch(iterator __pos,
-			   _InputIterator __first, _InputIterator __last,
-			   __false_type)
-        {
-	  for ( ; __first != __last; ++__first)
-	    _M_insert(__pos, *__first);
-	}
-
-      // Called by insert(p,n,x), and the range insert when it turns out
-      // to be the same thing.
-      void
-      _M_fill_insert(iterator __pos, size_type __n, const value_type& __x)
-      {
-	for ( ; __n > 0; --__n)
-	  _M_insert(__pos, __x);
-      }
-
-
       // Moves the elements from [first,last) before position.
       void
       _M_transfer(iterator __position, iterator __first, iterator __last)
-      { __position._M_node->transfer(__first._M_node,__last._M_node); }
+      { __position._M_node->transfer(__first._M_node, __last._M_node); }
 
       // Inserts new element at position given and with value given.
       void
@@ -1170,8 +1168,16 @@ namespace _GLIBCXX_STD
       {
         __position._M_node->unhook();
         _Node* __n = static_cast<_Node*>(__position._M_node);
-        std::_Destroy(&__n->_M_data);
+        _M_get_Tp_allocator().destroy(&__n->_M_data);
         _M_put_node(__n);
+      }
+
+      // To implement the splice (and merge) bits of N1599.
+      void
+      _M_check_equal_allocators(list& __x)
+      {
+	if (_M_get_Node_allocator() != __x._M_get_Node_allocator())
+	  __throw_runtime_error(__N("list::_M_check_equal_allocators"));
       }
     };
 
@@ -1187,9 +1193,9 @@ namespace _GLIBCXX_STD
   */
   template<typename _Tp, typename _Alloc>
     inline bool
-    operator==(const list<_Tp,_Alloc>& __x, const list<_Tp,_Alloc>& __y)
+    operator==(const list<_Tp, _Alloc>& __x, const list<_Tp, _Alloc>& __y)
     {
-      typedef typename list<_Tp,_Alloc>::const_iterator const_iterator;
+      typedef typename list<_Tp, _Alloc>::const_iterator const_iterator;
       const_iterator __end1 = __x.end();
       const_iterator __end2 = __y.end();
 
@@ -1216,32 +1222,32 @@ namespace _GLIBCXX_STD
   */
   template<typename _Tp, typename _Alloc>
     inline bool
-    operator<(const list<_Tp,_Alloc>& __x, const list<_Tp,_Alloc>& __y)
+    operator<(const list<_Tp, _Alloc>& __x, const list<_Tp, _Alloc>& __y)
     { return std::lexicographical_compare(__x.begin(), __x.end(),
 					  __y.begin(), __y.end()); }
 
   /// Based on operator==
   template<typename _Tp, typename _Alloc>
     inline bool
-    operator!=(const list<_Tp,_Alloc>& __x, const list<_Tp,_Alloc>& __y)
+    operator!=(const list<_Tp, _Alloc>& __x, const list<_Tp, _Alloc>& __y)
     { return !(__x == __y); }
 
   /// Based on operator<
   template<typename _Tp, typename _Alloc>
     inline bool
-    operator>(const list<_Tp,_Alloc>& __x, const list<_Tp,_Alloc>& __y)
+    operator>(const list<_Tp, _Alloc>& __x, const list<_Tp, _Alloc>& __y)
     { return __y < __x; }
 
   /// Based on operator<
   template<typename _Tp, typename _Alloc>
     inline bool
-    operator<=(const list<_Tp,_Alloc>& __x, const list<_Tp,_Alloc>& __y)
+    operator<=(const list<_Tp, _Alloc>& __x, const list<_Tp, _Alloc>& __y)
     { return !(__y < __x); }
 
   /// Based on operator<
   template<typename _Tp, typename _Alloc>
     inline bool
-    operator>=(const list<_Tp,_Alloc>& __x, const list<_Tp,_Alloc>& __y)
+    operator>=(const list<_Tp, _Alloc>& __x, const list<_Tp, _Alloc>& __y)
     { return !(__x < __y); }
 
   /// See std::list::swap().
@@ -1249,7 +1255,8 @@ namespace _GLIBCXX_STD
     inline void
     swap(list<_Tp, _Alloc>& __x, list<_Tp, _Alloc>& __y)
     { __x.swap(__y); }
-} // namespace std
+
+_GLIBCXX_END_NESTED_NAMESPACE
 
 #endif /* _LIST_H */
 

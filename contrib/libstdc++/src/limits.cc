@@ -1,6 +1,6 @@
 // Static data members of -*- C++ -*- numeric_limits classes
 
-// Copyright (C) 1999, 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 1999, 2001, 2002, 2005, 2006 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -36,8 +36,8 @@
 
 #include <limits>
 
-namespace std 
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   const bool __numeric_limits_base::is_specialized;
   const int  __numeric_limits_base::digits;
   const int  __numeric_limits_base::digits10;
@@ -446,4 +446,36 @@ namespace std
   const bool numeric_limits<long double>::traps;
   const bool numeric_limits<long double>::tinyness_before;
   const float_round_style numeric_limits<long double>::round_style;
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
+
+// XXX GLIBCXX_ABI Deprecated
+#ifdef _GLIBCXX_LONG_DOUBLE_COMPAT
+
+#define _GLIBCXX_NUM_LIM_COMPAT(type, member, len) \
+  extern "C" type _ZNSt14numeric_limitsIeE ## len ## member ## E \
+  __attribute__ ((alias ("_ZNSt14numeric_limitsIdE" #len #member "E")))
+_GLIBCXX_NUM_LIM_COMPAT (bool, is_specialized, 14);
+_GLIBCXX_NUM_LIM_COMPAT (int, digits, 6);
+_GLIBCXX_NUM_LIM_COMPAT (int, digits10, 8);
+_GLIBCXX_NUM_LIM_COMPAT (bool, is_signed, 9);
+_GLIBCXX_NUM_LIM_COMPAT (bool, is_integer, 10);
+_GLIBCXX_NUM_LIM_COMPAT (bool, is_exact, 8);
+_GLIBCXX_NUM_LIM_COMPAT (int, radix, 5);
+_GLIBCXX_NUM_LIM_COMPAT (int, min_exponent, 12);
+_GLIBCXX_NUM_LIM_COMPAT (int, min_exponent10, 14);
+_GLIBCXX_NUM_LIM_COMPAT (int, max_exponent, 12);
+_GLIBCXX_NUM_LIM_COMPAT (int, max_exponent10, 14);
+_GLIBCXX_NUM_LIM_COMPAT (bool, has_infinity, 12);
+_GLIBCXX_NUM_LIM_COMPAT (bool, has_quiet_NaN, 13);
+_GLIBCXX_NUM_LIM_COMPAT (bool, has_signaling_NaN, 17);
+_GLIBCXX_NUM_LIM_COMPAT (std::float_denorm_style, has_denorm, 10);
+_GLIBCXX_NUM_LIM_COMPAT (bool, has_denorm_loss, 15);
+_GLIBCXX_NUM_LIM_COMPAT (bool, is_iec559, 9);
+_GLIBCXX_NUM_LIM_COMPAT (bool, is_bounded, 10);
+_GLIBCXX_NUM_LIM_COMPAT (bool, is_modulo, 9);
+_GLIBCXX_NUM_LIM_COMPAT (bool, traps, 5);
+_GLIBCXX_NUM_LIM_COMPAT (bool, tinyness_before, 15);
+_GLIBCXX_NUM_LIM_COMPAT (std::float_round_style, round_style, 11);
+
+#endif // _GLIBCXX_LONG_DOUBLE_COMPAT

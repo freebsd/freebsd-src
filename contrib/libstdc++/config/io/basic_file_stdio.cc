@@ -1,6 +1,7 @@
 // Wrapper of C-language FILE struct -*- C++ -*-
 
-// Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2001, 2002, 2003, 2004, 2006
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -68,9 +69,9 @@
 # endif
 #endif
 
-#include <limits> // For <off_t>::max() and min()
+#include <limits> // For <off_t>::max() and min() and <streamsize>::max()
 
-namespace __gnu_internal
+namespace 
 {
   // Map ios_base::openmode flags to a string for use in fopen().
   // Table of valid combinations as given in [lib.filebuf.members]/2.
@@ -94,6 +95,8 @@ namespace __gnu_internal
       case (in                     ): return "r";  
       case (in|out                 ): return "r+"; 
       case (in|out|trunc           ): return "w+"; 
+      // Extension to Table 92.
+      case (in|out      |app       ): return "a+"; 
 	
       case (   out          |binary): return "wb"; 
       case (   out      |app|binary): return "ab"; 
@@ -101,6 +104,8 @@ namespace __gnu_internal
       case (in              |binary): return "rb"; 
       case (in|out          |binary): return "r+b";
       case (in|out|trunc    |binary): return "w+b";
+      // Extension to Table 92.
+      case (in|out      |app|binary): return "a+b";
 	
       default: return 0; // invalid
       }
@@ -172,10 +177,11 @@ namespace __gnu_internal
     return __n1 + __n2 - __nleft;
   }
 #endif
-} // namespace __gnu_internal
+} // anonymous namespace
 
-namespace std 
-{
+
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // Definitions for __basic_file<char>.
   __basic_file<char>::__basic_file(__c_lock* /*__lock*/) 
   : _M_cfile(NULL), _M_cfile_created(false) { }
@@ -208,7 +214,7 @@ namespace std
   __basic_file<char>::sys_open(int __fd, ios_base::openmode __mode)
   {
     __basic_file* __ret = NULL;
-    const char* __c_mode = __gnu_internal::fopen_mode(__mode);
+    const char* __c_mode = fopen_mode(__mode);
     if (__c_mode && !this->is_open() && (_M_cfile = fdopen(__fd, __c_mode)))
       {
 	char* __buf = NULL;
@@ -225,7 +231,7 @@ namespace std
 			   int /*__prot*/)
   {
     __basic_file* __ret = NULL;
-    const char* __c_mode = __gnu_internal::fopen_mode(__mode);
+    const char* __c_mode = fopen_mode(__mode);
     if (__c_mode && !this->is_open())
       {
 #ifdef _GLIBCXX_USE_LFS
@@ -290,7 +296,7 @@ namespace std
 
   streamsize 
   __basic_file<char>::xsputn(const char* __s, streamsize __n)
-  { return __gnu_internal::xwrite(this->fd(), __s, __n); }
+  { return xwrite(this->fd(), __s, __n); }
 
   streamsize 
   __basic_file<char>::xsputn_2(const char* __s1, streamsize __n1,
@@ -298,13 +304,13 @@ namespace std
   {
     streamsize __ret = 0;
 #ifdef _GLIBCXX_HAVE_WRITEV
-    __ret = __gnu_internal::xwritev(this->fd(), __s1, __n1, __s2, __n2);
+    __ret = xwritev(this->fd(), __s1, __n1, __s2, __n2);
 #else
     if (__n1)
-      __ret = __gnu_internal::xwrite(this->fd(), __s1, __n1);
+      __ret = xwrite(this->fd(), __s1, __n1);
 
     if (__ret == __n1)
-      __ret += __gnu_internal::xwrite(this->fd(), __s2, __n2);
+      __ret += xwrite(this->fd(), __s2, __n2);
 #endif
     return __ret;
   }
@@ -315,8 +321,8 @@ namespace std
 #ifdef _GLIBCXX_USE_LFS
     return lseek64(this->fd(), __off, __way);
 #else
-    if (__off > std::numeric_limits<off_t>::max()
-	|| __off < std::numeric_limits<off_t>::min())
+    if (__off > numeric_limits<off_t>::max()
+	|| __off < numeric_limits<off_t>::min())
       return -1L;
     return lseek(this->fd(), __off, __way);
 #endif
@@ -352,11 +358,24 @@ namespace std
 
 #if defined(_GLIBCXX_HAVE_S_ISREG) || defined(_GLIBCXX_HAVE_S_IFREG)
     // Regular files.
+#ifdef _GLIBCXX_USE_LFS
+    struct stat64 __buffer;
+    const int __err = fstat64(this->fd(), &__buffer);
+    if (!__err && _GLIBCXX_ISREG(__buffer.st_mode))
+      {
+	const streamoff __off = __buffer.st_size - lseek64(this->fd(), 0,
+							   ios_base::cur);
+	return std::min(__off, streamoff(numeric_limits<streamsize>::max()));
+      }
+#else
     struct stat __buffer;
-    int __ret = fstat(this->fd(), &__buffer);
-    if (!__ret && _GLIBCXX_ISREG(__buffer.st_mode))
-	return __buffer.st_size - lseek(this->fd(), 0, ios_base::cur);
+    const int __err = fstat(this->fd(), &__buffer);
+    if (!__err && _GLIBCXX_ISREG(__buffer.st_mode))
+      return __buffer.st_size - lseek(this->fd(), 0, ios_base::cur);
+#endif
 #endif
     return 0;
   }
-}  // namespace std
+
+_GLIBCXX_END_NAMESPACE
+

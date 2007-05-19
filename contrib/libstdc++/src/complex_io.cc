@@ -1,6 +1,6 @@
 // The template and inlines for the -*- C++ -*- complex number classes.
 
-// Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2001, 2005, 2006 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -29,8 +29,8 @@
 
 #include <complex>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   template
     basic_istream<char, char_traits<char> >&
     operator>>(basic_istream<char, char_traits<char> >&, complex<float>&);
@@ -90,4 +90,22 @@ namespace std
     operator<<(basic_ostream<wchar_t, char_traits<wchar_t> >&,
                const complex<long double>&);
 #endif //_GLIBCXX_USE_WCHAR_T
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
+
+// XXX GLIBCXX_ABI Deprecated
+#ifdef _GLIBCXX_LONG_DOUBLE_COMPAT
+
+#define _GLIBCXX_LDBL_COMPAT(dbl, ldbl) \
+  extern "C" void ldbl (void) __attribute__ ((alias (#dbl), weak))
+
+_GLIBCXX_LDBL_COMPAT (_ZStlsIdcSt11char_traitsIcEERSt13basic_ostreamIT0_T1_ES6_RKSt7complexIT_E,
+		      _ZStlsIecSt11char_traitsIcEERSt13basic_ostreamIT0_T1_ES6_RKSt7complexIT_E);
+_GLIBCXX_LDBL_COMPAT (_ZStlsIdwSt11char_traitsIwEERSt13basic_ostreamIT0_T1_ES6_RKSt7complexIT_E,
+		      _ZStlsIewSt11char_traitsIwEERSt13basic_ostreamIT0_T1_ES6_RKSt7complexIT_E);
+_GLIBCXX_LDBL_COMPAT (_ZStrsIdcSt11char_traitsIcEERSt13basic_istreamIT0_T1_ES6_RSt7complexIT_E,
+		      _ZStrsIecSt11char_traitsIcEERSt13basic_istreamIT0_T1_ES6_RSt7complexIT_E);
+_GLIBCXX_LDBL_COMPAT (_ZStrsIdwSt11char_traitsIwEERSt13basic_istreamIT0_T1_ES6_RSt7complexIT_E,
+		      _ZStrsIewSt11char_traitsIwEERSt13basic_istreamIT0_T1_ES6_RSt7complexIT_E);
+
+#endif // _GLIBCXX_LONG_DOUBLE_COMPAT

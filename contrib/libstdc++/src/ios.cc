@@ -1,6 +1,6 @@
 // Iostreams base classes -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -34,41 +34,8 @@
 
 #include <ios>
 #include <limits>
-#include <bits/atomicity.h>
 
-namespace std 
-{  
-  // XXX GLIBCXX_ABI Deprecated
-   // Definitions for static const data members of __ios_flags.
-  const __ios_flags::__int_type __ios_flags::_S_boolalpha;
-  const __ios_flags::__int_type __ios_flags::_S_dec;
-  const __ios_flags::__int_type __ios_flags::_S_fixed;
-  const __ios_flags::__int_type __ios_flags::_S_hex;
-  const __ios_flags::__int_type __ios_flags::_S_internal;
-  const __ios_flags::__int_type __ios_flags::_S_left;
-  const __ios_flags::__int_type __ios_flags::_S_oct;
-  const __ios_flags::__int_type __ios_flags::_S_right;
-  const __ios_flags::__int_type __ios_flags::_S_scientific;
-  const __ios_flags::__int_type __ios_flags::_S_showbase;
-  const __ios_flags::__int_type __ios_flags::_S_showpoint;
-  const __ios_flags::__int_type __ios_flags::_S_showpos;
-  const __ios_flags::__int_type __ios_flags::_S_skipws;
-  const __ios_flags::__int_type __ios_flags::_S_unitbuf;
-  const __ios_flags::__int_type __ios_flags::_S_uppercase;
-  const __ios_flags::__int_type __ios_flags::_S_adjustfield;
-  const __ios_flags::__int_type __ios_flags::_S_basefield;
-  const __ios_flags::__int_type __ios_flags::_S_floatfield;
-
-  const __ios_flags::__int_type __ios_flags::_S_badbit;
-  const __ios_flags::__int_type __ios_flags::_S_eofbit;
-  const __ios_flags::__int_type __ios_flags::_S_failbit;
-
-  const __ios_flags::__int_type __ios_flags::_S_app;
-  const __ios_flags::__int_type __ios_flags::_S_ate;
-  const __ios_flags::__int_type __ios_flags::_S_bin;
-  const __ios_flags::__int_type __ios_flags::_S_in;
-  const __ios_flags::__int_type __ios_flags::_S_out;
-  const __ios_flags::__int_type __ios_flags::_S_trunc;
+_GLIBCXX_BEGIN_NAMESPACE(std)
 
   // Definitions for static const members of ios_base.
   const ios_base::fmtflags ios_base::boolalpha;
@@ -106,8 +73,6 @@ namespace std
   const ios_base::seekdir ios_base::cur;
   const ios_base::seekdir ios_base::end;
 
-  const int ios_base::_S_local_word_size;
-
   _Atomic_word ios_base::Init::_S_refcount;
 
   bool ios_base::Init::_S_synced_with_stdio = true;
@@ -141,7 +106,7 @@ namespace std
     // Implementation note: Initialize top to zero to ensure that
     // initialization occurs before main() is started.
     static _Atomic_word _S_top = 0; 
-    return __gnu_cxx::__exchange_and_add(&_S_top, 1) + 4;
+    return __gnu_cxx::__exchange_and_add_dispatch(&_S_top, 1) + 4;
   }
 
   void 
@@ -150,32 +115,32 @@ namespace std
 
   // 27.4.2.5  iword/pword storage
   ios_base::_Words&
-  ios_base::_M_grow_words(int ix, bool iword)
+  ios_base::_M_grow_words(int __ix, bool __iword)
   {
-    // Precondition: _M_word_size <= ix
-    int newsize = _S_local_word_size;
-    _Words* words = _M_local_word;
-    if (ix > _S_local_word_size - 1)
+    // Precondition: _M_word_size <= __ix
+    int __newsize = _S_local_word_size;
+    _Words* __words = _M_local_word;
+    if (__ix > _S_local_word_size - 1)
       {
-	if (ix < numeric_limits<int>::max())
+	if (__ix < numeric_limits<int>::max())
 	  {
-	    newsize = ix + 1;
+	    __newsize = __ix + 1;
 	    try
-	      { words = new _Words[newsize]; }
+	      { __words = new _Words[__newsize]; }
 	    catch (...)
 	      {
 		_M_streambuf_state |= badbit;
 		if (_M_streambuf_state & _M_exception)
 		  __throw_ios_failure(__N("ios_base::_M_grow_words "
 				      "allocation failed"));
-		if (iword)
+		if (__iword)
 		  _M_word_zero._M_iword = 0;
 		else
 		  _M_word_zero._M_pword = 0;
 		return _M_word_zero;
 	      }
-	    for (int i = 0; i < _M_word_size; i++) 
-	      words[i] = _M_word[i];
+	    for (int __i = 0; __i < _M_word_size; __i++) 
+	      __words[__i] = _M_word[__i];
 	    if (_M_word && _M_word != _M_local_word) 
 	      {
 		delete [] _M_word;
@@ -187,16 +152,16 @@ namespace std
 	    _M_streambuf_state |= badbit;
 	    if (_M_streambuf_state & _M_exception)
 	      __throw_ios_failure(__N("ios_base::_M_grow_words is not valid"));
-	    if (iword)
+	    if (__iword)
 	      _M_word_zero._M_iword = 0;
 	    else
 	      _M_word_zero._M_pword = 0;
 	    return _M_word_zero;
 	  }
       }
-    _M_word = words;
-    _M_word_size = newsize;
-    return _M_word[ix];
+    _M_word = __words;
+    _M_word_size = __newsize;
+    return _M_word[__ix];
   }
 
   void 
@@ -225,4 +190,5 @@ namespace std
       }
     _M_callbacks = 0;
   }
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
