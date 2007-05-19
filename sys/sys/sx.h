@@ -213,6 +213,14 @@ struct sx_args {
 #define	sx_try_upgrade(sx)	_sx_try_upgrade((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_downgrade(sx)	_sx_downgrade((sx), LOCK_FILE, LOCK_LINE)
 
+/*
+ * Return a pointer to the owning thread if the lock is exclusively
+ * locked.
+ */
+#define	sx_xholder(sx)							\
+	((sx)->sx_lock & SX_LOCK_SHARED ? NULL :			\
+	(struct thread *)SX_OWNER((sx)->sx_lock))
+
 #define	sx_xlocked(sx)							\
 	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) ==	\
 	    (uintptr_t)curthread)
