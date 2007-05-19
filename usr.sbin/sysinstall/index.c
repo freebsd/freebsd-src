@@ -165,6 +165,7 @@ static char *descrs[] = {
     "www", "Web utilities (browsers, HTTP servers, etc).",
     "x11", "X Window System based utilities.",
     "x11-clocks", "X Window System based clocks.",
+    "x11-drivers", "X Window System drivers.",
     "x11-fm", "X Window System based file managers.",
     "x11-fonts", "X Window System fonts and font utilities.",
     "x11-servers", "X Window System servers.",
