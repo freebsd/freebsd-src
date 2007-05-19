@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
  * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
+ * Modifications by: Adam Radford
  */
 
 
@@ -63,7 +64,8 @@ tw_cl_ctlr_supported(TW_INT32 vendor_id, TW_INT32 device_id)
 {
 	if ((vendor_id == TW_CL_VENDOR_ID) &&
 		((device_id == TW_CL_DEVICE_ID_9K) ||
-		(device_id == TW_CL_DEVICE_ID_9K_X)))
+		 (device_id == TW_CL_DEVICE_ID_9K_X) ||
+		 (device_id == TW_CL_DEVICE_ID_9K_E)))
 		return(TW_CL_TRUE);
 	return(TW_CL_FALSE);
 }
@@ -113,6 +115,7 @@ tw_cl_get_pci_bar_info(TW_INT32 device_id, TW_INT32 bar_type,
 		break;
 
 	case TW_CL_DEVICE_ID_9K_X:
+	case TW_CL_DEVICE_ID_9K_E:
 		switch(bar_type) {
 		case TW_CL_BAR_TYPE_IO:
 			*bar_num = 2;
@@ -162,8 +165,6 @@ tw_cl_get_pci_bar_info(TW_INT32 device_id, TW_INT32 bar_type,
  *			non_dma_mem_size -- # of bytes of memory needed for
  *					non-DMA purposes
  *			dma_mem_size -- # of bytes of DMA'able memory needed
- *			flash_dma_mem_size -- # of bytes of DMA'able memory
- *					needed for firmware flash, if applicable
  *			per_req_dma_mem_size -- # of bytes of DMA'able memory
  *					needed per request, if applicable
  *			per_req_non_dma_mem_size -- # of bytes of memory needed
@@ -178,15 +179,6 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_UINT32 flags, TW_INT32 device_id, TW_INT32 max_simult_reqs,
 	TW_INT32 max_aens, TW_UINT32 *alignment, TW_UINT32 *sg_size_factor,
 	TW_UINT32 *non_dma_mem_size, TW_UINT32 *dma_mem_size
-#ifdef TW_OSL_FLASH_FIRMWARE
-	, TW_UINT32 *flash_dma_mem_size
-#endif /* TW_OSL_FLASH_FIRMWARE */
-#ifdef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
-	, TW_UINT32 *per_req_dma_mem_size
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-	, TW_UINT32 *per_req_non_dma_mem_size
-#endif /* TW_OSL_N0N_DMA_MEM_ALLOC_PER_REQUEST */
 	)
 {
 	if (device_id == 0)
@@ -211,20 +203,11 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
 	 * the controller context, request packets (including the 1 needed for
 	 * CL internal requests), and event packets.
 	 */
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-
-	*non_dma_mem_size = sizeof(struct tw_cli_ctlr_context) +
-		(sizeof(struct tw_cli_req_context)) +
-		(sizeof(struct tw_cl_event_packet) * max_aens);
-	*per_req_non_dma_mem_size = sizeof(struct tw_cli_req_context);
-
-#else /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 
 	*non_dma_mem_size = sizeof(struct tw_cli_ctlr_context) +
 		(sizeof(struct tw_cli_req_context) * (max_simult_reqs + 1)) +
 		(sizeof(struct tw_cl_event_packet) * max_aens);
 
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 
 	/*
 	 * Total DMA'able memory needed is the sum total of memory needed for
@@ -232,30 +215,9 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
 	 * requests), and memory needed to hold the payload for internal
 	 * requests.
 	 */
-#ifdef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
-
-	*dma_mem_size = sizeof(struct tw_cl_command_packet) +
-		TW_CLI_SECTOR_SIZE;
-	*per_req_dma_mem_size = sizeof(struct tw_cl_command_packet);
-
-#else /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
 
 	*dma_mem_size = (sizeof(struct tw_cl_command_packet) *
 		(max_simult_reqs + 1)) + (TW_CLI_SECTOR_SIZE);
-
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
-
-
-#ifdef TW_OSL_FLASH_FIRMWARE
-
-	/* Memory needed to hold the firmware image while flashing. */
-	*flash_dma_mem_size =
-		((tw_cli_fw_img_size / TW_CLI_NUM_FW_IMAGE_CHUNKS) +
-		511) & ~511;
-/*		(TWA_SG_ELEMENT_SIZE_FACTOR(device_id) - 1)) &
-		~(TWA_SG_ELEMENT_SIZE_FACTOR(device_id) - 1); */
-
-#endif /* TW_OSL_FLASH_FIRMWARE */
 
 	return(0);
 }
@@ -276,9 +238,6 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
  *			non_dma_mem -- ptr to allocated non-DMA memory
  *			dma_mem -- ptr to allocated DMA'able memory
  *			dma_mem_phys -- physical address of dma_mem
- *			flash_dma_mem -- ptr to allocated DMA'able memory
- *				needed for firmware flash, if applicable
- *			flash_dma_mem_phys -- physical address of flash_dma_mem
  * Output:		None
  * Return value:	0	-- success
  *			non-zero-- failure
@@ -287,10 +246,6 @@ TW_INT32
 tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	TW_INT32 device_id, TW_INT32 max_simult_reqs, TW_INT32 max_aens,
 	TW_VOID *non_dma_mem, TW_VOID *dma_mem, TW_UINT64 dma_mem_phys
-#ifdef TW_OSL_FLASH_FIRMWARE
-	, TW_VOID *flash_dma_mem,
-	TW_UINT64 flash_dma_mem_phys
-#endif /* TW_OSL_FLASH_FIRMWARE */
 	)
 {
 	struct tw_cli_ctlr_context	*ctlr;
@@ -319,10 +274,6 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	}
 
 	if ((non_dma_mem == TW_CL_NULL) || (dma_mem == TW_CL_NULL)
-#ifdef TW_OSL_FLASH_FIRMWARE
-		|| ((flags & TW_CL_FLASH_FIRMWARE) ?
-		(flash_dma_mem == TW_CL_NULL) : TW_CL_FALSE)
-#endif /* TW_OSL_FLASH_FIRMWARE */
 		) {
 		tw_cl_create_event(ctlr_handle, TW_CL_FALSE,
 			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
@@ -332,27 +283,14 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 		return(TW_OSL_ENOMEM);
 	}
 
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-	tw_osl_memzero(non_dma_mem, sizeof(struct tw_cli_ctlr_context) +
-		sizeof(struct tw_cli_req_context) +
-		(sizeof(struct tw_cl_event_packet) * max_aens));
-#else /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 	tw_osl_memzero(non_dma_mem, sizeof(struct tw_cli_ctlr_context) +
 		(sizeof(struct tw_cli_req_context) * (max_simult_reqs + 1)) +
 		(sizeof(struct tw_cl_event_packet) * max_aens));
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 
-#ifdef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
-	tw_osl_memzero(dma_mem,
-		sizeof(struct tw_cl_command_packet) +
-		TW_CLI_SECTOR_SIZE);
-#else /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
 	tw_osl_memzero(dma_mem,
 		(sizeof(struct tw_cl_command_packet) *
 		(max_simult_reqs + 1)) +
 		TW_CLI_SECTOR_SIZE);
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
-
 
 	free_non_dma_mem = (TW_UINT8 *)non_dma_mem;
 
@@ -368,11 +306,6 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	ctlr->sg_size_factor = TWA_SG_ELEMENT_SIZE_FACTOR(device_id);
 	ctlr->max_simult_reqs = max_simult_reqs + 1;
 	ctlr->max_aens_supported = max_aens;
-
-#ifdef TW_OSL_FLASH_FIRMWARE
-	ctlr->flash_dma_mem = flash_dma_mem;
-	ctlr->flash_dma_mem_phys = flash_dma_mem_phys;
-#endif /* TW_OSL_FLASH_FIRMWARE */
 
 	/* Initialize queues of CL internal request context packets. */
 	tw_cli_req_q_init(ctlr, TW_CLI_FREE_Q);
@@ -397,7 +330,9 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	 * with command register writes.
 	 */
 	if ((ctlr->flags & TW_CL_64BIT_ADDRESSES) &&
-		(ctlr->device_id == TW_CL_DEVICE_ID_9K)) {
+	    ((ctlr->device_id == TW_CL_DEVICE_ID_9K) ||
+	     (ctlr->device_id == TW_CL_DEVICE_ID_9K_X) ||
+	     (ctlr->device_id == TW_CL_DEVICE_ID_9K_E))) {
 		ctlr->state |= TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED;
 		ctlr->intr_lock = ctlr->io_lock;
 	} else {
@@ -410,9 +345,7 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	ctlr->req_ctxt_buf = (struct tw_cli_req_context *)free_non_dma_mem;
 	free_non_dma_mem += (sizeof(struct tw_cli_req_context) *
 		(
-#ifndef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
 		max_simult_reqs +
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 		1));
 
 	ctlr->cmd_pkt_buf = (struct tw_cl_command_packet *)dma_mem;
@@ -421,58 +354,30 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	ctlr->internal_req_data = (TW_UINT8 *)
 		(ctlr->cmd_pkt_buf +
 		(
-#ifndef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
 		max_simult_reqs +
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
 		1));
 	ctlr->internal_req_data_phys = ctlr->cmd_pkt_phys +
 		(sizeof(struct tw_cl_command_packet) *
 		(
-#ifndef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
 		max_simult_reqs +
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
 		1));
 
 	for (i = 0;
 		i < (
-#ifndef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
 		max_simult_reqs +
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 		1); i++) {
 		req = &(ctlr->req_ctxt_buf[i]);
-
-#ifndef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
 
 		req->cmd_pkt = &(ctlr->cmd_pkt_buf[i]);
 		req->cmd_pkt_phys = ctlr->cmd_pkt_phys +
 			(i * sizeof(struct tw_cl_command_packet));
 
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
-
 		req->request_id = i;
 		req->ctlr = ctlr;
-
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-		req->flags |= TW_CLI_REQ_FLAGS_INTERNAL;
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 
 		/* Insert request into the free queue. */
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 	}
-
-
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-
-	ctlr->free_req_head = i - 1;
-	ctlr->free_req_tail = i - 1;
-
-	for (; i < (max_simult_reqs + 1); i++)
-		ctlr->free_req_ids[i - 1] = i;
-
-	ctlr->num_free_req_ids = max_simult_reqs;
-
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
-
 
 	/* Initialize the AEN queue. */
 	ctlr->aen_queue = (struct tw_cl_event_packet *)free_non_dma_mem;
@@ -517,317 +422,12 @@ start_ctlr:
 	return(error);
 }
 
-
-
-#ifdef TW_OSL_FLASH_FIRMWARE
-/*
- * Function name:	tw_cli_flash_firmware
- * Description:		Flashes bundled firmware image onto controller.
- *
- * Input:		ctlr	-- ptr to per ctlr structure
- * Output:		None
- * Return value:	0	-- success
- *			non-zero-- failure
- */
-TW_INT32
-tw_cli_flash_firmware(struct tw_cli_ctlr_context *ctlr)
-{
-	struct tw_cli_req_context		*req;
-	struct tw_cl_command_header		*cmd_hdr;
-	struct tw_cl_command_download_firmware	*cmd;
-	TW_UINT32				fw_img_chunk_size;
-	TW_UINT32				num_chunks;
-	TW_UINT32				this_chunk_size = 0;
-	TW_INT32				remaining_img_size = 0;
-	TW_INT32				hard_reset_needed = TW_CL_FALSE;
-	TW_INT32				error = TW_OSL_EGENFAILURE;
-	TW_UINT32				i;
-
-	tw_cli_dbg_printf(3, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
-	if ((req = tw_cli_get_request(ctlr
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-		, TW_CL_NULL
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
-		)) == TW_CL_NULL) {
-		/* No free request packets available.  Can't proceed. */
-		error = TW_OSL_EBUSY;
-		goto out;
-	}
-
-#ifdef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
-
-	req->cmd_pkt = ctlr->cmd_pkt_buf;
-	req->cmd_pkt_phys = ctlr->cmd_pkt_phys;
-	tw_osl_memzero(req->cmd_pkt,
-		sizeof(struct tw_cl_command_header) +
-		28 /* max bytes before sglist */);
-
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
-
-	req->flags |= TW_CLI_REQ_FLAGS_INTERNAL;
-	
-	/*
-	 * Determine amount of memory needed to hold a chunk of the
-	 * firmware image.  As yet, the Download_Firmware command does not
-	 * support SG elements that are ctlr->sg_size_factor multiples.  It
-	 * requires them to be 512-byte multiples.
-	 */
-	fw_img_chunk_size = ((tw_cli_fw_img_size / TW_CLI_NUM_FW_IMAGE_CHUNKS) +
-		511) & ~511;
-/*		(ctlr->sg_size_factor - 1)) &
-		~(ctlr->sg_size_factor - 1); */
-
-	/* Calculate the actual number of chunks needed. */
-	num_chunks = (tw_cli_fw_img_size / fw_img_chunk_size) +
-		((tw_cli_fw_img_size % fw_img_chunk_size) ? 1 : 0);
-
-	req->data = ctlr->flash_dma_mem;
-	req->data_phys = ctlr->flash_dma_mem_phys;
-
-	remaining_img_size = tw_cli_fw_img_size;
-
-	cmd_hdr = &(req->cmd_pkt->cmd_hdr);
-	cmd = &(req->cmd_pkt->command.cmd_pkt_7k.download_fw);
-
-	for (i = 0; i < num_chunks; i++) {
-		/* Build a cmd pkt for downloading firmware. */
-		tw_osl_memzero(req->cmd_pkt,
-			sizeof(struct tw_cl_command_packet));
-
-		cmd_hdr->header_desc.size_header = 128;
-
-		/* sgl_offset (offset in dwords, to sg list) is 2. */
-		cmd->sgl_off__opcode =
-			BUILD_SGL_OFF__OPCODE(2, TWA_FW_CMD_DOWNLOAD_FIRMWARE);
-		cmd->request_id = (TW_UINT8)(TW_CL_SWAP16(req->request_id));
-		cmd->unit = 0;
-		cmd->status = 0;
-		cmd->flags = 0;
-		cmd->param = TW_CL_SWAP16(8);	/* prom image */
-
-		if (i != (num_chunks - 1))
-			this_chunk_size = fw_img_chunk_size;
-		else	 /* last chunk */
-			this_chunk_size = remaining_img_size;
-	
-		remaining_img_size -= this_chunk_size;
-
-		tw_osl_memcpy(req->data, tw_cli_fw_img + (i * fw_img_chunk_size),
-			this_chunk_size);
-
-		/*
-		 * The next line will effect only the last chunk.
-		 */
-		req->length = (this_chunk_size + 511) & ~511;
-/*			(ctlr->sg_size_factor - 1)) &
-			~(ctlr->sg_size_factor - 1); */
-
-		if (ctlr->flags & TW_CL_64BIT_ADDRESSES) {
-			((struct tw_cl_sg_desc64 *)(cmd->sgl))[0].address =
-				TW_CL_SWAP64(req->data_phys);
-			((struct tw_cl_sg_desc64 *)(cmd->sgl))[0].length =
-				TW_CL_SWAP32(req->length);
-			cmd->size = 2 + 3;
-		} else {
-			((struct tw_cl_sg_desc32 *)(cmd->sgl))[0].address =
-				TW_CL_SWAP32(req->data_phys);
-			((struct tw_cl_sg_desc32 *)(cmd->sgl))[0].length =
-				TW_CL_SWAP32(req->length);
-			cmd->size = 2 + 2;
-		}
-
-		error = tw_cli_submit_and_poll_request(req,
-			TW_CLI_REQUEST_TIMEOUT_PERIOD);
-		if (error) {
-			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
-				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-				0x1005, 0x1, TW_CL_SEVERITY_ERROR_STRING,
-				"Firmware flash request could not be posted",
-				"error = %d\n", error);
-			if (error == TW_OSL_ETIMEDOUT)
-				/* clean-up done by tw_cli_submit_and_poll_request */
-				return(error);
-			break;
-		}
-		error = cmd->status;
-
-		if (((i == (num_chunks - 1)) && (error)) ||
-			((i != (num_chunks - 1)) &&
-			((error = cmd_hdr->status_block.error) !=
-			TWA_ERROR_MORE_DATA))) {
-				/*
-				 * It's either that download of the last chunk
-				 * failed, or the download of one of the earlier
-				 * chunks failed with an error other than
-				 * TWA_ERROR_MORE_DATA.  Report the error.
-				 */
-				tw_cli_create_ctlr_event(ctlr,
-					TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR,
-					cmd_hdr);
-				tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
-					TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-					0x1006, 0x1, TW_CL_SEVERITY_ERROR_STRING,
-					"Firmware flash failed",
-					"cmd = 0x%x, chunk # %d, cmd status = %d",
-					GET_OPCODE(cmd->sgl_off__opcode),
-					i, cmd->status);
-				/*
-				 * Make a note to hard reset the controller,
-				 * so that it doesn't wait for the remaining
-				 * chunks.  Don't call the hard reset function
-				 * right here, since we have committed to having
-				 * only 1 active internal request at a time, and
-				 * this request has not yet been freed.
-				 */
-				hard_reset_needed = TW_CL_TRUE;
-				break;
-		}
-	} /* for */
-
-out:
-	if (req)
-		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
-
-	if (hard_reset_needed)
-		tw_cli_hard_reset(ctlr);
-
-	return(error);
-}
-
-
-
-/*
- * Function name:	tw_cli_hard_reset
- * Description:		Hard resets the controller.
- *
- * Input:		ctlr	-- ptr to per ctlr structure
- * Output:		None
- * Return value:	0	-- success
- *			non-zero-- failure
- */
-TW_INT32
-tw_cli_hard_reset(struct tw_cli_ctlr_context *ctlr)
-{
-	struct tw_cli_req_context		*req;
-	struct tw_cl_command_reset_firmware	*cmd;
-	TW_INT32				error;
-
-	tw_cli_dbg_printf(3, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
-
-	if ((req = tw_cli_get_request(ctlr
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-		, TW_CL_NULL
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
-		)) == TW_CL_NULL)
-		return(TW_OSL_EBUSY);
-
-#ifdef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
-
-	req->cmd_pkt = ctlr->cmd_pkt_buf;
-	req->cmd_pkt_phys = ctlr->cmd_pkt_phys;
-	tw_osl_memzero(req->cmd_pkt,
-		sizeof(struct tw_cl_command_header) +
-		28 /* max bytes before sglist */);
-
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
-
-	req->flags |= TW_CLI_REQ_FLAGS_INTERNAL;
-
-	/* Build a cmd pkt for sending down the hard reset command. */
-	req->cmd_pkt->cmd_hdr.header_desc.size_header = 128;
-	
-	cmd = &(req->cmd_pkt->command.cmd_pkt_7k.reset_fw);
-	cmd->res1__opcode =
-		BUILD_RES__OPCODE(0, TWA_FW_CMD_HARD_RESET_FIRMWARE);
-	cmd->size = 2;
-	cmd->request_id = (TW_UINT8)(TW_CL_SWAP16(req->request_id));
-	cmd->unit = 0;
-	cmd->status = 0;
-	cmd->flags = 0;
-	cmd->param = 0;	/* don't reload FPGA logic */
-
-	req->data = TW_CL_NULL;
-	req->length = 0;
-
-	tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
-		TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-		0x1017, 0x3, TW_CL_SEVERITY_INFO_STRING,
-		"Issuing hard (commanded) reset to the controller...",
-		" ");
-
-	error = tw_cli_submit_and_poll_request(req,
-		TW_CLI_REQUEST_TIMEOUT_PERIOD);
-	if (error) {
-		tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
-			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-			0x1007, 0x1, TW_CL_SEVERITY_ERROR_STRING,
-			"Hard reset request could not be posted",
-			"error = %d", error);
-		if (error == TW_OSL_ETIMEDOUT)
-			/* clean-up done by tw_cli_submit_and_poll_request */
-			return(error);
-		goto out;
-	}
-	if ((error = cmd->status)) {
-		tw_cli_create_ctlr_event(ctlr,
-			TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR,
-			&(req->cmd_pkt->cmd_hdr));
-		tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
-			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-			0x1008, 0x1, TW_CL_SEVERITY_ERROR_STRING,
-			"Hard reset request failed",
-			"error = %d", error);
-	}
-
-	if (ctlr->device_id == TW_CL_DEVICE_ID_9K_X) {
-		/*
-		 * There's a hardware bug in the G133 ASIC, which can lead to
-		 * PCI parity errors and hangs, if the host accesses any
-		 * registers when the firmware is resetting the hardware, as
-		 * part of a hard/soft reset.  The window of time when the
-		 * problem can occur is about 10 ms.  Here, we will handshake
-		 * with the firmware to find out when the firmware is pulling
-		 * down the hardware reset pin, and wait for about 500 ms to
-		 * make sure we don't access any hardware registers (for
-		 * polling) during that window.
-		 */
-		ctlr->state |= TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS;
-		while (tw_cli_find_response(ctlr,
-			TWA_RESET_PHASE1_NOTIFICATION_RESPONSE) != TW_OSL_ESUCCESS)
-			tw_osl_delay(10);
-		tw_osl_delay(TWA_RESET_PHASE1_WAIT_TIME_MS * 1000);
-		ctlr->state &= ~TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS;
-	}
-
-	/* Wait for the MC_RDY bit to get set. */
-	if ((error = tw_cli_poll_status(ctlr, TWA_STATUS_MICROCONTROLLER_READY,
-			TW_CLI_RESET_TIMEOUT_PERIOD))) {
-		tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
-			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
-			0x1018, 0x1, TW_CL_SEVERITY_ERROR_STRING,
-			"Micro-ctlr not ready following hard reset",
-			"error = %d", error);
-	}
-
-out:
-	if (req)
-		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
-	return(error);
-}
-
-#endif /* TW_OSL_FLASH_FIRMWARE */
-
-
-
 /*
  * Function name:	tw_cli_start_ctlr
  * Description:		Establishes a logical connection with the controller.
- *			If bundled with firmware, determines whether or not
- *			to flash firmware, based on arch_id, fw SRL (Spec.
- *			Revision Level), branch & build #'s.  Also determines
- *			whether or not the driver is compatible with the
- *			firmware on the controller, before proceeding to work
- *			with it.
+ *			Determines whether or not the driver is compatible 
+ *                      with the firmware on the controller, before proceeding
+ *                      to work with it.
  *
  * Input:		ctlr	-- ptr to per ctlr structure
  * Output:		None
@@ -843,10 +443,6 @@ tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr)
 	TW_UINT16	fw_on_ctlr_build = 0;
 	TW_UINT32	init_connect_result = 0;
 	TW_INT32	error = TW_OSL_ESUCCESS;
-#ifdef TW_OSL_FLASH_FIRMWARE
-	TW_INT8		fw_flashed = TW_CL_FALSE;
-	TW_INT8		fw_flash_failed = TW_CL_FALSE;
-#endif /* TW_OSL_FLASH_FIRMWARE */
 
 	tw_cli_dbg_printf(3, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
@@ -887,67 +483,9 @@ tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr)
 			"error = %d", error);
 		return(error);
 	}
-
-#ifdef TW_OSL_FLASH_FIRMWARE
-
-	if ((ctlr->flags & TW_CL_FLASH_FIRMWARE) &&
-		(init_connect_result & TWA_BUNDLED_FW_SAFE_TO_FLASH) &&
-		(init_connect_result & TWA_CTLR_FW_RECOMMENDS_FLASH)) {
-		/*
-		 * The bundled firmware is safe to flash, and the firmware
-		 * on the controller recommends a flash.  So, flash!
-		 */
-		tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
-			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-			0x100C, 0x3, TW_CL_SEVERITY_INFO_STRING,
-			"Flashing bundled firmware...",
-			" ");
-		if ((error = tw_cli_flash_firmware(ctlr))) {
-			fw_flash_failed = TW_CL_TRUE;
-			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
-				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-				0x100D, 0x2, TW_CL_SEVERITY_WARNING_STRING,
-				"Unable to flash bundled firmware. "
-				"Attempting to work with fw on ctlr...",
-				" ");
-		} else {
-			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
-				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-				0x100E, 0x3, TW_CL_SEVERITY_INFO_STRING,
-				"Successfully flashed bundled firmware",
-				" ");
-			fw_flashed = TW_CL_TRUE;
-		}
-	}
-
-	if (fw_flashed) {
-		/* The firmware was flashed.  Have the new image loaded */
-		error = tw_cli_hard_reset(ctlr);
-		if (error)
-			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
-				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-				0x100F, 0x1, TW_CL_SEVERITY_ERROR_STRING,
-				"Could not reset controller after flash!",
-				" ");
-		else	/* Go through initialization again. */
-			error = tw_cli_start_ctlr(ctlr);
-		/*
-		 * If hard reset of controller failed, we need to return.
-		 * Otherwise, the above recursive call to tw_cli_start_ctlr
-		 * will have completed the rest of the initialization (starting
-		 * from tw_cli_drain_aen_queue below).  Don't do it again.
-		 * Just return.
-		 */
-		return(error);
-	} else
-#endif /* TW_OSL_FLASH_FIRMWARE */
 	{
-		/*
-		 * Either we are not bundled with a firmware image, or
-		 * the bundled firmware is not safe to flash,
-		 * or flash failed for some reason.  See if we can at
-		 * least work with the firmware on the controller in the
-		 * current mode.
+		 /* See if we can at least work with the firmware on the
+                 * controller in the current mode.
 		 */
 		if (init_connect_result & TWA_CTLR_FW_COMPATIBLE) {
 			/* Yes, we can.  Make note of the operating mode. */
@@ -965,8 +503,7 @@ tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr)
 		} else {
 			/*
 			 * No, we can't.  See if we can at least work with
-			 * it in the base mode.  We should never come here
-			 * if firmware has just been flashed.
+			 * it in the base mode.
 			 */
 			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
@@ -999,28 +536,6 @@ tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr)
 				 * compatible with our base mode.  We cannot
 				 * work with it.  Bail...
 				 */
-#ifdef TW_OSL_FLASH_FIRMWARE
-				if (fw_flash_failed)
-					tw_cl_create_event(ctlr->ctlr_handle,
-					TW_CL_FALSE,
-					TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-					0x1012, 0x1,
-					TW_CL_SEVERITY_ERROR_STRING,
-					"Incompatible firmware on controller"
-					"...and could not flash bundled "
-					"firmware",
-					" ");
-				else
-					tw_cl_create_event(ctlr->ctlr_handle,
-					TW_CL_FALSE,
-					TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
-					0x1013, 0x1,
-					TW_CL_SEVERITY_ERROR_STRING,
-					"Incompatible firmware on controller"
-					"...and bundled firmware not safe to "
-					"flash",
-					" ");
-#endif /* TW_OSL_FLASH_FIRMWARE */
 				return(1);
 			}
 			/*
@@ -1156,21 +671,8 @@ tw_cli_init_connection(struct tw_cli_ctlr_context *ctlr,
 
 	/* Get a request packet. */
 	if ((req = tw_cli_get_request(ctlr
-#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
-		, TW_CL_NULL
-#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 		)) == TW_CL_NULL)
 		goto out;
-
-#ifdef TW_OSL_DMA_MEM_ALLOC_PER_REQUEST
-
-	req->cmd_pkt = ctlr->cmd_pkt_buf;
-	req->cmd_pkt_phys = ctlr->cmd_pkt_phys;
-	tw_osl_memzero(req->cmd_pkt,
-		sizeof(struct tw_cl_command_header) +
-		28 /* max bytes before sglist */);
-
-#endif /* TW_OSL_DMA_MEM_ALLOC_PER_REQUEST */
 
 	req->flags |= TW_CLI_REQ_FLAGS_INTERNAL;
 
