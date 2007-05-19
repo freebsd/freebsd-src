@@ -866,37 +866,45 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 {	.mii
 	srlz.d
 	dep		r27=0,r27,61,3
-	extr.u		r28=r30,PAGE_SHIFT,61-PAGE_SHIFT
 	;;
+	extr.u		r28=r30,3*PAGE_SHIFT-8, PAGE_SHIFT-3	// dir L0 index
 }
 {	.mii
-	ld8		r27=[r27]
-	shr.u		r29=r28,PAGE_SHIFT-5	// dir index
-	extr.u		r28=r28,0,PAGE_SHIFT-5	// pte index
+	ld8		r27=[r27]				// dir L0 page
+	extr.u		r29=r30,2*PAGE_SHIFT-5, PAGE_SHIFT-3	// dir L1 index
+	;;
+	dep		r27=0,r27,61,3
+	;;
+}
+{	.mmi
+	shladd		r27=r28,3,r27
+	;;
+	ld8		r27=[r27]				// dir L1 page
+	extr.u		r28=r30,PAGE_SHIFT,PAGE_SHIFT-5		// pte index
 	;;
 }
 {	.mmi
 	shladd		r27=r29,3,r27
+	;;
+	mov		r29=rr[r30]
+	dep		r27=0,r27,61,3
+	;;
+}
+{	.mii
+	ld8		r27=[r27]				// pte page
+	shl		r28=r28,5
+	dep		r29=0,r29,0,2
+	;;
+}
+{	.mmi
+	add		r27=r28,r27
 	;;
 	mov		cr.ifa=r30
 	dep		r27=0,r27,61,3
 	;;
 }
 {	.mmi
-	ld8		r27=[r27]
-	mov		r29=rr[r30]
-	shl		r28=r28,5
-	;;
-}
-{	.mii
-	add		r27=r27,r28		// address of pte
-	dep		r29=0,r29,0,2
-	;;
-	dep		r27=0,r27,61,3
-	;;
-}
-{	.mmi
-	ld8		r28=[r27]
+	ld8		r28=[r27]		// pte
 	;;
 	mov		cr.itir=r29
 	or		r28=PTE_DIRTY+PTE_ACCESSED,r28

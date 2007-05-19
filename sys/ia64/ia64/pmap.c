@@ -166,11 +166,13 @@ vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
  * Kernel virtual memory management.
  */
 static int nkpt;
-struct ia64_lpte **ia64_kptdir;
-#define KPTE_DIR_INDEX(va) \
-	((va >> (2*PAGE_SHIFT-5)) & ((1<<(PAGE_SHIFT-3))-1))
+struct ia64_lpte ***ia64_kptdir;
+#define KPTE_DIR0_INDEX(va) \
+	(((va) >> (3*PAGE_SHIFT-8)) & ((1<<(PAGE_SHIFT-3))-1))
+#define KPTE_DIR1_INDEX(va) \
+	(((va) >> (2*PAGE_SHIFT-5)) & ((1<<(PAGE_SHIFT-3))-1))
 #define KPTE_PTE_INDEX(va) \
-	((va >> PAGE_SHIFT) & ((1<<(PAGE_SHIFT-5))-1))
+	(((va) >> PAGE_SHIFT) & ((1<<(PAGE_SHIFT-5))-1))
 #define NKPTEPG		(PAGE_SIZE / sizeof(struct ia64_lpte))
 
 vm_offset_t kernel_vm_end;
@@ -356,12 +358,8 @@ pmap_bootstrap()
 	 * Allocate some memory for initial kernel 'page tables'.
 	 */
 	ia64_kptdir = (void *)pmap_steal_memory(PAGE_SIZE);
-	for (i = 0; i < NKPT; i++) {
-		ia64_kptdir[i] = (void*)pmap_steal_memory(PAGE_SIZE);
-	}
-	nkpt = NKPT;
-	kernel_vm_end = NKPT * PAGE_SIZE * NKPTEPG + VM_MIN_KERNEL_ADDRESS -
-	    VM_GATEWAY_SIZE;
+	nkpt = 0;
+	kernel_vm_end = VM_MIN_KERNEL_ADDRESS - VM_GATEWAY_SIZE;
 
 	for (i = 0; phys_avail[i+2]; i+= 2)
 		;
@@ -749,25 +747,37 @@ pmap_release(pmap_t pmap)
 void
 pmap_growkernel(vm_offset_t addr)
 {
-	struct ia64_lpte *ptepage;
+	struct ia64_lpte **dir1;
+	struct ia64_lpte *leaf;
 	vm_page_t nkpg;
 
-	while (kernel_vm_end < addr) {
-		/* We could handle more by increasing the size of kptdir. */
-		if (nkpt == MAXKPT)
-			panic("pmap_growkernel: out of kernel address space");
+	while (kernel_vm_end <= addr) {
+		if (nkpt == PAGE_SIZE/8 + PAGE_SIZE*PAGE_SIZE/64)
+			panic("%s: out of kernel address space", __func__);
 
-		nkpg = vm_page_alloc(NULL, nkpt,
-		    VM_ALLOC_NOOBJ | VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
+		dir1 = ia64_kptdir[KPTE_DIR0_INDEX(kernel_vm_end)];
+		if (dir1 == NULL) {
+			nkpg = vm_page_alloc(NULL, nkpt++,
+			    VM_ALLOC_NOOBJ|VM_ALLOC_INTERRUPT|VM_ALLOC_WIRED);
+			if (!nkpg)
+				panic("%s: cannot add dir. page", __func__);
+
+			dir1 = (struct ia64_lpte **) 
+			    IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(nkpg));
+			bzero(dir1, PAGE_SIZE);
+			ia64_kptdir[KPTE_DIR0_INDEX(kernel_vm_end)] = dir1;
+		}
+
+		nkpg = vm_page_alloc(NULL, nkpt++,
+		    VM_ALLOC_NOOBJ|VM_ALLOC_INTERRUPT|VM_ALLOC_WIRED);
 		if (!nkpg)
-			panic("pmap_growkernel: no memory to grow kernel");
+			panic("%s: cannot add PTE page", __func__);
 
-		ptepage = (struct ia64_lpte *)
+		leaf = (struct ia64_lpte *)
 		    IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(nkpg));
-		bzero(ptepage, PAGE_SIZE);
-		ia64_kptdir[KPTE_DIR_INDEX(kernel_vm_end)] = ptepage;
+		bzero(leaf, PAGE_SIZE);
+		dir1[KPTE_DIR1_INDEX(kernel_vm_end)] = leaf;
 
-		nkpt++;
 		kernel_vm_end += PAGE_SIZE * NKPTEPG;
 	}
 }
@@ -1094,11 +1104,17 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 static struct ia64_lpte *
 pmap_find_kpte(vm_offset_t va)
 {
+	struct ia64_lpte **dir1;
+	struct ia64_lpte *leaf;
+
 	KASSERT((va >> 61) == 5,
 		("kernel mapping 0x%lx not in region 5", va));
-	KASSERT(IA64_RR_MASK(va) < (nkpt * PAGE_SIZE * NKPTEPG),
+	KASSERT(va < kernel_vm_end,
 		("kernel mapping 0x%lx out of range", va));
-	return (&ia64_kptdir[KPTE_DIR_INDEX(va)][KPTE_PTE_INDEX(va)]);
+
+	dir1 = ia64_kptdir[KPTE_DIR0_INDEX(va)];
+	leaf = dir1[KPTE_DIR1_INDEX(va)];
+	return (&leaf[KPTE_PTE_INDEX(va)]);
 }
 
 /*
@@ -1240,7 +1256,7 @@ pmap_kextract(vm_offset_t va)
 		return (IA64_RR_MASK((vm_offset_t)ia64_gateway_page));
 
 	/* Bail out if the virtual address is beyond our limits. */
-	if (IA64_RR_MASK(va) >= nkpt * PAGE_SIZE * NKPTEPG)
+	if (va >= kernel_vm_end)
 		return (0);
 
 	pte = pmap_find_kpte(va);
@@ -2388,7 +2404,7 @@ DB_COMMAND(kpte, db_kpte)
 		db_printf("kpte: error: invalid <kva>\n");
 		return;
 	}
-	pte = &ia64_kptdir[KPTE_DIR_INDEX(addr)][KPTE_PTE_INDEX(addr)];
+	pte = pmap_find_kpte(addr);
 	db_printf("kpte at %p:\n", pte);
 	db_printf("  pte  =%016lx\n", pte->pte);
 	db_printf("  itir =%016lx\n", pte->itir);
