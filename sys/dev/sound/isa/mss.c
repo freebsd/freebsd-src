@@ -1320,7 +1320,7 @@ mss_probe(device_t dev)
 		goto mss_probe_end;
     	}
     	tmp &= 0x3f;
-    	if (!(tmp == 0x04 || tmp == 0x0f || tmp == 0x00)) {
+    	if (!(tmp == 0x04 || tmp == 0x0f || tmp == 0x00 || tmp == 0x05)) {
 		BVDDB(printf("No MSS signature detected on port 0x%lx (0x%x)\n",
 		     	rman_get_start(mss->io_base), tmpx));
 		goto no;
