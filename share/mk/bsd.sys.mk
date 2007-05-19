@@ -8,6 +8,9 @@
 
 # for GCC:  http://gcc.gnu.org/onlinedocs/gcc-3.0.4/gcc_3.html#IDX143
 
+# Universally disable -Werror until src/ is in better shape for GCC 4.2
+NO_WERROR=
+
 .if !defined(NO_WARNS) && ${CC} != "icc"
 . if defined(CSTD)
 .  if ${CSTD} == "k&r"
@@ -51,6 +54,7 @@ CWARNFLAGS	+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
 # XXX always get it right.
 CWARNFLAGS	+=	-Wno-uninitialized
 .  endif
+CWARNFLAGS	+=	-Wno-pointer-sign
 . endif
 
 . if defined(FORMAT_AUDIT)
