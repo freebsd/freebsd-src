@@ -15,8 +15,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
@@ -30,7 +30,10 @@ lang_specific_driver (int *in_argc ATTRIBUTE_UNUSED,
 		      const char *const **in_argv ATTRIBUTE_UNUSED,
 		      int *in_added_libraries ATTRIBUTE_UNUSED)
 {
-#ifdef ENABLE_SHARED_LIBGCC
+  /* Systems which use the NeXT runtime by default should arrange
+     for the shared libgcc to be used when -fgnu-runtime is passed
+     through specs.  */
+#if defined(ENABLE_SHARED_LIBGCC) && ! defined(NEXT_OBJC_RUNTIME)
   int i;
 
   /* The new argument list will be contained in this.  */
@@ -73,7 +76,7 @@ lang_specific_driver (int *in_argc ATTRIBUTE_UNUSED,
   if  (shared_libgcc)
     {
       /* Make sure to have room for the trailing NULL argument.  */
-      arglist = xmalloc ((argc+2) * sizeof (char *));
+      arglist = XNEWVEC (const char *, argc + 2);
 
       i = 0;
       do
@@ -102,9 +105,3 @@ lang_specific_pre_link (void)
 
 /* Number of extra output files that lang_specific_pre_link may generate.  */
 int lang_specific_extra_outfiles = 0;  /* Not used for C.  */
-
-/* Table of language-specific spec functions.  */
-const struct spec_function lang_specific_spec_functions[] =
-{
-  { 0, 0 }
-};

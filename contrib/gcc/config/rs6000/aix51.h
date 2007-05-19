@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for IBM RS/6000 POWER running AIX V5.
-   Copyright (C) 2001, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by David Edelsohn (edelsohn@gnu.org).
 
    This file is part of GCC.
@@ -17,18 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA.  */
-
-/* AIX V5 and above support 64-bit executables.  */
-#undef  SUBSUBTARGET_SWITCHES
-#define SUBSUBTARGET_SWITCHES					\
-  {"aix64", 		MASK_64BIT | MASK_POWERPC64 | MASK_POWERPC,	\
-   N_("Compile for 64-bit pointers") },					\
-  {"aix32",		- (MASK_64BIT | MASK_POWERPC64),		\
-   N_("Compile for 32-bit pointers") },					\
-  {"pe",		0,						\
-   N_("Support message passing with the Parallel Environment") },
+   Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 /* Sometimes certain combinations of command options do not make sense
    on a particular target machine.  You can define a macro
@@ -45,12 +35,12 @@ do {									\
   if (TARGET_64BIT && (target_flags & NON_POWERPC_MASKS))		\
     {									\
       target_flags &= ~NON_POWERPC_MASKS;				\
-      warning ("-maix64 and POWER architecture are incompatible");	\
+      warning (0, "-maix64 and POWER architecture are incompatible");	\
     }									\
   if (TARGET_64BIT && ! TARGET_POWERPC64)				\
     {									\
       target_flags |= MASK_POWERPC64;					\
-      warning ("-maix64 requires PowerPC64 architecture remain enabled"); \
+      warning (0, "-maix64 requires PowerPC64 architecture remain enabled"); \
     }									\
   if (TARGET_POWERPC64 && ! TARGET_64BIT)				\
     {									\
@@ -90,26 +80,21 @@ do {									\
 %{mcpu=604: -m604} \
 %{mcpu=604e: -m604} \
 %{mcpu=620: -m620} \
-%{mcpu=630: -m620}"
+%{mcpu=630: -m620} \
+%{mcpu=970: -m620} \
+%{mcpu=G5: -m620}"
 
 #undef	ASM_DEFAULT_SPEC
 #define ASM_DEFAULT_SPEC "-mcom"
 
 #undef TARGET_OS_CPP_BUILTINS
-#define TARGET_OS_CPP_BUILTINS()      \
-  do                                  \
-    {                                 \
-      builtin_define ("_IBMR2");      \
-      builtin_define ("_POWER");      \
-      builtin_define ("_LONG_LONG");  \
-      builtin_define ("_AIX");        \
-      builtin_define ("_AIX32");      \
-      builtin_define ("_AIX41");      \
-      builtin_define ("_AIX43");      \
-      builtin_define ("_AIX51");      \
-      builtin_assert ("system=unix"); \
-      builtin_assert ("system=aix");  \
-    }                                 \
+#define TARGET_OS_CPP_BUILTINS()     \
+  do                                 \
+    {                                \
+      builtin_define ("_AIX43");     \
+      builtin_define ("_AIX51");     \
+      TARGET_OS_AIX_CPP_BUILTINS (); \
+    }                                \
   while (0)
 
 #undef CPP_SPEC
@@ -123,10 +108,7 @@ do {									\
    defined.  */
 #undef CPLUSPLUS_CPP_SPEC                       
 #define CPLUSPLUS_CPP_SPEC			\
-  "-D_XOPEN_SOURCE=500				\
-   -D_XOPEN_SOURCE_EXTENDED=1			\
-   -D_LARGE_FILE_API				\
-   -D_ALL_SOURCE				\
+  "-D_ALL_SOURCE				\
    %{maix64: -D__64BIT__}			\
    %{mpe: -I/usr/lpp/ppe.poe/include}		\
    %{pthread: -D_THREAD_SAFE}"
@@ -181,7 +163,6 @@ do {									\
 /* Width of wchar_t in bits.  */
 #undef  WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE (!TARGET_64BIT ? 16 : 32)
-#define MAX_WCHAR_TYPE_SIZE 32
 
 /* AIX V5 uses PowerPC nop (ori 0,0,0) instruction as call glue for PowerPC
    and "cror 31,31,31" for POWER architecture.  */
@@ -197,3 +178,5 @@ do {									\
 #undef LD_INIT_SWITCH
 #define LD_INIT_SWITCH "-binitfini"
 
+/* This target uses the aix64.opt file.  */
+#define TARGET_USES_AIX64_OPT 1

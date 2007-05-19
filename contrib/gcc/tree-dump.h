@@ -1,5 +1,5 @@
 /* Tree-dumping functionality for intermediate representation.
-   Copyright (C) 1999, 2000, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2003, 2004, 2005 Free Software Foundation, Inc.
    Written by Mark Mitchell <mark@codesourcery.com>
 
 This file is part of GCC.
@@ -16,11 +16,16 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #ifndef GCC_TREE_DUMP_H
 #define GCC_TREE_DUMP_H
+
+#include "splay-tree.h"
+#include "tree-pass.h"
+
+typedef struct dump_info *dump_info_p;
 
 /* Flags used with queue functions.  */
 #define DUMP_NONE     0
@@ -80,9 +85,17 @@ struct dump_info
 extern void dump_pointer (dump_info_p, const char *, void *);
 extern void dump_int (dump_info_p, const char *, int);
 extern void dump_string (dump_info_p, const char *);
+extern void dump_string_field (dump_info_p, const char *, const char *);
 extern void dump_stmt (dump_info_p, tree);
-extern void dump_next_stmt (dump_info_p, tree);
 extern void queue_and_dump_index (dump_info_p, const char *, tree, int);
 extern void queue_and_dump_type (dump_info_p, tree);
+extern void dump_function (enum tree_dump_index, tree);
+extern void dump_function_to_file (tree, FILE *, int);
+extern void debug_function (tree, int);
+extern int dump_flag (dump_info_p, int, tree);
+
+extern unsigned int dump_register (const char *, const char *, const char *, 
+				   int, int);
+
 
 #endif /* ! GCC_TREE_DUMP_H */

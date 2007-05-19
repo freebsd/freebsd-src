@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for any
    Solaris 2 system.
-   Copyright 2002, 2003 Free Software Foundation, Inc.
+   Copyright 2002, 2003, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,8 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* We use stabs-in-elf for debugging, because that is what the native
    toolchain uses.  */
@@ -39,7 +39,7 @@ Boston, MA 02111-1307, USA.  */
 #undef	WINT_TYPE_SIZE
 #define	WINT_TYPE_SIZE BITS_PER_WORD
 
-#define HANDLE_PRAGMA_REDEFINE_EXTNAME 1
+#define TARGET_HANDLE_PRAGMA_REDEFINE_EXTNAME 1
 
 /* ??? Note: in order for -compat-bsd to work fully,
    we must somehow arrange to fixincludes /usr/ucbinclude
@@ -47,8 +47,8 @@ Boston, MA 02111-1307, USA.  */
 
 #undef CPP_SUBTARGET_SPEC
 #define CPP_SUBTARGET_SPEC "\
-%{pthreads:-D_REENTRANT -D_PTHREADS} \
-%{!pthreads:%{threads:-D_REENTRANT -D_SOLARIS_THREADS}} \
+%{pthreads|pthread:-D_REENTRANT -D_PTHREADS} \
+%{!pthreads:%{!pthread:%{threads:-D_REENTRANT -D_SOLARIS_THREADS}}} \
 %{compat-bsd:-iwithprefixbefore ucbinclude -I/usr/ucbinclude} \
 "
 
@@ -60,7 +60,6 @@ Boston, MA 02111-1307, USA.  */
 	builtin_define_std ("sun");			\
 	builtin_define ("__svr4__");			\
 	builtin_define ("__SVR4");			\
-	builtin_define ("__PRAGMA_REDEFINE_EXTNAME");	\
 	builtin_assert ("system=unix");			\
 	builtin_assert ("system=svr4");			\
 	/* For C++ we need to add some additional macro	\
@@ -94,8 +93,8 @@ Boston, MA 02111-1307, USA.  */
   "%{compat-bsd:-lucb -lsocket -lnsl -lelf -laio} \
    %{!shared:\
      %{!symbolic:\
-       %{pthreads:-lpthread} \
-       %{!pthreads:%{threads:-lthread}} \
+       %{pthreads|pthread:-lpthread} \
+       %{!pthreads:%{!pthread:%{threads:-lthread}}} \
        %{p|pg:-ldl} -lc}}"
 
 #undef  ENDFILE_SPEC
@@ -142,12 +141,18 @@ Boston, MA 02111-1307, USA.  */
 #undef  LINK_SPEC
 #define LINK_SPEC \
   "%{h*} %{v:-V} \
-   %{b} %{Wl,*:%*} \
+   %{b} \
    %{static:-dn -Bstatic} \
    %{shared:-G -dy %{!mimpure-text:-z text}} \
    %{symbolic:-Bsymbolic -G -dy -z text} \
    %(link_arch) \
    %{Qy:} %{!Qn:-Qy}"
+
+/* The Solaris linker doesn't understand constructor priorities.  (The
+   GNU linker does support constructor priorities, so GNU ld
+   configuration files for Solaris override this setting.)  */
+#undef SUPPORTS_INIT_PRIORITY
+#define SUPPORTS_INIT_PRIORITY 0
 
 /* This defines which switch letters take arguments.
    It is as in svr4.h but with -R added.  */
@@ -193,7 +198,7 @@ extern void __enable_execute_stack (void *);				\
 void									\
 __enable_execute_stack (void *addr)					\
 {									\
-  extern int mprotect (void *, size_t, int);				\
+  extern int mprotect(void *, size_t, int);				\
   if (!need_enable_exec_stack)						\
     return;								\
   else {								\
@@ -206,3 +211,35 @@ __enable_execute_stack (void *addr)					\
       perror ("mprotect of trampoline code");				\
   }									\
 }
+
+/* Support Solaris-specific format checking for cmn_err.  */
+#define TARGET_N_FORMAT_TYPES 1
+#define TARGET_FORMAT_TYPES solaris_format_types
+
+/* #pragma init and #pragma fini are implemented on top of init and
+   fini attributes.  */
+#define SOLARIS_ATTRIBUTE_TABLE						\
+  { "init",      0, 0, true,  false,  false, NULL },			\
+  { "fini",      0, 0, true,  false,  false, NULL }
+
+/* This is how to declare the size of a function.  For Solaris, we output
+   any .init or .fini entries here.  */
+#undef ASM_DECLARE_FUNCTION_SIZE
+#define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)		\
+  do								\
+    {								\
+      if (!flag_inhibit_size_directive)				\
+	ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
+      solaris_output_init_fini (FILE, DECL);			\
+    }								\
+  while (0)
+
+/* Register the Solaris-specific #pragma directives.  */
+#define REGISTER_TARGET_PRAGMAS() solaris_register_pragmas ()
+
+extern GTY(()) tree solaris_pending_aligns;
+extern GTY(()) tree solaris_pending_inits;
+extern GTY(()) tree solaris_pending_finis;
+
+/* Allow macro expansion in #pragma pack.  */
+#define HANDLE_PRAGMA_PACK_WITH_EXPANSION

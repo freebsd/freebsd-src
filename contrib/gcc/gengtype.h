@@ -1,5 +1,5 @@
 /* Process source files and output type information.
-   Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* A file position, mostly for error messages.  
    The FILE element may be compared using pointer equality.  */
@@ -37,16 +37,23 @@ enum typekind {
   TYPE_PARAM_STRUCT
 };
 
+typedef struct pair *pair_p;
+typedef struct type *type_p;
+typedef unsigned lang_bitmap;
+
+/* Option data for the 'nested_ptr' option.  */
+struct nested_ptr_data {
+  type_p type;
+  const char *convert_to;
+  const char *convert_from;
+};    
+
 /* A way to pass data through to the output end.  */
 typedef struct options {
   struct options *next;
   const char *name;
-  const void *info;
+  const char *info;
 } *options_p;
-
-typedef struct pair *pair_p;
-typedef struct type *type_p;
-typedef unsigned lang_bitmap;
 
 /* A name and a type.  */
 struct pair {
@@ -60,16 +67,19 @@ struct pair {
 #define NUM_PARAM 10
 
 /* A description of a type.  */
-struct type {
-  enum typekind kind;
-  type_p next;
-  type_p pointer_to;
-  enum gc_used_enum {
+enum gc_used_enum
+  {
     GC_UNUSED = 0,
     GC_USED,
     GC_MAYBE_POINTED_TO,
     GC_POINTED_TO
-  } gc_used;
+  };
+
+struct type {
+  enum typekind kind;
+  type_p next;
+  type_p pointer_to;
+  enum gc_used_enum gc_used;
   union {
     type_p p;
     struct {
@@ -123,13 +133,14 @@ extern char * xasprintf (const char *, ...)
 /* Constructor routines for types.  */
 extern void do_typedef (const char *s, type_p t, struct fileloc *pos);
 extern type_p resolve_typedef (const char *s, struct fileloc *pos);
-extern void new_structure (const char *name, int isunion, 
-			   struct fileloc *pos, pair_p fields, 
-			   options_p o);
+extern type_p new_structure (const char *name, int isunion,
+			     struct fileloc *pos, pair_p fields,
+			     options_p o);
 extern type_p find_structure (const char *s, int isunion);
 extern type_p create_scalar_type (const char *name, size_t name_len);
 extern type_p create_pointer (type_p t);
 extern type_p create_array (type_p t, const char *len);
+extern options_p create_option (options_p, const char *name, const void *info);
 extern type_p adjust_field_type (type_p, options_p);
 extern void note_variable (const char *s, type_p t, options_p o,
 			   struct fileloc *pos);
@@ -155,10 +166,6 @@ struct outf
 };
 
 typedef struct outf * outf_p;
-
-/* The output header file that is included into pretty much every
-   source file.  */
-extern outf_p header_file;
 
 /* An output file, suitable for definitions, that can see declarations
    made in INPUT_FILE and is linked into every language that uses

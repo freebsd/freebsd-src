@@ -1,5 +1,5 @@
 /* Register conflict graph computation routines.
-   Copyright (C) 2000, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by CodeSourcery, LLC
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* References:
 
@@ -117,7 +117,6 @@ struct conflict_graph_def
 static hashval_t arc_hash (const void *);
 static int arc_eq (const void *, const void *);
 static int print_conflict (int, int, void *);
-static void mark_reg (rtx, rtx, void *);
 
 /* Callback function to compute the hash value of an arc.  Uses
    current_graph to locate the graph to which the arc belongs.  */
@@ -148,7 +147,7 @@ arc_eq (const void *arcp1, const void *arcp2)
 conflict_graph
 conflict_graph_new (int num_regs)
 {
-  conflict_graph graph = xmalloc (sizeof (struct conflict_graph_def));
+  conflict_graph graph = XNEW (struct conflict_graph_def);
   graph->num_regs = num_regs;
 
   /* Set up the hash table.  No delete action is specified; memory
@@ -160,7 +159,7 @@ conflict_graph_new (int num_regs)
   obstack_init (&graph->arc_obstack);
 	     
   /* Create and zero the lookup table by register number.  */
-  graph->neighbor_heads = xcalloc (num_regs, sizeof (conflict_graph_arc));
+  graph->neighbor_heads = XCNEWVEC (conflict_graph_arc, num_regs);
 
   return graph;
 }
@@ -190,8 +189,7 @@ conflict_graph_add (conflict_graph graph, int reg1, int reg2)
   void **slot;
 
   /* A reg cannot conflict with itself.  */
-  if (reg1 == reg2)
-    abort ();
+  gcc_assert (reg1 != reg2);
 
   dummy.smaller = smaller;
   dummy.larger = larger;
@@ -210,7 +208,7 @@ conflict_graph_add (conflict_graph graph, int reg1, int reg2)
   arc->smaller = smaller;
   arc->larger = larger;
 
-  /* Link the conflict into into two lists, one for each reg.  */
+  /* Link the conflict into two lists, one for each reg.  */
   arc->smaller_next = graph->neighbor_heads[smaller];
   graph->neighbor_heads[smaller] = arc;
   arc->larger_next = graph->neighbor_heads[larger];
@@ -324,10 +322,11 @@ print_conflict (int reg1, int reg2, void *contextp)
      is the interesting one.  */
   if (reg1 == context->reg)
     reg = reg2;
-  else if (reg2 == context->reg)
-    reg = reg1;
   else
-    abort ();
+    {
+      gcc_assert (reg2 == context->reg);
+      reg = reg1;
+    }
 
   /* Print the conflict.  */
   fprintf (context->fp, " %d", reg);
@@ -363,135 +362,4 @@ conflict_graph_print (conflict_graph graph, FILE *fp)
       if (context.started)
 	fputc ('\n', fp);
     }
-}
-
-/* Callback function for note_stores.  */
-
-static void
-mark_reg (rtx reg, rtx setter ATTRIBUTE_UNUSED, void *data)
-{
-  regset set = (regset) data;
-
-  if (GET_CODE (reg) == SUBREG)
-    reg = SUBREG_REG (reg);
-
-  /* We're only interested in regs.  */
-  if (GET_CODE (reg) != REG)
-    return;
-
-  SET_REGNO_REG_SET (set, REGNO (reg));
-}
-
-/* Allocates a conflict graph and computes conflicts over the current
-   function for the registers set in REGS.  The caller is responsible
-   for deallocating the return value.  
-
-   Preconditions: the flow graph must be in SSA form, and life
-   analysis (specifically, regs live at exit from each block) must be
-   up-to-date.  
-
-   This algorithm determines conflicts by walking the insns in each
-   block backwards.  We maintain the set of live regs at each insn,
-   starting with the regs live on exit from the block.  For each insn:
- 
-     1. If a reg is set in this insns, it must be born here, since
-        we're in SSA.  Therefore, it was not live before this insns,
-	so remove it from the set of live regs.  
-
-     2. For each reg born in this insn, record a conflict between it
-	and every other reg live coming into this insn.  For each
-	existing conflict, one of the two regs must be born while the
-	other is alive.  See Morgan or elsewhere for a proof of this.
-
-     3. Regs clobbered by this insn must have been live coming into
-        it, so record them as such.  
-
-   The resulting conflict graph is not built for regs in REGS
-   themselves; rather, partition P is used to obtain the canonical reg
-   for each of these.  The nodes of the conflict graph are these
-   canonical regs instead.  */
-
-conflict_graph
-conflict_graph_compute (regset regs, partition p)
-{
-  conflict_graph graph = conflict_graph_new (max_reg_num ());
-  regset_head live_head;
-  regset live = &live_head;
-  regset_head born_head;
-  regset born = &born_head;
-  basic_block bb;
-
-  INIT_REG_SET (live);
-  INIT_REG_SET (born);
-
-  FOR_EACH_BB_REVERSE (bb)
-    {
-      rtx insn;
-      rtx head;
-
-      /* Start with the regs that are live on exit, limited to those
-	 we're interested in.  */
-      COPY_REG_SET (live, bb->global_live_at_end);
-      AND_REG_SET (live, regs);
-
-      /* Walk the instruction stream backwards.  */
-      head = BB_HEAD (bb);
-      insn = BB_END (bb);
-      for (insn = BB_END (bb); insn != head; insn = PREV_INSN (insn))
-	{
-	  int born_reg;
-	  int live_reg;
-	  rtx link;
-
-	  /* Are we interested in this insn? */
-	  if (INSN_P (insn))
-	    {
-	      /* Determine which regs are set in this insn.  Since
-  	         we're in SSA form, if a reg is set here it isn't set
-  	         anywhere else, so this insn is where the reg is born.  */
-	      CLEAR_REG_SET (born);
-	      note_stores (PATTERN (insn), mark_reg, born);
-	      AND_REG_SET (born, regs);
-	  
-	      /* Regs born here were not live before this insn.  */
-	      AND_COMPL_REG_SET (live, born);
-
-	      /* For every reg born here, add a conflict with every other
-  	         reg live coming into this insn.  */
-	      EXECUTE_IF_SET_IN_REG_SET
-		(born, FIRST_PSEUDO_REGISTER, born_reg,
-		 {
-		   EXECUTE_IF_SET_IN_REG_SET
-		     (live, FIRST_PSEUDO_REGISTER, live_reg,
-		      {
-			/* Build the conflict graph in terms of canonical
-			   regnos.  */
-			int b = partition_find (p, born_reg);
-			int l = partition_find (p, live_reg);
-
-			if (b != l)
-			  conflict_graph_add (graph, b, l);
-		      });
-		 });
-
-	      /* Morgan's algorithm checks the operands of the insn
-	         and adds them to the set of live regs.  Instead, we
-	         use death information added by life analysis.  Regs
-	         dead after this instruction were live before it.  */
-	      for (link = REG_NOTES (insn); link; link = XEXP (link, 1))
-		if (REG_NOTE_KIND (link) == REG_DEAD)
-		  {
-		    unsigned int regno = REGNO (XEXP (link, 0));
-
-		    if (REGNO_REG_SET_P (regs, regno))
-		      SET_REGNO_REG_SET (live, regno);
-		  }
-	    }
-	}
-    }
-
-  FREE_REG_SET (live);
-  FREE_REG_SET (born);
-
-  return graph;
 }

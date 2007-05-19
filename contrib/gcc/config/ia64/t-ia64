@@ -8,7 +8,8 @@ LIB1ASMSRC    = ia64/lib1funcs.asm
 LIB1ASMFUNCS  = __divxf3 __divdf3 __divsf3 \
 	__divdi3 __moddi3 __udivdi3 __umoddi3 \
 	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
-	__nonlocal_goto __restore_stack_nonlocal __trampoline __compat
+	__nonlocal_goto __restore_stack_nonlocal __trampoline \
+	_fixtfdi _fixunstfdi _floatditf
 
 # ??? Hack to get -P option used when compiling lib1funcs.asm, because Intel
 # assembler does not accept # line number as a comment.
@@ -41,7 +42,7 @@ crtfastmath.o: $(srcdir)/config/ia64/crtfastmath.c $(GCC_PASSES)
 		$(srcdir)/config/ia64/crtfastmath.c
 
 LIB2ADDEH = $(srcdir)/config/ia64/unwind-ia64.c $(srcdir)/unwind-sjlj.c \
-  $(srcdir)/unwind-c.c $(srcdir)/gthr-gnat.c
+  $(srcdir)/unwind-c.c
 
 ia64-c.o: $(srcdir)/config/ia64/ia64-c.c $(CONFIG_H) $(SYSTEM_H) \
     coretypes.h $(TM_H) $(TREE_H) $(CPPLIB_H) $(C_COMMON_H) c-pragma.h toplev.h
@@ -49,3 +50,5 @@ ia64-c.o: $(srcdir)/config/ia64/ia64-c.c $(CONFIG_H) $(SYSTEM_H) \
 
 # genattrtab generates very long string literals.
 insn-attrtab.o-warn = -Wno-error
+
+ia64.o: debug.h $(PARAMS_H)

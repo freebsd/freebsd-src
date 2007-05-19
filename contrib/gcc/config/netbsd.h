@@ -1,5 +1,5 @@
 /* Base configuration file for all NetBSD targets.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -16,14 +16,16 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* TARGET_OS_CPP_BUILTINS() common to all NetBSD targets.  */
 #define NETBSD_OS_CPP_BUILTINS_COMMON()		\
   do						\
     {						\
       builtin_define ("__NetBSD__");		\
+      builtin_define ("__unix__");		\
+      builtin_assert ("system=bsd");		\
       builtin_assert ("system=unix");		\
       builtin_assert ("system=NetBSD");		\
     }						\
@@ -154,18 +156,16 @@ Boston, MA 02111-1307, USA.  */
     fprintf ((STREAM), "void __fini() {\n\t%s();\n}\n", (FUNC));	\
   } while (0)
 
-#undef TARGET_HAS_F_SETLKW
-#define TARGET_HAS_F_SETLKW
-
-/* Implicit library calls should use memcpy, not bcopy, etc.  */
-
-#undef TARGET_MEM_FUNCTIONS
-#define TARGET_MEM_FUNCTIONS 1
+#undef TARGET_POSIX_IO
+#define TARGET_POSIX_IO
 
 /* Handle #pragma weak and #pragma pack.  */
 
 #define HANDLE_SYSV_PRAGMA 1
 
+/* Don't assume anything about the header files.  */
+#undef  NO_IMPLICIT_EXTERN_C
+#define NO_IMPLICIT_EXTERN_C    1
 
 /* Define some types that are the same on all NetBSD platforms,
    making them agree with <machine/ansi.h>.  */

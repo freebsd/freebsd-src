@@ -1,6 +1,6 @@
 /* Generate from machine description:
    - some #define configuration flags.
-   Copyright (C) 1987, 1991, 1997, 1998, 1999, 2000, 2003
+   Copyright (C) 1987, 1991, 1997, 1998, 1999, 2000, 2003, 2004
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -17,8 +17,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 
 #include "bconfig.h"
@@ -98,7 +98,8 @@ walk_insn_part (rtx part, int recog_p, int non_pc_set_src)
       break;
 
     case LABEL_REF:
-      if (GET_CODE (XEXP (part, 0)) == MATCH_OPERAND)
+      if (GET_CODE (XEXP (part, 0)) == MATCH_OPERAND
+	  || GET_CODE (XEXP (part, 0)) == MATCH_DUP)
 	break;
       return;
 
@@ -264,9 +265,6 @@ main (int argc, char **argv)
 
   progname = "genconfig";
 
-  if (argc <= 1)
-    fatal ("no input file name");
-
   if (init_md_reader_args (argc, argv) != SUCCESS_EXIT_CODE)
     return (FATAL_EXIT_CODE);
 
@@ -336,7 +334,9 @@ main (int argc, char **argv)
     }
   else
     {
-      printf ("#define CC0_P(X) 0\n");
+      /* We output CC0_P this way to make sure that X is declared
+	 somewhere.  */
+      printf ("#define CC0_P(X) ((X) ? 0 : 0)\n");
     }
 
   if (have_cmove_flag)
@@ -363,11 +363,4 @@ main (int argc, char **argv)
     return FATAL_EXIT_CODE;
 
   return SUCCESS_EXIT_CODE;
-}
-
-/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
-const char *
-get_insn_name (int code ATTRIBUTE_UNUSED)
-{
-  return NULL;
 }

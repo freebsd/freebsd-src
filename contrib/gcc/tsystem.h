@@ -1,6 +1,6 @@
 /* Get common system includes and various definitions and declarations
    based on target macros.
-   Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* As a special exception, if you link this library with other files,
    some of which are compiled with GCC, to produce an executable,
@@ -39,6 +39,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #ifndef HAVE_DECL_GETOPT
 #define HAVE_DECL_GETOPT 1
 #endif
+
+/* We want everything from the glibc headers.  */
+#define _GNU_SOURCE 1
 
 /* GCC supplies these headers.  */
 #include <stddef.h>
@@ -64,6 +67,14 @@ extern void abort (void) __attribute__ ((__noreturn__));
 
 #ifndef strlen
 extern size_t strlen (const char *);
+#endif
+
+#ifndef memcpy
+extern void *memcpy (void *, const void *, size_t);
+#endif
+
+#ifndef memset
+extern void *memset (void *, int, size_t);
 #endif
 
 #else /* ! inhibit_libc */
@@ -105,5 +116,22 @@ extern int errno;
 #ifndef NULL
 #define NULL 0
 #endif
+
+/* GCC always provides __builtin_alloca(x).  */
+#undef alloca
+#define alloca(x) __builtin_alloca(x)
+
+#ifdef ENABLE_RUNTIME_CHECKING
+#define gcc_assert(EXPR) ((void)(!(EXPR) ? abort (), 0 : 0))
+#else
+/* Include EXPR, so that unused variable warnings do not occur.  */
+#define gcc_assert(EXPR) ((void)(0 && (EXPR)))
+#endif
+/* Use gcc_unreachable() to mark unreachable locations (like an
+   unreachable default case of a switch.  Do not use gcc_assert(0).  */
+#define gcc_unreachable() (abort ())
+
+/* Filename handling macros.  */
+#include "filenames.h"
 
 #endif /* ! GCC_TSYSTEM_H */

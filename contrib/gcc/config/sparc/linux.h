@@ -1,5 +1,5 @@
 /* Definitions for SPARC running Linux-based GNU systems with ELF.
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
    Contributed by Eddie C. Dost (ecd@skynet.be)
 
@@ -17,18 +17,20 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #define TARGET_OS_CPP_BUILTINS()		\
   do						\
     {						\
-	builtin_define_std ("unix");		\
-	builtin_define_std ("linux");		\
-	builtin_define ("__gnu_linux__");	\
-	builtin_assert ("system=linux");	\
-	builtin_assert ("system=unix");		\
-	builtin_assert ("system=posix");	\
+      builtin_define_std ("unix");		\
+      builtin_define_std ("linux");		\
+      builtin_define ("__gnu_linux__");		\
+      builtin_assert ("system=linux");		\
+      builtin_assert ("system=unix");		\
+      builtin_assert ("system=posix");		\
+      if (TARGET_LONG_DOUBLE_128)       	\
+	builtin_define ("__LONG_DOUBLE_128__");	\
     }						\
   while (0)
 
@@ -44,12 +46,7 @@ Boston, MA 02111-1307, USA.  */
    object constructed before entering `main'.  */
    
 #undef  STARTFILE_SPEC
-#ifdef USE_GNULIBC_1
-#define STARTFILE_SPEC \
-  "%{!shared: \
-     %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
-   crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
-#elif defined HAVE_LD_PIE
+#if defined HAVE_LD_PIE
 #define STARTFILE_SPEC \
   "%{!shared: %{pg|p:gcrt1.o%s;pie:Scrt1.o%s;:crt1.o%s}}\
    crti.o%s %{static:crtbeginT.o%s;shared|pie:crtbeginS.o%s;:crtbegin.o%s}"
@@ -86,11 +83,6 @@ Boston, MA 02111-1307, USA.  */
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (sparc GNU/Linux with ELF)");
 
-#undef SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES \
-{"long-double-64", -MASK_LONG_DOUBLE_128, N_("Use 64 bit long doubles") }, \
-{"long-double-128", MASK_LONG_DOUBLE_128, N_("Use 128 bit long doubles") },
-
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
  
@@ -104,37 +96,14 @@ Boston, MA 02111-1307, USA.  */
 #define WCHAR_TYPE_SIZE 32
 
 #undef CPP_SUBTARGET_SPEC
-#ifdef USE_GNULIBC_1
 #define CPP_SUBTARGET_SPEC \
-"%{fPIC|fPIE|fpic|fpie:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} \
-%{mlong-double-128:-D__LONG_DOUBLE_128__}"
-#else
-#define CPP_SUBTARGET_SPEC \
-"%{fPIC|fPIE|fpic|fpie:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} \
-%{pthread:-D_REENTRANT} %{mlong-double-128:-D__LONG_DOUBLE_128__}"
-#endif
+"%{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
 
 #undef LIB_SPEC
-/* We no longer link with libc_p.a or libg.a by default. If you
-   want to profile or debug the GNU/Linux C library, please add
-   -lc_p or -ggdb to LDFLAGS at the link time, respectively.  */
-#if 1
-#ifdef USE_GNULIBC_1
-#define LIB_SPEC \
-  "%{!shared: %{p:-lgmon} %{pg:-lgmon} %{profile:-lgmon -lc_p} \
-     %{!profile:%{!ggdb:-lc} %{ggdb:-lg}}}"
-#else
 #define LIB_SPEC \
   "%{pthread:-lpthread} \
    %{shared:-lc} \
    %{!shared:%{mieee-fp:-lieee} %{profile:-lc_p}%{!profile:-lc}}"
-#endif
-#else
-#define LIB_SPEC \
-  "%{!shared: \
-     %{mieee-fp:-lieee} %{p:-lgmon -lc_p} %{pg:-lgmon -lc_p} \
-       %{!p:%{!pg:%{!g*:-lc} %{g*:-lg}}}}"
-#endif
 
 /* Provide a LINK_SPEC appropriate for GNU/Linux.  Here we provide support
    for the special GCC options -static and -shared, which allow us to
@@ -152,25 +121,26 @@ Boston, MA 02111-1307, USA.  */
 
 /* If ELF is the default format, we should not use /lib/elf.  */
 
-#undef  LINK_SPEC
-#ifdef USE_GNULIBC_1
-#define LINK_SPEC "-m elf32_sparc -Y P,/usr/lib %{shared:-shared} \
-  %{!shared: \
-    %{!ibcs: \
-      %{!static: \
-        %{rdynamic:-export-dynamic} \
-        %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.1}} \
-        %{static:-static}}}"
+#define GLIBC_DYNAMIC_LINKER "/lib/ld-linux.so.2"
+#define UCLIBC_DYNAMIC_LINKER "/lib/ld-uClibc.so.0"
+#if UCLIBC_DEFAULT
+#define CHOOSE_DYNAMIC_LINKER(G, U) "%{mglibc:%{muclibc:%e-mglibc and -muclibc used together}" G ";:" U "}"
 #else
+#define CHOOSE_DYNAMIC_LINKER(G, U) "%{muclibc:%{mglibc:%e-mglibc and -muclibc used together}" U ";:" G "}"
+#endif
+#define LINUX_DYNAMIC_LINKER \
+  CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER, UCLIBC_DYNAMIC_LINKER)
+
+
+#undef  LINK_SPEC
 #define LINK_SPEC "-m elf32_sparc -Y P,/usr/lib %{shared:-shared} \
   %{!mno-relax:%{!r:-relax}} \
   %{!shared: \
     %{!ibcs: \
       %{!static: \
         %{rdynamic:-export-dynamic} \
-        %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
+        %{!dynamic-linker:-dynamic-linker " LINUX_DYNAMIC_LINKER "}} \
         %{static:-static}}}"
-#endif
 
 /* The sun bundled assembler doesn't accept -Yd, (and neither does gas).
    It's safe to pass -s always, even if -g is not used.  */
@@ -198,13 +168,6 @@ do {									\
 #undef  LOCAL_LABEL_PREFIX
 #define LOCAL_LABEL_PREFIX  "."
 
-/* This is how to output a reference to an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.  */
-
-#undef  ASM_OUTPUT_INTERNAL_LABELREF
-#define ASM_OUTPUT_INTERNAL_LABELREF(FILE,PREFIX,NUM)	\
-  fprintf (FILE, ".L%s%d", PREFIX, NUM)
-
 /* This is how to store into the string LABEL
    the symbol_ref name of an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.
@@ -219,9 +182,6 @@ do {									\
    SPARC ABI says that long double is 4 words.  */
 #define LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
 
-/* Constant which presents upper bound of the above value.  */
-#define MAX_LONG_DOUBLE_TYPE_SIZE 128
-
 /* Define this to set long double type size to use in libgcc2.c, which can
    not depend on target_flags.  */
 #ifdef __LONG_DOUBLE_128__
@@ -233,7 +193,7 @@ do {									\
 #undef DITF_CONVERSION_LIBFUNCS
 #define DITF_CONVERSION_LIBFUNCS 1
 
-#if !defined(USE_GNULIBC_1) && defined(HAVE_LD_EH_FRAME_HDR)
+#if defined(HAVE_LD_EH_FRAME_HDR)
 #define LINK_EH_SPEC "%{!static:--eh-frame-hdr} "
 #endif
 
@@ -251,78 +211,36 @@ do {									\
 #undef CTORS_SECTION_ASM_OP
 #undef DTORS_SECTION_ASM_OP
 
-#define TARGET_ASM_FILE_END file_end_indicate_exec_stack
-
-/* Determine whether the the entire c99 runtime is present in the
+/* Determine whether the entire c99 runtime is present in the
    runtime library.  */
-#define TARGET_C99_FUNCTIONS 1
+#define TARGET_C99_FUNCTIONS (OPTION_GLIBC)
 
-#define TARGET_HAS_F_SETLKW
+#define TARGET_POSIX_IO
 
 #undef LINK_GCC_C_SEQUENCE_SPEC
 #define LINK_GCC_C_SEQUENCE_SPEC \
   "%{static:--start-group} %G %L %{static:--end-group}%{!static:%G}"
 
-/* Do code reading to identify a signal frame, and set the frame
-   state data appropriately.  See unwind-dw2.c for the structs.  */
+/* Use --as-needed -lgcc_s for eh support.  */
+#ifdef HAVE_LD_AS_NEEDED
+#define USE_LD_AS_NEEDED 1
+#endif
 
-#define MD_FALLBACK_FRAME_STATE_FOR(CONTEXT, FS, SUCCESS)		\
-  do {									\
-    unsigned int *pc_ = (CONTEXT)->ra;					\
-    int new_cfa_, i_, oldstyle_;					\
-    int regs_off_, fpu_save_off_;					\
-    int fpu_save_, this_cfa_;						\
-									\
-    if (pc_[1] != 0x91d02010)		/* ta 0x10 */			\
-      break;								\
-    if (pc_[0] == 0x821020d8)		/* mov NR_sigreturn, %g1 */	\
-      oldstyle_ = 1;							\
-    else if (pc_[0] == 0x82102065)	/* mov NR_rt_sigreturn, %g1 */	\
-      oldstyle_ = 0;							\
-    else								\
-      break;								\
-    if (oldstyle_)							\
-      {									\
-        regs_off_ = 96;							\
-        fpu_save_off_ = regs_off_ + (4 * 4) + (16 * 4);			\
-      }									\
-    else								\
-      {									\
-        regs_off_ = 96 + 128;						\
-        fpu_save_off_ = regs_off_ + (4 * 4) + (16 * 4) + (2 * 4);	\
-      }									\
-    this_cfa_ = (int) (CONTEXT)->cfa;					\
-    new_cfa_ = *(int *)(((CONTEXT)->cfa) + (regs_off_+(4*4)+(14 * 4)));	\
-    fpu_save_ = *(int *)((this_cfa_) + (fpu_save_off_));		\
-    (FS)->cfa_how = CFA_REG_OFFSET;					\
-    (FS)->cfa_reg = 14;							\
-    (FS)->cfa_offset = new_cfa_ - (int) (CONTEXT)->cfa;			\
-    for (i_ = 1; i_ < 16; ++i_)						\
-      {									\
-        if (i_ == 14)							\
-          continue;							\
-	(FS)->regs.reg[i_].how = REG_SAVED_OFFSET;			\
-	(FS)->regs.reg[i_].loc.offset =					\
-	   this_cfa_ + (regs_off_+(4 * 4)+(i_ * 4)) - new_cfa_;		\
-      }									\
-    for (i_ = 0; i_ < 16; ++i_)						\
-      {									\
-	(FS)->regs.reg[i_ + 16].how = REG_SAVED_OFFSET;			\
-	(FS)->regs.reg[i_ + 16].loc.offset =				\
-	  this_cfa_ + (i_ * 4) - new_cfa_;				\
-      }									\
-    if (fpu_save_)							\
-      {									\
-	for (i_ = 0; i_ < 32; ++i_)					\
-	  {								\
-	    (FS)->regs.reg[i_ + 32].how = REG_SAVED_OFFSET;		\
-	    (FS)->regs.reg[i_ + 32].loc.offset =			\
-	      (fpu_save_ + (i_ * 4)) - new_cfa_;			\
-	  }								\
-      }									\
-    /* Stick return address into %g0, same trick Alpha uses.  */	\
-    (FS)->regs.reg[0].how = REG_SAVED_OFFSET;				\
-    (FS)->regs.reg[0].loc.offset = this_cfa_+(regs_off_+4)-new_cfa_;	\
-    (FS)->retaddr_column = 0;						\
-    goto SUCCESS;							\
-  } while (0)
+#define MD_UNWIND_SUPPORT "config/sparc/linux-unwind.h"
+
+/* Linux currently uses RMO in uniprocessor mode, which is equivalent to
+   TMO, and TMO in multiprocessor mode.  But they reserve the right to
+   change their minds.  */
+#undef SPARC_RELAXED_ORDERING
+#define SPARC_RELAXED_ORDERING true
+
+#undef NEED_INDICATE_EXEC_STACK
+#define NEED_INDICATE_EXEC_STACK 1
+
+#ifdef TARGET_LIBC_PROVIDES_SSP
+/* sparc glibc provides __stack_chk_guard in [%g7 + 0x14].  */
+#define TARGET_THREAD_SSP_OFFSET	0x14
+#endif
+
+/* Define if long doubles should be mangled as 'g'.  */
+#define TARGET_ALTERNATE_LONG_DOUBLE_MANGLING

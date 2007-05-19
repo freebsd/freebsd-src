@@ -1,5 +1,5 @@
 /* Dump a gcov file, for debugging use.
-   Copyright (C) 2002, 2003, 2006 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
    Contributed by Nathan Sidwell <nathan@codesourcery.com>
 
 Gcov is free software; you can redistribute it and/or modify
@@ -14,8 +14,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Gcov; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
@@ -76,6 +76,9 @@ int
 main (int argc ATTRIBUTE_UNUSED, char **argv)
 {
   int opt;
+
+  /* Unlock the stdio streams.  */
+  unlock_std_streams ();
 
   while ((opt = getopt_long (argc, argv, "hlpv", options, NULL)) != -1)
     {
@@ -254,8 +257,6 @@ dump_file (const char *filename)
 	  break;
 	}
     }
-  if (!gcov_is_eof ())
-    printf ("%s:early end of file\n", filename);
   gcov_close ();
 }
 
