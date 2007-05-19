@@ -8,15 +8,15 @@
 
 /* Fake out gcc/config/freebsd<version>.h.  */
 #define	FBSD_MAJOR	7
-#define	FBSD_CC_VER	700002		/* form like __FreeBSD_version */
+#define	FBSD_CC_VER	700003		/* form like __FreeBSD_version */
 
 #undef SYSTEM_INCLUDE_DIR		/* We don't need one for now. */
 #undef TOOL_INCLUDE_DIR			/* We don't need one for now. */
 #undef LOCAL_INCLUDE_DIR		/* We don't wish to support one. */
 
 /* Look for the include files in the system-defined places.  */
-#define GPLUSPLUS_INCLUDE_DIR		PREFIX"/include/c++/3.4"
-#define	GPLUSPLUS_BACKWARD_INCLUDE_DIR	PREFIX"/include/c++/3.4/backward"
+#define GPLUSPLUS_INCLUDE_DIR		PREFIX"/include/c++/4.2"
+#define	GPLUSPLUS_BACKWARD_INCLUDE_DIR	PREFIX"/include/c++/4.2/backward"
 #define GCC_INCLUDE_DIR			PREFIX"/include"
 #ifdef CROSS_COMPILE
 #define CROSS_INCLUDE_DIR		PREFIX"/include"
@@ -28,9 +28,9 @@
    /usr/libexec directory.
 
    ``cc --print-search-dirs'' gives:
-   install: STANDARD_EXEC_PREFIX/(null)
-   programs: /usr/libexec/<OBJFORMAT>/:STANDARD_EXEC_PREFIX:MD_EXEC_PREFIX
-   libraries: MD_EXEC_PREFIX:MD_STARTFILE_PREFIX:STANDARD_STARTFILE_PREFIX
+   install: STANDARD_EXEC_PREFIX/
+   programs: STANDARD_EXEC_PREFIX:MD_EXEC_PREFIX
+   libraries: STANDARD_STARTFILE_PREFIX
 */
 #undef	STANDARD_BINDIR_PREFIX		/* We don't need one for now. */
 #define	STANDARD_EXEC_PREFIX		PREFIX"/libexec/"
@@ -46,20 +46,19 @@
 #define STANDARD_STARTFILE_PREFIX	PREFIX"/lib/"
 #define STARTFILE_PREFIX_SPEC		PREFIX"/lib/"
 
-/* For the native system compiler, we actually build libgcc in a profiled
-   version.  So we should use it with -pg.  */
+#if 0
 #define LIBGCC_SPEC		"%{shared: -lgcc_pic} \
     %{!shared: %{!pg: -lgcc} %{pg: -lgcc_p}}"
+#endif
 #define LIBSTDCXX_PROFILE	"-lstdc++_p"
 #define MATH_LIBRARY_PROFILE	"-lm_p"
 #define FORTRAN_LIBRARY_PROFILE	"-lg2c_p"
 
+#define LIBGCC_SPEC		"-lgcc"
+/* For the native system compiler, we actually build libgcc in a profiled
+   version.  So we should use it with -pg.  */
+#define LIBGCC_STATIC_LIB_SPEC	  "%{pg: -lgcc_p;:-lgcc}"
+#define LIBGCC_EH_STATIC_LIB_SPEC "%{pg: -lgcc_eh_p;:-lgcc_eh}"
+
 /* FreeBSD is 4.4BSD derived */
 #define bsd4_4
-
-/* And now they want to replace ctype.h.... grr... [stupid, IMHO] */
-#define xxxISDIGIT	isdigit
-#define xxxISGRAPH	isgraph
-#define xxxISLOWER	islower
-#define xxxISSPACE	isspace
-#define xxxTOUPPER	toupper

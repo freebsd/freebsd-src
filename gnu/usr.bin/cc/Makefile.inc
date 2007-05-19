@@ -7,15 +7,12 @@
 __CC_MAKEFILE_INC__= ${MFILE}
 
 GCCDIR=	${.CURDIR}/../../../../contrib/gcc
+GCCLIB=	${.CURDIR}/../../../../contrib/gcclibs
 
 .include "Makefile.tgt"
 
 # Machine description.
-.if ${TARGET_ARCH} == "arm"
-MD_FILE=	../cc_tools/arm-diked.md
-.else
 MD_FILE=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.md
-.endif
 GCC_TARGET=	${TARGET_ARCH}-undermydesk-freebsd
 
 CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
@@ -44,10 +41,32 @@ CFLAGS+=	-I${.CURDIR}/../cc_tools
 # correctly.
 CFLAGS+=	-I${GCCDIR} -I${GCCDIR}/config
 
+CFLAGS+=	-I${GCCLIB}/include
+CFLAGS+=	-I${GCCLIB}/libcpp/include
+CFLAGS+=	-I${GCCLIB}/libdecnumber
+
 .if exists(${.OBJDIR}/../cc_int)
-LIBCC_INT=	${.OBJDIR}/../cc_int/libcc_int.a
+LIBBACKEND=	${.OBJDIR}/../cc_int/libbackend.a
 .else
-LIBCC_INT=	${.CURDIR}/../cc_int/libcc_int.a
+LIBBACKEND=	${.CURDIR}/../cc_int/libbackend.a
+.endif
+
+.if exists(${.OBJDIR}/../libiberty)
+LIBIBERTY=	${.OBJDIR}/../libiberty/libiberty.a
+.else
+LIBIBERTY=	${.CURDIR}/../libiberty/libiberty.a
+.endif
+
+.if exists(${.OBJDIR}/../libcpp)
+LIBCPP=		${.OBJDIR}/../libcpp/libcpp.a
+.else
+LIBCPP=		${.CURDIR}/../libcpp/libcpp.a
+.endif
+
+.if exists(${.OBJDIR}/../libdecnumber)
+LIBDECNUMBER=	${.OBJDIR}/../libdecnumber/libdecnumber.a
+.else
+LIBDECNUMBER=	${.CURDIR}/../libdecnumber/libdecnumber.a
 .endif
 
 .endif # !__CC_MAKEFILE_INC__

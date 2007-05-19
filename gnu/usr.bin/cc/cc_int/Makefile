@@ -1,93 +1,101 @@
 # $FreeBSD$
 
 .include "../Makefile.inc"
+.include "../Makefile.ver"
 
-.PATH: ../cc_tools ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}
+.PATH: ../cc_tools ${GCCDIR} ${GCCDIR}/config/${GCC_CPU}
 
-LIB=		cc_int
+LIB=	backend
 INTERNALLIB=
 
-# Files from libiberty.
-SRCS=	choose-temp.c concat.c cp-demangle.c cp-demint.c cplus-dem.c \
-	dyn-string.c fibheap.c getpwd.c getruntime.c hashtab.c hex.c \
-	lbasename.c make-temp-file.c md5.c obstack.c partition.c pex-unix.c \
-	physmem.c splay-tree.c xexit.c xmalloc.c xmemdup.c xstrdup.c xstrerror.c
+EXTRA_OBJS=
+GGC=		ggc-page.o
+host_hook_obj=	host-default.o
 
-# Language-independent files.
-SRCS+=	alias.c bb-reorder.c bitmap.c builtins.c caller-save.c calls.c \
-	cfg.c cfganal.c cfgbuild.c cfgcleanup.c cfglayout.c cfgloop.c \
-	cfgloopanal.c cfgloopmanip.c loop-init.c loop-unswitch.c loop-unroll.c \
-	cfgrtl.c combine.c conflict.c convert.c coverage.c cse.c cselib.c \
-	dbxout.c debug.c df.c diagnostic.c dojump.c doloop.c dominance.c \
-	dwarf2asm.c dwarf2out.c emit-rtl.c except.c explow.c \
-	expmed.c expr.c final.c flow.c fold-const.c function.c gcse.c \
-	genrtl.c ggc-common.c global.c graph.c gtype-desc.c \
-	haifa-sched.c hooks.c ifcvt.c  \
-	integrate.c intl.c jump.c  langhooks.c lcm.c lists.c local-alloc.c \
-	loop.c optabs.c options.c opts.c params.c postreload.c predict.c \
-	print-rtl.c print-tree.c value-prof.c \
-	profile.c ra.c ra-build.c ra-colorize.c ra-debug.c ra-rewrite.c \
-	real.c recog.c reg-stack.c regclass.c regmove.c regrename.c \
-	reload.c reload1.c reorg.c resource.c rtl.c rtlanal.c rtl-error.c \
-	sbitmap.c sched-deps.c sched-ebb.c sched-rgn.c sched-vis.c sdbout.c \
-	sibcall.c simplify-rtx.c sreal.c stmt.c stor-layout.c stringpool.c \
-	targhooks.c timevar.c toplev.c tracer.c tree.c tree-dump.c unroll.c \
-	varasm.c varray.c version.c vmsdbgout.c xcoffout.c alloc-pool.c \
-	et-forest.c cfghooks.c bt-load.c pretty-print.c ggc-page.c web.c
+#
+# Most lists copied verbatim from GCC Makefiles.
+#
+OBJS-common = \
+ double-int.o tree-chrec.o tree-scalar-evolution.o tree-data-ref.o	   \
+ tree-cfg.o tree-dfa.o tree-eh.o tree-ssa.o tree-optimize.o tree-gimple.o  \
+ gimplify.o tree-pretty-print.o tree-into-ssa.o				   \
+ tree-outof-ssa.o tree-ssa-ccp.o tree-vn.o tree-ssa-uncprop.o		   \
+ tree-ssa-dce.o  tree-ssa-copy.o tree-nrv.o tree-ssa-copyrename.o	   \
+ tree-ssa-pre.o tree-ssa-live.o tree-ssa-operands.o tree-ssa-alias.o       \
+ tree-ssa-phiopt.o tree-ssa-forwprop.o tree-nested.o tree-ssa-dse.o	   \
+ tree-ssa-dom.o domwalk.o tree-tailcall.o gimple-low.o tree-iterator.o	   \
+ omp-low.o tree-phinodes.o tree-ssanames.o tree-sra.o tree-complex.o	   \
+ tree-vect-generic.o tree-ssa-loop.o tree-ssa-loop-niter.o		   \
+ tree-ssa-loop-manip.o tree-ssa-threadupdate.o tree-ssa-threadedge.o	   \
+ tree-vectorizer.o tree-vect-analyze.o tree-vect-transform.o		   \
+ tree-vect-patterns.o tree-ssa-loop-prefetch.o				   \
+ tree-ssa-loop-ivcanon.o tree-ssa-propagate.o tree-ssa-address.o	   \
+ tree-ssa-math-opts.o							   \
+ tree-ssa-loop-ivopts.o tree-if-conv.o tree-ssa-loop-unswitch.o		   \
+ alias.o bb-reorder.o bitmap.o builtins.o caller-save.o calls.o	  	   \
+ cfg.o cfganal.o cfgbuild.o cfgcleanup.o cfglayout.o cfgloop.o		   \
+ cfgloopanal.o cfgloopmanip.o loop-init.o loop-unswitch.o loop-unroll.o	   \
+ cfgrtl.o combine.o conflict.o convert.o coverage.o cse.o cselib.o 	   \
+ dbxout.o ddg.o tree-ssa-loop-ch.o loop-invariant.o tree-ssa-loop-im.o	   \
+ debug.o df-core.o df-problems.o df-scan.o dfp.o diagnostic.o dojump.o     \
+ dominance.o loop-doloop.o	   					   \
+ dwarf2asm.o dwarf2out.o emit-rtl.o except.o explow.o loop-iv.o		   \
+ expmed.o expr.o final.o flow.o fold-const.o function.o gcse.o		   \
+ genrtl.o ggc-common.o global.o graph.o gtype-desc.o			   \
+ haifa-sched.o hooks.o ifcvt.o insn-attrtab.o insn-emit.o insn-modes.o	   \
+ insn-extract.o insn-opinit.o insn-output.o insn-peep.o insn-recog.o	   \
+ integrate.o intl.o jump.o  langhooks.o lcm.o lists.o local-alloc.o  	   \
+ mode-switching.o modulo-sched.o optabs.o options.o opts.o opts-common.o \
+ params.o postreload.o postreload-gcse.o predict.o			   \
+ insn-preds.o insn-automata.o pointer-set.o 			   	   \
+ print-rtl.o print-tree.o profile.o value-prof.o var-tracking.o		   \
+ real.o recog.o reg-stack.o regclass.o regmove.o regrename.o		   \
+ reload.o reload1.o reorg.o resource.o rtl.o rtlanal.o rtl-error.o	   \
+ sbitmap.o sched-deps.o sched-ebb.o sched-rgn.o sched-vis.o sdbout.o	   \
+ see.o simplify-rtx.o sreal.o stmt.o stor-layout.o stringpool.o		   \
+ struct-equiv.o targhooks.o timevar.o toplev.o tracer.o tree.o tree-dump.o \
+ varasm.o varray.o vec.o version.o vmsdbgout.o xcoffout.o alloc-pool.o	   \
+ et-forest.o cfghooks.o bt-load.o pretty-print.o $(GGC) web.o passes.o     \
+ tree-profile.o rtlhooks.o cfgexpand.o lambda-mat.o    			   \
+ lambda-trans.o	lambda-code.o tree-loop-linear.o tree-ssa-sink.o 	   \
+ tree-vrp.o tree-stdarg.o tree-cfgcleanup.o tree-ssa-reassoc.o		   \
+ tree-ssa-structalias.o tree-object-size.o 				   \
+ rtl-factoring.o
 
-# Miscellaneous files.
-SRCS+=	hashtable.c tree-inline.c tree-optimize.c cgraph.c cgraphunit.c
+OBJS-archive=	$(EXTRA_OBJS) $(host_hook_obj) tree-inline.o		   \
+  cgraph.o cgraphunit.o tree-nomudflap.o ipa.o ipa-inline.o		   \
+  ipa-utils.o ipa-reference.o ipa-pure-const.o ipa-type-escape.o	   \
+  ipa-prop.o ipa-cp.o
 
-# Host hooks.
-SRCS+=	host-default.c
-
-# C and ObjC files.
-SRCS+=	attribs.c c-errors.c c-lex.c c-pragma.c c-decl.c c-typeck.c \
-	c-convert.c c-aux-info.c c-common.c c-opts.c c-format.c c-semantics.c \
-	c-incpath.c cppdefault.c c-ppoutput.c c-cppbuiltin.c prefix.c \
-	c-objc-common.c c-dump.c c-pch.c
-
-# Files shared by cc1plus, cc1 and cc1obj
-SRCS+=	c-pretty-print.c
-
-# Machine-dependent files.
-SRCS+=	${GCC_CPU}.c
+OBJS-md=  ${GCC_CPU}.o
 .if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-c.c)
-SRCS+=	${GCC_CPU}-c.c
+OBJS-md+= ${GCC_CPU}-c.o
 .endif
 
-# libcpp files.
-SRCS+=	cpplib.c cpplex.c cppmacro.c cppexp.c cppfiles.c cpptrad.c \
-	cpphash.c cpperror.c cppinit.c cppcharset.c \
-	line-map.c mkdeps.c cpppch.c
+# Target specific, C specific object file
+C_TARGET_OBJS=
 
-# insn-* gunk -- headers are built in cc_tools, as they are used by the
-# "build-tools"
-.for F in attrtab emit extract opinit output peep recog
-SRCS+=	insn-$F.c
-CLEANFILES+= insn-$F.c
-insn-$F.c: ${.OBJDIR}/../cc_tools/gen$F ${MD_FILE}
-	${.OBJDIR}/../cc_tools/gen$F ${MD_FILE} > insn-$F.c \
-	    ${.MAKEFLAGS:M-s:S;-s;2>/dev/null;}
-.endfor
-.for F in modes
-SRCS+=	insn-$F.c
-CLEANFILES+= insn-$F.c
-insn-$F.c: ${.OBJDIR}/../cc_tools/gen$F
-	${.OBJDIR}/../cc_tools/gen$F > insn-$F.c
-.endfor
+# Language-specific object files for C and Objective C.
+C_AND_OBJC_OBJS = attribs.o c-errors.o c-lex.o c-pragma.o c-decl.o c-typeck.o \
+  c-convert.o c-aux-info.o c-common.o c-opts.o c-format.o c-semantics.o \
+  c-incpath.o cppdefault.o c-ppoutput.o c-cppbuiltin.o prefix.o \
+  c-objc-common.o c-dump.o c-pch.o c-parser.o $(C_TARGET_OBJS) \
+  c-gimplify.o tree-mudflap.o c-pretty-print.o c-omp.o
 
-CFLAGS+=	-DHAVE_CONFIG_H
-CFLAGS+=	-DTARGET_NAME=\"${GCC_TARGET}\"
+# Language-specific object files for C.
+C_OBJS = c-lang.o stub-objc.o $(C_AND_OBJC_OBJS)
 
-.if ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
-CFLAGS += -DTARGET_ENDIAN_DEFAULT=ARM_FLAG_BIG_END
-.endif
+# Put objC stub objects in library. objc frontend will override it
+# Put dummy checksum object in library too. It will be overridden
+# by each indidual front-end binary as needed.
+OBJS-dummy=  stub-objc.o dummy-checksum.o
 
-# c-pch.o needs extra defines. Replicate the rule here rather than
-# pollute compiler command line for all other files.
-c-pch.o: c-pch.c
-	${CC} ${CFLAGS} -DHOST_MACHINE=\"${host}\" \
-		 -DTARGET_MACHINE=\"${GCC_TARGET}\" -c ${.IMPSRC}
+OBJS-all=  ${OBJS-common} ${OBJS-archive} ${OBJS-md} ${C_AND_OBJC_OBJS} \
+	   ${OBJS-dummy}
+
+SRCS+= ${OBJS-all:R:S/$/.c/g}
+
+toplev.o:	toplev.c
+	${CC} ${CFLAGS} -DTARGET_NAME=\"${GCC_TARGET}\" -c ${.IMPSRC}
 
 .include <bsd.lib.mk>
