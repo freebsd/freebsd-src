@@ -6,7 +6,7 @@ LIBSRCS+= fbsd-proc.c fbsd-threads.c gcore.c
 LIBSRCS+= i386-nat.c i386bsd-nat.c i386fbsd-nat.c
 .endif
 LIBSRCS+= solib.c solib-svr4.c
-LIBSRCS+= i386-tdep.c i386bsd-tdep.c i386fbsd-tdep.c i387-tdep.c
+LIBSRCS+= i386-tdep.c i386bsd-tdep.c i386fbsd-tdep-fixed.c i387-tdep.c
 
 nm.h:
 	echo '#include "i386/nm-fbsd.h"' > ${.TARGET}
@@ -16,3 +16,7 @@ tm.h:
 
 xm.h:
 	echo '#include "i386/xm-i386.h"' > ${.TARGET}
+
+i386fbsd-tdep-fixed.c: i386fbsd-tdep.c
+	sed -e '48s/^static\ //' ${.ALLSRC} > ${.TARGET}
+CLEANFILES += i386fbsd-tdep-fixed.c
