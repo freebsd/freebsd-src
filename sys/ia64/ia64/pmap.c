@@ -1420,14 +1420,14 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 				pmap_remove_pte(pmap, pte, va, pv, 1);
 			}
 		}
-		
 	} else {
-		for (va = sva; va < eva; va = va += PAGE_SIZE) {
+		for (va = sva; va < eva; va += PAGE_SIZE) {
 			pte = pmap_find_vhpt(va);
 			if (pte != NULL)
 				pmap_remove_pte(pmap, pte, va, 0, 1);
 		}
 	}
+
 out:
 	vm_page_unlock_queues();
 	pmap_install(oldpmap);
