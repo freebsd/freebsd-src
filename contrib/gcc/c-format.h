@@ -74,11 +74,12 @@ enum
   FMT_FLAG_EMPTY_PREC_OK = 64,
   /* Gaps are allowed in the arguments with $ operand numbers if all
      arguments are pointers (scanf).  */
-  FMT_FLAG_DOLLAR_GAP_POINTER_OK = 128
+  FMT_FLAG_DOLLAR_GAP_POINTER_OK = 128,
   /* Not included here: details of whether width or precision may occur
      (controlled by width_char and precision_char); details of whether
      '*' can be used for these (width_type and precision_type); details
      of whether length modifiers can occur (length_char_specs).  */
+  FMT_FLAG_NULL_FORMAT_OK = 256
 };
 
 
