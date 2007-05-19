@@ -237,8 +237,8 @@ int pmap_fault_fixup(pmap_t, vm_offset_t, vm_prot_t, int);
 /*
  * Definitions for MMU domains
  */
-#define	PMAP_DOMAINS		15	/* 15 'user' domains (0-14) */
-#define	PMAP_DOMAIN_KERNEL	15	/* The kernel uses domain #15 */
+#define	PMAP_DOMAINS		15	/* 15 'user' domains (1-15) */
+#define	PMAP_DOMAIN_KERNEL	0	/* The kernel uses domain #0 */
 
 /*
  * The new pmap ensures that page-tables are always mapping Write-Thru.
