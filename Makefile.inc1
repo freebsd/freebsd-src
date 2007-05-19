@@ -1165,6 +1165,7 @@ delete-old-files:
 # It's annoying, but better safe than sorry.
 	@for file in ${OLD_FILES}; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
+			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
 			rm ${RM_I} "${DESTDIR}/$${file}"; \
 		fi; \
 	done
@@ -1202,6 +1203,7 @@ delete-old-libs:
 	@echo "${OLD_LIBS_MESSAGE}" | fmt
 	@for file in ${OLD_LIBS}; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
+			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
 			rm ${RM_I} "${DESTDIR}/$${file}"; \
 		fi; \
 	done
