@@ -350,6 +350,7 @@ WITH_IDEA=
     SENDMAIL \
     SETUID_LOGIN \
     SHAREDOCS \
+    SSP \
     SYMVER \
     SYSCONS \
     TCSH \
