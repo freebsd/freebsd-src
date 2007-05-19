@@ -15,8 +15,8 @@ details.
 
 You should have received a copy of the GNU General Public License along with
 GCC; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, if you link this library with files compiled with
    GCC to produce an executable, this does not cause the resulting executable
@@ -25,7 +25,7 @@ Boston, MA 02111-1307, USA.  */
    covered by the GNU General Public License.  */
 
 #include <stdlib.h>
-#include "runtime.h"
+#include "objc/runtime.h"
 
 /* Global exit status. */
 int __objc_thread_exit_status = 0;
@@ -75,8 +75,8 @@ struct __objc_thread_start_state
   id argument;
 };
 
-static volatile void
-__objc_thread_detach_function (struct __objc_thread_start_state *istate)
+static void __attribute__((noreturn))
+__objc_thread_detach_function (struct __objc_thread_start_state *istate) 
 {
   /* Valid state? */
   if (istate) {
