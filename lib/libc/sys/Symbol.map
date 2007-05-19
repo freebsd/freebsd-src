@@ -57,6 +57,7 @@ FBSD_1.0 {
 	bind;
 	chdir;
 	chflags;
+	__chk_fail;
 	chmod;
 	chown;
 	chroot;
@@ -287,6 +288,8 @@ FBSD_1.0 {
 	sigwaitinfo;
 	socket;
 	socketpair;
+	__stack_chk_fail;
+	__stack_chk_guard;
 	stat;
 	statfs;
 	swapcontext;
