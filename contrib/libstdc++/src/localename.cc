@@ -1,4 +1,4 @@
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -14,7 +14,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -30,11 +30,10 @@
 #include <cstring>
 #include <locale>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   using namespace __gnu_cxx;
 
-  
   locale::locale(const char* __s) : _M_impl(0)
   {
     if (__s)
@@ -60,19 +59,19 @@ namespace std
 	    else
 	      {
 		// LANG may set a default different from "C".
-		string __res;
-		char* __env = std::getenv("LANG");
+		string __lang;
+		__env = std::getenv("LANG");
 		if (!__env || std::strcmp(__env, "") == 0 
 		    || std::strcmp(__env, "C") == 0 
 		    || std::strcmp(__env, "POSIX") == 0)
-		  __res = "C";
+		  __lang = "C";
 		else 
-		  __res = __env;
+		  __lang = __env;
 		
 		// Scan the categories looking for the first one
 		// different from LANG.
 		size_t __i = 0;
-		if (__res == "C")
+		if (__lang == "C")
 		  for (; __i < _S_categories_size; ++__i)
 		    {
 		      __env = std::getenv(_S_categories[__i]);
@@ -86,7 +85,7 @@ namespace std
 		    {
 		      __env = std::getenv(_S_categories[__i]);
 		      if (__env && std::strcmp(__env, "") != 0
-			  && __res != __env)
+			  && __lang != __env)
 			break;
 		    }
 	
@@ -95,37 +94,34 @@ namespace std
 		if (__i < _S_categories_size)
 		  {
 		    string __str;
+		    __str.reserve(128);
 		    for (size_t __j = 0; __j < __i; ++__j)
 		      {
 			__str += _S_categories[__j];
 			__str += '=';
-			__str += __res;
+			__str += __lang;
 			__str += ';';
 		      }
 		    __str += _S_categories[__i];
 		    __str += '=';
 		    __str += __env;
 		    __str += ';';
-		    __i++;
+		    ++__i;
 		    for (; __i < _S_categories_size; ++__i)
 		      {
 			__env = std::getenv(_S_categories[__i]);
+			__str += _S_categories[__i];
 			if (!__env || std::strcmp(__env, "") == 0)
 			  {
-			    __str += _S_categories[__i];
 			    __str += '=';
-			    __str += __res;
+			    __str += __lang;
 			    __str += ';';
 			  }
 			else if (std::strcmp(__env, "C") == 0
 				 || std::strcmp(__env, "POSIX") == 0)
-			  {
-			    __str += _S_categories[__i];
-			    __str += "=C;";
-			  }
+			  __str += "=C;";
 			else
 			  {
-			    __str += _S_categories[__i];
 			    __str += '=';
 			    __str += __env;
 			    __str += ';';
@@ -136,10 +132,10 @@ namespace std
 		  }
 		// ... otherwise either an additional instance of
 		// the "C" locale or LANG.
-		else if (__res == "C")
+		else if (__lang == "C")
 		  (_M_impl = _S_classic)->_M_add_reference();
 		else
-		  _M_impl = new _Impl(__res.c_str(), 1);
+		  _M_impl = new _Impl(__lang.c_str(), 1);
 	      }
 	  }
       }
@@ -179,9 +175,9 @@ namespace std
 
   // Construct named _Impl.
   locale::_Impl::
-  _Impl(const char* __s, size_t __refs) 
+  _Impl(const char* __s, size_t __refs)
   : _M_refcount(__refs), _M_facets(0), _M_facets_size(_GLIBCXX_NUM_FACETS),
-  _M_caches(0), _M_names(0)
+    _M_caches(0), _M_names(0)
   {
     // Initialize the underlying locale model, which also checks to
     // see if the given name is valid.
@@ -200,15 +196,12 @@ namespace std
 	for (size_t __k = 0; __k < _S_categories_size; ++__k)
 	  _M_names[__k] = 0;
 
-	// Name all the categories.
+	// Name the categories.
 	const size_t __len = std::strlen(__s);
-	if (!std::strchr(__s, ';'))
+	if (!std::memchr(__s, ';', __len))
 	  {
-	    for (size_t __i = 0; __i < _S_categories_size; ++__i)
-	      {
-		_M_names[__i] = new char[__len + 1];
-		std::strcpy(_M_names[__i], __s);
-	      }
+	    _M_names[0] = new char[__len + 1];
+	    std::memcpy(_M_names[0], __s, __len + 1);	    
 	  }
 	else
 	  {
@@ -219,10 +212,9 @@ namespace std
 		__end = std::strchr(__beg, ';');
 		if (!__end)
 		  __end = __s + __len;
-		char* __new = new char[__end - __beg + 1];
-		std::memcpy(__new, __beg, __end - __beg);
-		__new[__end - __beg] = '\0';
-		_M_names[__i] = __new;
+		_M_names[__i] = new char[__end - __beg + 1];
+		std::memcpy(_M_names[__i], __beg, __end - __beg);
+		_M_names[__i][__end - __beg] = '\0';
 	      }
 	  }
  
@@ -272,23 +264,50 @@ namespace std
   locale::_Impl::
   _M_replace_categories(const _Impl* __imp, category __cat)
   {
-    for (size_t __ix = 0; __ix < _S_categories_size; ++__ix)
+    category __mask = 1;
+    const bool __have_names = _M_names[0] && __imp->_M_names[0];
+    for (size_t __ix = 0; __ix < _S_categories_size; ++__ix, __mask <<= 1)
       {
-	const category __mask = 1 << __ix;
 	if (__mask & __cat)
 	  {
 	    // Need to replace entry in _M_facets with other locale's info.
 	    _M_replace_category(__imp, _S_facet_categories[__ix]);
 	    // If both have names, go ahead and mangle.
-	    if (std::strcmp(_M_names[__ix], "*") != 0 
-		&& std::strcmp(__imp->_M_names[__ix], "*") != 0)
+	    if (__have_names)
 	      {
-		char* __new = new char[std::strlen(__imp->_M_names[__ix]) + 1];
-		std::strcpy(__new, __imp->_M_names[__ix]);
-		delete [] _M_names[__ix];
-		_M_names[__ix] = __new;
+		if (!_M_names[1])
+		  {
+		    // A full set of _M_names must be prepared, all identical
+		    // to _M_names[0] to begin with. Then, below, a few will
+		    // be replaced by the corresponding __imp->_M_names. I.e.,
+		    // not a "simple" locale anymore (see locale::operator==).
+		    const size_t __len = std::strlen(_M_names[0]) + 1;
+		    for (size_t __i = 1; __i < _S_categories_size; ++__i)
+		      {
+			_M_names[__i] = new char[__len];
+			std::memcpy(_M_names[__i], _M_names[0], __len);
+		      }
+		  }
+
+		// FIXME: Hack for libstdc++/29217: the numerical encodings
+		// of the time and collate categories are swapped vs the
+		// order of the names in locale::_S_categories.  We'd like to
+		// adjust the former (the latter is dictated by compatibility
+		// with glibc) but we can't for binary compatibility.
+		size_t __ix_name = __ix;
+		if (__ix == 2 || __ix == 3)
+		  __ix_name = 5 - __ix;
+
+		char* __src = __imp->_M_names[__ix_name] ?
+		              __imp->_M_names[__ix_name] : __imp->_M_names[0];
+		const size_t __len = std::strlen(__src) + 1;
+		char* __new = new char[__len];
+		std::memcpy(__new, __src, __len);
+		delete [] _M_names[__ix_name];
+		_M_names[__ix_name] = __new;
 	      }
 	  }
       }
   }
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE

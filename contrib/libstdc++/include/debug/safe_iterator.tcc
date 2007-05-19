@@ -1,6 +1,6 @@
 // Debugging iterator implementation (out of line) -*- C++ -*-
 
-// Copyright (C) 2003, 2004
+// Copyright (C) 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,9 +28,8 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-/** @file safe_iterator.tcc
- *  This is an internal header file, included by other library headers.
- *  You should not attempt to use it directly.
+/** @file debug/safe_iterator.tcc
+ *  This file is a GNU debug extension to the Standard C++ Library.
  */
 
 #ifndef _GLIBCXX_DEBUG_SAFE_ITERATOR_TCC
@@ -53,7 +52,7 @@ namespace __gnu_debug
 	{
 	  const_iterator __begin =
 	    static_cast<const _Sequence*>(_M_sequence)->begin();
-	  pair<difference_type, _Distance_precision> __dist =
+	  std::pair<difference_type, _Distance_precision> __dist =
 	    this->_M_get_distance(__begin, *this);
 	  bool __ok =  (__dist.second == __dp_exact && __dist.first >= -__n
 			|| __dist.second != __dp_exact && __dist.first > 0);
@@ -63,7 +62,7 @@ namespace __gnu_debug
 	{
 	  const_iterator __end =
 	    static_cast<const _Sequence*>(_M_sequence)->end();
-	  pair<difference_type, _Distance_precision> __dist =
+	  std::pair<difference_type, _Distance_precision> __dist =
 	    this->_M_get_distance(*this, __end);
 	  bool __ok = (__dist.second == __dp_exact && __dist.first >= __n
 		       || __dist.second != __dp_exact && __dist.first > 0);
@@ -82,7 +81,7 @@ namespace __gnu_debug
 
 	/* Determine if we can order the iterators without the help of
 	   the container */
-	pair<difference_type, _Distance_precision> __dist =
+	std::pair<difference_type, _Distance_precision> __dist =
 	  this->_M_get_distance(*this, __rhs);
 	switch (__dist.second) {
 	case __dp_equality:
@@ -111,24 +110,33 @@ namespace __gnu_debug
     _Safe_iterator<_Iterator, _Sequence>::
     _M_invalidate()
     {
+      __gnu_cxx::__scoped_lock sentry(this->_M_get_mutex());
+      _M_invalidate_single();
+    }
+
+  template<typename _Iterator, typename _Sequence>
+    void
+    _Safe_iterator<_Iterator, _Sequence>::
+    _M_invalidate_single()
+    {
       typedef typename _Sequence::iterator iterator;
       typedef typename _Sequence::const_iterator const_iterator;
 
       if (!this->_M_singular())
 	{
-	  for (_Safe_iterator_base* iter = _M_sequence->_M_iterators; iter; )
+	  for (_Safe_iterator_base* __iter = _M_sequence->_M_iterators;
+	       __iter; __iter = __iter->_M_next)
 	    {
-	      iterator* __victim = static_cast<iterator*>(iter);
-	      iter = iter->_M_next;
+	      iterator* __victim = static_cast<iterator*>(__iter);
 	      if (this->base() == __victim->base())
 		__victim->_M_version = 0;
 	    }
-	  for (_Safe_iterator_base* iter2 = _M_sequence->_M_const_iterators;
-	       iter2; /* increment in loop */)
+
+	  for (_Safe_iterator_base* __iter2 = _M_sequence->_M_const_iterators;
+	       __iter2; __iter2 = __iter2->_M_next)
 	    {
-	      const_iterator* __victim = static_cast<const_iterator*>(iter2);
-	      iter2 = iter2->_M_next;
-	      if (this->base() == __victim->base())
+	      const_iterator* __victim = static_cast<const_iterator*>(__iter2);
+	      if (__victim->base() == this->base())
 		__victim->_M_version = 0;
 	    }
 	  _M_version = 0;

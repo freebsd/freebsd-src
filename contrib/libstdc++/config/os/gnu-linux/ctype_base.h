@@ -1,6 +1,6 @@
 // Locale support -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2002, 2003
+// Copyright (C) 1997, 1998, 1999, 2000, 2002, 2003, 2004
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -32,8 +32,16 @@
 // ISO C++ 14882: 22.1  Locales
 //
   
+/** @file ctype_base.h
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
+
 // Information as gleaned from /usr/include/ctype.h
   
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
+  /// @brief  Base class for ctype.
   struct ctype_base
   {
     // Non-standard typedefs.
@@ -54,3 +62,5 @@
     static const mask punct 	= _ISpunct;
     static const mask alnum 	= _ISalpha | _ISdigit;
   };
+
+_GLIBCXX_END_NAMESPACE

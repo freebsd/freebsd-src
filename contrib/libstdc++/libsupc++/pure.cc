@@ -15,8 +15,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with GCC; see the file COPYING.  If not, write to
-// the Free Software Foundation, 59 Temple Place - Suite 330,
-// Boston, MA 02111-1307, USA.
+// the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+// Boston, MA 02110-1301, USA.
 //
 // As a special exception, you may use this file as part of a free software
 // library without restriction.  Specifically, if other files instantiate
@@ -28,8 +28,10 @@
 // the GNU General Public License.
 
 #include <bits/c++config.h>
+#include <cxxabi.h>
 #include "unwind-cxx.h"
 
+#if _GLIBCXX_HOSTED
 #ifdef _GLIBCXX_HAVE_UNISTD_H
 # include <unistd.h>
 # define writestr(str)	write(2, str, sizeof(str) - 1)
@@ -42,9 +44,12 @@
 # include <cstdio>
 # define writestr(str)	std::fputs(str, stderr)
 #endif
+#else
+# define writestr(str) /* Empty */
+#endif
 
 extern "C" void
-__cxa_pure_virtual (void)
+__cxxabiv1::__cxa_pure_virtual (void)
 {
   writestr ("pure virtual method called\n");
   std::terminate ();

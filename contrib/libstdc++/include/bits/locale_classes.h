@@ -1,6 +1,6 @@
 // Locale support -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,14 +28,14 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-//
-// ISO C++ 14882: 22.1  Locales
-//
-
-/** @file localefwd.h
+/** @file locale_classes.h
  *  This is an internal header file, included by other library headers.
  *  You should not attempt to use it directly.
  */
+
+//
+// ISO C++ 14882: 22.1  Locales
+//
 
 #ifndef _LOCALE_CLASSES_H
 #define _LOCALE_CLASSES_H 1
@@ -45,11 +45,10 @@
 #include <bits/localefwd.h>
 #include <cstring>		// For strcmp.
 #include <string>
-#include <bits/atomicity.h>
-#include <bits/gthr.h>
+#include <ext/atomicity.h>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // 22.1.1 Class locale
   /**
    *  @brief  Container class for localization functionality.
@@ -307,7 +306,7 @@ namespace std
     // macros. For GNU systems, the following are also valid:
     // LC_PAPER, LC_NAME, LC_ADDRESS, LC_TELEPHONE, LC_MEASUREMENT,
     // and LC_IDENTIFICATION.
-    static const size_t _S_categories_size = 6 + _GLIBCXX_NUM_CATEGORIES;
+    enum { _S_categories_size = 6 + _GLIBCXX_NUM_CATEGORIES };
 
 #ifdef __GTHREADS
     static __gthread_once_t _S_once;
@@ -400,12 +399,12 @@ namespace std
   private:
     inline void
     _M_add_reference() const throw()
-    { __gnu_cxx::__atomic_add(&_M_refcount, 1); }
+    { __gnu_cxx::__atomic_add_dispatch(&_M_refcount, 1); }
 
     inline void
     _M_remove_reference() const throw()
     {
-      if (__gnu_cxx::__exchange_and_add(&_M_refcount, -1) == 1)
+      if (__gnu_cxx::__exchange_and_add_dispatch(&_M_refcount, -1) == 1)
 	{
 	  try
 	    { delete this; }
@@ -505,12 +504,12 @@ namespace std
 
     inline void
     _M_add_reference() throw()
-    { __gnu_cxx::__atomic_add(&_M_refcount, 1); }
+    { __gnu_cxx::__atomic_add_dispatch(&_M_refcount, 1); }
 
     inline void
     _M_remove_reference() throw()
     {
-      if (__gnu_cxx::__exchange_and_add(&_M_refcount, -1) == 1)
+      if (__gnu_cxx::__exchange_and_add_dispatch(&_M_refcount, -1) == 1)
 	{
 	  try
 	    { delete this; }
@@ -534,8 +533,10 @@ namespace std
     _M_check_same_name()
     {
       bool __ret = true;
-      for (size_t __i = 0; __ret && __i < _S_categories_size - 1; ++__i)
-	__ret = std::strcmp(_M_names[__i], _M_names[__i + 1]) == 0;
+      if (_M_names[1])
+	// We must actually compare all the _M_names: can be all equal!
+	for (size_t __i = 0; __ret && __i < _S_categories_size - 1; ++__i)
+	  __ret = std::strcmp(_M_names[__i], _M_names[__i + 1]) == 0;
       return __ret;
     }
 
@@ -557,11 +558,7 @@ namespace std
       { _M_install_facet(&_Facet::id, __facet); }
 
     void
-    _M_install_cache(const facet* __cache, size_t __index) throw()
-    {
-      __cache->_M_add_reference();
-      _M_caches[__index] = __cache;
-    }
+    _M_install_cache(const facet*, size_t);
   };
 
   template<typename _Facet>
@@ -569,31 +566,17 @@ namespace std
     {
       _M_impl = new _Impl(*__other._M_impl, 1);
 
-      char* _M_tmp_names[_S_categories_size];
-      size_t __i = 0;
       try
-	{
-	  for (; __i < _S_categories_size; ++__i)
-	    {
-	      _M_tmp_names[__i] = new char[2];
-	      std::strcpy(_M_tmp_names[__i], "*");
-	    }
-	  _M_impl->_M_install_facet(&_Facet::id, __f);
-	}
+	{ _M_impl->_M_install_facet(&_Facet::id, __f); }
       catch(...)
 	{
 	  _M_impl->_M_remove_reference();
-	  for (size_t __j = 0; __j < __i; ++__j)
-	    delete [] _M_tmp_names[__j];
 	  __throw_exception_again;
 	}
-
-      for (size_t __k = 0; __k < _S_categories_size; ++__k)
-	{
-	  delete [] _M_impl->_M_names[__k];
-	  _M_impl->_M_names[__k] = _M_tmp_names[__k];
-	}
+      delete [] _M_impl->_M_names[0];
+      _M_impl->_M_names[0] = 0;   // Unnamed.
     }
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif

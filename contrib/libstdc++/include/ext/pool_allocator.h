@@ -1,6 +1,7 @@
 // Allocators -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -42,8 +43,8 @@
 
 /** @file ext/pool_allocator.h
  *  This file is a GNU extension to the Standard C++ Library.
- *  You should only include this header if you are using GCC 3 or later.
  */
+
 #ifndef _POOL_ALLOCATOR_H
 #define _POOL_ALLOCATOR_H 1
 
@@ -51,12 +52,17 @@
 #include <cstdlib>
 #include <new>
 #include <bits/functexcept.h>
-#include <bits/atomicity.h>
-#include <bits/concurrence.h>
+#include <ext/atomicity.h>
+#include <ext/concurrence.h>
 
-namespace __gnu_cxx
-{
+_GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
+
+  using std::size_t;
+  using std::ptrdiff_t;
+
   /**
+   *  @brief  Base class for __pool_alloc.
+   *
    *  @if maint
    *  Uses various allocators to fulfill underlying requests (and makes as
    *  few requests as possible when in default high-speed pool mode).
@@ -71,7 +77,6 @@ namespace __gnu_cxx
    *     without permanently losing part of the object.
    *
    *  @endif
-   *  (See @link Allocators allocators info @endlink for more.)
    */
     class __pool_alloc_base
     {
@@ -79,7 +84,7 @@ namespace __gnu_cxx
 
       enum { _S_align = 8 };
       enum { _S_max_bytes = 128 };
-      enum { _S_free_list_size = _S_max_bytes / _S_align };
+      enum { _S_free_list_size = (size_t)_S_max_bytes / (size_t)_S_align };
       
       union _Obj
       {
@@ -101,7 +106,7 @@ namespace __gnu_cxx
       _Obj* volatile*
       _M_get_free_list(size_t __bytes);
     
-      mutex_type&
+      __mutex&
       _M_get_mutex();
 
       // Returns an object of size __n, and optionally adds to size __n
@@ -116,6 +121,7 @@ namespace __gnu_cxx
     };
 
 
+  /// @brief  class __pool_alloc.
   template<typename _Tp>
     class __pool_alloc : private __pool_alloc_base
     {
@@ -189,43 +195,41 @@ namespace __gnu_cxx
     __pool_alloc<_Tp>::allocate(size_type __n, const void*)
     {
       pointer __ret = 0;
-      if (__n)
+      if (__builtin_expect(__n != 0, true))
 	{
-	  if (__n <= max_size())
-	    {
-	      // If there is a race through here, assume answer from getenv
-	      // will resolve in same direction.  Inspired by techniques
-	      // to efficiently support threading found in basic_string.h.
-	      if (_S_force_new == 0)
-		{
-		  if (getenv("GLIBCXX_FORCE_NEW"))
-		    __atomic_add(&_S_force_new, 1);
-		  else
-		    __atomic_add(&_S_force_new, -1);
-		}
+	  if (__builtin_expect(__n > this->max_size(), false))
+	    std::__throw_bad_alloc();
 
-	      const size_t __bytes = __n * sizeof(_Tp);	      
-	      if (__bytes > size_t(_S_max_bytes) || _S_force_new == 1)
-		__ret = static_cast<_Tp*>(::operator new(__bytes));
+	  // If there is a race through here, assume answer from getenv
+	  // will resolve in same direction.  Inspired by techniques
+	  // to efficiently support threading found in basic_string.h.
+	  if (_S_force_new == 0)
+	    {
+	      if (std::getenv("GLIBCXX_FORCE_NEW"))
+		__atomic_add_dispatch(&_S_force_new, 1);
+	      else
+		__atomic_add_dispatch(&_S_force_new, -1);
+	    }
+
+	  const size_t __bytes = __n * sizeof(_Tp);	      
+	  if (__bytes > size_t(_S_max_bytes) || _S_force_new == 1)
+	    __ret = static_cast<_Tp*>(::operator new(__bytes));
+	  else
+	    {
+	      _Obj* volatile* __free_list = _M_get_free_list(__bytes);
+	      
+	      __scoped_lock sentry(_M_get_mutex());
+	      _Obj* __restrict__ __result = *__free_list;
+	      if (__builtin_expect(__result == 0, 0))
+		__ret = static_cast<_Tp*>(_M_refill(_M_round_up(__bytes)));
 	      else
 		{
-		  _Obj* volatile* __free_list = _M_get_free_list(__bytes);
-
-		  lock sentry(_M_get_mutex());
-		  _Obj* __restrict__ __result = *__free_list;
-		  if (__builtin_expect(__result == 0, 0))
-		    __ret = static_cast<_Tp*>(_M_refill(_M_round_up(__bytes)));
-		  else
-		    {
-		      *__free_list = __result->_M_free_list_link;
-		      __ret = reinterpret_cast<_Tp*>(__result);
-		    }
-		  if (__builtin_expect(__ret == 0, 0))
-		    std::__throw_bad_alloc();
+		  *__free_list = __result->_M_free_list_link;
+		  __ret = reinterpret_cast<_Tp*>(__result);
 		}
+	      if (__builtin_expect(__ret == 0, 0))
+		std::__throw_bad_alloc();
 	    }
-	  else
-	    std::__throw_bad_alloc();
 	}
       return __ret;
     }
@@ -234,7 +238,7 @@ namespace __gnu_cxx
     void
     __pool_alloc<_Tp>::deallocate(pointer __p, size_type __n)
     {
-      if (__n)
+      if (__builtin_expect(__n != 0 && __p != 0, true))
 	{
 	  const size_t __bytes = __n * sizeof(_Tp);
 	  if (__bytes > static_cast<size_t>(_S_max_bytes) || _S_force_new == 1)
@@ -244,12 +248,13 @@ namespace __gnu_cxx
 	      _Obj* volatile* __free_list = _M_get_free_list(__bytes);
 	      _Obj* __q = reinterpret_cast<_Obj*>(__p);
 
-	      lock sentry(_M_get_mutex());
+	      __scoped_lock sentry(_M_get_mutex());
 	      __q ->_M_free_list_link = *__free_list;
 	      *__free_list = __q;
 	    }
 	}
     }
-} // namespace __gnu_cxx
+
+_GLIBCXX_END_NAMESPACE
 
 #endif

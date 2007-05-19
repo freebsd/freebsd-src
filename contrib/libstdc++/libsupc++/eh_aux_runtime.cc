@@ -16,8 +16,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with GCC; see the file COPYING.  If not, write to
-// the Free Software Foundation, 59 Temple Place - Suite 330,
-// Boston, MA 02111-1307, USA. 
+// the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+// Boston, MA 02110-1301, USA. 
 
 // As a special exception, you may use this file as part of a free software
 // library without restriction.  Specifically, if other files instantiate
@@ -35,7 +35,7 @@
 #include "exception_defines.h"
 
 extern "C" void
-__cxa_bad_cast ()
+__cxxabiv1::__cxa_bad_cast ()
 {
 #ifdef __EXCEPTIONS  
   throw std::bad_cast();
@@ -45,7 +45,7 @@ __cxa_bad_cast ()
 }
 
 extern "C" void
-__cxa_bad_typeid ()
+__cxxabiv1::__cxa_bad_typeid ()
 {
 #ifdef __EXCEPTIONS  
   throw std::bad_typeid();

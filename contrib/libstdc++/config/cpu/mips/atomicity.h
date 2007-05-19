@@ -1,6 +1,7 @@
 // Low-level functions for atomic operations: MIPS version  -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,10 +28,11 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-#include <bits/atomicity.h>
+#include <ext/atomicity.h>
 
-namespace __gnu_cxx
-{
+_GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
+
+  // NB: MIPS II or above required.
   _Atomic_word
   __attribute__ ((__unused__))
   __exchange_and_add(volatile _Atomic_word* __mem, int __val)
@@ -44,14 +46,15 @@ namespace __gnu_cxx
 #if _MIPS_SIM == _ABIO32
        ".set	mips2\n\t"
 #endif
-       "ll	%0,%3\n\t"
-       "addu	%1,%4,%0\n\t"
-       "sc	%1,%2\n\t"
+       "ll	%0,0(%2)\n\t"
+       "addu	%1,%3,%0\n\t"
+       "sc	%1,0(%2)\n\t"
        ".set	pop\n\t"
        "beqz	%1,1b\n\t"
        "/* End exchange & add */"
-       : "=&r"(__result), "=&r"(__tmp), "=m"(*__mem)
-       : "m" (*__mem), "r"(__val));
+       : "=&r"(__result), "=&r"(__tmp)
+       : "r"(__mem), "r"(__val)
+       :  "memory" );
     
     return __result;
   }
@@ -69,13 +72,15 @@ namespace __gnu_cxx
 #if _MIPS_SIM == _ABIO32
        ".set	mips2\n\t"
 #endif
-       "ll	%0,%2\n\t"
-       "addu	%0,%3,%0\n\t"
-       "sc	%0,%1\n\t"
+       "ll	%0,0(%1)\n\t"
+       "addu	%0,%2,%0\n\t"
+       "sc	%0,0(%1)\n\t"
        ".set	pop\n\t"
        "beqz	%0,1b\n\t"
        "/* End atomic add */"
-       : "=&r"(__result), "=m"(*__mem)
-     : "m" (*__mem), "r"(__val));
+       : "=&r"(__result)
+       : "r"(__mem), "r"(__val)
+       : "memory" );
   }
-} // namespace __gnu_cxx
+
+_GLIBCXX_END_NAMESPACE

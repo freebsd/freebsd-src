@@ -1,6 +1,6 @@
 // Locale support -*- C++ -*-
 
-// Copyright (C) 2000, 2003 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2003, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,6 +27,11 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file ctype_inline.h
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
+
 //
 // ISO C++ 14882: 22.1  Locales
 //
@@ -34,6 +39,8 @@
 // ctype bits to be inlined go here. Non-inlinable (ie virtual do_*)
 // functions go in ctype.cc
   
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   bool
   ctype<char>::
   is(mask __m, char __c) const
@@ -104,3 +111,42 @@
 	++__low;
     return __low;
   }
+
+#ifdef _GLIBCXX_USE_WCHAR_T  
+  inline bool
+  ctype<wchar_t>::
+  do_is(mask __m, wchar_t __c) const
+  {
+    return __istype (__c, __m);
+  }
+
+  inline const wchar_t* 
+  ctype<wchar_t>::
+  do_is(const wchar_t* __lo, const wchar_t* __hi, mask* __vec) const
+  {
+    for (; __lo < __hi; ++__vec, ++__lo)
+      *__vec = __maskrune (*__lo, upper | lower | alpha | digit | xdigit
+			   | space | print | graph | cntrl | punct | alnum);
+    return __hi;
+  }
+  
+  inline const wchar_t* 
+  ctype<wchar_t>::
+  do_scan_is(mask __m, const wchar_t* __lo, const wchar_t* __hi) const
+  {
+    while (__lo < __hi && ! __istype (*__lo, __m))
+      ++__lo;
+    return __lo;
+  }
+
+  inline const wchar_t*
+  ctype<wchar_t>::
+  do_scan_not(mask __m, const char_type* __lo, const char_type* __hi) const
+  {
+    while (__lo < __hi && __istype (*__lo, __m))
+      ++__lo;
+    return __lo;
+  }
+#endif
+
+_GLIBCXX_END_NAMESPACE

@@ -1,6 +1,6 @@
 // <memory> -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -41,9 +41,8 @@
  *
  */
 
-/** @file memory
- *  This is a Standard C++ Library header.  You should @c #include this header
- *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
+/** @file include/memory
+ *  This is a Standard C++ Library header.
  */
 
 #ifndef _GLIBCXX_MEMORY
@@ -60,8 +59,8 @@
 #include <debug/debug.h>
 #include <limits>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   /**
    *  @if maint
    *  This is a helper function.  The unused second parameter exists to
@@ -255,7 +254,7 @@ namespace std
        *  specification here, but omitting it is standard conforming.  Its
        *  presence can be detected only if _Tp::~_Tp() throws, but this is
        *  prohibited.  [17.4.3.6]/2
-       *  @end maint
+       *  @endif
        */
       ~auto_ptr() { delete _M_ptr; }
       
@@ -336,7 +335,7 @@ namespace std
 	  }
       }
       
-      /** @{
+      /** 
        *  @brief  Automatic conversions
        *
        *  These operations convert an %auto_ptr into and from an auto_ptr_ref
@@ -368,8 +367,8 @@ namespace std
       template<typename _Tp1>
         operator auto_ptr<_Tp1>() throw()
         { return auto_ptr<_Tp1>(this->release()); }
-      /** @}  */
   };
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif /* _GLIBCXX_MEMORY */
