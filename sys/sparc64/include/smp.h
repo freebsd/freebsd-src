@@ -36,6 +36,7 @@
 #ifndef	LOCORE
 
 #include <machine/intr_machdep.h>
+#include <machine/pcb.h>
 #include <machine/tte.h>
 
 #define	IDR_BUSY	(1<<0)

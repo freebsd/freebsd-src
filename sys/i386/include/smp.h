@@ -23,6 +23,7 @@
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
+#include <machine/pcb.h>
 
 /* global data in mpboot.s */
 extern int			bootMP_size;
