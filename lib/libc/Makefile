@@ -23,7 +23,8 @@ PRECIOUSLIB=
 #
 # Only link with static libgcc.a (no libgcc_eh.a).
 #
-LDFLAGS+= -nodefaultlibs -lgcc
+LDFLAGS+= -nodefaultlibs
+LDADD+= -lgcc
 
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:
