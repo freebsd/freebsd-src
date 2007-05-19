@@ -1,5 +1,6 @@
 /* Definitions for Linux for S/390.
-   Copyright (C) 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2001, 2002, 2004, 2005, 2006
+   Free Software Foundation, Inc.
    Contributed by Hartmut Penner (hpenner@de.ibm.com) and
                   Ulrich Weigand (uweigand@de.ibm.com).
 
@@ -17,8 +18,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #ifndef _LINUX_H
 #define _LINUX_H
@@ -54,11 +55,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
   do						\
     {						\
       LINUX_TARGET_OS_CPP_BUILTINS();		\
-      if (flag_pic)				\
-        {					\
-          builtin_define ("__PIC__");		\
-          builtin_define ("__pic__");		\
-        }					\
     }						\
   while (0)
 
@@ -77,6 +73,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #define MULTILIB_DEFAULTS { "m31" }
 #endif
 
+#define GLIBC_DYNAMIC_LINKER32 "/lib/ld.so.1"
+#define GLIBC_DYNAMIC_LINKER64 "/lib/ld64.so.1"
+
 #undef  LINK_SPEC
 #define LINK_SPEC \
   "%{m31:-m elf_s390}%{m64:-m elf64_s390} \
@@ -86,88 +85,22 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
       %{!static: \
 	%{rdynamic:-export-dynamic} \
 	%{!dynamic-linker: \
-          %{m31:-dynamic-linker /lib/ld.so.1} \
-          %{m64:-dynamic-linker /lib/ld64.so.1}}}}"
+          %{m31:-dynamic-linker " LINUX_DYNAMIC_LINKER32 "} \
+          %{m64:-dynamic-linker " LINUX_DYNAMIC_LINKER64 "}}}}"
 
+#define CPP_SPEC "%{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
 
 #define TARGET_ASM_FILE_END file_end_indicate_exec_stack
 
-/* Do code reading to identify a signal frame, and set the frame
-   state data appropriately.  See unwind-dw2.c for the structs.  */
+#define MD_UNWIND_SUPPORT "config/s390/linux-unwind.h"
 
-#define MD_FALLBACK_FRAME_STATE_FOR(CONTEXT, FS, SUCCESS)		\
-  do {									\
-    unsigned char *pc_ = (CONTEXT)->ra;					\
-    long new_cfa_;							\
-    int i_;								\
-									\
-    typedef struct 							\
-      {									\
-        unsigned long psw_mask;						\
-        unsigned long psw_addr;						\
-        unsigned long gprs[16];						\
-        unsigned int  acrs[16];						\
-        unsigned int  fpc;						\
-        unsigned int  __pad;						\
-        double        fprs[16];						\
-      } __attribute__ ((__aligned__ (8))) sigregs_;			\
-									\
-    sigregs_ *regs_;							\
-									\
-    /* svc $__NR_sigreturn or svc $__NR_rt_sigreturn  */		\
-    if (pc_[0] != 0x0a || (pc_[1] != 119 && pc_[1] != 173))		\
-      break;								\
-									\
-    /* New-style RT frame:  						\
-	retcode + alignment (8 bytes)					\
-	siginfo (128 bytes)						\
-	ucontext (contains sigregs)  */					\
-    if ((CONTEXT)->ra == (CONTEXT)->cfa)				\
-      {									\
-	struct ucontext_						\
-	  {								\
-	    unsigned long     uc_flags;					\
-	    struct ucontext_ *uc_link;					\
-	    unsigned long     uc_stack[3];				\
-	    sigregs_          uc_mcontext;				\
-	  } *uc_ = (CONTEXT)->cfa + 8 + 128;				\
-									\
-	regs_ = &uc_->uc_mcontext;					\
-      }									\
-									\
-    /* Old-style RT frame and all non-RT frames:			\
-	old signal mask (8 bytes)					\
-	pointer to sigregs  */						\
-    else								\
-      {									\
-	regs_ = *(sigregs_ **)((CONTEXT)->cfa + 8);			\
-      }									\
-      									\
-    new_cfa_ = regs_->gprs[15] + 16*sizeof(long) + 32;			\
-    (FS)->cfa_how = CFA_REG_OFFSET;					\
-    (FS)->cfa_reg = 15;							\
-    (FS)->cfa_offset = 							\
-      new_cfa_ - (long) (CONTEXT)->cfa + 16*sizeof(long) + 32;		\
-									\
-    for (i_ = 0; i_ < 16; i_++)						\
-      {									\
-	(FS)->regs.reg[i_].how = REG_SAVED_OFFSET;			\
-	(FS)->regs.reg[i_].loc.offset = 				\
-	  (long)&regs_->gprs[i_] - new_cfa_;				\
-      }									\
-    for (i_ = 0; i_ < 16; i_++)						\
-      {									\
-	(FS)->regs.reg[16+i_].how = REG_SAVED_OFFSET;			\
-	(FS)->regs.reg[16+i_].loc.offset = 				\
-	  (long)&regs_->fprs[i_] - new_cfa_;				\
-      }									\
-									\
-    /* Load return addr from PSW into dummy register 32.  */		\
-    (FS)->regs.reg[32].how = REG_SAVED_OFFSET;				\
-    (FS)->regs.reg[32].loc.offset = (long)&regs_->psw_addr - new_cfa_;	\
-    (FS)->retaddr_column = 32;						\
-									\
-    goto SUCCESS;							\
-  } while (0)
+#ifdef TARGET_LIBC_PROVIDES_SSP
+/* s390 glibc provides __stack_chk_guard in 0x14(tp),
+   s390x glibc provides it at 0x28(tp).  */
+#define TARGET_THREAD_SSP_OFFSET        (TARGET_64BIT ? 0x28 : 0x14)
+#endif
+
+/* Define if long doubles should be mangled as 'g'.  */
+#define TARGET_ALTERNATE_LONG_DOUBLE_MANGLING
 
 #endif

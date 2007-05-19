@@ -1,6 +1,6 @@
 ;; Scheduling description for PowerPC 604, PowerPC 604e, PowerPC 620,
 ;; and PowerPC 630 processors.
-;;   Copyright (C) 2003 Free Software Foundation, Inc.
+;;   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 
@@ -16,8 +16,8 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GCC; see the file COPYING.  If not, write to the
-;; Free Software Foundation, 59 Temple Place - Suite 330, Boston,
-;; MA 02111-1307, USA.
+;; Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
+;; MA 02110-1301, USA.
 
 (define_automaton "ppc6xx,ppc6xxfp,ppc6xxfp2")
 (define_cpu_unit "iu1_6xx,iu2_6xx,mciu_6xx" "ppc6xx")
@@ -58,15 +58,35 @@
        (eq_attr "cpu" "ppc604,ppc604e,ppc620,ppc630"))
   "lsu_6xx")
 
-(define_insn_reservation "ppc604-store" 1
+(define_insn_reservation "ppc604-store" 3
   (and (eq_attr "type" "store,fpstore,store_ux,store_u,fpstore_ux,fpstore_u")
        (eq_attr "cpu" "ppc604,ppc604e,ppc620,ppc630"))
   "lsu_6xx")
 
+(define_insn_reservation "ppc604-llsc" 3
+  (and (eq_attr "type" "load_l,store_c")
+       (eq_attr "cpu" "ppc604,ppc604e"))
+  "lsu_6xx")
+  
+(define_insn_reservation "ppc630-llsc" 4
+  (and (eq_attr "type" "load_l,store_c")
+       (eq_attr "cpu" "ppc620,ppc630"))
+  "lsu_6xx")
+  
 (define_insn_reservation "ppc604-integer" 1
   (and (eq_attr "type" "integer,insert_word")
        (eq_attr "cpu" "ppc604,ppc604e,ppc620,ppc630"))
   "iu1_6xx|iu2_6xx")
+
+(define_insn_reservation "ppc604-two" 1
+  (and (eq_attr "type" "two")
+       (eq_attr "cpu" "ppc604,ppc604e,ppc620,ppc630"))
+  "iu1_6xx|iu2_6xx,iu1_6xx|iu2_6xx")
+
+(define_insn_reservation "ppc604-three" 1
+  (and (eq_attr "type" "three")
+       (eq_attr "cpu" "ppc604,ppc604e,ppc620,ppc630"))
+  "iu1_6xx|iu2_6xx,iu1_6xx|iu2_6xx,iu1_6xx|iu2_6xx")
 
 (define_insn_reservation "ppc604-imul" 4
   (and (eq_attr "type" "imul,imul2,imul3,imul_compare")
@@ -232,3 +252,23 @@
        (eq_attr "cpu" "ppc604,ppc604e,ppc620,ppc630"))
   "bpu_6xx")
 
+(define_insn_reservation "ppc604-isync" 0
+  (and (eq_attr "type" "isync")
+       (eq_attr "cpu" "ppc604,ppc604e"))
+  "bpu_6xx")
+  
+(define_insn_reservation "ppc630-isync" 6
+  (and (eq_attr "type" "isync")
+       (eq_attr "cpu" "ppc620,ppc630"))
+  "bpu_6xx")
+  
+(define_insn_reservation "ppc604-sync" 35
+  (and (eq_attr "type" "sync")
+       (eq_attr "cpu" "ppc604,ppc604e"))
+  "lsu_6xx")
+  
+(define_insn_reservation "ppc630-sync" 26
+  (and (eq_attr "type" "sync")
+       (eq_attr "cpu" "ppc620,ppc630"))
+  "lsu_6xx")
+  

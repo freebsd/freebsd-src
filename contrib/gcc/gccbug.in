@@ -18,8 +18,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with GNU GNATS; see the file COPYING.  If not, write to
-# the Free Software Foundation, 59 Temple Place - Suite 330,
-# Boston, MA 02111-1307, USA.
+# the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+# Boston, MA 02110-1301, USA.
 
 # The version of this send-pr.
 VERSION=3.113
@@ -31,7 +31,11 @@ SUBMITTER=net
 GNATS_ADDR=gcc-gnats@gcc.gnu.org
 
 # The default release for this host.
-DEFAULT_RELEASE="@gcc_version_full@"
+# We have to guess at what program_transform_name might have done.
+# "sed 1q" because neither "head -1" nor "head -n 1" is universal, argh.
+
+DEFAULT_GCC="`echo $0 | sed -e 's/bug//'`"
+DEFAULT_RELEASE="`$DEFAULT_GCC --version | sed 1q`"
 
 # The default organization.
 DEFAULT_ORGANIZATION=
@@ -198,7 +202,7 @@ EOF
 done
 
 # spam does not need to be listed here
-CATEGORIES="ada bootstrap c++ c debug driver fortran inline-asm java libf2c libgcj libobjc libstdc++ middle-end objc other pch preprocessor rtl-optimization target tree-optimization web"
+CATEGORIES="ada bootstrap c++ c debug driver fortran inline-asm java libgcj libobjc libstdc++ middle-end objc other pch preprocessor rtl-optimization target tree-optimization web"
 
 case "$FORMAT" in
   lisp) echo "$CATEGORIES" | \

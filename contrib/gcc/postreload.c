@@ -1,6 +1,6 @@
 /* Perform simple optimizations to clean up the result of reload.
    Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #include "config.h"
 #include "system.h"
@@ -44,6 +44,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "toplev.h"
 #include "except.h"
 #include "tree.h"
+#include "timevar.h"
+#include "tree-pass.h"
 
 static int reload_cse_noop_set_p (rtx);
 static void reload_cse_simplify (rtx, rtx);
@@ -194,7 +196,7 @@ reload_cse_regs_1 (rtx first)
   rtx insn;
   rtx testreg = gen_rtx_REG (VOIDmode, -1);
 
-  cselib_init ();
+  cselib_init (true);
   init_alias_analysis ();
 
   for (insn = first; insn; insn = NEXT_INSN (insn))
@@ -227,7 +229,7 @@ reload_cse_simplify_set (rtx set, rtx insn)
   cselib_val *val;
   struct elt_loc_list *l;
 #ifdef LOAD_EXTEND_OP
-  enum rtx_code extend_op = NIL;
+  enum rtx_code extend_op = UNKNOWN;
 #endif
 
   dreg = true_regnum (SET_DEST (set));
@@ -245,10 +247,10 @@ reload_cse_simplify_set (rtx set, rtx insn)
      that combine made wrt the contents of sign bits.  We'll do this by
      generating an extend instruction instead of a reg->reg copy.  Thus
      the destination must be a register that we can widen.  */
-  if (GET_CODE (src) == MEM
+  if (MEM_P (src)
       && GET_MODE_BITSIZE (GET_MODE (src)) < BITS_PER_WORD
-      && (extend_op = LOAD_EXTEND_OP (GET_MODE (src))) != NIL
-      && GET_CODE (SET_DEST (set)) != REG)
+      && (extend_op = LOAD_EXTEND_OP (GET_MODE (src))) != UNKNOWN
+      && !REG_P (SET_DEST (set)))
     return 0;
 #endif
 
@@ -257,9 +259,9 @@ reload_cse_simplify_set (rtx set, rtx insn)
     return 0;
 
   /* If memory loads are cheaper than register copies, don't change them.  */
-  if (GET_CODE (src) == MEM)
+  if (MEM_P (src))
     old_cost = MEMORY_MOVE_COST (GET_MODE (src), dclass, 1);
-  else if (GET_CODE (src) == REG)
+  else if (REG_P (src))
     old_cost = REGISTER_MOVE_COST (GET_MODE (src),
 				   REGNO_REG_CLASS (REGNO (src)), dclass);
   else
@@ -273,7 +275,7 @@ reload_cse_simplify_set (rtx set, rtx insn)
       if (CONSTANT_P (this_rtx) && ! references_value_p (this_rtx, 0))
 	{
 #ifdef LOAD_EXTEND_OP
-	  if (extend_op != NIL)
+	  if (extend_op != UNKNOWN)
 	    {
 	      HOST_WIDE_INT this_val;
 
@@ -293,17 +295,17 @@ reload_cse_simplify_set (rtx set, rtx insn)
 		  if (this_val == trunc_int_for_mode (this_val, GET_MODE (src)))
 		    break;
 		default:
-		  abort ();
+		  gcc_unreachable ();
 		}
 	      this_rtx = GEN_INT (this_val);
 	    }
 #endif
 	  this_cost = rtx_cost (this_rtx, SET);
 	}
-      else if (GET_CODE (this_rtx) == REG)
+      else if (REG_P (this_rtx))
 	{
 #ifdef LOAD_EXTEND_OP
-	  if (extend_op != NIL)
+	  if (extend_op != UNKNOWN)
 	    {
 	      this_rtx = gen_rtx_fmt_e (extend_op, word_mode, this_rtx);
 	      this_cost = rtx_cost (this_rtx, SET);
@@ -321,12 +323,12 @@ reload_cse_simplify_set (rtx set, rtx insn)
 	 tends to lead to smaller instructions on some machines.  */
       if (this_cost < old_cost
 	  || (this_cost == old_cost
-	      && GET_CODE (this_rtx) == REG
-	      && GET_CODE (SET_SRC (set)) != REG))
+	      && REG_P (this_rtx)
+	      && !REG_P (SET_SRC (set))))
 	{
 #ifdef LOAD_EXTEND_OP
 	  if (GET_MODE_BITSIZE (GET_MODE (SET_DEST (set))) < BITS_PER_WORD
-	      && extend_op != NIL
+	      && extend_op != UNKNOWN
 #ifdef CANNOT_CHANGE_MODE_CLASS
 	      && !CANNOT_CHANGE_MODE_CLASS (GET_MODE (SET_DEST (set)),
 					    word_mode,
@@ -409,7 +411,7 @@ reload_cse_simplify_operands (rtx insn, rtx testreg)
       /* cselib blows up on CODE_LABELs.  Trying to fix that doesn't seem
 	 right, so avoid the problem here.  Likewise if we have a constant
          and the insn pattern doesn't tell us the mode we need.  */
-      if (GET_CODE (recog_data.operand[i]) == CODE_LABEL
+      if (LABEL_P (recog_data.operand[i])
 	  || (CONSTANT_P (recog_data.operand[i])
 	      && recog_data.operand_mode[i] == VOIDmode))
 	continue;
@@ -417,21 +419,21 @@ reload_cse_simplify_operands (rtx insn, rtx testreg)
       op = recog_data.operand[i];
       mode = GET_MODE (op);
 #ifdef LOAD_EXTEND_OP
-      if (GET_CODE (op) == MEM
+      if (MEM_P (op)
 	  && GET_MODE_BITSIZE (mode) < BITS_PER_WORD
-	  && LOAD_EXTEND_OP (mode) != NIL)
+	  && LOAD_EXTEND_OP (mode) != UNKNOWN)
 	{
 	  rtx set = single_set (insn);
 
-	  /* We might have multiple sets, some of which do implict
+	  /* We might have multiple sets, some of which do implicit
 	     extension.  Punt on this for now.  */
 	  if (! set)
 	    continue;
-	  /* If the destination is a also MEM or a STRICT_LOW_PART, no
+	  /* If the destination is also a MEM or a STRICT_LOW_PART, no
 	     extension applies.
 	     Also, if there is an explicit extension, we don't have to
 	     worry about an implicit one.  */
-	  else if (GET_CODE (SET_DEST (set)) == MEM
+	  else if (MEM_P (SET_DEST (set))
 		   || GET_CODE (SET_DEST (set)) == STRICT_LOW_PART
 		   || GET_CODE (SET_SRC (set)) == ZERO_EXTEND
 		   || GET_CODE (SET_SRC (set)) == SIGN_EXTEND)
@@ -439,14 +441,14 @@ reload_cse_simplify_operands (rtx insn, rtx testreg)
 #ifdef CANNOT_CHANGE_MODE_CLASS
 	  /* If the register cannot change mode to word_mode, it follows that
 	     it cannot have been used in word_mode.  */
-	  else if (GET_CODE (SET_DEST (set)) == REG
+	  else if (REG_P (SET_DEST (set))
 		   && CANNOT_CHANGE_MODE_CLASS (GET_MODE (SET_DEST (set)),
 						word_mode,
 						REGNO_REG_CLASS (REGNO (SET_DEST (set)))))
 	    ; /* Continue ordinary processing.  */
 #endif
 	  /* If this is a straight load, make the extension explicit.  */
-	  else if (GET_CODE (SET_DEST (set)) == REG
+	  else if (REG_P (SET_DEST (set))
 		   && recog_data.n_operands == 2
 		   && SET_SRC (set) == op
 		   && SET_DEST (set) == recog_data.operand[1-i])
@@ -473,7 +475,7 @@ reload_cse_simplify_operands (rtx insn, rtx testreg)
 	continue;
 
       for (l = v->locs; l; l = l->next)
-	if (GET_CODE (l->loc) == REG)
+	if (REG_P (l->loc))
 	  SET_HARD_REG_BIT (equiv_regs[i], REGNO (l->loc));
     }
 
@@ -573,6 +575,7 @@ reload_cse_simplify_operands (rtx insn, rtx testreg)
 		      op_alt_regno[i][j] = regno;
 		    }
 		  j++;
+		  class = (int) NO_REGS;
 		  break;
 		}
 	      p += CONSTRAINT_LEN (c, p);
@@ -605,7 +608,7 @@ reload_cse_simplify_operands (rtx insn, rtx testreg)
 	  int this_nregs = alternative_nregs[alternative_order[j]];
 
 	  if (this_reject < best_reject
-	      || (this_reject == best_reject && this_nregs < best_nregs))
+	      || (this_reject == best_reject && this_nregs > best_nregs))
 	    {
 	      best = j;
 	      best_reject = this_reject;
@@ -728,20 +731,20 @@ reload_combine (void)
      destination.  */
   min_labelno = get_first_label_num ();
   n_labels = max_label_num () - min_labelno;
-  label_live = xmalloc (n_labels * sizeof (HARD_REG_SET));
+  label_live = XNEWVEC (HARD_REG_SET, n_labels);
   CLEAR_HARD_REG_SET (ever_live_at_start);
 
   FOR_EACH_BB_REVERSE (bb)
     {
       insn = BB_HEAD (bb);
-      if (GET_CODE (insn) == CODE_LABEL)
+      if (LABEL_P (insn))
 	{
 	  HARD_REG_SET live;
 
 	  REG_SET_TO_HARD_REG_SET (live,
-				   bb->global_live_at_start);
+				   bb->il.rtl->global_live_at_start);
 	  compute_use_by_pseudos (&live,
-				  bb->global_live_at_start);
+				  bb->il.rtl->global_live_at_start);
 	  COPY_HARD_REG_SET (LABEL_LIVE (insn), live);
 	  IOR_HARD_REG_SET (ever_live_at_start, live);
 	}
@@ -765,9 +768,9 @@ reload_combine (void)
       /* We cannot do our optimization across labels.  Invalidating all the use
 	 information we have would be costly, so we just note where the label
 	 is and then later disable any optimization that would cross it.  */
-      if (GET_CODE (insn) == CODE_LABEL)
+      if (LABEL_P (insn))
 	last_label_ruid = reload_combine_ruid;
-      else if (GET_CODE (insn) == BARRIER)
+      else if (BARRIER_P (insn))
 	for (r = 0; r < FIRST_PSEUDO_REGISTER; r++)
 	  if (! fixed_regs[r])
 	      reg_state[r].use_index = RELOAD_COMBINE_MAX_USES;
@@ -792,12 +795,12 @@ reload_combine (void)
 	 does not yet show whether REGY changes in this insn.  */
       set = single_set (insn);
       if (set != NULL_RTX
-	  && GET_CODE (SET_DEST (set)) == REG
-	  && (HARD_REGNO_NREGS (REGNO (SET_DEST (set)),
-				GET_MODE (SET_DEST (set)))
+	  && REG_P (SET_DEST (set))
+	  && (hard_regno_nregs[REGNO (SET_DEST (set))]
+			      [GET_MODE (SET_DEST (set))]
 	      == 1)
 	  && GET_CODE (SET_SRC (set)) == PLUS
-	  && GET_CODE (XEXP (SET_SRC (set), 1)) == REG
+	  && REG_P (XEXP (SET_SRC (set), 1))
 	  && rtx_equal_p (XEXP (SET_SRC (set), 0), SET_DEST (set))
 	  && !rtx_equal_p (XEXP (SET_SRC (set), 1), SET_DEST (set))
 	  && last_label_ruid < reg_state[REGNO (SET_DEST (set))].use_ruid)
@@ -838,7 +841,7 @@ reload_combine (void)
 					 i)
 		      && reg_state[i].use_index == RELOAD_COMBINE_MAX_USES
 		      && reg_state[i].store_ruid <= reg_state[regno].use_ruid
-		      && HARD_REGNO_NREGS (i, GET_MODE (reg)) == 1)
+		      && hard_regno_nregs[i][GET_MODE (reg)] == 1)
 		    {
 		      rtx index_reg = gen_rtx_REG (GET_MODE (reg), i);
 
@@ -911,7 +914,7 @@ reload_combine (void)
 
       note_stores (PATTERN (insn), reload_combine_note_store, NULL);
 
-      if (GET_CODE (insn) == CALL_INSN)
+      if (CALL_P (insn))
 	{
 	  rtx link;
 
@@ -926,12 +929,12 @@ reload_combine (void)
 	       link = XEXP (link, 1))
 	    {
 	      rtx usage_rtx = XEXP (XEXP (link, 0), 0);
-	      if (GET_CODE (usage_rtx) == REG)
+	      if (REG_P (usage_rtx))
 	        {
 		  unsigned int i;
 		  unsigned int start_reg = REGNO (usage_rtx);
 		  unsigned int num_regs =
-			HARD_REGNO_NREGS (start_reg, GET_MODE (usage_rtx));
+			hard_regno_nregs[start_reg][GET_MODE (usage_rtx)];
 		  unsigned int end_reg  = start_reg + num_regs - 1;
 		  for (i = start_reg; i <= end_reg; i++)
 		    if (GET_CODE (XEXP (link, 0)) == CLOBBER)
@@ -945,7 +948,7 @@ reload_combine (void)
 	     }
 
 	}
-      else if (GET_CODE (insn) == JUMP_INSN
+      else if (JUMP_P (insn)
 	       && GET_CODE (PATTERN (insn)) != RETURN)
 	{
 	  /* Non-spill registers might be used at the call destination in
@@ -967,7 +970,7 @@ reload_combine (void)
       for (note = REG_NOTES (insn); note; note = XEXP (note, 1))
 	{
 	  if (REG_NOTE_KIND (note) == REG_INC
-	      && GET_CODE (XEXP (note, 0)) == REG)
+	      && REG_P (XEXP (note, 0)))
 	    {
 	      int regno = REGNO (XEXP (note, 0));
 
@@ -999,20 +1002,18 @@ reload_combine_note_store (rtx dst, rtx set, void *data ATTRIBUTE_UNUSED)
 				   GET_MODE (dst));
       dst = SUBREG_REG (dst);
     }
-  if (GET_CODE (dst) != REG)
+  if (!REG_P (dst))
     return;
   regno += REGNO (dst);
 
   /* note_stores might have stripped a STRICT_LOW_PART, so we have to be
      careful with registers / register parts that are not full words.
-
-     Similarly for ZERO_EXTRACT and SIGN_EXTRACT.  */
+     Similarly for ZERO_EXTRACT.  */
   if (GET_CODE (set) != SET
       || GET_CODE (SET_DEST (set)) == ZERO_EXTRACT
-      || GET_CODE (SET_DEST (set)) == SIGN_EXTRACT
       || GET_CODE (SET_DEST (set)) == STRICT_LOW_PART)
     {
-      for (i = HARD_REGNO_NREGS (regno, mode) - 1 + regno; i >= regno; i--)
+      for (i = hard_regno_nregs[regno][mode] - 1 + regno; i >= regno; i--)
 	{
 	  reg_state[i].use_index = -1;
 	  reg_state[i].store_ruid = reload_combine_ruid;
@@ -1020,7 +1021,7 @@ reload_combine_note_store (rtx dst, rtx set, void *data ATTRIBUTE_UNUSED)
     }
   else
     {
-      for (i = HARD_REGNO_NREGS (regno, mode) - 1 + regno; i >= regno; i--)
+      for (i = hard_regno_nregs[regno][mode] - 1 + regno; i >= regno; i--)
 	{
 	  reg_state[i].store_ruid = reload_combine_ruid;
 	  reg_state[i].use_index = RELOAD_COMBINE_MAX_USES;
@@ -1044,7 +1045,7 @@ reload_combine_note_use (rtx *xp, rtx insn)
   switch (code)
     {
     case SET:
-      if (GET_CODE (SET_DEST (x)) == REG)
+      if (REG_P (SET_DEST (x)))
 	{
 	  reload_combine_note_use (&SET_SRC (x), insn);
 	  return;
@@ -1053,12 +1054,12 @@ reload_combine_note_use (rtx *xp, rtx insn)
 
     case USE:
       /* If this is the USE of a return value, we can't change it.  */
-      if (GET_CODE (XEXP (x, 0)) == REG && REG_FUNCTION_VALUE_P (XEXP (x, 0)))
+      if (REG_P (XEXP (x, 0)) && REG_FUNCTION_VALUE_P (XEXP (x, 0)))
 	{
 	/* Mark the return register as used in an unknown fashion.  */
 	  rtx reg = XEXP (x, 0);
 	  int regno = REGNO (reg);
-	  int nregs = HARD_REGNO_NREGS (regno, GET_MODE (reg));
+	  int nregs = hard_regno_nregs[regno][GET_MODE (reg)];
 
 	  while (--nregs >= 0)
 	    reg_state[regno + nregs].use_index = -1;
@@ -1067,18 +1068,17 @@ reload_combine_note_use (rtx *xp, rtx insn)
       break;
 
     case CLOBBER:
-      if (GET_CODE (SET_DEST (x)) == REG)
+      if (REG_P (SET_DEST (x)))
 	{
 	  /* No spurious CLOBBERs of pseudo registers may remain.  */
-	  if (REGNO (SET_DEST (x)) >= FIRST_PSEUDO_REGISTER)
-	    abort ();
+	  gcc_assert (REGNO (SET_DEST (x)) < FIRST_PSEUDO_REGISTER);
 	  return;
 	}
       break;
 
     case PLUS:
       /* We are interested in (plus (reg) (const_int)) .  */
-      if (GET_CODE (XEXP (x, 0)) != REG
+      if (!REG_P (XEXP (x, 0))
 	  || GET_CODE (XEXP (x, 1)) != CONST_INT)
 	break;
       offset = XEXP (x, 1);
@@ -1091,10 +1091,9 @@ reload_combine_note_use (rtx *xp, rtx insn)
 	int nregs;
 
 	/* No spurious USEs of pseudo registers may remain.  */
-	if (regno >= FIRST_PSEUDO_REGISTER)
-	  abort ();
+	gcc_assert (regno < FIRST_PSEUDO_REGISTER);
 
-	nregs = HARD_REGNO_NREGS (regno, GET_MODE (x));
+	nregs = hard_regno_nregs[regno][GET_MODE (x)];
 
 	/* We can't substitute into multi-hard-reg uses.  */
 	if (nregs > 1)
@@ -1205,7 +1204,7 @@ reload_cse_move2add (rtx first)
     {
       rtx pat, note;
 
-      if (GET_CODE (insn) == CODE_LABEL)
+      if (LABEL_P (insn))
 	{
 	  move2add_last_label_luid = move2add_luid;
 	  /* We're going to increment move2add_luid twice after a
@@ -1220,7 +1219,7 @@ reload_cse_move2add (rtx first)
       /* For simplicity, we only perform this optimization on
 	 straightforward SETs.  */
       if (GET_CODE (pat) == SET
-	  && GET_CODE (SET_DEST (pat)) == REG)
+	  && REG_P (SET_DEST (pat)))
 	{
 	  rtx reg = SET_DEST (pat);
 	  int regno = REGNO (reg);
@@ -1246,10 +1245,8 @@ reload_cse_move2add (rtx first)
 
 	      if (GET_CODE (src) == CONST_INT && reg_base_reg[regno] < 0)
 		{
-		  rtx new_src =
-		    GEN_INT (trunc_int_for_mode (INTVAL (src)
-						 - reg_offset[regno],
-						 GET_MODE (reg)));
+		  rtx new_src = gen_int_mode (INTVAL (src) - reg_offset[regno],
+					      GET_MODE (reg));
 		  /* (set (reg) (plus (reg) (const_int 0))) is not canonical;
 		     use (set (reg) (reg)) instead.
 		     We don't delete this insn, nor do we convert it into a
@@ -1268,18 +1265,15 @@ reload_cse_move2add (rtx first)
 		  else if (rtx_cost (new_src, PLUS) < rtx_cost (src, SET)
 			   && have_add2_insn (reg, new_src))
 		    {
-		      rtx newpat = gen_rtx_SET (VOIDmode,
-						reg,
-						gen_rtx_PLUS (GET_MODE (reg),
-						 	      reg,
-						 	      new_src));
-		      validate_change (insn, &PATTERN (insn), newpat, 0);
+		      rtx tem = gen_rtx_PLUS (GET_MODE (reg), reg, new_src);
+		      validate_change (insn, &SET_SRC (pat), tem, 0);
 		    }
-		  else
+		  else if (GET_MODE (reg) != BImode)
 		    {
 		      enum machine_mode narrow_mode;
 		      for (narrow_mode = GET_CLASS_NARROWEST_MODE (MODE_INT);
-			   narrow_mode != GET_MODE (reg);
+			   narrow_mode != VOIDmode
+			   && narrow_mode != GET_MODE (reg);
 			   narrow_mode = GET_MODE_WIDER_MODE (narrow_mode))
 			{
 			  if (have_insn_for (STRICT_LOW_PART, narrow_mode)
@@ -1290,9 +1284,8 @@ reload_cse_move2add (rtx first)
 			    {
 			      rtx narrow_reg = gen_rtx_REG (narrow_mode,
 							    REGNO (reg));
-			      rtx narrow_src =
-				GEN_INT (trunc_int_for_mode (INTVAL (src),
-							     narrow_mode));
+			      rtx narrow_src = gen_int_mode (INTVAL (src),
+							     narrow_mode);
 			      rtx new_set =
 				gen_rtx_SET (VOIDmode,
 					     gen_rtx_STRICT_LOW_PART (VOIDmode,
@@ -1320,7 +1313,7 @@ reload_cse_move2add (rtx first)
 				  (set (REGX) (PLUS (REGX) (CONST_INT A)))
 				  ...
 				  (set (REGX) (plus (REGX) (CONST_INT B-A)))  */
-	      else if (GET_CODE (src) == REG
+	      else if (REG_P (src)
 		       && reg_set_luid[regno] == reg_set_luid[REGNO (src)]
 		       && reg_base_reg[regno] == reg_base_reg[REGNO (src)]
 		       && MODES_OK_FOR_MOVE2ADD (GET_MODE (reg),
@@ -1341,10 +1334,10 @@ reload_cse_move2add (rtx first)
 		      HOST_WIDE_INT base_offset = reg_offset[REGNO (src)];
 		      HOST_WIDE_INT regno_offset = reg_offset[regno];
 		      rtx new_src =
-			GEN_INT (trunc_int_for_mode (added_offset
-						     + base_offset
-						     - regno_offset,
-						     GET_MODE (reg)));
+			gen_int_mode (added_offset
+				      + base_offset
+				      - regno_offset,
+				      GET_MODE (reg));
 		      int success = 0;
 
 		      if (new_src == const0_rtx)
@@ -1380,7 +1373,7 @@ reload_cse_move2add (rtx first)
       for (note = REG_NOTES (insn); note; note = XEXP (note, 1))
 	{
 	  if (REG_NOTE_KIND (note) == REG_INC
-	      && GET_CODE (XEXP (note, 0)) == REG)
+	      && REG_P (XEXP (note, 0)))
 	    {
 	      /* Reset the information about this register.  */
 	      int regno = REGNO (XEXP (note, 0));
@@ -1392,19 +1385,20 @@ reload_cse_move2add (rtx first)
 
       /* If INSN is a conditional branch, we try to extract an
 	 implicit set out of it.  */
-      if (any_condjump_p (insn) && onlyjump_p (insn))
+      if (any_condjump_p (insn))
 	{
 	  rtx cnd = fis_get_condition (insn);
 
 	  if (cnd != NULL_RTX
 	      && GET_CODE (cnd) == NE
-	      && GET_CODE (XEXP (cnd, 0)) == REG
+	      && REG_P (XEXP (cnd, 0))
+	      && !reg_set_p (XEXP (cnd, 0), insn)
 	      /* The following two checks, which are also in
 		 move2add_note_store, are intended to reduce the
 		 number of calls to gen_rtx_SET to avoid memory
 		 allocation if possible.  */
 	      && SCALAR_INT_MODE_P (GET_MODE (XEXP (cnd, 0)))
-	      && HARD_REGNO_NREGS (REGNO (XEXP (cnd, 0)), GET_MODE (XEXP (cnd, 0))) == 1
+	      && hard_regno_nregs[REGNO (XEXP (cnd, 0))][GET_MODE (XEXP (cnd, 0))] == 1
 	      && GET_CODE (XEXP (cnd, 1)) == CONST_INT)
 	    {
 	      rtx implicit_set =
@@ -1415,7 +1409,7 @@ reload_cse_move2add (rtx first)
 
       /* If this is a CALL_INSN, all call used registers are stored with
 	 unknown values.  */
-      if (GET_CODE (insn) == CALL_INSN)
+      if (CALL_P (insn))
 	{
 	  for (i = FIRST_PSEUDO_REGISTER - 1; i >= 0; i--)
 	    {
@@ -1449,7 +1443,7 @@ move2add_note_store (rtx dst, rtx set, void *data ATTRIBUTE_UNUSED)
 
   /* Some targets do argument pushes without adding REG_INC notes.  */
 
-  if (GET_CODE (dst) == MEM)
+  if (MEM_P (dst))
     {
       dst = XEXP (dst, 0);
       if (GET_CODE (dst) == PRE_INC || GET_CODE (dst) == POST_INC
@@ -1457,15 +1451,14 @@ move2add_note_store (rtx dst, rtx set, void *data ATTRIBUTE_UNUSED)
 	reg_set_luid[REGNO (XEXP (dst, 0))] = 0;
       return;
     }
-  if (GET_CODE (dst) != REG)
+  if (!REG_P (dst))
     return;
 
   regno += REGNO (dst);
 
-  if (SCALAR_INT_MODE_P (mode)
-      && HARD_REGNO_NREGS (regno, mode) == 1 && GET_CODE (set) == SET
+  if (SCALAR_INT_MODE_P (GET_MODE (dst))
+      && hard_regno_nregs[regno][mode] == 1 && GET_CODE (set) == SET
       && GET_CODE (SET_DEST (set)) != ZERO_EXTRACT
-      && GET_CODE (SET_DEST (set)) != SIGN_EXTRACT
       && GET_CODE (SET_DEST (set)) != STRICT_LOW_PART)
     {
       rtx src = SET_SRC (set);
@@ -1479,13 +1472,13 @@ move2add_note_store (rtx dst, rtx set, void *data ATTRIBUTE_UNUSED)
       switch (GET_CODE (src))
 	{
 	case PLUS:
-	  if (GET_CODE (XEXP (src, 0)) == REG)
+	  if (REG_P (XEXP (src, 0)))
 	    {
 	      base_reg = XEXP (src, 0);
 
 	      if (GET_CODE (XEXP (src, 1)) == CONST_INT)
 		offset = INTVAL (XEXP (src, 1));
-	      else if (GET_CODE (XEXP (src, 1)) == REG
+	      else if (REG_P (XEXP (src, 1))
 		       && (reg_set_luid[REGNO (XEXP (src, 1))]
 			   > move2add_last_label_luid)
 		       && (MODES_OK_FOR_MOVE2ADD
@@ -1564,10 +1557,47 @@ move2add_note_store (rtx dst, rtx set, void *data ATTRIBUTE_UNUSED)
     }
   else
     {
-      unsigned int endregno = regno + HARD_REGNO_NREGS (regno, mode);
+      unsigned int endregno = regno + hard_regno_nregs[regno][mode];
 
       for (i = regno; i < endregno; i++)
 	/* Reset the information about this register.  */
 	reg_set_luid[i] = 0;
     }
 }
+
+static bool
+gate_handle_postreload (void)
+{
+  return (optimize > 0);
+}
+
+
+static unsigned int
+rest_of_handle_postreload (void)
+{
+  /* Do a very simple CSE pass over just the hard registers.  */
+  reload_cse_regs (get_insns ());
+  /* reload_cse_regs can eliminate potentially-trapping MEMs.
+     Remove any EH edges associated with them.  */
+  if (flag_non_call_exceptions)
+    purge_all_dead_edges ();
+  return 0;
+}
+
+struct tree_opt_pass pass_postreload_cse =
+{
+  "postreload",                         /* name */
+  gate_handle_postreload,               /* gate */
+  rest_of_handle_postreload,            /* execute */
+  NULL,                                 /* sub */
+  NULL,                                 /* next */
+  0,                                    /* static_pass_number */
+  TV_RELOAD_CSE_REGS,                   /* tv_id */
+  0,                                    /* properties_required */
+  0,                                    /* properties_provided */
+  0,                                    /* properties_destroyed */
+  0,                                    /* todo_flags_start */
+  TODO_dump_func,                       /* todo_flags_finish */
+  'o'                                   /* letter */
+};
+

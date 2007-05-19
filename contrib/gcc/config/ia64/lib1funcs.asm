@@ -1,3 +1,30 @@
+/* Copyright (C) 2000, 2001, 2003, 2005 Free Software Foundation, Inc.
+   Contributed by James E. Wilson <wilson@cygnus.com>.
+
+   This file is part of GCC.
+
+   GCC is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
+   GCC is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with GCC; see the file COPYING.  If not, write to
+   the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
+
+/* As a special exception, if you link this library with other files,
+   some of which are compiled with GCC, to produce an executable,
+   this library does not by itself cause the resulting executable
+   to be covered by the GNU General Public License.
+   This exception does not however invalidate any other reasons why
+   the executable file might be covered by the GNU General Public License.  */
+
 #ifdef L__divxf3
 // Compute a 80-bit IEEE double-extended quotient.
 //
@@ -139,10 +166,13 @@ __divdi3:
 	// Transfer inputs to FP registers.
 	setf.sig f8 = in0
 	setf.sig f9 = in1
+	// Check divide by zero.
+	cmp.ne.unc p0,p7=0,in1
 	;;
 	// Convert the inputs to FP, so that they won't be treated as unsigned.
 	fcvt.xf f8 = f8
 	fcvt.xf f9 = f9
+(p7)	break 1
 	;;
 	// Compute the reciprocal approximation.
 	frcpa.s1 f10, p6 = f8, f9
@@ -189,10 +219,13 @@ __moddi3:
 	// Transfer inputs to FP registers.
 	setf.sig f14 = in0
 	setf.sig f9 = in1
+	// Check divide by zero.
+	cmp.ne.unc p0,p7=0,in1
 	;;
 	// Convert the inputs to FP, so that they won't be treated as unsigned.
 	fcvt.xf f8 = f14
 	fcvt.xf f9 = f9
+(p7)	break 1
 	;;
 	// Compute the reciprocal approximation.
 	frcpa.s1 f10, p6 = f8, f9
@@ -243,10 +276,13 @@ __udivdi3:
 	// Transfer inputs to FP registers.
 	setf.sig f8 = in0
 	setf.sig f9 = in1
+	// Check divide by zero.
+	cmp.ne.unc p0,p7=0,in1
 	;;
 	// Convert the inputs to FP, to avoid FP software-assist faults.
 	fcvt.xuf.s1 f8 = f8
 	fcvt.xuf.s1 f9 = f9
+(p7)	break 1
 	;;
 	// Compute the reciprocal approximation.
 	frcpa.s1 f10, p6 = f8, f9
@@ -293,10 +329,13 @@ __umoddi3:
 	// Transfer inputs to FP registers.
 	setf.sig f14 = in0
 	setf.sig f9 = in1
+	// Check divide by zero.
+	cmp.ne.unc p0,p7=0,in1
 	;;
 	// Convert the inputs to FP, to avoid FP software assist faults.
 	fcvt.xuf.s1 f8 = f14
 	fcvt.xuf.s1 f9 = f9
+(p7)	break 1;
 	;;
 	// Compute the reciprocal approximation.
 	frcpa.s1 f10, p6 = f8, f9
@@ -345,11 +384,14 @@ __umoddi3:
 	.proc __divsi3
 __divsi3:
 	.regstk 2,0,0,0
+	// Check divide by zero.
+	cmp.ne.unc p0,p7=0,in1
 	sxt4 in0 = in0
 	sxt4 in1 = in1
 	;;
 	setf.sig f8 = in0
 	setf.sig f9 = in1
+(p7)	break 1
 	;;
 	mov r2 = 0x0ffdd
 	fcvt.xf f8 = f8
@@ -394,6 +436,8 @@ __modsi3:
 	;;
 	setf.sig f13 = r32
 	setf.sig f9 = r33
+	// Check divide by zero.
+	cmp.ne.unc p0,p7=0,in1
 	;;
 	sub in1 = r0, in1
 	fcvt.xf f8 = f13
@@ -401,6 +445,7 @@ __modsi3:
 	;;
 	setf.exp f11 = r2
 	frcpa.s1 f10, p6 = f8, f9
+(p7)	break 1
 	;;
 (p6)	fmpy.s1 f12 = f8, f10
 (p6)	fnma.s1 f10 = f9, f10, f1
@@ -441,9 +486,12 @@ __udivsi3:
 	;;
 	setf.sig f8 = in0
 	setf.sig f9 = in1
+	// Check divide by zero.
+	cmp.ne.unc p0,p7=0,in1
 	;;
 	fcvt.xf f8 = f8
 	fcvt.xf f9 = f9
+(p7)	break 1
 	;;
 	setf.exp f11 = r2
 	frcpa.s1 f10, p6 = f8, f9
@@ -484,6 +532,8 @@ __umodsi3:
 	;;
 	setf.sig f13 = in0
 	setf.sig f9 = in1
+	// Check divide by zero.
+	cmp.ne.unc p0,p7=0,in1
 	;;
 	sub in1 = r0, in1
 	fcvt.xf f8 = f13
@@ -491,6 +541,7 @@ __umodsi3:
 	;;
 	setf.exp f11 = r2
 	frcpa.s1 f10, p6 = f8, f9
+(p7)	break 1;
 	;;
 (p6)	fmpy.s1 f12 = f8, f10
 (p6)	fnma.s1 f10 = f9, f10, f1
@@ -706,9 +757,8 @@ __ia64_trampoline:
 	.endp __ia64_trampoline
 #endif
 
-#ifdef L__compat
 // Thunks for backward compatibility.
-
+#ifdef L_fixtfdi
 	.text
 	.align 16
 	.global __fixtfti
@@ -719,7 +769,8 @@ __fixtfti:
 	  ;;
 	}
 	.endp __fixtfti
-
+#endif
+#ifdef L_fixunstfdi
 	.align 16
 	.global __fixunstfti
 	.proc __fixunstfti
@@ -729,7 +780,8 @@ __fixunstfti:
 	  ;;
 	}
 	.endp __fixunstfti
-
+#endif
+#if L_floatditf
 	.align 16
 	.global __floattitf
 	.proc __floattitf
@@ -739,5 +791,4 @@ __floattitf:
 	  ;;
 	}
 	.endp __floattitf
-
 #endif

@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    hosting on Windows32, using GNU tools and the Windows32 API Library.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -17,8 +17,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (x86 MinGW)"); 
@@ -69,9 +69,13 @@ Boston, MA 02111-1307, USA.  */
 #define STARTFILE_SPEC "%{shared|mdll:dllcrt2%O%s} \
   %{!shared:%{!mdll:crt2%O%s}} %{pg:gcrt2%O%s}"
 
-/* An additional prefix to try after the standard prefixes.  */
-#undef MD_STARTFILE_PREFIX
-#define MD_STARTFILE_PREFIX "/mingw/lib/"
+/* Override startfile prefix defaults.  */
+#ifndef STANDARD_STARTFILE_PREFIX_1
+#define STANDARD_STARTFILE_PREFIX_1 "/mingw/lib/"
+#endif
+#ifndef STANDARD_STARTFILE_PREFIX_2
+#define STANDARD_STARTFILE_PREFIX_2 ""
+#endif
 
 /* Output STRING, a string representing a filename, to FILE.
    We canonicalize it to be in Unix format (backslashes are replaced
@@ -104,3 +108,7 @@ do {						         \
 /* Define as short unsigned for compatibility with MS runtime.  */
 #undef WINT_TYPE
 #define WINT_TYPE "short unsigned int"
+
+/* mingw32 uses the  -mthreads option to enable thread support.  */
+#undef GOMP_SELF_SPECS
+#define GOMP_SELF_SPECS "%{fopenmp: -mthreads}"

@@ -1,6 +1,6 @@
 /* Threads compatibility routines for libgcc2.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 2003 Free Software Foundation, Inc.
+/* Copyright (C) 2003, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* As a special exception, if you link this library with other files,
    some of which are compiled with GCC, to produce an executable,
@@ -26,8 +26,11 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    This exception does not however invalidate any other reasons why
    the executable file might be covered by the GNU General Public License.  */
 
-
 #include "gthr-gnat.h"
+
+#ifndef HIDE_EXPORTS
+#pragma GCC visibility push(default)
+#endif
 
 #ifdef __cplusplus
 #define UNUSED(x)
@@ -79,3 +82,7 @@ __gthread_mutex_unlock (__gthread_mutex_t * UNUSED (mutex))
   __gnat_task_unlock ();
   return 0;
 }
+
+#ifndef HIDE_EXPORTS
+#pragma GCC visibility pop
+#endif

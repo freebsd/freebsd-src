@@ -2,7 +2,7 @@
    libgcc2.c with macros expanded to force the use of specific types.
  
    Copyright (C) 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003  Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003, 2004, 2006  Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -27,10 +27,11 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
-#if defined(__powerpc64__)
+#if defined(__powerpc64__) || defined (__64BIT__) || defined(__ppc64__)
+#define TMODES
 #include "config/fp-bit.h"
 
 extern DItype __fixtfdi (TFtype);
@@ -39,8 +40,11 @@ extern DItype __fixsfdi (SFtype);
 extern USItype __fixunsdfsi (DFtype);
 extern USItype __fixunssfsi (SFtype);
 extern TFtype __floatditf (DItype);
+extern TFtype __floatunditf (UDItype);
 extern DFtype __floatdidf (DItype);
+extern DFtype __floatundidf (UDItype);
 extern SFtype __floatdisf (DItype);
+extern SFtype __floatundisf (UDItype);
 extern DItype __fixunstfdi (TFtype);
 
 static DItype local_fixunssfdi (SFtype);
@@ -100,12 +104,36 @@ __floatditf (DItype u)
   return (TFtype) dh + (TFtype) dl;
 }
 
+TFtype
+__floatunditf (UDItype u)
+{
+  DFtype dh, dl;
+
+  dh = (USItype) (u >> (sizeof (SItype) * 8));
+  dh *= 2.0 * (((UDItype) 1) << ((sizeof (SItype) * 8) - 1));
+  dl = (USItype) (u & ((((UDItype) 1) << (sizeof (SItype) * 8)) - 1));
+
+  return (TFtype) dh + (TFtype) dl;
+}
+
 DFtype
 __floatdidf (DItype u)
 {
   DFtype d;
 
   d = (SItype) (u >> (sizeof (SItype) * 8));
+  d *= 2.0 * (((UDItype) 1) << ((sizeof (SItype) * 8) - 1));
+  d += (USItype) (u & ((((UDItype) 1) << (sizeof (SItype) * 8)) - 1));
+
+  return d;
+}
+
+DFtype
+__floatundidf (UDItype u)
+{
+  DFtype d;
+
+  d = (USItype) (u >> (sizeof (SItype) * 8));
   d *= 2.0 * (((UDItype) 1) << ((sizeof (SItype) * 8) - 1));
   d += (USItype) (u & ((((UDItype) 1) << (sizeof (SItype) * 8)) - 1));
 
@@ -131,6 +159,30 @@ __floatdisf (DItype u)
         }
     }
   f = (SItype) (u >> (sizeof (SItype) * 8));
+  f *= 2.0 * (((UDItype) 1) << ((sizeof (SItype) * 8) - 1));
+  f += (USItype) (u & ((((UDItype) 1) << (sizeof (SItype) * 8)) - 1));
+
+  return (SFtype) f;
+}
+
+SFtype
+__floatundisf (UDItype u)
+{
+  DFtype f;
+
+  if (53 < (sizeof (DItype) * 8)
+      && 53 > ((sizeof (DItype) * 8) - 53 + 24))
+    {
+      if (u >= ((UDItype) 1 << 53))
+        {
+          if ((UDItype) u & (((UDItype) 1 << ((sizeof (DItype) * 8) - 53)) - 1))
+            {
+              u &= ~ (((UDItype) 1 << ((sizeof (DItype) * 8) - 53)) - 1);
+              u |= ((UDItype) 1 << ((sizeof (DItype) * 8) - 53));
+            }
+        }
+    }
+  f = (USItype) (u >> (sizeof (SItype) * 8));
   f *= 2.0 * (((UDItype) 1) << ((sizeof (SItype) * 8) - 1));
   f += (USItype) (u & ((((UDItype) 1) << (sizeof (SItype) * 8)) - 1));
 

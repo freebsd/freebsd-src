@@ -1,6 +1,6 @@
 /* Definitions of target machine for GCC,
    for ARM with targetting the VXWorks run time environment. 
-   Copyright (C) 1999, 2000, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2003, 2004 Free Software Foundation, Inc.
 
    Contributed by: Mike Stump <mrs@wrs.com>
    Brought up to date by CodeSourcery, LLC.
@@ -19,8 +19,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 
 #define TARGET_OS_CPP_BUILTINS()		\
@@ -46,16 +46,16 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  CC1_SPEC
 #define CC1_SPEC							\
-"%{t4:        -mapcs-32 -mlittle-endian -march=armv4 ;			\
-   t4be:      -mapcs-32 -mbig-endian -march=armv4 ;			\
+"%{t4:        -mlittle-endian -march=armv4 ;			\
+   t4be:      -mbig-endian -march=armv4 ;			\
    t4t:       -mthumb -mthumb-interwork -mlittle-endian -march=armv4t ;	\
    t4tbe:     -mthumb -mthumb-interwork -mbig-endian -march=armv4t ;	\
-   t5:        -mapcs-32 -mlittle-endian -march=armv5 ;			\
-   t5be:      -mapcs-32 -mbig-endian -march=armv5 ;			\
+   t5:        -mlittle-endian -march=armv5 ;			\
+   t5be:      -mbig-endian -march=armv5 ;			\
    t5t:       -mthumb -mthumb-interwork -mlittle-endian -march=armv5 ;	\
    t5tbe:     -mthumb -mthumb-interwork -mbig-endian -march=armv5 ;	\
-   txscale:   -mapcs-32 -mlittle-endian -mcpu=xscale ;			\
-   txscalebe: -mapcs-32 -mbig-endian -mcpu=xscale ;			\
+   txscale:   -mlittle-endian -mcpu=xscale ;			\
+   txscalebe: -mbig-endian -mcpu=xscale ;			\
             : -march=armv4}"
 
 /* The -Q options from svr4.h aren't understood and must be removed.  */

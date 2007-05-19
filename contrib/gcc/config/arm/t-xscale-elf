@@ -20,26 +20,31 @@ dp-bit.c: $(srcdir)/config/fp-bit.c
 	echo '#endif' >> dp-bit.c
 	cat $(srcdir)/config/fp-bit.c >> dp-bit.c
 
-MULTILIB_OPTIONS     = mlittle-endian/mbig-endian
-MULTILIB_DIRNAMES    = le be
+MULTILIB_OPTIONS     = mbig-endian
+MULTILIB_DIRNAMES    = be
 MULTILIB_EXCEPTIONS  = 
 MULTILIB_MATCHES     = mbig-endian=mbe mlittle-endian=mle
 
-# Note XScale does not support 26 bit APCS.
 # Note XScale does not support hard FP
 
-MULTILIB_OPTIONS    += mno-thumb-interwork/mthumb-interwork
-MULTILIB_DIRNAMES   += normal interwork
+MULTILIB_OPTIONS    += mthumb-interwork
+MULTILIB_DIRNAMES   += interwork
 
-MULTILIB_OPTIONS    += marm/mthumb
-MULTILIB_DIRNAMES   += arm thumb
+MULTILIB_OPTIONS    += mthumb
+MULTILIB_DIRNAMES   += thumb
 MULTILIB_EXCEPTIONS += *mhard-float/*mthumb*
 
 MULTILIB_REDUNDANT_DIRS = interwork/thumb=thumb
 
-MULTILIB_OPTIONS    += mcpu=iwmmxt
-MULTILIB_DIRNAMES   += iwmmxt
-MULTILIB_REDUNDANT_DIRS += interwork/thumb/iwmmxt=thumb
+# The iWMMXt multilibs are suppressed for now because gcc only
+# supports generating them with the IWMMXT or AAPCS ABIs, neither of
+# which is the default.  Until GCC can generate code for an iWMMXt
+# which will work with the default ABI it is not possible to safely
+# generate these multilibs.
+#
+# MULTILIB_OPTIONS    += mcpu=iwmmxt
+# MULTILIB_DIRNAMES   += iwmmxt
+# MULTILIB_REDUNDANT_DIRS += interwork/thumb/iwmmxt=thumb
 
 EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crti.o crtn.o
 
@@ -49,7 +54,7 @@ INSTALL_LIBGCC       = install-multilib
 # Currently there is a bug somewhere in GCC's alias analysis
 # or scheduling code that is breaking _fpmul_parts in fp-bit.c.
 # Disabling function inlining is a workaround for this problem.
-TARGET_LIBGCC2_CFLAGS = -Dinhibit_libc -fno-inline
+TARGET_LIBGCC2_CFLAGS = -fno-inline
 
 # Assemble startup files.
 $(T)crti.o: $(srcdir)/config/arm/crti.asm $(GCC_PASSES)

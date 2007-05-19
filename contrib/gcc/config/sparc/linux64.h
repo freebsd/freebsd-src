@@ -1,5 +1,5 @@
 /* Definitions for 64-bit SPARC running Linux-based GNU systems with ELF.
-   Copyright 1996, 1997, 1998, 2000, 2002, 2003, 2004
+   Copyright 1996, 1997, 1998, 2000, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
    Contributed by David S. Miller (davem@caip.rutgers.edu)
 
@@ -17,20 +17,22 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
-#define TARGET_OS_CPP_BUILTINS()		\
-  do						\
-    {						\
-	builtin_define_std ("unix");		\
-	builtin_define_std ("linux");		\
-	builtin_define ("_LONGLONG");		\
-	builtin_define ("__gnu_linux__");	\
-	builtin_assert ("system=linux");	\
-	builtin_assert ("system=unix");		\
-	builtin_assert ("system=posix");	\
-    }						\
+#define TARGET_OS_CPP_BUILTINS()			\
+  do							\
+    {							\
+      builtin_define_std ("unix");			\
+      builtin_define_std ("linux");			\
+      builtin_define ("_LONGLONG");			\
+      builtin_define ("__gnu_linux__");			\
+      builtin_assert ("system=linux");			\
+      builtin_assert ("system=unix");			\
+      builtin_assert ("system=posix");			\
+      if (TARGET_ARCH32 && TARGET_LONG_DOUBLE_128)	\
+	builtin_define ("__LONG_DOUBLE_128__");		\
+    }							\
   while (0)
 
 /* Don't assume anything about the header files.  */
@@ -41,7 +43,8 @@ Boston, MA 02111-1307, USA.  */
 
 #if TARGET_CPU_DEFAULT == TARGET_CPU_v9 \
     || TARGET_CPU_DEFAULT == TARGET_CPU_ultrasparc \
-    || TARGET_CPU_DEFAULT == TARGET_CPU_ultrasparc3
+    || TARGET_CPU_DEFAULT == TARGET_CPU_ultrasparc3 \
+    || TARGET_CPU_DEFAULT == TARGET_CPU_niagara
 /* A 64 bit v9 compiler with stack-bias,
    in a Medium/Low code model environment.  */
 
@@ -53,13 +56,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef ASM_CPU_DEFAULT_SPEC
 #define ASM_CPU_DEFAULT_SPEC "-Av9a"
-
-#ifdef SPARC_BI_ARCH
-
-#undef CPP_ARCH32_SPEC
-#define CPP_ARCH32_SPEC "%{mlong-double-128:-D__LONG_DOUBLE_128__}"
-
-#endif
 
 /* Provide a STARTFILE_SPEC appropriate for GNU/Linux.  Here we add
    the GNU/Linux magical crtbegin.o file (see crtstuff.c) which
@@ -101,11 +97,6 @@ Boston, MA 02111-1307, USA.  */
 #undef SPARC_DEFAULT_CMODEL
 #define SPARC_DEFAULT_CMODEL CM_MEDLOW
 
-#undef SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES						    \
-{"long-double-64", -MASK_LONG_DOUBLE_128, N_("Use 64 bit long doubles") },  \
-{"long-double-128", MASK_LONG_DOUBLE_128, N_("Use 128 bit long doubles") },
-
 #undef WCHAR_TYPE
 #define WCHAR_TYPE "int"
 
@@ -117,10 +108,6 @@ Boston, MA 02111-1307, USA.  */
 #undef LONG_DOUBLE_TYPE_SIZE
 #define LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
 
-/* Constant which presents upper bound of the above value.  */
-#undef MAX_LONG_DOUBLE_TYPE_SIZE
-#define MAX_LONG_DOUBLE_TYPE_SIZE 128
-
 /* Define this to set long double type size to use in libgcc2.c, which can
    not depend on target_flags.  */
 #if defined(__arch64__) || defined(__LONG_DOUBLE_128__)
@@ -131,7 +118,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef CPP_SUBTARGET_SPEC
 #define CPP_SUBTARGET_SPEC "\
-%{fPIC|fpic|fPIE|fpie:-D__PIC__ -D__pic__} \
 %{posix:-D_POSIX_SOURCE} \
 %{pthread:-D_REENTRANT} \
 "
@@ -158,6 +144,20 @@ Boston, MA 02111-1307, USA.  */
 
 /* If ELF is the default format, we should not use /lib/elf.  */
 
+#define GLIBC_DYNAMIC_LINKER32 "/lib/ld-linux.so.2"
+#define GLIBC_DYNAMIC_LINKER64 "/lib64/ld-linux.so.2"
+#define UCLIBC_DYNAMIC_LINKER32 "/lib/ld-uClibc.so.0"
+#define UCLIBC_DYNAMIC_LINKER64 "/lib/ld64-uClibc.so.0"
+#if UCLIBC_DEFAULT
+#define CHOOSE_DYNAMIC_LINKER(G, U) "%{mglibc:%{muclibc:%e-mglibc and -muclibc used together}" G ";:" U "}"
+#else
+#define CHOOSE_DYNAMIC_LINKER(G, U) "%{muclibc:%{mglibc:%e-mglibc and -muclibc used together}" U ";:" G "}"
+#endif
+#define LINUX_DYNAMIC_LINKER32 \
+  CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER32, UCLIBC_DYNAMIC_LINKER32)
+#define LINUX_DYNAMIC_LINKER64 \
+  CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER64, UCLIBC_DYNAMIC_LINKER64)
+
 #ifdef SPARC_BI_ARCH
 
 #undef SUBTARGET_EXTRA_SPECS
@@ -166,13 +166,13 @@ Boston, MA 02111-1307, USA.  */
   { "link_arch64",       LINK_ARCH64_SPEC },              \
   { "link_arch_default", LINK_ARCH_DEFAULT_SPEC },	  \
   { "link_arch",	 LINK_ARCH_SPEC },
-    
+
 #define LINK_ARCH32_SPEC "-m elf32_sparc -Y P,/usr/lib %{shared:-shared} \
   %{!shared: \
     %{!ibcs: \
       %{!static: \
         %{rdynamic:-export-dynamic} \
-        %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
+        %{!dynamic-linker:-dynamic-linker " LINUX_DYNAMIC_LINKER32 "}} \
         %{static:-static}}} \
 "
 
@@ -181,7 +181,7 @@ Boston, MA 02111-1307, USA.  */
     %{!ibcs: \
       %{!static: \
         %{rdynamic:-export-dynamic} \
-        %{!dynamic-linker:-dynamic-linker /lib64/ld-linux.so.2}} \
+        %{!dynamic-linker:-dynamic-linker " LINUX_DYNAMIC_LINKER64 "}} \
         %{static:-static}}} \
 "
 
@@ -262,7 +262,7 @@ Boston, MA 02111-1307, USA.  */
     %{!ibcs: \
       %{!static: \
         %{rdynamic:-export-dynamic} \
-        %{!dynamic-linker:-dynamic-linker /lib64/ld-linux.so.2}} \
+        %{!dynamic-linker:-dynamic-linker " LINUX_DYNAMIC_LINKER64 "}} \
         %{static:-static}}} \
 %{mlittle-endian:-EL} \
 %{!mno-relax:%{!r:-relax}} \
@@ -289,9 +289,6 @@ Boston, MA 02111-1307, USA.  */
 #undef DBX_REGISTER_NUMBER
 #define DBX_REGISTER_NUMBER(REGNO) (REGNO)
 
-#define DWARF2_DEBUGGING_INFO 1
-#define DBX_DEBUGGING_INFO 1
-
 #undef ASM_OUTPUT_ALIGNED_LOCAL
 #define ASM_OUTPUT_ALIGNED_LOCAL(FILE, NAME, SIZE, ALIGN)		\
 do {									\
@@ -306,13 +303,6 @@ do {									\
 
 #undef  LOCAL_LABEL_PREFIX
 #define LOCAL_LABEL_PREFIX  "."
-
-/* This is how to output a reference to an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.  */
-
-#undef  ASM_OUTPUT_INTERNAL_LABELREF
-#define ASM_OUTPUT_INTERNAL_LABELREF(FILE,PREFIX,NUM)	\
-  fprintf (FILE, ".L%s%d", PREFIX, NUM)
 
 /* This is how to store into the string LABEL
    the symbol_ref name of an internal numbered label where
@@ -353,133 +343,37 @@ do {									\
 #undef CTORS_SECTION_ASM_OP
 #undef DTORS_SECTION_ASM_OP
 
-#define TARGET_ASM_FILE_END file_end_indicate_exec_stack
-
-/* Determine whether the the entire c99 runtime is present in the
+/* Determine whether the entire c99 runtime is present in the
    runtime library.  */
-#define TARGET_C99_FUNCTIONS 1
+#define TARGET_C99_FUNCTIONS (OPTION_GLIBC)
 
-#define TARGET_HAS_F_SETLKW
+#define TARGET_POSIX_IO
 
 #undef LINK_GCC_C_SEQUENCE_SPEC
 #define LINK_GCC_C_SEQUENCE_SPEC \
   "%{static:--start-group} %G %L %{static:--end-group}%{!static:%G}"
 
-/* Do code reading to identify a signal frame, and set the frame
-   state data appropriately.  See unwind-dw2.c for the structs.  */
-
-/* Handle multilib correctly.  */
-#if defined(__arch64__)
-/* 64-bit SPARC version */
-#define MD_FALLBACK_FRAME_STATE_FOR(CONTEXT, FS, SUCCESS)		\
-  do {									\
-    unsigned int *pc_ = (CONTEXT)->ra;					\
-    long new_cfa_, i_;							\
-    long regs_off_, fpu_save_off_;					\
-    long this_cfa_, fpu_save_;						\
-									\
-    if (pc_[0] != 0x82102065		/* mov NR_rt_sigreturn, %g1 */	\
-        || pc_[1] != 0x91d0206d)		/* ta 0x6d */		\
-      break;								\
-    regs_off_ = 192 + 128;						\
-    fpu_save_off_ = regs_off_ + (16 * 8) + (3 * 8) + (2 * 4);		\
-    this_cfa_ = (long) (CONTEXT)->cfa;					\
-    new_cfa_ = *(long *)(((CONTEXT)->cfa) + (regs_off_ + (14 * 8)));	\
-    new_cfa_ += 2047; /* Stack bias */					\
-    fpu_save_ = *(long *)((this_cfa_) + (fpu_save_off_));		\
-    (FS)->cfa_how = CFA_REG_OFFSET;					\
-    (FS)->cfa_reg = 14;							\
-    (FS)->cfa_offset = new_cfa_ - (long) (CONTEXT)->cfa;		\
-    for (i_ = 1; i_ < 16; ++i_)						\
-      {									\
-	(FS)->regs.reg[i_].how = REG_SAVED_OFFSET;			\
-	(FS)->regs.reg[i_].loc.offset =					\
-	  this_cfa_ + (regs_off_ + (i_ * 8)) - new_cfa_;		\
-      }									\
-    for (i_ = 0; i_ < 16; ++i_)						\
-      {									\
-	(FS)->regs.reg[i_ + 16].how = REG_SAVED_OFFSET;			\
-	(FS)->regs.reg[i_ + 16].loc.offset =				\
-	  this_cfa_ + (i_ * 8) - new_cfa_;				\
-      }									\
-    if (fpu_save_)							\
-      {									\
-	for (i_ = 0; i_ < 64; ++i_)					\
-	  {								\
-            if (i_ > 32 && (i_ & 0x1))					\
-              continue;							\
-	    (FS)->regs.reg[i_ + 32].how = REG_SAVED_OFFSET;		\
-	    (FS)->regs.reg[i_ + 32].loc.offset =			\
-	      (fpu_save_ + (i_ * 4)) - new_cfa_;			\
-	  }								\
-      }									\
-    /* Stick return address into %g0, same trick Alpha uses.  */	\
-    (FS)->regs.reg[0].how = REG_SAVED_OFFSET;				\
-    (FS)->regs.reg[0].loc.offset =					\
-      this_cfa_ + (regs_off_ + (16 * 8) + 8) - new_cfa_;		\
-    (FS)->retaddr_column = 0;						\
-    goto SUCCESS;							\
-  } while (0)
-#else
-/* 32-bit SPARC version */
-#define MD_FALLBACK_FRAME_STATE_FOR(CONTEXT, FS, SUCCESS)		\
-  do {									\
-    unsigned int *pc_ = (CONTEXT)->ra;					\
-    int new_cfa_, i_, oldstyle_;					\
-    int regs_off_, fpu_save_off_;					\
-    int fpu_save_, this_cfa_;						\
-									\
-    if (pc_[1] != 0x91d02010)		/* ta 0x10 */			\
-      break;								\
-    if (pc_[0] == 0x821020d8)		/* mov NR_sigreturn, %g1 */	\
-      oldstyle_ = 1;							\
-    else if (pc_[0] == 0x82102065)	/* mov NR_rt_sigreturn, %g1 */	\
-      oldstyle_ = 0;							\
-    else								\
-      break;								\
-    if (oldstyle_)							\
-      {									\
-        regs_off_ = 96;							\
-        fpu_save_off_ = regs_off_ + (4 * 4) + (16 * 4);			\
-      }									\
-    else								\
-      {									\
-        regs_off_ = 96 + 128;						\
-        fpu_save_off_ = regs_off_ + (4 * 4) + (16 * 4) + (2 * 4);	\
-      }									\
-    this_cfa_ = (int) (CONTEXT)->cfa;					\
-    new_cfa_ = *(int *)(((CONTEXT)->cfa) + (regs_off_+(4*4)+(14 * 4)));	\
-    fpu_save_ = *(int *)((this_cfa_) + (fpu_save_off_));		\
-    (FS)->cfa_how = CFA_REG_OFFSET;					\
-    (FS)->cfa_reg = 14;							\
-    (FS)->cfa_offset = new_cfa_ - (int) (CONTEXT)->cfa;			\
-    for (i_ = 1; i_ < 16; ++i_)						\
-      {									\
-        if (i_ == 14)							\
-          continue;							\
-	(FS)->regs.reg[i_].how = REG_SAVED_OFFSET;			\
-	(FS)->regs.reg[i_].loc.offset =					\
-	   this_cfa_ + (regs_off_+(4 * 4)+(i_ * 4)) - new_cfa_;		\
-      }									\
-    for (i_ = 0; i_ < 16; ++i_)						\
-      {									\
-	(FS)->regs.reg[i_ + 16].how = REG_SAVED_OFFSET;			\
-	(FS)->regs.reg[i_ + 16].loc.offset =				\
-	  this_cfa_ + (i_ * 4) - new_cfa_;				\
-      }									\
-    if (fpu_save_)							\
-      {									\
-	for (i_ = 0; i_ < 32; ++i_)					\
-	  {								\
-	    (FS)->regs.reg[i_ + 32].how = REG_SAVED_OFFSET;		\
-	    (FS)->regs.reg[i_ + 32].loc.offset =			\
-	      (fpu_save_ + (i_ * 4)) - new_cfa_;			\
-	  }								\
-      }									\
-    /* Stick return address into %g0, same trick Alpha uses.  */	\
-    (FS)->regs.reg[0].how = REG_SAVED_OFFSET;				\
-    (FS)->regs.reg[0].loc.offset = this_cfa_+(regs_off_+4)-new_cfa_;	\
-    (FS)->retaddr_column = 0;						\
-    goto SUCCESS;							\
-  } while (0)
+/* Use --as-needed -lgcc_s for eh support.  */
+#ifdef HAVE_LD_AS_NEEDED
+#define USE_LD_AS_NEEDED 1
 #endif
+
+#define MD_UNWIND_SUPPORT "config/sparc/linux-unwind.h"
+
+/* Linux currently uses RMO in uniprocessor mode, which is equivalent to
+   TMO, and TMO in multiprocessor mode.  But they reserve the right to
+   change their minds.  */
+#undef SPARC_RELAXED_ORDERING
+#define SPARC_RELAXED_ORDERING true
+
+#undef NEED_INDICATE_EXEC_STACK
+#define NEED_INDICATE_EXEC_STACK 1
+
+#ifdef TARGET_LIBC_PROVIDES_SSP
+/* sparc glibc provides __stack_chk_guard in [%g7 + 0x14],
+   sparc64 glibc provides it at [%g7 + 0x28].  */
+#define TARGET_THREAD_SSP_OFFSET	(TARGET_ARCH64 ? 0x28 : 0x14)
+#endif
+
+/* Define if long doubles should be mangled as 'g'.  */
+#define TARGET_ALTERNATE_LONG_DOUBLE_MANGLING
