@@ -19,13 +19,25 @@
    the Free Software Foundation, 51 Franklin Street, Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
+#undef  SUBTARGET_CPP_SPEC
+#define SUBTARGET_CPP_SPEC FBSD_CPP_SPEC
 
 #undef  SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS \
+  { "subtarget_extra_asm_spec",	SUBTARGET_EXTRA_ASM_SPEC }, \
+  { "subtarget_asm_float_spec", SUBTARGET_ASM_FLOAT_SPEC }, \
   { "fbsd_dynamic_linker", FBSD_DYNAMIC_LINKER }
 
-#undef  SUBTARGET_CPP_SPEC
-#define SUBTARGET_CPP_SPEC FBSD_CPP_SPEC
+#undef SUBTARGET_EXTRA_ASM_SPEC
+#define SUBTARGET_EXTRA_ASM_SPEC	\
+  "-matpcs %{fpic|fpie:-k} %{fPIC|fPIE:-k}"
+
+/* Default to full FPA if -mhard-float is specified. */
+#undef SUBTARGET_ASM_FLOAT_SPEC
+#define SUBTARGET_ASM_FLOAT_SPEC		\
+  "%{mhard-float:-mfpu=fpa}			\
+   %{mfloat-abi=hard:{!mfpu=*:-mfpu=fpa}}	\
+   %{!mhard-float: %{msoft-float:-mfpu=softvfp;:-mfpu=softvfp}}"
 
 #undef	LINK_SPEC
 #define LINK_SPEC "							\
@@ -38,12 +50,28 @@
       %{rdynamic:-export-dynamic}					\
       %{!dynamic-linker:-dynamic-linker %(fbsd_dynamic_linker) }}	\
     %{static:-Bstatic}}							\
-  %{symbolic:-Bsymbolic}"
-
+  %{symbolic:-Bsymbolic}						\
+  -X %{mbig-endian:-EB} %{mlittle-endian:-EL}"
 
 /************************[  Target stuff  ]***********************************/
 
-/* Define the actual types of some ANSI-mandated types.  
+#undef  TARGET_VERSION
+#define TARGET_VERSION fprintf (stderr, " (FreeBSD/StrongARM ELF)");
+
+#ifndef TARGET_ENDIAN_DEFAULT
+#define TARGET_ENDIAN_DEFAULT 0
+#endif
+
+/* Default it to use ATPCS with soft-VFP.  */
+#undef TARGET_DEFAULT
+#define TARGET_DEFAULT			\
+  (MASK_APCS_FRAME			\
+   | TARGET_ENDIAN_DEFAULT)
+
+#undef ARM_DEFAULT_ABI
+#define ARM_DEFAULT_ABI ARM_ABI_ATPCS
+
+/* Define the actual types of some ANSI-mandated types.
    Needs to agree with <machine/ansi.h>.  GCC defaults come from c-decl.c,
    c-common.c, and config/<arch>/<arch>.h.  */
 
@@ -58,11 +86,37 @@
 /* We use the GCC defaults here.  */
 #undef WCHAR_TYPE
 
-#undef  WCHAR_TYPE_SIZE
-#define WCHAR_TYPE_SIZE 32
-
 #undef  SUBTARGET_CPU_DEFAULT
 #define SUBTARGET_CPU_DEFAULT	TARGET_CPU_strongarm
 
-#undef  TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (FreeBSD/StrongARM ELF)");
+/* FreeBSD does its profiling differently to the Acorn compiler. We
+   don't need a word following the mcount call; and to skip it
+   requires either an assembly stub or use of fomit-frame-pointer when
+   compiling the profiling functions.  Since we break Acorn CC
+   compatibility below a little more won't hurt.  */
+
+#undef ARM_FUNCTION_PROFILER
+#define ARM_FUNCTION_PROFILER(STREAM,LABELNO)		\
+{							\
+  asm_fprintf (STREAM, "\tmov\t%Rip, %Rlr\n");		\
+  asm_fprintf (STREAM, "\tbl\t__mcount%s\n",		\
+	       (TARGET_ARM && NEED_PLT_RELOC)		\
+	       ? "(PLT)" : "");				\
+}
+
+/* Clear the instruction cache from `BEG' to `END'.  This makes a
+   call to the ARM_SYNC_ICACHE architecture specific syscall.  */
+#define CLEAR_INSN_CACHE(BEG, END)					\
+do									\
+  {									\
+    extern int sysarch(int number, void *args);				\
+    struct								\
+      {									\
+	unsigned int addr;						\
+	int          len;						\
+      } s;								\
+    s.addr = (unsigned int)(BEG);					\
+    s.len = (END) - (BEG);						\
+    (void) sysarch (0, &s);						\
+  }									\
+while (0)
