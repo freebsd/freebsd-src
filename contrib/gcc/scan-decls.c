@@ -1,6 +1,6 @@
 /* scan-decls.c - Extracts declarations from cpp output.
    Copyright (C) 1993, 1995, 1997, 1998,
-   1999, 2000, 2003 Free Software Foundation, Inc.
+   1999, 2000, 2003, 2004 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -14,7 +14,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
    Written by Per Bothner <bothner@cygnus.com>, July 1993.  */
 
@@ -165,6 +165,8 @@ scan_decls (cpp_reader *pfile, int argc ATTRIBUTE_UNUSED,
 	    {
 	      int nesting = 1;
 	      int have_arg_list = 0;
+	      const struct line_map *map;
+	      unsigned int line;
 	      for (;;)
 		{
 		  token = get_a_token (pfile);
@@ -182,7 +184,9 @@ scan_decls (cpp_reader *pfile, int argc ATTRIBUTE_UNUSED,
 			   || token->type == CPP_ELLIPSIS)
 		    have_arg_list = 1;
 		}
-	      recognized_function (&prev_id, token->line,
+	      map = linemap_lookup (&line_table, token->src_loc);
+	      line = SOURCE_LINE (map, token->src_loc);
+	      recognized_function (&prev_id, line,
 				   (saw_inline ? 'I'
 				    : in_extern_C_brace || current_extern_C
 				    ? 'F' : 'f'), have_arg_list);
@@ -198,6 +202,8 @@ scan_decls (cpp_reader *pfile, int argc ATTRIBUTE_UNUSED,
 		 parameter list */
 	      while (token->type != CPP_SEMICOLON && token->type != CPP_EOF)
 		token = get_a_token (pfile);
+	      if (token->type == CPP_EOF)
+		return 0;
 	      goto new_statement;
 	    }
 	  break;

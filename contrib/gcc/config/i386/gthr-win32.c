@@ -20,8 +20,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* As a special exception, if you link this library with other files,
    some of which are compiled with GCC, to produce an executable,
@@ -181,4 +181,74 @@ __gthr_win32_mutex_unlock (__gthread_mutex_t *mutex)
     return ReleaseSemaphore (mutex->sema, 1, NULL) ? 0 : 1;
   else
     return 0;
+}
+
+void
+__gthr_win32_recursive_mutex_init_function (__gthread_recursive_mutex_t *mutex)
+{
+  mutex->counter = -1;
+  mutex->depth = 0;
+  mutex->owner = 0;
+  mutex->sema = CreateSemaphore (NULL, 0, 65535, NULL);
+}
+
+int
+__gthr_win32_recursive_mutex_lock (__gthread_recursive_mutex_t *mutex)
+{
+  DWORD me = GetCurrentThreadId();
+  if (InterlockedIncrement (&mutex->counter) == 0)
+    {
+      mutex->depth = 1;
+      mutex->owner = me;
+    }
+  else if (mutex->owner == me)
+    {
+      InterlockedDecrement (&mutex->counter);
+      ++(mutex->depth);
+    }
+  else if (WaitForSingleObject (mutex->sema, INFINITE) == WAIT_OBJECT_0)
+    {
+      mutex->depth = 1;
+      mutex->owner = me;
+    }
+  else
+    {
+      /* WaitForSingleObject returns WAIT_FAILED, and we can only do
+         some best-effort cleanup here.  */
+      InterlockedDecrement (&mutex->counter);
+      return 1;
+    }
+  return 0;
+}
+
+int
+__gthr_win32_recursive_mutex_trylock (__gthread_recursive_mutex_t *mutex)
+{
+  DWORD me = GetCurrentThreadId();
+  if (__GTHR_W32_InterlockedCompareExchange (&mutex->counter, 0, -1) < 0)
+    {
+      mutex->depth = 1;
+      mutex->owner = me;
+    }
+  else if (mutex->owner == me)
+    ++(mutex->depth);
+  else
+    return 1;
+
+  return 0;
+}
+
+int
+__gthr_win32_recursive_mutex_unlock (__gthread_recursive_mutex_t *mutex)
+{
+  --(mutex->depth);
+  if (mutex->depth == 0)
+    {
+      mutex->owner = 0;
+
+      if (InterlockedDecrement (&mutex->counter) >= 0)
+	return ReleaseSemaphore (mutex->sema, 1, NULL) ? 0 : 1;
+    }
+
+  return 0;
 }

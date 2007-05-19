@@ -1,6 +1,6 @@
 /* Threads compatibility routines for libgcc2 and libobjc.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1997, 1999, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1997, 1999, 2000, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* As a special exception, if you link this library with other files,
    some of which are compiled with GCC, to produce an executable,
@@ -32,6 +32,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 /* Just provide compatibility for mutex handling.  */
 
 typedef int __gthread_mutex_t;
+typedef int __gthread_recursive_mutex_t;
 
 #define __GTHREAD_MUTEX_INIT 0
 
@@ -230,6 +231,24 @@ static inline int
 __gthread_mutex_unlock (__gthread_mutex_t * UNUSED(mutex))
 {
   return 0;
+}
+
+static inline int
+__gthread_recursive_mutex_lock (__gthread_recursive_mutex_t *mutex)
+{
+  return __gthread_mutex_lock (mutex);
+}
+
+static inline int
+__gthread_recursive_mutex_trylock (__gthread_recursive_mutex_t *mutex)
+{
+  return __gthread_mutex_trylock (mutex);
+}
+
+static inline int
+__gthread_recursive_mutex_unlock (__gthread_recursive_mutex_t *mutex)
+{
+  return __gthread_mutex_unlock (mutex);
 }
 
 #endif /* _LIBOBJC */

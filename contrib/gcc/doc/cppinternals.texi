@@ -2,8 +2,10 @@
 @setfilename cppinternals.info
 @settitle The GNU C Preprocessor Internals
 
+@include gcc-common.texi
+
 @ifinfo
-@dircategory Programming
+@dircategory Software development
 @direntry
 * Cpplib: (cppinternals).      Cpplib internals.
 @end direntry
@@ -16,7 +18,7 @@
 @ifinfo
 This file documents the internals of the GNU C Preprocessor.
 
-Copyright 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
+Copyright 2000, 2001, 2002, 2004, 2005 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -39,15 +41,13 @@ into another language, under the above conditions for modified versions.
 @end ifinfo
 
 @titlepage
-@c @finalout
 @title Cpplib Internals
-@subtitle Last revised January 2002
-@subtitle for GCC version 3.1
+@versionsubtitle
 @author Neil Booth
 @page
 @vskip 0pt plus 1filll
 @c man begin COPYRIGHT
-Copyright @copyright{} 2000, 2001, 2002, 2004
+Copyright @copyright{} 2000, 2001, 2002, 2004, 2005
 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
@@ -70,8 +70,8 @@ into another language, under the above conditions for modified versions.
 @top
 @chapter Cpplib---the GNU C Preprocessor
 
-The GNU C preprocessor in GCC 3.x has been completely rewritten.  It is
-now implemented as a library, @dfn{cpplib}, so it can be easily shared between
+The GNU C preprocessor is
+implemented as a library, @dfn{cpplib}, so it can be easily shared between
 a stand-alone preprocessor, and a preprocessor integrated with the C,
 C++ and Objective-C front ends.  It is also available for use by other
 programs, though this is not recommended as its exposed interface has
@@ -98,7 +98,7 @@ the way they have.
 * Line Numbering::      Tracking location within files.
 * Guard Macros::        Optimizing header files with guard macros.
 * Files::               File handling.
-* Index::               Index.
+* Concept Index::       Index.
 @end menu
 
 @node Conventions
@@ -111,7 +111,7 @@ other is for both internal and external use.
 
 The convention is that functions and types that are exposed to multiple
 files internally are prefixed with @samp{_cpp_}, and are to be found in
-the file @file{cpphash.h}.  Functions and types exposed to external
+the file @file{internal.h}.  Functions and types exposed to external
 clients are in @file{cpplib.h}, and prefixed with @samp{cpp_}.  For
 historical reasons this is no longer quite true, but we should strive to
 stick to it.
@@ -130,7 +130,7 @@ behavior.
 @cindex escaped newlines
 
 @section Overview
-The lexer is contained in the file @file{cpplex.c}.  It is a hand-coded
+The lexer is contained in the file @file{lex.c}.  It is a hand-coded
 lexer, and not implemented as a state machine.  It can understand C, C++
 and Objective-C source code, and has been extended to allow reasonably
 successful preprocessing of assembly language.  The lexer does not make
@@ -788,8 +788,8 @@ lexed on if, for example, there are intervening escaped newlines or
 C-style comments.  For example:
 
 @smallexample
-foo /* A long
-comment */ bar \
+foo /* @r{A long
+comment} */ bar \
 baz
 @result{}
 foo bar baz
@@ -962,7 +962,7 @@ directives outside the main conditional block for the optimization to be
 on.
 
 Note that whilst we are inside the conditional block, @code{mi_valid} is
-likely to be reset to @code{false}, but this does not matter since the
+likely to be reset to @code{false}, but this does not matter since
 the closing @code{#endif} restores it to @code{true} if appropriate.
 
 Finally, since @code{_cpp_lex_direct} pops the file off the buffer stack
@@ -995,7 +995,7 @@ is turned off.
 @cindex files
 
 Fairly obviously, the file handling code of cpplib resides in the file
-@file{cppfiles.c}.  It takes care of the details of file searching,
+@file{files.c}.  It takes care of the details of file searching,
 opening, reading and caching, for both the main source file and all the
 headers it recursively includes.
 
@@ -1058,8 +1058,8 @@ command line (or system) include directories to which the mapping
 applies.  This may be higher up the directory tree than the full path to
 the file minus the base name.
 
-@node Index
-@unnumbered Index
+@node Concept Index
+@unnumbered Concept Index
 @printindex cp
 
 @bye

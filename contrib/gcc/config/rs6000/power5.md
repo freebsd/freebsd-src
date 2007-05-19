@@ -15,8 +15,8 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with GCC; see the file COPYING.  If not, write to the
-;; Free Software Foundation, 59 Temple Place - Suite 330, Boston,
-;; MA 02111-1307, USA.
+;; Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
+;; MA 02110-1301, USA.
 
 ;; Sources: IBM Red Book and White Paper on POWER5
 
@@ -37,20 +37,20 @@
 (define_reservation "lsq_power5"
 		    "(du1_power5,lsu1_power5)\
 		    |(du2_power5,lsu2_power5)\
-		    |(du3_power5,nothing,lsu2_power5)\
-		    |(du4_power5,nothing,lsu1_power5)")
+		    |(du3_power5,lsu2_power5)\
+		    |(du4_power5,lsu1_power5)")
 
 (define_reservation "iq_power5"
 		    "(du1_power5,iu1_power5)\
 		    |(du2_power5,iu2_power5)\
-		    |(du3_power5,nothing,iu2_power5)\
-		    |(du4_power5,nothing,iu1_power5)")
+		    |(du3_power5,iu2_power5)\
+		    |(du4_power5,iu1_power5)")
 
 (define_reservation "fpq_power5"
 		    "(du1_power5,fpu1_power5)\
 		    |(du2_power5,fpu2_power5)\
-		    |(du3_power5,nothing,fpu2_power5)\
-		    |(du4_power5,nothing,fpu1_power5)")
+		    |(du3_power5,fpu2_power5)\
+		    |(du4_power5,fpu1_power5)")
 
 ; Dispatch slots are allocated in order conforming to program order.
 (absence_set "du1_power5" "du2_power5,du3_power5,du4_power5,du5_power5")
@@ -103,37 +103,43 @@
        (eq_attr "cpu" "power5"))
   "du1_power5+du2_power5,lsu1_power5+iu2_power5")
 
-(define_insn_reservation "power5-store" 1
+(define_insn_reservation "power5-store" 12
   (and (eq_attr "type" "store")
        (eq_attr "cpu" "power5"))
   "(du1_power5,lsu1_power5,iu1_power5)\
   |(du2_power5,lsu2_power5,iu2_power5)\
-  |(du3_power5,lsu2_power5,nothing,iu2_power5)\
-  |(du4_power5,lsu1_power5,nothing,iu1_power5)")
+  |(du3_power5,lsu2_power5,iu2_power5)\
+  |(du4_power5,lsu1_power5,iu1_power5)")
 
-(define_insn_reservation "power5-store-update" 1
+(define_insn_reservation "power5-store-update" 12
   (and (eq_attr "type" "store_u")
        (eq_attr "cpu" "power5"))
   "du1_power5+du2_power5,lsu1_power5+iu2_power5,iu1_power5")
 
-(define_insn_reservation "power5-store-update-indexed" 1
+(define_insn_reservation "power5-store-update-indexed" 12
   (and (eq_attr "type" "store_ux")
        (eq_attr "cpu" "power5"))
    "du1_power5+du2_power5+du3_power5+du4_power5,\
     iu1_power5,lsu2_power5+iu2_power5,iu2_power5")
 
-(define_insn_reservation "power5-fpstore" 1
+(define_insn_reservation "power5-fpstore" 12
   (and (eq_attr "type" "fpstore")
        (eq_attr "cpu" "power5"))
   "(du1_power5,lsu1_power5,fpu1_power5)\
   |(du2_power5,lsu2_power5,fpu2_power5)\
-  |(du3_power5,lsu2_power5,nothing,fpu2_power5)\
-  |(du4_power5,lsu1_power5,nothing,fpu1_power5)")
+  |(du3_power5,lsu2_power5,fpu2_power5)\
+  |(du4_power5,lsu1_power5,fpu1_power5)")
 
-(define_insn_reservation "power5-fpstore-update" 1
+(define_insn_reservation "power5-fpstore-update" 12
   (and (eq_attr "type" "fpstore_u,fpstore_ux")
        (eq_attr "cpu" "power5"))
   "du1_power5+du2_power5,lsu1_power5+iu2_power5,fpu1_power5")
+
+(define_insn_reservation "power5-llsc" 11
+  (and (eq_attr "type" "load_l,store_c,sync")
+       (eq_attr "cpu" "power5"))
+  "du1_power5+du2_power5+du3_power5+du4_power5,\
+  lsu1_power5")
 
 
 ; Integer latency is 2 cycles
@@ -141,6 +147,26 @@
   (and (eq_attr "type" "integer")
        (eq_attr "cpu" "power5"))
   "iq_power5")
+
+(define_insn_reservation "power5-two" 2
+  (and (eq_attr "type" "two")
+       (eq_attr "cpu" "power5"))
+  "(du1_power5+du2_power5,iu1_power5,nothing,iu2_power5)\
+  |(du2_power5+du3_power5,iu2_power5,nothing,iu2_power5)\
+  |(du3_power5+du4_power5,iu2_power5,nothing,iu1_power5)\
+  |(du4_power5+du1_power5,iu1_power5,nothing,iu1_power5)")
+
+(define_insn_reservation "power5-three" 2
+  (and (eq_attr "type" "three")
+       (eq_attr "cpu" "power5"))
+  "(du1_power5+du2_power5+du3_power5,\
+    iu1_power5,nothing,iu2_power5,nothing,iu2_power5)\
+  |(du2_power5+du3_power5+du4_power5,\
+    iu2_power5,nothing,iu2_power5,nothing,iu1_power5)\
+  |(du3_power5+du4_power5+du1_power5,\
+    iu2_power5,nothing,iu1_power5,nothing,iu1_power5)\
+  |(du4_power5+du1_power5+du2_power5,\
+    iu1_power5,nothing,iu2_power5,nothing,iu2_power5)")
 
 (define_insn_reservation "power5-insert" 4
   (and (eq_attr "type" "insert_word")
@@ -179,9 +205,7 @@
   "(du1_power5,iu1_power5*6)\
   |(du2_power5,iu2_power5*6)\
   |(du3_power5,iu2_power5*6)\
-  |(du4_power5,iu2_power5*6)")
-;  |(du3_power5,nothing,iu2_power5*6)\
-;  |(du4_power5,nothing,iu2_power5*6)")
+  |(du4_power5,iu1_power5*6)")
 
 (define_insn_reservation "power5-imul" 5
   (and (eq_attr "type" "imul")
@@ -190,8 +214,6 @@
   |(du2_power5,iu2_power5*4)\
   |(du3_power5,iu2_power5*4)\
   |(du4_power5,iu1_power5*4)")
-;  |(du3_power5,nothing,iu2_power5*4)\
-;  |(du4_power5,nothing,iu1_power5*4)")
 
 (define_insn_reservation "power5-imul3" 4
   (and (eq_attr "type" "imul2,imul3")
@@ -200,8 +222,6 @@
   |(du2_power5,iu2_power5*3)\
   |(du3_power5,iu2_power5*3)\
   |(du4_power5,iu1_power5*3)")
-;  |(du3_power5,nothing,iu2_power5*3)\
-;  |(du4_power5,nothing,iu1_power5*3)")
 
 
 ; SPR move only executes in first IU.
@@ -284,8 +304,6 @@
   |(du2_power5,fpu2_power5*28)\
   |(du3_power5,fpu2_power5*28)\
   |(du4_power5,fpu1_power5*28)")
-;  |(du3_power5,nothing,fpu2_power5*28)\
-;  |(du4_power5,nothing,fpu1_power5*28)")
 
 (define_insn_reservation "power5-sqrt" 40
   (and (eq_attr "type" "ssqrt,dsqrt")
@@ -294,6 +312,10 @@
   |(du2_power5,fpu2_power5*35)\
   |(du3_power5,fpu2_power5*35)\
   |(du4_power5,fpu2_power5*35)")
-;  |(du3_power5,nothing,fpu2_power5*35)\
-;  |(du4_power5,nothing,fpu2_power5*35)")
+
+(define_insn_reservation "power5-isync" 2 
+  (and (eq_attr "type" "isync")
+       (eq_attr "cpu" "power5"))
+  "du1_power5+du2_power5+du3_power5+du4_power5,\
+  lsu1_power5")
 

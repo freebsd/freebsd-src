@@ -1,6 +1,6 @@
 /* Core target definitions for GNU compiler
    for IBM RS/6000 PowerPC targeted to embedded ELF systems.
-   Copyright (C) 1995, 1996, 2000, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 2000, 2003, 2004 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
    This file is part of GCC.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 /* Add -meabi to target flags.  */
 #undef TARGET_DEFAULT
@@ -49,9 +49,13 @@
 #undef TARGET_E500
 #undef TARGET_ISEL
 #undef TARGET_FPRS
+#undef TARGET_E500_SINGLE
+#undef TARGET_E500_DOUBLE
 
 #define TARGET_SPE_ABI rs6000_spe_abi
 #define TARGET_SPE rs6000_spe
 #define TARGET_E500 (rs6000_cpu == PROCESSOR_PPC8540)
 #define TARGET_ISEL rs6000_isel
-#define TARGET_FPRS (!rs6000_float_gprs)
+#define TARGET_FPRS (rs6000_float_gprs == 0)
+#define TARGET_E500_SINGLE (TARGET_HARD_FLOAT && rs6000_float_gprs == 1)
+#define TARGET_E500_DOUBLE (TARGET_HARD_FLOAT && rs6000_float_gprs == 2)

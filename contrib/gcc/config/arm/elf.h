@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler.
    For ARM with ELF obj format.
-   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2004, 2005
    Free Software Foundation, Inc.
    Contributed by Philip Blundell <philb@gnu.org> and
    Catherine Moore <clm@cygnus.com>
@@ -19,8 +19,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #ifndef OBJECT_FORMAT_ELF
  #error elf.h included before elfos.h
@@ -46,7 +46,7 @@
 
 #ifndef SUBTARGET_ASM_FLOAT_SPEC
 #define SUBTARGET_ASM_FLOAT_SPEC "\
-%{mapcs-float:-mfloat} %{msoft-float:-mfpu=softfpa}"
+%{mapcs-float:-mfloat}"
 #endif
 
 #ifndef ASM_SPEC
@@ -58,6 +58,8 @@
 %{mapcs-*:-mapcs-%*} \
 %(subtarget_asm_float_spec) \
 %{mthumb-interwork:-mthumb-interwork} \
+%{msoft-float:-mfloat-abi=soft} %{mhard-float:-mfloat-abi=hard} \
+%{mfloat-abi=*} %{mfpu=*} \
 %(subtarget_extra_asm_spec)"
 #endif
 
@@ -75,6 +77,7 @@
       ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "function");	\
       ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));		\
       ASM_OUTPUT_LABEL(FILE, NAME);				\
+      ARM_OUTPUT_FN_UNWIND (FILE, TRUE);			\
     }								\
   while (0)
 
@@ -83,6 +86,7 @@
 #define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)		\
   do								\
     {								\
+      ARM_OUTPUT_FN_UNWIND (FILE, FALSE);			\
       ARM_DECLARE_FUNCTION_SIZE (FILE, FNAME, DECL);		\
       if (!flag_inhibit_size_directive)				\
 	ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
@@ -106,20 +110,21 @@
 #endif
 
 #ifndef TARGET_DEFAULT
-#define TARGET_DEFAULT (ARM_FLAG_SOFT_FLOAT | ARM_FLAG_APCS_32 | ARM_FLAG_APCS_FRAME | ARM_FLAG_MMU_TRAPS)
+#define TARGET_DEFAULT (MASK_APCS_FRAME)
 #endif
 
 #ifndef MULTILIB_DEFAULTS
 #define MULTILIB_DEFAULTS \
-  { "marm", "mlittle-endian", "msoft-float", "mapcs-32", "mno-thumb-interwork", "fno-leading-underscore" }
+  { "marm", "mlittle-endian", "msoft-float", "mno-thumb-interwork", "fno-leading-underscore" }
 #endif
 
 #define TARGET_ASM_FILE_START_APP_OFF true
 #define TARGET_ASM_FILE_START_FILE_DIRECTIVE true
 
-#undef  TARGET_ASM_NAMED_SECTION
-#define TARGET_ASM_NAMED_SECTION  arm_elf_asm_named_section
-
+
+/* Output an element in the static constructor array.  */
+#undef TARGET_ASM_CONSTRUCTOR
+#define TARGET_ASM_CONSTRUCTOR arm_elf_asm_constructor
 
 /* For PIC code we need to explicitly specify (PLT) and (GOT) relocs.  */
 #define NEED_PLT_RELOC	flag_pic
@@ -144,4 +149,5 @@
     }							\
   while (0)
 
-#define SUPPORTS_INIT_PRIORITY 1
+/* The EABI doesn't provide a way of implementing init_priority.  */
+#define SUPPORTS_INIT_PRIORITY (!TARGET_AAPCS_BASED)

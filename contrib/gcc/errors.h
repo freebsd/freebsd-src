@@ -1,5 +1,5 @@
 /* Basic error reporting routines.
-   Copyright (C) 1999, 2000, 2001, 2003
+   Copyright (C) 1999, 2000, 2001, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /* warning, error, and fatal.  These definitions are suitable for use
    in the generator programs; eventually we would like to use them in
@@ -30,13 +30,15 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #ifndef GCC_ERRORS_H
 #define GCC_ERRORS_H
 
-extern void warning (const char *, ...);
-extern void error (const char *, ...);
-extern void fatal (const char *, ...) ATTRIBUTE_NORETURN;
-extern void internal_error (const char *, ...) ATTRIBUTE_NORETURN;
+/* The first parameter is for compatibility with the non-generator
+   version of warning().  For those, you'd pass an OPT_W* value from
+   options.h, but in generator programs it has no effect, so it's OK
+   to just pass zero for calls from generator-only files.  */
+extern void warning (int, const char *, ...) ATTRIBUTE_PRINTF_2;
+extern void error (const char *, ...) ATTRIBUTE_PRINTF_1;
+extern void fatal (const char *, ...) ATTRIBUTE_NORETURN ATTRIBUTE_PRINTF_1;
+extern void internal_error (const char *, ...) ATTRIBUTE_NORETURN ATTRIBUTE_PRINTF_1;
 extern const char *trim_filename (const char *);
-extern void fancy_abort (const char *, int, const char *)
-    ATTRIBUTE_NORETURN;
 
 extern int have_error;
 extern const char *progname;

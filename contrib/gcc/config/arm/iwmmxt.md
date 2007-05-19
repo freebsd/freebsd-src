@@ -1,5 +1,5 @@
 ;; Patterns for the Intel Wireless MMX technology architecture.
-;; Copyright (C) 2003 Free Software Foundation, Inc.
+;; Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
 ;; Contributed by Red Hat.
 
 ;; This file is part of GCC.
@@ -16,8 +16,8 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GCC; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 59 Temple Place - Suite 330,
-;; Boston, MA 02111-1307, USA.
+;; the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+;; Boston, MA 02110-1301, USA.
 
 (define_insn "iwmmxt_iordi3"
   [(set (match_operand:DI         0 "register_operand" "=y,?&r,?&r")
@@ -64,15 +64,19 @@
   [(set_attr "predicable" "yes")])
 
 (define_insn "*iwmmxt_arm_movdi"
-  [(set (match_operand:DI 0 "nonimmediate_di_operand" "=r, r, o<>,y,y,yr,y,yrm")
-	(match_operand:DI 1 "di_operand"              "rIK,mi,r  ,y,yr,y,yrm,y"))]
-  "TARGET_REALLY_IWMMXT"
+  [(set (match_operand:DI 0 "nonimmediate_di_operand" "=r, r, m,y,y,yr,y,yrUy")
+	(match_operand:DI 1 "di_operand"              "rIK,mi,r,y,yr,y,yrUy,y"))]
+  "TARGET_REALLY_IWMMXT
+   && (   register_operand (operands[0], DImode)
+       || register_operand (operands[1], DImode))"
   "*
 {
   switch (which_alternative)
     {
     default:
       return output_move_double (operands);
+    case 0:
+      return \"#\";
     case 3:
       return \"wmov%?\\t%0,%1\";
     case 4:
@@ -86,14 +90,14 @@
     }
 }"
   [(set_attr "length"         "8,8,8,4,4,4,4,4")
-   (set_attr "type"           "*,load,store2,*,*,*,*,*")
+   (set_attr "type"           "*,load1,store2,*,*,*,*,*")
    (set_attr "pool_range"     "*,1020,*,*,*,*,*,*")
    (set_attr "neg_pool_range" "*,1012,*,*,*,*,*,*")]
 )
 
 (define_insn "*iwmmxt_movsi_insn"
-  [(set (match_operand:SI 0 "nonimmediate_operand" "=r,r,r, m,z,r,?z,m,z")
-	(match_operand:SI 1 "general_operand"      "rI,K,mi,r,r,z,m,z,z"))]
+  [(set (match_operand:SI 0 "nonimmediate_operand" "=r,r,r, m,z,r,?z,Uy,z")
+	(match_operand:SI 1 "general_operand"      "rI,K,mi,r,r,z,Uy,z,z"))]
   "TARGET_REALLY_IWMMXT
    && (   register_operand (operands[0], SImode)
        || register_operand (operands[1], SImode))"
@@ -110,7 +114,7 @@
    case 7: return \"wstrw\\t%1, %0\";
    default:return \"wstrw\\t%1, [sp, #-4]!\;wldrw\\t%0, [sp], #4\\t@move CG reg\";
   }"
-  [(set_attr "type"           "*,*,load,store1,*,*,load,store1,*")
+  [(set_attr "type"           "*,*,load1,store1,*,*,load1,store1,*")
    (set_attr "length"         "*,*,*,        *,*,*,  16,     *,8")
    (set_attr "pool_range"     "*,*,4096,     *,*,*,1024,     *,*")
    (set_attr "neg_pool_range" "*,*,4084,     *,*,*,   *,  1012,*")
@@ -148,14 +152,14 @@
    case 4: return \"tmcr%?\\t%0, %1\";
    default: return \"tmrc%?\\t%0, %1\";
   }"
-  [(set_attr "type"           "*,*,load,store1,*,*")
+  [(set_attr "type"           "*,*,load1,store1,*,*")
    (set_attr "pool_range"     "*,*,4096,     *,*,*")
    (set_attr "neg_pool_range" "*,*,4084,     *,*,*")]
 )
 
 (define_insn "movv8qi_internal"
   [(set (match_operand:V8QI 0 "nonimmediate_operand" "=y,m,y,?r,?y,?r")
-	(match_operand:V8QI 1 "general_operand"       "y,y,m,y,r,i"))]
+	(match_operand:V8QI 1 "general_operand"       "y,y,mi,y,r,mi"))]
   "TARGET_REALLY_IWMMXT"
   "*
    switch (which_alternative)
@@ -169,13 +173,13 @@
    }"
   [(set_attr "predicable" "yes")
    (set_attr "length"         "4,     4,   4,4,4,   8")
-   (set_attr "type"           "*,store1,load,*,*,load")
+   (set_attr "type"           "*,store1,load1,*,*,load1")
    (set_attr "pool_range"     "*,     *, 256,*,*, 256")
    (set_attr "neg_pool_range" "*,     *, 244,*,*, 244")])
 
 (define_insn "movv4hi_internal"
   [(set (match_operand:V4HI 0 "nonimmediate_operand" "=y,m,y,?r,?y,?r")
-	(match_operand:V4HI 1 "general_operand"       "y,y,m,y,r,i"))]
+	(match_operand:V4HI 1 "general_operand"       "y,y,mi,y,r,mi"))]
   "TARGET_REALLY_IWMMXT"
   "*
    switch (which_alternative)
@@ -189,13 +193,13 @@
    }"
   [(set_attr "predicable" "yes")
    (set_attr "length"         "4,     4,   4,4,4,   8")
-   (set_attr "type"           "*,store1,load,*,*,load")
+   (set_attr "type"           "*,store1,load1,*,*,load1")
    (set_attr "pool_range"     "*,     *, 256,*,*, 256")
    (set_attr "neg_pool_range" "*,     *, 244,*,*, 244")])
 
 (define_insn "movv2si_internal"
   [(set (match_operand:V2SI 0 "nonimmediate_operand" "=y,m,y,?r,?y,?r")
-	(match_operand:V2SI 1 "general_operand"       "y,y,m,y,r,i"))]
+	(match_operand:V2SI 1 "general_operand"       "y,y,mi,y,r,mi"))]
   "TARGET_REALLY_IWMMXT"
   "*
    switch (which_alternative)
@@ -209,7 +213,7 @@
    }"
   [(set_attr "predicable" "yes")
    (set_attr "length"         "4,     4,   4,4,4,  24")
-   (set_attr "type"           "*,store1,load,*,*,load")
+   (set_attr "type"           "*,store1,load1,*,*,load1")
    (set_attr "pool_range"     "*,     *, 256,*,*, 256")
    (set_attr "neg_pool_range" "*,     *, 244,*,*, 244")])
 
@@ -220,12 +224,12 @@
 ;; deliberately omitted.
 (define_insn "movv2si_internal_2"
   [(set (match_operand:V2SI 0 "nonimmediate_operand" "=?r")
-	(match_operand      1 "immediate_operand"      "i"))]
+	(match_operand      1 "immediate_operand"      "mi"))]
   "TARGET_REALLY_IWMMXT"
   "* return output_move_double (operands);"
   [(set_attr "predicable"     "yes")
    (set_attr "length"         "8")
-   (set_attr "type"           "load")
+   (set_attr "type"           "load1")
    (set_attr "pool_range"     "256")
    (set_attr "neg_pool_range" "244")])
 
@@ -1149,7 +1153,7 @@
   "wsrawg%?\\t%0, %1, %2"
   [(set_attr "predicable" "yes")])
 
-(define_insn "ashrdi3"
+(define_insn "ashrdi3_iwmmxt"
   [(set (match_operand:DI              0 "register_operand" "=y")
 	(ashiftrt:DI (match_operand:DI 1 "register_operand" "y")
 		   (match_operand:SI   2 "register_operand" "z")))]
@@ -1173,7 +1177,7 @@
   "wsrlwg%?\\t%0, %1, %2"
   [(set_attr "predicable" "yes")])
 
-(define_insn "lshrdi3"
+(define_insn "lshrdi3_iwmmxt"
   [(set (match_operand:DI              0 "register_operand" "=y")
 	(lshiftrt:DI (match_operand:DI 1 "register_operand" "y")
 		     (match_operand:SI 2 "register_operand" "z")))]

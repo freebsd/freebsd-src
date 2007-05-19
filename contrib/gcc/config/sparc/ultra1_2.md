@@ -1,5 +1,5 @@
 ;; Scheduling description for UltraSPARC-I/II.
-;;   Copyright (C) 2002 Free Software Foundation, Inc.
+;;   Copyright (C) 2002, 2004 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -15,8 +15,8 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with GCC; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 59 Temple Place - Suite 330,
-;; Boston, MA 02111-1307, USA.
+;; the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+;; Boston, MA 02110-1301, USA.
 
 ;; UltraSPARC-I and II are quad-issue processors.  Interesting features
 ;; to note:
@@ -80,7 +80,7 @@
 
 (define_insn_reservation "us1_single" 1
   (and (eq_attr "cpu" "ultrasparc")
-    (eq_attr "type" "multi,flushw,iflush,trap"))
+    (eq_attr "type" "multi,savew,flushw,iflush,trap"))
   "us1_single_issue")
 
 (define_insn_reservation "us1_simple_ieuN" 1

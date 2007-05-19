@@ -18,8 +18,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 
 #include "bconfig.h"
@@ -102,10 +102,8 @@ gen_macro (const char *name, int real, int expect)
 {
   int i;
 
-  if (real > expect)
-    abort ();
-  if (real == 0)
-    abort ();
+  gcc_assert (real <= expect);
+  gcc_assert (real);
 
   /* #define GEN_CALL(A, B, C, D) gen_call((A), (B)) */
   fputs ("#define GEN_", stdout);
@@ -179,8 +177,8 @@ gen_proto (rtx insn)
 	{
 	  putchar ('(');
 	  for (i = 0; i < num-1; i++)
-	    printf ("rtx %c ATTRIBUTE_UNUSED, ", 'a' + i);
-	  printf ("rtx %c ATTRIBUTE_UNUSED)\n", 'a' + i);
+	    printf ("rtx ARG_UNUSED (%c), ", 'a' + i);
+	  printf ("rtx ARG_UNUSED (%c))\n", 'a' + i);
 	}
       else
 	puts ("(void)");
@@ -245,9 +243,6 @@ main (int argc, char **argv)
      direct calls to their generators in C code.  */
   insn_elision = 0;
 
-  if (argc <= 1)
-    fatal ("no input file name");
-
   if (init_md_reader_args (argc, argv) != SUCCESS_EXIT_CODE)
     return (FATAL_EXIT_CODE);
 
@@ -272,7 +267,7 @@ main (int argc, char **argv)
   /* Print out the prototypes now.  */
   dummy = (rtx) 0;
   obstack_grow (&obstack, &dummy, sizeof (rtx));
-  insns = (rtx *) obstack_finish (&obstack);
+  insns = XOBFINISH (&obstack, rtx *);
 
   for (insn_ptr = insns; *insn_ptr; insn_ptr++)
     gen_proto (*insn_ptr);
@@ -283,11 +278,4 @@ main (int argc, char **argv)
     return FATAL_EXIT_CODE;
 
   return SUCCESS_EXIT_CODE;
-}
-
-/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
-const char *
-get_insn_name (int code ATTRIBUTE_UNUSED)
-{
-  return NULL;
 }

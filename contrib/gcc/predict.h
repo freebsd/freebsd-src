@@ -1,5 +1,5 @@
 /* Definitions for branch prediction routines in the GNU compiler.
-   Copyright (C) 2001, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2003, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,11 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+#ifndef GCC_PREDICT_H
+#define GCC_PREDICT_H
 
 #define DEF_PREDICTOR(ENUM, NAME, HITRATE, FLAGS) ENUM,
 enum br_predictor
@@ -33,14 +36,7 @@ enum prediction
    TAKEN
 };
 
-/* Flags for NOTE_PREDICTION */
-#define IS_TAKEN 1		/* Predict edges to the block as taken.  */
-
 extern void predict_insn_def (rtx, enum br_predictor, enum prediction);
-extern void predict_insn (rtx, enum br_predictor, int);
+extern int counts_to_freqs (void);
 
-/* Avoid unneeded dependency on basic_block.h.  */
-#ifdef BASIC_BLOCK
-extern void predict_edge (edge, enum br_predictor, int);
-extern void predict_edge_def (edge, enum br_predictor, enum prediction);
-#endif
+#endif  /* GCC_PREDICT_H */

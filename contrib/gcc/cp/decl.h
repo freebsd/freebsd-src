@@ -1,5 +1,5 @@
 /* Variables and structures for declaration processing.
-   Copyright (C) 1993, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1993, 2000, 2002, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -15,8 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* In grokdeclarator, distinguish syntactic contexts of declarators.  */
 enum decl_context
@@ -31,9 +31,6 @@ enum decl_context
 };
 
 /* We need this in here to get the decl_context definition.  */
-extern tree grokdeclarator (tree, tree, enum decl_context, int, tree*);
-
-#ifdef DEBUG_CP_BINDING_LEVELS
-/* Purely for debugging purposes.  */
-extern int debug_bindings_indentation;
-#endif
+extern tree grokdeclarator (const cp_declarator *,
+			    const cp_decl_specifier_seq *,
+			    enum decl_context, int, tree*);

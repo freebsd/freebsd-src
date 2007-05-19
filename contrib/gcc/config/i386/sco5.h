@@ -1,5 +1,5 @@
 /* Definitions for Intel 386 running SCO Unix System V 3.2 Version 5.
-   Copyright (C) 1992, 1995, 1996, 1997, 1998, 1999, 2000, 2002, 2003
+   Copyright (C) 1992, 1995, 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004
    Free Software Foundation, Inc.
    Contributed by Kean Johnston (jkj@sco.com)
 
@@ -17,8 +17,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386, SCO OpenServer 5 Syntax)");
@@ -96,13 +96,11 @@ Boston, MA 02111-1307, USA.  */
 #undef WCHAR_TYPE
 #undef WCHAR_TYPE_SIZE
 #undef WINT_TYPE
-#undef LONG_DOUBLE_TYPE_SIZE
 #define SIZE_TYPE		"unsigned int"
 #define PTRDIFF_TYPE		"int"
 #define WCHAR_TYPE		"long int"
 #define WCHAR_TYPE_SIZE		BITS_PER_WORD
 #define WINT_TYPE		"long int"
-#define LONG_DOUBLE_TYPE_SIZE 	96
 
 /*
  * New for multilib support. Set the default switches for multilib,
@@ -223,11 +221,6 @@ Boston, MA 02111-1307, USA.  */
 	builtin_assert ("system=svr3");				\
 	if (flag_iso)						\
 	  cpp_define (pfile, "_STRICT_ANSI");			\
-	if (flag_pic)						\
-	  {							\
-	    builtin_define ("__PIC__");				\
-	    builtin_define ("__pic__");				\
-	  }							\
     }								\
   while (0)
 
@@ -260,7 +253,7 @@ Boston, MA 02111-1307, USA.  */
 #undef LINK_SPEC
 #define LINK_SPEC \
  "%{!shared:%{!symbolic:%{!G:-E%{Xa:a}%{!Xa:%{Xc:c}%{!Xc:%{Xk:k}%{!Xk:%{Xt:t}%{!Xt:a}}}},%{ansi:ansi}%{!ansi:%{posix:posix}%{!posix:%{Xpg4:xpg4}%{!Xpg4:%{Xpg4plus:XPG4PLUS}%{!Xpg4plus:%{Xods30:ods30}%{!Xods30:XPG4PLUS}}}}},ELF}}} \
-  %{Wl,*:%*} %{YP,*} %{YL,*} %{YU,*} \
+  %{YP,*} %{YL,*} %{YU,*} \
   %{!YP,*:%{p:-YP,/usr/ccs/libp:/lib/libp:/usr/lib/libp:/usr/ccs/lib:/lib:/usr/lib} \
    %{!p:-YP,/usr/ccs/lib:/lib:/usr/lib}} \
   %{h*} %{static:-dn -Bstatic %{G:%e-G and -static are mutually exclusive}} \
@@ -282,14 +275,6 @@ Boston, MA 02111-1307, USA.  */
 #undef LIBGCC_SPEC
 #define LIBGCC_SPEC \
  "%{!shared:%{!G:-lgcc}}"
-
-/* Here for legacy support only so we still accept -melf flag */
-#define MASK_COFF     		010000000000	/* Mask for COFF generation */
-#define TARGET_ELF              (1)
-
-#undef SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES 					\
-	{ "elf", -MASK_COFF, N_("Generate ELF output")  },
 
 /* Handle special EH pointer encodings.  Absolute, pc-relative, and
    indirect are handled automatically.  */
