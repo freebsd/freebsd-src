@@ -1,6 +1,7 @@
 // Temporary buffer implementation -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006 
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -63,8 +64,8 @@
 
 #include <memory>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   /**
    *  @if maint
    *  This class is used in two places: stl_algo.h and ext/memory,
@@ -78,7 +79,7 @@ namespace std
       // concept requirements
       __glibcxx_class_requires(_ForwardIterator, _ForwardIteratorConcept)
 
-	public:
+    public:
       typedef _Tp         value_type;
       typedef value_type* pointer;
       typedef pointer     iterator;
@@ -93,8 +94,8 @@ namespace std
       _M_initialize_buffer(const _Tp&, __true_type) { }
 
       void
-      _M_initialize_buffer(const _Tp& val, __false_type)
-      { std::uninitialized_fill_n(_M_buffer, _M_len, val); }
+      _M_initialize_buffer(const _Tp& __val, __false_type)
+      { std::uninitialized_fill_n(_M_buffer, _M_len, __val); }
 
     public:
       /// As per Table mumble.
@@ -145,8 +146,7 @@ namespace std
       _M_len(0), _M_buffer(0)
     {
       // Workaround for a __type_traits bug in the pre-7.3 compiler.
-      typedef typename __type_traits<_Tp>::has_trivial_default_constructor
-	      _Trivial;
+      typedef typename std::__is_scalar<_Tp>::__type _Trivial;
 
       try
 	{
@@ -165,7 +165,8 @@ namespace std
 	  __throw_exception_again;
 	}
     }
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif /* _TEMPBUF_H */
 

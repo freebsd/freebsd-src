@@ -1,6 +1,7 @@
 // basic_ios member functions -*- C++ -*-
 
-// Copyright (C) 1999, 2001, 2002, 2003 Free Software Foundation, Inc.
+// Copyright (C) 1999, 2001, 2002, 2003, 2004, 2005
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,13 +28,18 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file basic_ios.tcc
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
+
 #ifndef _BASIC_IOS_TCC
 #define _BASIC_IOS_TCC 1
 
 #pragma GCC system_header
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   template<typename _CharT, typename _Traits>
     void
     basic_ios<_CharT, _Traits>::clear(iostate __state)
@@ -87,11 +93,6 @@ namespace std
 	  _M_callbacks = __cb;
 	  for (int __i = 0; __i < __rhs._M_word_size; ++__i)
 	    __words[__i] = __rhs._M_word[__i];
-	  if (_M_word != _M_local_word)
-	    {
-	      delete [] _M_word;
-	      _M_word = 0;
-	    }
 	  _M_word = __words;
 	  _M_word_size = __rhs._M_word_size;
 
@@ -195,6 +196,7 @@ namespace std
   extern template class basic_ios<wchar_t>;
 #endif
 #endif
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif

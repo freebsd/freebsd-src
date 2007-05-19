@@ -1,6 +1,6 @@
 // The template and inlines for the -*- C++ -*- indirect_array class.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2004, 2005
 //  Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,28 +28,28 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-// Written by Gabriel Dos Reis <Gabriel.Dos-Reis@DPTMaths.ENS-Cachan.Fr>
-
 /** @file indirect_array.h
  *  This is an internal header file, included by other library headers.
  *  You should not attempt to use it directly.
  */
+
+// Written by Gabriel Dos Reis <Gabriel.Dos-Reis@DPTMaths.ENS-Cachan.Fr>
 
 #ifndef _INDIRECT_ARRAY_H
 #define _INDIRECT_ARRAY_H 1
 
 #pragma GCC system_header
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   /**
    *  @brief  Reference to arbitrary subset of an array.
    *
    *  An indirect_array is a reference to the actual elements of an array
-   *  specified by an ordered array of indices.  The way to get an indirect_array is to
-   *  call operator[](valarray<size_t>) on a valarray.  The returned
-   *  indirect_array then permits carrying operations out on the referenced
-   *  subset of elements in the original valarray.
+   *  specified by an ordered array of indices.  The way to get an
+   *  indirect_array is to call operator[](valarray<size_t>) on a valarray.
+   *  The returned indirect_array then permits carrying operations out on the
+   *  referenced subset of elements in the original valarray.
    *
    *  For example, if an indirect_array is obtained using the array (4,2,0) as
    *  an argument, and then assigned to an array containing (1,2,3), then the
@@ -143,35 +143,35 @@ namespace std
     : _M_sz(__a._M_sz), _M_index(__a._M_index), _M_array(__a._M_array) {}
 
   template<typename _Tp>
-     inline
-     indirect_array<_Tp>::indirect_array(_Array<_Tp> __a, size_t __s,
-					 _Array<size_t> __i)
-     : _M_sz(__s), _M_index(__i), _M_array(__a) {}
+    inline
+    indirect_array<_Tp>::indirect_array(_Array<_Tp> __a, size_t __s,
+					_Array<size_t> __i)
+    : _M_sz(__s), _M_index(__i), _M_array(__a) {}
 
   template<typename _Tp>
-     inline indirect_array<_Tp>&
-     indirect_array<_Tp>::operator=(const indirect_array<_Tp>& __a)
-     {
-       std::__valarray_copy(__a._M_array, _M_sz, __a._M_index, _M_array, _M_index);
-       return *this;
-     }
-
-
-  template<typename _Tp>
-     inline void
-     indirect_array<_Tp>::operator=(const _Tp& __t) const
-     { std::__valarray_fill(_M_array, _M_index, _M_sz, __t); }
+    inline indirect_array<_Tp>&
+    indirect_array<_Tp>::operator=(const indirect_array<_Tp>& __a)
+    {
+      std::__valarray_copy(__a._M_array, _M_sz, __a._M_index, _M_array,
+			   _M_index);
+      return *this;
+    }
 
   template<typename _Tp>
-     inline void
-     indirect_array<_Tp>::operator=(const valarray<_Tp>& __v) const
-     { std::__valarray_copy(_Array<_Tp>(__v), _M_sz, _M_array, _M_index); }
+    inline void
+    indirect_array<_Tp>::operator=(const _Tp& __t) const
+    { std::__valarray_fill(_M_array, _M_index, _M_sz, __t); }
 
   template<typename _Tp>
-     template<class _Dom>
-       inline void
-       indirect_array<_Tp>::operator=(const _Expr<_Dom,_Tp>& __e) const
-       { std::__valarray_copy(__e, _M_sz, _M_array, _M_index); }
+    inline void
+    indirect_array<_Tp>::operator=(const valarray<_Tp>& __v) const
+    { std::__valarray_copy(_Array<_Tp>(__v), _M_sz, _M_array, _M_index); }
+
+  template<typename _Tp>
+    template<class _Dom>
+      inline void
+      indirect_array<_Tp>::operator=(const _Expr<_Dom, _Tp>& __e) const
+      { std::__valarray_copy(__e, _M_sz, _M_array, _M_index); }
 
 #undef _DEFINE_VALARRAY_OPERATOR
 #define _DEFINE_VALARRAY_OPERATOR(_Op, _Name)				\
@@ -203,10 +203,6 @@ _DEFINE_VALARRAY_OPERATOR(>>, __shift_right)
 
 #undef _DEFINE_VALARRAY_OPERATOR
 
-} // std::
+_GLIBCXX_END_NAMESPACE
 
 #endif /* _INDIRECT_ARRAY_H */
-
-// Local Variables:
-// mode:c++
-// End:

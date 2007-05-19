@@ -1,4 +1,5 @@
-// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -13,7 +14,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -26,7 +27,6 @@
 // the GNU General Public License.
 
 #include "bits/c++config.h"
-#include "bits/gthr.h"
 #include <fstream>
 #include <istream>
 #include <ostream>
@@ -49,8 +49,8 @@
 // In macro form:
 // _GLIBCXX_ASM_SYMVER(currentname, oldname, GLIBCXX_3.2)
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // Standard stream objects.
   // NB: Iff <iostream> is included, these definitions become wonky.
   typedef char fake_istream[sizeof(istream)]
@@ -72,9 +72,10 @@ namespace std
   fake_wostream wcerr;
   fake_wostream wclog;
 #endif
-} // namespace std
 
-namespace __gnu_internal
+_GLIBCXX_END_NAMESPACE
+
+namespace __gnu_internal _GLIBCXX_VISIBILITY(hidden)
 {
   using namespace std;
   using namespace __gnu_cxx;
@@ -105,25 +106,5 @@ namespace __gnu_internal
   fake_wfilebuf buf_wcout;
   fake_wfilebuf buf_wcin;
   fake_wfilebuf buf_wcerr;
-#endif
-
-  // Globals for once-only runtime initialization of mutex objects.  This
-  // allows static initialization of these objects on systems that need a
-  // function call to initialize a mutex.  For example, see stl_threads.h.
-#ifdef __GTHREAD_MUTEX_INIT
-#elif defined(__GTHREAD_MUTEX_INIT_FUNCTION)
-  __gthread_once_t _GLIBCXX_once = __GTHREAD_ONCE_INIT;
-  __gthread_mutex_t _GLIBCXX_mutex;
-  __gthread_mutex_t *_GLIBCXX_mutex_address;
-  
-  // Once-only initializer function for _GLIBCXX_mutex.  
-  void
-  _GLIBCXX_mutex_init ()
-  { __GTHREAD_MUTEX_INIT_FUNCTION (&_GLIBCXX_mutex); }
-
-  // Once-only initializer function for _GLIBCXX_mutex_address.  
-  void
-  _GLIBCXX_mutex_address_init ()
-  { __GTHREAD_MUTEX_INIT_FUNCTION (_GLIBCXX_mutex_address); }
 #endif
 } // namespace __gnu_internal

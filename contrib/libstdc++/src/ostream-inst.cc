@@ -1,6 +1,6 @@
 // Explicit instantiation file.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -35,8 +35,8 @@
 #include <ostream>
 #include <iomanip>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // ostream
   template class basic_ostream<char>;
   template ostream& endl(ostream&);
@@ -55,6 +55,18 @@ namespace std
   template ostream& operator<<(ostream&, _Setbase);
   template ostream& operator<<(ostream&, _Setprecision);
   template ostream& operator<<(ostream&, _Setw);
+  template ostream& __ostream_insert(ostream&, const char*, streamsize);
+
+  template ostream& ostream::_M_insert(long);
+  template ostream& ostream::_M_insert(unsigned long);
+  template ostream& ostream::_M_insert(bool);
+#ifdef _GLIBCXX_USE_LONG_LONG
+  template ostream& ostream::_M_insert(long long);
+  template ostream& ostream::_M_insert(unsigned long long);
+#endif
+  template ostream& ostream::_M_insert(double);
+  template ostream& ostream::_M_insert(long double);
+  template ostream& ostream::_M_insert(const void*);
 
 #ifdef _GLIBCXX_USE_WCHAR_T
   template class basic_ostream<wchar_t>;
@@ -72,5 +84,33 @@ namespace std
   template wostream& operator<<(wostream&, _Setbase);
   template wostream& operator<<(wostream&, _Setprecision);
   template wostream& operator<<(wostream&, _Setw);
+  template wostream& __ostream_insert(wostream&, const wchar_t*, streamsize);
+
+  template wostream& wostream::_M_insert(long);
+  template wostream& wostream::_M_insert(unsigned long);
+  template wostream& wostream::_M_insert(bool);
+#ifdef _GLIBCXX_USE_LONG_LONG
+  template wostream& wostream::_M_insert(long long);
+  template wostream& wostream::_M_insert(unsigned long long);
 #endif
-} // namespace std
+  template wostream& wostream::_M_insert(double);
+  template wostream& wostream::_M_insert(long double);
+  template wostream& wostream::_M_insert(const void*);
+#endif
+
+_GLIBCXX_END_NAMESPACE
+
+// XXX GLIBCXX_ABI Deprecated
+#ifdef _GLIBCXX_LONG_DOUBLE_COMPAT
+
+#define _GLIBCXX_LDBL_COMPAT(dbl, ldbl) \
+  extern "C" void ldbl (void) __attribute__ ((alias (#dbl), weak))
+_GLIBCXX_LDBL_COMPAT (_ZNSolsEd, _ZNSolsEe);
+_GLIBCXX_LDBL_COMPAT (_ZNSt13basic_ostreamIwSt11char_traitsIwEElsEd,
+		      _ZNSt13basic_ostreamIwSt11char_traitsIwEElsEe);
+_GLIBCXX_LDBL_COMPAT (_ZNSo9_M_insertIdEERSoT_,
+		      _ZNSo9_M_insertIeEERSoT_);
+_GLIBCXX_LDBL_COMPAT (_ZNSt13basic_ostreamIwSt11char_traitsIwEE9_M_insertIdEERS2_T_,
+		      _ZNSt13basic_ostreamIwSt11char_traitsIwEE9_M_insertIeEERS2_T_);
+
+#endif // _GLIBCXX_LONG_DOUBLE_COMPAT

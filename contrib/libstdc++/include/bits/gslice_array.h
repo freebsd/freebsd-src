@@ -1,6 +1,6 @@
 // The template and inlines for the -*- C++ -*- gslice_array class.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2004, 2005
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,19 +28,19 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-// Written by Gabriel Dos Reis <Gabriel.Dos-Reis@DPTMaths.ENS-Cachan.Fr>
-
 /** @file gslice_array.h
  *  This is an internal header file, included by other library headers.
  *  You should not attempt to use it directly.
  */
+
+// Written by Gabriel Dos Reis <Gabriel.Dos-Reis@DPTMaths.ENS-Cachan.Fr>
 
 #ifndef _GSLICE_ARRAY_H
 #define _GSLICE_ARRAY_H 1
 
 #pragma GCC system_header
 
-namespace std {
+_GLIBCXX_BEGIN_NAMESPACE(std)
 
   /**
    *  @brief  Reference to multi-dimensional subset of an array.
@@ -97,27 +97,27 @@ namespace std {
       void operator=(const _Tp&) const;
 
       template<class _Dom>
-        void operator=(const _Expr<_Dom,_Tp>&) const;
+        void operator=(const _Expr<_Dom, _Tp>&) const;
       template<class _Dom>
-        void operator*=(const _Expr<_Dom,_Tp>&) const;
+        void operator*=(const _Expr<_Dom, _Tp>&) const;
       template<class _Dom>
-        void operator/=(const _Expr<_Dom,_Tp>&) const;
+        void operator/=(const _Expr<_Dom, _Tp>&) const;
       template<class _Dom>
-        void operator%=(const _Expr<_Dom,_Tp>&) const;
+        void operator%=(const _Expr<_Dom, _Tp>&) const;
       template<class _Dom>
-        void operator+=(const _Expr<_Dom,_Tp>&) const;
+        void operator+=(const _Expr<_Dom, _Tp>&) const;
       template<class _Dom>
-        void operator-=(const _Expr<_Dom,_Tp>&) const;
+        void operator-=(const _Expr<_Dom, _Tp>&) const;
       template<class _Dom>
-        void operator^=(const _Expr<_Dom,_Tp>&) const;
+        void operator^=(const _Expr<_Dom, _Tp>&) const;
       template<class _Dom>
-        void operator&=(const _Expr<_Dom,_Tp>&) const;
+        void operator&=(const _Expr<_Dom, _Tp>&) const;
       template<class _Dom>
-        void operator|=(const _Expr<_Dom,_Tp>&) const;
+        void operator|=(const _Expr<_Dom, _Tp>&) const;
       template<class _Dom>
-        void operator<<=(const _Expr<_Dom,_Tp>&) const;
+        void operator<<=(const _Expr<_Dom, _Tp>&) const;
       template<class _Dom>
-        void operator>>=(const _Expr<_Dom,_Tp>&) const;
+        void operator>>=(const _Expr<_Dom, _Tp>&) const;
 
     private:
       _Array<_Tp>    _M_array;
@@ -137,12 +137,10 @@ namespace std {
 				    const valarray<size_t>& __i)
     : _M_array(__a), _M_index(__i) {}
 
-
   template<typename _Tp>
     inline
     gslice_array<_Tp>::gslice_array(const gslice_array<_Tp>& __a)
     : _M_array(__a._M_array), _M_index(__a._M_index) {}
-
 
   template<typename _Tp>
     inline gslice_array<_Tp>&
@@ -186,7 +184,7 @@ namespace std {
     gslice_array<_Tp>::operator _Op##=(const valarray<_Tp>& __v) const	\
     {									\
       _Array_augmented_##_Name(_M_array, _Array<size_t>(_M_index),	\
-			      _Array<_Tp>(__v), __v.size());		\
+			       _Array<_Tp>(__v), __v.size());		\
     }									\
 									\
   template<typename _Tp>                                                \
@@ -211,10 +209,6 @@ _DEFINE_VALARRAY_OPERATOR(>>, __shift_right)
 
 #undef _DEFINE_VALARRAY_OPERATOR
 
-} // std::
+_GLIBCXX_END_NAMESPACE
 
 #endif /* _GSLICE_ARRAY_H */
-
-// Local Variables:
-// mode:c++
-// End:
