@@ -2,14 +2,26 @@
 
 #	Front-end-only bits
 
-GCC_VERSION!=	sed -n /version_string/p ${GCCDIR}/version.c | sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/'
+.include "Makefile.ver"
 
 #
 # These were previously defined in gcc.c.  Just copy previous values from
 # there. We ifdef most of them out for FREEBSD_NATIVE builds anyway.
 # gcc.c won't compile without them though.
-DRIVER_DEFINES = \
-	-DDEFAULT_TARGET_VERSION=\"$(GCC_VERSION)\" \
-	-DDEFAULT_TARGET_MACHINE=\"$(GCC_TARGET)\" \
+DRIVER_DEFINES = -DGCC_DRIVER \
+	-DDEFAULT_TARGET_VERSION=\"$(BASEVER)\" \
+	-DDEFAULT_TARGET_MACHINE=\"$(GCC_TARGET)\"  \
+	-DENABLE_SHARED_LIBGCC
 
 CFLAGS+= ${DRIVER_DEFINES}
+
+.PATH: ../cc_tools ${GCCDIR} ${GCCDIR}/doc ${GCCDIR}/config/${GCC_CPU}
+
+SRCS=	gcc.c opts-common.c options.c intl.c prefix.c version.c
+
+.if exists(${GCCDIR}/config/${GCC_CPU}/driver-${GCC_CPU}.c)
+SRCS+=  driver-${GCC_CPU}.c
+.endif
+
+DPADD=	${LIBCPP} ${LIBIBERTY}
+LDADD=	${LIBCPP} ${LIBIBERTY}

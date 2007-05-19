@@ -2,209 +2,18 @@
 
 .include <bsd.own.mk>
 
-#
-# This could probably be merged with ../cc_int/Makefile, but bsd.lib.mk
-# is such a !@#!*#% nightmare because of how it reprograms the dependencies,
-# suffix rules, SRCS, etc.  It's easiest to cheat by using bsd.prog.mk and
-# SRCS to get dependencies.
-#
-
-#
-# ../Makefile.inc will put an absolute path to our objdir in CFLAGS.
-# Prevent mkdep from using it, so that we don't have to give rules for
-# aliases of generated headers.
-#
 CFLAGS+=	-I.
 
 .include "../Makefile.inc"
 
-.PATH: ${GCCDIR} ${GCCDIR}/f
+CFLAGS+=	-g
+CFLAGS+=	-DGENERATOR_FILE -DHAVE_CONFIG_H
 
-CFLAGS+=	-DGENERATOR_FILE
+# Override LIBIBERTY set by Makefile.inc, We use our own for
+# build tools.
+LIBIBERTY=	libiberty.a
 
-#
-#-----------------------------------------------------------------------
-# Build 'pocket' libiberty exclusively for build tools use.
-
-LIBIBERTY_SRCS=	choose-temp.c concat.c cp-demangle.c cp-demint.c cplus-dem.c \
-	dyn-string.c fibheap.c getpwd.c getruntime.c hashtab.c hex.c \
-	lbasename.c make-temp-file.c md5.c obstack.c partition.c pex-unix.c \
-	physmem.c splay-tree.c xexit.c xmalloc.c xmemdup.c xstrdup.c xstrerror.c
-LIBIBERTY_OBJS=	${LIBIBERTY_SRCS:R:S/$/.o/g}
-
-SRCS+=	${LIBIBERTY_SRCS}
-
-LIBIBERTY=libiberty.a
-${LIBIBERTY}: ${LIBIBERTY_OBJS}
-	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} `lorder ${LIBIBERTY_OBJS} | tsort -q`
-	${RANLIB} ${.TARGET}
-CLEANFILES+=	${LIBIBERTY}
-
-#
-#-----------------------------------------------------------------------
-# options
-OPTION_FILES=${GCCDIR}/f/lang.opt ${GCCDIR}/c.opt ${GCCDIR}/common.opt
-
-.ORDER: options.h options.c
-options.h options.c: opts.sh ${OPTION_FILES}
-	/bin/sh ${GCCDIR}/opts.sh mv options.c options.h ${OPTION_FILES}
-
-GENSRCS+=	options.c options.h
-CLEANFILES+=	options.c options.h
-
-#-----------------------------------------------------------------------
-# insn-* gunk
-
-.for F in attr codes config flags constants
-insn-$F.h: gen$F ${MD_FILE}
-	./gen$F ${MD_FILE} > insn-$F.h
-GENSRCS+=	insn-$F.h
-.endfor
-
-.for F in conditions
-insn-$F.c: gen$F ${MD_FILE}
-	./gen$F ${MD_FILE} > insn-$F.c
-GENSRCS+=	insn-$F.c
-.endfor
-
-GENSRCS+=	gen-time-stamp
-gen-time-stamp: genattr genattrtab genconditions genconstants genemit \
-		genextract gengtype genopinit genoutput genpeep genrecog
-	touch ${.TARGET}
-
-.for F in attr codes config emit extract flags opinit output peep recog
-gen$F: gen$F.o rtl.o print-rtl.o bitmap.o gensupport.o  ggc-none.o \
-	read-rtl.o insn-conditions.o min-insn-modes.o errors.o ${LIBIBERTY}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
-
-GENSRCS+=	gen$F.c
-CLEANFILES+=	gen$F
-.endfor
-
-#
-# genattrtab needs more complex build rule
-#
-genattrtab : genattrtab.o rtl.o print-rtl.o bitmap.o gensupport.o ggc-none.o \
-	read-rtl.o insn-conditions.o genautomata.o varray.o min-insn-modes.o \
-	errors.o ${LIBIBERTY}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} -lm
-
-GENSRCS+=	genattrtab.c
-CLEANFILES+=	genattrtab
-
-#
-# genconstants and genconditions cannot depend on insn-conditions.o
-# they should be liked with dummy-conditions.o stubs instead
-#
-.for F in constants conditions
-gen$F: gen$F.o rtl.o bitmap.o gensupport.o ggc-none.o read-rtl.o dummy-conditions.o min-insn-modes.o errors.o ${LIBIBERTY}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
-
-GENSRCS+=	gen$F.c
-CLEANFILES+=	gen$F
-.endfor
-
-.for F in modes check genrtl preds
-gen$F: gen$F.o errors.o ${LIBIBERTY}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
-
-GENSRCS+=	gen$F.c
-CLEANFILES+=	gen$F
-.endfor
-
-.ORDER: genrtl.c genrtl.h
-genrtl.c genrtl.h: gengenrtl
-	./gengenrtl > genrtl.c
-	./gengenrtl -h > genrtl.h
-
-GENSRCS+=	genrtl.c genrtl.h
-
-SRCS+=	bitmap.c dummy-conditions.c errors.c genautomata.c gensupport.c \
-	ggc-none.c print-rtl.c read-rtl.c rtl.c varray.c
-
-#-----------------------------------------------------------------------
-# insn modes stuff.
-
-.ORDER: insn-modes.c insn-modes.h
-insn-modes.h: genmodes
-	./genmodes -h > insn-modes.h
-
-insn-modes.c: genmodes
-	./genmodes > insn-modes.c
-
-min-insn-modes.c: genmodes
-	./genmodes -m > min-insn-modes.c
-
-GENSRCS+= insn-modes.c min-insn-modes.c insn-modes.h
-
-#-----------------------------------------------------------------------
-# Common parser stuff.
-
-tree-check.h: gencheck
-	./gencheck > ${.TARGET}
-GENSRCS+=	tree-check.h
-
-#-----------------------------------------------------------------------
-# Predicates stuff.
-
-tm-preds.h: genpreds
-	./genpreds > ${.TARGET}
-GENSRCS+=	tm-preds.h
-
-#-----------------------------------------------------------------------
-# Gengtype
-
-gengtype-lex.c : gengtype-lex.l
-	${LEX} -t  ${.ALLSRC} | \
-	sed 's/^\(char msg\[\];\)/yyconst \1/' > ${.TARGET}
-
-.ORDER: gengtype-yacc.c gengtype-yacc.h
-gengtype-yacc.c gengtype-yacc.h: gengtype-yacc.y
-	${YACC} -d -o gengtype-yacc.c ${.ALLSRC}
-
-GENSRCS+=	gengtype-yacc+%DIKED.c gengtype-yacc.h gengtype-lex.c
-CLEANFILES+=	gengtype-yacc.c
-
-gengtype-yacc+%DIKED.c: gengtype-yacc.c
-	cat    ${.ALLSRC} > ${.TARGET}
-	sed -e "s/xmalloc/malloc/g" \
-	    -e "s/xrealloc/realloc/g" \
-	    -e "s/malloc/xmalloc/g" \
-	    -e "s/realloc/xrealloc/g" \
-	    ${.ALLSRC} > ${.TARGET}
-
-gengtype: gengtype.o gengtype-yacc+%DIKED.o gengtype-lex.o ${LIBIBERTY}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
-
-GENSRCS+=	gengtype.c
-CLEANFILES+=	gengtype
-
-gengtype-lex.o: gengtype-yacc.h
-
-.ORDER: gtype-desc.c gtype-desc.h
-gtype-desc.c gtype-desc.h: gtype-time-stamp
-	@true
-
-GENSRCS+=	gtype-time-stamp
-gtype-time-stamp: gengtype ${GTFILES}
-	./gengtype
-	touch ${.TARGET}
-
-GENSRCS+=	gtype-desc.c gtype-desc.h
-CLEANFILES+=	gt-*.h gtype-*.h
-
-#
-#-----------------------------------------------------------------------
-# Fortran build tools
-
-.if ${MK_FORTRAN} != "no"
-gen-time-stamp: fini
-fini: fini.o ${LIBIBERTY}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
-SRCS+=		fini.c
-CLEANFILES+=	fini
-.endif
+.PATH:	${GCCDIR} ${GCCLIB}/libiberty
 
 #-----------------------------------------------------------------------
 # Determine content of variables used by the target/host config files
@@ -212,8 +21,9 @@ CLEANFILES+=	fini
 #
 # The list of headers to go into tm.h
 #
+TARGET_INC+=	options.h
 .if ${TARGET_ARCH} == "amd64"
-TARGET_INC=	i386/biarch64.h
+TARGET_INC+=	i386/biarch64.h
 .endif
 .if ${TARGET_ARCH} != "arm"
 TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
@@ -222,92 +32,90 @@ TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
 TARGET_INC+=	${GCC_CPU}/unix.h
 TARGET_INC+=	${GCC_CPU}/att.h
 .endif
-.if ${TARGET_ARCH} != "alpha"
 TARGET_INC+=	dbxelf.h
 TARGET_INC+=	elfos.h
-.endif
 TARGET_INC+=	freebsd-native.h
 TARGET_INC+=	freebsd-spec.h
 TARGET_INC+=	freebsd.h
-.if ${TARGET_ARCH} == "alpha"
-TARGET_INC+=	${GCC_CPU}/elf.h
-.endif
 .if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "amd64"
 .if exists(${GCCDIR}/config/${GCC_CPU}/sysv4.h)
 TARGET_INC+=	${GCC_CPU}/sysv4.h
 .endif
 .endif
-.if ${TARGET_ARCH} == "arm"
+.if ${TARGET_ARCH} == "amd64"
+TARGET_INC+=	${GCC_CPU}/x86-64.h
+TARGET_INC+=	${GCC_CPU}/freebsd.h
+TARGET_INC+=	${GCC_CPU}/freebsd64.h
+TARGET_INC+=	freebsd64-fix.h
+.elif ${TARGET_ARCH} == "arm"
 TARGET_INC+=	${GCC_CPU}/elf.h
 TARGET_INC+=	${GCC_CPU}/aout.h
-TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
-. if defined(TARGET_BIG_ENDIAN)
-CFLAGS+= -DTARGET_ENDIAN_DEFAULT=ARM_FLAG_BIG_END
-. endif
-.endif
-.if ${TARGET_ARCH} == "arm"
-TARGET_INC+=	freebsd-diked.h
+TARGET_INC+=	${GCC_CPU}/freebsd.h
+TARGET_INC+=	${GCC_CPU}/arm.h
 .else
 TARGET_INC+=	${GCC_CPU}/freebsd.h
 .endif
-.if ${TARGET_ARCH} == "amd64"
-TARGET_INC+=	${GCC_CPU}/x86-64.h
-TARGET_INC+=	${GCC_CPU}/freebsd64.h
-TARGET_INC+=	freebsd64-fix.h
-.endif
-.if ${TARGET_ARCH} == "powepc"
-TARGET_INC+=	altivec-defs.h
-.endif
 TARGET_INC+=	defaults.h
-
-#
-# Use TARGET_INC as a template and build a list of target specific
-# include files for gengtype to scan
-#
-GCONFIG_H=	${.CURDIR}/auto-host.h
 
 .for H in ${TARGET_INC}
 .for D in ${GCCDIR}/config ${GCCDIR} ${.CURDIR}
 .if exists($D/$H)
-GCONFIG_H+=	$D/$H
+TARGET_INC_FILES+=     $D/$H
 .endif
 .endfor
 .endfor
 
 #
-# Define some variables to make blocks copied from Makefile.in happy
+# gtyp includes.
 #
 srcdir=		${GCCDIR}
-HASHTAB_H=	${GCCDIR}/hashtab.h
-SPLAY_TREE_H=	${GCCDIR}/splay-tree.h
-out_file=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.c
-GTFILES_SRCDIR=	${GCCDIR}
+CPPLIB_H=	${GCCLIB}/libcpp/include/line-map.h \
+		${GCCLIB}/libcpp/include/cpplib.h
+SYMTAB_H=	${GCCLIB}/libcpp/include/symtab.h
+CPP_ID_DATA_H=	${CPPLIB_H} ${GCCLIB}/libcpp/include/cpp-id-data.h
+HASHTAB_H=	${GCCLIB}/include/hashtab.h
+SPLAY_TREE_H=	${GCCLIB}/include/splay-tree.h
+out_file=	${srcdir}/config/${GCC_CPU}/${GCC_CPU}.c
+tm_file_list=	${TARGET_INC_FILES}
+host_xm_file_list= ${.CURDIR}/auto-host.h ${GCCLIB}/include/ansidecl.h
+GTFILES_SRCDIR=	${srcdir}
 
-#
 # Copied unchanged from gcc/Makefile.in
-#
-GTFILES = $(srcdir)/input.h $(srcdir)/coretypes.h $(srcdir)/cpplib.h \
-  $(GCONFIG_H) $(HASHTAB_H) $(SPLAY_TREE_H) \
-  $(srcdir)/bitmap.h $(srcdir)/coverage.c $(srcdir)/function.h  $(srcdir)/rtl.h \
-  $(srcdir)/optabs.h $(srcdir)/tree.h $(srcdir)/libfuncs.h $(srcdir)/hashtable.h \
-  $(srcdir)/real.h $(srcdir)/varray.h $(srcdir)/insn-addr.h \
+GTFILES = $(srcdir)/input.h $(srcdir)/coretypes.h \
+  $(CPP_ID_DATA_H) $(host_xm_file_list) \
+  $(tm_file_list) $(HASHTAB_H) $(SPLAY_TREE_H) $(srcdir)/bitmap.h \
+  $(srcdir)/coverage.c $(srcdir)/rtl.h \
+  $(srcdir)/optabs.h $(srcdir)/tree.h $(srcdir)/function.h $(srcdir)/libfuncs.h $(SYMTAB_H) \
+  $(srcdir)/real.h $(srcdir)/varray.h $(srcdir)/insn-addr.h $(srcdir)/hwint.h \
+  $(srcdir)/ipa-reference.h $(srcdir)/output.h \
   $(srcdir)/cselib.h $(srcdir)/basic-block.h  $(srcdir)/cgraph.h \
-  $(srcdir)/c-common.h $(srcdir)/c-tree.h \
+  $(srcdir)/c-common.h $(srcdir)/c-tree.h $(srcdir)/reload.h \
   $(srcdir)/alias.c $(srcdir)/bitmap.c $(srcdir)/cselib.c $(srcdir)/cgraph.c \
+  $(srcdir)/ipa-prop.c $(srcdir)/ipa-cp.c $(srcdir)/ipa-inline.c \
   $(srcdir)/dbxout.c $(srcdir)/dwarf2out.c $(srcdir)/dwarf2asm.c \
-  $(srcdir)/dojump.c \
+  $(srcdir)/dojump.c $(srcdir)/tree-profile.c \
   $(srcdir)/emit-rtl.c $(srcdir)/except.c $(srcdir)/explow.c $(srcdir)/expr.c \
-  $(srcdir)/fold-const.c $(srcdir)/function.c \
+  $(srcdir)/function.c $(srcdir)/except.h \
   $(srcdir)/gcse.c $(srcdir)/integrate.c $(srcdir)/lists.c $(srcdir)/optabs.c \
-  $(srcdir)/profile.c $(srcdir)/ra-build.c $(srcdir)/regclass.c \
-  $(srcdir)/reg-stack.c $(srcdir)/cfglayout.c $(srcdir)/langhooks.c \
-  $(srcdir)/sdbout.c $(srcdir)/stmt.c $(srcdir)/stor-layout.c \
+  $(srcdir)/profile.c $(srcdir)/regclass.c \
+  $(srcdir)/reg-stack.c $(srcdir)/cfglayout.c \
+  $(srcdir)/sdbout.c $(srcdir)/stor-layout.c \
   $(srcdir)/stringpool.c $(srcdir)/tree.c $(srcdir)/varasm.c \
-  $(out_file)
+  $(srcdir)/tree-mudflap.c $(srcdir)/tree-flow.h \
+  $(srcdir)/c-objc-common.c $(srcdir)/c-common.c $(srcdir)/c-parser.c \
+  $(srcdir)/tree-ssanames.c $(srcdir)/tree-eh.c $(srcdir)/tree-ssa-address.c \
+  $(srcdir)/tree-phinodes.c $(srcdir)/tree-cfg.c \
+  $(srcdir)/tree-dfa.c $(srcdir)/tree-ssa-propagate.c \
+  $(srcdir)/tree-iterator.c $(srcdir)/gimplify.c \
+  $(srcdir)/tree-chrec.h $(srcdir)/tree-vect-generic.c \
+  $(srcdir)/tree-ssa-operands.h $(srcdir)/tree-ssa-operands.c \
+  $(srcdir)/tree-profile.c $(srcdir)/tree-nested.c \
+  $(srcdir)/ipa-reference.c $(srcdir)/tree-ssa-structalias.h \
+  $(srcdir)/tree-ssa-structalias.c \
+  $(srcdir)/c-pragma.h $(srcdir)/omp-low.c \
+  $(srcdir)/targhooks.c $(srcdir)/cgraphunit.c $(out_file) \
 
-#
-# Build a list of frontend directories to look into
-#
+# The list of frontend directories to look into
 GTFILES_LANG_DIR_NAMES=
 
 .if ${MK_CXX} != "no"
@@ -318,13 +126,7 @@ GTFILES_LANG_DIR_NAMES+=	cp
 GTFILES_LANG_DIR_NAMES+=	objc
 .endif
 
-.if ${MK_FORTRAN} != "no"
-GTFILES_LANG_DIR_NAMES+=	f
-.endif
-
-#
-# Build a list of language specific files for gengtype
-#
+# The list of language specific files for gengtype
 .for L in ${GTFILES_LANG_DIR_NAMES} c
 .if exists(${GCCDIR}/$L-config-lang.in)
 # Source the language config file
@@ -339,16 +141,173 @@ GTFILES_LANGS+= $L
 .endfor
 GTFILES+=	${GTFILES_FILES}
 
+#
+# Tree definition files.
+#
+TREE_DEF_FILES=
+
+.if ${MK_CXX} != "no"
+TREE_DEF_FILES+=	cp/cp-tree.def
+.endif
+
+.if ${MK_OBJC} != "no"
+TREE_DEF_FILES+=	objc/objc-tree.def
+.endif
+
+#
+# Option files.
+#
+OPT_FILES=	c.opt common.opt
+
+.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.opt)
+OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.opt
+.endif
+
+.if exists(${.CURDIR}/${GCC_CPU}-freebsd.opt)
+OPT_FILES+=	${.CURDIR}/${GCC_CPU}-freebsd.opt
+.endif
+
+.if ${TARGET_ARCH} == "powerpc"
+OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/sysv4.opt
+.endif
+
+.if ${TARGET_ARCH} == "sparc64"
+OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/long-double-switch.opt
+.endif
+
+.if exists(${.CURDIR}/freebsd.opt)
+OPT_FILES+=	${.CURDIR}/freebsd.opt
+.endif
+
 #-----------------------------------------------------------------------
-# the host/target compiler config.
+# Build rules for header files and generator tools
 
-COMMONHDRS=	bconfig.h config.h configargs.h gencheck.h multilib.h \
-		specs.h safe-ctype.h tconfig.h tm.h tm_p.h gcov-iov.h \
-		gtyp-gen.h
-GENSRCS+=	${COMMONHDRS}
+# Host config
+config.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="auto-host.h ansidecl.h" \
+	DEFINES="" \
+	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
 
-MFILE?=	${.CURDIR}/Makefile
-${COMMONHDRS}: ${MFILE}
+GENSRCS+=	config.h
+CLEANFILES+=	cs-config.h
+
+# Build config
+bconfig.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="auto-host.h ansidecl.h" \
+	DEFINES="" \
+	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
+.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-modes.def)
+	echo '#define EXTRA_MODES_FILE "${GCC_CPU}/${GCC_CPU}-modes.def"' >> ${.TARGET}
+.endif
+
+GENSRCS+=	bconfig.h
+CLEANFILES+=	cs-bconfig.h
+
+# tconfig.h
+tconfig.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="auto-host.h ansidecl.h" \
+	DEFINES="USED_FOR_TARGET" \
+	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
+
+GENSRCS+=	tconfig.h
+CLEANFILES+=	cs-tconfig.h
+# Options
+optionlist: ${OPT_FILES}
+	awk -f ${GCCDIR}/opt-gather.awk ${.ALLSRC} > ${.TARGET}
+
+options.h:	optionlist
+	awk -f ${GCCDIR}/opt-functions.awk \
+	    -f ${GCCDIR}/opth-gen.awk \
+		< ${.ALLSRC} > ${.TARGET}
+
+options.c:	optionlist
+	awk -f ${GCCDIR}/opt-functions.awk \
+	    -f ${GCCDIR}/optc-gen.awk \
+		-v header_name="config.h system.h coretypes.h tm.h" \
+		< ${.ALLSRC} > ${.TARGET}
+GENONLY+=	optionlist options.h options.c
+
+# Target machine config
+tm.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="${TARGET_INC}" \
+	DEFINES="" \
+	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
+.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-modes.def)
+	echo '#define EXTRA_MODES_FILE "${GCC_CPU}/${GCC_CPU}-modes.def"' >> ${.TARGET}
+.endif
+
+GENSRCS+=	tm.h
+CLEANFILES+=	cs-tm.h
+
+# Target machine protos/preds.
+tm_p.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="${GCC_CPU}/${GCC_CPU}-protos.h tm-preds.h" \
+	DEFINES="" \
+	/bin/sh ${GCCDIR}/mkconfig.sh tm_p.h
+
+GENSRCS+=	tm_p.h
+CLEANFILES+=	cs-tm_p.h
+
+# gencheck
+gencheck.h:
+.for F in ${TREE_DEF_FILES}
+	echo "#include \"$F\""					>> ${.TARGET}
+.endfor
+
+GENSRCS+=	gencheck.h
+
+
+# Source header for gtyp generator.
+gtyp-gen.h:	${GTFILES}
+	echo "/* This file is machine generated.  Do not edit.  */" > ${.TARGET}
+	echo "static const char * const srcdir = "		>> ${.TARGET}
+	echo "\"$(GTFILES_SRCDIR)\";"				>> ${.TARGET}
+	echo "static const char * const lang_files[] = {"	>> ${.TARGET}
+.for F in ${GTFILES_FILES}
+	echo "\"$F\", "						>> ${.TARGET}
+.endfor
+	echo "NULL};"						>> ${.TARGET}
+	echo "static const char * const langs_for_lang_files[] = {">> ${.TARGET}
+.for F in ${GTFILES_LANGS}
+	echo "\"$F\", "						>> ${.TARGET}
+.endfor
+	echo "NULL};"						>> ${.TARGET}
+	echo "static const char * const all_files[] = {"	>> ${.TARGET}
+.for F in ${GTFILES}
+	echo "\"$F\", "						>> ${.TARGET}
+.endfor
+	echo "NULL};"						>> ${.TARGET}
+	echo "static const char * const lang_dir_names[] = {"	>> ${.TARGET}
+.for F in c ${GTFILES_LANG_DIR_NAMES}
+	echo "\"$F\", "						>> ${.TARGET}
+.endfor
+	echo "NULL};"						>> ${.TARGET}
+
+GENSRCS+=	gtyp-gen.h
+
+# Version header for gcov
+gcov-iov.h:
+	echo "#define GCOV_VERSION ((gcov_unsigned_t)0x34303270)" >> ${.TARGET}
+
+GENSRCS+=	gcov-iov.h
+
+# Multilib config file
+multilib.h:
+	echo 'static const char *const multilib_raw[] = { \
+	    ". ;", NULL };'					> ${.TARGET}
+	echo 'static const char *const multilib_matches_raw[] = { \
+	    NULL };'						>> ${.TARGET}
+	echo 'static const char *multilib_extra = "";'		>> ${.TARGET}
+	echo 'static const char *multilib_options = "";'	>> ${.TARGET}
+	echo 'static const char *const multilib_exclusions_raw[] = { \
+	    NULL };'						>> ${.TARGET}
+
+GENSRCS+=	multilib.h
 
 configargs.h:
 	echo 'static const char configuration_arguments[] ='	> ${.TARGET}
@@ -359,147 +318,194 @@ configargs.h:
 	echo '} configure_default_options[] = {'		>> ${.TARGET}
 	echo '	{ "NULL", "NULL" } };'				>> ${.TARGET}
 
-tconfig.h:
-	echo '#ifndef GCC_TCONFIG_H'			> ${.TARGET}
-	echo '#define GCC_TCONFIG_H'			>> ${.TARGET}
-	echo '#ifdef IN_GCC'				>> ${.TARGET}
-	echo '# include "ansidecl.h"'			>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
-	echo '#define USED_FOR_TARGET'			>> ${.TARGET}
-	echo '#endif /* GCC_TCONFIG_H */'		>> ${.TARGET}
+GENSRCS+=	configargs.h
 
-bconfig.h:
-	echo '#ifndef GCC_BCONFIG_H'			> ${.TARGET}
-	echo '#define GCC_BCONFIG_H'			>> ${.TARGET}
-	echo '#include "auto-host.h"'			>> ${.TARGET}
-.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-modes.def)
-	echo '#define EXTRA_MODES_FILE "${GCC_CPU}/${GCC_CPU}-modes.def"' >> ${.TARGET}
-.endif
-	echo '#ifdef IN_GCC'				>> ${.TARGET}
-	echo '# include "ansidecl.h"'			>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
-	echo '#endif /* GCC_BCONFIG_H */'		>> ${.TARGET}
-
-gencheck.h:
-	echo '#include "cp/cp-tree.def"'		> ${.TARGET}
-	echo '#include "objc/objc-tree.def"'		>> ${.TARGET}
-
-multilib.h:
-	echo 'static const char *const multilib_raw[] = { \
-	    "aout maout;", "elf !maout;", NULL };'	> ${.TARGET}
-	echo 'static const char *const multilib_matches_raw[] = { \
-	    "maout maout;", "melf melf;", NULL };'	>> ${.TARGET}
-	echo 'static const char *multilib_extra = "";'	>> ${.TARGET}
-	echo 'static const char *multilib_options = "";'>> ${.TARGET}
-	echo 'static const char *const multilib_exclusions_raw[] = { \
-	    NULL };'					>> ${.TARGET}
-
+# Language spec files
 specs.h:
-	echo '#include "cp/lang-specs.h"'		> ${.TARGET}
-	echo '#include "f/lang-specs.h"'		>> ${.TARGET}
-	echo '#include "objc/lang-specs.h"'		>> ${.TARGET}
+	echo '#include "cp/lang-specs.h"'			> ${.TARGET}
+	echo '#include "objc/lang-specs.h"'			>> ${.TARGET}
 
-config.h: bconfig.h
-	echo '#include <bconfig.h>'			> ${.TARGET}
+GENSRCS+=	specs.h
 
-tm.h:
-	echo '#ifndef GCC_TM_H'				> ${.TARGET}
-	echo '#define GCC_TM_H'				>> ${.TARGET}
-.if defined(TARGET_CPU_DEFAULT)
-	echo "#define TARGET_CPU_DEFAULT (${TARGET_CPU_DEFAULT})" >> ${.TARGET}
-.endif
-	echo '#ifdef IN_GCC'				>> ${.TARGET}
-.for H in ${TARGET_INC}
-	echo '#include "$H"'				>> ${.TARGET}
+gstdint.h:
+	echo '#include "sys/types.h"'				> ${.TARGET}
+	echo '#include "sys/stdint.h"'				>> ${.TARGET}
+
+GENSRCS+=	gstdint.h
+
+# Linked headers
+gthr-default.h: ${GCCDIR}/gthr-posix.h
+	ln -sf ${.ALLSRC} ${.TARGET}
+
+GENSRCS+=	gthr-default.h
+
+unwind.h: ${GCCDIR}/unwind-generic.h
+	ln -sf ${.ALLSRC} ${.TARGET}
+
+GENSRCS+=	unwind.h
+
+#
+# gtype gunk
+#
+gengtype-lex.c:	gengtype-lex.l
+	flex -ogengtype-lex.c ${.ALLSRC}
+
+gengtype-yacc.h: gengtype-yacc.y
+	yacc -d -o gengtype-yacc.c ${.ALLSRC}
+
+gengtype-yacc.c: gengtype-yacc.h
+
+gengtype-yacc+%DIKED.c: gengtype-yacc.c
+	cat    ${.ALLSRC} > ${.TARGET}
+	sed -e "s/xmalloc/malloc/g" \
+	    -e "s/xrealloc/realloc/g" \
+	    -e "s/malloc/xmalloc/g" \
+	    -e "s/realloc/xrealloc/g" \
+	    ${.ALLSRC} > ${.TARGET}
+
+GENSRCS+= gengtype-lex.c gengtype-yacc.h gengtype-yacc+%DIKED.c
+CLEANFILES+= gengtype-yacc.c
+
+gengtype: gengtype.o gengtype-yacc+%DIKED.o gengtype-lex.o errors.o \
+	  ${LIBIBERTY}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+
+gtype-desc.h:	gengtype
+	./gengtype
+	touch ${.TARGET}
+
+gtype-desc.c:	gtype-desc.h
+
+GENONLY+=	gtype-desc.c gtype-desc.h
+CLEANFILES+=	gt-*.h gtype-*.h
+
+#
+# Generator tools.
+#
+.for F in check checksum genrtl modes
+gen$F:	gen$F.o errors.o ${LIBIBERTY}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 .endfor
-	echo '#if !defined GENERATOR_FILE && !defined USED_FOR_TARGET' >> ${.TARGET}
-	echo '# include "insn-constants.h"'		>> ${.TARGET}
-	echo '# include "insn-flags.h"'			>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
-.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-modes.def)
-	echo '#define EXTRA_MODES_FILE "${GCC_CPU}/${GCC_CPU}-modes.def"' >> ${.TARGET}
-.endif
-	echo '#endif /* GCC_TM_H */'			>> ${.TARGET}
 
-tm_p.h:
-	echo '#include "${GCC_CPU}/${GCC_CPU}-protos.h"'	>> ${.TARGET}
-	echo '#include "tm-preds.h"'				>> ${.TARGET}
-
-safe-ctype.h:
-	echo '#include <ctype.h>'				> ${.TARGET}
-.for Z in TOUPPER TOLOWER ISDIGIT ISXDIGIT ISUPPER ISLOWER ISALPHA ISALNUM \
-    ISSPACE ISPUNCT ISGRAPH ISBLANK ISPRINT ISCNTRL
-	echo '#define ${Z}	${Z:L}'				>> ${.TARGET}
+.for F in attr attrtab automata codes conditions config constants emit \
+	extract flags  opinit output peep preds recog
+gen$F:	gen$F.o rtl.o read-rtl.o ggc-none.o vec.o min-insn-modes.o \
+	gensupport.o print-rtl.o errors.o ${LIBIBERTY}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} -lm
 .endfor
-	echo "#define ISIDST(x)		\
-		((x) == '_' || isalpha(x))"			>> ${.TARGET}
-	echo "#define ISIDNUM(x)	\
-		(isdigit(x) || ISIDST(x))"			>> ${.TARGET}
-	echo "#define IS_VSPACE(x)	\
-		((x) == '\n' || (x) == '\r')"			>> ${.TARGET}
-	echo "#define IS_NVSPACE(x)	\
-		(!IS_VSPACE(x) && (isspace(x) || (x) == '\0'))"	>> ${.TARGET}
-	echo "#define IS_SPACE_OR_NUL(x)	\
-		(isspace(x) || (x) == '\0')"			>> ${.TARGET}
 
-gtyp-gen.h:
-	echo "/* This file is machine generated.  Do not edit.  */" > ${.TARGET}
-	echo "static const char *srcdir = "			>> ${.TARGET}
-	echo "\"$(GTFILES_SRCDIR)\";"				>> ${.TARGET}
-	echo "static const char *lang_files[] = {"		>> ${.TARGET}
-.for F in ${GTFILES_FILES}
-	echo "\"$F\", "						>> ${.TARGET}
+gencondmd:	gencondmd.o
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+
+#
+# Generated .md files.
+#
+insn-conditions.md:	gencondmd
+	./gencondmd > ${.TARGET}
+GENSRCS+=	insn-conditions.md
+
+#
+# Generated header files.
+#
+
+.for F in constants
+insn-$F.h:	gen$F ${MD_FILE}
+	./gen$F ${MD_FILE} > ${.TARGET}
+GENSRCS+=	insn-$F.h
 .endfor
-	echo "NULL};"						>> ${.TARGET}
-	echo "static const char *langs_for_lang_files[] = {"	>> ${.TARGET}
-.for F in ${GTFILES_LANGS}
-	echo "\"$F\", "						>> ${.TARGET}
+
+.for F in attr codes config flags
+insn-$F.h:	gen$F ${MD_FILE} insn-conditions.md
+	./gen$F ${MD_FILE} insn-conditions.md > ${.TARGET}
+GENSRCS+=	insn-$F.h
 .endfor
-	echo "NULL};"						>> ${.TARGET}
-	echo "static const char *all_files[] = {"		>> ${.TARGET}
-.for F in ${GTFILES}
-	echo "\"$F\", "						>> ${.TARGET}
+
+# Header files with irregular names.
+genrtl.h:	gengenrtl
+	./gengenrtl -h > ${.TARGET}
+GENSRCS+=	genrtl.h
+
+tm-preds.h:	genpreds
+	./genpreds -h ${MD_FILE} > ${.TARGET}
+GENSRCS+=	tm-preds.h
+
+tm-constrs.h:	genpreds
+	./genpreds -c ${MD_FILE} > ${.TARGET}
+GENSRCS+=	tm-constrs.h
+
+tree-check.h:	gencheck
+	./gencheck > ${.TARGET}
+GENSRCS+=	tree-check.h
+
+insn-modes.h:	genmodes
+	./genmodes -h > ${.TARGET}
+GENSRCS+=	insn-modes.h
+
+#
+# Generated source files.
+#
+.for F in attrtab automata emit extract opinit output peep preds recog
+insn-$F.c:	gen$F ${MD_FILE} insn-conditions.md
+	./gen$F ${MD_FILE} insn-conditions.md > ${.TARGET}
+GENONLY+=	insn-$F.c
 .endfor
-	echo "NULL};"						>> ${.TARGET}
-	echo "static const char *lang_dir_names[] = { \"c\", "	>> ${.TARGET}
-.for F in ${GTFILES_LANG_DIR_NAMES}
-	echo "\"$F\", "						>> ${.TARGET}
+
+.for F in conditions
+insn-$F.c:	gen$F ${MD_FILE}
+	./gen$F ${MD_FILE} > ${.TARGET}
+GENSRCS+=	insn-$F.c
 .endfor
-	echo "NULL};"						>> ${.TARGET}
 
-gcov-iov.h:
-	echo "#define GCOV_VERSION ((gcov_unsigned_t)0x33303470)" >> ${.TARGET}
+# Source files with irregular names.
+insn-modes.c:	genmodes
+	./genmodes > ${.TARGET}
+GENONLY+=	insn-modes.c
 
-.if ${TARGET_ARCH} == "arm"
-freebsd-diked.h: ${GCCDIR}/../../gnu/usr.bin/cc/cc_tools/arm-freebsd.h.diff
-	cp ${GCCDIR}/config/arm/freebsd.h freebsd.h
-	patch freebsd.h ${.ALLSRC}
-	mv freebsd.h ${.TARGET}
-COMMONHDRS+=	freebsd-diked.h
-CLEANFILES+=    freebsd.h.orig
+min-insn-modes.c:	genmodes
+	./genmodes -m > ${.TARGET}
+GENSRCS+=	min-insn-modes.c
 
-# Make sure freebsd-diked.h is built when tm.h is built for csu's sake
-tm.h:	freebsd-diked.h
+genrtl.c:	gengenrtl
+	./gengenrtl > ${.TARGET}
+GENONLY+=	genrtl.c
 
-${MD_FILE}: ${MFILE}
-	cp ${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.md .
-	ln -sf ${GCCDIR}/config/${GCC_CPU}/fpa.md .
-	ln -sf ${GCCDIR}/config/${GCC_CPU}/cirrus.md .
-	ln -sf ${GCCDIR}/config/${GCC_CPU}/iwmmxt.md .
-	patch ${GCC_CPU}.md ${.CURDIR}/arm.md.diff
-	mv ${GCC_CPU}.md ${.TARGET}
-CLEANFILES+=	arm-diked.md ${GCC_CPU}.md.orig fpa.md cirrus.md iwmmxt.md
-.endif
+gencondmd.c:	genconditions ${MD_FILE}
+	./genconditions ${MD_FILE} > ${.TARGET}
+GENSRCS+=	gencondmd.c
+
 #-----------------------------------------------------------------------
-# General things.
+# Build tools.
 
-SRCS+=		${GENSRCS}
-CLEANFILES+=	${GENSRCS}
+GNTOOLS+=	genattr genattrtab genautomata gencodes gencheck genchecksum \
+		genconditions gencondmd genconfig genconstants genemit \
+		genextract genflags gengenrtl gengtype genmodes genopinit \
+		genoutput genpeep genpreds genrecog
 
-all:		${SRCS}
+all: ${GNTOOLS} ${GENSRCS} ${GENONLY}
+beforedepend: ${GENONLY}
 
-.include <bsd.prog.mk>
+#
+#-----------------------------------------------------------------------
+# Build 'pocket' libiberty exclusively for build tools use.
+
+LIBIBERTY_SRCS=	choose-temp.c concat.c cp-demangle.c cp-demint.c cplus-dem.c \
+	dyn-string.c fibheap.c fopen_unlocked.c getpwd.c getruntime.c \
+	hashtab.c hex.c lbasename.c make-temp-file.c md5.c obstack.c \
+	partition.c pex-unix.c physmem.c safe-ctype.c splay-tree.c xexit.c \
+	xmalloc.c xmemdup.c xstrdup.c xstrerror.c
+LIBIBERTY_OBJS=	${LIBIBERTY_SRCS:R:S/$/.o/g}
+
+.for _src in ${LIBIBERTY_SRCS}
+${_src:R:S/$/.o/}: ${_src}
+	${CC} -c -I ${.CURDIR}/../libiberty ${CFLAGS} -o ${.TARGET} ${.IMPSRC}
+.endfor
+
+${LIBIBERTY}: ${LIBIBERTY_OBJS}
+	@rm -f ${.TARGET}
+	@${AR} cq ${.TARGET} `lorder ${LIBIBERTY_OBJS} | tsort -q`
+	${RANLIB} ${.TARGET}
+CLEANFILES+=	${LIBIBERTY} ${LIBIBERTY_OBJS}
+
 
 #-----------------------------------------------------------------------
 # Fixups.
@@ -507,47 +513,24 @@ all:		${SRCS}
 # Set OBJS the same as bsd.prog.mk would do if we defined PROG.  We can't
 # define PROG because we have multiple programs.
 #
+SRCS=		errors.c genattr.c genattrtab.c \
+		genautomata.c gencheck.c genchecksum.c gencodes.c \
+		genconditions.c genconfig.c genconstants.c genemit.c \
+		genextract.c genflags.c gengenrtl.c gengtype.c genmodes.c \
+		genopinit.c genoutput.c genpeep.c genpreds.c genrecog.c \
+		gensupport.c ggc-none.c print-rtl.c read-rtl.c rtl.c \
+		vec.c
+
+SRCS+=		${GENSRCS}
 OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
-CLEANFILES+=	${OBJS}
+GENOBJS+=	${GENSRCS:N*.h:R:S/$/.o/g}
+CLEANFILES+=	${GENSRCS} ${GENONLY} ${GENOBJS} ${GNTOOLS}
 
+#-----------------------------------------------------------------------
+# Manual dependencies.
 .if !exists(${DEPENDFILE})
-# Fudge pre-dependfile dependencies of objects in much the same way as
-# bsd.prog.mk would do if we defined PROG.
-
-${OBJS}: ${COMMONHDRS}
-
-dummy-conditions.o:
-gencheck.o:
-genmodes.o:
-
-genpreds.o: insn-modes.h
-genconstants.o: insn-modes.h genrtl.h
-gengtype.o: insn-modes.h genrtl.h gtyp-gen.h
-rtl.o: insn-modes.h gtype-desc.h genrtl.h
-bitmap.o: insn-modes.h gtype-desc.h genrtl.h
-ggc-none.o: gtype-desc.h
-gensupport.o: insn-modes.h genrtl.h
-varray.o: gtype-desc.h
-genautomata.o: insn-modes.h genrtl.h
-genconditions.o: insn-modes.h genrtl.h
-gencodes.o: insn-modes.h genrtl.h
-genconfig.o: insn-modes.h genrtl.h
-print-rtl.o: insn-modes.h genrtl.h tm-preds.h tree-check.h
-read-rtl.o: insn-modes.h genrtl.h
-genattr.o: insn-modes.h genrtl.h
-genemit.o: insn-modes.h genrtl.h
-genflags.o: insn-modes.h genrtl.h
-genopinit.o: insn-modes.h genrtl.h
-genoutput.o: insn-modes.h genrtl.h
-genpeep.o: insn-modes.h genrtl.h
-genrecog.o: insn-modes.h genrtl.h
-genextract.o: genrtl.h insn-config.h
-genattrtab.o: insn-modes.h gtype-desc.h genrtl.h
-genrtl.o: insn-modes.h genrtl.h gtype-desc.h
-
-insn-conditions.o: insn-constants.h tm-preds.h
-insn-modes.o: insn-modes.h
-min-insn-modes.o: insn-modes.h
-gtype-desc.o: insn-modes.h insn-config.h insn-codes.h tree-check.h
-
+.include  "Makefile.dep"
 .endif
+
+.include <bsd.prog.mk>
+# DO NOT DELETE
