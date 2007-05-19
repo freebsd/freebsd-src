@@ -1,6 +1,6 @@
 // File based streams -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,6 +28,11 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file fstream.tcc
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
+
 //
 // ISO C++ 14882: 27.8  File-based streams
 //
@@ -37,8 +42,8 @@
 
 #pragma GCC system_header
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   template<typename _CharT, typename _Traits>
     void
     basic_filebuf<_CharT, _Traits>::
@@ -46,9 +51,9 @@ namespace std
     {
       // Allocate internal buffer only if one doesn't already exist
       // (either allocated or provided by the user via setbuf).
-      if (!_M_buf_allocated && !this->_M_buf)
+      if (!_M_buf_allocated && !_M_buf)
 	{
-	  this->_M_buf = new char_type[this->_M_buf_size];
+	  _M_buf = new char_type[_M_buf_size];
 	  _M_buf_allocated = true;
 	}
     }
@@ -60,8 +65,8 @@ namespace std
     {
       if (_M_buf_allocated)
 	{
-	  delete [] this->_M_buf;
-	  this->_M_buf = NULL;
+	  delete [] _M_buf;
+	  _M_buf = NULL;
 	  _M_buf_allocated = false;
 	}
       delete [] _M_ext_buf;
@@ -97,7 +102,7 @@ namespace std
 	  if (this->is_open())
 	    {
 	      _M_allocate_internal_buffer();
-	      this->_M_mode = __mode;
+	      _M_mode = __mode;
 
 	      // Setup initial buffer to 'uncommitted' mode.
 	      _M_reading = false;
@@ -137,8 +142,8 @@ namespace std
 	    { __testfail = true; }
 
 	  // NB: Do this here so that re-opened filebufs will be cool...
-	  this->_M_mode = ios_base::openmode(0);
-	  this->_M_pback_init = false;
+	  _M_mode = ios_base::openmode(0);
+	  _M_pback_init = false;
 	  _M_destroy_internal_buffer();
 	  _M_reading = false;
 	  _M_writing = false;
@@ -160,13 +165,21 @@ namespace std
     showmanyc()
     {
       streamsize __ret = -1;
-      const bool __testin = this->_M_mode & ios_base::in;
+      const bool __testin = _M_mode & ios_base::in;
       if (__testin && this->is_open())
 	{
 	  // For a stateful encoding (-1) the pending sequence might be just
 	  // shift and unshift prefixes with no actual character.
 	  __ret = this->egptr() - this->gptr();
+
+#if _GLIBCXX_HAVE_DOS_BASED_FILESYSTEM
+	  // About this workaround, see libstdc++/20806.
+	  const bool __testbinary = _M_mode & ios_base::binary;
+	  if (__check_facet(_M_codecvt).encoding() >= 0
+	      && __testbinary)
+#else
 	  if (__check_facet(_M_codecvt).encoding() >= 0)
+#endif
 	    __ret += _M_file.showmanyc() / _M_codecvt->max_length();
 	}
       return __ret;
@@ -178,7 +191,7 @@ namespace std
     underflow()
     {
       int_type __ret = traits_type::eof();
-      const bool __testin = this->_M_mode & ios_base::in;
+      const bool __testin = _M_mode & ios_base::in;
       if (__testin && !_M_writing)
 	{
 	  // Check for pback madness, and if so swich back to the
@@ -190,8 +203,7 @@ namespace std
 	    return traits_type::to_int_type(*this->gptr());
 
 	  // Get and convert input sequence.
-	  const size_t __buflen = this->_M_buf_size > 1
-	                          ? this->_M_buf_size - 1 : 1;
+	  const size_t __buflen = _M_buf_size > 1 ? _M_buf_size - 1 : 1;
 
 	  // Will be set to true if ::read() returns 0 indicating EOF.
 	  bool __got_eof = false;
@@ -328,12 +340,12 @@ namespace std
     pbackfail(int_type __i)
     {
       int_type __ret = traits_type::eof();
-      const bool __testin = this->_M_mode & ios_base::in;
+      const bool __testin = _M_mode & ios_base::in;
       if (__testin && !_M_writing)
 	{
 	  // Remember whether the pback buffer is active, otherwise below
 	  // we may try to store in it a second char (libstdc++/9761).
-	  const bool __testpb = this->_M_pback_init;
+	  const bool __testpb = _M_pback_init;
 	  const bool __testeof = traits_type::eq_int_type(__i, __ret);
 	  int_type __tmp;
 	  if (this->eback() < this->gptr())
@@ -381,7 +393,7 @@ namespace std
     {
       int_type __ret = traits_type::eof();
       const bool __testeof = traits_type::eq_int_type(__c, __ret);
-      const bool __testout = this->_M_mode & ios_base::out;
+      const bool __testout = _M_mode & ios_base::out;
       if (__testout && !_M_reading)
 	{
 	  if (this->pbase() < this->pptr())
@@ -402,7 +414,7 @@ namespace std
 		  __ret = traits_type::not_eof(__c);
 		}
 	    }
-	  else if (this->_M_buf_size > 1)
+	  else if (_M_buf_size > 1)
 	    {
 	      // Overflow in 'uncommitted' mode: set _M_writing, set
 	      // the buffer to the initial 'write' mode, and put __c
@@ -500,7 +512,7 @@ namespace std
      {
        // Clear out pback buffer before going on to the real deal...
        streamsize __ret = 0;
-       if (this->_M_pback_init)
+       if (_M_pback_init)
 	 {
 	   if (__n > 0 && this->gptr() == this->eback())
 	     {
@@ -515,9 +527,9 @@ namespace std
        // Optimization in the always_noconv() case, to be generalized in the
        // future: when __n > __buflen we read directly instead of using the
        // buffer repeatedly.
-       const bool __testin = this->_M_mode & ios_base::in;
-       const streamsize __buflen = this->_M_buf_size > 1 ? this->_M_buf_size - 1
-	                                                 : 1;
+       const bool __testin = _M_mode & ios_base::in;
+       const streamsize __buflen = _M_buf_size > 1 ? _M_buf_size - 1 : 1;
+
        if (__n > __buflen && __check_facet(_M_codecvt).always_noconv()
 	   && __testin && !_M_writing)
 	 {
@@ -585,7 +597,7 @@ namespace std
        // future: when __n is sufficiently large we write directly instead of
        // using the buffer.
        streamsize __ret = 0;
-       const bool __testout = this->_M_mode & ios_base::out;
+       const bool __testout = _M_mode & ios_base::out;
        if (__check_facet(_M_codecvt).always_noconv()
 	   && __testout && !_M_reading)
 	{
@@ -594,8 +606,8 @@ namespace std
 	  streamsize __bufavail = this->epptr() - this->pptr();
 
 	  // Don't mistake 'uncommitted' mode buffered with unbuffered.
-	  if (!_M_writing && this->_M_buf_size > 1)
-	    __bufavail = this->_M_buf_size - 1;
+	  if (!_M_writing && _M_buf_size > 1)
+	    __bufavail = _M_buf_size - 1;
 
 	  const streamsize __limit = std::min(__chunk, __bufavail);
 	  if (__n >= __limit)
@@ -630,7 +642,7 @@ namespace std
     {
       if (!this->is_open())
 	if (__s == 0 && __n == 0)
-	  this->_M_buf_size = 1;
+	  _M_buf_size = 1;
 	else if (__s && __n > 0)
 	  {
 	    // This is implementation-defined behavior, and assumes that
@@ -641,8 +653,8 @@ namespace std
 	    // position to host the overflow char of a full put area.
 	    // When __n == 1, 1 position will be used for the get area
 	    // and 0 for the put area, as in the unbuffered case above.
-	    this->_M_buf = __s;
-	    this->_M_buf_size = __n;
+	    _M_buf = __s;
+	    _M_buf_size = __n;
 	  }
       return this;
     }
@@ -728,12 +740,15 @@ namespace std
 	{
 	  // Returns pos_type(off_type(-1)) in case of failure.
 	  __ret = pos_type(_M_file.seekoff(__off, __way));
-	  _M_reading = false;
-	  _M_writing = false;
-	  _M_ext_next = _M_ext_end = _M_ext_buf;
-	  _M_set_buffer(-1);
-	  _M_state_cur = __state;
-	  __ret.state(_M_state_cur);
+	  if (__ret != pos_type(off_type(-1)))
+	    {
+	      _M_reading = false;
+	      _M_writing = false;
+	      _M_ext_next = _M_ext_end = _M_ext_buf;
+	      _M_set_buffer(-1);
+	      _M_state_cur = __state;
+	      __ret.state(_M_state_cur);
+	    }
 	}
       return __ret;
     }
@@ -841,7 +856,7 @@ namespace std
 		    {
 		      if (_M_codecvt_tmp
 			  && !__check_facet(_M_codecvt_tmp).always_noconv())
-			__testvalid = this->seekoff(0, ios_base::cur, this->_M_mode)
+			__testvalid = this->seekoff(0, ios_base::cur, _M_mode)
 			              != pos_type(off_type(-1));
 		    }
 		  else
@@ -887,6 +902,7 @@ namespace std
   extern template class basic_fstream<wchar_t>;
 #endif
 #endif
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif

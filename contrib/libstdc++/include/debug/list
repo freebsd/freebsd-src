@@ -1,6 +1,6 @@
 // Debugging list implementation -*- C++ -*-
 
-// Copyright (C) 2003, 2004
+// Copyright (C) 2003, 2004, 2005, 2006
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,6 +28,37 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+// Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+/** @file debug/list
+ *  This file is a GNU debug extension to the Standard C++ Library.
+ */
+
 #ifndef _GLIBCXX_DEBUG_LIST
 #define _GLIBCXX_DEBUG_LIST 1
 
@@ -36,7 +67,9 @@
 #include <debug/safe_sequence.h>
 #include <debug/safe_iterator.h>
 
-namespace __gnu_debug_def
+namespace std
+{
+namespace __debug
 {
   template<typename _Tp, typename _Allocator = std::allocator<_Tp> >
     class list
@@ -47,8 +80,8 @@ namespace __gnu_debug_def
       typedef __gnu_debug::_Safe_sequence<list>  _Safe_base;
 
     public:
-      typedef typename _Allocator::reference        reference;
-      typedef typename _Allocator::const_reference  const_reference;
+      typedef typename _Base::reference             reference;
+      typedef typename _Base::const_reference       const_reference;
 
       typedef __gnu_debug::_Safe_iterator<typename _Base::iterator, list>
 						    iterator;
@@ -60,8 +93,8 @@ namespace __gnu_debug_def
 
       typedef _Tp				    value_type;
       typedef _Allocator			    allocator_type;
-      typedef typename _Allocator::pointer          pointer;
-      typedef typename _Allocator::const_pointer    const_pointer;
+      typedef typename _Base::pointer               pointer;
+      typedef typename _Base::const_pointer         const_pointer;
       typedef std::reverse_iterator<iterator>       reverse_iterator;
       typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
@@ -296,7 +329,7 @@ namespace __gnu_debug_def
       splice(iterator __position, list& __x)
       {
 	_GLIBCXX_DEBUG_VERIFY(&__x != this,
-			      _M_message(::__gnu_debug::__msg_self_splice)
+			      _M_message(__gnu_debug::__msg_self_splice)
 			      ._M_sequence(*this, "this"));
 	this->splice(__position, __x, __x.begin(), __x.end());
       }
@@ -305,14 +338,15 @@ namespace __gnu_debug_def
       splice(iterator __position, list& __x, iterator __i)
       {
 	__glibcxx_check_insert(__position);
-	_GLIBCXX_DEBUG_VERIFY(__x.get_allocator() == this->get_allocator(),
-			      _M_message(::__gnu_debug::__msg_splice_alloc)
-			    ._M_sequence(*this)._M_sequence(__x, "__x"));
+
+	// We used to perform the splice_alloc check:  not anymore, redundant
+	// after implementing the relevant bits of N1599.
+
 	_GLIBCXX_DEBUG_VERIFY(__i._M_dereferenceable(),
-			      _M_message(::__gnu_debug::__msg_splice_bad)
+			      _M_message(__gnu_debug::__msg_splice_bad)
 			      ._M_iterator(__i, "__i"));
 	_GLIBCXX_DEBUG_VERIFY(__i._M_attached_to(&__x),
-			      _M_message(::__gnu_debug::__msg_splice_other)
+			      _M_message(__gnu_debug::__msg_splice_other)
 			     ._M_iterator(__i, "__i")._M_sequence(__x, "__x"));
 
 	// _GLIBCXX_RESOLVE_LIB_DEFECTS
@@ -327,17 +361,17 @@ namespace __gnu_debug_def
 	__glibcxx_check_insert(__position);
 	__glibcxx_check_valid_range(__first, __last);
 	_GLIBCXX_DEBUG_VERIFY(__first._M_attached_to(&__x),
-			      _M_message(::__gnu_debug::__msg_splice_other)
+			      _M_message(__gnu_debug::__msg_splice_other)
 			      ._M_sequence(__x, "x")
 			      ._M_iterator(__first, "first"));
-	_GLIBCXX_DEBUG_VERIFY(__x.get_allocator() == this->get_allocator(),
-			      _M_message(::__gnu_debug::__msg_splice_alloc)
-			      ._M_sequence(*this)._M_sequence(__x));
+
+	// We used to perform the splice_alloc check:  not anymore, redundant
+	// after implementing the relevant bits of N1599.
 
 	for (iterator __tmp = __first; __tmp != __last; )
 	  {
 	    _GLIBCXX_DEBUG_VERIFY(&__x != this || __tmp != __position,
-				_M_message(::__gnu_debug::__msg_splice_overlap)
+				_M_message(__gnu_debug::__msg_splice_overlap)
 				  ._M_iterator(__tmp, "position")
 				  ._M_iterator(__first, "first")
 				  ._M_iterator(__last, "last"));
@@ -500,6 +534,7 @@ namespace __gnu_debug_def
     inline void
     swap(list<_Tp, _Alloc>& __lhs, list<_Tp, _Alloc>& __rhs)
     { __lhs.swap(__rhs); }
-} // namespace __gnu_debug_def
+} // namespace __debug
+} // namespace std
 
 #endif

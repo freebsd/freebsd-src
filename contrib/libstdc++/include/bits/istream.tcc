@@ -1,6 +1,7 @@
 // istream classes -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+// 2006, 2007
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +17,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,6 +28,11 @@
 // the GNU General Public License.  This exception does not however
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
+
+/** @file istream.tcc
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
 
 //
 // ISO C++ 14882: 27.6.1  Input streams
@@ -40,8 +46,8 @@
 #include <locale>
 #include <ostream> // For flush()
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   template<typename _CharT, typename _Traits>
     basic_istream<_CharT, _Traits>::sentry::
     sentry(basic_istream<_CharT, _Traits>& __in, bool __noskip) : _M_ok(false)
@@ -81,331 +87,64 @@ namespace std
     }
 
   template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(__istream_type& (*__pf)(__istream_type&))
-    { return __pf(*this); }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(__ios_type& (*__pf)(__ios_type&))
-    {
-      __pf(*this);
-      return *this;
-    }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(ios_base& (*__pf)(ios_base&))
-    {
-      __pf(*this);
-      return *this;
-    }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(bool& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
+    template<typename _ValueT>
+      basic_istream<_CharT, _Traits>&
+      basic_istream<_CharT, _Traits>::
+      _M_extract(_ValueT& __v)
+      {
+	sentry __cerb(*this, false);
+	if (__cerb)
+	  {
+	    ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
+	    try
+	      {
+		const __num_get_type& __ng = __check_facet(this->_M_num_get);
+		__ng.get(*this, 0, *this, __err, __v);
+	      }
+	    catch(...)
+	      { this->_M_setstate(ios_base::badbit); }
+	    if (__err)
+	      this->setstate(__err);
+	  }
+	return *this;
+      }
 
   template<typename _CharT, typename _Traits>
     basic_istream<_CharT, _Traits>&
     basic_istream<_CharT, _Traits>::
     operator>>(short& __n)
     {
-      sentry __cerb(*this, false);
-      if (__cerb)
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 118. basic_istream uses nonexistent num_get member functions.
+      long __l;
+      _M_extract(__l);
+      if (!this->fail())
 	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      long __l;
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __l);
-	      // _GLIBCXX_RESOLVE_LIB_DEFECTS
-	      // 118. basic_istream uses nonexistent num_get member functions.
-	      if (!(__err & ios_base::failbit)
-		  && (numeric_limits<short>::min() <= __l
-		      && __l <= numeric_limits<short>::max()))
-		__n = __l;
-	      else
-                __err |= ios_base::failbit;
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
+	  if (numeric_limits<short>::min() <= __l
+	      && __l <= numeric_limits<short>::max())
+	    __n = __l;
+	  else
+	    this->setstate(ios_base::failbit);
 	}
       return *this;
     }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(unsigned short& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
-
+    
   template<typename _CharT, typename _Traits>
     basic_istream<_CharT, _Traits>&
     basic_istream<_CharT, _Traits>::
     operator>>(int& __n)
     {
-      sentry __cerb(*this, false);
-      if (__cerb)
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 118. basic_istream uses nonexistent num_get member functions.
+      long __l;
+      _M_extract(__l);
+      if (!this->fail())
 	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      long __l;
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __l);
-	      // _GLIBCXX_RESOLVE_LIB_DEFECTS
-	      // 118. basic_istream uses nonexistent num_get member functions.
-	      if (!(__err & ios_base::failbit)
-		  && (numeric_limits<int>::min() <= __l
-		      && __l <= numeric_limits<int>::max()))
-		__n = __l;
-	      else
-                __err |= ios_base::failbit;
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(unsigned int& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(long& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(unsigned long& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
-
-#ifdef _GLIBCXX_USE_LONG_LONG
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(long long& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(unsigned long long& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
-#endif
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(float& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(double& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(long double& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
-      return *this;
-    }
-
-  template<typename _CharT, typename _Traits>
-    basic_istream<_CharT, _Traits>&
-    basic_istream<_CharT, _Traits>::
-    operator>>(void*& __n)
-    {
-      sentry __cerb(*this, false);
-      if (__cerb)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const __num_get_type& __ng = __check_facet(this->_M_num_get);
-	      __ng.get(*this, 0, *this, __err, __n);
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
+	  if (numeric_limits<int>::min() <= __l
+	      && __l <= numeric_limits<int>::max())
+	    __n = __l;
+	  else
+	    this->setstate(ios_base::failbit);
 	}
       return *this;
     }
@@ -421,8 +160,11 @@ namespace std
 	{
 	  try
 	    {
-	      if (!__copy_streambufs(this->rdbuf(), __sbout))
+	      bool __ineof;
+	      if (!__copy_streambufs_eof(this->rdbuf(), __sbout, __ineof))
 		__err |= ios_base::failbit;
+	      if (__ineof)
+		__err |= ios_base::eofbit;
 	    }
 	  catch(...)
 	    { this->_M_setstate(ios_base::failbit); }
@@ -528,7 +270,10 @@ namespace std
 	  catch(...)
 	    { this->_M_setstate(ios_base::badbit); }
 	}
-      *__s = char_type();
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 243. get and getline when sentry reports failure.
+      if (__n > 0)
+	*__s = char_type();
       if (!_M_gcount)
 	__err |= ios_base::failbit;
       if (__err)
@@ -584,60 +329,133 @@ namespace std
       ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
       sentry __cerb(*this, true);
       if (__cerb)
-	{
+        {
           try
+            {
+              const int_type __idelim = traits_type::to_int_type(__delim);
+              const int_type __eof = traits_type::eof();
+              __streambuf_type* __sb = this->rdbuf();
+              int_type __c = __sb->sgetc();
+
+              while (_M_gcount + 1 < __n
+                     && !traits_type::eq_int_type(__c, __eof)
+                     && !traits_type::eq_int_type(__c, __idelim))
+                {
+                  *__s++ = traits_type::to_char_type(__c);
+                  __c = __sb->snextc();
+                  ++_M_gcount;
+                }
+              if (traits_type::eq_int_type(__c, __eof))
+                __err |= ios_base::eofbit;
+              else
+                {
+                  if (traits_type::eq_int_type(__c, __idelim))
+                    {
+                      __sb->sbumpc();
+                      ++_M_gcount;
+                    }
+                  else
+                    __err |= ios_base::failbit;
+                }
+            }
+          catch(...)
+            { this->_M_setstate(ios_base::badbit); }
+        }
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 243. get and getline when sentry reports failure.
+      if (__n > 0)
+	*__s = char_type();
+      if (!_M_gcount)
+        __err |= ios_base::failbit;
+      if (__err)
+        this->setstate(__err);
+      return *this;
+    }
+
+  // We provide three overloads, since the first two are much simpler
+  // than the general case. Also, the latter two can thus adopt the
+  // same "batchy" strategy used by getline above.
+  template<typename _CharT, typename _Traits>
+    basic_istream<_CharT, _Traits>&
+    basic_istream<_CharT, _Traits>::
+    ignore(void)
+    {
+      _M_gcount = 0;
+      sentry __cerb(*this, true);
+      if (__cerb)
+	{
+	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
+	  try
 	    {
-	      const int_type __idelim = traits_type::to_int_type(__delim);
 	      const int_type __eof = traits_type::eof();
 	      __streambuf_type* __sb = this->rdbuf();
-	      int_type __c = __sb->sgetc();
-	      
-	      while (_M_gcount + 1 < __n
-		     && !traits_type::eq_int_type(__c, __eof)
-		     && !traits_type::eq_int_type(__c, __idelim))
-		{
-		  streamsize __size = std::min(streamsize(__sb->egptr()
-							  - __sb->gptr()),
-					       __n - _M_gcount - 1);
-		  if (__size > 1)
-		    {
-		      const char_type* __p = traits_type::find(__sb->gptr(),
-							       __size,
-							       __delim);
-		      if (__p)
-			__size = __p - __sb->gptr();
-		      traits_type::copy(__s, __sb->gptr(), __size);
-		      __s += __size;
-		      __sb->gbump(__size);
-		      _M_gcount += __size;
-		      __c = __sb->sgetc();
-		    }
-		  else
-		    {
-		      *__s++ = traits_type::to_char_type(__c);
-		      ++_M_gcount;
-		      __c = __sb->snextc();
-		    }
-		}
 
-	      if (traits_type::eq_int_type(__c, __eof))
+	      if (traits_type::eq_int_type(__sb->sbumpc(), __eof))
 		__err |= ios_base::eofbit;
-	      else if (traits_type::eq_int_type(__c, __idelim))
-		{
-		  ++_M_gcount;		  
-		  __sb->sbumpc();
-		}
 	      else
-		__err |= ios_base::failbit;
+		_M_gcount = 1;
 	    }
 	  catch(...)
 	    { this->_M_setstate(ios_base::badbit); }
+	  if (__err)
+	    this->setstate(__err);
 	}
-      *__s = char_type();
-      if (!_M_gcount)
-	__err |= ios_base::failbit;
-      if (__err)
-	this->setstate(__err);
+      return *this;
+    }
+
+  template<typename _CharT, typename _Traits>
+    basic_istream<_CharT, _Traits>&
+    basic_istream<_CharT, _Traits>::
+    ignore(streamsize __n)
+    {
+      _M_gcount = 0;
+      sentry __cerb(*this, true);
+      if (__cerb && __n > 0)
+        {
+          ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
+          try
+            {
+              const int_type __eof = traits_type::eof();
+              __streambuf_type* __sb = this->rdbuf();
+              int_type __c = __sb->sgetc();
+
+	      // N.B. On LFS-enabled platforms streamsize is still 32 bits
+	      // wide: if we want to implement the standard mandated behavior
+	      // for n == max() (see 27.6.1.3/24) we are at risk of signed
+	      // integer overflow: thus these contortions. Also note that,
+	      // by definition, when more than 2G chars are actually ignored,
+	      // _M_gcount (the return value of gcount, that is) cannot be
+	      // really correct, being unavoidably too small.
+	      bool __large_ignore = false;
+	      while (true)
+		{
+		  while (_M_gcount < __n
+			 && !traits_type::eq_int_type(__c, __eof))
+		    {
+		      ++_M_gcount;
+		      __c = __sb->snextc();
+		    }
+		  if (__n == numeric_limits<streamsize>::max()
+		      && !traits_type::eq_int_type(__c, __eof))
+		    {
+		      _M_gcount = numeric_limits<streamsize>::min();
+		      __large_ignore = true;
+		    }
+		  else
+		    break;
+		}
+
+	      if (__large_ignore)
+		_M_gcount = numeric_limits<streamsize>::max();
+
+	      if (traits_type::eq_int_type(__c, __eof))
+                __err |= ios_base::eofbit;
+            }
+          catch(...)
+            { this->_M_setstate(ios_base::badbit); }
+          if (__err)
+            this->setstate(__err);
+        }
       return *this;
     }
 
@@ -649,31 +467,53 @@ namespace std
       _M_gcount = 0;
       sentry __cerb(*this, true);
       if (__cerb && __n > 0)
-	{
-	  ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
-	  try
-	    {
-	      const int_type __eof = traits_type::eof();
-	      __streambuf_type* __sb = this->rdbuf();
-	      int_type __c;
+        {
+          ios_base::iostate __err = ios_base::iostate(ios_base::goodbit);
+          try
+            {
+              const int_type __eof = traits_type::eof();
+              __streambuf_type* __sb = this->rdbuf();
+              int_type __c = __sb->sgetc();
 
-	      if (__n != numeric_limits<streamsize>::max())
-		--__n;
-	      while (_M_gcount <= __n
-		     && !traits_type::eq_int_type(__c = __sb->sbumpc(), __eof))
+	      // See comment above.
+	      bool __large_ignore = false;
+	      while (true)
 		{
-		  ++_M_gcount;
-		  if (traits_type::eq_int_type(__c, __delim))
+		  while (_M_gcount < __n
+			 && !traits_type::eq_int_type(__c, __eof)
+			 && !traits_type::eq_int_type(__c, __delim))
+		    {
+		      ++_M_gcount;
+		      __c = __sb->snextc();
+		    }
+		  if (__n == numeric_limits<streamsize>::max()
+		      && !traits_type::eq_int_type(__c, __eof)
+		      && !traits_type::eq_int_type(__c, __delim))
+		    {
+		      _M_gcount = numeric_limits<streamsize>::min();
+		      __large_ignore = true;
+		    }
+		  else
 		    break;
 		}
-	      if (traits_type::eq_int_type(__c, __eof))
-		__err |= ios_base::eofbit;
-	    }
-	  catch(...)
-	    { this->_M_setstate(ios_base::badbit); }
-	  if (__err)
-	    this->setstate(__err);
-	}
+
+	      if (__large_ignore)
+		_M_gcount = numeric_limits<streamsize>::max();
+
+              if (traits_type::eq_int_type(__c, __eof))
+                __err |= ios_base::eofbit;
+	      else if (traits_type::eq_int_type(__c, __delim))
+		{
+		  if (_M_gcount < numeric_limits<streamsize>::max())
+		    ++_M_gcount;
+		  __sb->sbumpc();
+		}
+            }
+          catch(...)
+            { this->_M_setstate(ios_base::badbit); }
+          if (__err)
+            this->setstate(__err);
+        }
       return *this;
     }
 
@@ -851,7 +691,8 @@ namespace std
       try
 	{
 	  if (!this->fail())
-	    __ret = this->rdbuf()->pubseekoff(0, ios_base::cur, ios_base::in);
+	    __ret = this->rdbuf()->pubseekoff(0, ios_base::cur,
+					      ios_base::in);
 	}
       catch(...)
 	{ this->_M_setstate(ios_base::badbit); }
@@ -873,8 +714,8 @@ namespace std
 	      // 136.  seekp, seekg setting wrong streams?
 	      const pos_type __p = this->rdbuf()->pubseekpos(__pos,
 							     ios_base::in);
-
-	      // 129. Need error indication from seekp() and seekg()
+	      
+	      // 129.  Need error indication from seekp() and seekg()
 	      if (__p == pos_type(off_type(-1)))
 		__err |= ios_base::failbit;
 	    }
@@ -901,8 +742,8 @@ namespace std
 	      // 136.  seekp, seekg setting wrong streams?
 	      const pos_type __p = this->rdbuf()->pubseekoff(__off, __dir,
 							     ios_base::in);
-
-	      // 129. Need error indication from seekp() and seekg()
+	      
+	      // 129.  Need error indication from seekp() and seekg()
 	      if (__p == pos_type(off_type(-1)))
 		__err |= ios_base::failbit;
 	    }
@@ -1108,10 +949,7 @@ namespace std
 	{
 	  try
 	    {
-	      // Avoid reallocation for common case.
 	      __str.erase();
-	      _CharT __buf[128];
-	      __size_type __len = 0;
 	      const __int_type __idelim = _Traits::to_int_type(__delim);
 	      const __int_type __eof = _Traits::eof();
 	      __streambuf_type* __sb = __in.rdbuf();
@@ -1121,16 +959,10 @@ namespace std
 		     && !_Traits::eq_int_type(__c, __eof)
 		     && !_Traits::eq_int_type(__c, __idelim))
 		{
-		  if (__len == sizeof(__buf) / sizeof(_CharT))
-		    {
-		      __str.append(__buf, sizeof(__buf) / sizeof(_CharT));
-		      __len = 0;
-		    }
-		  __buf[__len++] = _Traits::to_char_type(__c);
+		  __str += _Traits::to_char_type(__c);
 		  ++__extracted;
 		  __c = __sb->snextc();
 		}
-	      __str.append(__buf, __len);
 
 	      if (_Traits::eq_int_type(__c, __eof))
 		__err |= ios_base::eofbit;
@@ -1157,12 +989,6 @@ namespace std
       return __in;
     }
 
-  template<class _CharT, class _Traits, class _Alloc>
-    inline basic_istream<_CharT,_Traits>&
-    getline(basic_istream<_CharT, _Traits>& __in,
-	    basic_string<_CharT,_Traits,_Alloc>& __str)
-    { return getline(__in, __str, __in.widen('\n')); }
-
   // Inhibit implicit instantiations for required instantiations,
   // which are defined via explicit instantiations elsewhere.
   // NB:  This syntax is a GNU extension.
@@ -1176,6 +1002,20 @@ namespace std
   extern template istream& operator>>(istream&, unsigned char*);
   extern template istream& operator>>(istream&, signed char*);
 
+  extern template istream& istream::_M_extract(unsigned short&);
+  extern template istream& istream::_M_extract(unsigned int&);  
+  extern template istream& istream::_M_extract(long&);
+  extern template istream& istream::_M_extract(unsigned long&);
+  extern template istream& istream::_M_extract(bool&);
+#ifdef _GLIBCXX_USE_LONG_LONG
+  extern template istream& istream::_M_extract(long long&);
+  extern template istream& istream::_M_extract(unsigned long long&);
+#endif
+  extern template istream& istream::_M_extract(float&);
+  extern template istream& istream::_M_extract(double&);
+  extern template istream& istream::_M_extract(long double&);
+  extern template istream& istream::_M_extract(void*&);
+
   extern template class basic_iostream<char>;
 
 #ifdef _GLIBCXX_USE_WCHAR_T
@@ -1184,9 +1024,24 @@ namespace std
   extern template wistream& operator>>(wistream&, wchar_t&);
   extern template wistream& operator>>(wistream&, wchar_t*);
 
+  extern template wistream& wistream::_M_extract(unsigned short&);
+  extern template wistream& wistream::_M_extract(unsigned int&);  
+  extern template wistream& wistream::_M_extract(long&);
+  extern template wistream& wistream::_M_extract(unsigned long&);
+  extern template wistream& wistream::_M_extract(bool&);
+#ifdef _GLIBCXX_USE_LONG_LONG
+  extern template wistream& wistream::_M_extract(long long&);
+  extern template wistream& wistream::_M_extract(unsigned long long&);
+#endif
+  extern template wistream& wistream::_M_extract(float&);
+  extern template wistream& wistream::_M_extract(double&);
+  extern template wistream& wistream::_M_extract(long double&);
+  extern template wistream& wistream::_M_extract(void*&);
+
   extern template class basic_iostream<wchar_t>;
 #endif
 #endif
-} // namespace std
+
+_GLIBCXX_END_NAMESPACE
 
 #endif

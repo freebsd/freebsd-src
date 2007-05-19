@@ -1,6 +1,7 @@
 // Components for manipulating sequences of characters -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+// 2006, 2007
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +17,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,25 +29,25 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-//
-// ISO C++ 14882: 21 Strings library
-//
-
 /** @file basic_string.h
  *  This is an internal header file, included by other library headers.
  *  You should not attempt to use it directly.
  */
+
+//
+// ISO C++ 14882: 21 Strings library
+//
 
 #ifndef _BASIC_STRING_H
 #define _BASIC_STRING_H 1
 
 #pragma GCC system_header
 
-#include <bits/atomicity.h>
+#include <ext/atomicity.h>
 #include <debug/debug.h>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   /**
    *  @class basic_string basic_string.h <string>
    *  @brief  Managing sequences of characters and character-like objects.
@@ -109,17 +110,19 @@ namespace std
   template<typename _CharT, typename _Traits, typename _Alloc>
     class basic_string
     {
+      typedef typename _Alloc::template rebind<_CharT>::other _CharT_alloc_type;
+
       // Types:
     public:
       typedef _Traits					    traits_type;
       typedef typename _Traits::char_type		    value_type;
       typedef _Alloc					    allocator_type;
-      typedef typename _Alloc::size_type		    size_type;
-      typedef typename _Alloc::difference_type		    difference_type;
-      typedef typename _Alloc::reference		    reference;
-      typedef typename _Alloc::const_reference		    const_reference;
-      typedef typename _Alloc::pointer			    pointer;
-      typedef typename _Alloc::const_pointer		    const_pointer;
+      typedef typename _CharT_alloc_type::size_type	    size_type;
+      typedef typename _CharT_alloc_type::difference_type   difference_type;
+      typedef typename _CharT_alloc_type::reference	    reference;
+      typedef typename _CharT_alloc_type::const_reference   const_reference;
+      typedef typename _CharT_alloc_type::pointer	    pointer;
+      typedef typename _CharT_alloc_type::const_pointer	    const_pointer;
       typedef __gnu_cxx::__normal_iterator<pointer, basic_string>  iterator;
       typedef __gnu_cxx::__normal_iterator<const_pointer, basic_string>
                                                             const_iterator;
@@ -175,7 +178,13 @@ namespace std
 
         static _Rep&
         _S_empty_rep()
-        { return *reinterpret_cast<_Rep*>(&_S_empty_rep_storage); }
+        { 
+	  // NB: Mild hack to avoid strict-aliasing warnings.  Note that
+	  // _S_empty_rep_storage is never modified and the punning should
+	  // be reasonably safe in this case.
+	  void* __p = reinterpret_cast<void*>(&_S_empty_rep_storage);
+	  return *reinterpret_cast<_Rep*>(__p);
+	}
 
         bool
 	_M_is_leaked() const
@@ -192,6 +201,16 @@ namespace std
         void
 	_M_set_sharable()
         { this->_M_refcount = 0; }
+
+	void
+	_M_set_length_and_sharable(size_type __n)
+	{ 
+	  this->_M_set_sharable();  // One reference.
+	  this->_M_length = __n;
+	  traits_type::assign(this->_M_refdata()[__n], _S_terminal);
+	  // grrr. (per 21.3.4)
+	  // You cannot leave those LWG people alone for a second.
+	}
 
 	_CharT*
 	_M_refdata() throw()
@@ -214,7 +233,8 @@ namespace std
 #ifndef _GLIBCXX_FULLY_DYNAMIC_STRING
 	  if (__builtin_expect(this != &_S_empty_rep(), false))
 #endif
-	    if (__gnu_cxx::__exchange_and_add(&this->_M_refcount, -1) <= 0)
+	    if (__gnu_cxx::__exchange_and_add_dispatch(&this->_M_refcount,
+						       -1) <= 0)
 	      _M_destroy(__a);
 	}  // XXX MT
 
@@ -227,7 +247,7 @@ namespace std
 #ifndef _GLIBCXX_FULLY_DYNAMIC_STRING
 	  if (__builtin_expect(this != &_S_empty_rep(), false))
 #endif
-            __gnu_cxx::__atomic_add(&this->_M_refcount, 1);
+            __gnu_cxx::__atomic_add_dispatch(&this->_M_refcount, 1);
 	  return _M_refdata();
 	}  // XXX MT
 
@@ -248,8 +268,7 @@ namespace std
       // Data Members (public):
       // NB: This is an unsigned type, and thus represents the maximum
       // size that the allocator can hold.
-      /// @var
-      /// Value returned by various member functions when they fail.
+      ///  Value returned by various member functions when they fail.
       static const size_type	npos = static_cast<size_type>(-1);
 
     private:
@@ -271,10 +290,12 @@ namespace std
       // For the internal use we have functions similar to `begin'/`end'
       // but they do not call _M_leak.
       iterator
-      _M_ibegin() const { return iterator(_M_data()); }
+      _M_ibegin() const
+      { return iterator(_M_data()); }
 
       iterator
-      _M_iend() const { return iterator(_M_data() + this->size()); }
+      _M_iend() const
+      { return iterator(_M_data() + this->size()); }
 
       void
       _M_leak()    // for use in begin() & non-const op[]
@@ -291,12 +312,56 @@ namespace std
 	return __pos;
       }
 
+      void
+      _M_check_length(size_type __n1, size_type __n2, const char* __s) const
+      {
+	if (this->max_size() - (this->size() - __n1) < __n2)
+	  __throw_length_error(__N(__s));
+      }
+
       // NB: _M_limit doesn't check for a bad __pos value.
       size_type
       _M_limit(size_type __pos, size_type __off) const
       {
 	const bool __testoff =  __off < this->size() - __pos;
 	return __testoff ? __off : this->size() - __pos;
+      }
+
+      // True if _Rep and source do not overlap.
+      bool
+      _M_disjunct(const _CharT* __s) const
+      {
+	return (less<const _CharT*>()(__s, _M_data())
+		|| less<const _CharT*>()(_M_data() + this->size(), __s));
+      }
+
+      // When __n = 1 way faster than the general multichar
+      // traits_type::copy/move/assign.
+      static void
+      _M_copy(_CharT* __d, const _CharT* __s, size_type __n)
+      {
+	if (__n == 1)
+	  traits_type::assign(*__d, *__s);
+	else
+	  traits_type::copy(__d, __s, __n);
+      }
+
+      static void
+      _M_move(_CharT* __d, const _CharT* __s, size_type __n)
+      {
+	if (__n == 1)
+	  traits_type::assign(*__d, *__s);
+	else
+	  traits_type::move(__d, __s, __n);	  
+      }
+
+      static void
+      _M_assign(_CharT* __d, size_type __n, _CharT __c)
+      {
+	if (__n == 1)
+	  traits_type::assign(*__d, __c);
+	else
+	  traits_type::assign(__d, __n, __c);	  
       }
 
       // _S_copy_chars is a separate template to permit specialization
@@ -319,11 +384,11 @@ namespace std
 
       static void
       _S_copy_chars(_CharT* __p, _CharT* __k1, _CharT* __k2)
-      { traits_type::copy(__p, __k1, __k2 - __k1); }
+      { _M_copy(__p, __k1, __k2 - __k1); }
 
       static void
       _S_copy_chars(_CharT* __p, const _CharT* __k1, const _CharT* __k2)
-      { traits_type::copy(__p, __k1, __k2 - __k1); }
+      { _M_copy(__p, __k1, __k2 - __k1); }
 
       void
       _M_mutate(size_type __pos, size_type __len1, size_type __len2);
@@ -347,7 +412,7 @@ namespace std
       basic_string();
 
       /**
-       *  @brief  Construct an empty string using allocator a.
+       *  @brief  Construct an empty string using allocator @a a.
        */
       explicit
       basic_string(const _Alloc& __a);
@@ -382,7 +447,7 @@ namespace std
        *  @param  n  Number of characters to copy.
        *  @param  a  Allocator to use (default is default allocator).
        *
-       *  NB: s must have at least n characters, '\0' has no special
+       *  NB: @a s must have at least @a n characters, '\0' has no special
        *  meaning.
        */
       basic_string(const _CharT* __s, size_type __n,
@@ -423,10 +488,7 @@ namespace std
        */
       basic_string&
       operator=(const basic_string& __str) 
-      { 
-	this->assign(__str); 
-	return *this;
-      }
+      { return this->assign(__str); }
 
       /**
        *  @brief  Copy contents of @a s into this string.
@@ -434,10 +496,7 @@ namespace std
        */
       basic_string&
       operator=(const _CharT* __s) 
-      { 
-	this->assign(__s); 
-	return *this;
-      }
+      { return this->assign(__s); }
 
       /**
        *  @brief  Set value to string of length 1.
@@ -533,16 +592,19 @@ namespace std
       ///  Returns the number of characters in the string, not including any
       ///  null-termination.
       size_type
-      size() const { return _M_rep()->_M_length; }
+      size() const
+      { return _M_rep()->_M_length; }
 
       ///  Returns the number of characters in the string, not including any
       ///  null-termination.
       size_type
-      length() const { return _M_rep()->_M_length; }
+      length() const
+      { return _M_rep()->_M_length; }
 
       /// Returns the size() of the largest possible %string.
       size_type
-      max_size() const { return _Rep::_S_max_size; }
+      max_size() const
+      { return _Rep::_S_max_size; }
 
       /**
        *  @brief  Resizes the %string to the specified number of characters.
@@ -568,20 +630,22 @@ namespace std
        *  setting them to 0.
        */
       void
-      resize(size_type __n) { this->resize(__n, _CharT()); }
+      resize(size_type __n)
+      { this->resize(__n, _CharT()); }
 
       /**
        *  Returns the total number of characters that the %string can hold
        *  before needing to allocate more memory.
        */
       size_type
-      capacity() const { return _M_rep()->_M_capacity; }
+      capacity() const
+      { return _M_rep()->_M_capacity; }
 
       /**
        *  @brief  Attempt to preallocate enough memory for specified number of
        *          characters.
-       *  @param  n  Number of characters required.
-       *  @throw  std::length_error  If @a n exceeds @c max_size().
+       *  @param  res_arg  Number of characters required.
+       *  @throw  std::length_error  If @a res_arg exceeds @c max_size().
        *
        *  This function attempts to reserve enough memory for the
        *  %string to hold the specified number of characters.  If the
@@ -601,18 +665,20 @@ namespace std
        *  Erases the string, making it empty.
        */
       void
-      clear() { _M_mutate(0, this->size(), 0); }
+      clear()
+      { _M_mutate(0, this->size(), 0); }
 
       /**
        *  Returns true if the %string is empty.  Equivalent to *this == "".
        */
       bool
-      empty() const { return this->size() == 0; }
+      empty() const
+      { return this->size() == 0; }
 
       // Element access:
       /**
        *  @brief  Subscript access to the data contained in the %string.
-       *  @param  n  The index of the character to access.
+       *  @param  pos  The index of the character to access.
        *  @return  Read-only (constant) reference to the character.
        *
        *  This operator allows for easy, array-style, data access.
@@ -629,7 +695,7 @@ namespace std
 
       /**
        *  @brief  Subscript access to the data contained in the %string.
-       *  @param  n  The index of the character to access.
+       *  @param  pos  The index of the character to access.
        *  @return  Read/write reference to the character.
        *
        *  This operator allows for easy, array-style, data access.
@@ -640,7 +706,10 @@ namespace std
       reference
       operator[](size_type __pos)
       {
-	_GLIBCXX_DEBUG_ASSERT(__pos < size());
+        // allow pos == size() as v3 extension:
+	_GLIBCXX_DEBUG_ASSERT(__pos <= size());
+        // but be strict in pedantic mode:
+	_GLIBCXX_DEBUG_PEDASSERT(__pos < size());
 	_M_leak();
 	return _M_data()[__pos];
       }
@@ -690,7 +759,8 @@ namespace std
        *  @return  Reference to this string.
        */
       basic_string&
-      operator+=(const basic_string& __str) { return this->append(__str); }
+      operator+=(const basic_string& __str)
+      { return this->append(__str); }
 
       /**
        *  @brief  Append a C string.
@@ -698,15 +768,20 @@ namespace std
        *  @return  Reference to this string.
        */
       basic_string&
-      operator+=(const _CharT* __s) { return this->append(__s); }
+      operator+=(const _CharT* __s)
+      { return this->append(__s); }
 
       /**
        *  @brief  Append a character.
-       *  @param s  The character to append.
+       *  @param c  The character to append.
        *  @return  Reference to this string.
        */
       basic_string&
-      operator+=(_CharT __c) { return this->append(size_type(1), __c); }
+      operator+=(_CharT __c)
+      { 
+	this->push_back(__c);
+	return *this;
+      }
 
       /**
        *  @brief  Append a string to this string.
@@ -761,8 +836,7 @@ namespace std
        *  Appends n copies of c to this string.
        */
       basic_string&
-      append(size_type __n, _CharT __c)
-      { return _M_replace_aux(this->size(), size_type(0), __n, __c); }
+      append(size_type __n, _CharT __c);
 
       /**
        *  @brief  Append a range of characters.
@@ -783,7 +857,13 @@ namespace std
        */
       void
       push_back(_CharT __c)
-      { _M_replace_aux(this->size(), size_type(0), size_type(1), __c); }
+      { 
+	const size_type __len = 1 + this->size();
+	if (__len > this->capacity() || _M_rep()->_M_is_shared())
+	  this->reserve(__len);
+	traits_type::assign(_M_data()[this->size()], __c);
+	_M_rep()->_M_set_length_and_sharable(__len);
+      }
 
       /**
        *  @brief  Set value to contents of another string.
@@ -894,7 +974,8 @@ namespace std
        *  of the string doesn't change if an error is thrown.
       */
       template<class _InputIterator>
-        void insert(iterator __p, _InputIterator __beg, _InputIterator __end)
+        void
+        insert(iterator __p, _InputIterator __beg, _InputIterator __end)
         { this->replace(__p, __p, __beg, __end); }
 
       /**
@@ -1018,7 +1099,7 @@ namespace std
 	const size_type __pos = __p - _M_ibegin();
 	_M_replace_aux(__pos, size_type(0), size_type(1), __c);
 	_M_rep()->_M_set_leaked();
-	return this->_M_ibegin() + __pos;
+	return iterator(_M_data() + __pos);
       }
 
       /**
@@ -1037,8 +1118,11 @@ namespace std
       */
       basic_string&
       erase(size_type __pos = 0, size_type __n = npos)
-      { return _M_replace_safe(_M_check(__pos, "basic_string::erase"),
-			       _M_limit(__pos, __n), NULL, size_type(0)); }
+      { 
+	_M_mutate(_M_check(__pos, "basic_string::erase"),
+		  _M_limit(__pos, __n), size_type(0));
+	return *this;
+      }
 
       /**
        *  @brief  Remove one character.
@@ -1054,9 +1138,9 @@ namespace std
 	_GLIBCXX_DEBUG_PEDASSERT(__position >= _M_ibegin()
 				 && __position < _M_iend());
 	const size_type __pos = __position - _M_ibegin();
-	_M_replace_safe(__pos, size_type(1), NULL, size_type(0));
+	_M_mutate(__pos, size_type(1), size_type(0));
 	_M_rep()->_M_set_leaked();
-	return _M_ibegin() + __pos;
+	return iterator(_M_data() + __pos);
       }
 
       /**
@@ -1074,9 +1158,9 @@ namespace std
 	_GLIBCXX_DEBUG_PEDASSERT(__first >= _M_ibegin() && __first <= __last
 				 && __last <= _M_iend());
         const size_type __pos = __first - _M_ibegin();
-	_M_replace_safe(__pos, __last - __first, NULL, size_type(0));
+	_M_mutate(__pos, __last - __first, size_type(0));
 	_M_rep()->_M_set_leaked();
-	return _M_ibegin() + __pos;
+	return iterator(_M_data() + __pos);
       }
 
       /**
@@ -1128,15 +1212,15 @@ namespace std
        *  @brief  Replace characters with value of a C substring.
        *  @param pos  Index of first character to replace.
        *  @param n1  Number of characters to be replaced.
-       *  @param str  C string to insert.
-       *  @param n2  Number of characters from str to use.
+       *  @param s  C string to insert.
+       *  @param n2  Number of characters from @a s to use.
        *  @return  Reference to this string.
        *  @throw  std::out_of_range  If @a pos1 > size().
        *  @throw  std::length_error  If new length exceeds @c max_size().
        *
        *  Removes the characters in the range [pos,pos + n1) from this string.
-       *  In place, the first @a n2 characters of @a str are inserted, or all
-       *  of @a str if @a n2 is too large.  If @a pos is beyond end of string,
+       *  In place, the first @a n2 characters of @a s are inserted, or all
+       *  of @a s if @a n2 is too large.  If @a pos is beyond end of string,
        *  out_of_range is thrown.  If the length of result exceeds max_size(),
        *  length_error is thrown.  The value of the string doesn't change if
        *  an error is thrown.
@@ -1149,13 +1233,13 @@ namespace std
        *  @brief  Replace characters with value of a C string.
        *  @param pos  Index of first character to replace.
        *  @param n1  Number of characters to be replaced.
-       *  @param str  C string to insert.
+       *  @param s  C string to insert.
        *  @return  Reference to this string.
        *  @throw  std::out_of_range  If @a pos > size().
        *  @throw  std::length_error  If new length exceeds @c max_size().
        *
        *  Removes the characters in the range [pos,pos + n1) from this string.
-       *  In place, the first @a n characters of @a str are inserted.  If @a
+       *  In place, the first @a n characters of @a s are inserted.  If @a
        *  pos is beyond end of string, out_of_range is thrown.  If the length
        *  of result exceeds max_size(), length_error is thrown.  The value of
        *  the string doesn't change if an error is thrown.
@@ -1291,54 +1375,54 @@ namespace std
 	  _GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
 				   && __i2 <= _M_iend());
 	  __glibcxx_requires_valid_range(__k1, __k2);
-	  typedef typename _Is_integer<_InputIterator>::_Integral _Integral;
+	  typedef typename std::__is_integer<_InputIterator>::__type _Integral;
 	  return _M_replace_dispatch(__i1, __i2, __k1, __k2, _Integral());
 	}
 
       // Specializations for the common case of pointer and iterator:
       // useful to avoid the overhead of temporary buffering in _M_replace.
       basic_string&
-        replace(iterator __i1, iterator __i2, _CharT* __k1, _CharT* __k2)
-        {
-	  _GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
-				   && __i2 <= _M_iend());
-	  __glibcxx_requires_valid_range(__k1, __k2);
-	  return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
-			       __k1, __k2 - __k1);
-	}
+      replace(iterator __i1, iterator __i2, _CharT* __k1, _CharT* __k2)
+      {
+	_GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+				 && __i2 <= _M_iend());
+	__glibcxx_requires_valid_range(__k1, __k2);
+	return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
+			     __k1, __k2 - __k1);
+      }
 
       basic_string&
-        replace(iterator __i1, iterator __i2,
-		const _CharT* __k1, const _CharT* __k2)
-        {
-	  _GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
-				   && __i2 <= _M_iend());
-	  __glibcxx_requires_valid_range(__k1, __k2);
-	  return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
-			       __k1, __k2 - __k1);
-	}
+      replace(iterator __i1, iterator __i2,
+	      const _CharT* __k1, const _CharT* __k2)
+      {
+	_GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+				 && __i2 <= _M_iend());
+	__glibcxx_requires_valid_range(__k1, __k2);
+	return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
+			     __k1, __k2 - __k1);
+      }
 
       basic_string&
-        replace(iterator __i1, iterator __i2, iterator __k1, iterator __k2)
-        {
-	  _GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
-				   && __i2 <= _M_iend());
-	  __glibcxx_requires_valid_range(__k1, __k2);
-	  return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
-			       __k1.base(), __k2 - __k1);
-	}
+      replace(iterator __i1, iterator __i2, iterator __k1, iterator __k2)
+      {
+	_GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+				 && __i2 <= _M_iend());
+	__glibcxx_requires_valid_range(__k1, __k2);
+	return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
+			     __k1.base(), __k2 - __k1);
+      }
 
       basic_string&
-        replace(iterator __i1, iterator __i2,
-		const_iterator __k1, const_iterator __k2)
-        {
-	  _GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
-				   && __i2 <= _M_iend());
-	  __glibcxx_requires_valid_range(__k1, __k2);
-	  return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
-			       __k1.base(), __k2 - __k1);
-	}
-
+      replace(iterator __i1, iterator __i2,
+	      const_iterator __k1, const_iterator __k2)
+      {
+	_GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+				 && __i2 <= _M_iend());
+	__glibcxx_requires_valid_range(__k1, __k2);
+	return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
+			     __k1.base(), __k2 - __k1);
+      }
+      
     private:
       template<class _Integer>
 	basic_string&
@@ -1353,29 +1437,11 @@ namespace std
 
       basic_string&
       _M_replace_aux(size_type __pos1, size_type __n1, size_type __n2,
-		     _CharT __c)
-      {
-	if (this->max_size() - (this->size() - __n1) < __n2)
-	  __throw_length_error(__N("basic_string::_M_replace_aux"));
-	_M_mutate(__pos1, __n1, __n2);
-	if (__n2 == 1)
-	  _M_data()[__pos1] = __c;
-	else if (__n2)
-	  traits_type::assign(_M_data() + __pos1, __n2, __c);
-	return *this;
-      }
+		     _CharT __c);
 
       basic_string&
       _M_replace_safe(size_type __pos1, size_type __n1, const _CharT* __s,
-		      size_type __n2)
-      {
-	_M_mutate(__pos1, __n1, __n2);
-	if (__n2 == 1)
-	  _M_data()[__pos1] = *__s;
-	else if (__n2)
-	  traits_type::copy(_M_data() + __pos1, __s, __n2);
-	return *this;
-      }
+		      size_type __n2);
 
       // _S_construct_aux is used to implement the 21.3.1 para 15 which
       // requires special behaviour if _InIter is an integral type
@@ -1399,7 +1465,7 @@ namespace std
         static _CharT*
         _S_construct(_InIterator __beg, _InIterator __end, const _Alloc& __a)
 	{
-	  typedef typename _Is_integer<_InIterator>::_Integral _Integral;
+	  typedef typename std::__is_integer<_InIterator>::__type _Integral;
 	  return _S_construct_aux(__beg, __end, __a, _Integral());
         }
 
@@ -1453,7 +1519,8 @@ namespace std
        *  happen.
       */
       const _CharT*
-      c_str() const { return _M_data(); }
+      c_str() const
+      { return _M_data(); }
 
       /**
        *  @brief  Return const pointer to contents.
@@ -1462,13 +1529,15 @@ namespace std
        *  happen.
       */
       const _CharT*
-      data() const { return _M_data(); }
+      data() const
+      { return _M_data(); }
 
       /**
        *  @brief  Return copy of allocator used to construct this string.
       */
       allocator_type
-      get_allocator() const { return _M_dataplus; }
+      get_allocator() const
+      { return _M_dataplus; }
 
       /**
        *  @brief  Find position of a C substring.
@@ -1559,7 +1628,7 @@ namespace std
       /**
        *  @brief  Find last position of a C string.
        *  @param s  C string to locate.
-       *  @param pos  Index of character to start search at (default 0).
+       *  @param pos  Index of character to start search at (default end).
        *  @return  Index of start of  last occurrence.
        *
        *  Starting from @a pos, searches backward for the value of @a s within
@@ -1576,7 +1645,7 @@ namespace std
       /**
        *  @brief  Find last position of a character.
        *  @param c  Character to locate.
-       *  @param pos  Index of character to search back from (default 0).
+       *  @param pos  Index of character to search back from (default end).
        *  @return  Index of last occurrence.
        *
        *  Starting from @a pos, searches backward for @a c within this string.
@@ -2244,7 +2313,7 @@ namespace std
     inline bool
     operator<=(const _CharT* __lhs,
 	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
-  { return __rhs.compare(__lhs) >= 0; }
+    { return __rhs.compare(__lhs) >= 0; }
 
   // operator >=
   /**
@@ -2312,6 +2381,10 @@ namespace std
     operator>>(basic_istream<_CharT, _Traits>& __is,
 	       basic_string<_CharT, _Traits, _Alloc>& __str);
 
+  template<>
+    basic_istream<char>&
+    operator>>(basic_istream<char>& __is, basic_string<char>& __str);
+
   /**
    *  @brief  Write string to a stream.
    *  @param os  Output stream.
@@ -2322,9 +2395,14 @@ namespace std
    *  writing a C string.
    */
   template<typename _CharT, typename _Traits, typename _Alloc>
-    basic_ostream<_CharT, _Traits>&
+    inline basic_ostream<_CharT, _Traits>&
     operator<<(basic_ostream<_CharT, _Traits>& __os,
-	       const basic_string<_CharT, _Traits, _Alloc>& __str);
+	       const basic_string<_CharT, _Traits, _Alloc>& __str)
+    {
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 586. string inserter not a formatted function
+      return __ostream_insert(__os, __str.data(), __str.size());
+    }
 
   /**
    *  @brief  Read a line from stream into a string.
@@ -2340,7 +2418,7 @@ namespace std
    *  delim was encountered, it is extracted but not stored into @a str.
    */
   template<typename _CharT, typename _Traits, typename _Alloc>
-    basic_istream<_CharT,_Traits>&
+    basic_istream<_CharT, _Traits>&
     getline(basic_istream<_CharT, _Traits>& __is,
 	    basic_string<_CharT, _Traits, _Alloc>& __str, _CharT __delim);
 
@@ -2357,9 +2435,23 @@ namespace std
    *  encountered, it is extracted but not stored into @a str.
    */
   template<typename _CharT, typename _Traits, typename _Alloc>
-    inline basic_istream<_CharT,_Traits>&
+    inline basic_istream<_CharT, _Traits>&
     getline(basic_istream<_CharT, _Traits>& __is,
-	    basic_string<_CharT, _Traits, _Alloc>& __str);
-} // namespace std
+	    basic_string<_CharT, _Traits, _Alloc>& __str)
+    { return getline(__is, __str, __is.widen('\n')); }
+
+  template<>
+    basic_istream<char>&
+    getline(basic_istream<char>& __in, basic_string<char>& __str,
+	    char __delim);
+
+#ifdef _GLIBCXX_USE_WCHAR_T
+  template<>
+    basic_istream<wchar_t>&
+    getline(basic_istream<wchar_t>& __in, basic_string<wchar_t>& __str,
+	    wchar_t __delim);
+#endif  
+
+_GLIBCXX_END_NAMESPACE
 
 #endif /* _BASIC_STRING_H */

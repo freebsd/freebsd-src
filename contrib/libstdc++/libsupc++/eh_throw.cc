@@ -15,8 +15,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with GCC; see the file COPYING.  If not, write to
-// the Free Software Foundation, 59 Temple Place - Suite 330,
-// Boston, MA 02111-1307, USA.
+// the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+// Boston, MA 02110-1301, USA.
 
 // As a special exception, you may use this file as part of a free software
 // library without restriction.  Specifically, if other files instantiate
@@ -27,10 +27,8 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-
 #include <bits/c++config.h>
 #include "unwind-cxx.h"
-
 
 using namespace __cxxabiv1;
 
@@ -56,18 +54,16 @@ __gxx_exception_cleanup (_Unwind_Reason_Code code, _Unwind_Exception *exc)
 
 
 extern "C" void
-__cxa_throw (void *obj, std::type_info *tinfo, void (*dest) (void *))
+__cxxabiv1::__cxa_throw (void *obj, std::type_info *tinfo, 
+			 void (*dest) (void *))
 {
   __cxa_exception *header = __get_exception_header_from_obj (obj);
   header->exceptionType = tinfo;
   header->exceptionDestructor = dest;
   header->unexpectedHandler = __unexpected_handler;
   header->terminateHandler = __terminate_handler;
-  header->unwindHeader.exception_class = __gxx_exception_class;
+  __GXX_INIT_EXCEPTION_CLASS(header->unwindHeader.exception_class);
   header->unwindHeader.exception_cleanup = __gxx_exception_cleanup;
-
-  __cxa_eh_globals *globals = __cxa_get_globals ();
-  globals->uncaughtExceptions += 1;
 
 #ifdef _GLIBCXX_SJLJ_EXCEPTIONS
   _Unwind_SjLj_RaiseException (&header->unwindHeader);
@@ -81,16 +77,18 @@ __cxa_throw (void *obj, std::type_info *tinfo, void (*dest) (void *))
 }
 
 extern "C" void
-__cxa_rethrow ()
+__cxxabiv1::__cxa_rethrow ()
 {
   __cxa_eh_globals *globals = __cxa_get_globals ();
   __cxa_exception *header = globals->caughtExceptions;
+
+  globals->uncaughtExceptions += 1;
 
   // Watch for luser rethrowing with no active exception.
   if (header)
     {
       // Tell __cxa_end_catch this is a rethrow.
-      if (header->unwindHeader.exception_class != __gxx_exception_class)
+      if (!__is_gxx_exception_class(header->unwindHeader.exception_class))
 	globals->caughtExceptions = 0;
       else
 	header->handlerCount = -header->handlerCount;
@@ -98,7 +96,7 @@ __cxa_rethrow ()
 #ifdef _GLIBCXX_SJLJ_EXCEPTIONS
       _Unwind_SjLj_Resume_or_Rethrow (&header->unwindHeader);
 #else
-#ifdef _LIBUNWIND_STD_ABI
+#if defined(_LIBUNWIND_STD_ABI)
       _Unwind_RaiseException (&header->unwindHeader);
 #else
       _Unwind_Resume_or_Rethrow (&header->unwindHeader);

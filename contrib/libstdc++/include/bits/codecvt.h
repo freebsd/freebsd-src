@@ -1,6 +1,7 @@
 // Locale support (codecvt) -*- C++ -*-
 
-// Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005
+//  Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,24 +28,25 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file bits/codecvt.h
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
+
 //
 // ISO C++ 14882: 22.2.1.5 Template class codecvt
 //
 
-// Written by Benjamin Kosnik <bkoz@cygnus.com>
-
-/** @file codecvt.h
- *  This is an internal header file, included by other library headers.
- *  You should not attempt to use it directly.
- */
+// Written by Benjamin Kosnik <bkoz@redhat.com>
 
 #ifndef _CODECVT_H
 #define _CODECVT_H 1
 
 #pragma GCC system_header
 
-  //  22.2.1.5  Template class codecvt
-  /// Base class for codecvt facet providing conversion result enum.
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
+  /// @brief  Empty base class for codecvt facet [22.2.1.5].
   class codecvt_base
   {
   public:
@@ -57,12 +59,8 @@
     };
   };
 
-  // Template class __codecvt_abstract_base
-  // NB: An abstract base class that fills in the public inlines, so
-  // that the specializations don't have to re-copy the public
-  // interface.
   /**
-   *  @brief  Common base for codecvt facet
+   *  @brief  Common base for codecvt functions.
    *
    *  This template class provides implementations of the public functions
    *  that forward to the protected virtual functions.
@@ -102,11 +100,12 @@
        *  beginning and carried from a previous call if continuing
        *  conversion.  There are no guarantees about how @a state is used.
        *
-       *  The result returned is a member of codecvt_base::result.  If all the
-       *  input is converted, returns codecvt_base::ok.  If no conversion is
-       *  necessary, returns codecvt_base::noconv.  If the input ends early or
-       *  there is insufficient space in the output, returns codecvt_base::partial.
-       *  Otherwise the conversion failed and codecvt_base::error is returned.
+       *  The result returned is a member of codecvt_base::result.  If
+       *  all the input is converted, returns codecvt_base::ok.  If no
+       *  conversion is necessary, returns codecvt_base::noconv.  If
+       *  the input ends early or there is insufficient space in the
+       *  output, returns codecvt_base::partial.  Otherwise the
+       *  conversion failed and codecvt_base::error is returned.
        *
        *  @param  state  Persistent conversion state data.
        *  @param  from  Start of input.
@@ -181,11 +180,12 @@
        *  beginning and carried from a previous call if continuing
        *  conversion.  There are no guarantees about how @a state is used.
        *
-       *  The result returned is a member of codecvt_base::result.  If all the
-       *  input is converted, returns codecvt_base::ok.  If no conversion is
-       *  necessary, returns codecvt_base::noconv.  If the input ends early or
-       *  there is insufficient space in the output, returns codecvt_base::partial.
-       *  Otherwise the conversion failed and codecvt_base::error is returned.
+       *  The result returned is a member of codecvt_base::result.  If
+       *  all the input is converted, returns codecvt_base::ok.  If no
+       *  conversion is necessary, returns codecvt_base::noconv.  If
+       *  the input ends early or there is insufficient space in the
+       *  output, returns codecvt_base::partial.  Otherwise the
+       *  conversion failed and codecvt_base::error is returned.
        *
        *  @param  state  Persistent conversion state data.
        *  @param  from  Start of input.
@@ -267,8 +267,8 @@
       do_max_length() const throw() = 0;
     };
 
-  // 22.2.1.5 Template class codecvt
-  // NB: Generic, mostly useless implementation.
+  /// @brief class codecvt [22.2.1.5].
+  /// NB: Generic, mostly useless implementation.
   template<typename _InternT, typename _ExternT, typename _StateT>
     class codecvt
     : public __codecvt_abstract_base<_InternT, _ExternT, _StateT>
@@ -330,7 +330,7 @@
   template<typename _InternT, typename _ExternT, typename _StateT>
     locale::id codecvt<_InternT, _ExternT, _StateT>::id;
 
-  // codecvt<char, char, mbstate_t> required specialization
+  /// @brief class codecvt<char, char, mbstate_t> specialization.
   template<>
     class codecvt<char, char, mbstate_t>
     : public __codecvt_abstract_base<char, char, mbstate_t>
@@ -388,7 +388,7 @@
   };
 
 #ifdef _GLIBCXX_USE_WCHAR_T
-  // codecvt<wchar_t, char, mbstate_t> required specialization
+  /// @brief  class codecvt<wchar_t, char, mbstate_t> specialization.
   template<>
     class codecvt<wchar_t, char, mbstate_t>
     : public __codecvt_abstract_base<wchar_t, char, mbstate_t>
@@ -448,7 +448,7 @@
     };
 #endif //_GLIBCXX_USE_WCHAR_T
 
-  // 22.2.1.6  Template class codecvt_byname
+  /// @brief class codecvt_byname [22.2.1.6].
   template<typename _InternT, typename _ExternT, typename _StateT>
     class codecvt_byname : public codecvt<_InternT, _ExternT, _StateT>
     {
@@ -469,10 +469,6 @@
       ~codecvt_byname() { }
     };
 
-  // Include host and configuration specific partial specializations
-  // with additional functionality, if possible.
-#ifdef _GLIBCXX_USE_WCHAR_T
-  #include <bits/codecvt_specializations.h>
-#endif
+_GLIBCXX_END_NAMESPACE
 
 #endif // _CODECVT_H

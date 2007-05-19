@@ -1,4 +1,4 @@
-// Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -32,6 +32,7 @@
 #include <new>
 #include <typeinfo>
 #include <ios>
+
 #ifdef _GLIBCXX_USE_NLS
 # include <libintl.h>
 # define _(msgid)   gettext (msgid)
@@ -39,8 +40,8 @@
 # define _(msgid)   (msgid)
 #endif
 
-namespace std 
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
 #if __EXCEPTIONS
   void
   __throw_bad_exception(void)
@@ -100,58 +101,59 @@ namespace std
 #else
   void
   __throw_bad_exception(void)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_bad_alloc(void)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_bad_cast(void)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_bad_typeid(void)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_logic_error(const char*)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_domain_error(const char*)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_invalid_argument(const char*)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_length_error(const char*)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_out_of_range(const char*)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_runtime_error(const char*)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_range_error(const char*)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_overflow_error(const char*)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_underflow_error(const char*)
-  { abort(); }
+  { std::abort(); }
 
   void
   __throw_ios_failure(const char*)
-  { abort(); }
+  { std::abort(); }
 #endif //__EXCEPTIONS
-}
+
+_GLIBCXX_END_NAMESPACE

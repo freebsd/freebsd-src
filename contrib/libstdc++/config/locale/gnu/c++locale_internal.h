@@ -1,6 +1,6 @@
 // Prototypes for GLIBC thread locale __-prefixed functions -*- C++ -*-
 
-// Copyright (C) 2002, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2002, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,13 +27,18 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file c++locale_internal.h
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
+
 // Written by Jakub Jelinek <jakub@redhat.com>
 
+#include <bits/c++config.h>
 #include <clocale>
 
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
                                                   
-extern "C" __typeof(iswctype_l) __iswctype_l;
 extern "C" __typeof(nl_langinfo_l) __nl_langinfo_l;
 extern "C" __typeof(strcoll_l) __strcoll_l;
 extern "C" __typeof(strftime_l) __strftime_l;
@@ -41,15 +46,19 @@ extern "C" __typeof(strtod_l) __strtod_l;
 extern "C" __typeof(strtof_l) __strtof_l;
 extern "C" __typeof(strtold_l) __strtold_l;
 extern "C" __typeof(strxfrm_l) __strxfrm_l;
+extern "C" __typeof(newlocale) __newlocale;
+extern "C" __typeof(freelocale) __freelocale;
+extern "C" __typeof(duplocale) __duplocale;
+extern "C" __typeof(uselocale) __uselocale;
+
+#ifdef _GLIBCXX_USE_WCHAR_T
+extern "C" __typeof(iswctype_l) __iswctype_l;
 extern "C" __typeof(towlower_l) __towlower_l;
 extern "C" __typeof(towupper_l) __towupper_l;
 extern "C" __typeof(wcscoll_l) __wcscoll_l;
 extern "C" __typeof(wcsftime_l) __wcsftime_l;
 extern "C" __typeof(wcsxfrm_l) __wcsxfrm_l;
 extern "C" __typeof(wctype_l) __wctype_l;
-extern "C" __typeof(newlocale) __newlocale;
-extern "C" __typeof(freelocale) __freelocale;
-extern "C" __typeof(duplocale) __duplocale;
-extern "C" __typeof(uselocale) __uselocale;
+#endif 
 
 #endif // GLIBC 2.3 and later

@@ -1,6 +1,7 @@
 // Wrapper for underlying C-language localization -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -42,47 +43,44 @@
 #include <ieeefp.h>
 #endif
 
-namespace std 
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // Specializations for all types used in num_get.
   template<>
     void
     __convert_to_v(const char* __s, float& __v, ios_base::iostate& __err, 
 		   const __c_locale&) 	      
     {
-      if (!(__err & ios_base::failbit))
-	{
-	  // Assumes __s formatted for "C" locale.
-	  char* __old = strdup(setlocale(LC_ALL, NULL));
-	  setlocale(LC_ALL, "C");
-	  char* __sanity;
-	  errno = 0;
+      // Assumes __s formatted for "C" locale.
+      errno = 0;
+      char* __old = strdup(setlocale(LC_ALL, NULL));
+      setlocale(LC_ALL, "C");
+      char* __sanity;
 #if defined(_GLIBCXX_HAVE_STRTOF)
-	  float __f = strtof(__s, &__sanity);
+      float __f = strtof(__s, &__sanity);
 #else
-	  double __d = strtod(__s, &__sanity);
-	  float __f = static_cast<float>(__d);
+      double __d = strtod(__s, &__sanity);
+      float __f = static_cast<float>(__d);
 #ifdef _GLIBCXX_HAVE_FINITEF
-	  if (!finitef (__f))
-	    errno = ERANGE;
+      if (!finitef (__f))
+	errno = ERANGE;
 #elif defined (_GLIBCXX_HAVE_FINITE)
-	  if (!finite (static_cast<double> (__f)))
-	    errno = ERANGE;
+      if (!finite (static_cast<double> (__f)))
+	errno = ERANGE;
 #elif defined (_GLIBCXX_HAVE_ISINF)
-	  if (isinf (static_cast<double> (__f)))
-	    errno = ERANGE;
+      if (isinf (static_cast<double> (__f)))
+	errno = ERANGE;
 #else
-	  if (fabs(__d) > numeric_limits<float>::max())
-	    errno = ERANGE;
+      if (fabs(__d) > numeric_limits<float>::max())
+	errno = ERANGE;
 #endif
 #endif
-          if (__sanity != __s && errno != ERANGE)
-	    __v = __f;
-	  else
-	    __err |= ios_base::failbit;
-	  setlocale(LC_ALL, __old);
-	  free(__old);
-	}
+      if (__sanity != __s && errno != ERANGE)
+	__v = __f;
+      else
+	__err |= ios_base::failbit;
+      setlocale(LC_ALL, __old);
+      free(__old);
     }
 
   template<>
@@ -90,21 +88,18 @@ namespace std
     __convert_to_v(const char* __s, double& __v, ios_base::iostate& __err, 
 		   const __c_locale&) 
     {
-      if (!(__err & ios_base::failbit))
-	{
-	  // Assumes __s formatted for "C" locale.
-	  char* __old = strdup(setlocale(LC_ALL, NULL));
-	  setlocale(LC_ALL, "C");
-	  char* __sanity;
-	  errno = 0;
-	  double __d = strtod(__s, &__sanity);
-          if (__sanity != __s && errno != ERANGE)
-	    __v = __d;
-	  else
-	    __err |= ios_base::failbit;
-	  setlocale(LC_ALL, __old);
-	  free(__old);
-	}
+      // Assumes __s formatted for "C" locale.
+      errno = 0;
+      char* __old = strdup(setlocale(LC_ALL, NULL));
+      setlocale(LC_ALL, "C");
+      char* __sanity;
+      double __d = strtod(__s, &__sanity);
+      if (__sanity != __s && errno != ERANGE)
+	__v = __d;
+      else
+	__err |= ios_base::failbit;
+      setlocale(LC_ALL, __old);
+      free(__old);
     }
 
   template<>
@@ -112,36 +107,27 @@ namespace std
     __convert_to_v(const char* __s, long double& __v, 
 		   ios_base::iostate& __err, const __c_locale&) 
     {
-      if (!(__err & ios_base::failbit))
-	{
-	  // Assumes __s formatted for "C" locale.
-	  char* __old = strdup(setlocale(LC_ALL, NULL));
-	  setlocale(LC_ALL, "C");
+      // Assumes __s formatted for "C" locale.
+      errno = 0;
+      char* __old = strdup(setlocale(LC_ALL, NULL));
+      setlocale(LC_ALL, "C");
 #if defined(_GLIBCXX_HAVE_STRTOLD)
-	  char* __sanity;
-	  errno = 0;
-	  long double __ld = strtold(__s, &__sanity);
-          if (__sanity != __s && errno != ERANGE)
-	    __v = __ld;
+      char* __sanity;
+      long double __ld = strtold(__s, &__sanity);
+      if (__sanity != __s && errno != ERANGE)
+	__v = __ld;
 #else
-	  typedef char_traits<char>::int_type int_type;
-	  long double __ld;
-	  errno = 0;
-	  int __p = sscanf(__s, "%Lf", &__ld);
-	  if (errno == ERANGE)
-	    __p = 0;
-#ifdef _GLIBCXX_HAVE_FINITEL
-	  if ((__p == 1) && !finitel (__ld))
-	    __p = 0;
+      typedef char_traits<char>::int_type int_type;
+      long double __ld;
+      int __p = sscanf(__s, "%Lf", &__ld);
+      if (__p && static_cast<int_type>(__p) != char_traits<char>::eof()
+	  && errno != ERANGE)
+	__v = __ld;
 #endif
-	  if (__p && static_cast<int_type>(__p) != char_traits<char>::eof())
-	    __v = __ld;
-#endif
-	  else
-	    __err |= ios_base::failbit;
-	  setlocale(LC_ALL, __old);
-	  free(__old);
-	}
+      else
+	__err |= ios_base::failbit;
+      setlocale(LC_ALL, __old);
+      free(__old);
     }
 
   void
@@ -163,10 +149,11 @@ namespace std
   __c_locale
   locale::facet::_S_clone_c_locale(__c_locale&)
   { return __c_locale(); }
-} // namespace std
 
-namespace __gnu_cxx
-{
+_GLIBCXX_END_NAMESPACE
+
+_GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
+
   const char* const category_names[6 + _GLIBCXX_NUM_CATEGORIES] =
     {
       "LC_CTYPE", 
@@ -176,9 +163,18 @@ namespace __gnu_cxx
       "LC_MONETARY",
       "LC_MESSAGES"
     };
-}  
 
-namespace std
-{
+_GLIBCXX_END_NAMESPACE
+
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   const char* const* const locale::_S_categories = __gnu_cxx::category_names;
-}  // namespace std
+
+_GLIBCXX_END_NAMESPACE
+
+// XXX GLIBCXX_ABI Deprecated
+#ifdef _GLIBCXX_LONG_DOUBLE_COMPAT
+#define _GLIBCXX_LDBL_COMPAT(dbl, ldbl) \
+  extern "C" void ldbl (void) __attribute__ ((alias (#dbl)))
+_GLIBCXX_LDBL_COMPAT(_ZSt14__convert_to_vIdEvPKcRT_RSt12_Ios_IostateRKPi, _ZSt14__convert_to_vIeEvPKcRT_RSt12_Ios_IostateRKPi);
+#endif // _GLIBCXX_LONG_DOUBLE_COMPAT

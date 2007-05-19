@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -34,6 +34,9 @@
 // Information as gleaned from /usr/include/ctype.h. Looks like this
 // only works with solaris2.6.
 
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
+  /// @brief  Base class for ctype.
   struct ctype_base
   {
     // Non-standard typedefs.
@@ -54,3 +57,5 @@
     static const mask punct 	= _ISPUNCT;
     static const mask alnum 	= _ISALPHA | _ISDIGIT;
   };
+
+_GLIBCXX_END_NAMESPACE

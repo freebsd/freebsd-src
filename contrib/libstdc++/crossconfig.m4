@@ -1,9 +1,14 @@
 dnl
-dnl This file contains stuff.
+dnl This file contains details for non-native builds.
 dnl
 
+AC_DEFUN([GLIBCXX_CROSSCONFIG],[
 # Base decisions on target environment.
 case "${host}" in
+  arm*-*-symbianelf*)
+    # This is a freestanding configuration; there is nothing to do here.
+    ;;
+
   *-darwin*)
     # Darwin versions vary, but the linker should work in a cross environment,
     # so we just check for all the features here.
@@ -12,12 +17,11 @@ case "${host}" in
     machine/param.h sys/machine.h fp.h locale.h float.h inttypes.h gconv.h \
     sys/types.h])
 
-    GLIBCXX_CHECK_COMPILER_FEATURES
     # Don't call GLIBCXX_CHECK_LINKER_FEATURES, Darwin doesn't have a GNU ld
     GLIBCXX_CHECK_MATH_SUPPORT
     GLIBCXX_CHECK_BUILTIN_MATH_SUPPORT
     GLIBCXX_CHECK_COMPLEX_MATH_SUPPORT
-    GLIBCXX_CHECK_WCHAR_T_SUPPORT
+    GLIBCXX_CHECK_ICONV_SUPPORT
     GLIBCXX_CHECK_STDLIB_SUPPORT
 
     # For showmanyc_helper().
@@ -47,12 +51,11 @@ case "${host}" in
       memory.h stdint.h stdlib.h strings.h string.h unistd.h \
       wchar.h wctype.h machine/endian.h sys/ioctl.h sys/param.h \
       sys/resource.h sys/stat.h sys/time.h sys/types.h sys/uio.h])
-    GLIBCXX_CHECK_COMPILER_FEATURES
     GLIBCXX_CHECK_LINKER_FEATURES
     GLIBCXX_CHECK_MATH_SUPPORT
     GLIBCXX_CHECK_BUILTIN_MATH_SUPPORT
     GLIBCXX_CHECK_COMPLEX_MATH_SUPPORT
-    GLIBCXX_CHECK_WCHAR_T_SUPPORT
+    GLIBCXX_CHECK_ICONV_SUPPORT
     GLIBCXX_CHECK_STDLIB_SUPPORT
     GLIBCXX_CHECK_S_ISREG_OR_S_IFREG
     AC_DEFINE(HAVE_WRITEV)
@@ -67,7 +70,7 @@ case "${host}" in
     AC_SUBST(SECTION_FLAGS) 
     GLIBCXX_CHECK_LINKER_FEATURES
     GLIBCXX_CHECK_COMPLEX_MATH_SUPPORT
-    GLIBCXX_CHECK_WCHAR_T_SUPPORT
+    GLIBCXX_CHECK_ICONV_SUPPORT
     AC_DEFINE(HAVE_LC_MESSAGES)
     AC_DEFINE(HAVE_GETPAGESIZE)
     AC_DEFINE(HAVE_SETENV)
@@ -122,7 +125,7 @@ case "${host}" in
     AC_SUBST(SECTION_FLAGS)
     GLIBCXX_CHECK_LINKER_FEATURES
     GLIBCXX_CHECK_COMPLEX_MATH_SUPPORT
-    GLIBCXX_CHECK_WCHAR_T_SUPPORT
+    GLIBCXX_CHECK_ICONV_SUPPORT
     AC_DEFINE(HAVE_COPYSIGN)
     AC_DEFINE(HAVE_COPYSIGNF)
     AC_DEFINE(HAVE_FREXPF)
@@ -144,19 +147,17 @@ case "${host}" in
       fp.h float.h endian.h inttypes.h locale.h float.h stdint.h])
     SECTION_FLAGS='-ffunction-sections -fdata-sections'
     AC_SUBST(SECTION_FLAGS)
+    GLIBCXX_CHECK_COMPILER_FEATURES
     GLIBCXX_CHECK_LINKER_FEATURES
+    GLIBCXX_CHECK_MATH_SUPPORT
+    GLIBCXX_CHECK_BUILTIN_MATH_SUPPORT
     GLIBCXX_CHECK_COMPLEX_MATH_SUPPORT
-    GLIBCXX_CHECK_WCHAR_T_SUPPORT
+    GLIBCXX_CHECK_ICONV_SUPPORT
+    GLIBCXX_CHECK_STDLIB_SUPPORT
 
     # For LFS.
     AC_DEFINE(HAVE_INT64_T)
-    case "$target" in
-      *-uclinux*)
-        # Don't enable LFS with uClibc
-        ;;
-      *)
-        AC_DEFINE(_GLIBCXX_USE_LFS)
-    esac
+    GLIBCXX_CHECK_LFS
 
     # For showmanyc_helper().
     AC_CHECK_HEADERS(sys/ioctl.h sys/filio.h)
@@ -166,74 +167,11 @@ case "${host}" in
     # For xsputn_2().
     AC_CHECK_HEADERS(sys/uio.h)
     GLIBCXX_CHECK_WRITEV
-
-    AC_DEFINE(HAVE_ACOSF)
-    AC_DEFINE(HAVE_ASINF)
-    AC_DEFINE(HAVE_ATANF)
-    AC_DEFINE(HAVE_ATAN2F)
-    AC_DEFINE(HAVE_CEILF)
-    AC_DEFINE(HAVE_COPYSIGN)
-    AC_DEFINE(HAVE_COPYSIGNF)
-    AC_DEFINE(HAVE_COSF)
-    AC_DEFINE(HAVE_COSHF)
-    AC_DEFINE(HAVE_EXPF)
-    AC_DEFINE(HAVE_FABSF)
-    AC_DEFINE(HAVE_FINITE)
-    AC_DEFINE(HAVE_FINITEF)
-    AC_DEFINE(HAVE_FLOORF)
-    AC_DEFINE(HAVE_FMODF)
-    AC_DEFINE(HAVE_FREXPF)
-    AC_DEFINE(HAVE_HYPOT)
-    AC_DEFINE(HAVE_HYPOTF)
-    AC_DEFINE(HAVE_ISINF)
-    AC_DEFINE(HAVE_ISINFF)
-    AC_DEFINE(HAVE_ISNAN)
-    AC_DEFINE(HAVE_ISNANF)
-    AC_DEFINE(HAVE_LOGF)
-    AC_DEFINE(HAVE_LOG10F)
-    AC_DEFINE(HAVE_MODFF)
-    AC_DEFINE(HAVE_SINF)
-    AC_DEFINE(HAVE_SINHF)
-    AC_DEFINE(HAVE_SINCOS)
-    AC_DEFINE(HAVE_SINCOSF)
-    AC_DEFINE(HAVE_SQRTF)
-    AC_DEFINE(HAVE_TANF)
-    AC_DEFINE(HAVE_TANHF)
-    if test x"long_double_math_on_this_cpu" = x"yes"; then
-      AC_DEFINE(HAVE_ACOSL)
-      AC_DEFINE(HAVE_ASINL)
-      AC_DEFINE(HAVE_ATANL)
-      AC_DEFINE(HAVE_ATAN2L)
-      AC_DEFINE(HAVE_CEILL)
-      AC_DEFINE(HAVE_COPYSIGNL)
-      AC_DEFINE(HAVE_COSL)
-      AC_DEFINE(HAVE_COSHL)
-      AC_DEFINE(HAVE_EXPL)
-      AC_DEFINE(HAVE_FABSL)
-      AC_DEFINE(HAVE_FINITEL)
-      AC_DEFINE(HAVE_FLOORL)
-      AC_DEFINE(HAVE_FMODL)
-      AC_DEFINE(HAVE_FREXPL)
-      AC_DEFINE(HAVE_HYPOTL)
-      AC_DEFINE(HAVE_ISINFL)
-      AC_DEFINE(HAVE_ISNANL)
-      AC_DEFINE(HAVE_LOGL)
-      AC_DEFINE(HAVE_LOG10L)
-      AC_DEFINE(HAVE_MODFL)
-      AC_DEFINE(HAVE_POWL)
-      AC_DEFINE(HAVE_SINL)
-      AC_DEFINE(HAVE_SINHL)
-      AC_DEFINE(HAVE_SINCOSL)
-      AC_DEFINE(HAVE_SQRTL)
-      AC_DEFINE(HAVE_TANL)
-      AC_DEFINE(HAVE_TANHL)
-    fi
     ;;
   *-mingw32*)
     AC_CHECK_HEADERS([sys/types.h locale.h float.h])
     GLIBCXX_CHECK_LINKER_FEATURES
     GLIBCXX_CHECK_COMPLEX_MATH_SUPPORT
-    GLIBCXX_CHECK_WCHAR_T_SUPPORT
     ;;
   *-netbsd*)
     AC_CHECK_HEADERS([nan.h ieeefp.h endian.h sys/isa_defs.h \
@@ -243,7 +181,7 @@ case "${host}" in
     AC_SUBST(SECTION_FLAGS) 
     GLIBCXX_CHECK_LINKER_FEATURES
     GLIBCXX_CHECK_COMPLEX_MATH_SUPPORT
-    GLIBCXX_CHECK_WCHAR_T_SUPPORT
+    GLIBCXX_CHECK_ICONV_SUPPORT
     AC_DEFINE(HAVE_COPYSIGN)
     AC_DEFINE(HAVE_COPYSIGNF)
     AC_DEFINE(HAVE_FINITEF)
@@ -260,12 +198,33 @@ case "${host}" in
       AC_DEFINE(HAVE_ISNANL)
     fi
     ;;
+  *-netware)
+    AC_CHECK_HEADERS([nan.h ieeefp.h sys/isa_defs.h sys/machine.h \
+      sys/types.h locale.h float.h inttypes.h])
+    SECTION_FLAGS='-ffunction-sections -fdata-sections'
+    AC_SUBST(SECTION_FLAGS)
+    GLIBCXX_CHECK_LINKER_FEATURES
+    GLIBCXX_CHECK_COMPLEX_MATH_SUPPORT
+    GLIBCXX_CHECK_ICONV_SUPPORT
+    AC_DEFINE(HAVE_HYPOT)
+    AC_DEFINE(HAVE_ISINF)
+    AC_DEFINE(HAVE_ISNAN)
+
+    # For showmanyc_helper().
+    AC_CHECK_HEADERS(sys/ioctl.h sys/filio.h)
+    GLIBCXX_CHECK_POLL
+    GLIBCXX_CHECK_S_ISREG_OR_S_IFREG
+
+    # For xsputn_2().
+    AC_CHECK_HEADERS(sys/uio.h)
+    GLIBCXX_CHECK_WRITEV
+    ;;
   *-qnx6.1* | *-qnx6.2*)
     SECTION_FLAGS='-ffunction-sections -fdata-sections'
     AC_SUBST(SECTION_FLAGS) 
     GLIBCXX_CHECK_LINKER_FEATURES
     GLIBCXX_CHECK_COMPLEX_MATH_SUPPORT
-    GLIBCXX_CHECK_WCHAR_T_SUPPORT
+    GLIBCXX_CHECK_ICONV_SUPPORT
     AC_DEFINE(HAVE_COSF)
     AC_DEFINE(HAVE_COSL)
     AC_DEFINE(HAVE_COSHF)
@@ -288,77 +247,26 @@ case "${host}" in
     #    os_include_dir="os/solaris/solaris2.6"
     #    ;;
       *-solaris2.7 | *-solaris2.8 | *-solaris2.9 | *-solaris2.10)
+         GLIBCXX_CHECK_LINKER_FEATURES
          AC_DEFINE(HAVE_GETPAGESIZE)
          AC_DEFINE(HAVE_SIGSETJMP)
          AC_DEFINE(HAVE_MBSTATE_T)
          AC_DEFINE(HAVE_POLL)
          AC_DEFINE(HAVE_S_ISREG)
          AC_DEFINE(HAVE_LC_MESSAGES)
-         AC_DEFINE(HAVE_BTOWC)
-         AC_DEFINE(HAVE_FGETWC)
-         AC_DEFINE(HAVE_FGETWS)
          AC_DEFINE(HAVE_FINITE)
          AC_DEFINE(HAVE_FPCLASS)
-         AC_DEFINE(HAVE_FPUTWC)
-         AC_DEFINE(HAVE_FPUTWS)
-         AC_DEFINE(HAVE_FWIDE)
-         AC_DEFINE(HAVE_FWPRINTF)
-         AC_DEFINE(HAVE_FWSCANF)
          AC_DEFINE(HAVE_GETPAGESIZE)
-         AC_DEFINE(HAVE_GETWC)
-         AC_DEFINE(HAVE_GETWCHAR)
-         AC_DEFINE(HAVE_MBRLEN)
-         AC_DEFINE(HAVE_MBRTOWC)
-         AC_DEFINE(HAVE_MBSINIT)
-         AC_DEFINE(HAVE_MBSRTOWCS)
          AC_DEFINE(HAVE_NL_LANGINFO)
-         AC_DEFINE(HAVE_PUTWC)
-         AC_DEFINE(HAVE_PUTWCHAR)
-         AC_DEFINE(HAVE_SWPRINTF)
-         AC_DEFINE(HAVE_SWSCANF)
-         AC_DEFINE(HAVE_UNGETWC)
-         AC_DEFINE(HAVE_VFWPRINTF)
-         AC_DEFINE(HAVE_VSWPRINTF)
-         AC_DEFINE(HAVE_VWPRINTF)
-         AC_DEFINE(HAVE_WCRTOMB)
-         AC_DEFINE(HAVE_WCSCAT)
-         AC_DEFINE(HAVE_WCSCHR)
-         AC_DEFINE(HAVE_WCSCMP)
-         AC_DEFINE(HAVE_WCSCOLL)
-         AC_DEFINE(HAVE_WCSCPY)
-         AC_DEFINE(HAVE_WCSCSPN)
-         AC_DEFINE(HAVE_WCSFTIME)
-         AC_DEFINE(HAVE_WCSLEN)
-         AC_DEFINE(HAVE_WCSNCAT)
-         AC_DEFINE(HAVE_WCSNCMP)
-         AC_DEFINE(HAVE_WCSNCPY)
-         AC_DEFINE(HAVE_WCSPBRK)
-         AC_DEFINE(HAVE_WCSRCHR)
-         AC_DEFINE(HAVE_WCSRTOMBS)
-         AC_DEFINE(HAVE_WCSSPN)
-         AC_DEFINE(HAVE_WCSSTR)
-         AC_DEFINE(HAVE_WCSTOD)
-         AC_DEFINE(HAVE_WCSTOK)
-         AC_DEFINE(HAVE_WCSTOL)
-         AC_DEFINE(HAVE_WCSTOUL)
-         AC_DEFINE(HAVE_WCSXFRM)
-         AC_DEFINE(HAVE_WCTOB)
-         AC_DEFINE(HAVE_WMEMCHR)
-         AC_DEFINE(HAVE_WMEMCMP)
-         AC_DEFINE(HAVE_WMEMCPY)
-         AC_DEFINE(HAVE_WMEMMOVE)
-         AC_DEFINE(HAVE_WMEMSET)
-         AC_DEFINE(HAVE_WPRINTF)
-         AC_DEFINE(HAVE_WSCANF)
          AC_DEFINE(HAVE_ICONV)
          AC_DEFINE(HAVE_ICONV_CLOSE)
          AC_DEFINE(HAVE_ICONV_OPEN)
          # Look for the pieces required for wchar_t support in order to
          # get all the right HAVE_* macros defined.
-         GLIBCXX_CHECK_WCHAR_T_SUPPORT
+         GLIBCXX_CHECK_ICONV_SUPPORT
          # All of the dependencies for wide character support are here, so
          # turn it on.  This requires some syncronization with the
-         # GLIBCXX_CHECK_WCHAR_T_SUPPORT in acinclude.m4
+         # GLIBCXX_CHECK_ICONV_SUPPORT in acinclude.m4
          AC_DEFINE(_GLIBCXX_USE_WCHAR_T) 
          # Are these tested for even when cross?
          AC_DEFINE(HAVE_FLOAT_H)
@@ -413,7 +321,7 @@ case "${host}" in
     AC_SUBST(SECTION_FLAGS)
     GLIBCXX_CHECK_LINKER_FEATURES
     GLIBCXX_CHECK_COMPLEX_MATH_SUPPORT
-    GLIBCXX_CHECK_WCHAR_T_SUPPORT
+    GLIBCXX_CHECK_ICONV_SUPPORT
     AC_DEFINE(HAVE_COPYSIGN)
     AC_DEFINE(HAVE_COPYSIGNF)
     AC_DEFINE(HAVE_FINITE)
@@ -507,4 +415,4 @@ case "${host}" in
     AC_MSG_ERROR([No support for this host/target combination.])
    ;;
 esac
-
+])

@@ -1,6 +1,6 @@
 // std::ctype implementation details, GNU version -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -36,8 +36,8 @@
 #include <locale>
 #include <bits/c++locale_internal.h>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   // NB: The other ctype<char> specializations are in src/locale.cc and
   // various /config/os/* files.
   template<>
@@ -95,7 +95,7 @@ namespace std
 	__ret = __wctype_l("graph", _M_c_locale_ctype);
 	break;
       default:
-	__ret = 0;
+	__ret = __wmask_type();
       }
     return __ret;
   }
@@ -134,20 +134,34 @@ namespace std
   ctype<wchar_t>::
   do_is(mask __m, wchar_t __c) const
   { 
-    // Highest bitmask in ctype_base == 10, but extra in "C"
-    // library for blank.
+    // The case of __m == ctype_base::space is particularly important,
+    // due to its use in many istream functions.  Therefore we deal with
+    // it first, exploiting the knowledge that on GNU systems _M_bit[5]
+    // is the mask corresponding to ctype_base::space.  NB: an encoding
+    // change would not affect correctness!
     bool __ret = false;
-    const size_t __bitmasksize = 11; 
-    for (size_t __bitcur = 0; __bitcur <= __bitmasksize; ++__bitcur)
-      if (__m & _M_bit[__bitcur]
-	  && __iswctype_l(__c, _M_wmask[__bitcur], _M_c_locale_ctype))
-	{
-	  __ret = true;
-	  break;
-	}
+    if (__m == _M_bit[5])
+      __ret = __iswctype_l(__c, _M_wmask[5], _M_c_locale_ctype);
+    else
+      {
+	// Highest bitmask in ctype_base == 10, but extra in "C"
+	// library for blank.
+	const size_t __bitmasksize = 11;
+	for (size_t __bitcur = 0; __bitcur <= __bitmasksize; ++__bitcur)
+	  if (__m & _M_bit[__bitcur])
+	    {
+	      if (__iswctype_l(__c, _M_wmask[__bitcur], _M_c_locale_ctype))
+		{
+		  __ret = true;
+		  break;
+		}
+	      else if (__m == _M_bit[__bitcur])
+		break;
+	    }
+      }
     return __ret;    
   }
-  
+
   const wchar_t* 
   ctype<wchar_t>::
   do_is(const wchar_t* __lo, const wchar_t* __hi, mask* __vec) const
@@ -286,4 +300,5 @@ namespace std
 #endif
   }
 #endif //  _GLIBCXX_USE_WCHAR_T
-}
+
+_GLIBCXX_END_NAMESPACE

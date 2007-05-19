@@ -1,6 +1,6 @@
 // std::numpunct implementation details, generic version -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -35,8 +35,8 @@
 
 #include <locale>
 
-namespace std
-{
+_GLIBCXX_BEGIN_NAMESPACE(std)
+
   template<> 
     void
     numpunct<char>::_M_initialize_numpunct(__c_locale)
@@ -59,9 +59,9 @@ namespace std
 	_M_data->_M_atoms_in[__i] = __num_base::_S_atoms_in[__i];
 
       _M_data->_M_truename = "true";
-      _M_data->_M_truename_size = strlen(_M_data->_M_truename);
+      _M_data->_M_truename_size = 4;
       _M_data->_M_falsename = "false";
-      _M_data->_M_falsename_size = strlen(_M_data->_M_falsename);
+      _M_data->_M_falsename_size = 5;
     }
 
   template<> 
@@ -85,27 +85,24 @@ namespace std
       _M_data->_M_thousands_sep = L',';
       
       // Use ctype::widen code without the facet...
-      unsigned char uc;
       for (size_t __i = 0; __i < __num_base::_S_oend; ++__i)
-	{
-	  uc = static_cast<unsigned char>(__num_base::_S_atoms_out[__i]);
-	  _M_data->_M_atoms_out[__i] = btowc(uc);
-	}
+	_M_data->_M_atoms_out[__i] =
+	  static_cast<wchar_t>(__num_base::_S_atoms_out[__i]);
       
       for (size_t __i = 0; __i < __num_base::_S_iend; ++__i)
-	{
-	  uc = static_cast<unsigned char>(__num_base::_S_atoms_in[__i]);
-	  _M_data->_M_atoms_in[__i] = btowc(uc);
-	}
+	_M_data->_M_atoms_in[__i] =
+	  static_cast<wchar_t>(__num_base::_S_atoms_in[__i]);
 
       _M_data->_M_truename = L"true";
-      _M_data->_M_truename_size = wcslen(_M_data->_M_truename);
+      _M_data->_M_truename_size = 4;
       _M_data->_M_falsename = L"false";
-      _M_data->_M_falsename_size = wcslen(_M_data->_M_falsename);
+      _M_data->_M_falsename_size = 5;
     }
 
   template<> 
     numpunct<wchar_t>::~numpunct()
     { delete _M_data; }
 #endif
-}
+
+_GLIBCXX_END_NAMESPACE
+

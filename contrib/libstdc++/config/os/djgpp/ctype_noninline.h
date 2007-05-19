@@ -1,6 +1,6 @@
 // Locale support -*- C++ -*-
 
-// Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -27,6 +27,11 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file ctype_noninline.h
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
+
 //
 // ISO C++ 14882: 22.1  Locales
 //
@@ -35,13 +40,13 @@
 
   const ctype_base::mask*
   ctype<char>::classic_table() throw()
-  { return 0; }
+  { return __dj_ctype_flags+1; }
 
   ctype<char>::ctype(__c_locale, const mask* __table, bool __del, 
 		     size_t __refs) 
   : facet(__refs), _M_del(__table != 0 && __del), 
   _M_toupper(__dj_ctype_toupper), _M_tolower(__dj_ctype_tolower),
-  _M_table(__table ? __table : __dj_ctype_flags)  
+  _M_table(__table ? __table : classic_table()) 
   { 
     memset(_M_widen, 0, sizeof(_M_widen));
     _M_widen_ok = 0;
@@ -52,7 +57,7 @@
   ctype<char>::ctype(const mask* __table, bool __del, size_t __refs) 
   : facet(__refs), _M_del(__table != 0 && __del), 
   _M_toupper(__dj_ctype_toupper), _M_tolower(__dj_ctype_tolower),
-  _M_table(__table ? __table : __dj_ctype_flags)  
+  _M_table(__table ? __table : classic_table()) 
   { 
     memset(_M_widen, 0, sizeof(_M_widen));
     _M_widen_ok = 0;
@@ -62,14 +67,14 @@
 
   char
   ctype<char>::do_toupper(char __c) const
-  { return _M_toupper[static_cast<int>(__c)+1]; }
+  { return _M_toupper[static_cast<unsigned char>(__c)]; }
 
   const char*
   ctype<char>::do_toupper(char* __low, const char* __high) const
   {
     while (__low < __high)
       {
-	*__low = ::toupper(static_cast<int> (*__low));
+	*__low = _M_toupper[static_cast<unsigned char>(*__low)];
 	++__low;
       }
     return __high;
@@ -77,14 +82,14 @@
 
   char
   ctype<char>::do_tolower(char __c) const
-  { return _M_tolower[static_cast<int>(__c)+1]; }
+  { return _M_tolower[static_cast<unsigned char>(__c)]; }
 
   const char* 
   ctype<char>::do_tolower(char* __low, const char* __high) const
   {
     while (__low < __high)
       {
-	*__low = ::tolower(static_cast<int> (*__low));
+	*__low = _M_tolower[static_cast<unsigned char>(*__low)];
 	++__low;
       }
     return __high;

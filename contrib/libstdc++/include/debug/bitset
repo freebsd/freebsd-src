@@ -1,6 +1,6 @@
 // Debugging bitset implementation -*- C++ -*-
 
-// Copyright (C) 2003, 2004
+// Copyright (C) 2003, 2004, 2005
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -16,7 +16,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING.  If not, write to the Free
-// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
 // USA.
 
 // As a special exception, you may use this file as part of a free software
@@ -28,6 +28,10 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
+/** @file debug/bitset
+ *  This file is a GNU debug extension to the Standard C++ Library.
+ */
+
 #ifndef _GLIBCXX_DEBUG_BITSET
 #define _GLIBCXX_DEBUG_BITSET
 
@@ -35,7 +39,9 @@
 #include <debug/safe_sequence.h>
 #include <debug/safe_iterator.h>
 
-namespace __gnu_debug_def
+namespace std
+{
+namespace __debug
 {
   template<size_t _Nb>
     class bitset
@@ -68,7 +74,7 @@ namespace __gnu_debug_def
 	operator=(bool __x)
 	{
 	  _GLIBCXX_DEBUG_VERIFY(! this->_M_singular(),
-			      _M_message(::__gnu_debug::__msg_bad_bitset_write)
+			      _M_message(__gnu_debug::__msg_bad_bitset_write)
 				._M_iterator(*this));
 	  *static_cast<_Base_ref*>(this) = __x;
 	  return *this;
@@ -78,10 +84,10 @@ namespace __gnu_debug_def
 	operator=(const reference& __x)
 	{
 	  _GLIBCXX_DEBUG_VERIFY(! __x._M_singular(),
-			       _M_message(::__gnu_debug::__msg_bad_bitset_read)
+			       _M_message(__gnu_debug::__msg_bad_bitset_read)
 				._M_iterator(__x));
 	  _GLIBCXX_DEBUG_VERIFY(! this->_M_singular(),
-			      _M_message(::__gnu_debug::__msg_bad_bitset_write)
+			      _M_message(__gnu_debug::__msg_bad_bitset_write)
 				._M_iterator(*this));
 	  *static_cast<_Base_ref*>(this) = __x;
 	  return *this;
@@ -91,7 +97,7 @@ namespace __gnu_debug_def
 	operator~() const
 	{
 	  _GLIBCXX_DEBUG_VERIFY(! this->_M_singular(),
-			       _M_message(::__gnu_debug::__msg_bad_bitset_read)
+			       _M_message(__gnu_debug::__msg_bad_bitset_read)
 				._M_iterator(*this));
 	  return ~(*static_cast<const _Base_ref*>(this));
 	}
@@ -99,7 +105,7 @@ namespace __gnu_debug_def
 	operator bool() const
 	{
 	  _GLIBCXX_DEBUG_VERIFY(! this->_M_singular(),
-			      _M_message(::__gnu_debug::__msg_bad_bitset_read)
+			      _M_message(__gnu_debug::__msg_bad_bitset_read)
 				._M_iterator(*this));
 	  return *static_cast<const _Base_ref*>(this);
 	}
@@ -108,7 +114,7 @@ namespace __gnu_debug_def
 	flip()
 	{
 	  _GLIBCXX_DEBUG_VERIFY(! this->_M_singular(),
-			      _M_message(::__gnu_debug::__msg_bad_bitset_flip)
+			      _M_message(__gnu_debug::__msg_bad_bitset_flip)
 				._M_iterator(*this));
 	  _Base_ref::flip();
 	  return *this;
@@ -239,6 +245,28 @@ namespace __gnu_debug_def
         to_string() const
         { return _M_base().template to_string<_CharT, _Traits, _Allocator>(); }
 
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 434. bitset::to_string() hard to use.
+      template<typename _CharT, typename _Traits>
+        std::basic_string<_CharT, _Traits, std::allocator<_CharT> >
+        to_string() const
+        { return to_string<_CharT, _Traits, std::allocator<_CharT> >(); }
+
+      template<typename _CharT>
+        std::basic_string<_CharT, std::char_traits<_CharT>,
+                          std::allocator<_CharT> >
+        to_string() const
+        {
+          return to_string<_CharT, std::char_traits<_CharT>,
+                           std::allocator<_CharT> >();
+        }
+
+      std::basic_string<char, std::char_traits<char>, std::allocator<char> >
+        to_string() const
+        {
+          return to_string<char,std::char_traits<char>,std::allocator<char> >();
+        }
+
       using _Base::count;
       using _Base::size;
 
@@ -294,6 +322,7 @@ namespace __gnu_debug_def
     operator<<(std::basic_ostream<_CharT, _Traits>& __os,
 	       const bitset<_Nb>& __x)
     { return __os << __x._M_base(); }
-} // namespace __gnu_debug_def
+} // namespace __debug
+} // namespace std
 
 #endif
