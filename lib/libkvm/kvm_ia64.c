@@ -45,8 +45,10 @@
 #define	REGION_ADDR(x)		((x) & ((1LL<<61)-1LL))
 
 #define	NKPTEPG(ps)		((ps) / sizeof(struct ia64_lpte))
+#define	NKPTEDIR(ps)		((ps) >> 3)
 #define	KPTE_PTE_INDEX(va,ps)	(((va)/(ps)) % NKPTEPG(ps))
-#define	KPTE_DIR_INDEX(va,ps)	(((va)/(ps)) / NKPTEPG(ps))
+#define	KPTE_DIR0_INDEX(va,ps)	((((va)/(ps)) / NKPTEPG(ps)) / NKPTEDIR(ps))
+#define	KPTE_DIR1_INDEX(va,ps)	((((va)/(ps)) / NKPTEPG(ps)) % NKPTEDIR(ps))
 
 struct vmstate {
 	void	*mmapbase;
@@ -174,8 +176,8 @@ int
 _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 {
 	struct ia64_lpte pte;
-	uint64_t pgaddr, ptaddr;
-	size_t pgno, pgsz, ptno;
+	uint64_t pgaddr, pt0addr, pt1addr;
+	size_t pgno, pgsz, pt0no, pt1no;
 
 	if (va >= REGION_BASE(6)) {
 		/* Regions 6 and 7: direct mapped. */
@@ -184,16 +186,22 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 		/* Region 5: virtual. */
 		va = REGION_ADDR(va);
 		pgsz = kd->vmst->pagesize;
-		ptno = KPTE_DIR_INDEX(va, pgsz);
+		pt0no = KPTE_DIR0_INDEX(va, pgsz);
+		pt1no = KPTE_DIR1_INDEX(va, pgsz);
 		pgno = KPTE_PTE_INDEX(va, pgsz);
-		if (ptno >= (pgsz >> 3))
+		if (pt0no >= NKPTEDIR(pgsz))
 			goto fail;
-		ptaddr = kd->vmst->kptdir + (ptno << 3);
-		if (kvm_read(kd, ptaddr, &pgaddr, 8) != 8)
+		pt0addr = kd->vmst->kptdir + (pt0no << 3);
+		if (kvm_read(kd, pt0addr, &pt1addr, 8) != 8)
+			goto fail;
+		if (pt1addr == 0)
+			goto fail;
+		pt1addr += pt1no << 3;
+		if (kvm_read(kd, pt1addr, &pgaddr, 8) != 8)
 			goto fail;
 		if (pgaddr == 0)
 			goto fail;
-		pgaddr += (pgno * sizeof(pte));
+		pgaddr += pgno * sizeof(pte);
 		if (kvm_read(kd, pgaddr, &pte, sizeof(pte)) != sizeof(pte))
 			goto fail;
 		if (!(pte.pte & PTE_PRESENT))
