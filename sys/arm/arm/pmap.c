@@ -2910,7 +2910,7 @@ pmap_kenter_user(vm_offset_t va, vm_paddr_t pa)
 /*
  * remove a page rom the kernel pagetables
  */
-PMAP_INLINE void
+void
 pmap_kremove(vm_offset_t va)
 {
 	struct l2_bucket *l2b;
