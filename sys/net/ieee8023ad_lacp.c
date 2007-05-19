@@ -935,7 +935,15 @@ lacp_select_active_aggregator(struct lacp_softc *lsc)
 		LACP_DPRINTF((NULL, "%s, speed=%jd, nports=%d\n",
 		    lacp_format_lagid_aggregator(la, buf, sizeof(buf)),
 		    speed, la->la_nports));
-		if (speed > best_speed ||
+
+		/* This aggregator is chosen if
+		 *      the partner has a better system priority
+		 *  or, the total aggregated speed is higher
+		 *  or, it is already the chosen aggregator
+		 */
+		if ((best_la != NULL && LACP_SYS_PRI(la->la_partner) <
+		     LACP_SYS_PRI(best_la->la_partner)) ||
+		    speed > best_speed ||
 		    (speed == best_speed &&
 		    la == lsc->lsc_active_aggregator)) {
 			best_la = la;
