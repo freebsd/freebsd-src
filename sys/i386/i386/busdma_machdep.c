@@ -869,6 +869,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 	nsegs = 0;
 	error = 0;
 	first = 1;
+	lastaddr = (bus_addr_t) 0;
 	for (i = 0; i < uio->uio_iovcnt && resid != 0 && !error; i++) {
 		/*
 		 * Now at the first iovec to load.  Load each iovec
