@@ -1082,7 +1082,7 @@ ndis_rxeof_eth(adapter, ctx, addr, hdr, hdrlen, lookahead, lookaheadlen, pktlen)
 	uint32_t		pktlen;
 {
 	ndis_miniport_block	*block;
-	uint8_t			irql;
+	uint8_t			irql = 0;
 	uint32_t		status;
 	ndis_buffer		*b;
 	ndis_packet		*p;
