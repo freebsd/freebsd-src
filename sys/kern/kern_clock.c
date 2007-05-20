@@ -83,6 +83,9 @@ SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 /* Some of these don't belong here, but it's easiest to concentrate them. */
 long cp_time[CPUSTATES];
 
+/* Spin-lock protecting profiling statistics. */
+struct mtx time_lock;
+
 static int
 sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 {
@@ -172,6 +175,7 @@ initclocks(dummy)
 	 * code do its bit.
 	 */
 	cpu_initclocks();
+	mtx_init(&time_lock, "time lock", NULL, MTX_SPIN);
 
 	/*
 	 * Compute profhz/stathz, and fix profhz if needed.
@@ -349,20 +353,15 @@ startprofclock(p)
 	register struct proc *p;
 {
 
-	/*
-	 * XXX; Right now sched_lock protects statclock(), but perhaps
-	 * it should be protected later on by a time_lock, which would
-	 * cover psdiv, etc. as well.
-	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (p->p_flag & P_STOPPROF)
 		return;
 	if ((p->p_flag & P_PROFIL) == 0) {
-		mtx_lock_spin(&sched_lock);
 		p->p_flag |= P_PROFIL;
+		mtx_lock_spin(&time_lock);
 		if (++profprocs == 1)
 			cpu_startprofclock();
-		mtx_unlock_spin(&sched_lock);
+		mtx_unlock_spin(&time_lock);
 	}
 }
 
@@ -385,11 +384,11 @@ stopprofclock(p)
 		}
 		if ((p->p_flag & P_PROFIL) == 0)
 			return;
-		mtx_lock_spin(&sched_lock);
 		p->p_flag &= ~P_PROFIL;
+		mtx_lock_spin(&time_lock);
 		if (--profprocs == 0)
 			cpu_stopprofclock();
-		mtx_unlock_spin(&sched_lock);
+		mtx_unlock_spin(&time_lock);
 	}
 }
 
@@ -412,7 +411,6 @@ statclock(int usermode)
 	td = curthread;
 	p = td->td_proc;
 
-	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
 	if (usermode) {
 		/*
 		 * Charge the time as appropriate.
@@ -422,6 +420,7 @@ statclock(int usermode)
 			thread_statclock(1);
 #endif
 		td->td_uticks++;
+		mtx_lock_spin_flags(&time_lock, MTX_QUIET);
 		if (p->p_nice > NZERO)
 			cp_time[CP_NICE]++;
 		else
@@ -442,6 +441,7 @@ statclock(int usermode)
 		if ((td->td_pflags & TDP_ITHREAD) ||
 		    td->td_intr_nesting_level >= 2) {
 			td->td_iticks++;
+			mtx_lock_spin_flags(&time_lock, MTX_QUIET);
 			cp_time[CP_INTR]++;
 		} else {
 #ifdef KSE
@@ -450,15 +450,18 @@ statclock(int usermode)
 #endif
 			td->td_pticks++;
 			td->td_sticks++;
+			mtx_lock_spin_flags(&time_lock, MTX_QUIET);
 			if (!TD_IS_IDLETHREAD(td))
 				cp_time[CP_SYS]++;
 			else
 				cp_time[CP_IDLE]++;
 		}
 	}
+	mtx_unlock_spin_flags(&time_lock, MTX_QUIET);
 	CTR4(KTR_SCHED, "statclock: %p(%s) prio %d stathz %d",
 	    td, td->td_proc->p_comm, td->td_priority, (stathz)?stathz:hz);
 
+	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
 	sched_clock(td);
 
 	/* Update resource usage integrals and maximums. */

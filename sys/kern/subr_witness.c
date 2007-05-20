@@ -410,6 +410,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "callout", &lock_class_mtx_spin },
 	{ "entropy harvest mutex", &lock_class_mtx_spin },
 	{ "syscons video lock", &lock_class_mtx_spin },
+	{ "time lock", &lock_class_mtx_spin },
 	/*
 	 * leaf locks
 	 */
