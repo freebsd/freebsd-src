@@ -1168,7 +1168,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free)
 	pmap->pm_pdir[m->pindex] = 0;
 	--pmap->pm_stats.resident_count;
 
-	VMCNT_DEC(wire_count, 1);
+	VMCNT_SUB(wire_count, 1);
 
 	/*
 	 * Do an invltlb to make the invalidated mapping
@@ -1536,7 +1536,7 @@ pmap_release(pmap_t pmap)
 		    ("pmap_release: got wrong ptd page"));
 #endif
 		m->wire_count--;
-		VMCNT_DEC(wire_count, 1);
+		VMCNT_SUB(wire_count, 1);
 		vm_page_free_zero(m);
 	}
 	PMAP_LOCK_DESTROY(pmap);

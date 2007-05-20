@@ -1312,7 +1312,7 @@ pmap_free_contig_pages(void *ptr, int npages)
 	m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)ptr));
 	for (i = 0; i < npages; i++, m++) {
 		m->wire_count--;
-		VMCNT_DEC(wire_count, 1);
+		VMCNT_SUB(wire_count, 1);
 		vm_page_free(m);
 	}
 }
