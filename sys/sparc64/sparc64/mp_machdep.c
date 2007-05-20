@@ -93,8 +93,8 @@ static ih_func_t cpu_ipi_stop;
 
 /*
  * Argument area used to pass data to non-boot processors as they start up.
- * This must be statically initialized with a known invalid upa module id,
- * since the other processors will use it before the boot cpu enters the
+ * This must be statically initialized with a known invalid CPU module ID,
+ * since the other processors will use it before the boot CPU enters the
  * kernel.
  */
 struct	cpu_start_args cpu_start_args = { 0, -1, -1, 0, 0 };
@@ -106,12 +106,14 @@ struct	mtx ipi_mtx;
 
 vm_offset_t mp_tramp;
 
-u_int	mp_boot_mid;
-
 static u_int		cpuid_to_mid[MAXCPU];
 static volatile u_int	shutdown_cpus;
 
-void cpu_mp_unleash(void *);
+static void cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2);
+static void cpu_mp_unleash(void *v);
+static void sun4u_startcpu(phandle_t cpu, void *func, u_long arg);
+static void sun4u_stopself(void);
+
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
 
 vm_offset_t
@@ -123,7 +125,7 @@ mp_tramp_alloc(void)
 
 	v = OF_claim(NULL, PAGE_SIZE, PAGE_SIZE);
 	if (v == NULL)
-		panic("mp_tramp_alloc");
+		panic("%s", __func__);
 	bcopy(mp_tramp_code, v, mp_tramp_code_len);
 	*(u_long *)(v + mp_tramp_tlb_slots) = kernel_tlb_slots;
 	*(u_long *)(v + mp_tramp_func) = (u_long)mp_startup;
@@ -139,18 +141,17 @@ mp_tramp_alloc(void)
 }
 
 /*
- * Probe for other cpus.
+ * Probe for other CPUs.
  */
 void
 cpu_mp_setmaxid(void)
 {
+	char buf[128];
 	phandle_t child;
 	phandle_t root;
-	char buf[128];
 	int cpus;
 
-	all_cpus = 1 << PCPU_GET(cpuid);
-	mp_boot_mid = PCPU_GET(mid);
+	all_cpus = 1 << curcpu;
 	mp_ncpus = 1;
 
 	cpus = 0;
@@ -212,7 +213,7 @@ sun4u_stopself(void)
 	};
 
 	openfirmware_exit(&args);
-	panic("sun4u_stopself: failed.");
+	panic("%s: failed.", __func__);
 }
 
 /*
@@ -221,16 +222,16 @@ sun4u_stopself(void)
 void
 cpu_mp_start(void)
 {
+	char buf[128];
 	volatile struct cpu_start_args *csa;
 	struct pcpu *pc;
+	register_t s;
+	vm_offset_t va;
 	phandle_t child;
 	phandle_t root;
-	vm_offset_t va;
-	char buf[128];
 	u_int clock;
-	int cpuid;
 	u_int mid;
-	u_long s;
+	int cpuid;
 
 	mtx_init(&ipi_mtx, "ipi", NULL, MTX_SPIN);
 
@@ -239,7 +240,7 @@ cpu_mp_start(void)
 	    -1, NULL, NULL);
 	intr_setup(PIL_STOP, cpu_ipi_stop, -1, NULL, NULL);
 
-	cpuid_to_mid[PCPU_GET(cpuid)] = mp_boot_mid;
+	cpuid_to_mid[curcpu] = PCPU_GET(mid);
 
 	root = OF_peer(0);
 	csa = &cpu_start_args;
@@ -249,12 +250,12 @@ cpu_mp_start(void)
 			continue;
 		if (OF_getprop(child, "upa-portid", &mid, sizeof(mid)) <= 0 &&
 		    OF_getprop(child, "portid", &mid, sizeof(mid)) <= 0)
-			panic("cpu_mp_start: can't get module id");
-		if (mid == mp_boot_mid)
+			panic("%s: can't get module ID", __func__);
+		if (mid == PCPU_GET(mid))
 			continue;
 		if (OF_getprop(child, "clock-frequency", &clock,
 		    sizeof(clock)) <= 0)
-			panic("cpu_mp_start: can't get clock");
+			panic("%s: can't get clock", __func__);
 
 		csa->csa_state = 0;
 		sun4u_startcpu(child, (void *)mp_tramp, 0);
@@ -281,25 +282,26 @@ cpu_mp_start(void)
 
 		all_cpus |= 1 << cpuid;
 	}
-	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
+	PCPU_SET(other_cpus, all_cpus & ~(1 << curcpu));
 	smp_active = 1;
 }
 
 void
 cpu_mp_announce(void)
 {
+
 }
 
-void
+static void
 cpu_mp_unleash(void *v)
 {
 	volatile struct cpu_start_args *csa;
 	struct pcpu *pc;
+	register_t s;
 	vm_offset_t va;
 	vm_paddr_t pa;
 	u_int ctx_min;
 	u_int ctx_inc;
-	u_long s;
 	int i;
 
 	ctx_min = TLB_CTX_USER_MIN;
@@ -312,17 +314,17 @@ cpu_mp_unleash(void *v)
 		pc->pc_tlb_ctx_max = ctx_min + ctx_inc;
 		ctx_min += ctx_inc;
 
-		if (pc->pc_cpuid == PCPU_GET(cpuid))
+		if (pc->pc_cpuid == curcpu)
 			continue;
 		KASSERT(pc->pc_idlethread != NULL,
-		    ("cpu_mp_unleash: idlethread"));
-		pc->pc_curthread = pc->pc_idlethread;	
+		    ("%s: idlethread", __func__));
+		pc->pc_curthread = pc->pc_idlethread;
 		pc->pc_curpcb = pc->pc_curthread->td_pcb;
 		for (i = 0; i < PCPU_PAGES; i++) {
 			va = pc->pc_addr + i * PAGE_SIZE;
 			pa = pmap_kextract(va);
 			if (pa == 0)
-				panic("cpu_mp_unleash: pmap_kextract\n");
+				panic("%s: pmap_kextract", __func__);
 			csa->csa_ttes[i].tte_vpn = TV_VPN(va, TS_8K);
 			csa->csa_ttes[i].tte_data = TD_V | TD_8K | TD_PA(pa) |
 			    TD_L | TD_CP | TD_CV | TD_P | TD_W;
@@ -337,7 +339,7 @@ cpu_mp_unleash(void *v)
 	}
 
 	membar(StoreLoad);
-	csa->csa_count = 0; 
+	csa->csa_count = 0;
 	smp_started = 1;
 }
 
@@ -352,9 +354,9 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	tick_start();
 
 	smp_cpus++;
-	KASSERT(curthread != NULL, ("cpu_mp_bootstrap: curthread"));
-	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
-	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
+	KASSERT(curthread != NULL, ("%s: curthread", __func__));
+	PCPU_SET(other_cpus, all_cpus & ~(1 << curcpu));
+	printf("SMP: AP CPU #%d Launched!\n", curcpu);
 
 	csa->csa_count--;
 	membar(StoreLoad);
@@ -394,14 +396,15 @@ cpu_mp_shutdown(void)
 static void
 cpu_ipi_ast(struct trapframe *tf)
 {
+
 }
 
 static void
 cpu_ipi_stop(struct trapframe *tf)
 {
 
-	CTR1(KTR_SMP, "cpu_ipi_stop: stopped %d", PCPU_GET(cpuid));
-	savectx(&stoppcbs[PCPU_GET(cpuid)]);
+	CTR2(KTR_SMP, "%s: stopped %d", __func__, curcpu);
+	savectx(&stoppcbs[curcpu]);
 	atomic_set_acq_int(&stopped_cpus, PCPU_GET(cpumask));
 	while ((started_cpus & PCPU_GET(cpumask)) == 0) {
 		if ((shutdown_cpus & PCPU_GET(cpumask)) != 0) {
@@ -411,7 +414,7 @@ cpu_ipi_stop(struct trapframe *tf)
 	}
 	atomic_clear_rel_int(&started_cpus, PCPU_GET(cpumask));
 	atomic_clear_rel_int(&stopped_cpus, PCPU_GET(cpumask));
-	CTR1(KTR_SMP, "cpu_ipi_stop: restarted %d", PCPU_GET(cpuid));
+	CTR2(KTR_SMP, "%s: restarted %d", __func__, curcpu);
 }
 
 void
@@ -426,21 +429,22 @@ cpu_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2)
 	}
 }
 
-void
+static void
 cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 {
+	register_t s;
 	u_long ids;
-	u_long s;
 	int i;
 
 	KASSERT((ldxa(0, ASI_INTR_DISPATCH_STATUS) & IDR_BUSY) == 0,
-	    ("cpu_ipi_send: outstanding dispatch"));
+	    ("%s: outstanding dispatch", __func__));
 	for (i = 0; i < IPI_RETRIES; i++) {
 		s = intr_disable();
 		stxa(AA_SDB_INTR_D0, ASI_SDB_INTR_W, d0);
 		stxa(AA_SDB_INTR_D1, ASI_SDB_INTR_W, d1);
 		stxa(AA_SDB_INTR_D2, ASI_SDB_INTR_W, d2);
-		stxa(AA_INTR_SEND | (mid << 14), ASI_SDB_INTR_W, 0);
+		stxa(AA_INTR_SEND | (mid << IDC_ITID_SHIFT),
+		    ASI_SDB_INTR_W, 0);
 		/*
 		 * Workaround for SpitFire erratum #54; do a dummy read
 		 * from a SDB internal register before the MEMBAR #Sync
@@ -451,7 +455,8 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		membar(Sync);
 		(void)ldxa(AA_SDB_CNTL_HIGH, ASI_SDB_CONTROL_R);
 		membar(Sync);
-		while ((ids = ldxa(0, ASI_INTR_DISPATCH_STATUS)) & IDR_BUSY)
+		while (((ids = ldxa(0, ASI_INTR_DISPATCH_STATUS)) &
+		    IDR_BUSY) != 0)
 			;
 		intr_restore(s);
 		if ((ids & IDR_NACK) == 0)
@@ -468,25 +473,29 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 	    kdb_active ||
 #endif
 	    panicstr != NULL)
-		printf("cpu_ipi_send: couldn't send ipi to module %u\n", mid);
+		printf("%s: couldn't send IPI to module 0x%u\n",
+		    __func__, mid);
 	else
-		panic("cpu_ipi_send: couldn't send ipi");
+		panic("%s: couldn't send IPI", __func__);
 }
 
 void
 ipi_selected(u_int cpus, u_int ipi)
 {
+
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
 }
 
 void
 ipi_all(u_int ipi)
 {
-	panic("ipi_all");
+
+	panic("%s", __func__);
 }
 
 void
 ipi_all_but_self(u_int ipi)
 {
+
 	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)tl_ipi_level, ipi);
 }
