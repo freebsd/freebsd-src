@@ -5,9 +5,11 @@
  *
  * As long as the above copyright statement and this notice remain
  * unchanged, you can do what ever you want with this file.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -25,9 +27,7 @@ static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
     cpu_model, 0, "Machine model");
 
-#ifndef SUN4V
 int cpu_impl;
-#endif
 
 void setPQL2(int *const size, int *const ways);
 
@@ -87,6 +87,15 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 		break;
 	case CPU_IMPL_ULTRASPARCIIIi:
 		impls = "UltraSparc-IIIi";
+		break;
+	case CPU_IMPL_ULTRASPARCIV:
+		impls = "UltraSparc-IV";
+		break;
+	case CPU_IMPL_ULTRASPARCIVp:
+		impls = "UltraSparc-IV+";
+		break;
+	case CPU_IMPL_ULTRASPARCIIIip:
+		impls = "UltraSparc-IIIi+";
 		break;
 	default:
 		impls = NULL;
