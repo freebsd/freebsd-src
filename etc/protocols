@@ -7,17 +7,17 @@
 # See also http://www.iana.org/assignments/protocol-numbers
 #
 ip	0	IP		# internet protocol, pseudo protocol number
-#hopopt	0	HOPOPT		# hop-by-hop options for ipv6
+#hopopt 0	HOPOPT		# hop-by-hop options for ipv6
 icmp	1	ICMP		# internet control message protocol
 igmp	2	IGMP		# internet group management protocol
 ggp	3	GGP		# gateway-gateway protocol
-ipencap	4	IP-ENCAP	# IP encapsulated in IP (officially ``IP'')
+ipencap 4	IP-ENCAP	# IP encapsulated in IP (officially ``IP'')
 st2	5	ST2		# ST2 datagram mode (RFC 1819)
 tcp	6	TCP		# transmission control protocol
 cbt	7	CBT		# CBT, Tony Ballardie <A.Ballardie@cs.ucl.ac.uk>
 egp	8	EGP		# exterior gateway protocol
 igp	9	IGP		# any private interior gateway (Cisco: for IGRP)
-bbn-rcc	10	BBN-RCC-MON	# BBN RCC Monitoring
+bbn-rcc 10	BBN-RCC-MON	# BBN RCC Monitoring
 nvp	11	NVP-II		# Network Voice Protocol
 pup	12	PUP		# PARC universal packet protocol
 argus	13	ARGUS		# ARGUS
@@ -29,16 +29,16 @@ mux	18	MUX		# Multiplexing protocol
 dcn	19	DCN-MEAS	# DCN Measurement Subsystems
 hmp	20	HMP		# host monitoring protocol
 prm	21	PRM		# packet radio measurement protocol
-xns-idp	22	XNS-IDP		# Xerox NS IDP
-trunk-1	23	TRUNK-1		# Trunk-1
-trunk-2	24	TRUNK-2		# Trunk-2
+xns-idp 22	XNS-IDP		# Xerox NS IDP
+trunk-1 23	TRUNK-1		# Trunk-1
+trunk-2 24	TRUNK-2		# Trunk-2
 leaf-1	25	LEAF-1		# Leaf-1
 leaf-2	26	LEAF-2		# Leaf-2
 rdp	27	RDP		# "reliable datagram" protocol
 irtp	28	IRTP		# Internet Reliable Transaction Protocol
-iso-tp4	29	ISO-TP4		# ISO Transport Protocol Class 4
+iso-tp4 29	ISO-TP4		# ISO Transport Protocol Class 4
 netblt	30	NETBLT		# Bulk Data Transfer Protocol
-mfe-nsp	31	MFE-NSP		# MFE Network Services Protocol
+mfe-nsp 31	MFE-NSP		# MFE Network Services Protocol
 merit-inp	32	MERIT-INP	# MERIT Internodal Protocol
 sep	33	SEP		# Sequential Exchange Protocol
 3pc	34	3PC		# Third Party Connect Protocol
@@ -76,7 +76,7 @@ kryptolan	65	KRYPTOLAN	# Kryptolan
 rvd	66	RVD		# MIT Remote Virtual Disk Protocol
 ippc	67	IPPC		# Internet Pluribus Packet Core
 #	68			# any distributed filesystem
-sat-mon	69	SAT-MON		# SATNET Monitoring
+sat-mon 69	SAT-MON		# SATNET Monitoring
 visa	70	VISA		# VISA Protocol
 ipcv	71	IPCV		# Internet Packet Core Utility
 cpnx	72	CPNX		# Computer Protocol Network Executive
@@ -104,7 +104,7 @@ ax.25	93	AX.25		# AX.25 Frames
 ipip	94	IPIP		# Yet Another IP encapsulation
 micp	95	MICP		# Mobile Internetworking Control Pro.
 scc-sp	96	SCC-SP		# Semaphore Communications Sec. Pro.
-etherip	97	ETHERIP		# Ethernet-within-IP Encapsulation
+etherip 97	ETHERIP		# Ethernet-within-IP Encapsulation
 encap	98	ENCAP		# Yet Another IP encapsulation
 #	99			# any private encryption scheme
 gmtp	100	GMTP		# GMTP
