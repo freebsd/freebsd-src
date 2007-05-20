@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>
+#include <sys/refcount.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sched.h>
@@ -158,8 +159,9 @@ cpu_fork(td1, p2, td2, flags)
 			struct mdproc *mdp1 = &p1->p_md;
 			struct proc_ldt *pldt;
 
-			pldt = mdp1->md_ldt;
-			if (pldt && pldt->ldt_refcnt > 1) {
+			mtx_lock_spin(&dt_lock);
+			if ((pldt = mdp1->md_ldt) != NULL &&
+			    pldt->ldt_refcnt > 1) {
 				pldt = user_ldt_alloc(mdp1, pldt->ldt_len);
 				if (pldt == NULL)
 					panic("could not copy LDT");
@@ -167,6 +169,7 @@ cpu_fork(td1, p2, td2, flags)
 				set_user_ldt(mdp1);
 				user_ldt_free(td1);
 			}
+			mtx_unlock_spin(&dt_lock);
 		}
 		return;
 	}
@@ -248,10 +251,10 @@ cpu_fork(td1, p2, td2, flags)
 	pcb2->pcb_ext = 0;
 
 	/* Copy the LDT, if necessary. */
-	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin(&dt_lock);
 	if (mdp2->md_ldt != NULL) {
 		if (flags & RFMEM) {
-			mdp2->md_ldt->ldt_refcnt++;
+			refcount_acquire(&mdp2->md_ldt->ldt_refcnt);
 		} else {
 			mdp2->md_ldt = user_ldt_alloc(mdp2,
 			    mdp2->md_ldt->ldt_len);
@@ -259,7 +262,7 @@ cpu_fork(td1, p2, td2, flags)
 				panic("could not copy LDT");
 		}
 	}
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock_spin(&dt_lock);
 
 	/* Setup to release sched_lock in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
@@ -304,11 +307,13 @@ cpu_exit(struct thread *td)
 	 * If this process has a custom LDT, release it.  Reset pc->pcb_gs
 	 * and %gs before we free it in case they refer to an LDT entry.
 	 */
+	mtx_lock_spin(&dt_lock);
 	if (td->td_proc->p_md.md_ldt) {
 		td->td_pcb->pcb_gs = _udatasel;
 		load_gs(_udatasel);
 		user_ldt_free(td);
 	}
+	mtx_unlock_spin(&dt_lock);
 }
 
 void
