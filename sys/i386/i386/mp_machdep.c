@@ -1388,11 +1388,9 @@ release_aps(void *dummy __unused)
 
 	if (mp_ncpus == 1) 
 		return;
-	mtx_lock_spin(&sched_lock);
 	atomic_store_rel_int(&aps_ready, 1);
 	while (smp_started == 0)
 		ia32_pause();
-	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
 
