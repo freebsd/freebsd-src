@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/nexusvar.h>
 #include <machine/ofw_nexus.h>
 #include <machine/resource.h>
-#include <machine/ver.h>
 
 #include <machine/hypervisorvar.h>
 #include <machine/hv_api.h>

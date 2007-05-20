@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/nexusvar.h>
 #include <machine/resource.h>
-#include <machine/ver.h>
 
 #include <machine/mdesc_bus.h>
 #include <machine/cddl/mdesc.h>
