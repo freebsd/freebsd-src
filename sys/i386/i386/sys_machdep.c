@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/refcount.h>
 #include <sys/smp.h>
 #include <sys/sysproto.h>
 
@@ -115,7 +116,6 @@ sysarch(td, uap)
 		break;
 	}
 
-	mtx_lock(&Giant);
 	switch(uap->op) {
 	case I386_GET_LDT:
 		error = i386_get_ldt(td, &kargs.largs);
@@ -215,7 +215,6 @@ sysarch(td, uap)
 		error = EINVAL;
 		break;
 	}
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -351,16 +350,19 @@ done:
 
 /*
  * Update the GDT entry pointing to the LDT to point to the LDT of the
- * current process.
- *
- * This must be called with sched_lock held.  Unfortunately, we can't use a
- * mtx_assert() here because cpu_switch() calls this function after changing
- * curproc but before sched_lock's owner is updated in mi_switch().
+ * current process. Manage dt_lock holding/unholding autonomously.
  */   
 void
 set_user_ldt(struct mdproc *mdp)
 {
 	struct proc_ldt *pldt;
+	int dtlocked;
+
+	dtlocked = 0;
+	if (!mtx_owned(&dt_lock)) {
+		mtx_lock_spin(&dt_lock);
+		dtlocked = 1;
+	}
 
 	pldt = mdp->md_ldt;
 #ifdef SMP
@@ -370,6 +372,8 @@ set_user_ldt(struct mdproc *mdp)
 #endif
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	PCPU_SET(currentldt, GSEL(GUSERLDT_SEL, SEL_KPL));
+	if (dtlocked)
+		mtx_unlock_spin(&dt_lock);
 }
 
 #ifdef SMP
@@ -385,17 +389,15 @@ set_user_ldt_rv(struct thread *td)
 #endif
 
 /*
- * Must be called with either sched_lock free or held but not recursed.
- * If it does not return NULL, it will return with it owned.
+ * dt_lock must be held. Returns with dt_lock held.
  */
 struct proc_ldt *
 user_ldt_alloc(struct mdproc *mdp, int len)
 {
 	struct proc_ldt *pldt, *new_ldt;
 
-	if (mtx_owned(&sched_lock))
-		mtx_unlock_spin(&sched_lock);
-	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_assert(&dt_lock, MA_OWNED);
+	mtx_unlock_spin(&dt_lock);
 	MALLOC(new_ldt, struct proc_ldt *, sizeof(struct proc_ldt),
 		M_SUBPROC, M_WAITOK);
 
@@ -406,54 +408,49 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 		FREE(new_ldt, M_SUBPROC);
 		return NULL;
 	}
-	new_ldt->ldt_refcnt = 1;
+	refcount_init(&new_ldt->ldt_refcnt, 1);
 	new_ldt->ldt_active = 0;
 
-	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin(&dt_lock);
 	gdt_segs[GUSERLDT_SEL].ssd_base = (unsigned)new_ldt->ldt_base;
 	gdt_segs[GUSERLDT_SEL].ssd_limit = len * sizeof(union descriptor) - 1;
 	ssdtosd(&gdt_segs[GUSERLDT_SEL], &new_ldt->ldt_sd);
 
-	if ((pldt = mdp->md_ldt)) {
+	if ((pldt = mdp->md_ldt) != NULL) {
 		if (len > pldt->ldt_len)
 			len = pldt->ldt_len;
 		bcopy(pldt->ldt_base, new_ldt->ldt_base,
 		    len * sizeof(union descriptor));
-	} else {
+	} else
 		bcopy(ldt, new_ldt->ldt_base, sizeof(ldt));
-	}
-	return new_ldt;
+	
+	return (new_ldt);
 }
 
 /*
- * Must be called either with sched_lock free or held but not recursed.
- * If md_ldt is not NULL, it will return with sched_lock released.
+ * Must be called with dt_lock held.
  */
 void
 user_ldt_free(struct thread *td)
 {
 	struct mdproc *mdp = &td->td_proc->p_md;
-	struct proc_ldt *pldt = mdp->md_ldt;
+	struct proc_ldt *pldt;
 
-	if (pldt == NULL)
+	mtx_assert(&dt_lock, MA_OWNED);
+	if ((pldt = mdp->md_ldt) == NULL)
 		return;
 
-	if (!mtx_owned(&sched_lock))
-		mtx_lock_spin(&sched_lock);
-	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	if (td == PCPU_GET(curthread)) {
 		lldt(_default_ldt);
 		PCPU_SET(currentldt, _default_ldt);
 	}
 
 	mdp->md_ldt = NULL;
-	if (--pldt->ldt_refcnt == 0) {
-		mtx_unlock_spin(&sched_lock);
+	if (refcount_release(&pldt->ldt_refcnt)) {
 		kmem_free(kernel_map, (vm_offset_t)pldt->ldt_base,
 			pldt->ldt_len * sizeof(union descriptor));
 		FREE(pldt, M_SUBPROC);
-	} else
-		mtx_unlock_spin(&sched_lock);
+	}
 }
 
 /*
@@ -468,7 +465,7 @@ i386_get_ldt(td, uap)
 	struct i386_ldt_args *uap;
 {
 	int error = 0;
-	struct proc_ldt *pldt = td->td_proc->p_md.md_ldt;
+	struct proc_ldt *pldt;
 	int nldt, num;
 	union descriptor *lp;
 
@@ -477,11 +474,14 @@ i386_get_ldt(td, uap)
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
-	if (pldt) {
+	mtx_lock_spin(&dt_lock);
+	if ((pldt = td->td_proc->p_md.md_ldt) != NULL) {
 		nldt = pldt->ldt_len;
-		num = min(uap->num, nldt);
 		lp = &((union descriptor *)(pldt->ldt_base))[uap->start];
+		mtx_unlock_spin(&dt_lock);
+		num = min(uap->num, nldt);
 	} else {
+		mtx_unlock_spin(&dt_lock);
 		nldt = sizeof(ldt)/sizeof(ldt[0]);
 		num = min(uap->num, nldt);
 		lp = &ldt[uap->start];
@@ -531,10 +531,10 @@ i386_set_ldt(td, uap, descs)
 		}
 		if (uap->num <= 0)
 			return (EINVAL);
-		mtx_lock_spin(&sched_lock);
-		pldt = mdp->md_ldt;
-		if (pldt == NULL || uap->start >= pldt->ldt_len) {
-			mtx_unlock_spin(&sched_lock);
+		mtx_lock_spin(&dt_lock);
+		if ((pldt = mdp->md_ldt) == NULL ||
+		    uap->start >= pldt->ldt_len) {
+			mtx_unlock_spin(&dt_lock);
 			return (0);
 		}
 		largest_ld = uap->start + uap->num;
@@ -543,7 +543,7 @@ i386_set_ldt(td, uap, descs)
 		i = largest_ld - uap->start;
 		bzero(&((union descriptor *)(pldt->ldt_base))[uap->start],
 		    sizeof(union descriptor) * i);
-		mtx_unlock_spin(&sched_lock);
+		mtx_unlock_spin(&dt_lock);
 		return (0);
 	}
 
@@ -626,15 +626,15 @@ i386_set_ldt(td, uap, descs)
 
 	if (uap->start == LDT_AUTO_ALLOC && uap->num == 1) {
 		/* Allocate a free slot */
-		pldt = mdp->md_ldt;
-		if (pldt == NULL) {
-			error = i386_ldt_grow(td, NLDT + 1);
-			if (error)
+		mtx_lock_spin(&dt_lock);
+		if ((pldt = mdp->md_ldt) == NULL) {
+			if ((error = i386_ldt_grow(td, NLDT + 1))) {
+				mtx_unlock_spin(&dt_lock);
 				return (error);
+			}
 			pldt = mdp->md_ldt;
 		}
 again:
-		mtx_lock_spin(&sched_lock);
 		/*
 		 * start scanning a bit up to leave room for NVidia and
 		 * Wine, which still user the "Blat" method of allocation.
@@ -646,24 +646,23 @@ again:
 			dp++;
 		}
 		if (i >= pldt->ldt_len) {
-			mtx_unlock_spin(&sched_lock);
-			error = i386_ldt_grow(td, pldt->ldt_len+1);
-			if (error)
+			if ((error = i386_ldt_grow(td, pldt->ldt_len+1))) {
+				mtx_unlock_spin(&dt_lock);
 				return (error);
+			}
 			goto again;
 		}
 		uap->start = i;
 		error = i386_set_ldt_data(td, i, 1, descs);
-		mtx_unlock_spin(&sched_lock);
+		mtx_unlock_spin(&dt_lock);
 	} else {
 		largest_ld = uap->start + uap->num;
-		error = i386_ldt_grow(td, largest_ld);
-		if (error == 0) {
-			mtx_lock_spin(&sched_lock);
+		mtx_lock_spin(&dt_lock);
+		if (!(error = i386_ldt_grow(td, largest_ld))) {
 			error = i386_set_ldt_data(td, uap->start, uap->num,
 			    descs);
-			mtx_unlock_spin(&sched_lock);
 		}
+		mtx_unlock_spin(&dt_lock);
 	}
 	if (error == 0)
 		td->td_retval[0] = uap->start;
@@ -677,7 +676,7 @@ i386_set_ldt_data(struct thread *td, int start, int num,
 	struct mdproc *mdp = &td->td_proc->p_md;
 	struct proc_ldt *pldt = mdp->md_ldt;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	mtx_assert(&dt_lock, MA_OWNED);
 
 	/* Fill in range */
 	bcopy(descs,
@@ -694,14 +693,15 @@ i386_ldt_grow(struct thread *td, int len)
 	caddr_t old_ldt_base;
 	int old_ldt_len;
 
+	mtx_assert(&dt_lock, MA_OWNED);
+
 	if (len > MAX_LD)
 		return (ENOMEM);
 	if (len < NLDT + 1)
 		len = NLDT + 1;
 
 	/* Allocate a user ldt. */
-	pldt = mdp->md_ldt;
-	if (!pldt || len > pldt->ldt_len) {
+	if ((pldt = mdp->md_ldt) != NULL || len > pldt->ldt_len) {
 		struct proc_ldt *new_ldt;
 
 		new_ldt = user_ldt_alloc(mdp, len);
@@ -709,42 +709,35 @@ i386_ldt_grow(struct thread *td, int len)
 			return (ENOMEM);
 		pldt = mdp->md_ldt;
 
-		/* sched_lock was acquired by user_ldt_alloc. */
-		if (pldt) {
+		if (pldt != NULL) {
 			if (new_ldt->ldt_len > pldt->ldt_len) {
 				old_ldt_base = pldt->ldt_base;
 				old_ldt_len = pldt->ldt_len;
 				pldt->ldt_sd = new_ldt->ldt_sd;
 				pldt->ldt_base = new_ldt->ldt_base;
 				pldt->ldt_len = new_ldt->ldt_len;
-				mtx_unlock_spin(&sched_lock);
 				kmem_free(kernel_map, (vm_offset_t)old_ldt_base,
 					old_ldt_len * sizeof(union descriptor));
 				FREE(new_ldt, M_SUBPROC);
-				mtx_lock_spin(&sched_lock);
 			} else {
 				/*
 				 * If other threads already did the work,
 				 * do nothing.
 				 */
-				mtx_unlock_spin(&sched_lock);
 				kmem_free(kernel_map,
 				   (vm_offset_t)new_ldt->ldt_base,
 				   new_ldt->ldt_len * sizeof(union descriptor));
 				FREE(new_ldt, M_SUBPROC);
 				return (0);
 			}
-		} else {
+		} else
 			mdp->md_ldt = pldt = new_ldt;
-		}
 #ifdef SMP
-		mtx_unlock_spin(&sched_lock);
 		/* signal other cpus to reload ldt */
 		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv,
 		    NULL, td);
 #else
 		set_user_ldt(mdp);
-		mtx_unlock_spin(&sched_lock);
 #endif
 	}
 	return (0);

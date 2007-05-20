@@ -45,6 +45,8 @@ struct proc_ldt {
 
 /*
  * Machine-dependent part of the proc structure for i386.
+ * Table of MD locks:
+ *       t - Descriptor tables lock
  */
 struct mdthread {
 	int	md_spinlock_count;	/* (k) */
@@ -52,7 +54,7 @@ struct mdthread {
 };
 
 struct mdproc {
-	struct proc_ldt *md_ldt;	/* (j) per-process ldt */
+	struct proc_ldt *md_ldt;	/* (t) per-process ldt */
 };
 
 #ifdef	_KERNEL
@@ -60,6 +62,8 @@ struct mdproc {
 void 	set_user_ldt(struct mdproc *);
 struct 	proc_ldt *user_ldt_alloc(struct mdproc *, int);
 void 	user_ldt_free(struct thread *);
+
+extern struct mtx dt_lock;
 
 #endif	/* _KERNEL */
 

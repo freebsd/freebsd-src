@@ -1171,8 +1171,10 @@ exec_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_gs = _udatasel;
 	load_gs(_udatasel);
 
+	mtx_lock_spin(&dt_lock);
 	if (td->td_proc->p_md.md_ldt)
 		user_ldt_free(td);
+	mtx_unlock_spin(&dt_lock);
   
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_eip = entry;
@@ -1278,6 +1280,7 @@ static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
 struct region_descriptor r_gdt, r_idt;	/* table descriptors */
+struct mtx dt_lock;			/* lock for GDT and LDT */
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 extern int has_f00f_bug;
@@ -2101,6 +2104,7 @@ init386(first)
 
 	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	r_gdt.rd_base =  (int) gdt;
+	mtx_init(&dt_lock, "descriptor tables", NULL, MTX_SPIN);
 	lgdt(&r_gdt);
 
 	pcpu_init(pc, 0, sizeof(struct pcpu));
