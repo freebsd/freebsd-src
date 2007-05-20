@@ -123,7 +123,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/bus_private.h>
-#include <machine/cache.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
 
