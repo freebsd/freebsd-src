@@ -42,6 +42,8 @@
 #define	IDR_BUSY	(1<<0)
 #define	IDR_NACK	(1<<1)
 
+#define	IDC_ITID_SHIFT			14
+
 #define	IPI_AST		PIL_AST
 #define	IPI_RENDEZVOUS	PIL_RENDEZVOUS
 #define	IPI_STOP	PIL_STOP
@@ -79,7 +81,6 @@ void	cpu_mp_bootstrap(struct pcpu *pc);
 void	cpu_mp_shutdown(void);
 
 void	cpu_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2);
-void	cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2);
 
 void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all(u_int ipi);
@@ -220,36 +221,42 @@ ipi_wait(void *cookie)
 static __inline void *
 ipi_dcache_page_inval(void *func, vm_paddr_t pa)
 {
+
 	return (NULL);
 }
 
 static __inline void *
 ipi_icache_page_inval(void *func, vm_paddr_t pa)
 {
+
 	return (NULL);
 }
 
 static __inline void *
 ipi_tlb_context_demap(struct pmap *pm)
 {
+
 	return (NULL);
 }
 
 static __inline void *
 ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 {
+
 	return (NULL);
 }
 
 static __inline void *
 ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 {
+
 	return (NULL);
 }
 
 static __inline void
 ipi_wait(void *cookie)
 {
+
 }
 
 #endif /* SMP */
