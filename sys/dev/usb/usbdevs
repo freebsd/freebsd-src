@@ -526,6 +526,7 @@ vendor UMAX		0x1606	UMAX
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec
+vendor ANYDATA		0x16d5	AnyData Corporation
 vendor CMOTECH		0x16d8	CMOTECH CO., LTD.
 vendor LINKSYS3		0x1915	Linksys
 vendor DLINK		0x2001	D-Link
@@ -663,6 +664,9 @@ product APC UPS			0x0002	Uninterruptible Power Supply
 /* Anchor products */
 product ANCHOR EZUSB		0x2131	EZUSB
 product ANCHOR EZLINK		0x2720	EZLINK
+
+/* AnyData products */
+product ANYDATA ADU_E100X	0x6501	CDMA 2000 1xRTT/EV-DO USB Modem
 
 /* AOX, Inc. products */
 product AOX USB101		0x0008	Ethernet
