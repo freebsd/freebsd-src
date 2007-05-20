@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus_common.h>
 #ifndef SUN4V
 #include <machine/cache.h>
-#endif
 #include <machine/iommureg.h>
+#endif
 #include <machine/resource.h>
 
 #include <dev/pci/pcireg.h>
@@ -162,8 +162,8 @@ ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 	    (clnsz / 4) * 4 == clnsz, ("bogus cache line size %d", clnsz));
 	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_CACHELNSZ,
 	    clnsz / 4, 1);
-
 #endif
+
 	/*
 	 * The preset in the intline register is usually wrong. Reset it to 255,
 	 * so that the PCI code will reroute the interrupt if needed.

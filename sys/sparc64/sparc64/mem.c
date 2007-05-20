@@ -70,7 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
+#ifndef SUN4V
 #include <machine/cache.h>
+#endif
 #include <machine/md_var.h>
 #include <machine/pmap.h>
 #include <machine/tlb.h>
@@ -94,9 +96,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	vm_page_t m;
 	int error;
 	int i;
-#ifndef SUN4V
-	int color;
-#endif
 
 	cnt = 0;
 	error = 0;
@@ -136,16 +135,20 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			}
 
 			if (m != NULL) {
-				if (ova == 0) {
+#ifndef SUN4V
+				if (ova == 0)
 					ova = kmem_alloc_wait(kernel_map,
 					    PAGE_SIZE * DCACHE_COLORS);
-				}
-#ifndef SUN4V
-				if ((color = m->md.color) != -1)
-					va = ova + color * PAGE_SIZE;
+				if (m->md.color != -1)
+					va = ova + m->md.color * PAGE_SIZE;
 				else
-#endif
 					va = ova;
+#else
+				if (ova == 0)
+					ova = kmem_alloc_wait(kernel_map,
+					    PAGE_SIZE);
+				va = ova;
+#endif
 				pmap_qenter(va, &m, 1);
 				error = uiomove((void *)(va + off), cnt,
 				    uio);
@@ -182,7 +185,11 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 		/* else panic! */
 	}
 	if (ova != 0)
+#ifndef SUN4V
 		kmem_free_wakeup(kernel_map, ova, PAGE_SIZE * DCACHE_COLORS);
+#else
+		kmem_free_wakeup(kernel_map, ova, PAGE_SIZE);
+#endif
 	return (error);
 }
 

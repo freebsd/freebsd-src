@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <machine/cpu.h>
-#include <machine/cache.h>
 #include <machine/frame.h>
 #include <machine/instr.h>
 #include <machine/md_var.h>
@@ -89,11 +88,6 @@ void trap_trace_report(int);
 #ifndef	PMAP_SHPGPERPROC
 #define	PMAP_SHPGPERPROC	200
 #endif
-
-cache_enable_t *cache_enable;
-cache_flush_t *cache_flush;
-dcache_page_inval_t *dcache_page_inval;
-icache_page_inval_t *icache_page_inval;
 
 /*
  * Virtual and physical address of message buffer.
