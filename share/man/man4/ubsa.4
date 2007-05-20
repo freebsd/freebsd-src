@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2007
+.Dd May 8, 2007
 .Dt UBSA 4
 .Os
 .Sh NAME
@@ -73,6 +73,8 @@ driver supports the following adapters:
 .Pp
 .Bl -bullet -compact
 .It
+AnyData ADU-E100A (no EV-DO mode support)
+.It
 Belkin F5U103
 .It
 Belkin F5U120
@@ -80,8 +82,6 @@ Belkin F5U120
 e-Tek Labs Kwik232
 .It
 GoHubs GoCOM232
-.It
-Peracom single port serial adapter
 .It
 Huawei Technologies Mobile card (3G)
 .It
@@ -94,6 +94,8 @@ Option Globetrotter 3G Quad
 Option Globetrotter 3G Fusion (no WLAN support, only basic 3G modem port)
 .It
 Option Globetrotter 3G Fusion Quad (no WLAN support)
+.It
+Peracom single port serial adapter
 .El
 .Pp
 The supported 3G cards provide the necessary modem port for ppp,
