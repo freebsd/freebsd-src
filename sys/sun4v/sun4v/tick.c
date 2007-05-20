@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/tick.h>
-#include <machine/ver.h>
 
 #ifdef DEBUG
 #include <sys/proc.h>
