@@ -109,7 +109,7 @@ extern volatile struct vmmeter cnt;
 	atomic_store_rel_int(__CONCAT(&cnt.v_, member), val)
 #define	VMCNT_ADD(member, val)						\
 	atomic_add_int(__CONCAT(&cnt.v_, member), val)
-#define	VMCNT_DEC(member, val)						\
+#define	VMCNT_SUB(member, val)						\
 	atomic_subtract_int(__CONCAT(&cnt.v_, member), val)
 #define	VMCNT_GET(member)	(__CONCAT(cnt.v_, member))
 #define	VMCNT_PTR(member)						\
