@@ -423,12 +423,12 @@ profil(td, uap)
 	}
 	PROC_LOCK(p);
 	upp = &td->td_proc->p_stats->p_prof;
-	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin(&time_lock);
 	upp->pr_off = uap->offset;
 	upp->pr_scale = uap->scale;
 	upp->pr_base = uap->samples;
 	upp->pr_size = uap->size;
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock_spin(&time_lock);
 	startprofclock(p);
 	PROC_UNLOCK(p);
 
@@ -468,15 +468,15 @@ addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks)
 	if (ticks == 0)
 		return;
 	prof = &td->td_proc->p_stats->p_prof;
-	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin(&time_lock);
 	if (pc < prof->pr_off ||
 	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size) {
-		mtx_unlock_spin(&sched_lock);		
+		mtx_unlock_spin(&time_lock);		
 		return;			/* out of range; ignore */
 	}
 
 	addr = prof->pr_base + i;
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock_spin(&time_lock);
 	if ((v = fuswintr(addr)) == -1 || suswintr(addr, v + ticks) == -1) {
 		td->td_profil_addr = pc;
 		td->td_profil_ticks = ticks;
