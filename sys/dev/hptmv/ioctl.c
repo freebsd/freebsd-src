@@ -151,7 +151,7 @@ ioctl_ReportEvent(UCHAR event, PVOID param)
 	}
 	event_queue_add(&e);
 	if (event==ET_DEVICE_REMOVED) {
-		int controller, channel;
+		int controller = 0, channel = 0;
 		get_disk_location(&((PVDevice)param)->u.disk, &controller, &channel);
 		hpt_printk(("Device removed: controller %d channel %d\n", controller, channel));
 	}
