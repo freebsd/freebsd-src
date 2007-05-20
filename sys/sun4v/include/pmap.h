@@ -43,7 +43,6 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
-#include <machine/cache.h>
 #include <machine/hv_api.h>
 
 #define TSB_INIT_SHIFT          3
