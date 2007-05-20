@@ -1149,7 +1149,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	m->right = *free;
 	*free = m;
-	VMCNT_DEC(wire_count, 1);
+	VMCNT_SUB(wire_count, 1);
 	return 1;
 }
 
@@ -1459,7 +1459,7 @@ pmap_release(pmap_t pmap)
 	pmap->pm_pml4[PML4PML4I] = 0;	/* Recursive Mapping */
 
 	m->wire_count--;
-	VMCNT_DEC(wire_count, 1);
+	VMCNT_SUB(wire_count, 1);
 	vm_page_free_zero(m);
 	PMAP_LOCK_DESTROY(pmap);
 }
