@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #include <machine/bus.h>
-#include <machine/cache.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/fp.h>
