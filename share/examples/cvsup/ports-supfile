@@ -112,9 +112,11 @@ ports-all
 #ports-net
 #ports-net-im
 #ports-net-mgmt
+#ports-net-p2p
 #ports-news
 #ports-palm
 #ports-polish
+#ports-ports-mgmt
 #ports-portuguese
 #ports-print
 #ports-russian
@@ -128,6 +130,7 @@ ports-all
 #ports-www
 #ports-x11
 #ports-x11-clocks
+#ports-x11-drivers
 #ports-x11-fm
 #ports-x11-fonts
 #ports-x11-servers
