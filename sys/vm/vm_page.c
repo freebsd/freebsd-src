@@ -1249,7 +1249,7 @@ vm_page_unwire(vm_page_t m, int activate)
 	if (m->wire_count > 0) {
 		m->wire_count--;
 		if (m->wire_count == 0) {
-			VMCNT_DEC(wire_count, 1);
+			VMCNT_SUB(wire_count, 1);
 			if (m->flags & PG_UNMANAGED) {
 				;
 			} else if (activate)
