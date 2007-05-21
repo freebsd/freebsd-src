@@ -5,7 +5,7 @@ SHLIBDIR?=	/lib
 SRCS=		xlat16_iconv.c xlat16_sysctl.c
 SRCS+=		quirks.c
 
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 
 MAN=		kiconv.3
 

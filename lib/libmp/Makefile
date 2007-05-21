@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		mp
-SHLIB_MAJOR=	5
+SHLIB_MAJOR=	6
 DPADD=		${LIBCRYPTO}
 LDADD=		-lcrypto
 MAN=		libmp.3

@@ -3,7 +3,7 @@
 .PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
 
 LIB=	thread_db
-SHLIB_MAJOR= 2
+SHLIB_MAJOR= 3
 SRCS=	thread_db.c
 SRCS+=	libpthread_db.c libpthread_md.c
 SRCS+=	libthr_db.c

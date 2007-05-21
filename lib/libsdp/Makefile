@@ -7,7 +7,7 @@ MAN=		sdp.3
 WARNS?=		2
 CFLAGS+=	-I${.CURDIR}
 
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 
 SRCS=		search.c service.c session.c util.c
 INCS=		sdp.h

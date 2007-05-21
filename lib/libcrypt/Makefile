@@ -6,7 +6,7 @@ SHLIBDIR?=	/lib
 
 .include <bsd.own.mk>
 
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 LIB=		crypt
 
 .PATH:		${.CURDIR}/../libmd

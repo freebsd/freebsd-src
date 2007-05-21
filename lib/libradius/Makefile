@@ -30,7 +30,7 @@ LIB=		radius
 SRCS=		radlib.c
 INCS=		radlib.h radlib_vs.h
 CFLAGS+=	-Wall
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 MAN=		libradius.3 radius.conf.5
 
 .if ${MK_OPENSSL} == "no"
