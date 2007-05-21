@@ -1,4 +1,4 @@
-# @(#)africa	8.5
+# @(#)africa	8.8
 # <pre>
 
 # This data is by no means authoritative; if you think you know better,
@@ -232,8 +232,8 @@ Zone	Africa/Malabo	0:35:08 -	LMT	1912
 
 # Eritrea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Asmera	2:35:32 -	LMT	1870
-			2:35:32	-	AMT	1890	      # Asmera Mean Time
+Zone	Africa/Asmara	2:35:32 -	LMT	1870
+			2:35:32	-	AMT	1890	      # Asmara Mean Time
 			2:35:20	-	ADMT	1936 May 5    # Adis Dera MT
 			3:00	-	EAT
 
@@ -416,6 +416,20 @@ Zone	Africa/Maputo	2:10:20 -	LMT	1903 Mar
 # Namibia
 # The 1994-04-03 transition is from Shanks & Pottenger.
 # Shanks & Pottenger report no DST after 1998-04; go with IATA.
+
+# From Petronella Sibeene (2007-03-30) in
+# <http://allafrica.com/stories/200703300178.html>:
+# While the entire country changes its time, Katima Mulilo and other
+# settlements in Caprivi unofficially will not because the sun there
+# rises and sets earlier compared to other regions.  Chief of
+# Forecasting Riaan van Zyl explained that the far eastern parts of
+# the country are close to 40 minutes earlier in sunrise than the rest
+# of the country.
+# 
+# From Paul Eggert (2007-03-31):
+# Apparently the Caprivi Strip informally observes Botswana time, but
+# we have no details.  In the meantime people there can use Africa/Gaborone.
+
 # RULE	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Namibia	1994	max	-	Sep	Sun>=1	2:00	1:00	S
 Rule	Namibia	1995	max	-	Apr	Sun>=1	2:00	0	-
