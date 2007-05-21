@@ -120,3 +120,6 @@ do									\
     (void) sysarch (0, &s);						\
   }									\
 while (0)
+
+#undef FPUTYPE_DEFAULT
+#define FPUTYPE_DEFAULT FPUTYPE_VFP
