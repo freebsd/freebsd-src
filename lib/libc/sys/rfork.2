@@ -5,7 +5,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2003
+.Dd May 14, 2007
 .Dt RFORK 2
 .Os
 .Sh NAME
@@ -54,6 +54,14 @@ single table.
 If set, the new process starts with a clean file descriptor table.
 Is mutually exclusive with
 .Dv RFFDG .
+.It Dv RFTHREAD
+If set, the new process shares file descriptor to process leaders table
+with its parent.
+Only applies when neither
+.Dv RFFDG
+nor
+.Dv RFCFDG
+are set.
 .It Dv RFMEM
 If set, the kernel will force sharing of the entire address space,
 typically by sharing the hardware page table directly.
