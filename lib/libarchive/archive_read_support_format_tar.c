@@ -1168,7 +1168,7 @@ pax_header(struct archive_read *a, struct tar *tar, struct archive_entry *entry,
 			return (-1);
 		while (*wp && *wp != L'=')
 			++wp;
-		if (*wp == L'\0' || wp == NULL) {
+		if (*wp == L'\0') {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Invalid pax extended attributes");
 			return (ARCHIVE_WARN);
