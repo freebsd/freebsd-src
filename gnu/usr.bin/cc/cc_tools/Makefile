@@ -3,7 +3,6 @@
 .include <bsd.own.mk>
 
 CFLAGS+=	-I.
-LDFLAGS+=	-static
 
 .include "../Makefile.inc"
 
