@@ -77,13 +77,16 @@ get_disk_location(PDevice pDev, int *controller, int *channel)
 	IAL_ADAPTER_T *pAdapTemp;
 	int i, j;
 
-    for (i=1, pAdapTemp = gIal_Adapter; pAdapTemp; pAdapTemp = pAdapTemp->next, i++) {
-    	for (j=0; j<MV_SATA_CHANNELS_NUM; j++)
-    		if (pDev==&pAdapTemp->VDevices[j].u.disk) {
-    			*controller = i;
-    			*channel = j;
-    			return;
-    		}
+	*controller = *channel = 0;
+
+	for (i=1, pAdapTemp = gIal_Adapter; pAdapTemp; pAdapTemp = pAdapTemp->next, i++) {
+		for (j=0; j<MV_SATA_CHANNELS_NUM; j++) {
+			if (pDev == &pAdapTemp->VDevices[j].u.disk) {
+				*controller = i;
+				*channel = j;
+				return;
+			}
+		}
 	}
 }
 
@@ -151,7 +154,7 @@ ioctl_ReportEvent(UCHAR event, PVOID param)
 	}
 	event_queue_add(&e);
 	if (event==ET_DEVICE_REMOVED) {
-		int controller = 0, channel = 0;
+		int controller, channel;
 		get_disk_location(&((PVDevice)param)->u.disk, &controller, &channel);
 		hpt_printk(("Device removed: controller %d channel %d\n", controller, channel));
 	}
