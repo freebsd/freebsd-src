@@ -569,7 +569,7 @@ audit_worker_init(void)
 
 	cv_init(&audit_replacement_cv, "audit_replacement_cv");
 	error = kthread_create(audit_worker, NULL, &audit_thread, RFHIGHPID,
-	    0, "audit_worker");
+	    0, "audit");
 	if (error)
 		panic("audit_worker_init: kthread_create returned %d", error);
 }
