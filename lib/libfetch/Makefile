@@ -23,7 +23,7 @@ LDADD=		-lssl -lcrypto
 CSTD?=		c99
 WARNS?=		2
 
-SHLIB_MAJOR=    4
+SHLIB_MAJOR=    5
 
 ftperr.h: ftp.errors
 	@echo "static struct fetcherr _ftp_errlist[] = {" > ${.TARGET}
