@@ -533,6 +533,8 @@
 
     &hwlist.esp;
 
+    &hwlist.hptiop;
+
     &hwlist.hptmv;
 
     &hwlist.ida;
