@@ -113,15 +113,8 @@ struct firewire_comm{
 	u_int max_node;
 	u_int max_hop;
 #define FWPHYASYST (1 << 0)
-	uint32_t ongobus:10,
-		  ongonode:6,
-		  ongoaddr:16;
-	struct fw_device *ongodev;
-	struct fw_eui64 ongoeui;
-#define	FWMAXCSRDIR     16
-	SLIST_HEAD(, csrdir) ongocsr;
-	SLIST_HEAD(, csrdir) csrfree;
 	uint32_t status;
+#define	FWBUSDETACH	(-2)
 #define	FWBUSNOTREADY	(-1)
 #define	FWBUSRESET	0
 #define	FWBUSINIT	1
@@ -169,12 +162,6 @@ struct firewire_comm{
 	bus_dma_tag_t dmat;
 };
 #define CSRARC(sc, offset) ((sc)->csr_arc[(offset)/4])
-
-struct csrdir{
-	uint32_t ongoaddr;
-	uint32_t off;
-	SLIST_ENTRY(csrdir) link;
-};
 
 struct fw_xferq {
 	int flag;
