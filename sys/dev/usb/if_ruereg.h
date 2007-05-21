@@ -200,9 +200,7 @@ struct rue_softc {
 	int			rue_if_flags;
 	struct ue_cdata		rue_cdata;
 	struct callout_handle	rue_stat_ch;
-#if __FreeBSD_version >= 500000
 	struct mtx		rue_mtx;
-#endif
 	char			rue_dying;
 	struct timeval		rue_rx_notice;
 	struct usb_qdat		rue_qdat;

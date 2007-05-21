@@ -122,9 +122,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>
 #include <machine/bus.h>
-#if __FreeBSD_version < 500000
-#include <machine/clock.h>
-#endif
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -357,7 +354,7 @@ USB_ATTACH(udav)
 		goto bad;
 	}
 
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
+#if defined(__FreeBSD__)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 #endif
@@ -1056,11 +1053,7 @@ udav_setmulti(struct udav_softc *sc)
 	}
 #elif defined(__FreeBSD__)
 	IF_ADDR_LOCK(ifp);
-#if __FreeBSD_version >= 500000
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-#else
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-#endif
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;

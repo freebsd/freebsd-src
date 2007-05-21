@@ -53,9 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#if __FreeBSD_version >= 500000
 #include <sys/mutex.h>
-#endif
 #include <sys/signalvar.h>
 #include <sys/fcntl.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -653,11 +651,7 @@ uhid_do_ioctl(struct uhid_softc *sc, u_long cmd, caddr_t addr, int flag,
 		if (*(int *)addr) {
 			if (sc->sc_async != NULL)
 				return (EBUSY);
-#if __FreeBSD_version >= 500000
 			sc->sc_async = p->td_proc;
-#else
-			sc->sc_async = p;
-#endif
 			DPRINTF(("uhid_do_ioctl: FIOASYNC %p\n", sc->sc_async));
 		} else
 			sc->sc_async = NULL;

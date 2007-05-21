@@ -58,9 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#if __FreeBSD_version >= 500000
 #include <sys/mutex.h>
-#endif
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #elif defined(__FreeBSD__)
@@ -405,7 +403,7 @@ usb_event_thread(void *arg)
 {
 	struct usb_softc *sc = arg;
 
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
+#if defined(__FreeBSD__)
 	mtx_lock(&Giant);
 #endif
 
@@ -455,7 +453,7 @@ usb_task_thread(void *arg)
 	struct usb_task *task;
 	int s;
 
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
+#if defined(__FreeBSD__)
 	mtx_lock(&Giant);
 #endif
 
@@ -581,11 +579,7 @@ usbioctl(struct cdev *devt, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 
 		case FIOASYNC:
 			if (*(int *)data)
-#if __FreeBSD_version >= 500000
 				usb_async_proc = p->td_proc;
-#else
-				usb_async_proc = p;
-#endif
 			else
 				usb_async_proc = 0;
 			return (0);
