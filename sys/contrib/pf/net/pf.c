@@ -6780,7 +6780,7 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 	struct pf_state		*s = NULL;
 	struct pf_ruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
-	int			 off, terminal = 0, dirndx;
+	int			 off, terminal = 0, dirndx, rh_cnt = 0;
 
 #ifdef __FreeBSD__
 	PF_LOCK();
@@ -6844,6 +6844,18 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 	m = *m0;
 	h = mtod(m, struct ip6_hdr *);
 
+#if 1
+	/*
+	 * we do not support jumbogram yet.  if we keep going, zero ip6_plen
+	 * will do something bad, so drop the packet for now.
+	 */
+	if (htons(h->ip6_plen) == 0) {
+		action = PF_DROP;
+		REASON_SET(&reason, PFRES_NORM);	/*XXX*/
+		goto done;
+	}
+#endif
+
 	pd.src = (struct pf_addr *)&h->ip6_src;
 	pd.dst = (struct pf_addr *)&h->ip6_dst;
 	PF_ACPY(&pd.baddr, dir == PF_OUT ? pd.src : pd.dst, AF_INET6);
@@ -6863,9 +6875,38 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 			if (action == PF_DROP)
 				REASON_SET(&reason, PFRES_FRAG);
 			goto done;
+		case IPPROTO_ROUTING: {
+			struct ip6_rthdr rthdr;
+
+			if (rh_cnt++) {
+				DPFPRINTF(PF_DEBUG_MISC,
+				    ("pf: IPv6 more than one rthdr\n"));
+				action = PF_DROP;
+				REASON_SET(&reason, PFRES_IPOPTIONS);
+				log = 1;
+				goto done;
+			}
+			if (!pf_pull_hdr(m, off, &rthdr, sizeof(rthdr), NULL,
+			    &reason, pd.af)) {
+				DPFPRINTF(PF_DEBUG_MISC,
+				    ("pf: IPv6 short rthdr\n"));
+				action = PF_DROP;
+				REASON_SET(&reason, PFRES_SHORT);
+				log = 1;
+				goto done;
+			}
+			if (rthdr.ip6r_type == IPV6_RTHDR_TYPE_0) {
+				DPFPRINTF(PF_DEBUG_MISC,
+				    ("pf: IPv6 rthdr0\n"));
+				action = PF_DROP;
+				REASON_SET(&reason, PFRES_IPOPTIONS);
+				log = 1;
+				goto done;
+			}
+			/* fallthrough */
+		}
 		case IPPROTO_AH:
 		case IPPROTO_HOPOPTS:
-		case IPPROTO_ROUTING:
 		case IPPROTO_DSTOPTS: {
 			/* get next header and header length */
 			struct ip6_ext	opt6;
@@ -7032,7 +7073,15 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 	}
 
 done:
-	/* XXX handle IPv6 options, if not allowed. not implemented. */
+	/* handle dangerous IPv6 extension headers. */
+	if (action == PF_PASS && rh_cnt &&
+	    !((s && s->allow_opts) || r->allow_opts)) {
+		action = PF_DROP;
+		REASON_SET(&reason, PFRES_IPOPTIONS);
+		log = 1;
+		DPFPRINTF(PF_DEBUG_MISC,
+		    ("pf: dropping packet with dangerous v6 headers\n"));
+	}
 
 	if (s && s->tag)
 		pf_tag_packet(m, pf_get_tag(m), s->tag);
