@@ -226,7 +226,7 @@ main(argc, argv)
 	struct msghdr msg;
 	struct sigaction si_sa;
 	size_t sz;
-	u_char *datap, packet[IP_MAXPACKET];
+	u_char *datap, packet[IP_MAXPACKET] __aligned(4);
 	char *ep, *source, *target, *payload;
 	struct hostent *hp;
 #ifdef IPSEC_POLICY_IPSEC
