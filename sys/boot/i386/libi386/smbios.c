@@ -239,9 +239,9 @@ smbios_setuuid(const char *name, const uint8_t *dmi, const int offset)
 			break;
 	}
 	if (f != 16 && z != 16) {
-		sprintf(uuid, "%02X%02X%02X%02X-"
-		    "%02X%02X-%02X%02X-%02X%02X-"
-		    "%02X%02X%02X%02X%02X%02X",
+		sprintf(uuid, "%02x%02x%02x%02x-"
+		    "%02x%02x-%02x%02x-%02x%02x-"
+		    "%02x%02x%02x%02x%02x%02x",
 		    idp[0], idp[1], idp[2], idp[3],
 		    idp[4], idp[5], idp[6], idp[7], idp[8], idp[9],
 		    idp[10], idp[11], idp[12], idp[13], idp[14], idp[15]);
