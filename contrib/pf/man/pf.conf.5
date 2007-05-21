@@ -1493,13 +1493,14 @@ or
 .Pc
 must match.
 .It Ar allow-opts
-By default, packets which contain IP options are blocked.
+By default, IPv4 packets with IP options or IPv6 packets with routing
+extension headers are blocked.
 When
 .Ar allow-opts
 is specified for a
 .Ar pass
 rule, packets that pass the filter based on that rule (last matching)
-do so even if they contain IP options.
+do so even if they contain IP options or routing extension headers.
 For packets that match state, the rule that initially created the
 state is used.
 The implicit
