@@ -629,8 +629,20 @@ trap(int vector, struct trapframe *tf)
 		break;
 	}
 
-	case IA64_VEC_NAT_CONSUMPTION:
 	case IA64_VEC_SPECULATION:
+		/*
+		 * The branching behaviour of the chk instruction is not
+		 * implemented by the processor. All we need to do is
+		 * compute the target address of the branch and make sure
+		 * that control is transfered to that address.
+		 * We should do this in the IVT table and not by entring
+		 * the kernel...
+		 */
+		tf->tf_special.iip += tf->tf_special.ifa << 4;
+		tf->tf_special.psr &= ~IA64_PSR_RI;
+		goto out;
+
+	case IA64_VEC_NAT_CONSUMPTION:
 	case IA64_VEC_UNSUPP_DATA_REFERENCE:
 		if (user) {
 			ucode = vector;
