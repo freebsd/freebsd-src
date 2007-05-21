@@ -56,8 +56,8 @@ hostid_set()
 
 hostid_hardware()
 {
-	uuid=`kenv smbios.system.uuid 2>/dev/null`
-	x="[0-9a-zA-Z]"
+	uuid=`kenv smbios.system.uuid 2>/dev/null | tr '[:upper:]' '[:lower:]'`
+	x="[0-9a-f]"
 	y=$x$x$x$x
 	case "${uuid}" in
 	$y$y-$y-$y-$y-$y$y$y)
