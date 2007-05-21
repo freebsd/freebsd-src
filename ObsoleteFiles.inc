@@ -3424,7 +3424,7 @@ OLD_FILES+=usr/share/man/man3/fputrune.3.gz
 OLD_FILES+=usr/share/man/man3/fgetrune.3.gz
 OLD_FILES+=usr/share/man/man5/hesiod.conf.5.gz
 OLD_FILES+=usr/share/man/man5/usbd.conf.5.gz
-.if ${TARGET_ARCH} != "i386"
+.if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "amd64"
 OLD_FILES+=usr/share/man/man8/boot_i386.8.gz
 .endif
 OLD_FILES+=usr/share/man/man8/ofwdump.8.gz
