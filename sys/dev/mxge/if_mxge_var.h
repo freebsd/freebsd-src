@@ -88,6 +88,8 @@ typedef struct
 	bus_dma_tag_t dmat;
 	bus_dmamap_t extra_map;
 	int cnt;
+	int nbufs;
+	int cl_size;
 	int alloc_fail;
 	int mask;			/* number of rx slots -1 */
 } mxge_rx_buf_t;
@@ -112,9 +114,33 @@ typedef struct
 	int watchdog_done;		/* cache of done */
 } mxge_tx_buf_t;
 
+struct lro_entry;
+struct lro_entry
+{
+	SLIST_ENTRY(lro_entry) next;
+	struct mbuf  	*m_head;
+	struct mbuf	*m_tail;
+	int		timestamp;
+	struct ip	*ip;
+	uint32_t	tsval;
+	uint32_t	tsecr;
+	uint32_t	source_ip;
+	uint32_t	dest_ip;
+	uint32_t	next_seq;
+	uint32_t	ack_seq;
+	uint32_t	len;
+	uint32_t	data_csum;
+	uint16_t	window;
+	uint16_t	source_port;
+	uint16_t	dest_port;
+	uint16_t	append_cnt;
+	uint16_t	mss;
+	
+};
+SLIST_HEAD(lro_head, lro_entry);
+
 typedef struct {
 	struct ifnet* ifp;
-	int big_bytes;
 	struct mtx tx_mtx;
 	int csum_flag;			/* rx_csums? 		*/
 	uint8_t	mac_addr[6];		/* eeprom mac address */
@@ -125,6 +151,12 @@ typedef struct {
 	mcp_irq_data_t *fw_stats;
 	bus_dma_tag_t	parent_dmat;
 	volatile uint8_t *sram;
+	struct lro_head lro_active;
+	struct lro_head lro_free;
+	int lro_queued;
+	int lro_flushed;
+	int lro_bad_csum;
+	int lro_cnt;
 	int sram_size;
 	volatile uint32_t *irq_deassert;
 	volatile uint32_t *irq_claim;
@@ -164,6 +196,7 @@ typedef struct {
 	int read_write_dma;
 	int fw_multicast_support;
 	int link_width;
+	int max_mtu;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
 	char *mac_addr_string;
@@ -216,6 +249,10 @@ mxge_pio_copy(volatile void *to_v, void *from_v, size_t size)
   }
 
 }
+
+void mxge_lro_flush(mxge_softc_t *mgp, struct lro_entry *lro);
+int mxge_lro_rx(mxge_softc_t *mgp, struct mbuf *m_head, uint32_t csum);
+		
 
 
 /*
