@@ -3,7 +3,7 @@
 # Author: Harti Brandt <harti@freebsd.org>
 #
 LIB=	ngatm
-SHLIB_MAJOR= 2
+SHLIB_MAJOR= 3
 MAN=	libngatm.3 uniaddr.3 unifunc.3 unimsg.3 unisap.3 unistruct.3
 WARNS?=	6
 

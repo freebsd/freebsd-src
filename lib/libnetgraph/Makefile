@@ -5,7 +5,7 @@ LIB=		netgraph
 WARNS?=		3
 MAN=		netgraph.3
 
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 
 SRCS=		sock.c msg.c debug.c
 INCS=		netgraph.h

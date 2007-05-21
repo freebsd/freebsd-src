@@ -15,7 +15,7 @@ SHLIBDIR= /lib
 .endif
 
 LIB=c_r
-SHLIB_MAJOR= 6
+SHLIB_MAJOR= 7
 CFLAGS+=-DPTHREAD_KERNEL 
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/uthread \
 	-I${.CURDIR}/../../include

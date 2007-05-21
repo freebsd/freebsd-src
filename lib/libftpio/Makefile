@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 LIB=		ftpio
-SHLIB_MAJOR=	6
+SHLIB_MAJOR=	7
 
 SRCS=		ftpio.c ftperr.c
 INCS=		ftpio.h

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	ypclnt
-SHLIB_MAJOR= 2
+SHLIB_MAJOR= 3
 SRCS=	ypclnt_connect.c \
 	ypclnt_error.c \
 	ypclnt_free.c \

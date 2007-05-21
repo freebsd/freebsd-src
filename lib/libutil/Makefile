@@ -6,7 +6,7 @@ SHLIBDIR?= /lib
 .include <bsd.own.mk>
 
 LIB=	util
-SHLIB_MAJOR= 6
+SHLIB_MAJOR= 7
 
 SRCS=	_secure_path.c auth.c flopen.c fparseln.c humanize_number.c \
 	kld.c login.c login_auth.c login_cap.c login_class.c \
