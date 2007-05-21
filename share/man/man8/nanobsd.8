@@ -199,10 +199,16 @@ Path to the source tree used to build the image.
 Name of the kernel configuration file used to build the kernel.
 .It Va NANO_BOOT0CFG
 Controls the options passed to
-.Xr boot0cfg 8
-; these dictate boot0's behaviour.
+.Xr boot0cfg 8 ;
+these dictate
+.Nm boot0 Ns 's
+behaviour.
 .It Va NANO_BOOTLOADER
-The boot0 loader to use relative to the ${NANO_WORLDDIR} variable.
+The
+.Nm boot0
+loader to use relative to the
+.Va NANO_WORLDDIR
+variable.
 This defaults to
 .Pa boot/boot0sio
 and should be overridden to
