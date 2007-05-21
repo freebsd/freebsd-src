@@ -5,7 +5,7 @@
 .include <bsd.own.mk>
 
 LIB=	wrap
-SHLIB_MAJOR= 4
+SHLIB_MAJOR= 5
 INCS=	tcpd.h
 MAN=	hosts_access.3
 MAN+=	hosts_access.5 hosts_options.5
