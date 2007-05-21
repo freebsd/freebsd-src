@@ -2309,7 +2309,7 @@ static int
 nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	char buf[1024];
+	char buf[1024] __aligned(4);
 	struct in6_defrouter *d, *de;
 	struct nd_defrouter *dr;
 
@@ -2347,7 +2347,7 @@ static int
 nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	char buf[1024];
+	char buf[1024] __aligned(4);
 	struct in6_prefix *p, *pe;
 	struct nd_prefix *pr;
 	char ip6buf[INET6_ADDRSTRLEN];
