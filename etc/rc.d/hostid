@@ -57,10 +57,14 @@ hostid_set()
 hostid_hardware()
 {
 	uuid=`kenv smbios.system.uuid 2>/dev/null`
-	uuid=`csh -c 'echo -n ${*:al}' "$uuid"`
+	uuid=`csh -c 'echo -n ${*:al}' "${uuid}"`
 	x="[0-9a-f]"
 	y=$x$x$x$x
+	z="0000"
 	case "${uuid}" in
+	$z$z-$z-$z-$z-$z$z$z)
+		# Filter the special "Nil" UUID
+		;;
 	$y$y-$y-$y-$y-$y$y$y)
 		echo "${uuid}"
 		;;
