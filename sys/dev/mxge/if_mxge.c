@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 
 #include <machine/bus.h>
+#include <machine/in_cksum.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
@@ -1073,6 +1074,27 @@ mxge_set_multicast_list(mxge_softc_t *sc)
 }
 
 static int
+mxge_max_mtu(mxge_softc_t *sc)
+{
+	mxge_cmd_t cmd;
+	int status;
+
+	if (MJUMPAGESIZE - MXGEFW_PAD > MXGE_MAX_ETHER_MTU)
+		return MXGE_MAX_ETHER_MTU - MXGEFW_PAD;
+
+	/* try to set nbufs to see if it we can
+	   use virtually contiguous jumbos */
+	cmd.data0 = 0;
+	status = mxge_send_cmd(sc, MXGEFW_CMD_ALWAYS_USE_N_BIG_BUFFERS,
+			       &cmd);
+	if (status == 0)
+		return MXGE_MAX_ETHER_MTU - MXGEFW_PAD;
+
+	/* otherwise, we're limited to MJUMPAGESIZE */
+	return MJUMPAGESIZE - MXGEFW_PAD;
+}
+
+static int
 mxge_reset(mxge_softc_t *sc)
 {
 
@@ -1139,6 +1161,9 @@ mxge_reset(mxge_softc_t *sc)
 	sc->rdma_tags_available = 15;
 	sc->fw_stats->valid = 0;
 	sc->fw_stats->send_done_count = 0;
+	sc->lro_bad_csum = 0;
+	sc->lro_queued = 0;
+	sc->lro_flushed = 0;
 	status = mxge_update_mac_address(sc);
 	mxge_change_promisc(sc, 0);
 	mxge_change_pause(sc, sc->pause);
@@ -1363,6 +1388,19 @@ mxge_add_sysctls(mxge_softc_t *sc)
 		       "verbose",
 		       CTLFLAG_RW, &mxge_verbose,
 		       0, "verbose printing");
+
+	/* lro */
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		       "lro_cnt", CTLFLAG_RW, &sc->lro_cnt,
+		       0, "number of lro merge queues");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		       "lro_flushed", CTLFLAG_RD, &sc->lro_flushed,
+		       0, "number of lro merge queues flushed");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		       "lro_queued", CTLFLAG_RD, &sc->lro_queued,
+		       0, "number of frames appended to lro merge queues");
 
 }
 
@@ -1883,169 +1921,135 @@ done:
 static int
 mxge_get_buf_big(mxge_softc_t *sc, bus_dmamap_t map, int idx)
 {
-	bus_dma_segment_t seg;
+	bus_dma_segment_t seg[3];
 	struct mbuf *m;
 	mxge_rx_buf_t *rx = &sc->rx_big;
-	int cnt, err;
+	int cnt, err, i;
 
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, sc->big_bytes);
+	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, rx->cl_size);
 	if (m == NULL) {
 		rx->alloc_fail++;
 		err = ENOBUFS;
 		goto done;
 	}
-	m->m_len = sc->big_bytes;
+	m->m_len = rx->cl_size;
 	err = bus_dmamap_load_mbuf_sg(rx->dmat, map, m, 
-				      &seg, &cnt, BUS_DMA_NOWAIT);
+				      seg, &cnt, BUS_DMA_NOWAIT);
 	if (err != 0) {
 		m_free(m);
 		goto done;
 	}
 	rx->info[idx].m = m;
-	rx->shadow[idx].addr_low = 
-		htobe32(MXGE_LOWPART_TO_U32(seg.ds_addr));
-	rx->shadow[idx].addr_high = 
-		htobe32(MXGE_HIGHPART_TO_U32(seg.ds_addr));
+
+	for (i = 0; i < cnt; i++) {
+		rx->shadow[idx + i].addr_low = 
+			htobe32(MXGE_LOWPART_TO_U32(seg[i].ds_addr));
+		rx->shadow[idx + i].addr_high = 
+			htobe32(MXGE_HIGHPART_TO_U32(seg[i].ds_addr));
+       }
+
 
 done:
-	if ((idx & 7) == 7) {
-		if (rx->wc_fifo == NULL)
-			mxge_submit_8rx(&rx->lanai[idx - 7],
-					&rx->shadow[idx - 7]);
-		else {
-			mb();
-			mxge_pio_copy(rx->wc_fifo, &rx->shadow[idx - 7], 64);
+       for (i = 0; i < rx->nbufs; i++) {
+		if ((idx & 7) == 7) {
+			if (rx->wc_fifo == NULL)
+				mxge_submit_8rx(&rx->lanai[idx - 7],
+						&rx->shadow[idx - 7]);
+			else {
+				mb();
+				mxge_pio_copy(rx->wc_fifo, &rx->shadow[idx - 7], 64);
+			}
 		}
-        }
+		idx++;
+	}
 	return err;
 }
 
-static inline void
+/* 
+ *  Myri10GE hardware checksums are not valid if the sender
+ *  padded the frame with non-zero padding.  This is because
+ *  the firmware just does a simple 16-bit 1s complement
+ *  checksum across the entire frame, excluding the first 14
+ *  bytes.  It is best to simply to check the checksum and
+ *  tell the stack about it only if the checksum is good
+ */
+
+static inline uint16_t
 mxge_rx_csum(struct mbuf *m, int csum)
 {
 	struct ether_header *eh;
 	struct ip *ip;
+	uint16_t c;
 
 	eh = mtod(m, struct ether_header *);
 
 	/* only deal with IPv4 TCP & UDP for now */
 	if (__predict_false(eh->ether_type != htons(ETHERTYPE_IP)))
-		return;
+		return 1;
 	ip = (struct ip *)(eh + 1);
 	if (__predict_false(ip->ip_p != IPPROTO_TCP &&
 			    ip->ip_p != IPPROTO_UDP))
-		return;
+		return 1;
 
-	/* 
-	 *  Myri10GE hardware checksums are not valid if the sender
-	 *  padded the frame with non-zero padding.  This is because
-	 *  the firmware just does a simple 16-bit 1s complement
-	 *  checksum across the entire frame, excluding the first 14
-	 *  bytes.  It is easiest to simply to assume the worst, and
-	 *  only apply hardware checksums to non-padded frames.  This
-	 *  is what nearly every other OS does by default.
-	 */
-
-	if (__predict_true(m->m_pkthdr.len == 
-			   (ntohs(ip->ip_len) + ETHER_HDR_LEN))) {
-		m->m_pkthdr.csum_data = csum;
-		m->m_pkthdr.csum_flags = CSUM_DATA_VALID;
-	} 
+	c = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+		      htonl(ntohs(csum) + ntohs(ip->ip_len) +
+			    - (ip->ip_hl << 2) + ip->ip_p));
+	c ^= 0xffff;
+	return (c);
 }
 
-static inline void 
-mxge_rx_done_big(mxge_softc_t *sc, int len, int csum)
+
+static inline void
+mxge_rx_done_big(mxge_softc_t *sc, uint32_t len, uint32_t csum)
 {
 	struct ifnet *ifp;
-	struct mbuf *m = 0; 		/* -Wunitialized */
-	struct mbuf *m_prev = 0;	/* -Wunitialized */
-	struct mbuf *m_head = 0;
-	bus_dmamap_t old_map;
+	struct mbuf *m;
 	mxge_rx_buf_t *rx;
+	bus_dmamap_t old_map;
 	int idx;
+	uint16_t tcpudp_csum;
 
-
-	rx = &sc->rx_big;
 	ifp = sc->ifp;
-	while (len > 0) {
-		idx = rx->cnt & rx->mask;
-                rx->cnt++;
-		/* save a pointer to the received mbuf */
-		m = rx->info[idx].m;
-		/* try to replace the received mbuf */
-		if (mxge_get_buf_big(sc, rx->extra_map, idx)) {
-			goto drop;
-		}
-		/* unmap the received buffer */
-		old_map = rx->info[idx].map;
-		bus_dmamap_sync(rx->dmat, old_map, BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(rx->dmat, old_map);
-
-		/* swap the bus_dmamap_t's */
-		rx->info[idx].map = rx->extra_map;
-		rx->extra_map = old_map;
-
-		/* chain multiple segments together */
-		if (!m_head) {
-			m_head = m;
-			/* mcp implicitly skips 1st bytes so that
-			 * packet is properly aligned */
-			m->m_data += MXGEFW_PAD;
-			m->m_pkthdr.len = len;
-			m->m_len = sc->big_bytes - MXGEFW_PAD;
-		} else {
-			m->m_len = sc->big_bytes;
-			m->m_flags &= ~M_PKTHDR;
-			m_prev->m_next = m;
-		}
-		len -= m->m_len;
-		m_prev = m;
+	rx = &sc->rx_big;
+	idx = rx->cnt & rx->mask;
+	rx->cnt += rx->nbufs;
+	/* save a pointer to the received mbuf */
+	m = rx->info[idx].m;
+	/* try to replace the received mbuf */
+	if (mxge_get_buf_big(sc, rx->extra_map, idx)) {
+		/* drop the frame -- the old mbuf is re-cycled */
+		ifp->if_ierrors++;
+		return;
 	}
 
-	/* trim trailing garbage from the last mbuf in the chain.  If
-	 * there is any garbage, len will be negative */
-	m->m_len += len;
+	/* unmap the received buffer */
+	old_map = rx->info[idx].map;
+	bus_dmamap_sync(rx->dmat, old_map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_unload(rx->dmat, old_map);
 
-	m_head->m_pkthdr.rcvif = ifp;
+	/* swap the bus_dmamap_t's */
+	rx->info[idx].map = rx->extra_map;
+	rx->extra_map = old_map;
+
+	/* mcp implicitly skips 1st 2 bytes so that packet is properly
+	 * aligned */
+	m->m_data += MXGEFW_PAD;
+
+	m->m_pkthdr.rcvif = ifp;
+	m->m_len = m->m_pkthdr.len = len;
 	ifp->if_ipackets++;
 	/* if the checksum is valid, mark it in the mbuf header */
-	if (sc->csum_flag)
-		mxge_rx_csum(m_head, csum);
-
+	if (sc->csum_flag && (0 == (tcpudp_csum = mxge_rx_csum(m, csum)))) {
+		if (sc->lro_cnt && (0 == mxge_lro_rx(sc, m, csum)))
+			return;
+		/* otherwise, it was a UDP frame, or a TCP frame which
+		   we could not do LRO on.  Tell the stack that the
+		   checksum is good */
+		m->m_pkthdr.csum_data = 0xffff;
+		m->m_pkthdr.csum_flags = CSUM_PSEUDO_HDR | CSUM_DATA_VALID;
+	}
 	/* pass the frame up the stack */
-	(*ifp->if_input)(ifp, m_head);
-	return;
-
-drop:
-	/* drop the frame -- the old mbuf(s) are re-cycled by running
-	   every slot through the allocator */
-        if (m_head) {
-                len -= sc->big_bytes;
-                m_freem(m_head);
-        } else {
-                len -= (sc->big_bytes + MXGEFW_PAD);
-        }
-        while ((int)len > 0) {
-                idx = rx->cnt & rx->mask;
-                rx->cnt++;
-                m = rx->info[idx].m;
-                if (0 == (mxge_get_buf_big(sc, rx->extra_map, idx))) {
-			m_freem(m);
-			/* unmap the received buffer */
-			old_map = rx->info[idx].map;
-			bus_dmamap_sync(rx->dmat, old_map, 
-					BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(rx->dmat, old_map);
-
-			/* swap the bus_dmamap_t's */
-			rx->info[idx].map = rx->extra_map;
-			rx->extra_map = old_map;
-		}
-                len -= sc->big_bytes;
-        }
-
-	ifp->if_ierrors++;
-
+	(*ifp->if_input)(ifp, m);
 }
 
 static inline void
@@ -2056,6 +2060,7 @@ mxge_rx_done_small(mxge_softc_t *sc, uint32_t len, uint32_t csum)
 	mxge_rx_buf_t *rx;
 	bus_dmamap_t old_map;
 	int idx;
+	uint16_t tcpudp_csum;
 
 	ifp = sc->ifp;
 	rx = &sc->rx_small;
@@ -2087,8 +2092,15 @@ mxge_rx_done_small(mxge_softc_t *sc, uint32_t len, uint32_t csum)
 	m->m_len = m->m_pkthdr.len = len;
 	ifp->if_ipackets++;
 	/* if the checksum is valid, mark it in the mbuf header */
-	if (sc->csum_flag)
-		mxge_rx_csum(m, csum);
+	if (sc->csum_flag && (0 == (tcpudp_csum = mxge_rx_csum(m, csum)))) {
+		if (sc->lro_cnt && (0 == mxge_lro_rx(sc, m, csum)))
+			return;
+		/* otherwise, it was a UDP frame, or a TCP frame which
+		   we could not do LRO on.  Tell the stack that the
+		   checksum is good */
+		m->m_pkthdr.csum_data = 0xffff;
+		m->m_pkthdr.csum_flags = CSUM_PSEUDO_HDR | CSUM_DATA_VALID;
+	}
 
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);
@@ -2098,6 +2110,7 @@ static inline void
 mxge_clean_rx_done(mxge_softc_t *sc)
 {
 	mxge_rx_done_t *rx_done = &sc->rx_done;
+	struct lro_entry *lro;
 	int limit = 0;
 	uint16_t length;
 	uint16_t checksum;
@@ -2106,7 +2119,7 @@ mxge_clean_rx_done(mxge_softc_t *sc)
 	while (rx_done->entry[rx_done->idx].length != 0) {
 		length = ntohs(rx_done->entry[rx_done->idx].length);
 		rx_done->entry[rx_done->idx].length = 0;
-		checksum = ntohs(rx_done->entry[rx_done->idx].checksum);
+		checksum = rx_done->entry[rx_done->idx].checksum;
 		if (length <= (MHLEN - MXGEFW_PAD))
 			mxge_rx_done_small(sc, length, checksum);
 		else
@@ -2117,7 +2130,11 @@ mxge_clean_rx_done(mxge_softc_t *sc)
 		/* limit potential for livelock */
 		if (__predict_false(++limit > 2 * mxge_max_intr_slots))
 			break;
-
+	}
+	while(!SLIST_EMPTY(&sc->lro_active)) {
+		lro = SLIST_FIRST(&sc->lro_active);
+		SLIST_REMOVE_HEAD(&sc->lro_active, next);
+		mxge_lro_flush(sc, lro);
 	}
 }
 
@@ -2447,8 +2464,8 @@ mxge_alloc_rings(mxge_softc_t *sc)
 				 BUS_SPACE_MAXADDR,	/* low */
 				 BUS_SPACE_MAXADDR,	/* high */
 				 NULL, NULL,		/* filter */
-				 4096,			/* maxsize */
-				 1,			/* num segs */
+				 3*4096,		/* maxsize */
+				 3,			/* num segs */
 				 4096,			/* maxsegsize */
 				 BUS_DMA_ALLOCNOW,	/* flags */
 				 NULL, NULL,		/* lock */
@@ -2512,14 +2529,56 @@ abort_with_nothing:
 	return err;
 }
 
+static void
+mxge_choose_params(int mtu, int *big_buf_size, int *cl_size, int *nbufs)
+{
+	int bufsize = mtu + ETHER_HDR_LEN + 4 + MXGEFW_PAD;
+
+	if (bufsize < MCLBYTES) {
+		/* easy, everything fits in a single buffer */
+		*big_buf_size = MCLBYTES;
+		*cl_size = MCLBYTES;
+		*nbufs = 1;
+		return;
+	}
+
+	if (bufsize < MJUMPAGESIZE) {
+		/* still easy, everything still fits in a single buffer */
+		*big_buf_size = MJUMPAGESIZE;
+		*cl_size = MJUMPAGESIZE;
+		*nbufs = 1;
+		return;
+	}
+	/* now we need to use virtually contiguous buffers */
+	*cl_size = MJUM9BYTES;
+	*big_buf_size = 4096;
+	*nbufs = mtu / 4096 + 1;
+	/* needs to be a power of two, so round up */
+	if (*nbufs == 3)
+		*nbufs = 4;
+}
+
 static int 
 mxge_open(mxge_softc_t *sc)
 {
 	mxge_cmd_t cmd;
-	int i, err;
+	int i, err, big_bytes;
 	bus_dmamap_t map;
 	bus_addr_t bus;
+	struct lro_entry *lro_entry;	
 
+	SLIST_INIT(&sc->lro_free);
+	SLIST_INIT(&sc->lro_active);
+
+	for (i = 0; i < sc->lro_cnt; i++) {
+		lro_entry = (struct lro_entry *)
+			malloc(sizeof (*lro_entry), M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (lro_entry == NULL) {
+			sc->lro_cnt = i;
+			break;
+		}
+		SLIST_INSERT_HEAD(&sc->lro_free, lro_entry, next);
+	}
 
 	/* Copy the MAC address in case it was overridden */
 	bcopy(IF_LLADDR(sc->ifp), sc->mac_addr, ETHER_ADDR_LEN);
@@ -2532,13 +2591,20 @@ mxge_open(mxge_softc_t *sc)
 	bzero(sc->rx_done.entry, 
 	      mxge_max_intr_slots * sizeof(*sc->rx_done.entry));
 
-	if (MCLBYTES >= 
-	    sc->ifp->if_mtu + ETHER_HDR_LEN + MXGEFW_PAD)
-		sc->big_bytes = MCLBYTES;
-	else
-		sc->big_bytes = MJUMPAGESIZE;
+	mxge_choose_params(sc->ifp->if_mtu, &big_bytes,
+			   &sc->rx_big.cl_size, &sc->rx_big.nbufs);
 
-
+	cmd.data0 = sc->rx_big.nbufs;
+	err = mxge_send_cmd(sc, MXGEFW_CMD_ALWAYS_USE_N_BIG_BUFFERS,
+			    &cmd);
+	/* error is only meaningful if we're trying to set 
+	   MXGEFW_CMD_ALWAYS_USE_N_BIG_BUFFERS > 1 */
+	if (err && sc->rx_big.nbufs > 1) {
+		device_printf(sc->dev,
+			      "Failed to set alway-use-n to %d\n",
+			      sc->rx_big.nbufs);
+		return EIO;
+	}
 	/* get the lanai pointers to the send and receive rings */
 
 	err = mxge_send_cmd(sc, MXGEFW_CMD_GET_SEND_OFFSET, &cmd);
@@ -2580,6 +2646,10 @@ mxge_open(mxge_softc_t *sc)
 		}
 	}
 	for (i = 0; i <= sc->rx_big.mask; i++) {
+		sc->rx_big.shadow[i].addr_low = 0xffffffff;
+		sc->rx_big.shadow[i].addr_high = 0xffffffff;
+	}
+	for (i = 0; i <= sc->rx_big.mask; i += sc->rx_big.nbufs) {
 		map = sc->rx_big.info[i].map;
 		err = mxge_get_buf_big(sc, map, i);
 		if (err) {
@@ -2592,12 +2662,12 @@ mxge_open(mxge_softc_t *sc)
 	/* Give the firmware the mtu and the big and small buffer
 	   sizes.  The firmware wants the big buf size to be a power
 	   of two. Luckily, FreeBSD's clusters are powers of two */
-	cmd.data0 = sc->ifp->if_mtu + ETHER_HDR_LEN;
+	cmd.data0 = sc->ifp->if_mtu + ETHER_HDR_LEN + 4;
 	err = mxge_send_cmd(sc, MXGEFW_CMD_SET_MTU, &cmd);
 	cmd.data0 = MHLEN - MXGEFW_PAD;
 	err |= mxge_send_cmd(sc, MXGEFW_CMD_SET_SMALL_BUFFER_SIZE,
 			     &cmd);
-	cmd.data0 = sc->big_bytes;
+	cmd.data0 = big_bytes;
 	err |= mxge_send_cmd(sc, MXGEFW_CMD_SET_BIG_BUFFER_SIZE, &cmd);
 
 	if (err != 0) {
@@ -2651,6 +2721,7 @@ abort:
 static int
 mxge_close(mxge_softc_t *sc)
 {
+	struct lro_entry *lro_entry;
 	mxge_cmd_t cmd;
 	int err, old_down_cnt;
 
@@ -2671,6 +2742,10 @@ mxge_close(mxge_softc_t *sc)
 
 	mxge_free_mbufs(sc);
 
+	while (!SLIST_EMPTY(&sc->lro_free)) {
+		lro_entry = SLIST_FIRST(&sc->lro_free);
+		SLIST_REMOVE_HEAD(&sc->lro_free, next);
+	}
 	return 0;
 }
 
@@ -2833,8 +2908,7 @@ mxge_change_mtu(mxge_softc_t *sc, int mtu)
 
 
 	real_mtu = mtu + ETHER_HDR_LEN;
-	if ((real_mtu > MXGE_MAX_ETHER_MTU) ||
-	    real_mtu < 60)
+	if ((real_mtu > sc->max_mtu) || real_mtu < 60)
 		return EINVAL;
 	mtx_lock(&sc->driver_mtx);
 	old_mtu = ifp->if_mtu;
@@ -2981,6 +3055,7 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	TUNABLE_INT_FETCH("hw.mxge.verbose", 
 			  &mxge_verbose);	
 	TUNABLE_INT_FETCH("hw.mxge.ticks", &mxge_ticks);
+	TUNABLE_INT_FETCH("hw.mxge.lro_cnt", &sc->lro_cnt);
 
 	if (bootverbose)
 		mxge_verbose = 1;
@@ -2989,6 +3064,7 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	if (mxge_ticks == 0)
 		mxge_ticks = hz;	
 	sc->pause = mxge_flow_control;
+
 }
 
 static int 
@@ -3145,8 +3221,14 @@ mxge_attach(device_t dev)
 	/* hook into the network stack */
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = 100000000;
-	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
-		IFCAP_JUMBO_MTU;
+	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4;
+	sc->max_mtu = mxge_max_mtu(sc);
+	if (sc->max_mtu >= 9000)
+		ifp->if_capabilities |= IFCAP_JUMBO_MTU;
+	else
+		device_printf(dev, "MTU limited to %d.  Install "
+			      "latest firmware for 9000 byte jumbo support",
+			      sc->max_mtu - ETHER_HDR_LEN);
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
 	ifp->if_capenable = ifp->if_capabilities;
 	sc->csum_flag = 1;
@@ -3157,7 +3239,8 @@ mxge_attach(device_t dev)
         ifp->if_start = mxge_start;
 	ether_ifattach(ifp, sc->mac_addr);
 	/* ether_ifattach sets mtu to 1500 */
-	ifp->if_mtu = MXGE_MAX_ETHER_MTU - ETHER_HDR_LEN;
+	if (ifp->if_capabilities & IFCAP_JUMBO_MTU)
+		ifp->if_mtu = MXGE_MAX_ETHER_MTU - ETHER_HDR_LEN;
 
 	/* Initialise the ifmedia structure */
 	ifmedia_init(&sc->media, 0, mxge_media_change, 

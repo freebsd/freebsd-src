@@ -263,8 +263,18 @@ enum myri10ge_mcp_cmd_type {
   /* same than DMA_TEST (same args) but abort with UNALIGNED on unaligned
      chipset */
 
-  MXGEFW_CMD_UNALIGNED_STATUS
+  MXGEFW_CMD_UNALIGNED_STATUS,
   /* return data = boolean, true if the chipset is known to be unaligned */
+  
+  MXGEFW_CMD_ALWAYS_USE_N_BIG_BUFFERS,
+  /* data0 = number of big buffers to use.  It must be 0 or a power of 2.
+   * 0 indicates that the NIC consumes as many buffers as they are required
+   * for packet. This is the default behavior.
+   * A power of 2 number indicates that the NIC always uses the specified
+   * number of buffers for each big receive packet.
+   * It is up to the driver to ensure that this value is big enough for
+   * the NIC to be able to receive maximum-sized packets.
+   */
 };
 typedef enum myri10ge_mcp_cmd_type myri10ge_mcp_cmd_type_t;
 
