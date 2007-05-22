@@ -101,18 +101,26 @@ __FBSDID("$FreeBSD$");
  *      Leffler, et al.: The Design and Implementation of the 4.3BSD
  *	    UNIX Operating System (Addison Welley, 1989)
  * on pages 62-63.
+ * On May 2007 the historic 3 bits base 8 exponent, 13 bit fraction
+ * compt_t representation described in the above reference was replaced
+ * with that of IEEE-754 floats.
  *
  * Arguably, to simplify accounting operations, this mechanism should
  * be replaced by one in which an accounting log file (similar to /dev/klog)
  * is read by a user process, etc.  However, that has its own problems.
  */
 
+/* Floating point definitions from <float.h>. */
+#define FLT_MANT_DIG    24              /* p */
+#define FLT_MAX_EXP     128             /* emax */
+
 /*
  * Internal accounting functions.
  * The former's operation is described in Leffler, et al., and the latter
  * was provided by UCB with the 4.4BSD-Lite release
  */
-static comp_t	encode_comp_t(u_long, u_long);
+static uint32_t	encode_timeval(struct timeval);
+static uint32_t	encode_long(long);
 static void	acctwatch(void);
 static void	acct_thread(void *);
 static int	acct_disable(struct thread *);
@@ -325,7 +333,7 @@ acct_disable(struct thread *td)
 int
 acct_process(struct thread *td)
 {
-	struct acct acct;
+	struct acctv2 acct;
 	struct timeval ut, st, tmp;
 	struct plimit *newlim, *oldlim;
 	struct proc *p;
@@ -363,8 +371,8 @@ acct_process(struct thread *td)
 
 	/* (2) The amount of user and system time that was used */
 	calcru(p, &ut, &st);
-	acct.ac_utime = encode_comp_t(ut.tv_sec, ut.tv_usec);
-	acct.ac_stime = encode_comp_t(st.tv_sec, st.tv_usec);
+	acct.ac_utime = encode_timeval(ut);
+	acct.ac_stime = encode_timeval(st);
 
 	/* (3) The elapsed time the command ran (and its starting time) */
 	tmp = boottime;
@@ -372,20 +380,22 @@ acct_process(struct thread *td)
 	acct.ac_btime = tmp.tv_sec;
 	microuptime(&tmp);
 	timevalsub(&tmp, &p->p_stats->p_start);
-	acct.ac_etime = encode_comp_t(tmp.tv_sec, tmp.tv_usec);
+	acct.ac_etime = encode_timeval(tmp);
 
 	/* (4) The average amount of memory used */
 	r = &p->p_stats->p_ru;
 	tmp = ut;
 	timevaladd(&tmp, &st);
+	/* Convert tmp (i.e. u + s) into hz units to match ru_i*. */
 	t = tmp.tv_sec * hz + tmp.tv_usec / tick;
 	if (t)
-		acct.ac_mem = (r->ru_ixrss + r->ru_idrss + r->ru_isrss) / t;
+		acct.ac_mem = encode_long((r->ru_ixrss + r->ru_idrss +
+		    + r->ru_isrss) / t);
 	else
 		acct.ac_mem = 0;
 
 	/* (5) The number of disk I/O operations done */
-	acct.ac_io = encode_comp_t(r->ru_inblock + r->ru_oublock, 0);
+	acct.ac_io = encode_long(r->ru_inblock + r->ru_oublock);
 
 	/* (6) The UID and GID of the process */
 	acct.ac_uid = p->p_ucred->cr_ruid;
@@ -400,8 +410,14 @@ acct_process(struct thread *td)
 	SESS_UNLOCK(p->p_session);
 
 	/* (8) The boolean flags that tell how the process terminated, etc. */
-	acct.ac_flag = p->p_acflag;
+	acct.ac_flagx = p->p_acflag;
 	PROC_UNLOCK(p);
+
+	/* Setup ancillary structure fields. */
+	acct.ac_flagx |= ANVER;
+	acct.ac_zero = 0;
+	acct.ac_version = 2;
+	acct.ac_len = acct.ac_len2 = sizeof(acct);
 
 	/*
 	 * Eliminate any file size rlimit.
@@ -428,43 +444,101 @@ acct_process(struct thread *td)
 	return (ret);
 }
 
+/* FLOAT_CONVERSION_START (Regression testing; don't remove this line.) */
+
+/* Convert timevals and longs into IEEE-754 bit patterns. */
+
+/* Mantissa mask (MSB is implied, so subtract 1). */
+#define MANT_MASK ((1 << (FLT_MANT_DIG - 1)) - 1)
+
 /*
- * Encode_comp_t converts from ticks in seconds and microseconds
- * to ticks in 1/AHZ seconds.  The encoding is described in
- * Leffler, et al., on page 63.
+ * We calculate integer values to a precision of approximately
+ * 28 bits.
+ * This is high-enough precision to fill the 24 float bits
+ * and low-enough to avoid overflowing the 32 int bits.
  */
+#define CALC_BITS 28
 
-#define	MANTSIZE	13			/* 13 bit mantissa. */
-#define	EXPSIZE		3			/* Base 8 (3 bit) exponent. */
-#define	MAXFRACT	((1 << MANTSIZE) - 1)	/* Maximum fractional value. */
+/* log_2(1000000). */
+#define LOG2_1M 20
 
-static comp_t
-encode_comp_t(u_long s, u_long us)
+/*
+ * Convert the elements of a timeval into a 32-bit word holding
+ * the bits of a IEEE-754 float.
+ * The float value represents the timeval's value in microsecond units.
+ */
+static uint32_t
+encode_timeval(struct timeval tv)
 {
-	int exp, rnd;
+	int log2_s;
+	int val, exp;	/* Unnormalized value and exponent */
+	int norm_exp;	/* Normalized exponent */
+	int shift;
 
-	exp = 0;
-	rnd = 0;
-	s *= AHZ;
-	s += us / (1000000 / AHZ);	/* Maximize precision. */
-
-	while (s > MAXFRACT) {
-	rnd = s & (1 << (EXPSIZE - 1));	/* Round up? */
-		s >>= EXPSIZE;		/* Base 8 exponent == 3 bit shift. */
-		exp++;
+	/*
+	 * First calculate value and exponent to about CALC_BITS precision.
+	 * Note that the following conditionals have been ordered so that
+	 * the most common cases appear first.
+	 */
+	if (tv.tv_sec == 0) {
+		if (tv.tv_usec == 0)
+			return (0);
+		exp = 0;
+		val = tv.tv_usec;
+	} else {
+		/*
+		 * Calculate the value to a precision of approximately
+		 * CALC_BITS.
+		 */
+		log2_s = fls(tv.tv_sec) - 1;
+		if (log2_s + LOG2_1M < CALC_BITS) {
+			exp = 0;
+			val = 1000000 * tv.tv_sec + tv.tv_usec;
+		} else {
+			exp = log2_s + LOG2_1M - CALC_BITS;
+			val = (unsigned int)(((u_int64_t)1000000 * tv.tv_sec +
+			    tv.tv_usec) >> exp);
+		}
 	}
-
-	/* If we need to round up, do it (and handle overflow correctly). */
-	if (rnd && (++s > MAXFRACT)) {
-		s >>= EXPSIZE;
-		exp++;
-	}
-
-	/* Clean it up and polish it off. */
-	exp <<= MANTSIZE;		/* Shift the exponent into place */
-	exp += s;			/* and add on the mantissa. */
-	return (exp);
+	/* Now normalize and pack the value into an IEEE-754 float. */
+	norm_exp = fls(val) - 1;
+	shift = FLT_MANT_DIG - norm_exp - 1;
+#ifdef ACCT_DEBUG
+	printf("val=%d exp=%d shift=%d log2(val)=%d\n",
+	    val, exp, shift, norm_exp);
+	printf("exp=%x mant=%x\n", FLT_MAX_EXP - 1 + exp + norm_exp,
+	    ((shift > 0 ? (val << shift) : (val >> -shift)) & MANT_MASK));
+#endif
+	return (((FLT_MAX_EXP - 1 + exp + norm_exp) << (FLT_MANT_DIG - 1)) |
+	    ((shift > 0 ? val << shift : val >> -shift) & MANT_MASK));
 }
+
+/*
+ * Convert a non-negative long value into the bit pattern of
+ * an IEEE-754 float value.
+ */
+static uint32_t
+encode_long(long val)
+{
+	int norm_exp;	/* Normalized exponent */
+	int shift;
+
+	KASSERT(val >= 0,  ("encode_long: -ve value %ld", val));
+	if (val == 0)
+		return (0);
+	norm_exp = fls(val) - 1;
+	shift = FLT_MANT_DIG - norm_exp - 1;
+#ifdef ACCT_DEBUG
+	printf("val=%d shift=%d log2(val)=%d\n",
+	    val, shift, norm_exp);
+	printf("exp=%x mant=%x\n", FLT_MAX_EXP - 1 + exp + norm_exp,
+	    ((shift > 0 ? (val << shift) : (val >> -shift)) & MANT_MASK));
+#endif
+	return (((FLT_MAX_EXP - 1 + norm_exp) << (FLT_MANT_DIG - 1)) |
+	    ((shift > 0 ? val << shift : val >> -shift) & MANT_MASK));
+}
+
+/* FLOAT_CONVERSION_END (Regression testing; don't remove this line.) */
 
 /*
  * Periodically check the filesystem to see if accounting
