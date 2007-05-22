@@ -1429,9 +1429,10 @@ vm_map_submap(
 /*
  *	vm_map_pmap_enter:
  *
- *	Preload read-only mappings for the given object into the specified
- *	map.  This eliminates the soft faults on process startup and
- *	immediately after an mmap(2).
+ *	Preload read-only mappings for the given object's resident pages into
+ *	the given map.  This eliminates the soft faults on process startup and
+ *	immediately after an mmap(2).  Unless the given flags include
+ *	MAP_PREFAULT_MADVISE, cached pages are not reactivated and mapped.
  */
 void
 vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
@@ -1502,8 +1503,15 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 				are_queues_locked = TRUE;
 				vm_page_lock_queues();
 			}
-			if (VM_PAGE_INQUEUE1(p, PQ_CACHE))
-				vm_page_deactivate(p);
+			if (VM_PAGE_INQUEUE1(p, PQ_CACHE)) {
+				if ((flags & MAP_PREFAULT_MADVISE) != 0)
+					vm_page_deactivate(p);
+				else if (p_start != NULL) {
+					pmap_enter_object(map->pmap, start, addr +
+					    ptoa(tmpidx), p_start, prot);
+					p_start = NULL;
+				}
+			}
 		} else if (p_start != NULL) {
 			pmap_enter_object(map->pmap, start, addr +
 			    ptoa(tmpidx), p_start, prot);

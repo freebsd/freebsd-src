@@ -996,9 +996,9 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 		    (m->flags & PG_FICTITIOUS) == 0) {
 
 			vm_page_lock_queues();
-			if (VM_PAGE_INQUEUE1(m, PQ_CACHE))
-				vm_page_deactivate(m);
-			pmap_enter_quick(pmap, addr, m, entry->protection);
+			if (!VM_PAGE_INQUEUE1(m, PQ_CACHE))
+				pmap_enter_quick(pmap, addr, m,
+				    entry->protection);
 			vm_page_unlock_queues();
 		}
 		VM_OBJECT_UNLOCK(lobject);
