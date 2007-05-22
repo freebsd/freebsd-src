@@ -40,9 +40,9 @@ node type limits traffic flowing through it using:
 .Pp
 .Bl -bullet -compact
 .It
-Single rate three color marker as described on RFC 2697,
+Single rate three color marker as described in RFC 2697,
 .It
-Two rate three color marker as described on RFC 2698,
+Two rate three color marker as described in RFC 2698,
 .It
 RED-like rate limit algorithm used by Cisco,
 .It
@@ -75,7 +75,7 @@ traffic.
 Each hook can operate in one of the following modes:
 .Bl -tag -width indent
 .It Dv NG_CAR_SINGLE_RATE
-Single rate three color marker as described on RFC 2697.
+Single rate three color marker as described in RFC 2697.
 Committed burst packets are counted as green, extended burst packets are
 counted as yellow and exceeding packets are counted as red.
 Committed burst getting refilled with CIR (Committed Information Rate) speed.
@@ -157,7 +157,7 @@ struct ng_car_bulkstats {
 .It Dv NGM_CAR_CLR_STATS Pq Li clrstats
 Clear node statistics.
 .It Dv NGM_CAR_GETCLR_STATS Pq Li getclrstats
-Atomicaly return and clear node statistics.
+Atomically return and clear node statistics.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
