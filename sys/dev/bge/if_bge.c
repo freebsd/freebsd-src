@@ -1256,17 +1256,6 @@ bge_chipinit(struct bge_softc *sc)
 	 */
 	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD, PCIM_CMD_MWIEN, 4);
 
-#ifdef __brokenalpha__
-	/*
-	 * Must insure that we do not cross an 8K (bytes) boundary
-	 * for DMA reads.  Our highest limit is 1K bytes.  This is a
-	 * restriction on some ALPHA platforms with early revision
-	 * 21174 PCI chipsets, such as the AlphaPC 164lx
-	 */
-	PCI_SETBIT(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-	    BGE_PCI_READ_BNDRY_1024BYTES, 4);
-#endif
-
 	/* Set the timer prescaler (always 66Mhz) */
 	CSR_WRITE_4(sc, BGE_MISC_CFG, BGE_32BITTIME_66MHZ);
 
