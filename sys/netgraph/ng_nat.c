@@ -56,12 +56,36 @@ static ng_newhook_t	ng_nat_newhook;
 static ng_rcvdata_t	ng_nat_rcvdata;
 static ng_disconnect_t	ng_nat_disconnect;
 
+static unsigned int	ng_nat_translate_flags(unsigned int x);
+
+/* Parse type for struct ng_nat_mode. */
+static const struct ng_parse_struct_field ng_nat_mode_fields[]
+	= NG_NAT_MODE_INFO;
+static const struct ng_parse_type ng_nat_mode_type = {
+	&ng_parse_struct_type,
+	ng_nat_mode_fields
+};
+
 /* List of commands and how to convert arguments to/from ASCII. */
 static const struct ng_cmdlist ng_nat_cmdlist[] = {
 	{
 	  NGM_NAT_COOKIE,
 	  NGM_NAT_SET_IPADDR,
 	  "setaliasaddr",
+	  &ng_parse_ipaddr_type,
+	  NULL
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_SET_MODE,
+	  "setmode",
+	  &ng_nat_mode_type,
+	  NULL
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_SET_TARGET,
+	  "settarget",
 	  &ng_parse_ipaddr_type,
 	  NULL
 	},
@@ -176,6 +200,36 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			LibAliasSetAddress(priv->lib, *ia);
 
 			priv->flags |= NGNAT_ADDR_DEFINED;
+		    }
+			break;
+		case NGM_NAT_SET_MODE:
+		    {
+			struct ng_nat_mode *const mode = 
+			    (struct ng_nat_mode *)msg->data;
+
+			if (msg->header.arglen < sizeof(*mode)) {
+				error = EINVAL;
+				break;
+			}
+			
+			if (LibAliasSetMode(priv->lib, 
+			    ng_nat_translate_flags(mode->flags),
+			    ng_nat_translate_flags(mode->mask)) < 0) {
+				error = ENOMEM;
+				break;
+			}
+		    }
+			break;
+		case NGM_NAT_SET_TARGET:
+		    {
+			struct in_addr *const ia = (struct in_addr *)msg->data;
+
+			if (msg->header.arglen < sizeof(*ia)) {
+				error = EINVAL;
+				break;
+			}
+
+			LibAliasSetTarget(priv->lib, *ia);
 		    }
 			break;
 		default:
@@ -329,3 +383,25 @@ ng_nat_disconnect(hook_p hook)
 	return (0);
 }
 
+static unsigned int
+ng_nat_translate_flags(unsigned int x)
+{
+	unsigned int	res = 0;
+	
+	if (x & NG_NAT_LOG)
+		res |= PKT_ALIAS_LOG;
+	if (x & NG_NAT_DENY_INCOMING)
+		res |= PKT_ALIAS_DENY_INCOMING;
+	if (x & NG_NAT_SAME_PORTS)
+		res |= PKT_ALIAS_SAME_PORTS;
+	if (x & NG_NAT_UNREGISTERED_ONLY)
+		res |= PKT_ALIAS_UNREGISTERED_ONLY;
+	if (x & NG_NAT_RESET_ON_ADDR_CHANGE)
+		res |= PKT_ALIAS_RESET_ON_ADDR_CHANGE;
+	if (x & NG_NAT_PROXY_ONLY)
+		res |= PKT_ALIAS_PROXY_ONLY;
+	if (x & NG_NAT_REVERSE)
+		res |= PKT_ALIAS_REVERSE;
+
+	return (res);
+}
