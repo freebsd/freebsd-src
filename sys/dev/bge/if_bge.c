@@ -591,7 +591,7 @@ bge_eeprom_getbyte(struct bge_softc *sc, int addr, uint8_t *dest)
 			break;
 	}
 
-	if (i == BGE_TIMEOUT) {
+	if (i == BGE_TIMEOUT * 10) {
 		device_printf(sc->bge_dev, "EEPROM read timed out\n");
 		return (1);
 	}
@@ -655,10 +655,10 @@ bge_miibus_readreg(device_t dev, int phy, int reg)
 	    BGE_MIPHY(phy) | BGE_MIREG(reg));
 
 	for (i = 0; i < BGE_TIMEOUT; i++) {
+		DELAY(10);
 		val = CSR_READ_4(sc, BGE_MI_COMM);
 		if (!(val & BGE_MICOMM_BUSY))
 			break;
-		DELAY(10);
 	}
 
 	if (i == BGE_TIMEOUT) {
@@ -701,9 +701,14 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 	    BGE_MIPHY(phy) | BGE_MIREG(reg) | val);
 
 	for (i = 0; i < BGE_TIMEOUT; i++) {
+		DELAY(10);
 		if (!(CSR_READ_4(sc, BGE_MI_COMM) & BGE_MICOMM_BUSY))
 			break;
-		DELAY(10);
+	}
+
+	if (i == BGE_TIMEOUT) {
+		device_printf(sc->bge_dev, "PHY write timed out\n");
+		return (0);
 	}
 
 	if (autopoll & BGE_MIMODE_AUTOPOLL) {
@@ -711,10 +716,6 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 		DELAY(40);
 	}
 
-	if (i == BGE_TIMEOUT) {
-		device_printf(sc->bge_dev, "PHY read timed out\n");
-		return (0);
-	}
 
 	return (0);
 }
@@ -1326,9 +1327,9 @@ bge_blockinit(struct bge_softc *sc)
 
 		/* Poll for buffer manager start indication */
 		for (i = 0; i < BGE_TIMEOUT; i++) {
+			DELAY(10);
 			if (CSR_READ_4(sc, BGE_BMAN_MODE) & BGE_BMANMODE_ENABLE)
 				break;
-			DELAY(10);
 		}
 
 		if (i == BGE_TIMEOUT) {
@@ -1344,9 +1345,9 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Wait until queue initialization is complete */
 	for (i = 0; i < BGE_TIMEOUT; i++) {
+		DELAY(10);
 		if (CSR_READ_4(sc, BGE_FTQ_RESET) == 0)
 			break;
-		DELAY(10);
 	}
 
 	if (i == BGE_TIMEOUT) {
@@ -1515,9 +1516,9 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Poll to make sure it's shut down. */
 	for (i = 0; i < BGE_TIMEOUT; i++) {
+		DELAY(10);
 		if (!(CSR_READ_4(sc, BGE_HCC_MODE) & BGE_HCCMODE_ENABLE))
 			break;
-		DELAY(10);
 	}
 
 	if (i == BGE_TIMEOUT) {
@@ -2791,10 +2792,10 @@ bge_reset(struct bge_softc *sc)
 	 * We expect this to fail if no EEPROM is fitted though.
 	 */
 	for (i = 0; i < BGE_TIMEOUT; i++) {
+		DELAY(10);
 		val = bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM);
 		if (val == ~BGE_MAGIC_NUMBER)
 			break;
-		DELAY(10);
 	}
 
 	if ((sc->bge_flags & BGE_FLAG_EEPROM) && i == BGE_TIMEOUT)
