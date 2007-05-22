@@ -658,6 +658,7 @@ bge_miibus_readreg(device_t dev, int phy, int reg)
 		val = CSR_READ_4(sc, BGE_MI_COMM);
 		if (!(val & BGE_MICOMM_BUSY))
 			break;
+		DELAY(10);
 	}
 
 	if (i == BGE_TIMEOUT) {
@@ -702,6 +703,7 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 	for (i = 0; i < BGE_TIMEOUT; i++) {
 		if (!(CSR_READ_4(sc, BGE_MI_COMM) & BGE_MICOMM_BUSY))
 			break;
+		DELAY(10);
 	}
 
 	if (autopoll & BGE_MIMODE_AUTOPOLL) {
