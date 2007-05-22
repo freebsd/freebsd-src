@@ -292,7 +292,9 @@ inet6_rth_space(int type, int segments)
 {
 	switch (type) {
 	case IPV6_RTHDR_TYPE_0:
-		return (((segments * 2) + 1) << 3);
+		if ((segments >= 0) && (segments <= 127))
+			return (((segments * 2) + 1) << 3);
+		/* FALLTHROUGH */
 	default:
 		return (0);	/* type not suppported */
 	}
@@ -308,6 +310,9 @@ inet6_rth_init(void *bp, socklen_t bp_len, int type, int segments)
 	case IPV6_RTHDR_TYPE_0:
 		/* length validation */
 		if (bp_len < inet6_rth_space(IPV6_RTHDR_TYPE_0, segments))
+			return (NULL);
+		/* segment validation */
+		if ((segments < 0) || (segments > 127))
 			return (NULL);
 
 		memset(bp, 0, bp_len);
@@ -334,6 +339,9 @@ inet6_rth_add(void *bp, const struct in6_addr *addr)
 	switch (rth->ip6r_type) {
 	case IPV6_RTHDR_TYPE_0:
 		rth0 = (struct ip6_rthdr0 *)rth;
+		/* Don't exceed the number of stated segments */
+		if (rth0->ip6r0_segleft == (rth0->ip6r0_len / 2))
+			return (-1);
 		nextaddr = (struct in6_addr *)(rth0 + 1) + rth0->ip6r0_segleft;
 		*nextaddr = *addr;
 		rth0->ip6r0_segleft++;
