@@ -149,7 +149,7 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 	    (rn->rn_flags & RNF_ROOT) == 0) {
 		/*
 		 * If we find it and it's not the root node, then
-		 * get a refernce on the rtentry associated.
+		 * get a reference on the rtentry associated.
 		 */
 		newrt = rt = RNTORT(rn);
 		nflags = rt->rt_flags & ~ignflags;
@@ -232,22 +232,21 @@ rtfree(struct rtentry *rt)
 {
 	struct radix_node_head *rnh;
 
-	/* XXX the NULL checks are probably useless */
-	if (rt == NULL)
-		panic("rtfree: NULL rt");
+	KASSERT(rt != NULL,("%s: NULL rt", __func__));
 	rnh = rt_tables[rt_key(rt)->sa_family];
-	if (rnh == NULL)
-		panic("rtfree: NULL rnh");
+	KASSERT(rnh != NULL,("%s: NULL rnh", __func__));
 
 	RT_LOCK_ASSERT(rt);
 
 	/*
-	 * decrement the reference count by one and if it reaches 0,
-	 * and there is a close function defined, call the close function
+	 * The callers should use RTFREE_LOCKED() or RTFREE(), so
+	 * we should come here exactly with the last reference.
 	 */
 	RT_REMREF(rt);
-	if (rt->rt_refcnt > 0)
+	if (rt->rt_refcnt > 0) {
+		printf("%s: %p has %lu refs", __func__, rt, rt->rt_refcnt);
 		goto done;
+	}
 
 	/*
 	 * On last reference give the "close method" a chance
@@ -268,7 +267,7 @@ rtfree(struct rtentry *rt)
 	 */
 	if ((rt->rt_flags & RTF_UP) == 0) {
 		if (rt->rt_nodes->rn_flags & (RNF_ACTIVE | RNF_ROOT))
-			panic ("rtfree 2");
+			panic("rtfree 2");
 		/*
 		 * the rtentry must have been removed from the routing table
 		 * so it is represented in rttrash.. remove that now.
@@ -881,7 +880,7 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 		}
 
 		/*
-		 * if this protocol has something to add to this then
+		 * If this protocol has something to add to this then
 		 * allow it to do that as well.
 		 */
 		if (ifa->ifa_rtrequest)
@@ -1047,7 +1046,6 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 		RT_UNLOCK(rt);		/* XXX workaround LOR */
 		gwrt = rtalloc1(gate, 1, 0);
 		if (gwrt == rt) {
-			RT_LOCK_ASSERT(rt);
 			RT_REMREF(rt);
 			return (EADDRINUSE); /* failure */
 		}
@@ -1278,7 +1276,6 @@ bad:
 int
 rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 {
-#define senderr(x) { error = x ; goto bad; }
 	struct rtentry *rt;
 	struct rtentry *rt0;
 	int error;
@@ -1295,7 +1292,7 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 			RT_REMREF(rt);
 			/* XXX what about if change? */
 		} else
-			senderr(EHOSTUNREACH);
+			return (EHOSTUNREACH);
 		rt0 = rt;
 	}
 	/* XXX BSD/OS checks dst->sa_family != AF_NS */
@@ -1305,7 +1302,7 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 		rt = rt->rt_gwroute;
 		RT_LOCK(rt);		/* NB: gwroute */
 		if ((rt->rt_flags & RTF_UP) == 0) {
-			rtfree(rt);	/* unlock gwroute */
+			RTFREE_LOCKED(rt);	/* unlock gwroute */
 			rt = rt0;
 		lookup:
 			RT_UNLOCK(rt0);
@@ -1314,13 +1311,13 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 				rt0->rt_gwroute = NULL;
 				RT_REMREF(rt0);
 				RT_UNLOCK(rt0);
-				senderr(ENETUNREACH);
+				return (ENETUNREACH);
 			}
 			RT_LOCK(rt0);
 			rt0->rt_gwroute = rt;
 			if (rt == NULL) {
 				RT_UNLOCK(rt0);
-				senderr(EHOSTUNREACH);
+				return (EHOSTUNREACH);
 			}
 		}
 		RT_UNLOCK(rt0);
@@ -1331,16 +1328,12 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 			time_uptime < rt->rt_rmx.rmx_expire);
 	if (error) {
 		RT_UNLOCK(rt);
-		senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
+		return (rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
 	}
 
 	*lrt = rt;
 	*lrt0 = rt0;
 	return (0);
-bad:
-	/* NB: lrt and lrt0 should not be interpreted if error is non-zero */
-	return (error);
-#undef senderr
 }
 
 /* This must be before ip6_init2(), which is now SI_ORDER_MIDDLE */
