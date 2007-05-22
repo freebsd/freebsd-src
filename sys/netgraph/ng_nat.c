@@ -94,7 +94,7 @@ struct ng_nat_priv {
 typedef struct ng_nat_priv *priv_p;
 
 /* Values of flags */
-#define	NGNAT_READY		0x1	/* We have everything to work */
+#define	NGNAT_CONNECTED		0x1	/* We have both hooks connected */
 #define	NGNAT_ADDR_DEFINED	0x2	/* NGM_NAT_SET_IPADDR happened */
 
 static int
@@ -145,9 +145,8 @@ ng_nat_newhook(node_p node, hook_p hook, const char *name)
 		return (EINVAL);
 
 	if (priv->out != NULL &&
-	    priv->in != NULL &&
-	    priv->flags & NGNAT_ADDR_DEFINED)
-		priv->flags |= NGNAT_READY;
+	    priv->in != NULL)
+		priv->flags |= NGNAT_CONNECTED;
 
 	return(0);
 }
@@ -177,9 +176,6 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			LibAliasSetAddress(priv->lib, *ia);
 
 			priv->flags |= NGNAT_ADDR_DEFINED;
-			if (priv->out != NULL &&
-			    priv->in != NULL)
-				priv->flags |= NGNAT_READY;
 		    }
 			break;
 		default:
@@ -206,10 +202,15 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 	int rval, error = 0;
 	char *c;
 
-	if (!(priv->flags & NGNAT_READY)) {
+	/* We have no required hooks. */
+	if (!(priv->flags & NGNAT_CONNECTED)) {
 		NG_FREE_ITEM(item);
 		return (ENXIO);
 	}
+
+	/* We have no alias address yet to do anything. */
+	if (!(priv->flags & NGNAT_ADDR_DEFINED))
+		goto send;
 
 	m = NGI_M(item);
 
@@ -288,6 +289,7 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 		}
 	}
 
+send:
 	if (hook == priv->in)
 		NG_FWD_ITEM_HOOK(error, item, priv->out);
 	else
@@ -314,7 +316,7 @@ ng_nat_disconnect(hook_p hook)
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
-	priv->flags &= ~NGNAT_READY;
+	priv->flags &= ~NGNAT_CONNECTED;
 
 	if (hook == priv->out)
 		priv->out = NULL;
