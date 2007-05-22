@@ -158,6 +158,7 @@ zfs_replay_remove(zfsvfs_t *zfsvfs, lr_remove_t *lr, boolean_t byteswap)
 	cn.cn_namelen = strlen(name);
 	cn.cn_nameiop = DELETE;
 	cn.cn_flags = ISLASTCN | SAVENAME;
+	cn.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	cn.cn_cred = kcred;
 	cn.cn_thread = curthread;
 	vn_lock(ZTOV(dzp), LK_EXCLUSIVE | LK_RETRY, curthread);
@@ -249,6 +250,7 @@ zfs_replay_rename(zfsvfs_t *zfsvfs, lr_rename_t *lr, boolean_t byteswap)
 	scn.cn_namelen = strlen(sname);
 	scn.cn_nameiop = DELETE;
 	scn.cn_flags = ISLASTCN | SAVENAME;
+	scn.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	scn.cn_cred = kcred;
 	scn.cn_thread = td;
 	vn_lock(ZTOV(sdzp), LK_EXCLUSIVE | LK_RETRY, td);
@@ -262,6 +264,7 @@ zfs_replay_rename(zfsvfs_t *zfsvfs, lr_rename_t *lr, boolean_t byteswap)
 	tcn.cn_namelen = strlen(tname);
 	tcn.cn_nameiop = RENAME;
 	tcn.cn_flags = ISLASTCN | SAVENAME;
+	tcn.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	tcn.cn_cred = kcred;
 	tcn.cn_thread = td;
 	vn_lock(ZTOV(tdzp), LK_EXCLUSIVE | LK_RETRY, td);
