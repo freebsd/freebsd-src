@@ -99,5 +99,4 @@ FBSDprivate_1.0 {
 	_malloc_postfork;
 	__system;
 	_system;
-	__cleanup;
 };
