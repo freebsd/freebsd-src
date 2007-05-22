@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2007
+.Dd May 22, 2007
 .Dt BGE 4
 .Os
 .Sh NAME
@@ -205,14 +205,11 @@ SysKonnect SK-9D21 (10/100/1000baseTX)
 SysKonnect SK-9D41 (1000baseSX)
 .El
 .Sh LOADER TUNABLES
-Tunables can be set at the
+The following tunable can be set at the
 .Xr loader 8
 prompt before booting the kernel, or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
-.It Va hw.bge.fake_autoneg
-Set to 1 for special handling of the BCM5704 HW.
-Disabled by default.
 .It Va hw.bge.allow_asf
 Allow the ASF feature for cooperating with IPMI.
 Can cause system lockup problems on a small number of systems.
