@@ -25,6 +25,7 @@ VERSION_MAP= ${SRCDIR}/ssp.map
 INCS=	ssp.h string.h stdio.h unistd.h
 INCSDIR=${INCLUDEDIR}/ssp
 
+CLEANFILES= ssp.h
 ssp.h: ssp.h.in
 	sed -e 's/@ssp_have_usable_vsnprintf@/define/' ${.ALLSRC} > ${.TARGET}
 
