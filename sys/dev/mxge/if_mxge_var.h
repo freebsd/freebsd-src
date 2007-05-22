@@ -43,8 +43,7 @@ $FreeBSD$
 
 #define MXGE_FW_OFFSET 1024*1024
 #define MXGE_EEPROM_STRINGS_SIZE 256
-#define MXGE_MAX_SEND_DESC 64 /* should be large enough for
-				 any TSO packet */
+#define MXGE_MAX_SEND_DESC 128
 
 typedef struct {
 	void *addr;
@@ -59,6 +58,7 @@ typedef struct {
 	mxge_dma_t dma;
 	int cnt;
 	int idx;
+	int mask;
 } mxge_rx_done_t;
 
 typedef struct
@@ -82,7 +82,6 @@ struct mxge_tx_buffer_state {
 typedef struct
 {
 	volatile mcp_kreq_ether_recv_t *lanai;	/* lanai ptr for recv ring */
-	volatile uint8_t *wc_fifo;	/* w/c rx dma addr fifo address */
 	mcp_kreq_ether_recv_t *shadow;	/* host shadow of recv ring */
 	struct mxge_rx_buffer_state *info;
 	bus_dma_tag_t dmat;
@@ -97,7 +96,6 @@ typedef struct
 typedef struct
 {
 	volatile mcp_kreq_ether_send_t *lanai;	/* lanai ptr for sendq	*/
-	volatile uint8_t *wc_fifo;		/* w/c send fifo address */
 	mcp_kreq_ether_send_t *req_list;	/* host shadow of sendq */
 	char *req_bytes;
 	bus_dma_segment_t *seg_list;
@@ -108,6 +106,7 @@ typedef struct
 	int done;			/* transmits completed	*/
 	int pkt_done;			/* packets completed */
 	int boundary;			/* boundary transmits cannot cross*/
+	int max_desc;			/* max descriptors per xmit */
 	int stall;			/* #times hw queue exhausted */
 	int wake;			/* #times irq re-enabled xmit */
 	int watchdog_req;		/* cache of req */
@@ -143,8 +142,7 @@ typedef struct {
 	struct ifnet* ifp;
 	struct mtx tx_mtx;
 	int csum_flag;			/* rx_csums? 		*/
-	uint8_t	mac_addr[6];		/* eeprom mac address */
-	mxge_tx_buf_t tx;	/* transmit ring 	*/
+	mxge_tx_buf_t tx;		/* transmit ring 	*/
 	mxge_rx_buf_t rx_small;
 	mxge_rx_buf_t rx_big;
 	mxge_rx_done_t rx_done;
@@ -197,9 +195,11 @@ typedef struct {
 	int fw_multicast_support;
 	int link_width;
 	int max_mtu;
+	int tx_defrag;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
 	char *mac_addr_string;
+	uint8_t	mac_addr[6];		/* eeprom mac address */
 	char product_code_string[64];
 	char serial_number_string[64];
 	char scratch[256];
