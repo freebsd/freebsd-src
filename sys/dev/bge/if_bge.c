@@ -424,15 +424,11 @@ static devclass_t bge_devclass;
 DRIVER_MODULE(bge, pci, bge_driver, bge_devclass, 0, 0);
 DRIVER_MODULE(miibus, bge, miibus_driver, miibus_devclass, 0, 0);
 
-static int bge_fake_autoneg = 0;
 static int bge_allow_asf = 1;
 
-TUNABLE_INT("hw.bge.fake_autoneg", &bge_fake_autoneg);
 TUNABLE_INT("hw.bge.allow_asf", &bge_allow_asf);
 
 SYSCTL_NODE(_hw, OID_AUTO, bge, CTLFLAG_RD, 0, "BGE driver parameters");
-SYSCTL_INT(_hw_bge, OID_AUTO, fake_autoneg, CTLFLAG_RD, &bge_fake_autoneg, 0,
-	"Enable fake autonegotiation for certain blade systems");
 SYSCTL_INT(_hw_bge, OID_AUTO, allow_asf, CTLFLAG_RD, &bge_allow_asf, 0,
 	"Allow ASF mode if available");
 
@@ -3724,18 +3720,20 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 			 * mechanism for programming the autoneg
 			 * advertisement registers in TBI mode.
 			 */
-			if (bge_fake_autoneg == 0 &&
-			    sc->bge_asicrev == BGE_ASICREV_BCM5704) {
+			if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
 				uint32_t sgdig;
-				CSR_WRITE_4(sc, BGE_TX_TBI_AUTONEG, 0);
-				sgdig = CSR_READ_4(sc, BGE_SGDIG_CFG);
-				sgdig |= BGE_SGDIGCFG_AUTO |
-				    BGE_SGDIGCFG_PAUSE_CAP |
-				    BGE_SGDIGCFG_ASYM_PAUSE;
-				CSR_WRITE_4(sc, BGE_SGDIG_CFG,
-				    sgdig | BGE_SGDIGCFG_SEND);
-				DELAY(5);
-				CSR_WRITE_4(sc, BGE_SGDIG_CFG, sgdig);
+				sgdig = CSR_READ_4(sc, BGE_SGDIG_STS);
+				if (sgdig & BGE_SGDIGSTS_DONE) {
+					CSR_WRITE_4(sc, BGE_TX_TBI_AUTONEG, 0);
+					sgdig = CSR_READ_4(sc, BGE_SGDIG_CFG);
+					sgdig |= BGE_SGDIGCFG_AUTO |
+					    BGE_SGDIGCFG_PAUSE_CAP |
+					    BGE_SGDIGCFG_ASYM_PAUSE;
+					CSR_WRITE_4(sc, BGE_SGDIG_CFG,
+					    sgdig | BGE_SGDIGCFG_SEND);
+					DELAY(5);
+					CSR_WRITE_4(sc, BGE_SGDIG_CFG, sgdig);
+				}
 			}
 			break;
 		case IFM_1000_SX:
