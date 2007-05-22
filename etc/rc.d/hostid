@@ -57,7 +57,6 @@ hostid_set()
 hostid_hardware()
 {
 	uuid=`kenv smbios.system.uuid 2>/dev/null`
-	uuid=`csh -c 'echo -n ${*:al}' "${uuid}"`
 	x="[0-9a-f]"
 	y=$x$x$x$x
 	z="0000"
