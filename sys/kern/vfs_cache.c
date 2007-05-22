@@ -614,12 +614,11 @@ cache_purgevfs(mp)
 	struct nchashhead mplist;
 
 	LIST_INIT(&mplist);
-	ncp = NULL;
 
 	/* Scan hash tables for applicable entries */
 	CACHE_LOCK();
 	for (ncpp = &nchashtbl[nchash]; ncpp >= nchashtbl; ncpp--) {
-		for (ncp = LIST_FIRST(ncpp); ncp != 0; ncp = nnp) {
+		for (ncp = LIST_FIRST(ncpp); ncp != NULL; ncp = nnp) {
 			nnp = LIST_NEXT(ncp, nc_hash);
 			if (ncp->nc_dvp->v_mount == mp) {
 				LIST_REMOVE(ncp, nc_hash);
