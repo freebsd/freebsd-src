@@ -1180,60 +1180,60 @@ bge_chipinit(struct bge_softc *sc)
 	    i < BGE_STATUS_BLOCK_END + 1; i += sizeof(uint32_t))
 		BGE_MEMWIN_WRITE(sc, i, 0);
 
-	/* Set up the PCI DMA control register. */
+	/*
+	 * Set up the PCI DMA control register.
+	 */
+	dma_rw_ctl = BGE_PCIDMARWCTL_RD_CMD_SHIFT(6) |
+	    BGE_PCIDMARWCTL_WR_CMD_SHIFT(7);
 	if (sc->bge_flags & BGE_FLAG_PCIE) {
-		/* PCI Express bus */
-		dma_rw_ctl = BGE_PCI_READ_CMD | BGE_PCI_WRITE_CMD |
-		    BGE_PCIDMARWCTL_RD_WAT_SHIFT(0xF) |
-		    BGE_PCIDMARWCTL_WR_WAT_SHIFT(0x2);
+		/* Read watermark not used, 128 bytes for write. */
+		dma_rw_ctl |= BGE_PCIDMARWCTL_WR_WAT_SHIFT(3);
 	} else if (sc->bge_flags & BGE_FLAG_PCIX) {
-		/* PCI-X bus */
 		if (BGE_IS_5714_FAMILY(sc)) {
-			dma_rw_ctl = BGE_PCI_READ_CMD | BGE_PCI_WRITE_CMD;
-			dma_rw_ctl &= ~BGE_PCIDMARWCTL_ONEDMA_ATONCE; /* XXX */
-			/* XXX magic values, Broadcom-supplied Linux driver */
-			dma_rw_ctl |= (1 << 20) | (1 << 18);
-			if (sc->bge_asicrev == BGE_ASICREV_BCM5780)
-				dma_rw_ctl |= BGE_PCIDMARWCTL_ONEDMA_ATONCE;
-			else
-				dma_rw_ctl |= 1 << 15;
-
-		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
-			/*
-			 * The 5704 uses a different encoding of read/write
-			 * watermarks.
-			 */
-			dma_rw_ctl = BGE_PCI_READ_CMD | BGE_PCI_WRITE_CMD |
-			    BGE_PCIDMARWCTL_RD_WAT_SHIFT(0x7) |
-			    BGE_PCIDMARWCTL_WR_WAT_SHIFT(0x3);
-		else
-			dma_rw_ctl = BGE_PCI_READ_CMD | BGE_PCI_WRITE_CMD |
-			    BGE_PCIDMARWCTL_RD_WAT_SHIFT(0x3) |
-			    BGE_PCIDMARWCTL_WR_WAT_SHIFT(0x3) |
+			/* 256 bytes for read and write. */
+			dma_rw_ctl |= BGE_PCIDMARWCTL_RD_WAT_SHIFT(2) |
+			    BGE_PCIDMARWCTL_WR_WAT_SHIFT(2);
+			dma_rw_ctl |= (sc->bge_asicrev == BGE_ASICREV_BCM5780) ?
+			    BGE_PCIDMARWCTL_ONEDMA_ATONCE_GLOBAL :
+			    BGE_PCIDMARWCTL_ONEDMA_ATONCE_LOCAL;
+		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
+			/* 1536 bytes for read, 384 bytes for write. */
+			dma_rw_ctl |= BGE_PCIDMARWCTL_RD_WAT_SHIFT(7) |
+			    BGE_PCIDMARWCTL_WR_WAT_SHIFT(3);
+		} else {
+			/* 384 bytes for read and write. */
+			dma_rw_ctl |= BGE_PCIDMARWCTL_RD_WAT_SHIFT(3) |
+			    BGE_PCIDMARWCTL_WR_WAT_SHIFT(3) |
 			    0x0F;
-
-		/*
-		 * 5703 and 5704 need ONEDMA_AT_ONCE as a workaround
-		 * for hardware bugs.
-		 */
+		}
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5703 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5704) {
 			uint32_t tmp;
 
+			/* Set ONE_DMA_AT_ONCE for hardware workaround. */
 			tmp = CSR_READ_4(sc, BGE_PCI_CLKCTL) & 0x1F;
-			if (tmp == 0x6 || tmp == 0x7)
-				dma_rw_ctl |= BGE_PCIDMARWCTL_ONEDMA_ATONCE;
-		}
-	} else
-		/* Conventional PCI bus */
-		dma_rw_ctl = BGE_PCI_READ_CMD | BGE_PCI_WRITE_CMD |
-		    BGE_PCIDMARWCTL_RD_WAT_SHIFT(0x7) |
-		    BGE_PCIDMARWCTL_WR_WAT_SHIFT(0x7) |
-		    0x0F;
+			if (tmp == 6 || tmp == 7)
+				dma_rw_ctl |=
+				    BGE_PCIDMARWCTL_ONEDMA_ATONCE_GLOBAL;
 
+			/* Set PCI-X DMA write workaround. */
+			dma_rw_ctl |= BGE_PCIDMARWCTL_ASRT_ALL_BE;
+		}
+	} else {
+		/* Conventional PCI bus: 256 bytes for read and write. */
+		dma_rw_ctl |= BGE_PCIDMARWCTL_RD_WAT_SHIFT(7) |
+		    BGE_PCIDMARWCTL_WR_WAT_SHIFT(7);
+
+		if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
+		    sc->bge_asicrev != BGE_ASICREV_BCM5750)
+			dma_rw_ctl |= 0x0F;
+	}
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5701)
+		dma_rw_ctl |= BGE_PCIDMARWCTL_USE_MRM |
+		    BGE_PCIDMARWCTL_ASRT_ALL_BE;
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5703 ||
-	    sc->bge_asicrev == BGE_ASICREV_BCM5704 ||
-	    sc->bge_asicrev == BGE_ASICREV_BCM5705)
+	    sc->bge_asicrev == BGE_ASICREV_BCM5704)
 		dma_rw_ctl &= ~BGE_PCIDMARWCTL_MINDMA;
 	pci_write_config(sc->bge_dev, BGE_PCI_DMA_RW_CTL, dma_rw_ctl, 4);
 
