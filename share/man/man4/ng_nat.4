@@ -60,6 +60,27 @@ This node type supports the generic control messages, plus the following:
 Configure aliasing address for a node.
 After both hooks have been connected and aliasing address was configured,
 a node is ready for aliasing operation.
+.It Dv NGM_NAT_SET_MODE Pq Li setmode
+Set node's operation mode using supplied 
+.Vt "struct ng_nat_mode".
+.Bd -literal
+struct ng_nat_mode {
+	uint32_t	flags;
+	uint32_t	mask;
+};
+/* Supported flags: */
+#define NG_NAT_LOG			0x01
+#define NG_NAT_DENY_INCOMING		0x02
+#define NG_NAT_SAME_PORTS		0x04
+#define NG_NAT_UNREGISTERED_ONLY	0x10
+#define NG_NAT_RESET_ON_ADDR_CHANGE	0x20
+#define NG_NAT_PROXY_ONLY		0x40
+#define NG_NAT_REVERSE			0x80
+.Ed
+.It Dv NGM_NAT_SET_TARGET Pq Li settarget
+Configure target address for a node.
+When an incoming packet not associated with any pre-existing aliasing 
+link arrives at the host machine, it will be sent to the specified address.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
