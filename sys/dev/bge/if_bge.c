@@ -712,7 +712,6 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 		DELAY(40);
 	}
 
-
 	return (0);
 }
 
