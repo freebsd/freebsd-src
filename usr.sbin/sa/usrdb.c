@@ -49,74 +49,69 @@ static int uid_compare(const DBT *, const DBT *);
 
 static DB	*usracct_db;
 
+/* Legacy format in AHZV1 units. */
+struct userinfov1 {
+	uid_t		ui_uid;			/* user id; for consistency */
+	u_quad_t	ui_calls;		/* number of invocations */
+	u_quad_t	ui_utime;		/* user time */
+	u_quad_t	ui_stime;		/* system time */
+	u_quad_t	ui_mem;			/* memory use */
+	u_quad_t	ui_io;			/* number of disk i/o ops */
+};
+
+/*
+ * Convert a v1 data record into the current version.
+ * Return 0 if OK, -1 on error, setting errno.
+ */
+static int
+v1_to_v2(DBT *key, DBT *data)
+{
+	struct userinfov1 uiv1;
+	static struct userinfo uiv2;
+	static uid_t uid;
+
+	if (key->size != sizeof(u_long) || data->size != sizeof(uiv1)) {
+		errno = EFTYPE;
+		return (-1);
+	}
+
+	/* Convert key. */
+	key->size = sizeof(uid_t);
+	uid = (uid_t)*(u_long *)(key->data);
+	key->data = &uid;
+
+	/* Convert data. */
+	memcpy(&uiv1, data->data, data->size);
+	memset(&uiv2, 0, sizeof(uiv2));
+	uiv2.ui_uid = uiv1.ui_uid;
+	uiv2.ui_calls = uiv1.ui_calls;
+	uiv2.ui_utime = ((double)uiv1.ui_utime / AHZV1) * 1000000;
+	uiv2.ui_stime = ((double)uiv1.ui_stime / AHZV1) * 1000000;
+	uiv2.ui_mem = uiv1.ui_mem;
+	uiv2.ui_io = uiv1.ui_io;
+	data->size = sizeof(uiv2);
+	data->data = &uiv2;
+
+	return (0);
+}
+
+/* Copy usrdb_file to in-memory usracct_db. */
 int
 usracct_init()
 {
-	DB *saved_usracct_db;
 	BTREEINFO bti;
-	int error;
 
 	bzero(&bti, sizeof bti);
 	bti.compare = uid_compare;
 
-	usracct_db = dbopen(NULL, O_RDWR, 0, DB_BTREE, &bti);
-	if (usracct_db == NULL)
-		return (-1);
-
-	error = 0;
-	if (!iflag) {
-		DBT key, data;
-		int serr, nerr;
-
-		saved_usracct_db = dbopen(usrdb_file, O_RDONLY, 0, DB_BTREE,
-		    &bti);
-		if (saved_usracct_db == NULL) {
-			error = (errno == ENOENT) ? 0 : -1;
-			if (error)
-				warn("retrieving user accounting summary");
-			goto out;
-		}
-
-		serr = DB_SEQ(saved_usracct_db, &key, &data, R_FIRST);
-		if (serr < 0) {
-			warn("retrieving user accounting summary");
-			error = -1;
-			goto closeout;
-		}
-		while (serr == 0) {
-			nerr = DB_PUT(usracct_db, &key, &data, 0);
-			if (nerr < 0) {
-				warn("initializing user accounting stats");
-				error = -1;
-				break;
-			}
-
-			serr = DB_SEQ(saved_usracct_db, &key, &data, R_NEXT);
-			if (serr < 0) {
-				warn("retrieving user accounting summary");
-				error = -1;
-				break;
-			}
-		}
-
-closeout:
-		if (DB_CLOSE(saved_usracct_db) < 0) {
-			warn("closing user accounting summary");
-			error = -1;
-		}
-	}
-
-out:
-	if (error != 0)
-		usracct_destroy();
-	return (error);
+	return (db_copy_in(&usracct_db, usrdb_file, "user accounting",
+	    &bti, v1_to_v2));
 }
 
 void
 usracct_destroy()
 {
-	if (DB_CLOSE(usracct_db) < 0)
-		warn("destroying user accounting stats");
+	db_destroy(usracct_db, "user accounting");
 }
 
 int
@@ -124,7 +119,7 @@ usracct_add(const struct cmdinfo *ci)
 {
 	DBT key, data;
 	struct userinfo newui;
-	u_long uid;
+	uid_t uid;
 	int rv;
 
 	uid = ci->ci_uid;
@@ -133,13 +128,13 @@ usracct_add(const struct cmdinfo *ci)
 
 	rv = DB_GET(usracct_db, &key, &data, 0);
 	if (rv < 0) {
-		warn("get key %lu from user accounting stats", uid);
+		warn("get key %u from user accounting stats", uid);
 		return (-1);
 	} else if (rv == 0) {	/* it's there; copy whole thing */
 		/* add the old data to the new data */
 		bcopy(data.data, &newui, data.size);
 		if (newui.ui_uid != uid) {
-			warnx("key %lu != expected record number %lu",
+			warnx("key %u != expected record number %u",
 			    newui.ui_uid, uid);
 			warnx("inconsistent user accounting stats");
 			return (-1);
@@ -159,7 +154,7 @@ usracct_add(const struct cmdinfo *ci)
 	data.size = sizeof newui;
 	rv = DB_PUT(usracct_db, &key, &data, 0);
 	if (rv < 0) {
-		warn("add key %lu to user accounting stats", uid);
+		warn("add key %u to user accounting stats", uid);
 		return (-1);
 	} else if (rv != 0) {
 		warnx("DB_PUT returned 1");
@@ -169,56 +164,17 @@ usracct_add(const struct cmdinfo *ci)
 	return (0);
 }
 
+/* Copy in-memory usracct_db to usrdb_file. */
 int
 usracct_update()
 {
-	DB *saved_usracct_db;
-	DBT key, data;
 	BTREEINFO bti;
-	int error, serr, nerr;
 
 	bzero(&bti, sizeof bti);
 	bti.compare = uid_compare;
 
-	saved_usracct_db = dbopen(usrdb_file, O_RDWR|O_CREAT|O_TRUNC, 0644,
-	    DB_BTREE, &bti);
-	if (saved_usracct_db == NULL) {
-		warn("creating user accounting summary");
-		return (-1);
-	}
-
-	error = 0;
-
-	serr = DB_SEQ(usracct_db, &key, &data, R_FIRST);
-	if (serr < 0) {
-		warn("retrieving user accounting stats");
-		error = -1;
-	}
-	while (serr == 0) {
-		nerr = DB_PUT(saved_usracct_db, &key, &data, 0);
-		if (nerr < 0) {
-			warn("saving user accounting summary");
-			error = -1;
-			break;
-		}
-
-		serr = DB_SEQ(usracct_db, &key, &data, R_NEXT);
-		if (serr < 0) {
-			warn("retrieving user accounting stats");
-			error = -1;
-			break;
-		}
-	}
-
-	if (DB_SYNC(saved_usracct_db, 0) < 0) {
-		warn("syncing process accounting summary");
-		error = -1;
-	}
-	if (DB_CLOSE(saved_usracct_db) < 0) {
-		warn("closing process accounting summary");
-		error = -1;
-	}
-	return error;
+	return (db_copy_out(usracct_db, usrdb_file, "user accounting",
+	    &bti));
 }
 
 void
@@ -239,25 +195,24 @@ usracct_print()
 		printf("%-*s %9ju ", MAXLOGNAME - 1,
 		    user_from_uid(ui->ui_uid, 0), (uintmax_t)ui->ui_calls);
 
-		t = (double) (ui->ui_utime + ui->ui_stime) /
-		    (double) AHZ;
-		if (t < 0.0001)		/* kill divide by zero */
-			t = 0.0001;
+		t = (ui->ui_utime + ui->ui_stime) / 1000000;
+		if (t < 0.000001)		/* kill divide by zero */
+			t = 0.000001;
 
 		printf("%12.2f%s ", t / 60.0, "cpu");
 
 		/* ui->ui_calls is always != 0 */
 		if (dflag)
-			printf("%12ju%s",
-			    (uintmax_t)(ui->ui_io / ui->ui_calls), "avio");
+			printf("%12.0f%s",
+			    ui->ui_io / ui->ui_calls, "avio");
 		else
-			printf("%12ju%s", (uintmax_t)ui->ui_io, "tio");
+			printf("%12.0f%s", ui->ui_io, "tio");
 
-		/* t is always >= 0.0001; see above */
+		/* t is always >= 0.000001; see above. */
 		if (kflag)
 			printf("%12.0f%s", ui->ui_mem / t, "k");
 		else
-			printf("%12ju%s", (uintmax_t)ui->ui_mem, "k*sec");
+			printf("%12.0f%s", ui->ui_mem, "k*sec");
 
 		printf("\n");
 
@@ -270,7 +225,7 @@ usracct_print()
 static int
 uid_compare(const DBT *k1, const DBT *k2)
 {
-	u_long d1, d2;
+	uid_t d1, d2;
 
 	bcopy(k1->data, &d1, sizeof d1);
 	bcopy(k2->data, &d2, sizeof d2);
