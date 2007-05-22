@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/acct.h>
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdint.h>
@@ -56,17 +57,16 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "pathnames.h"
 
-static int	acct_load(const char *, int);
-static u_quad_t	decode_comp_t(comp_t);
-static int	cmp_comm(const char *, const char *);
-static int	cmp_usrsys(const DBT *, const DBT *);
-static int	cmp_avgusrsys(const DBT *, const DBT *);
-static int	cmp_dkio(const DBT *, const DBT *);
-static int	cmp_avgdkio(const DBT *, const DBT *);
-static int	cmp_cpumem(const DBT *, const DBT *);
-static int	cmp_avgcpumem(const DBT *, const DBT *);
-static int	cmp_calls(const DBT *, const DBT *);
-static void	usage(void);
+static FILE	*acct_load(const char *, int);
+static int	 cmp_comm(const char *, const char *);
+static int	 cmp_usrsys(const DBT *, const DBT *);
+static int	 cmp_avgusrsys(const DBT *, const DBT *);
+static int	 cmp_dkio(const DBT *, const DBT *);
+static int	 cmp_avgdkio(const DBT *, const DBT *);
+static int	 cmp_cpumem(const DBT *, const DBT *);
+static int	 cmp_avgcpumem(const DBT *, const DBT *);
+static int	 cmp_calls(const DBT *, const DBT *);
+static void	 usage(void);
 
 int aflag, bflag, cflag, dflag, Dflag, fflag, iflag, jflag, kflag;
 int Kflag, lflag, mflag, qflag, rflag, sflag, tflag, uflag, vflag;
@@ -83,6 +83,7 @@ cmpf_t   sa_cmp = cmp_usrsys;
 int
 main(int argc, char **argv)
 {
+	FILE *f;
 	char pathacct[] = _PATH_ACCT;
 	int ch, error = 0;
 
@@ -210,14 +211,12 @@ main(int argc, char **argv)
 
 	/* for each file specified */
 	for (; argc > 0; argc--, argv++) {
-		int	fd;
-
 		/*
 		 * load the accounting data from the file.
 		 * if it fails, go on to the next file.
 		 */
-		fd = acct_load(argv[0], sflag);
-		if (fd < 0)
+		f = acct_load(argv[0], sflag);
+		if (f == NULL)
 			continue;
 
 		if (!uflag && sflag) {
@@ -248,7 +247,7 @@ main(int argc, char **argv)
 			 * the saved stats; better to underbill than overbill,
 			 * but we want every accounting record intact.
 			 */
-			if (ftruncate(fd, 0) == -1) {
+			if (ftruncate(fileno(f), 0) == -1) {
 				warn("couldn't truncate %s", *argv);
 				error = 1;
 			}
@@ -275,8 +274,8 @@ main(int argc, char **argv)
 		/*
 		 * close the opened accounting file
 		 */
-		if (close(fd) == -1) {
-			warn("close %s", *argv);
+		if (fclose(f) == EOF) {
+			warn("fclose %s", *argv);
 			error = 1;
 		}
 	}
@@ -308,21 +307,22 @@ usage()
 	exit(1);
 }
 
-static int
+static FILE *
 acct_load(const char *pn, int wr)
 {
-	struct acct ac;
+	struct acctv2 ac;
 	struct cmdinfo ci;
 	ssize_t rv;
-	int fd, i;
+	FILE *f;
+	int i;
 
 	/*
 	 * open the file
 	 */
-	fd = open(pn, wr ? O_RDWR : O_RDONLY, 0);
-	if (fd == -1) {
+	f = fopen(pn, wr ? "r+" : "r");
+	if (f == NULL) {
 		warn("open %s %s", pn, wr ? "for read/write" : "read-only");
-		return (-1);
+		return (NULL);
 	}
 
 	/*
@@ -331,13 +331,12 @@ acct_load(const char *pn, int wr)
 	 */
 	while (1) {
 		/* get one accounting entry and punt if there's an error */
-		rv = read(fd, &ac, sizeof(struct acct));
-		if (rv == -1)
-			warn("error reading %s", pn);
-		else if (rv > 0 && rv < (int)sizeof(struct acct))
-			warnx("short read of accounting data in %s", pn);
-		if (rv != sizeof(struct acct))
+		rv = readrec_forward(f, &ac);
+		if (rv != 1) {
+			if (rv == EOF)
+				warn("error reading %s", pn);
 			break;
+		}
 
 		/* decode it */
 		ci.ci_calls = 1;
@@ -351,15 +350,15 @@ acct_load(const char *pn, int wr)
 			} else
 				ci.ci_comm[i] = c;
 		}
-		if (ac.ac_flag & AFORK)
+		if (ac.ac_flagx & AFORK)
 			ci.ci_comm[i++] = '*';
 		ci.ci_comm[i++] = '\0';
-		ci.ci_etime = decode_comp_t(ac.ac_etime);
-		ci.ci_utime = decode_comp_t(ac.ac_utime);
-		ci.ci_stime = decode_comp_t(ac.ac_stime);
+		ci.ci_etime = ac.ac_etime;
+		ci.ci_utime = ac.ac_utime;
+		ci.ci_stime = ac.ac_stime;
 		ci.ci_uid = ac.ac_uid;
 		ci.ci_mem = ac.ac_mem;
-		ci.ci_io = decode_comp_t(ac.ac_io) / AHZ;
+		ci.ci_io = ac.ac_io;
 
 		if (!uflag) {
 			/* and enter it into the usracct and pacct databases */
@@ -368,34 +367,15 @@ acct_load(const char *pn, int wr)
 			if (sflag || (mflag && !qflag))
 				usracct_add(&ci);
 		} else if (!qflag)
-			printf("%6lu %12.2f cpu %12juk mem %12ju io %s\n",
+			printf("%6u %12.3lf cpu %12.0lfk mem %12.0lf io %s\n",
 			    ci.ci_uid,
-			    (ci.ci_utime + ci.ci_stime) / (double) AHZ,
-			    (uintmax_t)ci.ci_mem, (uintmax_t)ci.ci_io,
+			    (ci.ci_utime + ci.ci_stime) / 1000000,
+			    ci.ci_mem, ci.ci_io,
 			    ci.ci_comm);
 	}
 
-	/* finally, return the file descriptor for possible truncation */
-	return (fd);
-}
-
-static u_quad_t
-decode_comp_t(comp_t comp)
-{
-	u_quad_t rv;
-
-	/*
-	 * for more info on the comp_t format, see:
-	 *	/usr/src/sys/kern/kern_acct.c
-	 *	/usr/src/sys/sys/acct.h
-	 *	/usr/src/usr.bin/lastcomm/lastcomm.c
-	 */
-	rv = comp & 0x1fff;	/* 13 bit fraction */
-	comp >>= 13;		/* 3 bit base-8 exponent */
-	while (comp--)
-		rv <<= 3;
-
-	return (rv);
+	/* Finally, return the file stream for possible truncation. */
+	return (f);
 }
 
 /* sort commands, doing the right thing in terms of reversals */
@@ -415,7 +395,7 @@ static int
 cmp_usrsys(const DBT *d1, const DBT *d2)
 {
 	struct cmdinfo c1, c2;
-	u_quad_t t1, t2;
+	double t1, t2;
 
 	memcpy(&c1, d1->data, sizeof(c1));
 	memcpy(&c2, d2->data, sizeof(c2));
@@ -482,8 +462,8 @@ cmp_avgdkio(const DBT *d1, const DBT *d2)
 	memcpy(&c1, d1->data, sizeof(c1));
 	memcpy(&c2, d2->data, sizeof(c2));
 
-	n1 = (double) c1.ci_io / (double) (c1.ci_calls ? c1.ci_calls : 1);
-	n2 = (double) c2.ci_io / (double) (c2.ci_calls ? c2.ci_calls : 1);
+	n1 = c1.ci_io / (double) (c1.ci_calls ? c1.ci_calls : 1);
+	n2 = c2.ci_io / (double) (c2.ci_calls ? c2.ci_calls : 1);
 
 	if (n1 < n2)
 		return -1;
@@ -515,7 +495,7 @@ static int
 cmp_avgcpumem(const DBT *d1, const DBT *d2)
 {
 	struct cmdinfo c1, c2;
-	u_quad_t t1, t2;
+	double t1, t2;
 	double n1, n2;
 
 	memcpy(&c1, d1->data, sizeof(c1));
@@ -524,8 +504,8 @@ cmp_avgcpumem(const DBT *d1, const DBT *d2)
 	t1 = c1.ci_utime + c1.ci_stime;
 	t2 = c2.ci_utime + c2.ci_stime;
 
-	n1 = (double) c1.ci_mem / (double) (t1 ? t1 : 1);
-	n2 = (double) c2.ci_mem / (double) (t2 ? t2 : 1);
+	n1 = c1.ci_mem / (t1 ? t1 : 1);
+	n2 = c2.ci_mem / (t2 ? t2 : 1);
 
 	if (n1 < n2)
 		return -1;

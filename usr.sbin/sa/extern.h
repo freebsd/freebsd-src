@@ -36,31 +36,40 @@
 
 /* structures */
 
+/* All times are stored in 1e-6s units. */
+
 struct cmdinfo {
 	char		ci_comm[MAXCOMLEN+2];	/* command name (+ '*') */
-	u_long		ci_uid;			/* user id */
+	uid_t		ci_uid;			/* user id */
 	u_quad_t	ci_calls;		/* number of calls */
-	u_quad_t	ci_etime;		/* elapsed time */
-	u_quad_t	ci_utime;		/* user time */
-	u_quad_t	ci_stime;		/* system time */
-	u_quad_t	ci_mem;			/* memory use */
-	u_quad_t	ci_io;			/* number of disk i/o ops */
+	double		ci_etime;		/* elapsed time */
+	double		ci_utime;		/* user time */
+	double		ci_stime;		/* system time */
+	double		ci_mem;			/* memory use */
+	double		ci_io;			/* number of disk i/o ops */
 	u_int		ci_flags;		/* flags; see below */
 };
 #define	CI_UNPRINTABLE	0x0001			/* unprintable chars in name */
 
 struct userinfo {
-	u_long		ui_uid;			/* user id; for consistency */
+	uid_t		ui_uid;			/* user id; for consistency */
 	u_quad_t	ui_calls;		/* number of invocations */
-	u_quad_t	ui_utime;		/* user time */
-	u_quad_t	ui_stime;		/* system time */
-	u_quad_t	ui_mem;			/* memory use */
-	u_quad_t	ui_io;			/* number of disk i/o ops */
+	double		ui_utime;		/* user time */
+	double		ui_stime;		/* system time */
+	double		ui_mem;			/* memory use */
+	double		ui_io;			/* number of disk i/o ops */
 };
 
 /* typedefs */
 
 typedef	int (*cmpf_t)(const DBT *, const DBT *);
+
+/* external functions in db.c */
+int db_copy_in(DB **mdb, const char *dbname, const char *name,
+    BTREEINFO *bti, int (*v1_to_v2)(DBT *key, DBT *data));
+int db_copy_out(DB *mdb, const char *dbname, const char *name,
+    BTREEINFO *bti);
+void db_destroy(DB *db, const char *uname);
 
 /* external functions in pdb.c */
 int	pacct_init(void);
@@ -68,6 +77,9 @@ void	pacct_destroy(void);
 int	pacct_add(const struct cmdinfo *);
 int	pacct_update(void);
 void	pacct_print(void);
+
+/* external functions in readrec.c */
+int	readrec_forward(FILE *f, struct acctv2 *av2);
 
 /* external functions in usrdb.c */
 int	usracct_init(void);
