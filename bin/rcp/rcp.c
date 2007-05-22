@@ -403,7 +403,8 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 		if (response() < 0)
 			goto next;
 		if ((bp = allocbuf(&buffer, fd, BUFSIZ)) == NULL) {
-next:			(void)close(fd);
+next:			if (fd >= 0)
+				(void)close(fd);
 			continue;
 		}
 
