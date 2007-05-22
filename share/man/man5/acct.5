@@ -32,7 +32,7 @@
 .\"     @(#)acct.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd May 15, 2007
 .Dt ACCT 5
 .Os
 .Sh NAME
@@ -52,38 +52,47 @@ the kernel calls the
 function call to prepare and append the record
 to the accounting file.
 .Bd -literal
-/*
- * Accounting structures; these use a comp_t type which is a 3 bits base 8
- * exponent, 13 bit fraction ``floating point'' number.  Units are 1/AHZ
- * seconds.
- */
-typedef u_short comp_t;
-
 #define AC_COMM_LEN 16
-struct acct {
-	char	ac_comm[AC_COMM_LEN];  /* command name */
-	comp_t	ac_utime;	/* user time */
-	comp_t	ac_stime;	/* system time */
-	comp_t	ac_etime;	/* elapsed time */
-	time_t	ac_btime;	/* starting time */
-	uid_t	ac_uid;		/* user id */
-	gid_t	ac_gid;		/* group id */
-	short	ac_mem;		/* average memory usage */
-	comp_t	ac_io;		/* count of IO blocks */
-	dev_t	ac_tty;		/* controlling tty */
-#define	AFORK	0x01		/* forked but not exec'ed */
-#define	ASU	0x02		/* used super-user permissions */
-#define	ACOMPAT	0x04		/* used compatibility mode */
-#define	ACORE	0x08		/* dumped core */
-#define	AXSIG	0x10		/* killed by a signal */
-	char	ac_flag;	/* accounting flags */
-};
 
 /*
- * 1/AHZ is the granularity of the data encoded in the comp_t fields.
- * This is not necessarily equal to hz.
+ * Accounting structure version 2 (current).
+ * The first byte is always zero.
+ * Time units are microseconds.
  */
-#define	AHZ	64
+
+struct acctv2 {
+	uint8_t  ac_zero;		/* zero identifies new version */
+	uint8_t  ac_version;		/* record version number */
+	uint16_t ac_len;		/* record length */
+
+	char	  ac_comm[AC_COMM_LEN];	/* command name */
+	float	  ac_utime;		/* user time */
+	float	  ac_stime;		/* system time */
+	float	  ac_etime;		/* elapsed time */
+	time_t	  ac_btime;		/* starting time */
+	uid_t	  ac_uid;		/* user id */
+	gid_t	  ac_gid;		/* group id */
+	float	  ac_mem;		/* average memory usage */
+	float	  ac_io;		/* count of IO blocks */
+	__dev_t   ac_tty;		/* controlling tty */
+
+	uint16_t ac_len2;		/* record length */
+	union {
+		__dev_t	  ac_align;	/* force v1 compatible alignment */
+
+#define	AFORK	0x01			/* forked but not exec'ed */
+/* ASU is no longer supported */
+#define	ASU	0x02			/* used super-user permissions */
+#define	ACOMPAT	0x04			/* used compatibility mode */
+#define	ACORE	0x08			/* dumped core */
+#define	AXSIG	0x10			/* killed by a signal */
+#define ANVER	0x20			/* new record version */
+
+		uint8_t  ac_flag;	/* accounting flags */
+	} ac_trailer;
+
+#define ac_flagx ac_trailer.ac_flag
+};
 .Ed
 .Pp
 If a terminated process was created by an
@@ -100,7 +109,10 @@ and
 .Dv ASIG .
 .Dv ASU
 is no longer supported.
+.Dv ANVER
+is always set in the above structure.
 .Sh SEE ALSO
+.Xr lastcomm 1 ,
 .Xr acct 2 ,
 .Xr execve 2 ,
 .Xr sa 8
@@ -109,3 +121,11 @@ A
 .Nm
 file format appeared in
 .At v7 .
+The current record format was introduced on May 2007.
+It is backwards compatible with the previous format,
+which is still documented in
+.In sys/acct.h
+and supported by
+.Xr lastcomm 1
+and
+.Xr sa 8 .

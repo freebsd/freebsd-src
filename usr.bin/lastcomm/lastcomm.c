@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <pwd.h>
@@ -66,7 +67,9 @@ __FBSDID("$FreeBSD$");
 time_t	 expand(u_int);
 char	*flagbits(int);
 const	 char *getdev(dev_t);
-int	 requested(char *[], struct acct *);
+int	 readrec_forward(FILE *f, struct acctv2 *av2);
+int	 readrec_backward(FILE *f, struct acctv2 *av2);
+int	 requested(char *[], struct acctv2 *);
 static	 void usage(void);
 
 #define AC_UTIME 1 /* user */
@@ -77,18 +80,15 @@ static	 void usage(void);
 #define AC_BTIME 16 /* starting time */
 #define AC_FTIME 32 /* exit time (starting time + elapsed time )*/
 
-#define AC_HZ ((double)AHZ)
-
 int
 main(int argc, char *argv[])
 {
+	struct acctv2 ab;
 	char *p;
-	struct acct ab;
-	struct stat sb;
 	FILE *fp;
-	off_t size;
+	int (*readrec)(FILE *f, struct acctv2 *av2);
 	time_t t;
-	int ch;
+	int ch, rv;
 	const char *acctfile;
 	int flags = 0;
 
@@ -135,78 +135,51 @@ main(int argc, char *argv[])
 
 	if (strcmp(acctfile, "-") == 0) {
 		fp = stdin;
-		size = sizeof(struct acct); /* Always one more to read. */
+		readrec = readrec_forward;
 	} else {
 		/* Open the file. */
-		if ((fp = fopen(acctfile, "r")) == NULL ||
-		    fstat(fileno(fp), &sb))
+		if ((fp = fopen(acctfile, "r")) == NULL)
 			err(1, "could not open %s", acctfile);
-
-		/*
-		 * Round off to integral number of accounting records,
-		 * probably not necessary, but it doesn't hurt.
-		 */
-		size = sb.st_size - sb.st_size % sizeof(struct acct);
-
-		/* Check if any records to display. */
-		if ((unsigned)size < sizeof(struct acct))
-			exit(0);
+		if (fseek(fp, 0l, SEEK_END) == -1)
+			err(1, "seek to end of %s failed", acctfile);
+		readrec = readrec_backward;
 	}
 
-	do {
-		int rv;
+	while ((rv = readrec(fp, &ab)) == 1) {
+		for (p = &ab.ac_comm[0];
+		    p < &ab.ac_comm[AC_COMM_LEN] && *p; ++p)
+			if (!isprint(*p))
+				*p = '?';
 
-		if (fp != stdin) {
-			size -= sizeof(struct acct);
-			if (fseeko(fp, size, SEEK_SET) == -1)
-				err(1, "seek %s failed", acctfile);
-		}
-
-		if ((rv = fread(&ab, sizeof(struct acct), 1, fp)) != 1) {
-			if (feof(fp))
-				break;
-			else
-				err(1, "read %s returned %d", acctfile, rv);
-		}
-
-		if (ab.ac_comm[0] == '\0') {
-			ab.ac_comm[0] = '?';
-			ab.ac_comm[1] = '\0';
-		} else
-			for (p = &ab.ac_comm[0];
-			    p < &ab.ac_comm[AC_COMM_LEN] && *p; ++p)
-				if (!isprint(*p))
-					*p = '?';
 		if (*argv && !requested(argv, &ab))
 			continue;
 
 		(void)printf("%-*.*s %-7s %-*s %-*s",
 			     AC_COMM_LEN, AC_COMM_LEN, ab.ac_comm,
-			     flagbits(ab.ac_flag),
+			     flagbits(ab.ac_flagx),
 			     UT_NAMESIZE, user_from_uid(ab.ac_uid, 0),
 			     UT_LINESIZE, getdev(ab.ac_tty));
 		
 		
 		/* user + system time */
 		if (flags & AC_CTIME) {
-			(void)printf(" %6.2f secs", 
-				     (expand(ab.ac_utime) + 
-				      expand(ab.ac_stime))/AC_HZ);
+			(void)printf(" %6.3f secs", 
+			    (ab.ac_utime + ab.ac_stime) / 1000000);
 		}
 		
 		/* usr time */
 		if (flags & AC_UTIME) {
-			(void)printf(" %6.2f us", expand(ab.ac_utime)/AC_HZ);
+			(void)printf(" %6.3f us", ab.ac_utime / 1000000);
 		}
 		
 		/* system time */
 		if (flags & AC_STIME) {
-			(void)printf(" %6.2f sy", expand(ab.ac_stime)/AC_HZ);
+			(void)printf(" %6.3f sy", ab.ac_stime / 1000000);
 		}
 		
 		/* elapsed time */
 		if (flags & AC_ETIME) {
-			(void)printf(" %8.2f es", expand(ab.ac_etime)/AC_HZ);
+			(void)printf(" %8.3f es", ab.ac_etime / 1000000);
 		}
 		
 		/* starting time */
@@ -217,29 +190,17 @@ main(int argc, char *argv[])
 		/* exit time (starting time + elapsed time )*/
 		if (flags & AC_FTIME) {
 			t = ab.ac_btime;
-			t += (time_t)(expand(ab.ac_etime)/AC_HZ);
+			t += (time_t)(ab.ac_etime / 1000000);
 			(void)printf(" %.16s", ctime(&t));
 		}
 		printf("\n");
+ 	}
+	if (rv == EOF)
+		err(1, "read record from %s failed", acctfile);
 
- 	} while (size > 0);
 	if (fflush(stdout))
 		err(1, "stdout");
  	exit(0);
-}
-
-time_t
-expand(u_int t)
-{
-	time_t nt;
-
-	nt = t & 017777;
-	t >>= 13;
-	while (t) {
-		t--;
-		nt <<= 3;
-	}
-	return (nt);
 }
 
 char *
@@ -261,7 +222,7 @@ flagbits(int f)
 }
 
 int
-requested(char *argv[], struct acct *acp)
+requested(char *argv[], struct acctv2 *acp)
 {
 	const char *p;
 
