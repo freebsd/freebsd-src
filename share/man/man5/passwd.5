@@ -35,7 +35,7 @@
 .\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2005
+.Dd May 8, 2007
 .Dt PASSWD 5
 .Os
 .Sh NAME
@@ -106,18 +106,6 @@ has the class, change, and expire fields removed, and the password
 field replaced by a
 .Ql *
 character.
-In the
-.Nm master.passwd
-file, a password of
-.Ql *
-is used to indicate that no one can ever log into that account
-using password authentication (logins through other forms of
-authentication, i.e.\& using
-.Xr ssh 1
-keys, will still work).
-The field only contains encrypted passwords, and
-.Ql *
-can never be the result of encrypting a password.
 .Pp
 The
 .Ar name
@@ -141,7 +129,10 @@ No field may contain a
 colon (``:'') as this has been used historically to separate the fields
 in the user database.
 .Pp
-The password field is the
+In the
+.Nm master.passwd
+file,
+the password field is the
 .Em encrypted
 form of the password, see
 .Xr crypt 3 .
@@ -149,9 +140,29 @@ If the
 .Ar password
 field is empty, no password will be required to gain access to the
 machine.
-This is almost invariably a mistake.
-Because these files contain the encrypted user passwords, they should
+This is almost invariably a mistake, so authentication components
+such as PAM can forcibly disallow remote access to passwordless accounts.
+Because this file contains the encrypted user passwords, it should
 not be readable by anyone without appropriate privileges.
+.Pp
+A password of
+.Ql *
+indicates that
+password authentication is disabled for that account
+(logins through other forms of
+authentication, e.g., using
+.Xr ssh 1
+keys, will still work).
+The field only contains encrypted passwords, and
+.Ql *
+can never be the result of encrypting a password.
+.Pp
+An encrypted password prefixed by
+.Ql *LOCKED*
+means that the account is temporarily locked out
+and no one can log into it using any authentication.
+For a convenient command-line interface to account locking, see
+.Xr pw 8 .
 .Pp
 The group field is the group that the user will be placed in upon login.
 Since this system supports multiple groups (see
@@ -222,6 +233,10 @@ If there is nothing in the
 field, the Bourne shell
 .Pq Pa /bin/sh
 is assumed.
+The conventional way to disable logging into an account once and for all,
+as it is done for system accounts,
+is to set its shell to
+.Xr nologin 8 .
 .Sh HESIOD SUPPORT
 If
 .Sq dns
@@ -358,6 +373,7 @@ BEGIN { FS = ":"}
 .Xr login.conf 5 ,
 .Xr netgroup 5 ,
 .Xr adduser 8 ,
+.Xr nologin 8 ,
 .Xr pw 8 ,
 .Xr pwd_mkdb 8 ,
 .Xr vipw 8 ,
