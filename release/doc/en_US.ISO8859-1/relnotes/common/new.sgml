@@ -155,8 +155,18 @@
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
-	<para></para>
+	<para>The &man.snd.envy24.4; driver has been added to support
+	  the Envy24 series of audio chips.</para>
 
+	<para>The &man.snd.envy24ht.4; driver has been added to support
+	  the VIA Envy24HT series of audio chips.</para>
+
+	<para>The &man.snd.hda.4; driver has been added.  It supports
+	  devices that conform to revision 1.0 of the Intel High Definition
+	  Audio specification.</para>
+
+	<para>The &man.snd.spicds.4; driver has been added to support
+	  I2S SPI audio codec chips.</para> 
       </sect4>
 
       <sect4 id="net-if">
@@ -164,6 +174,8 @@
 
 	<para>The &man.ath.4; driver has been updated to
 	  HAL version 0.9.20.3.</para>
+
+	<para>The &man.axe.4; driver now supports &man.altq.4;.</para>
 
 	<para>The &man.cxgb.4; driver has been added.  It provides support for
 	  10 Gigabit Ethernet adapters based on the Chelsio T3 and T3B chipsets.
@@ -195,6 +207,10 @@
       <para>The &man.if.bridge.4; driver now supports RSTP, the Rapid
 	Spanning Tree Protocol (802.1w).</para>
 
+      <para>The &man.lagg.4; driver, ported from OpenBSD and NetBSD,
+	has been added to support a variety of protocols and algorithms
+	for link aggregation, failover, and fault tolerance.</para>
+
       <para>A new &man.ng.deflate.4; NetGraph node type has been
 	added.  It implements Deflate PPP compression.</para>
 
@@ -213,6 +229,16 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
+      <para>The &man.mpt.4; driver has been updated to support
+	various new features such as RAID volume and RAID member
+	state/settings reporting, periodic volume re-synchronization
+	status reporting, and sysctl variables for volume
+	re-synchronization rate, volume member write cache status,
+	and volume transaction queue depth.</para>
+
+      <para>The &man.mpt.4; driver now supports SAS HBA (partially),
+	64-bit PCI, and large data transfer.</para>
+
       <para>The scsi_sg driver, which emulates a significant
 	subset of the Linux SCSI SG passthrough device API, has
 	been added.  It is
@@ -220,6 +246,10 @@
 	(as well as native &os; applications) to access the
 	<filename>/dev/sg<replaceable>*</replaceable></filename>
 	devices supported by Linux.</para>
+
+      <para>The &man.twa.4; driver has been updated to the 3.60.03.006
+	release on the 3ware Web site.  It now supports AMCC's 3ware
+	9650 series of SATA controllers.</para>
 
     </sect3>
 
@@ -244,12 +274,22 @@
     <para>A bug in &man.freebsd-update.8;, which caused it not
       to update SMP kernels correctly, has been fixed.</para>
 
+    <para>The &man.ftpd.8; utility now has support for RFC2389 (FEAT)
+      and rudimentary support for RFC2640 (UTF8).  The RFC2640 support
+      is optional and can be enabled using the new <option>-8</option>
+      flag.  More information can be found in the &man.ftpd.8; manual
+      page.</para>
+
     <para>The &man.rpc.lockd.8; and &man.rpc.statd.8; programs now
       accept <option>-p</option> options to indicate which port they
       should bind to.</para>
 
+    <para>The &man.pw.8; program now supports a <option>-M</option>
+      option to set the permissions of a user's newly created home
+      directory.</para>
+
     <para>The &man.top.1; program now supports a <option>-j</option>
-      flag to display &man.jail.8; id for each process.</para>
+      flag to display the &man.jail.8; ID for each process.</para>
 
     <para>The &man.wpa.passphrase.8; utility has been added.  It
       generates a 256-bit pre-shared WPA key from an ASCII
