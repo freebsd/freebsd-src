@@ -520,7 +520,7 @@ struct tulip_softc {
 	u_int32_t		tulip_intrmask;
 	u_int32_t		tulip_cmdmode;
 	u_int32_t		tulip_last_system_error:3;
-	u_int32_t		tulip_txtimer:2;	/* transmission timer */
+	u_int32_t		tulip_txtimer:3;	/* transmission timer */
 	u_int32_t		tulip_system_errors;
 	u_int32_t		tulip_statusbits;	/* status bits from
 							 * CSR5 that may need
