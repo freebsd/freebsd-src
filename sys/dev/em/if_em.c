@@ -1020,8 +1020,9 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case e1000_80003es2lan:	/* Limit Jumbo Frame size */
 			max_frame_size = 9234;
 			break;
+			/* Adapters that do not support jumbo frames */
+		case e1000_82542:
 		case e1000_ich8lan:
-			/* ICH8 does not support jumbo frames */
 			max_frame_size = ETHER_MAX_LEN;
 			break;
 		default:
@@ -1884,7 +1885,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 				if (++i == adapter->num_tx_desc)
 					i = 0;
 			} else {
-				ctxd->buffer_addr = seg_addr;
+				ctxd->buffer_addr = htole64(seg_addr);
 				ctxd->lower.data = htole32(
 				adapter->txd_cmd | txd_lower | seg_len);
 				ctxd->upper.data =
