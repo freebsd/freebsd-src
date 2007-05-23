@@ -25,7 +25,6 @@ SRCS+=	opensolaris_zone.c
 SRCS+=	atomic.S
 
 .PATH:	${.CURDIR}/../../contrib/opensolaris/uts/common/fs
-SRCS+=	dnlc.c
 SRCS+=	gfs.c
 
 .PATH:	${.CURDIR}/../../contrib/opensolaris/uts/common/os
