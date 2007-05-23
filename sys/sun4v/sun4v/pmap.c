@@ -915,6 +915,10 @@ skipshuffle:
 		tte_hash_insert(pm->pm_hash, TLB_PHYS_TO_DIRECT(pa), 
 				pa | TTE_KERNEL | VTD_4M);
 #endif
+
+
+	if (bootverbose)
+		printf("pmap_bootstrap done\n");
 }
 
 
