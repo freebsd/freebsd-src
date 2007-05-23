@@ -92,8 +92,7 @@ magic_open(int flags)
 		return NULL;
 	}
 
-	ms->o.ptr = ms->o.buf = malloc(ms->o.size = 1024);
-	ms->o.len = 0;
+	ms->o.ptr = ms->o.buf = malloc(ms->o.left = ms->o.size = 1024);
 	if (ms->o.buf == NULL) {
 		free(ms);
 		return NULL;
