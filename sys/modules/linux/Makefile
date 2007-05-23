@@ -14,8 +14,12 @@ SRCS=	linux${SFX}_dummy.c linux_emul.c linux_file.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
 	linux${SFX}_sysvec.c linux_uid16.c linux_util.c linux_time.c \
 	opt_inet6.h opt_mac.h opt_compat.h opt_posix.h vnode_if.h \
-	device_if.h bus_if.h
-OBJS=	linux${SFX}_locore.o
+	device_if.h bus_if.h assym.s
+
+# XXX: for assym.s
+SRCS+=  opt_kstack_pages.h opt_nfs.h opt_apic.h opt_compat.h
+
+OBJS=	linux${SFX}_locore.o linux${SFX}_support.o
 
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	linux_ptrace.c imgact_linux.c opt_cpu.h
@@ -38,6 +42,10 @@ linux${SFX}_assym.h: @/kern/genassym.sh
 	sh @/kern/genassym.sh linux${SFX}_genassym.o > ${.TARGET}
 
 linux${SFX}_locore.o: linux${SFX}_locore.s linux${SFX}_assym.h
+	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
+	    ${.IMPSRC} -o ${.TARGET}
+
+linux${SFX}_support.o: linux${SFX}_support.s assym.s
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 

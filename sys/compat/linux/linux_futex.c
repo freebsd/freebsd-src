@@ -90,13 +90,13 @@ static void futex_put(struct futex *);
 static int futex_sleep(struct futex *, struct thread *, unsigned long);
 static int futex_wake(struct futex *, int, struct futex *, int);
 static int futex_atomic_op(struct thread *td, int encoded_op, caddr_t uaddr);
-static int futex_orl(int oparg, caddr_t uaddr, int *oldval);
-static int futex_andl(int oparg, caddr_t uaddr, int *oldval);
-static int futex_xorl(int oparg, caddr_t uaddr, int *oldval);
 
 /* support.s */
 int futex_xchgl(int oparg, caddr_t uaddr, int *oldval);
 int futex_addl(int oparg, caddr_t uaddr, int *oldval);
+int futex_orl(int oparg, caddr_t uaddr, int *oldval);
+int futex_andl(int oparg, caddr_t uaddr, int *oldval);
+int futex_xorl(int oparg, caddr_t uaddr, int *oldval);
 
 int
 linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
@@ -114,8 +114,8 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 
 #ifdef	DEBUG
 	if (ldebug(sys_futex))
-		printf(ARGS(futex, "%p, %i, %i"), args->uaddr, args->op,
-		    args->val);
+		printf(ARGS(futex, "%p, %i, %i, *, %p, %i"), args->uaddr, args->op,
+		    args->val, args->uaddr2, args->val3);
 #endif
 
 	switch (args->op) {
@@ -274,7 +274,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 #ifdef DEBUG
 		if (ldebug(sys_futex))
 			printf("FUTEX_WAKE_OP: %d: uaddr = %p, op = %d, "
-			    "val = %d, uaddr2 = %p, val3 = %d\n",
+			    "val = %x, uaddr2 = %p, val3 = %x\n",
 			    td->td_proc->p_pid, args->uaddr, args->op,
 			    args->val, args->uaddr2, args->val3);
 #endif
@@ -286,8 +286,11 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		 * negative as errors
 		 */
 		op_ret = futex_atomic_op(td, args->val3, args->uaddr2);
+#ifdef DEBUG
+		if (ldebug(sys_futex))
+			printf("futex_atomic_op ret %d\n", op_ret);
+#endif
 		if (op_ret < 0) {
-
 			/* XXX: We don't handle the EFAULT yet. */
 			if (op_ret != -EFAULT) {
 				futex_put(f);
@@ -301,7 +304,6 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 
 			FUTEX_SYSTEM_UNLOCK;
 			return (EFAULT);
-
 		}
 
 		ret = futex_wake(f, args->val, NULL, 0);
@@ -327,7 +329,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		    args->op);
 		break;
 	}
-	return 0;
+	return (0);
 }
 
 static struct futex *
@@ -401,9 +403,12 @@ futex_sleep(struct futex *f, struct thread *td, unsigned long timeout)
 	TAILQ_REMOVE(&f->f_waiting_proc, wp, wp_list);
 	FUTEX_UNLOCK;
 
+	/* if we got woken up in futex_wake */
 	if ((ret == 0) && (wp->wp_new_futex != NULL)) {
+		/* suspend us on the new futex */
 		ret = futex_sleep(wp->wp_new_futex, td, timeout);
-		futex_put(wp->wp_new_futex);	/* futex_get called in wakeup */
+		/* and release the old one */
+		futex_put(wp->wp_new_futex);
 	}
 
 	free(wp, M_LINUX);
@@ -458,8 +463,10 @@ futex_atomic_op(struct thread *td, int encoded_op, caddr_t uaddr)
 		oparg = 1 << oparg;
 
 #ifdef DEBUG
-	printf("futex_atomic_op: op = %d, cmp = %d, oparg = %d, cmparg = %d, "
-	    "uaddr = %p\n", op, cmp, oparg, cmparg, uaddr);
+	if (ldebug(sys_futex))
+		printf("futex_atomic_op: op = %d, cmp = %d, oparg = %x, "
+		       "cmparg = %x, uaddr = %p\n",
+		       op, cmp, oparg, cmparg, uaddr);
 #endif
 	/* XXX: linux verifies access here and returns EFAULT */
 
@@ -481,70 +488,26 @@ futex_atomic_op(struct thread *td, int encoded_op, caddr_t uaddr)
 		break;
 	default:
 		ret = -ENOSYS;
+		break;
 	}
 
-	if (!ret)
-		switch (cmp) {
-		case FUTEX_OP_CMP_EQ:
-			ret = (oldval == cmparg);
-			break;
-		case FUTEX_OP_CMP_NE:
-			ret = (oldval != cmparg);
-			break;
-		case FUTEX_OP_CMP_LT:
-			ret = (oldval < cmparg);
-			break;
-		case FUTEX_OP_CMP_GE:
-			ret = (oldval >= cmparg);
-			break;
-		case FUTEX_OP_CMP_LE:
-			ret = (oldval <= cmparg);
-			break;
-		case FUTEX_OP_CMP_GT:
-			ret = (oldval > cmparg);
-			break;
-		default:
-			ret = -ENOSYS;
-		}
+	if (ret)
+		return (ret);
 
-	return (ret);
-}
-
-static int
-futex_orl(int oparg, caddr_t uaddr, int *oldval)
-{
-	uint32_t ua, ua_old;
-
-	for (;;) {
-		ua = ua_old = fuword32(uaddr);
-		ua |= oparg;
-		if (casuword32((void *)uaddr, ua_old, ua) == ua_old)
-			return ua_old;
-	}
-}
-
-static int
-futex_andl(int oparg, caddr_t uaddr, int *oldval)
-{
-	uint32_t ua, ua_old;
-
-	for (;;) {
-		ua = ua_old = fuword32(uaddr);
-		ua &= oparg;
-		if (casuword32((void *)uaddr, ua_old, ua) == ua_old)
-			return ua_old;
-	}
-}
-
-static int
-futex_xorl(int oparg, caddr_t uaddr, int *oldval)
-{
-	uint32_t ua, ua_old;
-
-	for (;;) {
-		ua = ua_old = fuword32(uaddr);
-		ua ^= oparg;
-		if (casuword32((void *)uaddr, ua_old, ua) == ua_old)
-			return ua_old;
+	switch (cmp) {
+	case FUTEX_OP_CMP_EQ:
+		return (oldval == cmparg);
+	case FUTEX_OP_CMP_NE:
+		return (oldval != cmparg);
+	case FUTEX_OP_CMP_LT:
+		return (oldval < cmparg);
+	case FUTEX_OP_CMP_GE:
+		return (oldval >= cmparg);
+	case FUTEX_OP_CMP_LE:
+		return (oldval <= cmparg);
+	case FUTEX_OP_CMP_GT:
+		return (oldval > cmparg);
+	default:
+		return (-ENOSYS);
 	}
 }
