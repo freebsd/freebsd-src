@@ -63,7 +63,7 @@ flopen(const char *path, int flags, ...)
 		operation |= LOCK_NB;
 
 	truncate = (flags & O_TRUNC);
-	flags |= ~O_TRUNC;
+	flags &= ~O_TRUNC;
 
 	for (;;) {
 		if ((fd = open(path, flags, mode)) == -1)
