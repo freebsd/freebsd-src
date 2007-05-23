@@ -1809,11 +1809,9 @@ fdcloseexec(struct thread *td)
 int
 fdcheckstd(struct thread *td)
 {
-	struct nameidata nd;
 	struct filedesc *fdp;
-	struct file *fp;
-	register_t retval;
-	int fd, i, error, flags, devnull;
+	register_t retval, save;
+	int i, error, devnull;
 
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
