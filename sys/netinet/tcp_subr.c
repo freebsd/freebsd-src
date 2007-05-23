@@ -2090,13 +2090,15 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 	ip = (struct ip *)ip4hdr;
 
 	/*
-	 * XXX: The size calculation is evil.
-	 * "TCP: [1.2.3.4]:50332 to [1.2.3.4]:80 tcpflags <RST>"
+	 * The log line looks like this:
+	 * "TCP: [1.2.3.4]:50332 to [1.2.3.4]:80 tcpflags 0x2<SYN>"
 	 */
+	size = sizeof("TCP: []:12345 to []:12345 tcpflags 0x2<>") +
+	    sizeof(PRINT_TH_FLAGS) + 1 +
 #ifdef INET6
-	size = 5 + 2 * (INET6_ADDRSTRLEN + 10) + 12 + 12 * 4 + 1;
+	    2 * INET6_ADDRSTRLEN;
 #else
-	size = 5 + 2 * (sizeof("192.168.172.190") + 10) + 12 + 12 *4 + 1;
+	    2 * INET_ADDRSTRLEN;
 #endif /* INET6 */
 
 	s = sp = malloc(size, M_TCPLOG, (M_ZERO|M_NOWAIT));
@@ -2147,7 +2149,7 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 	sp = s + strlen(s);
 	if (th)
 		sprintf(sp, " tcpflags 0x%b", th->th_flags, PRINT_TH_FLAGS);
-	if (s[size] != '\0')
+	if (*(s + size - 1) != '\0')
 		panic("%s: string too long", __func__);
 	return (s);
 }
