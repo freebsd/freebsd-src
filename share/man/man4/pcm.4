@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2005
+.Dd November 26, 2006
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -36,16 +36,20 @@
 .Fx
 PCM audio device infrastructure
 .Sh SYNOPSIS
-For a card with bridge driver support, and a PnP card:
+To compile this driver into the kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
+.Ed
 .Pp
-For a card without bridge driver support, and a non-PnP card,
-the following lines may be required in
-.Pa /boot/device.hints :
-.Cd hint.pcm.0.at="isa"
-.Cd hint.pcm.0.irq="5"
-.Cd hint.pcm.0.drq="1"
-.Cd hint.pcm.0.flags="0x0"
+Non-PnP sound cards require the following lines in
+.Xr device.hints 5 :
+.Bd -literal -offset indent
+hint.pcm.0.at="isa"
+hint.pcm.0.irq="5"
+hint.pcm.0.drq="1"
+hint.pcm.0.flags="0x0"
+.Ed
 .Sh DESCRIPTION
 .Bf -emphasis
 Note: There exists some ambiguity in the naming at the moment
@@ -64,10 +68,10 @@ driver provides support for
 audio play and capture.
 This driver also supports various
 .Tn PCI ,
+.Tn ISA ,
 .Tn WSS/MSS
-compatible,
-.Tn ISA
-sound cards, and AC97 mixer.
+compatible
+sound cards, AC97 mixer and High Definition Audio.
 Once the
 .Nm
 driver attaches, supported devices provide audio record and
@@ -78,7 +82,7 @@ sound system provides dynamic mixing
 .Dq VCHAN
 and rate conversion
 .Dq soft formats .
-True full duplex operation is available on most cards.
+True full duplex operation is available on most sound cards.
 .Pp
 If the sound card is supported by a bridge driver, the
 .Nm
@@ -206,12 +210,12 @@ Channel information per device including the channel's
 current format, speed, and pseudo device statistics such as
 buffer overruns and buffer underruns.
 .It 3
-File names and versions of the currently sound loaded modules.
+File names and versions of the currently loaded sound modules.
 .El
 .It Va hw.snd.maxautovchans
 Global
 .Tn VCHAN
-setting that only affects devices that have only one playback channel.
+setting that only affects devices with only one playback channel available.
 The sound system will dynamically create up this many
 .Tn VCHANs .
 Set to
@@ -312,10 +316,13 @@ A device node is not created properly.
 .Xr snd_csa 4 ,
 .Xr snd_ds1 4 ,
 .Xr snd_emu10k1 4 ,
+.Xr snd_envy24 4 ,
+.Xr snd_envy24ht 4 ,
 .Xr snd_es137x 4 ,
 .Xr snd_ess 4 ,
 .Xr snd_fm801 4 ,
 .Xr snd_gusc 4 ,
+.Xr snd_hda 4 ,
 .Xr snd_ich 4 ,
 .Xr snd_maestro 4 ,
 .Xr snd_maestro3 4 ,
@@ -323,12 +330,14 @@ A device node is not created properly.
 .Xr snd_neomagic 4 ,
 .Xr snd_sbc 4 ,
 .Xr snd_solo 4 ,
+.Xr snd_spicds 4 ,
 .Xr snd_t4dwave 4 ,
 .Xr snd_uaudio 4 ,
 .Xr snd_via8233 4 ,
 .Xr snd_via82c686 4 ,
 .Xr snd_vibes 4 ,
 .Xr devfs 5 ,
+.Xr device.hints 5 ,
 .Xr loader.conf 5 ,
 .Xr dmesg 8 ,
 .Xr kldload 8 ,
@@ -367,5 +376,5 @@ revised this manual page.
 It was then rewritten for
 .Fx 5.2 .
 .Sh BUGS
-Some features of your cards (e.g., global volume control) might not
+Some features of your sound card (e.g., global volume control) might not
 be supported on all devices.
