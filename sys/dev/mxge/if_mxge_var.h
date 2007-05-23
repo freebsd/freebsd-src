@@ -33,8 +33,6 @@ $FreeBSD$
 
 ***************************************************************************/
 
-#define MXGE_MAX_ETHER_MTU 9014
-
 #define MXGE_ETH_STOPPED 0
 #define MXGE_ETH_STOPPING 1
 #define MXGE_ETH_STARTING 2
