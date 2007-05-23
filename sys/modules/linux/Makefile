@@ -45,7 +45,7 @@ linux${SFX}_locore.o: linux${SFX}_locore.s linux${SFX}_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 
-linux${SFX}_support.o: linux${SFX}_support.s assym.s
+linux${SFX}_support.o: linux${SFX}_support.s assym.s linux${SFX}_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 
