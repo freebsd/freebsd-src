@@ -1111,7 +1111,7 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 
 			/* Unfinished range? */
 			if (run)
-				printf("%d", irqs[actual - 1]);
+				printf("-%d", irqs[actual - 1]);
 			printf(" for MSI\n");
 		}
 	}
