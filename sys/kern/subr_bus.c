@@ -3850,7 +3850,7 @@ driver_module_handler(module_t mod, int what, void *arg)
 /**
  * @brief Enumerate all hinted devices for this bus.
  *
- * Walks throught he hints for this bus and calls the bus_hinted_child
+ * Walks through the hints for this bus and calls the bus_hinted_child
  * routine for each one it fines.  It searches first for the specific
  * bus that's being probed for hinted children (eg isa0), and then for
  * generic children (eg isa).
