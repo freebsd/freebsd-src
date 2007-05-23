@@ -1977,6 +1977,10 @@ sigtd(struct proc *p, int sig, int prop)
  *     regardless of the signal action (eg, blocked or ignored).
  *
  * Other ignored signals are discarded immediately.
+ * 
+ * NB: This function may be entered from the debugger via the "kill" DDB
+ * command.  There is little that can be done to mitigate the possibly messy
+ * side effects of this unwise possibility.
  */
 void
 psignal(struct proc *p, int sig)
