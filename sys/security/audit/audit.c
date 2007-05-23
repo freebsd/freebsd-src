@@ -282,7 +282,7 @@ audit_shutdown(void *arg, int howto)
 /*
  * Return the current thread's audit record, if any.
  */
-__inline__ struct kaudit_record *
+struct kaudit_record *
 currecord(void)
 {
 
