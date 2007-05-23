@@ -84,8 +84,6 @@ static inline void lock_profile_object_init(struct lock_object *lo, struct lock_
 	u_int hash = 0;
 	struct lock_profile_object *l = &lo->lo_profile_obj;
 
-	lo->lo_flags = 0;
-	lo->lo_name = name;
 	l->lpo_acqtime = 0;
 	l->lpo_waittime = 0;
 	l->lpo_filename = NULL;
