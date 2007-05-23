@@ -727,8 +727,6 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 #endif
 
 
-#include <sys/param.h>
-
 #if !defined(SCSI_NO_SENSE_STRINGS)
 #define SST(asc, ascq, action, desc) \
 	asc, ascq, action, desc
