@@ -221,7 +221,8 @@ i386/linux/linux_locore.s	optional compat_linux		\
 	dependency 	"linux_assym.h"
 i386/linux/linux_machdep.c	optional compat_linux
 i386/linux/linux_ptrace.c	optional compat_linux
-i386/linux/linux_support.s	optional compat_linux
+i386/linux/linux_support.s	optional compat_linux		\
+	dependency 	"linux_assym.h"
 i386/linux/linux_sysent.c	optional compat_linux
 i386/linux/linux_sysvec.c	optional compat_linux
 i386/pci/pci_bus.c		optional pci
