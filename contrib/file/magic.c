@@ -89,7 +89,7 @@ magic_open(int flags)
 		goto free1;
 	}
 
-	ms->o.ptr = ms->o.buf = malloc(ms->o.size = 1024);
+	ms->o.ptr = ms->o.buf = malloc(ms->o.left = ms->o.size = 1024);
 	if (ms->o.buf == NULL)
 		goto free1;
 
@@ -101,7 +101,6 @@ magic_open(int flags)
 	if (ms->c.off == NULL)
 		goto free3;
 	
-	ms->o.len = 0;
 	ms->haderr = 0;
 	ms->error = -1;
 	ms->mlist = NULL;
