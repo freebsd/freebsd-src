@@ -226,7 +226,7 @@ struct magic_set {
 	/* Accumulation buffer */
 	char *buf;
 	char *ptr;
-	size_t len;
+	size_t left;
 	size_t size;
 	/* Printable buffer */
 	char *pbuf;
