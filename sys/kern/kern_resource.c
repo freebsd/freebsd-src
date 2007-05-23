@@ -623,6 +623,8 @@ kern_setrlimit(td, which, limp)
 			limp->rlim_max = 1;
 		break;
 	}
+	if (td->td_proc->p_sysent->sv_fixlimit != NULL)
+		td->td_proc->p_sysent->sv_fixlimit(limp, which);
 	*alimp = *limp;
 	p->p_limit = newlim;
 	PROC_UNLOCK(p);
@@ -656,12 +658,6 @@ kern_setrlimit(td, which, limp)
 		}
 	}
 
-	if (td->td_proc->p_sysent->sv_fixlimits != NULL) {
-		struct image_params imgp;
-
-		imgp.proc = td->td_proc;
-		td->td_proc->p_sysent->sv_fixlimits(&imgp);
-	}
 	return (0);
 }
 
@@ -991,6 +987,8 @@ lim_rlimit(struct proc *p, int which, struct rlimit *rlp)
 	KASSERT(which >= 0 && which < RLIM_NLIMITS,
 	    ("request for invalid resource limit"));
 	*rlp = p->p_limit->pl_rlimit[which];
+	if (p->p_sysent->sv_fixlimit != NULL)
+		p->p_sysent->sv_fixlimit(rlp, which);
 }
 
 /*

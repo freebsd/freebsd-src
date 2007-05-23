@@ -918,15 +918,6 @@ exec_new_vmspace(imgp, sv)
 	EVENTHANDLER_INVOKE(process_exec, p);
 
 	/*
-	 * Here is as good a place as any to do any resource limit cleanups.
-	 * This is needed if a 64 bit binary exec's a 32 bit binary - the
-	 * data size limit may need to be changed to a value that makes
-	 * sense for the 32 bit binary.
-	 */
-	if (sv->sv_fixlimits != NULL)
-		sv->sv_fixlimits(imgp);
-
-	/*
 	 * Blow away entire process VM, if address space not shared,
 	 * otherwise, create a new VM space so that other threads are
 	 * not disrupted
