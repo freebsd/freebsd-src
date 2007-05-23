@@ -1096,16 +1096,23 @@ fetch_filter_metadata () {
 	rm $1.all $1.tmp
 }
 
-# Filter the metadata file $1 by adding lines with
-# /boot/`uname -i`
-# replaced by
-# /boot/kernel
-# (or more generally, `sysctl -n kern.bootfile` minus the trailing "/kernel").
+# Filter the metadata file $1 by adding lines with "/boot/${KERNCONF}"
+# replaced by ${KERNELDIR} (which is `sysctl -n kern.bootfile` minus the
+# trailing "/kernel"); and if "/boot/${KERNCONF}" does not exist, remove
+# the original lines which start with that.
+# Put another way: Deal with the fact that the FOO kernel is sometimes
+# installed in /boot/FOO/ and is sometimes installed elsewhere.
 fetch_filter_kernel_names () {
+
 	grep ^/boot/${KERNCONF} $1 |
 	    sed -e "s,/boot/${KERNCONF},${KERNELDIR},g" |
 	    sort - $1 > $1.tmp
 	mv $1.tmp $1
+
+	if ! [ -d /boot/${KERNCONF} ]; then
+		grep -v ^/boot/${KERNCONF} $1 > $1.tmp
+		mv $1.tmp $1
+	fi
 }
 
 # For all paths appearing in $1 or $3, inspect the system
@@ -1703,11 +1710,11 @@ install_unschg () {
 
 	# Remove flags
 	while read F; do
-		if ! [ -e ${F} ]; then
+		if ! [ -e ${BASEDIR}/${F} ]; then
 			continue
 		fi
 
-		chflags noschg ${F} || return 1
+		chflags noschg ${BASEDIR}/${F} || return 1
 	done < filelist
 
 	# Clean up
@@ -1736,7 +1743,7 @@ install_from_index () {
 				rm ${HASH}
 			else
 				# Create a hard link.
-				ln -f ${LINK} ${BASEDIR}/${FPATH}
+				ln -f ${BASEDIR}/${LINK} ${BASEDIR}/${FPATH}
 			fi
 			;;
 		L)
@@ -1765,6 +1772,7 @@ install_delete () {
 	# Generate subindex of old files we want to nuke
 	sort -k 1,1 -t '|' $1 |
 	    join -t '|' -v 1 - newfiles |
+	    sort -r -k 1,1 -t '|' |
 	    cut -f 1,2 -d '|' |
 	    tr '|' ' ' > killfiles
 
