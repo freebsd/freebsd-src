@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 int
 flopen(const char *path, int flags, ...)
 {
-	int fd, operation, serrno, truncate;
+	int fd, operation, serrno, trunc;
 	struct stat sb, fsb;
 	mode_t mode;
 
@@ -62,7 +62,7 @@ flopen(const char *path, int flags, ...)
 	if (flags & O_NONBLOCK)
 		operation |= LOCK_NB;
 
-	truncate = (flags & O_TRUNC);
+	trunc = (flags & O_TRUNC);
 	flags &= ~O_TRUNC;
 
 	for (;;) {
@@ -94,7 +94,7 @@ flopen(const char *path, int flags, ...)
 			close(fd);
 			continue;
 		}
-		if (truncate && ftruncate(fd, 0) != 0) {
+		if (trunc && ftruncate(fd, 0) != 0) {
 			/* can't happen [tm] */
 			serrno = errno;
 			close(fd);
