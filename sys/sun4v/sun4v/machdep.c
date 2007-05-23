@@ -184,6 +184,11 @@ CTASSERT(sizeof(struct pcb) <= ((KSTACK_PAGES * PAGE_SIZE) / 8));
 CTASSERT(sizeof(struct pcpu) <= ((PCPU_PAGES * PAGE_SIZE) / 2));
 CTASSERT((sizeof(struct pcpu) & ((1<<6)-1)) == 0);
 
+
+#define BVPRINTF(x) \
+	if (bootverbose) \
+		printf(x);
+
 static void
 cpu_startup(void *arg)
 {
@@ -301,6 +306,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	OF_init(vec);
 
+
+        /*
+	 * XXX
+	 */
+	bootverbose = 1;
+
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be before the
 	 * console is inited so cninit gets the right value of boothowto.
@@ -318,6 +329,9 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 			    MODINFO_METADATA | MODINFOMD_DTLB);
 		}
 	}
+
+        if (boothowto & RB_VERBOSE)
+                bootverbose = 1;
 
 	init_param1();
 
@@ -429,36 +443,45 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * to support easy phys <-> virt translation in trap handler
 	 */
 	pc = (struct pcpu *)TLB_PHYS_TO_DIRECT(vtophys(pc));
+
+	BVPRINTF("initializing cpu regs\n");
 	cpu_setregs(pc);
 	
 	/*
 	 * Initialize tunables.
 	 */
+	BVPRINTF("initialize tunables\n");
 	init_param2(physmem);
 
 	/*
 	 * setup trap table and fault status area
 	 */
+	BVPRINTF("initialize trap tables\n");
 	trap_init();
 	
 	/*
 	 * Initialize the message buffer (after setting trap table).
 	 */
-
+	BVPRINTF("initialize msgbuf\n");
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
+	BVPRINTF("initialize mutexes\n");
 	mutex_init();
 	
+	BVPRINTF("initialize machine descriptor table\n");
 	mdesc_init();
 
+	BVPRINTF("initialize get model name\n");
 	OF_getprop(root, "name", sparc64_model, sizeof(sparc64_model) - 1);
 
+	BVPRINTF("initialize kdb\n");
 	kdb_init();
 
 #ifdef KDB
 	if (boothowto & RB_KDB)
 		kdb_enter("Boot flags requested debugger");
 #endif
+	BVPRINTF("sparc64_init done\n");
 }
 
 void
