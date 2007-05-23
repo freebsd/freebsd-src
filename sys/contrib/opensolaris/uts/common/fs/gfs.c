@@ -195,9 +195,10 @@ gfs_readdir_emit_int(gfs_readdir_state_t *st, uio_t *uiop, offset_t next,
 		return (-1);
 	}
 
+	/* XXX: This can change in the future. */
+	st->grd_dirent->d_type = DT_DIR;
 	st->grd_dirent->d_reclen = (ushort_t)reclen;
 	st->grd_dirent->d_namlen = namlen;
-	/* TODO: d_type */
 
 	if (uiomove((caddr_t)st->grd_dirent, reclen, UIO_READ, uiop))
 		return (EFAULT);
@@ -232,7 +233,6 @@ gfs_readdir_emit(gfs_readdir_state_t *st, uio_t *uiop, offset_t voff,
 
 	st->grd_dirent->d_ino = ino;
 	(void) strncpy(st->grd_dirent->d_name, name, st->grd_namlen);
-	/* TODO: d_type */
 
 	/*
 	 * Inter-entry offsets are invalid, so we assume a record size of
