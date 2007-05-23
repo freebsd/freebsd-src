@@ -1809,11 +1809,9 @@ fdcloseexec(struct thread *td)
 int
 fdcheckstd(struct thread *td)
 {
-	struct nameidata nd;
 	struct filedesc *fdp;
-	struct file *fp;
-	register_t retval;
-	int fd, i, error, flags, devnull;
+	register_t retval, save;
+	int i, error, devnull;
 
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
@@ -1825,45 +1823,14 @@ fdcheckstd(struct thread *td)
 		if (fdp->fd_ofiles[i] != NULL)
 			continue;
 		if (devnull < 0) {
-			int vfslocked;
-			error = falloc(td, &fp, &fd);
-			if (error != 0)
+			save = td->td_retval[0];
+			error = kern_open(td, "/dev/null", UIO_SYSSPACE,
+			    O_RDWR, 0);
+			devnull = td->td_retval[0];
+			KASSERT(devnull == i, ("oof, we didn't get our fd"));
+			td->td_retval[0] = save;
+			if (error)
 				break;
-			/* Note extra ref on `fp' held for us by falloc(). */
-			KASSERT(fd == i, ("oof, we didn't get our fd"));
-			NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE,
-			    "/dev/null", td);
-			flags = FREAD | FWRITE;
-			error = vn_open(&nd, &flags, 0, fd);
-			if (error != 0) {
-				/*
-				 * Someone may have closed the entry in the
-				 * file descriptor table, so check it hasn't
-				 * changed before dropping the reference count.
-				 */
-				FILEDESC_LOCK(fdp);
-				KASSERT(fdp->fd_ofiles[fd] == fp,
-				    ("table not shared, how did it change?"));
-				fdp->fd_ofiles[fd] = NULL;
-				fdunused(fdp, fd);
-				FILEDESC_UNLOCK(fdp);
-				fdrop(fp, td);
-				fdrop(fp, td);
-				break;
-			}
-			vfslocked = NDHASGIANT(&nd);
-			NDFREE(&nd, NDF_ONLY_PNBUF);
-			fp->f_flag = flags;
-			fp->f_vnode = nd.ni_vp;
-			if (fp->f_data == NULL)
-				fp->f_data = nd.ni_vp;
-			if (fp->f_ops == &badfileops)
-				fp->f_ops = &vnops;
-			fp->f_type = DTYPE_VNODE;
-			VOP_UNLOCK(nd.ni_vp, 0, td);
-			VFS_UNLOCK_GIANT(vfslocked);
-			devnull = fd;
-			fdrop(fp, td);
 		} else {
 			error = do_dup(td, DUP_FIXED, devnull, i, &retval);
 			if (error != 0)
