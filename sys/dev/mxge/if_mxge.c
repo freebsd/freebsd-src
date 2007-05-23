@@ -1078,8 +1078,8 @@ mxge_max_mtu(mxge_softc_t *sc)
 	mxge_cmd_t cmd;
 	int status;
 
-	if (MJUMPAGESIZE - MXGEFW_PAD > MXGE_MAX_ETHER_MTU)
-		return MXGE_MAX_ETHER_MTU - MXGEFW_PAD;
+	if (MJUMPAGESIZE - MXGEFW_PAD >  MXGEFW_MAX_MTU)
+		return  MXGEFW_MAX_MTU - MXGEFW_PAD;
 
 	/* try to set nbufs to see if it we can
 	   use virtually contiguous jumbos */
@@ -1087,7 +1087,7 @@ mxge_max_mtu(mxge_softc_t *sc)
 	status = mxge_send_cmd(sc, MXGEFW_CMD_ALWAYS_USE_N_BIG_BUFFERS,
 			       &cmd);
 	if (status == 0)
-		return MXGE_MAX_ETHER_MTU - MXGEFW_PAD;
+		return  MXGEFW_MAX_MTU - MXGEFW_PAD;
 
 	/* otherwise, we're limited to MJUMPAGESIZE */
 	return MJUMPAGESIZE - MXGEFW_PAD;
@@ -1502,12 +1502,12 @@ mxge_submit_req(mxge_tx_buf_t *tx, mcp_kreq_ether_send_t *src,
 }
 
 static void
-mxge_encap_tso(mxge_softc_t *sc, struct mbuf *m, int busdma_seg_cnt)
+mxge_encap_tso(mxge_softc_t *sc, struct mbuf *m, int busdma_seg_cnt,
+	       int ip_off)
 {
 	mxge_tx_buf_t *tx;
 	mcp_kreq_ether_send_t *req;
 	bus_dma_segment_t *seg;
-	struct ether_header *eh;
 	struct ip *ip;
 	struct tcphdr *tcp;
 	uint32_t low, high_swapped;
@@ -1527,28 +1527,25 @@ mxge_encap_tso(mxge_softc_t *sc, struct mbuf *m, int busdma_seg_cnt)
 	/* ensure we have the ethernet, IP and TCP
 	   header together in the first mbuf, copy
 	   it to a scratch buffer if not */
-	if (__predict_false(m->m_len < sizeof (*eh)
-			    + sizeof (*ip))) {
-		m_copydata(m, 0, sizeof (*eh) + sizeof (*ip),
+	if (__predict_false(m->m_len < ip_off + sizeof (*ip))) {
+		m_copydata(m, 0, ip_off + sizeof (*ip),
 			   sc->scratch);
-		eh = (struct ether_header *)sc->scratch;
+		ip = (struct ip *)(sc->scratch + ip_off);
 	} else {
-		eh = mtod(m, struct ether_header *);
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
 	}
-	ip = (struct ip *) (eh + 1);
-	if (__predict_false(m->m_len < sizeof (*eh) + (ip->ip_hl << 2)
+	if (__predict_false(m->m_len < ip_off + (ip->ip_hl << 2)
 			    + sizeof (*tcp))) {
-		m_copydata(m, 0, sizeof (*eh) + (ip->ip_hl << 2)
+		m_copydata(m, 0, ip_off + (ip->ip_hl << 2)
 			   + sizeof (*tcp),  sc->scratch);
-		eh = (struct ether_header *) sc->scratch;
-		ip = (struct ip *) (eh + 1);
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
 	} 
 
 	tcp = (struct tcphdr *)((char *)ip + (ip->ip_hl << 2));
-	cum_len = -(sizeof (*eh) + ((ip->ip_hl + tcp->th_off) << 2));
+	cum_len = -(ip_off + ((ip->ip_hl + tcp->th_off) << 2));
 
 	/* TSO implies checksum offload on this hardware */
-	cksum_offset = sizeof(*eh) + (ip->ip_hl << 2);
+	cksum_offset = ip_off + (ip->ip_hl << 2);
 	flags = MXGEFW_FLAGS_TSO_HDR | MXGEFW_FLAGS_FIRST;
 
 	
@@ -1663,6 +1660,38 @@ drop:
 
 }
 
+/* 
+ * We reproduce the software vlan tag insertion from
+ * net/if_vlan.c:vlan_start() here so that we can advertise "hardware"
+ * vlan tag insertion. We need to advertise this in order to have the
+ * vlan interface respect our csum offload flags.
+ */
+static struct mbuf *
+mxge_vlan_tag_insert(struct mbuf *m)
+{
+	struct ether_vlan_header *evl;
+
+	M_PREPEND(m, ETHER_VLAN_ENCAP_LEN, M_DONTWAIT);
+	if (__predict_false(m == NULL))
+		return NULL;
+	if (m->m_len < sizeof(*evl)) {
+		m = m_pullup(m, sizeof(*evl));
+		if (__predict_false(m == NULL))
+			return NULL;
+	}
+	/*
+	 * Transform the Ethernet header into an Ethernet header
+	 * with 802.1Q encapsulation.
+	 */
+	evl = mtod(m, struct ether_vlan_header *);
+	bcopy((char *)evl + ETHER_VLAN_ENCAP_LEN,
+	      (char *)evl, ETHER_HDR_LEN - ETHER_TYPE_LEN);
+	evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
+	evl->evl_tag = htons(m->m_pkthdr.ether_vtag);
+	m->m_flags &= ~M_VLANTAG;
+	return m;
+}
+
 static void
 mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 {
@@ -1671,9 +1700,8 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 	struct mbuf *m_tmp;
 	struct ifnet *ifp;
 	mxge_tx_buf_t *tx;
-	struct ether_header *eh;
 	struct ip *ip;
-	int cnt, cum_len, err, i, idx, odd_flag;
+	int cnt, cum_len, err, i, idx, odd_flag, ip_off;
 	uint16_t pseudo_hdr_offset;
         uint8_t flags, cksum_offset;
 
@@ -1681,6 +1709,14 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 
 	ifp = sc->ifp;
 	tx = &sc->tx;
+
+	ip_off = sizeof (struct ether_header);
+	if (m->m_flags & M_VLANTAG) {
+		m = mxge_vlan_tag_insert(m);
+		if (__predict_false(m == NULL))
+			goto drop;
+		ip_off += ETHER_VLAN_ENCAP_LEN;
+	}
 
 	/* (try to) map the frame for DMA */
 	idx = tx->req & tx->mask;
@@ -1713,7 +1749,7 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 
 	/* TSO is different enough, we handle it in another routine */
 	if (m->m_pkthdr.csum_flags & (CSUM_TSO)) {
-		mxge_encap_tso(sc, m, cnt);
+		mxge_encap_tso(sc, m, cnt, ip_off);
 		return;
 	}
 
@@ -1726,16 +1762,14 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA)) {
 		/* ensure ip header is in first mbuf, copy
 		   it to a scratch buffer if not */
-		if (__predict_false(m->m_len < sizeof (*eh)
-				    + sizeof (*ip))) {
-			m_copydata(m, 0, sizeof (*eh) + sizeof (*ip),
+		if (__predict_false(m->m_len < ip_off + sizeof (*ip))) {
+			m_copydata(m, 0, ip_off + sizeof (*ip),
 				   sc->scratch);
-			eh = (struct ether_header *)sc->scratch;
+			ip = (struct ip *)(sc->scratch + ip_off);
 		} else {
-			eh = mtod(m, struct ether_header *);
+			ip = (struct ip *)(mtod(m, char *) + ip_off);
 		}
-		ip = (struct ip *) (eh + 1);
-		cksum_offset = sizeof(*eh) + (ip->ip_hl << 2);
+		cksum_offset = ip_off + (ip->ip_hl << 2);
 		pseudo_hdr_offset = cksum_offset +  m->m_pkthdr.csum_data;
 		pseudo_hdr_offset = htobe16(pseudo_hdr_offset);
 		req->cksum_offset = cksum_offset;
@@ -1986,12 +2020,56 @@ mxge_rx_csum(struct mbuf *m, int csum)
 	return (c);
 }
 
+static void
+mxge_vlan_tag_remove(struct mbuf *m, uint32_t *csum)
+{
+	struct ether_vlan_header *evl;
+	struct ether_header *eh;
+	uint32_t partial;
+
+	evl = mtod(m, struct ether_vlan_header *);
+	eh = mtod(m, struct ether_header *);
+
+	/*
+	 * fix checksum by subtracting ETHER_VLAN_ENCAP_LEN bytes
+	 * after what the firmware thought was the end of the ethernet
+	 * header.
+	 */
+
+	/* put checksum into host byte order */
+	*csum = ntohs(*csum); 
+	partial = ntohl(*(uint32_t *)(mtod(m, char *) + ETHER_HDR_LEN));
+	(*csum) += ~partial;
+	(*csum) +=  ((*csum) < ~partial);
+	(*csum) = ((*csum) >> 16) + ((*csum) & 0xFFFF);
+	(*csum) = ((*csum) >> 16) + ((*csum) & 0xFFFF);
+
+	/* restore checksum to network byte order; 
+	   later consumers expect this */
+	*csum = htons(*csum);
+
+	/* save the tag */
+	m->m_flags |= M_VLANTAG;
+	m->m_pkthdr.ether_vtag = ntohs(evl->evl_tag);
+
+	/*
+	 * Remove the 802.1q header by copying the Ethernet
+	 * addresses over it and adjusting the beginning of
+	 * the data in the mbuf.  The encapsulated Ethernet
+	 * type field is already in place.
+	 */
+	bcopy((char *)evl, (char *)evl + ETHER_VLAN_ENCAP_LEN,
+	      ETHER_HDR_LEN - ETHER_TYPE_LEN);
+	m_adj(m, ETHER_VLAN_ENCAP_LEN);
+}
+
 
 static inline void
 mxge_rx_done_big(mxge_softc_t *sc, uint32_t len, uint32_t csum)
 {
 	struct ifnet *ifp;
 	struct mbuf *m;
+	struct ether_header *eh;
 	mxge_rx_buf_t *rx;
 	bus_dmamap_t old_map;
 	int idx;
@@ -2026,6 +2104,10 @@ mxge_rx_done_big(mxge_softc_t *sc, uint32_t len, uint32_t csum)
 	m->m_pkthdr.rcvif = ifp;
 	m->m_len = m->m_pkthdr.len = len;
 	ifp->if_ipackets++;
+	eh = mtod(m, struct ether_header *);
+	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+		mxge_vlan_tag_remove(m, &csum);
+	}
 	/* if the checksum is valid, mark it in the mbuf header */
 	if (sc->csum_flag && (0 == (tcpudp_csum = mxge_rx_csum(m, csum)))) {
 		if (sc->lro_cnt && (0 == mxge_lro_rx(sc, m, csum)))
@@ -2044,6 +2126,7 @@ static inline void
 mxge_rx_done_small(mxge_softc_t *sc, uint32_t len, uint32_t csum)
 {
 	struct ifnet *ifp;
+	struct ether_header *eh;
 	struct mbuf *m;
 	mxge_rx_buf_t *rx;
 	bus_dmamap_t old_map;
@@ -2079,6 +2162,10 @@ mxge_rx_done_small(mxge_softc_t *sc, uint32_t len, uint32_t csum)
 	m->m_pkthdr.rcvif = ifp;
 	m->m_len = m->m_pkthdr.len = len;
 	ifp->if_ipackets++;
+	eh = mtod(m, struct ether_header *);
+	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+		mxge_vlan_tag_remove(m, &csum);
+	}
 	/* if the checksum is valid, mark it in the mbuf header */
 	if (sc->csum_flag && (0 == (tcpudp_csum = mxge_rx_csum(m, csum)))) {
 		if (sc->lro_cnt && (0 == mxge_lro_rx(sc, m, csum)))
@@ -2533,7 +2620,7 @@ abort_with_nothing:
 static void
 mxge_choose_params(int mtu, int *big_buf_size, int *cl_size, int *nbufs)
 {
-	int bufsize = mtu + ETHER_HDR_LEN + 4 + MXGEFW_PAD;
+	int bufsize = mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + MXGEFW_PAD;
 
 	if (bufsize < MCLBYTES) {
 		/* easy, everything fits in a single buffer */
@@ -2650,7 +2737,7 @@ mxge_open(mxge_softc_t *sc)
 	/* Give the firmware the mtu and the big and small buffer
 	   sizes.  The firmware wants the big buf size to be a power
 	   of two. Luckily, FreeBSD's clusters are powers of two */
-	cmd.data0 = sc->ifp->if_mtu + ETHER_HDR_LEN + 4;
+	cmd.data0 = sc->ifp->if_mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	err = mxge_send_cmd(sc, MXGEFW_CMD_SET_MTU, &cmd);
 	cmd.data0 = MHLEN - MXGEFW_PAD;
 	err |= mxge_send_cmd(sc, MXGEFW_CMD_SET_SMALL_BUFFER_SIZE,
@@ -2895,7 +2982,7 @@ mxge_change_mtu(mxge_softc_t *sc, int mtu)
 	int err = 0;
 
 
-	real_mtu = mtu + ETHER_HDR_LEN;
+	real_mtu = mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	if ((real_mtu > sc->max_mtu) || real_mtu < 60)
 		return EINVAL;
 	mtx_lock(&sc->driver_mtx);
@@ -3012,7 +3099,12 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				err = EINVAL;
 			}
 		}
+
+		if (mask & IFCAP_VLAN_HWTAGGING)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 		mtx_unlock(&sc->driver_mtx);
+		VLAN_CAPABILITIES(ifp);
+
 		break;
 
 	case SIOCGIFMEDIA:
@@ -3200,7 +3292,9 @@ mxge_attach(device_t dev)
 	/* hook into the network stack */
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = 100000000;
-	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4;
+	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
+		IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+
 	sc->max_mtu = mxge_max_mtu(sc);
 	if (sc->max_mtu >= 9000)
 		ifp->if_capabilities |= IFCAP_JUMBO_MTU;
@@ -3219,7 +3313,7 @@ mxge_attach(device_t dev)
 	ether_ifattach(ifp, sc->mac_addr);
 	/* ether_ifattach sets mtu to 1500 */
 	if (ifp->if_capabilities & IFCAP_JUMBO_MTU)
-		ifp->if_mtu = MXGE_MAX_ETHER_MTU - ETHER_HDR_LEN;
+		ifp->if_mtu = 9000;
 
 	/* Initialise the ifmedia structure */
 	ifmedia_init(&sc->media, 0, mxge_media_change, 
@@ -3263,6 +3357,11 @@ mxge_detach(device_t dev)
 {
 	mxge_softc_t *sc = device_get_softc(dev);
 
+	if (sc->ifp->if_vlantrunk != NULL) {
+		device_printf(sc->dev,
+			      "Detach vlans before removing module\n");
+		return EBUSY;
+	}
 	mtx_lock(&sc->driver_mtx);
 	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
 		mxge_close(sc);
