@@ -127,21 +127,19 @@ static struct odirtemplate omastertemplate = {
 	0, DIRBLKSIZ - 12, 2, ".."
 };
 
-void
-ufs_itimes(vp)
-	struct vnode *vp;
+static void
+ufs_itimes_locked(struct vnode *vp)
 {
 	struct inode *ip;
 	struct timespec ts;
 
+	ASSERT_VI_LOCKED(vp, __func__);
+
 	ip = VTOI(vp);
-	VI_LOCK(vp);
 	if ((vp->v_mount->mnt_flag & MNT_RDONLY) != 0)
 		goto out;
-	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0) {
-		VI_UNLOCK(vp);
+	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0)
 		return;
-	}
 
 	if ((vp->v_type == VBLK || vp->v_type == VCHR) && !DOINGSOFTDEP(vp))
 		ip->i_flag |= IN_LAZYMOD;
@@ -168,6 +166,14 @@ ufs_itimes(vp)
 
  out:
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);
+}
+
+void
+ufs_itimes(struct vnode *vp)
+{
+
+	VI_LOCK(vp);
+	ufs_itimes_locked(vp);
 	VI_UNLOCK(vp);
 }
 
@@ -286,9 +292,9 @@ ufs_close(ap)
 
 	VI_LOCK(vp);
 	usecount = vp->v_usecount;
-	VI_UNLOCK(vp);
 	if (usecount > 1)
-		ufs_itimes(vp);
+		ufs_itimes_locked(vp);
+	VI_UNLOCK(vp);
 	return (0);
 }
 
@@ -379,7 +385,16 @@ ufs_getattr(ap)
 	struct inode *ip = VTOI(vp);
 	struct vattr *vap = ap->a_vap;
 
-	ufs_itimes(vp);
+	VI_LOCK(vp);
+	ufs_itimes_locked(vp);
+	if (ip->i_ump->um_fstype == UFS1) {
+		vap->va_atime.tv_sec = ip->i_din1->di_atime;
+		vap->va_atime.tv_nsec = ip->i_din1->di_atimensec;
+	} else {
+		vap->va_atime.tv_sec = ip->i_din2->di_atime;
+		vap->va_atime.tv_nsec = ip->i_din2->di_atimensec;
+	}
+	VI_UNLOCK(vp);
 	/*
 	 * Copy from inode table
 	 */
@@ -392,10 +407,6 @@ ufs_getattr(ap)
 	if (ip->i_ump->um_fstype == UFS1) {
 		vap->va_rdev = ip->i_din1->di_rdev;
 		vap->va_size = ip->i_din1->di_size;
-		VI_LOCK(vp);
-		vap->va_atime.tv_sec = ip->i_din1->di_atime;
-		vap->va_atime.tv_nsec = ip->i_din1->di_atimensec;
-		VI_UNLOCK(vp);
 		vap->va_mtime.tv_sec = ip->i_din1->di_mtime;
 		vap->va_mtime.tv_nsec = ip->i_din1->di_mtimensec;
 		vap->va_ctime.tv_sec = ip->i_din1->di_ctime;
@@ -406,10 +417,6 @@ ufs_getattr(ap)
 	} else {
 		vap->va_rdev = ip->i_din2->di_rdev;
 		vap->va_size = ip->i_din2->di_size;
-		VI_LOCK(vp);
-		vap->va_atime.tv_sec = ip->i_din2->di_atime;
-		vap->va_atime.tv_nsec = ip->i_din2->di_atimensec;
-		VI_UNLOCK(vp);
 		vap->va_mtime.tv_sec = ip->i_din2->di_mtime;
 		vap->va_mtime.tv_nsec = ip->i_din2->di_mtimensec;
 		vap->va_ctime.tv_sec = ip->i_din2->di_ctime;
@@ -2037,9 +2044,9 @@ ufsfifo_close(ap)
 
 	VI_LOCK(vp);
 	usecount = vp->v_usecount;
-	VI_UNLOCK(vp);
 	if (usecount > 1)
-		ufs_itimes(vp);
+		ufs_itimes_locked(vp);
+	VI_UNLOCK(vp);
 	return (fifo_specops.vop_close(ap));
 }
 
