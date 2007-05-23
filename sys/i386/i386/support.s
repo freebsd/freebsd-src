@@ -1513,51 +1513,6 @@ ENTRY(longjmp)
 	incl	%eax
 	ret
 
-/*****************************************************************************/
-/* linux_futex support                                                       */
-/*****************************************************************************/
-
-futex_fault:
-	movl	$0,PCB_ONFAULT(%ecx)
-	movl	$-EFAULT,%eax
-	ret
-
-ENTRY(futex_xchgl)
-	movl	PCPU(CURPCB),%ecx
-	movl	$futex_fault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%eax
-	movl	8(%esp),%edx
-	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
-	ja     	futex_fault
-
-#ifdef SMP
-	lock
-#endif
-	xchgl	%eax,(%edx)
-	movl	12(%esp),%edx
-	movl	%eax,(%edx)
-	xorl	%eax,%eax
-	movl	$0,PCB_ONFAULT(%ecx)
-	ret
-
-ENTRY(futex_addl)
-	movl	PCPU(CURPCB),%ecx
-	movl	$futex_fault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%eax
-	movl	8(%esp),%edx
-	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
-	ja     	futex_fault
-
-#ifdef SMP
-	lock
-#endif
-	xaddl	%eax,(%edx)
-	movl	12(%esp),%edx
-	movl	%eax,(%edx)
-	xorl	%eax,%eax
-	movl	$0,PCB_ONFAULT(%ecx)
-	ret
-
 /*
  * Support for BB-profiling (gcc -a).  The kernbb program will extract
  * the data from the kernel.
