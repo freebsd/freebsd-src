@@ -231,7 +231,8 @@ amd64/linux32/linux32_dummy.c	optional	compat_linux32
 amd64/linux32/linux32_locore.s	optional	compat_linux32		\
 	dependency 	"linux32_assym.h"
 amd64/linux32/linux32_machdep.c	optional	compat_linux32
-amd64/linux32/linux32_support.s	optional	compat_linux32
+amd64/linux32/linux32_support.s	optional	compat_linux32		\
+	dependency 	"linux32_assym.h"
 amd64/linux32/linux32_sysent.c	optional	compat_linux32
 amd64/linux32/linux32_sysvec.c	optional	compat_linux32
 compat/linux/linux_emul.c	optional	compat_linux32
