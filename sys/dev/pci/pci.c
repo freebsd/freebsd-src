@@ -660,29 +660,29 @@ void
 pci_enable_msix(device_t dev, u_int index, uint64_t address, uint32_t data)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
-	pcicfgregs *cfg = &dinfo->cfg;
+	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	uint32_t offset;
 
-	KASSERT(cfg->msix.msix_alloc > index, ("bogus index"));
-	offset = cfg->msix.msix_table_offset + index * 16;
-	bus_write_4(cfg->msix.msix_table_res, offset, address & 0xffffffff);
-	bus_write_4(cfg->msix.msix_table_res, offset + 4, address >> 32);
-	bus_write_4(cfg->msix.msix_table_res, offset + 8, data);
+	KASSERT(msix->msix_alloc > index, ("bogus index"));
+	offset = msix->msix_table_offset + index * 16;
+	bus_write_4(msix->msix_table_res, offset, address & 0xffffffff);
+	bus_write_4(msix->msix_table_res, offset + 4, address >> 32);
+	bus_write_4(msix->msix_table_res, offset + 8, data);
 }
 
 void
 pci_mask_msix(device_t dev, u_int index)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
-	pcicfgregs *cfg = &dinfo->cfg;
+	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	uint32_t offset, val;
 
-	KASSERT(cfg->msix.msix_msgnum > index, ("bogus index"));
-	offset = cfg->msix.msix_table_offset + index * 16 + 12;
-	val = bus_read_4(cfg->msix.msix_table_res, offset);
+	KASSERT(msix->msix_msgnum > index, ("bogus index"));
+	offset = msix->msix_table_offset + index * 16 + 12;
+	val = bus_read_4(msix->msix_table_res, offset);
 	if (!(val & PCIM_MSIX_VCTRL_MASK)) {
 		val |= PCIM_MSIX_VCTRL_MASK;
-		bus_write_4(cfg->msix.msix_table_res, offset, val);
+		bus_write_4(msix->msix_table_res, offset, val);
 	}
 }
 
@@ -690,15 +690,15 @@ void
 pci_unmask_msix(device_t dev, u_int index)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
-	pcicfgregs *cfg = &dinfo->cfg;
+	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	uint32_t offset, val;
 
-	KASSERT(cfg->msix.msix_alloc > index, ("bogus index"));
-	offset = cfg->msix.msix_table_offset + index * 16 + 12;
-	val = bus_read_4(cfg->msix.msix_table_res, offset);
+	KASSERT(msix->msix_alloc > index, ("bogus index"));
+	offset = msix->msix_table_offset + index * 16 + 12;
+	val = bus_read_4(msix->msix_table_res, offset);
 	if (val & PCIM_MSIX_VCTRL_MASK) {
 		val &= ~PCIM_MSIX_VCTRL_MASK;
-		bus_write_4(cfg->msix.msix_table_res, offset, val);
+		bus_write_4(msix->msix_table_res, offset, val);
 	}
 }
 
@@ -706,13 +706,13 @@ int
 pci_pending_msix(device_t dev, u_int index)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
-	pcicfgregs *cfg = &dinfo->cfg;
+	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	uint32_t offset, bit;
 
-	KASSERT(cfg->msix.msix_alloc > index, ("bogus index"));
-	offset = cfg->msix.msix_pba_offset + (index / 32) * 4;
+	KASSERT(msix->msix_alloc > index, ("bogus index"));
+	offset = msix->msix_pba_offset + (index / 32) * 4;
 	bit = 1 << index % 32;
-	return (bus_read_4(cfg->msix.msix_pba_res, offset) & bit);
+	return (bus_read_4(msix->msix_pba_res, offset) & bit);
 }
 
 /*
@@ -845,16 +845,16 @@ static int
 pci_release_msix(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->cfg;
+	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	struct resource_list_entry *rle;
 	int count, i;
 
 	/* Do we have any messages to release? */
-	if (cfg->msix.msix_alloc == 0)
+	if (msix->msix_alloc == 0)
 		return (ENODEV);
 
 	/* Make sure none of the resources are allocated. */
-	for (i = 1, count = 0; count < cfg->msix.msix_alloc; i++) {
+	for (i = 1, count = 0; count < msix->msix_alloc; i++) {
 		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i);
 		if (rle == NULL)
 			continue;
@@ -863,13 +863,13 @@ pci_release_msix(device_t dev, device_t child)
 		count++;
 	}
 
-	/* Update control register with to disable MSI-X. */
-	cfg->msix.msix_ctrl &= ~PCIM_MSIXCTRL_MSIX_ENABLE;
-	pci_write_config(child, cfg->msix.msix_location + PCIR_MSIX_CTRL,
-	    cfg->msix.msix_ctrl, 2);
+	/* Update control register to disable MSI-X. */
+	msix->msix_ctrl &= ~PCIM_MSIXCTRL_MSIX_ENABLE;
+	pci_write_config(child, msix->msix_location + PCIR_MSIX_CTRL,
+	    msix->msix_ctrl, 2);
 
 	/* Release the messages. */
-	for (i = 1, count = 0; count < cfg->msix.msix_alloc; i++) {
+	for (i = 1, count = 0; count < msix->msix_alloc; i++) {
 		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i);
 		if (rle == NULL)
 			continue;
@@ -880,7 +880,7 @@ pci_release_msix(device_t dev, device_t child)
 	}
 
 	/* Update alloc count. */
-	cfg->msix.msix_alloc = 0;
+	msix->msix_alloc = 0;
 	return (0);
 }
 
@@ -894,10 +894,10 @@ int
 pci_msix_count_method(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->cfg;
+	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 
-	if (pci_do_msix && cfg->msix.msix_location != 0)
-		return (cfg->msix.msix_msgnum);
+	if (pci_do_msix && msix->msix_location != 0)
+		return (msix->msix_msgnum);
 	return (0);
 }
 
@@ -908,26 +908,26 @@ void
 pci_enable_msi(device_t dev, uint64_t address, uint16_t data)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
-	pcicfgregs *cfg = &dinfo->cfg;
+	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 
 	/* Write data and address values. */
-	cfg->msi.msi_addr = address;
-	cfg->msi.msi_data = data;
-	pci_write_config(dev, cfg->msi.msi_location + PCIR_MSI_ADDR,
+	msi->msi_addr = address;
+	msi->msi_data = data;
+	pci_write_config(dev, msi->msi_location + PCIR_MSI_ADDR,
 	    address & 0xffffffff, 4);
-	if (cfg->msi.msi_ctrl & PCIM_MSICTRL_64BIT) {
-		pci_write_config(dev, cfg->msi.msi_location +
-		    PCIR_MSI_ADDR_HIGH, address >> 32, 4);
-		pci_write_config(dev, cfg->msi.msi_location +
-		    PCIR_MSI_DATA_64BIT, data, 2);
+	if (msi->msi_ctrl & PCIM_MSICTRL_64BIT) {
+		pci_write_config(dev, msi->msi_location + PCIR_MSI_ADDR_HIGH,
+		    address >> 32, 4);
+		pci_write_config(dev, msi->msi_location + PCIR_MSI_DATA_64BIT,
+		    data, 2);
 	} else
-		pci_write_config(dev, cfg->msi.msi_location +
-		    PCIR_MSI_DATA, data, 2);
+		pci_write_config(dev, msi->msi_location + PCIR_MSI_DATA, data,
+		    2);
 
 	/* Enable MSI in the control register. */
-	cfg->msi.msi_ctrl |= PCIM_MSICTRL_MSI_ENABLE;
-	pci_write_config(dev, cfg->msi.msi_location + PCIR_MSI_CTRL,
-	    cfg->msi.msi_ctrl, 2);
+	msi->msi_ctrl |= PCIM_MSICTRL_MSI_ENABLE;
+	pci_write_config(dev, msi->msi_location + PCIR_MSI_CTRL, msi->msi_ctrl,
+	    2);
 }
 
 /*
@@ -939,26 +939,26 @@ static void
 pci_resume_msi(device_t dev)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
-	pcicfgregs *cfg = &dinfo->cfg;
+	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 	uint64_t address;
 	uint16_t data;
 
-	if (cfg->msi.msi_ctrl & PCIM_MSICTRL_MSI_ENABLE) {
-		address = cfg->msi.msi_addr;
-		data = cfg->msi.msi_data;
-		pci_write_config(dev, cfg->msi.msi_location + PCIR_MSI_ADDR,
+	if (msi->msi_ctrl & PCIM_MSICTRL_MSI_ENABLE) {
+		address = msi->msi_addr;
+		data = msi->msi_data;
+		pci_write_config(dev, msi->msi_location + PCIR_MSI_ADDR,
 		    address & 0xffffffff, 4);
-		if (cfg->msi.msi_ctrl & PCIM_MSICTRL_64BIT) {
-			pci_write_config(dev, cfg->msi.msi_location +
+		if (msi->msi_ctrl & PCIM_MSICTRL_64BIT) {
+			pci_write_config(dev, msi->msi_location +
 			    PCIR_MSI_ADDR_HIGH, address >> 32, 4);
-			pci_write_config(dev, cfg->msi.msi_location +
+			pci_write_config(dev, msi->msi_location +
 			    PCIR_MSI_DATA_64BIT, data, 2);
 		} else
-			pci_write_config(dev, cfg->msi.msi_location +
-			    PCIR_MSI_DATA, data, 2);
+			pci_write_config(dev, msi->msi_location + PCIR_MSI_DATA,
+			    data, 2);
 	}
-	pci_write_config(dev, cfg->msi.msi_location + PCIR_MSI_CTRL,
-	    cfg->msi.msi_ctrl, 2);
+	pci_write_config(dev, msi->msi_location + PCIR_MSI_CTRL, msi->msi_ctrl,
+	    2);
 }
 
 /*
@@ -1116,7 +1116,7 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 		}
 	}
 
-	/* Update control register with actual count and enable MSI. */
+	/* Update control register with actual count. */
 	ctrl = cfg->msi.msi_ctrl;
 	ctrl &= ~PCIM_MSICTRL_MME_MASK;
 	ctrl |= (ffs(actual) - 1) << 4;
@@ -1134,7 +1134,7 @@ int
 pci_release_msi_method(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->cfg;
+	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 	struct resource_list_entry *rle;
 	int error, i, irqs[32];
 
@@ -1144,12 +1144,12 @@ pci_release_msi_method(device_t dev, device_t child)
 		return (error);
 
 	/* Do we have any messages to release? */
-	if (cfg->msi.msi_alloc == 0)
+	if (msi->msi_alloc == 0)
 		return (ENODEV);
-	KASSERT(cfg->msi.msi_alloc <= 32, ("more than 32 alloc'd messages"));
+	KASSERT(msi->msi_alloc <= 32, ("more than 32 alloc'd messages"));
 
 	/* Make sure none of the resources are allocated. */
-	for (i = 0; i < cfg->msi.msi_alloc; i++) {
+	for (i = 0; i < msi->msi_alloc; i++) {
 		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i + 1);
 		KASSERT(rle != NULL, ("missing MSI resource"));
 		if (rle->res != NULL)
@@ -1158,18 +1158,17 @@ pci_release_msi_method(device_t dev, device_t child)
 	}
 
 	/* Update control register with 0 count and disable MSI. */
-	cfg->msi.msi_ctrl &= ~(PCIM_MSICTRL_MME_MASK | PCIM_MSICTRL_MSI_ENABLE);
-	pci_write_config(child, cfg->msi.msi_location + PCIR_MSI_CTRL,
-	    cfg->msi.msi_ctrl, 2);
+	msi->msi_ctrl &= ~(PCIM_MSICTRL_MME_MASK | PCIM_MSICTRL_MSI_ENABLE);
+	pci_write_config(child, msi->msi_location + PCIR_MSI_CTRL,
+	    msi->msi_ctrl, 2);
 
 	/* Release the messages. */
-	PCIB_RELEASE_MSI(device_get_parent(dev), child, cfg->msi.msi_alloc,
-	    irqs);
-	for (i = 0; i < cfg->msi.msi_alloc; i++)
+	PCIB_RELEASE_MSI(device_get_parent(dev), child, msi->msi_alloc, irqs);
+	for (i = 0; i < msi->msi_alloc; i++)
 		resource_list_delete(&dinfo->resources, SYS_RES_IRQ, i + 1);
 
 	/* Update alloc count. */
-	cfg->msi.msi_alloc = 0;
+	msi->msi_alloc = 0;
 	return (0);
 }
 
@@ -1183,10 +1182,10 @@ int
 pci_msi_count_method(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->cfg;
+	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 
-	if (pci_do_msi && cfg->msi.msi_location != 0)
-		return (cfg->msi.msi_msgnum);
+	if (pci_do_msi && msi->msi_location != 0)
+		return (msi->msi_msgnum);
 	return (0);
 }
 
