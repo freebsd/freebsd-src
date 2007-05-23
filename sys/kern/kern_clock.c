@@ -174,8 +174,8 @@ initclocks(dummy)
 	 * Set divisors to 1 (normal case) and let the machine-specific
 	 * code do its bit.
 	 */
-	cpu_initclocks();
 	mtx_init(&time_lock, "time lock", NULL, MTX_SPIN);
+	cpu_initclocks();
 
 	/*
 	 * Compute profhz/stathz, and fix profhz if needed.
