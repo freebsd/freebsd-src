@@ -584,6 +584,16 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		if (lst == NULL) {
 			/* Couldn't lstat(); must not exist. */
 			bsdtar_warnc(bsdtar, errno, "%s: Cannot stat", name);
+
+			/*
+			 * Report an error via the exit code if the failed
+			 * path is a prefix of what the user provided via
+			 * the command line.  (Testing for string equality
+			 * here won't work due to trailing '/' characters.)
+			 */
+			if (memcmp(name, path, strlen(name)) == 0)
+				bsdtar->return_value = 1;
+
 			continue;
 		}
 		if (S_ISLNK(lst->st_mode))
