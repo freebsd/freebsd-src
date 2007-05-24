@@ -32,7 +32,7 @@
  *
  * Created 25 August 1985 by John Gilmore, ihnp4!hoptoad!gnu.
  *
- * $Id: tar.h,v 1.8 2004/09/11 19:15:58 christos Exp $ # checkin only
+ * $Id: tar.h,v 1.9 2006/05/03 15:19:25 christos Exp $ # checkin only
  */
 
 /*
@@ -82,7 +82,8 @@ union record {
 #define	CHKBLANKS	"        "	/* 8 blanks, no null */
 
 /* The magic field is filled with this if uname and gname are valid. */
-#define	TMAGIC		"ustar  "	/* 7 chars and a null */
+#define	TMAGIC		"ustar"		/* 5 chars and a null */
+#define	GNUTMAGIC	"ustar  "	/* 7 chars and a null */
 
 /* The linkflag defines the type of file */
 #define	LF_OLDNORMAL	'\0'		/* Normal disk file, Unix compat */

@@ -509,6 +509,12 @@
 # RAR archiver (Greg Roelofs, newt@uchicago.edu)
 0	string		Rar!		RAR archive data,
 >44	byte		x		v%0x,
+>10	byte		>0		flags:
+>>10	byte		&0x01		Archive volume,
+>>10	byte		&0x02		Commented,
+>>10	byte		&0x04		Locked,
+>>10	byte		&0x08		Solid,
+>>10	byte		&0x20		Authenticated,
 >35	byte		0		os: MS-DOS
 >35	byte		1		os: OS/2
 >35	byte		2		os: Win32
@@ -530,6 +536,8 @@
 >4	byte		0x0b		Zip archive data, at least v1.1 to extract
 >4	byte		0x14
 >>30	ubelong		!0x6d696d65	Zip archive data, at least v2.0 to extract
+>0x161	string		WINZIP          Zip archive data, WinZIP self-extracting
+
 
 # OpenOffice.org / KOffice / StarOffice documents
 # From: Abel Cheung <abel@oaka.org>
@@ -700,3 +708,18 @@
 # EET archive
 # From: Tilman Sauerbeck <tilman@code-monkey.de>
 0	belong	0x1ee7ff00	EET archive
+
+# rzip archives
+0	string	RZIP		rzip compressed data
+>4	byte	x		- version %d
+>5	byte	x		\b.%d
+>6	belong	x		(%d bytes)
+
+# From: "Robert Dale" <robdale@gmail.com>
+0	belong	123		dar archive,
+>4	belong	x		label "%.8x
+>>8	belong	x		%.8x
+>>>12	beshort	x		%.4x"
+>14	byte	0x54		end slice
+>14	beshort	0x4e4e		multi-part
+>14	beshort	0x4e53		multi-part, with -S

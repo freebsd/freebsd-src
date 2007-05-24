@@ -99,9 +99,7 @@
 
 # svg
 
-0	string		\<?xml
-#			text/xml
->38	string		\<\!DOCTYPE\040svg	image/svg+xml
+38	string		\<\!DOCTYPE\040svg	image/svg+xml
 
 
 # xml
@@ -111,8 +109,8 @@
 #------------------------------------------------------------------------------
 # Java
 
-0	short		0xcafe
->2	short		0xbabe		application/java
+0	beshort		0xcafe
+>2	beshort		0xbabe		application/java
 
 #------------------------------------------------------------------------------
 # audio:  file(1) magic for sound formats
@@ -135,7 +133,7 @@
 # DEC systems (e.g. DECstation 5000) use a variant of the Sun/NeXT format
 # that uses little-endian encoding and has a different magic number
 # (0x0064732E in little-endian encoding).
-0	lelong		0x0064732E	
+0	lelong		0x0064732E
 >12	lelong		1		audio/x-dec-basic
 >12	lelong		2		audio/x-dec-basic
 >12	lelong		3		audio/x-dec-basic
@@ -148,25 +146,25 @@
 
 # Bytes 0-3 of AIFF, AIFF-C, & 8SVX audio files are "FORM"
 #					AIFF audio data
-8	string		AIFF		audio/x-aiff	
+8	string		AIFF		audio/x-aiff
 #					AIFF-C audio data
-8	string		AIFC		audio/x-aiff	
+8	string		AIFC		audio/x-aiff
 #					IFF/8SVX audio data
-8	string		8SVX		audio/x-aiff	
+8	string		8SVX		audio/x-aiff
 
 
 
 # Creative Labs AUDIO stuff
 #					Standard MIDI data
-0	string	MThd			audio/unknown	
+0	string	MThd			audio/unknown
 #>9 	byte	>0			(format %d)
 #>11	byte	>1			using %d channels
 #					Creative Music (CMF) data
-0	string	CTMF			audio/unknown	
+0	string	CTMF			audio/unknown
 #					SoundBlaster instrument data
-0	string	SBI			audio/unknown	
+0	string	SBI			audio/unknown
 #					Creative Labs voice data
-0	string	Creative\ Voice\ File	audio/unknown	
+0	string	Creative\ Voice\ File	audio/unknown
 ## is this next line right?  it came this way...
 #>19	byte	0x1A
 #>23	byte	>0			- version %d
@@ -209,8 +207,8 @@
 # ideally should go into "images", but entries below would tag XPM as C source
 0	string		/*\ XPM		image/x-xpmi 7bit
 
-# 3DS (3d Studio files)
-16	beshort		0x3d3d		image/x-3ds
+# 3DS (3d Studio files) Conflicts with diff output 0x3d '='
+#16	beshort		0x3d3d		image/x-3ds
 
 # this first will upset you if you're a PL/1 shop... (are there any left?)
 # in which case rm it; ascmagic will catch real C programs
@@ -408,10 +406,7 @@
 0	string		\<!--	text/html
 0	string		\<h1	text/html
 0	string		\<H1	text/html
-0	string		\<!doctype\ HTML	text/html
-0	string		\<!DOCTYPE\ HTML	text/html
-0	string		\<!doctype\ html	text/html
-0	string		\<!doctype\ HTML	text/html
+0	string/c	\<!doctype\ html	text/html
 
 #------------------------------------------------------------------------------
 # images:  file(1) magic for image formats (see also "c-lang" for XPM bitmaps)
@@ -530,7 +525,11 @@
 #
 
 0	string		\376\067\0\043			application/msword
-0	string		\320\317\021\340\241\261	application/msword
+# disable this one because it applies also to other
+# Office/OLE documents for which msword is not correct. See PR#2608.
+# from magic file of the apache
+#0	string		\320\317\021\340\241\261	application/msword
+512	string		\354\245\301			application/msword
 0	string		\333\245-\0\0\0			application/msword
 
 
@@ -566,7 +565,7 @@
 #0	string		\367\203	TeX generic font data
 #0	string		\367\131	TeX packed font data
 #0	string		\367\312	TeX virtual font data
-#0	string		This\ is\ TeX,	TeX transcript text	
+#0	string		This\ is\ TeX,	TeX transcript text
 #0	string		This\ is\ METAFONT,	METAFONT transcript text
 
 # There is no way to detect TeX Font Metric (*.tfm) files without
@@ -603,7 +602,7 @@
 0       belong             0x000001B3     video/mpv
 0       belong&0xFF5FFF1F  0x47400010     video/mp2t
 0       belong             0x00000001
->4      byte&1F            0x07           video/h264
+>4      byte&0x1F	   0x07           video/h264
 
 # FLI animation format
 0	leshort		0xAF11				video/fli
@@ -658,7 +657,7 @@
 #
 # Executables
 #
-0	string		\177ELF 
+0	string		\177ELF
 >16	leshort		0		application/octet-stream
 >16	leshort		1		application/x-object
 >16	leshort		2		application/x-executable
@@ -712,19 +711,19 @@
 4	string	Standard\ Jet\ DB	application/msaccess
 
 ## magic for XBase files
-#0      byte       0x02	
+#0      byte       0x02
 #>8     leshort	  >0
 #>>12   leshort    0	application/x-dbf
 #
-#0      byte       0x03	
+#0      byte       0x03
 #>8     leshort	  >0
 #>>12   leshort    0	application/x-dbf
 #
-#0      byte       0x04	
+#0      byte       0x04
 #>8     leshort	  >0
 #>>12   leshort    0	application/x-dbf
 #
-#0      byte       0x05	
+#0      byte       0x05
 #>8     leshort	  >0
 #>>12   leshort    0	application/x-dbf
 #
@@ -740,7 +739,7 @@
 #>8     leshort	  >0
 #>>12   leshort    0	application/x-dbf
 #
-#0      byte       0x83	
+#0      byte       0x83
 #>8     leshort	  >0
 #>>12   leshort    0	application/x-dbf
 #
@@ -748,7 +747,7 @@
 #>8     leshort	  >0
 #>>12   leshort    0	application/x-dbf
 #
-#0      byte       0x8e	
+#0      byte       0x8e
 #>8     leshort	  >0
 #>>12   leshort    0	application/x-dbf
 #
@@ -769,7 +768,7 @@
 0       beshort         0x9501                  text/PGP key security ring
 0       beshort         0x9500                  text/PGP key security ring
 0       beshort         0xa600                  text/PGP encrypted data
-0       string          -----BEGIN\040PGP       text/PGP armored data 
+0       string          -----BEGIN\040PGP       text/PGP armored data
 >15     string          PUBLIC\040KEY\040BLOCK- public key block
 >15     string          MESSAGE-                message
 >15     string          SIGNED\040MESSAGE-      signed message
@@ -777,7 +776,7 @@
 0       beshort         0x8501                  data
 #
 # GnuPG Magic:
-# 
+#
 0       beshort         0x9901                  text/GnuPG key public ring
 0       beshort         0x8501                  text/OpenPGP data
 
@@ -787,7 +786,7 @@
 #
 #       http://www.macromedia.com/software/flash/open/
 #
-0	string		FWS             
+0	string		FWS
 >3	byte		x			application/x-shockwave-flash
 
 # The following paramaters are created for Namazu.
@@ -914,7 +913,7 @@
 #0	string	\000\000\001\000	image/x-ico
 
 # Quark Xpress 3 Files:
-# (made the mimetype up) 
+# (made the mimetype up)
 0	string	\0\0MMXPR3\0	application/x-quark-xpress-3
 
 # EET archive
@@ -924,3 +923,16 @@
 # From: Denis Knauf, via gentoo.
 0	string	fLaC		audio/x-flac
 0	string	CWS		application/x-shockwave-flash
+
+# Hangul Document Files:
+# Reversed-engineered HWP magic numbers
+# From: Won-Kyu Park <wkpark@kldp.org>
+512	string		R\0o\0o\0t\0	application/x-hwp
+
+0	string/c	BEGIN:VCARD	text/x-vcard
+0	string		WordPro\0	application/vnd.lotus-wordpro
+0	string		WordPro\r\373	application/vnd.lotus-wordpro
+0	string		CPC\262		image/cpi
+
+# 
+128	string		DICM		application/dicom

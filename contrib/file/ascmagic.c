@@ -49,7 +49,7 @@
 #include "names.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: ascmagic.c,v 1.45 2006/03/12 22:09:33 christos Exp $")
+FILE_RCSID("@(#)$Id: ascmagic.c,v 1.46 2006/10/20 21:04:15 christos Exp $")
 #endif	/* lint */
 
 typedef unsigned long unichar;
@@ -102,9 +102,9 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 	while (nbytes > 1 && buf[nbytes - 1] == '\0')
 		nbytes--;
 
-	if ((nbuf = malloc((nbytes + 1) * sizeof(nbuf[0]))) == NULL)
+	if ((nbuf = calloc(1, (nbytes + 1) * sizeof(nbuf[0]))) == NULL)
 		goto done;
-	if ((ubuf = malloc((nbytes + 1) * sizeof(ubuf[0]))) == NULL)
+	if ((ubuf = calloc(1, (nbytes + 1) * sizeof(ubuf[0]))) == NULL)
 		goto done;
 
 	/*

@@ -41,7 +41,7 @@
 #include <time.h>
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: print.c,v 1.50 2006/03/02 22:07:53 christos Exp $")
+FILE_RCSID("@(#)$Id: print.c,v 1.56 2006/12/08 20:31:07 christos Exp $")
 #endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))
@@ -50,18 +50,17 @@ FILE_RCSID("@(#)$Id: print.c,v 1.50 2006/03/02 22:07:53 christos Exp $")
 protected void
 file_mdump(struct magic *m)
 {
-	private const char *typ[] = { FILE_FORMAT_NAME };
 	private const char optyp[] = { FILE_OPS };
 
-	(void) fputc('[', stderr);
+	(void) fprintf(stderr, "[%zu", m->lineno);
 	(void) fprintf(stderr, ">>>>>>>> %d" + 8 - (m->cont_level & 7),
 		       m->offset);
 
 	if (m->flag & INDIR) {
 		(void) fprintf(stderr, "(%s,",
 			       /* Note: type is unsigned */
-			       (m->in_type < SZOF(typ)) ? 
-					typ[m->in_type] : "*bad*");
+			       (m->in_type < file_nnames) ? 
+					file_names[m->in_type] : "*bad*");
 		if (m->in_op & FILE_OPINVERSE)
 			(void) fputc('~', stderr);
 		(void) fprintf(stderr, "%c%d),",
@@ -71,7 +70,7 @@ file_mdump(struct magic *m)
 	}
 	(void) fprintf(stderr, " %s%s", (m->flag & UNSIGNED) ? "u" : "",
 		       /* Note: type is unsigned */
-		       (m->type < SZOF(typ)) ? typ[m->type] : "*bad*");
+		       (m->type < file_nnames) ? file_names[m->type] : "*bad*");
 	if (m->mask_op & FILE_OPINVERSE)
 		(void) fputc('~', stderr);
 	if (m->mask) {
@@ -80,7 +79,8 @@ file_mdump(struct magic *m)
 		else
 			fputc('?', stderr);
 		if (FILE_STRING != m->type || FILE_PSTRING != m->type)
-			(void) fprintf(stderr, "%.8x", m->mask);
+			(void) fprintf(stderr, "%.8llx",
+			    (unsigned long long)m->mask);
 		else {
 			if (m->mask & STRING_IGNORE_LOWERCASE) 
 				(void) fputc(CHAR_IGNORE_LOWERCASE, stderr);
@@ -106,13 +106,19 @@ file_mdump(struct magic *m)
 		case FILE_BELONG:
 			(void) fprintf(stderr, "%d", m->value.l);
 			break;
+		case FILE_BEQUAD:
+		case FILE_LEQUAD:
+		case FILE_QUAD:
+			(void) fprintf(stderr, "%lld",
+			    (unsigned long long)m->value.q);
+			break;
 		case FILE_PSTRING:
 		case FILE_STRING:
 		case FILE_REGEX:
 		case FILE_BESTRING16:
 		case FILE_LESTRING16:
 		case FILE_SEARCH:
-			file_showstr(stderr, m->value.s, m->vallen);
+			file_showstr(stderr, m->value.s, (size_t)m->vallen);
 			break;
 		case FILE_DATE:
 		case FILE_LEDATE:
@@ -127,6 +133,18 @@ file_mdump(struct magic *m)
 		case FILE_MELDATE:
 			(void)fprintf(stderr, "%s,",
 			    file_fmttime(m->value.l, 0));
+			break;
+		case FILE_QDATE:
+		case FILE_LEQDATE:
+		case FILE_BEQDATE:
+			(void)fprintf(stderr, "%s,",
+			    file_fmttime((uint32_t)m->value.q, 1));
+			break;
+		case FILE_QLDATE:
+		case FILE_LEQLDATE:
+		case FILE_BEQLDATE:
+			(void)fprintf(stderr, "%s,",
+			    file_fmttime((uint32_t)m->value.q, 0));
 			break;
 		default:
 			(void) fputs("*bad*", stderr);
