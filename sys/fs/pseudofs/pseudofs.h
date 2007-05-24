@@ -220,6 +220,7 @@ struct pfs_node	*pfs_create_link(struct pfs_node *parent, const char *name,
 				 pfs_fill_t fill, pfs_attr_t attr,
 				 pfs_vis_t vis, int flags);
 struct pfs_node	*pfs_find_node	(struct pfs_node *parent, const char *name);
+void		 pfs_purge	(struct pfs_node *pn);
 int		 pfs_disable	(struct pfs_node *pn);
 int		 pfs_enable	(struct pfs_node *pn);
 int		 pfs_destroy	(struct pfs_node *pn);
