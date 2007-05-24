@@ -236,3 +236,13 @@
 >20	lelong	1			MLS
 >24	lelong	x			%d symbols
 >28	lelong	x			%d ocons
+
+# LUKS: Linux Unified Key Setup, On-Disk Format, http://luks.endorphin.org/spec
+# Anthon van der Neut (anthon@mnt.org)
+0	string	LUKS\xba\xbe	LUKS encrypted file,
+>6	beshort x		ver %d
+>8	string	x		[%s,
+>40	string	x		%s,
+>72	string	x		%s]
+>168	string	x		UUID: %s
+

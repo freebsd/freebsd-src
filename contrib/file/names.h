@@ -32,7 +32,7 @@
  * appear at fixed offsets into the file. Don't make HOWMANY
  * too high unless you have a very fast CPU.
  *
- * $Id: names.h,v 1.25 2004/09/11 19:15:57 christos Exp $
+ * $File: names.h,v 1.27 2007/05/08 16:47:03 christos Exp $
  */
 
 /*
@@ -167,6 +167,8 @@ static struct names {
 	{".text",	L_MACH},
 	{"clr",		L_MACH},
 	{"(input,",	L_PAS},
+	{"program",	L_PAS},
+	{"record",	L_PAS},
 	{"dcl",		L_PLI},
 	{"Received:",	L_MAIL},
 	{">From",	L_MAIL},

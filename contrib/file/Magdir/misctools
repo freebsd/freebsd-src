@@ -2,8 +2,8 @@
 # misctools:  file(1) magic for miscelanous UNIX tools.
 #
 0	string	%%!!			X-Post-It-Note text
-0	string	BEGIN:VCALENDAR		vCalendar calendar file
-0	string	BEGIN:VCARD		vCard visiting card
+0	string/c	BEGIN:VCALENDAR		vCalendar calendar file
+0	string/c	BEGIN:VCARD		vCard visiting card
 
 # From: Alex Beregszaszi <alex@fsn.hu>
 4	string	gtktalog		GNOME Catalogue (gtktalog)

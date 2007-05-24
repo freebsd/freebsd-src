@@ -101,6 +101,7 @@
 >>18	leshort		88		Renesas M32R,
 >>18	leshort		94		Tensilica Xtensa,
 >>18	leshort		97		NatSemi 32k,
+>>18	leshort		106		Analog Devices Blackfin,
 >>18	leshort		0x9026		Alpha (unofficial),
 >>20	lelong		0		invalid version
 >>20	lelong		1		version 1
@@ -167,8 +168,9 @@
 >>>36	belong&0xffff00	&0x000400	HaL R1 Extensions Required,
 >>>36	belong&0xffff00	&0x000800	Sun UltraSPARC3 Extensions Required,
 >>18	beshort		20		PowerPC or cisco 4500,
->>18	beshort		21		cisco 7500,
+>>18	beshort		21		64-bit PowerPC or cisco 7500,
 >>18	beshort		22		IBM S/390,
+>>18	beshort		23		Cell SPU,
 >>18	beshort		24		cisco SVIP,
 >>18	beshort		25		cisco 7200,
 >>18	beshort		36		NEC V800 or cisco 12000,
