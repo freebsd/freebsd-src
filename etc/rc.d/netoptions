@@ -5,7 +5,6 @@
 
 # PROVIDE: netoptions
 # REQUIRE: localpkg
-# BEFORE:  securelevel
 # KEYWORD: nojail
 
 . /etc/rc.subr
