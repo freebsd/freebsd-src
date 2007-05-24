@@ -59,3 +59,6 @@
 # Opentype font data from Avi Bercovich
 0	string		OTTO		OpenType font data 
 
+# Gürkan Sengün <gurkan@linuks.mine.nu>, www.linuks.mine.nu 
+0	string		SplineFontDB:	Spline Font Database 
+>14	string		x		version %s

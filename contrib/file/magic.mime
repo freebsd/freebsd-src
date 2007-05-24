@@ -193,7 +193,12 @@
 0       beshort         0x4De1          audio/MP4A-LATM
 
 # MPEG Layer 3 sound files
-0       beshort		&0xffe0		audio/mpeg
+# modified by Joerg Jenderek
+# GRR the original test are too common for many DOS files
+# so test 1 <= kbits nibble <= E
+0       beshort		&0xffe0		
+>2	ubyte&0xF0	>0x0F		
+>>2	ubyte&0xF0	<0xE1		audio/mpeg
 #MP3 with ID3 tag
 0	string		ID3		audio/mpeg
 # Ogg/Vorbis
@@ -587,6 +592,14 @@
 # RTF - Rich Text Format
 0	string		{\\rtf		text/rtf
 
+# TeX documents, from Daniel Quinlan (quinlan@yggdrasil.com)
+0	search/400	\\input		text/x-tex
+0	search/400	\\section	text/x-tex
+0	search/400	\\setlength	text/x-tex
+0	search/400	\\documentstyle	text/x-tex
+0	search/400	\\chapter	text/x-tex
+0	search/400	\\documentclass	text/x-tex
+
 #------------------------------------------------------------------------------
 # animation:  file(1) magic for animation/movie formats
 #
@@ -674,9 +687,9 @@
 #
 # KDE
 0		string	[KDE\ Desktop\ Entry]	application/x-kdelnk
-0		string	\#\ KDE\ Config\ File	application/x-kdelnk
+0		string	#\ KDE\ Config\ File	application/x-kdelnk
 # xmcd database file for kscd
-0		string	\#\ xmcd                text/xmcd
+0		string	#\ xmcd                text/xmcd
 
 #------------------------------------------------------------------------------
 # pkgadd:  file(1) magic for SysV R4 PKG Datastreams
@@ -861,6 +874,8 @@
 # miscellaneous formats
 0		string	LZ		application/octet-stream
 
+# DOS device drivers by Joerg Jenderek
+0	belong		0xffffffff	application/octet-stream
 
 # .EXE formats (Greg Roelofs, newt@uchicago.edu)
 #
@@ -936,3 +951,7 @@
 
 # 
 128	string		DICM		application/dicom
+
+# Symbian installation files
+8	lelong	0x10000419	application/vnd.symbian.install
+0	lelong	0x10201A7A	x-epoc/x-sisx-app

@@ -267,9 +267,6 @@
 #
 0	beshort		0x1010		PEX Binary Archive
 
-# Tgif files
-0	string	\%TGIF\ x 		Tgif file version %s
-
 # DICOM medical imaging data
 128	string	DICM			DICOM medical imaging data
 
@@ -309,6 +306,10 @@
 0	string	pM86		Atari ST STAD bitmap image data (vert)
 >5	byte	0x00		(white background)
 >5	byte	0xFF		(black background)
+
+# Gürkan Sengün <gurkan@linuks.mine.nu>, www.linuks.mine.nu
+# http://www.atarimax.com/jindroush.atari.org/afmtatr.html
+0	leshort	0x0296		Atari ATR image
 
 # XXX:
 # This is bad magic 0x5249 == 'RI' conflicts with RIFF and other
