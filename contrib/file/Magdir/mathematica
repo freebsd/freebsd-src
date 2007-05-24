@@ -24,7 +24,7 @@
 
 # generic:
 0	string	(*^\r\r::[\011	Mathematica notebook version 2.x
-0	string	\(\*\^\r\n\r\n\:\:\[\011	Mathematica notebook version 2.x
+0	string	(*^\r\n\r\n::[\011	Mathematica notebook version 2.x
 0	string	(*^\015			Mathematica notebook version 2.x
 0	string	(*^\n\r\n\r::[\011	Mathematica notebook version 2.x
 0	string	(*^\r::[\011	Mathematica notebook version 2.x

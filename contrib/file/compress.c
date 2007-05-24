@@ -46,12 +46,16 @@
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
+#if defined(HAVE_SYS_TIME_H)
+#include <sys/time.h>
+#endif
 #ifdef HAVE_LIBZ
 #include <zlib.h>
 #endif
 
+
 #ifndef lint
-FILE_RCSID("@(#)$Id: compress.c,v 1.45 2006/10/31 19:37:17 christos Exp $")
+FILE_RCSID("@(#)$File: compress.c,v 1.51 2007/03/05 02:41:29 christos Exp $")
 #endif
 
 private struct {
@@ -74,7 +78,7 @@ private struct {
 	{ "BZh",      3, { "bzip2", "-cd", NULL }, 1 },		/* bzip2-ed */
 };
 
-private int ncompr = sizeof(compr) / sizeof(compr[0]);
+private size_t ncompr = sizeof(compr) / sizeof(compr[0]);
 
 #define NODATA ((size_t)~0)
 
@@ -88,8 +92,8 @@ private size_t uncompressgzipped(struct magic_set *, const unsigned char *,
 #endif
 
 protected int
-file_zmagic(struct magic_set *ms, int fd, const unsigned char *buf,
-    size_t nbytes)
+file_zmagic(struct magic_set *ms, int fd, const char *name,
+    const unsigned char *buf, size_t nbytes)
 {
 	unsigned char *newbuf = NULL;
 	size_t i, nsz;
@@ -106,11 +110,11 @@ file_zmagic(struct magic_set *ms, int fd, const unsigned char *buf,
 		    nbytes)) != NODATA) {
 			ms->flags &= ~MAGIC_COMPRESS;
 			rv = -1;
-			if (file_buffer(ms, -1, newbuf, nsz) == -1)
+			if (file_buffer(ms, -1, name, newbuf, nsz) == -1)
 				goto error;
 			if (file_printf(ms, " (") == -1)
 				goto error;
-			if (file_buffer(ms, -1, buf, nbytes) == -1)
+			if (file_buffer(ms, -1, NULL, buf, nbytes) == -1)
 				goto error;
 			if (file_printf(ms, ")") == -1)
 				goto error;
@@ -154,9 +158,9 @@ swrite(int fd, const void *buf, size_t n)
  * `safe' read for sockets and pipes.
  */
 protected ssize_t
-sread(int fd, void *buf, size_t n)
+sread(int fd, void *buf, size_t n, int canbepipe)
 {
-	int rv;
+	int rv, cnt;
 #ifdef FIONREAD
 	int t = 0;
 #endif
@@ -166,11 +170,12 @@ sread(int fd, void *buf, size_t n)
 		goto nocheck;
 
 #ifdef FIONREAD
-	if ((ioctl(fd, FIONREAD, &t) < 0) || (t == 0)) {
+	if ((canbepipe && (ioctl(fd, FIONREAD, &t) == -1)) || (t == 0)) {
 #ifdef FD_ZERO
-		for (;;) {
+		for (cnt = 0;; cnt++) {
 			fd_set check;
 			struct timeval tout = {0, 100 * 1000};
+			int selrv;
 
 			FD_ZERO(&check);
 			FD_SET(fd, &check);
@@ -179,12 +184,14 @@ sread(int fd, void *buf, size_t n)
 			 * Avoid soft deadlock: do not read if there
 			 * is nothing to read from sockets and pipes.
 			 */
-			if (select(fd + 1, &check, NULL, NULL, &tout) <= 0) {
+			selrv = select(fd + 1, &check, NULL, NULL, &tout);
+			if (selrv == -1) {
 				if (errno == EINTR || errno == EAGAIN)
 					continue;
+			} else if (selrv == 0 && cnt >= 5) {
 				return 0;
-			}
-			break;
+			} else
+				break;
 		}
 #endif
 		(void)ioctl(fd, FIONREAD, &t);
@@ -245,7 +252,7 @@ file_pipe2file(struct magic_set *ms, int fd, const void *startbuf,
 	if (swrite(tfd, startbuf, nbytes) != (ssize_t)nbytes)
 		r = 1;
 	else {
-		while ((r = sread(fd, buf, sizeof(buf))) > 0)
+		while ((r = sread(fd, buf, sizeof(buf), 1)) > 0)
 			if (swrite(tfd, buf, (size_t)r) != r)
 				break;
 	}
@@ -341,7 +348,7 @@ uncompressgzipped(struct magic_set *ms, const unsigned char *old,
 	}
 
 	n = (size_t)z.total_out;
-	inflateEnd(&z);
+	(void)inflateEnd(&z);
 	
 	/* let's keep the nul-terminate tradition */
 	(*newch)[n] = '\0';
@@ -389,8 +396,8 @@ uncompressbuf(struct magic_set *ms, int fd, size_t method,
 			(void)close(2);
 #endif
 
-		execvp(compr[method].argv[0],
-		       (char *const *)(intptr_t)compr[method].argv);
+		(void)execvp(compr[method].argv[0],
+		    (char *const *)(intptr_t)compr[method].argv);
 #ifdef DEBUG
 		(void)fprintf(stderr, "exec `%s' failed (%s)\n",
 		    compr[method].argv[0], strerror(errno));
@@ -412,7 +419,7 @@ uncompressbuf(struct magic_set *ms, int fd, size_t method,
 			switch (fork()) {
 			case 0: /* child */
 				(void)close(fdout[0]);
-				if (swrite(fdin[1], old, n) != n) {
+				if (swrite(fdin[1], old, n) != (ssize_t)n) {
 #ifdef DEBUG
 					(void)fprintf(stderr,
 					    "Write failed (%s)\n",
@@ -446,7 +453,7 @@ uncompressbuf(struct magic_set *ms, int fd, size_t method,
 			n = 0;
 			goto err;
 		}
-		if ((r = sread(fdout[0], *newch, HOWMANY)) <= 0) {
+		if ((r = sread(fdout[0], *newch, HOWMANY, 0)) <= 0) {
 #ifdef DEBUG
 			(void)fprintf(stderr, "Read failed (%s)\n",
 			    strerror(errno));

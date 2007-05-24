@@ -6,13 +6,25 @@ Christos Zoulas `file'
 
 Imported by:
 
-	cvs import -m 'Virgin import of Christos Zoulas's FILE 3.33.' \
-		src/contrib/file ZOULAS file_3_33
+	mv magic/* .
+	rmdir magic
+	mv -i src/* .
+	rm -rf src
+	mv -i doc/* .
+	rm -rf doc
+	rm -rf python
+	rm -f lt*
+	rm -f missing depcomp
+	rm -f config.{guess,sub}
+
+	cvs import -m "Virgin import of Christos Zoulas's FILE 4.21." \
+		src/contrib/file ZOULAS file_4_21
 
 
 Never make local changes to ZOULAS `file'.  Christos is very willing to
 work with us to meet our FreeBSD needs.  Thus submit any desired changes
-to him <> and wait for the next release and vendor import to get them.
+to him <christos@zoulas.com> and wait for the next release and vendor
+import to get them.
         
 obrien@NUXI.com
-24-November-2000
+15-Sept-2002

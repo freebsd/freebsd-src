@@ -57,7 +57,7 @@
 #undef HAVE_MAJOR
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: fsmagic.c,v 1.46 2005/06/25 15:52:14 christos Exp $")
+FILE_RCSID("@(#)$File: fsmagic.c,v 1.47 2007/01/12 17:38:28 christos Exp $")
 #endif	/* lint */
 
 protected int

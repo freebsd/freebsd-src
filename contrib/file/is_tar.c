@@ -45,7 +45,7 @@
 #include "tar.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: is_tar.c,v 1.26 2006/05/03 15:19:25 christos Exp $")
+FILE_RCSID("@(#)$File: is_tar.c,v 1.27 2007/01/12 17:38:28 christos Exp $")
 #endif
 
 #define	isodigit(c)	( ((c) >= '0') && ((c) <= '7') )

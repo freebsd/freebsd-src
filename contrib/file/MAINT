@@ -1,19 +1,9 @@
-$Id: MAINT,v 1.7 2006/06/01 18:19:41 ian Exp $
+$File: MAINT,v 1.9 2007/01/19 21:15:27 christos Exp $
 
 Maintenance notes:
 
 I am continuing to maintain the file command. I welcome your help,
 but to make my life easier I'd like to request the following:
-
-- Don't change the version numbers!
-
-If your changes are extensive, I will have to work hard to 
-integrate them into my version.  If you check it into SCCS locally,
-the version numbers will likely be kept. IF you check it into RCS
-or CVS locally, please use -k to keep the version numbers, and
-please use branch deltas (1.21.1, 1.21.2, ...).  If you don't do
-this, I will likely be unable to use your changes; life's just too
-short.
 
 - Do not distribute changed versions.
 

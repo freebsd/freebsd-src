@@ -32,7 +32,7 @@
  *
  * Created 25 August 1985 by John Gilmore, ihnp4!hoptoad!gnu.
  *
- * $Id: tar.h,v 1.9 2006/05/03 15:19:25 christos Exp $ # checkin only
+ * $File: tar.h,v 1.11 2007/01/16 14:56:45 ljt Exp $ # checkin only
  */
 
 /*
@@ -106,52 +106,6 @@ union record {
 #define	EX_BADARCH	3		/* bad archive */
 #define	EX_SYSTEM	4		/* system gave unexpected error */
 
-
-/*
- * Global variables
- */
-TAR_EXTERN union record	*ar_block;	/* Start of block of archive */
-TAR_EXTERN union record	*ar_record;	/* Current record of archive */
-TAR_EXTERN union record	*ar_last;	/* Last+1 record of archive block */
-TAR_EXTERN char		ar_reading;	/* 0 writing, !0 reading archive */
-TAR_EXTERN int		blocking;	/* Size of each block, in records */
-TAR_EXTERN int		blocksize;	/* Size of each block, in bytes */
-TAR_EXTERN char		*ar_file;	/* File containing archive */
-TAR_EXTERN char		*name_file;	/* File containing names to work on */
-TAR_EXTERN char		*tar;		/* Name of this program */
-
-/*
- * Flags from the command line
- */
-TAR_EXTERN char	f_reblock;		/* -B */
-TAR_EXTERN char	f_create;		/* -c */
-TAR_EXTERN char	f_debug;		/* -d */
-TAR_EXTERN char	f_sayblock;		/* -D */
-TAR_EXTERN char	f_follow_links;		/* -h */
-TAR_EXTERN char	f_ignorez;		/* -i */
-TAR_EXTERN char	f_keep;			/* -k */
-TAR_EXTERN char	f_modified;		/* -m */
-TAR_EXTERN char	f_oldarch;		/* -o */
-TAR_EXTERN char	f_use_protection;	/* -p */
-TAR_EXTERN char	f_sorted_names;		/* -s */
-TAR_EXTERN char	f_list;			/* -t */
-TAR_EXTERN char	f_namefile;		/* -T */
-TAR_EXTERN char	f_verbose;		/* -v */
-TAR_EXTERN char	f_extract;		/* -x */
-TAR_EXTERN char	f_compress;		/* -z */
-
-/*
- * We now default to Unix Standard format rather than 4.2BSD tar format.
- * The code can actually produce all three:
- *	f_standard	ANSI standard
- *	f_oldarch	V7
- *	neither		4.2BSD
- * but we don't bother, since 4.2BSD can read ANSI standard format anyway.
- * The only advantage to the "neither" option is that we can cmp(1) our
- * output to the output of 4.2BSD tar, for debugging.
- */
-#define		f_standard		(!f_oldarch)
-
 /*
  * Structure for keeping track of filenames and lists thereof.
  */
@@ -161,12 +115,6 @@ struct name {
 	char		found;
 	char		name[NAMSIZ+1];
 };
-
-TAR_EXTERN struct name	*namelist;	/* Points to first name in list */
-TAR_EXTERN struct name	*namelast;	/* Points to last name in list */
-
-TAR_EXTERN int		archive;	/* File descriptor for archive file */
-TAR_EXTERN int		errors;		/* # of files in error */
 
 /*
  *
@@ -185,21 +133,3 @@ struct link {
 	short		linkcount;
 	char		name[NAMSIZ+1];
 };
-
-TAR_EXTERN struct link	*linklist;	/* Points to first link in list */
-
-
-/*
- * Error recovery stuff
- */
-TAR_EXTERN char		read_error_flag;
-
-
-#if 0
-/*
- * Declarations of functions available to the world.
- */
-/*LINTLIBRARY*/
-#define	 annorec(stream, msg)	anno(stream, msg, 0)	/* Cur rec */
-#define	annofile(stream, msg)	anno(stream, msg, 1)	/* Saved rec */
-#endif

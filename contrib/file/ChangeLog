@@ -1,3 +1,108 @@
+2007-05-24 10:00 Christos Zoulas <christos@zoulas.com>
+
+	* Fix another integer overflow (Colin Percival)
+
+2007-03-26 13:58 Christos Zoulas <christos@zoulas.com>
+
+	* make sure that all of struct magic_set is initialized appropriately
+	  (Brett)
+
+2007-03-25 17:44 Christos Zoulas <christos@zoulas.com>
+
+	* reset left bytes in the buffer (Dmitry V. Levin)
+
+	* compilation failed with COMPILE_ONLY and ENABLE_CONDITIONALS
+	  (Peter Avalos)
+
+2007-03-15 10:51 Christos Zoulas <christos@zoulas.com>
+
+	* fix fortran and nroff reversed tests (Dmitry V. Levin)
+	
+	* fix exclude option (Dmitry V. Levin)
+
+2007-02-08 17:30 Christos Zoulas <christos@zoulas.com>
+
+	* fix integer underflow in file_printf which can lead to
+	  to exploitable heap overflow (Jean-Sebastien Guay-Lero)
+
+2007-02-05 11:35 Christos Zoulas <christos@zoulas.com>
+
+	* make socket/pipe reading more robust
+
+2007-01-25 16:01 Christos Zoulas <christos@zoulas.com>
+
+	* Centralize all the tests in file_buffer.
+
+	* Add exclude flag.
+
+2007-01-18 05:29 Anon Ymous <do@not.spam.me>
+	
+	* Move the "type" detection code from parse() into its own table
+	  driven routine.  This avoids maintaining multiple lists in
+	  file.h.
+
+	* Add an optional conditional field (ust before the type field).
+	  This code is wrapped in "#ifdef ENABLE_CONDITIONALS" as it is
+	  likely to go away.
+	
+2007-01-16 23:24 Anon Ymous <do@not.spam.me>
+
+	* Fix an initialization bug in check_mem().
+
+2007-01-16 14:58 Anon Ymous <do@not.spam.me>
+
+	* Add a "default" type to print a message if nothing previously
+	  matched at that level or since the last default at that
+	  level.  This is useful for setting up switch-like statements.
+	  It can also be used to do if/else constructions without a
+	  redundant second test.
+
+	* Fix the "x" special case test so that one can test for that
+	  string with "=x".
+
+	* Allow "search" to search the entire buffer if the "/N"
+	  search count is missing.
+
+	* Make "regex" work!  It now starts its search at the
+	  specified offset and takes an (optional) "/N" line count to
+	  specify the search range; otherwise it searches to the end
+	  of the file.  The match is now grabbed correctly for format
+	  strings and the offset set to the end of the match.
+
+	* Add a "/s" flag to "regex" and "search" to set the offset to
+	  the start of the match.  By default the offset is set to the
+	  end of the match, as it is with other tests.  This is mostly
+	  useful for "regex".
+
+	* Make "search", "string" and "pstring" use the same
+	  file_strncmp() routine so that they support the same flags;
+	  "bestring16" and "lestring16" call the same routine, but
+	  with flags = 0.  Also add a "/C" flag (in analogy to "/c")
+	  to ignore the case on uppercase (lowercase) characters in
+	  the test string.
+
+	* Strict adherence to C style string escapes.  A warnings are
+	  printed when compiling.  Note: previously "\a" was
+	  incorrectly translated to 'a' instead of an <alert> (i.e.,
+	  BELL, typically 0x07).
+
+	* Make this compile with "-Wall -Wextra" and all the warning
+	  flags used with WARNS=4 in the NetBSD source.  Also make it
+	  pass lint.
+
+	* Many "cleanups" and hopefully not too many new bugs!
+
+2007-01-16 14:56 Anon Ymous <do@not.spam.me>
+
+	* make several more files compile with gcc warnings
+	  on and also make them pass lint.
+
+2007-01-16 14:54 Anon Ymous <do@not.spam.me>
+
+	* fix a puts()/putc() usage goof in file.c
+
+	* make file.c compile with gcc warnings and pass lint
+
 2006-12-11 16:49 Christos Zoulas <christos@zoulas.com>
 
 	* fix byteswapping issue
