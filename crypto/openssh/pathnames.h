@@ -117,7 +117,7 @@
  * Default location of askpass
  */
 #ifndef _PATH_SSH_ASKPASS_DEFAULT
-#define _PATH_SSH_ASKPASS_DEFAULT	"/usr/X11R6/bin/ssh-askpass"
+#define _PATH_SSH_ASKPASS_DEFAULT	"/usr/local/bin/ssh-askpass"
 #endif
 
 /* Location of ssh-keysign for hostbased authentication */
@@ -127,7 +127,7 @@
 
 /* xauth for X11 forwarding */
 #ifndef _PATH_XAUTH
-#define _PATH_XAUTH			"/usr/X11R6/bin/xauth"
+#define _PATH_XAUTH			"/usr/local/bin/xauth"
 #endif
 
 /* UNIX domain socket for X11 server; displaynum will replace %u */
