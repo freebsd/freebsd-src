@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: ipfilter
-# REQUIRE: root mountcritlocal
+# REQUIRE: root FILESYSTEMS
 # BEFORE:  netif
 # KEYWORD: nojail
 

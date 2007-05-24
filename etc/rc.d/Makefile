@@ -1,7 +1,7 @@
 # $NetBSD: Makefile,v 1.16 2001/01/14 15:37:22 minoura Exp $
 # $FreeBSD$
 
-FILES=	DAEMON LOGIN NETWORKING SERVERS \
+FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	abi accounting addswap adjkerntz amd \
 	apm apmd archdep atm1 atm2 atm3 auditd auto_linklocal \
 	bgfsck bluetooth bootparams bridge bsnmpd bthidd \
