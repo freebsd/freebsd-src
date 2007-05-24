@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: geli2
-# REQUIRE: mountcritlocal
+# REQUIRE: FILESYSTEMS
 # KEYWORD: nojail
 
 . /etc/rc.subr

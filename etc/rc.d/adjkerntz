@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: adjkerntz
-# REQUIRE: mountcritlocal random
+# REQUIRE: FILESYSTEMS random
 # BEFORE: netif
 # KEYWORD: nojail
 

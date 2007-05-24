@@ -75,7 +75,7 @@ load_rc_config 'XXX'
 skip="-s nostart"
 if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
 	skip="$skip -s nojail"
-	if [ "$early_late_divider" = "mountcritlocal" ]; then
+	if [ "$early_late_divider" = "FILESYSTEMS" ]; then
 		early_late_divider=NETWORKING
 	fi
 fi
