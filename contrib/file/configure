@@ -1808,7 +1808,7 @@ fi
 
 # Define the identity of the package.
  PACKAGE=file
- VERSION=4.19
+ VERSION=4.21
 
 
 cat >>confdefs.h <<_ACEOF
@@ -20670,7 +20670,8 @@ done
 
 
 
-for ac_header in utime.h wchar.h wctype.h
+
+for ac_header in utime.h wchar.h wctype.h limits.h
 do
 as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
 if eval "test \"\${$as_ac_Header+set}\" = set"; then
@@ -20823,7 +20824,8 @@ done
 
 
 
-for ac_header in sys/mman.h sys/stat.h sys/types.h sys/utime.h
+
+for ac_header in sys/mman.h sys/stat.h sys/types.h sys/utime.h sys/time.h
 do
 as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
 if eval "test \"\${$as_ac_Header+set}\" = set"; then
@@ -22612,7 +22614,8 @@ _ACEOF
 
 
 
-for ac_func in mmap strerror strtoul mbrtowc mkstemp getopt_long utimes utime wcwidth snprintf vsnprintf
+
+for ac_func in mmap strerror strndup strtoul mbrtowc mkstemp getopt_long utimes utime wcwidth snprintf vsnprintf
 do
 as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
 echo "$as_me:$LINENO: checking for $ac_func" >&5

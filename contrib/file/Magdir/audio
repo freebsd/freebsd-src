@@ -500,13 +500,13 @@
 # Since I saw only eqf files with version v1.1 I think that it's OK
 >23	string	x	\b%.4s
 # .preset
-0	string	\[Equalizer\ preset\]	XMMS equalizer preset
+0	string	[Equalizer\ preset]	XMMS equalizer preset
 # .m3u
-0	string	\#EXTM3U	M3U playlist
+0	string	#EXTM3U			M3U playlist
 # .pls
-0	string	\[playlist\]	PLS playlist
+0	string	[playlist]		PLS playlist
 # licq.conf
-1	string	\[licq\]	LICQ configuration file
+1	string	[licq]			LICQ configuration file
 
 # Atari ST audio files by Dirk Jagdmann <doj@cubic.org>
 0	string		ICE!		SNDH Atari ST music
@@ -545,3 +545,14 @@
 >>27    byte            113     \b, Alpha 1.13
 >>27    byte            114     \b, Beta 1.14
 >>27    byte            115     \b, Alpha 1.15
+
+# IMY
+# from http://filext.com/detaillist.php?extdetail=IMY
+# http://cellphones.about.com/od/cellularfaqs/f/rf_imelody.htm
+# http://download.ncl.ie/doc/api/ie/ncl/media/music/IMelody.html
+# http://www.wx800.com/msg/download/irda/iMelody.pdf
+0	string	BEGIN:IMELODY	iMelody Ringtone Format
+
+# From: Matthew Flaschen <matthew.flaschen@gatech.edu>
+0	string	#EXTM3U 	M3U playlist text
+

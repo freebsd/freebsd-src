@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- PERL -*-
-# $Id: magic2mime,v 1.4 2006/11/25 18:36:10 christos Exp $
+# $File: magic2mime,v 1.4 2006/11/25 18:36:10 christos Exp $
 # Copyright (c) 1996, 1997 vax@linkdead.paranoia.com (VaX#n8)
 #
 # Usage: echo 'your-file-output-here' | file_to_ctype.pl
