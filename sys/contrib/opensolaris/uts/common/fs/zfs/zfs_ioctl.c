@@ -1773,6 +1773,7 @@ zfsdev_fini(void)
 }
 
 static struct task zfs_start_task;
+static struct root_hold_token *zfs_root_token;
 
 static void
 zfs_start(void *context __unused, int pending __unused)
@@ -1783,6 +1784,7 @@ zfs_start(void *context __unused, int pending __unused)
 	zfs_init();
 	zvol_init();
 	printf("ZFS storage pool version " ZFS_VERSION_STRING "\n");
+	root_mount_rel(zfs_root_token);
 }
 
 static int
@@ -1793,6 +1795,7 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 	error = EOPNOTSUPP;
 	switch (type) {
 	case MOD_LOAD:
+		zfs_root_token = root_mount_hold("ZFS");
 		printf("WARNING: ZFS is considered to be an experimental "
 		    "feature in FreeBSD.\n");
 		TASK_INIT(&zfs_start_task, 0, zfs_start, NULL);
@@ -1820,4 +1823,4 @@ static moduledata_t zfs_mod = {
 	zfs_modevent,
 	0
 };
-DECLARE_MODULE(zfsctrl, zfs_mod, SI_SUB_MOUNT_ROOT, SI_ORDER_ANY);
+DECLARE_MODULE(zfsctrl, zfs_mod, SI_SUB_VFS, SI_ORDER_ANY);
