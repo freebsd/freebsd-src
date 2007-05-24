@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/pseudofs/pseudofs_internal.h>
@@ -54,7 +55,6 @@ pfs_fileno_init(struct pfs_info *pi)
 	up = new_unrhdr(3, INT_MAX, &pi->pi_mutex);
 	mtx_lock(&pi->pi_mutex);
 	pi->pi_unrhdr = up;
-	pi->pi_root->pn_fileno = 2;
 	mtx_unlock(&pi->pi_mutex);
 }
 
@@ -82,12 +82,18 @@ pfs_fileno_uninit(struct pfs_info *pi)
 void
 pfs_fileno_alloc(struct pfs_info *pi, struct pfs_node *pn)
 {
+	/* pi is not really necessary as it can be derived */
+	KASSERT(pi == pn->pn_info, ("pn / pi mismatch"));
+
 	/* make sure our parent has a file number */
 	if (pn->pn_parent && !pn->pn_parent->pn_fileno)
 		pfs_fileno_alloc(pi, pn->pn_parent);
 
 	switch (pn->pn_type) {
 	case pfstype_root:
+		/* root must always be 2 */
+		pn->pn_fileno = 2;
+		break;
 	case pfstype_dir:
 	case pfstype_file:
 	case pfstype_symlink:
@@ -134,8 +140,13 @@ pfs_fileno_alloc(struct pfs_info *pi, struct pfs_node *pn)
 void
 pfs_fileno_free(struct pfs_info *pi, struct pfs_node *pn)
 {
+	/* pi is not really necessary as it can be derived */
+	KASSERT(pi == pn->pn_info, ("pn / pi mismatch"));
+
 	switch (pn->pn_type) {
 	case pfstype_root:
+		/* not allocated from unrhdr */
+		return;
 	case pfstype_dir:
 	case pfstype_file:
 	case pfstype_symlink:
