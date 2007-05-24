@@ -98,4 +98,15 @@ uint32_t ixp425_sdram_size(void);
 int	ixp425_md_route_interrupt(device_t, device_t, int);
 void	ixp425_md_attach(device_t);
 
+struct ixp425_ivar {
+	uint32_t	addr;
+	int		irq;
+};
+#define	IXP425_IVAR(d)	((struct ixp425_ivar *) device_get_ivars(d))
+
+enum {
+	IXP425_IVAR_ADDR,		/* base physical address */
+	IXP425_IVAR_IRQ			/* irq/gpio pin assignment */
+};
+
 #endif /* _IXP425VAR_H_ */
