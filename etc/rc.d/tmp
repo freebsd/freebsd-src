@@ -48,7 +48,7 @@ case "${tmpmfs}" in
 [Nn][Oo])
 	;;
 *)
-	if (/bin/mkdir -p /tmp/.diskless 2> /dev/null); then
+	if /bin/mkdir -p /tmp/.diskless 2> /dev/null; then
 		rmdir /tmp/.diskless
 	else
 		if [ -h /tmp ]; then
