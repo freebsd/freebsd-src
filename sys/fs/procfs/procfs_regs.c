@@ -93,7 +93,7 @@ procfs_doprocregs(PFS_FILL_ARGS)
 		return (0);
 
 	PROC_LOCK(p);
-	KASSERT(p->p_lock > 0, ("proc not held"));
+	PROC_ASSERT_HELD(p);
 	if (p_candebug(td, p)) {
 		PROC_UNLOCK(p);
 		return (EPERM);
