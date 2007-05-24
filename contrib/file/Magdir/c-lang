@@ -20,5 +20,5 @@
 # The inverted index functionality was added some time betwen
 # versions 11 and 15, so look for -q if version is above 14:
 >7	string		>14
->>10	regex		.+\ -q\		with inverted index
->10	regex		.+\ -c\		text (non-compressed)
+>>10	regex		.+\ -q\ 	with inverted index
+>10	regex		.+\ -c\ 	text (non-compressed)

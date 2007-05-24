@@ -210,7 +210,3 @@
 16	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
 17	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
 18	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
-
-# SQLite (Ty Sarna)
-0	string	**\ This\ file\ contains\ an\ SQLite	SQLite Database
->&1	regex	[^\ ]+					Version %s

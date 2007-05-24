@@ -3,7 +3,7 @@
 # wordprocessors:  file(1) magic fo word processors.
 #
 ####### PWP file format used on Smith Corona Personal Word Processors:
-2	string	\040\040\040\040\040\040\040\040\040\040\040ML4D\040\'92	Smith Corona PWP
+2	string	\040\040\040\040\040\040\040\040\040\040\040ML4D\040'92	Smith Corona PWP
 >24	byte	2	\b, single spaced
 >24	byte	3	\b, 1.5 spaced
 >24	byte	4	\b, double spaced
