@@ -62,17 +62,15 @@ static driver_t uart_ixp425_driver = {
 	uart_ixp425_methods,
 	sizeof(struct uart_softc),
 };
+DRIVER_MODULE(uart, ixp, uart_ixp425_driver, uart_devclass, 0, 0);
 
-extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 static int
 uart_ixp425_probe(device_t dev)
 {
 	struct uart_softc *sc;
 
 	sc = device_get_softc(dev);
-	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 	sc->sc_class = &uart_ns8250_class;
-	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 	/*
 	 * XXX set UART Unit Enable (0x40) AND
 	 *     receiver timeout int enable (0x10).
@@ -84,8 +82,6 @@ uart_ixp425_probe(device_t dev)
 	bus_space_write_4(&ixp425_a4x_bs_tag,
 	    device_get_unit(dev) == 0 ? IXP425_UART0_VBASE : IXP425_UART1_VBASE,
 	    IXP425_UART_IER, IXP425_UART_IER_UUE | IXP425_UART_IER_RTOIE);
-	return(uart_bus_probe(dev, 0, IXP425_UART_FREQ, 0, 0));
+
+	return uart_bus_probe(dev, 0, IXP425_UART_FREQ, 0, 0);
 }
-
-
-DRIVER_MODULE(uart, ixp, uart_ixp425_driver, uart_devclass, 0, 0);
