@@ -52,7 +52,7 @@
 #include <unistd.h>
 
 static int flag_a, flag_c, flag_d;
-static int flag_I = 500000;
+static int flag_I = 1000000;
 
 static void usage(void);
 
