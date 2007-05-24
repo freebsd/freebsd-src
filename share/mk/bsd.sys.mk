@@ -54,7 +54,9 @@ CWARNFLAGS	+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
 # XXX always get it right.
 CWARNFLAGS	+=	-Wno-uninitialized
 .  endif
+.  if !defined(WITH_GCC3)
 CWARNFLAGS	+=	-Wno-pointer-sign
+.  endif
 . endif
 
 . if defined(FORMAT_AUDIT)
