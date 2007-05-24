@@ -6,7 +6,7 @@
 #
 
 # PROVIDE: addswap
-# REQUIRE: mountcritlocal
+# REQUIRE: FILESYSTEMS
 # BEFORE: sysctl
 # KEYWORD: nojail
 

@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: pflog
-# REQUIRE: root mountcritlocal netif cleanvar
+# REQUIRE: root FILESYSTEMS netif cleanvar
 # KEYWORD: nojail
 
 . /etc/rc.subr

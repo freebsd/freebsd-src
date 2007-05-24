@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: pf
-# REQUIRE: root mountcritlocal netif pflog pfsync
+# REQUIRE: root FILESYSTEMS netif pflog pfsync
 # BEFORE:  routing
 # KEYWORD: nojail
 
