@@ -13,12 +13,12 @@ Imported by:
 	mv -i doc/* .
 	rm -rf doc
 	rm -rf python
-	rm lt*
-	rm missing depcomp
-	rm config.{guess,sub}
+	rm -f lt*
+	rm -f missing depcomp
+	rm -f config.{guess,sub}
 
-	cvs import -m "Virgin import of Christos Zoulas's FILE 4.17." \
-		src/contrib/file ZOULAS file_4_17
+	cvs import -m "Virgin import of Christos Zoulas's FILE 4.19." \
+		src/contrib/file ZOULAS file_4_19
 
 
 Never make local changes to ZOULAS `file'.  Christos is very willing to
