@@ -29,6 +29,8 @@
 >8	string		RMID		\b, MIDI
 # RIFF Multimedia Movie File format
 >8	string		RMMP		\b, multimedia movie
+# RIFF wrapper for MP3
+>8	string		RMP3		\b, MPEG Layer 3 audio
 # Microsoft WAVE format (*.wav)
 >8	string		WAVE		\b, WAVE audio
 >>20	leshort		1		\b, Microsoft PCM
@@ -120,6 +122,7 @@
 >>>>>>>(104.l+132)      string/c        iv50    Indeo 5.0
 >>>>>>>(104.l+132)      string/c        mp42    Microsoft MPEG-4 v2
 >>>>>>>(104.l+132)      string/c        mp43    Microsoft MPEG-4 v3
+>>>>>>>(104.l+132)      string/c        fmp4    FFMpeg MPEG-4
 >>>>>>>(104.l+132)      string/c        mjpg    Motion JPEG
 >>>>>>>(104.l+132)      string/c        div3    DivX 3
 >>>>>>>>112             string/c        div3    Low-Motion
@@ -127,6 +130,7 @@
 >>>>>>>(104.l+132)      string/c        divx    DivX 4
 >>>>>>>(104.l+132)      string/c        dx50    DivX 5
 >>>>>>>(104.l+132)      string/c        xvid    XviD
+>>>>>>>(104.l+132)      string/c        wmv3    Windows Media Video 9
 >>>>>>>(104.l+132)      string/c        h264    X.264
 >>>>>>>(104.l+132)      lelong  0
 ##>>>>>>>(104.l+132)      string  x       (%.4s)
@@ -138,6 +142,9 @@
 >>>>>>>(92.l+172)       string          strf
 >>>>>>>>(92.l+180)      leshort 0x0001  uncompressed PCM
 >>>>>>>>(92.l+180)      leshort 0x0002  ADPCM
+>>>>>>>>(92.l+180)      leshort 0x0006  aLaw
+>>>>>>>>(92.l+180)      leshort 0x0007  uLaw
+>>>>>>>>(92.l+180)      leshort 0x0050  MPEG-1 Layer 1 or 2
 >>>>>>>>(92.l+180)      leshort 0x0055  MPEG-1 Layer 3
 >>>>>>>>(92.l+180)      leshort 0x2000  Dolby AC3
 >>>>>>>>(92.l+180)      leshort 0x0161  DivX

@@ -1,3 +1,89 @@
+2006-12-11 16:49 Christos Zoulas <christos@zoulas.com>
+
+	* fix byteswapping issue
+
+	* report the number of bytes we tried to
+	  allocate when allocation fails
+
+	* add a few missed cases in the strength routine
+
+2006-12-08 16:32 Christos Zoulas <christos@zoulas.com>
+
+	* store and print the line number of the magic
+	  entry for debugging.         
+
+	* if the magic entry did not print anything,
+	  don't treat it as a match
+
+	* change the magic strength algorithm to take
+	  into account the relationship op.
+
+	* fix a bug in search where we could accidentally
+	  return a match.
+
+	* propagate the error return from match to
+	  file_softmagic.
+
+2006-11-25 13:35 Christos Zoulas <christos@zoulas.com>
+	
+	* Don't store the current offset in the magic
+	  struct, because it needs to be restored and
+	  it was not done properly all the time. Bug
+	  found by: Arkadiusz Miskiewicz
+
+	* Fix problem in the '\0' separator; and don't
+	  print it as an additional separator; print
+	  it as the only separator.
+
+2006-11-17 10:51 Christos Zoulas <christos@zoulas.com>
+
+	* Added a -0 option to print a '\0' separator
+	  Etienne Buira <etienne.buira@free.fr>
+
+2006-10-31 15:14 Christos Zoulas <christos@zoulas.com>
+
+	* Check offset before copying (Mike Frysinger)
+
+	* merge duplicated code
+
+	* add quad date support
+
+	* make sure that we nul terminate desc (Ryoji Kanai)
+
+	* don't process elf notes multiple times
+
+	* allow -z to report empty compressed files
+
+	* use calloc to initialize the ascii buffers (Jos van den Oever)
+
+2006-06-08 11:11 Christos Zoulas <christos@zoulas.com>
+
+	* QNX fixes (Mike Gorchak)
+
+	* Add quad support.
+
+	* FIFO checks (Dr. Werner Fink)
+
+	* Linux ELF fixes (Dr. Werner Fink)
+
+	* Magic format checks (Dr. Werner Fink)
+
+	* Magic format function improvent (Karl Chen)
+
+2006-05-03 11:11 Christos Zoulas <christos@zoulas.com>
+
+	* Pick up some elf changes and some constant fixes from SUSE
+
+	* Identify gnu tar vs. posix tar
+
+	* When keep going, don't print spurious newlines (Radek Vokál)
+
+2006-04-01 12:02 Christos Zoulas <christos@zoulas.com>
+
+	* Use calloc instead of malloc (Mike Frysinger)
+
+	* Fix configure script to detect wctypes.h (Mike Frysinger)
+
 2006-03-02 16:06 Christos Zoulas <christos@zoulas.com>
 
 	* Print empty if the file is (Mike Frysinger)
