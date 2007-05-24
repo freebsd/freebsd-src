@@ -178,8 +178,8 @@ chk_lnk(ARCHD *arcn)
 			 */
 			if (--pt->nlink <= 1) {
 				*ppt = pt->fow;
-				(void)free((char *)pt->name);
-				(void)free((char *)pt);
+				free((char *)pt->name);
+				free((char *)pt);
 			}
 			return(1);
 		}
@@ -198,7 +198,7 @@ chk_lnk(ARCHD *arcn)
 			ltab[indx] = pt;
 			return(0);
 		}
-		(void)free((char *)pt);
+		free((char *)pt);
 	}
 
 	paxwarn(1, "Hard link table out of memory");
@@ -254,8 +254,8 @@ purg_lnk(ARCHD *arcn)
 	 * remove and free it
 	 */
 	*ppt = pt->fow;
-	(void)free((char *)pt->name);
-	(void)free((char *)pt);
+	free((char *)pt->name);
+	free((char *)pt);
 }
 
 /*
@@ -288,8 +288,8 @@ lnk_end(void)
 		while (pt != NULL) {
 			ppt = pt;
 			pt = ppt->fow;
-			(void)free((char *)ppt->name);
-			(void)free((char *)ppt);
+			free((char *)ppt->name);
+			free((char *)ppt);
 		}
 	}
 	return;
@@ -460,7 +460,7 @@ chk_ftime(ARCHD *arcn)
 		paxwarn(1, "File time table ran out of memory");
 
 	if (pt != NULL)
-		(void)free((char *)pt);
+		free((char *)pt);
 	return(-1);
 }
 
@@ -538,7 +538,7 @@ add_name(char *oname, int onamelen, char *nname)
 			if (strcmp(nname, pt->nname) == 0)
 				return(0);
 
-			(void)free((char *)pt->nname);
+			free((char *)pt->nname);
 			if ((pt->nname = strdup(nname)) == NULL) {
 				paxwarn(1, "Cannot update rename table");
 				return(-1);
@@ -557,9 +557,9 @@ add_name(char *oname, int onamelen, char *nname)
 				ntab[indx] = pt;
 				return(0);
 			}
-			(void)free((char *)pt->oname);
+			free((char *)pt->oname);
 		}
-		(void)free((char *)pt);
+		free((char *)pt);
 	}
 	paxwarn(1, "Interactive rename table out of memory");
 	return(-1);
@@ -994,7 +994,7 @@ add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
 			atab[indx] = pt;
 			return;
 		}
-		(void)free((char *)pt);
+		free((char *)pt);
 	}
 
 	paxwarn(1, "Directory access time reset table ran out of memory");
@@ -1051,8 +1051,8 @@ get_atdir(dev_t dev, ino_t ino, time_t *mtime, time_t *atime)
 	*ppt = pt->fow;
 	*mtime = pt->mtime;
 	*atime = pt->atime;
-	(void)free((char *)pt->name);
-	(void)free((char *)pt);
+	free((char *)pt->name);
+	free((char *)pt);
 	return(0);
 }
 
