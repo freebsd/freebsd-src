@@ -94,7 +94,6 @@ static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	vbusy(struct vnode *vp);
-static void	vdropl(struct vnode *vp);
 static void	vinactive(struct vnode *, struct thread *);
 static void	v_incr_usecount(struct vnode *);
 static void	v_decr_usecount(struct vnode *);
@@ -2199,7 +2198,7 @@ vdrop(struct vnode *vp)
  * the vnode we will free it if it has been vgone'd otherwise it is
  * placed on the free list.
  */
-static void
+void
 vdropl(struct vnode *vp)
 {
 
