@@ -52,3 +52,5 @@
 0	string/b	#!\ /usr/bin/php	PHP script text executable
 
 0	string		Zend\x00		PHP script Zend Optimizer data
+
+0	string		\$!			DCL command file

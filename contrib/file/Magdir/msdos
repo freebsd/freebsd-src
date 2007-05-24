@@ -86,6 +86,7 @@
 >>>>(0x3c.l+4)	leshort		0x290	PA-RISC
 >>>>(0x3c.l+22)	leshort&0x0100	>0	32-bit
 >>>>(0x3c.l+22)	leshort&0x1000	>0	system file
+>>>>(0x3c.l+232)	lelong	>0	Mono/.Net assembly
 
 >>>>(0x3c.l+0xf8)	string		UPX0 \b, UPX compressed
 >>>>(0x3c.l+0xf8)	search/0x140	PEC2 \b, PECompact2 compressed
@@ -358,6 +359,8 @@
 >30	byte	12		(4kB sectors)
 
 # Popular applications
+# False positive with PPT
+#0       string \xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3E\x00\x03\x00\xFE\xFF Microsoft Installer
 2080	string	Microsoft\ Word\ 6.0\ Document	%s
 2080	string	Documento\ Microsoft\ Word\ 6 Spanish Microsoft Word 6 document data
 # Pawel Wiecek <coven@i17linuxb.ists.pwr.wroc.pl> (for polish Word)
@@ -368,7 +371,6 @@
 0       string  PO^Q`				Microsoft Word 6.0 Document
 #
 0	string	\376\067\0\043			Microsoft Office Document
-0	string	\320\317\021\340\241\261\032\341	Microsoft Office Document
 0	string	\333\245-\0\0\0			Microsoft Office Document
 #
 2080	string	Microsoft\ Excel\ 5.0\ Worksheet	%s
@@ -590,10 +592,16 @@
 >>(64.l)  lestring16 >0 Description: %15.15s
 
 # From: Alex Beregszaszi <alex@fsn.hu>
-0	string	COWD		VMWare3 disk image
->12	belong	x		%d bytes
+0	string	COWD		VMWare3
+>4	byte	3	 	disk image
+>>32	lelong	x		(%d/
+>>36	lelong	x		\b%d/
+>>40	lelong	x		\b%d)
+>4	byte	2	 	undoable disk image
+>>32	string  >\0		(%s)
 
 0	string	VMDK		 VMware4 disk image
+0	string	KDMV		 VMware4 disk image
 
 0	belong	0x514649fb	QEMU Copy-On-Write disk image
 >4	belong	x		version %d,
@@ -607,3 +615,7 @@
 >48	string	x				subtype %s
 
 0	lelong	0x02468ace			Bochs Sparse disk image
+
+# from http://filext.com by Derek M Jones <derek@knosof.co.uk>
+0	string	\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3E\x00\x03\x00\xFE\xFF	Microsoft Installer
+0	string	\320\317\021\340\241\261\032\341	Microsoft Office Document

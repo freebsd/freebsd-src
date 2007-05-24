@@ -267,9 +267,6 @@
 #
 0	beshort		0x1010		PEX Binary Archive
 
-# Visio drawings
-03000	string	Visio\ (TM)\ Drawing	%s
-
 # Tgif files
 0	string	\%TGIF\ x 		Tgif file version %s
 
@@ -526,3 +523,8 @@
 # specifications at http://hdf.ncsa.uiuc.edu/
 0	belong	0x0e031301	Hierarchical Data Format (version 4) data
 0	string	\211HDF\r\n\032	Hierarchical Data Format (version 5) data
+
+# From: Tobias Burnus <burnus@net-b.de>
+# Xara (for a while: Corel Xara) is a graphic package, see
+# http://www.xara.com/ for Windows and as GPL application for
+0	string	XARA\243\243	Xara graphics file

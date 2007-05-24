@@ -13,7 +13,7 @@
 
 # xfsdump archive
 0	string	xFSdump0			xfsdump archive
->8	long	x	(version %d)
+>8	belong	x	(version %d)
 
 # Jaleo XFS files
 0	long	395726				Jaleo XFS file
