@@ -62,7 +62,7 @@ FBSD_1.0 {
 	hesiod_init;
 	hesiod_end;
 	hesiod_to_bind;
-	hesiod_resolv;
+	hesiod_resolve;
 	hesiod_free_list;
 	hes_init;
 	hes_to_bind;
