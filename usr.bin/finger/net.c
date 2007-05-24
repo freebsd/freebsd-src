@@ -144,13 +144,7 @@ do_protocol(const char *name, const struct addrinfo *ai)
 	iov[msg.msg_iovlen].iov_base = neteol;
 	iov[msg.msg_iovlen++].iov_len = 2;
 
-	/*
-	 * -T disables data-on-SYN: compatibility option to finger broken
-	 * hosts.  Also, the implicit-open API is broken on IPv6, so do
-	 * the explicit connect there, too.
-	 */
-	if ((Tflag || ai->ai_addr->sa_family == AF_INET6)
-	    && connect(s, ai->ai_addr, ai->ai_addrlen) < 0) {
+	if (connect(s, ai->ai_addr, ai->ai_addrlen) < 0) {
 		warn("connect");
 		close(s);
 		return -1;

@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 
 DB *db;
 time_t now;
-int entries, gflag, kflag, lflag, mflag, pplan, sflag, oflag, Tflag;
+int entries, gflag, kflag, lflag, mflag, pplan, sflag, oflag;
 sa_family_t family = PF_UNSPEC;
 int d_first = -1;
 char tbuf[1024];
@@ -140,9 +140,6 @@ option(int argc, char **argv)
 			break;
 		case 'o':
 			oflag = 1;		/* office info */
-			break;
-		case 'T':
-			Tflag = 1;		/* disable T/TCP */
 			break;
 		case '?':
 		default:
