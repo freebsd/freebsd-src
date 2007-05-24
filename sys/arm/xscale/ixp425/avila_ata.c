@@ -120,17 +120,14 @@ ata_avila_attach(device_t dev)
 {
 	struct ata_avila_softc *sc = device_get_softc(dev);
 	struct ixp425_softc *sa = device_get_softc(device_get_parent(dev));
-	u_int32_t alt_t_off, board_type, ide_gpin, ide_irq;
+	u_int32_t alt_t_off, ide_gpin, ide_gptype, ide_irq;
 
-	board_type = 0;
 	sc->sc_dev = dev;
 	/* NB: borrow from parent */
 	sc->sc_iot = sa->sc_iot;
 	sc->sc_exp_ioh = sa->sc_exp_ioh;
-	if (EXP_BUS_READ_4(sc, EXP_TIMING_CS2_OFFSET) != 0)
-		board_type = 1;		/* Avila board */
-
-	if (board_type == 1) {
+	if (EXP_BUS_READ_4(sc, EXP_TIMING_CS2_OFFSET) != 0) {
+		/* Avila board */
 		if (bus_space_map(sc->sc_iot, IXP425_EXP_BUS_CS1_HWBASE,
 		    IXP425_EXP_BUS_CS1_SIZE, 0, &sc->sc_ioh))
 			panic("%s: unable to map Expansion Bus CS1 window",
@@ -140,10 +137,12 @@ ata_avila_attach(device_t dev)
 			panic("%s: unable to map Expansion Bus CS2 window",
 			    __func__);
 		ide_gpin = AVILA_IDE_GPIN;
+		ide_gptype = GPIO_TYPE(ide_gpin, GPIO_TYPE_EDG_RISING);
 		ide_irq = AVILA_IDE_IRQ;
 		sc->sc_16bit_off = EXP_TIMING_CS1_OFFSET;
 		alt_t_off = EXP_TIMING_CS2_OFFSET;
 	} else {
+		/* Pronghorn */
 		if (bus_space_map(sc->sc_iot, IXP425_EXP_BUS_CS3_HWBASE,
 		    IXP425_EXP_BUS_CS3_SIZE, 0, &sc->sc_ioh))
 			panic("%s: unable to map Expansion Bus CS3 window",
@@ -153,6 +152,7 @@ ata_avila_attach(device_t dev)
 			panic("%s: unable to map Expansion Bus CS4 window",
 			    __func__);
 		ide_gpin = PRONGHORN_IDE_GPIN;
+		ide_gptype = GPIO_TYPE(ide_gpin, GPIO_TYPE_ACT_HIGH);
 		ide_irq = PRONGHORN_IDE_IRQ;
 		sc->sc_16bit_off = EXP_TIMING_CS3_OFFSET;
 		alt_t_off = EXP_TIMING_CS4_OFFSET;
@@ -187,11 +187,10 @@ ata_avila_attach(device_t dev)
 
 	GPIO_CONF_WRITE_4(sa, IXP425_GPIO_GPOER, 
 	    GPIO_CONF_READ_4(sa, IXP425_GPIO_GPOER) | (1<<ide_gpin));
-	/* interrupt is active high */
+	/* set interrupt type */
 	GPIO_CONF_WRITE_4(sa, GPIO_TYPE_REG(ide_gpin),
-	    (GPIO_CONF_READ_4(sa, GPIO_TYPE_REG(ide_gpin)) &
-	    ~GPIO_TYPE(ide_gpin, GPIO_TYPE_MASK)) |
-	    GPIO_TYPE(ide_gpin, GPIO_TYPE_ACT_HIGH));
+	    (GPIO_CONF_READ_4(sa, GPIO_TYPE_REG(ide_gpin)) &~
+	     GPIO_TYPE(ide_gpin, GPIO_TYPE_MASK)) | ide_gptype);
 
 	/* clear ISR */
 	GPIO_CONF_WRITE_4(sa, IXP425_GPIO_GPISR, (1<<ide_gpin));
