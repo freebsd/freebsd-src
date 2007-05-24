@@ -1229,7 +1229,7 @@ ar_next(void)
 		 */
 		if (ar_open(buf) >= 0) {
 			if (freeit) {
-				(void)free((char *)(uintptr_t)arcname);
+				free((char *)(uintptr_t)arcname);
 				freeit = 0;
 			}
 			if ((arcname = strdup(buf)) == NULL) {
