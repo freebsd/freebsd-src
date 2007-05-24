@@ -17,8 +17,8 @@ Imported by:
 	rm -f missing depcomp
 	rm -f config.{guess,sub}
 
-	cvs import -m "Virgin import of Christos Zoulas's FILE 4.19." \
-		src/contrib/file ZOULAS file_4_19
+	cvs import -m "Virgin import of Christos Zoulas's FILE 4.21." \
+		src/contrib/file ZOULAS file_4_21
 
 
 Never make local changes to ZOULAS `file'.  Christos is very willing to
