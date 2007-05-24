@@ -13,4 +13,5 @@
 0	string	VimCrypt~	Vim encrypted file data
 # Vi IMproved Swap file
 # by Sven Wegener <swegener@gentoo.org>
-0	string	b0VIM\		Vim swap file, version %s
+0	string	b0VIM\ 		Vim swap file
+>&0	string	>\0		\b, version %s

@@ -165,8 +165,8 @@
 0	string	WNGZWZSS	Wingz spreadsheet
 0	string	WNGZWZHP	Wingz help file
 #
-0	string	\#Inventor V	IRIS Inventor 1.0 file
-0	string	\#Inventor V2	Open Inventor 2.0 file
+0	string	#Inventor V	IRIS Inventor 1.0 file
+0	string	#Inventor V2	Open Inventor 2.0 file
 # GLF is OpenGL stream encoding
 0	string	glfHeadMagic();		GLF_TEXT
 4	belong	0x7d000000		GLF_BINARY_LSB_FIRST

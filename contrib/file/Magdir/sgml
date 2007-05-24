@@ -12,8 +12,9 @@
 # Extensible markup language (XML), a subset of SGML
 # from Marc Prud'hommeaux (marc@apocalypse.org)
 0	string/cb	\<?xml			XML document text
-0	string		\<?xml\ version "	XML
+0	string		\<?xml\ version\ "	XML
 0	string		\<?xml\ version="	XML
+0	string		\<?xml\ version='	XML
 >15	string		>\0			%.3s document text
 >>23	string		\<xsl:stylesheet	(XSL stylesheet)
 >>24	string		\<xsl:stylesheet	(XSL stylesheet)

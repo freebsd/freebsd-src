@@ -5,22 +5,25 @@
 0	string	\366\366\366\366	PC formatted floppy with no filesystem
 # Sun disk labels
 # From /usr/include/sun/dklabel.h:
-0774	beshort		0xdabe		Sun disk label
->0	string		x		'%s
->>31  	string		>\0		\b%s
->>>63  	string		>\0		\b%s
->>>>95 	string		>\0		\b%s
->0	string		x		\b'
->0734	short		>0		%d rpm,
->0736	short		>0		%d phys cys,
->0740	short		>0		%d alts/cyl,
->0746	short		>0		%d interleave,
->0750	short		>0		%d data cyls,
->0752	short		>0		%d alt cyls,
->0754	short		>0		%d heads/partition,
->0756	short		>0		%d sectors/track,
->0764	long		>0		start cyl %ld,
->0770	long		x		%ld blocks
+0774	beshort		0xdabe		
+# modified by Joerg Jenderek, because original test
+# succeeds for Cabinet archive dao360.dl_ with negative blocks
+>0770	long		>0		Sun disk label
+>>0	string		x		'%s
+>>>31	string		>\0		\b%s
+>>>>63	string		>\0		\b%s
+>>>>>95	string		>\0		\b%s
+>>0	string		x		\b'
+>>0734	short		>0		%d rpm,
+>>0736	short		>0		%d phys cys,
+>>0740	short		>0		%d alts/cyl,
+>>0746	short		>0		%d interleave,
+>>0750	short		>0		%d data cyls,
+>>0752	short		>0		%d alt cyls,
+>>0754	short		>0		%d heads/partition,
+>>0756	short		>0		%d sectors/track,
+>>0764	long		>0		start cyl %ld,
+>>0770	long		x		%ld blocks
 # Is there a boot block written 1 sector in?
 >512    belong&077777777	0600407	\b, boot block present
 # Joerg Jenderek: Smart Boot Manager backup file is 41 byte header + first sectors of disc
@@ -100,75 +103,140 @@
 >>96	string	read\ error\ while\ reading\ drive	\b, FREE-DOS Beta 0.9 MBR
 >271	string	Operating\ system\ loading 		
 >>296	string	error\r					\b, SYSLINUX MBR (2.10)
+# http://www.acronis.de/
+>362	string	MBR\ Error\ \0\r			
+>>376	string	ress\ any\ key\ to\ 			
+>>>392	string	boot\ from\ floppy...\0			\b, Acronis MBR
+# added by Joerg Jenderek
+# http://www.visopsys.org/
+# http://partitionlogic.org.uk/
+>309	string	No\ bootable\ partition\ found\r	
+>>339	string	I/O\ Error\ reading\ boot\ sector\r	\b, Visopsys MBR
+>349	string	No\ bootable\ partition\ found\r	
+>>379	string	I/O\ Error\ reading\ boot\ sector\r	\b, simple Visopsys MBR
 # bootloader, bootmanager
->43	string	SMART\ BTMGRFAT12\ \ \ 		
->>430	string	SBMK\ Bad!\r			
->>>3	string	SBM				\b, Smart Boot Manager
->>>>6	string	>\0                             \b, version %s
+>0x40	string	SBML				
+# label with 11 characters of FAT 12 bit filesystem
+>>43	string	SMART\ BTMGR			
+>>>430	string	SBMK\ Bad!\r			
+>>>>3	string	SBM				\b, Smart Boot Manager
+>>>>>6	string	>\0                             \b, version %s
 >382	string	XOSLLOADXCF			\b, eXtended Operating System Loader
 >6	string	LILO				\b, LInux i386 boot LOader
 >>120	string	LILO				\b, version 22.3.4 SuSe
 >>172	string	LILO				\b, version 22.5.8 Debian
->402	string	Geom\0Hard\ Disk\0Read\0\ Error\0
->>394	string	stage1				\b, GRand Unified Bootloader (0.5.95)
->343	string	Geom\0Read\0\ Error\0		
->>321	string	Loading\ stage1.5		\b, Grand Unified Bootloader
->380	string	Geom\0Hard\ Disk\0Read\0\ Error\0
->>374	string	GRUB\ \0			\b, GRand Unified Bootloader
->382	string	Geom\0Hard\ Disk\0Read\0\ Error\0
->>376	string	GRUB\ \0			\b, GRand Unified Bootloader (0.93)
->383	string	Geom\0Hard\ Disk\0Read\0\ Error\0
->>377	string	GRUB\ \0			\b, GRand Unified Bootloader (0.94)
->385	string	Geom\0Hard\ Disk\0Read\0\ Error\0
->>379	string	GRUB\ \0			\b, GRand Unified Bootloader (0.95)
+# updated by Joerg Jenderek
+# variables according to grub-0.97/stage1/stage1.S or
+# http://www.gnu.org/software/grub/manual/grub.html#Embedded-data
+# usual values are marked with comments to get only informations of strange GRUB loaders
+>0		ulelong		0x009048EB	
+>>0x41		ubyte		<2		
+>>>0x3E		ubyte		>2		\b; GRand Unified Bootloader
+# 0x3 for 0.5.95,0.93,0.94,0.96 0x4 for 1.90 
+>>>>0x3E	ubyte		x		\b, stage1 version 0x%x
+#If it is 0xFF, use a drive passed by BIOS
+>>>>0x40	ubyte		<0xFF		\b, boot drive 0x%x
+# in most case 0,1,0x2e for GRUB 0.5.95
+>>>>0x41	ubyte		>0		\b, LBA flag 0x%x
+>>>>0x42	uleshort	<0x8000		\b, stage2 address 0x%x
+#>>>>0x42	uleshort	=0x8000		\b, stage2 address 0x%x (usual)
+>>>>0x42	uleshort	>0x8000		\b, stage2 address 0x%x
+#>>>>0x44	ulelong		=1		\b, 1st sector stage2 0x%x (default)
+>>>>0x44	ulelong		>1		\b, 1st sector stage2 0x%x
+>>>>0x48	uleshort	<0x800		\b, stage2 segment 0x%x
+#>>>>0x48	uleshort	=0x800		\b, stage2 segment 0x%x (usual)
+>>>>0x48	uleshort	>0x800		\b, stage2 segment 0x%x
+>>>>402		string	Geom\0Hard\ Disk\0Read\0\ Error\0
+>>>>>394	string	stage1			\b, GRUB version 0.5.95
+>>>>382		string	Geom\0Hard\ Disk\0Read\0\ Error\0
+>>>>>376	string	GRUB\ \0		\b, GRUB version 0.93 or 1.94
+>>>>383		string	Geom\0Hard\ Disk\0Read\0\ Error\0
+>>>>>377	string	GRUB\ \0		\b, GRUB version 0.94
+>>>>385		string	Geom\0Hard\ Disk\0Read\0\ Error\0
+>>>>>379	string	GRUB\ \0		\b, GRUB version 0.95 or 0.96
+>>>>391		string	Geom\0Hard\ Disk\0Read\0\ Error\0
+>>>>>385	string	GRUB\ \0		\b, GRUB version 0.97
+#unkown version
+>>>343		string	Geom\0Read\0\ Error\0	
+>>>>321		string	Loading\ stage1.5	\b, GRUB version x.y
+>>>380		string	Geom\0Hard\ Disk\0Read\0\ Error\0
+>>>>374		string	GRUB\ \0		\b, GRUB version n.m
+# http://syslinux.zytor.com/
+>478	string	Boot\ failed\r			
+>>495	string	LDLINUX\ SYS			\b, SYSLINUX bootloader (1.62)
 >480	string	Boot\ failed\r			
->>495	string	LDLINUX\ SYS			\b, SYSLINUX bootloader (2.06)
+>>495	string	LDLINUX\ SYS			\b, SYSLINUX bootloader (2.06 or 2.11)
+>484	string	Boot\ error\r			\b, SYSLINUX bootloader (3.11)
 >395	string	chksum\0\ ERROR!\0		\b, Gujin bootloader
-# mbr partion table entries, if not fat boot secor, activ flag 0 or 0x80 and type > 0
+# http://www.bcdwb.de/bcdw/index_e.htm
+>3	string	BCDL				
+>>498	string	BCDL\ \ \ \ BIN			\b, Bootable CD Loader (1.50Z)
+# mbr partion table entries
+# OEM-ID not Microsoft,SYSLINUX,or MTOOLs
 >3			string		!MS	
 >>3			string		!SYSLINUX
->>>82			string		!FAT32	
->>>>446			ubyte		<0x81	
->>>>>446		ubyte&0x7F	0	
->>>>>>450		ubyte		>0	\b; partition 1: ID=0x%x
->>>>>>>446		ubyte		0x80	\b, active
->>>>>>>447		ubyte		x	\b, starthead %u
-#>>>>>>>448		ubyte		x	\b, start C_S: 0x%x
-#>>>>>>448		ubeshort&1023	x	\b, startcylinder? %d
->>>>>>>454		ulelong		x	\b, startsector %u
->>>>>>>458		ulelong		x	\b, %u sectors
+>>>3			string		!MTOOL
+# not FAT (32 bit)
+>>>>82			string		!FAT32	
+#not IO.SYS
+>>>>>472		string		!IO\ \ \ \ \ \ SYS
+#not Linux kernel
+>>>>>>514		string		!HdrS		
+# active flag 0 or 0x80 and type > 0
+>>>>>>>446		ubyte		<0x81	
+>>>>>>>>446		ubyte&0x7F	0	
+>>>>>>>>>>>450		ubyte		>0	\b; partition 1: ID=0x%x
+>>>>>>>>>>446		ubyte		0x80	\b, active
+>>>>>>>>>>447		ubyte		x	\b, starthead %u
+#>>>>>>>>>>448		ubyte		x	\b, start C_S: 0x%x
+#>>>>>>>>>>448		ubeshort&1023	x	\b, startcylinder? %d
+>>>>>>>>>>454		ulelong		x	\b, startsector %u
+>>>>>>>>>>458		ulelong		x	\b, %u sectors
 #
->>>>462			ubyte		<0x81	
->>>>>462		ubyte&0x7F	0		
->>>>>>466		ubyte		>0	\b; partition 2: ID=0x%x
->>>>>>>462		ubyte		0x80	\b, active
->>>>>>>463		ubyte		x	\b, starthead %u
-#>>>>>>>464		ubyte		x	\b, start C_S: 0x%x
-#>>>>>>>464		ubeshort&1023	x	\b, startcylinder? %d
->>>>>>>470		ulelong		x	\b, startsector %u
->>>>>>>474		ulelong		x	\b, %u sectors
+>>>>>>>462		ubyte		<0x81	
+>>>>>>>>462		ubyte&0x7F	0		
+>>>>>>>>>466		ubyte		>0	\b; partition 2: ID=0x%x
+>>>>>>>>>>462		ubyte		0x80	\b, active
+>>>>>>>>>>463		ubyte		x	\b, starthead %u
+#>>>>>>>>>>464		ubyte		x	\b, start C_S: 0x%x
+#>>>>>>>>>>464		ubeshort&1023	x	\b, startcylinder? %d
+>>>>>>>>>>470		ulelong		x	\b, startsector %u
+>>>>>>>>>>474		ulelong		x	\b, %u sectors
 #
->>>>478			ubyte		<0x81		
->>>>>478		ubyte&0x7F	0		
->>>>>>482		ubyte		>0	\b; partition 3: ID=0x%x
->>>>>>>478		ubyte		0x80	\b, active
->>>>>>>479		ubyte		x	\b, starthead %u
-#>>>>>>>480		ubyte		x	\b, start C_S: 0x%x
-#>>>>>>>481		ubyte		x	\b, start C2S: 0x%x
-#>>>>>>>480		ubeshort&1023	x	\b, startcylinder? %d
->>>>>>>486		ulelong		x	\b, startsector %u
->>>>>>>490		ulelong		x	\b, %u sectors
+>>>>>>>478		ubyte		<0x81		
+>>>>>>>>478		ubyte&0x7F	0		
+>>>>>>>>>482		ubyte		>0	\b; partition 3: ID=0x%x
+>>>>>>>>>>478		ubyte		0x80	\b, active
+>>>>>>>>>>479		ubyte		x	\b, starthead %u
+#>>>>>>>>>>480		ubyte		x	\b, start C_S: 0x%x
+#>>>>>>>>>>481		ubyte		x	\b, start C2S: 0x%x
+#>>>>>>>>>>480		ubeshort&1023	x	\b, startcylinder? %d
+>>>>>>>>>>486		ulelong		x	\b, startsector %u
+>>>>>>>>>>490		ulelong		x	\b, %u sectors
 #
->>>>494			ubyte		<0x81	
->>>>>494		ubyte&0x7F	0		
->>>>>>498		ubyte		>0	\b; partition 4: ID=0x%x
->>>>>>>494		ubyte		0x80	\b, active
->>>>>>>495		ubyte		x	\b, starthead %u
-#>>>>>>>496		ubyte		x	\b, start C_S: 0x%x
-#>>>>>>>496		ubeshort&1023	x	\b, startcylinder? %d
->>>>>>>502		ulelong		x	\b, startsector %u
->>>>>>>506		ulelong		x	\b, %u sectors
+>>>>>>>494		ubyte		<0x81	
+>>>>>>>>494		ubyte&0x7F	0		
+>>>>>>>>>498		ubyte		>0	\b; partition 4: ID=0x%x
+>>>>>>>>>>494		ubyte		0x80	\b, active
+>>>>>>>>>>495		ubyte		x	\b, starthead %u
+#>>>>>>>>>>496		ubyte		x	\b, start C_S: 0x%x
+#>>>>>>>>>>496		ubeshort&1023	x	\b, startcylinder? %d
+>>>>>>>>>>502		ulelong		x	\b, startsector %u
+>>>>>>>>>>506		ulelong		x	\b, %u sectors
 # mbr partion table entries end
+# http://www.acronis.de/
+#FAT label=ACRONIS\ SZ
+#OEM-ID=BOOTWIZ0
+>442	string	Non-system\ disk,\ 	
+>>459	string	press\ any\ key...\x7\0		\b, Acronis Startup Recovery Loader
+# DOS names like F11.SYS are 8 right space padded bytes+3 bytes
+>>>477		ubyte&0xDF	>0		
+>>>>477		string		x 		\b %-.3s
+>>>>>480	ubyte&0xDF	>0		
+>>>>>>480	string		x 		\b%-.5s
+>>>>485		ubyte&0xDF	>0		
+>>>>>485	string		x 		\b.%-.3s
+#
 >185	string	FDBOOT\ Version\ 			
 >>204	string	\rNo\ Systemdisk.\ 			
 >>>220	string	Booting\ from\ harddisk.\n\r		
@@ -251,13 +319,12 @@
 >>>>>>>422	string		x 			\b%-.3s
 >>>>>425	ubyte&0xDF	>0			
 >>>>>>425	string		>\ 			\b.%-.3s
-#
->>>>368		ubyte&0xDF	>0			
->>>>>368	string		x 			%-.5s
->>>>>>373	ubyte&0xDF	>0			
->>>>>>>373	string		x 			\b%-.3s
->>>>>376	ubyte&0xDF	>0			
->>>>>>376	string		x 			\b.%-.3s
+# offset variant
+>>>>379	string	\0					
+>>>>>368	ubyte&0xDF	>0			
+>>>>>>368	string		x 			%-.5s
+>>>>>>>373	ubyte&0xDF	>0			
+>>>>>>>>373	string		x 			\b%-.3s
 #
 >430	string	NTLDR\ fehlt\xFF\r\n			
 >>444	string	Datentr\204gerfehler\xFF\r\n		
@@ -528,6 +595,90 @@
 >>>>>>>>504	string		x 			\b%-.1s
 >>>>505		ubyte&0xDF	>0			
 >>>>>505	string		x 			\b.%-.3s
+# added by Joerg Jenderek
+# http://www.visopsys.org/
+# http://partitionlogic.org.uk/
+# OEM-ID=Visopsys
+>478		ulelong	0					
+>>(1.b+326)	string	I/O\ Error\ reading\ 			
+>>>(1.b+344)	string	Visopsys\ loader\r			
+>>>>(1.b+361)	string	Press\ any\ key\ to\ continue.\r	\b, Visopsys loader
+# http://alexfru.chat.ru/epm.html#bootprog
+>494	ubyte	>0x4D					
+>>495	string	>E					
+>>>495	string	<S					
+#OEM-ID is not reliable
+>>>>3	string	BootProg				
+# It just looks for a program file name at the root directory
+# and loads corresponding file with following execution.
+# DOS names like STARTUP.BIN,STARTUPC.COM,STARTUPE.EXE are 8 right space padded bytes+3 bytes
+>>>>499			ubyte&0xDF	>0		\b, COM/EXE Bootloader
+>>>>>499		string		x 		\b %-.1s
+>>>>>>500		ubyte&0xDF	>0		
+>>>>>>>500		string		x 		\b%-.1s
+>>>>>>>>501		ubyte&0xDF	>0		
+>>>>>>>>>501		string		x 		\b%-.1s
+>>>>>>>>>>502		ubyte&0xDF	>0		
+>>>>>>>>>>>502		string		x 		\b%-.1s
+>>>>>>>>>>>>503		ubyte&0xDF	>0		
+>>>>>>>>>>>>>503	string		x 		\b%-.1s
+>>>>>>>>>>>>>>504	ubyte&0xDF	>0		
+>>>>>>>>>>>>>>>504	string		x 		\b%-.1s
+>>>>>>>>>>>>>>>>505	ubyte&0xDF	>0		
+>>>>>>>>>>>>>>>>>505	string		x 		\b%-.1s
+>>>>>>>>>>>>>>>>>>506	ubyte&0xDF	>0		
+>>>>>>>>>>>>>>>>>>>506	string		x 		\b%-.1s
+#name extension
+>>>>>507		ubyte&0xDF	>0		\b.
+>>>>>>507		string		x 		\b%-.1s
+>>>>>>>508		ubyte&0xDF	>0		
+>>>>>>>>508		string		x 		\b%-.1s
+>>>>>>>>>509		ubyte&0xDF	>0		
+>>>>>>>>>>509		string		x 		\b%-.1s
+#If the boot sector fails to read any other sector,
+#it prints a very short message ("RE") to the screen and hangs the computer.
+#If the boot sector fails to find needed program in the root directory,
+#it also hangs with another message ("NF").
+>>>>>492		string		RENF		\b, FAT (12 bit)
+>>>>>495		string		RENF		\b, FAT (16 bit)
+# http://alexfru.chat.ru/epm.html#bootprog
+>494	ubyte	>0x4D					
+>>495	string	>E					
+>>>495	string	<S					
+#OEM-ID is not reliable
+>>>>3	string	BootProg				
+# It just looks for a program file name at the root directory
+# and loads corresponding file with following execution.
+# DOS names like STARTUP.BIN,STARTUPC.COM,STARTUPE.EXE are 8 right space padded bytes+3 bytes
+>>>>499			ubyte&0xDF	>0		\b, COM/EXE Bootloader
+>>>>>499		string		x 		\b %-.1s
+>>>>>>500		ubyte&0xDF	>0		
+>>>>>>>500		string		x 		\b%-.1s
+>>>>>>>>501		ubyte&0xDF	>0		
+>>>>>>>>>501		string		x 		\b%-.1s
+>>>>>>>>>>502		ubyte&0xDF	>0		
+>>>>>>>>>>>502		string		x 		\b%-.1s
+>>>>>>>>>>>>503		ubyte&0xDF	>0		
+>>>>>>>>>>>>>503	string		x 		\b%-.1s
+>>>>>>>>>>>>>>504	ubyte&0xDF	>0		
+>>>>>>>>>>>>>>>504	string		x 		\b%-.1s
+>>>>>>>>>>>>>>>>505	ubyte&0xDF	>0		
+>>>>>>>>>>>>>>>>>505	string		x 		\b%-.1s
+>>>>>>>>>>>>>>>>>>506	ubyte&0xDF	>0		
+>>>>>>>>>>>>>>>>>>>506	string		x 		\b%-.1s
+#name extension
+>>>>>507		ubyte&0xDF	>0		\b.
+>>>>>>507		string		x 		\b%-.1s
+>>>>>>>508		ubyte&0xDF	>0		
+>>>>>>>>508		string		x 		\b%-.1s
+>>>>>>>>>509		ubyte&0xDF	>0		
+>>>>>>>>>>509		string		x 		\b%-.1s
+#If the boot sector fails to read any other sector,
+#it prints a very short message ("RE") to the screen and hangs the computer.
+#If the boot sector fails to find needed program in the root directory,
+#it also hangs with another message ("NF").
+>>>>>492		string		RENF		\b, FAT (12 bit)
+>>>>>495		string		RENF		\b, FAT (16 bit)
 # loader end
 # Joerg Jenderek
 >446	ubyte	0			
@@ -657,6 +808,61 @@
 >4	lelong&0xFFFFFF00	!0	unknown mode
 
 0x18b	string	OS/2	OS/2 Boot Manager
+
+# added by Joerg Jenderek
+# In the second sector (+0x200) are variables according to grub-0.97/stage2/asm.S or
+# grub-1.94/kern/i386/pc/startup.S
+# http://www.gnu.org/software/grub/manual/grub.html#Embedded-data
+# usual values are marked with comments to get only informations of strange GRUB loaders
+0x200	uleshort		0x70EA		
+# found only version 3.{1,2}
+>0x206		ubeshort	>0x0300		
+# GRUB version (0.5.)95,0.93,0.94,0.96,0.97 > "00"
+>>0x212 	ubyte		>0x29		
+>>>0x213 	ubyte		>0x29		
+# not iso9660_stage1_5
+#>>>0	ulelong&0x00BE5652	0x00BE5652	
+>>>>0x213 	ubyte		>0x29		GRand Unified Bootloader
+# config_file for stage1_5 is 0xffffffff + default "/boot/grub/stage2"
+>>>>0x217 	ubyte		0xFF		stage1_5
+>>>>0x217 	ubyte		<0xFF		stage2
+>>>>0x206	ubyte		x		\b version %u
+>>>>0x207	ubyte		x		\b.%u
+# module_size for 1.94
+>>>>0x208	ulelong		<0xffffff	\b, installed partition %u
+#>>>>0x208	ulelong		=0xffffff	\b, %u (default)
+>>>>0x208	ulelong		>0xffffff	\b, installed partition %u
+# GRUB 0.5.95 unofficial
+>>>>0x20C	ulelong&0x2E300000 0x2E300000	
+# 0=stage2	1=ffs	2=e2fs	3=fat	4=minix	5=reiserfs
+>>>>>0x20C	ubyte		x		\b, identifier 0x%x
+#>>>>>0x20D	ubyte		=0		\b, LBA flag 0x%x (default)
+>>>>>0x20D	ubyte		>0		\b, LBA flag 0x%x
+# GRUB version as string
+>>>>>0x20E 	string		>\0		\b, GRUB version %-s
+# for stage1_5 is 0xffffffff + config_file "/boot/grub/stage2" default
+>>>>>>0x215 	ulong		0xffffffff	
+>>>>>>>0x219 	string		>\0		\b, configuration file %-s
+>>>>>>0x215 	ulong		!0xffffffff	
+>>>>>>>0x215 	string		>\0		\b, configuration file %-s
+# newer GRUB versions
+>>>>0x20C	ulelong&0x2E300000 !0x2E300000	
+##>>>>>0x20C	ulelong		=0		\b, saved entry %d (usual)
+>>>>>0x20C	ulelong		>0		\b, saved entry %d
+# for 1.94 contains kernel image size
+# for 0.93,0.94,0.96,0.97
+# 0=stage2	1=ffs	2=e2fs	3=fat	4=minix	5=reiserfs	6=vstafs	7=jfs	8=xfs	9=iso9660	a=ufs2	
+>>>>>0x210	ubyte		x		\b, identifier 0x%x
+# The flag for LBA forcing is in most cases 0
+#>>>>>0x211	ubyte		=0		\b, LBA flag 0x%x (default)
+>>>>>0x211	ubyte		>0		\b, LBA flag 0x%x
+# GRUB version as string
+>>>>>0x212 	string		>\0		\b, GRUB version %-s
+# for stage1_5 is 0xffffffff + config_file "/boot/grub/stage2" default
+>>>>>0x217 	ulong		0xffffffff	
+>>>>>>0x21b 	string		>\0		\b, configuration file %-s
+>>>>>0x217 	ulong		!0xffffffff	
+>>>>>>0x217 	string		>\0		\b, configuration file %-s
 
 9564	lelong		0x00011954	Unix Fast File system [v1] (little-endian),
 >8404	string		x		last mounted on %s,
@@ -979,10 +1185,28 @@
 >>>>>>>>&0      bedate          =0                      full dump
 >>>>>>>>&0      bedate          !0                      incremental since: %s
 
+#----------------------------------------------------------
 # VMS backup savesets - gerardo.cacciari@gmail.com
-# had to comment out GEM Image and G3 raw data  entries due to conflict
-#0            byte    x
-#>(0.s+16)    string  \x01\x01
-#>>&(&0.b+8)  byte    0x42       OpenVMS backup saveset data
-#>>>40        lelong  x          (block size %d
-#>>>49        string  >\0        original name '%s')
+#
+4            string  \x01\x00\x01\x00\x01\x00
+>(0.s+16)    string  \x01\x01
+>>&(&0.b+8)  byte    0x42       OpenVMS backup saveset data
+>>>40        lelong  x          (block size %d,
+>>>49        string  >\0        original name '%s',
+>>>2         short   1024       VAX generated)
+>>>2         short   2048       AXP generated)
+>>>2         short   4096       I64 generated)
+
+# Compaq/HP RILOE floppy image
+# From: Dirk Jagdmann <doj@cubic.org>
+0	string	CPQRFBLO	Compaq/HP RILOE floppy image
+
+#------------------------------------------------------------------------------
+# Files-11 On-Disk Structure (OpenVMS file system) - gerardo.cacciari@gmail.com
+# These bits come from LBN 1 (home block) of ODS-2 and ODS-5 volumes, which is
+# mapped to VBN 2 of [000000]INDEXF.SYS;1
+#
+1008    string          DECFILE11B      Files-11 On-Disk Structure
+>525    byte            x               Level %d
+>525    byte            x               (ODS-%d OpenVMS file system),
+>984    string          x               volume label is '%-12.12s'
