@@ -284,7 +284,7 @@ mk_link(char *to, struct stat *to_sb, char *from,
 		 */
 		if ((to_sb->st_dev==sb.st_dev)&&(to_sb->st_ino == sb.st_ino)) {
 			paxwarn(1, "Unable to link file %s to itself", to);
-			return(-1);;
+			return(-1);
 		}
 
 		/*
