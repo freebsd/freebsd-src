@@ -407,14 +407,14 @@ npe_findimage(struct ixpnpe_softc *sc,
         }
         /* 2 consecutive NPE_IMAGE_MARKER's indicates end of library */
         if (image->id == NPE_IMAGE_MARKER) {
-	    device_printf(sc->sc_dev,
+	    DPRINTF(sc->sc_dev,
 		"imageId 0x%08x not found in image library header\n", imageId);
             /* reached end of library, image not found */
-            return EIO;
+            return ESRCH;
         }
         offset += image->size;
     }
-    return EIO;
+    return ESRCH;
 }
 
 int
