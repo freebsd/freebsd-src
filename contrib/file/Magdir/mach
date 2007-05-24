@@ -1,26 +1,9 @@
-#------------------------------------------------------------------------------
-# mach file description
-#
-# Since Java bytecode and Mach-O fat-files have the same magic number the test
-# must be preformed in the same "magic" sequence to get both right.  The long
-# at offset 4 in a fat file tells the number of architectures.  The short at
-# offset 4 in a Java bytecode file is the compiler minor version and the
-# short at offset 6 is the compiler major version.  Since there are only 
-# only 18 labeled Mach-O architectures at current, and the first released 
-# Java class format was version 43.0, we can safely choose any number
-# between 18 and 39 to test the number of architectures against
-# (and use as a hack).
-#
-0	belong		0xcafebabe
->4	belong		>19		compiled Java class data,
->>6     beshort		x	        version %d.
->>4     beshort		x       	\b%d
->4	belong		1		Mach-O fat file with 1 architecture
->4	belong		>1
-# The following is necessary to support java class files.
->>4	belong		<20		Mach-O fat file with %ld architectures
-#>>4	belong		<0xffff		Mach-O fat file with %ld architectures
-#
+#------------------------------------------------------------
+# Mach has two magic numbers, 0xcafebabe and 0xfeedface.
+# Unfortunately the first, cafebabe, is shared with
+# Java ByteCode, so they are both handled in the file "cafebabe".
+# The "feedface" ones are handled herein.
+#------------------------------------------------------------
 0	lelong&0xfeffffff	0xfeedface	Mach-O
 >0	byte		0xcf		64-bit
 >12	lelong		1		object
