@@ -20,6 +20,8 @@ DPADD=		${LIBSSL} ${LIBCRYPTO}
 LDADD=		-lssl -lcrypto
 .endif
 
+CFLAGS+=	-DFTP_COMBINE_CWDS
+
 CSTD?=		c99
 WARNS?=		2
 
