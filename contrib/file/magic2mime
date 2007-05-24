@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- PERL -*-
-# $Id: magic2mime,v 1.3 2006/03/02 22:10:26 christos Exp $
+# $Id: magic2mime,v 1.4 2006/11/25 18:36:10 christos Exp $
 # Copyright (c) 1996, 1997 vax@linkdead.paranoia.com (VaX#n8)
 #
 # Usage: echo 'your-file-output-here' | file_to_ctype.pl
@@ -42,6 +42,7 @@
 	'^Sun/NeXT audio data', 'audio/basic',
     '^MPEG', 'video/mpeg',
     '^Apple QuickTime movie', 'video/quicktime',
+    '^DICOM medical imaging data', 'application/dicom',
 	# made up by me
     '^bitmap', 'image/x-bitmap',
     '^PC bitmap data, Windows 3.x format', 'image/x-msw3bmp',

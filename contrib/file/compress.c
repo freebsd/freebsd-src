@@ -42,6 +42,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -50,9 +51,8 @@
 #endif
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: compress.c,v 1.42 2005/03/06 05:58:22 christos Exp $")
+FILE_RCSID("@(#)$Id: compress.c,v 1.45 2006/10/31 19:37:17 christos Exp $")
 #endif
-
 
 private struct {
 	const char *magic;
@@ -76,9 +76,10 @@ private struct {
 
 private int ncompr = sizeof(compr) / sizeof(compr[0]);
 
+#define NODATA ((size_t)~0)
+
 
 private ssize_t swrite(int, const void *, size_t);
-private ssize_t sread(int, void *, size_t);
 private size_t uncompressbuf(struct magic_set *, int, size_t,
     const unsigned char *, unsigned char **, size_t);
 #ifdef HAVE_LIBZ
@@ -102,7 +103,7 @@ file_zmagic(struct magic_set *ms, int fd, const unsigned char *buf,
 			continue;
 		if (memcmp(buf, compr[i].magic, compr[i].maglen) == 0 &&
 		    (nsz = uncompressbuf(ms, fd, i, buf, &newbuf,
-		    nbytes)) != 0) {
+		    nbytes)) != NODATA) {
 			ms->flags &= ~MAGIC_COMPRESS;
 			rv = -1;
 			if (file_buffer(ms, -1, newbuf, nsz) == -1)
@@ -152,14 +153,52 @@ swrite(int fd, const void *buf, size_t n)
 /*
  * `safe' read for sockets and pipes.
  */
-private ssize_t
+protected ssize_t
 sread(int fd, void *buf, size_t n)
 {
 	int rv;
+#ifdef FIONREAD
+	int t = 0;
+#endif
 	size_t rn = n;
 
+	if (fd == STDIN_FILENO)
+		goto nocheck;
+
+#ifdef FIONREAD
+	if ((ioctl(fd, FIONREAD, &t) < 0) || (t == 0)) {
+#ifdef FD_ZERO
+		for (;;) {
+			fd_set check;
+			struct timeval tout = {0, 100 * 1000};
+
+			FD_ZERO(&check);
+			FD_SET(fd, &check);
+
+			/*
+			 * Avoid soft deadlock: do not read if there
+			 * is nothing to read from sockets and pipes.
+			 */
+			if (select(fd + 1, &check, NULL, NULL, &tout) <= 0) {
+				if (errno == EINTR || errno == EAGAIN)
+					continue;
+				return 0;
+			}
+			break;
+		}
+#endif
+		(void)ioctl(fd, FIONREAD, &t);
+	}
+
+	if (t > 0 && (size_t)t < n) {
+		n = t;
+		rn = n;
+	}
+#endif
+
+nocheck:
 	do
-		switch (rv = read(fd, buf, n)) {
+		switch ((rv = read(fd, buf, n))) {
 		case -1:
 			if (errno == EINTR)
 				continue;
@@ -305,7 +344,7 @@ uncompressgzipped(struct magic_set *ms, const unsigned char *old,
 	inflateEnd(&z);
 	
 	/* let's keep the nul-terminate tradition */
-	(*newch)[n++] = '\0';
+	(*newch)[n] = '\0';
 
 	return n;
 }
@@ -327,7 +366,7 @@ uncompressbuf(struct magic_set *ms, int fd, size_t method,
 
 	if ((fd != -1 && pipe(fdin) == -1) || pipe(fdout) == -1) {
 		file_error(ms, errno, "cannot create pipe");	
-		return 0;
+		return NODATA;
 	}
 	switch (fork()) {
 	case 0:	/* child */
@@ -360,7 +399,7 @@ uncompressbuf(struct magic_set *ms, int fd, size_t method,
 		/*NOTREACHED*/
 	case -1:
 		file_error(ms, errno, "could not fork");
-		return 0;
+		return NODATA;
 
 	default: /* parent */
 		(void) close(fdout[1]);
@@ -420,7 +459,7 @@ uncompressbuf(struct magic_set *ms, int fd, size_t method,
 			n = r;
 		}
  		/* NUL terminate, as every buffer is handled here. */
- 		(*newch)[n++] = '\0';
+ 		(*newch)[n] = '\0';
 err:
 		if (fdin[1] != -1)
 			(void) close(fdin[1]);

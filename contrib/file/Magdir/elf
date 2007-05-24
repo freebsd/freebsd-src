@@ -84,21 +84,22 @@
 >>18	leshort		40		ARM,
 >>18	leshort		41		Alpha,
 >>18	leshort		0xa390		IBM S/390 (obsolete),
->>18	leshort		42		Hitachi SH,
+>>18	leshort		42		Renesas SH,
 >>18	leshort		43		SPARC V9 - invalid byte order,
 >>18	leshort		44		Siemens Tricore Embedded Processor,
 >>18	leshort		45		Argonaut RISC Core, Argonaut Technologies Inc.,
->>18	leshort		46		Hitachi H8/300,
->>18	leshort		47		Hitachi H8/300H,
->>18	leshort		48		Hitachi H8S,
->>18	leshort		49		Hitachi H8/500,
+>>18	leshort		46		Renesas H8/300,
+>>18	leshort		47		Renesas H8/300H,
+>>18	leshort		48		Renesas H8S,
+>>18	leshort		49		Renesas H8/500,
 >>18	leshort		50		IA-64,
 >>18	leshort		51		Stanford MIPS-X,
 >>18	leshort		52		Motorola Coldfire,
 >>18	leshort		53		Motorola M68HC12,
->>18	leshort		62		AMD x86-64,
+>>18	leshort		62		x86-64,
 >>18	leshort		75		Digital VAX,
 >>18	leshort		88		Renesas M32R,
+>>18	leshort		94		Tensilica Xtensa,
 >>18	leshort		97		NatSemi 32k,
 >>18	leshort		0x9026		Alpha (unofficial),
 >>20	lelong		0		invalid version
@@ -176,14 +177,14 @@
 >>18	beshort		39		Motorola RCE,
 >>18	beshort		40		ARM,
 >>18	beshort		41		Alpha,
->>18	beshort		42		Hitachi SH,
+>>18	beshort		42		Renesas SH,
 >>18	beshort		43		SPARC V9,
 >>18	beshort		44		Siemens Tricore Embedded Processor,
 >>18	beshort		45		Argonaut RISC Core, Argonaut Technologies Inc.,
->>18	beshort		46		Hitachi H8/300,
->>18	beshort		47		Hitachi H8/300H,
->>18	beshort		48		Hitachi H8S,
->>18	beshort		49		Hitachi H8/500,
+>>18	beshort		46		Renesas H8/300,
+>>18	beshort		47		Renesas H8/300H,
+>>18	beshort		48		Renesas H8S,
+>>18	beshort		49		Renesas H8/500,
 >>18	beshort		50		IA-64,
 >>18	beshort		51		Stanford MIPS-X,
 >>18	beshort		52		Motorola Coldfire,
@@ -191,6 +192,7 @@
 >>18	beshort		73		Cray NV1,
 >>18	beshort		75		Digital VAX,
 >>18	beshort		88		Renesas M32R,
+>>18	beshort		94		Tensilica Xtensa,
 >>18	beshort		97		NatSemi 32k,
 >>18	beshort		0x9026		Alpha (unofficial),
 >>18	beshort		0xa390		IBM S/390 (obsolete),
@@ -215,5 +217,8 @@
 >>7	byte		10		(Tru64)
 >>7	byte		11		(Novell Modesto)
 >>7	byte		12		(OpenBSD)
+# VMS Itanium added by gerardo.cacciari@gmail.com
+>8      string          \2
+>>7     byte            13              (OpenVMS)
 >>7	byte		97		(ARM)
 >>7	byte		255		(embedded)

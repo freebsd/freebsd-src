@@ -33,9 +33,12 @@
 #if defined(HAVE_WCHAR_H)
 #include <wchar.h>
 #endif
+#if defined(HAVE_WCTYPE_H)
+#include <wctype.h>
+#endif
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: funcs.c,v 1.19 2006/03/02 22:10:26 christos Exp $")
+FILE_RCSID("@(#)$Id: funcs.c,v 1.23 2006/12/11 21:48:49 christos Exp $")
 #endif	/* lint */
 
 #ifndef HAVE_VSNPRINTF
@@ -57,7 +60,7 @@ file_printf(struct magic_set *ms, const char *fmt, ...)
 	if ((len = vsnprintf(ms->o.ptr, ms->o.len, fmt, ap)) >= ms->o.len) {
 		va_end(ap);
 		if ((buf = realloc(ms->o.buf, len + 1024)) == NULL) {
-			file_oomem(ms);
+			file_oomem(ms, len + 1024);
 			return -1;
 		}
 		ms->o.ptr = buf + (ms->o.ptr - ms->o.buf);
@@ -99,9 +102,9 @@ file_error(struct magic_set *ms, int error, const char *f, ...)
 
 
 protected void
-file_oomem(struct magic_set *ms)
+file_oomem(struct magic_set *ms, size_t len)
 {
-	file_error(ms, errno, "cannot allocate memory");
+	file_error(ms, errno, "cannot allocate %zu bytes", len);
 }
 
 protected void
@@ -159,11 +162,12 @@ file_reset(struct magic_set *ms)
 }
 
 #define OCTALIFY(n, o)	\
-	*(n)++ = '\\', \
+	/*LINTED*/ \
+	(void)(*(n)++ = '\\', \
 	*(n)++ = (((uint32_t)*(o) >> 6) & 3) + '0', \
 	*(n)++ = (((uint32_t)*(o) >> 3) & 7) + '0', \
 	*(n)++ = (((uint32_t)*(o) >> 0) & 7) + '0', \
-	(o)++
+	(o)++)
 
 protected const char *
 file_getbuffer(struct magic_set *ms)
@@ -180,7 +184,7 @@ file_getbuffer(struct magic_set *ms)
 	nsize = ms->o.len * 4 + 1;
 	if (ms->o.psize < nsize) {
 		if ((nbuf = realloc(ms->o.pbuf, nsize)) == NULL) {
-			file_oomem(ms);
+			file_oomem(ms, nsize);
 			return NULL;
 		}
 		ms->o.psize = nsize;
@@ -201,15 +205,15 @@ file_getbuffer(struct magic_set *ms)
 		eop = op + strlen(ms->o.buf);
 
 		while (op < eop) {
-			bytesconsumed = mbrtowc(&nextchar, op, eop - op,
-			    &state);
+			bytesconsumed = mbrtowc(&nextchar, op,
+			    (size_t)(eop - op), &state);
 			if (bytesconsumed == (size_t)(-1) ||
 			    bytesconsumed == (size_t)(-2)) {
 				mb_conv = 0;
 				break;
 			}
 
-			if (iswprint(nextchar) ) {
+			if (iswprint(nextchar)) {
 				(void)memcpy(np, op, bytesconsumed);
 				op += bytesconsumed;
 				np += bytesconsumed;
@@ -238,8 +242,8 @@ file_getbuffer(struct magic_set *ms)
 }
 
 /*
- * Yes these suffer from buffer overflows, but if your OS does not have
- * these functions, then maybe you should consider replacing your OS?
+ * Yes these wrappers suffer from buffer overflows, but if your OS does not have
+ * the real functions, maybe you should consider replacing your OS?
  */
 #ifndef HAVE_VSNPRINTF
 int
