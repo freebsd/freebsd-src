@@ -60,7 +60,7 @@ case "${varmfs}" in
 [Nn][Oo])
 	;;
 *)
-	if (/bin/mkdir -p /var/.diskless 2> /dev/null); then
+	if /bin/mkdir -p /var/.diskless 2> /dev/null; then
 		rmdir /var/.diskless
 	else
 		mount_md ${varsize} /var "${varmfs_flags}"
