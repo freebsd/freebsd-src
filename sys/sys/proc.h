@@ -786,6 +786,9 @@ MALLOC_DECLARE(M_ZOMBIE);
 	if (((p)->p_sflag & PS_INMEM) == 0)				\
 		faultin((p));						\
 } while (0)
+#define PROC_ASSERT_HELD(p) do {					\
+	KASSERT((p)->p_lock > 0, ("process not held"));			\
+} while (0)
 
 #define	PRELE(p) do {							\
 	PROC_LOCK((p));							\
@@ -797,6 +800,9 @@ MALLOC_DECLARE(M_ZOMBIE);
 	(--(p)->p_lock);						\
 	if (((p)->p_flag & P_WEXIT) && (p)->p_lock == 0)		\
 		wakeup(&(p)->p_lock);					\
+} while (0)
+#define PROC_ASSERT_NOT_HELD(p) do {					\
+	KASSERT((p)->p_lock == 0, ("process held"));			\
 } while (0)
 
 /* Check whether a thread is safe to be swapped out. */
