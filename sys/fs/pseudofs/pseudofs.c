@@ -249,8 +249,10 @@ pfs_destroy(struct pfs_node *node)
 		mtx_unlock(&node->pn_info->pi_mutex);
 	}
 
-	/* revoke vnodes and release memory */
-	pfs_disable(node);
+	/* revoke fileno and vnodes and release memory */
+	if (node->pn_fileno)
+		pfs_fileno_free(node->pn_info, node);
+	pfs_purge(node);
 	FREE(node, M_PFSNODES);
 
 	return (0);
@@ -267,7 +269,13 @@ pfs_mount(struct pfs_info *pi, struct mount *mp, struct thread *td)
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);
 
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+#if 0
+	/* not quite ready for this yet */
+	mp->mnt_kern_flag |= MNTK_MPSAFE;
+#endif
+	MNT_IUNLOCK(mp);
 	mp->mnt_data = (qaddr_t)pi;
 	vfs_getnewfsid(mp);
 
@@ -369,9 +377,9 @@ pfs_uninit(struct pfs_info *pi, struct vfsconf *vfc)
 {
 	int error;
 
-	pfs_fileno_uninit(pi);
 	pfs_destroy(pi->pi_root);
 	pi->pi_root = NULL;
+	pfs_fileno_uninit(pi);
 	mtx_destroy(&pi->pi_mutex);
 	if (bootverbose)
 		printf("%s unregistered\n", pi->pi_name);
