@@ -72,7 +72,7 @@ struct g_command class_commands[] = {
 	    NULL, "[-fv] name ..."
 	},
 	{ "dump", 0, stripe_main, G_NULL_OPTS, NULL,
-	    "dump prov ..."
+	    "prov ..."
 	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, stripe_main,
 	    {
