@@ -29,7 +29,7 @@
 #ifndef _OPENSOLARIS_SYS_DNLC_H_
 #define	_OPENSOLARIS_SYS_DNLC_H_
 
-#define	DNLC_NO_VNODE	(NULL)
+#define	DNLC_NO_VNODE	((void *)(intptr_t)0xdeadc0de)
 
 #define	dnlc_lookup(dvp, name)	(NULL)
 #define	dnlc_update(dvp, name, vp)	do { } while (0)
