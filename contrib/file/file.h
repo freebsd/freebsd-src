@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$Id: file.h,v 1.73 2005/10/20 14:59:01 christos Exp $
+ * @(#)$Id: file.h,v 1.83 2006/12/11 21:48:49 christos Exp $
  */
 
 #ifndef __file_h__
@@ -46,6 +46,7 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
+#include <sys/types.h>
 /* Do this here and now, because struct stat gets re-defined on solaris */
 #include <sys/stat.h>
 
@@ -73,7 +74,7 @@
 #define MAXstring 32		/* max leng of "string" types */
 
 #define MAGICNO		0xF11E041C
-#define VERSIONNO	2
+#define VERSIONNO	3
 #define FILE_MAGICSIZE	(32 * 4)
 
 #define	FILE_LOAD	0
@@ -116,6 +117,15 @@ struct magic {
 #define				FILE_MEDATE	21
 #define				FILE_MELDATE	22
 #define				FILE_MELONG	23
+#define				FILE_QUAD	24
+#define				FILE_LEQUAD	25
+#define				FILE_BEQUAD	26
+#define				FILE_QDATE	27
+#define				FILE_LEQDATE	28
+#define				FILE_BEQDATE	29
+#define				FILE_QLDATE	30
+#define				FILE_LEQLDATE	31
+#define				FILE_BEQLDATE	32
 
 #define				FILE_FORMAT_NAME	\
 /* 0 */ 			"invalid 0",		\
@@ -141,16 +151,28 @@ struct magic {
 /* 20 */ 			"search",		\
 /* 21 */ 			"medate",		\
 /* 22 */ 			"meldate",		\
-/* 23 */ 			"melong",
+/* 23 */ 			"melong",		\
+/* 24 */ 			"quad",			\
+/* 25 */ 			"lequad",		\
+/* 26 */ 			"bequad",		\
+/* 27 */ 			"qdate",		\
+/* 28 */ 			"leqdate",		\
+/* 29 */ 			"beqdate",		\
+/* 30 */ 			"qldate",		\
+/* 31 */ 			"leqldate",		\
+/* 32 */ 			"beqldate",
 
-#define	FILE_FMT_NUM	"cduxXi"
-#define FILE_FMT_STR	"s"	
+
+#define FILE_FMT_NONE 0
+#define FILE_FMT_NUM  1 /* "cduxXi" */
+#define FILE_FMT_STR  2 /* "s" */
+#define FILE_FMT_QUAD 3 /* "ll" */
 
 #define				FILE_FORMAT_STRING	\
-/* 0 */ 			NULL,			\
+/* 0 */ 			FILE_FMT_NONE,		\
 /* 1 */				FILE_FMT_NUM,		\
 /* 2 */ 			FILE_FMT_NUM,		\
-/* 3 */ 			NULL,			\
+/* 3 */ 			FILE_FMT_NONE,		\
 /* 4 */ 			FILE_FMT_NUM,		\
 /* 5 */ 			FILE_FMT_STR,		\
 /* 6 */ 			FILE_FMT_STR,		\
@@ -170,7 +192,17 @@ struct magic {
 /* 20 */			FILE_FMT_STR,		\
 /* 21 */			FILE_FMT_STR,		\
 /* 22 */			FILE_FMT_STR,		\
-/* 23 */			FILE_FMT_NUM,
+/* 23 */			FILE_FMT_NUM,		\
+/* 24 */			FILE_FMT_QUAD,		\
+/* 25 */			FILE_FMT_QUAD,		\
+/* 26 */			FILE_FMT_QUAD,		\
+/* 27 */			FILE_FMT_STR,		\
+/* 28 */			FILE_FMT_STR,		\
+/* 29 */			FILE_FMT_STR,		\
+/* 30 */			FILE_FMT_STR,		\
+/* 31 */			FILE_FMT_STR,		\
+/* 32 */			FILE_FMT_STR,
+
 
 	/* Word 3 */
 	uint8_t in_op;		/* operator for indirection */
@@ -193,16 +225,15 @@ struct magic {
 	/* Word 5 */
 	int32_t in_offset;	/* offset from indirection */
 	/* Word 6 */
-	uint32_t mask;	/* mask before comparison with value */
-	/* Word 7 */
-	uint32_t dummy3;
-	/* Word 8 */
-	uint32_t dummp4;
+	uint32_t lineno;	/* line number in magic file */
+	/* Word 7,8 */
+	uint64_t mask;	/* mask before comparison with value */
 	/* Words 9-16 */
 	union VALUETYPE {
 		uint8_t b;
 		uint16_t h;
 		uint32_t l;
+		uint64_t q;
 		char s[MAXstring];
 		struct {
 			char *buf;
@@ -210,6 +241,7 @@ struct magic {
 		} search;
 		uint8_t hs[2];	/* 2 bytes of a fixed-endian "short" */
 		uint8_t hl[4];	/* 4 bytes of a fixed-endian "long" */
+		uint8_t hq[8];	/* 8 bytes of a fixed-endian "quad" */
 	} value;		/* either number or string */
 	/* Words 17..31 */
 	char desc[MAXDESC];	/* description */
@@ -250,6 +282,7 @@ struct magic_set {
 	char *pbuf;
 	size_t psize;
     } o;
+    uint32_t offset;
     int error;
     int flags;
     int haderr;
@@ -270,17 +303,23 @@ protected int file_ascmagic(struct magic_set *, const unsigned char *, size_t);
 protected int file_is_tar(struct magic_set *, const unsigned char *, size_t);
 protected int file_softmagic(struct magic_set *, const unsigned char *, size_t);
 protected struct mlist *file_apprentice(struct magic_set *, const char *, int);
-protected uint32_t file_signextend(struct magic_set *, struct magic *, uint32_t);
+protected uint64_t file_signextend(struct magic_set *, struct magic *, uint64_t);
 protected void file_delmagic(struct magic *, int type, size_t entries);
 protected void file_badread(struct magic_set *);
 protected void file_badseek(struct magic_set *);
-protected void file_oomem(struct magic_set *);
+protected void file_oomem(struct magic_set *, size_t);
 protected void file_error(struct magic_set *, int, const char *, ...);
 protected void file_magwarn(struct magic_set *, const char *, ...);
 protected void file_mdump(struct magic *);
 protected void file_showstr(FILE *, const char *, size_t);
 protected size_t file_mbswidth(const char *);
 protected const char *file_getbuffer(struct magic_set *);
+protected ssize_t sread(int, void *, size_t);
+
+#ifndef COMPILE_ONLY
+extern const char *file_names[];
+extern const size_t file_nnames;
+#endif
 
 #ifndef HAVE_STRERROR
 extern int sys_nerr;
@@ -309,6 +348,5 @@ int snprintf(char *, size_t, const char *, ...);
 static const char *rcsid(const char *p) { \
 	return rcsid(p = id); \
 }
-#else
 
 #endif /* __file_h__ */

@@ -658,7 +658,7 @@
 
 0x18b	string	OS/2	OS/2 Boot Manager
 
-9564	lelong		0x00011954	Unix Fast File system (little-endian),
+9564	lelong		0x00011954	Unix Fast File system [v1] (little-endian),
 >8404	string		x		last mounted on %s,
 #>9504	ledate		x		last checked at %s,
 >8224	ledate		x		last written at %s,
@@ -674,8 +674,48 @@
 >8320	lelong		0		TIME optimization
 >8320	lelong		1		SPACE optimization
 
-9564	belong		0x00011954	Unix Fast File system (big-endian),
->7168   long		0x4c41424c	Apple UFS Volume
+42332	lelong		0x19540119	Unix Fast File system [v2] (little-endian)
+>&-1164	string		x		last mounted on %s,
+>&-696	string		>\0		volume name %s,
+>&-304	leqldate	x		last written at %s,
+>&-1167	byte		x		clean flag %d,
+>&-1168	byte		x		readonly flag %d,
+>&-296	lequad		x		number of blocks %lld,
+>&-288	lequad		x		number of data blocks %lld,
+>&-1332	lelong		x		number of cylinder groups %d,
+>&-1328	lelong		x		block size %d,
+>&-1324	lelong		x		fragment size %d,
+>&-180	lelong		x		average file size %d,
+>&-176	lelong		x		average number of files in dir %d,
+>&-272	lequad		x		pending blocks to free %lld,
+>&-264	lelong		x		pending inodes to free %ld,
+>&-664	lequad		x		system-wide uuid %0llx,
+>&-1316	lelong		x		minimum percentage of free blocks %d,
+>&-1248	lelong		0		TIME optimization
+>&-1248	lelong		1		SPACE optimization
+
+66908	lelong		0x19540119	Unix Fast File system [v2] (little-endian)
+>&-1164	string		x		last mounted on %s,
+>&-696	string		>\0		volume name %s,
+>&-304	leqldate	x		last written at %s,
+>&-1167	byte		x		clean flag %d,
+>&-1168	byte		x		readonly flag %d,
+>&-296	lequad		x		number of blocks %lld,
+>&-288	lequad		x		number of data blocks %lld,
+>&-1332	lelong		x		number of cylinder groups %d,
+>&-1328	lelong		x		block size %d,
+>&-1324	lelong		x		fragment size %d,
+>&-180	lelong		x		average file size %d,
+>&-176	lelong		x		average number of files in dir %d,
+>&-272	lequad		x		pending blocks to free %lld,
+>&-264	lelong		x		pending inodes to free %ld,
+>&-664	lequad		x		system-wide uuid %0llx,
+>&-1316	lelong		x		minimum percentage of free blocks %d,
+>&-1248	lelong		0		TIME optimization
+>&-1248	lelong		1		SPACE optimization
+
+9564	belong		0x00011954	Unix Fast File system [v1] (big-endian),
+>7168   belong		0x4c41424c	Apple UFS Volume
 >>7186  string		x		named %s,
 >>7176  belong		x		volume label version %d,
 >>7180  bedate		x		created on %s,
@@ -693,6 +733,46 @@
 >8260	belong		x		disk rotational speed %drps,
 >8320	belong		0		TIME optimization
 >8320	belong		1		SPACE optimization
+
+42332	belong		0x19540119	Unix Fast File system [v2] (big-endian)
+>&-1164	string		x		last mounted on %s,
+>&-696	string		>\0		volume name %s,
+>&-304	beqldate	x		last written at %s,
+>&-1167	byte		x		clean flag %d,
+>&-1168	byte		x		readonly flag %d,
+>&-296	bequad		x		number of blocks %lld,
+>&-288	bequad		x		number of data blocks %lld,
+>&-1332	belong		x		number of cylinder groups %d,
+>&-1328	belong		x		block size %d,
+>&-1324	belong		x		fragment size %d,
+>&-180	belong		x		average file size %d,
+>&-176	belong		x		average number of files in dir %d,
+>&-272	bequad		x		pending blocks to free %lld,
+>&-264	belong		x		pending inodes to free %ld,
+>&-664	bequad		x		system-wide uuid %0llx,
+>&-1316	belong		x		minimum percentage of free blocks %d,
+>&-1248	belong		0		TIME optimization
+>&-1248	belong		1		SPACE optimization
+
+66908	belong		0x19540119	Unix Fast File system [v2] (big-endian)
+>&-1164	string		x		last mounted on %s,
+>&-696	string		>\0		volume name %s,
+>&-304	beqldate	x		last written at %s,
+>&-1167	byte		x		clean flag %d,
+>&-1168	byte		x		readonly flag %d,
+>&-296	bequad		x		number of blocks %lld,
+>&-288	bequad		x		number of data blocks %lld,
+>&-1332	belong		x		number of cylinder groups %d,
+>&-1328	belong		x		block size %d,
+>&-1324	belong		x		fragment size %d,
+>&-180	belong		x		average file size %d,
+>&-176	belong		x		average number of files in dir %d,
+>&-272	bequad		x		pending blocks to free %lld,
+>&-264	belong		x		pending inodes to free %ld,
+>&-664	bequad		x		system-wide uuid %0llx,
+>&-1316	belong		x		minimum percentage of free blocks %d,
+>&-1248	belong		0		TIME optimization
+>&-1248	belong		1		SPACE optimization
 
 # ext2/ext3 filesystems - Andreas Dilger <adilger@turbolabs.com>
 0x438	leshort		0xEF53		Linux
@@ -783,7 +863,16 @@
 #
 
 # CDROM Filesystems
-32769    string    CD001     ISO 9660 CD-ROM filesystem data
+# Modified for UDF by gerardo.cacciari@gmail.com
+32769    string    CD001
+>38913   string   !NSR0      ISO 9660 CD-ROM filesystem data
+>38913   string    NSR01     UDF filesystem data (version 1.0)
+>38913   string    NSR02     UDF filesystem data (version 1.5)
+>38913   string    NSR03     UDF filesystem data (version 2.0)
+>38913   string    >NSR03    UDF filesystem data (unknown version,
+>>38917  byte      x         id 'NSR0%c')
+>38913   string    <NSR01    UDF filesystem data (unknown version,
+>>38917  byte      x         id 'NSR0%c')
 # "application id" which appears to be used as a volume label
 >32808	 string    >\0       '%s'
 >34816	 string    \000CD001\001EL\ TORITO\ SPECIFICATION    (bootable)
@@ -834,21 +923,25 @@
 0	string	VoIP\ Startup\ and	Aculab VoIP firmware
 >35	string	x	format %s
 
-# PPCBoot image file
+# u-boot/PPCBoot image file
 # From: Mark Brown <broonie@sirena.org.uk>
-0	belong	0x27051956	PPCBoot image
+0	belong	0x27051956	u-boot/PPCBoot image
 >4	string  PPCBoot
 >>12	string  x		version %s
 
 # JFFS2 file system
-0       leshort         0x1984                  Linux old jffs2 filesystem data little endian
-0       lelong          0xe0011985              Linux jffs2 filesystem data little endian
+0	leshort	0x1984		Linux old jffs2 filesystem data little endian
+0	leshort	0x1985		Linux jffs2 filesystem data little endian
 
 # Squashfs
 0	string	sqsh	Squashfs filesystem, big endian,
 >28	beshort	x	version %d.
 >30	beshort x	\b%d,
->8	belong	x	%d bytes,
+>28	beshort <3
+>>8	belong	x	%d bytes,
+>28	beshort >2
+>>63	bequad x	%lld bytes,
+#>>67	belong	x	%d bytes,
 >4	belong	x	%d inodes,
 >28	beshort <2
 >>32	beshort	x	blocksize: %d bytes,
@@ -858,13 +951,19 @@
 0	string	hsqs	Squashfs filesystem, little endian,
 >28	leshort	x	version %d.
 >30	leshort	x	\b%d,
->8	lelong	x	%d bytes,
+>28	leshort <3
+>>8	lelong	x	%d bytes,
+>28	leshort >2
+>>63	lequad x	%lld bytes,
+#>>63	lelong	x	%d bytes,
 >4	lelong	x	%d inodes,
 >28	leshort <2
 >>32	leshort	x	blocksize: %d bytes,
 >28	leshort >1
 >>51	lelong	x	blocksize: %d bytes,
 >39	ledate	x	created: %s
+
+0	string		td\000		floppy image data (TeleDisk)
 
 # AFS Dump Magic
 # From: Ty Sarna <tsarna@sarna.org> 
@@ -879,3 +978,11 @@
 >>>>>>>>&4      bedate          x                       on: %s
 >>>>>>>>&0      bedate          =0                      full dump
 >>>>>>>>&0      bedate          !0                      incremental since: %s
+
+# VMS backup savesets - gerardo.cacciari@gmail.com
+# had to comment out GEM Image and G3 raw data  entries due to conflict
+#0            byte    x
+#>(0.s+16)    string  \x01\x01
+#>>&(&0.b+8)  byte    0x42       OpenVMS backup saveset data
+#>>>40        lelong  x          (block size %d
+#>>>49        string  >\0        original name '%s')

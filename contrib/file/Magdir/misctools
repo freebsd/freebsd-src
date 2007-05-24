@@ -8,3 +8,6 @@
 # From: Alex Beregszaszi <alex@fsn.hu>
 4	string	gtktalog		GNOME Catalogue (gtktalog)
 >13	string	>\0			version %s
+
+# From: Tomasz Trojanowski <tomek@uninet.com.pl>
+0	search/80	.la\ -\ a\ libtool\ library\ file	libtool library file
