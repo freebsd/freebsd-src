@@ -550,11 +550,27 @@ npe_activate(device_t dev)
 	struct npe_softc * sc = device_get_softc(dev);
 	int unit = device_get_unit(dev);
 	int error, i;
+	uint32_t imageid;
 
-	/* load NPE firmware and start it running */
-	error = ixpnpe_init(sc->sc_npe, "npe_fw", npeconfig[unit].imageid);
-	if (error != 0)
-		return error;
+	/*
+	 * Load NPE firmware and start it running.  We assume
+	 * that minor version bumps remain compatible so probe
+	 * the firmware image starting with the expected version
+	 * and then bump the minor version up to the max.
+	 */
+	imageid = npeconfig[unit].imageid;
+	for (;;) {
+		error = ixpnpe_init(sc->sc_npe, "npe_fw", imageid);
+		if (error == 0)
+			break;
+		/* ESRCH is returned when the requested image is not present */
+		if (error != ESRCH)
+			return error;
+		/* bump the minor version up to the max possible */
+		if (NPEIMAGE_MINOR(imageid) == 0xff)
+			return error;
+		imageid++;
+	}
 
 	if (bus_space_map(sc->sc_iot, npeconfig[unit].regbase,
 	    npeconfig[unit].regsize, 0, &sc->sc_ioh)) {
