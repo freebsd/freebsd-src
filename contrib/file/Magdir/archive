@@ -478,7 +478,7 @@
 0	string		HPAK		HPACK archive data
 
 # JAM Archive volume format, by Dmitry.Kohmanyuk@UA.net
-0	string		\351,\001JAM\		JAM archive,
+0	string		\351,\001JAM\ 		JAM archive,
 >7	string		>\0			version %.4s
 >0x26	byte		=0x27			-
 >>0x2b	string          >\0			label %.11s,
@@ -723,3 +723,11 @@
 >14	byte	0x54		end slice
 >14	beshort	0x4e4e		multi-part
 >14	beshort	0x4e53		multi-part, with -S
+
+# Symbian installation files
+#  http://www.thouky.co.uk/software/psifs/sis.html
+#  http://developer.symbian.com/main/downloads/papers/SymbianOSv91/softwareinstallsis.pdf
+8	lelong	0x10000419	Symbian installation file
+>4	lelong	0x1000006D	(EPOC release 3/4/5)
+>4	lelong	0x10003A12	(EPOC release 6)
+0	lelong	0x10201A7A	Symbian installation file (Symbian OS 9.x)

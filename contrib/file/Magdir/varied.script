@@ -3,7 +3,7 @@
 
 0	string		#!\ /			a
 >3	string		>\0			%s script text executable
-0	string		#!\	/		a
+0	string		#!\t/			a
 >3	string		>\0			%s script text executable
 0	string		#!/			a
 >2	string		>\0			%s script text executable

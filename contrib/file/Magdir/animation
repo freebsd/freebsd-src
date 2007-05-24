@@ -320,11 +320,11 @@
 #>3     byte&0x03       3              \b, NR: CCIT J.17
 
 # MPA, M1A
-# modified by Joerg Jenderek
+# updated by Joerg Jenderek
 # GRR the original test are too common for many DOS files, so test 32 <= kbits <= 448
 0	beshort&0xFFFE		0xFFFE	
->2	byte&0xF0	>0x0F		
->>2	byte&0xF0	<0xE1		MPEG ADTS, layer I, v1
+>2	ubyte&0xF0	>0x0F		
+>>2	ubyte&0xF0	<0xE1		MPEG ADTS, layer I, v1
 # rate
 >>>2      byte&0xF0       0x10           \b,  32 kBits
 >>>2      byte&0xF0       0x20           \b,  64 kBits
