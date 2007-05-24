@@ -52,6 +52,7 @@ Magdir/bout \
 Magdir/bsdi \
 Magdir/btsnoop \
 Magdir/cad \
+Magdir/cafebabe \
 Magdir/c-lang \
 Magdir/c64 \
 Magdir/cddb \
@@ -143,6 +144,7 @@ Magdir/ocaml \
 Magdir/octave \
 Magdir/olf \
 Magdir/os2 \
+Magdir/os400 \
 Magdir/os9 \
 Magdir/osf1 \
 Magdir/palm \
@@ -194,6 +196,7 @@ Magdir/troff \
 Magdir/tuxedo \
 Magdir/typeset \
 Magdir/unknown \
+Magdir/unicode \
 Magdir/uuencode \
 Magdir/varied.out \
 Magdir/varied.script \

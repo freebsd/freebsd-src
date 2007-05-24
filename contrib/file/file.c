@@ -71,7 +71,7 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: file.c,v 1.100 2005/10/17 18:41:44 christos Exp $")
+FILE_RCSID("@(#)$Id: file.c,v 1.104 2006/11/25 17:28:54 christos Exp $")
 #endif	/* lint */
 
 
@@ -81,7 +81,7 @@ FILE_RCSID("@(#)$Id: file.c,v 1.100 2005/10/17 18:41:44 christos Exp $")
 #define SYMLINKFLAG ""
 #endif
 
-# define USAGE  "Usage: %s [-bcik" SYMLINKFLAG "nNsvz] [-f namefile] [-F separator] [-m magicfiles] file...\n       %s -C -m magicfiles\n"
+# define USAGE  "Usage: %s [-bcik" SYMLINKFLAG "nNrsvz0] [-f namefile] [-F separator] [-m magicfiles] file...\n       %s -C -m magicfiles\n"
 
 #ifndef MAXPATHLEN
 #define	MAXPATHLEN	512
@@ -90,7 +90,8 @@ FILE_RCSID("@(#)$Id: file.c,v 1.100 2005/10/17 18:41:44 christos Exp $")
 private int 		/* Global command-line options 		*/
 	bflag = 0,	/* brief output format	 		*/
 	nopad = 0,	/* Don't pad output			*/
-	nobuffer = 0;   /* Do not buffer stdout 		*/
+	nobuffer = 0,   /* Do not buffer stdout 		*/
+	nulsep = 0;	/* Append '\0' to the separator		*/
 
 private const char *magicfile = 0;	/* where the magic is	*/
 private const char *default_magicfile = MAGIC;
@@ -126,10 +127,11 @@ main(int argc, char *argv[])
 	int flags = 0;
 	char *home, *usermagic;
 	struct stat sb;
-#define OPTSTRING	"bcCdf:F:hikLm:nNprsvz"
+	static const char hmagic[] = "/.magic";
+#define OPTSTRING	"bcCdf:F:hikLm:nNprsvz0"
 #ifdef HAVE_GETOPT_LONG
 	int longindex;
-	private struct option long_options[] =
+	static const struct option long_options[] =
 	{
 		{"version", 0, 0, 'v'},
 		{"help", 0, 0, 0},
@@ -154,6 +156,7 @@ main(int argc, char *argv[])
 		{"no-pad", 0, 0, 'N'},
 		{"special-files", 0, 0, 's'},
 		{"compile", 0, 0, 'C'},
+		{"print0", 0, 0, '0'},
 		{0, 0, 0, 0},
 	};
 #endif
@@ -178,9 +181,10 @@ main(int argc, char *argv[])
 		magicfile = usermagic;
 	else
 		if ((home = getenv("HOME")) != NULL) {
-			if ((usermagic = malloc(strlen(home) + 8)) != NULL) {
+			if ((usermagic = malloc(strlen(home)
+			    + sizeof(hmagic))) != NULL) {
 				(void)strcpy(usermagic, home);
-				(void)strcat(usermagic, "/.magic");
+				(void)strcat(usermagic, hmagic);
 				if (stat(usermagic, &sb)<0) 
 					free(usermagic);
 				else
@@ -204,6 +208,9 @@ main(int argc, char *argv[])
 				help();
 			break;
 #endif
+		case '0':
+			nulsep = 1;
+			break;
 		case 'b':
 			++bflag;
 			break;
@@ -385,15 +392,24 @@ unwrap(char *fn)
 	(void)fclose(f);
 }
 
+/*
+ * Called for each input file on the command line (or in a list of files)
+ */
 private void
 process(const char *inname, int wid)
 {
 	const char *type;
 	int std_in = strcmp(inname, "-") == 0;
 
-	if (wid > 0 && !bflag)
-		(void)printf("%s%s%*s ", std_in ? "/dev/stdin" : inname,
-		    separator, (int) (nopad ? 0 : (wid - file_mbswidth(inname))), "");
+	if (wid > 0 && !bflag) {
+		(void)printf("%s", std_in ? "/dev/stdin" : inname);
+		if (nulsep)
+			(void)puts('\0');
+		else
+			(void)printf("%s", separator);
+		(void)printf("%*s ",
+		    (int) (nopad ? 0 : (wid - file_mbswidth(inname))), "");
+	}
 
 	type = magic_file(magic, std_in ? NULL : inname);
 	if (type == NULL)

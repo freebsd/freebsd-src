@@ -11,7 +11,28 @@
 >1	byte			0x04		Moog
 >1	byte			0x05		Passport
 >1	byte			0x06		Lexicon
->1	byte			0x07		Kurzweil
+>1	byte			0x07		Kurzweil/Future Retro
+>>3	byte			0x77		777
+>>4	byte			0x00		Bank
+>>4	byte			0x01		Song
+>>5	byte			0x0f		16
+>>5	byte			0x0e		15
+>>5	byte			0x0d		14
+>>5	byte			0x0c		13
+>>5	byte			0x0b		12
+>>5	byte			0x0a		11
+>>5	byte			0x09		10
+>>5	byte			0x08		9
+>>5	byte			0x07		8
+>>5	byte			0x06		7
+>>5	byte			0x05		6
+>>5	byte			0x04		5
+>>5	byte			0x03		4
+>>5	byte			0x02		3
+>>5	byte			0x01		2
+>>5	byte			0x00		1
+>>5	byte			0x10		(ALL)
+>>2	byte			x			\b, Channel %d
 >1	byte			0x08		Fender
 >1	byte			0x09		Gulbransen
 >1	byte			0x0a		AKG
@@ -21,6 +42,12 @@
 >1	byte			0x0e		Garfield
 >1	byte			0x0f		Ensoniq
 >1	byte			0x10		Oberheim
+>>2	byte			0x06		Matrix 6 series
+>>3	byte			0x0A		Dump (All)
+>>3	byte			0x01		Dump (Bank)
+>>4 belong			0x0002040E		Matrix 1000
+>>>11 byte			<2			User bank %d
+>>>11 byte			>1			Preset bank %d
 >1	byte			0x11		Apple
 >1	byte			0x12		GreyMatter
 >1	byte			0x14		PalmTree
@@ -52,11 +79,107 @@
 >>3	byte			0x09		EK-44
 
 >1	byte			0x30		Dynacord
+>1	byte			0x31		Jomox
 >1	byte			0x33		Clavia
 >1	byte			0x39		Soundcraft
-
+# Some Waldorf info from http://Stromeko.Synth.net/Downloads#WaldorfDocs
 >1	byte			0x3e		Waldorf
+>>2	byte			0x00		microWave
+>>2	byte			0x0E		microwave2 / XT
+>>2	byte			0x0F		Q / Q+
+>>3	byte			=0			(default id)
+>>3 byte			>0			(
+>>>3 byte			<0x7F		\bdevice %d)
+>>>3 byte			=0x7F		\bbroadcast id)
 >>3	byte			0x7f		Microwave I
+>>>4	byte			0x00		SNDR (Sound Request)
+>>>4	byte			0x10		SNDD (Sound Dump)
+>>>4	byte			0x20		SNDP (Sound Parameter Change)
+>>>4	byte			0x30		SNDQ (Sound Parameter Inquiry)
+>>>4	byte			0x70		BOOT (Sound Reserved)
+>>>4	byte			0x01		MULR (Multi Request)
+>>>4	byte			0x11		MULD (Multi Dump)
+>>>4	byte			0x21		MULP (Multi Parameter Change)
+>>>4	byte			0x31		MULQ (Multi Parameter Inquiry)
+>>>4	byte			0x71		OS (Multi Reserved)
+>>>4	byte			0x02		DRMR (Drum Map Request)
+>>>4	byte			0x12		DRMD (Drum Map Dump)
+>>>4	byte			0x22		DRMP (Drum Map Parameter Change)
+>>>4	byte			0x32		DRMQ (Drum Map Parameter Inquiry)
+>>>4	byte			0x72		BIN (Drum Map Reserved)
+>>>4	byte			0x03		PATR (Sequencer Pattern Request)
+>>>4	byte			0x13		PATD (Sequencer Pattern Dump)
+>>>4	byte			0x23		PATP (Sequencer Pattern Parameter Change)
+>>>4	byte			0x33		PATQ (Sequencer Pattern Parameter Inquiry)
+>>>4	byte			0x73		AFM (Sequencer Pattern Reserved)
+>>>4	byte			0x04		GLBR (Global Parameter Request)
+>>>4	byte			0x14		GLBD (Global Parameter Dump)
+>>>4	byte			0x24		GLBP (Global Parameter Parameter Change)
+>>>4	byte			0x34		GLBQ (Global Parameter Parameter Inquiry)
+>>>4	byte			0x07		MODR (Mode Parameter Request)
+>>>4	byte			0x17		MODD (Mode Parameter Dump)
+>>>4	byte			0x27		MODP (Mode Parameter Parameter Change)
+>>>4	byte			0x37		MODQ (Mode Parameter Parameter Inquiry)
+>>2	byte			0x10		microQ
+>>>4	byte			0x00		SNDR (Sound Request)
+>>>4	byte			0x10		SNDD (Sound Dump)
+>>>4	byte			0x20		SNDP (Sound Parameter Change)
+>>>4	byte			0x30		SNDQ (Sound Parameter Inquiry)
+>>>4	byte			0x70		(Sound Reserved)
+>>>4	byte			0x01		MULR (Multi Request)
+>>>4	byte			0x11		MULD (Multi Dump)
+>>>4	byte			0x21		MULP (Multi Parameter Change)
+>>>4	byte			0x31		MULQ (Multi Parameter Inquiry)
+>>>4	byte			0x71		OS (Multi Reserved)
+>>>4	byte			0x02		DRMR (Drum Map Request)
+>>>4	byte			0x12		DRMD (Drum Map Dump)
+>>>4	byte			0x22		DRMP (Drum Map Parameter Change)
+>>>4	byte			0x32		DRMQ (Drum Map Parameter Inquiry)
+>>>4	byte			0x72		BIN (Drum Map Reserved)
+>>>4	byte			0x04		GLBR (Global Parameter Request)
+>>>4	byte			0x14		GLBD (Global Parameter Dump)
+>>>4	byte			0x24		GLBP (Global Parameter Parameter Change)
+>>>4	byte			0x34		GLBQ (Global Parameter Parameter Inquiry)
+>>2	byte			0x11		rackAttack
+>>>4	byte			0x00		SNDR (Sound Parameter Request)
+>>>4	byte			0x10		SNDD (Sound Parameter Dump)
+>>>4	byte			0x20		SNDP (Sound Parameter Parameter Change)
+>>>4	byte			0x30		SNDQ (Sound Parameter Parameter Inquiry)
+>>>4	byte			0x01		PRGR (Program Parameter Request)
+>>>4	byte			0x11		PRGD (Program Parameter Dump)
+>>>4	byte			0x21		PRGP (Program Parameter Parameter Change)
+>>>4	byte			0x31		PRGQ (Program Parameter Parameter Inquiry)
+>>>4	byte			0x71		OS (Program Parameter Reserved)
+>>>4	byte			0x03		PATR (Pattern Parameter Request)
+>>>4	byte			0x13		PATD (Pattern Parameter Dump)
+>>>4	byte			0x23		PATP (Pattern Parameter Parameter Change)
+>>>4	byte			0x33		PATQ (Pattern Parameter Parameter Inquiry)
+>>>4	byte			0x04		GLBR (Global Parameter Request)
+>>>4	byte			0x14		GLBD (Global Parameter Dump)
+>>>4	byte			0x24		GLBP (Global Parameter Parameter Change)
+>>>4	byte			0x34		GLBQ (Global Parameter Parameter Inquiry)
+>>>4	byte			0x05		EFXR (FX Parameter Request)
+>>>4	byte			0x15		EFXD (FX Parameter Dump)
+>>>4	byte			0x25		EFXP (FX Parameter Parameter Change)
+>>>4	byte			0x35		EFXQ (FX Parameter Parameter Inquiry)
+>>>4	byte			0x07		MODR (Mode Command Request)
+>>>4	byte			0x17		MODD (Mode Command Dump)
+>>>4	byte			0x27		MODP (Mode Command Parameter Change)
+>>>4	byte			0x37		MODQ (Mode Command Parameter Inquiry)
+>>2	byte			0x03		Wave
+>>>4	byte			0x00		SBPR (Soundprogram)
+>>>4	byte			0x01		SAPR (Performance)
+>>>4	byte			0x02		SWAVE (Wave)
+>>>4	byte			0x03		SWTBL (Wave control table)
+>>>4	byte			0x04		SVT (Velocity Curve)
+>>>4	byte			0x05		STT (Tuning Table)
+>>>4	byte			0x06		SGLB (Global Parameters)
+>>>4	byte			0x07		SARRMAP (Performance Program Change Map)
+>>>4	byte			0x08		SBPRMAP (Sound Program Change Map)
+>>>4	byte			0x09		SBPRPAR (Sound Parameter)
+>>>4	byte			0x0A		SARRPAR (Performance Parameter)
+>>>4	byte			0x0B		SINSPAR (Instrument/External Parameter)
+>>>4	byte			0x0F		SBULK (Bulk Switch on/off)
 
 # Japanese Group
 >1	byte			0x40		Kawai
