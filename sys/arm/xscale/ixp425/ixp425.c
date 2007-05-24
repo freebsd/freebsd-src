@@ -236,17 +236,14 @@ ixp425_attach(device_t dev)
 	    rman_manage_region(&sc->sc_mem_rman, 0, ~0) != 0)
 		panic("ixp425_attach: failed to set up IRQ rman");
 
-	device_add_child(dev, "pcib", 0);
-	device_add_child(dev, "ixpclk", 0);
-	device_add_child(dev, "ixpwdog", 0);
-	device_add_child(dev, "ixpiic", 0);
-	device_add_child(dev, "uart", 0);
-	/* XXX these are optional, what if they are not configured? */
-	device_add_child(dev, "ixpqmgr", 0);
-	device_add_child(dev, "npe", 0);	/* NPE-B */
-	device_add_child(dev, "npe", 1);	/* NPE-C */
-	device_add_child(dev, "ata_avila", 0);	/* XXX */
-	device_add_child(dev, "led_avila", 0);
+	BUS_ADD_CHILD(dev, 0, "pcib", 0);
+	BUS_ADD_CHILD(dev, 0, "ixpclk", 0);
+	BUS_ADD_CHILD(dev, 0, "ixpiic", 0);
+	/* XXX move to hints? */
+	BUS_ADD_CHILD(dev, 0, "ixpwdog", 0);
+
+	/* attach wired devices via hints */
+	bus_enumerate_hinted_children(dev);
 
 	if (bus_space_map(sc->sc_iot, IXP425_GPIO_HWBASE, IXP425_GPIO_SIZE,
 	    0, &sc->sc_gpio_ioh))
@@ -261,6 +258,60 @@ ixp425_attach(device_t dev)
 	return (0);
 }
 
+static void
+ixp425_hinted_child(device_t bus, const char *dname, int dunit)
+{
+	device_t child;
+	struct ixp425_ivar *ivar;
+
+	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
+	ivar = IXP425_IVAR(child);
+	resource_int_value(dname, dunit, "addr", &ivar->addr);
+	resource_int_value(dname, dunit, "irq", &ivar->irq);
+}
+
+static device_t
+ixp425_add_child(device_t dev, int order, const char *name, int unit)
+{
+	device_t child;
+	struct ixp425_ivar *ivar;
+
+	child = device_add_child_ordered(dev, order, name, unit);
+	if (child == NULL)
+		return NULL;
+	ivar = malloc(sizeof(struct ixp425_ivar), M_DEVBUF, M_NOWAIT);
+	if (ivar == NULL) {
+		device_delete_child(dev, child);
+		return NULL;
+	}
+	ivar->addr = 0;
+	ivar->irq = -1;
+	device_set_ivars(child, ivar);
+	return child;
+}
+
+static int
+ixp425_read_ivar(device_t bus, device_t child, int which, u_char *result)
+{
+	struct ixp425_ivar *ivar = IXP425_IVAR(child);
+
+	switch (which) {
+	case IXP425_IVAR_ADDR:
+		if (ivar->addr != 0) {
+			*(uint32_t *)result = ivar->addr;
+			return 0;
+		}
+		break;
+	case IXP425_IVAR_IRQ:
+		if (ivar->irq != -1) {
+			*(int *)result = ivar->irq;
+			return 0;
+		}
+		break;
+	}
+	return EINVAL;
+}
+
 static struct resource *
 ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -268,51 +319,46 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct ixp425_softc *sc = device_get_softc(dev);
 	struct rman *rmanp;
 	struct resource *rv;
-	uint32_t vbase;
-	int isuart = (start == 0 && end == ~0);	/* XXX how to do this right? */
-
-	rv = NULL;
+	uint32_t vbase, addr;
+	int irq;
 
 	switch (type) {
 	case SYS_RES_IRQ:
 		rmanp = &sc->sc_irq_rman;
-		if (isuart) {
-			if (device_get_unit(dev) == 0) 
-				start = IXP425_INT_UART0;
-			else
-				start = IXP425_INT_UART1;
-			end = start;
-		}
+		/* override per hints */
+		if (BUS_READ_IVAR(dev, child, IXP425_IVAR_IRQ, &irq) == 0)
+			start = end = irq;
+		rv = rman_reserve_resource(rmanp, start, end, count,
+			flags, child);
+		if (rv != NULL)
+			rman_set_rid(rv, *rid);
 		break;
 
 	case SYS_RES_MEMORY:
 		rmanp = &sc->sc_mem_rman;
-		if (isuart) {
-			if (device_get_unit(dev) == 0) 
-				start = IXP425_UART0_HWBASE;
-			else
-				start = IXP425_UART1_HWBASE;
-			end = start + 0x1000;
+		/* override per hints */
+		if (BUS_READ_IVAR(dev, child, IXP425_IVAR_ADDR, &addr) == 0) {
+			start = addr;
+			end = start + 0x1000;	/* XXX */
 		}
 		if (getvbase(start, end - start, &vbase))
-			return (rv);
-		break;
-
-	default:
-		return (rv);
-	}
-
-	rv = rman_reserve_resource(rmanp, start, end, count, flags, child);
-	if (rv != NULL) {
-		rman_set_rid(rv, *rid);
-		if (type == SYS_RES_MEMORY) {
-			rman_set_bustag(rv,
-			    isuart ? &ixp425_a4x_bs_tag : sc->sc_iot);
+			return NULL;
+		rv = rman_reserve_resource(rmanp, start, end, count,
+			flags, child);
+		if (rv != NULL) {
+			rman_set_rid(rv, *rid);
+			if (strcmp(device_get_name(child), "uart") == 0)
+				rman_set_bustag(rv, &ixp425_a4x_bs_tag);
+			else
+				rman_set_bustag(rv, sc->sc_iot);
 			rman_set_bushandle(rv, vbase);
 		}
+		break;
+	default:
+		rv = NULL;
+		break;
 	}
-
-	return (rv);
+	return rv;
 }
 
 static int
@@ -321,14 +367,10 @@ ixp425_setup_intr(device_t dev, device_t child,
     driver_intr_t *intr, void *arg, void **cookiep)    
 {
 	uint32_t mask;
-	int i;
+	int i, irq;
 
-	if (flags & INTR_TYPE_TTY) {
-		/* XXX: wrong. */
-		if (device_get_unit(dev) == 0)
-			rman_set_start(ires, IXP425_INT_UART0);
-		else
-			rman_set_start(ires, IXP425_INT_UART1);
+	if (BUS_READ_IVAR(dev, child, IXP425_IVAR_IRQ, &irq) == 0) {
+		rman_set_start(ires, irq);
 		rman_set_end(ires, rman_get_start(ires));
 	}
 	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr,
@@ -366,6 +408,10 @@ static device_method_t ixp425_methods[] = {
 	DEVMETHOD(device_identify, ixp425_identify),
 
 	/* Bus interface */
+	DEVMETHOD(bus_add_child, ixp425_add_child),
+	DEVMETHOD(bus_hinted_child, ixp425_hinted_child),
+	DEVMETHOD(bus_read_ivar, ixp425_read_ivar),
+
 	DEVMETHOD(bus_alloc_resource, ixp425_alloc_resource),
 	DEVMETHOD(bus_setup_intr, ixp425_setup_intr),
 	DEVMETHOD(bus_teardown_intr, ixp425_teardown_intr),
