@@ -40,7 +40,7 @@ init_variables()
 	i=1
 	while [ true ]; do
 		eval _exec_afterstart${i}=\"\${jail_${_j}_exec_afterstart${i}:-\${jail_exec_afterstart${i}}}\"
-	[ -z "$(eval echo \"\$_exec_afterstart${i}\")" ] &&  break
+		[ -z "$(eval echo \"\$_exec_afterstart${i}\")" ] &&  break
 		i=$((i + 1))
 	done
 	
