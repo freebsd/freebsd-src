@@ -545,7 +545,7 @@ pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 int
 pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
 {
-	struct pcib_softc *sc = device_get_softc(dev);
+	struct pcib_softc *sc = device_get_softc(pcib);
 	device_t bus;
 
 	if (sc->flags & PCIB_DISABLE_MSI)
@@ -569,7 +569,7 @@ pcib_release_msi(device_t pcib, device_t dev, int count, int *irqs)
 int
 pcib_alloc_msix(device_t pcib, device_t dev, int index, int *irq)
 {
-	struct pcib_softc *sc = device_get_softc(dev);
+	struct pcib_softc *sc = device_get_softc(pcib);
 	device_t bus;
 
 	if (sc->flags & PCIB_DISABLE_MSI)
