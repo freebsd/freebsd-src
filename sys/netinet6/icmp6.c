@@ -666,6 +666,10 @@ icmp6_input(mp, offp, proto)
 			u_char *p;
 			int maxlen, maxhlen;
 
+			/*
+			 * XXX: this combination of flags is pointless,
+			 * but should we keep this for compatibility?
+			 */
 			if ((icmp6_nodeinfo & 5) != 5)
 				break;
 
@@ -1184,12 +1188,30 @@ ni6_input(m, off)
 #endif
 
 	/*
+	 * Validate IPv6 source address.
+	 * The default configuration MUST be to refuse answering queries from
+	 * global-scope addresses according to RFC4602.
+	 * Notes:
+	 *  - it's not very clear what "refuse" means; this implementation
+	 *    simply drops it.
+	 *  - it's not very easy to identify global-scope (unicast) addresses
+	 *    since there are many prefixes for them.  It should be safer
+	 *    and in practice sufficient to check "all" but loopback and
+	 *    link-local (note that site-local unicast was deprecated and
+	 *    ULA is defined as global scope-wise)
+	 */
+	if ((icmp6_nodeinfo & ICMP6_NODEINFO_GLOBALOK) == 0 &&
+	    !IN6_IS_ADDR_LOOPBACK(&ip6->ip6_src) &&
+	    !IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_src))
+		goto bad;
+
+	/*
 	 * Validate IPv6 destination address.
 	 *
 	 * The Responder must discard the Query without further processing
 	 * unless it is one of the Responder's unicast or anycast addresses, or
 	 * a link-local scope multicast address which the Responder has joined.
-	 * [icmp-name-lookups-08, Section 4.]
+	 * [RFC4602, Section 5.]
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		if (!IN6_IS_ADDR_MC_LINKLOCAL(&ip6->ip6_dst))
@@ -1200,7 +1222,7 @@ ni6_input(m, off)
 			goto bad; /* XXX impossible */
 
 		if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) &&
-		    !(icmp6_nodeinfo & 4)) {
+		    !(icmp6_nodeinfo & ICMP6_NODEINFO_TMPADDROK)) {
 			nd6log((LOG_DEBUG, "ni6_input: ignore node info to "
 				"a temporary address in %s:%d",
 			       __FILE__, __LINE__));
@@ -1315,12 +1337,12 @@ ni6_input(m, off)
 	/* refuse based on configuration.  XXX ICMP6_NI_REFUSED? */
 	switch (qtype) {
 	case NI_QTYPE_FQDN:
-		if ((icmp6_nodeinfo & 1) == 0)
+		if ((icmp6_nodeinfo & ICMP6_NODEINFO_FQDNOK) == 0)
 			goto bad;
 		break;
 	case NI_QTYPE_NODEADDR:
 	case NI_QTYPE_IPV4ADDR:
-		if ((icmp6_nodeinfo & 2) == 0)
+		if ((icmp6_nodeinfo & ICMP6_NODEINFO_NODEADDROK) == 0)
 			goto bad;
 		break;
 	}
@@ -1698,7 +1720,7 @@ ni6_addrs(ni6, m, ifpp, subj)
 			    (niflags & NI_NODEADDR_FLAG_ANYCAST) == 0)
 				continue; /* we need only unicast addresses */
 			if ((ifa6->ia6_flags & IN6_IFF_TEMPORARY) != 0 &&
-			    (icmp6_nodeinfo & 4) == 0) {
+			    (icmp6_nodeinfo & ICMP6_NODEINFO_TMPADDROK) == 0) {
 				continue;
 			}
 			addrsofif++; /* count the address */
@@ -1786,7 +1808,7 @@ ni6_store_addrs(ni6, nni6, ifp0, resid)
 			    (niflags & NI_NODEADDR_FLAG_ANYCAST) == 0)
 				continue;
 			if ((ifa6->ia6_flags & IN6_IFF_TEMPORARY) != 0 &&
-			    (icmp6_nodeinfo & 4) == 0) {
+			    (icmp6_nodeinfo & ICMP6_NODEINFO_TMPADDROK) == 0) {
 				continue;
 			}
 
