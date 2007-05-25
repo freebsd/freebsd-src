@@ -421,8 +421,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		freeenv(env);
 	}
 
-
-
 	/*
 	 * Initialize global registers.
 	 * needed for curthread to work
@@ -467,7 +465,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	BVPRINTF("initialize trap tables\n");
 
-	mmfsa = mmu_fault_status_area + (MMFSA_SIZE*curcpu);
+	mmfsa = mmu_fault_status_area + MMFSA_SIZE;
 	BVPRINTF("setwstate\n");
 	set_wstate(WSTATE_KERN);
 	BVPRINTF("set_mmfsa_scratchpad\n");
