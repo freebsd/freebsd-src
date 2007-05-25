@@ -97,7 +97,7 @@
 void trap(struct trapframe *tf, int64_t type, uint64_t data);
 void syscall(struct trapframe *tf);
 
-vm_paddr_t mmu_fault_status_area;
+extern vm_paddr_t mmu_fault_status_area;
 
 static int trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data);
 
@@ -116,8 +116,6 @@ extern char fas_nofault_begin[];
 extern char fas_nofault_end[];
 
 extern char *syscallnames[];
-
-int trap_conversion[256];
 
 const char *trap_msg[] = {
 	"reserved",
@@ -246,24 +244,12 @@ trap_init(void)
 	int i;
 
 	mmfsa = mmu_fault_status_area + (MMFSA_SIZE*curcpu);
+
 	set_wstate(WSTATE_KERN);
 	set_mmfsa_scratchpad(mmfsa);
 
 	init_mondo_queue();
 	OF_set_mmfsa_traptable(&tl0_base, mmfsa);
-	for (i = 0; i < 256; i++)
-		trap_conversion[i] = 0;
-	trap_conversion[TT_INSTRUCTION_EXCEPTION] = T_INSTRUCTION_EXCEPTION;
-	trap_conversion[TT_INSTRUCTION_MISS]      = T_INSTRUCTION_MISS;
-	trap_conversion[TT_ILLEGAL_INSTRUCTION]   = T_ILLEGAL_INSTRUCTION;
-	trap_conversion[TT_PRIVILEGED_OPCODE]     = T_PRIVILEGED_OPCODE;
-	trap_conversion[TT_FP_EXCEPTION_IEEE_754] = T_FP_EXCEPTION_IEEE_754; 
-	trap_conversion[TT_TAG_OVERFLOW]          = T_TAG_OVERFLOW;
-	trap_conversion[TT_DIVISION_BY_ZERO]      = T_DIVISION_BY_ZERO;
-	trap_conversion[TT_DATA_EXCEPTION]        = T_DATA_EXCEPTION;
-	trap_conversion[TT_DATA_MISS]             = T_DATA_MISS;
-	trap_conversion[TT_ALIGNMENT]             = T_ALIGNMENT;
-	trap_conversion[TT_DATA_PROTECTION]       = T_DATA_PROTECTION;
 }
 
 void
