@@ -727,7 +727,7 @@ send:
 	if (len) {
 		if ((tp->t_flags & TF_FORCEDATA) && len == 1)
 			tcpstat.tcps_sndprobe++;
-		else if (SEQ_LT(tp->snd_nxt, tp->snd_max)) {
+		else if (SEQ_LT(tp->snd_nxt, tp->snd_max) || sack_rxmit) {
 			tcpstat.tcps_sndrexmitpack++;
 			tcpstat.tcps_sndrexmitbyte += len;
 		} else {
