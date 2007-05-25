@@ -144,6 +144,7 @@
 #define	VAR_IPV6CPRETRY	37
 #define	VAR_RAD_ALIVE	38
 #define	VAR_PPPOE	39
+#define	VAR_PORT_ID	40
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -2311,6 +2312,29 @@ SetVariable(struct cmdargs const *arg)
     }
     break;
 
+#ifndef NORADIUS
+  case VAR_PORT_ID:
+    if (strcasecmp(argp, "default") == 0)
+	    arg->bundle->radius.port_id_type = RPI_DEFAULT;
+    else if (strcasecmp(argp, "pid") == 0)
+	    arg->bundle->radius.port_id_type = RPI_PID;
+    else if (strcasecmp(argp, "ifnum") == 0)
+	    arg->bundle->radius.port_id_type = RPI_IFNUM; 
+    else if (strcasecmp(argp, "tunnum") == 0)
+	    arg->bundle->radius.port_id_type = RPI_TUNNUM;
+    else {
+	   log_Printf(LogWARN,
+		"RADIUS port id must be one of \"default\", \"pid\", \"ifnum\" or \"tunnum\"\n");
+	   res = 1;
+    }
+
+    if (arg->bundle->radius.port_id_type && !arg->bundle->radius.cfg.file) {
+	    log_Printf(LogWARN, "rad_port_id requires radius to be configured\n");
+	    res = 1;
+    }
+
+    break;
+#endif
   }
 
   return res;
@@ -2415,7 +2439,9 @@ static struct cmdtab const SetCommands[] = {
   "RADIUS Config", "set radius cfgfile", (const void *)VAR_RADIUS},
   {"rad_alive", NULL, SetVariable, LOCAL_AUTH,
   "Raduis alive interval", "set rad_alive value",
-  (const void *)VAR_RAD_ALIVE},  
+  (const void *)VAR_RAD_ALIVE},
+  {"rad_port_id", NULL, SetVariable, LOCAL_AUTH,
+  "NAS-Port-Id", "set rad_port_id [default|pid|ifnum|tunnum]", (const void *)VAR_PORT_ID},
 #endif
   {"reconnect", NULL, datalink_SetReconnect, LOCAL_AUTH | LOCAL_CX,
   "Reconnect timeout", "set reconnect value ntries", NULL},
