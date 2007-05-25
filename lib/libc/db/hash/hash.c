@@ -68,7 +68,7 @@ static void *hash_realloc(SEGMENT **, int, int);
 static int   hash_seq(const DB *, DBT *, DBT *, u_int32_t);
 static int   hash_sync(const DB *, u_int32_t);
 static int   hdestroy(HTAB *);
-static HTAB *init_hash(HTAB *, const char *, HASHINFO *);
+static HTAB *init_hash(HTAB *, const char *, const HASHINFO *);
 static int   init_htab(HTAB *, int);
 #if BYTE_ORDER == LITTLE_ENDIAN
 static void  swap_header(HTAB *);
@@ -140,7 +140,7 @@ __hash_open(file, flags, mode, info, dflags)
 		(void)_fcntl(hashp->fp, F_SETFD, 1);
 	}
 	if (new_table) {
-		if (!(hashp = init_hash(hashp, file, (HASHINFO *)info)))
+		if (!(hashp = init_hash(hashp, file, info)))
 			RETURN_ERROR(errno, error1);
 	} else {
 		/* Table already exists */
@@ -286,7 +286,7 @@ static HTAB *
 init_hash(hashp, file, info)
 	HTAB *hashp;
 	const char *file;
-	HASHINFO *info;
+	const HASHINFO *info;
 {
 	struct stat statbuf;
 	int nelem;
