@@ -27,7 +27,7 @@ changecom(,)dnl
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2006
+.Dd May 24, 2007
 .Dt PPP 8
 .Os
 .Sh NAME
@@ -5588,6 +5588,25 @@ value will tell
 to sent RADIUS accounting information to the RADIUS server every
 .Ar timeout
 seconds.
+.It set rad_port_id Ar option
+When RADIUS is configured, setting
+.Dq rad_port_id
+value allows to specify what should be sent to the RADIUS server as
+NAS-Port-Id.
+The
+.Ar option Ns No s
+are as follows:
+.Pp
+.Bl -tag -width Ds
+.It pid
+PID of the corresponding tunnel.
+.It tunnum
+tun(4) interface number.
+.It ifnum
+index of the interface as of returned by if_nametoindex(3).
+.It default
+keeps the default behavior.
+.El
 .It set reconnect Ar timeout ntries
 Should the line drop unexpectedly (due to loss of CD or LQR
 failure), a connection will be re-established after the given
