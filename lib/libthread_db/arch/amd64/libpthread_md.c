@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/procfs.h>
+#include <string.h>
 #include <ucontext.h>
 
 void
