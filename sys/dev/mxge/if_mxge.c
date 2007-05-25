@@ -1372,6 +1372,12 @@ mxge_add_sysctls(mxge_softc_t *sc)
 			0, mxge_handle_be32,
 			"I", "dropped_runt");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+			"dropped_unicast_filtered",
+			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_unicast_filtered,
+			0, mxge_handle_be32,
+			"I", "dropped_unicast_filtered");
+
 	/* host counters exported for debugging */
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 		       "rx_small_cnt",
@@ -1953,7 +1959,10 @@ mxge_get_buf_big(mxge_softc_t *sc, bus_dmamap_t map, int idx)
 	mxge_rx_buf_t *rx = &sc->rx_big;
 	int cnt, err, i;
 
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, rx->cl_size);
+	if (rx->cl_size == MCLBYTES)
+		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	else
+		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, rx->cl_size);
 	if (m == NULL) {
 		rx->alloc_fail++;
 		err = ENOBUFS;
