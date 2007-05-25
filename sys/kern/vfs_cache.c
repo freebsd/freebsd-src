@@ -580,23 +580,15 @@ cache_purgevfs(mp)
 {
 	struct nchashhead *ncpp;
 	struct namecache *ncp, *nnp;
-	struct nchashhead mplist;
-
-	LIST_INIT(&mplist);
 
 	/* Scan hash tables for applicable entries */
 	CACHE_LOCK();
 	for (ncpp = &nchashtbl[nchash]; ncpp >= nchashtbl; ncpp--) {
-		for (ncp = LIST_FIRST(ncpp); ncp != NULL; ncp = nnp) {
-			nnp = LIST_NEXT(ncp, nc_hash);
-			if (ncp->nc_dvp->v_mount == mp) {
-				LIST_REMOVE(ncp, nc_hash);
-				LIST_INSERT_HEAD(&mplist, ncp, nc_hash);
-			}
+		LIST_FOREACH_SAFE(ncp, ncpp, nc_hash, nnp) {
+			if (ncp->nc_dvp->v_mount == mp)
+				cache_zap(ncp);
 		}
 	}
-	while (!LIST_EMPTY(&mplist))
-		cache_zap(LIST_FIRST(&mplist));
 	CACHE_UNLOCK();
 }
 
