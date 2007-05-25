@@ -9,11 +9,7 @@ modification, are permitted provided that the following conditions are met:
  1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Chelsio Corporation nor the names of its
+ 2. Neither the name of the Chelsio Corporation nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
 
@@ -59,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include <dev/cxgb/ulp/toecore/toedev.h>
+#include <dev/cxgb/sys/mbufq.h>
+
 struct adapter;
 struct sge_qset;
 extern int cxgb_debug;
@@ -91,9 +90,6 @@ enum {				/* adapter flags */
 	FW_UPTODATE     = (1 << 4),
 };
 
-/* Max active LRO sessions per queue set */
-#define MAX_LRO_PER_QSET 8
-
 
 #define FL_Q_SIZE	4096
 #define JUMBO_Q_SIZE	512
@@ -114,25 +110,23 @@ enum {
 	LRO_ACTIVE = (1 << 8),
 };
 
-struct sge_lro_session {
-	struct mbuf *m;
+/* Max concurrent LRO sessions per queue set */
+#define MAX_LRO_SES 8
+
+struct t3_lro_session {
+	struct mbuf *head;
+	struct mbuf *tail;
 	uint32_t seq;
 	uint16_t ip_len;
+	uint16_t vtag;
+	uint8_t npkts;
 };
 
-struct sge_lro {
-	unsigned int enabled;
-	unsigned int num_active;
-	struct sge_lro_session *last_s;
-	struct sge_lro_session s[MAX_LRO_PER_QSET];
-};
-
-/* has its own header on linux XXX
- * but I don't even know what it is :-/
- */
-
-struct t3cdev {
-	int foo; /* XXX fill in */
+struct lro_state {
+	unsigned short enabled;
+	unsigned short active_idx;
+	unsigned int nactive;
+	struct t3_lro_session sess[MAX_LRO_SES];
 };
 
 #define RX_BUNDLE_SIZE 8
@@ -148,14 +142,21 @@ struct sge_rspq {
 	uint32_t	holdoff_tmr;
 	uint32_t	next_holdoff;
 	uint32_t        imm_data;
-	uint32_t        pure_rsps;
 	struct rsp_desc	*desc;
-	bus_addr_t	phys_addr;
 	uint32_t	cntxt_id;
+	struct mtx      lock;
+	struct mbuf     *rx_head;    /* offload packet receive queue head */
+	struct mbuf     *rx_tail;    /* offload packet receive queue tail */
+
+	uint32_t        offload_pkts;
+	uint32_t        offload_bundles;
+	uint32_t        pure_rsps;
+	uint32_t        unhandled_irqs;
+
+	bus_addr_t	phys_addr;
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
 	struct mbuf	*m;
-	struct mtx      lock;
 };
 
 struct rx_desc;
@@ -198,12 +199,14 @@ struct sge_txq {
 	struct tx_sw_desc *sdesc;
 	uint32_t	token;
 	bus_addr_t	phys_addr;
+	struct task     qresume_tsk;
 	uint32_t	cntxt_id;
 	uint64_t	stops;
 	uint64_t	restarts;
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
 	bus_dma_tag_t   entry_tag;
+	struct mbuf_head sendq;
 	struct mtx      lock;
 };
      	
@@ -224,9 +227,9 @@ enum {
 struct sge_qset {
 	struct sge_rspq		rspq;
 	struct sge_fl		fl[SGE_RXQ_PER_SET];
-	struct sge_lro          lro;
+	struct lro_state        lro;
 	struct sge_txq		txq[SGE_TXQ_PER_SET];
-       	unsigned long           txq_stopped;       /* which Tx queues are stopped */
+	uint32_t                txq_stopped;       /* which Tx queues are stopped */
 	uint64_t                port_stats[SGE_PSTAT_MAX];
 	struct port_info        *port;
 	int                     idx; /* qset # */
@@ -240,6 +243,7 @@ struct sge {
 struct adapter {
 	device_t		dev;
 	int			flags;
+	TAILQ_ENTRY(adapter)    adapter_entry;
 	
 	/* PCI register resources */
 	uint32_t		regs_rid;
@@ -248,6 +252,7 @@ struct adapter {
 	bus_space_tag_t		bt;
 	bus_size_t              mmio_len;
 	uint32_t                link_width;
+				
 	
 	/* DMA resources */
 	bus_dma_tag_t		parent_dmat;
@@ -293,10 +298,13 @@ struct adapter {
 
 	struct port_info	port[MAX_NPORTS];
 	device_t		portdev[MAX_NPORTS];
-	struct t3cdev           tdev;
+	struct toedev           tdev;
 	char                    fw_version[64];
 	uint32_t                open_device_map;
+	uint32_t                registered_device_map;
 	struct mtx              lock;
+	driver_intr_t           *cxgb_intr;
+	int                     msi_count;
 };
 
 struct t3_rx_mode {
@@ -384,6 +392,7 @@ int t3_os_pci_restore_state(struct adapter *adapter);
 void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
 			int speed, int duplex, int fc);
 void t3_sge_err_intr_handler(adapter_t *adapter);
+int t3_offload_tx(struct toedev *, struct mbuf *);
 void t3_os_ext_intr_handler(adapter_t *adapter);
 void t3_os_set_hw_addr(adapter_t *adapter, int port_idx, u8 hw_addr[]);
 int t3_mgmt_tx(adapter_t *adap, struct mbuf *m);
@@ -395,6 +404,7 @@ int t3_sge_alloc_qset(adapter_t *, uint32_t, int, int, const struct qset_params 
     int, struct port_info *);
 void t3_free_sge_resources(adapter_t *);
 void t3_sge_start(adapter_t *);
+void t3_sge_stop(adapter_t *);
 void t3b_intr(void *data);
 void t3_intr_msi(void *data);
 void t3_intr_msix(void *data);
@@ -406,7 +416,7 @@ void t3_sge_deinit_sw(adapter_t *);
 void t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,
     int ethpad, uint32_t rss_hash, uint32_t rss_csum, int lro);
 void t3_rx_eth(struct port_info *p, struct sge_rspq *rq, struct mbuf *m, int ethpad);
-void t3_sge_lro_flush_all(adapter_t *adap, struct sge_qset *qs);
+void t3_lro_flush(adapter_t *adap, struct sge_qset *qs, struct lro_state *state);
 
 void t3_add_sysctls(adapter_t *sc);
 int t3_get_desc(const struct sge_qset *qs, unsigned int qnum, unsigned int idx,
@@ -437,6 +447,19 @@ txq_to_qset(struct sge_txq *q, int qidx)
 	return container_of(q, struct sge_qset, txq[qidx]);
 }
 
+static __inline struct adapter *
+tdev2adap(struct toedev *d)
+{
+	return container_of(d, struct adapter, tdev);
+}
+
 #undef container_of
+
+#define OFFLOAD_DEVMAP_BIT 15
+static inline int offload_running(adapter_t *adapter)
+{
+        return isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT);
+}
+
 
 #endif

@@ -9,11 +9,7 @@ modification, are permitted provided that the following conditions are met:
  1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Chelsio Corporation nor the names of its
+ 2. Neither the name of the Chelsio Corporation nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
 
@@ -68,7 +64,8 @@ enum {
 	CH_IFCONF_GETREGS,
 	CH_GETMIIREGS,
 	CH_SETMIIREGS,
-	
+	CH_SET_FILTER,
+	CH_SET_HW_SCHED,
 };
 
 struct ch_reg {
@@ -217,6 +214,7 @@ struct mii_data {
 
 #define CHELSIO_SETREG              _IOW('f', CH_SETREG, struct ch_reg)
 #define CHELSIO_GETREG              _IOWR('f', CH_GETREG, struct ch_reg)
+#define CHELSIO_READ_TCAM_WORD      _IOR('f', CH_READ_TCAM_WORD, struct ch_tcam)
 #define CHELSIO_GET_MEM             _IOWR('f', CH_GET_MEM, struct ch_mem_range)
 #define CHELSIO_GET_SGE_CONTEXT     _IOWR('f', CH_GET_SGE_CONTEXT, struct ch_cntxt)
 #define CHELSIO_GET_SGE_DESC        _IOWR('f', CH_GET_SGE_DESC, struct ch_desc)
@@ -224,6 +222,8 @@ struct mii_data {
 #define CHELSIO_SET_QSET_PARAMS     _IOW('f', CH_SET_QSET_PARAMS, struct ch_qset_params)
 #define CHELSIO_GET_QSET_NUM        _IOWR('f', CH_GET_QSET_NUM, struct ch_reg)
 #define CHELSIO_SET_QSET_NUM        _IOW('f', CH_SET_QSET_NUM, struct ch_reg)
+#define CHELSIO_GETMTUTAB           _IOR('f', CH_GET_QSET_NUM, struct ch_mtus)
+#define CHELSIO_SETMTUTAB           _IOW('f', CH_SET_QSET_NUM, struct ch_mtus)
 
 
 #define CHELSIO_SET_TRACE_FILTER    _IOW('f', CH_SET_TRACE_FILTER, struct ch_trace)
@@ -231,4 +231,6 @@ struct mii_data {
 #define CHELSIO_IFCONF_GETREGS      _IOWR('f', CH_IFCONF_GETREGS, struct ifconf_regs)
 #define SIOCGMIIREG                 _IOWR('f', CH_GETMIIREGS, struct mii_data)
 #define SIOCSMIIREG                 _IOWR('f', CH_SETMIIREGS, struct mii_data)
+#define CHELSIO_SET_HW_SCHED        _IOWR('f', CH_SET_HW_SCHED, struct ch_hw_sched)
+#define CHELSIO_DEVUP               _IO('f', CH_DEVUP)
 #endif

@@ -514,6 +514,8 @@ dev/cs/if_cs.c			optional cs
 dev/cs/if_cs_isa.c		optional cs isa
 dev/cs/if_cs_pccard.c		optional cs pccard
 dev/cxgb/cxgb_main.c		optional cxgb pci
+dev/cxgb/cxgb_offload.c		optional cxgb pci
+dev/cxgb/cxgb_l2t.c		optional cxgb pci
 dev/cxgb/cxgb_lro.c		optional cxgb pci
 dev/cxgb/cxgb_sge.c		optional cxgb pci
 dev/cxgb/common/cxgb_mc5.c	optional cxgb pci
