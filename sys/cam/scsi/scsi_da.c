@@ -467,6 +467,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "X-Micro" , "Flash Disk",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * EasyMP3 EM732X USB 2.0 Flash MP3 Player
+		 * PR: usb/96546
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "EM732X", "MP3 Player*",
+		"1.0"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
@@ -1917,9 +1925,23 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector)
 	ccg.secs_per_track = 0;
 	ccg.cylinders = 0;
 	xpt_action((union ccb*)&ccg);
-	dp->heads = ccg.heads;
-	dp->secs_per_track = ccg.secs_per_track;
-	dp->cylinders = ccg.cylinders;
+	if ((ccg.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		/*
+		 * We don't know what went wrong here- but just pick
+		 * a geometry so we don't have nasty things like divide
+		 * by zero.
+		 */
+		dp->heads = 255;
+		dp->secs_per_track = 255;
+		dp->cylinders = dp->sectors / (255 * 255);
+		if (dp->cylinders == 0) {
+			dp->cylinders = 1;
+		}
+	} else {
+		dp->heads = ccg.heads;
+		dp->secs_per_track = ccg.secs_per_track;
+		dp->cylinders = ccg.cylinders;
+	}
 }
 
 static void
