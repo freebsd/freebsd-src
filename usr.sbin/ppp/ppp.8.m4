@@ -5589,7 +5589,7 @@ to sent RADIUS accounting information to the RADIUS server every
 .Ar timeout
 seconds.
 .It set rad_port_id Ar option
-When RADIUS is configured, setting
+When RADIUS is configured, setting the
 .Dq rad_port_id
 value allows to specify what should be sent to the RADIUS server as
 NAS-Port-Id.
@@ -5601,9 +5601,11 @@ are as follows:
 .It pid
 PID of the corresponding tunnel.
 .It tunnum
-tun(4) interface number.
+.Xr tun 4
+interface number.
 .It ifnum
-index of the interface as of returned by if_nametoindex(3).
+index of the interface as returned by
+.Xr if_nametoindex 3 .
 .It default
 keeps the default behavior.
 .El
