@@ -1109,8 +1109,8 @@ get_phys(void)
 int
 ar_next(void)
 {
+	static char *arcbuf;
 	char buf[PAXPATHLEN+2];
-	static int freeit = 0;
 	sigset_t o_mask;
 
 	/*
@@ -1228,17 +1228,14 @@ ar_next(void)
 		 * try to open new archive
 		 */
 		if (ar_open(buf) >= 0) {
-			if (freeit) {
-				free((char *)(uintptr_t)arcname);
-				freeit = 0;
-			}
-			if ((arcname = strdup(buf)) == NULL) {
+			free(arcbuf);
+			if ((arcbuf = strdup(buf)) == NULL) {
 				done = 1;
 				lstrval = -1;
 				paxwarn(0, "Cannot save archive name.");
 				return(-1);
 			}
-			freeit = 1;
+			arcname = arcbuf;
 			break;
 		}
 		tty_prnt("Cannot open %s, try again\n", buf);

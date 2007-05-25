@@ -412,7 +412,7 @@ trng_add(char *str)
 		 */
 		if (str_sec(str, &(pt->low_time)) < 0) {
 			paxwarn(1, "Illegal lower time range %s", str);
-			free((char *)pt);
+			free(pt);
 			goto out;
 		}
 		pt->flgs |= HASLOW;
@@ -424,7 +424,7 @@ trng_add(char *str)
 		 */
 		if (str_sec(up_pt, &(pt->high_time)) < 0) {
 			paxwarn(1, "Illegal upper time range %s", up_pt);
-			free((char *)pt);
+			free(pt);
 			goto out;
 		}
 		pt->flgs |= HASHIGH;
@@ -436,7 +436,7 @@ trng_add(char *str)
 			if (pt->low_time > pt->high_time) {
 				paxwarn(1, "Upper %s and lower %s time overlap",
 					up_pt, str);
-				free((char *)pt);
+				free(pt);
 				return(-1);
 			}
 		}
