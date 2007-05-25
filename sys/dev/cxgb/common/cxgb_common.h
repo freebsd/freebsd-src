@@ -46,6 +46,7 @@ enum {
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
 	NTX_SCHED      = 8,     /* # of HW Tx scheduling queues */
+	TP_TMR_RES     = 200,   /* TP timer resolution in usec */
 };
 
 #define MAX_RX_COALESCING_LEN 16224U
@@ -57,7 +58,6 @@ enum {
 };
 
 enum {
-	SUPPORTED_OFFLOAD  = 1 << 24,
 	SUPPORTED_IRQ      = 1 << 25
 };
 
@@ -70,8 +70,8 @@ enum {                            /* adapter interrupt-maintained statistics */
 };
 
 enum {
-	FW_VERSION_MAJOR = 3,
-	FW_VERSION_MINOR = 2,
+	FW_VERSION_MAJOR = 4,
+	FW_VERSION_MINOR = 0,
 	FW_VERSION_MICRO = 0
 };
 
@@ -309,6 +309,9 @@ enum {
 	MC5_MODE_72_BIT  = 2
 };
 
+/* MC5 min active region size */
+enum { MC5_MIN_TIDS = 16 };
+
 struct vpd_params {
 	unsigned int cclk;
 	unsigned int mclk;
@@ -354,6 +357,7 @@ struct adapter_params {
 	unsigned int   stats_update_period; /* MAC stats accumulation period */
 	unsigned int   linkpoll_period;     /* link poll period in 0.1s */
 	unsigned int   rev;                 /* chip revision */
+	unsigned int   offload;
 };
 
 enum {					    /* chip revisions */
@@ -427,8 +431,11 @@ struct cmac {
 	adapter_t *adapter;
 	unsigned int offset;
 	unsigned int nucast;    /* # of address filters for unicast MACs */
-	unsigned int tcnt;
-	unsigned int xcnt;
+	unsigned int tx_tcnt;
+	unsigned int tx_xcnt;
+	u64 tx_mcnt;
+	unsigned int rx_xcnt;
+	u64 rx_mcnt;
 	unsigned int toggle_cnt;
 	unsigned int txen;
 	struct mac_stats stats;
@@ -555,7 +562,7 @@ static inline int is_10G(const adapter_t *adap)
 static inline int is_offload(const adapter_t *adap)
 {
 #ifdef CONFIG_CHELSIO_T3_CORE
-	return adapter_info(adap)->caps & SUPPORTED_OFFLOAD;
+	return adap->params.offload;
 #else
 	return 0;
 #endif
