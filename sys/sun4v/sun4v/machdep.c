@@ -107,6 +107,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/tstate.h>
 #include <machine/asm.h>
 #include <machine/hv_api.h>
+#include <machine/wstate.h>
+
+#include <machine/md_var.h>
+#include <machine/hypervisorvar.h>
+#include <dev/ofw/openfirm.h>
 
 /* XXX move this to a header */
 extern void mdesc_init(void);
@@ -126,6 +131,8 @@ long realmem;
 
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
 struct trapframe frame0;
+int trap_conversion[256];
+vm_paddr_t mmu_fault_status_area;
 
 vm_offset_t kstack0;
 vm_paddr_t kstack0_phys;
@@ -297,6 +304,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	u_int clock;
 	char *env;
 	char type[8];
+	vm_paddr_t mmfsa;
+	int i;
 
 	end = 0;
 	kmdp = NULL;
@@ -457,7 +466,31 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * setup trap table and fault status area
 	 */
 	BVPRINTF("initialize trap tables\n");
-	trap_init();
+
+	mmfsa = mmu_fault_status_area + (MMFSA_SIZE*curcpu);
+	BVPRINTF("setwstate\n");
+	set_wstate(WSTATE_KERN);
+	BVPRINTF("set_mmfsa_scratchpad\n");
+	set_mmfsa_scratchpad(mmfsa);
+
+	BVPRINTF("init_mondo_queue\n");
+	init_mondo_queue();
+	BVPRINTF("OF_set_mmfsa_traptable\n");
+	OF_set_mmfsa_traptable(&tl0_base, mmfsa);
+	BVPRINTF("trap conversion\n");
+	for (i = 0; i < 256; i++)
+		trap_conversion[i] = 0;
+	trap_conversion[TT_INSTRUCTION_EXCEPTION] = T_INSTRUCTION_EXCEPTION;
+	trap_conversion[TT_INSTRUCTION_MISS]      = T_INSTRUCTION_MISS;
+	trap_conversion[TT_ILLEGAL_INSTRUCTION]   = T_ILLEGAL_INSTRUCTION;
+	trap_conversion[TT_PRIVILEGED_OPCODE]     = T_PRIVILEGED_OPCODE;
+	trap_conversion[TT_FP_EXCEPTION_IEEE_754] = T_FP_EXCEPTION_IEEE_754; 
+	trap_conversion[TT_TAG_OVERFLOW]          = T_TAG_OVERFLOW;
+	trap_conversion[TT_DIVISION_BY_ZERO]      = T_DIVISION_BY_ZERO;
+	trap_conversion[TT_DATA_EXCEPTION]        = T_DATA_EXCEPTION;
+	trap_conversion[TT_DATA_MISS]             = T_DATA_MISS;
+	trap_conversion[TT_ALIGNMENT]             = T_ALIGNMENT;
+	trap_conversion[TT_DATA_PROTECTION]       = T_DATA_PROTECTION;
 	
 	/*
 	 * Initialize the message buffer (after setting trap table).
