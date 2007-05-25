@@ -20,6 +20,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <errno.h>
 #include <grp.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -143,11 +144,28 @@ list_match(char *list, const char *item,
 /* netgroup_match - match group against machine or user */
 
 static int
-netgroup_match(const char *group __unused,
-    const char *machine __unused, const char *user __unused)
+netgroup_match(const char *group, const char *machine, const char *user)
 {
-    syslog(LOG_ERR, "NIS netgroup support not configured");
-    return 0;
+    char domain[1024];
+    unsigned int i;
+
+    if (getdomainname(domain, sizeof(domain)) != 0 || *domain == '\0') {
+	syslog(LOG_ERR, "NIS netgroup support disabled: no NIS domain");
+	return (NO);
+    }
+
+    /* getdomainname() does not reliably terminate the string */
+    for (i = 0; i < sizeof(domain); ++i)
+	if (domain[i] == '\0')
+	    break;
+    if (i == sizeof(domain)) {
+	syslog(LOG_ERR, "NIS netgroup support disabled: invalid NIS domain");
+	return (NO);
+    }
+
+    if (innetgr(group, machine, user, domain) == 1)
+	return (YES);
+    return (NO);
 }
 
 /* user_match - match a username against one token */
