@@ -67,8 +67,7 @@ static inline u_int8_t arc4_getbyte(struct arc4_stream *);
 static void arc4_stir(struct arc4_stream *);
 
 static inline void
-arc4_init(as)
-	struct arc4_stream *as;
+arc4_init(struct arc4_stream *as)
 {
 	int     n;
 
@@ -79,10 +78,7 @@ arc4_init(as)
 }
 
 static inline void
-arc4_addrandom(as, dat, datlen)
-	struct arc4_stream *as;
-	u_char *dat;
-	int     datlen;
+arc4_addrandom(struct arc4_stream *as, u_char *dat, int datlen)
 {
 	int     n;
 	u_int8_t si;
@@ -98,8 +94,7 @@ arc4_addrandom(as, dat, datlen)
 }
 
 static void
-arc4_stir(as)
-	struct arc4_stream *as;
+arc4_stir(struct arc4_stream *as)
 {
 	int     fd, n;
 	struct {
@@ -133,8 +128,7 @@ arc4_stir(as)
 }
 
 static inline u_int8_t
-arc4_getbyte(as)
-	struct arc4_stream *as;
+arc4_getbyte(struct arc4_stream *as)
 {
 	u_int8_t si, sj;
 
@@ -149,8 +143,7 @@ arc4_getbyte(as)
 }
 
 static inline u_int32_t
-arc4_getword(as)
-	struct arc4_stream *as;
+arc4_getword(struct arc4_stream *as)
 {
 	u_int32_t val;
 
@@ -181,7 +174,7 @@ arc4_check_stir(void)
 }
 
 void
-arc4random_stir()
+arc4random_stir(void)
 {
 	THREAD_LOCK();
 	arc4_check_init();
@@ -190,9 +183,7 @@ arc4random_stir()
 }
 
 void
-arc4random_addrandom(dat, datlen)
-	u_char *dat;
-	int     datlen;
+arc4random_addrandom(u_char *dat, int datlen)
 {
 	THREAD_LOCK();
 	arc4_check_init();
@@ -202,7 +193,7 @@ arc4random_addrandom(dat, datlen)
 }
 
 u_int32_t
-arc4random()
+arc4random(void)
 {
 	u_int32_t rnd;
 
