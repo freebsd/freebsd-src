@@ -450,6 +450,7 @@ ata_ahci_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
+    u_int64_t work;
     int offset = (ch->unit << 7);
 
     /* setup legacy cruft we need */
@@ -478,13 +479,13 @@ ata_ahci_allocate(device_t dev)
     ch->hw.command = NULL;      /* not used here */
 
     /* setup the work areas */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLB + offset,
-	     ch->dma->work_bus + ATA_AHCI_CL_OFFSET);
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLBU + offset, 0x00000000);
+    work = ch->dma->work_bus + ATA_AHCI_CL_OFFSET;
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLB + offset, work & 0xffffffff);
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLBU + offset, work >> 32);
 
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FB + offset,
-	     ch->dma->work_bus + ATA_AHCI_FB_OFFSET);
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBU + offset, 0x00000000);
+    work = ch->dma->work_bus + ATA_AHCI_FB_OFFSET;
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FB + offset, work & 0xffffffff); 
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBU + offset, work >> 32);
 
     /* enable wanted port interrupts */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IE + offset,
@@ -727,6 +728,7 @@ ata_ahci_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 static void
 ata_ahci_dmainit(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
     ata_dmainit(dev);
@@ -734,6 +736,8 @@ ata_ahci_dmainit(device_t dev)
 	/* note start and stop are not used here */
 	ch->dma->setprd = ata_ahci_dmasetprd;
 	ch->dma->max_iosize = 8192 * DEV_BSIZE;
+	if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_64BIT)
+	    ch->dma->max_address = BUS_SPACE_MAXADDR;
     }
 }
 
@@ -2383,7 +2387,7 @@ ata_marvell_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    bus_addr_t work = ch->dma->work_bus;
+    u_int64_t work = ch->dma->work_bus;
     int i;
 
     /* clear work area */
@@ -2436,7 +2440,7 @@ ata_marvell_allocate(device_t dev)
     ATA_OUTL(ctlr->r_res1, 0x02000 + ATA_MV_EDMA_BASE(ch), (1<<11) | (1<<13));
 
     /* request queue base high */
-    ATA_OUTL(ctlr->r_res1, 0x02010 + ATA_MV_EDMA_BASE(ch), (work >> 16) >> 16);
+    ATA_OUTL(ctlr->r_res1, 0x02010 + ATA_MV_EDMA_BASE(ch), work >> 32);
 
     /* request queue in ptr */
     ATA_OUTL(ctlr->r_res1, 0x02014 + ATA_MV_EDMA_BASE(ch), work & 0xffffffff);
@@ -2446,7 +2450,7 @@ ata_marvell_allocate(device_t dev)
 
     /* response queue base high */
     work += 1024;
-    ATA_OUTL(ctlr->r_res1, 0x0201c + ATA_MV_EDMA_BASE(ch), (work >> 16) >> 16);
+    ATA_OUTL(ctlr->r_res1, 0x0201c + ATA_MV_EDMA_BASE(ch), work >> 32);
 
     /* response queue in ptr */
     ATA_OUTL(ctlr->r_res1, 0x02020 + ATA_MV_EDMA_BASE(ch), 0x0);
@@ -2566,7 +2570,7 @@ ata_marvell_begin_transaction(struct ata_request *request)
 
     /* fill in this request */
     quadp[0] = (long)ch->dma->sg_bus & 0xffffffff;
-    quadp[1] = (ch->dma->sg_bus & 0xffffffff00000000ull) >> 32;
+    quadp[1] = (u_int64_t)ch->dma->sg_bus >> 32;
     wordp[4] = (request->flags & ATA_R_READ ? 0x01 : 0x00) | (tag<<1);
 
     i = 10;
@@ -2707,8 +2711,8 @@ ata_marvell_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 
     for (i = 0; i < nsegs; i++) {
 	prd[i].addrlo = htole32(segs[i].ds_addr);
-	prd[i].addrhi = 0;
 	prd[i].count = htole32(segs[i].ds_len);
+	prd[i].addrhi = htole32((u_int64_t)segs[i].ds_addr >> 32);
     }
     prd[i - 1].count |= htole32(ATA_DMA_EOT);
 }
@@ -2716,12 +2720,16 @@ ata_marvell_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 static void
 ata_marvell_dmainit(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
     ata_dmainit(dev);
     if (ch->dma) {
 	/* note start and stop are not used here */
 	ch->dma->setprd = ata_marvell_dmasetprd;
+	
+	if (ATA_INL(ctlr->r_res1, 0x00d00) & 0x00000004)
+	    ch->dma->max_address = BUS_SPACE_MAXADDR;
     }
 }
 
