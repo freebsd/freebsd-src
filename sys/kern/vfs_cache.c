@@ -293,37 +293,6 @@ cache_zap(ncp)
 }
 
 /*
- * cache_leaf_test()
- *
- *      Test whether this (directory) vnode's namei cache entry contains
- *      subdirectories or not.  Used to determine whether the directory is
- *      a leaf in the namei cache or not.  Note: the directory may still
- *      contain files in the namei cache.
- *
- *      Returns 0 if the directory is a leaf, -1 if it isn't.
- */
-int
-cache_leaf_test(struct vnode *vp)
-{
-	struct namecache *ncpc;
-	int leaf;
-
-	leaf = 0;
-	CACHE_LOCK();
-	for (ncpc = LIST_FIRST(&vp->v_cache_src);
-	     ncpc != NULL;
-	     ncpc = LIST_NEXT(ncpc, nc_src)
-	 ) {
-		if (ncpc->nc_vp != NULL && ncpc->nc_vp->v_type == VDIR) {
-			leaf = -1;
-			break;
-		}
-	}
-	CACHE_UNLOCK();
-	return (leaf);
-}
-
-/*
  * Lookup an entry in the cache
  *
  * Lookup is called with dvp pointing to the directory to search,
