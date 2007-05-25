@@ -188,9 +188,9 @@ in6_ifloop_request(int cmd, struct ifaddr *ifa)
 		}
 
 		rt_newaddrmsg(cmd, ifa, e, nrt);
-		if (cmd == RTM_DELETE) {
-			rtfree(nrt);
-		} else {
+		if (cmd == RTM_DELETE)
+			RTFREE_LOCKED(nrt);
+		else {
 			/* the cmd must be RTM_ADD here */
 			RT_REMREF(nrt);
 			RT_UNLOCK(nrt);
@@ -215,8 +215,10 @@ in6_ifaddloop(struct ifaddr *ifa)
 	rt = rtalloc1(ifa->ifa_addr, 0, 0);
 	need_loop = (rt == NULL || (rt->rt_flags & RTF_HOST) == 0 ||
 	    (rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0);
-	if (rt)
-		rtfree(rt);
+	if (rt) {
+		RT_REMREF(rt);
+		RT_UNLOCK(rt);
+	}
 	if (need_loop)
 		in6_ifloop_request(RTM_ADD, ifa);
 }
@@ -268,7 +270,8 @@ in6_ifremloop(struct ifaddr *ifa)
 		if (rt != NULL) {
 			if ((rt->rt_flags & RTF_HOST) != 0 &&
 			    (rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
-				rtfree(rt);
+				RT_REMREF(rt);
+				RT_UNLOCK(rt);
 				in6_ifloop_request(RTM_DELETE, ifa);
 			} else
 				RT_UNLOCK(rt);
