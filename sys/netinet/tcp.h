@@ -69,7 +69,7 @@ struct tcphdr {
 #define	TH_ECE	0x40
 #define	TH_CWR	0x80
 #define	TH_FLAGS	(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG|TH_ECE|TH_CWR)
-#define	PRINT_TH_FLAGS	"\20\1FIN\2SYN\3RST\4PUSH\5ACK\6URG\7ECE\8CWR"
+#define	PRINT_TH_FLAGS	"\20\1FIN\2SYN\3RST\4PUSH\5ACK\6URG\7ECE\10CWR"
 
 	u_short	th_win;			/* window */
 	u_short	th_sum;			/* checksum */
