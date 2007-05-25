@@ -709,6 +709,11 @@ do { \
 
 extern int	icmp6_rediraccept;	/* accept/process redirects */
 extern int	icmp6_redirtimeout;	/* cache time for redirect routes */
+
+#define ICMP6_NODEINFO_FQDNOK		0x1
+#define ICMP6_NODEINFO_NODEADDROK	0x2
+#define ICMP6_NODEINFO_TMPADDROK	0x4
+#define ICMP6_NODEINFO_GLOBALOK		0x8
 #endif /* _KERNEL */
 
 #endif /* not _NETINET_ICMP6_H_ */

@@ -402,7 +402,8 @@ u_long	rip6_recvspace = RIPV6RCVQ;
 int	icmp6_rediraccept = 1;		/* accept and process redirects */
 int	icmp6_redirtimeout = 10 * 60;	/* 10 minutes */
 int	icmp6errppslim = 100;		/* 100pps */
-int	icmp6_nodeinfo = 3;		/* enable/disable NI response */
+/* control how to respond to NI queries */
+int	icmp6_nodeinfo = (ICMP6_NODEINFO_FQDNOK|ICMP6_NODEINFO_NODEADDROK);
 
 /* UDP on IP6 parameters */
 int	udp6_sendspace = 9216;		/* really max datagram size */
