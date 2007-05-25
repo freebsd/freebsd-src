@@ -66,7 +66,7 @@ FBSD_1.0 {
 	hesiod_free_list;
 	hes_init;
 	hes_to_bind;
-	hes_resolv;
+	hes_resolve;
 	hes_error;
 	hes_free;
 	if_indextoname;
