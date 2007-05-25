@@ -9,11 +9,7 @@ modification, are permitted provided that the following conditions are met:
  1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Chelsio Corporation nor the names of its
+ 2. Neither the name of the Chelsio Corporation nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
 
@@ -32,14 +28,59 @@ POSSIBILITY OF SUCH DAMAGE.
 $FreeBSD$
 
 ***************************************************************************/
-/*
- * Note that although this driver doesn't contain all of the functionality of the Linux driver
- * the common code is 99% the same. Hence we keep the same version number to indicate what linux
- * driver the common code corresponds to.
- */
-#ifndef __CHELSIO_VERSION_H
-#define __CHELSIO_VERSION_H
-#define DRV_DESC "Chelsio T3 Network Driver"
-#define DRV_NAME "cxgb"
-#define DRV_VERSION "1.0.086"
-#endif
+
+struct mbuf_head {
+	struct mbuf *head;
+	struct mbuf *tail;
+	uint32_t     qlen;
+	struct mtx   lock;
+};
+
+static __inline void
+mbufq_init(struct mbuf_head *l)
+{
+	l->head = l->tail = NULL;
+}
+
+static __inline int
+mbufq_empty(struct mbuf_head *l)
+{
+	return (l->head == NULL);
+}
+
+static __inline int
+mbufq_len(struct mbuf_head *l)
+{
+	return (l->qlen);
+}
+
+
+static __inline void
+mbufq_tail(struct mbuf_head *l, struct mbuf *m)
+{
+	l->qlen++;
+	l->tail->m_nextpkt = m;
+	l->tail = m;
+}
+
+static __inline struct mbuf *
+mbufq_dequeue(struct mbuf_head *l)
+{
+	struct mbuf *m;
+
+	m = l->head;
+	if (m) {
+		if (m == l->tail) 
+			l->tail = NULL;
+		l->head = m->m_nextpkt;
+		l->qlen--;
+	}
+
+	return (m);
+}
+
+static __inline struct mbuf *
+mbufq_peek(struct mbuf_head *l)
+{
+	return (l->head);
+}
