@@ -140,7 +140,7 @@ rep_add(char *str)
 		regerror(res, &(rep->rcmp), rebuf, sizeof(rebuf));
 		paxwarn(1, "%s while compiling regular expression %s", rebuf, str);
 #	endif
-		free((char *)rep);
+		free(rep);
 		return(-1);
 	}
 
@@ -152,11 +152,11 @@ rep_add(char *str)
 	*pt1++ = *str;
 	if ((pt2 = strchr(pt1, *str)) == NULL) {
 #		ifdef NET2_REGEX
-		free((char *)rep->rcmp);
+		free(rep->rcmp);
 #		else
-		regfree(&(rep->rcmp));
+		regfree(&rep->rcmp);
 #		endif
-		free((char *)rep);
+		free(rep);
 		paxwarn(1, "Invalid replacement string %s", str);
 		return(-1);
 	}
@@ -181,11 +181,11 @@ rep_add(char *str)
 			break;
 		default:
 #			ifdef NET2_REGEX
-			free((char *)rep->rcmp);
+			free(rep->rcmp);
 #			else
-			regfree(&(rep->rcmp));
+			regfree(&rep->rcmp);
 #			endif
-			free((char *)rep);
+			free(rep);
 			*pt1 = *str;
 			paxwarn(1, "Invalid replacement string option %s", str);
 			return(-1);
@@ -401,7 +401,7 @@ pat_sel(ARCHD *arcn)
 		return(-1);
 	}
 	*ppt = pt->fow;
-	free((char *)pt);
+	free(pt);
 	arcn->pat = NULL;
 	return(0);
 }
