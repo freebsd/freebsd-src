@@ -2320,7 +2320,7 @@ DMenu MenuSecurelevel = {
     "access to direct kernel memory is limited, and kernel modules may not\n"
     "be changed.  In highly secure mode, mounted file systems may not be\n"
     "modified on-disk, tampering with the system clock is prohibited.  In\n"
-    "network secure mode configuration changes to firwalling are prohibited.\n",
+    "network secure mode configuration changes to firewalling are prohibited.\n",
     "Select a securelevel to operate at - F1 for help",
     "securelevel",
     { { "X Exit",      "Exit this menu (returning to previous)",
