@@ -46,12 +46,18 @@ typedef enum {
 
 typedef struct sx	kmutex_t;
 
+#ifndef DEBUG
+#define	MUTEX_FLAGS	(SX_DUPOK | SX_NOWITNESS)
+#else
+#define	MUTEX_FLAGS	(SX_DUPOK)
+#endif
+
 #define	mutex_init(lock, desc, type, arg)	do {			\
 	ASSERT((type) == MUTEX_DEFAULT);				\
 	KASSERT(((lock)->lock_object.lo_flags & LO_ALLMASK) !=		\
 	    LO_EXPECTED, ("lock %s already initialized", #lock));	\
 	bzero((lock), sizeof(struct sx));				\
-	sx_init_flags((lock), "zfs:" #lock, SX_DUPOK);			\
+	sx_init_flags((lock), "zfs:" #lock, MUTEX_FLAGS);		\
 } while (0)
 #define	mutex_destroy(lock)	sx_destroy(lock)
 #define	mutex_enter(lock)	sx_xlock(lock)
