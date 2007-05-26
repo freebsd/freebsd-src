@@ -656,6 +656,8 @@ devstats(int perf_select, long double etime, int havelast)
 	long double transfers_per_second, transfers_per_second_read, transfers_per_second_write;
 	long double kb_per_transfer, mb_per_second, mb_per_second_read, mb_per_second_write;
 	u_int64_t total_bytes, total_transfers, total_blocks;
+	u_int64_t total_bytes_read, total_transfers_read;
+	u_int64_t total_bytes_write, total_transfers_write;
 	long double busy_pct;
 	u_int64_t queue_len;
 	long double total_mb;
@@ -670,7 +672,14 @@ devstats(int perf_select, long double etime, int havelast)
 		if (Cflag > 0)
 			printf("           cpu ");
 		printf("\n");
-		printf("device     r/s   w/s    kr/s    kw/s wait svc_t  %%b  ");
+		if (Iflag == 0)
+			printf(
+		"device     r/s   w/s    kr/s    kw/s wait svc_t  %b  "
+			    );
+		else
+			printf(
+		"device     r/i   w/i    kr/i    kw/i wait svc_t  %b  "
+			    );
 		if (Tflag > 0)
 			printf("tin tout ");
 		if (Cflag > 0)
@@ -690,7 +699,11 @@ devstats(int perf_select, long double etime, int havelast)
 		if (devstat_compute_statistics(&cur.dinfo->devices[di],
 		    havelast ? &last.dinfo->devices[di] : NULL, etime,
 		    DSM_TOTAL_BYTES, &total_bytes,
+		    DSM_TOTAL_BYTES_READ, &total_bytes_read,
+		    DSM_TOTAL_BYTES_WRITE, &total_bytes_write,
 		    DSM_TOTAL_TRANSFERS, &total_transfers,
+		    DSM_TOTAL_TRANSFERS_READ, &total_transfers_read,
+		    DSM_TOTAL_TRANSFERS_WRITE, &total_transfers_write,
 		    DSM_TOTAL_BLOCKS, &total_blocks,
 		    DSM_KB_PER_TRANSFER, &kb_per_transfer,
 		    DSM_TRANSFERS_PER_SECOND, &transfers_per_second,
@@ -731,12 +744,25 @@ devstats(int perf_select, long double etime, int havelast)
 			    mb_per_second_read > ((long double).0005)/1024 ||
 			    mb_per_second_write > ((long double).0005)/1024 ||
 			    busy_pct > 0.5) {
-				printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
-				    devname, transfers_per_second_read,
-				    transfers_per_second_write,
-				    mb_per_second_read * 1024,
-				    mb_per_second_write * 1024, queue_len,
-				    ms_per_transaction, busy_pct);
+				if (Iflag == 0)
+					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
+					    devname, transfers_per_second_read,
+					    transfers_per_second_write,
+					    mb_per_second_read * 1024,
+					    mb_per_second_write * 1024,
+					    queue_len,
+					    ms_per_transaction, busy_pct);
+				else
+					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
+					    devname,
+					    (long double)total_transfers_read,
+					    (long double)total_transfers_write,
+					    (long double)
+					        total_bytes_read / 1024,
+					    (long double)
+					        total_bytes_write / 1024,
+					    queue_len,
+					    ms_per_transaction, busy_pct);
 				if (firstline) {
 					/*
 					 * If this is the first device
