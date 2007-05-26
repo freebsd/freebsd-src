@@ -309,7 +309,7 @@ _worldtmp:
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
-    usr/bin usr/games usr/include/c++/3.4 usr/include/sys usr/lib \
+    usr/bin usr/games usr/include/sys usr/lib \
     usr/libexec usr/sbin usr/share/dict \
     usr/share/groff_font/devX100 \
     usr/share/groff_font/devX100-12 \
@@ -505,7 +505,7 @@ buildworld_epilogue:
 # and Makefile.inc1 causes the correct PATH to be used, rather than a
 # modification of the current environment's PATH.  In addition, we need
 # to quote multiword values.
-# 
+#
 buildenvvars:
 	@echo ${WMAKEENV:Q}
 
@@ -1113,7 +1113,7 @@ lib/libpam__L: .PHONY
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
 
-_prereq_libs:  ${_prereq_libs:S/$/__PL/}
+_prereq_libs: ${_prereq_libs:S/$/__PL/}
 _startup_libs: ${_startup_libs:S/$/__L/}
 _prebuild_libs: ${_prebuild_libs:S/$/__L/}
 _generic_libs: ${_generic_libs:S/$/__L/}
