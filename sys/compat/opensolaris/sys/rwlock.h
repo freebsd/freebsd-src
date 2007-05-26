@@ -48,6 +48,12 @@ typedef enum {
 
 typedef	struct sx	krwlock_t;
 
+#ifndef DEBUG
+#define	RW_FLAGS	(SX_DUPOK | SX_NOWITNESS)
+#else
+#define	RW_FLAGS	(SX_DUPOK)
+#endif
+
 #define	RW_READ_HELD(x)		(rw_read_held((x)))
 #define	RW_WRITE_HELD(x)	(rw_write_held((x)))
 #define	RW_LOCK_HELD(x)		(rw_lock_held((x)))
@@ -57,7 +63,7 @@ typedef	struct sx	krwlock_t;
 	KASSERT(((lock)->lock_object.lo_flags & LO_ALLMASK) !=		\
 	    LO_EXPECTED, ("lock %s already initialized", #lock));	\
 	bzero((lock), sizeof(struct sx));				\
-	sx_init_flags((lock), "zfs:" #lock, SX_DUPOK);			\
+	sx_init_flags((lock), "zfs:" #lock, RW_FLAGS);			\
 } while (0)
 #define	rw_destroy(lock)	sx_destroy(lock)
 #define	rw_enter(lock, how)	do {					\
