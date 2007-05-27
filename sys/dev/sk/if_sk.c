@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
  *  http://www.freebsd.org/~wpaul/SysKonnect/xmacii_datasheet_rev_c_9-29.pdf
  *	The SysKonnect GEnesis manual, http://www.syskonnect.com
  *
- * Note: XaQti has been aquired by Vitesse, and Vitesse does not have the
+ * Note: XaQti has been acquired by Vitesse, and Vitesse does not have the
  * XMAC II datasheet online. I have put my copy at people.freebsd.org as a
  * convenience to others until Vitesse corrects this problem:
  *

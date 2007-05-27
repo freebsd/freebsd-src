@@ -2146,7 +2146,7 @@ vrele(struct vnode *vp)
 /*
  * Release an already locked vnode.  This give the same effects as
  * unlock+vrele(), but takes less time and avoids releasing and
- * re-aquiring the lock (as vrele() aquires the lock internally.)
+ * re-aquiring the lock (as vrele() acquires the lock internally.)
  */
 void
 vput(struct vnode *vp)

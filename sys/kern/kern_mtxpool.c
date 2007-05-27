@@ -24,7 +24,7 @@
  */
 
 /* Mutex pool routines.  These routines are designed to be used as short
- * term leaf mutexes (e.g. the last mutex you might aquire other then
+ * term leaf mutexes (e.g. the last mutex you might acquire other then
  * calling msleep()).  They operate using a shared pool.  A mutex is chosen
  * from the pool based on the supplied pointer (which may or may not be
  * valid).
