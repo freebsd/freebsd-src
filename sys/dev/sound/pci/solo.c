@@ -92,7 +92,8 @@ struct ess_info {
 	void		*ih;
     	bus_dma_tag_t parent_dmat;
 
-    	int simplex_dir, type, duplex:1, newspeed:1, dmasz[2];
+    	int simplex_dir, type, dmasz[2];
+	unsigned int duplex:1, newspeed:1;
 	unsigned int bufsz;
 
     	struct ess_chinfo pch, rch;
