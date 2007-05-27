@@ -256,12 +256,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DIAGNOSTIC
 #define	assert(expression) {					\
-	if (!(expression)) {					\
-		(void)printf("assertion \"%s\" failed: "	\
-			     "file \"%s\", line %d\n",		\
-			     #expression, __FILE__, __LINE__);	\
-	     kdb_enter("");					\
-	}							\
+	KASSERT(expression, ("%s", #expression));		\
 }
 #else
 #define	assert(expression) {					\
