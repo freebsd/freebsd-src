@@ -211,13 +211,6 @@ decr_intr(struct trapframe *frame)
 }
 
 void
-cpu_initclocks(void)
-{
-
-	return;
-}
-
-void
 decr_init(void)
 {
 	int qhandle, phandle;
