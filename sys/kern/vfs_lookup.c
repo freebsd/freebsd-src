@@ -795,7 +795,7 @@ bad:
 
 /*
  * relookup - lookup a path name component
- *    Used by lookup to re-aquire things.
+ *    Used by lookup to re-acquire things.
  */
 int
 relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)

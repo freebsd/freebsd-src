@@ -58,7 +58,7 @@
  * interface and add an Ethernet-to-HDLC gate array to make a WAN card.
  * David Boggs designed the Ethernet-to-HDLC gate arrays and PC cards.
  * We did this at our company, LAN Media Corporation (LMC).
- * SBE Corp aquired LMC and continues to make the cards.
+ * SBE Corp acquired LMC and continues to make the cards.
  *
  * Since the cards use Tulip Ethernet chips, we started with Matt Thomas'
  * ubiquitous "de" driver.  Michael Graff stripped out the Ethernet stuff
