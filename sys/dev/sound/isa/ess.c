@@ -97,7 +97,8 @@ struct ess_info {
     	bus_dma_tag_t parent_dmat;
 
 	unsigned int bufsize;
-    	int type, duplex:1, newspeed:1;
+    	int type;
+	unsigned int duplex:1, newspeed:1;
     	u_long bd_flags;       /* board-specific flags */
     	struct ess_chinfo pch, rch;
 };
