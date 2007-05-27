@@ -617,7 +617,6 @@ trap(struct trapframe *frame)
 			 * Otherwise, debugger traps "can't happen".
 			 */
 #ifdef KDB
-			/* XXX Giant */
 			if (kdb_trap(type, 0, frame))
 				goto out;
 #endif
