@@ -71,9 +71,12 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include "opt_ddb.h"
 #include "opt_comconsole.h"
 #include "opt_dcons.h"
+#include "opt_kdb.h"
+#include "opt_gdb.h"
+#include "opt_ddb.h"
+
 
 #ifndef DCONS_POLL_HZ
 #define DCONS_POLL_HZ	100
@@ -178,7 +181,7 @@ static cn_putc_t	dcons_cnputc;
 
 CONSOLE_DRIVER(dcons);
 
-#if __FreeBSD_version >= 502122
+#if defined(GDB) && (__FreeBSD_version >= 502122)
 static gdb_probe_f dcons_dbg_probe;
 static gdb_init_f dcons_dbg_init;
 static gdb_term_f dcons_dbg_term;
@@ -191,7 +194,7 @@ GDB_DBGPORT(dcons, dcons_dbg_probe, dcons_dbg_init, dcons_dbg_term,
 extern struct gdb_dbgport *gdb_cur;
 #endif
 
-#if (defined(KDB) || defined(DDB)) && defined(ALT_BREAK_TO_DEBUGGER)
+#if (defined(GDB) || defined(DDB)) && defined(ALT_BREAK_TO_DEBUGGER)
 static int
 dcons_check_break(struct dcons_softc *dc, int c)
 {
@@ -200,12 +203,14 @@ dcons_check_break(struct dcons_softc *dc, int c)
 
 #if __FreeBSD_version >= 502122
 	if (kdb_alt_break(c, &dc->brk_state)) {
+#ifdef GDB
 		if ((dc->flags & DC_GDB) != 0) {
 			if (gdb_cur == &dcons_gdb_dbgport) {
 				kdb_dbbe_select("gdb");
 				breakpoint();
 			}
 		} else
+#endif
 			breakpoint();
 	}
 #else
@@ -251,6 +256,7 @@ dcons_os_checkc(struct dcons_softc *dc)
 	return (c);
 }
 
+#if defined(GDB) || !defined(CONS_NODEV)
 static int
 dcons_os_getc(struct dcons_softc *dc)
 {
@@ -260,6 +266,7 @@ dcons_os_getc(struct dcons_softc *dc)
 
 	return (c & 0xff);
 } 
+#endif
 
 static void
 dcons_os_putc(struct dcons_softc *dc, int c)
@@ -705,7 +712,7 @@ dcons_modevent(module_t mode, int type, void *data)
 	return(err);
 }
 
-#if __FreeBSD_version >= 502122
+#if defined(GDB) && (__FreeBSD_version >= 502122)
 /* Debugger interface */
 
 static int
