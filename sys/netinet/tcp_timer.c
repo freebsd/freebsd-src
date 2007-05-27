@@ -461,7 +461,7 @@ tcp_timer_2msl(struct tcpcb *tp, struct inpcb *inp)
 	}
 
 #ifdef TCPDEBUG
-	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
