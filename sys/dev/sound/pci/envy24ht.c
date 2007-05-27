@@ -26,6 +26,17 @@
  *
  */
 
+/*
+ * Konstantin Dimitrov's thanks list:
+ *
+ * A huge thanks goes to Spas Filipov for his friendship, support and his
+ * generous gift - an 'Audiotrak Prodigy HD2' audio card! I also want to
+ * thank Keiichi Iwasaki and his parents, because they helped Spas to get
+ * the card from Japan! Having hardware sample of Prodigy HD2 made adding
+ * support for that great card very easy and real fun and pleasure.
+ *
+ */
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pci/spicds.h>
@@ -247,7 +258,7 @@ static int envy24ht_mixmap[] = {
 
 /* variable rate audio */
 static u_int32_t envy24ht_speed[] = {
-    96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000,
+    192000, 176400, 96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000,
     12000, 11025, 9600, 8000, 0
 };
 
@@ -319,11 +330,20 @@ static struct cfg_info cfg_table[] = {
         {
                 "Envy24HT audio (AudioTrak Prodigy 7.1 LT)",
                 0x3132, 0x4154,   
-                0x0b, 0x80, 0xfc, 0xc3,
+                0x4b, 0x80, 0xfc, 0xc3,
                 0x7ff8ff, 0x7fffff, 0x700,
                 0x400, 0x200, 0x100, 0x00, 0x02,
                 0,
                 &spi_codec, 
+        },
+        {
+                "Envy24HT audio (AudioTrak Prodigy 7.1 XT)",
+                0x3136, 0x4154,  
+                0x4b, 0x80, 0xfc, 0xc3,
+                0x7ff8ff, 0x7fffff, 0x700,
+                0x400, 0x200, 0x100, 0x00, 0x02,
+                0,
+                &spi_codec,
         },
         {
                 "Envy24HT audio (M-Audio Revolution 7.1)",
@@ -339,7 +359,7 @@ static struct cfg_info cfg_table[] = {
                 0x1412, 0x3631,
                 0x42, 0x80, 0xf8, 0xc1,
                 0x3fff85, 0x72, 0x4000fa,
-                0x08, 0x02, 0x20, 0x00, 0x03,
+                0x08, 0x02, 0x10, 0x00, 0x03,
                 0,
                 &spi_codec,
         },
@@ -348,6 +368,24 @@ static struct cfg_info cfg_table[] = {
                 0x1412, 0x3632,
                 0x68, 0x80, 0xf8, 0xc3,
                 0x45, 0x4000b5, 0x7fffba,
+                0x08, 0x02, 0x10, 0x00, 0x03,
+                0,
+                &spi_codec,
+        },
+        {
+                "Envy24HT audio (AudioTrak Prodigy HD2)",
+                0x3137, 0x4154,
+                0x68, 0x80, 0x78, 0xc3,
+                0xfff8ff, 0x200700, 0xdfffff,
+                0x400, 0x200, 0x100, 0x00, 0x05,
+                0,
+                &spi_codec,
+        },
+        {
+                "Envy24HT audio (ESI Juli@)",
+                0x3031, 0x4553,
+                0x20, 0x80, 0xf8, 0xc3,
+                0x7fff9f, 0x8016, 0x7fff9f,
                 0x08, 0x02, 0x10, 0x00, 0x03,
                 0,
                 &spi_codec,
@@ -377,7 +415,7 @@ static u_int32_t envy24ht_playfmt[] = {
 	0
 };
 
-static struct pcmchan_caps envy24ht_playcaps = {8000, 96000, envy24ht_playfmt, 0};
+static struct pcmchan_caps envy24ht_playcaps = {8000, 192000, envy24ht_playfmt, 0};
 
 struct envy24ht_emldma {
 	u_int32_t	format;
@@ -505,7 +543,6 @@ envy24ht_rdi2c(struct sc_info *sc, u_int32_t dev, u_int32_t addr)
 	return (int)data;
 }
 
-#if 0
 static int
 envy24ht_wri2c(struct sc_info *sc, u_int32_t dev, u_int32_t addr, u_int32_t data)
 {
@@ -540,7 +577,6 @@ envy24ht_wri2c(struct sc_info *sc, u_int32_t dev, u_int32_t addr, u_int32_t data
 
 	return 0;
 }
-#endif
 
 static int
 envy24ht_rdrom(struct sc_info *sc, u_int32_t addr)
@@ -572,7 +608,7 @@ envy24ht_rom2cfg(struct sc_info *sc)
 	device_printf(sc->dev, "envy24ht_rom2cfg(sc)\n");
 #endif
 	size = envy24ht_rdrom(sc, ENVY24HT_E2PROM_SIZE);
-	if (size < ENVY24HT_E2PROM_GPIOSTATE + 3) {
+	if ((size < ENVY24HT_E2PROM_GPIOSTATE + 3) || (size == 0x78)) {
 #if(0)
 		device_printf(sc->dev, "envy24ht_rom2cfg(): ENVY24HT_E2PROM_SIZE-->%d\n", size);
 #endif
@@ -816,7 +852,7 @@ envy24ht_gpiosetmask(struct sc_info *sc, u_int32_t mask)
 static u_int32_t
 envy24ht_gpiogetdir(struct sc_info *sc)
 {
-	return envy24ht_rdcs(sc, ENVY24HT_CCS_GPIO_CTLDIR, 4;
+	return envy24ht_rdcs(sc, ENVY24HT_CCS_GPIO_CTLDIR, 4);
 }
 #endif
 
@@ -982,17 +1018,19 @@ static struct {
 	{16000, ENVY24HT_MT_RATE_16000},
 	{8000, ENVY24HT_MT_RATE_8000},
 	{96000, ENVY24HT_MT_RATE_96000},
+	{192000, ENVY24HT_MT_RATE_192000},
 	{64000, ENVY24HT_MT_RATE_64000},
 	{44100, ENVY24HT_MT_RATE_44100},
 	{22050, ENVY24HT_MT_RATE_22050},
 	{11025, ENVY24HT_MT_RATE_11025},
 	{88200, ENVY24HT_MT_RATE_88200},
+	{176400, ENVY24HT_MT_RATE_176400},
 	{0, 0x10}
 };
 
 static int
 envy24ht_setspeed(struct sc_info *sc, u_int32_t speed) {
-	u_int32_t code;
+	u_int32_t code, i2sfmt;
 	int i = 0;
 
 #if(0)
@@ -1014,6 +1052,17 @@ envy24ht_setspeed(struct sc_info *sc, u_int32_t speed) {
 #endif
 	if (code < 0x10) {
 		envy24ht_wrmt(sc, ENVY24HT_MT_RATE, code, 1);
+		if ((((sc->cfg->scfg & ENVY24HT_CCSM_SCFG_XIN2) == 0x00) && (code == ENVY24HT_MT_RATE_192000)) || \
+									    (code == ENVY24HT_MT_RATE_176400)) {
+			i2sfmt = envy24ht_rdmt(sc, ENVY24HT_MT_I2S, 1);
+			i2sfmt |= ENVY24HT_MT_I2S_MLR128;
+			envy24ht_wrmt(sc, ENVY24HT_MT_I2S, i2sfmt, 1);
+		}
+		else {
+			i2sfmt = envy24ht_rdmt(sc, ENVY24HT_MT_I2S, 1);
+			i2sfmt &= ~ENVY24HT_MT_I2S_MLR128;
+			envy24ht_wrmt(sc, ENVY24HT_MT_I2S, i2sfmt, 1);
+		}
 		code = envy24ht_rdmt(sc, ENVY24HT_MT_RATE, 1);
 		code &= ENVY24HT_MT_RATE_MASK;
 		for (i = 0; envy24ht_speedtab[i].code < 0x10; i++) {
@@ -1684,6 +1733,7 @@ envy24htchan_trigger(kobj_t obj, void *data, int go)
 		ch->emldma(ch);
 		break;
 	case PCMTRIG_ABORT:
+		if (ch->run) {
 #if(0)
 		device_printf(sc->dev, "envy24htchan_trigger(): abort\n");
 #endif
@@ -1706,6 +1756,7 @@ envy24htchan_trigger(kobj_t obj, void *data, int go)
 			if (ch->blk != sc->blk[slot])
 				envy24ht_updintr(sc, ch->dir);
 		}*/
+		}
 		break;
 	}
 	snd_mtxunlock(sc->lock);
@@ -1800,6 +1851,12 @@ envy24htmixer_init(struct snd_mixer *m)
 
 	mix_setdevs(m, ENVY24HT_MIX_MASK);
 	mix_setrecdevs(m, ENVY24HT_MIX_REC_MASK);
+	
+	struct snddev_info *d = NULL;
+	d = device_get_softc(sc->dev);
+	if (d != NULL)
+		d->flags |= SD_F_SOFTPCMVOL;
+
 	snd_mtxunlock(sc->lock);
 
 	return 0;
@@ -2289,6 +2346,12 @@ envy24ht_init(struct sc_info *sc)
 	envy24ht_gpiosetmask(sc, sc->cfg->gpiomask);
 	envy24ht_gpiosetdir(sc, sc->cfg->gpiodir);
 	envy24ht_gpiowr(sc, sc->cfg->gpiostate);
+
+	if ((sc->cfg->subvendor == 0x3031) && (sc->cfg->subdevice == 0x4553)) {
+		envy24ht_wri2c(sc, 0x22, 0x00, 0x07);
+		envy24ht_wri2c(sc, 0x22, 0x04, 0x5f | 0x80);
+		envy24ht_wri2c(sc, 0x22, 0x05, 0x5f | 0x80);
+	}
 	
 	for (i = 0; i < sc->adcn; i++) {
 		sc->adc[i] = sc->cfg->codec->create(sc->dev, sc, PCMDIR_REC, i);
