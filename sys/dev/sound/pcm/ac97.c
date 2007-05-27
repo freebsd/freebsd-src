@@ -37,7 +37,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 
 struct ac97mixtable_entry {
-	int	 reg:8;		/* register index		*/
+	unsigned reg:8;		/* register index		*/
 				/* reg < 0 if inverted polarity	*/
 	unsigned bits:4;	/* width of control field	*/
 	unsigned ofs:4;		/* offset (only if stereo=0)	*/
