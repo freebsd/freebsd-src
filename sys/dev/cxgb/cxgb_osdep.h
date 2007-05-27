@@ -54,7 +54,7 @@ struct sge_rspq;
 
 
 #define m_get_priority(m) ((uintptr_t)(m)->m_pkthdr.rcvif)
-#define m_set_priority(m, pri) ((m)->m_pkthdr.rcvif = (struct ifnet *)(pri))
+#define m_set_priority(m, pri) ((m)->m_pkthdr.rcvif = (struct ifnet *)((uintptr_t)pri))
 
 #if __FreeBSD_version > 700030
 #define INTR_FILTERS
@@ -95,9 +95,9 @@ struct sge_rspq;
 #define TX_MAX_SIZE                (1 << 16)    /* 64KB                          */
 #define TX_MAX_SEGS                      36     /* maximum supported by card     */
 #define TX_MAX_DESC                       4     /* max descriptors per packet    */
-#define TX_START_MAX_DESC (TX_MAX_DESC << 1)    /* maximum number of descriptors
+#define TX_START_MAX_DESC (TX_MAX_DESC << 2)    /* maximum number of descriptors
 						 * call to start used per 	 */
-#define TX_CLEAN_MAX_DESC (TX_MAX_DESC << 2)    /* maximum tx descriptors
+#define TX_CLEAN_MAX_DESC (TX_MAX_DESC << 4)    /* maximum tx descriptors
 						 * to clean per iteration        */
 
 
