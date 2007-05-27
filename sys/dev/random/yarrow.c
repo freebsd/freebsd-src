@@ -104,47 +104,45 @@ void
 random_yarrow_init_alg(struct sysctl_ctx_list *clist, struct sysctl_oid *in_o)
 {
 	int i;
-	struct sysctl_oid *o, *random_yarrow_o;
+	struct sysctl_oid *random_yarrow_o;
 
 	/* Yarrow parameters. Do not adjust these unless you have
 	 * have a very good clue about what they do!
 	 */
-	o = SYSCTL_ADD_NODE(clist,
+	random_yarrow_o = SYSCTL_ADD_NODE(clist,
 		SYSCTL_CHILDREN(in_o),
 		OID_AUTO, "yarrow", CTLFLAG_RW, 0,
 		"Yarrow Parameters");
 
-	random_yarrow_o = o;
-
-	o = SYSCTL_ADD_PROC(clist,
+	SYSCTL_ADD_PROC(clist,
 		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
 		"gengateinterval", CTLTYPE_INT|CTLFLAG_RW,
 		&random_state.gengateinterval, 10,
 		random_check_uint_gengateinterval, "I",
 		"Generation gate interval");
 
-	o = SYSCTL_ADD_PROC(clist,
+	SYSCTL_ADD_PROC(clist,
 		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
 		"bins", CTLTYPE_INT|CTLFLAG_RW,
 		&random_state.bins, 10,
 		random_check_uint_bins, "I",
 		"Execution time tuner");
 
-	o = SYSCTL_ADD_PROC(clist,
+	SYSCTL_ADD_PROC(clist,
 		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
 		"fastthresh", CTLTYPE_INT|CTLFLAG_RW,
 		&random_state.pool[0].thresh, (3*BLOCKSIZE)/4,
 		random_check_uint_fastthresh, "I",
 		"Fast reseed threshold");
 
-	o = SYSCTL_ADD_PROC(clist,
+	SYSCTL_ADD_PROC(clist,
 		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
 		"slowthresh", CTLTYPE_INT|CTLFLAG_RW,
 		&random_state.pool[1].thresh, BLOCKSIZE,
 		random_check_uint_slowthresh, "I",
 		"Slow reseed threshold");
 
-	o = SYSCTL_ADD_PROC(clist,
+	SYSCTL_ADD_PROC(clist,
 		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
 		"slowoverthresh", CTLTYPE_INT|CTLFLAG_RW,
 		&random_state.slowoverthresh, 2,
