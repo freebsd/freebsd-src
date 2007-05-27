@@ -88,7 +88,7 @@ static int recycle_enable = 1;
  * Period of the Tx buffer reclaim timer.  This timer does not need to run
  * frequently as Tx buffers are usually reclaimed by new Tx packets.
  */
-#define TX_RECLAIM_PERIOD       (hz >> 2)
+#define TX_RECLAIM_PERIOD       (hz >> 1)
 
 /* 
  * work request size in bytes
@@ -362,10 +362,7 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 
 		q->polling = adap->params.rev > 0;
 
-		if (adap->flags & USING_MSIX)
-			q->coalesce_nsecs = 6000;
-		else
-			q->coalesce_nsecs = 3500;
+		q->coalesce_nsecs = 5000;
 		
 		q->rspq_size = RSPQ_Q_SIZE;
 		q->fl_size = FL_Q_SIZE;
@@ -1596,7 +1593,7 @@ free_tx_desc(adapter_t *sc, struct sge_txq *q, int n, struct mbuf **m_vec)
 				d->m = NULL;
 				nbufs++;
 			} else {
-				printf("pri=%d cidx=%d\n", m_get_priority(d->m), cidx);
+				printf("pri=%d cidx=%d\n", (int)m_get_priority(d->m), cidx);
 			}
 		}
 		++d;
