@@ -2101,7 +2101,7 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 	    2 * INET_ADDRSTRLEN;
 #endif /* INET6 */
 
-	s = sp = malloc(size, M_TCPLOG, (M_ZERO|M_NOWAIT));
+	s = malloc(size, M_TCPLOG, M_ZERO|M_NOWAIT);
 	if (s == NULL)
 		return (NULL);
 
