@@ -44,11 +44,9 @@
  * Machine dependent constants for ia64.
  */
 /*
- * USRTEXT is the start of the user text/data space, while USRSTACK
- * is the top (end) of the user stack.  Immediately above the user stack
- * resides the syscall gateway page.
+ * USRSTACK is the top (end) of the user stack.  Immediately above the user
+ * stack resides the syscall gateway page.
  */
-#define	USRTEXT		CLBYTES
 #define	USRSTACK	VM_MAX_ADDRESS
 
 /*
