@@ -223,10 +223,10 @@ ncp_conn_alloc(struct ncp_conn_args *cap, struct thread *td, struct ucred *cred,
 
 	if (cap->saddr.sa_family != AF_INET && cap->saddr.sa_family != AF_IPX)
 		return EPROTONOSUPPORT;
-	isroot = ncp_suser(cred) == 0;
 	/*
-	 * Only root can change ownership
+	 * Only root can change ownership.
 	 */
+	isroot = ncp_suser(cred) == 0;
 	if (cap->owner != NCP_DEFAULT_OWNER && !isroot)
 		return EPERM;
 	if (cap->group != NCP_DEFAULT_GROUP &&
@@ -234,6 +234,7 @@ ncp_conn_alloc(struct ncp_conn_args *cap, struct thread *td, struct ucred *cred,
 		return EPERM;
 	if (cap->owner != NCP_DEFAULT_OWNER) {
 		owner = crget();
+		crcopy(owner, cred);
 		owner->cr_uid = cap->owner;
 	} else
 		owner = crhold(cred);
@@ -243,7 +244,7 @@ ncp_conn_alloc(struct ncp_conn_args *cap, struct thread *td, struct ucred *cred,
 	lockinit(&ncp->nc_lock, PZERO, "ncplck", 0, 0);
 	ncp_conn_cnt++;
 	ncp->nc_id = ncp_next_ref++;
-	ncp->nc_owner = cred;
+	ncp->nc_owner = owner;
 	ncp->seq = 0;
 	ncp->connid = 0xFFFF;
 	ncp->li = *cap;
