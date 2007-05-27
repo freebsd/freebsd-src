@@ -67,8 +67,6 @@
 #define SGROWSIZ	(128UL*1024)		/* amount to grow stack */
 #endif
 
-#define USRTEXT		(1*PAGE_SIZE)		/* base of user text XXX bogus */
-
 /*
  * The time for a process to be blocked before being very swappable.
  * This is a number of seconds which the system takes as being a non-trivial
