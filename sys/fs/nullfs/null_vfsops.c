@@ -248,11 +248,8 @@ nullfs_root(mp, flags, vpp, td)
 	VREF(vp);
 
 #ifdef NULLFS_DEBUG
-	if (VOP_ISLOCKED(vp, NULL)) {
-		kdb_enter("root vnode is locked.\n");
-		vrele(vp);
-		return (EDEADLK);
-	}
+	if (VOP_ISLOCKED(vp, NULL))
+		panic("root vnode is locked.\n");
 #endif
 	vn_lock(vp, flags | LK_RETRY, td);
 	*vpp = vp;
