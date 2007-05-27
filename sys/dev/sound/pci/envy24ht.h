@@ -108,12 +108,17 @@
 #define ENVY24HT_MT_RATE_16000  0x05
 #define ENVY24HT_MT_RATE_8000   0x06
 #define ENVY24HT_MT_RATE_96000  0x07
+#define ENVY24HT_MT_RATE_192000 0x0e
 #define ENVY24HT_MT_RATE_64000  0x0f
 #define ENVY24HT_MT_RATE_44100  0x08
 #define ENVY24HT_MT_RATE_22050  0x09
 #define ENVY24HT_MT_RATE_11025  0x0a
 #define ENVY24HT_MT_RATE_88200  0x0b
+#define ENVY24HT_MT_RATE_176400 0x0c
 #define ENVY24HT_MT_RATE_MASK   0x0f
+
+#define ENVY24HT_MT_I2S      0x02 /* I2S Data Format Register */
+#define ENVY24HT_MT_I2S_MLR128  0x08 /* MCLK/LRCLK ratio 128x (or 256x) */
 
 #define ENVY24HT_MT_PADDR    0x10 /* Playback DMA Current/Base Address Register */
 #define ENVY24HT_MT_PCNT     0x14 /* Playback DMA Current/Base Count Register */
