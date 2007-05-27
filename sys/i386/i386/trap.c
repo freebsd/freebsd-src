@@ -854,9 +854,7 @@ trap_fatal(frame, eva)
 	printf("IOPL = %d\n", (frame->tf_eflags & PSL_IOPL) >> 12);
 	printf("current process		= ");
 	if (curproc) {
-		printf("%lu (%s)\n",
-		    (u_long)curproc->p_pid, curproc->p_comm ?
-		    curproc->p_comm : "");
+		printf("%lu (%s)\n", (u_long)curproc->p_pid, curproc->p_comm);
 	} else {
 		printf("Idle\n");
 	}
