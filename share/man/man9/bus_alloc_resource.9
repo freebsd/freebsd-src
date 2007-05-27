@@ -90,10 +90,10 @@ for I/O memory
 points to a bus specific handle that identifies the resource being allocated.
 For ISA this is an index into an array of resources that have been setup
 for this device by either the PnP mechanism, or via the hints mechanism.
-For PCCARD, similar things are used as of writing,
-but that may change in the future with newcard.
-For PCI it just happens to be the offset into pci config space which has
-a word that describes the resource.
+For PCCARD, this is an index into the array of resources described by the PC Card's
+CIS entry.
+For PCI, the offset into pci config space which has the BAR to use to access
+the resource.
 The bus methods are free to change the RIDs that they are given as a parameter.
 You must not depend on the value you gave it earlier.
 .It
