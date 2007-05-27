@@ -35,7 +35,6 @@
 #ifndef _MACHINE_VMPARAM_H_
 #define	_MACHINE_VMPARAM_H_
 
-#define	USRTEXT		NBPG
 #define	USRSTACK	VM_MAXUSER_ADDRESS
 
 #ifndef	MAXTSIZ
