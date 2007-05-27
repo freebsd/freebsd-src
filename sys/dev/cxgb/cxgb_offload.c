@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 /*
  * XXX 
  */
-#define LOG_ERR 1
 #define LOG_NOTICE 2
 #define BUG_ON(...)
 #define VALIDATE_TID 0
