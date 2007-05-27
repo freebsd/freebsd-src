@@ -140,22 +140,16 @@ smbfs_name_free(u_char *name)
 
 	cp = name;
 	cp--;
-	if (*cp != 0xfc) {
-		printf("First byte of name entry '%s' corrupted\n", name);
-		kdb_enter("ditto");
-	}
+	if (*cp != 0xfc)
+		panic("First byte of name entry '%s' corrupted", name);
 	cp -= sizeof(int);
 	nmlen = *(int*)cp;
 	slen = strlen(name) + 1;
-	if (nmlen != slen) {
-		printf("Name length mismatch: was %d, now %d name '%s'\n",
+	if (nmlen != slen)
+		panic("Name length mismatch: was %d, now %d name '%s'",
 		    nmlen, slen, name);
-		kdb_enter("ditto");
-	}
-	if (name[nmlen] != 0xfe) {
-		printf("Last byte of name entry '%s' corrupted\n", name);
-		kdb_enter("ditto");
-	}
+	if (name[nmlen] != 0xfe)
+		panic("Last byte of name entry '%s' corrupted\n", name);
 	free(cp, M_SMBNODENAME);
 #else
 	free(name, M_SMBNODENAME);
