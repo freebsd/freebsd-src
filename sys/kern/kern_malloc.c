@@ -321,10 +321,6 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 		}
 	}
 #endif
-#if 0
-	if (size == 0)
-		kdb_enter("zero size malloc");
-#endif
 #ifdef MALLOC_MAKE_FAILURES
 	if ((flags & M_NOWAIT) && (malloc_failure_rate != 0)) {
 		atomic_add_int(&malloc_nowait_count, 1);
