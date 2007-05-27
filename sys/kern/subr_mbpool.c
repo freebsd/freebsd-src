@@ -338,7 +338,7 @@ mbp_count(struct mbpool *p, u_int *used, u_int *card, u_int *free)
 	}
 	mtx_lock(&p->free_lock);
 	SLIST_FOREACH(cf, &p->free_list, link)
-		*free++;
+		(*free)++;
 	mtx_unlock(&p->free_lock);
 }
 
