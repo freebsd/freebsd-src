@@ -1140,6 +1140,9 @@ bind_qsets(adapter_t *sc)
 {
 	int i, j;
 
+	if (singleq)
+		return;
+	
 	for (i = 0; i < (sc)->params.nports; ++i) {
 		const struct port_info *pi = adap2pinfo(sc, i);
 
@@ -1543,7 +1546,6 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	struct port_info *p = ifp->if_softc;
 	struct mbuf *m0, *m = NULL;
 	int err, in_use_init;
-
 	
 	if (!p->link_config.link_ok)
 		return (ENXIO);
