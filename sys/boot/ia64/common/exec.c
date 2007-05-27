@@ -105,7 +105,7 @@ elf64_exec(struct preloaded_file *fp)
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
 
 	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
-	    PTE_PL_KERN | PTE_AR_RWX;
+	    PTE_PL_KERN | PTE_AR_RWX | PTE_ED;
 
 	__asm __volatile("mov cr.ifa=%0" :: "r"(IA64_RR_BASE(7)));
 	__asm __volatile("mov cr.itir=%0" :: "r"(28 << 2));

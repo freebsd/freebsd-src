@@ -80,19 +80,36 @@ ENTRY_NOPROFILE(__start, 1)
 	movl	r16=pa_bootinfo
 	;;
 }
+{	.mmi
 	st8	[r16]=r8		// save the PA of the bootinfo block
 	loadrs				// invalidate regs
+	mov	r17=IA64_DCR_DEFAULT
 	;;
+}
+{	.mmi
+	mov	cr.dcr=r17
 	mov	ar.rsc=3		// turn rse back on
+	nop	0
 	;;
+}
+{	.mmi
+	srlz.d
 	alloc	r16=ar.pfs,0,0,1,0
-	;;
-	movl	out0=0			// we are linked at the right address 
+	mov	out0=r0			// we are linked at the right address 
 	;;				// we just need to process fptrs
+}
+{	.bbb
+	nop	0
+	nop	0
 	br.call.sptk.many rp=_reloc
 	;;
+}
+{	.bbb
+	nop	0
+	nop	0
 	br.call.sptk.many rp=ia64_init
 	;;
+}
 	/* NOTREACHED */
 1:	br.cond.sptk.few 1b
 END(__start)
@@ -181,11 +198,10 @@ ENTRY_NOPROFILE(os_boot_rendez,0)
 	mov	rr[r17] = r16
 	;;
 	srlz.d
-	mov	r16 = PTE_PRESENT+PTE_MA_WB+PTE_ACCESSED+PTE_DIRTY+ \
-			PTE_PL_KERN+PTE_AR_RWX
 	mov	r18 = 28<<2
+	movl	r16 = PTE_PRESENT+PTE_MA_WB+PTE_ACCESSED+PTE_DIRTY+ \
+			PTE_PL_KERN+PTE_AR_RWX+PTE_ED
 	;;
-
 	mov	cr.ifa = r17
 	mov	cr.itir = r18
 	ptr.d	r17, r18
@@ -194,8 +210,10 @@ ENTRY_NOPROFILE(os_boot_rendez,0)
 	srlz.i
 	;;
 	itr.d	dtr[r0] = r16
+	mov	r18 = IA64_DCR_DEFAULT
 	;;
 	itr.i	itr[r0] = r16
+	mov	cr.dcr = r18
 	;;
 	srlz.i
 	;;

@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2007 Marcel Moolenaar
  * Copyright (c) 2000 Doug Rabson
  * All rights reserved.
  *
@@ -23,11 +24,29 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_IA64_CPU_H_
 #define _MACHINE_IA64_CPU_H_
+
+/*
+ * Definition of DCR bits.
+ */
+#define	IA64_DCR_PP		0x0000000000000001
+#define	IA64_DCR_BE		0x0000000000000002
+#define	IA64_DCR_LC		0x0000000000000004
+#define	IA64_DCR_DM		0x0000000000000100
+#define	IA64_DCR_DP		0x0000000000000200
+#define	IA64_DCR_DK		0x0000000000000400
+#define	IA64_DCR_DX		0x0000000000000800
+#define	IA64_DCR_DR		0x0000000000001000
+#define	IA64_DCR_DA		0x0000000000002000
+#define	IA64_DCR_DD		0x0000000000004000
+
+#define	IA64_DCR_DEFAULT					\
+    (IA64_DCR_DM | IA64_DCR_DP | IA64_DCR_DK | IA64_DCR_DX |	\
+     IA64_DCR_DR | IA64_DCR_DA | IA64_DCR_DD)
 
 /*
  * Definition of PSR and IPSR bits.
