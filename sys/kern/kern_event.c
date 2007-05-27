@@ -90,7 +90,7 @@ static int	kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int	kevent_copyin(void *arg, struct kevent *kevp, int count);
 static int	kqueue_register(struct kqueue *kq, struct kevent *kev,
 		    struct thread *td, int waitok);
-static int	kqueue_aquire(struct file *fp, struct kqueue **kqp);
+static int	kqueue_acquire(struct file *fp, struct kqueue **kqp);
 static void	kqueue_release(struct kqueue *kq, int locked);
 static int	kqueue_expand(struct kqueue *kq, struct filterops *fops,
 		    uintptr_t ident, int waitok);
@@ -654,7 +654,7 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 
 	if ((error = fget(td, fd, &fp)) != 0)
 		return (error);
-	if ((error = kqueue_aquire(fp, &kq)) != 0)
+	if ((error = kqueue_acquire(fp, &kq)) != 0)
 		goto done_norel;
 
 	nerrors = 0;
@@ -780,7 +780,7 @@ kqueue_fo_release(int filt)
 }
 
 /*
- * A ref to kq (obtained via kqueue_aquire) must be held.  waitok will
+ * A ref to kq (obtained via kqueue_acquire) must be held.  waitok will
  * influence if memory allocation should wait.  Make sure it is 0 if you
  * hold any mutexes.
  */
@@ -984,7 +984,7 @@ done:
 }
 
 static int
-kqueue_aquire(struct file *fp, struct kqueue **kqp)
+kqueue_acquire(struct file *fp, struct kqueue **kqp)
 {
 	int error;
 	struct kqueue *kq;
@@ -1392,7 +1392,7 @@ kqueue_poll(struct file *fp, int events, struct ucred *active_cred,
 	int revents = 0;
 	int error;
 
-	if ((error = kqueue_aquire(fp, &kq)))
+	if ((error = kqueue_acquire(fp, &kq)))
 		return POLLERR;
 
 	KQ_LOCK(kq);
@@ -1437,7 +1437,7 @@ kqueue_close(struct file *fp, struct thread *td)
 	int i;
 	int error;
 
-	if ((error = kqueue_aquire(fp, &kq)))
+	if ((error = kqueue_acquire(fp, &kq)))
 		return error;
 
 	KQ_LOCK(kq);
@@ -1734,7 +1734,7 @@ knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 		KNL_ASSERT_LOCKED(knl);
 	else {
 		KNL_ASSERT_UNLOCKED(knl);
-again:		/* need to reaquire lock since we have dropped it */
+again:		/* need to reacquire lock since we have dropped it */
 		knl->kl_lock(knl->kl_lockarg);
 	}
 
@@ -1949,14 +1949,14 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
 
 	if ((error = fget(td, fd, &fp)) != 0)
 		return (error);
-	if ((error = kqueue_aquire(fp, &kq)) != 0)
-		goto noaquire;
+	if ((error = kqueue_acquire(fp, &kq)) != 0)
+		goto noacquire;
 
 	error = kqueue_register(kq, kev, td, waitok);
 
 	kqueue_release(kq, 0);
 
-noaquire:
+noacquire:
 	fdrop(fp, td);
 
 	return error;
