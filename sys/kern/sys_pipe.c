@@ -175,7 +175,6 @@ static struct filterops pipe_wfiltops =
 #define MINPIPESIZE (PIPE_SIZE/3)
 #define MAXPIPESIZE (2*PIPE_SIZE/3)
 
-static int amountpipes;
 static int amountpipekva;
 static int pipefragretry;
 static int pipeallocfail;
@@ -184,8 +183,6 @@ static int piperesizeallowed = 1;
 
 SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN,
 	   &maxpipekva, 0, "Pipe KVA limit");
-SYSCTL_INT(_kern_ipc, OID_AUTO, pipes, CTLFLAG_RD,
-	   &amountpipes, 0, "Current # of pipes");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipekva, CTLFLAG_RD,
 	   &amountpipekva, 0, "Pipe KVA usage");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipefragretry, CTLFLAG_RD,
@@ -214,7 +211,6 @@ static int pipespace(struct pipe *cpipe, int size);
 static int pipespace_new(struct pipe *cpipe, int size);
 
 static int	pipe_zone_ctor(void *mem, int size, void *arg, int flags);
-static void	pipe_zone_dtor(void *mem, int size, void *arg);
 static int	pipe_zone_init(void *mem, int size, int flags);
 static void	pipe_zone_fini(void *mem, int size);
 
@@ -226,8 +222,8 @@ static void
 pipeinit(void *dummy __unused)
 {
 
-	pipe_zone = uma_zcreate("PIPE", sizeof(struct pipepair),
-	    pipe_zone_ctor, pipe_zone_dtor, pipe_zone_init, pipe_zone_fini,
+	pipe_zone = uma_zcreate("pipe", sizeof(struct pipepair),
+	    pipe_zone_ctor, NULL, pipe_zone_init, pipe_zone_fini,
 	    UMA_ALIGN_PTR, 0);
 	KASSERT(pipe_zone != NULL, ("pipe_zone not initialized"));
 }
@@ -277,20 +273,7 @@ pipe_zone_ctor(void *mem, int size, void *arg, int flags)
 	 */
 	pp->pp_label = NULL;
 
-	atomic_add_int(&amountpipes, 2);
 	return (0);
-}
-
-static void
-pipe_zone_dtor(void *mem, int size, void *arg)
-{
-	struct pipepair *pp;
-
-	KASSERT(size == sizeof(*pp), ("pipe_zone_dtor: wrong size"));
-
-	pp = (struct pipepair *)mem;
-
-	atomic_subtract_int(&amountpipes, 2);
 }
 
 static int
