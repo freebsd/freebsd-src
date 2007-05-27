@@ -4806,7 +4806,7 @@ ath_getchannels(struct ath_softc *sc,
 	}
 	if (!ath_hal_init_channels(ah, chans, IEEE80211_CHAN_MAX, &nchan,
 	    NULL, 0, NULL, cc, HAL_MODE_ALL, outdoor, xchanmode)) {
-		ath_hal_getregdomain(ah, &regdomain);
+		(void) ath_hal_getregdomain(ah, &regdomain);
 		if_printf(ifp, "unable to collect channel list from hal; "
 			"regdomain likely %u country code %u\n", regdomain, cc);
 		free(chans, M_TEMP);
@@ -4871,7 +4871,7 @@ ath_getchannels(struct ath_softc *sc,
 		}
 	}
 	free(chans, M_TEMP);
-	ath_hal_getregdomain(ah, &sc->sc_regdomain);
+	(void) ath_hal_getregdomain(ah, &sc->sc_regdomain);
 	ath_hal_getcountrycode(ah, &sc->sc_countrycode);
 	sc->sc_xchanmode = xchanmode;
 	sc->sc_outdoor = outdoor;
@@ -4947,14 +4947,14 @@ ath_update_txpow(struct ath_softc *sc)
 	if (sc->sc_curtxpow != ic->ic_txpowlimit) {
 		ath_hal_settxpowlimit(ah, ic->ic_txpowlimit);
 		/* read back in case value is clamped */
-		ath_hal_gettxpowlimit(ah, &txpow);
-		ic->ic_txpowlimit = sc->sc_curtxpow = txpow;
+		if (ath_hal_gettxpowlimit(ah, &txpow))
+			ic->ic_txpowlimit = sc->sc_curtxpow = txpow;
 	}
 	/* 
 	 * Fetch max tx power level for status requests.
 	 */
-	ath_hal_getmaxtxpow(sc->sc_ah, &txpow);
-	ic->ic_bss->ni_txpower = txpow;
+	if (ath_hal_getmaxtxpow(sc->sc_ah, &txpow))
+		ic->ic_bss->ni_txpower = txpow;
 }
 
 static int
@@ -5444,7 +5444,7 @@ ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 	u_int32_t scale;
 	int error;
 
-	ath_hal_gettpscale(sc->sc_ah, &scale);
+	(void) ath_hal_gettpscale(sc->sc_ah, &scale);
 	error = sysctl_handle_int(oidp, &scale, 0, req);
 	if (error || !req->newptr)
 		return error;
@@ -5491,7 +5491,7 @@ ath_sysctl_rfsilent(SYSCTL_HANDLER_ARGS)
 	u_int rfsilent;
 	int error;
 
-	ath_hal_getrfsilent(sc->sc_ah, &rfsilent);
+	(void) ath_hal_getrfsilent(sc->sc_ah, &rfsilent);
 	error = sysctl_handle_int(oidp, &rfsilent, 0, req);
 	if (error || !req->newptr)
 		return error;
@@ -5551,7 +5551,7 @@ ath_sysctl_tpack(SYSCTL_HANDLER_ARGS)
 	u_int32_t tpack;
 	int error;
 
-	ath_hal_gettpack(sc->sc_ah, &tpack);
+	(void) ath_hal_gettpack(sc->sc_ah, &tpack);
 	error = sysctl_handle_int(oidp, &tpack, 0, req);
 	if (error || !req->newptr)
 		return error;
@@ -5565,7 +5565,7 @@ ath_sysctl_tpcts(SYSCTL_HANDLER_ARGS)
 	u_int32_t tpcts;
 	int error;
 
-	ath_hal_gettpcts(sc->sc_ah, &tpcts);
+	(void) ath_hal_gettpcts(sc->sc_ah, &tpcts);
 	error = sysctl_handle_int(oidp, &tpcts, 0, req);
 	if (error || !req->newptr)
 		return error;
