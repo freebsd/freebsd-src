@@ -2435,8 +2435,7 @@ en_intr(void *arg)
 		device_printf(sc->dev, "unexpected interrupt=0x%b, "
 		    "resetting\n", reg, MID_INTBITS);
 #ifdef EN_DEBUG
-		kdb_enter("en: unexpected error");
-		sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING; /* FREEZE! */
+		panic("en: unexpected error");
 #else
 		en_reset_ul(sc);
 		en_init(sc);
