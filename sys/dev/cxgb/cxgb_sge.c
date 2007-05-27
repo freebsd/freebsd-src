@@ -766,6 +766,11 @@ sge_timer_reclaim(void *arg, int ncount)
 			for (i = 0; i < n; i++) {
 				m_freem_vec(m_vec[i]);
 			}
+			if (qs->port->ifp->if_drv_flags & IFF_DRV_OACTIVE &&
+			    txq->size - txq->in_use >= TX_START_MAX_DESC) {
+				qs->port->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+				taskqueue_enqueue(qs->port->tq, &qs->port->start_task);
+			}
 		} 
 		    
 		txq = &qs->txq[TXQ_OFLD];

@@ -1607,6 +1607,11 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	if (err == 0 && m == NULL)
 		err = ENOBUFS;
 
+	if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC) &&
+	    (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		err = ENOSPC;
+	}
 	return (err);
 }
 
