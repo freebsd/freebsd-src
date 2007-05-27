@@ -1157,7 +1157,7 @@ uihold(uip)
  *   that we don't need to free, simply unlock and return.
  * Suboptimal case:
  *   If refcount lowering results in need to free, bump the count
- *   back up, lose the lock and aquire the locks in the proper
+ *   back up, lose the lock and acquire the locks in the proper
  *   order to try again.
  */
 void

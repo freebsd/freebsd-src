@@ -848,7 +848,8 @@ ng_name_node(node_p node, const char *name)
  *
  * Returns the node if found, else NULL.
  * Eventually should add something faster than a sequential search.
- * Note it aquires a reference on the node so you can be sure it's still there.
+ * Note it acquires a reference on the node so you can be sure it's still
+ * there.
  */
 node_p
 ng_name2noderef(node_p here, const char *name)
