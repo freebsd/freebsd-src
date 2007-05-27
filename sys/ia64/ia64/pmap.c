@@ -1155,14 +1155,14 @@ pmap_free_pte(struct ia64_lpte *pte, vm_offset_t va)
 static PMAP_INLINE void
 pmap_pte_prot(pmap_t pm, struct ia64_lpte *pte, vm_prot_t prot)
 {
-	static int prot2ar[4] = {
-		PTE_AR_R,	/* VM_PROT_NONE */
-		PTE_AR_RW,	/* VM_PROT_WRITE */
-		PTE_AR_RX,	/* VM_PROT_EXECUTE */
-		PTE_AR_RWX	/* VM_PROT_WRITE|VM_PROT_EXECUTE */
+	static long prot2ar[4] = {
+		PTE_AR_R,		/* VM_PROT_NONE */
+		PTE_AR_RW,		/* VM_PROT_WRITE */
+		PTE_AR_RX|PTE_ED,	/* VM_PROT_EXECUTE */
+		PTE_AR_RWX|PTE_ED	/* VM_PROT_WRITE|VM_PROT_EXECUTE */
 	};
 
-	pte->pte &= ~(PTE_PROT_MASK | PTE_PL_MASK | PTE_AR_MASK);
+	pte->pte &= ~(PTE_PROT_MASK | PTE_PL_MASK | PTE_AR_MASK | PTE_ED);
 	pte->pte |= (uint64_t)(prot & VM_PROT_ALL) << 56;
 	pte->pte |= (prot == VM_PROT_NONE || pm == kernel_pmap)
 	    ? PTE_PL_KERN : PTE_PL_USER;
@@ -1181,7 +1181,7 @@ pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
     boolean_t wired, boolean_t managed)
 {
 
-	pte->pte &= PTE_PROT_MASK | PTE_PL_MASK | PTE_AR_MASK;
+	pte->pte &= PTE_PROT_MASK | PTE_PL_MASK | PTE_AR_MASK | PTE_ED;
 	pte->pte |= PTE_PRESENT | PTE_MA_WB;
 	pte->pte |= (managed) ? PTE_MANAGED : (PTE_DIRTY | PTE_ACCESSED);
 	pte->pte |= (wired) ? PTE_WIRED : 0;
