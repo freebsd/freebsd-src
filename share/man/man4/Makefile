@@ -165,6 +165,8 @@ MAN=	aac.4 \
 	miibus.4 \
 	mlx.4 \
 	mly.4 \
+	mmc.4 \
+	mmcsd.4 \
 	mn.4 \
 	mouse.4 \
 	mpt.4 \
