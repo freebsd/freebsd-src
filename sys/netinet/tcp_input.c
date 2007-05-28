@@ -584,63 +584,63 @@ findpcb:
 		 * is a valid reset segment.
 		 */
 		if ((thflags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK) {
+			/*
+			 * Parse the TCP options here because
+			 * syncookies need access to the reflected
+			 * timestamp.
+			 */
+			tcp_dooptions(&to, optp, optlen, 0);
+			/*
+			 * NB: syncache_expand() doesn't unlock
+			 * inp and tcpinfo locks.
+			 */
+			if (!syncache_expand(&inc, &to, th, &so, m)) {
 				/*
-				 * Parse the TCP options here because
-				 * syncookies need access to the reflected
-				 * timestamp.
+				 * No syncache entry or ACK was not
+				 * for our SYN/ACK.  Send a RST.
 				 */
-				tcp_dooptions(&to, optp, optlen, 0);
+				rstreason = BANDLIM_RST_OPENPORT;
+				goto dropwithreset;
+			}
+			if (so == NULL) {
 				/*
-				 * NB: syncache_expand() doesn't unlock
-				 * inp and tcpinfo locks.
+				 * We completed the 3-way handshake
+				 * but could not allocate a socket
+				 * either due to memory shortage,
+				 * listen queue length limits or
+				 * global socket limits.  Send RST
+				 * or wait and have the remote end
+				 * retransmit the ACK for another
+				 * try.
 				 */
-				if (!syncache_expand(&inc, &to, th, &so, m)) {
-					/*
-					 * No syncache entry or ACK was not
-					 * for our SYN/ACK.  Send a RST.
-					 */
-					rstreason = BANDLIM_RST_OPENPORT;
+				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+					log(LOG_DEBUG, "%s; %s: Listen socket: "
+					    "Socket allocation failure, %s\n",
+					    s, __func__, (tcp_sc_rst_sock_fail ?
+					    "sending RST" : "try again"));
+				if (tcp_sc_rst_sock_fail) {
+					rstreason = BANDLIM_UNLIMITED;
 					goto dropwithreset;
-				}
-				if (so == NULL) {
-					/*
-					 * We completed the 3-way handshake
-					 * but could not allocate a socket
-					 * either due to memory shortage,
-					 * listen queue length limits or
-					 * global socket limits.  Send RST
-					 * or wait and have the remote end
-					 * retransmit the ACK for another
-					 * try.
-					 */
-					if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
-						log(LOG_DEBUG, "%s; %s: Listen socket: "
-						    "Socket allocation failure, %s\n",
-						    s, __func__, (tcp_sc_rst_sock_fail ?
-						    "sending RST" : "try again"));
-					if (tcp_sc_rst_sock_fail) {
-						rstreason = BANDLIM_UNLIMITED;
-						goto dropwithreset;
-					} else
-						goto dropunlock;
-				}
-				/*
-				 * Socket is created in state SYN_RECEIVED.
-				 * Continue processing segment.
-				 */
-				INP_UNLOCK(inp);	/* listen socket */
-				inp = sotoinpcb(so);
-				INP_LOCK(inp);		/* new connection */
-				tp = intotcpcb(inp);
-				/*
-				 * Process the segment and the data it
-				 * contains.  tcp_do_segment() consumes
-				 * the mbuf chain and unlocks the inpcb.
-				 */
-				tcp_do_segment(m, th, so, tp, drop_hdrlen,
-						tlen);
-				INP_INFO_UNLOCK_ASSERT(&tcbinfo);
-				return;
+				} else
+					goto dropunlock;
+			}
+			/*
+			 * Socket is created in state SYN_RECEIVED.
+			 * Continue processing segment.
+			 */
+			INP_UNLOCK(inp);	/* listen socket */
+			inp = sotoinpcb(so);
+			INP_LOCK(inp);		/* new connection */
+			tp = intotcpcb(inp);
+			/*
+			 * Process the segment and the data it
+			 * contains.  tcp_do_segment() consumes
+			 * the mbuf chain and unlocks the inpcb.
+			 */
+			tcp_do_segment(m, th, so, tp, drop_hdrlen,
+					tlen);
+			INP_INFO_UNLOCK_ASSERT(&tcbinfo);
+			return;
 		}
 		/*
 		 * Our (SYN|ACK) response was rejected.
