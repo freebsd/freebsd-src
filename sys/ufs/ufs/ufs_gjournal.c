@@ -105,39 +105,30 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 }
 
 void
-ufs_gjournal_orphan(struct vnode *fvp)
+ufs_gjournal_orphan(struct vnode *vp)
 {
-	struct mount *mp;
 	struct inode *ip;
 
-	mp = fvp->v_mount;
-	if (mp->mnt_gjprovider == NULL)
+	if (vp->v_mount->mnt_gjprovider == NULL)
 		return;
-	VI_LOCK(fvp);
-	if (fvp->v_usecount < 2 || (fvp->v_vflag & VV_DELETED)) {
-		VI_UNLOCK(fvp);
+	if (vp->v_usecount < 2 || (vp->v_vflag & VV_DELETED))
 		return;
-	}
-	ip = VTOI(fvp);
-	if ((fvp->v_type == VDIR && ip->i_nlink > 2) ||
-	    (fvp->v_type != VDIR && ip->i_nlink > 1)) {
-		VI_UNLOCK(fvp);
+	ip = VTOI(vp);
+	if ((vp->v_type == VDIR && ip->i_nlink > 2) ||
+	    (vp->v_type != VDIR && ip->i_nlink > 1)) {
 		return;
 	}
-	fvp->v_vflag |= VV_DELETED;
-	VI_UNLOCK(fvp);
+	vp->v_vflag |= VV_DELETED;
 
-	ufs_gjournal_modref(fvp, 1);
+	ufs_gjournal_modref(vp, 1);
 }
 
 void
 ufs_gjournal_close(struct vnode *vp)
 {
-	struct mount *mp;
 	struct inode *ip;
 
-	mp = vp->v_mount;
-	if (mp->mnt_gjprovider == NULL)
+	if (vp->v_mount->mnt_gjprovider == NULL)
 		return;
 	if (!(vp->v_vflag & VV_DELETED))
 		return;
