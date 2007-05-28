@@ -801,7 +801,8 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		if (!tcp_syncookies) {
 			SCH_UNLOCK(sch);
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-				log(LOG_DEBUG, "%s; %s: Spurious ACK\n",
+				log(LOG_DEBUG, "%s; %s: Spurious ACK, "
+				    "segment rejected (syncookies disabled)\n",
 				    s, __func__);
 			goto failed;
 		}
@@ -811,8 +812,8 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		if (sc == NULL) {
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Segment failed "
-				    "SYNCOOKIE authentication\n",
-				    s, __func__);
+				    "SYNCOOKIE authentication, segment rejected "
+				    "(probably spoofed)\n", s, __func__);
 			goto failed;
 		}
 		tcpstat.tcps_sc_recvcookie++;
@@ -830,8 +831,8 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 */
 	if (th->th_ack != sc->sc_iss + 1) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-			log(LOG_DEBUG, "%s; %s: ACK %u != ISS+1 %u\n",
-			    s, __func__, th->th_ack, sc->sc_iss);
+			log(LOG_DEBUG, "%s; %s: ACK %u != ISS+1 %u, segment "
+			    "rejected\n", s, __func__, th->th_ack, sc->sc_iss);
 		goto failed;
 	}
 	/*
@@ -841,8 +842,8 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 */
 	if (th->th_seq != sc->sc_irs + 1) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-			log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u\n",
-			    s, __func__, th->th_ack, sc->sc_iss);
+			log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u, segment "
+			    "rejected\n", s, __func__, th->th_ack, sc->sc_iss);
 		goto failed;
 	}
 	/*
@@ -852,14 +853,14 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 */
 	if ((sc->sc_flags & SCF_TIMESTAMP) && !(to->to_flags & TOF_TS)) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-			log(LOG_DEBUG, "%s; %s: Timestamp missing\n",
-			    s, __func__);
+			log(LOG_DEBUG, "%s; %s: Timestamp missing, "
+			    "segment rejected\n", s, __func__);
 		goto failed;
 	}
 	if (!(sc->sc_flags & SCF_TIMESTAMP) && (to->to_flags & TOF_TS)) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-			log(LOG_DEBUG, "%s; %s: Timestamp not expected\n",
-			    s, __func__);
+			log(LOG_DEBUG, "%s; %s: Timestamp not expected, "
+			    "segment rejected\n", s, __func__);
 		goto failed;
 	}
 	/*
@@ -868,7 +869,8 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 */
 	if ((to->to_flags & TOF_TS) && to->to_tsecr != sc->sc_ts) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-			log(LOG_DEBUG, "%s; %s: TSECR %u != TS %u\n",
+			log(LOG_DEBUG, "%s; %s: TSECR %u != TS %u, "
+			    "segment rejected\n",
 			    s, __func__, to->to_tsecr, sc->sc_ts);
 		goto failed;
 	}
