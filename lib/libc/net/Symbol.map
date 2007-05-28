@@ -124,20 +124,20 @@ FBSD_1.0 {
 	in6addr_loopback;
 	in6addr_nodelocal_allnodes;
 	in6addr_linklocal_allnodes;
-        sctp_getaddrlen;
-        sctp_bindx;
-        sctp_connectx;
-        sctp_peeloff;
-        sctp_opt_info;
-        sctp_getpaddrs;
-        sctp_freepaddrs;
-        sctp_getladdrs;
-        sctp_freeladdrs;
-        sctp_sendmsg;
-        sctp_sendmsgx;
-        sctp_send;
-        sctp_sendx;
-        sctp_recvmsg;
+	sctp_getaddrlen;
+	sctp_bindx;
+	sctp_connectx;
+	sctp_peeloff;
+	sctp_opt_info;
+	sctp_getpaddrs;
+	sctp_freepaddrs;
+	sctp_getladdrs;
+	sctp_freeladdrs;
+	sctp_sendmsg;
+	sctp_sendmsgx;
+	sctp_send;
+	sctp_sendx;
+	sctp_recvmsg;
 };
 
 FBSDprivate_1.0 {
