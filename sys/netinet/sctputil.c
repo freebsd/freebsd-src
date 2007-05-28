@@ -923,6 +923,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 	asoc->heart_beat_delay = TICKS_TO_MSEC(m->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT]);
 	asoc->cookie_life = m->sctp_ep.def_cookie_life;
 	asoc->sctp_cmt_on_off = (uint8_t) sctp_cmt_on_off;
+	asoc->sctp_frag_point = m->sctp_frag_point;
 #ifdef INET
 	asoc->default_tos = m->ip_inp.inp.inp_ip_tos;
 #else
@@ -1453,6 +1454,11 @@ sctp_timeout_handler(void *t)
 
 	/* call the handler for the appropriate timer type */
 	switch (tmr->type) {
+	case SCTP_TIMER_TYPE_ZERO_COPY:
+		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
+			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
+		}
+		break;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
 		sctp_handle_addr_wq();
 		break;
@@ -1770,6 +1776,10 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		SCTP_TCB_LOCK_ASSERT(stcb);
 	}
 	switch (t_type) {
+	case SCTP_TIMER_TYPE_ZERO_COPY:
+		tmr = &inp->sctp_ep.zero_copy_timer;
+		to_ticks = SCTP_ZERO_COPY_TICK_DELAY;
+		break;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
 		/* Only 1 tick away :-) */
 		tmr = &sctppcbinfo.addr_wq_timer;
@@ -2117,6 +2127,10 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		SCTP_TCB_LOCK_ASSERT(stcb);
 	}
 	switch (t_type) {
+	case SCTP_TIMER_TYPE_ZERO_COPY:
+		tmr = &inp->sctp_ep.zero_copy_timer;
+		break;
+
 	case SCTP_TIMER_TYPE_ADDR_WQ:
 		tmr = &sctppcbinfo.addr_wq_timer;
 		break;
@@ -5214,9 +5228,7 @@ get_more_data:
 					copied_so_far += cp_len;
 				}
 			}
-			if ((out_flags & MSG_EOR) ||
-			    (uio->uio_resid == 0)
-			    ) {
+			if ((out_flags & MSG_EOR) || (uio->uio_resid == 0)) {
 				break;
 			}
 			if (((stcb) && (in_flags & MSG_PEEK) == 0) &&
@@ -5238,8 +5250,7 @@ get_more_data:
 		 * a MSG_EOR/or read all the user wants... <OR>
 		 * control->length == 0.
 		 */
-		if ((out_flags & MSG_EOR) &&
-		    ((in_flags & MSG_PEEK) == 0)) {
+		if ((out_flags & MSG_EOR) && ((in_flags & MSG_PEEK) == 0)) {
 			/* we are done with this control */
 			if (control->length == 0) {
 				if (control->data) {
@@ -5592,6 +5603,7 @@ sctp_dynamic_set_primary(struct sockaddr *sa, uint32_t vrf_id)
 	/* Now incr the count and int wi structure */
 	SCTP_INCR_LADDR_COUNT();
 	bzero(wi, sizeof(*wi));
+	(void)SCTP_GETTIME_TIMEVAL(&wi->start_time);
 	wi->ifa = ifa;
 	wi->action = SCTP_SET_PRIM_ADDR;
 	atomic_add_int(&ifa->refcount, 1);
@@ -5739,7 +5751,8 @@ sctp_l_soreceive(struct socket *so,
 
 
 int
-sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr, int totaddr, int *error)
+sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
+    int totaddr, int *error)
 {
 	int added = 0;
 	int i;
@@ -5777,8 +5790,9 @@ out_now:
 }
 
 struct sctp_tcb *
-sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr, int *totaddr,
-    int *num_v4, int *num_v6, int *error, int max)
+sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr,
+    int *totaddr, int *num_v4, int *num_v6, int *error,
+    int limit, int *bad_addr)
 {
 	struct sockaddr *sa;
 	struct sctp_tcb *stcb = NULL;
@@ -5792,6 +5806,11 @@ sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr, int *to
 		if (sa->sa_family == AF_INET) {
 			(*num_v4) += 1;
 			incr = sizeof(struct sockaddr_in);
+			if (sa->sa_len != incr) {
+				*error = EINVAL;
+				*bad_addr = 1;
+				return (NULL);
+			}
 		} else if (sa->sa_family == AF_INET6) {
 			struct sockaddr_in6 *sin6;
 
@@ -5799,21 +5818,30 @@ sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr, int *to
 			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 				/* Must be non-mapped for connectx */
 				*error = EINVAL;
+				*bad_addr = 1;
 				return (NULL);
 			}
 			(*num_v6) += 1;
 			incr = sizeof(struct sockaddr_in6);
+			if (sa->sa_len != incr) {
+				*error = EINVAL;
+				*bad_addr = 1;
+				return (NULL);
+			}
 		} else {
 			*totaddr = i;
 			/* we are done */
 			break;
 		}
+		SCTP_INP_INCR_REF(inp);
 		stcb = sctp_findassociation_ep_addr(&inp, sa, NULL, NULL, NULL);
 		if (stcb != NULL) {
 			/* Already have or am bring up an association */
 			return (stcb);
+		} else {
+			SCTP_INP_DECR_REF(inp);
 		}
-		if ((at + incr) > max) {
+		if ((at + incr) > limit) {
 			*totaddr = i;
 			break;
 		}

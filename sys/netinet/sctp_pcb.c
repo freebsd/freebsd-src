@@ -452,6 +452,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		}
 		SCTP_INCR_LADDR_COUNT();
 		bzero(wi, sizeof(*wi));
+		(void)SCTP_GETTIME_TIMEVAL(&wi->start_time);
 		wi->ifa = sctp_ifap;
 		wi->action = SCTP_ADD_IP_ADDRESS;
 		SCTP_IPI_ITERATOR_WQ_LOCK();
@@ -529,6 +530,7 @@ out_now:
 		}
 		SCTP_INCR_LADDR_COUNT();
 		bzero(wi, sizeof(*wi));
+		(void)SCTP_GETTIME_TIMEVAL(&wi->start_time);
 		wi->ifa = sctp_ifap;
 		wi->action = SCTP_DEL_IP_ADDRESS;
 		SCTP_IPI_ITERATOR_WQ_LOCK();
@@ -994,25 +996,32 @@ sctp_findassociation_ep_asocid(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int
 		SCTP_INP_RLOCK(stcb->sctp_ep);
 		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 			SCTP_INP_RUNLOCK(stcb->sctp_ep);
-			SCTP_INP_INFO_RUNLOCK();
-			return (NULL);
+			continue;
 		}
-		SCTP_TCB_LOCK(stcb);
-		SCTP_INP_RUNLOCK(stcb->sctp_ep);
+		if (want_lock) {
+			SCTP_TCB_LOCK(stcb);
+		}
 		if (stcb->asoc.assoc_id == id) {
 			/* candidate */
+			SCTP_INP_RUNLOCK(stcb->sctp_ep);
 			if (inp != stcb->sctp_ep) {
 				/*
 				 * some other guy has the same id active (id
 				 * collision ??).
 				 */
-				SCTP_TCB_UNLOCK(stcb);
+				if (want_lock) {
+					SCTP_TCB_UNLOCK(stcb);
+				}
 				continue;
 			}
 			SCTP_INP_INFO_RUNLOCK();
 			return (stcb);
+		} else {
+			SCTP_INP_RUNLOCK(stcb->sctp_ep);
 		}
-		SCTP_TCB_UNLOCK(stcb);
+		if (want_lock) {
+			SCTP_TCB_UNLOCK(stcb);
+		}
 	}
 	SCTP_INP_INFO_RUNLOCK();
 	return (NULL);
@@ -1773,6 +1782,8 @@ sctp_inpcb_alloc(struct socket *so)
 		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_ep, inp);
 		return (EOPNOTSUPP);
 	}
+	sctp_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE);
+
 	inp->sctp_tcbhash = SCTP_HASH_INIT(sctp_pcbtblsize,
 	    &inp->sctp_hashmark);
 	if (inp->sctp_tcbhash == NULL) {
@@ -1957,6 +1968,7 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 			}
 			SCTP_INCR_LADDR_COUNT();
 			bzero(laddr, sizeof(*laddr));
+			(void)SCTP_GETTIME_TIMEVAL(&laddr->start_time);
 			laddr->ifa = oladdr->ifa;
 			atomic_add_int(&laddr->ifa->refcount, 1);
 			LIST_INSERT_HEAD(&new_inp->sctp_addr_list, laddr,
@@ -2184,88 +2196,60 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 			}
 		}
 	} else {
-		/*
-		 * get any port but lets make sure no one has any address
-		 * with this port bound
-		 */
+		uint16_t first, last, candiate;
+		uint16_t count;
+		int done;
 
-		/*
-		 * setup the inp to the top (I could use the union but this
-		 * is just as easy
-		 */
-		uint32_t port_guess;
-		uint16_t port_attempt;
-		int not_done = 1;
-		int not_found = 1;
+		if (ip_inp->inp_flags & INP_HIGHPORT) {
+			first = ipport_hifirstauto;
+			last = ipport_hilastauto;
+		} else if (ip_inp->inp_flags & INP_LOWPORT) {
+			if (p && (error =
+			    priv_check_cred(p->td_ucred,
+			    PRIV_NETINET_RESERVEDPORT,
+			    SUSER_ALLOWJAIL
+			    )
+			    )) {
+				SCTP_INP_DECR_REF(inp);
+				SCTP_INP_WUNLOCK(inp);
+				SCTP_INP_INFO_WUNLOCK();
+				return (error);
+			}
+			first = ipport_lowfirstauto;
+			last = ipport_lowlastauto;
+		} else {
+			first = ipport_firstauto;
+			last = ipport_lastauto;
+		}
+		if (first > last) {
+			uint16_t temp;
 
-		while (not_done) {
-			port_guess = sctp_select_initial_TSN(&inp->sctp_ep);
-			port_attempt = (port_guess & 0x0000ffff);
-			if (port_attempt == 0) {
-				goto next_half;
-			}
-			if (port_attempt < IPPORT_RESERVED) {
-				port_attempt += IPPORT_RESERVED;
-			}
-			not_found = 1;
-			vrf_id = inp->def_vrf_id;
-			if (sctp_isport_inuse(inp, htons(port_attempt),
-			    vrf_id) == 1) {
-				/* got a port we can use */
-				not_found = 0;
-			}
-			if (not_found == 1) {
-				/* We can use this port */
-				not_done = 0;
-				continue;
-			}
-			/* try upper half */
-	next_half:
-			port_attempt = ((port_guess >> 16) & 0x0000ffff);
+			temp = first;
+			first = last;
+			last = temp;
+		}
+		count = last - first + 1;	/* number of candidates */
+		candiate = first + sctp_select_initial_TSN(&inp->sctp_ep) % (count);
 
-			if (port_attempt == 0) {
-				goto last_try;
+		done = 0;
+		while (!done) {
+			if (sctp_isport_inuse(inp, htons(candiate), inp->def_vrf_id) == 0) {
+				done = 1;
 			}
-			if (port_attempt < IPPORT_RESERVED) {
-				port_attempt += IPPORT_RESERVED;
-			}
-			not_found = 1;
-			vrf_id = inp->def_vrf_id;
-			if (sctp_isport_inuse(inp, htons(port_attempt),
-			    vrf_id) == 1) {
-				/* got a port we can use */
-				not_found = 0;
-			}
-			if (not_found == 1) {
-				/* We can use this port */
-				not_done = 0;
-				continue;
-			}
-			/* try two half's added together */
-	last_try:
-			port_attempt = (((port_guess >> 16) & 0x0000ffff) +
-			    (port_guess & 0x0000ffff));
-			if (port_attempt == 0) {
-				/* get a new random number */
-				continue;
-			}
-			if (port_attempt < IPPORT_RESERVED) {
-				port_attempt += IPPORT_RESERVED;
-			}
-			not_found = 1;
-			vrf_id = inp->def_vrf_id;
-			if (sctp_isport_inuse(inp, htons(port_attempt), vrf_id) == 1) {
-				/* got a port we can use */
-				not_found = 0;
-			}
-			if (not_found == 1) {
-				/* We can use this port */
-				not_done = 0;
-				continue;
+			if (!done) {
+				if (--count == 0) {
+					SCTP_INP_DECR_REF(inp);
+					SCTP_INP_WUNLOCK(inp);
+					SCTP_INP_INFO_WUNLOCK();
+					return (EADDRNOTAVAIL);
+				}
+				if (candiate == last)
+					candiate = first;
+				else
+					candiate = candiate + 1;
 			}
 		}
-		/* we don't get out of the loop until we have a port */
-		lport = htons(port_attempt);
+		lport = htons(candiate);
 	}
 	SCTP_INP_DECR_REF(inp);
 	if (inp->sctp_flags & (SCTP_PCB_FLAGS_SOCKET_GONE |
@@ -4448,6 +4432,7 @@ sctp_insert_laddr(struct sctpladdr *list, struct sctp_ifa *ifa, uint32_t act)
 	}
 	SCTP_INCR_LADDR_COUNT();
 	bzero(laddr, sizeof(*laddr));
+	(void)SCTP_GETTIME_TIMEVAL(&laddr->start_time);
 	laddr->ifa = ifa;
 	laddr->action = act;
 	atomic_add_int(&ifa->refcount, 1);

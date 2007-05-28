@@ -4047,13 +4047,14 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 	limit = ntohs(cp->chunk_length) - sizeof(struct sctp_init_chunk);
 	at = param_offset;
 	op_err = NULL;
-
+	SCTPDBG(SCTP_DEBUG_OUTPUT1, "Check for unrecognized param's\n");
 	phdr = sctp_get_next_param(mat, at, &params, sizeof(params));
 	while ((phdr != NULL) && ((size_t)limit >= sizeof(struct sctp_paramhdr))) {
 		ptype = ntohs(phdr->param_type);
 		plen = ntohs(phdr->param_length);
 		if ((plen > limit) || (plen < sizeof(struct sctp_paramhdr))) {
 			/* wacked parameter */
+			SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error %d\n", plen);
 			goto invalid_size;
 		}
 		limit -= SCTP_SIZE32(plen);
@@ -4078,18 +4079,21 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 		case SCTP_CHUNK_LIST:
 		case SCTP_SUPPORTED_CHUNK_EXT:
 			if (padded_size > (sizeof(struct sctp_supported_chunk_types_param) + (sizeof(uint8_t) * SCTP_MAX_SUPPORTED_EXT))) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error chklist %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
 			break;
 		case SCTP_SUPPORTED_ADDRTYPE:
 			if (padded_size > SCTP_MAX_ADDR_PARAMS_SIZE) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error supaddrtype %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
 			break;
 		case SCTP_RANDOM:
 			if (padded_size > (sizeof(struct sctp_auth_random) + SCTP_RANDOM_MAX_SIZE)) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error random %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
@@ -4099,6 +4103,7 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 		case SCTP_ADD_IP_ADDRESS:
 			if ((padded_size != sizeof(struct sctp_asconf_addrv4_param)) &&
 			    (padded_size != sizeof(struct sctp_asconf_addr_param))) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error setprim %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
@@ -4106,18 +4111,21 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 			/* Param's with a fixed size */
 		case SCTP_IPV4_ADDRESS:
 			if (padded_size != sizeof(struct sctp_ipv4addr_param)) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error ipv4 addr %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
 			break;
 		case SCTP_IPV6_ADDRESS:
 			if (padded_size != sizeof(struct sctp_ipv6addr_param)) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error ipv6 addr %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
 			break;
 		case SCTP_COOKIE_PRESERVE:
 			if (padded_size != sizeof(struct sctp_cookie_perserve_param)) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error cookie-preserve %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
@@ -4125,24 +4133,28 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 		case SCTP_ECN_NONCE_SUPPORTED:
 		case SCTP_PRSCTP_SUPPORTED:
 			if (padded_size != sizeof(struct sctp_paramhdr)) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error ecnnonce/prsctp %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
 			break;
 		case SCTP_ECN_CAPABLE:
 			if (padded_size != sizeof(struct sctp_ecn_supported_param)) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error ecn %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
 			break;
 		case SCTP_ULP_ADAPTATION:
 			if (padded_size != sizeof(struct sctp_adaptation_layer_indication)) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error adapatation %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
 			break;
 		case SCTP_SUCCESS_REPORT:
 			if (padded_size != sizeof(struct sctp_asconf_paramhdr)) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error success %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
@@ -4152,7 +4164,7 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 				/* We can NOT handle HOST NAME addresses!! */
 				int l_len;
 
-				SCTPDBG(SCTP_DEBUG_OUTPUT4, "Can't handle hostname addresses.. abort processing\n");
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Can't handle hostname addresses.. abort processing\n");
 				*abort_processing = 1;
 				if (op_err == NULL) {
 					/* Ok need to try to get a mbuf */
@@ -4210,8 +4222,10 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 			 * we do not recognize the parameter figure out what
 			 * we do.
 			 */
+			SCTPDBG(SCTP_DEBUG_OUTPUT1, "Hit default param %x\n", ptype);
 			if ((ptype & 0x4000) == 0x4000) {
 				/* Report bit is set?? */
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "report op err\n");
 				if (op_err == NULL) {
 					int l_len;
 
@@ -4264,9 +4278,11 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 			}
 	more_processing:
 			if ((ptype & 0x8000) == 0x0000) {
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "stop proc\n");
 				return (op_err);
 			} else {
 				/* skip this chunk and continue processing */
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "move on\n");
 				at += SCTP_SIZE32(plen);
 			}
 			break;
@@ -4276,6 +4292,7 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 	}
 	return (op_err);
 invalid_size:
+	SCTPDBG(SCTP_DEBUG_OUTPUT1, "abort flag set\n");
 	*abort_processing = 1;
 	if ((op_err == NULL) && phdr) {
 		int l_len;
@@ -5229,10 +5246,10 @@ sctp_get_frag_point(struct sctp_tcb *stcb,
 		ovh = SCTP_MED_V4_OVERHEAD;
 	}
 
-	if (stcb->sctp_ep->sctp_frag_point > asoc->smallest_mtu)
+	if (stcb->asoc.sctp_frag_point > asoc->smallest_mtu)
 		siz = asoc->smallest_mtu - ovh;
 	else
-		siz = (stcb->sctp_ep->sctp_frag_point - ovh);
+		siz = (stcb->asoc.sctp_frag_point - ovh);
 	/*
 	 * if (siz > (MCLBYTES-sizeof(struct sctp_data_chunk))) {
 	 */
@@ -5824,7 +5841,7 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 	memset(ca, 0, sizeof(struct sctp_copy_all));
 
 	ca->inp = inp;
-	ca->sndrcv = *srcv;
+	memcpy(&ca->sndrcv, srcv, sizeof(struct sctp_nonpad_sndrcvinfo));
 	/*
 	 * take off the sendall flag, it would be bad if we failed to do
 	 * this :-0
@@ -7250,7 +7267,7 @@ again_one_more_time:
 						r_mtu = 0;
 
 					to_out += chk->send_size;
-					if (to_out > mx_mtu) {
+					if ((to_out > mx_mtu) && no_fragmentflg) {
 #ifdef INVARIANTS
 						panic("Exceeding mtu of %d out size is %d", mx_mtu, to_out);
 #else
@@ -10588,7 +10605,21 @@ sctp_lower_sosend(struct socket *so,
 		sndlen = SCTP_HEADER_LEN(i_pak);
 		top = SCTP_HEADER_TO_CHAIN(i_pak);
 	}
-
+	/*
+	 * Pre-screen address, if one is given the sin-len must be set
+	 * correctly!
+	 */
+	if (addr) {
+		if ((addr->sa_family == AF_INET) &&
+		    (addr->sa_len != sizeof(struct sockaddr_in))) {
+			error = EINVAL;
+			goto out_unlocked;
+		} else if ((addr->sa_family == AF_INET6) &&
+		    (addr->sa_len != sizeof(struct sockaddr_in6))) {
+			error = EINVAL;
+			goto out_unlocked;
+		}
+	}
 	hold_tcblock = 0;
 
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
@@ -10598,7 +10629,8 @@ sctp_lower_sosend(struct socket *so,
 		goto out_unlocked;
 	}
 	if ((use_rcvinfo) && srcv) {
-		if (INVALID_SINFO_FLAG(srcv->sinfo_flags) || PR_SCTP_INVALID_POLICY(srcv->sinfo_flags)) {
+		if (INVALID_SINFO_FLAG(srcv->sinfo_flags) ||
+		    PR_SCTP_INVALID_POLICY(srcv->sinfo_flags)) {
 			error = EINVAL;
 			goto out_unlocked;
 		}
@@ -10769,7 +10801,6 @@ sctp_lower_sosend(struct socket *so,
 				goto out_unlocked;
 			}
 			/* get an asoc/stcb struct */
-
 			vrf_id = inp->def_vrf_id;
 			stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0, vrf_id);
 			if (stcb == NULL) {
@@ -10936,7 +10967,7 @@ sctp_lower_sosend(struct socket *so,
 	}
 	if ((use_rcvinfo == 0) || (srcv == NULL)) {
 		/* Grab the default stuff from the asoc */
-		srcv = &stcb->asoc.def_send;
+		srcv = (struct sctp_sndrcvinfo *)&stcb->asoc.def_send;
 	}
 	/* we are now done with all control */
 	if (control) {

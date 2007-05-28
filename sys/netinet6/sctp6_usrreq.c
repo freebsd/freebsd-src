@@ -76,6 +76,7 @@ sctp6_input(i_pak, offp, proto)
 	int length, mlen, offset, iphlen;
 	uint8_t ecn_bits;
 	struct sctp_tcb *stcb = NULL;
+	int pkt_len = 0;
 	int off = *offp;
 
 	/* get the VRF and table id's */
@@ -88,10 +89,12 @@ sctp6_input(i_pak, offp, proto)
 		return (-1);
 	}
 	m = SCTP_HEADER_TO_CHAIN(*i_pak);
+	pkt_len = SCTP_HEADER_LEN((*i_pak));
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	/* Ensure that (sctphdr + sctp_chunkhdr) in a row. */
-	IP6_EXTHDR_GET(sh, struct sctphdr *, m, off, sizeof(*sh) + sizeof(*ch));
+	IP6_EXTHDR_GET(sh, struct sctphdr *, m, off,
+	    (int)(sizeof(*sh) + sizeof(*ch)));
 	if (sh == NULL) {
 		SCTP_STAT_INCR(sctps_hdrops);
 		return IPPROTO_DONE;
@@ -110,7 +113,7 @@ sctp6_input(i_pak, offp, proto)
 	SCTP_STAT_INCR(sctps_recvpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
 	SCTPDBG(SCTP_DEBUG_INPUT1, "V6 input gets a packet iphlen:%d pktlen:%d\n",
-	    iphlen, SCTP_HEADER_LEN((*i_pak)));
+	    iphlen, pkt_len);
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		/* No multi-cast support in SCTP */
 		goto bad;
@@ -588,6 +591,16 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 	if (inp == 0)
 		return EINVAL;
 
+	if (addr) {
+		if ((addr->sa_family == AF_INET6) &&
+		    (addr->sa_len != sizeof(struct sockaddr_in6))) {
+			return EINVAL;
+		}
+		if ((addr->sa_family == AF_INET) &&
+		    (addr->sa_len != sizeof(struct sockaddr_in))) {
+			return EINVAL;
+		}
+	}
 	inp6 = (struct in6pcb *)inp;
 	inp6->inp_vflag &= ~INP_IPV4;
 	inp6->inp_vflag |= INP_IPV6;
@@ -937,6 +950,15 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	if (inp == 0) {
 		return (ECONNRESET);	/* I made the same as TCP since we are
 					 * not setup? */
+	}
+	if (addr == NULL) {
+		return (EINVAL);
+	}
+	if ((addr->sa_family == AF_INET6) && (addr->sa_len != sizeof(struct sockaddr_in6))) {
+		return (EINVAL);
+	}
+	if ((addr->sa_family == AF_INET) && (addr->sa_len != sizeof(struct sockaddr_in))) {
+		return (EINVAL);
 	}
 	vrf_id = inp->def_vrf_id;
 	SCTP_ASOC_CREATE_LOCK(inp);

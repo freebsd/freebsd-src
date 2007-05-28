@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 /* Number of addresses where we just skip the counting */
 #define SCTP_COUNT_LIMIT 40
 
+#define SCTP_ZERO_COPY_TICK_DELAY (((100 * hz) + 999) / 1000)
+
 /* Number of ticks to delay before running
  * iterator on an address change.
  */
@@ -542,8 +544,9 @@ __FBSDID("$FreeBSD$");
 #define SCTP_TIMER_TYPE_EARLYFR         17
 #define SCTP_TIMER_TYPE_ASOCKILL        18
 #define SCTP_TIMER_TYPE_ADDR_WQ         19
+#define SCTP_TIMER_TYPE_ZERO_COPY       20
 /* add new timers here - and increment LAST */
-#define SCTP_TIMER_TYPE_LAST            20
+#define SCTP_TIMER_TYPE_LAST            21
 
 #define SCTP_IS_TIMER_TYPE_VALID(t)	(((t) > SCTP_TIMER_TYPE_NONE) && \
 					 ((t) < SCTP_TIMER_TYPE_LAST))
@@ -654,10 +657,11 @@ __FBSDID("$FreeBSD$");
 
 #define SCTP_DEF_MAX_INIT	8
 #define SCTP_DEF_MAX_SEND	10
-#define SCTP_DEF_MAX_PATH_RTX	4
+#define SCTP_DEF_MAX_PATH_RTX	5
 
 #define SCTP_DEF_PMTU_RAISE_SEC	600	/* 10 min between raise attempts */
 #define SCTP_DEF_PMTU_MIN	600
+
 
 #define SCTP_MSEC_IN_A_SEC	1000
 #define SCTP_USEC_IN_A_SEC	1000000
@@ -810,6 +814,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_FROM_SCTP_ASCONF  0x80000000
 #define SCTP_FROM_SCTP_OUTPUT  0x90000000
 #define SCTP_FROM_SCTP_PEELOFF 0xa0000000
+#define SCTP_FROM_SCTP_PANDA   0xb0000000
 
 /* Location ID's */
 #define SCTP_LOC_1  0x00000001
