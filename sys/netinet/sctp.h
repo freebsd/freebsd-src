@@ -91,7 +91,7 @@ struct sctp_paramhdr {
 /* Without this applied we will give V4 and V6 addresses on a V6 socket */
 #define SCTP_I_WANT_MAPPED_V4_ADDR	0x0000000d
 #define SCTP_MAXSEG 			0x0000000e
-#define SCTP_DELAYED_ACK_TIME           0x0000000f
+#define SCTP_DELAYED_SACK               0x0000000f
 #define SCTP_FRAGMENT_INTERLEAVE        0x00000010
 #define SCTP_PARTIAL_DELIVERY_POINT     0x00000011
 /* authentication support */
@@ -103,6 +103,7 @@ struct sctp_paramhdr {
 #define SCTP_USE_EXT_RCVINFO		0x00000017
 #define SCTP_AUTO_ASCONF		0x00000018	/* rw */
 #define SCTP_MAXBURST			0x00000019	/* rw */
+#define SCTP_MAX_BURST			0x00000019	/* rw */
 /* assoc level context */
 #define SCTP_CONTEXT                    0x0000001a	/* rw */
 /* explict EOR signalling */
@@ -446,6 +447,9 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_STREAM_RESETEVNT 0x00080000
 #define SCTP_PCB_FLAGS_NO_FRAGMENT	0x00100000
 #define SCTP_PCB_FLAGS_EXPLICIT_EOR     0x00400000
+
+#define SCTP_SMALLEST_PMTU 512	/* smallest pmtu allowed when disabling PMTU
+				 * discovery */
 
 #include <netinet/sctp_uio.h>
 
