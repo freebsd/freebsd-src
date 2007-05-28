@@ -1485,6 +1485,7 @@ fw_explore(struct firewire_comm *fc)
 	int node, err, s, i, todo, todo2, trys;
 	char nodes[63];
 	struct fw_device dfwdev;
+	union fw_self_id *fwsid;
 
 	todo = 0;
 	/* setup dummy fwdev */
@@ -1497,7 +1498,8 @@ fw_explore(struct firewire_comm *fc)
 		/* We don't probe myself and linkdown nodes */
 		if (node == fc->nodeid)
 			continue;
-		if (!fw_find_self_id(fc, node)->p0.link_active) {
+		fwsid = fw_find_self_id(fc, node);
+		if (!fwsid || !fwsid->p0.link_active) {
 			if (firewire_debug)
 				printf("node%d: link down\n", node);
 			continue;
