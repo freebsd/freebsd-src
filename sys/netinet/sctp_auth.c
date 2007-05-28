@@ -629,6 +629,8 @@ sctp_free_hmaclist(sctp_hmaclist_t * list)
 int
 sctp_auth_add_hmacid(sctp_hmaclist_t * list, uint16_t hmac_id)
 {
+	int i;
+
 	if (list == NULL)
 		return (-1);
 	if (list->num_algo == list->max_algo) {
@@ -647,6 +649,13 @@ sctp_auth_add_hmacid(sctp_hmaclist_t * list, uint16_t hmac_id)
 #endif
 	    (hmac_id != SCTP_AUTH_HMAC_ID_MD5)) {
 		return (-1);
+	}
+	/* Now is it already in the list */
+	for (i = 0; i < list->num_algo; i++) {
+		if (list->hmac[i] == hmac_id) {
+			/* already in list */
+			return (-1);
+		}
 	}
 	SCTPDBG(SCTP_DEBUG_AUTH1, "SCTP: add HMAC id %u to list\n", hmac_id);
 	list->hmac[list->num_algo++] = hmac_id;
@@ -1338,7 +1347,11 @@ sctp_auth_setactivekey(struct sctp_tcb *stcb, uint16_t keyid)
 	skey = sctp_find_sharedkey(&stcb->asoc.shared_keys, keyid);
 	if (skey == NULL) {
 		/* if not on the assoc, find the key on the endpoint */
+		atomic_add_int(&stcb->asoc.refcnt, 1);
+		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_RLOCK(stcb->sctp_ep);
+		SCTP_TCB_LOCK(stcb);
+		atomic_add_int(&stcb->asoc.refcnt, -1);
 		skey = sctp_find_sharedkey(&stcb->sctp_ep->sctp_ep.shared_keys,
 		    keyid);
 		using_ep_key = 1;

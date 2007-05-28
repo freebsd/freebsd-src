@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctputil.h>
-
+#include <netinet/sctp_output.h>
 /*
  * sysctl tunable variables
  */
@@ -112,6 +112,174 @@ uint32_t sctp_debug_on = 0;
 #endif
 
 
+
+/* It returns an upper limit. No filtering is done here */
+static unsigned int
+number_of_addresses(struct sctp_inpcb *inp)
+{
+	int cnt;
+	struct sctp_vrf *vrf;
+	struct sctp_ifn *sctp_ifn;
+	struct sctp_ifa *sctp_ifa;
+	struct sctp_laddr *laddr;
+
+	cnt = 0;
+	/* neither Mac OS X nor FreeBSD support mulitple routing functions */
+	if ((vrf = sctp_find_vrf(inp->def_vrf_id)) == NULL) {
+		return (0);
+	}
+	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
+		LIST_FOREACH(sctp_ifn, &vrf->ifnlist, next_ifn) {
+			LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
+				if ((sctp_ifa->address.sa.sa_family == AF_INET) ||
+				    (sctp_ifa->address.sa.sa_family == AF_INET6)) {
+					cnt++;
+				}
+			}
+		}
+	} else {
+		LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
+			if ((laddr->ifa->address.sa.sa_family == AF_INET) ||
+			    (laddr->ifa->address.sa.sa_family == AF_INET6)) {
+				cnt++;
+			}
+		}
+	}
+	return (cnt);
+}
+
+static int
+copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sysctl_req *req)
+{
+	struct sctp_ifn *sctp_ifn;
+	struct sctp_ifa *sctp_ifa;
+	int loopback_scope, ipv4_local_scope, local_scope, site_scope;
+	int ipv4_addr_legal, ipv6_addr_legal;
+	struct sctp_vrf *vrf;
+	struct xsctp_laddr xladdr;
+	struct sctp_laddr *laddr;
+	int error;
+
+	/* Turn on all the appropriate scope */
+	if (stcb) {
+		/* use association specific values */
+		loopback_scope = stcb->asoc.loopback_scope;
+		ipv4_local_scope = stcb->asoc.ipv4_local_scope;
+		local_scope = stcb->asoc.local_scope;
+		site_scope = stcb->asoc.site_scope;
+	} else {
+		/* use generic values for endpoints */
+		loopback_scope = 1;
+		ipv4_local_scope = 1;
+		local_scope = 1;
+		site_scope = 1;
+	}
+
+	/* use only address families of interest */
+	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+		ipv6_addr_legal = 1;
+		if (SCTP_IPV6_V6ONLY(inp)) {
+			ipv4_addr_legal = 0;
+		} else {
+			ipv4_addr_legal = 1;
+		}
+	} else {
+		ipv4_addr_legal = 1;
+		ipv6_addr_legal = 0;
+	}
+
+	error = 0;
+
+	/* neither Mac OS X nor FreeBSD support mulitple routing functions */
+	if ((vrf = sctp_find_vrf(inp->def_vrf_id)) == NULL) {
+		return (-1);
+	}
+	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
+		LIST_FOREACH(sctp_ifn, &vrf->ifnlist, next_ifn) {
+			if ((loopback_scope == 0) && SCTP_IFN_IS_IFT_LOOP(sctp_ifn))
+				/* Skip loopback if loopback_scope not set */
+				continue;
+			LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
+				if (stcb) {
+					/*
+					 * ignore if blacklisted at
+					 * association level
+					 */
+					if (sctp_is_addr_restricted(stcb, sctp_ifa))
+						continue;
+				}
+				if ((sctp_ifa->address.sa.sa_family == AF_INET) && (ipv4_addr_legal)) {
+					struct sockaddr_in *sin;
+
+					sin = (struct sockaddr_in *)&sctp_ifa->address.sa;
+					if (sin->sin_addr.s_addr == 0)
+						continue;
+					if ((ipv4_local_scope == 0) && (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)))
+						continue;
+				} else if ((sctp_ifa->address.sa.sa_family == AF_INET6) && (ipv6_addr_legal)) {
+					struct sockaddr_in6 *sin6;
+
+					sin6 = (struct sockaddr_in6 *)&sctp_ifa->address.sa;
+					if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
+						continue;
+					if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+						if (local_scope == 0)
+							continue;
+						if (sin6->sin6_scope_id == 0) {
+							/*
+							 * bad link local
+							 * address
+							 */
+							if (sa6_recoverscope(sin6) != 0)
+								continue;
+						}
+					}
+					if ((site_scope == 0) && (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr)))
+						continue;
+				} else
+					continue;
+				memset((void *)&xladdr, 0, sizeof(union sctp_sockstore));
+				memcpy((void *)&xladdr.address, (const void *)&sctp_ifa->address, sizeof(union sctp_sockstore));
+				(void)SCTP_GETTIME_TIMEVAL(&xladdr.start_time);
+				SCTP_INP_RUNLOCK(inp);
+				SCTP_INP_INFO_RUNLOCK();
+				error = SYSCTL_OUT(req, &xladdr, sizeof(struct xsctp_laddr));
+				if (error)
+					return (error);
+				else {
+					SCTP_INP_INFO_RLOCK();
+					SCTP_INP_RLOCK(inp);
+				}
+			}
+		}
+	} else {
+		LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
+			/* ignore if blacklisted at association level */
+			if (stcb && sctp_is_addr_restricted(stcb, laddr->ifa))
+				continue;
+			memset((void *)&xladdr, 0, sizeof(union sctp_sockstore));
+			memcpy((void *)&xladdr.address, (const void *)&laddr->ifa->address, sizeof(union sctp_sockstore));
+			xladdr.start_time = laddr->start_time;
+			SCTP_INP_RUNLOCK(inp);
+			SCTP_INP_INFO_RUNLOCK();
+			error = SYSCTL_OUT(req, &xladdr, sizeof(struct xsctp_laddr));
+			if (error)
+				return (error);
+			else {
+				SCTP_INP_INFO_RLOCK();
+				SCTP_INP_RLOCK(inp);
+			}
+		}
+	}
+	memset((void *)&xladdr, 0, sizeof(union sctp_sockstore));
+	xladdr.last = 1;
+	error = SYSCTL_OUT(req, &xladdr, sizeof(struct xsctp_laddr));
+	if (error)
+		return (error);
+	else
+		return (0);
+}
+
 /*
  * sysctl functions
  */
@@ -127,11 +295,8 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
 	struct sctp_nets *net;
-	struct sctp_laddr *laddr;
 	struct xsctp_inpcb xinpcb;
 	struct xsctp_tcb xstcb;
-
-/*	struct xsctp_laddr xladdr; */
 	struct xsctp_raddr xraddr;
 
 	number_of_endpoints = 0;
@@ -144,12 +309,10 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 		LIST_FOREACH(inp, &sctppcbinfo.listhead, sctp_list) {
 			SCTP_INP_RLOCK(inp);
 			number_of_endpoints++;
-			/* FIXME MT */
-			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
-				number_of_local_addresses++;
-			}
+			number_of_local_addresses += number_of_addresses(inp);
 			LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 				number_of_associations++;
+				number_of_local_addresses += number_of_addresses(inp);
 				TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 					number_of_remote_addresses++;
 				}
@@ -158,14 +321,10 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 		}
 		SCTP_INP_INFO_RUNLOCK();
 		n = (number_of_endpoints + 1) * sizeof(struct xsctp_inpcb) +
-		    number_of_local_addresses * sizeof(struct xsctp_laddr) +
-		    number_of_associations * sizeof(struct xsctp_tcb) +
-		    number_of_remote_addresses * sizeof(struct xsctp_raddr);
-#ifdef SCTP_DEBUG
-		printf("inps = %u, stcbs = %u, laddrs = %u, raddrs = %u\n",
-		    number_of_endpoints, number_of_associations,
-		    number_of_local_addresses, number_of_remote_addresses);
-#endif
+		    (number_of_local_addresses + number_of_endpoints + number_of_associations) * sizeof(struct xsctp_laddr) +
+		    (number_of_associations + number_of_endpoints) * sizeof(struct xsctp_tcb) +
+		    (number_of_remote_addresses + number_of_associations) * sizeof(struct xsctp_raddr);
+
 		/* request some more memory than needed */
 		req->oldidx = (n + n / 8);
 		return 0;
@@ -176,78 +335,53 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 	}
 	LIST_FOREACH(inp, &sctppcbinfo.listhead, sctp_list) {
 		SCTP_INP_RLOCK(inp);
-		number_of_local_addresses = 0;
-		number_of_associations = 0;
-		/*
-		 * LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr)
-		 * { number_of_local_addresses++; }
-		 */
-		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
-			number_of_associations++;
-		}
 		xinpcb.last = 0;
 		xinpcb.local_port = ntohs(inp->sctp_lport);
-		xinpcb.number_local_addresses = number_of_local_addresses;
-		xinpcb.number_associations = number_of_associations;
 		xinpcb.flags = inp->sctp_flags;
 		xinpcb.features = inp->sctp_features;
 		xinpcb.total_sends = inp->total_sends;
 		xinpcb.total_recvs = inp->total_recvs;
 		xinpcb.total_nospaces = inp->total_nospaces;
 		xinpcb.fragmentation_point = inp->sctp_frag_point;
-		if (inp->sctp_socket != NULL) {
-			sotoxsocket(inp->sctp_socket, &xinpcb.xsocket);
-		} else {
-			bzero(&xinpcb.xsocket, sizeof xinpcb.xsocket);
-			xinpcb.xsocket.xso_protocol = IPPROTO_SCTP;
-		}
+		xinpcb.qlen = inp->sctp_socket->so_qlen;
+		xinpcb.maxqlen = inp->sctp_socket->so_qlimit;
 		SCTP_INP_INCR_REF(inp);
 		SCTP_INP_RUNLOCK(inp);
 		SCTP_INP_INFO_RUNLOCK();
 		error = SYSCTL_OUT(req, &xinpcb, sizeof(struct xsctp_inpcb));
 		if (error) {
+			SCTP_INP_DECR_REF(inp);
 			return error;
 		}
 		SCTP_INP_INFO_RLOCK();
 		SCTP_INP_RLOCK(inp);
-		/* FIXME MT */
-		/*
-		 * LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr)
-		 * { error = SYSCTL_OUT(req, &xladdr, sizeof(struct
-		 * xsctp_laddr)); if (error) { #if
-		 * defined(SCTP_PER_SOCKET_LOCKING)
-		 * SCTP_SOCKET_UNLOCK(SCTP_INP_SO(inp), 1);
-		 * SCTP_UNLOCK_SHARED(sctppcbinfo.ipi_ep_mtx); #endif
-		 * SCTP_INP_RUNLOCK(inp); SCTP_INP_INFO_RUNLOCK(); return
-		 * error; }			}
-		 */
+		error = copy_out_local_addresses(inp, NULL, req);
+		if (error) {
+			SCTP_INP_DECR_REF(inp);
+			return error;
+		}
 		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 			SCTP_TCB_LOCK(stcb);
 			atomic_add_int(&stcb->asoc.refcnt, 1);
 			SCTP_TCB_UNLOCK(stcb);
-			number_of_local_addresses = 0;
-			number_of_remote_addresses = 0;
-			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-				number_of_remote_addresses++;
-			}
-			xstcb.LocalPort = ntohs(inp->sctp_lport);
-			xstcb.RemPort = ntohs(stcb->rport);
+			xstcb.last = 0;
+			xstcb.local_port = ntohs(inp->sctp_lport);
+			xstcb.remote_port = ntohs(stcb->rport);
 			if (stcb->asoc.primary_destination != NULL)
-				xstcb.RemPrimAddr = stcb->asoc.primary_destination->ro._l_addr;
-			xstcb.HeartBeatInterval = stcb->asoc.heart_beat_delay;
-			xstcb.State = SCTP_GET_STATE(&stcb->asoc);	/* FIXME */
-			xstcb.InStreams = stcb->asoc.streamincnt;
-			xstcb.OutStreams = stcb->asoc.streamoutcnt;
-			xstcb.MaxRetr = stcb->asoc.overall_error_count;
-			xstcb.PrimProcess = 0;	/* not really supported yet */
-			xstcb.T1expireds = stcb->asoc.timoinit + stcb->asoc.timocookie;
-			xstcb.T2expireds = stcb->asoc.timoshutdown + stcb->asoc.timoshutdownack;
-			xstcb.RtxChunks = stcb->asoc.marked_retrans;
-			xstcb.StartTime = stcb->asoc.start_time;
-			xstcb.DiscontinuityTime = stcb->asoc.discontinuity_time;
+				xstcb.primary_addr = stcb->asoc.primary_destination->ro._l_addr;
+			xstcb.heartbeat_interval = stcb->asoc.heart_beat_delay;
+			xstcb.state = SCTP_GET_STATE(&stcb->asoc);	/* FIXME */
+			xstcb.in_streams = stcb->asoc.streamincnt;
+			xstcb.out_streams = stcb->asoc.streamoutcnt;
+			xstcb.max_nr_retrans = stcb->asoc.overall_error_count;
+			xstcb.primary_process = 0;	/* not really supported
+							 * yet */
+			xstcb.T1_expireries = stcb->asoc.timoinit + stcb->asoc.timocookie;
+			xstcb.T2_expireries = stcb->asoc.timoshutdown + stcb->asoc.timoshutdownack;
+			xstcb.retransmitted_tsns = stcb->asoc.marked_retrans;
+			xstcb.start_time = stcb->asoc.start_time;
+			xstcb.discontinuity_time = stcb->asoc.discontinuity_time;
 
-			xstcb.number_local_addresses = number_of_local_addresses;
-			xstcb.number_remote_addresses = number_of_remote_addresses;
 			xstcb.total_sends = stcb->total_sends;
 			xstcb.total_recvs = stcb->total_recvs;
 			xstcb.local_tag = stcb->asoc.my_vtag;
@@ -261,43 +395,71 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			SCTP_INP_INFO_RUNLOCK();
 			error = SYSCTL_OUT(req, &xstcb, sizeof(struct xsctp_tcb));
 			if (error) {
+				SCTP_INP_DECR_REF(inp);
+				atomic_add_int(&stcb->asoc.refcnt, -1);
+				return error;
+			}
+			SCTP_INP_INFO_RLOCK();
+			SCTP_INP_RLOCK(inp);
+			error = copy_out_local_addresses(inp, stcb, req);
+			if (error) {
+				SCTP_INP_DECR_REF(inp);
 				atomic_add_int(&stcb->asoc.refcnt, -1);
 				return error;
 			}
 			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-				xraddr.RemAddr = net->ro._l_addr;
-				xraddr.RemAddrActive = ((net->dest_state & SCTP_ADDR_REACHABLE) == SCTP_ADDR_REACHABLE);
-				xraddr.RemAddrConfirmed = ((net->dest_state & SCTP_ADDR_UNCONFIRMED) == 0);
-				xraddr.RemAddrHBActive = ((net->dest_state & SCTP_ADDR_NOHB) == 0);
-				xraddr.RemAddrRTO = net->RTO;
-				xraddr.RemAddrMaxPathRtx = net->failure_threshold;
-				xraddr.RemAddrRtx = net->marked_retrans;
-				xraddr.RemAddrErrorCounter = net->error_count;
-				xraddr.RemAddrCwnd = net->cwnd;
-				xraddr.RemAddrFlightSize = net->flight_size;
-				xraddr.RemAddrStartTime = net->start_time;
-				xraddr.RemAddrMTU = net->mtu;
+				xraddr.last = 0;
+				xraddr.address = net->ro._l_addr;
+				xraddr.active = ((net->dest_state & SCTP_ADDR_REACHABLE) == SCTP_ADDR_REACHABLE);
+				xraddr.confirmed = ((net->dest_state & SCTP_ADDR_UNCONFIRMED) == 0);
+				xraddr.heartbeat_enabled = ((net->dest_state & SCTP_ADDR_NOHB) == 0);
+				xraddr.rto = net->RTO;
+				xraddr.max_path_rtx = net->failure_threshold;
+				xraddr.rtx = net->marked_retrans;
+				xraddr.error_counter = net->error_count;
+				xraddr.cwnd = net->cwnd;
+				xraddr.flight_size = net->flight_size;
+				xraddr.mtu = net->mtu;
+				xraddr.start_time = net->start_time;
+				SCTP_INP_RUNLOCK(inp);
+				SCTP_INP_INFO_RUNLOCK();
 				error = SYSCTL_OUT(req, &xraddr, sizeof(struct xsctp_raddr));
 				if (error) {
+					SCTP_INP_DECR_REF(inp);
 					atomic_add_int(&stcb->asoc.refcnt, -1);
 					return error;
 				}
+				SCTP_INP_INFO_RLOCK();
+				SCTP_INP_RLOCK(inp);
 			}
 			atomic_add_int(&stcb->asoc.refcnt, -1);
+			memset((void *)&xraddr, 0, sizeof(struct xsctp_raddr));
+			xraddr.last = 1;
+			SCTP_INP_RUNLOCK(inp);
+			SCTP_INP_INFO_RUNLOCK();
+			error = SYSCTL_OUT(req, &xraddr, sizeof(struct xsctp_raddr));
+			if (error) {
+				SCTP_INP_DECR_REF(inp);
+				return error;
+			}
 			SCTP_INP_INFO_RLOCK();
 			SCTP_INP_RLOCK(inp);
 		}
-		SCTP_INP_DECR_REF(inp);
 		SCTP_INP_RUNLOCK(inp);
+		SCTP_INP_INFO_RUNLOCK();
+		memset((void *)&xstcb, 0, sizeof(struct xsctp_tcb));
+		xstcb.last = 1;
+		error = SYSCTL_OUT(req, &xstcb, sizeof(struct xsctp_tcb));
+		if (error) {
+			return error;
+		}
+		SCTP_INP_INFO_RLOCK();
+		SCTP_INP_DECR_REF(inp);
 	}
 	SCTP_INP_INFO_RUNLOCK();
 
+	memset((void *)&xinpcb, 0, sizeof(struct xsctp_inpcb));
 	xinpcb.last = 1;
-	xinpcb.local_port = 0;
-	xinpcb.number_local_addresses = 0;
-	xinpcb.number_associations = 0;
-	xinpcb.flags = 0;
-	xinpcb.features = 0;
 	error = SYSCTL_OUT(req, &xinpcb, sizeof(struct xsctp_inpcb));
 	return error;
 }

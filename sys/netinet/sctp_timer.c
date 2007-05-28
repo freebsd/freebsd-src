@@ -1411,7 +1411,7 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * this will send out extra hb's up to maxburst if there are
 		 * any unconfirmed addresses.
 		 */
-		int cnt_sent = 0;
+		uint32_t cnt_sent = 0;
 
 		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 			if ((net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
