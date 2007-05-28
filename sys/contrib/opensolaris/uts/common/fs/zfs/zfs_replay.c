@@ -154,6 +154,7 @@ zfs_replay_remove(zfsvfs_t *zfsvfs, lr_remove_t *lr, boolean_t byteswap)
 	if ((error = zfs_zget(zfsvfs, lr->lr_doid, &dzp)) != 0)
 		return (error);
 
+	bzero(&cn, sizeof(cn));
 	cn.cn_nameptr = name;
 	cn.cn_namelen = strlen(name);
 	cn.cn_nameiop = DELETE;
@@ -246,6 +247,7 @@ zfs_replay_rename(zfsvfs_t *zfsvfs, lr_rename_t *lr, boolean_t byteswap)
 
 	svp = tvp = NULL;
 
+	bzero(&scn, sizeof(scn));
 	scn.cn_nameptr = sname;
 	scn.cn_namelen = strlen(sname);
 	scn.cn_nameiop = DELETE;
@@ -260,6 +262,7 @@ zfs_replay_rename(zfsvfs_t *zfsvfs, lr_rename_t *lr, boolean_t byteswap)
 		goto fail;
 	VOP_UNLOCK(svp, 0, td);
 
+	bzero(&tcn, sizeof(tcn));
 	tcn.cn_nameptr = tname;
 	tcn.cn_namelen = strlen(tname);
 	tcn.cn_nameiop = RENAME;
