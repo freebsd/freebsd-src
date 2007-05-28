@@ -36,10 +36,15 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* -------------------------------------------------------------------- */
 
-#define ICH_TIMEOUT 1000 /* semaphore timeout polling count */
-#define ICH_DTBL_LENGTH 32
-#define ICH_DEFAULT_BUFSZ 16384
-#define ICH_MAX_BUFSZ 65536
+#define ICH_TIMEOUT		1000 /* semaphore timeout polling count */
+#define ICH_DTBL_LENGTH		32
+#define ICH_DEFAULT_BUFSZ	16384
+#define ICH_MAX_BUFSZ		65536
+#define ICH_MIN_BUFSZ		4096
+#define ICH_DEFAULT_BLKCNT	2
+#define ICH_MAX_BLKCNT		32
+#define ICH_MIN_BLKCNT		2
+#define ICH_MIN_BLKSZ		64
 
 #define INTEL_VENDORID	0x8086
 #define SIS_VENDORID	0x1039
@@ -71,6 +76,34 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ICH_LOCK(sc)		snd_mtxlock((sc)->ich_lock)
 #define ICH_UNLOCK(sc)		snd_mtxunlock((sc)->ich_lock)
 #define ICH_LOCK_ASSERT(sc)	snd_mtxassert((sc)->ich_lock)
+
+#if 0
+#define ICH_DEBUG(stmt)		do {	\
+	stmt				\
+} while(0)
+#else
+#define ICH_DEBUG(...)
+#endif
+
+#define ICH_CALIBRATE_DONE	(1 << 0)
+#define ICH_IGNORE_PCR		(1 << 1)
+#define ICH_IGNORE_RESET	(1 << 2)
+#define ICH_FIXED_RATE		(1 << 3)
+#define ICH_DMA_NOCACHE		(1 << 4)
+#define ICH_HIGH_LATENCY	(1 << 5)
+
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/specialreg.h>
+#define ICH_DMA_ATTR(sc, v, s, attr)	do {			\
+	vm_offset_t va = (vm_offset_t)(v);			\
+	vm_size_t sz = (vm_size_t)(s);				\
+	if ((sc) != NULL && ((sc)->flags & ICH_DMA_NOCACHE) &&	\
+	    va != 0 && sz != 0)					\
+		(void)pmap_change_attr(va, sz, (attr));	\
+} while(0)
+#else
+#define ICH_DMA_ATTR(...)
+#endif
 
 static const struct ich_type {
         uint16_t	vendor;
@@ -125,19 +158,19 @@ static const struct ich_type {
 
 /* buffer descriptor */
 struct ich_desc {
-	volatile u_int32_t buffer;
-	volatile u_int32_t length;
+	volatile uint32_t buffer;
+	volatile uint32_t length;
 };
 
 struct sc_info;
 
 /* channel registers */
 struct sc_chinfo {
-	u_int32_t num:8, run:1, run_save:1;
-	u_int32_t blksz, blkcnt, spd;
-	u_int32_t regbase, spdreg;
-	u_int32_t imask;
-	u_int32_t civ;
+	uint32_t num:8, run:1, run_save:1;
+	uint32_t blksz, blkcnt, spd;
+	uint32_t regbase, spdreg;
+	uint32_t imask;
+	uint32_t civ;
 
 	struct snd_dbuf *buffer;
 	struct pcm_channel *channel;
@@ -151,14 +184,14 @@ struct sc_chinfo {
 struct sc_info {
 	device_t dev;
 	int hasvra, hasvrm, hasmic;
-	unsigned int chnum, bufsz;
+	unsigned int chnum, bufsz, blkcnt;
 	int sample_size, swap_reg;
 
 	struct resource *nambar, *nabmbar, *irq;
 	int regtype, nambarid, nabmbarid, irqid;
 	bus_space_tag_t nambart, nabmbart;
 	bus_space_handle_t nambarh, nabmbarh;
-	bus_dma_tag_t dmat;
+	bus_dma_tag_t dmat, chan_dmat;
 	bus_dmamap_t dtmap;
 	void *ih;
 
@@ -166,19 +199,18 @@ struct sc_info {
 	struct sc_chinfo ch[3];
 	int ac97rate;
 	struct ich_desc *dtbl;
+	unsigned int dtbl_size;
 	bus_addr_t desc_addr;
 	struct intr_config_hook	intrhook;
-	int use_intrhook;
 	uint16_t vendor;
 	uint16_t devid;
 	uint32_t flags;
-#define IGNORE_PCR	0x01
 	struct mtx *ich_lock;
 };
 
 /* -------------------------------------------------------------------- */
 
-static u_int32_t ich_fmt[] = {
+static uint32_t ich_fmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
@@ -187,23 +219,23 @@ static struct pcmchan_caps ich_caps = {48000, 48000, ich_fmt, 0};
 
 /* -------------------------------------------------------------------- */
 /* Hardware */
-static __inline u_int32_t
+static __inline uint32_t
 ich_rd(struct sc_info *sc, int regno, int size)
 {
 	switch (size) {
 	case 1:
-		return bus_space_read_1(sc->nabmbart, sc->nabmbarh, regno);
+		return (bus_space_read_1(sc->nabmbart, sc->nabmbarh, regno));
 	case 2:
-		return bus_space_read_2(sc->nabmbart, sc->nabmbarh, regno);
+		return (bus_space_read_2(sc->nabmbart, sc->nabmbarh, regno));
 	case 4:
-		return bus_space_read_4(sc->nabmbart, sc->nabmbarh, regno);
+		return (bus_space_read_4(sc->nabmbart, sc->nabmbarh, regno));
 	default:
-		return 0xffffffff;
+		return (0xffffffff);
 	}
 }
 
 static __inline void
-ich_wr(struct sc_info *sc, int regno, u_int32_t data, int size)
+ich_wr(struct sc_info *sc, int regno, uint32_t data, int size)
 {
 	switch (size) {
 	case 1:
@@ -222,20 +254,20 @@ ich_wr(struct sc_info *sc, int regno, u_int32_t data, int size)
 static int
 ich_waitcd(void *devinfo)
 {
-	int i;
-	u_int32_t data;
 	struct sc_info *sc = (struct sc_info *)devinfo;
+	uint32_t data;
+	int i;
 
 	for (i = 0; i < ICH_TIMEOUT; i++) {
 		data = ich_rd(sc, ICH_REG_ACC_SEMA, 1);
 		if ((data & 0x01) == 0)
-			return 0;
+			return (0);
 		DELAY(1);
 	}
-	if ((sc->flags & IGNORE_PCR) != 0)
+	if ((sc->flags & ICH_IGNORE_PCR) != 0)
 		return (0);
 	device_printf(sc->dev, "CODEC semaphore timeout\n");
-	return ETIMEDOUT;
+	return (ETIMEDOUT);
 }
 
 static int
@@ -246,11 +278,11 @@ ich_rdcd(kobj_t obj, void *devinfo, int regno)
 	regno &= 0xff;
 	ich_waitcd(sc);
 
-	return bus_space_read_2(sc->nambart, sc->nambarh, regno);
+	return (bus_space_read_2(sc->nambart, sc->nambarh, regno));
 }
 
 static int
-ich_wrcd(kobj_t obj, void *devinfo, int regno, u_int16_t data)
+ich_wrcd(kobj_t obj, void *devinfo, int regno, uint16_t data)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 
@@ -258,7 +290,7 @@ ich_wrcd(kobj_t obj, void *devinfo, int regno, u_int16_t data)
 	ich_waitcd(sc);
 	bus_space_write_2(sc->nambart, sc->nambarh, regno, data);
 
-	return 0;
+	return (0);
 }
 
 static kobj_method_t ich_ac97_methods[] = {
@@ -275,13 +307,17 @@ static void
 ich_filldtbl(struct sc_chinfo *ch)
 {
 	struct sc_info *sc = ch->parent;
-	u_int32_t base;
+	uint32_t base;
 	int i;
 
 	base = sndbuf_getbufaddr(ch->buffer);
-	if (ch->blksz > sc->bufsz / ch->blkcnt)
-		ch->blksz = sc->bufsz / ch->blkcnt;
-	sndbuf_resize(ch->buffer, ch->blkcnt, ch->blksz);
+	if ((ch->blksz * ch->blkcnt) > sndbuf_getmaxsize(ch->buffer))
+		ch->blksz = sndbuf_getmaxsize(ch->buffer) / ch->blkcnt;
+	if ((sndbuf_getblksz(ch->buffer) != ch->blksz ||
+	    sndbuf_getblkcnt(ch->buffer) != ch->blkcnt) &&
+	    sndbuf_resize(ch->buffer, ch->blkcnt, ch->blksz) != 0)
+		device_printf(sc->dev, "%s: failed blksz=%u blkcnt=%u\n",
+		    __func__, ch->blksz, ch->blkcnt);
 	ch->blksz = sndbuf_getblksz(ch->buffer);
 
 	for (i = 0; i < ICH_DTBL_LENGTH; i++) {
@@ -303,7 +339,7 @@ ich_resetchan(struct sc_info *sc, int num)
 	else if (num == 2)
 		regbase = ICH_REG_MC_BASE;
 	else
-		return ENXIO;
+		return (ENXIO);
 
 	ich_wr(sc, regbase + ICH_REG_X_CR, 0, 1);
 #if 1
@@ -316,11 +352,22 @@ ich_resetchan(struct sc_info *sc, int num)
 	for (i = 0; i < ICH_TIMEOUT; i++) {
 		cr = ich_rd(sc, regbase + ICH_REG_X_CR, 1);
 		if (cr == 0)
-			return 0;
+			return (0);
+		DELAY(1);
 	}
 
+	if (sc->flags & ICH_IGNORE_RESET)
+		return (0);
+#if 0
+	else if (sc->vendor == NVIDIA_VENDORID) {
+	    	sc->flags |= ICH_IGNORE_RESET;
+		device_printf(sc->dev, "ignoring reset failure!\n");
+		return (0);
+	}
+#endif
+
 	device_printf(sc->dev, "cannot reset channel %d\n", num);
-	return ENXIO;
+	return (ENXIO);
 }
 
 /* -------------------------------------------------------------------- */
@@ -342,59 +389,98 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->parent = sc;
 	ch->run = 0;
 	ch->dtbl = sc->dtbl + (ch->num * ICH_DTBL_LENGTH);
-	ch->desc_addr = sc->desc_addr + (ch->num * ICH_DTBL_LENGTH) *
-		sizeof(struct ich_desc);
-	ch->blkcnt = 2;
+	ch->desc_addr = sc->desc_addr +
+	    (ch->num * ICH_DTBL_LENGTH * sizeof(struct ich_desc));
+	ch->blkcnt = sc->blkcnt;
 	ch->blksz = sc->bufsz / ch->blkcnt;
 
 	switch(ch->num) {
 	case 0: /* play */
 		KASSERT(dir == PCMDIR_PLAY, ("wrong direction"));
 		ch->regbase = ICH_REG_PO_BASE;
-		ch->spdreg = sc->hasvra? AC97_REGEXT_FDACRATE : 0;
+		ch->spdreg = (sc->hasvra) ? AC97_REGEXT_FDACRATE : 0;
 		ch->imask = ICH_GLOB_STA_POINT;
 		break;
 
 	case 1: /* record */
 		KASSERT(dir == PCMDIR_REC, ("wrong direction"));
 		ch->regbase = ICH_REG_PI_BASE;
-		ch->spdreg = sc->hasvra? AC97_REGEXT_LADCRATE : 0;
+		ch->spdreg = (sc->hasvra) ? AC97_REGEXT_LADCRATE : 0;
 		ch->imask = ICH_GLOB_STA_PIINT;
 		break;
 
 	case 2: /* mic */
 		KASSERT(dir == PCMDIR_REC, ("wrong direction"));
 		ch->regbase = ICH_REG_MC_BASE;
-		ch->spdreg = sc->hasvrm? AC97_REGEXT_MADCRATE : 0;
+		ch->spdreg = (sc->hasvrm) ? AC97_REGEXT_MADCRATE : 0;
 		ch->imask = ICH_GLOB_STA_MINT;
 		break;
 
 	default:
-		return NULL;
+		return (NULL);
 	}
 
+	if (sc->flags & ICH_FIXED_RATE)
+		ch->spdreg = 0;
+
 	ICH_UNLOCK(sc);
-	if (sndbuf_alloc(ch->buffer, sc->dmat, sc->bufsz) != 0)
-		return NULL;
+	if (sndbuf_alloc(ch->buffer, sc->chan_dmat, sc->bufsz) != 0)
+		return (NULL);
+
+	ICH_DMA_ATTR(sc, sndbuf_getbuf(ch->buffer),
+	    sndbuf_getmaxsize(ch->buffer), PAT_UNCACHEABLE);
 
 	ICH_LOCK(sc);
-	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)(ch->desc_addr), 4);
+	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (uint32_t)(ch->desc_addr), 4);
 	ICH_UNLOCK(sc);
 
-	return ch;
+	return (ch);
 }
 
 static int
-ichchan_setformat(kobj_t obj, void *data, u_int32_t format)
+ichchan_free(kobj_t obj, void *data)
 {
-	return 0;
+	struct sc_chinfo *ch;
+	struct sc_info *sc;
+
+	ch = (struct sc_chinfo *)data;
+	sc = (ch != NULL) ? ch->parent : NULL;
+	if (ch != NULL && sc != NULL) {
+		ICH_DMA_ATTR(sc, sndbuf_getbuf(ch->buffer),
+		    sndbuf_getmaxsize(ch->buffer), PAT_WRITE_BACK);
+	}
+
+	return (1);
 }
 
 static int
-ichchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+ichchan_setformat(kobj_t obj, void *data, uint32_t format)
+{
+
+	ICH_DEBUG(
+		struct sc_chinfo *ch = data;
+		struct sc_info *sc = ch->parent;
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
+			device_printf(sc->dev,
+			    "WARNING: %s() called before calibration!\n",
+			    __func__);
+	);
+
+	return (0);
+}
+
+static int
+ichchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
+
+	ICH_DEBUG(
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
+			device_printf(sc->dev,
+			    "WARNING: %s() called before calibration!\n",
+			    __func__);
+	);
 
 	if (ch->spdreg) {
 		int r, ac97rate;
@@ -406,30 +492,43 @@ ichchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 		ICH_UNLOCK(sc);
 		r = (speed * 48000) / ac97rate;
 		/*
-		 * Cast the return value of ac97_setrate() to u_int so that
+		 * Cast the return value of ac97_setrate() to uint64 so that
 		 * the math don't overflow into the negative range.
 		 */
-		ch->spd = ((u_int)ac97_setrate(sc->codec, ch->spdreg, r) *
+		ch->spd = ((uint64_t)ac97_setrate(sc->codec, ch->spdreg, r) *
 				ac97rate) / 48000;
 	} else {
 		ch->spd = 48000;
 	}
-	return ch->spd;
+	return (ch->spd);
 }
 
 static int
-ichchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+ichchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 
+	ICH_DEBUG(
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
+			device_printf(sc->dev,
+			    "WARNING: %s() called before calibration!\n",
+			    __func__);
+	);
+
+	if (sc->flags & ICH_HIGH_LATENCY)
+		blocksize = sndbuf_getmaxsize(ch->buffer) / ch->blkcnt;
+
+	if (blocksize < ICH_MIN_BLKSZ)
+		blocksize = ICH_MIN_BLKSZ;
+	blocksize &= ~(ICH_MIN_BLKSZ - 1);
 	ch->blksz = blocksize;
 	ich_filldtbl(ch);
 	ICH_LOCK(sc);
 	ich_wr(sc, ch->regbase + ICH_REG_X_LVI, ch->blkcnt - 1, 1);
 	ICH_UNLOCK(sc);
 
-	return ch->blksz;
+	return (ch->blksz);
 }
 
 static int
@@ -438,11 +537,18 @@ ichchan_trigger(kobj_t obj, void *data, int go)
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 
+	ICH_DEBUG(
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
+			device_printf(sc->dev,
+			    "WARNING: %s() called before calibration!\n",
+			    __func__);
+	);
+
 	switch (go) {
 	case PCMTRIG_START:
 		ch->run = 1;
 		ICH_LOCK(sc);
-		ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)(ch->desc_addr), 4);
+		ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (uint32_t)(ch->desc_addr), 4);
 		ich_wr(sc, ch->regbase + ICH_REG_X_CR, ICH_X_CR_RPBM | ICH_X_CR_LVBIE | ICH_X_CR_IOCE, 1);
 		ICH_UNLOCK(sc);
 		break;
@@ -454,7 +560,7 @@ ichchan_trigger(kobj_t obj, void *data, int go)
 		ch->run = 0;
 		break;
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -462,7 +568,14 @@ ichchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
-      	u_int32_t pos;
+      	uint32_t pos;
+
+	ICH_DEBUG(
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
+			device_printf(sc->dev,
+			    "WARNING: %s() called before calibration!\n",
+			    __func__);
+	);
 
 	ICH_LOCK(sc);
 	ch->civ = ich_rd(sc, ch->regbase + ICH_REG_X_CIV, 1) % ch->blkcnt;
@@ -470,7 +583,7 @@ ichchan_getptr(kobj_t obj, void *data)
 
 	pos = ch->civ * ch->blksz;
 
-	return pos;
+	return (pos);
 }
 
 static struct pcmchan_caps *
@@ -478,11 +591,21 @@ ichchan_getcaps(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
 
-	return ch->spdreg? &ich_vrcaps : &ich_caps;
+	ICH_DEBUG(
+		struct sc_info *sc = ch->parent;
+
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
+			device_printf(ch->parent->dev,
+			    "WARNING: %s() called before calibration!\n",
+			    __func__);
+	);
+
+	return ((ch->spdreg) ? &ich_vrcaps : &ich_caps);
 }
 
 static kobj_method_t ichchan_methods[] = {
 	KOBJMETHOD(channel_init,		ichchan_init),
+	KOBJMETHOD(channel_free,		ichchan_free),
 	KOBJMETHOD(channel_setformat,		ichchan_setformat),
 	KOBJMETHOD(channel_setspeed,		ichchan_setspeed),
 	KOBJMETHOD(channel_setblocksize,	ichchan_setblocksize),
@@ -501,10 +624,18 @@ ich_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
 	struct sc_chinfo *ch;
-	u_int32_t cbi, lbi, lvi, st, gs;
+	uint32_t cbi, lbi, lvi, st, gs;
 	int i;
 
 	ICH_LOCK(sc);
+
+	ICH_DEBUG(
+		if (!(sc->flags & ICH_CALIBRATE_DONE))
+			device_printf(sc->dev,
+			    "WARNING: %s() called before calibration!\n",
+			    __func__);
+	);
+
 	gs = ich_rd(sc, ICH_REG_GLOB_STA, 4) & ICH_GLOB_STA_IMASK;
 	if (gs & (ICH_GLOB_STA_PRES | ICH_GLOB_STA_SRES)) {
 		/* Clear resume interrupt(s) - nothing doing with them */
@@ -518,7 +649,7 @@ ich_intr(void *p)
 			continue;
 		gs &= ~ch->imask;
 		st = ich_rd(sc, ch->regbase +
-				(sc->swap_reg ? ICH_REG_X_PICB : ICH_REG_X_SR),
+				((sc->swap_reg) ? ICH_REG_X_PICB : ICH_REG_X_SR),
 			    2);
 		st &= ICH_X_SR_FIFOE | ICH_X_SR_BCIS | ICH_X_SR_LVBCI;
 		if (st & (ICH_X_SR_BCIS | ICH_X_SR_LVBCI)) {
@@ -545,7 +676,7 @@ ich_intr(void *p)
 		}
 		/* clear status bit */
 		ich_wr(sc, ch->regbase +
-			   (sc->swap_reg ? ICH_REG_X_PICB : ICH_REG_X_SR),
+			   ((sc->swap_reg) ? ICH_REG_X_PICB : ICH_REG_X_SR),
 		       st, 2);
 	}
 	ICH_UNLOCK(sc);
@@ -570,7 +701,24 @@ ich_initsys(struct sc_info* sc)
 		       &sc->ac97rate, 48000,
 		       "AC97 link rate (default = 48000)");
 #endif /* SND_DYNSYSCTL */
-	return 0;
+	return (0);
+}
+
+static void
+ich_setstatus(struct sc_info *sc)
+{
+	char status[SND_STATUSLEN];
+
+	snprintf(status, SND_STATUSLEN,
+	    "at io 0x%lx, 0x%lx irq %ld bufsz %u %s",
+	    rman_get_start(sc->nambar), rman_get_start(sc->nabmbar),
+	    rman_get_start(sc->irq), sc->bufsz,PCM_KLDSTRING(snd_ich));
+
+	if (bootverbose && (sc->flags & ICH_DMA_NOCACHE))
+		device_printf(sc->dev,
+		    "PCI Master abort workaround enabled\n");
+
+	pcm_setstatus(sc->dev, status);
 }
 
 /* -------------------------------------------------------------------- */
@@ -578,20 +726,23 @@ ich_initsys(struct sc_info* sc)
  * function of the ac97 codec initialization code (to be investigated).
  */
 
-static
-void ich_calibrate(void *arg)
+static void
+ich_calibrate(void *arg)
 {
 	struct sc_info *sc;
 	struct sc_chinfo *ch;
 	struct timeval t1, t2;
-	u_int8_t ociv, nciv;
-	u_int32_t wait_us, actual_48k_rate, bytes;
+	uint8_t ociv, nciv;
+	uint32_t wait_us, actual_48k_rate, oblkcnt;
 
 	sc = (struct sc_info *)arg;
+	ICH_LOCK(sc);
 	ch = &sc->ch[1];
 
-	if (sc->use_intrhook)
+	if (sc->intrhook.ich_func != NULL) {
 		config_intrhook_disestablish(&sc->intrhook);
+		sc->intrhook.ich_func = NULL;
+	}
 
 	/*
 	 * Grab audio from input for fixed interval and compare how
@@ -602,8 +753,13 @@ void ich_calibrate(void *arg)
 
 	KASSERT(ch->regbase == ICH_REG_PI_BASE, ("wrong direction"));
 
-	bytes = sndbuf_getsize(ch->buffer) / 2;
-	ichchan_setblocksize(0, ch, bytes);
+	oblkcnt = ch->blkcnt;
+	ch->blkcnt = 2;
+	sc->flags |= ICH_CALIBRATE_DONE;
+	ICH_UNLOCK(sc);
+	ichchan_setblocksize(0, ch, sndbuf_getmaxsize(ch->buffer) >> 1);
+	ICH_LOCK(sc);
+	sc->flags &= ~ICH_CALIBRATE_DONE;
 
 	/*
 	 * our data format is stereo, 16 bit so each sample is 4 bytes.
@@ -620,20 +776,19 @@ void ich_calibrate(void *arg)
 	/* prepare */
 	ociv = ich_rd(sc, ch->regbase + ICH_REG_X_CIV, 1);
 	nciv = ociv;
-	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)(ch->desc_addr), 4);
+	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (uint32_t)(ch->desc_addr), 4);
 
 	/* start */
 	microtime(&t1);
 	ich_wr(sc, ch->regbase + ICH_REG_X_CR, ICH_X_CR_RPBM, 1);
 
 	/* wait */
-	while (nciv == ociv) {
+	do {
 		microtime(&t2);
 		if (t2.tv_sec - t1.tv_sec > 1)
 			break;
 		nciv = ich_rd(sc, ch->regbase + ICH_REG_X_CIV, 1);
-	}
-	microtime(&t2);
+	} while (nciv == ociv);
 
 	/* stop */
 	ich_wr(sc, ch->regbase + ICH_REG_X_CR, 0, 1);
@@ -641,16 +796,20 @@ void ich_calibrate(void *arg)
 	/* reset */
 	DELAY(100);
 	ich_wr(sc, ch->regbase + ICH_REG_X_CR, ICH_X_CR_RR, 1);
+	ch->blkcnt = oblkcnt;
 
 	/* turn time delta into us */
 	wait_us = ((t2.tv_sec - t1.tv_sec) * 1000000) + t2.tv_usec - t1.tv_usec;
 
 	if (nciv == ociv) {
 		device_printf(sc->dev, "ac97 link rate calibration timed out after %d us\n", wait_us);
+		sc->flags |= ICH_CALIBRATE_DONE;
+		ICH_UNLOCK(sc);
+		ich_setstatus(sc);
 		return;
 	}
 
-	actual_48k_rate = (bytes * 250000) / wait_us;
+	actual_48k_rate = ((uint64_t)ch->blksz * 250000) / wait_us;
 
 	if (actual_48k_rate < 47500 || actual_48k_rate > 48500) {
 		sc->ac97rate = actual_48k_rate;
@@ -664,6 +823,10 @@ void ich_calibrate(void *arg)
 			printf(", will use %d Hz", sc->ac97rate);
 	 	printf("\n");
 	}
+	sc->flags |= ICH_CALIBRATE_DONE;
+	ICH_UNLOCK(sc);
+
+	ich_setstatus(sc);
 
 	return;
 }
@@ -682,7 +845,7 @@ ich_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 ich_init(struct sc_info *sc)
 {
-	u_int32_t stat;
+	uint32_t stat;
 
 	ich_wr(sc, ICH_REG_GLOB_CNT, ICH_GLOB_CTL_COLD, 4);
 	DELAY(600000);
@@ -694,7 +857,7 @@ ich_init(struct sc_info *sc)
 		    sc->devid == INTEL_82801DB || sc->devid == INTEL_82801EB ||
 		    sc->devid == INTEL_6300ESB || sc->devid == INTEL_82801FB ||
 		    sc->devid == INTEL_82801GB)) {
-			sc->flags |= IGNORE_PCR;
+			sc->flags |= ICH_IGNORE_PCR;
 			device_printf(sc->dev, "primary codec not ready!\n");
 		}
 	}
@@ -706,11 +869,11 @@ ich_init(struct sc_info *sc)
 #endif
 
 	if (ich_resetchan(sc, 0) || ich_resetchan(sc, 1))
-		return ENXIO;
+		return (ENXIO);
 	if (sc->hasmic && ich_resetchan(sc, 2))
-		return ENXIO;
+		return (ENXIO);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -738,17 +901,17 @@ static int
 ich_pci_attach(device_t dev)
 {
 	uint32_t		subdev;
-	u_int16_t		extcaps;
+	uint16_t		extcaps;
 	uint16_t		devid, vendor;
 	struct sc_info 		*sc;
-	char 			status[SND_STATUSLEN];
+	int			i;
 
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 
-	sc->ich_lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	sc->ich_lock = snd_mtxcreate(device_get_nameunit(dev), "snd_ich softc");
 	sc->dev = dev;
 
 	vendor = sc->vendor = pci_get_vendor(dev);
@@ -765,6 +928,15 @@ ich_pci_attach(device_t dev)
 		sc->swap_reg = 0;
 		sc->sample_size = 2;
 	}
+
+	/*
+	 * Intel 440MX Errata #36
+	 * - AC97 Soft Audio and Soft Modem Master Abort Errata
+	 *
+	 * http://www.intel.com/design/chipsets/specupdt/245051.htm
+	 */
+	if (vendor == INTEL_VENDORID && devid == INTEL_82440MX)
+		sc->flags |= ICH_DMA_NOCACHE;
 
 	/*
 	 * Enable bus master. On ich4/5 this may prevent the detection of
@@ -807,18 +979,38 @@ ich_pci_attach(device_t dev)
 	sc->nabmbart = rman_get_bustag(sc->nabmbar);
 	sc->nabmbarh = rman_get_bushandle(sc->nabmbar);
 
-	sc->bufsz = pcm_getbuffersize(dev, 4096, ICH_DEFAULT_BUFSZ, ICH_MAX_BUFSZ);
-	if (bus_dma_tag_create(NULL, 8, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			       NULL, NULL, sc->bufsz, 1, 0x3ffff, 0,
-			       NULL, NULL, &sc->dmat) != 0) {
-		device_printf(dev, "unable to create dma tag\n");
-		goto bad;
+	sc->bufsz = pcm_getbuffersize(dev,
+	    ICH_MIN_BUFSZ, ICH_DEFAULT_BUFSZ, ICH_MAX_BUFSZ);
+
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "blocksize", &i) == 0 && i > 0) {
+		sc->blkcnt = sc->bufsz / i;
+		i = 0;
+		while (sc->blkcnt >> i)
+			i++;
+		sc->blkcnt = 1 << (i - 1);
+		if (sc->blkcnt < ICH_MIN_BLKCNT)
+			sc->blkcnt = ICH_MIN_BLKCNT;
+		else if (sc->blkcnt > ICH_MAX_BLKCNT)
+			sc->blkcnt = ICH_MAX_BLKCNT;
+	} else
+		sc->blkcnt = ICH_DEFAULT_BLKCNT;
+
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "highlatency", &i) == 0 && i != 0) {
+		sc->flags |= ICH_HIGH_LATENCY;
+		sc->blkcnt = ICH_MIN_BLKCNT;
 	}
+
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "fixedrate", &i) == 0 && i != 0)
+		sc->flags |= ICH_FIXED_RATE;
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
-		RF_ACTIVE | RF_SHAREABLE);
-	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ich_intr, sc, &sc->ih)) {
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ich_intr,
+	    sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -827,15 +1019,6 @@ ich_pci_attach(device_t dev)
 		device_printf(dev, "unable to initialize the card\n");
 		goto bad;
 	}
-
-	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->dtbl,
-		    BUS_DMA_NOWAIT, &sc->dtmap))
-		goto bad;
-
-	if (bus_dmamap_load(sc->dmat, sc->dtmap, sc->dtbl,
-		    sizeof(struct ich_desc) * ICH_DTBL_LENGTH * 3,
-		    ich_setmap, sc, 0))
-		goto bad;
 
 	sc->codec = AC97_CREATE(dev, sc, ich_ac97);
 	if (sc->codec == NULL)
@@ -872,7 +1055,35 @@ ich_pci_attach(device_t dev)
 	sc->hasmic = ac97_getcaps(sc->codec) & AC97_CAP_MICCHANNEL;
 	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm);
 
-	if (pcm_register(dev, sc, 1, sc->hasmic? 2 : 1))
+	sc->dtbl_size = sizeof(struct ich_desc) * ICH_DTBL_LENGTH *
+	    ((sc->hasmic) ? 3 : 2);
+
+	/* BDL tag */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    sc->dtbl_size, 1, 0x3ffff, 0, NULL, NULL, &sc->dmat) != 0) {
+		device_printf(dev, "unable to create dma tag\n");
+		goto bad;
+	}
+
+	/* PCM channel tag */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), ICH_MIN_BLKSZ, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    sc->bufsz, 1, 0x3ffff, 0, NULL, NULL, &sc->chan_dmat) != 0) {
+		device_printf(dev, "unable to create dma tag\n");
+		goto bad;
+	}
+
+	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->dtbl, BUS_DMA_NOWAIT |
+	    ((sc->flags & ICH_DMA_NOCACHE) ? BUS_DMA_NOCACHE : 0),
+	    &sc->dtmap))
+		goto bad;
+
+	if (bus_dmamap_load(sc->dmat, sc->dtmap, sc->dtbl, sc->dtbl_size,
+	    ich_setmap, sc, 0))
+		goto bad;
+
+	if (pcm_register(dev, sc, 1, (sc->hasmic) ? 2 : 1))
 		goto bad;
 
 	pcm_addchan(dev, PCMDIR_PLAY, &ichchan_class, sc);		/* play */
@@ -880,23 +1091,22 @@ ich_pci_attach(device_t dev)
 	if (sc->hasmic)
 		pcm_addchan(dev, PCMDIR_REC, &ichchan_class, sc);	/* record mic */
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%lx, 0x%lx irq %ld bufsz %u %s",
-		 rman_get_start(sc->nambar), rman_get_start(sc->nabmbar), rman_get_start(sc->irq), sc->bufsz,PCM_KLDSTRING(snd_ich));
+	if (sc->flags & ICH_FIXED_RATE) {
+		sc->flags |= ICH_CALIBRATE_DONE;
+		ich_setstatus(sc);
+	} else {
+		ich_initsys(sc);
 
-	pcm_setstatus(dev, status);
-
-	ich_initsys(sc);
-
-	sc->intrhook.ich_func = ich_calibrate;
-	sc->intrhook.ich_arg = sc;
-	sc->use_intrhook = 1;
-	if (config_intrhook_establish(&sc->intrhook) != 0) {
-		device_printf(dev, "Cannot establish calibration hook, will calibrate now\n");
-		sc->use_intrhook = 0;
-		ich_calibrate(sc);
+		sc->intrhook.ich_func = ich_calibrate;
+		sc->intrhook.ich_arg = sc;
+		if (cold == 0 ||
+		    config_intrhook_establish(&sc->intrhook) != 0) {
+			sc->intrhook.ich_func = NULL;
+			ich_calibrate(sc);
+		}
 	}
 
-	return 0;
+	return (0);
 
 bad:
 	if (sc->codec)
@@ -915,12 +1125,14 @@ bad:
 		bus_dmamap_unload(sc->dmat, sc->dtmap);
 	if (sc->dtbl)
 		bus_dmamem_free(sc->dmat, sc->dtbl, sc->dtmap);
+	if (sc->chan_dmat)
+		bus_dma_tag_destroy(sc->chan_dmat);
 	if (sc->dmat)
 		bus_dma_tag_destroy(sc->dmat);
 	if (sc->ich_lock)
 		snd_mtxfree(sc->ich_lock);
 	free(sc, M_DEVBUF);
-	return ENXIO;
+	return (ENXIO);
 }
 
 static int
@@ -931,7 +1143,7 @@ ich_pci_detach(device_t dev)
 
 	r = pcm_unregister(dev);
 	if (r)
-		return r;
+		return (r);
 	sc = pcm_getdevinfo(dev);
 
 	bus_teardown_intr(dev, sc->irq, sc->ih);
@@ -940,10 +1152,11 @@ ich_pci_detach(device_t dev)
 	bus_release_resource(dev, sc->regtype, sc->nabmbarid, sc->nabmbar);
 	bus_dmamap_unload(sc->dmat, sc->dtmap);
 	bus_dmamem_free(sc->dmat, sc->dtbl, sc->dtmap);
+	bus_dma_tag_destroy(sc->chan_dmat);
 	bus_dma_tag_destroy(sc->dmat);
 	snd_mtxfree(sc->ich_lock);
 	free(sc, M_DEVBUF);
-	return 0;
+	return (0);
 }
 
 static void
@@ -985,7 +1198,7 @@ ich_pci_suspend(device_t dev)
 		}
 	}
 	ICH_UNLOCK(sc);
-	return 0;
+	return (0);
 }
 
 static int
@@ -1007,7 +1220,7 @@ ich_pci_resume(device_t dev)
     	if (ich_init(sc) == -1) {
 		device_printf(dev, "unable to reinitialize the card\n");
 		ICH_UNLOCK(sc);
-		return ENXIO;
+		return (ENXIO);
 	}
 	/* Reinit mixer */
 	ich_pci_codec_reset(sc);
@@ -1015,7 +1228,7 @@ ich_pci_resume(device_t dev)
 	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm);
     	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 	/* Re-start DMA engines */
 	for (i = 0 ; i < 3; i++) {
@@ -1026,7 +1239,7 @@ ich_pci_resume(device_t dev)
 			ichchan_trigger(0, ch, PCMTRIG_START);
 		}
 	}
-	return 0;
+	return (0);
 }
 
 static device_method_t ich_methods[] = {
