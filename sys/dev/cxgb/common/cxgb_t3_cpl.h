@@ -260,6 +260,20 @@ struct work_request_hdr {
 #define V_WR_BCNTLFLT(x) ((x) << S_WR_BCNTLFLT)
 #define G_WR_BCNTLFLT(x) (((x) >> S_WR_BCNTLFLT) & M_WR_BCNTLFLT)
 
+/* Applicable to BYPASS WRs only: the uP will added a CPL_BARRIER before
+ * and after the BYPASS WR if the ATOMIC bit is set.
+ */
+#define S_WR_ATOMIC      16
+#define V_WR_ATOMIC(x)   ((x) << S_WR_ATOMIC)
+#define F_WR_ATOMIC      V_WR_ATOMIC(1U)
+
+/* Applicable to BYPASS WRs only: the uP will flush buffered non abort
+ * related WRs.
+ */
+#define S_WR_FLUSH       17
+#define V_WR_FLUSH(x)    ((x) << S_WR_FLUSH)
+#define F_WR_FLUSH       V_WR_FLUSH(1U)
+
 #define S_WR_DATATYPE    20
 #define V_WR_DATATYPE(x) ((x) << S_WR_DATATYPE)
 #define F_WR_DATATYPE    V_WR_DATATYPE(1U)
@@ -1487,4 +1501,46 @@ struct cpl_rdma_terminate {
 #define M_TERM_TID    0xFFFFF
 #define V_TERM_TID(x) ((x) << S_TERM_TID)
 #define G_TERM_TID(x) (((x) >> S_TERM_TID) & M_TERM_TID)
+
+/* ULP_TX opcodes */
+enum { ULP_MEM_READ = 2, ULP_MEM_WRITE = 3, ULP_TXPKT = 4 };
+
+#define S_ULPTX_CMD    28
+#define M_ULPTX_CMD    0xF
+#define V_ULPTX_CMD(x) ((x) << S_ULPTX_CMD)
+
+#define S_ULPTX_NFLITS    0
+#define M_ULPTX_NFLITS    0xFF
+#define V_ULPTX_NFLITS(x) ((x) << S_ULPTX_NFLITS)
+
+struct ulp_mem_io {
+	WR_HDR;
+	__be32 cmd_lock_addr;
+	__be32 len;
+};
+
+    /* ulp_mem_io.cmd_lock_addr fields */
+#define S_ULP_MEMIO_ADDR    0
+#define M_ULP_MEMIO_ADDR    0x7FFFFFF
+#define V_ULP_MEMIO_ADDR(x) ((x) << S_ULP_MEMIO_ADDR)
+
+#define S_ULP_MEMIO_LOCK    27
+#define V_ULP_MEMIO_LOCK(x) ((x) << S_ULP_MEMIO_LOCK)
+#define F_ULP_MEMIO_LOCK    V_ULP_MEMIO_LOCK(1U)
+
+    /* ulp_mem_io.len fields */
+#define S_ULP_MEMIO_DATA_LEN    28
+#define M_ULP_MEMIO_DATA_LEN    0xF
+#define V_ULP_MEMIO_DATA_LEN(x) ((x) << S_ULP_MEMIO_DATA_LEN)
+
+struct ulp_txpkt {
+	__be32 cmd_dest;
+	__be32 len;
+};
+
+    /* ulp_txpkt.cmd_dest fields */
+#define S_ULP_TXPKT_DEST    24
+#define M_ULP_TXPKT_DEST    0xF
+#define V_ULP_TXPKT_DEST(x) ((x) << S_ULP_TXPKT_DEST)
+
 #endif  /* T3_CPL_H */

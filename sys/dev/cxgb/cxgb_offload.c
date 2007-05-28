@@ -599,7 +599,7 @@ cxgb_remove_tid(struct toedev *tdev, void *ctx, unsigned int tid)
 
 	BUG_ON(tid >= t->ntids);
 	if (tdev->type == T3A)
-		atomic_cmpset_ptr((long *)&t->tid_tab[tid].ctx, (long)NULL, (long)ctx);
+		atomic_cmpset_ptr((void *)&t->tid_tab[tid].ctx, (long)NULL, (long)ctx);
 	else {
 		struct mbuf *m;
 

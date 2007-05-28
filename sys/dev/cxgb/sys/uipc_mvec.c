@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <dev/cxgb/sys/mvec.h>
-#include "opt_zero.h"
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -365,8 +364,11 @@ mb_free_vec(struct mbuf *m)
 			continue;
 		case EXT_SFBUF:
 			*refcnt = 0;
-			uma_zfree(zone_ext_refcnt, __DEVOLATILE(u_int *,
-				refcnt));
+#ifdef notyet
+			/* XXX M_MBUF is a static */
+			free(__DEVOLATILE(u_int *,
+				refcnt), M_MBUF);
+#endif
 #ifdef __i386__
 			sf_buf_mext(cl, mv->mv_vec[i].mi_args);
 #else

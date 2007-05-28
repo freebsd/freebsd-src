@@ -9,11 +9,7 @@ modification, are permitted provided that the following conditions are met:
  1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Chelsio Corporation nor the names of its
+2. Neither the name of the Chelsio Corporation nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
 
@@ -65,73 +61,57 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEBUG
-#define MBUF_HEADER_CHECK(mh) do { \
-	struct mbuf *head = mh->mh_head; \
-	struct mbuf *tail = mh->mh_tail; \
-	if (head->m_len == 0 || head->m_pkthdr.len == 0 \
-	    || (head->m_flags & M_PKTHDR) == 0) 			\
+#define MBUF_HEADER_CHECK(m) do { \
+	if ((m->m_len == 0) || (m->m_pkthdr.len == 0)	\
+	    || ((m->m_flags & M_PKTHDR) == 0))				\
 		panic("lro_flush_session - mbuf len=%d pktlen=%d flags=0x%x\n", \
-		    head->m_len, head->m_pkthdr.len, head->m_flags); \
-	if ((head->m_flags & M_PKTHDR) == 0) \
+		    m->m_len, m->m_pkthdr.len, m->m_flags); \
+	if ((m->m_flags & M_PKTHDR) == 0)				\
 		panic("first mbuf is not packet header - flags=0x%x\n", \
-		    head->m_flags);  \
-	if ((head == tail && head->m_len != head->m_pkthdr.len)) \
-		panic("len=%d pktlen=%d mismatch\n", \
-		    head->m_len, head->m_pkthdr.len);			\
-	if (head->m_len < ETHER_HDR_LEN || head->m_pkthdr.len < ETHER_HDR_LEN) \
+		    m->m_flags);  \
+	if ((m->m_len < ETHER_HDR_LEN) || (m->m_pkthdr.len < ETHER_HDR_LEN)) \
 		panic("packet too small len=%d pktlen=%d\n", \
-		    head->m_len, head->m_pkthdr.len);\
+		    m->m_len, m->m_pkthdr.len);\
 } while (0)
 #else
 #define MBUF_HEADER_CHECK(m)
 #endif	  
 
 #define IPH_OFFSET (2 + sizeof (struct cpl_rx_pkt) + ETHER_HDR_LEN)
-#define LRO_SESSION_IDX_HINT_HASH(hash) (hash & (MAX_LRO_PER_QSET - 1))
-#define LRO_IDX_INC(idx) idx = (idx + 1) & (MAX_LRO_PER_QSET - 1)
-
-static __inline struct sge_lro_session *
-lro_session(struct sge_lro *l, int idx)
-{
-	return l->s + idx;
-}
+#define LRO_SESSION_IDX_HINT_HASH(hash) (hash & (MAX_LRO_SES - 1))
+#define LRO_IDX_INC(idx) idx = (idx + 1) & (MAX_LRO_SES - 1)
 
 static __inline int
-lro_match_session(struct sge_lro_session *s, 
-    struct ip *ih, struct tcphdr *th)
+lro_match(struct mbuf *m, struct ip *ih, struct tcphdr *th)
 {
-	struct ip *sih = (struct ip *)(s->mh.mh_head->m_data + IPH_OFFSET);
+	struct ip *sih = (struct ip *)(m->m_data + IPH_OFFSET);
 	struct tcphdr *sth = (struct tcphdr *) (sih + 1);
 
 	/*
-	 * Linux driver doesn't include destination port check --
-	 * need to find out why XXX
+	 * Why don't we check dest ports?
 	 */
 	return (*(uint32_t *)&th->th_sport == *(uint32_t *)&sth->th_sport &&
-	    *(uint32_t *)&th->th_dport == *(uint32_t *)&sth->th_dport &&
 	    ih->ip_src.s_addr == ih->ip_src.s_addr &&
 	    ih->ip_dst.s_addr == sih->ip_dst.s_addr);
 }
 
-static __inline struct sge_lro_session *
-lro_find_session(struct sge_lro *l, int idx, struct ip *ih, struct tcphdr *th)
+static __inline struct t3_lro_session *
+lro_lookup(struct lro_state *l, int idx, struct ip *ih, struct tcphdr *th)
 {
-	struct sge_lro_session *s;
-	int active = 0;
+	struct t3_lro_session *s = NULL;
+	int active = l->nactive;
 
-	while (active < l->num_active) {
-		s = lro_session(l, idx); 
-		if (s->mh.mh_head) {
-			if (lro_match_session(s, ih, th)) {
-				l->last_s = s;
-				return s;
-			}
-			active++;
+	while (active) {
+		s = &l->sess[idx];
+		if (s->head) {
+			if (lro_match(s->head, ih, th)) 
+				break;
+			active--;
 		}
 		LRO_IDX_INC(idx);
 	}
 
-	return NULL;
+	return (s);
 }
 
 static __inline int
@@ -179,104 +159,98 @@ can_lro_tcpsegment(struct tcphdr *th)
 }
 
 static __inline void
-lro_new_session_init(struct sge_lro_session *s, struct t3_mbuf_hdr *mh)
+lro_new_session_init(struct t3_lro_session *s, struct mbuf *m)
 {
-	struct ip *ih = (struct ip *)(mh->mh_head->m_data + IPH_OFFSET);
+	struct ip *ih = (struct ip *)(m->m_data + IPH_OFFSET);
 	struct tcphdr *th = (struct tcphdr *) (ih + 1);
 	int ip_len = ntohs(ih->ip_len);
 
-	DPRINTF("%s(s=%p, mh->mh_head=%p, mh->mh_tail=%p)\n", __FUNCTION__,
-	    s, mh->mh_head, mh->mh_tail);
+	DPRINTF("%s(s=%p, m=%p)\n", __FUNCTION__, s, m);
 	
-	*&(s->mh) = *mh;
-
-	MBUF_HEADER_CHECK(mh);
+	s->head = m;
+	
+	MBUF_HEADER_CHECK(m);
 	s->ip_len = ip_len;
 	s->seq = ntohl(th->th_seq) + ip_len - sizeof(*ih) - (th->th_off << 2);
 
 } 
 
 static void
-lro_flush_session(struct sge_qset *qs, struct sge_lro_session *s, struct t3_mbuf_hdr *mh)
+lro_flush_session(struct sge_qset *qs, struct t3_lro_session *s, struct mbuf *m)
 {
-	struct sge_lro *l = &qs->lro;
-	struct t3_mbuf_hdr *smh = &s->mh;
-	struct ip *ih = (struct ip *)(smh->mh_head->m_data + IPH_OFFSET);
+	struct lro_state *l = &qs->lro;
+	struct mbuf *sm = s->head;
+	struct ip *ih = (struct ip *)(sm->m_data + IPH_OFFSET);
 
 	
 	DPRINTF("%s(qs=%p, s=%p, ", __FUNCTION__,
 	    qs, s);
 
-	if (mh)
-		DPRINTF("mh->mh_head=%p, mh->mh_tail=%p)\n",
-		    mh->mh_head, mh->mh_tail);
+	if (m)
+		DPRINTF("m=%p)\n", m);
 	else
-		DPRINTF("mh=NULL)\n");
+		DPRINTF("m=NULL)\n");
 	
 	ih->ip_len = htons(s->ip_len);
 	ih->ip_sum = 0;
 	ih->ip_sum = in_cksum_hdr(ih);
 
-	MBUF_HEADER_CHECK(smh);
+	MBUF_HEADER_CHECK(sm);
 	
-	smh->mh_head->m_flags |= M_LRO;
-	t3_rx_eth(qs->port, &qs->rspq, smh->mh_head, 2);
+	sm->m_flags |= M_LRO;
+	t3_rx_eth(qs->port, &qs->rspq, sm, 2);
 	
-	if (mh) {
-		*smh = *mh;
-		lro_new_session_init(s, mh);
+	if (m) {
+		s->head = m;
+		lro_new_session_init(s, m);
 	} else {
-		smh->mh_head = NULL;
-		smh->mh_tail = NULL;
-		l->num_active--;
+		s->head = NULL;
+		l->nactive--;
 	}
 
 	qs->port_stats[SGE_PSTATS_LRO_FLUSHED]++;
 }
 
-static __inline struct sge_lro_session *
-lro_new_session(struct sge_qset *qs, struct t3_mbuf_hdr *mh, uint32_t rss_hash)
+static __inline struct t3_lro_session *
+lro_new_session(struct sge_qset *qs, struct mbuf *m, uint32_t rss_hash)
 {
-	struct sge_lro *l = &qs->lro;
+	struct lro_state *l = &qs->lro;
 	int idx = LRO_SESSION_IDX_HINT_HASH(rss_hash); 
-	struct sge_lro_session *s = lro_session(l, idx);
+	struct t3_lro_session *s = &l->sess[idx];
 
-	DPRINTF("%s(qs=%p,  mh->mh_head=%p, mh->mh_tail=%p, rss_hash=0x%x)\n", __FUNCTION__,
-	    qs, mh->mh_head, mh->mh_tail, rss_hash);
+	DPRINTF("%s(qs=%p,  m=%p, rss_hash=0x%x)\n", __FUNCTION__,
+	    qs, m, rss_hash);
 	
-	if (__predict_true(!s->mh.mh_head))
+	if (__predict_true(!s->head))
 		goto done;
 
-	if (l->num_active > MAX_LRO_PER_QSET)
+	if (l->nactive > MAX_LRO_SES)
 		panic("MAX_LRO_PER_QSET exceeded");
 	
-	if (l->num_active == MAX_LRO_PER_QSET) {
-		lro_flush_session(qs, s, mh);
+	if (l->nactive == MAX_LRO_SES) {
+		lro_flush_session(qs, s, m);
 		qs->port_stats[SGE_PSTATS_LRO_X_STREAMS]++;
 		return s;
 	}
 
 	while (1) {
 		LRO_IDX_INC(idx);
-		s = lro_session(l, idx);
-		if (!s->mh.mh_head)
+		s = &l->sess[idx];
+		if (!s->head)
 			break;
 	}
 done:
-	lro_new_session_init(s, mh);
+	lro_new_session_init(s, m);
+	l->nactive++;
 
-	l->num_active++;
-
-	return s;	
-
+	return s;
 }
 
 static __inline int
-lro_update_session(struct sge_lro_session *s, struct t3_mbuf_hdr *mh)
+lro_update_session(struct t3_lro_session *s, struct mbuf *m)
 {
-	struct mbuf *m = mh->mh_head;
-	struct t3_mbuf_hdr *smh = &s->mh;
-	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(smh->mh_head->m_data + 2);
+	struct mbuf *sm = s->head;
+	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(sm->m_data + 2);
 	struct cpl_rx_pkt *ncpl = (struct cpl_rx_pkt *)(m->m_data + 2);
 	struct ip *nih = (struct ip *)(m->m_data + IPH_OFFSET);
 	struct tcphdr *th, *nth = (struct tcphdr *)(nih + 1);
@@ -284,8 +258,7 @@ lro_update_session(struct sge_lro_session *s, struct t3_mbuf_hdr *mh)
 	int plen, tcpiphlen, olen = (nth->th_off << 2) - sizeof (*nth);
 	
 	
-	DPRINTF("%s(s=%p,  mh->mh_head=%p, mh->mh_tail=%p)\n", __FUNCTION__,
-	    s, mh->mh_head, mh->mh_tail);	
+	DPRINTF("%s(s=%p,  m=%p)\n", __FUNCTION__, s, m);	
 	if (cpl->vlan_valid && cpl->vlan != ncpl->vlan) {
 		return -1;
 	}
@@ -294,8 +267,8 @@ lro_update_session(struct sge_lro_session *s, struct t3_mbuf_hdr *mh)
 		return -1;
 	}
 
-	MBUF_HEADER_CHECK(smh);
-	th = (struct tcphdr *)(smh->mh_head->m_data + IPH_OFFSET + sizeof (struct ip));
+	MBUF_HEADER_CHECK(sm);
+	th = (struct tcphdr *)(sm->m_data + IPH_OFFSET + sizeof (struct ip));
 
 	if (olen) {
 		uint32_t *ptr = (uint32_t *)(th + 1);
@@ -315,7 +288,13 @@ lro_update_session(struct sge_lro_session *s, struct t3_mbuf_hdr *mh)
 	plen = ntohs(nih->ip_len) - tcpiphlen;
 	s->seq += plen;
 	s->ip_len += plen;
-	smh->mh_head->m_pkthdr.len += plen;
+	sm->m_pkthdr.len += plen;
+
+	/*
+	 * XXX FIX ME
+	 *
+	 *
+	 */
 
 #if 0
 	/* XXX this I *do not* understand */
@@ -323,8 +302,8 @@ lro_update_session(struct sge_lro_session *s, struct t3_mbuf_hdr *mh)
 		skb_shinfo(s->skb)->gso_size = plen;
 #endif
 #if __FreeBSD_version > 700000	
-	if (plen > smh->mh_head->m_pkthdr.tso_segsz)
-		smh->mh_head->m_pkthdr.tso_segsz = plen;
+	if (plen > sm->m_pkthdr.tso_segsz)
+		sm->m_pkthdr.tso_segsz = plen;
 #endif
 	DPRINTF("m_adj(%d)\n", (int)(IPH_OFFSET + tcpiphlen));
 	m_adj(m, IPH_OFFSET + tcpiphlen);
@@ -333,9 +312,7 @@ lro_update_session(struct sge_lro_session *s, struct t3_mbuf_hdr *mh)
 		skb_shinfo(s->skb)->frag_list = skb;
 
 #endif
-	mh->mh_head->m_flags &= ~M_PKTHDR;
-	smh->mh_tail->m_next = mh->mh_head;
-	smh->mh_tail = mh->mh_tail;
+
 #if 0
 	
 	/* 
@@ -354,16 +331,15 @@ lro_update_session(struct sge_lro_session *s, struct t3_mbuf_hdr *mh)
 }
 
 void
-t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct t3_mbuf_hdr *mh,
+t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,
     int ethpad, uint32_t rss_hash, uint32_t rss_csum, int lro)
 {
-	struct mbuf *m = mh->mh_head;
 	struct sge_qset *qs = rspq_to_qset(rq);
 	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(m->m_data + ethpad);
 	struct ether_header *eh = (struct ether_header *)(cpl + 1);
 	struct ip *ih;
 	struct tcphdr *th; 
-	struct sge_lro_session *s = NULL;
+	struct t3_lro_session *s = NULL;
 	struct port_info *pi = qs->port;
 	
 	if (lro == 0)
@@ -378,18 +354,18 @@ t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct t3_mbuf_hdr *mh,
 	ih = (struct ip *)(eh + 1);
 	th = (struct tcphdr *)(ih + 1);
 	
-	s = lro_find_session(&qs->lro,
+	s = lro_lookup(&qs->lro,
 	    LRO_SESSION_IDX_HINT_HASH(rss_hash), ih, th);
 	
 	if (__predict_false(!can_lro_tcpsegment(th))) {
 		goto no_lro;
 	} else if (__predict_false(!s)) {
-		s = lro_new_session(qs, mh, rss_hash);
+		s = lro_new_session(qs, m, rss_hash);
 	} else {
-		if (lro_update_session(s, mh)) {
-			lro_flush_session(qs, s, mh);
+		if (lro_update_session(s, m)) {
+			lro_flush_session(qs, s, m);
 		}
-		if (__predict_false(s->mh.mh_head->m_pkthdr.len + pi->ifp->if_mtu > 65535)) {
+		if (__predict_false(s->head->m_pkthdr.len + pi->ifp->if_mtu > 65535)) {
 			lro_flush_session(qs, s, NULL);
 		}		
 	}
@@ -407,21 +383,15 @@ no_lro:
 }
 
 void
-t3_sge_lro_flush_all(adapter_t *adap, struct sge_qset *qs)
+t3_lro_flush(adapter_t *adap, struct sge_qset *qs, struct lro_state *state)
 {
-	struct sge_lro *l = &qs->lro;
-	struct sge_lro_session *s = l->last_s; 
-	int active = 0, idx = 0, num_active = l->num_active;
+	unsigned int idx = state->active_idx;
 
-	if (__predict_false(!s))
-		s = lro_session(l, idx);
-
-	while (active < num_active) {
-		if (s->mh.mh_head) {
+	while (state->nactive) {
+		struct t3_lro_session *s = &state->sess[idx];
+		
+		if (s->head) 
 			lro_flush_session(qs, s, NULL);
-			active++;
-		}
 		LRO_IDX_INC(idx);
-		s = lro_session(l, idx);
 	}
 }
