@@ -48,29 +48,10 @@
 #define	KERNBASE		0xc0000000
 
 /*
- * Override the default pager_map size, there's not enough KVA.
- */
-
-/*
  * max number of non-contig chunks of physical RAM you can have
  */
 
 #define	VM_PHYSSEG_MAX		32
-
-/*
- * when converting a physical address to a vm_page structure, we
- * want to use a binary search on the chunks of physical memory
- * to find our RAM
- */
-
-#define	VM_PHYSSEG_STRAT	VM_PSTRAT_BSEARCH
-
-/*
- * this indicates that we can't add RAM to the VM system after the
- * vm system is init'd.
- */
-
-#define	VM_PHYSSEG_NOADD
 
 /*
  * The physical address space is densely populated.
