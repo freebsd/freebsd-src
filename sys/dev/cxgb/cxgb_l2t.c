@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/rwlock.h>
 
 
 #include <sys/socket.h>
@@ -57,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/common/cxgb_t3_cpl.h>
 #include <dev/cxgb/common/cxgb_firmware_exports.h>
 #include <dev/cxgb/common/jhash.h>
+#include <dev/cxgb/cxgb_l2t.h>
 #include <dev/cxgb/cxgb_offload.h>
 
 #define VLAN_NONE 0xfff
