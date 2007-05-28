@@ -72,16 +72,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
-#include <dev/cxgb/cxgb_osdep.h>
-#include <dev/cxgb/common/cxgb_common.h>
-#include <dev/cxgb/cxgb_ioctl.h>
-#include <dev/cxgb/cxgb_offload.h>
-#include <dev/cxgb/common/cxgb_regs.h>
-#include <dev/cxgb/common/cxgb_t3_cpl.h>
-#include <dev/cxgb/common/cxgb_firmware_exports.h>
-
-#include <dev/cxgb/sys/mvec.h>
-
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
 
 #ifdef PRIV_SUPPORTED
 #include <sys/priv.h>
@@ -1598,21 +1593,20 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	mtx_unlock(&txq->lock);
 
 	if (__predict_false(err)) {
-		if (cxgb_debug)
-			printf("would set OFLAGS\n");
 		if (err == ENOMEM) {
 			IFQ_LOCK(&ifp->if_snd);
 			IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			IFQ_UNLOCK(&ifp->if_snd);
 		}
 	}
-	if (err == 0 && m == NULL)
-		err = ENOBUFS;
-
+	if (err == 0 && m == NULL) {
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		return (ENOBUFS);
+	}
 	if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC) &&
 	    (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		err = ENOSPC;
+		return (ENOSPC);
 	}
 	return (err);
 }
