@@ -74,6 +74,12 @@ struct sge_rspq;
 
 #define __read_mostly __attribute__((__section__(".data.read_mostly")))
 
+#if defined(INVARIANTS) && (__FreeBSD_version > 700000)
+#define M_SANITY m_sanity
+#else
+#define M_SANITY(a, b)
+#endif
+
 /*
  * Workaround for weird Chelsio issue
  */

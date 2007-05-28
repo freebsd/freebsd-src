@@ -1580,7 +1580,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 			m0->m_flags &= ~M_PKTHDR;
 			m0 = m0->m_next;
 		}
-		m_sanity(m0, 0);
+		M_SANITY(m0, 0);
 		m0 = m;
 #endif
 		if (collapse_mbufs && m->m_pkthdr.len > MCLBYTES &&
