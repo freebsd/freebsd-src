@@ -203,14 +203,14 @@ dcons_check_break(struct dcons_softc *dc, int c)
 
 #if __FreeBSD_version >= 502122
 	if (kdb_alt_break(c, &dc->brk_state)) {
-#ifdef GDB
 		if ((dc->flags & DC_GDB) != 0) {
+#ifdef GDB
 			if (gdb_cur == &dcons_gdb_dbgport) {
 				kdb_dbbe_select("gdb");
 				breakpoint();
 			}
-		} else
 #endif
+		} else
 			breakpoint();
 	}
 #else
