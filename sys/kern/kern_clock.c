@@ -555,7 +555,7 @@ watchdog_config(void *unused __unused, u_int cmd, int *error)
 
 /*
  * Handle a watchdog timeout by dumping interrupt information and
- * then either dropping to DDB or panicing.
+ * then panicking.
  */
 static void
 watchdog_fire(void)
@@ -578,13 +578,7 @@ watchdog_fire(void)
 		inttotal += *curintr++;
 	}
 	printf("Total        %20ju\n", (uintmax_t)inttotal);
-
-#ifdef KDB
-	kdb_backtrace();
-	kdb_enter("watchdog timeout");
-#else
 	panic("watchdog timeout");
-#endif /* KDB */
 }
 
 #endif /* SW_WATCHDOG */
