@@ -885,6 +885,26 @@ It must be set accordingly if
 .Va pfsync_enable
 is set to
 .Dq Li YES .
+.It Va pfsync_syncpeer
+.Pq Vt str
+Empty by default.
+This variable is optional.
+By default, state change messages are sent out on the synchronisation
+interface using IP multicast packets.
+The protocol is IP protocol 240, PFSYNC, and the multicast group used is
+224.0.0.240.
+When a peer address is specified using the
+.Va pfsync_syncpeer
+option, the peer address is used as a destination for the pfsync
+traffic, and the traffic can then be protected using
+.Xr ipsec 4 .
+See the
+.Xr pfsync 4
+manpage for more details about using
+.Xr ipsec 4
+with
+.Xr pfsync 4
+interfaces.
 .It Va pfsync_ifconfig
 .Pq Vt str
 Empty by default.

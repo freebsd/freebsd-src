@@ -39,8 +39,13 @@ pfsync_prestart()
 
 pfsync_start()
 {
+	local _syncpeer
+
 	echo "Enabling pfsync."
-	ifconfig pfsync0 syncdev $pfsync_syncdev $pfsync_ifconfig up
+	if [ -n "${pfsync_syncpeer}" ]; then
+		_syncpeer="syncpeer ${pfsync_syncpeer}"
+	fi
+	ifconfig pfsync0 $_syncpeer syncdev $pfsync_syncdev $pfsync_ifconfig up
 }
 
 pfsync_stop()
