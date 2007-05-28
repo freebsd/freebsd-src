@@ -5,7 +5,9 @@ LIB=	util
 SHLIB_MAJOR= 5
 SHLIBDIR?= /lib
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR} -I${.CURDIR}/../libc/gen/
+.if !defined(NO_INET6)
 CFLAGS+=-DINET6
+.endif
 SRCS=	_secure_path.c auth.c fparseln.c humanize_number.c login.c \
 	login_auth.c login_cap.c login_class.c login_crypt.c login_ok.c \
 	login_times.c login_tty.c logout.c logwtmp.c \
