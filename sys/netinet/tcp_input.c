@@ -241,9 +241,11 @@ tcp_input(struct mbuf *m, int off0)
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
 #else
+	const void *ip6 = NULL;
 	const int isipv6 = 0;
 #endif
 	struct tcpopt to;		/* options in this segment */
+	char *s = NULL;			/* address and port logging */
 
 #ifdef TCPDEBUG
 	/*
@@ -376,16 +378,6 @@ tcp_input(struct mbuf *m, int off0)
 	thflags = th->th_flags;
 
 	/*
-	 * If the drop_synfin option is enabled, drop all packets with
-	 * both the SYN and FIN bits set. This prevents e.g. nmap from
-	 * identifying the TCP/IP stack.
-	 *
-	 * This is a violation of the TCP specification.
-	 */
-	if (drop_synfin && (thflags & (TH_SYN|TH_FIN)) == (TH_SYN|TH_FIN))
-		goto drop;
-
-	/*
 	 * Convert TCP protocol specific fields to host format.
 	 */
 	th->th_seq = ntohl(th->th_seq);
@@ -480,17 +472,10 @@ findpcb:
 		 */
 		if ((tcp_log_in_vain == 1 && (thflags & TH_SYN)) ||
 		    tcp_log_in_vain == 2) {
-			char *s;
-#ifdef INET6
-			s = tcp_log_addrs(NULL, th, (void *)ip, (void *)ip6);
-#else
-			s = tcp_log_addrs(NULL, th, (void *)ip, NULL);
-#endif /* INET6 */
-			if (s != NULL) {
+			if ((s = tcp_log_addrs(NULL, th, (void *)ip,
+			    (void *)ip6)))
 				log(LOG_INFO, "%s; %s: Connection attempt "
 				    "to closed port\n", s, __func__);
-				free(s, M_TCPLOG);
-			}
 		}
 		/*
 		 * When blackholing do not respond with a RST but
@@ -537,12 +522,10 @@ findpcb:
 	 * segment and send an appropriate response.
 	 */
 	tp = intotcpcb(inp);
-	if (tp == NULL) {
+	if (tp == NULL || tp->t_state == TCPS_CLOSED) {
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
 	}
-	if (tp->t_state == TCPS_CLOSED)
-		goto dropunlock;	/* XXX: dropwithreset??? */
 
 #ifdef MAC
 	INP_LOCK_ASSERT(inp);
@@ -600,8 +583,7 @@ findpcb:
 		 * contains a RST, check the sequence number to see if it
 		 * is a valid reset segment.
 		 */
-		if ((thflags & (TH_RST|TH_ACK|TH_SYN)) != TH_SYN) {
-			if ((thflags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK) {
+		if ((thflags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK) {
 				/*
 				 * Parse the TCP options here because
 				 * syncookies need access to the reflected
@@ -626,10 +608,21 @@ findpcb:
 					 * but could not allocate a socket
 					 * either due to memory shortage,
 					 * listen queue length limits or
-					 * global socket limits.
+					 * global socket limits.  Send RST
+					 * or wait and have the remote end
+					 * retransmit the ACK for another
+					 * try.
 					 */
-					rstreason = BANDLIM_UNLIMITED;
-					goto dropwithreset;
+					if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+						log(LOG_DEBUG, "%s; %s: Listen socket: "
+						    "Socket allocation failure, %s\n",
+						    s, __func__, (tcp_sc_rst_sock_fail ?
+						    "sending RST" : "try again"));
+					if (tcp_sc_rst_sock_fail) {
+						rstreason = BANDLIM_UNLIMITED;
+						goto dropwithreset;
+					} else
+						goto dropunlock;
 				}
 				/*
 				 * Socket is created in state SYN_RECEIVED.
@@ -648,23 +641,80 @@ findpcb:
 						tlen);
 				INP_INFO_UNLOCK_ASSERT(&tcbinfo);
 				return;
-			}
-			if (thflags & TH_RST) {
-				syncache_chkrst(&inc, th);
-				goto dropunlock;
-			}
-			if (thflags & TH_ACK) {
-				syncache_badack(&inc);
-				tcpstat.tcps_badsyn++;
-				rstreason = BANDLIM_RST_OPENPORT;
-				goto dropwithreset;
-			}
+		}
+		/*
+		 * Our (SYN|ACK) response was rejected.
+		 * Check with syncache and remove entry to prevent
+		 * retransmits.
+		 */
+		if ((thflags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST)) {
+			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+				log(LOG_DEBUG, "%s; %s: Listen socket: "
+				    "SYN|ACK was rejected\n", s, __func__);
+			syncache_chkrst(&inc, th);
 			goto dropunlock;
 		}
-
+		/*
+		 * Spurious RST.  Ignore.
+		 */
+		if (thflags & TH_RST) {
+			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+				log(LOG_DEBUG, "%s; %s: Listen socket: "
+				    "Spurious RST\n", s, __func__);
+			goto dropunlock;
+		}
+		/*
+		 * We can't do anything without SYN.
+		 */
+		if ((thflags & TH_SYN) == 0) {
+			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+				log(LOG_DEBUG, "%s; %s: Listen socket: "
+				    "SYN missing\n", s, __func__);
+			tcpstat.tcps_badsyn++;
+			goto dropunlock;
+		}
+		/*
+		 * (SYN|ACK) is bogus on a listen socket.
+		 */
+		if (thflags & TH_ACK) {
+			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+				log(LOG_DEBUG, "%s; %s: Listen socket: "
+				    "SYN|ACK bogus\n", s, __func__);
+			syncache_badack(&inc);	/* XXX: Not needed! */
+			tcpstat.tcps_badsyn++;
+			rstreason = BANDLIM_RST_OPENPORT;
+			goto dropwithreset;
+		}
+		/*
+		 * If the drop_synfin option is enabled, drop all
+		 * segments with both the SYN and FIN bits set.
+		 * This prevents e.g. nmap from identifying the
+		 * TCP/IP stack.
+		 * XXX: Poor reasoning.  nmap has other methods
+		 * and is constantly refining its stack detection
+		 * strategies.
+		 *
+		 * This is a violation of the TCP specification
+		 * and was used by RFC1644.
+		 */
+		if ((thflags & TH_FIN) && drop_synfin) {
+			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+				log(LOG_DEBUG, "%s; %s: Listen socket: "
+				    "SYN|FIN ignored\n", s, __func__);
+			tcpstat.tcps_badsyn++;
+                	goto dropunlock;
+		}
 		/*
 		 * Segment's flags are (SYN) or (SYN|FIN).
+		 *
+		 * TH_PUSH, TH_URG, TH_ECE, TH_CWR are ignored
+		 * as they do not affect the state of the TCP FSM.
+		 * The data pointed to by TH_URG and th_urp is ignored.
 		 */
+		KASSERT((thflags & (TH_RST|TH_ACK)) == 0,
+		    ("%s: Listen socket: TH_RST or TH_ACK set", __func__));
+		KASSERT(thflags & (TH_SYN),
+		    ("%s: Listen socket: TH_SYN not set", __func__));
 #ifdef INET6
 		/*
 		 * If deprecated address is forbidden,
@@ -701,6 +751,10 @@ findpcb:
 
 			if ((ia6 = ip6_getdstifaddr(m)) &&
 			    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
+				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+				    log(LOG_DEBUG, "%s; %s: Listen socket: "
+					"Deprecated IPv6 address\n",
+					s, __func__);
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 			}
@@ -723,21 +777,39 @@ findpcb:
 		if (isipv6) {
 #ifdef INET6
 			if (th->th_dport == th->th_sport &&
-			    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &ip6->ip6_src))
+			    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &ip6->ip6_src)) {
+				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+				    log(LOG_DEBUG, "%s; %s: Listen socket: "
+					"Connection to self\n", s, __func__);
 				goto dropunlock;
+			}
 			if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
-			    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src))
+			    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src)) {
+				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+				    log(LOG_DEBUG, "%s; %s: Listen socket: "
+					"Connection to multicast address\n",
+					s, __func__);
 				goto dropunlock;
+			}
 #endif
 		} else {
 			if (th->th_dport == th->th_sport &&
-			    ip->ip_dst.s_addr == ip->ip_src.s_addr)
+			    ip->ip_dst.s_addr == ip->ip_src.s_addr) {
+				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+				    log(LOG_DEBUG, "%s; %s: Listen socket: "
+					"Connection to self\n", s, __func__);
 				goto dropunlock;
+			}
 			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 			    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 			    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
-			    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
+			    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif)) {
+				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+				    log(LOG_DEBUG, "%s; %s: Listen socket: "
+					"Connection to multicast address\n",
+					s, __func__);
 				goto dropunlock;
+			}
 		}
 		/*
 		 * SYN appears to be valid.  Create compressed TCP state
@@ -752,8 +824,9 @@ findpcb:
 		syncache_add(&inc, &to, th, inp, &so, m);
 		/*
 		 * Entry added to syncache and mbuf consumed.
-		 * Everything unlocked already by syncache_add().
+		 * Everything already unlocked by syncache_add().
 		 */
+		INP_INFO_UNLOCK_ASSERT(&tcbinfo);
 		return;
 	}
 
@@ -777,6 +850,8 @@ dropunlock:
 	INP_INFO_WUNLOCK(&tcbinfo);
 drop:
 	INP_INFO_UNLOCK_ASSERT(&tcbinfo);
+	if (s != NULL)
+		free(s, M_TCPLOG);
 	if (m != NULL)
 		m_freem(m);
 	return;
