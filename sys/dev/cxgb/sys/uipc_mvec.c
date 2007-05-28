@@ -41,18 +41,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 
 #include <machine/bus.h>
-#include <dev/cxgb/sys/mvec.h>
+
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
+
 #include "opt_zero.h"
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
-
-#ifdef DEBUG
-#define DPRINTF printf
-#else
-#define DPRINTF(...)
-#endif
 
 #ifdef INVARIANTS
 #define M_SANITY m_sanity
