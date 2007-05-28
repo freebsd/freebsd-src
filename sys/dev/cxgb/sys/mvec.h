@@ -35,6 +35,7 @@
 #define mtomv(m)          ((struct mbuf_vec *)((m)->m_pktdat))
 
 #define M_IOVEC               0x100000 /* mbuf immediate data area is used for cluster ptrs */
+#define EXT_MBUF              7
 #define MBUF_IOV_TYPE_MASK   ((1<<3)-1) 
 #define mbuf_vec_set_type(mv, i, type) \
 	(mv)->mv_vec[(i)].mi_flags = (((mv)->mv_vec[(i)].mi_flags \
@@ -62,6 +63,76 @@ struct mbuf_vec {
 	uint32_t mv_flags;     /* flags for iovec            */
 	struct mbuf_iovec mv_vec[MAX_MBUF_IOV];
 };
+
+static __inline int
+m_gettype(int size)
+{
+	int type;
+	
+	switch (size) {
+	case MSIZE:
+		type = EXT_MBUF;
+		break;
+	case MCLBYTES:
+		type = EXT_CLUSTER;
+		break;
+#if MJUMPAGESIZE != MCLBYTES
+	case MJUMPAGESIZE:
+		type = EXT_JUMBOP;
+		break;
+#endif
+	case MJUM9BYTES:
+		type = EXT_JUMBO9;
+		break;
+	case MJUM16BYTES:
+		type = EXT_JUMBO16;
+		break;
+	default:
+		panic("%s: m_getjcl: invalid cluster size", __func__);
+	}
+
+	return (type);
+}
+
+static __inline void
+m_cljset(struct mbuf *m, void *cl, int type)
+{
+	uma_zone_t zone;
+	int size;
+	
+	switch (type) {
+	case EXT_CLUSTER:
+		size = MCLBYTES;
+		zone = zone_clust;
+		break;
+#if MJUMPAGESIZE != MCLBYTES
+	case EXT_JUMBOP:
+		size = MJUMPAGESIZE;
+		zone = zone_jumbop;
+		break;
+#endif
+	case EXT_JUMBO9:
+		size = MJUM9BYTES;
+		zone = zone_jumbo9;
+		break;
+	case EXT_JUMBO16:
+		size = MJUM16BYTES;
+		zone = zone_jumbo16;
+		break;
+	default:
+		panic("unknown cluster type");
+		break;
+	}
+
+	m->m_data = m->m_ext.ext_buf = cl;
+	m->m_ext.ext_free = m->m_ext.ext_args = NULL;
+	m->m_ext.ext_size = size;
+	m->m_ext.ext_type = type;
+	m->m_ext.ref_cnt = uma_find_refcnt(zone, cl);
+	m->m_flags |= M_EXT;
+
+}
+
 
 int _m_explode(struct mbuf *);
 int _m_collapse(struct mbuf *, int maxbufs, struct mbuf **);

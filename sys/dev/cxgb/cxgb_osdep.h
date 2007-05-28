@@ -9,11 +9,7 @@ modification, are permitted provided that the following conditions are met:
  1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Chelsio Corporation nor the names of its
+ 2. Neither the name of the Chelsio Corporation nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
 
@@ -49,13 +45,16 @@ $FreeBSD$
 #define _CXGB_OSDEP_H_
 
 typedef struct adapter adapter_t;
-
 struct sge_rspq;
 
-struct t3_mbuf_hdr {
-	struct mbuf *mh_head;
-	struct mbuf *mh_tail;
-};
+#define PANIC_IF(exp) do {                  \
+	if (exp)                            \
+		panic("BUG: %s", exp);      \
+} while (0)
+
+
+#define m_get_priority(m) ((uintptr_t)(m)->m_pkthdr.rcvif)
+#define m_set_priority(m, pri) ((m)->m_pkthdr.rcvif = (struct ifnet *)((uintptr_t)pri))
 
 #if __FreeBSD_version > 700030
 #define INTR_FILTERS
@@ -73,6 +72,8 @@ struct t3_mbuf_hdr {
 #define TASKQUEUE_CURRENT
 #endif
 
+#define __read_mostly __attribute__((__section__(".data.read_mostly")))
+
 /*
  * Workaround for weird Chelsio issue
  */
@@ -80,9 +81,10 @@ struct t3_mbuf_hdr {
 #define PRIV_SUPPORTED
 #endif
 
-#define CXGB_TX_CLEANUP_THRESHOLD 32
+#define CXGB_TX_CLEANUP_THRESHOLD        32
 
-#define LOG_WARNING 1
+#define LOG_WARNING                       1
+#define LOG_ERR                           2
 
 #ifdef DEBUG_PRINT
 #define DPRINTF printf
@@ -93,9 +95,9 @@ struct t3_mbuf_hdr {
 #define TX_MAX_SIZE                (1 << 16)    /* 64KB                          */
 #define TX_MAX_SEGS                      36     /* maximum supported by card     */
 #define TX_MAX_DESC                       4     /* max descriptors per packet    */
-#define TX_START_MAX_DESC (TX_MAX_DESC << 1)    /* maximum number of descriptors
+#define TX_START_MAX_DESC (TX_MAX_DESC << 2)    /* maximum number of descriptors
 						 * call to start used per 	 */
-#define TX_CLEAN_MAX_DESC (TX_MAX_DESC << 2)    /* maximum tx descriptors
+#define TX_CLEAN_MAX_DESC (TX_MAX_DESC << 4)    /* maximum tx descriptors
 						 * to clean per iteration        */
 
 
@@ -111,6 +113,16 @@ void prefetch(void *x)
 { 
         __asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
 } 
+
+extern void kdb_backtrace(void);
+
+#define WARN_ON(condition) do { \
+        if (unlikely((condition)!=0)) { \
+                log(LOG_WARNING, "BUG: warning at %s:%d/%s()\n", __FILE__, __LINE__, __FUNCTION__); \
+                kdb_backtrace(); \
+        } \
+} while (0)
+
 
 #else /* !i386 && !amd64 */
 #define mb()
@@ -140,9 +152,15 @@ static const int debug_flags = DBG_RX;
 #define CH_WARN(adap, fmt, ...)	device_printf(adap->dev, fmt, ##__VA_ARGS__)
 #define CH_ALERT(adap, fmt, ...) device_printf(adap->dev, fmt, ##__VA_ARGS__)
 
-#define t3_os_sleep(x) DELAY((x) * 2000)
+#define t3_os_sleep(x) DELAY((x) * 1000)
+
+#define test_and_clear_bit(bit, p) atomic_cmpset_int((p), ((*(p)) | bit), ((*(p)) & ~bit)) 
+
 
 #define max_t(type, a, b) (type)max((a), (b))
+#define net_device ifnet
+
+
 
 /* Standard PHY definitions */
 #define BMCR_LOOPBACK		BMCR_LOOP

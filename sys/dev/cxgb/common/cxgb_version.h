@@ -41,5 +41,5 @@ $FreeBSD$
 #define __CHELSIO_VERSION_H
 #define DRV_DESC "Chelsio T3 Network Driver"
 #define DRV_NAME "cxgb"
-#define DRV_VERSION "1.0.071"
-#endif 
+#define DRV_VERSION "1.0.086"
+#endif
