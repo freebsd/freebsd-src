@@ -49,9 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
-#include <dev/cxgb/cxgb_osdep.h>
-#include <dev/cxgb/common/cxgb_common.h>
-#include <dev/cxgb/common/cxgb_t3_cpl.h>
+
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
 
 #include <machine/in_cksum.h>
 

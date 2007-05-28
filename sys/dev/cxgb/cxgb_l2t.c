@@ -50,14 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-
-#include <dev/cxgb/common/cxgb_common.h>
-#include <dev/cxgb/common/cxgb_regs.h>
-#include <dev/cxgb/common/cxgb_sge_defs.h>
-#include <dev/cxgb/common/cxgb_t3_cpl.h>
-#include <dev/cxgb/common/cxgb_firmware_exports.h>
-#include <dev/cxgb/common/jhash.h>
-#include <dev/cxgb/cxgb_offload.h>
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
 
 #define VLAN_NONE 0xfff
 #define SDL(s) ((struct sockaddr_dl *)s) 

@@ -55,8 +55,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/cxgb/ulp/toecore/toedev.h>
-#include <dev/cxgb/sys/mbufq.h>
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
 
 struct adapter;
 struct sge_qset;
