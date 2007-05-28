@@ -367,12 +367,8 @@ ixp425_setup_intr(device_t dev, device_t child,
     driver_intr_t *intr, void *arg, void **cookiep)    
 {
 	uint32_t mask;
-	int i, irq;
+	int i;
 
-	if (BUS_READ_IVAR(dev, child, IXP425_IVAR_IRQ, &irq) == 0) {
-		rman_set_start(ires, irq);
-		rman_set_end(ires, rman_get_start(ires));
-	}
 	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr,
 	     arg, cookiep);
 
