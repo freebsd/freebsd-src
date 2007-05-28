@@ -1635,7 +1635,8 @@ init_gcc_specs (struct obstack *obstack, const char *shared_name,
 {
   char *buf;
 
-  buf = concat ("%{static|static-libgcc:", static_name, " ", eh_name, "}"
+  buf = concat ("%{pg:",  static_name, " ", eh_name, "} %{!pg:",
+		"%{static|static-libgcc|pg:", static_name, " ", eh_name, "}"
 		"%{!static:%{!static-libgcc:"
 #if USE_LD_AS_NEEDED
 		"%{!shared-libgcc:",
@@ -1658,7 +1659,7 @@ init_gcc_specs (struct obstack *obstack, const char *shared_name,
 		"%{shared:", shared_name, "}"
 #endif
 #endif
-		"}}", NULL);
+		"}}}", NULL);
 
   obstack_grow (obstack, buf, strlen (buf));
   free (buf);
