@@ -316,29 +316,10 @@ extern char kernconfstring[];
 static int
 sysctl_kern_config(SYSCTL_HANDLER_ARGS)
 {
-	struct sbuf *sb;
-	int error;
-	char *p;
-
-	sb = sbuf_new(NULL, NULL, 2048, SBUF_AUTOEXTEND);
-	if (sb == NULL)
-		return (ENOMEM);
-	sbuf_clear(sb);
-	p = kernconfstring;
-	if (p == NULL || *p == '\0') {
-		sbuf_printf(sb, "No kernel configuration\n");
-	} else {
-		sbuf_printf(sb, "%s", p);
-	}
-	sbuf_trim(sb);
-	sbuf_putc(sb, '\n');
-	sbuf_finish(sb);
-	error = sysctl_handle_string(oidp, sbuf_data(sb), sbuf_len(sb), req);
-	if (error)
-		return (error);
-	sbuf_delete(sb);
-	return (error);
+	return (sysctl_handle_string(oidp, kernconfstring,
+	    strlen(kernconfstring), req));
 }
+
 SYSCTL_PROC(_kern, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RW, 
     0, 0, sysctl_kern_config, "", "Kernel configuration file");
 #endif
