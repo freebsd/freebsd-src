@@ -696,8 +696,7 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 done:
 	kqueue_release(kq, 0);
 done_norel:
-	if (fp != NULL)
-		fdrop(fp, td);
+	fdrop(fp, td);
 	return (error);
 }
 
