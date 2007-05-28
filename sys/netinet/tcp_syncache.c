@@ -213,6 +213,10 @@ SYSCTL_INT(_net_inet_tcp_syncache, OID_AUTO, hashsize, CTLFLAG_RDTUN,
 SYSCTL_INT(_net_inet_tcp_syncache, OID_AUTO, rexmtlimit, CTLFLAG_RW,
      &tcp_syncache.rexmt_limit, 0, "Limit on SYN/ACK retransmissions");
 
+int	tcp_sc_rst_sock_fail = 1;
+SYSCTL_INT(_net_inet_tcp_syncache, OID_AUTO, rst_on_sock_fail, CTLFLAG_RW,
+     &tcp_sc_rst_sock_fail, 0, "Send reset on socket allocation failure");
+
 static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
 
 #define SYNCACHE_HASH(inc, mask)					\

@@ -502,7 +502,8 @@ extern	int path_mtu_discovery;
 extern	int ss_fltsz;
 extern	int ss_fltsz_local;
 
-extern	int tcp_do_sack;	/* SACK enabled/disabled */
+extern	int tcp_do_sack;		/* SACK enabled/disabled */
+extern	int tcp_sc_rst_sock_fail;	/* RST on sock alloc failure */
 
 int	 tcp_addoptions(struct tcpopt *, u_char *);
 struct tcpcb *
