@@ -57,14 +57,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <dev/cxgb/common/cxgb_common.h>
-#include <dev/cxgb/common/cxgb_regs.h>
-#include <dev/cxgb/common/cxgb_sge_defs.h>
-#include <dev/cxgb/common/cxgb_t3_cpl.h>
-#include <dev/cxgb/common/cxgb_firmware_exports.h>
-#include <dev/cxgb/cxgb_offload.h>
 
-#include <dev/cxgb/sys/mvec.h>
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
 
 uint32_t collapse_free = 0;
 uint32_t mb_free_vec_free = 0;

@@ -55,14 +55,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
 
-#include <dev/cxgb/cxgb_osdep.h>
-#include <dev/cxgb/common/cxgb_common.h>
-#include <dev/cxgb/cxgb_ioctl.h>
-#include <dev/cxgb/common/cxgb_regs.h>
-#include <dev/cxgb/common/cxgb_t3_cpl.h>
-#include <dev/cxgb/common/cxgb_ctl_defs.h>
-#include <dev/cxgb/common/cxgb_firmware_exports.h>
-#include <dev/cxgb/cxgb_offload.h>
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
 
 #include <net/if_vlan_var.h>
 #include <net/route.h>
