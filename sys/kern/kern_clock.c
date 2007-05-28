@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdb.h"
 #include "opt_device_polling.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_ntp.h"
@@ -555,7 +556,7 @@ watchdog_config(void *unused __unused, u_int cmd, int *error)
 
 /*
  * Handle a watchdog timeout by dumping interrupt information and
- * then panicking.
+ * then either dropping to DDB or panicking.
  */
 static void
 watchdog_fire(void)
@@ -578,7 +579,13 @@ watchdog_fire(void)
 		inttotal += *curintr++;
 	}
 	printf("Total        %20ju\n", (uintmax_t)inttotal);
+
+#if defined(KDB) && !defined(KDB_UNATTENDED)
+	kdb_backtrace();
+	kdb_enter("watchdog timeout");
+#else
 	panic("watchdog timeout");
+#endif
 }
 
 #endif /* SW_WATCHDOG */
