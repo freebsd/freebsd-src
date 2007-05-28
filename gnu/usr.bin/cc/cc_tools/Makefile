@@ -254,10 +254,11 @@ GENSRCS+=	tm_p.h
 CLEANFILES+=	cs-tm_p.h
 
 # gencheck
-gencheck.h:
+gencheck.h: ${TREE_DEF_FILES}
 .for F in ${TREE_DEF_FILES}
 	echo "#include \"$F\""					>> ${.TARGET}
 .endfor
+	touch ${.TARGET}
 
 GENSRCS+=	gencheck.h
 
