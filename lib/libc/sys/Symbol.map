@@ -143,7 +143,7 @@ FBSD_1.0 {
 	kldunload;
 	kldunloadf;
 	kqueue;
-	kmq_notify;		/* Do we want these to be publc interfaces? */
+	kmq_notify;		/* Do we want these to be public interfaces? */
 	kmq_open;		/* librt uses them to provide mq_xxx. */
 	kmq_setattr;
 	kmq_timedreceive;
@@ -307,7 +307,7 @@ FBSD_1.0 {
 	thr_set_name;
 	thr_suspend;
 	thr_wake;
-	ktimer_create;		/* Do we want these to be publc interfaces? */
+	ktimer_create;		/* Do we want these to be public interfaces? */
 	ktimer_delete;		/* librt uses them to provide timer_xxx. */
 	ktimer_getoverrun;
 	ktimer_gettime;
