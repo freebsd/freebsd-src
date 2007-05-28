@@ -407,6 +407,12 @@ DoFile(const char *savedir, const char *device)
 
 	info = fdopen(fdinfo, "w");
 
+	if (info == NULL) {
+		syslog(LOG_ERR, "fdopen failed: %m");
+		nerr++;
+		goto closefd;
+	}
+
 	if (verbose)
 		printheader(stdout, &kdhl, device, bounds, status);
 
