@@ -43,7 +43,7 @@ int snd_unit = 0;
 TUNABLE_INT("hw.snd.unit", &snd_unit);
 #endif
 
-int snd_maxautovchans = 0;
+int snd_maxautovchans = 4;
 TUNABLE_INT("hw.snd.maxautovchans", &snd_maxautovchans);
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
