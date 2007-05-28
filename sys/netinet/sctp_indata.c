@@ -1609,7 +1609,6 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	 * only validate the FIRST fragment so the bit must be set.
 	 */
 	strmseq = ntohs(ch->dp.stream_sequence);
-
 #ifdef SCTP_ASOCLOG_OF_TSNS
 	asoc->in_tsnlog[asoc->tsn_in_at].tsn = tsn;
 	asoc->in_tsnlog[asoc->tsn_in_at].strm = strmno;
@@ -1623,6 +1622,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	}
 #endif
 	if ((chunk_flags & SCTP_DATA_FIRST_FRAG) &&
+	    (TAILQ_EMPTY(&asoc->resetHead)) &&
 	    (chunk_flags & SCTP_DATA_UNORDERED) == 0 &&
 	    (compare_with_wrap(asoc->strmin[strmno].last_sequence_delivered,
 	    strmseq, MAX_SEQ) ||
@@ -2006,11 +2006,8 @@ failed_pdapi_express_del:
 			 * and proceessed by TSN order. It is only the
 			 * singletons I must worry about.
 			 */
-			struct sctp_stream_reset_list *liste;
-
 			if (((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) &&
-			    ((compare_with_wrap(tsn, ntohl(liste->tsn), MAX_TSN)) ||
-			    (tsn == ntohl(liste->tsn)))
+			    ((compare_with_wrap(tsn, liste->tsn, MAX_TSN)))
 			    ) {
 				/*
 				 * yep its past where we need to reset... go
@@ -2095,8 +2092,8 @@ finish_express_del:
 	SCTP_SET_TSN_PRESENT(asoc->mapping_array, gap);
 	/* check the special flag for stream resets */
 	if (((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) &&
-	    ((compare_with_wrap(asoc->cumulative_tsn, ntohl(liste->tsn), MAX_TSN)) ||
-	    (asoc->cumulative_tsn == ntohl(liste->tsn)))
+	    ((compare_with_wrap(asoc->cumulative_tsn, liste->tsn, MAX_TSN)) ||
+	    (asoc->cumulative_tsn == liste->tsn))
 	    ) {
 		/*
 		 * we have finished working through the backlogged TSN's now
@@ -2124,7 +2121,7 @@ finish_express_del:
 			}
 		} else if (ctl) {
 			/* more than one in queue */
-			while (!compare_with_wrap(ctl->sinfo_tsn, ntohl(liste->tsn), MAX_TSN)) {
+			while (!compare_with_wrap(ctl->sinfo_tsn, liste->tsn, MAX_TSN)) {
 				/*
 				 * if ctl->sinfo_tsn is <= liste->tsn we can
 				 * process it which is the NOT of
@@ -2668,12 +2665,12 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				/* unknown chunk type, use bit rules */
 				if (ch->ch.chunk_type & 0x40) {
 					/* Add a error report to the queue */
-					struct mbuf *mm;
+					struct mbuf *merr;
 					struct sctp_paramhdr *phd;
 
-					mm = sctp_get_mbuf_for_msg(sizeof(*phd), 0, M_DONTWAIT, 1, MT_DATA);
-					if (mm) {
-						phd = mtod(mm, struct sctp_paramhdr *);
+					merr = sctp_get_mbuf_for_msg(sizeof(*phd), 0, M_DONTWAIT, 1, MT_DATA);
+					if (merr) {
+						phd = mtod(merr, struct sctp_paramhdr *);
 						/*
 						 * We cheat and use param
 						 * type since we did not
@@ -2686,14 +2683,14 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 						    htons(SCTP_CAUSE_UNRECOG_CHUNK);
 						phd->param_length =
 						    htons(chk_length + sizeof(*phd));
-						SCTP_BUF_LEN(mm) = sizeof(*phd);
-						SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset,
+						SCTP_BUF_LEN(merr) = sizeof(*phd);
+						SCTP_BUF_NEXT(merr) = SCTP_M_COPYM(m, *offset,
 						    SCTP_SIZE32(chk_length),
 						    M_DONTWAIT);
-						if (SCTP_BUF_NEXT(mm)) {
-							sctp_queue_op_err(stcb, mm);
+						if (SCTP_BUF_NEXT(merr)) {
+							sctp_queue_op_err(stcb, merr);
 						} else {
-							sctp_m_freem(mm);
+							sctp_m_freem(merr);
 						}
 					}
 				}
@@ -5893,7 +5890,7 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	fwd_sz -= sizeof(*fwd);
 	{
 		/* New method. */
-		int num_str, i;
+		unsigned int num_str;
 
 		num_str = fwd_sz / sizeof(struct sctp_strseq);
 		for (i = 0; i < num_str; i++) {

@@ -58,17 +58,6 @@ struct sctp_timer {
 	uint32_t stopped_from;
 };
 
-struct sctp_nonpad_sndrcvinfo {
-	uint16_t sinfo_stream;
-	uint16_t sinfo_ssn;
-	uint16_t sinfo_flags;
-	uint32_t sinfo_ppid;
-	uint32_t sinfo_context;
-	uint32_t sinfo_timetolive;
-	uint32_t sinfo_tsn;
-	uint32_t sinfo_cumtsn;
-	sctp_assoc_t sinfo_assoc_id;
-};
 
 struct sctp_foo_stuff {
 	struct sctp_inpcb *inp;
@@ -472,6 +461,26 @@ struct sctp_tsn_log {
 	uint16_t flgs;
 };
 
+
+
+/* This struct is here to cut out the compatiabilty
+ * pad that bulks up both the inp and stcb. The non
+ * pad portion MUST stay in complete sync with
+ * sctp_sndrcvinfo... i.e. if sinfo_xxxx is added
+ * this must be done here too.
+ */
+struct sctp_nonpad_sndrcvinfo {
+	uint16_t sinfo_stream;
+	uint16_t sinfo_ssn;
+	uint16_t sinfo_flags;
+	uint32_t sinfo_ppid;
+	uint32_t sinfo_context;
+	uint32_t sinfo_timetolive;
+	uint32_t sinfo_tsn;
+	uint32_t sinfo_cumtsn;
+	sctp_assoc_t sinfo_assoc_id;
+};
+
 /*
  * Here we have information about each individual association that we track.
  * We probably in production would be more dynamic. But for ease of
@@ -487,7 +496,7 @@ struct sctp_association {
 	struct timeval time_last_rcvd;
 	struct timeval time_last_sent;
 	struct timeval time_last_sat_advance;
-	struct sctp_sndrcvinfo def_send;	/* default send parameters */
+	struct sctp_nonpad_sndrcvinfo def_send;
 
 	/* timers and such */
 	struct sctp_timer hb_timer;	/* hb timer */
@@ -695,6 +704,7 @@ struct sctp_association {
 	uint32_t my_rwnd;
 	uint32_t my_last_reported_rwnd;
 	uint32_t my_rwnd_control_len;
+	uint32_t sctp_frag_point;
 
 	uint32_t total_output_queue_size;
 
