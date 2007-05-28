@@ -188,8 +188,13 @@ do { \
 
 
 /*
- * TCP input routine, follows pages 65-76 of the
- * protocol specification dated September, 1981 very closely.
+ * TCP input handling is split into multiple parts:
+ *   tcp6_input is a thin wrapper around tcp_input for the extended
+ *	ip6_protox[] call format in ip6_input
+ *   tcp_input handles primary segment validation, inpcb lookup and
+ *	SYN processing on listen sockets
+ *   tcp_do_segment processes the ACK and text of the segment for
+ *	establishing, established and closing connections
  */
 #ifdef INET6
 int
@@ -266,7 +271,7 @@ tcp_input(struct mbuf *m, int off0)
 
 	if (isipv6) {
 #ifdef INET6
-		/* IP6_EXTHDR_CHECK() is already done at tcp6_input() */
+		/* IP6_EXTHDR_CHECK() is already done at tcp6_input(). */
 		ip6 = mtod(m, struct ip6_hdr *);
 		tlen = sizeof(*ip6) + ntohs(ip6->ip6_plen) - off0;
 		if (in6_cksum(m, IPPROTO_TCP, off0, tlen)) {
@@ -288,7 +293,7 @@ tcp_input(struct mbuf *m, int off0)
 			goto drop;
 		}
 #else
-		th = NULL;		/* XXX: avoid compiler warning */
+		th = NULL;		/* XXX: Avoid compiler warning. */
 #endif
 	} else {
 		/*
@@ -397,7 +402,9 @@ tcp_input(struct mbuf *m, int off0)
 findpcb:
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 #ifdef IPFIREWALL_FORWARD
-	/* Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain. */
+	/*
+	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
+	 */
 	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 
 	if (fwd_tag != NULL && isipv6 == 0) {	/* IPv6 support is not yet */
@@ -490,7 +497,9 @@ findpcb:
 	}
 	INP_LOCK(inp);
 
-	/* Check the minimum TTL for socket. */
+	/*
+	 * Check the minimum TTL for socket.
+	 */
 	if (inp->inp_ip_minttl != 0) {
 #ifdef INET6
 		if (isipv6 && inp->inp_ip_minttl > ip6->ip6_hlim)
@@ -510,7 +519,9 @@ findpcb:
 	if (inp->inp_vflag & INP_TIMEWAIT) {
 		if (thflags & TH_SYN)
 			tcp_dooptions(&to, optp, optlen, TO_SYN);
-		/* NB: tcp_twcheck unlocks the INP and frees the mbuf. */
+		/*
+		 * NB: tcp_twcheck unlocks the INP and frees the mbuf.
+		 */
 		if (tcp_twcheck(inp, &to, th, m, tlen))
 			goto findpcb;
 		INP_INFO_WUNLOCK(&tcbinfo);
@@ -573,15 +584,9 @@ findpcb:
 		inc.inc_lport = th->th_dport;
 
 		/*
-		 * If the state is LISTEN then ignore segment if it contains
-		 * a RST.  If the segment contains an ACK then it is bad and
-		 * send a RST.  If it does not contain a SYN then it is not
-		 * interesting; drop it.
-		 *
-		 * If the state is SYN_RECEIVED (syncache) and seg contains
-		 * an ACK, but not for our SYN/ACK, send a RST.  If the seg
-		 * contains a RST, check the sequence number to see if it
-		 * is a valid reset segment.
+		 * Check for an existing connection attempt in syncache if
+		 * the flag is only ACK.  A successful lookup creates a new
+		 * socket appended to the listen queue in SYN_RECEIVED state.
 		 */
 		if ((thflags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK) {
 			/*
@@ -598,6 +603,8 @@ findpcb:
 				/*
 				 * No syncache entry or ACK was not
 				 * for our SYN/ACK.  Send a RST.
+				 * NB: syncache did its own logging
+				 * of the failure cause.
 				 */
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
@@ -615,7 +622,8 @@ findpcb:
 				 */
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 					log(LOG_DEBUG, "%s; %s: Listen socket: "
-					    "Socket allocation failure, %s\n",
+					    "Socket allocation failed due to "
+					    "limits or memory shortage, %s\n",
 					    s, __func__, (tcp_sc_rst_sock_fail ?
 					    "sending RST" : "try again"));
 				if (tcp_sc_rst_sock_fail) {
@@ -626,23 +634,27 @@ findpcb:
 			}
 			/*
 			 * Socket is created in state SYN_RECEIVED.
-			 * Continue processing segment.
+			 * Unlock the listen socket, lock the newly
+			 * created socket and update the tp variable.
 			 */
 			INP_UNLOCK(inp);	/* listen socket */
 			inp = sotoinpcb(so);
 			INP_LOCK(inp);		/* new connection */
 			tp = intotcpcb(inp);
+			KASSERT(tp->t_state == TCPS_SYN_RECEIVED,
+			    ("%s: ", __func__));
 			/*
 			 * Process the segment and the data it
 			 * contains.  tcp_do_segment() consumes
 			 * the mbuf chain and unlocks the inpcb.
 			 */
-			tcp_do_segment(m, th, so, tp, drop_hdrlen,
-					tlen);
+			tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen);
 			INP_INFO_UNLOCK_ASSERT(&tcbinfo);
 			return;
 		}
 		/*
+		 * Segment flag validation for new connection attempts:
+		 *
 		 * Our (SYN|ACK) response was rejected.
 		 * Check with syncache and remove entry to prevent
 		 * retransmits.
@@ -650,7 +662,9 @@ findpcb:
 		if ((thflags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST)) {
 			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Listen socket: "
-				    "SYN|ACK was rejected\n", s, __func__);
+				    "Our SYN|ACK was rejected, connection "
+				    "attempt aborted by remote endpoint\n",
+				    s, __func__);
 			syncache_chkrst(&inc, th);
 			goto dropunlock;
 		}
@@ -660,7 +674,8 @@ findpcb:
 		if (thflags & TH_RST) {
 			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Listen socket: "
-				    "Spurious RST\n", s, __func__);
+				    "Spurious RST, segment rejected\n",
+				    s, __func__);
 			goto dropunlock;
 		}
 		/*
@@ -669,7 +684,8 @@ findpcb:
 		if ((thflags & TH_SYN) == 0) {
 			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Listen socket: "
-				    "SYN missing\n", s, __func__);
+				    "SYN is missing, segment rejected\n",
+				    s, __func__);
 			tcpstat.tcps_badsyn++;
 			goto dropunlock;
 		}
@@ -679,7 +695,8 @@ findpcb:
 		if (thflags & TH_ACK) {
 			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Listen socket: "
-				    "SYN|ACK bogus\n", s, __func__);
+				    "SYN|ACK invalid, segment rejected\n",
+				    s, __func__);
 			syncache_badack(&inc);	/* XXX: Not needed! */
 			tcpstat.tcps_badsyn++;
 			rstreason = BANDLIM_RST_OPENPORT;
@@ -693,14 +710,14 @@ findpcb:
 		 * XXX: Poor reasoning.  nmap has other methods
 		 * and is constantly refining its stack detection
 		 * strategies.
-		 *
-		 * This is a violation of the TCP specification
+		 * XXX: This is a violation of the TCP specification
 		 * and was used by RFC1644.
 		 */
 		if ((thflags & TH_FIN) && drop_synfin) {
 			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Listen socket: "
-				    "SYN|FIN ignored\n", s, __func__);
+				    "SYN|FIN segment rejected (based on "
+				    "sysctl setting)\n", s, __func__);
 			tcpstat.tcps_badsyn++;
                 	goto dropunlock;
 		}
@@ -753,7 +770,8 @@ findpcb:
 			    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
-					"Deprecated IPv6 address\n",
+					"Connection attempt to deprecated "
+					"IPv6 address rejected\n",
 					s, __func__);
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
@@ -762,33 +780,38 @@ findpcb:
 #endif
 		/*
 		 * Basic sanity checks on incoming SYN requests:
-		 *
-		 * Don't bother responding if the destination was a
-		 * broadcast according to RFC1122 4.2.3.10, p. 104.
-		 *
-		 * If it is from this socket, drop it, it must be forged.
-		 *
-		 * Note that it is quite possible to receive unicast
-		 * link-layer packets with a broadcast IP address. Use
-		 * in_broadcast() to find them.
+		 *   Don't respond if the destination is a link layer
+		 *	broadcast according to RFC1122 4.2.3.10, p. 104.
+		 *   If it is from this socket it must be forged.
+		 *   Don't respond if the source or destination is a
+		 *	global or subnet broad- or multicast address.
+		 *   Note that it is quite possible to receive unicast
+		 *	link-layer packets with a broadcast IP address. Use
+		 *	in_broadcast() to find them.
 		 */
-		if (m->m_flags & (M_BCAST|M_MCAST))
+		if (m->m_flags & (M_BCAST|M_MCAST)) {
+			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
+			    log(LOG_DEBUG, "%s; %s: Listen socket: "
+				"Connection attempt from broad- or multicast "
+				"link layer address rejected\n", s, __func__);
 			goto dropunlock;
+		}
 		if (isipv6) {
 #ifdef INET6
 			if (th->th_dport == th->th_sport &&
 			    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &ip6->ip6_src)) {
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
-					"Connection to self\n", s, __func__);
+					"Connection attempt to/from self "
+					"rejected\n", s, __func__);
 				goto dropunlock;
 			}
 			if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
 			    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src)) {
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
-					"Connection to multicast address\n",
-					s, __func__);
+					"Connection attempt from/to multicast "
+					"address rejected\n", s, __func__);
 				goto dropunlock;
 			}
 #endif
@@ -797,7 +820,8 @@ findpcb:
 			    ip->ip_dst.s_addr == ip->ip_src.s_addr) {
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
-					"Connection to self\n", s, __func__);
+					"Connection attempt from/to self "
+					"rejected\n", s, __func__);
 				goto dropunlock;
 			}
 			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
@@ -806,7 +830,8 @@ findpcb:
 			    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif)) {
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
-					"Connection to multicast address\n",
+					"Connection attempt from/to broad- "
+					"or multicast address rejected\n",
 					s, __func__);
 				goto dropunlock;
 			}
@@ -831,9 +856,9 @@ findpcb:
 	}
 
 	/*
-	 * Segment belongs to a connection in SYN_SENT, ESTABLISHED or late
-	 * state.  tcp_do_segment() always consumes the mbuf chain, unlocks the
-	 * inpcb, and unlocks the pcbinfo.
+	 * Segment belongs to a connection in SYN_SENT, ESTABLISHED or later
+	 * state.  tcp_do_segment() always consumes the mbuf chain, unlocks
+	 * the inpcb, and unlocks pcbinfo.
 	 */
 	tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen);
 	INP_INFO_UNLOCK_ASSERT(&tcbinfo);
