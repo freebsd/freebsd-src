@@ -27,7 +27,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd March 16, 2007
+.Dd May 28, 2007
 .Dt GZIP 1
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd compression/decompression tool using Lempel-Ziv coding (LZ77)
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdfhLlNnqrtVv
+.Op Fl cdfhkLlNnqrtVv
 .Op Fl S Ar suffix
 .Ar file
 .Oo
@@ -124,6 +124,9 @@ with the
 option, allowing non-compressed data to pass through unchanged.
 .It Fl h , -help
 This option prints a usage summary and exits.
+.It Fl k , -keep
+Keep (don't delete) input files during compression
+or decompression.
 .It Fl L , -license
 This option prints
 .Nm
