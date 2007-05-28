@@ -3355,6 +3355,7 @@ zfs_freebsd_setattr(ap)
 		return (EOPNOTSUPP);
 
 	vattr_init_mask(vap);
+	vap->va_mask &= ~AT_NOSET;
 
 	return (zfs_setattr(ap->a_vp, vap, 0, ap->a_cred, NULL));
 }
