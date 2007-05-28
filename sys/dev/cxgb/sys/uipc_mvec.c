@@ -41,23 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 
 #include <machine/bus.h>
+#include <dev/cxgb/cxgb_osdep.h>
 #include <dev/cxgb/sys/mvec.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
-
-#ifdef DEBUG
-#define DPRINTF printf
-#else
-#define DPRINTF(...)
-#endif
-
-#ifdef INVARIANTS
-#define M_SANITY m_sanity
-#else
-#define M_SANITY(a, b)
-#endif
 
 #define MAX_BUFS 36
 #define MAX_HVEC 8
