@@ -120,7 +120,7 @@ ata_avila_attach(device_t dev)
 {
 	struct ata_avila_softc *sc = device_get_softc(dev);
 	struct ixp425_softc *sa = device_get_softc(device_get_parent(dev));
-	u_int32_t alt_t_off, ide_gpin, ide_gptype, ide_irq;
+	u_int32_t alt_t_off, ide_gpin, ide_irq;
 
 	sc->sc_dev = dev;
 	/* NB: borrow from parent */
@@ -137,7 +137,6 @@ ata_avila_attach(device_t dev)
 			panic("%s: unable to map Expansion Bus CS2 window",
 			    __func__);
 		ide_gpin = AVILA_IDE_GPIN;
-		ide_gptype = GPIO_TYPE(ide_gpin, GPIO_TYPE_EDG_RISING);
 		ide_irq = AVILA_IDE_IRQ;
 		sc->sc_16bit_off = EXP_TIMING_CS1_OFFSET;
 		alt_t_off = EXP_TIMING_CS2_OFFSET;
@@ -152,7 +151,6 @@ ata_avila_attach(device_t dev)
 			panic("%s: unable to map Expansion Bus CS4 window",
 			    __func__);
 		ide_gpin = PRONGHORN_IDE_GPIN;
-		ide_gptype = GPIO_TYPE(ide_gpin, GPIO_TYPE_ACT_HIGH);
 		ide_irq = PRONGHORN_IDE_IRQ;
 		sc->sc_16bit_off = EXP_TIMING_CS3_OFFSET;
 		alt_t_off = EXP_TIMING_CS4_OFFSET;
@@ -190,7 +188,8 @@ ata_avila_attach(device_t dev)
 	/* set interrupt type */
 	GPIO_CONF_WRITE_4(sa, GPIO_TYPE_REG(ide_gpin),
 	    (GPIO_CONF_READ_4(sa, GPIO_TYPE_REG(ide_gpin)) &~
-	     GPIO_TYPE(ide_gpin, GPIO_TYPE_MASK)) | ide_gptype);
+	     GPIO_TYPE(ide_gpin, GPIO_TYPE_MASK)) |
+	     GPIO_TYPE(ide_gpin, GPIO_TYPE_EDG_RISING));
 
 	/* clear ISR */
 	GPIO_CONF_WRITE_4(sa, IXP425_GPIO_GPISR, (1<<ide_gpin));
