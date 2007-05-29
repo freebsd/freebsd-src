@@ -21,6 +21,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070529:
+	The ether_ioctl() function has been synchronized with ioctl(2)
+	and ifnet.if_ioctl.  Due to that, the size of one of its arguments
+	has changed on 64-bit architectures.  All kernel modules using
+	ether_ioctl() need to be rebuilt on such architectures.
+
 20070516:
 	Improved INCLUDE_CONFIG_FILE support has been introduced to the
 	config(8) utility. In order to take advantage of this new
