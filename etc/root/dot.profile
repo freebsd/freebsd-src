@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/X11R6/bin
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/games:/usr/local/sbin:/usr/local/bin:~/bin
 export PATH
 HOME=/root
 export HOME
