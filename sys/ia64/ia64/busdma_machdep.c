@@ -578,6 +578,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		 * Compute the segment size, and adjust counts.
 		 */
 		sgsize = PAGE_SIZE - ((u_long)curaddr & PAGE_MASK);
+		if (sgsize > dmat->maxsegsz)
+			sgsize = dmat->maxsegsz;
 		if (buflen < sgsize)
 			sgsize = buflen;
 
