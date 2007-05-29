@@ -9,6 +9,12 @@ NEWVERSWHAT=	"bootstrap loader" i386
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
 
+# Put LOADER_FIREWIRE_SUPPORT=yes in /etc/make.conf for FireWire/dcons support
+.if defined(LOADER_FIREWIRE_SUPPORT)
+CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
+LIBFIREWIRE=	${.OBJDIR}/../libfirewire/libfirewire.a
+.endif
+
 # Enable PXE TFTP or NFS support, not both.
 .if defined(LOADER_TFTP_SUPPORT)
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
@@ -90,8 +96,8 @@ FILES+=	loader.rc
 # XXX crt0.o needs to be first for pxeboot(8) to work
 OBJS=	${BTXCRT} 
 
-DPADD=	${LIBFICL} ${LIBI386} ${LIBSTAND}
-LDADD=	${LIBFICL} ${LIBI386} -lstand
+DPADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBI386} ${LIBSTAND}
+LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBI386} -lstand
 
 .include <bsd.prog.mk>
 
