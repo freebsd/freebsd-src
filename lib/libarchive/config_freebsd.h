@@ -65,7 +65,10 @@
 #define	HAVE_MEMSET 1
 #define	HAVE_MKDIR 1
 #define	HAVE_MKFIFO 1
+#define	HAVE_POLL 1
+#define	HAVE_POLL_H 1
 #define	HAVE_PWD_H 1
+#define	HAVE_SELECT 1
 #define	HAVE_STDINT_H 1
 #define	HAVE_STDLIB_H 1
 #define	HAVE_STRCHR 1
@@ -77,8 +80,10 @@
 #define	HAVE_STRRCHR 1
 #define	HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
 #define	HAVE_STRUCT_STAT_ST_RDEV 1
+#define	HAVE_STRUCT_TM_TM_GMTOFF 1
 #define	HAVE_SYS_ACL_H 1
 #define	HAVE_SYS_IOCTL_H 1
+#define	HAVE_SYS_SELECT_H 1
 #define	HAVE_SYS_STAT_H 1
 #define	HAVE_SYS_TIME_H 1
 #define	HAVE_SYS_TYPES_H 1

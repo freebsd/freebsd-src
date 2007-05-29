@@ -27,17 +27,18 @@ __FBSDID("$FreeBSD$");
 
 #define UMASK 022
 
-static void create(struct archive_entry *ae)
+static void create(struct archive_entry *ae, const char *msg)
 {
 	struct archive *ad;
 	struct stat st;
 
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
-	assert(0 == archive_write_header(ad, ae));
-	assert(0 == archive_write_finish_entry(ad));
+	failure("%s", msg);
+	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
+	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 #if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_write_finish(ad));
+	assertEqualInt(0, archive_write_finish(ad));
 #else
 	archive_write_finish(ad);
 #endif
@@ -59,34 +60,34 @@ DEFINE_TEST(test_write_disk)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
-	create(ae);
+	create(ae, "Test creating a regular file");
 	archive_entry_free(ae);
 
 	/* A regular file over an existing file */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0724);
-	create(ae);
+	create(ae, "Test creating a file over an existing file.");
 	archive_entry_free(ae);
 
 	/* A directory. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "dir");
 	archive_entry_set_mode(ae, S_IFDIR | 0555);
-	create(ae);
+	create(ae, "Test creating a regular dir.");
 	archive_entry_free(ae);
 
 	/* A directory over an existing file. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFDIR | 0742);
-	create(ae);
+	create(ae, "Test creating a dir over an existing file.");
 	archive_entry_free(ae);
 
 	/* A file over an existing dir. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0744);
-	create(ae);
+	create(ae, "Test creating a file over an existing dir.");
 	archive_entry_free(ae);
 }

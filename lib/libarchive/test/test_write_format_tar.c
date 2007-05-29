@@ -34,7 +34,7 @@ DEFINE_TEST(test_write_format_tar)
 	struct archive *a;
 	char *p;
 	size_t used;
-	int blocksize;
+	size_t blocksize;
 
 	/* Repeat the following for a variety of odd blocksizes. */
 	for (blocksize = 1; blocksize < 100000; blocksize += blocksize + 3) {
@@ -44,9 +44,9 @@ DEFINE_TEST(test_write_format_tar)
 		assertA(0 == archive_write_set_compression_none(a));
 		assertA(0 == archive_write_set_bytes_per_block(a, blocksize));
 		assertA(0 == archive_write_set_bytes_in_last_block(a, blocksize));
-		assertA(blocksize == archive_write_get_bytes_in_last_block(a));
+		assertA(blocksize == (size_t)archive_write_get_bytes_in_last_block(a));
 		assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
-		assertA(blocksize == archive_write_get_bytes_in_last_block(a));
+		assertA(blocksize == (size_t)archive_write_get_bytes_in_last_block(a));
 
 		/*
 		 * Write a file to it.
@@ -54,12 +54,14 @@ DEFINE_TEST(test_write_format_tar)
 		assert((ae = archive_entry_new()) != NULL);
 		archive_entry_set_mtime(ae, 1, 10);
 		assert(1 == archive_entry_mtime(ae));
+#if !defined(__INTERIX)
 		assert(10 == archive_entry_mtime_nsec(ae));
+#endif
 		p = strdup("file");
 		archive_entry_copy_pathname(ae, p);
 		strcpy(p, "XXXX");
 		free(p);
-		assert(0 == strcmp("file", archive_entry_pathname(ae)));
+		assertEqualString("file", archive_entry_pathname(ae));
 		archive_entry_set_mode(ae, S_IFREG | 0755);
 		assert((S_IFREG | 0755) == archive_entry_mode(ae));
 		archive_entry_set_size(ae, 8);
@@ -90,11 +92,11 @@ DEFINE_TEST(test_write_format_tar)
 		assertA(0 == archive_read_next_header(a, &ae));
 
 		assert(1 == archive_entry_mtime(ae));
-		/* Not the same as above: ustar doesn't store hi-res timestamps. */
+		/* Not the same as above: ustar doesn't store hi-res times. */
 		assert(0 == archive_entry_mtime_nsec(ae));
 		assert(0 == archive_entry_atime(ae));
 		assert(0 == archive_entry_ctime(ae));
-		assert(0 == strcmp("file", archive_entry_pathname(ae)));
+		assertEqualString("file", archive_entry_pathname(ae));
 		assert((S_IFREG | 0755) == archive_entry_mode(ae));
 		assert(8 == archive_entry_size(ae));
 		assertA(8 == archive_read_data(a, buff2, 10));

@@ -66,7 +66,7 @@ DEFINE_TEST(test_read_format_ar)
 
 	/* Filename table.  */
 	assertA(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("//", archive_entry_pathname(ae)));
+	assertEqualString("//", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
@@ -76,7 +76,7 @@ DEFINE_TEST(test_read_format_ar)
 
 	/* First Entry */
 	assertA(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("yyytttsssaaafff.o", archive_entry_pathname(ae)));
+	assertEqualString("yyytttsssaaafff.o", archive_entry_pathname(ae));
 	assertEqualInt(1175465652, archive_entry_mtime(ae));
 	assertEqualInt(1001, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
@@ -86,7 +86,7 @@ DEFINE_TEST(test_read_format_ar)
 
 	/* Second Entry */
 	assertA(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("gghh.o", archive_entry_pathname(ae)));
+	assertEqualString("gghh.o", archive_entry_pathname(ae));
 	assertEqualInt(1175465668, archive_entry_mtime(ae));
 	assertEqualInt(1001, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
@@ -96,7 +96,7 @@ DEFINE_TEST(test_read_format_ar)
 
 	/* Third Entry */
 	assertA(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("hhhhjjjjkkkkllll.o", archive_entry_pathname(ae)));
+	assertEqualString("hhhhjjjjkkkkllll.o", archive_entry_pathname(ae));
 	assertEqualInt(1175465713, archive_entry_mtime(ae));
 	assertEqualInt(1001, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));

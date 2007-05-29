@@ -34,6 +34,7 @@
 .Nm archive_read_support_compression_compress ,
 .Nm archive_read_support_compression_gzip ,
 .Nm archive_read_support_compression_none ,
+.Nm archive_read_support_compression_program ,
 .Nm archive_read_support_format_all ,
 .Nm archive_read_support_format_cpio ,
 .Nm archive_read_support_format_empty ,
@@ -73,6 +74,8 @@
 .Fn archive_read_support_compression_gzip "struct archive *"
 .Ft int
 .Fn archive_read_support_compression_none "struct archive *"
+.Ft int
+.Fn archive_read_support_compression_program "struct archive *" "const char *cmd"
 .Ft int
 .Fn archive_read_support_format_all "struct archive *"
 .Ft int
@@ -142,6 +145,11 @@ is always enabled by default.
 For convenience,
 .Fn archive_read_support_compression_all
 enables all available decompression code.
+.It Fn archive_read_support_compression_program
+Data is fed through the specified external program before being dearchived.
+Note that this disables automatic detection of the compression format,
+so it makes no sense to specify this in conjunction with any other
+decompression option.
 .It Fn archive_read_support_format_all , Fn archive_read_support_format_cpio , Fn archive_read_support_format_empty , Fn archive_read_support_format_iso9660 , Fn archive_read_support_format_tar, Fn archive_read_support_format_zip
 Enables support---including auto-detection code---for the
 specified archive format.

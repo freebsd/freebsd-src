@@ -33,7 +33,7 @@ DEFINE_TEST(test_read_extract)
 	struct archive_entry *ae;
 	struct archive *a;
 	struct stat st;
-	ssize_t used;
+	size_t used;
 	int i;
 	char *buff, *file_buff;
 	int fd;

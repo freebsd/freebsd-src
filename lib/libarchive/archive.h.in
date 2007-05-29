@@ -141,6 +141,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_COMPRESSION_GZIP	1
 #define	ARCHIVE_COMPRESSION_BZIP2	2
 #define	ARCHIVE_COMPRESSION_COMPRESS	3
+#define	ARCHIVE_COMPRESSION_PROGRAM	4
 
 /*
  * Codes returned by archive_format.
@@ -207,6 +208,8 @@ int		 archive_read_support_compression_bzip2(struct archive *);
 int		 archive_read_support_compression_compress(struct archive *);
 int		 archive_read_support_compression_gzip(struct archive *);
 int		 archive_read_support_compression_none(struct archive *);
+int		 archive_read_support_compression_program(struct archive *,
+		     const char *command);
 
 int		 archive_read_support_format_all(struct archive *);
 int		 archive_read_support_format_ar(struct archive *);
@@ -319,6 +322,10 @@ int		 archive_read_data_into_fd(struct archive *, int fd);
 #define	ARCHIVE_EXTRACT_SECURE_SYMLINKS (256)
 /* Default: Do not reject entries with '..' as path elements. */
 #define	ARCHIVE_EXTRACT_SECURE_NODOTDOT (512)
+/* Default: Create parent directories as needed. */
+#define	ARCHIVE_EXTRACT_NO_AUTODIR (1024)
+/* Default: Overwrite files, even if one on disk is newer. */
+#define	ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER (2048)
 
 int		 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
@@ -373,6 +380,8 @@ int		 archive_write_set_skip_file(struct archive *, dev_t, ino_t);
 int		 archive_write_set_compression_bzip2(struct archive *);
 int		 archive_write_set_compression_gzip(struct archive *);
 int		 archive_write_set_compression_none(struct archive *);
+int		 archive_write_set_compression_program(struct archive *,
+		     const char *cmd);
 /* A convenience function to set the format based on the code or name. */
 int		 archive_write_set_format(struct archive *, int format_code);
 int		 archive_write_set_format_by_name(struct archive *,
@@ -494,6 +503,7 @@ const char	*archive_format_name(struct archive *);
 int		 archive_format(struct archive *);
 void		 archive_clear_error(struct archive *);
 void		 archive_set_error(struct archive *, int _err, const char *fmt, ...);
+void		 archive_copy_error(struct archive *dest, struct archive *src);
 
 #ifdef __cplusplus
 }

@@ -102,18 +102,18 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 
 	/* First entry is '.' root directory. */
 	assert(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp(".", archive_entry_pathname(ae)));
+	assertEqualString(".", archive_entry_pathname(ae));
 	assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
-	assert(2048 == archive_entry_size(ae));
-	assert(1 == archive_entry_mtime(ae));
-	assert(0 == archive_entry_mtime_nsec(ae));
-	assert(1 == archive_entry_ctime(ae));
-	assert(0 == archive_entry_stat(ae)->st_nlink);
-	assert(0 == archive_entry_uid(ae));
+	assertEqualInt(2048, archive_entry_size(ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(1, archive_entry_ctime(ae));
+	assertEqualInt(0, archive_entry_stat(ae)->st_nlink);
+	assertEqualInt(0, archive_entry_uid(ae));
 
 	/* A directory. */
 	assert(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("dir", archive_entry_pathname(ae)));
+	assertEqualString("dir", archive_entry_pathname(ae));
 	assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
 	assert(2048 == archive_entry_size(ae));
 	assert(1 == archive_entry_mtime(ae));
@@ -124,7 +124,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 
 	/* A regular file. */
 	assert(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("file", archive_entry_pathname(ae)));
+	assertEqualString("file", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
 	assert(6 == archive_entry_size(ae));
 	assert(0 == archive_read_data_block(a, &p, &size, &offset));
@@ -139,9 +139,9 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 
 	/* A hardlink to the regular file. */
 	assert(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("hardlink", archive_entry_pathname(ae)));
+	assertEqualString("hardlink", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
-	assert(0 == strcmp("file", archive_entry_hardlink(ae)));
+	assertEqualString("file", archive_entry_hardlink(ae));
 	assert(6 == archive_entry_size(ae));
 	assert(1 == archive_entry_mtime(ae));
 	assert(1 == archive_entry_atime(ae));
@@ -151,9 +151,9 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 
 	/* A symlink to the regular file. */
 	assert(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("symlink", archive_entry_pathname(ae)));
+	assertEqualString("symlink", archive_entry_pathname(ae));
 	assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
-	assert(0 == strcmp("file", archive_entry_symlink(ae)));
+	assertEqualString("file", archive_entry_symlink(ae));
 	assert(0 == archive_entry_size(ae));
 	assert(-2 == archive_entry_mtime(ae));
 	assert(-2 == archive_entry_atime(ae));

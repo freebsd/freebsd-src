@@ -79,7 +79,7 @@ archive_write_set_compression_bzip2(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_compression_bzip2");
-	a->compression_init = &archive_compressor_bzip2_init;
+	a->compressor.init = &archive_compressor_bzip2_init;
 	return (ARCHIVE_OK);
 }
 
@@ -121,13 +121,13 @@ archive_compressor_bzip2_init(struct archive_write *a)
 
 	state->stream.next_out = state->compressed;
 	state->stream.avail_out = state->compressed_buffer_size;
-	a->compression_write = archive_compressor_bzip2_write;
-	a->compression_finish = archive_compressor_bzip2_finish;
+	a->compressor.write = archive_compressor_bzip2_write;
+	a->compressor.finish = archive_compressor_bzip2_finish;
 
 	/* Initialize compression library */
 	ret = BZ2_bzCompressInit(&(state->stream), 9, 0, 30);
 	if (ret == BZ_OK) {
-		a->compression_data = state;
+		a->compressor.data = state;
 		return (ARCHIVE_OK);
 	}
 
@@ -171,7 +171,7 @@ archive_compressor_bzip2_write(struct archive_write *a, const void *buff,
 {
 	struct private_data *state;
 
-	state = (struct private_data *)a->compression_data;
+	state = (struct private_data *)a->compressor.data;
 	if (a->client_writer == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
@@ -205,7 +205,7 @@ archive_compressor_bzip2_finish(struct archive_write *a)
 	ssize_t bytes_written;
 	unsigned tocopy;
 
-	state = (struct private_data *)a->compression_data;
+	state = (struct private_data *)a->compressor.data;
 	ret = ARCHIVE_OK;
 	if (a->client_writer == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
@@ -282,11 +282,6 @@ cleanup:
 
 	free(state->compressed);
 	free(state);
-
-	/* Close the output */
-	if (a->client_closer != NULL)
-		(a->client_closer)(&a->archive, a->client_data);
-
 	return (ret);
 }
 

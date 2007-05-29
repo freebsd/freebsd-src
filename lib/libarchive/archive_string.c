@@ -52,6 +52,15 @@ __archive_string_append(struct archive_string *as, const char *p, size_t s)
 }
 
 void
+__archive_string_copy(struct archive_string *dest, struct archive_string *src)
+{
+	__archive_string_ensure(dest, src->length + 1);
+	memcpy(dest->s, src->s, src->length);
+	dest->length = src->length;
+	dest->s[dest->length] = 0;
+}
+
+void
 __archive_string_free(struct archive_string *as)
 {
 	as->length = 0;

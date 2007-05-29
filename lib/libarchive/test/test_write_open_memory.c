@@ -30,7 +30,7 @@ static unsigned char buff[16384];
 
 DEFINE_TEST(test_write_open_memory)
 {
-	int i;
+	unsigned int i;
 	struct archive *a;
 	struct archive_entry *ae;
 	const char *name="/tmp/test";
@@ -39,7 +39,7 @@ DEFINE_TEST(test_write_open_memory)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_pathname(ae, name);
 	archive_entry_set_mode(ae, S_IFREG);
-	assert(0 == strcmp(archive_entry_pathname(ae), name));
+	assertEqualString(archive_entry_pathname(ae), name);
 
 	/* Try writing with different buffer sizes. */
 	/* Make sure that we get failure on too-small buffers, success on

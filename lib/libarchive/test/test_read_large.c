@@ -32,8 +32,8 @@ static unsigned char buff[11 * 1024 * 1024];
 /* Check correct behavior on large reads. */
 DEFINE_TEST(test_read_large)
 {
-	int i;
-	int tmpfile;
+	unsigned int i;
+	int tmpfilefd;
 	char tmpfilename[] = "/tmp/test-read_large.XXXXXX";
 	size_t used;
 	struct archive *a;
@@ -77,17 +77,17 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
-	assert(0 < (tmpfile = mkstemp(tmpfilename)));
-	assertA(0 == archive_read_data_into_fd(a, tmpfile));
-	close(tmpfile);
+	assert(0 < (tmpfilefd = mkstemp(tmpfilename)));
+	assertA(0 == archive_read_data_into_fd(a, tmpfilefd));
+	close(tmpfilefd);
 #if ARCHIVE_API_VERSION > 1
 	assertA(0 == archive_read_finish(a));
 #else
 	archive_read_finish(a);
 #endif
-	tmpfile = open(tmpfilename, O_RDONLY);
-	read(tmpfile, testdatacopy, sizeof(testdatacopy));
-	close(tmpfile);
+	tmpfilefd = open(tmpfilename, O_RDONLY);
+	read(tmpfilefd, testdatacopy, sizeof(testdatacopy));
+	close(tmpfilefd);
 	assert(0 == memcmp(testdata, testdatacopy, sizeof(testdata)));
 
 	unlink(tmpfilename);
