@@ -455,6 +455,17 @@ to load a custom BOOTP diskless kernel yet
 still mount the server's
 .Pa /
 rather than load the server's kernel.
+.It Va LOADER_FIREWIRE_SUPPORT
+.Pq Vt bool
+Defining this and recompiling
+.Pa /usr/src/sys/boot/i386
+will add 
+.Xr dcons 4
+console driver to
+.Xr loader 8
+and allow access over FireWire(IEEE1394) using
+.Xr dconschat 8 .
+Currently, only i386 and amd64 are supported.
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.
