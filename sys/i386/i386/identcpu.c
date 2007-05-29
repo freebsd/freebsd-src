@@ -750,7 +750,7 @@ via_common:
 				"\015<b12>"
 				"\016CX16"	/* CMPXCHG16B Instruction */
 				"\017xTPR"	/* Send Task Priority Messages*/
-				"\020<b15>"
+				"\020PDCM"
 				"\021<b16>"
 				"\022<b17>"
 				"\023DCA"	/* Direct Cache Access */
