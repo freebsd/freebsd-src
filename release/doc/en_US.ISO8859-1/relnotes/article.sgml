@@ -2343,7 +2343,25 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 <sect1 id="upgrade">
   <title>Upgrading from previous releases of &os;</title>
 
-  <para></para>
+  <para>[&arch.i386;, &arch.amd64;] Beginning with &os; 6.2-RELEASE,
+    binary upgrades between RELEASE versions (and snapshots of the
+    various security branches) are supported using the
+    &man.freebsd-update.8; utility.  The binary upgrade procedure will
+    update unmodified userland utilities, as well as unmodified GENERIC or
+    SMP kernels distributed as a part of an official &os; release.
+    The &man.freebsd-update.8; utility requires that the host being
+    upgraded have Internet connectivity.</para>
+
+  <para>An older form of binary upgrade is supported through the
+    <command>Upgrade</command> option from the main &man.sysinstall.8;
+    menu on CDROM distribution media.  This type of binary upgrade
+    may be useful on non-&arch.i386;, non-&arch.amd64; machines
+    or on systems with no Internet connectivity.</para>
+
+  <para>Source-based upgrades (those based on recompiling the &os;
+    base system from source code) from previous versions are
+    supported, according to the instructions in
+    <filename>/usr/src/UPDATING</filename>.</para>
 
   <important>
     <para>Upgrading &os; should, of course, only be attempted after
