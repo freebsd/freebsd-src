@@ -142,7 +142,7 @@ sctp_allocate_vrf(int vrf_id)
 		return (vrf);
 	}
 	SCTP_MALLOC(vrf, struct sctp_vrf *, sizeof(struct sctp_vrf),
-	    "SCTP_VRF");
+	    SCTP_M_VRF);
 	if (vrf == NULL) {
 		/* No memory */
 #ifdef INVARIANTS
@@ -163,7 +163,7 @@ sctp_allocate_vrf(int vrf_id)
 #ifdef INVARIANTS
 		panic("No memory for VRF:%d", vrf_id);
 #endif
-		SCTP_FREE(vrf);
+		SCTP_FREE(vrf, SCTP_M_VRF);
 		return (NULL);
 	}
 	vrf->vrf_ifn_hash = SCTP_HASH_INIT(SCTP_VRF_IFN_HASH_SIZE,
@@ -174,7 +174,7 @@ sctp_allocate_vrf(int vrf_id)
 		panic("No memory for VRF:%d", vrf_id);
 #endif
 		SCTP_HASH_FREE(vrf->vrf_addr_hash, vrf->vrf_addr_hashmark);
-		SCTP_FREE(vrf);
+		SCTP_FREE(vrf, SCTP_M_VRF);
 		return (NULL);
 	}
 	/* Add it to the hash table */
@@ -233,7 +233,7 @@ sctp_free_ifn(struct sctp_ifn *sctp_ifnp)
 	ret = atomic_fetchadd_int(&sctp_ifnp->refcount, -1);
 	if (ret == 1) {
 		/* We zero'd the count */
-		SCTP_FREE(sctp_ifnp);
+		SCTP_FREE(sctp_ifnp, SCTP_M_IFN);
 		atomic_subtract_int(&sctppcbinfo.ipi_count_ifns, 1);
 	}
 }
@@ -262,7 +262,7 @@ sctp_free_ifa(struct sctp_ifa *sctp_ifap)
 	ret = atomic_fetchadd_int(&sctp_ifap->refcount, -1);
 	if (ret == 1) {
 		/* We zero'd the count */
-		SCTP_FREE(sctp_ifap);
+		SCTP_FREE(sctp_ifap, SCTP_M_IFA);
 		atomic_subtract_int(&sctppcbinfo.ipi_count_ifas, 1);
 	}
 }
@@ -318,7 +318,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		 * done though.
 		 */
 		SCTP_IPI_ADDR_UNLOCK();
-		SCTP_MALLOC(sctp_ifnp, struct sctp_ifn *, sizeof(struct sctp_ifn), "SCTP_IFN");
+		SCTP_MALLOC(sctp_ifnp, struct sctp_ifn *, sizeof(struct sctp_ifn), SCTP_M_IFN);
 		if (sctp_ifnp == NULL) {
 #ifdef INVARIANTS
 			panic("No memory for IFN:%u", sctp_ifnp->ifn_index);
@@ -376,7 +376,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		}
 	}
 	SCTP_IPI_ADDR_UNLOCK();
-	SCTP_MALLOC(sctp_ifap, struct sctp_ifa *, sizeof(struct sctp_ifa), "SCTP_IFA");
+	SCTP_MALLOC(sctp_ifap, struct sctp_ifa *, sizeof(struct sctp_ifa), SCTP_M_IFA);
 	if (sctp_ifap == NULL) {
 #ifdef INVARIANTS
 		panic("No memory for IFA");
@@ -461,11 +461,11 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		 * the newest first :-0
 		 */
 		LIST_INSERT_HEAD(&sctppcbinfo.addr_wq, wi, sctp_nxt_addr);
+		SCTP_IPI_ITERATOR_WQ_UNLOCK();
 		sctp_timer_start(SCTP_TIMER_TYPE_ADDR_WQ,
 		    (struct sctp_inpcb *)NULL,
 		    (struct sctp_tcb *)NULL,
 		    (struct sctp_nets *)NULL);
-		SCTP_IPI_ITERATOR_WQ_UNLOCK();
 	} else {
 		/* it's ready for use */
 		sctp_ifap->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
@@ -539,11 +539,12 @@ out_now:
 		 * the newest first :-0
 		 */
 		LIST_INSERT_HEAD(&sctppcbinfo.addr_wq, wi, sctp_nxt_addr);
+		SCTP_IPI_ITERATOR_WQ_UNLOCK();
+
 		sctp_timer_start(SCTP_TIMER_TYPE_ADDR_WQ,
 		    (struct sctp_inpcb *)NULL,
 		    (struct sctp_tcb *)NULL,
 		    (struct sctp_nets *)NULL);
-		SCTP_IPI_ITERATOR_WQ_UNLOCK();
 	}
 	return;
 }
@@ -2165,7 +2166,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 				SCTP_INP_DECR_REF(inp);
 				/* unlock info */
 				SCTP_INP_INFO_WUNLOCK();
-				return (EADDRNOTAVAIL);
+				return (EADDRINUSE);
 			}
 		} else {
 			inp_tmp = sctp_pcb_findep(addr, 0, 1, vrf_id);
@@ -2181,7 +2182,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 				SCTP_INP_DECR_REF(inp);
 				/* unlock info */
 				SCTP_INP_INFO_WUNLOCK();
-				return (EADDRNOTAVAIL);
+				return (EADDRINUSE);
 			}
 		}
 		SCTP_INP_WLOCK(inp);
@@ -2192,7 +2193,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 				SCTP_INP_DECR_REF(inp);
 				SCTP_INP_WUNLOCK(inp);
 				SCTP_INP_INFO_WUNLOCK();
-				return (EADDRNOTAVAIL);
+				return (EADDRINUSE);
 			}
 		}
 	} else {
@@ -2241,7 +2242,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 					SCTP_INP_DECR_REF(inp);
 					SCTP_INP_WUNLOCK(inp);
 					SCTP_INP_INFO_WUNLOCK();
-					return (EADDRNOTAVAIL);
+					return (EADDRINUSE);
 				}
 				if (candiate == last)
 					candiate = first;
@@ -2449,7 +2450,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	so = inp->sctp_socket;
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 		/* been here before.. eeks.. get out of here */
-		SCTP_PRINTF("This conflict in free SHOULD not be happening!\n");
+		SCTP_PRINTF("This conflict in free SHOULD not be happening! from %d, imm %d\n", from, immediate);
 		SCTP_ITERATOR_UNLOCK();
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 1);
@@ -3375,11 +3376,14 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 
 	if ((err = sctp_add_remote_addr(stcb, firstaddr, SCTP_DO_SETSCOPE, SCTP_ALLOC_ASOC))) {
 		/* failure.. memory error? */
-		if (asoc->strmout)
-			SCTP_FREE(asoc->strmout);
-		if (asoc->mapping_array)
-			SCTP_FREE(asoc->mapping_array);
-
+		if (asoc->strmout) {
+			SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
+			asoc->strmout = NULL;
+		}
+		if (asoc->mapping_array) {
+			SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
+			asoc->mapping_array = NULL;
+		}
 		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_asoc, stcb);
 		SCTP_DECR_ASOC_COUNT();
 		SCTP_TCB_LOCK_DESTROY(stcb);
@@ -3526,7 +3530,7 @@ sctp_add_vtag_to_timewait(struct sctp_inpcb *inp, uint32_t tag, uint32_t time)
 	/* Need to add a new block to chain */
 	if (!set) {
 		SCTP_MALLOC(twait_block, struct sctp_tagblock *,
-		    sizeof(struct sctp_tagblock), "TimeWait");
+		    sizeof(struct sctp_tagblock), SCTP_M_TIMW);
 		if (twait_block == NULL) {
 			return;
 		}
@@ -3877,7 +3881,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	/* sa_ignore FREED_MEMORY */
 	while ((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) {
 		TAILQ_REMOVE(&asoc->resetHead, liste, next_resp);
-		SCTP_FREE(liste);
+		SCTP_FREE(liste, SCTP_M_STRESET);
 	}
 
 	sq = TAILQ_FIRST(&asoc->pending_reply_queue);
@@ -4004,12 +4008,12 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
   }
 */
 	if (asoc->mapping_array) {
-		SCTP_FREE(asoc->mapping_array);
+		SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
 		asoc->mapping_array = NULL;
 	}
 	/* the stream outs */
 	if (asoc->strmout) {
-		SCTP_FREE(asoc->strmout);
+		SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
 		asoc->strmout = NULL;
 	}
 	asoc->streamoutcnt = 0;
@@ -4039,7 +4043,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 				}
 			}
 		}
-		SCTP_FREE(asoc->strmin);
+		SCTP_FREE(asoc->strmin, SCTP_M_STRMI);
 		asoc->strmin = NULL;
 	}
 	asoc->streamincnt = 0;
@@ -4069,7 +4073,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		/* sa_ignore FREED_MEMORY */
 		aparam = TAILQ_FIRST(&asoc->asconf_queue);
 		TAILQ_REMOVE(&asoc->asconf_queue, aparam, next);
-		SCTP_FREE(aparam);
+		SCTP_FREE(aparam, SCTP_M_ASC_ADDR);
 	}
 	if (asoc->last_asconf_ack_sent != NULL) {
 		sctp_m_freem(asoc->last_asconf_ack_sent);
@@ -4589,7 +4593,9 @@ sctp_pcb_init()
 	SCTP_IPI_COUNT_INIT();
 	SCTP_IPI_ADDR_INIT();
 	SCTP_IPI_ITERATOR_WQ_INIT();
-
+#ifdef SCTP_PACKET_LOGGING
+	SCTP_IP_PKTLOG_INIT();
+#endif
 	LIST_INIT(&sctppcbinfo.addr_wq);
 
 	/* not sure if we need all the counts */
@@ -5559,7 +5565,7 @@ sctp_initiate_iterator(inp_func inpf,
 		return (-1);
 	}
 	SCTP_MALLOC(it, struct sctp_iterator *, sizeof(struct sctp_iterator),
-	    "Iterator");
+	    SCTP_M_ITER);
 	if (it == NULL) {
 		return (ENOMEM);
 	}

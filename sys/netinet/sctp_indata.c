@@ -327,7 +327,7 @@ sctp_build_ctl_cchunk(struct sctp_inpcb *inp,
 	} else {
 		len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
 	}
-	SCTP_MALLOC(buf, char *, len, "SCTP_CMSG");
+	SCTP_MALLOC(buf, char *, len, SCTP_M_CMSG);
 	if (buf == NULL) {
 		/* No space */
 		return (buf);
@@ -1481,6 +1481,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		return (0);
 	}
 	if (gap >= (uint32_t) (asoc->mapping_array_size << 3)) {
+		SCTP_TCB_LOCK_ASSERT(stcb);
 		if (sctp_expand_mapping_array(asoc)) {
 			/* Can't expand, drop it */
 			return (0);
@@ -1587,6 +1588,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			sctp_queue_op_err(stcb, mb);
 		}
 		SCTP_STAT_INCR(sctps_badsid);
+		SCTP_TCB_LOCK_ASSERT(stcb);
 		SCTP_SET_TSN_PRESENT(asoc->mapping_array, gap);
 		if (compare_with_wrap(tsn, asoc->highest_tsn_inside_map, MAX_TSN)) {
 			/* we have a new high score */
@@ -2089,6 +2091,7 @@ finish_express_del:
 	sctp_log_map(asoc->mapping_array_base_tsn, asoc->cumulative_tsn,
 	    asoc->highest_tsn_inside_map, SCTP_MAP_PREPARE_SLIDE);
 #endif
+	SCTP_TCB_LOCK_ASSERT(stcb);
 	SCTP_SET_TSN_PRESENT(asoc->mapping_array, gap);
 	/* check the special flag for stream resets */
 	if (((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) &&
@@ -2105,7 +2108,7 @@ finish_express_del:
 
 		sctp_reset_in_stream(stcb, liste->number_entries, liste->req.list_of_streams);
 		TAILQ_REMOVE(&asoc->resetHead, liste, next_resp);
-		SCTP_FREE(liste);
+		SCTP_FREE(liste, SCTP_M_STRESET);
 		/* sa_ignore FREED_MEMORY */
 		liste = TAILQ_FIRST(&asoc->resetHead);
 		ctl = TAILQ_FIRST(&asoc->pending_reply_queue);
@@ -5742,8 +5745,10 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 			gap = asoc->highest_tsn_inside_map +
 			    (MAX_TSN - asoc->mapping_array_base_tsn) + 1;
 		}
+		SCTP_STAT_INCR(sctps_fwdtsn_map_over);
 		cumack_set_flag = 1;
 	}
+	SCTP_TCB_LOCK_ASSERT(stcb);
 	for (i = 0; i <= gap; i++) {
 		SCTP_SET_TSN_PRESENT(asoc->mapping_array, i);
 	}
