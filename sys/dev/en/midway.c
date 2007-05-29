@@ -126,7 +126,6 @@ enum {
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kdb.h>
 #include <sys/queue.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>

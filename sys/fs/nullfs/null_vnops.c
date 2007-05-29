@@ -180,7 +180,6 @@
 #include <sys/namei.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
-#include <sys/kdb.h>
 
 #include <fs/nullfs/null.h>
 
