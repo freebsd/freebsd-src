@@ -856,13 +856,8 @@ via_common:
 			}
 
 			if (cpu_feature & CPUID_HTT && strcmp(cpu_vendor,
-			    "AuthenticAMD") == 0) {
+			    "AuthenticAMD") == 0)
 				cpu_feature &= ~CPUID_HTT;
-				if (bootverbose)
-	    				printf("\nHTT bit cleared - FreeBSD"
-					    " does not have licensing issues"
-					    " requiring it.\n");
-			}
 
 			/*
 			 * If this CPU supports HTT or CMP then mention the
