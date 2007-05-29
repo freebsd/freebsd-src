@@ -4592,14 +4592,19 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	ath_hal_setledstate(ah, leds[nstate]);	/* set LED */
 
 	if (nstate == IEEE80211_S_INIT) {
+		/*
+		 * Shutdown host/driver operation:
+		 * o disable interrupts so we don't rx frames
+		 * o clean any pending items on the task q
+		 * o notify the rate control algorithm
+		 */
 		sc->sc_imask &= ~(HAL_INT_SWBA | HAL_INT_BMISS);
-		/*
-		 * NB: disable interrupts so we don't rx frames.
-		 */
 		ath_hal_intrset(ah, sc->sc_imask &~ HAL_INT_GLOBAL);
-		/*
-		 * Notify the rate control algorithm.
-		 */
+		/* XXX can't use taskqueue_drain 'cuz we're holding sc_mtx */
+		taskqueue_drain(sc->sc_tq, &sc->sc_rxtask);
+		taskqueue_drain(sc->sc_tq, &sc->sc_rxorntask);
+		taskqueue_drain(sc->sc_tq, &sc->sc_bmisstask);
+		taskqueue_drain(sc->sc_tq, &sc->sc_bstucktask);
 		ath_rate_newstate(sc, nstate);
 		goto done;
 	}
