@@ -697,6 +697,9 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 		if (isr->saidx.mode == IPSEC_MODE_TUNNEL)
 			break;
 	}
+
+	IPSECREQUEST_LOCK(isr);		/* insure SA contents don't change */
+
 	isr = ipsec_nextisr(m, isr, AF_INET6, &saidx, &error);
 	if (isr == NULL)
 		goto bad;
@@ -769,10 +772,14 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 		goto bad;
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
-	return (*isr->sav->tdb_xform->xf_output)(m, isr, NULL,
+	error = (*isr->sav->tdb_xform->xf_output)(m, isr, NULL,
 		sizeof (struct ip6_hdr),
 		offsetof(struct ip6_hdr, ip6_nxt));
+	IPSECREQUEST_UNLOCK(isr);
+	return error;
 bad:
+	if (isr)
+		IPSECREQUEST_UNLOCK(isr);
 	if (m)
 		m_freem(m);
 	state->m = NULL;
