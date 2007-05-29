@@ -26,16 +26,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#ifdef MAJOR_IN_MKDEV
-#include <sys/mkdev.h>
-#else
-#ifdef MAJOR_IN_SYSMACROS
-#include <sys/sysmacros.h>
-#endif
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -44,9 +34,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef HAVE_STRING_H
 #include <string.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
 #endif
 
 #include "archive.h"
@@ -67,8 +54,8 @@ static void		 add_pax_attr_int(struct archive_string *,
 static void		 add_pax_attr_time(struct archive_string *,
 			     const char *key, int64_t sec,
 			     unsigned long nanos);
-static void		 add_pax_attr_w(struct archive_string *, const char *,
-			     const wchar_t *, const wchar_t *);
+static void		 add_pax_attr_w(struct archive_string *,
+			     const char *key, const wchar_t *wvalue);
 static ssize_t		 archive_write_pax_data(struct archive_write *,
 			     const void *, size_t);
 static int		 archive_write_pax_finish(struct archive_write *);
@@ -205,42 +192,30 @@ add_pax_attr_int(struct archive_string *as, const char *key, int64_t value)
 	add_pax_attr(as, key, format_int(tmp + sizeof(tmp) - 1, value));
 }
 
-/*
- * UTF-8 encode the concatenation of two strings.
- *
- * This interface eliminates the need to do some string
- * manipulations at higher layers.
- */
 static char *
-utf8_encode(const wchar_t *wval1, const wchar_t *wval2)
+utf8_encode(const wchar_t *wval)
 {
 	int utf8len;
-	const wchar_t *wp, **wpp;
+	const wchar_t *wp;
 	unsigned long wc;
 	char *utf8_value, *p;
-	const wchar_t *vals[2];
-
-	vals[0] = wval1;
-	vals[1] = wval2;
 
 	utf8len = 0;
-	for (wpp = vals; wpp < vals + 2 && *wpp; wpp++) {
-		for (wp = *wpp; *wp != L'\0'; ) {
-			wc = *wp++;
-			if (wc <= 0x7f)
-				utf8len++;
-			else if (wc <= 0x7ff)
-				utf8len += 2;
-			else if (wc <= 0xffff)
-				utf8len += 3;
-			else if (wc <= 0x1fffff)
-				utf8len += 4;
-			else if (wc <= 0x3ffffff)
-				utf8len += 5;
-			else if (wc <= 0x7fffffff)
-				utf8len += 6;
-			/* Ignore larger values; UTF-8 can't encode them. */
-		}
+	for (wp = wval; *wp != L'\0'; ) {
+		wc = *wp++;
+		if (wc <= 0x7f)
+			utf8len++;
+		else if (wc <= 0x7ff)
+			utf8len += 2;
+		else if (wc <= 0xffff)
+			utf8len += 3;
+		else if (wc <= 0x1fffff)
+			utf8len += 4;
+		else if (wc <= 0x3ffffff)
+			utf8len += 5;
+		else if (wc <= 0x7fffffff)
+			utf8len += 6;
+		/* Ignore larger values; UTF-8 can't encode them. */
 	}
 
 	utf8_value = (char *)malloc(utf8len + 1);
@@ -249,45 +224,42 @@ utf8_encode(const wchar_t *wval1, const wchar_t *wval2)
 		return (NULL);
 	}
 
-	p = utf8_value;
-	for (wpp = vals; wpp < vals + 2 && *wpp; wpp++) {
-		for (wp = *wpp; *wp != L'\0'; ) {
-			wc = *wp++;
-			if (wc <= 0x7f) {
-				*p++ = (char)wc;
-			} else if (wc <= 0x7ff) {
-				p[0] = 0xc0 | ((wc >> 6) & 0x1f);
-				p[1] = 0x80 | (wc & 0x3f);
-				p += 2;
-			} else if (wc <= 0xffff) {
-				p[0] = 0xe0 | ((wc >> 12) & 0x0f);
-				p[1] = 0x80 | ((wc >> 6) & 0x3f);
-				p[2] = 0x80 | (wc & 0x3f);
-				p += 3;
-			} else if (wc <= 0x1fffff) {
-				p[0] = 0xf0 | ((wc >> 18) & 0x07);
-				p[1] = 0x80 | ((wc >> 12) & 0x3f);
-				p[2] = 0x80 | ((wc >> 6) & 0x3f);
-				p[3] = 0x80 | (wc & 0x3f);
-				p += 4;
-			} else if (wc <= 0x3ffffff) {
-				p[0] = 0xf8 | ((wc >> 24) & 0x03);
-				p[1] = 0x80 | ((wc >> 18) & 0x3f);
-				p[2] = 0x80 | ((wc >> 12) & 0x3f);
-				p[3] = 0x80 | ((wc >> 6) & 0x3f);
-				p[4] = 0x80 | (wc & 0x3f);
-				p += 5;
-			} else if (wc <= 0x7fffffff) {
-				p[0] = 0xfc | ((wc >> 30) & 0x01);
-				p[1] = 0x80 | ((wc >> 24) & 0x3f);
-				p[1] = 0x80 | ((wc >> 18) & 0x3f);
-				p[2] = 0x80 | ((wc >> 12) & 0x3f);
-				p[3] = 0x80 | ((wc >> 6) & 0x3f);
-				p[4] = 0x80 | (wc & 0x3f);
-				p += 6;
-			}
-			/* Ignore larger values; UTF-8 can't encode them. */
+	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
+		wc = *wp++;
+		if (wc <= 0x7f) {
+			*p++ = (char)wc;
+		} else if (wc <= 0x7ff) {
+			p[0] = 0xc0 | ((wc >> 6) & 0x1f);
+			p[1] = 0x80 | (wc & 0x3f);
+			p += 2;
+		} else if (wc <= 0xffff) {
+			p[0] = 0xe0 | ((wc >> 12) & 0x0f);
+			p[1] = 0x80 | ((wc >> 6) & 0x3f);
+			p[2] = 0x80 | (wc & 0x3f);
+			p += 3;
+		} else if (wc <= 0x1fffff) {
+			p[0] = 0xf0 | ((wc >> 18) & 0x07);
+			p[1] = 0x80 | ((wc >> 12) & 0x3f);
+			p[2] = 0x80 | ((wc >> 6) & 0x3f);
+			p[3] = 0x80 | (wc & 0x3f);
+			p += 4;
+		} else if (wc <= 0x3ffffff) {
+			p[0] = 0xf8 | ((wc >> 24) & 0x03);
+			p[1] = 0x80 | ((wc >> 18) & 0x3f);
+			p[2] = 0x80 | ((wc >> 12) & 0x3f);
+			p[3] = 0x80 | ((wc >> 6) & 0x3f);
+			p[4] = 0x80 | (wc & 0x3f);
+			p += 5;
+		} else if (wc <= 0x7fffffff) {
+			p[0] = 0xfc | ((wc >> 30) & 0x01);
+			p[1] = 0x80 | ((wc >> 24) & 0x3f);
+			p[1] = 0x80 | ((wc >> 18) & 0x3f);
+			p[2] = 0x80 | ((wc >> 12) & 0x3f);
+			p[3] = 0x80 | ((wc >> 6) & 0x3f);
+			p[4] = 0x80 | (wc & 0x3f);
+			p += 6;
 		}
+		/* Ignore larger values; UTF-8 can't encode them. */
 	}
 	*p = '\0';
 
@@ -295,10 +267,9 @@ utf8_encode(const wchar_t *wval1, const wchar_t *wval2)
 }
 
 static void
-add_pax_attr_w(struct archive_string *as, const char *key,
-    const wchar_t *wval1, const wchar_t *wval2)
+add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 {
-	char *utf8_value = utf8_encode(wval1, wval2);
+	char *utf8_value = utf8_encode(wval);
 	if (utf8_value == NULL)
 		return;
 	add_pax_attr(as, key, utf8_value);
@@ -383,7 +354,7 @@ archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
 			free(url_encoded_name); /* Done with this. */
 		}
 		if (wcs_name != NULL) {
-			encoded_name = utf8_encode(wcs_name, NULL);
+			encoded_name = utf8_encode(wcs_name);
 			free(wcs_name); /* Done with wchar_t name. */
 		}
 
@@ -413,13 +384,12 @@ archive_write_pax_header(struct archive_write *a,
 {
 	struct archive_entry *entry_main;
 	const char *linkname, *p;
+	char *t;
 	const char *hardlink;
 	const wchar_t *wp;
 	const char *suffix_start;
 	int need_extension, r, ret;
-	int need_slash = 0;
 	struct pax *pax;
-	const struct stat *st_main, *st_original;
 
 	char paxbuff[512];
 	char ustarbuff[512];
@@ -429,28 +399,37 @@ archive_write_pax_header(struct archive_write *a,
 	need_extension = 0;
 	pax = (struct pax *)a->format_data;
 
-	st_original = archive_entry_stat(entry_original);
-
 	hardlink = archive_entry_hardlink(entry_original);
 
 	/* Make sure this is a type of entry that we can handle here */
 	if (hardlink == NULL) {
-		switch (st_original->st_mode & S_IFMT) {
-		case S_IFREG:
-		case S_IFLNK:
-		case S_IFCHR:
-		case S_IFBLK:
-		case S_IFDIR:
-		case S_IFIFO:
+		switch (archive_entry_filetype(entry_original)) {
+		case AE_IFBLK:
+		case AE_IFCHR:
+		case AE_IFIFO:
+		case AE_IFLNK:
+		case AE_IFREG:
 			break;
-		case S_IFSOCK:
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive socket");
-			return (ARCHIVE_WARN);
+		case AE_IFDIR:
+			/*
+			 * Ensure a trailing '/'.  Modify the original
+			 * entry so the client sees the change.
+			 */
+			p = archive_entry_pathname(entry_original);
+			if (p[strlen(p) - 1] != '/') {
+				t = (char *)malloc(strlen(p) + 2);
+				if (t != NULL) {
+					strcpy(t, p);
+					strcat(t, "/");
+					archive_entry_copy_pathname(entry_original, t);
+					free(t);
+				}
+			}
+			break;
 		default:
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive this (mode=0%lo)",
-			    (unsigned long)st_original->st_mode);
+			    "tar format cannot archive this (type=0%lo)",
+			    (unsigned long)archive_entry_filetype(entry_original));
 			return (ARCHIVE_WARN);
 		}
 	}
@@ -458,7 +437,6 @@ archive_write_pax_header(struct archive_write *a,
 	/* Copy entry so we can modify it as needed. */
 	entry_main = archive_entry_clone(entry_original);
 	archive_string_empty(&(pax->pax_header)); /* Blank our work area. */
-	st_main = archive_entry_stat(entry_main);
 
 	/*
 	 * Determining whether or not the name is too big is ugly
@@ -468,23 +446,18 @@ archive_write_pax_header(struct archive_write *a,
 	 */
 	wp = archive_entry_pathname_w(entry_main);
 	p = archive_entry_pathname(entry_main);
-	if (S_ISDIR(st_original->st_mode))
-		if (p[strlen(p) - 1] != '/')
-			need_slash = 1;
-	/* Short enough for just 'name' field */
-	if (strlen(p) + need_slash <= 100)
+	if (strlen(p) <= 100)	/* Short enough for just 'name' field */
 		suffix_start = p;	/* Record a zero-length prefix */
 	else
 		/* Find the largest suffix that fits in 'name' field. */
-		suffix_start = strchr(p + strlen(p) + need_slash - 100 - 1, '/');
+		suffix_start = strchr(p + strlen(p) - 100 - 1, '/');
 
 	/*
 	 * If name is too long, or has non-ASCII characters, add
 	 * 'path' to pax extended attrs.
 	 */
 	if (suffix_start == NULL || suffix_start - p > 155 || has_non_ASCII(wp)) {
-		add_pax_attr_w(&(pax->pax_header), "path", wp,
-		    need_slash ? L"/" : NULL);
+		add_pax_attr_w(&(pax->pax_header), "path", wp);
 		archive_entry_set_pathname(entry_main,
 		    build_ustar_entry_name(ustar_entry_name, p, strlen(p), NULL));
 		need_extension = 1;
@@ -506,7 +479,7 @@ archive_write_pax_header(struct archive_write *a,
 		/* If the link is long or has a non-ASCII character,
 		 * store it as a pax extended attribute. */
 		if (strlen(linkname) > 100 || has_non_ASCII(wp)) {
-			add_pax_attr_w(&(pax->pax_header), "linkpath", wp, NULL);
+			add_pax_attr_w(&(pax->pax_header), "linkpath", wp);
 			if (hardlink != NULL)
 				archive_entry_set_hardlink(entry_main,
 				    "././@LongHardLink");
@@ -518,14 +491,16 @@ archive_write_pax_header(struct archive_write *a,
 	}
 
 	/* If file size is too large, add 'size' to pax extended attrs. */
-	if (st_main->st_size >= (((int64_t)1) << 33)) {
-		add_pax_attr_int(&(pax->pax_header), "size", st_main->st_size);
+	if (archive_entry_size(entry_main) >= (((int64_t)1) << 33)) {
+		add_pax_attr_int(&(pax->pax_header), "size",
+		    archive_entry_size(entry_main));
 		need_extension = 1;
 	}
 
 	/* If numeric GID is too large, add 'gid' to pax extended attrs. */
-	if (st_main->st_gid >= (1 << 18)) {
-		add_pax_attr_int(&(pax->pax_header), "gid", st_main->st_gid);
+	if (archive_entry_gid(entry_main) >= (1 << 18)) {
+		add_pax_attr_int(&(pax->pax_header), "gid",
+		    archive_entry_gid(entry_main));
 		need_extension = 1;
 	}
 
@@ -534,14 +509,15 @@ archive_write_pax_header(struct archive_write *a,
 	p = archive_entry_gname(entry_main);
 	wp = archive_entry_gname_w(entry_main);
 	if (p != NULL && (strlen(p) > 31 || has_non_ASCII(wp))) {
-		add_pax_attr_w(&(pax->pax_header), "gname", wp, NULL);
+		add_pax_attr_w(&(pax->pax_header), "gname", wp);
 		archive_entry_set_gname(entry_main, NULL);
 		need_extension = 1;
 	}
 
 	/* If numeric UID is too large, add 'uid' to pax extended attrs. */
-	if (st_main->st_uid >= (1 << 18)) {
-		add_pax_attr_int(&(pax->pax_header), "uid", st_main->st_uid);
+	if (archive_entry_uid(entry_main) >= (1 << 18)) {
+		add_pax_attr_int(&(pax->pax_header), "uid",
+		    archive_entry_uid(entry_main));
 		need_extension = 1;
 	}
 
@@ -550,7 +526,7 @@ archive_write_pax_header(struct archive_write *a,
 	p = archive_entry_uname(entry_main);
 	wp = archive_entry_uname_w(entry_main);
 	if (p != NULL && (strlen(p) > 31 || has_non_ASCII(wp))) {
-		add_pax_attr_w(&(pax->pax_header), "uname", wp, NULL);
+		add_pax_attr_w(&(pax->pax_header), "uname", wp);
 		archive_entry_set_uname(entry_main, NULL);
 		need_extension = 1;
 	}
@@ -566,15 +542,15 @@ archive_write_pax_header(struct archive_write *a,
 	 *
 	 * Of course, this is only needed for block or char device entries.
 	 */
-	if (S_ISBLK(st_main->st_mode) ||
-	    S_ISCHR(st_main->st_mode)) {
+	if (archive_entry_filetype(entry_main) == AE_IFBLK
+	    || archive_entry_filetype(entry_main) == AE_IFCHR) {
 		/*
 		 * If rdevmajor is too large, add 'SCHILY.devmajor' to
 		 * extended attributes.
 		 */
 		dev_t rdevmajor, rdevminor;
-		rdevmajor = major(st_main->st_rdev);
-		rdevminor = minor(st_main->st_rdev);
+		rdevmajor = archive_entry_rdevmajor(entry_main);
+		rdevminor = archive_entry_rdevminor(entry_main);
 		if (rdevmajor >= (1 << 18)) {
 			add_pax_attr_int(&(pax->pax_header), "SCHILY.devmajor",
 			    rdevmajor);
@@ -615,7 +591,8 @@ archive_write_pax_header(struct archive_write *a,
 	 * high-resolution timestamp in "restricted pax" mode.
 	 */
 	if (!need_extension &&
-	    ((st_main->st_mtime < 0) || (st_main->st_mtime >= 0x7fffffff)))
+	    ((archive_entry_mtime(entry_main) < 0)
+		|| (archive_entry_mtime(entry_main) >= 0x7fffffff)))
 		need_extension = 1;
 
 	/* I use a star-compatible file flag attribute. */
@@ -647,24 +624,24 @@ archive_write_pax_header(struct archive_write *a,
 	if (a->archive_format != ARCHIVE_FORMAT_TAR_PAX_RESTRICTED ||
 	    need_extension) {
 
-		if (st_main->st_mtime < 0  ||
-		    st_main->st_mtime >= 0x7fffffff  ||
-		    ARCHIVE_STAT_MTIME_NANOS(st_main) != 0)
+		if (archive_entry_mtime(entry_main) < 0  ||
+		    archive_entry_mtime(entry_main) >= 0x7fffffff  ||
+		    archive_entry_mtime_nsec(entry_main) != 0)
 			add_pax_attr_time(&(pax->pax_header), "mtime",
-			    st_main->st_mtime,
-			    ARCHIVE_STAT_MTIME_NANOS(st_main));
+			    archive_entry_mtime(entry_main),
+			    archive_entry_mtime_nsec(entry_main));
 
-		if (st_main->st_ctime != 0  ||
-		    ARCHIVE_STAT_CTIME_NANOS(st_main) != 0)
+		if (archive_entry_ctime(entry_main) != 0  ||
+		    archive_entry_ctime_nsec(entry_main) != 0)
 			add_pax_attr_time(&(pax->pax_header), "ctime",
-			    st_main->st_ctime,
-			    ARCHIVE_STAT_CTIME_NANOS(st_main));
+			    archive_entry_ctime(entry_main),
+			    archive_entry_ctime_nsec(entry_main));
 
-		if (st_main->st_atime != 0  ||
-		    ARCHIVE_STAT_ATIME_NANOS(st_main) != 0)
+		if (archive_entry_atime(entry_main) != 0 ||
+		    archive_entry_atime_nsec(entry_main) != 0)
 			add_pax_attr_time(&(pax->pax_header), "atime",
-			    st_main->st_atime,
-			    ARCHIVE_STAT_ATIME_NANOS(st_main));
+			    archive_entry_atime(entry_main),
+			    archive_entry_atime_nsec(entry_main));
 
 		/* I use a star-compatible file flag attribute. */
 		p = archive_entry_fflags_text(entry_main);
@@ -677,30 +654,30 @@ archive_write_pax_header(struct archive_write *a,
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
 		if (wp != NULL && *wp != L'\0')
 			add_pax_attr_w(&(pax->pax_header),
-			    "SCHILY.acl.access", wp, NULL);
+			    "SCHILY.acl.access", wp);
 		wp = archive_entry_acl_text_w(entry_original,
 		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT |
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
 		if (wp != NULL && *wp != L'\0')
 			add_pax_attr_w(&(pax->pax_header),
-			    "SCHILY.acl.default", wp, NULL);
+			    "SCHILY.acl.default", wp);
 
 		/* Include star-compatible metadata info. */
 		/* Note: "SCHILY.dev{major,minor}" are NOT the
 		 * major/minor portions of "SCHILY.dev". */
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.dev",
-		    st_main->st_dev);
+		    archive_entry_dev(entry_main));
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.ino",
-		    st_main->st_ino);
+		    archive_entry_ino(entry_main));
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.nlink",
-		    st_main->st_nlink);
+		    archive_entry_nlink(entry_main));
 
 		/* Store extended attributes */
 		archive_write_pax_header_xattrs(pax, entry_original);
 	}
 
 	/* Only regular files have data. */
-	if (!S_ISREG(archive_entry_mode(entry_main)))
+	if (archive_entry_filetype(entry_main) != AE_IFREG)
 		archive_entry_set_size(entry_main, 0);
 
 	/*
@@ -755,36 +732,40 @@ archive_write_pax_header(struct archive_write *a,
 	/* If we built any extended attributes, write that entry first. */
 	ret = ARCHIVE_OK;
 	if (archive_strlen(&(pax->pax_header)) > 0) {
-		struct stat st;
 		struct archive_entry *pax_attr_entry;
 		time_t s;
+		uid_t uid;
+		gid_t gid;
+		mode_t mode;
 		long ns;
 
-		memset(&st, 0, sizeof(st));
 		pax_attr_entry = archive_entry_new();
 		p = archive_entry_pathname(entry_main);
 		archive_entry_set_pathname(pax_attr_entry,
 		    build_pax_attribute_name(pax_entry_name, p));
-		st.st_size = archive_strlen(&(pax->pax_header));
+		archive_entry_set_size(pax_attr_entry,
+		    archive_strlen(&(pax->pax_header)));
 		/* Copy uid/gid (but clip to ustar limits). */
-		st.st_uid = st_main->st_uid;
-		if (st.st_uid >= 1 << 18)
-			st.st_uid = (1 << 18) - 1;
-		st.st_gid = st_main->st_gid;
-		if (st.st_gid >= 1 << 18)
-			st.st_gid = (1 << 18) - 1;
+		uid = archive_entry_uid(entry_main);
+		if (uid >= 1 << 18)
+			uid = (1 << 18) - 1;
+		archive_entry_set_uid(pax_attr_entry, uid);
+		gid = archive_entry_gid(entry_main);
+		if (gid >= 1 << 18)
+			gid = (1 << 18) - 1;
+		archive_entry_set_gid(pax_attr_entry, gid);
 		/* Copy mode over (but not setuid/setgid bits) */
-		st.st_mode = st_main->st_mode;
+		mode = archive_entry_mode(entry_main);
 #ifdef S_ISUID
-		st.st_mode &= ~S_ISUID;
+		mode &= ~S_ISUID;
 #endif
 #ifdef S_ISGID
-		st.st_mode &= ~S_ISGID;
+		mode &= ~S_ISGID;
 #endif
 #ifdef S_ISVTX
-		st.st_mode &= ~S_ISVTX;
+		mode &= ~S_ISVTX;
 #endif
-		archive_entry_copy_stat(pax_attr_entry, &st);
+		archive_entry_set_mode(pax_attr_entry, mode);
 
 		/* Copy uname/gname. */
 		archive_entry_set_uname(pax_attr_entry,
@@ -821,7 +802,7 @@ archive_write_pax_header(struct archive_write *a,
 			write(2, msg, strlen(msg));
 			exit(1);
 		}
-		r = (a->compression_write)(a, paxbuff, 512);
+		r = (a->compressor.write)(a, paxbuff, 512);
 		if (r != ARCHIVE_OK) {
 			pax->entry_bytes_remaining = 0;
 			pax->entry_padding = 0;
@@ -831,7 +812,7 @@ archive_write_pax_header(struct archive_write *a,
 		pax->entry_bytes_remaining = archive_strlen(&(pax->pax_header));
 		pax->entry_padding = 0x1ff & (-(int64_t)pax->entry_bytes_remaining);
 
-		r = (a->compression_write)(a, pax->pax_header.s,
+		r = (a->compressor.write)(a, pax->pax_header.s,
 		    archive_strlen(&(pax->pax_header)));
 		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
@@ -847,7 +828,7 @@ archive_write_pax_header(struct archive_write *a,
 	}
 
 	/* Write the header for main entry. */
-	r = (a->compression_write)(a, ustarbuff, 512);
+	r = (a->compressor.write)(a, ustarbuff, 512);
 	if (r != ARCHIVE_OK)
 		return (r);
 
@@ -1068,7 +1049,7 @@ archive_write_pax_finish(struct archive_write *a)
 	struct pax *pax;
 	int r;
 
-	if (a->compression_write == NULL)
+	if (a->compressor.write == NULL)
 		return (ARCHIVE_OK);
 
 	pax = (struct pax *)a->format_data;
@@ -1107,7 +1088,7 @@ write_nulls(struct archive_write *a, size_t padding)
 
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
-		ret = (a->compression_write)(a, a->nulls, to_write);
+		ret = (a->compressor.write)(a, a->nulls, to_write);
 		if (ret != ARCHIVE_OK)
 			return (ret);
 		padding -= to_write;
@@ -1125,7 +1106,7 @@ archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 	if (s > pax->entry_bytes_remaining)
 		s = pax->entry_bytes_remaining;
 
-	ret = (a->compression_write)(a, buff, s);
+	ret = (a->compressor.write)(a, buff, s);
 	pax->entry_bytes_remaining -= s;
 	if (ret == ARCHIVE_OK)
 		return (s);

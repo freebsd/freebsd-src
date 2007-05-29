@@ -99,9 +99,7 @@ archive_read_extract(struct archive *_a, struct archive_entry *entry, int flags)
 		r = ARCHIVE_WARN;
 	if (r != ARCHIVE_OK)
 		/* If _write_header failed, copy the error. */
-		archive_set_error(&a->archive,
-		    archive_errno(extract->ad),
-		    "%s", archive_error_string(extract->ad));
+ 		archive_copy_error(&a->archive, extract->ad);
 	else
 		/* Otherwise, pour data into the entry. */
 		r = copy_data(_a, a->extract->ad);
@@ -110,9 +108,7 @@ archive_read_extract(struct archive *_a, struct archive_entry *entry, int flags)
 		r2 = ARCHIVE_WARN;
 	/* Use the first message. */
 	if (r2 != ARCHIVE_OK && r == ARCHIVE_OK)
-		archive_set_error(&a->archive,
-		    archive_errno(extract->ad),
-		    "%s", archive_error_string(extract->ad));
+ 		archive_copy_error(&a->archive, extract->ad);
 	/* Use the worst error return. */
 	if (r2 < r)
 		r = r2;

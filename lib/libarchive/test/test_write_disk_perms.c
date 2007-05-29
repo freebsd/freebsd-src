@@ -27,9 +27,9 @@ __FBSDID("$FreeBSD$");
 
 #define UMASK 022
 
-static gid_t _default_gid = 0;
-static gid_t _invalid_gid = 0;
-static gid_t _alt_gid = 0;
+static long _default_gid = -1;
+static long _invalid_gid = -1;
+static long _alt_gid = -1;
 
 /*
  * To fully test SGID restores, we need three distinct GIDs to work
@@ -42,13 +42,13 @@ static gid_t _alt_gid = 0;
  * The second fails if this user doesn't belong to at least two groups;
  * the third fails if the current user is root.
  */
-static int
+static void
 searchgid(void)
 {
 	static int   _searched = 0;
 	uid_t uid = getuid();
 	gid_t gid = 0;
-	int n;
+	unsigned int n;
 	struct stat st;
 	int fd;
 
@@ -67,7 +67,7 @@ searchgid(void)
 	_default_gid = st.st_gid;
 
 	/* Find a GID for which fchown() fails.  This is our "invalid" GID. */
-	_invalid_gid = 0;
+	_invalid_gid = -1;
 	/* This loop stops when we wrap the gid or examine 10,000 gids. */
 	for (gid = 1, n = 1; gid == n && n < 10000 ; n++, gid++) {
 		if (fchown(fd, uid, gid) != 0) {
@@ -80,10 +80,10 @@ searchgid(void)
 	 * Find a GID for which fchown() succeeds, but which isn't the
 	 * default.  This is the "alternate" gid.
 	 */
-	_alt_gid = 0;
-	for (gid = 1, n = 1; gid == n && n < 10000 ; n++, gid++) {
+	_alt_gid = -1;
+	for (gid = 0, n = 0; gid == n && n < 10000 ; n++, gid++) {
 		/* _alt_gid must be different than _default_gid */
-		if (gid == _default_gid)
+		if (gid == (gid_t)_default_gid)
 			continue;
 		if (fchown(fd, uid, gid) == 0) {
 			_alt_gid = gid;
@@ -125,6 +125,15 @@ DEFINE_TEST(test_write_disk_perms)
 	struct archive *a;
 	struct archive_entry *ae;
 	struct stat st;
+
+	/*
+	 * Set ownership of the current directory to the group of this
+	 * process.  Otherwise, the SGID tests below fail if the
+	 * /tmp directory is owned by a group to which we don't belong
+	 * and we're on a system where group ownership is inherited.
+	 * (Because we're not allowed to SGID files with defaultgid().)
+	 */
+	assertEqualInt(0, chown(".", getuid(), getgid()));
 
 	/* Create an archive_write_disk object. */
 	assert((a = archive_write_disk_new()) != NULL);
@@ -232,7 +241,7 @@ DEFINE_TEST(test_write_disk_perms)
 	failure("Setting SGID bit should succeed here.");
 	assertEqualIntA(a, 0, archive_write_finish_entry(a));
 
-	if (altgid() == 0) {
+	if (altgid() == -1) {
 		/*
 		 * Current user must belong to at least two groups or
 		 * else we can't test setting the GID to another group.
@@ -278,7 +287,7 @@ DEFINE_TEST(test_write_disk_perms)
 	 * but wrong GID.  POSIX says you shouldn't restore SGID bit
 	 * unless the GID could be restored.
 	 */
-	if (invalidgid() == 0) {
+	if (invalidgid() == -1) {
 		/* This test always fails for root. */
 		printf("Running as root: Can't test SGID failures.\n");
 	} else {
@@ -352,7 +361,7 @@ DEFINE_TEST(test_write_disk_perms)
 	failure("file_perm_sgid: st.st_mode=%o", st.st_mode);
 	assert((st.st_mode & 07777) == (S_ISGID | 0742));
 
-	if (altgid() != 0) {
+	if (altgid() != -1) {
 		/* SGID should not be set here. */
 		assert(0 == stat("file_alt_sgid", &st));
 		failure("file_alt_sgid: st.st_mode=%o", st.st_mode);
@@ -364,7 +373,7 @@ DEFINE_TEST(test_write_disk_perms)
 		assert((st.st_mode & 07777) == (S_ISGID | 0742));
 	}
 
-	if (invalidgid() != 0) {
+	if (invalidgid() != -1) {
 		/* SGID should NOT be set here. */
 		assert(0 == stat("file_bad_sgid", &st));
 		failure("file_bad_sgid: st.st_mode=%o", st.st_mode);

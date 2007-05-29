@@ -26,16 +26,7 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#ifdef MAJOR_IN_MKDEV
-#include <sys/mkdev.h>
-#else
-#ifdef MAJOR_IN_SYSMACROS
-#include <sys/sysmacros.h>
-#endif
-#endif
+
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -212,13 +203,32 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 	/* Only regular files (not hardlinks) have data. */
 	if (archive_entry_hardlink(entry) != NULL ||
 	    archive_entry_symlink(entry) != NULL ||
-	    !S_ISREG(archive_entry_mode(entry)))
+	    !(archive_entry_filetype(entry) == AE_IFREG))
 		archive_entry_set_size(entry, 0);
+
+	if (AE_IFDIR == archive_entry_mode(entry)) {
+		const char *p;
+		char *t;
+		/*
+		 * Ensure a trailing '/'.  Modify the entry so
+		 * the client sees the change.
+		 */
+		p = archive_entry_pathname(entry);
+		if (p[strlen(p) - 1] != '/') {
+			t = (char *)malloc(strlen(p) + 2);
+			if (t != NULL) {
+				strcpy(t, p);
+				strcat(t, "/");
+				archive_entry_copy_pathname(entry, t);
+				free(t);
+			}
+		}
+	}
 
 	ret = __archive_write_format_header_ustar(a, buff, entry, -1, 1);
 	if (ret != ARCHIVE_OK)
 		return (ret);
-	ret = (a->compression_write)(a, buff, 512);
+	ret = (a->compressor.write)(a, buff, 512);
 	if (ret != ARCHIVE_OK)
 		return (ret);
 
@@ -243,9 +253,8 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 {
 	unsigned int checksum;
 	int i, ret;
-	size_t copy_length, ps, extra_slash;
+	size_t copy_length;
 	const char *p, *pp;
-	const struct stat *st;
 	int mytartype;
 
 	ret = 0;
@@ -256,7 +265,6 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	 * elements.
 	 */
 	memcpy(h, &template_header, 512);
-	st = archive_entry_stat(entry);
 
 	/*
 	 * Because the block is already null-filled, and strings
@@ -265,18 +273,11 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	 */
 
 	pp = archive_entry_pathname(entry);
-	ps = strlen(pp);
-	if (S_ISDIR(st->st_mode) && pp[ps - 1] != '/')
-		extra_slash = 1;
-	else
-		extra_slash = 0;
-	if (ps + extra_slash <= USTAR_name_size) {
-		memcpy(h + USTAR_name_offset, pp, ps);
-		if (extra_slash)
-			h[USTAR_name_offset + ps] = '/';
-	} else {
+	if (strlen(pp) <= USTAR_name_size)
+		memcpy(h + USTAR_name_offset, pp, strlen(pp));
+	else {
 		/* Store in two pieces, splitting at a '/'. */
-		p = strchr(pp + ps + extra_slash - USTAR_name_size - 1, '/');
+		p = strchr(pp + strlen(pp) - USTAR_name_size - 1, '/');
 		/*
 		 * If there is no path separator, or the prefix or
 		 * remaining name are too large, return an error.
@@ -292,9 +293,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		} else {
 			/* Copy prefix and remainder to appropriate places */
 			memcpy(h + USTAR_prefix_offset, pp, p - pp);
-			memcpy(h + USTAR_name_offset, p + 1, pp + ps - p - 1);
-			if (extra_slash)
-				h[USTAR_name_offset + pp + ps - p - 1] = '/';
+			memcpy(h + USTAR_name_offset, p + 1, pp + strlen(pp) - p - 1);
 		}
 	}
 
@@ -338,41 +337,42 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		memcpy(h + USTAR_gname_offset, p, copy_length);
 	}
 
-	if (format_number(st->st_mode & 07777, h + USTAR_mode_offset, USTAR_mode_size, USTAR_mode_max_size, strict)) {
+	if (format_number(archive_entry_mode(entry) & 07777, h + USTAR_mode_offset, USTAR_mode_size, USTAR_mode_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE, "Numeric mode too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_number(st->st_uid, h + USTAR_uid_offset, USTAR_uid_size, USTAR_uid_max_size, strict)) {
+	if (format_number(archive_entry_uid(entry), h + USTAR_uid_offset, USTAR_uid_size, USTAR_uid_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE, "Numeric user ID too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_number(st->st_gid, h + USTAR_gid_offset, USTAR_gid_size, USTAR_gid_max_size, strict)) {
+	if (format_number(archive_entry_gid(entry), h + USTAR_gid_offset, USTAR_gid_size, USTAR_gid_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE, "Numeric group ID too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_number(st->st_size, h + USTAR_size_offset, USTAR_size_size, USTAR_size_max_size, strict)) {
+	if (format_number(archive_entry_size(entry), h + USTAR_size_offset, USTAR_size_size, USTAR_size_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE, "File size out of range");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_number(st->st_mtime, h + USTAR_mtime_offset, USTAR_mtime_size, USTAR_mtime_max_size, strict)) {
+	if (format_number(archive_entry_mtime(entry), h + USTAR_mtime_offset, USTAR_mtime_size, USTAR_mtime_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "File modification time too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (S_ISBLK(st->st_mode) || S_ISCHR(st->st_mode)) {
-		if (format_number(major(st->st_rdev), h + USTAR_rdevmajor_offset,
+	if (archive_entry_filetype(entry) == AE_IFBLK
+	    || archive_entry_filetype(entry) == AE_IFCHR) {
+		if (format_number(archive_entry_rdevmajor(entry), h + USTAR_rdevmajor_offset,
 			USTAR_rdevmajor_size, USTAR_rdevmajor_max_size, strict)) {
 			archive_set_error(&a->archive, ERANGE,
 			    "Major device number too large");
 			ret = ARCHIVE_WARN;
 		}
 
-		if (format_number(minor(st->st_rdev), h + USTAR_rdevminor_offset,
+		if (format_number(archive_entry_rdevminor(entry), h + USTAR_rdevminor_offset,
 			USTAR_rdevminor_size, USTAR_rdevminor_max_size, strict)) {
 			archive_set_error(&a->archive, ERANGE,
 			    "Minor device number too large");
@@ -385,22 +385,17 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	} else if (mytartype >= 0) {
 		h[USTAR_typeflag_offset] = mytartype;
 	} else {
-		switch (st->st_mode & S_IFMT) {
-		case S_IFREG: h[USTAR_typeflag_offset] = '0' ; break;
-		case S_IFLNK: h[USTAR_typeflag_offset] = '2' ; break;
-		case S_IFCHR: h[USTAR_typeflag_offset] = '3' ; break;
-		case S_IFBLK: h[USTAR_typeflag_offset] = '4' ; break;
-		case S_IFDIR: h[USTAR_typeflag_offset] = '5' ; break;
-		case S_IFIFO: h[USTAR_typeflag_offset] = '6' ; break;
-		case S_IFSOCK:
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive socket");
-			ret = ARCHIVE_WARN;
-			break;
+		switch (archive_entry_filetype(entry)) {
+		case AE_IFREG: h[USTAR_typeflag_offset] = '0' ; break;
+		case AE_IFLNK: h[USTAR_typeflag_offset] = '2' ; break;
+		case AE_IFCHR: h[USTAR_typeflag_offset] = '3' ; break;
+		case AE_IFBLK: h[USTAR_typeflag_offset] = '4' ; break;
+		case AE_IFDIR: h[USTAR_typeflag_offset] = '5' ; break;
+		case AE_IFIFO: h[USTAR_typeflag_offset] = '6' ; break;
 		default:
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive this (mode=0%lo)",
-			    (unsigned long)st->st_mode);
+			    (unsigned long)archive_entry_mode(entry));
 			ret = ARCHIVE_WARN;
 		}
 	}
@@ -500,7 +495,7 @@ archive_write_ustar_finish(struct archive_write *a)
 {
 	int r;
 
-	if (a->compression_write == NULL)
+	if (a->compressor.write == NULL)
 		return (ARCHIVE_OK);
 
 	r = write_nulls(a, 512*2);
@@ -539,7 +534,7 @@ write_nulls(struct archive_write *a, size_t padding)
 
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
-		ret = (a->compression_write)(a, a->nulls, to_write);
+		ret = (a->compressor.write)(a, a->nulls, to_write);
 		if (ret != ARCHIVE_OK)
 			return (ret);
 		padding -= to_write;
@@ -556,7 +551,7 @@ archive_write_ustar_data(struct archive_write *a, const void *buff, size_t s)
 	ustar = (struct ustar *)a->format_data;
 	if (s > ustar->entry_bytes_remaining)
 		s = ustar->entry_bytes_remaining;
-	ret = (a->compression_write)(a, buff, s);
+	ret = (a->compressor.write)(a, buff, s);
 	ustar->entry_bytes_remaining -= s;
 	if (ret != ARCHIVE_OK)
 		return (ret);

@@ -26,9 +26,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -111,7 +108,6 @@ archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 	struct cpio *cpio;
 	const char *p, *path;
 	int pathlength, ret;
-	const struct stat	*st;
 	struct cpio_header	 h;
 
 	cpio = (struct cpio *)a->format_data;
@@ -119,31 +115,31 @@ archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 
 	path = archive_entry_pathname(entry);
 	pathlength = strlen(path) + 1; /* Include trailing null. */
-	st = archive_entry_stat(entry);
 
 	memset(&h, 0, sizeof(h));
 	format_octal(070707, &h.c_magic, sizeof(h.c_magic));
-	format_octal(st->st_dev, &h.c_dev, sizeof(h.c_dev));
+	format_octal(archive_entry_dev(entry), &h.c_dev, sizeof(h.c_dev));
 	/*
 	 * TODO: Generate artificial inode numbers rather than just
 	 * re-using the ones off the disk.  That way, the 18-bit c_ino
 	 * field only limits the number of files in the archive.
 	 */
-	if (st->st_ino > 0777777) {
+	if (archive_entry_ino(entry) > 0777777) {
 		archive_set_error(&a->archive, ERANGE, "large inode number truncated");
 		ret = ARCHIVE_WARN;
 	}
 
-	format_octal(st->st_ino & 0777777, &h.c_ino, sizeof(h.c_ino));
-	format_octal(st->st_mode, &h.c_mode, sizeof(h.c_mode));
-	format_octal(st->st_uid, &h.c_uid, sizeof(h.c_uid));
-	format_octal(st->st_gid, &h.c_gid, sizeof(h.c_gid));
-	format_octal(st->st_nlink, &h.c_nlink, sizeof(h.c_nlink));
-	if (S_ISBLK(st->st_mode) || S_ISCHR(st->st_mode))
-	    format_octal(st->st_rdev, &h.c_rdev, sizeof(h.c_rdev));
+	format_octal(archive_entry_ino(entry) & 0777777, &h.c_ino, sizeof(h.c_ino));
+	format_octal(archive_entry_mode(entry), &h.c_mode, sizeof(h.c_mode));
+	format_octal(archive_entry_uid(entry), &h.c_uid, sizeof(h.c_uid));
+	format_octal(archive_entry_gid(entry), &h.c_gid, sizeof(h.c_gid));
+	format_octal(archive_entry_nlink(entry), &h.c_nlink, sizeof(h.c_nlink));
+	if (archive_entry_filetype(entry) == AE_IFBLK
+	    || archive_entry_filetype(entry) == AE_IFCHR)
+	    format_octal(archive_entry_dev(entry), &h.c_rdev, sizeof(h.c_rdev));
 	else
 	    format_octal(0, &h.c_rdev, sizeof(h.c_rdev));
-	format_octal(st->st_mtime, &h.c_mtime, sizeof(h.c_mtime));
+	format_octal(archive_entry_mtime(entry), &h.c_mtime, sizeof(h.c_mtime));
 	format_octal(pathlength, &h.c_namesize, sizeof(h.c_namesize));
 
 	/* Symlinks get the link written as the body of the entry. */
@@ -151,21 +147,21 @@ archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 	if (p != NULL  &&  *p != '\0')
 		format_octal(strlen(p), &h.c_filesize, sizeof(h.c_filesize));
 	else
-		format_octal(st->st_size, &h.c_filesize, sizeof(h.c_filesize));
+		format_octal(archive_entry_size(entry), &h.c_filesize, sizeof(h.c_filesize));
 
-	ret = (a->compression_write)(a, &h, sizeof(h));
+	ret = (a->compressor.write)(a, &h, sizeof(h));
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
-	ret = (a->compression_write)(a, path, pathlength);
+	ret = (a->compressor.write)(a, path, pathlength);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
-	cpio->entry_bytes_remaining = st->st_size;
+	cpio->entry_bytes_remaining = archive_entry_size(entry);
 
 	/* Write the symlink now. */
 	if (p != NULL  &&  *p != '\0')
-		ret = (a->compression_write)(a, p, strlen(p));
+		ret = (a->compressor.write)(a, p, strlen(p));
 
 	return (ret);
 }
@@ -180,7 +176,7 @@ archive_write_cpio_data(struct archive_write *a, const void *buff, size_t s)
 	if (s > cpio->entry_bytes_remaining)
 		s = cpio->entry_bytes_remaining;
 
-	ret = (a->compression_write)(a, buff, s);
+	ret = (a->compressor.write)(a, buff, s);
 	cpio->entry_bytes_remaining -= s;
 	if (ret >= 0)
 		return (s);
@@ -222,15 +218,12 @@ static int
 archive_write_cpio_finish(struct archive_write *a)
 {
 	struct cpio *cpio;
-	struct stat st;
 	int er;
 	struct archive_entry *trailer;
 
 	cpio = (struct cpio *)a->format_data;
 	trailer = archive_entry_new();
-	memset(&st, 0, sizeof(st));
-	st.st_nlink = 1;
-	archive_entry_copy_stat(trailer, &st);
+	archive_entry_set_nlink(trailer, 1);
 	archive_entry_set_pathname(trailer, "TRAILER!!!");
 	er = archive_write_cpio_header(a, trailer);
 	archive_entry_free(trailer);
@@ -259,7 +252,7 @@ archive_write_cpio_finish_entry(struct archive_write *a)
 	while (cpio->entry_bytes_remaining > 0) {
 		to_write = cpio->entry_bytes_remaining < a->null_length ?
 		    cpio->entry_bytes_remaining : a->null_length;
-		ret = (a->compression_write)(a, a->nulls, to_write);
+		ret = (a->compressor.write)(a, a->nulls, to_write);
 		if (ret != ARCHIVE_OK)
 			return (ret);
 		cpio->entry_bytes_remaining -= to_write;

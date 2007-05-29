@@ -49,7 +49,6 @@ DEFINE_TEST(test_write_format_cpio_empty)
 	struct archive *a;
 	char buff[2048];
 	size_t used;
-	int i;
 
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);

@@ -35,9 +35,7 @@
 struct archive_write {
 	struct archive	archive;
 
-	struct archive_entry	*entry;
-
-	/* Dev/ino of the archive being read/written. */
+	/* Dev/ino of the archive being written. */
 	dev_t		  skip_file_dev;
 	ino_t		  skip_file_ino;
 
@@ -45,19 +43,8 @@ struct archive_write {
 	const unsigned char	*nulls;
 	size_t			 null_length;
 
-	/*
-	 * Used by archive_read_data() to track blocks and copy
-	 * data to client buffers, filling gaps with zero bytes.
-	 */
-	const char	 *read_data_block;
-	off_t		  read_data_offset;
-	off_t		  read_data_output_offset;
-	size_t		  read_data_remaining;
-
 	/* Callbacks to open/read/write/close archive stream. */
 	archive_open_callback	*client_opener;
-	archive_read_callback	*client_reader;
-	archive_skip_callback	*client_skipper;
 	archive_write_callback	*client_writer;
 	archive_close_callback	*client_closer;
 	void			*client_data;
@@ -86,64 +73,26 @@ struct archive_write {
 	 * On write, the client just invokes an archive_write_set function
 	 * which sets up the data here directly.
 	 */
-	void	 *compression_data;		/* Data for (de)compressor. */
-	int	(*compression_init)(struct archive_write *);	/* Initialize. */
-	int	(*compression_finish)(struct archive_write *);
-	int	(*compression_write)(struct archive_write *, const void *, size_t);
-	/*
-	 * Read uses a peek/consume I/O model: the decompression code
-	 * returns a pointer to the requested block and advances the
-	 * file position only when requested by a consume call.  This
-	 * reduces copying and also simplifies look-ahead for format
-	 * detection.
-	 */
-	ssize_t	(*compression_read_ahead)(struct archive *,
-		    const void **, size_t request);
-	ssize_t	(*compression_read_consume)(struct archive *, size_t);
-	off_t (*compression_skip)(struct archive *, off_t);
+	struct {
+		void	 *data;
+		void	 *config;
+		int	(*init)(struct archive_write *);
+		int	(*finish)(struct archive_write *);
+		int	(*write)(struct archive_write *, const void *, size_t);
+	} compressor;
 
 	/*
-	 * Format detection is mostly the same as compression
-	 * detection, with two significant differences: The bidders
-	 * use the read_ahead calls above to examine the stream rather
-	 * than having the supervisor hand them a block of data to
-	 * examine, and the auction is repeated for every header.
-	 * Winning bidders should set the archive_format and
-	 * archive_format_name appropriately.  Bid routines should
-	 * check archive_format and decline to bid if the format of
-	 * the last header was incompatible.
-	 *
 	 * Again, write support is considerably simpler because there's
 	 * no need for an auction.
 	 */
 	int		  archive_format;
 	const char	 *archive_format_name;
 
-	struct archive_format_descriptor {
-		int	(*bid)(struct archive *);
-		int	(*read_header)(struct archive *, struct archive_entry *);
-		int	(*read_data)(struct archive *, const void **, size_t *, off_t *);
-		int	(*read_data_skip)(struct archive *);
-		int	(*cleanup)(struct archive *);
-		void	 *format_data;	/* Format-specific data for readers. */
-	}	formats[8];
-	struct archive_format_descriptor	*format; /* Active format. */
-
-	/*
-	 * Storage for format-specific data.  Note that there can be
-	 * multiple format readers active at one time, so we need to
-	 * allow for multiple format readers to have their data
-	 * available.  The pformat_data slot here is the solution: on
-	 * read, it is guaranteed to always point to a void* variable
-	 * that the format can use.
-	 */
-	void	**pformat_data;		/* Pointer to current format_data. */
-	void	 *format_data;		/* Used by writers. */
-
 	/*
 	 * Pointers to format-specific functions for writing.  They're
 	 * initialized by archive_write_set_format_XXX() calls.
 	 */
+	void	 *format_data;
 	int	(*format_init)(struct archive_write *);
 	int	(*format_finish)(struct archive_write *);
 	int	(*format_destroy)(struct archive_write *);
@@ -152,12 +101,6 @@ struct archive_write {
 		    struct archive_entry *);
 	ssize_t	(*format_write_data)(struct archive_write *,
 		    const void *buff, size_t);
-
-	/*
-	 * Various information needed by archive_extract.
-	 */
-	struct extract		 *extract;
-	int			(*cleanup_archive_extract)(struct archive *);
 };
 
 /*

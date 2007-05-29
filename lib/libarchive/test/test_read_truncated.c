@@ -32,7 +32,7 @@ DEFINE_TEST(test_read_truncated)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-	int i;
+	unsigned int i;
 	size_t used;
 
 	/* Create a new archive in memory. */

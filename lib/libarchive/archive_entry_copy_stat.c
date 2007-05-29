@@ -22,37 +22,38 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "test.h"
+
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-/*
- * Check that an "empty" shar archive is correctly created as an empty file.
- */
-
-DEFINE_TEST(test_write_format_shar_empty)
-{
-	struct archive *a;
-	char buff[2048];
-	size_t used;
-
-	/* Create a new archive in memory. */
-	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_shar(a));
-	assertA(0 == archive_write_set_compression_none(a));
-	/* 1-byte block size ensures we see only the required bytes. */
-	/* We're not testing the padding here. */
-	assertA(0 == archive_write_set_bytes_per_block(a, 1));
-	assertA(0 == archive_write_set_bytes_in_last_block(a, 1));
-	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
-
-	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
-	archive_write_finish(a);
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
 #endif
 
-	failure("Empty shar archive should be exactly 0 bytes, was %d.", used);
-	assert(used == 0);
+#include "archive_entry.h"
+
+void
+archive_entry_copy_stat(struct archive_entry *entry, const struct stat *st)
+{
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
+	archive_entry_set_atime(entry, st->st_atime, st->st_atimespec.tv_nsec);
+	archive_entry_set_ctime(entry, st->st_ctime, st->st_ctimespec.tv_nsec);
+	archive_entry_set_mtime(entry, st->st_mtime, st->st_mtimespec.tv_nsec);
+#elif HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
+	archive_entry_set_atime(entry, st->st_atime, st->st_atim.tv_nsec);
+	archive_entry_set_ctime(entry, st->st_ctime, st->st_ctim.tv_nsec);
+	archive_entry_set_mtime(entry, st->st_mtime, st->st_mtim.tv_nsec);
+#else
+	archive_entry_set_atime(entry, st->st_atime, 0);
+	archive_entry_set_ctime(entry, st->st_ctime, 0);
+	archive_entry_set_mtime(entry, st->st_mtime, 0);
+#endif
+	archive_entry_set_dev(entry, st->st_dev);
+	archive_entry_set_gid(entry, st->st_gid);
+	archive_entry_set_uid(entry, st->st_uid);
+	archive_entry_set_ino(entry, st->st_ino);
+	archive_entry_set_nlink(entry, st->st_nlink);
+	archive_entry_set_rdev(entry, st->st_rdev);
+	archive_entry_set_size(entry, st->st_size);
+	archive_entry_set_mode(entry, st->st_mode);
 }

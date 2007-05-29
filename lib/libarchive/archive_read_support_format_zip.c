@@ -26,9 +26,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -82,6 +79,7 @@ struct zip {
 	size_t 			uncompressed_buffer_size;
 #ifdef HAVE_ZLIB_H
 	z_stream		stream;
+	char			stream_valid;
 #endif
 
 	struct archive_string	pathname;
@@ -176,7 +174,7 @@ archive_read_format_zip_bid(struct archive_read *a)
 	if (a->archive.archive_format == ARCHIVE_FORMAT_ZIP)
 		bid += 1;
 
-	bytes_read = (a->compression_read_ahead)(a, &h, 4);
+	bytes_read = (a->decompressor->read_ahead)(a, &h, 4);
 	if (bytes_read < 4)
 	    return (-1);
 	p = (const char *)h;
@@ -208,13 +206,13 @@ archive_read_format_zip_read_header(struct archive_read *a,
 	if (a->archive.archive_format_name == NULL)
 		a->archive.archive_format_name = "ZIP";
 
-	zip = (struct zip *)*(a->pformat_data);
+	zip = (struct zip *)(a->format->data);
 	zip->decompress_init = 0;
 	zip->end_of_entry = 0;
 	zip->end_of_entry_cleanup = 0;
 	zip->entry_uncompressed_bytes_read = 0;
 	zip->entry_compressed_bytes_read = 0;
-	bytes_read = (a->compression_read_ahead)(a, &h, 4);
+	bytes_read = (a->decompressor->read_ahead)(a, &h, 4);
 	if (bytes_read < 4)
 		return (ARCHIVE_FATAL);
 
@@ -263,10 +261,9 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	const struct zip_file_header *p;
 	const void *h;
 	int bytes_read;
-	struct stat st;
 
 	bytes_read =
-	    (a->compression_read_ahead)(a, &h, sizeof(struct zip_file_header));
+	    (a->decompressor->read_ahead)(a, &h, sizeof(struct zip_file_header));
 	if (bytes_read < (int)sizeof(struct zip_file_header)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file header");
@@ -295,11 +292,11 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	zip->uncompressed_size = u4(p->uncompressed_size);
 	zip->compressed_size = u4(p->compressed_size);
 
-	(a->compression_read_consume)(a, sizeof(struct zip_file_header));
+	(a->decompressor->consume)(a, sizeof(struct zip_file_header));
 
 
 	/* Read the filename. */
-	bytes_read = (a->compression_read_ahead)(a, &h, zip->filename_length);
+	bytes_read = (a->decompressor->read_ahead)(a, &h, zip->filename_length);
 	if (bytes_read < zip->filename_length) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file header");
@@ -307,34 +304,32 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	archive_string_ensure(&zip->pathname, zip->filename_length);
 	archive_strncpy(&zip->pathname, (const char *)h, zip->filename_length);
-	(a->compression_read_consume)(a, zip->filename_length);
+	(a->decompressor->consume)(a, zip->filename_length);
 	archive_entry_set_pathname(entry, zip->pathname.s);
 
 	if (zip->pathname.s[archive_strlen(&zip->pathname) - 1] == '/')
-		zip->mode = S_IFDIR | 0777;
+		zip->mode = AE_IFDIR | 0777;
 	else
-		zip->mode = S_IFREG | 0777;
+		zip->mode = AE_IFREG | 0777;
 
 	/* Read the extra data. */
-	bytes_read = (a->compression_read_ahead)(a, &h, zip->extra_length);
+	bytes_read = (a->decompressor->read_ahead)(a, &h, zip->extra_length);
 	if (bytes_read < zip->extra_length) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
 	process_extra(h, zip);
-	(a->compression_read_consume)(a, zip->extra_length);
+	(a->decompressor->consume)(a, zip->extra_length);
 
 	/* Populate some additional entry fields: */
-	memset(&st, 0, sizeof(st));
-	st.st_mode = zip->mode;
-	st.st_uid = zip->uid;
-	st.st_gid = zip->gid;
-	st.st_mtime = zip->mtime;
-	st.st_ctime = zip->ctime;
-	st.st_atime = zip->atime;
-	st.st_size = zip->uncompressed_size;
-	archive_entry_copy_stat(entry, &st);
+	archive_entry_set_mode(entry, zip->mode);
+	archive_entry_set_uid(entry, zip->uid);
+	archive_entry_set_gid(entry, zip->gid);
+	archive_entry_set_mtime(entry, zip->mtime, 0);
+	archive_entry_set_ctime(entry, zip->ctime, 0);
+	archive_entry_set_atime(entry, zip->atime, 0);
+	archive_entry_set_size(entry, zip->uncompressed_size);
 
 	zip->entry_bytes_remaining = zip->compressed_size;
 	zip->entry_offset = 0;
@@ -376,7 +371,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	int r;
 	struct zip *zip;
 
-	zip = (struct zip *)*(a->pformat_data);
+	zip = (struct zip *)(a->format->data);
 
 	/*
 	 * If we hit end-of-entry last time, clean up and return
@@ -388,7 +383,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 				const void *h;
 				const char *p;
 				int bytes_read =
-				    (a->compression_read_ahead)(a, &h, 16);
+				    (a->decompressor->read_ahead)(a, &h, 16);
 				if (bytes_read < 16) {
 					archive_set_error(&a->archive,
 					    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -399,7 +394,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 				zip->crc32 = i4(p + 4);
 				zip->compressed_size = u4(p + 8);
 				zip->uncompressed_size = u4(p + 12);
-				bytes_read = (a->compression_read_consume)(a, 16);
+				bytes_read = (a->decompressor->consume)(a, 16);
 			}
 
 			/* Check file size, CRC against these values. */
@@ -482,7 +477,7 @@ zip_read_data_none(struct archive_read *a, const void **buff,
 	struct zip *zip;
 	ssize_t bytes_avail;
 
-	zip = (struct zip *)*(a->pformat_data);
+	zip = (struct zip *)(a->format->data);
 
 	if (zip->entry_bytes_remaining == 0) {
 		*buff = NULL;
@@ -497,7 +492,7 @@ zip_read_data_none(struct archive_read *a, const void **buff,
 	 * available bytes; asking for more than that forces the
 	 * decompressor to combine reads by copying data.
 	 */
-	bytes_avail = (a->compression_read_ahead)(a, buff, 1);
+	bytes_avail = (a->decompressor->read_ahead)(a, buff, 1);
 	if (bytes_avail <= 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file data");
@@ -505,7 +500,7 @@ zip_read_data_none(struct archive_read *a, const void **buff,
 	}
 	if (bytes_avail > zip->entry_bytes_remaining)
 		bytes_avail = zip->entry_bytes_remaining;
-	(a->compression_read_consume)(a, bytes_avail);
+	(a->decompressor->consume)(a, bytes_avail);
 	*size = bytes_avail;
 	*offset = zip->entry_offset;
 	zip->entry_offset += *size;
@@ -525,7 +520,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	const void *compressed_buff;
 	int r;
 
-	zip = (struct zip *)*(a->pformat_data);
+	zip = (struct zip *)(a->format->data);
 
 	/* If the buffer hasn't been allocated, allocate it now. */
 	if (zip->uncompressed_buffer == NULL) {
@@ -541,13 +536,19 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 
 	/* If we haven't yet read any data, initialize the decompressor. */
 	if (!zip->decompress_init) {
-		r = inflateInit2(&zip->stream,
-		    -15 /* Don't check for zlib header */);
+		if (zip->stream_valid)
+			r = inflateReset(&zip->stream);
+		else
+			r = inflateInit2(&zip->stream,
+			    -15 /* Don't check for zlib header */);
 		if (r != Z_OK) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Can't initialize ZIP decompression.");
 			return (ARCHIVE_FATAL);
 		}
+		/* Stream structure has been set up. */
+		zip->stream_valid = 1;
+		/* We've initialized decompression for this stream. */
 		zip->decompress_init = 1;
 	}
 
@@ -557,7 +558,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	 * available bytes; asking for more than that forces the
 	 * decompressor to combine reads by copying data.
 	 */
-	bytes_avail = (a->compression_read_ahead)(a, &compressed_buff, 1);
+	bytes_avail = (a->decompressor->read_ahead)(a, &compressed_buff, 1);
 	if (bytes_avail <= 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file body");
@@ -596,7 +597,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 
 	/* Consume as much as the compressor actually used. */
 	bytes_avail = zip->stream.total_in;
-	(a->compression_read_consume)(a, bytes_avail);
+	(a->decompressor->consume)(a, bytes_avail);
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
 
@@ -628,7 +629,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 	const void *buff = NULL;
 	ssize_t bytes_avail;
 
-	zip = (struct zip *)*(a->pformat_data);
+	zip = (struct zip *)(a->format->data);
 
 	/*
 	 * If the length is at the end, we have no choice but
@@ -650,7 +651,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 	 * compressed data much more quickly.
 	 */
 	while (zip->entry_bytes_remaining > 0) {
-		bytes_avail = (a->compression_read_ahead)(a, &buff, 1);
+		bytes_avail = (a->decompressor->read_ahead)(a, &buff, 1);
 		if (bytes_avail <= 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -659,7 +660,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 		}
 		if (bytes_avail > zip->entry_bytes_remaining)
 			bytes_avail = zip->entry_bytes_remaining;
-		(a->compression_read_consume)(a, bytes_avail);
+		(a->decompressor->consume)(a, bytes_avail);
 		zip->entry_bytes_remaining -= bytes_avail;
 	}
 	/* This entry is finished and done. */
@@ -672,13 +673,16 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 {
 	struct zip *zip;
 
-	zip = (struct zip *)*(a->pformat_data);
-	if (zip->uncompressed_buffer != NULL)
-		free(zip->uncompressed_buffer);
+	zip = (struct zip *)(a->format->data);
+#ifdef HAVE_ZLIB_H
+	if (zip->stream_valid)
+		inflateEnd(&zip->stream);
+#endif
+	free(zip->uncompressed_buffer);
 	archive_string_free(&(zip->pathname));
 	archive_string_free(&(zip->extra));
 	free(zip);
-	*(a->pformat_data) = NULL;
+	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
 }
 

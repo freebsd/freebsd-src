@@ -26,10 +26,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -42,9 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #endif
 #include <time.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -288,7 +281,7 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	const void *h;
 	const unsigned char *p;
 
-	iso9660 = (struct iso9660 *)*(a->pformat_data);
+	iso9660 = (struct iso9660 *)(a->format->data);
 
 	if (iso9660->bid >= 0)
 		return (iso9660->bid);
@@ -298,7 +291,7 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	 * 8 sectors of the volume descriptor table.  Of course,
 	 * if the I/O layer gives us more, we'll take it.
 	 */
-	bytes_read = (a->compression_read_ahead)(a, &h, 32768 + 8*2048);
+	bytes_read = (a->decompressor->read_ahead)(a, &h, 32768 + 8*2048);
 	if (bytes_read < 32768 + 8*2048)
 	    return (iso9660->bid = -1);
 	p = (const unsigned char *)h;
@@ -343,13 +336,12 @@ static int
 archive_read_format_iso9660_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	struct stat st;
 	struct iso9660 *iso9660;
 	struct file_info *file;
 	ssize_t bytes_read;
 	int r;
 
-	iso9660 = (struct iso9660 *)*(a->pformat_data);
+	iso9660 = (struct iso9660 *)(a->format->data);
 
 	if (!a->archive.archive_format) {
 		a->archive.archive_format = ARCHIVE_FORMAT_ISO9660;
@@ -365,17 +357,15 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	iso9660->entry_sparse_offset = 0; /* Offset for sparse-file-aware clients. */
 
 	/* Set up the entry structure with information about this entry. */
-	memset(&st, 0, sizeof(st));
-	st.st_mode = file->mode;
-	st.st_uid = file->uid;
-	st.st_gid = file->gid;
-	st.st_nlink = file->nlinks;
-	st.st_ino = file->inode;
-	st.st_mtime = file->mtime;
-	st.st_ctime = file->ctime;
-	st.st_atime = file->atime;
-	st.st_size = iso9660->entry_bytes_remaining;
-	archive_entry_copy_stat(entry, &st);
+	archive_entry_set_mode(entry, file->mode);
+	archive_entry_set_uid(entry, file->uid);
+	archive_entry_set_gid(entry, file->gid);
+	archive_entry_set_nlink(entry, file->nlinks);
+	archive_entry_set_ino(entry, file->inode);
+	archive_entry_set_mtime(entry, file->mtime, 0);
+	archive_entry_set_ctime(entry, file->ctime, 0);
+	archive_entry_set_atime(entry, file->atime, 0);
+	archive_entry_set_size(entry, iso9660->entry_bytes_remaining);
 	archive_string_empty(&iso9660->pathname);
 	archive_entry_set_pathname(entry,
 	    build_pathname(&iso9660->pathname, file));
@@ -412,14 +402,14 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	archive_strcpy(&iso9660->previous_pathname, iso9660->pathname.s);
 
 	/* If this is a directory, read in all of the entries right now. */
-	if (S_ISDIR(st.st_mode)) {
+	if (archive_entry_filetype(entry) == AE_IFDIR) {
 		while (iso9660->entry_bytes_remaining > 0) {
 			const void *block;
 			const unsigned char *p;
 			ssize_t step = iso9660->logical_block_size;
 			if (step > iso9660->entry_bytes_remaining)
 				step = iso9660->entry_bytes_remaining;
-			bytes_read = (a->compression_read_ahead)(a, &block, step);
+			bytes_read = (a->decompressor->read_ahead)(a, &block, step);
 			if (bytes_read < step) {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 	    "Failed to read full block when scanning ISO9660 directory list");
@@ -428,7 +418,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			}
 			if (bytes_read > step)
 				bytes_read = step;
-			(a->compression_read_consume)(a, bytes_read);
+			(a->decompressor->consume)(a, bytes_read);
 			iso9660->current_position += bytes_read;
 			iso9660->entry_bytes_remaining -= bytes_read;
 			for (p = (const unsigned char *)block;
@@ -476,7 +466,7 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 	ssize_t bytes_read;
 	struct iso9660 *iso9660;
 
-	iso9660 = (struct iso9660 *)*(a->pformat_data);
+	iso9660 = (struct iso9660 *)(a->format->data);
 	if (iso9660->entry_bytes_remaining <= 0) {
 		*buff = NULL;
 		*size = 0;
@@ -484,7 +474,7 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 		return (ARCHIVE_EOF);
 	}
 
-	bytes_read = (a->compression_read_ahead)(a, buff, 1);
+	bytes_read = (a->decompressor->read_ahead)(a, buff, 1);
 	if (bytes_read == 0)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Truncated input file");
@@ -497,7 +487,7 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 	iso9660->entry_sparse_offset += bytes_read;
 	iso9660->entry_bytes_remaining -= bytes_read;
 	iso9660->current_position += bytes_read;
-	(a->compression_read_consume)(a, bytes_read);
+	(a->decompressor->consume)(a, bytes_read);
 	return (ARCHIVE_OK);
 }
 
@@ -507,13 +497,15 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
 	struct iso9660 *iso9660;
 	struct file_info *file;
 
-	iso9660 = (struct iso9660 *)*(a->pformat_data);
+	iso9660 = (struct iso9660 *)(a->format->data);
 	while ((file = next_entry(iso9660)) != NULL)
 		release_file(iso9660, file);
 	archive_string_free(&iso9660->pathname);
 	archive_string_free(&iso9660->previous_pathname);
+	if (iso9660->pending_files)
+		free(iso9660->pending_files);
 	free(iso9660);
-	*(a->pformat_data) = NULL;
+	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -554,9 +546,9 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	file->name[name_len] = '\0';
 	flags = *(isodirrec + DR_flags_offset);
 	if (flags & 0x02)
-		file->mode = S_IFDIR | 0700;
+		file->mode = AE_IFDIR | 0700;
 	else
-		file->mode = S_IFREG | 0400;
+		file->mode = AE_IFREG | 0400;
 
 	/* Rockridge extensions overwrite information from above. */
 	{
@@ -920,7 +912,7 @@ fprintf(stderr, " *** Discarding CE data.\n");
 		if (iso9660->current_position < offset) {
 			off_t step = offset - iso9660->current_position;
 			off_t bytes_read;
-			bytes_read = (a->compression_skip)(a, step);
+			bytes_read = (a->decompressor->skip)(a, step);
 			if (bytes_read < 0)
 				return (bytes_read);
 			iso9660->current_position = offset;
@@ -939,13 +931,13 @@ fprintf(stderr, " *** Discarding CE data.\n");
 
 			file->ce_offset = 0;
 			file->ce_size = 0;
-			bytes_read = (a->compression_read_ahead)(a, &p, size);
+			bytes_read = (a->decompressor->read_ahead)(a, &p, size);
 			if (bytes_read > size)
 				bytes_read = size;
 			rr_start = (const unsigned char *)p;
 			parse_rockridge(iso9660, file, rr_start,
 			    rr_start + bytes_read);
-			(a->compression_read_consume)(a, bytes_read);
+			(a->decompressor->consume)(a, bytes_read);
 			iso9660->current_position += bytes_read;
 			add_entry(iso9660, file);
 		}
@@ -1053,34 +1045,37 @@ time_from_tm(struct tm *t)
 {
 #if HAVE_TIMEGM
 	return (timegm(t));
-#else
+#elif HAVE_STRUCT_TM_TM_GMTOFF
 	/*
 	 * Unfortunately, timegm() isn't standard.  The standard
 	 * mktime() function is a close match, except that it uses
-	 * local timezone instead of GMT.  Close enough for now.
-	 * Note that it is not possible to emulate timegm() using
-	 * completely standard interfaces:
-	 *   * ANSI C90 does not even guarantee that time_t is
-	 *     an arithmetic type, so time adjustments can only be
-	 *     done by manipulating struct tm elements.  You cannot
-	 *     portably calculate time_t values.
-	 *   * POSIX does promise that time_t is an arithmetic type
-	 *     measured in seconds, so you can do time_t calculations
-	 *     while remaining POSIX-compliant.
-	 *   * Neither ANSI nor POSIX provides an easy way to measure
-	 *     the timezone offset, so you can't adjust mktime() to
-	 *     work like timegm().
-	 *   * POSIX does not promise that the epoch begins in 1970,
-	 *     so you can't write a portable timegm() function from
-	 *     scratch.
-	 * In practice, of course, mktime() is a reasonable approximation
-	 * and most POSIX systems do use seconds since 1970, so you
-	 * can roll your own and have it work on all but a few pretty
-	 * whacky systems.
+	 * local timezone instead of GMT.  You can compensate for
+	 * this by adding the timezone and DST offsets back in, at
+	 * the cost of two calls to mktime().
 	 */
-	time_t result = mktime(t);
-	/* TODO: Find a way to improve this approximation to timegm(). */
-	return result;
+	mktime(t); /* Normalize the time and get the TZ offset. */
+	t->tm_sec += t->tm_gmtoff; /* Try to adjust for the timezone and DST.*/
+	if (t->tm_isdst)
+		t->tm_hour -= 1;
+	return (mktime(t)); /* Re-convert. */
+#else
+	/*
+	 * If you don't have tm_gmtoff, let's try resetting the timezone
+	 * (yecch!).
+	 */
+	time_t ret;
+	char *tz;
+
+	tz = getenv("TZ");
+	setenv("TZ", "UTC 0", 1);
+	tzset();
+	ret = mktime(t);
+	if (tz)
+	    setenv("TZ", tz, 1);
+	else
+	    unsetenv("TZ");
+	tzset();
+	return ret;
 #endif
 }
 

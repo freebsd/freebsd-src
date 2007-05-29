@@ -9,7 +9,7 @@ LDADD=	-lbz2 -lz
 #  Major: Bumped ONLY when API/ABI breakage happens (see SHLIB_MAJOR)
 #  Minor: Bumped when significant new features are added
 #  Revision: Bumped on any notable change
-VERSION= 2.0.31
+VERSION= 2.2.3
 
 ARCHIVE_API_MAJOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/\..*//'
 ARCHIVE_API_MINOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/[0-9]*\.//' -e 's/\..*//'
@@ -46,6 +46,8 @@ CLEANFILES+=	archive.h
 SRCS=	archive.h					\
 	archive_check_magic.c				\
 	archive_entry.c					\
+	archive_entry_copy_stat.c			\
+	archive_entry_stat.c				\
 	archive_read.c					\
 	archive_read_data_into_fd.c			\
 	archive_read_extract.c				\
@@ -58,6 +60,7 @@ SRCS=	archive.h					\
 	archive_read_support_compression_compress.c	\
 	archive_read_support_compression_gzip.c		\
 	archive_read_support_compression_none.c		\
+	archive_read_support_compression_program.c	\
 	archive_read_support_format_all.c		\
 	archive_read_support_format_ar.c		\
 	archive_read_support_format_cpio.c		\
@@ -79,13 +82,15 @@ SRCS=	archive.h					\
 	archive_write_set_compression_bzip2.c		\
 	archive_write_set_compression_gzip.c		\
 	archive_write_set_compression_none.c		\
+	archive_write_set_compression_program.c		\
 	archive_write_set_format.c			\
 	archive_write_set_format_ar.c			\
 	archive_write_set_format_by_name.c		\
 	archive_write_set_format_cpio.c			\
 	archive_write_set_format_pax.c			\
 	archive_write_set_format_shar.c			\
-	archive_write_set_format_ustar.c
+	archive_write_set_format_ustar.c		\
+	filter_fork.c
 
 # Man pages to be installed.
 MAN=	archive_entry.3					\
@@ -115,6 +120,10 @@ MLINKS+=	archive_entry.3 archive_entry_copy_pathname_w.3
 MLINKS+=	archive_entry.3 archive_entry_copy_stat.3
 MLINKS+=	archive_entry.3 archive_entry_copy_symlink_w.3
 MLINKS+=	archive_entry.3 archive_entry_copy_uname_w.3
+MLINKS+=	archive_entry.3 archive_entry_dev.3
+MLINKS+=	archive_entry.3 archive_entry_devmajor.3
+MLINKS+=	archive_entry.3 archive_entry_devminor.3
+MLINKS+=	archive_entry.3 archive_entry_filetype.3
 MLINKS+=	archive_entry.3 archive_entry_fflags.3
 MLINKS+=	archive_entry.3 archive_entry_fflags_text.3
 MLINKS+=	archive_entry.3 archive_entry_free.3
@@ -126,19 +135,28 @@ MLINKS+=	archive_entry.3 archive_entry_ino.3
 MLINKS+=	archive_entry.3 archive_entry_mode.3
 MLINKS+=	archive_entry.3 archive_entry_mtime.3
 MLINKS+=	archive_entry.3 archive_entry_mtime_nsec.3
+MLINKS+=	archive_entry.3 archive_entry_nlink.3
 MLINKS+=	archive_entry.3 archive_entry_new.3
 MLINKS+=	archive_entry.3 archive_entry_pathname.3
 MLINKS+=	archive_entry.3 archive_entry_pathname_w.3
 MLINKS+=	archive_entry.3 archive_entry_rdev.3
 MLINKS+=	archive_entry.3 archive_entry_rdevmajor.3
 MLINKS+=	archive_entry.3 archive_entry_rdevminor.3
+MLINKS+=	archive_entry.3 archive_entry_set_atime.3
+MLINKS+=	archive_entry.3 archive_entry_set_ctime.3
+MLINKS+=	archive_entry.3 archive_entry_set_dev.3
+MLINKS+=	archive_entry.3 archive_entry_set_devmajor.3
+MLINKS+=	archive_entry.3 archive_entry_set_devminor.3
 MLINKS+=	archive_entry.3 archive_entry_set_fflags.3
 MLINKS+=	archive_entry.3 archive_entry_set_gid.3
 MLINKS+=	archive_entry.3 archive_entry_set_gname.3
 MLINKS+=	archive_entry.3 archive_entry_set_hardlink.3
 MLINKS+=	archive_entry.3 archive_entry_set_link.3
 MLINKS+=	archive_entry.3 archive_entry_set_mode.3
+MLINKS+=	archive_entry.3 archive_entry_set_mtime.3
+MLINKS+=	archive_entry.3 archive_entry_set_nlink.3
 MLINKS+=	archive_entry.3 archive_entry_set_pathname.3
+MLINKS+=	archive_entry.3 archive_entry_set_rdev.3
 MLINKS+=	archive_entry.3 archive_entry_set_rdevmajor.3
 MLINKS+=	archive_entry.3 archive_entry_set_rdevminor.3
 MLINKS+=	archive_entry.3 archive_entry_set_size.3
@@ -174,6 +192,7 @@ MLINKS+=	archive_read.3 archive_read_support_compression_bzip2.3
 MLINKS+=	archive_read.3 archive_read_support_compression_compress.3
 MLINKS+=	archive_read.3 archive_read_support_compression_gzip.3
 MLINKS+=	archive_read.3 archive_read_support_compression_none.3
+MLINKS+=	archive_read.3 archive_read_support_compression_program.3
 MLINKS+=	archive_read.3 archive_read_support_format_all.3
 MLINKS+=	archive_read.3 archive_read_support_format_cpio.3
 MLINKS+=	archive_read.3 archive_read_support_format_iso9660.3
@@ -205,6 +224,8 @@ MLINKS+=	archive_write.3 archive_write_set_bytes_per_block.3
 MLINKS+=	archive_write.3 archive_write_set_callbacks.3
 MLINKS+=	archive_write.3 archive_write_set_compression_bzip2.3
 MLINKS+=	archive_write.3 archive_write_set_compression_gzip.3
+MLINKS+=	archive_write.3 archive_write_set_compression_none.3
+MLINKS+=	archive_write.3 archive_write_set_compression_program.3
 MLINKS+=	archive_write.3 archive_write_set_format_pax.3
 MLINKS+=	archive_write.3 archive_write_set_format_shar.3
 MLINKS+=	archive_write.3 archive_write_set_format_ustar.3

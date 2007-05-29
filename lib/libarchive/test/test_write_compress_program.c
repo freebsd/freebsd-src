@@ -25,45 +25,39 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-/*
- * Test read/write of a 10M block of data in a single operation.
- * Uses an in-memory archive with a single 10M entry.  Exercises
- * archive_read_data() to ensure it can handle large blocks like
- * this and also exercises archive_read_data_into_fd() (which
- * had a bug relating to this, fixed in Nov 2006).
- */
+char buff[1000000];
+char buff2[64];
 
-char buff1[11000000];
-char buff2[10000000];
-char buff3[10000000];
-
-DEFINE_TEST(test_read_data_large)
+DEFINE_TEST(test_write_compress_program)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-	char tmpfilename[] = "largefile";
-	int tmpfilefd;
-	unsigned int i;
 	size_t used;
+	int blocksize = 1024;
 
 	/* Create a new archive in memory. */
+	/* Write it through an external "gzip" program. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
-	assertA(0 == archive_write_set_compression_none(a));
-	assertA(0 == archive_write_open_memory(a, buff1, sizeof(buff1), &used));
+	assertA(0 == archive_write_set_compression_program(a, "gzip"));
+	assertA(0 == archive_write_set_bytes_per_block(a, blocksize));
+	assertA(0 == archive_write_set_bytes_in_last_block(a, blocksize));
+	assertA(blocksize == archive_write_get_bytes_in_last_block(a));
+	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
+	assertA(blocksize == archive_write_get_bytes_in_last_block(a));
 
 	/*
-	 * Write a file (with random contents) to it.
+	 * Write a file to it.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
-	for (i = 0; i < sizeof(buff2); i++)
-		buff2[i] = (unsigned char)rand();
-	archive_entry_set_size(ae, sizeof(buff2));
+	archive_entry_set_size(ae, 8);
+
 	assertA(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);
-	assertA(sizeof(buff2) == archive_write_data(a, buff2, sizeof(buff2)));
+	assertA(8 == archive_write_data(a, "12345678", 9));
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
@@ -73,45 +67,31 @@ DEFINE_TEST(test_read_data_large)
 	archive_write_finish(a);
 #endif
 
-	/* Check that archive_read_data can handle 10*10^6 at a pop. */
+	/*
+	 * Now, read the data back through the built-in gzip support.
+	 */
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff1, sizeof(buff1)));
+	assertA(0 == archive_read_open_memory(a, buff, used));
+
 	assertA(0 == archive_read_next_header(a, &ae));
-	failure("Wrote 10MB, but didn't read the same amount");
-	assertEqualIntA(a, sizeof(buff2),archive_read_data(a, buff3, sizeof(buff3)));
-	failure("Read expected 10MB, but data read didn't match what was written");
-	assert(0 == memcmp(buff2, buff3, sizeof(buff3)));
+
+	assert(1 == archive_entry_mtime(ae));
+	assert(0 == archive_entry_atime(ae));
+	assert(0 == archive_entry_ctime(ae));
+	assertEqualString("file", archive_entry_pathname(ae));
+	assert((S_IFREG | 0755) == archive_entry_mode(ae));
+	assert(8 == archive_entry_size(ae));
+	assertA(8 == archive_read_data(a, buff2, 10));
+	assert(0 == memcmp(buff2, "12345678", 8));
+
+	/* Verify the end of the archive. */
+	assert(1 == archive_read_next_header(a, &ae));
 	assert(0 == archive_read_close(a));
 #if ARCHIVE_API_VERSION > 1
 	assert(0 == archive_read_finish(a));
 #else
 	archive_read_finish(a);
 #endif
-
-	/* Check archive_read_data_into_fd */
-	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff1, sizeof(buff1)));
-	assertA(0 == archive_read_next_header(a, &ae));
-	tmpfilefd = open(tmpfilename, O_WRONLY | O_CREAT, 0777);
-	assert(tmpfilefd != 0);
-	assertEqualIntA(a, 0, archive_read_data_into_fd(a, tmpfilefd));
-	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
-	archive_read_finish(a);
-#endif
-	close(tmpfilefd);
-
-	tmpfilefd = open(tmpfilename, O_RDONLY);
-	assert(tmpfilefd != 0);
-	assertEqualIntA(NULL, sizeof(buff3), read(tmpfilefd, buff3, sizeof(buff3)));
-	close(tmpfilefd);
-	assert(0 == memcmp(buff2, buff3, sizeof(buff3)));
-
-	unlink(tmpfilename);
 }
