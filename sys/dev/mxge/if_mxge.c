@@ -1508,197 +1508,6 @@ mxge_submit_req(mxge_tx_buf_t *tx, mcp_kreq_ether_send_t *src,
 }
 
 static void
-mxge_encap_tso(mxge_softc_t *sc, struct mbuf *m, int busdma_seg_cnt,
-	       int ip_off)
-{
-	mxge_tx_buf_t *tx;
-	mcp_kreq_ether_send_t *req;
-	bus_dma_segment_t *seg;
-	struct ip *ip;
-	struct tcphdr *tcp;
-	uint32_t low, high_swapped;
-	int len, seglen, cum_len, cum_len_next;
-	int next_is_first, chop, cnt, rdma_count, small;
-	uint16_t pseudo_hdr_offset, cksum_offset, mss;
-	uint8_t flags, flags_next;
-	static int once;
-	
-	mss = m->m_pkthdr.tso_segsz;
-
-	/* negative cum_len signifies to the
-	 * send loop that we are still in the
-	 * header portion of the TSO packet.
-	 */
-
-	/* ensure we have the ethernet, IP and TCP
-	   header together in the first mbuf, copy
-	   it to a scratch buffer if not */
-	if (__predict_false(m->m_len < ip_off + sizeof (*ip))) {
-		m_copydata(m, 0, ip_off + sizeof (*ip),
-			   sc->scratch);
-		ip = (struct ip *)(sc->scratch + ip_off);
-	} else {
-		ip = (struct ip *)(mtod(m, char *) + ip_off);
-	}
-	if (__predict_false(m->m_len < ip_off + (ip->ip_hl << 2)
-			    + sizeof (*tcp))) {
-		m_copydata(m, 0, ip_off + (ip->ip_hl << 2)
-			   + sizeof (*tcp),  sc->scratch);
-		ip = (struct ip *)(mtod(m, char *) + ip_off);
-	} 
-
-	tcp = (struct tcphdr *)((char *)ip + (ip->ip_hl << 2));
-	cum_len = -(ip_off + ((ip->ip_hl + tcp->th_off) << 2));
-
-	/* TSO implies checksum offload on this hardware */
-	cksum_offset = ip_off + (ip->ip_hl << 2);
-	flags = MXGEFW_FLAGS_TSO_HDR | MXGEFW_FLAGS_FIRST;
-
-	
-	/* for TSO, pseudo_hdr_offset holds mss.
-	 * The firmware figures out where to put
-	 * the checksum by parsing the header. */
-	pseudo_hdr_offset = htobe16(mss);
-
-	tx = &sc->tx;
-	req = tx->req_list;
-	seg = tx->seg_list;
-	cnt = 0;
-	rdma_count = 0;
-	/* "rdma_count" is the number of RDMAs belonging to the
-	 * current packet BEFORE the current send request. For
-	 * non-TSO packets, this is equal to "count".
-	 * For TSO packets, rdma_count needs to be reset
-	 * to 0 after a segment cut.
-	 *
-	 * The rdma_count field of the send request is
-	 * the number of RDMAs of the packet starting at
-	 * that request. For TSO send requests with one ore more cuts
-	 * in the middle, this is the number of RDMAs starting
-	 * after the last cut in the request. All previous
-	 * segments before the last cut implicitly have 1 RDMA.
-	 *
-	 * Since the number of RDMAs is not known beforehand,
-	 * it must be filled-in retroactively - after each
-	 * segmentation cut or at the end of the entire packet.
-	 */
-
-	while (busdma_seg_cnt) {
-		/* Break the busdma segment up into pieces*/
-		low = MXGE_LOWPART_TO_U32(seg->ds_addr);
-		high_swapped = 	htobe32(MXGE_HIGHPART_TO_U32(seg->ds_addr));
-		len = seg->ds_len;
-
-		while (len) {
-			flags_next = flags & ~MXGEFW_FLAGS_FIRST;
-			seglen = len;
-			cum_len_next = cum_len + seglen;
-			(req-rdma_count)->rdma_count = rdma_count + 1;
-			if (__predict_true(cum_len >= 0)) {
-				/* payload */
-				chop = (cum_len_next > mss);
-				cum_len_next = cum_len_next % mss;
-				next_is_first = (cum_len_next == 0);
-				flags |= chop * MXGEFW_FLAGS_TSO_CHOP;
-				flags_next |= next_is_first *
-					MXGEFW_FLAGS_FIRST;
-				rdma_count |= -(chop | next_is_first);
-				rdma_count += chop & !next_is_first;
-			} else if (cum_len_next >= 0) {
-				/* header ends */
-				rdma_count = -1;
-				cum_len_next = 0;
-				seglen = -cum_len;
-				small = (mss <= MXGEFW_SEND_SMALL_SIZE);
-				flags_next = MXGEFW_FLAGS_TSO_PLD |
-					MXGEFW_FLAGS_FIRST | 
-					(small * MXGEFW_FLAGS_SMALL);
-			    }
-			
-			req->addr_high = high_swapped;
-			req->addr_low = htobe32(low);
-			req->pseudo_hdr_offset = pseudo_hdr_offset;
-			req->pad = 0;
-			req->rdma_count = 1;
-			req->length = htobe16(seglen);
-			req->cksum_offset = cksum_offset;
-			req->flags = flags | ((cum_len & 1) *
-					      MXGEFW_FLAGS_ALIGN_ODD);
-			low += seglen;
-			len -= seglen;
-			cum_len = cum_len_next;
-			flags = flags_next;
-			req++;
-			cnt++;
-			rdma_count++;
-			if (__predict_false(cksum_offset > seglen))
-				cksum_offset -= seglen;
-			else
-				cksum_offset = 0;
-			if (__predict_false(cnt > tx->max_desc))
-				goto drop;
-		}
-		busdma_seg_cnt--;
-		seg++;
-	}
-	(req-rdma_count)->rdma_count = rdma_count;
-
-	do {
-		req--;
-		req->flags |= MXGEFW_FLAGS_TSO_LAST;
-	} while (!(req->flags & (MXGEFW_FLAGS_TSO_CHOP | MXGEFW_FLAGS_FIRST)));
-
-	tx->info[((cnt - 1) + tx->req) & tx->mask].flag = 1;
-	mxge_submit_req(tx, tx->req_list, cnt);
-	return;
-
-drop:
-	bus_dmamap_unload(tx->dmat, tx->info[tx->req & tx->mask].map);
-	m_freem(m);
-	sc->ifp->if_oerrors++;
-	if (!once) {
-		printf("tx->max_desc exceeded via TSO!\n");
-		printf("mss = %d, %ld, %d!\n", mss,
-		       (long)seg - (long)tx->seg_list, tx->max_desc);
-		once = 1;
-	}
-	return;
-
-}
-
-/* 
- * We reproduce the software vlan tag insertion from
- * net/if_vlan.c:vlan_start() here so that we can advertise "hardware"
- * vlan tag insertion. We need to advertise this in order to have the
- * vlan interface respect our csum offload flags.
- */
-static struct mbuf *
-mxge_vlan_tag_insert(struct mbuf *m)
-{
-	struct ether_vlan_header *evl;
-
-	M_PREPEND(m, ETHER_VLAN_ENCAP_LEN, M_DONTWAIT);
-	if (__predict_false(m == NULL))
-		return NULL;
-	if (m->m_len < sizeof(*evl)) {
-		m = m_pullup(m, sizeof(*evl));
-		if (__predict_false(m == NULL))
-			return NULL;
-	}
-	/*
-	 * Transform the Ethernet header into an Ethernet header
-	 * with 802.1Q encapsulation.
-	 */
-	evl = mtod(m, struct ether_vlan_header *);
-	bcopy((char *)evl + ETHER_VLAN_ENCAP_LEN,
-	      (char *)evl, ETHER_HDR_LEN - ETHER_TYPE_LEN);
-	evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
-	evl->evl_tag = htons(m->m_pkthdr.ether_vtag);
-	m->m_flags &= ~M_VLANTAG;
-	return m;
-}
-
-static void
 mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 {
 	mcp_kreq_ether_send_t *req;
@@ -1717,12 +1526,6 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 	tx = &sc->tx;
 
 	ip_off = sizeof (struct ether_header);
-	if (m->m_flags & M_VLANTAG) {
-		m = mxge_vlan_tag_insert(m);
-		if (__predict_false(m == NULL))
-			goto drop;
-		ip_off += ETHER_VLAN_ENCAP_LEN;
-	}
 
 	/* (try to) map the frame for DMA */
 	idx = tx->req & tx->mask;
@@ -1751,13 +1554,6 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 	bus_dmamap_sync(tx->dmat, tx->info[idx].map,
 			BUS_DMASYNC_PREWRITE);
 	tx->info[idx].m = m;
-
-
-	/* TSO is different enough, we handle it in another routine */
-	if (m->m_pkthdr.csum_flags & (CSUM_TSO)) {
-		mxge_encap_tso(sc, m, cnt, ip_off);
-		return;
-	}
 
 	req = tx->req_list;
 	cksum_offset = 0;
@@ -2034,6 +1830,7 @@ mxge_vlan_tag_remove(struct mbuf *m, uint32_t *csum)
 {
 	struct ether_vlan_header *evl;
 	struct ether_header *eh;
+	struct m_tag *mtag;
 	uint32_t partial;
 
 	evl = mtod(m, struct ether_vlan_header *);
@@ -2056,10 +1853,14 @@ mxge_vlan_tag_remove(struct mbuf *m, uint32_t *csum)
 	/* restore checksum to network byte order; 
 	   later consumers expect this */
 	*csum = htons(*csum);
-
 	/* save the tag */
+	mtag = m_tag_alloc(MTAG_VLAN, MTAG_VLAN_TAG, sizeof(u_int),
+			   M_NOWAIT);
+	if (mtag == NULL)
+		return;
 	m->m_flags |= M_VLANTAG;
-	m->m_pkthdr.ether_vtag = ntohs(evl->evl_tag);
+	VLAN_TAG_VALUE(mtag) = ntohs(evl->evl_tag);
+	m_tag_prepend(m, mtag);
 
 	/*
 	 * Remove the 802.1q header by copying the Ethernet
@@ -3079,9 +2880,8 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
 			if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
-				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
-						      | CSUM_TSO);
+				ifp->if_capenable &= ~(IFCAP_TXCSUM);
+				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP);
 			} else {
 				ifp->if_capenable |= IFCAP_TXCSUM;
 				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
@@ -3095,24 +2895,7 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				sc->csum_flag = 1;
 			}
 		}
-		if (mask & IFCAP_TSO4) {
-			if (IFCAP_TSO4 & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_TSO4;
-				ifp->if_hwassist &= ~CSUM_TSO;
-			} else if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable |= IFCAP_TSO4;
-				ifp->if_hwassist |= CSUM_TSO;
-			} else {
-				printf("mxge requires tx checksum offload"
-				       " be enabled to use TSO\n");
-				err = EINVAL;
-			}
-		}
-
-		if (mask & IFCAP_VLAN_HWTAGGING)
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 		mtx_unlock(&sc->driver_mtx);
-		VLAN_CAPABILITIES(ifp);
 
 		break;
 
@@ -3294,15 +3077,14 @@ mxge_attach(device_t dev)
 
 	err = bus_setup_intr(sc->dev, sc->irq_res, 
 			     INTR_TYPE_NET | INTR_MPSAFE,
-			     NULL, mxge_intr, sc, &sc->ih);
+			     mxge_intr, sc, &sc->ih);
 	if (err != 0) {
 		goto abort_with_rings;
 	}
 	/* hook into the network stack */
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = 100000000;
-	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
-		IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_VLAN_MTU;
 
 	sc->max_mtu = mxge_max_mtu(sc);
 	if (sc->max_mtu >= 9000)
@@ -3311,7 +3093,7 @@ mxge_attach(device_t dev)
 		device_printf(dev, "MTU limited to %d.  Install "
 			      "latest firmware for 9000 byte jumbo support\n",
 			      sc->max_mtu - ETHER_HDR_LEN);
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
+	ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
 	ifp->if_capenable = ifp->if_capabilities;
 	sc->csum_flag = 1;
         ifp->if_init = mxge_init;
@@ -3366,11 +3148,6 @@ mxge_detach(device_t dev)
 {
 	mxge_softc_t *sc = device_get_softc(dev);
 
-	if (sc->ifp->if_vlantrunk != NULL) {
-		device_printf(sc->dev,
-			      "Detach vlans before removing module\n");
-		return EBUSY;
-	}
 	mtx_lock(&sc->driver_mtx);
 	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
 		mxge_close(sc);
