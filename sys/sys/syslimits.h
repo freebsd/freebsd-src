@@ -46,11 +46,7 @@
  * Do not add any new variables here.  (See the comment at the end of
  * the file for why.)
  */
-#if defined(__arm__)
-#define	ARG_MAX			65536	/* max bytes for an exec function */
-#else
 #define	ARG_MAX			262144	/* max bytes for an exec function */
-#endif
 #ifndef CHILD_MAX
 #define	CHILD_MAX		   40	/* max simultaneous processes */
 #endif
