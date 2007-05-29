@@ -51,17 +51,46 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	di->ops = uart_getops(&uart_ns8250_class);
-	di->bas.chan = 0;
-	di->bas.bst = &ixp425_a4x_bs_tag;
-	di->bas.regshft = 0;
-	di->bas.rclk = IXP425_UART_FREQ;
-	di->baudrate = 115200;
-	di->databits = 8;
-	di->stopbits = 1;
-	di->parity = UART_PARITY_NONE;
-	uart_bus_space_io = &ixp425_a4x_bs_tag;
-	uart_bus_space_mem = NULL;
-	di->bas.bsh = IXP425_UART0_VBASE;
-	return (0);
+	uint32_t i, ivar, vaddr;
+
+	/*
+	 * Scan the hints. The IXP425 only have 2 serial ports, so only
+	 * scan them.
+	 */
+	for (i = 0; i < 2; i++) {
+		if (resource_int_value("uart", i, "flags", &ivar))
+			continue;
+		if (devtype == UART_DEV_CONSOLE && !UART_FLAGS_CONSOLE(ivar))
+			continue;
+		if (devtype == UART_DEV_DBGPORT && !UART_FLAGS_DBGPORT(ivar))
+			continue;
+		/*
+		 * We have a possible device. Make sure it's enabled and
+		 * that we have an I/O port.
+		 */
+		if (resource_int_value("uart", i, "disabled", &ivar) == 0 &&
+		    ivar != 0)
+			continue;
+		if (resource_int_value("uart", i, "addr", &ivar) != 0 ||
+		    ivar == 0)
+			continue;
+		/* Got it. Fill in the instance and return it. */
+		di->ops = uart_getops(&uart_ns8250_class);
+		di->bas.chan = 0;
+		di->bas.bst = &ixp425_a4x_bs_tag;
+		di->bas.regshft = 0;
+		di->bas.rclk = IXP425_UART_FREQ;
+		di->baudrate = 115200;
+		di->databits = 8;
+		di->stopbits = 1;
+		di->parity = UART_PARITY_NONE;
+		uart_bus_space_io = NULL;
+		uart_bus_space_mem = &ixp425_a4x_bs_tag;
+
+		getvbase(ivar, IXP425_REG_SIZE, &vaddr);
+		di->bas.bsh = vaddr;
+		return (0);
+	}
+
+	return (ENXIO);
 }
