@@ -175,6 +175,7 @@ extern int collapse_mbufs;
  * msi = 0: force pin interrupts
  */
 static int msi_allowed = 2;
+
 TUNABLE_INT("hw.cxgb.msi_allowed", &msi_allowed);
 SYSCTL_NODE(_hw, OID_AUTO, cxgb, CTLFLAG_RD, 0, "CXGB driver parameters");
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, msi_allowed, CTLFLAG_RDTUN, &msi_allowed, 0,
@@ -1593,13 +1594,13 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 
 	if (__predict_false(err)) {
 		if (err == ENOMEM) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IFQ_LOCK(&ifp->if_snd);
 			IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			IFQ_UNLOCK(&ifp->if_snd);
 		}
 	}
 	if (err == 0 && m == NULL) {
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return (ENOBUFS);
 	}
 	if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC) &&
