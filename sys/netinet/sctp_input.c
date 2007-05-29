@@ -3435,11 +3435,14 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
  * cookie-echo processing - return NULL to discard the packet (ie. no asoc,
  * bad packet,...) otherwise return the tcb for this packet
  */
-static struct sctp_tcb *
-sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
-    struct sctphdr *sh, struct sctp_chunkhdr *ch, struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb, struct sctp_nets **netp, int *fwd_tsn_seen,
-    uint32_t vrf_id, uint32_t table_id)
+#ifdef __GNUC__
+__attribute__((noinline))
+#endif
+	static struct sctp_tcb *
+	         sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
+             struct sctphdr *sh, struct sctp_chunkhdr *ch, struct sctp_inpcb *inp,
+             struct sctp_tcb *stcb, struct sctp_nets **netp, int *fwd_tsn_seen,
+             uint32_t vrf_id, uint32_t table_id)
 {
 	struct sctp_association *asoc;
 	uint32_t vtag_in;
