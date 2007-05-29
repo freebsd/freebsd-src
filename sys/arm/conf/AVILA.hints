@@ -8,7 +8,7 @@
 hint.uart.0.at="ixp0"
 hint.uart.0.addr=0xc8000000
 hint.uart.0.irq=15
-#hint.uart.0.flags=0x10
+hint.uart.0.flags=0x10
 # USART0 is unit 1
 hint.uart.1.at="ixp0"
 hint.uart.1.addr=0xc8001000

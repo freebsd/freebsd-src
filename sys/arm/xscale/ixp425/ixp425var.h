@@ -98,6 +98,8 @@ uint32_t ixp425_sdram_size(void);
 int	ixp425_md_route_interrupt(device_t, device_t, int);
 void	ixp425_md_attach(device_t);
 
+int	getvbase(uint32_t, uint32_t, uint32_t *);
+
 struct ixp425_ivar {
 	uint32_t	addr;
 	int		irq;

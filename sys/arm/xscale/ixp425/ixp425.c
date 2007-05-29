@@ -95,7 +95,7 @@ static struct {
 	  IXP425_EXP_BUS_CS4_VBASE },
 };
 
-static int
+int
 getvbase(uint32_t hwbase, uint32_t size, uint32_t *vbase)
 {
 	int i;
