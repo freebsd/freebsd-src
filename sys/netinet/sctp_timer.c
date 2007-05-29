@@ -1640,7 +1640,7 @@ done_with_iterator:
 		if (it->function_atend != NULL) {
 			(*it->function_atend) (it->pointer, it->val);
 		}
-		SCTP_FREE(it);
+		SCTP_FREE(it, SCTP_M_ITER);
 		return;
 	}
 select_a_new_ep:

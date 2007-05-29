@@ -98,8 +98,26 @@ __FBSDID("$FreeBSD$");
 #ifndef in6pcb
 #define in6pcb		inpcb
 #endif
-
-
+/* Declare all the malloc names for all the various mallocs */
+MALLOC_DECLARE(SCTP_M_MAP);
+MALLOC_DECLARE(SCTP_M_STRMI);
+MALLOC_DECLARE(SCTP_M_STRMO);
+MALLOC_DECLARE(SCTP_M_ASC_ADDR);
+MALLOC_DECLARE(SCTP_M_ASC_IT);
+MALLOC_DECLARE(SCTP_M_AUTH_CL);
+MALLOC_DECLARE(SCTP_M_AUTH_KY);
+MALLOC_DECLARE(SCTP_M_AUTH_HL);
+MALLOC_DECLARE(SCTP_M_AUTH_IF);
+MALLOC_DECLARE(SCTP_M_STRESET);
+MALLOC_DECLARE(SCTP_M_CMSG);
+MALLOC_DECLARE(SCTP_M_COPYAL);
+MALLOC_DECLARE(SCTP_M_VRF);
+MALLOC_DECLARE(SCTP_M_IFA);
+MALLOC_DECLARE(SCTP_M_IFN);
+MALLOC_DECLARE(SCTP_M_TIMW);
+MALLOC_DECLARE(SCTP_M_MVRF);
+MALLOC_DECLARE(SCTP_M_ITER);
+MALLOC_DECLARE(SCTP_M_SOCKOPT);
 
 /*
  *
@@ -166,10 +184,10 @@ __FBSDID("$FreeBSD$");
  */
 #define SCTP_MALLOC(var, type, size, name) \
     do { \
-	MALLOC(var, type, size, M_PCB, M_NOWAIT); \
+	MALLOC(var, type, size, name, M_NOWAIT); \
     } while (0)
 
-#define SCTP_FREE(var)	FREE(var, M_PCB)
+#define SCTP_FREE(var, type)	FREE(var, type)
 
 #define SCTP_MALLOC_SONAME(var, type, size) \
     do { \
@@ -219,6 +237,8 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_OS_TIMER_PENDING	callout_pending
 #define SCTP_OS_TIMER_ACTIVE	callout_active
 #define SCTP_OS_TIMER_DEACTIVATE callout_deactivate
+
+#define sctp_get_tick_count() (ticks)
 
 /*
  * Functions
@@ -299,8 +319,8 @@ SCTP_GET_PKT_TABLEID(void *m, uint32_t table_id)
                          } while(0)
 
 /* Other m_pkthdr type things */
-#define SCTP_IS_IT_BROADCAST(dst, m) in_broadcast(dst, m->m_pkthdr.rcvif)
-#define SCTP_IS_IT_LOOPBACK(m) ((m->m_pkthdr.rcvif == NULL) ||(m->m_pkthdr.rcvif->if_type == IFT_LOOP))
+#define SCTP_IS_IT_BROADCAST(dst, m) ((m->m_flags & M_PKTHDR) ? in_broadcast(dst, m->m_pkthdr.rcvif) : 0)
+#define SCTP_IS_IT_LOOPBACK(m) ((m->m_flags & M_PKTHDR) && ((m->m_pkthdr.rcvif == NULL) || (m->m_pkthdr.rcvif->if_type == IFT_LOOP)))
 
 
 /* This converts any input packet header

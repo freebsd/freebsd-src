@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_indata.h>
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_auth.h>
+#include <netinet/sctp_bsd_addr.h>
+
 
 
 
@@ -1478,7 +1480,20 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 			*optsize = sizeof(val);
 		}
 		break;
+	case SCTP_GET_PACKET_LOG:
+		{
+#ifdef  SCTP_PACKET_LOGGING
+			uint8_t *target;
+			int ret;
 
+			SCTP_CHECK_AND_CAST(target, optval, uint8_t, *optsize);
+			ret = sctp_copy_out_packet_log(target, (int)*optsize);
+			*optsize = ret;
+#else
+			error = EOPNOTSUPP;
+#endif
+			break;
+		}
 	case SCTP_PARTIAL_DELIVERY_POINT:
 		{
 			uint32_t *value;
@@ -3560,7 +3575,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					error = sctp_addr_mgmt_ep_sa(inp, addr_touse,
 					    SCTP_ADD_IP_ADDRESS, vrf_id);
 				} else {
-					error = EADDRNOTAVAIL;
+					error = EADDRINUSE;
 				}
 				if (error)
 					break;
@@ -3659,13 +3674,13 @@ sctp_ctloutput(struct socket *so, struct sockopt *sopt)
 	}
 	optsize = sopt->sopt_valsize;
 	if (optsize) {
-		SCTP_MALLOC(optval, void *, optsize, "SCTPSockOpt");
+		SCTP_MALLOC(optval, void *, optsize, SCTP_M_SOCKOPT);
 		if (optval == NULL) {
 			return (ENOBUFS);
 		}
 		error = sooptcopyin(sopt, optval, optsize, optsize);
 		if (error) {
-			SCTP_FREE(optval);
+			SCTP_FREE(optval, SCTP_M_SOCKOPT);
 			goto out;
 		}
 	}
@@ -3679,9 +3694,9 @@ sctp_ctloutput(struct socket *so, struct sockopt *sopt)
 	}
 	if ((error == 0) && (optval != NULL)) {
 		error = sooptcopyout(sopt, optval, optsize);
-		SCTP_FREE(optval);
+		SCTP_FREE(optval, SCTP_M_SOCKOPT);
 	} else if (optval != NULL) {
-		SCTP_FREE(optval);
+		SCTP_FREE(optval, SCTP_M_SOCKOPT);
 	}
 out:
 	return (error);

@@ -897,6 +897,8 @@ struct sctpstat {
 					 * burst inflight to net */
 	u_long sctps_send_cwnd_avoid;	/* Send cwnd full  avoidance, already
 					 * max burst inflight to net */
+	u_long sctps_fwdtsn_map_over;	/* number of map array over-runs via
+					 * fwd-tsn's */
 };
 
 #define SCTP_STAT_INCR(_x) SCTP_STAT_INCR_BY(_x,1)
@@ -960,6 +962,7 @@ struct xsctp_tcb {
 	uint32_t cumulative_tsn;
 	uint32_t cumulative_tsn_ack;
 	uint32_t mtu;
+	uint32_t refcnt;
 	/* add more association specific data here */
 };
 

@@ -46,6 +46,13 @@ void sctp_startup_iterator(void);
 
 void sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa);
 
+#ifdef  SCTP_PACKET_LOGGING
+
+void sctp_packet_log(struct mbuf *m, int length);
+int sctp_copy_out_packet_log(uint8_t * target, int length);
+
+#endif
+
 void sctp_addr_change(struct ifaddr *ifa, int cmd);
 
 #endif
