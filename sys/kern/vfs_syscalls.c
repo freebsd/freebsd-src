@@ -1004,7 +1004,19 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, pathseg, path, td);
 	td->td_dupfd = -1;		/* XXX check for fdopen */
+	FILEDESC_LOCK(fdp);
+	if (fp != fdp->fd_ofiles[indx]) {
+		FILEDESC_UNLOCK(fdp);
+		fdrop(fp, td);
+		td->td_retval[0] = indx;
+		return (0);
+	}
+	fdp->fd_ofileflags[indx] |= UF_OPENING;
+	FILEDESC_UNLOCK(fdp);
 	error = vn_open(&nd, &flags, cmode, indx);
+	FILEDESC_LOCK(fdp);
+	fdp->fd_ofileflags[indx] &= ~UF_OPENING;
+	FILEDESC_UNLOCK(fdp);
 	if (error) {
 		/*
 		 * If the vn_open replaced the method vector, something
