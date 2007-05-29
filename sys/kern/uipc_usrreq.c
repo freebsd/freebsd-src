@@ -59,6 +59,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -90,6 +91,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/unpcb.h>
 #include <sys/vnode.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #include <security/mac/mac_framework.h>
 
@@ -2162,3 +2167,119 @@ unp_discard(struct file *fp)
 	UNP_GLOBAL_WUNLOCK();
 	(void) closef(fp, (struct thread *)NULL);
 }
+
+#ifdef DDB
+static void
+db_print_indent(int indent)
+{
+	int i;
+
+	for (i = 0; i < indent; i++)
+		db_printf(" ");
+}
+
+static void
+db_print_unpflags(int unp_flags)
+{
+	int comma;
+
+	comma = 0;
+	if (unp_flags & UNP_HAVEPC) {
+		db_printf("%sUNP_HAVEPC", comma ? ", " : "");
+		comma = 1;
+	}
+	if (unp_flags & UNP_HAVEPCCACHED) {
+		db_printf("%sUNP_HAVEPCCACHED", comma ? ", " : "");
+		comma = 1;
+	}
+	if (unp_flags & UNP_WANTCRED) {
+		db_printf("%sUNP_WANTCRED", comma ? ", " : "");
+		comma = 1;
+	}
+	if (unp_flags & UNP_CONNWAIT) {
+		db_printf("%sUNP_CONNWAIT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (unp_flags & UNP_CONNECTING) {
+		db_printf("%sUNP_CONNECTING", comma ? ", " : "");
+		comma = 1;
+	}
+	if (unp_flags & UNP_BINDING) {
+		db_printf("%sUNP_BINDING", comma ? ", " : "");
+		comma = 1;
+	}
+}
+
+static void
+db_print_xucred(int indent, struct xucred *xu)
+{
+	int comma, i;
+
+	db_print_indent(indent);
+	db_printf("cr_version: %u   cr_uid: %u   cr_ngroups: %d\n",
+	    xu->cr_version, xu->cr_uid, xu->cr_ngroups);
+	db_print_indent(indent);
+	db_printf("cr_groups: ");
+	comma = 0;
+	for (i = 0; i < xu->cr_ngroups; i++) {
+		db_printf("%s%u", comma ? ", " : "", xu->cr_groups[i]);
+		comma = 1;
+	}
+	db_printf("\n");
+}
+
+static void
+db_print_unprefs(int indent, struct unp_head *uh)
+{
+	struct unpcb *unp;
+	int counter;
+
+	counter = 0;
+	LIST_FOREACH(unp, uh, unp_reflink) {
+		if (counter % 4 == 0)
+			db_print_indent(indent);
+		db_printf("%p  ", unp);
+		if (counter % 4 == 3)
+			db_printf("\n");
+		counter++;
+	}
+	if (counter != 0 && counter % 4 != 0)
+		db_printf("\n");
+}
+
+DB_SHOW_COMMAND(unpcb, db_show_unpcb)
+{
+	struct unpcb *unp;
+
+        if (!have_addr) {
+                db_printf("usage: show unpcb <addr>\n");
+                return;
+        }
+        unp = (struct unpcb *)addr;
+
+	db_printf("unp_socket: %p   unp_vnode: %p\n", unp->unp_socket,
+	    unp->unp_vnode);
+
+	db_printf("unp_ino: %d   unp_conn: %p\n", unp->unp_ino,
+	    unp->unp_conn);
+
+	db_printf("unp_refs:\n");
+	db_print_unprefs(2, &unp->unp_refs);
+
+	/* XXXRW: Would be nice to print the full address, if any. */
+	db_printf("unp_addr: %p\n", unp->unp_addr);
+
+	db_printf("unp_cc: %d   unp_mbcnt: %d   unp_gencnt: %llu\n",
+	    unp->unp_cc, unp->unp_mbcnt,
+	    (unsigned long long)unp->unp_gencnt);
+
+	db_printf("unp_flags: %x (", unp->unp_flags);
+	db_print_unpflags(unp->unp_flags);
+	db_printf(")\n");
+
+	db_printf("unp_peercred:\n");
+	db_print_xucred(2, &unp->unp_peercred);
+
+	db_printf("unp_refcount: %u\n", unp->unp_refcount);
+}
+#endif
