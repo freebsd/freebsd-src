@@ -168,8 +168,8 @@ cpu_fork(td1, p2, td2, flags)
 				mdp1->md_ldt = pldt;
 				set_user_ldt(mdp1);
 				user_ldt_free(td1);
-			}
-			mtx_unlock_spin(&dt_lock);
+			} else
+				mtx_unlock_spin(&dt_lock);
 		}
 		return;
 	}
@@ -312,8 +312,8 @@ cpu_exit(struct thread *td)
 		td->td_pcb->pcb_gs = _udatasel;
 		load_gs(_udatasel);
 		user_ldt_free(td);
-	}
-	mtx_unlock_spin(&dt_lock);
+	} else
+		mtx_unlock_spin(&dt_lock);
 }
 
 void

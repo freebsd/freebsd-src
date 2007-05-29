@@ -394,6 +394,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "sio", &lock_class_mtx_spin },
 #ifdef __i386__
 	{ "cy", &lock_class_mtx_spin },
+	{ "descriptor tables", &lock_class_mtx_spin },
 #endif
 	{ "scc_hwmtx", &lock_class_mtx_spin },
 	{ "uart_hwmtx", &lock_class_mtx_spin },

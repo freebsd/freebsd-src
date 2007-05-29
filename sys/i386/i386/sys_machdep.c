@@ -428,7 +428,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 }
 
 /*
- * Must be called with dt_lock held.
+ * Must be called with dt_lock held.  Returns with dt_lock unheld.
  */
 void
 user_ldt_free(struct thread *td)
@@ -446,6 +446,7 @@ user_ldt_free(struct thread *td)
 	}
 
 	mdp->md_ldt = NULL;
+	mtx_unlock_spin(&dt_lock);
 	if (refcount_release(&pldt->ldt_refcnt)) {
 		kmem_free(kernel_map, (vm_offset_t)pldt->ldt_base,
 			pldt->ldt_len * sizeof(union descriptor));
@@ -701,7 +702,7 @@ i386_ldt_grow(struct thread *td, int len)
 		len = NLDT + 1;
 
 	/* Allocate a user ldt. */
-	if ((pldt = mdp->md_ldt) != NULL || len > pldt->ldt_len) {
+	if ((pldt = mdp->md_ldt) == NULL || len > pldt->ldt_len) {
 		struct proc_ldt *new_ldt;
 
 		new_ldt = user_ldt_alloc(mdp, len);
@@ -716,26 +717,37 @@ i386_ldt_grow(struct thread *td, int len)
 				pldt->ldt_sd = new_ldt->ldt_sd;
 				pldt->ldt_base = new_ldt->ldt_base;
 				pldt->ldt_len = new_ldt->ldt_len;
+				mtx_unlock_spin(&dt_lock);
 				kmem_free(kernel_map, (vm_offset_t)old_ldt_base,
 					old_ldt_len * sizeof(union descriptor));
 				FREE(new_ldt, M_SUBPROC);
+				mtx_lock_spin(&dt_lock);
 			} else {
 				/*
 				 * If other threads already did the work,
 				 * do nothing.
 				 */
+				mtx_unlock_spin(&dt_lock);
 				kmem_free(kernel_map,
 				   (vm_offset_t)new_ldt->ldt_base,
 				   new_ldt->ldt_len * sizeof(union descriptor));
 				FREE(new_ldt, M_SUBPROC);
+				mtx_lock_spin(&dt_lock);
 				return (0);
 			}
 		} else
 			mdp->md_ldt = pldt = new_ldt;
 #ifdef SMP
-		/* signal other cpus to reload ldt */
+		/*
+		 * Signal other cpus to reload ldt.  We need to unlock dt_lock
+		 * here because other CPU will contest on it since their
+		 * curthreads won't hold the lock and will block when trying
+		 * to acquire it.
+		 */
+		mtx_unlock_spin(&dt_lock);
 		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv,
 		    NULL, td);
+		mtx_lock_spin(&dt_lock);
 #else
 		set_user_ldt(mdp);
 #endif
