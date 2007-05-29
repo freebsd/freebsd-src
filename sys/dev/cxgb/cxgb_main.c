@@ -312,7 +312,6 @@ upgrade_fw(adapter_t *sc)
 static int
 cxgb_controller_attach(device_t dev)
 {
-	driver_intr_t *cxgb_intr = NULL;
 	device_t child;
 	const struct adapter_info *ai;
 	struct adapter *sc;
@@ -393,7 +392,7 @@ cxgb_controller_attach(device_t dev)
 			sc->msix_regs_res = NULL;
 		} else {
 			sc->flags |= USING_MSIX;
-			cxgb_intr = t3_intr_msix;
+			sc->cxgb_intr = t3_intr_msix;
 		}
 	}
 
@@ -406,14 +405,14 @@ cxgb_controller_attach(device_t dev)
 		} else {
 			sc->flags |= USING_MSI;
 			sc->irq_rid = 1;
-			cxgb_intr = t3_intr_msi;
+			sc->cxgb_intr = t3_intr_msi;
 		}
 	}
 #endif
 	if (sc->msi_count == 0) {
 		device_printf(dev, "using line interrupts\n");
 		sc->irq_rid = 0;
-		cxgb_intr = t3b_intr;
+		sc->cxgb_intr = t3b_intr;
 	}
 
 
