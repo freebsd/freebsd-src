@@ -71,6 +71,15 @@ uart_ixp425_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
+	sc->sc_rrid = 0;
+	sc->sc_rtype = SYS_RES_MEMORY;
+	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
+	    0, ~0, uart_getrange(sc->sc_class), RF_ACTIVE);
+	if (sc->sc_rres == NULL) {
+		return (ENXIO);
+	}
+	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
+	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 	/*
 	 * XXX set UART Unit Enable (0x40) AND
 	 *     receiver timeout int enable (0x10).
@@ -79,9 +88,9 @@ uart_ixp425_probe(device_t dev)
 	 * uart_ns8250 carefully avoids touching these bits so we can
 	 * just set them here and proceed.  But this is fragile...
 	 */
-	bus_space_write_4(&ixp425_a4x_bs_tag,
-	    device_get_unit(dev) == 0 ? IXP425_UART0_VBASE : IXP425_UART1_VBASE,
-	    IXP425_UART_IER, IXP425_UART_IER_UUE | IXP425_UART_IER_RTOIE);
+	bus_space_write_4(sc->sc_bas.bst, sc->sc_bas.bsh, IXP425_UART_IER,
+	    IXP425_UART_IER_UUE | IXP425_UART_IER_RTOIE);
+	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
 
 	return uart_bus_probe(dev, 0, IXP425_UART_FREQ, 0, 0);
 }
