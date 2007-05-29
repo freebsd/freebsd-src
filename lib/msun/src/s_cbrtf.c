@@ -41,11 +41,11 @@ cbrtf(float x)
 	sign=hx&0x80000000; 		/* sign= sign(x) */
 	hx  ^=sign;
 	if(hx>=0x7f800000) return(x+x); /* cbrt(NaN,INF) is itself */
-	if(hx==0)
-	    return(x);			/* cbrt(0) is itself */
 
     /* rough cbrt to 5 bits */
-	if(hx<0x00800000) { 		/* subnormal number */
+	if(hx<0x00800000) { 		/* zero or subnormal? */
+	    if(hx==0)
+		return(x);		/* cbrt(+-0) is itself */
 	    SET_FLOAT_WORD(t,0x4b800000); /* set t= 2**24 */
 	    t*=x;
 	    GET_FLOAT_WORD(high,t);
