@@ -281,6 +281,11 @@
       sysctl variable, which defaults to <literal>0</literal> (off).
       For more information, see security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:03.ipv6.asc">FreeBSD-SA-07:03.ipv6</ulink>. &merged;</para>
+
+    <para>A potential heap overflow in the &man.file.1; utility
+      (and the &man.libmagic.3; library on which it relies) has been
+      fixed.  More details can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:04.file.asc">FreeBSD-SA-07:04.file</ulink>. &merged;</para>
   </sect2>
 
   <sect2 id="kernel">
@@ -2052,7 +2057,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       used in the boot loader has been updated to 3.03.</para>
 
     <para><application>FILE</application> has been updated from 4.12
-      to 4.17.</para>
+      to 4.21.</para>
 
     <para>The GNU version of <application>gzip</application> has been
       replaced with a modified version of gzip ported from NetBSD.
