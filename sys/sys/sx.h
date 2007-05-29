@@ -101,9 +101,9 @@
 	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
 	if (!atomic_cmpset_acq_ptr(&(sx)->sx_lock, SX_LOCK_UNLOCKED,	\
-	    _tid)) {							\
+	    _tid))							\
 		_sx_xlock_hard((sx), _tid, (file), (line));		\
-	} else								\
+	else								\
 		lock_profile_obtain_lock_success(&(sx)->lock_object, 0,	\
 		    0, (file), (line));					\
 } while (0)
@@ -123,9 +123,9 @@
 									\
 	if (!(x & SX_LOCK_SHARED) ||					\
 	    !atomic_cmpset_acq_ptr(&(sx)->sx_lock, x,			\
-	    x + SX_ONE_SHARER)) {					\
+	    x + SX_ONE_SHARER))						\
 		_sx_slock_hard((sx), (file), (line));			\
-	} else								\
+	else								\
 		lock_profile_obtain_lock_success(&(sx)->lock_object, 0,	\
 		    0, (file), (line));					\
 } while (0)
