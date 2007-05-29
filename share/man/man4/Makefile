@@ -169,6 +169,7 @@ MAN=	aac.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
+	mxge.4 \
 	my.4 \
 	natm.4 \
 	natmip.4 \
@@ -461,6 +462,7 @@ MLINKS+=lp.4 plip.4
 MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=mn.4 if_mn.4
+MLINKS+=mxge.4 if_mxge.4
 MLINKS+=my.4 if_my.4
 MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
