@@ -165,7 +165,7 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 	MPASS((opts & ~(SX_QUIET | SX_RECURSE | SX_NOWITNESS | SX_DUPOK |
 	    SX_NOPROFILE | SX_ADAPTIVESPIN)) == 0);
 
-	flags = LO_SLEEPABLE | LO_UPGRADABLE | LO_RECURSABLE;
+	flags = LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE;
 	if (opts & SX_DUPOK)
 		flags |= LO_DUPOK;
 	if (opts & SX_NOPROFILE)
@@ -535,7 +535,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 			CTR2(KTR_LOCK, "%s: %p resuming from sleep queue",
 			    __func__, sx);
 	}
-	
+
 	GIANT_RESTORE();
 	lock_profile_obtain_lock_success(&(sx)->lock_object, contested,
 	    waitstart, file, line);
