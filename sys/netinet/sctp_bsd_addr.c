@@ -51,11 +51,11 @@ __FBSDID("$FreeBSD$");
 
 /* Declare all of our malloc named types */
 
-/* Not to Michael/Peter for mac-os,
- * I think mac has this to since I
+/* Note to Michael/Peter for mac-os,
+ * I think mac has this too since I
  * do see the M_PCB type, so I
  * will also put in the mac file the
- * MALLOC_DELCARE. If this does not
+ * MALLOC_DECLARE. If this does not
  * work for mac uncomment the defines for
  * the strings that we use in Panda, I put
  * them in comments in the mac-os file.

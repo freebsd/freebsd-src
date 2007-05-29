@@ -204,7 +204,7 @@ struct sctp_paramhdr {
  * form. Note this is a compile option to
  * the kernel,  SCTP_PACKET_LOGGING, and
  * without it in your kernel you
- * will get a ENOSUPPORT.
+ * will get a EOPNOTSUPP
  */
 #define SCTP_GET_PACKET_LOG             0x00004001
 
