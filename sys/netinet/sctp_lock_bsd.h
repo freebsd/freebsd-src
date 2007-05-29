@@ -133,6 +133,19 @@ extern int sctp_logoff_stuff;
 #define SCTP_IPI_ITERATOR_WQ_UNLOCK()		mtx_unlock(&sctppcbinfo.ipi_iterator_wq_mtx)
 
 
+#define SCTP_IP_PKTLOG_INIT() \
+        mtx_init(&sctppcbinfo.ipi_pktlog_mtx, "sctp-pktlog", "packetlog", MTX_DEF)
+
+
+#define SCTP_IP_PKTLOG_LOCK()	do { 			\
+             mtx_lock(&sctppcbinfo.ipi_pktlog_mtx);     \
+} while (0)
+
+#define SCTP_IP_PKTLOG_UNLOCK()	mtx_unlock(&sctppcbinfo.ipi_pktlog_mtx)
+
+#define SCTP_IP_PKTLOG_DESTROY() \
+	mtx_destroy(&sctppcbinfo.ipi_pktlog_mtx)
+
 
 
 

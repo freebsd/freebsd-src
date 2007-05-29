@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_indata.h>
 #include <netinet/sctp_asconf.h>
-
+#include <netinet/sctp_bsd_addr.h>
 
 
 
@@ -247,6 +247,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 	asoc->last_echo_tsn = asoc->asconf_seq_in;
 	asoc->advanced_peer_ack_point = asoc->last_acked_seq;
 	/* open the requested streams */
+
 	if (asoc->strmin != NULL) {
 		/* Free the old ones */
 		struct sctp_queued_to_read *ctl;
@@ -262,14 +263,14 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 				ctl = TAILQ_FIRST(&asoc->strmin[i].inqueue);
 			}
 		}
-		SCTP_FREE(asoc->strmin);
+		SCTP_FREE(asoc->strmin, SCTP_M_STRMI);
 	}
 	asoc->streamincnt = ntohs(init->num_outbound_streams);
 	if (asoc->streamincnt > MAX_SCTP_STREAMS) {
 		asoc->streamincnt = MAX_SCTP_STREAMS;
 	}
 	SCTP_MALLOC(asoc->strmin, struct sctp_stream_in *, asoc->streamincnt *
-	    sizeof(struct sctp_stream_in), "StreamsIn");
+	    sizeof(struct sctp_stream_in), SCTP_M_STRMI);
 	if (asoc->strmin == NULL) {
 		/* we didn't get memory for the streams! */
 		SCTPDBG(SCTP_DEBUG_INPUT2, "process_init: couldn't get memory for the streams!\n");
@@ -3012,7 +3013,7 @@ sctp_handle_str_reset_request_out(struct sctp_tcb *stcb,
 
 			siz = sizeof(struct sctp_stream_reset_list) + (number_entries * sizeof(uint16_t));
 			SCTP_MALLOC(liste, struct sctp_stream_reset_list *,
-			    siz, "StrRstList");
+			    siz, SCTP_M_STRESET);
 			if (liste == NULL) {
 				/* gak out of memory */
 				sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_DENIED);
@@ -3465,6 +3466,9 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 	if (ntohs(ch->chunk_length) < sizeof(*ch)) {
 		SCTPDBG(SCTP_DEBUG_INPUT1, "Invalid header length %d\n",
 		    ntohs(ch->chunk_length));
+		if (locked_tcb) {
+			SCTP_TCB_UNLOCK(locked_tcb);
+		}
 		return (NULL);
 	}
 	/*
@@ -3504,6 +3508,9 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 			if (*offset >= length) {
 				/* no more data left in the mbuf chain */
 				*offset = length;
+				if (locked_tcb) {
+					SCTP_TCB_UNLOCK(locked_tcb);
+				}
 				return (NULL);
 			}
 			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
@@ -3512,6 +3519,9 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 		if (ch == NULL) {
 			/* Help */
 			*offset = length;
+			if (locked_tcb) {
+				SCTP_TCB_UNLOCK(locked_tcb);
+			}
 			return (NULL);
 		}
 		if (ch->chunk_type == SCTP_COOKIE_ECHO) {
@@ -3547,6 +3557,9 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				    auth_offset)) {
 					/* auth HMAC failed so dump it */
 					*offset = length;
+					if (locked_tcb) {
+						SCTP_TCB_UNLOCK(locked_tcb);
+					}
 					return (NULL);
 				} else {
 					/* remaining chunks are HMAC checked */
@@ -3926,7 +3939,8 @@ process_control_chunks:
 				    stcb, *netp);
 			break;
 		case SCTP_ABORT_ASSOCIATION:
-			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ABORT\n");
+			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ABORT, stcb %p\n",
+			    stcb);
 			if ((stcb) && netp && *netp)
 				sctp_handle_abort((struct sctp_abort_chunk *)ch,
 				    stcb, *netp);
@@ -3934,7 +3948,8 @@ process_control_chunks:
 			return (NULL);
 			break;
 		case SCTP_SHUTDOWN:
-			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN\n");
+			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN, stcb %p\n",
+			    stcb);
 			if ((stcb == NULL) || (chk_length != sizeof(struct sctp_shutdown_chunk))) {
 				*offset = length;
 				if (locked_tcb) {
@@ -3955,7 +3970,7 @@ process_control_chunks:
 			}
 			break;
 		case SCTP_SHUTDOWN_ACK:
-			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN-ACK\n");
+			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN-ACK, stcb %p\n", stcb);
 			if ((stcb) && (netp) && (*netp))
 				sctp_handle_shutdown_ack((struct sctp_shutdown_ack_chunk *)ch, stcb, *netp);
 			*offset = length;
@@ -3972,7 +3987,7 @@ process_control_chunks:
 			break;
 		case SCTP_COOKIE_ECHO:
 			SCTPDBG(SCTP_DEBUG_INPUT3,
-			    "SCTP_COOKIE-ECHO stcb is %p\n", stcb);
+			    "SCTP_COOKIE-ECHO, stcb %p\n", stcb);
 			if ((stcb) && (stcb->asoc.total_output_queue_size)) {
 				;
 			} else {
@@ -4097,7 +4112,7 @@ process_control_chunks:
 			}
 			break;
 		case SCTP_COOKIE_ACK:
-			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_COOKIE-ACK\n");
+			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_COOKIE-ACK, stcb %p\n", stcb);
 			if ((stcb == NULL) || chk_length != sizeof(struct sctp_cookie_ack_chunk)) {
 				if (locked_tcb) {
 					SCTP_TCB_UNLOCK(locked_tcb);
@@ -4154,7 +4169,7 @@ process_control_chunks:
 			}
 			break;
 		case SCTP_SHUTDOWN_COMPLETE:
-			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN-COMPLETE\n");
+			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN-COMPLETE, stcb %p\n", stcb);
 			/* must be first and only chunk */
 			if ((num_chunks > 1) ||
 			    (length - *offset > SCTP_SIZE32(chk_length))) {
@@ -4707,6 +4722,7 @@ sctp_input(i_pak, off)
 	SCTP_STAT_INCR(sctps_recvpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
 
+
 #ifdef SCTP_MBUF_LOGGING
 	/* Log in any input mbufs */
 	mat = m;
@@ -4717,6 +4733,14 @@ sctp_input(i_pak, off)
 		mat = SCTP_BUF_NEXT(mat);
 	}
 #endif
+#ifdef  SCTP_PACKET_LOGGING
+	sctp_packet_log(m, mlen);
+#endif
+	/*
+	 * Must take out the iphlen, since mlen expects this (only effect lb
+	 * case)
+	 */
+	mlen -= iphlen;
 
 	/*
 	 * Get IP, SCTP, and first chunk header together in first mbuf.

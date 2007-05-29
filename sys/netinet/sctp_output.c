@@ -3463,6 +3463,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			sctp_m_freem(m);
 			return (ENOMEM);
 		}
+#ifdef  SCTP_PACKET_LOGGING
+		sctp_packet_log(m, packet_length);
+#endif
 		SCTP_ATTACH_CHAIN(o_pak, m, packet_length);
 
 		/* send it out.  table id is taken from stcb */
@@ -3676,6 +3679,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			sctp_m_freem(m);
 			return (ENOMEM);
 		}
+#ifdef  SCTP_PACKET_LOGGING
+		sctp_packet_log(m, packet_length);
+#endif
 		SCTP_ATTACH_CHAIN(o_pak, m, packet_length);
 
 		/* send it out. table id is taken from stcb */
@@ -5773,7 +5779,7 @@ sctp_sendall_completes(void *ptr, uint32_t val)
 
 	/* now free everything */
 	sctp_m_freem(ca->m);
-	SCTP_FREE(ca);
+	SCTP_FREE(ca, SCTP_M_COPYAL);
 }
 
 
@@ -5833,7 +5839,7 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 	struct sctp_copy_all *ca;
 
 	SCTP_MALLOC(ca, struct sctp_copy_all *, sizeof(struct sctp_copy_all),
-	    "CopyAll");
+	    SCTP_M_COPYAL);
 	if (ca == NULL) {
 		sctp_m_freem(m);
 		return (ENOMEM);
@@ -5852,7 +5858,7 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 		ca->sndlen = uio->uio_resid;
 		ca->m = sctp_copy_out_all(uio, ca->sndlen);
 		if (ca->m == NULL) {
-			SCTP_FREE(ca);
+			SCTP_FREE(ca, SCTP_M_COPYAL);
 			return (ENOMEM);
 		}
 	} else {
@@ -5874,7 +5880,7 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 	    sctp_sendall_completes, inp, 1);
 	if (ret) {
 		SCTP_PRINTF("Failed to initiate iterator for sendall\n");
-		SCTP_FREE(ca);
+		SCTP_FREE(ca, SCTP_M_COPYAL);
 		return (EFAULT);
 	}
 	return (0);
@@ -9344,6 +9350,9 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 		bzero(&ro, sizeof ro);
 		/* set IPv4 length */
 		iph_out->ip_len = mlen;
+#ifdef  SCTP_PACKET_LOGGING
+		sctp_packet_log(mout, mlen);
+#endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, mlen);
 
 		/* out it goes */
@@ -9360,6 +9369,9 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 
 		bzero(&ro, sizeof(ro));
 		mlen = SCTP_BUF_LEN(mout);
+#ifdef  SCTP_PACKET_LOGGING
+		sctp_packet_log(mout, mlen);
+#endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, mlen);
 		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id, table_id);
 
@@ -10209,6 +10221,9 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 		/* set IPv4 length */
 		iph_out->ip_len = len;
 		/* out it goes */
+#ifdef  SCTP_PACKET_LOGGING
+		sctp_packet_log(mout, len);
+#endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		SCTP_IP_OUTPUT(ret, o_pak, &ro, stcb, vrf_id, table_id);
 
@@ -10226,6 +10241,9 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 		SCTPDBG(SCTP_DEBUG_OUTPUT2, "sctp_send_abort calling ip6_output:\n");
 		SCTPDBG_PKT(SCTP_DEBUG_OUTPUT2, (struct ip *)ip6_out, &abm->sh);
 		ip6_out->ip6_plen = len - sizeof(*ip6_out);
+#ifdef  SCTP_PACKET_LOGGING
+		sctp_packet_log(mout, len);
+#endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id, table_id);
 
@@ -10327,6 +10345,9 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 		out->ip_src = iph->ip_dst;
 		out->ip_dst = iph->ip_src;
 		out->ip_len = len;
+#ifdef  SCTP_PACKET_LOGGING
+		sctp_packet_log(mout, len);
+#endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 
 		SCTP_IP_OUTPUT(retcode, o_pak, &ro, stcb, vrf_id, table_id);
@@ -10372,6 +10393,9 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 		SCTPDBG(SCTP_DEBUG_OUTPUT2, "dst ");
 		SCTPDBG_ADDR(SCTP_DEBUG_OUTPUT2, (struct sockaddr *)&fsa6);
 
+#ifdef  SCTP_PACKET_LOGGING
+		sctp_packet_log(mout, len);
+#endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id, table_id);
 
@@ -10867,12 +10891,12 @@ sctp_lower_sosend(struct socket *so,
 							    struct sctp_stream_out *,
 							    (asoc->pre_open_streams *
 							    sizeof(struct sctp_stream_out)),
-							    "StreamsOut");
+							    SCTP_M_STRMO);
 							if (had_lock) {
 								SCTP_TCB_LOCK(stcb);
 							}
 							if (tmp_str != NULL) {
-								SCTP_FREE(asoc->strmout);
+								SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
 								asoc->strmout = tmp_str;
 								asoc->streamoutcnt = asoc->pre_open_streams;
 							} else {
@@ -10943,6 +10967,8 @@ sctp_lower_sosend(struct socket *so,
 		}
 	}
 	/* Keep the stcb from being freed under our feet */
+	if (free_cnt_applied)
+		panic("refcnt already incremented");
 	atomic_add_int(&stcb->asoc.refcnt, 1);
 	free_cnt_applied = 1;
 
