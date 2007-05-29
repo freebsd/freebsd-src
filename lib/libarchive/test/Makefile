@@ -5,6 +5,8 @@ TESTS= \
 	test_acl_pax.c				\
 	test_archive_api_feature.c		\
 	test_bad_fd.c				\
+	test_entry.c				\
+	test_read_compress_program.c		\
 	test_read_data_large.c			\
 	test_read_extract.c			\
 	test_read_format_ar.c			\
@@ -29,6 +31,7 @@ TESTS= \
 	test_read_position.c			\
 	test_read_truncated.c			\
 	test_tar_filenames.c			\
+	test_write_compress_program.c		\
 	test_write_disk.c			\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
@@ -53,6 +56,11 @@ DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
 LDADD= -larchive -lz -lbz2
 CFLAGS+= -static -g
 CFLAGS+= -I${.OBJDIR}
+
+# Uncomment to link against dmalloc
+#LDADD+= -L/usr/local/lib -ldmalloc
+#CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
+#WARNS=6
 
 test:	libarchive_test
 	./libarchive_test

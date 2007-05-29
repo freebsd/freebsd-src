@@ -41,6 +41,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <wchar.h>
+
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
 
 #if defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
@@ -83,15 +88,26 @@
 #define assert(e)   test_assert(__FILE__, __LINE__, (e), #e, NULL)
 /* As above, but reports any archive_error found in variable 'a' */
 #define assertA(e)   test_assert(__FILE__, __LINE__, (e), #e, (a))
-/* Asserts that two values are the same.  Reports value of each one if not. */
+
+/* Asserts that two integers are the same.  Reports value of each one if not. */
 #define assertEqualIntA(a,v1,v2)   \
   test_assert_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
-/* Asserts that two values are the same.  Reports value of each one if not. */
 #define assertEqualInt(v1,v2)   \
   test_assert_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
+
+/* Asserts that two strings are the same.  Reports value of each one if not. */
+#define assertEqualStringA(a,v1,v2)   \
+  test_assert_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
+#define assertEqualString(v1,v2)   \
+  test_assert_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
+/* As above, but v1 and v2 are wchar_t * */
+#define assertEqualWString(v1,v2)   \
+  test_assert_equal_wstring(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
 
 /* Function declarations.  These are defined in test_utility.c. */
 void failure(const char *fmt, ...);
 void test_assert(const char *, int, int, const char *, struct archive *);
 void test_assert_equal_int(const char *, int, int, const char *, int, const char *, struct archive *);
+void test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, struct archive *);
+void test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, struct archive *);
 

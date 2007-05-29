@@ -86,33 +86,35 @@ struct archive_read {
 	off_t		  header_position;
 
 	/*
-	 * Detection functions for decompression: bid functions are
-	 * given a block of data from the beginning of the stream and
-	 * can bid on whether or not they support the data stream.
-	 * General guideline: bid the number of bits that you actually
-	 * test, e.g., 16 if you test a 2-byte magic value.  The
-	 * highest bidder will have their init function invoked, which
-	 * can set up pointers to specific handlers.
+	 * Decompressors have a very specific lifecycle:
+	 *    public setup function initializes a slot in this table
+	 *    'config' holds minimal configuration data
+	 *    bid() examines a block of data and returns a bid [1]
+	 *    init() is called for successful bidder
+	 *    'data' is initialized by init()
+	 *    read() returns a pointer to the next block of data
+	 *    consume() indicates how much data is used
+	 *    skip() ignores bytes of data
+	 *    finish() cleans up and frees 'data' and 'config'
+	 *
+	 * [1] General guideline: bid the number of bits that you actually
+	 * test, e.g., 16 if you test a 2-byte magic value.
 	 */
-	struct {
+	struct decompressor_t {
+		void *config;
+		void *data;
 		int	(*bid)(const void *buff, size_t);
-		int	(*init)(struct archive_read *, const void *buff, size_t);
+		int	(*init)(struct archive_read *,
+			    const void *buff, size_t);
+		int	(*finish)(struct archive_read *);
+		ssize_t	(*read_ahead)(struct archive_read *,
+			    const void **, size_t);
+		ssize_t	(*consume)(struct archive_read *, size_t);
+		off_t	(*skip)(struct archive_read *, off_t);
 	}	decompressors[4];
-	/* Read/write data stream (with compression). */
-	void	 *compression_data;		/* Data for (de)compressor. */
-	int	(*compression_finish)(struct archive_read *);
 
-	/*
-	 * Read uses a peek/consume I/O model: the decompression code
-	 * returns a pointer to the requested block and advances the
-	 * file position only when requested by a consume call.  This
-	 * reduces copying and also simplifies look-ahead for format
-	 * detection.
-	 */
-	ssize_t	(*compression_read_ahead)(struct archive_read *,
-		    const void **, size_t request);
-	ssize_t	(*compression_read_consume)(struct archive_read *, size_t);
-	off_t (*compression_skip)(struct archive_read *, off_t);
+	/* Pointer to current decompressor. */
+	struct decompressor_t *decompressor;
 
 	/*
 	 * Format detection is mostly the same as compression
@@ -130,25 +132,14 @@ struct archive_read {
 	 */
 
 	struct archive_format_descriptor {
+		void	 *data;
 		int	(*bid)(struct archive_read *);
 		int	(*read_header)(struct archive_read *, struct archive_entry *);
 		int	(*read_data)(struct archive_read *, const void **, size_t *, off_t *);
 		int	(*read_data_skip)(struct archive_read *);
 		int	(*cleanup)(struct archive_read *);
-		void	 *format_data;	/* Format-specific data for readers. */
 	}	formats[8];
 	struct archive_format_descriptor	*format; /* Active format. */
-
-	/*
-	 * Storage for format-specific data.  Note that there can be
-	 * multiple format readers active at one time, so we need to
-	 * allow for multiple format readers to have their data
-	 * available.  The pformat_data slot here is the solution: on
-	 * read, it is guaranteed to always point to a void* variable
-	 * that the format can use.
-	 */
-	void	**pformat_data;		/* Pointer to current format_data. */
-	void	 *format_data;		/* Used by writers. */
 
 	/*
 	 * Pointers to format-specific functions for writing.  They're
@@ -177,7 +168,8 @@ int	__archive_read_register_format(struct archive_read *a,
 	    int (*read_data_skip)(struct archive_read *),
 	    int (*cleanup)(struct archive_read *));
 
-int	__archive_read_register_compression(struct archive_read *a,
+struct decompressor_t
+	*__archive_read_register_compression(struct archive_read *a,
 	    int (*bid)(const void *, size_t),
 	    int (*init)(struct archive_read *, const void *, size_t));
 

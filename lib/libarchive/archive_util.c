@@ -162,6 +162,15 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 }
 
 void
+archive_copy_error(struct archive *dest, struct archive *src)
+{
+	dest->archive_error_number = src->archive_error_number;
+
+	archive_string_copy(&dest->error_string, &src->error_string);
+	dest->error = dest->error_string.s;
+}
+
+void
 __archive_errx(int retvalue, const char *msg)
 {
 	static const char *msg1 = "Fatal Internal Error in libarchive: ";

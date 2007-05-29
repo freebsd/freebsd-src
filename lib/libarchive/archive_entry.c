@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef MAJOR_IN_MKDEV
 #include <sys/mkdev.h>
+# if !defined makedev && (defined mkdev || defined _WIN32 || defined __WIN32__)
+#  define makedev mkdev
+# endif
 #else
 #ifdef MAJOR_IN_SYSMACROS
 #include <sys/sysmacros.h>
@@ -63,68 +66,13 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #endif
 
-#ifndef HAVE_WCSCPY
-static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
-{
-	wchar_t *dest = s1;
-	while ((*s1 = *s2) != L'\0')
-		++s1, ++s2;
-	return dest;
-}
-#endif
-#ifndef HAVE_WCSLEN
-static size_t wcslen(const wchar_t *s)
-{
-	const wchar_t *p = s;
-	while (*p != L'\0')
-		++p;
-	return p - s;
-}
-#endif
-#ifndef HAVE_WMEMCMP
-/* Good enough for simple equality testing, but not for sorting. */
-#define wmemcmp(a,b,i)  memcmp((a), (b), (i) * sizeof(wchar_t))
-#endif
-#ifndef HAVE_WMEMCPY
-#define wmemcpy(a,b,i)  (wchar_t *)memcpy((a), (b), (i) * sizeof(wchar_t))
-#endif
-
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_entry_private.h"
 
 #undef max
 #define	max(a, b)	((a)>(b)?(a):(b))
-
-/*
- * Handle wide character (i.e., Unicode) and non-wide character
- * strings transparently.
- *
- */
-
-struct aes {
-	const char *aes_mbs;
-	char *aes_mbs_alloc;
-	const wchar_t *aes_wcs;
-	wchar_t *aes_wcs_alloc;
-};
-
-struct ae_acl {
-	struct ae_acl *next;
-	int	type;			/* E.g., access or default */
-	int	tag;			/* E.g., user/group/other/mask */
-	int	permset;		/* r/w/x bits */
-	int	id;			/* uid/gid for user/group */
-	struct aes name;		/* uname/gname */
-};
-
-struct ae_xattr {
-	struct ae_xattr *next;
-
-	char	*name;
-	void	*value;
-	size_t	size;
-};
 
 static void	aes_clean(struct aes *);
 static void	aes_copy(struct aes *dest, struct aes *src);
@@ -157,57 +105,32 @@ archive_entry_acl_add_entry_w_len(struct archive_entry *entry, int type,
 		    int permset, int tag, int id, const wchar_t *name, size_t);
 
 
-/*
- * Description of an archive entry.
- *
- * Basically, this is a "struct stat" with a few text fields added in.
- *
- * TODO: Add "comment", "charset", and possibly other entries
- * that are supported by "pax interchange" format.  However, GNU, ustar,
- * cpio, and other variants don't support these features, so they're not an
- * excruciatingly high priority right now.
- *
- * TODO: "pax interchange" format allows essentially arbitrary
- * key/value attributes to be attached to any entry.  Supporting
- * such extensions may make this library useful for special
- * applications (e.g., a package manager could attach special
- * package-management attributes to each entry).  There are tricky
- * API issues involved, so this is not going to happen until
- * there's a real demand for it.
- *
- * TODO: Design a good API for handling sparse files.
- */
-struct archive_entry {
-	/*
-	 * Note that ae_stat.st_mode & S_IFMT  can be  0!
-	 *
-	 * This occurs when the actual file type of the object is not
-	 * in the archive.  For example, 'tar' archives store
-	 * hardlinks without marking the type of the underlying
-	 * object.
-	 */
-	struct stat ae_stat;
+#ifndef HAVE_WCSCPY
+static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
+{
+	wchar_t *dest = s1;
+	while ((*s1 = *s2) != L'\0')
+		++s1, ++s2;
+	return dest;
+}
+#endif
+#ifndef HAVE_WCSLEN
+static size_t wcslen(const wchar_t *s)
+{
+	const wchar_t *p = s;
+	while (*p != L'\0')
+		++p;
+	return p - s;
+}
+#endif
+#ifndef HAVE_WMEMCMP
+/* Good enough for simple equality testing, but not for sorting. */
+#define wmemcmp(a,b,i)  memcmp((a), (b), (i) * sizeof(wchar_t))
+#endif
+#ifndef HAVE_WMEMCPY
+#define wmemcpy(a,b,i)  (wchar_t *)memcpy((a), (b), (i) * sizeof(wchar_t))
+#endif
 
-	/*
-	 * Use aes here so that we get transparent mbs<->wcs conversions.
-	 */
-	struct aes ae_fflags_text;	/* Text fflags per fflagstostr(3) */
-	unsigned long ae_fflags_set;		/* Bitmap fflags */
-	unsigned long ae_fflags_clear;
-	struct aes ae_gname;		/* Name of owning group */
-	struct aes ae_hardlink;	/* Name of target for hardlink */
-	struct aes ae_pathname;	/* Name of entry */
-	struct aes ae_symlink;		/* symlink contents */
-	struct aes ae_uname;		/* Name of owner */
-
-	struct ae_acl	*acl_head;
-	struct ae_acl	*acl_p;
-	int		 acl_state;	/* See acl_next for details. */
-	wchar_t		*acl_text_w;
-
-	struct ae_xattr *xattr_head;
-	struct ae_xattr *xattr_p;
-};
 
 static void
 aes_clean(struct aes *aes)
@@ -379,6 +302,7 @@ archive_entry_clear(struct archive_entry *entry)
 	aes_clean(&entry->ae_uname);
 	archive_entry_acl_clear(entry);
 	archive_entry_xattr_clear(entry);
+	free(entry->stat);
 	memset(entry, 0, sizeof(*entry));
 	return entry;
 }
@@ -387,6 +311,8 @@ struct archive_entry *
 archive_entry_clone(struct archive_entry *entry)
 {
 	struct archive_entry *entry2;
+	struct ae_acl *ap, *ap2;
+	struct ae_xattr *xp;
 
 	/* Allocate new structure and copy over all of the fields. */
 	entry2 = (struct archive_entry *)malloc(sizeof(*entry2));
@@ -404,8 +330,24 @@ archive_entry_clone(struct archive_entry *entry)
 	aes_copy(&entry2->ae_symlink, &entry->ae_symlink);
 	aes_copy(&entry2->ae_uname, &entry->ae_uname);
 
-	/* XXX TODO: Copy ACL data over as well. XXX */
-	/* XXX TODO: Copy xattr data over as well. XXX */
+	/* Copy ACL data over. */
+	ap = entry->acl_head;
+	while (ap != NULL) {
+		ap2 = acl_new_entry(entry2,
+		    ap->type, ap->permset, ap->tag, ap->id);
+		if (ap2 != NULL)
+			aes_copy(&ap2->name, &ap->name);
+		ap = ap->next;
+	}
+
+	/* Copy xattr data over. */
+	xp = entry->xattr_head;
+	while (xp != NULL) {
+		archive_entry_xattr_add_entry(entry2,
+		    xp->name, xp->value, xp->size);
+		xp = xp->next;
+	}
+
 	return (entry2);
 }
 
@@ -435,33 +377,59 @@ archive_entry_new(void)
 time_t
 archive_entry_atime(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_atime);
+	return (entry->ae_stat.aest_atime);
 }
 
 long
 archive_entry_atime_nsec(struct archive_entry *entry)
 {
-	(void)entry; /* entry can be unused here. */
-	return (ARCHIVE_STAT_ATIME_NANOS(&entry->ae_stat));
+	return (entry->ae_stat.aest_atime_nsec);
 }
 
 time_t
 archive_entry_ctime(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_ctime);
+	return (entry->ae_stat.aest_ctime);
 }
 
 long
 archive_entry_ctime_nsec(struct archive_entry *entry)
 {
-	(void)entry; /* entry can be unused here. */
-	return (ARCHIVE_STAT_CTIME_NANOS(&entry->ae_stat));
+	return (entry->ae_stat.aest_ctime_nsec);
 }
 
 dev_t
 archive_entry_dev(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_dev);
+	if (entry->ae_stat.aest_dev_is_broken_down)
+		return makedev(entry->ae_stat.aest_devmajor,
+		    entry->ae_stat.aest_devminor);
+	else
+		return (entry->ae_stat.aest_dev);
+}
+
+dev_t
+archive_entry_devmajor(struct archive_entry *entry)
+{
+	if (entry->ae_stat.aest_dev_is_broken_down)
+		return (entry->ae_stat.aest_devmajor);
+	else
+		return major(entry->ae_stat.aest_dev);
+}
+
+dev_t
+archive_entry_devminor(struct archive_entry *entry)
+{
+	if (entry->ae_stat.aest_dev_is_broken_down)
+		return (entry->ae_stat.aest_devminor);
+	else
+		return minor(entry->ae_stat.aest_dev);
+}
+
+mode_t
+archive_entry_filetype(struct archive_entry *entry)
+{
+	return (AE_IFMT & entry->ae_stat.aest_mode);
 }
 
 void
@@ -507,7 +475,7 @@ archive_entry_fflags_text(struct archive_entry *entry)
 gid_t
 archive_entry_gid(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_gid);
+	return (entry->ae_stat.aest_gid);
 }
 
 const char *
@@ -537,26 +505,31 @@ archive_entry_hardlink_w(struct archive_entry *entry)
 ino_t
 archive_entry_ino(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_ino);
+	return (entry->ae_stat.aest_ino);
 }
 
 mode_t
 archive_entry_mode(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_mode);
+	return (entry->ae_stat.aest_mode);
 }
 
 time_t
 archive_entry_mtime(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_mtime);
+	return (entry->ae_stat.aest_mtime);
 }
 
 long
 archive_entry_mtime_nsec(struct archive_entry *entry)
 {
-	(void)entry; /* entry can be unused here. */
-	return (ARCHIVE_STAT_MTIME_NANOS(&entry->ae_stat));
+	return (entry->ae_stat.aest_mtime_nsec);
+}
+
+unsigned int
+archive_entry_nlink(struct archive_entry *entry)
+{
+	return (entry->ae_stat.aest_nlink);
 }
 
 const char *
@@ -574,31 +547,35 @@ archive_entry_pathname_w(struct archive_entry *entry)
 dev_t
 archive_entry_rdev(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_rdev);
+	if (entry->ae_stat.aest_rdev_is_broken_down)
+		return makedev(entry->ae_stat.aest_rdevmajor,
+		    entry->ae_stat.aest_rdevminor);
+	else
+		return (entry->ae_stat.aest_rdev);
 }
 
 dev_t
 archive_entry_rdevmajor(struct archive_entry *entry)
 {
-	return (major(entry->ae_stat.st_rdev));
+	if (entry->ae_stat.aest_rdev_is_broken_down)
+		return (entry->ae_stat.aest_rdevmajor);
+	else
+		return major(entry->ae_stat.aest_rdev);
 }
 
 dev_t
 archive_entry_rdevminor(struct archive_entry *entry)
 {
-	return (minor(entry->ae_stat.st_rdev));
+	if (entry->ae_stat.aest_rdev_is_broken_down)
+		return (entry->ae_stat.aest_rdevminor);
+	else
+		return minor(entry->ae_stat.aest_rdev);
 }
 
 int64_t
 archive_entry_size(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_size);
-}
-
-const struct stat *
-archive_entry_stat(struct archive_entry *entry)
-{
-	return (&entry->ae_stat);
+	return (entry->ae_stat.aest_size);
 }
 
 const char *
@@ -616,7 +593,7 @@ archive_entry_symlink_w(struct archive_entry *entry)
 uid_t
 archive_entry_uid(struct archive_entry *entry)
 {
-	return (entry->ae_stat.st_uid);
+	return (entry->ae_stat.aest_uid);
 }
 
 const char *
@@ -635,14 +612,12 @@ archive_entry_uname_w(struct archive_entry *entry)
  * Functions to set archive_entry properties.
  */
 
-/*
- * Note "copy" not "set" here.  The "set" functions that accept a pointer
- * only store the pointer; they don't copy the underlying object.
- */
 void
-archive_entry_copy_stat(struct archive_entry *entry, const struct stat *st)
+archive_entry_set_filetype(struct archive_entry *entry, unsigned int type)
 {
-	entry->ae_stat = *st;
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_mode &= ~AE_IFMT;
+	entry->ae_stat.aest_mode |= AE_IFMT & type;
 }
 
 void
@@ -666,7 +641,8 @@ archive_entry_copy_fflags_text_w(struct archive_entry *entry,
 void
 archive_entry_set_gid(struct archive_entry *entry, gid_t g)
 {
-	entry->ae_stat.st_gid = g;
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_gid = g;
 }
 
 void
@@ -679,6 +655,13 @@ void
 archive_entry_copy_gname_w(struct archive_entry *entry, const wchar_t *name)
 {
 	aes_copy_wcs(&entry->ae_gname, name);
+}
+
+void
+archive_entry_set_ino(struct archive_entry *entry, unsigned long ino)
+{
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_ino = ino;
 }
 
 void
@@ -702,15 +685,41 @@ archive_entry_copy_hardlink_w(struct archive_entry *entry, const wchar_t *target
 void
 archive_entry_set_atime(struct archive_entry *entry, time_t t, long ns)
 {
-	entry->ae_stat.st_atime = t;
-	ARCHIVE_STAT_SET_ATIME_NANOS(&entry->ae_stat, ns);
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_atime = t;
+	entry->ae_stat.aest_atime_nsec = ns;
 }
 
 void
 archive_entry_set_ctime(struct archive_entry *entry, time_t t, long ns)
 {
-	entry->ae_stat.st_ctime = t;
-	ARCHIVE_STAT_SET_CTIME_NANOS(&entry->ae_stat, ns);
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_ctime = t;
+	entry->ae_stat.aest_ctime_nsec = ns;
+}
+
+void
+archive_entry_set_dev(struct archive_entry *entry, dev_t d)
+{
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_dev_is_broken_down = 0;
+	entry->ae_stat.aest_dev = d;
+}
+
+void
+archive_entry_set_devmajor(struct archive_entry *entry, dev_t m)
+{
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_dev_is_broken_down = 1;
+	entry->ae_stat.aest_devmajor = m;
+}
+
+void
+archive_entry_set_devminor(struct archive_entry *entry, dev_t m)
+{
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_dev_is_broken_down = 1;
+	entry->ae_stat.aest_devminor = m;
 }
 
 /* Set symlink if symlink is already set, else set hardlink. */
@@ -727,14 +736,23 @@ archive_entry_set_link(struct archive_entry *entry, const char *target)
 void
 archive_entry_set_mode(struct archive_entry *entry, mode_t m)
 {
-	entry->ae_stat.st_mode = m;
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_mode = m;
 }
 
 void
 archive_entry_set_mtime(struct archive_entry *entry, time_t m, long ns)
 {
-	entry->ae_stat.st_mtime = m;
-	ARCHIVE_STAT_SET_MTIME_NANOS(&entry->ae_stat, ns);
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_mtime = m;
+	entry->ae_stat.aest_mtime_nsec = ns;
+}
+
+void
+archive_entry_set_nlink(struct archive_entry *entry, unsigned int nlink)
+{
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_nlink = nlink;
 }
 
 void
@@ -756,27 +774,34 @@ archive_entry_copy_pathname_w(struct archive_entry *entry, const wchar_t *name)
 }
 
 void
+archive_entry_set_rdev(struct archive_entry *entry, dev_t m)
+{
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_rdev = m;
+	entry->ae_stat.aest_rdev_is_broken_down = 0;
+}
+
+void
 archive_entry_set_rdevmajor(struct archive_entry *entry, dev_t m)
 {
-	dev_t d;
-
-	d = entry->ae_stat.st_rdev;
-	entry->ae_stat.st_rdev = makedev(major(m), minor(d));
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_rdev_is_broken_down = 1;
+	entry->ae_stat.aest_rdevmajor = m;
 }
 
 void
 archive_entry_set_rdevminor(struct archive_entry *entry, dev_t m)
 {
-	dev_t d;
-
-	d = entry->ae_stat.st_rdev;
-	entry->ae_stat.st_rdev = makedev(major(d), minor(m));
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_rdev_is_broken_down = 1;
+	entry->ae_stat.aest_rdevminor = m;
 }
 
 void
 archive_entry_set_size(struct archive_entry *entry, int64_t s)
 {
-	entry->ae_stat.st_size = s;
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_size = s;
 }
 
 void
@@ -800,7 +825,8 @@ archive_entry_copy_symlink_w(struct archive_entry *entry, const wchar_t *linknam
 void
 archive_entry_set_uid(struct archive_entry *entry, uid_t u)
 {
-	entry->ae_stat.st_uid = u;
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_uid = u;
 }
 
 void
@@ -904,16 +930,16 @@ acl_special(struct archive_entry *entry, int type, int permset, int tag)
 	if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS) {
 		switch (tag) {
 		case ARCHIVE_ENTRY_ACL_USER_OBJ:
-			entry->ae_stat.st_mode &= ~0700;
-			entry->ae_stat.st_mode |= (permset & 7) << 6;
+			entry->ae_stat.aest_mode &= ~0700;
+			entry->ae_stat.aest_mode |= (permset & 7) << 6;
 			return (0);
 		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
-			entry->ae_stat.st_mode &= ~0070;
-			entry->ae_stat.st_mode |= (permset & 7) << 3;
+			entry->ae_stat.aest_mode &= ~0070;
+			entry->ae_stat.aest_mode |= (permset & 7) << 3;
 			return (0);
 		case ARCHIVE_ENTRY_ACL_OTHER:
-			entry->ae_stat.st_mode &= ~0007;
-			entry->ae_stat.st_mode |= permset & 7;
+			entry->ae_stat.aest_mode &= ~0007;
+			entry->ae_stat.aest_mode |= permset & 7;
 			return (0);
 		}
 	}
@@ -1029,7 +1055,7 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 	/*
 	 * The acl_state is either zero (no entries available), -1
 	 * (reading from list), or an entry type (retrieve that type
-	 * from ae_stat.st_mode).
+	 * from ae_stat.aest_mode).
 	 */
 	if (entry->acl_state == 0)
 		return (ARCHIVE_WARN);
@@ -1038,19 +1064,19 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 		switch (entry->acl_state) {
 		case ARCHIVE_ENTRY_ACL_USER_OBJ:
-			*permset = (entry->ae_stat.st_mode >> 6) & 7;
+			*permset = (entry->ae_stat.aest_mode >> 6) & 7;
 			*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
 			*tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
 			entry->acl_state = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
 			return (ARCHIVE_OK);
 		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
-			*permset = (entry->ae_stat.st_mode >> 3) & 7;
+			*permset = (entry->ae_stat.aest_mode >> 3) & 7;
 			*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
 			*tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
 			entry->acl_state = ARCHIVE_ENTRY_ACL_OTHER;
 			return (ARCHIVE_OK);
 		case ARCHIVE_ENTRY_ACL_OTHER:
-			*permset = entry->ae_stat.st_mode & 7;
+			*permset = entry->ae_stat.aest_mode & 7;
 			*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
 			*tag = ARCHIVE_ENTRY_ACL_OTHER;
 			entry->acl_state = -1;
@@ -1139,13 +1165,13 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 	count = 0;
 	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_USER_OBJ, NULL,
-		    entry->ae_stat.st_mode & 0700, -1);
+		    entry->ae_stat.aest_mode & 0700, -1);
 		*wp++ = ',';
 		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_GROUP_OBJ, NULL,
-		    entry->ae_stat.st_mode & 0070, -1);
+		    entry->ae_stat.aest_mode & 0070, -1);
 		*wp++ = ',';
 		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_OTHER, NULL,
-		    entry->ae_stat.st_mode & 0007, -1);
+		    entry->ae_stat.aest_mode & 0007, -1);
 		count += 3;
 
 		ap = entry->acl_head;

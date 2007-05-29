@@ -60,7 +60,7 @@ archive_read_format_empty_bid(struct archive_read *a)
 	int bytes_read;
 	const void *h;
 
-	bytes_read = (a->compression_read_ahead)(a, &h, 1);
+	bytes_read = (a->decompressor->read_ahead)(a, &h, 1);
 	if (bytes_read > 0)
 		return (-1);
 	return (1);
