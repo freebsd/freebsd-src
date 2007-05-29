@@ -330,6 +330,7 @@ vendor ACARD		0x0678	ACARD
 vendor PROLIFIC		0x067b	Prolific
 vendor SIEMENS		0x067c	Siemens
 vendor AVANCELOGIC	0x0680	Avance Logic
+vendor SIEMENS3		0x0681	Siemens
 vendor MINOLTA		0x0686	Minolta
 vendor CHPRODUCTS	0x068e	CH Products
 vendor HAGIWARA		0x0693	Hagiwara Sys-Com
@@ -510,6 +511,7 @@ vendor CURITEL		0x106c	Curitel Communications Inc
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor JRC		0x1145	JRC
+vendor SPAIRON		0x114b	Spairon
 vendor DELORME		0x1163	DeLorme
 vendor SERVERWORKS	0x1166	ServerWorks
 vendor ACERCM		0x1189	Acer Communications & Multimedia
@@ -769,7 +771,9 @@ product BELKIN F5U409		0x0409	F5U409 Serial
 product BELKIN F6C550AVR	0x0551	F6C550-AVR UPS
 product BELKIN F5U120		0x1203	F5U120-PC Hub
 product BELKIN F5D7050		0x7050	F5D7050 wireless adapter
-product BELKIN F5D7050A		0x705a	F5D705A wireless adapter
+product BELKIN F5D7051		0x7051	F5D7051 54g USB Network Adapter
+product BELKIN F5D7050A		0x705a	F5D7050A wireless adapter
+product BELKIN F5D7050_V4000	0x705c	F5D7050 v4000 wireless adapter
 product BELKIN F5D9050V3	0x905b	F5D9050 ver 3 wireless adapter
 
 /* Billionton products */
@@ -1038,6 +1042,7 @@ product GENESYS GL641USB2IDE	0x0702	GL641USB USB-IDE Bridge
 product GENESYS GL641USB_2	0x0760	GL641USB 6-in-1 Card Reader
 
 /* GIGABYTE products */
+product GIGABYTE GN54G		0x8001	GN-54G
 product GIGABYTE GNBR402W	0x8002	GN-BR402W
 product GIGABYTE GNWLBM101	0x8003	GN-WLBM101
 product GIGABYTE GNWBKG		0x8007	GN-WBKG
@@ -1596,6 +1601,7 @@ product RALINK RT2570		0x1706	RT2500USB wireless adapter
 product RALINK RT2570_2		0x2570	RT2500USB wireless adapter
 product RALINK RT2573		0x2573	RT2501USB wireless adapter
 product RALINK RT2671		0x2671	RT2601USB wireless adapter
+product RALINK RT2570_3		0x9020	RT2500USB wireless adapter
 product RALINK RT2573_2		0x9021	RT2501USB wireless adapter
 
 /* ReakTek products */
@@ -1659,6 +1665,7 @@ product SHUTTLE EUSBORCA	0x0325	eUSB ORCA Quad Reader
 
 /* Siemens products */
 product SIEMENS SPEEDSTREAM	0x1001	SpeedStream USB
+product SIEMENS3 WL54G		0x3c06	54g USB Network Adapter
 
 /* Sierra Wireless products */
 product SIERRA MC5720		0x0218	MC5720 Wireless Modem
@@ -1727,6 +1734,9 @@ product SONYERICSSON DCU10	0x0528	USB Cable
 /* SOURCENEXT products */
 product SOURCENEXT KEIKAI8	0x039f	KeikaiDenwa 8
 product SOURCENEXT KEIKAI8_CHG	0x012e	KeikaiDenwa 8 with charger
+
+/* Spairon */
+product SPAIRON WL54G		0x0110	54g Wireless Network Adapter
 
 /* STMicroelectronics products */
 product STMICRO BIOCPU		0x2016	Biometric Coprocessor
