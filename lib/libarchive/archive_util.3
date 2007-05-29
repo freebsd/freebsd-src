@@ -31,6 +31,7 @@
 .Nm archive_clear_error ,
 .Nm archive_compression ,
 .Nm archive_compression_name ,
+.Nm archive_copy_error ,
 .Nm archive_errno ,
 .Nm archive_error_string ,
 .Nm archive_format ,
@@ -45,6 +46,8 @@
 .Fn archive_compression "struct archive *"
 .Ft const char *
 .Fn archive_compression_name "struct archive *"
+.Ft void
+.Fn archive_copy_error "struct archive *" "struct archive *"
 .Ft int
 .Fn archive_errno "struct archive *"
 .Ft const char *
@@ -71,6 +74,8 @@ This value is set by
 .Fn archive_read_open .
 .It Fn archive_compression_name
 Returns a text description of the current compression suitable for display.
+.It Fn archive_copy_error
+Copies error information from one archive to another.
 .It Fn archive_errno
 Returns a numeric error code (see
 .Xr errno 2 )

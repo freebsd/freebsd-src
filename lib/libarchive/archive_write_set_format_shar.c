@@ -26,9 +26,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -84,7 +81,7 @@ shar_printf(struct archive_write *a, const char *fmt, ...)
 	va_start(ap, fmt);
 	archive_string_empty(&(shar->work));
 	archive_string_vsprintf(&(shar->work), fmt, ap);
-	ret = ((a->compression_write)(a, shar->work.s, strlen(shar->work.s)));
+	ret = ((a->compressor.write)(a, shar->work.s, strlen(shar->work.s)));
 	va_end(ap);
 	return (ret);
 }
@@ -149,7 +146,6 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 	const char *name;
 	char *p, *pp;
 	struct shar *shar;
-	const struct stat *st;
 	int ret;
 
 	shar = (struct shar *)a->format_data;
@@ -168,22 +164,21 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 		archive_entry_free(shar->entry);
 	shar->entry = archive_entry_clone(entry);
 	name = archive_entry_pathname(entry);
-	st = archive_entry_stat(entry);
 
 	/* Handle some preparatory issues. */
-	switch(st->st_mode & S_IFMT) {
-	case S_IFREG:
+	switch(archive_entry_filetype(entry)) {
+	case AE_IFREG:
 		/* Only regular files have non-zero size. */
 		break;
-	case S_IFDIR:
+	case AE_IFDIR:
 		archive_entry_set_size(entry, 0);
 		/* Don't bother trying to recreate '.' */
 		if (strcmp(name, ".") == 0  ||  strcmp(name, "./") == 0)
 			return (ARCHIVE_OK);
 		break;
-	case S_IFIFO:
-	case S_IFCHR:
-	case S_IFBLK:
+	case AE_IFIFO:
+	case AE_IFCHR:
+	case AE_IFBLK:
 		/* All other file types have zero size in the archive. */
 		archive_entry_set_size(entry, 0);
 		break;
@@ -202,7 +197,7 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 	if (ret != ARCHIVE_OK)
 		return (ret);
 
-	if (!S_ISDIR(st->st_mode)) {
+	if (archive_entry_filetype(entry) != AE_IFDIR) {
 		/* Try to create the dir. */
 		p = strdup(name);
 		pp = strrchr(p, '/');
@@ -255,8 +250,8 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 		if (ret != ARCHIVE_OK)
 			return (ret);
 	} else {
-		switch(st->st_mode & S_IFMT) {
-		case S_IFREG:
+		switch(archive_entry_filetype(entry)) {
+		case AE_IFREG:
 			if (archive_entry_size(entry) == 0) {
 				/* More portable than "touch." */
 				ret = shar_printf(a, "test -e \"%s\" || :> \"%s\"\n", name, name);
@@ -287,7 +282,7 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 				shar->outbytes = 0;
 			}
 			break;
-		case S_IFDIR:
+		case AE_IFDIR:
 			ret = shar_printf(a, "mkdir -p %s > /dev/null 2>&1\n",
 			    name);
 			if (ret != ARCHIVE_OK)
@@ -306,19 +301,19 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 			 * up at end of archive.
 			 */
 			break;
-		case S_IFIFO:
+		case AE_IFIFO:
 			ret = shar_printf(a, "mkfifo %s\n", name);
 			if (ret != ARCHIVE_OK)
 				return (ret);
 			break;
-		case S_IFCHR:
+		case AE_IFCHR:
 			ret = shar_printf(a, "mknod %s c %d %d\n", name,
 			    archive_entry_rdevmajor(entry),
 			    archive_entry_rdevminor(entry));
 			if (ret != ARCHIVE_OK)
 				return (ret);
 			break;
-		case S_IFBLK:
+		case AE_IFBLK:
 			ret = shar_printf(a, "mknod %s b %d %d\n", name,
 			    archive_entry_rdevmajor(entry),
 			    archive_entry_rdevminor(entry));
@@ -359,7 +354,7 @@ archive_write_shar_data_sed(struct archive_write *a, const void *buff, size_t n)
 		shar->outbuff[shar->outpos++] = *src++;
 
 		if (shar->outpos > sizeof(shar->outbuff) - 2) {
-			ret = (a->compression_write)(a, shar->outbuff,
+			ret = (a->compressor.write)(a, shar->outbuff,
 			    shar->outpos);
 			if (ret != ARCHIVE_OK)
 				return (ret);
@@ -368,7 +363,7 @@ archive_write_shar_data_sed(struct archive_write *a, const void *buff, size_t n)
 	}
 
 	if (shar->outpos > 0)
-		ret = (a->compression_write)(a, shar->outbuff, shar->outpos);
+		ret = (a->compressor.write)(a, shar->outbuff, shar->outpos);
 	if (ret != ARCHIVE_OK)
 		return (ret);
 	return (written);

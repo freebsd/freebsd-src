@@ -122,33 +122,4 @@
 #define	ARCHIVE_ERRNO_MISC (-1)
 #endif
 
-/* Select the best way to set/get hi-res timestamps. */
-#if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
-/* FreeBSD uses "timespec" members. */
-#define	ARCHIVE_STAT_ATIME_NANOS(st)	(st)->st_atimespec.tv_nsec
-#define	ARCHIVE_STAT_CTIME_NANOS(st)	(st)->st_ctimespec.tv_nsec
-#define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
-#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n) (st)->st_atimespec.tv_nsec = (n)
-#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) (st)->st_ctimespec.tv_nsec = (n)
-#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) (st)->st_mtimespec.tv_nsec = (n)
-#else
-#if HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
-/* Linux uses "tim" members. */
-#define	ARCHIVE_STAT_ATIME_NANOS(pstat)	(pstat)->st_atim.tv_nsec
-#define	ARCHIVE_STAT_CTIME_NANOS(pstat)	(pstat)->st_ctim.tv_nsec
-#define	ARCHIVE_STAT_MTIME_NANOS(pstat)	(pstat)->st_mtim.tv_nsec
-#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n) (st)->st_atim.tv_nsec = (n)
-#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) (st)->st_ctim.tv_nsec = (n)
-#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) (st)->st_mtim.tv_nsec = (n)
-#else
-/* If we can't find a better way, just use stubs. */
-#define	ARCHIVE_STAT_ATIME_NANOS(pstat)	0
-#define	ARCHIVE_STAT_CTIME_NANOS(pstat)	0
-#define	ARCHIVE_STAT_MTIME_NANOS(pstat)	0
-#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n) ((void)(n))
-#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) ((void)(n))
-#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) ((void)(n))
-#endif
-#endif
-
 #endif /* !ARCHIVE_H_INCLUDED */

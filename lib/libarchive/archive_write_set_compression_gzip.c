@@ -81,7 +81,7 @@ archive_write_set_compression_gzip(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_compression_gzip");
-	a->compression_init = &archive_compressor_gzip_init;
+	a->compressor.init = &archive_compressor_gzip_init;
 	a->archive.compression_code = ARCHIVE_COMPRESSION_GZIP;
 	a->archive.compression_name = "gzip";
 	return (ARCHIVE_OK);
@@ -143,8 +143,8 @@ archive_compressor_gzip_init(struct archive_write *a)
 	state->stream.next_out += 10;
 	state->stream.avail_out -= 10;
 
-	a->compression_write = archive_compressor_gzip_write;
-	a->compression_finish = archive_compressor_gzip_finish;
+	a->compressor.write = archive_compressor_gzip_write;
+	a->compressor.finish = archive_compressor_gzip_finish;
 
 	/* Initialize compression library. */
 	ret = deflateInit2(&(state->stream),
@@ -155,7 +155,7 @@ archive_compressor_gzip_init(struct archive_write *a)
 	    Z_DEFAULT_STRATEGY);
 
 	if (ret == Z_OK) {
-		a->compression_data = state;
+		a->compressor.data = state;
 		return (0);
 	}
 
@@ -196,7 +196,7 @@ archive_compressor_gzip_write(struct archive_write *a, const void *buff,
 	struct private_data *state;
 	int ret;
 
-	state = (struct private_data *)a->compression_data;
+	state = (struct private_data *)a->compressor.data;
 	if (a->client_writer == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
@@ -231,7 +231,7 @@ archive_compressor_gzip_finish(struct archive_write *a)
 	unsigned tocopy;
 	unsigned char trailer[8];
 
-	state = (struct private_data *)a->compression_data;
+	state = (struct private_data *)a->compressor.data;
 	ret = 0;
 	if (a->client_writer == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
@@ -340,11 +340,6 @@ cleanup:
 	}
 	free(state->compressed);
 	free(state);
-
-	/* Close the output */
-	if (a->client_closer != NULL)
-		(a->client_closer)(&a->archive, a->client_data);
-
 	return (ret);
 }
 

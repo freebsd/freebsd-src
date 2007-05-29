@@ -264,7 +264,7 @@ struct acl_t {
 	int permset; /* Permissions for this class of users. */
 	int tag; /* Owner, User, Owning group, group, other, etc. */
 	int qual; /* GID or UID of user/group, depending on tag. */
-	char *name; /* Name of user/group, depending on tag. */
+	const char *name; /* Name of user/group, depending on tag. */
 };
 
 static struct acl_t acls0[] = {
@@ -347,7 +347,7 @@ static void
 compare_acls(struct archive_entry *ae, struct acl_t *acls, int n, int mode)
 {
 	int *marker = malloc(sizeof(marker[0]) * n);
-	int marker_i, i;
+	int i;
 	int r;
 	int type, permset, tag, qual;
 	int matched;
@@ -402,7 +402,6 @@ compare_acls(struct archive_entry *ae, struct acl_t *acls, int n, int mode)
 
 DEFINE_TEST(test_acl_pax)
 {
-	int i;
 	struct archive *a;
 	struct archive_entry *ae;
 	size_t used;
@@ -454,7 +453,7 @@ DEFINE_TEST(test_acl_pax)
 
 	/* Write out the data we generated to a file for manual inspection. */
 	assert(-1 < (fd = open("testout", O_WRONLY | O_CREAT | O_TRUNC, 0775)));
-	assert(used == write(fd, buff, used));
+	assert(used == (size_t)write(fd, buff, used));
 	close(fd);
 
 	/* Write out the reference data to a file for manual inspection. */

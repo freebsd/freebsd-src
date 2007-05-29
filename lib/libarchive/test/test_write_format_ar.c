@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 
 char buff[4096];
 char buff2[64];
-static unsigned char strtab[] = "abcdefghijklmn.o/\nggghhhjjjrrrttt.o/\n\n";
+static unsigned char strtab[] = "abcdefghijklmn.o/\nggghhhjjjrrrttt.o/\niiijjjdddsssppp.o/\n";
 
 DEFINE_TEST(test_write_format_ar)
 {
@@ -43,7 +43,7 @@ DEFINE_TEST(test_write_format_ar)
 	 */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ar_svr4(a));
-	assertA(0 == archive_write_set_compression_none(a));
+	assertA(0 == archive_write_set_compression_gzip(a));
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/* write the filename table */
@@ -51,7 +51,7 @@ DEFINE_TEST(test_write_format_ar)
 	archive_entry_copy_pathname(ae, "//");
 	archive_entry_set_size(ae, strlen(strtab));
 	assertA(0 == archive_write_header(a, ae));
-	assertA(strlen(strtab) == archive_write_data(a, strtab, strlen(strtab)));
+	assertA(strlen(strtab) == (size_t)archive_write_data(a, strtab, strlen(strtab)));
 	archive_entry_free(ae);
 
 	/* write entries */
@@ -68,11 +68,36 @@ DEFINE_TEST(test_write_format_ar)
 
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "ggghhhjjjrrrttt.o");
+	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 7);
 	assertA(0 == archive_write_header(a, ae));
 	assertA(7 == archive_write_data(a, "7777777", 7));
-
 	archive_entry_free(ae);
+
+	/* test full pathname */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "/usr/home/xx/iiijjjdddsssppp.o");
+	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	assertA(0 == archive_write_header(a, ae));
+	assertA(8 == archive_write_data(a, "88877766", 8));
+	archive_entry_free(ae);
+
+	/* trailing "/" should be rejected */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "/usr/home/xx/iiijjj/");
+	archive_entry_set_size(ae, 8);
+	assertA(0 != archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/* Non regular file should be rejected */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "gfgh.o");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	archive_entry_set_size(ae, 6);
+	assertA(0 != archive_write_header(a, ae));
+	archive_entry_free(ae);
+
 	archive_write_close(a);
 #if ARCHIVE_API_VERSION > 1
 	assert(0 == archive_write_finish(a));
@@ -90,23 +115,29 @@ DEFINE_TEST(test_write_format_ar)
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualInt(0, archive_entry_mtime(ae));
-	assert(0 == strcmp("//", archive_entry_pathname(ae)));
+	assertEqualString("//", archive_entry_pathname(ae));
 	assertEqualInt(strlen(strtab), archive_entry_size(ae));
 	assertEqualIntA(a, strlen(strtab), archive_read_data(a, buff2, 100));
 	assert(0 == memcmp(buff2, strtab, strlen(strtab)));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assert(1 == archive_entry_mtime(ae));
-	assert(0 == strcmp("abcdefghijklmn.o", archive_entry_pathname(ae)));
+	assertEqualString("abcdefghijklmn.o", archive_entry_pathname(ae));
 	assert(8 == archive_entry_size(ae));
 	assertA(8 == archive_read_data(a, buff2, 10));
 	assert(0 == memcmp(buff2, "87654321", 8));
 
 	assert(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("ggghhhjjjrrrttt.o", archive_entry_pathname(ae)));
+	assertEqualString("ggghhhjjjrrrttt.o", archive_entry_pathname(ae));
 	assert(7 == archive_entry_size(ae));
 	assertA(7 == archive_read_data(a, buff2, 11));
 	assert(0 == memcmp(buff2, "7777777", 7));
+
+	assert(0 == archive_read_next_header(a, &ae));
+	assertEqualString("iiijjjdddsssppp.o", archive_entry_pathname(ae));
+	assert(8 == archive_entry_size(ae));
+	assertA(8 == archive_read_data(a, buff2, 17));
+	assert(0 == memcmp(buff2, "88877766", 8));
 
 	assert(0 == archive_read_close(a));
 #if ARCHIVE_API_VERSION > 1
@@ -118,14 +149,16 @@ DEFINE_TEST(test_write_format_ar)
 	/*
 	 * Then, we try to create a BSD format archive.
 	 */
+	memset(buff, 0, sizeof(buff));
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ar_bsd(a));
-	assertA(0 == archive_write_set_compression_none(a));
+	assertA(0 == archive_write_set_compression_bzip2(a));
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/* write a entry need long name extension */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "ttttyyyyuuuuiiii.o");
+	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 5);
 	assertA(0 == archive_write_header(a, ae));
 	assertA(5 == archive_write_data(a, "12345", 7));
@@ -134,6 +167,7 @@ DEFINE_TEST(test_write_format_ar)
 	/* write a entry with a short name */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "ttyy.o");
+	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 6);
 	assertA(0 == archive_write_header(a, ae));
 	assertA(6 == archive_write_data(a, "555555", 7));
@@ -151,20 +185,20 @@ DEFINE_TEST(test_write_format_ar)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, used));
 
-	assert(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("ttttyyyyuuuuiiii.o", archive_entry_pathname(ae)));
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualString("ttttyyyyuuuuiiii.o", archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
 	assertA(5 == archive_read_data(a, buff2, 10));
 	assert(0 == memcmp(buff2, "12345", 5));
 
 	assert(0 == archive_read_next_header(a, &ae));
-	assert(0 == strcmp("ttyy.o", archive_entry_pathname(ae)));
+	assertEqualString("ttyy.o", archive_entry_pathname(ae));
 	assert(6 == archive_entry_size(ae));
 	assertA(6 == archive_read_data(a, buff2, 10));
 	assert(0 == memcmp(buff2, "555555", 6));
 
 	/* Test EOF */
-	assertA(1 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assert(0 == archive_read_close(a));
 #if ARCHIVE_API_VERSION > 1
 	assert(0 == archive_read_finish(a));

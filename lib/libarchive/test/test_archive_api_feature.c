@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_archive_api_feature)
 {
-	assert(ARCHIVE_API_FEATURE == archive_api_feature());
-	assert(ARCHIVE_API_VERSION == archive_api_version());
-	assert(0 == (strcmp(ARCHIVE_LIBRARY_VERSION, archive_version())));
+	assertEqualInt(ARCHIVE_API_FEATURE, archive_api_feature());
+	assertEqualInt(ARCHIVE_API_VERSION, archive_api_version());
+	assertEqualString(ARCHIVE_LIBRARY_VERSION, archive_version());
 }

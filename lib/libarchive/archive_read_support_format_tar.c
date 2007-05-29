@@ -26,16 +26,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#ifdef MAJOR_IN_MKDEV
-#include <sys/mkdev.h>
-#else
-#ifdef MAJOR_IN_SYSMACROS
-#include <sys/sysmacros.h>
-#endif
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -46,9 +36,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef HAVE_STRING_H
 #include <string.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
 #endif
 
 /* Obtain suitable wide-character manipulation functions. */
@@ -180,25 +167,25 @@ static int	gnu_read_sparse_data(struct archive_read *, struct tar *,
 static void	gnu_parse_sparse_data(struct archive_read *, struct tar *,
 		    const struct gnu_sparse *sparse, int length);
 static int	header_Solaris_ACL(struct archive_read *,  struct tar *,
-		    struct archive_entry *, struct stat *, const void *);
+		    struct archive_entry *, const void *);
 static int	header_common(struct archive_read *,  struct tar *,
-		    struct archive_entry *, struct stat *, const void *);
+		    struct archive_entry *, const void *);
 static int	header_old_tar(struct archive_read *, struct tar *,
-		    struct archive_entry *, struct stat *, const void *);
+		    struct archive_entry *, const void *);
 static int	header_pax_extensions(struct archive_read *, struct tar *,
-		    struct archive_entry *, struct stat *, const void *);
+		    struct archive_entry *, const void *);
 static int	header_pax_global(struct archive_read *, struct tar *,
-		    struct archive_entry *, struct stat *, const void *h);
+		    struct archive_entry *, const void *h);
 static int	header_longlink(struct archive_read *, struct tar *,
-		    struct archive_entry *, struct stat *, const void *h);
+		    struct archive_entry *, const void *h);
 static int	header_longname(struct archive_read *, struct tar *,
-		    struct archive_entry *, struct stat *, const void *h);
+		    struct archive_entry *, const void *h);
 static int	header_volume(struct archive_read *, struct tar *,
-		    struct archive_entry *, struct stat *, const void *h);
+		    struct archive_entry *, const void *h);
 static int	header_ustar(struct archive_read *, struct tar *,
-		    struct archive_entry *, struct stat *, const void *h);
+		    struct archive_entry *, const void *h);
 static int	header_gnutar(struct archive_read *, struct tar *,
-		    struct archive_entry *, struct stat *, const void *h);
+		    struct archive_entry *, const void *h);
 static int	archive_read_format_tar_bid(struct archive_read *);
 static int	archive_read_format_tar_cleanup(struct archive_read *);
 static int	archive_read_format_tar_read_data(struct archive_read *a,
@@ -207,10 +194,10 @@ static int	archive_read_format_tar_skip(struct archive_read *a);
 static int	archive_read_format_tar_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	checksum(struct archive_read *, const void *);
-static int 	pax_attribute(struct archive_entry *, struct stat *,
+static int 	pax_attribute(struct archive_entry *,
 		    wchar_t *key, wchar_t *value);
 static int 	pax_header(struct archive_read *, struct tar *,
-		    struct archive_entry *, struct stat *, char *attr);
+		    struct archive_entry *, char *attr);
 static void	pax_time(const wchar_t *, int64_t *sec, long *nanos);
 static int	read_body_to_string(struct archive_read *, struct tar *,
 		    struct archive_string *, const void *h);
@@ -219,7 +206,7 @@ static int64_t	tar_atol10(const wchar_t *, unsigned);
 static int64_t	tar_atol256(const char *, unsigned);
 static int64_t	tar_atol8(const char *, unsigned);
 static int	tar_read_header(struct archive_read *, struct tar *,
-		    struct archive_entry *, struct stat *);
+		    struct archive_entry *);
 static int	tohex(int c);
 static char	*url_decode(const char *);
 static int	utf8_decode(wchar_t *, const char *, size_t length);
@@ -264,7 +251,7 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 {
 	struct tar *tar;
 
-	tar = (struct tar *)*(a->pformat_data);
+	tar = (struct tar *)(a->format->data);
 	archive_string_free(&tar->acl_text);
 	archive_string_free(&tar->entry_name);
 	archive_string_free(&tar->entry_linkname);
@@ -275,7 +262,7 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	if (tar->pax_entry != NULL)
 		free(tar->pax_entry);
 	free(tar);
-	*(a->pformat_data) = NULL;
+	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -307,8 +294,8 @@ archive_read_format_tar_bid(struct archive_read *a)
 		bid++;
 
 	/* Now let's look at the actual header and see if it matches. */
-	if (a->compression_read_ahead != NULL)
-		bytes_read = (a->compression_read_ahead)(a, &h, 512);
+	if (a->decompressor->read_ahead != NULL)
+		bytes_read = (a->decompressor->read_ahead)(a, &h, 512);
 	else
 		bytes_read = 0; /* Empty file. */
 	if (bytes_read < 0)
@@ -412,26 +399,24 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	 */
 	static int default_inode;
 	static int default_dev;
-	struct stat st;
 	struct tar *tar;
 	const char *p;
 	int r;
 	size_t l;
 
-	memset(&st, 0, sizeof(st));
 	/* Assign default device/inode values. */
-	st.st_dev = 1 + default_dev; /* Don't use zero. */
-	st.st_ino = ++default_inode; /* Don't use zero. */
+	archive_entry_set_dev(entry, 1 + default_dev); /* Don't use zero. */
+	archive_entry_set_ino(entry, ++default_inode); /* Don't use zero. */
 	/* Limit generated st_ino number to 16 bits. */
 	if (default_inode >= 0xffff) {
 		++default_dev;
 		default_inode = 0;
 	}
 
-	tar = (struct tar *)*(a->pformat_data);
+	tar = (struct tar *)(a->format->data);
 	tar->entry_offset = 0;
 
-	r = tar_read_header(a, tar, entry, &st);
+	r = tar_read_header(a, tar, entry);
 
 	if (r == ARCHIVE_OK) {
 		/*
@@ -441,13 +426,9 @@ archive_read_format_tar_read_header(struct archive_read *a,
 		 */
 		p = archive_entry_pathname(entry);
 		l = strlen(p);
-		if (S_ISREG(st.st_mode) && p[l-1] == '/') {
-			st.st_mode &= ~S_IFMT;
-			st.st_mode |= S_IFDIR;
-		}
-
-		/* Copy the final stat data into the entry. */
-		archive_entry_copy_stat(entry, &st);
+		if (archive_entry_filetype(entry) == AE_IFREG
+		    && p[l-1] == '/')
+			archive_entry_set_filetype(entry, AE_IFDIR);
 	}
 	return (r);
 }
@@ -460,7 +441,7 @@ archive_read_format_tar_read_data(struct archive_read *a,
 	struct tar *tar;
 	struct sparse_block *p;
 
-	tar = (struct tar *)*(a->pformat_data);
+	tar = (struct tar *)(a->format->data);
 	if (tar->sparse_list != NULL) {
 		/* Remove exhausted entries from sparse list. */
 		while (tar->sparse_list != NULL &&
@@ -476,7 +457,7 @@ archive_read_format_tar_read_data(struct archive_read *a,
 	}
 
 	if (tar->entry_bytes_remaining > 0) {
-		bytes_read = (a->compression_read_ahead)(a, buff, 1);
+		bytes_read = (a->decompressor->read_ahead)(a, buff, 1);
 		if (bytes_read == 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Truncated tar archive");
@@ -499,10 +480,10 @@ archive_read_format_tar_read_data(struct archive_read *a,
 		*offset = tar->entry_offset;
 		tar->entry_offset += bytes_read;
 		tar->entry_bytes_remaining -= bytes_read;
-		(a->compression_read_consume)(a, bytes_read);
+		(a->decompressor->consume)(a, bytes_read);
 		return (ARCHIVE_OK);
 	} else {
-		if ((a->compression_skip)(a, tar->entry_padding) < 0)
+		if ((a->decompressor->skip)(a, tar->entry_padding) < 0)
 			return (ARCHIVE_FATAL);
 		tar->entry_padding = 0;
 		*buff = NULL;
@@ -519,14 +500,14 @@ archive_read_format_tar_skip(struct archive_read *a)
 	struct tar* tar;
 	struct sparse_block *p;
 
-	tar = (struct tar *)*(a->pformat_data);
+	tar = (struct tar *)(a->format->data);
 
 	/*
 	 * Compression layer skip functions are required to either skip the
 	 * length requested or fail, so we can rely upon the entire entry
 	 * plus padding being skipped.
 	 */
-	bytes_skipped = (a->compression_skip)(a, tar->entry_bytes_remaining +
+	bytes_skipped = (a->decompressor->skip)(a, tar->entry_bytes_remaining +
 	    tar->entry_padding);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
@@ -550,7 +531,7 @@ archive_read_format_tar_skip(struct archive_read *a)
  */
 static int
 tar_read_header(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, struct stat *st)
+    struct archive_entry *entry)
 {
 	ssize_t bytes;
 	int err;
@@ -558,7 +539,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	const struct archive_entry_header_ustar *header;
 
 	/* Read 512-byte header record */
-	bytes = (a->compression_read_ahead)(a, &h, 512);
+	bytes = (a->decompressor->read_ahead)(a, &h, 512);
 	if (bytes < 512) {
 		/*
 		 * If we're here, it's becase the _bid function accepted
@@ -567,14 +548,14 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		 */
 		return (ARCHIVE_EOF);
 	}
-	(a->compression_read_consume)(a, 512);
+	(a->decompressor->consume)(a, 512);
 
 	/* Check for end-of-archive mark. */
 	if (((*(const char *)h)==0) && archive_block_is_null((const unsigned char *)h)) {
 		/* Try to consume a second all-null record, as well. */
-		bytes = (a->compression_read_ahead)(a, &h, 512);
+		bytes = (a->decompressor->read_ahead)(a, &h, 512);
 		if (bytes > 0)
-			(a->compression_read_consume)(a, bytes);
+			(a->decompressor->consume)(a, bytes);
 		archive_set_error(&a->archive, 0, NULL);
 		return (ARCHIVE_EOF);
 	}
@@ -602,48 +583,48 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	case 'A': /* Solaris tar ACL */
 		a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 		a->archive.archive_format_name = "Solaris tar";
-		err = header_Solaris_ACL(a, tar, entry, st, h);
+		err = header_Solaris_ACL(a, tar, entry, h);
 		break;
 	case 'g': /* POSIX-standard 'g' header. */
 		a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 		a->archive.archive_format_name = "POSIX pax interchange format";
-		err = header_pax_global(a, tar, entry, st, h);
+		err = header_pax_global(a, tar, entry, h);
 		break;
 	case 'K': /* Long link name (GNU tar, others) */
-		err = header_longlink(a, tar, entry, st, h);
+		err = header_longlink(a, tar, entry, h);
 		break;
 	case 'L': /* Long filename (GNU tar, others) */
-		err = header_longname(a, tar, entry, st, h);
+		err = header_longname(a, tar, entry, h);
 		break;
 	case 'V': /* GNU volume header */
-		err = header_volume(a, tar, entry, st, h);
+		err = header_volume(a, tar, entry, h);
 		break;
 	case 'X': /* Used by SUN tar; same as 'x'. */
 		a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 		a->archive.archive_format_name =
 		    "POSIX pax interchange format (Sun variant)";
-		err = header_pax_extensions(a, tar, entry, st, h);
+		err = header_pax_extensions(a, tar, entry, h);
 		break;
 	case 'x': /* POSIX-standard 'x' header. */
 		a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 		a->archive.archive_format_name = "POSIX pax interchange format";
-		err = header_pax_extensions(a, tar, entry, st, h);
+		err = header_pax_extensions(a, tar, entry, h);
 		break;
 	default:
 		if (memcmp(header->magic, "ustar  \0", 8) == 0) {
 			a->archive.archive_format = ARCHIVE_FORMAT_TAR_GNUTAR;
 			a->archive.archive_format_name = "GNU tar format";
-			err = header_gnutar(a, tar, entry, st, h);
+			err = header_gnutar(a, tar, entry, h);
 		} else if (memcmp(header->magic, "ustar", 5) == 0) {
 			if (a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE) {
 				a->archive.archive_format = ARCHIVE_FORMAT_TAR_USTAR;
 				a->archive.archive_format_name = "POSIX ustar format";
 			}
-			err = header_ustar(a, tar, entry, st, h);
+			err = header_ustar(a, tar, entry, h);
 		} else {
 			a->archive.archive_format = ARCHIVE_FORMAT_TAR;
 			a->archive.archive_format_name = "tar (non-POSIX)";
-			err = header_old_tar(a, tar, entry, st, h);
+			err = header_old_tar(a, tar, entry, h);
 		}
 	}
 	--tar->header_recursion_depth;
@@ -716,14 +697,14 @@ archive_block_is_null(const unsigned char *p)
  */
 static int
 header_Solaris_ACL(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, struct stat *st, const void *h)
+    struct archive_entry *entry, const void *h)
 {
 	int err, err2;
 	char *p;
 	wchar_t *wp;
 
 	err = read_body_to_string(a, tar, &(tar->acl_text), h);
-	err2 = tar_read_header(a, tar, entry, st);
+	err2 = tar_read_header(a, tar, entry);
 	err = err_combine(err, err2);
 
 	/* XXX Ensure p doesn't overrun acl_text */
@@ -752,12 +733,12 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
  */
 static int
 header_longlink(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, struct stat *st, const void *h)
+    struct archive_entry *entry, const void *h)
 {
 	int err, err2;
 
 	err = read_body_to_string(a, tar, &(tar->longlink), h);
-	err2 = tar_read_header(a, tar, entry, st);
+	err2 = tar_read_header(a, tar, entry);
 	if (err == ARCHIVE_OK && err2 == ARCHIVE_OK) {
 		/* Set symlink if symlink already set, else hardlink. */
 		archive_entry_set_link(entry, tar->longlink.s);
@@ -770,13 +751,13 @@ header_longlink(struct archive_read *a, struct tar *tar,
  */
 static int
 header_longname(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, struct stat *st, const void *h)
+    struct archive_entry *entry, const void *h)
 {
 	int err, err2;
 
 	err = read_body_to_string(a, tar, &(tar->longname), h);
 	/* Read and parse "real" header, then override name. */
-	err2 = tar_read_header(a, tar, entry, st);
+	err2 = tar_read_header(a, tar, entry);
 	if (err == ARCHIVE_OK && err2 == ARCHIVE_OK)
 		archive_entry_set_pathname(entry, tar->longname.s);
 	return (err_combine(err, err2));
@@ -788,12 +769,12 @@ header_longname(struct archive_read *a, struct tar *tar,
  */
 static int
 header_volume(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, struct stat *st, const void *h)
+    struct archive_entry *entry, const void *h)
 {
 	(void)h;
 
 	/* Just skip this and read the next header. */
-	return (tar_read_header(a, tar, entry, st));
+	return (tar_read_header(a, tar, entry));
 }
 
 /*
@@ -818,12 +799,12 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 	padded_size = (size + 511) & ~ 511;
 	dest = as->s;
 	while (padded_size > 0) {
-		bytes_read = (a->compression_read_ahead)(a, &src, padded_size);
+		bytes_read = (a->decompressor->read_ahead)(a, &src, padded_size);
 		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
 		if (bytes_read > padded_size)
 			bytes_read = padded_size;
-		(a->compression_read_consume)(a, bytes_read);
+		(a->decompressor->consume)(a, bytes_read);
 		bytes_to_copy = bytes_read;
 		if ((off_t)bytes_to_copy > size)
 			bytes_to_copy = (ssize_t)size;
@@ -847,8 +828,8 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
  * common parsing into one place.
  */
 static int
-header_common(struct archive_read *a, struct tar *tar, struct archive_entry *entry,
-    struct stat *st, const void *h)
+header_common(struct archive_read *a, struct tar *tar,
+    struct archive_entry *entry, const void *h)
 {
 	const struct archive_entry_header_ustar	*header;
 	char	tartype;
@@ -863,15 +844,14 @@ header_common(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 		archive_string_empty(&(tar->entry_linkname));
 
 	/* Parse out the numeric fields (all are octal) */
-	st->st_mode  = tar_atol(header->mode, sizeof(header->mode));
-	st->st_uid   = tar_atol(header->uid, sizeof(header->uid));
-	st->st_gid   = tar_atol(header->gid, sizeof(header->gid));
-	st->st_size  = tar_atol(header->size, sizeof(header->size));
-	st->st_mtime = tar_atol(header->mtime, sizeof(header->mtime));
+	archive_entry_set_mode(entry, tar_atol(header->mode, sizeof(header->mode)));
+	archive_entry_set_uid(entry, tar_atol(header->uid, sizeof(header->uid)));
+	archive_entry_set_gid(entry, tar_atol(header->gid, sizeof(header->gid)));
+	archive_entry_set_size(entry, tar_atol(header->size, sizeof(header->size)));
+	archive_entry_set_mtime(entry, tar_atol(header->mtime, sizeof(header->mtime)), 0);
 
 	/* Handle the tar type flag appropriately. */
 	tartype = header->typeflag[0];
-	st->st_mode &= ~S_IFMT;
 
 	switch (tartype) {
 	case '1': /* Hard link */
@@ -885,8 +865,8 @@ header_common(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 		 * implies that the underlying entry is a regular
 		 * file.
 		 */
-		if (st->st_size > 0)
-			st->st_mode |= S_IFREG;
+		if (archive_entry_size(entry) > 0)
+			archive_entry_set_filetype(entry, AE_IFREG);
 
 		/*
 		 * A tricky point: Traditionally, tar readers have
@@ -910,31 +890,31 @@ header_common(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 		 * we encounter a hardlink entry for a file that is
 		 * itself an uncompressed tar archive.
 		 */
-		if (st->st_size > 0  &&
+		if (archive_entry_size(entry) > 0  &&
 		    a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE  &&
 		    archive_read_format_tar_bid(a) > 50)
-			st->st_size = 0;
+			archive_entry_set_size(entry, 0);
 		break;
 	case '2': /* Symlink */
-		st->st_mode |= S_IFLNK;
-		st->st_size = 0;
+		archive_entry_set_filetype(entry, AE_IFLNK);
+		archive_entry_set_size(entry, 0);
 		archive_entry_set_symlink(entry, tar->entry_linkname.s);
 		break;
 	case '3': /* Character device */
-		st->st_mode |= S_IFCHR;
-		st->st_size = 0;
+		archive_entry_set_filetype(entry, AE_IFCHR);
+		archive_entry_set_size(entry, 0);
 		break;
 	case '4': /* Block device */
-		st->st_mode |= S_IFBLK;
-		st->st_size = 0;
+		archive_entry_set_filetype(entry, AE_IFBLK);
+		archive_entry_set_size(entry, 0);
 		break;
 	case '5': /* Dir */
-		st->st_mode |= S_IFDIR;
-		st->st_size = 0;
+		archive_entry_set_filetype(entry, AE_IFDIR);
+		archive_entry_set_size(entry, 0);
 		break;
 	case '6': /* FIFO device */
-		st->st_mode |= S_IFIFO;
-		st->st_size = 0;
+		archive_entry_set_filetype(entry, AE_IFIFO);
+		archive_entry_set_size(entry, 0);
 		break;
 	case 'D': /* GNU incremental directory type */
 		/*
@@ -942,7 +922,7 @@ header_common(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 		 * It might be nice someday to preprocess the file list and
 		 * provide it to the client, though.
 		 */
-		st->st_mode |= S_IFDIR;
+		archive_entry_set_filetype(entry, AE_IFDIR);
 		break;
 	case 'M': /* GNU "Multi-volume" (remainder of file from last archive)*/
 		/*
@@ -956,7 +936,7 @@ header_common(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 		/* The body of this entry is a script for renaming
 		 * previously-extracted entries.  Ugh.  It will never
 		 * be supported by libarchive. */
-		st->st_mode |= S_IFREG;
+		archive_entry_set_filetype(entry, AE_IFREG);
 		break;
 	case 'S': /* GNU sparse files */
 		/*
@@ -969,7 +949,7 @@ header_common(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 		 * Per POSIX: non-recognized types should always be
 		 * treated as regular files.
 		 */
-		st->st_mode |= S_IFREG;
+		archive_entry_set_filetype(entry, AE_IFREG);
 		break;
 	}
 	return (0);
@@ -979,8 +959,8 @@ header_common(struct archive_read *a, struct tar *tar, struct archive_entry *ent
  * Parse out header elements for "old-style" tar archives.
  */
 static int
-header_old_tar(struct archive_read *a, struct tar *tar, struct archive_entry *entry,
-    struct stat *st, const void *h)
+header_old_tar(struct archive_read *a, struct tar *tar,
+    struct archive_entry *entry, const void *h)
 {
 	const struct archive_entry_header_ustar	*header;
 
@@ -990,9 +970,9 @@ header_old_tar(struct archive_read *a, struct tar *tar, struct archive_entry *en
 	archive_entry_set_pathname(entry, tar->entry_name.s);
 
 	/* Grab rest of common fields */
-	header_common(a, tar, entry, st, h);
+	header_common(a, tar, entry, h);
 
-	tar->entry_bytes_remaining = st->st_size;
+	tar->entry_bytes_remaining = archive_entry_size(entry);
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 	return (0);
 }
@@ -1002,25 +982,25 @@ header_old_tar(struct archive_read *a, struct tar *tar, struct archive_entry *en
  */
 static int
 header_pax_global(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, struct stat *st, const void *h)
+    struct archive_entry *entry, const void *h)
 {
 	int err, err2;
 
 	err = read_body_to_string(a, tar, &(tar->pax_global), h);
-	err2 = tar_read_header(a, tar, entry, st);
+	err2 = tar_read_header(a, tar, entry);
 	return (err_combine(err, err2));
 }
 
 static int
 header_pax_extensions(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, struct stat *st, const void *h)
+    struct archive_entry *entry, const void *h)
 {
 	int err, err2;
 
 	read_body_to_string(a, tar, &(tar->pax_header), h);
 
 	/* Parse the next header. */
-	err = tar_read_header(a, tar, entry, st);
+	err = tar_read_header(a, tar, entry);
 
 	/*
 	 * TODO: Parse global/default options into 'entry' struct here
@@ -1032,9 +1012,9 @@ header_pax_extensions(struct archive_read *a, struct tar *tar,
 	 * and then skip any fields in the standard header that were
 	 * defined in the pax header.
 	 */
-	err2 = pax_header(a, tar, entry, st, tar->pax_header.s);
+	err2 = pax_header(a, tar, entry, tar->pax_header.s);
 	err =  err_combine(err, err2);
-	tar->entry_bytes_remaining = st->st_size;
+	tar->entry_bytes_remaining = archive_entry_size(entry);
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 	return (err);
 }
@@ -1045,8 +1025,8 @@ header_pax_extensions(struct archive_read *a, struct tar *tar,
  * handles "pax" or "extended ustar" entries.
  */
 static int
-header_ustar(struct archive_read *a, struct tar *tar, struct archive_entry *entry,
-    struct stat *st, const void *h)
+header_ustar(struct archive_read *a, struct tar *tar,
+    struct archive_entry *entry, const void *h)
 {
 	const struct archive_entry_header_ustar	*header;
 	struct archive_string *as;
@@ -1066,7 +1046,7 @@ header_ustar(struct archive_read *a, struct tar *tar, struct archive_entry *entr
 	archive_entry_set_pathname(entry, as->s);
 
 	/* Handle rest of common fields. */
-	header_common(a, tar, entry, st, h);
+	header_common(a, tar, entry, h);
 
 	/* Handle POSIX ustar fields. */
 	archive_strncpy(&(tar->entry_uname), header->uname,
@@ -1079,12 +1059,13 @@ header_ustar(struct archive_read *a, struct tar *tar, struct archive_entry *entr
 
 	/* Parse out device numbers only for char and block specials. */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
-		st->st_rdev = makedev(
-		    tar_atol(header->rdevmajor, sizeof(header->rdevmajor)),
+		archive_entry_set_rdevmajor(entry,
+		    tar_atol(header->rdevmajor, sizeof(header->rdevmajor)));
+		archive_entry_set_rdevminor(entry,
 		    tar_atol(header->rdevminor, sizeof(header->rdevminor)));
 	}
 
-	tar->entry_bytes_remaining = st->st_size;
+	tar->entry_bytes_remaining = archive_entry_size(entry);
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 
 	return (0);
@@ -1097,8 +1078,8 @@ header_ustar(struct archive_read *a, struct tar *tar, struct archive_entry *entr
  * Returns non-zero if there's an error in the data.
  */
 static int
-pax_header(struct archive_read *a, struct tar *tar, struct archive_entry *entry,
-    struct stat *st, char *attr)
+pax_header(struct archive_read *a, struct tar *tar,
+    struct archive_entry *entry, char *attr)
 {
 	size_t attr_length, l, line_length;
 	char *line, *p;
@@ -1179,7 +1160,7 @@ pax_header(struct archive_read *a, struct tar *tar, struct archive_entry *entry,
 		value = wp + 1;
 
 		/* Identify this attribute and set it in the entry. */
-		err2 = pax_attribute(entry, st, key, value);
+		err2 = pax_attribute(entry, key, value);
 		err = err_combine(err, err2);
 
 		/* Skip to next line */
@@ -1240,7 +1221,7 @@ pax_attribute_xattr(struct archive_entry *entry,
  * any of them look useful.
  */
 static int
-pax_attribute(struct archive_entry *entry, struct stat *st,
+pax_attribute(struct archive_entry *entry,
     wchar_t *key, wchar_t *value)
 {
 	int64_t s;
@@ -1266,32 +1247,28 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 			__archive_entry_acl_parse_w(entry, value,
 			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
 		else if (wcscmp(key, L"SCHILY.devmajor")==0)
-			st->st_rdev = makedev(tar_atol10(value, wcslen(value)),
-			    minor(st->st_rdev));
+			archive_entry_set_rdevmajor(entry, tar_atol10(value, wcslen(value)));
 		else if (wcscmp(key, L"SCHILY.devminor")==0)
-			st->st_rdev = makedev(major(st->st_rdev),
-			    tar_atol10(value, wcslen(value)));
+			archive_entry_set_rdevminor(entry, tar_atol10(value, wcslen(value)));
 		else if (wcscmp(key, L"SCHILY.fflags")==0)
 			archive_entry_copy_fflags_text_w(entry, value);
 		else if (wcscmp(key, L"SCHILY.dev")==0)
-			st->st_dev = tar_atol10(value, wcslen(value));
+			archive_entry_set_dev(entry, tar_atol10(value, wcslen(value)));
 		else if (wcscmp(key, L"SCHILY.ino")==0)
-			st->st_ino = tar_atol10(value, wcslen(value));
+			archive_entry_set_ino(entry, tar_atol10(value, wcslen(value)));
 		else if (wcscmp(key, L"SCHILY.nlink")==0)
-			st->st_nlink = tar_atol10(value, wcslen(value));
+			archive_entry_set_nlink(entry, tar_atol10(value, wcslen(value)));
 		break;
 	case 'a':
 		if (wcscmp(key, L"atime")==0) {
 			pax_time(value, &s, &n);
-			st->st_atime = s;
-			ARCHIVE_STAT_SET_ATIME_NANOS(st, n);
+			archive_entry_set_atime(entry, s, n);
 		}
 		break;
 	case 'c':
 		if (wcscmp(key, L"ctime")==0) {
 			pax_time(value, &s, &n);
-			st->st_ctime = s;
-			ARCHIVE_STAT_SET_CTIME_NANOS(st, n);
+			archive_entry_set_ctime(entry, s, n);
 		} else if (wcscmp(key, L"charset")==0) {
 			/* TODO: Publish charset information in entry. */
 		} else if (wcscmp(key, L"comment")==0) {
@@ -1300,7 +1277,7 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 		break;
 	case 'g':
 		if (wcscmp(key, L"gid")==0)
-			st->st_gid = tar_atol10(value, wcslen(value));
+			archive_entry_set_gid(entry, tar_atol10(value, wcslen(value)));
 		else if (wcscmp(key, L"gname")==0)
 			archive_entry_copy_gname_w(entry, value);
 		break;
@@ -1316,8 +1293,7 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 	case 'm':
 		if (wcscmp(key, L"mtime")==0) {
 			pax_time(value, &s, &n);
-			st->st_mtime = s;
-			ARCHIVE_STAT_SET_MTIME_NANOS(st, n);
+			archive_entry_set_mtime(entry, s, n);
 		}
 		break;
 	case 'p':
@@ -1331,11 +1307,11 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 		/* POSIX has reserved 'security.*' */
 		/* Someday: if (wcscmp(key, L"security.acl")==0) { ... } */
 		if (wcscmp(key, L"size")==0)
-			st->st_size = tar_atol10(value, wcslen(value));
+			archive_entry_set_size(entry, tar_atol10(value, wcslen(value)));
 		break;
 	case 'u':
 		if (wcscmp(key, L"uid")==0)
-			st->st_uid = tar_atol10(value, wcslen(value));
+			archive_entry_set_uid(entry, tar_atol10(value, wcslen(value)));
 		else if (wcscmp(key, L"uname")==0)
 			archive_entry_copy_uname_w(entry, value);
 		break;
@@ -1399,8 +1375,8 @@ pax_time(const wchar_t *p, int64_t *ps, long *pn)
  * Parse GNU tar header
  */
 static int
-header_gnutar(struct archive_read *a, struct tar *tar, struct archive_entry *entry,
-    struct stat *st, const void *h)
+header_gnutar(struct archive_read *a, struct tar *tar,
+    struct archive_entry *entry, const void *h)
 {
 	const struct archive_entry_header_gnutar *header;
 
@@ -1413,7 +1389,7 @@ header_gnutar(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 	 */
 
 	/* Grab fields common to all tar variants. */
-	header_common(a, tar, entry, st, h);
+	header_common(a, tar, entry, h);
 
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_gnutar *)h;
@@ -1434,22 +1410,25 @@ header_gnutar(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 	archive_entry_set_gname(entry, tar->entry_gname.s);
 
 	/* Parse out device numbers only for char and block specials */
-	if (header->typeflag[0] == '3' || header->typeflag[0] == '4')
-		st->st_rdev = makedev (
-		    tar_atol(header->rdevmajor, sizeof(header->rdevmajor)),
+	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
+		archive_entry_set_rdevmajor(entry,
+		    tar_atol(header->rdevmajor, sizeof(header->rdevmajor)));
+		archive_entry_set_rdevminor(entry,
 		    tar_atol(header->rdevminor, sizeof(header->rdevminor)));
-	else
-		st->st_rdev = 0;
+	} else
+		archive_entry_set_rdev(entry, 0);
 
-	tar->entry_bytes_remaining = st->st_size;
+	tar->entry_bytes_remaining = archive_entry_size(entry);
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 
 	/* Grab GNU-specific fields. */
-	st->st_atime = tar_atol(header->atime, sizeof(header->atime));
-	st->st_ctime = tar_atol(header->ctime, sizeof(header->ctime));
+	archive_entry_set_atime(entry,
+	    tar_atol(header->atime, sizeof(header->atime)), 0);
+	archive_entry_set_ctime(entry,
+	    tar_atol(header->ctime, sizeof(header->ctime)), 0);
 	if (header->realsize[0] != 0) {
-		st->st_size = tar_atol(header->realsize,
-		    sizeof(header->realsize));
+		archive_entry_set_size(entry,
+		    tar_atol(header->realsize, sizeof(header->realsize)));
 	}
 
 	if (header->sparse[0].offset[0] != 0) {
@@ -1481,7 +1460,7 @@ gnu_read_sparse_data(struct archive_read *a, struct tar *tar,
 		return (ARCHIVE_OK);
 
 	do {
-		bytes_read = (a->compression_read_ahead)(a, &data, 512);
+		bytes_read = (a->decompressor->read_ahead)(a, &data, 512);
 		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
 		if (bytes_read < 512) {
@@ -1490,7 +1469,7 @@ gnu_read_sparse_data(struct archive_read *a, struct tar *tar,
 			    "detected while reading sparse file data");
 			return (ARCHIVE_FATAL);
 		}
-		(a->compression_read_consume)(a, 512);
+		(a->decompressor->consume)(a, 512);
 		ext = (const struct extended *)data;
 		gnu_parse_sparse_data(a, tar, ext->sparse, 21);
 	} while (ext->isextended[0] != 0);

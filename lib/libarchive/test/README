@@ -44,3 +44,12 @@ Each test function can rely on the following:
 
   * Tests are encouraged to be economical with their memory and disk usage,
     though this is not essential.
+
+  * Disable tests on specific platforms as necessary.  Please don't
+    use config.h to adjust feature requirements, as I want the tests
+    to also serve as a check on the configure process.  The following
+    form is appropriate:
+
+#if !defined(__PLATFORM) && !defined(__Platform2__)
+    assert(xxxx)
+#endif

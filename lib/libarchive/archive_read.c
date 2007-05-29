@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_read_private.h"
 
-static int	choose_decompressor(struct archive_read *, const void*, size_t);
+static void	choose_decompressor(struct archive_read *, const void*, size_t);
 static int	choose_format(struct archive_read *);
 static off_t	dummy_skip(struct archive_read *, off_t);
 
@@ -131,7 +131,6 @@ archive_read_open2(struct archive *_a, void *client_data,
 	struct archive_read *a = (struct archive_read *)_a;
 	const void *buffer;
 	ssize_t bytes_read;
-	int high_bidder;
 	int e;
 
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_open");
@@ -163,7 +162,7 @@ archive_read_open2(struct archive *_a, void *client_data,
 		}
 	}
 
-	/* Read first block now for format detection. */
+	/* Read first block now for compress format detection. */
 	bytes_read = (client_reader)(&a->archive, client_data, &buffer);
 
 	if (bytes_read < 0) {
@@ -182,12 +181,12 @@ archive_read_open2(struct archive *_a, void *client_data,
 	a->client_data = client_data;
 
 	/* Select a decompression routine. */
-	high_bidder = choose_decompressor(a, buffer, (size_t)bytes_read);
-	if (high_bidder < 0)
+	choose_decompressor(a, buffer, (size_t)bytes_read);
+	if (a->decompressor == NULL)
 		return (ARCHIVE_FATAL);
 
 	/* Initialize decompression routine with the first block of data. */
-	e = (a->decompressors[high_bidder].init)(a, buffer, (size_t)bytes_read);
+	e = (a->decompressor->init)(a, buffer, (size_t)bytes_read);
 
 	if (e == ARCHIVE_OK)
 		a->archive.state = ARCHIVE_STATE_HEADER;
@@ -196,8 +195,8 @@ archive_read_open2(struct archive *_a, void *client_data,
 	 * If the decompressor didn't register a skip function, provide a
 	 * dummy compression-layer skip function.
 	 */
-	if (a->compression_skip == NULL)
-		a->compression_skip = dummy_skip;
+	if (a->decompressor->skip == NULL)
+		a->decompressor->skip = dummy_skip;
 
 	return (e);
 }
@@ -206,33 +205,37 @@ archive_read_open2(struct archive *_a, void *client_data,
  * Allow each registered decompression routine to bid on whether it
  * wants to handle this stream.  Return index of winning bidder.
  */
-static int
+static void
 choose_decompressor(struct archive_read *a,
     const void *buffer, size_t bytes_read)
 {
-	int decompression_slots, i, bid, best_bid, best_bid_slot;
+	int decompression_slots, i, bid, best_bid;
+	struct decompressor_t *decompressor, *best_decompressor;
 
 	decompression_slots = sizeof(a->decompressors) /
 	    sizeof(a->decompressors[0]);
 
-	best_bid = -1;
-	best_bid_slot = -1;
+	best_bid = 0;
+	a->decompressor = NULL;
+	best_decompressor = NULL;
 
+	decompressor = a->decompressors;
 	for (i = 0; i < decompression_slots; i++) {
-		if (a->decompressors[i].bid) {
-			bid = (a->decompressors[i].bid)(buffer, bytes_read);
-			if ((bid > best_bid) || (best_bid_slot < 0)) {
+		if (decompressor->bid) {
+			bid = (decompressor->bid)(buffer, bytes_read);
+			if (bid > best_bid || best_decompressor == NULL) {
 				best_bid = bid;
-				best_bid_slot = i;
+				best_decompressor = decompressor;
 			}
 		}
+		decompressor ++;
 	}
 
 	/*
 	 * There were no bidders; this is a serious programmer error
 	 * and demands a quick and definitive abort.
 	 */
-	if (best_bid_slot < 0)
+	if (best_decompressor == NULL)
 		__archive_errx(1, "No decompressors were registered; you "
 		    "must call at least one "
 		    "archive_read_support_compression_XXX function in order "
@@ -245,10 +248,11 @@ choose_decompressor(struct archive_read *a,
 	if (best_bid < 1) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Unrecognized archive format");
-		return (ARCHIVE_FATAL);
+		return;
 	}
 
-	return (best_bid_slot);
+	/* Record the best decompressor for this stream. */
+	a->decompressor = best_decompressor;
 }
 
 /*
@@ -263,7 +267,7 @@ dummy_skip(struct archive_read * a, off_t request)
 	off_t bytes_skipped;
 
 	for (bytes_skipped = 0; request > 0;) {
-		bytes_read = (a->compression_read_ahead)(a, &dummy_buffer, 1);
+		bytes_read = (a->decompressor->read_ahead)(a, &dummy_buffer, 1);
 		if (bytes_read < 0)
 			return (bytes_read);
 		if (bytes_read == 0) {
@@ -275,7 +279,7 @@ dummy_skip(struct archive_read * a, off_t request)
 		}
 		if (bytes_read > request)
 			bytes_read = (ssize_t)request;
-		(a->compression_read_consume)(a, (size_t)bytes_read);
+		(a->decompressor->consume)(a, (size_t)bytes_read);
 		request -= bytes_read;
 		bytes_skipped += bytes_read;
 	}
@@ -326,7 +330,6 @@ archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 		return (ARCHIVE_FATAL);
 	}
 	a->format = &(a->formats[slot]);
-	a->pformat_data = &(a->format->format_data);
 	ret = (a->format->read_header)(a, entry);
 
 	/*
@@ -377,7 +380,6 @@ choose_format(struct archive_read *a)
 	a->format = &(a->formats[0]);
 	for (i = 0; i < slots; i++, a->format++) {
 		if (a->format->bid) {
-			a->pformat_data = &(a->format->format_data);
 			bid = (a->format->bid)(a);
 			if (bid == ARCHIVE_FATAL)
 				return (ARCHIVE_FATAL);
@@ -591,6 +593,7 @@ archive_read_close(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
+	size_t i, n;
 
 	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_close");
@@ -600,11 +603,21 @@ archive_read_close(struct archive *_a)
 	if (a->cleanup_archive_extract != NULL)
 		r = (a->cleanup_archive_extract)(a);
 
-	/* TODO: Finish the format processing. */
+	/* TODO: Clean up the formatters. */
 
-	/* Close the input machinery. */
-	if (a->compression_finish != NULL) {
-		r1 = (a->compression_finish)(a);
+	/* Clean up the decompressors. */
+	n = sizeof(a->decompressors)/sizeof(a->decompressors[0]);
+	for (i = 0; i < n; i++) {
+		if (a->decompressors[i].finish != NULL) {
+			r1 = (a->decompressors[i].finish)(a);
+			if (r1 < r)
+				r = r1;
+		}
+	}
+
+	/* Close the client stream. */
+	if (a->client_closer != NULL) {
+		r1 = ((a->client_closer)(&a->archive, a->client_data));
 		if (r1 < r)
 			r = r1;
 	}
@@ -636,7 +649,7 @@ archive_read_finish(struct archive *_a)
 	/* Cleanup format-specific data. */
 	slots = sizeof(a->formats) / sizeof(a->formats[0]);
 	for (i = 0; i < slots; i++) {
-		a->pformat_data = &(a->formats[i].format_data);
+		a->format = &(a->formats[i]);
 		if (a->formats[i].cleanup)
 			(a->formats[i].cleanup)(a);
 	}
@@ -683,7 +696,7 @@ __archive_read_register_format(struct archive_read *a,
 			a->formats[i].read_data = read_data;
 			a->formats[i].read_data_skip = read_data_skip;
 			a->formats[i].cleanup = cleanup;
-			a->formats[i].format_data = format_data;
+			a->formats[i].data = format_data;
 			return (ARCHIVE_OK);
 		}
 	}
@@ -696,7 +709,7 @@ __archive_read_register_format(struct archive_read *a,
  * Used internally by decompression routines to register their bid and
  * initialization functions.
  */
-int
+struct decompressor_t *
 __archive_read_register_compression(struct archive_read *a,
     int (*bid)(const void *, size_t),
     int (*init)(struct archive_read *, const void *, size_t))
@@ -711,14 +724,14 @@ __archive_read_register_compression(struct archive_read *a,
 
 	for (i = 0; i < number_slots; i++) {
 		if (a->decompressors[i].bid == bid)
-			return (ARCHIVE_OK); /* We've already installed */
+			return (a->decompressors + i);
 		if (a->decompressors[i].bid == NULL) {
 			a->decompressors[i].bid = bid;
 			a->decompressors[i].init = init;
-			return (ARCHIVE_OK);
+			return (a->decompressors + i);
 		}
 	}
 
 	__archive_errx(1, "Not enough slots for compression registration");
-	return (ARCHIVE_FATAL); /* Never actually executed. */
+	return (NULL); /* Never actually executed. */
 }

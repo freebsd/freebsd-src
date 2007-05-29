@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
  * filenames into prefix/suffix.
  */
 
-static
+static void
 test_filename(int dlen, int flen)
 {
 	char buff[8192];
@@ -110,7 +110,7 @@ test_filename(int dlen, int flen)
 	/* Read the file and check the filename. */
 	assertA(0 == archive_read_next_header(a, &ae));
 	failure("Pathname %d/%d: %s", dlen, flen, archive_entry_pathname(ae));
-	assert(0 == strcmp(filename, archive_entry_pathname(ae)));
+	assertEqualString(filename, archive_entry_pathname(ae));
 	assert((S_IFREG | 0755) == archive_entry_mode(ae));
 
 	/*
@@ -122,12 +122,12 @@ test_filename(int dlen, int flen)
 	 */
 	assertA(0 == archive_read_next_header(a, &ae));
 	failure("Pathname %d/%d: %s", dlen, flen, archive_entry_pathname(ae));
-	assert(0 == strcmp(dirname, archive_entry_pathname(ae)));
+	assertEqualString(dirname, archive_entry_pathname(ae));
 	assert((S_IFDIR | 0755) == archive_entry_mode(ae));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	failure("Pathname %d/%d: %s", dlen, flen, archive_entry_pathname(ae));
-	assert(0 == strcmp(dirname, archive_entry_pathname(ae)));
+	assertEqualString(dirname, archive_entry_pathname(ae));
 	assert((S_IFDIR | 0755) == archive_entry_mode(ae));
 
 	/* Verify the end of the archive. */

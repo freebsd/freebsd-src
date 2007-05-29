@@ -99,7 +99,6 @@ archive_write_new(void)
 	a->archive.vtable = archive_write_vtable();
 	a->bytes_per_block = ARCHIVE_DEFAULT_BYTES_PER_BLOCK;
 	a->bytes_in_last_block = -1;	/* Default */
-	a->pformat_data = &(a->format_data);
 
 	/* Initialize a block of nulls for padding purposes. */
 	a->null_length = 1024;
@@ -208,7 +207,7 @@ archive_write_open(struct archive *_a, void *client_data,
 	a->client_writer = writer;
 	a->client_opener = opener;
 	a->client_closer = closer;
-	ret = (a->compression_init)(a);
+	ret = (a->compressor.init)(a);
 	if (a->format_init && ret == ARCHIVE_OK)
 		ret = (a->format_init)(a);
 	return (ret);
@@ -242,7 +241,7 @@ _archive_write_close(struct archive *_a)
 			r = r1;
 	}
 
-	/* Release resources. */
+	/* Release format resources. */
 	if (a->format_destroy != NULL) {
 		r1 = (a->format_destroy)(a);
 		if (r1 < r)
@@ -250,8 +249,15 @@ _archive_write_close(struct archive *_a)
 	}
 
 	/* Finish the compression and close the stream. */
-	if (a->compression_finish != NULL) {
-		r1 = (a->compression_finish)(a);
+	if (a->compressor.finish != NULL) {
+		r1 = (a->compressor.finish)(a);
+		if (r1 < r)
+			r = r1;
+	}
+
+	/* Close out the client stream. */
+	if (a->client_closer != NULL) {
+		r1 = (a->client_closer)(&a->archive, a->client_data);
 		if (r1 < r)
 			r = r1;
 	}

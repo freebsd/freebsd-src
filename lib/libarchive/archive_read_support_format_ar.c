@@ -126,10 +126,11 @@ archive_read_format_ar_cleanup(struct archive_read *a)
 {
 	struct ar *ar;
 
-	ar = (struct ar *)*(a->pformat_data);
-	free(ar->strtab);
+	ar = (struct ar *)(a->format->data);
+	if (ar->strtab)
+		free(ar->strtab);
 	free(ar);
-	*(a->pformat_data) = NULL;
+	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -145,7 +146,7 @@ archive_read_format_ar_bid(struct archive_read *a)
 	    ARCHIVE_FORMAT_AR)
 		return(0);
 
-	ar = (struct ar *)*(a->pformat_data);
+	ar = (struct ar *)(a->format->data);
 
 	if (ar->bid > 0)
 		return (ar->bid);
@@ -154,7 +155,7 @@ archive_read_format_ar_bid(struct archive_read *a)
 	 * Verify the 8-byte file signature.
 	 * TODO: Do we need to check more than this?
 	 */
-	bytes_read = (a->compression_read_ahead)(a, &h, 8);
+	bytes_read = (a->decompressor->read_ahead)(a, &h, 8);
 	if (bytes_read < 8)
 		return (-1);
 	if (strncmp((const char*)h, "!<arch>\n", 8) == 0) {
@@ -178,25 +179,25 @@ archive_read_format_ar_read_header(struct archive_read *a,
 	const char *h;
 	int r;
 
-	ar = (struct ar*)*(a->pformat_data);
+	ar = (struct ar*)(a->format->data);
 
 	if (a->archive.file_position == 0) {
 		/*
 		 * We are now at the beginning of the archive,
 		 * so we need first consume the ar global header.
 		 */
-		(a->compression_read_consume)(a, 8);
+		(a->decompressor->consume)(a, 8);
 		/* Set a default format code for now. */
 		a->archive.archive_format = ARCHIVE_FORMAT_AR;
 	}
 
 	/* Read the header for the next file entry. */
-	bytes_read = (a->compression_read_ahead)(a, &b, 60);
+	bytes_read = (a->decompressor->read_ahead)(a, &b, 60);
 	if (bytes_read < 60) {
 		/* Broken header. */
 		return (ARCHIVE_EOF);
 	}
-	(a->compression_read_consume)(a, 60);
+	(a->decompressor->consume)(a, 60);
 	h = (const char *)b;
 
 	/* Verify the magic signature on the file header. */
@@ -284,7 +285,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		}
 		entry_size = (size_t)number;
 		/* Read the filename table into memory. */
-		bytes_read = (a->compression_read_ahead)(a, &b, entry_size);
+		bytes_read = (a->decompressor->read_ahead)(a, &b, entry_size);
 		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
 		if ((size_t)bytes_read < entry_size) {
@@ -348,7 +349,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		archive_entry_set_size(entry, ar->entry_bytes_remaining);
 
 		/* Read the long name into memory. */
-		bytes_read = (a->compression_read_ahead)(a, &b, bsd_name_length);
+		bytes_read = (a->decompressor->read_ahead)(a, &b, bsd_name_length);
 		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
 		if ((size_t)bytes_read < bsd_name_length) {
@@ -356,7 +357,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 			    "Truncated input file");
 			return (ARCHIVE_FATAL);
 		}
-		(a->compression_read_consume)(a, bsd_name_length);
+		(a->decompressor->consume)(a, bsd_name_length);
 
 		/* Store it in the entry. */
 		p = (char *)malloc(bsd_name_length + 1);
@@ -434,10 +435,10 @@ archive_read_format_ar_read_data(struct archive_read *a,
 	ssize_t bytes_read;
 	struct ar *ar;
 
-	ar = (struct ar *)*(a->pformat_data);
+	ar = (struct ar *)(a->format->data);
 
 	if (ar->entry_bytes_remaining > 0) {
-		bytes_read = (a->compression_read_ahead)(a, buff, 1);
+		bytes_read = (a->decompressor->read_ahead)(a, buff, 1);
 		if (bytes_read == 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Truncated ar archive");
@@ -451,16 +452,16 @@ archive_read_format_ar_read_data(struct archive_read *a,
 		*offset = ar->entry_offset;
 		ar->entry_offset += bytes_read;
 		ar->entry_bytes_remaining -= bytes_read;
-		(a->compression_read_consume)(a, (size_t)bytes_read);
+		(a->decompressor->consume)(a, (size_t)bytes_read);
 		return (ARCHIVE_OK);
 	} else {
 		while (ar->entry_padding > 0) {
-			bytes_read = (a->compression_read_ahead)(a, buff, 1);
+			bytes_read = (a->decompressor->read_ahead)(a, buff, 1);
 			if (bytes_read <= 0)
 				return (ARCHIVE_FATAL);
 			if (bytes_read > ar->entry_padding)
 				bytes_read = (ssize_t)ar->entry_padding;
-			(a->compression_read_consume)(a, (size_t)bytes_read);
+			(a->decompressor->consume)(a, (size_t)bytes_read);
 			ar->entry_padding -= bytes_read;
 		}
 		*buff = NULL;
@@ -480,14 +481,14 @@ archive_read_format_ar_skip(struct archive_read *a)
 	size_t s;
 	off_t o;
 
-	ar = (struct ar *)*(a->pformat_data);
-	if (a->compression_skip == NULL) {
+	ar = (struct ar *)(a->format->data);
+	if (a->decompressor->skip == NULL) {
 		while (r == ARCHIVE_OK)
 			r = archive_read_format_ar_read_data(a, &b, &s, &o);
 		return (r);
 	}
 
-	bytes_skipped = (a->compression_skip)(a, ar->entry_bytes_remaining +
+	bytes_skipped = (a->decompressor->skip)(a, ar->entry_bytes_remaining +
 	    ar->entry_padding);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);

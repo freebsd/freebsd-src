@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2006 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
  * Various utility routines useful for test programs.
  * Each test program is linked against this file.
  */
+#include <errno.h>
 #include <stdarg.h>
 #include <time.h>
 
@@ -50,6 +51,24 @@ __FBSDID("$FreeBSD$");
  */
 static char msg[4096];
 
+/* Common handling of failed tests. */
+static void
+test_failed(struct archive *a)
+{
+	if (msg[0] != '\0') {
+		fprintf(stderr, "   Description: %s\n", msg);
+		msg[0] = '\0';
+	}
+	if (a != NULL) {
+		fprintf(stderr, "   archive error: %s\n", archive_error_string(a));
+	}
+
+	fprintf(stderr, " *** forcing core dump so failure can be debugged ***\n");
+	*(char *)(NULL) = 0;
+	exit(1);
+}
+
+/* Set up a message to display only after a test fails. */
 void
 failure(const char *fmt, ...)
 {
@@ -59,6 +78,7 @@ failure(const char *fmt, ...)
 	va_end(ap);
 }
 
+/* Generic assert() just displays the failed condition. */
 void
 test_assert(const char *file, int line, int value, const char *condition, struct archive *a)
 {
@@ -68,17 +88,10 @@ test_assert(const char *file, int line, int value, const char *condition, struct
 	}
 	fprintf(stderr, "%s:%d: Assertion failed\n", file, line);
 	fprintf(stderr, "   Condition: %s\n", condition);
-	if (msg[0] != '\0') {
-		fprintf(stderr, "   Description: %s\n", msg);
-		msg[0] = '\0';
-	}
-	if (a != NULL) {
-		fprintf(stderr, "   archive error: %s\n", archive_error_string(a));
-	}
-	*(char *)(NULL) = 0;
-	exit(1);
+	test_failed(a);
 }
 
+/* assertEqualInt() displays the values of the two integers. */
 void
 test_assert_equal_int(const char *file, int line,
     int v1, const char *e1, int v2, const char *e2, struct archive *a)
@@ -87,19 +100,52 @@ test_assert_equal_int(const char *file, int line,
 		msg[0] = '\0';
 		return;
 	}
-	fprintf(stderr, "%s:%d: Assertion failed\n", file, line);
-	fprintf(stderr, "   Condition: %s==%s\n", e1, e2);
-	fprintf(stderr, "              %s=%d\n", e1, v1);
-	fprintf(stderr, "              %s=%d\n", e2, v2);
-	if (msg[0] != '\0') {
-		fprintf(stderr, "   Description: %s\n", msg);
+	fprintf(stderr, "%s:%d: Assertion failed: Ints not equal\n",
+	    file, line);
+	fprintf(stderr, "      %s=%d\n", e1, v1);
+	fprintf(stderr, "      %s=%d\n", e2, v2);
+	test_failed(a);
+}
+
+/* assertEqualString() displays the values of the two strings. */
+void
+test_assert_equal_string(const char *file, int line,
+    const char *v1, const char *e1,
+    const char *v2, const char *e2,
+    struct archive *a)
+{
+	if (v1 == NULL || v2 == NULL) {
+		if (v1 == v2) {
+			msg[0] = '\0';
+			return;
+		}
+	} else if (strcmp(v1, v2) == 0) {
 		msg[0] = '\0';
+		return;
 	}
-	if (a != NULL) {
-		fprintf(stderr, "   archive error: %s\n", archive_error_string(a));
+	fprintf(stderr, "%s:%d: Assertion failed: Strings not equal\n",
+	    file, line);
+	fprintf(stderr, "      %s = \"%s\"\n", e1, v1);
+	fprintf(stderr, "      %s = \"%s\"\n", e2, v2);
+	test_failed(a);
+}
+
+/* assertEqualWString() displays the values of the two strings. */
+void
+test_assert_equal_wstring(const char *file, int line,
+    const wchar_t *v1, const char *e1,
+    const wchar_t *v2, const char *e2,
+    struct archive *a)
+{
+	if (wcscmp(v1, v2) == 0) {
+		msg[0] = '\0';
+		return;
 	}
-	*(char *)(NULL) = 0;
-	exit(1);
+	fprintf(stderr, "%s:%d: Assertion failed: Unicode strings not equal\n",
+	    file, line);
+	fwprintf(stderr, L"      %s = \"%ls\"\n", e1, v1);
+	fwprintf(stderr, L"      %s = \"%ls\"\n", e2, v2);
+	test_failed(a);
 }
 
 /*
@@ -109,19 +155,60 @@ test_assert_equal_int(const char *file, int line,
  * We reuse it here to define a list of all tests to run.
  */
 #undef DEFINE_TEST
-#define DEFINE_TEST(n) n, #n,
-struct { void (*func)(void); char *name; } tests[] = {
+#define DEFINE_TEST(n) { n, #n },
+struct { void (*func)(void); const char *name; } tests[] = {
 	#include "list.h"
 };
 
+static void test_run(int i, const char *tmpdir)
+{
+	printf("%d: %s\n", i, tests[i].name);
+	/*
+	 * Always explicitly chdir() in case the last test moved us to
+	 * a strange place.
+	 */
+	if (chdir(tmpdir)) {
+		fprintf(stderr,
+		    "ERROR: Couldn't chdir to temp dir %s\n",
+		    tmpdir);
+		exit(1);
+	}
+	/* Create a temp directory for this specific test. */
+	if (mkdir(tests[i].name, 0755)) {
+		fprintf(stderr,
+		    "ERROR: Couldn't create temp dir ``%s''\n",
+		    tests[i].name);
+		exit(1);
+	}
+	if (chdir(tests[i].name)) {
+		fprintf(stderr,
+		    "ERROR: Couldn't chdir to temp dir ``%s''\n",
+		    tests[i].name);
+		exit(1);
+	}
+	(*tests[i].func)();
+}
+
+static void usage(void)
+{
+	static const int limit = sizeof(tests) / sizeof(tests[0]);
+	int i;
+
+	printf("Usage: libarchive_test <test> <test> ...\n");
+	printf("Default is to run all tests.\n");
+	printf("Otherwise, specify the numbers of the tests you wish to run.\n");
+	printf("Available tests:\n");
+	for (i = 0; i < limit; i++)
+		printf("  %d: %s\n", i, tests[i].name);
+	exit(1);
+}
+
 int main(int argc, char **argv)
 {
-	void (*f)(void);
-	int limit = sizeof(tests) / sizeof(tests[0]);
-	int i;
+	static const int limit = sizeof(tests) / sizeof(tests[0]);
+	int i, tests_run = 0;
 	time_t now;
 	char tmpdir[256];
-	int tmpdirHandle;
 
 	/*
 	 * Create a temp directory for the following tests.
@@ -129,10 +216,15 @@ int main(int argc, char **argv)
 	 * to make it easier to track the results of multiple tests.
 	 */
 	now = time(NULL);
-	strftime(tmpdir, sizeof(tmpdir),
-	    "/tmp/libarchive_test.%Y-%m-%dT%H.%M.%S",
-	    localtime(&now));
-	if (mkdir(tmpdir,0755) != 0) {
+	for (i = 0; i < 1000; i++) {
+		strftime(tmpdir, sizeof(tmpdir),
+		    "/tmp/libarchive_test.%Y-%m-%dT%H.%M.%S",
+		    localtime(&now));
+		sprintf(tmpdir + strlen(tmpdir), "-%03d", i);
+		if (mkdir(tmpdir,0755) == 0)
+			break;
+		if (errno == EEXIST)
+			continue;
 		fprintf(stderr, "ERROR: Unable to create temp directory %s\n",
 		    tmpdir);
 		exit(1);
@@ -140,29 +232,25 @@ int main(int argc, char **argv)
 
 	printf("Running libarchive tests in: %s\n", tmpdir);
 
-	for (i = 0; i < limit; i++) {
-		printf("%d: %s\n", i, tests[i].name);
-		if (chdir(tmpdir)) {
-			fprintf(stderr,
-			    "ERROR: Couldn't chdir to temp dir %s\n",
-			    tmpdir);
-			exit(1);
+	if (argc == 1) {
+		/* Default: Run all tests. */
+		for (i = 0; i < limit; i++) {
+			test_run(i, tmpdir);
+			tests_run++;
 		}
-		/* Create a temp directory for this specific test. */
-		if (mkdir(tests[i].name, 0755)) {
-			fprintf(stderr,
-			    "ERROR: Couldn't create temp dir ``%s''\n",
-			    tests[i].name);
-			exit(1);
+	} else {
+		while (*(++argv) != NULL) {
+			i = atoi(*argv);
+			if (**argv < '0' || **argv > '9' || i < 0 || i >= limit) {
+				printf("*** INVALID Test %s\n", *argv);
+				usage();
+			} else {
+				test_run(i, tmpdir);
+				tests_run++;
+			}
 		}
-		if (chdir(tests[i].name)) {
-			fprintf(stderr,
-			    "ERROR: Couldn't chdir to temp dir ``%s''\n",
-			    tests[i].name);
-			exit(1);
-		}
-		(*tests[i].func)();
 	}
-	printf("%d tests succeeded.\n", limit);
+
+	printf("%d tests succeeded.\n", tests_run);
 	return (0);
 }

@@ -28,9 +28,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -72,31 +69,22 @@ struct ar_w {
 #define AR_fmag_offset 58
 #define AR_fmag_size 2
 
-/*
- * "ar" magic numbers.
- */
-#define	ARMAG		"!<arch>\n"
-#define	SARMAG		8		/* strlen(ARMAG); */
-#define	AR_EFMT1	"#1/"
-#define	SAR_EFMT1	3		/* strlen(AR_EFMT1); */
-#define	ARFMAG		"`\n"
-#define	SARFMAG		2		/* strlen(ARFMAG); */
-
-static int	__archive_write_set_format_ar(struct archive_write *);
-static int	archive_write_ar_header(struct archive_write *,
-		    struct archive_entry *);
-static ssize_t	archive_write_ar_data(struct archive_write *, const void *buff,
-		    size_t s);
-static int	archive_write_ar_destroy(struct archive_write *);
-static int	archive_write_ar_finish_entry(struct archive_write *);
-static int	format_octal(int64_t v, char *p, int s);
-static int	format_decimal(int64_t v, char *p, int s);
+static int		 archive_write_set_format_ar(struct archive_write *);
+static int		 archive_write_ar_header(struct archive_write *,
+			     struct archive_entry *);
+static ssize_t		 archive_write_ar_data(struct archive_write *,
+			     const void *buff, size_t s);
+static int		 archive_write_ar_destroy(struct archive_write *);
+static int		 archive_write_ar_finish_entry(struct archive_write *);
+static const char	*basename(const char *path);
+static int		 format_octal(int64_t v, char *p, int s);
+static int		 format_decimal(int64_t v, char *p, int s);
 
 int
 archive_write_set_format_ar_bsd(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
-	int r = __archive_write_set_format_ar(a);
+	int r = archive_write_set_format_ar(a);
 	if (r == ARCHIVE_OK) {
 		a->archive_format = ARCHIVE_FORMAT_AR_BSD;
 		a->archive_format_name = "ar (BSD)";
@@ -108,7 +96,7 @@ int
 archive_write_set_format_ar_svr4(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
-	int r = __archive_write_set_format_ar(a);
+	int r = archive_write_set_format_ar(a);
 	if (r == ARCHIVE_OK) {
 		a->archive_format = ARCHIVE_FORMAT_AR_GNU;
 		a->archive_format_name = "ar (GNU/SVR4)";
@@ -120,7 +108,7 @@ archive_write_set_format_ar_svr4(struct archive *_a)
  * Generic initialization.
  */
 static int
-__archive_write_set_format_ar(struct archive_write *a)
+archive_write_set_format_ar(struct archive_write *a)
 {
 	struct ar_w *ar;
 
@@ -151,40 +139,48 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 	char buff[60];
 	char *ss, *se;
 	struct ar_w *ar;
-	const char *pp;
-	const struct stat *st;
+	const char *pathname;
+	const char *filename;
 
 	ret = 0;
 	append_fn = 0;
 	ar = (struct ar_w *)a->format_data;
 	ar->is_strtab = 0;
+	filename = NULL;
 
-	if (a->archive.file_position == 0) {
-		/*
-		 * We are now at the beginning of the archive,
-		 * so we need first write the ar global header.
-		 */
-		(a->compression_write)(a, ARMAG, SARMAG);
+	/*
+	 * Reject files with empty name.
+	 */
+	pathname = archive_entry_pathname(entry);
+	if (*pathname == '\0') {
+		archive_set_error(&a->archive, EINVAL,
+		    "Invalid filename");
+		return (ARCHIVE_WARN);
 	}
 
+	/*
+	 * If we are now at the beginning of the archive,
+	 * we need first write the ar global header.
+	 */
+	if (a->archive.file_position == 0)
+		(a->compressor.write)(a, "!<arch>\n", 8);
+
 	memset(buff, ' ', 60);
-	strncpy(&buff[AR_fmag_offset], ARFMAG, SARFMAG);
+	strncpy(&buff[AR_fmag_offset], "`\n", 2);
 
-	pp = archive_entry_pathname(entry);
-
-	if (strcmp(pp, "/") == 0 ) {
+	if (strcmp(pathname, "/") == 0 ) {
 		/* Entry is archive symbol table in GNU format */
 		buff[AR_name_offset] = '/';
 		goto stat;
 	}
-	if (strcmp(pp, "__.SYMDEF") == 0) {
+	if (strcmp(pathname, "__.SYMDEF") == 0) {
 		/* Entry is archive symbol table in BSD format */
 		strncpy(buff + AR_name_offset, "__.SYMDEF", 9);
 		goto stat;
 	}
-	if (strcmp(pp, "//") == 0) {
+	if (strcmp(pathname, "//") == 0) {
 		/*
-		 * Entry is archive string table, inform that we should
+		 * Entry is archive filename table, inform that we should
 		 * collect strtab in next _data call.
 		 */
 		ar->is_strtab = 1;
@@ -196,7 +192,17 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		goto size;
 	}
 
-	/* Otherwise, entry is a normal archive member. */
+	/* 
+	 * Otherwise, entry is a normal archive member.
+	 * Strip leading paths from filenames, if any.
+	 */
+	if ((filename = basename(pathname)) == NULL) {
+		/* Reject filenames with trailing "/" */
+		archive_set_error(&a->archive, EINVAL,
+		    "Invalid filename");
+		return (ARCHIVE_WARN);
+	}
+
 	if (a->archive_format == ARCHIVE_FORMAT_AR_GNU) {
 		/*
 		 * SVR4/GNU variant use a "/" to mark then end of the filename,
@@ -204,9 +210,10 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		 * So, the longest filename here (without extension) is
 		 * actually 15 bytes.
 		 */
-		if (strlen(pp) <= 15) {
-			strncpy(&buff[AR_name_offset], pp, strlen(pp));
-			buff[AR_name_offset + strlen(pp)] = '/';
+		if (strlen(filename) <= 15) {
+			strncpy(&buff[AR_name_offset], 
+			    filename, strlen(filename));
+			buff[AR_name_offset + strlen(filename)] = '/';
 		} else {
 			/*
 			 * For filename longer than 15 bytes, GNU variant
@@ -220,15 +227,15 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 				return (ARCHIVE_WARN);
 			}
 
-			se = (char *)malloc(strlen(pp) + 3);
+			se = (char *)malloc(strlen(filename) + 3);
 			if (se == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate filename buffer");
 				return (ARCHIVE_FATAL);
 			}
 
-			strncpy(se, pp, strlen(pp));
-			strcpy(se + strlen(pp), "/\n");
+			strncpy(se, filename, strlen(filename));
+			strcpy(se + strlen(filename), "/\n");
 
 			ss = strstr(ar->strtab, se);
 			free(se);
@@ -263,45 +270,53 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		 * The name is then written immediately following the
 		 * archive header.
 		 */
-		if (strlen(pp) <= 16 && strchr(pp, ' ') == NULL) {
-			strncpy(&buff[AR_name_offset], pp, strlen(pp));
-			buff[AR_name_offset + strlen(pp)] = ' ';
+		if (strlen(filename) <= 16 && strchr(filename, ' ') == NULL) {
+			strncpy(&buff[AR_name_offset], filename, strlen(filename));
+			buff[AR_name_offset + strlen(filename)] = ' ';
 		}
 		else {
-			strncpy(buff + AR_name_offset, AR_EFMT1, SAR_EFMT1);
-			if (format_decimal(strlen(pp),
-			    buff + AR_name_offset + SAR_EFMT1,
-			    AR_name_size - SAR_EFMT1)) {
+			strncpy(buff + AR_name_offset, "#1/", 3);
+			if (format_decimal(strlen(filename),
+			    buff + AR_name_offset + 3,
+			    AR_name_size - 3)) {
 				archive_set_error(&a->archive, ERANGE,
 				    "File name too long");
 				return (ARCHIVE_WARN);
 			}
 			append_fn = 1;
 			archive_entry_set_size(entry,
-			    archive_entry_size(entry) + strlen(pp));
+			    archive_entry_size(entry) + strlen(filename));
 		}
 	}
 
 stat:
-	st = archive_entry_stat(entry);
-	if (format_decimal(st->st_mtime, buff + AR_date_offset, AR_date_size)) {
+	if (format_decimal(archive_entry_mtime(entry), buff + AR_date_offset, AR_date_size)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "File modification time too large");
 		return (ARCHIVE_WARN);
 	}
-	if (format_decimal(st->st_uid, buff + AR_uid_offset, AR_uid_size)) {
+	if (format_decimal(archive_entry_uid(entry), buff + AR_uid_offset, AR_uid_size)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "Numeric user ID too large");
 		return (ARCHIVE_WARN);
 	}
-	if (format_decimal(st->st_gid, buff + AR_gid_offset, AR_gid_size)) {
+	if (format_decimal(archive_entry_gid(entry), buff + AR_gid_offset, AR_gid_size)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "Numeric group ID too large");
 		return (ARCHIVE_WARN);
 	}
-	if (format_octal(st->st_mode, buff + AR_mode_offset, AR_mode_size)) {
+	if (format_octal(archive_entry_mode(entry), buff + AR_mode_offset, AR_mode_size)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "Numeric mode too large");
+		return (ARCHIVE_WARN);
+	}
+	/*
+	 * Sanity Check: A non-pseudo archive member should always be
+	 * a regular file.
+	 */
+	if (filename != NULL && archive_entry_filetype(entry) != AE_IFREG) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Regular file required for non-pseudo member");
 		return (ARCHIVE_WARN);
 	}
 
@@ -313,7 +328,7 @@ size:
 		return (ARCHIVE_WARN);
 	}
 
-	ret = (a->compression_write)(a, buff, 60);
+	ret = (a->compressor.write)(a, buff, 60);
 	if (ret != ARCHIVE_OK)
 		return (ret);
 
@@ -321,10 +336,10 @@ size:
 	ar->entry_padding = ar->entry_bytes_remaining % 2;
 
 	if (append_fn > 0) {
-		ret = (a->compression_write)(a, pp, strlen(pp));
+		ret = (a->compressor.write)(a, filename, strlen(filename));
 		if (ret != ARCHIVE_OK)
 			return (ret);
-		ar->entry_bytes_remaining -= strlen(pp);
+		ar->entry_bytes_remaining -= strlen(filename);
 	}
 
 	return (ARCHIVE_OK);
@@ -357,7 +372,7 @@ archive_write_ar_data(struct archive_write *a, const void *buff, size_t s)
 		ar->has_strtab = 1;
 	}
 
-	ret = (a->compression_write)(a, buff, s);
+	ret = (a->compressor.write)(a, buff, s);
 	if (ret != ARCHIVE_OK)
 		return (ret);
 
@@ -407,7 +422,7 @@ archive_write_ar_finish_entry(struct archive_write *a)
 		return (ARCHIVE_WARN);
 	}
 
-	ret = (a->compression_write)(a, "\n", 1);
+	ret = (a->compressor.write)(a, "\n", 1);
 	return (ret);
 }
 
@@ -489,4 +504,25 @@ format_decimal(int64_t v, char *p, int s)
 		*p++ = '9';
 
 	return (-1);
+}
+
+static const char *
+basename(const char *path)
+{
+	const char *endp, *startp;
+
+	endp = path + strlen(path) - 1;
+	/*
+	 * For filename with trailing slash(es), we return
+	 * NULL indicating an error.
+	 */
+	if (*endp == '/')
+		return (NULL);
+
+	/* Find the start of the base */
+	startp = endp;
+	while (startp > path && *(startp - 1) != '/')
+		startp--;
+	
+	return (startp);
 }
