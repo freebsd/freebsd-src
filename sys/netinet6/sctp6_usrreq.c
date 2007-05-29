@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_input.h>
 #include <netinet/sctp_output.h>
+#include <netinet/sctp_bsd_addr.h>
 
 
 extern struct protosw inetsw[];
@@ -91,6 +92,9 @@ sctp6_input(i_pak, offp, proto)
 	m = SCTP_HEADER_TO_CHAIN(*i_pak);
 	pkt_len = SCTP_HEADER_LEN((*i_pak));
 
+#ifdef  SCTP_PACKET_LOGGING
+	sctp_packet_log(m, pkt_len);
+#endif
 	ip6 = mtod(m, struct ip6_hdr *);
 	/* Ensure that (sctphdr + sctp_chunkhdr) in a row. */
 	IP6_EXTHDR_GET(sh, struct sctphdr *, m, off,

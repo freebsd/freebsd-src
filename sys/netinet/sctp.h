@@ -158,6 +158,7 @@ struct sctp_paramhdr {
 #define SCTP_PCB_STATUS			0x00001104
 #define SCTP_GET_NONCE_VALUES           0x00001105
 
+
 /* Special hook for dynamically setting primary for all assoc's,
  * this is a write only option that requires root privledge.
  */
@@ -196,6 +197,17 @@ struct sctp_paramhdr {
 #define SCTP_GET_VRF_IDS		0x00003003
 #define SCTP_GET_ASOC_VRF               0x00003004
 #define SCTP_DEL_VRF_ID                 0x00003005
+
+/*
+ * If you enable packet logging you can get
+ * a poor mans ethereal output in binary
+ * form. Note this is a compile option to
+ * the kernel,  SCTP_PACKET_LOGGING, and
+ * without it in your kernel you
+ * will get a ENOSUPPORT.
+ */
+#define SCTP_GET_PACKET_LOG             0x00004001
+
 /*
  * hidden implementation specific options these are NOT user visible (should
  * move out of sctp.h)
@@ -452,5 +464,8 @@ struct sctp_error_unrecognized_chunk {
 				 * discovery */
 
 #include <netinet/sctp_uio.h>
+
+#define SCTP_PACKET_LOG_SIZE 65536
+
 
 #endif				/* !_NETINET_SCTP_H_ */

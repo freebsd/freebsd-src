@@ -182,6 +182,7 @@ struct sctp_epinfo {
 	struct mtx it_mtx;
 	struct mtx ipi_iterator_wq_mtx;
 	struct mtx ipi_addr_mtx;
+	struct mtx ipi_pktlog_mtx;
 	uint32_t ipi_count_ep;
 
 	/* assoc/tcb zone info */
