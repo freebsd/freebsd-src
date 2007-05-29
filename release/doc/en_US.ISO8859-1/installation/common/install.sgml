@@ -902,6 +902,12 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  Linux distributions, such as 
 	  <ulink url="http://www.sysresccd.org/">SystemRescueCD</ulink>.</para>
 
+	  <para>Problems have been reported resizing Microsoft Vista
+	  partitions.  Having a Vista installation CDROM handy when
+	  attempting such an operation is recommended.  As with all
+	  such disk maintenance tasks, a current set of backups is
+	  also strongly advised.</para>
+
 	</answer>
       </qandaentry>
 
