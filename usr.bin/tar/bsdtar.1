@@ -360,6 +360,10 @@ Without this option,
 overwrites existing files, which preserves existing hardlinks.
 With this option, existing hardlinks will be broken, as will any
 symlink that would affect the location of an extracted file.
+.It Fl -use-compress-program Ar program
+Pipe the input (in x or t mode) or the output (in c mode) through
+.Pa program
+instead of using the builtin compression support.
 .It Fl v
 Produce verbose output.
 In create and extract modes,

@@ -203,23 +203,28 @@ tar_mode_c(struct bsdtar *bsdtar)
 	} else
 		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
 
-	switch (bsdtar->create_compression) {
-	case 0:
-		break;
+	if (bsdtar->compress_program) {
+		archive_write_set_compression_program(a, bsdtar->compress_program);
+	} else {
+		switch (bsdtar->create_compression) {
+		case 0:
+			archive_write_set_compression_none(a);
+			break;
 #ifdef HAVE_LIBBZ2
-	case 'j': case 'y':
-		archive_write_set_compression_bzip2(a);
-		break;
+		case 'j': case 'y':
+			archive_write_set_compression_bzip2(a);
+			break;
 #endif
 #ifdef HAVE_LIBZ
-	case 'z':
-		archive_write_set_compression_gzip(a);
-		break;
+		case 'z':
+			archive_write_set_compression_gzip(a);
+			break;
 #endif
-	default:
-		bsdtar_errc(bsdtar, 1, 0,
-		    "Unrecognized compression option -%c",
-		    bsdtar->create_compression);
+		default:
+			bsdtar_errc(bsdtar, 1, 0,
+			    "Unrecognized compression option -%c",
+			    bsdtar->create_compression);
+		}
 	}
 
 	r = archive_write_open_file(a, bsdtar->filename);
