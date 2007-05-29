@@ -263,15 +263,6 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Generic*", "USB Flash Disk*",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
-	{
-		/*
-		 * This particular Hitachi drive doesn't like the
-		 * synchronize cache command.
-		 * Reported by:  Joakim Bentholm
-		 */
-		{T_DIRECT, SIP_MEDIA_FIXED, "Hitachi", "HTS541212H9A*",
-		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
-	},
  	{
  		/*
  		 * Creative Nomad MUVO mp3 player (USB)
