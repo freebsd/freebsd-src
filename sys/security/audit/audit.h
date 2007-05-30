@@ -214,10 +214,6 @@ void	 audit_thread_free(struct thread *td);
 
 #else /* !AUDIT */
 
-void	 audit_proc_init(struct proc *p);
-void	 audit_proc_fork(struct proc *parent, struct proc *child);
-void	 audit_proc_free(struct proc *p);
-
 #define	AUDIT_ARG(op, args...)	do {					\
 } while (0)
 

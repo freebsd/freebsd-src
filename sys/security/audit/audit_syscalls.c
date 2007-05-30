@@ -747,23 +747,4 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 
 	return (ENOSYS);
 }
-
-void
-audit_proc_init(struct proc *p)
-{
-
-}
-
-void
-audit_proc_fork(struct proc *parent, struct proc *child)
-{
-
-}
-
-void
-audit_proc_free(struct proc *p)
-{
-
-}
-
 #endif /* AUDIT */
