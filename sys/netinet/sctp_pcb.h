@@ -217,7 +217,7 @@ struct sctp_epinfo {
 	uint32_t ipi_free_strmoq;
 
 
-	struct sctpvtaghead vtag_timewait[SCTP_STACK_VTAG_HASH_SIZE];
+	struct sctpvtaghead vtag_timewait[SCTP_STACK_VTAG_HASH_SIZE_A];
 
 	/* address work queue handling */
 #if defined(SCTP_USE_THREAD_BASED_ITERATOR)
