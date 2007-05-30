@@ -520,7 +520,7 @@ xlog_find_head(
 {
 	xfs_buf_t	*bp;
 	xfs_caddr_t	offset;
-	xfs_daddr_t	new_blk, first_blk, start_blk, last_blk, head_blk;
+	xfs_daddr_t	new_blk, first_blk = 0, start_blk, last_blk, head_blk;
 	int		num_scan_bblks;
 	uint		first_half_cycle, last_half_cycle;
 	uint		stop_on_cycle;
