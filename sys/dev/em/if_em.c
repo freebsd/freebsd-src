@@ -89,7 +89,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "Version - 6.5.2";
+char em_driver_version[] = "Version - 6.5.3";
 
 
 /*********************************************************************
@@ -720,10 +720,10 @@ em_attach(device_t dev)
 		adapter->pcix_82544 = FALSE;
 
 	/* Get control from any management/hw control */
-	if (((adapter->hw.mac.type != e1000_82573) &&
-	    (adapter->hw.mac.type != e1000_ich8lan) &&
-	    (adapter->hw.mac.type != e1000_ich9lan)) ||
-	    !e1000_check_mng_mode(&adapter->hw))
+	if (((adapter->hw.mac.type == e1000_82573) ||
+	    (adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_ich9lan)) &&
+	    e1000_check_mng_mode(&adapter->hw))
 		em_get_hw_control(adapter);
 
 	/* Tell the stack that the interface is not active */
@@ -779,11 +779,13 @@ em_detach(device_t dev)
 	e1000_phy_hw_reset(&adapter->hw);
 
 	em_release_manageability(adapter);
-	if (((adapter->hw.mac.type != e1000_82573) &&
-	    (adapter->hw.mac.type != e1000_ich8lan) &&
-	    (adapter->hw.mac.type != e1000_ich9lan)) ||
-	    !e1000_check_mng_mode(&adapter->hw))
+
+	if (((adapter->hw.mac.type == e1000_82573) ||
+	    (adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_ich9lan)) &&
+	    e1000_check_mng_mode(&adapter->hw))
 		em_release_hw_control(adapter);
+
 	if (adapter->wol) {
 		E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
 		E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
@@ -845,11 +847,13 @@ em_suspend(device_t dev)
 	em_stop(adapter);
 
         em_release_manageability(adapter);
-        if (((adapter->hw.mac.type != e1000_82573) &&
-            (adapter->hw.mac.type != e1000_ich8lan) &&
-            (adapter->hw.mac.type != e1000_ich9lan)) ||
-            !e1000_check_mng_mode(&adapter->hw))
+
+        if (((adapter->hw.mac.type == e1000_82573) ||
+            (adapter->hw.mac.type == e1000_ich8lan) ||
+            (adapter->hw.mac.type == e1000_ich9lan)) &&
+            e1000_check_mng_mode(&adapter->hw))
                 em_release_hw_control(adapter);
+
         if (adapter->wol) {
                 E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
                 E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
@@ -871,10 +875,10 @@ em_resume(device_t dev)
 	em_init_locked(adapter);
 
         /* Get control from any management/hw control */
-	if (((adapter->hw.mac.type != e1000_82573) &&
-	    (adapter->hw.mac.type != e1000_ich8lan) &&
-	    (adapter->hw.mac.type != e1000_ich9lan)) ||
-	    !e1000_check_mng_mode(&adapter->hw))
+	if (((adapter->hw.mac.type == e1000_82573) ||
+	    (adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_ich9lan)) &&
+	    e1000_check_mng_mode(&adapter->hw))
 		em_get_hw_control(adapter);
 	em_init_manageability(adapter);
 
@@ -3151,8 +3155,8 @@ em_initialize_transmit_unit(struct adapter *adapter)
 	/* Program the Transmit Control Register */
 	tctl = E1000_READ_REG(&adapter->hw, E1000_TCTL);
 	tctl &= ~E1000_TCTL_CT;
-	tctl = E1000_TCTL_PSP | E1000_TCTL_RTLC | E1000_TCTL_EN |
-		   (E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
+	tctl |= (E1000_TCTL_PSP | E1000_TCTL_RTLC | E1000_TCTL_EN |
+		   (E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT));
 
 	if (adapter->hw.mac.type >= e1000_82571)
 		tctl |= E1000_TCTL_MULR;
@@ -4628,7 +4632,6 @@ e1000_alloc_zeroed_dev_spec_struct(struct e1000_hw *hw, uint32_t size)
 	hw->dev_spec = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (hw->dev_spec == NULL)
 		error = ENOMEM;
-	bzero(hw->dev_spec, size);
 
 	return (error);
 }
