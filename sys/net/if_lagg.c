@@ -1105,12 +1105,14 @@ lagg_start(struct ifnet *ifp)
 			error = (*sc->sc_start)(sc, m);
 			LAGG_UNLOCK(sc);
 		} else
-			m_free(m);
+			m_freem(m);
 
 		if (error == 0)
 			ifp->if_opackets++;
-		else
+		else {
+			m_freem(m); /* sc_start failed */
 			ifp->if_oerrors++;
+		}
 	}
 
 	return;
@@ -1136,8 +1138,6 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 	m = (*sc->sc_input)(sc, lp, m);
 
 	if (m != NULL) {
-		ifp->if_ipackets++;
-		ifp->if_ibytes += m->m_pkthdr.len;
 		trifp->if_ipackets++;
 		trifp->if_ibytes += m->m_pkthdr.len;
 	}
@@ -1334,17 +1334,7 @@ lagg_enqueue(struct ifnet *ifp, struct mbuf *m)
 {
 	int error = 0;
 
-	/* Send mbuf */
-	IFQ_ENQUEUE(&ifp->if_snd, m, error);
-	if (error)
-		return (error);
-	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
-		(*ifp->if_start)(ifp);
-
-	ifp->if_obytes += m->m_pkthdr.len;
-	if (m->m_flags & M_MCAST)
-		ifp->if_omcasts++;
-
+	IFQ_HANDOFF(ifp, m, error);
 	return (error);
 }
 
