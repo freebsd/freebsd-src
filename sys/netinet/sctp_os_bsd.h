@@ -260,6 +260,15 @@ typedef struct callout sctp_os_timer_t;
                                   } else if ((m->m_flags & M_EXT) == 0) { \
                                      M_ALIGN(m, len); \
                                   }
+
+/* We make it so if you have up to 4 threads
+ * writting based on the default size of
+ * the packet log 65 k, that would be
+ * 4 16k packets before we would hit
+ * a problem.
+ */
+#define SCTP_PKTLOG_WRITERS_NEED_LOCK 3
+
 /*************************/
 /*      MTU              */
 /*************************/

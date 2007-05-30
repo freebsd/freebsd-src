@@ -9529,7 +9529,7 @@ sctp_send_hb(struct sctp_tcb *stcb, int user_req, struct sctp_nets *u_net)
 	atomic_add_int(&chk->whoTo->ref_count, 1);
 	/* Now we have a mbuf that we can fill in with the details */
 	hb = mtod(chk->data, struct sctp_heartbeat_chunk *);
-
+	memset(hb, 0, sizeof(struct sctp_heartbeat_chunk));
 	/* fill out chunk header */
 	hb->ch.chunk_type = SCTP_HEARTBEAT_REQUEST;
 	hb->ch.chunk_flags = 0;
