@@ -1171,7 +1171,8 @@ exec_setregs(td, entry, stack, ps_strings)
 	mtx_lock_spin(&dt_lock);
 	if (td->td_proc->p_md.md_ldt)
 		user_ldt_free(td);
-	mtx_unlock_spin(&dt_lock);
+	else
+		mtx_unlock_spin(&dt_lock);
   
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_eip = entry;
