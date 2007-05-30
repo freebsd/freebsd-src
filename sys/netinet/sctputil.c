@@ -1550,7 +1550,7 @@ sctp_timeout_handler(void *t)
 		break;
 	case SCTP_TIMER_TYPE_HEARTBEAT:
 		{
-			struct sctp_nets *net;
+			struct sctp_nets *lnet;
 			int cnt_of_unconf = 0;
 
 			if ((stcb == NULL) || (inp == NULL)) {
@@ -1558,23 +1558,24 @@ sctp_timeout_handler(void *t)
 			}
 			SCTP_STAT_INCR(sctps_timoheartbeat);
 			stcb->asoc.timoheartbeat++;
-			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-				if ((net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
-				    (net->dest_state & SCTP_ADDR_REACHABLE)) {
+			TAILQ_FOREACH(lnet, &stcb->asoc.nets, sctp_next) {
+				if ((lnet->dest_state & SCTP_ADDR_UNCONFIRMED) &&
+				    (lnet->dest_state & SCTP_ADDR_REACHABLE)) {
 					cnt_of_unconf++;
 				}
 			}
 			if (cnt_of_unconf == 0) {
-				if (sctp_heartbeat_timer(inp, stcb, net, cnt_of_unconf)) {
+				if (sctp_heartbeat_timer(inp, stcb, lnet,
+				    cnt_of_unconf)) {
 					/* no need to unlock on tcb its gone */
 					goto out_decr;
 				}
 			}
 #ifdef SCTP_AUDITING_ENABLED
-			sctp_auditing(4, inp, stcb, net);
+			sctp_auditing(4, inp, stcb, lnet);
 #endif
-			sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep,
-			    stcb, net);
+			sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT,
+			    stcb->sctp_ep, stcb, lnet);
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_HB_TMR);
 		}
 		break;
@@ -1897,7 +1898,6 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				return;
 			}
 			if (net) {
-				struct sctp_nets *lnet;
 				int delay;
 
 				delay = stcb->asoc.heart_beat_delay;
@@ -2347,11 +2347,10 @@ sctp_calculate_sum(struct mbuf *m, int32_t * pktlen, uint32_t offset)
 	/*
 	 * given a mbuf chain with a packetheader offset by 'offset'
 	 * pointing at a sctphdr (with csum set to 0) go through the chain
-	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This is
-	 * currently Adler32 but will change to CRC32x soon. Also has a side
-	 * bonus calculate the total length of the mbuf chain. Note: if
-	 * offset is greater than the total mbuf length, checksum=1,
-	 * pktlen=0 is returned (ie. no real error code)
+	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This also
+	 * has a side bonus as it will calculate the total length of the
+	 * mbuf chain. Note: if offset is greater than the total mbuf
+	 * length, checksum=1, pktlen=0 is returned (ie. no real error code)
 	 */
 	if (pktlen == NULL)
 		return (0);
@@ -2369,11 +2368,10 @@ sctp_calculate_sum(struct mbuf *m, int32_t * pktlen, uint32_t offset)
 	/*
 	 * given a mbuf chain with a packetheader offset by 'offset'
 	 * pointing at a sctphdr (with csum set to 0) go through the chain
-	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This is
-	 * currently Adler32 but will change to CRC32x soon. Also has a side
-	 * bonus calculate the total length of the mbuf chain. Note: if
-	 * offset is greater than the total mbuf length, checksum=1,
-	 * pktlen=0 is returned (ie. no real error code)
+	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This also
+	 * has a side bonus as it will calculate the total length of the
+	 * mbuf chain. Note: if offset is greater than the total mbuf
+	 * length, checksum=1, pktlen=0 is returned (ie. no real error code)
 	 */
 	int32_t tlen = 0;
 	struct mbuf *at;
@@ -2399,11 +2397,10 @@ sctp_calculate_sum(struct mbuf *m, int32_t * pktlen, uint32_t offset)
 	/*
 	 * given a mbuf chain with a packetheader offset by 'offset'
 	 * pointing at a sctphdr (with csum set to 0) go through the chain
-	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This is
-	 * currently Adler32 but will change to CRC32x soon. Also has a side
-	 * bonus calculate the total length of the mbuf chain. Note: if
-	 * offset is greater than the total mbuf length, checksum=1,
-	 * pktlen=0 is returned (ie. no real error code)
+	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This also
+	 * has a side bonus as it will calculate the total length of the
+	 * mbuf chain. Note: if offset is greater than the total mbuf
+	 * length, checksum=1, pktlen=0 is returned (ie. no real error code)
 	 */
 	int32_t tlen = 0;
 
@@ -2413,7 +2410,7 @@ sctp_calculate_sum(struct mbuf *m, int32_t * pktlen, uint32_t offset)
 #else
 	uint32_t base = 0xffffffff;
 
-#endif				/* SCTP_USE_ADLER32 */
+#endif
 	struct mbuf *at;
 
 	at = m;
@@ -2440,12 +2437,12 @@ sctp_calculate_sum(struct mbuf *m, int32_t * pktlen, uint32_t offset)
 				    (unsigned char *)(SCTP_BUF_AT(at, offset)),
 				    (unsigned int)(SCTP_BUF_LEN(at) - offset));
 			}
-#endif				/* SCTP_USE_ADLER32 */
+#endif
 			tlen += SCTP_BUF_LEN(at) - offset;
 			/* we only offset once into the first mbuf */
 		}
 		if (offset) {
-			if (offset < SCTP_BUF_LEN(at))
+			if (offset < (uint32_t) SCTP_BUF_LEN(at))
 				offset = 0;
 			else
 				offset -= SCTP_BUF_LEN(at);
@@ -4483,7 +4480,7 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 }
 
 static void
-sctp_user_rcvd(struct sctp_tcb *stcb, int *freed_so_far, int hold_rlock,
+sctp_user_rcvd(struct sctp_tcb *stcb, uint32_t * freed_so_far, int hold_rlock,
     uint32_t rwnd_req)
 {
 	/* User pulled some data, do we need a rwnd update? */
@@ -4498,8 +4495,7 @@ sctp_user_rcvd(struct sctp_tcb *stcb, int *freed_so_far, int hold_rlock,
 
 	if (stcb->asoc.state & (SCTP_STATE_ABOUT_TO_BE_FREED |
 	    SCTP_STATE_SHUTDOWN_RECEIVED |
-	    SCTP_STATE_SHUTDOWN_ACK_SENT)
-	    ) {
+	    SCTP_STATE_SHUTDOWN_ACK_SENT)) {
 		/* Pre-check If we are freeing no update */
 		goto no_lock;
 	}
@@ -4613,7 +4609,7 @@ sctp_sorecvmsg(struct socket *so,
 	int freecnt_applied = 0;
 	int out_flags = 0, in_flags = 0;
 	int block_allowed = 1;
-	int freed_so_far = 0;
+	uint32_t freed_so_far = 0;
 	int copied_so_far = 0;
 	int in_eeor_mode = 0;
 	int no_rcv_needed = 0;
@@ -4622,7 +4618,7 @@ sctp_sorecvmsg(struct socket *so,
 	int hold_rlock = 0;
 	int alen = 0;
 	int slen = 0;
-	int held_length = 0;
+	uint32_t held_length = 0;
 	int sockbuf_lock = 0;
 
 	if (uio == NULL) {
@@ -4844,17 +4840,17 @@ restart_nosblocks:
 		control->held_length = 0;
 		if (control->data) {
 			/* Hmm there is data here .. fix */
-			struct mbuf *m;
+			struct mbuf *m_tmp;
 			int cnt = 0;
 
-			m = control->data;
-			while (m) {
-				cnt += SCTP_BUF_LEN(m);
-				if (SCTP_BUF_NEXT(m) == NULL) {
-					control->tail_mbuf = m;
+			m_tmp = control->data;
+			while (m_tmp) {
+				cnt += SCTP_BUF_LEN(m_tmp);
+				if (SCTP_BUF_NEXT(m_tmp) == NULL) {
+					control->tail_mbuf = m_tmp;
 					control->end_added = 1;
 				}
-				m = SCTP_BUF_NEXT(m);
+				m_tmp = SCTP_BUF_NEXT(m_tmp);
 			}
 			control->length = cnt;
 		} else {
@@ -5814,7 +5810,7 @@ sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr,
 	sa = addr;
 	*error = *num_v6 = *num_v4 = 0;
 	/* account and validate addresses */
-	for (i = 0; i < *totaddr; i++) {
+	for (i = 0; i < (size_t)*totaddr; i++) {
 		if (sa->sa_family == AF_INET) {
 			(*num_v4) += 1;
 			incr = sizeof(struct sockaddr_in);
@@ -5853,7 +5849,7 @@ sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr,
 		} else {
 			SCTP_INP_DECR_REF(inp);
 		}
-		if ((at + incr) > limit) {
+		if ((at + incr) > (size_t)limit) {
 			*totaddr = i;
 			break;
 		}

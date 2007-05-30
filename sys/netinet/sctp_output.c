@@ -3057,7 +3057,7 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, int cpsize)
 			return (0);
 		}
 		m_copydata(control, at, sizeof(cmh), (caddr_t)&cmh);
-		if ((cmh.cmsg_len + at) > tlen) {
+		if (((int)cmh.cmsg_len + at) > tlen) {
 			/*
 			 * this is real messed up since there is not enough
 			 * data here to cover the cmsg header. We are done.
@@ -3913,26 +3913,26 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	}
 	/* add authentication parameters */
 	if (!sctp_auth_disable) {
-		struct sctp_auth_random *random;
+		struct sctp_auth_random *randp;
 		struct sctp_auth_hmac_algo *hmacs;
 		struct sctp_auth_chunk_list *chunks;
 
 		/* attach RANDOM parameter, if available */
 		if (stcb->asoc.authinfo.random != NULL) {
-			random = (struct sctp_auth_random *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
-			p_len = sizeof(*random) + stcb->asoc.authinfo.random_len;
+			randp = (struct sctp_auth_random *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
+			p_len = sizeof(*randp) + stcb->asoc.authinfo.random_len;
 #ifdef SCTP_AUTH_DRAFT_04
-			random->ph.param_type = htons(SCTP_RANDOM);
-			random->ph.param_length = htons(p_len);
+			randp->ph.param_type = htons(SCTP_RANDOM);
+			randp->ph.param_length = htons(p_len);
 			bcopy(stcb->asoc.authinfo.random->key,
-			    random->random_data,
+			    randp->random_data,
 			    stcb->asoc.authinfo.random_len);
 #else
 			/* random key already contains the header */
-			bcopy(stcb->asoc.authinfo.random->key, random, p_len);
+			bcopy(stcb->asoc.authinfo.random->key, randp, p_len);
 #endif
 			/* zero out any padding required */
-			bzero((caddr_t)random + p_len, SCTP_SIZE32(p_len) - p_len);
+			bzero((caddr_t)randp + p_len, SCTP_SIZE32(p_len) - p_len);
 			SCTP_BUF_LEN(m) += SCTP_SIZE32(p_len);
 		}
 		/* add HMAC_ALGO parameter */
@@ -4003,8 +4003,6 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 		 * though I think it is impossible :-> however we add
 		 * mp_last here just in case.
 		 */
-		int ret;
-
 		ret = sctp_add_pad_tombuf(mp_last, (4 - padval));
 		if (ret) {
 			/* Houston we have a problem, no space */
@@ -4926,20 +4924,20 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	}
 	/* add authentication parameters */
 	if (!sctp_auth_disable) {
-		struct sctp_auth_random *random;
+		struct sctp_auth_random *randp;
 		struct sctp_auth_hmac_algo *hmacs;
 		struct sctp_auth_chunk_list *chunks;
 		uint16_t random_len;
 
 		/* generate and add RANDOM parameter */
 		random_len = SCTP_AUTH_RANDOM_SIZE_DEFAULT;
-		random = (struct sctp_auth_random *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
-		random->ph.param_type = htons(SCTP_RANDOM);
-		p_len = sizeof(*random) + random_len;
-		random->ph.param_length = htons(p_len);
-		SCTP_READ_RANDOM(random->random_data, random_len);
+		randp = (struct sctp_auth_random *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
+		randp->ph.param_type = htons(SCTP_RANDOM);
+		p_len = sizeof(*randp) + random_len;
+		randp->ph.param_length = htons(p_len);
+		SCTP_READ_RANDOM(randp->random_data, random_len);
 		/* zero out any padding required */
-		bzero((caddr_t)random + p_len, SCTP_SIZE32(p_len) - p_len);
+		bzero((caddr_t)randp + p_len, SCTP_SIZE32(p_len) - p_len);
 		SCTP_BUF_LEN(m) += SCTP_SIZE32(p_len);
 
 		/* add HMAC_ALGO parameter */
@@ -5451,7 +5449,7 @@ error_out:
 		appendchain = clonechain;
 	} else {
 		if (!copy_by_ref &&
-		    (sizeofcpy <= ((((sctp_mbuf_threshold_count - 1) * MLEN) + MHLEN)))
+		    (sizeofcpy <= (int)((((sctp_mbuf_threshold_count - 1) * MLEN) + MHLEN)))
 		    ) {
 			/* Its not in a cluster */
 			if (*endofchain == NULL) {
@@ -6067,7 +6065,7 @@ sctp_clean_up_ctl(struct sctp_tcb *stcb, struct sctp_association *asoc)
 static __inline int
 sctp_can_we_split_this(struct sctp_tcb *stcb,
     struct sctp_stream_queue_pending *sp,
-    int goal_mtu, int frag_point, int eeor_on)
+    uint32_t goal_mtu, uint32_t frag_point, int eeor_on)
 {
 	/*
 	 * Make a decision on if I should split a msg into multiple parts.
@@ -6099,7 +6097,8 @@ sctp_can_we_split_this(struct sctp_tcb *stcb,
 			return (goal_mtu);
 		}
 	}
-	if ((sp->length <= goal_mtu) || ((sp->length - goal_mtu) < sctp_min_residual)) {
+	if ((sp->length <= goal_mtu) ||
+	    ((sp->length - goal_mtu) < sctp_min_residual)) {
 		/* Sub-optimial residual don't split in non-eeor mode. */
 		return (0);
 	}
@@ -6116,11 +6115,11 @@ sctp_can_we_split_this(struct sctp_tcb *stcb,
 
 }
 
-static int
+static uint32_t
 sctp_move_to_outqueue(struct sctp_tcb *stcb, struct sctp_nets *net,
     struct sctp_stream_out *strq,
-    int goal_mtu,
-    int frag_point,
+    uint32_t goal_mtu,
+    uint32_t frag_point,
     int *locked,
     int *giveup,
     int eeor_mode)
@@ -6130,7 +6129,7 @@ sctp_move_to_outqueue(struct sctp_tcb *stcb, struct sctp_nets *net,
 	struct sctp_stream_queue_pending *sp;
 	struct sctp_tmit_chunk *chk;
 	struct sctp_data_chunk *dchkh;
-	int to_move;
+	uint32_t to_move;
 	uint8_t rcv_flags = 0;
 	uint8_t some_taken;
 	uint8_t send_lock_up = 0;
@@ -6365,7 +6364,7 @@ out_gu:
 	} else {
 		atomic_subtract_int(&sp->length, to_move);
 	}
-	if (M_LEADINGSPACE(chk->data) < sizeof(struct sctp_data_chunk)) {
+	if (M_LEADINGSPACE(chk->data) < (int)sizeof(struct sctp_data_chunk)) {
 		/* Not enough room for a chunk header, get some */
 		struct mbuf *m;
 
@@ -6385,12 +6384,12 @@ out_gu:
 				sp->data = chk->data;
 				sp->tail_mbuf = chk->last_mbuf;
 			} else {
-				struct mbuf *m;
+				struct mbuf *m_tmp;
 
 				/* reassemble the data */
-				m = sp->data;
+				m_tmp = sp->data;
 				sp->data = chk->data;
-				SCTP_BUF_NEXT(sp->data) = m;
+				SCTP_BUF_NEXT(sp->data) = m_tmp;
 			}
 			sp->some_taken = some_taken;
 			atomic_add_int(&sp->length, to_move);
@@ -10472,7 +10471,7 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	*error = 0;
 	/* Unless E_EOR mode is on, we must make a send FIT in one call. */
 	if (((user_marks_eor == 0) && non_blocking) &&
-	    (uio->uio_resid > SCTP_SB_LIMIT_SND(stcb->sctp_socket))) {
+	    (uio->uio_resid > (int)SCTP_SB_LIMIT_SND(stcb->sctp_socket))) {
 		/* It will NEVER fit */
 		*error = EMSGSIZE;
 		goto out_now;
@@ -10502,11 +10501,10 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 
 	sp->stream = srcv->sinfo_stream;
 	sp->length = min(uio->uio_resid, max_send_len);
-	if ((sp->length == uio->uio_resid) &&
+	if ((sp->length == (uint32_t) uio->uio_resid) &&
 	    ((user_marks_eor == 0) ||
 	    (srcv->sinfo_flags & SCTP_EOF) ||
-	    (user_marks_eor && (srcv->sinfo_flags & SCTP_EOR)))
-	    ) {
+	    (user_marks_eor && (srcv->sinfo_flags & SCTP_EOR)))) {
 		sp->msg_is_complete = 1;
 	} else {
 		sp->msg_is_complete = 0;
@@ -11048,7 +11046,7 @@ sctp_lower_sosend(struct socket *so,
 	/* Are we aborting? */
 	if (srcv->sinfo_flags & SCTP_ABORT) {
 		struct mbuf *mm;
-		int tot_demand, tot_out = 0, max;
+		int tot_demand, tot_out = 0, max_out;
 
 		SCTP_STAT_INCR(sctps_sends_with_abort);
 		if ((SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_WAIT) ||
@@ -11084,10 +11082,10 @@ sctp_lower_sosend(struct socket *so,
 			error = ENOMEM;
 			goto out;
 		}
-		max = asoc->smallest_mtu - sizeof(struct sctp_paramhdr);
-		max -= sizeof(struct sctp_abort_msg);
-		if (tot_out > max) {
-			tot_out = max;
+		max_out = asoc->smallest_mtu - sizeof(struct sctp_paramhdr);
+		max_out -= sizeof(struct sctp_abort_msg);
+		if (tot_out > max_out) {
+			tot_out = max_out;
 		}
 		if (mm) {
 			struct sctp_paramhdr *ph;
@@ -11296,7 +11294,8 @@ sctp_lower_sosend(struct socket *so,
 				max_len = 0;
 
 			if ((max_len > sctp_add_more_threshold) ||
-			    (uio->uio_resid && (uio->uio_resid < max_len))) {
+			    (uio->uio_resid &&
+			    (uio->uio_resid < (int)max_len))) {
 				sndout = 0;
 				new_tail = NULL;
 				if (hold_tcblock) {
