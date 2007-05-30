@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
  * its not already defined.
  */
 
-#if defined(SCTP_LOG_MAXBURST) || defined(SCTP_LOG_RWND) || defined(SCTP_LOG_RWND)
+#if defined(SCTP_LOG_MAXBURST) || defined(SCTP_LOG_RWND)
 #ifndef SCTP_STAT_LOGGING
 #define SCTP_STAT_LOGGING 1
 #endif
@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
-#if defined(SCTP_SACK_LOGGING) || defined(SCTP_LOCK_LOGGING) || defined(SCTP_STAT_LOGGING)
+#if defined(SCTP_SACK_LOGGING) || defined(SCTP_LOCK_LOGGING)
 #ifndef SCTP_STAT_LOGGING
 #define SCTP_STAT_LOGGING 1
 #endif
@@ -128,7 +128,7 @@ uint32_t sctp_select_initial_TSN(struct sctp_pcb *);
 
 uint32_t sctp_select_a_tag(struct sctp_inpcb *);
 
-int sctp_init_asoc(struct sctp_inpcb *, struct sctp_association *, int, uint32_t, uint32_t);
+int sctp_init_asoc(struct sctp_inpcb *, struct sctp_tcb *, int, uint32_t, uint32_t);
 
 void sctp_fill_random_store(struct sctp_pcb *);
 
@@ -200,7 +200,7 @@ void sctp_stop_timers_for_shutdown(struct sctp_tcb *);
 
 void sctp_report_all_outbound(struct sctp_tcb *, int);
 
-int sctp_expand_mapping_array(struct sctp_association *);
+int sctp_expand_mapping_array(struct sctp_association *, uint32_t);
 
 void sctp_abort_notification(struct sctp_tcb *, int);
 

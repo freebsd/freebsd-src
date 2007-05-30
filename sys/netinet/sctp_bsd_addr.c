@@ -374,112 +374,103 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 
 #ifdef SCTP_PACKET_LOGGING
 
-int packet_log_start = 0;
+int packet_log_writers = 0;
 int packet_log_end = 0;
-int packet_log_old_end = SCTP_PACKET_LOG_SIZE;
-int packet_log_wrapped = 0;
 uint8_t packet_log_buffer[SCTP_PACKET_LOG_SIZE];
 
 
 void
 sctp_packet_log(struct mbuf *m, int length)
 {
-	int *lenat, needed, thisone;
+	int *lenat, thisone;
 	void *copyto;
 	uint32_t *tick_tock;
-	int total_len, spare;
+	int total_len;
+	int grabbed_lock = 0;
+	int value, newval, thisend, thisbegin;
 
-	total_len = SCTP_SIZE32((length + (2 * sizeof(int))));
+	/*
+	 * Buffer layout. -sizeof this entry (total_len) -previous end
+	 * (value) -ticks of log      (ticks) o -ip packet o -as logged -
+	 * where this started (thisbegin) x <--end points here
+	 */
+	total_len = SCTP_SIZE32((length + (4 * sizeof(int))));
 	/* Log a packet to the buffer. */
 	if (total_len > SCTP_PACKET_LOG_SIZE) {
 		/* Can't log this packet I have not a buffer big enough */
 		return;
 	}
 	if (length < (SCTP_MIN_V4_OVERHEAD + sizeof(struct sctp_cookie_ack_chunk))) {
-		printf("Huh, length is %d to small for sctp min:%d\n",
-		    length,
-		    (SCTP_MIN_V4_OVERHEAD + sizeof(struct sctp_cookie_ack_chunk)));
 		return;
 	}
-	SCTP_IP_PKTLOG_LOCK();
-	if ((SCTP_PACKET_LOG_SIZE - packet_log_end) <= total_len) {
-		/*
-		 * it won't fit on the end. We must go back to the
-		 * beginning. To do this we go back and cahnge
-		 * packet_log_start.
-		 */
-		int orig_end;
-
-		lenat = (int *)packet_log_buffer;
-		orig_end = packet_log_end;
-		packet_log_old_end = packet_log_end;
-		packet_log_end = 0;
-		if (packet_log_start > packet_log_old_end) {
-			/* calculate the head room */
-			spare = packet_log_start - packet_log_old_end;
+	atomic_add_int(&packet_log_writers, 1);
+try_again:
+	if (packet_log_writers > SCTP_PKTLOG_WRITERS_NEED_LOCK) {
+		SCTP_IP_PKTLOG_LOCK();
+		grabbed_lock = 1;
+again_locked:
+		value = packet_log_end;
+		newval = packet_log_end + total_len;
+		if (newval >= SCTP_PACKET_LOG_SIZE) {
+			/* we wrapped */
+			thisbegin = 0;
+			thisend = total_len;
 		} else {
-			spare = 0;
+			thisbegin = packet_log_end;
+			thisend = newval;
 		}
-		needed = total_len - spare;
-		packet_log_wrapped = 1;
-		/* Now update the start */
-		while (needed > 0) {
-			thisone = (*(int *)(&packet_log_buffer[packet_log_start]));
-			needed -= thisone;
-			if (thisone == 0) {
-				int *foo;
-
-				foo = (int *)(&packet_log_buffer[packet_log_start]);
-				goto insane;
-			}
-			/* move to next one */
-			packet_log_start += thisone;
+		if (!(atomic_cmpset_int(&packet_log_end, value, thisend))) {
+			goto again_locked;
 		}
 	} else {
-		lenat = (int *)&packet_log_buffer[packet_log_end];
-		if (packet_log_start > packet_log_end) {
-			if ((packet_log_end + total_len) > packet_log_start) {
-				/* Now need to update killing some packets  */
-				needed = total_len - ((packet_log_start - packet_log_end));
-				while (needed > 0) {
-					thisone = (*(int *)(&packet_log_buffer[packet_log_start]));
-					needed -= thisone;
-					if (thisone == 0) {
-						goto insane;
-					}
-					/* move to next one */
-					packet_log_start += thisone;
-					if (((packet_log_start + sizeof(struct ip)) > SCTP_PACKET_LOG_SIZE) ||
-					    (packet_log_wrapped && (packet_log_start >= packet_log_old_end))) {
-						packet_log_start = 0;
-						packet_log_old_end = 0;
-						packet_log_wrapped = 0;
-						break;
-					}
-				}
-			}
+		value = packet_log_end;
+		newval = packet_log_end + total_len;
+		if (newval >= SCTP_PACKET_LOG_SIZE) {
+			/* we wrapped */
+			thisbegin = 0;
+			thisend = total_len;
+		} else {
+			thisbegin = packet_log_end;
+			thisend = newval;
+		}
+		if (!(atomic_cmpset_int(&packet_log_end, value, thisend))) {
+			goto try_again;
 		}
 	}
-	if (((packet_log_end + total_len) >= SCTP_PACKET_LOG_SIZE) ||
-	    ((void *)((caddr_t)lenat) < (void *)packet_log_buffer) ||
-	    ((void *)((caddr_t)lenat + total_len) > (void *)&packet_log_buffer[SCTP_PACKET_LOG_SIZE])) {
-		/* Madness protection */
-insane:
-		printf("Went mad, end:%d start:%d len:%d wrapped:%d oe:%d - zapping\n",
-		    packet_log_end, packet_log_start, total_len, packet_log_wrapped, packet_log_old_end);
-		packet_log_start = packet_log_end = packet_log_old_end = packet_log_wrapped = 0;
-		lenat = (int *)&packet_log_buffer[0];
+	/* Sanity check */
+	if (thisend >= SCTP_PACKET_LOG_SIZE) {
+		printf("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
+		    thisbegin,
+		    thisend,
+		    packet_log_writers,
+		    grabbed_lock,
+		    packet_log_end);
+		packet_log_end = 0;
+		goto no_log;
+
 	}
+	lenat = (int *)&packet_log_buffer[thisbegin];
 	*lenat = total_len;
+	lenat++;
+	*lenat = value;
 	lenat++;
 	tick_tock = (uint32_t *) lenat;
 	lenat++;
 	*tick_tock = sctp_get_tick_count();
 	copyto = (void *)lenat;
-	packet_log_end = (((caddr_t)copyto + length) - (caddr_t)packet_log_buffer);
-	SCTP_IP_PKTLOG_UNLOCK();
+	thisone = thisend - sizeof(int);
+	lenat = (int *)&packet_log_buffer[thisone];
+	*lenat = thisbegin;
+	if (grabbed_lock) {
+		SCTP_IP_PKTLOG_UNLOCK();
+		grabbed_lock = 0;
+	}
 	m_copydata(m, 0, length, (caddr_t)copyto);
-
+no_log:
+	if (grabbed_lock) {
+		SCTP_IP_PKTLOG_UNLOCK();
+	}
+	atomic_subtract_int(&packet_log_writers, 1);
 }
 
 
@@ -490,44 +481,43 @@ sctp_copy_out_packet_log(uint8_t * target, int length)
 	 * We wind through the packet log starting at start copying up to
 	 * length bytes out. We return the number of bytes copied.
 	 */
-	int tocopy, this_copy, copied = 0;
-	void *at;
+	int tocopy, this_copy;
+	int *lenat;
+	int did_delay = 0;
 
 	tocopy = length;
-	if (packet_log_start == packet_log_end) {
-		/* no data */
+	if (length < (2 * sizeof(int))) {
+		/* not enough room */
 		return (0);
 	}
-	if (packet_log_wrapped) {
-		/*
-		 * we have a wrapped buffer, we must copy from start to the
-		 * old end. Then copy from the top of the buffer to the end.
-		 */
-		SCTP_IP_PKTLOG_LOCK();
-		at = (void *)&packet_log_buffer[packet_log_start];
-		this_copy = min(tocopy, (packet_log_old_end - packet_log_start));
-		memcpy(target, at, this_copy);
-		tocopy -= this_copy;
-		copied += this_copy;
-		if (tocopy == 0) {
-			SCTP_IP_PKTLOG_UNLOCK();
-			return (copied);
+	if (SCTP_PKTLOG_WRITERS_NEED_LOCK) {
+		atomic_add_int(&packet_log_writers, SCTP_PKTLOG_WRITERS_NEED_LOCK);
+again:
+		if ((did_delay == 0) && (packet_log_writers != SCTP_PKTLOG_WRITERS_NEED_LOCK)) {
+			/*
+			 * we delay here for just a moment hoping the
+			 * writer(s) that were present when we entered will
+			 * have left and we only have locking ones that will
+			 * contend with us for the lock. This does not
+			 * assure 100% access, but its good enough for a
+			 * logging facility like this.
+			 */
+			did_delay = 1;
+			DELAY(10);
+			goto again;
 		}
-		this_copy = min(tocopy, packet_log_end);
-		at = (void *)&packet_log_buffer;
-		memcpy(&target[copied], at, this_copy);
-		copied += this_copy;
-		SCTP_IP_PKTLOG_UNLOCK();
-		return (copied);
-	} else {
-		/* we have one contiguous buffer */
-		SCTP_IP_PKTLOG_LOCK();
-		at = (void *)&packet_log_buffer;
-		this_copy = min(length, packet_log_end);
-		memcpy(target, at, this_copy);
-		SCTP_IP_PKTLOG_UNLOCK();
-		return (this_copy);
 	}
+	SCTP_IP_PKTLOG_LOCK();
+	lenat = (int *)target;
+	*lenat = packet_log_end;
+	lenat++;
+	this_copy = min((length - sizeof(int)), packet_log_end);
+	memcpy((void *)lenat, (void *)packet_log_buffer, this_copy);
+	if (SCTP_PKTLOG_WRITERS_NEED_LOCK) {
+		atomic_subtract_int(&packet_log_writers, SCTP_PKTLOG_WRITERS_NEED_LOCK);
+	}
+	SCTP_IP_PKTLOG_UNLOCK();
+	return (this_copy + sizeof(int));
 }
 
 #endif

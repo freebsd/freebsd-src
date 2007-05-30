@@ -1482,7 +1482,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	}
 	if (gap >= (uint32_t) (asoc->mapping_array_size << 3)) {
 		SCTP_TCB_LOCK_ASSERT(stcb);
-		if (sctp_expand_mapping_array(asoc)) {
+		if (sctp_expand_mapping_array(asoc, gap)) {
 			/* Can't expand, drop it */
 			return (0);
 		}
