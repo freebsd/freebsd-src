@@ -184,7 +184,6 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	ar->k_ar.ar_subj_pid = td->td_proc->p_pid;
 	ar->k_ar.ar_subj_amask = td->td_proc->p_au->ai_mask;
 	ar->k_ar.ar_subj_term_addr = td->td_proc->p_au->ai_termid;
-	bcopy(td->td_proc->p_comm, ar->k_ar.ar_subj_comm, MAXCOMLEN);
 	PROC_UNLOCK(td->td_proc);
 
 	return (0);

@@ -173,7 +173,6 @@ struct audit_record {
 	pid_t			ar_subj_pid;
 	struct au_tid		ar_subj_term;
 	struct au_tid_addr	ar_subj_term_addr;
-	char			ar_subj_comm[MAXCOMLEN + 1];
 	struct au_mask		ar_subj_amask;
 
 	/* Operation arguments. */
