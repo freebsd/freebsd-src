@@ -1005,7 +1005,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 	int init_offset, initack_offset, i;
 	int retval;
 	int spec_flag = 0;
-	int how_indx;
+	uint32_t how_indx;
 
 	/* I know that the TCB is non-NULL from the caller */
 	asoc = &stcb->asoc;
@@ -1548,6 +1548,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		SCTPDBG(SCTP_DEBUG_INPUT1,
 		    "process_cookie_new: no room for another TCB!\n");
 		op_err = sctp_generate_invmanparam(SCTP_CAUSE_OUT_OF_RESC);
+
 		sctp_abort_association(inp, (struct sctp_tcb *)NULL, m, iphlen,
 		    sh, op_err, vrf_id, table_id);
 		return (NULL);
@@ -1574,9 +1575,11 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		 * cookie was in flight. Only recourse is to abort the
 		 * association.
 		 */
+		atomic_add_int(&stcb->asoc.refcnt, 1);
 		op_err = sctp_generate_invmanparam(SCTP_CAUSE_OUT_OF_RESC);
 		sctp_abort_association(inp, (struct sctp_tcb *)NULL, m, iphlen,
 		    sh, op_err, vrf_id, table_id);
+		atomic_add_int(&stcb->asoc.refcnt, -1);
 		return (NULL);
 	}
 	/* process the INIT-ACK info (my info) */
@@ -1598,14 +1601,18 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	else
 		retval = 0;
 	if (retval < 0) {
+		atomic_add_int(&stcb->asoc.refcnt, 1);
 		sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_16);
+		atomic_add_int(&stcb->asoc.refcnt, -1);
 		return (NULL);
 	}
 	/* load all addresses */
 	if (sctp_load_addresses_from_init(stcb, m, iphlen,
 	    init_offset + sizeof(struct sctp_init_chunk), initack_offset, sh,
 	    init_src)) {
+		atomic_add_int(&stcb->asoc.refcnt, 1);
 		sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_17);
+		atomic_add_int(&stcb->asoc.refcnt, -1);
 		return (NULL);
 	}
 	/*
@@ -1672,7 +1679,9 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		memcpy(&sin6->sin6_addr, cookie->laddress,
 		    sizeof(sin6->sin6_addr));
 	} else {
+		atomic_add_int(&stcb->asoc.refcnt, 1);
 		sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_19);
+		atomic_add_int(&stcb->asoc.refcnt, -1);
 		return (NULL);
 	}
 
@@ -1769,27 +1778,27 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	iph = mtod(m, struct ip *);
 	if (iph->ip_v == IPVERSION) {
 		/* its IPv4 */
-		struct sockaddr_in *sin;
+		struct sockaddr_in *lsin;
 
-		sin = (struct sockaddr_in *)(localep_sa);
-		memset(sin, 0, sizeof(*sin));
-		sin->sin_family = AF_INET;
-		sin->sin_len = sizeof(*sin);
-		sin->sin_port = sh->dest_port;
-		sin->sin_addr.s_addr = iph->ip_dst.s_addr;
+		lsin = (struct sockaddr_in *)(localep_sa);
+		memset(lsin, 0, sizeof(*lsin));
+		lsin->sin_family = AF_INET;
+		lsin->sin_len = sizeof(*lsin);
+		lsin->sin_port = sh->dest_port;
+		lsin->sin_addr.s_addr = iph->ip_dst.s_addr;
 		size_of_pkt = SCTP_GET_IPV4_LENGTH(iph);
 	} else if (iph->ip_v == (IPV6_VERSION >> 4)) {
 		/* its IPv6 */
 		struct ip6_hdr *ip6;
-		struct sockaddr_in6 *sin6;
+		struct sockaddr_in6 *lsin6;
 
-		sin6 = (struct sockaddr_in6 *)(localep_sa);
-		memset(sin6, 0, sizeof(*sin6));
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_len = sizeof(struct sockaddr_in6);
+		lsin6 = (struct sockaddr_in6 *)(localep_sa);
+		memset(lsin6, 0, sizeof(*lsin6));
+		lsin6->sin6_family = AF_INET6;
+		lsin6->sin6_len = sizeof(struct sockaddr_in6);
 		ip6 = mtod(m, struct ip6_hdr *);
-		sin6->sin6_port = sh->dest_port;
-		sin6->sin6_addr = ip6->ip6_dst;
+		lsin6->sin6_port = sh->dest_port;
+		lsin6->sin6_addr = ip6->ip6_dst;
 		size_of_pkt = SCTP_GET_IPV6_LENGTH(ip6) + iphlen;
 	} else {
 		return (NULL);
@@ -3406,7 +3415,7 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 			 * whichever is less.
 			 */
 			incr = min((bw_avail - on_queue) >> 2,
-			    (int)stcb->asoc.max_burst * (int)net->mtu);
+			    stcb->asoc.max_burst * net->mtu);
 			net->cwnd += incr;
 		}
 		if (net->cwnd > bw_avail) {
@@ -3448,7 +3457,7 @@ __attribute__((noinline))
 	struct sctp_association *asoc;
 	uint32_t vtag_in;
 	int num_chunks = 0;	/* number of control chunks processed */
-	int chk_length;
+	uint32_t chk_length;
 	int ret;
 	int abort_no_unlock = 0;
 
@@ -3647,8 +3656,8 @@ process_control_chunks:
 		chk_length = ntohs(ch->chunk_length);
 		SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_process_control: processing a chunk type=%u, len=%u\n",
 		    ch->chunk_type, chk_length);
-		if ((size_t)chk_length < sizeof(*ch) ||
-		    (*offset + chk_length) > length) {
+		if (chk_length < sizeof(*ch) ||
+		    (*offset + (int)chk_length) > length) {
 			*offset = length;
 			if (locked_tcb) {
 				SCTP_TCB_UNLOCK(locked_tcb);
@@ -3698,7 +3707,7 @@ process_control_chunks:
 			}
 		} else {
 			/* get a complete chunk... */
-			if ((size_t)chk_length > sizeof(chunk_buf)) {
+			if (chk_length > sizeof(chunk_buf)) {
 				struct mbuf *oper;
 				struct sctp_paramhdr *phdr;
 
@@ -3781,7 +3790,7 @@ process_control_chunks:
 				}
 			}
 			if ((num_chunks > 1) ||
-			    (sctp_strict_init && (length - *offset > SCTP_SIZE32(chk_length)))) {
+			    (sctp_strict_init && (length - *offset > (int)SCTP_SIZE32(chk_length)))) {
 				*offset = length;
 				if (locked_tcb) {
 					SCTP_TCB_UNLOCK(locked_tcb);
@@ -3833,7 +3842,7 @@ process_control_chunks:
 				}
 			}
 			if ((num_chunks > 1) ||
-			    (sctp_strict_init && (length - *offset > SCTP_SIZE32(chk_length)))) {
+			    (sctp_strict_init && (length - *offset > (int)SCTP_SIZE32(chk_length)))) {
 				*offset = length;
 				if (locked_tcb) {
 					SCTP_TCB_UNLOCK(locked_tcb);
@@ -4176,7 +4185,7 @@ process_control_chunks:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN-COMPLETE, stcb %p\n", stcb);
 			/* must be first and only chunk */
 			if ((num_chunks > 1) ||
-			    (length - *offset > SCTP_SIZE32(chk_length))) {
+			    (length - *offset > (int)SCTP_SIZE32(chk_length))) {
 				*offset = length;
 				if (locked_tcb) {
 					SCTP_TCB_UNLOCK(locked_tcb);
