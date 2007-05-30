@@ -65,7 +65,7 @@
 static bus_addr_t dcons_paddr;
 
 #if __FreeBSD_version >= 500000
-static int force_console = 1;
+static int force_console = 0;
 TUNABLE_INT("hw.firewire.dcons_crom.force_console", &force_console);
 #endif
 
