@@ -52,7 +52,7 @@
 
 /*
  * System call to allow a user space application to submit a BSM audit record
- * to the kernel for inclusion in the audit log. This function does little
+ * to the kernel for inclusion in the audit log.  This function does little
  * verification on the audit record that is submitted.
  *
  * XXXAUDIT: Audit preselection for user records does not currently work,
@@ -120,7 +120,7 @@ audit(struct thread *td, struct audit_args *uap)
 #endif
 
 	/*
-	 * Attach the user audit record to the kernel audit record. Because
+	 * Attach the user audit record to the kernel audit record.  Because
 	 * this system call is an auditable event, we will write the user
 	 * record along with the record for this audit event.
 	 *
@@ -133,7 +133,7 @@ audit(struct thread *td, struct audit_args *uap)
 
 	/*
 	 * Currently we assume that all preselection has been performed in
-	 * userspace. We unconditionally set these masks so that the records
+	 * userspace.  We unconditionally set these masks so that the records
 	 * get committed both to the trail and pipe.  In the future we will
 	 * want to setup kernel based preselection.
 	 */
