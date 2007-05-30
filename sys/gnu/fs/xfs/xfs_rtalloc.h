@@ -162,7 +162,7 @@ xfs_growfs_rt(
 #else
 # define xfs_rtallocate_extent(t,b,min,max,l,a,f,p,rb)  (ENOSYS)
 # define xfs_rtfree_extent(t,b,l)                       (ENOSYS)
-# define xfs_rtpick_extent(m,t,l,rb)                    (ENOSYS)
+# define xfs_rtpick_extent(m,t,l,rb)                    ((*rb = 0), ENOSYS)
 # define xfs_growfs_rt(mp,in)                           (ENOSYS)
 # define xfs_rtmount_init(m)    (((mp)->m_sb.sb_rblocks == 0)? 0 : (ENOSYS))
 # define xfs_rtmount_inodes(m)  (((mp)->m_sb.sb_rblocks == 0)? 0 : (ENOSYS))

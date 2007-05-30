@@ -773,6 +773,7 @@ xfs_bmbt_insrec(
 	XFS_STATS_INC(xs_bmbt_insrec);
 	block = xfs_bmbt_get_block(cur, level, &bp);
 	numrecs = be16_to_cpu(block->bb_numrecs);
+	nkey.br_startoff = 0;
 #ifdef DEBUG
 	if ((error = xfs_btree_check_lblock(cur, block, level, bp))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);

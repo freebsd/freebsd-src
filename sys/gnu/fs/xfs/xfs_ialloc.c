@@ -522,7 +522,7 @@ xfs_dialloc(
 	xfs_btree_cur_t	*cur;		/* inode allocation btree cursor */
 	int		error;		/* error return value */
 	int		i;		/* result code */
-	int		ialloced;	/* inode allocation status */
+	int		ialloced = 0;	/* inode allocation status */
 	int		noroom = 0;	/* no space for inode blk allocation */
 	xfs_ino_t	ino;		/* fs-relative inode to be returned */
 	/* REFERENCED */
