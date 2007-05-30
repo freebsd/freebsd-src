@@ -118,6 +118,7 @@ is
 .It Dv TIOCPKT_NOSTOP
 whenever the start and stop characters are not
 .Ql ^S/^Q .
+.El
 .Pp
 While this mode is in use, the presence of control status information
 to be read from the master side may be detected by a
@@ -133,7 +134,6 @@ to implement a remote-echoed, locally
 flow-controlled
 remote login with proper back-flushing of output; it can be
 used by other similar programs.
-.El
 .It Dv TIOCUCNTL
 Enable/disable a mode that allows a small number of simple user
 .Xr ioctl 2
