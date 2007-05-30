@@ -33,10 +33,10 @@ static __inline register_t
 mutex_spinlock(lock_t *lock)		{ mtx_lock(lock); return 0; }
 #endif
 
-#define mutex_spinunlock(lock,s) \
+#define mutex_spinunlock(lock, s) \
 	do { \
 		spin_unlock(lock); \
-		if (&s) {} \
+		if (s != 0) {} \
 	} while (0)
 
 #endif /* __XFS_SUPPORT_SPIN_H__ */

@@ -361,7 +361,7 @@ _xfs_vget(mp, ino, flags, vpp)
 	int flags;
 	struct vnode **vpp;
 {
-	xfs_vnode_t *vp;
+	xfs_vnode_t *vp = NULL;
 	int error;
 
 	printf("XVFS_GET_VNODE(MNTTOVFS(mp), &vp, ino, error);\n");
