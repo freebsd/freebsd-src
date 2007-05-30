@@ -116,6 +116,7 @@ struct via_info {
 	struct via_dma_op *sgd_table;
 	uint16_t codec_caps;
 	uint16_t n_dxs_registered;
+	int play_num, rec_num;
 	struct mtx *lock;
 	struct callout poll_timer;
 	int poll_ticks, polling;
@@ -658,16 +659,18 @@ via8233wr_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 						struct pcm_channel *c, int dir)
 {
 	struct via_info *via = devinfo;
-	struct via_chinfo *ch = &via->rch[c->num];
+	struct via_chinfo *ch;
+	int num;
 
+	snd_mtxlock(via->lock);
+	num = via->rec_num++;
+	ch = &via->rch[num];
 	ch->parent = via;
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
 	ch->blkcnt = via->blkcnt;
-
-	ch->rbase = VIA_WR_BASE(c->num);
-	snd_mtxlock(via->lock);
+	ch->rbase = VIA_WR_BASE(num);
 	via_wr(via, ch->rbase + VIA_WR_RP_SGD_FORMAT, WR_FIFO_ENABLE, 1);
 	snd_mtxunlock(via->lock);
 
@@ -675,7 +678,7 @@ via8233wr_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 		return (NULL);
 
 	snd_mtxlock(via->lock);
-	via8233chan_sgdinit(via, ch, c->num);
+	via8233chan_sgdinit(via, ch, num);
 	via8233chan_reset(via, ch);
 	snd_mtxunlock(via->lock);
 
@@ -687,8 +690,12 @@ via8233dxs_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 						struct pcm_channel *c, int dir)
 {
 	struct via_info *via = devinfo;
-	struct via_chinfo *ch = &via->pch[c->num];
+	struct via_chinfo *ch;
+	int num;
 
+	snd_mtxlock(via->lock);
+	num = via->play_num++;
+	ch = &via->pch[num];
 	ch->parent = via;
 	ch->channel = c;
 	ch->buffer = b;
@@ -700,7 +707,6 @@ via8233dxs_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	 * channels.  We therefore want to align first DXS channel to
 	 * DXS3.
 	 */
-	snd_mtxlock(via->lock);
 	ch->rbase = VIA_DXS_BASE(NDXSCHANS - 1 - via->n_dxs_registered);
 	via->n_dxs_registered++;
 	snd_mtxunlock(via->lock);
@@ -709,7 +715,7 @@ via8233dxs_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 		return (NULL);
 
 	snd_mtxlock(via->lock);
-	via8233chan_sgdinit(via, ch, NWRCHANS + c->num);
+	via8233chan_sgdinit(via, ch, NWRCHANS + num);
 	via8233chan_reset(via, ch);
 	snd_mtxunlock(via->lock);
 
@@ -721,20 +727,25 @@ via8233msgd_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 						struct pcm_channel *c, int dir)
 {
 	struct via_info *via = devinfo;
-	struct via_chinfo *ch = &via->pch[c->num];
+	struct via_chinfo *ch;
+	int num;
 
+	snd_mtxlock(via->lock);
+	num = via->play_num++;
+	ch = &via->pch[num];
 	ch->parent = via;
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
 	ch->rbase = VIA_MC_SGD_STATUS;
 	ch->blkcnt = via->blkcnt;
+	snd_mtxunlock(via->lock);
 
 	if (sndbuf_alloc(ch->buffer, via->parent_dmat, 0, via->bufsz) != 0)
 		return (NULL);
 
 	snd_mtxlock(via->lock);
-	via8233chan_sgdinit(via, ch, NWRCHANS + c->num);
+	via8233chan_sgdinit(via, ch, NWRCHANS + num);
 	via8233chan_reset(via, ch);
 	snd_mtxunlock(via->lock);
 
