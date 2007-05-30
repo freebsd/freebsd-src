@@ -901,9 +901,11 @@ sctp_select_a_tag(struct sctp_inpcb *m)
 
 
 int
-sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
+sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
     int for_a_init, uint32_t override_tag, uint32_t vrf_id)
 {
+	struct sctp_association *asoc;
+
 	/*
 	 * Anything set to zero is taken care of by the allocation routine's
 	 * bzero
@@ -917,6 +919,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 	 */
 	int i;
 
+	asoc = &stcb->asoc;
 	/* init all variables to a known value. */
 	asoc->state = SCTP_STATE_INUSE;
 	asoc->max_burst = m->sctp_ep.max_burst;
@@ -1122,13 +1125,14 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 }
 
 int
-sctp_expand_mapping_array(struct sctp_association *asoc)
+sctp_expand_mapping_array(struct sctp_association *asoc, uint32_t needed)
 {
 	/* mapping array needs to grow */
 	uint8_t *new_array;
-	uint16_t new_size;
+	uint32_t new_size;
 
-	new_size = asoc->mapping_array_size + SCTP_MAPPING_ARRAY_INCR;
+
+	new_size = asoc->mapping_array_size + ((needed + 7) / 8 + SCTP_MAPPING_ARRAY_INCR);
 	SCTP_MALLOC(new_array, uint8_t *, new_size, SCTP_M_MAP);
 	if (new_array == NULL) {
 		/* can't get more, forget it */
@@ -4935,8 +4939,8 @@ found_one:
 	}
 	stcb = control->stcb;
 	if (stcb) {
-		if ((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) &&
-		    (control->do_not_ref_stcb == 0)) {
+		if ((control->do_not_ref_stcb == 0) &&
+		    (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED)) {
 			if (freecnt_applied == 0)
 				stcb = NULL;
 		} else if (control->do_not_ref_stcb == 0) {
@@ -4956,11 +4960,10 @@ found_one:
 			 * Setup to remember how much we have not yet told
 			 * the peer our rwnd has opened up. Note we grab the
 			 * value from the tcb from last time. Note too that
-			 * sack sending clears this when a sack is sent..
+			 * sack sending clears this when a sack is sent,
 			 * which is fine. Once we hit the rwnd_req, we then
 			 * will go to the sctp_user_rcvd() that will not
 			 * lock until it KNOWs it MUST send a WUP-SACK.
-			 * 
 			 */
 			freed_so_far = stcb->freed_by_sorcv_sincelast;
 			stcb->freed_by_sorcv_sincelast = 0;
@@ -5015,7 +5018,7 @@ found_one:
 		/*
 		 * update off the real current cum-ack, if we have an stcb.
 		 */
-		if (stcb)
+		if ((control->do_not_ref_stcb == 0) && stcb)
 			sinfo->sinfo_cumtsn = stcb->asoc.cumulative_tsn;
 		/*
 		 * mask off the high bits, we keep the actual chunk bits in
@@ -5096,7 +5099,7 @@ get_more_data:
 			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
 				goto release;
 			}
-			if (stcb &&
+			if ((control->do_not_ref_stcb == 0) && stcb &&
 			    stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 				no_rcv_needed = 1;
 			}
@@ -5107,7 +5110,8 @@ get_more_data:
 			if ((SCTP_BUF_NEXT(m) == NULL) &&
 			    (cp_len >= SCTP_BUF_LEN(m)) &&
 			    ((control->end_added == 0) ||
-			    (control->end_added && (TAILQ_NEXT(control, next) == NULL)))
+			    (control->end_added &&
+			    (TAILQ_NEXT(control, next) == NULL)))
 			    ) {
 #ifdef SCTP_RECV_DETAIL_RWND_LOGGING
 				sctp_misc_ints(SCTP_SORCV_DOESLCK,
@@ -5215,7 +5219,8 @@ get_more_data:
 					sctp_sblog(&so->so_rcv, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, cp_len);
 #endif
 					atomic_subtract_int(&so->so_rcv.sb_cc, cp_len);
-					if (stcb) {
+					if ((control->do_not_ref_stcb == 0) &&
+					    stcb) {
 						atomic_subtract_int(&stcb->asoc.sb_cc, cp_len);
 					}
 					copied_so_far += cp_len;
@@ -5305,7 +5310,8 @@ get_more_data:
 				control->data = NULL;
 				sctp_free_a_readq(stcb, control);
 				control = NULL;
-				if ((freed_so_far >= rwnd_req) && (no_rcv_needed == 0))
+				if ((freed_so_far >= rwnd_req) &&
+				    (no_rcv_needed == 0))
 					sctp_user_rcvd(stcb, &freed_so_far, hold_rlock, rwnd_req);
 
 			} else {
@@ -5316,7 +5322,8 @@ get_more_data:
 				 * control to read.
 				 */
 #ifdef INVARIANTS
-				if (control->end_added && (control->data == NULL) &&
+				if (control->end_added &&
+				    (control->data == NULL) &&
 				    (control->tail_mbuf == NULL)) {
 					panic("Gak, control->length is corrupt?");
 				}
