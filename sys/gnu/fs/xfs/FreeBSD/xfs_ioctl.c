@@ -391,7 +391,7 @@ xfs_readlink_by_handle(
 	struct uio		auio;
 	struct inode		*inode;
 	xfs_fsop_handlereq_t	hreq;
-	xfs_vnode_t		*vp;
+	xfs_vnode_t		*vp = NULL;
 	__u32			olen;
 
 	if (!capable(CAP_SYS_ADMIN))

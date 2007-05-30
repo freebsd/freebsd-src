@@ -381,6 +381,8 @@ xfs_setattr(
 	/* boolean: are we the file owner? */
 #if 0
 	file_owner = (current_fsuid(credp) == ip->i_d.di_uid);
+#else
+	file_owner = (credp->cr_uid == ip->i_d.di_uid);
 #endif
 
 	/*

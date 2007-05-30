@@ -385,6 +385,7 @@ xfs_dir_removename(xfs_trans_t *trans, xfs_inode_t *dp, char *name,
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
 		retval = xfs_dir_shortform_removename(&args);
 	} else if (xfs_bmap_one_block(dp, XFS_DATA_FORK)) {
+		count = totallen = 0;
 		retval = xfs_dir_leaf_removename(&args, &count, &totallen);
 		if (retval == 0) {
 			newsize = XFS_DIR_SF_ALLFIT(count, totallen);
