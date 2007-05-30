@@ -688,6 +688,7 @@ au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
                 ADD_MEM(dptr, &tid->at_addr[0], 4 * sizeof(u_int32_t));
         else
                 ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
+
 	return (t);
 }
 
@@ -1070,6 +1071,7 @@ au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 		ADD_MEM(dptr, &tid->at_addr[0], 4 * sizeof(u_int32_t));
 	else    
 		ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
+
 	return (t);
 }
 
