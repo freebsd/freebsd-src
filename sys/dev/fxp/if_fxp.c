@@ -249,7 +249,7 @@ static void		fxp_ifmedia_sts(struct ifnet *ifp,
 static int		fxp_serial_ifmedia_upd(struct ifnet *ifp);
 static void		fxp_serial_ifmedia_sts(struct ifnet *ifp,
 			    struct ifmediareq *ifmr);
-static volatile int	fxp_miibus_readreg(device_t dev, int phy, int reg);
+static int		fxp_miibus_readreg(device_t dev, int phy, int reg);
 static void		fxp_miibus_writereg(device_t dev, int phy, int reg,
 			    int value);
 static void		fxp_load_ucode(struct fxp_softc *sc);
@@ -2323,7 +2323,7 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 	return (0);
 }
 
-static volatile int
+static int
 fxp_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
