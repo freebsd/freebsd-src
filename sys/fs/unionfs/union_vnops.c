@@ -475,13 +475,13 @@ unionfs_open(struct vop_open_args *ap)
 			targetvp = uvp;
 	}
 
-	error = VOP_OPEN(targetvp, ap->a_mode, cred, td, ap->a_fdidx);
+	error = VOP_OPEN(targetvp, ap->a_mode, cred, td, ap->a_fp);
 	if (error == 0) {
 		if (targetvp == uvp) {
 			if (uvp->v_type == VDIR && lvp != NULLVP &&
 			    unsp->uns_lower_opencnt <= 0) {
 				/* open lower for readdir */
-				error = VOP_OPEN(lvp, FREAD, cred, td, -1);
+				error = VOP_OPEN(lvp, FREAD, cred, td, NULL);
 				if (error != 0) {
 					VOP_CLOSE(uvp, ap->a_mode, cred, td);
 					goto unionfs_open_abort;
@@ -493,7 +493,6 @@ unionfs_open(struct vop_open_args *ap)
 		} else {
 			unsp->uns_lower_opencnt++;
 			unsp->uns_lower_openmode = ap->a_mode;
-			unsp->uns_lower_fdidx = ap->a_fdidx;
 		}
 		ap->a_vp->v_object = targetvp->v_object;
 	}
@@ -1852,7 +1851,8 @@ unionfs_advlock(struct vop_advlock_args *ap)
 		unionfs_get_node_status(unp, td, &unsp);
 		if (unsp->uns_lower_opencnt > 0) {
 			/* try reopen the vnode */
-			error = VOP_OPEN(uvp, unsp->uns_lower_openmode, td->td_ucred, td, unsp->uns_lower_fdidx);
+			error = VOP_OPEN(uvp, unsp->uns_lower_openmode,
+				td->td_ucred, td, NULL);
 			if (error)
 				goto unionfs_advlock_abort;
 			unsp->uns_upper_opencnt++;

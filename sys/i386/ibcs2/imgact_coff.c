@@ -204,7 +204,7 @@ coff_load_file(struct thread *td, char *name)
   	if ((error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td)) != 0)
     		goto fail;
 
-  	if ((error = VOP_OPEN(vp, FREAD, td->td_ucred, td, -1)) != 0)
+  	if ((error = VOP_OPEN(vp, FREAD, td->td_ucred, td, NULL)) != 0)
     		goto fail;
 
 	/*

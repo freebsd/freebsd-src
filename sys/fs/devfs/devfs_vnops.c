@@ -734,7 +734,7 @@ devfs_open(struct vop_open_args *ap)
 	struct thread *td = ap->a_td;
 	struct vnode *vp = ap->a_vp;
 	struct cdev *dev = vp->v_rdev;
-	struct file *fp;
+	struct file *fp = ap->a_fp;
 	int error;
 	struct cdevsw *dsw;
 
@@ -761,13 +761,13 @@ devfs_open(struct vop_open_args *ap)
 	if(!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		if (dsw->d_fdopen != NULL)
-			error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
+			error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
 		else
 			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 		PICKUP_GIANT();
 	} else {
 		if (dsw->d_fdopen != NULL)
-			error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
+			error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
 		else
 			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 	}
@@ -780,19 +780,12 @@ devfs_open(struct vop_open_args *ap)
 		return (error);
 
 #if 0	/* /dev/console */
-	KASSERT(ap->a_fdidx >= 0,
-	     ("Could not vnode bypass device on fd %d", ap->a_fdidx));
+	KASSERT(fp != NULL,
+	     ("Could not vnode bypass device on NULL fp"));
 #else
-	if(ap->a_fdidx < 0)
+	if(fp == NULL)
 		return (error);
 #endif
-	/*
-	 * This is a pretty disgustingly long chain, but I am not
-	 * sure there is any better way.  Passing the fdidx into
-	 * VOP_OPEN() offers us more information than just passing
-	 * the file *.
-	 */
-	fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
 	FILE_LOCK(fp);
 	KASSERT(fp->f_ops == &badfileops,
 	     ("Could not vnode bypass device on fdops %p", fp->f_ops));

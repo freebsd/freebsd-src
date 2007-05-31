@@ -264,13 +264,13 @@ giant_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-giant_fdopen(struct cdev *dev, int oflags, struct thread *td, int fdidx)
+giant_fdopen(struct cdev *dev, int oflags, struct thread *td, struct file *fp)
 {
 	int retval;
 
 	mtx_lock(&Giant);
 	retval = dev->si_devsw->d_gianttrick->
-	    d_fdopen(dev, oflags, td, fdidx);
+	    d_fdopen(dev, oflags, td, fp);
 	mtx_unlock(&Giant);
 	return (retval);
 }
