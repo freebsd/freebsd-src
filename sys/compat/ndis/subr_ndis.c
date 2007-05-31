@@ -2961,7 +2961,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, path, td);
 
 	flags = FREAD;
-	error = vn_open(&nd, &flags, 0, -1);
+	error = vn_open(&nd, &flags, 0, NULL);
 	if (error) {
 		*status = NDIS_STATUS_FILE_NOT_FOUND;
 		ExFreePool(fh);

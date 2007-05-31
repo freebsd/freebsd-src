@@ -175,12 +175,12 @@ fifo_open(ap)
 	struct fifoinfo *fip;
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
+	struct file *fp = ap->a_fp;
 	struct socket *rso, *wso;
-	struct file *fp;
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "fifo_open");
-	if (ap->a_fdidx < 0)
+	if (fp == NULL)
 		return (EINVAL);
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE, M_WAITOK);
@@ -293,8 +293,7 @@ fail1:
 		}
 	}
 	mtx_unlock(&fifo_mtx);
-	KASSERT(ap->a_fdidx >= 0, ("can't fifo/vnode bypass %d", ap->a_fdidx));
-	fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
+	KASSERT(fp != NULL, ("can't fifo/vnode bypass"));
 	FILE_LOCK(fp);
 	KASSERT(fp->f_ops == &badfileops, ("not badfileops in fifo_open"));
 	fp->f_data = fip;

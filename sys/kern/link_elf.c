@@ -566,7 +566,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 
     NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, filename, td);
     flags = FREAD;
-    error = vn_open(&nd, &flags, 0, -1);
+    error = vn_open(&nd, &flags, 0, NULL);
     if (error)
 	return error;
     vfslocked = NDHASGIANT(&nd);

@@ -984,19 +984,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1 | MPSAFE, pathseg, path, td);
 	td->td_dupfd = -1;		/* XXX check for fdopen */
-	FILEDESC_XLOCK(fdp);
-	if (fp != fdp->fd_ofiles[indx]) {
-		FILEDESC_XUNLOCK(fdp);
-		fdrop(fp, td);
-		td->td_retval[0] = indx;
-		return (0);
-	}
-	fdp->fd_ofileflags[indx] |= UF_OPENING;
-	FILEDESC_XUNLOCK(fdp);
-	error = vn_open(&nd, &flags, cmode, indx);
-	FILEDESC_XLOCK(fdp);
-	fdp->fd_ofileflags[indx] &= ~UF_OPENING;
-	FILEDESC_XUNLOCK(fdp);
+ 	error = vn_open(&nd, &flags, cmode, fp);
 	if (error) {
 		/*
 		 * If the vn_open replaced the method vector, something
@@ -4103,7 +4091,7 @@ fhopen(td, uap)
 		if (error)
 			goto bad;
 	}
-	error = VOP_OPEN(vp, fmode, td->td_ucred, td, -1);
+	error = VOP_OPEN(vp, fmode, td->td_ucred, td, NULL);
 	if (error)
 		goto bad;
 

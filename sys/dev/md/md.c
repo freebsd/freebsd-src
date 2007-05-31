@@ -913,7 +913,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	if ((mdio->md_options & MD_READONLY) != 0)
 		flags &= ~FWRITE;
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, sc->file, td);
-	error = vn_open(&nd, &flags, 0, -1);
+	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
