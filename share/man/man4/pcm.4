@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2006
+.Dd May 31, 2007
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -152,7 +152,7 @@ set the channel to the preferred value using hints, e.g.:
 .Va hint.pcm.0.line Ns = Ns Qq Li 0 .
 This will mute the input channel per default.
 .Ss VCHANs
-Each device can optionally support more playback channels
+Each device can optionally support more playback and recording channels
 than physical hardware provides by using
 .Dq virtual channels
 or
@@ -226,7 +226,7 @@ Various messages intended for debugging.
 .It Va hw.snd.maxautovchans
 Global
 .Tn VCHAN
-setting that only affects devices with only one playback channel available.
+setting that only affects devices with at least one playback or recording channel available.
 The sound system will dynamically create up this many
 .Tn VCHANs .
 Set to
@@ -234,7 +234,7 @@ Set to
 if no
 .Tn VCHANS
 are desired.
-Maximum value is 255.
+Maximum value is 256.
 .It Va hw.snd.default_unit
 Default sound card for systems with multiple sound cards.
 When using
@@ -245,7 +245,7 @@ Equivalent to a symlink from
 .Pa /dev/dsp
 to
 .Pa /dev/dsp Ns Va ${hw.snd.default_unit} .
-.It Va dev.pcm.%d.vchans
+.It Va dev.pcm.%d.[play|rec].vchans
 The current number of
 .Tn VCHANs
 allocated per device.
@@ -256,13 +256,13 @@ Setting this value to
 will disable
 .Tn VCHANs
 for this device.
-.It Va dev.pcm.%d.vchanrate
+.It Va dev.pcm.%d.[play|rec].vchanrate
 Sample rate speed for
 .Tn VCHAN
 mixing.
 All playback paths will be converted to this sample rate before the mixing
 process begins.
-.It Va dev.pcm.%d.vchanformat
+.It Va dev.pcm.%d.[play|rec].vchanformat
 Format for
 .Tn VCHAN
 mixing.
@@ -322,8 +322,10 @@ but 16 bits per sample.
 Playback channel.
 .It Pa /dev/dsp%d.r%d
 Record channel.
-.It Pa /dev/dsp%d.v%d
-Virtual channel.
+.It Pa /dev/dsp%d.vp%d
+Virtual playback channel.
+.It Pa /dev/dsp%d.vr%d
+Virtual recording channel.
 .It Pa /dev/sndstat
 Current
 .Nm
@@ -343,6 +345,15 @@ Additional messages are sometimes recorded when the
 device is probed and attached, these messages can be viewed with the
 .Xr dmesg 8
 utility.
+.Pp
+The above device nodes are only created on demand through the dynamic
+.Xr devfs 5
+clone handler.
+Users are strongly discouraged to access them directly.
+For specific sound card access, please instead use
+.Pa /dev/dsp
+or
+.Pa /dev/dsp%d .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It pcm%d:play:%d:dsp%d.p%d: play interrupt timeout, channel dead
