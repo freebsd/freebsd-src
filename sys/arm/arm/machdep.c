@@ -286,8 +286,8 @@ cpu_startup(void *dummy)
 	vm_ksubmap_init(&kmi);
 
 	printf("avail memory = %ju (%ju MB)\n",
-	    (uintmax_t)ptoa(VMCNT_GET(free_count)),
-	    (uintmax_t)ptoa(VMCNT_GET(free_count)) / 1048576);
+	    (uintmax_t)ptoa(cnt.v_free_count),
+	    (uintmax_t)ptoa(cnt.v_free_count) / 1048576);
 
 	bufinit();
 	vm_pager_bufferinit();

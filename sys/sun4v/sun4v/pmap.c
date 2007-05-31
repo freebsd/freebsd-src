@@ -973,7 +973,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	 * way below the low water mark of free pages or way
 	 * above high water mark of used pv entries.
 	 */
-	if (VMCNT_GET(free_count) < VMCNT_GET(free_reserved) ||
+	if (cnt.v_free_count < cnt.v_free_reserved ||
 	    pv_entry_count > pv_entry_high_water)
 		return;
 	
@@ -1316,7 +1316,7 @@ pmap_free_contig_pages(void *ptr, int npages)
 	m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)ptr));
 	for (i = 0; i < npages; i++, m++) {
 		m->wire_count--;
-		VMCNT_SUB(wire_count, 1);
+		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_free(m);
 	}
 }
@@ -1347,7 +1347,7 @@ pmap_init(void)
 	pvzone = uma_zcreate("PV ENTRY", sizeof(struct pv_entry), NULL, NULL, 
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	pv_entry_max = shpgperproc * maxproc + VMCNT_GET(page_count);
+	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);

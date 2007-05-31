@@ -139,7 +139,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 		    LINUX_SYSINFO_LOADS_SCALE / averunnable.fscale;
 
 	sysinfo.totalram = physmem * PAGE_SIZE;
-	sysinfo.freeram = sysinfo.totalram - VMCNT_GET(wire_count) * PAGE_SIZE;
+	sysinfo.freeram = sysinfo.totalram - cnt.v_wire_count * PAGE_SIZE;
 
 	sysinfo.sharedram = 0;
 	mtx_lock(&vm_object_list_mtx);

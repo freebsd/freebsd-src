@@ -1970,7 +1970,7 @@ pmap_init(void)
 
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	
-	pv_entry_max = shpgperproc * maxproc + VMCNT_GET(page_count);
+	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 	l2zone = uma_zcreate("L2 Table", L2_TABLE_SIZE_REAL, pmap_l2ptp_ctor,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
