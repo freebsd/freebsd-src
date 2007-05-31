@@ -19,7 +19,6 @@ FBSD_1.0 {
 	gai_strerror;
 	freeaddrinfo;
 	getaddrinfo;
-	endhostdnsent;
 	gethostent;
 	gethostent_r;
 	gethostbyname;

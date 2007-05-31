@@ -30,13 +30,9 @@ FBSD_1.0 {
 	sigsetjmp;
 	siglongjmp;
 	htonl;
-	__hton;
 	htons;
-	__htons;
 	ntohl;
-	__ntohl;
 	ntohs;
-	__ntohs;
 	brk;
 	exect;
 	pipe;
