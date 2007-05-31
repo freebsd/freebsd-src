@@ -26,13 +26,9 @@ FBSD_1.0 {
 	longjmp;
 	sigsetjmp;
 	siglongjmp;
-	__htonl;
 	htonl;
-	__htons;
 	htons;
-	__ntohl;
 	ntohl;
-	__ntohs;
 	ntohs;
 	vfork;
 	brk;
