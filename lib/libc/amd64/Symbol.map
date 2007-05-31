@@ -33,13 +33,9 @@ FBSD_1.0 {
 	sigsetjmp;
 	siglongjmp;
 	htonl;
-	__htonl;
 	htons;
-	__htons;
 	ntohl;
-	__ntohl;
 	ntohs;
-	__ntohs;
 	amd64_get_fsbase;
 	amd64_get_gsbase;
 	amd64_set_fsbase;

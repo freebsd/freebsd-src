@@ -37,7 +37,6 @@ FBSD_1.0 {
 	acl_set_permset;
 	acl_set_qualifier;
 	acl_set_tag_type;
-	acl_size;
 	acl_to_text;
 	acl_valid;
 	acl_valid_file_np;

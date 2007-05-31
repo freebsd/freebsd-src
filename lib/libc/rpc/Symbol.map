@@ -119,7 +119,6 @@ FBSD_1.0 {
 	host2netname;
 	netname2user;
 	netname2host;
-	getnetid;
 	pmap_set;
 	pmap_unset;
 	pmap_getmaps;
