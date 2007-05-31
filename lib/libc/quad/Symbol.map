@@ -3,11 +3,12 @@
  */
 
 FBSD_1.0 {
-};
-
-/* XXX - Do these really need to be exported??? */
-FBSDprivate_1.0 {
-#if 0
+	/*
+	 * These symbols really shouldn't be exported since they should
+	 * be pulled from libgcc, but the build of some applications is
+	 * broken and they expect to see them in libc.  glibc exports
+	 * them, but they do not appear to be exported in Solaris.
+	 */
 	__adddi3;
 	__anddi3;
 	__ashldi3;
@@ -34,5 +35,4 @@ FBSDprivate_1.0 {
 	__udivdi3;
 	__umoddi3;
 	__xordi3;
-#endif
 };
