@@ -64,24 +64,52 @@ struct sndstat_entry {
 static struct mtx sndstat_lock;
 #endif
 static struct sbuf sndstat_sbuf;
-static struct cdev *sndstat_dev = 0;
-static int sndstat_isopen = 0;
-static int sndstat_bufptr;
+static struct cdev *sndstat_dev = NULL;
+static int sndstat_bufptr = -1;
 static int sndstat_maxunit = -1;
 static int sndstat_files = 0;
 
-static SLIST_HEAD(, sndstat_entry) sndstat_devlist = SLIST_HEAD_INITIALIZER(none);
+#define SNDSTAT_PID(x)		((pid_t)((intptr_t)((x)->si_drv1)))
+#define SNDSTAT_PID_SET(x, y)	(x)->si_drv1 = (void *)((intptr_t)(y))
+#define SNDSTAT_FLUSH()		do {					\
+	if (sndstat_bufptr != -1) {					\
+		sbuf_delete(&sndstat_sbuf);				\
+		sndstat_bufptr = -1;					\
+	}								\
+} while(0)
 
-#ifdef SND_DEBUG
-SYSCTL_INT(_hw_snd, OID_AUTO, sndstat_isopen, CTLFLAG_RW,
-	&sndstat_isopen, 1, "sndstat emergency exit");
-#endif
+static SLIST_HEAD(, sndstat_entry) sndstat_devlist = SLIST_HEAD_INITIALIZER(none);
 
 int snd_verbose = 1;
 #ifdef	USING_MUTEX
 TUNABLE_INT("hw.snd.verbose", &snd_verbose);
 #else
 TUNABLE_INT_DECL("hw.snd.verbose", 1, snd_verbose);
+#endif
+
+#ifdef SND_DEBUG
+static int
+sysctl_hw_snd_sndstat_pid(SYSCTL_HANDLER_ARGS)
+{
+	int err, val;
+
+	if (sndstat_dev == NULL)
+		return (EINVAL);
+
+	mtx_lock(&sndstat_lock);
+	val = (int)SNDSTAT_PID(sndstat_dev);
+	mtx_unlock(&sndstat_lock);
+	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (err == 0 && req->newptr != NULL && val == 0) {
+		mtx_lock(&sndstat_lock);
+		SNDSTAT_FLUSH();
+		SNDSTAT_PID_SET(sndstat_dev, 0);
+		mtx_unlock(&sndstat_lock);
+	}
+	return (err);
+}
+SYSCTL_PROC(_hw_snd, OID_AUTO, sndstat_pid, CTLTYPE_INT | CTLFLAG_RW,
+    0, sizeof(int), sysctl_hw_snd_sndstat_pid, "I", "sndstat busy pid");
 #endif
 
 static int sndstat_prepare(struct sbuf *s);
@@ -111,12 +139,15 @@ sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	int error;
 
+	if (sndstat_dev == NULL || i_dev != sndstat_dev)
+		return EBADF;
+
 	mtx_lock(&sndstat_lock);
-	if (sndstat_isopen) {
+	if (SNDSTAT_PID(i_dev) != 0) {
 		mtx_unlock(&sndstat_lock);
 		return EBUSY;
 	}
-	sndstat_isopen = 1;
+	SNDSTAT_PID_SET(i_dev, td->td_proc->p_pid);
 	mtx_unlock(&sndstat_lock);
 	if (sbuf_new(&sndstat_sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
 		error = ENXIO;
@@ -127,7 +158,8 @@ sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 out:
 	if (error) {
 		mtx_lock(&sndstat_lock);
-		sndstat_isopen = 0;
+		SNDSTAT_FLUSH();
+		SNDSTAT_PID_SET(i_dev, 0);
 		mtx_unlock(&sndstat_lock);
 	}
 	return (error);
@@ -136,17 +168,18 @@ out:
 static int
 sndstat_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
+	if (sndstat_dev == NULL || i_dev != sndstat_dev)
+		return EBADF;
+
 	mtx_lock(&sndstat_lock);
-	if (!sndstat_isopen) {
+	if (SNDSTAT_PID(i_dev) == 0) {
 		mtx_unlock(&sndstat_lock);
 		return EBADF;
 	}
 
-	mtx_unlock(&sndstat_lock);
-	sbuf_delete(&sndstat_sbuf);
+	SNDSTAT_FLUSH();
+	SNDSTAT_PID_SET(i_dev, 0);
 
-	mtx_lock(&sndstat_lock);
-	sndstat_isopen = 0;
 	mtx_unlock(&sndstat_lock);
 
 	return 0;
@@ -157,8 +190,12 @@ sndstat_read(struct cdev *i_dev, struct uio *buf, int flag)
 {
 	int l, err;
 
+	if (sndstat_dev == NULL || i_dev != sndstat_dev)
+		return EBADF;
+
 	mtx_lock(&sndstat_lock);
-	if (!sndstat_isopen) {
+	if (SNDSTAT_PID(i_dev) != buf->uio_td->td_proc->p_pid ||
+	    sndstat_bufptr == -1) {
 		mtx_unlock(&sndstat_lock);
 		return EBADF;
 	}
@@ -187,27 +224,33 @@ sndstat_find(int type, int unit)
 }
 
 int
-sndstat_acquire(void)
+sndstat_acquire(struct thread *td)
 {
+	if (sndstat_dev == NULL)
+		return EBADF;
+
 	mtx_lock(&sndstat_lock);
-	if (sndstat_isopen) {
+	if (SNDSTAT_PID(sndstat_dev) != 0) {
 		mtx_unlock(&sndstat_lock);
 		return EBUSY;
 	}
-	sndstat_isopen = 1;
+	SNDSTAT_PID_SET(sndstat_dev, td->td_proc->p_pid);
 	mtx_unlock(&sndstat_lock);
 	return 0;
 }
 
 int
-sndstat_release(void)
+sndstat_release(struct thread *td)
 {
+	if (sndstat_dev == NULL)
+		return EBADF;
+
 	mtx_lock(&sndstat_lock);
-	if (!sndstat_isopen) {
+	if (SNDSTAT_PID(sndstat_dev) != td->td_proc->p_pid) {
 		mtx_unlock(&sndstat_lock);
 		return EBADF;
 	}
-	sndstat_isopen = 0;
+	SNDSTAT_PID_SET(sndstat_dev, 0);
 	mtx_unlock(&sndstat_lock);
 	return 0;
 }
@@ -349,27 +392,32 @@ sndstat_prepare(struct sbuf *s)
 static int
 sndstat_init(void)
 {
+	if (sndstat_dev != NULL)
+		return EINVAL;
 	mtx_init(&sndstat_lock, "sndstat", "sndstat lock", MTX_DEF);
-	sndstat_dev = make_dev(&sndstat_cdevsw, SND_DEV_STATUS, UID_ROOT, GID_WHEEL, 0444, "sndstat");
-
-	return (sndstat_dev != 0)? 0 : ENXIO;
+	sndstat_dev = make_dev(&sndstat_cdevsw, SND_DEV_STATUS,
+	    UID_ROOT, GID_WHEEL, 0444, "sndstat");
+	return 0;
 }
 
 static int
 sndstat_uninit(void)
 {
+	if (sndstat_dev == NULL)
+		return EINVAL;
+
 	mtx_lock(&sndstat_lock);
-	if (sndstat_isopen) {
+	if (SNDSTAT_PID(sndstat_dev) != curthread->td_proc->p_pid) {
 		mtx_unlock(&sndstat_lock);
 		return EBUSY;
 	}
 
-	sndstat_isopen = 1;
+	SNDSTAT_FLUSH();
+
 	mtx_unlock(&sndstat_lock);
 
-	if (sndstat_dev)
-		destroy_dev(sndstat_dev);
-	sndstat_dev = 0;
+	destroy_dev(sndstat_dev);
+	sndstat_dev = NULL;
 
 	mtx_destroy(&sndstat_lock);
 	return 0;
@@ -392,5 +440,3 @@ sndstat_sysuninit(void *p)
 
 SYSINIT(sndstat_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysinit, NULL);
 SYSUNINIT(sndstat_sysuninit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysuninit, NULL);
-
-

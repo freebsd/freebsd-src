@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../../../dev/sound
 .PATH: ${.CURDIR}/../../../dev/sound/pcm
 .PATH: ${.CURDIR}/../../../dev/sound/midi
 .PATH: ${.CURDIR}/../../../dev/sound/isa
@@ -10,9 +11,9 @@ SRCS+=	ac97_if.h channel_if.h feeder_if.h mixer_if.h
 SRCS+=	ac97_if.c channel_if.c feeder_if.c mixer_if.c
 SRCS+=	mpu_if.h mpufoi_if.h synth_if.h
 SRCS+=	mpu_if.c mpufoi_if.c synth_if.c
-SRCS+=	ac97.c ac97_patch.c buffer.c channel.c dsp.c
+SRCS+=	ac97.c ac97_patch.c buffer.c channel.c clone.c dsp.c
 SRCS+=	fake.c feeder.c feeder_fmt.c feeder_rate.c feeder_volume.c
-SRCS+=	mixer.c sndstat.c sound.c vchan.c
+SRCS+=	mixer.c sndstat.c sound.c unit.c vchan.c
 SRCS+=	midi.c mpu401.c sequencer.c
 
 EXPORT_SYMS=	YES	# XXX evaluate

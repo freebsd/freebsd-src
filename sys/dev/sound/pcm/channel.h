@@ -26,11 +26,6 @@
  * $FreeBSD$
  */
 
-struct pcmchan_children {
-	SLIST_ENTRY(pcmchan_children) link;
-	struct pcm_channel *channel;
-};
-
 struct pcmchan_caps {
 	u_int32_t minspeed, maxspeed;
 	u_int32_t *fmtlist;
@@ -72,7 +67,6 @@ struct pcmchan_syncmember {
 struct pcm_channel {
 	kobj_t methods;
 
-	int num;
 	pid_t pid;
 	int refcount;
 	struct pcm_feeder *feeder;
@@ -94,8 +88,10 @@ struct pcm_channel {
 	struct pcm_channel *parentchannel;
 	void *devinfo;
 	device_t dev;
+	int unit;
 	char name[CHN_NAMELEN];
 	struct mtx *lock;
+	int trigger;
 	/**
 	 * Increment,decrement this around operations that temporarily yield
 	 * lock.
@@ -123,8 +119,85 @@ struct pcm_channel {
 #ifdef OSSV4_EXPERIMENT
 	u_int16_t lpeak, rpeak;	/**< Peak value from 0-32767. */
 #endif
-	SLIST_HEAD(, pcmchan_children) children;
+
+	struct {
+		SLIST_HEAD(, pcm_channel) head;
+		SLIST_ENTRY(pcm_channel) link;
+		struct {
+			SLIST_HEAD(, pcm_channel) head;
+			SLIST_ENTRY(pcm_channel) link;
+		} busy;
+	} children;
+
+	struct {
+		struct {
+			SLIST_ENTRY(pcm_channel) link;
+			struct {
+				SLIST_ENTRY(pcm_channel) link;
+			} busy;
+		} pcm;
+	} channels;
+
+	void *data1, *data2;
 };
+
+#define CHN_HEAD(x, y)			&(x)->y.head
+#define CHN_INIT(x, y)			SLIST_INIT(CHN_HEAD(x, y))
+#define CHN_LINK(y)			y.link
+#define CHN_EMPTY(x, y)			SLIST_EMPTY(CHN_HEAD(x, y))
+#define CHN_FIRST(x, y)			SLIST_FIRST(CHN_HEAD(x, y))
+
+#define CHN_FOREACH(x, y, z)						\
+	SLIST_FOREACH(x, CHN_HEAD(y, z), CHN_LINK(z))
+
+#define CHN_FOREACH_SAFE(w, x, y, z)					\
+	SLIST_FOREACH_SAFE(w, CHN_HEAD(x, z), CHN_LINK(z), y)
+
+#define CHN_INSERT_HEAD(x, y, z)					\
+	SLIST_INSERT_HEAD(CHN_HEAD(x, z), y, CHN_LINK(z))
+
+#define CHN_INSERT_AFTER(x, y, z)					\
+	SLIST_INSERT_AFTER(x, y, CHN_LINK(z))
+
+#define CHN_REMOVE(x, y, z)						\
+	SLIST_REMOVE(CHN_HEAD(x, z), y, pcm_channel, CHN_LINK(z))
+
+#define CHN_INSERT_HEAD_SAFE(x, y, z)		do {			\
+	struct pcm_channel *t = NULL;					\
+	CHN_FOREACH(t, x, z) {						\
+		if (t == y)						\
+			break;						\
+	} 								\
+	if (t != y) {							\
+		CHN_INSERT_HEAD(x, y, z);				\
+	}								\
+} while(0)
+
+#define CHN_INSERT_AFTER_SAFE(w, x, y, z)	do {			\
+	struct pcm_channel *t = NULL;					\
+	CHN_FOREACH(t, w, z) {						\
+		if (t == y)						\
+			break;						\
+	} 								\
+	if (t != y) {							\
+		CHN_INSERT_AFTER(x, y, z);				\
+	}								\
+} while(0)
+
+#define CHN_REMOVE_SAFE(x, y, z)		do {			\
+	struct pcm_channel *t = NULL;					\
+	CHN_FOREACH(t, x, z) {						\
+		if (t == y)						\
+			break;						\
+	} 								\
+	if (t == y) {							\
+		CHN_REMOVE(x, y, z);					\
+	}								\
+} while(0)
+
+#define CHN_UNIT(x)	(snd_unit2u((x)->unit))
+#define CHN_DEV(x)	(snd_unit2d((x)->unit))
+#define CHN_CHAN(x)	(snd_unit2c((x)->unit))
 
 #include "channel_if.h"
 
@@ -208,9 +281,10 @@ extern int chn_latency;
 extern int chn_latency_profile;
 extern int report_soft_formats;
 
-#define PCMDIR_VIRTUAL 2
-#define PCMDIR_PLAY 1
-#define PCMDIR_REC -1
+#define PCMDIR_PLAY		1
+#define PCMDIR_PLAY_VIRTUAL	2
+#define PCMDIR_REC		-1
+#define PCMDIR_REC_VIRTUAL	-2
 
 #define PCMTRIG_START 1
 #define PCMTRIG_EMLDMAWR 2
@@ -223,6 +297,7 @@ extern int report_soft_formats;
 #define CHN_F_RUNNING		0x00000010  /* dma is running */
 #define CHN_F_TRIGGERED		0x00000020
 #define CHN_F_NOTRIGGER		0x00000040
+#define CHN_F_SLEEPING		0x00000080
 
 #define CHN_F_BUSY              0x00001000  /* has been opened 	*/
 #define	CHN_F_HAS_SIZE		0x00002000  /* user set block size */

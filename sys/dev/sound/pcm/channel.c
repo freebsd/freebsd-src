@@ -170,11 +170,14 @@ chn_lockinit(struct pcm_channel *c, int dir)
 	case PCMDIR_PLAY:
 		c->lock = snd_mtxcreate(c->name, "pcm play channel");
 		break;
+	case PCMDIR_PLAY_VIRTUAL:
+		c->lock = snd_mtxcreate(c->name, "pcm virtual play channel");
+		break;
 	case PCMDIR_REC:
 		c->lock = snd_mtxcreate(c->name, "pcm record channel");
 		break;
-	case PCMDIR_VIRTUAL:
-		c->lock = snd_mtxcreate(c->name, "pcm virtual play channel");
+	case PCMDIR_REC_VIRTUAL:
+		c->lock = snd_mtxcreate(c->name, "pcm virtual record channel");
 		break;
 	case 0:
 		c->lock = snd_mtxcreate(c->name, "pcm fake channel");
@@ -234,20 +237,27 @@ static void
 chn_wakeup(struct pcm_channel *c)
 {
 	struct snd_dbuf *bs = c->bufsoft;
-	struct pcmchan_children *pce;
+	struct pcm_channel *ch;
 
 	CHN_LOCKASSERT(c);
-	if (SLIST_EMPTY(&c->children)) {
+	if (CHN_EMPTY(c, children)) {
 		if (SEL_WAITING(sndbuf_getsel(bs)) && chn_polltrigger(c))
 			selwakeuppri(sndbuf_getsel(bs), PRIBIO);
-		wakeup_one(bs);
+	} else if (CHN_EMPTY(c, children.busy)) {
+		CHN_FOREACH(ch, c, children) {
+			CHN_LOCK(ch);
+			chn_wakeup(ch);
+			CHN_UNLOCK(ch);
+		}
 	} else {
-		SLIST_FOREACH(pce, &c->children, link) {
-			CHN_LOCK(pce->channel);
-			chn_wakeup(pce->channel);
-			CHN_UNLOCK(pce->channel);
+		CHN_FOREACH(ch, c, children.busy) {
+			CHN_LOCK(ch);
+			chn_wakeup(ch);
+			CHN_UNLOCK(ch);
 		}
 	}
+	if (c->flags & CHN_F_SLEEPING)
+		wakeup_one(bs);
 }
 
 static int
@@ -257,11 +267,14 @@ chn_sleep(struct pcm_channel *c, char *str, int timeout)
 	int ret;
 
 	CHN_LOCKASSERT(c);
+
+	c->flags |= CHN_F_SLEEPING;
 #ifdef USING_MUTEX
 	ret = msleep(bs, c->lock, PRIBIO | PCATCH, str, timeout);
 #else
 	ret = tsleep(bs, PRIBIO | PCATCH, str, timeout);
 #endif
+	c->flags &= ~CHN_F_SLEEPING;
 
 	return ret;
 }
@@ -497,7 +510,7 @@ chn_rdfeed(struct pcm_channel *c)
 	}
 #endif
 	amt = sndbuf_getfree(bs);
-	ret = (amt > 0) ? sndbuf_feed(b, bs, c, c->feeder, amt) : 0;
+	ret = (amt > 0) ? sndbuf_feed(b, bs, c, c->feeder, amt) : ENOSPC;
 
 	amt = sndbuf_getready(b);
 	if (amt > 0) {
@@ -519,7 +532,7 @@ chn_rdupdate(struct pcm_channel *c)
 	CHN_LOCKASSERT(c);
 	KASSERT(c->direction == PCMDIR_REC, ("chn_rdupdate on bad channel"));
 
-	if ((c->flags & CHN_F_MAPPED) || CHN_STOPPED(c))
+	if ((c->flags & (CHN_F_MAPPED | CHN_F_VIRTUAL)) || CHN_STOPPED(c))
 		return;
 	chn_trigger(c, PCMTRIG_EMLDMARD);
 	chn_dmaupdate(c);
@@ -645,7 +658,7 @@ chn_start(struct pcm_channel *c, int force)
 				j = sndbuf_getbps(pb);
 			}
 		}
-		if (snd_verbose > 3 && SLIST_EMPTY(&c->children))
+		if (snd_verbose > 3 && CHN_EMPTY(c, children))
 			printf("%s: %s (%s) threshold i=%d j=%d\n",
 			    __func__, CHN_DIRSTR(c),
 			    (c->flags & CHN_F_VIRTUAL) ? "virtual" : "hardware",
@@ -1094,6 +1107,8 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction)
 
 	b = NULL;
 	bs = NULL;
+	CHN_INIT(c, children);
+	CHN_INIT(c, children.busy);
 	c->devinfo = NULL;
 	c->feeder = NULL;
 	c->latency = -1;
@@ -1193,9 +1208,13 @@ chn_kill(struct pcm_channel *c)
     	struct snd_dbuf *b = c->bufhard;
     	struct snd_dbuf *bs = c->bufsoft;
 
-	if (CHN_STARTED(c))
+	if (CHN_STARTED(c)) {
+		CHN_LOCK(c);
 		chn_trigger(c, PCMTRIG_ABORT);
-	while (chn_removefeeder(c) == 0);
+		CHN_UNLOCK(c);
+	}
+	while (chn_removefeeder(c) == 0)
+		;
 	if (CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
 	c->flags |= CHN_F_DEAD;
@@ -1528,7 +1547,7 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 			    c->devinfo, hblksz));
 		CHN_LOCK(c);
 
-		if (!SLIST_EMPTY(&c->children)) {
+		if (!CHN_EMPTY(c, children)) {
 			sblksz = round_blksz(
 			    sndbuf_xbytes(sndbuf_getsize(b) >> 1, b, bs),
 			    sndbuf_getbps(bs));
@@ -1750,6 +1769,7 @@ chn_trigger(struct pcm_channel *c, int go)
 #ifdef DEV_ISA
     	struct snd_dbuf *b = c->bufhard;
 #endif
+	struct snddev_info *d = c->parentsnddev;
 	int ret;
 
 	CHN_LOCKASSERT(c);
@@ -1757,7 +1777,49 @@ chn_trigger(struct pcm_channel *c, int go)
 	if (SND_DMA(b) && (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD))
 		sndbuf_dmabounce(b);
 #endif
+	if ((go == PCMTRIG_START || go == PCMTRIG_STOP ||
+	    go == PCMTRIG_ABORT) && go == c->trigger)
+			return 0;
+
 	ret = CHANNEL_TRIGGER(c->methods, c->devinfo, go);
+
+	if (ret == 0) {
+		switch (go) {
+		case PCMTRIG_START:
+			if (snd_verbose > 3)
+				device_printf(c->dev,
+				    "%s() %s: calling go=0x%08x , "
+				    "prev=0x%08x\n", __func__, c->name, go,
+				    c->trigger);
+			if (c->trigger != PCMTRIG_START) {
+				c->trigger = go;
+				CHN_UNLOCK(c);
+				pcm_lock(d);
+				CHN_INSERT_HEAD(d, c, channels.pcm.busy);
+				pcm_unlock(d);
+				CHN_LOCK(c);
+			}
+			break;
+		case PCMTRIG_STOP:
+		case PCMTRIG_ABORT:
+			if (snd_verbose > 3)
+				device_printf(c->dev,
+				    "%s() %s: calling go=0x%08x , "
+				    "prev=0x%08x\n", __func__, c->name, go,
+				    c->trigger);
+			if (c->trigger == PCMTRIG_START) {
+				c->trigger = go;
+				CHN_UNLOCK(c);
+				pcm_lock(d);
+				CHN_REMOVE(d, c, channels.pcm.busy);
+				pcm_unlock(d);
+				CHN_LOCK(c);
+			}
+			break;
+		default:
+			break;
+		}
+	}
 
 	return ret;
 }
@@ -1840,7 +1902,10 @@ chn_buildfeeder(struct pcm_channel *c)
 
 	c->align = sndbuf_getalign(c->bufsoft);
 
-	if (SLIST_EMPTY(&c->children)) {
+	if (CHN_EMPTY(c, children) || c->direction == PCMDIR_REC) {
+		/*
+		 * Virtual rec need this.
+		 */
 		fc = feeder_getclass(NULL);
 		KASSERT(fc != NULL, ("can't find root feeder"));
 
@@ -1851,7 +1916,7 @@ chn_buildfeeder(struct pcm_channel *c)
 			return err;
 		}
 		c->feeder->desc->out = c->format;
-	} else {
+	} else if (c->direction == PCMDIR_PLAY) {
 		if (c->flags & CHN_F_HAS_VCHAN) {
 			desc.type = FEEDER_MIXER;
 			desc.in = c->format;
@@ -1874,7 +1939,9 @@ chn_buildfeeder(struct pcm_channel *c)
 
 			return err;
 		}
-	}
+	} else
+		return EOPNOTSUPP;
+
 	c->feederflags &= ~(1 << FEEDER_VOLUME);
 	if (c->direction == PCMDIR_PLAY &&
 	    !(c->flags & CHN_F_VIRTUAL) && c->parentsnddev &&
@@ -1974,6 +2041,26 @@ chn_buildfeeder(struct pcm_channel *c)
 	if (hwfmt == 0 || !fmtvalid(hwfmt, fmtlist)) {
 		DEB(printf("Invalid hardware format: 0x%08x\n", hwfmt));
 		return ENODEV;
+	} else if (c->direction == PCMDIR_REC && !CHN_EMPTY(c, children)) {
+		/*
+		 * Kind of awkward. This whole "MIXER" concept need a
+		 * rethinking, I guess :) . Recording is the inverse
+		 * of Playback, which is why we push mixer vchan down here.
+		 */
+		if (c->flags & CHN_F_HAS_VCHAN) {
+			desc.type = FEEDER_MIXER;
+			desc.in = c->format;
+		} else
+			return EOPNOTSUPP;
+		desc.out = c->format;
+		desc.flags = 0;
+		fc = feeder_getclass(&desc);
+		if (fc == NULL)
+			return EOPNOTSUPP;
+
+		err = chn_addfeeder(c, fc, &desc);
+		if (err != 0)
+			return err;
 	}
 
 	sndbuf_setfmt(c->bufhard, hwfmt);
@@ -2020,13 +2107,11 @@ chn_buildfeeder(struct pcm_channel *c)
 int
 chn_notify(struct pcm_channel *c, u_int32_t flags)
 {
-	struct pcmchan_children *pce;
-	struct pcm_channel *child;
 	int run;
 
 	CHN_LOCK(c);
 
-	if (SLIST_EMPTY(&c->children)) {
+	if (CHN_EMPTY(c, children)) {
 		CHN_UNLOCK(c);
 		return ENODEV;
 	}
@@ -2064,20 +2149,8 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 	}
 	if (flags & CHN_N_TRIGGER) {
 		int nrun;
-		/*
-		 * scan the children, and figure out if any are running
-		 * if so, we need to be running, otherwise we need to be stopped
-		 * if we aren't in our target sstate, move to it
-		 */
-		nrun = 0;
-		SLIST_FOREACH(pce, &c->children, link) {
-			child = pce->channel;
-			CHN_LOCK(child);
-			nrun = CHN_STARTED(child);
-			CHN_UNLOCK(child);
-			if (nrun)
-				break;
-		}
+
+		nrun = CHN_EMPTY(c, children.busy) ? 0 : 1;
 		if (nrun && !run)
 			chn_start(c, 1);
 		if (!nrun && run)
