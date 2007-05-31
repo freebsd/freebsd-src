@@ -763,15 +763,14 @@ into
 and editing
 .Pa /etc/pf.conf
 appropriately.
+Adding
 .Pp
 .Dl "device pf"
 .Pp
-builds
+builds support for
 .Xr pf 4
-into the kernel.
-See
-.Xr pf 4
-for more information.
+into the kernel, otherwise the
+kernel module will be loaded.
 .It Va pf_rules
 .Pq Vt str
 Path to
