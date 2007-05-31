@@ -104,7 +104,7 @@ arm_handler_execute(struct trapframe *frame, int irqnb)
 	struct intr_event *event;
 	struct intr_handler *ih;
 	struct thread *td = curthread;
-	int i, thread;
+	int i, thread, ret;
 
 	PCPU_LAZY_INC(cnt.v_intr);
 	td->td_intr_nesting_level++;
@@ -116,13 +116,22 @@ arm_handler_execute(struct trapframe *frame, int irqnb)
 			continue;
 
 		/* Execute fast handlers. */
+		ret = 0;
 		thread = 0;
 		TAILQ_FOREACH(ih, &event->ie_handlers, ih_next) {
 			if (ih->ih_filter == NULL)
 				thread = 1;
 			else
-				ih->ih_filter(ih->ih_argument ?
+				ret = ih->ih_filter(ih->ih_argument ?
 				    ih->ih_argument : frame);
+			/*
+			 * Wrapper handler special case: see
+			 * i386/intr_machdep.c::intr_execute_handlers()
+			 */
+			if (!thread) {
+				if (ret == FILTER_SCHEDULE_THREAD)
+					thread = 1;
+			}
 		}
 
 		/* Schedule thread if needed. */

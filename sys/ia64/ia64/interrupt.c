@@ -353,7 +353,7 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 	struct ia64_intr *i;
 	struct intr_event *ie;			/* our interrupt event */
 	struct intr_handler *ih;
-	int error, thread;
+	int error, thread, ret;
 
 	/*
 	 * Find the interrupt thread for this vector.
@@ -379,6 +379,7 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 	 * Execute all fast interrupt handlers directly without Giant.  Note
 	 * that this means that any fast interrupt handler must be MP safe.
 	 */
+	ret = 0;
 	thread = 0;
 	critical_enter();
 	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
@@ -388,7 +389,15 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 		}
 		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
 		    ih->ih_filter, ih->ih_argument, ih->ih_name);
-		ih->ih_filter(ih->ih_argument);
+		ret = ih->ih_filter(ih->ih_argument);
+		/*
+		 * Wrapper handler special case: see
+		 * i386/intr_machdep.c::intr_execute_handlers()
+		 */
+		if (!thread) {
+			if (ret == FILTER_SCHEDULE_THREAD)
+				thread = 1;
+		}
 	}
 	critical_exit();
 
