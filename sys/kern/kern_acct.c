@@ -211,7 +211,7 @@ acct(struct thread *td, struct acct_args *uap)
 		NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE | AUDITVNODE1,
 		    UIO_USERSPACE, uap->path, td);
 		flags = FWRITE | O_APPEND;
-		error = vn_open(&nd, &flags, 0, -1);
+		error = vn_open(&nd, &flags, 0, NULL);
 		if (error)
 			return (error);
 		vfslocked = NDHASGIANT(&nd);

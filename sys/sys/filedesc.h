@@ -89,7 +89,6 @@ struct filedesc_to_leader {
  * Per-process open flags.
  */
 #define	UF_EXCLOSE 	0x01		/* auto-close on exec */
-#define	UF_OPENING	0x02		/* file is being opened */
 
 #ifdef _KERNEL
 

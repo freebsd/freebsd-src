@@ -524,7 +524,7 @@ quotaon(td, mp, type, fname)
 
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_USERSPACE, fname, td);
 	flags = FREAD | FWRITE;
-	error = vn_open(&nd, &flags, 0, -1);
+	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);

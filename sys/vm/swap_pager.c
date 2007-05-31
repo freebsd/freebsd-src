@@ -2535,7 +2535,7 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 	error = mac_check_system_swapon(td->td_ucred, vp);
 	if (error == 0)
 #endif
-		error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td, -1);
+		error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td, NULL);
 	(void) VOP_UNLOCK(vp, 0, td);
 	if (error)
 		return (error);

@@ -50,6 +50,7 @@ struct tty;
 struct snapdata;
 struct devfs_dirent;
 struct cdevsw;
+struct file;
 
 struct cdev {
 	struct cdev_priv	*si_priv;
@@ -126,7 +127,7 @@ struct vnode;
 typedef struct thread d_thread_t;
 
 typedef int d_open_t(struct cdev *dev, int oflags, int devtype, struct thread *td);
-typedef int d_fdopen_t(struct cdev *dev, int oflags, struct thread *td, int fdidx);
+typedef int d_fdopen_t(struct cdev *dev, int oflags, struct thread *td, struct file *fp);
 typedef int d_close_t(struct cdev *dev, int fflag, int devtype, struct thread *td);
 typedef void d_strategy_t(struct bio *bp);
 typedef int d_ioctl_t(struct cdev *dev, u_long cmd, caddr_t data,

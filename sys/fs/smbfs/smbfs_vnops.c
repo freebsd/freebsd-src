@@ -385,7 +385,7 @@ smbfs_setattr(ap)
 		 */
 		if ((np->n_flag & NOPEN) == 0) {
 			if (vcp->vc_flags & SMBV_WIN95) {
-				error = VOP_OPEN(vp, FWRITE, ap->a_cred, ap->a_td, -1);
+				error = VOP_OPEN(vp, FWRITE, ap->a_cred, ap->a_td, NULL);
 				if (!error) {
 /*				error = smbfs_smb_setfattrNT(np, 0, mtime, atime, &scred);
 				VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);*/

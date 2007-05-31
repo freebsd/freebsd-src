@@ -913,7 +913,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	if ((error = VOP_CREATE(udvp, &vp, &cn, uvap)) != 0)
 		goto unionfs_vn_create_on_upper_free_out1;
 
-	if ((error = VOP_OPEN(vp, fmode, cred, td, -1)) != 0) {
+	if ((error = VOP_OPEN(vp, fmode, cred, td, NULL)) != 0) {
 		vput(vp);
 		goto unionfs_vn_create_on_upper_free_out1;
 	}
@@ -1049,7 +1049,7 @@ unionfs_copyfile(struct unionfs_node *unp, int docopy, struct ucred *cred,
 	}
 
 	if (docopy != 0) {
-		error = VOP_OPEN(lvp, FREAD, cred, td, -1);
+		error = VOP_OPEN(lvp, FREAD, cred, td, NULL);
 		if (error == 0) {
 			error = unionfs_copyfile_core(lvp, uvp, cred, td);
 			VOP_CLOSE(lvp, FREAD, cred, td);
@@ -1110,7 +1110,7 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 		return (0);
 
 	/* open vnode */
-	if ((error = VOP_OPEN(vp, FREAD, cred, td, -1)) != 0)
+	if ((error = VOP_OPEN(vp, FREAD, cred, td, NULL)) != 0)
 		return (error);
 
 	uio.uio_rw = UIO_READ;

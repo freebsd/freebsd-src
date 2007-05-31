@@ -1510,7 +1510,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 		 */
 		NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, result, td);
 		flags = FREAD;
-		error = vn_open(&nd, &flags, 0, -1);
+		error = vn_open(&nd, &flags, 0, NULL);
 		if (error == 0) {
 			vfslocked = NDHASGIANT(&nd);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1561,7 +1561,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, pathbuf, td);
 	flags = FREAD;
-	error = vn_open(&nd, &flags, 0, -1);
+	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		goto bad;
 	vfslocked = NDHASGIANT(&nd);

@@ -596,7 +596,7 @@ ktrace(td, uap)
 		NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_USERSPACE,
 		    uap->fname, td);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
-		error = vn_open(&nd, &flags, 0, -1);
+		error = vn_open(&nd, &flags, 0, NULL);
 		if (error) {
 			ktrace_exit(td);
 			return (error);

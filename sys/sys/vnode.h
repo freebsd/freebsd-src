@@ -612,9 +612,9 @@ void	vn_finished_secondary_write(struct mount *mp);
 int	vn_isdisk(struct vnode *vp, int *errp);
 int	_vn_lock(struct vnode *vp, int flags, struct thread *td, char *file, int line);
 #define vn_lock(vp, flags, td) _vn_lock(vp, flags, td, __FILE__, __LINE__)
-int	vn_open(struct nameidata *ndp, int *flagp, int cmode, int fdidx);
+int	vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
-	    struct ucred *cred, int fdidx);
+	    struct ucred *cred, struct file *fp);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);
 int	vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,

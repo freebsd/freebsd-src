@@ -666,9 +666,7 @@ do_dup(struct thread *td, enum dup_type type, int old, int new,
 	 * bad file descriptor.  Userland should do its own locking to
 	 * avoid this case.
 	 */
-	if (fdp->fd_ofiles[old] != fp ||
-	    (fdp->fd_ofileflags[old] & UF_OPENING) != 0 ||
-	    (fdp->fd_ofileflags[new] & UF_OPENING) != 0) {
+	if (fdp->fd_ofiles[old] != fp) {
 		/* we've allocated a descriptor which we won't use */
 		if (fdp->fd_ofiles[new] == NULL)
 			fdunused(fdp, new);
@@ -992,8 +990,7 @@ kern_close(td, fd)
 
 	FILEDESC_XLOCK(fdp);
 	if ((unsigned)fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL ||
-	    (fdp->fd_ofileflags[fd] & UF_OPENING) != 0) {
+	    (fp = fdp->fd_ofiles[fd]) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
@@ -1507,8 +1504,7 @@ fdcopy(struct filedesc *fdp)
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
 		if (fdisused(fdp, i) &&
-		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE &&
-		    (fdp->fd_ofileflags[i] & UF_OPENING) == 0) {
+		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE) {
 			newfdp->fd_ofiles[i] = fdp->fd_ofiles[i];
 			newfdp->fd_ofileflags[i] = fdp->fd_ofileflags[i];
 			fhold(newfdp->fd_ofiles[i]);

@@ -3072,7 +3072,7 @@ restart:
 		return (EINVAL);
 	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, name, td);
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
-	error = vn_open(&nd, &flags, S_IRUSR | S_IWUSR, -1);
+	error = vn_open(&nd, &flags, S_IRUSR | S_IWUSR, NULL);
 	free(name, M_TEMP);
 	if (error)
 		return (error);
