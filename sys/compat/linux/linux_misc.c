@@ -305,7 +305,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	if (error)
 		goto cleanup;
 #endif
-	error = VOP_OPEN(vp, FREAD, td->td_ucred, td, -1);
+	error = VOP_OPEN(vp, FREAD, td->td_ucred, td, NULL);
 	if (error)
 		goto cleanup;
 
@@ -1451,6 +1451,7 @@ linux_getpid(struct thread *td, struct linux_getpid_args *args)
 int
 linux_gettid(struct thread *td, struct linux_gettid_args *args)
 {
+
 #ifdef DEBUG
 	if (ldebug(gettid))
 		printf(ARGS(gettid, ""));

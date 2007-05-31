@@ -1224,7 +1224,7 @@ exec_check_permissions(imgp)
 	 * Call filesystem specific open routine (which does nothing in the
 	 * general case).
 	 */
-	error = VOP_OPEN(vp, FREAD, td->td_ucred, td, -1);
+	error = VOP_OPEN(vp, FREAD, td->td_ucred, td, NULL);
 	return (error);
 }
 

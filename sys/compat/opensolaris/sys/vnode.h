@@ -170,7 +170,7 @@ zfs_vn_open(char *pnamep, enum uio_seg seg, int filemode, int createmode,
 		td->td_proc->p_fd->fd_cdir = rootvnode;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, pnamep, td);
-	error = vn_open_cred(&nd, &filemode, createmode, td->td_ucred, -1);
+	error = vn_open_cred(&nd, &filemode, createmode, td->td_ucred, NULL);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == 0) {
 		/* We just unlock so we hold a reference. */

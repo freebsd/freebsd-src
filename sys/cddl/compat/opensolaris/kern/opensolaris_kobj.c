@@ -77,7 +77,7 @@ kobj_open_file_vnode(const char *file)
 
 	flags = FREAD;
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, file, td);
-	error = vn_open_cred(&nd, &flags, 0, td->td_ucred, -1);
+	error = vn_open_cred(&nd, &flags, 0, td->td_ucred, NULL);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0)
 		return (NULL);

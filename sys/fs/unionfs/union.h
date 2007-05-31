@@ -64,7 +64,6 @@ struct unionfs_node_status {
 	int		uns_lower_opencnt;	/* open count of lower */
 	int		uns_upper_opencnt;	/* open count of upper */
 	int		uns_lower_openmode;	/* open mode of lower */
-	int		uns_lower_fdidx;	/* open fdidx of lower */
 	int		uns_readdir_status;	/* read status of readdir */
 };
 

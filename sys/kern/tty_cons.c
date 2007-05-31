@@ -407,7 +407,7 @@ cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 	}
 	snprintf(path, sizeof(path), "/dev/%s", cnd->cnd_cn->cn_name);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
-	error = vn_open(&nd, &openflag, 0, -1);
+	error = vn_open(&nd, &openflag, 0, NULL);
 	if (error == 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		VOP_UNLOCK(nd.ni_vp, 0, td);
