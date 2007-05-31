@@ -34,6 +34,7 @@
 
 #include <sys/_lock.h>
 #include <sys/_sx.h>
+#include <sys/lock_profile.h>
 
 #ifdef	_KERNEL
 #include <machine/atomic.h>
@@ -91,61 +92,6 @@
 #ifdef _KERNEL
 
 /*
- * Full lock operations that are suitable to be inlined in non-debug kernels.
- * If the lock can't be acquired or released trivially then the work is
- * deferred to 'tougher' functions.
- */
-
-/* Acquire an exclusive lock. */
-#define	__sx_xlock(sx, tid, file, line) do {				\
-	uintptr_t _tid = (uintptr_t)(tid);				\
-									\
-	if (!atomic_cmpset_acq_ptr(&(sx)->sx_lock, SX_LOCK_UNLOCKED,	\
-	    _tid))							\
-		_sx_xlock_hard((sx), _tid, (file), (line));		\
-	else								\
-		lock_profile_obtain_lock_success(&(sx)->lock_object, 0,	\
-		    0, (file), (line));					\
-} while (0)
-
-/* Release an exclusive lock. */
-#define	__sx_xunlock(sx, tid, file, line) do {				\
-	uintptr_t _tid = (uintptr_t)(tid);				\
-									\
-	if (!atomic_cmpset_rel_ptr(&(sx)->sx_lock, _tid,		\
-	    SX_LOCK_UNLOCKED))						\
-		_sx_xunlock_hard((sx), _tid, (file), (line));		\
-} while (0)
-
-/* Acquire a shared lock. */
-#define	__sx_slock(sx, file, line) do {					\
-	uintptr_t x = (sx)->sx_lock;					\
-									\
-	if (!(x & SX_LOCK_SHARED) ||					\
-	    !atomic_cmpset_acq_ptr(&(sx)->sx_lock, x,			\
-	    x + SX_ONE_SHARER))						\
-		_sx_slock_hard((sx), (file), (line));			\
-	else								\
-		lock_profile_obtain_lock_success(&(sx)->lock_object, 0,	\
-		    0, (file), (line));					\
-} while (0)
-
-/*
- * Release a shared lock.  We can just drop a single shared lock so
- * long as we aren't trying to drop the last shared lock when other
- * threads are waiting for an exclusive lock.  This takes advantage of
- * the fact that an unlocked lock is encoded as a shared lock with a
- * count of 0.
- */
-#define	__sx_sunlock(sx, file, line) do {				\
-	uintptr_t x = (sx)->sx_lock;					\
-									\
-	if (x == (SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS) ||	\
-	    !atomic_cmpset_ptr(&(sx)->sx_lock, x, x - SX_ONE_SHARER))	\
-		_sx_sunlock_hard((sx), (file), (line));			\
-} while (0)
-
-/*
  * Function prototipes.  Routines that start with an underscore are not part
  * of the public interface and are wrappered with a macro.
  */
@@ -153,17 +99,17 @@ void	sx_sysinit(void *arg);
 #define	sx_init(sx, desc)	sx_init_flags((sx), (desc), 0)
 void	sx_init_flags(struct sx *sx, const char *description, int opts);
 void	sx_destroy(struct sx *sx);
-void	_sx_slock(struct sx *sx, const char *file, int line);
-void	_sx_xlock(struct sx *sx, const char *file, int line);
+int	_sx_slock(struct sx *sx, int opts, const char *file, int line);
+int	_sx_xlock(struct sx *sx, int opts, const char *file, int line);
 int	_sx_try_slock(struct sx *sx, const char *file, int line);
 int	_sx_try_xlock(struct sx *sx, const char *file, int line);
 void	_sx_sunlock(struct sx *sx, const char *file, int line);
 void	_sx_xunlock(struct sx *sx, const char *file, int line);
 int	_sx_try_upgrade(struct sx *sx, const char *file, int line);
 void	_sx_downgrade(struct sx *sx, const char *file, int line);
-void	_sx_xlock_hard(struct sx *sx, uintptr_t tid, const char *file, int
-	    line);
-void	_sx_slock_hard(struct sx *sx, const char *file, int line);
+int	_sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts,
+	    const char *file, int line);
+int	_sx_slock_hard(struct sx *sx, int opts, const char *file, int line);
 void	_sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int
 	    line);
 void	_sx_sunlock_hard(struct sx *sx, const char *file, int line);
@@ -190,22 +136,97 @@ struct sx_args {
 	    sx_destroy, (sxa))
 
 /*
+ * Full lock operations that are suitable to be inlined in non-debug kernels.
+ * If the lock can't be acquired or released trivially then the work is
+ * deferred to 'tougher' functions.
+ */
+
+/* Acquire an exclusive lock. */
+static __inline int
+__sx_xlock(struct sx *sx, struct thread *td, int opts, const char *file,
+    int line)
+{
+	uintptr_t tid = (uintptr_t)td;
+	int error = 0;
+
+	if (!atomic_cmpset_acq_ptr(&sx->sx_lock, SX_LOCK_UNLOCKED, tid))
+		error = _sx_xlock_hard(sx, tid, opts, file, line);
+	else
+		lock_profile_obtain_lock_success(&sx->lock_object, 0, 0, file,
+		    line);
+
+	return (error);
+}
+
+/* Release an exclusive lock. */
+static __inline void
+__sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
+{
+	uintptr_t tid = (uintptr_t)td;
+
+	if (!atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
+		_sx_xunlock_hard(sx, tid, file, line);
+}
+
+/* Acquire a shared lock. */
+static __inline int
+__sx_slock(struct sx *sx, int opts, const char *file, int line)
+{
+	uintptr_t x = sx->sx_lock;
+	int error = 0;
+
+	if (!(x & SX_LOCK_SHARED) ||
+	    !atomic_cmpset_acq_ptr(&sx->sx_lock, x, x + SX_ONE_SHARER))
+		error = _sx_slock_hard(sx, opts, file, line);
+	else
+		lock_profile_obtain_lock_success(&sx->lock_object, 0, 0, file,
+		    line);
+
+	return (error);
+}
+
+/*
+ * Release a shared lock.  We can just drop a single shared lock so
+ * long as we aren't trying to drop the last shared lock when other
+ * threads are waiting for an exclusive lock.  This takes advantage of
+ * the fact that an unlocked lock is encoded as a shared lock with a
+ * count of 0.
+ */
+static __inline void
+__sx_sunlock(struct sx *sx, const char *file, int line)
+{
+	uintptr_t x = sx->sx_lock;
+
+	if (x == (SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS) ||
+	    !atomic_cmpset_ptr(&sx->sx_lock, x, x - SX_ONE_SHARER))
+		_sx_sunlock_hard(sx, file, line);
+}
+
+/*
  * Public interface for lock operations.
  */
 #ifndef LOCK_DEBUG
 #error	"LOCK_DEBUG not defined, include <sys/lock.h> before <sys/sx.h>"
 #endif
 #if	(LOCK_DEBUG > 0) || defined(SX_NOINLINE)
-#define	sx_xlock(sx)		_sx_xlock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_xlock(sx)		(void)_sx_xlock((sx), 0, LOCK_FILE, LOCK_LINE)
+#define	sx_xlock_sig(sx)						\
+	_sx_xlock((sx), SX_INTERRUPTIBLE, LOCK_FILE, LOCK_LINE)
 #define	sx_xunlock(sx)		_sx_xunlock((sx), LOCK_FILE, LOCK_LINE)
-#define	sx_slock(sx)		_sx_slock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_slock(sx)		(void)_sx_slock((sx), 0, LOCK_FILE, LOCK_LINE)
+#define	sx_slock_sig(sx)						\
+	_sx_slock((sx), SX_INTERRUPTIBLE, LOCK_FILE, LOCK_LINE)
 #define	sx_sunlock(sx)		_sx_sunlock((sx), LOCK_FILE, LOCK_LINE)
 #else
 #define	sx_xlock(sx)							\
-	__sx_xlock((sx), curthread, LOCK_FILE, LOCK_LINE)
+	(void)__sx_xlock((sx), curthread, 0, LOCK_FILE, LOCK_LINE)
+#define	sx_xlock_sig(sx)						\
+	__sx_xlock((sx), curthread, SX_INTERRUPTIBLE, LOCK_FILE, LOCK_LINE)
 #define	sx_xunlock(sx)							\
 	__sx_xunlock((sx), curthread, LOCK_FILE, LOCK_LINE)
-#define	sx_slock(sx)		__sx_slock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_slock(sx)		(void)__sx_slock((sx), 0, LOCK_FILE, LOCK_LINE)
+#define	sx_slock_sig(sx)						\
+	__sx_slock((sx), SX_INTERRUPTIBLE, LOCK_FILE, LOCK_LINE)
 #define	sx_sunlock(sx)		__sx_sunlock((sx), LOCK_FILE, LOCK_LINE)
 #endif	/* LOCK_DEBUG > 0 || SX_NOINLINE */
 #define	sx_try_slock(sx)	_sx_try_slock((sx), LOCK_FILE, LOCK_LINE)
@@ -244,6 +265,11 @@ struct sx_args {
 #define	SX_QUIET		0x08
 #define	SX_ADAPTIVESPIN		0x10
 #define	SX_RECURSE		0x20
+
+/*
+ * Options passed to sx_*lock_hard().
+ */
+#define	SX_INTERRUPTIBLE	0x40
 
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 #define	SA_LOCKED		LA_LOCKED

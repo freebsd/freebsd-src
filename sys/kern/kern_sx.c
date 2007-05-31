@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/lock_profile.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sleepqueue.h>
@@ -191,18 +190,23 @@ sx_destroy(struct sx *sx)
 	lock_destroy(&sx->lock_object);
 }
 
-void
-_sx_slock(struct sx *sx, const char *file, int line)
+int
+_sx_slock(struct sx *sx, int opts, const char *file, int line)
 {
+	int error = 0;
 
 	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_slock() of destroyed sx @ %s:%d", file, line));
 	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER, file, line);
-	__sx_slock(sx, file, line);
-	LOCK_LOG_LOCK("SLOCK", &sx->lock_object, 0, 0, file, line);
-	WITNESS_LOCK(&sx->lock_object, 0, file, line);
-	curthread->td_locks++;
+	error = __sx_slock(sx, opts, file, line);
+	if (!error) {
+		LOCK_LOG_LOCK("SLOCK", &sx->lock_object, 0, 0, file, line);
+		WITNESS_LOCK(&sx->lock_object, 0, file, line);
+		curthread->td_locks++;
+	}
+
+	return (error);
 }
 
 int
@@ -225,19 +229,25 @@ _sx_try_slock(struct sx *sx, const char *file, int line)
 	return (0);
 }
 
-void
-_sx_xlock(struct sx *sx, const char *file, int line)
+int
+_sx_xlock(struct sx *sx, int opts, const char *file, int line)
 {
+	int error = 0;
 
 	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_xlock() of destroyed sx @ %s:%d", file, line));
 	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
 	    line);
-	__sx_xlock(sx, curthread, file, line);
-	LOCK_LOG_LOCK("XLOCK", &sx->lock_object, 0, sx->sx_recurse, file, line);
-	WITNESS_LOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
-	curthread->td_locks++;
+	error = __sx_xlock(sx, curthread, opts, file, line);
+	if (!error) {
+		LOCK_LOG_LOCK("XLOCK", &sx->lock_object, 0, sx->sx_recurse,
+		    file, line);
+		WITNESS_LOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
+		curthread->td_locks++;
+	}
+
+	return (error);
 }
 
 int
@@ -394,15 +404,16 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
  * that ideally this would be a static function, but it needs to be
  * accessible from at least sx.h.
  */
-void
-_sx_xlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
+int
+_sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
+    int line)
 {
 	GIANT_DECLARE;
 #ifdef ADAPTIVE_SX
 	volatile struct thread *owner;
 #endif
 	uintptr_t x;
-	int contested = 0;
+	int contested = 0, error = 0;
 	uint64_t waitstart = 0;
 
 	/* If we already hold an exclusive lock, then recurse. */
@@ -414,7 +425,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 		atomic_set_ptr(&sx->sx_lock, SX_LOCK_RECURSED);
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p recursing", __func__, sx);
-		return;
+		return (0);
 	}
 	lock_profile_obtain_lock_failed(&(sx)->lock_object,
 	    &contested, &waitstart);
@@ -528,17 +539,30 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 
 		GIANT_SAVE();
 		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
-		    SLEEPQ_SX, SQ_EXCLUSIVE_QUEUE);
-		sleepq_wait(&sx->lock_object);
+		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
+		    SLEEPQ_INTERRUPTIBLE : 0), SQ_EXCLUSIVE_QUEUE);
+		if (!(opts & SX_INTERRUPTIBLE))
+			sleepq_wait(&sx->lock_object);
+		else
+			error = sleepq_wait_sig(&sx->lock_object);
 
+		if (error) {
+			if (LOCK_LOG_TEST(&sx->lock_object, 0))
+				CTR2(KTR_LOCK,
+			"%s: interruptible sleep by %p suspended by signal",
+				    __func__, sx);
+			break;
+		}
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from sleep queue",
 			    __func__, sx);
 	}
 
 	GIANT_RESTORE();
-	lock_profile_obtain_lock_success(&(sx)->lock_object, contested,
-	    waitstart, file, line);
+	if (!error)
+		lock_profile_obtain_lock_success(&(sx)->lock_object, contested,
+		    waitstart, file, line);
+	return (error);
 }
 
 /*
@@ -598,8 +622,8 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
  * that ideally this would be a static function, but it needs to be
  * accessible from at least sx.h.
  */
-void
-_sx_slock_hard(struct sx *sx, const char *file, int line)
+int
+_sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 {
 	GIANT_DECLARE;
 #ifdef ADAPTIVE_SX
@@ -607,7 +631,7 @@ _sx_slock_hard(struct sx *sx, const char *file, int line)
 #endif
 	uintptr_t x;
 	uint64_t waitstart = 0;
-	int contested = 0;
+	int contested = 0, error = 0;
 	/*
 	 * As with rwlocks, we don't make any attempt to try to block
 	 * shared locks once there is an exclusive waiter.
@@ -729,15 +753,27 @@ _sx_slock_hard(struct sx *sx, const char *file, int line)
 		
 		GIANT_SAVE();
 		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
-		    SLEEPQ_SX, SQ_SHARED_QUEUE);
-		sleepq_wait(&sx->lock_object);
+		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
+		    SLEEPQ_INTERRUPTIBLE : 0), SQ_SHARED_QUEUE);
+		if (!(opts & SX_INTERRUPTIBLE))
+			sleepq_wait(&sx->lock_object);
+		else
+			error = sleepq_wait_sig(&sx->lock_object);
 
+		if (error) {
+			if (LOCK_LOG_TEST(&sx->lock_object, 0))
+				CTR2(KTR_LOCK,
+			"%s: interruptible sleep by %p suspended by signal",
+				    __func__, sx);
+			break;
+		}
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from sleep queue",
 			    __func__, sx);
 	}
 
 	GIANT_RESTORE();
+	return (error);
 }
 
 /*
