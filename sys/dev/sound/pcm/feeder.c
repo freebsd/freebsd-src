@@ -111,10 +111,12 @@ feeder_register(void *p)
 
 		/* initialize global variables */
 
-		if (snd_verbose < 0 || snd_verbose > 3)
+		if (snd_verbose < 0 || snd_verbose > 4)
 			snd_verbose = 1;
 
-		if (snd_unit < 0 || snd_unit > PCMMAXDEV)
+		/* initialize unit numbering */
+		snd_unit_init();
+		if (snd_unit < 0 || snd_unit > PCMMAXUNIT)
 			snd_unit = 0;
 		
 		if (snd_maxautovchans < 0 ||
@@ -344,7 +346,7 @@ chainok(struct pcm_feeder *test, struct pcm_feeder *stop)
 }
 
 /*
- * See feeder_fmtchain() for the mumbo-jumbo ridiculous explaination
+ * See feeder_fmtchain() for the mumbo-jumbo ridiculous explanation
  * of what the heck is this FMT_Q_*
  */
 #define FMT_Q_UP	1

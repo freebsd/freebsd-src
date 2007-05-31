@@ -95,6 +95,8 @@ struct snd_mixer;
 #include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
+#include <dev/sound/clone.h>
+#include <dev/sound/unit.h>
 
 #define	PCM_SOFTC_SIZE	512
 
@@ -108,32 +110,34 @@ struct snd_mixer;
 
 /*
  * We're abusing the fact that MAXMINOR still have enough room
- * for our bit twiddling and nobody ever need 2048 unique soundcards,
- * 32 unique device types and 256 unique cloneable devices for the
- * next 100 years... or until the NextPCM.
- *
- * MAXMINOR 0xffff00ff
- *             |    |
- *             |    +--- PCMMAXCHAN
- *             |
- *             +-------- ((PCMMAXUNIT << 5) | PCMMAXDEV) << 16
+ * for our bit twiddling and nobody ever need 512 unique soundcards,
+ * 32 unique device types and 1024 unique cloneable devices for the
+ * next 100 years...
  */
 
-#define PCMMAXCHAN		0xff
-#define PCMMAXDEV		0x1f
-#define PCMMAXUNIT		0x7ff
-#define PCMMINOR(x)		minor(x)
-#define PCMCHAN(x)		(PCMMINOR(x) & PCMMAXCHAN)
-#define PCMUNIT(x)		((PCMMINOR(x) >> 21) & PCMMAXUNIT)
-#define PCMDEV(x)		((PCMMINOR(x) >> 16) & PCMMAXDEV)
-#define PCMMKMINOR(u, d, c)	((((u) & PCMMAXUNIT) << 21) | 	\
-				(((d) & PCMMAXDEV) << 16) | ((c) & PCMMAXCHAN))
+#define PCMMAXUNIT		(snd_max_u())
+#define PCMMAXDEV		(snd_max_d())
+#define PCMMAXCHAN		(snd_max_c())
+
+#define PCMMAXCLONE		PCMMAXCHAN
+
+#define PCMUNIT(x)		(snd_unit2u(dev2unit(x)))
+#define PCMDEV(x)		(snd_unit2d(dev2unit(x)))
+#define PCMCHAN(x)		(snd_unit2c(dev2unit(x)))
+
+/*
+ * By design, limit possible channels for each direction.
+ */
+#define SND_MAXHWCHAN		256
+#define SND_MAXVCHANS		SND_MAXHWCHAN
 
 #define SD_F_SIMPLEX		0x00000001
 #define SD_F_AUTOVCHAN		0x00000002
 #define SD_F_SOFTPCMVOL		0x00000004
 #define SD_F_PSWAPLR		0x00000008
 #define SD_F_RSWAPLR		0x00000010
+#define SD_F_DYING		0x00000020
+#define SD_F_SUICIDE		0x00000040
 #define SD_F_PRIO_RD		0x10000000
 #define SD_F_PRIO_WR		0x20000000
 #define SD_F_PRIO_SET		(SD_F_PRIO_RD | SD_F_PRIO_WR)
@@ -433,9 +437,6 @@ typedef int32_t intpcm_t;
 struct pcm_channel *fkchan_setup(device_t dev);
 int fkchan_kill(struct pcm_channel *c);
 
-/* XXX Flawed definition. I'll fix it someday. */
-#define	SND_MAXVCHANS	PCMMAXCHAN
-
 /*
  * Minor numbers for the sound driver.
  *
@@ -457,7 +458,11 @@ int fkchan_kill(struct pcm_channel *c);
 #define SND_DEV_SNDPROC 9	/* /dev/sndproc for programmable devices */
 #define SND_DEV_PSS	SND_DEV_SNDPROC /* ? */
 #define SND_DEV_NORESET	10
-#define SND_DEV_DSPHW	11	/* specific channel request */
+
+#define SND_DEV_DSPHW_PLAY	11	/* specific playback channel */
+#define SND_DEV_DSPHW_VPLAY	12	/* specific virtual playback channel */
+#define SND_DEV_DSPHW_REC	13	/* specific record channel */
+#define SND_DEV_DSPHW_VREC	14	/* specific virtual record channel */
 
 #define DSP_DEFAULT_SPEED	8000
 
@@ -485,12 +490,12 @@ extern struct unrhdr *pcmsg_unrhdr;
 SYSCTL_DECL(_hw_snd);
 
 struct pcm_channel *pcm_getfakechan(struct snddev_info *d);
-int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction, pid_t pid, int chnum);
+int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction, pid_t pid, int devunit);
 int pcm_chnrelease(struct pcm_channel *c);
 int pcm_chnref(struct pcm_channel *c, int ref);
 int pcm_inprog(struct snddev_info *d, int delta);
 
-struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo);
+struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, int num, void *devinfo);
 int pcm_chn_destroy(struct pcm_channel *ch);
 int pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
 int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch);
@@ -517,8 +522,8 @@ void snd_mtxassert(void *m);
 int sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS);
 
 typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
-int sndstat_acquire(void);
-int sndstat_release(void);
+int sndstat_acquire(struct thread *td);
+int sndstat_release(struct thread *td);
 int sndstat_register(device_t dev, char *str, sndstat_handler handler);
 int sndstat_registerfile(char *str);
 int sndstat_unregister(device_t dev);
@@ -551,20 +556,18 @@ int sndstat_unregisterfile(char *str);
  * we also have to do this now makedev() has gone away.
  */
 
-struct snddev_channel {
-	SLIST_ENTRY(snddev_channel) link;
-	struct pcm_channel *channel;
-	int chan_num;
-	struct cdev *dsp_devt;
-	struct cdev *dspW_devt;
-	struct cdev *audio_devt;
-	struct cdev *dspHW_devt;
-};
-
 struct snddev_info {
-	SLIST_HEAD(, snddev_channel) channels;
+	struct {
+		struct {
+			SLIST_HEAD(, pcm_channel) head;
+			struct {
+				SLIST_HEAD(, pcm_channel) head;
+			} busy;
+		} pcm;
+	} channels;
+	struct snd_clone *clones;
 	struct pcm_channel *fakechan;
-	unsigned devcount, playcount, reccount, vchancount;
+	unsigned devcount, playcount, reccount, pvchancount, rvchancount ;
 	unsigned flags;
 	int inprog;
 	unsigned int bufsz;
@@ -573,7 +576,10 @@ struct snddev_info {
 	char status[SND_STATUSLEN];
 	struct mtx *lock;
 	struct cdev *mixer_dev;
-
+	uint32_t pvchanrate, pvchanformat;
+	uint32_t rvchanrate, rvchanformat;
+	struct sysctl_ctx_list play_sysctl_ctx, rec_sysctl_ctx;
+	struct sysctl_oid *play_sysctl_tree, *rec_sysctl_tree;
 };
 
 void	sound_oss_sysinfo(oss_sysinfo *);

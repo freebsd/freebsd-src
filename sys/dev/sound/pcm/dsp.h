@@ -31,6 +31,7 @@
 
 extern struct cdevsw dsp_cdevsw;
 
+char *dsp_unit2name(char *, size_t, int);
 int dsp_oss_audioinfo(struct cdev *, oss_audioinfo *);
 
 #endif /* !_PCMDSP_H_ */
