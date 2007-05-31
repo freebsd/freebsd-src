@@ -140,14 +140,14 @@ vm_pageq_init(void)
 	vm_coloring_init();
 
 	for (i = 0; i < PQ_NUMCOLORS; ++i) {
-		vm_page_queues[PQ_FREE+i].cnt = VMCNT_PTR(free_count);
+		vm_page_queues[PQ_FREE+i].cnt = &cnt.v_free_count;
 	}
 	for (i = 0; i < PQ_NUMCOLORS; ++i) {
-		vm_page_queues[PQ_CACHE + i].cnt = VMCNT_PTR(cache_count);
+		vm_page_queues[PQ_CACHE + i].cnt = &cnt.v_cache_count;
 	}
-	vm_page_queues[PQ_INACTIVE].cnt = VMCNT_PTR(inactive_count);
-	vm_page_queues[PQ_ACTIVE].cnt = VMCNT_PTR(active_count);
-	vm_page_queues[PQ_HOLD].cnt = VMCNT_PTR(active_count);
+	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
+	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
+	vm_page_queues[PQ_HOLD].cnt = &cnt.v_active_count;
 
 	for (i = 0; i < PQ_COUNT; i++) {
 		TAILQ_INIT(&vm_page_queues[i].pl);
@@ -192,7 +192,7 @@ vm_pageq_add_new_page(vm_paddr_t pa)
 {
 	vm_page_t m;
 
-	VMCNT_ADD(page_count, 1);
+	atomic_add_int(&cnt.v_page_count, 1);
 	m = PHYS_TO_VM_PAGE(pa);
 	m->phys_addr = pa;
 	m->flags = 0;

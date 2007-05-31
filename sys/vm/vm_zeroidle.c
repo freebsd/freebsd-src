@@ -90,10 +90,9 @@ vm_page_zero_check(void)
 	 * fast sleeps.  We also do not want to be continuously zeroing
 	 * pages because doing so may flush our L1 and L2 caches too much.
 	 */
-	if (zero_state && vm_page_zero_count >=
-	    ZIDLE_LO(VMCNT_GET(free_count)))
+	if (zero_state && vm_page_zero_count >= ZIDLE_LO(cnt.v_free_count))
 		return (0);
-	if (vm_page_zero_count >= ZIDLE_HI(VMCNT_GET(free_count)))
+	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
 		return (0);
 	return (1);
 }
@@ -116,7 +115,7 @@ vm_page_zero_idle(void)
 		vm_pageq_enqueue(PQ_FREE + m->pc, m);
 		++vm_page_zero_count;
 		++cnt_prezero;
-		if (vm_page_zero_count >= ZIDLE_HI(VMCNT_GET(free_count)))
+		if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
 			zero_state = 1;
 	}
 	free_rover = (free_rover + PQ_PRIME2) & PQ_COLORMASK;

@@ -271,7 +271,7 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
 static void
 bucket_enable(void)
 {
-	if (VMCNT_GET(free_count) < VMCNT_GET(free_min))
+	if (cnt.v_free_count < cnt.v_free_min)
 		bucketdisable = 1;
 	else
 		bucketdisable = 0;

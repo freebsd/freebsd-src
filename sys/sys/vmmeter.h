@@ -102,18 +102,7 @@ struct vmmeter {
 };
 #ifdef _KERNEL
 
-extern volatile struct vmmeter cnt;
-
-#define	VMCNT	__DEVOLATILE(struct vmmeter *, &cnt)
-#define	VMCNT_SET(member, val)						\
-	atomic_store_rel_int(__CONCAT(&cnt.v_, member), val)
-#define	VMCNT_ADD(member, val)						\
-	atomic_add_int(__CONCAT(&cnt.v_, member), val)
-#define	VMCNT_SUB(member, val)						\
-	atomic_subtract_int(__CONCAT(&cnt.v_, member), val)
-#define	VMCNT_GET(member)	(__CONCAT(cnt.v_, member))
-#define	VMCNT_PTR(member)						\
-	__DEVOLATILE(u_int *, __CONCAT(&cnt.v_, member))
+extern struct vmmeter cnt;
 
 /*
  * Return TRUE if we are under our reserved low-free-pages threshold
@@ -123,8 +112,7 @@ static __inline
 int
 vm_page_count_reserved(void)
 {
-    return (VMCNT_GET(free_reserved) > (VMCNT_GET(free_count) +
-        VMCNT_GET(cache_count)));
+    return (cnt.v_free_reserved > (cnt.v_free_count + cnt.v_cache_count));
 }
 
 /*
@@ -138,8 +126,7 @@ static __inline
 int
 vm_page_count_severe(void)
 {
-    return (VMCNT_GET(free_severe) > (VMCNT_GET(free_count) +
-        VMCNT_GET(cache_count)));
+    return (cnt.v_free_severe > (cnt.v_free_count + cnt.v_cache_count));
 }
 
 /*
@@ -156,8 +143,7 @@ static __inline
 int
 vm_page_count_min(void)
 {
-    return (VMCNT_GET(free_min) > (VMCNT_GET(free_count) +
-        VMCNT_GET(cache_count)));
+    return (cnt.v_free_min > (cnt.v_free_count + cnt.v_cache_count));
 }
 
 /*
@@ -169,8 +155,7 @@ static __inline
 int
 vm_page_count_target(void)
 {
-    return (VMCNT_GET(free_target) > (VMCNT_GET(free_count) +
-        VMCNT_GET(cache_count)));
+    return (cnt.v_free_target > (cnt.v_free_count + cnt.v_cache_count));
 }
 
 /*
@@ -183,8 +168,8 @@ int
 vm_paging_target(void)
 {
     return (
-	(VMCNT_GET(free_target) + VMCNT_GET(cache_min)) - 
-	(VMCNT_GET(free_count) + VMCNT_GET(cache_count))
+	(cnt.v_free_target + cnt.v_cache_min) -
+	(cnt.v_free_count + cnt.v_cache_count)
     );
 }
 
@@ -197,8 +182,8 @@ int
 vm_paging_needed(void)
 {
     return (
-	(VMCNT_GET(free_reserved) + VMCNT_GET(cache_min)) >
-	(VMCNT_GET(free_count) + VMCNT_GET(cache_count))
+	(cnt.v_free_reserved + cnt.v_cache_min) >
+	(cnt.v_free_count + cnt.v_cache_count)
     );
 }
 

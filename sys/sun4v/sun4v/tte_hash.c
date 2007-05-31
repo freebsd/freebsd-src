@@ -231,7 +231,7 @@ free_fragment_pages(void *ptr)
         for (fh = ptr; fh != NULL; fh = fh->thf_head.fh_next) {
                 m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)fh));
                 m->wire_count--;
-		VMCNT_SUB(wire_count, 1);
+		atomic_subtract_int(&cnt.v_wire_count, 1);
                 vm_page_free(m);
         }
 }

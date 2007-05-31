@@ -1271,8 +1271,7 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	 * try to do any readahead that we might have free pages for.
 	 */
 	if ((rahead + rbehind) >
-		((VMCNT_GET(free_count) + VMCNT_GET(cache_count)) -
-		VMCNT_GET(free_reserved))) {
+		((cnt.v_free_count + cnt.v_cache_count) - cnt.v_free_reserved)) {
 		pagedaemon_wakeup();
 		marray[0] = m;
 		*reqpage = 0;

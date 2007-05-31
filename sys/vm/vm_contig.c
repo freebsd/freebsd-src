@@ -204,7 +204,7 @@ again:
 		 * Find first page in array that is free, within range,
 		 * aligned, and such that the boundary won't be crossed.
 		 */
-		for (i = start; i < VMCNT_GET(page_count); i++) {
+		for (i = start; i < cnt.v_page_count; i++) {
 			phys = VM_PAGE_TO_PHYS(&pga[i]);
 			pqtype = pga[i].queue - pga[i].pc;
 			if (((pqtype == PQ_FREE) || (pqtype == PQ_CACHE)) &&
@@ -217,7 +217,7 @@ again:
 		/*
 		 * If the above failed or we will exceed the upper bound, fail.
 		 */
-		if ((i == VMCNT_GET(page_count)) ||
+		if ((i == cnt.v_page_count) ||
 			((VM_PAGE_TO_PHYS(&pga[i]) + size) > high)) {
 			mtx_unlock(&vm_page_queue_free_mtx);
 			/*

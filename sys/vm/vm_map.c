@@ -274,7 +274,7 @@ vmspace_alloc(min, max)
 void
 vm_init2(void)
 {
-	uma_zone_set_obj(kmapentzone, &kmapentobj, lmin(VMCNT_GET(page_count),
+	uma_zone_set_obj(kmapentzone, &kmapentobj, lmin(cnt.v_page_count,
 	    (VM_MAX_KERNEL_ADDRESS - KERNBASE) / PAGE_SIZE) / 8 +
 	     maxproc * 2 + maxfiles);
 	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
@@ -1489,7 +1489,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		 * free pages allocating pv entries.
 		 */
 		if ((flags & MAP_PREFAULT_MADVISE) &&
-		    VMCNT_GET(free_count) < VMCNT_GET(free_reserved)) {
+		    cnt.v_free_count < cnt.v_free_reserved) {
 			psize = tmpidx;
 			break;
 		}
