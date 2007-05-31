@@ -112,7 +112,7 @@ struct pccard_function {
 	bus_addr_t	pf_mfc_iobase;
 	bus_addr_t	pf_mfc_iomax;
 	int		pf_flags;
-	driver_filter_t	*filt_handler;
+	driver_filter_t	*intr_filter;
 	driver_intr_t	*intr_handler;
 	void		*intr_handler_arg;
 	void		*intr_handler_cookie;
