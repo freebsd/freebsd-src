@@ -29,6 +29,7 @@
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pcm/vchan.h>
 #include <dev/sound/pcm/dsp.h>
+#include <dev/sound/version.h>
 #include <sys/limits.h>
 #include <sys/sysctl.h>
 
@@ -45,13 +46,22 @@ int snd_unit = 0;
 TUNABLE_INT("hw.snd.default_unit", &snd_unit);
 #endif
 
-int snd_maxautovchans = 4;
+int snd_maxautovchans = 16;
 /* XXX: a tunable implies that we may need more than one sound channel before
    the system can change a sysctl (/etc/sysctl.conf), do we really need
    this? */
 TUNABLE_INT("hw.snd.maxautovchans", &snd_maxautovchans);
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
+
+/*
+ * XXX I've had enough with people not telling proper version/arch
+ *     while reporting problems, not after 387397913213th questions/requests.
+ */
+static const char snd_driver_version[] =
+    __XSTRING(SND_DRV_VERSION)"/"MACHINE_ARCH;
+SYSCTL_STRING(_hw_snd, OID_AUTO, version, CTLFLAG_RD, &snd_driver_version,
+    0, "Driver version/arch");
 
 /**
  * @brief Unit number allocator for syncgroup IDs
@@ -154,113 +164,128 @@ pcm_getfakechan(struct snddev_info *d)
 	return d->fakechan;
 }
 
-static int
-pcm_setvchans(struct snddev_info *d, int newcnt)
+static void
+pcm_clonereset(struct snddev_info *d)
 {
-	struct snddev_channel *sce = NULL;
-	struct pcm_channel *c = NULL;
-	int err = 0, vcnt, dcnt, i;
+	int cmax;
+
+	snd_mtxassert(d->lock);
+
+	cmax = d->playcount + d->reccount - 1;
+	if (d->pvchancount > 0)
+		cmax += MAX(d->pvchancount, snd_maxautovchans) - 1;
+	if (d->rvchancount > 0)
+		cmax += MAX(d->rvchancount, snd_maxautovchans) - 1;
+	if (cmax > PCMMAXCLONE)
+		cmax = PCMMAXCLONE;
+	(void)snd_clone_gc(d->clones);
+	(void)snd_clone_setmaxunit(d->clones, cmax);
+}
+
+static int
+pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num)
+{
+	struct pcm_channel *c, *ch, *nch;
+	int err, vcnt;
+
+	err = 0;
 
 	pcm_inprog(d, 1);
 		
-	if (d->playcount < 1) {
+	if ((direction == PCMDIR_PLAY && d->playcount < 1) ||
+	    (direction == PCMDIR_REC && d->reccount < 1)) {
 		err = ENODEV;
-		goto setvchans_out;
+		goto pcm_setvchans_out;
 	}
 
 	if (!(d->flags & SD_F_AUTOVCHAN)) {
 		err = EINVAL;
-		goto setvchans_out;
+		goto pcm_setvchans_out;
 	}
 
-	vcnt = d->vchancount;
-	dcnt = d->playcount + d->reccount;
-
-	if (newcnt < 0 || (dcnt + newcnt) > (PCMMAXCHAN + 1)) {
+	if (newcnt < 0 || newcnt > SND_MAXVCHANS) {
 		err = E2BIG;
-		goto setvchans_out;
+		goto pcm_setvchans_out;
 	}
 
-	dcnt += vcnt;
+	if (direction == PCMDIR_PLAY)
+		vcnt = d->pvchancount;
+	else if (direction == PCMDIR_REC)
+		vcnt = d->rvchancount;
+	else {
+		err = EINVAL;
+		goto pcm_setvchans_out;
+	}
 
 	if (newcnt > vcnt) {
+		KASSERT(num == -1 ||
+		    (num >= 0 && num < SND_MAXVCHANS && (newcnt - 1) == vcnt),
+		    ("bogus vchan_create() request num=%d newcnt=%d vcnt=%d",
+		    num, newcnt, vcnt));
 		/* add new vchans - find a parent channel first */
-		SLIST_FOREACH(sce, &d->channels, link) {
-			c = sce->channel;
+		CHN_FOREACH(c, d, channels.pcm) {
 			CHN_LOCK(c);
-			if (c->direction == PCMDIR_PLAY &&
-					((c->flags & CHN_F_HAS_VCHAN) ||
-					(vcnt == 0 &&
-					!(c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL)))))
-				goto addok;
+			if (c->direction == direction &&
+			    ((c->flags & CHN_F_HAS_VCHAN) || (vcnt == 0 &&
+			    !(c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL)))))
+				goto pcm_setvchans_addok;
 			CHN_UNLOCK(c);
 		}
 		err = EBUSY;
-		goto setvchans_out;
-addok:
+		goto pcm_setvchans_out;
+pcm_setvchans_addok:
 		c->flags |= CHN_F_BUSY;
 		while (err == 0 && newcnt > vcnt) {
-			if (dcnt > PCMMAXCHAN) {
-				device_printf(d->dev, "%s: Maximum channel reached.\n", __func__);
-				break;
-			}
-			err = vchan_create(c);
-			if (err == 0) {
+			err = vchan_create(c, num);
+			if (err == 0)
 				vcnt++;
-				dcnt++;
-			} else if (err == E2BIG && newcnt > vcnt)
-				device_printf(d->dev, "%s: err=%d Maximum channel reached.\n", __func__, err);
+			else if (err == E2BIG && newcnt > vcnt)
+				device_printf(d->dev,
+				    "%s: err=%d Maximum channel reached.\n",
+				    __func__, err);
 		}
 		if (vcnt == 0)
 			c->flags &= ~CHN_F_BUSY;
 		CHN_UNLOCK(c);
+		pcm_lock(d);
+		pcm_clonereset(d);
+		pcm_unlock(d);
 	} else if (newcnt < vcnt) {
-#define ORPHAN_CDEVT(cdevt) \
-	((cdevt) == NULL || ((cdevt)->si_drv1 == NULL && \
-	(cdevt)->si_drv2 == NULL))
-		while (err == 0 && newcnt < vcnt) {
-			i = 0;
-			SLIST_FOREACH(sce, &d->channels, link) {
-				c = sce->channel;
-				CHN_LOCK(c);
-				if (c->direction == PCMDIR_PLAY &&
-						(c->flags & CHN_F_VIRTUAL) &&
-						(i++ == newcnt)) {
-					if (!(c->flags & CHN_F_BUSY) &&
-							ORPHAN_CDEVT(sce->dsp_devt) &&
-							ORPHAN_CDEVT(sce->dspW_devt) &&
-							ORPHAN_CDEVT(sce->audio_devt) &&
-							ORPHAN_CDEVT(sce->dspHW_devt))
-						goto remok;
-					/*
-					 * Either we're busy, or our cdev
-					 * has been stolen by dsp_clone().
-					 * Skip, and increase newcnt.
-					 */
-					if (!(c->flags & CHN_F_BUSY))
-						device_printf(d->dev,
-							"%s: <%s> somebody steal my cdev!\n",
-							__func__, c->name);
-					newcnt++;
-				}
+		KASSERT(num == -1,
+		    ("bogus vchan_destroy() request num=%d", num));
+		CHN_FOREACH(c, d, channels.pcm) {
+			CHN_LOCK(c);
+			if (c->direction != direction ||
+			    CHN_EMPTY(c, children) ||
+			    !(c->flags & CHN_F_HAS_VCHAN)) {
 				CHN_UNLOCK(c);
+				continue;
 			}
-			if (vcnt != newcnt)
-				err = EBUSY;
-			break;
-remok:
+			CHN_FOREACH_SAFE(ch, c, nch, children) {
+				CHN_LOCK(ch);
+				if (!(ch->flags & CHN_F_BUSY)) {
+					CHN_UNLOCK(ch);
+					CHN_UNLOCK(c);
+					err = vchan_destroy(ch);
+					CHN_LOCK(c);
+					if (err == 0)
+						vcnt--;
+				} else
+					CHN_UNLOCK(ch);
+				if (vcnt == newcnt) {
+					err = 0;
+					break;
+				}
+			}
 			CHN_UNLOCK(c);
-			err = vchan_destroy(c);
-			if (err == 0)
-				vcnt--;
-			else
-				device_printf(d->dev,
-					"%s: WARNING: vchan_destroy() failed!",
-					__func__);
+			break;
 		}
+		pcm_lock(d);
+		pcm_clonereset(d);
+		pcm_unlock(d);
 	}
 
-setvchans_out:
+pcm_setvchans_out:
 	pcm_inprog(d, -1);
 	return err;
 }
@@ -268,27 +293,50 @@ setvchans_out:
 /* return error status and a locked channel */
 int
 pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
-		pid_t pid, int chnum)
+    pid_t pid, int devunit)
 {
 	struct pcm_channel *c;
-	struct snddev_channel *sce;
-	int err;
+	int err, vchancount;
+
+	KASSERT(d != NULL && ch != NULL && (devunit == -1 ||
+	    !(devunit & ~(SND_U_MASK | SND_D_MASK | SND_C_MASK))) &&
+	    (direction == PCMDIR_PLAY || direction == PCMDIR_REC),
+	    ("%s() invalid d=%p ch=%p direction=%d pid=%d devunit=%d",
+	    __func__, d, ch, direction, pid, devunit));
+
+	/* Double check again. */
+	if (devunit != -1) {
+		switch (snd_unit2d(devunit)) {
+		case SND_DEV_DSPHW_PLAY:
+		case SND_DEV_DSPHW_VPLAY:
+			if (direction != PCMDIR_PLAY)
+				return (EOPNOTSUPP);
+			break;
+		case SND_DEV_DSPHW_REC:
+		case SND_DEV_DSPHW_VREC:
+			if (direction != PCMDIR_REC)
+				return (EOPNOTSUPP);
+			break;
+		default:
+			if (!(direction == PCMDIR_PLAY ||
+			    direction == PCMDIR_REC))
+				return (EOPNOTSUPP);
+			break;
+		}
+	}
 
 retry_chnalloc:
 	err = ENODEV;
 	/* scan for a free channel */
-	SLIST_FOREACH(sce, &d->channels, link) {
-		c = sce->channel;
+	CHN_FOREACH(c, d, channels.pcm) {
 		CHN_LOCK(c);
-		if (c->direction == direction && !(c->flags & CHN_F_BUSY)) {
-			if (chnum < 0 || sce->chan_num == chnum) {
-				c->flags |= CHN_F_BUSY;
-				c->pid = pid;
-				*ch = c;
-				return 0;
-			}
-		}
-		if (sce->chan_num == chnum) {
+		if (c->direction == direction && !(c->flags & CHN_F_BUSY) &&
+		    (devunit == -1 || devunit == -2 || c->unit == devunit)) {
+			c->flags |= CHN_F_BUSY;
+			c->pid = pid;
+			*ch = c;
+			return (0);
+		} else if (c->unit == devunit) {
 			if (c->direction != direction)
 				err = EOPNOTSUPP;
 			else if (c->flags & CHN_F_BUSY)
@@ -296,24 +344,34 @@ retry_chnalloc:
 			else
 				err = EINVAL;
 			CHN_UNLOCK(c);
-			return err;
-		} else if (c->direction == direction && (c->flags & CHN_F_BUSY))
+			return (err);
+		} else if ((devunit == -1 || devunit == -2) &&
+		    c->direction == direction && (c->flags & CHN_F_BUSY))
 			err = EBUSY;
 		CHN_UNLOCK(c);
 	}
 
 	/* no channel available */
-	if (chnum == -1 && direction == PCMDIR_PLAY && d->vchancount > 0 &&
-			d->vchancount < snd_maxautovchans &&
-			d->devcount <= PCMMAXCHAN) {
-		err = pcm_setvchans(d, d->vchancount + 1);
+	if (devunit == -1 || (devunit != -2 &&
+	    (snd_unit2d(devunit) == SND_DEV_DSPHW_VPLAY ||
+	    snd_unit2d(devunit) == SND_DEV_DSPHW_VREC))) {
+		if (direction == PCMDIR_PLAY)
+			vchancount = d->pvchancount;
+		else
+			vchancount = d->rvchancount;
+		if (!(vchancount > 0 && vchancount < snd_maxautovchans) &&
+		    (devunit == -1 || snd_unit2c(devunit) < snd_maxautovchans))
+			return (err);
+		err = pcm_setvchans(d, direction, vchancount + 1,
+		    (devunit == -1) ? -1 : snd_unit2c(devunit));
 		if (err == 0) {
-			chnum = -2;
+			if (devunit == -1)
+				devunit = -2;
 			goto retry_chnalloc;
 		}
 	}
 
-	return err;
+	return (err);
 }
 
 /* release a locked channel and unlock it */
@@ -357,10 +415,22 @@ pcm_inprog(struct snddev_info *d, int delta)
 static void
 pcm_setmaxautovchans(struct snddev_info *d, int num)
 {
-	if (num > 0 && d->vchancount == 0)
-		pcm_setvchans(d, 1);
-	else if (num == 0 && d->vchancount > 0)
-		pcm_setvchans(d, 0);
+	if (num < 0)
+		return;
+
+	if (num >= 0 && d->pvchancount > num)
+		(void)pcm_setvchans(d, PCMDIR_PLAY, num, -1);
+	else if (num > 0 && d->pvchancount == 0)
+		(void)pcm_setvchans(d, PCMDIR_PLAY, 1, -1);
+
+	if (num >= 0 && d->rvchancount > num)
+		(void)pcm_setvchans(d, PCMDIR_REC, num, -1);
+	else if (num > 0 && d->rvchancount == 0)
+		(void)pcm_setvchans(d, PCMDIR_REC, 1, -1);
+
+	pcm_lock(d);
+	pcm_clonereset(d);
+	pcm_unlock(d);
 }
 
 #ifdef USING_DEVFS
@@ -373,10 +443,8 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 	unit = snd_unit;
 	error = sysctl_handle_int(oidp, &unit, sizeof(unit), req);
 	if (error == 0 && req->newptr != NULL) {
-		if (unit < 0 || unit >= devclass_get_maxunit(pcm_devclass))
-			return EINVAL;
 		d = devclass_get_softc(pcm_devclass, unit);
-		if (d == NULL || SLIST_EMPTY(&d->channels))
+		if (d == NULL || CHN_EMPTY(d, channels.pcm))
 			return EINVAL;
 		snd_unit = unit;
 	}
@@ -396,17 +464,17 @@ sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
 	v = snd_maxautovchans;
 	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
 	if (error == 0 && req->newptr != NULL) {
-		if (v < 0 || v > PCMMAXCHAN)
-			return E2BIG;
-		if (pcm_devclass != NULL && v != snd_maxautovchans) {
-			for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
-				d = devclass_get_softc(pcm_devclass, i);
-				if (!d)
-					continue;
-				pcm_setmaxautovchans(d, v);
-			}
-		}
+		if (v < 0)
+			v = 0;
+		if (v > SND_MAXVCHANS)
+			v = SND_MAXVCHANS;
 		snd_maxautovchans = v;
+		for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+			d = devclass_get_softc(pcm_devclass, i);
+			if (d == NULL)
+				continue;
+			pcm_setmaxautovchans(d, v);
+		}
 	}
 	return (error);
 }
@@ -414,99 +482,122 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans, CTLTYPE_INT | CTLFLAG_RW,
             0, sizeof(int), sysctl_hw_snd_maxautovchans, "I", "maximum virtual channel");
 
 struct pcm_channel *
-pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo)
+pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, int num, void *devinfo)
 {
-	struct snddev_channel *sce;
-	struct pcm_channel *ch, *c;
-	char *dirs;
-	uint32_t flsearch = 0;
-	int direction, err, rpnum, *pnum;
+	struct pcm_channel *ch;
+	int direction, err, rpnum, *pnum, max;
+	int udc, device, chan;
+	char *dirs, *devname, buf[CHN_NAMELEN];
+
+	KASSERT(num >= -1, ("invalid num=%d", num));
+
+	pcm_lock(d);
 
 	switch(dir) {
 	case PCMDIR_PLAY:
 		dirs = "play";
 		direction = PCMDIR_PLAY;
 		pnum = &d->playcount;
+		device = SND_DEV_DSPHW_PLAY;
+		max = SND_MAXHWCHAN;
 		break;
-
+	case PCMDIR_PLAY_VIRTUAL:
+		dirs = "virtual";
+		direction = PCMDIR_PLAY;
+		pnum = &d->pvchancount;
+		device = SND_DEV_DSPHW_VPLAY;
+		max = SND_MAXVCHANS;
+		break;
 	case PCMDIR_REC:
 		dirs = "record";
 		direction = PCMDIR_REC;
 		pnum = &d->reccount;
+		device = SND_DEV_DSPHW_REC;
+		max = SND_MAXHWCHAN;
 		break;
-
-	case PCMDIR_VIRTUAL:
+	case PCMDIR_REC_VIRTUAL:
 		dirs = "virtual";
-		direction = PCMDIR_PLAY;
-		pnum = &d->vchancount;
-		flsearch = CHN_F_VIRTUAL;
+		direction = PCMDIR_REC;
+		pnum = &d->rvchancount;
+		device = SND_DEV_DSPHW_VREC;
+		max = SND_MAXVCHANS;
 		break;
-
 	default:
+		pcm_unlock(d);
 		return NULL;
 	}
 
-	ch = malloc(sizeof(*ch), M_DEVBUF, M_WAITOK | M_ZERO);
-	ch->methods = kobj_create(cls, M_DEVBUF, M_WAITOK);
+	chan = (num == -1) ? 0 : num;
 
-	snd_mtxlock(d->lock);
-	ch->num = 0;
+	if (*pnum >= max || chan >= max) {
+		pcm_unlock(d);
+		return NULL;
+	}
+
 	rpnum = 0;
-	SLIST_FOREACH(sce, &d->channels, link) {
-		c = sce->channel;
-		if (direction != c->direction ||
-				(c->flags & CHN_F_VIRTUAL) != flsearch)
+
+	CHN_FOREACH(ch, d, channels.pcm) {
+		if (CHN_DEV(ch) != device)
 			continue;
-		if (ch->num == c->num)
-			ch->num++;
-		else {
-#if 0
-			device_printf(d->dev,
-				"%s: %s channel numbering screwed (Expect: %d, Got: %d)\n",
-				__func__, dirs, ch->num, c->num);
-#endif
-			goto retry_num_search;
+		if (chan == CHN_CHAN(ch)) {
+			if (num != -1) {
+				device_printf(d->dev,
+				    "channel num=%d allocated!\n", chan);
+				pcm_unlock(d);
+				return NULL;
+			}
+			chan++;
+			if (chan >= max) {
+				device_printf(d->dev,
+				    "chan=%d > %d\n", chan, max);
+				pcm_unlock(d);
+				return NULL;
+			}
 		}
 		rpnum++;
 	}
-	goto retry_num_search_out;
-retry_num_search:
-	rpnum = 0;
-	SLIST_FOREACH(sce, &d->channels, link) {
-		c = sce->channel;
-		if (direction != c->direction ||
-				(c->flags & CHN_F_VIRTUAL) != flsearch)
-			continue;
-		if (ch->num == c->num) {
-			ch->num++;
-			goto retry_num_search;
-		}
-		rpnum++;
-	}
-retry_num_search_out:
+
 	if (*pnum != rpnum) {
 		device_printf(d->dev,
-			"%s: WARNING: pnum screwed : dirs=%s, pnum=%d, rpnum=%d\n",
-			__func__, dirs, *pnum, rpnum);
-		*pnum = rpnum;
+		    "%s(): WARNING: pnum screwed : dirs=%s pnum=%d rpnum=%d\n",
+		    __func__, dirs, *pnum, rpnum);
+		pcm_unlock(d);
+		return NULL;
 	}
-	(*pnum)++;
-	snd_mtxunlock(d->lock);
 
+	udc = snd_mkunit(device_get_unit(d->dev), device, chan);
+	devname = dsp_unit2name(buf, sizeof(buf), udc);
+
+	if (devname == NULL) {
+		device_printf(d->dev,
+		    "Failed to query device name udc=0x%08x\n", udc);
+		pcm_unlock(d);
+		return NULL;
+	}
+
+	(*pnum)++;
+	pcm_unlock(d);
+
+	ch = malloc(sizeof(*ch), M_DEVBUF, M_WAITOK | M_ZERO);
+	ch->methods = kobj_create(cls, M_DEVBUF, M_WAITOK | M_ZERO);
+	ch->unit = udc;
 	ch->pid = -1;
 	ch->parentsnddev = d;
 	ch->parentchannel = parent;
 	ch->dev = d->dev;
-	snprintf(ch->name, CHN_NAMELEN, "%s:%s:%d", device_get_nameunit(ch->dev), dirs, ch->num);
+	ch->trigger = PCMTRIG_STOP;
+	snprintf(ch->name, sizeof(ch->name), "%s:%s:%s",
+	    device_get_nameunit(ch->dev), dirs, devname);
 
 	err = chn_init(ch, devinfo, dir, direction);
 	if (err) {
-		device_printf(d->dev, "chn_init(%s) failed: err = %d\n", ch->name, err);
+		device_printf(d->dev, "chn_init(%s) failed: err = %d\n",
+		    ch->name, err);
 		kobj_delete(ch->methods, M_DEVBUF);
 		free(ch, M_DEVBUF);
-		snd_mtxlock(d->lock);
+		pcm_lock(d);
 		(*pnum)--;
-		snd_mtxunlock(d->lock);
+		pcm_unlock(d);
 
 		return NULL;
 	}
@@ -536,139 +627,50 @@ pcm_chn_destroy(struct pcm_channel *ch)
 int
 pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 {
-	struct snddev_channel *sce, *tmp, *after;
-	unsigned rdevcount;
-	int device = device_get_unit(d->dev);
-	size_t namelen;
-	char dtype;
+	struct pcm_channel *tmp, *after;
+	int num;
+
+	pcm_lock(d);
+
+	KASSERT(ch != NULL && (ch->direction == PCMDIR_PLAY ||
+	    ch->direction == PCMDIR_REC), ("Invalid pcm channel"));
+
+	after = NULL;
+	tmp = NULL;
+	num = 0;
 
 	/*
-	 * Note it's confusing nomenclature.
-	 * dev_t
-	 * device -> pcm_device
-	 * unit -> pcm_channel
-	 * channel -> snddev_channel
-	 * device_t
-	 * unit -> pcm_device
+	 * Look for possible device collision.
 	 */
-
-	sce = malloc(sizeof(*sce), M_DEVBUF, M_WAITOK | M_ZERO);
-
-	snd_mtxlock(d->lock);
-	sce->channel = ch;
-	sce->chan_num = 0;
-	rdevcount = 0;
-	after = NULL;
-	SLIST_FOREACH(tmp, &d->channels, link) {
-		if (sce->chan_num == tmp->chan_num)
-			sce->chan_num++;
-		else {
-#if 0
-			device_printf(d->dev,
-				"%s: cdev numbering screwed (Expect: %d, Got: %d)\n",
-				__func__, sce->chan_num, tmp->chan_num);
-#endif
-			goto retry_chan_num_search;
+	CHN_FOREACH(tmp, d, channels.pcm) {
+		if (tmp->unit == ch->unit) {
+			device_printf(d->dev, "%s(): Device collision "
+			    "old=%p new=%p devunit=0x%08x\n",
+			    __func__, tmp, ch, ch->unit);
+			pcm_unlock(d);
+			return ENODEV;
 		}
-		after = tmp;
-		rdevcount++;
-	}
-	goto retry_chan_num_search_out;
-retry_chan_num_search:
-	/*
-	 * Look for possible channel numbering collision. This may not
-	 * be optimized, but it will ensure that no collision occured.
-	 * Can be considered cheap since none of the locking/unlocking
-	 * operations involved.
-	 */
-	rdevcount = 0;
-	after = NULL;
-	SLIST_FOREACH(tmp, &d->channels, link) {
-		if (sce->chan_num == tmp->chan_num) {
-			sce->chan_num++;
-			goto retry_chan_num_search;
-		}
-		if (sce->chan_num > tmp->chan_num)
+		if (CHN_DEV(tmp) < CHN_DEV(ch)) {
+			if (num == 0)
+				after = tmp;
+			continue;
+		} else if (CHN_DEV(tmp) > CHN_DEV(ch))
+			break;
+		num++;
+		if (CHN_CHAN(tmp) < CHN_CHAN(ch))
 			after = tmp;
-		rdevcount++;
+		else if (CHN_CHAN(tmp) > CHN_CHAN(ch))
+			break;
 	}
-retry_chan_num_search_out:
-	/*
-	 * Don't overflow PCMMKMINOR / PCMMAXCHAN.
-	 */
-	if (sce->chan_num > PCMMAXCHAN) {
-		snd_mtxunlock(d->lock);
-		device_printf(d->dev,
-			"%s: WARNING: sce->chan_num overflow! (%d)\n",
-			__func__, sce->chan_num);
-		free(sce, M_DEVBUF);
-		return E2BIG;
-	}
-	if (d->devcount != rdevcount) {
-		device_printf(d->dev,
-			"%s: WARNING: devcount screwed! d->devcount=%u, rdevcount=%u\n",
-			__func__, d->devcount, rdevcount);
-		d->devcount = rdevcount;
-	}
-	d->devcount++;
-	if (after == NULL) {
-		SLIST_INSERT_HEAD(&d->channels, sce, link);
+
+	if (after != NULL) {
+		CHN_INSERT_AFTER(after, ch, channels.pcm);
 	} else {
-		SLIST_INSERT_AFTER(after, sce, link);
+		CHN_INSERT_HEAD(d, ch, channels.pcm);
 	}
-#if 0
-	if (1) {
-		int cnum = 0;
-		SLIST_FOREACH(tmp, &d->channels, link) {
-			if (cnum != tmp->chan_num)
-				device_printf(d->dev,
-					"%s: WARNING: inconsistent cdev numbering! (Expect: %d, Got: %d)\n",
-					__func__, cnum, tmp->chan_num);
-			cnum++;
-		}
-	}
-#endif
 
-	if (ch->flags & CHN_F_VIRTUAL)
-		dtype = 'v';
-	else if (ch->direction == PCMDIR_PLAY)
-		dtype = 'p';
-	else if (ch->direction == PCMDIR_REC)
-		dtype = 'r';
-	else
-		dtype = 'u';	/* we're screwed */
-
-	namelen = strlen(ch->name);
-	if ((CHN_NAMELEN - namelen) > 11) {	/* ":dspXX.TYYY" */
-		snprintf(ch->name + namelen,
-			CHN_NAMELEN - namelen, ":dsp%d.%c%d",
-			device, dtype, ch->num);
-	}
-	snd_mtxunlock(d->lock);
-
-	/*
-	 * I will revisit these someday, and nuke it mercilessly..
-	 */
-	sce->dsp_devt = make_dev(&dsp_cdevsw,
-			PCMMKMINOR(device, SND_DEV_DSP, sce->chan_num),
-			UID_ROOT, GID_WHEEL, 0666, "dsp%d.%d",
-			device, sce->chan_num);
-
-	sce->dspW_devt = make_dev(&dsp_cdevsw,
-			PCMMKMINOR(device, SND_DEV_DSP16, sce->chan_num),
-			UID_ROOT, GID_WHEEL, 0666, "dspW%d.%d",
-			device, sce->chan_num);
-
-	sce->audio_devt = make_dev(&dsp_cdevsw,
-			PCMMKMINOR(device, SND_DEV_AUDIO, sce->chan_num),
-			UID_ROOT, GID_WHEEL, 0666, "audio%d.%d",
-			device, sce->chan_num);
-
-	/* Except this. */
-	sce->dspHW_devt = make_dev(&dsp_cdevsw,
-			PCMMKMINOR(device, SND_DEV_DSPHW, sce->chan_num),
-			UID_ROOT, GID_WHEEL, 0666, "dsp%d.%c%d",
-			device, dtype, ch->num);
+	d->devcount++;
+	pcm_unlock(d);
 
 	return 0;
 }
@@ -676,41 +678,35 @@ retry_chan_num_search_out:
 int
 pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch)
 {
-	struct snddev_channel *sce;
-#if 0
-	int ourlock;
+	struct pcm_channel *tmp;
 
-	ourlock = 0;
-	if (!mtx_owned(d->lock)) {
-		snd_mtxlock(d->lock);
-		ourlock = 1;
+	tmp = NULL;
+
+	CHN_FOREACH(tmp, d, channels.pcm) {
+		if (tmp == ch)
+			break;
 	}
-#endif
 
-	SLIST_FOREACH(sce, &d->channels, link) {
-		if (sce->channel == ch)
-			goto gotit;
-	}
-#if 0
-	if (ourlock)
-		snd_mtxunlock(d->lock);
-#endif
-	return EINVAL;
-gotit:
-	SLIST_REMOVE(&d->channels, sce, snddev_channel, link);
+	if (tmp != ch)
+		return EINVAL;
 
-	if (ch->flags & CHN_F_VIRTUAL)
-		d->vchancount--;
-	else if (ch->direction == PCMDIR_REC)
-		d->reccount--;
-	else
+	CHN_REMOVE(d, ch, channels.pcm);
+	switch (CHN_DEV(ch)) {
+	case SND_DEV_DSPHW_PLAY:
 		d->playcount--;
-
-#if 0
-	if (ourlock)
-		snd_mtxunlock(d->lock);
-#endif
-	free(sce, M_DEVBUF);
+		break;
+	case SND_DEV_DSPHW_VPLAY:
+		d->pvchancount--;
+		break;
+	case SND_DEV_DSPHW_REC:
+		d->reccount--;
+		break;
+	case SND_DEV_DSPHW_VREC:
+		d->rvchancount--;
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
@@ -722,7 +718,7 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	struct pcm_channel *ch;
 	int err;
 
-	ch = pcm_chn_create(d, NULL, cls, dir, devinfo);
+	ch = pcm_chn_create(d, NULL, cls, dir, -1, devinfo);
 	if (!ch) {
 		device_printf(d->dev, "pcm_chn_create(%s, %d, %p) failed\n", cls->name, dir, devinfo);
 		return ENODEV;
@@ -742,14 +738,12 @@ static int
 pcm_killchan(device_t dev)
 {
 	struct snddev_info *d = device_get_softc(dev);
-	struct snddev_channel *sce;
 	struct pcm_channel *ch;
 	int error = 0;
 
-	sce = SLIST_FIRST(&d->channels);
-	ch = sce->channel;
+	ch = CHN_FIRST(d, channels.pcm);
 
-	error = pcm_chn_remove(d, sce->channel);
+	error = pcm_chn_remove(d, ch);
 	if (error)
 		return (error);
 	return (pcm_chn_destroy(ch));
@@ -760,11 +754,19 @@ pcm_setstatus(device_t dev, char *str)
 {
 	struct snddev_info *d = device_get_softc(dev);
 
-	snd_mtxlock(d->lock);
+	pcm_setmaxautovchans(d, snd_maxautovchans);
+
+	pcm_lock(d);
+
 	strlcpy(d->status, str, SND_STATUSLEN);
-	snd_mtxunlock(d->lock);
-	if (snd_maxautovchans > 0)
-		pcm_setvchans(d, 1);
+
+	/* Last stage, enable cloning. */
+	if (d->clones != NULL) {
+		(void)snd_clone_enable(d->clones);
+	}
+
+	pcm_unlock(d);
+
 	return 0;
 }
 
@@ -822,10 +824,117 @@ pcm_getbuffersize(device_t dev, unsigned int minbufsz, unsigned int deflt, unsig
 	return sz;
 }
 
+#if defined(SND_DYNSYSCTL) && defined(SND_DEBUG)
+static int
+sysctl_dev_pcm_clone_flags(SYSCTL_HANDLER_ARGS)
+{
+	struct snddev_info *d;
+	uint32_t flags;
+	int err;
+
+	d = oidp->oid_arg1;
+	if (d == NULL || d->clones == NULL)
+		return (ENODEV);
+
+	pcm_lock(d);
+	flags = snd_clone_getflags(d->clones);
+	pcm_unlock(d);
+	err = sysctl_handle_int(oidp, (int *)(&flags), sizeof(flags), req);
+
+	if (err == 0 && req->newptr != NULL) {
+		if ((flags & ~SND_CLONE_MASK))
+			err = EINVAL;
+		else {
+			pcm_lock(d);
+			(void)snd_clone_setflags(d->clones, flags);
+			pcm_unlock(d);
+		}
+	}
+
+	return (err);
+}
+
+static int
+sysctl_dev_pcm_clone_deadline(SYSCTL_HANDLER_ARGS)
+{
+	struct snddev_info *d;
+	int err, deadline;
+
+	d = oidp->oid_arg1;
+	if (d == NULL || d->clones == NULL)
+		return (ENODEV);
+
+	pcm_lock(d);
+	deadline = snd_clone_getdeadline(d->clones);
+	pcm_unlock(d);
+	err = sysctl_handle_int(oidp, &deadline, sizeof(deadline), req);
+
+	if (err == 0 && req->newptr != NULL) {
+		if (deadline < 0)
+			err = EINVAL;
+		else {
+			pcm_lock(d);
+			(void)snd_clone_setdeadline(d->clones, deadline);
+			pcm_unlock(d);
+		}
+	}
+
+	return (err);
+}
+
+static int
+sysctl_dev_pcm_clone_gc(SYSCTL_HANDLER_ARGS)
+{
+	struct snddev_info *d;
+	int err, val;
+
+	d = oidp->oid_arg1;
+	if (d == NULL || d->clones == NULL)
+		return (ENODEV);
+
+	val = 0;
+	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+
+	if (err == 0 && req->newptr != NULL && val != 0) {
+		pcm_lock(d);
+		(void)snd_clone_gc(d->clones);
+		pcm_unlock(d);
+	}
+
+	return (err);
+}
+
+static int
+sysctl_hw_snd_clone_gc(SYSCTL_HANDLER_ARGS)
+{
+	struct snddev_info *d;
+	int i, err, val;
+
+	val = 0;
+	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+
+	if (err == 0 && req->newptr != NULL && val != 0) {
+		for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+			d = devclass_get_softc(pcm_devclass, i);
+			if (d == NULL || d->clones == NULL)
+				continue;
+			pcm_lock(d);
+			(void)snd_clone_gc(d->clones);
+			pcm_unlock(d);
+		}
+	}
+
+	return (err);
+}
+SYSCTL_PROC(_hw_snd, OID_AUTO, clone_gc, CTLTYPE_INT | CTLFLAG_RW,
+    0, sizeof(int), sysctl_hw_snd_clone_gc, "I",
+    "global clone garbage collector");
+#endif
+
 int
 pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 {
-	struct snddev_info *d = device_get_softc(dev);
+	struct snddev_info *d;
 
 	if (pcm_veto_load) {
 		device_printf(dev, "disabled due to an error while initialising: %d\n", pcm_veto_load);
@@ -833,6 +942,15 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 		return EINVAL;
 	}
 
+	if (device_get_unit(dev) > PCMMAXUNIT) {
+		device_printf(dev, "PCMMAXUNIT reached : unit=%d > %d\n",
+		    device_get_unit(dev), PCMMAXUNIT);
+		device_printf(dev,
+		    "Use 'hw.snd.maxunit' tunable to raise the limit.\n");
+		return ENODEV;
+	}
+
+	d = device_get_softc(dev);
 	d->lock = snd_mtxcreate(device_get_nameunit(dev), "sound cdev");
 
 #if 0
@@ -848,10 +966,38 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->devcount = 0;
 	d->reccount = 0;
 	d->playcount = 0;
-	d->vchancount = 0;
+	d->pvchancount = 0;
+	d->rvchancount = 0;
+	d->pvchanrate = 0;
+	d->pvchanformat = 0;
+	d->rvchanrate = 0;
+	d->rvchanformat = 0;
 	d->inprog = 0;
 
-	SLIST_INIT(&d->channels);
+	/*
+	 * Create clone manager, disabled by default. Cloning will be
+	 * enabled during final stage of driver iniialization through
+	 * pcm_setstatus().
+	 */
+	d->clones = snd_clone_create(
+#ifdef SND_DIAGNOSTIC
+	    d->lock,
+#endif
+	    SND_U_MASK | SND_D_MASK, PCMMAXCLONE, SND_CLONE_DEADLINE_DEFAULT,
+	    SND_CLONE_GC_ENABLE | SND_CLONE_GC_UNREF |
+	    SND_CLONE_GC_LASTREF | SND_CLONE_GC_EXPIRED);
+
+	if (bootverbose != 0 || snd_verbose > 3) {
+		pcm_lock(d);
+		device_printf(dev,
+		    "clone manager: deadline=%dms flags=0x%08x\n",
+		    snd_clone_getdeadline(d->clones),
+		    snd_clone_getflags(d->clones));
+		pcm_unlock(d);
+	}
+
+	CHN_INIT(d, channels.pcm);
+	CHN_INIT(d, channels.pcm.busy);
 
 	if ((numplay == 0 || numrec == 0) && numplay != numrec)
 		d->flags |= SD_F_SIMPLEX;
@@ -860,13 +1006,38 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	chn_init(d->fakechan, NULL, 0, 0);
 
 #ifdef SND_DYNSYSCTL
+	sysctl_ctx_init(&d->play_sysctl_ctx);
+	d->play_sysctl_tree = SYSCTL_ADD_NODE(&d->play_sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "play",
+	    CTLFLAG_RD, 0, "playback channels node");
+	sysctl_ctx_init(&d->rec_sysctl_ctx);
+	d->rec_sysctl_tree = SYSCTL_ADD_NODE(&d->rec_sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "rec",
+	    CTLFLAG_RD, 0, "record channels node");
 	/* XXX: an user should be able to set this with a control tool, the
 	   sysadmin then needs min+max sysctls for this */
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
             OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "allocated buffer size");
+#ifdef SND_DEBUG
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_flags", CTLTYPE_UINT | CTLFLAG_RW, d, sizeof(d),
+	    sysctl_dev_pcm_clone_flags, "IU",
+	    "clone flags");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_deadline", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
+	    sysctl_dev_pcm_clone_deadline, "I",
+	    "clone expiration deadline (ms)");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_gc", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
+	    sysctl_dev_pcm_clone_gc, "I",
+	    "clone garbage collector");
 #endif
-	if (numplay > 0) {
+#endif
+	if (numplay > 0 || numrec > 0) {
 		d->flags |= SD_F_AUTOVCHAN;
 		vchan_initsys(dev);
 	}
@@ -879,107 +1050,95 @@ int
 pcm_unregister(device_t dev)
 {
 	struct snddev_info *d = device_get_softc(dev);
-	struct snddev_channel *sce;
-	struct pcmchan_children *pce;
 	struct pcm_channel *ch;
+	struct thread *td;
+	int i;
 
-	if (sndstat_acquire() != 0) {
+	td = curthread;
+
+	if (sndstat_acquire(td) != 0) {
 		device_printf(dev, "unregister: sndstat busy\n");
 		return EBUSY;
 	}
 
-	snd_mtxlock(d->lock);
+	pcm_lock(d);
 	if (d->inprog) {
 		device_printf(dev, "unregister: operation in progress\n");
-		snd_mtxunlock(d->lock);
-		sndstat_release();
+		pcm_unlock(d);
+		sndstat_release(td);
 		return EBUSY;
 	}
 
-	SLIST_FOREACH(sce, &d->channels, link) {
-		ch = sce->channel;
+	CHN_FOREACH(ch, d, channels.pcm) {
 		if (ch->refcount > 0) {
 			device_printf(dev, "unregister: channel %s busy (pid %d)\n", ch->name, ch->pid);
-			snd_mtxunlock(d->lock);
-			sndstat_release();
+			pcm_unlock(d);
+			sndstat_release(td);
 			return EBUSY;
 		}
 	}
 
+	if (d->clones != NULL) {
+		if (snd_clone_busy(d->clones) != 0) {
+			device_printf(dev, "unregister: clone busy\n");
+			pcm_unlock(d);
+			sndstat_release(td);
+			return EBUSY;
+		} else
+			(void)snd_clone_disable(d->clones);
+	}
+
 	if (mixer_uninit(dev) == EBUSY) {
 		device_printf(dev, "unregister: mixer busy\n");
-		snd_mtxunlock(d->lock);
-		sndstat_release();
+		if (d->clones != NULL)
+			(void)snd_clone_enable(d->clones);
+		pcm_unlock(d);
+		sndstat_release(td);
 		return EBUSY;
 	}
 
-	SLIST_FOREACH(sce, &d->channels, link) {
-		if (sce->dsp_devt) {
-			destroy_dev(sce->dsp_devt);
-			sce->dsp_devt = NULL;
-		}
-		if (sce->dspW_devt) {
-			destroy_dev(sce->dspW_devt);
-			sce->dspW_devt = NULL;
-		}
-		if (sce->audio_devt) {
-			destroy_dev(sce->audio_devt);
-			sce->audio_devt = NULL;
-		}
-		if (sce->dspHW_devt) {
-			destroy_dev(sce->dspHW_devt);
-			sce->dspHW_devt = NULL;
-		}
-		d->devcount--;
-		ch = sce->channel;
-		if (ch == NULL)
-			continue;
-		pce = SLIST_FIRST(&ch->children);
-		while (pce != NULL) {
-#if 0
-			device_printf(d->dev, "<%s> removing <%s>\n",
-				ch->name, (pce->channel != NULL) ?
-					pce->channel->name : "unknown");
-#endif
-			SLIST_REMOVE(&ch->children, pce, pcmchan_children, link);
-			free(pce, M_DEVBUF);
-			pce = SLIST_FIRST(&ch->children);
-		}
+	if (d->clones != NULL) {
+		snd_clone_destroy(d->clones);
+		d->clones = NULL;
 	}
+
+	d->devcount = 0;
 
 #ifdef SND_DYNSYSCTL
-#if 0
-	d->sysctl_tree_top = NULL;
-	sysctl_ctx_free(&d->sysctl_tree);
-#endif
-#endif
-
-#if 0
-	SLIST_FOREACH(sce, &d->channels, link) {
-		ch = sce->channel;
-		if (ch == NULL)
-			continue;
-		if (!SLIST_EMPTY(&ch->children))
-			device_printf(d->dev, "%s: WARNING: <%s> dangling child!\n",
-				__func__, ch->name);
+	if (d->play_sysctl_tree != NULL) {
+		sysctl_ctx_free(&d->play_sysctl_ctx);
+		d->play_sysctl_tree = NULL;
+	}
+	if (d->rec_sysctl_tree != NULL) {
+		sysctl_ctx_free(&d->rec_sysctl_ctx);
+		d->rec_sysctl_tree = NULL;
 	}
 #endif
-	while (!SLIST_EMPTY(&d->channels))
+
+	while (!CHN_EMPTY(d, channels.pcm))
 		pcm_killchan(dev);
 
 	chn_kill(d->fakechan);
 	fkchan_kill(d->fakechan);
 
-#if 0
-	device_printf(d->dev, "%s: devcount=%u, playcount=%u, "
-		"reccount=%u, vchancount=%u\n",
-		__func__, d->devcount, d->playcount, d->reccount,
-		d->vchancount);
-#endif
-	snd_mtxunlock(d->lock);
+	pcm_unlock(d);
 	snd_mtxfree(d->lock);
 	sndstat_unregister(dev);
-	sndstat_release();
+	sndstat_release(td);
+
+	if (snd_unit == device_get_unit(dev)) {
+		/*
+		 * Reassign default unit to the next available dev.
+		 */
+		for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+			if (device_get_unit(dev) == i ||
+			    devclass_get_softc(pcm_devclass, i) == NULL)
+				continue;
+			snd_unit = i;
+			break;
+		}
+	}
+
 	return 0;
 }
 
@@ -989,10 +1148,8 @@ static int
 sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 {
 	struct snddev_info *d;
-	struct snddev_channel *sce;
 	struct pcm_channel *c;
 	struct pcm_feeder *f;
-	int pc, rc, vc;
 
 	if (verbose < 1)
 		return 0;
@@ -1001,20 +1158,11 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 	if (!d)
 		return ENXIO;
 
-	snd_mtxlock(d->lock);
-	if (!SLIST_EMPTY(&d->channels)) {
-		pc = rc = vc = 0;
-		SLIST_FOREACH(sce, &d->channels, link) {
-			c = sce->channel;
-			if (c->direction == PCMDIR_PLAY) {
-				if (c->flags & CHN_F_VIRTUAL)
-					vc++;
-				else
-					pc++;
-			} else
-				rc++;
-		}
-		sbuf_printf(s, " (%dp/%dr/%dv channels%s%s)", d->playcount, d->reccount, d->vchancount,
+	pcm_lock(d);
+	if (!CHN_EMPTY(d, channels.pcm)) {
+		sbuf_printf(s, " (%dp:%dv/%dr:%dv channels%s%s)",
+				d->playcount, d->pvchancount,
+				d->reccount, d->rvchancount,
 				(d->flags & SD_F_SIMPLEX)? "" : " duplex",
 #ifdef USING_DEVFS
 				(device_get_unit(dev) == snd_unit)? " default" : ""
@@ -1024,12 +1172,11 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 				);
 
 		if (verbose <= 1) {
-			snd_mtxunlock(d->lock);
+			pcm_unlock(d);
 			return 0;
 		}
 
-		SLIST_FOREACH(sce, &d->channels, link) {
-			c = sce->channel;
+		CHN_FOREACH(c, d, channels.pcm) {
 
 			KASSERT(c->bufhard != NULL && c->bufsoft != NULL,
 				("hosed pcm channel setup"));
@@ -1087,7 +1234,7 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		}
 	} else
 		sbuf_printf(s, " (mixer only)");
-	snd_mtxunlock(d->lock);
+	pcm_unlock(d);
 
 	return 0;
 }
@@ -1099,15 +1246,41 @@ int
 sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 {
 	struct snddev_info *d;
+	int direction, vchancount;
 	int err, newcnt;
 
-	d = oidp->oid_arg1;
+	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
+	if (d == NULL)
+		return EINVAL;
 
-	newcnt = d->vchancount;
+	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
+	case VCHAN_PLAY:
+		if (d->playcount < 1)
+			return ENODEV;
+		direction = PCMDIR_PLAY;
+		vchancount = d->pvchancount;
+		break;
+	case VCHAN_REC:
+		if (d->reccount < 1)
+			return ENODEV;
+		direction = PCMDIR_REC;
+		vchancount = d->rvchancount;
+		break;
+	default:
+		return EINVAL;
+		break;
+	}
+
+	newcnt = vchancount;
 	err = sysctl_handle_int(oidp, &newcnt, sizeof(newcnt), req);
 
-	if (err == 0 && req->newptr != NULL && d->vchancount != newcnt)
-		err = pcm_setvchans(d, newcnt);
+	if (err == 0 && req->newptr != NULL && vchancount != newcnt) {
+		if (newcnt < 0)
+			newcnt = 0;
+		if (newcnt > SND_MAXVCHANS)
+			newcnt = SND_MAXVCHANS;
+		err = pcm_setvchans(d, direction, newcnt, -1);
+	}
 
 	return err;
 }
@@ -1139,7 +1312,6 @@ sound_oss_sysinfo(oss_sysinfo *si)
 	static int intnbits = sizeof(int) * 8;	/* Better suited as macro?
 						   Must pester a C guru. */
 
-	struct snddev_channel *sce;
 	struct snddev_info *d;
 	struct pcm_channel *c;
 	int i, j, ncards;
@@ -1174,8 +1346,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 			si->numaudios += d->devcount;
 			++ncards;
 
-			SLIST_FOREACH(sce, &d->channels, link) {
-				c = sce->channel;
+			CHN_FOREACH(c, d, channels.pcm) {
 				mtx_assert(c->lock, MA_NOTOWNED);
 				CHN_LOCK(c);
 				if (c->flags & CHN_F_BUSY)
@@ -1242,6 +1413,9 @@ sound_modevent(module_t mod, int type, void *data)
 			break;
 		case MOD_UNLOAD:
 		case MOD_SHUTDOWN:
+			ret = sndstat_acquire(curthread);
+			if (ret != 0)
+				break;
 			if (pcmsg_unrhdr != NULL) {
 				delete_unrhdr(pcmsg_unrhdr);
 				pcmsg_unrhdr = NULL;

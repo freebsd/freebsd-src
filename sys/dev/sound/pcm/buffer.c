@@ -664,10 +664,10 @@ sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *chan
 
 	do {
 		cnt = FEEDER_FEED(feeder, channel, to->tmpbuf, count, from);
-		if (cnt)
+		if (cnt) {
 			sndbuf_acquire(to, to->tmpbuf, cnt);
-		/* the root feeder has called sndbuf_dispose(from, , bytes fetched) */
-		count -= cnt;
+			count -= cnt;
+		}
 	} while (count && cnt);
 
 	return 0;
