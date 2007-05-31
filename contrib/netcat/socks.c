@@ -1,4 +1,4 @@
-/*	$OpenBSD: socks.c,v 1.16 2006/01/25 23:21:37 djm Exp $	*/
+/*	$OpenBSD: socks.c,v 1.17 2006/09/25 04:51:20 ray Exp $	*/
 
 /*
  * Copyright (c) 1999 Niklas Hallqvist.  All rights reserved.
@@ -307,7 +307,8 @@ socks_connect(const char *host, const char *port,
 			}
 			close(proxyfd);
 			goto again;
-		} else if (strncmp(buf, "HTTP/1.0 200 ", 12) != 0)
+		} else if (strncmp(buf, "HTTP/1.0 200 ", 12) != 0 &&
+		    strncmp(buf, "HTTP/1.1 200 ", 12) != 0)
 			errx(1, "Proxy error: \"%s\"", buf);
 
 		/* Headers continue until we hit an empty line */
