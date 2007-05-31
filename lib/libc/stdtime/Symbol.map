@@ -27,7 +27,6 @@ FBSD_1.0 {
 	timelocal;
 	timegm;
 	timeoff;
-	gtime;
 	time2posix;
 	posix2time;
 	difftime;
