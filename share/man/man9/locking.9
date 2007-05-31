@@ -172,7 +172,26 @@ is atomically released before the thread is blocked, then reacquired
 before the function call returns.
 .Ss Giant
 Giant is a special instance of a sleep lock.
-it has several special characteristics.
+It has several special characteristics.
+.Bl -enum
+.It
+It is recursive.
+.It
+Drivers can request that Giant be locked around them, but this is
+going away.
+.It
+You can sleep while it has recursed, but other recursive locks cannot.
+.It
+Giant must be locked first.
+.It
+There are places in the kernel that drop Giant and pick it back up
+again.
+Sleep locks will do this before sleeping.
+Parts of the Network or VM code may do this as well, depending on the
+setting of a sysctl.
+This means that you cannot count on Giant keeping other code from
+running if your code sleeps, even if you want it to.
+.El
 .Ss Sleep/wakeup
 The functions
 .Fn tsleep ,
