@@ -537,9 +537,9 @@ main(argc, argv)
 				    "traceroute6: invalid wait time.\n");
 				exit(1);
 			}
-			if (waittime <= 1) {
+			if (waittime < 1) {
 				fprintf(stderr,
-				    "traceroute6: wait must be >1 sec.\n");
+				    "traceroute6: wait must be >= 1 sec.\n");
 				exit(1);
 			}
 			break;

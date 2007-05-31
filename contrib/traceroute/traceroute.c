@@ -630,7 +630,7 @@ main(int argc, char **argv)
 
 		case 'w':
 			waittime = str2val(optarg, "wait time",
-			    2, 24 * 60 * 60);
+			    1, 24 * 60 * 60);
 			break;
 
 		case 'z':
