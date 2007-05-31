@@ -41,11 +41,6 @@
 #define _COMPONENT	ACPI_DOCK
 ACPI_MODULE_NAME("DOCK")
 
-/* For Notify handler */
-#define ACPI_DOCK_NOTIFY_BUS_CHECK	0x00
-#define ACPI_DOCK_NOTIFY_DEVICE_CHECK	0x01
-#define ACPI_DOCK_NOTIFY_EJECT_REQUEST	0x03
-
 /* For Docking status */
 #define ACPI_DOCK_STATUS_UNKNOWN	-1
 #define ACPI_DOCK_STATUS_UNDOCKED	0
@@ -397,11 +392,11 @@ acpi_dock_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 
 	ACPI_SERIAL_BEGIN(dock);
 	switch (notify) {
-	case ACPI_DOCK_NOTIFY_BUS_CHECK:
-	case ACPI_DOCK_NOTIFY_DEVICE_CHECK:
+	case ACPI_NOTIFY_BUS_CHECK:
+	case ACPI_NOTIFY_DEVICE_CHECK:
 		acpi_dock_device_check(dev);
 		break;
-	case ACPI_DOCK_NOTIFY_EJECT_REQUEST:
+	case ACPI_NOTIFY_EJECT_REQUEST:
 		acpi_dock_removal(dev);
 		break;
 	default:
