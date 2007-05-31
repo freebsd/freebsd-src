@@ -719,13 +719,6 @@ em_attach(device_t dev)
 	else
 		adapter->pcix_82544 = FALSE;
 
-	/* Get control from any management/hw control */
-	if (((adapter->hw.mac.type == e1000_82573) ||
-	    (adapter->hw.mac.type == e1000_ich8lan) ||
-	    (adapter->hw.mac.type == e1000_ich9lan)) &&
-	    e1000_check_mng_mode(&adapter->hw))
-		em_get_hw_control(adapter);
-
 	/* Tell the stack that the interface is not active */
 	adapter->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
@@ -873,13 +866,6 @@ em_resume(device_t dev)
 
 	EM_LOCK(adapter);
 	em_init_locked(adapter);
-
-        /* Get control from any management/hw control */
-	if (((adapter->hw.mac.type == e1000_82573) ||
-	    (adapter->hw.mac.type == e1000_ich8lan) ||
-	    (adapter->hw.mac.type == e1000_ich9lan)) &&
-	    e1000_check_mng_mode(&adapter->hw))
-		em_get_hw_control(adapter);
 	em_init_manageability(adapter);
 
 	if ((ifp->if_flags & IFF_UP) &&
@@ -2358,9 +2344,16 @@ em_local_timer(void *arg)
 	e1000_check_for_link(&adapter->hw);
 	em_update_link_status(adapter);
 	em_update_stats_counters(adapter);
+
+	/* Check for 82571 LAA reset by other port */
+	if (e1000_get_laa_state_82571(&adapter->hw) == TRUE)  
+		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+
 	if (em_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING)
 		em_print_hw_stats(adapter);
+
 	em_smartspeed(adapter);
+
 	/*
 	 * Each second we check the watchdog to 
 	 * protect against hardware hangs.
@@ -2368,7 +2361,6 @@ em_local_timer(void *arg)
 	em_watchdog(adapter);
 
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
-
 }
 
 static void
@@ -2700,6 +2692,13 @@ em_hardware_init(struct adapter *adapter)
 
 	/* Issue a global reset */
 	e1000_reset_hw(&adapter->hw);
+
+	/* Get control from any management/hw control */
+	if (((adapter->hw.mac.type == e1000_82573) ||
+	    (adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_ich9lan)) &&
+	    e1000_check_mng_mode(&adapter->hw))
+		em_get_hw_control(adapter);
 
 	/* When hardware is reset, fifo_head is also reset */
 	adapter->tx_fifo_head = 0;
