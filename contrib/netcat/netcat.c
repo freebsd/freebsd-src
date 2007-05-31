@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.87 2006/02/01 21:33:14 otto Exp $ */
+/* $OpenBSD: netcat.c,v 1.89 2007/02/20 14:11:17 jmc Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -72,7 +72,7 @@
 /* Command Line Options */
 int	Eflag;					/* Use IPsec ESP */
 int	dflag;					/* detached, no stdin */
-int	iflag;					/* Interval Flag */
+unsigned int iflag;				/* Interval Flag */
 int	jflag;					/* use jumbo frames if we can */
 int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
@@ -120,13 +120,13 @@ int
 main(int argc, char *argv[])
 {
 	int ch, s, ret, socksv, ipsec_count;
-	char *host, *uport, *endp;
+	char *host, *uport;
 	struct addrinfo hints;
 	struct servent *sv;
 	socklen_t len;
 	struct sockaddr_storage cliaddr;
 	char *proxy;
-	const char *proxyhost = "", *proxyport = NULL;
+	const char *errstr, *proxyhost = "", *proxyport = NULL;
 	struct addrinfo proxyhints;
 
 	ret = 1;
@@ -135,7 +135,6 @@ main(int argc, char *argv[])
 	socksv = 5;
 	host = NULL;
 	uport = NULL;
-	endp = NULL;
 	sv = NULL;
 
 	while ((ch = getopt(argc, argv,
@@ -182,9 +181,9 @@ main(int argc, char *argv[])
 			help();
 			break;
 		case 'i':
-			iflag = (int)strtoul(optarg, &endp, 10);
-			if (iflag < 0 || *endp != '\0')
-				errx(1, "interval cannot be negative");
+			iflag = strtonum(optarg, 0, UINT_MAX, &errstr);
+			if (errstr)
+				errx(1, "interval %s: %s", errstr, optarg);
 			break;
 #ifdef SO_JUMBO
 		case 'j':
@@ -225,11 +224,9 @@ main(int argc, char *argv[])
 			vflag = 1;
 			break;
 		case 'w':
-			timeout = (int)strtoul(optarg, &endp, 10);
-			if (timeout < 0 || *endp != '\0')
-				errx(1, "timeout cannot be negative");
-			if (timeout >= (INT_MAX / 1000))
-				errx(1, "timeout too large");
+			timeout = strtonum(optarg, 0, INT_MAX / 1000, &errstr);
+			if (errstr)
+				errx(1, "timeout %s: %s", errstr, optarg);
 			timeout *= 1000;
 			break;
 		case 'x':
@@ -727,7 +724,8 @@ atelnet(int nfd, unsigned char *buf, unsigned int size)
 void
 build_ports(char *p)
 {
-	char *n, *endp;
+	const char *errstr;
+	char *n;
 	int hi, lo, cp;
 	int x = 0;
 
@@ -739,12 +737,12 @@ build_ports(char *p)
 		n++;
 
 		/* Make sure the ports are in order: lowest->highest. */
-		hi = (int)strtoul(n, &endp, 10);
-		if (hi <= 0 || hi > PORT_MAX || *endp != '\0')
-			errx(1, "port range not valid");
-		lo = (int)strtoul(p, &endp, 10);
-		if (lo <= 0 || lo > PORT_MAX || *endp != '\0')
-			errx(1, "port range not valid");
+		hi = strtonum(n, 1, PORT_MAX, &errstr);
+		if (errstr)
+			errx(1, "port number %s: %s", errstr, n);
+		lo = strtonum(p, 1, PORT_MAX, &errstr);
+		if (errstr)
+			errx(1, "port number %s: %s", errstr, p);
 
 		if (lo > hi) {
 			cp = hi;
@@ -774,9 +772,9 @@ build_ports(char *p)
 			}
 		}
 	} else {
-		hi = (int)strtoul(p, &endp, 10);
-		if (hi <= 0 || hi > PORT_MAX || *endp != '\0')
-			errx(1, "port range not valid");
+		hi = strtonum(p, 1, PORT_MAX, &errstr);
+		if (errstr)
+			errx(1, "port number %s: %s", errstr, p);
 		portlist[0] = calloc(1, PORT_MAX_LEN);
 		if (portlist[0] == NULL)
 			err(1, NULL);
@@ -916,13 +914,12 @@ add_ipsec_policy(int s, char *policy)
 void
 usage(int ret)
 {
-
 #ifdef IPSEC
-	fprintf(stderr, "usage: nc [-46DEdhklnrStUuvz] [-e policy] [-i interval] [-p source_port]\n");
+	fprintf(stderr, "usage: nc [-46DEdhklnrStUuvz] [-e policy] [-i interval] [-P proxy_username] [-p source_port]\n");
 #else
-	fprintf(stderr, "usage: nc [-46DdhklnrStUuvz] [-i interval] [-p source_port]\n");
+	fprintf(stderr, "usage: nc [-46DdhklnrStUuvz] [-i interval] [-P proxy_username] [-p source_port]\n");
 #endif
-	fprintf(stderr, "\t  [-s source_ip_address] [-T ToS] [-w timeout] [-X proxy_version]\n");
+	fprintf(stderr, "\t  [-s source_ip_address] [-T ToS] [-w timeout] [-X proxy_protocol]\n");
 	fprintf(stderr, "\t  [-x proxy_address[:port]] [hostname] [port[s]]\n");
 	if (ret)
 		exit(1);
