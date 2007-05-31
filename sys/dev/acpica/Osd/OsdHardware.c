@@ -34,9 +34,11 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/dev/acpica/acpi.h>
 
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <machine/bus.h>
 #include <machine/pci_cfgreg.h>
+#include <dev/acpica/acpivar.h>
 #include <dev/pci/pcireg.h>
 
 /*
@@ -232,10 +234,6 @@ AcpiOsWritePciConfiguration (ACPI_PCI_ID *PciId, UINT32 Register,
     return (AE_OK);
 }
 
-/* XXX should use acpivar.h but too many include dependencies */
-extern ACPI_STATUS acpi_GetInteger(ACPI_HANDLE handle, char *path, int
-    *number);
-
 /*
  * Depth-first recursive case for finding the bus, given the slot/function.
  */
@@ -271,10 +269,8 @@ acpi_bus_number(ACPI_HANDLE root, ACPI_HANDLE curr, ACPI_PCI_ID *PciId)
 
     /* Get the parent's slot and function. */
     status = acpi_GetInteger(parent, "_ADR", &adr);
-    if (ACPI_FAILURE(status)) {
-	printf("acpi_bus_number: can't get _ADR\n");
+    if (ACPI_FAILURE(status))
 	return (bus);
-    }
     slot = ACPI_HIWORD(adr);
     func = ACPI_LOWORD(adr);
 
@@ -288,7 +284,7 @@ acpi_bus_number(ACPI_HANDLE root, ACPI_HANDLE curr, ACPI_PCI_ID *PciId)
     header = pci_cfgregread(bus, slot, func, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE;
     if (header == PCIM_HDRTYPE_BRIDGE && subclass == PCIS_BRIDGE_PCI)
 	bus = pci_cfgregread(bus, slot, func, PCIR_SECBUS_1, 1);
-    if (header == PCIM_HDRTYPE_CARDBUS && subclass == PCIS_BRIDGE_CARDBUS)
+    else if (header == PCIM_HDRTYPE_CARDBUS && subclass == PCIS_BRIDGE_CARDBUS)
 	bus = pci_cfgregread(bus, slot, func, PCIR_SECBUS_2, 1);
     return (bus);
 }
@@ -328,7 +324,8 @@ AcpiOsDerivePciId(ACPI_HANDLE rhandle, ACPI_HANDLE chandle, ACPI_PCI_ID **PciId)
 	bus = acpi_bus_number(rhandle, parent, *PciId);
     (*PciId)->Bus = bus;
     if (bootverbose) {
-	printf("AcpiOsDerivePciId: bus %d dev %d func %d\n",
-	    (*PciId)->Bus, (*PciId)->Device, (*PciId)->Function);
+	printf("AcpiOsDerivePciId: %s -> bus %d dev %d func %d\n",
+	    acpi_name(chandle), (*PciId)->Bus, (*PciId)->Device,
+	    (*PciId)->Function);
     }
 }
