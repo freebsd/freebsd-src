@@ -138,8 +138,11 @@ sblock(struct sockbuf *sb, int flags)
 {
 
 	if (flags == M_WAITOK) {
-		sx_xlock(&sb->sb_sx);
-		return (0);
+		if (sb->sb_flags & SB_NOINTR) {
+			sx_xlock(&sb->sb_sx);
+			return (0);
+		}
+		return (sx_xlock_sig(&sb->sb_sx));
 	} else {
 		if (sx_try_xlock(&sb->sb_sx) == 0)
 			return (EWOULDBLOCK);
