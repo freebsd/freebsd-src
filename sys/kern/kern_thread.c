@@ -407,7 +407,7 @@ thread_exit(void)
 	p->p_rux.rux_iticks += td->td_iticks;
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
-	VMCNT_ADD(swtch, 1);
+	cnt.v_swtch++;
 
 	/* Add our usage into the usage of all our children. */
 	if (p->p_numthreads == 1)

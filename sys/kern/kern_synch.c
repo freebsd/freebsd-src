@@ -433,7 +433,7 @@ mi_switch(int flags, struct thread *newtd)
 	/*
 	 * Finish up stats for outgoing thread.
 	 */
-	VMCNT_ADD(swtch, 1);
+	cnt.v_swtch++;
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
 	CTR4(KTR_PROC, "mi_switch: old thread %ld (kse %p, pid %ld, %s)",

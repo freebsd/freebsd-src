@@ -620,7 +620,7 @@ pmap_init(void)
 	 * numbers of pv entries.
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	pv_entry_max = shpgperproc * maxproc + VMCNT_GET(page_count);
+	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 }
@@ -633,7 +633,7 @@ pmap_pventry_proc(SYSCTL_HANDLER_ARGS)
 
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
 	if (error == 0 && req->newptr) {
-		shpgperproc = (pv_entry_max - VMCNT_GET(page_count)) / maxproc;
+		shpgperproc = (pv_entry_max - cnt.v_page_count) / maxproc;
 		pv_entry_high_water = 9 * (pv_entry_max / 10);
 	}
 	return (error);
@@ -648,7 +648,7 @@ pmap_shpgperproc_proc(SYSCTL_HANDLER_ARGS)
 
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
 	if (error == 0 && req->newptr) {
-		pv_entry_max = shpgperproc * maxproc + VMCNT_GET(page_count);
+		pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
 		pv_entry_high_water = 9 * (pv_entry_max / 10);
 	}
 	return (error);
@@ -1149,7 +1149,8 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	m->right = *free;
 	*free = m;
-	VMCNT_SUB(wire_count, 1);
+	
+	atomic_subtract_int(&cnt.v_wire_count, 1);
 	return 1;
 }
 
@@ -1459,7 +1460,7 @@ pmap_release(pmap_t pmap)
 	pmap->pm_pml4[PML4PML4I] = 0;	/* Recursive Mapping */
 
 	m->wire_count--;
-	VMCNT_SUB(wire_count, 1);
+	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(m);
 	PMAP_LOCK_DESTROY(pmap);
 }

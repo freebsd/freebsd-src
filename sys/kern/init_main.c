@@ -467,7 +467,7 @@ proc0_init(void *dummy __unused)
 	    p->p_limit->pl_rlimit[RLIMIT_NOFILE].rlim_max = maxfiles;
 	p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_cur =
 	    p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_max = maxproc;
-	i = ptoa(VMCNT_GET(free_count));
+	i = ptoa(cnt.v_free_count);
 	p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_max = i;
 	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_max = i;
 	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = i / 3;

@@ -52,26 +52,26 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <sys/sysctl.h>
 
-volatile struct vmmeter cnt;
+struct vmmeter cnt;
 
 int maxslp = MAXSLP;
 
 SYSCTL_UINT(_vm, VM_V_FREE_MIN, v_free_min,
-	CTLFLAG_RW, VMCNT_PTR(free_min), 0, "");
+	CTLFLAG_RW, &cnt.v_free_min, 0, "");
 SYSCTL_UINT(_vm, VM_V_FREE_TARGET, v_free_target,
-	CTLFLAG_RW, VMCNT_PTR(free_target), 0, "");
+	CTLFLAG_RW, &cnt.v_free_target, 0, "");
 SYSCTL_UINT(_vm, VM_V_FREE_RESERVED, v_free_reserved,
-	CTLFLAG_RW, VMCNT_PTR(free_reserved), 0, "");
+	CTLFLAG_RW, &cnt.v_free_reserved, 0, "");
 SYSCTL_UINT(_vm, VM_V_INACTIVE_TARGET, v_inactive_target,
-	CTLFLAG_RW, VMCNT_PTR(inactive_target), 0, "");
+	CTLFLAG_RW, &cnt.v_inactive_target, 0, "");
 SYSCTL_UINT(_vm, VM_V_CACHE_MIN, v_cache_min,
-	CTLFLAG_RW, VMCNT_PTR(cache_min), 0, "");
+	CTLFLAG_RW, &cnt.v_cache_min, 0, "");
 SYSCTL_UINT(_vm, VM_V_CACHE_MAX, v_cache_max,
-	CTLFLAG_RW, VMCNT_PTR(cache_max), 0, "");
+	CTLFLAG_RW, &cnt.v_cache_max, 0, "");
 SYSCTL_UINT(_vm, VM_V_PAGEOUT_FREE_MIN, v_pageout_free_min,
-	CTLFLAG_RW, VMCNT_PTR(pageout_free_min), 0, "");
+	CTLFLAG_RW, &cnt.v_pageout_free_min, 0, "");
 SYSCTL_UINT(_vm, OID_AUTO, v_free_severe,
-	CTLFLAG_RW, VMCNT_PTR(free_severe), 0, "");
+	CTLFLAG_RW, &cnt.v_free_severe, 0, "");
 
 static int
 sysctl_vm_loadavg(SYSCTL_HANDLER_ARGS)
@@ -235,7 +235,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	mtx_unlock(&vm_object_list_mtx);
-	total.t_free = VMCNT_GET(free_count) + VMCNT_GET(cache_count);
+	total.t_free = cnt.v_free_count + cnt.v_cache_count;
 	return (sysctl_handle_opaque(oidp, &total, sizeof(total), req));
 }
 
@@ -255,7 +255,7 @@ static int
 vcnt(SYSCTL_HANDLER_ARGS)
 {
 	int count = *(int *)arg1;
-	int offset = (char *)arg1 - (char *)VMCNT;
+	int offset = (char *)arg1 - (char *)&cnt;
 #ifdef SMP
 	int i;
 
@@ -280,103 +280,101 @@ static SYSCTL_NODE(_vm_stats, OID_AUTO, vm, CTLFLAG_RW, 0,
 SYSCTL_NODE(_vm_stats, OID_AUTO, misc, CTLFLAG_RW, 0, "VM meter misc stats");
 
 SYSCTL_PROC(_vm_stats_sys, OID_AUTO, v_swtch, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(swtch), 0, vcnt, "IU", "Context switches");
+	&cnt.v_swtch, 0, vcnt, "IU", "Context switches");
 SYSCTL_PROC(_vm_stats_sys, OID_AUTO, v_trap, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(trap), 0, vcnt, "IU", "Traps");
+	&cnt.v_trap, 0, vcnt, "IU", "Traps");
 SYSCTL_PROC(_vm_stats_sys, OID_AUTO, v_syscall, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(syscall), 0, vcnt, "IU", "Syscalls");
+	&cnt.v_syscall, 0, vcnt, "IU", "Syscalls");
 SYSCTL_PROC(_vm_stats_sys, OID_AUTO, v_intr, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(intr), 0, vcnt, "IU", "Hardware interrupts");
+	&cnt.v_intr, 0, vcnt, "IU", "Hardware interrupts");
 SYSCTL_PROC(_vm_stats_sys, OID_AUTO, v_soft, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(soft), 0, vcnt, "IU", "Software interrupts");
+	&cnt.v_soft, 0, vcnt, "IU", "Software interrupts");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_vm_faults, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(vm_faults), 0, vcnt, "IU", "VM faults");
+	&cnt.v_vm_faults, 0, vcnt, "IU", "VM faults");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_cow_faults, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(cow_faults), 0, vcnt, "IU", "COW faults");
+	&cnt.v_cow_faults, 0, vcnt, "IU", "COW faults");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_cow_optim, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(cow_optim), 0, vcnt, "IU", "Optimized COW faults");
+	&cnt.v_cow_optim, 0, vcnt, "IU", "Optimized COW faults");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_zfod, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(zfod), 0, vcnt, "IU", "Zero fill");
+	&cnt.v_zfod, 0, vcnt, "IU", "Zero fill");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_ozfod, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(ozfod), 0, vcnt, "IU", "Optimized zero fill");
+	&cnt.v_ozfod, 0, vcnt, "IU", "Optimized zero fill");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_swapin, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(swapin), 0, vcnt, "IU", "Swapin operations");
+	&cnt.v_swapin, 0, vcnt, "IU", "Swapin operations");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_swapout, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(swapout), 0, vcnt, "IU", "Swapout operations");
+	&cnt.v_swapout, 0, vcnt, "IU", "Swapout operations");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_swappgsin, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(swappgsin), 0, vcnt, "IU", "Swapin pages");
+	&cnt.v_swappgsin, 0, vcnt, "IU", "Swapin pages");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_swappgsout, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(swappgsout), 0, vcnt, "IU", "Swapout pages");
+	&cnt.v_swappgsout, 0, vcnt, "IU", "Swapout pages");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_vnodein, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(vnodein), 0, vcnt, "IU", "Vnodein operations");
+	&cnt.v_vnodein, 0, vcnt, "IU", "Vnodein operations");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_vnodeout, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(vnodeout), 0, vcnt, "IU", "Vnodeout operations");
+	&cnt.v_vnodeout, 0, vcnt, "IU", "Vnodeout operations");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_vnodepgsin, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(vnodepgsin), 0, vcnt, "IU", "Vnodein pages");
+	&cnt.v_vnodepgsin, 0, vcnt, "IU", "Vnodein pages");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_vnodepgsout, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(vnodepgsout), 0, vcnt, "IU", "Vnodeout pages");
+	&cnt.v_vnodepgsout, 0, vcnt, "IU", "Vnodeout pages");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_intrans, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(intrans), 0, vcnt, "IU", "In transit page blocking");
+	&cnt.v_intrans, 0, vcnt, "IU", "In transit page blocking");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_reactivated, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(reactivated), 0, vcnt, "IU", "Reactivated pages");
+	&cnt.v_reactivated, 0, vcnt, "IU", "Reactivated pages");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_pdwakeups, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(pdwakeups), 0, vcnt, "IU", "Pagedaemon wakeups");
+	&cnt.v_pdwakeups, 0, vcnt, "IU", "Pagedaemon wakeups");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_pdpages, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(pdpages), 0, vcnt, "IU", "Pagedaemon page scans");
+	&cnt.v_pdpages, 0, vcnt, "IU", "Pagedaemon page scans");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_dfree, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(dfree), 0, vcnt, "IU", "");
+	&cnt.v_dfree, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_pfree, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(pfree), 0, vcnt, "IU", "");
+	&cnt.v_pfree, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_tfree, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(tfree), 0, vcnt, "IU", "");
+	&cnt.v_tfree, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_page_size, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(page_size), 0, vcnt, "IU", "");
+	&cnt.v_page_size, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_page_count, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(page_count), 0, vcnt, "IU", "");
+	&cnt.v_page_count, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_free_reserved, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(free_reserved), 0, vcnt, "IU", "");
+	&cnt.v_free_reserved, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_free_target, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(free_target), 0, vcnt, "IU", "");
+	&cnt.v_free_target, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_free_min, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(free_min), 0, vcnt, "IU", "");
+	&cnt.v_free_min, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_free_count, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(free_count), 0, vcnt, "IU", "");
+	&cnt.v_free_count, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_wire_count, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(wire_count), 0, vcnt, "IU", "");
+	&cnt.v_wire_count, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_active_count, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(active_count), 0, vcnt, "IU", "");
+	&cnt.v_active_count, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_inactive_target, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(inactive_target), 0, vcnt, "IU", "");
+	&cnt.v_inactive_target, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_inactive_count, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(inactive_count), 0, vcnt, "IU", "");
+	&cnt.v_inactive_count, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_cache_count, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(cache_count), 0, vcnt, "IU", "");
+	&cnt.v_cache_count, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_cache_min, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(cache_min), 0, vcnt, "IU", "");
+	&cnt.v_cache_min, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_cache_max, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(cache_max), 0, vcnt, "IU", "");
+	&cnt.v_cache_max, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_pageout_free_min, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(pageout_free_min), 0, vcnt, "IU", "");
-SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_interrupt_free_min, CTLTYPE_UINT |
-	CTLFLAG_RD, VMCNT_PTR(interrupt_free_min), 0, vcnt, "IU", "");
+	&cnt.v_pageout_free_min, 0, vcnt, "IU", "");
+SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_interrupt_free_min, CTLTYPE_UINT|CTLFLAG_RD,
+	&cnt.v_interrupt_free_min, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_forks, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(forks), 0, vcnt, "IU", "Number of fork() calls");
+	&cnt.v_forks, 0, vcnt, "IU", "Number of fork() calls");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_vforks, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(vforks), 0, vcnt, "IU", "Number of vfork() calls");
+	&cnt.v_vforks, 0, vcnt, "IU", "Number of vfork() calls");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_rforks, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(rforks), 0, vcnt, "IU", "Number of rfork() calls");
+	&cnt.v_rforks, 0, vcnt, "IU", "Number of rfork() calls");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_kthreads, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(kthreads), 0, vcnt, "IU",
-	"Number of fork() calls by kernel");
+	&cnt.v_kthreads, 0, vcnt, "IU", "Number of fork() calls by kernel");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_forkpages, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(forkpages), 0, vcnt, "IU", "VM pages affected by fork()");
+	&cnt.v_forkpages, 0, vcnt, "IU", "VM pages affected by fork()");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_vforkpages, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(vforkpages), 0, vcnt, "IU", "VM pages affected by vfork()");
+	&cnt.v_vforkpages, 0, vcnt, "IU", "VM pages affected by vfork()");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_rforkpages, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(rforkpages), 0, vcnt, "IU", "VM pages affected by rfork()");
+	&cnt.v_rforkpages, 0, vcnt, "IU", "VM pages affected by rfork()");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_kthreadpages, CTLTYPE_UINT|CTLFLAG_RD,
-	VMCNT_PTR(kthreadpages), 0, vcnt, "IU",
-	"VM pages affected by fork() by kernel");
+	&cnt.v_kthreadpages, 0, vcnt, "IU", "VM pages affected by fork() by kernel");
 
 SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	zero_page_count, CTLFLAG_RD, &vm_page_zero_count, 0, "");
