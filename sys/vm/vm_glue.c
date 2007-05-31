@@ -219,7 +219,7 @@ vslock(void *addr, size_t len)
 	 * Also, the sysctl code, which is the only present user
 	 * of vslock(), does a hard loop on EAGAIN.
 	 */
-	if (npages + VMCNT_GET(wire_count) > vm_page_max_wired)
+	if (npages + cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
 #endif
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
@@ -589,7 +589,7 @@ vm_init_limits(udata)
 	limp->pl_rlimit[RLIMIT_DATA].rlim_cur = dfldsiz;
 	limp->pl_rlimit[RLIMIT_DATA].rlim_max = maxdsiz;
 	/* limit the limit to no less than 2MB */
-	rss_limit = max(VMCNT_GET(free_count), 512);
+	rss_limit = max(cnt.v_free_count, 512);
 	limp->pl_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
 	limp->pl_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }

@@ -297,9 +297,8 @@ vntblinit(void *dummy __unused)
 	 * of the kernel's heap size is consumed by vnodes and vm
 	 * objects.
 	 */
-	desiredvnodes = min(maxproc + VMCNT_GET(page_count) / 4, 2 *
-	    vm_kmem_size / (5 * (sizeof(struct vm_object) +
-	    sizeof(struct vnode))));
+	desiredvnodes = min(maxproc + cnt.v_page_count / 4, 2 * vm_kmem_size /
+	    (5 * (sizeof(struct vm_object) + sizeof(struct vnode))));
 	if (desiredvnodes > MAXVNODES_MAX) {
 		if (bootverbose)
 			printf("Reducing kern.maxvnodes %d -> %d\n",
@@ -582,7 +581,7 @@ vlrureclaim(struct mount *mp)
 	usevnodes = desiredvnodes;
 	if (usevnodes <= 0)
 		usevnodes = 1;
-	trigger = VMCNT_GET(page_count) * 2 / usevnodes;
+	trigger = cnt.v_page_count * 2 / usevnodes;
 	done = 0;
 	td = curthread;
 	vn_start_write(NULL, &mp, V_WAIT);

@@ -218,8 +218,8 @@ cpu_startup(void *dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %ld (%ld MB)\n", ptoa(VMCNT_GET(free_count)),
-	    ptoa(VMCNT_GET(free_count)) / 1048576);
+	printf("avail memory = %ld (%ld MB)\n", ptoa(cnt.v_free_count),
+	    ptoa(cnt.v_free_count) / 1048576);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.

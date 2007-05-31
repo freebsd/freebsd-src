@@ -104,7 +104,7 @@ tsb_deinit(hv_tsb_info_t *hvtsb)
 	m = PHYS_TO_VM_PAGE((vm_paddr_t)hvtsb->hti_ra);
 	for (i = 0, tm = m; i < TSB_SIZE; i++, m++) {
 		tm->wire_count--;
-		VMCNT_SUB(wire_count, 1);
+		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_free(tm);
 	}
 }

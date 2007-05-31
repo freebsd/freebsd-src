@@ -385,7 +385,7 @@ swap_pager_swap_init(void)
 	 * can hold 16 pages, so this is probably overkill.  This reservation
 	 * is typically limited to around 32MB by default.
 	 */
-	n = VMCNT_GET(page_count) / 2;
+	n = cnt.v_page_count / 2;
 	if (maxswzone && n > maxswzone / sizeof(struct swblock))
 		n = maxswzone / sizeof(struct swblock);
 	n2 = n;
@@ -1037,8 +1037,8 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	}
 	bp->b_npages = j - i;
 
-	VMCNT_ADD(swapin, 1);
-	VMCNT_ADD(swappgsin, bp->b_npages);
+	cnt.v_swapin++;
+	cnt.v_swappgsin += bp->b_npages;
 
 	/*
 	 * We still hold the lock on mreq, and our automatic completion routine
@@ -1072,7 +1072,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		vm_page_lock_queues();
 		vm_page_flag_set(mreq, PG_REFERENCED);
 		vm_page_unlock_queues();
-		VMCNT_ADD(intrans, 1);
+		cnt.v_intrans++;
 		if (msleep(mreq, VM_OBJECT_MTX(object), PSWP, "swread", hz*20)) {
 			printf(
 "swap_pager: indefinite wait buffer: bufobj: %p, blkno: %jd, size: %ld\n",
@@ -1263,8 +1263,8 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		bp->b_dirtyoff = 0;
 		bp->b_dirtyend = bp->b_bcount;
 
-		VMCNT_ADD(swapout, 1);
-		VMCNT_ADD(swappgsout, bp->b_npages);
+		cnt.v_swapout++;
+		cnt.v_swappgsout += bp->b_npages;
 
 		/*
 		 * asynchronous
@@ -2135,8 +2135,8 @@ swapoff_one(struct swdevt *sp, struct thread *td)
 	 * of data we will have to page back in, plus an epsilon so
 	 * the system doesn't become critically low on swap space.
 	 */
-	if (VMCNT_GET(free_count) + VMCNT_GET(cache_count) +
-	    swap_pager_avail < nblks + nswap_lowat) {
+	if (cnt.v_free_count + cnt.v_cache_count + swap_pager_avail <
+	    nblks + nswap_lowat) {
 		return (ENOMEM);
 	}
 

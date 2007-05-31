@@ -146,14 +146,14 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	/*
 	 * The correct thing here would be:
 	 *
-	memfree = VMCNT_GET(free_count) * PAGE_SIZE;
+	memfree = cnt.v_free_count * PAGE_SIZE;
 	memused = memtotal - memfree;
 	 *
 	 * but it might mislead linux binaries into thinking there
 	 * is very little memory left, so we cheat and tell them that
 	 * all memory that isn't wired down is free.
 	 */
-	memused = VMCNT_GET(wire_count) * PAGE_SIZE;
+	memused = cnt.v_wire_count * PAGE_SIZE;
 	memfree = memtotal - memused;
 	swap_pager_status(&i, &j);
 	swaptotal = (unsigned long long)i * PAGE_SIZE;
@@ -175,7 +175,7 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	 * like unstaticizing it just for linprocfs's sake.
 	 */
 	buffers = 0;
-	cached = VMCNT_GET(cache_count) * PAGE_SIZE;
+	cached = cnt.v_cache_count * PAGE_SIZE;
 
 	sbuf_printf(sb,
 	    "	     total:    used:	free:  shared: buffers:	 cached:\n"
@@ -394,12 +394,12 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    "intr %u\n"
 	    "ctxt %u\n"
 	    "btime %lld\n",
-	    VMCNT_GET(vnodepgsin),
-	    VMCNT_GET(vnodepgsout),
-	    VMCNT_GET(swappgsin),
-	    VMCNT_GET(swappgsout),
-	    VMCNT_GET(intr),
-	    VMCNT_GET(swtch),
+	    cnt.v_vnodepgsin,
+	    cnt.v_vnodepgsout,
+	    cnt.v_swappgsin,
+	    cnt.v_swappgsout,
+	    cnt.v_intr,
+	    cnt.v_swtch,
 	    (long long)boottime.tv_sec);
 	return (0);
 }

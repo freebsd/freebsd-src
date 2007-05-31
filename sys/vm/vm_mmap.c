@@ -974,7 +974,7 @@ mlock(td, uap)
 		return (ENOMEM);
 	}
 	PROC_UNLOCK(proc);
-	if (npages + VMCNT_GET(wire_count) > vm_page_max_wired)
+	if (npages + cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
 	error = vm_map_wire(&proc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);

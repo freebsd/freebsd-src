@@ -778,14 +778,14 @@ svr4_sys_sysconfig(td, uap)
 #if defined(UVM)
 		*retval = uvmexp.free;	/* XXX: free instead of total */
 #else
-		*retval = VMCNT_GET(free_count);	/* XXX: free instead of total */
+		*retval = cnt.v_free_count;	/* XXX: free instead of total */
 #endif
 		break;
 	case SVR4_CONFIG_AVPHYS_PAGES:
 #if defined(UVM)
 		*retval = uvmexp.active;	/* XXX: active instead of avg */
 #else
-		*retval = VMCNT_GET(active_count);	/* XXX: active instead of avg */
+		*retval = cnt.v_active_count;	/* XXX: active instead of avg */
 #endif
 		break;
 #endif /* NOTYET */
