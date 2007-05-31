@@ -24,12 +24,27 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
-#include <sys/queue.h>
-
 #include <dev/sound/pcm/sound.h>
+#include <sys/ctype.h>
 
 SND_DECLARE_FILE("$FreeBSD$");
+
+struct dsp_cdevinfo {
+	struct pcm_channel *rdch, *wrch;
+};
+
+#define PCM_RDCH(x)	(((struct dsp_cdevinfo *)(x)->si_drv1)->rdch)
+#define PCM_WRCH(x)	(((struct dsp_cdevinfo *)(x)->si_drv1)->wrch)
+
+#define PCMDEV_ACQUIRE(x)	do {		\
+	if ((x)->si_drv1 == NULL)		\
+		(x)->si_drv1 = x;		\
+} while(0)
+
+#define PCMDEV_RELEASE(x)	do {		\
+	if ((x)->si_drv1 == x)			\
+		(x)->si_drv1 = NULL;		\
+} while(0)
 
 #define OLDPCM_IOCTL
 
@@ -55,7 +70,9 @@ struct cdevsw dsp_cdevsw = {
 };
 
 #ifdef USING_DEVFS
-static eventhandler_tag dsp_ehtag;
+static eventhandler_tag dsp_ehtag = NULL;
+static int dsp_umax = -1;
+static int dsp_cmax = -1;
 #endif
 
 static int dsp_oss_syncgroup(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_syncgroup *group);
@@ -75,43 +92,28 @@ static int dsp_oss_setname(struct pcm_channel *wrch, struct pcm_channel *rdch, o
 static struct snddev_info *
 dsp_get_info(struct cdev *dev)
 {
-	struct snddev_info *d;
-	int unit;
-
-	unit = PCMUNIT(dev);
-	if (unit >= devclass_get_maxunit(pcm_devclass))
-		return NULL;
-	d = devclass_get_softc(pcm_devclass, unit);
-
-	return d;
+	return (devclass_get_softc(pcm_devclass, PCMUNIT(dev)));
 }
 
 static u_int32_t
 dsp_get_flags(struct cdev *dev)
 {
 	device_t bdev;
-	int unit;
 
-	unit = PCMUNIT(dev);
-	if (unit >= devclass_get_maxunit(pcm_devclass))
-		return 0xffffffff;
-	bdev = devclass_get_device(pcm_devclass, unit);
+	bdev = devclass_get_device(pcm_devclass, PCMUNIT(dev));
 
-	return pcm_getflags(bdev);
+	return ((bdev != NULL) ? pcm_getflags(bdev) : 0xffffffff);
 }
 
 static void
 dsp_set_flags(struct cdev *dev, u_int32_t flags)
 {
 	device_t bdev;
-	int unit;
 
-	unit = PCMUNIT(dev);
-	if (unit >= devclass_get_maxunit(pcm_devclass))
-		return;
-	bdev = devclass_get_device(pcm_devclass, unit);
+	bdev = devclass_get_device(pcm_devclass, PCMUNIT(dev));
 
-	pcm_setflags(bdev, flags);
+	if (bdev != NULL)
+		pcm_setflags(bdev, flags);
 }
 
 /*
@@ -126,10 +128,12 @@ getchns(struct cdev *dev, struct pcm_channel **rdch, struct pcm_channel **wrch, 
 	struct snddev_info *d;
 	u_int32_t flags;
 
-	flags = dsp_get_flags(dev);
 	d = dsp_get_info(dev);
+	if (d == NULL)
+		return -1;
 	pcm_inprog(d, 1);
 	pcm_lock(d);
+	flags = dsp_get_flags(dev);
 	KASSERT((flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
 		("getchns: read and write both prioritised"));
 
@@ -138,15 +142,15 @@ getchns(struct cdev *dev, struct pcm_channel **rdch, struct pcm_channel **wrch, 
 		dsp_set_flags(dev, flags);
 	}
 
-	*rdch = dev->si_drv1;
-	*wrch = dev->si_drv2;
+	*rdch = PCM_RDCH(dev);
+	*wrch = PCM_WRCH(dev);
 	if ((flags & SD_F_SIMPLEX) && (flags & SD_F_PRIO_SET)) {
 		if (prio) {
 			if (*rdch && flags & SD_F_PRIO_WR) {
-				dev->si_drv1 = NULL;
+				PCM_RDCH(dev) = NULL;
 				*rdch = pcm_getfakechan(d);
 			} else if (*wrch && flags & SD_F_PRIO_RD) {
-				dev->si_drv2 = NULL;
+				PCM_WRCH(dev) = NULL;
 				*wrch = pcm_getfakechan(d);
 			}
 		}
@@ -170,6 +174,8 @@ relchns(struct cdev *dev, struct pcm_channel *rdch, struct pcm_channel *wrch, u_
 	struct snddev_info *d;
 
 	d = dsp_get_info(dev);
+	if (d == NULL)
+		return;
 	if (wrch && wrch != pcm_getfakechan(d) && (prio & SD_F_PRIO_WR))
 		CHN_UNLOCK(wrch);
 	if (rdch && rdch != pcm_getfakechan(d) && (prio & SD_F_PRIO_RD))
@@ -177,69 +183,159 @@ relchns(struct cdev *dev, struct pcm_channel *rdch, struct pcm_channel *wrch, u_
 	pcm_inprog(d, -1);
 }
 
+static void
+dsp_cdevinfo_alloc(struct cdev *dev,
+    struct pcm_channel *rdch, struct pcm_channel *wrch)
+{
+	KASSERT(dev != NULL && dev->si_drv1 == dev && rdch != wrch,
+	    ("bogus %s(), what are you trying to accomplish here?", __func__));
+	
+	dev->si_drv1 = malloc(sizeof(struct dsp_cdevinfo), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
+	PCM_RDCH(dev) = rdch;
+	PCM_WRCH(dev) = wrch;
+}
+
+static void
+dsp_cdevinfo_free(struct cdev *dev)
+{
+	KASSERT(dev != NULL && dev->si_drv1 != NULL &&
+	    PCM_RDCH(dev) == NULL && PCM_WRCH(dev) == NULL,
+	    ("bogus %s(), what are you trying to accomplish here?", __func__));
+
+	free(dev->si_drv1, M_DEVBUF);
+	dev->si_drv1 = NULL;
+}
+
+/* duplex / simplex cdev type */
+enum {
+	DSP_CDEV_TYPE_RDONLY,		/* simplex read-only (record)   */
+	DSP_CDEV_TYPE_WRONLY,		/* simplex write-only (play)    */
+	DSP_CDEV_TYPE_RDWR,		/* duplex read, write, or both  */
+};
+
+#define DSP_F_VALID(x)		((x) & (FREAD | FWRITE))
+#define DSP_F_DUPLEX(x)		(((x) & (FREAD | FWRITE)) == (FREAD | FWRITE))
+#define DSP_F_SIMPLEX(x)	(!DSP_F_DUPLEX(x))
+#define DSP_F_READ(x)		((x) & FREAD)
+#define DSP_F_WRITE(x)		((x) & FWRITE)
+
+static const struct {
+	int type;
+	char *name;
+	char *sep;
+	int use_sep;
+	int hw;
+	int max;
+	uint32_t fmt, spd;
+	int query;
+} dsp_cdevs[] = {
+	{ SND_DEV_DSP,         "dsp",    ".", 0, 0, 0,
+	    AFMT_U8,       DSP_DEFAULT_SPEED, DSP_CDEV_TYPE_RDWR   },
+	{ SND_DEV_AUDIO,       "audio",  ".", 0, 0, 0,
+	    AFMT_MU_LAW,   DSP_DEFAULT_SPEED, DSP_CDEV_TYPE_RDWR   },
+	{ SND_DEV_DSP16,       "dspW",   ".", 0, 0, 0,
+	    AFMT_S16_LE,   DSP_DEFAULT_SPEED, DSP_CDEV_TYPE_RDWR   },
+	{ SND_DEV_DSPHW_PLAY,  "dsp",   ".p", 1, 1, SND_MAXHWCHAN,
+	    AFMT_S16_LE | AFMT_STEREO, 48000, DSP_CDEV_TYPE_WRONLY },
+	{ SND_DEV_DSPHW_VPLAY, "dsp",  ".vp", 1, 1, SND_MAXVCHANS,
+	    AFMT_S16_LE | AFMT_STEREO, 48000, DSP_CDEV_TYPE_WRONLY },
+	{ SND_DEV_DSPHW_REC,   "dsp",   ".r", 1, 1, SND_MAXHWCHAN,
+	    AFMT_S16_LE | AFMT_STEREO, 48000, DSP_CDEV_TYPE_RDONLY },
+	{ SND_DEV_DSPHW_VREC,  "dsp",  ".vr", 1, 1, SND_MAXVCHANS,
+	    AFMT_S16_LE | AFMT_STEREO, 48000, DSP_CDEV_TYPE_RDONLY },
+};
+
 static int
 dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct pcm_channel *rdch, *wrch;
 	struct snddev_info *d;
-	u_int32_t fmt;
-	int devtype;
-	int error;
-	int chnum;
+	uint32_t fmt, spd;
+	int i, error, devtype;
+	int wdevunit, rdevunit;
 
+	/* Kind of impossible.. */
 	if (i_dev == NULL || td == NULL)
 		return ENODEV;
 
-	if ((flags & (FREAD | FWRITE)) == 0)
-		return EINVAL;
-
+	/* This too.. */
 	d = dsp_get_info(i_dev);
-	devtype = PCMDEV(i_dev);
-	chnum = -1;
+	if (d == NULL)
+		return EBADF;
 
-	/* decide default format */
-	switch (devtype) {
-	case SND_DEV_DSP16:
-		fmt = AFMT_S16_LE;
-		break;
-
-	case SND_DEV_DSP:
-		fmt = AFMT_U8;
-		break;
-
-	case SND_DEV_AUDIO:
-		fmt = AFMT_MU_LAW;
-		break;
-
-	case SND_DEV_NORESET:
-		fmt = 0;
-		break;
-
-	case SND_DEV_DSPHW:
-		/*
-		 * HW *specific* access without channel numbering confusion
-		 * caused by "first come first served" by dsp_clone().
-		 */
-		fmt = AFMT_U8;
-		chnum = PCMCHAN(i_dev);
-		break;
-
-	default:
-		panic("impossible devtype %d", devtype);
-	}
-
-	/* lock snddev so nobody else can monkey with it */
+	/* Lock snddev so nobody else can monkey with it. */
 	pcm_lock(d);
 
-	rdch = i_dev->si_drv1;
-	wrch = i_dev->si_drv2;
-
-	if (rdch || wrch || ((dsp_get_flags(i_dev) & SD_F_SIMPLEX) &&
-		    (flags & (FREAD | FWRITE)) == (FREAD | FWRITE))) {
-		/* simplex or not, better safe than sorry. */
+	/*
+	 * Try to acquire cloned device before someone else pick it.
+	 * ENODEV means this is not a cloned droids.
+	 */
+	error = snd_clone_acquire(i_dev);
+	if (!(error == 0 || error == ENODEV)) {
 		pcm_unlock(d);
-		return EBUSY;
+		return error;
 	}
+
+	if (!DSP_F_VALID(flags))
+		error = EINVAL;
+	else if (i_dev->si_drv1 != NULL)
+		error = EBUSY;
+	else if (DSP_F_DUPLEX(flags) &&
+	    (dsp_get_flags(i_dev) & SD_F_SIMPLEX))
+		error = ENOTSUP;
+	else
+		error = 0;
+
+	if (error != 0) {
+		(void)snd_clone_release(i_dev);
+		pcm_unlock(d);
+		return error;
+	}
+
+	/*
+	 * Fake busy state by pointing si_drv1 to something else since
+	 * we have to give up locking somewhere during setup process.
+	 */
+	PCMDEV_ACQUIRE(i_dev);
+
+	devtype = PCMDEV(i_dev);
+	wdevunit = -1;
+	rdevunit = -1;
+	fmt = 0;
+	spd = 0;
+
+	for (i = 0; i < (sizeof(dsp_cdevs) / sizeof(dsp_cdevs[0])); i++) {
+		if (devtype != dsp_cdevs[i].type)
+			continue;
+		if (DSP_F_SIMPLEX(flags) &&
+		    ((dsp_cdevs[i].query == DSP_CDEV_TYPE_WRONLY &&
+		    DSP_F_READ(flags)) ||
+		    (dsp_cdevs[i].query == DSP_CDEV_TYPE_RDONLY &&
+		    DSP_F_WRITE(flags)))) {
+			/*
+			 * simplex, opposite direction? Please be gone..
+			 */
+			(void)snd_clone_release(i_dev);
+			PCMDEV_RELEASE(i_dev);
+			pcm_unlock(d);
+			return ENOTSUP;
+		}
+		if (dsp_cdevs[i].query == DSP_CDEV_TYPE_WRONLY)
+			wdevunit = dev2unit(i_dev);
+		else if (dsp_cdevs[i].query == DSP_CDEV_TYPE_RDONLY)
+			rdevunit = dev2unit(i_dev);
+		fmt = dsp_cdevs[i].fmt;
+		spd = dsp_cdevs[i].spd;
+		break;
+	}
+
+	/* No matching devtype? */
+	if (fmt == 0 || spd == 0)
+		panic("impossible devtype %d", devtype);
+
+	rdch = NULL;
+	wrch = NULL;
 
 	/*
 	 * if we get here, the open request is valid- either:
@@ -247,20 +343,23 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	 *   * we were open for play xor record and the opener wants
 	 *     the non-open direction
 	 */
-	if (flags & FREAD) {
+	if (DSP_F_READ(flags)) {
 		/* open for read */
 		pcm_unlock(d);
-		error = pcm_chnalloc(d, &rdch, PCMDIR_REC, td->td_proc->p_pid, chnum);
-		if (error != 0 && error != EBUSY && chnum != -1 && (flags & FWRITE))
-			error = pcm_chnalloc(d, &rdch, PCMDIR_REC, td->td_proc->p_pid, -1);
+		error = pcm_chnalloc(d, &rdch, PCMDIR_REC, td->td_proc->p_pid,
+		    rdevunit);
 
-		if (error == 0 && (chn_reset(rdch, fmt) ||
-				(fmt && chn_setspeed(rdch, DSP_DEFAULT_SPEED))))
+		if (error == 0 && (chn_reset(rdch, fmt) != 0 ||
+		    (chn_setspeed(rdch, spd) != 0)))
 			error = ENODEV;
 
 		if (error != 0) {
-			if (rdch)
+			if (rdch != NULL)
 				pcm_chnrelease(rdch);
+			pcm_lock(d);
+			(void)snd_clone_release(i_dev);
+			PCMDEV_RELEASE(i_dev);
+			pcm_unlock(d);
 			return error;
 		}
 
@@ -271,43 +370,55 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		pcm_lock(d);
 	}
 
-	if (flags & FWRITE) {
-	    /* open for write */
-	    pcm_unlock(d);
-	    error = pcm_chnalloc(d, &wrch, PCMDIR_PLAY, td->td_proc->p_pid, chnum);
-	    if (error != 0 && error != EBUSY && chnum != -1 && (flags & FREAD))
-	    	error = pcm_chnalloc(d, &wrch, PCMDIR_PLAY, td->td_proc->p_pid, -1);
+	if (DSP_F_WRITE(flags)) {
+		/* open for write */
+		pcm_unlock(d);
+		error = pcm_chnalloc(d, &wrch, PCMDIR_PLAY, td->td_proc->p_pid,
+		    wdevunit);
 
-	    if (error == 0 && (chn_reset(wrch, fmt) ||
-	    		(fmt && chn_setspeed(wrch, DSP_DEFAULT_SPEED))))
-		error = ENODEV;
+		if (error == 0 && (chn_reset(wrch, fmt) != 0 ||
+		    (chn_setspeed(wrch, spd) != 0)))
+			error = ENODEV;
 
-	    if (error != 0) {
-		if (wrch)
-		    pcm_chnrelease(wrch);
-		if (rdch) {
-		    /*
-		     * Lock, deref and release previously created record channel
-		     */
-		    CHN_LOCK(rdch);
-		    pcm_chnref(rdch, -1);
-		    pcm_chnrelease(rdch);
+		if (error != 0) {
+			if (wrch != NULL)
+				pcm_chnrelease(wrch);
+			if (rdch != NULL) {
+				/*
+				 * Lock, deref and release previously
+				 * created record channel
+				 */
+				CHN_LOCK(rdch);
+				pcm_chnref(rdch, -1);
+				pcm_chnrelease(rdch);
+			}
+			pcm_lock(d);
+			(void)snd_clone_release(i_dev);
+			PCMDEV_RELEASE(i_dev);
+			pcm_unlock(d);
+			return error;
 		}
 
-		return error;
-	    }
-
-	    if (flags & O_NONBLOCK)
-		wrch->flags |= CHN_F_NBIO;
-	    pcm_chnref(wrch, 1);
-	    CHN_UNLOCK(wrch);
-	    pcm_lock(d);
+		if (flags & O_NONBLOCK)
+			wrch->flags |= CHN_F_NBIO;
+		pcm_chnref(wrch, 1);
+		CHN_UNLOCK(wrch);
+		pcm_lock(d);
 	}
 
-	i_dev->si_drv1 = rdch;
-	i_dev->si_drv2 = wrch;
+	/*
+	 * Increase clone refcount for its automatic garbage collector.
+	 */
+	(void)snd_clone_ref(i_dev);
 
 	pcm_unlock(d);
+
+	/*
+	 * We're done. Allocate and point si_drv1 to a real
+	 * allocated structure.
+	 */
+	dsp_cdevinfo_alloc(i_dev, rdch, wrch);
+
 	return 0;
 }
 
@@ -319,10 +430,11 @@ dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	int refs, sg_ids[2];
 
 	d = dsp_get_info(i_dev);
+	if (d == NULL)
+		return EBADF;
 	pcm_lock(d);
-	rdch = i_dev->si_drv1;
-	wrch = i_dev->si_drv2;
-	pcm_unlock(d);
+	rdch = PCM_RDCH(i_dev);
+	wrch = PCM_WRCH(i_dev);
 
 	/*
 	 * Free_unr() may sleep, so store released syncgroup IDs until after
@@ -332,6 +444,7 @@ dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	if (rdch || wrch) {
 		refs = 0;
+		pcm_unlock(d);
 		if (rdch) {
 			/*
 			 * The channel itself need not be locked because:
@@ -371,22 +484,31 @@ dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 		pcm_lock(d);
 		if (rdch)
-			i_dev->si_drv1 = NULL;
+			PCM_RDCH(i_dev) = NULL;
 		if (wrch)
-			i_dev->si_drv2 = NULL;
+			PCM_WRCH(i_dev) = NULL;
 		/*
 		 * If there are no more references, release the channels.
 		 */
-		if (refs == 0 && i_dev->si_drv1 == NULL &&
-			    i_dev->si_drv2 == NULL) {
+		if (refs == 0 && PCM_RDCH(i_dev) == NULL &&
+		    PCM_WRCH(i_dev) == NULL) {
 			if (pcm_getfakechan(d))
 				pcm_getfakechan(d)->flags = 0;
 			/* What is this?!? */
 			dsp_set_flags(i_dev, dsp_get_flags(i_dev) & ~SD_F_TRANSIENT);
+			dsp_cdevinfo_free(i_dev);
+			/*
+			 * Release clone busy state and unref it
+			 * so the automatic garbage collector will
+			 * get the hint and do the remaining cleanup
+			 * process.
+			 */
+			(void)snd_clone_release(i_dev);
+			(void)snd_clone_unref(i_dev);
 		}
-		pcm_unlock(d);
 	}
 
+	pcm_unlock(d);
 
 	if (sg_ids[0])
 		free_unr(pcmsg_unrhdr, sg_ids[0]);
@@ -404,8 +526,8 @@ dsp_read(struct cdev *i_dev, struct uio *buf, int flag)
 
 	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_RD);
 
-	KASSERT(rdch, ("dsp_read: nonexistant channel"));
-	KASSERT(rdch->flags & CHN_F_BUSY, ("dsp_read: nonbusy channel"));
+	if (rdch == NULL || !(rdch->flags & CHN_F_BUSY))
+		return EBADF;
 
 	if (rdch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) {
 		relchns(i_dev, rdch, wrch, SD_F_PRIO_RD);
@@ -427,8 +549,8 @@ dsp_write(struct cdev *i_dev, struct uio *buf, int flag)
 
 	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_WR);
 
-	KASSERT(wrch, ("dsp_write: nonexistant channel"));
-	KASSERT(wrch->flags & CHN_F_BUSY, ("dsp_write: nonbusy channel"));
+	if (wrch == NULL || !(wrch->flags & CHN_F_BUSY))
+		return EBADF;
 
 	if (wrch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) {
 		relchns(i_dev, rdch, wrch, SD_F_PRIO_WR);
@@ -469,6 +591,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	 */
 
 	d = dsp_get_info(i_dev);
+	if (d == NULL)
+		return EBADF;
 	if (IOCGROUP(cmd) == 'M') {
 		/*
 		 * This is at least, a bug to bug compatible with OSS.
@@ -516,7 +640,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 		wrch = NULL;
 	if (kill & 2)
 		rdch = NULL;
-	
+
     	switch(cmd) {
 #ifdef OLDPCM_IOCTL
     	/*
@@ -1503,89 +1627,234 @@ dsp_mmap(struct cdev *i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 
 #ifdef USING_DEVFS
 
-/*
- * Clone logic is this:
- * x E X = {dsp, dspW, audio}
- * x -> x${sysctl("hw.snd.unit")}
- * xN->
- *    for i N = 1 to channels of device N
- *    	if xN.i isn't busy, return its dev_t
- */
-static void
-dsp_clone(void *arg, struct ucred *cred, char *name, int namelen,
-    struct cdev **dev)
+/* So much for dev_stdclone() */
+static int
+dsp_stdclone(char *name, char *namep, char *sep, int use_sep, int *u, int *c)
 {
-	struct cdev *pdev;
-	struct snddev_info *pcm_dev;
-	struct snddev_channel *pcm_chan;
-	int i, unit, devtype;
-	static int devtypes[3] = {SND_DEV_DSP, SND_DEV_DSP16, SND_DEV_AUDIO};
-	static char *devnames[3] = {"dsp", "dspW", "audio"};
+	size_t len;
+
+	len = strlen(namep);
+
+	if (bcmp(name, namep, len) != 0)
+		return (ENODEV);
+
+	name += len;
+
+	if (isdigit(*name) == 0)
+		return (ENODEV);
+
+	len = strlen(sep);
+
+	if (*name == '0' && !(name[1] == '\0' || bcmp(name + 1, sep, len) == 0))
+		return (ENODEV);
+
+	for (*u = 0; isdigit(*name) != 0; name++) {
+		*u *= 10;
+		*u += *name - '0';
+		if (*u > dsp_umax)
+			return (ENODEV);
+	}
+
+	if (*name == '\0')
+		return ((use_sep == 0) ? 0 : ENODEV);
+
+	if (bcmp(name, sep, len) != 0 || isdigit(name[len]) == 0)
+		return (ENODEV);
+
+	name += len;
+
+	if (*name == '0' && name[1] != '\0')
+		return (ENODEV);
+
+	for (*c = 0; isdigit(*name) != 0; name++) {
+		*c *= 10;
+		*c += *name - '0';
+		if (*c > dsp_cmax)
+			return (ENODEV);
+	}
+
+	if (*name != '\0')
+		return (ENODEV);
+
+	return (0);
+}
+
+static void
+dsp_clone(void *arg,
+#if __FreeBSD_version >= 600034
+    struct ucred *cred,
+#endif
+    char *name, int namelen, struct cdev **dev)
+{
+	struct snddev_info *d;
+	struct snd_clone_entry *ce;
+	struct pcm_channel *c;
+	int i, unit, udcmask, cunit, devtype, devhw, devcmax, tumax;
+	char *devname, *devsep;
+
+	KASSERT(dsp_umax >= 0 && dsp_cmax >= 0, ("Uninitialized unit!"));
 
 	if (*dev != NULL)
 		return;
-	if (pcm_devclass == NULL)
-		return;
 
-	devtype = 0;
 	unit = -1;
-	for (i = 0; (i < 3) && (unit == -1); i++) {
-		devtype = devtypes[i];
-		if (strcmp(name, devnames[i]) == 0) {
+	cunit = -1;
+	devtype = -1;
+	devhw = 0;
+	devcmax = -1;
+	tumax = -1;
+	devname = NULL;
+	devsep = NULL;
+
+	for (i = 0; i < (sizeof(dsp_cdevs) / sizeof(dsp_cdevs[0])) &&
+	    unit == -1; i++) {
+		devtype = dsp_cdevs[i].type;
+		devname = dsp_cdevs[i].name;
+		devsep = dsp_cdevs[i].sep;
+		devhw = dsp_cdevs[i].hw;
+		devcmax = dsp_cdevs[i].max - 1;
+		if (strcmp(name, devname) == 0)
 			unit = snd_unit;
-		} else {
-			if (dev_stdclone(name, NULL, devnames[i], &unit) != 1)
-				unit = -1;
+		else if (dsp_stdclone(name, devname, devsep,
+		    dsp_cdevs[i].use_sep, &unit, &cunit) != 0) {
+			unit = -1;
+			cunit = -1;
 		}
 	}
-	if (unit == -1 || unit >= devclass_get_maxunit(pcm_devclass))
+
+	d = devclass_get_softc(pcm_devclass, unit);
+	if (d == NULL || d->clones == NULL)
 		return;
 
-	pcm_dev = devclass_get_softc(pcm_devclass, unit);
-
-	if (pcm_dev == NULL)
+	pcm_lock(d);
+	if (snd_clone_disabled(d->clones)) {
+		pcm_unlock(d);
 		return;
+	}
 
-	SLIST_FOREACH(pcm_chan, &pcm_dev->channels, link) {
+	udcmask = snd_u2unit(unit) | snd_d2unit(devtype);
 
-		switch(devtype) {
-			case SND_DEV_DSP:
-				pdev = pcm_chan->dsp_devt;
-				break;
-			case SND_DEV_DSP16:
-				pdev = pcm_chan->dspW_devt;
-				break;
-			case SND_DEV_AUDIO:
-				pdev = pcm_chan->audio_devt;
-				break;
-			default:
-				panic("Unknown devtype %d", devtype);
-		}
-
-		if ((pdev != NULL) && (pdev->si_drv1 == NULL) && (pdev->si_drv2 == NULL)) {
-			*dev = pdev;
-			dev_ref(*dev);
+	if (devhw != 0) {
+		KASSERT(devcmax <= dsp_cmax,
+		    ("overflow: devcmax=%d, dsp_cmax=%d", devcmax, dsp_cmax));
+		if (cunit > devcmax) {
+			pcm_unlock(d);
 			return;
 		}
+		udcmask |= snd_c2unit(cunit);
+		CHN_FOREACH(c, d, channels.pcm) {
+			CHN_LOCK(c);
+			if (c->unit != udcmask) {
+				CHN_UNLOCK(c);
+				continue;
+			}
+			CHN_UNLOCK(c);
+			udcmask &= ~snd_c2unit(cunit);
+			/*
+			 * Temporarily increase clone maxunit to overcome
+			 * vchan flexibility.
+			 *
+			 * # sysctl dev.pcm.0.play.vchans=256
+			 * dev.pcm.0.play.vchans: 1 -> 256
+			 * # cat /dev/zero > /dev/dsp0.vp255 &
+			 * [1] 17296
+			 * # sysctl dev.pcm.0.play.vchans=0
+			 * dev.pcm.0.play.vchans: 256 -> 1
+			 * # fg
+			 * [1]  + running    cat /dev/zero > /dev/dsp0.vp255
+			 * ^C
+			 * # cat /dev/zero > /dev/dsp0.vp255
+			 * zsh: operation not supported: /dev/dsp0.vp255
+			 */
+			tumax = snd_clone_getmaxunit(d->clones);
+			if (cunit > tumax)
+				snd_clone_setmaxunit(d->clones, cunit);
+			else
+				tumax = -1;
+			goto dsp_clone_alloc;
+		}
+		/*
+		 * Ok, so we're requesting unallocated vchan, but still
+		 * within maximum vchan limit.
+		 */
+		if (((devtype == SND_DEV_DSPHW_VPLAY && d->pvchancount > 0) ||
+		    (devtype == SND_DEV_DSPHW_VREC && d->rvchancount > 0)) &&
+		    cunit < snd_maxautovchans) {
+			udcmask &= ~snd_c2unit(cunit);
+			tumax = snd_clone_getmaxunit(d->clones);
+			if (cunit > tumax)
+				snd_clone_setmaxunit(d->clones, cunit);
+			else
+				tumax = -1;
+			goto dsp_clone_alloc;
+		}
+		pcm_unlock(d);
+		return;
 	}
+
+dsp_clone_alloc:
+	ce = snd_clone_alloc(d->clones, dev, &cunit, udcmask);
+	if (tumax != -1)
+		snd_clone_setmaxunit(d->clones, tumax);
+	if (ce != NULL) {
+		udcmask |= snd_c2unit(cunit);
+		pcm_unlock(d);
+		*dev = make_dev(&dsp_cdevsw, unit2minor(udcmask),
+		    UID_ROOT, GID_WHEEL, 0666, "%s%d%s%d",
+		    devname, unit, devsep, cunit);
+		pcm_lock(d);
+		snd_clone_register(ce, *dev);
+	}
+	pcm_unlock(d);
+
+	if (*dev != NULL)
+		dev_ref(*dev);
 }
 
 static void
 dsp_sysinit(void *p)
 {
+	if (dsp_ehtag != NULL)
+		return;
+	/* initialize unit numbering */
+	snd_unit_init();
+	dsp_umax = PCMMAXUNIT;
+	dsp_cmax = PCMMAXCHAN;
 	dsp_ehtag = EVENTHANDLER_REGISTER(dev_clone, dsp_clone, 0, 1000);
 }
 
 static void
 dsp_sysuninit(void *p)
 {
-	if (dsp_ehtag != NULL)
-		EVENTHANDLER_DEREGISTER(dev_clone, dsp_ehtag);
+	if (dsp_ehtag == NULL)
+		return;
+	EVENTHANDLER_DEREGISTER(dev_clone, dsp_ehtag);
+	dsp_ehtag = NULL;
 }
 
 SYSINIT(dsp_sysinit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, dsp_sysinit, NULL);
 SYSUNINIT(dsp_sysuninit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, dsp_sysuninit, NULL);
 #endif
+
+char *
+dsp_unit2name(char *buf, size_t len, int unit)
+{
+	int i, dtype;
+
+	KASSERT(buf != NULL && len != 0, ("bogus buf=%p len=%u", buf, len));
+
+	dtype = snd_unit2d(unit);
+
+	for (i = 0; i < (sizeof(dsp_cdevs) / sizeof(dsp_cdevs[0])); i++) {
+		if (dtype != dsp_cdevs[i].type)
+			continue;
+		snprintf(buf, len, "%s%d%s%d", dsp_cdevs[i].name,
+		    snd_unit2u(unit), dsp_cdevs[i].sep, snd_unit2c(unit));
+		return (buf);
+	}
+
+	return (NULL);
+}
 
 /**
  * @brief Handler for SNDCTL_AUDIOINFO.
@@ -1622,13 +1891,12 @@ SYSUNINIT(dsp_sysuninit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, dsp_sysuninit, NULL);
 int
 dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 {
-	struct snddev_channel *sce;
 	struct pcmchan_caps *caps;
 	struct pcm_channel *ch;
 	struct snddev_info *d;
-	struct cdev *t_cdev;
 	uint32_t fmts;
 	int i, nchan, ret, *rates, minch, maxch;
+	char *devname, buf[CHN_NAMELEN];
 
 	/*
 	 * If probing the device that received the ioctl, make sure it's a
@@ -1639,10 +1907,11 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 		return EINVAL;
 
 	ch = NULL;
-	t_cdev = NULL;
+	devname = NULL;
 	nchan = 0;
 	ret = 0;
-	
+	bzero(buf, sizeof(buf));
+
 	/*
 	 * Search for the requested audio device (channel).  Start by
 	 * iterating over pcm devices.
@@ -1657,21 +1926,24 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 		pcm_inprog(d, 1);
 		pcm_lock(d);
 
-		SLIST_FOREACH(sce, &d->channels, link) {
-			ch = sce->channel;
+		CHN_FOREACH(ch, d, channels.pcm) {
 			mtx_assert(ch->lock, MA_NOTOWNED);
 			CHN_LOCK(ch);
 			if (ai->dev == -1) {
-				if ((ch == i_dev->si_drv1) ||	/* record ch */
-				    (ch == i_dev->si_drv2)) {	/* playback ch */
-					t_cdev = i_dev;
+				if ((ch == PCM_RDCH(i_dev)) ||	/* record ch */
+				    (ch == PCM_WRCH(i_dev))) {	/* playback ch */
+					devname = i_dev->si_name;
 					goto dspfound;
 				}
 			} else if (ai->dev == nchan) {
-				t_cdev = sce->dsp_devt;
+				devname = dsp_unit2name(buf, sizeof(buf),
+				    ch->unit);
 				goto dspfound;
 			}
 			CHN_UNLOCK(ch);
+			/*
+			 * XXX I really doubt if this is correct.
+			 */
 			++nchan;
 		}
 
@@ -1684,7 +1956,7 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 
 dspfound:
 	/* Should've found the device, but something isn't right */
-	if (t_cdev == NULL) {
+	if (devname == NULL) {
 		ret = EINVAL;
 		goto out;
 	}
@@ -1721,7 +1993,7 @@ dspfound:
 	 * 	table for later.  Is there a risk of leaking information?
 	 */
 	ai->pid = ch->pid;
-	
+
 	/*
 	 * These flags stolen from SNDCTL_DSP_GETCAPS handler.  Note, however,
 	 * that a single channel operates in only one direction, so
@@ -1784,7 +2056,7 @@ dspfound:
 	 * @c real_device - OSSv4 docs:  "Obsolete."
 	 */
 	ai->real_device = -1;
-	strlcpy(ai->devnode, t_cdev->si_name, sizeof(ai->devnode));
+	strlcpy(ai->devnode, devname, sizeof(ai->devnode));
 	ai->enabled = device_is_attached(d->dev) ? 1 : 0;
 	/**
 	 * @note
@@ -2008,7 +2280,7 @@ dsp_oss_syncstart(int sg_id)
 	struct pcmchan_syncgroup *sg;
 	struct pcm_channel *c;
 	int ret, needlocks;
-	
+
 	/* Get the synclists lock */
 	PCM_SG_LOCK();
 

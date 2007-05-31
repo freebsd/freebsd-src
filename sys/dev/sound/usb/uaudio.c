@@ -4499,10 +4499,8 @@ static int
 uaudio_sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 {
     	struct snddev_info *d;
-    	struct snddev_channel *sce;
 	struct pcm_channel *c;
 	struct pcm_feeder *f;
-    	int pc, rc, vc;
 	device_t pa_dev = device_get_parent(dev);
 	struct uaudio_softc *sc = device_get_softc(pa_dev);
 
@@ -4514,24 +4512,14 @@ uaudio_sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		return ENXIO;
 
 	snd_mtxlock(d->lock);
-	if (SLIST_EMPTY(&d->channels)) {
+	if (CHN_EMPTY(d, channels.pcm)) {
 		sbuf_printf(s, " (mixer only)");
 		snd_mtxunlock(d->lock);
 		return 0;
 	}
-	pc = rc = vc = 0;
-	SLIST_FOREACH(sce, &d->channels, link) {
-		c = sce->channel;
-		if (c->direction == PCMDIR_PLAY) {
-			if (c->flags & CHN_F_VIRTUAL)
-				vc++;
-			else
-				pc++;
-		} else
-			rc++;
-	}
-	sbuf_printf(s, " (%dp/%dr/%dv channels%s%s)", 
-			d->playcount, d->reccount, d->vchancount,
+	sbuf_printf(s, " (%dp:%dv/%dr:%dv channels%s%s)", 
+			d->playcount, d->pvchancount,
+			d->reccount, d->rvchancount,
 			(d->flags & SD_F_SIMPLEX)? "" : " duplex",
 #ifdef USING_DEVFS
 			(device_get_unit(dev) == snd_unit)? " default" : ""
@@ -4549,8 +4537,7 @@ uaudio_sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		return 0;
 	}
 
-	SLIST_FOREACH(sce, &d->channels, link) {
-		c = sce->channel;
+	CHN_FOREACH(c, d, channels.pcm) {
 		sbuf_printf(s, "\n\t");
 
 		KASSERT(c->bufhard != NULL && c->bufsoft != NULL,

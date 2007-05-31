@@ -26,8 +26,27 @@
  * $FreeBSD$
  */
 
-int vchan_create(struct pcm_channel *parent);
+int vchan_create(struct pcm_channel *parent, int num);
 int vchan_destroy(struct pcm_channel *c);
 int vchan_initsys(device_t dev);
 
+/*
+ * Default speed / format
+ */
+#define VCHAN_DEFAULT_SPEED	48000
+#define VCHAN_DEFAULT_AFMT	(AFMT_S16_LE | AFMT_STEREO)
+#define VCHAN_DEFAULT_STRFMT	"s16le"
 
+#define VCHAN_PLAY		0
+#define VCHAN_REC		1
+
+/*
+ * Offset by +/- 1 so we can distinguish bogus pointer.
+ */
+#define VCHAN_SYSCTL_DATA(x, y)						\
+		((void *)((intptr_t)(((((x) + 1) & 0xfff) << 2) |	\
+		(((VCHAN_##y) + 1) & 0x3))))
+
+#define VCHAN_SYSCTL_DATA_SIZE	sizeof(void *)
+#define VCHAN_SYSCTL_UNIT(x)	((int)(((intptr_t)(x) >> 2) & 0xfff) - 1)
+#define VCHAN_SYSCTL_DIR(x)	((int)((intptr_t)(x) & 0x3) - 1)

@@ -99,7 +99,7 @@ static struct cdevsw mixer_cdevsw = {
 int mixer_count = 0;
 
 #ifdef USING_DEVFS
-static eventhandler_tag mixer_ehtag;
+static eventhandler_tag mixer_ehtag = NULL;
 #endif
 
 static struct cdev *
@@ -130,26 +130,35 @@ static int
 mixer_set_softpcmvol(struct snd_mixer *mixer, struct snddev_info *d,
 						unsigned left, unsigned right)
 {
-	struct snddev_channel *sce;
-	struct pcm_channel *ch;
-#ifdef USING_MUTEX
-	int locked = (mixer->lock && mtx_owned((struct mtx *)(mixer->lock))) ? 1 : 0;
+	struct pcm_channel *c;
+	int locked;
 
+	locked = (mixer->lock != NULL &&
+	    mtx_owned((struct mtx *)(mixer->lock))) ? 1 : 0;
 	if (locked)
 		snd_mtxunlock(mixer->lock);
-#endif
-	SLIST_FOREACH(sce, &d->channels, link) {
-		ch = sce->channel;
-		CHN_LOCK(ch);
-		if (ch->direction == PCMDIR_PLAY &&
-				(ch->feederflags & (1 << FEEDER_VOLUME)))
-			chn_setvolume(ch, left, right);
-		CHN_UNLOCK(ch);
+
+	if (CHN_EMPTY(d, channels.pcm.busy)) {
+		CHN_FOREACH(c, d, channels.pcm) {
+			CHN_LOCK(c);
+			if (c->direction == PCMDIR_PLAY &&
+			    (c->feederflags & (1 << FEEDER_VOLUME)))
+				chn_setvolume(c, left, right);
+			CHN_UNLOCK(c);
+		}
+	} else {
+		CHN_FOREACH(c, d, channels.pcm.busy) {
+			CHN_LOCK(c);
+			if (c->direction == PCMDIR_PLAY &&
+			    (c->feederflags & (1 << FEEDER_VOLUME)))
+				chn_setvolume(c, left, right);
+			CHN_UNLOCK(c);
+		}
 	}
-#ifdef USING_MUTEX
+
 	if (locked)
 		snd_mtxlock(mixer->lock);
-#endif
+
 	return 0;
 }
 
@@ -480,7 +489,7 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	struct snd_mixer *m;
 	u_int16_t v;
 	struct cdev *pdev;
-	int i, unit, val;
+	int i, unit, devunit, val;
 
 	m = (struct snd_mixer *)kobj_create(cls, M_MIXER, M_WAITOK | M_ZERO);
 	snprintf(m->name, MIXER_NAMELEN, "%s:mixer", device_get_nameunit(dev));
@@ -514,7 +523,8 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	mixer_setrecsrc(m, SOUND_MASK_MIC);
 
 	unit = device_get_unit(dev);
-	pdev = make_dev(&mixer_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL, 0),
+	devunit = snd_mkunit(unit, SND_DEV_CTL, 0);
+	pdev = make_dev(&mixer_cdevsw, unit2minor(devunit),
 		 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
 	pdev->si_drv1 = m;
 	snddev = device_get_softc(dev);
@@ -845,17 +855,20 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread
 
 #ifdef USING_DEVFS
 static void
-mixer_clone(void *arg, struct ucred *cred, char *name, int namelen,
-    struct cdev **dev)
+mixer_clone(void *arg,
+#if __FreeBSD_version >= 600034
+    struct ucred *cred,
+#endif
+    char *name, int namelen, struct cdev **dev)
 {
-	struct snddev_info *sd;
+	struct snddev_info *d;
 
 	if (*dev != NULL)
 		return;
 	if (strcmp(name, "mixer") == 0) {
-		sd = devclass_get_softc(pcm_devclass, snd_unit);
-		if (sd != NULL && sd->mixer_dev != NULL) {
-			*dev = sd->mixer_dev;
+		d = devclass_get_softc(pcm_devclass, snd_unit);
+		if (d != NULL && d->mixer_dev != NULL) {
+			*dev = d->mixer_dev;
 			dev_ref(*dev);
 		}
 	}
@@ -864,14 +877,18 @@ mixer_clone(void *arg, struct ucred *cred, char *name, int namelen,
 static void
 mixer_sysinit(void *p)
 {
+	if (mixer_ehtag != NULL)
+		return;
 	mixer_ehtag = EVENTHANDLER_REGISTER(dev_clone, mixer_clone, 0, 1000);
 }
 
 static void
 mixer_sysuninit(void *p)
 {
-	if (mixer_ehtag != NULL)
-		EVENTHANDLER_DEREGISTER(dev_clone, mixer_ehtag);
+	if (mixer_ehtag == NULL)
+		return;
+	EVENTHANDLER_DEREGISTER(dev_clone, mixer_ehtag);
+	mixer_ehtag = NULL;
 }
 
 SYSINIT(mixer_sysinit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, mixer_sysinit, NULL);
