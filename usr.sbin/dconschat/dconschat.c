@@ -605,6 +605,16 @@ dconschat_accept_socket(struct dcons_state *dc, struct dcons_port *p)
 		p->skip_read = 0;
 	}
 #endif
+	/* discard backlog on GDB port */
+	if (IS_GDB(p)) {
+		char buf[2048];
+		int len;
+
+		while ((len = dconschat_read_dcons(dc, DCONS_GDB, &buf[0],
+				 2048)) > 0)
+			if (verbose)
+				printf("discard %d chars on GDB port\n", len);
+	}
 
 	p->infd = p->outfd = ns;
 	EV_SET(&kev, ns, EVFILT_READ, EV_ADD, NOTE_LOWAT, 1, (void *)p);
