@@ -1518,7 +1518,6 @@ tcp_usrclosed(struct tcpcb *tp)
 	INP_LOCK_ASSERT(tp->t_inpcb);
 
 	switch (tp->t_state) {
-
 	case TCPS_CLOSED:
 	case TCPS_LISTEN:
 		tp->t_state = TCPS_CLOSED;
@@ -1544,14 +1543,14 @@ tcp_usrclosed(struct tcpcb *tp)
 		tp->t_state = TCPS_LAST_ACK;
 		break;
 	}
-	if (tp && tp->t_state >= TCPS_FIN_WAIT_2) {
+	if (tp->t_state >= TCPS_FIN_WAIT_2) {
 		soisdisconnected(tp->t_inpcb->inp_socket);
-		/* To prevent the connection hanging in FIN_WAIT_2 forever. */
+		/* Prevent the connection hanging in FIN_WAIT_2 forever. */
 		if (tp->t_state == TCPS_FIN_WAIT_2) {
 			int timeout;
 
 			timeout = (tcp_fast_finwait2_recycle) ? 
-				tcp_finwait2_timeout : tcp_maxidle;
+			    tcp_finwait2_timeout : tcp_maxidle;
 			tcp_timer_activate(tp, TT_2MSL, timeout);
 		}
 	}
