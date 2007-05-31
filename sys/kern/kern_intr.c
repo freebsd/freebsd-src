@@ -1264,9 +1264,6 @@ intr_filter_loop(struct intr_event *ie, struct trapframe *frame,
 			continue;
 		}
 
-		KASSERT(ret != FILTER_SCHEDULE_THREAD, 
-			("intr_filter_loop: FILTER_SCHEDULE_THREAD from filter"));
-
 		if (ret & FILTER_STRAY)
 			continue;
 		else { 

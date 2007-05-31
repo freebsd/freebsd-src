@@ -310,7 +310,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	struct thread *td;
 	struct intr_event *ie;
 	struct intr_handler *ih;
-	int error, vector, thread;
+	int error, vector, thread, ret;
 
 	td = curthread;
 
@@ -356,6 +356,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * a trapframe as its argument.
 	 */
 	td->td_intr_nesting_level++;
+	ret = 0;
 	thread = 0;
 	critical_enter();
 	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
@@ -367,9 +368,17 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 		    ih->ih_filter, ih->ih_argument == NULL ? frame :
 		    ih->ih_argument, ih->ih_name);
 		if (ih->ih_argument == NULL)
-			ih->ih_filter(frame);
+			ret = ih->ih_filter(frame);
 		else
-			ih->ih_filter(ih->ih_argument);
+			ret = ih->ih_filter(ih->ih_argument);
+		/*
+		 * Wrapper handler special case: see
+		 * i386/intr_machdep.c::intr_execute_handlers()
+		 */
+		if (!thread) {
+			if (ret == FILTER_SCHEDULE_THREAD)
+				thread = 1;
+		}
 	}
 
 	/*

@@ -236,7 +236,7 @@ intr_execute_handlers(void *cookie)
 	struct intr_vector *iv;
 	struct intr_event *ie;
 	struct intr_handler *ih;
-	int error, thread;
+	int error, thread, ret;
 
 	iv = cookie;
 	ie = iv->iv_event;
@@ -246,6 +246,7 @@ intr_execute_handlers(void *cookie)
 	}
 
 	/* Execute fast interrupt handlers directly. */
+	ret = 0;
 	thread = 0;
 	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
 		if (ih->ih_filter == NULL) {
@@ -255,7 +256,15 @@ intr_execute_handlers(void *cookie)
 		MPASS(ih->ih_filter != NULL && ih->ih_argument != NULL);
 		CTR3(KTR_INTR, "%s: executing handler %p(%p)", __func__,
 		    ih->ih_filter, ih->ih_argument);
-		ih->ih_filter(ih->ih_argument);
+		ret = ih->ih_filter(ih->ih_argument);
+		/*
+		 * Wrapper handler special case: see
+		 * i386/intr_machdep.c::intr_execute_handlers()
+		 */
+		if (!thread) {
+			if (ret == FILTER_SCHEDULE_THREAD)
+				thread = 1;
+		}
 	}
 
 	/* Schedule a heavyweight interrupt process. */
