@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/kthread.h>
+#include <sys/interrupt.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -176,6 +177,7 @@ static int	cbb_cardbus_power_enable_socket(device_t brdev,
 		    device_t child);
 static void	cbb_cardbus_power_disable_socket(device_t brdev,
 		    device_t child);
+static int	cbb_func_filt(void *arg);
 static void	cbb_func_intr(void *arg);
 
 static void
@@ -365,18 +367,19 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 	struct cbb_softc *sc = device_get_softc(dev);
 	int err;
 
+	if (filt == NULL && intr == NULL)
+		return (EINVAL);
 	/*
 	 * Well, this is no longer strictly true.  You can have multiple
 	 * FAST ISRs, but can't mix fast and slow, so we have to assume
 	 * least common denominator until the base system supports mixing
 	 * and matching better.
 	 */
-	if (filt != NULL)
-		return (EINVAL);
 	ih = malloc(sizeof(struct cbb_intrhand), M_DEVBUF, M_NOWAIT);
 	if (ih == NULL)
 		return (ENOMEM);
 	*cookiep = ih;
+	ih->filt = filt;
 	ih->intr = intr;
 	ih->arg = arg;
 	ih->sc = sc;
@@ -385,7 +388,7 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 	 * XXX for now that's all we need to do.
 	 */
 	err = BUS_SETUP_INTR(device_get_parent(dev), child, irq, flags,
-	    NULL, cbb_func_intr, ih, &ih->cookie);
+	    cbb_func_filt, cbb_func_intr, ih, &ih->cookie);
 	if (err != 0) {
 		free(ih, M_DEVBUF);
 		return (err);
@@ -612,8 +615,8 @@ cbb_removal(struct cbb_softc *sc)
  * cbb_func_intr(), we could just check the SOCKET_MASK register and if
  * CD changes were clear there, then we'd know the card was gone.
  */
-static void
-cbb_func_intr(void *arg)
+static int
+cbb_func_filt(void *arg)
 {
 	struct cbb_intrhand *ih = (struct cbb_intrhand *)arg;
 	struct cbb_softc *sc = ih->sc;
@@ -622,17 +625,27 @@ cbb_func_intr(void *arg)
 	 * Make sure that the card is really there.
 	 */
 	if ((sc->flags & CBB_CARD_OK) == 0)
-		return;
+		return (FILTER_STRAY);
 	if (!CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
 		sc->flags &= ~CBB_CARD_OK;
-		return;
+		return (FILTER_STRAY);
 	}
 
 	/*
 	 * nb: don't have to check for giant or not, since that's done
 	 * in the ISR dispatch
 	 */
-	(*ih->intr)(ih->arg);
+	if (ih->filt != NULL)
+		return ((*ih->filt)(ih->arg));	
+	return (FILTER_SCHEDULE_THREAD);
+}
+
+static void
+cbb_func_intr(void *arg)
+{
+	struct cbb_intrhand *ih = (struct cbb_intrhand *)arg;
+
+	ih->intr(ih->arg);
 }
 
 /************************************************************************/

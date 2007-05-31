@@ -32,6 +32,7 @@
  */
 
 struct cbb_intrhand {
+	driver_filter_t	*filt;
 	driver_intr_t	*intr;
 	void 		*arg;
 	struct cbb_softc *sc;
