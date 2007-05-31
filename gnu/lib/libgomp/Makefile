@@ -15,6 +15,8 @@ SRCS=	alloc.c barrier.c critical.c env.c \
 	bar.c time.c fortran.c
 SRCS+=	gstdint.h libgomp_f.h omp.h omp_lib.h
 
+INCS+=	omp.h
+
 CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I. -I${SRCDIR} -I${SRCDIR}/config/posix
 
