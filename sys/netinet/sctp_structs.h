@@ -598,7 +598,6 @@ struct sctp_association {
 	struct sctp_readhead pending_reply_queue;
 
 	uint32_t vrf_id;
-	uint32_t table_id;
 
 	uint32_t cookie_preserve_req;
 	/* ASCONF next seq I am sending out, inits at init-tsn */

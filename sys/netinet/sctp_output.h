@@ -76,7 +76,7 @@ void sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *);
 void
 sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
     struct mbuf *, int, int, struct sctphdr *, struct sctp_init_chunk *,
-    uint32_t, uint32_t);
+    uint32_t);
 
 struct mbuf *
 sctp_arethere_unrecognized_parameters(struct mbuf *, int, int *,
@@ -102,7 +102,7 @@ void sctp_send_shutdown_complete(struct sctp_tcb *, struct sctp_nets *);
 
 void 
 sctp_send_shutdown_complete2(struct mbuf *, int, struct sctphdr *,
-    uint32_t, uint32_t);
+    uint32_t);
 
 void sctp_send_asconf(struct sctp_tcb *, struct sctp_nets *);
 
@@ -179,11 +179,9 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 
 void
 sctp_send_abort(struct mbuf *, int, struct sctphdr *, uint32_t,
-    struct mbuf *, uint32_t, uint32_t);
+    struct mbuf *, uint32_t);
 
-void 
-sctp_send_operr_to(struct mbuf *, int, struct mbuf *, uint32_t, uint32_t,
-    uint32_t);
+void sctp_send_operr_to(struct mbuf *, int, struct mbuf *, uint32_t, uint32_t);
 
 int
 sctp_sosend(struct socket *so,

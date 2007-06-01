@@ -79,6 +79,9 @@ struct sctp_ifn {
 	uint32_t refcount;	/* number of reference held should be >=
 				 * ifa_count */
 	uint32_t ifa_count;	/* IFA's we hold (in our list - ifalist) */
+	uint32_t num_v6;	/* number of v6 addresses */
+	uint32_t num_v4;	/* number of v4 addresses */
+	uint32_t registered_af;	/* registered address family for i/f events */
 	char ifn_name[SCTP_IFNAMSIZ];
 };
 
@@ -109,7 +112,6 @@ struct sctp_ifa {
 	uint8_t src_is_priv;
 	uint8_t src_is_glob;
 	uint8_t resv;
-
 };
 
 struct sctp_laddr {
@@ -281,6 +283,8 @@ struct sctp_pcb {
 
 	/* Zero copy full buffer timer */
 	struct sctp_timer zero_copy_timer;
+	/* Zero copy app to transport (sendq) read repulse timer */
+	struct sctp_timer zero_copy_sendq_timer;
 	int def_cookie_life;
 	/* defaults to 0 */
 	int auto_close_time;
@@ -364,7 +368,6 @@ struct sctp_inpcb {
 	struct mtx inp_rdata_mtx;
 	int32_t refcount;
 	uint32_t def_vrf_id;
-	uint32_t def_table_id;
 	uint32_t total_sends;
 	uint32_t total_recvs;
 	uint32_t last_abort_code;
