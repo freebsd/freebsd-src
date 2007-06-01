@@ -427,16 +427,11 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	}
 
 	/*
-	 * Constrain the number of committed audit records based on
-	 * the configurable parameter.
+	 * Constrain the number of committed audit records based on the
+	 * configurable parameter.
 	 */
-	while (audit_q_len >= audit_qctrl.aq_hiwater) {
-		AUDIT_PRINTF(("audit_commit: sleeping to wait for "
-		   "audit queue to drain below high water mark\n"));
+	while (audit_q_len >= audit_qctrl.aq_hiwater)
 		cv_wait(&audit_watermark_cv, &audit_mtx);
-		AUDIT_PRINTF(("audit_commit: woke up waiting for "
-		   "audit queue draining\n"));
-	}
 
 	TAILQ_INSERT_TAIL(&audit_q, ar, k_q);
 	audit_q_len++;
@@ -540,11 +535,7 @@ audit_syscall_exit(int error, struct thread *td)
 		retval = td->td_retval[0];
 
 	audit_commit(td->td_ar, error, retval);
-	if (td->td_ar != NULL)
-		AUDIT_PRINTF(("audit record committed by pid %d\n",
-			td->td_proc->p_pid));
 	td->td_ar = NULL;
-
 }
 
 /*
