@@ -163,6 +163,8 @@ OLD_FILES+=usr/share/man/man3/addr2ascii.3.gz
 OLD_FILES+=usr/share/man/man3/ascii2addr.3.gz
 # 20070225: vm_page_unmanage() removed
 OLD_FILES+=usr/share/man/man9/vm_page_unmanage.9.gz
+# 20070216: VFS_VPTOFH(9) -> VOP_VPTOFH(9)
+OLD_FILES=usr/share/man/man9/VFS_VPTOFH.9.gz
 # 20070212: kame.4 removed
 OLD_FILES+=usr/share/man/man4/kame.4.gz
 # 20070201: remove libmytinfo link
@@ -176,6 +178,8 @@ OLD_FILES+=usr/lib32/libmytinfo_p.a
 .endif
 # 20070128: remove vnconfig
 OLD_FILES+=usr/sbin/vnconfig
+# 20070127: remove bpf_compat.h
+OLD_FILES+=usr/include/net/bpf_compat.h
 # 20070125: objformat bites the dust
 OLD_FILES+=usr/bin/objformat
 OLD_FILES+=usr/share/man/man1/objformat.1.gz
@@ -249,6 +253,19 @@ OLD_FILES+=etc/periodic/weekly/120.clean-kvmdb
 # 20060822: ramdisk{,-own} have been replaced by mdconfig{,2}
 OLD_FILES+=etc/rc.d/ramdisk
 OLD_FILES+=etc/rc.d/ramdisk-own
+# 20060729: OpenSSL 0.9.7e -> 0.9.8b upgrade
+OLD_FILES+=usr/include/openssl/eng_int.h
+OLD_FILES+=usr/include/openssl/hw_4758_cca_err.h
+OLD_FILES+=usr/include/openssl/hw_aep_err.h
+OLD_FILES+=usr/include/openssl/hw_atalla_err.h
+OLD_FILES+=usr/include/openssl/hw_cswift_err.h
+OLD_FILES+=usr/include/openssl/hw_ncipher_err.h
+OLD_FILES+=usr/include/openssl/hw_nuron_err.h
+OLD_FILES+=usr/include/openssl/hw_sureware_err.h
+OLD_FILES+=usr/include/openssl/hw_ubsec_err.h
+# 20060713: mount_linsysfs(8) never existed in 7.x
+OLD_FILES+=sbin/mount_linsysfs
+OLD_FILES+=usr/share/man/man8/mount_linsysfs.8.gz
 # 20060704: KAME compat file net_osdep.h removed
 OLD_FILES+=usr/include/net/net_osdep.h
 # 20060517: pcvt removed
@@ -3268,7 +3285,14 @@ OLD_FILES+=usr/include/nwfs/nwfs.h
 OLD_FILES+=usr/include/nwfs/nwfs_mount.h
 OLD_FILES+=usr/include/nwfs/nwfs_node.h
 OLD_FILES+=usr/include/nwfs/nwfs_subr.h
+OLD_FILES+=usr/include/posix4/_semaphore.h
 OLD_FILES+=usr/include/posix4/aio.h
+OLD_FILES+=usr/include/posix4/ksem.h
+OLD_FILES+=usr/include/posix4/mqueue.h
+OLD_FILES+=usr/include/posix4/posix4.h
+OLD_FILES+=usr/include/posix4/sched.h
+OLD_FILES+=usr/include/posix4/semaphore.h
+OLD_DIRS+=usr/include/posix4
 OLD_FILES+=usr/include/rune.h
 OLD_FILES+=usr/include/security/_pam_compat.h
 OLD_FILES+=usr/include/security/_pam_macros.h
@@ -3278,6 +3302,7 @@ OLD_FILES+=usr/include/security/pam_misc.h
 OLD_FILES+=usr/include/skey.h
 OLD_FILES+=usr/include/strhash.h
 OLD_FILES+=usr/include/struct.h
+OLD_FILES+=usr/include/sys/_label.h
 OLD_FILES+=usr/include/sys/_posix.h
 OLD_FILES+=usr/include/sys/bus_private.h
 OLD_FILES+=usr/include/sys/ccdvar.h
@@ -3285,6 +3310,7 @@ OLD_FILES+=usr/include/sys/diskslice.h
 OLD_FILES+=usr/include/sys/dmap.h
 OLD_FILES+=usr/include/sys/inttypes.h
 OLD_FILES+=usr/include/sys/jumbo.h
+OLD_FILES+=usr/include/sys/mac_policy.h
 OLD_FILES+=usr/include/sys/pbioio.h
 OLD_FILES+=usr/include/sys/syscall-hide.h
 OLD_FILES+=usr/include/sys/tprintf.h
@@ -3312,6 +3338,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/nodns.m4
 OLD_FILES+=usr/share/syscons/keymaps/lat-amer.kbd
 OLD_FILES+=usr/share/vi/catalog/ru_SU.KOI8-R
 OLD_FILES+=usr/share/zoneinfo/Africa/Timbuktu
+OLD_FILES+=usr/share/zoneinfo/Africa/Asmera
 OLD_FILES+=usr/share/zoneinfo/America/Buenos_Aires
 OLD_FILES+=usr/share/zoneinfo/America/Cordoba
 OLD_FILES+=usr/share/zoneinfo/America/Jujuy
@@ -3320,6 +3347,7 @@ OLD_FILES+=usr/share/zoneinfo/America/Mendoza
 OLD_FILES+=usr/share/zoneinfo/America/Indianapolis
 OLD_FILES+=usr/share/zoneinfo/America/Louisville
 OLD_FILES+=usr/share/zoneinfo/America/Argentina/ComodRivadavia
+OLD_FILES+=usr/share/zoneinfo/Atlantic/Faeroe
 OLD_FILES+=usr/share/zoneinfo/Europe/Belfast
 OLD_FILES+=usr/share/zoneinfo/Pacific/Yap
 OLD_FILES+=usr/share/zoneinfo/SystemV/YST9
