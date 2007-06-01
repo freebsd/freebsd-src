@@ -226,7 +226,7 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 			vfs_busy_pages(bp, 0);
 			bp->b_iooffset = dbtob(bp->b_blkno);
 			bstrategy(bp);
-			curproc->p_stats->p_ru.ru_inblock++;	/* XXX */
+			curthread->td_ru.ru_inblock++;
 			error = bufwait(bp);
 			if (error) {
 				brelse(bp);

@@ -49,6 +49,7 @@
 #include <sys/priority.h>
 #include <sys/rtprio.h>			/* XXX. */
 #include <sys/runq.h>
+#include <sys/resource.h>
 #include <sys/sigio.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
@@ -255,10 +256,12 @@ struct thread {
 	struct kse_upcall *td_upcall;	/* (k + j) Upcall structure. */
 	u_int		td_estcpu;	/* (j) Sum of the same field in KSEs. */
 	u_int		td_slptime;	/* (j) How long completely blocked. */
-	u_int		td_pticks;	/* (k) Statclock hits for profiling */
-	u_int		td_sticks;	/* (k) Statclock hits in system mode. */
-	u_int		td_iticks;	/* (k) Statclock hits in intr mode. */
-	u_int		td_uticks;	/* (k) Statclock hits in user mode. */
+	struct rusage	td_ru;		/* (j) rusage information */
+	uint64_t	td_runtime;	/* (j) How many cpu ticks we've run. */
+	u_int 		td_pticks;	/* (j) Statclock hits for profiling */
+	u_int		td_sticks;	/* (j) Statclock hits in system mode. */
+	u_int		td_iticks;	/* (j) Statclock hits in intr mode. */
+	u_int		td_uticks;	/* (j) Statclock hits in user mode. */
 	u_int		td_uuticks;	/* (k) Statclock hits (usr), for UTS. */
 	u_int		td_usticks;	/* (k) Statclock hits (sys), for UTS. */
 	int		td_intrval;	/* (j) Return value of TDF_INTERRUPT. */
@@ -486,6 +489,7 @@ struct proc {
 					/* Accumulated stats for all threads? */
 	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct plimit	*p_limit;	/* (c) Process limits. */
+	struct callout	p_limco;	/* (c) Limit callout handle */
 	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
 	TAILQ_HEAD(, kse_upcall) p_upcalls; /* All upcalls in the proc. */
 
@@ -561,7 +565,7 @@ struct proc {
 	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
-	rlim_t		p_cpulimit;	/* (j) Current CPU limit in seconds. */
+	rlim_t		p_cpulimit;	/* (c) Current CPU limit in seconds. */
 	signed char	p_nice;		/* (c + j) Process "nice" value. */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xstat
@@ -572,7 +576,7 @@ struct proc {
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
 	struct callout	p_itcallout;	/* (h + c) Interval timer callout. */
 	u_short		p_acflag;	/* (c) Accounting flags. */
-	struct rusage	*p_ru;		/* (a) Exit information. XXX */
+	struct rusage	*p_ru;		/* (a) Exit information. */
 	struct proc	*p_peers;	/* (r) */
 	struct proc	*p_leader;	/* (b) */
 	void		*p_emuldata;	/* (c) Emulator state data. */
@@ -624,7 +628,6 @@ struct proc {
 
 /* These flags are kept in p_sflag and are protected with sched_lock. */
 #define	PS_INMEM	0x00001	/* Loaded into memory. */
-#define	PS_XCPU		0x00002 /* Exceeded CPU limit. */
 #define	PS_ALRMPEND	0x00020	/* Pending SIGVTALRM needs to be posted. */
 #define	PS_PROFPEND	0x00040	/* Pending SIGPROF needs to be posted. */
 #define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */

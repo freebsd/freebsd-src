@@ -228,7 +228,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 			BUF_KERNPROC(bp);
 		bp->b_iooffset = dbtob(bp->b_blkno);
 		bstrategy(bp);
-		curproc->p_stats->p_ru.ru_inblock++;
+		curthread->td_ru.ru_inblock++;
 	}
 
 	/*
@@ -281,7 +281,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 			BUF_KERNPROC(rbp);
 		rbp->b_iooffset = dbtob(rbp->b_blkno);
 		bstrategy(rbp);
-		curproc->p_stats->p_ru.ru_inblock++;
+		curthread->td_ru.ru_inblock++;
 	}
 
 	if (reqbp)

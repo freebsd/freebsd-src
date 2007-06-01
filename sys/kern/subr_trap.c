@@ -147,7 +147,6 @@ ast(struct trapframe *framep)
 {
 	struct thread *td;
 	struct proc *p;
-	struct rlimit rlim;
 	int sflag;
 	int flags;
 	int sig;
@@ -183,8 +182,8 @@ ast(struct trapframe *framep)
 	mtx_lock_spin(&sched_lock);
 	flags = td->td_flags;
 	sflag = p->p_sflag;
-	if (p->p_sflag & (PS_ALRMPEND | PS_PROFPEND | PS_XCPU))
-		p->p_sflag &= ~(PS_ALRMPEND | PS_PROFPEND | PS_XCPU);
+	if (p->p_sflag & (PS_ALRMPEND | PS_PROFPEND))
+		p->p_sflag &= ~(PS_ALRMPEND | PS_PROFPEND);
 #ifdef MAC
 	if (p->p_sflag & PS_MACPEND)
 		p->p_sflag &= ~PS_MACPEND;
@@ -229,21 +228,6 @@ ast(struct trapframe *framep)
 	if (sflag & PS_PROFPEND) {
 		PROC_LOCK(p);
 		psignal(p, SIGPROF);
-		PROC_UNLOCK(p);
-	}
-	if (sflag & PS_XCPU) {
-		PROC_LOCK(p);
-		lim_rlimit(p, RLIMIT_CPU, &rlim);
-		mtx_lock_spin(&sched_lock);
-		if (p->p_rux.rux_runtime >= rlim.rlim_max * cpu_tickrate()) {
-			mtx_unlock_spin(&sched_lock);
-			killproc(p, "exceeded maximum CPU limit");
-		} else {
-			if (p->p_cpulimit < rlim.rlim_max)
-				p->p_cpulimit += 5;
-			mtx_unlock_spin(&sched_lock);
-			psignal(p, SIGXCPU);
-		}
 		PROC_UNLOCK(p);
 	}
 #ifdef MAC

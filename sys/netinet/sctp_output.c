@@ -11012,7 +11012,7 @@ sctp_lower_sosend(struct socket *so,
 	}
 	/* Ok, we will attempt a msgsnd :> */
 	if (p) {
-		p->td_proc->p_stats->p_ru.ru_msgsnd++;
+		p->td_ru.ru_msgsnd++;
 	}
 	if (stcb) {
 		if (((srcv->sinfo_flags | temp_flags) & SCTP_ADDR_OVER) == 0) {

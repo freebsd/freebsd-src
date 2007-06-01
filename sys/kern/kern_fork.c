@@ -534,7 +534,7 @@ again:
 	/*
 	 * p_limit is copy-on-write.  Bump its refcount.
 	 */
-	p2->p_limit = lim_hold(p1->p_limit);
+	lim_fork(p1, p2);
 
 	pstats_fork(p1->p_stats, p2->p_stats);
 

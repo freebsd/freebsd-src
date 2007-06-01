@@ -954,7 +954,7 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	dontroute =
 	    (flags & MSG_DONTROUTE) && (so->so_options & SO_DONTROUTE) == 0;
 	if (td != NULL)
-		td->td_proc->p_stats->p_ru.ru_msgsnd++;
+		td->td_ru.ru_msgsnd++;
 	if (control != NULL)
 		clen = control->m_len;
 
@@ -1123,7 +1123,7 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	    (flags & MSG_DONTROUTE) && (so->so_options & SO_DONTROUTE) == 0 &&
 	    (so->so_proto->pr_flags & PR_ATOMIC);
 	if (td != NULL)
-		td->td_proc->p_stats->p_ru.ru_msgsnd++;
+		td->td_ru.ru_msgsnd++;
 	if (control != NULL)
 		clen = control->m_len;
 
@@ -1506,7 +1506,7 @@ dontblock:
 	 */
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	if (uio->uio_td)
-		uio->uio_td->td_proc->p_stats->p_ru.ru_msgrcv++;
+		uio->uio_td->td_ru.ru_msgrcv++;
 	KASSERT(m == so->so_rcv.sb_mb, ("soreceive: m != so->so_rcv.sb_mb"));
 	SBLASTRECORDCHK(&so->so_rcv);
 	SBLASTMBUFCHK(&so->so_rcv);
