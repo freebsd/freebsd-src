@@ -337,7 +337,7 @@ acct_process(struct thread *td)
 	struct timeval ut, st, tmp;
 	struct plimit *newlim, *oldlim;
 	struct proc *p;
-	struct rusage *r;
+	struct rusage ru;
 	int t, ret, vfslocked;
 
 	/*
@@ -370,6 +370,7 @@ acct_process(struct thread *td)
 	bcopy(p->p_comm, acct.ac_comm, sizeof acct.ac_comm);
 
 	/* (2) The amount of user and system time that was used */
+	rufetch(p, &ru);
 	calcru(p, &ut, &st);
 	acct.ac_utime = encode_timeval(ut);
 	acct.ac_stime = encode_timeval(st);
@@ -383,19 +384,18 @@ acct_process(struct thread *td)
 	acct.ac_etime = encode_timeval(tmp);
 
 	/* (4) The average amount of memory used */
-	r = &p->p_stats->p_ru;
 	tmp = ut;
 	timevaladd(&tmp, &st);
 	/* Convert tmp (i.e. u + s) into hz units to match ru_i*. */
 	t = tmp.tv_sec * hz + tmp.tv_usec / tick;
 	if (t)
-		acct.ac_mem = encode_long((r->ru_ixrss + r->ru_idrss +
-		    + r->ru_isrss) / t);
+		acct.ac_mem = encode_long((ru.ru_ixrss + ru.ru_idrss +
+		    + ru.ru_isrss) / t);
 	else
 		acct.ac_mem = 0;
 
 	/* (5) The number of disk I/O operations done */
-	acct.ac_io = encode_long(r->ru_inblock + r->ru_oublock);
+	acct.ac_io = encode_long(ru.ru_inblock + ru.ru_oublock);
 
 	/* (6) The UID and GID of the process */
 	acct.ac_uid = p->p_ucred->cr_ruid;
