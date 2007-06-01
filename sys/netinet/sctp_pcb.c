@@ -281,6 +281,8 @@ sctp_delete_ifn(struct sctp_ifn *sctp_ifnp, int hold_addr_lock)
 		SCTP_IPI_ADDR_LOCK();
 	LIST_REMOVE(sctp_ifnp, next_bucket);
 	LIST_REMOVE(sctp_ifnp, next_ifn);
+	SCTP_DEREGISTER_INTERFACE(sctp_ifnp->ifn_index,
+	    sctp_ifnp->registered_af);
 	if (hold_addr_lock == 0)
 		SCTP_IPI_ADDR_UNLOCK();
 	/* Take away the reference, and possibly free it */
@@ -300,6 +302,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	struct sctp_ifalist *hash_addr_head;
 	struct sctp_ifnlist *hash_ifn_head;
 	uint32_t hash_of_addr;
+	int new_ifn_af = 0;
 
 	/* How granular do we need the locks to be here? */
 	SCTP_IPI_ADDR_LOCK();
@@ -331,7 +334,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		sctp_ifnp->ifa_count = 0;
 		sctp_ifnp->refcount = 1;
 		sctp_ifnp->vrf = vrf;
-		sctp_ifnp->ifn_mtu = SCTP_GATHER_MTU_FROM_IFN_INFO(ifn, ifn_index);
+		sctp_ifnp->ifn_mtu = SCTP_GATHER_MTU_FROM_IFN_INFO(ifn, ifn_index, addr->sa_family);
 		if (if_name != NULL) {
 			memcpy(sctp_ifnp->ifn_name, if_name, SCTP_IFNAMSIZ);
 		} else {
@@ -343,6 +346,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		LIST_INSERT_HEAD(hash_ifn_head, sctp_ifnp, next_bucket);
 		LIST_INSERT_HEAD(&vrf->ifnlist, sctp_ifnp, next_ifn);
 		atomic_add_int(&sctppcbinfo.ipi_count_ifns, 1);
+		new_ifn_af = 1;
 	}
 	sctp_ifap = sctp_find_ifa_by_addr(addr, vrf->vrf_id, 1);
 	if (sctp_ifap) {
@@ -403,6 +407,9 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		if ((IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
 			sctp_ifap->src_is_priv = 1;
 		}
+		sctp_ifnp->num_v4++;
+		if (new_ifn_af)
+			new_ifn_af = AF_INET;
 	} else if (sctp_ifap->address.sa.sa_family == AF_INET6) {
 		/* ok to use deprecated addresses? */
 		struct sockaddr_in6 *sin6;
@@ -415,6 +422,11 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
 			sctp_ifap->src_is_priv = 1;
 		}
+		sctp_ifnp->num_v6++;
+		if (new_ifn_af)
+			new_ifn_af = AF_INET6;
+	} else {
+		new_ifn_af = 0;
 	}
 	hash_of_addr = sctp_get_ifa_hash_val(&sctp_ifap->address.sa);
 
@@ -430,6 +442,10 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	sctp_ifnp->ifa_count++;
 	vrf->total_ifa_count++;
 	atomic_add_int(&sctppcbinfo.ipi_count_ifas, 1);
+	if (new_ifn_af) {
+		SCTP_REGISTER_INTERFACE(ifn_index, new_ifn_af);
+		sctp_ifnp->registered_af = new_ifn_af;
+	}
 	SCTP_IPI_ADDR_UNLOCK();
 	if (dynamic_add) {
 		/*
@@ -496,8 +512,28 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 		LIST_REMOVE(sctp_ifap, next_ifa);
 		if (sctp_ifap->ifn_p) {
 			sctp_ifap->ifn_p->ifa_count--;
+			if (sctp_ifap->address.sa.sa_family == AF_INET6)
+				sctp_ifap->ifn_p->num_v6--;
+			else if (sctp_ifap->address.sa.sa_family == AF_INET)
+				sctp_ifap->ifn_p->num_v4--;
 			if (SCTP_LIST_EMPTY(&sctp_ifap->ifn_p->ifalist)) {
 				sctp_delete_ifn(sctp_ifap->ifn_p, 1);
+			} else {
+				if ((sctp_ifap->ifn_p->num_v6 == 0) &&
+				    (sctp_ifap->ifn_p->registered_af == AF_INET6)) {
+					SCTP_DEREGISTER_INTERFACE(ifn_index,
+					    AF_INET6);
+					SCTP_REGISTER_INTERFACE(ifn_index,
+					    AF_INET);
+					sctp_ifap->ifn_p->registered_af = AF_INET;
+				} else if ((sctp_ifap->ifn_p->num_v4 == 0) &&
+				    (sctp_ifap->ifn_p->registered_af == AF_INET)) {
+					SCTP_DEREGISTER_INTERFACE(ifn_index,
+					    AF_INET);
+					SCTP_REGISTER_INTERFACE(ifn_index,
+					    AF_INET6);
+					sctp_ifap->ifn_p->registered_af = AF_INET6;
+				}
 			}
 			sctp_free_ifn(sctp_ifap->ifn_p);
 			sctp_ifap->ifn_p = NULL;
@@ -1793,7 +1829,6 @@ sctp_inpcb_alloc(struct socket *so)
 		return (ENOBUFS);
 	}
 	inp->def_vrf_id = SCTP_DEFAULT_VRFID;
-	inp->def_table_id = SCTP_DEFAULT_TABLEID;
 
 	SCTP_INP_INFO_WLOCK();
 	SCTP_INP_LOCK_INIT(inp);
@@ -3068,8 +3103,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		(void)sa6_embedscope(sin6, ip6_use_defzone);
 		sin6->sin6_scope_id = 0;
 	}
-	SCTP_RTALLOC((sctp_route_t *) & net->ro, stcb->asoc.vrf_id,
-	    stcb->asoc.table_id);
+	SCTP_RTALLOC((sctp_route_t *) & net->ro, stcb->asoc.vrf_id);
 
 	if (newaddr->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6;
