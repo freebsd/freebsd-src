@@ -3,7 +3,6 @@
 
 PROG=	init
 MAN=	init.8
-MLINKS=	init.8 securelevel.8
 PRECIOUSPROG=
 INSTALLFLAGS=-b -B.bak
 WARNS?=	6
