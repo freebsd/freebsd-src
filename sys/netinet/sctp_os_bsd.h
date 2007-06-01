@@ -272,7 +272,7 @@ typedef struct callout sctp_os_timer_t;
 /*************************/
 /*      MTU              */
 /*************************/
-#define SCTP_GATHER_MTU_FROM_IFN_INFO(ifn, ifn_index) ((struct ifnet *)ifn)->if_mtu
+#define SCTP_GATHER_MTU_FROM_IFN_INFO(ifn, ifn_index, af) ((struct ifnet *)ifn)->if_mtu
 #define SCTP_GATHER_MTU_FROM_ROUTE(sctp_ifa, sa, rt) ((rt != NULL) ? rt->rt_rmx.rmx_mtu : 0)
 #define SCTP_GATHER_MTU_FROM_INTFC(sctp_ifn) ((sctp_ifn->ifn_p != NULL) ? ((struct ifnet *)(sctp_ifn->ifn_p))->if_mtu : 0)
 #define SCTP_SET_MTU_OF_ROUTE(sa, rt, mtu) do { \
@@ -281,8 +281,8 @@ typedef struct callout sctp_os_timer_t;
                                            } while(0)
 
 /* (de-)register interface event notifications */
-#define SCTP_REGISTER_INTERFACE(ifhandle, ifname)
-#define SCTP_DEREGISTER_INTERFACE(ifhandle, ifname)
+#define SCTP_REGISTER_INTERFACE(ifhandle, af)
+#define SCTP_DEREGISTER_INTERFACE(ifhandle, af)
 
 /*************************/
 /* These are for logging */
@@ -312,12 +312,6 @@ static inline int
 SCTP_GET_PKT_VRFID(void *m, uint32_t vrf_id)
 {
 	vrf_id = SCTP_DEFAULT_VRFID;
-	return (0);
-}
-static inline int 
-SCTP_GET_PKT_TABLEID(void *m, uint32_t table_id)
-{
-	table_id = SCTP_DEFAULT_TABLEID;
 	return (0);
 }
 
@@ -371,15 +365,17 @@ SCTP_GET_PKT_TABLEID(void *m, uint32_t table_id)
 typedef struct route sctp_route_t;
 typedef struct rtentry sctp_rtentry_t;
 
-#define SCTP_RTALLOC(ro, vrf_id, table_id) rtalloc_ign((struct route *)ro, 0UL)
+#define SCTP_RTALLOC(ro, vrf_id) rtalloc_ign((struct route *)ro, 0UL)
 
 /* Future zero copy wakeup/send  function */
 #define SCTP_ZERO_COPY_EVENT(inp, so)
+/* This is re-pulse ourselves for sendbuf */
+#define SCTP_ZERO_COPY_SENDQ_EVENT(inp, so)
 
 /*
  * IP output routines
  */
-#define SCTP_IP_OUTPUT(result, o_pak, ro, stcb, vrf_id, table_id) \
+#define SCTP_IP_OUTPUT(result, o_pak, ro, stcb, vrf_id) \
 { \
 	int o_flgs = 0; \
 	if (stcb && stcb->sctp_ep && stcb->sctp_ep->sctp_socket) { \
@@ -390,7 +386,7 @@ typedef struct rtentry sctp_rtentry_t;
 	result = ip_output(o_pak, NULL, ro, o_flgs, 0, NULL); \
 }
 
-#define SCTP_IP6_OUTPUT(result, o_pak, ro, ifp, stcb, vrf_id, table_id) \
+#define SCTP_IP6_OUTPUT(result, o_pak, ro, ifp, stcb, vrf_id) \
 { \
  	if (stcb && stcb->sctp_ep) \
 		result = ip6_output(o_pak, \
