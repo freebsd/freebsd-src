@@ -208,6 +208,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			kp->ki_sigignore = sigacts.ps_sigignore;
 			kp->ki_sigcatch = sigacts.ps_sigcatch;
 		}
+#if 0
 		if ((proc.p_sflag & PS_INMEM) && proc.p_stats != NULL) {
 			if (KREAD(kd, (u_long)proc.p_stats, &pstats)) {
 				_kvm_err(kd, kd->program,
@@ -228,6 +229,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			timeradd(&kp->ki_childstime, &kp->ki_childutime,
 			    &kp->ki_childtime);
 		}
+#endif
 		if (proc.p_oppid)
 			kp->ki_ppid = proc.p_oppid;
 		else if (proc.p_pptr) {
