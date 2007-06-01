@@ -45,10 +45,6 @@ OLD_LIBS+=usr/lib/libfetch.so.4
 OLD_LIBS+=usr/lib/libform.so.3
 OLD_LIBS+=usr/lib/libformw.so.3
 OLD_LIBS+=usr/lib/libftpio.so.6
-OLD_LIBS+=usr/lib/libg2c.a
-OLD_LIBS+=usr/lib/libg2c.so.2
-OLD_LIBS+=usr/lib/libg2c_p.a
-OLD_LIBS+=usr/lib/libgcc_pic.a
 OLD_LIBS+=usr/lib/libgpib.so.1
 OLD_LIBS+=usr/lib/libkse.so.2
 OLD_LIBS+=usr/lib/libmagic.so.2
@@ -127,6 +123,7 @@ OLD_LIBS+=usr/lib32/librpcsvc.so.3
 OLD_LIBS+=usr/lib32/libsbuf.so.3
 OLD_LIBS+=usr/lib32/libsdp.so.2
 OLD_LIBS+=usr/lib32/libsmb.so.2
+OLD_LIBS+=usr/lib32/libstdc++.so.5
 OLD_LIBS+=usr/lib32/libtacplus.so.2
 OLD_LIBS+=usr/lib32/libthr.so.2
 OLD_LIBS+=usr/lib32/libthread_db.so.2
@@ -139,6 +136,13 @@ OLD_LIBS+=usr/lib32/libwrap.so.4
 OLD_LIBS+=usr/lib32/libypclnt.so.2
 OLD_LIBS+=usr/lib32/libz.so.3
 .endif
+# 20070519: GCC 4.2
+OLD_FILES+=usr/bin/f77
+OLD_FILES+=usr/bin/protoize
+OLD_FILES+=usr/include/g2c.h
+OLD_FILES+=usr/libexec/f771
+OLD_FILES+=usr/share/info/g77.info.gz
+OLD_FILES+=usr/share/man/man1/f77.1.gz
 # 20070510: zpool/zfs moved to /sbin
 OLD_FILES+=usr/sbin/zfs
 OLD_FILES+=usr/sbin/zpool
@@ -156,6 +160,7 @@ OLD_FILES+=usr/share/info/bzip2.info.gz
 OLD_LIBS+=usr/lib/libarchive.so.3
 # 20070301: remove addr2ascii and ascii2addr
 OLD_FILES+=usr/share/man/man3/addr2ascii.3.gz
+OLD_FILES+=usr/share/man/man3/ascii2addr.3.gz
 # 20070225: vm_page_unmanage() removed
 OLD_FILES+=usr/share/man/man9/vm_page_unmanage.9.gz
 # 20070212: kame.4 removed
@@ -164,6 +169,11 @@ OLD_FILES+=usr/share/man/man4/kame.4.gz
 OLD_FILES+=usr/lib/libmytinfo.a
 OLD_FILES+=usr/lib/libmytinfo.so
 OLD_FILES+=usr/lib/libmytinfo_p.a   
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libmytinfo.a
+OLD_FILES+=usr/lib32/libmytinfo.so
+OLD_FILES+=usr/lib32/libmytinfo_p.a
+.endif
 # 20070128: remove vnconfig
 OLD_FILES+=usr/sbin/vnconfig
 # 20070125: objformat bites the dust
@@ -200,6 +210,12 @@ OLD_FILES+=sbin/mount_fdescfs
 OLD_FILES+=sbin/mount_linprocfs
 OLD_FILES+=sbin/mount_procfs
 OLD_FILES+=sbin/mount_std
+OLD_FILES+=rescue/mount_devfs
+OLD_FILES+=rescue/mount_ext2fs
+OLD_FILES+=rescue/mount_fdescfs
+OLD_FILES+=rescue/mount_linprocfs
+OLD_FILES+=rescue/mount_procfs
+OLD_FILES+=rescue/mount_std
 OLD_FILES+=usr/share/man/man8/mount_devfs.8.gz
 OLD_FILES+=usr/share/man/man8/mount_ext2fs.8.gz
 OLD_FILES+=usr/share/man/man8/mount_fdescfs.8.gz
@@ -302,6 +318,14 @@ OLD_FILES+=usr/share/man/man4/sab.4.gz
 OLD_FILES+=etc/rc.d/ike
 # 20060127: revert libdisk to static-only
 OLD_FILES+=usr/lib/libdisk.so
+# 20060115: sys/pccard includes cleanup
+OLD_FILES+=usr/include/pccard/driver.h
+OLD_FILES+=usr/include/pccard/i82365.h
+OLD_FILES+=usr/include/pccard/meciareg.h
+OLD_FILES+=usr/include/pccard/pccard_nbk.h
+OLD_FILES+=usr/include/pccard/pcic_pci.h
+OLD_FILES+=usr/include/pccard/pcicvar.h
+OLD_FILES+=usr/include/pccard/slot.h
 # 20051215: rescue/nextboot.sh renamed to rescue/nextboot
 OLD_FILES+=rescue/nextboot.sh
 # 20051214: usbd(8) removed
@@ -2796,8 +2820,6 @@ OLD_FILES+=usr/share/man/man3/SSL_COMP_add_compression_method.3.gz
 OLD_FILES+=usr/share/man/man3/SSL_CTX_get_ex_new_index.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_dup.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_hardlink_w.3.gz
-OLD_FILES+=usr/share/man/man3/archive_entry_set_devmajor.3.gz
-OLD_FILES+=usr/share/man/man3/archive_entry_set_devminor.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_set_tartype.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_symlink_w.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_tartype.3.gz
@@ -3470,15 +3492,36 @@ OLD_FILES+=usr/libdata/msdosfs/koi8u2dos
 #  - usr/share/tmac/mm/se_locale
 #  - var/yp/Makefile
 
-
+# 20070519: GCC 4.2
+OLD_LIBS+=usr/lib/libg2c.a
+OLD_LIBS+=usr/lib/libg2c.so
+OLD_LIBS+=usr/lib/libg2c.so.2
+OLD_LIBS+=usr/lib/libg2c_p.a
+OLD_LIBS+=usr/lib/libgcc_pic.a
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libg2c.a
+OLD_LIBS+=usr/lib32/libg2c.so
+OLD_LIBS+=usr/lib32/libg2c.so.2
+OLD_LIBS+=usr/lib32/libg2c_p.a
+OLD_LIBS+=usr/lib32/libgcc_pic.a
+.endif
 # 20060729: OpenSSL 0.9.7e -> 0.9.8b upgrade
 OLD_LIBS+=lib/libcrypto.so.4
 OLD_LIBS+=usr/lib/libssl.so.4
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libcrypto.so.4
+OLD_LIBS+=usr/lib32/libssl.so.4
+.endif
 # 20060521: gethostbyaddr(3) ABI change
 OLD_LIBS+=usr/lib/libroken.so.8
 OLD_LIBS+=lib/libatm.so.3
 OLD_LIBS+=lib/libc.so.6
 OLD_LIBS+=lib/libutil.so.5
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libatm.so.3
+OLD_LIBS+=usr/lib32/libc.so.6
+OLD_LIBS+=usr/lib32/libutil.so.5
+.endif
 # 20060413: shared library moved to /usr/lib
 OLD_LIBS+=lib/libgpib.so.1
 # 20060413: libpcap.so.4 moved to /lib/
@@ -3491,6 +3534,17 @@ OLD_LIBS+=usr/lib/libthr.so.2
 .endif
 # 20060127: revert libdisk to static-only
 OLD_LIBS+=usr/lib/libdisk.so.3
+# 20051027: libc_r discontinued
+OLD_LIBS+=usr/lib/libc_r.a
+OLD_LIBS+=usr/lib/libc_r.so
+OLD_LIBS+=usr/lib/libc_r.so.7
+OLD_LIBS+=usr/lib/libc_r_p.a
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libc_r.a
+OLD_LIBS+=usr/lib32/libc_r.so
+OLD_LIBS+=usr/lib32/libc_r.so.7
+OLD_LIBS+=usr/lib32/libc_r_p.a
+.endif
 # 20050722: bump for 6.0-RELEASE
 OLD_LIBS+=lib/libalias.so.4
 OLD_LIBS+=lib/libatm.so.2
@@ -3708,6 +3762,10 @@ OLD_LIBS+=usr/lib/libc_r.so.3
 OLD_LIBS+=usr/lib/libarchive.so.2
 OLD_LIBS+=usr/lib/libbsnmp.so.1
 OLD_LIBS+=usr/lib/libc_r.so.6
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libarchive.so.2
+OLD_LIBS+=usr/lib32/libc_r.so.6
+.endif
 OLD_LIBS+=usr/lib/libcipher.so.2
 OLD_LIBS+=usr/lib/libgssapi.so.6
 OLD_LIBS+=usr/lib/libkse.so.1
