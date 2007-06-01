@@ -918,15 +918,10 @@ readrest:
 	 * Unlock everything, and return
 	 */
 	unlock_and_deallocate(&fs);
-	PROC_LOCK(curproc);
-	if ((curproc->p_sflag & PS_INMEM) && curproc->p_stats) {
-		if (hardfault) {
-			curproc->p_stats->p_ru.ru_majflt++;
-		} else {
-			curproc->p_stats->p_ru.ru_minflt++;
-		}
-	}
-	PROC_UNLOCK(curproc);
+	if (hardfault)
+		curthread->td_ru.ru_majflt++;
+	else
+		curthread->td_ru.ru_minflt++;
 
 	return (KERN_SUCCESS);
 }

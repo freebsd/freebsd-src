@@ -619,6 +619,38 @@ setrlimit(td, uap)
 	return (error);
 }
 
+static void
+lim_cb(void *arg)
+{
+	struct rlimit rlim;
+	struct thread *td;
+	struct proc *p;
+
+	p = arg;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	/*
+	 * Check if the process exceeds its cpu resource allocation.  If
+	 * it reaches the max, arrange to kill the process in ast().
+	 */
+	if (p->p_cpulimit == RLIM_INFINITY)
+		return;
+	mtx_lock_spin(&sched_lock);
+	FOREACH_THREAD_IN_PROC(p, td)
+		ruxagg(&p->p_rux, td);
+	mtx_unlock_spin(&sched_lock);
+	if (p->p_rux.rux_runtime > p->p_cpulimit * cpu_tickrate()) {
+		lim_rlimit(p, RLIMIT_CPU, &rlim);
+		if (p->p_rux.rux_runtime >= rlim.rlim_max * cpu_tickrate()) {
+			killproc(p, "exceeded maximum CPU limit");
+		} else {
+			if (p->p_cpulimit < rlim.rlim_max)
+				p->p_cpulimit += 5;
+			psignal(p, SIGXCPU);
+		}
+	}
+	callout_reset(&p->p_limco, hz, lim_cb, p);
+}
+
 int
 kern_setrlimit(td, which, limp)
 	struct thread *td;
@@ -664,6 +696,9 @@ kern_setrlimit(td, which, limp)
 	switch (which) {
 
 	case RLIMIT_CPU:
+		if (limp->rlim_cur != RLIM_INFINITY &&
+		    p->p_cpulimit == RLIM_INFINITY)
+			callout_reset(&p->p_limco, hz, lim_cb, p);
 		mtx_lock_spin(&sched_lock);
 		p->p_cpulimit = limp->rlim_cur;
 		mtx_unlock_spin(&sched_lock);
@@ -802,17 +837,11 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	 * We reset the thread and CPU state as if we had performed a context
 	 * switch right here.
 	 */
-	if (curthread->td_proc == p) {
-		td = curthread;
+	td = curthread;
+	if (td->td_proc == p) {
 		u = cpu_ticks();
 		p->p_rux.rux_runtime += u - PCPU_GET(switchtime);
 		PCPU_SET(switchtime, u);
-		p->p_rux.rux_uticks += td->td_uticks;
-		td->td_uticks = 0;
-		p->p_rux.rux_iticks += td->td_iticks;
-		td->td_iticks = 0;
-		p->p_rux.rux_sticks += td->td_sticks;
-		td->td_sticks = 0;
 	}
 	/* Work on a copy of p_rux so we can let go of sched_lock */
 	rux = p->p_rux;
@@ -932,7 +961,7 @@ kern_getrusage(td, who, rup)
 	switch (who) {
 
 	case RUSAGE_SELF:
-		*rup = p->p_stats->p_ru;
+		rufetch(p, rup);
 		calcru(p, &rup->ru_utime, &rup->ru_stime);
 		break;
 
@@ -950,14 +979,23 @@ kern_getrusage(td, who, rup)
 }
 
 void
-ruadd(ru, rux, ru2, rux2)
-	struct rusage *ru;
-	struct rusage_ext *rux;
-	struct rusage *ru2;
-	struct rusage_ext *rux2;
+rucollect(struct rusage *ru, struct rusage *ru2)
 {
-	register long *ip, *ip2;
-	register int i;
+	long *ip, *ip2;
+	int i;
+
+	if (ru->ru_maxrss < ru2->ru_maxrss)
+		ru->ru_maxrss = ru2->ru_maxrss;
+	ip = &ru->ru_first;
+	ip2 = &ru2->ru_first;
+	for (i = &ru->ru_last - &ru->ru_first; i >= 0; i--)
+		*ip++ += *ip2++;
+}
+
+void
+ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
+    struct rusage_ext *rux2)
+{
 
 	rux->rux_runtime += rux2->rux_runtime;
 	rux->rux_uticks += rux2->rux_uticks;
@@ -966,12 +1004,46 @@ ruadd(ru, rux, ru2, rux2)
 	rux->rux_uu += rux2->rux_uu;
 	rux->rux_su += rux2->rux_su;
 	rux->rux_tu += rux2->rux_tu;
-	if (ru->ru_maxrss < ru2->ru_maxrss)
-		ru->ru_maxrss = ru2->ru_maxrss;
-	ip = &ru->ru_first;
-	ip2 = &ru2->ru_first;
-	for (i = &ru->ru_last - &ru->ru_first; i >= 0; i--)
-		*ip++ += *ip2++;
+	rucollect(ru, ru2);
+}
+
+/*
+ * Aggregate tick counts into the proc's rusage_ext.
+ */
+void
+ruxagg(struct rusage_ext *rux, struct thread *td)
+{
+	rux->rux_runtime += td->td_runtime;
+	rux->rux_uticks += td->td_uticks;
+	rux->rux_sticks += td->td_sticks;
+	rux->rux_iticks += td->td_iticks;
+	td->td_runtime = 0;
+	td->td_uticks = 0;
+	td->td_iticks = 0;
+	td->td_sticks = 0;
+}
+
+/*
+ * Update the rusage_ext structure and fetch a valid aggregate rusage
+ * for proc p if storage for one is supplied.
+ */
+void
+rufetch(struct proc *p, struct rusage *ru)
+{
+	struct thread *td;
+
+	memset(ru, 0, sizeof(*ru));
+	mtx_lock_spin(&sched_lock);
+	if (p->p_ru == NULL)  {
+		KASSERT(p->p_numthreads > 0,
+		    ("rufetch: No threads or ru in proc %p", p));
+		FOREACH_THREAD_IN_PROC(p, td) {
+			ruxagg(&p->p_rux, td);
+			rucollect(ru, &td->td_ru);
+		}
+	} else
+		*ru = *p->p_ru;
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -995,6 +1067,15 @@ lim_hold(limp)
 
 	refcount_acquire(&limp->pl_refcnt);
 	return (limp);
+}
+
+void
+lim_fork(struct proc *p1, struct proc *p2)
+{
+	p2->p_limit = lim_hold(p1->p_limit);
+	callout_init_mtx(&p2->p_limco, &p2->p_mtx, 0);
+	if (p1->p_cpulimit != RLIM_INFINITY)
+		callout_reset(&p2->p_limco, hz, lim_cb, p2);
 }
 
 void

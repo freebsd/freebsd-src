@@ -805,7 +805,6 @@ aio_process(struct aiocblist *aiocbe)
 	td = curthread;
 	td_savedcred = td->td_ucred;
 	td->td_ucred = aiocbe->cred;
-	mycp = td->td_proc;
 	cb = &aiocbe->uaiocb;
 	fp = aiocbe->fd_file;
 
@@ -831,8 +830,8 @@ aio_process(struct aiocblist *aiocbe)
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 
-	inblock_st = mycp->p_stats->p_ru.ru_inblock;
-	oublock_st = mycp->p_stats->p_ru.ru_oublock;
+	inblock_st = td->td_ru.ru_inblock;
+	oublock_st = td->td_ru.ru_oublock;
 	/*
 	 * aio_aqueue() acquires a reference to the file that is
 	 * released in aio_free_entry().
@@ -846,8 +845,8 @@ aio_process(struct aiocblist *aiocbe)
 		auio.uio_rw = UIO_WRITE;
 		error = fo_write(fp, &auio, fp->f_cred, FOF_OFFSET, td);
 	}
-	inblock_end = mycp->p_stats->p_ru.ru_inblock;
-	oublock_end = mycp->p_stats->p_ru.ru_oublock;
+	inblock_end = td->td_ru.ru_inblock;
+	oublock_end = td->td_ru.ru_oublock;
 
 	aiocbe->inputcharge = inblock_end - inblock_st;
 	aiocbe->outputcharge = oublock_end - oublock_st;
@@ -1663,11 +1662,10 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 		error = cb->uaiocb._aiocb_private.error;
 		td->td_retval[0] = status;
 		if (cb->uaiocb.aio_lio_opcode == LIO_WRITE) {
-			p->p_stats->p_ru.ru_oublock +=
-			    cb->outputcharge;
+			td->td_ru.ru_oublock += cb->outputcharge;
 			cb->outputcharge = 0;
 		} else if (cb->uaiocb.aio_lio_opcode == LIO_READ) {
-			p->p_stats->p_ru.ru_inblock += cb->inputcharge;
+			td->td_ru.ru_inblock += cb->inputcharge;
 			cb->inputcharge = 0;
 		}
 		aio_free_entry(cb);
@@ -2206,10 +2204,10 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 		error = cb->uaiocb._aiocb_private.error;
 		td->td_retval[0] = status;
 		if (cb->uaiocb.aio_lio_opcode == LIO_WRITE) {
-			p->p_stats->p_ru.ru_oublock += cb->outputcharge;
+			td->td_ru.ru_oublock += cb->outputcharge;
 			cb->outputcharge = 0;
 		} else if (cb->uaiocb.aio_lio_opcode == LIO_READ) {
-			p->p_stats->p_ru.ru_inblock += cb->inputcharge;
+			td->td_ru.ru_inblock += cb->inputcharge;
 			cb->inputcharge = 0;
 		}
 		aio_free_entry(cb);

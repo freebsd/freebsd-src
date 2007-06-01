@@ -116,6 +116,7 @@ exit1(struct thread *td, int rv)
 	struct ucred *tracecred;
 #endif
 	struct plimit *plim;
+	struct rusage *ru;
 	int locked;
 
 	/*
@@ -169,7 +170,8 @@ retry:
 		 * Threading support has been turned off.
 		 */
 	}
-
+	KASSERT(p->p_numthreads == 1,
+	    ("exit1: proc %p exiting with %d threads", p, p->p_numthreads));
 	/*
 	 * Wakeup anyone in procfs' PIOCWAIT.  They should have a hold
 	 * on our vmspace, so we should block below until they have
@@ -195,6 +197,8 @@ retry:
 		msleep(&p->p_lock, &p->p_mtx, PWAIT, "exithold", 0);
 
 	PROC_UNLOCK(p);
+	/* Drain the limit callout while we don't have the proc locked */
+	callout_drain(&p->p_limco);
 
 #ifdef AUDIT
 	/*
@@ -229,7 +233,7 @@ retry:
 	 */
 	EVENTHANDLER_INVOKE(process_exit, p);
 
-	MALLOC(p->p_ru, struct rusage *, sizeof(struct rusage),
+	MALLOC(ru, struct rusage *, sizeof(struct rusage),
 		M_ZOMBIE, M_WAITOK);
 	/*
 	 * If parent is waiting for us to exit or exec,
@@ -438,16 +442,20 @@ retry:
 		PROC_UNLOCK(q);
 	}
 
-	/*
-	 * Save exit status and finalize rusage info except for times,
-	 * adding in child rusage info later when our time is locked.
-	 */
+	/* Save exit status. */
 	PROC_LOCK(p);
 	p->p_xstat = rv;
 	p->p_xthread = td;
-	p->p_stats->p_ru.ru_nvcsw++;
-	*p->p_ru = p->p_stats->p_ru;
-
+	/*
+	 * All statistics have been aggregated into the final td_ru by
+	 * thread_exit().  Copy these into the proc here where wait*()
+	 * can find them.
+	 * XXX We will miss any statistics gathered between here and
+	 * thread_exit() except for those related to clock ticks.
+	 */
+	*ru = td->td_ru;
+	ru->ru_nvcsw++;
+	p->p_ru = ru;
 	/*
 	 * Notify interested parties of our demise.
 	 */
