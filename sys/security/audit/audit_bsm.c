@@ -119,7 +119,7 @@ kau_close(struct au_record *rec, struct timespec *ctime, short event)
 
 	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
 	rec->data = malloc(tot_rec_size, M_AUDITBSM, M_WAITOK | M_ZERO);
-	/* Create the header token */
+
 	tm.tv_usec = ctime->tv_nsec / 1000;
 	tm.tv_sec = ctime->tv_sec;
 	hdr = au_to_header32_tm(tot_rec_size, event, 0, tm);
@@ -128,7 +128,6 @@ kau_close(struct au_record *rec, struct timespec *ctime, short event)
 	trail = au_to_trailer(tot_rec_size);
 	TAILQ_INSERT_TAIL(&rec->token_q, trail, tokens);
 
-	/* Serialize token data to the record. */
 	rec->len = tot_rec_size;
 	dptr = rec->data;
 	TAILQ_FOREACH(cur, &rec->token_q, tokens) {
@@ -160,7 +159,7 @@ kau_free(struct au_record *rec)
 }
 
 /*
- * XXX May want turn some (or all) of these macros into functions in order
+ * XXX: May want turn some (or all) of these macros into functions in order
  * to reduce the generated code sized.
  *
  * XXXAUDIT: These macros assume that 'kar', 'ar', 'rec', and 'tok' in the
