@@ -34,10 +34,10 @@
 All sorts of stuff to go here.
 .Pp
 .Sh DESCRIPTION
-The 
+The
 .Em FreeBSD
 kernel is written to run across multiple CPUs and as such requires
-several different synchronization primitives to allow the developers 
+several different synchronization primitives to allow the developers
 to safely access and manipulate the many data types required.
 .Pp
 These include:
@@ -75,7 +75,7 @@ Some of these primitives may be used at the low (interrupt) level and
 some may not.
 .Pp
 There are strict ordering requirements and for some of the types this
-is checked using the 
+is checked using the
 .Xr witness 4
 code.
 .Pp
@@ -95,7 +95,7 @@ You may call the
 .Xr sleep 9
 call
 .Fn msleep
-or the new 
+or the new
 .Fn mtx_sleep
 variant. These will atomically drop the mutex and reacquire it
 as part of waking up.
@@ -249,14 +249,14 @@ while the thread is suspended and will reacquire the
 mutex before the function returns.
 .Pp
 .Ss lockmanager locks
-Largely deprecated. See the 
+Largely deprecated. See the
 .Xr lock 9
 page for more information.
 I don't know what the downsides are but I'm sure someone will fill in this part.
 .Sh Usage tables.
 .Ss Interaction table.
 The following table shows what you can and can not do if you hold
-one of the synchronisation primitives discussed here:
+one of the synchronization primitives discussed here:
 (someone who knows what they are talking about should write this table)
 .Bl -column ".Ic xxxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXX" -offset indent
 .It Xo
@@ -276,14 +276,15 @@ readers can recurse though writers can not. Lock order is important.
 .Pp
 .Em *3
 There are calls atomically release this primitive when going to sleep
-and reacquire it on wakeup (e.g. 
+and reacquire it on wakeup (e.g.
 .Fn mtx_sleep ,
 .Fn rw_sleep
-and 
-.Fn msleep_spin ).
+and
+.Fn msleep_spin
+).
 .Pp
 .Em *4
-Though one can sleep holding an sx lock, one can also use 
+Though one can sleep holding an sx lock, one can also use
 .Fn sx_sleep
 which atomically release this primitive when going to sleep and
 reacquire it on wakeup.
@@ -310,6 +311,6 @@ At this time this is a rather easy to remember table.
 .Sh HISTORY
 These
 functions appeared in
-.Bsx 4.1 
+.Bsx 4.1
 through
-.Fx 7.0 
+.Fx 7.0
