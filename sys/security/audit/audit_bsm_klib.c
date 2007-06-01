@@ -311,9 +311,9 @@ flags_and_error_to_openevent(int oflags, int error)
 
 #if 0
 	/*
-	 * Convert chatty errors to better matching events.
-	 * Failures to find a file are really just attribute
-	 * events - so recast them as such.
+	 * Convert chatty errors to better matching events.  Failures to
+	 * find a file are really just attribute events -- so recast them as
+	 * such.
 	 *
 	 * XXXAUDIT: Solaris defines that AUE_OPEN will never be returned, it
 	 * is just a placeholder.  However, in Darwin we return that in
@@ -352,7 +352,7 @@ msgctl_to_event(int cmd)
 		return (AUE_MSGCTL_STAT);
 
 	default:
-		/* We will audit a bad command */
+		/* We will audit a bad command. */
 		return (AUE_MSGCTL);
 	}
 }
@@ -472,7 +472,7 @@ auditon_command_event(int cmd)
 /*
  * Create a canonical path from given path by prefixing either the root
  * directory, or the current working directory.  If the process working
- * directory is NULL, we could use 'rootvnode' to obtain the root directoty,
+ * directory is NULL, we could use 'rootvnode' to obtain the root directory,
  * but this results in a volfs name written to the audit log. So we will
  * leave the filename starting with '/' in the audit log in this case.
  *
@@ -542,7 +542,6 @@ canon_path(struct thread *td, char *path, char *cpath)
 			cpath[0] = '\0';
 		vput(vnp);
 		VFS_UNLOCK_GIANT(vfslocked);
-	} else {
+	} else
 		strlcpy(cpath, bufp, MAXPATHLEN);
-	}
 }
