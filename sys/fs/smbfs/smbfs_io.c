@@ -592,7 +592,7 @@ smbfs_putpages(ap)
 #ifdef SMBFS_RWGENERIC
 	td = curthread;			/* XXX */
 	cred = td->td_ucred;		/* XXX */
-	VOP_OPEN(vp, FWRITE, cred, td, -1);
+	VOP_OPEN(vp, FWRITE, cred, td, NULL);
 	error = vop_stdputpages(ap);
 	VOP_CLOSE(vp, FWRITE, cred, td);
 	return error;
@@ -610,7 +610,7 @@ smbfs_putpages(ap)
 
 	td = curthread;			/* XXX */
 	cred = td->td_ucred;		/* XXX */
-/*	VOP_OPEN(vp, FWRITE, cred, td, -1);*/
+/*	VOP_OPEN(vp, FWRITE, cred, td, NULL);*/
 	np = VTOSMB(vp);
 	smp = VFSTOSMBFS(vp->v_mount);
 	pages = ap->a_m;
