@@ -342,6 +342,7 @@ static int bge_read_eeprom(struct bge_softc *, caddr_t, int, int);
 
 static void bge_setpromisc(struct bge_softc *);
 static void bge_setmulti(struct bge_softc *);
+static void bge_setvlan(struct bge_softc *);
 
 static int bge_newbuf_std(struct bge_softc *, int, struct mbuf *);
 static int bge_newbuf_jumbo(struct bge_softc *, int, struct mbuf *);
@@ -1055,6 +1056,22 @@ bge_setmulti(struct bge_softc *sc)
 
 	for (i = 0; i < 4; i++)
 		CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), hashes[i]);
+}
+
+static void
+bge_setvlan(struct bge_softc *sc)
+{
+	struct ifnet *ifp;
+
+	BGE_LOCK_ASSERT(sc);
+
+	ifp = sc->bge_ifp;
+
+	/* Enable or disable VLAN tag stripping as needed. */
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_KEEP_VLAN_DIAG);
+	else
+		BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_KEEP_VLAN_DIAG);
 }
 
 static void
@@ -2896,7 +2913,8 @@ bge_rxeof(struct bge_softc *sc)
 		rxidx = cur_rx->bge_idx;
 		BGE_INC(sc->bge_rx_saved_considx, sc->bge_return_ring_cnt);
 
-		if (cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG) {
+		if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING &&
+		    cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG) {
 			have_tag = 1;
 			vlan_tag = cur_rx->bge_vlan_tag;
 		}
@@ -3591,7 +3609,8 @@ bge_init_locked(struct bge_softc *sc)
 
 	/* Specify MTU. */
 	CSR_WRITE_4(sc, BGE_RX_MTU, ifp->if_mtu +
-	    ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN);
+	    ETHER_HDR_LEN + ETHER_CRC_LEN +
+	    (ifp->if_capenable & IFCAP_VLAN_MTU ? ETHER_VLAN_ENCAP_LEN : 0));
 
 	/* Load our MAC address. */
 	m = (uint16_t *)IF_LLADDR(sc->bge_ifp);
@@ -3603,6 +3622,9 @@ bge_init_locked(struct bge_softc *sc)
 
 	/* Program multicast filter. */
 	bge_setmulti(sc);
+
+	/* Program VLAN tag stripping. */
+	bge_setvlan(sc);
 
 	/* Init RX ring. */
 	bge_init_rx_ring_std(sc);
@@ -3909,6 +3931,23 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			VLAN_CAPABILITIES(ifp);
 #endif
 		}
+
+		if (mask & IFCAP_VLAN_MTU) {
+			ifp->if_capenable ^= IFCAP_VLAN_MTU;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			bge_init(sc);
+		}
+
+		if (mask & IFCAP_VLAN_HWTAGGING) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			BGE_LOCK(sc);
+			bge_setvlan(sc);
+			BGE_UNLOCK(sc);
+#ifdef VLAN_CAPABILITIES
+			VLAN_CAPABILITIES(ifp);
+#endif
+		}
+
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
