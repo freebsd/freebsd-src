@@ -106,7 +106,6 @@ struct iconv_functions *msdosfs_iconv = NULL;
 static int	update_mp(struct mount *mp, struct thread *td);
 static int	mountmsdosfs(struct vnode *devvp, struct mount *mp,
 		    struct thread *td);
-static vfs_fhtovp_t	msdosfs_fhtovp;
 static vfs_mount_t	msdosfs_mount;
 static vfs_root_t	msdosfs_root;
 static vfs_statfs_t	msdosfs_statfs;
@@ -912,26 +911,7 @@ loop:
 	return (allerror);
 }
 
-static int
-msdosfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
-{
-	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
-	struct defid *defhp = (struct defid *) fhp;
-	struct denode *dep;
-	int error;
-
-	error = deget(pmp, defhp->defid_dirclust, defhp->defid_dirofs, &dep);
-	if (error) {
-		*vpp = NULLVP;
-		return (error);
-	}
-	*vpp = DETOV(dep);
-	vnode_create_vobject(*vpp, dep->de_FileSize, curthread);
-	return (0);
-}
-
 static struct vfsops msdosfs_vfsops = {
-	.vfs_fhtovp =		msdosfs_fhtovp,
 	.vfs_mount =		msdosfs_mount,
 	.vfs_cmount =		msdosfs_cmount,
 	.vfs_root =		msdosfs_root,
