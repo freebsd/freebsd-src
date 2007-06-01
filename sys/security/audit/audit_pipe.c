@@ -328,7 +328,7 @@ audit_pipe_preselect_flush(struct audit_pipe *ap)
 	mtx_unlock(&audit_pipe_mtx);
 }
 
-/*
+/*-
  * Determine whether a specific audit pipe matches a record with these
  * properties.  Algorithm is as follows:
  *
