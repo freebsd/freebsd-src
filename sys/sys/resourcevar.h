@@ -51,8 +51,7 @@
  *      k - only accessed by curthread
  */
 struct pstats {
-#define	pstat_startzero	p_ru
-	struct	rusage p_ru;		/* Stats for this process. */
+#define	pstat_startzero	p_cru
 	struct	rusage p_cru;		/* Stats for reaped children. */
 	struct	itimerval p_timer[3];	/* (j) Virtual-time timers. */
 #define	pstat_endzero	pstat_startcopy
@@ -116,6 +115,7 @@ struct plimit
 	*lim_alloc(void);
 void	 lim_copy(struct plimit *dst, struct plimit *src);
 rlim_t	 lim_cur(struct proc *p, int which);
+void	 lim_fork(struct proc *p1, struct proc *p2);
 void	 lim_free(struct plimit *limp);
 struct plimit
 	*lim_hold(struct plimit *limp);
@@ -123,6 +123,9 @@ rlim_t	 lim_max(struct proc *p, int which);
 void	 lim_rlimit(struct proc *p, int which, struct rlimit *rlp);
 void	 ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
 	    struct rusage_ext *rux2);
+void	 rufetch(struct proc *p, struct rusage *ru);
+void	 rucollect(struct rusage *ru, struct rusage *ru2);
+void	 ruxagg(struct rusage_ext *rux, struct thread *td);
 int	 suswintr(void *base, int word);
 struct uidinfo
 	*uifind(uid_t uid);

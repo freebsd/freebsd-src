@@ -693,12 +693,12 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_swtime = p->p_swtime;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
+	rufetch(p, &kp->ki_rusage);
 	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
 	mtx_unlock_spin(&sched_lock);
 	if ((p->p_sflag & PS_INMEM) && p->p_stats != NULL) {
 		kp->ki_start = p->p_stats->p_start;
 		timevaladd(&kp->ki_start, &boottime);
-		kp->ki_rusage = p->p_stats->p_ru;
 		calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
 		calccru(p, &kp->ki_childutime, &kp->ki_childstime);
 

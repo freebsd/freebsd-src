@@ -352,6 +352,7 @@ thread_exit(void)
 {
 	uint64_t new_switchtime;
 	struct thread *td;
+	struct thread *td2;
 	struct proc *p;
 
 	td = curthread;
@@ -402,17 +403,17 @@ thread_exit(void)
 	/* Do the same timestamp bookkeeping that mi_switch() would do. */
 	new_switchtime = cpu_ticks();
 	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
-	p->p_rux.rux_uticks += td->td_uticks;
-	p->p_rux.rux_sticks += td->td_sticks;
-	p->p_rux.rux_iticks += td->td_iticks;
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
 	cnt.v_swtch++;
-
-	/* Add our usage into the usage of all our children. */
+	/*
+	 * Aggregate this thread's tick stats in the parent so they are not
+	 * lost.  Also add the child usage to our own when the final thread
+	 * exits.
+	 */
+	ruxagg(&p->p_rux, td);
 	if (p->p_numthreads == 1)
 		ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
-
 	/*
 	 * The last thread is left attached to the process
 	 * So that the whole bundle gets recycled. Skip
@@ -424,8 +425,10 @@ thread_exit(void)
 	if (p->p_flag & P_HADTHREADS) {
 		if (p->p_numthreads > 1) {
 			thread_unlink(td);
-
-			sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
+			/* Impart our resource usage on another thread */
+			td2 = FIRST_THREAD_IN_PROC(p);
+			rucollect(&td2->td_ru, &td->td_ru);
+			sched_exit_thread(td2, td);
 
 			/*
 			 * The test below is NOT true if we are the

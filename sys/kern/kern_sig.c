@@ -1868,7 +1868,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 	mtx_lock(&ps->ps_mtx);
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(ps->ps_sigcatch, sig) &&
 	    !SIGISMEMBER(td->td_sigmask, sig)) {
-		p->p_stats->p_ru.ru_nsignals++;
+		td->td_ru.ru_nsignals++;
 #ifdef KTRACE
 		if (KTRPOINT(curthread, KTR_PSIG))
 			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
@@ -2781,7 +2781,7 @@ postsig(sig)
 				SIGADDSET(ps->ps_sigignore, sig);
 			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 		}
-		p->p_stats->p_ru.ru_nsignals++;
+		td->td_ru.ru_nsignals++;
 		if (p->p_sig != sig) {
 			code = 0;
 		} else {

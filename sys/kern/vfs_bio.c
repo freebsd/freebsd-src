@@ -746,7 +746,7 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
 
 		if ((rabp->b_flags & B_CACHE) == 0) {
 			if (!TD_IS_IDLETHREAD(curthread))
-				curthread->td_proc->p_stats->p_ru.ru_inblock++;
+				curthread->td_ru.ru_inblock++;
 			rabp->b_flags |= B_ASYNC;
 			rabp->b_flags &= ~B_INVAL;
 			rabp->b_ioflags &= ~BIO_ERROR;
@@ -781,7 +781,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 	/* if not found in cache, do some I/O */
 	if ((bp->b_flags & B_CACHE) == 0) {
 		if (!TD_IS_IDLETHREAD(curthread))
-			curthread->td_proc->p_stats->p_ru.ru_inblock++;
+			curthread->td_ru.ru_inblock++;
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
 		bp->b_ioflags &= ~BIO_ERROR;
@@ -860,7 +860,7 @@ bufwrite(struct buf *bp)
 	atomic_add_int(&runningbufspace, bp->b_runningbufspace);
 
 	if (!TD_IS_IDLETHREAD(curthread))
-		curthread->td_proc->p_stats->p_ru.ru_oublock++;
+		curthread->td_ru.ru_oublock++;
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);

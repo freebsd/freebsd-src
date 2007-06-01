@@ -401,40 +401,18 @@ mi_switch(int flags, struct thread *newtd)
 	}
 
 	if (flags & SW_VOL)
-		p->p_stats->p_ru.ru_nvcsw++;
+		td->td_ru.ru_nvcsw++;
 	else
-		p->p_stats->p_ru.ru_nivcsw++;
-
+		td->td_ru.ru_nivcsw++;
 	/*
 	 * Compute the amount of time during which the current
-	 * process was running, and add that to its total so far.
+	 * thread was running, and add that to its total so far.
 	 */
 	new_switchtime = cpu_ticks();
-	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
-	p->p_rux.rux_uticks += td->td_uticks;
-	td->td_uticks = 0;
-	p->p_rux.rux_iticks += td->td_iticks;
-	td->td_iticks = 0;
-	p->p_rux.rux_sticks += td->td_sticks;
-	td->td_sticks = 0;
-
-	td->td_generation++;	/* bump preempt-detect counter */
-
-	/*
-	 * Check if the process exceeds its cpu resource allocation.  If
-	 * it reaches the max, arrange to kill the process in ast().
-	 */
-	if (p->p_cpulimit != RLIM_INFINITY &&
-	    p->p_rux.rux_runtime >= p->p_cpulimit * cpu_tickrate()) {
-		p->p_sflag |= PS_XCPU;
-		td->td_flags |= TDF_ASTPENDING;
-	}
-
-	/*
-	 * Finish up stats for outgoing thread.
-	 */
-	cnt.v_swtch++;
+	td->td_runtime += new_switchtime - PCPU_GET(switchtime);
 	PCPU_SET(switchtime, new_switchtime);
+	td->td_generation++;	/* bump preempt-detect counter */
+	cnt.v_swtch++;
 	PCPU_SET(switchticks, ticks);
 	CTR4(KTR_PROC, "mi_switch: old thread %ld (kse %p, pid %ld, %s)",
 	    td->td_tid, td->td_sched, p->p_pid, p->p_comm);

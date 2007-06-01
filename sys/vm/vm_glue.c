@@ -986,8 +986,8 @@ swapout(p)
 			("swapout: there is a thread not safe for swapout"));
 	}
 #endif /* INVARIANTS */
-
-	++p->p_stats->p_ru.ru_nswap;
+	td = FIRST_THREAD_IN_PROC(p);
+	++td->td_ru.ru_nswap;
 	/*
 	 * remember the process resident count
 	 */

@@ -3129,7 +3129,7 @@ nfs_writebp(struct buf *bp, int force __unused, struct thread *td)
 	bp->b_iocmd = BIO_WRITE;
 
 	bufobj_wref(bp->b_bufobj);
-	curthread->td_proc->p_stats->p_ru.ru_oublock++;
+	curthread->td_ru.ru_oublock++;
 	splx(s);
 
 	/*

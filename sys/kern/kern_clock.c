@@ -394,10 +394,9 @@ stopprofclock(p)
 }
 
 /*
- * Statistics clock.  Grab profile sample, and if divider reaches 0,
- * do process and kernel statistics.  Most of the statistics are only
- * used by user-level statistics programs.  The main exceptions are
- * ke->ke_uticks, p->p_rux.rux_sticks, p->p_rux.rux_iticks, and p->p_estcpu.
+ * Statistics clock.  Updates rusage information and calls the scheduler
+ * to adjust priorities of the active thread.
+ *
  * This should be called by all active processors.
  */
 void
@@ -466,10 +465,9 @@ statclock(int usermode)
 	sched_clock(td);
 
 	/* Update resource usage integrals and maximums. */
-	MPASS(p->p_stats != NULL);
 	MPASS(p->p_vmspace != NULL);
 	vm = p->p_vmspace;
-	ru = &p->p_stats->p_ru;
+	ru = &td->td_ru;
 	ru->ru_ixrss += pgtok(vm->vm_tsize);
 	ru->ru_idrss += pgtok(vm->vm_dsize);
 	ru->ru_isrss += pgtok(vm->vm_ssize);
