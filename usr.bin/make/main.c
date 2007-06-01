@@ -696,6 +696,10 @@ Remake_Makefiles(void)
 	int remade_cnt = 0;
 
 	Compat_InstallSignalHandlers();
+	if (curdir != objdir) {
+		if (chdir(curdir) < 0)
+			Fatal("Failed to change directory to %s.", curdir);
+	}
 
 	LST_FOREACH(ln, &source_makefiles) {
 		LstNode *ln2;
@@ -819,11 +823,15 @@ Remake_Makefiles(void)
 			setenv("MAKEFLAGS", save_makeflags, 1);
 		else
 			unsetenv("MAKEFLAGS");
-		chdir(curdir);
 		if (execvp(save_argv[0], save_argv) < 0) {
 			Fatal("Can't restart `%s': %s.",
 			    save_argv[0], strerror(errno));
 		}
+	}
+
+	if (curdir != objdir) {
+		if (chdir(objdir) < 0)
+			Fatal("Failed to change directory to %s.", objdir);
 	}
 }
 
