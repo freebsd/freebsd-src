@@ -192,7 +192,7 @@ static ng_ID_t	ng_decodeidname(const char *name);
 static int	ngb_mod_event(module_t mod, int event, void *data);
 static void	ng_worklist_remove(node_p node);
 static void	ngintr(void);
-static void	ng_apply_item(node_p node, item_p item, int rw);
+static int	ng_apply_item(node_p node, item_p item, int rw);
 static void	ng_flush_input_queue(struct ng_queue * ngq);
 static void	ng_setisr(node_p node);
 static node_p	ng_ID2noderef(ng_ID_t ID);
@@ -2386,8 +2386,7 @@ ng_snd_item(item_p item, int flags)
 
 	NGI_GET_NODE(item, node); /* zaps stored node */
 
-	/* Don't report any errors. act as if it had been queued */
-	ng_apply_item(node, item, rw); /* drops r/w lock when done */
+	error = ng_apply_item(node, item, rw); /* drops r/w lock when done */
 
 	/*
 	 * If the node goes away when we remove the reference,
@@ -2411,7 +2410,7 @@ ng_snd_item(item_p item, int flags)
  * It should contain all the information needed
  * to run it on the appropriate node/hook.
  */
-static void
+static int
 ng_apply_item(node_p node, item_p item, int rw)
 {
 	hook_p  hook;
@@ -2557,7 +2556,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 	if (apply != NULL)
 		(*apply)(context, error);
 
-	return;
+	return (error);
 }
 
 /***********************************************************************
