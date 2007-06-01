@@ -25,5 +25,6 @@ MAN=	ascii.7 \
 	tuning.7
 
 MLINKS=	intro.7 miscellaneous.7
+MLINKS+=	securelevel.7 security.7
 
 .include <bsd.prog.mk>
