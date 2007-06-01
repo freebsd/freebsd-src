@@ -155,14 +155,18 @@ typedef int (*pfs_close_t)(PFS_CLOSE_ARGS);
 
 /*
  * pfs_info: describes a pseudofs instance
+ *
+ * The pi_mutex is only used to avoid using the global subr_unit lock for
+ * unrhdr.  The rest of struct pfs_info is only modified while Giant is
+ * held (during vfs_init() and vfs_uninit()).
  */
 struct pfs_info {
 	char			 pi_name[PFS_FSNAMELEN];
 	pfs_init_t		 pi_init;
 	pfs_init_t		 pi_uninit;
-	/* members below this line aren't initialized */
+
+	/* members below this line are initialized at run time*/
 	struct pfs_node		*pi_root;
-	/* currently, the mutex is only used to protect the bitmap */
 	struct mtx		 pi_mutex;
 	struct unrhdr		*pi_unrhdr;
 };

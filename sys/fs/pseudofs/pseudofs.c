@@ -73,7 +73,6 @@ _pfs_add_node(struct pfs_node *parent, struct pfs_node *node)
 
 	/* XXX should check for duplicate names etc. */
 
-	mtx_lock(&parent->pn_info->pi_mutex);
 	node->pn_info = parent->pn_info;
 	node->pn_parent = parent;
 	node->pn_next = parent->pn_nodes;
@@ -81,7 +80,6 @@ _pfs_add_node(struct pfs_node *parent, struct pfs_node *node)
 	/* Propagate flag to all child nodes (and thus their vnodes) */
 	if ((parent->pn_flags & PFS_PROCDEP) != 0)
 		node->pn_flags |= PFS_PROCDEP;
-	mtx_unlock(&parent->pn_info->pi_mutex);
 
 	return (0);
 }
@@ -205,8 +203,8 @@ pfs_find_node(struct pfs_node *parent, const char *name)
 
 	for (node = parent->pn_nodes; node != NULL; node = node->pn_next)
 		if (strcmp(node->pn_name, name) == 0)
-			return (node);
-	return (NULL);
+			break;
+	return (node);
 }
 
 /*
@@ -215,7 +213,7 @@ pfs_find_node(struct pfs_node *parent, const char *name)
 int
 pfs_destroy(struct pfs_node *node)
 {
-	struct pfs_node *parent, *rover;
+	struct pfs_node *parent, **rover;
 
 	KASSERT(node != NULL,
 	    ("%s(): node is NULL", __func__));
@@ -233,25 +231,19 @@ pfs_destroy(struct pfs_node *node)
 	if ((parent = node->pn_parent) != NULL) {
 		KASSERT(parent->pn_info == node->pn_info,
 		    ("%s(): parent has different pn_info", __func__));
-		mtx_lock(&node->pn_info->pi_mutex);
-		if (parent->pn_nodes == node) {
-			parent->pn_nodes = node->pn_next;
-		} else {
-			rover = parent->pn_nodes;
-			while (rover->pn_next != NULL) {
-				if (rover->pn_next == node) {
-					rover->pn_next = node->pn_next;
-					break;
-				}
-				rover = rover->pn_next;
+		rover = &parent->pn_nodes;
+		while (*rover != NULL) {
+			if (*rover == node) {
+				*rover = node->pn_next;
+				break;
 			}
+			rover = &(*rover)->pn_next;
 		}
-		mtx_unlock(&node->pn_info->pi_mutex);
 	}
 
 	/* revoke fileno and vnodes and release memory */
 	if (node->pn_fileno)
-		pfs_fileno_free(node->pn_info, node);
+		pfs_fileno_free(node);
 	pfs_purge(node);
 	FREE(node, M_PFSNODES);
 
@@ -340,7 +332,7 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 	struct pfs_node *root;
 	int error;
 
-	mtx_init(&pi->pi_mutex, "pseudofs", NULL, MTX_DEF);
+	mtx_assert(&Giant, MA_OWNED);
 
 	/* set up the root diretory */
 	MALLOC(root, struct pfs_node *, sizeof *root,
@@ -359,7 +351,6 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 	if (error) {
 		pfs_destroy(root);
 		pi->pi_root = NULL;
-		mtx_destroy(&pi->pi_mutex);
 		return (error);
 	}
 
@@ -377,10 +368,11 @@ pfs_uninit(struct pfs_info *pi, struct vfsconf *vfc)
 {
 	int error;
 
+	mtx_assert(&Giant, MA_OWNED);
+
 	pfs_destroy(pi->pi_root);
 	pi->pi_root = NULL;
 	pfs_fileno_uninit(pi);
-	mtx_destroy(&pi->pi_mutex);
 	if (bootverbose)
 		printf("%s unregistered\n", pi->pi_name);
 	error = (pi->pi_uninit)(pi, vfc);
