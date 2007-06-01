@@ -457,7 +457,7 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	 * Open the device in read-only, 'cause we don't support write
 	 * for now
 	 */
-	error = VOP_OPEN(devvp, FREAD, FSCRED, td, -1);
+	error = VOP_OPEN(devvp, FREAD, FSCRED, td, NULL);
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);

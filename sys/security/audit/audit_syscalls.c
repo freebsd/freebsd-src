@@ -646,7 +646,7 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
 	    UIO_USERSPACE, uap->path, td);
 	flags = AUDIT_OPEN_FLAGS;
-	error = vn_open(&nd, &flags, 0, -1);
+	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
