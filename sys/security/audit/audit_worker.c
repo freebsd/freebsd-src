@@ -324,7 +324,6 @@ audit_worker_rotate(struct ucred **audit_credp, struct vnode **audit_vpp,
 		audit_enabled = (*audit_vpp != NULL);
 
 		if (old_vp != NULL) {
-			AUDIT_PRINTF(("Closing old audit file\n"));
 			mtx_unlock(&audit_mtx);
 			vfslocked = VFS_LOCK_GIANT(old_vp->v_mount);
 			vn_close(old_vp, AUDIT_CLOSE_FLAGS, old_cred,
@@ -334,10 +333,6 @@ audit_worker_rotate(struct ucred **audit_credp, struct vnode **audit_vpp,
 			mtx_lock(&audit_mtx);
 			old_cred = NULL;
 			old_vp = NULL;
-			AUDIT_PRINTF(("Audit file closed\n"));
-		}
-		if (*audit_vpp != NULL) {
-			AUDIT_PRINTF(("Opening new audit file\n"));
 		}
 		do_replacement_signal = 1;
 	}
@@ -443,8 +438,6 @@ audit_worker(void *arg)
 	struct vnode *audit_vp;
 	int lowater_signal;
 
-	AUDIT_PRINTF(("audit_worker starting\n"));
-
 	/*
 	 * These are thread-local variables requiring no synchronization.
 	 */
@@ -460,14 +453,8 @@ audit_worker(void *arg)
 		/*
 		 * Wait for record or rotation events.
 		 */
-		while (!audit_replacement_flag && TAILQ_EMPTY(&audit_q)) {
-			AUDIT_PRINTF(("audit_worker waiting\n"));
+		while (!audit_replacement_flag && TAILQ_EMPTY(&audit_q))
 			cv_wait(&audit_worker_cv, &audit_mtx);
-			AUDIT_PRINTF(("audit_worker woken up\n"));
-			AUDIT_PRINTF(("audit_worker: new vp = %p; value of "
-			    "flag %d\n", audit_replacement_vp,
-			    audit_replacement_flag));
-		}
 
 		/*
 		 * First priority: replace the audit log target if requested.
@@ -530,36 +517,26 @@ audit_rotate_vnode(struct ucred *cred, struct vnode *vp)
 	 * until they've finished before continuing.
 	 */
 	mtx_lock(&audit_mtx);
-	while (audit_replacement_flag != 0) {
-		AUDIT_PRINTF(("audit_rotate_vnode: sleeping to wait for "
-		    "flag\n"));
+	while (audit_replacement_flag != 0)
 		cv_wait(&audit_replacement_cv, &audit_mtx);
-		AUDIT_PRINTF(("audit_rotate_vnode: woken up (flag %d)\n",
-		    audit_replacement_flag));
-	}
 	audit_replacement_cred = cred;
 	audit_replacement_flag = 1;
 	audit_replacement_vp = vp;
 
 	/*
-	 * Wake up the audit worker to perform the exchange once we
-	 * release the mutex.
+	 * Wake up the audit worker to perform the exchange once we release
+	 * the mutex.
 	 */
 	cv_signal(&audit_worker_cv);
 
 	/*
 	 * Wait for the audit_worker to broadcast that a replacement has
-	 * taken place; we know that once this has happened, our vnode
-	 * has been replaced in, so we can return successfully.
+	 * taken place; we know that once this has happened, our vnode has
+	 * been replaced in, so we can return successfully.
 	 */
-	AUDIT_PRINTF(("audit_rotate_vnode: waiting for news of "
-	    "replacement\n"));
 	cv_wait(&audit_replacement_cv, &audit_mtx);
-	AUDIT_PRINTF(("audit_rotate_vnode: change acknowledged by "
-	    "audit_worker (flag " "now %d)\n", audit_replacement_flag));
-	mtx_unlock(&audit_mtx);
-
 	audit_file_rotate_wait = 0; /* We can now request another rotation */
+	mtx_unlock(&audit_mtx);
 }
 
 void
