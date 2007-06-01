@@ -77,10 +77,9 @@ MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
 MALLOC_DEFINE(M_AUDITTEXT, "audit_text", "Audit text storage");
 
 /*
- * Audit control settings that are set/read by system calls and are
- * hence non-static.
- */
-/*
+ * Audit control settings that are set/read by system calls and are hence
+ * non-static.
+ *
  * Define the audit control flags.
  */
 int			audit_enabled;
@@ -117,12 +116,12 @@ struct au_mask		audit_nae_mask;
 struct mtx		audit_mtx;
 
 /*
- * Queue of audit records ready for delivery to disk.  We insert new
- * records at the tail, and remove records from the head.  Also,
- * a count of the number of records used for checking queue depth.
- * In addition, a counter of records that we have allocated but are
- * not yet in the queue, which is needed to estimate the total
- * size of the combined set of records outstanding in the system.
+ * Queue of audit records ready for delivery to disk.  We insert new records
+ * at the tail, and remove records from the head.  Also, a count of the
+ * number of records used for checking queue depth.  In addition, a counter
+ * of records that we have allocated but are not yet in the queue, which is
+ * needed to estimate the total size of the combined set of records
+ * outstanding in the system.
  */
 struct kaudit_queue	audit_q;
 int			audit_q_len;
@@ -134,9 +133,8 @@ int			audit_pre_q_len;
 struct au_qctrl		audit_qctrl;
 
 /*
- * Condition variable to signal to the worker that it has work to do:
- * either new records are in the queue, or a log replacement is taking
- * place.
+ * Condition variable to signal to the worker that it has work to do: either
+ * new records are in the queue, or a log replacement is taking place.
  */
 struct cv		audit_worker_cv;
 
@@ -149,8 +147,8 @@ struct cv		audit_watermark_cv;
 
 /*
  * Condition variable for  auditing threads wait on when in fail-stop mode.
- * Threads wait on this CV forever (and ever), never seeing the light of
- * day again.
+ * Threads wait on this CV forever (and ever), never seeing the light of day
+ * again.
  */
 static struct cv	audit_fail_cv;
 
@@ -185,7 +183,6 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	ar->k_ar.ar_subj_amask = td->td_proc->p_au->ai_mask;
 	ar->k_ar.ar_subj_term_addr = td->td_proc->p_au->ai_termid;
 	PROC_UNLOCK(td->td_proc);
-
 	return (0);
 }
 
@@ -229,7 +226,7 @@ audit_init(void)
 	audit_argv = 0;
 	audit_arge = 0;
 
-	audit_fstat.af_filesz = 0;	/* '0' means unset, unbounded */
+	audit_fstat.af_filesz = 0;	/* '0' means unset, unbounded. */
 	audit_fstat.af_currsz = 0;
 	audit_nae_mask.am_success = AU_NULL;
 	audit_nae_mask.am_failure = AU_NULL;
@@ -343,9 +340,8 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		return;
 
 	/*
-	 * Decide whether to commit the audit record by checking the
-	 * error value from the system call and using the appropriate
-	 * audit mask.
+	 * Decide whether to commit the audit record by checking the error
+	 * value from the system call and using the appropriate audit mask.
 	 *
 	 * XXXAUDIT: Synchronize access to audit_nae_mask?
 	 */
@@ -360,11 +356,11 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		sorf = AU_PRS_SUCCESS;
 
 	switch(ar->k_ar.ar_event) {
-
 	case AUE_OPEN_RWTC:
-		/* The open syscall always writes a AUE_OPEN_RWTC event; change
-		 * it to the proper type of event based on the flags and the
-		 * error value.
+		/*
+		 * The open syscall always writes a AUE_OPEN_RWTC event;
+		 * change it to the proper type of event based on the flags
+		 * and the error value.
 		 */
 		ar->k_ar.ar_event = flags_and_error_to_openevent(
 		    ar->k_ar.ar_arg_fflags, error);
@@ -404,8 +400,8 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	ar->k_ar.ar_retval = retval;
 
 	/*
-	 * We might want to do some system-wide post-filtering
-	 * here at some point.
+	 * We might want to do some system-wide post-filtering here at some
+	 * point.
 	 */
 
 	/*
@@ -413,12 +409,11 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	 */
 	nanotime(&ar->k_ar.ar_endtime);
 
-	mtx_lock(&audit_mtx);
-
 	/*
 	 * Note: it could be that some records initiated while audit was
 	 * enabled should still be committed?
 	 */
+	mtx_lock(&audit_mtx);
 	if (audit_suspended || !audit_enabled) {
 		audit_pre_q_len--;
 		mtx_unlock(&audit_mtx);
@@ -482,8 +477,8 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 		aumask = &td->td_proc->p_au->ai_mask;
 
 	/*
-	 * Allocate an audit record, if preselection allows it, and store
-	 * in the thread for later use.
+	 * Allocate an audit record, if preselection allows it, and store in
+	 * the thread for later use.
 	 */
 	class = au_event_class(event);
 	if (au_preselect(event, class, aumask, AU_PRS_BOTH)) {
@@ -522,12 +517,11 @@ audit_syscall_exit(int error, struct thread *td)
 	int retval;
 
 	/*
-	 * Commit the audit record as desired; once we pass the record
-	 * into audit_commit(), the memory is owned by the audit
-	 * subsystem.
-	 * The return value from the system call is stored on the user
-	 * thread. If there was an error, the return value is set to -1,
-	 * imitating the behavior of the cerror routine.
+	 * Commit the audit record as desired; once we pass the record into
+	 * audit_commit(), the memory is owned by the audit subsystem.  The
+	 * return value from the system call is stored on the user thread.
+	 * If there was an error, the return value is set to -1, imitating
+	 * the behavior of the cerror routine.
 	 */
 	if (error)
 		retval = -1;
@@ -583,6 +577,7 @@ audit_proc_kproc0(struct proc *p)
 
 	KASSERT(p->p_au != NULL, ("audit_proc_kproc0: p->p_au == NULL (%d)",
 	    p->p_pid));
+
 	bzero(p->p_au, sizeof(*(p)->p_au));
 }
 
@@ -592,13 +587,14 @@ audit_proc_init(struct proc *p)
 
 	KASSERT(p->p_au != NULL, ("audit_proc_init: p->p_au == NULL (%d)",
 	    p->p_pid));
+
 	bzero(p->p_au, sizeof(*(p)->p_au));
 	p->p_au->ai_auid = AU_DEFAUDITID;
 }
 
 /*
- * Copy the audit info from the parent process to the child process when
- * a fork takes place.
+ * Copy the audit info from the parent process to the child process when a
+ * fork takes place.
  */
 void
 audit_proc_fork(struct proc *parent, struct proc *child)
@@ -610,6 +606,7 @@ audit_proc_fork(struct proc *parent, struct proc *child)
 	    ("audit_proc_fork: parent->p_au == NULL (%d)", parent->p_pid));
 	KASSERT(child->p_au != NULL,
 	    ("audit_proc_fork: child->p_au == NULL (%d)", child->p_pid));
+
 	bcopy(parent->p_au, child->p_au, sizeof(*child->p_au));
 }
 
@@ -621,6 +618,7 @@ audit_proc_free(struct proc *p)
 {
 
 	KASSERT(p->p_au != NULL, ("p->p_au == NULL (%d)", p->p_pid));
+
 	free(p->p_au, M_AUDITPROC);
 	p->p_au = NULL;
 }

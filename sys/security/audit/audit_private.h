@@ -291,7 +291,7 @@ extern int			audit_in_failure;
 /*
  * Some of the BSM tokenizer functions take different parameters in the
  * kernel implementations in order to save the copying of large kernel data
- * structures. The prototypes of these functions are declared here.
+ * structures.  The prototypes of these functions are declared here.
  */
 token_t		*kau_to_socket(struct socket_au_info *soi);
 

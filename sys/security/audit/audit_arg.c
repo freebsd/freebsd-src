@@ -51,11 +51,10 @@
 
 /*
  * Calls to manipulate elements of the audit record structure from system
- * call code.  Macro wrappers will prevent this functions from being
- * entered if auditing is disabled, avoiding the function call cost.  We
- * check the thread audit record pointer anyway, as the audit condition
- * could change, and pre-selection may not have allocated an audit
- * record for this event.
+ * call code.  Macro wrappers will prevent this functions from being entered
+ * if auditing is disabled, avoiding the function call cost.  We check the
+ * thread audit record pointer anyway, as the audit condition could change,
+ * and pre-selection may not have allocated an audit record for this event.
  *
  * XXXAUDIT: Should we assert, in each case, that this field of the record
  * hasn't already been filled in?
@@ -693,11 +692,13 @@ audit_arg_upath(struct thread *td, char *upath, u_int64_t flag)
  * It is assumed that the caller will hold any vnode locks necessary to
  * perform a VOP_GETATTR() on the passed vnode.
  *
- * XXX: The attr code is very similar to vfs_vnops.c:vn_stat(), but
- * always provides access to the generation number as we need that
- * to construct the BSM file ID.
- * XXX: We should accept the process argument from the caller, since
- * it's very likely they already have a reference.
+ * XXX: The attr code is very similar to vfs_vnops.c:vn_stat(), but always
+ * provides access to the generation number as we need that to construct the
+ * BSM file ID.
+ *
+ * XXX: We should accept the process argument from the caller, since it's
+ * very likely they already have a reference.
+ *
  * XXX: Error handling in this function is poor.
  *
  * XXXAUDIT: Possibly KASSERT the path pointer is NULL?
