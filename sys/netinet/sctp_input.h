@@ -40,8 +40,7 @@ __FBSDID("$FreeBSD$");
 void
 sctp_common_input_processing(struct mbuf **, int, int, int,
     struct sctphdr *, struct sctp_chunkhdr *, struct sctp_inpcb *,
-    struct sctp_tcb *, struct sctp_nets *, uint8_t, uint32_t, uint32_t);
-
+    struct sctp_tcb *, struct sctp_nets *, uint8_t, uint32_t);
 
 struct sctp_stream_reset_out_request *
 sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq,
@@ -50,7 +49,6 @@ sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq,
 void 
 sctp_reset_in_stream(struct sctp_tcb *stcb, int number_entries,
     uint16_t * list);
-
 
 #endif
 #endif

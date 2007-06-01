@@ -71,7 +71,7 @@ sctp6_input(i_pak, offp, proto)
 	struct sctp_nets *net;
 	int refcount_up = 0;
 	uint32_t check, calc_check;
-	uint32_t vrf_id = 0, table_id = 0;
+	uint32_t vrf_id = 0;
 	struct inpcb *in6p_ip;
 	struct sctp_chunkhdr *ch;
 	int length, mlen, offset, iphlen;
@@ -82,10 +82,6 @@ sctp6_input(i_pak, offp, proto)
 
 	/* get the VRF and table id's */
 	if (SCTP_GET_PKT_VRFID(*i_pak, vrf_id)) {
-		SCTP_RELEASE_PKT(*i_pak);
-		return (-1);
-	}
-	if (SCTP_GET_PKT_TABLEID(*i_pak, table_id)) {
 		SCTP_RELEASE_PKT(*i_pak);
 		return (-1);
 	}
@@ -189,16 +185,14 @@ sctp_skip_csum:
 				sh->v_tag = 0;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
-			sctp_send_shutdown_complete2(m, iphlen, sh, vrf_id,
-			    table_id);
+			sctp_send_shutdown_complete2(m, iphlen, sh, vrf_id);
 			goto bad;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_COMPLETE) {
 			goto bad;
 		}
 		if (ch->chunk_type != SCTP_ABORT_ASSOCIATION)
-			sctp_send_abort(m, iphlen, sh, 0, NULL, vrf_id,
-			    table_id);
+			sctp_send_abort(m, iphlen, sh, 0, NULL, vrf_id);
 		goto bad;
 	} else if (stcb == NULL) {
 		refcount_up = 1;
@@ -226,7 +220,7 @@ sctp_skip_csum:
 
 	/* sa_ignore NO_NULL_CHK */
 	sctp_common_input_processing(&m, iphlen, offset, length, sh, ch,
-	    in6p, stcb, net, ecn_bits, vrf_id, table_id);
+	    in6p, stcb, net, ecn_bits, vrf_id);
 	/* inp's ref-count reduced && stcb unlocked */
 	/* XXX this stuff below gets moved to appropriate parts later... */
 	if (m)
