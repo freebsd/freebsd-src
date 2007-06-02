@@ -232,6 +232,8 @@ OLD_FILES+=usr/share/man/man8/mount_procfs.8.gz
 OLD_FILES+=usr/share/man/man8/mount_std.8.gz
 # 20061116: uhidev.4 removed
 OLD_FILES+=usr/share/man/man4/uhidev.4.gz
+# 20061106: archive_write_prepare.3 removed
+OLD_FILES+=usr/share/man/man3/archive_write_prepare.3.gz
 .if ${TARGET_ARCH} == "ia64"
 # 20061104: skiload.help removed
 OLD_FILES+=boot/skiload.help
@@ -376,6 +378,11 @@ OLD_FILES+=usr/share/doc/papers/px.ps.gz
 # 20050721: moved to ports
 OLD_FILES+=usr/sbin/vttest
 OLD_FILES+=usr/share/man/man1/vttest.1.gz
+# 20050617: wpa man pages moved to section 8
+OLD_FILES+=usr/share/man/man1/hostapd.1.gz
+OLD_FILES+=usr/share/man/man1/hostapd_cli.1.gz
+OLD_FILES+=usr/share/man/man1/wpa_cli.1.gz
+OLD_FILES+=usr/share/man/man1/wpa_supplicant.1.gz
 # 20050610: rexecd (insecure by design)
 OLD_FILES+=etc/pam.d/rexecd
 OLD_FILES+=usr/share/man/man8/rexecd.8.gz
@@ -613,6 +620,8 @@ OLD_FILES+=usr/share/man/man1/sasc.1.gz
 OLD_FILES+=usr/share/man/man1/sgsc.1.gz
 OLD_FILES+=usr/share/man/man4/i386/stl.4.gz
 OLD_FILES+=usr/share/man/man8/raidctl.8.gz
+# 20040229: clean_environment() was removed after 3 days
+OLD_FILES+=usr/share/man/man3/clean_environment.3.gz
 # 20040119: installed as `isdntel' in newer systems
 OLD_FILES+=etc/isdn/isdntel.sh
 # 200XYYZZ: /lib transition clitches
