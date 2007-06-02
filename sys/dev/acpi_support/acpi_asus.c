@@ -146,6 +146,18 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.disp_set	= "SDSP"
 	},
 	{
+		.name           = "A3N",
+		.mled_set       = "MLED",
+		.bled_set       = "BLED",
+		.wled_set       = "WLED",
+		.lcd_get        = NULL,
+		.lcd_set        = "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_set        = "SPLV",
+		.brn_get        = "SDSP",
+		.disp_set       = "SDSP",
+		.disp_get       = "\\_SB.PCI0.P0P3.VGA.GETD"
+	},
+	{
 		.name		= "A4D",
 		.mled_set	= "MLED",
 		.brn_up		= "\\_SB_.PCI0.SBRG.EC0._Q0E",
