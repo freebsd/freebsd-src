@@ -318,6 +318,9 @@
       configurations.  This change may result in a small performance
       increase for some workloads.</para>
 
+    <para>The dumb console driver (&man.dcons.4;) is now enabled in the
+      <filename>GENERIC</filename> kernel.</para>
+
     <para>The &man.ddb.4; debugger now provides the <literal>show lock</literal>
       command.  If the argument has a valid lock class,
       this displays various information about the lock and calls a
@@ -530,6 +533,12 @@
 	the <literal>BOOT_COMCONSOLE_SPEED</literal> kernel option.
 	&merged;</para>
 
+      <para>[&arch.amd64;, &arch.i386;] &man.firewire.4; and &man.dcons.4;
+	support has been added to the boot loader.  To enable it,
+	<literal>LOADER_FIREWIRE_SUPPORT=yes</literal> has to be added
+	to <filename>/etc/make.conf</filename> and the loader be rebuilt.
+	</para>
+
       <!-- Above this line, order boot loader changes by keyword-->
 
       <para>[&arch.pc98;] A bootable CDROM loader has been implemented
@@ -688,7 +697,7 @@
 	  This supports ATI IXP 200/300/400 series audio controllers.  &merged;</para>
 
 	<para>The &man.snd.atiixp.4; driver now supports
-	  suspend and resume features.</para>
+	  suspend and resume features.  &merged;</para>
 
 	<para>The &man.snd.cmi.4; driver is now MPSAFE.</para>
 
@@ -707,7 +716,7 @@
 	<para>The &man.snd.ich.4; driver is now MPSAFE.  &merged;</para>
 
 	<para>The &man.snd.hda.4; driver has been added.  It supports
-	  devices that conform to revision 1.0 of the  Intel High Definition
+	  devices that conform to revision 1.0 of the Intel High Definition
 	  Audio specification.</para>
 
 	<para>The &man.snd.solo.4; driver is now MPSAFE.  &merged;</para>
@@ -788,6 +797,9 @@
 	  instead of ithread handler.  This change can be disabled
 	  by defining <literal>NO_EM_FASTINTR</literal> kernel option
 	  for debugging purpose.</para>
+
+	<para>The IP over FireWire (&man.fwip.4;) driver is now enabled in
+	  the <filename>GENERIC</filename> kernel.</para>
 
 	<para>The firmware images needed by the &man.ipw.4; driver are now
 	  part of the &os; base system.  For the loaded firmware to work the
@@ -1033,7 +1045,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The &man.lagg.4; driver, ported from OpenBSD and NetBSD,
 	has been added to support a variety of protocols and algorithms
-	for link aggregation, failover, and fault tolerance.</para>
+	for link aggregation, failover, and fault tolerance.  &merged;</para>
 
       <para>The &man.natm.4;, Native Mode ATM protocol layer is now MPSAFE.</para>
 
@@ -1294,10 +1306,10 @@ pipe tablearg ip from table(1) to any</programlisting>
 	state/settings reporting, periodic volume re-synchronization
 	status reporting, and sysctl variables for volume
 	re-synchronization rate, volume member write cache status,
-	and volume transaction queue depth.</para>
+	and volume transaction queue depth.  &merged;</para>
 
       <para>The &man.mpt.4; driver now supports SAS HBA (partially),
-	64-bit PCI, and large data transfer.</para>
+	64-bit PCI, and large data transfer.  &merged;</para>
 
       <para>The &man.mpt.4; driver is now MPSAFE.</para>
 
@@ -1506,7 +1518,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       and rudimentary support for RFC2640 (UTF8).  The RFC2640 support
       is optional and can be enabled using the new <option>-8</option>
       flag.  More information can be found in the &man.ftpd.8; manual
-      page.</para>
+      page.  &merged;</para>
+
+    <para>The &man.gcc.1; SSP (Stack-Smashing Protector) support is now
+      enabled by default.</para>
 
     <para>The &man.gbde.8; utility now supports
       <option>-k</option> and <option>-K</option> options
@@ -1831,6 +1846,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       function has been added to
       allow lookups for a specific version of a given symbol.</para>
 
+    <para>The &man.sa.8; utility now supports <option>-U</option>
+      and <option>-P</option> flags.  They can be used to specify
+      the per-user and per-process summary file location,
+      respectively.</para>
+
     <para>A bug in the &man.sed.1; utility which can cause
       incorrect calculation of pattern space length in some cases
       has been fixed.</para>
@@ -1875,6 +1895,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.top.1; program now supports a <option>-j</option>
       flag to display the &man.jail.8; ID for each process.  &merged;</para>
+
+    <para>The &man.touch.1; utility now supports a <option>-A</option>
+      flag that allows the access and modification times of a file be
+      adjusted by a specified value.  &merged;</para>
 
     <para>The &man.traceroute.8; program now supports
       a <option>-D</option> flag, which causes it to display the
@@ -2197,11 +2221,6 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       directory argument is given, it will set current
       working directory to the first prefix given by the
       <command>@cwd</command> command.  &merged;</para>
-
-    <para>The &man.sa.8; utility now supports <option>-U</option>
-      and <option>-P</option> flags.  They can be used to specify
-      the per-user and per-process summary file location,
-      respectively.</para>
   </sect2>
 
   <sect2 id="releng">
@@ -2314,7 +2333,11 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The supported version of
       the <application>&xorg;</application> windowing system
       (<filename role="package">x11/xorg</filename>) has been updated
-      from 6.8.2 to 6.9.0. &merged;</para>
+      from 6.8.2 to 7.2.0. &merged;</para>
+
+    <para>The default value of <varname>X11BASE</varname> has been changed
+      from <filename>/usr/X11R6</filename> to <filename>/usr/local</filename>,
+      the default value of <varname>LOCALBASE</varname>.  &merged;</para>
 
     <para>[&arch.pc98;] &os;/pc98 release CDROMs are now
       bootable on systems with some supported SCSI adapters.
