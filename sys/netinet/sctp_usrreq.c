@@ -383,7 +383,6 @@ sctp_getcred(SYSCTL_HANDLER_ARGS)
 	int error;
 	uint32_t vrf_id;
 
-
 	/* FIX, for non-bsd is this right? */
 	vrf_id = SCTP_DEFAULT_VRFID;
 
@@ -487,6 +486,7 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 	struct sctp_inpcb *inp;
 	struct inpcb *ip_inp;
 	int error;
+	uint32_t vrf_id = SCTP_DEFAULT_VRFID;
 
 #ifdef IPSEC
 	uint32_t flags;
@@ -500,7 +500,7 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 	if (error) {
 		return error;
 	}
-	error = sctp_inpcb_alloc(so);
+	error = sctp_inpcb_alloc(so, vrf_id);
 	if (error) {
 		return error;
 	}
