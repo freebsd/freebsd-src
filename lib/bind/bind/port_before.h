@@ -24,7 +24,7 @@ struct timezone;        /* silence warning */
 #undef HAVE_MD5
 #undef SOLARIS2
 
-#undef DO_PTHREADS
+#define DO_PTHREADS 1
 #define GETGROUPLIST_ARGS const char *name, gid_t basegid, gid_t *groups, int *ngroups
 #define GETNETBYADDR_ADDR_T unsigned long int
 #define SETPWENT_VOID 1
@@ -150,3 +150,5 @@ struct timezone;        /* silence warning */
 #endif
 
 #endif
+
+/*! \file */
