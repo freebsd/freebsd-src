@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: assertions.c,v 1.16.206.1 2004/03/06 08:14:27 marka Exp $ */
+/* $Id: assertions.c,v 1.17.18.2 2005/04/29 00:16:44 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -25,20 +27,20 @@
 #include <isc/assertions.h>
 #include <isc/msgs.h>
 
-/*
+/*%
  * Forward.
  */
-
 static void
 default_callback(const char *, int, isc_assertiontype_t, const char *);
 
-/*
+/*%
  * Public.
  */
 
 LIBISC_EXTERNAL_DATA isc_assertioncallback_t isc_assertion_failed =
 					     default_callback;
 
+/*% Set callback. */
 void
 isc_assertion_setcallback(isc_assertioncallback_t cb) {
 	if (cb == NULL)
@@ -47,6 +49,7 @@ isc_assertion_setcallback(isc_assertioncallback_t cb) {
 		isc_assertion_failed = cb;
 }
 
+/*% Type to Text */
 const char *
 isc_assertion_typetotext(isc_assertiontype_t type) {
 	const char *result;

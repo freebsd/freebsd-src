@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2000-2002  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_internal.h,v 1.1.4.1 2004/12/09 04:07:16 marka Exp $ */
+/* $Id: dst_internal.h,v 1.1.6.5 2006/01/27 23:57:44 marka Exp $ */
 
 #ifndef DST_DST_INTERNAL_H
 #define DST_DST_INTERNAL_H 1
@@ -46,18 +46,20 @@ extern isc_mem_t *dst__memory_pool;
 
 typedef struct dst_func dst_func_t;
 
+/*% DST Key Structure */
 struct dst_key {
 	unsigned int	magic;
-	dns_name_t *	key_name;	/* name of the key */
-	unsigned int	key_size;	/* size of the key in bits */
-	unsigned int	key_proto;	/* protocols this key is used for */
-	unsigned int	key_alg;	/* algorithm of the key */
-	isc_uint32_t	key_flags;	/* flags of the public key */
-	isc_uint16_t	key_id;		/* identifier of the key */
-	dns_rdataclass_t key_class;	/* class of the key record */
-	isc_mem_t	*mctx;		/* memory context */
-	void *		opaque;		/* pointer to key in crypto pkg fmt */
-	dst_func_t *	func;		/* crypto package specific functions */
+	dns_name_t *	key_name;	/*%< name of the key */
+	unsigned int	key_size;	/*%< size of the key in bits */
+	unsigned int	key_proto;	/*%< protocols this key is used for */
+	unsigned int	key_alg;	/*%< algorithm of the key */
+	isc_uint32_t	key_flags;	/*%< flags of the public key */
+	isc_uint16_t	key_id;		/*%< identifier of the key */
+	isc_uint16_t	key_bits;	/*%< hmac digest bits */
+	dns_rdataclass_t key_class;	/*%< class of the key record */
+	isc_mem_t	*mctx;		/*%< memory context */
+	void *		opaque;		/*%< pointer to key in crypto pkg fmt */
+	dst_func_t *	func;		/*%< crypto package specific functions */
 };
 
 struct dst_context {
@@ -100,30 +102,35 @@ struct dst_func {
 	void (*cleanup)(void);
 };
 
-/*
+/*%
  * Initializers
  */
 isc_result_t dst__openssl_init(void);
 
 isc_result_t dst__hmacmd5_init(struct dst_func **funcp);
+isc_result_t dst__hmacsha1_init(struct dst_func **funcp);
+isc_result_t dst__hmacsha224_init(struct dst_func **funcp);
+isc_result_t dst__hmacsha256_init(struct dst_func **funcp);
+isc_result_t dst__hmacsha384_init(struct dst_func **funcp);
+isc_result_t dst__hmacsha512_init(struct dst_func **funcp);
 isc_result_t dst__opensslrsa_init(struct dst_func **funcp);
 isc_result_t dst__openssldsa_init(struct dst_func **funcp);
 isc_result_t dst__openssldh_init(struct dst_func **funcp);
 isc_result_t dst__gssapi_init(struct dst_func **funcp);
 
-/*
+/*%
  * Destructors
  */
 void dst__openssl_destroy(void);
 
-/*
+/*%
  * Memory allocators using the DST memory pool.
  */
 void * dst__mem_alloc(size_t size);
 void   dst__mem_free(void *ptr);
 void * dst__mem_realloc(void *ptr, size_t size);
 
-/*
+/*%
  * Entropy retriever using the DST entropy pool.
  */
 isc_result_t dst__entropy_getdata(void *buf, unsigned int len,
@@ -132,3 +139,4 @@ isc_result_t dst__entropy_getdata(void *buf, unsigned int len,
 ISC_LANG_ENDDECLS
 
 #endif /* DST_DST_INTERNAL_H */
+/*! \file */

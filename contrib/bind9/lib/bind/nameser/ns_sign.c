@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_sign.c,v 1.1.2.2.4.2 2006/03/10 00:17:21 marka Exp $";
+static const char rcsid[] = "$Id: ns_sign.c,v 1.4.18.2 2006/03/10 00:20:08 marka Exp $";
 #endif
 
 /* Import. */
@@ -53,24 +53,26 @@ static const char rcsid[] = "$Id: ns_sign.c,v 1.1.2.2.4.2 2006/03/10 00:17:21 ma
 		} \
 	} while (0)
 
-/* ns_sign
+/*%
+ *  ns_sign
+ *
  * Parameters:
- *	msg		message to be sent
- *	msglen		input - length of message
+ *\li	msg		message to be sent
+ *\li	msglen		input - length of message
  *			output - length of signed message
- *	msgsize		length of buffer containing message
- *	error		value to put in the error field
- *	key		tsig key used for signing
- *	querysig	(response), the signature in the query
- *	querysiglen	(response), the length of the signature in the query
- *	sig		a buffer to hold the generated signature
- *	siglen		input - length of signature buffer
+ *\li	msgsize		length of buffer containing message
+ *\li	error		value to put in the error field
+ *\li	key		tsig key used for signing
+ *\li	querysig	(response), the signature in the query
+ *\li	querysiglen	(response), the length of the signature in the query
+ *\li	sig		a buffer to hold the generated signature
+ *\li	siglen		input - length of signature buffer
  *			output - length of signature
  *
  * Errors:
- *	- bad input data (-1)
- *	- bad key / sign failed (-BADKEY)
- *	- not enough space (NS_TSIG_ERROR_NO_SPACE)
+ *\li	- bad input data (-1)
+ *\li	- bad key / sign failed (-BADKEY)
+ *\li	- not enough space (NS_TSIG_ERROR_NO_SPACE)
  */
 int
 ns_sign(u_char *msg, int *msglen, int msgsize, int error, void *k,
@@ -124,7 +126,7 @@ ns_sign2(u_char *msg, int *msglen, int msgsize, int error, void *k,
 	BOUNDS_CHECK(cp, INT16SZ + INT16SZ + INT32SZ + INT16SZ);
 	PUTSHORT(ns_t_tsig, cp);
 	PUTSHORT(ns_c_any, cp);
-	PUTLONG(0, cp);		/* TTL */
+	PUTLONG(0, cp);		/*%< TTL */
 	lenp = cp;
 	cp += 2;
 
@@ -191,18 +193,18 @@ ns_sign2(u_char *msg, int *msglen, int msgsize, int error, void *k,
 
 		/* Digest the time signed, fudge, error, and other data */
 		cp2 = buf;
-		PUTSHORT(0, cp2);	/* Top 16 bits of time */
+		PUTSHORT(0, cp2);	/*%< Top 16 bits of time */
 		if (error != ns_r_badtime)
 			PUTLONG(timesigned, cp2);
 		else
 			PUTLONG(in_timesigned, cp2);
 		PUTSHORT(NS_TSIG_FUDGE, cp2);
-		PUTSHORT(error, cp2);	/* Error */
+		PUTSHORT(error, cp2);	/*%< Error */
 		if (error != ns_r_badtime)
-			PUTSHORT(0, cp2);	/* Other data length */
+			PUTSHORT(0, cp2);	/*%< Other data length */
 		else {
-			PUTSHORT(INT16SZ+INT32SZ, cp2);	/* Other data length */
-			PUTSHORT(0, cp2);	/* Top 16 bits of time */
+			PUTSHORT(INT16SZ+INT32SZ, cp2);	/*%< Other data length */
+			PUTSHORT(0, cp2);	/*%< Top 16 bits of time */
 			PUTLONG(timesigned, cp2);
 		}
 		dst_sign_data(SIG_MODE_UPDATE, key, &ctx, buf, cp2-buf,
@@ -224,17 +226,17 @@ ns_sign2(u_char *msg, int *msglen, int msgsize, int error, void *k,
 
 	/* The original message ID & error. */
 	BOUNDS_CHECK(cp, INT16SZ + INT16SZ);
-	PUTSHORT(ntohs(hp->id), cp);	/* already in network order */
+	PUTSHORT(ntohs(hp->id), cp);	/*%< already in network order */
 	PUTSHORT(error, cp);
 
 	/* Other data. */
 	BOUNDS_CHECK(cp, INT16SZ);
 	if (error != ns_r_badtime)
-		PUTSHORT(0, cp);	/* Other data length */
+		PUTSHORT(0, cp);	/*%< Other data length */
 	else {
-		PUTSHORT(INT16SZ+INT32SZ, cp);	/* Other data length */
+		PUTSHORT(INT16SZ+INT32SZ, cp);	/*%< Other data length */
 		BOUNDS_CHECK(cp, INT32SZ+INT16SZ);
-		PUTSHORT(0, cp);	/* Top 16 bits of time */
+		PUTSHORT(0, cp);	/*%< Top 16 bits of time */
 		PUTLONG(timesigned, cp);
 	}
 
@@ -323,7 +325,7 @@ ns_sign_tcp2(u_char *msg, int *msglen, int msgsize, int error,
 	BOUNDS_CHECK(cp, INT16SZ + INT16SZ + INT32SZ + INT16SZ);
 	PUTSHORT(ns_t_tsig, cp);
 	PUTSHORT(ns_c_any, cp);
-	PUTLONG(0, cp);		/* TTL */
+	PUTLONG(0, cp);		/*%< TTL */
 	lenp = cp;
 	cp += 2;
 
@@ -346,7 +348,7 @@ ns_sign_tcp2(u_char *msg, int *msglen, int msgsize, int error,
 
 	/* Digest the time signed and fudge. */
 	cp2 = buf;
-	PUTSHORT(0, cp2);	/* Top 16 bits of time */
+	PUTSHORT(0, cp2);	/*%< Top 16 bits of time */
 	PUTLONG(timesigned, cp2);
 	PUTSHORT(NS_TSIG_FUDGE, cp2);
 
@@ -367,7 +369,7 @@ ns_sign_tcp2(u_char *msg, int *msglen, int msgsize, int error,
 
 	/* The original message ID & error. */
 	BOUNDS_CHECK(cp, INT16SZ + INT16SZ);
-	PUTSHORT(ntohs(hp->id), cp);	/* already in network order */
+	PUTSHORT(ntohs(hp->id), cp);	/*%< already in network order */
 	PUTSHORT(error, cp);
 
 	/* Other data. */
@@ -381,3 +383,5 @@ ns_sign_tcp2(u_char *msg, int *msglen, int msgsize, int error,
 	*msglen = (cp - msg);
 	return (0);
 }
+
+/*! \file */

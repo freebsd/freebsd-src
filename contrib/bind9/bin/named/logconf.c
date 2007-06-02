@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: logconf.c,v 1.30.2.3.10.4 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: logconf.c,v 1.35.18.5 2006/03/02 00:37:21 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -36,7 +38,7 @@
 	       if (result != ISC_R_SUCCESS) goto cleanup; 	 \
 	} while (0)
 
-/*
+/*%
  * Set up a logging category according to the named.conf data
  * in 'ccat' and add it to 'lctx'.
  */
@@ -84,7 +86,7 @@ category_fromconf(const cfg_obj_t *ccat, isc_logconfig_t *lctx) {
 	return (ISC_R_SUCCESS);
 }
 
-/*
+/*%
  * Set up a logging channel according to the named.conf data
  * in 'cchan' and add it to 'lctx'.
  */

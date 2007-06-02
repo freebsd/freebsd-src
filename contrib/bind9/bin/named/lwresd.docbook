@@ -1,8 +1,8 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
@@ -18,8 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: lwresd.docbook,v 1.6.208.4 2005/05/13 01:22:33 marka Exp $ -->
-
+<!-- $Id: lwresd.docbook,v 1.7.18.5 2007/01/29 23:57:20 marka Exp $ -->
 <refentry>
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -31,10 +30,16 @@
     <refmiscinfo>BIND9</refmiscinfo>
   </refmeta>
 
+  <refnamediv>
+    <refname><application>lwresd</application></refname>
+    <refpurpose>lightweight resolver daemon</refpurpose>
+  </refnamediv>
+
   <docinfo>
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2007</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -43,11 +48,6 @@
       <holder>Internet Software Consortium.</holder>
     </copyright>
   </docinfo>
-
-  <refnamediv>
-    <refname><application>lwresd</application></refname>
-    <refpurpose>lightweight resolver daemon</refpurpose>
-  </refnamediv>
 
   <refsynopsisdiv>
     <cmdsynopsis>
@@ -69,37 +69,39 @@
 
   <refsect1>
     <title>DESCRIPTION</title>
-    <para>
-	<command>lwresd</command> is the daemon providing name lookup
-	services to clients that use the BIND 9 lightweight resolver
-	library.  It is essentially a stripped-down, caching-only name
-	server that answers queries using the BIND 9 lightweight
-	resolver protocol rather than the DNS protocol.
+
+    <para><command>lwresd</command>
+      is the daemon providing name lookup
+      services to clients that use the BIND 9 lightweight resolver
+      library.  It is essentially a stripped-down, caching-only name
+      server that answers queries using the BIND 9 lightweight
+      resolver protocol rather than the DNS protocol.
+    </para>
+
+    <para><command>lwresd</command> 
+      listens for resolver queries on a
+      UDP port on the IPv4 loopback interface, 127.0.0.1.  This
+      means that <command>lwresd</command> can only be used by
+      processes running on the local machine.  By default UDP port
+      number 921 is used for lightweight resolver requests and
+      responses.
     </para>
     <para>
-	<command>lwresd</command> listens for resolver queries on a
-	UDP port on the IPv4 loopback interface, 127.0.0.1.  This
-	means that <command>lwresd</command> can only be used by
-	processes running on the local machine.  By default UDP port
-	number 921 is used for lightweight resolver requests and
-	responses.
+      Incoming lightweight resolver requests are decoded by the
+      server which then resolves them using the DNS protocol.  When
+      the DNS lookup completes, <command>lwresd</command> encodes
+      the answers in the lightweight resolver format and returns
+      them to the client that made the request.
     </para>
     <para>
-	Incoming lightweight resolver requests are decoded by the
-	server which then resolves them using the DNS protocol.  When
-	the DNS lookup completes, <command>lwresd</command> encodes
-	the answers in the lightweight resolver format and returns
-	them to the client that made the request.
-    </para>
-    <para>
-	If <filename>/etc/resolv.conf</filename> contains any
-	<option>nameserver</option> entries, <command>lwresd</command>
-	sends recursive DNS queries to those servers.  This is similar
-	to the use of forwarders in a caching name server.  If no
-	<option>nameserver</option> entries are present, or if
-	forwarding fails, <command>lwresd</command> resolves the
-	queries autonomously starting at the root name servers, using
-	a built-in list of root server hints.
+      If <filename>/etc/resolv.conf</filename> contains any
+      <option>nameserver</option> entries, <command>lwresd</command>
+      sends recursive DNS queries to those servers.  This is similar
+      to the use of forwarders in a caching name server.  If no
+      <option>nameserver</option> entries are present, or if
+      forwarding fails, <command>lwresd</command> resolves the
+      queries autonomously starting at the root name servers, using
+      a built-in list of root server hints.
     </para>
   </refsect1>
 
@@ -108,145 +110,139 @@
 
     <variablelist>
       <varlistentry>
-	<term>-C <replaceable class="parameter">config-file</replaceable></term>
-	<listitem>
-	  <para>
-		Use <replaceable
-		class="parameter">config-file</replaceable> as the
-		configuration file instead of the default,
-		<filename>/etc/resolv.conf</filename>.
+        <term>-C <replaceable class="parameter">config-file</replaceable></term>
+        <listitem>
+          <para>
+            Use <replaceable class="parameter">config-file</replaceable> as the
+            configuration file instead of the default,
+            <filename>/etc/resolv.conf</filename>.
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term>-d <replaceable class="parameter">debug-level</replaceable></term>
-	<listitem>
-	  <para>
-		Set the daemon's debug level to <replaceable
-		class="parameter">debug-level</replaceable>.
-		Debugging traces from <command>lwresd</command> become
-		more verbose as the debug level increases.
+        <term>-d <replaceable class="parameter">debug-level</replaceable></term>
+        <listitem>
+          <para>
+            Set the daemon's debug level to <replaceable class="parameter">debug-level</replaceable>.
+            Debugging traces from <command>lwresd</command> become
+            		more verbose as the debug level increases.
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term>-f</term>
-	<listitem>
-	  <para>
-		Run the server in the foreground (i.e. do not daemonize).
+        <term>-f</term>
+        <listitem>
+          <para>
+            Run the server in the foreground (i.e. do not daemonize).
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term>-g</term>
-	<listitem>
-	  <para>
-		Run the server in the foreground and force all logging
-		to <filename>stderr</filename>.
+        <term>-g</term>
+        <listitem>
+          <para>
+            Run the server in the foreground and force all logging
+            to <filename>stderr</filename>.
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term>-n <replaceable class="parameter">#cpus</replaceable></term>
-	<listitem>
-	  <para>
-		Create <replaceable
-		class="parameter">#cpus</replaceable> worker threads
-		to take advantage of multiple CPUs.  If not specified,
-		<command>lwresd</command> will try to determine the
-		number of CPUs present and create one thread per CPU.
-		If it is unable to determine the number of CPUs, a
-		single worker thread will be created.
+        <term>-n <replaceable class="parameter">#cpus</replaceable></term>
+        <listitem>
+          <para>
+            Create <replaceable class="parameter">#cpus</replaceable> worker threads
+            to take advantage of multiple CPUs.  If not specified,
+            <command>lwresd</command> will try to determine the
+            number of CPUs present and create one thread per CPU.
+            If it is unable to determine the number of CPUs, a
+            single worker thread will be created.
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term>-P <replaceable class="parameter">port</replaceable></term>
-	<listitem>
-	  <para>
-		Listen for lightweight resolver queries on port
-		<replaceable class="parameter">port</replaceable>.  If
-		not specified, the default is port 921.
+        <term>-P <replaceable class="parameter">port</replaceable></term>
+        <listitem>
+          <para>
+            Listen for lightweight resolver queries on port
+            <replaceable class="parameter">port</replaceable>.  If
+            		not specified, the default is port 921.
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term>-p <replaceable class="parameter">port</replaceable></term>
-	<listitem>
-	  <para>
-		Send DNS lookups to port <replaceable
-		class="parameter">port</replaceable>.  If not
-		specified, the default is port 53.  This provides a
-		way of testing the lightweight resolver daemon with a
-		name server that listens for queries on a non-standard
-		port number.
+        <term>-p <replaceable class="parameter">port</replaceable></term>
+        <listitem>
+          <para>
+            Send DNS lookups to port <replaceable class="parameter">port</replaceable>.  If not
+            specified, the default is port 53.  This provides a
+            way of testing the lightweight resolver daemon with a
+            name server that listens for queries on a non-standard
+            port number.
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term>-s</term>
-	<listitem>
-	  <para>
-		Write memory usage statistics to <filename>stdout</filename>
-		on exit.
+        <term>-s</term>
+        <listitem>
+          <para>
+            Write memory usage statistics to <filename>stdout</filename>
+            on exit.
           </para>
-	  <note>
-	    <para>
-		This option is mainly of interest to BIND 9 developers
-		and may be removed or changed in a future release.
-	    </para>
-	  </note>
-	</listitem>
+          <note>
+            <para>
+              This option is mainly of interest to BIND 9 developers
+              and may be removed or changed in a future release.
+            </para>
+          </note>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term>-t <replaceable class="parameter">directory</replaceable></term>
-	<listitem>
-	  <para>
-		<function>chroot()</function> to <replaceable
-		class="parameter">directory</replaceable> after
-		processing the command line arguments, but before
-		reading the configuration file.
+        <term>-t <replaceable class="parameter">directory</replaceable></term>
+        <listitem>
+          <para><function>chroot()</function>
+	    to <replaceable class="parameter">directory</replaceable> after
+            processing the command line arguments, but before
+            reading the configuration file.
           </para>
-	  <warning>
-	    <para>
-		This option should be used in conjunction with the
-		<option>-u</option> option, as chrooting a process
-		running as root doesn't enhance security on most
-		systems; the way <function>chroot()</function> is
-		defined allows a process with root privileges to
-		escape a chroot jail.
-	    </para>
-	  </warning>
-	</listitem>
+          <warning>
+            <para>
+              This option should be used in conjunction with the
+              <option>-u</option> option, as chrooting a process
+              running as root doesn't enhance security on most
+              systems; the way <function>chroot()</function> is
+              defined allows a process with root privileges to
+              escape a chroot jail.
+            </para>
+          </warning>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term>-u <replaceable class="parameter">user</replaceable></term>
-	<listitem>
-	  <para>
-		<function>setuid()</function> to <replaceable
-		class="parameter">user</replaceable> after completing
-		privileged operations, such as creating sockets that
-		listen on privileged ports.
+        <term>-u <replaceable class="parameter">user</replaceable></term>
+        <listitem>
+          <para><function>setuid()</function>
+	    to <replaceable class="parameter">user</replaceable> after completing
+            privileged operations, such as creating sockets that
+            listen on privileged ports.
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term>-v</term>
-	<listitem>
-	  <para>
-		Report the version number and exit.
+        <term>-v</term>
+        <listitem>
+          <para>
+            Report the version number and exit.
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
     </variablelist>
@@ -259,21 +255,21 @@
     <variablelist>
 
       <varlistentry>
-	<term><filename>/etc/resolv.conf</filename></term>
-	<listitem>
-	  <para>
-		The default configuration file.
+        <term><filename>/etc/resolv.conf</filename></term>
+        <listitem>
+          <para>
+            The default configuration file.
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
-	<term><filename>/var/run/lwresd.pid</filename></term>
-	<listitem>
-	  <para>
-		The default process-id file.
+        <term><filename>/var/run/lwresd.pid</filename></term>
+        <listitem>
+          <para>
+            The default process-id file.
           </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
     </variablelist>
@@ -282,33 +278,25 @@
 
   <refsect1>
     <title>SEE ALSO</title>
-    <para>
-	<citerefentry>
-	  <refentrytitle>named</refentrytitle>
-	  <manvolnum>8</manvolnum>
-        </citerefentry>,
-	<citerefentry>
-	  <refentrytitle>lwres</refentrytitle>
-	  <manvolnum>3</manvolnum>
-        </citerefentry>,
-	<citerefentry>
-	  <refentrytitle>resolver</refentrytitle>
-	  <manvolnum>5</manvolnum>
-        </citerefentry>.
+    <para><citerefentry>
+        <refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>lwres</refentrytitle><manvolnum>3</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>resolver</refentrytitle><manvolnum>5</manvolnum>
+      </citerefentry>.
     </para>
   </refsect1>
 
   <refsect1>
     <title>AUTHOR</title>
-    <para>
-	<corpauthor>Internet Systems Consortium</corpauthor>
+    <para><corpauthor>Internet Systems Consortium</corpauthor>
     </para>
   </refsect1>
 
-</refentry>
-
-
-<!--
+</refentry><!--
  - Local variables:
  - mode: sgml
  - End:

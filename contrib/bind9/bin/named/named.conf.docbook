@@ -1,8 +1,8 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,8 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.conf.docbook,v 1.1.4.8 2006/09/13 00:26:41 marka Exp $ -->
-
+<!-- $Id: named.conf.docbook,v 1.1.2.25 2007/01/29 23:57:20 marka Exp $ -->
 <refentry>
   <refentryinfo>
     <date>Aug 13, 2004</date>
@@ -30,19 +29,20 @@
     <refmiscinfo>BIND9</refmiscinfo>
   </refmeta>
 
+  <refnamediv>
+    <refname><filename>named.conf</filename></refname>
+    <refpurpose>configuration file for named</refpurpose>
+  </refnamediv>
+
   <docinfo>
     <copyright>
       <year>2004</year>
       <year>2005</year>
       <year>2006</year>
+      <year>2007</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
-
-  <refnamediv>
-    <refname><filename>named.conf</filename></refname>
-    <refpurpose>configuration file for named</refpurpose>
-  </refnamediv>
 
   <refsynopsisdiv>
     <cmdsynopsis>
@@ -52,58 +52,60 @@
 
   <refsect1>
     <title>DESCRIPTION</title>
-    <para>
-	<filename>named.conf</filename> is the configuration file for
-	<command>named</command>.  Statements are enclosed
-	in braces and terminated with a semi-colon.  Clauses in
-	the statements are also semi-colon terminated.  The usual
-	comment styles are supported:
+    <para><filename>named.conf</filename> is the configuration file
+      for
+      <command>named</command>.  Statements are enclosed
+      in braces and terminated with a semi-colon.  Clauses in
+      the statements are also semi-colon terminated.  The usual
+      comment styles are supported:
     </para>
     <para>
-	C style: /* */
+      C style: /* */
     </para>
     <para>
-	C++ style: // to end of line
+      C++ style: // to end of line
     </para>
     <para>
-	Unix style: # to end of line
+      Unix style: # to end of line
     </para>
   </refsect1>
 
-<refsect1>
-<title>ACL</title>
-<literallayout>
+  <refsect1>
+    <title>ACL</title>
+    <literallayout>
 acl <replaceable>string</replaceable> { <replaceable>address_match_element</replaceable>; ... };
 
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>KEY</title>
-<literallayout>
+  <refsect1>
+    <title>KEY</title>
+    <literallayout>
 key <replaceable>domain_name</replaceable> {
 	algorithm <replaceable>string</replaceable>;
 	secret <replaceable>string</replaceable>;
 };
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>MASTERS</title>
-<literallayout>
+  <refsect1>
+    <title>MASTERS</title>
+    <literallayout>
 masters <replaceable>string</replaceable> <optional> port <replaceable>integer</replaceable> </optional> {
 	( <replaceable>masters</replaceable> | <replaceable>ipv4_address</replaceable> <optional>port <replaceable>integer</replaceable></optional> |
 	<replaceable>ipv6_address</replaceable> <optional>port <replaceable>integer</replaceable></optional> ) <optional> key <replaceable>string</replaceable> </optional>; ...
 };
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>SERVER</title>
-<literallayout>
-server ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> ) {
+  <refsect1>
+    <title>SERVER</title>
+    <literallayout>
+server ( <replaceable>ipv4_address<optional>/prefixlen</optional></replaceable> | <replaceable>ipv6_address<optional>/prefixlen</optional></replaceable> ) {
 	bogus <replaceable>boolean</replaceable>;
 	edns <replaceable>boolean</replaceable>;
+	edns-udp-size <replaceable>integer</replaceable>;
+	max-udp-size <replaceable>integer</replaceable>;
 	provide-ixfr <replaceable>boolean</replaceable>;
 	request-ixfr <replaceable>boolean</replaceable>;
 	keys <replaceable>server_key</replaceable>;
@@ -117,20 +119,20 @@ server ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</re
 	support-ixfr <replaceable>boolean</replaceable>; // obsolete
 };
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>TRUSTED-KEYS</title>
-<literallayout>
+  <refsect1>
+    <title>TRUSTED-KEYS</title>
+    <literallayout>
 trusted-keys {
 	<replaceable>domain_name</replaceable> <replaceable>flags</replaceable> <replaceable>protocol</replaceable> <replaceable>algorithm</replaceable> <replaceable>key</replaceable>; ... 
 };
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>CONTROLS</title>
-<literallayout>
+  <refsect1>
+    <title>CONTROLS</title>
+    <literallayout>
 controls {
 	inet ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> | * )
 		<optional> port ( <replaceable>integer</replaceable> | * ) </optional>
@@ -139,11 +141,11 @@ controls {
 	unix <replaceable>unsupported</replaceable>; // not implemented
 };
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>LOGGING</title>
-<literallayout>
+  <refsect1>
+    <title>LOGGING</title>
+    <literallayout>
 logging {
 	channel <replaceable>string</replaceable> {
 		file <replaceable>log_file</replaceable>;
@@ -158,11 +160,11 @@ logging {
 	category <replaceable>string</replaceable> { <replaceable>string</replaceable>; ... };
 };
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>LWRES</title>
-<literallayout>
+  <refsect1>
+    <title>LWRES</title>
+    <literallayout>
 lwres {
 	listen-on <optional> port <replaceable>integer</replaceable> </optional> {
 		( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> ) <optional> port <replaceable>integer</replaceable> </optional>; ...
@@ -172,11 +174,11 @@ lwres {
 	ndots <replaceable>integer</replaceable>;
 };
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>OPTIONS</title>
-<literallayout>
+  <refsect1>
+    <title>OPTIONS</title>
+    <literallayout>
 options {
 	avoid-v4-udp-ports { <replaceable>port</replaceable>; ... };
 	avoid-v6-udp-ports { <replaceable>port</replaceable>; ... };
@@ -184,7 +186,6 @@ options {
 	coresize <replaceable>size</replaceable>;
 	datasize <replaceable>size</replaceable>;
 	directory <replaceable>quoted_string</replaceable>;
-	cache-file <replaceable>quoted_string</replaceable>; // test option
 	dump-file <replaceable>quoted_string</replaceable>;
 	files <replaceable>size</replaceable>;
 	heartbeat-interval <replaceable>integer</replaceable>;
@@ -232,8 +233,8 @@ options {
 	rfc2308-type1 <replaceable>boolean</replaceable>; // not yet implemented
 	additional-from-auth <replaceable>boolean</replaceable>;
 	additional-from-cache <replaceable>boolean</replaceable>;
-	query-source <optional> address ( <replaceable>ipv4_address</replaceable> | * ) </optional> <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
-	query-source-v6 <optional> address ( <replaceable>ipv6_address</replaceable> | * ) </optional> <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
+	query-source ( ( <replaceable>ipv4_address</replaceable> | * ) | <optional> address ( <replaceable>ipv4_address</replaceable> | * ) </optional> ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
+	query-source-v6 ( ( <replaceable>ipv6_address</replaceable> | * ) | <optional> address ( <replaceable>ipv6_address</replaceable> | * ) </optional> ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
 	cleaning-interval <replaceable>integer</replaceable>;
 	min-roots <replaceable>integer</replaceable>; // not implemented
 	lame-ttl <replaceable>integer</replaceable>;
@@ -241,33 +242,52 @@ options {
 	max-cache-ttl <replaceable>integer</replaceable>;
 	transfer-format ( many-answers | one-answer );
 	max-cache-size <replaceable>size_no_default</replaceable>;
+	max-acache-size <replaceable>size_no_default</replaceable>;
+	clients-per-query <replaceable>number</replaceable>;
+	max-clients-per-query <replaceable>number</replaceable>;
 	check-names ( master | slave | response )
 		( fail | warn | ignore );
-	cache-file <replaceable>quoted_string</replaceable>;
+	check-mx ( fail | warn | ignore );
+	check-integrity <replaceable>boolean</replaceable>;
+	check-mx-cname ( fail | warn | ignore );
+	check-srv-cname ( fail | warn | ignore );
+	cache-file <replaceable>quoted_string</replaceable>; // test option
 	suppress-initial-notify <replaceable>boolean</replaceable>; // not yet implemented
 	preferred-glue <replaceable>string</replaceable>;
 	dual-stack-servers <optional> port <replaceable>integer</replaceable> </optional> {
 		( <replaceable>quoted_string</replaceable> <optional>port <replaceable>integer</replaceable></optional> |
 		<replaceable>ipv4_address</replaceable> <optional>port <replaceable>integer</replaceable></optional> |
 		<replaceable>ipv6_address</replaceable> <optional>port <replaceable>integer</replaceable></optional> ); ...
-	}
+	};
 	edns-udp-size <replaceable>integer</replaceable>;
+	max-udp-size <replaceable>integer</replaceable>;
 	root-delegation-only <optional> exclude { <replaceable>quoted_string</replaceable>; ... } </optional>;
 	disable-algorithms <replaceable>string</replaceable> { <replaceable>string</replaceable>; ... };
 	dnssec-enable <replaceable>boolean</replaceable>;
+	dnssec-validation <replaceable>boolean</replaceable>;
 	dnssec-lookaside <replaceable>string</replaceable> trust-anchor <replaceable>string</replaceable>;
 	dnssec-must-be-secure <replaceable>string</replaceable> <replaceable>boolean</replaceable>;
+	dnssec-accept-expired <replaceable>boolean</replaceable>;
+
+	empty-server <replaceable>string</replaceable>;
+	empty-contact <replaceable>string</replaceable>;
+	empty-zones-enable <replaceable>boolean</replaceable>;
+	disable-empty-zone <replaceable>string</replaceable>;
 
 	dialup <replaceable>dialuptype</replaceable>;
 	ixfr-from-differences <replaceable>ixfrdiff</replaceable>;
 
 	allow-query { <replaceable>address_match_element</replaceable>; ... };
+	allow-query-cache { <replaceable>address_match_element</replaceable>; ... };
 	allow-transfer { <replaceable>address_match_element</replaceable>; ... };
+	allow-update { <replaceable>address_match_element</replaceable>; ... };
 	allow-update-forwarding { <replaceable>address_match_element</replaceable>; ... };
+	update-check-ksk <replaceable>boolean</replaceable>;
 
 	notify <replaceable>notifytype</replaceable>;
 	notify-source ( <replaceable>ipv4_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
 	notify-source-v6 ( <replaceable>ipv6_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
+	notify-delay <replaceable>seconds</replaceable>;
 	also-notify <optional> port <replaceable>integer</replaceable> </optional> { ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> )
 		<optional> port <replaceable>integer</replaceable> </optional>; ... };
 	allow-notify { <replaceable>address_match_element</replaceable>; ... };
@@ -302,6 +322,8 @@ options {
 
 	zone-statistics <replaceable>boolean</replaceable>;
 	key-directory <replaceable>quoted_string</replaceable>;
+	zero-no-soa-ttl <replaceable>boolean</replaceable>;
+	zero-no-soa-ttl-cache <replaceable>boolean</replaceable>;
 
 	allow-v6-synthesis { <replaceable>address_match_element</replaceable>; ... }; // obsolete
 	deallocate-on-exit <replaceable>boolean</replaceable>; // obsolete
@@ -317,11 +339,11 @@ options {
 	use-id-pool <replaceable>boolean</replaceable>; // obsolete
 };
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>VIEW</title>
-<literallayout>
+  <refsect1>
+    <title>VIEW</title>
+    <literallayout>
 view <replaceable>string</replaceable> <replaceable>optional_class</replaceable> {
 	match-clients { <replaceable>address_match_element</replaceable>; ... };
 	match-destinations { <replaceable>address_match_element</replaceable>; ... };
@@ -336,7 +358,7 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 		...
 	};
 
-	server ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> ) {
+	server ( <replaceable>ipv4_address<optional>/prefixlen</optional></replaceable> | <replaceable>ipv6_address<optional>/prefixlen</optional></replaceable> ) {
 		...
 	};
 
@@ -359,8 +381,8 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	rfc2308-type1 <replaceable>boolean</replaceable>; // not yet implemented
 	additional-from-auth <replaceable>boolean</replaceable>;
 	additional-from-cache <replaceable>boolean</replaceable>;
-	query-source <optional> address ( <replaceable>ipv4_address</replaceable> | * ) </optional> <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
-	query-source-v6 <optional> address ( <replaceable>ipv6_address</replaceable> | * ) </optional> <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
+	query-source ( ( <replaceable>ipv4_address</replaceable> | * ) | <optional> address ( <replaceable>ipv4_address</replaceable> | * ) </optional> ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
+	query-source-v6 ( ( <replaceable>ipv6_address</replaceable> | * ) | <optional> address ( <replaceable>ipv6_address</replaceable> | * ) </optional> ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
 	cleaning-interval <replaceable>integer</replaceable>;
 	min-roots <replaceable>integer</replaceable>; // not implemented
 	lame-ttl <replaceable>integer</replaceable>;
@@ -368,9 +390,16 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	max-cache-ttl <replaceable>integer</replaceable>;
 	transfer-format ( many-answers | one-answer );
 	max-cache-size <replaceable>size_no_default</replaceable>;
+	max-acache-size <replaceable>size_no_default</replaceable>;
+	clients-per-query <replaceable>number</replaceable>;
+	max-clients-per-query <replaceable>number</replaceable>;
 	check-names ( master | slave | response )
 		( fail | warn | ignore );
-	cache-file <replaceable>quoted_string</replaceable>;
+	check-mx ( fail | warn | ignore );
+	check-integrity <replaceable>boolean</replaceable>;
+	check-mx-cname ( fail | warn | ignore );
+	check-srv-cname ( fail | warn | ignore );
+	cache-file <replaceable>quoted_string</replaceable>; // test option
 	suppress-initial-notify <replaceable>boolean</replaceable>; // not yet implemented
 	preferred-glue <replaceable>string</replaceable>;
 	dual-stack-servers <optional> port <replaceable>integer</replaceable> </optional> {
@@ -379,22 +408,34 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 		<replaceable>ipv6_address</replaceable> <optional>port <replaceable>integer</replaceable></optional> ); ...
 	};
 	edns-udp-size <replaceable>integer</replaceable>;
+	max-udp-size <replaceable>integer</replaceable>;
 	root-delegation-only <optional> exclude { <replaceable>quoted_string</replaceable>; ... } </optional>;
 	disable-algorithms <replaceable>string</replaceable> { <replaceable>string</replaceable>; ... };
 	dnssec-enable <replaceable>boolean</replaceable>;
+	dnssec-validation <replaceable>boolean</replaceable>;
 	dnssec-lookaside <replaceable>string</replaceable> trust-anchor <replaceable>string</replaceable>;
-
 	dnssec-must-be-secure <replaceable>string</replaceable> <replaceable>boolean</replaceable>;
+	dnssec-accept-expired <replaceable>boolean</replaceable>;
+
+	empty-server <replaceable>string</replaceable>;
+	empty-contact <replaceable>string</replaceable>;
+	empty-zones-enable <replaceable>boolean</replaceable>;
+	disable-empty-zone <replaceable>string</replaceable>;
+
 	dialup <replaceable>dialuptype</replaceable>;
 	ixfr-from-differences <replaceable>ixfrdiff</replaceable>;
 
 	allow-query { <replaceable>address_match_element</replaceable>; ... };
+	allow-query-cache { <replaceable>address_match_element</replaceable>; ... };
 	allow-transfer { <replaceable>address_match_element</replaceable>; ... };
+	allow-update { <replaceable>address_match_element</replaceable>; ... };
 	allow-update-forwarding { <replaceable>address_match_element</replaceable>; ... };
+	update-check-ksk <replaceable>boolean</replaceable>;
 
 	notify <replaceable>notifytype</replaceable>;
 	notify-source ( <replaceable>ipv4_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
 	notify-source-v6 ( <replaceable>ipv6_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
+	notify-delay <replaceable>seconds</replaceable>;
 	also-notify <optional> port <replaceable>integer</replaceable> </optional> { ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> )
 		<optional> port <replaceable>integer</replaceable> </optional>; ... };
 	allow-notify { <replaceable>address_match_element</replaceable>; ... };
@@ -429,6 +470,8 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 
 	zone-statistics <replaceable>boolean</replaceable>;
 	key-directory <replaceable>quoted_string</replaceable>;
+	zero-no-soa-ttl <replaceable>boolean</replaceable>;
+	zero-no-soa-ttl-cache <replaceable>boolean</replaceable>;
 
 	allow-v6-synthesis { <replaceable>address_match_element</replaceable>; ... }; // obsolete
 	fetch-glue <replaceable>boolean</replaceable>; // obsolete
@@ -436,11 +479,11 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	max-ixfr-log-size <replaceable>size</replaceable>; // obsolete
 };
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>ZONE</title>
-<literallayout>
+  <refsect1>
+    <title>ZONE</title>
+    <literallayout>
 zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable> {
 	type ( master | slave | stub | hint |
 		forward | delegation-only );
@@ -455,8 +498,14 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	database <replaceable>string</replaceable>;
 	delegation-only <replaceable>boolean</replaceable>;
 	check-names ( fail | warn | ignore );
+	check-mx ( fail | warn | ignore );
+	check-integrity <replaceable>boolean</replaceable>;
+	check-mx-cname ( fail | warn | ignore );
+	check-srv-cname ( fail | warn | ignore );
 	dialup <replaceable>dialuptype</replaceable>;
 	ixfr-from-differences <replaceable>boolean</replaceable>;
+	journal <replaceable>quoted_string</replaceable>;
+	zero-no-soa-ttl <replaceable>boolean</replaceable>;
 
 	allow-query { <replaceable>address_match_element</replaceable>; ... };
 	allow-transfer { <replaceable>address_match_element</replaceable>; ... };
@@ -467,10 +516,12 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 		( name | subdomain | wildcard | self ) <replaceable>string</replaceable>
 		<replaceable>rrtypelist</replaceable>; ...
 	};
+	update-check-ksk <replaceable>boolean</replaceable>;
 
 	notify <replaceable>notifytype</replaceable>;
 	notify-source ( <replaceable>ipv4_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
 	notify-source-v6 ( <replaceable>ipv6_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
+	notify-delay <replaceable>seconds</replaceable>;
 	also-notify <optional> port <replaceable>integer</replaceable> </optional> { ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> )
 		<optional> port <replaceable>integer</replaceable> </optional>; ... };
 	allow-notify { <replaceable>address_match_element</replaceable>; ... };
@@ -513,32 +564,29 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	pubkey <replaceable>integer</replaceable> <replaceable>integer</replaceable> <replaceable>integer</replaceable> <replaceable>quoted_string</replaceable>; // obsolete
 };
 </literallayout>
-</refsect1>
+  </refsect1>
 
-<refsect1>
-<title>FILES</title>
-<para>
-<filename>/etc/named.conf</filename>
-</para>
-</refsect1>
+  <refsect1>
+    <title>FILES</title>
+    <para><filename>/etc/named.conf</filename>
+    </para>
+  </refsect1>
 
-<refsect1>
-<title>SEE ALSO</title>
-<para>
-<citerefentry>
-<refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
-</citerefentry>,
-<citerefentry>
-<refentrytitle>rndc</refentrytitle><manvolnum>8</manvolnum>
-</citerefentry>,
-<citerefentry>
-<refentrytitle>BIND 9 Administrator Reference Manual</refentrytitle>
-</citerefentry>.
-</para>
-</refsect1>
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para><citerefentry>
+        <refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>rndc</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>BIND 9 Administrator Reference Manual</refentrytitle>
+      </citerefentry>.
+    </para>
+  </refsect1>
 
-</refentry>
-<!--
+</refentry><!--
  - Local variables:
  - mode: sgml
  - End:

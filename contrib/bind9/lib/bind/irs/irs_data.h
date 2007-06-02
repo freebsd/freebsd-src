@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: irs_data.h,v 1.1.206.1 2004/03/09 08:33:37 marka Exp $
+ * $Id: irs_data.h,v 1.2.18.1 2005/04/27 05:01:01 sra Exp $
  */
 
 #ifndef __BIND_NOSTATIC
@@ -38,7 +38,7 @@ struct net_data {
 	struct passwd *		pw_last;
 	struct servent *	sv_last;
 	struct protoent *	pr_last;
-	struct netent *		nw_last; /* should have been ne_last */
+	struct netent *		nw_last; /*%< should have been ne_last */
 	struct nwent *		nww_last;
 	struct hostent *	ho_last;
 
@@ -52,11 +52,12 @@ struct net_data {
 	void *			nw_data;
 	void *			ho_data;
 
-	struct __res_state *	res;	/* for gethostent.c */
-
+	struct __res_state *	res;	/*%< for gethostent.c */
 };
 
 extern struct net_data *	net_data_init(const char *conf_file);
 extern void			net_data_minimize(struct net_data *);
 
 #endif /*__BIND_NOSTATIC*/
+
+/*! \file */

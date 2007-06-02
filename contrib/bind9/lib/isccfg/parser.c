@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: parser.c,v 1.70.2.20.2.21 2006/02/28 06:32:54 marka Exp $ */
+/* $Id: parser.c,v 1.112.18.11 2006/02/28 03:10:49 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -125,7 +127,7 @@ cfg_rep_t cfg_rep_void = { "void", free_noop };
  * Configuration type definitions.
  */
 
-/*
+/*%
  * An implicit list.  These are formed by clauses that occur multiple times.
  */
 static cfg_type_t cfg_type_implicitlist = {
@@ -1087,7 +1089,6 @@ cfg_print_spacelist(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 	}
 }
 
-
 isc_boolean_t
 cfg_obj_islist(const cfg_obj_t *obj) {
 	REQUIRE(obj != NULL);
@@ -1360,11 +1361,20 @@ cfg_parse_named_map(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret)
 
 /*
  * Parse a map identified by a network address.
- * Used for the "server" statement.
+ * Used to be used for the "server" statement.
  */
 isc_result_t
 cfg_parse_addressed_map(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 	return (parse_any_named_map(pctx, &cfg_type_netaddr, type, ret));
+}
+
+/*
+ * Parse a map identified by a network prefix.
+ * Used for the "server" statement.
+ */
+isc_result_t
+cfg_parse_netprefix_map(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
+	return (parse_any_named_map(pctx, &cfg_type_netprefix, type, ret));
 }
 
 void
@@ -1484,6 +1494,9 @@ cfg_doc_map(cfg_printer_t *pctx, const cfg_type_t *type) {
 		cfg_print_chars(pctx, " ", 1);
 	} else if (type->parse == cfg_parse_addressed_map) {
 		cfg_doc_obj(pctx, &cfg_type_netaddr);
+		cfg_print_chars(pctx, " ", 1);
+	} else if (type->parse == cfg_parse_netprefix_map) {
+		cfg_doc_obj(pctx, &cfg_type_netprefix);
 		cfg_print_chars(pctx, " ", 1);
 	}
 	
@@ -1717,10 +1730,29 @@ token_addr(cfg_parser_t *pctx, unsigned int flags, isc_netaddr_t *na) {
 isc_result_t
 cfg_parse_rawaddr(cfg_parser_t *pctx, unsigned int flags, isc_netaddr_t *na) {
 	isc_result_t result;
+	const char *wild = "";
+	const char *prefix = "";
+
 	CHECK(cfg_gettoken(pctx, 0));
 	result = token_addr(pctx, flags, na);
-	if (result == ISC_R_UNEXPECTEDTOKEN)
-		cfg_parser_error(pctx, CFG_LOG_NEAR, "expected IP address");
+	if (result == ISC_R_UNEXPECTEDTOKEN) {
+		if ((flags & CFG_ADDR_WILDOK) != 0)
+			wild = " or '*'";
+		if ((flags & CFG_ADDR_V4PREFIXOK) != 0)
+			wild = " or IPv4 prefix";
+		if ((flags & CFG_ADDR_MASK) == CFG_ADDR_V4OK)
+			cfg_parser_error(pctx, CFG_LOG_NEAR,
+					 "expected IPv4 address%s%s",
+					 prefix, wild);
+		else if ((flags & CFG_ADDR_MASK) == CFG_ADDR_V6OK)
+			cfg_parser_error(pctx, CFG_LOG_NEAR,
+					 "expected IPv6 address%s%s",
+					 prefix, wild);
+		else
+			cfg_parser_error(pctx, CFG_LOG_NEAR,
+					 "expected IP address%s%s",
+					 prefix, wild);
+	}
  cleanup:
 	return (result);
 }
@@ -1775,14 +1807,21 @@ cfg_print_rawaddr(cfg_printer_t *pctx, const isc_netaddr_t *na) {
 
 /* netaddr */
 
+static unsigned int netaddr_flags = CFG_ADDR_V4OK | CFG_ADDR_V6OK;
+static unsigned int netaddr4_flags = CFG_ADDR_V4OK;
+static unsigned int netaddr4wild_flags = CFG_ADDR_V4OK | CFG_ADDR_WILDOK;
+static unsigned int netaddr6_flags = CFG_ADDR_V6OK;
+static unsigned int netaddr6wild_flags = CFG_ADDR_V6OK | CFG_ADDR_WILDOK;
+
 static isc_result_t
 parse_netaddr(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 	isc_result_t result;
 	cfg_obj_t *obj = NULL;
 	isc_netaddr_t netaddr;
-	UNUSED(type);
+	unsigned int flags = *(const unsigned int *)type->of;
+
 	CHECK(cfg_create_obj(pctx, type, &obj));
-	CHECK(cfg_parse_rawaddr(pctx, CFG_ADDR_V4OK | CFG_ADDR_V6OK, &netaddr));
+	CHECK(cfg_parse_rawaddr(pctx, flags, &netaddr));
 	isc_sockaddr_fromnetaddr(&obj->value.sockaddr, &netaddr, 0);
 	*ret = obj;
 	return (ISC_R_SUCCESS);
@@ -1791,9 +1830,55 @@ parse_netaddr(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 	return (result);
 }
 
+static void
+cfg_doc_netaddr(cfg_printer_t *pctx, const cfg_type_t *type) {
+	const unsigned int *flagp = type->of;
+	int n = 0;
+	if (*flagp != CFG_ADDR_V4OK && *flagp != CFG_ADDR_V6OK)
+		cfg_print_chars(pctx, "( ", 2);
+	if (*flagp & CFG_ADDR_V4OK) {
+		cfg_print_cstr(pctx, "<ipv4_address>");
+		n++;
+	}
+	if (*flagp & CFG_ADDR_V6OK) {
+		if (n != 0)
+			cfg_print_chars(pctx, " | ", 3);
+		cfg_print_cstr(pctx, "<ipv6_address>");
+		n++;			
+	}
+	if (*flagp & CFG_ADDR_WILDOK) {
+		if (n != 0)
+			cfg_print_chars(pctx, " | ", 3);
+		cfg_print_chars(pctx, "*", 1);
+		n++;
+	}
+	if (*flagp != CFG_ADDR_V4OK && *flagp != CFG_ADDR_V6OK)
+		cfg_print_chars(pctx, " )", 2);
+}
+
 cfg_type_t cfg_type_netaddr = {
-	"netaddr", parse_netaddr, cfg_print_sockaddr, cfg_doc_terminal,
-	&cfg_rep_sockaddr, NULL
+	"netaddr", parse_netaddr, cfg_print_sockaddr, cfg_doc_netaddr,
+	&cfg_rep_sockaddr, &netaddr_flags
+};
+
+cfg_type_t cfg_type_netaddr4 = {
+	"netaddr4", parse_netaddr, cfg_print_sockaddr, cfg_doc_netaddr,
+	&cfg_rep_sockaddr, &netaddr4_flags
+};
+
+cfg_type_t cfg_type_netaddr4wild = {
+	"netaddr4wild", parse_netaddr, cfg_print_sockaddr, cfg_doc_netaddr,
+	&cfg_rep_sockaddr, &netaddr4wild_flags
+};
+
+cfg_type_t cfg_type_netaddr6 = {
+	"netaddr6", parse_netaddr, cfg_print_sockaddr, cfg_doc_netaddr,
+	&cfg_rep_sockaddr, &netaddr6_flags
+};
+
+cfg_type_t cfg_type_netaddr6wild = {
+	"netaddr6wild", parse_netaddr, cfg_print_sockaddr, cfg_doc_netaddr,
+	&cfg_rep_sockaddr, &netaddr6wild_flags
 };
 
 /* netprefix */

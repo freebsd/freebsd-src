@@ -43,7 +43,7 @@ static const char sccsid[] = "@(#)inet_lnaof.c	8.1 (Berkeley) 6/4/93";
 
 #include "port_after.h"
 
-/*
+/*%
  * Return the local network address portion of an
  * internet address; handles class a/b/c network
  * number formats.
@@ -61,3 +61,5 @@ inet_lnaof(in)
 	else
 		return ((i)&IN_CLASSC_HOST);
 }
+
+/*! \file */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,10 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.70.2.8.2.14 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: log.c,v 1.84.18.8 2006/03/02 00:37:22 marka Exp $ */
 
-/* Principal Authors: DCL */
+/*! \file
+ * \author  Principal Authors: DCL */
 
 #include <config.h>
 
@@ -56,7 +57,7 @@
 #define PATH_MAX 1024	/* AIX and others don't define this. */
 #endif
 
-/*
+/*!
  * This is the structure that holds each named channel.  A simple linked
  * list chains all of the channels together, so an individual channel is
  * found by doing strcmp()s with the names down the list.  Their should
@@ -76,7 +77,7 @@ struct isc_logchannel {
 	ISC_LINK(isc_logchannel_t)	link;
 };
 
-/*
+/*!
  * The logchannellist structure associates categories and modules with
  * channels.  First the appropriate channellist is found based on the
  * category, and then each structure in the linked list is checked for
@@ -92,7 +93,7 @@ struct isc_logchannellist {
 	ISC_LINK(isc_logchannellist_t)	link;
 };
 
-/*
+/*!
  * This structure is used to remember messages for pruning via
  * isc_log_[v]write1().
  */
@@ -104,7 +105,7 @@ struct isc_logmessage {
 	ISC_LINK(isc_logmessage_t)	link;
 };
 
-/*
+/*!
  * The isc_logconfig structure is used to store the configurable information
  * about where messages are actually supposed to be sent -- the information
  * that could changed based on some configuration file, as opposed to the
@@ -123,7 +124,7 @@ struct isc_logconfig {
 	isc_boolean_t			dynamic;
 };
 
-/*
+/*!
  * This isc_log structure provides the context for the isc_log functions.
  * The log context locks itself in isc_log_doit, the internal backend to
  * isc_log_write.  The locking is necessary both to provide exclusive access
@@ -156,7 +157,7 @@ struct isc_log {
 	ISC_LIST(isc_logmessage_t)	messages;
 };
 
-/*
+/*!
  * Used when ISC_LOG_PRINTLEVEL is enabled for a channel.
  */
 static const char *log_level_strings[] = {
@@ -168,7 +169,7 @@ static const char *log_level_strings[] = {
 	"critical"
 };
 
-/*
+/*!
  * Used to convert ISC_LOG_* priorities into syslog priorities.
  * XXXDCL This will need modification for NT.
  */
@@ -181,7 +182,7 @@ static const int syslog_map[] = {
 	LOG_CRIT
 };
 
-/*
+/*!
  * When adding new categories, a corresponding ISC_LOGCATEGORY_foo
  * definition needs to be added to <isc/log.h>.
  *
@@ -195,8 +196,8 @@ LIBISC_EXTERNAL_DATA isc_logcategory_t isc_categories[] = {
 	{ NULL, 0 }
 };
 
-/*
- * See above comment for categories, and apply it to modules.
+/*!
+ * See above comment for categories on LIBISC_EXTERNAL_DATA, and apply it to modules.
  */
 LIBISC_EXTERNAL_DATA isc_logmodule_t isc_modules[] = {
 	{ "socket", 0 },
@@ -206,19 +207,19 @@ LIBISC_EXTERNAL_DATA isc_logmodule_t isc_modules[] = {
 	{ NULL, 0 }
 };
 
-/*
+/*!
  * This essentially constant structure must be filled in at run time,
  * because its channel member is pointed to a channel that is created
  * dynamically with isc_log_createchannel.
  */
 static isc_logchannellist_t default_channel;
 
-/*
+/*!
  * libisc logs to this context.
  */
 LIBISC_EXTERNAL_DATA isc_log_t *isc_lctx = NULL;
 
-/*
+/*!
  * Forward declarations.
  */
 static isc_result_t
@@ -241,7 +242,8 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 	     const char *format, va_list args)
      ISC_FORMAT_PRINTF(9, 0);
 
-/*
+/*@{*/
+/*!
  * Convenience macros.
  */
 
@@ -252,6 +254,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 #define FILE_MAXSIZE(channel)	 (channel->destination.file.maximum_size)
 #define FILE_MAXREACHED(channel) (channel->destination.file.maximum_reached)
 
+/*@}*/
 /****
  **** Public interfaces.
  ****/
@@ -280,7 +283,11 @@ isc_log_create(isc_mem_t *mctx, isc_log_t **lctxp, isc_logconfig_t **lcfgp) {
 
 		ISC_LIST_INIT(lctx->messages);
 
-		RUNTIME_CHECK(isc_mutex_init(&lctx->lock) == ISC_R_SUCCESS);
+		result = isc_mutex_init(&lctx->lock);
+		if (result != ISC_R_SUCCESS) {
+			isc_mem_put(mctx, lctx, sizeof(*lctx));
+			return (result);
+		}
 
 		/*
 		 * Normally setting the magic number is the last step done

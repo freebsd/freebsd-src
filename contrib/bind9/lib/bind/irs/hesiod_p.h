@@ -16,27 +16,27 @@
  */
 
 /*
- * This file is primarily maintained by <tytso@mit.edu> and <ghudson@mit.edu>.
- */
-
-/*
- * $Id: hesiod_p.h,v 1.1.206.1 2004/03/09 08:33:36 marka Exp $
- */
-
-/*
- * hesiod_p.h -- private definitions for the hesiod library
+ * $Id: hesiod_p.h,v 1.2.18.1 2005/04/27 05:00:59 sra Exp $
  */
 
 #ifndef _HESIOD_P_H_INCLUDED
 #define _HESIOD_P_H_INCLUDED
 
-#define DEF_RHS		".Athena.MIT.EDU"	/* Defaults if HESIOD_CONF */
-#define DEF_LHS		".ns"			/*    file is not */
-						/*    present. */
+/** \file
+ * \brief
+ * hesiod_p.h -- private definitions for the hesiod library.
+ *
+ * \author
+ * This file is primarily maintained by tytso@mit.edu and ghudson@mit.edu.
+ */
+
+#define DEF_RHS		".Athena.MIT.EDU"	/*%< Defaults if HESIOD_CONF */
+#define DEF_LHS		".ns"			/*%<    file is not */
+						/*%<    present. */
 struct hesiod_p {
-	char *		LHS;		/* normally ".ns" */
-	char *		RHS;		/* AKA the default hesiod domain */
-	struct __res_state * res;	/* resolver context */
+	char *		LHS;		/*%< normally ".ns" */
+	char *		RHS;		/*%< AKA the default hesiod domain */
+	struct __res_state * res;	/*%< resolver context */
 	void		(*free_res)(void *);
 	void		(*res_set)(struct hesiod_p *, struct __res_state *,
 				   void (*)(void *));

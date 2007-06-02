@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: gen_ng.c,v 1.1.206.1 2004/03/09 08:33:35 marka Exp $";
+static const char rcsid[] = "$Id: gen_ng.c,v 1.2.18.1 2005/04/27 05:00:56 sra Exp $";
 #endif
 
 /* Imports */
@@ -170,3 +170,5 @@ ng_minimize(struct irs_ng *this) {
 		(*ng->minimize)(ng);
 	}
 }
+
+/*! \file */

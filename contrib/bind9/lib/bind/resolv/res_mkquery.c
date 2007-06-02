@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_mkquery.c,v 1.1.2.2.4.2 2004/03/16 12:34:18 marka Exp $";
+static const char rcsid[] = "$Id: res_mkquery.c,v 1.5.18.1 2005/04/27 05:01:11 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -89,20 +89,20 @@ static const char rcsid[] = "$Id: res_mkquery.c,v 1.1.2.2.4.2 2004/03/16 12:34:1
 
 extern const char *_res_opcodes[];
 
-/*
+/*%
  * Form all types of queries.
  * Returns the size of the result or -1.
  */
 int
 res_nmkquery(res_state statp,
-	     int op,			/* opcode of query */
-	     const char *dname,		/* domain name */
-	     int class, int type,	/* class and type of query */
-	     const u_char *data,	/* resource record data */
-	     int datalen,		/* length of data */
-	     const u_char *newrr_in,	/* new rr for modify or append */
-	     u_char *buf,		/* buffer to put query */
-	     int buflen)		/* size of buffer */
+	     int op,			/*!< opcode of query  */
+	     const char *dname,		/*!< domain name  */
+	     int class, int type,	/*!< class and type of query  */
+	     const u_char *data,	/*!< resource record data  */
+	     int datalen,		/*!< length of data  */
+	     const u_char *newrr_in,	/*!< new rr for modify or append  */
+	     u_char *buf,		/*!< buffer to put query  */
+	     int buflen)		/*!< size of buffer  */
 {
 	register HEADER *hp;
 	register u_char *cp, *ep;
@@ -179,7 +179,7 @@ res_nmkquery(res_state statp,
 		 */
 		if (ep - cp < 1 + RRFIXEDSZ + datalen)
 			return (-1);
-		*cp++ = '\0';	/* no domain name */
+		*cp++ = '\0';	/*%< no domain name */
 		ns_put16(type, cp);
 		cp += INT16SZ;
 		ns_put16(class, cp);
@@ -209,10 +209,10 @@ res_nmkquery(res_state statp,
 
 int
 res_nopt(res_state statp,
-	 int n0,		/* current offset in buffer */
-	 u_char *buf,		/* buffer to put query */
-	 int buflen,		/* size of buffer */
-	 int anslen)		/* UDP answer buffer size */
+	 int n0,		/*%< current offset in buffer */
+	 u_char *buf,		/*%< buffer to put query */
+	 int buflen,		/*%< size of buffer */
+	 int anslen)		/*%< UDP answer buffer size */
 {
 	register HEADER *hp;
 	register u_char *cp, *ep;
@@ -230,14 +230,13 @@ res_nopt(res_state statp,
 	if ((ep - cp) < 1 + RRFIXEDSZ)
 		return (-1);
 
-	*cp++ = 0;	/* "." */
-
-	ns_put16(T_OPT, cp);	/* TYPE */
+	*cp++ = 0;	/*%< "." */
+	ns_put16(T_OPT, cp);	/*%< TYPE */
 	cp += INT16SZ;
-	ns_put16(anslen & 0xffff, cp);	/* CLASS = UDP payload size */
+	ns_put16(anslen & 0xffff, cp);	/*%< CLASS = UDP payload size */
 	cp += INT16SZ;
-	*cp++ = NOERROR;	/* extended RCODE */
-	*cp++ = 0;		/* EDNS version */
+	*cp++ = NOERROR;	/*%< extended RCODE */
+	*cp++ = 0;		/*%< EDNS version */
 	if (statp->options & RES_USE_DNSSEC) {
 #ifdef DEBUG
 		if (statp->options & RES_DEBUG)
@@ -247,10 +246,12 @@ res_nopt(res_state statp,
 	}
 	ns_put16(flags, cp);
 	cp += INT16SZ;
-	ns_put16(0, cp);	/* RDLEN */
+	ns_put16(0, cp);	/*%< RDLEN */
 	cp += INT16SZ;
 	hp->arcount = htons(ntohs(hp->arcount) + 1);
 
 	return (cp - buf);
 }
 #endif
+
+/*! \file */

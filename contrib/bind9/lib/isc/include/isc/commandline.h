@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,30 +15,33 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: commandline.h,v 1.9.206.1 2004/03/06 08:14:39 marka Exp $ */
+/* $Id: commandline.h,v 1.10.18.2 2005/04/29 00:16:53 marka Exp $ */
 
 #ifndef ISC_COMMANDLINE_H
 #define ISC_COMMANDLINE_H 1
+
+/*! \file */
 
 #include <isc/boolean.h>
 #include <isc/lang.h>
 #include <isc/platform.h>
 
-/* Index into parent argv vector. */
+/*% Index into parent argv vector. */
 LIBISC_EXTERNAL_DATA extern int isc_commandline_index;
-/* Character checked for validity. */
+/*% Character checked for validity. */
 LIBISC_EXTERNAL_DATA extern int isc_commandline_option;
-/* Argument associated with option. */
+/*% Argument associated with option. */
 LIBISC_EXTERNAL_DATA extern char *isc_commandline_argument;
-/* For printing error messages. */
+/*% For printing error messages. */
 LIBISC_EXTERNAL_DATA extern char *isc_commandline_progname;
-/* Print error message. */
+/*% Print error message. */
 LIBISC_EXTERNAL_DATA extern isc_boolean_t isc_commandline_errprint;
-/* Reset getopt. */
+/*% Reset getopt. */
 LIBISC_EXTERNAL_DATA extern isc_boolean_t isc_commandline_reset;
 
 ISC_LANG_BEGINDECLS
 
+/*% parse command line */
 int
 isc_commandline_parse(int argc, char * const *argv, const char *options);
 

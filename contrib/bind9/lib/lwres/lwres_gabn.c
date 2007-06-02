@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,92 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres_gabn.c,v 1.27.12.3 2004/03/08 09:05:10 marka Exp $ */
+/* $Id: lwres_gabn.c,v 1.29.18.2 2005/04/29 00:17:19 marka Exp $ */
+
+/*! \file lwres_gabn.c
+   These are low-level routines for creating and parsing lightweight
+   resolver name-to-address lookup request and response messages.
+
+   There are four main functions for the getaddrbyname opcode. One render
+   function converts a getaddrbyname request structure --
+   lwres_gabnrequest_t -- to the lighweight resolver's canonical format.
+   It is complemented by a parse function that converts a packet in this
+   canonical format to a getaddrbyname request structure. Another render
+   function converts the getaddrbyname response structure --
+   lwres_gabnresponse_t -- to the canonical format. This is complemented
+   by a parse function which converts a packet in canonical format to a
+   getaddrbyname response structure.
+
+   These structures are defined in \link lwres.h <lwres/lwres.h>.\endlink They are shown below.
+
+\code
+#define LWRES_OPCODE_GETADDRSBYNAME     0x00010001U
+
+typedef struct lwres_addr lwres_addr_t;
+typedef LWRES_LIST(lwres_addr_t) lwres_addrlist_t;
+
+typedef struct {
+        lwres_uint32_t  flags;
+        lwres_uint32_t  addrtypes;
+        lwres_uint16_t  namelen;
+        char           *name;
+} lwres_gabnrequest_t;
+
+typedef struct {
+        lwres_uint32_t          flags;
+        lwres_uint16_t          naliases;
+        lwres_uint16_t          naddrs;
+        char                   *realname;
+        char                  **aliases;
+        lwres_uint16_t          realnamelen;
+        lwres_uint16_t         *aliaslen;
+        lwres_addrlist_t        addrs;
+        void                   *base;
+        size_t                  baselen;
+} lwres_gabnresponse_t;
+\endcode
+
+   lwres_gabnrequest_render() uses resolver context ctx to convert
+   getaddrbyname request structure req to canonical format. The packet
+   header structure pkt is initialised and transferred to buffer b. The
+   contents of *req are then appended to the buffer in canonical format.
+   lwres_gabnresponse_render() performs the same task, except it converts
+   a getaddrbyname response structure lwres_gabnresponse_t to the
+   lightweight resolver's canonical format.
+
+   lwres_gabnrequest_parse() uses context ctx to convert the contents of
+   packet pkt to a lwres_gabnrequest_t structure. Buffer b provides space
+   to be used for storing this structure. When the function succeeds, the
+   resulting lwres_gabnrequest_t is made available through *structp.
+   lwres_gabnresponse_parse() offers the same semantics as
+   lwres_gabnrequest_parse() except it yields a lwres_gabnresponse_t
+   structure.
+
+   lwres_gabnresponse_free() and lwres_gabnrequest_free() release the
+   memory in resolver context ctx that was allocated to the
+   lwres_gabnresponse_t or lwres_gabnrequest_t structures referenced via
+   structp. Any memory associated with ancillary buffers and strings for
+   those structures is also discarded.
+
+\section lwres_gabn_return Return Values
+
+   The getaddrbyname opcode functions lwres_gabnrequest_render(),
+   lwres_gabnresponse_render() lwres_gabnrequest_parse() and
+   lwres_gabnresponse_parse() all return #LWRES_R_SUCCESS on success. They
+   return #LWRES_R_NOMEMORY if memory allocation fails.
+   #LWRES_R_UNEXPECTEDEND is returned if the available space in the buffer
+   b is too small to accommodate the packet header or the
+   lwres_gabnrequest_t and lwres_gabnresponse_t structures.
+   lwres_gabnrequest_parse() and lwres_gabnresponse_parse() will return
+   #LWRES_R_UNEXPECTEDEND if the buffer is not empty after decoding the
+   received packet. These functions will return #LWRES_R_FAILURE if
+   pktflags in the packet header structure #lwres_lwpacket_t indicate that
+   the packet is not a response to an earlier query.
+
+\section lwres_gabn_see See Also
+
+   \link lwpacket.c lwres_lwpacket \endlink
+ */
 
 #include <config.h>
 
@@ -31,6 +116,7 @@
 #include "context_p.h"
 #include "assert_p.h"
 
+/*% uses resolver context ctx to convert getaddrbyname request structure req to canonical format. */
 lwres_result_t
 lwres_gabnrequest_render(lwres_context_t *ctx, lwres_gabnrequest_t *req,
 			 lwres_lwpacket_t *pkt, lwres_buffer_t *b)
@@ -97,7 +183,7 @@ lwres_gabnrequest_render(lwres_context_t *ctx, lwres_gabnrequest_t *req,
 
 	return (LWRES_R_SUCCESS);
 }
-
+/*% converts a getaddrbyname response structure lwres_gabnresponse_t to the lightweight resolver's canonical format. */
 lwres_result_t
 lwres_gabnresponse_render(lwres_context_t *ctx, lwres_gabnresponse_t *req,
 			  lwres_lwpacket_t *pkt, lwres_buffer_t *b)
@@ -194,7 +280,7 @@ lwres_gabnresponse_render(lwres_context_t *ctx, lwres_gabnresponse_t *req,
 
 	return (LWRES_R_SUCCESS);
 }
-
+/*% Uses context ctx to convert the contents of packet pkt to a lwres_gabnrequest_t structure. */
 lwres_result_t
 lwres_gabnrequest_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 			lwres_lwpacket_t *pkt, lwres_gabnrequest_t **structp)
@@ -242,6 +328,8 @@ lwres_gabnrequest_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 	*structp = gabn;
 	return (LWRES_R_SUCCESS);
 }
+
+/*% Offers the same semantics as lwres_gabnrequest_parse() except it yields a lwres_gabnresponse_t structure. */
 
 lwres_result_t
 lwres_gabnresponse_parse(lwres_context_t *ctx, lwres_buffer_t *b,
@@ -372,6 +460,7 @@ lwres_gabnresponse_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 	return (ret);
 }
 
+/*% Release the memory in resolver context ctx that was allocated to the lwres_gabnrequest_t. */
 void
 lwres_gabnrequest_free(lwres_context_t *ctx, lwres_gabnrequest_t **structp)
 {
@@ -386,6 +475,7 @@ lwres_gabnrequest_free(lwres_context_t *ctx, lwres_gabnrequest_t **structp)
 	CTXFREE(gabn, sizeof(lwres_gabnrequest_t));
 }
 
+/*% Release the memory in resolver context ctx that was allocated to the lwres_gabnresponse_t. */
 void
 lwres_gabnresponse_free(lwres_context_t *ctx, lwres_gabnresponse_t **structp)
 {

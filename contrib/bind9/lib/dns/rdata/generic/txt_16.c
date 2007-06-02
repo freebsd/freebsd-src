@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: txt_16.c,v 1.37.12.4 2004/03/08 09:04:42 marka Exp $ */
+/* $Id: txt_16.c,v 1.41 2004/03/05 05:10:18 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 15:40:00 PST 2000 by bwelling */
 

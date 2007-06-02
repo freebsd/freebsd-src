@@ -16,11 +16,13 @@
  */
 
 /*
- * $Id: irs.h,v 1.2.2.1.4.1 2004/03/09 08:33:29 marka Exp $
+ * $Id: irs.h,v 1.4.18.1 2005/04/27 05:00:49 sra Exp $
  */
 
 #ifndef _IRS_H_INCLUDED
 #define _IRS_H_INCLUDED
+
+/*! \file */
 
 #include <sys/types.h>
 
@@ -31,7 +33,7 @@
 #include <resolv.h>
 #include <pwd.h>
 
-/*
+/*%
  * This is the group map class.
  */
 struct irs_gr {
@@ -49,7 +51,7 @@ struct irs_gr {
 					void (*)(void *)));
 };
 
-/*
+/*%
  * This is the password map class.
  */
 struct irs_pw {
@@ -65,7 +67,7 @@ struct irs_pw {
 					void (*)(void *)));
 };
 
-/*
+/*%
  * This is the service map class.
  */
 struct irs_sv {
@@ -82,7 +84,7 @@ struct irs_sv {
 					void (*)(void *)));
 };
 
-/*
+/*%
  * This is the protocols map class.
  */
 struct irs_pr {
@@ -98,7 +100,7 @@ struct irs_pr {
 					void (*)(void *)));
 };
 
-/*
+/*%
  * This is the hosts map class.
  */
 struct irs_ho {
@@ -118,7 +120,7 @@ struct irs_ho {
 					  const struct addrinfo *));
 };
 
-/*
+/*%
  * This is the networks map class.
  */
 struct irs_nw {
@@ -134,7 +136,7 @@ struct irs_nw {
 					void (*)(void *)));
 };
 
-/*
+/*%
  * This is the netgroups map class.
  */
 struct irs_ng {
@@ -149,7 +151,7 @@ struct irs_ng {
 	void		(*minimize) __P((struct irs_ng *));
 };
 
-/*
+/*%
  * This is the generic map class, which copies the front of all others.
  */
 struct irs_map {
@@ -157,7 +159,7 @@ struct irs_map {
 	void		(*close) __P((void *));
 };
 
-/*
+/*%
  * This is the accessor class.  It contains pointers to all of the
  * initializers for the map classes for a particular accessor.
  */
@@ -176,21 +178,21 @@ struct irs_acc {
 					void (*)(void *)));
 };
 
-/*
+/*%
  * This is because the official definition of "struct netent" has no
  * concept of CIDR even though it allows variant address families (on
  * output but not input).  The compatibility stubs convert the structs
  * below into "struct netent"'s.
  */
 struct nwent {
-	char		*n_name;	/* official name of net */
-	char		**n_aliases;	/* alias list */
-	int		n_addrtype;	/* net address type */
-	void		*n_addr;	/* network address */
-	int		n_length;	/* address length, in bits */
+	char		*n_name;	/*%< official name of net */
+	char		**n_aliases;	/*%< alias list */
+	int		n_addrtype;	/*%< net address type */
+	void		*n_addr;	/*%< network address */
+	int		n_length;	/*%< address length, in bits */
 };
 
-/*
+/*%
  * Hide external function names from POSIX.
  */
 #define	irs_gen_acc	__irs_gen_acc
@@ -240,7 +242,7 @@ struct nwent {
 #define	net_data_destroy	__net_data_destroy
 #define	net_data_minimize	__net_data_minimize
 
-/*
+/*%
  * Externs.
  */
 extern struct irs_acc *	irs_gen_acc __P((const char *, const char *));
@@ -251,7 +253,7 @@ extern struct irs_acc *	irs_irp_acc __P((const char *));
 
 extern void		irs_destroy __P((void));
 
-/*
+/*%
  * These forward declarations are for the semi-private functions in
  * the get*.c files. Each of these funcs implements the real get*
  * functionality and the standard versions are just wrappers that
@@ -260,8 +262,7 @@ extern void		irs_destroy __P((void));
  * the /usr/include replacements.
  */
 
-struct net_data;			/* forward */
-
+struct net_data;			/*%< forward */
 /*
  * net_data_create gets a singleton net_data object.  net_data_init
  * creates as many net_data objects as times it is called.  Clients using
@@ -343,3 +344,5 @@ extern void		setservent_p __P((int, struct net_data *));
 extern void		endservent_p __P((struct net_data *));
 
 #endif /*_IRS_H_INCLUDED*/
+
+/*! \file */

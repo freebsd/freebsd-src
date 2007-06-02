@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: secalg.h,v 1.12.206.1 2004/03/06 08:14:00 marka Exp $ */
+/* $Id: secalg.h,v 1.13.18.2 2005/04/29 00:16:21 marka Exp $ */
 
 #ifndef DNS_SECALG_H
 #define DNS_SECALG_H 1
+
+/*! \file */
 
 #include <isc/lang.h>
 
@@ -28,40 +30,40 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 dns_secalg_fromtext(dns_secalg_t *secalgp, isc_textregion_t *source);
-/*
+/*%<
  * Convert the text 'source' refers to into a DNSSEC security algorithm value.
  * The text may contain either a mnemonic algorithm name or a decimal algorithm
  * number.
  *
  * Requires:
- *	'secalgp' is a valid pointer.
+ *\li	'secalgp' is a valid pointer.
  *
- *	'source' is a valid text region.
+ *\li	'source' is a valid text region.
  *
  * Returns:
- *	ISC_R_SUCCESS			on success
- *	ISC_R_RANGE			numeric type is out of range
- *	DNS_R_UNKNOWN			mnemonic type is unknown
+ *\li	ISC_R_SUCCESS			on success
+ *\li	ISC_R_RANGE			numeric type is out of range
+ *\li	DNS_R_UNKNOWN			mnemonic type is unknown
  */
 
 isc_result_t
 dns_secalg_totext(dns_secalg_t secalg, isc_buffer_t *target);
-/*
+/*%<
  * Put a textual representation of the DNSSEC security algorithm 'secalg'
  * into 'target'.
  *
  * Requires:
- *	'secalg' is a valid secalg.
+ *\li	'secalg' is a valid secalg.
  *
- *	'target' is a valid text buffer.
+ *\li	'target' is a valid text buffer.
  *
- * Ensures:
- *	If the result is success:
- *		The used space in 'target' is updated.
+ * Ensures,
+ *	if the result is success:
+ *\li		The used space in 'target' is updated.
  *
  * Returns:
- *	ISC_R_SUCCESS			on success
- *	ISC_R_NOSPACE			target buffer is too small
+ *\li	ISC_R_SUCCESS			on success
+ *\li	ISC_R_NOSPACE			target buffer is too small
  */
 
 ISC_LANG_ENDDECLS

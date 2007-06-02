@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_gr.c,v 1.1.206.1 2004/03/09 08:33:37 marka Exp $";
+static const char rcsid[] = "$Id: lcl_gr.c,v 1.2.18.1 2005/04/27 05:01:02 sra Exp $";
 /* from getgrent.c 8.2 (Berkeley) 3/21/94"; */
 /* from BSDI Id: getgrent.c,v 2.8 1996/05/28 18:15:14 bostic Exp $	*/
 #endif /* LIBC_SCCS and not lint */
@@ -90,7 +90,7 @@ static int __bind_irs_gr_unneeded;
 
 struct pvt {
 	FILE *		fp;
-	/*
+	/*%<
 	 * Need space to store the entries read from the group file.
 	 * The members list also needs space per member, and the
 	 * strings making up the user names must be allocated
@@ -98,7 +98,7 @@ struct pvt {
 	 * we keep one buffer and resize it as needed.
 	 */
 	struct group	group;
-	size_t		nmemb;		/* Malloc'd max index of gr_mem[]. */
+	size_t		nmemb;		/*%< Malloc'd max index of gr_mem[]. */
 	char *		membuf;
 	size_t		membufsize;
 };
@@ -227,9 +227,8 @@ grstart(struct pvt *pvt) {
 	return (1);
 }
 
-#define	INITIAL_NMEMB	30			/* about 120 bytes */
-#define	INITIAL_BUFSIZ	(INITIAL_NMEMB * 8)	/* about 240 bytes */
-
+#define	INITIAL_NMEMB	30			/*%< about 120 bytes */
+#define	INITIAL_BUFSIZ	(INITIAL_NMEMB * 8)	/*%< about 240 bytes */
 static char *
 grnext(struct pvt *pvt) {
 	char *w, *e;
@@ -352,3 +351,4 @@ grscan(struct irs_gr *this, int search, gid_t gid, const char *name) {
 }
 
 #endif /* WANT_IRS_GR */
+/*! \file */

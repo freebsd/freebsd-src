@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_sv.c,v 1.3.206.1 2004/03/09 08:33:34 marka Exp $";
+static const char rcsid[] = "$Id: dns_sv.c,v 1.4.18.1 2005/04/27 05:00:55 sra Exp $";
 #endif
 
 /* Imports */
@@ -111,8 +111,8 @@ irs_dns_sv(struct irs_acc *this) {
 	sv->res_get = sv_res_get;
 	sv->res_set = sv_res_set;
 #else
-	sv->res_get = NULL; /* sv_res_get; */
-	sv->res_set = NULL; /* sv_res_set; */
+	sv->res_get = NULL; /*%< sv_res_get; */
+	sv->res_set = NULL; /*%< sv_res_set; */
 #endif
 	return (sv);
 }
@@ -296,3 +296,5 @@ sv_res_set(struct irs_sv *this, struct __res_state * res,
 	__hesiod_res_set(dns->hes_ctx, res, free_res);
 }
 #endif
+
+/*! \file */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.103.2.5.2.14 2004/03/10 02:55:58 marka Exp $ */
+/* $Id: view.c,v 1.126.18.11 2006/03/09 23:38:21 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -24,10 +26,12 @@
 #include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/util.h>
 
+#include <dns/acache.h>
 #include <dns/acl.h>
 #include <dns/adb.h>
 #include <dns/cache.h>
 #include <dns/db.h>
+#include <dns/dlz.h>
 #include <dns/events.h>
 #include <dns/forward.h>
 #include <dns/keytable.h>
@@ -76,13 +80,9 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 		goto cleanup_view;
 	}
 	result = isc_mutex_init(&view->lock);
-	if (result != ISC_R_SUCCESS) {
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_mutex_init() failed: %s",
-				 isc_result_totext(result));
-		result = ISC_R_UNEXPECTED;
+	if (result != ISC_R_SUCCESS)
 		goto cleanup_name;
-	}
+
 	view->zonetable = NULL;
 	result = dns_zt_create(mctx, rdclass, &view->zonetable);
 	if (result != ISC_R_SUCCESS) {
@@ -120,8 +120,10 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 		goto cleanup_trustedkeys;
 	}
 
+	view->acache = NULL;
 	view->cache = NULL;
 	view->cachedb = NULL;
+	view->dlzdatabase = NULL;
 	view->hints = NULL;
 	view->resolver = NULL;
 	view->adb = NULL;
@@ -130,7 +132,9 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->rdclass = rdclass;
 	view->frozen = ISC_FALSE;
 	view->task = NULL;
-	isc_refcount_init(&view->references, 1);
+	result = isc_refcount_init(&view->references, 1);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup_fwdtable;
 	view->weakrefs = 0;
 	view->attributes = (DNS_VIEWATTR_RESSHUTDOWN|DNS_VIEWATTR_ADBSHUTDOWN|
 			    DNS_VIEWATTR_REQSHUTDOWN);
@@ -141,7 +145,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->matchrecursiveonly = ISC_FALSE;
 	result = dns_tsigkeyring_create(view->mctx, &view->dynamickeys);
 	if (result != ISC_R_SUCCESS)
-		goto cleanup_fwdtable;
+		goto cleanup_references;
 	view->peers = NULL;
 	view->order = NULL;
 	view->delonly = NULL;
@@ -156,6 +160,8 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->additionalfromcache = ISC_TRUE;
 	view->additionalfromauth = ISC_TRUE;
 	view->enablednssec = ISC_TRUE;
+	view->enablevalidation = ISC_TRUE;
+	view->acceptexpired = ISC_FALSE;
 	view->minimalresponses = ISC_FALSE;
 	view->transfer_format = dns_one_answer;
 	view->queryacl = NULL;
@@ -169,6 +175,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->preferred_glue = 0;
 	view->flush = ISC_FALSE;
 	view->dlv = NULL;
+	view->maxudp = 0;
 	dns_fixedname_init(&view->dlv_fixed);
 
 	result = dns_order_create(view->mctx, &view->order);
@@ -207,6 +214,9 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 
  cleanup_dynkeys:
 	dns_tsigkeyring_destroy(&view->dynamickeys);
+
+ cleanup_references:
+	isc_refcount_destroy(&view->references);
 
  cleanup_fwdtable:
 	dns_fwdtable_destroy(&view->fwdtable);
@@ -253,12 +263,19 @@ destroy(dns_view_t *view) {
 		dns_adb_detach(&view->adb);
 	if (view->resolver != NULL)
 		dns_resolver_detach(&view->resolver);
+	if (view->acache != NULL) {
+		if (view->cachedb != NULL)
+			dns_acache_putdb(view->acache, view->cachedb);
+		dns_acache_detach(&view->acache);
+	}
 	if (view->requestmgr != NULL)
 		dns_requestmgr_detach(&view->requestmgr);
 	if (view->task != NULL)
 		isc_task_detach(&view->task);
 	if (view->hints != NULL)
 		dns_db_detach(&view->hints);
+	if (view->dlzdatabase != NULL)
+		dns_dlzdestroy(&view->dlzdatabase);
 	if (view->cachedb != NULL)
 		dns_db_detach(&view->cachedb);
 	if (view->cache != NULL)
@@ -365,6 +382,8 @@ view_flushanddetach(dns_view_t **viewp, isc_boolean_t flush) {
 			dns_adb_shutdown(view->adb);
 		if (!REQSHUTDOWN(view))
 			dns_requestmgr_shutdown(view->requestmgr);
+		if (view->acache != NULL)
+			dns_acache_shutdown(view->acache);
 		if (view->flush)
 			dns_zt_flushanddetach(&view->zonetable);
 		else
@@ -585,12 +604,17 @@ dns_view_setcache(dns_view_t *view, dns_cache_t *cache) {
 	REQUIRE(!view->frozen);
 
 	if (view->cache != NULL) {
+		if (view->acache != NULL)
+			dns_acache_putdb(view->acache, view->cachedb);
 		dns_db_detach(&view->cachedb);
 		dns_cache_detach(&view->cache);
 	}
 	dns_cache_attach(cache, &view->cache);
 	dns_cache_attachdb(cache, &view->cachedb);
 	INSIST(DNS_DB_VALID(view->cachedb));
+
+	if (view->acache != NULL)
+		dns_acache_setdb(view->acache, view->cachedb);
 }
 
 void
@@ -1198,8 +1222,12 @@ dns_view_flushcache(dns_view_t *view) {
 	result = dns_cache_flush(view->cache);
 	if (result != ISC_R_SUCCESS)
 		return (result);
+	if (view->acache != NULL)
+		dns_acache_putdb(view->acache, view->cachedb);
 	dns_db_detach(&view->cachedb);
 	dns_cache_attachdb(view->cache, &view->cachedb);
+	if (view->acache != NULL)
+		dns_acache_setdb(view->acache, view->cachedb);
 
 	dns_adb_flush(view->adb);
 	return (ISC_R_SUCCESS);
@@ -1329,4 +1357,10 @@ isc_boolean_t
 dns_view_getrootdelonly(dns_view_t *view) {
 	REQUIRE(DNS_VIEW_VALID(view));
 	return (view->rootdelonly);
+}
+
+isc_result_t
+dns_view_freezezones(dns_view_t *view, isc_boolean_t value) {
+	REQUIRE(DNS_VIEW_VALID(view));
+	return (dns_zt_freezezones(view->zonetable, value));
 }

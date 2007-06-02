@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.33.2.2.10.3 2004/03/06 08:13:39 marka Exp $ */
+/* $Id: log.c,v 1.36.18.4 2005/09/05 00:18:24 marka Exp $ */
+
+/*! \file */
 
 /* Principal Authors: DCL */
 
@@ -25,7 +27,7 @@
 
 #include <dns/log.h>
 
-/*
+/*%
  * When adding a new category, be sure to add the appropriate
  * #define to <dns/log.h>.
  */
@@ -44,7 +46,7 @@ LIBDNS_EXTERNAL_DATA isc_logcategory_t dns_categories[] = {
 	{ NULL, 	0 }
 };
 
-/*
+/*%
  * When adding a new module, be sure to add the appropriate
  * #define to <dns/log.h>.
  */
@@ -74,6 +76,8 @@ LIBDNS_EXTERNAL_DATA isc_logmodule_t dns_modules[] = {
 	{ "dns/sdb",		0 },
 	{ "dns/diff",		0 },
 	{ "dns/hints",		0 },
+	{ "dns/acache",		0 },
+	{ "dns/dlz",		0 },
 	{ NULL, 		0 }
 };
 

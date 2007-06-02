@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.103.2.15.2.23 2006/06/09 07:29:24 marka Exp $ */
+/* $Id: nsupdate.c,v 1.130.18.15 2006/12/07 05:39:45 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -159,6 +161,9 @@ debug(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
 static void
 ddebug(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
 
+static void
+error(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
+
 #define STATUS_MORE	(isc_uint16_t)0
 #define STATUS_SEND	(isc_uint16_t)1
 #define STATUS_QUIT	(isc_uint16_t)2
@@ -190,6 +195,16 @@ fatal(const char *format, ...) {
 	va_end(args);
 	fprintf(stderr, "\n");
 	exit(1);
+}
+
+static void
+error(const char *format, ...) {
+	va_list args;
+
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fprintf(stderr, "\n");
 }
 
 static void
@@ -282,6 +297,74 @@ reset_system(void) {
 	updatemsg->opcode = dns_opcode_update;
 }
 
+static isc_uint16_t
+parse_hmac(dns_name_t **hmac, const char *hmacstr, size_t len) {
+	isc_uint16_t digestbits = 0;
+	isc_result_t result;
+	char buf[20];
+
+	REQUIRE(hmac != NULL && *hmac == NULL);
+	REQUIRE(hmacstr != NULL);
+
+	if (len >= sizeof(buf))
+		fatal("unknown key type '%.*s'", (int)(len), hmacstr);
+
+	strncpy(buf, hmacstr, len);
+	buf[len] = 0;
+	
+	if (strcasecmp(buf, "hmac-md5") == 0) {
+		*hmac = DNS_TSIG_HMACMD5_NAME;
+	} else if (strncasecmp(buf, "hmac-md5-", 9) == 0) {
+		*hmac = DNS_TSIG_HMACMD5_NAME;
+		result = isc_parse_uint16(&digestbits, &buf[9], 10);
+		if (result != ISC_R_SUCCESS || digestbits > 128)
+			fatal("digest-bits out of range [0..128]");
+		digestbits = (digestbits +7) & ~0x7U;
+	} else if (strcasecmp(buf, "hmac-sha1") == 0) {
+		*hmac = DNS_TSIG_HMACSHA1_NAME;
+	} else if (strncasecmp(buf, "hmac-sha1-", 10) == 0) {
+		*hmac = DNS_TSIG_HMACSHA1_NAME;
+		result = isc_parse_uint16(&digestbits, &buf[10], 10);
+		if (result != ISC_R_SUCCESS || digestbits > 160)
+			fatal("digest-bits out of range [0..160]");
+		digestbits = (digestbits +7) & ~0x7U;
+	} else if (strcasecmp(buf, "hmac-sha224") == 0) {
+		*hmac = DNS_TSIG_HMACSHA224_NAME;
+	} else if (strncasecmp(buf, "hmac-sha224-", 12) == 0) {
+		*hmac = DNS_TSIG_HMACSHA224_NAME;
+		result = isc_parse_uint16(&digestbits, &buf[12], 10);
+		if (result != ISC_R_SUCCESS || digestbits > 224)
+			fatal("digest-bits out of range [0..224]");
+		digestbits = (digestbits +7) & ~0x7U;
+	} else if (strcasecmp(buf, "hmac-sha256") == 0) {
+		*hmac = DNS_TSIG_HMACSHA256_NAME;
+	} else if (strncasecmp(buf, "hmac-sha256-", 12) == 0) {
+		*hmac = DNS_TSIG_HMACSHA256_NAME;
+		result = isc_parse_uint16(&digestbits, &buf[12], 10);
+		if (result != ISC_R_SUCCESS || digestbits > 256)
+			fatal("digest-bits out of range [0..256]");
+		digestbits = (digestbits +7) & ~0x7U;
+	} else if (strcasecmp(buf, "hmac-sha384") == 0) {
+		*hmac = DNS_TSIG_HMACSHA384_NAME;
+	} else if (strncasecmp(buf, "hmac-sha384-", 12) == 0) {
+		*hmac = DNS_TSIG_HMACSHA384_NAME;
+		result = isc_parse_uint16(&digestbits, &buf[12], 10);
+		if (result != ISC_R_SUCCESS || digestbits > 384)
+			fatal("digest-bits out of range [0..384]");
+		digestbits = (digestbits +7) & ~0x7U;
+	} else if (strcasecmp(buf, "hmac-sha512") == 0) {
+		*hmac = DNS_TSIG_HMACSHA512_NAME;
+	} else if (strncasecmp(buf, "hmac-sha512-", 12) == 0) {
+		*hmac = DNS_TSIG_HMACSHA512_NAME;
+		result = isc_parse_uint16(&digestbits, &buf[12], 10);
+		if (result != ISC_R_SUCCESS || digestbits > 512)
+			fatal("digest-bits out of range [0..512]");
+		digestbits = (digestbits +7) & ~0x7U;
+	} else
+		fatal("unknown key type '%s'", buf);
+	return (digestbits);
+}
+
 static void
 setup_keystr(void) {
 	unsigned char *secret = NULL;
@@ -290,9 +373,12 @@ setup_keystr(void) {
 	isc_result_t result;
 	isc_buffer_t keynamesrc;
 	char *secretstr;
-	char *s;
+	char *s, *n;
 	dns_fixedname_t fkeyname;
 	dns_name_t *keyname;
+	char *name;
+	dns_name_t *hmacname = NULL;
+	isc_uint16_t digestbits = 0;
 
 	dns_fixedname_init(&fkeyname);
 	keyname = dns_fixedname_name(&fkeyname);
@@ -300,12 +386,24 @@ setup_keystr(void) {
 	debug("Creating key...");
 
 	s = strchr(keystr, ':');
-	if (s == NULL || s == keystr || *s == 0)
-		fatal("key option must specify keyname:secret");
+	if (s == NULL || s == keystr || s[1] == 0)
+		fatal("key option must specify [hmac:]keyname:secret");
 	secretstr = s + 1;
+	n = strchr(secretstr, ':');
+	if (n != NULL) {
+		if (n == secretstr || n[1] == 0)
+			fatal("key option must specify [hmac:]keyname:secret");
+		name = secretstr;
+		secretstr = n + 1;
+		digestbits = parse_hmac(&hmacname, keystr, s - keystr);
+	} else {
+		hmacname = DNS_TSIG_HMACMD5_NAME;
+		name = keystr;
+		n = s;
+	}
 
-	isc_buffer_init(&keynamesrc, keystr, s - keystr);
-	isc_buffer_add(&keynamesrc, s - keystr);
+	isc_buffer_init(&keynamesrc, name, n - name);
+	isc_buffer_add(&keynamesrc, n - name);
 
 	debug("namefromtext");
 	result = dns_name_fromtext(keyname, &keynamesrc, dns_rootname,
@@ -328,12 +426,13 @@ setup_keystr(void) {
 	secretlen = isc_buffer_usedlength(&secretbuf);
 
 	debug("keycreate");
-	result = dns_tsigkey_create(keyname, dns_tsig_hmacmd5_name,
-				    secret, secretlen, ISC_TRUE, NULL,
-				    0, 0, mctx, NULL, &tsigkey);
+	result = dns_tsigkey_create(keyname, hmacname, secret, secretlen,
+				    ISC_TRUE, NULL, 0, 0, mctx, NULL, &tsigkey);
 	if (result != ISC_R_SUCCESS)
 		fprintf(stderr, "could not create key from %s: %s\n",
 			keystr, dns_result_totext(result));
+	else
+		dst_key_setbits(tsigkey->key, digestbits);
  failure:
 	if (secret != NULL)
 		isc_mem_free(mctx, secret);
@@ -343,6 +442,7 @@ static void
 setup_keyfile(void) {
 	dst_key_t *dstkey = NULL;
 	isc_result_t result;
+	dns_name_t *hmacname = NULL;
 
 	debug("Creating key...");
 
@@ -354,11 +454,31 @@ setup_keyfile(void) {
 			keyfile, isc_result_totext(result));
 		return;
 	}
-	if (dst_key_alg(dstkey) == DST_ALG_HMACMD5) {
+	switch (dst_key_alg(dstkey)) {
+	case DST_ALG_HMACMD5:
+		hmacname = DNS_TSIG_HMACMD5_NAME;
+		break;
+	case DST_ALG_HMACSHA1:
+		hmacname = DNS_TSIG_HMACSHA1_NAME;
+		break;
+	case DST_ALG_HMACSHA224:
+		hmacname = DNS_TSIG_HMACSHA224_NAME;
+		break;
+	case DST_ALG_HMACSHA256:
+		hmacname = DNS_TSIG_HMACSHA256_NAME;
+		break;
+	case DST_ALG_HMACSHA384:
+		hmacname = DNS_TSIG_HMACSHA384_NAME;
+		break;
+	case DST_ALG_HMACSHA512:
+		hmacname = DNS_TSIG_HMACSHA512_NAME;
+		break;
+	}
+	if (hmacname != NULL) {
 		result = dns_tsigkey_createfromkey(dst_key_name(dstkey),
-						   dns_tsig_hmacmd5_name,
-						   dstkey, ISC_FALSE, NULL,
-						   0, 0, mctx, NULL, &tsigkey);
+						   hmacname, dstkey, ISC_FALSE,
+						   NULL, 0, 0, mctx, NULL,
+						   &tsigkey);
 		if (result != ISC_R_SUCCESS) {
 			fprintf(stderr, "could not create key from %s: %s\n",
 				keyfile, isc_result_totext(result));
@@ -998,6 +1118,9 @@ evaluate_key(char *cmdline) {
 	int secretlen;
 	unsigned char *secret = NULL;
 	isc_buffer_t secretbuf;
+	dns_name_t *hmacname = NULL;
+	isc_uint16_t digestbits = 0;
+	char *n;
 
 	namestr = nsu_strsep(&cmdline, " \t\r\n");
 	if (*namestr == 0) {
@@ -1007,6 +1130,13 @@ evaluate_key(char *cmdline) {
 
 	dns_fixedname_init(&fkeyname);
 	keyname = dns_fixedname_name(&fkeyname);
+
+	n = strchr(namestr, ':');
+	if (n != NULL) {
+		digestbits = parse_hmac(&hmacname, namestr, n - namestr);
+		namestr = n + 1;
+	} else
+		hmacname = DNS_TSIG_HMACMD5_NAME;
 
 	isc_buffer_init(&b, namestr, strlen(namestr));
 	isc_buffer_add(&b, strlen(namestr));
@@ -1038,15 +1168,16 @@ evaluate_key(char *cmdline) {
 
 	if (tsigkey != NULL)
 		dns_tsigkey_detach(&tsigkey);
-	result = dns_tsigkey_create(keyname, dns_tsig_hmacmd5_name,
-				    secret, secretlen, ISC_TRUE, NULL, 0, 0,
-				    mctx, NULL, &tsigkey);
+	result = dns_tsigkey_create(keyname, hmacname, secret, secretlen,
+				    ISC_TRUE, NULL, 0, 0, mctx, NULL,
+				    &tsigkey);
 	isc_mem_free(mctx, secret);
 	if (result != ISC_R_SUCCESS) {
 		fprintf(stderr, "could not create key from %s %s: %s\n",
 			namestr, secretstr, dns_result_totext(result));
 		return (STATUS_SYNTAX);
 	}
+	dst_key_setbits(tsigkey->key, digestbits);
 	return (STATUS_MORE);
 }
 
@@ -1304,12 +1435,50 @@ evaluate_update(char *cmdline) {
 }
 
 static void
+setzone(dns_name_t *zonename) {
+	isc_result_t result;
+	dns_name_t *name = NULL;
+	dns_rdataset_t *rdataset = NULL;
+
+	result = dns_message_firstname(updatemsg, DNS_SECTION_ZONE);
+	if (result == ISC_R_SUCCESS) {
+		dns_message_currentname(updatemsg, DNS_SECTION_ZONE, &name);
+		dns_message_removename(updatemsg, name, DNS_SECTION_ZONE);
+		for (rdataset = ISC_LIST_HEAD(name->list);
+		     rdataset != NULL;
+		     rdataset = ISC_LIST_HEAD(name->list)) {
+			ISC_LIST_UNLINK(name->list, rdataset, link);
+			dns_rdataset_disassociate(rdataset);
+			dns_message_puttemprdataset(updatemsg, &rdataset);
+		}
+		dns_message_puttempname(updatemsg, &name);
+	}
+
+	if (zonename != NULL) {
+		result = dns_message_gettempname(updatemsg, &name);
+		check_result(result, "dns_message_gettempname");
+		dns_name_init(name, NULL);
+		dns_name_clone(zonename, name);
+		result = dns_message_gettemprdataset(updatemsg, &rdataset);
+		check_result(result, "dns_message_gettemprdataset");
+		dns_rdataset_makequestion(rdataset, getzoneclass(),
+					  dns_rdatatype_soa);
+		ISC_LIST_INIT(name->list);
+		ISC_LIST_APPEND(name->list, rdataset, link);
+		dns_message_addname(updatemsg, name, DNS_SECTION_ZONE);
+	}
+}
+
+static void
 show_message(dns_message_t *msg) {
 	isc_result_t result;
 	isc_buffer_t *buf = NULL;
 	int bufsz;
 
 	ddebug("show_message()");
+
+	setzone(userzone);
+
 	bufsz = INITTEXT;
 	do { 
 		if (bufsz > MAXTEXT) {
@@ -1537,22 +1706,11 @@ send_update(dns_name_t *zonename, isc_sockaddr_t *master,
 {
 	isc_result_t result;
 	dns_request_t *request = NULL;
-	dns_name_t *name = NULL;
-	dns_rdataset_t *rdataset = NULL;
 	unsigned int options = 0;
 
 	ddebug("send_update()");
 
-	result = dns_message_gettempname(updatemsg, &name);
-	check_result(result, "dns_message_gettempname");
-	dns_name_init(name, NULL);
-	dns_name_clone(zonename, name);
-	result = dns_message_gettemprdataset(updatemsg, &rdataset);
-	check_result(result, "dns_message_gettemprdataset");
-	dns_rdataset_makequestion(rdataset, getzoneclass(), dns_rdatatype_soa);
-	ISC_LIST_INIT(name->list);
-	ISC_LIST_APPEND(name->list, rdataset, link);
-	dns_message_addname(updatemsg, name, DNS_SECTION_ZONE);
+	setzone(zonename);
 
 	if (usevc)
 		options |= DNS_REQUESTOPT_TCP;
@@ -1643,8 +1801,9 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		setzoneclass(dns_rdataclass_none);
 		return;
 	}
-	isc_mem_put(mctx, reqinfo, sizeof(nsu_requestinfo_t));
 
+	isc_mem_put(mctx, reqinfo, sizeof(nsu_requestinfo_t));
+	reqinfo = NULL;
 	isc_event_free(&event);
 	reqev = NULL;
 
@@ -1702,6 +1861,19 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 	if (rcvmsg->rcode != dns_rcode_noerror &&
 	    rcvmsg->rcode != dns_rcode_nxdomain)
 		fatal("response to SOA query was unsuccessful");
+
+	if (userzone != NULL && rcvmsg->rcode == dns_rcode_nxdomain) {
+		char namebuf[DNS_NAME_FORMATSIZE];
+		dns_name_format(userzone, namebuf, sizeof(namebuf));
+		error("specified zone '%s' does not exist (NXDOMAIN)",
+		      namebuf);
+		dns_message_destroy(&rcvmsg);
+		dns_request_destroy(&request);
+		dns_message_destroy(&soaquery);
+		ddebug("Out of recvsoa");
+		done_update();
+		return;
+	}
 
  lookforsoa:
 	if (pass == 0)
@@ -1859,15 +2031,6 @@ start_update(void) {
 
 	if (answer != NULL)
 		dns_message_destroy(&answer);
-	result = dns_message_firstname(updatemsg, section);
-	if (result == ISC_R_NOMORE) {
-		section = DNS_SECTION_PREREQUISITE;
-		result = dns_message_firstname(updatemsg, section);
-	}
-	if (result != ISC_R_SUCCESS) {
-		done_update();
-		return;
-	}
 
 	if (userzone != NULL && userserver != NULL) {
 		send_update(userzone, userserver, localaddr);
@@ -1879,7 +2042,8 @@ start_update(void) {
 				    &soaquery);
 	check_result(result, "dns_message_create");
 
-	soaquery->flags |= DNS_MESSAGEFLAG_RD;
+	if (userserver == NULL)
+		soaquery->flags |= DNS_MESSAGEFLAG_RD;
 
 	result = dns_message_gettempname(soaquery, &name);
 	check_result(result, "dns_message_gettempname");
@@ -1889,10 +2053,24 @@ start_update(void) {
 
 	dns_rdataset_makequestion(rdataset, getzoneclass(), dns_rdatatype_soa);
 
-	firstname = NULL;
-	dns_message_currentname(updatemsg, section, &firstname);
-	dns_name_init(name, NULL);
-	dns_name_clone(firstname, name);
+	if (userzone != NULL) {
+		dns_name_init(name, NULL);
+		dns_name_clone(userzone, name);
+	} else {
+		result = dns_message_firstname(updatemsg, section);
+		if (result == ISC_R_NOMORE) {
+			section = DNS_SECTION_PREREQUISITE;
+			result = dns_message_firstname(updatemsg, section);
+		}
+		if (result != ISC_R_SUCCESS) {
+			done_update();
+			return;
+		}
+		firstname = NULL;
+		dns_message_currentname(updatemsg, section, &firstname);
+		dns_name_init(name, NULL);
+		dns_name_clone(firstname, name);
+	}
 
 	ISC_LIST_INIT(name->list);
 	ISC_LIST_APPEND(name->list, rdataset, link);
@@ -1926,6 +2104,9 @@ cleanup(void) {
 
 	ddebug("Destroying hash context");
 	isc_hash_destroy();
+
+	ddebug("Destroying name state");
+	dns_name_destroy();
 
 	ddebug("Destroying memory context");
 	if (memdebugging)

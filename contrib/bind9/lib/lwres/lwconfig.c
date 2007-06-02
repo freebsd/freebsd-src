@@ -15,26 +15,43 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwconfig.c,v 1.33.2.1.2.10 2006/10/03 23:50:50 marka Exp $ */
+/* $Id: lwconfig.c,v 1.38.18.5 2006/10/03 23:50:51 marka Exp $ */
 
-/***
- *** Module for parsing resolv.conf files.
- ***
- *** entry points are:
- ***	lwres_conf_init(lwres_context_t *ctx)
- ***		intializes data structure for subsequent config parsing.
- ***
- ***	lwres_conf_parse(lwres_context_t *ctx, const char *filename)
- ***		parses a file and fills in the data structure.
- ***
- ***	lwres_conf_print(lwres_context_t *ctx, FILE *fp)
- ***		prints the config data structure to the FILE.
- ***
- ***	lwres_conf_clear(lwres_context_t *ctx)
- ***		frees up all the internal memory used by the config data
- ***		 structure, returning it to the lwres_context_t.
- ***
- ***/
+/*! \file */
+
+/**
+ * Module for parsing resolv.conf files.
+ *
+ *    lwres_conf_init() creates an empty lwres_conf_t structure for
+ *    lightweight resolver context ctx.
+ * 
+ *    lwres_conf_clear() frees up all the internal memory used by that
+ *    lwres_conf_t structure in resolver context ctx.
+ * 
+ *    lwres_conf_parse() opens the file filename and parses it to initialise
+ *    the resolver context ctx's lwres_conf_t structure.
+ * 
+ *    lwres_conf_print() prints the lwres_conf_t structure for resolver
+ *    context ctx to the FILE fp.
+ * 
+ * \section lwconfig_return Return Values
+ * 
+ *    lwres_conf_parse() returns #LWRES_R_SUCCESS if it successfully read and
+ *    parsed filename. It returns #LWRES_R_FAILURE if filename could not be
+ *    opened or contained incorrect resolver statements.
+ * 
+ *    lwres_conf_print() returns #LWRES_R_SUCCESS unless an error occurred
+ *    when converting the network addresses to a numeric host address
+ *    string. If this happens, the function returns #LWRES_R_FAILURE.
+ * 
+ * \section lwconfig_see See Also
+ * 
+ *    stdio(3), \link resolver resolver \endlink
+ * 
+ * \section files Files
+ * 
+ *    /etc/resolv.conf
+ */
 
 #include <config.h>
 
@@ -109,7 +126,7 @@ lwresaddr2af(int lwresaddrtype)
 }
 
 
-/*
+/*!
  * Eat characters from FP until EOL or EOF. Returns EOF or '\n'
  */
 static int
@@ -124,7 +141,7 @@ eatline(FILE *fp) {
 }
 
 
-/*
+/*!
  * Eats white space up to next newline or non-whitespace character (of
  * EOF). Returns the last character read. Comments are considered white
  * space.
@@ -144,7 +161,7 @@ eatwhite(FILE *fp) {
 }
 
 
-/*
+/*!
  * Skip over any leading whitespace and then read in the next sequence of
  * non-whitespace characters. In this context newline is not considered
  * whitespace. Returns EOF on end-of-file, or the character
@@ -203,6 +220,7 @@ lwres_strdup(lwres_context_t *ctx, const char *str) {
 	return (p);
 }
 
+/*% intializes data structure for subsequent config parsing. */
 void
 lwres_conf_init(lwres_context_t *ctx) {
 	int i;
@@ -232,6 +250,7 @@ lwres_conf_init(lwres_context_t *ctx) {
 	}
 }
 
+/*% Frees up all the internal memory used by the config data structure, returning it to the lwres_context_t. */
 void
 lwres_conf_clear(lwres_context_t *ctx) {
 	int i;
@@ -542,6 +561,7 @@ lwres_conf_parseoption(lwres_context_t *ctx,  FILE *fp) {
 	return (LWRES_R_SUCCESS);
 }
 
+/*% parses a file and fills in the data structure. */
 lwres_result_t
 lwres_conf_parse(lwres_context_t *ctx, const char *filename) {
 	FILE *fp = NULL;
@@ -600,6 +620,7 @@ lwres_conf_parse(lwres_context_t *ctx, const char *filename) {
 	return (ret);
 }
 
+/*% Prints the config data structure to the FILE. */
 lwres_result_t
 lwres_conf_print(lwres_context_t *ctx, FILE *fp) {
 	int i;
@@ -695,6 +716,7 @@ lwres_conf_print(lwres_context_t *ctx, FILE *fp) {
 	return (LWRES_R_SUCCESS);
 }
 
+/*% Returns a pointer to the current config structure. */
 lwres_conf_t *
 lwres_conf_get(lwres_context_t *ctx) {
 	REQUIRE(ctx != NULL);

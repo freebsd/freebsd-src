@@ -24,7 +24,7 @@
 
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: memcluster.c,v 1.3.206.8 2006/08/30 23:35:06 marka Exp $";
+static const char rcsid[] = "$Id: memcluster.c,v 1.5.18.6 2006/08/30 23:30:35 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -355,7 +355,7 @@ __memget_record(size_t size, const char *file, int line) {
 #endif
 }
 
-/* 
+/*%
  * This is a call from an external caller, 
  * so we want to count this as a user "put". 
  */
@@ -410,7 +410,7 @@ __memput_record(void *mem, size_t size, const char *file, int line) {
 		prev = el;
 		el = el->next;
 	}
-	INSIST(el != NULL);	/* double free */
+	INSIST(el != NULL);	/*%< double free */
 	if (prev == NULL) {
 		if (size == max_size || new_size >= max_size)
 			activelists[max_size] = el->next;
@@ -437,8 +437,8 @@ __memput_record(void *mem, size_t size, const char *file, int line) {
 
 	/* The free list uses the "rounded-up" size "new_size": */
 #if defined(DEBUGGING_MEMCLUSTER)
-	memset(mem, 0xa5, new_size - sizeof *e); /* catch write after free */
-	e->size = 0;	/* catch double memput() */
+	memset(mem, 0xa5, new_size - sizeof *e); /*%< catch write after free */
+	e->size = 0;	/*%< catch double memput() */
 #ifdef MEMCLUSTER_RECORD
 	e->file = file;
 	e->line = line;
@@ -489,7 +489,7 @@ __memput_debug(void *ptr, size_t size, const char *file, int line) {
 	__memput_record(ptr, size, file, line);
 }
 
-/*
+/*%
  * Print the stats[] on the stream "out" with suitable formatting.
  */
 void
@@ -549,7 +549,7 @@ memactive(void) {
 
 /* Private. */
 
-/* 
+/*%
  * Round up size to a multiple of sizeof(void *).  This guarantees that a
  * block is at least sizeof void *, and that we won't violate alignment
  * restrictions, both of which are needed to make lists of blocks.
@@ -584,3 +584,5 @@ check(unsigned char *a, int value, size_t len) {
 		INSIST(a[i] == value);
 }
 #endif
+
+/*! \file */

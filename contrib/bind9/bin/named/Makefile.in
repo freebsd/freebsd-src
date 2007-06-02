@@ -1,4 +1,4 @@
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.74.12.11 2004/09/06 21:47:25 marka Exp $
+# $Id: Makefile.in,v 1.80.18.7 2005/09/05 00:18:10 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -31,12 +31,20 @@ DBDRIVER_SRCS =
 DBDRIVER_INCLUDES =
 DBDRIVER_LIBS =
 
+DLZ_DRIVER_DIR =	${top_srcdir}/contrib/dlz/drivers
+
+DLZDRIVER_OBJS =	@DLZ_DRIVER_OBJS@
+DLZDRIVER_SRCS =	@DLZ_DRIVER_SRCS@
+DLZDRIVER_INCLUDES =	@DLZ_DRIVER_INCLUDES@
+DLZDRIVER_LIBS =	@DLZ_DRIVER_LIBS@
+
 CINCLUDES =	-I${srcdir}/include -I${srcdir}/unix/include \
 		${LWRES_INCLUDES} ${DNS_INCLUDES} ${BIND9_INCLUDES} \
 		${ISCCFG_INCLUDES} ${ISCCC_INCLUDES} ${ISC_INCLUDES} \
-		${DBDRIVER_INCLUDES}
+		${DLZDRIVER_INCLUDES} ${DBDRIVER_INCLUDES}
 
-CDEFINES =
+CDEFINES =      @USE_DLZ@
+
 CWARNINGS =
 
 DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
@@ -57,13 +65,14 @@ DEPLIBS =	${LWRESDEPLIBS} ${DNSDEPLIBS} ${BIND9DEPLIBS} \
 		${ISCCFGDEPLIBS} ${ISCCCDEPLIBS} ${ISCDEPLIBS}
 
 LIBS =		${LWRESLIBS} ${DNSLIBS} ${BIND9LIBS} \
-		${ISCCFGLIBS} ${ISCCCLIBS} ${ISCLIBS} ${DBDRIVER_LIBS} @LIBS@
+		${ISCCFGLIBS} ${ISCCCLIBS} ${ISCLIBS} \
+		${DLZDRIVER_LIBS} ${DBDRIVER_LIBS} @LIBS@
 
 SUBDIRS =	unix
 
 TARGETS =	named@EXEEXT@ lwresd@EXEEXT@
 
-OBJS =		aclconf.@O@ builtin.@O@ client.@O@ config.@O@ control.@O@ \
+OBJS =		builtin.@O@ client.@O@ config.@O@ control.@O@ \
 		controlconf.@O@ interfacemgr.@O@ \
 		listenlist.@O@ log.@O@ logconf.@O@ main.@O@ notify.@O@ \
 		query.@O@ server.@O@ sortlist.@O@ \
@@ -71,11 +80,11 @@ OBJS =		aclconf.@O@ builtin.@O@ client.@O@ config.@O@ control.@O@ \
 		zoneconf.@O@ \
 		lwaddr.@O@ lwresd.@O@ lwdclient.@O@ lwderror.@O@ lwdgabn.@O@ \
 		lwdgnba.@O@ lwdgrbn.@O@ lwdnoop.@O@ lwsearch.@O@ \
-		$(DBDRIVER_OBJS)
+		${DLZDRIVER_OBJS} ${DBDRIVER_OBJS}
 
 UOBJS =		unix/os.@O@
 
-SRCS =		aclconf.c builtin.c client.c config.c control.c \
+SRCS =		builtin.c client.c config.c control.c \
 		controlconf.c interfacemgr.c \
 		listenlist.c log.c logconf.c main.c notify.c \
 		query.c server.c sortlist.c \
@@ -83,7 +92,7 @@ SRCS =		aclconf.c builtin.c client.c config.c control.c \
 		zoneconf.c \
 		lwaddr.c lwresd.c lwdclient.c lwderror.c lwdgabn.c \
 		lwdgnba.c lwdgrbn.c lwdnoop.c lwsearch.c \
-		$(DBDRIVER_SRCS)
+		${DLZDRIVER_SRCS} ${DBDRIVER_SRCS}
 
 MANPAGES =	named.8 lwresd.8 named.conf.5
 
@@ -133,3 +142,4 @@ install:: named@EXEEXT@ lwresd@EXEEXT@ installdirs
 	${INSTALL_DATA} ${srcdir}/lwresd.8 ${DESTDIR}${mandir}/man8
 	${INSTALL_DATA} ${srcdir}/named.conf.5 ${DESTDIR}${mandir}/man5
 
+@DLZ_DRIVER_RULES@

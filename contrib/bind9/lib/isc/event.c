@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: event.c,v 1.15.12.3 2004/03/08 09:04:48 marka Exp $ */
+/* $Id: event.c,v 1.17.18.2 2005/04/29 00:16:45 marka Exp $ */
 
-/*
- * Principal Author: Bob Halley
+/*!
+ * \file
+ * \author Principal Author: Bob Halley
  */
 
 #include <config.h>

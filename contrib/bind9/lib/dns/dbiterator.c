@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dbiterator.c,v 1.13.206.1 2004/03/06 08:13:37 marka Exp $ */
+/* $Id: dbiterator.c,v 1.14.18.2 2005/04/29 00:15:50 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 

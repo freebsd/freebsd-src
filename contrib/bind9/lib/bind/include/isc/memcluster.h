@@ -47,3 +47,4 @@ void 	memstats(FILE *);
 int	memactive(void);
 
 #endif /* MEMCLUSTER_H */
+/*! \file */

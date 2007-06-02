@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -18,9 +18,10 @@
 #ifndef GENERIC_NSEC_47_H
 #define GENERIC_NSEC_47_H 1
 
-/* $Id: nsec_47.h,v 1.4.2.1 2004/03/08 02:08:03 marka Exp $ */
+/* $Id: nsec_47.h,v 1.4.20.2 2005/04/29 00:16:37 marka Exp $ */
 
-/* draft-ietf-dnsext-nsec-rdata-01.txt */
+/*!
+ * \brief Per draft-ietf-dnsext-nsec-rdata-01.txt */
 
 typedef struct dns_rdata_nsec {
 	dns_rdatacommon_t	common;

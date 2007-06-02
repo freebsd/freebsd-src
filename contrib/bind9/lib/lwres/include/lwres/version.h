@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: version.h,v 1.2.224.3 2004/03/08 09:05:11 marka Exp $ */
+/* $Id: version.h,v 1.3.18.2 2005/04/29 00:17:23 marka Exp $ */
+
+/*! \file */
 
 #include <lwres/platform.h>
 

@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_pr.c,v 1.1.206.2 2006/03/10 00:17:21 marka Exp $";
+static const char rcsid[] = "$Id: lcl_pr.c,v 1.2.18.2 2006/03/10 00:20:08 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* extern */
@@ -290,3 +290,5 @@ pr_minimize(struct irs_pr *this) {
 		pvt->fp = NULL;
 	}
 }
+
+/*! \file */
