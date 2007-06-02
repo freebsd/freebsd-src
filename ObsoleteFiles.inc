@@ -168,7 +168,7 @@ OLD_FILES+=usr/share/man/man3/ascii2addr.3.gz
 # 20070225: vm_page_unmanage() removed
 OLD_FILES+=usr/share/man/man9/vm_page_unmanage.9.gz
 # 20070216: VFS_VPTOFH(9) -> VOP_VPTOFH(9)
-OLD_FILES=usr/share/man/man9/VFS_VPTOFH.9.gz
+OLD_FILES+=usr/share/man/man9/VFS_VPTOFH.9.gz
 # 20070212: kame.4 removed
 OLD_FILES+=usr/share/man/man4/kame.4.gz
 # 20070201: remove libmytinfo link
