@@ -1836,7 +1836,6 @@ static int
 envy24htmixer_init(struct snd_mixer *m)
 {
 	struct sc_info *sc = mix_getdevinfo(m);
-	struct snddev_info *d;
 
 #if(0)
 	device_printf(sc->dev, "envy24htmixer_init()\n");
@@ -1850,9 +1849,7 @@ envy24htmixer_init(struct snd_mixer *m)
 	envy24ht_wrmt(sc, ENVY24HT_MT_VOLRATE, 0x30, 1); /* 0x30 is default value */
 #endif
 
-	d = device_get_softc(sc->dev);
-	if (d != NULL)
-		d->flags |= SD_F_SOFTPCMVOL;
+	pcm_setflags(sc->dev, pcm_getflags(sc->dev) | SD_F_SOFTPCMVOL);
 
 	mix_setdevs(m, ENVY24HT_MIX_MASK);
 	mix_setrecdevs(m, ENVY24HT_MIX_REC_MASK);

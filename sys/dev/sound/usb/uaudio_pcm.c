@@ -274,27 +274,22 @@ ua_mixer_init(struct snd_mixer *m)
 {
 	u_int32_t mask;
 	device_t pa_dev;
-	struct snddev_info *d;
 	struct ua_info *ua = mix_getdevinfo(m);
 
 	pa_dev = device_get_parent(ua->sc_dev);
-	d = device_get_softc(ua->sc_dev);
 
 	mask = uaudio_query_mix_info(pa_dev);
-	if (d != NULL) {
-		if (!(mask & SOUND_MASK_PCM)) {
-			/*
-			 * Emulate missing pcm mixer controller
-			 * through FEEDER_VOLUME
-			 */
-			 d->flags |= SD_F_SOFTPCMVOL;
-		}
-		if (!(mask & SOUND_MASK_VOLUME)) {
-			mix_setparentchild(m, SOUND_MIXER_VOLUME,
-			    SOUND_MASK_PCM);
-			mix_setrealdev(m, SOUND_MIXER_VOLUME,
-			    SOUND_MIXER_NONE);
-		}
+	if (!(mask & SOUND_MASK_PCM)) {
+		/*
+		 * Emulate missing pcm mixer controller
+		 * through FEEDER_VOLUME
+		 */
+		pcm_setflags(ua->sc_dev, pcm_getflags(ua->sc_dev) |
+		    SD_F_SOFTPCMVOL);
+	}
+	if (!(mask & SOUND_MASK_VOLUME)) {
+		mix_setparentchild(m, SOUND_MIXER_VOLUME, SOUND_MASK_PCM);
+		mix_setrealdev(m, SOUND_MIXER_VOLUME, SOUND_MIXER_NONE);
 	}
 	mix_setdevs(m,	mask);
 
@@ -360,10 +355,9 @@ ua_attach(device_t dev)
 {
 	struct ua_info *ua;
 	struct sndcard_func *func;
-	struct snddev_info *d;
 	char status[SND_STATUSLEN];
 	device_t pa_dev;
-	u_int32_t nplay, nrec;
+	u_int32_t nplay, nrec, flags;
 	int i;
 
 	ua = (struct ua_info *)malloc(sizeof *ua, M_DEVBUF, M_ZERO | M_NOWAIT);
@@ -408,14 +402,14 @@ ua_attach(device_t dev)
 	if (nrec > 1)
 		nrec = 1;
 
-	d = device_get_softc(dev);
-	for (i = 0; d != NULL &&
-	    i < (sizeof(ua_quirks) / sizeof(ua_quirks[0])); i++) {
+	flags = pcm_getflags(dev);
+	for (i = 0; i < (sizeof(ua_quirks) / sizeof(ua_quirks[0])); i++) {
 		if (ua->vendor == ua_quirks[i].vendor &&
 		    ua->product == ua_quirks[i].product &&
 		    ua->release == ua_quirks[i].release)
-			d->flags |= ua_quirks[i].dflags;
+			flags |= ua_quirks[i].dflags;
 	}
+	pcm_setflags(dev, flags);
 
 #ifndef NO_RECORDING
 	if (pcm_register(dev, ua, nplay, nrec)) {
