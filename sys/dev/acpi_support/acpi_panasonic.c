@@ -79,6 +79,7 @@ typedef int hkey_fn_t(ACPI_HANDLE, int, UINT32 *);
 static int	acpi_panasonic_probe(device_t dev);
 static int	acpi_panasonic_attach(device_t dev);
 static int	acpi_panasonic_detach(device_t dev);
+static void	acpi_panasonic_shutdown(device_t dev);
 static int	acpi_panasonic_sysctl(SYSCTL_HANDLER_ARGS);
 static ACPI_INTEGER acpi_panasonic_sinf(ACPI_HANDLE h, ACPI_INTEGER index);
 static void	acpi_panasonic_sset(ACPI_HANDLE h, ACPI_INTEGER index,
@@ -114,6 +115,7 @@ static device_method_t acpi_panasonic_methods[] = {
 	DEVMETHOD(device_probe,		acpi_panasonic_probe),
 	DEVMETHOD(device_attach,	acpi_panasonic_attach),
 	DEVMETHOD(device_detach,	acpi_panasonic_detach),
+	DEVMETHOD(device_shutdown,	acpi_panasonic_shutdown),
 
 	{0, 0}
 };
@@ -181,7 +183,7 @@ acpi_panasonic_attach(device_t dev)
 	}
 #endif
 
-        /* Handle notifies */
+	/* Handle notifies */
 	status = AcpiInstallNotifyHandler(sc->handle, ACPI_DEVICE_NOTIFY,
 	    acpi_panasonic_notify, sc);
 	if (ACPI_FAILURE(status)) {
@@ -218,6 +220,18 @@ acpi_panasonic_detach(device_t dev)
 	return (0);
 }
 
+static void
+acpi_panasonic_shutdown(device_t dev)
+{
+	struct acpi_panasonic_softc *sc;
+	int mute;
+
+	/* Mute the main audio during reboot to prevent static burst to speaker. */
+	sc = device_get_softc(dev);
+	mute = 1;
+	hkey_sound_mute(sc->handle, HKEY_SET, &mute);
+}
+
 static int
 acpi_panasonic_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -230,7 +244,7 @@ acpi_panasonic_sysctl(SYSCTL_HANDLER_ARGS)
 	function = oidp->oid_arg2;
 	handler = sysctl_table[function].handler;
 
-        /* Get the current value from the appropriate function. */
+	/* Get the current value from the appropriate function. */
 	ACPI_SERIAL_BEGIN(panasonic);
 	error = handler(sc->handle, HKEY_GET, &arg);
 	if (error != 0)
