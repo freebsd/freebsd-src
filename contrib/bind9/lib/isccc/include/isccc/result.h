@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001, 2003  Internet Software Consortium.
  * Portions Copyright (C) 2001  Nominum, Inc.
  *
@@ -16,10 +16,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.h,v 1.3.2.2.2.1 2004/03/06 08:15:22 marka Exp $ */
+/* $Id: result.h,v 1.5.18.2 2005/04/29 00:17:14 marka Exp $ */
 
 #ifndef ISCCC_RESULT_H
 #define ISCCC_RESULT_H 1
+
+/*! \file */
 
 #include <isc/lang.h>
 #include <isc/resultclass.h>
@@ -27,20 +29,26 @@
 
 #include <isccc/types.h>
 
+/*% Unknown Version */
 #define ISCCC_R_UNKNOWNVERSION		(ISC_RESULTCLASS_ISCCC + 0)
+/*% Syntax Error */
 #define ISCCC_R_SYNTAX			(ISC_RESULTCLASS_ISCCC + 1)
+/*% Bad Authorization */
 #define ISCCC_R_BADAUTH			(ISC_RESULTCLASS_ISCCC + 2)
+/*% Expired */
 #define ISCCC_R_EXPIRED			(ISC_RESULTCLASS_ISCCC + 3)
+/*% Clock Skew */
 #define ISCCC_R_CLOCKSKEW		(ISC_RESULTCLASS_ISCCC + 4)
+/*% Duplicate */
 #define ISCCC_R_DUPLICATE		(ISC_RESULTCLASS_ISCCC + 5)
 
-#define ISCCC_R_NRESULTS 		6	/* Number of results */
+#define ISCCC_R_NRESULTS 		6	/*%< Number of results */
 
 ISC_LANG_BEGINDECLS
 
 const char *
 isccc_result_totext(isc_result_t result);
-/*
+/*%
  * Convert a isccc_result_t into a string message describing the result.
  */
 

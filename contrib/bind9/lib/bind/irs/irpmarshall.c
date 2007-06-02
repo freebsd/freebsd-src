@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: irpmarshall.c,v 1.3.206.4 2006/03/10 00:17:21 marka Exp $";
+static const char rcsid[] = "$Id: irpmarshall.c,v 1.5.18.2 2006/03/10 00:20:08 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #if 0
@@ -118,15 +118,14 @@ static const char *COLONSTR = ":";
 #ifdef WANT_IRS_PW
 /* +++++++++++++++++++++++++ struct passwd +++++++++++++++++++++++++ */
 
-
-/*
+/*%
  * int irp_marshall_pw(const struct passwd *pw, char **buffer, size_t *len)
  *
- * notes:
+ * notes: \li
  *
- *	See above
+ *	See irpmarshall.h
  *
- * return:
+ * return: \li
  *
  *	0 on sucess, -1 on failure.
  *
@@ -134,7 +133,7 @@ static const char *COLONSTR = ":";
 
 int
 irp_marshall_pw(const struct passwd *pw, char **buffer, size_t *len) {
-	size_t need = 1 ;		/* for null byte */
+	size_t need = 1 ;		/*%< for null byte */
 	char pwUid[24];
 	char pwGid[24];
 	char pwChange[24];
@@ -170,7 +169,7 @@ irp_marshall_pw(const struct passwd *pw, char **buffer, size_t *len) {
 	pwClass = "";
 #endif
 
-	need += strlen(pw->pw_name)	+ 1; /* one for fieldsep */
+	need += strlen(pw->pw_name)	+ 1; /*%< one for fieldsep */
 	need += strlen(pw->pw_passwd)	+ 1;
 	need += strlen(pwUid)		+ 1;
 	need += strlen(pwGid)		+ 1;
@@ -192,7 +191,7 @@ irp_marshall_pw(const struct passwd *pw, char **buffer, size_t *len) {
 	}
 
 	if (*buffer == NULL) {
-		need += 2;		/* for CRLF */
+		need += 2;		/*%< for CRLF */
 		*buffer = memget(need);
 		if (*buffer == NULL) {
 			errno = ENOMEM;
@@ -216,18 +215,14 @@ irp_marshall_pw(const struct passwd *pw, char **buffer, size_t *len) {
 	return (0);
 }
 
-
-
-
-
-/*
+/*%
  * int irp_unmarshall_pw(struct passwd *pw, char *buffer)
  *
- * notes:
+ * notes: \li
  *
- *	see above
+ *	See irpmarshall.h
  *
- * return:
+ * return: \li
  *
  *	0 on success, -1 on failure
  *
@@ -258,7 +253,7 @@ irp_unmarshall_pw(struct passwd *pw, char *buffer) {
 
 	/* pw_passwd field */
 	pass = NULL;
-	if (getfield(&pass, 0, &p, fieldsep) == NULL) { /* field can be empty */
+	if (getfield(&pass, 0, &p, fieldsep) == NULL) { /*%< field can be empty */
 		goto error;
 	}
 
@@ -271,10 +266,10 @@ irp_unmarshall_pw(struct passwd *pw, char *buffer) {
 	}
 	t = strtol(tmpbuf, &tb, 10);
 	if (*tb) {
-		goto error;	/* junk in value */
+		goto error;	/*%< junk in value */
 	}
 	pwuid = (uid_t)t;
-	if ((long) pwuid != t) {	/* value must have been too big. */
+	if ((long) pwuid != t) {	/*%< value must have been too big. */
 		goto error;
 	}
 
@@ -288,10 +283,10 @@ irp_unmarshall_pw(struct passwd *pw, char *buffer) {
 	}
 	t = strtol(tmpbuf, &tb, 10);
 	if (*tb) {
-		goto error;	/* junk in value */
+		goto error;	/*%< junk in value */
 	}
 	pwgid = (gid_t)t;
-	if ((long)pwgid != t) {	/* value must have been too big. */
+	if ((long)pwgid != t) {	/*%< value must have been too big. */
 		goto error;
 	}
 
@@ -313,10 +308,10 @@ irp_unmarshall_pw(struct passwd *pw, char *buffer) {
 	}
 	t = strtol(tmpbuf, &tb, 10);
 	if (*tb) {
-		goto error;	/* junk in value */
+		goto error;	/*%< junk in value */
 	}
 	pwchange = (time_t)t;
-	if ((long)pwchange != t) {	/* value must have been too big. */
+	if ((long)pwchange != t) {	/*%< value must have been too big. */
 		goto error;
 	}
 
@@ -330,10 +325,10 @@ irp_unmarshall_pw(struct passwd *pw, char *buffer) {
 	}
 	t = strtol(tmpbuf, &tb, 10);
 	if (*tb) {
-		goto error;	/* junk in value */
+		goto error;	/*%< junk in value */
 	}
 	pwexpire = (time_t)t;
-	if ((long) pwexpire != t) {	/* value must have been too big. */
+	if ((long) pwexpire != t) {	/*%< value must have been too big. */
 		goto error;
 	}
 
@@ -397,28 +392,23 @@ irp_unmarshall_pw(struct passwd *pw, char *buffer) {
 
 /* ------------------------- struct passwd ------------------------- */
 #endif /* WANT_IRS_PW */
-
-
-
 /* +++++++++++++++++++++++++ struct group +++++++++++++++++++++++++ */
 
-
-
-/*
+/*%
  * int irp_marshall_gr(const struct group *gr, char **buffer, size_t *len)
  *
- * notes:
+ * notes: \li
  *
- *	see above.
+ *	See irpmarshall.h.
  *
- * return:
+ * return: \li
  *
  *	0 on success, -1 on failure
  */
 
 int
 irp_marshall_gr(const struct group *gr, char **buffer, size_t *len) {
-	size_t need = 1;	/* for null byte */
+	size_t need = 1;	/*%< for null byte */
 	char grGid[24];
 	const char *fieldsep = COLONSTR;
 
@@ -449,7 +439,7 @@ irp_marshall_gr(const struct group *gr, char **buffer, size_t *len) {
 	}
 
 	if (*buffer == NULL) {
-		need += 2;		/* for CRLF */
+		need += 2;		/*%< for CRLF */
 		*buffer = memget(need);
 		if (*buffer == NULL) {
 			errno = ENOMEM;
@@ -470,17 +460,14 @@ irp_marshall_gr(const struct group *gr, char **buffer, size_t *len) {
 	return (0);
 }
 
-
-
-
-/*
+/*%
  * int irp_unmarshall_gr(struct group *gr, char *buffer)
  *
- * notes:
+ * notes: \li
  *
- *	see above
+ *	See irpmarshall.h
  *
- * return:
+ * return: \li
  *
  *	0 on success and -1 on failure.
  *
@@ -528,10 +515,10 @@ irp_unmarshall_gr(struct group *gr, char *buffer) {
 	}
 	t = strtol(tmpbuf, &tb, 10);
 	if (*tb) {
-		goto error;	/* junk in value */
+		goto error;	/*%< junk in value */
 	}
 	grgid = (gid_t)t;
-	if ((long) grgid != t) {	/* value must have been too big. */
+	if ((long) grgid != t) {	/*%< value must have been too big. */
 		goto error;
 	}
 
@@ -575,16 +562,14 @@ irp_unmarshall_gr(struct group *gr, char *buffer) {
 
 /* +++++++++++++++++++++++++ struct servent +++++++++++++++++++++++++ */
 
-
-
-/*
+/*%
  * int irp_marshall_sv(const struct servent *sv, char **buffer, size_t *len)
  *
- * notes:
+ * notes: \li
  *
- *	see above
+ *	See irpmarshall.h
  *
- * return:
+ * return: \li
  *
  *	0 on success, -1 on failure.
  *
@@ -592,7 +577,7 @@ irp_unmarshall_gr(struct group *gr, char *buffer) {
 
 int
 irp_marshall_sv(const struct servent *sv, char **buffer, size_t *len) {
-	size_t need = 1;	/* for null byte */
+	size_t need = 1;	/*%< for null byte */
 	char svPort[24];
 	const char *fieldsep = COLONSTR;
 	short realport;
@@ -623,7 +608,7 @@ irp_marshall_sv(const struct servent *sv, char **buffer, size_t *len) {
 	}
 
 	if (*buffer == NULL) {
-		need += 2;		/* for CRLF */
+		need += 2;		/*%< for CRLF */
 		*buffer = memget(need);
 		if (*buffer == NULL) {
 			errno = ENOMEM;
@@ -641,18 +626,14 @@ irp_marshall_sv(const struct servent *sv, char **buffer, size_t *len) {
 	return (0);
 }
 
-
-
-
-
-/*
+/*%
  * int irp_unmarshall_sv(struct servent *sv, char *buffer)
  *
- * notes:
+ * notes: \li
  *
- *	see above
+ *	See irpmarshall.h
  *
- * return:
+ * return: \li
  *
  *	0 on success, -1 on failure.
  *
@@ -705,10 +686,10 @@ irp_unmarshall_sv(struct servent *sv, char *buffer) {
 	}
 	t = strtol(tmpbuf, &tb, 10);
 	if (*tb) {
-		goto error;	/* junk in value */
+		goto error;	/*%< junk in value */
 	}
 	svport = (short)t;
-	if ((long) svport != t) {	/* value must have been too big. */
+	if ((long) svport != t) {	/*%< value must have been too big. */
 		goto error;
 	}
 	svport = htons(svport);
@@ -741,16 +722,14 @@ irp_unmarshall_sv(struct servent *sv, char *buffer) {
 
 /* +++++++++++++++++++++++++ struct protoent +++++++++++++++++++++++++ */
 
-
-
-/*
+/*%
  * int irp_marshall_pr(struct protoent *pr, char **buffer, size_t *len)
  *
- * notes:
+ * notes: \li
  *
- *	see above
+ *	See irpmarshall.h
  *
- * return:
+ * return: \li
  *
  *	0 on success and -1 on failure.
  *
@@ -758,7 +737,7 @@ irp_unmarshall_sv(struct servent *sv, char *buffer) {
 
 int
 irp_marshall_pr(struct protoent *pr, char **buffer, size_t *len) {
-	size_t need = 1;	/* for null byte */
+	size_t need = 1;	/*%< for null byte */
 	char prProto[24];
 	const char *fieldsep = COLONSTR;
 
@@ -784,7 +763,7 @@ irp_marshall_pr(struct protoent *pr, char **buffer, size_t *len) {
 	}
 
 	if (*buffer == NULL) {
-		need += 2;		/* for CRLF */
+		need += 2;		/*%< for CRLF */
 		*buffer = memget(need);
 		if (*buffer == NULL) {
 			errno = ENOMEM;
@@ -802,16 +781,14 @@ irp_marshall_pr(struct protoent *pr, char **buffer, size_t *len) {
 
 }
 
-
-
-/*
+/*%
  * int irp_unmarshall_pr(struct protoent *pr, char *buffer)
  *
- * notes:
+ * notes: \li
  *
- *	See above
+ *	See irpmarshall.h
  *
- * return:
+ * return: \li
  *
  *	0 on success, -1 on failure
  *
@@ -863,10 +840,10 @@ int irp_unmarshall_pr(struct protoent *pr, char *buffer) {
 	}
 	t = strtol(tmpbuf, &tb, 10);
 	if (*tb) {
-		goto error;	/* junk in value */
+		goto error;	/*%< junk in value */
 	}
 	prproto = (int)t;
-	if ((long) prproto != t) {	/* value must have been too big. */
+	if ((long) prproto != t) {	/*%< value must have been too big. */
 		goto error;
 	}
 
@@ -891,15 +868,14 @@ int irp_unmarshall_pr(struct protoent *pr, char *buffer) {
 
 /* +++++++++++++++++++++++++ struct hostent +++++++++++++++++++++++++ */
 
-
-/*
+/*%
  * int irp_marshall_ho(struct hostent *ho, char **buffer, size_t *len)
  *
- * notes:
+ * notes: \li
  *
- *	see above.
+ *	See irpmarshall.h.
  *
- * return:
+ * return: \li
  *
  *	0 on success, -1 on failure.
  *
@@ -907,7 +883,7 @@ int irp_unmarshall_pr(struct protoent *pr, char *buffer) {
 
 int
 irp_marshall_ho(struct hostent *ho, char **buffer, size_t *len) {
-	size_t need = 1;	/* for null byte */
+	size_t need = 1;	/*%< for null byte */
 	char hoaddrtype[24];
 	char holength[24];
 	char **av;
@@ -945,7 +921,7 @@ irp_marshall_ho(struct hostent *ho, char **buffer, size_t *len) {
 
 	/* we determine an upper bound on the string length needed, not an
 	   exact length. */
-	addrlen = (ho->h_addrtype == AF_INET ? 16 : 46) ; /* XX other AF's?? */
+	addrlen = (ho->h_addrtype == AF_INET ? 16 : 46) ; /*%< XX other AF's?? */
 	for (av = ho->h_addr_list; av != NULL && *av != NULL ; av++)
 		need += addrlen;
 
@@ -960,7 +936,7 @@ irp_marshall_ho(struct hostent *ho, char **buffer, size_t *len) {
 	}
 
 	if (*buffer == NULL) {
-		need += 2;		/* for CRLF */
+		need += 2;		/*%< for CRLF */
 		*buffer = memget(need);
 		if (*buffer == NULL) {
 			errno = ENOMEM;
@@ -999,16 +975,14 @@ irp_marshall_ho(struct hostent *ho, char **buffer, size_t *len) {
 	return (-1);
 }
 
-
-
-/*
+/*%
  * int irp_unmarshall_ho(struct hostent *ho, char *buffer)
  *
- * notes:
+ * notes: \li
  *
- *	See above.
+ *	See irpmarshall.h.
  *
- * return:
+ * return: \li
  *
  *	0 on success, -1 on failure.
  *
@@ -1080,10 +1054,10 @@ irp_unmarshall_ho(struct hostent *ho, char *buffer) {
 	}
 	t = strtol(tmpbuf, &tb, 10);
 	if (*tb) {
-		goto error;	/* junk in value */
+		goto error;	/*%< junk in value */
 	}
 	holength = (int)t;
-	if ((long) holength != t) {	/* value must have been too big. */
+	if ((long) holength != t) {	/*%< value must have been too big. */
 		goto error;
 	}
 
@@ -1155,16 +1129,15 @@ irp_unmarshall_ho(struct hostent *ho, char *buffer) {
 
 /* +++++++++++++++++++++++++ struct netgrp +++++++++++++++++++++++++ */
 
-
-/*
+/*%
  * int irp_marshall_ng(const char *host, const char *user,
  *		       const char *domain, char *buffer, size_t *len)
  *
- * notes:
+ * notes: \li
  *
  *	See note for irp_marshall_ng_start
  *
- * return:
+ * return: \li
  *
  *	0 on success, 0 on failure.
  *
@@ -1173,7 +1146,7 @@ irp_unmarshall_ho(struct hostent *ho, char *buffer) {
 int
 irp_marshall_ng(const char *host, const char *user, const char *domain,
 		char **buffer, size_t *len) {
-	size_t need = 1; /* for nul byte */
+	size_t need = 1; /*%< for nul byte */
 	const char *fieldsep = ",";
 
 	if (len == NULL) {
@@ -1181,7 +1154,7 @@ irp_marshall_ng(const char *host, const char *user, const char *domain,
 		return (-1);
 	}
 
-	need += 4;		       /* two parens and two commas */
+	need += 4;		       /*%< two parens and two commas */
 	need += (host == NULL ? 0 : strlen(host));
 	need += (user == NULL ? 0 : strlen(user));
 	need += (domain == NULL ? 0 : strlen(domain));
@@ -1195,7 +1168,7 @@ irp_marshall_ng(const char *host, const char *user, const char *domain,
 	}
 
 	if (*buffer == NULL) {
-		need += 2;		/* for CRLF */
+		need += 2;		/*%< for CRLF */
 		*buffer = memget(need);
 		if (*buffer == NULL) {
 			errno = ENOMEM;
@@ -1227,18 +1200,17 @@ irp_marshall_ng(const char *host, const char *user, const char *domain,
 
 /* ---------- */
 
-
-/*
+/*%
  * int irp_unmarshall_ng(const char **host, const char **user,
  *			 const char **domain, char *buffer)
  *
- * notes:
+ * notes: \li
  *
  *	Unpacks the BUFFER into 3 character arrays it allocates and assigns
  *	to *HOST, *USER and *DOMAIN. If any field of the value is empty,
  *	then the corresponding paramater value will be set to NULL.
  *
- * return:
+ * return: \li
  *
  *	0 on success and -1 on failure.
  */
@@ -1325,15 +1297,14 @@ irp_unmarshall_ng(const char **hostp, const char **userp, const char **domainp,
 
 /* +++++++++++++++++++++++++ struct nwent +++++++++++++++++++++++++ */
 
-
-/*
+/*%
  * int irp_marshall_nw(struct nwent *ne, char **buffer, size_t *len)
  *
- * notes:
+ * notes: \li
  *
  *	See at top.
  *
- * return:
+ * return: \li
  *
  *	0 on success and -1 on failure.
  *
@@ -1341,7 +1312,7 @@ irp_unmarshall_ng(const char **hostp, const char **userp, const char **domainp,
 
 int
 irp_marshall_nw(struct nwent *ne, char **buffer, size_t *len) {
-	size_t need = 1;	/* for null byte */
+	size_t need = 1;	/*%< for null byte */
 	char nAddrType[24];
 	char nNet[MAXPADDRSIZE];
 	const char *fieldsep = COLONSTR;
@@ -1374,7 +1345,7 @@ irp_marshall_nw(struct nwent *ne, char **buffer, size_t *len) {
 	}
 
 	if (*buffer == NULL) {
-		need += 2;		/* for CRLF */
+		need += 2;		/*%< for CRLF */
 		*buffer = memget(need);
 		if (*buffer == NULL) {
 			errno = ENOMEM;
@@ -1392,16 +1363,14 @@ irp_marshall_nw(struct nwent *ne, char **buffer, size_t *len) {
 	return (0);
 }
 
-
-
-/*
+/*%
  * int irp_unmarshall_nw(struct nwent *ne, char *buffer)
  *
- * notes:
+ * notes: \li
  *
  *	See note up top.
  *
- * return:
+ * return: \li
  *
  *	0 on success and -1 on failure.
  *
@@ -1502,15 +1471,14 @@ irp_unmarshall_nw(struct nwent *ne, char *buffer) {
 
 /* +++++++++++++++++++++++++ struct netent +++++++++++++++++++++++++ */
 
-
-/*
+/*%
  * int irp_marshall_ne(struct netent *ne, char **buffer, size_t *len)
  *
- * notes:
+ * notes: \li
  *
  *	See at top.
  *
- * return:
+ * return: \li
  *
  *	0 on success and -1 on failure.
  *
@@ -1518,7 +1486,7 @@ irp_unmarshall_nw(struct nwent *ne, char *buffer) {
 
 int
 irp_marshall_ne(struct netent *ne, char **buffer, size_t *len) {
-	size_t need = 1;	/* for null byte */
+	size_t need = 1;	/*%< for null byte */
 	char nAddrType[24];
 	char nNet[MAXPADDRSIZE];
 	const char *fieldsep = COLONSTR;
@@ -1551,7 +1519,7 @@ irp_marshall_ne(struct netent *ne, char **buffer, size_t *len) {
 	}
 
 	if (*buffer == NULL) {
-		need += 2;		/* for CRLF */
+		need += 2;		/*%< for CRLF */
 		*buffer = memget(need);
 		if (*buffer == NULL) {
 			errno = ENOMEM;
@@ -1569,16 +1537,14 @@ irp_marshall_ne(struct netent *ne, char **buffer, size_t *len) {
 	return (0);
 }
 
-
-
-/*
+/*%
  * int irp_unmarshall_ne(struct netent *ne, char *buffer)
  *
- * notes:
+ * notes: \li
  *
  *	See note up top.
  *
- * return:
+ * return: \li
  *
  *	0 on success and -1 on failure.
  *
@@ -1671,11 +1637,10 @@ irp_unmarshall_ne(struct netent *ne, char *buffer) {
 
 /* =========================================================================== */
 
-
-/*
+/*%
  * static char ** splitarray(const char *buffer, const char *buffend, char delim)
  *
- * notes:
+ * notes: \li
  *
  *	Split a delim separated astring. Not allowed
  *	to have two delims next to each other. BUFFER points to begining of
@@ -1683,7 +1648,7 @@ irp_unmarshall_ne(struct netent *ne, char *buffer) {
  *	(i.e. points at where the null byte would be if null
  *	terminated).
  *
- * return:
+ * return: \li
  *
  *	Returns a malloced array of pointers, each pointer pointing to a
  *	malloced string. If BUFEER is an empty string, then return values is
@@ -1719,7 +1684,7 @@ splitarray(const char *buffer, const char *buffend, char delim) {
 	}
 
 	if (count > 0) {
-		count++ ;		/* for NULL at end */
+		count++ ;		/*%< for NULL at end */
 		aptr = arr = malloc(count * sizeof (char *));
 		if (aptr == NULL) {
 			 errno = ENOMEM;
@@ -1749,13 +1714,10 @@ splitarray(const char *buffer, const char *buffend, char delim) {
 	return (arr);
 }
 
-
-
-
-/*
+/*%
  * static size_t joinlength(char * const *argv)
  *
- * return:
+ * return: \li
  *
  *	the number of bytes in all the arrays pointed at
  *	by argv, including their null bytes(which will usually be turned
@@ -1776,18 +1738,16 @@ joinlength(char * const *argv) {
 	return (len);
 }
 
-
-
-/*
+/*%
  * int joinarray(char * const *argv, char *buffer, char delim)
  *
- * notes:
+ * notes: \li
  *
  *	Copy all the ARGV strings into the end of BUFFER
  *	separating them with DELIM.  BUFFER is assumed to have
  *	enough space to hold everything and to be already null-terminated.
  *
- * return:
+ * return: \li
  *
  *	0 unless argv or buffer is NULL.
  *
@@ -1817,11 +1777,10 @@ joinarray(char * const *argv, char *buffer, char delim) {
 	return (0);
 }
 
-
-/*
+/*%
  * static char * getfield(char **res, size_t reslen, char **ptr, char delim)
  *
- * notes:
+ * notes: \li
  *
  *	Stores in *RES, which is a buffer of length RESLEN, a
  *	copy of the bytes from *PTR up to and including the first
@@ -1829,7 +1788,7 @@ joinarray(char * const *argv, char *buffer, char delim) {
  *	assigned a malloced buffer to hold the copy. *PTR is
  *	modified to point at the found delimiter.
  *
- * return:
+ * return: \li
  *
  *	If there was no delimiter, then NULL is returned,
  *	otherewise *RES is returned.
@@ -1854,7 +1813,7 @@ getfield(char **res, size_t reslen, char **ptr, char delim) {
 		if (*res == NULL) {
 			*res = strndup(*ptr, q - *ptr);
 		} else {
-			if ((size_t)(q - *ptr + 1) > reslen) { /* to big for res */
+			if ((size_t)(q - *ptr + 1) > reslen) { /*%< to big for res */
 				errno = EINVAL;
 				return (NULL);
 			} else {
@@ -1876,12 +1835,12 @@ getfield(char **res, size_t reslen, char **ptr, char delim) {
 /*
  * static char * strndup(const char *str, size_t len)
  *
- * notes:
+ * notes: \li
  *
  *	like strdup, except do len bytes instead of the whole string. Always
  *	null-terminates.
  *
- * return:
+ * return: \li
  *
  *	The newly malloced string.
  *
@@ -1901,14 +1860,14 @@ strndup(const char *str, size_t len) {
 
 #if WANT_MAIN
 
-/*
+/*%
  * static int strcmp_nws(const char *a, const char *b)
  *
- * notes:
+ * notes: \li
  *
  *	do a strcmp, except uneven lengths of whitespace compare the same
  *
- * return:
+ * return: \li
  *
  */
 
@@ -1942,14 +1901,10 @@ strcmp_nws(const char *a, const char *b) {
 
 #endif
 
-
-
-
-
-/*
+/*%
  * static void free_array(char **argv, size_t entries)
  *
- * notes:
+ * notes: \li
  *
  *	Free argv and each of the pointers inside it. The end of
  *	the array is when a NULL pointer is found inside. If
@@ -1984,7 +1939,7 @@ free_array(char **argv, size_t entries) {
 
 #if WANT_MAIN
 
-/* takes an option to indicate what sort of marshalling(read the code) and
+/*% takes an option to indicate what sort of marshalling(read the code) and
    an argument. If the argument looks like a marshalled buffer(has a ':'
    embedded) then it's unmarshalled and the remarshalled and the new string
    is compared to the old one.
@@ -2342,3 +2297,5 @@ main(int argc, char **argv) {
 }
 
 #endif
+
+/*! \file */

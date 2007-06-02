@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: once.h,v 1.8.206.1 2004/03/06 08:14:57 marka Exp $ */
+/* $Id: once.h,v 1.9.18.2 2005/04/29 00:17:06 marka Exp $ */
 
 #ifndef ISC_ONCE_H
 #define ISC_ONCE_H 1
+
+/*! \file */
 
 #include <pthread.h>
 
@@ -28,12 +30,12 @@
 typedef pthread_once_t isc_once_t;
 
 #ifdef ISC_PLATFORM_BRACEPTHREADONCEINIT
-/*
+/*!
  * This accomodates systems that define PTHRAD_ONCE_INIT improperly.
  */
 #define ISC_ONCE_INIT { PTHREAD_ONCE_INIT }
 #else
-/*
+/*!
  * This is the usual case.
  */
 #define ISC_ONCE_INIT PTHREAD_ONCE_INIT

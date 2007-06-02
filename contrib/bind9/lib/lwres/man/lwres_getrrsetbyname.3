@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_getrrsetbyname.3,v 1.11.2.1.8.6 2006/06/29 13:02:31 marka Exp $
+.\" $Id: lwres_getrrsetbyname.3,v 1.14.18.11 2007/01/30 00:23:45 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: lwres_getrrsetbyname
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Oct 18, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -36,18 +36,24 @@ lwres_getrrsetbyname, lwres_freerrset \- retrieve DNS records
 #include <lwres/netdb.h>
 .fi
 .HP 25
-.BI "int lwres_getrrsetbyname(const\ char\ *hostname, unsigned\ int\ rdclass, unsigned\ int\ rdtype, unsigned\ int\ flags, struct\ rrsetinfo\ **res);"
+.BI "int lwres_getrrsetbyname(const\ char\ *" "hostname" ", unsigned\ int\ " "rdclass" ", unsigned\ int\ " "rdtype" ", unsigned\ int\ " "flags" ", struct\ rrsetinfo\ **" "res" ");"
 .HP 21
-.BI "void lwres_freerrset(struct\ rrsetinfo\ *rrset);"
+.BI "void lwres_freerrset(struct\ rrsetinfo\ *" "rrset" ");"
 .PP
 The following structures are used:
-.sp
-.RS 3n
+.PP
+.RS 4
 .nf
 struct  rdatainfo {
         unsigned int            rdi_length;     /* length of data */
         unsigned char           *rdi_data;      /* record data */
 };
+.fi
+.RE
+.sp
+.PP
+.RS 4
+.nf
 struct  rrsetinfo {
         unsigned int            rri_flags;      /* RRSET_VALIDATED... */
         unsigned int            rri_rdclass;    /* class number */
@@ -120,24 +126,39 @@ created by a call to
 .PP
 \fBlwres_getrrsetbyname()\fR
 returns zero on success, and one of the following error codes if an error occurred:
-.TP 3n
+.PP
 \fBERRSET_NONAME\fR
+.RS 4
 the name does not exist
-.TP 3n
+.RE
+.PP
 \fBERRSET_NODATA\fR
+.RS 4
 the name exists, but does not have data of the desired type
-.TP 3n
+.RE
+.PP
 \fBERRSET_NOMEMORY\fR
+.RS 4
 memory could not be allocated
-.TP 3n
+.RE
+.PP
 \fBERRSET_INVAL\fR
+.RS 4
 a parameter is invalid
-.TP 3n
+.RE
+.PP
 \fBERRSET_FAIL\fR
+.RS 4
 other failure
-.TP 3n
+.RE
+.PP
+.RS 4
+.RE
 .SH "SEE ALSO"
 .PP
 \fBlwres\fR(3).
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001 Internet Software Consortium.
+.br

@@ -1,4 +1,4 @@
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.32.2.3.8.8 2004/07/20 07:01:50 marka Exp $
+# $Id: Makefile.in,v 1.40.18.3 2007/01/19 00:55:49 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -46,6 +46,8 @@ RNDCDEPLIBS =	${ISCCFGDEPLIBS} ${ISCCCDEPLIBS} ${BIND9DEPLIBS} ${DNSDEPLIBS} ${I
 
 CONFLIBS =	${DNSLIBS} ${ISCLIBS} @LIBS@
 CONFDEPLIBS =	${DNSDEPLIBS} ${ISCDEPLIBS}
+
+SRCS=		rndc.c rndc-confgen.c
 
 SUBDIRS =	unix
 

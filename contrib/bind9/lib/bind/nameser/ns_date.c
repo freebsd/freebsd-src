@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_date.c,v 1.3.206.2 2004/03/16 12:34:16 marka Exp $";
+static const char rcsid[] = "$Id: ns_date.c,v 1.5.18.1 2005/04/27 05:01:08 sra Exp $";
 #endif
 
 /* Import. */
@@ -45,9 +45,11 @@ static int	datepart(const char *, int, int, int, int *);
 
 /* Public. */
 
-/* Convert a date in ASCII into the number of seconds since
-   1 January 1970 (GMT assumed).  Format is yyyymmddhhmmss, all
-   digits required, no spaces allowed.  */
+/*%
+ * Convert a date in ASCII into the number of seconds since
+ * 1 January 1970 (GMT assumed).  Format is yyyymmddhhmmss, all
+ * digits required, no spaces allowed.
+ */
 
 u_int32_t
 ns_datetosecs(const char *cp, int *errp) {
@@ -70,7 +72,7 @@ ns_datetosecs(const char *cp, int *errp) {
 	time.tm_hour  = datepart(cp +  8, 2,   00,   23, errp);
 	time.tm_min   = datepart(cp + 10, 2,   00,   59, errp);
 	time.tm_sec   = datepart(cp + 12, 2,   00,   59, errp);
-	if (*errp)		/* Any parse errors? */
+	if (*errp)		/*%< Any parse errors? */
 		return (0);
 
 	/* 
@@ -81,32 +83,29 @@ ns_datetosecs(const char *cp, int *errp) {
 #define SECS_PER_DAY    ((u_int32_t)24*60*60)
 #define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 
-	result  = time.tm_sec;				/* Seconds */
-	result += time.tm_min * 60;			/* Minutes */
-	result += time.tm_hour * (60*60);		/* Hours */
-	result += (time.tm_mday - 1) * SECS_PER_DAY;	/* Days */
-
+	result  = time.tm_sec;				/*%< Seconds */
+	result += time.tm_min * 60;			/*%< Minutes */
+	result += time.tm_hour * (60*60);		/*%< Hours */
+	result += (time.tm_mday - 1) * SECS_PER_DAY;	/*%< Days */
 	/* Months are trickier.  Look without leaping, then leap */
 	mdays = 0;
 	for (i = 0; i < time.tm_mon; i++)
 		mdays += days_per_month[i];
-	result += mdays * SECS_PER_DAY;			/* Months */
+	result += mdays * SECS_PER_DAY;			/*%< Months */
 	if (time.tm_mon > 1 && isleap(1900+time.tm_year))
-		result += SECS_PER_DAY;		/* Add leapday for this year */
-
+		result += SECS_PER_DAY;		/*%< Add leapday for this year */
 	/* First figure years without leapdays, then add them in.  */
 	/* The loop is slow, FIXME, but simple and accurate.  */
-	result += (time.tm_year - 70) * (SECS_PER_DAY*365); /* Years */
+	result += (time.tm_year - 70) * (SECS_PER_DAY*365); /*%< Years */
 	for (i = 70; i < time.tm_year; i++)
 		if (isleap(1900+i))
-			result += SECS_PER_DAY; /* Add leapday for prev year */
-
+			result += SECS_PER_DAY; /*%< Add leapday for prev year */
 	return (result);
 }
 
 /* Private. */
 
-/*
+/*%
  * Parse part of a date.  Set error flag if any error.
  * Don't reset the flag if there is no error.
  */
@@ -126,3 +125,5 @@ datepart(const char *buf, int size, int min, int max, int *errp) {
 		*errp = 1;
 	return (result);
 }
+
+/*! \file */

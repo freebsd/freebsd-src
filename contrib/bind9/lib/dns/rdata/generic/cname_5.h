@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cname_5.h,v 1.23.206.1 2004/03/06 08:14:04 marka Exp $ */
+/* $Id: cname_5.h,v 1.24 2004/03/05 05:10:10 marka Exp $ */
 
 #ifndef GENERIC_CNAME_5_H
 #define GENERIC_CNAME_5_H 1

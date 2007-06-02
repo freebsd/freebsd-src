@@ -1,8 +1,8 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
@@ -18,9 +18,8 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: rndc.docbook,v 1.7.206.4 2005/05/12 21:36:05 sra Exp $ -->
-
-<refentry>
+<!-- $Id: rndc.docbook,v 1.8.18.8 2007/01/29 23:57:20 marka Exp $ -->
+<refentry id="man.rndc">
   <refentryinfo>
     <date>June 30, 2000</date>
   </refentryinfo>
@@ -31,10 +30,16 @@
     <refmiscinfo>BIND9</refmiscinfo>
   </refmeta>
 
+  <refnamediv>
+    <refname><application>rndc</application></refname>
+    <refpurpose>name server control utility</refpurpose>
+  </refnamediv>
+
   <docinfo>
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2007</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -44,14 +49,10 @@
     </copyright>
   </docinfo>
 
-  <refnamediv>
-    <refname><application>rndc</application></refname>
-    <refpurpose>name server control utility</refpurpose>
-  </refnamediv>
-
   <refsynopsisdiv>
     <cmdsynopsis>
       <command>rndc</command>
+      <arg><option>-b <replaceable class="parameter">source-address</replaceable></option></arg>
       <arg><option>-c <replaceable class="parameter">config-file</replaceable></option></arg>
       <arg><option>-k <replaceable class="parameter">key-file</replaceable></option></arg>
       <arg><option>-s <replaceable class="parameter">server</replaceable></option></arg>
@@ -64,31 +65,31 @@
 
   <refsect1>
     <title>DESCRIPTION</title>
-    <para>
-        <command>rndc</command> controls the operation of a name
-	server.  It supersedes the <command>ndc</command> utility
-	that was provided in old BIND releases.  If
-	<command>rndc</command> is invoked with no command line
-	options or arguments, it prints a short summary of the
-	supported commands and the available options and their
-	arguments.
+    <para><command>rndc</command>
+      controls the operation of a name
+      server.  It supersedes the <command>ndc</command> utility
+      that was provided in old BIND releases.  If
+      <command>rndc</command> is invoked with no command line
+      options or arguments, it prints a short summary of the
+      supported commands and the available options and their
+      arguments.
     </para>
-    <para>
-        <command>rndc</command> communicates with the name server
-	over a TCP connection, sending commands authenticated with
-	digital signatures.  In the current versions of
-	<command>rndc</command> and <command>named</command> named
-        the only supported authentication algorithm is HMAC-MD5,
-	which uses a shared secret on each end of the connection.
-	This provides TSIG-style authentication for the command
-	request and the name server's response.  All commands sent
-	over the channel must be signed by a key_id known to the
-	server.
+    <para><command>rndc</command>
+      communicates with the name server
+      over a TCP connection, sending commands authenticated with
+      digital signatures.  In the current versions of
+      <command>rndc</command> and <command>named</command> named
+      the only supported authentication algorithm is HMAC-MD5,
+      which uses a shared secret on each end of the connection.
+      This provides TSIG-style authentication for the command
+      request and the name server's response.  All commands sent
+      over the channel must be signed by a key_id known to the
+      server.
     </para>
-    <para>
-        <command>rndc</command> reads a configuration file to
-	determine how to contact the name server and decide what
-	algorithm and key it should use.
+    <para><command>rndc</command>
+      reads a configuration file to
+      determine how to contact the name server and decide what
+      algorithm and key it should use.
     </para>
   </refsect1>
 
@@ -97,85 +98,100 @@
 
     <variablelist>
       <varlistentry>
+        <term>-b <replaceable class="parameter">source-address</replaceable></term>
+        <listitem>
+          <para>
+            Use <replaceable class="parameter">source-address</replaceable>
+            as the source address for the connection to the server.
+            Multiple instances are permitted to allow setting of both
+            the IPv4 and IPv6 source addresses.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-c <replaceable class="parameter">config-file</replaceable></term>
-	<listitem>
-	  <para>
-	      Use <replaceable class="parameter">config-file</replaceable>
-	      as the configuration file instead of the default,
-	      <filename>/etc/rndc.conf</filename>.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            Use <replaceable class="parameter">config-file</replaceable>
+            as the configuration file instead of the default,
+            <filename>/etc/rndc.conf</filename>.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-k <replaceable class="parameter">key-file</replaceable></term>
-	<listitem>
-	  <para>
-	      Use <replaceable class="parameter">key-file</replaceable>
-	      as the key file instead of the default,
-	      <filename>/etc/rndc.key</filename>.  The key in
-	      <filename>/etc/rndc.key</filename> will be used to authenticate
-	      commands sent to the server if the <replaceable class="parameter">config-file</replaceable>
-	      does not exist.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            Use <replaceable class="parameter">key-file</replaceable>
+            as the key file instead of the default,
+            <filename>/etc/rndc.key</filename>.  The key in
+            <filename>/etc/rndc.key</filename> will be used to
+            authenticate
+            commands sent to the server if the <replaceable class="parameter">config-file</replaceable>
+            does not exist.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-s <replaceable class="parameter">server</replaceable></term>
-	<listitem>
-	  <para>
-	       <replaceable class="parameter">server</replaceable> is
-	       the name or address of the server which matches a
-	       server statement in the configuration file for
-	       <command>rndc</command>.  If no server is supplied on the
-	       command line, the host named by the default-server clause
-	       in the option statement of the configuration file will be
-	       used.
-	  </para>
-	</listitem>
+        <listitem>
+          <para><replaceable class="parameter">server</replaceable> is
+            	       the name or address of the server which matches a
+            server statement in the configuration file for
+            <command>rndc</command>.  If no server is supplied on
+            the
+            command line, the host named by the default-server clause
+            in the option statement of the configuration file will be
+            used.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-p <replaceable class="parameter">port</replaceable></term>
-	<listitem>
-	  <para>
-	       Send commands to TCP port
-	       <replaceable class="parameter">port</replaceable> instead
-	       of BIND 9's default control channel port, 953.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            Send commands to TCP port
+            <replaceable class="parameter">port</replaceable>
+            instead
+            of BIND 9's default control channel port, 953.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-V</term>
-	<listitem>
-	  <para>
-	       Enable verbose logging.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            Enable verbose logging.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-y <replaceable class="parameter">keyid</replaceable></term>
-	<listitem>
-	  <para>
-	       Use the key <replaceable class="parameter">keyid</replaceable>
-	       from the configuration file.
-	       <replaceable class="parameter">keyid</replaceable> must be
-	       known by named with the same algorithm and secret string
-	       in order for control message validation to succeed.
-	       If no <replaceable class="parameter">keyid</replaceable>
-	       is specified, <command>rndc</command> will first look
-	       for a key clause in the server statement of the server
-	       being used, or if no server statement is present for that
-	       host, then the default-key clause of the options statement.
-	       Note that the configuration file contains shared secrets
-	       which are used to send authenticated control commands
-	       to name servers.  It should therefore not have general read
-	       or write access.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            Use the key <replaceable class="parameter">keyid</replaceable>
+            from the configuration file.
+            <replaceable class="parameter">keyid</replaceable>
+            must be
+            known by named with the same algorithm and secret string
+            in order for control message validation to succeed.
+            If no <replaceable class="parameter">keyid</replaceable>
+            is specified, <command>rndc</command> will first look
+            for a key clause in the server statement of the server
+            being used, or if no server statement is present for that
+            host, then the default-key clause of the options statement.
+            Note that the configuration file contains shared secrets
+            which are used to send authenticated control commands
+            to name servers.  It should therefore not have general read
+            or write access.
+          </para>
+        </listitem>
       </varlistentry>
 
     </variablelist>
@@ -183,44 +199,40 @@
     <para>
       For the complete set of commands supported by <command>rndc</command>,
       see the BIND 9 Administrator Reference Manual or run
-      <command>rndc</command> without arguments to see its help message.
+      <command>rndc</command> without arguments to see its help
+      message.
     </para>
 
   </refsect1>
 
   <refsect1>
     <title>LIMITATIONS</title>
-    <para>
-        <command>rndc</command> does not yet support all the commands of
-	the BIND 8 <command>ndc</command> utility.
+    <para><command>rndc</command>
+      does not yet support all the commands of
+      the BIND 8 <command>ndc</command> utility.
     </para>
     <para>
-        There is currently no way to provide the shared secret for a
-        <option>key_id</option> without using the configuration file.
+      There is currently no way to provide the shared secret for a
+      <option>key_id</option> without using the configuration file.
     </para>
     <para>
-        Several error messages could be clearer.
+      Several error messages could be clearer.
     </para>
   </refsect1>
 
   <refsect1>
     <title>SEE ALSO</title>
-    <para>
-      <citerefentry>
-        <refentrytitle>rndc.conf</refentrytitle>
-	<manvolnum>5</manvolnum>
+    <para><citerefentry>
+        <refentrytitle>rndc.conf</refentrytitle><manvolnum>5</manvolnum>
       </citerefentry>,
       <citerefentry>
-        <refentrytitle>named</refentrytitle>
-	<manvolnum>8</manvolnum>
+        <refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citerefentry>
-        <refentrytitle>named.conf</refentrytitle>
-	<manvolnum>5</manvolnum>
+        <refentrytitle>named.conf</refentrytitle><manvolnum>5</manvolnum>
       </citerefentry>
       <citerefentry>
-        <refentrytitle>ndc</refentrytitle>
-	<manvolnum>8</manvolnum>
+        <refentrytitle>ndc</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>.
     </para>
@@ -228,16 +240,12 @@
 
   <refsect1>
     <title>AUTHOR</title>
-    <para>
-        <corpauthor>Internet Systems Consortium</corpauthor>
+    <para><corpauthor>Internet Systems Consortium</corpauthor>
     </para>
   </refsect1>
 
-</refentry>
-
-<!--
+</refentry><!--
  - Local variables:
  - mode: sgml
  - End:
 -->
-

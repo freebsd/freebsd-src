@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: peer.h,v 1.16.2.1.10.5 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: peer.h,v 1.20.18.8 2006/02/28 03:10:48 marka Exp $ */
 
 #ifndef DNS_PEER_H
 #define DNS_PEER_H 1
@@ -24,7 +24,8 @@
  ***** Module Info
  *****/
 
-/*
+/*! \file
+ * \brief
  * Data structures for peers (e.g. a 'server' config file statement)
  */
 
@@ -64,6 +65,7 @@ struct dns_peer {
 	isc_mem_t	       *mem;
 
 	isc_netaddr_t		address;
+	unsigned int		prefixlen;
 	isc_boolean_t		bogus;
 	dns_transfer_format_t	transfer_format;
 	isc_uint32_t		transfers;
@@ -73,6 +75,10 @@ struct dns_peer {
 	isc_boolean_t		support_edns;
 	dns_name_t	       *key;
 	isc_sockaddr_t	       *transfer_source;
+	isc_sockaddr_t	       *notify_source;  
+	isc_sockaddr_t	       *query_source;  
+	isc_uint16_t		udpsize;		/* recieve size */
+	isc_uint16_t		maxudp;			/* transmit size */
 
 	isc_uint32_t		bitflags;
 
@@ -114,6 +120,10 @@ dns_peerlist_currpeer(dns_peerlist_t *peers, dns_peer_t **retval);
 
 isc_result_t
 dns_peer_new(isc_mem_t *mem, isc_netaddr_t *ipaddr, dns_peer_t **peer);
+
+isc_result_t
+dns_peer_newprefix(isc_mem_t *mem, isc_netaddr_t *ipaddr,
+		   unsigned int prefixlen, dns_peer_t **peer);
 
 void
 dns_peer_attach(dns_peer_t *source, dns_peer_t **target);
@@ -172,6 +182,30 @@ dns_peer_settransfersource(dns_peer_t *peer,
 
 isc_result_t
 dns_peer_gettransfersource(dns_peer_t *peer, isc_sockaddr_t *transfer_source);
+
+isc_result_t
+dns_peer_setudpsize(dns_peer_t *peer, isc_uint16_t udpsize);
+
+isc_result_t
+dns_peer_getudpsize(dns_peer_t *peer, isc_uint16_t *udpsize);
+
+isc_result_t
+dns_peer_setmaxudp(dns_peer_t *peer, isc_uint16_t maxudp);
+
+isc_result_t
+dns_peer_getmaxudp(dns_peer_t *peer, isc_uint16_t *maxudp);
+
+isc_result_t
+dns_peer_setnotifysource(dns_peer_t *peer, const isc_sockaddr_t *notify_source);
+
+isc_result_t
+dns_peer_getnotifysource(dns_peer_t *peer, isc_sockaddr_t *notify_source);
+
+isc_result_t
+dns_peer_setquerysource(dns_peer_t *peer, const isc_sockaddr_t *query_source);
+
+isc_result_t
+dns_peer_getquerysource(dns_peer_t *peer, isc_sockaddr_t *query_source);
 
 ISC_LANG_ENDDECLS
 

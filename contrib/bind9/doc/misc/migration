@@ -252,4 +252,4 @@ necessary, the umask should be set explicitly in the script used to
 start the named process.
 
 
-$Id: migration,v 1.37.2.3.2.3 2004/11/22 22:33:09 marka Exp $
+$Id: migration,v 1.45.18.1 2004/11/22 22:32:19 marka Exp $

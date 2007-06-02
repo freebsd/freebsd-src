@@ -16,3 +16,5 @@ strdup(const char *src) {
 	return (dst);
 }
 #endif
+
+/*! \file */

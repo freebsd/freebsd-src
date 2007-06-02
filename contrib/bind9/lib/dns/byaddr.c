@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byaddr.c,v 1.29.2.1.2.8 2004/08/28 06:25:18 marka Exp $ */
+/* $Id: byaddr.c,v 1.34.18.3 2005/04/29 00:15:49 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 

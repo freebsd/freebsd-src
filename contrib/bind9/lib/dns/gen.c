@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen.c,v 1.65.2.5.2.9 2006/10/02 06:31:26 marka Exp $ */
+/* $Id: gen.c,v 1.73.18.6 2006/10/02 06:36:43 marka Exp $ */
+
+/*! \file */
 
 #ifdef WIN32
 /*
@@ -123,6 +125,8 @@ const char copyright[] =
 " ***************   DO NOT EDIT!\n"
 " ***************\n"
 " ***************/\n"
+"\n"
+"/*! \\file */\n"
 "\n";
 
 #define TYPENAMES 256
@@ -168,7 +172,7 @@ sd(int, const char *, const char *, char);
 void
 insert_into_typenames(int, const char *, const char *);
 
-/*
+/*%
  * If you use more than 10 of these in, say, a printf(), you'll have problems.
  */
 char *
@@ -832,13 +836,10 @@ main(int argc, char **argv) {
 	} while (0)
 
 		for (cc = classes; cc != NULL; cc = cc->next) {
-			if (cc->rdclass == 4) {
-				PRINTCLASS("ch", 3);
+			if (cc->rdclass == 3)
 				PRINTCLASS("chaos", 3);
-
-			} else if (cc->rdclass == 255) {
+			else if (cc->rdclass == 255)
 				PRINTCLASS("none", 254);
-			}
 			PRINTCLASS(cc->classname, cc->rdclass);
 		}
 

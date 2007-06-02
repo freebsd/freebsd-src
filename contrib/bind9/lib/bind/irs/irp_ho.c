@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: irp_ho.c,v 1.1.206.1 2004/03/09 08:33:36 marka Exp $";
+static const char rcsid[] = "$Id: irp_ho.c,v 1.2.18.1 2005/04/27 05:01:00 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -84,9 +84,7 @@ static struct addrinfo * ho_addrinfo(struct irs_ho *this, const char *name,
 
 /* Public. */
 
-
-
-/*
+/*%
  * struct irs_ho * irs_irp_ho(struct irs_acc *this)
  *
  * Notes:
@@ -129,13 +127,7 @@ irs_irp_ho(struct irs_acc *this) {
 
 /* Methods. */
 
-
-
-/*
- * void ho_close(struct irs_ho *this)
- *
- * Notes:
- *
+/*%
  *	Closes down the module.
  *
  */
@@ -281,15 +273,7 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af) {
 	return (ho);
 }
 
-
-
-
-
-/*
- * struct hostent * ho_next(struct irs_ho *this)
- *
- * Notes:
- *
+/*%
  *	The implementation for gethostent(3). The first time it's
  *	called all the data is pulled from the remote(i.e. what
  *	the maximum number of gethostent(3) calls would return)
@@ -336,11 +320,7 @@ ho_next(struct irs_ho *this) {
 	return (ho);
 }
 
-
-
-
-
-/*
+/*%
  * void ho_rewind(struct irs_ho *this)
  *
  */
@@ -369,10 +349,7 @@ ho_rewind(struct irs_ho *this) {
 	return;
 }
 
-
-
-
-/*
+/*%
  * void ho_minimize(struct irs_ho *this)
  *
  */
@@ -386,10 +363,7 @@ ho_minimize(struct irs_ho *this) {
 	irs_irp_disconnect(pvt->girpdata);
 }
 
-
-
-
-/*
+/*%
  * void free_host(struct hostent *ho)
  *
  */
@@ -427,3 +401,5 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 	UNUSED(pai);
 	return(NULL);
 }
+
+/*! \file */

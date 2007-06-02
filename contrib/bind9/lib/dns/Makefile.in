@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.126.2.3.2.19 2006/01/06 00:01:42 marka Exp $
+# $Id: Makefile.in,v 1.144.18.10 2006/01/06 00:01:43 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -49,17 +49,18 @@ DSTOBJS =	dst_api.@O@ dst_lib.@O@ dst_parse.@O@ dst_result.@O@ \
 		opensslrsa_link.@O@
 
 # Alphabetically
-DNSOBJS =	acl.@O@ adb.@O@ byaddr.@O@ \
+DNSOBJS =	acache.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
 		cache.@O@ callbacks.@O@ compress.@O@ \
 		db.@O@ dbiterator.@O@ dbtable.@O@ diff.@O@ dispatch.@O@ \
-		dnssec.@O@ ds.@O@ forward.@O@ journal.@O@ keytable.@O@ \
+		dlz.@O@ dnssec.@O@ ds.@O@ forward.@O@ journal.@O@ keytable.@O@ \
 		lib.@O@ log.@O@ lookup.@O@ \
 		master.@O@ masterdump.@O@ message.@O@ \
 		name.@O@ ncache.@O@ nsec.@O@ order.@O@ peer.@O@ portlist.@O@ \
 		rbt.@O@ rbtdb.@O@ rbtdb64.@O@ rcode.@O@ rdata.@O@ \
 		rdatalist.@O@ \
 		rdataset.@O@ rdatasetiter.@O@ rdataslab.@O@ request.@O@ \
-		resolver.@O@ result.@O@ rootns.@O@ sdb.@O@ soa.@O@ ssu.@O@ \
+		resolver.@O@ result.@O@ rootns.@O@ sdb.@O@ sdlz.@O@ \
+		soa.@O@ ssu.@O@ \
 		stats.@O@ tcpmsg.@O@ time.@O@ timer.@O@ tkey.@O@ \
 		tsig.@O@ ttl.@O@ validator.@O@ \
 		version.@O@ view.@O@ xfrin.@O@ zone.@O@ zonekey.@O@ zt.@O@
@@ -73,17 +74,18 @@ DSTSRCS =	dst_api.c dst_lib.c dst_parse.c \
 		openssl_link.c openssldh_link.c \
 		openssldsa_link.c opensslrsa_link.c
 
-SRCS =		acl.c adb.c byaddr.c \
+DNSSRCS =	acache.c acl.c adb.c byaddr.c \
 		cache.c callbacks.c compress.c \
 		db.c dbiterator.c dbtable.c diff.c dispatch.c \
-		dnssec.c ds.c forward.c journal.c keytable.c \
+		dlz.c dnssec.c ds.c forward.c journal.c keytable.c \
 		lib.c log.c lookup.c \
 		master.c masterdump.c message.c \
 		name.c ncache.c nsec.c order.c peer.c portlist.c \
 		rbt.c rbtdb.c rbtdb64.c rcode.c rdata.c \
 		rdatalist.c \
 		rdataset.c rdatasetiter.c rdataslab.c request.c \
-		resolver.c result.c rootns.c sdb.c soa.c ssu.c \
+		resolver.c result.c rootns.c sdb.c sdlz.c \
+		soa.c ssu.c \
 		stats.c tcpmsg.c time.c timer.c tkey.c \
 		tsig.c ttl.c validator.c \
 		version.c view.c xfrin.c zone.c zonekey.c zt.c ${OTHERSRCS}

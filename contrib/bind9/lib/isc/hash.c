@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,14 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hash.c,v 1.2.2.4.2.3 2006/01/04 00:37:22 marka Exp $ */
+/* $Id: hash.c,v 1.6.18.5 2006/01/04 00:37:23 marka Exp $ */
 
-/*
+/*! \file
  * Some portion of this code was derived from universal hash function
  * libraries of Rice University. 
- */
-
-/*  "UH Universal Hashing Library"
+\section license UH Universal Hashing Library
 
 Copyright ((c)) 2002, Rice University
 All rights reserved.
@@ -74,28 +72,31 @@ if advised of the possibility of such damage.
 #define HASH_MAGIC		ISC_MAGIC('H', 'a', 's', 'h')
 #define VALID_HASH(h)		ISC_MAGIC_VALID((h), HASH_MAGIC)
 
-/*
+/*%
  * A large 32-bit prime number that specifies the range of the hash output.
  */
 #define PRIME32 0xFFFFFFFB              /* 2^32 -  5 */
 
-/*
+/*@{*/
+/*%
  * Types of random seed and hash accumulator.  Perhaps they can be system
  * dependent.
  */
 typedef isc_uint32_t hash_accum_t;
 typedef isc_uint16_t hash_random_t;
+/*@}*/
 
+/*% isc hash structure */
 struct isc_hash {
 	unsigned int	magic;
 	isc_mem_t	*mctx;
 	isc_mutex_t	lock;
 	isc_boolean_t	initialized;
 	isc_refcount_t	refcnt;
-	isc_entropy_t	*entropy; /* entropy source */
-	unsigned int	limit;	/* upper limit of key length */
-	size_t		vectorlen; /* size of the vector below */
-	hash_random_t	*rndvector; /* random vector for universal hashing */
+	isc_entropy_t	*entropy; /*%< entropy source */
+	unsigned int	limit;	/*%< upper limit of key length */
+	size_t		vectorlen; /*%< size of the vector below */
+	hash_random_t	*rndvector; /*%< random vector for universal hashing */
 };
 
 static isc_mutex_t createlock;
@@ -141,7 +142,7 @@ isc_result_t
 isc_hash_ctxcreate(isc_mem_t *mctx, isc_entropy_t *entropy,
 		   unsigned int limit, isc_hash_t **hctxp)
 {
-	isc_result_t ret;
+	isc_result_t result;
 	isc_hash_t *hctx;
 	size_t vlen;
 	hash_random_t *rv;
@@ -167,17 +168,16 @@ isc_hash_ctxcreate(isc_mem_t *mctx, isc_entropy_t *entropy,
 	vlen = sizeof(hash_random_t) * (limit + 1);
 	rv = isc_mem_get(mctx, vlen);
 	if (rv == NULL) {
-		ret = ISC_R_NOMEMORY;
+		result = ISC_R_NOMEMORY;
 		goto errout;
 	}
 
 	/*
 	 * We need a lock.
 	 */
-	if (isc_mutex_init(&hctx->lock) != ISC_R_SUCCESS) {
-		ret = ISC_R_UNEXPECTED;
+	result = isc_mutex_init(&hctx->lock);
+	if (result != ISC_R_SUCCESS)
 		goto errout;
-	}
 
 	/*
 	 * From here down, no failures will/can occur.
@@ -186,7 +186,9 @@ isc_hash_ctxcreate(isc_mem_t *mctx, isc_entropy_t *entropy,
 	hctx->mctx = NULL;
 	isc_mem_attach(mctx, &hctx->mctx);
 	hctx->initialized = ISC_FALSE;
-	isc_refcount_init(&hctx->refcnt, 1);
+	result = isc_refcount_init(&hctx->refcnt, 1);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup_lock;
 	hctx->entropy = NULL;
 	hctx->limit = limit;
 	hctx->vectorlen = vlen;
@@ -198,12 +200,14 @@ isc_hash_ctxcreate(isc_mem_t *mctx, isc_entropy_t *entropy,
 	*hctxp = hctx;
 	return (ISC_R_SUCCESS);
 
+ cleanup_lock:
+	DESTROYLOCK(&hctx->lock);
  errout:
 	isc_mem_put(mctx, hctx, sizeof(isc_hash_t));
 	if (rv != NULL)
 		isc_mem_put(mctx, rv, vlen);
 
-	return (ret);
+	return (result);
 }
 
 static void

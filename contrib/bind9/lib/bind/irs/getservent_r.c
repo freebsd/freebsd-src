@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getservent_r.c,v 1.3.206.2 2006/08/01 01:19:28 marka Exp $";
+static const char rcsid[] = "$Id: getservent_r.c,v 1.4.18.2 2006/08/01 01:19:12 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -79,7 +79,7 @@ getservbyport_r(int port, const char *proto,
 #endif
 }
 
-/*
+/*%
  *	These assume a single context is in operation per thread.
  *	If this is not the case we will need to call irs directly
  *	rather than through the base functions.
@@ -145,7 +145,7 @@ copy_servent(struct servent *se, struct servent *sptr, SERV_R_COPY_ARGS) {
 	int numptr, len;
 
 	/* Find out the amount of space required to store the answer. */
-	numptr = 1; /* NULL ptr */
+	numptr = 1; /*%< NULL ptr */
 	len = (char *)ALIGN(buf) - buf;
 	for (i = 0; se->s_aliases[i]; i++, numptr++) {
 		len += strlen(se->s_aliases[i]) + 1;
@@ -239,3 +239,4 @@ copy_servent(struct servent *se, struct servent *sptr, SERV_R_COPY_ARGS) {
 	static int getservent_r_unknown_system = 0;
 #endif /*SERV_R_RETURN */
 #endif /* !defined(_REENTRANT) || !defined(DO_PTHREADS) */
+/*! \file */

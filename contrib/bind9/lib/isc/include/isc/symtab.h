@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1996-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: symtab.h,v 1.16.206.3 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: symtab.h,v 1.17.18.4 2006/03/02 00:37:22 marka Exp $ */
 
 #ifndef ISC_SYMTAB_H
 #define ISC_SYMTAB_H 1
@@ -24,10 +24,8 @@
  ***** Module Info
  *****/
 
-/*
- * Symbol Table
- *
- * Provides a simple memory-based symbol table.
+/*! \file
+ * \brief Provides a simple memory-based symbol table.
  *
  * Keys are C strings, and key comparisons are case-insenstive.  A type may
  * be specified when looking up, defining, or undefining.  A type value of
@@ -38,11 +36,11 @@
  * tuple when a tuple with the given key and type already exists in the table.
  * What to do in this case is specified by the client.  Possible policies are:
  *
- *	isc_symexists_reject	Disallow the define, returning ISC_R_EXISTS
- *	isc_symexists_replace	Replace the old value with the new.  The
+ *\li	#isc_symexists_reject	Disallow the define, returning #ISC_R_EXISTS
+ *\li	#isc_symexists_replace	Replace the old value with the new.  The
  *				undefine action (if provided) will be called
  *				with the old <key, type, value> tuple.
- *	isc_symexists_add	Add the new tuple, leaving the old tuple in
+ *\li	#isc_symexists_add	Add the new tuple, leaving the old tuple in
  *				the table.  Subsequent lookups will retrieve
  *				the most-recently-defined tuple.
  *
@@ -59,19 +57,19 @@
  * undefined.  It can be used to free memory associated with keys and/or
  * values.
  *
- * MP:
+ * \li MP:
  *	The callers of this module must ensure any required synchronization.
  *
- * Reliability:
+ * \li Reliability:
  *	No anticipated impact.
  *
- * Resources:
- *	<TBS>
+ * \li Resources:
+ *	TBS
  *
- * Security:
+ * \li Security:
  *	No anticipated impact.
  *
- * Standards:
+ * \li Standards:
  *	None.
  */
 
@@ -82,10 +80,10 @@
 #include <isc/lang.h>
 #include <isc/types.h>
 
-/***
+/*
  *** Symbol Tables.
  ***/
-
+/*% Symbol table value. */
 typedef union isc_symvalue {
 	void *				as_pointer;
 	const void *			as_cpointer;
@@ -95,31 +93,36 @@ typedef union isc_symvalue {
 
 typedef void (*isc_symtabaction_t)(char *key, unsigned int type,
 				   isc_symvalue_t value, void *userarg);
-
+/*% Symbol table exists. */
 typedef enum {
-	isc_symexists_reject = 0,
-	isc_symexists_replace = 1,
-	isc_symexists_add = 2
+	isc_symexists_reject = 0,	/*%< Disallow the define */
+	isc_symexists_replace = 1,	/*%< Replace the old value with the new */
+	isc_symexists_add = 2		/*%< Add the new tuple */
 } isc_symexists_t;
 
 ISC_LANG_BEGINDECLS
 
+/*% Create a symbol table. */
 isc_result_t
 isc_symtab_create(isc_mem_t *mctx, unsigned int size,
 		  isc_symtabaction_t undefine_action, void *undefine_arg,
 		  isc_boolean_t case_sensitive, isc_symtab_t **symtabp);
 
+/*% Destroy a symbol table. */
 void
 isc_symtab_destroy(isc_symtab_t **symtabp);
 
+/*% Lookup a symbol table. */
 isc_result_t
 isc_symtab_lookup(isc_symtab_t *symtab, const char *key, unsigned int type,
 		  isc_symvalue_t *value);
 
+/*% Define a symbol table. */
 isc_result_t
 isc_symtab_define(isc_symtab_t *symtab, const char *key, unsigned int type,
 		  isc_symvalue_t value, isc_symexists_t exists_policy);
 
+/*% Undefine a symbol table. */
 isc_result_t
 isc_symtab_undefine(isc_symtab_t *symtab, const char *key, unsigned int type);
 

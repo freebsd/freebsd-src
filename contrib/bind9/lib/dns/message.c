@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.c,v 1.194.2.10.2.24 2006/02/28 06:32:54 marka Exp $ */
+/* $Id: message.c,v 1.222.18.10 2006/03/02 23:19:20 marka Exp $ */
+
+/*! \file */
 
 /***
  *** Imports
@@ -63,7 +65,7 @@
 #define VALID_PSEUDOSECTION(s)	(((s) >= DNS_PSEUDOSECTION_ANY) \
 				 && ((s) < DNS_PSEUDOSECTION_MAX))
 
-/*
+/*%
  * This is the size of each individual scratchpad buffer, and the numbers
  * of various block allocations used within the server.
  * XXXMLG These should come from a config setting.
@@ -75,7 +77,7 @@
 #define RDATALIST_COUNT		  8
 #define RDATASET_COUNT		 RDATALIST_COUNT
 
-/*
+/*%
  * Text representation of the different items, for message_totext
  * functions.
  */
@@ -133,7 +135,7 @@ static const char *rcodetext[] = {
 };
 
 
-/*
+/*%
  * "helper" type, which consists of a block of some type, and is linkable.
  * For it to work, sizeof(dns_msgblock_t) must be a multiple of the pointer
  * size, or the allocated elements will not be alligned correctly.
@@ -1441,7 +1443,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 		/*
 		 * Minimize TTLs.
 		 *
-		 * Section 5.2 of RFC 2181 says we should drop
+		 * Section 5.2 of RFC2181 says we should drop
 		 * nonauthoritative rrsets where the TTLs differ, but we
 		 * currently treat them the as if they were authoritative and
 		 * minimize them.
@@ -2280,6 +2282,18 @@ dns_message_addname(dns_message_t *msg, dns_name_t *name,
 	REQUIRE(VALID_NAMED_SECTION(section));
 
 	ISC_LIST_APPEND(msg->sections[section], name, link);
+}
+
+void
+dns_message_removename(dns_message_t *msg, dns_name_t *name,
+		       dns_section_t section)
+{
+	REQUIRE(msg != NULL);
+	REQUIRE(msg->from_to_wire == DNS_MESSAGE_INTENTRENDER);
+	REQUIRE(name != NULL);
+	REQUIRE(VALID_NAMED_SECTION(section));
+
+	ISC_LIST_UNLINK(msg->sections[section], name, link);
 }
 
 isc_result_t

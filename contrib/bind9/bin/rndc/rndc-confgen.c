@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,18 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc-confgen.c,v 1.9.2.6.2.5 2004/09/28 07:14:57 marka Exp $ */
+/* $Id: rndc-confgen.c,v 1.18.18.3 2005/04/29 00:15:40 marka Exp $ */
+
+/*! \file */
+
+/**
+ * rndc-confgen generates configuration files for rndc. It can be used
+ * as a convenient alternative to writing the rndc.conf file and the
+ * corresponding controls and key statements in named.conf by hand.
+ * Alternatively, it can be run with the -a option to set up a
+ * rndc.key file and avoid the need for a rndc.conf file and a
+ * controls statement altogether.
+ */
 
 #include <config.h>
 
@@ -45,7 +56,7 @@
 
 #include "util.h"
 
-#define DEFAULT_KEYLENGTH	128		/* Bits. */
+#define DEFAULT_KEYLENGTH	128		/*% Bits. */
 #define DEFAULT_KEYNAME		"rndc-key"
 #define DEFAULT_SERVER		"127.0.0.1"
 #define DEFAULT_PORT		953
@@ -78,7 +89,7 @@ Usage:\n\
 	exit (status);
 }
 
-/*
+/*%
  * Write an rndc.key file to 'keyfile'.  If 'user' is non-NULL,
  * make that user the owner of the file.  The key will have
  * the name 'keyname' and the secret in the buffer 'secret'.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: controlconf.c,v 1.28.2.9.2.10 2006/02/28 06:32:53 marka Exp $ */
+/* $Id: controlconf.c,v 1.40.18.10 2006/12/07 04:53:02 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -96,6 +98,10 @@ struct controllistener {
 	isc_boolean_t			exiting;
 	controlkeylist_t		keys;
 	controlconnectionlist_t		connections;
+	isc_sockettype_t		type;
+	isc_uint32_t			perm;
+	isc_uint32_t			owner;
+	isc_uint32_t			group;
 	ISC_LINK(controllistener_t)	link;
 };
 
@@ -191,6 +197,8 @@ shutdown_listener(controllistener_t *listener) {
 		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 			      NS_LOGMODULE_CONTROL, ISC_LOG_NOTICE,
 			      "stopping command channel on %s", socktext);
+		if (listener->type == isc_sockettype_unix)
+			isc_socket_cleanunix(&listener->address, ISC_TRUE);
 		listener->exiting = ISC_TRUE;
 	}
 
@@ -596,7 +604,8 @@ control_newconn(isc_task_t *task, isc_event_t *event) {
 
 	sock = nevent->newsocket;
 	(void)isc_socket_getpeername(sock, &peeraddr);
-	if (!address_ok(&peeraddr, listener->acl)) {
+	if (listener->type == isc_sockettype_tcp &&
+	    !address_ok(&peeraddr, listener->acl)) {
 		char socktext[ISC_SOCKADDR_FORMATSIZE];
 		isc_sockaddr_format(&peeraddr, socktext, sizeof(socktext));
 		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
@@ -681,7 +690,7 @@ controlkeylist_fromcfg(const cfg_obj_t *keylist, isc_mem_t *mctx,
 	char *newstr = NULL;
 	const char *str;
 	const cfg_obj_t *obj;
-	controlkey_t *key = NULL;
+	controlkey_t *key;
 
 	for (element = cfg_list_first(keylist);
 	     element != NULL;
@@ -700,7 +709,6 @@ controlkeylist_fromcfg(const cfg_obj_t *keylist, isc_mem_t *mctx,
 		key->secret.length = 0;
 		ISC_LINK_INIT(key, link);
 		ISC_LIST_APPEND(*keyids, key, link);
-		key = NULL;
 		newstr = NULL;
 	}
 	return (ISC_R_SUCCESS);
@@ -708,8 +716,6 @@ controlkeylist_fromcfg(const cfg_obj_t *keylist, isc_mem_t *mctx,
  cleanup:
 	if (newstr != NULL)
 		isc_mem_free(mctx, newstr);
-	if (key != NULL)
-		isc_mem_put(mctx, key, sizeof(*key));
 	free_controlkeylist(keyids, mctx);
 	return (ISC_R_NOMEMORY);
 }
@@ -751,7 +757,7 @@ register_keys(const cfg_obj_t *control, const cfg_obj_t *keylist,
 			algstr = cfg_obj_asstring(algobj);
 			secretstr = cfg_obj_asstring(secretobj);
 
-			if (ns_config_getkeyalgorithm(algstr, NULL) !=
+			if (ns_config_getkeyalgorithm(algstr, NULL, NULL) !=
 			    ISC_R_SUCCESS)
 			{
 				cfg_obj_log(control, ns_g_lctx,
@@ -841,7 +847,7 @@ get_rndckey(isc_mem_t *mctx, controlkeylist_t *keyids) {
 	algstr = cfg_obj_asstring(algobj);
 	secretstr = cfg_obj_asstring(secretobj);
 
-	if (ns_config_getkeyalgorithm(algstr, NULL) != ISC_R_SUCCESS) {
+	if (ns_config_getkeyalgorithm(algstr, NULL, NULL) != ISC_R_SUCCESS) {
 		cfg_obj_log(key, ns_g_lctx,
 			    ISC_LOG_WARNING,
 			    "unsupported algorithm '%s' in "
@@ -918,8 +924,8 @@ get_key_info(const cfg_obj_t *config, const cfg_obj_t *control,
 static void
 update_listener(ns_controls_t *cp, controllistener_t **listenerp,
 		const cfg_obj_t *control, const cfg_obj_t *config,
-		isc_sockaddr_t *addr, ns_aclconfctx_t *aclconfctx,
-		const char *socktext)
+		isc_sockaddr_t *addr, cfg_aclconfctx_t *aclconfctx,
+	        const char *socktext, isc_sockettype_t type)
 {
 	controllistener_t *listener;
 	const cfg_obj_t *allow;
@@ -1004,10 +1010,11 @@ update_listener(ns_controls_t *cp, controllistener_t **listenerp,
 	/*
 	 * Now, keep the old access list unless a new one can be made.
 	 */
-	if (control != NULL) {
+	if (control != NULL && type == isc_sockettype_tcp) {
 		allow = cfg_tuple_get(control, "allow");
-		result = ns_acl_fromconfig(allow, config, aclconfctx,
-					   listener->mctx, &new_acl);
+		result = cfg_acl_fromconfig(allow, config, ns_g_lctx,
+					    aclconfctx, listener->mctx,
+					    &new_acl);
 	} else {
 		result = dns_acl_any(listener->mctx, &new_acl);
 	}
@@ -1029,14 +1036,34 @@ update_listener(ns_controls_t *cp, controllistener_t **listenerp,
 			      "command channel %s: %s",
 			      socktext, isc_result_totext(result));
 
+	if (result == ISC_R_SUCCESS && type == isc_sockettype_unix) {
+		isc_uint32_t perm, owner, group;
+		perm  = cfg_obj_asuint32(cfg_tuple_get(control, "perm"));
+		owner = cfg_obj_asuint32(cfg_tuple_get(control, "owner"));
+		group = cfg_obj_asuint32(cfg_tuple_get(control, "group"));
+		result = ISC_R_SUCCESS;
+		if (listener->perm != perm || listener->owner != owner ||
+		    listener->group != group)
+			result = isc_socket_permunix(&listener->address, perm,
+						     owner, group);
+		if (result == ISC_R_SUCCESS) {
+			listener->perm = perm;
+			listener->owner = owner;
+			listener->group = group;
+		} else if (control != NULL)
+			cfg_obj_log(control, ns_g_lctx, ISC_LOG_WARNING,
+				    "couldn't update ownership/permission for "
+				    "command channel %s", socktext);
+	}
+
 	*listenerp = listener;
 }
 
 static void
 add_listener(ns_controls_t *cp, controllistener_t **listenerp,
 	     const cfg_obj_t *control, const cfg_obj_t *config,
-	     isc_sockaddr_t *addr, ns_aclconfctx_t *aclconfctx,
-	     const char *socktext)
+	     isc_sockaddr_t *addr, cfg_aclconfctx_t *aclconfctx,
+	     const char *socktext, isc_sockettype_t type)
 {
 	isc_mem_t *mctx = cp->server->mctx;
 	controllistener_t *listener;
@@ -1059,6 +1086,10 @@ add_listener(ns_controls_t *cp, controllistener_t **listenerp,
 		listener->listening = ISC_FALSE;
 		listener->exiting = ISC_FALSE;
 		listener->acl = NULL;
+		listener->type = type;
+		listener->perm = 0;
+		listener->owner = 0;
+		listener->group = 0;
 		ISC_LINK_INIT(listener, link);
 		ISC_LIST_INIT(listener->keys);
 		ISC_LIST_INIT(listener->connections);
@@ -1066,10 +1097,10 @@ add_listener(ns_controls_t *cp, controllistener_t **listenerp,
 		/*
 		 * Make the acl.
 		 */
-		if (control != NULL) {
+		if (control != NULL && type == isc_sockettype_tcp) {
 			allow = cfg_tuple_get(control, "allow");
-			result = ns_acl_fromconfig(allow, config, aclconfctx,
-						   mctx, &new_acl);
+			result = cfg_acl_fromconfig(allow, config, ns_g_lctx,
+						    aclconfctx, mctx, &new_acl);
 		} else {
 			result = dns_acl_any(mctx, &new_acl);
 		}
@@ -1104,20 +1135,35 @@ add_listener(ns_controls_t *cp, controllistener_t **listenerp,
 	if (result == ISC_R_SUCCESS) {
 		int pf = isc_sockaddr_pf(&listener->address);
 		if ((pf == AF_INET && isc_net_probeipv4() != ISC_R_SUCCESS) ||
+#ifdef ISC_PLATFORM_HAVESYSUNH
+		    (pf == AF_UNIX && isc_net_probeunix() != ISC_R_SUCCESS) ||
+#endif
 		    (pf == AF_INET6 && isc_net_probeipv6() != ISC_R_SUCCESS))
 			result = ISC_R_FAMILYNOSUPPORT;
 	}
 
+	if (result == ISC_R_SUCCESS && type == isc_sockettype_unix)
+		isc_socket_cleanunix(&listener->address, ISC_FALSE);
+
 	if (result == ISC_R_SUCCESS)
 		result = isc_socket_create(ns_g_socketmgr,
 					   isc_sockaddr_pf(&listener->address),
-					   isc_sockettype_tcp,
-					   &listener->sock);
+					   type, &listener->sock);
 
 	if (result == ISC_R_SUCCESS)
 		result = isc_socket_bind(listener->sock,
 					 &listener->address);
 
+	if (result == ISC_R_SUCCESS && type == isc_sockettype_unix) {
+		listener->perm = cfg_obj_asuint32(cfg_tuple_get(control,
+								"perm"));
+		listener->owner = cfg_obj_asuint32(cfg_tuple_get(control,
+								 "owner"));
+		listener->group = cfg_obj_asuint32(cfg_tuple_get(control,
+								 "group"));
+		result = isc_socket_permunix(&listener->address, listener->perm,
+					     listener->owner, listener->group);
+	}
 	if (result == ISC_R_SUCCESS)
 		result = control_listen(listener);
 
@@ -1154,7 +1200,7 @@ add_listener(ns_controls_t *cp, controllistener_t **listenerp,
 
 isc_result_t
 ns_controls_configure(ns_controls_t *cp, const cfg_obj_t *config,
-		      ns_aclconfctx_t *aclconfctx)
+		      cfg_aclconfctx_t *aclconfctx)
 {
 	controllistener_t *listener;
 	controllistenerlist_t new_listeners;
@@ -1200,9 +1246,6 @@ ns_controls_configure(ns_controls_t *cp, const cfg_obj_t *config,
 				 * The parser handles BIND 8 configuration file
 				 * syntax, so it allows unix phrases as well
 				 * inet phrases with no keys{} clause.
-				 *
-				 * "unix" phrases have been reported as
-				 * unsupported by the parser.
 				 */
 				control = cfg_listelt_value(element2);
 
@@ -1223,7 +1266,8 @@ ns_controls_configure(ns_controls_t *cp, const cfg_obj_t *config,
 					      socktext);
 
 				update_listener(cp, &listener, control, config,
-						&addr, aclconfctx, socktext);
+						&addr, aclconfctx, socktext,
+						isc_sockettype_tcp);
 
 				if (listener != NULL)
 					/*
@@ -1238,7 +1282,81 @@ ns_controls_configure(ns_controls_t *cp, const cfg_obj_t *config,
 					 */
 					add_listener(cp, &listener, control,
 						     config, &addr, aclconfctx,
-						     socktext);
+						     socktext,
+						     isc_sockettype_tcp);
+
+				if (listener != NULL)
+					ISC_LIST_APPEND(new_listeners,
+							listener, link);
+			}
+		}
+		for (element = cfg_list_first(controlslist);
+		     element != NULL;
+		     element = cfg_list_next(element)) {
+			const cfg_obj_t *controls;
+			const cfg_obj_t *unixcontrols = NULL;
+
+			controls = cfg_listelt_value(element);
+			(void)cfg_map_get(controls, "unix", &unixcontrols);
+			if (unixcontrols == NULL)
+				continue;
+
+			for (element2 = cfg_list_first(unixcontrols);
+			     element2 != NULL;
+			     element2 = cfg_list_next(element2)) {
+				const cfg_obj_t *control;
+				const cfg_obj_t *path;
+				isc_sockaddr_t addr;
+				isc_result_t result;
+
+				/*
+				 * The parser handles BIND 8 configuration file
+				 * syntax, so it allows unix phrases as well
+				 * inet phrases with no keys{} clause.
+				 */
+				control = cfg_listelt_value(element2);
+
+				path = cfg_tuple_get(control, "path");
+				result = isc_sockaddr_frompath(&addr,
+						      cfg_obj_asstring(path));
+				if (result != ISC_R_SUCCESS) {
+					isc_log_write(ns_g_lctx,
+					      NS_LOGCATEGORY_GENERAL,
+					      NS_LOGMODULE_CONTROL,
+					      ISC_LOG_DEBUG(9),
+					      "control channel '%s': %s",
+					      cfg_obj_asstring(path),
+					      isc_result_totext(result));
+					continue;
+				}
+
+				isc_log_write(ns_g_lctx,
+					      NS_LOGCATEGORY_GENERAL,
+					      NS_LOGMODULE_CONTROL,
+					      ISC_LOG_DEBUG(9),
+					      "processing control channel '%s'",
+					      cfg_obj_asstring(path));
+
+				update_listener(cp, &listener, control, config,
+						&addr, aclconfctx,
+					        cfg_obj_asstring(path),
+						isc_sockettype_unix);
+
+				if (listener != NULL)
+					/*
+					 * Remove the listener from the old
+					 * list, so it won't be shut down.
+					 */
+					ISC_LIST_UNLINK(cp->listeners,
+							listener, link);
+				else
+					/*
+					 * This is a new listener.
+					 */
+					add_listener(cp, &listener, control,
+						     config, &addr, aclconfctx,
+						     cfg_obj_asstring(path),
+						     isc_sockettype_unix);
 
 				if (listener != NULL)
 					ISC_LIST_APPEND(new_listeners,
@@ -1269,7 +1387,8 @@ ns_controls_configure(ns_controls_t *cp, const cfg_obj_t *config,
 			isc_sockaddr_format(&addr, socktext, sizeof(socktext));
 			
 			update_listener(cp, &listener, NULL, NULL,
-					&addr, NULL, socktext);
+					&addr, NULL, socktext,
+				        isc_sockettype_tcp);
 
 			if (listener != NULL)
 				/*
@@ -1283,7 +1402,8 @@ ns_controls_configure(ns_controls_t *cp, const cfg_obj_t *config,
 				 * This is a new listener.
 				 */
 				add_listener(cp, &listener, NULL, NULL,
-					     &addr, NULL, socktext);
+					     &addr, NULL, socktext,
+					     isc_sockettype_tcp);
 
 			if (listener != NULL)
 				ISC_LIST_APPEND(new_listeners,

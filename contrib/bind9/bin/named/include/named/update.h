@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.h,v 1.8.208.1 2004/03/06 10:21:26 marka Exp $ */
+/* $Id: update.h,v 1.9.18.2 2005/04/29 00:15:39 marka Exp $ */
 
 #ifndef NAMED_UPDATE_H
 #define NAMED_UPDATE_H 1
@@ -24,7 +24,8 @@
  ***** Module Info
  *****/
 
-/*
+/*! \file
+ * \brief
  * RFC2136 Dynamic Update
  */
 

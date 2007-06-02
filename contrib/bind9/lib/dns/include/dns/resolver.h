@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.h,v 1.34.12.9 2006/02/01 23:48:51 marka Exp $ */
+/* $Id: resolver.h,v 1.40.18.11 2006/02/01 22:39:17 marka Exp $ */
 
 #ifndef DNS_RESOLVER_H
 #define DNS_RESOLVER_H 1
@@ -24,9 +24,9 @@
  ***** Module Info
  *****/
 
-/*
- * DNS Resolver
+/*! \file
  *
+ * \brief
  * This is the BIND 9 resolver, the module responsible for resolving DNS
  * requests by iteratively querying authoritative servers and following
  * referrals.  This is a "full resolver", not to be confused with
@@ -35,21 +35,21 @@
  * daemon the stub resolver talks to.
  *
  * MP:
- *	The module ensures appropriate synchronization of data structures it
+ *\li	The module ensures appropriate synchronization of data structures it
  *	creates and manipulates.
  *
  * Reliability:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  *
  * Resources:
- *	<TBS>
+ *\li	TBS
  *
  * Security:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  *
  * Standards:
- *	RFCs:	1034, 1035, 2181, <TBS>
- *	Drafts:	<TBS>
+ *\li	RFCs:	1034, 1035, 2181, TBS
+ *\li	Drafts:	TBS
  */
 
 #include <isc/lang.h>
@@ -60,14 +60,14 @@
 
 ISC_LANG_BEGINDECLS
 
-/*
+/*%
  * A dns_fetchevent_t is sent when a 'fetch' completes.  Any of 'db',
  * 'node', 'rdataset', and 'sigrdataset' may be bound.  It is the
  * receiver's responsibility to detach before freeing the event.
- *
- * 'rdataset' and 'sigrdataset' are the values that were supplied when
- * dns_resolver_createfetch() was called.  They are returned to the
- * caller so that they may be freed.
+ * \brief
+ * 'rdataset', 'sigrdataset', 'client' and 'id' are the values that were
+ * supplied when dns_resolver_createfetch() was called.  They are returned
+ *  to the caller so that they may be freed.
  */
 typedef struct dns_fetchevent {
 	ISC_EVENT_COMMON(struct dns_fetchevent);
@@ -79,17 +79,25 @@ typedef struct dns_fetchevent {
 	dns_rdataset_t *		rdataset;
 	dns_rdataset_t *		sigrdataset;
 	dns_fixedname_t			foundname;
+	isc_sockaddr_t *		client;
+	dns_messageid_t			id;
 } dns_fetchevent_t;
 
 /*
  * Options that modify how a 'fetch' is done.
  */
-#define DNS_FETCHOPT_TCP		0x01	     /* Use TCP. */
-#define DNS_FETCHOPT_UNSHARED		0x02	     /* See below. */
-#define DNS_FETCHOPT_RECURSIVE		0x04	     /* Set RD? */
-#define DNS_FETCHOPT_NOEDNS0		0x08	     /* Do not use EDNS. */
-#define DNS_FETCHOPT_FORWARDONLY	0x10	     /* Only use forwarders. */
-#define DNS_FETCHOPT_NOVALIDATE		0x20	     /* Disable validation. */
+#define DNS_FETCHOPT_TCP		0x01	     /*%< Use TCP. */
+#define DNS_FETCHOPT_UNSHARED		0x02	     /*%< See below. */
+#define DNS_FETCHOPT_RECURSIVE		0x04	     /*%< Set RD? */
+#define DNS_FETCHOPT_NOEDNS0		0x08	     /*%< Do not use EDNS. */
+#define DNS_FETCHOPT_FORWARDONLY	0x10	     /*%< Only use forwarders. */
+#define DNS_FETCHOPT_NOVALIDATE		0x20	     /*%< Disable validation. */
+#define DNS_FETCHOPT_EDNS512		0x40	     /*%< Advertise a 512 byte
+						          UDP buffer. */
+
+#define	DNS_FETCHOPT_EDNSVERSIONSET	0x00800000
+#define	DNS_FETCHOPT_EDNSVERSIONMASK	0xff000000
+#define	DNS_FETCHOPT_EDNSVERSIONSHIFT	24
 
 /*
  * XXXRTH  Should this API be made semi-private?  (I.e.
@@ -110,114 +118,114 @@ dns_resolver_create(dns_view_t *view,
 		    dns_dispatch_t *dispatchv6,
 		    dns_resolver_t **resp);
 
-/*
+/*%<
  * Create a resolver.
  *
  * Notes:
  *
- *	Generally, applications should not create a resolver directly, but
+ *\li	Generally, applications should not create a resolver directly, but
  *	should instead call dns_view_createresolver().
  *
- *	No options are currently defined.
+ *\li	No options are currently defined.
  *
  * Requires:
  *
- *	'view' is a valid view.
+ *\li	'view' is a valid view.
  *
- *	'taskmgr' is a valid task manager.
+ *\li	'taskmgr' is a valid task manager.
  *
- *	'ntasks' > 0.
+ *\li	'ntasks' > 0.
  *
- *	'socketmgr' is a valid socket manager.
+ *\li	'socketmgr' is a valid socket manager.
  *
- *	'timermgr' is a valid timer manager.
+ *\li	'timermgr' is a valid timer manager.
  *
- *	'dispatchv4' is a valid dispatcher with an IPv4 UDP socket, or is NULL.
+ *\li	'dispatchv4' is a valid dispatcher with an IPv4 UDP socket, or is NULL.
  *
- *	'dispatchv6' is a valid dispatcher with an IPv6 UDP socket, or is NULL.
+ *\li	'dispatchv6' is a valid dispatcher with an IPv6 UDP socket, or is NULL.
  *
- *	resp != NULL && *resp == NULL.
+ *\li	resp != NULL && *resp == NULL.
  *
  * Returns:
  *
- *	ISC_R_SUCCESS				On success.
+ *\li	#ISC_R_SUCCESS				On success.
  *
- *	Anything else				Failure.
+ *\li	Anything else				Failure.
  */
 
 void
 dns_resolver_freeze(dns_resolver_t *res);
-/*
+/*%<
  * Freeze resolver.
  *
  * Notes:
  *
- *	Certain configuration changes cannot be made after the resolver
+ *\li	Certain configuration changes cannot be made after the resolver
  *	is frozen.  Fetches cannot be created until the resolver is frozen.
  *
  * Requires:
  *
- *	'res' is a valid, unfrozen resolver.
+ *\li	'res' is a valid, unfrozen resolver.
  *
  * Ensures:
  *
- *	'res' is frozen.
+ *\li	'res' is frozen.
  */
 
 void
 dns_resolver_prime(dns_resolver_t *res);
-/*
+/*%<
  * Prime resolver.
  *
  * Notes:
  *
- *	Resolvers which have a forwarding policy other than dns_fwdpolicy_only
+ *\li	Resolvers which have a forwarding policy other than dns_fwdpolicy_only
  *	need to be primed with the root nameservers, otherwise the root
  *	nameserver hints data may be used indefinitely.  This function requests
  *	that the resolver start a priming fetch, if it isn't already priming.
  *
  * Requires:
  *
- *	'res' is a valid, frozen resolver.
+ *\li	'res' is a valid, frozen resolver.
  */
 
 
 void
 dns_resolver_whenshutdown(dns_resolver_t *res, isc_task_t *task,
 			  isc_event_t **eventp);
-/*
+/*%<
  * Send '*eventp' to 'task' when 'res' has completed shutdown.
  *
  * Notes:
  *
- *	It is not safe to detach the last reference to 'res' until
+ *\li	It is not safe to detach the last reference to 'res' until
  *	shutdown is complete.
  *
  * Requires:
  *
- *	'res' is a valid resolver.
+ *\li	'res' is a valid resolver.
  *
- *	'task' is a valid task.
+ *\li	'task' is a valid task.
  *
- *	*eventp is a valid event.
+ *\li	*eventp is a valid event.
  *
  * Ensures:
  *
- *	*eventp == NULL.
+ *\li	*eventp == NULL.
  */
 
 void
 dns_resolver_shutdown(dns_resolver_t *res);
-/*
+/*%<
  * Start the shutdown process for 'res'.
  *
  * Notes:
  *
- *	This call has no effect if the resolver is already shutting down.
+ *\li	This call has no effect if the resolver is already shutting down.
  *
  * Requires:
  *
- *	'res' is a valid resolver.
+ *\li	'res' is a valid resolver.
  */
 
 void
@@ -236,88 +244,108 @@ dns_resolver_createfetch(dns_resolver_t *res, dns_name_t *name,
 			 dns_rdataset_t *rdataset,
 			 dns_rdataset_t *sigrdataset,
 			 dns_fetch_t **fetchp);
-/*
+
+isc_result_t
+dns_resolver_createfetch2(dns_resolver_t *res, dns_name_t *name,
+			  dns_rdatatype_t type,
+			  dns_name_t *domain, dns_rdataset_t *nameservers,
+			  dns_forwarders_t *forwarders,
+			  isc_sockaddr_t *client, isc_uint16_t id,
+			  unsigned int options, isc_task_t *task,
+			  isc_taskaction_t action, void *arg,
+			  dns_rdataset_t *rdataset,
+			  dns_rdataset_t *sigrdataset,
+			  dns_fetch_t **fetchp);
+/*%<
  * Recurse to answer a question.
  *
  * Notes:
  *
- *	This call starts a query for 'name', type 'type'.
+ *\li	This call starts a query for 'name', type 'type'.
  *
- *	The 'domain' is a parent domain of 'name' for which
+ *\li	The 'domain' is a parent domain of 'name' for which
  *	a set of name servers 'nameservers' is known.  If no
  *	such name server information is available, set
  * 	'domain' and 'nameservers' to NULL.
  *
- *	'forwarders' is unimplemented, and subject to change when
+ *\li	'forwarders' is unimplemented, and subject to change when
  *	we figure out how selective forwarding will work.
  *
- *	When the fetch completes (successfully or otherwise), a
- *	DNS_EVENT_FETCHDONE event with action 'action' and arg 'arg' will be
+ *\li	When the fetch completes (successfully or otherwise), a
+ *	#DNS_EVENT_FETCHDONE event with action 'action' and arg 'arg' will be
  *	posted to 'task'.
  *
- *	The values of 'rdataset' and 'sigrdataset' will be returned in
+ *\li	The values of 'rdataset' and 'sigrdataset' will be returned in
  *	the FETCHDONE event.
+ *
+ *\li	'client' and 'id' are used for duplicate query detection.  '*client'
+ *	must remain stable until after 'action' has been called or
+ *	dns_resolver_cancelfetch() is called.
  *
  * Requires:
  *
- *	'res' is a valid resolver that has been frozen.
+ *\li	'res' is a valid resolver that has been frozen.
  *
- *	'name' is a valid name.
+ *\li	'name' is a valid name.
  *
- *	'type' is not a meta type other than ANY.
+ *\li	'type' is not a meta type other than ANY.
  *
- *	'domain' is a valid name or NULL.
+ *\li	'domain' is a valid name or NULL.
  *
- *	'nameservers' is a valid NS rdataset (whose owner name is 'domain')
+ *\li	'nameservers' is a valid NS rdataset (whose owner name is 'domain')
  *	iff. 'domain' is not NULL.
  *
- *	'forwarders' is NULL.
+ *\li	'forwarders' is NULL.
  *
- *	'options' contains valid options.
+ *\li	'client' is a valid sockaddr or NULL.
  *
- *	'rdataset' is a valid, disassociated rdataset.
+ *\li	'options' contains valid options.
  *
- *	'sigrdataset' is NULL, or is a valid, disassociated rdataset.
+ *\li	'rdataset' is a valid, disassociated rdataset.
  *
- *	fetchp != NULL && *fetchp == NULL.
+ *\li	'sigrdataset' is NULL, or is a valid, disassociated rdataset.
+ *
+ *\li	fetchp != NULL && *fetchp == NULL.
  *
  * Returns:
  *
- *	ISC_R_SUCCESS					Success
+ *\li	#ISC_R_SUCCESS					Success
+ *\li	#DNS_R_DUPLICATE
+ *\li	#DNS_R_DROP
  *
- *	Many other values are possible, all of which indicate failure.
+ *\li	Many other values are possible, all of which indicate failure.
  */
 
 void
 dns_resolver_cancelfetch(dns_fetch_t *fetch);
-/*
+/*%<
  * Cancel 'fetch'.
  *
  * Notes:
  *
- *	If 'fetch' has not completed, post its FETCHDONE event with a
- *	result code of ISC_R_CANCELED.
+ *\li	If 'fetch' has not completed, post its FETCHDONE event with a
+ *	result code of #ISC_R_CANCELED.
  *
  * Requires:
  *
- *	'fetch' is a valid fetch.
+ *\li	'fetch' is a valid fetch.
  */
 
 void
 dns_resolver_destroyfetch(dns_fetch_t **fetchp);
-/*
+/*%<
  * Destroy 'fetch'.
  *
  * Requires:
  *
- *	'*fetchp' is a valid fetch.
+ *\li	'*fetchp' is a valid fetch.
  *
- *	The caller has received the FETCHDONE event (either because the
+ *\li	The caller has received the FETCHDONE event (either because the
  *	fetch completed or because dns_resolver_cancelfetch() was called).
  *
  * Ensures:
  *
- *	*fetchp == NULL.
+ *\li	*fetchp == NULL.
  */
 
 dns_dispatchmgr_t *
@@ -337,25 +365,25 @@ dns_resolver_taskmgr(dns_resolver_t *resolver);
 
 isc_uint32_t
 dns_resolver_getlamettl(dns_resolver_t *resolver);
-/*
+/*%<
  * Get the resolver's lame-ttl.  zero => no lame processing.
  *
  * Requires:
- *	'resolver' to be valid.
+ *\li	'resolver' to be valid.
  */
 
 void
 dns_resolver_setlamettl(dns_resolver_t *resolver, isc_uint32_t lame_ttl);
-/*
+/*%<
  * Set the resolver's lame-ttl.  zero => no lame processing.
  *
  * Requires:
- *	'resolver' to be valid.
+ *\li	'resolver' to be valid.
  */
 
 unsigned int
 dns_resolver_nrunning(dns_resolver_t *resolver);
-/*
+/*%<
  * Return the number of currently running resolutions in this
  * resolver.  This is may be less than the number of outstanding
  * fetches due to multiple identical fetches, or more than the
@@ -366,54 +394,60 @@ dns_resolver_nrunning(dns_resolver_t *resolver);
 isc_result_t
 dns_resolver_addalternate(dns_resolver_t *resolver, isc_sockaddr_t *alt,
 			  dns_name_t *name, in_port_t port);
-/*
+/*%<
  * Add alternate addresses to be tried in the event that the nameservers
  * for a zone are not available in the address families supported by the
  * operating system.
  *
  * Require:
- * 	only one of 'name' or 'alt' to be valid.
+ * \li	only one of 'name' or 'alt' to be valid.
  */
 
 void
 dns_resolver_setudpsize(dns_resolver_t *resolver, isc_uint16_t udpsize);
-/*
+/*%<
  * Set the EDNS UDP buffer size advertised by the server.
  */
 
 isc_uint16_t
 dns_resolver_getudpsize(dns_resolver_t *resolver);
-/*
+/*%<
  * Get the current EDNS UDP buffer size.
  */
 
 void
 dns_resolver_reset_algorithms(dns_resolver_t *resolver);
-/*
+/*%<
  * Clear the disabled DNSSEC algorithms.
  */
 
 isc_result_t
 dns_resolver_disable_algorithm(dns_resolver_t *resolver, dns_name_t *name,
 			       unsigned int alg);
-/*
+/*%<
  * Mark the give DNSSEC algorithm as disabled and below 'name'.
  * Valid algorithms are less than 256.
  *
  * Returns:
- *	ISC_R_SUCCESS
- *	ISC_R_RANGE
- *	ISC_R_NOMEMORY
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_RANGE
+ *\li	#ISC_R_NOMEMORY
  */
 
 isc_boolean_t
 dns_resolver_algorithm_supported(dns_resolver_t *resolver, dns_name_t *name,
 				 unsigned int alg);
-/*
+/*%<
  * Check if the given algorithm is supported by this resolver.
  * This checks if the algorithm has been disabled via
  * dns_resolver_disable_algorithm() then the underlying
  * crypto libraries if not specifically disabled.
+ */
+
+isc_boolean_t
+dns_resolver_digest_supported(dns_resolver_t *resolver, unsigned int digest_type);
+/*%<
+ * Is this digest type supported.
  */
 
 void
@@ -425,6 +459,20 @@ dns_resolver_setmustbesecure(dns_resolver_t *resolver, dns_name_t *name,
 
 isc_boolean_t
 dns_resolver_getmustbesecure(dns_resolver_t *resolver, dns_name_t *name);
+
+void
+dns_resolver_setclientsperquery(dns_resolver_t *resolver,
+				isc_uint32_t min, isc_uint32_t max);
+
+void
+dns_resolver_getclientsperquery(dns_resolver_t *resolver, isc_uint32_t *cur,
+				isc_uint32_t *min, isc_uint32_t *max);
+
+isc_boolean_t
+dns_resolver_getzeronosoattl(dns_resolver_t *resolver);
+ 
+void
+dns_resolver_setzeronosoattl(dns_resolver_t *resolver, isc_boolean_t state);
 
 ISC_LANG_ENDDECLS
 

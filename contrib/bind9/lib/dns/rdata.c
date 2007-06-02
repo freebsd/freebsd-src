@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.147.2.11.2.22 2006/07/21 02:05:56 marka Exp $ */
+/* $Id: rdata.c,v 1.184.18.9 2006/07/21 02:05:57 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 #include <ctype.h>
@@ -100,16 +102,16 @@
 #define ARGS_CHECKNAMES dns_rdata_t *rdata, dns_name_t *owner, dns_name_t *bad
 
 
-/*
+/*%
  * Context structure for the totext_ functions.
  * Contains formatting options for rdata-to-text
  * conversion.
  */
 typedef struct dns_rdata_textctx {
-	dns_name_t *origin;	/* Current origin, or NULL. */
-	unsigned int flags;	/* DNS_STYLEFLAG_* */
-	unsigned int width;	/* Width of rdata column. */
-  	const char *linebreak;	/* Line break string. */
+	dns_name_t *origin;	/*%< Current origin, or NULL. */
+	unsigned int flags;	/*%< DNS_STYLEFLAG_*  */
+	unsigned int width;	/*%< Width of rdata column. */
+  	const char *linebreak;	/*%< Line break string. */
 } dns_rdata_textctx_t;
 
 static isc_result_t
@@ -194,6 +196,10 @@ rdata_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 static void
 warn_badname(dns_name_t *name, isc_lex_t *lexer,
 	     dns_rdatacallbacks_t *callbacks);
+
+static void
+warn_badmx(isc_token_t *token, isc_lex_t *lexer,
+	   dns_rdatacallbacks_t *callbacks);
 
 static inline int
 getquad(const void *src, struct in_addr *dst,
@@ -1577,6 +1583,22 @@ fromtext_warneof(isc_lex_t *lexer, dns_rdatacallbacks_t *callbacks) {
 		(*callbacks->warn)(callbacks,
 				   "%s:%lu: file does not end with newline",
 				   name, isc_lex_getsourceline(lexer));
+	}
+}
+
+static void
+warn_badmx(isc_token_t *token, isc_lex_t *lexer,
+	   dns_rdatacallbacks_t *callbacks)
+{
+	const char *file;
+	unsigned long line;
+
+	if (lexer != NULL) {
+		file = isc_lex_getsourcename(lexer);
+		line = isc_lex_getsourceline(lexer);
+		(*callbacks->warn)(callbacks, "%s:%u: warning: '%s': %s", 
+				   file, line, DNS_AS_STR(*token),
+				   dns_result_totext(DNS_R_MXISADDRESS));
 	}
 }
 

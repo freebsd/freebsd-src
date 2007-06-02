@@ -1,4 +1,4 @@
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.6.12.8 2004/07/20 07:01:58 marka Exp $
+# $Id: Makefile.in,v 1.12.18.4 2005/09/05 00:18:30 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -27,7 +27,7 @@ top_srcdir =	@top_srcdir@
 
 CINCLUDES =	-I. ${DNS_INCLUDES} ${ISC_INCLUDES} ${ISCCFG_INCLUDES}
 
-CDEFINES =
+CDEFINES =      @USE_DLZ@
 CWARNINGS =
 
 ISCLIBS =	../../lib/isc/libisc.@A@
@@ -43,10 +43,10 @@ LIBS =		@LIBS@
 SUBDIRS =	include
 
 # Alphabetically
-OBJS =		log.@O@ namedconf.@O@ parser.@O@ version.@O@
+OBJS =		aclconf.@O@ log.@O@ namedconf.@O@ parser.@O@ version.@O@
 
 # Alphabetically
-SRCS =		log.c namedconf.c parser.c version.c
+SRCS =		aclconf.c log.c namedconf.c parser.c version.c
 
 TARGETS = 	timestamp
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,8 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*! \file */
 /*
- * $Id: ssu.c,v 1.22.206.3 2004/03/08 09:04:32 marka Exp $
+ * $Id: ssu.c,v 1.24.18.4 2006/02/16 23:51:32 marka Exp $
  * Principal Author: Brian Wellington
  */
 
@@ -24,9 +25,11 @@
 
 #include <isc/magic.h>
 #include <isc/mem.h>
+#include <isc/result.h>
 #include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/util.h>
 
+#include <dns/fixedname.h>
 #include <dns/name.h>
 #include <dns/ssu.h>
 
@@ -38,13 +41,13 @@
 
 struct dns_ssurule {
 	unsigned int magic;
-	isc_boolean_t grant;	/* is this a grant or a deny? */
-	unsigned int matchtype;	/* which type of pattern match? */
-	dns_name_t *identity;	/* the identity to match */
-	dns_name_t *name;	/* the name being updated */
-	unsigned int ntypes;	/* number of data types covered */
-	dns_rdatatype_t *types;	/* the data types.  Can include ANY, */
-				/* defaults to all but SIG,SOA,NS if NULL*/
+	isc_boolean_t grant;	/*%< is this a grant or a deny? */
+	unsigned int matchtype;	/*%< which type of pattern match? */
+	dns_name_t *identity;	/*%< the identity to match */
+	dns_name_t *name;	/*%< the name being updated */
+	unsigned int ntypes;	/*%< number of data types covered */
+	dns_rdatatype_t *types;	/*%< the data types.  Can include ANY, */
+				/*%< defaults to all but SIG,SOA,NS if NULL */
 	ISC_LINK(dns_ssurule_t) link;
 };
 
@@ -160,7 +163,7 @@ dns_ssutable_addrule(dns_ssutable_t *table, isc_boolean_t grant,
 	REQUIRE(VALID_SSUTABLE(table));
 	REQUIRE(dns_name_isabsolute(identity));
 	REQUIRE(dns_name_isabsolute(name));
-	REQUIRE(matchtype <= DNS_SSUMATCHTYPE_SELF);
+	REQUIRE(matchtype <= DNS_SSUMATCHTYPE_MAX);
 	if (matchtype == DNS_SSUMATCHTYPE_WILDCARD)
 		REQUIRE(dns_name_iswildcard(name));
 	if (ntypes > 0)
@@ -208,8 +211,7 @@ dns_ssutable_addrule(dns_ssutable_t *table, isc_boolean_t grant,
 			goto failure;
 		}
 		memcpy(rule->types, types, ntypes * sizeof(dns_rdatatype_t));
-	}
-	else
+	} else
 		rule->types = NULL;
 
 	rule->magic = SSURULEMAGIC;
@@ -249,6 +251,9 @@ dns_ssutable_checkrules(dns_ssutable_t *table, dns_name_t *signer,
 {
 	dns_ssurule_t *rule;
 	unsigned int i;
+	dns_fixedname_t fixed;
+	dns_name_t *wildcard;
+	isc_result_t result;
 
 	REQUIRE(VALID_SSUTABLE(table));
 	REQUIRE(signer == NULL || dns_name_isabsolute(signer));
@@ -265,35 +270,39 @@ dns_ssutable_checkrules(dns_ssutable_t *table, dns_name_t *signer,
 		if (dns_name_iswildcard(rule->identity)) {
 			if (!dns_name_matcheswildcard(signer, rule->identity))
 				continue;
-		}
-		else {
-			if (!dns_name_equal(signer, rule->identity))
+		} else if (!dns_name_equal(signer, rule->identity))
 				continue;
-		}
 
 		if (rule->matchtype == DNS_SSUMATCHTYPE_NAME) {
 			if (!dns_name_equal(name, rule->name))
 				continue;
-		}
-		else if (rule->matchtype == DNS_SSUMATCHTYPE_SUBDOMAIN) {
+		} else if (rule->matchtype == DNS_SSUMATCHTYPE_SUBDOMAIN) {
 			if (!dns_name_issubdomain(name, rule->name))
 				continue;
-		}
-		else if (rule->matchtype == DNS_SSUMATCHTYPE_WILDCARD) {
+		} else if (rule->matchtype == DNS_SSUMATCHTYPE_WILDCARD) {
 			if (!dns_name_matcheswildcard(name, rule->name))
 				continue;
-
-		}
-		else if (rule->matchtype == DNS_SSUMATCHTYPE_SELF) {
+		} else if (rule->matchtype == DNS_SSUMATCHTYPE_SELF) {
 			if (!dns_name_equal(signer, name))
+				continue;
+		} else if (rule->matchtype == DNS_SSUMATCHTYPE_SELFSUB) {
+			if (!dns_name_issubdomain(name, signer))
+				continue;
+		} else if (rule->matchtype == DNS_SSUMATCHTYPE_SELFWILD) {
+			dns_fixedname_init(&fixed);
+			wildcard = dns_fixedname_name(&fixed);
+			result = dns_name_concatenate(dns_wildcardname, signer,
+						      wildcard, NULL);
+			if (result != ISC_R_SUCCESS)
+				continue;
+			if (!dns_name_matcheswildcard(name, wildcard))
 				continue;
 		}
 
 		if (rule->ntypes == 0) {
 			if (!isusertype(type))
 				continue;
-		}
-		else {
+		} else {
 			for (i = 0; i < rule->ntypes; i++) {
 				if (rule->types[i] == dns_rdatatype_any ||
 				    rule->types[i] == type)

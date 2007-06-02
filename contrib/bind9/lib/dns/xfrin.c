@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.124.2.4.2.16 2006/07/19 01:04:24 marka Exp $ */
+/* $Id: xfrin.c,v 1.135.18.11 2006/07/19 00:58:01 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -51,7 +53,7 @@
  * Incoming AXFR and IXFR.
  */
 
-/*
+/*%
  * It would be non-sensical (or at least obtuse) to use FAIL() with an
  * ISC_R_SUCCESS code, but the test is there to keep the Solaris compiler
  * from complaining about "end-of-loop code not reached".
@@ -66,7 +68,7 @@
 		if (result != ISC_R_SUCCESS) goto failure;	\
 	} while (0)
 
-/*
+/*%
  * The states of the *XFR state machine.  We handle both IXFR and AXFR
  * with a single integrated state machine because they cannot be distinguished
  * immediately - an AXFR response to an IXFR request can only be detected
@@ -85,7 +87,7 @@ typedef enum {
 	XFRST_END
 } xfrin_state_t;
 
-/*
+/*%
  * Incoming zone transfer context.
  */
 
@@ -100,18 +102,18 @@ struct dns_xfrin_ctx {
 	isc_timer_t		*timer;
 	isc_socketmgr_t 	*socketmgr;
 
-	int			connects; 	/* Connect in progress */
-	int			sends;		/* Send in progress */
-	int			recvs;	  	/* Receive in progress */
+	int			connects; 	/*%< Connect in progress */
+	int			sends;		/*%< Send in progress */
+	int			recvs;	  	/*%< Receive in progress */
 	isc_boolean_t		shuttingdown;
 
-	dns_name_t 		name; 		/* Name of zone to transfer */
+	dns_name_t 		name; 		/*%< Name of zone to transfer */
 	dns_rdataclass_t 	rdclass;
 
 	isc_boolean_t		checkid;
 	dns_messageid_t		id;
 
-	/*
+	/*%
 	 * Requested transfer type (dns_rdatatype_axfr or
 	 * dns_rdatatype_ixfr).  The actual transfer type
 	 * may differ due to IXFR->AXFR fallback.
@@ -122,32 +124,32 @@ struct dns_xfrin_ctx {
 	isc_sockaddr_t		sourceaddr;
 	isc_socket_t 		*socket;
 
-	/* Buffer for IXFR/AXFR request message */
+	/*% Buffer for IXFR/AXFR request message */
 	isc_buffer_t 		qbuffer;
 	unsigned char 		qbuffer_data[512];
 
-	/* Incoming reply TCP message */
+	/*% Incoming reply TCP message */
 	dns_tcpmsg_t		tcpmsg;
 	isc_boolean_t		tcpmsg_valid;
 
 	dns_db_t 		*db;
 	dns_dbversion_t 	*ver;
-	dns_diff_t 		diff;		/* Pending database changes */
-	int 			difflen;	/* Number of pending tuples */
+	dns_diff_t 		diff;		/*%< Pending database changes */
+	int 			difflen;	/*%< Number of pending tuples */
 
 	xfrin_state_t 		state;
 	isc_uint32_t 		end_serial;
 	isc_boolean_t 		is_ixfr;
 
-	unsigned int		nmsg;		/* Number of messages recvd */
+	unsigned int		nmsg;		/*%< Number of messages recvd */
 
-	dns_tsigkey_t		*tsigkey;	/* Key used to create TSIG */
-	isc_buffer_t		*lasttsig;	/* The last TSIG */
-	dst_context_t		*tsigctx;	/* TSIG verification context */
-	unsigned int		sincetsig;	/* recvd since the last TSIG */
+	dns_tsigkey_t		*tsigkey;	/*%< Key used to create TSIG */
+	isc_buffer_t		*lasttsig;	/*%< The last TSIG */
+	dst_context_t		*tsigctx;	/*%< TSIG verification context */
+	unsigned int		sincetsig;	/*%< recvd since the last TSIG */
 	dns_xfrindone_t		done;
 
-	/*
+	/*%
 	 * AXFR- and IXFR-specific data.  Only one is used at a time
 	 * according to the is_ixfr flag, so this could be a union,
 	 * but keeping them separate makes it a bit simpler to clean
@@ -224,14 +226,14 @@ static isc_result_t
 render(dns_message_t *msg, isc_mem_t *mctx, isc_buffer_t *buf);
 
 static void
-xfrin_logv(int level, dns_name_t *zonename, dns_rdataclass_t rdclass,
-	   isc_sockaddr_t *masteraddr, const char *fmt, va_list ap)
-     ISC_FORMAT_PRINTF(5, 0);
+xfrin_logv(int level, const char *zonetext, isc_sockaddr_t *masteraddr,
+	   const char *fmt, va_list ap)
+     ISC_FORMAT_PRINTF(4, 0);
 
 static void
-xfrin_log1(int level, dns_name_t *zonename, dns_rdataclass_t rdclass,
-	   isc_sockaddr_t *masteraddr, const char *fmt, ...)
-     ISC_FORMAT_PRINTF(5, 6);
+xfrin_log1(int level, const char *zonetext, isc_sockaddr_t *masteraddr,
+	   const char *fmt, ...)
+     ISC_FORMAT_PRINTF(4, 5);
 
 static void
 xfrin_log(dns_xfrin_ctx_t *xfr, int level, const char *fmt, ...)
@@ -457,7 +459,7 @@ xfr_rr(dns_xfrin_ctx_t *xfr, dns_name_t *name, isc_uint32_t ttl,
 			FAIL(DNS_R_FORMERR);
 		}
 		/*
-		 * Remember the serial number in the intial SOA.
+		 * Remember the serial number in the initial SOA.
 		 * We need it to recognize the end of an IXFR.
 		 */
 		xfr->end_serial = dns_soa_getserial(rdata);
@@ -631,9 +633,12 @@ dns_xfrin_create2(dns_zone_t *zone, dns_rdatatype_t xfrtype,
  failure:
 	if (db != NULL)
 		dns_db_detach(&db);
-	if (result != ISC_R_SUCCESS)
-		xfrin_log1(ISC_LOG_ERROR, zonename, dns_zone_getclass(zone),
-			   masteraddr, "zone transfer setup failed");
+	if (result != ISC_R_SUCCESS) {
+		char zonetext[DNS_NAME_MAXTEXT+32];
+		dns_zone_name(zone, zonetext, sizeof(zonetext));
+		xfrin_log1(ISC_LOG_ERROR, zonetext, masteraddr,
+			   "zone transfer setup failed");
+	}
 	return (result);
 }
 
@@ -1400,23 +1405,19 @@ maybe_free(dns_xfrin_ctx_t *xfr) {
  * transfer of <zone> from <address>: <message>
  */
 static void
-xfrin_logv(int level, dns_name_t *zonename, dns_rdataclass_t rdclass,
-	   isc_sockaddr_t *masteraddr, const char *fmt, va_list ap)
+xfrin_logv(int level, const char *zonetext, isc_sockaddr_t *masteraddr,
+	   const char *fmt, va_list ap)
 {
-	char zntext[DNS_NAME_FORMATSIZE];
 	char mastertext[ISC_SOCKADDR_FORMATSIZE];
-	char classtext[DNS_RDATACLASS_FORMATSIZE];
 	char msgtext[2048];
 
-	dns_name_format(zonename, zntext, sizeof(zntext));
-	dns_rdataclass_format(rdclass, classtext, sizeof(classtext));
 	isc_sockaddr_format(masteraddr, mastertext, sizeof(mastertext));
 	vsnprintf(msgtext, sizeof(msgtext), fmt, ap);
 
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_XFER_IN,
 		      DNS_LOGMODULE_XFER_IN, level,
-		      "transfer of '%s/%s' from %s: %s",
-		      zntext, classtext, mastertext, msgtext);
+		      "transfer of '%s' from %s: %s",
+		      zonetext, mastertext, msgtext);
 }
 
 /*
@@ -1424,8 +1425,8 @@ xfrin_logv(int level, dns_name_t *zonename, dns_rdataclass_t rdclass,
  */
 
 static void
-xfrin_log1(int level, dns_name_t *zonename, dns_rdataclass_t rdclass,
-	   isc_sockaddr_t *masteraddr, const char *fmt, ...)
+xfrin_log1(int level, const char *zonetext, isc_sockaddr_t *masteraddr,
+           const char *fmt, ...)
 {
 	va_list ap;
 
@@ -1433,7 +1434,7 @@ xfrin_log1(int level, dns_name_t *zonename, dns_rdataclass_t rdclass,
 		return;
 
 	va_start(ap, fmt);
-	xfrin_logv(level, zonename, rdclass, masteraddr, fmt, ap);
+	xfrin_logv(level, zonetext, masteraddr, fmt, ap);
 	va_end(ap);
 }
 
@@ -1445,11 +1446,14 @@ static void
 xfrin_log(dns_xfrin_ctx_t *xfr, int level, const char *fmt, ...)
 {
 	va_list ap;
+	char zonetext[DNS_NAME_MAXTEXT+32];
 
 	if (isc_log_wouldlog(dns_lctx, level) == ISC_FALSE)
 		return;
 
+	dns_zone_name(xfr->zone, zonetext, sizeof(zonetext));
+
 	va_start(ap, fmt);
-	xfrin_logv(level, &xfr->name, xfr->rdclass, &xfr->masteraddr, fmt, ap);
+	xfrin_logv(level, zonetext, &xfr->masteraddr, fmt, ap);
 	va_end(ap);
 }

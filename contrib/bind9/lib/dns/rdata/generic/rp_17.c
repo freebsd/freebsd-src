@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rp_17.c,v 1.35.12.4 2004/03/08 09:04:42 marka Exp $ */
+/* $Id: rp_17.c,v 1.38.18.2 2005/04/29 00:16:39 marka Exp $ */
 
-/* RFC 1183 */
+/* RFC1183 */
 
 #ifndef RDATA_GENERIC_RP_17_C
 #define RDATA_GENERIC_RP_17_C

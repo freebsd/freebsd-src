@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -18,9 +18,10 @@
 #ifndef GENERIC_GPOS_27_H
 #define GENERIC_GPOS_27_H 1
 
-/* $Id: gpos_27.h,v 1.12.206.1 2004/03/06 08:14:04 marka Exp $ */
+/* $Id: gpos_27.h,v 1.13.18.2 2005/04/29 00:16:32 marka Exp $ */
 
-/* RFC 1712 */
+/*!
+ *  \brief per RFC1712 */
 
 typedef struct dns_rdata_gpos {
 	dns_rdatacommon_t	common;

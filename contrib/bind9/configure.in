@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -18,10 +18,10 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.294.2.23.2.73 $)
+AC_REVISION($Revision: 1.355.18.67 $)
 
 AC_INIT(lib/dns/name.c)
-AC_PREREQ(2.13)
+AC_PREREQ(2.59)
 
 AC_CONFIG_HEADER(config.h)
 AC_CONFIG_SUBDIRS(lib/bind)
@@ -31,11 +31,19 @@ AC_CANONICAL_HOST
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_INSTALL
+AC_PROG_LN_S
 
 AC_SUBST(STD_CINCLUDES)
 AC_SUBST(STD_CDEFINES)
 AC_SUBST(STD_CWARNINGS)
 AC_SUBST(CCOPT)
+
+#
+# Make very sure that these are the first files processed by
+# config.status, since we use the processed output as the input for
+# AC_SUBST_FILE() subsitutions in other files.
+#
+AC_CONFIG_FILES([make/rules make/includes])
 
 AC_PATH_PROG(AR, ar)
 ARFLAGS="cruv"
@@ -354,6 +362,7 @@ AC_SUBST(LWRES_PLATFORM_NEEDSYSSELECTH)
 #
 AC_C_BIGENDIAN
 
+
 #
 # was --with-openssl specified?
 #
@@ -466,16 +475,6 @@ shared library configuration (e.g., LD_LIBRARY_PATH).)],
 		[AC_MSG_RESULT(assuming it does work on target platform)]
 		)
 		 
-		AC_CHECK_FUNC(DH_generate_parameters,
-			      AC_DEFINE(HAVE_DH_GENERATE_PARAMETERS, 1,
-					[Define if libcrypto has DH_generate_parameters]))
-		AC_CHECK_FUNC(RSA_generate_key,
-			      AC_DEFINE(HAVE_RSA_GENERATE_KEY, 1,
-					[Define if libcrypto has RSA_generate_key]))
-		AC_CHECK_FUNC(DSA_generate_parameters,
-			      AC_DEFINE(HAVE_DSA_GENERATE_PARAMETERS, 1,
-					[Define if libcrypto has DSA_generate_parameters]))
-
 AC_ARG_ENABLE(openssl-version-check,
 [AC_HELP_STRING([--enable-openssl-version-check],
         [Check OpenSSL Version @<:@default=yes@:>@])])
@@ -994,6 +993,7 @@ case "$enable_libbind" in
 	no|'')
 		;;
 esac
+
 
 #
 # Here begins a very long section to determine the system's networking
@@ -1687,6 +1687,24 @@ case "$enable_linux_caps" in
 esac
 AC_CHECK_HEADERS(sys/prctl.h)
 
+AC_CHECK_HEADERS(sys/un.h,
+ISC_PLATFORM_HAVESYSUNH="#define ISC_PLATFORM_HAVESYSUNH 1"
+,
+ISC_PLATFORM_HAVESYSUNH="#undef ISC_PLATFORM_HAVESYSUNH"
+)
+AC_SUBST(ISC_PLATFORM_HAVESYSUNH)
+
+case "$host" in
+*-solaris*)
+	AC_DEFINE(NEED_SECURE_DIRECTORY, 1,
+		  [Define if connect does not honour the permission on the UNIX domain socket.])
+	;;
+*-sunos*)
+	AC_DEFINE(NEED_SECURE_DIRECTORY, 1,
+		  [Define if connect does not honour the permission on the UNIX domain socket.])
+	;;
+esac
+
 #
 # Time Zone Stuff
 #
@@ -1873,6 +1891,158 @@ esac
 AC_SUBST(ISC_PLATFORM_HAVEIFNAMETOINDEX)
 
 #
+# Machine architecture dependent features
+#
+AC_ARG_ENABLE(atomic,
+	[  --enable-atomic	enable machine specific atomic operations
+                        [[default=autodetect]]],
+			enable_atomic="$enableval",
+			enable_atomic="autodetect")
+case "$enable_atomic" in
+	yes|''|autodetect)
+		use_atomic=yes
+		;;
+	no)
+		use_atomic=no
+		arch=noatomic
+		;;
+esac
+
+ISC_PLATFORM_USEOSFASM="#undef ISC_PLATFORM_USEOSFASM"
+if test "$use_atomic" = "yes"; then
+	AC_MSG_CHECKING([architecture type for atomic operations])
+	have_atomic=yes		# set default
+	case "$host" in
+	[i[3456]86-*])
+		# XXX: some old x86 architectures actually do not support
+		#      (some of) these operations.  Do we need stricter checks?
+AC_TRY_RUN([
+main() {
+	exit((sizeof(void *) == 8) ? 0 : 1);
+}
+],
+		[arch=x86_64],
+		[arch=x86_32],
+	        [arch=x86_32])
+	;;
+	x86_64-*)
+		arch=x86_64
+	;;
+	alpha*-*)
+		arch=alpha
+	;;
+	powerpc-*)
+		arch=powerpc
+	;;
+	mips-*|mipsel-*|mips64-*|mips64el-*)
+		arch=mips
+	;;
+	ia64-*)
+		arch=ia64
+	;;
+	*)
+		have_atomic=no
+		arch=noatomic
+	;;
+	esac
+	AC_MSG_RESULT($arch)
+fi
+
+if test "$have_atomic" = "yes"; then
+	AC_MSG_CHECKING([compiler support for inline assembly code])
+
+	compiler=generic
+	# Check whether the compiler supports the assembly syntax we provide.
+	if test "X$GCC" = "Xyes"; then
+		# GCC's ASM extension always works
+		compiler=gcc
+		if test $arch = "x86_64"; then
+			# We can share the same code for gcc with x86_32
+			arch=x86_32
+		fi
+		if test $arch = "powerpc"; then
+			#
+			# The MacOS (and maybe others) uses "r0" for register
+			# zero. Under linux/ibm it is "0" for register 0.
+			# Probe to see if we have a MacOS style assembler.
+			#
+			AC_MSG_CHECKING([Checking for MacOS style assembler syntax])
+			AC_TRY_COMPILE(, [
+			__asm__ volatile ("li r0, 0x0\n"::);
+			], [
+			AC_MSG_RESULT(yes)
+			compiler="mac"
+			ISC_PLATFORM_USEMACASM="#define ISC_PLATFORM_USEMACASM 1"
+			], [AC_MSG_RESULT(no)])
+		fi
+	else
+		case "$host" in
+		alpha*-dec-osf*)
+			# Tru64 compiler has its own syntax for inline 
+			# assembly.
+			AC_TRY_COMPILE(, [
+#ifndef __DECC
+#error "unexpected compiler"
+#endif
+				return (0);],
+				[compiler=osf],)
+		;;
+		powerpc-ibm-aix*)
+			compiler=aix
+		;;
+		esac
+	fi
+	case "$compiler" in
+	gcc)
+		ISC_PLATFORM_USEGCCASM="#define ISC_PLATFORM_USEGCCASM 1"
+		;;
+	osf)
+		ISC_PLATFORM_USEOSFASM="#define ISC_PLATFORM_USEOSFASM 1"
+		;;
+	aix)
+		;;
+	mac)
+		;;
+	*)
+		# See if the generic __asm function works.  If not,
+		# we need to disable the atomic operations.
+		AC_TRY_LINK(, [
+					__asm("nop")
+				],
+		[compiler="standard"
+		ISC_PLATFORM_USESTDASM="#define ISC_PLATFORM_USESTDASM 1"],
+		[compiler="not supported (atomic operations disabled)"
+		have_atomic=no
+		arch=noatomic ]);
+		;;
+	esac
+
+	AC_MSG_RESULT($compiler)
+fi
+
+if test "$have_atomic" = "yes"; then
+	ISC_PLATFORM_HAVEXADD="#define ISC_PLATFORM_HAVEXADD 1"
+	ISC_PLATFORM_HAVECMPXCHG="#define ISC_PLATFORM_HAVECMPXCHG 1"
+	ISC_PLATFORM_HAVEATOMICSTORE="#define ISC_PLATFORM_HAVEATOMICSTORE 1"
+else
+	ISC_PLATFORM_HAVEXADD="#undef ISC_PLATFORM_HAVEXADD"
+	ISC_PLATFORM_HAVECMPXCHG="#undef ISC_PLATFORM_HAVECMPXCHG"
+	ISC_PLATFORM_HAVEATOMICSTORE="#undef ISC_PLATFORM_HAVEATOMICSTORE"
+fi
+
+AC_SUBST(ISC_PLATFORM_HAVEXADD)
+AC_SUBST(ISC_PLATFORM_HAVECMPXCHG)
+AC_SUBST(ISC_PLATFORM_HAVEATOMICSTORE)
+
+AC_SUBST(ISC_PLATFORM_USEGCCASM)
+AC_SUBST(ISC_PLATFORM_USEOSFASM)
+AC_SUBST(ISC_PLATFORM_USESTDASM)
+AC_SUBST(ISC_PLATFORM_USEMACASM)
+
+ISC_ARCH_DIR=$arch
+AC_SUBST(ISC_ARCH_DIR)
+
+#
 #  The following sets up how non-blocking i/o is established.
 #  Sunos, cygwin and solaris 2.x (x<5) require special handling.
 #
@@ -1913,6 +2083,13 @@ AC_SUBST(LATEX)
 
 AC_PATH_PROGS(PDFLATEX, pdflatex, pdflatex)
 AC_SUBST(PDFLATEX)
+
+#
+# Look for w3m
+#
+
+AC_PATH_PROGS(W3M, w3m, w3m)
+AC_SUBST(W3M)
 
 #
 # Look for xsltproc (libxslt)
@@ -1980,6 +2157,10 @@ NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_XHTML, docbook/xhtml/docbook.xsl, $docbook_xsl_
 NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_MAN, docbook/manpages/docbook.xsl, $docbook_xsl_trees)
 NOM_PATH_FILE(XSLT_DOCBOOK_CHUNK_HTML, docbook/html/chunk.xsl, $docbook_xsl_trees)
 NOM_PATH_FILE(XSLT_DOCBOOK_CHUNK_XHTML, docbook/xhtml/chunk.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_CHUNKTOC_HTML, docbook/html/chunktoc.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_CHUNKTOC_XHTML, docbook/xhtml/chunktoc.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_MAKETOC_HTML, docbook/html/maketoc.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_MAKETOC_XHTML, docbook/xhtml/maketoc.xsl, $docbook_xsl_trees)
 
 #
 # Same dance for db2latex
@@ -2017,6 +2198,82 @@ then
 	XSLT_DB2LATEX_ADMONITIONS=db2latex/xsl/figures
 fi
 AC_SUBST(XSLT_DB2LATEX_ADMONITIONS)
+
+#
+# IDN support
+#
+AC_ARG_WITH(idn,
+	[  --with-idn[=MPREFIX]   enable IDN support using idnkit [default PREFIX]],
+	use_idn="$withval", use_idn="no")
+case "$use_idn" in
+yes)
+	if test X$prefix = XNONE ; then
+		idn_path=/usr/local
+	else
+		idn_path=$prefix
+	fi
+	;;
+no)
+	;;
+*)
+	idn_path="$use_idn"
+	;;
+esac
+
+iconvinc=
+iconvlib=
+AC_ARG_WITH(libiconv,
+	[  --with-libiconv[=IPREFIX]   GNU libiconv are in IPREFIX [default PREFIX]],
+	use_libiconv="$withval", use_libiconv="no")
+case "$use_libiconv" in
+yes)
+	if test X$prefix = XNONE ; then
+		iconvlib="-L/usr/local/lib -R/usr/local/lib -liconv"
+	else
+		iconvlib="-L$prefix/lib -R$prefix/lib -liconv"
+	fi
+	;;
+no)
+	iconvlib=
+	;;
+*)
+	iconvlib="-L$use_libiconv/lib -R$use_libiconv/lib -liconv"
+	;;
+esac
+
+AC_ARG_WITH(iconv,
+	[  --with-iconv[=LIBSPEC]   specify iconv library [default -liconv]],
+	iconvlib="$withval")
+case "$iconvlib" in
+no)
+	iconvlib=
+	;;
+yes)
+	iconvlib=-liconv
+	;;
+esac
+
+AC_ARG_WITH(idnlib,
+	[  --with-idnlib=ARG    specify libidnkit],
+	idnlib="$withval", idnlib="no")
+if test "$idnlib" = yes; then
+	AC_MSG_ERROR([You must specify ARG for --with-idnlib.])
+fi
+
+IDNLIBS=
+if test "$use_idn" != no; then
+	AC_DEFINE(WITH_IDN, 1, [define if idnkit support is to be included.])
+	STD_CINCLUDES="$STD_CINCLUDES -I$idn_path/include"
+	if test "$idnlib" != no; then
+		IDNLIBS="$idnlib $iconvlib"
+	else
+		IDNLIBS="-L$idn_path/lib -lidnkit $iconvlib"
+	fi
+fi
+AC_SUBST(IDNLIBS)
+
+AC_CHECK_HEADERS(locale.h)
+AC_CHECK_FUNCS(setlocale)
 
 #
 # Substitutions
@@ -2074,6 +2331,45 @@ LIBBIND9_API=$srcdir/lib/bind9/api
 AC_SUBST_FILE(LIBLWRES_API)
 LIBLWRES_API=$srcdir/lib/lwres/api
 
+#
+# Configure any DLZ drivers.
+#
+# If config.dlz.in selects one or more DLZ drivers, it will set
+# USE_DLZ to a non-empty value, which will be our clue to
+# enable the DLZ core functions.
+#
+# This section has to come after the libtool stuff because it needs to
+# know how to name the driver object files.
+#
+
+USE_DLZ=""
+DLZ_DRIVER_INCLUDES=""
+DLZ_DRIVER_LIBS=""
+DLZ_DRIVER_SRCS=""
+DLZ_DRIVER_OBJS=""
+
+sinclude(contrib/dlz/config.dlz.in)
+
+AC_MSG_CHECKING(for DLZ)
+
+if test -n "$USE_DLZ"
+then
+	AC_MSG_RESULT(yes)
+	USE_DLZ="-DDLZ $USE_DLZ"
+	DLZ_DRIVER_RULES=contrib/dlz/drivers/rules
+	AC_CONFIG_FILES([$DLZ_DRIVER_RULES])
+else
+	AC_MSG_RESULT(no)
+	DLZ_DRIVER_RULES=/dev/null
+fi
+
+AC_SUBST(USE_DLZ)
+AC_SUBST(DLZ_DRIVER_INCLUDES)
+AC_SUBST(DLZ_DRIVER_LIBS)
+AC_SUBST(DLZ_DRIVER_SRCS)
+AC_SUBST(DLZ_DRIVER_OBJS)
+AC_SUBST_FILE(DLZ_DRIVER_RULES)
+
 if test "$cross_compiling" = "yes"; then
 	if test -z "$BUILD_CC"; then
 		AC_ERROR([BUILD_CC not set])
@@ -2096,9 +2392,23 @@ AC_SUBST(BUILD_CPPFLAGS)
 AC_SUBST(BUILD_LDFLAGS)
 AC_SUBST(BUILD_LIBS)
 
-AC_OUTPUT(
-	make/rules
-	make/includes
+#
+# Commands to run at the end of config.status.
+# Don't just put these into configure, it won't work right if somebody
+# runs config.status directly (which autoconf allows).
+#
+
+AC_CONFIG_COMMANDS(
+	[chmod],
+	[chmod a+x isc-config.sh])
+
+#
+# Files to configure.  These are listed here because we used to
+# specify them as arguments to AC_OUTPUT.  It's (now) ok to move these
+# elsewhere if there's a good reason for doing so.
+#
+
+AC_CONFIG_FILES([
 	Makefile
 	make/Makefile
 	make/mkdep
@@ -2167,14 +2477,19 @@ AC_OUTPUT(
 	doc/Makefile
 	doc/arm/Makefile
 	doc/misc/Makefile
-	doc/xsl/Makefile
 	isc-config.sh
+	doc/xsl/Makefile
 	doc/xsl/isc-docbook-chunk.xsl
 	doc/xsl/isc-docbook-html.xsl
 	doc/xsl/isc-docbook-latex.xsl
 	doc/xsl/isc-manpage.xsl
-)
-chmod a+x isc-config.sh
+])
+
+#
+# Do it
+#
+
+AC_OUTPUT
 
 if test "X$OPENSSL_WARNING" != "X"; then
 cat << \EOF

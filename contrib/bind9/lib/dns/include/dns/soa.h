@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: soa.h,v 1.2.206.1 2004/03/06 08:14:00 marka Exp $ */
+/* $Id: soa.h,v 1.3.18.2 2005/04/29 00:16:22 marka Exp $ */
 
 #ifndef DNS_SOA_H
 #define DNS_SOA_H 1
@@ -24,7 +24,8 @@
  ***** Module Info
  *****/
 
-/*
+/*! \file
+ * \brief
  * SOA utilities.
  */
 
