@@ -62,6 +62,17 @@ CFLAGS+=	-DRNDC_KEYFILE='"${SYSCONFDIR}/rndc.key"'
 CFLAGS+=	-I${LIB_BIND_DIR}
 .endif
 
+# Use the right version of the atomic.h file from lib/isc
+.if ${MACHINE_ARCH} == "amd64"
+ISC_ATOMIC_ARCH=	x86_64
+.elif ${MACHINE_ARCH} == "arm"
+ISC_ATOMIC_ARCH=	mips
+.elif ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "i386/pc98"
+ISC_ATOMIC_ARCH=	x86_32
+.else
+ISC_ATOMIC_ARCH=	${MACHINE_ARCH}
+.endif
+
 # Link against BIND libraries
 .if ${MK_BIND_LIBS} == "no"
 LIBBIND9=	${LIB_BIND_REL}/bind9/libbind9.a
@@ -76,7 +87,7 @@ LIBISCCFG=	${LIB_BIND_REL}/isccfg/libisccfg.a
 CFLAGS+=	-I${BIND_DIR}/lib/isccfg/include
 LIBISC=		${LIB_BIND_REL}/isc/libisc.a
 CFLAGS+=	-I${BIND_DIR}/lib/isc/unix/include \
-		-I${BIND_DIR}/lib/isc/nothreads/include \
+		-I${BIND_DIR}/lib/isc/pthreads/include \
 		-I${BIND_DIR}/lib/isc/include \
 		-I${LIB_BIND_DIR}/isc
 LIBLWRES=	${LIB_BIND_REL}/lwres/liblwres.a
@@ -97,3 +108,7 @@ BIND_LDADD=	${BIND_DPADD}
 CRYPTO_DPADD=	${LIBCRYPTO}
 CRYPTO_LDADD=	-lcrypto
 .endif
+
+PTHREAD_DPADD=	${LIBPTHREAD}
+PTHREAD_LDADD=	-lpthread
+

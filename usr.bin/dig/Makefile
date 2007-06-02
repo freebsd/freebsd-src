@@ -13,8 +13,9 @@ PROG=		dig
 SRCS+=		dig.c dighost.c
 
 CFLAGS+=	-I${SRCDIR}/include
+CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
 
-DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD}
-LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD}
+DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
+LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
 .include <bsd.prog.mk>
