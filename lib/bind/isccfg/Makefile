@@ -12,12 +12,17 @@ SRCDIR=		${BIND_DIR}/lib/isccfg
 LIB=		isccfg
 
 .PATH:		${SRCDIR}
-SRCS=		log.c namedconf.c parser.c version.c
+SRCS=		aclconf.c log.c namedconf.c parser.c version.c
 
 CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR}
+CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
+
+DPADD=		${PTHREAD_DPADD}
+LDADD=		${PTHREAD_LDADD}
 
 .if ${MK_BIND_LIBS} != "no"
-INCS=		${SRCDIR}/include/isccfg/cfg.h \
+INCS=		${SRCDIR}/include/isccfg/aclconf.h \
+		${SRCDIR}/include/isccfg/cfg.h \
 		${SRCDIR}/include/isccfg/grammar.h \
 		${SRCDIR}/include/isccfg/log.h \
 		${SRCDIR}/include/isccfg/namedconf.h \
