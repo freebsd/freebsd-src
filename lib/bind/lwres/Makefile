@@ -25,6 +25,10 @@ SRCS+=		context.c gai_strerror.c getaddrinfo.c gethost.c \
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
+
+DPADD=		${PTHREAD_DPADD}
+LDADD=		${PTHREAD_LDADD}
 
 .if ${MK_BIND_LIBS} != "no"
 MAN=		lwres.3 lwres_buffer.3 lwres_config.3 lwres_context.3 \
