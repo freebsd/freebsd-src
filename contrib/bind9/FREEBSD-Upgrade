@@ -28,7 +28,7 @@
 
 5) Resolve conflicts.
 
-   As of 28 December 2005, we have no local patches against BIND 9; thus
+   As of 2 June 2007, we have no local patches against BIND 9; thus
    there are no conflicts to merge.  This may change at a later date.
 
 5a) Remove any files that are no longer in the tarball from the vendor branch.
@@ -50,7 +50,7 @@
 	$ autoconf
 	$ ./configure --prefix=/usr \
 		--infodir=/usr/share/info --mandir=/usr/share/man \
-		--disable-threads --enable-libbind --disable-ipv6 \
+		--enable-threads --enable-libbind --disable-ipv6 \
 		--enable-getifaddrs --disable-linux-caps \
 		--with-openssl=/usr --with-randomdev=/dev/random
 
@@ -62,13 +62,14 @@
 
 	Path in src/contrib/bind9		Path in src/lib/bind
 	------------------------------------------------------------
-	config.h				config.h
-	lib/bind/config.h			bind/config.h
-	lib/bind/port_after.h			bind/port_after.h
-	lib/bind/port_before.h			bind/port_before.h
-	lib/isc/include/isc/platform.h		isc/isc/platform.h
-	lib/lwres/include/lwres/netdb.h		lwres/lwres/netdb.h
-	lib/lwres/include/lwres/platform.h	lwres/lwres/platform.h
+	s=/usr/src/lib/bind
+	cp config.h				${s}/config.h
+	cp lib/bind/config.h			${s}/bind/config.h
+	cp lib/bind/port_after.h		${s}/bind/port_after.h
+	cp lib/bind/port_before.h		${s}/bind/port_before.h
+	cp lib/isc/include/isc/platform.h	${s}/isc/isc/platform.h
+	cp lib/lwres/include/lwres/netdb.h	${s}/lwres/lwres/netdb.h
+	cp lib/lwres/include/lwres/platform.h	${s}/lwres/lwres/platform.h
 
    Do not commit any other file that was modified or created in
    steps 6) or 7).
