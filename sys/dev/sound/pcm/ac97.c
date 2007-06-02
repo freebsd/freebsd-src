@@ -922,7 +922,6 @@ static int
 ac97mix_init(struct snd_mixer *m)
 {
 	struct ac97_info *codec = mix_getdevinfo(m);
-	struct snddev_info *d;
 	u_int32_t i, mask;
 
 	if (codec == NULL)
@@ -964,9 +963,8 @@ ac97mix_init(struct snd_mixer *m)
 		ac97_wrcd(codec, AC97_MIX_PCM, 0);
 		bzero(&codec->mix[SOUND_MIXER_PCM],
 		    sizeof(codec->mix[SOUND_MIXER_PCM]));
-		d = device_get_softc(codec->dev);
-		if (d != NULL)
-			d->flags |= SD_F_SOFTPCMVOL;
+		pcm_setflags(codec->dev, pcm_getflags(codec->dev) |
+		    SD_F_SOFTPCMVOL);
 		/* XXX How about master volume ? */
 		break;
 	default:
