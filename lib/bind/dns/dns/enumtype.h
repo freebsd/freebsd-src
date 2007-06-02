@@ -24,6 +24,8 @@
  ***************
  ***************/
 
+/*! \file */
+
 #ifndef DNS_ENUMTYPE_H
 #define DNS_ENUMTYPE_H 1
 
@@ -69,9 +71,11 @@ enum {
 	dns_rdatatype_apl = 42,
 	dns_rdatatype_ds = 43,
 	dns_rdatatype_sshfp = 44,
+	dns_rdatatype_ipseckey = 45,
 	dns_rdatatype_rrsig = 46,
 	dns_rdatatype_nsec = 47,
 	dns_rdatatype_dnskey = 48,
+	dns_rdatatype_spf = 99,
 	dns_rdatatype_unspec = 103,
 	dns_rdatatype_tkey = 249,
 	dns_rdatatype_tsig = 250,
@@ -124,9 +128,11 @@ enum {
 #define dns_rdatatype_apl	((dns_rdatatype_t)dns_rdatatype_apl)
 #define dns_rdatatype_ds	((dns_rdatatype_t)dns_rdatatype_ds)
 #define dns_rdatatype_sshfp	((dns_rdatatype_t)dns_rdatatype_sshfp)
+#define dns_rdatatype_ipseckey	((dns_rdatatype_t)dns_rdatatype_ipseckey)
 #define dns_rdatatype_rrsig	((dns_rdatatype_t)dns_rdatatype_rrsig)
 #define dns_rdatatype_nsec	((dns_rdatatype_t)dns_rdatatype_nsec)
 #define dns_rdatatype_dnskey	((dns_rdatatype_t)dns_rdatatype_dnskey)
+#define dns_rdatatype_spf	((dns_rdatatype_t)dns_rdatatype_spf)
 #define dns_rdatatype_unspec	((dns_rdatatype_t)dns_rdatatype_unspec)
 #define dns_rdatatype_tkey	((dns_rdatatype_t)dns_rdatatype_tkey)
 #define dns_rdatatype_tsig	((dns_rdatatype_t)dns_rdatatype_tsig)
