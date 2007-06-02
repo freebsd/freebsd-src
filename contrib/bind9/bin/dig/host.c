@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: host.c,v 1.76.2.5.2.16 2006/05/23 04:43:47 marka Exp $ */
+/* $Id: host.c,v 1.94.18.14 2006/05/23 04:40:42 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 #include <limits.h>
@@ -114,8 +116,8 @@ static void
 show_usage(void) {
 	fputs(
 "Usage: host [-aCdlriTwv] [-c class] [-N ndots] [-t type] [-W time]\n"
-"            [-R number] hostname [server]\n"
-"       -a is equivalent to -v -t *\n"
+"            [-R number] [-m flag] hostname [server]\n"
+"       -a is equivalent to -v -t ANY\n"
 "       -c specifies query class for non-IN data\n"
 "       -C compares SOA records on authoritative nameservers\n"
 "       -d is equivalent to -v\n"
@@ -124,13 +126,15 @@ show_usage(void) {
 "       -N changes the number of dots allowed before root lookup is done\n"
 "       -r disables recursive processing\n"
 "       -R specifies number of retries for UDP packets\n"
+"       -s a SERVFAIL response should stop query\n"
 "       -t specifies the query type\n"
 "       -T enables TCP/IP mode\n"
 "       -v enables verbose output\n"
 "       -w specifies to wait forever for a reply\n"
 "       -W specifies how long to wait for a reply\n"
 "       -4 use IPv4 query transport only\n"
-"       -6 use IPv6 query transport only\n", stderr);
+"       -6 use IPv6 query transport only\n"
+"       -m set memory debugging flag (trace|record|usage)\n", stderr);
 	exit(1);
 }
 
@@ -556,6 +560,52 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	return (result);
 }
 
+static const char * optstring = "46ac:dilnm:rst:vwCDN:R:TW:";
+
+static void
+pre_parse_args(int argc, char **argv) {
+	int c;
+
+	while ((c = isc_commandline_parse(argc, argv, optstring)) != -1) {
+		switch (c) {
+		case 'm':
+			if (strcasecmp("trace", isc_commandline_argument) == 0)
+				isc_mem_debugging |= ISC_MEM_DEBUGTRACE;
+			else if (!strcasecmp("record",
+					     isc_commandline_argument) == 0)
+				isc_mem_debugging |= ISC_MEM_DEBUGRECORD;
+			else if (strcasecmp("usage",
+					    isc_commandline_argument) == 0)
+				isc_mem_debugging |= ISC_MEM_DEBUGUSAGE;
+			break;
+
+		case '4': break;
+		case '6': break;
+		case 'a': break;
+		case 'c': break;
+		case 'd': break;
+		case 'i': break;
+		case 'l': break;
+		case 'n': break;
+		case 'r': break;
+		case 's': break;
+		case 't': break;
+		case 'v': break;
+		case 'w': break;
+		case 'C': break;
+		case 'D': break;
+		case 'N': break;
+		case 'R': break;
+		case 'T': break;
+		case 'W': break;
+		default:
+			show_usage();
+		}
+	}
+	isc_commandline_reset = ISC_TRUE;
+	isc_commandline_index = 1;
+}
+
 static void
 parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 	char hostname[MXNAME];
@@ -572,8 +622,10 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 
 	lookup = make_empty_lookup();
 
-	while ((c = isc_commandline_parse(argc, argv, "lvwrdt:c:aTCN:R:W:Dni46"))
-	       != EOF) {
+	lookup->servfail_stops = ISC_FALSE;
+	lookup->comments = ISC_FALSE;
+
+	while ((c = isc_commandline_parse(argc, argv, optstring)) != -1) {
 		switch (c) {
 		case 'l':
 			lookup->tcp_mode = ISC_TRUE;
@@ -657,6 +709,9 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 		case 'n':
 			/* deprecated */
 			break;
+		case 'm':
+			/* Handled by pre_parse_args(). */
+			break;
 		case 'w':
 			/*
 			 * The timer routines are coded such that
@@ -710,6 +765,9 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			} else
 				fatal("can't find IPv6 networking");
 			break;
+		case 's':
+			lookup->servfail_stops = ISC_TRUE;
+			break;
 		}
 	}
 
@@ -724,7 +782,8 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 		set_nameserver(argv[isc_commandline_index+1]);
 		debug("server is %s", argv[isc_commandline_index+1]);
 		listed_server = ISC_TRUE;
-	}
+	} else
+		check_ra = ISC_TRUE;
 
 	lookup->pending = ISC_FALSE;
 	if (get_reverse(store, sizeof(store), hostname,
@@ -758,6 +817,7 @@ main(int argc, char **argv) {
 
 	debug("main()");
 	progname = argv[0];
+	pre_parse_args(argc, argv);
 	result = isc_app_start();
 	check_result(result, "isc_app_start");
 	setup_libs();
@@ -771,4 +831,3 @@ main(int argc, char **argv) {
 	isc_app_finish();
 	return ((seen_error == 0) ? 0 : 1);
 }
-

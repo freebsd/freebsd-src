@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: random.c,v 1.15.74.5 2004/03/08 09:04:49 marka Exp $ */
+/* $Id: random.c,v 1.21.18.2 2005/04/29 00:16:48 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 

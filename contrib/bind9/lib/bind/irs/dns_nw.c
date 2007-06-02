@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_nw.c,v 1.3.2.4.4.4 2004/09/16 00:57:34 marka Exp $";
+static const char rcsid[] = "$Id: dns_nw.c,v 1.9.18.3 2005/04/27 05:00:55 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -377,16 +377,16 @@ get1101answer(struct irs_nw *this,
 	while (--ancount >= 0 && cp < eom) {
 		int n = dn_expand(ansbuf, eom, cp, bp, ep - bp);
 
-		cp += n;		/* Owner */
+		cp += n;		/*%< Owner */
 		if (n < 0 || !maybe_dnok(pvt->res, bp) ||
 		    cp + 3 * INT16SZ + INT32SZ > eom) {
 			RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 			return (NULL);
 		}
-		GETSHORT(type, cp);	/* Type */
-		GETSHORT(class, cp);	/* Class */
-		cp += INT32SZ;		/* TTL */
-		GETSHORT(n, cp);	/* RDLENGTH */
+		GETSHORT(type, cp);	/*%< Type */
+		GETSHORT(class, cp);	/*%< Class */
+		cp += INT32SZ;		/*%< TTL */
+		GETSHORT(n, cp);	/*%< RDLENGTH */
 		if (class == C_IN && type == T_PTR) {
 			int nn;
 
@@ -430,7 +430,7 @@ get1101answer(struct irs_nw *this,
 			    }
 			}
 		}
-		cp += n;		/* RDATA */
+		cp += n;		/*%< RDATA */
 	}
 	if (!haveanswer) {
 		RES_SET_H_ERRNO(pvt->res, TRY_AGAIN);
@@ -491,13 +491,13 @@ get1101mask(struct irs_nw *this, struct nwent *nwent) {
 
 		if (n < 0 || !maybe_dnok(pvt->res, owner))
 			break;
-		cp += n;		/* Owner */
+		cp += n;		/*%< Owner */
 		if (cp + 3 * INT16SZ + INT32SZ > eom)
 			break;
-		GETSHORT(type, cp);	/* Type */
-		GETSHORT(class, cp);	/* Class */
-		cp += INT32SZ;		/* TTL */
-		GETSHORT(n, cp);	/* RDLENGTH */
+		GETSHORT(type, cp);	/*%< Type */
+		GETSHORT(class, cp);	/*%< Class */
+		cp += INT32SZ;		/*%< TTL */
+		GETSHORT(n, cp);	/*%< RDLENGTH */
 		if (cp + n > eom)
 			break;
 		if (n == INADDRSZ && class == C_IN && type == T_A &&
@@ -513,7 +513,7 @@ get1101mask(struct irs_nw *this, struct nwent *nwent) {
 					else
 						break;
 		}
-		cp += n;		/* RDATA */
+		cp += n;		/*%< RDATA */
 	}
 	memput(ansbuf, MAXPACKET);
 	return (nwent);
@@ -587,3 +587,5 @@ init(struct irs_nw *this) {
 		return (-1);
 	return (0);
 }
+
+/*! \file */

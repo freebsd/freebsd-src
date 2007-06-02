@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipv6.h,v 1.17.12.4 2004/03/09 05:21:09 marka Exp $ */
+/* $Id: ipv6.h,v 1.20.18.2 2005/04/29 00:16:56 marka Exp $ */
 
 #ifndef ISC_IPV6_H
 #define ISC_IPV6_H 1
 
-/*
+/*!
  * Also define LWRES_IPV6_H to keep it from being included if liblwres is
  * being used, or redefinition errors will occur.
  */
@@ -30,23 +30,23 @@
  ***** Module Info
  *****/
 
-/*
- * IPv6 definitions for systems which do not support IPv6.
+/*! \file isc/ipv6.h
+ * \brief IPv6 definitions for systems which do not support IPv6.
  *
- * MP:
+ * \li MP:
  *	No impact.
  *
- * Reliability:
+ * \li Reliability:
  *	No anticipated impact.
  *
- * Resources:
+ * \li Resources:
  *	N/A.
  *
- * Security:
+ * \li Security:
  *	No anticipated impact.
  *
- * Standards:
- *	RFC 2553.
+ * \li Standards:
+ *	RFC2553.
  */
 
 /***
@@ -95,7 +95,7 @@ struct sockaddr_in6 {
 #define SIN6_LEN 1
 #endif
 
-/*
+/*%
  * Unspecified
  */
 #define IN6_IS_ADDR_UNSPECIFIED(a)      \
@@ -104,7 +104,7 @@ struct sockaddr_in6 {
          ((a)->s6_addr32[2] == 0) &&    \
          ((a)->s6_addr32[3] == 0))
 
-/*
+/*%
  * Loopback
  */
 #define IN6_IS_ADDR_LOOPBACK(a)         \
@@ -113,7 +113,7 @@ struct sockaddr_in6 {
          ((a)->s6_addr32[2] == 0) &&    \
          ((a)->s6_addr32[3] == htonl(1)))
 
-/*
+/*%
  * IPv4 compatible
  */
 #define IN6_IS_ADDR_V4COMPAT(a)         \
@@ -123,7 +123,7 @@ struct sockaddr_in6 {
          ((a)->s6_addr32[3] != 0) &&    \
          ((a)->s6_addr32[3] != htonl(1)))
 
-/*
+/*%
  * Mapped
  */
 #define IN6_IS_ADDR_V4MAPPED(a)               \
@@ -131,13 +131,13 @@ struct sockaddr_in6 {
          ((a)->s6_addr32[1] == 0) &&          \
          ((a)->s6_addr32[2] == htonl(0x0000ffff)))
 
-/*
+/*%
  * Multicast
  */
 #define IN6_IS_ADDR_MULTICAST(a)	\
 	((a)->s6_addr8[0] == 0xffU)
 
-/*
+/*%
  * Unicast link / site local.
  */
 #define IN6_IS_ADDR_LINKLOCAL(a)	\

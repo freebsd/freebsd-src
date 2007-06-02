@@ -114,3 +114,4 @@
 #define DEQUEUE(list, elt, link) UNLINK(list, elt, link)
 
 #endif /* LIST_H */
+/*! \file */

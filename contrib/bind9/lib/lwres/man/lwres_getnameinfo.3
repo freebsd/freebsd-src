@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_getnameinfo.3,v 1.15.2.1.8.6 2006/06/29 13:02:31 marka Exp $
+.\" $Id: lwres_getnameinfo.3,v 1.18.18.11 2007/01/30 00:23:45 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: lwres_getnameinfo
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -36,7 +36,7 @@ lwres_getnameinfo \- lightweight resolver socket address structure to hostname a
 #include <lwres/netdb.h>
 .fi
 .HP 22
-.BI "int lwres_getnameinfo(const\ struct\ sockaddr\ *sa, size_t\ salen, char\ *host, size_t\ hostlen, char\ *serv, size_t\ servlen, int\ flags);"
+.BI "int lwres_getnameinfo(const\ struct\ sockaddr\ *" "sa" ", size_t\ " "salen" ", char\ *" "host" ", size_t\ " "hostlen" ", char\ *" "serv" ", size_t\ " "servlen" ", int\ " "flags" ");"
 .SH "DESCRIPTION"
 .PP
 This function is equivalent to the
@@ -68,21 +68,31 @@ bytes long. The maximum length of the service name is
 The
 \fIflags\fR
 argument sets the following bits:
-.TP 3n
+.PP
 \fBNI_NOFQDN\fR
+.RS 4
 A fully qualified domain name is not required for local hosts. The local part of the fully qualified domain name is returned instead.
-.TP 3n
+.RE
+.PP
 \fBNI_NUMERICHOST\fR
+.RS 4
 Return the address in numeric form, as if calling inet_ntop(), instead of a host name.
-.TP 3n
+.RE
+.PP
 \fBNI_NAMEREQD\fR
+.RS 4
 A name is required. If the hostname cannot be found in the DNS and this flag is set, a non\-zero error code is returned. If the hostname is not found and the flag is not set, the address is returned in numeric form.
-.TP 3n
+.RE
+.PP
 \fBNI_NUMERICSERV\fR
+.RS 4
 The service name is returned as a digit string representing the port number.
-.TP 3n
+.RE
+.PP
 \fBNI_DGRAM\fR
+.RS 4
 Specifies that the service being looked up is a datagram service, and causes getservbyport() to be called with a second argument of "udp" instead of its default of "tcp". This is required for the few ports (512\-514) that have different services for UDP and TCP.
+.RE
 .SH "RETURN VALUES"
 .PP
 \fBlwres_getnameinfo()\fR
@@ -101,4 +111,7 @@ RFC2133 fails to define what the nonzero return values of
 \fBgetnameinfo\fR(3)
 are.
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001 Internet Software Consortium.
+.br

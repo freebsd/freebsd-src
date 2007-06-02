@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001, 2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_context.3,v 1.13.2.2.2.7 2006/06/29 13:02:31 marka Exp $
+.\" $Id: lwres_context.3,v 1.17.18.11 2007/01/30 00:23:45 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: lwres_context
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -36,19 +36,19 @@ lwres_context_create, lwres_context_destroy, lwres_context_nextserial, lwres_con
 #include <lwres/lwres.h>
 .fi
 .HP 36
-.BI "lwres_result_t lwres_context_create(lwres_context_t\ **contextp, void\ *arg, lwres_malloc_t\ malloc_function, lwres_free_t\ free_function);"
+.BI "lwres_result_t lwres_context_create(lwres_context_t\ **" "contextp" ", void\ *" "arg" ", lwres_malloc_t\ " "malloc_function" ", lwres_free_t\ " "free_function" ");"
 .HP 37
-.BI "lwres_result_t lwres_context_destroy(lwres_context_t\ **contextp);"
+.BI "lwres_result_t lwres_context_destroy(lwres_context_t\ **" "contextp" ");"
 .HP 30
-.BI "void lwres_context_initserial(lwres_context_t\ *ctx, lwres_uint32_t\ serial);"
+.BI "void lwres_context_initserial(lwres_context_t\ *" "ctx" ", lwres_uint32_t\ " "serial" ");"
 .HP 40
-.BI "lwres_uint32_t lwres_context_nextserial(lwres_context_t\ *ctx);"
+.BI "lwres_uint32_t lwres_context_nextserial(lwres_context_t\ *" "ctx" ");"
 .HP 27
-.BI "void lwres_context_freemem(lwres_context_t\ *ctx, void\ *mem, size_t\ len);"
+.BI "void lwres_context_freemem(lwres_context_t\ *" "ctx" ", void\ *" "mem" ", size_t\ " "len" ");"
 .HP 28
-.BI "void lwres_context_allocmem(lwres_context_t\ *ctx, size_t\ len);"
+.BI "void lwres_context_allocmem(lwres_context_t\ *" "ctx" ", size_t\ " "len" ");"
 .HP 30
-.BI "void * lwres_context_sendrecv(lwres_context_t\ *ctx, void\ *sendbase, int\ sendlen, void\ *recvbase, int\ recvlen, int\ *recvd_len);"
+.BI "void * lwres_context_sendrecv(lwres_context_t\ *" "ctx" ", void\ *" "sendbase" ", int\ " "sendlen" ", void\ *" "recvbase" ", int\ " "recvlen" ", int\ *" "recvd_len" ");"
 .SH "DESCRIPTION"
 .PP
 \fBlwres_context_create()\fR
@@ -72,7 +72,8 @@ to free it. If
 \fImalloc_function\fR
 and
 \fIfree_function\fR
-are NULL, memory is allocated using .Xr malloc 3 and
+are NULL, memory is allocated using
+\fBmalloc\fR(3). and
 \fBfree\fR(3). It is not permitted to have a NULL
 \fImalloc_function\fR
 and a non\-NULL
@@ -161,6 +162,9 @@ times out waiting for a response.
 .PP
 \fBlwres_conf_init\fR(3),
 \fBmalloc\fR(3),
-\fBfree\fR(3 ).
+\fBfree\fR(3).
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001, 2003 Internet Software Consortium.
+.br

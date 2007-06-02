@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dbtable.h,v 1.16.206.1 2004/03/06 08:13:55 marka Exp $ */
+/* $Id: dbtable.h,v 1.17.18.2 2005/04/29 00:16:11 marka Exp $ */
 
 #ifndef DNS_DBTABLE_H
 #define DNS_DBTABLE_H 1
@@ -24,26 +24,27 @@
  ***** Module Info
  *****/
 
-/*
+/*! \file
+ * \brief
  * DNS DB Tables
  *
- * XXX <TBS> XXX
+ * XXX TBS XXX
  *
  * MP:
- *	The module ensures appropriate synchronization of data structures it
+ *\li	The module ensures appropriate synchronization of data structures it
  *	creates and manipulates.
  *
  * Reliability:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  *
  * Resources:
- *	None.
+ *\li	None.
  *
  * Security:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  *
  * Standards:
- *	None.
+ *\li	None.
  */
 
 #include <isc/lang.h>
@@ -57,106 +58,106 @@ ISC_LANG_BEGINDECLS
 isc_result_t
 dns_dbtable_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 		   dns_dbtable_t **dbtablep);
-/*
+/*%<
  * Make a new dbtable of class 'rdclass'
  *
  * Requires:
- *	mctx != NULL
- * 	dbtablep != NULL && *dptablep == NULL
- *	'rdclass' is a valid class
+ *\li	mctx != NULL
+ * \li	dbtablep != NULL && *dptablep == NULL
+ *\li	'rdclass' is a valid class
  *
  * Returns:
- *	ISC_R_SUCCESS
- *	ISC_R_NOMEMORY
- *	ISC_R_UNEXPECTED
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOMEMORY
+ *\li	#ISC_R_UNEXPECTED
  */
 
 void
 dns_dbtable_attach(dns_dbtable_t *source, dns_dbtable_t **targetp);
-/*
+/*%<
  * Attach '*targetp' to 'source'.
  *
  * Requires:
  *
- *	'source' is a valid dbtable.
+ *\li	'source' is a valid dbtable.
  *
- *	'targetp' points to a NULL dns_dbtable_t *.
+ *\li	'targetp' points to a NULL dns_dbtable_t *.
  *
  * Ensures:
  *
- *	*targetp is attached to source.
+ *\li	*targetp is attached to source.
  */
 
 void
 dns_dbtable_detach(dns_dbtable_t **dbtablep);
-/*
+/*%<
  * Detach *dbtablep from its dbtable.
  *
  * Requires:
  *
- *	'*dbtablep' points to a valid dbtable.
+ *\li	'*dbtablep' points to a valid dbtable.
  *
  * Ensures:
  *
- *	*dbtablep is NULL.
+ *\li	*dbtablep is NULL.
  *
- *	If '*dbtablep' is the last reference to the dbtable,
- *
- *		All resources used by the dbtable will be freed
+ *\li	If '*dbtablep' is the last reference to the dbtable,
+ *		all resources used by the dbtable will be freed
  */
 
 isc_result_t
 dns_dbtable_add(dns_dbtable_t *dbtable, dns_db_t *db);
-/*
+/*%<
  * Add 'db' to 'dbtable'.
  *
  * Requires:
- *	'dbtable' is a valid dbtable.
+ *\li	'dbtable' is a valid dbtable.
  *
- *	'db' is a valid database with the same class as 'dbtable'
+ *\li	'db' is a valid database with the same class as 'dbtable'
  */
 
 void
 dns_dbtable_remove(dns_dbtable_t *dbtable, dns_db_t *db);
-/*
+/*%<
  * Remove 'db' from 'dbtable'.
  *
  * Requires:
- *	'db' was previously added to 'dbtable'.
+ *\li	'db' was previously added to 'dbtable'.
  */
 
 void
 dns_dbtable_adddefault(dns_dbtable_t *dbtable, dns_db_t *db);
-/*
+/*%<
  * Use 'db' as the result of a dns_dbtable_find() if no better match is
  * available.
  */
 
 void
 dns_dbtable_getdefault(dns_dbtable_t *dbtable, dns_db_t **db);
-/*
+/*%<
  * Get the 'db' used as the result of a dns_dbtable_find()
  * if no better match is available.
  */
 
 void
 dns_dbtable_removedefault(dns_dbtable_t *dbtable);
-/*
+/*%<
  * Remove the default db from 'dbtable'.
  */
 
 isc_result_t
 dns_dbtable_find(dns_dbtable_t *dbtable, dns_name_t *name,
 		 unsigned int options, dns_db_t **dbp);
-/*
+/*%<
  * Find the deepest match to 'name' in the dbtable, and return it
  *
  * Notes:
- *	If the DNS_DBTABLEFIND_NOEXACT option is set, the best partial
+ *\li	If the DNS_DBTABLEFIND_NOEXACT option is set, the best partial
  *	match (if any) to 'name' will be returned.
  *
- * Returns:  ISC_R_SUCCESS		on success
- *	     <something else>		no default and match
+ * Returns:  
+ * \li #ISC_R_SUCCESS		on success
+ *\li	     something else:		no default and match
  */
 
 ISC_LANG_ENDDECLS

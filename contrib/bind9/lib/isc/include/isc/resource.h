@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.h,v 1.4.206.1 2004/03/06 08:14:47 marka Exp $ */
+/* $Id: resource.h,v 1.5.18.2 2005/04/29 00:17:02 marka Exp $ */
 
 #ifndef ISC_RESOURCE_H
 #define ISC_RESOURCE_H 1
+
+/*! \file */
 
 #include <isc/lang.h>
 #include <isc/types.h>
@@ -29,40 +31,40 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 isc_resource_setlimit(isc_resource_t resource, isc_resourcevalue_t value);
-/*
+/*%<
  * Set the maximum limit for a system resource.
  *
  * Notes:
- *	If 'value' exceeds the maximum possible on the operating system,
+ *\li	If 'value' exceeds the maximum possible on the operating system,
  *	it is silently limited to that maximum -- or to "infinity", if
- *	the operating system has that concept.  ISC_RESOURCE_UNLIMITED
+ *	the operating system has that concept.  #ISC_RESOURCE_UNLIMITED
  *	can be used to explicitly ask for the maximum.
  *
  * Requires:
- *	'resource' is a valid member of the isc_resource_t enumeration.
+ *\li	'resource' is a valid member of the isc_resource_t enumeration.
  *
  * Returns:
- *	ISC_R_SUCCESS	Success.
- *	ISC_R_NOTIMPLEMENTED	'resource' is not a type known by the OS.
- *	ISC_R_NOPERM	The calling process did not have adequate permission
+ *\li	#ISC_R_SUCCESS	Success.
+ *\li	#ISC_R_NOTIMPLEMENTED	'resource' is not a type known by the OS.
+ *\li	#ISC_R_NOPERM	The calling process did not have adequate permission
  *			to change the resource limit.
  */
 
 isc_result_t
 isc_resource_getlimit(isc_resource_t resource, isc_resourcevalue_t *value);
-/*
+/*%<
  * Get the maximum limit for a system resource.
  *
  * Notes:
- *	'value' is set to the maximum limit.
+ *\li	'value' is set to the maximum limit.
  *
- *	ISC_RESOURCE_UNLIMITED is the maximum value of isc_resourcevalue_t.
+ *\li	#ISC_RESOURCE_UNLIMITED is the maximum value of isc_resourcevalue_t.
  *
- *	On many (all?) Unix systems, RLIM_INFINITY is a valid value that is
- *	significantly less than ISC_RESOURCE_UNLIMITED, but which in practice
+ *\li	On many (all?) Unix systems, RLIM_INFINITY is a valid value that is
+ *	significantly less than #ISC_RESOURCE_UNLIMITED, but which in practice
  *	behaves the same.
  *
- *	The current ISC libdns configuration file parser assigns a value
+ *\li	The current ISC libdns configuration file parser assigns a value
  *	of ISC_UINT32_MAX for a size_spec of "unlimited" and ISC_UNIT32_MAX - 1
  *	for "default", the latter of which is supposed to represent "the
  *	limit that was in force when the server started".  Since these are
@@ -72,11 +74,11 @@ isc_resource_getlimit(isc_resource_t resource, isc_resourcevalue_t *value);
  *	discrete integral values or generalized concepts.
  *
  * Requires:
- *	'resource' is a valid member of the isc_resource_t enumeration.
+ *\li	'resource' is a valid member of the isc_resource_t enumeration.
  *
  * Returns:
- *	ISC_R_SUCCESS		Success.
- *	ISC_R_NOTIMPLEMENTED	'resource' is not a type known by the OS.
+ *\li	#ISC_R_SUCCESS		Success.
+ *\li	#ISC_R_NOTIMPLEMENTED	'resource' is not a type known by the OS.
  */
 
 ISC_LANG_ENDDECLS

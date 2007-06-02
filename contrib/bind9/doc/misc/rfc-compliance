@@ -2,7 +2,7 @@ Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
 Copyright (C) 2001  Internet Software Consortium.
 See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
 
-$Id: rfc-compliance,v 1.3.206.1 2004/03/06 13:16:20 marka Exp $
+$Id: rfc-compliance,v 1.4 2004/03/05 05:04:53 marka Exp $
 
 BIND 9 is striving for strict compliance with IETF standards.  We
 believe this release of BIND 9 complies with the following RFCs, with

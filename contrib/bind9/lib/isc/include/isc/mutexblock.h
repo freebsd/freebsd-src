@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutexblock.h,v 1.10.206.1 2004/03/06 08:14:44 marka Exp $ */
+/* $Id: mutexblock.h,v 1.11.18.2 2005/04/29 00:17:00 marka Exp $ */
 
 #ifndef ISC_MUTEXBLOCK_H
 #define ISC_MUTEXBLOCK_H 1
+
+/*! \file */
 
 #include <isc/lang.h>
 #include <isc/mutex.h>
@@ -28,39 +30,39 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 isc_mutexblock_init(isc_mutex_t *block, unsigned int count);
-/*
+/*%<
  * Initialize a block of locks.  If an error occurs all initialized locks
  * will be destroyed, if possible.
  *
  * Requires:
  *
- *	block != NULL
+ *\li	block != NULL
  *
- *	count > 0
+ *\li	count > 0
  *
  * Returns:
  *
- *	Any code isc_mutex_init() can return is a valid return for this
+ *\li	Any code isc_mutex_init() can return is a valid return for this
  *	function.
  */
 
 isc_result_t
 isc_mutexblock_destroy(isc_mutex_t *block, unsigned int count);
-/*
+/*%<
  * Destroy a block of locks.
  *
  * Requires:
  *
- *	block != NULL
+ *\li	block != NULL
  *
- *	count > 0
+ *\li	count > 0
  *
- *	Each lock in the block be initialized via isc_mutex_init() or
+ *\li	Each lock in the block be initialized via isc_mutex_init() or
  * 	the whole block was initialized via isc_mutex_initblock().
  *
  * Returns:
  *
- *	Any code isc_mutex_init() can return is a valid return for this
+ *\li	Any code isc_mutex_init() can return is a valid return for this
  *	function.
  */
 

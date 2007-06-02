@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cname_5.c,v 1.43.206.2 2004/03/06 08:14:03 marka Exp $ */
+/* $Id: cname_5.c,v 1.45 2004/03/05 05:10:10 marka Exp $ */
 
 /* reviewed: Wed Mar 15 16:48:45 PST 2000 by brister */
 

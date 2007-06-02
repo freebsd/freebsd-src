@@ -3,15 +3,14 @@
 
 #ifndef HAS_DST_KEY
 typedef struct dst_key {
-	char	*dk_key_name;   /* name of the key */
-	int	dk_key_size;    /* this is the size of the key in bits */
-	int	dk_proto;       /* what protocols this key can be used for */
-	int	dk_alg;         /* algorithm number from key record */
-	u_int32_t dk_flags;     /* and the flags of the public key */
-	u_int16_t dk_id;        /* identifier of the key */
+	char	*dk_key_name;   /*%< name of the key */
+	int	dk_key_size;    /*%< this is the size of the key in bits */
+	int	dk_proto;       /*%< what protocols this key can be used for */
+	int	dk_alg;         /*%< algorithm number from key record */
+	u_int32_t dk_flags;     /*%< and the flags of the public key */
+	u_int16_t dk_id;        /*%< identifier of the key */
 } DST_KEY;
 #endif /* HAS_DST_KEY */
-
 /*
  * do not taint namespace
  */
@@ -59,58 +58,47 @@ typedef struct dst_key {
 void     dst_init(void);
 int      dst_check_algorithm(const int);
 
-int dst_sign_data(const int,	 	/* specifies INIT/UPDATE/FINAL/ALL */
-		  DST_KEY *,	 	/* the key to use */
-		  void **,	 	/* pointer to state structure */
-		  const u_char *,	/* data to be signed */
-		  const int,	 	/* length of input data */
-		  u_char *,	 	/* buffer to write signature to */
-		  const int);	 	/* size of output buffer */
 
-int dst_verify_data(const int,	 	/* specifies INIT/UPDATE/FINAL/ALL */
-		    DST_KEY *,	 	/* the key to use */
-		    void **,	 	/* pointer to state structure */
-		    const u_char *,	/* data to be verified */
-		    const int,	 	/* length of input data */
-		    const u_char *,	/* buffer containing signature */
-		    const int);	 	/* length of signature */
-
-
-DST_KEY *dst_read_key(const char *,	/* name of key */
-		      const u_int16_t,	/* key tag identifier */
-		      const int,	/* key algorithm */
-		      const int);	/* Private/PublicKey wanted*/
-
-int      dst_write_key(const DST_KEY *,	/* key to write out */
-		       const int); 	/* Public/Private */
-
-DST_KEY *dst_dnskey_to_key(const char *,	/* KEY record name */
-			   const u_char *,	/* KEY RDATA */
-			   const int);		/* size of input buffer*/
-
-
-int      dst_key_to_dnskey(const DST_KEY *,	/* key to translate */
-			   u_char *,		/* output buffer */
-			   const int);		/* size of out_storage*/
-
-
-DST_KEY *dst_buffer_to_key(const char *,  	/* name of the key */
-			   const int,	  	/* algorithm */
-			   const int,	  	/* dns flags */
-			   const int,	  	/* dns protocol */
-			   const u_char *, 	/* key in dns wire fmt */
-			   const int);	  	/* size of key */
-
-
+int dst_sign_data(const int,	 	/*!<   specifies INIT/UPDATE/FINAL/ALL  */
+		  DST_KEY *,	 	/*!<   the key to use  */
+		  void **,	 	/*!<   pointer to state structure  */
+		  const u_char *,	/*!<   data to be signed  */
+		  const int,	 	/*!<   length of input data  */
+		  u_char *,	 	/*!<   buffer to write signature to  */
+		  const int);	 	/*!<   size of output buffer  */
+int dst_verify_data(const int,	 	/*!<   specifies INIT/UPDATE/FINAL/ALL  */
+		    DST_KEY *,	 	/*!<   the key to use  */
+		    void **,	 	/*!<   pointer to state structure  */
+		    const u_char *,	/*!<   data to be verified  */
+		    const int,	 	/*!<   length of input data  */
+		    const u_char *,	/*!<   buffer containing signature  */
+		    const int);	 	/*!<   length of signature  */
+DST_KEY *dst_read_key(const char *,	/*!<   name of key  */
+		      const u_int16_t,	/*!<   key tag identifier  */
+		      const int,	/*!<   key algorithm  */
+		      const int);	/*!<   Private/PublicKey wanted */
+int      dst_write_key(const DST_KEY *,	/*!<   key to write out  */
+		       const int); 	/*!<   Public/Private  */
+DST_KEY *dst_dnskey_to_key(const char *,	/*!<   KEY record name  */
+			   const u_char *,	/*!<   KEY RDATA  */
+			   const int);		/*!<   size of input buffer */
+int      dst_key_to_dnskey(const DST_KEY *,	/*!<   key to translate  */
+			   u_char *,		/*!<   output buffer  */
+			   const int);		/*!<   size of out_storage */
+DST_KEY *dst_buffer_to_key(const char *,  	/*!<   name of the key  */
+			   const int,	  	/*!<   algorithm  */
+			   const int,	  	/*!<   dns flags  */
+			   const int,	  	/*!<   dns protocol  */
+			   const u_char *, 	/*!<   key in dns wire fmt  */
+			   const int);	  	/*!<   size of key  */
 int     dst_key_to_buffer(DST_KEY *, u_char *, int);
 
-DST_KEY *dst_generate_key(const char *,    	/* name of new key */
-			  const int,       	/* key algorithm to generate */
-			  const int,      	/* size of new key */
-			  const int,       	/* alg dependent parameter*/
-			  const int,     	/* key DNS flags */
-			  const int);		/* key DNS protocol */
-
+DST_KEY *dst_generate_key(const char *,    	/*!<   name of new key  */
+			  const int,       	/*!<   key algorithm to generate  */
+			  const int,      	/*!<   size of new key  */
+			  const int,       	/*!<   alg dependent parameter */
+			  const int,     	/*!<   key DNS flags  */
+			  const int);		/*!<   key DNS protocol  */
 DST_KEY *dst_free_key(DST_KEY *);
 int      dst_compare_keys(const DST_KEY *, const DST_KEY *);
 
@@ -122,13 +110,12 @@ u_int16_t dst_s_dns_key_id(const u_char *, const int);
 u_int16_t dst_s_id_calc(const u_char *, const int);
 
 /* Used by callers as well as by the library.  */
-#define RAW_KEY_SIZE    8192        /* large enough to store any key */
-
+#define RAW_KEY_SIZE    8192        /*%< large enough to store any key */
 /* DST_API control flags */
 /* These are used used in functions dst_sign_data and dst_verify_data */
-#define SIG_MODE_INIT		1  /* initialize digest */
-#define SIG_MODE_UPDATE		2  /* add data to digest */
-#define SIG_MODE_FINAL		4  /* generate/verify signature */
+#define SIG_MODE_INIT		1  /*%< initialize digest */
+#define SIG_MODE_UPDATE		2  /*%< add data to digest */
+#define SIG_MODE_FINAL		4  /*%< generate/verify signature */
 #define SIG_MODE_ALL		(SIG_MODE_INIT|SIG_MODE_UPDATE|SIG_MODE_FINAL)
 
 /* Flags for dst_read_private_key()  */
@@ -178,3 +165,4 @@ u_int16_t dst_s_id_calc(const u_char *, const int);
 #define UNSUPPORTED_KEYALG	(-31)
 
 #endif /* DST_H */
+/*! \file */

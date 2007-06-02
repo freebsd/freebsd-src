@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,11 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsap-ptr_23.c,v 1.32.206.2 2004/03/06 08:14:17 marka Exp $ */
+/* $Id: nsap-ptr_23.c,v 1.34.18.2 2005/04/29 00:16:42 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 10:16:02 PST 2000 by gson */
 
-/* RFC 1348.  Obsoleted in RFC 1706 - use PTR instead. */
+/* RFC1348.  Obsoleted in RFC 1706 - use PTR instead. */
 
 #ifndef RDATA_IN_1_NSAP_PTR_23_C
 #define RDATA_IN_1_NSAP_PTR_23_C

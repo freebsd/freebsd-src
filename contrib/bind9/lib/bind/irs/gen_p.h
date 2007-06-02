@@ -16,10 +16,11 @@
  */
 
 /*
- * $Id: gen_p.h,v 1.1.206.1 2004/03/09 08:33:35 marka Exp $
+ * $Id: gen_p.h,v 1.2.18.1 2005/04/27 05:00:56 sra Exp $
  */
 
-/* Notes:
+/*! \file
+ *  Notes:
  *	We hope to create a complete set of thread-safe entry points someday,
  *	which will mean a set of getXbyY() functions that take as an argument
  *	a pointer to the map class, which will have a pointer to the private
@@ -36,32 +37,32 @@
 #ifndef _GEN_P_H_INCLUDED
 #define _GEN_P_H_INCLUDED
 
-/*
+/*%
  * These are the access methods.
  */
 enum irs_acc_id {
-	irs_lcl,	/* Local. */
-	irs_dns,	/* DNS or Hesiod. */
-	irs_nis,	/* Sun NIS ("YP"). */
-	irs_irp,	/* IR protocol.  */
+	irs_lcl,	/*%< Local. */
+	irs_dns,	/*%< DNS or Hesiod. */
+	irs_nis,	/*%< Sun NIS ("YP"). */
+	irs_irp,	/*%< IR protocol. */
 	irs_nacc
 };
 
-/*
+/*%
  * These are the map types.
  */
 enum irs_map_id {
-	irs_gr,		/* "group" */
-	irs_pw,		/* "passwd" */
-	irs_sv,		/* "services" */
-	irs_pr,		/* "protocols" */
-	irs_ho,		/* "hosts" */
-	irs_nw,		/* "networks" */
-	irs_ng,		/* "netgroup" */
+	irs_gr,		/*%< "group" */
+	irs_pw,		/*%< "passwd" */
+	irs_sv,		/*%< "services" */
+	irs_pr,		/*%< "protocols" */
+	irs_ho,		/*%< "hosts" */
+	irs_nw,		/*%< "networks" */
+	irs_ng,		/*%< "netgroup" */
 	irs_nmap
 };
 
-/*
+/*%
  * This is an accessor instance.
  */
 struct irs_inst {
@@ -75,7 +76,7 @@ struct irs_inst {
 	struct irs_ng *	ng;
 };
 
-/*
+/*%
  * This is a search rule for some map type.
  */
 struct irs_rule {
@@ -83,9 +84,8 @@ struct irs_rule {
 	struct irs_inst *	inst;
 	int			flags;
 };
-#define IRS_MERGE		0x0001	/* Don't stop if acc. has data? */
-#define	IRS_CONTINUE		0x0002	/* Don't stop if acc. has no data? */
-
+#define IRS_MERGE		0x0001	/*%< Don't stop if acc. has data? */
+#define	IRS_CONTINUE		0x0002	/*%< Don't stop if acc. has no data? */
 /*
  * This is the private data for a search access class.
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dbiterator.h,v 1.18.206.1 2004/03/06 08:13:54 marka Exp $ */
+/* $Id: dbiterator.h,v 1.19.18.2 2005/04/29 00:16:11 marka Exp $ */
 
 #ifndef DNS_DBITERATOR_H
 #define DNS_DBITERATOR_H 1
@@ -24,9 +24,8 @@
  ***** Module Info
  *****/
 
-/*
- * DNS DB Iterator
- *
+/*! \file
+ * \brief
  * The DNS DB Iterator interface allows iteration of all of the nodes in a
  * database.
  *
@@ -37,25 +36,25 @@
  * It is the client's responsibility to call dns_db_detachnode() on all
  * nodes returned.
  *
- * XXX <more> XXX
+ * XXX &lt;more&gt; XXX
  *
  * MP:
- *	The iterator itself is not locked.  The caller must ensure
+ *\li	The iterator itself is not locked.  The caller must ensure
  *	synchronization.
  *
- *	The iterator methods ensure appropriate database locking.
+ *\li	The iterator methods ensure appropriate database locking.
  *
  * Reliability:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  *
  * Resources:
- *	<TBS>
+ *\li	TBS
  *
  * Security:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  *
  * Standards:
- *	None.
+ *\li	None.
  */
 
 /*****
@@ -89,7 +88,7 @@ typedef struct dns_dbiteratormethods {
 
 #define DNS_DBITERATOR_MAGIC	     ISC_MAGIC('D','N','S','I')
 #define DNS_DBITERATOR_VALID(dbi)    ISC_MAGIC_VALID(dbi, DNS_DBITERATOR_MAGIC)
-/*
+/*%
  * This structure is actually just the common prefix of a DNS db
  * implementation's version of a dns_dbiterator_t.
  *
@@ -110,136 +109,136 @@ struct dns_dbiterator {
 
 void
 dns_dbiterator_destroy(dns_dbiterator_t **iteratorp);
-/*
+/*%<
  * Destroy '*iteratorp'.
  *
  * Requires:
  *
- *	'*iteratorp' is a valid iterator.
+ *\li	'*iteratorp' is a valid iterator.
  *
  * Ensures:
  *
- *	All resources used by the iterator are freed.
+ *\li	All resources used by the iterator are freed.
  *
- *	*iteratorp == NULL.
+ *\li	*iteratorp == NULL.
  */
 
 isc_result_t
 dns_dbiterator_first(dns_dbiterator_t *iterator);
-/*
+/*%<
  * Move the node cursor to the first node in the database (if any).
  *
  * Requires:
- *	'iterator' is a valid iterator.
+ *\li	'iterator' is a valid iterator.
  *
  * Returns:
- *	ISC_R_SUCCESS
- *	ISC_R_NOMORE			There are no nodes in the database.
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOMORE			There are no nodes in the database.
  *
- *	Other results are possible, depending on the DB implementation.
+ *\li	Other results are possible, depending on the DB implementation.
  */
 
 isc_result_t
 dns_dbiterator_last(dns_dbiterator_t *iterator);
-/*
+/*%<
  * Move the node cursor to the last node in the database (if any).
  *
  * Requires:
- *	'iterator' is a valid iterator.
+ *\li	'iterator' is a valid iterator.
  *
  * Returns:
- *	ISC_R_SUCCESS
- *	ISC_R_NOMORE			There are no nodes in the database.
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOMORE			There are no nodes in the database.
  *
- *	Other results are possible, depending on the DB implementation.
+ *\li	Other results are possible, depending on the DB implementation.
  */
 
 isc_result_t
 dns_dbiterator_seek(dns_dbiterator_t *iterator, dns_name_t *name);
-/*
+/*%<
  * Move the node cursor to the node with name 'name'.
  *
  * Requires:
- *	'iterator' is a valid iterator.
+ *\li	'iterator' is a valid iterator.
  *
- *	'name' is a valid name.
+ *\li	'name' is a valid name.
  *
  * Returns:
- *	ISC_R_SUCCESS
- *	ISC_R_NOTFOUND
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOTFOUND
  *
- *	Other results are possible, depending on the DB implementation.
+ *\li	Other results are possible, depending on the DB implementation.
  */
 
 isc_result_t
 dns_dbiterator_prev(dns_dbiterator_t *iterator);
-/*
+/*%<
  * Move the node cursor to the previous node in the database (if any).
  *
  * Requires:
- *	'iterator' is a valid iterator.
+ *\li	'iterator' is a valid iterator.
  *
  * Returns:
- *	ISC_R_SUCCESS
- *	ISC_R_NOMORE			There are no more nodes in the
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOMORE			There are no more nodes in the
  *					database.
  *
- *	Other results are possible, depending on the DB implementation.
+ *\li	Other results are possible, depending on the DB implementation.
  */
 
 isc_result_t
 dns_dbiterator_next(dns_dbiterator_t *iterator);
-/*
+/*%<
  * Move the node cursor to the next node in the database (if any).
  *
  * Requires:
- *	'iterator' is a valid iterator.
+ *\li	'iterator' is a valid iterator.
  *
  * Returns:
- *	ISC_R_SUCCESS
- *	ISC_R_NOMORE			There are no more nodes in the
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOMORE			There are no more nodes in the
  *					database.
  *
- *	Other results are possible, depending on the DB implementation.
+ *\li	Other results are possible, depending on the DB implementation.
  */
 
 isc_result_t
 dns_dbiterator_current(dns_dbiterator_t *iterator, dns_dbnode_t **nodep,
 		       dns_name_t *name);
-/*
+/*%<
  * Return the current node.
  *
  * Notes:
- *	If 'name' is not NULL, it will be set to the name of the node.
+ *\li	If 'name' is not NULL, it will be set to the name of the node.
  *
  * Requires:
- *	'iterator' is a valid iterator.
+ *\li	'iterator' is a valid iterator.
  *
- *	nodep != NULL && *nodep == NULL
+ *\li	nodep != NULL && *nodep == NULL
  *
- *	The node cursor of 'iterator' is at a valid location (i.e. the
+ *\li	The node cursor of 'iterator' is at a valid location (i.e. the
  *	result of last call to a cursor movement command was ISC_R_SUCCESS).
  *
- *	'name' is NULL, or is a valid name with a dedicated buffer.
+ *\li	'name' is NULL, or is a valid name with a dedicated buffer.
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
- *	DNS_R_NEWORIGIN			If this iterator was created with
+ *\li	#ISC_R_SUCCESS
+ *\li	#DNS_R_NEWORIGIN			If this iterator was created with
  *					'relative_names' set to ISC_TRUE,
- *					then DNS_R_NEWORIGIN will be returned
+ *					then #DNS_R_NEWORIGIN will be returned
  *					when the origin the names are
  *					relative to changes.  This result
  *					can occur only when 'name' is not
  *					NULL.  This is also a successful
  *					result.
  *
- *	Other results are possible, depending on the DB implementation.
+ *\li	Other results are possible, depending on the DB implementation.
  */
 
 isc_result_t
 dns_dbiterator_pause(dns_dbiterator_t *iterator);
-/*
+/*%<
  * Pause iteration.
  *
  * Calling a cursor movement method or dns_dbiterator_current() may cause
@@ -250,47 +249,47 @@ dns_dbiterator_pause(dns_dbiterator_t *iterator);
  * iterator method in the immediate future.
  *
  * Requires:
- *	'iterator' is a valid iterator.
+ *\li	'iterator' is a valid iterator.
  *
  * Ensures:
- *	Any database locks being held for efficiency of iterator access are
+ *\li	Any database locks being held for efficiency of iterator access are
  *	released.
  *
  * Returns:
- *	ISC_R_SUCCESS
+ *\li	#ISC_R_SUCCESS
  *
- *	Other results are possible, depending on the DB implementation.
+ *\li	Other results are possible, depending on the DB implementation.
  */
 
 isc_result_t
 dns_dbiterator_origin(dns_dbiterator_t *iterator, dns_name_t *name);
-/*
+/*%<
  * Return the origin to which returned node names are relative.
  *
  * Requires:
  *
- *	'iterator' is a valid relative_names iterator.
+ *\li	'iterator' is a valid relative_names iterator.
  *
- *	'name' is a valid name with a dedicated buffer.
+ *\li	'name' is a valid name with a dedicated buffer.
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
- *	ISC_R_NOSPACE
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOSPACE
  *
- *	Other results are possible, depending on the DB implementation.
+ *\li	Other results are possible, depending on the DB implementation.
  */
 
 void
 dns_dbiterator_setcleanmode(dns_dbiterator_t *iterator, isc_boolean_t mode);
-/*
+/*%<
  * Indicate that the given iterator is/is not cleaning the DB.
  *
  * Notes:
- *	When 'mode' is ISC_TRUE, 
+ *\li	When 'mode' is ISC_TRUE, 
  *
  * Requires:
- *	'iterator' is a valid iterator.
+ *\li	'iterator' is a valid iterator.
  */
 
 ISC_LANG_ENDDECLS

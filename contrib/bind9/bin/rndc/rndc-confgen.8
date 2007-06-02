@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2001, 2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: rndc-confgen.8,v 1.3.2.5.2.8 2006/06/29 13:02:31 marka Exp $
+.\" $Id: rndc-confgen.8,v 1.9.18.11 2007/01/30 00:23:44 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: rndc\-confgen
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Aug 27, 2001
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -56,8 +56,9 @@ file and a
 \fBcontrols\fR
 statement altogether.
 .SH "OPTIONS"
-.TP 3n
+.PP
 \-a
+.RS 4
 Do automatic
 \fBrndc\fR
 configuration. This creates a file
@@ -100,31 +101,43 @@ option and set up a
 and
 \fInamed.conf\fR
 as directed.
-.TP 3n
+.RE
+.PP
 \-b \fIkeysize\fR
+.RS 4
 Specifies the size of the authentication key in bits. Must be between 1 and 512 bits; the default is 128.
-.TP 3n
+.RE
+.PP
 \-c \fIkeyfile\fR
+.RS 4
 Used with the
 \fB\-a\fR
 option to specify an alternate location for
 \fIrndc.key\fR.
-.TP 3n
+.RE
+.PP
 \-h
+.RS 4
 Prints a short summary of the options and arguments to
 \fBrndc\-confgen\fR.
-.TP 3n
+.RE
+.PP
 \-k \fIkeyname\fR
+.RS 4
 Specifies the key name of the rndc authentication key. This must be a valid domain name. The default is
 \fBrndc\-key\fR.
-.TP 3n
+.RE
+.PP
 \-p \fIport\fR
+.RS 4
 Specifies the command channel port where
 \fBnamed\fR
 listens for connections from
 \fBrndc\fR. The default is 953.
-.TP 3n
+.RE
+.PP
 \-r \fIrandomfile\fR
+.RS 4
 Specifies a source of random data for generating the authorization. If the operating system does not provide a
 \fI/dev/random\fR
 or equivalent device, the default source of randomness is keyboard input.
@@ -132,14 +145,18 @@ or equivalent device, the default source of randomness is keyboard input.
 specifies the name of a character device or file containing random data to be used instead of the default. The special value
 \fIkeyboard\fR
 indicates that keyboard input should be used.
-.TP 3n
+.RE
+.PP
 \-s \fIaddress\fR
+.RS 4
 Specifies the IP address where
 \fBnamed\fR
 listens for command channel connections from
 \fBrndc\fR. The default is the loopback address 127.0.0.1.
-.TP 3n
+.RE
+.PP
 \-t \fIchrootdir\fR
+.RS 4
 Used with the
 \fB\-a\fR
 option to specify a directory where
@@ -148,8 +165,10 @@ will run chrooted. An additional copy of the
 \fIrndc.key\fR
 will be written relative to this directory so that it will be found by the chrooted
 \fBnamed\fR.
-.TP 3n
+.RE
+.PP
 \-u \fIuser\fR
+.RS 4
 Used with the
 \fB\-a\fR
 option to set the owner of the
@@ -157,6 +176,7 @@ option to set the owner of the
 file generated. If
 \fB\-t\fR
 is also specified only the file in the chroot area has its owner changed.
+.RE
 .SH "EXAMPLES"
 .PP
 To allow
@@ -185,4 +205,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2001, 2003 Internet Software Consortium.
+.br

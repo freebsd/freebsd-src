@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.1.2.1.8.2 2006/06/20 02:53:07 marka Exp $";
+static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.3.18.2 2006/06/20 02:51:32 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -44,7 +44,7 @@ static char *	inet_net_ntop_ipv4 __P((const u_char *src, int bits,
 static char *	inet_net_ntop_ipv6 __P((const u_char *src, int bits,
 					char *dst, size_t size));
 
-/*
+/*%
  * char *
  * inet_net_ntop(af, src, bits, dst, size)
  *	convert network number from network to presentation format.
@@ -73,7 +73,7 @@ inet_net_ntop(af, src, bits, dst, size)
 	}
 }
 
-/*
+/*%
  * static char *
  * inet_net_ntop_ipv4(src, bits, dst, size)
  *	convert IPv4 network number from network to presentation format.
@@ -148,7 +148,7 @@ inet_net_ntop_ipv4(src, bits, dst, size)
 	return (NULL);
 }
 
-/*
+/*%
  * static char *
  * inet_net_ntop_ipv6(src, bits, fakebits, dst, size)
  *	convert IPv6 network number from network to presentation format.
@@ -275,3 +275,5 @@ emsgsize:
 	errno = EMSGSIZE;
 	return (NULL);
 }
+
+/*! \file */

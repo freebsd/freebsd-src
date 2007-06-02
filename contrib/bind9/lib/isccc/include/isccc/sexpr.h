@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001  Internet Software Consortium.
  * Portions Copyright (C) 2001  Nominum, Inc.
  *
@@ -16,10 +16,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sexpr.h,v 1.3.206.1 2004/03/06 08:15:22 marka Exp $ */
+/* $Id: sexpr.h,v 1.4.18.2 2005/04/29 00:17:14 marka Exp $ */
 
 #ifndef ISCCC_SEXPR_H
 #define ISCCC_SEXPR_H 1
+
+/*! \file */
 
 #include <stdio.h>
 
@@ -28,11 +30,13 @@
 
 ISC_LANG_BEGINDECLS
 
+/*% dotted pair structure */
 struct isccc_dottedpair {
 	isccc_sexpr_t *car;
 	isccc_sexpr_t *cdr;
 };
 
+/*% iscc_sexpr structure */
 struct isccc_sexpr {
 	unsigned int			type;
 	union {
@@ -42,7 +46,7 @@ struct isccc_sexpr {
 	}				value;
 };
 
-#define ISCCC_SEXPRTYPE_NONE		0x00	/* Illegal. */
+#define ISCCC_SEXPRTYPE_NONE		0x00	/*%< Illegal. */
 #define ISCCC_SEXPRTYPE_T			0x01
 #define ISCCC_SEXPRTYPE_STRING		0x02
 #define ISCCC_SEXPRTYPE_DOTTEDPAIR	0x03

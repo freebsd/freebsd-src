@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.50.12.6 2005/03/22 02:32:07 marka Exp $
+# $Id: Makefile.in,v 1.54.18.4 2006/01/27 23:57:45 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -35,9 +35,9 @@ HEADERS =	app.h assertions.h base64.h bitstring.h boolean.h buffer.h \
 		mutexblock.h netaddr.h ondestroy.h os.h parseint.h \
 		print.h quota.h random.h ratelimiter.h \
 		refcount.h region.h resource.h \
-		result.h resultclass.h rwlock.h serial.h sha1.h sockaddr.h \
-		socket.h stdio.h stdlib.h string.h symtab.h task.h taskpool.h \
-		timer.h types.h util.h version.h
+		result.h resultclass.h rwlock.h serial.h sha1.h sha2.h \
+		sockaddr.h socket.h stdio.h stdlib.h string.h symtab.h \
+	        task.h taskpool.h timer.h types.h util.h version.h
 
 SUBDIRS =
 TARGETS =

@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,12 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch01.html,v 1.12.2.2.8.15 2006/07/20 02:33:31 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch01.html,v 1.16.18.19 2007/01/30 00:23:45 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title>Chapter 1. Introduction </title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
+<title>Chapter 1. Introduction</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 <link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="prev" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
@@ -28,7 +28,7 @@
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
 <div class="navheader">
 <table width="100%" summary="Navigation header">
-<tr><th colspan="3" align="center">Chapter 1. Introduction </th></tr>
+<tr><th colspan="3" align="center">Chapter 1. Introduction</th></tr>
 <tr>
 <td width="20%" align="left">
 <a accesskey="p" href="Bv9ARM.html">Prev</a> </td>
@@ -41,353 +41,501 @@
 </div>
 <div class="chapter" lang="en">
 <div class="titlepage"><div><div><h2 class="title">
-<a name="Bv9ARM.ch01"></a>Chapter 1. Introduction </h2></div></div></div>
+<a name="Bv9ARM.ch01"></a>Chapter 1. Introduction</h2></div></div></div>
 <div class="toc">
 <p><b>Table of Contents</b></p>
 <dl>
-<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2569434">Scope of Document</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2569460">Organization of This Document</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2569736">Conventions Used in This Document</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2569994">The Domain Name System (<acronym class="acronym">DNS</acronym>)</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2564115">Scope of Document</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2564138">Organization of This Document</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2563473">Conventions Used in This Document</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2564746">The Domain Name System (<acronym class="acronym">DNS</acronym>)</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2570014">DNS Fundamentals</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2570323">Domains and Domain Names</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2570407">Zones</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2570550">Authoritative Name Servers</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2570642">Caching Name Servers</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2570699">Name Servers in Multiple Roles</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2564768">DNS Fundamentals</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2564802">Domains and Domain Names</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2564886">Zones</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2567284">Authoritative Name Servers</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2567525">Caching Name Servers</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2567587">Name Servers in Multiple Roles</a></span></dt>
 </dl></dd>
 </dl>
 </div>
-<p>The Internet Domain Name System (<acronym class="acronym">DNS</acronym>) consists of the syntax
-  to specify the names of entities in the Internet in a hierarchical
-  manner, the rules used for delegating authority over names, and the
-  system implementation that actually maps names to Internet
-  addresses.  <acronym class="acronym">DNS</acronym> data is maintained in a group of distributed
-  hierarchical databases.</p>
-<div class="sect1" lang="en">
-<div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2569434"></a>Scope of Document</h2></div></div></div>
-<p>The Berkeley Internet Name Domain (<acronym class="acronym">BIND</acronym>) implements a
-    domain name server for a number of operating systems. This
-    document provides basic information about the installation and
-    care of the Internet Software Consortium (<acronym class="acronym">ISC</acronym>)
-    <acronym class="acronym">BIND</acronym> version 9 software package for system
-    administrators.</p>
-<p>This version of the manual corresponds to BIND version 9.3.</p>
-</div>
-<div class="sect1" lang="en">
-<div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2569460"></a>Organization of This Document</h2></div></div></div>
-<p>In this document, <span class="emphasis"><em>Section 1</em></span> introduces
-    the basic <acronym class="acronym">DNS</acronym> and <acronym class="acronym">BIND</acronym> concepts. <span class="emphasis"><em>Section 2</em></span>
-    describes resource requirements for running <acronym class="acronym">BIND</acronym> in various
-    environments. Information in <span class="emphasis"><em>Section 3</em></span> is
-    <span class="emphasis"><em>task-oriented</em></span> in its presentation and is
-    organized functionally, to aid in the process of installing the
-    <acronym class="acronym">BIND</acronym> 9 software. The task-oriented section is followed by
-    <span class="emphasis"><em>Section 4</em></span>, which contains more advanced
-    concepts that the system administrator may need for implementing
-    certain options. <span class="emphasis"><em>Section 5</em></span>
-    describes the <acronym class="acronym">BIND</acronym> 9 lightweight
-    resolver.  The contents of <span class="emphasis"><em>Section 6</em></span> are
-    organized as in a reference manual to aid in the ongoing
-    maintenance of the software. <span class="emphasis"><em>Section 7
-    </em></span>addresses security considerations, and
-    <span class="emphasis"><em>Section 8</em></span> contains troubleshooting help. The
-    main body of the document is followed by several
-    <span class="emphasis"><em>Appendices</em></span> which contain useful reference
-    information, such as a <span class="emphasis"><em>Bibliography</em></span> and
-    historic information related to <acronym class="acronym">BIND</acronym> and the Domain Name
-    System.</p>
-</div>
-<div class="sect1" lang="en">
-<div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2569736"></a>Conventions Used in This Document</h2></div></div></div>
-<p>In this document, we use the following general typographic
-    conventions:</p>
-<div class="informaltable"><table border="1">
-<colgroup>
-<col>
-<col>
-</colgroup>
-<tbody>
-<tr>
-<td>
-<p><span class="emphasis"><em>To
-describe:</em></span></p>
-</td>
-<td>
-<p><span class="emphasis"><em>We use the style:</em></span></p>
-</td>
-</tr>
-<tr>
-<td>
-<p>a pathname, filename, URL, hostname,
-mailing list name, or new term or concept</p>
-</td>
-<td><p><code class="filename">Fixed width</code></p></td>
-</tr>
-<tr>
-<td><p>literal user
-input</p></td>
-<td><p><strong class="userinput"><code>Fixed Width Bold</code></strong></p></td>
-</tr>
-<tr>
-<td><p>program output</p></td>
-<td><p><code class="computeroutput">Fixed Width</code></p></td>
-</tr>
-</tbody>
-</table></div>
-<p>The following conventions are used in descriptions of the
-<acronym class="acronym">BIND</acronym> configuration file:</p>
-<div class="informaltable"><table border="1">
-<colgroup>
-<col>
-<col>
-</colgroup>
-<tbody>
-<tr>
-<td><p><span class="emphasis"><em>To
-describe:</em></span></p></td>
-<td><p><span class="emphasis"><em>We use the style:</em></span></p></td>
-</tr>
-<tr>
-<td><p>keywords</p></td>
-<td><p><code class="literal">Fixed Width</code></p></td>
-</tr>
-<tr>
-<td><p>variables</p></td>
-<td><p><code class="varname">Fixed Width</code></p></td>
-</tr>
-<tr>
-<td><p>Optional input</p></td>
-<td><p>[<span class="optional">Text is enclosed in square brackets</span>]</p></td>
-</tr>
-</tbody>
-</table></div>
-</div>
-<div class="sect1" lang="en">
-<div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2569994"></a>The Domain Name System (<acronym class="acronym">DNS</acronym>)</h2></div></div></div>
-<p>The purpose of this document is to explain the installation
-and upkeep of the <acronym class="acronym">BIND</acronym> software package, and we
-begin by reviewing the fundamentals of the Domain Name System
-(<acronym class="acronym">DNS</acronym>) as they relate to <acronym class="acronym">BIND</acronym>.
-</p>
-<div class="sect2" lang="en">
-<div class="titlepage"><div><div><h3 class="title">
-<a name="id2570014"></a>DNS Fundamentals</h3></div></div></div>
-<p>The Domain Name System (DNS) is the hierarchical, distributed
-database.  It stores information for mapping Internet host names to IP
-addresses and vice versa, mail routing information, and other data
-used by Internet applications.</p>
-<p>Clients look up information in the DNS by calling a
-<span class="emphasis"><em>resolver</em></span> library, which sends queries to one or
-more <span class="emphasis"><em>name servers</em></span> and interprets the responses.
-The <acronym class="acronym">BIND</acronym> 9 software distribution contains a
-name server, <span><strong class="command">named</strong></span>, and two resolver
-libraries, <span><strong class="command">liblwres</strong></span> and <span><strong class="command">libbind</strong></span>.
-</p>
-</div>
-<div class="sect2" lang="en">
-<div class="titlepage"><div><div><h3 class="title">
-<a name="id2570323"></a>Domains and Domain Names</h3></div></div></div>
-<p>The data stored in the DNS is identified by <span class="emphasis"><em>domain
-names</em></span> that are organized as a tree according to
-organizational or administrative boundaries. Each node of the tree,
-called a <span class="emphasis"><em>domain</em></span>, is given a label. The domain name of the
-node is the concatenation of all the labels on the path from the
-node to the <span class="emphasis"><em>root</em></span> node.  This is represented
-in written form as a string of labels listed from right to left and
-separated by dots. A label need only be unique within its parent
-domain.</p>
-<p>For example, a domain name for a host at the
-company <span class="emphasis"><em>Example, Inc.</em></span> could be
-<code class="literal">mail.example.com</code>,
-where <code class="literal">com</code> is the
-top level domain to which
-<code class="literal">ourhost.example.com</code> belongs,
-<code class="literal">example</code> is
-a subdomain of <code class="literal">com</code>, and
-<code class="literal">ourhost</code> is the
-name of the host.</p>
-<p>For administrative purposes, the name space is partitioned into
-areas called <span class="emphasis"><em>zones</em></span>, each starting at a node and
-extending down to the leaf nodes or to nodes where other zones start.
-The data for each zone is stored in a <span class="emphasis"><em>name
-server</em></span>, which answers queries about the zone using the
-<span class="emphasis"><em>DNS protocol</em></span>.
-</p>
-<p>The data associated with each domain name is stored in the
-form of <span class="emphasis"><em>resource records</em></span> (<acronym class="acronym">RR</acronym>s).
-Some of the supported resource record types are described in
-<a href="Bv9ARM.ch06.html#types_of_resource_records_and_when_to_use_them" title="Types of Resource Records and When to Use Them">the section called &#8220;Types of Resource Records and When to Use Them&#8221;</a>.</p>
-<p>For more detailed information about the design of the DNS and
-the DNS protocol, please refer to the standards documents listed in
-<a href="Bv9ARM.ch09.html#rfcs" title="Request for Comments (RFCs)">the section called &#8220;Request for Comments (RFCs)&#8221;</a>.</p>
-</div>
-<div class="sect2" lang="en">
-<div class="titlepage"><div><div><h3 class="title">
-<a name="id2570407"></a>Zones</h3></div></div></div>
-<p>To properly operate a name server, it is important to understand
-the difference between a <span class="emphasis"><em>zone</em></span>
-and a <span class="emphasis"><em>domain</em></span>.</p>
-<p>As we stated previously, a zone is a point of delegation in
-the <acronym class="acronym">DNS</acronym> tree. A zone consists of
-those contiguous parts of the domain
-tree for which a name server has complete information and over which
-it has authority. It contains all domain names from a certain point
-downward in the domain tree except those which are delegated to
-other zones. A delegation point is marked by one or more
-<span class="emphasis"><em>NS records</em></span> in the
-parent zone, which should be matched by equivalent NS records at
-the root of the delegated zone.</p>
-<p>For instance, consider the <code class="literal">example.com</code>
-domain which includes names
-such as <code class="literal">host.aaa.example.com</code> and
-<code class="literal">host.bbb.example.com</code> even though
-the <code class="literal">example.com</code> zone includes
-only delegations for the <code class="literal">aaa.example.com</code> and
-<code class="literal">bbb.example.com</code> zones.  A zone can map
-exactly to a single domain, but could also include only part of a
-domain, the rest of which could be delegated to other
-name servers. Every name in the <acronym class="acronym">DNS</acronym> tree is a
-<span class="emphasis"><em>domain</em></span>, even if it is
-<span class="emphasis"><em>terminal</em></span>, that is, has no
-<span class="emphasis"><em>subdomains</em></span>.  Every subdomain is a domain and
-every domain except the root is also a subdomain. The terminology is
-not intuitive and we suggest that you read RFCs 1033, 1034 and 1035 to
-gain a complete understanding of this difficult and subtle
-topic.</p>
-<p>Though <acronym class="acronym">BIND</acronym> is called a "domain name server",
-it deals primarily in terms of zones. The master and slave
-declarations in the <code class="filename">named.conf</code> file specify
-zones, not domains. When you ask some other site if it is willing to
-be a slave server for your <span class="emphasis"><em>domain</em></span>, you are
-actually asking for slave service for some collection of zones.</p>
-</div>
-<div class="sect2" lang="en">
-<div class="titlepage"><div><div><h3 class="title">
-<a name="id2570550"></a>Authoritative Name Servers</h3></div></div></div>
-<p>Each zone is served by at least
-one <span class="emphasis"><em>authoritative name server</em></span>,
-which contains the complete data for the zone.
-To make the DNS tolerant of server and network failures,
-most zones have two or more authoritative servers.
-</p>
-<p>Responses from authoritative servers have the "authoritative
-answer" (AA) bit set in the response packets.  This makes them 
-easy to identify when debugging DNS configurations using tools like
-<span><strong class="command">dig</strong></span> (<a href="Bv9ARM.ch03.html#diagnostic_tools" title="Diagnostic Tools">the section called &#8220;Diagnostic Tools&#8221;</a>).</p>
-<div class="sect3" lang="en">
-<div class="titlepage"><div><div><h4 class="title">
-<a name="id2570572"></a>The Primary Master</h4></div></div></div>
 <p>
-The authoritative server where the master copy of the zone data is maintained is
-called the <span class="emphasis"><em>primary master</em></span> server, or simply the
-<span class="emphasis"><em>primary</em></span>.  It loads the zone contents from some
-local file edited by humans or perhaps generated mechanically from
-some other local file which is edited by humans.  This file is called
-the <span class="emphasis"><em>zone file</em></span> or <span class="emphasis"><em>master file</em></span>.</p>
+      The Internet Domain Name System (<acronym class="acronym">DNS</acronym>)
+      consists of the syntax
+      to specify the names of entities in the Internet in a hierarchical
+      manner, the rules used for delegating authority over names, and the
+      system implementation that actually maps names to Internet
+      addresses.  <acronym class="acronym">DNS</acronym> data is maintained in a
+      group of distributed
+      hierarchical databases.
+    </p>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2564115"></a>Scope of Document</h2></div></div></div>
+<p>
+        The Berkeley Internet Name Domain
+        (<acronym class="acronym">BIND</acronym>) implements a
+        domain name server for a number of operating systems. This
+        document provides basic information about the installation and
+        care of the Internet Systems Consortium (<acronym class="acronym">ISC</acronym>)
+        <acronym class="acronym">BIND</acronym> version 9 software package for
+        system administrators.
+      </p>
+<p>
+        This version of the manual corresponds to BIND version 9.4.
+      </p>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2564138"></a>Organization of This Document</h2></div></div></div>
+<p>
+        In this document, <span class="emphasis"><em>Section 1</em></span> introduces
+        the basic <acronym class="acronym">DNS</acronym> and <acronym class="acronym">BIND</acronym> concepts. <span class="emphasis"><em>Section 2</em></span>
+        describes resource requirements for running <acronym class="acronym">BIND</acronym> in various
+        environments. Information in <span class="emphasis"><em>Section 3</em></span> is
+        <span class="emphasis"><em>task-oriented</em></span> in its presentation and is
+        organized functionally, to aid in the process of installing the
+        <acronym class="acronym">BIND</acronym> 9 software. The task-oriented
+        section is followed by
+        <span class="emphasis"><em>Section 4</em></span>, which contains more advanced
+        concepts that the system administrator may need for implementing
+        certain options. <span class="emphasis"><em>Section 5</em></span>
+        describes the <acronym class="acronym">BIND</acronym> 9 lightweight
+        resolver.  The contents of <span class="emphasis"><em>Section 6</em></span> are
+        organized as in a reference manual to aid in the ongoing
+        maintenance of the software. <span class="emphasis"><em>Section 7</em></span> addresses
+        security considerations, and
+        <span class="emphasis"><em>Section 8</em></span> contains troubleshooting help. The
+        main body of the document is followed by several
+        <span class="emphasis"><em>Appendices</em></span> which contain useful reference
+        information, such as a <span class="emphasis"><em>Bibliography</em></span> and
+        historic information related to <acronym class="acronym">BIND</acronym>
+        and the Domain Name
+        System.
+      </p>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2563473"></a>Conventions Used in This Document</h2></div></div></div>
+<p>
+        In this document, we use the following general typographic
+        conventions:
+      </p>
+<div class="informaltable"><table border="1">
+<colgroup>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td>
+                <p>
+                  <span class="emphasis"><em>To describe:</em></span>
+                </p>
+              </td>
+<td>
+                <p>
+                  <span class="emphasis"><em>We use the style:</em></span>
+                </p>
+              </td>
+</tr>
+<tr>
+<td>
+                <p>
+                  a pathname, filename, URL, hostname,
+                  mailing list name, or new term or concept
+                </p>
+              </td>
+<td>
+                <p>
+                  <code class="filename">Fixed width</code>
+                </p>
+              </td>
+</tr>
+<tr>
+<td>
+                <p>
+                  literal user
+                  input
+                </p>
+              </td>
+<td>
+                <p>
+                  <strong class="userinput"><code>Fixed Width Bold</code></strong>
+                </p>
+              </td>
+</tr>
+<tr>
+<td>
+                <p>
+                  program output
+                </p>
+              </td>
+<td>
+                <p>
+                  <code class="computeroutput">Fixed Width</code>
+                </p>
+              </td>
+</tr>
+</tbody>
+</table></div>
+<p>
+        The following conventions are used in descriptions of the
+        <acronym class="acronym">BIND</acronym> configuration file:</p>
+<div class="informaltable"><table border="1">
+<colgroup>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td>
+                  <p>
+                    <span class="emphasis"><em>To describe:</em></span>
+                  </p>
+                </td>
+<td>
+                  <p>
+                    <span class="emphasis"><em>We use the style:</em></span>
+                  </p>
+                </td>
+</tr>
+<tr>
+<td>
+                  <p>
+                    keywords
+                  </p>
+                </td>
+<td>
+                  <p>
+                    <code class="literal">Fixed Width</code>
+                  </p>
+                </td>
+</tr>
+<tr>
+<td>
+                  <p>
+                    variables
+                  </p>
+                </td>
+<td>
+                  <p>
+                    <code class="varname">Fixed Width</code>
+                  </p>
+                </td>
+</tr>
+<tr>
+<td>
+                  <p>
+                    Optional input
+                  </p>
+                </td>
+<td>
+                  <p>
+                    [<span class="optional">Text is enclosed in square brackets</span>]
+                  </p>
+                </td>
+</tr>
+</tbody>
+</table></div>
+<p>
+      </p>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2564746"></a>The Domain Name System (<acronym class="acronym">DNS</acronym>)</h2></div></div></div>
+<p>
+        The purpose of this document is to explain the installation
+        and upkeep of the <acronym class="acronym">BIND</acronym> software
+        package, and we
+        begin by reviewing the fundamentals of the Domain Name System
+        (<acronym class="acronym">DNS</acronym>) as they relate to <acronym class="acronym">BIND</acronym>.
+      </p>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2564768"></a>DNS Fundamentals</h3></div></div></div>
+<p>
+          The Domain Name System (DNS) is a hierarchical, distributed
+          database.  It stores information for mapping Internet host names to
+          IP
+          addresses and vice versa, mail routing information, and other data
+          used by Internet applications.
+        </p>
+<p>
+          Clients look up information in the DNS by calling a
+          <span class="emphasis"><em>resolver</em></span> library, which sends queries to one or
+          more <span class="emphasis"><em>name servers</em></span> and interprets the responses.
+          The <acronym class="acronym">BIND</acronym> 9 software distribution
+          contains a
+          name server, <span><strong class="command">named</strong></span>, and two resolver
+          libraries, <span><strong class="command">liblwres</strong></span> and <span><strong class="command">libbind</strong></span>.
+        </p>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2564802"></a>Domains and Domain Names</h3></div></div></div>
+<p>
+          The data stored in the DNS is identified by <span class="emphasis"><em>domain names</em></span> that are organized as a tree according to
+          organizational or administrative boundaries. Each node of the tree,
+          called a <span class="emphasis"><em>domain</em></span>, is given a label. The domain
+          name of the
+          node is the concatenation of all the labels on the path from the
+          node to the <span class="emphasis"><em>root</em></span> node.  This is represented
+          in written form as a string of labels listed from right to left and
+          separated by dots. A label need only be unique within its parent
+          domain.
+        </p>
+<p>
+          For example, a domain name for a host at the
+          company <span class="emphasis"><em>Example, Inc.</em></span> could be
+          <code class="literal">ourhost.example.com</code>,
+          where <code class="literal">com</code> is the
+          top level domain to which
+          <code class="literal">ourhost.example.com</code> belongs,
+          <code class="literal">example</code> is
+          a subdomain of <code class="literal">com</code>, and
+          <code class="literal">ourhost</code> is the
+          name of the host.
+        </p>
+<p>
+          For administrative purposes, the name space is partitioned into
+          areas called <span class="emphasis"><em>zones</em></span>, each starting at a node and
+          extending down to the leaf nodes or to nodes where other zones
+          start.
+          The data for each zone is stored in a <span class="emphasis"><em>name server</em></span>, which answers queries about the zone using the
+          <span class="emphasis"><em>DNS protocol</em></span>.
+        </p>
+<p>
+          The data associated with each domain name is stored in the
+          form of <span class="emphasis"><em>resource records</em></span> (<acronym class="acronym">RR</acronym>s).
+          Some of the supported resource record types are described in
+          <a href="Bv9ARM.ch06.html#types_of_resource_records_and_when_to_use_them" title="Types of Resource Records and When to Use Them">the section called &#8220;Types of Resource Records and When to Use Them&#8221;</a>.
+        </p>
+<p>
+          For more detailed information about the design of the DNS and
+          the DNS protocol, please refer to the standards documents listed in
+          <a href="Bv9ARM.ch09.html#rfcs" title="Request for Comments (RFCs)">the section called &#8220;Request for Comments (RFCs)&#8221;</a>.
+        </p>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2564886"></a>Zones</h3></div></div></div>
+<p>
+          To properly operate a name server, it is important to understand
+          the difference between a <span class="emphasis"><em>zone</em></span>
+          and a <span class="emphasis"><em>domain</em></span>.
+        </p>
+<p>
+          As stated previously, a zone is a point of delegation in
+          the <acronym class="acronym">DNS</acronym> tree. A zone consists of
+          those contiguous parts of the domain
+          tree for which a name server has complete information and over which
+          it has authority. It contains all domain names from a certain point
+          downward in the domain tree except those which are delegated to
+          other zones. A delegation point is marked by one or more
+          <span class="emphasis"><em>NS records</em></span> in the
+          parent zone, which should be matched by equivalent NS records at
+          the root of the delegated zone.
+        </p>
+<p>
+          For instance, consider the <code class="literal">example.com</code>
+          domain which includes names
+          such as <code class="literal">host.aaa.example.com</code> and
+          <code class="literal">host.bbb.example.com</code> even though
+          the <code class="literal">example.com</code> zone includes
+          only delegations for the <code class="literal">aaa.example.com</code> and
+          <code class="literal">bbb.example.com</code> zones.  A zone can
+          map
+          exactly to a single domain, but could also include only part of a
+          domain, the rest of which could be delegated to other
+          name servers. Every name in the <acronym class="acronym">DNS</acronym>
+          tree is a
+          <span class="emphasis"><em>domain</em></span>, even if it is
+          <span class="emphasis"><em>terminal</em></span>, that is, has no
+          <span class="emphasis"><em>subdomains</em></span>.  Every subdomain is a domain and
+          every domain except the root is also a subdomain. The terminology is
+          not intuitive and we suggest that you read RFCs 1033, 1034 and 1035
+          to
+          gain a complete understanding of this difficult and subtle
+          topic.
+        </p>
+<p>
+          Though <acronym class="acronym">BIND</acronym> is called a "domain name
+          server",
+          it deals primarily in terms of zones. The master and slave
+          declarations in the <code class="filename">named.conf</code> file
+          specify
+          zones, not domains. When you ask some other site if it is willing to
+          be a slave server for your <span class="emphasis"><em>domain</em></span>, you are
+          actually asking for slave service for some collection of zones.
+        </p>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2567284"></a>Authoritative Name Servers</h3></div></div></div>
+<p>
+          Each zone is served by at least
+          one <span class="emphasis"><em>authoritative name server</em></span>,
+          which contains the complete data for the zone.
+          To make the DNS tolerant of server and network failures,
+          most zones have two or more authoritative servers, on
+          different networks.
+        </p>
+<p>
+          Responses from authoritative servers have the "authoritative
+          answer" (AA) bit set in the response packets.  This makes them
+          easy to identify when debugging DNS configurations using tools like
+          <span><strong class="command">dig</strong></span> (<a href="Bv9ARM.ch03.html#diagnostic_tools" title="Diagnostic Tools">the section called &#8220;Diagnostic Tools&#8221;</a>).
+        </p>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2567307"></a>The Primary Master</h4></div></div></div>
+<p>
+            The authoritative server where the master copy of the zone
+            data is maintained is called the
+            <span class="emphasis"><em>primary master</em></span> server, or simply the
+            <span class="emphasis"><em>primary</em></span>.  Typically it loads the zone
+            contents from some local file edited by humans or perhaps
+            generated mechanically from some other local file which is
+            edited by humans.  This file is called the
+            <span class="emphasis"><em>zone file</em></span> or
+            <span class="emphasis"><em>master file</em></span>.
+          </p>
+<p>
+            In some cases, however, the master file may not be edited
+            by humans at all, but may instead be the result of
+            <span class="emphasis"><em>dynamic update</em></span> operations.
+          </p>
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2570594"></a>Slave Servers</h4></div></div></div>
-<p>The other authoritative servers, the <span class="emphasis"><em>slave</em></span>
-servers (also known as <span class="emphasis"><em>secondary</em></span> servers) load
-the zone contents from another server using a replication process
-known as a <span class="emphasis"><em>zone transfer</em></span>.  Typically the data are
-transferred directly from the primary master, but it is also possible
-to transfer it from another slave.  In other words, a slave server
-may itself act as a master to a subordinate slave server.</p>
+<a name="id2567337"></a>Slave Servers</h4></div></div></div>
+<p>
+            The other authoritative servers, the <span class="emphasis"><em>slave</em></span>
+            servers (also known as <span class="emphasis"><em>secondary</em></span> servers)
+            load
+            the zone contents from another server using a replication process
+            known as a <span class="emphasis"><em>zone transfer</em></span>.  Typically the data
+            are
+            transferred directly from the primary master, but it is also
+            possible
+            to transfer it from another slave.  In other words, a slave server
+            may itself act as a master to a subordinate slave server.
+          </p>
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2570613"></a>Stealth Servers</h4></div></div></div>
-<p>Usually all of the zone's authoritative servers are listed in 
-NS records in the parent zone.  These NS records constitute
-a <span class="emphasis"><em>delegation</em></span> of the zone from the parent.
-The authoritative servers are also listed in the zone file itself,
-at the <span class="emphasis"><em>top level</em></span> or <span class="emphasis"><em>apex</em></span>
-of the zone.  You can list servers in the zone's top-level NS
-records that are not in the parent's NS delegation, but you cannot
-list servers in the parent's delegation that are not present at
-the zone's top level.</p>
-<p>A <span class="emphasis"><em>stealth server</em></span> is a server that is
-authoritative for a zone but is not listed in that zone's NS
-records.  Stealth servers can be used for keeping a local copy of a
-zone to speed up access to the zone's records or to make sure that the
-zone is available even if all the "official" servers for the zone are
-inaccessible.</p>
-<p>A configuration where the primary master server itself is a
-stealth server is often referred to as a "hidden primary"
-configuration.  One use for this configuration is when the primary master
-is behind a firewall and therefore unable to communicate directly
-with the outside world.</p>
+<a name="id2567358"></a>Stealth Servers</h4></div></div></div>
+<p>
+            Usually all of the zone's authoritative servers are listed in
+            NS records in the parent zone.  These NS records constitute
+            a <span class="emphasis"><em>delegation</em></span> of the zone from the parent.
+            The authoritative servers are also listed in the zone file itself,
+            at the <span class="emphasis"><em>top level</em></span> or <span class="emphasis"><em>apex</em></span>
+            of the zone.  You can list servers in the zone's top-level NS
+            records that are not in the parent's NS delegation, but you cannot
+            list servers in the parent's delegation that are not present at
+            the zone's top level.
+          </p>
+<p>
+            A <span class="emphasis"><em>stealth server</em></span> is a server that is
+            authoritative for a zone but is not listed in that zone's NS
+            records.  Stealth servers can be used for keeping a local copy of
+            a
+            zone to speed up access to the zone's records or to make sure that
+            the
+            zone is available even if all the "official" servers for the zone
+            are
+            inaccessible.
+          </p>
+<p>
+            A configuration where the primary master server itself is a
+            stealth server is often referred to as a "hidden primary"
+            configuration.  One use for this configuration is when the primary
+            master
+            is behind a firewall and therefore unable to communicate directly
+            with the outside world.
+          </p>
 </div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2570642"></a>Caching Name Servers</h3></div></div></div>
-<p>The resolver libraries provided by most operating systems are 
-<span class="emphasis"><em>stub resolvers</em></span>, meaning that they are not capable of
-performing the full DNS resolution process by themselves by talking
-directly to the authoritative servers.  Instead, they rely on a local
-name server to perform the resolution on their behalf.  Such a server
-is called a <span class="emphasis"><em>recursive</em></span> name server; it performs
-<span class="emphasis"><em>recursive lookups</em></span> for local clients.</p>
-<p>To improve performance, recursive servers cache the results of
-the lookups they perform.  Since the processes of recursion and
-caching are intimately connected, the terms
-<span class="emphasis"><em>recursive server</em></span> and
-<span class="emphasis"><em>caching server</em></span> are often used synonymously.</p>
-<p>The length of time for which a record may be retained in
-the cache of a caching name server is controlled by the 
-Time To Live (TTL) field associated with each resource record.
-</p>
+<a name="id2567525"></a>Caching Name Servers</h3></div></div></div>
+<p>
+          The resolver libraries provided by most operating systems are
+          <span class="emphasis"><em>stub resolvers</em></span>, meaning that they are not
+          capable of
+          performing the full DNS resolution process by themselves by talking
+          directly to the authoritative servers.  Instead, they rely on a
+          local
+          name server to perform the resolution on their behalf.  Such a
+          server
+          is called a <span class="emphasis"><em>recursive</em></span> name server; it performs
+          <span class="emphasis"><em>recursive lookups</em></span> for local clients.
+        </p>
+<p>
+          To improve performance, recursive servers cache the results of
+          the lookups they perform.  Since the processes of recursion and
+          caching are intimately connected, the terms
+          <span class="emphasis"><em>recursive server</em></span> and
+          <span class="emphasis"><em>caching server</em></span> are often used synonymously.
+        </p>
+<p>
+          The length of time for which a record may be retained in
+          the cache of a caching name server is controlled by the
+          Time To Live (TTL) field associated with each resource record.
+        </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2570674"></a>Forwarding</h4></div></div></div>
-<p>Even a caching name server does not necessarily perform
-the complete recursive lookup itself.  Instead, it can
-<span class="emphasis"><em>forward</em></span> some or all of the queries
-that it cannot satisfy from its cache to another caching name server,
-commonly referred to as a <span class="emphasis"><em>forwarder</em></span>.
-</p>
-<p>There may be one or more forwarders,
-and they are queried in turn until the list is exhausted or an answer
-is found. Forwarders are typically used when you do not
-wish all the servers at a given site to interact directly with the rest of
-the Internet servers. A typical scenario would involve a number
-of internal <acronym class="acronym">DNS</acronym> servers and an Internet firewall. Servers unable
-to pass packets through the firewall would forward to the server
-that can do it, and that server would query the Internet <acronym class="acronym">DNS</acronym> servers
-on the internal server's behalf. An added benefit of using the forwarding
-feature is that the central machine develops a much more complete
-cache of information that all the clients can take advantage
-of.</p>
+<a name="id2567560"></a>Forwarding</h4></div></div></div>
+<p>
+            Even a caching name server does not necessarily perform
+            the complete recursive lookup itself.  Instead, it can
+            <span class="emphasis"><em>forward</em></span> some or all of the queries
+            that it cannot satisfy from its cache to another caching name
+            server,
+            commonly referred to as a <span class="emphasis"><em>forwarder</em></span>.
+          </p>
+<p>
+            There may be one or more forwarders,
+            and they are queried in turn until the list is exhausted or an
+            answer
+            is found. Forwarders are typically used when you do not
+            wish all the servers at a given site to interact directly with the
+            rest of
+            the Internet servers. A typical scenario would involve a number
+            of internal <acronym class="acronym">DNS</acronym> servers and an
+            Internet firewall. Servers unable
+            to pass packets through the firewall would forward to the server
+            that can do it, and that server would query the Internet <acronym class="acronym">DNS</acronym> servers
+            on the internal server's behalf.
+          </p>
 </div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2570699"></a>Name Servers in Multiple Roles</h3></div></div></div>
-<p>The <acronym class="acronym">BIND</acronym> name server can simultaneously act as
-a master for some zones, a slave for other zones, and as a caching
-(recursive) server for a set of local clients.</p>
-<p>However, since the functions of authoritative name service
-and caching/recursive name service are logically separate, it is
-often advantageous to run them on separate server machines.
+<a name="id2567587"></a>Name Servers in Multiple Roles</h3></div></div></div>
+<p>
+          The <acronym class="acronym">BIND</acronym> name server can
+          simultaneously act as
+          a master for some zones, a slave for other zones, and as a caching
+          (recursive) server for a set of local clients.
+        </p>
+<p>
+          However, since the functions of authoritative name service
+          and caching/recursive name service are logically separate, it is
+          often advantageous to run them on separate server machines.
 
-A server that only provides authoritative name service
-(an <span class="emphasis"><em>authoritative-only</em></span> server) can run with
-recursion disabled, improving reliability and security.
+          A server that only provides authoritative name service
+          (an <span class="emphasis"><em>authoritative-only</em></span> server) can run with
+          recursion disabled, improving reliability and security.
 
-A server that is not authoritative for any zones and only provides
-recursive service to local
-clients (a <span class="emphasis"><em>caching-only</em></span> server)
-does not need to be reachable from the Internet at large and can
-be placed inside a firewall.</p>
+          A server that is not authoritative for any zones and only provides
+          recursive service to local
+          clients (a <span class="emphasis"><em>caching-only</em></span> server)
+          does not need to be reachable from the Internet at large and can
+          be placed inside a firewall.
+        </p>
 </div>
 </div>
 </div>

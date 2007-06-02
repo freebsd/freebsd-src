@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: order.c,v 1.4.202.4 2004/03/08 09:04:30 marka Exp $ */
+/* $Id: order.c,v 1.5.18.3 2005/07/12 01:22:21 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -53,6 +55,8 @@ struct dns_order {
 isc_result_t
 dns_order_create(isc_mem_t *mctx, dns_order_t **orderp) {
 	dns_order_t *order;
+	isc_result_t result;
+
 	REQUIRE(orderp != NULL && *orderp == NULL);
 
 	order = isc_mem_get(mctx, sizeof(*order));
@@ -60,7 +64,13 @@ dns_order_create(isc_mem_t *mctx, dns_order_t **orderp) {
 		return (ISC_R_NOMEMORY);
 	
 	ISC_LIST_INIT(order->ents);
-	isc_refcount_init(&order->references, 1);     /* Implicit attach. */
+
+	/* Implicit attach. */
+	result = isc_refcount_init(&order->references, 1);
+	if (result != ISC_R_SUCCESS) {
+		isc_mem_put(mctx, order, sizeof(*order));
+		return (result);
+	}
 
 	order->mctx = NULL;
 	isc_mem_attach(mctx, &order->mctx);

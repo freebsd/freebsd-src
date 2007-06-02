@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -16,10 +16,11 @@
  */
 
 /*
- * $Id: dbtable.c,v 1.25.12.4 2004/03/09 05:21:08 marka Exp $
+ * $Id: dbtable.c,v 1.28.18.3 2005/07/12 01:22:19 marka Exp $
  */
 
-/*
+/*! \file
+ * \author
  * Principal Author: DCL
  */
 
@@ -86,7 +87,6 @@ dns_dbtable_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	result = isc_rwlock_init(&dbtable->tree_lock, 0, 0);
 	if (result != ISC_R_SUCCESS)
 		goto clean3;
-	
 
 	dbtable->default_db = NULL;
 	dbtable->mctx = mctx;

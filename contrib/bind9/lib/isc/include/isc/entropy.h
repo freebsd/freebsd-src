@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.h,v 1.23.2.1.10.1 2004/03/06 08:14:40 marka Exp $ */
+/* $Id: entropy.h,v 1.25.18.2 2005/04/29 00:16:54 marka Exp $ */
 
 #ifndef ISC_ENTROPY_H
 #define ISC_ENTROPY_H 1
@@ -24,33 +24,30 @@
  ***** Module Info
  *****/
 
-/*
- * Entropy
+/*! \file entropy.h
+ * \brief The entropy API
  *
- * The entropy API
- *
- * MP:
+ * \li MP:
  *	The entropy object is locked internally.  All callbacks into
  *	application-provided functions (for setup, gathering, and
  *	shutdown of sources) are guaranteed to be called with the
  *	entropy API lock held.  This means these functions are
  *	not permitted to call back into the entropy API.
  *
- * Reliability:
+ * \li Reliability:
  *	No anticipated impact.
  *
- * Resources:
+ * \li Resources:
  *	A buffer, used as an entropy pool.
  *
- * Security:
+ * \li Security:
  *	While this code is believed to implement good entropy gathering
  *	and distribution, it has not been reviewed by a cryptographic
  *	expert.
- *
  *	Since the added entropy is only as good as the sources used,
  *	this module could hand out bad data and never know it.
  *
- * Standards:
+ * \li Standards:
  *	None.
  */
 
@@ -63,31 +60,37 @@
 #include <isc/lang.h>
 #include <isc/types.h>
 
-/*
- * Entropy callback function.
- */
+/*@{*/
+/*% Entropy callback function. */
 typedef isc_result_t (*isc_entropystart_t)(isc_entropysource_t *source,
 					   void *arg, isc_boolean_t blocking);
 typedef isc_result_t (*isc_entropyget_t)(isc_entropysource_t *source,
 					 void *arg, isc_boolean_t blocking);
 typedef void (*isc_entropystop_t)(isc_entropysource_t *source, void *arg);
+/*@}*/
 
 /***
  *** Flags.
  ***/
 
-/*
- * _GOODONLY
+/*!
+ * \brief 
  *	Extract only "good" data; return failure if there is not enough
  *	data available and there are no sources which we can poll to get
  *	data, or those sources are empty.
  *
- * _PARTIAL
+ *
+ */
+#define ISC_ENTROPY_GOODONLY	0x00000001U
+/*!
+ * \brief
  *	Extract as much good data as possible, but if there isn't enough
  *	at hand, return what is available.  This flag only makes sense
  *	when used with _GOODONLY.
- *
- * _BLOCKING
+ */
+#define ISC_ENTROPY_PARTIAL	0x00000002U
+/*!
+ * \brief
  *	Block the task until data is available.  This is contrary to the
  *	ISC task system, where tasks should never block.  However, if
  *	this is a special purpose application where blocking a task is
@@ -95,12 +98,10 @@ typedef void (*isc_entropystop_t)(isc_entropysource_t *source, void *arg);
  *	This flag only makes sense when used with _GOODONLY, and will
  *	block regardless of the setting for _PARTIAL.
  */
-#define ISC_ENTROPY_GOODONLY	0x00000001U
-#define ISC_ENTROPY_PARTIAL	0x00000002U
 #define ISC_ENTROPY_BLOCKING	0x00000004U
 
-/*
- * _ESTIMATE
+/*!
+ * \brief
  *	Estimate the amount of entropy contained in the sample pool.
  *	If this is not set, the source will be gathered and perodically
  *	mixed into the entropy pool, but no increment in contained entropy
@@ -110,17 +111,22 @@ typedef void (*isc_entropystop_t)(isc_entropysource_t *source, void *arg);
 
 /*
  * For use with isc_entropy_usebestsource().
- *
- * _KEYBOARDYES
+ */
+/*!
+ * \brief 
  *	Use the keyboard as the only entropy source.
- * _KEYBOARDNO
+ */
+#define ISC_ENTROPY_KEYBOARDYES		1
+/*!
+ * \brief 
  *	Never use the keyboard as an entropy source.
- * _KEYBOARDMAYBE
+ */
+#define ISC_ENTROPY_KEYBOARDNO		2
+/*!
+ * \brief
  *	Use the keyboard as an entropy source only if opening the
  *	random device fails.
  */
-#define ISC_ENTROPY_KEYBOARDYES		1
-#define ISC_ENTROPY_KEYBOARDNO		2
 #define ISC_ENTROPY_KEYBOARDMAYBE	3
 
 ISC_LANG_BEGINDECLS
@@ -131,26 +137,26 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 isc_entropy_create(isc_mem_t *mctx, isc_entropy_t **entp);
-/*
- * Create a new entropy object.
+/*!<
+ * \brief Create a new entropy object.
  */
 
 void
 isc_entropy_attach(isc_entropy_t *ent, isc_entropy_t **entp);
-/*
+/*!<
  * Attaches to an entropy object.
  */
 
 void
 isc_entropy_detach(isc_entropy_t **entp);
-/*
- * Detaches from an entropy object.
+/*!<
+ * \brief Detaches from an entropy object.
  */
 
 isc_result_t
 isc_entropy_createfilesource(isc_entropy_t *ent, const char *fname);
-/*
- * Create a new entropy source from a file.
+/*!<
+ * \brief Create a new entropy source from a file.
  *
  * The file is assumed to contain good randomness, and will be mixed directly
  * into the pool with every byte adding 8 bits of entropy.
@@ -168,15 +174,15 @@ isc_entropy_createfilesource(isc_entropy_t *ent, const char *fname);
 
 void
 isc_entropy_destroysource(isc_entropysource_t **sourcep);
-/*
- * Removes an entropy source from the entropy system.
+/*!<
+ * \brief Removes an entropy source from the entropy system.
  */
 
 isc_result_t
 isc_entropy_createsamplesource(isc_entropy_t *ent,
 			       isc_entropysource_t **sourcep);
-/*
- * Create an entropy source that consists of samples.  Each sample is added
+/*!<
+ * \brief Create an entropy source that consists of samples.  Each sample is added
  * to the source via isc_entropy_addsamples(), below.
  */
 
@@ -187,8 +193,10 @@ isc_entropy_createcallbacksource(isc_entropy_t *ent,
 				 isc_entropystop_t stop,
 				 void *arg,
 				 isc_entropysource_t **sourcep);
-/*
- * Create an entropy source that is polled via a callback.  This would
+/*!<
+ * \brief Create an entropy source that is polled via a callback.  
+ *
+ * This would
  * be used when keyboard input is used, or a GUI input method.  It can
  * also be used to hook in any external entropy source.
  *
@@ -199,19 +207,22 @@ isc_entropy_createcallbacksource(isc_entropy_t *ent,
 
 void
 isc_entropy_stopcallbacksources(isc_entropy_t *ent);
-/*
- * Call the stop functions for callback sources that have had their
+/*!<
+ * \brief Call the stop functions for callback sources that have had their
  * start functions called.
  */
 
+/*@{*/
 isc_result_t
 isc_entropy_addcallbacksample(isc_entropysource_t *source, isc_uint32_t sample,
 			      isc_uint32_t extra);
 isc_result_t
 isc_entropy_addsample(isc_entropysource_t *source, isc_uint32_t sample,
 		      isc_uint32_t extra);
-/*
- * Add a sample to the sample source.  The sample MUST be a timestamp
+/*!<
+ * \brief Add a sample to the sample source.  
+ *
+ * The sample MUST be a timestamp
  * that increases over time, with the exception of wrap-around for
  * extremely high resolution timers which will quickly wrap-around
  * a 32-bit integer.
@@ -222,20 +233,28 @@ isc_entropy_addsample(isc_entropysource_t *source, isc_uint32_t sample,
  * When in an entropy API callback function, _addcallbacksource() must be
  * used.  At all other times, _addsample() must be used.
  */
+/*@}*/
 
 isc_result_t
 isc_entropy_getdata(isc_entropy_t *ent, void *data, unsigned int length,
 		    unsigned int *returned, unsigned int flags);
-/*
- * Extract data from the entropy pool.  This may load the pool from various
+/*!<
+ * \brief Extract data from the entropy pool.  This may load the pool from various
  * sources.
+ *
+ * Do this by stiring the pool and returning a part of hash as randomness.
+ * Note that no secrets are given away here since parts of the hash are
+ * xored together before returned.
+ *
+ * Honor the request from the caller to only return good data, any data,
+ * etc.
  */
 
 void
 isc_entropy_putdata(isc_entropy_t *ent, void *data, unsigned int length,
 		    isc_uint32_t entropy);
-/*
- * Add "length" bytes in "data" to the entropy pool, incrementing the pool's
+/*!<
+ * \brief Add "length" bytes in "data" to the entropy pool, incrementing the pool's
  * entropy count by "entropy."
  *
  * These bytes will prime the pseudorandom portion even no entropy is actually
@@ -244,42 +263,42 @@ isc_entropy_putdata(isc_entropy_t *ent, void *data, unsigned int length,
 
 void
 isc_entropy_stats(isc_entropy_t *ent, FILE *out);
-/*
- * Dump some (trivial) stats to the stdio stream "out".
+/*!<
+ * \brief Dump some (trivial) stats to the stdio stream "out".
  */
 
 isc_result_t
 isc_entropy_usebestsource(isc_entropy_t *ectx, isc_entropysource_t **source,
 			  const char *randomfile, int use_keyboard);
-/*
- * Use whatever source of entropy is best.
+/*!<
+ * \brief Use whatever source of entropy is best.
  *
  * Notes:
- *	If "randomfile" is not NULL, open it with
+ *\li	If "randomfile" is not NULL, open it with
  *	isc_entropy_createfilesource(). 
  *
- *	If "randomfile" is NULL and the system's random device was detected
+ *\li	If "randomfile" is NULL and the system's random device was detected
  *	when the program was configured and built, open that device with
  *	isc_entropy_createfilesource(). 
  *
- *	If "use_keyboard" is ISC_ENTROPY_KEYBOARDYES, then always open
+ *\li	If "use_keyboard" is #ISC_ENTROPY_KEYBOARDYES, then always open
  *	the keyboard as an entropy source (possibly in addition to
  *	"randomfile" or the random device).
  *
- *	If "use_keyboard" is ISC_ENTROPY_KEYBOARDMAYBE, open the keyboard only
+ *\li	If "use_keyboard" is #ISC_ENTROPY_KEYBOARDMAYBE, open the keyboard only
  *	if opening the random file/device fails.  A message will be
  *	printed describing the need for keyboard input.
  *
- *	If "use_keyboard" is ISC_ENTROPY_KEYBOARDNO, the keyboard will
+ *\li	If "use_keyboard" is #ISC_ENTROPY_KEYBOARDNO, the keyboard will
  *	never be opened.
  *
  * Returns:
- *	ISC_R_SUCCESS if at least one source of entropy could be started.
+ *\li	#ISC_R_SUCCESS if at least one source of entropy could be started.
  *
- *	ISC_R_NOENTROPY if use_keyboard is ISC_ENTROPY_KEYBOARDNO and
+ *\li	#ISC_R_NOENTROPY if use_keyboard is #ISC_ENTROPY_KEYBOARDNO and
  *	there is no random device pathname compiled into the program.
  *
- *	A return code from isc_entropy_createfilesource() or
+ *\li	A return code from isc_entropy_createfilesource() or
  *	isc_entropy_createcallbacksource().
  */
 

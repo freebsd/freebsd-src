@@ -110,3 +110,4 @@ int			log_free_channel(log_channel);
 void			log_close_debug_channels(log_context);
 
 #endif /* !LOGGING_H */
+/*! \file */

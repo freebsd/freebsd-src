@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec_47.c,v 1.7.2.1 2004/03/08 02:08:03 marka Exp $ */
+/* $Id: nsec_47.c,v 1.7 2004/03/05 05:10:15 marka Exp $ */
 
 /* reviewed: Wed Mar 15 18:21:15 PST 2000 by brister */
 
