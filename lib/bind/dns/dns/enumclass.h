@@ -24,6 +24,8 @@
  ***************
  ***************/
 
+/*! \file */
+
 #ifndef DNS_ENUMCLASS_H
 #define DNS_ENUMCLASS_H 1
 
@@ -33,10 +35,10 @@ enum {
 				((dns_rdataclass_t)dns_rdataclass_reserved0)
 	dns_rdataclass_in = 1,
 #define dns_rdataclass_in	((dns_rdataclass_t)dns_rdataclass_in)
-	dns_rdataclass_ch = 3,
-#define dns_rdataclass_ch	((dns_rdataclass_t)dns_rdataclass_ch)
 	dns_rdataclass_chaos = 3,
 #define dns_rdataclass_chaos	((dns_rdataclass_t)dns_rdataclass_chaos)
+	dns_rdataclass_ch = 3,
+#define dns_rdataclass_ch	((dns_rdataclass_t)dns_rdataclass_ch)
 	dns_rdataclass_hs = 4,
 #define dns_rdataclass_hs	((dns_rdataclass_t)dns_rdataclass_hs)
 	dns_rdataclass_none = 254,

@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -17,7 +17,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netdb.h.in,v 1.34.206.1 2004/03/06 08:15:35 marka Exp $ */
+/* $Id: netdb.h.in,v 1.35.18.2 2005/04/29 00:17:22 marka Exp $ */
+
+/*! \file */
 
 #ifndef LWRES_NETDB_H
 #define LWRES_NETDB_H 1
