@@ -14,9 +14,13 @@ SRCS+=		named-checkzone.c check-tool.c
 
 CFLAGS+=	-I${LIB_BIND_DIR}
 
-DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD}
-LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD}
+DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
+LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
+
+LINKS=		${BINDIR}/named-checkzone ${BINDIR}/named-compilezone
 
 MAN=		named-checkzone.8
+
+MLINKS=		named-checkzone.8 named-compilezone.8
 
 .include <bsd.prog.mk>

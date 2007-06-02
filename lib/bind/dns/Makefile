@@ -12,10 +12,10 @@ SRCDIR=		${BIND_DIR}/lib/dns
 LIB=		dns
 
 .PATH:		${SRCDIR}
-SRCS+=		acl.c adb.c byaddr.c \
+SRCS+=		acache.c acl.c adb.c byaddr.c \
 		cache.c callbacks.c compress.c \
 		db.c dbiterator.c dbtable.c diff.c dispatch.c \
-		dnssec.c ds.c \
+		dlz.c dnssec.c ds.c \
 		dst_api.c dst_lib.c dst_parse.c dst_result.c \
 		forward.c \
 		gssapi_link.c gssapictx.c hmac_link.c \
@@ -31,19 +31,21 @@ SRCS+=		acl.c adb.c byaddr.c \
 		rbt.c rbtdb.c rbtdb64.c rcode.c rdata.c \
 		rdatalist.c \
 		rdataset.c rdatasetiter.c rdataslab.c request.c \
-		resolver.c result.c rootns.c sdb.c soa.c ssu.c \
+		resolver.c result.c rootns.c sdb.c sdlz.c soa.c ssu.c \
 		stats.c tcpmsg.c time.c timer.c tkey.c \
 		tsig.c ttl.c validator.c \
 		version.c view.c xfrin.c zone.c zonekey.c zt.c
 
 CFLAGS+=	-I${SRCDIR}/include/dst -I${SRCDIR}/include -I${SRCDIR}
 CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
 
-DPADD=		${CRYPTO_DPADD}
-LDADD=		${CRYPTO_LDADD}
+DPADD=		${CRYPTO_DPADD} ${PTHREAD_DPADD}
+LDADD=		${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
 .if ${MK_BIND_LIBS} != "no"
-DNSINCS=	${SRCDIR}/include/dns/acl.h \
+DNSINCS=	${SRCDIR}/include/dns/acache.h \
+		${SRCDIR}/include/dns/acl.h \
 		${SRCDIR}/include/dns/adb.h \
 		${SRCDIR}/include/dns/bit.h \
 		${SRCDIR}/include/dns/byaddr.h \
@@ -56,6 +58,7 @@ DNSINCS=	${SRCDIR}/include/dns/acl.h \
 		${SRCDIR}/include/dns/dbtable.h \
 		${SRCDIR}/include/dns/diff.h \
 		${SRCDIR}/include/dns/dispatch.h \
+		${SRCDIR}/include/dns/dlz.h \
 		${SRCDIR}/include/dns/dnssec.h \
 		${SRCDIR}/include/dns/ds.h \
 		${SRCDIR}/include/dns/events.h \
@@ -92,6 +95,7 @@ DNSINCS=	${SRCDIR}/include/dns/acl.h \
 		${SRCDIR}/include/dns/result.h \
 		${SRCDIR}/include/dns/rootns.h \
 		${SRCDIR}/include/dns/sdb.h \
+		${SRCDIR}/include/dns/sdlz.h \
 		${SRCDIR}/include/dns/secalg.h \
 		${SRCDIR}/include/dns/secproto.h \
 		${SRCDIR}/include/dns/soa.h \

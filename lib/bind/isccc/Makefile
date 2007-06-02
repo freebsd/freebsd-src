@@ -17,6 +17,10 @@ SRCS=		alist.c base64.c cc.c ccmsg.c \
 		result.c sexpr.c symtab.c version.c
 
 CFLAGS+=	-I${SRCDIR}/include
+CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
+
+DPADD=		${PTHREAD_DPADD}
+LDADD=		${PTHREAD_LDADD}
 
 .if ${MK_BIND_LIBS} != "no"
 INCS=		${SRCDIR}/include/isccc/alist.h \

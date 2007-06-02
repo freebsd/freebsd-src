@@ -21,7 +21,7 @@ SRCS+=		app.c dir.c entropy.c \
 .PATH:		${SRCDIR}/nls
 SRCS+=		msgcat.c \
 
-.PATH:		${SRCDIR}/nothreads
+.PATH:		${SRCDIR}/pthreads
 SRCS+=		condition.c mutex.c \
 		thread.c
 
@@ -29,16 +29,20 @@ SRCS+=		condition.c mutex.c \
 SRCS+=		inet_pton.c \
 		assertions.c base64.c bitstring.c buffer.c \
 		bufferlist.c commandline.c error.c event.c \
-		hash.c heap.c hex.c hmacmd5.c \
+		hash.c heap.c hex.c hmacmd5.c hmacsha.c \
 		lex.c lfsr.c lib.c log.c md5.c \
 		mem.c mutexblock.c netaddr.c netscope.c ondestroy.c \
 		parseint.c print.c quota.c random.c \
-		ratelimiter.c region.c result.c rwlock.c \
-		serial.c sha1.c  sockaddr.c string.c strtoul.c \
+		ratelimiter.c refcount.c region.c result.c rwlock.c \
+		serial.c sha1.c sha2.c sockaddr.c string.c strtoul.c \
 		symtab.c task.c taskpool.c timer.c version.c
 
-CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/nothreads/include
+CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/pthreads/include
 CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR}
+CFLAGS+=	-I${SRCDIR}/${ISC_ATOMIC_ARCH}/include
+
+DPADD=		${PTHREAD_DPADD}
+LDADD=		${PTHREAD_LDADD}
 
 .if ${MK_BIND_LIBS} != "no"
 INCS=		${SRCDIR}/include/isc/app.h \
@@ -60,6 +64,7 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/heap.h \
 		${SRCDIR}/include/isc/hex.h \
 		${SRCDIR}/include/isc/hmacmd5.h \
+		${SRCDIR}/include/isc/hmacsha.h \
 		${SRCDIR}/include/isc/interfaceiter.h \
 		${SRCDIR}/include/isc/ipv6.h \
 		${SRCDIR}/include/isc/lang.h \
@@ -91,6 +96,7 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/rwlock.h \
 		${SRCDIR}/include/isc/serial.h \
 		${SRCDIR}/include/isc/sha1.h \
+		${SRCDIR}/include/isc/sha2.h \
 		${SRCDIR}/include/isc/sockaddr.h \
 		${SRCDIR}/include/isc/socket.h \
 		${SRCDIR}/include/isc/stdio.h \
@@ -103,10 +109,10 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/types.h \
 		${SRCDIR}/include/isc/util.h \
 		${SRCDIR}/include/isc/version.h \
-		${SRCDIR}/nothreads/include/isc/condition.h \
-		${SRCDIR}/nothreads/include/isc/mutex.h \
-		${SRCDIR}/nothreads/include/isc/once.h \
-		${SRCDIR}/nothreads/include/isc/thread.h \
+		${SRCDIR}/pthreads/include/isc/condition.h \
+		${SRCDIR}/pthreads/include/isc/mutex.h \
+		${SRCDIR}/pthreads/include/isc/once.h \
+		${SRCDIR}/pthreads/include/isc/thread.h \
 		${SRCDIR}/unix/include/isc/dir.h \
 		${SRCDIR}/unix/include/isc/int.h \
 		${SRCDIR}/unix/include/isc/keyboard.h \
@@ -118,6 +124,7 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/unix/include/isc/strerror.h \
 		${SRCDIR}/unix/include/isc/syslog.h \
 		${SRCDIR}/unix/include/isc/time.h \
+		${SRCDIR}/${ISC_ATOMIC_ARCH}/include/isc/atomic.h \
 		isc/platform.h
 
 INCSDIR=	${INCLUDEDIR}/isc
