@@ -254,6 +254,8 @@
 
     &hwlist.msk;
 
+    &hwlist.mxge;
+
     &hwlist.my;
 
     &hwlist.nge;
