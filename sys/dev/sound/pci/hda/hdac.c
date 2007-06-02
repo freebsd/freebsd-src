@@ -3309,17 +3309,13 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 	}
 
 	if (softpcmvol == 1 || ctl == NULL) {
-		struct snddev_info *d = NULL;
-		d = device_get_softc(sc->dev);
-		if (d != NULL) {
-			d->flags |= SD_F_SOFTPCMVOL;
-			HDA_BOOTVERBOSE(
-				device_printf(sc->dev,
-				    "HDA_DEBUG: %s Soft PCM volume\n",
-				    (softpcmvol == 1) ?
-				    "Forcing" : "Enabling");
-			);
-		}
+		pcm_setflags(sc->dev, pcm_getflags(sc->dev) | SD_F_SOFTPCMVOL);
+		HDA_BOOTVERBOSE(
+			device_printf(sc->dev,
+			    "HDA_DEBUG: %s Soft PCM volume\n",
+			    (softpcmvol == 1) ?
+			    "Forcing" : "Enabling");
+		);
 		i = 0;
 		/*
 		 * XXX Temporary quirk for STAC9220, until the parser
