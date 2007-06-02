@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getgrent_r.c,v 1.5.206.1 2004/03/09 08:33:35 marka Exp $";
+static const char rcsid[] = "$Id: getgrent_r.c,v 1.6.18.1 2005/04/27 05:00:57 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -120,7 +120,7 @@ getgrgid_r(gid_t gid, struct group *gptr,
 }
 #endif
 
-/*
+/*%
  *	These assume a single context is in operation per thread.
  *	If this is not the case we will need to call irs directly
  *	rather than through the base functions.
@@ -180,7 +180,7 @@ copy_group(struct group *ge, struct group *gptr, char *buf, int buflen) {
 	int numptr, len;
 
 	/* Find out the amount of space required to store the answer. */
-	numptr = 1; /* NULL ptr */
+	numptr = 1; /*%< NULL ptr */
 	len = (char *)ALIGN(buf) - buf;
 	for (i = 0; ge->gr_mem[i]; i++, numptr++) {
 		len += strlen(ge->gr_mem[i]) + 1;
@@ -227,3 +227,4 @@ copy_group(struct group *ge, struct group *gptr, char *buf, int buflen) {
 	static int getgrent_r_unknown_system = 0;
 #endif /* GROUP_R_RETURN */
 #endif /* !def(_REENTRANT) || !def(DO_PTHREADS) || !def(WANT_IRS_PW) */
+/*! \file */

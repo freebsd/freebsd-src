@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001  Internet Software Consortium.
  * Portions Copyright (C) 2001  Nominum, Inc.
  *
@@ -16,7 +16,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sexpr.c,v 1.2.12.3 2004/03/08 09:05:04 marka Exp $ */
+/* $Id: sexpr.c,v 1.4.18.2 2005/04/29 00:17:12 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 

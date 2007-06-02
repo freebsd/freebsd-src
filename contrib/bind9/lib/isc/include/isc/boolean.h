@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: boolean.h,v 1.12.206.1 2004/03/06 08:14:39 marka Exp $ */
+/* $Id: boolean.h,v 1.13.18.2 2005/04/29 00:16:53 marka Exp $ */
 
 #ifndef ISC_BOOLEAN_H
 #define ISC_BOOLEAN_H 1
+
+/*! \file */
 
 typedef enum { isc_boolean_false = 0, isc_boolean_true = 1 } isc_boolean_t;
 

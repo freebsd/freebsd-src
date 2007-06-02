@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_noop.3,v 1.14.2.1.8.6 2006/06/29 13:02:31 marka Exp $
+.\" $Id: lwres_noop.3,v 1.17.18.11 2007/01/30 00:23:45 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: lwres_noop
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -36,17 +36,17 @@ lwres_nooprequest_render, lwres_noopresponse_render, lwres_nooprequest_parse, lw
 #include <lwres/lwres.h>
 .fi
 .HP 40
-.BI "lwres_result_t lwres_nooprequest_render(lwres_context_t\ *ctx, lwres_nooprequest_t\ *req, lwres_lwpacket_t\ *pkt, lwres_buffer_t\ *b);"
+.BI "lwres_result_t lwres_nooprequest_render(lwres_context_t\ *" "ctx" ", lwres_nooprequest_t\ *" "req" ", lwres_lwpacket_t\ *" "pkt" ", lwres_buffer_t\ *" "b" ");"
 .HP 41
-.BI "lwres_result_t lwres_noopresponse_render(lwres_context_t\ *ctx, lwres_noopresponse_t\ *req, lwres_lwpacket_t\ *pkt, lwres_buffer_t\ *b);"
+.BI "lwres_result_t lwres_noopresponse_render(lwres_context_t\ *" "ctx" ", lwres_noopresponse_t\ *" "req" ", lwres_lwpacket_t\ *" "pkt" ", lwres_buffer_t\ *" "b" ");"
 .HP 39
-.BI "lwres_result_t lwres_nooprequest_parse(lwres_context_t\ *ctx, lwres_buffer_t\ *b, lwres_lwpacket_t\ *pkt, lwres_nooprequest_t\ **structp);"
+.BI "lwres_result_t lwres_nooprequest_parse(lwres_context_t\ *" "ctx" ", lwres_buffer_t\ *" "b" ", lwres_lwpacket_t\ *" "pkt" ", lwres_nooprequest_t\ **" "structp" ");"
 .HP 40
-.BI "lwres_result_t lwres_noopresponse_parse(lwres_context_t\ *ctx, lwres_buffer_t\ *b, lwres_lwpacket_t\ *pkt, lwres_noopresponse_t\ **structp);"
+.BI "lwres_result_t lwres_noopresponse_parse(lwres_context_t\ *" "ctx" ", lwres_buffer_t\ *" "b" ", lwres_lwpacket_t\ *" "pkt" ", lwres_noopresponse_t\ **" "structp" ");"
 .HP 29
-.BI "void lwres_noopresponse_free(lwres_context_t\ *ctx, lwres_noopresponse_t\ **structp);"
+.BI "void lwres_noopresponse_free(lwres_context_t\ *" "ctx" ", lwres_noopresponse_t\ **" "structp" ");"
 .HP 28
-.BI "void lwres_nooprequest_free(lwres_context_t\ *ctx, lwres_nooprequest_t\ **structp);"
+.BI "void lwres_nooprequest_free(lwres_context_t\ *" "ctx" ", lwres_nooprequest_t\ **" "structp" ");"
 .SH "DESCRIPTION"
 .PP
 These are low\-level routines for creating and parsing lightweight resolver no\-op request and response messages.
@@ -63,14 +63,26 @@ to the canonical format. This is complemented by a parse function which converts
 .PP
 These structures are defined in
 \fIlwres/lwres.h\fR. They are shown below.
-.sp
-.RS 3n
+.PP
+.RS 4
 .nf
 #define LWRES_OPCODE_NOOP       0x00000000U
+.fi
+.RE
+.sp
+.PP
+.RS 4
+.nf
 typedef struct {
         lwres_uint16_t  datalength;
         unsigned char   *data;
 } lwres_nooprequest_t;
+.fi
+.RE
+.sp
+.PP
+.RS 4
+.nf
 typedef struct {
         lwres_uint16_t  datalength;
         unsigned char   *data;
@@ -78,6 +90,7 @@ typedef struct {
 .fi
 .RE
 .sp
+.PP
 Although the structures have different types, they are identical. This is because the no\-op opcode simply echos whatever data was sent: the response is therefore identical to the request.
 .PP
 \fBlwres_nooprequest_render()\fR
@@ -162,6 +175,9 @@ in the packet header structure
 indicate that the packet is not a response to an earlier query.
 .SH "SEE ALSO"
 .PP
-\fBlwres_packet\fR(3 )
+\fBlwres_packet\fR(3)
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001 Internet Software Consortium.
+.br

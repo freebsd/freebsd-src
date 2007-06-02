@@ -43,7 +43,7 @@ static const char sccsid[] = "@(#)inet_netof.c	8.1 (Berkeley) 6/4/93";
 
 #include "port_after.h"
 
-/*
+/*%
  * Return the network number from an internet
  * address; handles class a/b/c network #'s.
  */
@@ -60,3 +60,5 @@ inet_netof(in)
 	else
 		return (((i)&IN_CLASSC_NET) >> IN_CLASSC_NSHIFT);
 }
+
+/*! \file */

@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: forward.h,v 1.2.206.3 2005/03/17 03:58:31 marka Exp $ */
+/* $Id: forward.h,v 1.3.18.3 2005/04/27 05:01:33 sra Exp $ */
 
 #ifndef DNS_FORWARD_H
 #define DNS_FORWARD_H 1
+
+/*! \file */
 
 #include <isc/lang.h>
 #include <isc/result.h>
@@ -34,68 +36,81 @@ struct dns_forwarders {
 
 isc_result_t
 dns_fwdtable_create(isc_mem_t *mctx, dns_fwdtable_t **fwdtablep);
-/*
+/*%<
  * Creates a new forwarding table.
  *
  * Requires:
- * 	mctx is a valid memory context.
- * 	fwdtablep != NULL && *fwdtablep == NULL
+ * \li 	mctx is a valid memory context.
+ * \li	fwdtablep != NULL && *fwdtablep == NULL
  *
  * Returns:
- *	ISC_R_SUCCESS
- *	ISC_R_NOMEMORY
+ * \li	#ISC_R_SUCCESS
+ * \li	#ISC_R_NOMEMORY
  */
 
 isc_result_t
 dns_fwdtable_add(dns_fwdtable_t *fwdtable, dns_name_t *name,
 		 isc_sockaddrlist_t *addrs, dns_fwdpolicy_t policy);
-/*
+/*%<
  * Adds an entry to the forwarding table.  The entry associates
  * a domain with a list of forwarders and a forwarding policy.  The
  * addrs list is copied if not empty, so the caller should free its copy.
  *
  * Requires:
- * 	fwdtable is a valid forwarding table.
- * 	name is a valid name
- * 	addrs is a valid list of sockaddrs, which may be empty.
+ * \li	fwdtable is a valid forwarding table.
+ * \li	name is a valid name
+ * \li	addrs is a valid list of sockaddrs, which may be empty.
  *
  * Returns:
- *	ISC_R_SUCCESS
- *	ISC_R_NOMEMORY
+ * \li	#ISC_R_SUCCESS
+ * \li	#ISC_R_NOMEMORY
  */
 
 isc_result_t
 dns_fwdtable_find(dns_fwdtable_t *fwdtable, dns_name_t *name,
 		  dns_forwarders_t **forwardersp);
-
-isc_result_t
-dns_fwdtable_find2(dns_fwdtable_t *fwdtable, dns_name_t *name,
-		   dns_name_t *foundname, dns_forwarders_t **forwardersp);
-/*
+/*%<
  * Finds a domain in the forwarding table.  The closest matching parent
  * domain is returned.
  *
  * Requires:
- * 	fwdtable is a valid forwarding table.
- * 	name is a valid name
- * 	forwardersp != NULL && *forwardersp == NULL
- *	foundname to be NULL or a valid name with buffer.
+ * \li	fwdtable is a valid forwarding table.
+ * \li	name is a valid name
+ * \li	forwardersp != NULL && *forwardersp == NULL
  *
  * Returns:
- * 	ISC_R_SUCCESS
- * 	ISC_R_NOTFOUND
+ * \li	#ISC_R_SUCCESS
+ * \li	#ISC_R_NOTFOUND
+ */
+
+isc_result_t
+dns_fwdtable_find2(dns_fwdtable_t *fwdtable, dns_name_t *name,
+		   dns_name_t *foundname, dns_forwarders_t **forwardersp);
+/*%<
+ * Finds a domain in the forwarding table.  The closest matching parent
+ * domain is returned.
+ *
+ * Requires:
+ * \li	fwdtable is a valid forwarding table.
+ * \li	name is a valid name
+ * \li	forwardersp != NULL && *forwardersp == NULL
+ * \li	foundname to be NULL or a valid name with buffer.
+ *
+ * Returns:
+ * \li	#ISC_R_SUCCESS
+ * \li	#ISC_R_NOTFOUND
  */
 
 void
 dns_fwdtable_destroy(dns_fwdtable_t **fwdtablep);
-/*
+/*%<
  * Destroys a forwarding table.
  *
  * Requires:
- * 	fwtablep != NULL && *fwtablep != NULL
+ * \li	fwtablep != NULL && *fwtablep != NULL
  *
  * Ensures:
- * 	all memory associated with the forwarding table is freed.
+ * \li	all memory associated with the forwarding table is freed.
  */
 
 ISC_LANG_ENDDECLS

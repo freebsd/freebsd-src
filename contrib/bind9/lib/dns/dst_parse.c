@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -16,9 +16,9 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
+/*%
  * Principal Author: Brian Wellington
- * $Id: dst_parse.c,v 1.1.4.1 2004/12/09 04:07:17 marka Exp $
+ * $Id: dst_parse.c,v 1.1.6.7 2006/05/16 03:59:26 marka Exp $
  */
 
 #include <config.h>
@@ -67,6 +67,23 @@ static struct parse_map map[] = {
 	{TAG_DSA_PUBLIC, "Public_value(y):"},
 
 	{TAG_HMACMD5_KEY, "Key:"},
+	{TAG_HMACMD5_BITS, "Bits:"},
+
+	{TAG_HMACSHA1_KEY, "Key:"},
+	{TAG_HMACSHA1_BITS, "Bits:"},
+
+	{TAG_HMACSHA224_KEY, "Key:"},
+	{TAG_HMACSHA224_BITS, "Bits:"},
+
+	{TAG_HMACSHA256_KEY, "Key:"},
+	{TAG_HMACSHA256_BITS, "Bits:"},
+
+	{TAG_HMACSHA384_KEY, "Key:"},
+	{TAG_HMACSHA384_BITS, "Bits:"},
+
+	{TAG_HMACSHA512_KEY, "Key:"},
+	{TAG_HMACSHA512_BITS, "Bits:"},
+
 	{0, NULL}
 };
 
@@ -141,16 +158,53 @@ check_dsa(const dst_private_t *priv) {
 }
 
 static int
-check_hmac_md5(const dst_private_t *priv) {
-	if (priv->nelements != HMACMD5_NTAGS)
+check_hmac_md5(const dst_private_t *priv, isc_boolean_t old) {
+	int i, j;
+
+	if (priv->nelements != HMACMD5_NTAGS) {
+		/*
+		 * If this is a good old format and we are accepting
+		 * the old format return success.
+		 */
+		if (old && priv->nelements == OLD_HMACMD5_NTAGS &&
+		    priv->elements[0].tag == TAG_HMACMD5_KEY)
+			return (0);
 		return (-1);
-	if (priv->elements[0].tag != TAG_HMACMD5_KEY)
-		return (-1);
+	}
+	/*
+	 * We must be new format at this point.
+	 */
+	for (i = 0; i < HMACMD5_NTAGS; i++) {
+		for (j = 0; j < priv->nelements; j++)
+			if (priv->elements[j].tag == TAG(DST_ALG_HMACMD5, i))
+				break;
+		if (j == priv->nelements)
+			return (-1);
+	}
 	return (0);
 }
 
 static int
-check_data(const dst_private_t *priv, const unsigned int alg) {
+check_hmac_sha(const dst_private_t *priv, unsigned int ntags,
+	       unsigned int alg)
+{
+	unsigned int i, j;
+	if (priv->nelements != ntags)
+		return (-1);
+	for (i = 0; i < ntags; i++) {
+		for (j = 0; j < priv->nelements; j++)
+			if (priv->elements[j].tag == TAG(alg, i))
+				break;
+		if (j == priv->nelements)
+			return (-1);
+	}
+	return (0);
+}
+
+static int
+check_data(const dst_private_t *priv, const unsigned int alg,
+	   isc_boolean_t old)
+{
 	/* XXXVIX this switch statement is too sparse to gen a jump table. */
 	switch (alg) {
 	case DST_ALG_RSAMD5:
@@ -161,7 +215,17 @@ check_data(const dst_private_t *priv, const unsigned int alg) {
 	case DST_ALG_DSA:
 		return (check_dsa(priv));
 	case DST_ALG_HMACMD5:
-		return (check_hmac_md5(priv));
+		return (check_hmac_md5(priv, old));
+	case DST_ALG_HMACSHA1:
+		return (check_hmac_sha(priv, HMACSHA1_NTAGS, alg));
+	case DST_ALG_HMACSHA224:
+		return (check_hmac_sha(priv, HMACSHA224_NTAGS, alg));
+	case DST_ALG_HMACSHA256:
+		return (check_hmac_sha(priv, HMACSHA256_NTAGS, alg));
+	case DST_ALG_HMACSHA384:
+		return (check_hmac_sha(priv, HMACSHA384_NTAGS, alg));
+	case DST_ALG_HMACSHA512:
+		return (check_hmac_sha(priv, HMACSHA512_NTAGS, alg));
 	default:
 		return (DST_R_UNSUPPORTEDALG);
 	}
@@ -313,7 +377,7 @@ dst__privstruct_parse(dst_key_t *key, unsigned int alg, isc_lex_t *lex,
  done:
 	priv->nelements = n;
 
-	if (check_data(priv, alg) < 0)
+	if (check_data(priv, alg, ISC_TRUE) < 0)
 		goto fail;
 
 	return (ISC_R_SUCCESS);
@@ -341,7 +405,7 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 
 	REQUIRE(priv != NULL);
 
-	if (check_data(priv, dst_key_alg(key)) < 0)
+	if (check_data(priv, dst_key_alg(key), ISC_FALSE) < 0)
 		return (DST_R_INVALIDPRIVATEKEY);
 
 	isc_buffer_init(&b, filename, sizeof(filename));
@@ -380,6 +444,21 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 	case DST_ALG_HMACMD5:
 		fprintf(fp, "(HMAC_MD5)\n");
 		break;
+	case DST_ALG_HMACSHA1:
+		fprintf(fp, "(HMAC_SHA1)\n");
+		break;
+	case DST_ALG_HMACSHA224:
+		fprintf(fp, "(HMAC_SHA224)\n");
+		break;
+	case DST_ALG_HMACSHA256:
+		fprintf(fp, "(HMAC_SHA256)\n");
+		break;
+	case DST_ALG_HMACSHA384:
+		fprintf(fp, "(HMAC_SHA384)\n");
+		break;
+	case DST_ALG_HMACSHA512:
+		fprintf(fp, "(HMAC_SHA512)\n");
+		break;
 	default:
 		fprintf(fp, "(?)\n");
 		break;
@@ -410,3 +489,5 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 	fclose(fp);
 	return (ISC_R_SUCCESS);
 }
+
+/*! \file */

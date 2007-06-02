@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_sv.c,v 1.2.206.1 2004/03/09 08:33:38 marka Exp $";
+static const char rcsid[] = "$Id: lcl_sv.c,v 1.3.18.1 2005/04/27 05:01:03 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* extern */
@@ -387,8 +387,7 @@ sv_db_rec(struct lcl_sv *sv, DBT *key, DBT *data) {
 	int n;
 
 	p = data->data;
-	p[data->size - 1] = '\0';	/* should be, but we depend on it */
-
+	p[data->size - 1] = '\0';	/*%< should be, but we depend on it */
 	if (((char *)key->data)[0] == '\0') {
 		if (key->size < sizeof(u_short)*2 || data->size < 2)
 			return (NULL);
@@ -429,3 +428,5 @@ sv_db_rec(struct lcl_sv *sv, DBT *key, DBT *data) {
 	return (&sv->serv);
 }
 #endif
+
+/*! \file */

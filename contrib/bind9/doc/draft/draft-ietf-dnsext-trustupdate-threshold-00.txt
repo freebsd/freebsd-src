@@ -1380,7 +1380,7 @@ Appendix B.  Document History
    to the RFC editor.
 
 
-   The version you are reading is tagged as $Revision: 1.1.232.1 $.
+   The version you are reading is tagged as $Revision: 1.1.230.1 $.
 
 
    Text between square brackets, other than references, are editorial

@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: bitncmp.c,v 1.1.206.1 2004/03/09 08:33:39 marka Exp $";
+static const char rcsid[] = "$Id: bitncmp.c,v 1.2.18.1 2005/04/27 05:01:05 sra Exp $";
 #endif
 
 #include "port_before.h"
@@ -29,7 +29,7 @@ static const char rcsid[] = "$Id: bitncmp.c,v 1.1.206.1 2004/03/09 08:33:39 mark
 
 #include <isc/misc.h>
 
-/*
+/*%
  * int
  * bitncmp(l, r, n)
  *	compare bit masks l and r, for n bits.
@@ -64,3 +64,5 @@ bitncmp(const void *l, const void *r, int n) {
 	}
 	return (0);
 }
+
+/*! \file */

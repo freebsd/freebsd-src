@@ -26,21 +26,20 @@
 
 static const char *gai_errlist[] = {
 	"no error",
-	"address family not supported for name",/* EAI_ADDRFAMILY */
-	"temporary failure",			/* EAI_AGAIN */
-	"invalid flags",			/* EAI_BADFLAGS */
-	"permanent failure",			/* EAI_FAIL */
-	"address family not supported",		/* EAI_FAMILY */
-	"memory failure",			/* EAI_MEMORY */
-	"no address",				/* EAI_NODATA */
-	"unknown name or service",		/* EAI_NONAME */
-	"service not supported for socktype",	/* EAI_SERVICE */
-	"socktype not supported",		/* EAI_SOCKTYPE */
-	"system failure",			/* EAI_SYSTEM */
-	"bad hints",				/* EAI_BADHINTS */
-	"bad protocol",				/* EAI_PROTOCOL */
-
-	"unknown error"				/* Must be last. */
+	"address family not supported for name",/*%< EAI_ADDRFAMILY */
+	"temporary failure",			/*%< EAI_AGAIN */
+	"invalid flags",			/*%< EAI_BADFLAGS */
+	"permanent failure",			/*%< EAI_FAIL */
+	"address family not supported",		/*%< EAI_FAMILY */
+	"memory failure",			/*%< EAI_MEMORY */
+	"no address",				/*%< EAI_NODATA */
+	"unknown name or service",		/*%< EAI_NONAME */
+	"service not supported for socktype",	/*%< EAI_SERVICE */
+	"socktype not supported",		/*%< EAI_SOCKTYPE */
+	"system failure",			/*%< EAI_SYSTEM */
+	"bad hints",				/*%< EAI_BADHINTS */
+	"bad protocol",				/*%< EAI_PROTOCOL */
+	"unknown error"				/*%< Must be last. */
 };
 
 static const int gai_nerr = (sizeof(gai_errlist)/sizeof(*gai_errlist));
@@ -100,3 +99,5 @@ gai_strerror(int ecode) {
 	return ("unknown error");
 #endif
 }
+
+/*! \file */

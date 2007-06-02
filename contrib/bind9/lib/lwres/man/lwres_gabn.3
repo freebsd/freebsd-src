@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_gabn.3,v 1.13.2.1.8.6 2006/06/29 13:02:31 marka Exp $
+.\" $Id: lwres_gabn.3,v 1.16.18.11 2007/01/30 00:23:45 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: lwres_gabn
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -36,17 +36,17 @@ lwres_gabnrequest_render, lwres_gabnresponse_render, lwres_gabnrequest_parse, lw
 #include <lwres/lwres.h>
 .fi
 .HP 40
-.BI "lwres_result_t lwres_gabnrequest_render(lwres_context_t\ *ctx, lwres_gabnrequest_t\ *req, lwres_lwpacket_t\ *pkt, lwres_buffer_t\ *b);"
+.BI "lwres_result_t lwres_gabnrequest_render(lwres_context_t\ *" "ctx" ", lwres_gabnrequest_t\ *" "req" ", lwres_lwpacket_t\ *" "pkt" ", lwres_buffer_t\ *" "b" ");"
 .HP 41
-.BI "lwres_result_t lwres_gabnresponse_render(lwres_context_t\ *ctx, lwres_gabnresponse_t\ *req, lwres_lwpacket_t\ *pkt, lwres_buffer_t\ *b);"
+.BI "lwres_result_t lwres_gabnresponse_render(lwres_context_t\ *" "ctx" ", lwres_gabnresponse_t\ *" "req" ", lwres_lwpacket_t\ *" "pkt" ", lwres_buffer_t\ *" "b" ");"
 .HP 39
-.BI "lwres_result_t lwres_gabnrequest_parse(lwres_context_t\ *ctx, lwres_buffer_t\ *b, lwres_lwpacket_t\ *pkt, lwres_gabnrequest_t\ **structp);"
+.BI "lwres_result_t lwres_gabnrequest_parse(lwres_context_t\ *" "ctx" ", lwres_buffer_t\ *" "b" ", lwres_lwpacket_t\ *" "pkt" ", lwres_gabnrequest_t\ **" "structp" ");"
 .HP 40
-.BI "lwres_result_t lwres_gabnresponse_parse(lwres_context_t\ *ctx, lwres_buffer_t\ *b, lwres_lwpacket_t\ *pkt, lwres_gabnresponse_t\ **structp);"
+.BI "lwres_result_t lwres_gabnresponse_parse(lwres_context_t\ *" "ctx" ", lwres_buffer_t\ *" "b" ", lwres_lwpacket_t\ *" "pkt" ", lwres_gabnresponse_t\ **" "structp" ");"
 .HP 29
-.BI "void lwres_gabnresponse_free(lwres_context_t\ *ctx, lwres_gabnresponse_t\ **structp);"
+.BI "void lwres_gabnresponse_free(lwres_context_t\ *" "ctx" ", lwres_gabnresponse_t\ **" "structp" ");"
 .HP 28
-.BI "void lwres_gabnrequest_free(lwres_context_t\ *ctx, lwres_gabnrequest_t\ **structp);"
+.BI "void lwres_gabnrequest_free(lwres_context_t\ *" "ctx" ", lwres_gabnrequest_t\ **" "structp" ");"
 .SH "DESCRIPTION"
 .PP
 These are low\-level routines for creating and parsing lightweight resolver name\-to\-address lookup request and response messages.
@@ -59,18 +59,36 @@ There are four main functions for the getaddrbyname opcode. One render function 
 .PP
 These structures are defined in
 \fI<lwres/lwres.h>\fR. They are shown below.
-.sp
-.RS 3n
+.PP
+.RS 4
 .nf
 #define LWRES_OPCODE_GETADDRSBYNAME     0x00010001U
+.fi
+.RE
+.sp
+.PP
+.RS 4
+.nf
 typedef struct lwres_addr lwres_addr_t;
 typedef LWRES_LIST(lwres_addr_t) lwres_addrlist_t;
+.fi
+.RE
+.sp
+.PP
+.RS 4
+.nf
 typedef struct {
         lwres_uint32_t  flags;
         lwres_uint32_t  addrtypes;
         lwres_uint16_t  namelen;
         char           *name;
 } lwres_gabnrequest_t;
+.fi
+.RE
+.sp
+.PP
+.RS 4
+.nf
 typedef struct {
         lwres_uint32_t          flags;
         lwres_uint16_t          naliases;
@@ -169,6 +187,9 @@ in the packet header structure
 indicate that the packet is not a response to an earlier query.
 .SH "SEE ALSO"
 .PP
-\fBlwres_packet\fR(3 )
+\fBlwres_packet\fR(3)
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001 Internet Software Consortium.
+.br

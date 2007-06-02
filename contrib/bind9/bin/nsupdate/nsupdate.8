@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: nsupdate.8,v 1.24.2.2.2.9 2006/06/29 13:02:30 marka Exp $
+.\" $Id: nsupdate.8,v 1.30.18.13 2007/01/30 00:23:44 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: nsupdate
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -33,7 +33,7 @@
 nsupdate \- Dynamic DNS update utility
 .SH "SYNOPSIS"
 .HP 9
-\fBnsupdate\fR [\fB\-d\fR] [[\fB\-y\ \fR\fB\fIkeyname:secret\fR\fR] | [\fB\-k\ \fR\fB\fIkeyfile\fR\fR]] [\fB\-t\ \fR\fB\fItimeout\fR\fR] [\fB\-u\ \fR\fB\fIudptimeout\fR\fR] [\fB\-r\ \fR\fB\fIudpretries\fR\fR] [\fB\-v\fR] [filename]
+\fBnsupdate\fR [\fB\-d\fR] [[\fB\-y\ \fR\fB\fI[hmac:]\fR\fIkeyname:secret\fR\fR] | [\fB\-k\ \fR\fB\fIkeyfile\fR\fR]] [\fB\-t\ \fR\fB\fItimeout\fR\fR] [\fB\-u\ \fR\fB\fIudptimeout\fR\fR] [\fB\-r\ \fR\fB\fIudpretries\fR\fR] [\fB\-v\fR] [filename]
 .SH "DESCRIPTION"
 .PP
 \fBnsupdate\fR
@@ -71,7 +71,7 @@ uses the
 \fB\-y\fR
 or
 \fB\-k\fR
-option (with an HMAC\-MD5 key) to provide the shared secret needed to generate a TSIG record for authenticating Dynamic DNS update requests. These options are mutually exclusive. With the
+option to provide the shared secret needed to generate a TSIG record for authenticating Dynamic DNS update requests, default type HMAC\-MD5. These options are mutually exclusive. With the
 \fB\-k\fR
 option,
 \fBnsupdate\fR
@@ -82,14 +82,14 @@ reads the shared secret from the file
 must also be present. When the
 \fB\-y\fR
 option is used, a signature is generated from
-\fIkeyname:secret.\fR
+[\fIhmac:\fR]\fIkeyname:secret.\fR
 \fIkeyname\fR
 is the name of the key, and
 \fIsecret\fR
 is the base64 encoded shared secret. Use of the
 \fB\-y\fR
 option is discouraged because the shared secret is supplied as a command line argument in clear text. This may be visible in the output from
-\fBps\fR(1 )
+\fBps\fR(1)
 or in a history file maintained by the user's shell.
 .PP
 The
@@ -127,8 +127,9 @@ Every update request consists of zero or more prerequisites and zero or more upd
 command) causes the accumulated commands to be sent as one Dynamic DNS update request to the name server.
 .PP
 The command formats and their meaning are as follows:
-.TP 3n
-.HP 7 \fBserver\fR {servername} [port]
+.PP
+\fBserver\fR {servername} [port]
+.RS 4
 Sends all dynamic update requests to the name server
 \fIservername\fR. When no server statement is provided,
 \fBnsupdate\fR
@@ -137,30 +138,38 @@ will send updates to the master server of the correct zone. The MNAME field of t
 is the port number on
 \fIservername\fR
 where the dynamic update requests get sent. If no port number is specified, the default DNS port number of 53 is used.
-.TP 3n
-.HP 6 \fBlocal\fR {address} [port]
+.RE
+.PP
+\fBlocal\fR {address} [port]
+.RS 4
 Sends all dynamic update requests using the local
 \fIaddress\fR. When no local statement is provided,
 \fBnsupdate\fR
 will send updates using an address and port chosen by the system.
 \fIport\fR
 can additionally be used to make requests come from a specific port. If no port number is specified, the system will assign one.
-.TP 3n
-.HP 5 \fBzone\fR {zonename}
+.RE
+.PP
+\fBzone\fR {zonename}
+.RS 4
 Specifies that all updates are to be made to the zone
 \fIzonename\fR. If no
 \fIzone\fR
 statement is provided,
 \fBnsupdate\fR
 will attempt determine the correct zone to update based on the rest of the input.
-.TP 3n
-.HP 6 \fBclass\fR {classname}
+.RE
+.PP
+\fBclass\fR {classname}
+.RS 4
 Specify the default class. If no
 \fIclass\fR
 is specified the default class is
 \fIIN\fR.
-.TP 3n
-.HP 4 \fBkey\fR {name} {secret}
+.RE
+.PP
+\fBkey\fR {name} {secret}
+.RS 4
 Specifies that all updates are to be TSIG signed using the
 \fIkeyname\fR
 \fIkeysecret\fR
@@ -170,17 +179,23 @@ command overrides any key specified on the command line via
 \fB\-y\fR
 or
 \fB\-k\fR.
-.TP 3n
-.HP 16 \fBprereq nxdomain\fR {domain\-name}
+.RE
+.PP
+\fBprereq nxdomain\fR {domain\-name}
+.RS 4
 Requires that no resource record of any type exists with name
 \fIdomain\-name\fR.
-.TP 3n
-.HP 16 \fBprereq yxdomain\fR {domain\-name}
+.RE
+.PP
+\fBprereq yxdomain\fR {domain\-name}
+.RS 4
 Requires that
 \fIdomain\-name\fR
 exists (has as at least one resource record, of any type).
-.TP 3n
-.HP 15 \fBprereq nxrrset\fR {domain\-name} [class] {type}
+.RE
+.PP
+\fBprereq nxrrset\fR {domain\-name} [class] {type}
+.RS 4
 Requires that no resource record exists of the specified
 \fItype\fR,
 \fIclass\fR
@@ -188,8 +203,10 @@ and
 \fIdomain\-name\fR. If
 \fIclass\fR
 is omitted, IN (internet) is assumed.
-.TP 3n
-.HP 15 \fBprereq yxrrset\fR {domain\-name} [class] {type}
+.RE
+.PP
+\fBprereq yxrrset\fR {domain\-name} [class] {type}
+.RS 4
 This requires that a resource record of the specified
 \fItype\fR,
 \fIclass\fR
@@ -198,8 +215,10 @@ and
 must exist. If
 \fIclass\fR
 is omitted, IN (internet) is assumed.
-.TP 3n
-.HP 15 \fBprereq yxrrset\fR {domain\-name} [class] {type} {data...}
+.RE
+.PP
+\fBprereq yxrrset\fR {domain\-name} [class] {type} {data...}
+.RS 4
 The
 \fIdata\fR
 from each set of prerequisites of this form sharing a common
@@ -212,8 +231,10 @@ are combined to form a set of RRs. This set of RRs must exactly match the set of
 \fIdomain\-name\fR. The
 \fIdata\fR
 are written in the standard text representation of the resource record's RDATA.
-.TP 3n
-.HP 14 \fBupdate delete\fR {domain\-name} [ttl] [class] [type\ [data...]]
+.RE
+.PP
+\fBupdate delete\fR {domain\-name} [ttl] [class] [type\ [data...]]
+.RS 4
 Deletes any resource records named
 \fIdomain\-name\fR. If
 \fItype\fR
@@ -224,22 +245,31 @@ is provided, only matching resource records will be removed. The internet class 
 is not supplied. The
 \fIttl\fR
 is ignored, and is only allowed for compatibility.
-.TP 3n
-.HP 11 \fBupdate add\fR {domain\-name} {ttl} [class] {type} {data...}
+.RE
+.PP
+\fBupdate add\fR {domain\-name} {ttl} [class] {type} {data...}
+.RS 4
 Adds a new resource record with the specified
 \fIttl\fR,
 \fIclass\fR
 and
 \fIdata\fR.
-.TP 3n
-.HP 5 \fBshow\fR
+.RE
+.PP
+\fBshow\fR
+.RS 4
 Displays the current message, containing all of the prerequisites and updates specified since the last send.
-.TP 3n
-.HP 5 \fBsend\fR
+.RE
+.PP
+\fBsend\fR
+.RS 4
 Sends the current message. This is equivalent to entering a blank line.
-.TP 3n
-.HP 7 \fBanswer\fR
+.RE
+.PP
+\fBanswer\fR
+.RS 4
 Displays the answer.
+.RE
 .PP
 Lines beginning with a semicolon are comments and are ignored.
 .SH "EXAMPLES"
@@ -251,7 +281,7 @@ could be used to insert and delete resource records from the
 zone. Notice that the input in each example contains a trailing blank line so that a group of commands are sent as one dynamic update request to the master name server for
 \fBexample.com\fR.
 .sp
-.RS 3n
+.RS 4
 .nf
 # nsupdate
 > update delete oldhost.example.com A
@@ -267,7 +297,7 @@ are deleted. and an A record for
 \fBnewhost.example.com\fR
 it IP address 172.16.1.1 is added. The newly\-added record has a 1 day TTL (86400 seconds)
 .sp
-.RS 3n
+.RS 4
 .nf
 # nsupdate
 > prereq nxdomain nickname.example.com
@@ -280,17 +310,23 @@ it IP address 172.16.1.1 is added. The newly\-added record has a 1 day TTL (8640
 The prerequisite condition gets the name server to check that there are no resource records of any type for
 \fBnickname.example.com\fR. If there are, the update request fails. If this name does not exist, a CNAME for it is added. This ensures that when the CNAME is added, it cannot conflict with the long\-standing rule in RFC1034 that a name must not exist as any other record type if it exists as a CNAME. (The rule has been updated for DNSSEC in RFC2535 to allow CNAMEs to have RRSIG, DNSKEY and NSEC records.)
 .SH "FILES"
-.TP 3n
+.PP
 \fB/etc/resolv.conf\fR
+.RS 4
 used to identify default name server
-.TP 3n
+.RE
+.PP
 \fBK{name}.+157.+{random}.key\fR
+.RS 4
 base\-64 encoding of HMAC\-MD5 key created by
 \fBdnssec\-keygen\fR(8).
-.TP 3n
+.RE
+.PP
 \fBK{name}.+157.+{random}.private\fR
+.RS 4
 base\-64 encoding of HMAC\-MD5 key created by
 \fBdnssec\-keygen\fR(8).
+.RE
 .SH "SEE ALSO"
 .PP
 \fBRFC2136\fR(),
@@ -306,4 +342,7 @@ base\-64 encoding of HMAC\-MD5 key created by
 .PP
 The TSIG key is redundantly stored in two separate files. This is a consequence of nsupdate using the DST library for its cryptographic operations, and may change in future releases.
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000\-2003 Internet Software Consortium.
+.br

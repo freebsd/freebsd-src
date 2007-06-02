@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ctl_clnt.c,v 1.4.2.1.4.3 2004/03/17 01:13:35 marka Exp $";
+static const char rcsid[] = "$Id: ctl_clnt.c,v 1.7.18.1 2005/04/27 05:01:05 sra Exp $";
 #endif /* not lint */
 
 /*
@@ -122,7 +122,7 @@ static const char * const state_names[] = {
 
 /* Public. */
 
-/*
+/*%
  * void
  * ctl_client()
  *	create, condition, and connect to a listener on the control port.
@@ -198,7 +198,7 @@ ctl_client(evContext lev, const struct sockaddr *cap, size_t cap_len,
 	return (ctx);
 }
 
-/*
+/*%
  * void
  * ctl_endclient(ctx)
  *	close a client and release all of its resources.
@@ -210,7 +210,7 @@ ctl_endclient(struct ctl_cctx *ctx) {
 	memput(ctx, sizeof *ctx);
 }
 
-/*
+/*%
  * int
  * ctl_command(ctx, cmd, len, donefunc, uap)
  *	Queue a transaction, which will begin with sending cmd
@@ -600,3 +600,5 @@ timer(evContext ev, void *uap, struct timespec due, struct timespec itv) {
 		       ctx->timeout.tv_sec, state_names[ctx->state]);
 	error(ctx);
 }
+
+/*! \file */

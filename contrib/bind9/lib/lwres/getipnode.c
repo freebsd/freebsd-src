@@ -15,7 +15,110 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getipnode.c,v 1.30.2.4.2.6 2005/04/29 00:03:32 marka Exp $ */
+/* $Id: getipnode.c,v 1.37.18.3 2005/04/29 00:17:18 marka Exp $ */
+
+/*! \file */
+
+/**
+ *    These functions perform thread safe, protocol independent
+ *    nodename-to-address and address-to-nodename translation as defined in
+ *    RFC2553.  This use a struct hostent which is defined in namedb.h:
+ * 
+ * \code
+ * struct  hostent {
+ *         char    *h_name;        // official name of host
+ *         char    **h_aliases;    // alias list
+ *         int     h_addrtype;     // host address type
+ *         int     h_length;       // length of address
+ *         char    **h_addr_list;  // list of addresses from name server
+ * };
+ * #define h_addr  h_addr_list[0]  // address, for backward compatibility
+ * \endcode
+ * 
+ *    The members of this structure are:
+ * 
+ * \li   h_name:
+ *           The official (canonical) name of the host.
+ * 
+ * \li   h_aliases:
+ *           A NULL-terminated array of alternate names (nicknames) for the
+ *           host.
+ * 
+ * \li   h_addrtype:
+ *           The type of address being returned - usually PF_INET or
+ *           PF_INET6.
+ * 
+ * \li   h_length:
+ *           The length of the address in bytes.
+ * 
+ * \li   h_addr_list:
+ *           A NULL terminated array of network addresses for the host. Host
+ *           addresses are returned in network byte order.
+ * 
+ *    lwres_getipnodebyname() looks up addresses of protocol family af for
+ *    the hostname name. The flags parameter contains ORed flag bits to
+ *    specify the types of addresses that are searched for, and the types of
+ *    addresses that are returned. The flag bits are:
+ * 
+ * \li   #AI_V4MAPPED:
+ *           This is used with an af of #AF_INET6, and causes IPv4 addresses
+ *           to be returned as IPv4-mapped IPv6 addresses.
+ * 
+ * \li   #AI_ALL:
+ *           This is used with an af of #AF_INET6, and causes all known
+ *           addresses (IPv6 and IPv4) to be returned. If #AI_V4MAPPED is
+ *           also set, the IPv4 addresses are return as mapped IPv6
+ *           addresses.
+ * 
+ * \li   #AI_ADDRCONFIG:
+ *           Only return an IPv6 or IPv4 address if here is an active
+ *           network interface of that type. This is not currently
+ *           implemented in the BIND 9 lightweight resolver, and the flag is
+ *           ignored.
+ * 
+ * \li   #AI_DEFAULT:
+ *           This default sets the #AI_V4MAPPED and #AI_ADDRCONFIG flag bits.
+ * 
+ *    lwres_getipnodebyaddr() performs a reverse lookup of address src which
+ *    is len bytes long. af denotes the protocol family, typically PF_INET
+ *    or PF_INET6.
+ * 
+ *    lwres_freehostent() releases all the memory associated with the struct
+ *    hostent pointer. Any memory allocated for the h_name, h_addr_list
+ *    and h_aliases is freed, as is the memory for the hostent structure
+ *    itself.
+ * 
+ * \section getipnode_return Return Values
+ * 
+ *    If an error occurs, lwres_getipnodebyname() and
+ *    lwres_getipnodebyaddr() set *error_num to an appropriate error code
+ *    and the function returns a NULL pointer. The error codes and their
+ *    meanings are defined in \link netdb.h <lwres/netdb.h>\endlink:
+ * 
+ * \li   #HOST_NOT_FOUND:
+ *           No such host is known.
+ * 
+ * \li   #NO_ADDRESS:
+ *           The server recognised the request and the name but no address
+ *           is available. Another type of request to the name server for
+ *           the domain might return an answer.
+ * 
+ * \li   #TRY_AGAIN:
+ *           A temporary and possibly transient error occurred, such as a
+ *           failure of a server to respond. The request may succeed if
+ *           retried.
+ * 
+ * \li   #NO_RECOVERY:
+ *           An unexpected failure occurred, and retrying the request is
+ *           pointless.
+ * 
+ *    lwres_hstrerror() translates these error codes to suitable error
+ *    messages.
+ * 
+ * \section getipnode_see See Also
+ * 
+ * getaddrinfo.c, gethost.c, getnameinfo.c, herror.c, RFC2553  
+ */
 
 #include <config.h>
 
@@ -80,7 +183,7 @@ hostfromname(lwres_gabnresponse_t *name, int af);
  ***	Public functions.
  ***/
 
-/*
+/*!
  *	AI_V4MAPPED + AF_INET6
  *	If no IPv6 address then a query for IPv4 and map returned values.
  *
@@ -222,6 +325,7 @@ lwres_getipnodebyname(const char *name, int af, int flags, int *error_num) {
 	return (he3);
 }
 
+/*% performs a reverse lookup of address src which is len bytes long. af denotes the protocol family, typically #PF_INET or PF_INET6. */
 struct hostent *
 lwres_getipnodebyaddr(const void *src, size_t len, int af, int *error_num) {
 	struct hostent *he1, *he2;
@@ -345,6 +449,7 @@ lwres_getipnodebyaddr(const void *src, size_t len, int af, int *error_num) {
 	return (he1);
 }
 
+/*% releases all the memory associated with the struct hostent pointer */
 void
 lwres_freehostent(struct hostent *he) {
 	char **cpp;

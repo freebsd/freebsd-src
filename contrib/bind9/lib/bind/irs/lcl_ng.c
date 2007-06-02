@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: lcl_ng.c,v 1.1.206.1 2004/03/09 08:33:38 marka Exp $";
+static const char rcsid[] = "$Id: lcl_ng.c,v 1.2.18.1 2005/04/27 05:01:02 sra Exp $";
 #endif
 
 /* Imports */
@@ -43,11 +43,10 @@ static const char rcsid[] = "$Id: lcl_ng.c,v 1.1.206.1 2004/03/09 08:33:38 marka
 
 /* Definitions */
 
-#define NG_HOST         0       /* Host name */
-#define NG_USER         1       /* User name */
-#define NG_DOM          2       /* and Domain name */
-#define LINSIZ		1024    /* Length of netgroup file line */
-
+#define NG_HOST         0       /*%< Host name */
+#define NG_USER         1       /*%< User name */
+#define NG_DOM          2       /*%< and Domain name */
+#define LINSIZ		1024    /*%< Length of netgroup file line */
 /*
  * XXX Warning XXX
  * This code is a hack-and-slash special.  It realy needs to be
@@ -55,24 +54,25 @@ static const char rcsid[] = "$Id: lcl_ng.c,v 1.1.206.1 2004/03/09 08:33:38 marka
  * More reasonable data structures would not be a bad thing.
  */
 
-/*
+/*%
  * Static Variables and functions used by setnetgrent(), getnetgrent() and
  * endnetgrent().
+ *
  * There are two linked lists:
- * - linelist is just used by setnetgrent() to parse the net group file via.
+ * \li linelist is just used by setnetgrent() to parse the net group file via.
  *   parse_netgrp()
- * - netgrp is the list of entries for the current netgroup
+ * \li netgrp is the list of entries for the current netgroup
  */
 struct linelist {
-	struct linelist *l_next;	/* Chain ptr. */
-	int		l_parsed;	/* Flag for cycles */
-	char *		l_groupname;	/* Name of netgroup */
-	char *		l_line;		/* Netgroup entrie(s) to be parsed */
+	struct linelist *l_next;	/*%< Chain ptr. */
+	int		l_parsed;	/*%< Flag for cycles */
+	char *		l_groupname;	/*%< Name of netgroup */
+	char *		l_line;		/*%< Netgroup entrie(s) to be parsed */
 };
 
 struct ng_old_struct {
-	struct ng_old_struct *ng_next;	/* Chain ptr */
-	char *		ng_str[3];	/* Field pointers, see below */
+	struct ng_old_struct *ng_next;	/*%< Chain ptr */
+	char *		ng_str[3];	/*%< Field pointers, see below */
 };
 
 struct pvt {
@@ -142,7 +142,7 @@ ng_close(struct irs_ng *this) {
 	memput(this, sizeof *this);
 }
 	
-/*
+/*%
  * Parse the netgroup file looking for the netgroup and build the list
  * of netgrp structures. Let parse_netgrp() and read_for_group() do
  * most of the work.
@@ -174,7 +174,7 @@ ng_rewind(struct irs_ng *this, const char *group) {
 	pvt->nextgrp = pvt->grouphead.gr;
 }
 
-/*
+/*%
  * Get the next netgroup off the list.
  */
 static int
@@ -193,7 +193,7 @@ ng_next(struct irs_ng *this, const char **host, const char **user,
 	return (0);
 }
 
-/*
+/*%
  * Search for a match in a netgroup.
  */
 static int
@@ -229,7 +229,7 @@ ng_minimize(struct irs_ng *this) {
 
 /* Private */
 
-/*
+/*%
  * endnetgrent() - cleanup
  */
 static void
@@ -266,7 +266,7 @@ freelists(struct irs_ng *this) {
 	pvt->grouphead.gr = NULL;
 }
 
-/*
+/*%
  * Parse the netgroup file setting up the linked lists.
  */
 static int
@@ -349,7 +349,7 @@ parse_netgrp(struct irs_ng *this, const char *group) {
 	return (1);
 }
 
-/*
+/*%
  * Read the netgroup file and save lines until the line for the netgroup
  * is found. Return 1 if eof is encountered.
  */
@@ -442,3 +442,5 @@ read_for_group(struct irs_ng *this, const char *group) {
 	}
 	return (NULL);
 }
+
+/*! \file */

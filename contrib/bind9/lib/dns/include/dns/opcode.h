@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: opcode.h,v 1.1.200.3 2004/03/08 09:04:37 marka Exp $ */
+/* $Id: opcode.h,v 1.2.18.2 2005/04/29 00:16:16 marka Exp $ */
 
 #ifndef DNS_OPCODE_H
 #define DNS_OPCODE_H 1
+
+/*! \file */
 
 #include <isc/lang.h>
 
@@ -27,21 +29,21 @@
 ISC_LANG_BEGINDECLS
 
 isc_result_t dns_opcode_totext(dns_opcode_t opcode, isc_buffer_t *target);
-/*
+/*%<
  * Put a textual representation of error 'opcode' into 'target'.
  *
  * Requires:
- *	'opcode' is a valid opcode.
+ *\li	'opcode' is a valid opcode.
  *
- *	'target' is a valid text buffer.
+ *\li	'target' is a valid text buffer.
  *
  * Ensures:
- *	If the result is success:
+ *\li	If the result is success:
  *		The used space in 'target' is updated.
  *
  * Returns:
- *	ISC_R_SUCCESS			on success
- *	ISC_R_NOSPACE			target buffer is too small
+ *\li	#ISC_R_SUCCESS			on success
+ *\li	#ISC_R_NOSPACE			target buffer is too small
  */
 
 ISC_LANG_ENDDECLS

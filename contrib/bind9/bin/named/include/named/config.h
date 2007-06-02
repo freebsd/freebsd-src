@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001, 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h,v 1.4.12.6 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: config.h,v 1.6.18.6 2006/02/28 03:10:47 marka Exp $ */
 
 #ifndef NAMED_CONFIG_H
 #define NAMED_CONFIG_H 1
+
+/*! \file */
 
 #include <isccfg/cfg.h>
 
@@ -71,6 +73,7 @@ isc_result_t
 ns_config_getport(const cfg_obj_t *config, in_port_t *portp);
 
 isc_result_t
-ns_config_getkeyalgorithm(const char *str, dns_name_t **name);
+ns_config_getkeyalgorithm(const char *str, dns_name_t **name,
+			  isc_uint16_t *digestbits);
 
 #endif /* NAMED_CONFIG_H */

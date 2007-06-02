@@ -16,10 +16,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_gr.c,v 1.1.2.1.4.1 2004/03/09 08:33:34 marka Exp $";
+static const char rcsid[] = "$Id: dns_gr.c,v 1.3.18.1 2005/04/27 05:00:54 sra Exp $";
 #endif
 
-/*
+/*! \file
+ * \brief
  * dns_gr.c --- this file contains the functions for accessing
  * 	group information from Hesiod.
  */
@@ -69,7 +70,7 @@ struct pvt {
 	 * we keep one buffer and resize it as needed.
 	 */
 	struct group	group;
-	size_t		nmemb;		/* Malloc'd max index of gr_mem[]. */
+	size_t		nmemb;		/*%< Malloc'd max index of gr_mem[]. */
 	char *		membuf;
 	size_t		membufsize;
 };

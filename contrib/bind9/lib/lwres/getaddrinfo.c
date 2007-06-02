@@ -18,7 +18,118 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddrinfo.c,v 1.41.206.6 2006/11/13 11:57:41 marka Exp $ */
+/* $Id: getaddrinfo.c,v 1.43.18.6 2006/11/14 01:07:28 marka Exp $ */
+
+/*! \file */
+
+/**
+ *    lwres_getaddrinfo() is used to get a list of IP addresses and port
+ *    numbers for host hostname and service servname. The function is the
+ *    lightweight resolver's implementation of getaddrinfo() as defined in
+ *    RFC2133. hostname and servname are pointers to null-terminated strings
+ *    or NULL. hostname is either a host name or a numeric host address
+ *    string: a dotted decimal IPv4 address or an IPv6 address. servname is
+ *    either a decimal port number or a service name as listed in
+ *    /etc/services.
+ * 
+ *    If the operating system does not provide a struct addrinfo, the
+ *    following structure is used:
+ * 
+ * \code
+ * struct  addrinfo {
+ *         int             ai_flags;       // AI_PASSIVE, AI_CANONNAME
+ *         int             ai_family;      // PF_xxx
+ *         int             ai_socktype;    // SOCK_xxx
+ *         int             ai_protocol;    // 0 or IPPROTO_xxx for IPv4 and IPv6
+ *         size_t          ai_addrlen;     // length of ai_addr
+ *         char            *ai_canonname;  // canonical name for hostname
+ *         struct sockaddr *ai_addr;       // binary address
+ *         struct addrinfo *ai_next;       // next structure in linked list
+ * };
+ * \endcode
+ * 
+ * 
+ *    hints is an optional pointer to a struct addrinfo. This structure can
+ *    be used to provide hints concerning the type of socket that the caller
+ *    supports or wishes to use. The caller can supply the following
+ *    structure elements in *hints:
+ * 
+ * <ul>
+ *    <li>ai_family:
+ *           The protocol family that should be used. When ai_family is set
+ *           to PF_UNSPEC, it means the caller will accept any protocol
+ *           family supported by the operating system.</li>
+ * 
+ *    <li>ai_socktype:
+ *           denotes the type of socket -- SOCK_STREAM, SOCK_DGRAM or
+ *           SOCK_RAW -- that is wanted. When ai_socktype is zero the caller
+ *           will accept any socket type.</li>
+ * 
+ *    <li>ai_protocol:
+ *           indicates which transport protocol is wanted: IPPROTO_UDP or
+ *           IPPROTO_TCP. If ai_protocol is zero the caller will accept any
+ *           protocol.</li>
+ * 
+ *    <li>ai_flags:
+ *           Flag bits. If the AI_CANONNAME bit is set, a successful call to
+ *           lwres_getaddrinfo() will return a null-terminated string
+ *           containing the canonical name of the specified hostname in
+ *           ai_canonname of the first addrinfo structure returned. Setting
+ *           the AI_PASSIVE bit indicates that the returned socket address
+ *           structure is intended for used in a call to bind(2). In this
+ *           case, if the hostname argument is a NULL pointer, then the IP
+ *           address portion of the socket address structure will be set to
+ *           INADDR_ANY for an IPv4 address or IN6ADDR_ANY_INIT for an IPv6
+ *           address.<br /><br />
+ * 
+ *           When ai_flags does not set the AI_PASSIVE bit, the returned
+ *           socket address structure will be ready for use in a call to
+ *           connect(2) for a connection-oriented protocol or connect(2),
+ *           sendto(2), or sendmsg(2) if a connectionless protocol was
+ *           chosen. The IP address portion of the socket address structure
+ *           will be set to the loopback address if hostname is a NULL
+ *           pointer and AI_PASSIVE is not set in ai_flags.<br /><br />
+ * 
+ *           If ai_flags is set to AI_NUMERICHOST it indicates that hostname
+ *           should be treated as a numeric string defining an IPv4 or IPv6
+ *           address and no name resolution should be attempted.
+ * </li></ul>
+ * 
+ *    All other elements of the struct addrinfo passed via hints must be
+ *    zero.
+ * 
+ *    A hints of NULL is treated as if the caller provided a struct addrinfo
+ *    initialized to zero with ai_familyset to PF_UNSPEC.
+ * 
+ *    After a successful call to lwres_getaddrinfo(), *res is a pointer to a
+ *    linked list of one or more addrinfo structures. Each struct addrinfo
+ *    in this list cn be processed by following the ai_next pointer, until a
+ *    NULL pointer is encountered. The three members ai_family, ai_socktype,
+ *    and ai_protocol in each returned addrinfo structure contain the
+ *    corresponding arguments for a call to socket(2). For each addrinfo
+ *    structure in the list, the ai_addr member points to a filled-in socket
+ *    address structure of length ai_addrlen.
+ * 
+ *    All of the information returned by lwres_getaddrinfo() is dynamically
+ *    allocated: the addrinfo structures, and the socket address structures
+ *    and canonical host name strings pointed to by the addrinfostructures.
+ *    Memory allocated for the dynamically allocated structures created by a
+ *    successful call to lwres_getaddrinfo() is released by
+ *    lwres_freeaddrinfo(). ai is a pointer to a struct addrinfo created by
+ *    a call to lwres_getaddrinfo().
+ * 
+ * \section lwresreturn RETURN VALUES
+ * 
+ *    lwres_getaddrinfo() returns zero on success or one of the error codes
+ *    listed in gai_strerror() if an error occurs. If both hostname and
+ *    servname are NULL lwres_getaddrinfo() returns #EAI_NONAME.
+ * 
+ * \section lwressee SEE ALSO
+ * 
+ *    lwres(3), lwres_getaddrinfo(), lwres_freeaddrinfo(),
+ *    lwres_gai_strerror(), RFC2133, getservbyname(3), connect(2),
+ *    sendto(2), sendmsg(2), socket(2).
+ */
 
 #include <config.h>
 
@@ -35,6 +146,8 @@
 #define SIN6(addr)	((struct sockaddr_in6 *)(addr))
 #define SUN(addr)	((struct sockaddr_un *)(addr))
 
+/*! \struct addrinfo
+ */
 static struct addrinfo
 	*ai_reverse(struct addrinfo *oai),
 	*ai_clone(struct addrinfo *oai, int family),
@@ -55,7 +168,7 @@ static void set_order(int, int (**)(const char *, int, struct addrinfo **,
 #define FOUND_MAX	2
 
 #define ISC_AI_MASK (AI_PASSIVE|AI_CANONNAME|AI_NUMERICHOST)
-
+/*% Get a list of IP addresses and port numbers for host hostname and service servname. */
 int
 lwres_getaddrinfo(const char *hostname, const char *servname,
 	const struct addrinfo *hints, struct addrinfo **res)
@@ -137,7 +250,7 @@ lwres_getaddrinfo(const char *hostname, const char *servname,
 	}
 
 #ifdef	AF_LOCAL
-	/*
+	/*!
 	 * First, deal with AF_LOCAL.  If the family was not set,
 	 * then assume AF_LOCAL if the first character of the
 	 * hostname/servname is '/'.
@@ -575,6 +688,7 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 	return (result);
 }
 
+/*% Free address info. */
 void
 lwres_freeaddrinfo(struct addrinfo *ai) {
 	struct addrinfo *ai_next;
@@ -617,7 +731,7 @@ get_local(const char *name, int socktype, struct addrinfo **res) {
 }
 #endif
 
-/*
+/*!
  * Allocate an addrinfo structure, and a sockaddr structure
  * of the specificed length.  We initialize:
  *	ai_addrlen

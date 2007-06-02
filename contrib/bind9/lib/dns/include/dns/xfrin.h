@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.h,v 1.18.136.4 2006/07/20 01:10:29 marka Exp $ */
+/* $Id: xfrin.h,v 1.20.18.5 2006/07/20 01:10:30 marka Exp $ */
 
 #ifndef DNS_XFRIN_H
 #define DNS_XFRIN_H 1
@@ -24,7 +24,8 @@
  ***** Module Info
  *****/
 
-/*
+/*! \file 
+ * \brief
  * Incoming zone transfers (AXFR + IXFR).
  */
 
@@ -40,7 +41,7 @@
  *** Types
  ***/
 
-/*
+/*%
  * A transfer in progress.  This is an opaque type.
  */
 typedef struct dns_xfrin_ctx dns_xfrin_ctx_t;
@@ -51,6 +52,7 @@ typedef struct dns_xfrin_ctx dns_xfrin_ctx_t;
 
 ISC_LANG_BEGINDECLS
 
+/*% see dns_xfrin_create2() */
 isc_result_t
 dns_xfrin_create(dns_zone_t *zone, dns_rdatatype_t xfrtype,
 		 isc_sockaddr_t *masteraddr, dns_tsigkey_t *tsigkey,
@@ -65,7 +67,7 @@ dns_xfrin_create2(dns_zone_t *zone, dns_rdatatype_t xfrtype,
 		  isc_timermgr_t *timermgr, isc_socketmgr_t *socketmgr,
 		  isc_task_t *task, dns_xfrindone_t done,
 		  dns_xfrin_ctx_t **xfrp);
-/*
+/*%<
  * Attempt to start an incoming zone transfer of 'zone'
  * from 'masteraddr', creating a dns_xfrin_ctx_t object to
  * manage it.  Attach '*xfrp' to the newly created object.
@@ -75,17 +77,17 @@ dns_xfrin_create2(dns_zone_t *zone, dns_rdatatype_t xfrtype,
  * code as arguments when the transfer finishes.
  *
  * Requires:
- *	'xfrtype' is dns_rdatatype_axfr, dns_rdatatype_ixfr
+ *\li	'xfrtype' is dns_rdatatype_axfr, dns_rdatatype_ixfr
  *	or dns_rdatatype_soa (soa query followed by axfr if
  *	serial is greater than current serial).
  *
- *	If 'xfrtype' is dns_rdatatype_ixfr or dns_rdatatype_soa,
+ *\li	If 'xfrtype' is dns_rdatatype_ixfr or dns_rdatatype_soa,
  *	the zone has a database.
  */
 
 void
 dns_xfrin_shutdown(dns_xfrin_ctx_t *xfr);
-/*
+/*%<
  * If the zone transfer 'xfr' has already finished,
  * do nothing.  Otherwise, abort it and cause it to call
  * its done callback with a status of ISC_R_CANCELLED.
@@ -93,14 +95,14 @@ dns_xfrin_shutdown(dns_xfrin_ctx_t *xfr);
 
 void
 dns_xfrin_detach(dns_xfrin_ctx_t **xfrp);
-/*
+/*%<
  * Detach a reference to a zone transfer object.
  * Caller to maintain external locking if required.
  */
 
 void
 dns_xfrin_attach(dns_xfrin_ctx_t *source, dns_xfrin_ctx_t **target);
-/*
+/*%<
  * Caller to maintain external locking if required.
  */
 

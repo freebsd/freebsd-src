@@ -16,7 +16,9 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.139.2.2.4.23 2006/01/04 23:50:19 marka Exp $ */
+/* $Id: dnssec-signzone.c,v 1.177.18.21 2006/08/30 23:01:54 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -33,6 +35,7 @@
 #include <isc/mutex.h>
 #include <isc/os.h>
 #include <isc/print.h>
+#include <isc/random.h>
 #include <isc/serial.h>
 #include <isc/stdio.h>
 #include <isc/string.h>
@@ -58,6 +61,7 @@
 #include <dns/rdatastruct.h>
 #include <dns/rdatatype.h>
 #include <dns/result.h>
+#include <dns/soa.h>
 #include <dns/time.h>
 
 #include <dst/dst.h>
@@ -85,6 +89,10 @@ struct signer_key_struct {
 #define SIGNER_EVENT_WRITE	(SIGNER_EVENTCLASS + 0)
 #define SIGNER_EVENT_WORK	(SIGNER_EVENTCLASS + 1)
 
+#define SOA_SERIAL_KEEP		0
+#define SOA_SERIAL_INCREMENT	1
+#define SOA_SERIAL_UNIXTIME	2
+
 typedef struct signer_event sevent_t;
 struct signer_event {
 	ISC_EVENT_COMMON(sevent_t);
@@ -96,6 +104,7 @@ static ISC_LIST(signer_key_t) keylist;
 static unsigned int keycount = 0;
 static isc_stdtime_t starttime = 0, endtime = 0, now;
 static int cycle = -1;
+static int jitter = 0;
 static isc_boolean_t tryverify = ISC_FALSE;
 static isc_boolean_t printstats = ISC_FALSE;
 static isc_mem_t *mctx = NULL;
@@ -104,6 +113,8 @@ static dns_ttl_t zonettl;
 static FILE *fp;
 static char *tempfile = NULL;
 static const dns_master_style_t *masterstyle;
+static dns_masterformat_t inputformat = dns_masterformat_text;
+static dns_masterformat_t outputformat = dns_masterformat_text;
 static unsigned int nsigned = 0, nretained = 0, ndropped = 0;
 static unsigned int nverified = 0, nverifyfailed = 0;
 static const char *directory;
@@ -125,6 +136,7 @@ static isc_boolean_t ignoreksk = ISC_FALSE;
 static dns_name_t *dlv = NULL;
 static dns_fixedname_t dlv_fixed;
 static dns_master_style_t *dsstyle = NULL;
+static unsigned int serialformat = SOA_SERIAL_KEEP;
 
 #define INCSTAT(counter)		\
 	if (printstats) {		\
@@ -154,40 +166,11 @@ static void
 dumpnode(dns_name_t *name, dns_dbnode_t *node) {
 	isc_result_t result;
 
+	if (outputformat != dns_masterformat_text)
+		return;
 	result = dns_master_dumpnodetostream(mctx, gdb, gversion, node, name,
 					     masterstyle, fp);
 	check_result(result, "dns_master_dumpnodetostream");
-}
-
-static void
-dumpdb(dns_db_t *db) {
-	dns_dbiterator_t *dbiter = NULL;
-	dns_dbnode_t *node;
-	dns_fixedname_t fname;
-	dns_name_t *name;
-	isc_result_t result;
-
-	dbiter = NULL;
-	result = dns_db_createiterator(db, ISC_FALSE, &dbiter);
-	check_result(result, "dns_db_createiterator()");
-
-	dns_fixedname_init(&fname);
-	name = dns_fixedname_name(&fname);
-	node = NULL;
-
-	for (result = dns_dbiterator_first(dbiter);
-	     result == ISC_R_SUCCESS;
-	     result = dns_dbiterator_next(dbiter))
-	{
-		result = dns_dbiterator_current(dbiter, &node, name);
-		check_result(result, "dns_dbiterator_current()");
-		dumpnode(name, node);
-		dns_db_detachnode(db, &node);
-	}
-	if (result != ISC_R_NOMORE)
-		fatal("iterating database: %s", isc_result_totext(result));
-
-	dns_dbiterator_destroy(&dbiter);
 }
 
 static signer_key_t *
@@ -217,8 +200,10 @@ signwithkey(dns_name_t *name, dns_rdataset_t *rdataset, dns_rdata_t *rdata,
 	    dst_key_t *key, isc_buffer_t *b)
 {
 	isc_result_t result;
+	isc_stdtime_t jendtime;
 
-	result = dns_dnssec_sign(name, rdataset, key, &starttime, &endtime,
+	jendtime = (jitter != 0) ? isc_random_jitter(endtime, jitter) : endtime;
+	result = dns_dnssec_sign(name, rdataset, key, &starttime, &jendtime,
 				 mctx, b, rdata);
 	isc_entropy_stopcallbacksources(ectx);
 	if (result != ISC_R_SUCCESS) {
@@ -253,7 +238,7 @@ iszonekey(signer_key_t *key) {
 		       dst_key_iszonekey(key->key)));
 }
 
-/*
+/*%
  * Finds the key that generated a RRSIG, if possible.  First look at the keys
  * that we've loaded already, and then see if there's a key on disk.
  */
@@ -291,7 +276,7 @@ keythatsigned(dns_rdata_rrsig_t *rrsig) {
 	return (key);
 }
 
-/*
+/*%
  * Check to see if we expect to find a key at this name.  If we see a RRSIG
  * and can't find the signing key that we expect to find, we drop the rrsig.
  * I'm not sure if this is completely correct, but it seems to work.
@@ -337,7 +322,7 @@ setverifies(dns_name_t *name, dns_rdataset_t *set, signer_key_t *key,
 	}
 }
 
-/*
+/*%
  * Signs a set.  Goes through contortions to decide if each RRSIG should
  * be dropped or retained, and then determines if any new SIGs need to
  * be generated.
@@ -598,7 +583,7 @@ opendb(const char *prefix, dns_name_t *name, dns_rdataclass_t rdclass,
 		dns_db_detach(dbp);
 }
 
-/*
+/*%
  * Loads the key set for a child zone, if there is one, and builds DS records.
  */
 static isc_result_t
@@ -646,6 +631,16 @@ loadds(dns_name_t *name, isc_uint32_t ttl, dns_rdataset_t *dsset) {
 		dns_rdata_init(&ds);
 		dns_rdataset_current(&keyset, &key);
 		result = dns_ds_buildrdata(name, &key, DNS_DSDIGEST_SHA1,
+					   dsbuf, &ds);
+		check_result(result, "dns_ds_buildrdata");
+
+		result = dns_difftuple_create(mctx, DNS_DIFFOP_ADD, name,
+					      ttl, &ds, &tuple);
+		check_result(result, "dns_difftuple_create");
+		dns_diff_append(&diff, &tuple);
+
+		dns_rdata_reset(&ds);
+		result = dns_ds_buildrdata(name, &key, DNS_DSDIGEST_SHA256,
 					   dsbuf, &ds);
 		check_result(result, "dns_ds_buildrdata");
 
@@ -775,7 +770,7 @@ delegation(dns_name_t *name, dns_dbnode_t *node, isc_uint32_t *ttlp) {
 	return (ISC_TF(result == ISC_R_SUCCESS));
 }
 
-/*
+/*%
  * Signs all records at a name.  This mostly just signs each set individually,
  * but also adds the RRSIG bit to any NSECs generated earlier, deals with
  * parent/child KEY signatures, and handles other exceptional cases.
@@ -957,7 +952,7 @@ active_node(dns_dbnode_t *node) {
 		      isc_result_totext(result));
 
 	if (!active) {
-		/*
+		/*%
 		 * The node is empty of everything but NSEC / RRSIG records.
 		 */
 		for (result = dns_rdatasetiter_first(rdsiter);
@@ -1021,7 +1016,7 @@ active_node(dns_dbnode_t *node) {
 	return (active);
 }
 
-/*
+/*%
  * Extracts the TTL from the SOA.
  */
 static dns_ttl_t
@@ -1053,7 +1048,82 @@ soattl(void) {
 	return (ttl);
 }
 
-/*
+/*%
+ * Increment (or set if nonzero) the SOA serial
+ */
+static isc_result_t
+setsoaserial(isc_uint32_t serial) {
+	isc_result_t result;
+	dns_dbnode_t *node = NULL;
+	dns_rdataset_t rdataset;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
+	isc_uint32_t old_serial, new_serial;
+
+	result = dns_db_getoriginnode(gdb, &node);
+	if (result != ISC_R_SUCCESS)
+		return result;
+
+	dns_rdataset_init(&rdataset);
+
+	result = dns_db_findrdataset(gdb, node, gversion,
+				     dns_rdatatype_soa, 0,
+				     0, &rdataset, NULL);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	result = dns_rdataset_first(&rdataset);
+	RUNTIME_CHECK(result == ISC_R_SUCCESS);
+
+	dns_rdataset_current(&rdataset, &rdata);
+
+	old_serial = dns_soa_getserial(&rdata);
+
+	if (serial) {
+		/* Set SOA serial to the value provided. */
+		new_serial = serial;
+	} else {
+		/* Increment SOA serial using RFC 1982 arithmetics */
+		new_serial = (old_serial + 1) & 0xFFFFFFFF;
+		if (new_serial == 0)
+			new_serial = 1;
+	}
+
+	/* If the new serial is not likely to cause a zone transfer
+	 * (a/ixfr) from servers having the old serial, warn the user.
+	 *
+	 * RFC1982 section 7 defines the maximum increment to be
+	 * (2^(32-1))-1.  Using u_int32_t arithmetic, we can do a single
+	 * comparison.  (5 - 6 == (2^32)-1, not negative-one)
+	 */
+	if (new_serial == old_serial ||
+	    (new_serial - old_serial) > 0x7fffffffU)
+		fprintf(stderr, "%s: warning: Serial number not advanced, "
+			"zone may not transfer\n", program);
+
+	dns_soa_setserial(new_serial, &rdata);
+
+	result = dns_db_deleterdataset(gdb, node, gversion,
+				       dns_rdatatype_soa, 0);
+	check_result(result, "dns_db_deleterdataset");
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	result = dns_db_addrdataset(gdb, node, gversion,
+				    0, &rdataset, 0, NULL);
+	check_result(result, "dns_db_addrdataset");
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+cleanup:
+	dns_rdataset_disassociate(&rdataset);
+	if (node != NULL)
+		dns_db_detachnode(gdb, &node);
+	dns_rdata_reset(&rdata);
+
+	return (result);
+}
+
+/*%
  * Delete any RRSIG records at a node.
  */
 static void
@@ -1061,6 +1131,9 @@ cleannode(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node) {
 	dns_rdatasetiter_t *rdsiter = NULL;
 	dns_rdataset_t set;
 	isc_result_t result, dresult;
+
+	if (outputformat != dns_masterformat_text)
+		return;
 
 	dns_rdataset_init(&set);
 	result = dns_db_allrdatasets(db, node, version, 0, &rdsiter);
@@ -1089,7 +1162,7 @@ cleannode(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node) {
 	dns_rdatasetiter_destroy(&rdsiter);
 }
 
-/*
+/*%
  * Set up the iterator and global state before starting the tasks.
  */
 static void
@@ -1104,7 +1177,7 @@ presign(void) {
 	check_result(result, "dns_dbiterator_first()");
 }
 
-/*
+/*%
  * Clean up the iterator and global state after the tasks complete.
  */
 static void
@@ -1112,7 +1185,33 @@ postsign(void) {
 	dns_dbiterator_destroy(&gdbiter);
 }
 
-/*
+/*%
+ * Sign the apex of the zone.
+ */
+static void
+signapex(void) {
+	dns_dbnode_t *node = NULL;
+	dns_fixedname_t fixed;
+	dns_name_t *name;
+	isc_result_t result;
+	
+	dns_fixedname_init(&fixed);
+	name = dns_fixedname_name(&fixed);
+	result = dns_dbiterator_current(gdbiter, &node, name);
+	check_result(result, "dns_dbiterator_current()");
+	signname(node, name);
+	dumpnode(name, node);
+	cleannode(gdb, gversion, node);
+	dns_db_detachnode(gdb, &node);
+	result = dns_dbiterator_next(gdbiter);
+	if (result == ISC_R_NOMORE)
+		finished = ISC_TRUE;
+	else if (result != ISC_R_SUCCESS)
+		fatal("failure iterating database: %s",
+		      isc_result_totext(result));
+}
+
+/*%
  * Assigns a node to a worker thread.  This is protected by the master task's
  * lock.
  */
@@ -1192,7 +1291,7 @@ assignwork(isc_task_t *task, isc_task_t *worker) {
 	assigned++;
 }
 
-/*
+/*%
  * Start a worker task
  */
 static void
@@ -1204,7 +1303,7 @@ startworker(isc_task_t *task, isc_event_t *event) {
 	isc_event_free(&event);
 }
 
-/*
+/*%
  * Write a node to the output file, and restart the worker task.
  */
 static void
@@ -1222,7 +1321,7 @@ writenode(isc_task_t *task, isc_event_t *event) {
 	isc_event_free(&event);
 }
 
-/*
+/*%
  *  Sign a database node.
  */
 static void
@@ -1247,7 +1346,7 @@ sign(isc_task_t *task, isc_event_t *event) {
 	isc_task_send(master, ISC_EVENT_PTR(&wevent));
 }
 
-/*
+/*%
  * Generate NSEC records for the zone.
  */
 static void
@@ -1318,7 +1417,7 @@ nsecify(void) {
 	dns_dbiterator_destroy(&dbiter);
 }
 
-/*
+/*%
  * Load the zone file from disk
  */
 static void
@@ -1344,13 +1443,13 @@ loadzone(char *file, char *origin, dns_rdataclass_t rdclass, dns_db_t **db) {
 			       rdclass, 0, NULL, db);
 	check_result(result, "dns_db_create()");
 
-	result = dns_db_load(*db, file);
+	result = dns_db_load2(*db, file, inputformat);
 	if (result != ISC_R_SUCCESS && result != DNS_R_SEENINCLUDE)
 		fatal("failed loading zone from '%s': %s",
 		      file, isc_result_totext(result));
 }
 
-/*
+/*%
  * Finds all public zone keys in the zone, and attempts to load the
  * private keys from disk.
  */
@@ -1389,7 +1488,7 @@ loadzonekeys(dns_db_t *db) {
 	dns_db_closeversion(db, &currentversion, ISC_FALSE);
 }
 
-/*
+/*%
  * Finds all public zone keys in the zone.
  */
 static void
@@ -1580,6 +1679,19 @@ writeset(const char *prefix, dns_rdatatype_t type) {
 				ds.type = dns_rdatatype_dlv;
 			result = dns_difftuple_create(mctx, DNS_DIFFOP_ADD,
 						      name, 0, &ds, &tuple);
+			check_result(result, "dns_difftuple_create");
+			dns_diff_append(&diff, &tuple);
+
+			dns_rdata_reset(&ds);
+			result = dns_ds_buildrdata(gorigin, &rdata,
+						   DNS_DSDIGEST_SHA256,
+						   dsbuf, &ds);
+			check_result(result, "dns_ds_buildrdata");
+			if (type == dns_rdatatype_dlv)
+				ds.type = dns_rdatatype_dlv;
+			result = dns_difftuple_create(mctx, DNS_DIFFOP_ADD,
+						      name, 0, &ds, &tuple);
+
 		} else
 			result = dns_difftuple_create(mctx, DNS_DIFFOP_ADD,
 						      gorigin, zonettl,
@@ -1612,12 +1724,18 @@ static void
 print_time(FILE *fp) {
 	time_t currenttime;
 
+	if (outputformat != dns_masterformat_text)
+		return;
+
 	currenttime = time(NULL);
 	fprintf(fp, "; File written on %s", ctime(&currenttime));
 }
 
 static void
 print_version(FILE *fp) {
+	if (outputformat != dns_masterformat_text)
+		return;
+
 	fprintf(fp, "; dnssec_signzone version " VERSION "\n");
 }
 
@@ -1644,12 +1762,20 @@ usage(void) {
 	fprintf(stderr, "\t-i interval:\n");
 	fprintf(stderr, "\t\tcycle interval - resign "
 				"if < interval from end ( (end-start)/4 )\n");
+	fprintf(stderr, "\t-j jitter:\n");
+	fprintf(stderr, "\t\trandomize signature end time up to jitter seconds\n");
 	fprintf(stderr, "\t-v debuglevel (0)\n");
 	fprintf(stderr, "\t-o origin:\n");
 	fprintf(stderr, "\t\tzone origin (name of zonefile)\n");
 	fprintf(stderr, "\t-f outfile:\n");
 	fprintf(stderr, "\t\tfile the signed zone is written in "
 				"(zonefile + .signed)\n");
+	fprintf(stderr, "\t-I format:\n");
+	fprintf(stderr, "\t\tfile format of input zonefile (text)\n");
+	fprintf(stderr, "\t-O format:\n");
+	fprintf(stderr, "\t\tfile format of signed zone file (text)\n");
+	fprintf(stderr, "\t-N format:\n");
+	fprintf(stderr, "\t\tsoa serial format of signed zone file (keep)\n");
 	fprintf(stderr, "\t-r randomdev:\n");
 	fprintf(stderr,	"\t\ta file containing random data\n");
 	fprintf(stderr, "\t-a:\t");
@@ -1708,6 +1834,8 @@ main(int argc, char *argv[]) {
 	int i, ch;
 	char *startstr = NULL, *endstr = NULL, *classname = NULL;
 	char *origin = NULL, *file = NULL, *output = NULL;
+	char *inputformatstr = NULL, *outputformatstr = NULL;
+	char *serialformatstr = NULL;
 	char *dskeyfile[MAXDSKEYS];
 	int ndskeys = 0;
 	char *endp;
@@ -1720,7 +1848,6 @@ main(int argc, char *argv[]) {
 	isc_boolean_t free_output = ISC_FALSE;
 	int tempfilelen;
 	dns_rdataclass_t rdclass;
-	dns_db_t *udb = NULL;
 	isc_task_t **tasks = NULL;
 	isc_buffer_t b;
 	int len;
@@ -1736,7 +1863,7 @@ main(int argc, char *argv[]) {
 	dns_result_register();
 
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "ac:d:e:f:ghi:k:l:n:o:pr:s:Stv:z"))
+					   "ac:d:e:f:ghi:I:j:k:l:n:N:o:O:pr:s:Stv:z"))
 	       != -1) {
 		switch (ch) {
 		case 'a':
@@ -1776,6 +1903,17 @@ main(int argc, char *argv[]) {
 				      "positive");
 			break;
 
+		case 'I':
+			inputformatstr = isc_commandline_argument;
+			break;
+
+		case 'j':
+			endp = NULL;
+			jitter = strtol(isc_commandline_argument, &endp, 0);
+			if (*endp != '\0' || jitter < 0)
+				fatal("jitter must be numeric and positive");
+			break;
+
 		case 'l': 
 			dns_fixedname_init(&dlv_fixed);
 			len = strlen(isc_commandline_argument);
@@ -1802,8 +1940,16 @@ main(int argc, char *argv[]) {
 				fatal("number of cpus must be numeric");
 			break;
 
+		case 'N':
+			serialformatstr = isc_commandline_argument;
+			break;
+
 		case 'o':
 			origin = isc_commandline_argument;
+			break;
+
+		case 'O':
+			outputformatstr = isc_commandline_argument;
 			break;
 
 		case 'p':
@@ -1899,6 +2045,36 @@ main(int argc, char *argv[]) {
 		if (output == NULL)
 			fatal("out of memory");
 		sprintf(output, "%s.signed", file);
+	}
+
+	if (inputformatstr != NULL) {
+		if (strcasecmp(inputformatstr, "text") == 0)
+			inputformat = dns_masterformat_text;
+		else if (strcasecmp(inputformatstr, "raw") == 0)
+			inputformat = dns_masterformat_raw;
+		else
+			fatal("unknown file format: %s\n", inputformatstr);
+	}
+
+	if (outputformatstr != NULL) {
+		if (strcasecmp(outputformatstr, "text") == 0)
+			outputformat = dns_masterformat_text;
+		else if (strcasecmp(outputformatstr, "raw") == 0)
+			outputformat = dns_masterformat_raw;
+		else
+			fatal("unknown file format: %s\n", outputformatstr);
+	}
+
+	if (serialformatstr != NULL) {
+		if (strcasecmp(serialformatstr, "keep") == 0)
+			serialformat = SOA_SERIAL_KEEP;
+		else if (strcasecmp(serialformatstr, "increment") == 0 ||
+			 strcasecmp(serialformatstr, "incr") == 0)
+			serialformat = SOA_SERIAL_INCREMENT;
+		else if (strcasecmp(serialformatstr, "unixtime") == 0)
+			serialformat = SOA_SERIAL_UNIXTIME;
+		else
+			fatal("unknown soa serial format: %s\n", serialformatstr);
 	}
 
 	result = dns_master_stylecreate(&dsstyle,  DNS_STYLEFLAG_NO_TTL,
@@ -2005,6 +2181,19 @@ main(int argc, char *argv[]) {
 	result = dns_db_newversion(gdb, &gversion);
 	check_result(result, "dns_db_newversion()");
 
+	switch (serialformat) {
+		case SOA_SERIAL_INCREMENT:
+			setsoaserial(0);
+			break;
+		case SOA_SERIAL_UNIXTIME:
+			setsoaserial(now);
+			break;
+		case SOA_SERIAL_KEEP:
+		default:
+			/* do nothing */
+			break;
+	}
+
 	nsecify();
 
 	if (!nokeys) {
@@ -2053,10 +2242,6 @@ main(int argc, char *argv[]) {
 		if (result != ISC_R_SUCCESS)
 			fatal("failed to create task: %s",
 			      isc_result_totext(result));
-		result = isc_app_onrun(mctx, master, startworker, tasks[i]);
-		if (result != ISC_R_SUCCESS)
-			fatal("failed to start task: %s",
-			      isc_result_totext(result));
 	}
 
 	RUNTIME_CHECK(isc_mutex_init(&namelock) == ISC_R_SUCCESS);
@@ -2064,9 +2249,24 @@ main(int argc, char *argv[]) {
 		RUNTIME_CHECK(isc_mutex_init(&statslock) == ISC_R_SUCCESS);
 
 	presign();
-	(void)isc_app_run();
-	if (!finished)
-		fatal("process aborted by user");
+	signapex();
+	if (!finished) {
+		/*
+		 * There is more work to do.  Spread it out over multiple
+		 * processors if possible.
+		 */
+		for (i = 0; i < (int)ntasks; i++) {
+			result = isc_app_onrun(mctx, master, startworker,
+					       tasks[i]);
+			if (result != ISC_R_SUCCESS)
+				fatal("failed to start task: %s",
+				      isc_result_totext(result));
+		}
+		(void)isc_app_run();
+		if (!finished)
+			fatal("process aborted by user");
+	} else
+		isc_task_detach(&master);
 	shuttingdown = ISC_TRUE;
 	for (i = 0; i < (int)ntasks; i++)
 		isc_task_detach(&tasks[i]);
@@ -2074,9 +2274,11 @@ main(int argc, char *argv[]) {
 	isc_mem_put(mctx, tasks, ntasks * sizeof(isc_task_t *));
 	postsign();
 
-	if (udb != NULL) {
-		dumpdb(udb);
-		dns_db_detach(&udb);
+	if (outputformat != dns_masterformat_text) {
+		result = dns_master_dumptostream2(mctx, gdb, gversion,
+						  masterstyle, outputformat,
+						  fp);
+		check_result(result, "dns_master_dumptostream2");
 	}
 
 	result = isc_stdio_close(fp);
@@ -2115,6 +2317,7 @@ main(int argc, char *argv[]) {
 	dst_lib_destroy();
 	isc_hash_destroy();
 	cleanup_entropy(&ectx);
+	dns_name_destroy();
 	if (verbose > 10)
 		isc_mem_stats(mctx, stdout);
 	isc_mem_destroy(&mctx);

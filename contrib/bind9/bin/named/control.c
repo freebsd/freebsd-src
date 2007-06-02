@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: control.c,v 1.7.2.2.2.14 2005/04/29 01:04:47 marka Exp $ */
+/* $Id: control.c,v 1.20.10.8 2006/03/10 00:23:20 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -52,7 +54,7 @@ command_compare(const char *text, const char *command) {
 	return (ISC_FALSE);
 }
 
-/*
+/*%
  * This function is called to process the incoming command
  * when a control channel message is received.  
  */
@@ -163,8 +165,15 @@ ns_control_docommand(isccc_sexpr_t *message, isc_buffer_t *text) {
 		result = ns_server_freeze(ns_g_server, ISC_FALSE, command);
 	} else if (command_compare(command, NS_COMMAND_RECURSING)) {
 		result = ns_server_dumprecursing(ns_g_server);
+	} else if (command_compare(command, NS_COMMAND_TIMERPOKE)) {
+		result = ISC_R_SUCCESS;
+		isc_timermgr_poke(ns_g_timermgr);
 	} else if (command_compare(command, NS_COMMAND_NULL)) {
 		result = ISC_R_SUCCESS;
+	} else if (command_compare(command, NS_COMMAND_NOTIFY)) {
+		result = ns_server_notifycommand(ns_g_server, command, text);
+	} else if (command_compare(command, NS_COMMAND_VALIDATION)) {
+		result = ns_server_validation(ns_g_server, command);
 	} else {
 		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 			      NS_LOGMODULE_CONTROL, ISC_LOG_WARNING,

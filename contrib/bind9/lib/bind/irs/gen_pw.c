@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: gen_pw.c,v 1.1.206.1 2004/03/09 08:33:35 marka Exp $";
+static const char rcsid[] = "$Id: gen_pw.c,v 1.2.18.1 2005/04/27 05:00:57 sra Exp $";
 #endif
 
 /* Imports */
@@ -231,3 +231,4 @@ pw_res_set(struct irs_pw *this, struct __res_state *res,
 }
 
 #endif /* WANT_IRS_PW */
+/*! \file */

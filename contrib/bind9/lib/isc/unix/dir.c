@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,10 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dir.c,v 1.18.2.1.2.3 2004/03/08 09:04:55 marka Exp $ */
+/* $Id: dir.c,v 1.20.18.3 2005/09/05 00:18:30 marka Exp $ */
 
-/* Principal Authors: DCL */
+/*! \file
+ * \author  Principal Authors: DCL */
 
 #include <config.h>
 
@@ -50,16 +51,35 @@ isc_dir_init(isc_dir_t *dir) {
 	dir->magic = ISC_DIR_MAGIC;
 }
 
-/*
- * Allocate workspace and open directory stream. If either one fails,
+/*!
+ * \brief Allocate workspace and open directory stream. If either one fails,
  * NULL will be returned.
  */
 isc_result_t
 isc_dir_open(isc_dir_t *dir, const char *dirname) {
+	char *p;
 	isc_result_t result = ISC_R_SUCCESS;
 
 	REQUIRE(VALID_DIR(dir));
 	REQUIRE(dirname != NULL);
+
+	/*
+	 * Copy directory name.  Need to have enough space for the name,
+	 * a possible path separator, the wildcard, and the final NUL.
+	 */
+	if (strlen(dirname) + 3 > sizeof(dir->dirname))
+		/* XXXDCL ? */
+		return (ISC_R_NOSPACE);
+	strcpy(dir->dirname, dirname);
+
+	/*
+	 * Append path separator, if needed, and "*".
+	 */
+	p = dir->dirname + strlen(dir->dirname);
+	if (dir->dirname < p && *(p - 1) != '/')
+		*p++ = '/';
+	*p++ = '*';
+	*p++ = '\0';
 
 	/*
 	 * Open stream.
@@ -72,8 +92,10 @@ isc_dir_open(isc_dir_t *dir, const char *dirname) {
 	return (result);
 }
 
-/*
- * Return previously retrieved file or get next one.  Unix's dirent has
+/*!
+ * \brief Return previously retrieved file or get next one.  
+
+ * Unix's dirent has
  * separate open and read functions, but the Win32 and DOS interfaces open
  * the dir stream and reads the first file in one operation.
  */
@@ -107,8 +129,8 @@ isc_dir_read(isc_dir_t *dir) {
 	return (ISC_R_SUCCESS);
 }
 
-/*
- * Close directory stream.
+/*!
+ * \brief Close directory stream.
  */
 void
 isc_dir_close(isc_dir_t *dir) {
@@ -118,8 +140,8 @@ isc_dir_close(isc_dir_t *dir) {
        dir->handle = NULL;
 }
 
-/*
- * Reposition directory stream at start.
+/*!
+ * \brief Reposition directory stream at start.
  */
 isc_result_t
 isc_dir_reset(isc_dir_t *dir) {
@@ -132,8 +154,8 @@ isc_dir_reset(isc_dir_t *dir) {
 
 isc_result_t
 isc_dir_chdir(const char *dirname) {
-	/*
-	 * Change the current directory to 'dirname'.
+	/*!
+	 * \brief Change the current directory to 'dirname'.
 	 */
 
 	REQUIRE(dirname != NULL);
@@ -165,8 +187,8 @@ isc_dir_createunique(char *templet) {
 
 	REQUIRE(templet != NULL);
 
-	/*
-	 * mkdtemp is not portable, so this emulates it.
+	/*!
+	 * \brief mkdtemp is not portable, so this emulates it.
 	 */
 
 	pid = getpid();

@@ -45,3 +45,5 @@ int		heap_increased(heap_context, int);
 int		heap_decreased(heap_context, int);
 void *		heap_element(heap_context, int);
 int		heap_for_each(heap_context, heap_for_each_func, void *);
+
+/*! \file */

@@ -44,7 +44,7 @@ static const char sccsid[] = "@(#)inet_network.c	8.1 (Berkeley) 6/4/93";
 
 #include "port_after.h"
 
-/*
+/*%
  * Internet network address interpretation routine.
  * The library routines call this routine to interpret
  * network numbers.
@@ -102,3 +102,5 @@ again:
 	}
 	return (val);
 }
+
+/*! \file */

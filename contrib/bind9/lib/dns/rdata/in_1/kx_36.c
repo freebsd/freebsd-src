@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,11 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: kx_36.c,v 1.37.2.1.2.3 2004/03/06 08:14:17 marka Exp $ */
+/* $Id: kx_36.c,v 1.41.18.2 2005/04/29 00:16:42 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 17:24:54 PST 2000 by explorer */
 
-/* RFC 2230 */
+/* RFC2230 */
 
 #ifndef RDATA_IN_1_KX_36_C
 #define RDATA_IN_1_KX_36_C

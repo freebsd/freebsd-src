@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,13 +12,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: nslookup.1,v 1.1.6.7 2006/06/29 13:02:30 marka Exp $
+.\" $Id: nslookup.1,v 1.1.10.12 2007/01/30 00:23:44 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: nslookup
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -42,10 +42,10 @@ has two modes: interactive and non\-interactive. Interactive mode allows the use
 .SH "ARGUMENTS"
 .PP
 Interactive mode is entered in the following cases:
-.TP 3n
+.TP 4
 1.
 when no arguments are given (the default name server will be used)
-.TP 3n
+.TP 4
 2.
 when the first argument is a hyphen (\-) and the second argument is the host name or Internet address of a name server.
 .sp
@@ -54,17 +54,22 @@ when the first argument is a hyphen (\-) and the second argument is the host nam
 Non\-interactive mode is used when the name or Internet address of the host to be looked up is given as the first argument. The optional second argument specifies the host name or address of a name server.
 .PP
 Options can also be specified on the command line if they precede the arguments and are prefixed with a hyphen. For example, to change the default query type to host information, and the initial timeout to 10 seconds, type:
-.sp .RS 3n .nf nslookup \-query=hinfo \-timeout=10 .fi .RE
+.sp .RS 4 .nf nslookup \-query=hinfo \-timeout=10 .fi .RE
 .SH "INTERACTIVE COMMANDS"
-.TP 3n
-host [server]
+.PP
+\fBhost\fR [server]
+.RS 4
 Look up information for host using the current default server or using server, if specified. If host is an Internet address and the query type is A or PTR, the name of the host is returned. If host is a name and does not have a trailing period, the search list is used to qualify the name.
 .sp
 To look up a host not in the current domain, append a period to the name.
-.TP 3n
+.RE
+.PP
 \fBserver\fR \fIdomain\fR
-.TP 3n
+.RS 4
+.RE
+.PP
 \fBlserver\fR \fIdomain\fR
+.RS 4
 Change the default server to
 \fIdomain\fR;
 \fBlserver\fR
@@ -72,107 +77,165 @@ uses the initial server to look up information about
 \fIdomain\fR, while
 \fBserver\fR
 uses the current default server. If an authoritative answer can't be found, the names of servers that might have the answer are returned.
-.TP 3n
+.RE
+.PP
 \fBroot\fR
+.RS 4
 not implemented
-.TP 3n
+.RE
+.PP
 \fBfinger\fR
+.RS 4
 not implemented
-.TP 3n
+.RE
+.PP
 \fBls\fR
+.RS 4
 not implemented
-.TP 3n
+.RE
+.PP
 \fBview\fR
+.RS 4
 not implemented
-.TP 3n
+.RE
+.PP
 \fBhelp\fR
+.RS 4
 not implemented
-.TP 3n
+.RE
+.PP
 \fB?\fR
+.RS 4
 not implemented
-.TP 3n
+.RE
+.PP
 \fBexit\fR
+.RS 4
 Exits the program.
-.TP 3n
+.RE
+.PP
 \fBset\fR \fIkeyword\fR\fI[=value]\fR
+.RS 4
 This command is used to change state information that affects the lookups. Valid keywords are:
-.RS 3n
-.TP 3n
+.RS 4
+.PP
 \fBall\fR
+.RS 4
 Prints the current values of the frequently used options to
 \fBset\fR. Information about the current default server and host is also printed.
-.TP 3n
+.RE
+.PP
 \fBclass=\fR\fIvalue\fR
+.RS 4
 Change the query class to one of:
-.RS 3n
-.TP 3n
+.RS 4
+.PP
 \fBIN\fR
+.RS 4
 the Internet class
-.TP 3n
+.RE
+.PP
 \fBCH\fR
+.RS 4
 the Chaos class
-.TP 3n
+.RE
+.PP
 \fBHS\fR
+.RS 4
 the Hesiod class
-.TP 3n
+.RE
+.PP
 \fBANY\fR
+.RS 4
 wildcard
 .RE
-.IP "" 3n
+.RE
+.IP "" 4
 The class specifies the protocol group of the information.
 .sp
 (Default = IN; abbreviation = cl)
-.TP 3n
-\fB\fI[no]\fR\fR\fBdebug\fR
+.RE
+.PP
+\fB \fR\fB\fI[no]\fR\fR\fBdebug\fR
+.RS 4
 Turn debugging mode on. A lot more information is printed about the packet sent to the server and the resulting answer.
 .sp
 (Default = nodebug; abbreviation =
 [no]deb)
-.TP 3n
-\fB\fI[no]\fR\fR\fBd2\fR
+.RE
+.PP
+\fB \fR\fB\fI[no]\fR\fR\fBd2\fR
+.RS 4
 Turn debugging mode on. A lot more information is printed about the packet sent to the server and the resulting answer.
 .sp
 (Default = nod2)
-.TP 3n
+.RE
+.PP
 \fBdomain=\fR\fIname\fR
+.RS 4
 Sets the search list to
 \fIname\fR.
-.TP 3n
-\fB\fI[no]\fR\fR\fBsearch\fR
+.RE
+.PP
+\fB \fR\fB\fI[no]\fR\fR\fBsearch\fR
+.RS 4
 If the lookup request contains at least one period but doesn't end with a trailing period, append the domain names in the domain search list to the request until an answer is received.
 .sp
 (Default = search)
-.TP 3n
+.RE
+.PP
 \fBport=\fR\fIvalue\fR
+.RS 4
 Change the default TCP/UDP name server port to
 \fIvalue\fR.
 .sp
 (Default = 53; abbreviation = po)
-.TP 3n
+.RE
+.PP
 \fBquerytype=\fR\fIvalue\fR
-.TP 3n
+.RS 4
+.RE
+.PP
 \fBtype=\fR\fIvalue\fR
+.RS 4
 Change the type of the information query.
 .sp
 (Default = A; abbreviations = q, ty)
-.TP 3n
-\fB\fI[no]\fR\fR\fBrecurse\fR
+.RE
+.PP
+\fB \fR\fB\fI[no]\fR\fR\fBrecurse\fR
+.RS 4
 Tell the name server to query other servers if it does not have the information.
 .sp
 (Default = recurse; abbreviation = [no]rec)
-.TP 3n
+.RE
+.PP
 \fBretry=\fR\fInumber\fR
+.RS 4
 Set the number of retries to number.
-.TP 3n
+.RE
+.PP
 \fBtimeout=\fR\fInumber\fR
+.RS 4
 Change the initial timeout interval for waiting for a reply to number seconds.
-.TP 3n
-\fB\fI[no]\fR\fR\fBvc\fR
+.RE
+.PP
+\fB \fR\fB\fI[no]\fR\fR\fBvc\fR
+.RS 4
 Always use a virtual circuit when sending requests to the server.
 .sp
 (Default = novc)
 .RE
-.IP "" 3n
+.PP
+\fB \fR\fB\fI[no]\fR\fR\fBfail\fR
+.RS 4
+Try the next nameserver if a nameserver responds with SERVFAIL or a referral (nofail) or terminate query (fail) on such a response.
+.sp
+(Default = nofail)
+.RE
+.RE
+.IP "" 4
+.RE
 .SH "FILES"
 .PP
 \fI/etc/resolv.conf\fR
@@ -185,4 +248,5 @@ Always use a virtual circuit when sending requests to the server.
 .PP
 Andrew Cherenson
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2006 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2007 Internet Systems Consortium, Inc. ("ISC")
+.br

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,25 +15,28 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: eventclass.h,v 1.13.206.1 2004/03/06 08:14:40 marka Exp $ */
+/* $Id: eventclass.h,v 1.14.18.2 2005/04/29 00:16:54 marka Exp $ */
 
 #ifndef ISC_EVENTCLASS_H
 #define ISC_EVENTCLASS_H 1
 
-/*****
+/*! \file isc/eventclass.h
  ***** Registry of Predefined Event Type Classes
  *****/
 
-/*
+/*%
  * An event class is an unsigned 16 bit number.  Each class may contain up
  * to 65536 events.  An event type is formed by adding the event number
  * within the class to the class number.
+ *
  */
 
 #define ISC_EVENTCLASS(eclass)		((eclass) << 16)
 
-/*
+/*@{*/
+/*!
  * Classes < 1024 are reserved for ISC use.
+ * Event classes >= 1024 and <= 65535 are reserved for application use.
  */
 
 #define	ISC_EVENTCLASS_TASK		ISC_EVENTCLASS(0)
@@ -45,9 +48,6 @@
 #define	ISC_EVENTCLASS_OMAPI		ISC_EVENTCLASS(6)
 #define	ISC_EVENTCLASS_RATELIMITER	ISC_EVENTCLASS(7)
 #define	ISC_EVENTCLASS_ISCCC		ISC_EVENTCLASS(8)
-
-/*
- * Event classes >= 1024 and <= 65535 are reserved for application use.
- */
+/*@}*/
 
 #endif /* ISC_EVENTCLASS_H */

@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_config.3,v 1.12.2.1.8.6 2006/06/29 13:02:31 marka Exp $
+.\" $Id: lwres_config.3,v 1.15.18.11 2007/01/30 00:23:45 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: lwres_config
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -36,15 +36,15 @@ lwres_conf_init, lwres_conf_clear, lwres_conf_parse, lwres_conf_print, lwres_con
 #include <lwres/lwres.h>
 .fi
 .HP 21
-.BI "void lwres_conf_init(lwres_context_t\ *ctx);"
+.BI "void lwres_conf_init(lwres_context_t\ *" "ctx" ");"
 .HP 22
-.BI "void lwres_conf_clear(lwres_context_t\ *ctx);"
+.BI "void lwres_conf_clear(lwres_context_t\ *" "ctx" ");"
 .HP 32
-.BI "lwres_result_t lwres_conf_parse(lwres_context_t\ *ctx, const\ char\ *filename);"
+.BI "lwres_result_t lwres_conf_parse(lwres_context_t\ *" "ctx" ", const\ char\ *" "filename" ");"
 .HP 32
-.BI "lwres_result_t lwres_conf_print(lwres_context_t\ *ctx, FILE\ *fp);"
+.BI "lwres_result_t lwres_conf_print(lwres_context_t\ *" "ctx" ", FILE\ *" "fp" ");"
 .HP 30
-.BI "lwres_conf_t * lwres_conf_get(lwres_context_t\ *ctx);"
+.BI "lwres_conf_t * lwres_conf_get(lwres_context_t\ *" "ctx" ");"
 .SH "DESCRIPTION"
 .PP
 \fBlwres_conf_init()\fR
@@ -100,4 +100,7 @@ unless an error occurred when converting the network addresses to a numeric host
 .PP
 \fI/etc/resolv.conf\fR
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001 Internet Software Consortium.
+.br

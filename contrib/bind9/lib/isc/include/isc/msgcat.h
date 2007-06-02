@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: msgcat.h,v 1.8.206.1 2004/03/06 08:14:44 marka Exp $ */
+/* $Id: msgcat.h,v 1.9.18.2 2005/04/29 00:16:59 marka Exp $ */
 
 #ifndef ISC_MSGCAT_H
 #define ISC_MSGCAT_H 1
@@ -24,34 +24,33 @@
  ***** Module Info
  *****/
 
-/*
- * ISC Message Catalog
- *
- * Message catalogs aid internationalization of applications by allowing
+/*! \file isc/msgcat.h
+ * \brief The ISC Message Catalog
+ * aids internationalization of applications by allowing
  * messages to be retrieved from locale-specific files instead of
  * hardwiring them into the application.  This allows translations of
  * messages appropriate to the locale to be supplied without recompiling
  * the application.
  *
  * Notes:
- *	It's very important that message catalogs work, even if only the
+ *\li	It's very important that message catalogs work, even if only the
  *	default_text can be used.
  *
  * MP:
- *	The caller must ensure appropriate synchronization of
+ *\li	The caller must ensure appropriate synchronization of
  *	isc_msgcat_open() and isc_msgcat_close().  isc_msgcat_get()
  *	ensures appropriate synchronization.
  *
  * Reliability:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  *
  * Resources:
- *	<TBS>
+ *\li	TBS
  *
- * Security:
+ * \li Security:
  *	No anticipated impact.
  *
- * Standards:
+ * \li Standards:
  *	None.
  */
 
@@ -70,61 +69,61 @@ ISC_LANG_BEGINDECLS
 
 void
 isc_msgcat_open(const char *name, isc_msgcat_t **msgcatp);
-/*
+/*%<
  * Open a message catalog.
  *
  * Notes:
  *
- *	If memory cannot be allocated or other failures occur, *msgcatp
+ *\li	If memory cannot be allocated or other failures occur, *msgcatp
  *	will be set to NULL.  If a NULL msgcat is given to isc_msgcat_get(),
  *	the default_text will be returned, ensuring that some message text
  *	will be available, no matter what's going wrong.
  *
  * Requires:
  *
- *	'name' is a valid string.
+ *\li	'name' is a valid string.
  *
- *	msgcatp != NULL && *msgcatp == NULL
+ *\li	msgcatp != NULL && *msgcatp == NULL
  */
 
 void
 isc_msgcat_close(isc_msgcat_t **msgcatp);
-/*
+/*%<
  * Close a message catalog.
  *
  * Notes:
  *
- *	Any string pointers returned by prior calls to isc_msgcat_get() are
+ *\li	Any string pointers returned by prior calls to isc_msgcat_get() are
  *	invalid after isc_msgcat_close() has been called and must not be
  *	used.
  *
  * Requires:
  *
- *	*msgcatp is a valid message catalog or is NULL.
+ *\li	*msgcatp is a valid message catalog or is NULL.
  *
  * Ensures:
  *
- *	All resources associated with the message catalog are released.
+ *\li	All resources associated with the message catalog are released.
  *
- *	*msgcatp == NULL
+ *\li	*msgcatp == NULL
  */
 
 const char *
 isc_msgcat_get(isc_msgcat_t *msgcat, int set, int message,
 	       const char *default_text);
-/*
+/*%<
  * Get message 'message' from message set 'set' in 'msgcat'.  If it
  * is not available, use 'default_text'.
  *
  * Requires:
  *
- *	'msgcat' is a valid message catalog or is NULL.
+ *\li	'msgcat' is a valid message catalog or is NULL.
  *
- *	set > 0
+ *\li	set > 0
  *
- *	message > 0
+ *\li	message > 0
  *
- *	'default_text' is a valid string.
+ *\li	'default_text' is a valid string.
  */
 
 ISC_LANG_ENDDECLS

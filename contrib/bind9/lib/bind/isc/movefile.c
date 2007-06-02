@@ -33,3 +33,5 @@ isc_movefile(const char *oldname, const char *newname) {
 #else
 	static int os_port_has_isc_movefile = 1;
 #endif
+
+/*! \file */
