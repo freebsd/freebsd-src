@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gssapictx.c,v 1.1.4.1 2004/12/09 04:07:17 marka Exp $ */
+/* $Id: gssapictx.c,v 1.1.6.3 2005/04/29 00:15:54 marka Exp $ */
 
 #include <config.h>
 
@@ -260,3 +260,5 @@ dst_gssapi_acceptctx(dns_name_t *name, void *cred,
 }
 
 #endif
+
+/*! \file */

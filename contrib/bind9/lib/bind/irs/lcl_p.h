@@ -16,17 +16,18 @@
  */
 
 /*
- * $Id: lcl_p.h,v 1.1.206.1 2004/03/09 08:33:38 marka Exp $
+ * $Id: lcl_p.h,v 1.2.18.1 2005/04/27 05:01:02 sra Exp $
  */
 
-/*
+/*! \file
+ * \brief
  * lcl_p.h - private include file for the local accessor functions.
  */
 
 #ifndef _LCL_P_H_INCLUDED
 #define _LCL_P_H_INCLUDED
 
-/*
+/*%
  * Object state.
  */
 struct lcl_p {

@@ -43,7 +43,7 @@ static const char sccsid[] = "@(#)inet_makeaddr.c	8.1 (Berkeley) 6/4/93";
 
 #include "port_after.h"
 
-/*
+/*%
  * Formulate an Internet address from network + host.  Used in
  * building addresses stored in the ifnet structure.
  */
@@ -64,3 +64,5 @@ inet_makeaddr(net, host)
 	a.s_addr = htonl(a.s_addr);
 	return (a);
 }
+
+/*! \file */

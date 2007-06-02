@@ -19,8 +19,10 @@
  */
 
 /*
- * $Id: ctl.h,v 1.1.2.2.4.1 2004/03/09 08:33:30 marka Exp $
+ * $Id: ctl.h,v 1.4.18.1 2005/04/27 05:00:51 sra Exp $
  */
+
+/*! \file */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -29,10 +31,9 @@
 
 /* Macros. */
 
-#define	CTL_MORE	0x0001	/* More will be / should be sent. */
-#define	CTL_EXIT	0x0002	/* Close connection after this. */
-#define	CTL_DATA	0x0004	/* Go into / this is DATA mode. */
-
+#define	CTL_MORE	0x0001	/*%< More will be / should be sent. */
+#define	CTL_EXIT	0x0002	/*%< Close connection after this. */
+#define	CTL_DATA	0x0004	/*%< Go into / this is DATA mode. */
 /* Types. */
 
 struct ctl_cctx;
@@ -107,3 +108,5 @@ void *			ctl_getcsctx(struct ctl_sess *);
 void *			ctl_setcsctx(struct ctl_sess *, void *);
 
 #endif /*ISC_CTL_H*/
+
+/*! \file */

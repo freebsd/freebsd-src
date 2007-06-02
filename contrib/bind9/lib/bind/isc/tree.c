@@ -1,8 +1,8 @@
 #ifndef LINT
-static const char rcsid[] = "$Id: tree.c,v 1.2.206.1 2004/03/09 08:33:43 marka Exp $";
+static const char rcsid[] = "$Id: tree.c,v 1.3.18.1 2005/04/27 05:01:08 sra Exp $";
 #endif
 
-/*
+/*%
  * tree - balanced binary tree library
  *
  * vix 05apr94 [removed vixie.h dependencies; cleaned up formatting, names]
@@ -14,7 +14,7 @@ static const char rcsid[] = "$Id: tree.c,v 1.2.206.1 2004/03/09 08:33:43 marka E
  * vix 14dec85 [written]
  */
 
-/*
+/*%
  * This program text was created by Paul Vixie using examples from the book:
  * "Algorithms & Data Structures," Niklaus Wirth, Prentice-Hall, 1986, ISBN
  * 0-13-022005-1.  Any errors in the conversion from Modula-2 to C are Paul
@@ -215,7 +215,7 @@ sprout(tree **ppr, tree_t p_data, int *pi_balance,
 		MSG("LESS. sprouting left.")
 		sub = sprout(&(*ppr)->left, p_data, pi_balance,
 			     pfi_compare, pfv_delete);
-		if (sub && *pi_balance) {	/* left branch has grown */
+		if (sub && *pi_balance) {	/*%< left branch has grown */
 			MSG("LESS: left branch has grown")
 			switch ((*ppr)->bal) {
 			case 1:
@@ -233,13 +233,13 @@ sprout(tree **ppr, tree_t p_data, int *pi_balance,
 				/* left branch was already too long. rebal */
 				MSG("LESS: case -1: rebalancing")
 				p1 = (*ppr)->left;
-				if (p1->bal == -1) {		/* LL */
+				if (p1->bal == -1) {		/*%< LL */
 					MSG("LESS: single LL")
 					(*ppr)->left = p1->right;
 					p1->right = *ppr;
 					(*ppr)->bal = 0;
 					*ppr = p1;
-				} else {			/* double LR */
+				} else {			/*%< double LR */
 					MSG("LESS: double LR")
 
 					p2 = p1->right;
@@ -289,13 +289,13 @@ sprout(tree **ppr, tree_t p_data, int *pi_balance,
 			case 1:
 				MSG("MORE: balance was off, need to rebalance")
 				p1 = (*ppr)->right;
-				if (p1->bal == 1) {		/* RR */
+				if (p1->bal == 1) {		/*%< RR */
 					MSG("MORE: single RR")
 					(*ppr)->right = p1->left;
 					p1->left = *ppr;
 					(*ppr)->bal = 0;
 					*ppr = p1;
-				} else {			/* double RL */
+				} else {			/*%< double RL */
 					MSG("MORE: double RL")
 
 					p2 = p1->left;
@@ -530,3 +530,5 @@ bal_R(tree **ppr_p, int *pi_balance) {
 	}
 	RETV
 }
+
+/*! \file */

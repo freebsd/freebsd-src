@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_hstrerror.3,v 1.13.2.1.8.6 2006/06/29 13:02:31 marka Exp $
+.\" $Id: lwres_hstrerror.3,v 1.16.18.11 2007/01/30 00:23:45 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: lwres_hstrerror
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -36,9 +36,9 @@ lwres_herror, lwres_hstrerror \- lightweight resolver error message generation
 #include <lwres/netdb.h>
 .fi
 .HP 18
-.BI "void lwres_herror(const\ char\ *s);"
+.BI "void lwres_herror(const\ char\ *" "s" ");"
 .HP 29
-.BI "const char * lwres_hstrerror(int\ err);"
+.BI "const char * lwres_hstrerror(int\ " "err" ");"
 .SH "DESCRIPTION"
 .PP
 \fBlwres_herror()\fR
@@ -54,21 +54,31 @@ for the error code stored in the global variable
 \fBlwres_hstrerror()\fR
 returns an appropriate string for the error code gievn by
 \fIerr\fR. The values of the error codes and messages are as follows:
-.TP 3n
+.PP
 \fBNETDB_SUCCESS\fR
+.RS 4
 Resolver Error 0 (no error)
-.TP 3n
+.RE
+.PP
 \fBHOST_NOT_FOUND\fR
+.RS 4
 Unknown host
-.TP 3n
+.RE
+.PP
 \fBTRY_AGAIN\fR
+.RS 4
 Host name lookup failure
-.TP 3n
+.RE
+.PP
 \fBNO_RECOVERY\fR
+.RS 4
 Unknown server error
-.TP 3n
+.RE
+.PP
 \fBNO_DATA\fR
+.RS 4
 No address associated with name
+.RE
 .SH "RETURN VALUES"
 .PP
 The string
@@ -83,4 +93,7 @@ is not a valid error code.
 \fBherror\fR(3),
 \fBlwres_hstrerror\fR(3).
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001 Internet Software Consortium.
+.br

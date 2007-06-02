@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named-checkzone.8,v 1.11.2.1.8.11 2006/10/05 02:50:17 marka Exp $
+.\" $Id: named-checkzone.8,v 1.18.18.20 2007/01/30 00:23:44 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: named\-checkzone
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: June 13, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -30,10 +30,12 @@
 .\" disable justification (adjust text to left margin only)
 .ad l
 .SH "NAME"
-named\-checkzone \- zone file validity checking tool
+named\-checkzone, named\-compilezone \- zone file validity checking or converting tool
 .SH "SYNOPSIS"
 .HP 16
-\fBnamed\-checkzone\fR [\fB\-d\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] {zonename} {filename}
+\fBnamed\-checkzone\fR [\fB\-d\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-M\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-S\ \fR\fB\fImode\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {zonename} {filename}
+.HP 18
+\fBnamed\-compilezone\fR [\fB\-d\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-C\ \fR\fB\fImode\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {zonename} {filename}
 .SH "DESCRIPTION"
 .PP
 \fBnamed\-checkzone\fR
@@ -42,64 +44,211 @@ checks the syntax and integrity of a zone file. It performs the same checks as
 does when loading a zone. This makes
 \fBnamed\-checkzone\fR
 useful for checking zone files before configuring them into a name server.
+.PP
+\fBnamed\-compilezone\fR
+is similar to
+\fBnamed\-checkzone\fR, but it always dumps the zone contents to a specified file in a specified format. Additionally, it applies stricter check levels by default, since the dump output will be used as an actual zone file loaded by
+\fBnamed\fR. When manaully specified otherwise, the check levels must at least be as strict as those specified in the
+\fBnamed\fR
+configuration file.
 .SH "OPTIONS"
-.TP 3n
+.PP
 \-d
+.RS 4
 Enable debugging.
-.TP 3n
+.RE
+.PP
 \-q
+.RS 4
 Quiet mode \- exit code only.
-.TP 3n
+.RE
+.PP
 \-v
+.RS 4
 Print the version of the
 \fBnamed\-checkzone\fR
 program and exit.
-.TP 3n
+.RE
+.PP
 \-j
+.RS 4
 When loading the zone file read the journal if it exists.
-.TP 3n
+.RE
+.PP
 \-c \fIclass\fR
+.RS 4
 Specify the class of the zone. If not specified "IN" is assumed.
-.TP 3n
+.RE
+.PP
+\-i \fImode\fR
+.RS 4
+Perform post load zone integrity checks. Possible modes are
+\fB"full"\fR
+(default),
+\fB"full\-sibling"\fR,
+\fB"local"\fR,
+\fB"local\-sibling"\fR
+and
+\fB"none"\fR.
+.sp
+Mode
+\fB"full"\fR
+checks that MX records refer to A or AAAA record (both in\-zone and out\-of\-zone hostnames). Mode
+\fB"local"\fR
+only checks MX records which refer to in\-zone hostnames.
+.sp
+Mode
+\fB"full"\fR
+checks that SRV records refer to A or AAAA record (both in\-zone and out\-of\-zone hostnames). Mode
+\fB"local"\fR
+only checks SRV records which refer to in\-zone hostnames.
+.sp
+Mode
+\fB"full"\fR
+checks that delegation NS records refer to A or AAAA record (both in\-zone and out\-of\-zone hostnames). It also checks that glue addresses records in the zone match those advertised by the child. Mode
+\fB"local"\fR
+only checks NS records which refer to in\-zone hostnames or that some required glue exists, that is when the nameserver is in a child zone.
+.sp
+Mode
+\fB"full\-sibling"\fR
+and
+\fB"local\-sibling"\fR
+disable sibling glue checks but are otherwise the same as
+\fB"full"\fR
+and
+\fB"local"\fR
+respectively.
+.sp
+Mode
+\fB"none"\fR
+disables the checks.
+.RE
+.PP
+\-f \fIformat\fR
+.RS 4
+Specify the format of the zone file. Possible formats are
+\fB"text"\fR
+(default) and
+\fB"raw"\fR.
+.RE
+.PP
+\-F \fIformat\fR
+.RS 4
+Specify the format of the output file specified. Possible formats are
+\fB"text"\fR
+(default) and
+\fB"raw"\fR. For
+\fBnamed\-checkzone\fR, this does not cause any effects unless it dumps the zone contents.
+.RE
+.PP
 \-k \fImode\fR
+.RS 4
 Perform
 \fB"check\-names"\fR
 checks with the specified failure mode. Possible modes are
+\fB"fail"\fR
+(default for
+\fBnamed\-compilezone\fR),
+\fB"warn"\fR
+(default for
+\fBnamed\-checkzone\fR) and
+\fB"ignore"\fR.
+.RE
+.PP
+\-m \fImode\fR
+.RS 4
+Specify whether MX records should be checked to see if they are addresses. Possible modes are
 \fB"fail"\fR,
 \fB"warn"\fR
 (default) and
 \fB"ignore"\fR.
-.TP 3n
+.RE
+.PP
+\-M \fImode\fR
+.RS 4
+Check if a MX record refers to a CNAME. Possible modes are
+\fB"fail"\fR,
+\fB"warn"\fR
+(default) and
+\fB"ignore"\fR.
+.RE
+.PP
 \-n \fImode\fR
+.RS 4
 Specify whether NS records should be checked to see if they are addresses. Possible modes are
+\fB"fail"\fR
+(default for
+\fBnamed\-compilezone\fR),
+\fB"warn"\fR
+(default for
+\fBnamed\-checkzone\fR) and
+\fB"ignore"\fR.
+.RE
+.PP
+\-o \fIfilename\fR
+.RS 4
+Write zone output to
+\fIfilename\fR. This is mandatory for
+\fBnamed\-compilezone\fR.
+.RE
+.PP
+\-s \fIstyle\fR
+.RS 4
+Specify the style of the dumped zone file. Possible styles are
+\fB"full"\fR
+(default) and
+\fB"relative"\fR. The full format is most suitable for processing automatically by a separate script. On the other hand, the relative format is more human\-readable and is thus suitable for editing by hand. For
+\fBnamed\-checkzone\fR
+this does not cause any effects unless it dumps the zone contents. It also does not have any meaning if the output format is not text.
+.RE
+.PP
+\-S \fImode\fR
+.RS 4
+Check if a SRV record refers to a CNAME. Possible modes are
 \fB"fail"\fR,
 \fB"warn"\fR
 (default) and
 \fB"ignore"\fR.
-.TP 3n
-\-o \fIfilename\fR
-Write zone output to
-\fIfilename\fR.
-.TP 3n
+.RE
+.PP
 \-t \fIdirectory\fR
+.RS 4
 chroot to
 \fIdirectory\fR
 so that include directives in the configuration file are processed as if run by a similarly chrooted named.
-.TP 3n
+.RE
+.PP
 \-w \fIdirectory\fR
+.RS 4
 chdir to
 \fIdirectory\fR
 so that relative filenames in master file $INCLUDE directives work. This is similar to the directory clause in
 \fInamed.conf\fR.
-.TP 3n
+.RE
+.PP
 \-D
-Dump zone file in canonical format.
-.TP 3n
+.RS 4
+Dump zone file in canonical format. This is always enabled for
+\fBnamed\-compilezone\fR.
+.RE
+.PP
+\-W \fImode\fR
+.RS 4
+Specify whether to check for non\-terminal wildcards. Non\-terminal wildcards are almost always the result of a failure to understand the wildcard matching algorithm (RFC 1034). Possible modes are
+\fB"warn"\fR
+(default) and
+\fB"ignore"\fR.
+.RE
+.PP
 zonename
+.RS 4
 The domain name of the zone being checked.
-.TP 3n
+.RE
+.PP
 filename
+.RS 4
 The name of the zone file.
+.RE
 .SH "RETURN VALUES"
 .PP
 \fBnamed\-checkzone\fR
@@ -113,4 +262,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2006 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000\-2002 Internet Software Consortium.
+.br

@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: assertions.c,v 1.1.206.1 2004/03/09 08:33:39 marka Exp $";
+static const char rcsid[] = "$Id: assertions.c,v 1.2.18.1 2005/04/27 05:01:05 sra Exp $";
 #endif
 
 #include "port_before.h"
@@ -89,3 +89,5 @@ default_assertion_failed(const char *file, int line, assertion_type type,
 	abort();
 	/* NOTREACHED */
 }
+
+/*! \file */

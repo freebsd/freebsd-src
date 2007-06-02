@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keytable.h,v 1.10.206.3 2006/01/06 00:01:42 marka Exp $ */
+/* $Id: keytable.h,v 1.11.18.3 2005/12/05 00:00:03 marka Exp $ */
 
 #ifndef DNS_KEYTABLE_H
 #define DNS_KEYTABLE_H 1
@@ -24,22 +24,21 @@
  ***** Module Info
  *****/
 
-/*
- * Key Tables
- *
+/*! \file
+ * \brief
  * The keytable module provides services for storing and retrieving DNSSEC
  * trusted keys, as well as the ability to find the deepest matching key
  * for a given domain name.
  *
  * MP:
- *	The module ensures appropriate synchronization of data structures it
+ *\li	The module ensures appropriate synchronization of data structures it
  *	creates and manipulates.
  *
  * Resources:
- *	<TBS>
+ *\li	TBS
  *
  * Security:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  */
 
 #include <isc/lang.h>
@@ -52,203 +51,202 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 dns_keytable_create(isc_mem_t *mctx, dns_keytable_t **keytablep);
-/*
+/*%<
  * Create a keytable.
  *
  * Requires:
  *
- *	'mctx' is a valid memory context.
+ *\li	'mctx' is a valid memory context.
  *
- *	keytablep != NULL && *keytablep == NULL
+ *\li	keytablep != NULL && *keytablep == NULL
  *
  * Ensures:
  *
- *	On success, *keytablep is a valid, empty key table.
+ *\li	On success, *keytablep is a valid, empty key table.
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
+ *\li	ISC_R_SUCCESS
  *
- *	Any other result indicates failure.
+ *\li	Any other result indicates failure.
  */
 
 
 void
 dns_keytable_attach(dns_keytable_t *source, dns_keytable_t **targetp);
-/*
+/*%<
  * Attach *targetp to source.
  *
  * Requires:
  *
- *	'source' is a valid keytable.
+ *\li	'source' is a valid keytable.
  *
- *	'targetp' points to a NULL dns_keytable_t *.
+ *\li	'targetp' points to a NULL dns_keytable_t *.
  *
  * Ensures:
  *
- *	*targetp is attached to source.
+ *\li	*targetp is attached to source.
  */
 
 void
 dns_keytable_detach(dns_keytable_t **keytablep);
-/*
+/*%<
  * Detach *keytablep from its keytable.
  *
  * Requires:
  *
- *	'keytablep' points to a valid keytable.
+ *\li	'keytablep' points to a valid keytable.
  *
  * Ensures:
  *
- *	*keytablep is NULL.
+ *\li	*keytablep is NULL.
  *
- *	If '*keytablep' is the last reference to the keytable,
- *
- *		All resources used by the keytable will be freed
+ *\li	If '*keytablep' is the last reference to the keytable,
+ *		all resources used by the keytable will be freed
  */
 
 isc_result_t
 dns_keytable_add(dns_keytable_t *keytable, dst_key_t **keyp);
-/*
+/*%<
  * Add '*keyp' to 'keytable'.
  *
  * Notes:
  *
- *	Ownership of *keyp is transferred to the keytable.
+ *\li	Ownership of *keyp is transferred to the keytable.
  *
  * Requires:
  *
- *	keyp != NULL && *keyp is a valid dst_key_t *.
+ *\li	keyp != NULL && *keyp is a valid dst_key_t *.
  *
  * Ensures:
  *
- *	On success, *keyp == NULL
+ *\li	On success, *keyp == NULL
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
+ *\li	ISC_R_SUCCESS
  *
- *	Any other result indicates failure.
+ *\li	Any other result indicates failure.
  */
 
 isc_result_t
 dns_keytable_findkeynode(dns_keytable_t *keytable, dns_name_t *name,
 			 dns_secalg_t algorithm, dns_keytag_t tag,
 			 dns_keynode_t **keynodep);
-/*
+/*%<
  * Search for a key named 'name', matching 'algorithm' and 'tag' in
  * 'keytable'.  This finds the first instance which matches.  Use
  * dns_keytable_findnextkeynode() to find other instances.
  *
  * Requires:
  *
- *	'keytable' is a valid keytable.
+ *\li	'keytable' is a valid keytable.
  *
- *	'name' is a valid absolute name.
+ *\li	'name' is a valid absolute name.
  *
- *	keynodep != NULL && *keynodep == NULL
+ *\li	keynodep != NULL && *keynodep == NULL
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
- *	DNS_R_PARTIALMATCH	the name existed in the keytable.
- *	ISC_R_NOTFOUND
+ *\li	ISC_R_SUCCESS
+ *\li	DNS_R_PARTIALMATCH	the name existed in the keytable.
+ *\li	ISC_R_NOTFOUND
  *
- *	Any other result indicates an error.
+ *\li	Any other result indicates an error.
  */
 
 isc_result_t
 dns_keytable_findnextkeynode(dns_keytable_t *keytable, dns_keynode_t *keynode,
 		                             dns_keynode_t **nextnodep);
-/*
+/*%<
  * Search for the next key with the same properties as 'keynode' in
  * 'keytable' as found by dns_keytable_findkeynode().
  *
  * Requires:
  *
- *	'keytable' is a valid keytable.
+ *\li	'keytable' is a valid keytable.
  *
- *	'keynode' is a valid keynode.
+ *\li	'keynode' is a valid keynode.
  *
- *	nextnodep != NULL && *nextnodep == NULL
+ *\li	nextnodep != NULL && *nextnodep == NULL
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
- *	ISC_R_NOTFOUND
+ *\li	ISC_R_SUCCESS
+ *\li	ISC_R_NOTFOUND
  *
- *	Any other result indicates an error.
+ *\li	Any other result indicates an error.
  */
 
 isc_result_t
 dns_keytable_finddeepestmatch(dns_keytable_t *keytable, dns_name_t *name,
 			      dns_name_t *foundname);
-/*
+/*%<
  * Search for the deepest match of 'name' in 'keytable'.
  *
  * Requires:
  *
- *	'keytable' is a valid keytable.
+ *\li	'keytable' is a valid keytable.
  *
- *	'name' is a valid absolute name.
+ *\li	'name' is a valid absolute name.
  *
- *	'foundname' is a name with a dedicated buffer.
+ *\li	'foundname' is a name with a dedicated buffer.
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
- *	ISC_R_NOTFOUND
+ *\li	ISC_R_SUCCESS
+ *\li	ISC_R_NOTFOUND
  *
- *	Any other result indicates an error.
+ *\li	Any other result indicates an error.
  */
 
 void
 dns_keytable_detachkeynode(dns_keytable_t *keytable,
 			   dns_keynode_t **keynodep);
-/*
+/*%<
  * Give back a keynode found via dns_keytable_findkeynode().
  *
  * Requires:
  *
- *	'keytable' is a valid keytable.
+ *\li	'keytable' is a valid keytable.
  *
- *	*keynodep is a valid keynode returned by a call to
+ *\li	*keynodep is a valid keynode returned by a call to
  *	dns_keytable_findkeynode().
  *
  * Ensures:
  *
- *	*keynodep == NULL
+ *\li	*keynodep == NULL
  */
 
 isc_result_t
 dns_keytable_issecuredomain(dns_keytable_t *keytable, dns_name_t *name,
 			    isc_boolean_t *wantdnssecp);
-/*
+/*%<
  * Is 'name' at or beneath a trusted key?
  *
  * Requires:
  *
- *	'keytable' is a valid keytable.
+ *\li	'keytable' is a valid keytable.
  *
- *	'name' is a valid absolute name.
+ *\li	'name' is a valid absolute name.
  *
- *	'*wantsdnssecp' is a valid isc_boolean_t.
+ *\li	'*wantsdnssecp' is a valid isc_boolean_t.
  *
  * Ensures:
  *
- *	On success, *wantsdnssecp will be ISC_TRUE if and only if 'name'
+ *\li	On success, *wantsdnssecp will be ISC_TRUE if and only if 'name'
  *	is at or beneath a trusted key.
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
+ *\li	ISC_R_SUCCESS
  *
- *	Any other result is an error.
+ *\li	Any other result is an error.
  */
 
 dst_key_t *
 dns_keynode_key(dns_keynode_t *keynode);
-/*
+/*%<
  * Get the DST key associated with keynode.
  */
 

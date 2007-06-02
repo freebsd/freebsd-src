@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch02.html,v 1.10.2.1.8.12 2006/06/29 13:02:31 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch02.html,v 1.13.18.18 2007/01/30 00:23:45 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Chapter 2. BIND Resource Requirements</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 <link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
-<link rel="prev" href="Bv9ARM.ch01.html" title="Chapter 1. Introduction ">
+<link rel="prev" href="Bv9ARM.ch01.html" title="Chapter 1. Introduction">
 <link rel="next" href="Bv9ARM.ch03.html" title="Chapter 3. Name Server Configuration">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
@@ -45,68 +45,96 @@
 <div class="toc">
 <p><b>Table of Contents</b></p>
 <dl>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2570868">Hardware requirements</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2570892">CPU Requirements</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2570903">Memory Requirements</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2570918">Name Server Intensive Environment Issues</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2570995">Supported Operating Systems</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567621">Hardware requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567648">CPU Requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567660">Memory Requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567687">Name Server Intensive Environment Issues</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567698">Supported Operating Systems</a></span></dt>
 </dl>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570868"></a>Hardware requirements</h2></div></div></div>
-<p><acronym class="acronym">DNS</acronym> hardware requirements have traditionally been quite modest.
-For many installations, servers that have been pensioned off from
-active duty have performed admirably as <acronym class="acronym">DNS</acronym> servers.</p>
-<p>The DNSSEC and IPv6 features of <acronym class="acronym">BIND</acronym> 9 may prove to be quite
-CPU intensive however, so organizations that make heavy use of these
-features may wish to consider larger systems for these applications.
-<acronym class="acronym">BIND</acronym> 9 is fully multithreaded, allowing full utilization of
-multiprocessor systems for installations that need it.</p>
+<a name="id2567621"></a>Hardware requirements</h2></div></div></div>
+<p>
+        <acronym class="acronym">DNS</acronym> hardware requirements have
+        traditionally been quite modest.
+        For many installations, servers that have been pensioned off from
+        active duty have performed admirably as <acronym class="acronym">DNS</acronym> servers.
+      </p>
+<p>
+        The DNSSEC features of <acronym class="acronym">BIND</acronym> 9
+        may prove to be quite
+        CPU intensive however, so organizations that make heavy use of these
+        features may wish to consider larger systems for these applications.
+        <acronym class="acronym">BIND</acronym> 9 is fully multithreaded, allowing
+        full utilization of
+        multiprocessor systems for installations that need it.
+      </p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570892"></a>CPU Requirements</h2></div></div></div>
-<p>CPU requirements for <acronym class="acronym">BIND</acronym> 9 range from i486-class machines
-for serving of static zones without caching, to enterprise-class
-machines if you intend to process many dynamic updates and DNSSEC
-signed zones, serving many thousands of queries per second.</p>
+<a name="id2567648"></a>CPU Requirements</h2></div></div></div>
+<p>
+        CPU requirements for <acronym class="acronym">BIND</acronym> 9 range from
+        i486-class machines
+        for serving of static zones without caching, to enterprise-class
+        machines if you intend to process many dynamic updates and DNSSEC
+        signed zones, serving many thousands of queries per second.
+      </p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570903"></a>Memory Requirements</h2></div></div></div>
-<p>The memory of the server has to be large enough to fit the
-cache and zones loaded off disk.  The <span><strong class="command">max-cache-size</strong></span>
-option can be used to limit the amount of memory used by the cache,
-at the expense of reducing cache hit rates and causing more <acronym class="acronym">DNS</acronym>
-traffic. It is still good practice to have enough memory to load
-all zone and cache data into memory &#8212; unfortunately, the best way
-to determine this for a given installation is to watch the name server
-in operation. After a few weeks the server process should reach
-a relatively stable size where entries are expiring from the cache as
-fast as they are being inserted.</p>
+<a name="id2567660"></a>Memory Requirements</h2></div></div></div>
+<p>
+        The memory of the server has to be large enough to fit the
+        cache and zones loaded off disk.  The <span><strong class="command">max-cache-size</strong></span>
+        option can be used to limit the amount of memory used by the cache,
+        at the expense of reducing cache hit rates and causing more <acronym class="acronym">DNS</acronym>
+        traffic.
+        Additionally, if additional section caching
+        (<a href="Bv9ARM.ch06.html#acache" title="Additional Section Caching">the section called &#8220;Additional Section Caching&#8221;</a>) is enabled,
+        the <span><strong class="command">max-acache-size</strong></span> can be used to
+        limit the amount
+        of memory used by the mechanism.
+        It is still good practice to have enough memory to load
+        all zone and cache data into memory &#8212; unfortunately, the best
+        way
+        to determine this for a given installation is to watch the name server
+        in operation. After a few weeks the server process should reach
+        a relatively stable size where entries are expiring from the cache as
+        fast as they are being inserted.
+      </p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570918"></a>Name Server Intensive Environment Issues</h2></div></div></div>
-<p>For name server intensive environments, there are two alternative
-configurations that may be used. The first is where clients and
-any second-level internal name servers query a main name server, which
-has enough memory to build a large cache. This approach minimizes
-the bandwidth used by external name lookups. The second alternative
-is to set up second-level internal name servers to make queries independently.
-In this configuration, none of the individual machines needs to
-have as much memory or CPU power as in the first alternative, but
-this has the disadvantage of making many more external queries,
-as none of the name servers share their cached data.</p>
+<a name="id2567687"></a>Name Server Intensive Environment Issues</h2></div></div></div>
+<p>
+        For name server intensive environments, there are two alternative
+        configurations that may be used. The first is where clients and
+        any second-level internal name servers query a main name server, which
+        has enough memory to build a large cache. This approach minimizes
+        the bandwidth used by external name lookups. The second alternative
+        is to set up second-level internal name servers to make queries
+        independently.
+        In this configuration, none of the individual machines needs to
+        have as much memory or CPU power as in the first alternative, but
+        this has the disadvantage of making many more external queries,
+        as none of the name servers share their cached data.
+      </p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570995"></a>Supported Operating Systems</h2></div></div></div>
-<p>ISC <acronym class="acronym">BIND</acronym> 9 compiles and runs on a large number
-of Unix-like operating system and on Windows NT / 2000.  For an up-to-date
-list of supported systems, see the README file in the top level directory
-of the BIND 9 source distribution.</p>
+<a name="id2567698"></a>Supported Operating Systems</h2></div></div></div>
+<p>
+        ISC <acronym class="acronym">BIND</acronym> 9 compiles and runs on a large
+        number
+        of Unix-like operating system and on NT-derived versions of
+        Microsoft Windows such as Windows 2000 and Windows XP.  For an
+        up-to-date
+        list of supported systems, see the README file in the top level
+        directory
+        of the BIND 9 source distribution.
+      </p>
 </div>
 </div>
 <div class="navfooter">
@@ -120,7 +148,7 @@ of the BIND 9 source distribution.</p>
 </td>
 </tr>
 <tr>
-<td width="40%" align="left" valign="top">Chapter 1. Introduction  </td>
+<td width="40%" align="left" valign="top">Chapter 1. Introduction </td>
 <td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
 <td width="40%" align="right" valign="top"> Chapter 3. Name Server Configuration</td>
 </tr>

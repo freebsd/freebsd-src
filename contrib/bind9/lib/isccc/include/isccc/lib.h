@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001  Internet Software Consortium.
  * Portions Copyright (C) 2001  Nominum, Inc.
  *
@@ -16,10 +16,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.h,v 1.2.12.3 2004/03/08 09:05:05 marka Exp $ */
+/* $Id: lib.h,v 1.4.18.2 2005/04/29 00:17:13 marka Exp $ */
 
 #ifndef ISCCC_LIB_H
 #define ISCCC_LIB_H 1
+
+/*! \file */
 
 #include <isc/types.h>
 #include <isc/lang.h>
@@ -30,7 +32,7 @@ LIBISCCC_EXTERNAL_DATA extern isc_msgcat_t *isccc_msgcat;
 
 void
 isccc_lib_initmsgcat(void);
-/*
+/*%
  * Initialize the ISCCC library's message catalog, isccc_msgcat, if it
  * has not already been initialized.
  */

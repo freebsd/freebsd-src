@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: diff.c,v 1.4.2.1.8.4 2004/03/08 02:07:52 marka Exp $ */
+/* $Id: diff.c,v 1.9.18.3 2005/04/27 05:01:15 sra Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -30,8 +32,10 @@
 #include <dns/db.h>
 #include <dns/diff.h>
 #include <dns/log.h>
+#include <dns/rdataclass.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
+#include <dns/rdatatype.h>
 #include <dns/result.h>
 
 #define CHECK(op) \
@@ -195,6 +199,9 @@ diff_apply(dns_diff_t *diff, dns_db_t *db, dns_dbversion_t *ver,
 	dns_difftuple_t *t;
 	dns_dbnode_t *node = NULL;
 	isc_result_t result;
+	char namebuf[DNS_NAME_FORMATSIZE];
+	char typebuf[DNS_RDATATYPE_FORMATSIZE];
+	char classbuf[DNS_RDATACLASS_FORMATSIZE];
 
 	REQUIRE(DNS_DIFF_VALID(diff));
 	REQUIRE(DNS_DB_VALID(db));
@@ -254,11 +261,19 @@ diff_apply(dns_diff_t *diff, dns_db_t *db, dns_dbversion_t *ver,
 			       t->rdata.type == type &&
 			       rdata_covers(&t->rdata) == covers)
 			{
+				dns_name_format(name, namebuf, sizeof(namebuf));
+				dns_rdatatype_format(t->rdata.type, typebuf,
+						     sizeof(typebuf));
+				dns_rdataclass_format(t->rdata.rdclass,
+						      classbuf,
+						      sizeof(classbuf));
 				if (t->ttl != rdl.ttl && warn)
 					isc_log_write(DIFF_COMMON_LOGARGS,
 					      	ISC_LOG_WARNING,
-						"TTL differs in rdataset, "
-						"adjusting %lu -> %lu",
+						"'%s/%s/%s': TTL differs in "
+						"rdataset, adjusting "
+						"%lu -> %lu",
+						namebuf, typebuf, classbuf,
 						(unsigned long) t->ttl,
 						(unsigned long) rdl.ttl);
 				ISC_LIST_APPEND(rdl.rdata, &t->rdata, link);

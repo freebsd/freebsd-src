@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.77.2.5.2.19 2006/08/04 03:03:08 marka Exp $ */
+/* $Id: rndc.c,v 1.96.18.17 2006/08/04 03:03:41 marka Exp $ */
+
+/*! \file */
 
 /*
  * Principal Author: DCL
@@ -30,6 +32,7 @@
 #include <isc/commandline.h>
 #include <isc/file.h>
 #include <isc/log.h>
+#include <isc/net.h>
 #include <isc/mem.h>
 #include <isc/random.h>
 #include <isc/socket.h>
@@ -50,6 +53,8 @@
 #include <isccc/types.h>
 #include <isccc/util.h>
 
+#include <dns/name.h>
+
 #include <bind9/getaddresses.h>
 
 #include "util.h"
@@ -64,6 +69,8 @@ static const char *admin_keyfile;
 static const char *version = VERSION;
 static const char *servername = NULL;
 static isc_sockaddr_t serveraddrs[SERVERADDRS];
+static isc_sockaddr_t local4, local6;
+static isc_boolean_t local4set = ISC_FALSE, local6set = ISC_FALSE;
 static int nserveraddrs;
 static int currentaddr = 0;
 static unsigned int remoteport = 0;
@@ -97,10 +104,14 @@ command is one of the following:\n\
 		Schedule immediate maintenance for a zone.\n\
   retransfer zone [class [view]]\n\
 		Retransfer a single zone without checking serial number.\n\
+  freeze	Suspend updates to all dynamic zones.\n\
   freeze zone [class [view]]\n\
   		Suspend updates to a dynamic zone.\n\
+  thaw		Enable updates to all dynamic zones and reload them.\n\
   thaw zone [class [view]]\n\
   		Enable updates to a frozen dynamic zone and reload it.\n\
+  notify zone [class [view]]\n\
+		Resend NOTIFY messages for the zone.\n\
   reconfig	Reload configuration file and new zones only.\n\
   stats		Write server statistics to the statistics file.\n\
   querylog	Toggle query logging.\n\
@@ -121,6 +132,8 @@ command is one of the following:\n\
 		Flush the given name from the server's cache(s)\n\
   status	Display status of the server.\n\
   recursing	Dump the queries that are currently recursing (named.recursing)\n\
+  validation newstate [view]\n\
+		Enable / disable DNSSEC validation.\n\
   *restart	Restart the server.\n\
 \n\
 * == not yet implemented\n\
@@ -133,11 +146,20 @@ Version: %s\n",
 static void
 get_addresses(const char *host, in_port_t port) {
 	isc_result_t result;
+	int found = 0, count;
 
-	isc_app_block();
-	result = bind9_getaddresses(servername, port,
-				    serveraddrs, SERVERADDRS, &nserveraddrs);
-	isc_app_unblock();
+	if (*host == '/') {
+		result = isc_sockaddr_frompath(&serveraddrs[nserveraddrs],
+					       host);
+		if (result == ISC_R_SUCCESS)
+			nserveraddrs++; 
+	} else {
+		count = SERVERADDRS - nserveraddrs;
+		result = bind9_getaddresses(host, port,
+					    &serveraddrs[nserveraddrs],
+					    count, &found);
+		nserveraddrs += found;
+	}
 	if (result != ISC_R_SUCCESS)
 		fatal("couldn't get address for '%s': %s",
 		      host, isc_result_totext(result));
@@ -174,10 +196,12 @@ rndc_recvdone(isc_task_t *task, isc_event_t *event) {
 
 	if (ccmsg.result == ISC_R_EOF)
 		fatal("connection to remote host closed\n"
-		      "This may indicate that the remote server is using "
-		      "an older version of \n"
-		      "the command protocol, this host is not authorized "
-		      "to connect,\nor the key is invalid.");
+		      "This may indicate that\n"
+		      "* the remote server is using an older version of"
+		      " the command protocol,\n"
+		      "* this host is not authorized to connect,\n"
+		      "* the clocks are not syncronized, or\n"
+		      "* the key is invalid.");
 
 	if (ccmsg.result != ISC_R_SUCCESS)
 		fatal("recv failed: %s", isc_result_totext(ccmsg.result));
@@ -235,10 +259,12 @@ rndc_recvnonce(isc_task_t *task, isc_event_t *event) {
 
 	if (ccmsg.result == ISC_R_EOF)
 		fatal("connection to remote host closed\n"
-		      "This may indicate that the remote server is using "
-		      "an older version of \n"
-		      "the command protocol, this host is not authorized "
-		      "to connect,\nor the key is invalid.");
+		      "This may indicate that\n"
+		      "* the remote server is using an older version of"
+		      " the command protocol,\n"
+		      "* this host is not authorized to connect,\n"
+		      "* the clocks are not syncronized, or\n"
+		      "* the key is invalid.");
 
 	if (ccmsg.result != ISC_R_SUCCESS)
 		fatal("recv failed: %s", isc_result_totext(ccmsg.result));
@@ -357,6 +383,8 @@ rndc_connected(isc_task_t *task, isc_event_t *event) {
 static void
 rndc_startconnect(isc_sockaddr_t *addr, isc_task_t *task) {
 	isc_result_t result;
+	int pf;
+	isc_sockettype_t type;
 
 	char socktext[ISC_SOCKADDR_FORMATSIZE];
 
@@ -364,9 +392,22 @@ rndc_startconnect(isc_sockaddr_t *addr, isc_task_t *task) {
 
 	notify("using server %s (%s)", servername, socktext);
 
-	DO("create socket", isc_socket_create(socketmgr,
-					      isc_sockaddr_pf(addr),
-					      isc_sockettype_tcp, &sock));
+	pf = isc_sockaddr_pf(addr);
+	if (pf == AF_INET || pf == AF_INET6)
+		type = isc_sockettype_tcp;
+	else
+		type = isc_sockettype_unix;
+	DO("create socket", isc_socket_create(socketmgr, pf, type, &sock));
+	switch (isc_sockaddr_pf(addr)) {
+	case AF_INET:
+		DO("bind socket", isc_socket_bind(sock, &local4));
+		break;
+	case AF_INET6:
+		DO("bind socket", isc_socket_bind(sock, &local6));
+		break;
+	default:
+		break;
+	}
 	DO("connect", isc_socket_connect(sock, addr, task, rndc_connected,
 					 NULL));
 	connects++;
@@ -375,8 +416,6 @@ rndc_startconnect(isc_sockaddr_t *addr, isc_task_t *task) {
 static void
 rndc_start(isc_task_t *task, isc_event_t *event) {
 	isc_event_free(&event);
-
-	get_addresses(servername, (in_port_t) remoteport);
 
 	currentaddr = 0;
 	rndc_startconnect(&serveraddrs[currentaddr], task);
@@ -388,6 +427,7 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 {
 	isc_result_t result;
 	const char *conffile = admin_conffile;
+	const cfg_obj_t *addresses = NULL;
 	const cfg_obj_t *defkey = NULL;
 	const cfg_obj_t *options = NULL;
 	const cfg_obj_t *servers = NULL;
@@ -398,12 +438,14 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 	const cfg_obj_t *secretobj = NULL;
 	const cfg_obj_t *algorithmobj = NULL;
 	cfg_obj_t *config = NULL;
+	const cfg_obj_t *address = NULL;
 	const cfg_listelt_t *elt;
 	const char *secretstr;
 	const char *algorithm;
 	static char secretarray[1024];
 	const cfg_type_t *conftype = &cfg_type_rndcconf;
 	isc_boolean_t key_only = ISC_FALSE;
+	const cfg_listelt_t *element;
 
 	if (! isc_file_exists(conffile)) {
 		conffile = admin_keyfile;
@@ -521,9 +563,95 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 	if (defport != NULL) {
 		remoteport = cfg_obj_asuint32(defport);
 		if (remoteport > 65535 || remoteport == 0)
-			fatal("port %d out of range", remoteport);
+			fatal("port %u out of range", remoteport);
 	} else if (remoteport == 0)
 		remoteport = NS_CONTROL_PORT;
+
+	if (server != NULL)
+		result = cfg_map_get(server, "addresses", &addresses);
+	else
+		result = ISC_R_NOTFOUND;
+	if (result == ISC_R_SUCCESS) {
+		for (element = cfg_list_first(addresses);
+		     element != NULL;
+		     element = cfg_list_next(element))
+		{
+			isc_sockaddr_t sa;
+
+			address = cfg_listelt_value(element);
+			if (!cfg_obj_issockaddr(address)) {
+				unsigned int myport;
+				const char *name;
+				const cfg_obj_t *obj;
+
+				obj = cfg_tuple_get(address, "name");
+				name = cfg_obj_asstring(obj);
+				obj = cfg_tuple_get(address, "port");
+				if (cfg_obj_isuint32(obj)) {
+					myport = cfg_obj_asuint32(obj);
+					if (myport > ISC_UINT16_MAX ||
+					    myport == 0)
+						fatal("port %u out of range",
+						      myport);
+				} else
+					myport = remoteport;
+				if (nserveraddrs < SERVERADDRS)
+					get_addresses(name, (in_port_t) myport);
+				else
+					fprintf(stderr, "too many address: "
+					        "%s: dropped\n", name);
+				continue;
+			}
+			sa = *cfg_obj_assockaddr(address);
+			if (isc_sockaddr_getport(&sa) == 0)
+				isc_sockaddr_setport(&sa, remoteport);
+			if (nserveraddrs < SERVERADDRS)
+				serveraddrs[nserveraddrs++] = sa;
+			else {
+				char socktext[ISC_SOCKADDR_FORMATSIZE];
+
+				isc_sockaddr_format(&sa, socktext,
+						    sizeof(socktext));
+				fprintf(stderr,
+					"too many address: %s: dropped\n",
+					socktext);
+			}
+		}
+	}
+
+	if (!local4set && server != NULL) {
+		address = NULL;
+		cfg_map_get(server, "source-address", &address);
+		if (address != NULL) {
+			local4 = *cfg_obj_assockaddr(address);
+			local4set = ISC_TRUE;
+		}
+	}
+	if (!local4set && options != NULL) {
+		address = NULL;
+		cfg_map_get(options, "default-source-address", &address);
+		if (address != NULL) {
+			local4 = *cfg_obj_assockaddr(address);
+			local4set = ISC_TRUE;
+		}
+	}
+
+	if (!local6set && server != NULL) {
+		address = NULL;
+		cfg_map_get(server, "source-address-v6", &address);
+		if (address != NULL) {
+			local6 = *cfg_obj_assockaddr(address);
+			local6set = ISC_TRUE;
+		}
+	}
+	if (!local6set && options != NULL) {
+		address = NULL;
+		cfg_map_get(options, "default-source-address-v6", &address);
+		if (address != NULL) {
+			local6 = *cfg_obj_assockaddr(address);
+			local6set = ISC_TRUE;
+		}
+	}
 
 	*configp = config;
 }
@@ -540,6 +668,8 @@ main(int argc, char **argv) {
 	cfg_parser_t *pctx = NULL;
 	cfg_obj_t *config = NULL;
 	const char *keyname = NULL;
+	struct in_addr in;
+	struct in6_addr in6;
 	char *p;
 	size_t argslen;
 	int ch;
@@ -553,13 +683,28 @@ main(int argc, char **argv) {
 	admin_conffile = RNDC_CONFFILE;
 	admin_keyfile = RNDC_KEYFILE;
 
+	isc_sockaddr_any(&local4);
+	isc_sockaddr_any6(&local6);
+
 	result = isc_app_start();
 	if (result != ISC_R_SUCCESS)
 		fatal("isc_app_start() failed: %s", isc_result_totext(result));
 
-	while ((ch = isc_commandline_parse(argc, argv, "c:k:Mmp:s:Vy:"))
+	while ((ch = isc_commandline_parse(argc, argv, "b:c:k:Mmp:s:Vy:"))
 	       != -1) {
 		switch (ch) {
+		case 'b':
+			if (inet_pton(AF_INET, isc_commandline_argument,
+				      &in) == 1) {
+				isc_sockaddr_fromin(&local4, &in, 0);
+				local4set = ISC_TRUE;
+			} else if (inet_pton(AF_INET6, isc_commandline_argument,
+					     &in6) == 1) {
+				isc_sockaddr_fromin6(&local6, &in6, 0);
+				local6set = ISC_TRUE;
+			}
+			break;
+
 		case 'c':
 			admin_conffile = isc_commandline_argument;
 			break;
@@ -586,15 +731,19 @@ main(int argc, char **argv) {
 		case 's':
 			servername = isc_commandline_argument;
 			break;
+
 		case 'V':
 			verbose = ISC_TRUE;
 			break;
+
 		case 'y':
 			keyname = isc_commandline_argument;
 			break;
+ 
 		case '?':
 			usage(0);
 			break;
+
 		default:
 			fatal("unexpected error parsing command arguments: "
 			      "got %c\n", ch);
@@ -665,6 +814,9 @@ main(int argc, char **argv) {
 	if (strcmp(command, "restart") == 0)
 		fatal("'%s' is not implemented", command);
 
+	if (nserveraddrs == 0)
+		get_addresses(servername, (in_port_t) remoteport);
+
 	DO("post event", isc_app_onrun(mctx, task, rndc_start, NULL));
 
 	result = isc_app_run();
@@ -685,6 +837,8 @@ main(int argc, char **argv) {
 
 	isc_mem_put(mctx, args, argslen);
 	isccc_ccmsg_invalidate(&ccmsg);
+
+	dns_name_destroy();
 
 	if (show_final_mem)
 		isc_mem_stats(mctx, stderr);

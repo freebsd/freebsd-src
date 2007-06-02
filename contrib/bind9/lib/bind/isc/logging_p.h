@@ -34,7 +34,7 @@ typedef union log_output {
 } log_output;
 
 struct log_channel {
-	int level;			/* don't log messages > level */
+	int level;			/*%< don't log messages > level */
 	log_channel_type type;
 	log_output out;
 	unsigned int flags;
@@ -58,3 +58,4 @@ struct log_context {
 };
 
 #endif /* !LOGGING_P_H */
+/*! \file */

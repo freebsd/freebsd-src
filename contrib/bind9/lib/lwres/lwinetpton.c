@@ -15,8 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*! \file lwinetpton.c
+ */
+
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id: lwinetpton.c,v 1.6.206.3 2005/03/31 23:56:15 marka Exp $";
+static char rcsid[] = "$Id: lwinetpton.c,v 1.7.18.3 2005/04/27 05:02:48 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>
@@ -38,7 +41,8 @@ static char rcsid[] = "$Id: lwinetpton.c,v 1.6.206.3 2005/03/31 23:56:15 marka E
 static int inet_pton4(const char *src, unsigned char *dst);
 static int inet_pton6(const char *src, unsigned char *dst);
 
-/* int
+/*! 
+ * int
  * lwres_net_pton(af, src, dst)
  *	convert from presentation format (which usually means ASCII printable)
  *	to network format (which is usually some kind of binary format).
@@ -63,7 +67,7 @@ lwres_net_pton(int af, const char *src, void *dst) {
 	/* NOTREACHED */
 }
 
-/* int
+/*! int
  * inet_pton4(src, dst)
  *	like inet_aton() but without all the hexadecimal and shorthand.
  * return:
@@ -110,7 +114,7 @@ inet_pton4(const char *src, unsigned char *dst) {
 	return (1);
 }
 
-/* int
+/*! int
  * inet_pton6(src, dst)
  *	convert presentation level address to network order binary form.
  * return:

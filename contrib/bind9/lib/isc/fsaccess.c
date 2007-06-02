@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,16 +15,17 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fsaccess.c,v 1.5.206.1 2004/03/06 08:14:29 marka Exp $ */
+/* $Id: fsaccess.c,v 1.6.18.2 2005/04/29 00:16:45 marka Exp $ */
 
-/*
+/*! \file
+ * \brief
  * This file contains the OS-independent functionality of the API.
  */
 #include <isc/fsaccess.h>
 #include <isc/result.h>
 #include <isc/util.h>
 
-/*
+/*!
  * Shorthand.  Maybe ISC__FSACCESS_PERMISSIONBITS should not even be in
  * <isc/fsaccess.h>.  Could check consistency with sizeof(isc_fsaccess_t)
  * and the number of bits in each function.

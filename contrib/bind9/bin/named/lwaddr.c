@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwaddr.c,v 1.3.208.1 2004/03/06 10:21:18 marka Exp $ */
+/* $Id: lwaddr.c,v 1.4.18.2 2005/04/29 00:15:23 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -29,7 +31,7 @@
 
 #include <named/lwaddr.h>
 
-/*
+/*%
  * Convert addresses from lwres to isc format.
  */
 isc_result_t
@@ -63,7 +65,7 @@ lwaddr_sockaddr_fromlwresaddr(isc_sockaddr_t *sa, lwres_addr_t *la,
 	return (ISC_R_SUCCESS);
 }
 
-/*
+/*%
  * Convert addresses from isc to lwres format.
  */
 

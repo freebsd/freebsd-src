@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_inetntop.3,v 1.12.2.1.8.6 2006/06/29 13:02:31 marka Exp $
+.\" $Id: lwres_inetntop.3,v 1.15.18.11 2007/01/30 00:23:45 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: lwres_inetntop
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -36,7 +36,7 @@ lwres_net_ntop \- lightweight resolver IP address presentation
 #include <lwres/net.h>
 .fi
 .HP 28
-.BI "const char * lwres_net_ntop(int\ af, const\ void\ *src, char\ *dst, size_t\ size);"
+.BI "const char * lwres_net_ntop(int\ " "af" ", const\ void\ *" "src" ", char\ *" "dst" ", size_t\ " "size" ");"
 .SH "DESCRIPTION"
 .PP
 \fBlwres_net_ntop()\fR
@@ -71,4 +71,7 @@ is not supported.
 \fBinet_ntop\fR(3),
 \fBerrno\fR(3).
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001 Internet Software Consortium.
+.br

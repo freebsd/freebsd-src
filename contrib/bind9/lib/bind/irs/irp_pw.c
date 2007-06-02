@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: irp_pw.c,v 1.2.206.1 2004/03/09 08:33:37 marka Exp $";
+static const char rcsid[] = "$Id: irp_pw.c,v 1.3.18.1 2005/04/27 05:01:01 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Extern */
@@ -55,9 +55,9 @@ static int __bind_irs_pw_unneeded;
 /* Types */
 
 struct	pvt {
-	struct irp_p   *girpdata; /* global IRP data */
+	struct irp_p   *girpdata; /*%< global IRP data */
 	int		warned;
-	struct passwd	passwd;		/* password structure */
+	struct passwd	passwd;		/*%< password structure */
 };
 
 /* Forward */
@@ -104,9 +104,7 @@ irs_irp_pw(struct irs_acc *this) {
 
 /* Methods */
 
-
-
-/*
+/*%
  * void pw_close(struct irs_pw *this)
  *
  */
@@ -123,10 +121,7 @@ pw_close(struct irs_pw *this) {
 	memput(this, sizeof *this);
 }
 
-
-
-
-/*
+/*%
  * struct passwd * pw_next(struct irs_pw *this)
  *
  */
@@ -170,10 +165,7 @@ pw_next(struct irs_pw *this) {
 	return (pw);
 }
 
-
-
-
-/*
+/*%
  * struct passwd * pw_byname(struct irs_pw *this, const char *name)
  *
  */
@@ -221,10 +213,7 @@ pw_byname(struct irs_pw *this, const char *name) {
 	return (pw);
 }
 
-
-
-
-/*
+/*%
  * struct passwd * pw_byuid(struct irs_pw *this, uid_t uid)
  *
  */
@@ -272,10 +261,7 @@ pw_byuid(struct irs_pw *this, uid_t uid) {
 	return (pw);
 }
 
-
-
-
-/*
+/*%
  * void pw_rewind(struct irs_pw *this)
  *
  */
@@ -304,8 +290,7 @@ pw_rewind(struct irs_pw *this) {
 	return;
 }
 
-
-/*
+/*%
  * void pw_minimize(struct irs_pw *this)
  *
  */
@@ -320,11 +305,7 @@ pw_minimize(struct irs_pw *this) {
 
 /* Private. */
 
-
-
-/*
- * static void free_passwd(struct passwd *pw);
- *
+/*%
  *	Deallocate all the memory irp_unmarshall_pw allocated.
  *
  */
@@ -356,3 +337,4 @@ free_passwd(struct passwd *pw) {
 }
 
 #endif /* WANT_IRS_PW */
+/*! \file */

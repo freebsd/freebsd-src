@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdclient.h,v 1.13.208.1 2004/03/06 10:21:24 marka Exp $ */
+/* $Id: lwdclient.h,v 1.14.18.2 2005/04/29 00:15:36 marka Exp $ */
 
 #ifndef NAMED_LWDCLIENT_H
 #define NAMED_LWDCLIENT_H 1
+
+/*! \file */
 
 #include <isc/event.h>
 #include <isc/eventclass.h>
@@ -37,23 +39,24 @@
 
 #define LWRD_SHUTDOWN		(LWRD_EVENTCLASS + 0x0001)
 
+/*% Lighweight Resolver Daemon Client */
 struct ns_lwdclient {
-	isc_sockaddr_t		address;	/* where to reply */
+	isc_sockaddr_t		address;	/*%< where to reply */
 	struct in6_pktinfo	pktinfo;
 	isc_boolean_t		pktinfo_valid;
-	ns_lwdclientmgr_t	*clientmgr;	/* our parent */
+	ns_lwdclientmgr_t	*clientmgr;	/*%< our parent */
 	ISC_LINK(ns_lwdclient_t) link;
 	unsigned int		state;
-	void			*arg;		/* packet processing state */
+	void			*arg;		/*%< packet processing state */
 
 	/*
 	 * Received data info.
 	 */
-	unsigned char		buffer[LWRES_RECVLENGTH]; /* receive buffer */
-	isc_uint32_t		recvlength;	/* length recv'd */
+	unsigned char		buffer[LWRES_RECVLENGTH]; /*%< receive buffer */
+	isc_uint32_t		recvlength;	/*%< length recv'd */
 	lwres_lwpacket_t	pkt;
 
-	/*
+	/*%
 	 * Send data state.  If sendbuf != buffer (that is, the send buffer
 	 * isn't our receive buffer) it will be freed to the lwres_context_t.
 	 */
@@ -61,19 +64,19 @@ struct ns_lwdclient {
 	isc_uint32_t		sendlength;
 	isc_buffer_t		recv_buffer;
 
-	/*
+	/*%
 	 * gabn (get address by name) state info.
 	 */
 	dns_adbfind_t		*find;
 	dns_adbfind_t		*v4find;
 	dns_adbfind_t		*v6find;
-	unsigned int		find_wanted;	/* Addresses we want */
+	unsigned int		find_wanted;	/*%< Addresses we want */
 	dns_fixedname_t		query_name;
 	dns_fixedname_t		target_name;
 	ns_lwsearchctx_t	searchctx;
 	lwres_gabnresponse_t	gabn;
 
-	/*
+	/*%
 	 * gnba (get name by address) state info.
 	 */
 	lwres_gnbaresponse_t	gnba;
@@ -81,7 +84,7 @@ struct ns_lwdclient {
 	unsigned int		options;
 	isc_netaddr_t		na;
 
-	/*
+	/*%
 	 * grbn (get rrset by name) state info.
 	 *
 	 * Note: this also uses target_name and searchctx.
@@ -90,7 +93,7 @@ struct ns_lwdclient {
 	dns_lookup_t	       *lookup;
 	dns_rdatatype_t		rdtype;
 
-	/*
+	/*%
 	 * Alias and address info.  This is copied up to the gabn/gnba
 	 * structures eventually.
 	 *
@@ -103,7 +106,7 @@ struct ns_lwdclient {
 	lwres_addr_t		addrs[LWRES_MAX_ADDRS];
 };
 
-/*
+/*%
  * Client states.
  *
  * _IDLE	The client is not doing anything at all.
@@ -156,7 +159,7 @@ struct ns_lwdclient {
 #define NS_LWDCLIENT_ISSEND(c)		\
 			((c)->state == NS_LWDCLIENT_STATESEND)
 
-/*
+/*%
  * Overall magic test that means we're not idle.
  */
 #define NS_LWDCLIENT_ISRUNNING(c)	(!NS_LWDCLIENT_ISIDLE(c))
@@ -174,17 +177,18 @@ struct ns_lwdclient {
 #define NS_LWDCLIENT_SETSENDDONE(c)	\
 			((c)->state = NS_LWDCLIENT_STATESENDDONE)
 
+/*% lightweight daemon client manager */
 struct ns_lwdclientmgr {
 	ns_lwreslistener_t     *listener;
 	isc_mem_t	       *mctx;
-	isc_socket_t	       *sock;		/* socket to use */
+	isc_socket_t	       *sock;		/*%< socket to use */
 	dns_view_t	       *view;
-	lwres_context_t	       *lwctx;		/* lightweight proto context */
-	isc_task_t	       *task;		/* owning task */
+	lwres_context_t	       *lwctx;		/*%< lightweight proto context */
+	isc_task_t	       *task;		/*%< owning task */
 	unsigned int		flags;
 	ISC_LINK(ns_lwdclientmgr_t)	link;
-	ISC_LIST(ns_lwdclient_t)	idle;		/* idle client slots */
-	ISC_LIST(ns_lwdclient_t)	running;	/* running clients */
+	ISC_LIST(ns_lwdclient_t)	idle;		/*%< idle client slots */
+	ISC_LIST(ns_lwdclient_t)	running;	/*%< running clients */
 };
 
 #define NS_LWDCLIENTMGR_FLAGRECVPENDING		0x00000001

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyflags.h,v 1.9.206.1 2004/03/06 08:13:56 marka Exp $ */
+/* $Id: keyflags.h,v 1.10.18.2 2005/04/29 00:16:13 marka Exp $ */
 
 #ifndef DNS_KEYFLAGS_H
 #define DNS_KEYFLAGS_H 1
+
+/*! \file */
 
 #include <isc/lang.h>
 
@@ -28,7 +30,7 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 dns_keyflags_fromtext(dns_keyflags_t *flagsp, isc_textregion_t *source);
-/*
+/*%<
  * Convert the text 'source' refers to into a DNSSEC KEY flags value.
  * The text may contain either a set of flag mnemonics separated by
  * vertical bars or a decimal flags value.  For compatibility with
@@ -37,14 +39,14 @@ dns_keyflags_fromtext(dns_keyflags_t *flagsp, isc_textregion_t *source);
  * are also accepted.
  *
  * Requires:
- *	'flagsp' is a valid pointer.
+ *\li	'flagsp' is a valid pointer.
  *
- *	'source' is a valid text region.
+ *\li	'source' is a valid text region.
  *
  * Returns:
- *	ISC_R_SUCCESS			on success
- *	ISC_R_RANGE			numeric flag value is out of range
- *	DNS_R_UNKNOWN			mnemonic flag is unknown
+ *\li	ISC_R_SUCCESS			on success
+ *\li	ISC_R_RANGE			numeric flag value is out of range
+ *\li	DNS_R_UNKNOWN			mnemonic flag is unknown
  */
 
 ISC_LANG_ENDDECLS
