@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lookup.h,v 1.5.206.1 2004/03/06 08:13:57 marka Exp $ */
+/* $Id: lookup.h,v 1.6.18.2 2005/04/29 00:16:15 marka Exp $ */
 
 #ifndef DNS_LOOKUP_H
 #define DNS_LOOKUP_H 1
@@ -24,29 +24,28 @@
  ***** Module Info
  *****/
 
-/*
- * DNS Lookup
- *
+/*! \file
+ * \brief
  * The lookup module performs simple DNS lookups.  It implements
  * the full resolver algorithm, both looking for local data and 
  * resoving external names as necessary.
  *
  * MP:
- *	The module ensures appropriate synchronization of data structures it
+ *\li	The module ensures appropriate synchronization of data structures it
  *	creates and manipulates.
  *
  * Reliability:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  *
  * Resources:
- *	<TBS>
+ *\li	TBS
  *
  * Security:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  *
  * Standards:
- *	RFCs:	1034, 1035, 2181, <TBS>
- *	Drafts:	<TBS>
+ *\li	RFCs:	1034, 1035, 2181, TBS
+ *\li	Drafts:	TBS
  */
 
 #include <isc/lang.h>
@@ -56,7 +55,7 @@
 
 ISC_LANG_BEGINDECLS
 
-/*
+/*%
  * A 'dns_lookupevent_t' is returned when a lookup completes.
  * The sender field will be set to the lookup that completed.  If 'result'
  * is ISC_R_SUCCESS, then 'names' will contain a list of names associated
@@ -77,60 +76,60 @@ isc_result_t
 dns_lookup_create(isc_mem_t *mctx, dns_name_t *name, dns_rdatatype_t type,
 		  dns_view_t *view, unsigned int options, isc_task_t *task,
 		  isc_taskaction_t action, void *arg, dns_lookup_t **lookupp);
-/*
+/*%<
  * Finds the rrsets matching 'name' and 'type'.
  *
  * Requires:
  *
- *	'mctx' is a valid mctx.
+ *\li	'mctx' is a valid mctx.
  *
- *	'name' is a valid name.
+ *\li	'name' is a valid name.
  *
- *	'view' is a valid view which has a resolver.
+ *\li	'view' is a valid view which has a resolver.
  *
- *	'task' is a valid task.
+ *\li	'task' is a valid task.
  *
- *	lookupp != NULL && *lookupp == NULL
+ *\li	lookupp != NULL && *lookupp == NULL
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
- *	ISC_R_NOMEMORY
+ *\li	ISC_R_SUCCESS
+ *\li	ISC_R_NOMEMORY
  *
- *	Any resolver-related error (e.g. ISC_R_SHUTTINGDOWN) may also be
+ *\li	Any resolver-related error (e.g. ISC_R_SHUTTINGDOWN) may also be
  *	returned.
  */
 
 void
 dns_lookup_cancel(dns_lookup_t *lookup);
-/*
+/*%<
  * Cancel 'lookup'.
  *
  * Notes:
  *
- *	If 'lookup' has not completed, post its LOOKUPDONE event with a
+ *\li	If 'lookup' has not completed, post its LOOKUPDONE event with a
  *	result code of ISC_R_CANCELED.
  *
  * Requires:
  *
- *	'lookup' is a valid lookup.
+ *\li	'lookup' is a valid lookup.
  */
 
 void
 dns_lookup_destroy(dns_lookup_t **lookupp);
-/*
+/*%<
  * Destroy 'lookup'.
  *
  * Requires:
  *
- *	'*lookupp' is a valid lookup.
+ *\li	'*lookupp' is a valid lookup.
  *
- *	The caller has received the LOOKUPDONE event (either because the
+ *\li	The caller has received the LOOKUPDONE event (either because the
  *	lookup completed or because dns_lookup_cancel() was called).
  *
  * Ensures:
  *
- *	*lookupp == NULL.
+ *\li	*lookupp == NULL.
  */
 
 ISC_LANG_ENDDECLS

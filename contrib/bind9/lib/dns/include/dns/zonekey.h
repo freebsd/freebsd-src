@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zonekey.h,v 1.3.206.1 2004/03/06 08:14:01 marka Exp $ */
+/* $Id: zonekey.h,v 1.4.18.2 2005/04/29 00:16:26 marka Exp $ */
 
 #ifndef DNS_ZONEKEY_H
 #define DNS_ZONEKEY_H 1
+
+/*! \file */
 
 #include <isc/lang.h>
 
@@ -28,7 +30,7 @@ ISC_LANG_BEGINDECLS
 
 isc_boolean_t
 dns_zonekey_iszonekey(dns_rdata_t *keyrdata);
-/*
+/*%<
  *	Determines if the key record contained in the rdata is a zone key.
  *
  *	Requires:

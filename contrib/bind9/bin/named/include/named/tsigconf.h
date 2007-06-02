@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsigconf.h,v 1.9.208.3 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: tsigconf.h,v 1.10.18.4 2006/03/02 00:37:21 marka Exp $ */
 
 #ifndef NS_TSIGCONF_H
 #define NS_TSIGCONF_H 1
+
+/*! \file */
 
 #include <isc/types.h>
 #include <isc/lang.h>
@@ -28,18 +30,18 @@ ISC_LANG_BEGINDECLS
 isc_result_t
 ns_tsigkeyring_fromconfig(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 			  isc_mem_t *mctx, dns_tsig_keyring_t **ringp);
-/*
+/*%<
  * Create a TSIG key ring and configure it according to the 'key'
  * statements in the global and view configuration objects.
  *
  *	Requires:
- *		'config' is not NULL.
- *		'mctx' is not NULL
- *		'ring' is not NULL, and '*ring' is NULL
+ *	\li	'config' is not NULL.
+ *	\li	'mctx' is not NULL
+ *	\li	'ring' is not NULL, and '*ring' is NULL
  *
  *	Returns:
- *		ISC_R_SUCCESS
- *		ISC_R_NOMEMORY
+ *	\li	ISC_R_SUCCESS
+ *	\li	ISC_R_NOMEMORY
  */
 
 ISC_LANG_ENDDECLS

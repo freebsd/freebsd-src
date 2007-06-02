@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hex.c,v 1.8.2.2.8.3 2004/03/06 08:14:30 marka Exp $ */
+/* $Id: hex.c,v 1.14.18.2 2005/04/29 00:16:46 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -73,13 +75,13 @@ isc_hex_totext(isc_region_t *source, int wordlength,
 	return (ISC_R_SUCCESS);
 }
 
-/*
+/*%
  * State of a hex decoding process in progress.
  */
 typedef struct {
-	int length;		/* Desired length of binary data or -1 */
-	isc_buffer_t *target;	/* Buffer for resulting binary data */
-	int digits;		/* Number of buffered hex digits */
+	int length;		/*%< Desired length of binary data or -1 */
+	isc_buffer_t *target;	/*%< Buffer for resulting binary data */
+	int digits;		/*%< Number of buffered hex digits */
 	int val[2];
 } hex_decode_ctx_t;
 

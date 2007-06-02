@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.c,v 1.23.52.6 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: acl.c,v 1.25.18.5 2006/03/02 00:37:21 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -41,7 +43,11 @@ dns_acl_create(isc_mem_t *mctx, int n, dns_acl_t **target) {
 		return (ISC_R_NOMEMORY);
 	acl->mctx = mctx;
 	acl->name = NULL;
-	isc_refcount_init(&acl->refcount, 1);
+	result = isc_refcount_init(&acl->refcount, 1);
+	if (result != ISC_R_SUCCESS) {
+		isc_mem_put(mctx, acl, sizeof(*acl));
+		return (result);
+	}
 	acl->elements = NULL;
 	acl->alloc = 0;
 	acl->length = 0;

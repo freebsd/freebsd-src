@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Id: gettimeofday.c,v 1.1.2.2 2002/07/12 00:49:51 marka Exp $";
+static const char rcsid[] = "$Id: gettimeofday.c,v 1.3.332.1 2005/04/27 05:00:43 sra Exp $";
 #endif
 
 #include "port_before.h"
@@ -9,7 +9,7 @@ static const char rcsid[] = "$Id: gettimeofday.c,v 1.1.2.2 2002/07/12 00:49:51 m
 #include "port_after.h"
 
 #if !defined(NEED_GETTIMEOFDAY)
-/*
+/*%
  * gettimeofday() occasionally returns invalid tv_usec on some platforms.
  */
 #define MILLION 1000000
@@ -60,3 +60,5 @@ gettimeofday(struct timeval *tvp, struct _TIMEZONE *tzp) {
 	return (0);
 }
 #endif /*NEED_GETTIMEOFDAY*/
+
+/*! \file */

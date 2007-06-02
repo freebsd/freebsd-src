@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_netint.c,v 1.1.206.1 2004/03/09 08:33:44 marka Exp $";
+static const char rcsid[] = "$Id: ns_netint.c,v 1.2.18.1 2005/04/27 05:01:08 sra Exp $";
 #endif
 
 /* Import. */
@@ -54,3 +54,5 @@ void
 ns_put32(u_long src, u_char *dst) {
 	NS_PUT32(src, dst);
 }
+
+/*! \file */

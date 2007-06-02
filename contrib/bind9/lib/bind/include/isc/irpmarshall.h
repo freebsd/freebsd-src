@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: irpmarshall.h,v 1.1.2.1.4.1 2004/03/09 08:33:31 marka Exp $
+ * $Id: irpmarshall.h,v 1.3.18.1 2005/04/27 05:00:51 sra Exp $
  */
 
 #ifndef _IRPMARSHALL_H_INCLUDED
@@ -63,7 +63,8 @@ int irp_unmarshall_nw(struct nwent *, char *);
 int irp_marshall_ne(struct netent *, char **, size_t *);
 int irp_unmarshall_ne(struct netent *, char *);
 
-/*
+/*! \file
+ * \brief
  * Functions to marshall and unmarshall various system data structures. We
  * use a printable ascii format that is as close to various system config
  * files as reasonable (e.g. /etc/passwd format).
@@ -79,9 +80,7 @@ int irp_unmarshall_ne(struct netent *, char *);
  *
  * The following description is true for all the marshalling functions:
  *
- */
-
-/* int irp_marshall_XX(struct yyyy *XX, char **buffer, size_t *len);
+ * int irp_marshall_XX(struct yyyy *XX, char **buffer, size_t *len);
  *
  * The argument XX (of type struct passwd for example) is marshalled in the
  * buffer pointed at by *BUFFER, which is of length *LEN. Returns 0
@@ -101,9 +100,7 @@ int irp_unmarshall_ne(struct netent *, char *);
  * to separate fields). Fields that have multiple subfields (like the
  * gr_mem field in struct group) have their subparts separated by
  * commas.
- */
-
-/*
+ *
  * int irp_unmarshall_XX(struct YYYYY *XX, char *buffer);
  *
  * The unmashalling functions break apart the buffer and store the

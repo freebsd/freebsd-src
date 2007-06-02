@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.c,v 1.45.2.4.8.15 2006/08/01 01:07:05 marka Exp $ */
+/* $Id: cache.c,v 1.57.18.16 2006/08/01 01:06:48 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -29,6 +31,7 @@
 #include <dns/db.h>
 #include <dns/dbiterator.h>
 #include <dns/events.h>
+#include <dns/lib.h>
 #include <dns/log.h>
 #include <dns/masterdump.h>
 #include <dns/rdata.h>
@@ -39,13 +42,18 @@
 #define CACHE_MAGIC		ISC_MAGIC('$', '$', '$', '$')
 #define VALID_CACHE(cache)	ISC_MAGIC_VALID(cache, CACHE_MAGIC)
 
-/*
- * The following two variables control incremental cleaning.
- * MINSIZE is how many bytes is the floor for dns_cache_setcachesize().
- * CLEANERINCREMENT is how many nodes are examined in one pass.
+/*! 
+ * Control incremental cleaning.
+ * DNS_CACHE_MINSIZE is how many bytes is the floor for dns_cache_setcachesize().
+ * See also DNS_CACHE_CLEANERINCREMENT
  */
-#define DNS_CACHE_MINSIZE 		2097152	/* Bytes.  2097152 = 2 MB */
-#define DNS_CACHE_CLEANERINCREMENT	1000	/* Number of nodes. */
+#define DNS_CACHE_MINSIZE 		2097152	/*%< Bytes.  2097152 = 2 MB */
+/*! 
+ * Control incremental cleaning.
+ * CLEANERINCREMENT is how many nodes are examined in one pass.
+ * See also DNS_CACHE_MINSIZE 
+ */
+#define DNS_CACHE_CLEANERINCREMENT	1000U	/*%< Number of nodes. */
 
 /***
  ***	Types
@@ -59,9 +67,9 @@
 typedef struct cache_cleaner cache_cleaner_t;
 
 typedef enum {
-	cleaner_s_idle,	/* Waiting for cleaning-interval to expire. */
-	cleaner_s_busy,	/* Currently cleaning. */
-	cleaner_s_done  /* Freed enough memory after being overmem. */
+	cleaner_s_idle,	/*%< Waiting for cleaning-interval to expire. */
+	cleaner_s_busy,	/*%< Currently cleaning. */
+	cleaner_s_done  /*%< Freed enough memory after being overmem. */
 } cleaner_state_t;
 
 /*
@@ -73,13 +81,13 @@ typedef enum {
 			 (c)->iterator != NULL && \
 			 (c)->resched_event == NULL)
 
-/*
+/*%
  * Accesses to a cache cleaner object are synchronized through
  * task/event serialization, or locked from the cache object.
  */
 struct cache_cleaner {
 	isc_mutex_t	lock;
-	/*
+	/*%<
 	 * Locks overmem_event, overmem.  Note: never allocate memory
 	 * while holding this lock - that could lead to deadlock since
 	 * the lock is take by water() which is called from the memory
@@ -88,22 +96,22 @@ struct cache_cleaner {
 
 	dns_cache_t	*cache;
 	isc_task_t 	*task;
-	unsigned int	cleaning_interval; /* The cleaning-interval from
+	unsigned int	cleaning_interval; /*% The cleaning-interval from
 					      named.conf, in seconds. */
 	isc_timer_t 	*cleaning_timer;
-	isc_event_t	*resched_event;	/* Sent by cleaner task to
+	isc_event_t	*resched_event;	/*% Sent by cleaner task to
 					   itself to reschedule */
 	isc_event_t	*overmem_event;
 
 	dns_dbiterator_t *iterator;
-	int 		 increment;	/* Number of names to
+	unsigned int 	 increment;	/*% Number of names to
 					   clean in one increment */
-	cleaner_state_t  state;		/* Idle/Busy. */
-	isc_boolean_t	 overmem;	/* The cache is in an overmem state. */
+	cleaner_state_t  state;		/*% Idle/Busy. */
+	isc_boolean_t	 overmem;	/*% The cache is in an overmem state. */
 	isc_boolean_t	 replaceiterator;
 };
 
-/*
+/*%
  * The actual cache object.
  */
 
@@ -149,6 +157,79 @@ cleaner_shutdown_action(isc_task_t *task, isc_event_t *event);
 static void
 overmem_cleaning_action(isc_task_t *task, isc_event_t *event);
 
+/*%
+ * Work out how many nodes can be cleaned in the time between two
+ * requests to the nameserver.  Smooth the resulting number and use
+ * it as a estimate for the number of nodes to be cleaned in the next
+ * iteration.
+ */
+static void
+adjust_increment(cache_cleaner_t *cleaner, unsigned int remaining,
+		 isc_time_t *start)
+{
+	isc_time_t end;
+	isc_uint64_t usecs;
+	isc_uint64_t new;
+	unsigned int pps = dns_pps;
+	unsigned int interval;
+	unsigned int names;
+	
+	/*
+	 * Tune for minumum of 100 packets per second (pps).
+	 */
+	if (pps < 100)
+		pps = 100;
+
+	isc_time_now(&end);
+
+	interval = 1000000 / pps; /* Interval between packets in usecs. */
+	if (interval == 0)
+		interval = 1;
+
+	INSIST(cleaner->increment >= remaining);
+	names = cleaner->increment - remaining;
+	usecs = isc_time_microdiff(&end, start);
+
+	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE, DNS_LOGMODULE_CACHE,
+		      ISC_LOG_DEBUG(1), "adjust_increment interval=%u "
+		      "names=%u usec=%" ISC_PLATFORM_QUADFORMAT "u",
+		      interval, names, usecs);
+	
+	if (usecs == 0) {
+		/*
+		 * If we cleaned all the nodes in unmeasurable time
+		 * double the number of nodes to be cleaned next time.
+		 */
+		if (names == cleaner->increment) {
+			cleaner->increment *= 2;
+			if (cleaner->increment > DNS_CACHE_CLEANERINCREMENT)
+				cleaner->increment = DNS_CACHE_CLEANERINCREMENT;
+			isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
+				      DNS_LOGMODULE_CACHE, ISC_LOG_DEBUG(1),
+				      "%p:new cleaner->increment = %u\n",
+				      cleaner, cleaner->increment);
+		}
+		return;
+	}
+
+	new = (names * interval);
+	new /= (usecs * 2);
+	if (new == 0)
+		new = 1;
+
+	/* Smooth */
+	new = (new + cleaner->increment * 7) / 8;
+
+	if (new > DNS_CACHE_CLEANERINCREMENT)
+		new = DNS_CACHE_CLEANERINCREMENT;
+
+	cleaner->increment = (unsigned int)new;
+
+	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE, DNS_LOGMODULE_CACHE,
+		      ISC_LOG_DEBUG(1), "%p:new cleaner->increment = %u\n",
+		      cleaner, cleaner->increment);
+}
+
 static inline isc_result_t
 cache_create_db(dns_cache_t *cache, dns_db_t **db) {
 	return (dns_db_create(cache->mctx, cache->db_type, dns_rootname,
@@ -178,22 +259,12 @@ dns_cache_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	isc_mem_attach(mctx, &cache->mctx);
 
 	result = isc_mutex_init(&cache->lock);
-	if (result != ISC_R_SUCCESS) {
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_mutex_init() failed: %s",
-				 dns_result_totext(result));
-		result = ISC_R_UNEXPECTED;
+	if (result != ISC_R_SUCCESS)
 		goto cleanup_mem;
-	}
 
 	result = isc_mutex_init(&cache->filelock);
-	if (result != ISC_R_SUCCESS) {
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_mutex_init() failed: %s",
-				 dns_result_totext(result));
-		result = ISC_R_UNEXPECTED;
+	if (result != ISC_R_SUCCESS)
 		goto cleanup_lock;
-	}
 
 	cache->references = 1;
 	cache->live_tasks = 0;
@@ -488,13 +559,8 @@ cache_cleaner_init(dns_cache_t *cache, isc_taskmgr_t *taskmgr,
 	isc_result_t result;
 
 	result = isc_mutex_init(&cleaner->lock);
-	if (result != ISC_R_SUCCESS) {
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_mutex_init() failed: %s",
-				 dns_result_totext(result));
-		result = ISC_R_UNEXPECTED;
+	if (result != ISC_R_SUCCESS)
 		goto fail;
-	}
 
 	cleaner->increment = DNS_CACHE_CLEANERINCREMENT;
 	cleaner->state = cleaner_s_idle;
@@ -740,7 +806,8 @@ static void
 incremental_cleaning_action(isc_task_t *task, isc_event_t *event) {
 	cache_cleaner_t *cleaner = event->ev_arg;
 	isc_result_t result;
-	int n_names;
+	unsigned int n_names;
+	isc_time_t start;
 
 	UNUSED(task);
 
@@ -770,6 +837,7 @@ incremental_cleaning_action(isc_task_t *task, isc_event_t *event) {
 
 	REQUIRE(DNS_DBITERATOR_VALID(cleaner->iterator));
 
+	isc_time_now(&start);
 	while (n_names-- > 0) {
 		dns_dbnode_t *node = NULL;
 
@@ -780,6 +848,7 @@ incremental_cleaning_action(isc_task_t *task, isc_event_t *event) {
 				 "cache cleaner: dns_dbiterator_current() "
 				 "failed: %s", dns_result_totext(result));
 
+			adjust_increment(cleaner, n_names, &start);
 			end_cleaning(cleaner, event);
 			return;
 		}
@@ -823,10 +892,13 @@ incremental_cleaning_action(isc_task_t *task, isc_event_t *event) {
 				}
 			}
 
+			adjust_increment(cleaner, n_names, &start);
 			end_cleaning(cleaner, event);
 			return;
 		}
 	}
+
+	adjust_increment(cleaner, 0U, &start);
 
 	/*
 	 * We have successfully performed a cleaning increment but have
@@ -838,7 +910,7 @@ incremental_cleaning_action(isc_task_t *task, isc_event_t *event) {
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE, DNS_LOGMODULE_CACHE,
-		      ISC_LOG_DEBUG(1), "cache cleaner: checked %d nodes, "
+		      ISC_LOG_DEBUG(1), "cache cleaner: checked %u nodes, "
 		      "mem inuse %lu, sleeping", cleaner->increment,
 		      (unsigned long)isc_mem_inuse(cleaner->cache->mctx));
 

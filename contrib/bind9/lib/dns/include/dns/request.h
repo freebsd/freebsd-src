@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: request.h,v 1.17.12.5 2004/03/08 09:04:39 marka Exp $ */
+/* $Id: request.h,v 1.21.18.2 2005/04/29 00:16:20 marka Exp $ */
 
 #ifndef DNS_REQUEST_H
 #define DNS_REQUEST_H 1
@@ -24,21 +24,21 @@
  ***** Module Info
  *****/
 
-/*
- * DNS Request
+/*! \file
  *
+ * \brief
  * The request module provides simple request/response services useful for
  * sending SOA queries, DNS Notify messages, and dynamic update requests.
  *
  * MP:
- *	The module ensures appropriate synchronization of data structures it
+ *\li	The module ensures appropriate synchronization of data structures it
  *	creates and manipulates.
  *
  * Resources:
- *	<TBS>
+ *\li	TBS
  *
  * Security:
- *	No anticipated impact.
+ *\li	No anticipated impact.
  */
 
 #include <isc/lang.h>
@@ -62,102 +62,101 @@ dns_requestmgr_create(isc_mem_t *mctx, isc_timermgr_t *timermgr,
 		      dns_dispatchmgr_t *dispatchmgr,
 		      dns_dispatch_t *dispatchv4, dns_dispatch_t *dispatchv6,
 		      dns_requestmgr_t **requestmgrp);
-/*
+/*%<
  * Create a request manager.
  *
  * Requires:
  *
- *	'mctx' is a valid memory context.
+ *\li	'mctx' is a valid memory context.
  *
- *	'timermgr' is a valid timer manager.
+ *\li	'timermgr' is a valid timer manager.
  *
- *	'socketmgr' is a valid socket manager.
+ *\li	'socketmgr' is a valid socket manager.
  *
- *	'taskmgr' is a valid task manager.
+ *\li	'taskmgr' is a valid task manager.
  *
- *	'dispatchv4' is a valid dispatcher with an IPv4 UDP socket, or is NULL.
+ *\li	'dispatchv4' is a valid dispatcher with an IPv4 UDP socket, or is NULL.
  *
- *	'dispatchv6' is a valid dispatcher with an IPv6 UDP socket, or is NULL.
+ *\li	'dispatchv6' is a valid dispatcher with an IPv6 UDP socket, or is NULL.
  *
- *	requestmgrp != NULL && *requestmgrp == NULL
+ *\li	requestmgrp != NULL && *requestmgrp == NULL
  *
  * Ensures:
  *
- *	On success, *requestmgrp is a valid request manager.
+ *\li	On success, *requestmgrp is a valid request manager.
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
+ *\li	ISC_R_SUCCESS
  *
- *	Any other result indicates failure.
+ *\li	Any other result indicates failure.
  */
 
 void
 dns_requestmgr_whenshutdown(dns_requestmgr_t *requestmgr, isc_task_t *task,
 			    isc_event_t **eventp);
-/*
+/*%<
  * Send '*eventp' to 'task' when 'requestmgr' has completed shutdown.
  *
  * Notes:
  *
- *	It is not safe to detach the last reference to 'requestmgr' until
+ *\li	It is not safe to detach the last reference to 'requestmgr' until
  *	shutdown is complete.
  *
  * Requires:
  *
- *	'requestmgr' is a valid request manager.
+ *\li	'requestmgr' is a valid request manager.
  *
- *	'task' is a valid task.
+ *\li	'task' is a valid task.
  *
- *	*eventp is a valid event.
+ *\li	*eventp is a valid event.
  *
  * Ensures:
  *
- *	*eventp == NULL.
+ *\li	*eventp == NULL.
  */
 
 void
 dns_requestmgr_shutdown(dns_requestmgr_t *requestmgr);
-/*
+/*%<
  * Start the shutdown process for 'requestmgr'.
  *
  * Notes:
  *
- *	This call has no effect if the request manager is already shutting
+ *\li	This call has no effect if the request manager is already shutting
  *	down.
  *
  * Requires:
  *
- *	'requestmgr' is a valid requestmgr.
+ *\li	'requestmgr' is a valid requestmgr.
  */
 
 void
 dns_requestmgr_attach(dns_requestmgr_t *source, dns_requestmgr_t **targetp);
-/*
+/*%<
  *	Attach to the request manager.  dns_requestmgr_shutdown() must not
  *	have been called on 'source' prior to calling dns_requestmgr_attach().
  *
  * Requires:
  *
- *	'source' is a valid requestmgr.
+ *\li	'source' is a valid requestmgr.
  *
- *	'targetp' to be non NULL and '*targetp' to be NULL.
+ *\li	'targetp' to be non NULL and '*targetp' to be NULL.
  */
 
 void
 dns_requestmgr_detach(dns_requestmgr_t **requestmgrp);
-/*
- *
+/*%<
  *	Detach from the given requestmgr.  If this is the final detach
  *	requestmgr will be destroyed.  dns_requestmgr_shutdown() must
  *	be called before the final detach.
  *
  * Requires:
  *
- *	'*requestmgrp' is a valid requestmgr.
+ *\li	'*requestmgrp' is a valid requestmgr.
  *
  * Ensures:
- *	'*requestmgrp' is NULL.
+ *\li	'*requestmgrp' is NULL.
  */
 
 isc_result_t
@@ -167,31 +166,32 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 		   unsigned int timeout, isc_task_t *task,
 		   isc_taskaction_t action, void *arg,
 		   dns_request_t **requestp);
-/*
+/*%<
  * Create and send a request.
  *
  * Notes:
  *
- *	'message' will be rendered and sent to 'address'.  If the
- *	DNS_REQUESTOPT_TCP option is set, TCP will be used.  The request
+ *\li	'message' will be rendered and sent to 'address'.  If the
+ *	#DNS_REQUESTOPT_TCP option is set, TCP will be used.  The request
  *	will timeout after 'timeout' seconds.
  *
- *	When the request completes, successfully, due to a timeout, or
+ *\li	When the request completes, successfully, due to a timeout, or
  *	because it was canceled, a completion event will be sent to 'task'.
  *
  * Requires:
  *
- *	'message' is a valid DNS message.
+ *\li	'message' is a valid DNS message.
  *
- *	'address' is a valid sockaddr.
+ *\li	'address' is a valid sockaddr.
  *
- *	'timeout' > 0
+ *\li	'timeout' > 0
  *
- *	'task' is a valid task.
+ *\li	'task' is a valid task.
  *
- *	requestp != NULL && *requestp == NULL
+ *\li	requestp != NULL && *requestp == NULL
  */
 
+/*% See dns_request_createvia3() */
 isc_result_t
 dns_request_createvia(dns_requestmgr_t *requestmgr, dns_message_t *message,
 		      isc_sockaddr_t *srcaddr, isc_sockaddr_t *destaddr,
@@ -200,6 +200,7 @@ dns_request_createvia(dns_requestmgr_t *requestmgr, dns_message_t *message,
 		      isc_taskaction_t action, void *arg,
 		      dns_request_t **requestp);
 
+/*% See dns_request_createvia3() */
 isc_result_t
 dns_request_createvia2(dns_requestmgr_t *requestmgr, dns_message_t *message,
 		       isc_sockaddr_t *srcaddr, isc_sockaddr_t *destaddr,
@@ -216,36 +217,37 @@ dns_request_createvia3(dns_requestmgr_t *requestmgr, dns_message_t *message,
 		       unsigned int udpretries, isc_task_t *task,
 		       isc_taskaction_t action, void *arg,
 		       dns_request_t **requestp);
-/*
+/*%< 
  * Create and send a request.
  *
  * Notes:
  *
- *	'message' will be rendered and sent to 'address'.  If the
- *	DNS_REQUESTOPT_TCP option is set, TCP will be used.  The request
+ *\li	'message' will be rendered and sent to 'address'.  If the
+ *	#DNS_REQUESTOPT_TCP option is set, TCP will be used.  The request
  *	will timeout after 'timeout' seconds.  UDP requests will be resent
  *	at 'udptimeout' intervals if non-zero or 'udpretries' is non-zero.
  *
- *	When the request completes, successfully, due to a timeout, or
+ *\li	When the request completes, successfully, due to a timeout, or
  *	because it was canceled, a completion event will be sent to 'task'.
  *
  * Requires:
  *
- *	'message' is a valid DNS message.
+ *\li	'message' is a valid DNS message.
  *
- *	'dstaddr' is a valid sockaddr.
+ *\li	'dstaddr' is a valid sockaddr.
  *
- *	'srcaddr' is a valid sockaddr or NULL.
+ *\li	'srcaddr' is a valid sockaddr or NULL.
  *
- *	'srcaddr' and 'dstaddr' are the same protocol family.
+ *\li	'srcaddr' and 'dstaddr' are the same protocol family.
  *
- *	'timeout' > 0
+ *\li	'timeout' > 0
  *
- *	'task' is a valid task.
+ *\li	'task' is a valid task.
  *
- *	requestp != NULL && *requestp == NULL
+ *\li	requestp != NULL && *requestp == NULL
  */
 
+/*% See dns_request_createraw3() */
 isc_result_t
 dns_request_createraw(dns_requestmgr_t *requestmgr, isc_buffer_t *msgbuf,
 		      isc_sockaddr_t *srcaddr, isc_sockaddr_t *destaddr,
@@ -253,6 +255,7 @@ dns_request_createraw(dns_requestmgr_t *requestmgr, isc_buffer_t *msgbuf,
 		      isc_task_t *task, isc_taskaction_t action, void *arg,
 		      dns_request_t **requestp);
 
+/*% See dns_request_createraw3() */
 isc_result_t
 dns_request_createraw2(dns_requestmgr_t *requestmgr, isc_buffer_t *msgbuf,
 		       isc_sockaddr_t *srcaddr, isc_sockaddr_t *destaddr,
@@ -268,55 +271,55 @@ dns_request_createraw3(dns_requestmgr_t *requestmgr, isc_buffer_t *msgbuf,
 		       unsigned int udptimeout, unsigned int udpretries,
 		       isc_task_t *task, isc_taskaction_t action, void *arg,
 		       dns_request_t **requestp);
-/*
- * Create and send a request.
+/*!< 
+ * \brief Create and send a request.
  *
  * Notes:
  *
- *	'msgbuf' will be sent to 'destaddr' after setting the id.  If the
- *	DNS_REQUESTOPT_TCP option is set, TCP will be used.  The request
+ *\li	'msgbuf' will be sent to 'destaddr' after setting the id.  If the
+ *	#DNS_REQUESTOPT_TCP option is set, TCP will be used.  The request
  *	will timeout after 'timeout' seconds.   UDP requests will be resent
  *	at 'udptimeout' intervals if non-zero or if 'udpretries' is not zero.
  *	
- *	When the request completes, successfully, due to a timeout, or
+ *\li	When the request completes, successfully, due to a timeout, or
  *	because it was canceled, a completion event will be sent to 'task'.
  *
  * Requires:
  *
- *	'msgbuf' is a valid DNS message in compressed wire format.
+ *\li	'msgbuf' is a valid DNS message in compressed wire format.
  *
- *	'destaddr' is a valid sockaddr.
+ *\li	'destaddr' is a valid sockaddr.
  *
- *	'srcaddr' is a valid sockaddr or NULL.
+ *\li	'srcaddr' is a valid sockaddr or NULL.
  *
- *	'srcaddr' and 'dstaddr' are the same protocol family.
+ *\li	'srcaddr' and 'dstaddr' are the same protocol family.
  *
- *	'timeout' > 0
+ *\li	'timeout' > 0
  *
- *	'task' is a valid task.
+ *\li	'task' is a valid task.
  *
- *	requestp != NULL && *requestp == NULL
+ *\li	requestp != NULL && *requestp == NULL
  */
 
 void
 dns_request_cancel(dns_request_t *request);
-/*
+/*%<
  * Cancel 'request'.
  *
  * Requires:
  *
- *	'request' is a valid request.
+ *\li	'request' is a valid request.
  *
  * Ensures:
  *
- *	If the completion event for 'request' has not yet been sent, it
+ *\li	If the completion event for 'request' has not yet been sent, it
  *	will be sent, and the result code will be ISC_R_CANCELED.
  */
 
 isc_result_t
 dns_request_getresponse(dns_request_t *request, dns_message_t *message,
 			unsigned int options);
-/*
+/*%<
  * Get the response to 'request' by filling in 'message'.
  *
  * 'options' is passed to dns_message_parse().  See dns_message_parse()
@@ -324,46 +327,46 @@ dns_request_getresponse(dns_request_t *request, dns_message_t *message,
  *
  * Requires:
  *
- *	'request' is a valid request for which the caller has received the
+ *\li	'request' is a valid request for which the caller has received the
  *	completion event.
  *
- *	The result code of the completion event was ISC_R_SUCCESS.
+ *\li	The result code of the completion event was #ISC_R_SUCCESS.
  *
  * Returns:
  *
- *	ISC_R_SUCCESS
+ *\li	ISC_R_SUCCESS
  *
- *	Any result that dns_message_parse() can return.
+ *\li	Any result that dns_message_parse() can return.
  */
 
 isc_boolean_t
 dns_request_usedtcp(dns_request_t *request);
-/*
- * Return whether this query used TCP or not.  Setting DNS_REQUESTOPT_TCP
+/*%<
+ * Return whether this query used TCP or not.  Setting #DNS_REQUESTOPT_TCP
  * in the call to dns_request_create() will cause the function to return
- * ISC_TRUE, othewise the result is based on the query message size.
+ * #ISC_TRUE, othewise the result is based on the query message size.
  *
  * Requires:
- *	'request' is a valid request.
+ *\li	'request' is a valid request.
  *
  * Returns:
- *	ISC_TRUE	if TCP was used.
- *	ISC_FALSE	if UDP was used.
+ *\li	ISC_TRUE	if TCP was used.
+ *\li	ISC_FALSE	if UDP was used.
  */
 
 void
 dns_request_destroy(dns_request_t **requestp);
-/*
+/*%<
  * Destroy 'request'.
  *
  * Requires:
  *
- *	'request' is a valid request for which the caller has received the
+ *\li	'request' is a valid request for which the caller has received the
  *	completion event.
  *
  * Ensures:
  *
- *	*requestp == NULL
+ *\li	*requestp == NULL
  */
 
 ISC_LANG_ENDDECLS

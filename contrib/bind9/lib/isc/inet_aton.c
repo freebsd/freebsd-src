@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1996-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -67,10 +67,11 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+/*! \file */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)inet_addr.c	8.1 (Berkeley) 6/17/93";
-static char rcsid[] = "$Id: inet_aton.c,v 1.15.12.3 2004/03/08 09:04:49 marka Exp $";
+static char rcsid[] = "$Id: inet_aton.c,v 1.17.18.2 2005/04/29 00:16:46 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>
@@ -81,7 +82,7 @@ static char rcsid[] = "$Id: inet_aton.c,v 1.15.12.3 2004/03/08 09:04:49 marka Ex
 #include <isc/types.h>
 #include <isc/net.h>
 
-/*
+/*%
  * Check whether "cp" is a valid ascii representation
  * of an Internet address and convert to a binary address.
  * Returns 1 if the address is valid, 0 if not.

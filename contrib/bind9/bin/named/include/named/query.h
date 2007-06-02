@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.h,v 1.28.2.3.8.6 2004/03/08 04:04:21 marka Exp $ */
+/* $Id: query.h,v 1.36.18.2 2005/04/29 00:15:37 marka Exp $ */
 
 #ifndef NAMED_QUERY_H
 #define NAMED_QUERY_H 1
+
+/*! \file */
 
 #include <isc/types.h>
 #include <isc/buffer.h>
@@ -28,6 +30,7 @@
 
 #include <named/types.h>
 
+/*% nameserver database version structure */
 typedef struct ns_dbversion {
 	dns_db_t			*db;
 	dns_dbversion_t			*version;
@@ -35,6 +38,7 @@ typedef struct ns_dbversion {
 	ISC_LINK(struct ns_dbversion)	link;
 } ns_dbversion_t;
 
+/*% nameserver query structure */
 struct ns_query {
 	unsigned int			attributes;
 	unsigned int			restarts;

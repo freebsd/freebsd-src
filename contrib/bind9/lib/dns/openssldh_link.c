@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -18,7 +18,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssldh_link.c,v 1.1.4.3 2006/03/02 00:37:20 marka Exp $
+ * $Id: openssldh_link.c,v 1.1.6.9 2007/01/08 02:52:39 marka Exp $
  */
 
 #ifdef OPENSSL
@@ -138,81 +138,11 @@ openssldh_paramcompare(const dst_key_t *key1, const dst_key_t *key2) {
 	return (ISC_TRUE);
 }
 
-#ifndef HAVE_DH_GENERATE_PARAMETERS
-/* ====================================================================
- * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
-static DH *
-DH_generate_parameters(int prime_len, int generator,
-		       void (*callback)(int,int,void *), void *cb_arg)
-{
-        BN_GENCB cb;
-        DH *dh = NULL;
-
-	dh = DH_new();
-	if (dh != NULL) {
-		BN_GENCB_set_old(&cb, callback, cb_arg);
-
-		if (DH_generate_parameters_ex(dh, prime_len, generator, &cb))
-			return (dh);
-		DH_free(dh);
-	}
-        return (NULL);
-}
-#endif
-
 static isc_result_t
 openssldh_generate(dst_key_t *key, int generator) {
+#if OPENSSL_VERSION_NUMBER > 0x00908000L
+        BN_GENCB cb;
+#endif
 	DH *dh = NULL;
 
 	if (generator == 0) {
@@ -222,7 +152,7 @@ openssldh_generate(dst_key_t *key, int generator) {
 		{
 			dh = DH_new();
 			if (dh == NULL)
-				return (ISC_R_NOMEMORY);
+				return (dst__openssl_toresult(ISC_R_NOMEMORY));
 			if (key->key_size == 768)
 				dh->p = &bn768;
 			else if (key->key_size == 1024)
@@ -230,14 +160,28 @@ openssldh_generate(dst_key_t *key, int generator) {
 			else
 				dh->p = &bn1536;
 			dh->g = &bn2;
-		}
-		else
+		} else
 			generator = 2;
 	}
 
-	if (generator != 0)
+	if (generator != 0) {
+#if OPENSSL_VERSION_NUMBER > 0x00908000L
+		dh = DH_new();
+		if (dh == NULL)
+			return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
+
+		BN_GENCB_set_old(&cb, NULL, NULL);
+
+		if (!DH_generate_parameters_ex(dh, key->key_size, generator,
+					       &cb)) {
+			DH_free(dh);
+			return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
+		}
+#else
 		dh = DH_generate_parameters(key->key_size, generator,
 					    NULL, NULL);
+#endif
+	}
 
 	if (dh == NULL)
 		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
@@ -358,7 +302,7 @@ openssldh_fromdns(dst_key_t *key, isc_buffer_t *data) {
 
 	dh = DH_new();
 	if (dh == NULL)
-		return (ISC_R_NOMEMORY);
+		return (dst__openssl_toresult(ISC_R_NOMEMORY));
 	dh->flags &= ~DH_FLAG_CACHE_MONT_P;
 
 	/*
@@ -637,11 +581,11 @@ openssldh_cleanup(void) {
 }
 
 static dst_func_t openssldh_functions = {
-	NULL, /* createctx */
-	NULL, /* destroyctx */
-	NULL, /* adddata */
-	NULL, /* openssldh_sign */
-	NULL, /* openssldh_verify */
+	NULL, /*%< createctx */
+	NULL, /*%< destroyctx */
+	NULL, /*%< adddata */
+	NULL, /*%< openssldh_sign */
+	NULL, /*%< openssldh_verify */
 	openssldh_computesecret,
 	openssldh_compare,
 	openssldh_paramcompare,
@@ -679,3 +623,4 @@ dst__openssldh_init(dst_func_t **funcp) {
 EMPTY_TRANSLATION_UNIT
 
 #endif /* OPENSSL */
+/*! \file */

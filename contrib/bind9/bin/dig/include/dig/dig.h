@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.71.2.6.2.14 2006/12/07 01:26:33 marka Exp $ */
+/* $Id: dig.h,v 1.82.18.19 2006/12/07 06:08:02 marka Exp $ */
 
 #ifndef DIG_H
 #define DIG_H
+
+/*! \file */
 
 #include <dns/rdatalist.h>
 
@@ -38,29 +40,36 @@
 #define MXSERV 20
 #define MXNAME (DNS_NAME_MAXTEXT+1)
 #define MXRD 32
+/*% Buffer Size */
 #define BUFSIZE 512
 #define COMMSIZE 0xffff
 #ifndef RESOLV_CONF
+/*% location of resolve.conf */
 #define RESOLV_CONF "/etc/resolv.conf"
 #endif
+/*% output buffer */
 #define OUTPUTBUF 32767
+/*% Max RR Limit */
 #define MAXRRLIMIT 0xffffffff
 #define MAXTIMEOUT 0xffff
+/*% Max number of tries */
 #define MAXTRIES 0xffffffff
+/*% Max number of dots */
 #define MAXNDOTS 0xffff
+/*% Max number of ports */
 #define MAXPORT 0xffff
+/*% Max serial number */
 #define MAXSERIAL 0xffffffff
 
-/*
- * Default timeout values
- */
+/*% Default TCP Timeout */
 #define TCP_TIMEOUT 10
+/*% Default UDP Timeout */
 #define UDP_TIMEOUT 5
 
 #define SERVER_TIMEOUT 1
 
 #define LOOKUP_LIMIT 64
-/*
+/*%
  * Lookup_limit is just a limiter, keeping too many lookups from being
  * created.  It's job is mainly to prevent the program from running away
  * in a tight loop of constant lookups.  It's value is arbitrary.
@@ -90,22 +99,23 @@ typedef struct dig_message dig_message_t;
 typedef ISC_LIST(dig_server_t) dig_serverlist_t;
 typedef struct dig_searchlist dig_searchlist_t;
 
+/*% The dig_lookup structure */
 struct dig_lookup {
 	isc_boolean_t
-	        pending, /* Pending a successful answer */
+	        pending, /*%< Pending a successful answer */
 		waiting_connect,
 		doing_xfr,
-		ns_search_only, /* dig +nssearch, host -C */
-		identify, /* Append an "on server <foo>" message */
-		identify_previous_line, /* Prepend a "Nameserver <foo>:"
+		ns_search_only, /*%< dig +nssearch, host -C */
+		identify, /*%< Append an "on server <foo>" message */
+		identify_previous_line, /*% Prepend a "Nameserver <foo>:"
 					   message, with newline and tab */
 		ignore,
 		recurse,
 		aaonly,
 		adflag,
 		cdflag,
-		trace, /* dig +trace */
-		trace_root, /* initial query for either +trace or +nssearch */
+		trace, /*% dig +trace */
+		trace_root, /*% initial query for either +trace or +nssearch */
 		tcp_mode,
 		ip6_int,
 		comments,
@@ -116,6 +126,8 @@ struct dig_lookup {
 		section_additional,
 		servfail_stops,
 		new_search,
+		need_search,
+		done_as_is,
 		besteffort,
 		dnssec;
 #ifdef DIG_SIGCHASE
@@ -130,7 +142,7 @@ isc_boolean_t	sigchase;
 #endif
 #endif
 	
-	char textname[MXNAME]; /* Name we're going to be looking up */
+	char textname[MXNAME]; /*% Name we're going to be looking up */
 	char cmdline[MXNAME];
 	dns_rdatatype_t rdtype;
 	dns_rdatatype_t qrdtype;
@@ -162,14 +174,17 @@ isc_boolean_t	sigchase;
 	isc_uint32_t retries;
 	int nsfound;
 	isc_uint16_t udpsize;
+	isc_int16_t edns;
 	isc_uint32_t ixfr_serial;
 	isc_buffer_t rdatabuf;
 	char rdatastore[MXNAME];
 	dst_context_t *tsigctx;
 	isc_buffer_t *querysig;
 	isc_uint32_t msgcounter;
+	dns_fixedname_t fdomain;
 };
 
+/*% The dig_query structure */
 struct dig_query {
 	dig_lookup_t *lookup;
 	isc_boolean_t waiting_connect,
@@ -200,6 +215,7 @@ struct dig_query {
 	ISC_LINK(dig_query_t) link;
 	isc_sockaddr_t sockaddr;
 	isc_time_t time_sent;
+	isc_uint64_t byte_count;
 	isc_buffer_t sendbuf;
 };
 
@@ -230,9 +246,10 @@ typedef ISC_LIST(dig_lookup_t) dig_lookuplist_t;
 extern dig_lookuplist_t lookup_list;
 extern dig_serverlist_t server_list;
 extern dig_searchlistlist_t search_list;
+extern unsigned int extrabytes;
 
-extern isc_boolean_t have_ipv4, have_ipv6, specified_source,
-        usesearch, qr;
+extern isc_boolean_t check_ra, have_ipv4, have_ipv6, specified_source,
+        usesearch, showsearch, qr;
 extern in_port_t port;
 extern unsigned int timeout;
 extern isc_mem_t *mctx;
@@ -245,6 +262,8 @@ extern isc_sockaddr_t bind_address;
 extern char keynametext[MXNAME];
 extern char keyfile[MXNAME];
 extern char keysecret[MXNAME];
+extern dns_name_t *hmacname;
+extern unsigned int digestbits;
 #ifdef DIG_SIGCHASE
 extern char trustedkey[MXNAME];
 #endif
@@ -346,13 +365,13 @@ printrdataset(dns_name_t *owner_name, dns_rdataset_t *rdataset,
 
 isc_result_t
 printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers);
-/*
+/*%<
  * Print the final result of the lookup.
  */
 
 void
 received(int bytes, isc_sockaddr_t *from, dig_query_t *query);
-/*
+/*%<
  * Print a message about where and when the response
  * was received from, like the final comment in the
  * output of "dig".

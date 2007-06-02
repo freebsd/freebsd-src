@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: gethostent.c,v 1.1.2.2.4.3 2006/01/10 05:09:16 marka Exp $";
+static const char rcsid[] = "$Id: gethostent.c,v 1.6.18.2 2006/01/10 05:09:08 marka Exp $";
 #endif
 
 /* Imports */
@@ -235,11 +235,11 @@ static const unsigned char in6addr_mapped[12] = {
 static int scan_interfaces(int *, int *);
 static struct hostent *copyandmerge(struct hostent *, struct hostent *, int, int *);
 
-/*
+/*%
  *	Public functions
  */
 
-/*
+/*%
  *	AI_V4MAPPED + AF_INET6
  *	If no IPv6 address then a query for IPv4 and map returned values.
  *
@@ -445,11 +445,11 @@ freehostent(struct hostent *he) {
 	memput(he, sizeof *he);
 }
 
-/*
+/*%
  * Private
  */
 
-/*
+/*%
  * Scan the interface table and set have_v4 and have_v6 depending
  * upon whether there are IPv4 and IPv6 interface addresses.
  *
@@ -505,7 +505,7 @@ scan_interfaces6(int *have_v4, int *have_v6) {
 		if (buf == NULL)
 			goto cleanup;
 #ifdef SETFAMILYFLAGS
-		lifc.lifc_family = AF_UNSPEC;	/* request all families */
+		lifc.lifc_family = AF_UNSPEC;	/*%< request all families */
 		lifc.lifc_flags = 0;
 #endif
 		lifc.lifc_len = bufsiz;
@@ -533,7 +533,7 @@ scan_interfaces6(int *have_v4, int *have_v6) {
 	}
 
 	/* Parse system's interface list. */
-	cplim = buf + lifc.lifc_len;    /* skip over if's with big ifr_addr's */
+	cplim = buf + lifc.lifc_len;    /*%< skip over if's with big ifr_addr's */
 	for (cp = buf;
 	     (*have_v4 == 0 || *have_v6 == 0) && cp < cplim;
 	     cp += cpsize) {
@@ -639,7 +639,7 @@ static int
 scan_interfaces(int *have_v4, int *have_v6) {
 	struct ifconf ifc;
 	union {
-		char _pad[256];		/* leave space for IPv6 addresses */
+		char _pad[256];		/*%< leave space for IPv6 addresses */
 		struct ifreq ifreq;
 	} u;
 	struct in_addr in4;
@@ -712,7 +712,7 @@ scan_interfaces(int *have_v4, int *have_v6) {
 	}
 
 	/* Parse system's interface list. */
-	cplim = buf + ifc.ifc_len;    /* skip over if's with big ifr_addr's */
+	cplim = buf + ifc.ifc_len;    /*%< skip over if's with big ifr_addr's */
 	for (cp = buf;
 	     (*have_v4 == 0 || *have_v6 == 0) && cp < cplim;
 	     cp += cpsize) {
@@ -792,8 +792,8 @@ scan_interfaces(int *have_v4, int *have_v6) {
 static struct hostent *
 copyandmerge(struct hostent *he1, struct hostent *he2, int af, int *error_num) {
 	struct hostent *he = NULL;
-	int addresses = 1;	/* NULL terminator */
-	int names = 1;		/* NULL terminator */
+	int addresses = 1;	/*%< NULL terminator */
+	int names = 1;		/*%< NULL terminator */
 	int len = 0;
 	char **cpp, **npp;
 
@@ -1034,7 +1034,7 @@ fakeaddr(const char *name, int af, struct net_data *net_data) {
 	return (&pvt->host);
 }
 
-#ifdef grot	/* for future use in gethostbyaddr(), for "SUNSECURITY" */
+#ifdef grot	/*%< for future use in gethostbyaddr(), for "SUNSECURITY" */
 	struct hostent *rhp;
 	char **haddr;
 	u_long old_options;
@@ -1065,5 +1065,6 @@ fakeaddr(const char *name, int af, struct net_data *net_data) {
 	    }
 	}
 #endif /* grot */
-
 #endif /*__BIND_NOSTATIC*/
+
+/*! \file */

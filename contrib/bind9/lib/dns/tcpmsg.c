@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tcpmsg.c,v 1.24.206.3 2006/08/10 23:59:28 marka Exp $ */
+/* $Id: tcpmsg.c,v 1.25.18.4 2006/08/10 23:59:29 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 

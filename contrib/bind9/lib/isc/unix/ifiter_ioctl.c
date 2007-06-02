@@ -15,9 +15,10 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_ioctl.c,v 1.19.2.5.2.19 2006/02/03 23:51:37 marka Exp $ */
+/* $Id: ifiter_ioctl.c,v 1.44.18.11 2006/02/03 23:51:38 marka Exp $ */
 
-/*
+/*! \file
+ * \brief
  * Obtain the list of network interfaces using the SIOCGLIFCONF ioctl.
  * See netintro(4).
  */
@@ -93,7 +94,7 @@ struct isc_interfaceiter {
 #endif
 
 
-/*
+/*%
  * Size of buffer for SIOCGLIFCONF, in bytes.  We assume no sane system
  * will have more than a megabyte of interface configuration data.
  */

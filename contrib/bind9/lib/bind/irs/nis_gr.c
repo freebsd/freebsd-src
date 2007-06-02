@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_gr.c,v 1.1.2.1.4.1 2004/03/09 08:33:38 marka Exp $";
+static const char rcsid[] = "$Id: nis_gr.c,v 1.3.18.1 2005/04/27 05:01:03 sra Exp $";
 /* from getgrent.c 8.2 (Berkeley) 3/21/94"; */
 /* from BSDI Id: getgrent.c,v 2.8 1996/05/28 18:15:14 bostic Exp $	*/
 #endif /* LIBC_SCCS and not lint */
@@ -99,7 +99,7 @@ struct pvt {
 	int		curkey_len;
 	char *		curval_data;
 	int		curval_len;
-	/*
+	/*%<
 	 * Need space to store the entries read from the group file.
 	 * The members list also needs space per member, and the
 	 * strings making up the user names must be allocated
@@ -107,7 +107,7 @@ struct pvt {
 	 * we keep one buffer and resize it as needed.
 	 */
 	struct group	group;
-	size_t		nmemb;		/* Malloc'd max index of gr_mem[]. */
+	size_t		nmemb;		/*%< Malloc'd max index of gr_mem[]. */
 	char *		membuf;
 	size_t		membufsize;
 };
@@ -351,3 +351,4 @@ nisfree(struct pvt *pvt, enum do_what do_what) {
 }
 
 #endif /* WANT_IRS_GR && WANT_IRS_NIS */
+/*! \file */

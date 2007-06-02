@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb64.c,v 1.6.206.1 2004/03/06 08:13:42 marka Exp $ */
+/* $Id: rbtdb64.c,v 1.7.18.2 2005/04/29 00:16:02 marka Exp $ */
+
+/*! \file */
 
 #define DNS_RBTDB_VERSION64 1
 #include "rbtdb.c"

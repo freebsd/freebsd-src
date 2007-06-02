@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: grammar.h,v 1.3.50.6 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: grammar.h,v 1.4.18.8 2006/02/28 03:10:49 marka Exp $ */
 
 #ifndef ISCCFG_GRAMMAR_H
 #define ISCCFG_GRAMMAR_H 1
+
+/*! \file */
 
 #include <isc/lex.h>
 #include <isc/netaddr.h>
@@ -33,17 +35,17 @@
  * and the grammars; not visible to users of the parser.
  */
 
-/* Clause may occur multiple times (e.g., "zone") */
+/*% Clause may occur multiple times (e.g., "zone") */
 #define CFG_CLAUSEFLAG_MULTI 		0x00000001
-/* Clause is obsolete */
+/*% Clause is obsolete */
 #define CFG_CLAUSEFLAG_OBSOLETE 	0x00000002
-/* Clause is not implemented, and may never be */
+/*% Clause is not implemented, and may never be */
 #define CFG_CLAUSEFLAG_NOTIMP	 	0x00000004
-/* Clause is not implemented yet */
+/*% Clause is not implemented yet */
 #define CFG_CLAUSEFLAG_NYI 		0x00000008
-/* Default value has changed since earlier release */
+/*% Default value has changed since earlier release */
 #define CFG_CLAUSEFLAG_NEWDEFAULT	0x00000010
-/*
+/*%
  * Clause needs to be interpreted during parsing
  * by calling a callback function, like the
  * "directory" option.
@@ -71,7 +73,7 @@ typedef void	     (*cfg_freefunc_t)(cfg_parser_t *, cfg_obj_t *);
  * Structure definitions
  */
 
-/*
+/*%
  * A configuration printer object.  This is an abstract
  * interface to a destination to which text can be printed
  * by calling the function 'f'.
@@ -82,42 +84,39 @@ struct cfg_printer {
 	int indent;
 };
 
-/* A clause definition. */
-
+/*% A clause definition. */
 struct cfg_clausedef {
 	const char      *name;
 	cfg_type_t      *type;
 	unsigned int	flags;
 };
 
-/* A tuple field definition. */
-
+/*% A tuple field definition. */
 struct cfg_tuplefielddef {
 	const char      *name;
 	cfg_type_t      *type;
 	unsigned int	flags;
 };
 
-/* A configuration object type definition. */
+/*% A configuration object type definition. */
 struct cfg_type {
-	const char *name;	/* For debugging purposes only */
+	const char *name;	/*%< For debugging purposes only */
 	cfg_parsefunc_t	parse;
 	cfg_printfunc_t print;
-	cfg_docfunc_t	doc;	/* Print grammar description */
-	cfg_rep_t *	rep;	/* Data representation */
-	const void *	of;	/* Additional data for meta-types */
+	cfg_docfunc_t	doc;	/*%< Print grammar description */
+	cfg_rep_t *	rep;	/*%< Data representation */
+	const void *	of;	/*%< Additional data for meta-types */
 };
 
-/* A keyword-type definition, for things like "port <integer>". */
-
+/*% A keyword-type definition, for things like "port <integer>". */
 typedef struct {
 	const char *name;
 	const cfg_type_t *type;
 } keyword_type_t;
 
 struct cfg_map {
-	cfg_obj_t	 *id; /* Used for 'named maps' like keys, zones, &c */
-	const cfg_clausedef_t * const *clausesets; /* The clauses that
+	cfg_obj_t	 *id; /*%< Used for 'named maps' like keys, zones, &c */
+	const cfg_clausedef_t * const *clausesets; /*%< The clauses that
 						      can occur in this map;
 						      used for printing */
 	isc_symtab_t     *symtab;
@@ -130,15 +129,15 @@ struct cfg_netprefix {
 	unsigned int prefixlen;
 };
 
-/*
+/*%
  * A configuration data representation.
  */
 struct cfg_rep {
-	const char *	name;	/* For debugging only */
-	cfg_freefunc_t 	free;	/* How to free this kind of data. */
+	const char *	name;	/*%< For debugging only */
+	cfg_freefunc_t 	free;	/*%< How to free this kind of data. */
 };
 
-/*
+/*%
  * A configuration object.  This is the main building block
  * of the configuration parse tree.
  */
@@ -148,7 +147,7 @@ struct cfg_obj {
 	union {
 		isc_uint32_t  	uint32;
 		isc_uint64_t  	uint64;
-		isc_textregion_t string; /* null terminated, too */
+		isc_textregion_t string; /*%< null terminated, too */
 		isc_boolean_t 	boolean;
 		cfg_map_t	map;
 		cfg_list_t	list;
@@ -161,14 +160,13 @@ struct cfg_obj {
 };
 
 
-/* A list element. */
-
+/*% A list element. */
 struct cfg_listelt {
 	cfg_obj_t               *obj;
 	ISC_LINK(cfg_listelt_t)  link;
 };
 
-/* The parser object. */
+/*% The parser object. */
 struct cfg_parser {
 	isc_mem_t *	mctx;
 	isc_log_t *	lctx;
@@ -177,13 +175,13 @@ struct cfg_parser {
 	unsigned int    warnings;
 	isc_token_t     token;
 
-	/* We are at the end of all input. */
+	/*% We are at the end of all input. */
 	isc_boolean_t	seen_eof;
 
-	/* The current token has been pushed back. */
+	/*% The current token has been pushed back. */
 	isc_boolean_t	ungotten;
 
-	/*
+	/*%
 	 * The stack of currently active files, represented
 	 * as a configuration list of configuration strings.
 	 * The head is the top-level file, subsequent elements 
@@ -192,7 +190,7 @@ struct cfg_parser {
 	 */
 	cfg_obj_t *	open_files;
 
-	/*
+	/*%
 	 * Names of files that we have parsed and closed
 	 * and were previously on the open_file list.
 	 * We keep these objects around after closing
@@ -203,7 +201,7 @@ struct cfg_parser {
 	 */
 	cfg_obj_t *	closed_files;
 
-	/*
+	/*%
 	 * Current line number.  We maintain our own
 	 * copy of this so that it is available even
 	 * when a file has just been closed.
@@ -215,15 +213,19 @@ struct cfg_parser {
 };
 
 
-/*
+/*@{*/
+/*%
  * Flags defining whether to accept certain types of network addresses.
  */
 #define CFG_ADDR_V4OK 		0x00000001
 #define CFG_ADDR_V4PREFIXOK 	0x00000002
 #define CFG_ADDR_V6OK 		0x00000004
 #define CFG_ADDR_WILDOK		0x00000008
+#define CFG_ADDR_MASK		(CFG_ADDR_V6OK|CFG_ADDR_V4OK)
+/*@}*/
 
-/*
+/*@{*/
+/*%
  * Predefined data representation types.
  */
 LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_uint32;
@@ -236,8 +238,10 @@ LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_tuple;
 LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_sockaddr;
 LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_netprefix;
 LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_void;
+/*@}*/
 
-/*
+/*@{*/
+/*%
  * Predefined configuration object types.
  */
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_boolean;
@@ -248,10 +252,15 @@ LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_astring;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_ustring;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_sockaddr;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_netaddr;
+LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_netaddr4;
+LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_netaddr4wild;
+LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_netaddr6;
+LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_netaddr6wild;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_netprefix;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_void;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_token;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_unsupported;
+/*@}*/
 
 isc_result_t
 cfg_gettoken(cfg_parser_t *pctx, int options);
@@ -314,7 +323,7 @@ cfg_parse_netprefix(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret)
 
 isc_result_t
 cfg_parse_special(cfg_parser_t *pctx, int special);
-/* Parse a required special character 'special'. */
+/*%< Parse a required special character 'special'. */
 
 isc_result_t
 cfg_create_tuple(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **objp);
@@ -358,11 +367,11 @@ cfg_doc_enum(cfg_printer_t *pctx, const cfg_type_t *type);
 
 void
 cfg_print_chars(cfg_printer_t *pctx, const char *text, int len);
-/* Print 'len' characters at 'text' */
+/*%< Print 'len' characters at 'text' */
 
 void
 cfg_print_cstr(cfg_printer_t *pctx, const char *s);
-/* Print the null-terminated string 's' */
+/*%< Print the null-terminated string 's' */
 
 isc_result_t
 cfg_parse_map(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret);
@@ -372,6 +381,10 @@ cfg_parse_named_map(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret)
 
 isc_result_t
 cfg_parse_addressed_map(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret);
+
+isc_result_t
+cfg_parse_netprefix_map(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **
+ret);
 
 void
 cfg_print_map(cfg_printer_t *pctx, const cfg_obj_t *obj);
@@ -405,28 +418,28 @@ cfg_print_obj(cfg_printer_t *pctx, const cfg_obj_t *obj);
 
 void
 cfg_doc_obj(cfg_printer_t *pctx, const cfg_type_t *type);
-/*
+/*%<
  * Print a description of the grammar of an arbitrary configuration
  * type 'type'
  */
 
 void
 cfg_doc_terminal(cfg_printer_t *pctx, const cfg_type_t *type);
-/*
+/*%<
  * Document the type 'type' as a terminal by printing its
- * name in angle brackets, e.g., <uint32>.
+ * name in angle brackets, e.g., &lt;uint32>.
  */
 
 void
 cfg_parser_error(cfg_parser_t *pctx, unsigned int flags,
 		 const char *fmt, ...) ISC_FORMAT_PRINTF(3, 4);
-/*
+/*! 
  * Pass one of these flags to cfg_parser_error() to include the
  * token text in log message.
  */
-#define CFG_LOG_NEAR    0x00000001	/* Say "near <token>" */
-#define CFG_LOG_BEFORE  0x00000002	/* Say "before <token>" */
-#define CFG_LOG_NOPREP  0x00000004	/* Say just "<token>" */
+#define CFG_LOG_NEAR    0x00000001	/*%< Say "near <token>" */
+#define CFG_LOG_BEFORE  0x00000002	/*%< Say "before <token>" */
+#define CFG_LOG_NOPREP  0x00000004	/*%< Say just "<token>" */
 
 void
 cfg_parser_warning(cfg_parser_t *pctx, unsigned int flags,
@@ -434,6 +447,6 @@ cfg_parser_warning(cfg_parser_t *pctx, unsigned int flags,
 
 isc_boolean_t
 cfg_is_enum(const char *s, const char *const *enums);
-/* Return true iff the string 's' is one of the strings in 'enums' */
+/*%< Return true iff the string 's' is one of the strings in 'enums' */
 
 #endif /* ISCCFG_GRAMMAR_H */

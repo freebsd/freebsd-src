@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipv6.h,v 1.9.206.1 2004/03/06 08:15:34 marka Exp $ */
+/* $Id: ipv6.h,v 1.10.18.2 2005/04/29 00:17:21 marka Exp $ */
 
 #ifndef LWRES_IPV6_H
 #define LWRES_IPV6_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*
+/*! \file ipv6.h
  * IPv6 definitions for systems which do not support IPv6.
  */
 
@@ -39,6 +39,7 @@
  *** Types.
  ***/
 
+/*% in6_addr structure */
 struct in6_addr {
         union {
 		lwres_uint8_t	_S6_u8[16];
@@ -46,10 +47,13 @@ struct in6_addr {
 		lwres_uint32_t	_S6_u32[4];
         } _S6_un;
 };
+/*@{*/
+/*% IP v6 types */
 #define s6_addr		_S6_un._S6_u8
 #define s6_addr8	_S6_un._S6_u8
 #define s6_addr16	_S6_un._S6_u16
 #define s6_addr32	_S6_un._S6_u32
+/*@}*/
 
 #define IN6ADDR_ANY_INIT 	{{{ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }}}
 #define IN6ADDR_LOOPBACK_INIT 	{{{ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 }}}
@@ -57,6 +61,7 @@ struct in6_addr {
 LIBLWRES_EXTERNAL_DATA extern const struct in6_addr in6addr_any;
 LIBLWRES_EXTERNAL_DATA extern const struct in6_addr in6addr_loopback;
 
+/*% used in getaddrinfo.c and getnameinfo.c */
 struct sockaddr_in6 {
 #ifdef LWRES_PLATFORM_HAVESALEN
 	lwres_uint8_t		sin6_len;
@@ -74,13 +79,14 @@ struct sockaddr_in6 {
 #define SIN6_LEN 1
 #endif
 
+/*% in6_pktinfo structure */
 struct in6_pktinfo {
-	struct in6_addr ipi6_addr;    /* src/dst IPv6 address */
-	unsigned int    ipi6_ifindex; /* send/recv interface index */
+	struct in6_addr ipi6_addr;    /*%< src/dst IPv6 address */
+	unsigned int    ipi6_ifindex; /*%< send/recv interface index */
 };
 
-/*
- * Unspecified
+/*!
+ * Unspecified IPv6 address
  */
 #define IN6_IS_ADDR_UNSPECIFIED(a)      \
         (((a)->s6_addr32[0] == 0) &&    \

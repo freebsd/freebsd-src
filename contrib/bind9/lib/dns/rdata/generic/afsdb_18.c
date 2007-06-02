@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,11 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: afsdb_18.c,v 1.39.2.1.2.3 2004/03/06 08:14:03 marka Exp $ */
+/* $Id: afsdb_18.c,v 1.43.18.2 2005/04/29 00:16:30 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 14:59:00 PST 2000 by explorer */
 
-/* RFC 1183 */
+/* RFC1183 */
 
 #ifndef RDATA_GENERIC_AFSDB_18_C
 #define RDATA_GENERIC_AFSDB_18_C

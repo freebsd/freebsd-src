@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.41.2.2.2.4 2006/05/19 00:04:00 marka Exp $
+# $Id: Makefile.in,v 1.43.18.4 2006/05/19 00:04:01 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -58,3 +58,11 @@ check: test
 
 test:
 	(cd bin/tests && ${MAKE} ${MAKEDEFS} test)
+
+FAQ: FAQ.xml
+	${XSLTPROC} doc/xsl/isc-docbook-text.xsl FAQ.xml | \
+	${W3M} -T text/html -dump >$@.tmp
+	mv $@.tmp $@
+
+clean::
+	rm -f FAQ.tmp

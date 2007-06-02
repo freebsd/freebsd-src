@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: thread.h,v 1.19.206.1 2004/03/06 08:14:57 marka Exp $ */
+/* $Id: thread.h,v 1.20.18.4 2005/09/18 07:58:08 marka Exp $ */
 
 #ifndef ISC_THREAD_H
 #define ISC_THREAD_H 1
+
+/*! \file */
 
 #include <pthread.h>
 
@@ -31,6 +33,7 @@ typedef pthread_t isc_thread_t;
 typedef void * isc_threadresult_t;
 typedef void * isc_threadarg_t;
 typedef isc_threadresult_t (*isc_threadfunc_t)(isc_threadarg_t);
+typedef pthread_key_t isc_thread_key_t;
 
 isc_result_t
 isc_thread_create(isc_threadfunc_t, isc_threadarg_t, isc_thread_t *);
@@ -46,6 +49,11 @@ isc_thread_setconcurrency(unsigned int level);
 
 #define isc_thread_self \
 	(unsigned long)pthread_self
+
+#define isc_thread_key_create pthread_key_create
+#define isc_thread_key_getspecific pthread_getspecific
+#define isc_thread_key_setspecific pthread_setspecific
+#define isc_thread_key_delete pthread_key_delete
 
 ISC_LANG_ENDDECLS
 

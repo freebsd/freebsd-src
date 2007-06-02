@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ttl.c,v 1.21.12.5 2004/03/08 09:04:32 marka Exp $ */
+/* $Id: ttl.c,v 1.25.18.2 2005/04/29 00:16:07 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 

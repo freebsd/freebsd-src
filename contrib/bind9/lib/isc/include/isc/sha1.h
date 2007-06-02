@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -18,25 +18,26 @@
 #ifndef ISC_SHA1_H
 #define ISC_SHA1_H 1
 
-/* $Id: sha1.h,v 1.8.206.1 2004/03/06 08:14:48 marka Exp $ */
+/* $Id: sha1.h,v 1.9.18.5 2006/08/16 03:18:14 marka Exp $ */
 
 /*	$NetBSD: sha1.h,v 1.2 1998/05/29 22:55:44 thorpej Exp $	*/
 
-/*
- * SHA-1 in C
- * By Steve Reid <steve@edmweb.com>
- * 100% Public Domain
+/*! \file
+ * \brief SHA-1 in C
+ * \author By Steve Reid <steve@edmweb.com>
+ * \note 100% Public Domain
  */
 
 #include <isc/lang.h>
 #include <isc/types.h>
 
-#define ISC_SHA1_DIGESTLENGTH 20
+#define ISC_SHA1_DIGESTLENGTH 20U
+#define ISC_SHA1_BLOCK_LENGTH 64U
 
 typedef struct {
 	isc_uint32_t state[5];
 	isc_uint32_t count[2];
-	unsigned char buffer[64];
+	unsigned char buffer[ISC_SHA1_BLOCK_LENGTH];
 } isc_sha1_t;
 
 ISC_LANG_BEGINDECLS

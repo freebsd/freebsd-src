@@ -147,7 +147,8 @@
 	(a)=ROTATE(l,16L); \
 	}
 #endif
-/*
+
+/*%
 #define	F(x,y,z)	(((x) & (y))  |  ((~(x)) & (z)))
 #define	G(x,y,z)	(((x) & (z))  |  ((y) & (~(z))))
 */
@@ -188,3 +189,5 @@
 	a+=((k)+(t)+I((b),(c),(d))); \
 	a=ROTATE(a,s); \
 	a+=b; };
+
+/*! \file */

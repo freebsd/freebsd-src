@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: heap.h,v 1.16.206.2 2006/04/17 18:27:20 explorer Exp $ */
+/* $Id: heap.h,v 1.17.18.3 2006/04/17 18:27:33 explorer Exp $ */
 
 #ifndef ISC_HEAP_H
 #define ISC_HEAP_H 1

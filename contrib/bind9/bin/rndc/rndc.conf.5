@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: rndc.conf.5,v 1.21.206.6 2006/06/29 13:02:31 marka Exp $
+.\" $Id: rndc.conf.5,v 1.23.18.13 2007/01/30 00:23:44 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: \fIrndc.conf\fR
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: June 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -53,7 +53,7 @@ is much simpler than
 .PP
 The
 \fBoptions\fR
-statement contains three clauses. The
+statement contains five clauses. The
 \fBdefault\-server\fR
 clause is followed by the name or address of a name server. This host will be used when no name server is given as an argument to
 \fBrndc\fR. The
@@ -74,14 +74,25 @@ option is provided on the rndc command line, and no
 \fBport\fR
 clause is found in a matching
 \fBserver\fR
-statement, this default port will be used to connect.
+statement, this default port will be used to connect. The
+\fBdefault\-source\-address\fR
+and
+\fBdefault\-source\-address\-v6\fR
+clauses which can be used to set the IPv4 and IPv6 source addresses respectively.
 .PP
 After the
 \fBserver\fR
-keyword, the server statement includes a string which is the hostname or address for a name server. The statement has two possible clauses:
-\fBkey\fR
+keyword, the server statement includes a string which is the hostname or address for a name server. The statement has three possible clauses:
+\fBkey\fR,
+\fBport\fR
 and
-\fBport\fR. The key name must match the name of a key statement in the file. The port number specifies the port to connect to.
+\fBaddresses\fR. The key name must match the name of a key statement in the file. The port number specifies the port to connect to. If an
+\fBaddresses\fR
+clause is supplied these addresses will be used instead of the server name. Each address can take a optional port. If an
+\fBsource\-address\fR
+or
+\fBsource\-address\-v6\fR
+of supplied then these will be used to specify the IPv4 and IPv6 source addresses respectively.
 .PP
 The
 \fBkey\fR
@@ -100,26 +111,65 @@ program, also known as
 \fBmmencode\fR
 does not ship with BIND 9 but is available on many systems. See the EXAMPLE section for sample command lines for each.
 .SH "EXAMPLE"
-.sp
-.RS 3n
+.PP
+.RS 4
 .nf
-    options {
+      options {
         default\-server  localhost;
         default\-key     samplekey;
       };
+.fi
+.RE
+.sp
+.PP
+.RS 4
+.nf
       server localhost {
         key             samplekey;
       };
-      key samplekey {
-        algorithm       hmac\-md5;
-        secret          "c3Ryb25nIGVub3VnaCBmb3IgYSBtYW4gYnV0IG1hZGUgZm9yIGEgd29tYW4K";
+.fi
+.RE
+.sp
+.PP
+.RS 4
+.nf
+      server testserver {
+        key		testkey;
+        addresses	{ localhost port 5353; };
       };
 .fi
 .RE
+.sp
+.PP
+.RS 4
+.nf
+      key samplekey {
+        algorithm       hmac\-md5;
+        secret          "6FMfj43Osz4lyb24OIe2iGEz9lf1llJO+lz";
+      };
+.fi
+.RE
+.sp
+.PP
+.RS 4
+.nf
+      key testkey {
+        algorithm	hmac\-md5;
+        secret		"R3HI8P6BKw9ZwXwN3VZKuQ==";
+      }
+.fi
+.RE
+.sp
 .PP
 In the above example,
 \fBrndc\fR
 will by default use the server at localhost (127.0.0.1) and the key called samplekey. Commands to the localhost server will use the samplekey key, which must also be defined in the server's configuration file with the same name and secret. The key statement indicates that samplekey uses the HMAC\-MD5 algorithm and its secret clause contains the base\-64 encoding of the HMAC\-MD5 secret enclosed in double quotes.
+.PP
+If
+\fBrndc \-s testserver\fR
+is used then
+\fBrndc\fR
+will connect to server on localhost port 5353 using the key testkey.
 .PP
 To generate a random secret with
 \fBrndc\-confgen\fR:
@@ -158,4 +208,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001 Internet Software Consortium.
+.br

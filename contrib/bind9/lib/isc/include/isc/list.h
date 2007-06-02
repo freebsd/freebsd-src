@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: list.h,v 1.18.2.2.8.3 2006/06/06 00:11:40 marka Exp $ */
+/* $Id: list.h,v 1.20.18.2 2006/06/06 00:11:41 marka Exp $ */
 
 #ifndef ISC_LIST_H
 #define ISC_LIST_H 1

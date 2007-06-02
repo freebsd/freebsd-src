@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.h,v 1.31.2.3.2.7 2004/03/08 09:04:36 marka Exp $ */
+/* $Id: master.h,v 1.38.18.6 2005/06/20 01:19:43 marka Exp $ */
 
 #ifndef DNS_MASTER_H
 #define DNS_MASTER_H 1
+
+/*! \file */
 
 /***
  ***	Imports
@@ -33,20 +35,59 @@
 /*
  * Flags to be passed in the 'options' argument in the functions below.
  */
-#define	DNS_MASTER_AGETTL 	0x00000001	/* Age the ttl based on $DATE. */
-#define DNS_MASTER_MANYERRORS 	0x00000002	/* Continue processing on errors. */
-#define DNS_MASTER_NOINCLUDE 	0x00000004	/* Disallow $INCLUDE directives. */
-#define DNS_MASTER_ZONE 	0x00000008	/* Loading a zone master file. */
-#define DNS_MASTER_HINT 	0x00000010	/* Loading a hint master file. */
-#define DNS_MASTER_SLAVE 	0x00000020	/* Loading a slave master file. */
-#define DNS_MASTER_CHECKNS 	0x00000040	/* Check NS records to see if
-						 * they are an address */
-#define DNS_MASTER_FATALNS 	0x00000080	/* Treat DNS_MASTER_CHECKNS
-						 * matches as fatal */
+#define	DNS_MASTER_AGETTL 	0x00000001	/*%< Age the ttl based on $DATE. */
+#define DNS_MASTER_MANYERRORS 	0x00000002	/*%< Continue processing on errors. */
+#define DNS_MASTER_NOINCLUDE 	0x00000004	/*%< Disallow $INCLUDE directives. */
+#define DNS_MASTER_ZONE 	0x00000008	/*%< Loading a zone master file. */
+#define DNS_MASTER_HINT 	0x00000010	/*%< Loading a hint master file. */
+#define DNS_MASTER_SLAVE 	0x00000020	/*%< Loading a slave master file. */
+#define DNS_MASTER_CHECKNS 	0x00000040	/*%<
+						 * Check NS records to see 
+						 * if they are an address
+						 */
+#define DNS_MASTER_FATALNS 	0x00000080	/*%<
+						 * Treat DNS_MASTER_CHECKNS
+						 * matches as fatal
+						 */
 #define DNS_MASTER_CHECKNAMES   0x00000100
 #define DNS_MASTER_CHECKNAMESFAIL 0x00000200
+#define DNS_MASTER_CHECKWILDCARD 0x00000400	/* Check for internal wildcards. */
+#define DNS_MASTER_CHECKMX	0x00000800
+#define DNS_MASTER_CHECKMXFAIL	0x00001000
 
 ISC_LANG_BEGINDECLS
+
+/*
+ * Structures that implement the "raw" format for master dump.
+ * These are provided for a reference purpose only; in the actual
+ * encoding, we directly read/write each field so that the encoded data
+ * is always "packed", regardless of the hardware architecture.
+ */
+#define DNS_RAWFORMAT_VERSION 0
+
+/* Common header */
+typedef struct {
+	isc_uint32_t		format;		/* must be
+						 * dns_masterformat_raw */
+	isc_uint32_t		version;	/* compatibility for future
+						 * extensions */
+	isc_uint32_t		dumptime;	/* timestamp on creation
+						 * (currently unused)
+						 */
+} dns_masterrawheader_t;
+
+/* The structure for each RRset */
+typedef struct {
+	isc_uint32_t		totallen;	/* length of the data for this
+						 * RRset, including the
+						 * "header" part */
+	dns_rdataclass_t	rdclass;	/* 16-bit class */
+	dns_rdatatype_t		type;		/* 16-bit type */
+	dns_rdatatype_t		covers;		/* same as type */
+	dns_ttl_t		ttl;		/* 32-bit TTL */
+	isc_uint32_t		nrdata;		/* number of RRs in this set */
+	/* followed by encoded owner name, and then rdata */
+} dns_masterrawrdataset_t;
 
 /***
  ***	Function
@@ -60,6 +101,16 @@ dns_master_loadfile(const char *master_file,
 		    unsigned int options,
 		    dns_rdatacallbacks_t *callbacks,
 		    isc_mem_t *mctx);
+
+isc_result_t
+dns_master_loadfile2(const char *master_file,
+		     dns_name_t *top,
+		     dns_name_t *origin,
+		     dns_rdataclass_t zclass,
+		     unsigned int options,
+		     dns_rdatacallbacks_t *callbacks,
+		     isc_mem_t *mctx,
+		     dns_masterformat_t format);
 
 isc_result_t
 dns_master_loadstream(FILE *stream,
@@ -100,6 +151,18 @@ dns_master_loadfileinc(const char *master_file,
 		       dns_loadctx_t **ctxp, isc_mem_t *mctx);
 
 isc_result_t
+dns_master_loadfileinc2(const char *master_file,
+			dns_name_t *top,
+			dns_name_t *origin,
+			dns_rdataclass_t zclass,
+			unsigned int options,
+			dns_rdatacallbacks_t *callbacks,
+			isc_task_t *task,
+			dns_loaddonefunc_t done, void *done_arg,
+			dns_loadctx_t **ctxp, isc_mem_t *mctx,
+			dns_masterformat_t format);
+
+isc_result_t
 dns_master_loadstreaminc(FILE *stream,
 			 dns_name_t *top,
 			 dns_name_t *origin,
@@ -132,8 +195,8 @@ dns_master_loadlexerinc(isc_lex_t *lex,
 			dns_loaddonefunc_t done, void *done_arg,
 			dns_loadctx_t **ctxp, isc_mem_t *mctx);
 
-/*
- * Loads a RFC 1305 master file from a file, stream, buffer, or existing
+/*%<
+ * Loads a RFC1305 master file from a file, stream, buffer, or existing
  * lexer into rdatasets and then calls 'callbacks->commit' to commit the
  * rdatasets.  Rdata memory belongs to dns_master_load and will be
  * reused / released when the callback completes.  dns_load_master will
@@ -150,63 +213,63 @@ dns_master_loadlexerinc(isc_lex_t *lex,
  * not called.
  *
  * Requires:
- *	'master_file' points to a valid string.
- *	'lexer' points to a valid lexer.
- *	'top' points to a valid name.
- *	'origin' points to a valid name.
- *	'callbacks->commit' points to a valid function.
- *	'callbacks->error' points to a valid function.
- *	'callbacks->warn' points to a valid function.
- *	'mctx' points to a valid memory context.
- *	'task' and 'done' to be valid.
- *	'lmgr' to be valid.
- *	'ctxp != NULL && ctxp == NULL'.
+ *\li	'master_file' points to a valid string.
+ *\li	'lexer' points to a valid lexer.
+ *\li	'top' points to a valid name.
+ *\li	'origin' points to a valid name.
+ *\li	'callbacks->commit' points to a valid function.
+ *\li	'callbacks->error' points to a valid function.
+ *\li	'callbacks->warn' points to a valid function.
+ *\li	'mctx' points to a valid memory context.
+ *\li	'task' and 'done' to be valid.
+ *\li	'lmgr' to be valid.
+ *\li	'ctxp != NULL && ctxp == NULL'.
  *
  * Returns:
- *	ISC_R_SUCCESS upon successfully loading the master file.
- *	ISC_R_SEENINCLUDE upon successfully loading the master file with
+ *\li	ISC_R_SUCCESS upon successfully loading the master file.
+ *\li	ISC_R_SEENINCLUDE upon successfully loading the master file with
  *		a $INCLUDE statement.
- *	ISC_R_NOMEMORY out of memory.
- *	ISC_R_UNEXPECTEDEND expected to be able to read a input token and
+ *\li	ISC_R_NOMEMORY out of memory.
+ *\li	ISC_R_UNEXPECTEDEND expected to be able to read a input token and
  *		there was not one.
- *	ISC_R_UNEXPECTED
- *	DNS_R_NOOWNER failed to specify a ownername.
- *	DNS_R_NOTTL failed to specify a ttl.
- *	DNS_R_BADCLASS record class did not match zone class.
- *	DNS_R_CONTINUE load still in progress (dns_master_load*inc() only).
- *	Any dns_rdata_fromtext() error code.
- *	Any error code from callbacks->commit().
+ *\li	ISC_R_UNEXPECTED
+ *\li	DNS_R_NOOWNER failed to specify a ownername.
+ *\li	DNS_R_NOTTL failed to specify a ttl.
+ *\li	DNS_R_BADCLASS record class did not match zone class.
+ *\li	DNS_R_CONTINUE load still in progress (dns_master_load*inc() only).
+ *\li	Any dns_rdata_fromtext() error code.
+ *\li	Any error code from callbacks->commit().
  */
 
 void
 dns_loadctx_detach(dns_loadctx_t **ctxp);
-/*
+/*%<
  * Detach from the load context.
  *
  * Requires:
- *	'*ctxp' to be valid.
+ *\li	'*ctxp' to be valid.
  *
  * Ensures:
- *	'*ctxp == NULL'
+ *\li	'*ctxp == NULL'
  */
 
 void
 dns_loadctx_attach(dns_loadctx_t *source, dns_loadctx_t **target);
-/*
+/*%<
  * Attach to the load context.
  *
  * Requires:
- *	'source' to be valid.
- *	'target != NULL && *target == NULL'.
+ *\li	'source' to be valid.
+ *\li	'target != NULL && *target == NULL'.
  */
 
 void
 dns_loadctx_cancel(dns_loadctx_t *ctx);
-/*
+/*%<
  * Cancel loading the zone file associated with this load context.
  *
  * Requires:
- *	'ctx' to be valid
+ *\li	'ctx' to be valid
  */
 
 ISC_LANG_ENDDECLS
