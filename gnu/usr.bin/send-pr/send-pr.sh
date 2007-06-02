@@ -578,7 +578,7 @@ else
   if [ -z "$BATCH" ]; then
     BAD=`mktemp -t pbad`
     echo "$COMMAND: the problem report remains in $BAD and is not sent."
-    mv $REF $BAD
+    mv $TEMP $BAD
   else
     echo "$COMMAND: the problem report is not sent."
   fi
