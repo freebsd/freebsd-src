@@ -672,6 +672,7 @@ OLD_FILES+=usr/lib/libskey_p.a
 OLD_FILES+=usr/libexec/tradcpp0
 OLD_FILES+=usr/libexec/cpp0
 # 200304XX: removal of xten
+OLD_FILES+=usr/libexec/xtend
 OLD_FILES+=usr/sbin/xten
 OLD_FILES+=usr/share/man/man1/xten.1.gz
 OLD_FILES+=usr/share/man/man8/xtend.8.gz
