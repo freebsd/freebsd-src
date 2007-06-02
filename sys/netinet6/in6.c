@@ -926,6 +926,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 		if (ia == NULL)
 			return (ENOBUFS);
 		bzero((caddr_t)ia, sizeof(*ia));
+		LIST_INIT(&ia->ia6_memberships);
 		/* Initialize the address and masks, and put time stamp */
 		IFA_LOCK_INIT(&ia->ia_ifa);
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
@@ -1083,7 +1084,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 			    (MAX_RTR_SOLICITATION_DELAY * hz);
 		}
 		imm = in6_joingroup(ifp, &llsol, &error, delay);
-		if (error != 0) {
+		if (imm == NULL) {
 			nd6log((LOG_WARNING,
 			    "in6_update_ifa: addmulti failed for "
 			    "%s on %s (errno=%d)\n",
@@ -1092,6 +1093,8 @@ in6_update_ifa(ifp, ifra, ia, flags)
 			in6_purgeaddr((struct ifaddr *)ia);
 			return (error);
 		}
+		LIST_INSERT_HEAD(&ia->ia6_memberships,
+		    imm, i6mm_chain);
 		in6m_sol = imm->i6mm_maddr;
 
 		bzero(&mltmask, sizeof(mltmask));
@@ -1173,6 +1176,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 			    if_name(ifp), error));
 			goto cleanup;
 		}
+		LIST_INSERT_HEAD(&ia->ia6_memberships, imm, i6mm_chain);
 
 		/*
 		 * join node information group address
@@ -1198,6 +1202,9 @@ in6_update_ifa(ifp, ifra, ia, flags)
 				    ip6_sprintf(ip6buf, &mltaddr.sin6_addr),
 				    if_name(ifp), error));
 				/* XXX not very fatal, go on... */
+			} else {
+				LIST_INSERT_HEAD(&ia->ia6_memberships,
+				    imm, i6mm_chain);
 			}
 		}
 #undef hostnamelen
@@ -1260,6 +1267,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 			    if_name(ifp), error));
 			goto cleanup;
 		}
+		LIST_INSERT_HEAD(&ia->ia6_memberships, imm, i6mm_chain);
 #undef	MLTMASK_LEN
 	}
 
@@ -1324,6 +1332,7 @@ in6_purgeaddr(ifa)
 	struct ifnet *ifp = ifa->ifa_ifp;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *) ifa;
 	char ip6buf[INET6_ADDRSTRLEN];
+	struct in6_multi_mship *imm;
 
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
@@ -1350,24 +1359,12 @@ in6_purgeaddr(ifa)
 	/* Remove ownaddr's loopback rtentry, if it exists. */
 	in6_ifremloop(&(ia->ia_ifa));
 
-	if (ifp->if_flags & IFF_MULTICAST) {
-		/*
-		 * delete solicited multicast addr for deleting host id
-		 */
-		struct in6_multi *in6m;
-		struct in6_addr llsol;
-		bzero(&llsol, sizeof(struct in6_addr));
-		llsol.s6_addr32[0] = IPV6_ADDR_INT32_MLL;
-		llsol.s6_addr32[1] = 0;
-		llsol.s6_addr32[2] = htonl(1);
-		llsol.s6_addr32[3] =
-			ia->ia_addr.sin6_addr.s6_addr32[3];
-		llsol.s6_addr8[12] = 0xff;
-		(void)in6_setscope(&llsol, ifp, NULL); /* XXX proceed anyway */
-
-		IN6_LOOKUP_MULTI(llsol, ifp, in6m);
-		if (in6m)
-			in6_delmulti(in6m);
+	/*
+	 * leave from multicast groups we have joined for the interface
+	 */
+	while ((imm = ia->ia6_memberships.lh_first) != NULL) {
+		LIST_REMOVE(imm, i6mm_chain);
+		in6_leavegroup(imm);
 	}
 
 	in6_unlink_ifa(ia, ifp);
