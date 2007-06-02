@@ -1377,10 +1377,8 @@ cxgb_init_locked(struct port_info *p)
 	callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
 	    cxgb_tick, sc);
 	
-	PORT_LOCK(p);
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	PORT_UNLOCK(p);
 }
 
 static void
