@@ -1,6 +1,6 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)setenv.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: setenv.c,v 1.1 2001/03/29 06:30:35 marka Exp $";
+static const char rcsid[] = "$Id: setenv.c,v 1.1.352.1 2005/04/27 05:00:44 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -52,40 +52,40 @@ extern char **environ;
 
 static char *findenv(const char *name, int *offset);
 
-/*
+/*%
  * setenv --
  *	Set the value of the environmental variable "name" to be
  *	"value".  If rewrite is set, replace any current value.
  */
 setenv(const char *name, const char *value, int rewrite) {
 	extern char **environ;
-	static int alloced;			/* if allocated space before */
+	static int alloced;			/*%< if allocated space before */
 	char *c;
 	int l_value, offset;
 
-	if (*value == '=')			/* no `=' in value */
+	if (*value == '=')			/*%< no `=' in value */
 		++value;
 	l_value = strlen(value);
-	if ((c = findenv(name, &offset))) {	/* find if already exists */
+	if ((c = findenv(name, &offset))) {	/*%< find if already exists */
 		if (!rewrite)
 			return (0);
-		if (strlen(c) >= l_value) {	/* old larger; copy over */
+		if (strlen(c) >= l_value) {	/*%< old larger; copy over */
 			while (*c++ = *value++);
 			return (0);
 		}
-	} else {					/* create new slot */
+	} else {					/*%< create new slot */
 		int cnt;
 		char **p;
 
 		for (p = environ, cnt = 0; *p; ++p, ++cnt);
-		if (alloced) {			/* just increase size */
+		if (alloced) {			/*%< just increase size */
 			environ = (char **)realloc((char *)environ,
 			    (size_t)(sizeof(char *) * (cnt + 2)));
 			if (!environ)
 				return (-1);
 		}
-		else {				/* get new space */
-			alloced = 1;		/* copy old entries into it */
+		else {				/*%< get new space */
+			alloced = 1;		/*%< copy old entries into it */
 			p = malloc((size_t)(sizeof(char *) * (cnt + 2)));
 			if (!p)
 				return (-1);
@@ -95,8 +95,8 @@ setenv(const char *name, const char *value, int rewrite) {
 		environ[cnt + 1] = NULL;
 		offset = cnt;
 	}
-	for (c = (char *)name; *c && *c != '='; ++c);	/* no `=' in name */
-	if (!(environ[offset] =			/* name + `=' + value */
+	for (c = (char *)name; *c && *c != '='; ++c);	/*%< no `=' in name */
+	if (!(environ[offset] =			/*%< name + `=' + value */
 	    malloc((size_t)((int)(c - name) + l_value + 2))))
 		return (-1);
 	for (c = environ[offset]; (*c = *name++) && *c != '='; ++c);
@@ -104,7 +104,7 @@ setenv(const char *name, const char *value, int rewrite) {
 	return (0);
 }
 
-/*
+/*%
  * unsetenv(name) --
  *	Delete environmental variable "name".
  */
@@ -113,13 +113,13 @@ unsetenv(const char *name) {
 	char **p;
 	int offset;
 
-	while (findenv(name, &offset))	/* if set multiple times */
+	while (findenv(name, &offset))	/*%< if set multiple times */
 		for (p = &environ[offset];; ++p)
 			if (!(*p = *(p + 1)))
 				break;
 }
 
-/*
+/*%
  * findenv --
  *	Returns pointer to value associated with name, if any, else NULL.
  *	Sets offset to be the offset of the name/value combination in the
@@ -147,3 +147,5 @@ findenv(const char *name, int *offset) {
 	return (NULL);
 }
 #endif
+
+/*! \file */

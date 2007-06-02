@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_update.c,v 1.6.2.4.4.2 2004/03/16 12:34:20 marka Exp $";
+static const char rcsid[] = "$Id: res_update.c,v 1.12.18.1 2005/04/27 05:01:12 sra Exp $";
 #endif /* not lint */
 
 /*
@@ -19,9 +19,10 @@ static const char rcsid[] = "$Id: res_update.c,v 1.6.2.4.4.2 2004/03/16 12:34:20
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
+/*! \file
+ * \brief
  * Based on the Dynamic DNS reference implementation by Viraj Bais
- * <viraj_bais@ccm.fm.intel.com>
+ * &lt;viraj_bais@ccm.fm.intel.com>
  */
 
 #include "port_before.h"
@@ -49,7 +50,7 @@ static const char rcsid[] = "$Id: res_update.c,v 1.6.2.4.4.2 2004/03/16 12:34:20
 #include "port_after.h"
 #include "res_private.h"
 
-/*
+/*%
  * Separate a linked list of records into groups so that all records
  * in a group will belong to a single zone on the nameserver.
  * Create a dynamic update packet for each zone and send it to the

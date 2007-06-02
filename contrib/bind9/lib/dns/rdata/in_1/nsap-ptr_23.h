@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -18,9 +18,10 @@
 #ifndef IN_1_NSAP_PTR_23_H
 #define IN_1_NSAP_PTR_23_H 1
 
-/* $Id: nsap-ptr_23.h,v 1.14.206.1 2004/03/06 08:14:18 marka Exp $ */
+/* $Id: nsap-ptr_23.h,v 1.15.18.2 2005/04/29 00:16:43 marka Exp $ */
 
-/* RFC 1348.  Obsoleted in RFC 1706 - use PTR instead. */
+/*! 
+ *  \brief Per RFC1348.  Obsoleted in RFC 1706 - use PTR instead. */
 
 typedef struct dns_rdata_in_nsap_ptr {
 	dns_rdatacommon_t	common;

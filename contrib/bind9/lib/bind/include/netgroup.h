@@ -22,3 +22,5 @@ int innetgr __P((const char *, const char *, const char *, const char *));
 #endif
 #endif
 #endif
+
+/*! \file */

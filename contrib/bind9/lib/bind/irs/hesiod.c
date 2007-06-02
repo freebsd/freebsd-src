@@ -1,5 +1,5 @@
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: hesiod.c,v 1.1.2.1.4.4 2005/07/28 07:43:19 marka Exp $";
+static const char rcsid[] = "$Id: hesiod.c,v 1.4.18.3 2005/07/28 07:38:08 marka Exp $";
 #endif
 
 /*
@@ -19,16 +19,16 @@ static const char rcsid[] = "$Id: hesiod.c,v 1.1.2.1.4.4 2005/07/28 07:43:19 mar
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file is primarily maintained by <tytso@mit.edu> and <ghudson@mit.edu>.
- */
 
-/*
+/*! \file
+ * \brief
  * hesiod.c --- the core portion of the hesiod resolver.
  *
  * This file is derived from the hesiod library from Project Athena;
  * It has been extensively rewritten by Theodore Ts'o to have a more
  * thread-safe interface.
+ * \author
+ * This file is primarily maintained by &lt;tytso@mit.edu&gt; and &lt;ghudson@mit.edu&gt;.
  */
 
 /* Imports */
@@ -69,7 +69,7 @@ static int	init(struct hesiod_p *ctx);
 
 /* Public */
 
-/*
+/*%
  * This function is called to initialize a hesiod_p.
  */
 int
@@ -145,7 +145,7 @@ hesiod_init(void **context) {
 	return (-1);
 }
 
-/*
+/*%
  * This function deallocates the hesiod_p
  */
 void
@@ -165,7 +165,7 @@ hesiod_end(void *context) {
 	errno = save_errno;
 }
 
-/*
+/*%
  * This function takes a hesiod (name, type) and returns a DNS
  * name which is to be resolved.
  */
@@ -224,7 +224,7 @@ hesiod_to_bind(void *context, const char *name, const char *type) {
 	return (bindname);
 }
 
-/*
+/*%
  * This is the core function.  Given a hesiod (name, type), it
  * returns an array of strings returned by the resolver.
  */
@@ -265,7 +265,7 @@ hesiod_free_list(void *context, char **list) {
 	free(list);
 }
 
-/*
+/*%
  * This function parses the /etc/hesiod.conf file
  */
 static int
@@ -335,17 +335,17 @@ parse_config_file(struct hesiod_p *ctx, const char *filename) {
 	return (-1);
 }
 
-/*
+/*%
  * Given a DNS class and a DNS name, do a lookup for TXT records, and
  * return a list of them.
  */
 static char **
 get_txt_records(struct hesiod_p *ctx, int class, const char *name) {
 	struct {
-		int type;		/* RR type */
-		int class;		/* RR class */
-		int dlen;		/* len of data section */
-		u_char *data;		/* pointer to data */
+		int type;		/*%< RR type */
+		int class;		/*%< RR class */
+		int dlen;		/*%< len of data section */
+		u_char *data;		/*%< pointer to data */
 	} rr;
 	HEADER *hp;
 	u_char qbuf[MAX_HESRESP], abuf[MAX_HESRESP];
@@ -412,7 +412,7 @@ get_txt_records(struct hesiod_p *ctx, int class, const char *name) {
 		rr.type = ns_get16(cp);
 		cp += INT16SZ;
 		rr.class = ns_get16(cp);
-		cp += INT16SZ + INT32SZ;	/* skip the ttl, too */
+		cp += INT16SZ + INT32SZ;	/*%< skip the ttl, too */
 		rr.dlen = ns_get16(cp);
 		cp += INT16SZ;
 		if (cp + rr.dlen > eom) {

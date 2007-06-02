@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: taskpool.c,v 1.10.12.5 2006/01/04 23:50:21 marka Exp $ */
+/* $Id: taskpool.c,v 1.12.18.3 2005/11/30 03:44:39 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 

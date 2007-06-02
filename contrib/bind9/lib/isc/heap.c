@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: heap.c,v 1.28.12.4 2006/04/17 18:27:20 explorer Exp $ */
+/* $Id: heap.c,v 1.30.18.3 2006/04/17 18:27:33 explorer Exp $ */
 
 /*! \file
  * Heap implementation of priority queues adapted from the following:

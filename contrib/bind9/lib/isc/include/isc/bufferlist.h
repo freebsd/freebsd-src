@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bufferlist.h,v 1.10.206.1 2004/03/06 08:14:39 marka Exp $ */
+/* $Id: bufferlist.h,v 1.11.18.2 2005/04/29 00:16:53 marka Exp $ */
 
 #ifndef ISC_BUFFERLIST_H
 #define ISC_BUFFERLIST_H 1
@@ -24,19 +24,19 @@
  ***** Module Info
  *****/
 
-/*
- * Buffer Lists
+/*! \file bufferlist.h
  *
- *	Buffer lists have no synchronization.  Clients must ensure exclusive
+ *
+ *\brief	Buffer lists have no synchronization.  Clients must ensure exclusive
  *	access.
  *
- * Reliability:
+ * \li Reliability:
  *	No anticipated impact.
 
- * Security:
+ * \li Security:
  *	No anticipated impact.
  *
- * Standards:
+ * \li Standards:
  *	None.
  */
 
@@ -55,30 +55,30 @@ ISC_LANG_BEGINDECLS
 
 unsigned int
 isc_bufferlist_usedcount(isc_bufferlist_t *bl);
-/*
- * Return the length of the sum of all used regions of all buffers in
+/*!<
+ * \brief Return the length of the sum of all used regions of all buffers in
  * the buffer list 'bl'
  *
  * Requires:
  *
- *	'bl' is not NULL.
+ *\li	'bl' is not NULL.
  *
  * Returns:
- *	sum of all used regions' lengths.
+ *\li	sum of all used regions' lengths.
  */
 
 unsigned int
 isc_bufferlist_availablecount(isc_bufferlist_t *bl);
-/*
- * Return the length of the sum of all available regions of all buffers in
+/*!<
+ * \brief Return the length of the sum of all available regions of all buffers in
  * the buffer list 'bl'
  *
  * Requires:
  *
- *	'bl' is not NULL.
+ *\li	'bl' is not NULL.
  *
  * Returns:
- *	sum of all available regions' lengths.
+ *\li	sum of all available regions' lengths.
  */
 
 ISC_LANG_ENDDECLS

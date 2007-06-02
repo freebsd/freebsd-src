@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named-checkconf.8,v 1.11.12.8 2006/06/29 13:02:30 marka Exp $
+.\" $Id: named-checkconf.8,v 1.16.18.11 2007/01/30 00:23:44 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: named\-checkconf
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: June 14, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -39,27 +39,37 @@ named\-checkconf \- named configuration file syntax checking tool
 \fBnamed\-checkconf\fR
 checks the syntax, but not the semantics, of a named configuration file.
 .SH "OPTIONS"
-.TP 3n
+.PP
 \-t \fIdirectory\fR
+.RS 4
 chroot to
 \fIdirectory\fR
 so that include directives in the configuration file are processed as if run by a similarly chrooted named.
-.TP 3n
+.RE
+.PP
 \-v
+.RS 4
 Print the version of the
 \fBnamed\-checkconf\fR
 program and exit.
-.TP 3n
+.RE
+.PP
 \-z
+.RS 4
 Perform a check load the master zonefiles found in
 \fInamed.conf\fR.
-.TP 3n
+.RE
+.PP
 \-j
+.RS 4
 When loading a zonefile read the journal if it exists.
-.TP 3n
+.RE
+.PP
 filename
+.RS 4
 The name of the configuration file to be checked. If not specified, it defaults to
 \fI/etc/named.conf\fR.
+.RE
 .SH "RETURN VALUES"
 .PP
 \fBnamed\-checkconf\fR
@@ -72,4 +82,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000\-2002 Internet Software Consortium.
+.br

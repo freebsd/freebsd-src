@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsigconf.c,v 1.21.208.6 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: tsigconf.c,v 1.22.18.6 2006/02/28 03:10:47 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -38,6 +40,7 @@ static isc_result_t
 add_initial_keys(const cfg_obj_t *list, dns_tsig_keyring_t *ring,
 		 isc_mem_t *mctx)
 {
+	dns_tsigkey_t *tsigkey = NULL;
 	const cfg_listelt_t *element;
 	const cfg_obj_t *key = NULL;
 	const char *keyid = NULL;
@@ -46,6 +49,7 @@ add_initial_keys(const cfg_obj_t *list, dns_tsig_keyring_t *ring,
 	int secretlen = 0;
 	isc_result_t ret;
 	isc_stdtime_t now;
+	isc_uint16_t bits;
 
 	for (element = cfg_list_first(list);
 	     element != NULL;
@@ -86,10 +90,11 @@ add_initial_keys(const cfg_obj_t *list, dns_tsig_keyring_t *ring,
 		 * Create the algorithm.
 		 */
 		algstr = cfg_obj_asstring(algobj);
-		if (ns_config_getkeyalgorithm(algstr, &alg) != ISC_R_SUCCESS) {
+		if (ns_config_getkeyalgorithm(algstr, &alg, &bits)
+		    != ISC_R_SUCCESS) {
 			cfg_obj_log(algobj, ns_g_lctx, ISC_LOG_ERROR,
-				    "key '%s': the only supported algorithm "
-				    "is hmac-md5", keyid);
+				    "key '%s': has a unsupported algorithm '%s'",
+				    keyid, algstr);
 			ret = DNS_R_BADALG;
 			goto failure;
 		}
@@ -110,11 +115,16 @@ add_initial_keys(const cfg_obj_t *list, dns_tsig_keyring_t *ring,
 		isc_stdtime_get(&now);
 		ret = dns_tsigkey_create(&keyname, alg, secret, secretlen,
 					 ISC_FALSE, NULL, now, now,
-					 mctx, ring, NULL);
+					 mctx, ring, &tsigkey);
 		isc_mem_put(mctx, secret, secretalloc);
 		secret = NULL;
 		if (ret != ISC_R_SUCCESS)
 			goto failure;
+		/*
+		 * Set digest bits.
+		 */
+		dst_key_setbits(tsigkey->key, bits);
+		dns_tsigkey_detach(&tsigkey);
 	}
 
 	return (ISC_R_SUCCESS);
@@ -127,7 +137,6 @@ add_initial_keys(const cfg_obj_t *list, dns_tsig_keyring_t *ring,
 	if (secret != NULL)
 		isc_mem_put(mctx, secret, secretalloc);
 	return (ret);
-
 }
 
 isc_result_t

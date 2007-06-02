@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,10 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.30.2.1.10.2 2004/03/06 08:13:57 marka Exp $ */
+/* $Id: log.h,v 1.33.18.4 2005/09/05 00:18:27 marka Exp $ */
 
-/* Principal Authors: DCL */
+/*! \file
+ * \author  Principal Authors: DCL */
 
 #ifndef DNS_LOG_H
 #define DNS_LOG_H 1
@@ -69,33 +70,35 @@ LIBDNS_EXTERNAL_DATA extern isc_logmodule_t dns_modules[];
 #define DNS_LOGMODULE_SDB		(&dns_modules[22])
 #define DNS_LOGMODULE_DIFF		(&dns_modules[23])
 #define DNS_LOGMODULE_HINTS		(&dns_modules[24])
+#define DNS_LOGMODULE_ACACHE		(&dns_modules[25])
+#define DNS_LOGMODULE_DLZ		(&dns_modules[26])
 
 ISC_LANG_BEGINDECLS
 
 void
 dns_log_init(isc_log_t *lctx);
-/*
+/*%
  * Make the libdns categories and modules available for use with the
  * ISC logging library.
  *
  * Requires:
- *	lctx is a valid logging context.
+ *\li	lctx is a valid logging context.
  *
- *	dns_log_init() is called only once.
+ *\li	dns_log_init() is called only once.
  *
  * Ensures:
- * 	The catgories and modules defined above are available for
+ * \li	The catgories and modules defined above are available for
  * 	use by isc_log_usechannnel() and isc_log_write().
  */
 
 void
 dns_log_setcontext(isc_log_t *lctx);
-/*
+/*%
  * Make the libdns library use the provided context for logging internal
  * messages.
  *
  * Requires:
- *	lctx is a valid logging context.
+ *\li	lctx is a valid logging context.
  */
 
 ISC_LANG_ENDDECLS

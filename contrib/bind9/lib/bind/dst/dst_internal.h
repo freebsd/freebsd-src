@@ -29,19 +29,19 @@
 # ifdef POSIX_PATH_MAX
 #  define PATH_MAX POSIX_PATH_MAX
 # else
-#  define PATH_MAX 255 /* this is the value of POSIX_PATH_MAX */
+#  define PATH_MAX 255 /*%< this is the value of POSIX_PATH_MAX */
 # endif
 #endif 
 
 typedef struct dst_key {
-	char	*dk_key_name;   /* name of the key */
-	int	dk_key_size;    /* this is the size of the key in bits */
-	int	dk_proto;       /* what protocols this key can be used for */
-	int	dk_alg;         /* algorithm number from key record */
-	u_int32_t dk_flags;     /* and the flags of the public key */
-	u_int16_t dk_id;        /* identifier of the key */
-	void	*dk_KEY_struct; /* pointer to key in crypto pkg fmt */
-	struct dst_func *dk_func; /* point to cryptto pgk specific function table */
+	char	*dk_key_name;   /*%< name of the key */
+	int	dk_key_size;    /*%< this is the size of the key in bits */
+	int	dk_proto;       /*%< what protocols this key can be used for */
+	int	dk_alg;         /*%< algorithm number from key record */
+	u_int32_t dk_flags;     /*%< and the flags of the public key */
+	u_int16_t dk_id;        /*%< identifier of the key */
+	void	*dk_KEY_struct; /*%< pointer to key in crypto pkg fmt */
+	struct dst_func *dk_func; /*%< point to cryptto pgk specific function table */
 } DST_KEY;
 #define HAS_DST_KEY 
 
@@ -103,7 +103,7 @@ extern const char *key_file_fmt_str;
 extern const char *dst_path;
 
 #ifndef DST_HASH_SIZE
-#define DST_HASH_SIZE 20	/* RIPEMD160 and SHA-1 are 20 bytes MD5 is 16 */
+#define DST_HASH_SIZE 20	/*%< RIPEMD160 and SHA-1 are 20 bytes MD5 is 16 */
 #endif
 
 int dst_bsafe_init(void);
@@ -129,7 +129,7 @@ int       dst_s_build_filename(  char *filename, const char *name,
 
 FILE      *dst_s_fopen (const char *filename, const char *mode, int perm);
 
-/* 
+/*%
  * read and write network byte order into u_int?_t  
  *  all of these should be retired
  */
@@ -152,3 +152,4 @@ dst_s_dump(const int mode, const u_char *data, const int size,
 
 
 #endif /* DST_INTERNAL_H */
+/*! \file */

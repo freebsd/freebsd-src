@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: openssldsa_link.c,v 1.1.4.3 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: openssldsa_link.c,v 1.1.6.8 2007/01/08 03:03:48 marka Exp $ */
 
 #ifdef OPENSSL
 
@@ -124,7 +124,7 @@ openssldsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 	if (sig->length < 2 * ISC_SHA1_DIGESTLENGTH + 1)
 		return (DST_R_VERIFYFAILURE);
 
-	cp++;	/* Skip T */
+	cp++;	/*%< Skip T */
 	dsasig = DSA_SIG_new();
 	dsasig->r = BN_bin2bn(cp, ISC_SHA1_DIGESTLENGTH, NULL);
 	cp += ISC_SHA1_DIGESTLENGTH;
@@ -169,85 +169,11 @@ openssldsa_compare(const dst_key_t *key1, const dst_key_t *key2) {
 	return (ISC_TRUE);
 }
 
-#ifndef HAVE_DSA_GENERATE_PARAMETERS
-/* ====================================================================
- * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
-static DSA *
-DSA_generate_parameters(int bits, unsigned char *seed_in, int seed_len,
-			int *counter_ret, unsigned long *h_ret,
-			void (*callback)(int, int, void *),
-			void *cb_arg)
-{
-        BN_GENCB cb;
-        DSA *dsa;
- 
-        dsa = DSA_new();
-	if (dsa != NULL) {
- 
-		BN_GENCB_set_old(&cb, callback, cb_arg);
-  
-		if (DSA_generate_parameters_ex(dsa, bits, seed_in, seed_len,  
-					       counter_ret, h_ret, &cb))
-			return (dsa);
-		DSA_free(dsa);
-	}
-        return (NULL);
-}
-#endif
-
 static isc_result_t
 openssldsa_generate(dst_key_t *key, int unused) {
+#if OPENSSL_VERSION_NUMBER > 0x00908000L
+        BN_GENCB cb;
+#endif
 	DSA *dsa;
 	unsigned char rand_array[ISC_SHA1_DIGESTLENGTH];
 	isc_result_t result;
@@ -259,12 +185,27 @@ openssldsa_generate(dst_key_t *key, int unused) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+#if OPENSSL_VERSION_NUMBER > 0x00908000L
+        dsa = DSA_new();
+	if (dsa == NULL)
+		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
+
+	BN_GENCB_set_old(&cb, NULL, NULL);
+  
+	if (!DSA_generate_parameters_ex(dsa, key->key_size, rand_array,
+					ISC_SHA1_DIGESTLENGTH,  NULL, NULL,
+					&cb))
+	{
+		DSA_free(dsa);
+		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
+	}
+#else
 	dsa = DSA_generate_parameters(key->key_size, rand_array,
 				      ISC_SHA1_DIGESTLENGTH, NULL, NULL,
 				      NULL, NULL);
-
 	if (dsa == NULL)
 		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
+#endif
 
 	if (DSA_generate_key(dsa) == 0) {
 		DSA_free(dsa);
@@ -490,9 +431,9 @@ static dst_func_t openssldsa_functions = {
 	openssldsa_adddata,
 	openssldsa_sign,
 	openssldsa_verify,
-	NULL, /* computesecret */
+	NULL, /*%< computesecret */
 	openssldsa_compare,
-	NULL, /* paramcompare */
+	NULL, /*%< paramcompare */
 	openssldsa_generate,
 	openssldsa_isprivate,
 	openssldsa_destroy,
@@ -500,7 +441,7 @@ static dst_func_t openssldsa_functions = {
 	openssldsa_fromdns,
 	openssldsa_tofile,
 	openssldsa_parse,
-	NULL, /* cleanup */
+	NULL, /*%< cleanup */
 };
 
 isc_result_t
@@ -518,3 +459,4 @@ dst__openssldsa_init(dst_func_t **funcp) {
 EMPTY_TRANSLATION_UNIT
 
 #endif /* OPENSSL */
+/*! \file */

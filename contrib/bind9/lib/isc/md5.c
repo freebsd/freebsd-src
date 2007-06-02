@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: md5.c,v 1.9.206.1 2004/03/06 08:14:32 marka Exp $ */
+/* $Id: md5.c,v 1.10.18.2 2005/04/29 00:16:47 marka Exp $ */
 
-/*
+/*! \file
  * This code implements the MD5 message-digest algorithm.
  * The algorithm is due to Ron Rivest.  This code was
  * written by Colin Plumb in 1993, no copyright is claimed.
@@ -54,7 +54,7 @@ byteSwap(isc_uint32_t *buf, unsigned words)
 	} while (--words);
 }
 
-/*
+/*!
  * Start MD5 accumulation.  Set bit count to 0 and buffer to mysterious
  * initialization constants.
  */
@@ -74,19 +74,21 @@ isc_md5_invalidate(isc_md5_t *ctx) {
 	memset(ctx, 0, sizeof(isc_md5_t));
 }
 
-/* The four core functions - F1 is optimized somewhat */
+/*@{*/
+/*! The four core functions - F1 is optimized somewhat */
 
 /* #define F1(x, y, z) (x & y | ~x & z) */
 #define F1(x, y, z) (z ^ (x & (y ^ z)))
 #define F2(x, y, z) F1(z, x, y)
 #define F3(x, y, z) (x ^ y ^ z)
 #define F4(x, y, z) (y ^ (x | ~z))
+/*@}*/
 
-/* This is the central step in the MD5 algorithm. */
+/*! This is the central step in the MD5 algorithm. */
 #define MD5STEP(f,w,x,y,z,in,s) \
 	 (w += f(x,y,z) + in, w = (w<<s | w>>(32-s)) + x)
 
-/*
+/*!
  * The core of the MD5 algorithm, this alters an existing MD5 hash to
  * reflect the addition of 16 longwords of new data.  MD5Update blocks
  * the data and converts bytes into longwords for this routine.
@@ -174,7 +176,7 @@ transform(isc_uint32_t buf[4], isc_uint32_t const in[16]) {
 	buf[3] += d;
 }
 
-/*
+/*!
  * Update context to reflect the concatenation of another buffer full
  * of bytes.
  */
@@ -213,7 +215,7 @@ isc_md5_update(isc_md5_t *ctx, const unsigned char *buf, unsigned int len) {
 	memcpy(ctx->in, buf, len);
 }
 
-/*
+/*!
  * Final wrapup - pad to 64-byte boundary with the bit pattern
  * 1 0* (64-bit count of bits processed, MSB-first)
  */

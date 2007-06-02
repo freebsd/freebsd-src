@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfaceiter.h,v 1.10.206.1 2004/03/06 08:14:42 marka Exp $ */
+/* $Id: interfaceiter.h,v 1.11.18.2 2005/04/29 00:16:55 marka Exp $ */
 
 #ifndef ISC_INTERFACEITER_H
 #define ISC_INTERFACEITER_H 1
@@ -24,10 +24,8 @@
  ***** Module Info
  *****/
 
-/*
- * Interface iterator
- *
- * Iterate over the list of network interfaces.
+/*! \file
+ * \brief Iterates over the list of network interfaces.
  *
  * Interfaces whose address family is not supported are ignored and never
  * returned by the iterator.  Interfaces whose netmask, interface flags,
@@ -46,25 +44,26 @@
 #include <isc/netaddr.h>
 #include <isc/types.h>
 
-/*
- * Public structure describing a network interface.
+/*!
+ * \brief Public structure describing a network interface.
  */
 
 struct isc_interface {
-	char name[32];			/* Interface name, null-terminated. */
-	unsigned int af;		/* Address family. */
-	isc_netaddr_t address;		/* Local address. */
-	isc_netaddr_t netmask;		/* Network mask. */
-	isc_netaddr_t dstaddress; 	/* Destination address
-					   (point-to-point only). */
-	isc_uint32_t flags;		/* Flags; see below. */
+	char name[32];			/*%< Interface name, null-terminated. */
+	unsigned int af;		/*%< Address family. */
+	isc_netaddr_t address;		/*%< Local address. */
+	isc_netaddr_t netmask;		/*%< Network mask. */
+	isc_netaddr_t dstaddress; 	/*%< Destination address (point-to-point only). */
+	isc_uint32_t flags;		/*%< Flags; see INTERFACE flags. */
 };
 
-/* Interface flags. */
+/*@{*/
+/*! Interface flags. */
 
 #define INTERFACE_F_UP			0x00000001U
 #define INTERFACE_F_POINTTOPOINT	0x00000002U
 #define INTERFACE_F_LOOPBACK		0x00000004U
+/*@}*/
 
 /***
  *** Functions
@@ -74,59 +73,59 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp);
-/*
- * Create an iterator for traversing the operating system's list
+/*!<
+ * \brief Create an iterator for traversing the operating system's list
  * of network interfaces.
  *
  * Returns:
- *	ISC_R_SUCCESS
- * 	ISC_R_NOMEMORY
- *	Various network-related errors
+ *\li	#ISC_R_SUCCESS
+ * \li	#ISC_R_NOMEMORY
+ *\li	Various network-related errors
  */
 
 isc_result_t
 isc_interfaceiter_first(isc_interfaceiter_t *iter);
-/*
- * Position the iterator on the first interface.
+/*!<
+ * \brief Position the iterator on the first interface.
  *
  * Returns:
- *	ISC_R_SUCCESS		Success.
- *	ISC_R_NOMORE		There are no interfaces.
+ *\li	#ISC_R_SUCCESS		Success.
+ *\li	#ISC_R_NOMORE		There are no interfaces.
  */
 
 isc_result_t
 isc_interfaceiter_current(isc_interfaceiter_t *iter,
 			  isc_interface_t *ifdata);
-/*
- * Get information about the interface the iterator is currently
+/*!<
+ * \brief Get information about the interface the iterator is currently
  * positioned at and store it at *ifdata.
  *
  * Requires:
- * 	The iterator has been successfully positioned using
+ *\li 	The iterator has been successfully positioned using
  * 	isc_interface_iter_first() / isc_interface_iter_next().
  *
  * Returns:
- *	ISC_R_SUCCESS		Success.
+ *\li	#ISC_R_SUCCESS		Success.
  */
 
 isc_result_t
 isc_interfaceiter_next(isc_interfaceiter_t *iter);
-/*
- * Position the iterator on the next interface.
+/*!<
+ * \brief Position the iterator on the next interface.
  *
  * Requires:
- * 	The iterator has been successfully positioned using
+ * \li	The iterator has been successfully positioned using
  * 	isc_interface_iter_first() / isc_interface_iter_next().
  *
  * Returns:
- *	ISC_R_SUCCESS		Success.
- *	ISC_R_NOMORE		There are no more interfaces.
+ *\li	#ISC_R_SUCCESS		Success.
+ *\li	#ISC_R_NOMORE		There are no more interfaces.
  */
 
 void
 isc_interfaceiter_destroy(isc_interfaceiter_t **iterp);
-/*
- * Destroy the iterator.
+/*!<
+ * \brief Destroy the iterator.
  */
 
 ISC_LANG_ENDDECLS

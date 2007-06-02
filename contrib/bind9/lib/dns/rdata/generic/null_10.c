@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: null_10.c,v 1.35.2.1.10.4 2004/03/08 09:04:41 marka Exp $ */
+/* $Id: null_10.c,v 1.40 2004/03/05 05:10:16 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 13:57:50 PST 2000 by explorer */
 

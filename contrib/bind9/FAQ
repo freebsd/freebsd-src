@@ -75,12 +75,12 @@ Q: Why do I get errors like "dns_zone_load: zone foo/IN: loading master file bar
 A: This is often caused by TXT records with missing close quotes. Check that all
    TXT records containing quoted strings have both open and close quotes.
 
-Q: How do I produce a usable core file from a multithreaded named on Linux?
+Q: How do I produce a usable core file from a multi-threaded named on Linux?
 
-A: If the Linux kernel is 2.4.7 or newer, multithreaded core dumps are usable
+A: If the Linux kernel is 2.4.7 or newer, multi-threaded core dumps are usable
    (that is, the correct thread is dumped). Otherwise, if using a 2.2 kernel,
    apply the kernel patch found in contrib/linux/coredump-patch and rebuild the
-   kernel. This patch will cause multithreaded programs to dump the correct
+   kernel. This patch will cause multi-threaded programs to dump the correct
    thread.
 
 Q: How do I restrict people from looking up the server version?
@@ -310,7 +310,7 @@ A: These indicate a malformed master zone. You can identify the exact records
    named-checkzone example.com tmp
 
    A CNAME record cannot exist with the same name as another record except for the
-   DNSSEC records which prove its existance (NSEC).
+   DNSSEC records which prove its existence (NSEC).
 
    RFC 1034, Section 3.6.2: "If a CNAME RR is present at a node, no other data
    should be present; this ensures that the data for a canonical name and its
@@ -385,11 +385,11 @@ Q: I get a error message like "zone wireless.ietf56.ietf.org/IN: loading master
 A: This error is produced when a line in the master file contains leading white
    space (tab/space) but the is no current record owner name to inherit the name
    from. Usually this is the result of putting white space before a comment.
-   Forgeting the "@" for the SOA record or indenting the master file.
+   Forgetting the "@" for the SOA record or indenting the master file.
 
 Q: Why are my logs in GMT (UTC).
 
-A: You are running chrooted (-t) and have not supplied local timzone information
+A: You are running chrooted (-t) and have not supplied local timezone information
    in the chroot area.
 
    FreeBSD: /etc/localtime
@@ -474,7 +474,7 @@ A: These indicate a filesystem permission error preventing named creating /
            masters { 192.168.4.12; };
    };
 
-Q: How do I intergrate BIND 9 and Solaris SMF
+Q: How do I integrate BIND 9 and Solaris SMF
 
 A: Sun has a blog entry describing how to do this.
 
@@ -487,7 +487,7 @@ A: No. The rules for glue (copies of the *address* records in the parent zones)
 
    You would have to add both the CNAME and address records (A/AAAA) as glue to
    the parent zone and have CNAMEs be followed when doing additional section
-   processing to make it work. No namesever implementation supports either of
+   processing to make it work. No nameserver implementation supports either of
    these requirements.
 
 Q: What does "RFC 1918 response from Internet for 0.0.0.10.IN-ADDR.ARPA" mean?
@@ -495,7 +495,7 @@ Q: What does "RFC 1918 response from Internet for 0.0.0.10.IN-ADDR.ARPA" mean?
 A: If the IN-ADDR.ARPA name covered refers to a internal address space you are
    using then you have failed to follow RFC 1918 usage rules and are leaking
    queries to the Internet. You should establish your own zones for these
-   addresses to prevent you quering the Internet's name servers for these
+   addresses to prevent you querying the Internet's name servers for these
    addresses. Please see http://as112.net/ for details of the problems you are
    causing and the counter measures that have had to be deployed.
 
@@ -549,7 +549,7 @@ A: Red Hat Security Enhanced Linux (SELinux) policy security protections :
    Red Hat have adopted the National Security Agency's SELinux security policy (
    see http://www.nsa.gov/selinux ) and recommendations for BIND security , which
    are more secure than running named in a chroot and make use of the bind-chroot
-   environment unecessary .
+   environment unnecessary .
 
    By default, named is not allowed by the SELinux policy to write, create or
    delete any files EXCEPT in these directories:
@@ -614,19 +614,19 @@ A: Red Hat Security Enhanced Linux (SELinux) policy security protections :
    in different locations, you can do so by changing the context of the custom
    file locations .
 
-   To create a custom configuration file location, eg. '/root/named.conf', to use
+   To create a custom configuration file location, e.g. '/root/named.conf', to use
    with the 'named -c' option, do:
 
    # chcon system_u:object_r:named_conf_t /root/named.conf
 
 
-   To create a custom modifiable named data location, eg. '/var/log/named' for a
+   To create a custom modifiable named data location, e.g. '/var/log/named' for a
    log file, do:
 
    # chcon system_u:object_r:named_cache_t /var/log/named
 
 
-   To create a custom zone file location, eg. /root/zones/, do:
+   To create a custom zone file location, e.g. /root/zones/, do:
 
    # chcon system_u:object_r:named_zone_t /root/zones/{.,*}
 
@@ -667,9 +667,55 @@ A: No, so long as the machines internal clock (as reported by "date -u") remains
    (which sets the default timezone for the machine) and possibly a directory
    which has all the conversion rules for the world (e.g. /usr/share/zoneinfo).
    When updating the OS do not forget to update any chroot areas as well. See your
-   OS's documetation for more details.
+   OS's documentation for more details.
 
    The local timezone conversion rules can also be done on a individual basis by
-   setting the TZ envirionment variable appropriately. See your OS's documentation
+   setting the TZ environment variable appropriately. See your OS's documentation
    for more details.
+
+Q: Why do we get the following warning at run time:
+
+   kernel: process `named' is using obsolete setsockopt SO_BSDCOMPAT
+
+A: The early Linux kernels broke sendto() by having it return that a ICMP
+   unreachable had be received for non connected UDP sockets. This made non
+   connected UDP sockets work like connected UDP socket which is fine when you are
+   only talking to one destination. Named however talks to multiple destinations
+   and it caused problems.
+
+   Rather than fix sendto() to just have BSD behaviour they added SO_BSDCOMPAT to
+   turn BSD behaviour on/off on a per socket basis.
+
+   Later they decided to make BSD behaviour the default and to aggressively track
+   down applications that used SO_BSDCOMPAT by issuing a warning. This is the sort
+   of things vendors do in alpha/beta stages of a release so that their code is
+   clean. They then turn the warning *off* for release code.
+
+   We still have customers that have kernels that require SO_BSDCOMPAT to operate.
+   We therefore cannot remove the setsockopt(SO_BSDCOMPAT) call.
+
+   Now most/all portable applications that use SO_BSDCOMPAT use it conditionally
+   manner so just removing SO_BSDCOMPAT from the header file would be safe as long
+   as the binary was not to be moved between systems. BIND's use is conditional.
+
+   In short, the Linux developers should either, remove the #define for
+   SO_BSDCOMPAT, and/or remove the warning.
+
+Q: Isn't "make install" supposed to generate a default named.conf?
+
+A: Short Answer: No.
+
+   Long Answer: There really isn't a default configuration which fits any site
+   perfectly. There are lots of decisions that need to be made and there is no
+   consensus on what the defaults should be. For example FreeBSD uses /etc/namedb
+   as the location where the configuration files for named are stored. Others use
+   /var/named.
+
+   What addresses to listen on? For a laptop on the move a lot you may only want
+   to listen on the loop back interfaces.
+
+   Who do you offer recursive service to? Is there are firewall to consider? If so
+   is it stateless or stateful. Are you directly on the Internet? Are you on a
+   private network? Are you on a NAT'd network? The answers to all these questions
+   change how you configure even a caching name server.
 

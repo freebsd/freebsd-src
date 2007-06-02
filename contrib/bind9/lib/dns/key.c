@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: key.c,v 1.1.4.3 2005/06/09 23:54:29 marka Exp $ */
+/* $Id: key.c,v 1.1.6.6 2006/01/27 23:57:44 marka Exp $ */
 
 #include <config.h>
 
@@ -125,3 +125,23 @@ dst_key_isnullkey(const dst_key_t *key) {
 		return (ISC_FALSE);
 	return (ISC_TRUE);
 }
+
+void
+dst_key_setbits(dst_key_t *key, isc_uint16_t bits) {
+	unsigned int maxbits;
+	REQUIRE(VALID_KEY(key));
+	if (bits != 0) {
+		RUNTIME_CHECK(dst_key_sigsize(key, &maxbits) == ISC_R_SUCCESS);
+		maxbits *= 8;
+		REQUIRE(bits <= maxbits);
+	}
+	key->key_bits = bits;
+}
+
+isc_uint16_t
+dst_key_getbits(const dst_key_t *key) {
+	REQUIRE(VALID_KEY(key));
+	return (key->key_bits);
+}
+
+/*! \file */

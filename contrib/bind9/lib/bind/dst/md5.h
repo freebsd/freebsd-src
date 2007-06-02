@@ -104,3 +104,5 @@ unsigned char *MD5();
 #else 
 #include <sys/md5.h>
 #endif /* HAVE_MD5 */
+
+/*! \file */

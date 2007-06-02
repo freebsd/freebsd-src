@@ -30,16 +30,15 @@
  * SUCH DAMAGE.
  */
 
-/*
+/*%
  *      from nameser.h	8.1 (Berkeley) 6/2/93
- *	$Id: nameser_compat.h,v 1.1.2.3.4.3 2006/05/19 02:38:15 marka Exp $
+ *	$Id: nameser_compat.h,v 1.5.18.3 2006/05/19 02:36:00 marka Exp $
  */
 
 #ifndef _ARPA_NAMESER_COMPAT_
 #define	_ARPA_NAMESER_COMPAT_
 
-#define	__BIND		19950621	/* (DEAD) interface version stamp. */
-
+#define	__BIND		19950621	/*%< (DEAD) interface version stamp. */
 #ifndef BYTE_ORDER
 #if (BSD >= 199103)
 # include <machine/endian.h>
@@ -47,10 +46,9 @@
 #ifdef __linux
 # include <endian.h>
 #else
-#define	LITTLE_ENDIAN	1234	/* least-significant byte first (vax, pc) */
-#define	BIG_ENDIAN	4321	/* most-significant byte first (IBM, net) */
-#define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long (pdp)*/
-
+#define	LITTLE_ENDIAN	1234	/*%< least-significant byte first (vax, pc) */
+#define	BIG_ENDIAN	4321	/*%< most-significant byte first (IBM, net) */
+#define	PDP_ENDIAN	3412	/*%< LSB first in word, MSW first in long (pdp) */
 #if defined(vax) || defined(ns32000) || defined(sun386) || defined(i386) || \
     defined(__i386__) || defined(__i386) || defined(__amd64__) || \
     defined(__x86_64__) || defined(MIPSEL) || defined(_MIPSEL) || \
@@ -86,7 +84,7 @@
   error "Undefined or invalid BYTE_ORDER";
 #endif
 
-/*
+/*%
  * Structure for query header.  The order of the fields is machine- and
  * compiler-dependent, depending on the byte/bit order and the layout
  * of bit fields.  We use bit fields only in int variables, as this
@@ -94,40 +92,40 @@
  */
 
 typedef struct {
-	unsigned	id :16;		/* query identification number */
+	unsigned	id :16;		/*%< query identification number */
 #if BYTE_ORDER == BIG_ENDIAN
 			/* fields in third byte */
-	unsigned	qr: 1;		/* response flag */
-	unsigned	opcode: 4;	/* purpose of message */
-	unsigned	aa: 1;		/* authoritive answer */
-	unsigned	tc: 1;		/* truncated message */
-	unsigned	rd: 1;		/* recursion desired */
+	unsigned	qr: 1;		/*%< response flag */
+	unsigned	opcode: 4;	/*%< purpose of message */
+	unsigned	aa: 1;		/*%< authoritive answer */
+	unsigned	tc: 1;		/*%< truncated message */
+	unsigned	rd: 1;		/*%< recursion desired */
 			/* fields in fourth byte */
-	unsigned	ra: 1;		/* recursion available */
-	unsigned	unused :1;	/* unused bits (MBZ as of 4.9.3a3) */
-	unsigned	ad: 1;		/* authentic data from named */
-	unsigned	cd: 1;		/* checking disabled by resolver */
-	unsigned	rcode :4;	/* response code */
+	unsigned	ra: 1;		/*%< recursion available */
+	unsigned	unused :1;	/*%< unused bits (MBZ as of 4.9.3a3) */
+	unsigned	ad: 1;		/*%< authentic data from named */
+	unsigned	cd: 1;		/*%< checking disabled by resolver */
+	unsigned	rcode :4;	/*%< response code */
 #endif
 #if BYTE_ORDER == LITTLE_ENDIAN || BYTE_ORDER == PDP_ENDIAN
 			/* fields in third byte */
-	unsigned	rd :1;		/* recursion desired */
-	unsigned	tc :1;		/* truncated message */
-	unsigned	aa :1;		/* authoritive answer */
-	unsigned	opcode :4;	/* purpose of message */
-	unsigned	qr :1;		/* response flag */
+	unsigned	rd :1;		/*%< recursion desired */
+	unsigned	tc :1;		/*%< truncated message */
+	unsigned	aa :1;		/*%< authoritive answer */
+	unsigned	opcode :4;	/*%< purpose of message */
+	unsigned	qr :1;		/*%< response flag */
 			/* fields in fourth byte */
-	unsigned	rcode :4;	/* response code */
-	unsigned	cd: 1;		/* checking disabled by resolver */
-	unsigned	ad: 1;		/* authentic data from named */
-	unsigned	unused :1;	/* unused bits (MBZ as of 4.9.3a3) */
-	unsigned	ra :1;		/* recursion available */
+	unsigned	rcode :4;	/*%< response code */
+	unsigned	cd: 1;		/*%< checking disabled by resolver */
+	unsigned	ad: 1;		/*%< authentic data from named */
+	unsigned	unused :1;	/*%< unused bits (MBZ as of 4.9.3a3) */
+	unsigned	ra :1;		/*%< recursion available */
 #endif
 			/* remaining bytes */
-	unsigned	qdcount :16;	/* number of question entries */
-	unsigned	ancount :16;	/* number of answer entries */
-	unsigned	nscount :16;	/* number of authority entries */
-	unsigned	arcount :16;	/* number of resource entries */
+	unsigned	qdcount :16;	/*%< number of question entries */
+	unsigned	ancount :16;	/*%< number of answer entries */
+	unsigned	nscount :16;	/*%< number of authority entries */
+	unsigned	arcount :16;	/*%< number of resource entries */
 } HEADER;
 
 #define PACKETSZ	NS_PACKETSZ
@@ -231,3 +229,4 @@ typedef struct {
 #define	PUTLONG			NS_PUT32
 
 #endif /* _ARPA_NAMESER_COMPAT_ */
+/*! \file */

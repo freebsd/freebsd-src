@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.157.2.13.2.31 2006/07/22 23:52:57 marka Exp $ */
+/* $Id: dig.c,v 1.186.18.26 2006/07/21 23:52:21 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 #include <stdlib.h>
@@ -40,6 +42,7 @@
 #include <dns/rdatatype.h>
 #include <dns/rdataclass.h>
 #include <dns/result.h>
+#include <dns/tsig.h>
 
 #include <bind9/getaddresses.h>
 
@@ -67,6 +70,7 @@ static isc_boolean_t short_form = ISC_FALSE, printcmd = ISC_TRUE,
 	ip6_int = ISC_FALSE, plusquest = ISC_FALSE, pluscomm = ISC_FALSE,
 	multiline = ISC_FALSE, nottl = ISC_FALSE, noclass = ISC_FALSE;
 
+/*% opcode text */
 static const char *opcodetext[] = {
 	"QUERY",
 	"IQUERY",
@@ -86,6 +90,7 @@ static const char *opcodetext[] = {
 	"RESERVED15"
 };
 
+/*% return code text */
 static const char *rcodetext[] = {
 	"NOERROR",
 	"FORMERR",
@@ -106,6 +111,7 @@ static const char *rcodetext[] = {
 	"BADVERS"
 };
 
+/*% print usage */
 static void
 print_usage(FILE *fp) {
 	fputs(
@@ -122,11 +128,13 @@ usage(void) {
 	exit(1);
 }
 
+/*% version */
 static void
 version(void) {
 	fputs("DiG " VERSION "\n", stderr);
 }
 
+/*% help */
 static void
 help(void) {
 	print_usage(stdout);
@@ -141,10 +149,11 @@ help(void) {
 "                 -f filename         (batch mode)\n"
 "                 -b address[#port]   (bind to source address/port)\n"
 "                 -p port             (specify port number)\n"
+"                 -q name             (specify query name)\n"
 "                 -t type             (specify query type)\n"
 "                 -c class            (specify query class)\n"
 "                 -k keyfile          (specify tsig key file)\n"
-"                 -y name:key         (specify named base64 tsig key)\n"
+"                 -y [hmac:]name:key  (specify named base64 tsig key)\n"
 "                 -4                  (use IPv4 query transport only)\n"
 "                 -6                  (use IPv6 query transport only)\n"
 "        d-opt    is of the form +keyword[=value], where keyword is:\n"
@@ -156,7 +165,9 @@ help(void) {
 "                 +domain=###         (Set default domainname)\n"
 "                 +bufsize=###        (Set EDNS0 Max UDP packet size)\n"
 "                 +ndots=###          (Set NDOTS value)\n"
+"                 +edns=###           (Set EDNS version)\n"
 "                 +[no]search         (Set whether to use searchlist)\n"
+"                 +[no]showsearch     (Search with intermediate results)\n"
 "                 +[no]defname        (Ditto)\n"
 "                 +[no]recurse        (Recursive mode)\n"
 "                 +[no]ignore         (Don't revert to TCP for TC responses.)"
@@ -198,7 +209,7 @@ help(void) {
 	stdout);
 }
 
-/*
+/*%
  * Callback from dighost.c to print the received message.
  */
 void
@@ -219,10 +230,12 @@ received(int bytes, isc_sockaddr_t *from, dig_query_t *query) {
 		time(&tnow);
 		printf(";; WHEN: %s", ctime(&tnow));
 		if (query->lookup->doing_xfr) {
-			printf(";; XFR size: %u records (messages %u)\n",
-			       query->rr_count, query->msg_count);
+			printf(";; XFR size: %u records (messages %u, "
+			       "bytes %" ISC_PRINT_QUADFORMAT "u)\n",
+			       query->rr_count, query->msg_count,
+			       query->byte_count);
 		} else {
-			printf(";; MSG SIZE  rcvd: %d\n", bytes);
+			printf(";; MSG SIZE  rcvd: %u\n", bytes);
 
 		}
 		if (key != NULL) {
@@ -236,8 +249,11 @@ received(int bytes, isc_sockaddr_t *from, dig_query_t *query) {
 		puts("");
 	} else if (query->lookup->identify && !short_form) {
 		diff = isc_time_microdiff(&now, &query->time_sent);
-		printf(";; Received %u bytes from %s(%s) in %d ms\n\n",
-		       bytes, fromtext, query->servname,
+		printf(";; Received %" ISC_PRINT_QUADFORMAT "u bytes "
+		       "from %s(%s) in %d ms\n\n",
+		       query->lookup->doing_xfr ?
+				query->byte_count : (isc_uint64_t)bytes,
+		       fromtext, query->servname,
 		       (int)diff/1000);
 	}
 }
@@ -253,7 +269,7 @@ trying(char *frm, dig_lookup_t *lookup) {
 	UNUSED(lookup);
 }
 
-/*
+/*%
  * Internal print routine used to print short form replies.
  */
 static isc_result_t
@@ -283,7 +299,7 @@ say_message(dns_rdata_t *rdata, dig_query_t *query, isc_buffer_t *buf) {
 	return (ISC_R_SUCCESS);
 }
 
-/*
+/*%
  * short_form message print handler.  Calls above say_message()
  */
 static isc_result_t
@@ -475,7 +491,16 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 			       msg->counts[DNS_SECTION_ANSWER],
 			       msg->counts[DNS_SECTION_AUTHORITY],
 			       msg->counts[DNS_SECTION_ADDITIONAL]);
+
+			if (msg != query->lookup->sendmsg &&
+			    (msg->flags & DNS_MESSAGEFLAG_RD) != 0 &&
+			    (msg->flags & DNS_MESSAGEFLAG_RA) == 0)
+				printf(";; WARNING: recursion requested "
+				       "but not available\n");
 		}
+		if (msg != query->lookup->sendmsg && extrabytes != 0U)
+			printf(";; WARNING: Messages has %u extra byte%s at "
+			       "end\n", extrabytes, extrabytes != 0 ? "s" : "");
 	}
 
 repopulate_buffer:
@@ -578,7 +603,7 @@ cleanup:
 	return (result);
 }
 
-/*
+/*%
  * print the greeting message when the program first starts up.
  */
 static void
@@ -625,7 +650,7 @@ printgreeting(int argc, char **argv, dig_lookup_t *lookup) {
 	}
 }
 
-/*
+/*%
  * Reorder an argument list so that server names all come at the end.
  * This is a bit of a hack, to allow batch-mode processing to properly
  * handle the server options.
@@ -674,7 +699,7 @@ parse_uint(char *arg, const char *desc, isc_uint32_t max) {
 	return (tmp);
 }
 
-/*
+/*%
  * We're not using isc_commandline_parse() here since the command line
  * syntax of dig is quite a bit different from that which can be described
  * by that routine.
@@ -814,6 +839,8 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 			break;
 		case 'n': /* dnssec */	
 			FULLCHECK("dnssec");
+			if (state && lookup->edns == -1)
+				lookup->edns = 0;
 			lookup->dnssec = state;
 			break;
 		case 'o': /* domain */	
@@ -828,6 +855,16 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 		default:
 			goto invalid_option;
 		}
+		break;
+	case 'e':
+		FULLCHECK("edns");
+		if (!state) {
+			lookup->edns = -1;
+			break;
+		}
+		if (value == NULL)
+			goto need_value;
+		lookup->edns = (isc_int16_t) parse_uint(value, "edns", 255);
 		break;
 	case 'f': /* fail */
 		FULLCHECK("fail");
@@ -928,17 +965,30 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 			FULLCHECK("search");
 			usesearch = state;
 			break;
-		case 'h': /* short */
-			FULLCHECK("short");
-			short_form = state;
-			if (state) {
-				printcmd = ISC_FALSE;
-				lookup->section_additional = ISC_FALSE;
-				lookup->section_answer = ISC_TRUE;
-				lookup->section_authority = ISC_FALSE;
-				lookup->section_question = ISC_FALSE;
-				lookup->comments = ISC_FALSE;
-				lookup->stats = ISC_FALSE;
+		case 'h':
+			if (cmd[2] != 'o')
+				goto invalid_option;
+			switch (cmd[3]) {
+			case 'r': /* short */
+				FULLCHECK("short");
+				short_form = state;
+				if (state) {
+					printcmd = ISC_FALSE;
+					lookup->section_additional = ISC_FALSE;
+					lookup->section_answer = ISC_TRUE;
+					lookup->section_authority = ISC_FALSE;
+					lookup->section_question = ISC_FALSE;
+					lookup->comments = ISC_FALSE;
+					lookup->stats = ISC_FALSE;
+				}
+				break;
+			case 'w': /* showsearch */
+				FULLCHECK("showsearch");
+				showsearch = state;
+				usesearch = state;
+				break;
+			default:
+				goto invalid_option;
 			}
 			break;
 #ifdef DIG_SIGCHASE
@@ -1047,16 +1097,16 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 	return;
 }
 
-/*
- * ISC_TRUE returned if value was used
+/*%
+ * #ISC_TRUE returned if value was used
  */
 static const char *single_dash_opts = "46dhimnv";
 static const char *dash_opts = "46bcdfhikmnptvyx";
 static isc_boolean_t
 dash_option(char *option, char *next, dig_lookup_t **lookup,
-	    isc_boolean_t *open_type_class)
+	    isc_boolean_t *open_type_class, isc_boolean_t config_only)
 {
-	char opt, *value, *ptr;
+	char opt, *value, *ptr, *ptr2, *ptr3;
 	isc_result_t result;
 	isc_boolean_t value_from_next;
 	isc_textregion_t tr;
@@ -1189,6 +1239,20 @@ dash_option(char *option, char *next, dig_lookup_t **lookup,
 	case 'p':
 		port = (in_port_t) parse_uint(value, "port number", MAXPORT);
 		return (value_from_next);
+	case 'q':
+		if (!config_only) {
+			(*lookup) = clone_lookup(default_lookup,
+					         ISC_TRUE);
+			strncpy((*lookup)->textname, value, 
+				sizeof((*lookup)->textname));
+			(*lookup)->textname[sizeof((*lookup)->textname)-1]=0;
+			(*lookup)->trace_root = ISC_TF((*lookup)->trace  ||
+						     (*lookup)->ns_search_only);
+			(*lookup)->new_search = ISC_TRUE;
+			ISC_LIST_APPEND(lookup_list, (*lookup), link);
+			debug("looking up %s", (*lookup)->textname);
+		}
+		return (value_from_next);
 	case 't':
 		*open_type_class = ISC_FALSE;
 		if (strncasecmp(value, "ixfr=", 5) == 0) {
@@ -1232,16 +1296,83 @@ dash_option(char *option, char *next, dig_lookup_t **lookup,
 				 value);
 		return (value_from_next);
 	case 'y':
-		ptr = next_token(&value,":");
+		ptr = next_token(&value,":");	/* hmac type or name */
 		if (ptr == NULL) {
 			usage();
 		}
+		ptr2 = next_token(&value, ":");	/* name or secret */
+		if (ptr2 == NULL)
+			usage();
+		ptr3 = next_token(&value,":"); /* secret or NULL */
+		if (ptr3 != NULL) {	
+			if (strcasecmp(ptr, "hmac-md5") == 0) {
+				hmacname = DNS_TSIG_HMACMD5_NAME;
+				digestbits = 0;
+			} else if (strncasecmp(ptr, "hmac-md5-", 9) == 0) {
+				hmacname = DNS_TSIG_HMACMD5_NAME;
+				digestbits = parse_uint(&ptr[9],
+							"digest-bits [0..128]",
+							128);
+				digestbits = (digestbits + 7) & ~0x7U;
+			} else if (strcasecmp(ptr, "hmac-sha1") == 0) {
+				hmacname = DNS_TSIG_HMACSHA1_NAME;
+				digestbits = 0;
+			} else if (strncasecmp(ptr, "hmac-sha1-", 10) == 0) {
+				hmacname = DNS_TSIG_HMACSHA1_NAME;
+				digestbits = parse_uint(&ptr[10],
+							"digest-bits [0..160]",
+							160);
+				digestbits = (digestbits + 7) & ~0x7U;
+			} else if (strcasecmp(ptr, "hmac-sha224") == 0) {
+				hmacname = DNS_TSIG_HMACSHA224_NAME;
+				digestbits = 0;
+			} else if (strncasecmp(ptr, "hmac-sha224-", 12) == 0) {
+				hmacname = DNS_TSIG_HMACSHA224_NAME;
+				digestbits = parse_uint(&ptr[12],
+							"digest-bits [0..224]",
+							224);
+				digestbits = (digestbits + 7) & ~0x7U;
+			} else if (strcasecmp(ptr, "hmac-sha256") == 0) {
+				hmacname = DNS_TSIG_HMACSHA256_NAME;
+				digestbits = 0;
+			} else if (strncasecmp(ptr, "hmac-sha256-", 12) == 0) {
+				hmacname = DNS_TSIG_HMACSHA256_NAME;
+				digestbits = parse_uint(&ptr[12],
+							"digest-bits [0..256]",
+							256);
+				digestbits = (digestbits + 7) & ~0x7U;
+			} else if (strcasecmp(ptr, "hmac-sha384") == 0) {
+				hmacname = DNS_TSIG_HMACSHA384_NAME;
+				digestbits = 0;
+			} else if (strncasecmp(ptr, "hmac-sha384-", 12) == 0) {
+				hmacname = DNS_TSIG_HMACSHA384_NAME;
+				digestbits = parse_uint(&ptr[12],
+							"digest-bits [0..384]",
+							384);
+				digestbits = (digestbits + 7) & ~0x7U;
+			} else if (strcasecmp(ptr, "hmac-sha512") == 0) {
+				hmacname = DNS_TSIG_HMACSHA512_NAME;
+				digestbits = 0;
+			} else if (strncasecmp(ptr, "hmac-sha512-", 12) == 0) {
+				hmacname = DNS_TSIG_HMACSHA512_NAME;
+				digestbits = parse_uint(&ptr[12],
+							"digest-bits [0..512]",
+							512);
+				digestbits = (digestbits + 7) & ~0x7U;
+			} else {
+				fprintf(stderr, ";; Warning, ignoring "
+					"invalid TSIG algorithm %s\n", ptr);
+				return (value_from_next);
+			}
+			ptr = ptr2;
+			ptr2 = ptr3;
+		} else  {
+			hmacname = DNS_TSIG_HMACMD5_NAME;
+			digestbits = 0;
+		}
 		strncpy(keynametext, ptr, sizeof(keynametext));
 		keynametext[sizeof(keynametext)-1]=0;
-		ptr = next_token(&value, "");
-		if (ptr == NULL)
-			usage();
-		strncpy(keysecret, ptr, sizeof(keysecret));
+		strncpy(keysecret, ptr2, sizeof(keysecret));
 		keysecret[sizeof(keysecret)-1]=0;
 		return (value_from_next);
 	case 'x':
@@ -1273,10 +1404,11 @@ dash_option(char *option, char *next, dig_lookup_t **lookup,
 	return (ISC_FALSE);
 }
 
-/*
+/*%
  * Because we may be trying to do memory allocation recording, we're going
  * to need to parse the arguments for the -m *before* we start the main
  * argument parsing routine.
+ *
  * I'd prefer not to have to do this, but I am not quite sure how else to
  * fix the problem.  Argument parsing in dig involves memory allocation
  * by its nature, so it can't be done in the main argument parser.
@@ -1421,13 +1553,15 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 		} else if (rv[0][0] == '-') {
 			if (rc <= 1) {
 				if (dash_option(&rv[0][1], NULL,
-						&lookup, &open_type_class)) {
+						&lookup, &open_type_class,
+						config_only)) {
 					rc--;
 					rv++;
 				}
 			} else {
 				if (dash_option(&rv[0][1], rv[1],
-						&lookup, &open_type_class)) {
+						&lookup, &open_type_class,
+						config_only)) {
 					rc--;
 					rv++;
 				}
@@ -1621,6 +1755,7 @@ dighost_shutdown(void) {
 	}
 }
 
+/*% Main processing routine for dig */
 int
 main(int argc, char **argv) {
 	isc_result_t result;

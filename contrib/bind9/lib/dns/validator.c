@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.c,v 1.91.2.5.8.27.6.1 2007/01/11 04:51:39 marka Exp $ */
+/* $Id: validator.c,v 1.119.18.29 2007/01/08 02:41:59 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -69,9 +71,9 @@
  * validator_start -> nsecvalidate -> proveunsecure -> startfinddlvsep ->
  *	dlv_validator_start -> validator_start -> nsecvalidate -> proveunsecure
  *
- * \li When called without a rdataset and with DNS_VALIDATOR_DLV:
- * validator_start -> startfinddlvsep -> dlv_validator_start ->
- *	validator_start -> nsecvalidate -> proveunsecure
+ * Note: there isn't a case for DNS_VALIDATOR_DLV here as we want nsecvalidate()
+ * to always validate the authority section even when it does not contain
+ * signatures.
  *
  * validator_start: determines what type of validation to do.
  * validate: attempts to perform a positive validation.
@@ -90,7 +92,6 @@
 						 * have attempted a verify. */
 #define VALATTR_INSECURITY		0x0010	/*%< Attempting proveunsecure. */
 #define VALATTR_DLVTRIED		0x0020	/*%< Looked for a DLV record. */
-#define VALATTR_AUTHNONPENDING		0x0040	/*%< Tidy up pending auth. */
 
 /*!
  * NSEC proofs to be looked for.
@@ -155,18 +156,11 @@ dlv_validator_start(dns_validator_t *val);
 static isc_result_t
 finddlvsep(dns_validator_t *val, isc_boolean_t resume);
 
-static void
-auth_nonpending(dns_message_t *message);
-
 static isc_result_t
 startfinddlvsep(dns_validator_t *val, dns_name_t *unsecure);
 
 /*%
  * Mark the RRsets as a answer.
- *
- * If VALATTR_AUTHNONPENDING is set then this is a negative answer
- * in a insecure zone.  We need to mark any pending RRsets as
- * dns_trust_authauthority answers (this is deferred from resolver.c).
  */
 static inline void
 markanswer(dns_validator_t *val) {
@@ -175,9 +169,6 @@ markanswer(dns_validator_t *val) {
 		val->event->rdataset->trust = dns_trust_answer;
 	if (val->event->sigrdataset != NULL)
 		val->event->sigrdataset->trust = dns_trust_answer;
-	if (val->event->message != NULL &&
-	    (val->attributes & VALATTR_AUTHNONPENDING) != 0)
-		auth_nonpending(val->event->message);
 }
 
 static void
@@ -214,31 +205,6 @@ exit_check(dns_validator_t *val) {
 		return (ISC_FALSE);
 
 	return (ISC_TRUE);
-}
-
-/*%
- * Mark pending answers in the authority section as dns_trust_authauthority.
- */
-static void
-auth_nonpending(dns_message_t *message) {
-	isc_result_t result;
-	dns_name_t *name;
-	dns_rdataset_t *rdataset;
-
-	for (result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
-	     result == ISC_R_SUCCESS;
-	     result = dns_message_nextname(message, DNS_SECTION_AUTHORITY))
-	{
-		name = NULL;
-		dns_message_currentname(message, DNS_SECTION_AUTHORITY, &name);
-		for (rdataset = ISC_LIST_HEAD(name->list);
-		     rdataset != NULL;
-		     rdataset = ISC_LIST_NEXT(rdataset, link))
-		{
-			if (rdataset->trust == dns_trust_pending)
-				rdataset->trust = dns_trust_authauthority;
-		}
-	}
 }
 
 /*%
@@ -613,6 +579,8 @@ nsecnoexistnodata(dns_validator_t *val, dns_name_t* name, dns_name_t *nsecname,
 	unsigned int olabels, nlabels, labels;
 	dns_rdata_nsec_t nsec;
 	isc_boolean_t atparent;
+	isc_boolean_t ns;
+	isc_boolean_t soa;
 
 	REQUIRE(exists != NULL);
 	REQUIRE(data != NULL);
@@ -644,9 +612,9 @@ nsecnoexistnodata(dns_validator_t *val, dns_name_t* name, dns_name_t *nsecname,
 		 * The names are the same.
 		 */
 		atparent = dns_rdatatype_atparent(val->event->type);
-		if (dns_nsec_typepresent(&rdata, dns_rdatatype_ns) &&
-		    !dns_nsec_typepresent(&rdata, dns_rdatatype_soa))
-		{
+		ns = dns_nsec_typepresent(&rdata, dns_rdatatype_ns);
+		soa = dns_nsec_typepresent(&rdata, dns_rdatatype_soa);
+		if (ns && !soa) {
 			if (!atparent) {
 				/*
 				 * This NSEC record is from somewhere higher in
@@ -657,7 +625,7 @@ nsecnoexistnodata(dns_validator_t *val, dns_name_t* name, dns_name_t *nsecname,
 					      "ignoring parent nsec");
 				return (ISC_R_IGNORE);
 			}
-		} else if (atparent) {
+		} else if (atparent && ns && soa) {
 			/*
 			 * This NSEC record is from the child.
 			 * It can not be legitimately used here.
@@ -666,12 +634,20 @@ nsecnoexistnodata(dns_validator_t *val, dns_name_t* name, dns_name_t *nsecname,
 				      "ignoring child nsec");
 			return (ISC_R_IGNORE);
 		}
-		*exists = ISC_TRUE;
-		*data = dns_nsec_typepresent(&rdata, val->event->type);
-		validator_log(val, ISC_LOG_DEBUG(3),
-			      "nsec proves name exists (owner) data=%d",
-			      *data);
-		return (ISC_R_SUCCESS);
+		if (val->event->type == dns_rdatatype_cname ||
+		    val->event->type == dns_rdatatype_nxt ||
+		    val->event->type == dns_rdatatype_nsec ||
+		    val->event->type == dns_rdatatype_key ||
+		    !dns_nsec_typepresent(&rdata, dns_rdatatype_cname)) {
+			*exists = ISC_TRUE;
+			*data = dns_nsec_typepresent(&rdata, val->event->type);
+			validator_log(val, ISC_LOG_DEBUG(3),
+				      "nsec proves name exists (owner) data=%d",
+				      *data);
+			return (ISC_R_SUCCESS);
+		}
+		validator_log(val, ISC_LOG_DEBUG(3), "NSEC proves CNAME exists");
+		return (ISC_R_IGNORE);
 	}
 
 	if (relation == dns_namereln_subdomain &&
@@ -731,6 +707,7 @@ nsecnoexistnodata(dns_validator_t *val, dns_name_t* name, dns_name_t *nsecname,
 		result = dns_name_concatenate(dns_wildcardname, &common,
 					       wild, NULL);
 		if (result != ISC_R_SUCCESS) {
+			dns_rdata_freestruct(&nsec);
 			validator_log(val, ISC_LOG_DEBUG(3),
 				    "failure generating wildcard name");
 			return (result);
@@ -784,6 +761,7 @@ authvalidated(isc_task_t *task, isc_event_t *event) {
 		}
 	} else {
 		dns_name_t **proofs = val->event->proofs;
+		dns_name_t *wild = dns_fixedname_name(&val->wild);
 		
 		if (rdataset->trust == dns_trust_secure)
 			val->seensig = ISC_TRUE;
@@ -795,10 +773,9 @@ authvalidated(isc_task_t *task, isc_event_t *event) {
 	            (val->attributes & VALATTR_FOUNDNODATA) == 0 &&
 		    (val->attributes & VALATTR_FOUNDNOQNAME) == 0 &&
 		    nsecnoexistnodata(val, val->event->name, devent->name,
-				      rdataset, &exists, &data,
-				      dns_fixedname_name(&val->wild))
+				      rdataset, &exists, &data, wild)
 				      == ISC_R_SUCCESS)
-		 {
+		{
 			if (exists && !data) {
 				val->attributes |= VALATTR_FOUNDNODATA;
 				if (NEEDNODATA(val))
@@ -1285,15 +1262,27 @@ verify(dns_validator_t *val, dst_key_t *key, dns_rdata_t *rdata,
 {
 	isc_result_t result;
 	dns_fixedname_t fixed;
+	isc_boolean_t ignore = ISC_FALSE;
 
 	val->attributes |= VALATTR_TRIEDVERIFY;
 	dns_fixedname_init(&fixed);
+ again:
 	result = dns_dnssec_verify2(val->event->name, val->event->rdataset,
-				    key, ISC_FALSE, val->view->mctx, rdata,
+				    key, ignore, val->view->mctx, rdata,
 				    dns_fixedname_name(&fixed));
-	validator_log(val, ISC_LOG_DEBUG(3),
-		      "verify rdataset (keyid=%u): %s",
-		      keyid, isc_result_totext(result));
+	if (result == DNS_R_SIGEXPIRED && val->view->acceptexpired) {
+		ignore = ISC_TRUE;
+		goto again;
+	}
+	if (ignore && (result == ISC_R_SUCCESS || result == DNS_R_FROMWILDCARD))
+		validator_log(val, ISC_LOG_INFO,
+			      "accepted expired %sRRSIG (keyid=%u)",
+			      (result == DNS_R_FROMWILDCARD) ?
+			      "wildcard " : "", keyid);
+	else
+		validator_log(val, ISC_LOG_DEBUG(3),
+			      "verify rdataset (keyid=%u): %s",
+			      keyid, isc_result_totext(result));
 	if (result == DNS_R_FROMWILDCARD) {
 		if (!dns_name_equal(val->event->name,
 				    dns_fixedname_name(&fixed)))
@@ -1485,6 +1474,7 @@ dlv_validatezonekey(dns_validator_t *val) {
 	isc_boolean_t supported_algorithm;
 	isc_result_t result;
 	unsigned char dsbuf[DNS_DS_BUFFERSIZE];
+	isc_uint8_t digest_type;
 
 	validator_log(val, ISC_LOG_DEBUG(3), "dlv_validatezonekey");
 
@@ -1495,6 +1485,31 @@ dlv_validatezonekey(dns_validator_t *val) {
 	 */
 	supported_algorithm = ISC_FALSE;
 
+	/*
+	 * If DNS_DSDIGEST_SHA256 is present we are required to prefer
+	 * it over DNS_DSDIGEST_SHA1.  This in practice means that we
+	 * need to ignore DNS_DSDIGEST_SHA1 if a DNS_DSDIGEST_SHA256
+	 * is present.
+	 */
+	digest_type = DNS_DSDIGEST_SHA1;
+	for (result = dns_rdataset_first(&val->dlv);
+	     result == ISC_R_SUCCESS;
+	     result = dns_rdataset_next(&val->dlv)) {
+		dns_rdata_reset(&dlvrdata);
+		dns_rdataset_current(&val->dlv, &dlvrdata);
+		dns_rdata_tostruct(&dlvrdata, &dlv, NULL);
+
+		if (!dns_resolver_algorithm_supported(val->view->resolver,
+						      val->event->name,
+						      dlv.algorithm))
+			continue;
+
+		if (dlv.digest_type == DNS_DSDIGEST_SHA256) {
+			digest_type = DNS_DSDIGEST_SHA256;
+			break;
+		}
+	}
+
 	for (result = dns_rdataset_first(&val->dlv);
 	     result == ISC_R_SUCCESS;
 	     result = dns_rdataset_next(&val->dlv))
@@ -1503,8 +1518,14 @@ dlv_validatezonekey(dns_validator_t *val) {
 		dns_rdataset_current(&val->dlv, &dlvrdata);
 		(void)dns_rdata_tostruct(&dlvrdata, &dlv, NULL);
 
-		if (dlv.digest_type != DNS_DSDIGEST_SHA1 ||
-		    !dns_resolver_algorithm_supported(val->view->resolver,
+		if (!dns_resolver_digest_supported(val->view->resolver,
+						   dlv.digest_type))
+			continue;
+		
+		if (dlv.digest_type != digest_type)
+			continue;
+
+		if (!dns_resolver_algorithm_supported(val->view->resolver,
 						      val->event->name,
 						      dlv.algorithm))
 			continue;
@@ -1627,6 +1648,7 @@ validatezonekey(dns_validator_t *val) {
 	dst_key_t *dstkey;
 	isc_boolean_t supported_algorithm;
 	isc_boolean_t atsep = ISC_FALSE;
+	isc_uint8_t digest_type;
 
 	/*
 	 * Caller must be holding the validator lock.
@@ -1796,6 +1818,31 @@ validatezonekey(dns_validator_t *val) {
 
 	supported_algorithm = ISC_FALSE;
 
+	/*
+	 * If DNS_DSDIGEST_SHA256 is present we are required to prefer
+	 * it over DNS_DSDIGEST_SHA1.  This in practice means that we
+	 * need to ignore DNS_DSDIGEST_SHA1 if a DNS_DSDIGEST_SHA256
+	 * is present.
+	 */
+	digest_type = DNS_DSDIGEST_SHA1;
+	for (result = dns_rdataset_first(val->dsset);
+	     result == ISC_R_SUCCESS;
+	     result = dns_rdataset_next(val->dsset)) {
+		dns_rdata_reset(&dsrdata);
+		dns_rdataset_current(val->dsset, &dsrdata);
+		dns_rdata_tostruct(&dsrdata, &ds, NULL);
+
+		if (!dns_resolver_algorithm_supported(val->view->resolver,
+						      val->event->name,
+						      ds.algorithm))
+			continue;
+
+		if (ds.digest_type == DNS_DSDIGEST_SHA256) {
+			digest_type = DNS_DSDIGEST_SHA256;
+			break;
+		}
+	}
+
 	for (result = dns_rdataset_first(val->dsset);
 	     result == ISC_R_SUCCESS;
 	     result = dns_rdataset_next(val->dsset))
@@ -1804,8 +1851,13 @@ validatezonekey(dns_validator_t *val) {
 		dns_rdataset_current(val->dsset, &dsrdata);
 		(void)dns_rdata_tostruct(&dsrdata, &ds, NULL);
 
-		if (ds.digest_type != DNS_DSDIGEST_SHA1)
+		if (!dns_resolver_digest_supported(val->view->resolver,
+						   ds.digest_type))
 			continue;
+
+		if (ds.digest_type != digest_type)
+			continue;
+
 		if (!dns_resolver_algorithm_supported(val->view->resolver,
 						      val->event->name,
 						      ds.algorithm))
@@ -2044,12 +2096,6 @@ nsecvalidate(dns_validator_t *val, isc_boolean_t resume) {
 			if (rdataset->type == dns_rdatatype_rrsig)
 				continue;
 
-			if (rdataset->type == dns_rdatatype_soa) {
-				val->soaset = rdataset;
-				val->soaname = name;
-			} else if (rdataset->type == dns_rdatatype_nsec)
-				val->nsecset = rdataset;
-
 			for (sigrdataset = ISC_LIST_HEAD(name->list);
 			     sigrdataset != NULL;
 			     sigrdataset = ISC_LIST_NEXT(sigrdataset,
@@ -2059,8 +2105,6 @@ nsecvalidate(dns_validator_t *val, isc_boolean_t resume) {
 				    sigrdataset->covers == rdataset->type)
 					break;
 			}
-			if (sigrdataset == NULL)
-				continue;
 			/*
 			 * If a signed zone is missing the zone key, bad
 			 * things could happen.  A query for data in the zone
@@ -2149,7 +2193,6 @@ nsecvalidate(dns_validator_t *val, isc_boolean_t resume) {
 
 	validator_log(val, ISC_LOG_DEBUG(3),
 		      "nonexistence proof(s) not found");
-	val->attributes |= VALATTR_AUTHNONPENDING;
 	val->attributes |= VALATTR_INSECURITY;
 	return (proveunsecure(val, ISC_FALSE));
 }
@@ -2166,7 +2209,8 @@ check_ds(dns_validator_t *val, dns_name_t *name, dns_rdataset_t *rdataset) {
 		dns_rdataset_current(rdataset, &dsrdata);
 		(void)dns_rdata_tostruct(&dsrdata, &ds, NULL);
 
-		if (ds.digest_type == DNS_DSDIGEST_SHA1 &&
+		if (dns_resolver_digest_supported(val->view->resolver,
+						  ds.digest_type) &&
 		    dns_resolver_algorithm_supported(val->view->resolver,
 						     name, ds.algorithm)) {
 			dns_rdata_reset(&dsrdata);
@@ -2506,11 +2550,21 @@ proveunsecure(dns_validator_t *val, isc_boolean_t resume) {
 			      namebuf);
 
 		result = view_find(val, tname, dns_rdatatype_ds);
+
 		if (result == DNS_R_NXRRSET || result == DNS_R_NCACHENXRRSET) {
 			/*
 			 * There is no DS.  If this is a delegation,
 			 * we maybe done.
 			 */
+			if (val->frdataset.trust == dns_trust_pending) {
+				result = create_fetch(val, tname,
+						      dns_rdatatype_ds,
+						      dsfetched2,
+						      "proveunsecure");
+				if (result != ISC_R_SUCCESS)
+					goto out;
+				return (DNS_R_WAIT);
+			}
 			if (val->frdataset.trust < dns_trust_secure) {
 				/*
 				 * This shouldn't happen, since the negative
@@ -2675,7 +2729,8 @@ validator_start(isc_task_t *task, isc_event_t *event) {
 
 	LOCK(&val->lock);
 
-	if ((val->options & DNS_VALIDATOR_DLV) != 0) {
+	if ((val->options & DNS_VALIDATOR_DLV) != 0 &&
+	     val->event->rdataset != NULL) {
 		validator_log(val, ISC_LOG_DEBUG(3), "looking for DLV");
 		result = startfinddlvsep(val, dns_rootname);
 	} else if (val->event->rdataset != NULL &&
@@ -2812,9 +2867,6 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	val->keyset = NULL;
 	val->dsset = NULL;
 	dns_rdataset_init(&val->dlv);
-	val->soaset = NULL;
-	val->nsecset = NULL;
-	val->soaname = NULL;
 	val->seensig = ISC_FALSE;
 	val->havedlvsep = ISC_FALSE;
 	val->depth = 0;

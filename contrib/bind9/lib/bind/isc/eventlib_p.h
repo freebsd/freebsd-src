@@ -15,10 +15,11 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* eventlib_p.h - private interfaces for eventlib
- * vix 09sep95 [initial]
+/*! \file 
+ * \brief private interfaces for eventlib
+ * \author vix 09sep95 [initial]
  *
- * $Id: eventlib_p.h,v 1.3.2.1.4.4 2006/03/10 00:17:21 marka Exp $
+ * $Id: eventlib_p.h,v 1.5.18.4 2006/03/10 00:20:08 marka Exp $
  */
 
 #ifndef _EVENTLIB_P_H
@@ -77,9 +78,9 @@ typedef struct evConn {
 	void *		uap;
 	int		fd;
 	int		flags;
-#define EV_CONN_LISTEN		0x0001		/* Connection is a listener. */
-#define EV_CONN_SELECTED	0x0002		/* evSelectFD(conn->file). */
-#define EV_CONN_BLOCK		0x0004		/* Listener fd was blocking. */
+#define EV_CONN_LISTEN		0x0001		/*%< Connection is a listener. */
+#define EV_CONN_SELECTED	0x0002		/*%< evSelectFD(conn->file). */
+#define EV_CONN_BLOCK		0x0004		/*%< Listener fd was blocking. */
 	evFileID	file;
 	struct evConn *	prev;
 	struct evConn *	next;
@@ -126,7 +127,7 @@ typedef struct evStream {
 	evFileID	file;
 	evTimerID	timer;
 	int		flags;
-#define EV_STR_TIMEROK	0x0001	/* IFF timer valid. */
+#define EV_STR_TIMEROK	0x0001	/*%< IFF timer valid. */
 	int		fd;
 	struct iovec *	iovOrig;
 	int		iovOrigCount;

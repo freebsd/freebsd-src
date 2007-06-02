@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cert.h,v 1.12.206.1 2004/03/06 08:13:51 marka Exp $ */
+/* $Id: cert.h,v 1.13.18.2 2005/04/29 00:16:10 marka Exp $ */
 
 #ifndef DNS_CERT_H
 #define DNS_CERT_H 1
+
+/*! \file */
 
 #include <isc/lang.h>
 
@@ -28,38 +30,38 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 dns_cert_fromtext(dns_cert_t *certp, isc_textregion_t *source);
-/*
+/*%<
  * Convert the text 'source' refers to into a certificate type.
  * The text may contain either a mnemonic type name or a decimal type number.
  *
  * Requires:
- *	'certp' is a valid pointer.
+ *\li	'certp' is a valid pointer.
  *
- *	'source' is a valid text region.
+ *\li	'source' is a valid text region.
  *
  * Returns:
- *	ISC_R_SUCCESS			on success
- *	ISC_R_RANGE			numeric type is out of range
- *	DNS_R_UNKNOWN			mnemonic type is unknown
+ *\li	#ISC_R_SUCCESS			on success
+ *\li	#ISC_R_RANGE			numeric type is out of range
+ *\li	#DNS_R_UNKNOWN			mnemonic type is unknown
  */
 
 isc_result_t
 dns_cert_totext(dns_cert_t cert, isc_buffer_t *target);
-/*
+/*%<
  * Put a textual representation of certificate type 'cert' into 'target'.
  *
  * Requires:
- *	'cert' is a valid cert.
+ *\li	'cert' is a valid cert.
  *
- *	'target' is a valid text buffer.
+ *\li	'target' is a valid text buffer.
  *
  * Ensures:
- *	If the result is success:
+ *\li	If the result is success:
  *		The used space in 'target' is updated.
  *
  * Returns:
- *	ISC_R_SUCCESS			on success
- *	ISC_R_NOSPACE			target buffer is too small
+ *\li	#ISC_R_SUCCESS			on success
+ *\li	#ISC_R_NOSPACE			target buffer is too small
  */
 
 ISC_LANG_ENDDECLS

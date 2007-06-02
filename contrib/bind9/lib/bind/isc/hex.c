@@ -33,7 +33,7 @@ isc_gethexstring(unsigned char *buf, size_t len, int count, FILE *fp,
 	char *s;
 	int result = count;
 	
-	x = 0; /* silence compiler */
+	x = 0; /*%< silence compiler */
 	n = 0;
 	while (count > 0) {
 		c = fgetc(fp);
@@ -115,3 +115,5 @@ isc_tohex(const unsigned char *buf, size_t buflen, char *t) {
 	}
 	*t = '\0';
 }
+
+/*! \file */

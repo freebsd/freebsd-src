@@ -1,8 +1,8 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
@@ -18,9 +18,8 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-checkzone.docbook,v 1.3.2.2.8.13 2006/09/30 23:58:36 marka Exp $ -->
-
-<refentry>
+<!-- $Id: named-checkzone.docbook,v 1.11.18.17 2007/01/29 23:57:20 marka Exp $ -->
+<refentry id="man.named-checkzone">
   <refentryinfo>
     <date>June 13, 2000</date>
   </refentryinfo>
@@ -36,6 +35,7 @@
       <year>2004</year>
       <year>2005</year>
       <year>2006</year>
+      <year>2007</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -48,7 +48,8 @@
 
   <refnamediv>
     <refname><application>named-checkzone</application></refname>
-    <refpurpose>zone file validity checking tool</refpurpose>
+    <refname><application>named-compilezone</application></refname>
+    <refpurpose>zone file validity checking or converting tool</refpurpose>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -59,12 +60,43 @@
       <arg><option>-q</option></arg>
       <arg><option>-v</option></arg>
       <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg><option>-f <replaceable class="parameter">format</replaceable></option></arg>
+      <arg><option>-F <replaceable class="parameter">format</replaceable></option></arg>
+      <arg><option>-i <replaceable class="parameter">mode</replaceable></option></arg>
       <arg><option>-k <replaceable class="parameter">mode</replaceable></option></arg>
+      <arg><option>-m <replaceable class="parameter">mode</replaceable></option></arg>
+      <arg><option>-M <replaceable class="parameter">mode</replaceable></option></arg>
       <arg><option>-n <replaceable class="parameter">mode</replaceable></option></arg>
       <arg><option>-o <replaceable class="parameter">filename</replaceable></option></arg>
+      <arg><option>-s <replaceable class="parameter">style</replaceable></option></arg>
+      <arg><option>-S <replaceable class="parameter">mode</replaceable></option></arg>
       <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
       <arg><option>-w <replaceable class="parameter">directory</replaceable></option></arg>
       <arg><option>-D</option></arg>
+      <arg><option>-W <replaceable class="parameter">mode</replaceable></option></arg>
+      <arg choice="req">zonename</arg>
+      <arg choice="req">filename</arg>
+    </cmdsynopsis>
+    <cmdsynopsis>
+      <command>named-compilezone</command>
+      <arg><option>-d</option></arg>
+      <arg><option>-j</option></arg>
+      <arg><option>-q</option></arg>
+      <arg><option>-v</option></arg>
+      <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg><option>-C <replaceable class="parameter">mode</replaceable></option></arg>
+      <arg><option>-f <replaceable class="parameter">format</replaceable></option></arg>
+      <arg><option>-F <replaceable class="parameter">format</replaceable></option></arg>
+      <arg><option>-i <replaceable class="parameter">mode</replaceable></option></arg>
+      <arg><option>-k <replaceable class="parameter">mode</replaceable></option></arg>
+      <arg><option>-m <replaceable class="parameter">mode</replaceable></option></arg>
+      <arg><option>-n <replaceable class="parameter">mode</replaceable></option></arg>
+      <arg><option>-o <replaceable class="parameter">filename</replaceable></option></arg>
+      <arg><option>-s <replaceable class="parameter">style</replaceable></option></arg>
+      <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg><option>-w <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg><option>-D</option></arg>
+      <arg><option>-W <replaceable class="parameter">mode</replaceable></option></arg>
       <arg choice="req">zonename</arg>
       <arg choice="req">filename</arg>
     </cmdsynopsis>
@@ -72,13 +104,23 @@
 
   <refsect1>
     <title>DESCRIPTION</title>
-    <para>
-        <command>named-checkzone</command> checks the syntax and integrity of
-	a zone file.  It performs the same checks as <command>named</command>
-	does when loading a zone.  This makes
-	<command>named-checkzone</command> useful for checking zone
-	files before configuring them into a name server.
+    <para><command>named-checkzone</command>
+      checks the syntax and integrity of a zone file.  It performs the
+      same checks as <command>named</command> does when loading a
+      zone.  This makes <command>named-checkzone</command> useful for
+      checking zone files before configuring them into a name server.
     </para>
+    <para>
+        <command>named-compilezone</command> is similar to
+	<command>named-checkzone</command>, but it always dumps the
+        zone contents to a specified file in a specified format.
+	Additionally, it applies stricter check levels by default,
+        since the dump output will be used as an actual zone file
+	loaded by <command>named</command>.
+	When manaully specified otherwise, the check levels must at
+        least be as strict as those specified in the
+	<command>named</command> configuration file.
+     </para>
   </refsect1>
 
   <refsect1>
@@ -87,80 +129,212 @@
     <variablelist>
       <varlistentry>
         <term>-d</term>
-	<listitem>
-	  <para>
-	      Enable debugging.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            Enable debugging.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-q</term>
-	<listitem>
-	  <para>
-	      Quiet mode - exit code only.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            Quiet mode - exit code only.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-v</term>
-	<listitem>
-	  <para>
-	      Print the version of the <command>named-checkzone</command>
-	      program and exit.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            Print the version of the <command>named-checkzone</command>
+            program and exit.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-j</term>
         <listitem>
           <para>
-              When loading the zone file read the journal if it exists.
-          </para>   
+            When loading the zone file read the journal if it exists.
+          </para>
         </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-c <replaceable class="parameter">class</replaceable></term>
+        <listitem>
+          <para>
+            Specify the class of the zone.  If not specified "IN" is assumed.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-i <replaceable class="parameter">mode</replaceable></term>
 	<listitem>
 	  <para>
-	      Specify the class of the zone.  If not specified "IN" is assumed.
+	      Perform post load zone integrity checks.  Possible modes are
+	      <command>"full"</command> (default),
+	      <command>"full-sibling"</command>,
+	      <command>"local"</command>,
+	      <command>"local-sibling"</command> and
+	      <command>"none"</command>.
+	  </para>
+	  <para>
+	      Mode <command>"full"</command> checks that MX records
+	      refer to A or AAAA record (both in-zone and out-of-zone
+	      hostnames).  Mode <command>"local"</command> only
+	      checks MX records which refer to in-zone hostnames.
+	  </para>
+	  <para>
+	      Mode <command>"full"</command> checks that SRV records
+	      refer to A or AAAA record (both in-zone and out-of-zone
+	      hostnames).  Mode <command>"local"</command> only
+	      checks SRV records which refer to in-zone hostnames.
+	  </para>
+	  <para>
+	      Mode <command>"full"</command> checks that delegation NS
+	      records refer to A or AAAA record (both in-zone and out-of-zone
+	      hostnames).  It also checks that glue addresses records
+	      in the zone match those advertised by the child.
+	      Mode <command>"local"</command> only checks NS records which
+	      refer to in-zone hostnames or that some required glue exists,
+	      that is when the nameserver is in a child zone.
+	  </para>
+	  <para>
+	      Mode <command>"full-sibling"</command> and
+	      <command>"local-sibling"</command> disable sibling glue
+	      checks but are otherwise the same as <command>"full"</command>
+	      and <command>"local"</command> respectively.
+	  </para>
+	  <para>
+	      Mode <command>"none"</command> disables the checks.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-f <replaceable class="parameter">format</replaceable></term>
+	<listitem>
+	  <para>
+	    Specify the format of the zone file.
+	    Possible formats are <command>"text"</command> (default)
+	    and <command>"raw"</command>.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-F <replaceable class="parameter">format</replaceable></term>
+	<listitem>
+	  <para>
+	    Specify the format of the output file specified.
+	    Possible formats are <command>"text"</command> (default)
+	    and <command>"raw"</command>.
+	    For <command>named-checkzone</command>,
+	    this does not cause any effects unless it dumps the zone
+	    contents.
 	  </para>
 	</listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-k <replaceable class="parameter">mode</replaceable></term>
-	<listitem>
+        <listitem>
+          <para>
+            Perform <command>"check-names"</command> checks with the
+	    specified failure mode.
+            Possible modes are <command>"fail"</command>
+	    (default for <command>named-compilezone</command>),
+            <command>"warn"</command>
+	    (default for <command>named-checkzone</command>) and
+            <command>"ignore"</command>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-m <replaceable class="parameter">mode</replaceable></term>
+        <listitem>
+          <para>
+            Specify whether MX records should be checked to see if they
+            are addresses.  Possible modes are <command>"fail"</command>,
+            <command>"warn"</command> (default) and
+            <command>"ignore"</command>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-M <replaceable class="parameter">mode</replaceable></term>
+        <listitem>
 	  <para>
-	      Perform <command>"check-names"</command> checks with the specified failure mode.
-	      Possible modes are <command>"fail"</command>,
-	      <command>"warn"</command> (default) and
-	      <command>"ignore"</command>.
+	    Check if a MX record refers to a CNAME.
+            Possible modes are <command>"fail"</command>,
+            <command>"warn"</command> (default) and
+            <command>"ignore"</command>.
 	  </para>
-	</listitem>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-n <replaceable class="parameter">mode</replaceable></term>
-	<listitem>
-	  <para>
-	      Specify whether NS records should be checked to see if they
-	      are addresses.  Possible modes are <command>"fail"</command>,
-	      <command>"warn"</command> (default) and
-	      <command>"ignore"</command>.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            Specify whether NS records should be checked to see if they
+            are addresses.
+	    Possible modes are <command>"fail"</command>
+	    (default for <command>named-compilezone</command>),
+            <command>"warn"</command>
+	    (default for <command>named-checkzone</command>) and
+            <command>"ignore"</command>.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-o <replaceable class="parameter">filename</replaceable></term>
         <listitem>
           <para>
-	      Write zone output to <filename>filename</filename>.
+            Write zone output to <filename>filename</filename>.
+	    This is mandatory for <command>named-compilezone</command>.
           </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-s <replaceable class="parameter">style</replaceable></term>
+	<listitem>
+	  <para>
+	    Specify the style of the dumped zone file.
+	    Possible styles are <command>"full"</command> (default)
+	    and <command>"relative"</command>.
+	    The full format is most suitable for processing
+	    automatically by a separate script.
+	    On the other hand, the relative format is more
+	    human-readable and is thus suitable for editing by hand.
+	    For <command>named-checkzone</command>
+	    this does not cause any effects unless it dumps the zone
+	    contents.
+	    It also does not have any meaning if the output format
+	    is not text.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-S <replaceable class="parameter">mode</replaceable></term>
+        <listitem>
+	  <para>
+	    Check if a SRV record refers to a CNAME.
+            Possible modes are <command>"fail"</command>,
+            <command>"warn"</command> (default) and
+            <command>"ignore"</command>.
+	  </para>
         </listitem>
       </varlistentry>
 
@@ -168,9 +342,10 @@
         <term>-t <replaceable class="parameter">directory</replaceable></term>
         <listitem>
           <para>
-              chroot to <filename>directory</filename> so that include
-              directives in the configuration file are processed as if
-              run by a similarly chrooted named.
+            chroot to <filename>directory</filename> so that
+            include
+            directives in the configuration file are processed as if
+            run by a similarly chrooted named.
           </para>
         </listitem>
       </varlistentry>
@@ -179,39 +354,55 @@
         <term>-w <replaceable class="parameter">directory</replaceable></term>
         <listitem>
           <para>
-              chdir to <filename>directory</filename> so that relative
-	      filenames in master file $INCLUDE directives work.  This
-	      is similar to the directory clause in
-	      <filename>named.conf</filename>.
+            chdir to <filename>directory</filename> so that
+            relative
+            filenames in master file $INCLUDE directives work.  This
+            is similar to the directory clause in
+            <filename>named.conf</filename>.
           </para>
         </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-D</term>
-	<listitem>
-	  <para>
-	      Dump zone file in canonical format.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            Dump zone file in canonical format.
+	    This is always enabled for <command>named-compilezone</command>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-W <replaceable class="parameter">mode</replaceable></term>
+        <listitem>
+          <para>
+            Specify whether to check for non-terminal wildcards.
+            Non-terminal wildcards are almost always the result of a
+            failure to understand the wildcard matching algorithm (RFC 1034).
+            Possible modes are <command>"warn"</command> (default)
+            and
+            <command>"ignore"</command>.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>zonename</term>
-	<listitem>
-	  <para>
-	       The domain name of the zone being checked.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            The domain name of the zone being checked.
+          </para>
+        </listitem>
       </varlistentry>
 
       <varlistentry>
         <term>filename</term>
-	<listitem>
-	  <para>
-	       The name of the zone file.
-	  </para>
-	</listitem>
+        <listitem>
+          <para>
+            The name of the zone file.
+          </para>
+        </listitem>
       </varlistentry>
 
     </variablelist>
@@ -220,18 +411,16 @@
 
   <refsect1>
     <title>RETURN VALUES</title>
-    <para>
-        <command>named-checkzone</command> returns an exit status of 1 if
-	errors were detected and 0 otherwise.
+    <para><command>named-checkzone</command>
+      returns an exit status of 1 if
+      errors were detected and 0 otherwise.
     </para>
   </refsect1>
 
   <refsect1>
     <title>SEE ALSO</title>
-    <para>
-      <citerefentry>
-        <refentrytitle>named</refentrytitle>
-	<manvolnum>8</manvolnum>
+    <para><citerefentry>
+        <refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citetitle>RFC 1035</citetitle>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>.
@@ -240,16 +429,12 @@
 
   <refsect1>
     <title>AUTHOR</title>
-    <para>
-        <corpauthor>Internet Systems Consortium</corpauthor>
+    <para><corpauthor>Internet Systems Consortium</corpauthor>
     </para>
   </refsect1>
 
-</refentry>
-
-<!--
+</refentry><!--
  - Local variables:
  - mode: sgml
  - End:
 -->
-

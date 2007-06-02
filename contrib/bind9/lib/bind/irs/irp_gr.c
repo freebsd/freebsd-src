@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: irp_gr.c,v 1.2.206.1 2004/03/09 08:33:36 marka Exp $";
+static const char rcsid[] = "$Id: irp_gr.c,v 1.3.18.1 2005/04/27 05:01:00 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* extern */
@@ -54,16 +54,17 @@ static int __bind_irs_gr_unneeded;
 
 /* Types. */
 
-/*
+/*! \file 
+ * \brief
  * Module for the getnetgrent(3) family to use when connected to a
  * remote irp daemon.
- *
+ * \brief
  * See irpd.c for justification of caching done here.
  *
  */
 
 struct pvt {
-	struct irp_p   *girpdata;	/* global IRP data */
+	struct irp_p   *girpdata;	/*%< global IRP data */
 	int		warned;
 	struct group	group;
 };
@@ -83,20 +84,8 @@ static void		free_group(struct group *gr);
 
 /* Public. */
 
-
-
-
-
-/*
- * struct irs_gr * irs_irp_gr(struct irs_acc *this)
- *
- * Notes:
- *
+/*%
  *	Initialize the group sub-module.
- *
- * Notes:
- *
- *	Module data.
  *
  */
 
@@ -132,13 +121,7 @@ irs_irp_gr(struct irs_acc *this) {
 
 /* Methods. */
 
-
-
-/*
- * void gr_close(struct irs_gr *this)
- *
- * Notes:
- *
+/*%
  *	Close the sub-module.
  *
  */
@@ -153,14 +136,7 @@ gr_close(struct irs_gr *this) {
 	memput(this, sizeof *this);
 }
 
-
-
-
-/*
- * struct group * gr_next(struct irs_gr *this)
- *
- * Notes:
- *
+/*%
  *	Gets the next group out of the cached data and returns it.
  *
  */
@@ -207,15 +183,7 @@ gr_next(struct irs_gr *this) {
 	return (gr);
 }
 
-
-
-
-
-/*
- * struct group * gr_byname(struct irs_gr *this, const char *name)
- *
- * Notes:
- *
+/*%
  *	Gets a group by name from irpd and returns it.
  *
  */
@@ -263,15 +231,7 @@ gr_byname(struct irs_gr *this, const char *name) {
 	return (gr);
 }
 
-
-
-
-
-/*
- * struct group * gr_bygid(struct irs_gr *this, gid_t gid)
- *
- * Notes:
- *
+/*%
  *	Gets a group by gid from irpd and returns it.
  *
  */
@@ -318,10 +278,7 @@ gr_bygid(struct irs_gr *this, gid_t gid) {
 	return (gr);
 }
 
-
-
-
-/*
+/*%
  * void gr_rewind(struct irs_gr *this)
  *
  */
@@ -350,14 +307,7 @@ gr_rewind(struct irs_gr *this) {
 	return;
 }
 
-
-
-
-/*
- * void gr_minimize(struct irs_gr *this)
- *
- * Notes:
- *
+/*%
  *	Frees up cached data and disconnects(if necessary) from the remote.
  *
  */
@@ -372,9 +322,7 @@ gr_minimize(struct irs_gr *this) {
 
 /* Private. */
 
-
-
-/*
+/*%
  * static void free_group(struct group *gr);
  *
  *	Deallocate all the memory irp_unmarshall_gr allocated.
@@ -406,3 +354,4 @@ free_group(struct group *gr) {
 
 
 #endif /* WANT_IRS_GR */
+/*! \file */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -18,9 +18,10 @@
 #ifndef GENERIC_AFSDB_18_H
 #define GENERIC_AFSDB_18_H 1
 
-/* $Id: afsdb_18.h,v 1.15.206.1 2004/03/06 08:14:03 marka Exp $ */
+/* $Id: afsdb_18.h,v 1.16.18.2 2005/04/29 00:16:30 marka Exp $ */
 
-/* RFC 1183 */
+/*!
+ *  \brief Per RFC1183 */
 
 typedef struct dns_rdata_afsdb {
 	dns_rdatacommon_t	common;

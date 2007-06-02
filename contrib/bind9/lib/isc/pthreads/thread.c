@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: thread.c,v 1.9.2.2.2.2 2004/12/04 06:50:03 marka Exp $ */
+/* $Id: thread.c,v 1.12.18.3 2005/04/29 00:17:05 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 

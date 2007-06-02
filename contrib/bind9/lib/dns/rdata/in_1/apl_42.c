@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: apl_42.c,v 1.4.200.8 2004/03/16 12:38:15 marka Exp $ */
+/* $Id: apl_42.c,v 1.8.18.2 2005/04/29 00:16:42 marka Exp $ */
 
-/* RFC 3123 */
+/* RFC3123 */
 
 #ifndef RDATA_IN_1_APL_42_C
 #define RDATA_IN_1_APL_42_C

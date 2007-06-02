@@ -15,9 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*! \file lwinetntop.c
+ */
 #if defined(LIBC_SCCS) && !defined(lint)
 static char rcsid[] =
-	"$Id: lwinetntop.c,v 1.9.12.5 2005/11/04 00:16:34 marka Exp $";
+	"$Id: lwinetntop.c,v 1.12.18.4 2005/11/03 23:02:24 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>
@@ -45,7 +47,7 @@ static const char *inet_ntop6(const unsigned char *src, char *dst,
 			      size_t size);
 #endif
 
-/* char *
+/*! char *
  * lwres_net_ntop(af, src, dst, size)
  *	convert a network format address to presentation format.
  * return:
@@ -69,7 +71,7 @@ lwres_net_ntop(int af, const void *src, char *dst, size_t size) {
 	/* NOTREACHED */
 }
 
-/* const char *
+/*! const char *
  * inet_ntop4(src, dst, size)
  *	format an IPv4 address
  * return:
@@ -96,7 +98,7 @@ inet_ntop4(const unsigned char *src, char *dst, size_t size) {
 	return (dst);
 }
 
-/* const char *
+/*! const char *
  * inet_ntop6(src, dst, size)
  *	convert IPv6 binary address into presentation (printable) format
  * author:
@@ -105,7 +107,7 @@ inet_ntop4(const unsigned char *src, char *dst, size_t size) {
 #ifdef AF_INET6
 static const char *
 inet_ntop6(const unsigned char *src, char *dst, size_t size) {
-	/*
+	/*!
 	 * Note that int32_t and int16_t need only be "at least" large enough
 	 * to contain a value of the specified size.  On some systems, like
 	 * Crays, there is no such thing as an integer variable with 16 bits.

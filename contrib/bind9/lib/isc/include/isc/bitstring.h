@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bitstring.h,v 1.7.206.1 2004/03/06 08:14:38 marka Exp $ */
+/* $Id: bitstring.h,v 1.8.18.2 2005/04/29 00:16:53 marka Exp $ */
 
 #ifndef ISC_BITSTRING_H
 #define ISC_BITSTRING_H 1
@@ -24,8 +24,9 @@
  ***** Module Info
  *****/
 
-/*
- * Bitstring
+/*! \file bitstring.h
+ *
+ * \brief Bitstring manipulation functions.
  *
  * A bitstring is a packed array of bits, stored in a contiguous
  * sequence of octets.  The "most significant bit" (msb) of a bitstring
@@ -46,21 +47,25 @@
  * long and will take two octets.  Let "p" denote a pad bit.  In the msb0
  * encoding, it would be
  *
+ * \verbatim
  *             Octet 0           Octet 1
  *                         |
  *         1 1 0 1 0 0 0 1 | 1 1 1 p p p p p
  *         ^               |               ^
  *         |                               |
  *         bit 0                           bit 15
+ * \endverbatim
  *
  * In the lsb0 encoding, it would be
  *
+ * \verbatim
  *             Octet 0           Octet 1
  *                         |
  *         p p p p p 1 1 0 | 1 0 0 0 1 1 1 1 
  *         ^               |               ^
  *         |                               |
  *         bit 15                          bit 0
+ * \endverbatim
  */
 
 /***
@@ -91,59 +96,59 @@ struct isc_bitstring {
 void
 isc_bitstring_init(isc_bitstring_t *bitstring, unsigned char *data,
 		   unsigned int length, unsigned int size, isc_boolean_t lsb0);
-/*
- * Make 'bitstring' refer to the bitstring of 'size' bits starting
+/*!<
+ * \brief Make 'bitstring' refer to the bitstring of 'size' bits starting
  * at 'data'.  'length' bits of the bitstring are valid.  If 'lsb0'
  * is set then, bit 0 refers to the least significant bit of the
  * bitstring.  Otherwise bit 0 is the most significant bit.
  *
  * Requires:
  *
- *	'bitstring' points to a isc_bitstring_t.
+ *\li	'bitstring' points to a isc_bitstring_t.
  *
- *	'data' points to an array of unsigned char large enough to hold
+ *\li	'data' points to an array of unsigned char large enough to hold
  *	'size' bits.
  *
- *	'length' <= 'size'.
+ *\li	'length' <= 'size'.
  *
  * Ensures:
  *
- *	'bitstring' is a valid bitstring.
+ *\li	'bitstring' is a valid bitstring.
  */
 
 void
 isc_bitstring_invalidate(isc_bitstring_t *bitstring);
-/*
- * Invalidate 'bitstring'.
+/*!<
+ * \brief Invalidate 'bitstring'.
  *
  * Requires:
  *
- *	'bitstring' is a valid bitstring.
+ *\li	'bitstring' is a valid bitstring.
  *
  * Ensures:
  *
- *	'bitstring' is not a valid bitstring.
+ *\li	'bitstring' is not a valid bitstring.
  */
 
 void
 isc_bitstring_copy(isc_bitstring_t *source, unsigned int sbitpos,
 		   isc_bitstring_t *target, unsigned int tbitpos,
 		   unsigned int n);
-/*
- * Starting at bit 'sbitpos', copy 'n' bits from 'source' to
+/*!<
+ * \brief Starting at bit 'sbitpos', copy 'n' bits from 'source' to
  * the 'n' bits of 'target' starting at 'tbitpos'.
  *
  * Requires:
  *
- *	'source' and target are valid bitstrings with the same lsb0 setting.
+ *\li	'source' and target are valid bitstrings with the same lsb0 setting.
  *
- *	'sbitpos' + 'n' is less than or equal to the length of 'source'.
+ *\li	'sbitpos' + 'n' is less than or equal to the length of 'source'.
  *
- *	'tbitpos' + 'n' is less than or equal to the size of 'target'.
+ *\li	'tbitpos' + 'n' is less than or equal to the size of 'target'.
  *
  * Ensures:
  *
- *	The specified bits have been copied, and the length of 'target'
+ *\li	The specified bits have been copied, and the length of 'target'
  *	adjusted (if required).
  */
 

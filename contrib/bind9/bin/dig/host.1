@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: host.1,v 1.11.2.1.4.8 2006/06/29 13:02:30 marka Exp $
+.\" $Id: host.1,v 1.14.18.13 2007/01/30 00:23:44 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: host
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -33,7 +33,7 @@
 host \- DNS lookup utility
 .SH "SYNOPSIS"
 .HP 5
-\fBhost\fR [\fB\-aCdlnrTwv\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-N\ \fR\fB\fIndots\fR\fR] [\fB\-R\ \fR\fB\fInumber\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-W\ \fR\fB\fIwait\fR\fR] [\fB\-4\fR] [\fB\-6\fR] {name} [server]
+\fBhost\fR [\fB\-aCdlnrsTwv\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-N\ \fR\fB\fIndots\fR\fR] [\fB\-R\ \fR\fB\fInumber\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-W\ \fR\fB\fIwait\fR\fR] [\fB\-m\ \fR\fB\fIflag\fR\fR] [\fB\-4\fR] [\fB\-6\fR] {name} [server]
 .SH "DESCRIPTION"
 .PP
 \fBhost\fR
@@ -179,6 +179,32 @@ is less than one, the wait interval is set to one second. When the
 option is used,
 \fBhost\fR
 will effectively wait forever for a reply. The time to wait for a response will be set to the number of seconds given by the hardware's maximum value for an integer quantity.
+.PP
+The
+\fB\-s\fR
+option tells
+\fBhost\fR
+\fInot\fR
+to send the query to the next nameserver if any server responds with a SERVFAIL response, which is the reverse of normal stub resolver behaviour.
+.PP
+The
+\fB\-m\fR
+can be used to set the memory usage debugging flags
+\fIrecord\fR,
+\fIusage\fR
+and
+\fItrace\fR.
+.SH "IDN SUPPORT"
+.PP
+If
+\fBhost\fR
+has been built with IDN (internationalized domain name) support, it can accept and display non\-ASCII domain names.
+\fBhost\fR
+appropriately converts character encoding of domain name before sending a request to DNS server or displaying a reply from the server. If you'd like to turn off the IDN support for some reason, defines the
+\fBIDN_DISABLE\fR
+environment variable. The IDN support is disabled if the variable is set when
+\fBhost\fR
+runs.
 .SH "FILES"
 .PP
 \fI/etc/resolv.conf\fR
@@ -187,4 +213,7 @@ will effectively wait forever for a reply. The time to wait for a response will 
 \fBdig\fR(1),
 \fBnamed\fR(8).
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000\-2002 Internet Software Consortium.
+.br

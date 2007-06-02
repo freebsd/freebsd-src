@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,17 +15,22 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.h,v 1.23.26.3 2004/03/08 09:04:55 marka Exp $ */
+/* $Id: mutex.h,v 1.25.18.3 2005/07/12 01:22:33 marka Exp $ */
 
 #ifndef ISC_MUTEX_H
 #define ISC_MUTEX_H 1
 
+/*! \file */
+
 #include <pthread.h>
 #include <stdio.h>
 
+#include <isc/lang.h>
 #include <isc/result.h>		/* for ISC_R_ codes */
 
-/*
+ISC_LANG_BEGINDECLS
+
+/*!
  * Supply mutex attributes that enable deadlock detection
  * (helpful when debugging).  This is system dependent and
  * currently only supported on NetBSD.
@@ -39,7 +44,7 @@ extern pthread_mutexattr_t isc__mutex_attrs;
 
 /* XXX We could do fancier error handling... */
 
-/*
+/*!
  * Define ISC_MUTEX_PROFILE to turn on profiling of mutexes by line.  When
  * enabled, isc_mutex_stats() can be used to print a table showing the
  * number of times each type of mutex was locked and the amount of time
@@ -53,8 +58,8 @@ extern pthread_mutexattr_t isc__mutex_attrs;
 typedef struct isc_mutexstats isc_mutexstats_t;
 
 typedef struct {
-	pthread_mutex_t		mutex;	/* The actual mutex. */
-	isc_mutexstats_t *	stats;	/* Mutex statistics. */
+	pthread_mutex_t		mutex;	/*%< The actual mutex. */
+	isc_mutexstats_t *	stats;	/*%< Mutex statistics. */
 } isc_mutex_t;
 #else
 typedef pthread_mutex_t	isc_mutex_t;
@@ -70,8 +75,8 @@ typedef pthread_mutex_t	isc_mutex_t;
         isc_mutex_init_errcheck((mp))
 #else
 #define isc_mutex_init(mp) \
-	((pthread_mutex_init((mp), ISC__MUTEX_ATTRS) == 0) ? \
-	 ISC_R_SUCCESS : ISC_R_UNEXPECTED)
+	isc__mutex_init((mp), __FILE__, __LINE__)
+isc_result_t isc__mutex_init(isc_mutex_t *mp, const char *file, unsigned int line);
 #endif
 #endif
 
@@ -136,4 +141,5 @@ isc_mutex_init_errcheck(isc_mutex_t *mp);
 
 #endif /* ISC_MUTEX_PROFILE */
 
+ISC_LANG_ENDDECLS
 #endif /* ISC_MUTEX_H */

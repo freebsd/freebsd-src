@@ -1,3 +1,4 @@
+<?xml-stylesheet href="common.css" type="text/css"?>
 <!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
        "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" []>
 <!--
@@ -17,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: FAQ.xml,v 1.4.6.5.6.1 2007/01/12 02:28:00 marka Exp $ -->
+<!-- $Id: FAQ.xml,v 1.4.4.8 2007/02/05 05:23:39 marka Exp $ -->
 
 <article class="faq">
   <title>Frequently Asked Questions about BIND 9</title>
@@ -186,17 +187,17 @@ example.com. 86400 IN SOA ns hostmaster ( 1 3600 1800 1814400 3600 )</programlis
     <qandaentry>
       <question>
 	<para>
-	How do I produce a usable core file from a multithreaded
+	How do I produce a usable core file from a multi-threaded
 	named on Linux?
 	</para>
       </question>
       <answer>
 	<para>
-	If the Linux kernel is 2.4.7 or newer, multithreaded core
+	If the Linux kernel is 2.4.7 or newer, multi-threaded core
 	dumps are usable (that is, the correct thread is dumped).
 	Otherwise, if using a 2.2 kernel, apply the kernel patch
 	found in contrib/linux/coredump-patch and rebuild the kernel.
-	This patch will cause multithreaded programs to dump the
+	This patch will cause multi-threaded programs to dump the
 	correct thread.
 	</para>
       </answer>
@@ -644,7 +645,7 @@ named-checkzone example.com tmp</programlisting>
 	</informalexample>
 	<para>
 	  A CNAME record cannot exist with the same name as another record
-	  except for the DNSSEC records which prove its existance (NSEC).
+	  except for the DNSSEC records which prove its existence (NSEC).
 	</para>
 	<para>
 	  RFC 1034, Section 3.6.2: <quote>If a CNAME RR is present at a node,
@@ -768,7 +769,7 @@ Master 10.0.1.1:
 	  contains leading white space (tab/space) but the is no
 	  current record owner name to inherit the name from.  Usually
 	  this is the result of putting white space before a comment.
-	  Forgeting the "@" for the SOA record or indenting the master
+	  Forgetting the "@" for the SOA record or indenting the master
 	  file.
 	</para>
       </answer>
@@ -782,7 +783,7 @@ Master 10.0.1.1:
       </question>
       <answer>
 	<para>
-	  You are running chrooted (-t) and have not supplied local timzone
+	  You are running chrooted (-t) and have not supplied local timezone
 	  information in the chroot area.
 	</para>
 	<simplelist>
@@ -945,7 +946,7 @@ zone "example.net" {
     <qandaentry>
       <question>
 	<para>
-	  How do I intergrate BIND 9 and Solaris SMF
+	  How do I integrate BIND 9 and Solaris SMF
 	</para>
       </question>
       <answer>
@@ -977,7 +978,7 @@ zone "example.net" {
 	  You would have to add both the CNAME and address records
 	  (A/AAAA) as glue to the parent zone and have CNAMEs be
 	  followed when doing additional section processing to make
-	  it work.  No namesever implementation supports either of
+	  it work.  No nameserver implementation supports either of
 	  these requirements.
 	</para>
       </answer>
@@ -996,7 +997,7 @@ zone "example.net" {
 	  space you are using then you have failed to follow RFC 1918
 	  usage rules and are leaking queries to the Internet.  You
 	  should establish your own zones for these addresses to prevent
-	  you quering the Internet's name servers for these addresses.
+	  you querying the Internet's name servers for these addresses.
 	  Please see <ulink url="http://as112.net/">http://as112.net/</ulink>
 	  for details of the problems you are causing and the counter
 	  measures that have had to be deployed.
@@ -1073,7 +1074,7 @@ empty:
 	   SELinux security policy ( see http://www.nsa.gov/selinux
 	   ) and recommendations for BIND security , which are more
 	   secure than running named in a chroot and make use of
-	   the bind-chroot environment unecessary .
+	   the bind-chroot environment unnecessary .
 	</para>
 
 	<para>
@@ -1174,7 +1175,7 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
 	</para>
 
 	<para>
-	  To create a custom configuration file location, eg.
+	  To create a custom configuration file location, e.g.
 	  '/root/named.conf', to use with the 'named -c' option,
 	  do:
 	  <informalexample>
@@ -1185,7 +1186,7 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
 	</para>
   
 	<para>
-	  To create a custom modifiable named data location, eg.
+	  To create a custom modifiable named data location, e.g.
 	  '/var/log/named' for a log file, do:
 	  <informalexample>
 	    <programlisting>
@@ -1195,7 +1196,7 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
 	</para>
    
 	<para>
-   To create a custom zone file location, eg. /root/zones/, do:
+   To create a custom zone file location, e.g. /root/zones/, do:
 	  <informalexample>
 	    <programlisting>
 # chcon system_u:object_r:named_zone_t /root/zones/{.,*}
@@ -1209,6 +1210,7 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
 	</para>
       </answer>
     </qandaentry>
+
     <qandaentry>
       <question>
 	<para>
@@ -1239,6 +1241,7 @@ zone "list.dsbl.org" {
         </programlisting>
       </answer>
     </qandaentry>
+
     <qandaentry>
       <question>
 	<para>
@@ -1262,15 +1265,93 @@ zone "list.dsbl.org" {
 	  a directory which has all the conversion rules for the
 	  world (e.g. /usr/share/zoneinfo).  When updating the OS
 	  do not forget to update any chroot areas as well.
-	  See your OS's documetation for more details.
+	  See your OS's documentation for more details.
 	</para>
 	<para>
 	  The local timezone conversion rules can also be done on
-	  a individual basis by setting the TZ envirionment variable
+	  a individual basis by setting the TZ environment variable
 	  appropriately.  See your OS's documentation for more
 	  details.
 	</para>
       </answer>
     </qandaentry>
+
+    <qandaentry>
+      <question>
+	<para>
+	  Why do we get the following warning at run time:
+<programlisting>kernel: process `named' is using obsolete setsockopt SO_BSDCOMPAT</programlisting>
+	</para>
+      </question>
+      <answer>
+	<para>
+          The early Linux kernels broke sendto() by having it return     
+          that a ICMP unreachable had be received for non connected
+          UDP sockets.  This made non connected UDP sockets work like
+          connected UDP socket which is fine when you are only talking
+          to one destination.  Named however talks to multiple
+          destinations and it caused problems.
+	</para>
+	<para>
+          Rather than fix sendto() to just have BSD behaviour they added
+          SO_BSDCOMPAT to turn BSD behaviour on/off on a per socket basis.
+	</para>
+	<para>
+          Later they decided to make BSD behaviour the default and
+          to aggressively track down applications that used SO_BSDCOMPAT
+          by issuing a warning.  This is the sort of things vendors
+          do in alpha/beta stages of a release so that their code is
+          clean.  They then turn the warning *off* for release code.
+	</para>
+	<para>
+          We still have customers that have kernels that require
+          SO_BSDCOMPAT to operate.  We therefore cannot remove the
+          setsockopt(SO_BSDCOMPAT) call.
+	</para>
+	<para>
+          Now most/all portable applications that use SO_BSDCOMPAT use it
+          conditionally manner so just removing SO_BSDCOMPAT from the
+          header file would be safe as long as the binary was not to
+          be moved between systems.  BIND's use is conditional.
+	</para>
+	<para>
+	  In short, the Linux developers should either, remove the #define for
+	  SO_BSDCOMPAT, and/or remove the warning.
+	</para>
+      </answer>
+    </qandaentry>
+
+    <qandaentry>
+      <question>
+	<para>
+	  Isn't "make install"  supposed to generate a default named.conf?
+	</para>
+      </question>
+      <answer>
+	<para>
+	  Short Answer: No. 
+	</para>
+	<para>
+	  Long Answer: There really isn't a default configuration which fits
+	  any site perfectly.  There are lots of decisions that need to
+	  be made and there is no consensus on what the defaults should be.
+	  For example FreeBSD uses /etc/namedb as the location where the
+	  configuration files for named are stored.  Others use /var/named.
+	</para>
+	<para>
+	  What addresses to listen on?  For a laptop on the move a lot
+	  you may only want to listen on the loop back interfaces.
+	</para>
+	<para>
+	  Who do you offer recursive service to?  Is there are firewall
+	  to consider?  If so is it stateless or stateful.  Are you
+	  directly on the Internet?  Are you on a private network? Are
+	  you on a NAT'd network? The answers
+	  to all these questions change how you configure even a
+	  caching name server.
+	</para>
+      </answer>
+    </qandaentry>
+
   </qandaset>
 </article>

@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: eventlib.c,v 1.2.2.1.4.6 2006/03/10 00:17:21 marka Exp $";
+static const char rcsid[] = "$Id: eventlib.c,v 1.5.18.5 2006/03/10 00:20:08 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -29,9 +29,9 @@ static const char rcsid[] = "$Id: eventlib.c,v 1.2.2.1.4.6 2006/03/10 00:17:21 m
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#ifdef SOLARIS2
+#ifdef	SOLARIS2
 #include <limits.h>
-#endif /* SOLARIS2 */
+#endif	/* SOLARIS2 */
 
 #include <errno.h>
 #include <signal.h>
@@ -48,7 +48,7 @@ static const char rcsid[] = "$Id: eventlib.c,v 1.2.2.1.4.6 2006/03/10 00:17:21 m
 int      __evOptMonoTime;
 
 #ifdef USE_POLL
-#define pselect Pselect
+#define	pselect Pselect
 #endif /* USE_POLL */
 
 /* Forward. */
@@ -85,8 +85,9 @@ evCreate(evContext *opaqueCtx) {
 	INIT_LIST(ctx->accepts);
 
 	/* Files. */
+	ctx->files = NULL;
 #ifdef USE_POLL
-	ctx->pollfds = NULL;
+        ctx->pollfds = NULL;
 	ctx->maxnfds = 0;
 	ctx->firstfd = 0;
 	emulMaskInit(ctx, rdLast, EV_READ, 1);
@@ -97,21 +98,20 @@ evCreate(evContext *opaqueCtx) {
 	emulMaskInit(ctx, exNext, EV_EXCEPT, 0);
 	emulMaskInit(ctx, nonblockBefore, EV_WASNONBLOCKING, 0);
 #endif /* USE_POLL */
-	ctx->files = NULL;
 	FD_ZERO(&ctx->rdNext);
 	FD_ZERO(&ctx->wrNext);
 	FD_ZERO(&ctx->exNext);
 	FD_ZERO(&ctx->nonblockBefore);
 	ctx->fdMax = -1;
 	ctx->fdNext = NULL;
-	ctx->fdCount = 0;	/* Invalidate {rd,wr,ex}Last. */
+	ctx->fdCount = 0;	/*%< Invalidate {rd,wr,ex}Last. */
 #ifndef USE_POLL
 	ctx->highestFD = FD_SETSIZE - 1;
 	memset(ctx->fdTable, 0, sizeof ctx->fdTable);
-#else
+#else   
 	ctx->highestFD = INT_MAX / sizeof(struct pollfd);
 	ctx->fdTable = NULL;
-#endif
+#endif /* USE_POLL */
 #ifdef EVENTLIB_TIME_CHECKS
 	ctx->lastFdCount = 0;
 #endif
@@ -150,7 +150,7 @@ evSetDebug(evContext opaqueCtx, int level, FILE *output) {
 int
 evDestroy(evContext opaqueCtx) {
 	evContext_p *ctx = opaqueCtx.opaque;
-	int revs = 424242;	/* Doug Adams. */
+	int revs = 424242;	/*%< Doug Adams. */
 	evWaitList *this_wl, *next_wl;
 	evWait *this_wait, *next_wait;
 
@@ -266,8 +266,7 @@ evGetNext(evContext opaqueCtx, evEvent *opaqueEv, int options) {
 		nextTime = nextTimer->due;
 		timerPast = (evCmpTime(nextTime, ctx->lastEventTime) <= 0);
 	} else
-		timerPast = 0;	/* Make gcc happy. */
-
+		timerPast = 0;	/*%< Make gcc happy. */
 	evPrintf(ctx, 9, "evGetNext: fdCount %d\n", ctx->fdCount);
 	if (ctx->fdCount == 0) {
 		static const struct timespec NoTime = {0, 0L};
@@ -309,10 +308,10 @@ evGetNext(evContext opaqueCtx, evEvent *opaqueEv, int options) {
 #endif
 		do {
 #ifndef USE_POLL
-			/* XXX need to copy only the bits we are using. */
-			ctx->rdLast = ctx->rdNext;
-			ctx->wrLast = ctx->wrNext;
-			ctx->exLast = ctx->exNext;
+			 /* XXX need to copy only the bits we are using. */
+			 ctx->rdLast = ctx->rdNext;
+			 ctx->wrLast = ctx->wrNext;
+			 ctx->exLast = ctx->exNext;
 #else
 			/*
 			 * The pollfd structure uses separate fields for
@@ -742,10 +741,10 @@ pselect(int nfds, void *rfds, void *wfds, void *efds,
 	sigset_t sigs;
 	int n;
 #ifdef USE_POLL
-	int polltimeout = INFTIM;
-	evContext_p *ctx;
-	struct pollfd *fds;
-	nfds_t pnfds;
+	int	polltimeout = INFTIM;
+	evContext_p	*ctx;
+	struct pollfd	*fds;
+	nfds_t		pnfds;
 
 	UNUSED(nfds);
 #endif /* USE_POLL */
@@ -761,9 +760,9 @@ pselect(int nfds, void *rfds, void *wfds, void *efds,
 	if (sigmask)
 		sigprocmask(SIG_SETMASK, sigmask, &sigs);
 #ifndef USE_POLL
-	n = select(nfds, rfds, wfds, efds, tvp);
+	 n = select(nfds, rfds, wfds, efds, tvp);
 #else
-	/*
+        /*
 	 * rfds, wfds, and efds should all be from the same evContext_p,
 	 * so any of them will do. If they're all NULL, the caller is
 	 * presumably calling us to block.
@@ -797,7 +796,7 @@ pselect(int nfds, void *rfds, void *wfds, void *efds,
 				e++;
 			if (FD_ISSET(i, &ctx->exLast))
 				e++;
-			}
+		}
 		n = e;
 	}
 #endif /* USE_POLL */

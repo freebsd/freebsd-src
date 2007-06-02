@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: version.c,v 1.9.12.3 2004/03/08 09:04:33 marka Exp $ */
+/* $Id: version.c,v 1.11.18.2 2005/04/29 00:16:07 marka Exp $ */
+
+/*! \file */
 
 #include <dns/version.h>
 

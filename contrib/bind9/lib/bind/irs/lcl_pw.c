@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_pw.c,v 1.1.206.1 2004/03/09 08:33:38 marka Exp $";
+static const char rcsid[] = "$Id: lcl_pw.c,v 1.2.18.1 2005/04/27 05:01:03 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Extern */
@@ -85,7 +85,8 @@ static int __bind_irs_pw_unneeded;
 #include "irs_p.h"
 #include "lcl_p.h"
 
-/*
+/*! \file
+ * \brief
  * The lookup techniques and data extraction code here must be kept
  * in sync with that in `pwd_mkdb'.
  */
@@ -94,9 +95,9 @@ static int __bind_irs_pw_unneeded;
 /* Types */
 
 struct  pvt {
-	struct passwd	passwd;		/* password structure */
-	DB 		*pw_db;		/* password database */
-	int		pw_keynum;	/* key counter */
+	struct passwd	passwd;		/*%< password structure */
+	DB 		*pw_db;		/*%< password database */
+	int		pw_keynum;	/*%< key counter */
 	int		warned;
 	u_int		max;
 	char *		line;
