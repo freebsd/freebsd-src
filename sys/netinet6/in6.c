@@ -215,10 +215,8 @@ in6_ifaddloop(struct ifaddr *ifa)
 	rt = rtalloc1(ifa->ifa_addr, 0, 0);
 	need_loop = (rt == NULL || (rt->rt_flags & RTF_HOST) == 0 ||
 	    (rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0);
-	if (rt) {
-		RT_REMREF(rt);
-		RT_UNLOCK(rt);
-	}
+	if (rt)
+		RTFREE_LOCKED(rt);
 	if (need_loop)
 		in6_ifloop_request(RTM_ADD, ifa);
 }
@@ -270,8 +268,7 @@ in6_ifremloop(struct ifaddr *ifa)
 		if (rt != NULL) {
 			if ((rt->rt_flags & RTF_HOST) != 0 &&
 			    (rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
-				RT_REMREF(rt);
-				RT_UNLOCK(rt);
+				RTFREE_LOCKED(rt);
 				in6_ifloop_request(RTM_DELETE, ifa);
 			} else
 				RT_UNLOCK(rt);
