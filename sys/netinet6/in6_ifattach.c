@@ -731,8 +731,8 @@ in6_ifdetach(ifp)
 	struct rtentry *rt;
 	short rtflags;
 	struct sockaddr_in6 sin6;
-	struct in6_multi *in6m;
-	struct in6_multi *in6m_next;
+	struct in6_multi *in6m, *in6m_next;
+	struct in6_multi_mship *imm;
 
 	/* remove neighbor management table */
 	nd6_purge(ifp);
@@ -755,6 +755,14 @@ in6_ifdetach(ifp)
 		}
 
 		ia = (struct in6_ifaddr *)ifa;
+
+		/*
+		 * leave from multicast groups we have joined for the interface
+		 */
+		while ((imm = ia->ia6_memberships.lh_first) != NULL) {
+			LIST_REMOVE(imm, i6mm_chain);
+			in6_leavegroup(imm);
+		}
 
 		/* remove from the routing table */
 		if ((ia->ia_flags & IFA_ROUTE) &&
