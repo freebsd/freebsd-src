@@ -312,25 +312,22 @@ EcLock(struct acpi_ec_softc *sc, int serialize)
 {
     ACPI_STATUS	status;
 
+    /* If _GLK is non-zero, acquire the global lock. */
+    status = AE_OK;
+    if (sc->ec_glk) {
+	status = AcpiAcquireGlobalLock(EC_LOCK_TIMEOUT, &sc->ec_glkhandle);
+	if (ACPI_FAILURE(status))
+	    return (status);
+    }
+
     /*
      * If caller is executing a series of commands, acquire the exclusive lock
      * to serialize with other users.
      * To sync with bottom-half interrupt handler, always acquire the mutex.
      */
-    status = AE_OK;
     if (serialize)
 	ACPI_SERIAL_BEGIN(ec);
     mtx_lock(&sc->ec_mtx);
-
-    /* If _GLK is non-zero, also acquire the global lock. */
-    if (sc->ec_glk) {
-	status = AcpiAcquireGlobalLock(EC_LOCK_TIMEOUT, &sc->ec_glkhandle);
-	if (ACPI_FAILURE(status)) {
-	    mtx_unlock(&sc->ec_mtx);
-	    if (serialize)
-		ACPI_SERIAL_END(ec);
-	}
-    }
 
     return (status);
 }
@@ -338,11 +335,11 @@ EcLock(struct acpi_ec_softc *sc, int serialize)
 static __inline void
 EcUnlock(struct acpi_ec_softc *sc)
 {
-    if (sc->ec_glk)
-	AcpiReleaseGlobalLock(sc->ec_glkhandle);
     mtx_unlock(&sc->ec_mtx);
     if (sx_xlocked(&ec_sxlock))
 	ACPI_SERIAL_END(ec);
+    if (sc->ec_glk)
+	AcpiReleaseGlobalLock(sc->ec_glkhandle);
 }
 
 static uint32_t		EcGpeHandler(void *Context);
