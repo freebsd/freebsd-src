@@ -16,8 +16,6 @@
 # after which config should be rerun for all machines.
 #
 
-GCC3=	you bet
-
 # Which version of config(8) is required.
 %VERSREQ=	600004
 
