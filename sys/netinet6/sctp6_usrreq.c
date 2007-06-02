@@ -543,6 +543,7 @@ sctp6_attach(struct socket *so, int proto, struct thread *p)
 	struct in6pcb *inp6;
 	int error;
 	struct sctp_inpcb *inp;
+	uint32_t vrf_id = SCTP_DEFAULT_VRFID;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp != NULL)
@@ -553,10 +554,11 @@ sctp6_attach(struct socket *so, int proto, struct thread *p)
 		if (error)
 			return error;
 	}
-	error = sctp_inpcb_alloc(so);
+	error = sctp_inpcb_alloc(so, vrf_id);
 	if (error)
 		return error;
 	inp = (struct sctp_inpcb *)so->so_pcb;
+	SCTP_INP_WLOCK(inp);
 	inp->sctp_flags |= SCTP_PCB_FLAGS_BOUND_V6;	/* I'm v6! */
 	inp6 = (struct in6pcb *)inp;
 
@@ -575,6 +577,7 @@ sctp6_attach(struct socket *so, int proto, struct thread *p)
 	 * Hmm what about the IPSEC stuff that is missing here but in
 	 * sctp_attach()?
 	 */
+	SCTP_INP_WUNLOCK(inp);
 	return 0;
 }
 

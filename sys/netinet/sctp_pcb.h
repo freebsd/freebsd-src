@@ -59,12 +59,12 @@ TAILQ_HEAD(sctp_streamhead, sctp_stream_queue_pending);
 struct sctp_vrf {
 	LIST_ENTRY(sctp_vrf) next_vrf;
 	struct sctp_ifalist *vrf_addr_hash;
-	struct sctp_ifnlist *vrf_ifn_hash;
 	struct sctp_ifnlist ifnlist;
 	uint32_t vrf_id;
+	uint32_t tbl_id_v4;	/* default v4 table id */
+	uint32_t tbl_id_v6;	/* default v6 table id */
 	uint32_t total_ifa_count;
 	u_long vrf_addr_hashmark;
-	u_long vrf_ifn_hashmark;
 };
 
 struct sctp_ifn {
@@ -165,6 +165,9 @@ struct sctp_epinfo {
 
 	struct sctp_vrflist *sctp_vrfhash;
 	u_long hashvrfmark;
+
+	struct sctp_ifnlist *vrf_ifn_hash;
+	u_long vrf_ifn_hashmark;
 
 	struct sctppcbhead listhead;
 	struct sctpladdr addr_wq;
@@ -416,7 +419,7 @@ int SCTP6_ARE_ADDR_EQUAL(struct in6_addr *a, struct in6_addr *b);
 void sctp_fill_pcbinfo(struct sctp_pcbinfo *);
 
 struct sctp_ifn *
-         sctp_find_ifn(struct sctp_vrf *vrf, void *ifn, uint32_t ifn_index);
+         sctp_find_ifn(void *ifn, uint32_t ifn_index);
 
 struct sctp_vrf *sctp_allocate_vrf(int vrfid);
 
@@ -426,9 +429,10 @@ struct sctp_ifa *
 sctp_add_addr_to_vrf(uint32_t vrfid,
     void *ifn, uint32_t ifn_index, uint32_t ifn_type,
     const char *if_name,
-    void *ifa, struct sockaddr *addr, uint32_t ifa_flags, int dynamic_add);
+    void *ifa, struct sockaddr *addr, uint32_t ifa_flags,
+    int dynamic_add);
 
-void sctp_update_ifn_mtu(uint32_t vrf_id, uint32_t ifn_index, uint32_t mtu);
+void sctp_update_ifn_mtu(uint32_t ifn_index, uint32_t mtu);
 
 void sctp_free_ifn(struct sctp_ifn *sctp_ifnp);
 void sctp_free_ifa(struct sctp_ifa *sctp_ifap);
@@ -479,7 +483,7 @@ struct sctp_tcb *
 sctp_findassociation_ep_asconf(struct mbuf *, int, int,
     struct sctphdr *, struct sctp_inpcb **, struct sctp_nets **);
 
-int sctp_inpcb_alloc(struct socket *);
+int sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id);
 
 int sctp_is_address_on_local_host(struct sockaddr *addr, uint32_t vrf_id);
 

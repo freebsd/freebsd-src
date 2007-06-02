@@ -489,7 +489,6 @@ sctp_service_reassembly(struct sctp_tcb *stcb, struct sctp_association *asoc)
 			 * Now lets see if we can deliver the next one on
 			 * the stream
 			 */
-			uint16_t nxt_todel;
 			struct sctp_stream_in *strm;
 
 			strm = &asoc->strmin[stream_no];
