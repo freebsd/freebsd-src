@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include "port_after.h"
 
-/*
+/*%
  * Formulate an Internet address from network + host.  Used in
  * building addresses stored in the ifnet structure.
  */
@@ -69,3 +69,5 @@ inet_makeaddr(net, host)
  */
 #undef inet_makeaddr
 __weak_reference(__inet_makeaddr, inet_makeaddr);
+
+/*! \file */

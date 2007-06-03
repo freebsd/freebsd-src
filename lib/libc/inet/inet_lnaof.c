@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include "port_after.h"
 
-/*
+/*%
  * Return the local network address portion of an
  * internet address; handles class a/b/c network
  * number formats.
@@ -66,3 +66,5 @@ inet_lnaof(in)
  */
 #undef inet_lnaof
 __weak_reference(__inet_lnaof, inet_lnaof);
+
+/*! \file */
