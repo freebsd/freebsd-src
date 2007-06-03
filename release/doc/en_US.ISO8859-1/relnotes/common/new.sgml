@@ -188,6 +188,11 @@
 	  network interfaces using the Marvell/SysKonnect Yukon II
 	  Gigabit Ethernet controller.</para>
 
+	<para>[&arch.amd64;, &arch.i386;] The &man.mxge.4; driver,
+          which supports Myricom Myri10GE 10 Gigabit Ethernet
+          adapters, has been added.  For more details, see
+          &man.mxge.4;.</para>
+
 	<para arch="arm">The &man.npe.4; driver, which supports the
 	   Intel XScale Network Processing Engine, has been
 	   added.</para>
@@ -274,6 +279,9 @@
     <para>A bug in &man.freebsd-update.8;, which caused it not
       to update SMP kernels correctly, has been fixed.</para>
 
+    <para>The &man.fdisk.8; program now supports a <option>-p</option>
+      flag to print the slice table in fdisk configuration format.</para>
+
     <para>The &man.ftpd.8; utility now has support for RFC2389 (FEAT)
       and rudimentary support for RFC2640 (UTF8).  The RFC2640 support
       is optional and can be enabled using the new <option>-8</option>
@@ -290,6 +298,10 @@
 
     <para>The &man.top.1; program now supports a <option>-j</option>
       flag to display the &man.jail.8; ID for each process.</para>
+
+    <para>The &man.touch.1; utility now supports a <option>-A</option>
+      flag that allows the access and modification times of a file be
+      adjusted by a specified value.</para>
 
     <para>The &man.wpa.passphrase.8; utility has been added.  It
       generates a 256-bit pre-shared WPA key from an ASCII
@@ -309,6 +321,10 @@
     <para><application>ncurses</application> has been updated from
       5.2-20020615 to 5.6-20061217.  ncurses now also has wide
       character support.</para>
+
+    <para><application>netcat</application> has been updated from the
+      version in a 4 February 2005 OpenBSD snapshot to the version
+      included in OpenBSD 4.1.</para>
 
     <para><application>GNU Readline library</application> has been
       updated from 5.0 to 5.2 patch 2.</para>
@@ -338,6 +354,14 @@
       (<filename role="package">x11/kde3</filename>) has been
       updated from 3.5.4 to 3.5.6.</para>
 
+    <para>The supported version of
+      the <application>&xorg;</application> windowing system
+      (<filename role="package">x11/xorg</filename>) has been updated
+      from 6.9.0 to 7.2.0.</para>
+
+    <para>The default value of <varname>X11BASE</varname> has been changed
+      from <filename>/usr/X11R6</filename> to <filename>/usr/local</filename>,
+      the default value of <varname>LOCALBASE</varname>.</para>
   </sect2>
 
   <sect2 id="doc">
