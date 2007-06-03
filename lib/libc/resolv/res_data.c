@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: res_data.c,v 1.1.206.2 2004/03/16 12:34:18 marka Exp $";
+static const char rcsid[] = "$Id: res_data.c,v 1.3.18.1 2005/04/27 05:01:10 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -47,8 +47,8 @@ const char *_res_opcodes[] = {
 	"QUERY",
 	"IQUERY",
 	"CQUERYM",
-	"CQUERYU",	/* experimental */
-	"NOTIFY",	/* experimental */
+	"CQUERYU",	/*%< experimental */
+	"NOTIFY",	/*%< experimental */
 	"UPDATE",
 	"6",
 	"7",
@@ -136,14 +136,14 @@ fp_nquery(const u_char *msg, int len, FILE *file) {
 }
 
 int
-res_mkquery(int op,			/* opcode of query */
-	    const char *dname,		/* domain name */
-	    int class, int type,	/* class and type of query */
-	    const u_char *data,		/* resource record data */
-	    int datalen,		/* length of data */
-	    const u_char *newrr_in,	/* new rr for modify or append */
-	    u_char *buf,		/* buffer to put query */
-	    int buflen)			/* size of buffer */
+res_mkquery(int op,			/*!< opcode of query  */
+	    const char *dname,		/*!< domain name  */
+	    int class, int type,	/*!< class and type of query  */
+	    const u_char *data,		/*!< resource record data  */
+	    int datalen,		/*!< length of data  */
+	    const u_char *newrr_in,	/*!< new rr for modify or append  */
+	    u_char *buf,		/*!< buffer to put query  */
+	    int buflen)			/*!< size of buffer  */
 {
 	if ((_res.options & RES_INIT) == 0U && res_init() == -1) {
 		RES_SET_H_ERRNO(&_res, NETDB_INTERNAL);
@@ -165,10 +165,10 @@ res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
 }
 
 int
-res_query(const char *name,	/* domain name */
-	  int class, int type,	/* class and type of query */
-	  u_char *answer,	/* buffer to put answer */
-	  int anslen)		/* size of answer buffer */
+res_query(const char *name,	/*!< domain name  */
+	  int class, int type,	/*!< class and type of query  */
+	  u_char *answer,	/*!< buffer to put answer  */
+	  int anslen)		/*!< size of answer buffer  */
 {
 	if ((_res.options & RES_INIT) == 0U && res_init() == -1) {
 		RES_SET_H_ERRNO(&_res, NETDB_INTERNAL);
@@ -234,10 +234,10 @@ res_update(ns_updrec *rrecp_in) {
 }
 
 int
-res_search(const char *name,	/* domain name */
-	   int class, int type,	/* class and type of query */
-	   u_char *answer,	/* buffer to put answer */
-	   int anslen)		/* size of answer */
+res_search(const char *name,	/*!< domain name  */
+	   int class, int type,	/*!< class and type of query  */
+	   u_char *answer,	/*!< buffer to put answer  */
+	   int anslen)		/*!< size of answer  */
 {
 	if ((_res.options & RES_INIT) == 0U && res_init() == -1) {
 		RES_SET_H_ERRNO(&_res, NETDB_INTERNAL);
@@ -250,9 +250,9 @@ res_search(const char *name,	/* domain name */
 int
 res_querydomain(const char *name,
 		const char *domain,
-		int class, int type,	/* class and type of query */
-		u_char *answer,		/* buffer to put answer */
-		int anslen)		/* size of answer */
+		int class, int type,	/*!< class and type of query  */
+		u_char *answer,		/*!< buffer to put answer  */
+		int anslen)		/*!< size of answer  */
 {
 	if ((_res.options & RES_INIT) == 0U && res_init() == -1) {
 		RES_SET_H_ERRNO(&_res, NETDB_INTERNAL);
@@ -316,3 +316,5 @@ __weak_reference(__res_search, res_search);
 __weak_reference(__res_querydomain, res_querydomain);
 
 #endif
+
+/*! \file */

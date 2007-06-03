@@ -48,9 +48,9 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
+/*%
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 1.7.2.11.4.3 2005/08/25 04:44:13 marka Exp $
+ *	$Id: resolv.h,v 1.19.18.3 2005/08/25 04:43:51 marka Exp $
  * $FreeBSD$
  */
 
@@ -64,7 +64,7 @@
 #include <stdio.h>
 #include <arpa/nameser.h>
 
-/*
+/*%
  * Revision information.  This is the release date in YYYYMMDD format.
  * It can change every day so the right thing to do with it is use it
  * in preprocessor commands such as "#if (__RES > 19931104)".  Do not
@@ -74,7 +74,7 @@
 
 #define	__RES	20030124
 
-/*
+/*%
  * This used to be defined in res_query.c, now it's in herror.c.
  * [XXX no it's not.  It's in irs/irs_data.c]
  * It was
@@ -94,12 +94,12 @@
  */
 
 #define RES_SET_H_ERRNO(r,x) __h_errno_set(r,x)
-struct __res_state; /* forward */
+struct __res_state; /*%< forward */
 __BEGIN_DECLS
 void __h_errno_set(struct __res_state *, int);
 __END_DECLS
 
-/*
+/*%
  * Resolver configuration file.
  * Normally not present, but may contain the address of the
  * initial name server(s) to query and the domain search list.
@@ -121,32 +121,30 @@ typedef res_sendhookact (*res_send_rhook)(const struct sockaddr *,
 					  int, int *);
 
 struct res_sym {
-	int		number;	   /* Identifying number, like T_MX */
-	const char *	name;	   /* Its symbolic name, like "MX" */
-	const char *	humanname; /* Its fun name, like "mail exchanger" */
+	int		number;	   /*%< Identifying number, like T_MX */
+	const char *	name;	   /*%< Its symbolic name, like "MX" */
+	const char *	humanname; /*%< Its fun name, like "mail exchanger" */
 };
 
-/*
+/*%
  * Global defines and variables for resolver stub.
  */
-#define	MAXNS			3	/* max # name servers we'll track */
-#define	MAXDFLSRCH		3	/* # default domain levels to try */
-#define	MAXDNSRCH		6	/* max # domains in search path */
-#define	LOCALDOMAINPARTS	2	/* min levels in name that is "local" */
-
-#define	RES_TIMEOUT		5	/* min. seconds between retries */
-#define	MAXRESOLVSORT		10	/* number of net to sort on */
-#define	RES_MAXNDOTS		15	/* should reflect bit field size */
-#define	RES_MAXRETRANS		30	/* only for resolv.conf/RES_OPTIONS */
-#define	RES_MAXRETRY		5	/* only for resolv.conf/RES_OPTIONS */
-#define	RES_DFLRETRY		2	/* Default #/tries. */
-#define	RES_MAXTIME		65535	/* Infinity, in milliseconds. */
-
+#define	MAXNS			3	/*%< max # name servers we'll track */
+#define	MAXDFLSRCH		3	/*%< # default domain levels to try */
+#define	MAXDNSRCH		6	/*%< max # domains in search path */
+#define	LOCALDOMAINPARTS	2	/*%< min levels in name that is "local" */
+#define	RES_TIMEOUT		5	/*%< min. seconds between retries */
+#define	MAXRESOLVSORT		10	/*%< number of net to sort on */
+#define	RES_MAXNDOTS		15	/*%< should reflect bit field size */
+#define	RES_MAXRETRANS		30	/*%< only for resolv.conf/RES_OPTIONS */
+#define	RES_MAXRETRY		5	/*%< only for resolv.conf/RES_OPTIONS */
+#define	RES_DFLRETRY		2	/*%< Default #/tries. */
+#define	RES_MAXTIME		65535	/*%< Infinity, in milliseconds. */
 struct __res_state_ext;
 
 struct __res_state {
-	int	retrans;	 	/* retransmission time interval */
-	int	retry;			/* number of times to retransmit */
+	int	retrans;	 	/*%< retransmission time interval */
+	int	retry;			/*%< number of times to retransmit */
 	/*
 	 * XXX: If `sun' is defined, `options' and `pfcode' are
 	 * defined as u_int in original BIND9 distribution.  However,
@@ -154,43 +152,43 @@ struct __res_state {
 	 * resolver.  So, we changed not to see `sun'.
 	 */
 #if defined(sun) && 0
-	u_int	options;		/* option flags - see below. */
+	u_int	options;		/*%< option flags - see below. */
 #else
-	u_long	options;		/* option flags - see below. */
+	u_long	options;		/*%< option flags - see below. */
 #endif
-	int	nscount;		/* number of name servers */
+	int	nscount;		/*%< number of name servers */
 	struct sockaddr_in
-		nsaddr_list[MAXNS];	/* address of name server */
-#define	nsaddr	nsaddr_list[0]		/* for backward compatibility */
-	u_short	id;			/* current message id */
-	char	*dnsrch[MAXDNSRCH+1];	/* components of domain to search */
-	char	defdname[256];		/* default domain (deprecated) */
+		nsaddr_list[MAXNS];	/*%< address of name server */
+#define	nsaddr	nsaddr_list[0]		/*%< for backward compatibility */
+	u_short	id;			/*%< current message id */
+	char	*dnsrch[MAXDNSRCH+1];	/*%< components of domain to search */
+	char	defdname[256];		/*%< default domain (deprecated) */
 #if defined(sun) && 0
-	u_int	pfcode;			/* RES_PRF_ flags - see below. */
+	u_int	pfcode;			/*%< RES_PRF_ flags - see below. */
 #else
-	u_long	pfcode;			/* RES_PRF_ flags - see below. */
+	u_long	pfcode;			/*%< RES_PRF_ flags - see below. */
 #endif
-	unsigned ndots:4;		/* threshold for initial abs. query */
-	unsigned nsort:4;		/* number of elements in sort_list[] */
+	unsigned ndots:4;		/*%< threshold for initial abs. query */
+	unsigned nsort:4;		/*%< number of elements in sort_list[] */
 	char	unused[3];
 	struct {
 		struct in_addr	addr;
 		u_int32_t	mask;
 	} sort_list[MAXRESOLVSORT];
-	res_send_qhook qhook;		/* query hook */
-	res_send_rhook rhook;		/* response hook */
-	int	res_h_errno;		/* last one set for this context */
-	int	_vcsock;		/* PRIVATE: for res_send VC i/o */
-	u_int	_flags;			/* PRIVATE: see below */
-	u_int	_pad;			/* make _u 64 bit aligned */
+	res_send_qhook qhook;		/*%< query hook */
+	res_send_rhook rhook;		/*%< response hook */
+	int	res_h_errno;		/*%< last one set for this context */
+	int	_vcsock;		/*%< PRIVATE: for res_send VC i/o */
+	u_int	_flags;			/*%< PRIVATE: see below */
+	u_int	_pad;			/*%< make _u 64 bit aligned */
 	union {
 		/* On an 32-bit arch this means 512b total. */
 		char	pad[72 - 4*sizeof (int) - 2*sizeof (void *)];
 		struct {
 			u_int16_t		nscount;
-			u_int16_t		nstimes[MAXNS];	/* ms. */
+			u_int16_t		nstimes[MAXNS];	/*%< ms. */
 			int			nssocks[MAXNS];
-			struct __res_state_ext *ext;	/* extention for IPv6 */
+			struct __res_state_ext *ext;	/*%< extention for IPv6 */
 		} _ext;
 	} _u;
 };
@@ -203,62 +201,62 @@ union res_sockaddr_union {
 	struct sockaddr_in6	sin6;
 #endif
 #ifdef ISC_ALIGN64
-	int64_t			__align64;	/* 64bit alignment */
+	int64_t			__align64;	/*%< 64bit alignment */
 #else
-	int32_t			__align32;	/* 32bit alignment */
+	int32_t			__align32;	/*%< 32bit alignment */
 #endif
-	char			__space[128];   /* max size */
+	char			__space[128];   /*%< max size */
 };
 
-/*
+/*%
  * Resolver flags (used to be discrete per-module statics ints).
  */
-#define	RES_F_VC	0x00000001	/* socket is TCP */
-#define	RES_F_CONN	0x00000002	/* socket is connected */
-#define	RES_F_EDNS0ERR	0x00000004	/* EDNS0 caused errors */
-#define	RES_F__UNUSED	0x00000008	/* (unused) */
-#define	RES_F_LASTMASK	0x000000F0	/* ordinal server of last res_nsend */
-#define	RES_F_LASTSHIFT	4		/* bit position of LASTMASK "flag" */
+#define	RES_F_VC	0x00000001	/*%< socket is TCP */
+#define	RES_F_CONN	0x00000002	/*%< socket is connected */
+#define	RES_F_EDNS0ERR	0x00000004	/*%< EDNS0 caused errors */
+#define	RES_F__UNUSED	0x00000008	/*%< (unused) */
+#define	RES_F_LASTMASK	0x000000F0	/*%< ordinal server of last res_nsend */
+#define	RES_F_LASTSHIFT	4		/*%< bit position of LASTMASK "flag" */
 #define	RES_GETLAST(res) (((res)._flags & RES_F_LASTMASK) >> RES_F_LASTSHIFT)
 
 /* res_findzonecut2() options */
-#define	RES_EXHAUSTIVE	0x00000001	/* always do all queries */
-#define	RES_IPV4ONLY	0x00000002	/* IPv4 only */
-#define	RES_IPV6ONLY	0x00000004	/* IPv6 only */
+#define	RES_EXHAUSTIVE	0x00000001	/*%< always do all queries */
+#define	RES_IPV4ONLY	0x00000002	/*%< IPv4 only */
+#define	RES_IPV6ONLY	0x00000004	/*%< IPv6 only */
 
-/*
+/*%
  * Resolver options (keep these in synch with res_debug.c, please)
  */
-#define RES_INIT	0x00000001	/* address initialized */
-#define RES_DEBUG	0x00000002	/* print debug messages */
-#define RES_AAONLY	0x00000004	/* authoritative answers only (!IMPL)*/
-#define RES_USEVC	0x00000008	/* use virtual circuit */
-#define RES_PRIMARY	0x00000010	/* query primary server only (!IMPL) */
-#define RES_IGNTC	0x00000020	/* ignore truncation errors */
-#define RES_RECURSE	0x00000040	/* recursion desired */
-#define RES_DEFNAMES	0x00000080	/* use default domain name */
-#define RES_STAYOPEN	0x00000100	/* Keep TCP socket open */
-#define RES_DNSRCH	0x00000200	/* search up local domain tree */
-#define	RES_INSECURE1	0x00000400	/* type 1 security disabled */
-#define	RES_INSECURE2	0x00000800	/* type 2 security disabled */
-#define	RES_NOALIASES	0x00001000	/* shuts off HOSTALIASES feature */
-#define	RES_USE_INET6	0x00002000	/* use/map IPv6 in gethostbyname() */
-#define RES_ROTATE	0x00004000	/* rotate ns list after each query */
-#define	RES_NOCHECKNAME	0x00008000	/* do not check names for sanity. */
-#define	RES_KEEPTSIG	0x00010000	/* do not strip TSIG records */
-#define	RES_BLAST	0x00020000	/* blast all recursive servers */
-#define RES_NOTLDQUERY	0x00100000	/* don't unqualified name as a tld */
-#define RES_USE_DNSSEC	0x00200000	/* use DNSSEC using OK bit in OPT */
+#define RES_INIT	0x00000001	/*%< address initialized */
+#define RES_DEBUG	0x00000002	/*%< print debug messages */
+#define RES_AAONLY	0x00000004	/*%< authoritative answers only (!IMPL)*/
+#define RES_USEVC	0x00000008	/*%< use virtual circuit */
+#define RES_PRIMARY	0x00000010	/*%< query primary server only (!IMPL) */
+#define RES_IGNTC	0x00000020	/*%< ignore truncation errors */
+#define RES_RECURSE	0x00000040	/*%< recursion desired */
+#define RES_DEFNAMES	0x00000080	/*%< use default domain name */
+#define RES_STAYOPEN	0x00000100	/*%< Keep TCP socket open */
+#define RES_DNSRCH	0x00000200	/*%< search up local domain tree */
+#define	RES_INSECURE1	0x00000400	/*%< type 1 security disabled */
+#define	RES_INSECURE2	0x00000800	/*%< type 2 security disabled */
+#define	RES_NOALIASES	0x00001000	/*%< shuts off HOSTALIASES feature */
+#define	RES_USE_INET6	0x00002000	/*%< use/map IPv6 in gethostbyname() */
+#define RES_ROTATE	0x00004000	/*%< rotate ns list after each query */
+#define	RES_NOCHECKNAME	0x00008000	/*%< do not check names for sanity. */
+#define	RES_KEEPTSIG	0x00010000	/*%< do not strip TSIG records */
+#define	RES_BLAST	0x00020000	/*%< blast all recursive servers */
+#define RES_NOTLDQUERY	0x00100000	/*%< don't unqualified name as a tld */
+#define RES_USE_DNSSEC	0x00200000	/*%< use DNSSEC using OK bit in OPT */
 /* #define RES_DEBUG2	0x00400000 */	/* nslookup internal */
 /* KAME extensions: use higher bit to avoid conflict with ISC use */
-#define RES_USE_DNAME	0x10000000	/* use DNAME */
-#define RES_USE_EDNS0	0x40000000	/* use EDNS0 if configured */
-#define RES_NO_NIBBLE2	0x80000000	/* disable alternate nibble lookup */
+#define RES_USE_DNAME	0x10000000	/*%< use DNAME */
+#define RES_USE_EDNS0	0x40000000	/*%< use EDNS0 if configured */
+#define RES_NO_NIBBLE2	0x80000000	/*%< disable alternate nibble lookup */
 
 #define RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | \
 			 RES_DNSRCH | RES_NO_NIBBLE2)
 
-/*
+/*%
  * Resolver "pfcode" values.  Used by dig.
  */
 #define	RES_PRF_STATS	0x00000001
@@ -497,3 +495,4 @@ int		res_getservers(res_state, union res_sockaddr_union *, int);
 __END_DECLS
 
 #endif /* !_RESOLV_H_ */
+/*! \file */

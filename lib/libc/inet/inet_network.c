@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include "port_after.h"
 
-/*
+/*%
  * Internet network address interpretation routine.
  * The library routines call this routine to interpret
  * network numbers.
@@ -107,3 +107,5 @@ again:
  */
 #undef inet_network
 __weak_reference(__inet_network, inet_network);
+
+/*! \file */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_findzonecut.c,v 1.2.2.3.4.4 2005/10/11 00:48:16 marka Exp $";
+static const char rcsid[] = "$Id: res_findzonecut.c,v 1.7.18.3 2005/10/11 00:25:11 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -99,55 +99,56 @@ static void	res_dprintf(const char *, ...) ISC_FORMAT_PRINTF(1, 2);
 
 /* Public. */
 
-/*
- * int
- * res_findzonecut(res, dname, class, zname, zsize, addrs, naddrs)
+/*%
  *	find enclosing zone for a <dname,class>, and some server addresses
+ *
  * parameters:
- *	res - resolver context to work within (is modified)
- *	dname - domain name whose enclosing zone is desired
- *	class - class of dname (and its enclosing zone)
- *	zname - found zone name
- *	zsize - allocated size of zname
- *	addrs - found server addresses
- *	naddrs - max number of addrs
+ *\li	res - resolver context to work within (is modified)
+ *\li	dname - domain name whose enclosing zone is desired
+ *\li	class - class of dname (and its enclosing zone)
+ *\li	zname - found zone name
+ *\li	zsize - allocated size of zname
+ *\li	addrs - found server addresses
+ *\li	naddrs - max number of addrs
+ *
  * return values:
- *	< 0 - an error occurred (check errno)
- *	= 0 - zname is now valid, but addrs[] wasn't changed
- *	> 0 - zname is now valid, and return value is number of addrs[] found
+ *\li	< 0 - an error occurred (check errno)
+ *\li	= 0 - zname is now valid, but addrs[] wasn't changed
+ *\li	> 0 - zname is now valid, and return value is number of addrs[] found
+ *
  * notes:
- *	this function calls res_nsend() which means it depends on correctly
+ *\li	this function calls res_nsend() which means it depends on correctly
  *	functioning recursive nameservers (usually defined in /etc/resolv.conf
  *	or its local equivilent).
  *
- *	we start by asking for an SOA<dname,class>.  if we get one as an
+ *\li	we start by asking for an SOA<dname,class>.  if we get one as an
  *	answer, that just means <dname,class> is a zone top, which is fine.
  *	more than likely we'll be told to go pound sand, in the form of a
  *	negative answer.
  *
- *	note that we are not prepared to deal with referrals since that would
+ *\li	note that we are not prepared to deal with referrals since that would
  *	only come from authority servers and our correctly functioning local
  *	recursive server would have followed the referral and got us something
  *	more definite.
  *
- *	if the authority section contains an SOA, this SOA should also be the
+ *\li	if the authority section contains an SOA, this SOA should also be the
  *	closest enclosing zone, since any intermediary zone cuts would've been
  *	returned as referrals and dealt with by our correctly functioning local
  *	recursive name server.  but an SOA in the authority section should NOT
  *	match our dname (since that would have been returned in the answer
  *	section).  an authority section SOA has to be "above" our dname.
  *
- *	however, since authority section SOA's were once optional, it's
+ *\li	however, since authority section SOA's were once optional, it's
  *	possible that we'll have to go hunting for the enclosing SOA by
  *	ripping labels off the front of our dname -- this is known as "doing
  *	it the hard way."
  *
- *	ultimately we want some server addresses, which are ideally the ones
+ *\li	ultimately we want some server addresses, which are ideally the ones
  *	pertaining to the SOA.MNAME, but only if there is a matching NS RR.
  *	so the second phase (after we find an SOA) is to go looking for the
  *	NS RRset for that SOA's zone.
  *
- *	no answer section processed by this code is allowed to contain CNAME
+ *\li	no answer section processed by this code is allowed to contain CNAME
  *	or DNAME RR's.  for the SOA query this means we strip a label and
  *	keep going.  for the NS and A queries this means we just give up.
  */
@@ -722,3 +723,5 @@ res_dprintf(const char *fmt, ...) {
 	fputc('\n', stderr);
 	va_end(ap);
 }
+
+/*! \file */
