@@ -136,6 +136,8 @@ ACPI_SERIAL_DECL(cpu, "ACPI CPU");
 
 static int	acpi_cpu_probe(device_t dev);
 static int	acpi_cpu_attach(device_t dev);
+static int	acpi_cpu_suspend(device_t dev);
+static int	acpi_cpu_resume(device_t dev);
 static int	acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id,
 		    uint32_t *cpu_id);
 static struct resource_list *acpi_cpu_get_rlist(device_t dev, device_t child);
@@ -153,6 +155,7 @@ static void	acpi_cpu_idle(void);
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_cpu_quirks(void);
 static int	acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS);
+static int	acpi_cpu_set_cx_lowest(struct acpi_cpu_softc *sc, int val);
 static int	acpi_cpu_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_global_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS);
 
@@ -162,8 +165,8 @@ static device_method_t acpi_cpu_methods[] = {
     DEVMETHOD(device_attach,	acpi_cpu_attach),
     DEVMETHOD(device_detach,	bus_generic_detach),
     DEVMETHOD(device_shutdown,	acpi_cpu_shutdown),
-    DEVMETHOD(device_suspend,	bus_generic_suspend),
-    DEVMETHOD(device_resume,	bus_generic_resume),
+    DEVMETHOD(device_suspend,	acpi_cpu_suspend),
+    DEVMETHOD(device_resume,	acpi_cpu_resume),
 
     /* Bus interface */
     DEVMETHOD(bus_add_child,	acpi_cpu_add_child),
@@ -354,6 +357,30 @@ acpi_cpu_attach(device_t dev)
     bus_generic_attach(dev);
 
     return (0);
+}
+
+/*
+ * Disable any entry to the idle function during suspend and re-enable it
+ * during resume.
+ */
+static int
+acpi_cpu_suspend(device_t dev)
+{
+    int error;
+
+    error = bus_generic_suspend(dev);
+    if (error)
+	return (error);
+    cpu_disable_idle = TRUE;
+    return (0);
+}
+
+static int
+acpi_cpu_resume(device_t dev)
+{
+
+    cpu_disable_idle = FALSE;
+    return (bus_generic_resume(dev));
 }
 
 /*
