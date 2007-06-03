@@ -940,7 +940,8 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 	 * There's a 1:1 relationship between mixers and PCM devices, so
 	 * begin by iterating over PCM devices and search for our mixer.
 	 */
-	for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+	for (i = 0; pcm_devclass != NULL &&
+	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
 		if (d == NULL)
 			continue;
