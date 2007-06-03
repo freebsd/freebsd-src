@@ -44,6 +44,7 @@
 .Op Fl r Ar resolution
 .Op Fl S Ar baudrate
 .Op Fl VH Op Fl U Ar distance
+.Op Fl A Ar exp Ns Op , Ns Ar offset
 .Op Fl a Ar X Ns Op , Ns Ar Y
 .Op Fl C Ar threshold
 .Op Fl m Ar N=M
@@ -89,14 +90,17 @@ data to the device so that the user program will see it.
 .Pp
 If the mouse daemon receives the signal
 .Dv SIGHUP ,
-it will reopen the mouse port and reinitialize itself. Useful if
+it will reopen the mouse port and reinitialize itself.
+Useful if
 the mouse is attached/detached while the system is suspended.
 .Pp
 If the mouse daemon receives the signal
 .Dv SIGUSR1 ,
-it will stop passing mouse events. Sending the signal
-.Dv SIGUSR1 
-again will resume passing mouse events. Useful if your typing on a laptop is
+it will stop passing mouse events.
+Sending the signal
+.Dv SIGUSR1
+again will resume passing mouse events.
+Useful if your typing on a laptop is
 interrupted by accidentally touching the mouse pad.
 .Pp
 The following options are available:
@@ -210,12 +214,55 @@ mode is activated.
 The default
 .Ar distance
 is 3 pixels.
+.It Fl A Ar exp Ns Op , Ns Ar offset
+Apply exponential (dynamic) acceleration to mouse movements:
+the faster you move the mouse, the more it will be accelerated.
+That means that small mouse movements are not accelerated,
+so they are still very accurate, while a faster movement will
+drive the pointer quickly across the screen.
+.Pp
+The
+.Ar exp
+value specifies the exponent, which is basically
+the amount of acceleration.  Useful values are in the
+range 1.1 to 2.0, but it depends on your mouse hardware
+and your personal preference.  A value of 1.0 means no
+exponential acceleration.  A value of 2.0 means squared
+acceleration (i.e. if you move the mouse twice as fast,
+the pointer will move four times as fast on the screen).
+Values beyond 2.0 are possible but not recommended.
+A good value to start is probably 1.5.
+.Pp
+The optional
+.Ar offset
+value specifies the distance at which the acceleration
+begins.  The default is 1.0, which means that the
+acceleration is applied to movements larger than one unit.
+If you specify a larger value, it takes more speed for
+the acceleration to kick in, i.e. the speed range for
+small and accurate movements is wider.
+Usually the default should be sufficient, but if you're
+not satisfied with the behaviour, try a value of 2.0.
+.Pp
+Note that the
+.Fl A
+option interacts badly with the X server's own acceleration,
+which doesn't work very well anyway.  Therefore it is
+recommended to switch it off if necessary:
+.Dq xset m 1 .
 .It Fl a Ar X Ns Op , Ns Ar Y
 Accelerate or decelerate the mouse input.
 This is a linear acceleration only.
 Values less than 1.0 slow down movement, values greater than 1.0 speed it
 up.
 Specifying only one value sets the acceleration for both axes.
+.Pp
+You can use the
+.Fl a
+and
+.Fl A
+options at the same time to have the combined effect
+of linear and exponential acceleration.
 .It Fl c
 Some mice report middle button down events
 as if the left and right buttons are being pressed.
@@ -613,11 +660,11 @@ protocol.
 To test if the selected protocol type is correct for the given mouse,
 enable the mouse pointer in the current virtual console,
 .Pp
-.Dl vidcontrol -m on
+.Dl "vidcontrol -m on"
 .Pp
 start the mouse daemon in the foreground mode,
 .Pp
-.Dl moused -f -p Ar _selected_port_ -t Ar _selected_protocol_
+.Dl "moused -f -p <selected_port> -t <selected_protocol>"
 .Pp
 and see if the mouse pointer travels correctly
 according to the mouse movement.
@@ -668,7 +715,7 @@ utility
 UNIX-domain stream socket for X10 MouseRemote events
 .El
 .Sh EXAMPLES
-.Dl moused -p /dev/cuad0 -i type
+.Dl "moused -p /dev/cuad0 -i type"
 .Pp
 Let the
 .Nm
@@ -676,9 +723,10 @@ utility determine the protocol type of the mouse at the serial port
 .Pa /dev/cuad0 .
 If successful, the command will print the type, otherwise it will say
 .Dq Li unknown .
-.Pp
-.Dl moused -p /dev/cuad0
-.Dl vidcontrol -m on
+.Bd -literal -offset indent
+moused -p /dev/cuad0
+vidcontrol -m on
+.Ed
 .Pp
 If the
 .Nm
@@ -686,9 +734,10 @@ utility is able to identify the protocol type of the mouse at the specified
 port automatically, you can start the daemon without the
 .Fl t
 option and enable the mouse pointer in the text console as above.
-.Pp
-.Dl moused -p /dev/mouse -t microsoft
-.Dl vidcontrol -m on
+.Bd -literal -offset indent
+moused -p /dev/mouse -t microsoft
+vidcontrol -m on
+.Ed
 .Pp
 Start the mouse daemon on the serial port
 .Pa /dev/mouse .
@@ -698,27 +747,27 @@ is explicitly specified by the
 .Fl t
 option.
 .Pp
-.Dl moused -p /dev/mouse -m 1=3 -m 3=1
+.Dl "moused -p /dev/mouse -m 1=3 -m 3=1"
 .Pp
 Assign the physical button 3 (right button) to the logical button 1
 (logical left) and the physical button 1 (left) to the logical
 button 3 (logical right).
 This will effectively swap the left and right buttons.
 .Pp
-.Dl moused -p /dev/mouse -t intellimouse -z 4
+.Dl "moused -p /dev/mouse -t intellimouse -z 4"
 .Pp
 Report negative Z axis movement (i.e., mouse wheel) as the button 4 pressed
 and positive Z axis movement (i.e., mouse wheel) as the button 5 pressed.
 .Pp
 If you add
 .Pp
-.Dl ALL ALL = NOPASSWD: /usr/bin/killall -USR1 moused
+.Dl "ALL ALL = NOPASSWD: /usr/bin/killall -USR1 moused"
 .Pp
 to your
 .Pa /usr/local/etc/sudoers
 file, and bind
 .Pp
-.Dl killall -USR1 moused
+.Dl "killall -USR1 moused"
 .Pp
 to a key in your window manager, you can suspend mouse events on your laptop if
 you keep brushing over the mouse pad while typing.
@@ -758,6 +807,7 @@ option to assign the physical right button to the logical middle button:
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr vidcontrol 1 ,
+.Xr xset 1 ,
 .Xr keyboard 4 ,
 .Xr mse 4 ,
 .Xr pcvt 4 ,
