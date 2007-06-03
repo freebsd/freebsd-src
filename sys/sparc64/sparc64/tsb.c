@@ -117,7 +117,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 	int b0;
 	int i;
 
-	if (m->pc != DCACHE_COLOR(va)) {
+	if (DCACHE_COLOR(VM_PAGE_TO_PHYS(m)) != DCACHE_COLOR(va)) {
 		CTR6(KTR_CT2,
 	"tsb_tte_enter: off colour va=%#lx pa=%#lx o=%p oc=%#lx ot=%d pi=%#lx",
 		    va, VM_PAGE_TO_PHYS(m), m->object,

@@ -830,7 +830,7 @@ pmap_kenter(vm_offset_t va, vm_page_t m)
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, VM_PAGE_TO_PHYS(m), tp, tp->tte_data);
-	if (m->pc != DCACHE_COLOR(va)) {
+	if (DCACHE_COLOR(VM_PAGE_TO_PHYS(m)) != DCACHE_COLOR(va)) {
 		CTR6(KTR_CT2,
 	"pmap_kenter: off colour va=%#lx pa=%#lx o=%p oc=%#lx ot=%d pi=%#lx",
 		    va, VM_PAGE_TO_PHYS(m), m->object,
