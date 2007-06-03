@@ -469,7 +469,8 @@ sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
 		if (v > SND_MAXVCHANS)
 			v = SND_MAXVCHANS;
 		snd_maxautovchans = v;
-		for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+		for (i = 0; pcm_devclass != NULL &&
+		    i < devclass_get_maxunit(pcm_devclass); i++) {
 			d = devclass_get_softc(pcm_devclass, i);
 			if (d == NULL)
 				continue;
@@ -914,7 +915,8 @@ sysctl_hw_snd_clone_gc(SYSCTL_HANDLER_ARGS)
 	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
 
 	if (err == 0 && req->newptr != NULL && val != 0) {
-		for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+		for (i = 0; pcm_devclass != NULL &&
+		    i < devclass_get_maxunit(pcm_devclass); i++) {
 			d = devclass_get_softc(pcm_devclass, i);
 			if (d == NULL || d->clones == NULL)
 				continue;
@@ -1130,7 +1132,8 @@ pcm_unregister(device_t dev)
 		/*
 		 * Reassign default unit to the next available dev.
 		 */
-		for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+		for (i = 0; pcm_devclass != NULL &&
+		    i < devclass_get_maxunit(pcm_devclass); i++) {
 			if (device_get_unit(dev) == i ||
 			    devclass_get_softc(pcm_devclass, i) == NULL)
 				continue;
@@ -1332,7 +1335,8 @@ sound_oss_sysinfo(oss_sysinfo *si)
 	if (pcm_devclass != NULL) {
 		j = 0;
 
-		for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+		for (i = 0; pcm_devclass != NULL &&
+		    i < devclass_get_maxunit(pcm_devclass); i++) {
 			d = devclass_get_softc(pcm_devclass, i);
 			if (!d)
 				continue;
