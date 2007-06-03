@@ -73,12 +73,16 @@
 		INSIST(LINKED(elt, link));\
 		if ((elt)->link.next != NULL) \
 			(elt)->link.next->link.prev = (elt)->link.prev; \
-		else \
+		else { \
+			INSIST((list).tail == (elt)); \
 			(list).tail = (elt)->link.prev; \
+		} \
 		if ((elt)->link.prev != NULL) \
 			(elt)->link.prev->link.next = (elt)->link.next; \
-		else \
+		else { \
+			INSIST((list).head == (elt)); \
 			(list).head = (elt)->link.next; \
+		} \
 		INIT_LINK_TYPE(elt, link, type); \
 	} while (0)
 #define UNLINK(list, elt, link) \
@@ -117,3 +121,4 @@
 #define DEQUEUE(list, elt, link) UNLINK(list, elt, link)
 
 #endif /* LIST_H */
+/*! \file */
