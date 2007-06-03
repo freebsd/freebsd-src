@@ -16,18 +16,20 @@
  */
 
 /*
- *	$Id: res_update.h,v 1.1.206.1 2004/03/09 08:33:29 marka Exp $
+ *	$Id: res_update.h,v 1.2.18.1 2005/04/27 05:00:49 sra Exp $
  * $FreeBSD$
  */
 
 #ifndef __RES_UPDATE_H
 #define __RES_UPDATE_H
 
+/*! \file */
+
 #include <sys/types.h>
 #include <arpa/nameser.h>
 #include <resolv.h>
 
-/*
+/*%
  * This RR-like structure is particular to UPDATE.
  */
 struct ns_updrec {
@@ -35,18 +37,18 @@ struct ns_updrec {
 		struct ns_updrec *prev;
 		struct ns_updrec *next;
 	} r_link, r_glink;
-	ns_sect		r_section;	/* ZONE/PREREQUISITE/UPDATE */
-	char *		r_dname;	/* owner of the RR */
-	ns_class	r_class;	/* class number */
-	ns_type		r_type;		/* type number */
-	u_int32_t	r_ttl;		/* time to live */
-	u_char *	r_data;		/* rdata fields as text string */
-	u_int		r_size;		/* size of r_data field */
-	int		r_opcode;	/* type of operation */
+	ns_sect		r_section;	/*%< ZONE/PREREQUISITE/UPDATE */
+	char *		r_dname;	/*%< owner of the RR */
+	ns_class	r_class;	/*%< class number */
+	ns_type		r_type;		/*%< type number */
+	u_int32_t	r_ttl;		/*%< time to live */
+	u_char *	r_data;		/*%< rdata fields as text string */
+	u_int		r_size;		/*%< size of r_data field */
+	int		r_opcode;	/*%< type of operation */
 	/* following fields for private use by the resolver/server routines */
-	struct databuf *r_dp;		/* databuf to process */
-	struct databuf *r_deldp;	/* databuf's deleted/overwritten */
-	u_int		r_zone;		/* zone number on server */
+	struct databuf *r_dp;		/*%< databuf to process */
+	struct databuf *r_deldp;	/*%< databuf's deleted/overwritten */
+	u_int		r_zone;		/*%< zone number on server */
 };
 typedef struct ns_updrec ns_updrec;
 typedef struct {
@@ -69,3 +71,5 @@ int		res_nmkupdate(res_state, ns_updrec *, u_char *, int);
 int		res_nupdate(res_state, ns_updrec *, ns_tsig_key *);
 
 #endif /*__RES_UPDATE_H*/
+
+/*! \file */
