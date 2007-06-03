@@ -4600,11 +4600,13 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		 */
 		sc->sc_imask &= ~(HAL_INT_SWBA | HAL_INT_BMISS);
 		ath_hal_intrset(ah, sc->sc_imask &~ HAL_INT_GLOBAL);
+#if 0
 		/* XXX can't use taskqueue_drain 'cuz we're holding sc_mtx */
 		taskqueue_drain(sc->sc_tq, &sc->sc_rxtask);
 		taskqueue_drain(sc->sc_tq, &sc->sc_rxorntask);
 		taskqueue_drain(sc->sc_tq, &sc->sc_bmisstask);
 		taskqueue_drain(sc->sc_tq, &sc->sc_bstucktask);
+#endif
 		ath_rate_newstate(sc, nstate);
 		goto done;
 	}
