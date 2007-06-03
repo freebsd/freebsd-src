@@ -2058,8 +2058,13 @@ re_encap(sc, m_head, idx)
 	 * the mbuf chain has too many fragments so the coalescing code
 	 * below can assemble the packet into a single buffer that's
 	 * padded out to the mininum frame size.
+	 *
+	 * Note: this appears unnecessary for TCP, and doing it for TCP
+	 * with PCIe adapters seems to result in bad checksums.
 	 */
-	if (arg.rl_flags && (*m_head)->m_pkthdr.len < RL_MIN_FRAMELEN)
+
+	if (arg.rl_flags && !(arg.rl_flags & RL_TDESC_CMD_TCPCSUM) &&
+            (*m_head)->m_pkthdr.len < RL_MIN_FRAMELEN)
 		error = EFBIG;
 	else
 		error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag, map,
