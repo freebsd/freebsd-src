@@ -274,6 +274,10 @@ OLD_FILES+=sbin/mount_linsysfs
 OLD_FILES+=usr/share/man/man8/mount_linsysfs.8.gz
 # 20060704: KAME compat file net_osdep.h removed
 OLD_FILES+=usr/include/net/net_osdep.h
+# 20060605: man page links removed by OpenBSM 1.0 alpha 6 import
+OLD_FILES+=usr/share/man/man3/au_to_socket.3.gz
+OLD_FILES+=usr/share/man/man3/au_to_socket_ex_128.3.gz
+OLD_FILES+=usr/share/man/man3/au_to_socket_ex_32.3.gz
 # 20060517: pcvt removed
 OLD_FILES+=usr/share/pcvt/README.FIRST
 OLD_FILES+=usr/share/pcvt/Etc/xmodmap-german
