@@ -28,12 +28,12 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
  * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  *           Name:  mpi_init.h
  *          Title:  MPI initiator mode messages and structures
  *  Creation Date:  June 8, 2000
  *
- *    mpi_init.h Version:  01.05.06
+ *    mpi_init.h Version:  01.05.09
  *
  *  Version History
  *  ---------------
@@ -79,6 +79,10 @@
  *                      Added four new defines for SEP SlotStatus.
  *  08-03-05  01.05.06  Fixed some MPI_SCSIIO32_MSGFLGS_ defines to make them
  *                      unique in the first 32 characters.
+ *  03-27-06  01.05.07  Added Task Management type of Clear ACA.
+ *  10-11-06  01.05.08  Shortened define for Task Management type of Clear ACA.
+ *  02-28-07  01.05.09  Defined two new MsgFlags bits for SCSI Task Management
+ *                      Request: Do Not Send Task IU and Soft Reset Option.
  *  --------------------------------------------------------------------------
  */
 
@@ -454,11 +458,16 @@ typedef struct _MSG_SCSI_TASK_MGMT
 #define MPI_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET    (0x05)
 #define MPI_SCSITASKMGMT_TASKTYPE_CLEAR_TASK_SET        (0x06)
 #define MPI_SCSITASKMGMT_TASKTYPE_QUERY_TASK            (0x07)
+#define MPI_SCSITASKMGMT_TASKTYPE_CLR_ACA               (0x08)
 
 /* MsgFlags bits */
+#define MPI_SCSITASKMGMT_MSGFLAGS_DO_NOT_SEND_TASK_IU   (0x01)
+
 #define MPI_SCSITASKMGMT_MSGFLAGS_TARGET_RESET_OPTION   (0x00)
 #define MPI_SCSITASKMGMT_MSGFLAGS_LIP_RESET_OPTION      (0x02)
 #define MPI_SCSITASKMGMT_MSGFLAGS_LIPRESET_RESET_OPTION (0x04)
+
+#define MPI_SCSITASKMGMT_MSGFLAGS_SOFT_RESET_OPTION     (0x08)
 
 /* SCSI Task Management Reply */
 typedef struct _MSG_SCSI_TASK_MGMT_REPLY
