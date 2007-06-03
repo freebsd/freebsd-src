@@ -622,6 +622,7 @@ re_setmulti(sc)
 	struct ifmultiaddr	*ifma;
 	u_int32_t		rxfilt;
 	int			mcnt = 0;
+	u_int32_t		hwrev;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -662,8 +663,24 @@ re_setmulti(sc)
 		rxfilt &= ~RL_RXCFG_RX_MULTI;
 
 	CSR_WRITE_4(sc, RL_RXCFG, rxfilt);
-	CSR_WRITE_4(sc, RL_MAR0, hashes[0]);
-	CSR_WRITE_4(sc, RL_MAR4, hashes[1]);
+
+	/*
+	 * For some unfathomable reason, RealTek decided to reverse
+	 * the order of the multicast hash registers in the PCI Express
+	 * parts. This means we have to write the hash pattern in reverse
+	 * order for those devices.
+	 */
+
+	hwrev = CSR_READ_4(sc, RL_TXCFG) & RL_TXCFG_HWREV;
+
+	if (hwrev == RL_HWREV_8100E || hwrev == RL_HWREV_8101E ||
+	    hwrev == RL_HWREV_8168_SPIN1 || hwrev == RL_HWREV_8168_SPIN2) {
+		CSR_WRITE_4(sc, RL_MAR0, bswap32(hashes[1]));
+		CSR_WRITE_4(sc, RL_MAR4, bswap32(hashes[0]));
+	} else {
+		CSR_WRITE_4(sc, RL_MAR0, hashes[0]);
+		CSR_WRITE_4(sc, RL_MAR4, hashes[1]);
+	}
 }
 
 static void
