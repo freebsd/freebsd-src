@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_ntop.c,v 1.1.2.1.8.2 2005/11/03 23:08:40 marka Exp $";
+static const char rcsid[] = "$Id: inet_ntop.c,v 1.3.18.2 2005/11/03 23:02:22 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include "port_after.h"
 
-/*
+/*%
  * WARNING: Don't even consider trying to compile this on a system where
  * sizeof(int) < 4.  sizeof(int) > 4 is fine; all the world's not a VAX.
  */
@@ -199,3 +199,5 @@ inet_ntop6(const u_char *src, char *dst, socklen_t size)
  */
 #undef inet_ntop
 __weak_reference(__inet_ntop, inet_ntop);
+
+/*! \file */

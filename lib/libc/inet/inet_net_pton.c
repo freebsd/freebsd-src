@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_net_pton.c,v 1.4.2.1.8.2 2004/03/17 00:29:47 marka Exp $";
+static const char rcsid[] = "$Id: inet_net_pton.c,v 1.7.18.1 2005/04/27 05:00:53 sra Exp $";
 #endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 # define SPRINTF(x) ((size_t)sprintf x)
 #endif
 
-/*
+/*%
  * static int
  * inet_net_pton_ipv4(src, dst, size)
  *	convert IPv4 network number from presentation to network format.
@@ -75,7 +75,7 @@ inet_net_pton_ipv4(const char *src, u_char *dst, size_t size) {
 		if (size <= 0U)
 			goto emsgsize;
 		dirty = 0;
-		src++;	/* skip x or X. */
+		src++;	/*%< skip x or X. */
 		while ((ch = *src++) != '\0' && isascii(ch) && isxdigit(ch)) {
 			if (isupper(ch))
 				ch = tolower(ch);
@@ -92,7 +92,7 @@ inet_net_pton_ipv4(const char *src, u_char *dst, size_t size) {
 				dirty = 0;
 			}
 		}
-		if (dirty) {  /* Odd trailing nybble? */
+		if (dirty) {  /*%< Odd trailing nybble? */
 			if (size-- <= 0U)
 				goto emsgsize;
 			*dst++ = (u_char) (tmp << 4);
@@ -128,7 +128,7 @@ inet_net_pton_ipv4(const char *src, u_char *dst, size_t size) {
 	if (ch == '/' && isascii((unsigned char)(src[0])) &&
 	    isdigit((unsigned char)(src[0])) && dst > odst) {
 		/* CIDR width specifier.  Nothing can follow it. */
-		ch = *src++;	/* Skip over the /. */
+		ch = *src++;	/*%< Skip over the /. */
 		bits = 0;
 		do {
 			n = strchr(digits, ch) - digits;
@@ -151,15 +151,15 @@ inet_net_pton_ipv4(const char *src, u_char *dst, size_t size) {
 		goto enoent;
 	/* If no CIDR spec was given, infer width from net class. */
 	if (bits == -1) {
-		if (*odst >= 240)	/* Class E */
+		if (*odst >= 240)	/*%< Class E */
 			bits = 32;
-		else if (*odst >= 224)	/* Class D */
+		else if (*odst >= 224)	/*%< Class D */
 			bits = 8;
-		else if (*odst >= 192)	/* Class C */
+		else if (*odst >= 192)	/*%< Class C */
 			bits = 24;
-		else if (*odst >= 128)	/* Class B */
+		else if (*odst >= 128)	/*%< Class B */
 			bits = 16;
-		else			/* Class A */
+		else			/*%< Class A */
 			bits = 8;
 		/* If imputed mask is narrower than specified octets, widen. */
 		if (bits < ((dst - odst) * 8))
@@ -202,11 +202,11 @@ getbits(const char *src, int *bitsp) {
 
 		pch = strchr(digits, ch);
 		if (pch != NULL) {
-			if (n++ != 0 && val == 0)	/* no leading zeros */
+			if (n++ != 0 && val == 0)	/*%< no leading zeros */
 				return (0);
 			val *= 10;
 			val += (pch - digits);
-			if (val > 128)			/* range */
+			if (val > 128)			/*%< range */
 				return (0);
 			continue;
 		}
@@ -233,16 +233,16 @@ getv4(const char *src, u_char *dst, int *bitsp) {
 
 		pch = strchr(digits, ch);
 		if (pch != NULL) {
-			if (n++ != 0 && val == 0)	/* no leading zeros */
+			if (n++ != 0 && val == 0)	/*%< no leading zeros */
 				return (0);
 			val *= 10;
 			val += (pch - digits);
-			if (val > 255)			/* range */
+			if (val > 255)			/*%< range */
 				return (0);
 			continue;
 		}
 		if (ch == '.' || ch == '/') {
-			if (dst - odst > 3)		/* too many octets? */
+			if (dst - odst > 3)		/*%< too many octets? */
 				return (0);
 			*dst++ = val;
 			if (ch == '/')
@@ -255,7 +255,7 @@ getv4(const char *src, u_char *dst, int *bitsp) {
 	}
 	if (n == 0)
 		return (0);
-	if (dst - odst > 3)		/* too many octets? */
+	if (dst - odst > 3)		/*%< too many octets? */
 		return (0);
 	*dst++ = val;
 	return (1);
@@ -324,7 +324,7 @@ inet_net_pton_ipv6(const char *src, u_char *dst, size_t size) {
 			tp += NS_INADDRSZ;
 			saw_xdigit = 0;
 			ipv4 = 1;
-			break;	/* '\0' was seen by inet_pton4(). */
+			break;	/*%< '\\0' was seen by inet_pton4(). */
 		}
 		if (ch == '/' && getbits(src, &bits) > 0)
 			break;
@@ -380,7 +380,7 @@ inet_net_pton_ipv6(const char *src, u_char *dst, size_t size) {
 	return (-1);
 }
 
-/*
+/*%
  * int
  * inet_net_pton(af, src, dst, size)
  *	convert network number from presentation to network format.
@@ -412,3 +412,5 @@ inet_net_pton(int af, const char *src, void *dst, size_t size) {
  */
 #undef inet_net_pton
 __weak_reference(__inet_net_pton, inet_net_pton);
+
+/*! \file */

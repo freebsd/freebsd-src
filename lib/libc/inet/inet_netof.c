@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include "port_after.h"
 
-/*
+/*%
  * Return the network number from an internet
  * address; handles class a/b/c network #'s.
  */
@@ -65,3 +65,5 @@ inet_netof(in)
  */
 #undef inet_netof
 __weak_reference(__inet_netof, inet_netof);
+
+/*! \file */

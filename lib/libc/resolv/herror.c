@@ -46,7 +46,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)herror.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: herror.c,v 1.2.206.1 2004/03/09 08:33:54 marka Exp $";
+static const char rcsid[] = "$Id: herror.c,v 1.3.18.1 2005/04/27 05:01:09 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -71,17 +71,17 @@ __FBSDID("$FreeBSD$");
 
 const char *h_errlist[] = {
 	"Resolver Error 0 (no error)",
-	"Unknown host",				/* 1 HOST_NOT_FOUND */
-	"Host name lookup failure",		/* 2 TRY_AGAIN */
-	"Unknown server error",			/* 3 NO_RECOVERY */
-	"No address associated with name",	/* 4 NO_ADDRESS */
+	"Unknown host",				/*%< 1 HOST_NOT_FOUND */
+	"Host name lookup failure",		/*%< 2 TRY_AGAIN */
+	"Unknown server error",			/*%< 3 NO_RECOVERY */
+	"No address associated with name",	/*%< 4 NO_ADDRESS */
 };
 const int h_nerr = { sizeof h_errlist / sizeof h_errlist[0] };
 
 #undef	h_errno
 int	h_errno;
 
-/*
+/*%
  * herror --
  *	print the error indicated by the h_errno value.
  */
@@ -110,7 +110,7 @@ herror(const char *s) {
 	_writev(STDERR_FILENO, iov, (v - iov) + 1);
 }
 
-/*
+/*%
  * hstrerror --
  *	return the string associated with a given "host" errno value.
  */
@@ -122,3 +122,5 @@ hstrerror(int err) {
 		return (h_errlist[err]);
 	return ("Unknown resolver error");
 }
+
+/*! \file */
