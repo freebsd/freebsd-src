@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <termios.h>
 #include <unistd.h>
+#include <math.h>
 
 #define MAX_CLICKTHRESHOLD	2000	/* 2 seconds */
 #define MAX_BUTTON2TIMEOUT	2000	/* 2 seconds */
@@ -101,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #define NoPnP		0x0010
 #define VirtualScroll	0x0020
 #define HVirtualScroll	0x0040
+#define ExponentialAcc	0x0080
 
 #define ID_NONE		0
 #define ID_PORT		1
@@ -109,26 +111,26 @@ __FBSDID("$FreeBSD$");
 #define ID_MODEL	8
 #define ID_ALL		(ID_PORT | ID_IF | ID_TYPE | ID_MODEL)
 
-#define debug(fmt, args...) do {				\
+#define debug(...) do {						\
 	if (debug && nodaemon)					\
-		warnx(fmt, ##args);				\
+		warnx(__VA_ARGS__);				\
 } while (0)
 
-#define logerr(e, fmt, args...) do {				\
-	log_or_warn(LOG_DAEMON | LOG_ERR, errno, fmt, ##args);	\
+#define logerr(e, ...) do {					\
+	log_or_warn(LOG_DAEMON | LOG_ERR, errno, __VA_ARGS__);	\
 	exit(e);						\
 } while (0)
 
-#define logerrx(e, fmt, args...) do {				\
-	log_or_warn(LOG_DAEMON | LOG_ERR, 0, fmt, ##args);	\
+#define logerrx(e, ...) do {					\
+	log_or_warn(LOG_DAEMON | LOG_ERR, 0, __VA_ARGS__);	\
 	exit(e);						\
 } while (0)
 
-#define logwarn(fmt, args...)					\
-	log_or_warn(LOG_DAEMON | LOG_WARNING, errno, fmt, ##args)
+#define logwarn(...)						\
+	log_or_warn(LOG_DAEMON | LOG_WARNING, errno, __VA_ARGS__)
 
-#define logwarnx(fmt, args...)					\
-	log_or_warn(LOG_DAEMON | LOG_WARNING, 0, fmt, ##args)
+#define logwarnx(...)						\
+	log_or_warn(LOG_DAEMON | LOG_WARNING, 0, __VA_ARGS__)
 
 /* structures */
 
@@ -396,6 +398,8 @@ static struct rodentparam {
     mousemode_t mode;		/* protocol information */
     float accelx;		/* Acceleration in the X axis */
     float accely;		/* Acceleration in the Y axis */
+    float expoaccel;		/* Exponential acceleration */
+    float expoffset;		/* Movement offset for exponential accel. */
     int scrollthreshold;	/* Movement distance before virtual scrolling */
 } rodent = {
     .flags = 0,
@@ -415,6 +419,8 @@ static struct rodentparam {
     .button2timeout = DFLT_BUTTON2TIMEOUT,
     .accelx = 1.0,
     .accely = 1.0,
+    .expoaccel = 1.0,
+    .expoffset = 1.0,
     .scrollthreshold = DFLT_SCROLLTHRESHOLD,
 };
 
@@ -494,6 +500,7 @@ static struct drift_xy  drift_previous={0,0}; /* steps in previous drift_time */
 
 /* function prototypes */
 
+static void	expoacc(int, int, int*, int*);
 static void	moused(void);
 static void	hup(int sig);
 static void	cleanup(int sig);
@@ -544,7 +551,7 @@ main(int argc, char *argv[])
     for (i = 0; i < MOUSE_MAXBUTTON; ++i)
 	mstate[i] = &bstate[i];
 
-    while ((c = getopt(argc, argv, "3C:DE:F:HI:PRS:T:VU:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
+    while ((c = getopt(argc, argv, "3A:C:DE:F:HI:PRS:T:VU:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
 	switch(c) {
 
 	case '3':
@@ -563,12 +570,25 @@ main(int argc, char *argv[])
 	case 'a':
 	    i = sscanf(optarg, "%f,%f", &rodent.accelx, &rodent.accely);
 	    if (i == 0) {
-		warnx("invalid acceleration argument '%s'", optarg);
+		warnx("invalid linear acceleration argument '%s'", optarg);
 		usage();
 	    }
 
 	    if (i == 1)
 		rodent.accely = rodent.accelx;
+
+	    break;
+
+	case 'A':
+	    rodent.flags |= ExponentialAcc;
+	    i = sscanf(optarg, "%f,%f", &rodent.expoaccel, &rodent.expoffset);
+	    if (i == 0) {
+		warnx("invalid exponential acceleration argument '%s'", optarg);
+		usage();
+	    }
+
+	    if (i == 1)
+		rodent.expoffset = 1.0;
 
 	    break;
 
@@ -935,6 +955,37 @@ usbmodule(void)
     return 0;
 }
 
+/*
+ * Function to calculate exponential acceleration.
+ *
+ * In order to give a smoother behaviour, we record the four
+ * most recent non-zero movements and use their average value
+ * to calculate the acceleration.
+ */
+
+static void
+expoacc(int dx, int dy, int *movex, int *movey)
+{
+    static float lastlength[3] = {0.0, 0.0, 0.0};
+    float fdx, fdy, length, lbase, accel;
+
+    if (dx == 0 && dy == 0) {
+	*movex = *movey = 0;
+	return;
+    }
+    fdx = dx * rodent.accelx;
+    fdy = dy * rodent.accely;
+    length = sqrtf((fdx * fdx) + (fdy * fdy));		/* Pythagoras */
+    length = (length + lastlength[0] + lastlength[1] + lastlength[2]) / 4;
+    lbase = length / rodent.expoffset;
+    accel = powf(lbase, rodent.expoaccel) / lbase;
+    *movex = lroundf(fdx * accel);
+    *movey = lroundf(fdy * accel);
+    lastlength[2] = lastlength[1];
+    lastlength[1] = lastlength[0];
+    lastlength[0] = length;	/* Insert new average, not original length! */
+}
+
 static void
 moused(void)
 {
@@ -1194,8 +1245,14 @@ moused(void)
 		if (action2.flags & MOUSE_POSCHANGED) {
 		    mouse.operation = MOUSE_MOTION_EVENT;
 		    mouse.u.data.buttons = action2.button;
-		    mouse.u.data.x = action2.dx * rodent.accelx;
-		    mouse.u.data.y = action2.dy * rodent.accely;
+		    if (rodent.flags & ExponentialAcc) {
+			expoacc(action2.dx, action2.dy,
+			    &mouse.u.data.x, &mouse.u.data.y);
+		    }
+		    else {
+			mouse.u.data.x = action2.dx * rodent.accelx;
+			mouse.u.data.y = action2.dy * rodent.accely;
+		    }
 		    mouse.u.data.z = action2.dz;
 		    if (debug < 2)
 			if (!paused)
@@ -1204,8 +1261,14 @@ moused(void)
 	    } else {
 		mouse.operation = MOUSE_ACTION;
 		mouse.u.data.buttons = action2.button;
-		mouse.u.data.x = action2.dx * rodent.accelx;
-		mouse.u.data.y = action2.dy * rodent.accely;
+		if (rodent.flags & ExponentialAcc) {
+		    expoacc(action2.dx, action2.dy,
+			&mouse.u.data.x, &mouse.u.data.y);
+		}
+		else {
+		    mouse.u.data.x = action2.dx * rodent.accelx;
+		    mouse.u.data.y = action2.dy * rodent.accely;
+		}
 		mouse.u.data.z = action2.dz;
 		if (debug < 2)
 		    if (!paused)
