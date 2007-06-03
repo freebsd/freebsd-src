@@ -377,17 +377,45 @@ isnow(char *endp, int *monthp, int *dayp, int *varp)
 #ifdef DEBUG
 	fprintf(stderr, "day2: day %d(%d-%d) yday %d\n", *dayp, day, cumdays[month], tp->tm_yday);
 #endif
-	/* if today or today + offset days */
+
+	/* when only today and tomorrow (or today and the next three days if
+	   it is friday) is needed */
+	if (f_dayBefore == 0 &&
+	    f_dayAfter == 0 ) {
+		/* no year rollover */
+		if (day >= tp->tm_yday &&
+		    day <= tp->tm_yday + offset)
+			return (1);
+		/* year rollover */
+		if (tp->tm_yday + offset >= yrdays) {
+			int end = tp->tm_yday + offset - yrdays;
+			if (day <= end)
+				return (1);
+		}
+
+		return (0);
+	}
+
+	/* When days before or days after is specified */
+	/* no year rollover */
 	if (day >= tp->tm_yday - f_dayBefore &&
-	    day <= tp->tm_yday + offset + f_dayAfter)
+	    day <= tp->tm_yday + f_dayAfter)
 		return (1);
 
-	/* if number of days left in this year + days to event in next year */
-	if (yrdays - tp->tm_yday + day <= offset + f_dayAfter ||
-	    /* a year backward, eg. 6 Jan and 10 days before -> 27. Dec */
-	    tp->tm_yday + day - f_dayBefore < 0
-	    )
-		return (1);
+	/* next year */
+	if (tp->tm_yday + f_dayAfter >= yrdays) {
+		int end = tp->tm_yday + f_dayAfter - yrdays;
+		if (day <= end)
+			return (1);
+	}
+
+	/* previous year */
+	if (tp->tm_yday - f_dayBefore < 0) {
+		int before = yrdays + (tp->tm_yday - f_dayBefore );
+		if (day >= before)
+			return (1);
+	}
+
 	return (0);
 }
 
