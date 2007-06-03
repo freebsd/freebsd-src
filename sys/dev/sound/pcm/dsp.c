@@ -1916,7 +1916,8 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 	 * Search for the requested audio device (channel).  Start by
 	 * iterating over pcm devices.
 	 */ 
-	for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+	for (i = 0; pcm_devclass != NULL &&
+	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
 		if (d == NULL)
 			continue;
