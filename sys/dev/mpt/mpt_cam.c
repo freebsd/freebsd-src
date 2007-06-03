@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include "dev/mpt/mpilib/mpi_init.h"
 #include "dev/mpt/mpilib/mpi_targ.h"
 #include "dev/mpt/mpilib/mpi_fc.h"
+#include "dev/mpt/mpilib/mpi_sas.h"
 #if __FreeBSD_version >= 500000
 #include <sys/sysctl.h>
 #endif
@@ -159,10 +160,12 @@ mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *, request_t *, mpt_task_mgmt_t,
 static void mpt_tgt_dump_tgt_state(struct mpt_softc *, request_t *);
 static void mpt_tgt_dump_req_state(struct mpt_softc *, request_t *);
 static mpt_reply_handler_t mpt_scsi_tgt_reply_handler;
+static mpt_reply_handler_t mpt_sata_pass_reply_handler;
 
 static uint32_t scsi_io_handler_id = MPT_HANDLER_ID_NONE;
 static uint32_t scsi_tmf_handler_id = MPT_HANDLER_ID_NONE;
 static uint32_t fc_els_handler_id = MPT_HANDLER_ID_NONE;
+static uint32_t sata_pass_handler_id = MPT_HANDLER_ID_NONE;
 
 static mpt_probe_handler_t	mpt_cam_probe;
 static mpt_attach_handler_t	mpt_cam_attach;
@@ -186,6 +189,9 @@ static struct mpt_personality mpt_cam_personality =
 
 DECLARE_MPT_PERSONALITY(mpt_cam, SI_ORDER_SECOND);
 MODULE_DEPEND(mpt_cam, cam, 1, 1, 1);
+
+int mpt_enable_sata_wc = -1;
+TUNABLE_INT("hw.mpt.enable_sata_wc", &mpt_enable_sata_wc);
 
 int
 mpt_cam_probe(struct mpt_softc *mpt)
@@ -267,6 +273,16 @@ mpt_cam_attach(struct mpt_softc *mpt)
 		handler.reply_handler = mpt_scsi_tgt_reply_handler;
 		error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 		    &mpt->scsi_tgt_handler_id);
+		if (error != 0) {
+			MPT_UNLOCK(mpt);
+			goto cleanup;
+		}
+	}
+
+	if (mpt->is_sas) {
+		handler.reply_handler = mpt_sata_pass_reply_handler;
+		error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
+		    &sata_pass_handler_id);
 		if (error != 0) {
 			MPT_UNLOCK(mpt);
 			goto cleanup;
@@ -584,13 +600,249 @@ mpt_set_initial_config_fc(struct mpt_softc *mpt)
 	return (0);
 }
 
+static int
+mptsas_sas_io_unit_pg0(struct mpt_softc *mpt, struct mptsas_portinfo *portinfo)
+{
+	ConfigExtendedPageHeader_t hdr;
+	struct mptsas_phyinfo *phyinfo;
+	SasIOUnitPage0_t *buffer;
+	int error, len, i;
+
+	error = mpt_read_extcfg_header(mpt, MPI_SASIOUNITPAGE0_PAGEVERSION,
+				       0, 0, MPI_CONFIG_EXTPAGETYPE_SAS_IO_UNIT,
+				       &hdr, 0, 10000);
+	if (error)
+		goto out;
+	if (hdr.ExtPageLength == 0) {
+		error = ENXIO;
+		goto out;
+	}
+
+	len = hdr.ExtPageLength * 4;
+	buffer = malloc(len, M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (buffer == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	error = mpt_read_extcfg_page(mpt, MPI_CONFIG_ACTION_PAGE_READ_CURRENT,
+				     0, &hdr, buffer, len, 0, 10000);
+	if (error) {
+		free(buffer, M_DEVBUF);
+		goto out;
+	}
+
+	portinfo->num_phys = buffer->NumPhys;
+	portinfo->phy_info = malloc(sizeof(*portinfo->phy_info) *
+	    portinfo->num_phys, M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (portinfo->phy_info == NULL) {
+		free(buffer, M_DEVBUF);
+		error = ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < portinfo->num_phys; i++) {
+		phyinfo = &portinfo->phy_info[i];
+		phyinfo->phy_num = i;
+		phyinfo->port_id = buffer->PhyData[i].Port;
+		phyinfo->negotiated_link_rate =
+		    buffer->PhyData[i].NegotiatedLinkRate;
+		phyinfo->handle =
+		    le16toh(buffer->PhyData[i].ControllerDevHandle);
+	}
+
+	free(buffer, M_DEVBUF);
+out:
+	return (error);
+}
+
+static int
+mptsas_sas_phy_pg0(struct mpt_softc *mpt, struct mptsas_phyinfo *phy_info,
+	uint32_t form, uint32_t form_specific)
+{
+	ConfigExtendedPageHeader_t hdr;
+	SasPhyPage0_t *buffer;
+	int error;
+
+	error = mpt_read_extcfg_header(mpt, MPI_SASPHY0_PAGEVERSION, 0, 0,
+				       MPI_CONFIG_EXTPAGETYPE_SAS_PHY, &hdr,
+				       0, 10000);
+	if (error)
+		goto out;
+	if (hdr.ExtPageLength == 0) {
+		error = ENXIO;
+		goto out;
+	}
+
+	buffer = malloc(sizeof(SasPhyPage0_t), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (buffer == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	error = mpt_read_extcfg_page(mpt, MPI_CONFIG_ACTION_PAGE_READ_CURRENT,
+				     form + form_specific, &hdr, buffer,
+				     sizeof(SasPhyPage0_t), 0, 10000);
+	if (error) {
+		free(buffer, M_DEVBUF);
+		goto out;
+	}
+
+	phy_info->hw_link_rate = buffer->HwLinkRate;
+	phy_info->programmed_link_rate = buffer->ProgrammedLinkRate;
+	phy_info->identify.dev_handle = le16toh(buffer->OwnerDevHandle);
+	phy_info->attached.dev_handle = le16toh(buffer->AttachedDevHandle);
+
+	free(buffer, M_DEVBUF);
+out:
+	return (error);
+}
+
+static int
+mptsas_sas_device_pg0(struct mpt_softc *mpt, struct mptsas_devinfo *device_info,
+	uint32_t form, uint32_t form_specific)
+{
+	ConfigExtendedPageHeader_t hdr;
+	SasDevicePage0_t *buffer;
+	uint64_t sas_address;
+	int error = 0;
+
+	bzero(device_info, sizeof(*device_info));
+	error = mpt_read_extcfg_header(mpt, MPI_SASDEVICE0_PAGEVERSION, 0, 0,
+				       MPI_CONFIG_EXTPAGETYPE_SAS_DEVICE,
+				       &hdr, 0, 10000);
+	if (error)
+		goto out;
+	if (hdr.ExtPageLength == 0) {
+		error = ENXIO;
+		goto out;
+	}
+
+	buffer = malloc(sizeof(SasDevicePage0_t), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (buffer == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	error = mpt_read_extcfg_page(mpt, MPI_CONFIG_ACTION_PAGE_READ_CURRENT,
+				     form + form_specific, &hdr, buffer,
+				     sizeof(SasDevicePage0_t), 0, 10000);
+	if (error) {
+		free(buffer, M_DEVBUF);
+		goto out;
+	}
+
+	device_info->dev_handle = le16toh(buffer->DevHandle);
+	device_info->parent_dev_handle = le16toh(buffer->ParentDevHandle);
+	device_info->enclosure_handle = le16toh(buffer->EnclosureHandle);
+	device_info->slot = le16toh(buffer->Slot);
+	device_info->phy_num = buffer->PhyNum;
+	device_info->physical_port = buffer->PhysicalPort;
+	device_info->target_id = buffer->TargetID;
+	device_info->bus = buffer->Bus;
+	bcopy(&buffer->SASAddress, &sas_address, sizeof(uint64_t));
+	device_info->sas_address = le64toh(sas_address);
+	device_info->device_info = le32toh(buffer->DeviceInfo);
+
+	free(buffer, M_DEVBUF);
+out:
+	return (error);
+}
+
 /*
  * Read SAS configuration information. Nothing to do yet.
  */
 static int
 mpt_read_config_info_sas(struct mpt_softc *mpt)
 {
+	struct mptsas_portinfo *portinfo;
+	struct mptsas_phyinfo *phyinfo;
+	int error, i;
+
+	portinfo = malloc(sizeof(*portinfo), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (portinfo == NULL)
+		return (ENOMEM);
+
+	error = mptsas_sas_io_unit_pg0(mpt, portinfo);
+	if (error) {
+		free(portinfo, M_DEVBUF);
+		return (0);
+	}
+
+	for (i = 0; i < portinfo->num_phys; i++) {
+		phyinfo = &portinfo->phy_info[i];
+		error = mptsas_sas_phy_pg0(mpt, phyinfo,
+		    (MPI_SAS_PHY_PGAD_FORM_PHY_NUMBER <<
+		    MPI_SAS_PHY_PGAD_FORM_SHIFT), i);
+		if (error)
+			break;
+		error = mptsas_sas_device_pg0(mpt, &phyinfo->identify,
+		    (MPI_SAS_DEVICE_PGAD_FORM_HANDLE <<
+		    MPI_SAS_DEVICE_PGAD_FORM_SHIFT),
+		    phyinfo->handle);
+		if (error)
+			break;
+		phyinfo->identify.phy_num = phyinfo->phy_num = i;
+		if (phyinfo->attached.dev_handle)
+			error = mptsas_sas_device_pg0(mpt,
+			    &phyinfo->attached,
+			    (MPI_SAS_DEVICE_PGAD_FORM_HANDLE <<
+			    MPI_SAS_DEVICE_PGAD_FORM_SHIFT),
+			    phyinfo->attached.dev_handle);
+		if (error)
+			break;
+	}
+	mpt->sas_portinfo = portinfo;
+	free(portinfo, M_DEVBUF);
 	return (0);
+}
+
+static void
+mptsas_set_sata_wc(struct mpt_softc *mpt, struct mptsas_devinfo *devinfo,
+	int enabled)
+{
+	SataPassthroughRequest_t	*pass;
+	request_t *req;
+	int error, status;
+
+	req = mpt_get_request(mpt, 0);
+	if (req == NULL)
+		return;
+
+	pass = req->req_vbuf;
+	bzero(pass, sizeof(SataPassthroughRequest_t));
+	pass->Function = MPI_FUNCTION_SATA_PASSTHROUGH;
+	pass->TargetID = devinfo->target_id;
+	pass->Bus = devinfo->bus;
+	pass->PassthroughFlags = 0;
+	pass->ConnectionRate = MPI_SATA_PT_REQ_CONNECT_RATE_NEGOTIATED;
+	pass->DataLength = 0;
+	pass->MsgContext = htole32(req->index | sata_pass_handler_id);
+	pass->CommandFIS[0] = 0x27;
+	pass->CommandFIS[1] = 0x80;
+	pass->CommandFIS[2] = 0xef;
+	pass->CommandFIS[3] = (enabled) ? 0x02 : 0x82;
+	pass->CommandFIS[7] = 0x40;
+	pass->CommandFIS[15] = 0x08;
+
+	mpt_check_doorbell(mpt);
+	mpt_send_cmd(mpt, req);
+	error = mpt_wait_req(mpt, req, REQ_STATE_DONE, REQ_STATE_DONE, 0,
+			     10 * 1000);
+	if (error) {
+		mpt_free_request(mpt, req);
+		printf("error %d sending passthrough\n", error);
+		return;
+	}
+
+	status = le16toh(req->IOCStatus);
+	if (status != MPI_IOCSTATUS_SUCCESS) {
+		mpt_free_request(mpt, req);
+		printf("IOCSTATUS %d\n", status);
+		return;
+	}
+
+	mpt_free_request(mpt, req);
 }
 
 /*
@@ -599,7 +851,57 @@ mpt_read_config_info_sas(struct mpt_softc *mpt)
 static int
 mpt_set_initial_config_sas(struct mpt_softc *mpt)
 {
+	struct mptsas_phyinfo *phyinfo;
+	int i;
+
+	if ((mpt_enable_sata_wc != -1) && (mpt->sas_portinfo != NULL)) {
+		for (i = 0; i < mpt->sas_portinfo->num_phys; i++) {
+			phyinfo = &mpt->sas_portinfo->phy_info[i];
+			if (phyinfo->attached.dev_handle == 0)
+				continue;
+			if ((phyinfo->attached.device_info &
+			    MPI_SAS_DEVICE_INFO_SATA_DEVICE) == 0)
+				continue;
+			if (bootverbose)
+				device_printf(mpt->dev,
+				    "%sabling SATA WC on phy %d\n",
+				    (mpt_enable_sata_wc) ? "En" : "Dis", i);
+			mptsas_set_sata_wc(mpt, &phyinfo->attached,
+					   mpt_enable_sata_wc);
+		}
+	}
+
 	return (0);
+}
+
+static int
+mpt_sata_pass_reply_handler(struct mpt_softc *mpt, request_t *req,
+ uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
+{
+	if (req != NULL) {
+
+		if (reply_frame != NULL) {
+			MSG_SATA_PASSTHROUGH_REQUEST *pass;
+			MSG_SATA_PASSTHROUGH_REPLY *reply;
+
+			pass = (MSG_SATA_PASSTHROUGH_REQUEST *)req->req_vbuf;
+			reply = (MSG_SATA_PASSTHROUGH_REPLY *)reply_frame;
+			req->IOCStatus = le16toh(reply_frame->IOCStatus);
+		}
+		req->state &= ~REQ_STATE_QUEUED;
+		req->state |= REQ_STATE_DONE;
+		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
+		if ((req->state & REQ_STATE_NEED_WAKEUP) != 0) {
+			wakeup(req);
+		} else if ((req->state & REQ_STATE_TIMEDOUT) != 0) {
+			/*
+			 * Whew- we can free this request (late completion)
+			 */
+			mpt_free_request(mpt, req);
+		}
+	}
+
+	return (TRUE);
 }
 
 /*
@@ -888,6 +1190,9 @@ mpt_cam_detach(struct mpt_softc *mpt)
 	handler.reply_handler = mpt_scsi_tgt_reply_handler;
 	mpt_deregister_handler(mpt, MPT_HANDLER_REPLY, handler,
 			       mpt->scsi_tgt_handler_id);
+	handler.reply_handler = mpt_sata_pass_reply_handler;
+	mpt_deregister_handler(mpt, MPT_HANDLER_REPLY, handler,
+			       sata_pass_handler_id);
 
 	if (mpt->tmf_req != NULL) {
 		mpt->tmf_req->state = REQ_STATE_ALLOCATED;
