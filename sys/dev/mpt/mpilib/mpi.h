@@ -33,7 +33,7 @@
  *          Title:  MPI Message independent structures and definitions
  *  Creation Date:  July 27, 2000
  *
- *    mpi.h Version:  01.05.10
+ *    mpi.h Version:  01.05.13
  *
  *  Version History
  *  ---------------
@@ -103,6 +103,9 @@
  *                      Added EEDP IOCStatus codes.
  *  08-03-05  01.05.09  Bumped MPI_HEADER_VERSION_UNIT.
  *  08-30-05  01.05.10  Added 2 new IOCStatus codes for Target.
+ *  03-27-06  01.05.11  Bumped MPI_HEADER_VERSION_UNIT.
+ *  10-11-06  01.05.12  Bumped MPI_HEADER_VERSION_UNIT.
+ *  05-24-07  01.05.13  Bumped MPI_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
  */
 
@@ -133,7 +136,7 @@
 /* Note: The major versions of 0xe0 through 0xff are reserved */
 
 /* versioning for this MPI header set */
-#define MPI_HEADER_VERSION_UNIT             (0x0C)
+#define MPI_HEADER_VERSION_UNIT             (0x10)
 #define MPI_HEADER_VERSION_DEV              (0x00)
 #define MPI_HEADER_VERSION_UNIT_MASK        (0xFF00)
 #define MPI_HEADER_VERSION_UNIT_SHIFT       (8)
@@ -675,45 +678,45 @@ typedef struct _MSG_DEFAULT_REPLY
 /*  Common IOCStatus values for all replies                                 */
 /****************************************************************************/
 
-#define MPI_IOCSTATUS_SUCCESS                  (0x0000)
-#define MPI_IOCSTATUS_INVALID_FUNCTION         (0x0001)
-#define MPI_IOCSTATUS_BUSY                     (0x0002)
-#define MPI_IOCSTATUS_INVALID_SGL              (0x0003)
-#define MPI_IOCSTATUS_INTERNAL_ERROR           (0x0004)
-#define MPI_IOCSTATUS_RESERVED                 (0x0005)
-#define MPI_IOCSTATUS_INSUFFICIENT_RESOURCES   (0x0006)
-#define MPI_IOCSTATUS_INVALID_FIELD            (0x0007)
-#define MPI_IOCSTATUS_INVALID_STATE            (0x0008)
+#define MPI_IOCSTATUS_SUCCESS                   (0x0000)
+#define MPI_IOCSTATUS_INVALID_FUNCTION          (0x0001)
+#define MPI_IOCSTATUS_BUSY                      (0x0002)
+#define MPI_IOCSTATUS_INVALID_SGL               (0x0003)
+#define MPI_IOCSTATUS_INTERNAL_ERROR            (0x0004)
+#define MPI_IOCSTATUS_RESERVED                  (0x0005)
+#define MPI_IOCSTATUS_INSUFFICIENT_RESOURCES    (0x0006)
+#define MPI_IOCSTATUS_INVALID_FIELD             (0x0007)
+#define MPI_IOCSTATUS_INVALID_STATE             (0x0008)
 #define MPI_IOCSTATUS_OP_STATE_NOT_SUPPORTED    (0x0009)
 
 /****************************************************************************/
 /*  Config IOCStatus values                                                 */
 /****************************************************************************/
 
-#define MPI_IOCSTATUS_CONFIG_INVALID_ACTION    (0x0020)
-#define MPI_IOCSTATUS_CONFIG_INVALID_TYPE      (0x0021)
-#define MPI_IOCSTATUS_CONFIG_INVALID_PAGE      (0x0022)
-#define MPI_IOCSTATUS_CONFIG_INVALID_DATA      (0x0023)
-#define MPI_IOCSTATUS_CONFIG_NO_DEFAULTS       (0x0024)
-#define MPI_IOCSTATUS_CONFIG_CANT_COMMIT       (0x0025)
+#define MPI_IOCSTATUS_CONFIG_INVALID_ACTION     (0x0020)
+#define MPI_IOCSTATUS_CONFIG_INVALID_TYPE       (0x0021)
+#define MPI_IOCSTATUS_CONFIG_INVALID_PAGE       (0x0022)
+#define MPI_IOCSTATUS_CONFIG_INVALID_DATA       (0x0023)
+#define MPI_IOCSTATUS_CONFIG_NO_DEFAULTS        (0x0024)
+#define MPI_IOCSTATUS_CONFIG_CANT_COMMIT        (0x0025)
 
 /****************************************************************************/
 /*  SCSIIO Reply (SPI & FCP) initiator values                               */
 /****************************************************************************/
 
-#define MPI_IOCSTATUS_SCSI_RECOVERED_ERROR     (0x0040)
-#define MPI_IOCSTATUS_SCSI_INVALID_BUS         (0x0041)
-#define MPI_IOCSTATUS_SCSI_INVALID_TARGETID    (0x0042)
-#define MPI_IOCSTATUS_SCSI_DEVICE_NOT_THERE    (0x0043)
-#define MPI_IOCSTATUS_SCSI_DATA_OVERRUN        (0x0044)
-#define MPI_IOCSTATUS_SCSI_DATA_UNDERRUN       (0x0045)
-#define MPI_IOCSTATUS_SCSI_IO_DATA_ERROR       (0x0046)
-#define MPI_IOCSTATUS_SCSI_PROTOCOL_ERROR      (0x0047)
-#define MPI_IOCSTATUS_SCSI_TASK_TERMINATED     (0x0048)
-#define MPI_IOCSTATUS_SCSI_RESIDUAL_MISMATCH   (0x0049)
-#define MPI_IOCSTATUS_SCSI_TASK_MGMT_FAILED    (0x004A)
-#define MPI_IOCSTATUS_SCSI_IOC_TERMINATED      (0x004B)
-#define MPI_IOCSTATUS_SCSI_EXT_TERMINATED      (0x004C)
+#define MPI_IOCSTATUS_SCSI_RECOVERED_ERROR      (0x0040)
+#define MPI_IOCSTATUS_SCSI_INVALID_BUS          (0x0041)
+#define MPI_IOCSTATUS_SCSI_INVALID_TARGETID     (0x0042)
+#define MPI_IOCSTATUS_SCSI_DEVICE_NOT_THERE     (0x0043)
+#define MPI_IOCSTATUS_SCSI_DATA_OVERRUN         (0x0044)
+#define MPI_IOCSTATUS_SCSI_DATA_UNDERRUN        (0x0045)
+#define MPI_IOCSTATUS_SCSI_IO_DATA_ERROR        (0x0046)
+#define MPI_IOCSTATUS_SCSI_PROTOCOL_ERROR       (0x0047)
+#define MPI_IOCSTATUS_SCSI_TASK_TERMINATED      (0x0048)
+#define MPI_IOCSTATUS_SCSI_RESIDUAL_MISMATCH    (0x0049)
+#define MPI_IOCSTATUS_SCSI_TASK_MGMT_FAILED     (0x004A)
+#define MPI_IOCSTATUS_SCSI_IOC_TERMINATED       (0x004B)
+#define MPI_IOCSTATUS_SCSI_EXT_TERMINATED       (0x004C)
 
 /****************************************************************************/
 /*  For use by SCSI Initiator and SCSI Target end-to-end data protection    */
