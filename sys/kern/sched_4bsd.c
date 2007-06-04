@@ -248,7 +248,7 @@ static void
 maybe_resched(struct thread *td)
 {
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority < curthread->td_priority)
 		curthread->td_flags |= TDF_NEEDRESCHED;
 }
@@ -377,10 +377,7 @@ schedcpu(void)
 	realstathz = stathz ? stathz : hz;
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
-		/*
-		 * Prevent state changes and protect run queue.
-		 */
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		/*
 		 * Increment time in/out of memory.  We ignore overflow; with
 		 * 16-bit int's (remember them?) overflow takes 45 days.
@@ -388,6 +385,7 @@ schedcpu(void)
 		p->p_swtime++;
 		FOREACH_THREAD_IN_PROC(p, td) { 
 			awake = 0;
+			thread_lock(td);
 			ts = td->td_sched;
 			/*
 			 * Increment sleep time (if sleeping).  We
@@ -456,13 +454,16 @@ XXX  this is broken
 				td->td_slptime = 0;
 			} else
 				td->td_slptime++;
-			if (td->td_slptime > 1)
+			if (td->td_slptime > 1) {
+				thread_unlock(td);
 				continue;
+			}
 			td->td_estcpu = decay_cpu(loadfac, td->td_estcpu);
 		      	resetpriority(td);
 			resetpriority_thread(td);
+			thread_unlock(td);
 		} /* end of thread loop */
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 	} /* end of process loop */
 	sx_sunlock(&allproc_lock);
 }
@@ -575,6 +576,7 @@ schedinit(void)
 	 */
 	proc0.p_sched = NULL; /* XXX */
 	thread0.td_sched = &td_sched0;
+	thread0.td_lock = &sched_lock;
 	td_sched0.ts_thread = &thread0;
 }
 
@@ -615,7 +617,7 @@ sched_clock(struct thread *td)
 {
 	struct td_sched *ts;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
 
 	ts->ts_cpticks++;
@@ -635,22 +637,23 @@ sched_exit(struct proc *p, struct thread *td)
 
 	CTR3(KTR_SCHED, "sched_exit: %p(%s) prio %d",
 	    td, td->td_proc->p_comm, td->td_priority);
-
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
 }
 
 void
 sched_exit_thread(struct thread *td, struct thread *child)
 {
-	struct proc *childproc = child->td_proc;
 
 	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
-	    child, childproc->p_comm, child->td_priority);
+	    child, child->td_proc->p_comm, child->td_priority);
+	thread_lock(td);
 	td->td_estcpu = ESTCPULIM(td->td_estcpu + child->td_estcpu);
-	childproc->p_estcpu = ESTCPULIM(childproc->p_estcpu +
-		child->td_estcpu);
+	thread_unlock(td);
+	mtx_lock_spin(&sched_lock);
 	if ((child->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
+	mtx_unlock_spin(&sched_lock);
 }
 
 void
@@ -663,6 +666,7 @@ void
 sched_fork_thread(struct thread *td, struct thread *childtd)
 {
 	childtd->td_estcpu = td->td_estcpu;
+	childtd->td_lock = &sched_lock;
 	sched_newthread(childtd);
 }
 
@@ -672,18 +676,20 @@ sched_nice(struct proc *p, int nice)
 	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	p->p_nice = nice;
 	FOREACH_THREAD_IN_PROC(p, td) {
+		thread_lock(td);
 		resetpriority(td);
 		resetpriority_thread(td);
+		thread_unlock(td);
 	}
 }
 
 void
 sched_class(struct thread *td, int class)
 {
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_pri_class = class;
 }
 
@@ -697,7 +703,7 @@ sched_priority(struct thread *td, u_char prio)
 	    td, td->td_proc->p_comm, td->td_priority, prio, curthread, 
 	    curthread->td_proc->p_comm);
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
 		return;
 	td->td_priority = prio;
@@ -818,7 +824,7 @@ void
 sched_sleep(struct thread *td)
 {
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_slptime = 0;
 }
 
@@ -831,26 +837,18 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	ts = td->td_sched;
 	p = td->td_proc;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	/*  
+	 * Switch to the sched lock to fix things up and pick
+	 * a new thread.
+	 */
+	if (td->td_lock != &sched_lock) {
+		mtx_lock_spin(&sched_lock);
+		thread_unlock(td);
+	}
 
 	if ((p->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
-#if 0
-	/* 
-	 * We are volunteering to switch out so we get to nominate
-	 * a successor for the rest of our quantum
-	 * First try another thread in our process
-	 *
-	 * this is too expensive to do without per process run queues
-	 * so skip it for now.
-	 * XXX keep this comment as a marker.
-	 */
-	if (sched_followon &&
-	    (p->p_flag & P_HADTHREADS) &&
-	    (flags & SW_VOL) &&
-	    newtd == NULL) 
-		newtd = mumble();
-#endif
 
 	if (newtd) 
 		newtd->td_flags |= (td->td_flags & TDF_NEEDRESCHED);
@@ -896,6 +894,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	} else {
 		newtd = choosethread();
 	}
+	MPASS(newtd->td_lock == &sched_lock);
 
 	if (td != newtd) {
 #ifdef	HWPMC_HOOKS
@@ -904,7 +903,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 #endif
 
                 /* I feel sleepy */
-		cpu_switch(td, newtd);
+		cpu_switch(td, newtd, td->td_lock);
 		/*
 		 * Where am I?  What year is it?
 		 * We are in the same thread that went to sleep above,
@@ -932,12 +931,13 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 #endif
 	sched_lock.mtx_lock = (uintptr_t)td;
 	td->td_oncpu = PCPU_GET(cpuid);
+	MPASS(td->td_lock == &sched_lock);
 }
 
 void
 sched_wakeup(struct thread *td)
 {
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_slptime > 1) {
 		updatepri(td);
 		resetpriority(td);
@@ -1079,7 +1079,7 @@ sched_add(struct thread *td, int flags)
 	int single_cpu = 0;
 
 	ts = td->td_sched;
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT((td->td_inhibitors == 0),
 	    ("sched_add: trying to run inhibited thread"));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
@@ -1089,6 +1089,14 @@ sched_add(struct thread *td, int flags)
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
+	/*
+	 * Now that the thread is moving to the run-queue, set the lock
+	 * to the scheduler's lock.
+	 */
+	if (td->td_lock != &sched_lock) {
+		mtx_lock_spin(&sched_lock);
+		thread_lock_set(td, &sched_lock);
+	}
 	TD_SET_RUNQ(td);
 
 	if (td->td_pinned != 0) {
@@ -1140,7 +1148,7 @@ sched_add(struct thread *td, int flags)
 {
 	struct td_sched *ts;
 	ts = td->td_sched;
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT((td->td_inhibitors == 0),
 	    ("sched_add: trying to run inhibited thread"));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
@@ -1150,6 +1158,14 @@ sched_add(struct thread *td, int flags)
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
+	/*
+	 * Now that the thread is moving to the run-queue, set the lock
+	 * to the scheduler's lock.
+	 */
+	if (td->td_lock != &sched_lock) {
+		mtx_lock_spin(&sched_lock);
+		thread_lock_set(td, &sched_lock);
+	}
 	TD_SET_RUNQ(td);
 	CTR2(KTR_RUNQ, "sched_add: adding td_sched:%p (td:%p) to runq", ts, td);
 	ts->ts_runq = &runq;
@@ -1207,6 +1223,7 @@ sched_choose(void)
 	struct td_sched *ts;
 	struct runq *rq;
 
+	mtx_assert(&sched_lock,  MA_OWNED);
 #ifdef SMP
 	struct td_sched *kecpu;
 
@@ -1256,10 +1273,10 @@ sched_userret(struct thread *td)
 	KASSERT((td->td_flags & TDF_BORROWING) == 0,
 	    ("thread with borrowed priority returning to userland"));
 	if (td->td_priority != td->td_user_pri) {
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		td->td_priority = td->td_user_pri;
 		td->td_base_pri = td->td_user_pri;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 	}
 }
 
@@ -1268,7 +1285,7 @@ sched_bind(struct thread *td, int cpu)
 {
 	struct td_sched *ts;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(TD_IS_RUNNING(td),
 	    ("sched_bind: cannot bind non-running thread"));
 
@@ -1287,25 +1304,26 @@ sched_bind(struct thread *td, int cpu)
 void
 sched_unbind(struct thread* td)
 {
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_sched->ts_flags &= ~TSF_BOUND;
 }
 
 int
 sched_is_bound(struct thread *td)
 {
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	return (td->td_sched->ts_flags & TSF_BOUND);
 }
 
 void
 sched_relinquish(struct thread *td)
 {
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	if (td->td_pri_class == PRI_TIMESHARE)
 		sched_prio(td, PRI_MAX_TIMESHARE);
+	SCHED_STAT_INC(switch_relinquish);
 	mi_switch(SW_VOL, NULL);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 }
 
 int
@@ -1361,6 +1379,58 @@ sched_idletd(void *dummy)
 		mi_switch(SW_VOL, NULL);
 		mtx_unlock_spin(&sched_lock);
 	}
+}
+
+/*
+ * A CPU is entering for the first time or a thread is exiting.
+ */
+void
+sched_throw(struct thread *td)
+{
+	/*
+	 * Correct spinlock nesting.  The idle thread context that we are
+	 * borrowing was created so that it would start out with a single
+	 * spin lock (sched_lock) held in fork_trampoline().  Since we've
+	 * explicitly acquired locks in this function, the nesting count
+	 * is now 2 rather than 1.  Since we are nested, calling
+	 * spinlock_exit() will simply adjust the counts without allowing
+	 * spin lock using code to interrupt us.
+	 */
+	if (td == NULL) {
+		mtx_lock_spin(&sched_lock);
+		spinlock_exit();
+	} else {
+		MPASS(td->td_lock == &sched_lock);
+	}
+	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
+	PCPU_SET(switchtime, cpu_ticks());
+	PCPU_SET(switchticks, ticks);
+	cpu_throw(td, choosethread());	/* doesn't return */
+}
+
+void
+sched_fork_exit(struct thread *ctd)
+{
+	struct thread *td;
+
+	/*
+	 * Finish setting up thread glue so that it begins execution in a
+	 * non-nested critical section with sched_lock held but not recursed.
+	 */
+	ctd->td_oncpu = PCPU_GET(cpuid);
+	sched_lock.mtx_lock = (uintptr_t)ctd;
+	THREAD_LOCK_ASSERT(ctd, MA_OWNED | MA_NOTRECURSED);
+	/*
+	 * Processes normally resume in mi_switch() after being
+	 * cpu_switch()'ed to, but when children start up they arrive here
+	 * instead, so we must do much the same things as mi_switch() would.
+	 */
+	if ((td = PCPU_GET(deadthread))) {
+		PCPU_SET(deadthread, NULL);
+		thread_stash(td);
+	}
+	thread_unlock(ctd);
 }
 
 #define KERN_SWITCH_INCLUDE 1
