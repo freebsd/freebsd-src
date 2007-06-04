@@ -84,6 +84,11 @@ build all: machine $(OBJ)/libipf.a ipf ipfs ipfstat ipftest ipmon ipnat \
 	-ln -s ../tools .
 	-ln -s ../tools ..
 
+bpf.h:
+	echo '#define DEV_BPF 1' > bpf.h
+
+$(TOP)/ip_compat.h: bpf.h
+
 machine: Makefile.kmod
 	if [ -f Makefile.kmod ] ; then \
 		make -f Makefile.kmod depend MKUPDATE=no; \
@@ -137,7 +142,7 @@ ipfs.o: $(TOOL)/ipfs.c $(TOP)/ip_fil.h $(TOP)/ipf.h $(TOP)/ip_state.h \
 
 fil_u.o: $(TOP)/fil.c $(TOP)/ip_fil.h $(TOP)/ipf.h $(TOP)/ip_compat.h \
 	    $(TOP)/opts.h $(TOP)/ip_rules.h
-	$(CC) $(CCARGS) $(EXTRA) $(IPFBPF) -D_RADIX_H_ -c $(TOP)/fil.c -o $@
+	$(CC) $(CCARGS) $(EXTRA) $(IPFBPF) -c $(TOP)/fil.c -o $@
 
 fil.o: $(TOP)/fil.c $(TOP)/ip_fil.h $(TOP)/ip_compat.h $(TOP)/ipl.h \
 	    $(TOP)/ip_rules.h
@@ -447,14 +452,14 @@ clean:
 	${RM} -f ../ipf ../ipnat ../ipmon ../ippool ../ipftest 
 	${RM} -f ../ipscan ../ipsyncm ../ipsyncs
 	${RM} -f *.core *.o *.a ipt ipfstat ipf ipfstat ipftest ipmon
-	${RM} -f if_ipl ipnat ipfrule.ko* ipf.kld*
+	${RM} -f if_ipl ipnat ipfrule.ko* ipf.kld* ipfrule.kld*
 	${RM} -f vnode_if.h $(LKM) ioconf.h *.ko setdef1.c setdef0.c setdefs.h
 	${RM} -f ip_fil.c ipf_l.c ipf_y.c ipf_y.h ipf_l.h
 	${RM} -f ipscan ipscan_y.c ipscan_y.h ipscan_l.c ipscan_l.h
 	${RM} -f ippool ippool_y.c ippool_y.h ippool_l.c ippool_l.h
 	${RM} -f ipnat_y.c ipnat_y.h ipnat_l.c ipnat_l.h
 	${RM} -f ipmon_y.c ipmon_y.h ipmon_l.c ipmon_l.h
-	${RM} -f ipsyncm ipsyncs ipfs ip_rules.c ip_rules.h
+	${RM} -f ipsyncm ipsyncs ipfs ip_rules.c ip_rules.h bpf.h
 	${RM} -f *.da *.gcov *.bb *.bbg tools
 
 	${MAKE} -f Makefile.ipsend ${MFLAGS} clean
@@ -514,6 +519,9 @@ install:
 			$(INSTALL) -cs -g wheel -m 755 -o root $$p $$def; \
 		fi \
 	done
+	if [ -d /etc/rc.d ] ; then \
+		$(INSTALL) -c -g wheel -m 755 -o root ../ipfadm-rcd $(SBINDEST)/ipfadm; \
+	fi
 	(cd $(TOP)/man; make INSTALL=$(INSTALL) MANDIR=$(MANDIR) install; cd $(TOP))
 
 coverage:
