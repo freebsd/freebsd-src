@@ -69,16 +69,13 @@
  * being reassembled is attached to one of these structures.
  */
 struct	ip6q {
-	u_int32_t	ip6q_head;
-	u_int16_t	ip6q_len;
-	u_int8_t	ip6q_nxt;	/* ip6f_nxt in first fragment */
-	u_int8_t	ip6q_hlim;
 	struct ip6asfrag *ip6q_down;
 	struct ip6asfrag *ip6q_up;
 	u_int32_t	ip6q_ident;
-	u_int8_t	ip6q_arrive;
+	u_int8_t	ip6q_nxt;
+	u_int8_t	ip6q_ecn;
 	u_int8_t	ip6q_ttl;
-	struct in6_addr	ip6q_src, ip6q_dst;
+	struct in6_addr ip6q_src, ip6q_dst;
 	struct ip6q	*ip6q_next;
 	struct ip6q	*ip6q_prev;
 	int		ip6q_unfrglen;	/* len of unfragmentable part */
@@ -89,11 +86,6 @@ struct	ip6q {
 };
 
 struct	ip6asfrag {
-	u_int32_t	ip6af_head;
-	u_int16_t	ip6af_len;
-	u_int8_t	ip6af_nxt;
-	u_int8_t	ip6af_hlim;
-	/* must not override the above members during reassembling */
 	struct ip6asfrag *ip6af_down;
 	struct ip6asfrag *ip6af_up;
 	struct mbuf	*ip6af_m;
