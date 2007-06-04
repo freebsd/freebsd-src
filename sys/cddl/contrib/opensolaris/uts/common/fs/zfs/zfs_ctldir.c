@@ -924,18 +924,14 @@ zfsctl_snapshot_inactive(ap)
 }
 
 static int
-zfsctl_traverse_begin(vnode_t **vpp, kthread_t *td)
+zfsctl_traverse_begin(vnode_t **vpp, int lktype, kthread_t *td)
 {
-	int err;
 
 	VN_HOLD(*vpp);
 	/* Snapshot should be already mounted, but just in case. */
 	if (vn_mountedvfs(*vpp) == NULL)
 		return (ENOENT);
-	err = traverse(vpp);
-	if (err == 0)
-		vn_lock(*vpp, LK_SHARED | LK_RETRY, td);
-	return (err);
+	return (traverse(vpp, lktype));
 }
 
 static void
@@ -960,7 +956,7 @@ zfsctl_snapshot_getattr(ap)
 	vnode_t *vp = ap->a_vp;
 	int err;
 
-	err = zfsctl_traverse_begin(&vp, ap->a_td);
+	err = zfsctl_traverse_begin(&vp, LK_SHARED | LK_RETRY, ap->a_td);
 	if (err == 0)
 		err = VOP_GETATTR(vp, ap->a_vap, ap->a_cred, ap->a_td);
 	zfsctl_traverse_end(vp, err);
@@ -977,7 +973,7 @@ zfsctl_snapshot_fid(ap)
 	vnode_t *vp = ap->a_vp;
 	int err;
 
-	err = zfsctl_traverse_begin(&vp, curthread);
+	err = zfsctl_traverse_begin(&vp, LK_SHARED | LK_RETRY, curthread);
 	if (err == 0)
 		err = VOP_VPTOFH(vp, (void *)ap->a_fid);
 	zfsctl_traverse_end(vp, err);
@@ -1026,7 +1022,7 @@ zfsctl_lookup_objset(vfs_t *vfsp, uint64_t objsetid, zfsvfs_t **zfsvfsp)
 
 	if (sep != NULL) {
 		VN_HOLD(vp);
-		error = traverse(&vp);
+		error = traverse(&vp, LK_SHARED | LK_RETRY);
 		if (error == 0) {
 			if (vp == sep->se_root)
 				error = EINVAL;
@@ -1034,7 +1030,10 @@ zfsctl_lookup_objset(vfs_t *vfsp, uint64_t objsetid, zfsvfs_t **zfsvfsp)
 				*zfsvfsp = VTOZ(vp)->z_zfsvfs;
 		}
 		mutex_exit(&sdp->sd_lock);
-		VN_RELE(vp);
+		if (error == 0)
+			VN_URELE(vp);
+		else
+			VN_RELE(vp);
 	} else {
 		error = EINVAL;
 		mutex_exit(&sdp->sd_lock);
