@@ -407,8 +407,15 @@ again:
 		lastpid = trypid;
 
 	p2 = newproc;
+	td2 = FIRST_THREAD_IN_PROC(newproc);
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
+	/*
+	 * Allow the scheduler to initialize the child.
+	 */
+	thread_lock(td);
+	sched_fork(td, td2);
+	thread_unlock(td);
 	AUDIT_ARG(pid, p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
@@ -476,8 +483,6 @@ again:
 	 * Start by zeroing the section of proc that is zero-initialized,
 	 * then copy the section that is copied directly from the parent.
 	 */
-	td2 = FIRST_THREAD_IN_PROC(p2);
-
 	/* Allocate and switch to an alternate kstack if specified. */
 	if (pages != 0)
 		vm_thread_new_altkstack(td2, pages);
@@ -501,15 +506,9 @@ again:
 	p2->p_flag = 0;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p2);
 	p2->p_sflag = PS_INMEM;
-	/*
-	 * Allow the scheduler to adjust the priority of the child and
-	 * parent while we hold the sched_lock.
-	 */
-	sched_fork(td, td2);
-
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p2);
 	td2->td_ucred = crhold(p2->p_ucred);
 #ifdef AUDIT
 	audit_proc_fork(p1, p2);
@@ -693,18 +692,20 @@ again:
 	 * Set the child start time and mark the process as being complete.
 	 */
 	microuptime(&p2->p_stats->p_start);
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p2);
 	p2->p_state = PRS_NORMAL;
+	PROC_SUNLOCK(p2);
 
 	/*
 	 * If RFSTOPPED not requested, make child runnable and add to
 	 * run queue.
 	 */
 	if ((flags & RFSTOPPED) == 0) {
+		thread_lock(td2);
 		TD_SET_CAN_RUN(td2);
 		sched_add(td2, SRQ_BORING);
+		thread_unlock(td2);
 	}
-	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * Now can be swapped.
@@ -778,31 +779,14 @@ fork_exit(callout, arg, frame)
 	struct proc *p;
 	struct thread *td;
 
-	/*
-	 * Finish setting up thread glue so that it begins execution in a
-	 * non-nested critical section with sched_lock held but not recursed.
-	 */
 	td = curthread;
 	p = td->td_proc;
-	td->td_oncpu = PCPU_GET(cpuid);
 	KASSERT(p->p_state == PRS_NORMAL, ("executing process is still new"));
 
-	sched_lock.mtx_lock = (uintptr_t)td;
-	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	CTR4(KTR_PROC, "fork_exit: new thread %p (kse %p, pid %d, %s)",
 		td, td->td_sched, p->p_pid, p->p_comm);
 
-	/*
-	 * Processes normally resume in mi_switch() after being
-	 * cpu_switch()'ed to, but when children start up they arrive here
-	 * instead, so we must do much the same things as mi_switch() would.
-	 */
-	if ((td = PCPU_GET(deadthread))) {
-		PCPU_SET(deadthread, NULL);
-		thread_stash(td);
-	}
-	mtx_unlock_spin(&sched_lock);
-
+	sched_fork_exit(td);
 	/*
 	 * cpu_set_fork_handler intercepts this function call to
 	 * have this call a non-return function to stay in kernel mode.
