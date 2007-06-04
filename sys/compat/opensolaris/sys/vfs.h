@@ -107,7 +107,7 @@ void vfs_setmntopt(vfs_t *vfsp, const char *name, const char *arg,
     int flags __unused);
 void vfs_clearmntopt(vfs_t *vfsp, const char *name);
 int vfs_optionisset(const vfs_t *vfsp, const char *opt, char **argp);
-int traverse(vnode_t **cvpp);
+int traverse(vnode_t **cvpp, int lktype);
 int domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
     char *fspec, int fsflags);
 
