@@ -104,12 +104,6 @@ struct gem_txsoft {
 
 STAILQ_HEAD(gem_txsq, gem_txsoft);
 
-/* Argument structure for busdma callback */
-struct gem_txdma {
-	struct gem_softc *txd_sc;
-	struct gem_txsoft	*txd_txs;
-};
-
 /*
  * Software state for receive jobs.
  */
@@ -189,6 +183,7 @@ struct gem_softc {
 	int		sc_inited;
 	int		sc_debug;
 	int		sc_ifflags;
+	int		sc_csum_features;
 
 	struct mtx	sc_mtx;
 };

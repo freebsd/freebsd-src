@@ -510,7 +510,9 @@ struct gem_desc {
 /* Transmit flags */
 #define	GEM_TD_BUFSIZE		0x0000000000007fffLL
 #define	GEM_TD_CXSUM_START	0x00000000001f8000LL	/* Cxsum start offset */
+#define	GEM_TD_CXSUM_STARTSHFT	15
 #define	GEM_TD_CXSUM_STUFF	0x000000001fe00000LL	/* Cxsum stuff offset */
+#define	GEM_TD_CXSUM_STUFFSHFT	21
 #define	GEM_TD_CXSUM_ENABLE	0x0000000020000000LL	/* Cxsum generation enable */
 #define	GEM_TD_END_OF_PACKET	0x0000000040000000LL
 #define	GEM_TD_START_OF_PACKET	0x0000000080000000LL
