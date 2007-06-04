@@ -190,8 +190,8 @@ ast(struct trapframe *framep)
 #endif
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
 	    TDF_NEEDRESCHED | TDF_INTERRUPT);
-	cnt.v_trap++;
 	mtx_unlock_spin(&sched_lock);
+	PCPU_INC(cnt.v_trap);
 
 	/*
 	 * XXXKSE While the fact that we owe a user profiling

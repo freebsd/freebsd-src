@@ -159,8 +159,8 @@ nfs_getpages(struct vop_getpages_args *ap)
 
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
-	cnt.v_vnodein++;
-	cnt.v_vnodepgsin += npages;
+	PCPU_INC(cnt.v_vnodein);
+	PCPU_ADD(cnt.v_vnodepgsin, npages);
 
 	iov.iov_base = (caddr_t) kva;
 	iov.iov_len = count;
@@ -323,8 +323,8 @@ nfs_putpages(struct vop_putpages_args *ap)
 
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
-	cnt.v_vnodeout++;
-	cnt.v_vnodepgsout += count;
+	PCPU_INC(cnt.v_vnodeout);
+	PCPU_ADD(cnt.v_vnodepgsout, count);
 
 	iov.iov_base = (caddr_t) kva;
 	iov.iov_len = count;

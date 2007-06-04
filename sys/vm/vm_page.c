@@ -1045,7 +1045,7 @@ vm_page_activate(vm_page_t m)
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (VM_PAGE_GETKNOWNQUEUE2(m) != PQ_ACTIVE) {
 		if (VM_PAGE_INQUEUE1(m, PQ_CACHE))
-			cnt.v_reactivated++;
+			PCPU_INC(cnt.v_reactivated);
 		vm_pageq_remove(m);
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)
@@ -1112,7 +1112,7 @@ vm_page_free_toq(vm_page_t m)
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	KASSERT(!pmap_page_is_mapped(m),
 	    ("vm_page_free_toq: freeing mapped page %p", m));
-	cnt.v_tfree++;
+	PCPU_INC(cnt.v_tfree);
 
 	if (m->busy || VM_PAGE_INQUEUE1(m, PQ_FREE)) {
 		printf(
@@ -1286,7 +1286,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 		return;
 	if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 		if (VM_PAGE_INQUEUE1(m, PQ_CACHE))
-			cnt.v_reactivated++;
+			PCPU_INC(cnt.v_reactivated);
 		vm_page_flag_clear(m, PG_WINATCFLS);
 		vm_pageq_remove(m);
 		if (athead)
@@ -1295,6 +1295,11 @@ _vm_page_deactivate(vm_page_t m, int athead)
 			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 		VM_PAGE_SETQUEUE2(m, PQ_INACTIVE);
 		vm_page_queues[PQ_INACTIVE].lcnt++;
+
+		/*
+		 * Just not use an atomic here since vm_page_queues_lock
+		 * alredy protects this field.
+		 */
 		cnt.v_inactive_count++;
 	}
 }
