@@ -1,4 +1,8 @@
-# $FreeBSD$
+/*
+ * Calibration calendar for calendar(1)
+ *
+ * $FreeBSD$
+ */
 01/01	jan 1
 01/02	jan 2
 01/03	jan 3
