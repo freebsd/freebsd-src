@@ -191,7 +191,7 @@ undefinedinstruction(trapframe_t *frame)
 		enable_interrupts(I32_bit|F32_bit);
 
 	frame->tf_pc -= INSN_SIZE;
-	PCPU_LAZY_INC(cnt.v_trap);
+	PCPU_INC(cnt.v_trap);
 
 	fault_pc = frame->tf_pc;
 

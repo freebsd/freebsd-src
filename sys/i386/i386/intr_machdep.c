@@ -241,7 +241,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * processed too.
 	 */
 	(*isrc->is_count)++;
-	PCPU_LAZY_INC(cnt.v_intr);
+	PCPU_INC(cnt.v_intr);
 
 	ie = isrc->is_event;
 
@@ -312,7 +312,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * processed too.
 	 */
 	(*isrc->is_count)++;
-	PCPU_LAZY_INC(cnt.v_intr);
+	PCPU_INC(cnt.v_intr);
 
 	ie = isrc->is_event;
 

@@ -149,7 +149,7 @@ trap(struct trapframe *frame)
 	u_int		ucode;
 	ksiginfo_t	ksi;
 
-	PCPU_LAZY_INC(cnt.v_trap);
+	PCPU_INC(cnt.v_trap);
 
 	td = PCPU_GET(curthread);
 	p = td->td_proc;
@@ -349,7 +349,7 @@ syscall(struct trapframe *frame)
 	td = PCPU_GET(curthread);
 	p = td->td_proc;
 
-	PCPU_LAZY_INC(cnt.v_syscall);
+	PCPU_INC(cnt.v_syscall);
 
 #ifdef KSE
 	if (p->p_flag & P_SA)

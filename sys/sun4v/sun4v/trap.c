@@ -268,7 +268,7 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 	    trap_msg[trapno],
 	    (TRAPF_USERMODE(tf) ? "user" : "kernel"), rdpr(pil));
 
-	PCPU_LAZY_INC(cnt.v_trap);
+	PCPU_INC(cnt.v_trap);
 
 	trapno = (type & TRAP_MASK);
 	ctx = (type >> TRAP_CTX_SHIFT);
@@ -575,7 +575,7 @@ syscall(struct trapframe *tf)
 
 	p = td->td_proc;
 
-	PCPU_LAZY_INC(cnt.v_syscall);
+	PCPU_INC(cnt.v_syscall);
 
 	narg = 0;
 	error = 0;
