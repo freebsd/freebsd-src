@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.133.2.11 2006/03/25 11:15:30 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.133.2.16 2007/05/28 11:56:22 darrenr Exp $";
 #endif
 
 #ifndef	SOLARIS
@@ -64,7 +64,6 @@ struct file;
 #include <stdlib.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <arpa/inet.h>
 
 #ifdef __hpux
 # define _NET_ROUTE_INCLUDED
@@ -85,7 +84,9 @@ struct file;
 #if defined(__FreeBSD__)
 # include "radix_ipf.h"
 #endif
-#include <net/route.h>
+#ifndef __osf__
+# include <net/route.h>
+#endif
 #include <netinet/in.h>
 #if !(defined(__sgi) && !defined(IFF_DRVRLOCK)) /* IRIX < 6 */ && \
     !defined(__hpux) && !defined(linux)
@@ -109,6 +110,7 @@ struct file;
 #include <netinet/ip_icmp.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <arpa/inet.h>
 #ifdef __hpux
 # undef _NET_ROUTE_INCLUDED
 #endif
@@ -146,7 +148,6 @@ extern	struct	protosw	inetsw[];
 static	struct	ifnet **ifneta = NULL;
 static	int	nifs = 0;
 
-static	int	frzerostats __P((caddr_t));
 static	void	fr_setifpaddr __P((struct ifnet *, char *));
 void	init_ifp __P((void));
 #if defined(__sgi) && (IRIX < 60500)
@@ -169,33 +170,16 @@ static int	write_output __P((struct ifnet *, struct mbuf *,
 #endif
 
 
-int iplattach()
+int ipfattach()
 {
 	fr_running = 1;
 	return 0;
 }
 
 
-int ipldetach()
+int ipfdetach()
 {
 	fr_running = -1;
-	return 0;
-}
-
-
-static	int	frzerostats(data)
-caddr_t	data;
-{
-	friostat_t fio;
-	int error;
-
-	fr_getstat(&fio);
-	error = copyoutptr(&fio, data, sizeof(fio));
-	if (error)
-		return EFAULT;
-
-	bzero((char *)frstats, sizeof(*frstats) * 2);
-
 	return 0;
 }
 
@@ -209,210 +193,20 @@ ioctlcmd_t cmd;
 caddr_t data;
 int mode;
 {
-	int error = 0, unit = 0, tmp;
-	friostat_t fio;
+	int error = 0, unit = 0, uid;
+	SPL_INT(s);
 
+	uid = getuid();
 	unit = dev;
 
 	SPL_NET(s);
 
-	if (unit == IPL_LOGNAT) {
-		if (fr_running > 0)
-			error = fr_nat_ioctl(data, cmd, mode);
-		else
-			error = EIO;
-		SPL_X(s);
-		return error;
-	}
-	if (unit == IPL_LOGSTATE) {
-		if (fr_running > 0)
-			error = fr_state_ioctl(data, cmd, mode);
-		else
-			error = EIO;
-		SPL_X(s);
-		return error;
-	}
-	if (unit == IPL_LOGAUTH) {
-		if (fr_running > 0) {
-			if ((cmd == (ioctlcmd_t)SIOCADAFR) ||
-			    (cmd == (ioctlcmd_t)SIOCRMAFR)) {
-				if (!(mode & FWRITE)) {
-					error = EPERM;
-				} else {
-					error = frrequest(unit, cmd, data,
-							  fr_active, 1);
-				}
-			} else {
-				error = fr_auth_ioctl(data, mode, cmd);
-			}
-		} else
-			error = EIO;
-		SPL_X(s);
-		return error;
-	}
-	if (unit == IPL_LOGSYNC) {
-#ifdef	IPFILTER_SYNC
-		if (fr_running > 0)
-			error = fr_sync_ioctl(data, cmd, mode);
-		else
-#endif
-			error = EIO;
-		SPL_X(s);
-		return error;
-	}
-	if (unit == IPL_LOGSCAN) {
-#ifdef	IPFILTER_SCAN
-		if (fr_running > 0)
-			error = fr_scan_ioctl(data, cmd, mode);
-		else
-#endif
-			error = EIO;
-		SPL_X(s);
-		return error;
-	}
-	if (unit == IPL_LOGLOOKUP) {
-		if (fr_running > 0)
-			error = ip_lookup_ioctl(data, cmd, mode);
-		else
-			error = EIO;
+	error = fr_ioctlswitch(unit, data, cmd, mode, uid, NULL);
+	if (error != -1) {
 		SPL_X(s);
 		return error;
 	}
 
-	switch (cmd)
-	{
-	case FIONREAD :
-#ifdef IPFILTER_LOG
-		error = COPYOUT(&iplused[IPL_LOGIPF], (caddr_t)data,
-			       sizeof(iplused[IPL_LOGIPF]));
-#endif
-		break;
-	case SIOCFRENB :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else {
-			error = COPYIN(data, &tmp, sizeof(tmp));
-			if (error)
-				break;
-			if (tmp)
-				error = iplattach();
-			else
-				error = ipldetach();
-		}
-		break;
-	case SIOCIPFSET :
-		if (!(mode & FWRITE)) {
-			error = EPERM;
-			break;
-		}
-	case SIOCIPFGETNEXT :
-	case SIOCIPFGET :
-		error = fr_ipftune(cmd, (void *)data);
-		break;
-	case SIOCSETFF :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else
-			error = COPYIN(data, &fr_flags, sizeof(fr_flags));
-		break;
-	case SIOCGETFF :
-		error = COPYOUT(&fr_flags, data, sizeof(fr_flags));
-		break;
-	case SIOCFUNCL :
-		error = fr_resolvefunc(data);
-		break;
-	case SIOCINAFR :
-	case SIOCRMAFR :
-	case SIOCADAFR :
-	case SIOCZRLST :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else
-			error = frrequest(unit, cmd, data, fr_active, 1);
-		break;
-	case SIOCINIFR :
-	case SIOCRMIFR :
-	case SIOCADIFR :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else
-			error = frrequest(unit, cmd, data, 1 - fr_active, 1);
-		break;
-	case SIOCSWAPA :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else {
-			bzero((char *)frcache, sizeof(frcache[0]) * 2);
-			*(u_int *)data = fr_active;
-			fr_active = 1 - fr_active;
-		}
-		break;
-	case SIOCGETFS :
-		fr_getstat(&fio);
-		error = fr_outobj(data, &fio, IPFOBJ_IPFSTAT);
-		break;
-	case	SIOCFRZST :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else
-			error = frzerostats(data);
-		break;
-	case	SIOCIPFFL :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else {
-			error = COPYIN(data, &tmp, sizeof(tmp));
-			if (!error) {
-				tmp = frflush(unit, 4, tmp);
-				error = COPYOUT(&tmp, data, sizeof(tmp));
-			}
-		}
-		break;
-#ifdef	USE_INET6
-	case	SIOCIPFL6 :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else {
-			error = COPYIN(data, &tmp, sizeof(tmp));
-			if (!error) {
-				tmp = frflush(unit, 6, tmp);
-				error = COPYOUT(&tmp, data, sizeof(tmp));
-			}
-		}
-		break;
-#endif
-	case SIOCSTLCK :
-		error = COPYIN(data, &tmp, sizeof(tmp));
-		if (error == 0) {
-			fr_state_lock = tmp;
-			fr_nat_lock = tmp;
-			fr_frag_lock = tmp;
-			fr_auth_lock = tmp;
-		} else
-			error = EFAULT;
-		break;
-#ifdef	IPFILTER_LOG
-	case	SIOCIPFFB :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else
-			*(int *)data = ipflog_clear(unit);
-		break;
-#endif /* IPFILTER_LOG */
-	case SIOCGFRST :
-		error = fr_outobj(data, fr_fragstats(), IPFOBJ_FRAGSTAT);
-		break;
-	case SIOCFRSYN :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else {
-			frsync(NULL);
-		}
-		break;
-	default :
-		error = EINVAL;
-		break;
-	}
 	SPL_X(s);
 	return error;
 }
@@ -652,7 +446,7 @@ int v;
 		ifp->if_unit = -1;
 	}
 #endif
-	ifp->if_output = no_output;
+	ifp->if_output = (void *)no_output;
 
 	if (addr != NULL) {
 		fr_setifpaddr(ifp, addr);
@@ -688,7 +482,7 @@ void init_ifp()
     (defined(OpenBSD) && (OpenBSD >= 199603)) || defined(linux) || \
     (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 	for (ifpp = ifneta; ifpp && (ifp = *ifpp); ifpp++) {
-		ifp->if_output = write_output;
+		ifp->if_output = (void *)write_output;
 		sprintf(fname, "/tmp/%s", ifp->if_xname);
 		fd = open(fname, O_WRONLY|O_CREAT|O_EXCL|O_TRUNC, 0600);
 		if (fd == -1)
@@ -996,5 +790,11 @@ struct in_addr *inp, *inpmask;
 
 		return fr_ifpfillv4addr(atype, sin, &mask, inp, inpmask);
 	}
+	return 0;
+}
+
+
+int ipfsync()
+{
 	return 0;
 }

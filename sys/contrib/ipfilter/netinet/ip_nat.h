@@ -124,6 +124,7 @@ typedef	struct	nat	{
 	int		nat_hv[2];
 	char		nat_ifnames[2][LIFNAMSIZ];
 	int		nat_rev;		/* 0 = forward, 1 = reverse */
+	int		nat_redir;		/* copy of in_redir */
 } nat_t;
 
 #define	nat_inip	nat_inip6.in4
@@ -136,6 +137,8 @@ typedef	struct	nat	{
 #define	nat_seq		nat_un.nat_uni.ici_seq
 #define	nat_id		nat_un.nat_uni.ici_id
 #define	nat_tcpstate	nat_tqe.tqe_state
+#define	nat_die		nat_tqe.tqe_die
+#define	nat_touched	nat_tqe.tqe_touched
 
 /*
  * Values for nat_dir
@@ -152,7 +155,7 @@ typedef	struct	nat	{
 #define	NAT_ICMPQUERY	0x0008	/* IPN_ICMPQUERY */
 #define	NAT_SEARCH	0x0010
 #define	NAT_SLAVE	0x0020	/* Slave connection for a proxy */
-#define	NAT_NOTRULEPORT	0x0040
+#define	NAT_NOTRULEPORT	0x0040	/* Don't use the port # in the NAT rule */
 
 #define	NAT_TCPUDP	(NAT_TCP|NAT_UDP)
 #define	NAT_TCPUDPICMP	(NAT_TCP|NAT_UDP|NAT_ICMPERR)
@@ -171,6 +174,7 @@ typedef	struct	nat	{
 #define	NAT_DEBUG	0x800000
 
 typedef	struct	ipnat	{
+	ipfmutex_t	in_lock;
 	struct	ipnat	*in_next;		/* NAT rule list next */
 	struct	ipnat	*in_rnext;		/* rdr rule hash next */
 	struct	ipnat	**in_prnext;		/* prior rdr next ptr */
@@ -296,25 +300,6 @@ typedef	struct	natget	{
 } natget_t;
 
 
-#undef	tr_flags
-typedef	struct	nattrpnt	{
-	struct	in_addr	tr_dstip;	/* real destination IP# */
-	struct	in_addr	tr_srcip;	/* real source IP# */
-	struct	in_addr	tr_locip;	/* local source IP# */
-	u_int	tr_flags;
-	int	tr_expire;
-	u_short	tr_dstport;	/* real destination port# */
-	u_short	tr_srcport;	/* real source port# */
-	u_short	tr_locport;	/* local source port# */
-	struct	nattrpnt	*tr_hnext;
-	struct	nattrpnt	**tr_phnext;
-	struct	nattrpnt	*tr_next;
-	struct	nattrpnt	**tr_pnext;	/* previous next */
-} nattrpnt_t;
-
-#define	TN_CMPSIZ	offsetof(nattrpnt_t, tr_hnext)
-
-
 /*
  * This structure gets used to help NAT sessions keep the same NAT rule (and
  * thus translation for IP address) when:
@@ -322,6 +307,8 @@ typedef	struct	nattrpnt	{
  * (b) different IP add
  */
 typedef	struct	hostmap	{
+	struct	hostmap	*hm_hnext;
+	struct	hostmap	**hm_phnext;
 	struct	hostmap	*hm_next;
 	struct	hostmap	**hm_pnext;
 	struct	ipnat	*hm_ipnat;
@@ -373,8 +360,9 @@ typedef	struct	natstat	{
 	u_int	ns_trpntab_sz;
 	u_int	ns_hostmap_sz;
 	nat_t	*ns_instances;
-	nattrpnt_t *ns_trpntlist;
+	hostmap_t *ns_maplist;
 	u_long	*ns_bucketlen[2];
+	u_long	ns_ticks;
 } natstat_t;
 
 typedef	struct	natlog {
@@ -427,6 +415,7 @@ extern	u_int	ipf_hostmap_sz;
 extern	u_int	fr_nat_maxbucket;
 extern	u_int	fr_nat_maxbucket_reset;
 extern	int	fr_nat_lock;
+extern	int	fr_nat_doflush;
 extern	void	fr_natsync __P((void *));
 extern	u_long	fr_defnatage;
 extern	u_long	fr_defnaticmpage;
@@ -444,7 +433,7 @@ extern	natstat_t	nat_stats;
 #if defined(__OpenBSD__)
 extern	void	nat_ifdetach __P((void *));
 #endif
-extern	int	fr_nat_ioctl __P((caddr_t, ioctlcmd_t, int));
+extern	int	fr_nat_ioctl __P((caddr_t, ioctlcmd_t, int, int, void *));
 extern	int	fr_natinit __P((void));
 extern	nat_t	*nat_new __P((fr_info_t *, ipnat_t *, nat_t **, u_int, int));
 extern	nat_t	*nat_outlookup __P((fr_info_t *, u_int, u_int, struct in_addr,
@@ -469,9 +458,11 @@ extern	void	fr_natexpire __P((void));
 extern	void	nat_log __P((struct nat *, u_int));
 extern	void	fix_incksum __P((fr_info_t *, u_short *, u_32_t));
 extern	void	fix_outcksum __P((fr_info_t *, u_short *, u_32_t));
+extern	void	fr_ipnatderef __P((ipnat_t **));
 extern	void	fr_natderef __P((nat_t **));
 extern	u_short	*nat_proto __P((fr_info_t *, nat_t *, u_int));
 extern	void	nat_update __P((fr_info_t *, nat_t *, ipnat_t *));
 extern	void	fr_setnatqueue __P((nat_t *, int));
+extern	void	fr_hostmapdel __P((hostmap_t **));
 
 #endif /* __IP_NAT_H__ */

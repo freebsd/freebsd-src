@@ -98,7 +98,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_sync.c,v 2.40.2.7 2006/03/19 14:59:39 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sync.c,v 2.40.2.8 2006/07/14 06:12:20 darrenr Exp $";
 #endif
 
 #define	SYNC_STATETABSZ	256
@@ -997,10 +997,11 @@ synclist_t *sl;
 /* This function currently does not handle any ioctls and so just returns   */
 /* EINVAL on all occasions.                                                 */
 /* ------------------------------------------------------------------------ */
-int fr_sync_ioctl(data, cmd, mode)
+int fr_sync_ioctl(data, cmd, mode, uid, ctx)
 caddr_t data;
 ioctlcmd_t cmd;
-int mode;
+int mode, uid;
+void *ctx;
 {
 	return EINVAL;
 }

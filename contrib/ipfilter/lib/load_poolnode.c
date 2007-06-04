@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002 by Darren Reed.
+ * Copyright (C) 2003-2004 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: load_poolnode.c,v 1.3.2.1 2004/03/06 14:33:29 darrenr Exp $
+ * $Id: load_poolnode.c,v 1.3.2.3 2006/06/16 17:21:06 darrenr Exp $
  */
 
 #include <fcntl.h>
@@ -54,7 +54,7 @@ ioctlfunc_t iocfunc;
 
 	if (err != 0) {
 		if ((opts & OPT_DONOTHING) == 0) {
-			perror("load_pool:SIOCLOOKUP*NODE");
+			perror("load_poolnode:SIOCLOOKUP*NODE");
 			return -1;
 		}
 	}

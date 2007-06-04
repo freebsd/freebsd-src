@@ -19,6 +19,16 @@ typedef	struct	ipfr	{
 	struct	ipfr	*ipfr_hnext, **ipfr_hprev;
 	struct	ipfr	*ipfr_next, **ipfr_prev;
 	void	*ipfr_data;
+	frentry_t *ipfr_rule;
+	u_long	ipfr_ttl;
+	int	ipfr_ref;
+	u_short	ipfr_off;
+	u_short	ipfr_seen0;
+	/*
+	 * All of the fields, from ipfr_ifp to ipfr_pass, are compared
+	 * using bcmp to see if an identical entry is present.  It is
+	 * therefore important for this set to remain together.
+	 */
 	void	*ipfr_ifp;
 	struct	in_addr	ipfr_src;
 	struct	in_addr	ipfr_dst;
@@ -29,10 +39,6 @@ typedef	struct	ipfr	{
 	u_char	ipfr_p;
 	u_char	ipfr_tos;
 	u_32_t	ipfr_pass;
-	u_short	ipfr_off;
-	u_char	ipfr_ttl;
-	u_char	ipfr_seen0;
-	frentry_t *ipfr_rule;
 } ipfr_t;
 
 
@@ -52,6 +58,8 @@ typedef	struct	ipfrstat {
 #define	IPFR_CMPSZ	(offsetof(ipfr_t, ipfr_pass) - \
 			 offsetof(ipfr_t, ipfr_ifp))
 
+extern	ipfr_t	*ipfr_list, **ipfr_tail;
+extern	ipfr_t	*ipfr_natlist, **ipfr_nattail;
 extern	int	ipfr_size;
 extern	int	fr_ipfrttl;
 extern	int	fr_frag_lock;
@@ -67,6 +75,15 @@ extern	nat_t	*fr_nat_knownfrag __P((fr_info_t *));
 
 extern	int	fr_ipid_newfrag __P((fr_info_t *, u_32_t));
 extern	u_32_t	fr_ipid_knownfrag __P((fr_info_t *));
+#ifdef USE_MUTEXES
+extern	void	fr_fragderef __P((ipfr_t **, ipfrwlock_t *));
+extern	int	fr_nextfrag __P((ipftoken_t *, ipfgeniter_t *, ipfr_t **, \
+				 ipfr_t ***, ipfrwlock_t *));
+#else
+extern	void	fr_fragderef __P((ipfr_t **));
+extern	int	fr_nextfrag __P((ipftoken_t *, ipfgeniter_t *, ipfr_t **, \
+				 ipfr_t ***));
+#endif
 
 extern	void	fr_forget __P((void *));
 extern	void	fr_forgetnat __P((void *));

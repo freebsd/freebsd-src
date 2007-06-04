@@ -7,20 +7,23 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)arp.c	1.4 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: arp.c,v 2.8.2.1 2005/06/12 07:18:38 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: arp.c,v 2.8.2.2 2007/02/17 12:41:50 darrenr Exp $";
 #endif
 #include <sys/types.h>
 #include <sys/socket.h>
 #if !defined(ultrix) && !defined(hpux) && !defined(__hpux) && !defined(__osf__) && !defined(_AIX51)
-#include <sys/sockio.h>
+# include <sys/sockio.h>
 #endif
 #include <sys/ioctl.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
+#ifdef __osf__
+# include "radix_ipf_local.h"
+#endif
 #include <net/if.h>
 #include <netinet/if_ether.h>
 #ifndef	ultrix
-#include <net/if_arp.h>
+# include <net/if_arp.h>
 #endif
 #include <netinet/in.h>
 #include <netinet/ip.h>
