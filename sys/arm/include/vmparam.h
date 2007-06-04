@@ -59,6 +59,16 @@
 #define	VM_PHYSSEG_DENSE
 
 /*
+ * Create two free page pools: VM_FREEPOOL_DEFAULT is the default pool
+ * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
+ * the pool from which physical pages for small UMA objects are
+ * allocated.
+ */
+#define	VM_NFREEPOOL		2
+#define	VM_FREEPOOL_DEFAULT	0
+#define	VM_FREEPOOL_DIRECT	1
+
+/*
  * we support 2 free lists:
  *
  *	- DEFAULT for all systems
@@ -68,6 +78,11 @@
 #define	VM_NFREELIST		2
 #define	VM_FREELIST_DEFAULT	0
 #define	VM_FREELIST_ISADMA	1
+
+/*
+ * The largest allocation size is 1MB.
+ */
+#define	VM_NFREEORDER		9
 
 #define UPT_MAX_ADDRESS		VADDR(UPTPTDI + 3, 0)
 #define UPT_MIN_ADDRESS		VADDR(UPTPTDI, 0)
