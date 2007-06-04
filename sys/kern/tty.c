@@ -147,7 +147,9 @@ static struct cdevsw ttys_cdevsw = {
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
-static int	proc_compare(struct proc *p1, struct proc *p2);
+static int	proc_sum(struct proc *, int *);
+static int	proc_compare(struct proc *, struct proc *);
+static int	thread_compare(struct thread *, struct thread *);
 static int	ttnread(struct tty *tp);
 static void	ttyecho(int c, struct tty *tp);
 static int	ttyoutput(int c, struct tty *tp);
@@ -2528,7 +2530,7 @@ ttyinfo(struct tty *tp)
 {
 	struct timeval utime, stime;
 	struct proc *p, *pick;
-	struct thread *td;
+	struct thread *td, *picktd;
 	const char *stateprefix, *state;
 	long rss;
 	int load, pctcpu;
@@ -2566,21 +2568,25 @@ ttyinfo(struct tty *tp)
 
 	/*
 	 * Pick the most interesting process and copy some of its
-	 * state for printing later.  sched_lock must be held for
-	 * most parts of this.  Holding it throughout is simplest
-	 * and prevents even unimportant inconsistencies in the
-	 * copy of the state, but may increase interrupt latency
-	 * too much.
+	 * state for printing later.  This operation could rely on stale
+	 * data as we can't hold the proc slock or thread locks over the
+	 * whole list. However, we're guaranteed not to reference an exited
+	 * thread or proc since we hold the tty locked.
 	 */
 	pick = NULL;
-	mtx_lock_spin(&sched_lock);
 	LIST_FOREACH(p, &tp->t_pgrp->pg_members, p_pglist)
 		if (proc_compare(pick, p))
 			pick = p;
 
-	/*^T can only show state for 1 thread. just pick the first. */
+	PROC_SLOCK(pick);
+	picktd = NULL;
 	td = FIRST_THREAD_IN_PROC(pick);
+	FOREACH_THREAD_IN_PROC(pick, td)
+		if (thread_compare(picktd, td))
+			picktd = td;
+	td = picktd;
 	stateprefix = "";
+	thread_lock(td);
 	if (TD_IS_RUNNING(td))
 		state = "running";
 	else if (TD_ON_RUNQ(td) || TD_CAN_RUN(td))
@@ -2601,11 +2607,12 @@ ttyinfo(struct tty *tp)
 	else
 		state = "unknown";
 	pctcpu = (sched_pctcpu(td) * 10000 + FSCALE / 2) >> FSHIFT;
+	thread_unlock(td);
 	if (pick->p_state == PRS_NEW || pick->p_state == PRS_ZOMBIE)
 		rss = 0;
 	else
 		rss = pgtok(vmspace_resident_count(pick->p_vmspace));
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(pick);
 	PROC_LOCK(pick);
 	PGRP_UNLOCK(tp->t_pgrp);
 	calcru(pick, &utime, &stime);
@@ -2636,18 +2643,6 @@ ttyinfo(struct tty *tp)
  *	   we pick out just "short-term" sleepers (P_SINTR == 0).
  *	4) Further ties are broken by picking the highest pid.
  */
-#define ISRUN(p, val)						\
-do {								\
-	struct thread *td;					\
-	val = 0;						\
-	FOREACH_THREAD_IN_PROC(p, td) {				\
-		if (TD_ON_RUNQ(td) ||				\
-		    TD_IS_RUNNING(td)) {			\
-			val = 1;				\
-			break;					\
-		}						\
-	}							\
-} while (0)
 
 #define TESTAB(a, b)    ((a)<<1 | (b))
 #define ONLYA   2
@@ -2655,41 +2650,122 @@ do {								\
 #define BOTH    3
 
 static int
-proc_compare(struct proc *p1, struct proc *p2)
+proc_sum(struct proc *p, int *estcpup)
 {
-
-	int esta, estb;
 	struct thread *td;
-	mtx_assert(&sched_lock, MA_OWNED);
-	if (p1 == NULL)
+	int estcpu;
+	int val;
+
+	val = 0;
+	estcpu = 0;
+	FOREACH_THREAD_IN_PROC(p, td) {
+		thread_lock(td);
+		if (TD_ON_RUNQ(td) ||
+		    TD_IS_RUNNING(td))
+			val = 1;
+		estcpu += sched_pctcpu(td);
+		thread_unlock(td);
+	}
+	*estcpup = estcpu;
+
+	return (val);
+}
+
+static int
+thread_compare(struct thread *td, struct thread *td2)
+{
+	int runa, runb;
+	int slpa, slpb;
+	fixpt_t esta, estb;
+
+	if (td == NULL)
 		return (1);
 
-	ISRUN(p1, esta);
-	ISRUN(p2, estb);
-	
+	/*
+	 * Fetch running stats, pctcpu usage, and interruptable flag.
+ 	 */
+	thread_lock(td);
+	runa = TD_IS_RUNNING(td) | TD_ON_RUNQ(td);
+	slpa = td->td_flags & TDF_SINTR;
+	esta = sched_pctcpu(td);
+	thread_unlock(td);
+	thread_lock(td2);
+	runb = TD_IS_RUNNING(td2) | TD_ON_RUNQ(td2);
+	estb = sched_pctcpu(td2);
+	slpb = td2->td_flags & TDF_SINTR;
+	thread_unlock(td2);
 	/*
 	 * see if at least one of them is runnable
 	 */
-	switch (TESTAB(esta, estb)) {
+	switch (TESTAB(runa, runb)) {
 	case ONLYA:
 		return (0);
 	case ONLYB:
 		return (1);
 	case BOTH:
-		/*
-		 * tie - favor one with highest recent cpu utilization
-		 */
-		esta = estb = 0;
-		FOREACH_THREAD_IN_PROC(p1, td)
-			esta += td->td_estcpu;
-		FOREACH_THREAD_IN_PROC(p2, td)
-			estb += td->td_estcpu;
-		if (estb > esta)
-			return (1);
-		if (esta > estb)
-			return (0);
-		return (p2->p_pid > p1->p_pid);	/* tie - return highest pid */
+		break;
 	}
+	/*
+	 *  favor one with highest recent cpu utilization
+	 */
+	if (estb > esta)
+		return (1);
+	if (esta > estb)
+		return (0);
+	/*
+	 * favor one sleeping in a non-interruptible sleep
+	 */
+	switch (TESTAB(slpa, slpb)) {
+	case ONLYA:
+		return (0);
+	case ONLYB:
+		return (1);
+	case BOTH:
+		break;
+	}
+
+	return (td < td2);
+}
+
+static int
+proc_compare(struct proc *p1, struct proc *p2)
+{
+
+	int runa, runb;
+	fixpt_t esta, estb;
+
+	if (p1 == NULL)
+		return (1);
+
+	/*
+	 * Fetch various stats about these processes.  After we drop the
+	 * lock the information could be stale but the race is unimportant.
+	 */
+	PROC_SLOCK(p1);
+	runa = proc_sum(p1, &esta);
+	PROC_SUNLOCK(p1);
+	PROC_SLOCK(p2);
+	runb = proc_sum(p2, &estb);
+	PROC_SUNLOCK(p2);
+	
+	/*
+	 * see if at least one of them is runnable
+	 */
+	switch (TESTAB(runa, runb)) {
+	case ONLYA:
+		return (0);
+	case ONLYB:
+		return (1);
+	case BOTH:
+		break;
+	}
+	/*
+	 *  favor one with highest recent cpu utilization
+	 */
+	if (estb > esta)
+		return (1);
+	if (esta > estb)
+		return (0);
 	/*
 	 * weed out zombies
 	 */
@@ -2699,25 +2775,9 @@ proc_compare(struct proc *p1, struct proc *p2)
 	case ONLYB:
 		return (0);
 	case BOTH:
-		return (p2->p_pid > p1->p_pid); /* tie - return highest pid */
+		break;
 	}
 
-#if 0 /* XXXKSE */
-	/*
-	 * pick the one with the smallest sleep time
-	 */
-	if (p2->p_slptime > p1->p_slptime)
-		return (0);
-	if (p1->p_slptime > p2->p_slptime)
-		return (1);
-	/*
-	 * favor one sleeping in a non-interruptible sleep
-	 */
-	if (p1->p_sflag & PS_SINTR && (p2->p_sflag & PS_SINTR) == 0)
-		return (1);
-	if (p2->p_sflag & PS_SINTR && (p1->p_sflag & PS_SINTR) == 0)
-		return (0);
-#endif
 	return (p2->p_pid > p1->p_pid);		/* tie - return highest pid */
 }
 
