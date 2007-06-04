@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2002 by Darren Reed.
+ *
+ * See the IPFILTER.LICENCE file for details on licencing.
+ */
 
 extern	long		string_start;
 extern	long		string_end;

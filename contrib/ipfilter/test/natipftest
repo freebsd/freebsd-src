@@ -1,14 +1,26 @@
 #!/bin/sh
 mode=$1
+name=$2
+input=$3
+output=$4
 shift
-if [ $3 = hex ] ; then
-	format="-xF $2"
+if [ $output = hex ] ; then
+	format="-xF $input"
 else
-	format="-F $2"
+	format="-F $input"
 fi
-if [ "$4" != "" ] ; then
-	format="-T $4 $format"
-fi
+shift
+shift
+shift
+while [ $# -ge 1 ] ; do
+	l=`echo $1 | cut -c1`
+	if [ "$l" = "-" ] ; then
+		format="$format $1"
+	else
+		format="-T $1 $format"
+	fi
+	shift
+done
 mkdir -p results
 if [ -f /usr/ucb/touch ] ; then
 	TOUCH=/usr/ucb/touch
@@ -24,35 +36,35 @@ fi
 
 case $mode in
 single)
-	echo "$1...";
-	/bin/cp /dev/null results/$1
+	echo "$name...";
+	/bin/cp /dev/null results/$name
 	( while read rule; do
-		echo "$rule" | ../ipftest -R $format -b -r regress/$1.ipf -N - -i input/$1 >> \
-			results/$1;
+		echo "$rule" | ../ipftest -R $format -b -r regress/$name.ipf -N - -i input/$name >> \
+			results/$name;
 		if [ $? -ne 0 ] ; then
 			exit 1;
 		fi
-		echo "-------------------------------" >> results/$1
-	done ) < regress/$1.nat
-	cmp expected/$1 results/$1
+		echo "-------------------------------" >> results/$name
+	done ) < regress/$name.nat
+	cmp expected/$name results/$name
 	status=$?
 	if [ $status = 0 ] ; then
-		$TOUCH $1
+		$TOUCH $name
 	fi
 	;;
 multi)
-	echo "$1...";
-	/bin/cp /dev/null results/$1
-	../ipftest -R $format -b -r regress/$1.ipf -N regress/$1.nat \
-		-i input/$1 >> results/$1;
+	echo "$name...";
+	/bin/cp /dev/null results/$name
+	../ipftest -R $format -b -r regress/$name.ipf -N regress/$name.nat \
+		-i input/$name >> results/$name;
 	if [ $? -ne 0 ] ; then
 		exit 2;
 	fi
-	echo "-------------------------------" >> results/$1
-	cmp expected/$1 results/$1
+	echo "-------------------------------" >> results/$name
+	cmp expected/$name results/$name
 	status=$?
 	if [ $status = 0 ] ; then
-		$TOUCH $1
+		$TOUCH $name
 	fi
 	;;
 esac

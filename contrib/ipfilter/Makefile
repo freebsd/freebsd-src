@@ -5,7 +5,7 @@
 # provided that this notice is preserved and due credit is given
 # to the original author and the contributors.
 #
-# $Id: Makefile,v 2.76.2.19 2006/03/17 10:38:38 darrenr Exp $
+# $Id: Makefile,v 2.76.2.21 2007/05/11 21:57:25 darrenr Exp $
 #
 SHELL=/bin/sh
 BINDEST=/usr/local/bin
@@ -187,7 +187,7 @@ freebsd22: include
 	fi
 	make freebsd20
 
-freebsd5 freebsd6: include
+freebsd5 freebsd6 freebsd7: include
 	if [ x$(INET6) = x ] ; then \
 		echo "#undef INET6" > opt_inet6.h; \
 	else \
@@ -229,6 +229,15 @@ freebsd3 freebsd30: include
 
 netbsd: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
+	@if [ ! -d /sys -o ! -d /sys/arch ] ; then \
+		echo "*****************************************************"; \
+		echo "*                                                   *"; \
+		echo "* Please extract source code to create /sys and     *";\
+		echo "* /sys/arch and run 'config GENERIC'                *"; \
+		echo "*                                                   *"; \
+		echo "*****************************************************"; \
+		exit 1; \
+	fi
 	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS) 'DLKM=-D_LKM' "ML=mln_ipl.c" LKMR= "MLR=mln_rule.o"; cd ..)
 	(cd BSD/$(CPUDIR); make -f Makefile.ipsend build TOP=../.. $(MFLAGS); cd ..)
 

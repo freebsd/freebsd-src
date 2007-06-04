@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 by Darren Reed.
+ * Copyright (C) 2002-2006 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -283,8 +283,9 @@ nextchar:
 				yypos++;
 			}
 		} while (n != c);
-		yyunputc(n);
-		break;
+		rval = YY_STR;
+		goto done;
+		/* NOTREACHED */
 
 	case EOF :
 		yylineNum = 1;
@@ -465,6 +466,9 @@ nextchar:
 done:
 	yystr = yytexttostr(0, yypos);
 
+	if (yydebug)
+		printf("isbuilding %d yyvarnext %d nokey %d\n",
+		       isbuilding, yyvarnext, nokey);
 	if (isbuilding == 1) {
 		wordtab_t *w;
 
@@ -491,8 +495,8 @@ done:
 	yytokentype = rval;
 
 	if (yydebug)
-		printf("lexed(%s) [%d,%d,%d] => %d\n", yystr, string_start,
-			string_end, pos, rval);
+		printf("lexed(%s) [%d,%d,%d] => %d @%d\n", yystr, string_start,
+			string_end, pos, rval, yysavedepth);
 
 	switch (rval)
 	{
@@ -607,6 +611,8 @@ wordtab_t *newdict;
 
 void yyresetdict()
 {
+	if (yydebug)
+		printf("yyresetdict(%d)\n", yysavedepth);
 	if (yysavedepth > 0) {
 		yysettab(yysavewords[--yysavedepth]);
 		if (yydebug)

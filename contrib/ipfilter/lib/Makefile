@@ -1,7 +1,16 @@
+#
+# Copyright (C) 1993-2001 by Darren Reed.
+# 
+# See the IPFILTER.LICENCE file for details on licencing.  
+#   
+# $Id: Makefile,v 1.41.2.13 2007/05/10 06:02:19 darrenr Exp $ 
+#     
 INCDEP=$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(TOP)/ipf.h
 
 LIBOBJS=$(DEST)/addicmp.o \
      $(DEST)/addipopt.o \
+     $(DEST)/alist_free.o \
+     $(DEST)/alist_new.o \
      $(DEST)/bcopywrap.o \
      $(DEST)/binprint.o \
      $(DEST)/buildopts.o \
@@ -9,23 +18,17 @@ LIBOBJS=$(DEST)/addicmp.o \
      $(DEST)/count6bits.o \
      $(DEST)/count4bits.o \
      $(DEST)/debug.o \
-     $(DEST)/extras.o \
      $(DEST)/facpri.o \
      $(DEST)/flags.o \
      $(DEST)/fill6bits.o \
-     $(DEST)/genmask.o \
      $(DEST)/gethost.o \
      $(DEST)/getifname.o \
-     $(DEST)/getline.o \
      $(DEST)/getnattype.o \
      $(DEST)/getport.o \
      $(DEST)/getportproto.o \
      $(DEST)/getproto.o \
      $(DEST)/getsumd.o \
-     $(DEST)/hexdump.o \
-     $(DEST)/hostmask.o \
      $(DEST)/hostname.o \
-     $(DEST)/hostnum.o \
      $(DEST)/icmpcode.o \
      $(DEST)/inet_addr.o \
      $(DEST)/initparse.o \
@@ -41,11 +44,13 @@ LIBOBJS=$(DEST)/addicmp.o \
      $(DEST)/kmem.o \
      $(DEST)/kmemcpywrap.o \
      $(DEST)/kvatoname.o \
+     $(DEST)/load_file.o \
      $(DEST)/load_hash.o \
      $(DEST)/load_hashnode.o \
+     $(DEST)/load_http.o \
      $(DEST)/load_pool.o \
      $(DEST)/load_poolnode.o \
-     $(DEST)/loglevel.o \
+     $(DEST)/load_url.o \
      $(DEST)/mutex_emul.o \
      $(DEST)/nametokva.o \
      $(DEST)/nat_setgroupmap.o \
@@ -55,17 +60,19 @@ LIBOBJS=$(DEST)/addicmp.o \
      $(DEST)/optprintv6.o \
      $(DEST)/optvalue.o \
      $(DEST)/portname.o \
-     $(DEST)/portnum.o \
-     $(DEST)/ports.o \
      $(DEST)/print_toif.o \
      $(DEST)/printactivenat.o \
      $(DEST)/printaps.o \
      $(DEST)/printbuf.o \
      $(DEST)/printhash.o \
+     $(DEST)/printhashdata.o \
      $(DEST)/printhashnode.o \
+     $(DEST)/printhash_live.o \
      $(DEST)/printip.o \
      $(DEST)/printpool.o \
+     $(DEST)/printpooldata.o \
      $(DEST)/printpoolnode.o \
+     $(DEST)/printpool_live.o \
      $(DEST)/printproto.o \
      $(DEST)/printfr.o \
      $(DEST)/printfraginfo.o \
@@ -80,9 +87,8 @@ LIBOBJS=$(DEST)/addicmp.o \
      $(DEST)/printpacket6.o \
      $(DEST)/printsbuf.o \
      $(DEST)/printstate.o \
+     $(DEST)/printtqtable.o \
      $(DEST)/printtunable.o \
-     $(DEST)/ratoi.o \
-     $(DEST)/ratoui.o \
      $(DEST)/remove_hash.o \
      $(DEST)/remove_hashnode.o \
      $(DEST)/remove_pool.o \
@@ -91,7 +97,6 @@ LIBOBJS=$(DEST)/addicmp.o \
      $(DEST)/rwlock_emul.o \
      $(DEST)/tcpflags.o \
      $(DEST)/tcp_flags.o \
-     $(DEST)/to_interface.o \
      $(DEST)/var.o \
      $(DEST)/verbose.o \
      $(DEST)/v6ionames.o \
@@ -106,6 +111,10 @@ $(DEST)/addicmp.o: $(LIBSRC)/addicmp.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/addicmp.c -o $@
 $(DEST)/addipopt.o: $(LIBSRC)/addipopt.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/addipopt.c -o $@
+$(DEST)/alist_free.o: $(LIBSRC)/alist_free.c $(INCDEP)
+	$(CC) $(CCARGS) -c $(LIBSRC)/alist_free.c -o $@
+$(DEST)/alist_new.o: $(LIBSRC)/alist_new.c $(INCDEP)
+	$(CC) $(CCARGS) -c $(LIBSRC)/alist_new.c -o $@
 $(DEST)/bcopywrap.o: $(LIBSRC)/bcopywrap.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/bcopywrap.c -o $@
 $(DEST)/binprint.o: $(LIBSRC)/binprint.c $(INCDEP)
@@ -120,16 +129,12 @@ $(DEST)/count4bits.o: $(LIBSRC)/count4bits.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/count4bits.c -o $@
 $(DEST)/debug.o: $(LIBSRC)/debug.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/debug.c -o $@
-$(DEST)/extras.o: $(LIBSRC)/extras.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/extras.c -o $@
 $(DEST)/facpri.o: $(LIBSRC)/facpri.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/facpri.c -o $@
 $(DEST)/fill6bits.o: $(LIBSRC)/fill6bits.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/fill6bits.c -o $@
 $(DEST)/flags.o: $(LIBSRC)/flags.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/flags.c -o $@
-$(DEST)/genmask.o: $(LIBSRC)/genmask.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/genmask.c -o $@
 $(DEST)/getline.o: $(LIBSRC)/getline.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/getline.c -o $@
 $(DEST)/gethost.o: $(LIBSRC)/gethost.c $(INCDEP)
@@ -146,14 +151,8 @@ $(DEST)/getproto.o: $(LIBSRC)/getproto.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/getproto.c -o $@
 $(DEST)/getsumd.o: $(LIBSRC)/getsumd.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/getsumd.c -o $@
-$(DEST)/hexdump.o: $(LIBSRC)/hexdump.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/hexdump.c -o $@
-$(DEST)/hostmask.o: $(LIBSRC)/hostmask.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/hostmask.c -o $@
 $(DEST)/hostname.o: $(LIBSRC)/hostname.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/hostname.c -o $@
-$(DEST)/hostnum.o: $(LIBSRC)/hostnum.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/hostnum.c -o $@
 $(DEST)/icmpcode.o: $(LIBSRC)/icmpcode.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/icmpcode.c -o $@
 $(DEST)/ipoptsec.o: $(LIBSRC)/ipoptsec.c $(INCDEP)
@@ -184,14 +183,20 @@ $(DEST)/kmemcpywrap.o: $(LIBSRC)/kmemcpywrap.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/kmemcpywrap.c -o $@
 $(DEST)/kvatoname.o: $(LIBSRC)/kvatoname.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/kvatoname.c -o $@
+$(DEST)/load_file.o: $(LIBSRC)/load_file.c $(INCDEP)
+	$(CC) $(CCARGS) -c $(LIBSRC)/load_file.c -o $@
 $(DEST)/load_hash.o: $(LIBSRC)/load_hash.c $(INCDEP) $(TOP)/ip_htable.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/load_hash.c -o $@
 $(DEST)/load_hashnode.o: $(LIBSRC)/load_hashnode.c $(INCDEP) $(TOP)/ip_htable.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/load_hashnode.c -o $@
+$(DEST)/load_http.o: $(LIBSRC)/load_http.c $(INCDEP)
+	$(CC) $(CCARGS) -c $(LIBSRC)/load_http.c -o $@
 $(DEST)/load_pool.o: $(LIBSRC)/load_pool.c $(INCDEP) $(TOP)/ip_pool.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/load_pool.c -o $@
 $(DEST)/load_poolnode.o: $(LIBSRC)/load_poolnode.c $(INCDEP) $(TOP)/ip_pool.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/load_poolnode.c -o $@
+$(DEST)/load_url.o: $(LIBSRC)/load_url.c $(INCDEP)
+	$(CC) $(CCARGS) -c $(LIBSRC)/load_url.c -o $@
 $(DEST)/make_range.o: $(LIBSRC)/make_range.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/make_range.c -o $@
 $(DEST)/mutex_emul.o: $(LIBSRC)/mutex_emul.c $(INCDEP)
@@ -203,8 +208,6 @@ $(DEST)/nat_setgroupmap.o: $(LIBSRC)/nat_setgroupmap.c $(TOP)/ip_compat.h \
 	$(CC) $(CCARGS) -c $(LIBSRC)/nat_setgroupmap.c -o $@
 $(DEST)/ntomask.o: $(LIBSRC)/ntomask.c $(TOP)/ip_compat.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/ntomask.c -o $@
-$(DEST)/loglevel.o: $(LIBSRC)/loglevel.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/loglevel.c -o $@
 $(DEST)/optname.o: $(LIBSRC)/optname.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/optname.c -o $@
 $(DEST)/optprint.o: $(LIBSRC)/optprint.c $(INCDEP)
@@ -233,16 +236,25 @@ $(DEST)/printfraginfo.o: $(LIBSRC)/printfraginfo.c $(TOP)/ip_fil.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/printfraginfo.c -o $@
 $(DEST)/printhash.o: $(LIBSRC)/printhash.c $(TOP)/ip_fil.h $(TOP)/ip_htable.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/printhash.c -o $@
+$(DEST)/printhashdata.o: $(LIBSRC)/printhash.c $(TOP)/ip_fil.h $(TOP)/ip_htable.h
+	$(CC) $(CCARGS) -c $(LIBSRC)/printhashdata.c -o $@
 $(DEST)/printhashnode.o: $(LIBSRC)/printhashnode.c $(TOP)/ip_fil.h \
     $(TOP)/ip_htable.h $(TOP)/ip_lookup.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/printhashnode.c -o $@
+$(DEST)/printhash_live.o: $(LIBSRC)/printhash_live.c $(TOP)/ip_fil.h $(TOP)/ip_htable.h
+	$(CC) $(CCARGS) -c $(LIBSRC)/printhash_live.c -o $@
 $(DEST)/printip.o: $(LIBSRC)/printip.c $(TOP)/ip_fil.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/printip.c -o $@
 $(DEST)/printpool.o: $(LIBSRC)/printpool.c $(TOP)/ip_fil.h $(TOP)/ip_pool.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/printpool.c -o $@
+$(DEST)/printpooldata.o: $(LIBSRC)/printpooldata.c $(TOP)/ip_fil.h $(TOP)/ip_pool.h
+	$(CC) $(CCARGS) -c $(LIBSRC)/printpooldata.c -o $@
 $(DEST)/printpoolnode.o: $(LIBSRC)/printpoolnode.c $(TOP)/ip_fil.h \
     $(TOP)/ip_pool.h $(TOP)/ip_lookup.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/printpoolnode.c -o $@
+$(DEST)/printpool_live.o: $(LIBSRC)/printpool_live.c $(TOP)/ip_fil.h \
+    $(TOP)/ip_pool.h $(TOP)/ip_lookup.h
+	$(CC) $(CCARGS) -c $(LIBSRC)/printpool_live.c -o $@
 $(DEST)/printproto.o: $(LIBSRC)/printproto.c $(TOP)/ip_fil.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/printproto.c -o $@
 $(DEST)/printhostmap.o: $(LIBSRC)/printhostmap.c $(TOP)/ip_fil.h
@@ -267,12 +279,10 @@ $(DEST)/printsbuf.o: $(LIBSRC)/printsbuf.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/printsbuf.c -o $@
 $(DEST)/printstate.o: $(LIBSRC)/printstate.c $(INCDEP) $(TOP)/ip_state.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/printstate.c -o $@
+$(DEST)/printtqtable.o: $(LIBSRC)/printtqtable.c $(INCDEP)
+	$(CC) $(CCARGS) -c $(LIBSRC)/printtqtable.c -o $@
 $(DEST)/printtunable.o: $(LIBSRC)/printtunable.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/printtunable.c -o $@
-$(DEST)/ratoi.o: $(LIBSRC)/ratoi.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/ratoi.c -o $@
-$(DEST)/ratoui.o: $(LIBSRC)/ratoui.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/ratoui.c -o $@
 $(DEST)/remove_hash.o: $(LIBSRC)/remove_hash.c $(INCDEP) \
     $(TOP)/ip_htable.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/remove_hash.c -o $@
@@ -289,8 +299,6 @@ $(DEST)/resetlexer.o: $(LIBSRC)/resetlexer.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/resetlexer.c -o $@
 $(DEST)/rwlock_emul.o: $(LIBSRC)/rwlock_emul.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/rwlock_emul.c -o $@
-$(DEST)/to_interface.o: $(LIBSRC)/to_interface.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/to_interface.c -o $@
 $(DEST)/tcpflags.o: $(LIBSRC)/tcpflags.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/tcpflags.c -o $@
 $(DEST)/tcp_flags.o: $(LIBSRC)/tcp_flags.c $(INCDEP)
