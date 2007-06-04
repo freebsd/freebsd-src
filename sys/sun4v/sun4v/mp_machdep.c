@@ -403,13 +403,8 @@ cpu_mp_bootstrap(struct pcpu *pc)
 
 	while (csa->csa_count != 0)
 		;
-	/* ok, now grab sched_lock and enter the scheduler */
-	mtx_lock_spin(&sched_lock);
-	spinlock_exit();
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
-
-	cpu_throw(NULL, choosethread());	/* doesn't return */
+	/* ok, now enter the scheduler */
+	sched_throw(NULL);
 }
 
 void
@@ -460,13 +455,12 @@ cpu_ipi_preempt(struct trapframe *tf)
 {
 	struct thread *running_thread = curthread;
 
-	mtx_lock_spin(&sched_lock);
+	thread_lock(running_thread);
 	if (running_thread->td_critnest > 1)
 		running_thread->td_owepreempt = 1;
 	else
 		mi_switch(SW_INVOL | SW_PREEMPT, NULL);
-	mtx_unlock_spin(&sched_lock);
-
+	thread_unlock(running_thread);
 }
 
 void
