@@ -1199,6 +1199,10 @@ mpt_cam_detach(struct mpt_softc *mpt)
 		mpt_free_request(mpt, mpt->tmf_req);
 		mpt->tmf_req = NULL;
 	}
+	if (mpt->sas_portinfo != NULL) {
+		free(mpt->sas_portinfo, M_DEVBUF);
+		mpt->sas_portinfo = NULL;
+	}
 	MPT_UNLOCK(mpt);
 
 	if (mpt->sim != NULL) {
