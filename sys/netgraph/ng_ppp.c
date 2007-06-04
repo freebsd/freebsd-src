@@ -1293,15 +1293,16 @@ ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 		link->stats.xmitOctets += len;
 
 		/* bytesInQueue and lastWrite required only for mp_strategy. */
-		if (priv->conf.enableMultilink && !priv->allLinksEqual) {
-		    /* If queue was empty, then mark this time. */
-		    if (link->bytesInQueue == 0)
-			getmicrouptime(&link->lastWrite);
-		    link->bytesInQueue += len + MP_AVERAGE_LINK_OVERHEAD;
-		    /* Limit max queue length to 50 pkts. BW can be defined
-		       incorrectly and link may not signal overload. */
-		    if (link->bytesInQueue > 50 * 1600)
-			link->bytesInQueue = 50 * 1600;
+		if (priv->conf.enableMultilink && !priv->allLinksEqual &&
+		    !priv->conf.enableRoundRobin) {
+			/* If queue was empty, then mark this time. */
+			if (link->bytesInQueue == 0)
+				getmicrouptime(&link->lastWrite);
+			link->bytesInQueue += len + MP_AVERAGE_LINK_OVERHEAD;
+			/* Limit max queue length to 50 pkts. BW can be defined
+		    	   incorrectly and link may not signal overload. */
+			if (link->bytesInQueue > 50 * 1600)
+				link->bytesInQueue = 50 * 1600;
 		}
 	}
 	return (error);
