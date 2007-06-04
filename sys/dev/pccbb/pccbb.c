@@ -382,7 +382,8 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 	 * XXX for now that's all we need to do.
 	 */
 	err = BUS_SETUP_INTR(device_get_parent(dev), child, irq, flags,
-	    cbb_func_filt, cbb_func_intr, ih, &ih->cookie);
+	    filt ? cbb_func_filt : NULL, intr ? cbb_func_intr : NULL, ih,
+	    &ih->cookie);
 	if (err != 0) {
 		free(ih, M_DEVBUF);
 		return (err);
@@ -628,9 +629,7 @@ cbb_func_filt(void *arg)
 	 * nb: don't have to check for giant or not, since that's done in the
 	 * ISR dispatch and one can't hold Giant in a filter anyway...
 	 */
-	if (ih->filt != NULL)
-		return ((*ih->filt)(ih->arg));	
-	return (FILTER_SCHEDULE_THREAD);
+	return ((*ih->filt)(ih->arg));	
 }
 
 static void
