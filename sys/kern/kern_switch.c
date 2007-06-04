@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #endif
 
+#include <machine/cpu.h>
+
 /* Uncomment this to enable logging of critical_enter/exit. */
 #if 0
 #define	KTR_CRITICAL	KTR_SCHED
@@ -76,6 +78,49 @@ static int kern_sched_preemption = 0;
 #endif
 SYSCTL_INT(_kern_sched, OID_AUTO, preemption, CTLFLAG_RD,
     &kern_sched_preemption, 0, "Kernel preemption enabled");
+
+#ifdef SCHED_STATS
+long switch_preempt;
+long switch_owepreempt;
+long switch_turnstile;
+long switch_sleepq;
+long switch_sleepqtimo;
+long switch_relinquish;
+long switch_needresched;
+static SYSCTL_NODE(_kern_sched, OID_AUTO, stats, CTLFLAG_RW, 0, "switch stats");
+SYSCTL_INT(_kern_sched_stats, OID_AUTO, preempt, CTLFLAG_RD, &switch_preempt, 0, "");
+SYSCTL_INT(_kern_sched_stats, OID_AUTO, owepreempt, CTLFLAG_RD, &switch_owepreempt, 0, "");
+SYSCTL_INT(_kern_sched_stats, OID_AUTO, turnstile, CTLFLAG_RD, &switch_turnstile, 0, "");
+SYSCTL_INT(_kern_sched_stats, OID_AUTO, sleepq, CTLFLAG_RD, &switch_sleepq, 0, "");
+SYSCTL_INT(_kern_sched_stats, OID_AUTO, sleepqtimo, CTLFLAG_RD, &switch_sleepqtimo, 0, "");
+SYSCTL_INT(_kern_sched_stats, OID_AUTO, relinquish, CTLFLAG_RD, &switch_relinquish, 0, "");
+SYSCTL_INT(_kern_sched_stats, OID_AUTO, needresched, CTLFLAG_RD, &switch_needresched, 0, "");
+static int
+sysctl_stats_reset(SYSCTL_HANDLER_ARGS)
+{
+        int error;
+	int val;
+
+        val = 0;
+        error = sysctl_handle_int(oidp, &val, 0, req);
+        if (error != 0 || req->newptr == NULL)
+                return (error);
+        if (val == 0)
+                return (0);
+	switch_preempt = 0;
+	switch_owepreempt = 0;
+	switch_turnstile = 0;
+	switch_sleepq = 0;
+	switch_sleepqtimo = 0;
+	switch_relinquish = 0;
+	switch_needresched = 0;
+
+	return (0);
+}
+
+SYSCTL_PROC(_kern_sched_stats, OID_AUTO, reset, CTLTYPE_INT | CTLFLAG_WR, NULL,
+    0, sysctl_stats_reset, "I", "Reset scheduler statistics");
+#endif
 
 /************************************************************************
  * Functions that manipulate runnability from a thread perspective.	*
@@ -142,13 +187,13 @@ critical_exit(void)
 #ifdef PREEMPTION
 	if (td->td_critnest == 1) {
 		td->td_critnest = 0;
-		mtx_assert(&sched_lock, MA_NOTOWNED);
 		if (td->td_owepreempt) {
 			td->td_critnest = 1;
-			mtx_lock_spin(&sched_lock);
+			thread_lock(td);
 			td->td_critnest--;
+			SCHED_STAT_INC(switch_owepreempt);
 			mi_switch(SW_INVOL, NULL);
-			mtx_unlock_spin(&sched_lock);
+			thread_unlock(td);
 		}
 	} else
 #endif
@@ -173,7 +218,6 @@ maybe_preempt(struct thread *td)
 	int cpri, pri;
 #endif
 
-	mtx_assert(&sched_lock, MA_OWNED);
 #ifdef PREEMPTION
 	/*
 	 * The new thread should not preempt the current thread if any of the
@@ -199,6 +243,7 @@ maybe_preempt(struct thread *td)
 	 * to the new thread.
 	 */
 	ctd = curthread;
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT ((ctd->td_sched != NULL && ctd->td_sched->ts_thread == ctd),
 	  ("thread has no (or wrong) sched-private part."));
 	KASSERT((td->td_inhibitors == 0),
@@ -219,15 +264,25 @@ maybe_preempt(struct thread *td)
 		ctd->td_owepreempt = 1;
 		return (0);
 	}
-
 	/*
 	 * Thread is runnable but not yet put on system run queue.
 	 */
+	MPASS(ctd->td_lock == &sched_lock);
+	MPASS(td->td_lock == &sched_lock);
 	MPASS(TD_ON_RUNQ(td));
 	TD_SET_RUNNING(td);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
+	SCHED_STAT_INC(switch_preempt);
 	mi_switch(SW_INVOL|SW_PREEMPT, td);
+	/*
+	 * td's lock pointer may have changed.  We have to return with it
+	 * locked.
+	 */
+	spinlock_enter();
+	thread_unlock(ctd);
+	thread_lock(td);
+	spinlock_exit();
 	return (1);
 #else
 	return (0);
@@ -442,7 +497,6 @@ runq_choose(struct runq *rq)
 	struct td_sched *ts;
 	int pri;
 
-	mtx_assert(&sched_lock, MA_OWNED);
 	while ((pri = runq_findbit(rq)) != -1) {
 		rqh = &rq->rq_queues[pri];
 #if defined(SMP) && defined(SCHED_4BSD)
@@ -484,7 +538,6 @@ runq_choose_from(struct runq *rq, u_char idx)
 	struct td_sched *ts;
 	int pri;
 
-	mtx_assert(&sched_lock, MA_OWNED);
 	if ((pri = runq_findbit_from(rq, idx)) != -1) {
 		rqh = &rq->rq_queues[pri];
 		ts = TAILQ_FIRST(rqh);
@@ -519,9 +572,20 @@ runq_remove_idx(struct runq *rq, struct td_sched *ts, u_char *idx)
 	KASSERT(ts->ts_thread->td_proc->p_sflag & PS_INMEM,
 		("runq_remove_idx: process swapped out"));
 	pri = ts->ts_rqindex;
+	KASSERT(pri < RQ_NQS, ("runq_remove_idx: Invalid index %d\n", pri));
 	rqh = &rq->rq_queues[pri];
 	CTR5(KTR_RUNQ, "runq_remove_idx: td=%p, ts=%p pri=%d %d rqh=%p",
 	    ts->ts_thread, ts, ts->ts_thread->td_priority, pri, rqh);
+	{
+		struct td_sched *nts;
+
+		TAILQ_FOREACH(nts, rqh, ts_procq)
+			if (nts == ts)
+				break;
+		if (ts != nts)
+			panic("runq_remove_idx: ts %p not on rqindex %d",
+			    ts, pri);
+	}
 	TAILQ_REMOVE(rqh, ts, ts_procq);
 	if (TAILQ_EMPTY(rqh)) {
 		CTR0(KTR_RUNQ, "runq_remove_idx: empty");
@@ -586,20 +650,6 @@ sched_init_concurrency(struct proc *p)
  */
 void
 sched_set_concurrency(struct proc *p, int concurrency)
-{
-}
-
-/*
- * Called from thread_exit() for all exiting thread
- *
- * Not to be confused with sched_exit_thread()
- * that is only called from thread_exit() for threads exiting
- * without the rest of the process exiting because it is also called from
- * sched_exit() and we wouldn't want to call it twice.
- * XXX This can probably be fixed.
- */
-void
-sched_thread_exit(struct thread *td)
 {
 }
 

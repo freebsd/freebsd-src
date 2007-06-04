@@ -81,6 +81,7 @@ int	sched_runnable(void);
  */
 void	sched_exit(struct proc *p, struct thread *childtd);
 void	sched_fork(struct thread *td, struct thread *childtd);
+void	sched_fork_exit(struct thread *td);
 
 /*
  * KSE Groups contain scheduling priority information.  They record the
@@ -101,6 +102,7 @@ fixpt_t	sched_pctcpu(struct thread *td);
 void	sched_prio(struct thread *td, u_char prio);
 void	sched_sleep(struct thread *td);
 void	sched_switch(struct thread *td, struct thread *newtd, int flags);
+void	sched_throw(struct thread *td);
 void	sched_unlend_prio(struct thread *td, u_char prio);
 void	sched_unlend_user_prio(struct thread *td, u_char pri);
 void	sched_user_prio(struct thread *td, u_char prio);
@@ -155,6 +157,19 @@ sched_unpin(void)
 #define	SRQ_PREEMPTED	0x0008		/* has been preempted.. be kind */
 #define	SRQ_BORROWING	0x0010		/* Priority updated due to prio_lend */
 
+/* Switch stats. */
+#ifdef SCHED_STATS
+extern long switch_preempt;
+extern long switch_owepreempt;
+extern long switch_turnstile;
+extern long switch_sleepq;
+extern long switch_sleepqtimo;
+extern long switch_relinquish;
+extern long switch_needresched;
+#define SCHED_STAT_INC(var)     atomic_add_long(&(var), 1)
+#else
+#define SCHED_STAT_INC(var)
+#endif
 
 /* temporarily here */
 void schedinit(void);
@@ -162,7 +177,6 @@ void sched_init_concurrency(struct proc *p);
 void sched_set_concurrency(struct proc *p, int cuncurrency);
 void sched_schedinit(void);
 void sched_newproc(struct proc *p, struct thread *td);
-void sched_thread_exit(struct thread *td);
 void sched_newthread(struct thread *td);
 #endif /* _KERNEL */
 
