@@ -283,17 +283,30 @@ _find_processes()
 
 	_pref=
 	if [ $_interpreter != "." ]; then	# an interpreted script
-						# read interpreter name
-		read _interp < ${_chroot}${_chroot:+"/"}$_procname
-		_interp=${_interp#\#!}		# strip #!
-		set -- $_interp
-		case $1 in
-		*/bin/env)
-			shift			# drop env to get real name
-			;;
-		esac
-		if [ $_interpreter != $1 ]; then
-			warn "\$command_interpreter $_interpreter != $1"
+		_script=${_chroot}${_chroot:+"/"}$_procname
+		if [ -r $_script ]; then
+			read _interp < $_script	# read interpreter name
+			case "$_interp" in
+			\#!*)
+				_interp=${_interp#\#!}	# strip #!
+				set -- $_interp
+				case $1 in
+				*/bin/env)
+					shift	# drop env to get real name
+					;;
+				esac
+				if [ $_interpreter != $1 ]; then
+					warn "\$command_interpreter $_interpreter != $1"
+				fi
+				;;
+			*)
+				warn "no shebang line in $_script"
+				set -- $_interpreter
+				;;
+			esac
+		else
+			warn "cannot read shebang line from $_script"
+			set -- $_interpreter
 		fi
 		_interp="$* $_procname"		# cleanup spaces, add _procname
 		_interpbn=${1##*/}
