@@ -356,7 +356,7 @@ cpu_reset()
 }
 
 void
-cpu_switch(struct thread *old, struct thread *new)
+cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 {
 	struct pcb *oldpcb, *newpcb;
 
