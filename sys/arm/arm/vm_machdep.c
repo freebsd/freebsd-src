@@ -143,7 +143,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	tf->tf_r1 = 0;
 	pcb2->un_32.pcb32_sp = (u_int)sf;
 
-	/* Setup to release sched_lock in fork_exit(). */
+	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_cspr = 0;
 	td2->td_md.md_tp = *(uint32_t **)ARM_TP_ADDRESS;
@@ -288,7 +288,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
 	td->td_pcb->un_32.pcb32_und_sp = td->td_kstack + USPACE_UNDEF_STACK_TOP;
 
-	/* Setup to release sched_lock in fork_exit(). */
+	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
 	td->td_md.md_saved_cspr = 0;
 }

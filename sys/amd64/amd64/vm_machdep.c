@@ -170,7 +170,7 @@ cpu_fork(td1, p2, td2, flags)
 	 * pcb2->pcb_[fg]sbase:	cloned above
 	 */
 
-	/* Setup to release sched_lock in fork_exit(). */
+	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
 
@@ -304,7 +304,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * pcb2->pcb_[fg]sbase: cloned above
 	 */
 
-	/* Setup to release sched_lock in fork_exit(). */
+	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
 	td->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
 }
