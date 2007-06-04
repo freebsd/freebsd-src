@@ -364,12 +364,8 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	while (csa->csa_count != 0)
 		;
 
-	/* ok, now grab sched_lock and enter the scheduler */
-	mtx_lock_spin(&sched_lock);
-	spinlock_exit();
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
-	cpu_throw(NULL, choosethread());	/* doesn't return */
+	/* ok, now enter the scheduler */
+	sched_throw(NULL);
 }
 
 void
