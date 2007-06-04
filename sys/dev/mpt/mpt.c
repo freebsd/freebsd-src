@@ -2821,7 +2821,7 @@ mpt2host_config_page_raid_vol_0(CONFIG_PAGE_RAID_VOL_0 *volp)
 	MPT_2_HOST16(volp, VolumeStatus.Reserved);
 	MPT_2_HOST16(volp, VolumeSettings.Settings);
 	MPT_2_HOST32(volp, MaxLBA);
-	MPT_2_HOST32(volp, Reserved1);
+	MPT_2_HOST32(volp, MaxLBAHigh);
 	MPT_2_HOST32(volp, StripeSize);
 	MPT_2_HOST32(volp, Reserved2);
 	MPT_2_HOST32(volp, Reserved3);
