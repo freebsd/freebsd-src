@@ -219,7 +219,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 
 	hardfault = 0;
 	growstack = TRUE;
-	PCPU_LAZY_INC(cnt.v_vm_faults);
+	PCPU_INC(cnt.v_vm_faults);
 
 RetryFault:;
 
@@ -394,7 +394,7 @@ RetryFault:;
 				}
 				vm_object_pip_wakeup(fs.object);
 				VM_OBJECT_UNLOCK(fs.object);
-				PCPU_LAZY_INC(cnt.v_intrans);
+				PCPU_INC(cnt.v_intrans);
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
@@ -668,9 +668,9 @@ readrest:
 			if ((fs.m->flags & PG_ZERO) == 0) {
 				pmap_zero_page(fs.m);
 			} else {
-				PCPU_LAZY_INC(cnt.v_ozfod);
+				PCPU_INC(cnt.v_ozfod);
 			}
-			PCPU_LAZY_INC(cnt.v_zfod);
+			PCPU_INC(cnt.v_zfod);
 			fs.m->valid = VM_PAGE_BITS_ALL;
 			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
@@ -752,7 +752,7 @@ readrest:
 				vm_page_busy(fs.m);
 				fs.first_m = fs.m;
 				fs.m = NULL;
-				PCPU_LAZY_INC(cnt.v_cow_optim);
+				PCPU_INC(cnt.v_cow_optim);
 			} else {
 				/*
 				 * Oh, well, lets copy it.
@@ -780,7 +780,7 @@ readrest:
 			fs.m = fs.first_m;
 			if (!is_first_object_locked)
 				VM_OBJECT_LOCK(fs.object);
-			PCPU_LAZY_INC(cnt.v_cow_faults);
+			PCPU_INC(cnt.v_cow_faults);
 		} else {
 			prot &= ~VM_PROT_WRITE;
 		}

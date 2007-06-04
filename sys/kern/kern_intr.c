@@ -931,7 +931,7 @@ swi_sched(void *cookie, int flags)
 	atomic_store_rel_int(&ih->ih_need, 1);
 
 	if (!(flags & SWI_DELAY)) {
-		PCPU_LAZY_INC(cnt.v_soft);
+		PCPU_INC(cnt.v_soft);
 #ifdef INTR_FILTER
 		error = intr_event_schedule_thread(ie, ie->ie_thread);
 #else

@@ -64,7 +64,7 @@ ia32_syscall(struct trapframe *tf)
 	int error, i, narg;
 	ksiginfo_t ksi;
 
-	PCPU_LAZY_INC(cnt.v_syscall);
+	PCPU_INC(cnt.v_syscall);
 
 	td = curthread;
 	params = (caddr_t)(tf->tf_special.sp & ((1L<<32)-1)) +
@@ -220,7 +220,7 @@ ia32_trap(int vector, struct trapframe *tf)
 	KASSERT(TRAPF_USERMODE(tf), ("%s: In kernel mode???", __func__));
 
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
-	PCPU_LAZY_INC(cnt.v_trap);
+	PCPU_INC(cnt.v_trap);
 
 	td = curthread;
 	td->td_frame = tf;
