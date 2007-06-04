@@ -99,7 +99,7 @@ sysctl_hw_snd_sndstat_pid(SYSCTL_HANDLER_ARGS)
 	mtx_lock(&sndstat_lock);
 	val = (int)SNDSTAT_PID(sndstat_dev);
 	mtx_unlock(&sndstat_lock);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err == 0 && req->newptr != NULL && val == 0) {
 		mtx_lock(&sndstat_lock);
 		SNDSTAT_FLUSH();
@@ -120,7 +120,7 @@ sysctl_hw_sndverbose(SYSCTL_HANDLER_ARGS)
 	int error, verbose;
 
 	verbose = snd_verbose;
-	error = sysctl_handle_int(oidp, &verbose, sizeof(verbose), req);
+	error = sysctl_handle_int(oidp, &verbose, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		mtx_lock(&sndstat_lock);
 		if (verbose < 0 || verbose > 4)

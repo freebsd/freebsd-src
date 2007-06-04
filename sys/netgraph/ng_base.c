@@ -3299,7 +3299,7 @@ sysctl_debug_ng_dump_items(SYSCTL_HANDLER_ARGS)
 
 	val = allocated;
 	i = 1;
-	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (val == 42) {

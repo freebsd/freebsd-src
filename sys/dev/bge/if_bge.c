@@ -4426,7 +4426,7 @@ bge_sysctl_stats(SYSCTL_HANDLER_ARGS)
 		base = BGE_MEMWIN_START + BGE_STATS_BLOCK;
 	result = CSR_READ_4(sc, base + offset + offsetof(bge_hostaddr,
 	    bge_addr_lo));
-	return (sysctl_handle_int(oidp, &result, sizeof(result), req));
+	return (sysctl_handle_int(oidp, &result, 0, req));
 }
 
 #ifdef BGE_REGISTER_DEBUG

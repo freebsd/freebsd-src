@@ -165,7 +165,7 @@ sysctl_via8233_spdif_enable(SYSCTL_HANDLER_ARGS)
 	r = pci_read_config(dev, VIA_PCI_SPDIF, 1);
 	snd_mtxunlock(via->lock);
 	new_en = (r & VIA_SPDIF_EN) ? 1 : 0;
-	err = sysctl_handle_int(oidp, &new_en, sizeof(new_en), req);
+	err = sysctl_handle_int(oidp, &new_en, 0, req);
 
 	if (err || req->newptr == NULL)
 		return (err);
@@ -195,7 +195,7 @@ sysctl_via8233_dxs_src(SYSCTL_HANDLER_ARGS)
 	snd_mtxlock(via->lock);
 	val = via->dxs_src;
 	snd_mtxunlock(via->lock);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err || req->newptr == NULL)
 		return (err);
@@ -223,7 +223,7 @@ sysctl_via_polling(SYSCTL_HANDLER_ARGS)
 	snd_mtxlock(via->lock);
 	val = via->polling;
 	snd_mtxunlock(via->lock);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err || req->newptr == NULL)
 		return (err);

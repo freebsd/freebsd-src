@@ -130,7 +130,7 @@ sysctl_hw_snd_feeder_rate_min(SYSCTL_HANDLER_ARGS)
 	int err, val;
 
 	val = feeder_rate_min;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return (err);
 	if (RATE_FACTOR_SAFE(val) && val < feeder_rate_max)
@@ -149,7 +149,7 @@ sysctl_hw_snd_feeder_rate_max(SYSCTL_HANDLER_ARGS)
 	int err, val;
 
 	val = feeder_rate_max;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return (err);
 	if (RATE_FACTOR_SAFE(val) && val > feeder_rate_min)
@@ -168,7 +168,7 @@ sysctl_hw_snd_feeder_rate_round(SYSCTL_HANDLER_ARGS)
 	int err, val;
 
 	val = feeder_rate_round;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return (err);
 	if (val < FEEDRATE_ROUNDHZ_MIN || val > FEEDRATE_ROUNDHZ_MAX)

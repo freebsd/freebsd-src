@@ -72,7 +72,7 @@ bluetooth_set_hci_command_timeout_value(SYSCTL_HANDLER_ARGS)
 	int		error;
 
 	value = bluetooth_hci_command_timeout_value;
-	error = sysctl_handle_int(oidp, &value, sizeof(value), req);
+	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		if (value > 0)
 			bluetooth_hci_command_timeout_value = value;
@@ -96,7 +96,7 @@ bluetooth_set_hci_connect_timeout_value(SYSCTL_HANDLER_ARGS)
 	int		error;
 
 	value = bluetooth_hci_connect_timeout_value;
-	error = sysctl_handle_int(oidp, &value, sizeof(value), req);
+	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		if (0 < value && value <= bluetooth_l2cap_rtx_timeout_value)
 			bluetooth_hci_connect_timeout_value = value;
@@ -131,7 +131,7 @@ bluetooth_set_l2cap_rtx_timeout_value(SYSCTL_HANDLER_ARGS)
 	int		error;
 
 	value = bluetooth_l2cap_rtx_timeout_value;
-	error = sysctl_handle_int(oidp, &value, sizeof(value), req);
+	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		if (bluetooth_hci_connect_timeout_value <= value &&
 		    value <= bluetooth_l2cap_ertx_timeout_value)
@@ -156,7 +156,7 @@ bluetooth_set_l2cap_ertx_timeout_value(SYSCTL_HANDLER_ARGS)
 	int		error;
 
 	value = bluetooth_l2cap_ertx_timeout_value;
-	error = sysctl_handle_int(oidp, &value, sizeof(value), req);
+	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		if (value >= bluetooth_l2cap_rtx_timeout_value)
 			bluetooth_l2cap_ertx_timeout_value = value;

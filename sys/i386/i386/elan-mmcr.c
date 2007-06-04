@@ -313,7 +313,7 @@ sysctl_machdep_elan_freq(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	f = elan_timecounter.tc_frequency * 4;
-	error = sysctl_handle_int(oidp, &f, sizeof(f), req);
+	error = sysctl_handle_int(oidp, &f, 0, req);
 	if (error == 0 && req->newptr != NULL) 
 		elan_timecounter.tc_frequency = (f + 3) / 4;
 	return (error);

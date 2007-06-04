@@ -1375,7 +1375,7 @@ sysctl_es137x_spdif_enable(SYSCTL_HANDLER_ARGS)
 	r = es_rd(es, ES1370_REG_STATUS, 4);
 	ES_UNLOCK(es);
 	new_en = (r & ENABLE_SPDIF) ? 1 : 0;
-	err = sysctl_handle_int(oidp, &new_en, sizeof(new_en), req);
+	err = sysctl_handle_int(oidp, &new_en, 0, req);
 
 	if (err || req->newptr == NULL)
 		return (err);
@@ -1412,7 +1412,7 @@ sysctl_es137x_latency_timer(SYSCTL_HANDLER_ARGS)
 	ES_LOCK(es);
 	val = pci_read_config(dev, PCIR_LATTIMER, 1);
 	ES_UNLOCK(es);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err || req->newptr == NULL)
 		return (err);
@@ -1441,7 +1441,7 @@ sysctl_es137x_fixed_rate(SYSCTL_HANDLER_ARGS)
 	if (val < es_caps.minspeed)
 		val = 0;
 	ES_UNLOCK(es);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err || req->newptr == NULL)
 		return (err);
@@ -1496,7 +1496,7 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 	set = ES_SINGLE_PCM_MIX(es->escfg);
 	val = set;
 	ES_UNLOCK(es);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err || req->newptr == NULL)
 		return (err);
@@ -1571,7 +1571,7 @@ sysctl_es_polling(SYSCTL_HANDLER_ARGS)
 	ES_LOCK(es);
 	val = es->polling;
 	ES_UNLOCK(es);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err || req->newptr == NULL)
 		return (err);

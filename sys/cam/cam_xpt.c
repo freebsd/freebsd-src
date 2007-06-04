@@ -6352,7 +6352,7 @@ sysctl_cam_search_luns(SYSCTL_HANDLER_ARGS)
 	int error, bool;
 
 	bool = cam_srch_hi;
-	error = sysctl_handle_int(oidp, &bool, sizeof(bool), req);
+	error = sysctl_handle_int(oidp, &bool, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (bool == 0 || bool == 1) {
