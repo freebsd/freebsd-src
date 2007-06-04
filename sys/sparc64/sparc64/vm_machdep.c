@@ -171,7 +171,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb->pcb_pc = (u_long)fork_trampoline - 8;
 	pcb->pcb_sp = (u_long)fr - SPOFF;
 
-	/* Setup to release sched_lock in fork_exit(). */
+	/* Setup to release the spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
 	td->td_md.md_saved_pil = 0;
 }
@@ -298,7 +298,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	pcb2->pcb_sp = (u_long)fp - SPOFF;
 	pcb2->pcb_pc = (u_long)fork_trampoline - 8;
 
-	/* Setup to release sched_lock in fork_exit(). */
+	/* Setup to release the spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_pil = 0;
 

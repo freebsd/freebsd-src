@@ -47,7 +47,7 @@
  * Locking key:
  *      b - created at fork, never changes
  *      c - locked by proc mtx
- *      j - locked by sched_lock mtx
+ *      j - locked by proc slock
  *      k - only accessed by curthread
  */
 struct pstats {
