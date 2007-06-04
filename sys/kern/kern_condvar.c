@@ -394,8 +394,8 @@ cv_signal(struct cv *cvp)
 	if (cvp->cv_waiters > 0) {
 		cvp->cv_waiters--;
 		sleepq_signal(cvp, SLEEPQ_CONDVAR, -1, 0);
-	} else
-		sleepq_release(cvp);
+	}
+	sleepq_release(cvp);
 }
 
 /*
