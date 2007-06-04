@@ -115,8 +115,8 @@
                   Number of buffers.
   -B  ........  --auto-buffers
                   Don't automatically allocate buffers for pipes.
-  -c  -C  ....  --clear-screen  --CLEAR-SCREEN
-                  Repaint by scrolling/clearing.
+  -c  ........  --clear-screen
+                  Repaint by clearing rather than scrolling.
   -d  ........  --dumb
                   Dumb terminal.
   -D [_x_n_._n]  .  --color=_x_n_._n
@@ -148,7 +148,7 @@
   -m  -M  ....  --long-prompt  --LONG-PROMPT
                   Set prompt style.
   -n  -N  ....  --line-numbers  --LINE-NUMBERS
-                  Use line numbers.
+                  Don't use line numbers.
   -o [_f_i_l_e]  .  --log-file=[_f_i_l_e]
                   Copy to log file (standard input only).
   -O [_f_i_l_e]  .  --LOG-FILE=[_f_i_l_e]
@@ -217,4 +217,5 @@
  TAB                                        Complete filename & cycle.
  SHIFT-TAB                        ESC-TAB   Complete filename & reverse cycle.
  CNTL-L                                     Complete filename, list all.
+
 

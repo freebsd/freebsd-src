@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2005  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -68,22 +68,23 @@ struct mlist
 	struct mlist *prev;
 	struct mlist *curr_mp;
 	char *string;
+	int modified;
 };
 
 /*
  * These are the various command histories that exist.
  */
 struct mlist mlist_search =  
-	{ &mlist_search,  &mlist_search,  &mlist_search,  NULL };
+	{ &mlist_search,  &mlist_search,  &mlist_search,  NULL, 0 };
 public void * constant ml_search = (void *) &mlist_search;
 
 struct mlist mlist_examine = 
-	{ &mlist_examine, &mlist_examine, &mlist_examine, NULL };
+	{ &mlist_examine, &mlist_examine, &mlist_examine, NULL, 0 };
 public void * constant ml_examine = (void *) &mlist_examine;
 
 #if SHELL_ESCAPE || PIPEC
 struct mlist mlist_shell =   
-	{ &mlist_shell,   &mlist_shell,   &mlist_shell,   NULL };
+	{ &mlist_shell,   &mlist_shell,   &mlist_shell,   NULL, 0 };
 public void * constant ml_shell = (void *) &mlist_shell;
 #endif
 
@@ -124,12 +125,11 @@ cmd_reset()
 }
 
 /*
- * Clear command line on display.
+ * Clear command line.
  */
 	public void
 clear_cmd()
 {
-	clear_bot();
 	cmd_col = prompt_col = 0;
 	cmd_mbc_buf_len = 0;
 }
@@ -767,6 +767,7 @@ cmd_accept()
 	if (curr_mlist == NULL)
 		return;
 	cmd_addhist(curr_mlist, cmdbuf);
+	curr_mlist->modified = 1;
 #endif
 }
 
@@ -1275,13 +1276,21 @@ cmd_char(c)
  * Return the number currently in the command buffer.
  */
 	public LINENUM
-cmd_int()
+cmd_int(frac)
+	long *frac;
 {
-	register char *p;
+	char *p;
 	LINENUM n = 0;
+	int err;
 
-	for (p = cmdbuf;  *p != '\0';  p++)
-		n = (10 * n) + (*p - '0');
+	for (p = cmdbuf;  *p >= '0' && *p <= '9';  p++)
+		n = (n * 10) + (*p - '0');
+	*frac = 0;
+	if (*p++ == '.')
+	{
+		*frac = getfraction(&p, NULL, &err);
+		/* {{ do something if err is set? }} */
+	}
 	return (n);
 }
 
@@ -1292,6 +1301,17 @@ cmd_int()
 get_cmdbuf()
 {
 	return (cmdbuf);
+}
+
+/*
+ * Return the last (most recent) string in the current command history.
+ */
+	public char *
+cmd_lastpattern()
+{
+	if (curr_mlist == NULL)
+		return (NULL);
+	return (curr_mlist->curr_mp->prev->string);
 }
 
 #if CMD_HISTORY
@@ -1309,7 +1329,7 @@ histfile_name()
 	name = lgetenv("LESSHISTFILE");
 	if (name != NULL && *name != '\0')
 	{
-		if (strcmp(name, "-") == 0)
+		if (strcmp(name, "-") == 0 || strcmp(name, "/dev/null") == 0)
 			/* $LESSHISTFILE == "-" means don't use a history file. */
 			return (NULL);
 		return (save(name));
@@ -1427,6 +1447,8 @@ save_cmdhist()
 
 	filename = histfile_name();
 	if (filename == NULL)
+		return;
+	if (!mlist_search.modified && !mlist_shell.modified)
 		return;
 	f = fopen(filename, "w");
 	free(filename);
