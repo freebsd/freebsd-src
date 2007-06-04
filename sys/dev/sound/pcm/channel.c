@@ -70,7 +70,7 @@ sysctl_hw_snd_latency(SYSCTL_HANDLER_ARGS)
 	int err, val;
 
 	val = chn_latency;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return err;
 	if (val < CHN_LATENCY_MIN || val > CHN_LATENCY_MAX)
@@ -93,7 +93,7 @@ sysctl_hw_snd_latency_profile(SYSCTL_HANDLER_ARGS)
 	int err, val;
 
 	val = chn_latency_profile;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return err;
 	if (val < CHN_LATENCY_PROFILE_MIN || val > CHN_LATENCY_PROFILE_MAX)
@@ -116,7 +116,7 @@ sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
 	int err, val;
 
 	val = chn_timeout;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return err;
 	if (val < CHN_TIMEOUT_MIN || val > CHN_TIMEOUT_MAX)

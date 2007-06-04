@@ -5723,7 +5723,7 @@ sysctl_hdac_polling(SYSCTL_HANDLER_ARGS)
 	hdac_lock(sc);
 	val = sc->polling;
 	hdac_unlock(sc);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err != 0 || req->newptr == NULL)
 		return (err);
@@ -5782,7 +5782,7 @@ sysctl_hdac_polling_interval(SYSCTL_HANDLER_ARGS)
 	hdac_lock(sc);
 	val = ((uint64_t)sc->poll_ival * 1000) / hz;
 	hdac_unlock(sc);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err != 0 || req->newptr == NULL)
 		return (err);
@@ -5822,7 +5822,7 @@ sysctl_hdac_dump(SYSCTL_HANDLER_ARGS)
 	    devinfo->codec->sc == NULL)
 		return (EINVAL);
 	val = 0;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL || val == 0)
 		return (err);
 	sc = devinfo->codec->sc;

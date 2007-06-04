@@ -148,7 +148,7 @@ sysctl_hw_snd_timestamp_precision(SYSCTL_HANDLER_ARGS)
 	int err, val;
 
 	val = snd_timestamp_precision;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err == 0 && req->newptr != NULL) {
 		switch (val) {
 		case SND_TSP_SEC:

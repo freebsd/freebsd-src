@@ -45,7 +45,7 @@ sysctl_hw_snd_feeder_buffersize(SYSCTL_HANDLER_ARGS)
 	int i, err, val;
 
 	val = feeder_buffersize;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err != 0 || req->newptr == NULL)
 		return err;

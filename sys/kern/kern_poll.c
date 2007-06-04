@@ -113,7 +113,7 @@ static int poll_burst_max_sysctl(SYSCTL_HANDLER_ARGS)
 	uint32_t val = poll_burst_max;
 	int error;
 
-	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr )
 		return (error);
 	if (val < MIN_POLL_BURST_MAX || val > MAX_POLL_BURST_MAX)
@@ -137,7 +137,7 @@ static int poll_each_burst_sysctl(SYSCTL_HANDLER_ARGS)
 	uint32_t val = poll_each_burst;
 	int error;
 
-	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr )
 		return (error);
 	if (val < 1)
@@ -167,7 +167,7 @@ static int user_frac_sysctl(SYSCTL_HANDLER_ARGS)
 	uint32_t val = user_frac;
 	int error;
 
-	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr )
 		return (error);
 	if (val < 0 || val > 99)
@@ -190,7 +190,7 @@ static int reg_frac_sysctl(SYSCTL_HANDLER_ARGS)
 	uint32_t val = reg_frac;
 	int error;
 
-	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr )
 		return (error);
 	if (val < 1 || val > hz)
@@ -535,7 +535,7 @@ poll_switch(SYSCTL_HANDLER_ARGS)
 	int error;
 	int val = polling;
 
-	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr )
 		return (error);
 

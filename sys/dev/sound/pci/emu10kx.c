@@ -1449,7 +1449,7 @@ sysctl_emu_mixer_control(SYSCTL_HANDLER_ARGS)
 	mixer_id = arg2;
 
 	new_vol = emumix_get_volume(sc, mixer_id);
-	err = sysctl_handle_int(oidp, &new_vol, sizeof(new_vol), req);
+	err = sysctl_handle_int(oidp, &new_vol, 0, req);
 
 	if (err || req->newptr == NULL)
 		return (err);

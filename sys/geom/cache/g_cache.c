@@ -66,7 +66,7 @@ sysctl_handle_pct(SYSCTL_HANDLER_ARGS)
 	u_int val = *(u_int *)arg1;
 	int error;
 
-	error = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr)
 		return (error);
 	if (val < 0 || val > 100)

@@ -130,7 +130,7 @@ sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
 		new = tcptw_auto_size();
 	else
 		new = maxtcptw;
-	error = sysctl_handle_int(oidp, &new, sizeof(int), req);
+	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr)
 		if (new >= 32) {
 			maxtcptw = new;

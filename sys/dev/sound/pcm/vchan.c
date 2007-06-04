@@ -577,7 +577,7 @@ sysctl_hw_snd_vchanrate(SYSCTL_HANDLER_ARGS)
 		pcm_inprog(d, -1);
 		return (EINVAL);
 	}
-	err = sysctl_handle_int(oidp, &newspd, sizeof(newspd), req);
+	err = sysctl_handle_int(oidp, &newspd, 0, req);
 	if (err == 0 && req->newptr != NULL) {
 		if (newspd < 1 || newspd < feeder_rate_min ||
 		    newspd > feeder_rate_max) {

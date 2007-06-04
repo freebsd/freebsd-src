@@ -957,7 +957,7 @@ sysctl_atiixp_polling(SYSCTL_HANDLER_ARGS)
 	atiixp_lock(sc);
 	val = sc->polling;
 	atiixp_unlock(sc);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err || req->newptr == NULL)
 		return (err);
