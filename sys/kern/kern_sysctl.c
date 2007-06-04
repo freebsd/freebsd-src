@@ -892,6 +892,31 @@ sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 }
 
 /*
+ * Handle a 64 bit int, signed or unsigned.  arg1 points to it.
+ */
+
+int
+sysctl_handle_quad(SYSCTL_HANDLER_ARGS)
+{
+	int error = 0;
+	uint64_t tmpout;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (!arg1)
+		return (EINVAL);
+	tmpout = *(uint64_t *)arg1;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(uint64_t));
+
+	if (error || !req->newptr)
+		return (error);
+
+	error = SYSCTL_IN(req, arg1, sizeof(uint64_t));
+	return (error);
+}
+
+/*
  * Handle our generic '\0' terminated 'C' string.
  * Two cases:
  * 	a variable string:  point arg1 at it, arg2 is max length.
