@@ -213,9 +213,9 @@ _sleep(ident, lock, priority, wmesg, timo)
 	 */
 	pri = priority & PRIMASK;
 	if (pri != 0 && pri != td->td_priority) {
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		sched_prio(td, pri);
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 	}
 
 	if (timo && catch)
@@ -362,6 +362,7 @@ wakeup_one(ident)
 
 	sleepq_lock(ident);
 	sleepq_signal(ident, SLEEPQ_SLEEP, -1, 0);
+	sleepq_release(ident);
 }
 
 /*
@@ -374,8 +375,8 @@ mi_switch(int flags, struct thread *newtd)
 	struct thread *td;
 	struct proc *p;
 
-	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	td = curthread;			/* XXX */
+	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
 	p = td->td_proc;		/* XXX */
 	KASSERT(!TD_ON_RUNQ(td), ("mi_switch: called by old code"));
 #ifdef INVARIANTS
@@ -394,12 +395,11 @@ mi_switch(int flags, struct thread *newtd)
 	 * Don't perform context switches from the debugger.
 	 */
 	if (kdb_active) {
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 		kdb_backtrace();
 		kdb_reenter();
 		panic("%s: did not reenter debugger", __func__);
 	}
-
 	if (flags & SW_VOL)
 		td->td_ru.ru_nvcsw++;
 	else
@@ -466,7 +466,7 @@ setrunnable(struct thread *td)
 	struct proc *p;
 
 	p = td->td_proc;
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	switch (p->p_state) {
 	case PRS_ZOMBIE:
 		panic("setrunnable(1)");
@@ -495,7 +495,7 @@ setrunnable(struct thread *td)
 		if ((p->p_sflag & PS_SWAPPINGIN) == 0) {
 			p->p_sflag |= PS_SWAPINREQ;
 			/*
-			 * due to a LOR between sched_lock and
+			 * due to a LOR between the thread lock and
 			 * the sleepqueue chain locks, use
 			 * lower level scheduling functions.
 			 */
