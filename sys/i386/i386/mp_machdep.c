@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
@@ -642,25 +643,8 @@ init_secondary(void)
 	while (smp_started == 0)
 		ia32_pause();
 
-	/* ok, now grab sched_lock and enter the scheduler */
-	mtx_lock_spin(&sched_lock);
-
-	/*
-	 * Correct spinlock nesting.  The idle thread context that we are
-	 * borrowing was created so that it would start out with a single
-	 * spin lock (sched_lock) held in fork_trampoline().  Since we've
-	 * explicitly acquired locks in this function, the nesting count
-	 * is now 2 rather than 1.  Since we are nested, calling
-	 * spinlock_exit() will simply adjust the counts without allowing
-	 * spin lock using code to interrupt us.
-	 */
-	spinlock_exit();
-	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
-
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
-
-	cpu_throw(NULL, choosethread());	/* doesn't return */
+	/* enter the scheduler */
+	sched_throw(NULL);
 
 	panic("scheduler returned us to %s", __func__);
 	/* NOTREACHED */
@@ -1194,12 +1178,12 @@ ipi_bitmap_handler(struct trapframe frame)
 #ifdef COUNT_IPIS
 		(*ipi_preempt_counts[cpu])++;
 #endif
-		mtx_lock_spin(&sched_lock);
+		thread_lock(running_thread);
 		if (running_thread->td_critnest > 1) 
 			running_thread->td_owepreempt = 1;
 		else 		
 			mi_switch(SW_INVOL | SW_PREEMPT, NULL);
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(running_thread);
 	}
 
 	if (ipi_bitmap & (1 << IPI_AST)) {
