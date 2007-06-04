@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_irc_pxy.c,v 2.39.2.5 2005/12/04 23:39:27 darrenr Exp $
+ * $Id: ip_irc_pxy.c,v 2.39.2.6 2006/07/14 06:12:14 darrenr Exp $
  */
 
 #define	IPF_IRC_PROXY
@@ -415,7 +415,7 @@ nat_t *nat;
 
 			(void) fr_addstate(&fi, NULL, SI_W_DPORT);
 			if (fi.fin_state != NULL)
-				fr_statederef(&fi, (ipstate_t **)&fi.fin_state);
+				fr_statederef((ipstate_t **)&fi.fin_state);
 		}
 		ip->ip_src = swip;
 	}

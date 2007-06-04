@@ -30,15 +30,15 @@ ptests: i1 i2 i3 i4 i5 i6 i7 i8 i9 i10 i11 i12 i13 i14 i15 i16 i17 i18 i19 \
 ntests: n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14
 
 nitests: ni1 ni2 ni3 ni4 ni5 ni6 ni7 ni8 ni9 ni10 ni11 ni12 ni13 ni14 ni15 \
-	ni16 ni19 ni20 ni21
+	ni16 ni19 ni20 ni21 ni23
 
 intests: in1 in2 in3 in4 in5 in6
 
 logtests: l1
 
-pools: p1 p2 p3 ip1
+pools: p1 p2 p3 p5 ip1 ip2
 
-ipv6: ipv6.1 ipv6.2 ipv6.3
+ipv6: ipv6.1 ipv6.2 ipv6.3 ipv6.5
 
 bpf: bpf1 bpf-f1
 
@@ -54,10 +54,10 @@ i1 i2 i3 i4 i5 i6 i7 i8 i9 i10 i11 i12 i13 i14 i15 i16 i17 i18 i19 i20 i21 bpf1:
 n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14:
 	@/bin/sh ./nattest `awk "/^$@ / { print; } " test.format`
 
-ni1 ni2 ni3 ni4 ni5 ni7 ni8 ni9 ni10 ni11 ni12 ni13 ni14 ni15 ni16 ni19 ni20:
+ni2 ni3 ni4 ni5 ni7 ni8 ni9 ni10 ni11 ni12 ni13 ni14 ni15 ni16 ni19 ni20:
 	@/bin/sh ./natipftest single `awk "/^$@ / { print; } " test.format`
 
-ni6 ni21:
+ni1 ni6 ni21 ni23:
 	@/bin/sh ./natipftest multi `awk "/^$@ / { print; } " test.format`
 
 in1 in2 in3 in4 in5 in6:
@@ -66,13 +66,13 @@ in1 in2 in3 in4 in5 in6:
 l1:
 	@/bin/sh ./logtest `awk "/^$@ / { print; } " test.format`
 
-ipv6.1 ipv6.2 ipv6.3:
+ipv6.1 ipv6.2 ipv6.3 ipv6.5:
 	@/bin/sh ./dotest6 `awk "/^$@ / { print; } " test.format`
 
-p1 p2 p3:
+p1 p2 p3 p5:
 	@/bin/sh ./ptest `awk "/^$@ / { print; } " test.format`
 
-ip1:
+ip1 ip2:
 	@/bin/sh ./iptest `awk "/^$@ / { print; } " test.format`
 
 bpf-f1:
@@ -83,11 +83,11 @@ clean:
 	/bin/rm -f i1 i2 i3 i4 i5 i6 i7 i8 i9 i10 i11 i12 i13 i14 i15 i16 i17 i18 i19 i20 i21
 	/bin/rm -f n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14
 	/bin/rm -f ni1 ni2 ni3 ni4 ni5 ni6 ni7 ni8 ni9
-	/bin/rm -f ni10 ni11 ni12 ni13 ni14 ni15 ni16 ni19 ni20 ni21
+	/bin/rm -f ni10 ni11 ni12 ni13 ni14 ni15 ni16 ni19 ni20 ni21 ni23
 	/bin/rm -f in1 in2 in3 in4 in5 in6
-	/bin/rm -f p1 p2 p3 ip1
+	/bin/rm -f p1 p2 p3 p5 ip1 ip2
 	/bin/rm -f l1
-	/bin/rm -f ipv6.1 ipv6.2 ipv6.3
+	/bin/rm -f ipv6.1 ipv6.2 ipv6.3 ipv6.5
 	/bin/rm -f bpf1 bpf-f1
 	/bin/rm -f results/* logout
 

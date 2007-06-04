@@ -10,6 +10,168 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+4.1.23 - Released 31 May 2007
+
+NAT was not always correctly fixing ICMP headers for errors
+
+some TCP state steps when closing do not update timeouts, leading to
+them being removed prematurely.
+
+fix compilation problems for netbsd 4.99
+
+protect enumeration of lists in the kernel from callout interrupts on
+BSD without locking
+
+fix various problems with IPv6 header checks: TCP/UDP checksum validation
+was not being done, fragmentation header parsed dangerously and routing
+header prevented others from being seen
+
+fix gcc 4.2 compiler warnings
+
+fix TCP/UDP checksum calculation for IPv6
+
+fix reference after free'ing ipftoken memory
+
+4.1.22 - Released 13 May 2007
+
+fix endless loop when flushing state/NAT by idle time
+
+4.1.21 - Released 12 May 2007
+
+show the number of states created against a rule with "-v" for ipfstat
+
+fix build problems with FreeBSD
+
+make it possible to flush the state table by idle time and TCP state
+
+fix flushing out idle connections when state/NAT tables fill
+
+print out the TCP state population with ipfstat/ipnat
+
+stop creation of state table orphans via return-*/fastroute
+
+fix printing out of rule groups - they now only appear once
+
+4.1.20 - Released 30 April 2007
+
+adjust TCP state numbers, making 11 closed (was 0) to better facilitate
+detecting closing connections that we can wipe out when a SYN arrives
+that matches the old
+
+make it compile on Solaris10 Update3
+
+structures used for ipf command ioctls weren't being freed in timeout
+fashion on solairs
+
+use NL_EXPIRE, not ISL_EXPIRE, for expiring NAT sessions
+
+adjust TCP timeout values and introduce a time-wait specifc timeout
+to get a better TCP FSM emulation and one that can hopefully do a better
+job of cleaning up in a speedy fashion than previous
+
+refactor the automatic flushing of TCP state entries when we fill up,
+but use the same algorithm as before but now it hopefully works
+
+only 2 out of 4 interface names were being changed by ipfs when
+interface renaming was being used for state entries
+
+add ipf_proxy_debug to ipf-T
+
+matching of last fragments that had a number of bytes that wasn't a
+multiple of 8 failed
+
+some combinations of TCP flags are considered bad aren't picked up as such,
+but these may be possible with T/TCP
+
+4.1.19 - Released 22 February 2007
+
+Fix up compilation problems with NetBSD and Solaris.
+
+4.1.18 - Released 18 February 2007
+
+fix compiling on Tru64
+
+fix listing out filter rules with ipfstat (delete token at end of
+the list and detect zero rule being returned.)
+
+fix extended flushing of NAT tables (was clearing out state tables)
+
+fix null-pointer deref in hash table lookup
+
+fix NAT and stateful filtering with to/reply-to on destination interface
+
+4.1.17 - Released 20 January 2007
+
+make flushing pools that are still in use mark them for deletion and
+have attempting to recreate them clear the delete flag
+
+walking through the NAT tables with ioctls caused lock recursion
+
+fix tracking TCP window scaling in the state code
+
+4.1.16 - Released 20 December 2006
+
+allow rdr rules to only differ on the new port number
+
+when creating state entry orphans, leave them on the linked list but not
+attached to the hash table and mark them visible as orphans in "ipfstat -sl"
+
+log state removed when unloading differently to allow visible cues
+
+return ipf ticks via SIOCGETGS for /dev/ipnat so "ipnat -l" can display ttl
+
+abort logging a packet if the mbuf pointer is null when ipflog is called
+
+Some NetBSD's have a selinfo.h instead of select.h
+
+SIOCIPFFL was using copyoutptr and should have been using bcopy for /dev/ipauth
+
+listing accounting rules using ioctl interface wasn't possible
+
+fix leakage of state entries due to packets not matching up with NAT
+
+improve ICMP error packet matching with state/NAT
+
+fix problems with parsing and printing "-" as an interface name in ipnat.conf
+
+4.1.15 - Released 03 November 2006
+
+Add in automatic flushing of NAT, like state, table if it fills up too much
+
+Update comments in the code for NAT checksum adjustments
+
+Fix compiling on FreeBSD 5.4 and 6.0
+
+prevent panics from read/write IOs trying to use uninitialised structures
+
+Newer NetBSD should use malloc() instead of MALLOC() in the kernel where
+the size is not staticly defined
+
+Some gcc warning message cleanup from NetBSD
+
+Missing include for <sys/filio.h> on Solaris for poll work
+
+NetBSD now uses opt_ipfilter.h, not opt_ipfilter_log.h
+
+4.1.14 - Released 04 October 2006
+
+rewrite checksum alteration for ICMP packets being NAT'd to use a sane
+algorithm that can be understood...now it needs better comments
+
+fix 1 byte error in checksum validation perl script
+
+remove unused files in lib directory
+
+ipftest will say "bad-packet" if it has been freed rather than just "blocked"
+
+make it possible to load IP address pools from external files in ippool.conf
+
+update copyright messages in tools directory
+
+consolidate ioctl hanlding source code into fil.c
+
+make ipfstat, ippool, ipnat retrieve information via ioctls rather than /dev/kmem
+
 4.1.13 - Released 4 April 2006
 
 fix bug where null pointers introduced by proxies could cause a crash
@@ -39,6 +201,7 @@ add missing ipfsync_canread() and ipfsync_canwrite()
 behaviour of \ on the end of a line in ipf.conf does not match older behaviour
 
 remove duplicate statistics line output with "ipfstat -s"
+
 4.1.11 - Released 19 March 2006
 
 Patch for NAT with ipfsync from N. Ersen (SESCI) - www.enderunix.org
