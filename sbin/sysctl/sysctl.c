@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -541,7 +542,15 @@ show_var(int *oid, int nlen)
 	u_char buf[BUFSIZ], *val, *oval, *p;
 	char name[BUFSIZ], *fmt, *sep;
 	int qoid[CTL_MAXNAME+2];
-	int i;
+	int i, flen, iv;
+	unsigned int uiv;
+	long lv;
+	unsigned long ulv;
+	quad_t qv;
+	u_quad_t uqv;
+	size_t intlen;
+	intmax_t v;
+	uintmax_t uv;
 	size_t j, len;
 	u_int kind;
 	int (*func)(int, void *);
@@ -611,55 +620,46 @@ show_var(int *oid, int nlen)
 		return (0);
 
 	case 'I':
-		if (!nflag)
-			printf("%s%s", name, sep);
-		fmt++;
-		val = "";
-		while (len >= sizeof(int)) {
-			fputs(val, stdout);
-			if (*fmt == 'U')
-				printf(hflag ? "%'u" : "%u", *(u_int *)p);
-			else if (*fmt == 'X')
-				printf(hflag ? "%'#010x" : "%#010x",
-				    *(unsigned int *)p);
-			else if (*fmt == 'K') {
-				if (*(int *)p < 0)
-					printf("%d", *(int *)p);
-				else
-					printf("%.1fC",
-					    (*(int *)p - 2732.0) / 10);
-			} else
-				printf(hflag ? "%'d" : "%d", *(int *)p);
-			val = " ";
-			len -= sizeof(int);
-			p += sizeof(int);
-		}
-		free(oval);
-		return (0);
-
 	case 'L':
+	case 'Q':
 		if (!nflag)
 			printf("%s%s", name, sep);
-		fmt++;
+		switch (*fmt) {
+		case 'I': intlen = sizeof(int); flen = 10; break;
+		case 'L': intlen = sizeof(long); flen = 18; break;
+		case 'Q': intlen = sizeof(quad_t); flen = 18; break;
+		}
 		val = "";
-		while (len >= sizeof(long)) {
+		while (len >= intlen) {
+			switch (*fmt) {
+			case 'I':
+				memcpy(&uiv, p, intlen); uv = uiv;
+				memcpy(&iv, p, intlen); v = iv;
+				break;
+			case 'L':
+				memcpy(&ulv, p, intlen); uv = ulv;
+				memcpy(&lv, p, intlen); v = lv;
+				break;
+			case 'Q':
+				memcpy(&uqv, p, intlen); uv = uqv;
+				memcpy(&qv, p, intlen); v = qv;
+				break;
+			}
 			fputs(val, stdout);
-			if (*fmt == 'U')
-				printf(hflag ? "%'lu" : "%lu", *(u_long *)p);
-			else if (*fmt == 'X')
-				printf(hflag ? "%'#018lx" : "%#018lx",
-				  *(u_long *)p);
-			else if (*fmt == 'K') {
-				if (*(long *)p < 0)
-					printf("%ld", *(long *)p);
+			if (fmt[1] == 'U')
+				printf(hflag ? "%'ju" : "%ju", uv);
+			else if (fmt[1] == 'X')
+				printf(hflag ? "%'#0*jx" : "%#0*jx", flen, uv);
+			else if (fmt[1] == 'K') {
+				if (*(int *)p < 0)
+					printf("%jd", v);
 				else
-					printf("%.1fC",
-					    (*(long *)p - 2732.0) / 10);
+					printf("%.1fC", (v - 2732.0) / 10);
 			} else
-				printf(hflag ? "%'ld" : "%ld", *(long *)p);
+				printf(hflag ? "%'d" : "%d", v);
 			val = " ";
-			len -= sizeof(long);
-			p += sizeof(long);
+			len -= intlen;
+			p += intlen;
 		}
 		free(oval);
 		return (0);
