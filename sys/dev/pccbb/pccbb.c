@@ -389,7 +389,7 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 		return (err);
 	}
 	cbb_enable_func_intr(sc);
-	sc->flags |= CBB_CARD_OK;
+	sc->cardok = 1;
 	return 0;
 }
 
@@ -575,7 +575,7 @@ cbb_insert(struct cbb_softc *sc)
 static void
 cbb_removal(struct cbb_softc *sc)
 {
-	sc->flags &= ~CBB_CARD_OK;
+	sc->cardok = 0;
 	if (sc->flags & CBB_16BIT_CARD) {
 		exca_removal(&sc->exca[0]);
 	} else {
@@ -589,26 +589,6 @@ cbb_removal(struct cbb_softc *sc)
 /* Interrupt Handler							*/
 /************************************************************************/
 
-/*
- * Since we touch hardware in the worst case, we don't need to use atomic ops
- * on the CARD_OK tests.  They would save us a trip to the hardware if CARD_OK
- * was recently cleared and the caches haven't updated yet.  However, an
- * atomic op costs between 100-200 CPU cycles.  On a 3GHz machine, this is
- * about 33-66ns, whereas a trip the the hardware is about that.  On slower
- * machines, the cost is even higher, so the trip to the hardware is cheaper
- * and achieves the same ends that a fully locked operation would give us.
- *
- * This is a separate routine because we'd have to use locking and/or other
- * synchronization in cbb_intr to do this there.  That would be even more
- * expensive.
- *
- * I need to investigate what this means for a SMP machine with multiple CPUs
- * servicing the ISR when an eject happens.  In the case of a dirty eject, CD
- * glitches and we might read 'card present' from the hardware due to this
- * jitter.  If we assumed that cbb_intr() ran before cbb_func_intr(), we could
- * just check the SOCKET_MASK register and if CD changes were clear there,
- * then we'd know the card was gone.
- */
 static int
 cbb_func_filt(void *arg)
 {
@@ -618,10 +598,10 @@ cbb_func_filt(void *arg)
 	/*
 	 * Make sure that the card is really there.
 	 */
-	if ((sc->flags & CBB_CARD_OK) == 0)
+	if (!sc->cardok)
 		return (FILTER_STRAY);
 	if (!CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
-		sc->flags &= ~CBB_CARD_OK;
+		sc->cardok = 0;
 		return (FILTER_HANDLED);
 	}
 
@@ -652,10 +632,10 @@ cbb_func_intr(void *arg)
 	 * called if their filter said they needed to be called.
 	 */
 	if (ih->filt == NULL) {
-		if ((sc->flags & CBB_CARD_OK) == 0)
+		if (!sc->cardok)
 			return;
 		if (!CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
-			sc->flags &= ~CBB_CARD_OK;
+			sc->cardok = 0;
 			return;
 		}
 	}
@@ -1520,7 +1500,7 @@ cbb_suspend(device_t self)
 	if (error != 0)
 		return (error);
 	cbb_set(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
-	sc->flags &= ~CBB_CARD_OK;		/* Card is bogus now */
+	sc->cardok = 0;				/* Card is bogus now */
 	return (0);
 }
 
@@ -1570,6 +1550,5 @@ cbb_child_present(device_t self)
 	uint32_t sockstate;
 
 	sockstate = cbb_get(sc, CBB_SOCKET_STATE);
-	return (CBB_CARD_PRESENT(sockstate) &&
-	  (sc->flags & CBB_CARD_OK) == CBB_CARD_OK);
+	return (CBB_CARD_PRESENT(sockstate) && sc->cardok);
 }

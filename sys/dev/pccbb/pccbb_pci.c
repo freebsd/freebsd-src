@@ -352,6 +352,16 @@ cbb_pci_attach(device_t brdev)
 	    CTLFLAG_RD, &sc->secbus, 0, "Secondary bus number");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "subbus",
 	    CTLFLAG_RD, &sc->subbus, 0, "Subordinate bus number");
+#if 0
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "memory",
+	    CTLFLAG_RD, &sc->subbus, 0, "Memory window open");
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "premem",
+	    CTLFLAG_RD, &sc->subbus, 0, "Prefetch memroy window open");
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "io1",
+	    CTLFLAG_RD, &sc->subbus, 0, "io range 1 open");
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "io2",
+	    CTLFLAG_RD, &sc->subbus, 0, "io range 2 open");
+#endif
 
 	/*
 	 * This is a gross hack.  We should be scanning the entire pci
@@ -695,7 +705,7 @@ cbb_pci_intr(void *arg)
 		/*
 		 * If anything has happened to the socket, we assume that
 		 * the card is no longer OK, and we shouldn't call its
-		 * ISR.  We set CARD_OK as soon as we've attached the
+		 * ISR.  We set cardok as soon as we've attached the
 		 * card.  This helps in a noisy eject, which happens
 		 * all too often when users are ejecting their PC Cards.
 		 *
@@ -708,7 +718,7 @@ cbb_pci_intr(void *arg)
 		if (sockevent & CBB_SOCKET_EVENT_CD) {
 			mtx_lock(&sc->mtx);
 			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
-			sc->flags &= ~CBB_CARD_OK;
+			sc->cardok = 0;
 			cbb_disable_func_intr(sc);
 			cv_signal(&sc->cv);
 			mtx_unlock(&sc->mtx);
