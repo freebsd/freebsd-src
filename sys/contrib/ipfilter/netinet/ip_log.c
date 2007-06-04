@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_log.c,v 2.75.2.11 2006/03/26 13:50:47 darrenr Exp $
+ * $Id: ip_log.c,v 2.75.2.15 2007/02/03 00:49:30 darrenr Exp $
  */
 #include <sys/param.h>
 #if defined(KERNEL) || defined(_KERNEL)
@@ -14,7 +14,11 @@
 #endif
 #if defined(__NetBSD__) && (NetBSD >= 199905) && !defined(IPFILTER_LKM) && \
     defined(_KERNEL)
-# include "opt_ipfilter_log.h"
+# if (__NetBSD_Version__ < 399001400)
+#  include "opt_ipfilter_log.h"
+# else
+#  include "opt_ipfilter.h"
+# endif
 #endif
 #if defined(__FreeBSD__) && !defined(IPFILTER_LKM)
 # if defined(_KERNEL)
@@ -147,7 +151,7 @@ extern int selwait;
 # if defined(linux) && defined(_KERNEL)
 wait_queue_head_t	iplh_linux[IPL_LOGSIZE];
 # endif
-# if SOLARIS
+# if SOLARIS && defined(_KERNEL)
 extern	kcondvar_t	iplwait;
 extern	struct pollhead	iplpollhead[IPL_LOGSIZE];
 # endif
@@ -156,7 +160,6 @@ iplog_t	**iplh[IPL_LOGSIZE], *iplt[IPL_LOGSIZE], *ipll[IPL_LOGSIZE];
 int	iplused[IPL_LOGSIZE];
 static fr_info_t	iplcrc[IPL_LOGSIZE];
 int	ipl_suppress = 1;
-int	ipl_buffer_sz;
 int	ipl_logmax = IPL_LOGMAX;
 int	ipl_logall = 0;
 int	ipl_log_init = 0;
@@ -259,8 +262,11 @@ u_int flags;
 	struct ifnet *ifp;
 # endif /* SOLARIS || __hpux */
 
-	ipfl.fl_nattag.ipt_num[0] = 0;
 	m = fin->fin_m;
+	if (m == NULL)
+		return -1;
+
+	ipfl.fl_nattag.ipt_num[0] = 0;
 	ifp = fin->fin_ifp;
 	hlen = fin->fin_hlen;
 	/*
