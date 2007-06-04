@@ -188,7 +188,7 @@
 	  network interfaces using the Marvell/SysKonnect Yukon II
 	  Gigabit Ethernet controller.</para>
 
-	<para>[&arch.amd64;, &arch.i386;] The &man.mxge.4; driver,
+	<para arch="amd64,i386">The &man.mxge.4; driver,
           which supports Myricom Myri10GE 10 Gigabit Ethernet
           adapters, has been added.  For more details, see
           &man.mxge.4;.</para>
