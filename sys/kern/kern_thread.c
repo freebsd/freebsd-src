@@ -405,7 +405,7 @@ thread_exit(void)
 	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
-	cnt.v_swtch++;
+	PCPU_INC(cnt.v_swtch);
 	/*
 	 * Aggregate this thread's tick stats in the parent so they are not
 	 * lost.  Also add the child usage to our own when the final thread

@@ -655,7 +655,7 @@ vm_object_terminate(vm_object_t object)
 			"p->busy = %d, p->flags %x\n", p, p->busy, p->flags));
 		if (p->wire_count == 0) {
 			vm_page_free(p);
-			cnt.v_pfree++;
+			PCPU_INC(cnt.v_pfree);
 		} else {
 			vm_page_remove(p);
 		}
