@@ -106,7 +106,7 @@ arm_handler_execute(struct trapframe *frame, int irqnb)
 	struct thread *td = curthread;
 	int i, thread, ret;
 
-	PCPU_LAZY_INC(cnt.v_intr);
+	PCPU_INC(cnt.v_intr);
 	td->td_intr_nesting_level++;
 	while ((i = arm_get_next_irq()) != -1) {
 		arm_mask_irq(i);

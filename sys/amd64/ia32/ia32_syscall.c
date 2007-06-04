@@ -105,10 +105,10 @@ ia32_syscall(struct trapframe *frame)
 	ksiginfo_t ksi;
 
 	/*
-	 * note: PCPU_LAZY_INC() can only be used if we can afford
+	 * note: PCPU_INC() can only be used if we can afford
 	 * occassional inaccuracy in the count.
 	 */
-	PCPU_LAZY_INC(cnt.v_syscall);
+	PCPU_INC(cnt.v_syscall);
 
 	td->td_pticks = 0;
 	td->td_frame = frame;

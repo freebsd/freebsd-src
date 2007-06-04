@@ -62,7 +62,8 @@
 extern struct pcpu *pcpup;
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
-#define	PCPU_LAZY_INC(member)	(++pcpup->pc_ ## member)
+#define	PCPU_ADD(member, val)	(pcpu->pc_ ## member += (val))
+#define	PCPU_INC(member)	PCPU_ADD(member, 1)
 #define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
 #define	PCPU_SET(member, val)	(pcpup->pc_ ## member = (val))
 
@@ -116,10 +117,31 @@ extern struct pcpu *pcpup;
 })
 
 /*
+ * Adds a value of the per-cpu counter name.  The implementation
+ * must be atomic with respect to interrupts.
+ */
+#define	__PCPU_ADD(name, val) do {					\
+	__pcpu_type(name) __val;					\
+	struct __s {							\
+		u_char	__b[MIN(sizeof(__pcpu_type(name)), 4)];		\
+	} __s;								\
+									\
+	__val = (val);							\
+	if (sizeof(__val) == 1 || sizeof(__val) == 2 ||			\
+	    sizeof(__val) == 4) {					\
+		__s = *(struct __s *)(void *)&__val;			\
+		__asm __volatile("add %1,%%fs:%0"			\
+		    : "=m" (*(struct __s *)(__pcpu_offset(name)))	\
+		    : "r" (__s));					\
+	} else								\
+		*__PCPU_PTR(name) += __val;				\
+} while (0)
+
+/*
  * Increments the value of the per-cpu counter name.  The implementation
  * must be atomic with respect to interrupts.
  */
-#define	__PCPU_LAZY_INC(name) do {					\
+#define	__PCPU_INC(name) do {						\
 	CTASSERT(sizeof(__pcpu_type(name)) == 1 ||			\
 	    sizeof(__pcpu_type(name)) == 2 ||				\
 	    sizeof(__pcpu_type(name)) == 4);				\
@@ -160,7 +182,8 @@ extern struct pcpu *pcpup;
 }
 
 #define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
-#define	PCPU_LAZY_INC(member)	__PCPU_LAZY_INC(pc_ ## member)
+#define	PCPU_ADD(member, val)	__PCPU_ADD(pc_ ## member, val)
+#define	PCPU_INC(member)	__PCPU_INC(pc_ ## member)
 #define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 
