@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_sync.h,v 2.11.2.3 2006/03/19 14:59:39 darrenr Exp $
+ * $Id: ip_sync.h,v 2.11.2.4 2006/07/14 06:12:20 darrenr Exp $
  */
 
 #ifndef __IP_SYNC_H__
@@ -102,16 +102,16 @@ typedef	struct	syncupdent	{		/* 28 or 32 bytes */
 extern	synclogent_t	synclog[SYNCLOG_SZ];
 
 
-extern	int		fr_sync_ioctl __P((caddr_t, ioctlcmd_t, int));
-extern	synclist_t	*ipfsync_new __P((int, fr_info_t *, void *));
-extern	void		ipfsync_del __P((synclist_t *));
-extern	void		ipfsync_update __P((int, fr_info_t *, synclist_t *));
-extern	int		ipfsync_init __P((void));
-extern	int		ipfsync_nat __P((synchdr_t *sp, void *data));
-extern	int		ipfsync_state __P((synchdr_t *sp, void *data));
-extern	int		ipfsync_read __P((struct uio *uio));
-extern	int		ipfsync_write __P((struct uio *uio));
-extern	int		ipfsync_canread __P((void));
-extern	int		ipfsync_canwrite __P((void));
+extern	int fr_sync_ioctl __P((caddr_t, ioctlcmd_t, int, int, void *));
+extern	synclist_t *ipfsync_new __P((int, fr_info_t *, void *));
+extern	void ipfsync_del __P((synclist_t *));
+extern	void ipfsync_update __P((int, fr_info_t *, synclist_t *));
+extern	int ipfsync_init __P((void));
+extern	int ipfsync_nat __P((synchdr_t *sp, void *data));
+extern	int ipfsync_state __P((synchdr_t *sp, void *data));
+extern	int ipfsync_read __P((struct uio *uio));
+extern	int ipfsync_write __P((struct uio *uio));
+extern	int ipfsync_canread __P((void));
+extern	int ipfsync_canwrite __P((void));
 
 #endif /* IP_SYNC */

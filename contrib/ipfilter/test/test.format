@@ -49,9 +49,11 @@ in4 text text
 in5 text text
 in6 text text
 ip1 text text
+ip2 text text
 ipv6.1 hex hex
 ipv6.2 hex hex
 ipv6.3 hex hex
+ipv6.5 hex hex
 l1 hex hex
 n1 text text
 n2 text text
@@ -86,6 +88,9 @@ ni16 hex hex fr_update_ipid=1
 ni19 hex hex fr_update_ipid=0
 ni20 hex hex fr_update_ipid=0
 ni21 text text
+ni23 text text -D
 p1 text text
 p2 text text
 p3 text text
+p4 text text
+p5 text text
