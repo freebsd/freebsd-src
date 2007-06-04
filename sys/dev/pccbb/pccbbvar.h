@@ -68,8 +68,8 @@ struct cbb_softc {
 	struct mtx	mtx;
 	struct cv	cv;
 	struct cv	powercv;
+	int		cardok;
 	u_int32_t	flags;
-#define CBB_CARD_OK		0x08000000
 #define	CBB_16BIT_CARD		0x20000000
 #define	CBB_KTHREAD_RUNNING	0x40000000
 #define	CBB_KTHREAD_DONE	0x80000000
