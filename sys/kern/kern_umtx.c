@@ -124,8 +124,8 @@ struct umtx_q {
 
 	/*
 	 * Blocked on PI mutex. read can use chain lock
-	 * or sched_lock, write must have both chain lock and
-	 * sched_lock being hold.
+	 * or umtx_lock, write must have both chain lock and
+	 * umtx_lock being hold.
 	 */
 	struct umtx_pi		*uq_pi_blocked;
 
@@ -225,6 +225,8 @@ static void umtx_exec_hook(void *arg __unused, struct proc *p __unused,
 	struct image_params *imgp __unused);
 SYSINIT(umtx, SI_SUB_EVENTHANDLER+1, SI_ORDER_MIDDLE, umtxq_sysinit, NULL);
 
+static struct mtx umtx_lock;
+
 static void
 umtxq_sysinit(void *arg __unused)
 {
@@ -240,6 +242,7 @@ umtxq_sysinit(void *arg __unused)
 		umtxq_chains[i].uc_busy = 0;
 		umtxq_chains[i].uc_waiters = 0;
 	}
+	mtx_init(&umtx_lock, "umtx lock", NULL, MTX_SPIN);
 	EVENTHANDLER_REGISTER(process_exec, umtx_exec_hook, NULL,
 	    EVENTHANDLER_PRI_ANY);
 }
@@ -1270,7 +1273,7 @@ umtx_pi_adjust_thread(struct umtx_pi *pi, struct thread *td)
 	struct umtx_q *uq, *uq1, *uq2;
 	struct thread *td1;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	mtx_assert(&umtx_lock, MA_OWNED);
 	if (pi == NULL)
 		return (0);
 
@@ -1316,7 +1319,7 @@ umtx_propagate_priority(struct thread *td)
 	struct umtx_pi *pi;
 	int pri;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	mtx_assert(&umtx_lock, MA_OWNED);
 	pri = UPRI(td);
 	uq = td->td_umtxq;
 	pi = uq->uq_pi_blocked;
@@ -1334,7 +1337,9 @@ umtx_propagate_priority(struct thread *td)
 		if (UPRI(td) <= pri)
 			return;
 
+		thread_lock(td);
 		sched_lend_user_prio(td, pri);
+		thread_unlock(td);
 
 		/*
 		 * Pick up the lock that td is blocked on.
@@ -1358,7 +1363,7 @@ umtx_unpropagate_priority(struct umtx_pi *pi)
 	struct umtx_pi *pi2;
 	int pri;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	mtx_assert(&umtx_lock, MA_OWNED);
 
 	while (pi != NULL && pi->pi_owner != NULL) {
 		pri = PRI_MAX;
@@ -1374,7 +1379,9 @@ umtx_unpropagate_priority(struct umtx_pi *pi)
 
 		if (pri > uq_owner->uq_inherited_pri)
 			pri = uq_owner->uq_inherited_pri;
+		thread_lock(pi->pi_owner);
 		sched_unlend_user_prio(pi->pi_owner, pri);
+		thread_unlock(pi->pi_owner);
 		pi = uq_owner->uq_pi_blocked;
 	}
 }
@@ -1388,7 +1395,7 @@ umtx_pi_setowner(struct umtx_pi *pi, struct thread *owner)
 	struct umtx_q *uq_owner;
 
 	uq_owner = owner->td_umtxq;
-	mtx_assert(&sched_lock, MA_OWNED);
+	mtx_assert(&umtx_lock, MA_OWNED);
 	if (pi->pi_owner != NULL)
 		panic("pi_ower != NULL");
 	pi->pi_owner = owner;
@@ -1404,9 +1411,9 @@ umtx_pi_claim(struct umtx_pi *pi, struct thread *owner)
 	struct umtx_q *uq, *uq_owner;
 
 	uq_owner = owner->td_umtxq;
-	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin(&umtx_lock);
 	if (pi->pi_owner == owner) {
-		mtx_unlock_spin(&sched_lock);
+		mtx_unlock_spin(&umtx_lock);
 		return (0);
 	}
 
@@ -1414,7 +1421,7 @@ umtx_pi_claim(struct umtx_pi *pi, struct thread *owner)
 		/*
 		 * userland may have already messed the mutex, sigh.
 		 */
-		mtx_unlock_spin(&sched_lock);
+		mtx_unlock_spin(&umtx_lock);
 		return (EPERM);
 	}
 	umtx_pi_setowner(pi, owner);
@@ -1423,10 +1430,12 @@ umtx_pi_claim(struct umtx_pi *pi, struct thread *owner)
 		int pri;
 
 		pri = UPRI(uq->uq_thread);
+		thread_lock(owner);
 		if (pri < UPRI(owner))
 			sched_lend_user_prio(owner, pri);
+		thread_unlock(owner);
 	}
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock_spin(&umtx_lock);
 	return (0);
 }
 
@@ -1442,7 +1451,7 @@ umtx_pi_adjust(struct thread *td, u_char oldpri)
 
 	uq = td->td_umtxq;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	mtx_assert(&umtx_lock, MA_OWNED);
 	MPASS(TD_ON_UPILOCK(td));
 
 	/*
@@ -1493,14 +1502,14 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 		 */
 		PROC_LOCK(curproc);
 		td1 = thread_find(curproc, owner);
-		mtx_lock_spin(&sched_lock);
+		mtx_lock_spin(&umtx_lock);
 		if (td1 != NULL && pi->pi_owner == NULL) {
 			uq1 = td1->td_umtxq;
 			umtx_pi_setowner(pi, td1);
 		}
 		PROC_UNLOCK(curproc);
 	} else {
-		mtx_lock_spin(&sched_lock);
+		mtx_lock_spin(&umtx_lock);
 	}
 
 	TAILQ_FOREACH(uq1, &pi->pi_blocked, uq_lockq) {
@@ -1516,12 +1525,12 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 
 	uq->uq_pi_blocked = pi;
 	td->td_flags |= TDF_UPIBLOCKED;
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock_spin(&umtx_lock);
 	umtxq_unlock(&uq->uq_key);
 
-	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin(&umtx_lock);
 	umtx_propagate_priority(td);
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock_spin(&umtx_lock);
 
 	umtxq_lock(&uq->uq_key);
 	if (uq->uq_flags & UQF_UMTXQ) {
@@ -1536,12 +1545,12 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 	}
 	umtxq_unlock(&uq->uq_key);
 
-	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin(&umtx_lock);
 	uq->uq_pi_blocked = NULL;
 	td->td_flags &= ~TDF_UPIBLOCKED;
 	TAILQ_REMOVE(&pi->pi_blocked, uq, uq_lockq);
 	umtx_unpropagate_priority(pi);
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock_spin(&umtx_lock);
 
 	umtxq_lock(&uq->uq_key);
 
@@ -1575,7 +1584,7 @@ umtx_pi_unref(struct umtx_pi *pi)
 	UMTXQ_LOCKED_ASSERT(uc);
 	KASSERT(pi->pi_refcount > 0, ("invalid reference count"));
 	if (--pi->pi_refcount == 0) {
-		mtx_lock_spin(&sched_lock);
+		mtx_lock_spin(&umtx_lock);
 		if (pi->pi_owner != NULL) {
 			TAILQ_REMOVE(&pi->pi_owner->td_umtxq->uq_pi_contested,
 				pi, pi_link);
@@ -1583,7 +1592,7 @@ umtx_pi_unref(struct umtx_pi *pi)
 		}
 		KASSERT(TAILQ_EMPTY(&pi->pi_blocked),
 			("blocked queue not empty"));
-		mtx_unlock_spin(&sched_lock);
+		mtx_unlock_spin(&umtx_lock);
 		TAILQ_REMOVE(&uc->uc_pi_list, pi, pi_hashlink);
 		free = 1;
 	}
@@ -1822,7 +1831,7 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 			return (EPERM);
 		}
 		uq_me = curthread->td_umtxq;
-		mtx_lock_spin(&sched_lock);
+		mtx_lock_spin(&umtx_lock);
 		pi->pi_owner = NULL;
 		TAILQ_REMOVE(&uq_me->uq_pi_contested, pi, pi_link);
 		uq_first = TAILQ_FIRST(&pi->pi_blocked);
@@ -1834,8 +1843,10 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 					pri = UPRI(uq_first2->uq_thread);
 			}
 		}
+		thread_lock(curthread);
 		sched_unlend_user_prio(curthread, pri);
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(curthread);
+		mtx_unlock_spin(&umtx_lock);
 	}
 	umtxq_unlock(&key);
 
@@ -1891,18 +1902,20 @@ _do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 			goto out;
 		}
 
-		mtx_lock_spin(&sched_lock);
+		mtx_lock_spin(&umtx_lock);
 		if (UPRI(td) < PRI_MIN_REALTIME + ceiling) {
-			mtx_unlock_spin(&sched_lock);
+			mtx_unlock_spin(&umtx_lock);
 			error = EINVAL;
 			goto out;
 		}
 		if (su && PRI_MIN_REALTIME + ceiling < uq->uq_inherited_pri) {
 			uq->uq_inherited_pri = PRI_MIN_REALTIME + ceiling;
+			thread_lock(td);
 			if (uq->uq_inherited_pri < UPRI(td))
 				sched_lend_user_prio(td, uq->uq_inherited_pri);
+			thread_unlock(td);
 		}
-		mtx_unlock_spin(&sched_lock);
+		mtx_unlock_spin(&umtx_lock);
 
 		owner = casuword32(&m->m_owner,
 		    UMUTEX_CONTESTED, id | UMUTEX_CONTESTED);
@@ -1943,7 +1956,7 @@ _do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 		umtxq_remove(uq);
 		umtxq_unlock(&uq->uq_key);
 
-		mtx_lock_spin(&sched_lock);
+		mtx_lock_spin(&umtx_lock);
 		uq->uq_inherited_pri = old_inherited_pri;
 		pri = PRI_MAX;
 		TAILQ_FOREACH(pi, &uq->uq_pi_contested, pi_link) {
@@ -1955,12 +1968,14 @@ _do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 		}
 		if (pri > uq->uq_inherited_pri)
 			pri = uq->uq_inherited_pri;
+		thread_lock(td);
 		sched_unlend_user_prio(td, pri);
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
+		mtx_unlock_spin(&umtx_lock);
 	}
 
 	if (error != 0) {
-		mtx_lock_spin(&sched_lock);
+		mtx_lock_spin(&umtx_lock);
 		uq->uq_inherited_pri = old_inherited_pri;
 		pri = PRI_MAX;
 		TAILQ_FOREACH(pi, &uq->uq_pi_contested, pi_link) {
@@ -1972,8 +1987,10 @@ _do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 		}
 		if (pri > uq->uq_inherited_pri)
 			pri = uq->uq_inherited_pri;
+		thread_lock(td);
 		sched_unlend_user_prio(td, pri);
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
+		mtx_unlock_spin(&umtx_lock);
 	}
 
 out:
@@ -2048,7 +2065,7 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags)
 	if (error == -1)
 		error = EFAULT;
 	else {
-		mtx_lock_spin(&sched_lock);
+		mtx_lock_spin(&umtx_lock);
 		if (su != 0)
 			uq->uq_inherited_pri = new_inherited_pri;
 		pri = PRI_MAX;
@@ -2061,8 +2078,10 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags)
 		}
 		if (pri > uq->uq_inherited_pri)
 			pri = uq->uq_inherited_pri;
+		thread_lock(td);
 		sched_unlend_user_prio(td, pri);
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
+		mtx_unlock_spin(&umtx_lock);
 	}
 	umtx_key_release(&key);
 	return (error);
@@ -2748,12 +2767,12 @@ umtx_thread_cleanup(struct thread *td)
 	if ((uq = td->td_umtxq) == NULL)
 		return;
 
-	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin(&umtx_lock);
 	uq->uq_inherited_pri = PRI_MAX;
 	while ((pi = TAILQ_FIRST(&uq->uq_pi_contested)) != NULL) {
 		pi->pi_owner = NULL;
 		TAILQ_REMOVE(&uq->uq_pi_contested, pi, pi_link);
 	}
 	td->td_flags &= ~TDF_UBORROWING;
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock_spin(&umtx_lock);
 }
