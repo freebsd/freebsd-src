@@ -2,37 +2,37 @@ LESSKEY(1)                                                          LESSKEY(1)
 
 
 
-NNAAMMEE
+[1mNAME[0m
        lesskey - specify key bindings for less
 
-SSYYNNOOPPSSIISS
-       lleesssskkeeyy [[--oo oouuttppuutt]] [[----]] [[iinnppuutt]]
-       lleesssskkeeyy [[----oouuttppuutt==oouuttppuutt]] [[----]] [[iinnppuutt]]
-       lleesssskkeeyy --VV
-       lleesssskkeeyy ----vveerrssiioonn
+[1mSYNOPSIS[0m
+       [1mlesskey [-o output] [--] [input][0m
+       [1mlesskey [--output=output] [--] [input][0m
+       [1mlesskey -V[0m
+       [1mlesskey --version[0m
 
-DDEESSCCRRIIPPTTIIOONN
-       _L_e_s_s_k_e_y  is  used  to specify a set of key bindings to be used by _l_e_s_s_.
+[1mDESCRIPTION[0m
+       [4mLesskey[24m  is  used  to specify a set of key bindings to be used by [4mless.[0m
        The input file is a text file which describes the key bindings, If  the
        input  file is "-", standard input is read.  If no input file is speci-
        fied, a standard filename is used as the name of the input file,  which
        depends  on  the  system being used: On Unix systems, $HOME/.lesskey is
        used; on MS-DOS systems, $HOME/_lesskey is used; and  on  OS/2  systems
        $HOME/lesskey.ini  is used, or $INIT/lesskey.ini if $HOME is undefined.
-       The output file is a binary file which is used by _l_e_s_s_.  If  no  output
+       The output file is a binary file which is used by [4mless.[24m  If  no  output
        file  is  specified,  and  the environment variable LESSKEY is set, the
        value of LESSKEY is used as the name of the output file.  Otherwise,  a
        standard filename is used as the name of the output file, which depends
        on the system being used: On Unix  and  OS-9  systems,  $HOME/.less  is
        used;  on  MS-DOS  systems,  $HOME/_less  is used; and on OS/2 systems,
        $HOME/less.ini is used, or $INIT/less.ini if $HOME  is  undefined.   If
-       the output file already exists, _l_e_s_s_k_e_y will overwrite it.
+       the output file already exists, [4mlesskey[24m will overwrite it.
 
-       The  -V  or --version option causes _l_e_s_s_k_e_y to print its version number
+       The  -V  or --version option causes [4mlesskey[24m to print its version number
        and immediately exit.  If -V or --version is present, other options and
        arguments are ignored.
 
-       The  input  file consists of one or more _s_e_c_t_i_o_n_s_.  Each section starts
+       The  input  file consists of one or more [4msections.[24m  Each section starts
        with a line that identifies the type  of  section.   Possible  sections
        are:
 
@@ -48,7 +48,7 @@ DDEESSCCRRIIPPTTIIOONN
        except for the special section header lines.
 
 
-CCOOMMMMAANNDD SSEECCTTIIOONN
+[1mCOMMAND SECTION[0m
        The command section begins with the line
 
        #command
@@ -56,13 +56,13 @@ CCOOMMMMAANNDD SSEECCTTIIOONN
        If the command section is the first section in the file, this line  may
        be omitted.  The command section consists of lines of the form:
 
-            _s_t_r_i_n_g <whitespace> _a_c_t_i_o_n [extra-string] <newline>
+            [4mstring[24m <whitespace> [4maction[24m [extra-string] <newline>
 
        Whitespace  is  any  sequence  of  one or more spaces and/or tabs.  The
-       _s_t_r_i_n_g is the command key(s) which invoke the action.  The  _s_t_r_i_n_g  may
-       be a single command key, or a sequence of up to 15 keys.  The _a_c_t_i_o_n is
+       [4mstring[24m is the command key(s) which invoke the action.  The  [4mstring[24m  may
+       be a single command key, or a sequence of up to 15 keys.  The [4maction[24m is
        the name of the less action, from the list below.   The  characters  in
-       the  _s_t_r_i_n_g may appear literally, or be prefixed by a caret to indicate
+       the  [4mstring[24m may appear literally, or be prefixed by a caret to indicate
        a control key.  A backslash followed by one to three octal  digits  may
        be  used  to  specify a character by its octal value.  A backslash fol-
        lowed by certain characters specifies input characters as follows:
@@ -100,15 +100,15 @@ CCOOMMMMAANNDD SSEECCTTIIOONN
        include caret, space, tab and the backslash itself.
 
        An action may be followed by an "extra" string.  When such a command is
-       entered while running _l_e_s_s_, the action is performed, and then the extra
-       string is parsed, just as if it were typed in to  _l_e_s_s_.   This  feature
+       entered while running [4mless,[24m the action is performed, and then the extra
+       string is parsed, just as if it were typed in to  [4mless.[24m   This  feature
        can  be used in certain cases to extend the functionality of a command.
        For example, see the "{" and ":t" commands in the example  below.   The
-       extra  string  has  a  special meaning for the "quit" action: when _l_e_s_s
+       extra  string  has  a  special meaning for the "quit" action: when [4mless[0m
        quits, first character of the extra string is used as its exit  status.
 
 
-EEXXAAMMPPLLEE
+[1mEXAMPLE[0m
        The following input file describes the set of default command keys used
        by less:
 
@@ -223,12 +223,12 @@ EEXXAAMMPPLLEE
             ZZ        quit
 
 
-PPRREECCEEDDEENNCCEE
-       Commands specified by _l_e_s_s_k_e_y take precedence  over  the  default  com-
+[1mPRECEDENCE[0m
+       Commands specified by [4mlesskey[24m take precedence  over  the  default  com-
        mands.   A  default  command key may be disabled by including it in the
        input file with the action "invalid".   Alternatively,  a  key  may  be
        defined  to  do  nothing by using the action "noaction".  "noaction" is
-       similar to "invalid", but _l_e_s_s will give an error beep for an "invalid"
+       similar to "invalid", but [4mless[24m will give an error beep for an "invalid"
        command,  but  not  for a "noaction" command.  In addition, ALL default
        commands may be disabled by adding this control line to the input file:
 
@@ -243,7 +243,7 @@ PPRREECCEEDDEENNCCEE
        command can lead to frustration.
 
 
-LLIINNEE EEDDIITTIINNGG SSEECCTTIIOONN
+[1mLINE EDITING SECTION[0m
        The line-editing section begins with the line:
 
        #line-edit
@@ -254,7 +254,7 @@ LLIINNEE EEDDIITTIINNGG SSEECCTTIIOONN
        of a list of keys and actions, one per line as in the example below.
 
 
-EEXXAAMMPPLLEE
+[1mEXAMPLE[0m
        The following input file describes the set of default line-editing keys
        used by less:
 
@@ -289,7 +289,7 @@ EEXXAAMMPPLLEE
 
 
 
-LLEESSSS EENNVVIIRROONNMMEENNTT VVAARRIIAABBLLEESS
+[1mLESS ENVIRONMENT VARIABLES[0m
        The environment variable section begins with the line
 
        #env
@@ -298,16 +298,16 @@ LLEESSSS EENNVVIIRROONNMMEENNTT VVAARRIIAABBLLEESS
        Each line consists of an environment variable name, an equals sign  (=)
        and  the value to be assigned to the environment variable.  White space
        before and after the equals sign is  ignored.   Variables  assigned  in
-       this  way  are visible only to _l_e_s_s_.  If a variable is specified in the
+       this  way  are visible only to [4mless.[24m  If a variable is specified in the
        system environment and also in a lesskey file, the value in the lesskey
        file  takes precedence.  Although the lesskey file can be used to over-
        ride variables set in the environment, the main  purpose  of  assigning
-       variables  in the lesskey file is simply to have all _l_e_s_s configuration
+       variables  in the lesskey file is simply to have all [4mless[24m configuration
        information stored in one file.
 
 
-EEXXAAMMPPLLEE
-       The following input file sets the -i option whenever _l_e_s_s is  run,  and
+[1mEXAMPLE[0m
+       The following input file sets the -i option whenever [4mless[24m is  run,  and
        specifies the character set to be "latin1":
 
             #env
@@ -316,11 +316,11 @@ EEXXAAMMPPLLEE
 
 
 
-SSEEEE AALLSSOO
+[1mSEE ALSO[0m
        less(1)
 
 
-WWAARRNNIINNGGSS
+[1mWARNINGS[0m
        It  is not possible to specify special keys, such as uparrow, in a key-
        board-independent manner.  The only way to  specify  such  keys  is  to
        specify the escape sequence which a particular keyboard sends when such
@@ -331,8 +331,8 @@ WWAARRNNIINNGGSS
        represented as \340 in a lesskey file.
 
 
-CCOOPPYYRRIIGGHHTT
-       Copyright (C) 2004  Mark Nudelman
+[1mCOPYRIGHT[0m
+       Copyright (C) 2000-2007  Mark Nudelman
 
        lesskey is part of the GNU project and is free software; you can redis-
        tribute  it  and/or modify it under the terms of the GNU General Public
@@ -349,7 +349,7 @@ CCOOPPYYRRIIGGHHTT
        Foundation, 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
 
 
-AAUUTTHHOORR
+[1mAUTHOR[0m
        Mark Nudelman <markn@greenwoodsoftware.com>
        Send  bug  reports  or  comments  to  the  above  address  or  to  bug-
        less@gnu.org.
@@ -357,4 +357,4 @@ AAUUTTHHOORR
 
 
 
-                           Version 394: 03 Dec 2005                 LESSKEY(1)
+                           Version 403: 25 May 2007                 LESSKEY(1)

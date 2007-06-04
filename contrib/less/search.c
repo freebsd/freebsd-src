@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2005  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -54,6 +54,7 @@ extern int jump_sline;
 extern int bs_mode;
 extern int ctldisp;
 extern int status_col;
+extern void * constant ml_search;
 extern POSITION start_attnpos;
 extern POSITION end_attnpos;
 #if HILITE_SEARCH
@@ -63,6 +64,7 @@ extern int size_linebuf;
 extern int squished;
 extern int can_goto_line;
 static int hide_hilite;
+static int oldbot;
 static POSITION prep_startpos;
 static POSITION prep_endpos;
 
@@ -110,15 +112,22 @@ static char *last_pattern = NULL;
 #define	CVT_ANSI	010	/* Remove ANSI escape sequences */
 
 	static void
-cvt_text(odst, osrc, ops)
+cvt_text(odst, osrc, lenp, ops)
 	char *odst;
 	char *osrc;
+	int *lenp;
 	int ops;
 {
 	register char *dst;
 	register char *src;
+	register char *src_end;
 
-	for (src = osrc, dst = odst;  *src != '\0';  src++)
+	if (lenp != NULL)
+		src_end = osrc + *lenp;
+	else
+		src_end = osrc + strlen(osrc);
+
+	for (src = osrc, dst = odst;  src < src_end;  src++)
 	{
 		if ((ops & CVT_TO_LC) && IS_UPPER(*src))
 			/* Convert uppercase to lowercase. */
@@ -129,7 +138,7 @@ cvt_text(odst, osrc, ops)
 		else if ((ops & CVT_ANSI) && *src == ESC)
 		{
 			/* Skip to end of ANSI escape sequence. */
-			while (src[1] != '\0')
+			while (src + 1 != src_end)
 				if (!is_ansi_middle(*++src))
 					break;
 		} else 
@@ -139,6 +148,8 @@ cvt_text(odst, osrc, ops)
 	if ((ops & CVT_CRLF) && dst > odst && dst[-1] == '\r')
 		dst--;
 	*dst = '\0';
+	if (lenp != NULL)
+		*lenp = dst - odst;
 }
 
 /*
@@ -265,6 +276,8 @@ repaint_hilite(on)
 			put_line();
 		}
 	}
+	if (!oldbot)
+		lower_left();
 	hide_hilite = save_hide_hilite;
 }
 
@@ -448,8 +461,9 @@ uncompile_pattern()
  * Set sp and ep to the start and end of the matched string.
  */
 	static int
-match_pattern(line, sp, ep, notbol)
+match_pattern(line, line_len, sp, ep, notbol)
 	char *line;
+	int line_len;
 	char **sp;
 	char **ep;
 	int notbol;
@@ -457,7 +471,7 @@ match_pattern(line, sp, ep, notbol)
 	int matched;
 
 	if (last_search_type & SRCH_NO_REGEX)
-		return (match(last_pattern, line, sp, ep));
+		return (match(last_pattern, strlen(last_pattern), line, line_len, sp, ep));
 
 #if HAVE_POSIX_REGCOMP
 	{
@@ -479,7 +493,7 @@ match_pattern(line, sp, ep, notbol)
 	{
 		int flags = (notbol) ? PCRE_NOTBOL : 0;
 		int ovector[3];
-		matched = pcre_exec(regpattern, NULL, line, strlen(line),
+		matched = pcre_exec(regpattern, NULL, line, line_len,
 			0, flags, ovector, 3) >= 0;
 		if (!matched)
 			return (0);
@@ -513,7 +527,7 @@ match_pattern(line, sp, ep, notbol)
 	*ep = regpattern->endp[0];
 #endif
 #if NO_REGEX
-	matched = match(last_pattern, line, sp, ep);
+	matched = match(last_pattern, strlen(last_pattern), line, line_len, sp, ep);
 #endif
 	return (matched);
 }
@@ -650,11 +664,14 @@ add_hilite(anchor, hl)
 }
 
 	static void
-adj_hilite_ansi(cvt_ops, line, npos)
+adj_hilite_ansi(cvt_ops, line, line_len, npos)
 	int cvt_ops;
 	char **line;
+	int line_len;
 	POSITION *npos;
 {
+	char *line_end = *line + line_len;
+
 	if (cvt_ops & CVT_ANSI)
 		while (**line == ESC)
 		{
@@ -664,7 +681,7 @@ adj_hilite_ansi(cvt_ops, line, npos)
 			 */
 			(*line)++;
 			(*npos)++;
-			while (**line != '\0')
+			while (*line < line_end)
 			{
 				(*npos)++;
 				if (!is_ansi_middle(*(*line)++))
@@ -683,6 +700,8 @@ adj_hilite(anchor, linepos, cvt_ops)
 	int cvt_ops;
 {
 	char *line;
+	int line_len;
+	char *line_end;
 	struct hilite *hl;
 	int checkstart;
 	POSITION opos;
@@ -695,7 +714,8 @@ adj_hilite(anchor, linepos, cvt_ops)
 	 * This may not be true if there are backspaces in the line.
 	 * Get the raw line again.  Look at each character.
 	 */
-	(void) forw_raw_line(linepos, &line);
+	(void) forw_raw_line(linepos, &line, &line_len);
+	line_end = line + line_len;
 	opos = npos = linepos;
 	hl = anchor->hl_first;
 	checkstart = TRUE;
@@ -720,9 +740,9 @@ adj_hilite(anchor, linepos, cvt_ops)
 			hl = hl->hl_next;
 			continue; /* {{ necessary }} */
 		}
-		if (*line == '\0')
+		if (line == line_end)
 			break;
-		adj_hilite_ansi(cvt_ops, &line, &npos);
+		adj_hilite_ansi(cvt_ops, &line, line_end - line, &npos);
 		opos++;
 		npos++;
 		line++;
@@ -732,8 +752,8 @@ adj_hilite(anchor, linepos, cvt_ops)
 			{
 				npos++;
 				line++;
-				adj_hilite_ansi(cvt_ops, &line, &npos);
-				if (*line == '\0')
+				adj_hilite_ansi(cvt_ops, &line, line_end - line, &npos);
+				if (line == line_end)
 				{
 					--npos;
 					--line;
@@ -757,14 +777,16 @@ adj_hilite(anchor, linepos, cvt_ops)
  * sp,ep delimit the first match already found.
  */
 	static void
-hilite_line(linepos, line, sp, ep, cvt_ops)
+hilite_line(linepos, line, line_len, sp, ep, cvt_ops)
 	POSITION linepos;
 	char *line;
+	int line_len;
 	char *sp;
 	char *ep;
 	int cvt_ops;
 {
 	char *searchp;
+	char *line_end = line + line_len;
 	struct hilite *hl;
 	struct hilite hilites;
 
@@ -778,7 +800,7 @@ hilite_line(linepos, line, sp, ep, cvt_ops)
 	 *    substrings of the line, may mark more than is correct
 	 *    if the pattern starts with "^".  This bug is fixed
 	 *    for those regex functions that accept a notbol parameter
-	 *    (currently POSIX and V8-with-regexec2). }}
+	 *    (currently POSIX, PCRE and V8-with-regexec2). }}
 	 */
 	searchp = line;
 	/*
@@ -805,11 +827,11 @@ hilite_line(linepos, line, sp, ep, cvt_ops)
 		 */
 		if (ep > searchp)
 			searchp = ep;
-		else if (*searchp != '\0')
+		else if (searchp != line_end)
 			searchp++;
 		else /* end of line */
 			break;
-	} while (match_pattern(searchp, &sp, &ep, 1));
+	} while (match_pattern(searchp, line_end - searchp, &sp, &ep, 1));
 
 	/*
 	 * If there were backspaces in the original line, they
@@ -940,7 +962,7 @@ search_pos(search_type)
 		pos = position(linenum);
 		if (search_type & SRCH_FORW)
 		{
-			pos = forw_raw_line(pos, (char **)NULL);
+			pos = forw_raw_line(pos, (char **)NULL, (int *)NULL);
 			while (pos == NULL_POSITION)
 			{
 				if (++linenum >= sc_height)
@@ -974,6 +996,7 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 	POSITION *pendpos;
 {
 	char *line;
+	int line_len;
 	LINENUM linenum;
 	char *sp, *ep;
 	int line_match;
@@ -1016,7 +1039,7 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 			 * starting position of that line in linepos.
 			 */
 			linepos = pos;
-			pos = forw_raw_line(pos, &line);
+			pos = forw_raw_line(pos, &line, &line_len);
 			if (linenum != 0)
 				linenum++;
 		} else
@@ -1025,7 +1048,7 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 			 * Read the previous line and save the
 			 * starting position of that line in linepos.
 			 */
-			pos = back_raw_line(pos, &line);
+			pos = back_raw_line(pos, &line, &line_len);
 			linepos = pos;
 			if (linenum != 0)
 				linenum--;
@@ -1058,14 +1081,14 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 		 * If we're doing backspace processing, delete backspaces.
 		 */
 		cvt_ops = get_cvt_ops();
-		cvt_text(line, line, cvt_ops);
+		cvt_text(line, line, &line_len, cvt_ops);
 
 		/*
 		 * Test the next line to see if we have a match.
 		 * We are successful if we either want a match and got one,
 		 * or if we want a non-match and got one.
 		 */
-		line_match = match_pattern(line, &sp, &ep, 0);
+		line_match = match_pattern(line, line_len, &sp, &ep, 0);
 		line_match = (!(search_type & SRCH_NO_MATCH) && line_match) ||
 				((search_type & SRCH_NO_MATCH) && !line_match);
 		if (!line_match)
@@ -1082,7 +1105,7 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 			 * hilite list and keep searching.
 			 */
 			if (line_match)
-				hilite_line(linepos, line, sp, ep, cvt_ops);
+				hilite_line(linepos, line, line_len, sp, ep, cvt_ops);
 #endif
 		} else if (--matches <= 0)
 		{
@@ -1099,7 +1122,7 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 				 */
 				clr_hilite();
 				if (line_match)
-					hilite_line(linepos, line, sp, ep, cvt_ops);
+					hilite_line(linepos, line, line_len, sp, ep, cvt_ops);
 			}
 #endif
 			if (plinepos != NULL)
@@ -1107,6 +1130,44 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 			return (0);
 		}
 	}
+}
+
+ /*
+ * search for a pattern in history. If found, compile that pattern.
+ */
+	static int 
+hist_pattern(search_type) 
+	int search_type;
+{
+#if CMD_HISTORY
+	char *pattern;
+
+	set_mlist(ml_search, 0);
+	pattern = cmd_lastpattern();
+	if (pattern == NULL)
+		return (0);
+
+	if (caseless == OPT_ONPLUS)
+		cvt_text(pattern, pattern, (int *)NULL, CVT_TO_LC);
+
+	if (compile_pattern(pattern, search_type) < 0)
+		return (0);
+
+	is_ucase_pattern = is_ucase(pattern);
+	if (is_ucase_pattern && caseless != OPT_ONPLUS)
+		is_caseless = 0;
+	else
+		is_caseless = caseless;
+
+#if HILITE_SEARCH
+	if (hilite_search == OPT_ONPLUS && !hide_hilite)
+		hilite_screen();
+#endif
+
+	return (1);
+#else /* CMD_HISTORY */
+	return (0);
+#endif /* CMD_HISTORY */
 }
 
 /*
@@ -1132,7 +1193,7 @@ search(search_type, pattern, n)
 		/*
 		 * A null pattern means use the previously compiled pattern.
 		 */
-		if (!prev_pattern())
+		if (!prev_pattern() && !hist_pattern(search_type))
 		{
 			error("No previous regular expression", NULL_PARG);
 			return (-1);
@@ -1170,7 +1231,7 @@ search(search_type, pattern, n)
 		 */
 		ucase = is_ucase(pattern);
 		if (caseless == OPT_ONPLUS)
-			cvt_text(pattern, pattern, CVT_TO_LC);
+			cvt_text(pattern, pattern, (int *)NULL, CVT_TO_LC);
 		if (compile_pattern(pattern, search_type) < 0)
 			return (-1);
 		/*
@@ -1298,7 +1359,7 @@ prep_hilite(spos, epos, maxlines)
 	{
 		max_epos = spos;
 		for (i = 0;  i < maxlines;  i++)
-			max_epos = forw_raw_line(max_epos, (char **)NULL);
+			max_epos = forw_raw_line(max_epos, (char **)NULL, (int *)NULL);
 	}
 
 	/*
@@ -1394,18 +1455,23 @@ prep_hilite(spos, epos, maxlines)
  * It supports no metacharacters like *, etc.
  */
 	static int
-match(pattern, buf, pfound, pend)
-	char *pattern, *buf;
+match(pattern, pattern_len, buf, buf_len, pfound, pend)
+	char *pattern;
+	int pattern_len;
+	char *buf;
+	int buf_len;
 	char **pfound, **pend;
 {
 	register char *pp, *lp;
+	register char *pattern_end = pattern + pattern_len;
+	register char *buf_end = buf + buf_len;
 
-	for ( ;  *buf != '\0';  buf++)
+	for ( ;  buf < buf_end;  buf++)
 	{
 		for (pp = pattern, lp = buf;  *pp == *lp;  pp++, lp++)
-			if (*pp == '\0' || *lp == '\0')
+			if (pp == pattern_end || lp == buf_end)
 				break;
-		if (*pp == '\0')
+		if (pp == pattern_end)
 		{
 			if (pfound != NULL)
 				*pfound = buf;

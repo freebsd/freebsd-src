@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2004  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -30,6 +30,7 @@ extern int linenums;
 extern int hshift;
 extern int sc_height;
 extern int jump_sline;
+extern int less_is_more;
 extern IFILE curr_ifile;
 #if EDITOR
 extern char *editor;
@@ -52,6 +53,8 @@ static constant char h_proto[] =
   "HELP -- ?eEND -- Press g to see it again:Press RETURN for more., or q when done";
 static constant char w_proto[] =
   "Waiting for data";
+static constant char more_proto[] =
+  "--More--(?eEND ?x- Next\\: %x.:?pB%pB\\%:byte %bB?s/%s...%t)";
 
 public char *prproto[3];
 public char constant *eqproto = e_proto;
@@ -68,7 +71,7 @@ static char *mp;
 init_prompt()
 {
 	prproto[0] = save(s_proto);
-	prproto[1] = save(m_proto);
+	prproto[1] = save(less_is_more ? more_proto : m_proto);
 	prproto[2] = save(M_proto);
 	eqproto = save(e_proto);
 	hproto = save(h_proto);
@@ -561,9 +564,11 @@ eq_message()
 pr_string()
 {
 	char *prompt;
+	int type;
 
+	type = (!less_is_more) ? pr_type : pr_type ? 0 : 1;
 	prompt = pr_expand((ch_getflags() & CH_HELPFILE) ?
-				hproto : prproto[pr_type],
+				hproto : prproto[type],
 			sc_width-so_s_width-so_e_width-2);
 	new_file = 0;
 	return (prompt);

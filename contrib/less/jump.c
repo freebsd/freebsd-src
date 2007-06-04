@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2005  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -102,8 +102,9 @@ repaint()
  * Jump to a specified percentage into the file.
  */
 	public void
-jump_percent(percent)
+jump_percent(percent, fraction)
 	int percent;
+	long fraction;
 {
 	POSITION pos, len;
 
@@ -121,7 +122,7 @@ jump_percent(percent)
 		error("Don't know length of file", NULL_PARG);
 		return;
 	}
-	pos = percent_pos(len, percent);
+	pos = percent_pos(len, percent, fraction);
 	if (pos >= len)
 		pos = len-1;
 
@@ -280,7 +281,7 @@ jump_loc(pos, sline)
 			}
 		}
 		lastmark();
-		if (top_scroll != OPT_ON)
+		if (!top_scroll)
 			clear();
 		else
 			home();

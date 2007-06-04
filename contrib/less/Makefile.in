@@ -13,6 +13,7 @@ INSTALL_DATA = @INSTALL_DATA@
 CFLAGS = @CFLAGS@
 CFLAGS_COMPILE_ONLY = -c
 LDFLAGS = @LDFLAGS@
+CPPFLAGS = @CPPFLAGS@
 O=o
 
 LIBS = @LIBS@
@@ -25,10 +26,12 @@ bindir = @bindir@
 binprefix = 
 
 sysconfdir = @sysconfdir@
+datarootdir = @datarootdir@
 
 mandir = @mandir@
 manext = 1
 manprefix = 
+DESTDIR =
 
 #### End of system configuration section. ####
 
@@ -60,22 +63,26 @@ lessecho: lessecho.${O} version.${O}
 ${OBJ}: ${srcdir}/less.h ${srcdir}/funcs.h defines.h 
 
 install: all ${srcdir}/less.nro ${srcdir}/lesskey.nro ${srcdir}/lessecho.nro installdirs
-	${INSTALL_PROGRAM} less ${bindir}/${binprefix}less
-	${INSTALL_PROGRAM} lesskey ${bindir}/${binprefix}lesskey
-	${INSTALL_PROGRAM} lessecho ${bindir}/${binprefix}lessecho
-	${INSTALL_DATA} ${srcdir}/less.nro ${mandir}/man${manext}/${manprefix}less.${manext}
-	${INSTALL_DATA} ${srcdir}/lesskey.nro ${mandir}/man${manext}/${manprefix}lesskey.${manext}
-	${INSTALL_DATA} ${srcdir}/lessecho.nro ${mandir}/man${manext}/${manprefix}lessecho.${manext}
+	${INSTALL_PROGRAM} less ${DESTDIR}${bindir}/${binprefix}less
+	${INSTALL_PROGRAM} lesskey ${DESTDIR}${bindir}/${binprefix}lesskey
+	${INSTALL_PROGRAM} lessecho ${DESTDIR}${bindir}/${binprefix}lessecho
+	${INSTALL_DATA} ${srcdir}/less.nro ${DESTDIR}${mandir}/man${manext}/${manprefix}less.${manext}
+	${INSTALL_DATA} ${srcdir}/lesskey.nro ${DESTDIR}${mandir}/man${manext}/${manprefix}lesskey.${manext}
+	${INSTALL_DATA} ${srcdir}/lessecho.nro ${DESTDIR}${mandir}/man${manext}/${manprefix}lessecho.${manext}
 
 install-strip:
 	${MAKE} INSTALL_PROGRAM='${INSTALL_PROGRAM} -s' install
 
 installdirs: mkinstalldirs
-	${srcdir}/mkinstalldirs ${bindir} ${mandir}/man${manext}
+	${srcdir}/mkinstalldirs ${DESTDIR}${bindir} ${DESTDIR}${mandir}/man${manext}
 
 uninstall:
-	rm -f ${bindir}/${binprefix}less ${bindir}/${binprefix}lesskey ${bindir}/${binprefix}lessecho
-	rm -f ${mandir}/man${manext}/${manprefix}less.${manext} ${mandir}/man${manext}/${manprefix}lesskey.${manext}
+	rm -f ${DESTDIR}${bindir}/${binprefix}less 
+	rm -f ${DESTDIR}${bindir}/${binprefix}lesskey
+	rm -f ${DESTDIR}${bindir}/${binprefix}lessecho
+	rm -f ${DESTDIR}${mandir}/man${manext}/${manprefix}less.${manext}
+	rm -f ${DESTDIR}${mandir}/man${manext}/${manprefix}lesskey.${manext}
+	rm -f ${DESTDIR}${mandir}/man${manext}/${manprefix}lessecho.${manext}
 
 info:
 install-info:

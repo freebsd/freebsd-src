@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2005  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -21,18 +21,19 @@ public int hit_eof;	/* Keeps track of how many times we hit end of file */
 public int screen_trashed;
 public int squished;
 public int no_back_scroll = 0;
+public int forw_prompt;
 
 extern int sigs;
 extern int top_scroll;
 extern int quiet;
 extern int sc_width, sc_height;
-extern int quit_at_eof;
 extern int plusoption;
 extern int forw_scroll;
 extern int back_scroll;
 extern int ignore_eoi;
 extern int clear_bg;
 extern int final_attr;
+extern int oldbot;
 #if TAGS
 extern char *tagoption;
 #endif
@@ -77,7 +78,7 @@ eof_check()
  * of the screen; this can happen when we display a short file
  * for the first time.
  */
-	static void
+	public void
 squish_check()
 {
 	if (!squished)
@@ -135,8 +136,7 @@ forw(n, pos, force, only_last, nblank)
 			pos_clear();
 			add_forw_pos(pos);
 			force = 1;
-			if (top_scroll == OPT_ONPLUS || (first_time && top_scroll != OPT_ON))
-				clear();
+			clear();
 			home();
 		} else
 		{
@@ -155,8 +155,7 @@ forw(n, pos, force, only_last, nblank)
 			force = 1;
 			if (top_scroll)
 			{
-				if (top_scroll == OPT_ONPLUS)
-					clear();
+				clear();
 				home();
 			} else if (!first_time)
 			{
@@ -230,9 +229,16 @@ forw(n, pos, force, only_last, nblank)
 			squished = 1;
 			continue;
 		}
-		if (top_scroll == OPT_ON)
-			clear_eol();
 		put_line();
+#if 0
+		/* {{ 
+		 * Can't call clear_eol here.  The cursor might be at end of line
+		 * on an ignaw terminal, so clear_eol would clear the last char
+		 * of the current line instead of all of the next line.
+		 * If we really need to do this on clear_bg terminals, we need
+		 * to find a better way.
+		 * }}
+		 */
 		if (clear_bg && apply_at_specials(final_attr) != AT_NORMAL)
 		{
 			/*
@@ -244,6 +250,8 @@ forw(n, pos, force, only_last, nblank)
 			 */
 			clear_eol();
 		}
+#endif
+		forw_prompt = 1;
 	}
 
 	if (ignore_eoi)
@@ -309,6 +317,8 @@ back(n, pos, force, only_last)
 		eof_bell();
 	else if (do_repaint)
 		repaint();
+	else if (!oldbot)
+		lower_left();
 	(void) currline(BOTTOM);
 }
 
@@ -324,7 +334,7 @@ forward(n, force, only_last)
 {
 	POSITION pos;
 
-	if (quit_at_eof && hit_eof && !(ch_getflags() & CH_HELPFILE))
+	if (get_quit_at_eof() && hit_eof && !(ch_getflags() & CH_HELPFILE))
 	{
 		/*
 		 * If the -e flag is set and we're trying to go

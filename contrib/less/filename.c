@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2005  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -51,6 +51,7 @@
 extern int force_open;
 extern int secure;
 extern int use_lessopen;
+extern int ctldisp;
 extern IFILE curr_ifile;
 extern IFILE old_ifile;
 #if SPACES_IN_FILENAMES
@@ -470,7 +471,8 @@ bin_file(f)
 {
 	int i;
 	int n;
-	unsigned char data[64];
+	int bin_count = 0;
+	unsigned char data[256];
 
 	if (!seekable(f))
 		return (0);
@@ -478,9 +480,20 @@ bin_file(f)
 		return (0);
 	n = read(f, data, sizeof(data));
 	for (i = 0;  i < n;  i++)
-		if (binary_char(data[i]))
-			return (1);
-	return (0);
+	{
+		char c = data[i];
+		if (ctldisp == OPT_ONPLUS && c == ESC)
+		{
+			while (++i < n && is_ansi_middle(data[i]))
+				continue;
+		} else if (binary_char(c))
+			bin_count++;
+	}
+	/*
+	 * Call it a binary file if there are more than 5 binary characters
+	 * in the first 256 bytes of the file.
+	 */
+	return (bin_count > 5);
 }
 
 /*
@@ -966,7 +979,7 @@ bad_file(filename)
 	register char *m = NULL;
 
 	filename = shell_unquote(filename);
-	if (is_dir(filename))
+	if (!force_open && is_dir(filename))
 	{
 		static char is_a_dir[] = " is a directory";
 
