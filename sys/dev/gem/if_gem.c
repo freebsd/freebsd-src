@@ -66,6 +66,12 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
+
 #include <machine/bus.h>
 
 #include <dev/mii/mii.h>
@@ -75,14 +81,22 @@ __FBSDID("$FreeBSD$");
 #include <dev/gem/if_gemvar.h>
 
 #define TRIES	10000
+/*
+ * The GEM hardware support basic TCP/UDP checksum offloading. However,
+ * the hardware doesn't compensate the checksum for UDP datagram which
+ * can yield to 0x0. As a safe guard, UDP checksum offload is disabled
+ * by default. It can be reactivated by setting special link option
+ * link0 with ifconfig(8).
+ */
+#define	GEM_CSUM_FEATURES	(CSUM_TCP)
 
 static void	gem_start(struct ifnet *);
 static void	gem_start_locked(struct ifnet *);
 static void	gem_stop(struct ifnet *, int);
 static int	gem_ioctl(struct ifnet *, u_long, caddr_t);
 static void	gem_cddma_callback(void *, bus_dma_segment_t *, int, int);
-static void	gem_txdma_callback(void *, bus_dma_segment_t *, int,
-    bus_size_t, int);
+static __inline void gem_txcksum(struct gem_softc *, struct mbuf *, uint64_t *);
+static __inline void gem_rxcksum(struct mbuf *, uint64_t);
 static void	gem_tick(void *);
 static int	gem_watchdog(struct gem_softc *);
 static void	gem_init(void *);
@@ -90,7 +104,8 @@ static void	gem_init_locked(struct gem_softc *);
 static void	gem_init_regs(struct gem_softc *);
 static int	gem_ringsize(int sz);
 static int	gem_meminit(struct gem_softc *);
-static int	gem_load_txmbuf(struct gem_softc *, struct mbuf *);
+static struct mbuf *gem_defrag(struct mbuf *, int, int);
+static int	gem_load_txmbuf(struct gem_softc *, struct mbuf **);
 static void	gem_mifinit(struct gem_softc *);
 static int	gem_bitwait(struct gem_softc *, bus_addr_t, u_int32_t,
     u_int32_t);
@@ -156,30 +171,29 @@ gem_attach(sc)
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    MCLBYTES, GEM_NSEGS, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
 	    &sc->sc_pdmatag);
 	if (error)
 		goto fail_ifnet;
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MAXBSIZE,
-	    1, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW, NULL, NULL,
-	    &sc->sc_rdmatag);
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
+	    1, MCLBYTES, BUS_DMA_ALLOCNOW, NULL, NULL, &sc->sc_rdmatag);
 	if (error)
 		goto fail_ptag;
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    GEM_TD_BUFSIZE, GEM_NTXDESC, BUS_SPACE_MAXSIZE_32BIT,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MCLBYTES * GEM_NTXSEGS, GEM_NTXSEGS, MCLBYTES,
 	    BUS_DMA_ALLOCNOW, NULL, NULL, &sc->sc_tdmatag);
 	if (error)
 		goto fail_rtag;
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, PAGE_SIZE, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct gem_control_data), 1,
-	    sizeof(struct gem_control_data), BUS_DMA_ALLOCNOW,
-	    busdma_lock_mutex, &sc->sc_mtx, &sc->sc_cdmatag);
+	    sizeof(struct gem_control_data), 0,
+	    NULL, NULL, &sc->sc_cdmatag);
 	if (error)
 		goto fail_ttag;
 
@@ -188,7 +202,9 @@ gem_attach(sc)
 	 * DMA map for it.
 	 */
 	if ((error = bus_dmamem_alloc(sc->sc_cdmatag,
-	    (void **)&sc->sc_control_data, 0, &sc->sc_cddmamap))) {
+	    (void **)&sc->sc_control_data,
+	    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO,
+	    &sc->sc_cddmamap))) {
 		device_printf(sc->sc_dev, "unable to allocate control data,"
 		    " error = %d\n", error);
 		goto fail_ctag;
@@ -265,6 +281,7 @@ gem_attach(sc)
 	device_printf(sc->sc_dev, "%ukB RX FIFO, %ukB TX FIFO\n",
 	    sc->sc_rxfifosize / 1024, v / 16);
 
+	sc->sc_csum_features = GEM_CSUM_FEATURES;
 	/* Initialize ifnet structure. */
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->sc_dev),
@@ -273,7 +290,9 @@ gem_attach(sc)
 	ifp->if_start = gem_start;
 	ifp->if_ioctl = gem_ioctl;
 	ifp->if_init = gem_init;
-	ifp->if_snd.ifq_maxlen = GEM_TXQUEUELEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, GEM_TXQUEUELEN);
+	ifp->if_snd.ifq_drv_maxlen = GEM_TXQUEUELEN;
+	IFQ_SET_READY(&ifp->if_snd);
 	/*
 	 * Walk along the list of attached MII devices and
 	 * establish an `MII instance' to `phy number'
@@ -333,11 +352,12 @@ gem_attach(sc)
 #endif
 
 	/*
-	 * Tell the upper layer(s) we support long frames.
+	 * Tell the upper layer(s) we support long frames/checksum offloads.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_MTU;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
+	ifp->if_hwassist |= sc->sc_csum_features;
+	ifp->if_capenable |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
 
 	return (0);
 
@@ -441,6 +461,112 @@ gem_resume(sc)
 	GEM_UNLOCK(sc);
 }
 
+static __inline void
+gem_txcksum(struct gem_softc *sc, struct mbuf *m, uint64_t *cflags)
+{
+	struct ip *ip;
+	uint64_t offset, offset2;
+	char *p;
+
+	offset = sizeof(struct ip) + ETHER_HDR_LEN;
+	for(; m && m->m_len == 0; m = m->m_next)
+		;
+	if (m == NULL || m->m_len < ETHER_HDR_LEN) {
+		device_printf(sc->sc_dev, "%s: m_len < ETHER_HDR_LEN\n",
+		    __func__);
+		/* checksum will be corrupted */
+		goto sendit;
+	}
+	if (m->m_len < ETHER_HDR_LEN + sizeof(uint32_t)) {
+		if (m->m_len != ETHER_HDR_LEN) {
+			device_printf(sc->sc_dev,
+			    "%s: m_len != ETHER_HDR_LEN\n", __func__);
+			/* checksum will be corrupted */
+			goto sendit;
+		}
+		for(m = m->m_next; m && m->m_len == 0; m = m->m_next)
+			;
+		if (m == NULL) {
+			/* checksum will be corrupted */
+			goto sendit;
+		}
+		ip = mtod(m, struct ip *);
+	} else {
+		p = mtod(m, uint8_t *);
+		p += ETHER_HDR_LEN;
+		ip = (struct ip *)p;
+	}
+	offset = (ip->ip_hl << 2) + ETHER_HDR_LEN;
+
+sendit:
+	offset2 = m->m_pkthdr.csum_data;
+	*cflags = offset << GEM_TD_CXSUM_STARTSHFT;
+	*cflags |= ((offset + offset2) << GEM_TD_CXSUM_STUFFSHFT);
+	*cflags |= GEM_TD_CXSUM_ENABLE;
+}
+
+static __inline void
+gem_rxcksum(struct mbuf *m, uint64_t flags)
+{
+	struct ether_header *eh;
+	struct ip *ip;
+	struct udphdr *uh;
+	int32_t hlen, len, pktlen;
+	uint16_t cksum, *opts;
+	uint32_t temp32;
+
+	pktlen = m->m_pkthdr.len;
+	if (pktlen < sizeof(struct ether_header) + sizeof(struct ip))
+		return;
+	eh = mtod(m, struct ether_header *);
+	if (eh->ether_type != htons(ETHERTYPE_IP))
+		return;
+	ip = (struct ip *)(eh + 1);
+	if (ip->ip_v != IPVERSION)
+		return;
+
+	hlen = ip->ip_hl << 2;
+	pktlen -= sizeof(struct ether_header);
+	if (hlen < sizeof(struct ip))
+		return;
+	if (ntohs(ip->ip_len) < hlen)
+		return;
+	if (ntohs(ip->ip_len) != pktlen)
+		return;
+	if (ip->ip_off & htons(IP_MF | IP_OFFMASK))
+		return;	/* can't handle fragmented packet */
+
+	switch (ip->ip_p) {
+	case IPPROTO_TCP:
+		if (pktlen < (hlen + sizeof(struct tcphdr)))
+			return;
+		break;
+	case IPPROTO_UDP:
+		if (pktlen < (hlen + sizeof(struct udphdr)))
+			return;
+		uh = (struct udphdr *)((uint8_t *)ip + hlen);
+		if (uh->uh_sum == 0)
+			return; /* no checksum */
+		break;
+	default:
+		return;
+	}
+
+	cksum = ~(flags & GEM_RD_CHECKSUM);
+	/* checksum fixup for IP options */
+	len = hlen - sizeof(struct ip);
+	if (len > 0) {
+		opts = (uint16_t *)(ip + 1);
+		for (; len > 0; len -= sizeof(uint16_t), opts++) {
+			temp32 = cksum - *opts;
+			temp32 = (temp32 >> 16) + (temp32 & 65535);
+			cksum = temp32 & 65535;
+		}
+	}
+	m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
+	m->m_pkthdr.csum_data = cksum;
+}
+
 static void
 gem_cddma_callback(xsc, segs, nsegs, error)
 	void *xsc;
@@ -460,87 +586,32 @@ gem_cddma_callback(xsc, segs, nsegs, error)
 }
 
 static void
-gem_txdma_callback(xsc, segs, nsegs, totsz, error)
-	void *xsc;
-	bus_dma_segment_t *segs;
-	int nsegs;
-	bus_size_t totsz;
-	int error;
-{
-	struct gem_txdma *txd = (struct gem_txdma *)xsc;
-	struct gem_softc *sc = txd->txd_sc;
-	struct gem_txsoft *txs = txd->txd_txs;
-	bus_size_t len = 0;
-	uint64_t flags = 0;
-	int seg, nexttx;
-
-	if (error != 0)
-		return;
-	/*
-	 * Ensure we have enough descriptors free to describe
-	 * the packet.  Note, we always reserve one descriptor
-	 * at the end of the ring as a termination point, to
-	 * prevent wrap-around.
-	 */
-	if (nsegs > sc->sc_txfree - 1) {
-		txs->txs_ndescs = -1;
-		return;
-	}
-	txs->txs_ndescs = nsegs;
-
-	nexttx = txs->txs_firstdesc;
-	/*
-	 * Initialize the transmit descriptors.
-	 */
-	for (seg = 0; seg < nsegs;
-	     seg++, nexttx = GEM_NEXTTX(nexttx)) {
-#ifdef GEM_DEBUG
-		CTR5(KTR_GEM, "txdma_cb: mapping seg %d (txd %d), len "
-		    "%lx, addr %#lx (%#lx)",  seg, nexttx,
-		    segs[seg].ds_len, segs[seg].ds_addr,
-		    GEM_DMA_WRITE(sc, segs[seg].ds_addr));
-#endif
-
-		if (segs[seg].ds_len == 0)
-			continue;
-		sc->sc_txdescs[nexttx].gd_addr =
-		    GEM_DMA_WRITE(sc, segs[seg].ds_addr);
-		KASSERT(segs[seg].ds_len < GEM_TD_BUFSIZE,
-		    ("gem_txdma_callback: segment size too large!"));
-		flags = segs[seg].ds_len & GEM_TD_BUFSIZE;
-		if (len == 0) {
-#ifdef GEM_DEBUG
-			CTR2(KTR_GEM, "txdma_cb: start of packet at seg %d, "
-			    "tx %d", seg, nexttx);
-#endif
-			flags |= GEM_TD_START_OF_PACKET;
-			if (++sc->sc_txwin > GEM_NTXSEGS * 2 / 3) {
-				sc->sc_txwin = 0;
-				flags |= GEM_TD_INTERRUPT_ME;
-			}
-		}
-		if (len + segs[seg].ds_len == totsz) {
-#ifdef GEM_DEBUG
-			CTR2(KTR_GEM, "txdma_cb: end of packet at seg %d, "
-			    "tx %d", seg, nexttx);
-#endif
-			flags |= GEM_TD_END_OF_PACKET;
-		}
-		sc->sc_txdescs[nexttx].gd_flags = GEM_DMA_WRITE(sc, flags);
-		txs->txs_lastdesc = nexttx;
-		len += segs[seg].ds_len;
-	}
-	KASSERT((flags & GEM_TD_END_OF_PACKET) != 0,
-	    ("gem_txdma_callback: missed end of packet!"));
-}
-
-static void
 gem_tick(arg)
 	void *arg;
 {
 	struct gem_softc *sc = arg;
+	struct ifnet *ifp;
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
+
+	ifp = sc->sc_ifp;
+	/*
+	 * Unload collision counters
+	 */
+	ifp->if_collisions +=
+	    bus_read_4(sc->sc_res[0], GEM_MAC_NORM_COLL_CNT) +
+	    bus_read_4(sc->sc_res[0], GEM_MAC_FIRST_COLL_CNT) +
+	    bus_read_4(sc->sc_res[0], GEM_MAC_EXCESS_COLL_CNT) +
+	    bus_read_4(sc->sc_res[0], GEM_MAC_LATE_COLL_CNT);
+
+	/*
+	 * then clear the hardware counters.
+	 */
+	bus_write_4(sc->sc_res[0], GEM_MAC_NORM_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_FIRST_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_EXCESS_COLL_CNT, 0);
+	bus_write_4(sc->sc_res[0], GEM_MAC_LATE_COLL_CNT, 0);
+
 	mii_tick(sc->sc_mii);
 
 	if (gem_watchdog(sc) == EJUSTRETURN)
@@ -573,7 +644,7 @@ gem_reset(sc)
 {
 
 #ifdef GEM_DEBUG
-	CTR1(KTR_GEM, "%s: gem_reset", device_get_name(sc->sc_dev));
+	CTR2(KTR_GEM, "%s: %s", device_get_name(sc->sc_dev), __func__);
 #endif
 	gem_reset_rx(sc);
 	gem_reset_tx(sc);
@@ -621,7 +692,7 @@ gem_stop(ifp, disable)
 	struct gem_txsoft *txs;
 
 #ifdef GEM_DEBUG
-	CTR1(KTR_GEM, "%s: gem_stop", device_get_name(sc->sc_dev));
+	CTR2(KTR_GEM, "%s: %s", device_get_name(sc->sc_dev), __func__);
 #endif
 
 	callout_stop(&sc->sc_tick_ch);
@@ -878,7 +949,8 @@ gem_init_locked(sc)
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
 #ifdef GEM_DEBUG
-	CTR1(KTR_GEM, "%s: gem_init: calling stop", device_get_name(sc->sc_dev));
+	CTR2(KTR_GEM, "%s: %s: calling stop", device_get_name(sc->sc_dev),
+	    __func__);
 #endif
 	/*
 	 * Initialization sequence. The numbered steps below correspond
@@ -891,7 +963,8 @@ gem_init_locked(sc)
 	gem_stop(sc->sc_ifp, 0);
 	gem_reset(sc);
 #ifdef GEM_DEBUG
-	CTR1(KTR_GEM, "%s: gem_init: restarting", device_get_name(sc->sc_dev));
+	CTR2(KTR_GEM, "%s: %s: restarting", device_get_name(sc->sc_dev),
+	    __func__);
 #endif
 
 	/* Re-initialize the MIF */
@@ -943,12 +1016,14 @@ gem_init_locked(sc)
 
 	/* Encode Receive Descriptor ring size: four possible values */
 	v = gem_ringsize(GEM_NRXDESC /*XXX*/);
+	/* Rx TCP/UDP checksum offset */
+	v |= ((ETHER_HDR_LEN + sizeof(struct ip)) <<
+	    GEM_RX_CONFIG_CXM_START_SHFT);
 
 	/* Enable DMA */
 	bus_write_4(sc->sc_res[0], GEM_RX_CONFIG,
 		v|(GEM_THRSH_1024<<GEM_RX_CONFIG_FIFO_THRS_SHIFT)|
-		(2<<GEM_RX_CONFIG_FBOFF_SHFT)|GEM_RX_CONFIG_RXDMA_EN|
-		(0<<GEM_RX_CONFIG_CXM_START_SHFT));
+		(2<<GEM_RX_CONFIG_FBOFF_SHFT)|GEM_RX_CONFIG_RXDMA_EN);
 	/*
 	 * The following value is for an OFF Threshold of about 3/4 full
 	 * and an ON Threshold of 1/4 full.
@@ -963,7 +1038,7 @@ gem_init_locked(sc)
 
 	/* step 12. RX_MAC Configuration Register */
 	v = bus_read_4(sc->sc_res[0], GEM_MAC_RX_CONFIG);
-	v |= GEM_MAC_RX_ENABLE;
+	v |= GEM_MAC_RX_ENABLE | GEM_MAC_RX_STRIP_CRC;
 	bus_write_4(sc->sc_res[0], GEM_MAC_RX_CONFIG, v);
 
 	/* step 14. Issue Transmit Pending command */
@@ -980,55 +1055,210 @@ gem_init_locked(sc)
 	sc->sc_ifflags = ifp->if_flags;
 }
 
-static int
-gem_load_txmbuf(sc, m0)
-	struct gem_softc *sc;
+/*
+ * It's copy of ath_defrag(ath(4)).
+ *
+ * Defragment an mbuf chain, returning at most maxfrags separate
+ * mbufs+clusters.  If this is not possible NULL is returned and
+ * the original mbuf chain is left in it's present (potentially
+ * modified) state.  We use two techniques: collapsing consecutive
+ * mbufs and replacing consecutive mbufs by a cluster.
+ */
+static struct mbuf *
+gem_defrag(m0, how, maxfrags)
 	struct mbuf *m0;
+	int how;
+	int maxfrags;
 {
-	struct gem_txdma txd;
+	struct mbuf *m, *n, *n2, **prev;
+	u_int curfrags;
+
+	/*
+	 * Calculate the current number of frags.
+	 */
+	curfrags = 0;
+	for (m = m0; m != NULL; m = m->m_next)
+		curfrags++;
+	/*
+	 * First, try to collapse mbufs.  Note that we always collapse
+	 * towards the front so we don't need to deal with moving the
+	 * pkthdr.  This may be suboptimal if the first mbuf has much
+	 * less data than the following.
+	 */
+	m = m0;
+again:
+	for (;;) {
+		n = m->m_next;
+		if (n == NULL)
+			break;
+		if ((m->m_flags & M_RDONLY) == 0 &&
+		    n->m_len < M_TRAILINGSPACE(m)) {
+			bcopy(mtod(n, void *), mtod(m, char *) + m->m_len,
+				n->m_len);
+			m->m_len += n->m_len;
+			m->m_next = n->m_next;
+			m_free(n);
+			if (--curfrags <= maxfrags)
+				return (m0);
+		} else
+			m = n;
+	}
+	KASSERT(maxfrags > 1,
+		("maxfrags %u, but normal collapse failed", maxfrags));
+	/*
+	 * Collapse consecutive mbufs to a cluster.
+	 */
+	prev = &m0->m_next;		/* NB: not the first mbuf */
+	while ((n = *prev) != NULL) {
+		if ((n2 = n->m_next) != NULL &&
+		    n->m_len + n2->m_len < MCLBYTES) {
+			m = m_getcl(how, MT_DATA, 0);
+			if (m == NULL)
+				goto bad;
+			bcopy(mtod(n, void *), mtod(m, void *), n->m_len);
+			bcopy(mtod(n2, void *), mtod(m, char *) + n->m_len,
+				n2->m_len);
+			m->m_len = n->m_len + n2->m_len;
+			m->m_next = n2->m_next;
+			*prev = m;
+			m_free(n);
+			m_free(n2);
+			if (--curfrags <= maxfrags)	/* +1 cl -2 mbufs */
+				return m0;
+			/*
+			 * Still not there, try the normal collapse
+			 * again before we allocate another cluster.
+			 */
+			goto again;
+		}
+		prev = &n->m_next;
+	}
+	/*
+	 * No place where we can collapse to a cluster; punt.
+	 * This can occur if, for example, you request 2 frags
+	 * but the packet requires that both be clusters (we
+	 * never reallocate the first mbuf to avoid moving the
+	 * packet header).
+	 */
+bad:
+	return (NULL);
+}
+
+static int
+gem_load_txmbuf(sc, m_head)
+	struct gem_softc *sc;
+	struct mbuf **m_head;
+{
 	struct gem_txsoft *txs;
-	int error;
+	bus_dma_segment_t txsegs[GEM_NTXSEGS];
+	struct mbuf *m;
+	uint64_t flags, cflags;
+	int error, nexttx, nsegs, seg;
 
 	/* Get a work queue entry. */
 	if ((txs = STAILQ_FIRST(&sc->sc_txfreeq)) == NULL) {
 		/* Ran out of descriptors. */
-		return (-1);
+		return (ENOBUFS);
 	}
-	txd.txd_sc = sc;
-	txd.txd_txs = txs;
+	error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, txs->txs_dmamap,
+	    *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
+	if (error == EFBIG) {
+		m = gem_defrag(*m_head, M_DONTWAIT, GEM_NTXSEGS);
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		*m_head = m;
+		error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, txs->txs_dmamap,
+		    *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (error);
+		}
+	} else if (error != 0)
+		return (error);
+	if (nsegs == 0) {
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (EIO);
+	}
+
+	/*
+	 * Ensure we have enough descriptors free to describe
+	 * the packet.  Note, we always reserve one descriptor
+	 * at the end of the ring as a termination point, to
+	 * prevent wrap-around.
+	 */
+	if (nsegs > sc->sc_txfree - 1) {
+		txs->txs_ndescs = 0;
+		bus_dmamap_unload(sc->sc_tdmatag, txs->txs_dmamap);
+		return (ENOBUFS);
+	}
+
+	flags = cflags = 0;
+	if (((*m_head)->m_pkthdr.csum_flags & sc->sc_csum_features) != 0)
+		gem_txcksum(sc, *m_head, &cflags);
+
+	txs->txs_ndescs = nsegs;
 	txs->txs_firstdesc = sc->sc_txnext;
-	error = bus_dmamap_load_mbuf(sc->sc_tdmatag, txs->txs_dmamap, m0,
-	    gem_txdma_callback, &txd, BUS_DMA_NOWAIT);
-	if (error != 0)
-		goto fail;
-	if (txs->txs_ndescs == -1) {
-		error = -1;
-		goto fail;
+	nexttx = txs->txs_firstdesc;
+	for (seg = 0; seg < nsegs; seg++, nexttx = GEM_NEXTTX(nexttx)) {
+#ifdef	GEM_DEBUG
+		CTR6(KTR_GEM, "%s: mapping seg %d (txd %d), len "
+		    "%lx, addr %#lx (%#lx)", __func__, seg, nexttx,
+		    txsegs[seg].ds_len, txsegs[seg].ds_addr,
+		    GEM_DMA_WRITE(sc, txsegs[seg].ds_addr));
+#endif
+		sc->sc_txdescs[nexttx].gd_addr =
+		    GEM_DMA_WRITE(sc, txsegs[seg].ds_addr);
+		KASSERT(txsegs[seg].ds_len < GEM_TD_BUFSIZE,
+		    ("%s: segment size too large!", __func__));
+		flags = txsegs[seg].ds_len & GEM_TD_BUFSIZE;
+		sc->sc_txdescs[nexttx].gd_flags =
+		    GEM_DMA_WRITE(sc, flags | cflags);
+		txs->txs_lastdesc = nexttx;
 	}
+
+	/* set EOP on the last descriptor */
+#ifdef	GEM_DEBUG
+	CTR3(KTR_GEM, "%s: end of packet at seg %d, tx %d", __func__, seg,
+	    nexttx);
+#endif
+	sc->sc_txdescs[txs->txs_lastdesc].gd_flags |=
+	    GEM_DMA_WRITE(sc, GEM_TD_END_OF_PACKET);
+
+	/* Lastly set SOP on the first descriptor */
+#ifdef	GEM_DEBUG
+	CTR3(KTR_GEM, "%s: start of packet at seg %d, tx %d", __func__, seg,
+	    nexttx);
+#endif
+	if (++sc->sc_txwin > GEM_NTXSEGS * 2 / 3) {
+		sc->sc_txwin = 0;
+		flags |= GEM_TD_INTERRUPT_ME;
+		sc->sc_txdescs[txs->txs_firstdesc].gd_flags |=
+		    GEM_DMA_WRITE(sc, GEM_TD_INTERRUPT_ME |
+		    GEM_TD_START_OF_PACKET);
+	} else
+		sc->sc_txdescs[txs->txs_firstdesc].gd_flags |=
+		    GEM_DMA_WRITE(sc, GEM_TD_START_OF_PACKET);
 
 	/* Sync the DMA map. */
-	bus_dmamap_sync(sc->sc_tdmatag, txs->txs_dmamap,
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->sc_tdmatag, txs->txs_dmamap, BUS_DMASYNC_PREWRITE);
 
 #ifdef GEM_DEBUG
-	CTR3(KTR_GEM, "load_mbuf: setting firstdesc=%d, lastdesc=%d, "
-	    "ndescs=%d", txs->txs_firstdesc, txs->txs_lastdesc,
-	    txs->txs_ndescs);
+	CTR4(KTR_GEM, "%s: setting firstdesc=%d, lastdesc=%d, ndescs=%d",
+	    __func__, txs->txs_firstdesc, txs->txs_lastdesc, txs->txs_ndescs);
 #endif
 	STAILQ_REMOVE_HEAD(&sc->sc_txfreeq, txs_q);
 	STAILQ_INSERT_TAIL(&sc->sc_txdirtyq, txs, txs_q);
-	txs->txs_mbuf = m0;
+	txs->txs_mbuf = *m_head;
 
 	sc->sc_txnext = GEM_NEXTTX(txs->txs_lastdesc);
 	sc->sc_txfree -= txs->txs_ndescs;
-	return (0);
 
-fail:
-#ifdef GEM_DEBUG
-	CTR1(KTR_GEM, "gem_load_txmbuf failed (%d)", error);
-#endif
-	bus_dmamap_unload(sc->sc_tdmatag, txs->txs_dmamap);
-	return (error);
+	return (0);
 }
 
 static void
@@ -1137,69 +1367,40 @@ gem_start_locked(ifp)
 	struct ifnet *ifp;
 {
 	struct gem_softc *sc = (struct gem_softc *)ifp->if_softc;
-	struct mbuf *m0 = NULL;
-	int firsttx, ntx = 0, ofree, txmfail;
+	struct mbuf *m;
+	int firsttx, ntx = 0, txmfail;
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
-	/*
-	 * Remember the previous number of free descriptors and
-	 * the first descriptor we'll use.
-	 */
-	ofree = sc->sc_txfree;
 	firsttx = sc->sc_txnext;
-
 #ifdef GEM_DEBUG
-	CTR3(KTR_GEM, "%s: gem_start: txfree %d, txnext %d",
-	    device_get_name(sc->sc_dev), ofree, firsttx);
+	CTR4(KTR_GEM, "%s: %s: txfree %d, txnext %d",
+	    device_get_name(sc->sc_dev), __func__, sc->sc_txfree, firsttx);
 #endif
-
-	/*
-	 * Loop through the send queue, setting up transmit descriptors
-	 * until we drain the queue, or use up all available transmit
-	 * descriptors.
-	 */
-	txmfail = 0;
-	do {
-		/*
-		 * Grab a packet off the queue.
-		 */
-		IF_DEQUEUE(&ifp->if_snd, m0);
-		if (m0 == NULL)
+	for (; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) && sc->sc_txfree > 1;) {
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		if (m == NULL)
 			break;
-
-		txmfail = gem_load_txmbuf(sc, m0);
-		if (txmfail > 0) {
-			/* Drop the mbuf and complain. */
-			printf("gem_start: error %d while loading mbuf dma "
-			    "map\n", txmfail);
-			continue;
-		}
-		/* Not enough descriptors. */
-		if (txmfail == -1) {
-			if (sc->sc_txfree == GEM_MAXTXFREE)
-				panic("gem_start: mbuf chain too long!");
-			IF_PREPEND(&ifp->if_snd, m0);
+		txmfail = gem_load_txmbuf(sc, &m);
+		if (txmfail != 0) {
+			if (m == NULL)
+				break;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			break;
 		}
-
 		ntx++;
 		/* Kick the transmitter. */
-#ifdef GEM_DEBUG
-		CTR2(KTR_GEM, "%s: gem_start: kicking tx %d",
-		    device_get_name(sc->sc_dev), sc->sc_txnext);
+#ifdef	GEM_DEBUG
+		CTR3(KTR_GEM, "%s: %s: kicking tx %d",
+		    device_get_name(sc->sc_dev), __func__, sc->sc_txnext);
 #endif
 		bus_write_4(sc->sc_res[0], GEM_TX_KICK,
 			sc->sc_txnext);
 
-		BPF_MTAP(ifp, m0);
-	} while (1);
-
-	if (txmfail == -1 || sc->sc_txfree == 0) {
-		/* No more slots left; notify upper layer. */
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		BPF_MTAP(ifp, m);
 	}
 
 	if (ntx > 0) {
@@ -1213,8 +1414,8 @@ gem_start_locked(ifp)
 		/* Set a watchdog timer in case the chip flakes out. */
 		sc->sc_wdog_timer = 5;
 #ifdef GEM_DEBUG
-		CTR2(KTR_GEM, "%s: gem_start: watchdog %d",
-		    device_get_name(sc->sc_dev), sc->sc_wdog_timer);
+		CTR3(KTR_GEM, "%s: %s: watchdog %d",
+		    device_get_name(sc->sc_dev), __func__, sc->sc_wdog_timer);
 #endif
 	}
 }
@@ -1233,25 +1434,8 @@ gem_tint(sc)
 
 
 #ifdef GEM_DEBUG
-	CTR1(KTR_GEM, "%s: gem_tint", device_get_name(sc->sc_dev));
+	CTR2(KTR_GEM, "%s: %s", device_get_name(sc->sc_dev), __func__);
 #endif
-
-	/*
-	 * Unload collision counters
-	 */
-	ifp->if_collisions +=
-		bus_read_4(sc->sc_res[0], GEM_MAC_NORM_COLL_CNT) +
-		bus_read_4(sc->sc_res[0], GEM_MAC_FIRST_COLL_CNT) +
-		bus_read_4(sc->sc_res[0], GEM_MAC_EXCESS_COLL_CNT) +
-		bus_read_4(sc->sc_res[0], GEM_MAC_LATE_COLL_CNT);
-
-	/*
-	 * then clear the hardware counters.
-	 */
-	bus_write_4(sc->sc_res[0], GEM_MAC_NORM_COLL_CNT, 0);
-	bus_write_4(sc->sc_res[0], GEM_MAC_FIRST_COLL_CNT, 0);
-	bus_write_4(sc->sc_res[0], GEM_MAC_EXCESS_COLL_CNT, 0);
-	bus_write_4(sc->sc_res[0], GEM_MAC_LATE_COLL_CNT, 0);
 
 	/*
 	 * Go through our Tx list and free mbufs for those
@@ -1285,9 +1469,9 @@ gem_tint(sc)
 		 */
 		txlast = bus_read_4(sc->sc_res[0], GEM_TX_COMPLETION);
 #ifdef GEM_DEBUG
-		CTR3(KTR_GEM, "gem_tint: txs->txs_firstdesc = %d, "
+		CTR4(KTR_GEM, "%s: txs->txs_firstdesc = %d, "
 		    "txs->txs_lastdesc = %d, txlast = %d",
-		    txs->txs_firstdesc, txs->txs_lastdesc, txlast);
+		    __func__, txs->txs_firstdesc, txs->txs_lastdesc, txlast);
 #endif
 		if (txs->txs_firstdesc <= txs->txs_lastdesc) {
 			if ((txlast >= txs->txs_firstdesc) &&
@@ -1301,7 +1485,7 @@ gem_tint(sc)
 		}
 
 #ifdef GEM_DEBUG
-		CTR0(KTR_GEM, "gem_tint: releasing a desc");
+		CTR1(KTR_GEM, "%s: releasing a desc", __func__);
 #endif
 		STAILQ_REMOVE_HEAD(&sc->sc_txdirtyq, txs_q);
 
@@ -1322,11 +1506,12 @@ gem_tint(sc)
 	}
 
 #ifdef GEM_DEBUG
-	CTR3(KTR_GEM, "gem_tint: GEM_TX_STATE_MACHINE %x "
+	CTR4(KTR_GEM, "%s: GEM_TX_STATE_MACHINE %x "
 		"GEM_TX_DATA_PTR %llx "
 		"GEM_TX_COMPLETION %x",
-		bus_read_4(sc->sc_res[0], GEM_TX_STATE_MACHINE),
-		((long long) bus_read_4(sc->sc_res[0],
+		__func__,
+		bus_space_read_4(sc->sc_res[0], sc->sc_h, GEM_TX_STATE_MACHINE),
+		((long long) bus_4(sc->sc_res[0],
 			GEM_TX_DATA_PTR_HI) << 32) |
 			     bus_read_4(sc->sc_res[0],
 			GEM_TX_DATA_PTR_LO),
@@ -1339,14 +1524,16 @@ gem_tint(sc)
 
 		/* Freed some descriptors, so reset IFF_DRV_OACTIVE and restart. */
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		gem_start_locked(ifp);
-
 		sc->sc_wdog_timer = STAILQ_EMPTY(&sc->sc_txdirtyq) ? 0 : 5;
+
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			gem_start_locked(ifp);
 	}
 
 #ifdef GEM_DEBUG
-	CTR2(KTR_GEM, "%s: gem_tint: watchdog %d",
-	    device_get_name(sc->sc_dev), sc->sc_wdog_timer);
+	CTR3(KTR_GEM, "%s: %s: watchdog %d",
+	    device_get_name(sc->sc_dev), __func__, sc->sc_wdog_timer);
 #endif
 }
 
@@ -1380,7 +1567,7 @@ gem_rint(sc)
 	callout_stop(&sc->sc_rx_ch);
 #endif
 #ifdef GEM_DEBUG
-	CTR1(KTR_GEM, "%s: gem_rint", device_get_name(sc->sc_dev));
+	CTR2(KTR_GEM, "%s: %s", device_get_name(sc->sc_dev), __func__);
 #endif
 
 	/*
@@ -1390,8 +1577,8 @@ gem_rint(sc)
 	rxcomp = bus_read_4(sc->sc_res[0], GEM_RX_COMPLETION);
 
 #ifdef GEM_DEBUG
-	CTR2(KTR_GEM, "gem_rint: sc->rxptr %d, complete %d",
-	    sc->sc_rxptr, rxcomp);
+	CTR3(KTR_GEM, "%s: sc->rxptr %d, complete %d",
+	    __func__, sc->sc_rxptr, rxcomp);
 #endif
 	GEM_CDSYNC(sc, BUS_DMASYNC_POSTREAD);
 	for (i = sc->sc_rxptr; i != rxcomp;
@@ -1437,8 +1624,7 @@ gem_rint(sc)
 #endif
 
 		/*
-		 * No errors; receive the packet.  Note the Gem
-		 * includes the CRC with every packet.
+		 * No errors; receive the packet.
 		 */
 		len = GEM_RD_BUFLEN(rxstat);
 
@@ -1456,7 +1642,10 @@ gem_rint(sc)
 		m->m_data += 2; /* We're already off by two */
 
 		m->m_pkthdr.rcvif = ifp;
-		m->m_pkthdr.len = m->m_len = len - ETHER_CRC_LEN;
+		m->m_pkthdr.len = m->m_len = len;
+
+		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+			gem_rxcksum(m, rxstat);
 
 		/* Pass it on. */
 		GEM_UNLOCK(sc);
@@ -1475,7 +1664,7 @@ gem_rint(sc)
 	}
 
 #ifdef GEM_DEBUG
-	CTR2(KTR_GEM, "gem_rint: done sc->rxptr %d, complete %d",
+	CTR3(KTR_GEM, "%s: done sc->rxptr %d, complete %d", __func__,
 		sc->sc_rxptr, bus_read_4(sc->sc_res[0], GEM_RX_COMPLETION));
 #endif
 }
@@ -1559,8 +1748,8 @@ gem_intr(v)
 	GEM_LOCK(sc);
 	status = bus_read_4(sc->sc_res[0], GEM_STATUS);
 #ifdef GEM_DEBUG
-	CTR3(KTR_GEM, "%s: gem_intr: cplt %x, status %x",
-		device_get_name(sc->sc_dev), (status>>19),
+	CTR4(KTR_GEM, "%s: %s: cplt %x, status %x",
+		device_get_name(sc->sc_dev), __func__, (status>>19),
 		(u_int)status);
 #endif
 
@@ -1605,13 +1794,13 @@ gem_watchdog(sc)
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
 #ifdef GEM_DEBUG
-	CTR3(KTR_GEM, "gem_watchdog: GEM_RX_CONFIG %x GEM_MAC_RX_STATUS %x "
-		"GEM_MAC_RX_CONFIG %x",
+	CTR4(KTR_GEM, "%s: GEM_RX_CONFIG %x GEM_MAC_RX_STATUS %x "
+		"GEM_MAC_RX_CONFIG %x", __func__,
 		bus_read_4(sc->sc_res[0], GEM_RX_CONFIG),
 		bus_read_4(sc->sc_res[0], GEM_MAC_RX_STATUS),
 		bus_read_4(sc->sc_res[0], GEM_MAC_RX_CONFIG));
-	CTR3(KTR_GEM, "gem_watchdog: GEM_TX_CONFIG %x GEM_MAC_TX_STATUS %x "
-		"GEM_MAC_TX_CONFIG %x",
+	CTR4(KTR_GEM, "%s: GEM_TX_CONFIG %x GEM_MAC_TX_STATUS %x "
+		"GEM_MAC_TX_CONFIG %x", __func__,
 		bus_read_4(sc->sc_res[0], GEM_TX_CONFIG),
 		bus_read_4(sc->sc_res[0], GEM_MAC_TX_STATUS),
 		bus_read_4(sc->sc_res[0], GEM_MAC_TX_CONFIG));
@@ -1849,6 +2038,12 @@ gem_ioctl(ifp, cmd, data)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				gem_stop(ifp, 0);
 		}
+		if ((ifp->if_flags & IFF_LINK0) != 0)
+			sc->sc_csum_features |= CSUM_UDP;
+		else
+			sc->sc_csum_features &= ~CSUM_UDP;
+		if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+			ifp->if_hwassist = sc->sc_csum_features;
 		sc->sc_ifflags = ifp->if_flags;
 		GEM_UNLOCK(sc);
 		break;
@@ -1862,16 +2057,20 @@ gem_ioctl(ifp, cmd, data)
 	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_mii->mii_media, cmd);
 		break;
+	case SIOCSIFCAP:
+		GEM_LOCK(sc);
+		ifp->if_capenable = ifr->ifr_reqcap;
+		if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+			ifp->if_hwassist = sc->sc_csum_features;
+		else
+			ifp->if_hwassist = 0;
+		GEM_UNLOCK(sc);
+		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
 
-	/* Try to get things going again */
-	GEM_LOCK(sc);
-	if (ifp->if_flags & IFF_UP)
-		gem_start_locked(ifp);
-	GEM_UNLOCK(sc);
 	return (error);
 }
 
