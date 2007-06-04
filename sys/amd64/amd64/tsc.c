@@ -204,7 +204,7 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	if (tsc_timecounter.tc_frequency == 0)
 		return (EOPNOTSUPP);
 	freq = tsc_freq;
-	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
+	error = sysctl_handle_quad(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		tsc_freq = freq;
 		tsc_timecounter.tc_frequency = tsc_freq;
@@ -212,8 +212,8 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_LONG | CTLFLAG_RW,
-    0, sizeof(u_int), sysctl_machdep_tsc_freq, "IU", "");
+SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_QUAD | CTLFLAG_RW,
+    0, sizeof(u_int), sysctl_machdep_tsc_freq, "QU", "");
 
 static unsigned
 tsc_get_timecount(struct timecounter *tc)

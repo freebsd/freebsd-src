@@ -80,7 +80,7 @@ g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
 	int error, fast;
 
 	fast = g_stripe_fast;
-	error = sysctl_handle_int(oidp, &fast, sizeof(fast), req);
+	error = sysctl_handle_int(oidp, &fast, 0, req);
 	if (error == 0 && req->newptr != NULL)
 		g_stripe_fast = fast;
 	return (error);

@@ -215,7 +215,7 @@ sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 	int error, newmaxsockets;
 
 	newmaxsockets = maxsockets;
-	error = sysctl_handle_int(oidp, &newmaxsockets, sizeof(int), req);
+	error = sysctl_handle_int(oidp, &newmaxsockets, 0, req);
 	if (error == 0 && req->newptr) {
 		if (newmaxsockets > maxsockets) {
 			maxsockets = newmaxsockets;
@@ -2770,7 +2770,7 @@ sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
 	int val;
 
 	val = somaxconn;
-	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr )
 		return (error);
 

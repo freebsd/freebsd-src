@@ -880,7 +880,7 @@ sysctl_hw_snd_ac97_eapd(SYSCTL_HANDLER_ARGS)
 	inv = (codec->flags & AC97_F_EAPD_INV) ? 0 : 1;
 	ea = (val >> 15) ^ inv;
 	snd_mtxunlock(codec->lock);
-	err = sysctl_handle_int(oidp, &ea, sizeof(ea), req);
+	err = sysctl_handle_int(oidp, &ea, 0, req);
 	if (err == 0 && req->newptr != NULL) {
 		if (ea != 0 && ea != 1)
 			return EINVAL;

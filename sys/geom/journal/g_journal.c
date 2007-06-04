@@ -115,7 +115,7 @@ g_journal_record_entries_sysctl(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	entries = g_journal_record_entries;
-	error = sysctl_handle_int(oidp, &entries, sizeof(entries), req);
+	error = sysctl_handle_int(oidp, &entries, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (entries < 1 || entries > GJ_RECORD_HEADER_NENTRIES)
@@ -150,7 +150,7 @@ g_journal_cache_limit_sysctl(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	limit = g_journal_cache_limit;
-	error = sysctl_handle_int(oidp, &limit, sizeof(limit), req);
+	error = sysctl_handle_int(oidp, &limit, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	g_journal_cache_limit = limit;
@@ -170,7 +170,7 @@ g_journal_cache_switch_sysctl(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	cswitch = g_journal_cache_switch;
-	error = sysctl_handle_int(oidp, &cswitch, sizeof(cswitch), req);
+	error = sysctl_handle_int(oidp, &cswitch, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (cswitch < 0 || cswitch > 100)

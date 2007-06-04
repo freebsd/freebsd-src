@@ -262,7 +262,7 @@ acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
     if (acpi_timer_timecounter.tc_frequency == 0)
 	return (EOPNOTSUPP);
     freq = acpi_timer_frequency;
-    error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
+    error = sysctl_handle_int(oidp, &freq, 0, req);
     if (error == 0 && req->newptr != NULL) {
 	acpi_timer_frequency = freq;
 	acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;

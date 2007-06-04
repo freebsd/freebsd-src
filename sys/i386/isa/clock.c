@@ -838,7 +838,7 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 	 * is is too generic.  Should use it everywhere.
 	 */
 	freq = timer_freq;
-	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
+	error = sysctl_handle_int(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL)
 		set_timer_freq(freq, hz);
 	return (error);

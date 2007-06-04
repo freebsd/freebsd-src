@@ -118,7 +118,7 @@ sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 	int error, newnmbclusters;
 
 	newnmbclusters = nmbclusters;
-	error = sysctl_handle_int(oidp, &newnmbclusters, sizeof(int), req); 
+	error = sysctl_handle_int(oidp, &newnmbclusters, 0, req); 
 	if (error == 0 && req->newptr) {
 		if (newnmbclusters > nmbclusters) {
 			nmbclusters = newnmbclusters;
