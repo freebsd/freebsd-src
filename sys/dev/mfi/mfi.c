@@ -679,9 +679,21 @@ mfi_wait_command(struct mfi_softc *sc, struct mfi_command *cm)
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 	cm->cm_complete = NULL;
 
+
+	/*
+	 * MegaCli can issue a DCMD of 0.  In this case do nothing
+	 * and return 0 to it as status
+	 */
+	if (cm->cm_frame->dcmd.opcode == 0) {
+		cm->cm_frame->header.cmd_status = MFI_STAT_OK;
+		cm->cm_error = 0;
+		return (cm->cm_error);
+	}
 	mfi_enqueue_ready(cm);
 	mfi_startio(sc);
-	return (msleep(cm, &sc->mfi_io_lock, PRIBIO, "mfiwait", 0));
+	if ((cm->cm_flags & MFI_CMD_COMPLETED) == 0)
+		msleep(cm, &sc->mfi_io_lock, PRIBIO, "mfiwait", 0);
+	return (cm->cm_error);
 }
 
 void
@@ -779,9 +791,12 @@ mfi_intr(void *arg)
 	mtx_lock(&sc->mfi_io_lock);
 	while (ci != pi) {
 		context = sc->mfi_comms->hw_reply_q[ci];
-		cm = &sc->mfi_commands[context];
-		mfi_remove_busy(cm);
-		mfi_complete(sc, cm);
+		if (context < sc->mfi_max_fw_cmds) {
+			cm = &sc->mfi_commands[context];
+			mfi_remove_busy(cm);
+			cm->cm_error = 0;
+			mfi_complete(sc, cm);
+		}
 		if (++ci == (sc->mfi_max_fw_cmds + 1)) {
 			ci = 0;
 		}
@@ -1537,13 +1552,17 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	struct mfi_softc *sc;
 	int i, dir;
 
-	if (error)
-		return;
-
 	cm = (struct mfi_command *)arg;
 	sc = cm->cm_sc;
 	hdr = &cm->cm_frame->header;
 	sgl = cm->cm_sg;
+
+	if (error) {
+		printf("error %d in callback\n", error);
+		cm->cm_error = error;
+		mfi_complete(sc, cm);
+		return;
+	}
 
 	if ((sc->mfi_flags & MFI_FLAGS_SG64) == 0) {
 		for (i = 0; i < nsegs; i++) {
@@ -1655,6 +1674,8 @@ mfi_complete(struct mfi_softc *sc, struct mfi_command *cm)
 		bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
 		cm->cm_flags &= ~MFI_CMD_MAPPED;
 	}
+
+	cm->cm_flags |= MFI_CMD_COMPLETED;
 
 	if (cm->cm_complete != NULL)
 		cm->cm_complete(cm);
@@ -1846,8 +1867,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		cm->cm_total_frame_size = ioc->mfi_sgl_off;
 		cm->cm_sg =
 		    (union mfi_sgl *)&cm->cm_frame->bytes[ioc->mfi_sgl_off];
-		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT
-			| MFI_CMD_POLLED;
+		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT;
 		cm->cm_len = cm->cm_frame->header.data_len;
 		cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
 					    M_WAITOK | M_ZERO);
@@ -1873,16 +1893,13 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		}
 
 		mtx_lock(&sc->mfi_io_lock);
-		if ((error = mfi_mapcmd(sc, cm)) != 0) {
+		if ((error = mfi_wait_command(sc, cm)) != 0) {
 			device_printf(sc->mfi_dev,
 			    "Controller polled failed\n");
 			mtx_unlock(&sc->mfi_io_lock);
 			goto out;
 		}
 
-		bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
-				BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
 		mtx_unlock(&sc->mfi_io_lock);
 
 		temp = data;
@@ -2034,8 +2051,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 		cm->cm_total_frame_size = l_ioc.lioc_sgl_off;
 		cm->cm_sg =
 		    (union mfi_sgl *)&cm->cm_frame->bytes[l_ioc.lioc_sgl_off];
-		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT
-			| MFI_CMD_POLLED;
+		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT;
 		cm->cm_len = cm->cm_frame->header.data_len;
 		cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
 					    M_WAITOK | M_ZERO);
@@ -2059,16 +2075,13 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 		}
 
 		mtx_lock(&sc->mfi_io_lock);
-		if ((error = mfi_mapcmd(sc, cm)) != 0) {
+		if ((error = mfi_wait_command(sc, cm)) != 0) {
 			device_printf(sc->mfi_dev,
 			    "Controller polled failed\n");
 			mtx_unlock(&sc->mfi_io_lock);
 			goto out;
 		}
 
-		bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
-				BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
 		mtx_unlock(&sc->mfi_io_lock);
 
 		temp = data;
