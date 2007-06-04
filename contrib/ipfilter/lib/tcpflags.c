@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2001-2002 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: tcpflags.c,v 1.3 2002/11/02 07:18:01 darrenr Exp $
+ * $Id: tcpflags.c,v 1.3.4.1 2006/06/16 17:21:17 darrenr Exp $
  */
 
 #include "ipf.h"

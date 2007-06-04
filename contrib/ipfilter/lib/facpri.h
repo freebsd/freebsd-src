@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1999-2001 by Darren Reed.
+ * Copyright (C) 2000-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: facpri.h,v 1.3 2001/06/09 17:19:50 darrenr Exp $
+ * $Id: facpri.h,v 1.3.4.1 2006/06/16 17:20:58 darrenr Exp $
  */
 
 #ifndef	__FACPRI_H__

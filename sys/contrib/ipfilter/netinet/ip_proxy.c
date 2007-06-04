@@ -104,7 +104,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.62.2.16 2006/03/29 11:19:56 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.62.2.20 2007/05/31 12:27:36 darrenr Exp $";
 #endif
 
 static int appr_fixseqack __P((fr_info_t *, ip_t *, ap_session_t *, int ));
@@ -122,7 +122,7 @@ aproxy_t	*ap_proxylist = NULL;
 aproxy_t	ap_proxies[] = {
 #ifdef	IPF_FTP_PROXY
 	{ NULL, "ftp", (char)IPPROTO_TCP, 0, 0, ippr_ftp_init, ippr_ftp_fini,
-	  ippr_ftp_new, NULL, ippr_ftp_in, ippr_ftp_out, NULL },
+	  ippr_ftp_new, NULL, ippr_ftp_in, ippr_ftp_out, NULL, NULL },
 #endif
 #ifdef	IPF_IRC_PROXY
 	{ NULL, "irc", (char)IPPROTO_TCP, 0, 0, ippr_irc_init, ippr_irc_fini,
@@ -156,9 +156,9 @@ aproxy_t	ap_proxies[] = {
 #endif
 #ifdef  IPF_H323_PROXY
 	{ NULL, "h323", (char)IPPROTO_TCP, 0, 0, ippr_h323_init, ippr_h323_fini,
-	  ippr_h323_new, ippr_h323_del, ippr_h323_in, NULL, NULL },
+	  ippr_h323_new, ippr_h323_del, ippr_h323_in, NULL, NULL, NULL },
 	{ NULL, "h245", (char)IPPROTO_TCP, 0, 0, NULL, NULL,
-	  ippr_h245_new, NULL, NULL, ippr_h245_out, NULL },
+	  ippr_h245_new, NULL, NULL, ippr_h245_out, NULL, NULL },
 #endif
 #ifdef	IPF_RPCB_PROXY
 # if 0
@@ -170,7 +170,7 @@ aproxy_t	ap_proxies[] = {
 	  ippr_rpcb_init, ippr_rpcb_fini, ippr_rpcb_new, ippr_rpcb_del,
 	  ippr_rpcb_in, ippr_rpcb_out, NULL, NULL },
 #endif
-	{ NULL, "", '\0', 0, 0, NULL, NULL, NULL, NULL }
+	{ NULL, "", '\0', 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL }
 };
 
 /*
@@ -192,7 +192,7 @@ aproxy_t *ap;
 			return -1;
 		}
 
-	for (a = ap_proxylist; a->apr_p; a = a->apr_next)
+	for (a = ap_proxylist; (a != NULL); a = a->apr_next)
 		if ((a->apr_p == ap->apr_p) &&
 		    !strncmp(a->apr_label, ap->apr_label,
 			     sizeof(ap->apr_label))) {
@@ -289,10 +289,11 @@ ipnat_t *nat;
 }
 
 
-int appr_ioctl(data, cmd, mode)
+int appr_ioctl(data, cmd, mode, ctx)
 caddr_t data;
 ioctlcmd_t cmd;
 int mode;
+void *ctx;
 {
 	ap_ctl_t ctl;
 	caddr_t ptr;
@@ -814,7 +815,7 @@ int inc;
 
 	if (ipf_proxy_debug > 8)
 		printf("appr_fixseqack: seq %x ack %x\n",
-			ntohl(tcp->th_seq), ntohl(tcp->th_ack));
+			(u_32_t)ntohl(tcp->th_seq), (u_32_t)ntohl(tcp->th_ack));
 	return ch ? 2 : 0;
 }
 

@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2001-2006 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -21,7 +21,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 1.35.2.4 2006/03/17 11:48:08 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 1.35.2.8 2007/05/10 06:12:01 darrenr Exp $";
 #endif
 
 #if !defined(__SVR4) && defined(__GNUC__)
@@ -344,11 +344,13 @@ char	*arg;
 
 	if (!arg || !*arg)
 		return;
-	if (!strcmp(arg, "s") || !strcmp(arg, "S")) {
+	if (!strcmp(arg, "s") || !strcmp(arg, "S") || ISDIGIT(*arg)) {
 		if (*arg == 'S')
 			fl = 0;
-		else
+		else if (*arg == 's')
 			fl = 1;
+		else
+			fl = atoi(arg);
 		rem = fl;
 
 		closedevice();
@@ -370,7 +372,7 @@ char	*arg;
 		}
 		if ((opts & (OPT_DONOTHING|OPT_VERBOSE)) == OPT_VERBOSE) {
 			printf("remove flags %s (%d)\n", arg, rem);
-			printf("removed %d filter rules\n", fl);
+			printf("removed %d entries\n", fl);
 		}
 		closedevice();
 		return;

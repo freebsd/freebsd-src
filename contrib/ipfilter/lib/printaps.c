@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2002-2004 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
@@ -13,7 +13,7 @@
 
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: printaps.c,v 1.4 2004/01/08 13:34:32 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: printaps.c,v 1.4.2.1 2006/06/16 17:21:10 darrenr Exp $";
 #endif
 
 

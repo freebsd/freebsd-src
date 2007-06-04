@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2000-2004 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: printbuf.c,v 1.5.4.1 2004/12/09 19:41:22 darrenr Exp $
+ * $Id: printbuf.c,v 1.5.4.2 2006/06/16 17:21:10 darrenr Exp $
  */
 
 #include <ctype.h>

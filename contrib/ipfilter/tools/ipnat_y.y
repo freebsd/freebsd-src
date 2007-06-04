@@ -1,5 +1,10 @@
 /*	$FreeBSD$	*/
 
+/*
+ * Copyright (C) 2001-2006 by Darren Reed.
+ *
+ * See the IPFILTER.LICENCE file for details on licencing.
+ */
 %{
 #ifdef  __FreeBSD__
 # ifndef __FreeBSD_cc_version
@@ -117,6 +122,7 @@ assign:	YY_STR assigning YY_STR ';'	{ set_variable($1, $3);
 					  resetlexer();
 					  free($1);
 					  free($3);
+					  yyvarnext = 0;
 					}
 	;
 
@@ -348,11 +354,11 @@ portspec:
 	;
 
 dport:	| port portspec			{ nat->in_pmin = htons($2);
-						  nat->in_pmax = htons($2); }
+					  nat->in_pmax = htons($2); }
 	| port portspec '-' portspec	{ nat->in_pmin = htons($2);
-						  nat->in_pmax = htons($4); }
+					  nat->in_pmax = htons($4); }
 	| port portspec ':' portspec	{ nat->in_pmin = htons($2);
-						  nat->in_pmax = htons($4); }
+					  nat->in_pmax = htons($4); }
 	;
 
 nport:	port portspec			{ nat->in_pnext = htons($2); }
