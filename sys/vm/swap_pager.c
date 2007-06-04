@@ -1037,8 +1037,8 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	}
 	bp->b_npages = j - i;
 
-	cnt.v_swapin++;
-	cnt.v_swappgsin += bp->b_npages;
+	PCPU_INC(cnt.v_swapin);
+	PCPU_ADD(cnt.v_swappgsin, bp->b_npages);
 
 	/*
 	 * We still hold the lock on mreq, and our automatic completion routine
@@ -1072,7 +1072,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		vm_page_lock_queues();
 		vm_page_flag_set(mreq, PG_REFERENCED);
 		vm_page_unlock_queues();
-		cnt.v_intrans++;
+		PCPU_INC(cnt.v_intrans);
 		if (msleep(mreq, VM_OBJECT_MTX(object), PSWP, "swread", hz*20)) {
 			printf(
 "swap_pager: indefinite wait buffer: bufobj: %p, blkno: %jd, size: %ld\n",
@@ -1263,8 +1263,8 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		bp->b_dirtyoff = 0;
 		bp->b_dirtyend = bp->b_bcount;
 
-		cnt.v_swapout++;
-		cnt.v_swappgsout += bp->b_npages;
+		PCPU_INC(cnt.v_swapout);
+		PCPU_ADD(cnt.v_swappgsout, bp->b_npages);
 
 		/*
 		 * asynchronous
