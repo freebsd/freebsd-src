@@ -74,6 +74,7 @@ struct mfi_command {
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
 	int			cm_index;
+	int			cm_error;
 };
 
 struct mfi_disk {
