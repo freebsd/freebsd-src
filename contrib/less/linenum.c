@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2004  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -314,7 +314,7 @@ find_linenum(pos)
 			/*
 			 * Allow a signal to abort this loop.
 			 */
-			cpos = forw_raw_line(cpos, (char **)NULL);
+			cpos = forw_raw_line(cpos, (char **)NULL, (int *)NULL);
 			if (ABORT_SIGS() || cpos == NULL_POSITION)
 				return (0);
 			longish();
@@ -343,7 +343,7 @@ find_linenum(pos)
 			/*
 			 * Allow a signal to abort this loop.
 			 */
-			cpos = back_raw_line(cpos, (char **)NULL);
+			cpos = back_raw_line(cpos, (char **)NULL, (int *)NULL);
 			if (ABORT_SIGS() || cpos == NULL_POSITION)
 				return (0);
 			longish();
@@ -398,7 +398,7 @@ find_pos(linenum)
 			/*
 			 * Allow a signal to abort this loop.
 			 */
-			cpos = forw_raw_line(cpos, (char **)NULL);
+			cpos = forw_raw_line(cpos, (char **)NULL, (int *)NULL);
 			if (ABORT_SIGS() || cpos == NULL_POSITION)
 				return (NULL_POSITION);
 		}
@@ -414,7 +414,7 @@ find_pos(linenum)
 			/*
 			 * Allow a signal to abort this loop.
 			 */
-			cpos = back_raw_line(cpos, (char **)NULL);
+			cpos = back_raw_line(cpos, (char **)NULL, (int *)NULL);
 			if (ABORT_SIGS() || cpos == NULL_POSITION)
 				return (NULL_POSITION);
 		}

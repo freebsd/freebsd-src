@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2005  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -74,6 +74,7 @@ iread(fd, buf, len)
 {
 	register int n;
 
+start:
 #if MSDOS_COMPILER==WIN32C
 	if (ABORT_SIGS())
 		return (READ_INTR);
@@ -156,7 +157,25 @@ iread(fd, buf, len)
 #endif
 	reading = 0;
 	if (n < 0)
+	{
+#if HAVE_ERRNO
+		/*
+		 * Certain values of errno indicate we should just retry the read.
+		 */
+#if MUST_DEFINE_ERRNO
+		extern int errno;
+#endif
+#ifdef EINTR
+		if (errno == EINTR)
+			goto start;
+#endif
+#ifdef EAGAIN
+		if (errno == EAGAIN)
+			goto start;
+#endif
+#endif
 		return (-1);
+	}
 	return (n);
 }
 
@@ -251,18 +270,25 @@ percentage(num, den)
  * Return the specified percentage of a POSITION.
  */
 	public POSITION
-percent_pos(pos, percent)
+percent_pos(pos, percent, fraction)
 	POSITION pos;
 	int percent;
+	long fraction;
 {
-	POSITION result100;
+	/* Change percent (parts per 100) to perden (parts per NUM_FRAC_DENOM). */
+	long perden = (percent * (NUM_FRAC_DENOM / 100)) + (fraction / 100);
+	POSITION temp;
 
-	if (percent == 0)
+	if (perden == 0)
 		return (0);
-	else if ((result100 = pos * percent) / percent == pos)
-		return (result100 / 100);
+	temp = pos * perden;  /* This might overflow. */
+	if (temp / perden == pos)
+		/* No overflow */
+		return (temp / NUM_FRAC_DENOM);
 	else
-		return (percent * (pos / 100));
+		/* Above calculation overflows; 
+		 * use a method that is less precise but won't overflow. */
+		return (perden * (pos / NUM_FRAC_DENOM));
 }
 
 #if !HAVE_STRCHR
