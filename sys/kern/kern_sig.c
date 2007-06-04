@@ -511,10 +511,10 @@ sigqueue_delete_set_proc(struct proc *p, sigset_t *set)
 	sigqueue_init(&worklist, NULL);
 	sigqueue_move_set(&p->p_sigqueue, &worklist, set);
 
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td0)
 		sigqueue_move_set(&td0->td_sigqueue, &worklist, set);
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 
 	sigqueue_flush(&worklist);
 }
@@ -552,7 +552,7 @@ cursig(struct thread *td)
 {
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	mtx_assert(&td->td_proc->p_sigacts->ps_mtx, MA_OWNED);
-	mtx_assert(&sched_lock, MA_NOTOWNED);
+	THREAD_LOCK_ASSERT(td, MA_NOTOWNED);
 	return (SIGPENDING(td) ? issignal(td) : 0);
 }
 
@@ -588,9 +588,9 @@ signotify(struct thread *td)
 	if (! SIGISEMPTY(set))
 		sigqueue_move_set(&p->p_sigqueue, &td->td_sigqueue, &set);
 	if (SIGPENDING(td)) {
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		td->td_flags |= TDF_NEEDSIGCHK | TDF_ASTPENDING;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 	}
 #ifdef KSE
 	if ((p->p_flag & P_SA) && !(p->p_flag & P_SIGEVENT)) {
@@ -758,7 +758,9 @@ kern_sigaction(td, sig, act, oact, flags)
 			}
 #endif
 			/* never to be seen again */
+			PROC_SLOCK(p);
 			sigqueue_delete_proc(p, sig);
+			PROC_SUNLOCK(p);
 			if (sig != SIGCONT)
 				/* easier in psignal */
 				SIGADDSET(ps->ps_sigignore, sig);
@@ -954,7 +956,9 @@ execsigs(struct proc *p)
 		if (sigprop(sig) & SA_IGNORE) {
 			if (sig != SIGCONT)
 				SIGADDSET(ps->ps_sigignore, sig);
+			PROC_SLOCK(p);
 			sigqueue_delete_proc(p, sig);
+			PROC_SUNLOCK(p);
 		}
 		ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 	}
@@ -1849,7 +1853,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 			thread_user_enter(td);
 		PROC_LOCK(p);
 		SIGDELSET(td->td_sigmask, sig);
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		/*
 		 * Force scheduling an upcall, so UTS has chance to
 		 * process the signal before thread runs again in
@@ -1857,7 +1861,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 		 */
 		if (td->td_upcall)
 			td->td_upcall->ku_flags |= KUF_DOUPCALL;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 	} else {
 		PROC_LOCK(p);
 	}
@@ -1952,7 +1956,7 @@ sigtd(struct proc *p, int sig, int prop)
 	if (curproc == p && !SIGISMEMBER(curthread->td_sigmask, sig))
 		return (curthread);
 	signal_td = NULL;
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (!SIGISMEMBER(td->td_sigmask, sig)) {
 			signal_td = td;
@@ -1961,7 +1965,7 @@ sigtd(struct proc *p, int sig, int prop)
 	}
 	if (signal_td == NULL)
 		signal_td = FIRST_THREAD_IN_PROC(p);
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 	return (signal_td);
 }
 
@@ -2128,7 +2132,9 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				ksiginfo_tryfree(ksi);
 			return (ret);
 		}
+		PROC_SLOCK(p);
 		sigqueue_delete_proc(p, SIGCONT);
+		PROC_SUNLOCK(p);
 		if (p->p_flag & P_CONTINUED) {
 			p->p_flag &= ~P_CONTINUED;
 			PROC_LOCK(p->p_pptr);
@@ -2166,6 +2172,7 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 * waking up threads so that they can cross the user boundary.
 	 * We try do the per-process part here.
 	 */
+	PROC_SLOCK(p);
 	if (P_SHOULDSTOP(p)) {
 		/*
 		 * The process is in stopped mode. All the threads should be
@@ -2177,6 +2184,7 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			 * so no further action is necessary.
 			 * No signal can restart us.
 			 */
+			PROC_SUNLOCK(p);
 			goto out;
 		}
 
@@ -2203,15 +2211,21 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			 */
 			p->p_flag &= ~P_STOPPED_SIG;
 			if (p->p_numthreads == p->p_suspcount) {
+				PROC_SUNLOCK(p);
 				p->p_flag |= P_CONTINUED;
 				p->p_xstat = SIGCONT;
 				PROC_LOCK(p->p_pptr);
 				childproc_continued(p);
 				PROC_UNLOCK(p->p_pptr);
+				PROC_SLOCK(p);
 			}
 			if (action == SIG_DFL) {
+				thread_unsuspend(p);
+				PROC_SUNLOCK(p);
 				sigqueue_delete(sigqueue, sig);
-			} else if (action == SIG_CATCH) {
+				goto out;
+			}
+			if (action == SIG_CATCH) {
 #ifdef KSE
 				/*
 				 * The process wants to catch it so it needs
@@ -2223,20 +2237,18 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				 * single thread is runnable asap.
 				 * XXXKSE for now however, make them all run.
 				 */
-#else
+#endif
 				/*
 				 * The process wants to catch it so it needs
 				 * to run at least one thread, but which one?
 				 */
-#endif
 				goto runfast;
 			}
 			/*
 			 * The signal is not ignored or caught.
 			 */
-			mtx_lock_spin(&sched_lock);
 			thread_unsuspend(p);
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(p);
 			goto out;
 		}
 
@@ -2246,6 +2258,7 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			 * (If we did the shell could get confused).
 			 * Just make sure the signal STOP bit set.
 			 */
+			PROC_SUNLOCK(p);
 			p->p_flag |= P_STOPPED_SIG;
 			sigqueue_delete(sigqueue, sig);
 			goto out;
@@ -2259,10 +2272,11 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		 * the PROCESS runnable, leave it stopped.
 		 * It may run a bit until it hits a thread_suspend_check().
 		 */
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		if (TD_ON_SLEEPQ(td) && (td->td_flags & TDF_SINTR))
 			sleepq_abort(td, intrval);
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
+		PROC_SUNLOCK(p);
 		goto out;
 		/*
 		 * Mutexes are short lived. Threads waiting on them will
@@ -2270,9 +2284,10 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		 */
 	} else if (p->p_state == PRS_NORMAL) {
 		if (p->p_flag & P_TRACED || action == SIG_CATCH) {
-			mtx_lock_spin(&sched_lock);
+			thread_lock(td);
 			tdsigwakeup(td, sig, action, intrval);
-			mtx_unlock_spin(&sched_lock);
+			thread_unlock(td);
+			PROC_SUNLOCK(p);
 			goto out;
 		}
 
@@ -2283,7 +2298,6 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				goto out;
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xstat = sig;
-			mtx_lock_spin(&sched_lock);
 			sig_suspend_threads(td, p, 1);
 			if (p->p_numthreads == p->p_suspcount) {
 				/*
@@ -2294,10 +2308,10 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				 * should never be equal to p_suspcount.
 				 */
 				thread_stopped(p);
-				mtx_unlock_spin(&sched_lock);
+				PROC_SUNLOCK(p);
 				sigqueue_delete_proc(p, p->p_xstat);
 			} else
-				mtx_unlock_spin(&sched_lock);
+				PROC_SUNLOCK(p);
 			goto out;
 		} 
 		else
@@ -2305,6 +2319,7 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		/* NOTREACHED */
 	} else {
 		/* Not in "NORMAL" state. discard the signal. */
+		PROC_SUNLOCK(p);
 		sigqueue_delete(sigqueue, sig);
 		goto out;
 	}
@@ -2315,13 +2330,14 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 */
 
 runfast:
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	tdsigwakeup(td, sig, action, intrval);
+	thread_unlock(td);
 	thread_unsuspend(p);
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 out:
-	/* If we jump here, sched_lock should not be owned. */
-	mtx_assert(&sched_lock, MA_NOTOWNED);
+	/* If we jump here, proc slock should not be owned. */
+	PROC_SLOCK_ASSERT(p, MA_NOTOWNED);
 	return (ret);
 }
 
@@ -2337,7 +2353,8 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 	register int prop;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	prop = sigprop(sig);
 
 	/*
@@ -2366,14 +2383,16 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 		 * be awakened.
 		 */
 		if ((prop & SA_CONT) && action == SIG_DFL) {
-			mtx_unlock_spin(&sched_lock);
+			thread_unlock(td);
+			PROC_SUNLOCK(p);
 			sigqueue_delete(&p->p_sigqueue, sig);
 			/*
 			 * It may be on either list in this state.
 			 * Remove from both for now.
 			 */
 			sigqueue_delete(&td->td_sigqueue, sig);
-			mtx_lock_spin(&sched_lock);
+			PROC_SLOCK(p);
+			thread_lock(td);
 			return;
 		}
 
@@ -2403,9 +2422,10 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 	struct thread *td2;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
 	FOREACH_THREAD_IN_PROC(p, td2) {
+		thread_lock(td2);
 		if ((TD_IS_SLEEPING(td2) || TD_IS_SWAPPED(td2)) &&
 		    (td2->td_flags & TDF_SINTR) &&
 		    !TD_IS_SUSPENDED(td2)) {
@@ -2418,6 +2438,7 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 				forward_signal(td2);
 #endif
 		}
+		thread_unlock(td2);
 	}
 }
 
@@ -2430,15 +2451,17 @@ ptracestop(struct thread *td, int sig)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 	    &p->p_mtx.lock_object, "Stopping for traced signal");
 
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags |= TDF_XSIG;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	td->td_xsig = sig;
+	PROC_SLOCK(p);
 	while ((p->p_flag & P_TRACED) && (td->td_flags & TDF_XSIG)) {
 		if (p->p_flag & P_SINGLE_EXIT) {
-			mtx_lock_spin(&sched_lock);
+			thread_lock(td);
 			td->td_flags &= ~TDF_XSIG;
-			mtx_unlock_spin(&sched_lock);
+			thread_unlock(td);
+			PROC_SUNLOCK(p);
 			return (sig);
 		}
 		/*
@@ -2448,26 +2471,19 @@ ptracestop(struct thread *td, int sig)
 		p->p_xstat = sig;
 		p->p_xthread = td;
 		p->p_flag |= (P_STOPPED_SIG|P_STOPPED_TRACE);
-		mtx_lock_spin(&sched_lock);
 		sig_suspend_threads(td, p, 0);
 stopme:
-		thread_stopped(p);
-		thread_suspend_one(td);
-		PROC_UNLOCK(p);
-		DROP_GIANT();
-		mi_switch(SW_VOL, NULL);
-		mtx_unlock_spin(&sched_lock);
-		PICKUP_GIANT();
-		PROC_LOCK(p);
-		if (!(p->p_flag & P_TRACED))
+		thread_suspend_switch(td);
+		if (!(p->p_flag & P_TRACED)) {
 			break;
+		}
 		if (td->td_flags & TDF_DBSUSPEND) {
 			if (p->p_flag & P_SINGLE_EXIT)
 				break;
-			mtx_lock_spin(&sched_lock);
 			goto stopme;
 		}
 	}
+	PROC_SUNLOCK(p);
 	return (td->td_xsig);
 }
 
@@ -2621,16 +2637,10 @@ issignal(td)
 				    &p->p_mtx.lock_object, "Catching SIGSTOP");
 				p->p_flag |= P_STOPPED_SIG;
 				p->p_xstat = sig;
-				mtx_lock_spin(&sched_lock);
+				PROC_SLOCK(p);
 				sig_suspend_threads(td, p, 0);
-				thread_stopped(p);
-				thread_suspend_one(td);
-				PROC_UNLOCK(p);
-				DROP_GIANT();
-				mi_switch(SW_INVOL, NULL);
-				mtx_unlock_spin(&sched_lock);
-				PICKUP_GIANT();
-				PROC_LOCK(p);
+				thread_suspend_switch(td);
+				PROC_SUNLOCK(p);
 				mtx_lock(&ps->ps_mtx);
 				break;
 			} else if (prop & SA_IGNORE) {
@@ -2672,18 +2682,18 @@ thread_stopped(struct proc *p)
 	int n;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	n = p->p_suspcount;
 	if (p == curproc)
 		n++;
 	if ((p->p_flag & P_STOPPED_SIG) && (n == p->p_numthreads)) {
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		p->p_flag &= ~P_WAITED;
 		PROC_LOCK(p->p_pptr);
 		childproc_stopped(p, (p->p_flag & P_TRACED) ?
 			CLD_TRAPPED : CLD_STOPPED);
 		PROC_UNLOCK(p->p_pptr);
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 	}
 }
  
