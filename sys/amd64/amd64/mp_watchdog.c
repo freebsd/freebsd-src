@@ -105,9 +105,7 @@ watchdog_function(void *arg)
 	 * locks to make sure.  Then reset the timer.
 	 */
 	mtx_lock(&Giant);
-	mtx_lock_spin(&sched_lock);
 	watchdog_timer = WATCHDOG_THRESHOLD;
-	mtx_unlock_spin(&sched_lock);
 	mtx_unlock(&Giant);
 	callout_reset(&watchdog_callout, 1 * hz, watchdog_function, NULL);
 }
@@ -154,34 +152,6 @@ sysctl_watchdog(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_debug, OID_AUTO, watchdog, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
     sysctl_watchdog, "I", "");
-
-/*
- * A badly behaved sysctl that leaks the sched lock when written to.  Then
- * spin holding it just to make matters worse.  This can be used to test the
- * effectiveness of the watchdog by generating a fairly hard and nast hang.
- * Note that Giant is also held in the current world order when we get here.
- */
-static int
-sysctl_leak_schedlock(SYSCTL_HANDLER_ARGS)
-{
-	int error, temp;
-
-	temp = 0;
-	error = sysctl_handle_int(oidp, &temp, 0, req);
-	if (error)
-		return (error);
-
-	if (req->newptr != NULL) {
-		if (temp) {
-			printf("Leaking the sched lock...\n");
-			mtx_lock_spin(&sched_lock);
-			while (1);
-		}
-	}
-	return (0);
-}
-SYSCTL_PROC(_debug, OID_AUTO, leak_schedlock, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
-    sysctl_leak_schedlock, "IU", "");
 
 /*
  * Drop into the debugger by sending an IPI NMI to the boot processor.
