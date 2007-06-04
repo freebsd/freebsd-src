@@ -110,7 +110,7 @@ vfs_optionisset(const vfs_t *vfsp, const char *opt, char **argp)
 }
 
 int
-traverse(vnode_t **cvpp)
+traverse(vnode_t **cvpp, int lktype)
 {
 	kthread_t *td = curthread;
 	vnode_t *cvp;
@@ -119,7 +119,7 @@ traverse(vnode_t **cvpp)
 	int error;
 
 	cvp = *cvpp;
-	error = 0;
+	tvp = NULL;
 
 	/*
 	 * If this vnode is mounted on, then we transparently indirect
@@ -135,22 +135,26 @@ traverse(vnode_t **cvpp)
 		vfsp = vn_mountedvfs(cvp);
 		if (vfsp == NULL)
 			break;
-		VN_RELE(cvp);
+		/*
+		 * tvp is NULL for *cvpp vnode, which we can't unlock.
+		 */
+		if (tvp != NULL)
+			vput(cvp);
+		else
+			vrele(cvp);
 
 		/*
 		 * The read lock must be held across the call to VFS_ROOT() to
 		 * prevent a concurrent unmount from destroying the vfs.
 		 */
-		error = VFS_ROOT(vfsp, 0, &tvp, td);
-		if (error)
-			break;
-		VOP_UNLOCK(tvp, 0, td);
-
+		error = VFS_ROOT(vfsp, lktype, &tvp, td);
+		if (error != 0)
+			return (error);
 		cvp = tvp;
 	}
 
 	*cvpp = cvp;
-	return (error);
+	return (0);
 }
 
 int
