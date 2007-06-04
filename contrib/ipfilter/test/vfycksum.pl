@@ -21,9 +21,7 @@ sub dosum {
 	for ($idx = $start, $lsum = $seed; $idx < $max; $idx++) {
 		$lsum += $bytes[$idx];
 	}
-	while ($lsum > 65535) {
-		$lsum = ($lsum & 0xffff) + ($lsum >> 16);
-	}
+	$lsum = ($lsum & 0xffff) + ($lsum >> 16);
 	$lsum = ~$lsum & 0xffff;
 	return $lsum;
 }
@@ -40,9 +38,9 @@ sub ipv4check {
 
 	if ($hs != 0) {
 		$bytes[$base + 5] = 0;
-		$hs2 = &dosum($base, 0, $base + $hl);
+		$hs2 = &dosum(0, $base, $base + $hl);
 		$bytes[$base + 5] = $osum;
-		printf " IP: (%x) %x != %x", $hs, $osum, $hs2;
+		printf " IP: ($hl,%x) %x != %x", $hs, $osum, $hs2;
 	} else {
 		print " IP($base): ok ";
 	}
@@ -104,6 +102,10 @@ sub tcpcheck {
 		$x = ($cnt - $base) * 2;
 		$y = $hl + $thl;
 		$z = 3;
+	} elsif ($len < $thl) {
+		$x = ($cnt - $base) * 2;
+		$y = $len;
+		$z = 4;
 	}
 
 	if ($z) {
@@ -199,19 +201,9 @@ sub icmpcheck {
 	}
 
 	local($osum) = $bytes[$base + $hl + 1];
-	$bytes[$hl + 1] = 0;
-	for ($i = $base + $hl, $hs2 = 0; $i < $cnt; $i++) {
-		$hs2 += $bytes[$i];
-	}
-	$hs = $hs2 + $osum;
-	while ($hs2 > 65535) {
-		$hs2 = ($hs2 & 0xffff) + ($hs2 >> 16);
-	}
-	while ($hs > 65535) {
-		$hs = ($hs & 0xffff) + ($hs >> 16);
-	}
-	$hs2 = ~$hs2 & 0xffff;
-	$hs = ~$hs & 0xffff;
+	$bytes[$base + $hl + 1] = 0;
+	$hs2 = &dosum(0, $base + $hl, $cnt);
+	$bytes[$base + $hl + 1] = $osum;
 
 	if ($osum != $hs2) {
 		printf " ICMP: (%x) %x != %x", $hs, $osum, $hs2;
@@ -265,6 +257,10 @@ while ($#ARGV >= 0) {
 		while (/.* [0-9a-fA-F][0-9a-fA-F] [0-9a-fA-F][0-9a-fA-F] .*/) {
 $b=$_;
 			s/(.*?) ([0-9a-fA-F][0-9a-fA-F]) ([0-9a-fA-F][0-9a-fA-F]) (.*)/$1 $2$3 $4/g;
+		}
+		if (/.* [0-9a-fA-F][0-9a-fA-F] [0-9a-fA-F][0-9a-fA-F]/) {
+$b=$_;
+			s/(.*?) ([0-9a-fA-F][0-9a-fA-F]) ([0-9a-fA-F][0-9a-fA-F])/$1 $2$3/g;
 		}
 		while (/^[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F].*/) {
 			$x = $_;
