@@ -538,7 +538,7 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 				goto unlock_return;
 			}
 			next = TAILQ_NEXT(p, listq);
-			cnt.v_pdpages++;
+			PCPU_INC(cnt.v_pdpages);
 			if (p->wire_count != 0 ||
 			    p->hold_count != 0 ||
 			    p->busy != 0 ||
@@ -745,7 +745,7 @@ rescan0:
 	     m != NULL && maxscan-- > 0 && page_shortage > 0;
 	     m = next) {
 
-		cnt.v_pdpages++;
+		PCPU_INC(cnt.v_pdpages);
 
 		if (VM_PAGE_GETQUEUE(m) != PQ_INACTIVE) {
 			goto rescan0;
@@ -856,7 +856,7 @@ rescan0:
 			 * Invalid pages can be easily freed
 			 */
 			vm_page_free(m);
-			cnt.v_dfree++;
+			PCPU_INC(cnt.v_dfree);
 			--page_shortage;
 		} else if (m->dirty == 0) {
 			/*
@@ -1089,7 +1089,7 @@ unlock_and_continue:
 		 * The count for pagedaemon pages is done after checking the
 		 * page for eligibility...
 		 */
-		cnt.v_pdpages++;
+		PCPU_INC(cnt.v_pdpages);
 
 		/*
 		 * Check to see "how much" the page has been used.
@@ -1168,7 +1168,7 @@ unlock_and_continue:
 				    m));
 				vm_page_free(m);
 				VM_OBJECT_UNLOCK(object);
-				cnt.v_dfree++;
+				PCPU_INC(cnt.v_dfree);
 				cache_last_free = cache_cur;
 				cache_first_failure = -1;
 				break;
@@ -1427,6 +1427,11 @@ vm_pageout()
 	cnt.v_free_reserved = vm_pageout_page_count +
 	    cnt.v_pageout_free_min + (cnt.v_page_count / 768) + PQ_NUMCOLORS;
 	cnt.v_free_severe = cnt.v_free_min / 2;
+
+	/*
+	 * Here adds don't need to be atomic since we are only initializing
+	 * v_free_min and v_free_severe.
+	 */
 	cnt.v_free_min += cnt.v_free_reserved;
 	cnt.v_free_severe += cnt.v_free_reserved;
 
@@ -1524,7 +1529,7 @@ vm_pageout()
 			}
 		}
 		if (vm_pages_needed)
-			cnt.v_pdwakeups++;
+			PCPU_INC(cnt.v_pdwakeups);
 		mtx_unlock(&vm_page_queue_free_mtx);
 		vm_pageout_scan(pass);
 	}

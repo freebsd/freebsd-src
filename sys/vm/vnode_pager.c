@@ -728,8 +728,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			if (i != reqpage)
 				vm_page_free(m[i]);
 		vm_page_unlock_queues();
-		cnt.v_vnodein++;
-		cnt.v_vnodepgsin++;
+		PCPU_INC(cnt.v_vnodein);
+		PCPU_INC(cnt.v_vnodepgsin);
 		error = vnode_pager_input_old(object, m[reqpage]);
 		VM_OBJECT_UNLOCK(object);
 		return (error);
@@ -757,8 +757,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 				vm_page_free(m[i]);
 		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
-		cnt.v_vnodein++;
-		cnt.v_vnodepgsin++;
+		PCPU_INC(cnt.v_vnodein);
+		PCPU_INC(cnt.v_vnodepgsin);
 		return vnode_pager_input_smlfs(object, m[reqpage]);
 	}
 
@@ -909,8 +909,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	bp->b_runningbufspace = bp->b_bufsize;
 	atomic_add_int(&runningbufspace, bp->b_runningbufspace);
 
-	cnt.v_vnodein++;
-	cnt.v_vnodepgsin += count;
+	PCPU_INC(cnt.v_vnodein);
+	PCPU_ADD(cnt.v_vnodepgsin, count);
 
 	/* do the input */
 	bp->b_iooffset = dbtob(bp->b_blkno);
@@ -1157,8 +1157,8 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	auio.uio_resid = maxsize;
 	auio.uio_td = (struct thread *) 0;
 	error = VOP_WRITE(vp, &auio, ioflags, curthread->td_ucred);
-	cnt.v_vnodeout++;
-	cnt.v_vnodepgsout += ncount;
+	PCPU_INC(cnt.v_vnodeout);
+	PCPU_ADD(cnt.v_vnodepgsout, ncount);
 
 	if (error) {
 		if ((ppscheck = ppsratecheck(&lastfail, &curfail, 1)))
