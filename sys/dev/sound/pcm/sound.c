@@ -441,7 +441,7 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 	int error, unit;
 
 	unit = snd_unit;
-	error = sysctl_handle_int(oidp, &unit, sizeof(unit), req);
+	error = sysctl_handle_int(oidp, &unit, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		d = devclass_get_softc(pcm_devclass, unit);
 		if (d == NULL || CHN_EMPTY(d, channels.pcm))
@@ -462,7 +462,7 @@ sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
 	int i, v, error;
 
 	v = snd_maxautovchans;
-	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
+	error = sysctl_handle_int(oidp, &v, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		if (v < 0)
 			v = 0;
@@ -840,7 +840,7 @@ sysctl_dev_pcm_clone_flags(SYSCTL_HANDLER_ARGS)
 	pcm_lock(d);
 	flags = snd_clone_getflags(d->clones);
 	pcm_unlock(d);
-	err = sysctl_handle_int(oidp, (int *)(&flags), sizeof(flags), req);
+	err = sysctl_handle_int(oidp, &flags, 0, req);
 
 	if (err == 0 && req->newptr != NULL) {
 		if ((flags & ~SND_CLONE_MASK))
@@ -868,7 +868,7 @@ sysctl_dev_pcm_clone_deadline(SYSCTL_HANDLER_ARGS)
 	pcm_lock(d);
 	deadline = snd_clone_getdeadline(d->clones);
 	pcm_unlock(d);
-	err = sysctl_handle_int(oidp, &deadline, sizeof(deadline), req);
+	err = sysctl_handle_int(oidp, &deadline, 0, req);
 
 	if (err == 0 && req->newptr != NULL) {
 		if (deadline < 0)
@@ -894,7 +894,7 @@ sysctl_dev_pcm_clone_gc(SYSCTL_HANDLER_ARGS)
 		return (ENODEV);
 
 	val = 0;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err == 0 && req->newptr != NULL && val != 0) {
 		pcm_lock(d);
@@ -912,7 +912,7 @@ sysctl_hw_snd_clone_gc(SYSCTL_HANDLER_ARGS)
 	int i, err, val;
 
 	val = 0;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err == 0 && req->newptr != NULL && val != 0) {
 		for (i = 0; pcm_devclass != NULL &&
@@ -1275,7 +1275,7 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 	}
 
 	newcnt = vchancount;
-	err = sysctl_handle_int(oidp, &newcnt, sizeof(newcnt), req);
+	err = sysctl_handle_int(oidp, &newcnt, 0, req);
 
 	if (err == 0 && req->newptr != NULL && vchancount != newcnt) {
 		if (newcnt < 0)

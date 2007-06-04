@@ -268,7 +268,7 @@ sysctl_hw_usb_uvscom_opktsize(SYSCTL_HANDLER_ARGS)
 	int err, val;
 
 	val = uvscomobufsiz;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return (err);
 	if (0 < val && val <= UVSCOMOBUFSIZE)
@@ -285,7 +285,7 @@ sysctl_hw_usb_uvscom_interval(SYSCTL_HANDLER_ARGS)
 	int err, val;
 
 	val = uvscominterval;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return (err);
 	if (0 < val && val <= 1000)

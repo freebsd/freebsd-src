@@ -71,7 +71,7 @@ sysctl_machdep_piix_freq(SYSCTL_HANDLER_ARGS)
 	if (piix_timecounter.tc_frequency == 0)
 		return (EOPNOTSUPP);
 	freq = piix_freq;
-	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
+	error = sysctl_handle_int(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		piix_freq = freq;
 		piix_timecounter.tc_frequency = piix_freq;
