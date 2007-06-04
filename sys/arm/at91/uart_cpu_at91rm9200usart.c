@@ -80,5 +80,6 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	uart_bus_space_io = &at91_bs_tag;
 	uart_bus_space_mem = NULL;
 	/* Check the environment for overrides */
-	return (uart_getenv(devtype, di, class));
+	uart_getenv(devtype, di, class);
+	return (0);
 }
