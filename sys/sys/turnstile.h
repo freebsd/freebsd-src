@@ -91,17 +91,19 @@ void	init_turnstiles(void);
 void	turnstile_adjust(struct thread *, u_char);
 struct turnstile *turnstile_alloc(void);
 void	turnstile_broadcast(struct turnstile *, int);
-void	turnstile_claim(struct lock_object *);
+void	turnstile_cancel(struct turnstile *);
+void	turnstile_chain_lock(struct lock_object *);
+void	turnstile_chain_unlock(struct lock_object *);
+void	turnstile_claim(struct turnstile *);
 void	turnstile_disown(struct turnstile *);
 int	turnstile_empty(struct turnstile *ts, int queue);
 void	turnstile_free(struct turnstile *);
 struct thread *turnstile_head(struct turnstile *, int);
-void	turnstile_lock(struct lock_object *);
 struct turnstile *turnstile_lookup(struct lock_object *);
-void	turnstile_release(struct lock_object *);
 int	turnstile_signal(struct turnstile *, int);
+struct turnstile *turnstile_trywait(struct lock_object *);
 void	turnstile_unpend(struct turnstile *, int);
-void	turnstile_wait(struct lock_object *, struct thread *, int);
+void	turnstile_wait(struct turnstile *, struct thread *, int);
 
 #endif	/* _KERNEL */
 #endif	/* _SYS_TURNSTILE_H_ */
