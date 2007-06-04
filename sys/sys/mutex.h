@@ -125,6 +125,14 @@ void	_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file,
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #endif
+void	_thread_lock_flags(struct thread *, int, const char *, int);
+
+#define	thread_lock(tdp)						\
+    _thread_lock_flags((tdp), 0, __FILE__, __LINE__)
+#define	thread_lock_flags(tdp, opt)					\
+    _thread_lock_flags((tdp), (opt), __FILE__, __LINE__)
+#define	thread_unlock(tdp)						\
+       mtx_unlock_spin(__DEVOLATILE(struct mtx *, (tdp)->td_lock))
 
 /*
  * We define our machine-independent (unoptimized) mutex micro-operations
@@ -349,6 +357,7 @@ extern struct mtx_pool *mtxpool_sleep;
  */
 extern struct mtx sched_lock;
 extern struct mtx Giant;
+extern struct mtx blocked_lock;
 
 /*
  * Giant lock manipulation and clean exit macros.

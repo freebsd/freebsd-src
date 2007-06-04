@@ -229,6 +229,7 @@ static int ipi_thresh = PRI_MIN_KERN;
 static int steal_htt = 1;
 static int steal_busy = 1;
 static int busy_thresh = 4;
+static int topology = 0;
 
 /*
  * One thread queue per processor.
@@ -434,7 +435,7 @@ tdq_load_add(struct tdq *tdq, struct td_sched *ts)
 	mtx_assert(&sched_lock, MA_OWNED);
 	class = PRI_BASE(ts->ts_thread->td_pri_class);
 	tdq->tdq_load++;
-	CTR1(KTR_SCHED, "load: %d", tdq->tdq_load);
+	CTR2(KTR_SCHED, "cpu %jd load: %d", TDQ_ID(tdq), tdq->tdq_load);
 	if (class != PRI_ITHD &&
 	    (ts->ts_thread->td_proc->p_flag & P_NOLOAD) == 0)
 #ifdef SMP
@@ -997,7 +998,7 @@ sched_setup(void *dummy)
 		tdq = &tdq_cpu[i];
 		tdq_setup(&tdq_cpu[i]);
 	}
-	if (1) {
+	if (smp_topology == NULL) {
 		struct tdq_group *tdg;
 		struct tdq *tdq;
 		int cpus;
@@ -1027,6 +1028,7 @@ sched_setup(void *dummy)
 		struct cpu_group *cg;
 		int j;
 
+		topology = 1;
 		for (i = 0; i < smp_topology->ct_count; i++) {
 			cg = &smp_topology->ct_group[i];
 			tdg = &tdq_groups[i];
@@ -1248,6 +1250,7 @@ schedinit(void)
 	 */
 	proc0.p_sched = NULL; /* XXX */
 	thread0.td_sched = &td_sched0;
+	thread0.td_lock = &sched_lock;
 	td_sched0.ts_ltick = ticks;
 	td_sched0.ts_ftick = ticks;
 	td_sched0.ts_thread = &thread0;
@@ -1296,7 +1299,7 @@ sched_thread_priority(struct thread *td, u_char prio)
 	    td, td->td_proc->p_comm, td->td_priority, prio, curthread,
 	    curthread->td_proc->p_comm);
 	ts = td->td_sched;
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
 		return;
 
@@ -1307,9 +1310,10 @@ sched_thread_priority(struct thread *td, u_char prio)
 		 * queue.  This could be optimized to not re-add in some
 		 * cases.
 		 */
+		MPASS(td->td_lock == &sched_lock);
 		sched_rem(td);
 		td->td_priority = prio;
-		sched_add(td, SRQ_BORROWING);
+		sched_add(td, SRQ_BORROWING|SRQ_OURSELF);
 	} else
 		td->td_priority = prio;
 }
@@ -1427,7 +1431,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	struct td_sched *ts;
 	int preempt;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	preempt = flags & SW_PREEMPT;
 	tdq = TDQ_SELF();
@@ -1440,24 +1444,33 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	 * If the thread has been assigned it may be in the process of switching
 	 * to the new cpu.  This is the case in sched_bind().
 	 */
-	if (TD_IS_IDLETHREAD(td)) {
-		TD_SET_CAN_RUN(td);
-	} else {
-		tdq_load_rem(tdq, ts);
-		if (TD_IS_RUNNING(td)) {
-			/*
-			 * Don't allow the thread to migrate
-			 * from a preemption.
-			 */
-			if (preempt)
-				sched_pin_td(td);
-			sched_add(td, preempt ?
-			    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
-			    SRQ_OURSELF|SRQ_YIELDING);
-			if (preempt)
-				sched_unpin_td(td);
-		}
+	/*
+	 * Switch to the sched lock to fix things up and pick
+	 * a new thread.
+	 */
+	if (td->td_lock != &sched_lock) {
+		mtx_lock_spin(&sched_lock);
+		thread_unlock(td);
 	}
+	if (TD_IS_IDLETHREAD(td)) {
+		MPASS(td->td_lock == &sched_lock);
+		TD_SET_CAN_RUN(td);
+	} else if (TD_IS_RUNNING(td)) {
+		/*
+		 * Don't allow the thread to migrate
+		 * from a preemption.
+		 */
+		tdq_load_rem(tdq, ts);
+		if (preempt)
+			sched_pin_td(td);
+		sched_add(td, preempt ?
+		    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
+		    SRQ_OURSELF|SRQ_YIELDING);
+		if (preempt)
+			sched_unpin_td(td);
+	} else
+		tdq_load_rem(tdq, ts);
+	mtx_assert(&sched_lock, MA_OWNED);
 	if (newtd != NULL) {
 		/*
 		 * If we bring in a thread account for it as if it had been
@@ -1473,7 +1486,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 
-		cpu_switch(td, newtd);
+		cpu_switch(td, newtd, td->td_lock);
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
@@ -1481,6 +1494,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	}
 	sched_lock.mtx_lock = (uintptr_t)td;
 	td->td_oncpu = PCPU_GET(cpuid);
+	MPASS(td->td_lock == &sched_lock);
 }
 
 void
@@ -1489,12 +1503,14 @@ sched_nice(struct proc *p, int nice)
 	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
 	p->p_nice = nice;
 	FOREACH_THREAD_IN_PROC(p, td) {
+		thread_lock(td);
 		sched_priority(td);
 		sched_prio(td, td->td_base_user_pri);
+		thread_unlock(td);
 	}
 }
 
@@ -1502,7 +1518,7 @@ void
 sched_sleep(struct thread *td)
 {
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	td->td_sched->ts_slptime = ticks;
 }
@@ -1513,7 +1529,7 @@ sched_wakeup(struct thread *td)
 	struct td_sched *ts;
 	int slptime;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
 	/*
 	 * If we slept for more than a tick update our interactivity and
@@ -1542,7 +1558,7 @@ sched_wakeup(struct thread *td)
 void
 sched_fork(struct thread *td, struct thread *child)
 {
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	sched_fork_thread(td, child);
 	/*
 	 * Penalize the parent and child for forking.
@@ -1563,7 +1579,9 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	/*
 	 * Initialize child.
 	 */
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	sched_newthread(child);
+	child->td_lock = &sched_lock;
 	ts = td->td_sched;
 	ts2 = child->td_sched;
 	ts2->ts_cpu = ts->ts_cpu;
@@ -1588,7 +1606,7 @@ void
 sched_class(struct thread *td, int class)
 {
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_pri_class == class)
 		return;
 
@@ -1627,6 +1645,7 @@ sched_exit(struct proc *p, struct thread *child)
 	CTR3(KTR_SCHED, "sched_exit: %p(%s) prio %d",
 	    child, child->td_proc->p_comm, child->td_priority);
 
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	td = FIRST_THREAD_IN_PROC(p);
 	sched_exit_thread(td, child);
 }
@@ -1638,7 +1657,9 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
 	    child, child->td_proc->p_comm, child->td_priority);
 
+	thread_lock(child);
 	tdq_load_rem(TDQ_CPU(child->td_sched->ts_cpu), child->td_sched);
+	thread_unlock(child);
 #ifdef KSE
 	/*
 	 * KSE forks and exits so often that this penalty causes short-lived
@@ -1653,9 +1674,11 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	 * sleep time as a penalty to the parent.  This causes shells that
 	 * launch expensive things to mark their children as expensive.
 	 */
+	thread_lock(td);
 	td->td_sched->skg_runtime += child->td_sched->skg_runtime;
 	sched_interact_update(td);
 	sched_priority(td);
+	thread_unlock(td);
 }
 
 void
@@ -1673,10 +1696,10 @@ sched_userret(struct thread *td)
 	KASSERT((td->td_flags & TDF_BORROWING) == 0,
 	    ("thread with borrowed priority returning to userland"));
 	if (td->td_priority != td->td_user_pri) {
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		td->td_priority = td->td_user_pri;
 		td->td_base_pri = td->td_user_pri;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
         }
 }
 
@@ -1805,9 +1828,22 @@ sched_preempt(struct thread *td)
 	 */
 	MPASS(TD_ON_RUNQ(td));
 	TD_SET_RUNNING(td);
+	MPASS(ctd->td_lock == &sched_lock);
+	MPASS(td->td_lock == &sched_lock);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
+	/*
+	 * We enter the switch with two runnable threads that both have
+	 * the same lock.  When we return td may be sleeping so we need
+	 * to switch locks to make sure he's locked correctly.
+	 */
+	SCHED_STAT_INC(switch_preempt);
 	mi_switch(SW_INVOL|SW_PREEMPT, td);
+	spinlock_enter();
+	thread_unlock(ctd);
+	thread_lock(td);
+	spinlock_exit();
+
 	return (1);
 }
 
@@ -1824,7 +1860,7 @@ sched_add(struct thread *td, int flags)
 #endif
 	ts = td->td_sched;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
@@ -1834,8 +1870,15 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: bad thread state"));
 	KASSERT(td->td_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
-	KASSERT(ts->ts_runq == NULL,
-	    ("sched_add: thread %p is still assigned to a run queue", td));
+	/*
+	 * Now that the thread is moving to the run-queue, set the lock
+	 * to the scheduler's lock.
+	 */
+	if (td->td_lock != &sched_lock) {
+		mtx_lock_spin(&sched_lock);
+		thread_lock_set(td, &sched_lock);
+	}
+	mtx_assert(&sched_lock, MA_OWNED);
         TD_SET_RUNQ(td);
 	tdq = TDQ_SELF();
 	class = PRI_BASE(td->td_pri_class);
@@ -1920,7 +1963,7 @@ sched_rem(struct thread *td)
 	CTR5(KTR_SCHED, "sched_rem: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
 	KASSERT(TD_ON_RUNQ(td),
 	    ("sched_rem: thread not on run queue"));
@@ -1942,7 +1985,7 @@ sched_pctcpu(struct thread *td)
 	if (ts == NULL)
 		return (0);
 
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	if (ts->ts_ticks) {
 		int rtick;
 
@@ -1952,7 +1995,7 @@ sched_pctcpu(struct thread *td)
 		pctcpu = (FSCALE * ((FSCALE * rtick)/hz)) >> FSHIFT;
 	}
 	td->td_proc->p_swtime = ts->ts_ltick - ts->ts_ftick;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 
 	return (pctcpu);
 }
@@ -1962,7 +2005,7 @@ sched_bind(struct thread *td, int cpu)
 {
 	struct td_sched *ts;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
 	if (ts->ts_flags & TSF_BOUND)
 		sched_unbind(td);
@@ -1982,7 +2025,7 @@ sched_unbind(struct thread *td)
 {
 	struct td_sched *ts;
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
 	if ((ts->ts_flags & TSF_BOUND) == 0)
 		return;
@@ -1995,18 +2038,19 @@ sched_unbind(struct thread *td)
 int
 sched_is_bound(struct thread *td)
 {
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	return (td->td_sched->ts_flags & TSF_BOUND);
 }
 
 void
 sched_relinquish(struct thread *td)
 {
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	if (td->td_pri_class == PRI_TIMESHARE)
 		sched_prio(td, PRI_MAX_TIMESHARE);
+	SCHED_STAT_INC(switch_relinquish);
 	mi_switch(SW_VOL, NULL);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 }
 
 int
@@ -2071,6 +2115,58 @@ sched_idletd(void *dummy)
 		cpu_idle();
 }
 
+/*
+ * A CPU is entering for the first time or a thread is exiting.
+ */
+void
+sched_throw(struct thread *td)
+{
+	/*
+	 * Correct spinlock nesting.  The idle thread context that we are
+	 * borrowing was created so that it would start out with a single
+	 * spin lock (sched_lock) held in fork_trampoline().  Since we've
+	 * explicitly acquired locks in this function, the nesting count
+	 * is now 2 rather than 1.  Since we are nested, calling
+	 * spinlock_exit() will simply adjust the counts without allowing
+	 * spin lock using code to interrupt us.
+	 */
+	if (td == NULL) {
+		mtx_lock_spin(&sched_lock);
+		spinlock_exit();
+	} else {
+		MPASS(td->td_lock == &sched_lock);
+	}
+	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
+	PCPU_SET(switchtime, cpu_ticks());
+	PCPU_SET(switchticks, ticks);
+	cpu_throw(td, choosethread());	/* doesn't return */
+}
+
+void
+sched_fork_exit(struct thread *ctd)
+{
+	struct thread *td;
+
+	/*
+	 * Finish setting up thread glue so that it begins execution in a
+	 * non-nested critical section with sched_lock held but not recursed.
+	 */
+	ctd->td_oncpu = PCPU_GET(cpuid);
+	sched_lock.mtx_lock = (uintptr_t)ctd;
+	THREAD_LOCK_ASSERT(ctd, MA_OWNED | MA_NOTRECURSED);
+	/*
+	 * Processes normally resume in mi_switch() after being
+	 * cpu_switch()'ed to, but when children start up they arrive here
+	 * instead, so we must do much the same things as mi_switch() would.
+	 */
+	if ((td = PCPU_GET(deadthread))) {
+		PCPU_SET(deadthread, NULL);
+		thread_stash(td);
+	}
+	thread_unlock(ctd);
+}
+
 static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
 SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "ule", 0,
     "Scheduler name");
@@ -2093,6 +2189,7 @@ SYSCTL_INT(_kern_sched, OID_AUTO, ipi_thresh, CTLFLAG_RW, &ipi_thresh, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_htt, CTLFLAG_RW, &steal_htt, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_busy, CTLFLAG_RW, &steal_busy, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, busy_thresh, CTLFLAG_RW, &busy_thresh, 0, "");
+SYSCTL_INT(_kern_sched, OID_AUTO, topology, CTLFLAG_RD, &topology, 0, "");
 #endif
 
 /* ps compat */

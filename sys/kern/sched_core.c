@@ -784,6 +784,7 @@ schedinit(void)
 	 */
 	proc0.p_sched = NULL; /* XXX */
 	thread0.td_sched = &kse0;
+	thread0.td_lock = &sched_lock;
 	kse0.ts_thread = &thread0;
 	kse0.ts_slice = 100;
 }
@@ -1018,7 +1019,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
-		cpu_switch(td, newtd);
+		cpu_switch(td, newtd, td->td_lock);
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
@@ -1110,6 +1111,7 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	ts = td->td_sched;
 	ts2 = child->td_sched;
 
+	child->td_lock = td->td_lock;
 	ts2->ts_slptime = ts2->ts_slptime * CHILD_WEIGHT / 100;
 	if (child->td_pri_class == PRI_TIMESHARE)
 		sched_user_prio(child, sched_calc_pri(ts2));
@@ -1142,7 +1144,8 @@ sched_class(struct thread *td, int class)
 void
 sched_exit(struct proc *p, struct thread *childtd)
 {
-	mtx_assert(&sched_lock, MA_OWNED);
+
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	sched_exit_thread(FIRST_THREAD_IN_PROC(p), childtd);
 }
 
@@ -1745,6 +1748,58 @@ sched_idletd(void *dummy)
 #endif
 		mtx_unlock_spin(&sched_lock);
 	}
+}
+
+/*
+ * A CPU is entering for the first time or a thread is exiting.
+ */
+void
+sched_throw(struct thread *td)
+{
+	/*
+	 * Correct spinlock nesting.  The idle thread context that we are
+	 * borrowing was created so that it would start out with a single
+	 * spin lock (sched_lock) held in fork_trampoline().  Since we've
+	 * explicitly acquired locks in this function, the nesting count
+	 * is now 2 rather than 1.  Since we are nested, calling
+	 * spinlock_exit() will simply adjust the counts without allowing
+	 * spin lock using code to interrupt us.
+	 */
+	if (td == NULL) {
+		mtx_lock_spin(&sched_lock);
+		spinlock_exit();
+	} else {
+		MPASS(td->td_lock == &sched_lock);
+	}
+	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
+	PCPU_SET(switchtime, cpu_ticks());
+	PCPU_SET(switchticks, ticks);
+	cpu_throw(td, choosethread());	/* doesn't return */
+}
+
+void
+sched_fork_exit(struct thread *ctd)
+{
+	struct thread *td;
+
+	/*
+	 * Finish setting up thread glue so that it begins execution in a
+	 * non-nested critical section with sched_lock held but not recursed.
+	 */
+	ctd->td_oncpu = PCPU_GET(cpuid);
+	sched_lock.mtx_lock = (uintptr_t)ctd;
+	THREAD_LOCK_ASSERT(ctd, MA_OWNED | MA_NOTRECURSED);
+	/*
+	 * Processes normally resume in mi_switch() after being
+	 * cpu_switch()'ed to, but when children start up they arrive here
+	 * instead, so we must do much the same things as mi_switch() would.
+	 */
+	if ((td = PCPU_GET(deadthread))) {
+		PCPU_SET(deadthread, NULL);
+		thread_stash(td);
+	}
+	thread_unlock(ctd);
 }
 
 #define KERN_SWITCH_INCLUDE 1
