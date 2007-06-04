@@ -1,5 +1,13 @@
 /*	$FreeBSD$	*/
 
+/*
+ * Copyright (C) 2002-2005 by Darren Reed.
+ * 
+ * See the IPFILTER.LICENCE file for details on licencing.  
+ *   
+ * $Id: ntomask.c,v 1.6.2.1 2006/06/16 17:21:07 darrenr Exp $ 
+ */     
+
 #include "ipf.h"
 
 int ntomask(v, nbits, ap)

@@ -371,24 +371,11 @@ int dlen;
 			}
 			(void) fr_addstate(&fi, NULL, SI_W_DPORT);
 			if (fi.fin_state != NULL)
-				fr_statederef(&fi, (ipstate_t **)&fi.fin_state);
+				fr_statederef((ipstate_t **)&fi.fin_state);
 		}
 		ip->ip_len = slen;
 		ip->ip_src = swip;
 		ip->ip_dst = swip2;
-	} else {
-		ipstate_t *is;
-
-		nat_update(&fi, nat2, nat->nat_ptr);
-		READ_ENTER(&ipf_state);
-		is = nat2->nat_state;
-		if (is != NULL) {
-			MUTEX_ENTER(&is->is_lock);
-			(void)fr_tcp_age(&is->is_sti, &fi, ips_tqtqb,
-					 is->is_flags);
-			MUTEX_EXIT(&is->is_lock);
-		}
-		RWLOCK_EXIT(&ipf_state);
 	}
 	return APR_INC(inc);
 }
@@ -733,25 +720,12 @@ u_int data_ip;
 			}
 			(void) fr_addstate(&fi, NULL, sflags);
 			if (fi.fin_state != NULL)
-				fr_statederef(&fi, (ipstate_t **)&fi.fin_state);
+				fr_statederef((ipstate_t **)&fi.fin_state);
 		}
 
 		ip->ip_len = slen;
 		ip->ip_src = swip;
 		ip->ip_dst = swip2;
-	} else {
-		ipstate_t *is;
-
-		nat_update(&fi, nat2, nat->nat_ptr);
-		READ_ENTER(&ipf_state);
-		is = nat2->nat_state;
-		if (is != NULL) {
-			MUTEX_ENTER(&is->is_lock);
-			(void)fr_tcp_age(&is->is_sti, &fi, ips_tqtqb,
-					 is->is_flags);
-			MUTEX_EXIT(&is->is_lock);
-		}
-		RWLOCK_EXIT(&ipf_state);
 	}
 	return inc;
 }
@@ -1144,8 +1118,8 @@ int rv;
 				f->ftps_seq[1] = thseq + 1 - seqoff;
 			} else {
 				if (ippr_ftp_debug > 1) {
-					printf("FIN: thseq %x seqoff %d ftps_seq %x\n",
-					       thseq, seqoff, f->ftps_seq[0]);
+					printf("FIN: thseq %x seqoff %d ftps_seq %x %x\n",
+					       thseq, seqoff, f->ftps_seq[0], f->ftps_seq[1]);
 				}
 				return APR_ERR(1);
 			}

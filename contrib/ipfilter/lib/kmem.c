@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2000-2005 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -44,7 +44,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)kmem.c	1.4 1/12/96 (C) 1992 Darren Reed";
-static const char rcsid[] = "@(#)$Id: kmem.c,v 1.16.2.2 2005/06/12 07:18:41 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: kmem.c,v 1.16.2.3 2006/06/16 17:21:04 darrenr Exp $";
 #endif
 
 
