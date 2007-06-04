@@ -63,19 +63,19 @@ static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
 #define SPKRPRI PSOCK
 static char endtone, endrest;
 
-static void tone(unsigned int thz, unsigned int ticks);
-static void rest(int ticks);
+static void tone(unsigned int thz, unsigned int centisecs);
+static void rest(int centisecs);
 static void playinit(void);
 static void playtone(int pitch, int value, int sustain);
 static void playstring(char *cp, size_t slen);
 
-/* emit tone of frequency thz for given number of ticks */
+/* emit tone of frequency thz for given number of centisecs */
 static void
-tone(thz, ticks)
-	unsigned int thz, ticks;
+tone(thz, centisecs)
+	unsigned int thz, centisecs;
 {
     unsigned int divisor;
-    int sps;
+    int sps, timo;
 
     if (thz <= 0)
 	return;
@@ -83,7 +83,7 @@ tone(thz, ticks)
     divisor = timer_freq / thz;
 
 #ifdef DEBUG
-    (void) printf("tone: thz=%d ticks=%d\n", thz, ticks);
+    (void) printf("tone: thz=%d centisecs=%d\n", thz, centisecs);
 #endif /* DEBUG */
 
     /* set timer to generate clicks at given frequency in Hertz */
@@ -107,29 +107,33 @@ tone(thz, ticks)
      * This is so other processes can execute while the tone is being
      * emitted.
      */
-    if (ticks > 0)
-	tsleep(&endtone, SPKRPRI | PCATCH, "spkrtn", ticks);
+    timo = centisecs * hz / 100;
+    if (timo > 0)
+	tsleep(&endtone, SPKRPRI | PCATCH, "spkrtn", timo);
     ppi_spkr_off();
     sps = splclock();
     timer_spkr_release();
     splx(sps);
 }
 
-/* rest for given number of ticks */
+/* rest for given number of centisecs */
 static void
-rest(ticks)
-	int	ticks;
+rest(centisecs)
+	int	centisecs;
 {
+    int timo;
+
     /*
      * Set timeout to endrest function, then give up the timeslice.
      * This is so other processes can execute while the rest is being
      * waited out.
      */
 #ifdef DEBUG
-    (void) printf("rest: %d\n", ticks);
+    (void) printf("rest: %d\n", centisecs);
 #endif /* DEBUG */
-    if (ticks > 0)
-	tsleep(&endrest, SPKRPRI | PCATCH, "spkrrs", ticks);
+    timo = centisecs * hz / 100;
+    if (timo > 0)
+	tsleep(&endrest, SPKRPRI | PCATCH, "spkrrs", timo);
 }
 
 /**************** PLAY STRING INTERPRETER BEGINS HERE **********************
