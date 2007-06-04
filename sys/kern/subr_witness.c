@@ -404,9 +404,12 @@ static struct witness_order_list_entry order_lists[] = {
 #ifdef	HWPMC_HOOKS
 	{ "pmc-per-proc", &lock_class_mtx_spin },
 #endif
+	{ "process slock", &lock_class_mtx_spin },
 	{ "sleepq chain", &lock_class_mtx_spin },
-	{ "sched lock", &lock_class_mtx_spin },
+	{ "umtx lock", &lock_class_mtx_spin },
 	{ "turnstile chain", &lock_class_mtx_spin },
+	{ "turnstile lock", &lock_class_mtx_spin },
+	{ "sched lock", &lock_class_mtx_spin },
 	{ "td_contested", &lock_class_mtx_spin },
 	{ "callout", &lock_class_mtx_spin },
 	{ "entropy harvest mutex", &lock_class_mtx_spin },
@@ -429,7 +432,8 @@ static struct witness_order_list_entry order_lists[] = {
 #endif
 	{ "clk", &lock_class_mtx_spin },
 	{ "mutex profiling lock", &lock_class_mtx_spin },
-	{ "kse zombie lock", &lock_class_mtx_spin },
+	{ "kse lock", &lock_class_mtx_spin },
+	{ "zombie lock", &lock_class_mtx_spin },
 	{ "ALD Queue", &lock_class_mtx_spin },
 #ifdef __ia64__
 	{ "MCA spin lock", &lock_class_mtx_spin },
@@ -446,6 +450,7 @@ static struct witness_order_list_entry order_lists[] = {
 #ifdef	HWPMC_HOOKS
 	{ "pmc-leaf", &lock_class_mtx_spin },
 #endif
+	{ "blocked lock", &lock_class_mtx_spin },
 	{ NULL, NULL },
 	{ NULL, NULL }
 };
@@ -1961,10 +1966,10 @@ witness_list(struct thread *td)
 	 * td->td_oncpu to get the list of spinlocks for this thread
 	 * and "fix" this.
 	 *
-	 * That still wouldn't really fix this unless we locked sched_lock
-	 * or stopped the other CPU to make sure it wasn't changing the list
-	 * out from under us.  It is probably best to just not try to handle
-	 * threads on other CPU's for now.
+	 * That still wouldn't really fix this unless we locked the scheduler
+	 * lock or stopped the other CPU to make sure it wasn't changing the
+	 * list out from under us.  It is probably best to just not try to
+	 * handle threads on other CPU's for now.
 	 */
 	if (td == curthread && PCPU_GET(spinlocks) != NULL)
 		witness_list_locks(PCPU_PTR(spinlocks));
