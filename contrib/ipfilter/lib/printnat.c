@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2002-2005 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
@@ -13,7 +13,7 @@
 
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: printnat.c,v 1.22.2.11 2005/11/14 17:45:06 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: printnat.c,v 1.22.2.13 2006/12/09 10:37:47 darrenr Exp $";
 #endif
 
 /*
@@ -48,10 +48,16 @@ int opts;
 		break;
 	}
 
-	printf(" %s", np->in_ifnames[0]);
+	if (!strcmp(np->in_ifnames[0], "-"))
+		printf(" \"%s\"", np->in_ifnames[0]);
+	else
+		printf(" %s", np->in_ifnames[0]);
 	if ((np->in_ifnames[1][0] != '\0') &&
 	    (strncmp(np->in_ifnames[0], np->in_ifnames[1], LIFNAMSIZ) != 0)) {
-		printf(",%s", np->in_ifnames[1]);
+		if (!strcmp(np->in_ifnames[1], "-"))
+			printf(",\"%s\"", np->in_ifnames[1]);
+		else
+			printf(",%s", np->in_ifnames[1]);
 	}
 	putchar(' ');
 

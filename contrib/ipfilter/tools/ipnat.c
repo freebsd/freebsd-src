@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2001-2006 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
@@ -67,7 +67,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipnat.c,v 1.24.2.2 2005/05/10 21:19:30 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 1.24.2.6 2007/05/11 11:16:55 darrenr Exp $";
 #endif
 
 
@@ -79,11 +79,17 @@ char	thishost[MAXHOSTNAMELEN];
 
 extern	char	*optarg;
 
-void	dostats __P((natstat_t *, int)), flushtable __P((int, int));
+void	dostats __P((int, natstat_t *, int, int));
+void	flushtable __P((int, int));
 void	usage __P((char *));
 int	main __P((int, char*[]));
 void	showhostmap __P((natstat_t *nsp));
 void	natstat_dead __P((natstat_t *, char *));
+void	dostats_live __P((int, natstat_t *, int));
+void	showhostmap_dead __P((natstat_t *));
+void	showhostmap_live __P((int, natstat_t *));
+void	dostats_dead __P((natstat_t *, int));
+void	showtqtable_live __P((int));
 
 int	opts;
 
@@ -168,6 +174,15 @@ char *argv[];
 		(void) setuid(getuid());
 	}
 
+	if (!(opts & OPT_DONOTHING)) {
+		if (((fd = open(IPNAT_NAME, mode)) == -1) &&
+		    ((fd = open(IPNAT_NAME, O_RDONLY)) == -1)) {
+			(void) fprintf(stderr, "%s: open: %s\n", IPNAT_NAME,
+				STRERROR(errno));
+			exit(1);
+		}
+	}
+
 	bzero((char *)&ns, sizeof(ns));
 
 	if ((opts & OPT_DONOTHING) == 0) {
@@ -177,22 +192,11 @@ char *argv[];
 		}
 	}
 
-
 	if (!(opts & OPT_DONOTHING) && (kernel == NULL) && (core == NULL)) {
-		if (openkmem(kernel, core) == -1)
-			exit(1);
-
-		if (((fd = open(IPNAT_NAME, mode)) == -1) &&
-		    ((fd = open(IPNAT_NAME, O_RDONLY)) == -1)) {
-			(void) fprintf(stderr, "%s: open: %s\n", IPNAT_NAME,
-				STRERROR(errno));
-			exit(1);
-		}
-
 		bzero((char *)&obj, sizeof(obj));
 		obj.ipfo_rev = IPFILTER_VERSION;
-		obj.ipfo_size = sizeof(*nsp);
 		obj.ipfo_type = IPFOBJ_NATSTAT;
+		obj.ipfo_size = sizeof(*nsp);
 		obj.ipfo_ptr = (void *)nsp;
 		if (ioctl(fd, SIOCGNATS, &obj) == -1) {
 			perror("ioctl(SIOCGNATS)");
@@ -206,7 +210,7 @@ char *argv[];
 
 		natstat_dead(nsp, kernel);
 		if (opts & (OPT_LIST|OPT_STAT))
-			dostats(nsp, opts);
+			dostats(fd, nsp, opts, 0);
 		exit(0);
 	}
 
@@ -216,7 +220,7 @@ char *argv[];
 		ipnat_parsefile(fd, ipnat_addrule, ioctl, file);
 	}
 	if (opts & (OPT_LIST|OPT_STAT))
-		dostats(nsp, opts);
+		dostats(fd, nsp, opts, 1);
 	return 0;
 }
 
@@ -277,15 +281,74 @@ char *kernel;
 
 
 /*
+ * Issue an ioctl to flush either the NAT rules table or the active mapping
+ * table or both.
+ */
+void flushtable(fd, opts)
+int fd, opts;
+{
+	int n = 0;
+
+	if (opts & OPT_FLUSH) {
+		n = 0;
+		if (!(opts & OPT_DONOTHING) && ioctl(fd, SIOCIPFFL, &n) == -1)
+			perror("ioctl(SIOCFLNAT)");
+		else
+			printf("%d entries flushed from NAT table\n", n);
+	}
+
+	if (opts & OPT_CLEAR) {
+		n = 1;
+		if (!(opts & OPT_DONOTHING) && ioctl(fd, SIOCIPFFL, &n) == -1)
+			perror("ioctl(SIOCCNATL)");
+		else
+			printf("%d entries flushed from NAT list\n", n);
+	}
+}
+
+
+/*
  * Display NAT statistics.
  */
-void dostats(nsp, opts)
+void dostats_dead(nsp, opts)
 natstat_t *nsp;
 int opts;
 {
 	nat_t *np, nat;
 	ipnat_t	ipn;
 
+	printf("List of active MAP/Redirect filters:\n");
+	while (nsp->ns_list) {
+		if (kmemcpy((char *)&ipn, (long)nsp->ns_list,
+			    sizeof(ipn))) {
+			perror("kmemcpy");
+			break;
+		}
+		if (opts & OPT_HITS)
+			printf("%lu ", ipn.in_hits);
+		printnat(&ipn, opts & (OPT_DEBUG|OPT_VERBOSE));
+		nsp->ns_list = ipn.in_next;
+	}
+
+	printf("\nList of active sessions:\n");
+
+	for (np = nsp->ns_instances; np; np = nat.nat_next) {
+		if (kmemcpy((char *)&nat, (long)np, sizeof(nat)))
+			break;
+		printactivenat(&nat, opts, 0, nsp->ns_ticks);
+		if (nat.nat_aps)
+			printaps(nat.nat_aps, opts);
+	}
+
+	if (opts & OPT_VERBOSE)
+		showhostmap_dead(nsp);
+}
+
+
+void dostats(fd, nsp, opts, alive)
+natstat_t *nsp;
+int fd, opts, alive;
+{
 	/*
 	 * Show statistics ?
 	 */
@@ -302,45 +365,78 @@ int opts;
 		if (opts & OPT_VERBOSE)
 			printf("table %p list %p\n",
 				nsp->ns_table, nsp->ns_list);
+		if (alive)
+			showtqtable_live(fd);
 	}
+
+	if (opts & OPT_LIST) {
+		if (alive)
+			dostats_live(fd, nsp, opts);
+		else
+			dostats_dead(nsp, opts);
+	}
+}
+
+
+/*
+ * Display NAT statistics.
+ */
+void dostats_live(fd, nsp, opts)
+natstat_t *nsp;
+int fd, opts;
+{
+	ipfgeniter_t iter;
+	ipfobj_t obj;
+	ipnat_t	ipn;
+	nat_t nat;
+
+	bzero((char *)&obj, sizeof(obj));
+	obj.ipfo_rev = IPFILTER_VERSION;
+	obj.ipfo_type = IPFOBJ_GENITER;
+	obj.ipfo_size = sizeof(iter);
+	obj.ipfo_ptr = &iter;
+
+	iter.igi_type = IPFGENITER_IPNAT;
+	iter.igi_nitems = 1;
+	iter.igi_data = &ipn;
 
 	/*
 	 * Show list of NAT rules and NAT sessions ?
 	 */
-	if (opts & OPT_LIST) {
-		printf("List of active MAP/Redirect filters:\n");
-		while (nsp->ns_list) {
-			if (kmemcpy((char *)&ipn, (long)nsp->ns_list,
-				    sizeof(ipn))) {
-				perror("kmemcpy");
-				break;
-			}
-			if (opts & OPT_HITS)
-				printf("%lu ", ipn.in_hits);
-			printnat(&ipn, opts & (OPT_DEBUG|OPT_VERBOSE));
-			nsp->ns_list = ipn.in_next;
-		}
-
-		printf("\nList of active sessions:\n");
-
-		for (np = nsp->ns_instances; np; np = nat.nat_next) {
-			if (kmemcpy((char *)&nat, (long)np, sizeof(nat)))
-				break;
-			printactivenat(&nat, opts);
-			if (nat.nat_aps)
-				printaps(nat.nat_aps, opts);
-		}
-
-		if (opts & OPT_VERBOSE)
-			showhostmap(nsp);
+	printf("List of active MAP/Redirect filters:\n");
+	while (nsp->ns_list) {
+		if (ioctl(fd, SIOCGENITER, &obj) == -1)
+			break;
+		if (opts & OPT_HITS)
+			printf("%lu ", ipn.in_hits);
+		printnat(&ipn, opts & (OPT_DEBUG|OPT_VERBOSE));
+		nsp->ns_list = ipn.in_next;
 	}
+
+	printf("\nList of active sessions:\n");
+
+	iter.igi_type = IPFGENITER_NAT;
+	iter.igi_nitems = 1;
+	iter.igi_data = &nat;
+
+	while (nsp->ns_instances != NULL) {
+		if (ioctl(fd, SIOCGENITER, &obj) == -1)
+			break;
+		printactivenat(&nat, opts, 1, nsp->ns_ticks);
+		if (nat.nat_aps)
+			printaps(nat.nat_aps, opts);
+		nsp->ns_instances = nat.nat_next;
+	}
+
+	if (opts & OPT_VERBOSE)
+		showhostmap_live(fd, nsp);
 }
 
 
 /*
  * Display the active host mapping table.
  */
-void showhostmap(nsp)
+void showhostmap_dead(nsp)
 natstat_t *nsp;
 {
 	hostmap_t hm, *hmp, **maptable;
@@ -374,27 +470,50 @@ natstat_t *nsp;
 
 
 /*
- * Issue an ioctl to flush either the NAT rules table or the active mapping
- * table or both.
+ * Display the active host mapping table.
  */
-void flushtable(fd, opts)
-int fd, opts;
+void showhostmap_live(fd, nsp)
+int fd;
+natstat_t *nsp;
 {
-	int n = 0;
+	ipfgeniter_t iter;
+	hostmap_t hm;
+	ipfobj_t obj;
 
-	if (opts & OPT_FLUSH) {
-		n = 0;
-		if (!(opts & OPT_DONOTHING) && ioctl(fd, SIOCIPFFL, &n) == -1)
-			perror("ioctl(SIOCFLNAT)");
-		else
-			printf("%d entries flushed from NAT table\n", n);
+	bzero((char *)&obj, sizeof(obj));
+	obj.ipfo_rev = IPFILTER_VERSION;
+	obj.ipfo_type = IPFOBJ_GENITER;
+	obj.ipfo_size = sizeof(iter);
+	obj.ipfo_ptr = &iter;
+
+	iter.igi_type = IPFGENITER_HOSTMAP;
+	iter.igi_nitems = 1;
+	iter.igi_data = &hm;
+
+	printf("\nList of active host mappings:\n");
+
+	while (nsp->ns_maplist != NULL) {
+		if (ioctl(fd, SIOCGENITER, &obj) == -1)
+			break;
+		printhostmap(&hm, 0);
+		nsp->ns_maplist = hm.hm_next;
 	}
+}
 
-	if (opts & OPT_CLEAR) {
-		n = 1;
-		if (!(opts & OPT_DONOTHING) && ioctl(fd, SIOCIPFFL, &n) == -1)
-			perror("ioctl(SIOCCNATL)");
-		else
-			printf("%d entries flushed from NAT list\n", n);
+
+void showtqtable_live(fd)
+int fd;
+{
+	ipftq_t table[IPF_TCP_NSTATES];
+	ipfobj_t obj;
+
+	bzero((char *)&obj, sizeof(obj));
+	obj.ipfo_rev = IPFILTER_VERSION;
+	obj.ipfo_size = sizeof(table);
+	obj.ipfo_ptr = (void *)table;
+	obj.ipfo_type = IPFOBJ_STATETQTAB;
+
+	if (ioctl(fd, SIOCGTQTAB, &obj) == 0) {
+		printtqtable(table);      
 	}
 }

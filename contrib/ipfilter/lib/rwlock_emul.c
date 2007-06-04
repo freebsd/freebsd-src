@@ -1,5 +1,13 @@
 /*	$FreeBSD$	*/
 
+/*
+ * Copyright (C) 2003 by Darren Reed.
+ * 
+ * See the IPFILTER.LICENCE file for details on licencing.  
+ *   
+ * $Id: rwlock_emul.c,v 1.1.4.1 2006/06/16 17:21:17 darrenr Exp $ 
+ */     
+
 #include "ipf.h"
 
 #define	EMM_MAGIC	0x97dd8b3a

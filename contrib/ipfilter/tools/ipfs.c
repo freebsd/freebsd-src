@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1999-2001, 2003 by Darren Reed.
+ * Copyright (C) 2001-2006 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -133,6 +133,14 @@ char *ifs, *fname;
 			strcpy(ips.ips_is.is_ifname[1], s);
 			rw = 1;
 		}
+		if (!strncmp(ips.ips_is.is_ifname[2], ifs, olen + 1)) {
+			strcpy(ips.ips_is.is_ifname[2], s);
+			rw = 1;
+		}
+		if (!strncmp(ips.ips_is.is_ifname[3], ifs, olen + 1)) {
+			strcpy(ips.ips_is.is_ifname[3], s);
+			rw = 1;
+		}
 		if (rw == 1) {
 			if (lseek(fd, pos, SEEK_SET) != pos) {
 				perror("lseek");
@@ -190,6 +198,14 @@ char *ifs, *fname;
 			strcpy(nat->nat_ifnames[1], s);
 			rw = 1;
 		}
+		if (!strncmp(nat->nat_ifnames[2], ifs, olen + 1)) {
+			strcpy(nat->nat_ifnames[2], s);
+			rw = 1;
+		}
+		if (!strncmp(nat->nat_ifnames[3], ifs, olen + 1)) {
+			strcpy(nat->nat_ifnames[3], s);
+			rw = 1;
+		}
 		if (rw == 1) {
 			if (lseek(fd, pos, SEEK_SET) != pos) {
 				perror("lseek");
@@ -216,7 +232,7 @@ char *argv[];
 	char *dirname = NULL, *filename = NULL, *ifs = NULL;
 
 	progname = argv[0];
-	while ((c = getopt(argc, argv, "d:f:lNnSRruvWw")) != -1)
+	while ((c = getopt(argc, argv, "d:f:i:lNnSRruvWw")) != -1)
 		switch (c)
 		{
 		case 'd' :

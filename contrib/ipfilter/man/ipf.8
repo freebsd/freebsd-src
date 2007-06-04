@@ -74,6 +74,17 @@ one of the two options may be given.  A fully established connection
 will show up in \fBipfstat -s\fP output as 5/5, with deviations either
 way indicating it is not fully established any more.
 .TP
+.BR \-F <5|6|7|8|9|10|11>
+For the TCP states that represent the closing of a connection has begun,
+be it only one side or the complete connection, it is possible to flush
+those states directly using the number corresponding to that state.
+The numbers relate to the states as follows: 5 = close-wait, 6 = fin-wait-1,
+7 = closing, 8 = last-ack, 9 = fin-wait-2, 10 = time-wait, 11 = closed.
+.TP
+.BR \-F <number>
+If the argument supplied to \fB-F\fP is greater than 30, then state table
+entries that have been idle for more than this many seconds will be flushed.
+.TP
 .BR \-f \0<filename>
 This option specifies which files
 \fBipf\fP should use to get input from for modifying the packet filter rule
@@ -105,6 +116,7 @@ Remove matching filter rules rather than add them to the internal lists
 .TP
 .B \-s
 Swap the active filter list in use to be the "other" one.
+.TP
 .B \-T <optionlist>
 This option allows run-time changing of IPFilter kernel variables.  Some
 variables require IPFilter to be in a disabled state (\fB-D\fP) for changing,

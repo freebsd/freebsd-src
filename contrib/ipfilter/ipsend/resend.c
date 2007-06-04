@@ -8,12 +8,15 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)resend.c	1.3 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: resend.c,v 2.8.2.2 2006/03/17 13:45:34 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: resend.c,v 2.8.2.3 2007/02/17 12:41:51 darrenr Exp $";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#ifdef __osf__
+# include "radix_ipf_local.h"
+#endif
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

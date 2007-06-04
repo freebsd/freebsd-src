@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002 by Darren Reed.
+ * Copyright (C) 2003-2005 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: load_hashnode.c,v 1.2.4.1 2004/03/06 14:33:28 darrenr Exp $
+ * $Id: load_hashnode.c,v 1.2.4.2 2006/06/16 17:21:05 darrenr Exp $
  */
 
 #include <fcntl.h>
