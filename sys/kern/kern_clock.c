@@ -201,32 +201,35 @@ hardclock_cpu(int usermode)
 	struct pstats *pstats;
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
+	int ast;
 
 	/*
 	 * Run current process's virtual and profile time, as needed.
 	 */
-	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
-	sched_tick();
-#ifdef KSE
-#if 0  /* for now do nothing */
-	if (p->p_flag & P_SA) {
-		/* XXXKSE What to do? Should do more. */
-	}
-#endif
-#endif
 	pstats = p->p_stats;
+	ast = 0;
 	if (usermode &&
-	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
-	    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
-		p->p_sflag |= PS_ALRMPEND;
-		td->td_flags |= TDF_ASTPENDING;
+	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
+		PROC_SLOCK(p);
+		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
+			p->p_sflag |= PS_ALRMPEND;
+			ast = 1;
+		}
+		PROC_SUNLOCK(p);
 	}
-	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
-	    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
-		p->p_sflag |= PS_PROFPEND;
-		td->td_flags |= TDF_ASTPENDING;
+	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)) {
+		PROC_SLOCK(p);
+		if (itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
+			p->p_sflag |= PS_PROFPEND;
+			ast = 1;
+		}
+		PROC_SUNLOCK(p);
 	}
-	mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
+	thread_lock(td);
+	sched_tick();
+	if (ast)
+		td->td_flags |= TDF_ASTPENDING;
+	thread_unlock(td);
 
 #ifdef	HWPMC_HOOKS
 	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
@@ -272,8 +275,8 @@ hardclock(int usermode, uintfptr_t pc)
 	mtx_unlock_spin_flags(&callout_lock, MTX_QUIET);
 
 	/*
-	 * swi_sched acquires sched_lock, so we don't want to call it with
-	 * callout_lock held; incorrect locking order.
+	 * swi_sched acquires the thread lock, so we don't want to call it
+	 * with callout_lock held; incorrect locking order.
 	 */
 	if (need_softclock)
 		swi_sched(softclock_ih, 0);
@@ -411,6 +414,7 @@ statclock(int usermode)
 	td = curthread;
 	p = td->td_proc;
 
+	thread_lock_flags(td, MTX_QUIET);
 	if (usermode) {
 		/*
 		 * Charge the time as appropriate.
@@ -420,11 +424,10 @@ statclock(int usermode)
 			thread_statclock(1);
 #endif
 		td->td_uticks++;
-		mtx_lock_spin_flags(&time_lock, MTX_QUIET);
 		if (p->p_nice > NZERO)
-			cp_time[CP_NICE]++;
+			atomic_add_long(&cp_time[CP_NICE], 1);
 		else
-			cp_time[CP_USER]++;
+			atomic_add_long(&cp_time[CP_USER], 1);
 	} else {
 		/*
 		 * Came from kernel mode, so we were:
@@ -441,8 +444,7 @@ statclock(int usermode)
 		if ((td->td_pflags & TDP_ITHREAD) ||
 		    td->td_intr_nesting_level >= 2) {
 			td->td_iticks++;
-			mtx_lock_spin_flags(&time_lock, MTX_QUIET);
-			cp_time[CP_INTR]++;
+			atomic_add_long(&cp_time[CP_INTR], 1);
 		} else {
 #ifdef KSE
 			if (p->p_flag & P_SA)
@@ -450,19 +452,12 @@ statclock(int usermode)
 #endif
 			td->td_pticks++;
 			td->td_sticks++;
-			mtx_lock_spin_flags(&time_lock, MTX_QUIET);
 			if (!TD_IS_IDLETHREAD(td))
-				cp_time[CP_SYS]++;
+				atomic_add_long(&cp_time[CP_SYS], 1);
 			else
-				cp_time[CP_IDLE]++;
+				atomic_add_long(&cp_time[CP_IDLE], 1);
 		}
 	}
-	mtx_unlock_spin_flags(&time_lock, MTX_QUIET);
-	CTR4(KTR_SCHED, "statclock: %p(%s) prio %d stathz %d",
-	    td, td->td_proc->p_comm, td->td_priority, (stathz)?stathz:hz);
-
-	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
-	sched_clock(td);
 
 	/* Update resource usage integrals and maximums. */
 	MPASS(p->p_vmspace != NULL);
@@ -474,7 +469,10 @@ statclock(int usermode)
 	rss = pgtok(vmspace_resident_count(vm));
 	if (ru->ru_maxrss < rss)
 		ru->ru_maxrss = rss;
-	mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
+	CTR4(KTR_SCHED, "statclock: %p(%s) prio %d stathz %d",
+	    td, td->td_proc->p_comm, td->td_priority, (stathz)?stathz:hz);
+	sched_clock(td);
+	thread_unlock(td);
 }
 
 void
