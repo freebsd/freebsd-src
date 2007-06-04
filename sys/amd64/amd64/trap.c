@@ -163,7 +163,7 @@ trap(struct trapframe *frame)
 	register_t addr = 0;
 	ksiginfo_t ksi;
 
-	PCPU_LAZY_INC(cnt.v_trap);
+	PCPU_INC(cnt.v_trap);
 	type = frame->tf_trapno;
 
 #ifdef SMP
@@ -737,10 +737,10 @@ syscall(struct trapframe *frame)
 	ksiginfo_t ksi;
 
 	/*
-	 * note: PCPU_LAZY_INC() can only be used if we can afford
+	 * note: PCPU_INC() can only be used if we can afford
 	 * occassional inaccuracy in the count.
 	 */
-	PCPU_LAZY_INC(cnt.v_syscall);
+	PCPU_INC(cnt.v_syscall);
 
 #ifdef DIAGNOSTIC
 	if (ISPL(frame->tf_cs) != SEL_UPL) {

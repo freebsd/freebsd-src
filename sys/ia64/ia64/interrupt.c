@@ -154,7 +154,7 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 	if (vector == CLOCK_VECTOR) {/* clock interrupt */
 		/* CTR0(KTR_INTR, "clock interrupt"); */
 
-		PCPU_LAZY_INC(cnt.v_intr);
+		PCPU_INC(cnt.v_intr);
 #ifdef EVCNT_COUNTERS
 		clock_intr_evcnt.ev_count++;
 #else

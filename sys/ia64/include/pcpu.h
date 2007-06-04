@@ -53,7 +53,8 @@ register struct pcpu *pcpup __asm__("r13");
  * XXX The implementation of this operation should be made atomic
  * with respect to preemption.
  */
-#define	PCPU_LAZY_INC(member)	(++pcpup->pc_ ## member)
+#define	PCPU_ADD(member, value)	(pcpup->pc_ ## member += (value))
+#define	PCPU_INC(member)	PCPU_ADD(member, 1)
 #define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
 #define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
 
