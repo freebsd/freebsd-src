@@ -201,7 +201,7 @@ static void
 playinit()
 {
     octave = DFLT_OCTAVE;
-    whole = (hz * SECS_PER_MIN * WHOLE_NOTE) / DFLT_TEMPO;
+    whole = (100 * SECS_PER_MIN * WHOLE_NOTE) / DFLT_TEMPO;
     fill = NORMAL;
     value = DFLT_VALUE;
     octtrack = FALSE;
@@ -410,7 +410,7 @@ playstring(cp, slen)
 	    GETNUM(cp, tempo);
 	    if (tempo < MIN_TEMPO || tempo > MAX_TEMPO)
 		tempo = DFLT_TEMPO;
-	    whole = (hz * SECS_PER_MIN * WHOLE_NOTE) / tempo;
+	    whole = (100 * SECS_PER_MIN * WHOLE_NOTE) / tempo;
 	    break;
 
 	case 'M':
