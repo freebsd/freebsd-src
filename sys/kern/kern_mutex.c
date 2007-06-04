@@ -127,6 +127,7 @@ struct lock_class lock_class_mtx_spin = {
 /*
  * System-wide mutexes
  */
+struct mtx blocked_lock;
 struct mtx sched_lock;
 struct mtx Giant;
 
@@ -305,6 +306,7 @@ void
 _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
+	struct turnstile *ts;
 #ifdef ADAPTIVE_MUTEXES
 	volatile struct thread *owner;
 #endif
@@ -334,7 +336,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
 
 	while (!_obtain_lock(m, tid)) { 
-		turnstile_lock(&m->lock_object);
+		ts = turnstile_trywait(&m->lock_object);
 		v = m->mtx_lock;
 
 		/*
@@ -342,7 +344,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 * the turnstile chain lock.
 		 */
 		if (v == MTX_UNOWNED) {
-			turnstile_release(&m->lock_object);
+			turnstile_cancel(ts);
 			cpu_spinwait();
 			continue;
 		}
@@ -358,7 +360,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 */
 		if (v == MTX_CONTESTED) {
 			m->mtx_lock = tid | MTX_CONTESTED;
-			turnstile_claim(&m->lock_object);
+			turnstile_claim(ts);
 			break;
 		}
 #endif
@@ -370,7 +372,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 */
 		if ((v & MTX_CONTESTED) == 0 &&
 		    !atomic_cmpset_ptr(&m->mtx_lock, v, v | MTX_CONTESTED)) {
-			turnstile_release(&m->lock_object);
+			turnstile_cancel(ts);
 			cpu_spinwait();
 			continue;
 		}
@@ -387,7 +389,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		if (m != &Giant && TD_IS_RUNNING(owner)) 
 #endif
 		{
-			turnstile_release(&m->lock_object);
+			turnstile_cancel(ts);
 			while (mtx_owner(m) == owner && TD_IS_RUNNING(owner)) {
 				cpu_spinwait();
 			}
@@ -414,8 +416,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		/*
 		 * Block on the turnstile.
 		 */
-		turnstile_wait(&m->lock_object, mtx_owner(m),
-		    TS_EXCLUSIVE_QUEUE);
+		turnstile_wait(ts, mtx_owner(m), TS_EXCLUSIVE_QUEUE);
 	}
 #ifdef KTR
 	if (cont_logged) {
@@ -428,7 +429,25 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	    waittime, (file), (line));					
 }
 
+static void
+_mtx_lock_spin_failed(struct mtx *m)
+{
+	struct thread *td;
+
+	td = mtx_owner(m);
+
+	/* If the mutex is unlocked, try again. */
+	if (td == NULL)
+		return;
 #ifdef SMP
+	printf( "spin lock %p (%s) held by %p (tid %d) too long\n",
+	    m, m->lock_object.lo_name, td, td->td_tid);
+#ifdef WITNESS
+	witness_display_spinlock(&m->lock_object, td);
+#endif
+	panic("spin lock held too long");
+}
+
 /*
  * _mtx_lock_spin: the tougher part of acquiring an MTX_SPIN lock.
  *
@@ -440,7 +459,6 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
 	int i = 0, contested = 0;
-	struct thread *td;	
 	uint64_t waittime = 0;
 	
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
@@ -458,20 +476,8 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 			}
 			if (i < 60000000 || kdb_active || panicstr != NULL)
 				DELAY(1);
-			else {
-				td = mtx_owner(m);
-
-				/* If the mutex is unlocked, try again. */
-				if (td == NULL)
-					continue;
-				printf(
-			"spin lock %p (%s) held by %p (tid %d) too long\n",
-				    m, m->lock_object.lo_name, td, td->td_tid);
-#ifdef WITNESS
-				witness_display_spinlock(&m->lock_object, td);
-#endif
-				panic("spin lock held too long");
-			}
+			else
+				_mtx_lock_spin_failed(m);
 			cpu_spinwait();
 		}
 		spinlock_enter();
@@ -482,9 +488,86 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 
 	lock_profile_obtain_lock_success(&m->lock_object, contested,	
 	    waittime, (file), (line));
-
 }
 #endif /* SMP */
+
+void
+_thread_lock_flags(struct thread *td, int opts, const char *file, int line)
+{
+	struct mtx *m;
+	uintptr_t tid;
+	int i;
+
+	i = 0;
+	tid = (uintptr_t)curthread;
+	for (;;) {
+retry:
+		spinlock_enter();
+		m = __DEVOLATILE(struct mtx *, td->td_lock);
+		WITNESS_CHECKORDER(&m->lock_object,
+		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line);
+		while (!_obtain_lock(m, tid)) {
+			if (m->mtx_lock == tid) {
+				m->mtx_recurse++;
+				break;
+			}
+			/* Give interrupts a chance while we spin. */
+			spinlock_exit();
+			while (m->mtx_lock != MTX_UNOWNED) {
+				if (i++ < 10000000)
+					cpu_spinwait();
+				else if (i < 60000000 ||
+				    kdb_active || panicstr != NULL)
+					DELAY(1);
+				else
+					_mtx_lock_spin_failed(m);
+				cpu_spinwait();
+				if (m != td->td_lock)
+					goto retry;
+			}
+			spinlock_enter();
+		}
+		if (m == td->td_lock)
+			break;
+		_rel_spin_lock(m);	/* does spinlock_exit() */
+	}
+	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
+}
+
+struct mtx *
+thread_lock_block(struct thread *td)
+{
+	struct mtx *lock;
+
+	spinlock_enter();
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	lock = __DEVOLATILE(struct mtx *, td->td_lock);
+	td->td_lock = &blocked_lock;
+	mtx_unlock_spin(lock);
+
+	return (lock);
+}
+
+void
+thread_lock_unblock(struct thread *td, struct mtx *new)
+{
+	mtx_assert(new, MA_OWNED);
+	MPASS(td->td_lock == &blocked_lock);
+	atomic_store_rel_ptr((void *)&td->td_lock, (uintptr_t)new);
+	spinlock_exit();
+}
+
+void
+thread_lock_set(struct thread *td, struct mtx *new)
+{
+	struct mtx *lock;
+
+	mtx_assert(new, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	lock = __DEVOLATILE(struct mtx *, td->td_lock);
+	td->td_lock = new;
+	mtx_unlock_spin(lock);
+}
 
 /*
  * _mtx_unlock_sleep: the tougher part of releasing an MTX_DEF lock.
@@ -508,7 +591,11 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		return;
 	}
 
-	turnstile_lock(&m->lock_object);
+	/*
+	 * We have to lock the chain before the turnstile so this turnstile
+	 * can be removed from the hash list if it is empty.
+	 */
+	turnstile_chain_lock(&m->lock_object);
 	ts = turnstile_lookup(&m->lock_object);
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
@@ -518,7 +605,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		_release_lock_quick(m);
 		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p no sleepers", m);
-		turnstile_release(&m->lock_object);
+		turnstile_chain_unlock(&m->lock_object);
 		return;
 	}
 #else
@@ -543,7 +630,12 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			    m);
 	}
 #endif
+	/*
+	 * This turnstile is now no longer associated with the mutex.  We can
+	 * unlock the chain lock so a new turnstile may take it's place.
+	 */
 	turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
+	turnstile_chain_unlock(&m->lock_object);
 
 #ifndef PREEMPTION
 	/*
@@ -557,7 +649,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	if (td->td_critnest > 0 || td1->td_priority >= td->td_priority)
 		return;
 
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td1);
 	if (!TD_IS_RUNNING(td1)) {
 #ifdef notyet
 		if (td->td_ithd != NULL) {
@@ -582,7 +674,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p resuming lock=%p",
 			    m, (void *)m->mtx_lock);
 	}
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td1);
 #endif
 }
 
@@ -761,7 +853,10 @@ mutex_init(void)
 	 */
 	mtx_init(&Giant, "Giant", NULL, MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&blocked_lock, "blocked lock", NULL, MTX_SPIN);
+	blocked_lock.mtx_lock = 0xdeadc0de;	/* Always blocked. */
 	mtx_init(&proc0.p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
+	mtx_init(&proc0.p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
 	mtx_init(&devmtx, "cdev", NULL, MTX_DEF);
 	mtx_lock(&Giant);
 	
