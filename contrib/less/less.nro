@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 394: 03 Dec 2005"
+.TH LESS 1 "Version 403: 25 May 2007"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -119,7 +119,9 @@ or if N is not specified and
 standard input, rather than a file, is being read.)
 .IP "p or %"
 Go to a position N percent into the file.
-N should be between 0 and 100.
+N should be between 0 and 100, and may contain a decimal point.
+.IP "P"
+Go to the line containing byte offset N in the file.
 .IP "{"
 If a left curly bracket appears in the top line displayed
 on the screen,
@@ -478,7 +480,8 @@ Causes full screen repaints to be painted from the top line down.
 By default,
 full screen repaints are done by scrolling from the bottom of the screen.
 .IP "\-C or \-\-CLEAR-SCREEN"
-The \-C option is like \-c, but the screen is cleared before it is repainted.
+Same as \-c, for compatibility with older versions of 
+.I less.
 .IP "\-d or \-\-dumb"
 The \-d option suppresses the error message
 normally displayed if the terminal is dumb;
@@ -515,6 +518,8 @@ Also suppresses the warning message when a binary file is opened.
 By default,
 .I less
 will refuse to open non-regular files.
+Note that some operating systems will not allow directories
+to be read, even if \-f is set.
 .IP "\-F or \-\-quit-if-one-screen"
 Causes
 .I less
@@ -553,11 +558,17 @@ is to be positioned.
 A target line is the object of a text search, 
 tag search, jump to a line number,
 jump to a file percentage, or jump to a marked position.
-The screen line is specified by a number: the top line on the screen
+The screen line may be specified by a number: the top line on the screen
 is 1, the next is 2, and so on.
 The number may be negative to specify a line relative to the bottom
 of the screen: the bottom line on the screen is \-1, the second
 to the bottom is \-2, and so on.
+Alternately, the screen line may be specified as a fraction of the height
+of the screen, starting with a decimal point: .5 is in the middle of the
+screen, .3 is three tenths down from the first line, and so on.
+If the line is specified as a fraction, the actual line number
+is recalculated if the terminal window is resized, so that the
+target line remains at the specified fraction of the screen height.
 If the \-j option is used, searches begin at the line immediately
 after the target line.
 For example, if "\-j4" is used, the target line is the
@@ -804,7 +815,7 @@ By default, any forward movement causes scrolling.
 Changes the default scrolling window size to \fIn\fP lines.
 The default is one screenful.
 The z and w commands can also be used to change the window size.
-The "z" may be omitted for compatibility with
+The "z" may be omitted for compatibility with some versions of 
 .I more.
 If the number
 .I n
@@ -1142,6 +1153,8 @@ Selects a Russian character set.
 Selects a character set appropriate for NeXT computers.
 .IP utf-8
 Selects the UTF-8 encoding of the ISO 10646 character set.
+UTF-8 is special in that it supports multi-byte characters in the input file.
+It is the only character set that supports multi-byte characters.
 .IP windows
 Selects a character set appropriate for Microsoft Windows (cp 1251).
 .PP
@@ -1444,6 +1457,36 @@ filename completion (TAB, ^L)
 .PP
 Less can also be compiled to be permanently in "secure" mode.
 
+.SH "COMPATIBILITY WITH MORE"
+If the environment variable LESS_IS_MORE is set to 1,
+or if the program is invoked via a file link named "more",
+.I less
+behaves (mostly) in conformance with the POSIX "more" command specification.
+In this mode, less behaves differently in these ways:
+.PP
+The \-e option works differently.
+If the \-e option is not set, 
+.I less
+behaves as if the \-E option were set.
+If the \-e option is set, 
+.I less
+behaves as if the \-e and \-F options were set.
+.PP
+The \-m option works differently.
+If the \-m option is not set, the medium prompt is used,
+and it is prefixed with the string "--More--".
+If the \-m option is set, the short prompt is used.
+.PP
+The \-n option acts like the \-z option.
+The normal behavior of the \-n option is unavailable in this mode.
+.PP
+The parameter to the \-p option is taken to be a 
+.I less
+command rather than a search pattern.
+.PP
+The LESS environment variable is ignored,
+and the MORE environment variable is used in its place.
+
 .SH "ENVIRONMENT VARIABLES"
 Environment variables may be specified either in the system environment
 as usual, or in a 
@@ -1509,7 +1552,7 @@ Normally should be set to "global" if your system has the
 Name of the history file used to remember search commands and
 shell commands between invocations of 
 .I less.
-If set to "\-", a history file is not used.
+If set to "\-" or "/dev/null", a history file is not used.
 The default is "$HOME/.lesshst" on Unix systems, "$HOME/_lesshst" on
 DOS and Windows systems, or "$HOME/lesshst.ini" or "$INIT/lesshst.ini" 
 on OS/2 systems.
@@ -1536,6 +1579,10 @@ See discussion under SECURITY.
 String to be appended to a directory name in filename completion.
 .IP LESSUTFBINFMT
 Format for displaying non-printable Unicode code points.
+.IP LESS_IS_MORE
+Emulate the 
+.I more
+(1) command.
 .IP LINES
 Sets the number of lines on the screen.
 Takes precedence over the number of lines specified by the TERM variable.
@@ -1562,25 +1609,23 @@ The = command and prompts (unless changed by \-P)
 report the line numbers of the lines at the top and bottom of the screen,
 but the byte and percent of the line after the one at the bottom of the screen.
 .PP
-If the :e command is used to name more than one file,
-and one of the named files has been viewed previously,
-the new files may be entered into the list in an unexpected order.
-.PP
 On certain older terminals (the so-called "magic cookie" terminals),
 search highlighting will cause an erroneous display.
 On such terminals, search highlighting is disabled by default 
 to avoid possible problems.
+.PP
+When searching in a binary file, text which follows a null byte 
+may not be found.
+This problem does not occur when searching with regular expressions turned
+off via ^R, and also does not occur when
+.I less
+is compiled to use the PCRE regular expression library.
 .PP
 In certain cases, when search highlighting is enabled and 
 a search pattern begins with a ^,
 more text than the matching string may be highlighted.
 (This problem does not occur when less is compiled to use the POSIX
 regular expression package.)
-.PP
-When viewing text containing ANSI color escape sequences using the \-R option,
-searching will not find text containing an embedded escape sequence.
-Also, search highlighting may change the color of some of the text
-which follows the highlighted text.
 .PP
 On some systems,
 .I setlocale
@@ -1594,10 +1639,10 @@ LESSCHARSET to "ascii" (or whatever character set is appropriate).
 .PP
 This manual is too long.
 .PP
-See http://www.greenwoodsoftware.com/less for the list of known bugs in all versions of less.
+See http://www.greenwoodsoftware.com/less for the latest list of known bugs in less.
 
 .SH COPYRIGHT
-Copyright (C) 1984-2005  Mark Nudelman
+Copyright (C) 1984-2007  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
@@ -1622,6 +1667,10 @@ See the GNU General Public License for more details.
 .PP
 Mark Nudelman <markn@greenwoodsoftware.com>
 .br
-Send bug reports or comments to the above address or to bug-less@gnu.org.
+Send bug reports or comments to the above address or to 
 .br
-For more information, see the less homepage at http://www.greenwoodsoftware.com/less.
+bug-less@gnu.org.
+.br
+For more information, see the less homepage at 
+.br
+http://www.greenwoodsoftware.com/less.
