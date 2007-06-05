@@ -536,10 +536,10 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 		subj->mac_lomac.ml_rangelow = objlabel->ml_single;
 	subj->mac_lomac.ml_rangehigh = objlabel->ml_single;
 	subj->mac_lomac.ml_flags |= MAC_LOMAC_FLAG_UPDATE;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	curthread->td_flags |= TDF_ASTPENDING;
 	curthread->td_proc->p_sflag |= PS_MACPEND;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 
 	/*
 	 * Avoid memory allocation while holding a mutex; cache the

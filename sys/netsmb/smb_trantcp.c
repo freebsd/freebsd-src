@@ -115,9 +115,9 @@ nbssn_rselect(struct nbpcb *nbp, struct timeval *tv, int events,
 retry:
 
 	ncoll = nselcoll;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags |= TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	mtx_unlock(&sellock);
 
 	/* XXX: Should be done when the thread is initialized. */
@@ -144,12 +144,12 @@ retry:
 	 * the process, test P_SELECT and rescan file descriptors if
 	 * necessary.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 		goto retry;
 	}
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 
 	if (timo > 0)
 		error = cv_timedwait(&selwait, &sellock, timo);
@@ -161,9 +161,9 @@ retry:
 done:
 	clear_selinfo_list(td);
 	
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags &= ~TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	mtx_unlock(&sellock);
 
 done_noproclock:

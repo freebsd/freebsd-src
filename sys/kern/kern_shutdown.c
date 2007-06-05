@@ -267,9 +267,9 @@ boot(int howto)
 	 * systems don't shutdown properly (i.e., ACPI power off) if we
 	 * run on another processor.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	sched_bind(curthread, 0);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 	KASSERT(PCPU_GET(cpuid) == 0, ("boot: not running on cpu 0"));
 #endif
 	/* We're in the process of rebooting. */
@@ -340,9 +340,9 @@ boot(int howto)
 			 */
 			DROP_GIANT();
 			for (subiter = 0; subiter < 50 * iter; subiter++) {
-				mtx_lock_spin(&sched_lock);
+				thread_lock(curthread);
 				mi_switch(SW_VOL, NULL);
-				mtx_unlock_spin(&sched_lock);
+				thread_unlock(curthread);
 				DELAY(1000);
 			}
 			PICKUP_GIANT();
@@ -555,9 +555,9 @@ panic(const char *fmt, ...)
 	}
 #endif
 #endif
-	mtx_lock_spin(&sched_lock);
+	/*thread_lock(td); */
 	td->td_flags |= TDF_INPANIC;
-	mtx_unlock_spin(&sched_lock);
+	/* thread_unlock(td); */
 	if (!sync_on_panic)
 		bootopt |= RB_NOSYNC;
 	boot(bootopt);

@@ -286,9 +286,9 @@ out:
 		panic("procfs_control");
 	}
 
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	thread_unsuspend(p); /* If it can run, let it do so. */
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 	return (0);
 }
 
@@ -344,9 +344,9 @@ procfs_doprocctl(PFS_FILL_ARGS)
 #endif
 				/* XXXKSE: */
 				p->p_flag &= ~P_STOPPED_SIG;
-				mtx_lock_spin(&sched_lock);
+				PROC_SLOCK(p);
 				thread_unsuspend(p);
-				mtx_unlock_spin(&sched_lock);
+				PROC_SUNLOCK(p);
 			} else
 				psignal(p, nm->nm_val);
 			PROC_UNLOCK(p);

@@ -113,9 +113,9 @@ kthread_create(void (*func)(void *), void *arg,
 
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED)) {
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		sched_add(td, SRQ_BORING); 
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 	}
 
 	return 0;

@@ -185,9 +185,9 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		if (P_SHOULDSTOP(p)) {
 			p->p_xstat = sig;
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
-			mtx_lock_spin(&sched_lock);
+			PROC_SLOCK(p);
 			thread_unsuspend(p);
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(p);
 		} else if (sig)
 			psignal(p, sig);
 #else

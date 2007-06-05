@@ -159,7 +159,7 @@ forward_signal(struct thread *td)
 	 * this thread, so all we need to do is poke it if it is currently
 	 * executing so that it executes ast().
 	 */
-	mtx_assert(&sched_lock, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(TD_IS_RUNNING(td),
 	    ("forward_signal: thread is not TDS_RUNNING"));
 
@@ -186,8 +186,6 @@ forward_roundrobin(void)
 	struct pcpu *pc;
 	struct thread *td;
 	cpumask_t id, map, me;
-
-	mtx_assert(&sched_lock, MA_OWNED);
 
 	CTR0(KTR_SMP, "forward_roundrobin()");
 

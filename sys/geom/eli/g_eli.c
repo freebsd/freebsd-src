@@ -332,11 +332,11 @@ g_eli_worker(void *arg)
 			tsleep(wr, 0, "geli:smp", hz / 4);
 	}
 #endif
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	sched_prio(curthread, PRIBIO);
 	if (sc->sc_crypto == G_ELI_CRYPTO_SW && g_eli_threads == 0)
 		sched_bind(curthread, wr->w_number);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 
 	G_ELI_DEBUG(1, "Thread %s started.", curthread->td_proc->p_comm);
 

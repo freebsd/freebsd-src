@@ -1246,22 +1246,24 @@ unlock_and_continue:
 			 * If the process is in a non-running type state,
 			 * don't touch it.  Check all the threads individually.
 			 */
-			mtx_lock_spin(&sched_lock);
+			PROC_SLOCK(p);
 			breakout = 0;
 			FOREACH_THREAD_IN_PROC(p, td) {
+				thread_lock(td);
 				if (!TD_ON_RUNQ(td) &&
 				    !TD_IS_RUNNING(td) &&
 				    !TD_IS_SLEEPING(td)) {
+					thread_unlock(td);
 					breakout = 1;
 					break;
 				}
+				thread_unlock(td);
 			}
+			PROC_SUNLOCK(p);
 			if (breakout) {
-				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(p);
 				continue;
 			}
-			mtx_unlock_spin(&sched_lock);
 			/*
 			 * get the process size
 			 */
@@ -1287,9 +1289,9 @@ unlock_and_continue:
 		sx_sunlock(&allproc_lock);
 		if (bigproc != NULL) {
 			killproc(bigproc, "out of swap space");
-			mtx_lock_spin(&sched_lock);
+			PROC_SLOCK(bigproc);
 			sched_nice(bigproc, PRIO_MIN);
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(bigproc);
 			PROC_UNLOCK(bigproc);
 			wakeup(&cnt.v_free_count);
 		}
@@ -1599,17 +1601,20 @@ vm_daemon()
 			 * if the process is in a non-running type state,
 			 * don't touch it.
 			 */
-			mtx_lock_spin(&sched_lock);
+			PROC_SLOCK(p);
 			breakout = 0;
 			FOREACH_THREAD_IN_PROC(p, td) {
+				thread_lock(td);
 				if (!TD_ON_RUNQ(td) &&
 				    !TD_IS_RUNNING(td) &&
 				    !TD_IS_SLEEPING(td)) {
+					thread_unlock(td);
 					breakout = 1;
 					break;
 				}
+				thread_unlock(td);
 			}
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(p);
 			if (breakout) {
 				PROC_UNLOCK(p);
 				continue;
