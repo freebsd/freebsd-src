@@ -1024,6 +1024,12 @@ product FREECOM DVD		0xfc01	DVD drive
 product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
 product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
+/* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
+product FTDI EISCOU		0xe888 "Expert ISDN Control USB"
+product FTDI UOPTBR		0xe889 "USB-RS232 OptoBridge"
+product FTDI EMCU2D		0xe88a "Expert mouseCLOCK USB II"
+product FTDI PCMSFU		0xe88b "Precision Clock MSF USB"
+product FTDI EMCU2H		0xe88c "Expert mouseCLOCK USB II HBG"
 
 /* Fuji photo products */
 product FUJIPHOTO MASS0100	0x0100	Mass Storage
