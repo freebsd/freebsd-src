@@ -521,11 +521,13 @@ ciss_shutdown(device_t dev)
 
     debug_called(1);
 
+    mtx_lock(&sc->ciss_mtx);
     /* flush adapter cache */
     ciss_flush_adapter(sc);
 
     if (sc->ciss_soft_reset)
 	ciss_soft_reset(sc);
+    mtx_unlock(&sc->ciss_mtx);
 
     return(0);
 }
