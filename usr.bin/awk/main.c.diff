@@ -11,8 +11,8 @@ diff -u -p -r1.1.1.10 main.c
  THIS SOFTWARE.
  ****************************************************************/
  
--const char	*version = "version 20050424";
-+const char	*version = "version 20050424 (FreeBSD)";
+-const char	*version = "version 20070501";
++const char	*version = "version 20070501 (FreeBSD)";
  
  #define DEBUG
  #include <stdio.h>
