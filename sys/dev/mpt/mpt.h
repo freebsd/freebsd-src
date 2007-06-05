@@ -339,6 +339,17 @@ struct req_entry {
 	struct req_entry *chain;	/* for SGE overallocations */
 };
 
+typedef struct mpt_config_params {
+	u_int		Action;
+	u_int		PageVersion;
+	u_int		PageLength;
+	u_int		PageNumber;
+	u_int		PageType;
+	u_int		PageAddress;
+	u_int		ExtPageLength;
+	u_int		ExtPageType;
+} cfgparms_t;
+
 /**************************** MPI Target State Info ***************************/
 
 typedef struct {
@@ -511,6 +522,36 @@ struct mpt_evtf_record {
 };
 
 LIST_HEAD(mpt_evtf_list, mpt_evtf_record);
+
+struct mptsas_devinfo {
+	uint16_t	dev_handle;
+	uint16_t	parent_dev_handle;
+	uint16_t	enclosure_handle;
+	uint16_t	slot;
+	uint8_t		phy_num;
+	uint8_t		physical_port;
+	uint8_t		target_id;
+	uint8_t		bus;
+	uint64_t	sas_address;
+	uint32_t	device_info;
+};
+
+struct mptsas_phyinfo {
+	uint16_t	handle;
+	uint8_t		phy_num;
+	uint8_t		port_id;
+	uint8_t		negotiated_link_rate;
+	uint8_t		hw_link_rate;
+	uint8_t		programmed_link_rate;
+	uint8_t		sas_port_add_phy;
+	struct mptsas_devinfo identify;
+	struct mptsas_devinfo attached;
+};
+
+struct mptsas_portinfo {
+	uint16_t			num_phys;
+	struct mptsas_phyinfo		*phy_info;
+};
 
 struct mpt_softc {
 	device_t		dev;
@@ -718,6 +759,9 @@ struct mpt_softc {
 	bus_dma_tag_t		fw_dmat;	/* DMA tag for firmware image */
 	bus_dmamap_t		fw_dmap;	/* DMA map for firmware image */
 	bus_addr_t		fw_phys;	/* BusAddr of firmware image */
+
+	/* SAS Topology */
+	struct mptsas_portinfo	*sas_portinfo;
 
 	/* Shutdown Event Handler. */
 	eventhandler_tag         eh;
@@ -1184,11 +1228,19 @@ void		mpt_dump_reply_frame(struct mpt_softc *mpt,
 
 void		mpt_set_config_regs(struct mpt_softc *);
 int		mpt_issue_cfg_req(struct mpt_softc */*mpt*/, request_t */*req*/,
-				  u_int /*Action*/, u_int /*PageVersion*/,
-				  u_int /*PageLength*/, u_int /*PageNumber*/,
-				  u_int /*PageType*/, uint32_t /*PageAddress*/,
+				  cfgparms_t *params,
 				  bus_addr_t /*addr*/, bus_size_t/*len*/,
 				  int /*sleep_ok*/, int /*timeout_ms*/);
+int		mpt_read_extcfg_header(struct mpt_softc *mpt, int PageVersion,
+				       int PageNumber, uint32_t PageAddress,
+				       int ExtPageType,
+				       CONFIG_EXTENDED_PAGE_HEADER *rslt,
+				       int sleep_ok, int timeout_ms);
+int		mpt_read_extcfg_page(struct mpt_softc *mpt, int Action,
+				     uint32_t PageAddress,
+				     CONFIG_EXTENDED_PAGE_HEADER *hdr,
+				     void *buf, size_t len, int sleep_ok,
+				     int timeout_ms);
 int		mpt_read_cfg_header(struct mpt_softc *, int /*PageType*/,
 				    int /*PageNumber*/,
 				    uint32_t /*PageAddress*/,

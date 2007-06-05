@@ -503,6 +503,8 @@ mpt_config_reply_handler(struct mpt_softc *mpt, request_t *req,
 			req->IOCStatus = le16toh(reply_frame->IOCStatus);
 			bcopy(&reply->Header, &cfgp->Header,
 			      sizeof(cfgp->Header));
+			cfgp->ExtPageLength = reply->ExtPageLength;
+			cfgp->ExtPageType = reply->ExtPageType;
 		}
 		req->state &= ~REQ_STATE_QUEUED;
 		req->state |= REQ_STATE_DONE;
@@ -1546,31 +1548,37 @@ mpt_send_ioc_init(struct mpt_softc *mpt, uint32_t who)
  * Utiltity routine to read configuration headers and pages
  */
 int
-mpt_issue_cfg_req(struct mpt_softc *mpt, request_t *req, u_int Action,
-		  u_int PageVersion, u_int PageLength, u_int PageNumber,
-		  u_int PageType, uint32_t PageAddress, bus_addr_t addr,
-		  bus_size_t len, int sleep_ok, int timeout_ms)
+mpt_issue_cfg_req(struct mpt_softc *mpt, request_t *req, cfgparms_t *params,
+		  bus_addr_t addr, bus_size_t len, int sleep_ok, int timeout_ms)
 {
 	MSG_CONFIG *cfgp;
 	SGE_SIMPLE32 *se;
 
 	cfgp = req->req_vbuf;
 	memset(cfgp, 0, sizeof *cfgp);
-	cfgp->Action = Action;
+	cfgp->Action = params->Action;
 	cfgp->Function = MPI_FUNCTION_CONFIG;
-	cfgp->Header.PageVersion = PageVersion;
-	cfgp->Header.PageLength = PageLength;
-	cfgp->Header.PageNumber = PageNumber;
-	cfgp->Header.PageType = PageType;
-	cfgp->PageAddress = htole32(PageAddress);
+	cfgp->Header.PageVersion = params->PageVersion;
+	cfgp->Header.PageNumber = params->PageNumber;
+	cfgp->PageAddress = htole32(params->PageAddress);
+	if ((params->PageType & MPI_CONFIG_PAGETYPE_MASK) ==
+	    MPI_CONFIG_PAGETYPE_EXTENDED) {
+		cfgp->Header.PageType = MPI_CONFIG_PAGETYPE_EXTENDED;
+		cfgp->Header.PageLength = 0;
+		cfgp->ExtPageLength = htole16(params->ExtPageLength);
+		cfgp->ExtPageType = params->ExtPageType;
+	} else {
+		cfgp->Header.PageType = params->PageType;
+		cfgp->Header.PageLength = params->PageLength;
+	}
 	se = (SGE_SIMPLE32 *)&cfgp->PageBufferSGE;
 	se->Address = htole32(addr);
 	MPI_pSGE_SET_LENGTH(se, len);
 	MPI_pSGE_SET_FLAGS(se, (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
 	    MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
 	    MPI_SGE_FLAGS_END_OF_LIST |
-	    ((Action == MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT
-	  || Action == MPI_CONFIG_ACTION_PAGE_WRITE_NVRAM)
+	    ((params->Action == MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT
+	  || params->Action == MPI_CONFIG_ACTION_PAGE_WRITE_NVRAM)
 	   ? MPI_SGE_FLAGS_HOST_TO_IOC : MPI_SGE_FLAGS_IOC_TO_HOST)));
 	se->FlagsLength = htole32(se->FlagsLength);
 	cfgp->MsgContext = htole32(req->index | MPT_REPLY_HANDLER_CONFIG);
@@ -1581,6 +1589,113 @@ mpt_issue_cfg_req(struct mpt_softc *mpt, request_t *req, u_int Action,
 			     sleep_ok, timeout_ms));
 }
 
+int
+mpt_read_extcfg_header(struct mpt_softc *mpt, int PageVersion, int PageNumber,
+		       uint32_t PageAddress, int ExtPageType,
+		       CONFIG_EXTENDED_PAGE_HEADER *rslt,
+		       int sleep_ok, int timeout_ms)
+{
+	request_t  *req;
+	cfgparms_t params;
+	MSG_CONFIG_REPLY *cfgp;
+	int	    error;
+
+	req = mpt_get_request(mpt, sleep_ok);
+	if (req == NULL) {
+		mpt_prt(mpt, "mpt_extread_cfg_header: Get request failed!\n");
+		return (ENOMEM);
+	}
+
+	params.Action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	params.PageVersion = PageVersion;
+	params.PageLength = 0;
+	params.PageNumber = PageNumber;
+	params.PageType = MPI_CONFIG_PAGETYPE_EXTENDED;
+	params.PageAddress = PageAddress;
+	params.ExtPageType = ExtPageType;
+	params.ExtPageLength = 0;
+	error = mpt_issue_cfg_req(mpt, req, &params, /*addr*/0, /*len*/0,
+				  sleep_ok, timeout_ms);
+	if (error != 0) {
+		/*
+		 * Leave the request. Without resetting the chip, it's
+		 * still owned by it and we'll just get into trouble
+		 * freeing it now. Mark it as abandoned so that if it
+		 * shows up later it can be freed.
+		 */
+		mpt_prt(mpt, "read_extcfg_header timed out\n");
+		return (ETIMEDOUT);
+	}
+
+        switch (req->IOCStatus & MPI_IOCSTATUS_MASK) {
+	case MPI_IOCSTATUS_SUCCESS:
+		cfgp = req->req_vbuf;
+		rslt->PageVersion = cfgp->Header.PageVersion;
+		rslt->PageNumber = cfgp->Header.PageNumber;
+		rslt->PageType = cfgp->Header.PageType;
+		rslt->ExtPageLength = cfgp->ExtPageLength;
+		rslt->ExtPageType = cfgp->ExtPageType;
+		error = 0;
+		break;
+	case MPI_IOCSTATUS_CONFIG_INVALID_PAGE:
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "Invalid Page Type %d Number %d Addr 0x%0x\n",
+		    MPI_CONFIG_PAGETYPE_EXTENDED, PageNumber, PageAddress);
+		error = EINVAL;
+		break;
+	default:
+		mpt_prt(mpt, "mpt_read_extcfg_header: Config Info Status %x\n",
+			req->IOCStatus);
+		error = EIO;
+		break;
+	}
+	mpt_free_request(mpt, req);
+	return (error);
+}
+
+int
+mpt_read_extcfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
+		     CONFIG_EXTENDED_PAGE_HEADER *hdr, void *buf, size_t len,
+		     int sleep_ok, int timeout_ms)
+{
+	request_t    *req;
+	cfgparms_t    params;
+	int	      error;
+
+	req = mpt_get_request(mpt, sleep_ok);
+	if (req == NULL) {
+		mpt_prt(mpt, "mpt_read_cfg_page: Get request failed!\n");
+		return (-1);
+	}
+
+	params.Action = Action;
+	params.PageVersion = hdr->PageVersion;
+	params.PageLength = 0;
+	params.PageNumber = hdr->PageNumber;
+	params.PageType = MPI_CONFIG_PAGETYPE_EXTENDED;
+	params.PageAddress = PageAddress;
+	params.ExtPageType = hdr->ExtPageType;
+	params.ExtPageLength = hdr->ExtPageLength;
+	error = mpt_issue_cfg_req(mpt, req, &params,
+				  req->req_pbuf + MPT_RQSL(mpt),
+				  len, sleep_ok, timeout_ms);
+	if (error != 0) {
+		mpt_prt(mpt, "read_extcfg_page(%d) timed out\n", Action);
+		return (-1);
+	}
+
+	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
+		mpt_prt(mpt, "mpt_read_extcfg_page: Config Info Status %x\n",
+			req->IOCStatus);
+		mpt_free_request(mpt, req);
+		return (-1);
+	}
+	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+	    BUS_DMASYNC_POSTREAD);
+	memcpy(buf, ((uint8_t *)req->req_vbuf)+MPT_RQSL(mpt), len);
+	mpt_free_request(mpt, req);
+	return (0);
+}
 
 int
 mpt_read_cfg_header(struct mpt_softc *mpt, int PageType, int PageNumber,
@@ -1588,6 +1703,7 @@ mpt_read_cfg_header(struct mpt_softc *mpt, int PageType, int PageNumber,
 		    int sleep_ok, int timeout_ms)
 {
 	request_t  *req;
+	cfgparms_t params;
 	MSG_CONFIG *cfgp;
 	int	    error;
 
@@ -1597,9 +1713,13 @@ mpt_read_cfg_header(struct mpt_softc *mpt, int PageType, int PageNumber,
 		return (ENOMEM);
 	}
 
-	error = mpt_issue_cfg_req(mpt, req, MPI_CONFIG_ACTION_PAGE_HEADER,
-				  /*PageVersion*/0, /*PageLength*/0, PageNumber,
-				  PageType, PageAddress, /*addr*/0, /*len*/0,
+	params.Action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	params.PageVersion = 0;
+	params.PageLength = 0;
+	params.PageNumber = PageNumber;
+	params.PageType = PageType;
+	params.PageAddress = PageAddress;
+	error = mpt_issue_cfg_req(mpt, req, &params, /*addr*/0, /*len*/0,
 				  sleep_ok, timeout_ms);
 	if (error != 0) {
 		/*
@@ -1640,6 +1760,7 @@ mpt_read_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 		  int timeout_ms)
 {
 	request_t    *req;
+	cfgparms_t    params;
 	int	      error;
 
 	req = mpt_get_request(mpt, sleep_ok);
@@ -1648,10 +1769,14 @@ mpt_read_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 		return (-1);
 	}
 
-	error = mpt_issue_cfg_req(mpt, req, Action, hdr->PageVersion,
-				  hdr->PageLength, hdr->PageNumber,
-				  hdr->PageType & MPI_CONFIG_PAGETYPE_MASK,
-				  PageAddress, req->req_pbuf + MPT_RQSL(mpt),
+	params.Action = Action;
+	params.PageVersion = hdr->PageVersion;
+	params.PageLength = hdr->PageLength;
+	params.PageNumber = hdr->PageNumber;
+	params.PageType = hdr->PageType & MPI_CONFIG_PAGETYPE_MASK;
+	params.PageAddress = PageAddress;
+	error = mpt_issue_cfg_req(mpt, req, &params,
+				  req->req_pbuf + MPT_RQSL(mpt),
 				  len, sleep_ok, timeout_ms);
 	if (error != 0) {
 		mpt_prt(mpt, "read_cfg_page(%d) timed out\n", Action);
@@ -1677,6 +1802,7 @@ mpt_write_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 		   int timeout_ms)
 {
 	request_t    *req;
+	cfgparms_t    params;
 	u_int	      hdr_attr;
 	int	      error;
 
@@ -1706,22 +1832,21 @@ mpt_write_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 	 * if you then mask them going down to issue the request.
 	 */
 
+	params.Action = Action;
+	params.PageVersion = hdr->PageVersion;
+	params.PageLength = hdr->PageLength;
+	params.PageNumber = hdr->PageNumber;
+	params.PageAddress = PageAddress;
 #if	0
 	/* Restore stripped out attributes */
 	hdr->PageType |= hdr_attr;
-
-	error = mpt_issue_cfg_req(mpt, req, Action, hdr->PageVersion,
-				  hdr->PageLength, hdr->PageNumber,
-				  hdr->PageType & MPI_CONFIG_PAGETYPE_MASK,
-				  PageAddress, req->req_pbuf + MPT_RQSL(mpt),
-				  len, sleep_ok, timeout_ms);
+	params.PageType = hdr->PageType & MPI_CONFIG_PAGETYPE_MASK;
 #else
-	error = mpt_issue_cfg_req(mpt, req, Action, hdr->PageVersion,
-				  hdr->PageLength, hdr->PageNumber,
-				  hdr->PageType, PageAddress,
+	params.PageType = hdr->PageType;
+#endif
+	error = mpt_issue_cfg_req(mpt, req, &params,
 				  req->req_pbuf + MPT_RQSL(mpt),
 				  len, sleep_ok, timeout_ms);
-#endif
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_write_cfg_page timed out\n");
 		return (-1);
@@ -2684,7 +2809,7 @@ mpt2host_config_page_raid_vol_0(CONFIG_PAGE_RAID_VOL_0 *volp)
 	MPT_2_HOST16(volp, VolumeStatus.Reserved);
 	MPT_2_HOST16(volp, VolumeSettings.Settings);
 	MPT_2_HOST32(volp, MaxLBA);
-	MPT_2_HOST32(volp, Reserved1);
+	MPT_2_HOST32(volp, MaxLBAHigh);
 	MPT_2_HOST32(volp, StripeSize);
 	MPT_2_HOST32(volp, Reserved2);
 	MPT_2_HOST32(volp, Reserved3);
