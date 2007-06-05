@@ -117,6 +117,12 @@ argument is a pointer to either a
 or
 .Xr sx 9
 lock.
+A 
+.Xr mutex 9
+argument must be initialized with
+.Dv MTX_DEF 
+and not
+.Dv MTX_SPIN .
 A thread must hold
 .Fa lock
 before calling
