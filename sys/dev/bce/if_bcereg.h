@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Broadcom Corporation
+ * Copyright (c) 2006-2007 Broadcom Corporation
  *	David Christensen <davidch@broadcom.com>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -248,9 +248,11 @@
 #define BCE_CHIP_ID_5706_A0			0x57060000
 #define BCE_CHIP_ID_5706_A1			0x57060010
 #define BCE_CHIP_ID_5706_A2			0x57060020
+#define BCE_CHIP_ID_5706_A3			0x57060030
 #define BCE_CHIP_ID_5708_A0			0x57080000
 #define BCE_CHIP_ID_5708_B0			0x57081000
 #define BCE_CHIP_ID_5708_B1			0x57081010
+#define BCE_CHIP_ID_5708_B2			0x57081020
 
 #define BCE_CHIP_BOND_ID(sc)		(((sc)->bce_chipid) & 0xf)
 
@@ -689,7 +691,7 @@ struct flash_spec {
 /****************************************************************************/
 /* Convenience definitions.                                                 */
 /****************************************************************************/
-#define BCE_PRINTF(sc, fmt, args...)	device_printf(sc->bce_dev, fmt, ##args)
+#define BCE_PRINTF(fmt, args...)	device_printf(sc->bce_dev, fmt, ##args)
 
 #define	BCE_LOCK_INIT(_sc, _name)	mtx_init(&(_sc)->bce_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
 #define	BCE_LOCK(_sc)				mtx_lock(&(_sc)->bce_mtx)
@@ -4873,6 +4875,8 @@ struct bce_softc
 	u32 stat_CatchupInMBUFDiscards;
 	u32 stat_CatchupInRuleCheckerP4Hit;
 
+	/* Provides access to certain firmware statistics. */
+	u32 com_no_buffers;
 #ifdef BCE_DEBUG
 	/* Track the number of enqueued mbufs. */
 	int	tx_mbuf_alloc;
