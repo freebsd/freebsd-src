@@ -2,8 +2,10 @@
 
 .PATH: ${.CURDIR}/../../dev/mfi
 
+SUBDIR= mfi_cam
+
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
-SUBDIR= mfi_linux
+SUBDIR+= mfi_linux
 .endif
 
 KMOD=	mfi
