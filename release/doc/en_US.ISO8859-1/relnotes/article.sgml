@@ -2056,6 +2056,9 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para><application>Intel ACPI-CA</application>
       has been updated to 20070320.</para>
 
+    <para><application>awk</application> has been updated from the 24
+      April 2005 release to the 1 May 2007 release.</para>
+
     <para><application>BIND</application> has been updated from 9.3.1
       to 9.4.1.</para>
 
