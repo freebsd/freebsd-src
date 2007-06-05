@@ -799,7 +799,6 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFADDR:
-	case SIOCGIFADDR:
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			/*
 			 * XXX
@@ -844,6 +843,8 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case em_80003es2lan:	/* Limit Jumbo Frame size */
 			max_frame_size = 9234;
 			break;
+		case em_82542_rev2_0:
+		case em_82542_rev2_1:
 		case em_ich8lan:
 			/* ICH8 does not support jumbo frames */
 			max_frame_size = ETHER_MAX_LEN;
@@ -1078,6 +1079,20 @@ em_init_locked(struct adapter *adapter)
 	/* Get the latest mac address, User can use a LAA */
         bcopy(IF_LLADDR(adapter->ifp), adapter->hw.mac_addr,
               ETHER_ADDR_LEN);
+
+	/* Put the address into the RAR[0] */
+	em_rar_set(&adapter->hw, adapter->hw.mac_addr, 0);
+
+	/*
+	 * With the 82571 adapter, LAA may be overwritten
+	 * when the other port is reset, we save a duplicate
+	 * in RAR[14] for that eventuality
+	 */
+	if (adapter->hw.mac_type == em_82571) {
+		adapter->hw.laa_is_present = 1;
+		em_rar_set(&adapter->hw, adapter->hw.mac_addr,
+		    E1000_RAR_ENTRIES - 1);
+	}
 
 	/* Initialize the hardware */
 	if (em_hardware_init(adapter)) {
@@ -1976,9 +1991,17 @@ em_local_timer(void *arg)
 	em_check_for_link(&adapter->hw);
 	em_update_link_status(adapter);
 	em_update_stats_counters(adapter);
+
+	/* Reset LAA into RAR[0] on 82571 */
+	if ((adapter->hw.mac_type == em_82571) &&
+		adapter->hw.laa_is_present)
+		em_rar_set(&adapter->hw, adapter->hw.mac_addr, 0);
+
 	if (em_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING)
 		em_print_hw_stats(adapter);
+
 	em_smartspeed(adapter);
+
 	/*
 	 * Each second we check the watchdog to 
 	 * protect against hardware hangs.
@@ -2289,8 +2312,16 @@ em_hardware_init(struct adapter *adapter)
 
 	/* Make sure we have a good EEPROM before we read from it */
 	if (em_validate_eeprom_checksum(&adapter->hw) < 0) {
-		device_printf(dev, "The EEPROM Checksum Is Not Valid\n");
-		return (EIO);
+		/*
+		** Some PCI-E parts fail the first check due to
+		** the link being in sleep state, call it again,
+		** if it fails a second time its a real issue.
+		*/
+		if (em_validate_eeprom_checksum(&adapter->hw) < 0) {
+			device_printf(dev,
+			    "The EEPROM Checksum Is Not Valid\n");
+			return (EIO);
+		}
 	}
 
 	if (em_read_part_num(&adapter->hw, &(adapter->part_num)) < 0) {
