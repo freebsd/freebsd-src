@@ -298,17 +298,17 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 		cpu_id = PCPU_GET(cpuid);
 		pc = cpu_get_pcpu(set->dev);
 		if (cpu_id != pc->pc_cpuid) {
-			mtx_lock_spin(&sched_lock);
+			thread_lock(curthread);
 			sched_bind(curthread, pc->pc_cpuid);
-			mtx_unlock_spin(&sched_lock);
+			thread_unlock(curthread);
 		}
 		CF_DEBUG("setting abs freq %d on %s (cpu %d)\n", set->freq,
 		    device_get_nameunit(set->dev), PCPU_GET(cpuid));
 		error = CPUFREQ_DRV_SET(set->dev, set);
 		if (cpu_id != pc->pc_cpuid) {
-			mtx_lock_spin(&sched_lock);
+			thread_lock(curthread);
 			sched_unbind(curthread);
-			mtx_unlock_spin(&sched_lock);
+			thread_unlock(curthread);
 		}
 		if (error) {
 			goto out;
@@ -327,17 +327,17 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 		cpu_id = PCPU_GET(cpuid);
 		pc = cpu_get_pcpu(set->dev);
 		if (cpu_id != pc->pc_cpuid) {
-			mtx_lock_spin(&sched_lock);
+			thread_lock(curthread);
 			sched_bind(curthread, pc->pc_cpuid);
-			mtx_unlock_spin(&sched_lock);
+			thread_unlock(curthread);
 		}
 		CF_DEBUG("setting rel freq %d on %s (cpu %d)\n", set->freq,
 		    device_get_nameunit(set->dev), PCPU_GET(cpuid));
 		error = CPUFREQ_DRV_SET(set->dev, set);
 		if (cpu_id != pc->pc_cpuid) {
-			mtx_lock_spin(&sched_lock);
+			thread_lock(curthread);
 			sched_unbind(curthread);
-			mtx_unlock_spin(&sched_lock);
+			thread_unlock(curthread);
 		}
 		if (error) {
 			/* XXX Back out any successful setting? */

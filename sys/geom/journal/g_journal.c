@@ -2057,9 +2057,9 @@ g_journal_worker(void *arg)
 	time_t last_write;
 	int type;
 
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	sched_prio(curthread, PRIBIO);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 
 	sc = arg;
 	type = 0;	/* gcc */

@@ -453,11 +453,11 @@ uio_yield(void)
 	struct thread *td;
 
 	td = curthread;
-	mtx_lock_spin(&sched_lock);
 	DROP_GIANT();
+	thread_lock(td);
 	sched_prio(td, td->td_user_pri);
 	mi_switch(SW_INVOL, NULL);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	PICKUP_GIANT();
 }
 

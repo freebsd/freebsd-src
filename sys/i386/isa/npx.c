@@ -230,9 +230,9 @@ npx_intr(dummy)
 	td = PCPU_GET(fpcurthread);
 	if (td != NULL) {
 		td->td_pcb->pcb_flags |= PCB_NPXTRAP;
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		td->td_flags |= TDF_ASTPENDING;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 	}
 	return (FILTER_HANDLED);
 }

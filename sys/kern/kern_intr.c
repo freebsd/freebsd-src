@@ -173,9 +173,9 @@ ithread_update(struct intr_thread *ithd)
 	/* Update name and priority. */
 	strlcpy(td->td_proc->p_comm, ie->ie_fullname,
 	    sizeof(td->td_proc->p_comm));
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	sched_prio(td, pri);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 }
 
 /*
@@ -342,10 +342,10 @@ ithread_create(const char *name)
 	if (error)
 		panic("kthread_create() failed with %d", error);
 	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	sched_class(td, PRI_ITHD);
 	TD_SET_IWAIT(td);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	td->td_pflags |= TDP_ITHREAD;
 	ithd->it_thread = td;
 	CTR2(KTR_INTR, "%s: created %s", __func__, name);
@@ -367,10 +367,10 @@ ithread_create(const char *name, struct intr_handler *ih)
 	if (error)
 		panic("kthread_create() failed with %d", error);
 	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	sched_class(td, PRI_ITHD);
 	TD_SET_IWAIT(td);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	td->td_pflags |= TDP_ITHREAD;
 	ithd->it_thread = td;
 	CTR2(KTR_INTR, "%s: created %s", __func__, name);
@@ -385,13 +385,13 @@ ithread_destroy(struct intr_thread *ithread)
 
 	CTR2(KTR_INTR, "%s: killing %s", __func__, ithread->it_event->ie_name);
 	td = ithread->it_thread;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	ithread->it_flags |= IT_DEAD;
 	if (TD_AWAITING_INTR(td)) {
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
 	}
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 }
 
 #ifndef INTR_FILTER
@@ -622,7 +622,7 @@ ok:
 	 * so we have to remove the handler here rather than letting the
 	 * thread do it.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(ie->ie_thread->it_thread);
 	if (!TD_AWAITING_INTR(ie->ie_thread->it_thread) && !cold) {
 		handler->ih_flags |= IH_DEAD;
 
@@ -634,7 +634,7 @@ ok:
 		ie->ie_thread->it_need = 1;
 	} else
 		TAILQ_REMOVE(&ie->ie_handlers, handler, ih_next);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(ie->ie_thread->it_thread);
 	while (handler->ih_flags & IH_DEAD)
 		msleep(handler, &ie->ie_lock, 0, "iev_rmh", 0);
 	intr_event_update(ie);
@@ -699,11 +699,11 @@ intr_event_schedule_thread(struct intr_event *ie)
 
 	/*
 	 * Set it_need to tell the thread to keep running if it is already
-	 * running.  Then, grab sched_lock and see if we actually need to
-	 * put this thread on the runqueue.
+	 * running.  Then, lock the thread and see if we actually need to
+	 * put it on the runqueue.
 	 */
 	it->it_need = 1;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
 		    p->p_comm);
@@ -713,7 +713,7 @@ intr_event_schedule_thread(struct intr_event *ie)
 		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
 		    __func__, p->p_pid, p->p_comm, it->it_need, td->td_state);
 	}
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 
 	return (0);
 }
@@ -771,7 +771,7 @@ ok:
 	 * so we have to remove the handler here rather than letting the
 	 * thread do it.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(it->it_thread);
 	if (!TD_AWAITING_INTR(it->it_thread) && !cold) {
 		handler->ih_flags |= IH_DEAD;
 
@@ -783,7 +783,7 @@ ok:
 		it->it_need = 1;
 	} else
 		TAILQ_REMOVE(&ie->ie_handlers, handler, ih_next);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(it->it_thread);
 	while (handler->ih_flags & IH_DEAD)
 		msleep(handler, &ie->ie_lock, 0, "iev_rmh", 0);
 	/* 
@@ -853,11 +853,11 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 
 	/*
 	 * Set it_need to tell the thread to keep running if it is already
-	 * running.  Then, grab sched_lock and see if we actually need to
-	 * put this thread on the runqueue.
+	 * running.  Then, lock the thread and see if we actually need to
+	 * put it on the runqueue.
 	 */
 	it->it_need = 1;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
 		    p->p_comm);
@@ -867,7 +867,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
 		    __func__, p->p_pid, p->p_comm, it->it_need, td->td_state);
 	}
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 
 	return (0);
 }
@@ -1128,13 +1128,13 @@ ithread_loop(void *arg)
 		 * lock.  This may take a while and it_need may get
 		 * set again, so we have to check it again.
 		 */
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		if (!ithd->it_need && !(ithd->it_flags & IT_DEAD)) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL, NULL);
 		}
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 	}
 }
 #else
@@ -1202,13 +1202,13 @@ ithread_loop(void *arg)
 		 * lock.  This may take a while and it_need may get
 		 * set again, so we have to check it again.
 		 */
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		if (!ithd->it_need && !(ithd->it_flags & IT_DEAD)) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL, NULL);
 		}
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 	}
 }
 

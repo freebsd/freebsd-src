@@ -552,9 +552,9 @@ kern_getitimer(struct thread *td, u_int which, struct itimerval *aitv)
 				timevalsub(&aitv->it_value, &ctv);
 		}
 	} else {
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		*aitv = p->p_stats->p_timer[which];
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 	}
 	return (0);
 }
@@ -623,10 +623,10 @@ kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv,
 				timevalsub(&oitv->it_value, &ctv);
 		}
 	} else {
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		*oitv = p->p_stats->p_timer[which];
 		p->p_stats->p_timer[which] = *aitv;
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 	}
 	return (0);
 }

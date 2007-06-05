@@ -88,9 +88,9 @@ g_up_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(tp);
 	sched_prio(tp, PRIBIO);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(tp);
 	for(;;) {
 		g_io_schedule_up(tp);
 	}
@@ -111,9 +111,9 @@ g_down_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(tp);
 	sched_prio(tp, PRIBIO);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(tp);
 	for(;;) {
 		g_io_schedule_down(tp);
 	}
@@ -134,9 +134,9 @@ g_event_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(tp);
 	sched_prio(tp, PRIBIO);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(tp);
 	for(;;) {
 		g_run_events();
 		tsleep(&g_wait_event, PRIBIO, "-", hz/10);

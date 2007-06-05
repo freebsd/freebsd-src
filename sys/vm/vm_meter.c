@@ -131,17 +131,21 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_flag & P_SYSTEM)
 			continue;
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		switch (p->p_state) {
 		case PRS_NEW:
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(p);
 			continue;
 			break;
 		default:
 			FOREACH_THREAD_IN_PROC(p, td) {
 				/* Need new statistics  XXX */
+				thread_lock(td);
 				switch (td->td_state) {
 				case TDS_INHIBITED:
+					/*
+					 * XXX stats no longer synchronized.
+					 */
 					if (TD_ON_LOCK(td) ||
 					    (td->td_inhibitors ==
 					    TDI_SWAPPED)) {
@@ -162,13 +166,15 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 				case TDS_RUNQ:
 				case TDS_RUNNING:
 					total.t_rq++;
+					thread_unlock(td);
 					continue;
 				default:
 					break;
 				}
+				thread_unlock(td);
 			}
 		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		/*
 		 * Note active objects.
 		 */

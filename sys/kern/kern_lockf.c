@@ -266,16 +266,19 @@ lf_setlock(lock)
 		 */
 		if ((lock->lf_flags & F_POSIX) &&
 		    (block->lf_flags & F_POSIX)) {
-			register struct proc *wproc;
+			struct proc *wproc;
+			struct proc *nproc;
 			struct thread *td;
-			register struct lockf *waitblock;
+			struct lockf *waitblock;
 			int i = 0;
 
 			/* The block is waiting on something */
-			/* XXXKSE this is not complete under threads */
 			wproc = (struct proc *)block->lf_id;
-			mtx_lock_spin(&sched_lock);
+restart:
+			nproc = NULL;
+			PROC_SLOCK(wproc);
 			FOREACH_THREAD_IN_PROC(wproc, td) {
+				thread_lock(td);
 				while (td->td_wchan &&
 				    (td->td_wmesg == lockstr) &&
 				    (i++ < maxlockdepth)) {
@@ -284,15 +287,20 @@ lf_setlock(lock)
 					waitblock = waitblock->lf_next;
 					if ((waitblock->lf_flags & F_POSIX) == 0)
 						break;
-					wproc = (struct proc *)waitblock->lf_id;
-					if (wproc == (struct proc *)lock->lf_id) {
-						mtx_unlock_spin(&sched_lock);
+					nproc = (struct proc *)waitblock->lf_id;
+					if (nproc == (struct proc *)lock->lf_id) {
+						PROC_SUNLOCK(wproc);
+						thread_unlock(td);
 						free(lock, M_LOCKF);
 						return (EDEADLK);
 					}
 				}
+				thread_unlock(td);
 			}
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(wproc);
+			wproc = nproc;
+			if (wproc)
+				goto restart;
 		}
 		/*
 		 * For flock type locks, we must first remove

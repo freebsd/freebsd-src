@@ -523,11 +523,12 @@ retry:
 	 * proc lock.
 	 */
 	wakeup(p->p_pptr);
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p->p_pptr);
+	sched_exit(p->p_pptr, td);
+	PROC_SUNLOCK(p->p_pptr);
+	PROC_SLOCK(p);
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);
-
-	sched_exit(p->p_pptr, td);
 
 	/*
 	 * Hopefully no one will try to deliver a signal to the process this
@@ -718,12 +719,13 @@ loop:
 			 * in thread_exit() after having dropped the process
 			 * lock via PROC_UNLOCK() but before it has completed
 			 * cpu_throw().  In that case, the other thread must
-			 * still hold sched_lock, so simply by acquiring
-			 * sched_lock once we will wait long enough for the
+			 * still hold the proc slock, so simply by acquiring
+			 * proc slock once we will wait long enough for the
 			 * thread to exit in that case.
+			 * XXX This is questionable.
 			 */
-			mtx_lock_spin(&sched_lock);
-			mtx_unlock_spin(&sched_lock);
+			PROC_SLOCK(p);
+			PROC_SUNLOCK(p);
 			
 			td->td_retval[0] = p->p_pid;
 			if (status)
@@ -820,12 +822,12 @@ loop:
 			sx_xunlock(&allproc_lock);
 			return (0);
 		}
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		if ((p->p_flag & P_STOPPED_SIG) &&
 		    (p->p_suspcount == p->p_numthreads) &&
 		    (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || options & WUNTRACED)) {
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(p);
 			p->p_flag |= P_WAITED;
 			sx_xunlock(&proctree_lock);
 			td->td_retval[0] = p->p_pid;
@@ -839,7 +841,7 @@ loop:
 
 			return (0);
 		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		if (options & WCONTINUED && (p->p_flag & P_CONTINUED)) {
 			sx_xunlock(&proctree_lock);
 			td->td_retval[0] = p->p_pid;

@@ -189,9 +189,9 @@ ncp_poll(struct socket *so, int events)
 
 	/* Fake up enough state to look like we are in poll(2). */
 	mtx_lock(&sellock);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags |= TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	mtx_unlock(&sellock);
 	TAILQ_INIT(&td->td_selq);
 
@@ -200,9 +200,9 @@ ncp_poll(struct socket *so, int events)
 	/* Tear down the fake poll(2) state. */
 	mtx_lock(&sellock);
 	clear_selinfo_list(td);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags &= ~TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	mtx_unlock(&sellock);
 
 	return (revents);
@@ -229,9 +229,9 @@ ncp_sock_rselect(struct socket *so, struct thread *td, struct timeval *tv,
 
 retry:
 	ncoll = nselcoll;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags |= TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	mtx_unlock(&sellock);
 
 	TAILQ_INIT(&td->td_selq);
@@ -257,12 +257,12 @@ retry:
 	 * the process, test TDF_SELECT and rescan file descriptors if
 	 * necessary.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 		goto retry;
 	}
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 
 	if (timo > 0)
 		error = cv_timedwait(&selwait, &sellock, timo);
@@ -274,9 +274,9 @@ retry:
 done:
 	clear_selinfo_list(td);
 
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags &= ~TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	mtx_unlock(&sellock);
 
 done_noproclock:
