@@ -85,6 +85,43 @@
 #define	VM_PHYSSEG_DENSE
 
 /*
+ * The number of PHYSSEG entries must be one greater than the number
+ * of phys_avail entries because the phys_avail entry that spans the
+ * largest physical address that is accessible by ISA DMA is split
+ * into two PHYSSEG entries. 
+ */
+#define	VM_PHYSSEG_MAX		17
+
+/*
+ * Create one free page pool.  Since the i386 kernel virtual address
+ * space does not include a mapping onto the machine's entire physical
+ * memory, VM_FREEPOOL_DIRECT is defined as an alias for the default
+ * pool, VM_FREEPOOL_DEFAULT.
+ */
+#define	VM_NFREEPOOL		1
+#define	VM_FREEPOOL_DEFAULT	0
+#define	VM_FREEPOOL_DIRECT	0
+
+/*
+ * Create two free page lists: VM_FREELIST_DEFAULT is for physical
+ * pages that are above the largest physical address that is
+ * accessible by ISA DMA and VM_FREELIST_ISADMA is for physical pages
+ * that are below that address.
+ */
+#define	VM_NFREELIST		2
+#define	VM_FREELIST_DEFAULT	0
+#define	VM_FREELIST_ISADMA	1
+
+/*
+ * The largest allocation size is 2MB under PAE and 4MB otherwise.
+ */
+#ifdef PAE
+#define	VM_NFREEORDER		10
+#else
+#define	VM_NFREEORDER		11
+#endif
+
+/*
  * Kernel physical load address.
  */
 #ifndef KERNLOAD
