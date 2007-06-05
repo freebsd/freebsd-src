@@ -413,14 +413,6 @@
       implementation can commonly be referred to as <quote>ULE
       2.0</quote>.</para>
 
-    <para>The experimental CORE process scheduler has been added,
-      enabled with the <literal>options SCHED_CORE</literal> kernel
-      configuration option.  It is forked from the &man.sched.ule.4;
-      scheduler, but
-      with a different algorithm for detecting an interactive process.
-      More information can be found in the &man.sched.core.4; manual
-      page.</para>
-
     <para>The <literal>SIGCHLD</literal> signal queuing has been
       added.  For each child process whose status has been changed,
       a <literal>SIGCHLD</literal> instance is queued.  If the signal is still pending,
@@ -1819,7 +1811,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       directory.  &merged;</para>
 
     <para>The DNS resolver library in &os;'s <application>libc</application>
-      has been updated to that from BIND 9.3.3. &merged;</para>
+      has been updated to that from BIND 9.4.1.</para>
 
     <para>The &man.rfcomm.sppd.1; program now supports service names
       in addition to <option>-c</option> option with channel number.
@@ -2065,7 +2057,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       has been updated to 20070320.</para>
 
     <para><application>BIND</application> has been updated from 9.3.1
-      to 9.3.4. &merged;</para>
+      to 9.4.1.</para>
 
     <para><application>BSNMPD</application> has been updated from
       1.11 to 1.12.</para>
@@ -2102,7 +2094,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       &merged;</para>
 
     <para><application>IPFilter</application> has been updated from
-      4.1.8 to 4.1.13. &merged;</para>
+      4.1.8 to 4.1.23.</para>
 
     <para><application>less</application> has been updated from v381
       to v394. &merged;</para>
