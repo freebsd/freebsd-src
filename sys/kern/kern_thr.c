@@ -226,12 +226,15 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	PROC_LOCK(td->td_proc);
 	td->td_proc->p_flag |= P_HADTHREADS;
 	newtd->td_sigmask = td->td_sigmask;
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	thread_link(newtd, p); 
-	PROC_UNLOCK(p);
-
+	thread_lock(td);
 	/* let the scheduler know about these things. */
 	sched_fork_thread(td, newtd);
+	thread_unlock(td);
+	PROC_SUNLOCK(p);
+	PROC_UNLOCK(p);
+	thread_lock(newtd);
 	if (rtp != NULL) {
 		if (!(td->td_pri_class == PRI_TIMESHARE &&
 		      rtp->type == RTP_PRIO_NORMAL)) {
@@ -242,7 +245,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	TD_SET_CAN_RUN(newtd);
 	/* if ((flags & THR_SUSPENDED) == 0) */
 		sched_add(newtd, SRQ_BORING);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(newtd);
 
 	return (error);
 }
@@ -275,7 +278,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 
 	PROC_LOCK(p);
 	sigqueue_flush(&td->td_sigqueue);
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 
 	/*
 	 * Shutting down last thread in the proc.  This will actually
@@ -286,7 +289,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 		thread_exit();
 		/* NOTREACHED */
 	}
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
 	return (0);
 }
@@ -379,9 +382,9 @@ kern_thr_suspend(struct thread *td, struct timespec *tsp)
 		error = msleep((void *)td, &td->td_proc->p_mtx, PCATCH, "lthr",
 		    hz);
 	if (td->td_flags & TDF_THRWAKEUP) {
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		td->td_flags &= ~TDF_THRWAKEUP;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 		PROC_UNLOCK(td->td_proc);
 		return (0);
 	}
@@ -414,9 +417,9 @@ thr_wake(struct thread *td, struct thr_wake_args *uap)
 		PROC_UNLOCK(p);
 		return (ESRCH);
 	}
-	mtx_lock_spin(&sched_lock);
+	thread_lock(ttd);
 	ttd->td_flags |= TDF_THRWAKEUP;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(ttd);
 	wakeup((void *)ttd);
 	PROC_UNLOCK(p);
 	return (0);

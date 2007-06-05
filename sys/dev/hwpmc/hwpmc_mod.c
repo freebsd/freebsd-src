@@ -591,10 +591,10 @@ static void
 pmc_save_cpu_binding(struct pmc_binding *pb)
 {
 	PMCDBG(CPU,BND,2, "%s", "save-cpu");
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	pb->pb_bound = sched_is_bound(curthread);
 	pb->pb_cpu   = curthread->td_oncpu;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 	PMCDBG(CPU,BND,2, "save-cpu cpu=%d", pb->pb_cpu);
 }
 
@@ -607,12 +607,12 @@ pmc_restore_cpu_binding(struct pmc_binding *pb)
 {
 	PMCDBG(CPU,BND,2, "restore-cpu curcpu=%d restore=%d",
 	    curthread->td_oncpu, pb->pb_cpu);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	if (pb->pb_bound)
 		sched_bind(curthread, pb->pb_cpu);
 	else
 		sched_unbind(curthread);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 	PMCDBG(CPU,BND,2, "%s", "restore-cpu done");
 }
 
@@ -631,9 +631,9 @@ pmc_select_cpu(int cpu)
 	    "disabled CPU %d", __LINE__, cpu));
 
 	PMCDBG(CPU,SEL,2, "select-cpu cpu=%d", cpu);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	sched_bind(curthread, cpu);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 
 	KASSERT(curthread->td_oncpu == cpu,
 	    ("[pmc,%d] CPU not bound [cpu=%d, curr=%d]", __LINE__,

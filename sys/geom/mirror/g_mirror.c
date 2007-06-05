@@ -1768,9 +1768,9 @@ g_mirror_worker(void *arg)
 	int timeout;
 
 	sc = arg;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	sched_prio(curthread, PRIBIO);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 
 	sx_xlock(&sc->sc_lock);
 	for (;;) {

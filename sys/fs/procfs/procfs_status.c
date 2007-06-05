@@ -112,7 +112,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		sbuf_printf(sb, "noflags");
 	}
 
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 #ifdef KSE
 	if (p->p_flag & P_SA)
 		wmesg = "-kse- ";
@@ -127,7 +127,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		} else
 			wmesg = "nochan";
 	}
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 
 	if (p->p_sflag & PS_INMEM) {
 		struct timeval start, ut, st;

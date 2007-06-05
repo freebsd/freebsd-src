@@ -636,7 +636,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	if (P_SHOULDSTOP(p)) {
 		state = "T (stopped)";
 	} else {
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		switch(p->p_state) {
 		case PRS_NEW:
 			state = "I (idle)";
@@ -666,7 +666,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 			state = "? (unknown)";
 			break;
 		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 	}
 
 	fill_kinfo_proc(p, &kp);

@@ -486,10 +486,10 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 	/*
 	 * Make this runnable after we are finished with it.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td2);
 	TD_SET_CAN_RUN(td2);
 	sched_add(td2, SRQ_BORING);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td2);
 
 	return (0);
 }
@@ -529,10 +529,10 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	/*
 	 * Make this runnable after we are finished with it.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td2);
 	TD_SET_CAN_RUN(td2);
 	sched_add(td2, SRQ_BORING);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td2);
 
 	/* wait for the children to exit, ie. emulate vfork */
 	PROC_LOCK(p2);
@@ -715,10 +715,10 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	/*
 	 * Make this runnable after we are finished with it.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td2);
 	TD_SET_CAN_RUN(td2);
 	sched_add(td2, SRQ_BORING);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td2);
 
 	td->td_retval[0] = p2->p_pid;
 	td->td_retval[1] = 0;

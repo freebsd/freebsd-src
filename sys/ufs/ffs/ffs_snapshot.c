@@ -389,12 +389,15 @@ restart:
 	 * Recind nice scheduling while running with the filesystem suspended.
 	 */
 	if (td->td_proc->p_nice > 0) {
-		PROC_LOCK(td->td_proc);
-		mtx_lock_spin(&sched_lock);
-		saved_nice = td->td_proc->p_nice;
-		sched_nice(td->td_proc, 0);
-		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(td->td_proc);
+		struct proc *p;
+
+		p = td->td_proc;
+		PROC_LOCK(p);
+		PROC_SLOCK(p);
+		saved_nice = p->p_nice;
+		sched_nice(p, 0);
+		PROC_SUNLOCK(p);
+		PROC_UNLOCK(p);
 	}
 	/*
 	 * Suspend operation on filesystem.
@@ -809,10 +812,13 @@ done:
 out:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (saved_nice > 0) {
-		PROC_LOCK(td->td_proc);
-		mtx_lock_spin(&sched_lock);
+		struct proc *p;
+
+		p = td->td_proc;
+		PROC_LOCK(p);
+		PROC_SLOCK(p);
 		sched_nice(td->td_proc, saved_nice);
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		PROC_UNLOCK(td->td_proc);
 	}
 	UFS_LOCK(ump);

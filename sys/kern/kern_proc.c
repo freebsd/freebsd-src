@@ -177,6 +177,7 @@ proc_init(void *mem, int size, int flags)
 	td = thread_alloc();
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
+	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
 	p->p_stats = pstats_alloc();
 	proc_linkup(p, td);
 	sched_newproc(p, td);
@@ -669,7 +670,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_sigcatch = ps->ps_sigcatch;
 		mtx_unlock(&ps->ps_mtx);
 	}
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	if (p->p_state != PRS_NEW &&
 	    p->p_state != PRS_ZOMBIE &&
 	    p->p_vmspace != NULL) {
@@ -695,7 +696,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_nice = p->p_nice;
 	rufetch(p, &kp->ki_rusage);
 	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 	if ((p->p_sflag & PS_INMEM) && p->p_stats != NULL) {
 		kp->ki_start = p->p_stats->p_start;
 		timevaladd(&kp->ki_start, &boottime);
@@ -747,7 +748,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 
 /*
  * Fill in information that is thread specific.
- * Must be called with sched_lock locked.
+ * Must be called with p_slock locked.
  */
 static void
 fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
@@ -755,7 +756,9 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 	struct proc *p;
 
 	p = td->td_proc;
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
+	thread_lock(td);
 	if (td->td_wmesg != NULL)
 		strlcpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg));
 	else
@@ -813,6 +816,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 
 	SIGSETOR(kp->ki_siglist, td->td_siglist);
 	kp->ki_sigmask = td->td_sigmask;
+	thread_unlock(td);
 }
 
 /*
@@ -824,10 +828,10 @@ fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
 {
 
 	fill_kinfo_proc_only(p, kp);
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	if (FIRST_THREAD_IN_PROC(p) != NULL)
 		fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp);
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 }
 
 struct pstats *
@@ -894,14 +898,14 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 
 	fill_kinfo_proc_only(p, &kinfo_proc);
 	if (flags & KERN_PROC_NOTHREADS) {
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		if (FIRST_THREAD_IN_PROC(p) != NULL)
 			fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), &kinfo_proc);
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
 				   sizeof(kinfo_proc));
 	} else {
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		if (FIRST_THREAD_IN_PROC(p) != NULL)
 			FOREACH_THREAD_IN_PROC(p, td) {
 				fill_kinfo_thread(td, &kinfo_proc);
@@ -913,7 +917,7 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 		else
 			error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
 					   sizeof(kinfo_proc));
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 	}
 	PROC_UNLOCK(p);
 	if (error)
@@ -1003,12 +1007,12 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			/*
 			 * Skip embryonic processes.
 			 */
-			mtx_lock_spin(&sched_lock);
+			PROC_SLOCK(p);
 			if (p->p_state == PRS_NEW) {
-				mtx_unlock_spin(&sched_lock);
+				PROC_SUNLOCK(p);
 				continue;
 			}
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(p);
 			PROC_LOCK(p);
 			KASSERT(p->p_ucred != NULL,
 			    ("process credential is NULL for non-NEW proc"));

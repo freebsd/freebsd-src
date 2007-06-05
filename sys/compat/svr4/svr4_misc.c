@@ -1253,12 +1253,12 @@ loop:
 		 * See if we have a stopped or continued process.
 		 * XXX: This duplicates the same code in kern_wait().
 		 */
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		if ((p->p_flag & P_STOPPED_SIG) &&
 		    (p->p_suspcount == p->p_numthreads) &&
 		    (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || uap->options & SVR4_WSTOPPED)) {
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(p);
 		        if (((uap->options & SVR4_WNOWAIT)) == 0)
 				p->p_flag |= P_WAITED;
 			sx_sunlock(&proctree_lock);
@@ -1278,7 +1278,7 @@ loop:
 			DPRINTF(("jobcontrol %d\n", pid));
 			return (svr4_setinfo(pid, &ru, status, uap->info));
 		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		if (uap->options & SVR4_WCONTINUED &&
 		    (p->p_flag & P_CONTINUED)) {
 			sx_sunlock(&proctree_lock);

@@ -619,24 +619,26 @@ faultin(p)
 		 * busy swapping it in.
 		 */
 		++p->p_lock;
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		p->p_sflag |= PS_SWAPPINGIN;
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 
 		FOREACH_THREAD_IN_PROC(p, td)
 			vm_thread_swapin(td);
 
 		PROC_LOCK(p);
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		p->p_sflag &= ~PS_SWAPPINGIN;
 		p->p_sflag |= PS_INMEM;
 		FOREACH_THREAD_IN_PROC(p, td) {
+			thread_lock(td);
 			TD_CLR_SWAPPED(td);
 			if (TD_CAN_RUN(td))
 				setrunnable(td);
+			thread_unlock(td);
 		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 
 		wakeup(&p->p_sflag);
 
@@ -672,9 +674,9 @@ scheduler(dummy)
 loop:
 	if (vm_page_count_min()) {
 		VM_WAIT;
-		mtx_lock_spin(&sched_lock);
+		thread_lock(&thread0);
 		proc0_rescan = 0;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(&thread0);
 		goto loop;
 	}
 
@@ -685,13 +687,14 @@ loop:
 		if (p->p_sflag & (PS_INMEM | PS_SWAPPINGOUT | PS_SWAPPINGIN)) {
 			continue;
 		}
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			/*
 			 * An otherwise runnable thread of a process
 			 * swapped out has only the TDI_SWAPPED bit set.
 			 * 
 			 */
+			thread_lock(td);
 			if (td->td_inhibitors == TDI_SWAPPED) {
 				pri = p->p_swtime + td->td_slptime;
 				if ((p->p_sflag & PS_SWAPINREQ) == 0) {
@@ -709,8 +712,9 @@ loop:
 					ppri = pri;
 				}
 			}
+			thread_unlock(td);
 		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
 
@@ -718,13 +722,13 @@ loop:
 	 * Nothing to do, back to sleep.
 	 */
 	if ((p = pp) == NULL) {
-		mtx_lock_spin(&sched_lock);
+		thread_lock(&thread0);
 		if (!proc0_rescan) {
 			TD_SET_IWAIT(&thread0);
 			mi_switch(SW_VOL, NULL);
 		}
 		proc0_rescan = 0;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(&thread0);
 		goto loop;
 	}
 	PROC_LOCK(p);
@@ -736,15 +740,15 @@ loop:
 	 */
 	if (p->p_sflag & (PS_INMEM | PS_SWAPPINGOUT | PS_SWAPPINGIN)) {
 		PROC_UNLOCK(p);
-		mtx_lock_spin(&sched_lock);
+		thread_lock(&thread0);
 		proc0_rescan = 0;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(&thread0);
 		goto loop;
 	}
 
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	p->p_sflag &= ~PS_SWAPINREQ;
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 
 	/*
 	 * We would like to bring someone in. (only if there is space).
@@ -752,10 +756,12 @@ loop:
 	 */
 	faultin(p);
 	PROC_UNLOCK(p);
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	p->p_swtime = 0;
+	PROC_SUNLOCK(p);
+	thread_lock(&thread0);
 	proc0_rescan = 0;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(&thread0);
 	goto loop;
 }
 
@@ -763,7 +769,8 @@ void kick_proc0(void)
 {
 	struct thread *td = &thread0;
 
-		
+	/* XXX This will probably cause a LOR in some cases */
+	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
 		CTR2(KTR_INTR, "%s: sched_add %d", __func__, 0);
 		TD_CLR_IWAIT(td);
@@ -773,6 +780,7 @@ void kick_proc0(void)
 		CTR2(KTR_INTR, "%s: state %d",
 		    __func__, td->td_state);
 	}
+	thread_unlock(td);
 	
 }
 
@@ -821,12 +829,12 @@ retry:
 		 * creation.  It may have no
 		 * address space or lock yet.
 		 */
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		if (p->p_state == PRS_NEW) {
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(p);
 			continue;
 		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 
 		/*
 		 * An aio daemon switches its
@@ -876,7 +884,7 @@ retry:
 			break;
 
 		case PRS_NORMAL:
-			mtx_lock_spin(&sched_lock);
+			PROC_SLOCK(p);
 			/*
 			 * do not swapout a realtime process
 			 * Check all the thread groups..
@@ -929,7 +937,7 @@ retry:
 				 (minslptime > swap_idle_threshold2))) {
 				swapout(p);
 				didswap++;
-				mtx_unlock_spin(&sched_lock);
+				PROC_SUNLOCK(p);
 				PROC_UNLOCK(p);
 				vm_map_unlock(&vm->vm_map);
 				vmspace_free(vm);
@@ -937,7 +945,7 @@ retry:
 				goto retry;
 			}
 nextproc:			
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(p);
 		}
 nextproc2:
 		PROC_UNLOCK(p);
@@ -962,7 +970,7 @@ swapout(p)
 	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
+	mtx_assert(&p->p_slock, MA_OWNED | MA_NOTRECURSED);
 #if defined(SWAP_DEBUG)
 	printf("swapping out %d\n", p->p_pid);
 #endif
@@ -996,15 +1004,18 @@ swapout(p)
 	p->p_sflag &= ~PS_INMEM;
 	p->p_sflag |= PS_SWAPPINGOUT;
 	PROC_UNLOCK(p);
-	FOREACH_THREAD_IN_PROC(p, td)
+	FOREACH_THREAD_IN_PROC(p, td) {
+		thread_lock(td);
 		TD_SET_SWAPPED(td);
-	mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
+	}
+	PROC_SUNLOCK(p);
 
 	FOREACH_THREAD_IN_PROC(p, td)
 		vm_thread_swapout(td);
 
 	PROC_LOCK(p);
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	p->p_sflag &= ~PS_SWAPPINGOUT;
 	p->p_swtime = 0;
 }

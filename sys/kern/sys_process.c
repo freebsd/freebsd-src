@@ -527,12 +527,12 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			sx_slock(&allproc_lock);
 			FOREACH_PROC_IN_SYSTEM(p) {
 				PROC_LOCK(p);
-				mtx_lock_spin(&sched_lock);
+				PROC_SLOCK(p);
 				FOREACH_THREAD_IN_PROC(p, td2) {
 					if (td2->td_tid == pid)
 						break;
 				}
-				mtx_unlock_spin(&sched_lock);
+				PROC_SUNLOCK(p);
 				if (td2 != NULL)
 					break; /* proc lock held */
 				PROC_UNLOCK(p);
@@ -701,15 +701,15 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_SUSPEND:
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td2);
 		td2->td_flags |= TDF_DBSUSPEND;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td2);
 		break;
 
 	case PT_RESUME:
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td2);
 		td2->td_flags &= ~TDF_DBSUSPEND;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td2);
 		break;
 
 	case PT_STEP:
@@ -780,32 +780,35 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			proctree_locked = 0;
 		}
 		/* deliver or queue signal */
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td2);
 		td2->td_flags &= ~TDF_XSIG;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td2);
 		td2->td_xsig = data;
 		p->p_xstat = data;
 		p->p_xthread = NULL;
 		if ((p->p_flag & (P_STOPPED_SIG | P_STOPPED_TRACE)) != 0) {
-			mtx_lock_spin(&sched_lock);
+			PROC_SLOCK(p);
 			if (req == PT_DETACH) {
 				struct thread *td3;
-				FOREACH_THREAD_IN_PROC(p, td3)
+				FOREACH_THREAD_IN_PROC(p, td3) {
+					thread_lock(td3);
 					td3->td_flags &= ~TDF_DBSUSPEND; 
+					thread_unlock(td3);
+				}
 			}
 			/*
 			 * unsuspend all threads, to not let a thread run,
 			 * you should use PT_SUSPEND to suspend it before
 			 * continuing process.
 			 */
-			mtx_unlock_spin(&sched_lock);
 #ifdef KSE
+			PROC_SUNLOCK(p);
 			thread_continued(p);
+			PROC_SLOCK(p);
 #endif
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG|P_WAITED);
-			mtx_lock_spin(&sched_lock);
 			thread_unsuspend(p);
-			mtx_unlock_spin(&sched_lock);
+			PROC_SUNLOCK(p);
 		}
 
 		if (data)
@@ -968,13 +971,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		buf = malloc(num * sizeof(lwpid_t), M_TEMP, M_WAITOK);
 		tmp = 0;
 		PROC_LOCK(p);
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (tmp >= num)
 				break;
 			buf[tmp++] = td2->td_tid;
 		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 		error = copyout(buf, addr, tmp * sizeof(lwpid_t));
 		free(buf, M_TEMP);

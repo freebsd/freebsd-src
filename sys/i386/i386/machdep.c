@@ -1058,9 +1058,9 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 
 #ifdef SMP
 	/* Schedule ourselves on the indicated cpu. */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	sched_bind(curthread, cpu_id);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 #endif
 
 	/* Calibrate by measuring a short delay. */
@@ -1071,9 +1071,9 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	intr_restore(reg);
 
 #ifdef SMP
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	sched_unbind(curthread);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 #endif
 
 	/*
