@@ -73,19 +73,16 @@ ENTRY(cpu_throw)
 	movq	TD_PCB(%rsi),%rdx		/* newtd->td_proc */
 	movq	PCB_CR3(%rdx),%rdx
 	movq	%rdx,%cr3			/* new address space */
-	/* set bit in new pm_active */
-	movq	TD_PROC(%rsi),%rdx
-	movq	P_VMSPACE(%rdx), %rdx
-	LK btsl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
-	jmp	sw1
+	jmp	swact
 
 /*
- * cpu_switch(old, new)
+ * cpu_switch(old, new, mtx)
  *
  * Save the current thread state, then select the next thread to run
  * and load its state.
  * %rdi = oldtd
  * %rsi = newtd
+ * %rdx = mtx
  */
 ENTRY(cpu_switch)
 	/* Switch to new thread.  First, save context. */
@@ -147,17 +144,33 @@ ENTRY(cpu_switch)
 	movq	TD_PCB(%rsi),%r8
 
 	/* switch address space */
-	movq	PCB_CR3(%r8),%rdx
+	movq	PCB_CR3(%r8),%rcx
 	movq	%cr3,%rax
-	cmpq	%rdx,%rax			/* Same address space? */
-	je	sw1
-	movq	%rdx,%cr3			/* new address space */
-
+	cmpq	%rcx,%rax			/* Same address space? */
+	jne	swinact
+	movq	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
+	/* Wait for the new thread to become unblocked */
+	movq	$blocked_lock, %rdx
+1:
+	movq	TD_LOCK(%rsi),%rcx
+	cmpq	%rcx, %rdx
+	je	1b
+	jmp	sw1
+swinact:
+	movq	%rcx,%cr3			/* new address space */
 	movl	PCPU(CPUID), %eax
 	/* Release bit from old pmap->pm_active */
-	movq	TD_PROC(%rdi), %rdx		/* oldproc */
-	movq	P_VMSPACE(%rdx), %rdx
-	LK btrl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
+	movq	TD_PROC(%rdi), %rcx		/* oldproc */
+	movq	P_VMSPACE(%rcx), %rcx
+	LK btrl	%eax, VM_PMAP+PM_ACTIVE(%rcx)	/* clear old */
+	movq	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
+swact:
+	/* Wait for the new thread to become unblocked */
+	movq	$blocked_lock, %rdx
+1:
+	movq	TD_LOCK(%rsi),%rcx
+	cmpq	%rcx, %rdx
+	je	1b
 
 	/* Set bit in new pmap->pm_active */
 	movq	TD_PROC(%rsi),%rdx		/* newproc */
