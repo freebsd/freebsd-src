@@ -125,7 +125,7 @@ mfip_attach(device_t dev)
 		return (ENOMEM);
 
 	sc->sim = cam_sim_alloc(mfip_cam_action, mfip_cam_poll, "mfi", sc,
-				device_get_unit(dev), &mfisc->mfi_io_lock, 1,
+				device_get_unit(dev), 1,
 				MFI_SCSI_MAX_CMDS, sc->devq);
 	if (sc->sim == NULL) {
 		cam_simq_free(sc->devq);
@@ -133,15 +133,12 @@ mfip_attach(device_t dev)
 		return (EINVAL);
 	}
 
-	mtx_lock(&mfisc->mfi_io_lock);
 	if (xpt_bus_register(sc->sim, 0) != 0) {
 		device_printf(dev, "XPT bus registration failed\n");
 		cam_sim_free(sc->sim, FALSE);
 		cam_simq_free(sc->devq);
-		mtx_unlock(&mfisc->mfi_io_lock);
 		return (EINVAL);
 	}
-	mtx_unlock(&mfisc->mfi_io_lock);
 
 	return (0);
 }
@@ -156,10 +153,8 @@ mfip_detach(device_t dev)
 		return (EINVAL);
 
 	if (sc->sim != NULL) {
-		mtx_lock(&sc->mfi_sc->mfi_io_lock);
 		xpt_bus_deregister(cam_sim_path(sc->sim));
 		cam_sim_free(sc->sim, FALSE);
-		mtx_unlock(&sc->mfi_sc->mfi_io_lock);
 	}
 
 	if (sc->devq != NULL)
@@ -173,8 +168,6 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct mfip_softc *sc = cam_sim_softc(sim);
 	struct mfi_softc *mfisc = sc->mfi_sc;
-
-	mtx_assert(&mfisc->mfi_io_lock, MA_OWNED);
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_PATH_INQ:
@@ -195,10 +188,6 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = 150000;
-		cpi->transport = XPORT_SPI;
-		cpi->transport_version = 2;
-		cpi->protocol = PROTO_SCSI;
-		cpi->protocol_version = SCSI_REV_2;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -210,20 +199,8 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	case XPT_GET_TRAN_SETTINGS:
 	{
-		struct ccb_trans_settings_scsi *scsi =
-		    &ccb->cts.proto_specific.scsi;
-		struct ccb_trans_settings_spi *spi =
-		    &ccb->cts.xport_specific.spi;
-
-		ccb->cts.protocol = PROTO_SCSI;
-		ccb->cts.protocol = SCSI_REV_2;
-		ccb->cts.transport = XPORT_SPI;
-		ccb->cts.transport_version = 2;
-		if (ccb->ccb_h.target_lun != CAM_LUN_WILDCARD) {
-			scsi->valid = CTS_SCSI_VALID_TQ;
-			spi->valid |= CTS_SPI_VALID_DISC;
-		} else
-			scsi->valid = 0;
+		ccb->cts.flags &= ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
+		ccb->cts.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
