@@ -219,7 +219,7 @@ struct tdq_group {
  * Run-time tunables.
  */
 static int rebalance = 0;
-static int pick_pri = 1;
+static int pick_pri = 0;
 static int affinity;
 static int tryself = 1;
 static int tryselfidle = 1;
@@ -250,6 +250,7 @@ static int balance_groups;
 #else	/* !SMP */
 static struct tdq	tdq_cpu;
 
+#define	TDQ_ID(x)	(0)
 #define	TDQ_SELF()	(&tdq_cpu)
 #define	TDQ_CPU(x)	(&tdq_cpu)
 #endif
