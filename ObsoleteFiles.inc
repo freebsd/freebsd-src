@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070605: sched_core removal
+OLD_FILES+=usr/share/man/man4/sched_core.4.gz
 # 20070521: shared library version bump
 OLD_LIBS+=lib/libatm.so.4
 OLD_LIBS+=lib/libbegemot.so.2
