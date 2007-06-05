@@ -185,7 +185,6 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # not recommended for production use at this time.
 #
 options 	SCHED_4BSD
-#options 	SCHED_CORE
 #options 	SCHED_ULE
 
 #####################################################################
