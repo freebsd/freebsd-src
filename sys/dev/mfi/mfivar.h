@@ -43,6 +43,8 @@ struct mfi_hwcomms {
 };
 
 struct mfi_softc;
+struct disk;
+struct ccb_hdr;
 
 struct mfi_command {
 	TAILQ_ENTRY(mfi_command) cm_link;
@@ -173,6 +175,8 @@ struct mfi_softc {
 	eventhandler_tag		mfi_eh;
 	struct cdev			*mfi_cdev;
 
+	TAILQ_HEAD(, ccb_hdr)		mfi_cam_ccbq;
+	struct mfi_command *		(* mfi_cam_start)(void *);
 	struct callout			mfi_watchdog_callout;
 	struct mtx			mfi_io_lock;
 };
@@ -337,5 +341,7 @@ extern void mfi_validate_sg(struct mfi_softc *, struct mfi_command *, const char
 #define MFI_DUMP_CMDS(sc)
 #define MFI_VALIDATE_CMD(sc, cm)
 #endif
+
+extern void mfi_release_command(struct mfi_command *cm);
 
 #endif /* _MFIVAR_H */
