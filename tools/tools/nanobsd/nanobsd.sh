@@ -265,6 +265,9 @@ setup_nanobsd_etc ( ) (
 	# create diskless marker file
 	touch etc/diskless
 
+	# Make root filesystem R/O by default
+	echo "root_rw_mount=NO" >> etc/defaults/rc.conf
+
 	# save config file for scripts
 	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
 
