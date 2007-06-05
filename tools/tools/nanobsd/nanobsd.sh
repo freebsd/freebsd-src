@@ -385,6 +385,13 @@ create_i386_diskimage ( ) (
 	if [ $NANO_IMAGES -gt 1 ] ; then
 		# Duplicate to second image (if present)
 		dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
+		mount /dev/${MD}s2a ${MNT}
+		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
+		do
+			sed -i "" "s/${NANO_DRIVE}s1/${NANO_DRIVE}s2/g" $f
+		done
+		umount ${MNT}
+
 	fi
 	
 	# Create Config slice
