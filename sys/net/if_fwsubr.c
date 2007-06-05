@@ -338,8 +338,6 @@ firewire_input_fragment(struct fw_com *fc, struct mbuf *m, int src)
 	int fstart, fend, start, end, islast;
 	uint32_t id;
 
-	GIANT_REQUIRED;
-
 	/*
 	 * Find an existing reassembly buffer or create a new one.
 	 */
@@ -501,8 +499,6 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 	struct fw_com *fc = IFP2FWC(ifp);
 	union fw_encap *enc;
 	int type, isr;
-
-	GIANT_REQUIRED;
 
 	/*
 	 * The caller has already stripped off the packet header
