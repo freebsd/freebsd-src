@@ -580,9 +580,6 @@ void
 _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
 	struct turnstile *ts;
-#ifndef PREEMPTION
-	struct thread *td, *td1;
-#endif
 
 	if (mtx_recursed(m)) {
 		if (--(m->mtx_recurse) == 0)
@@ -612,10 +609,6 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 #else
 	MPASS(ts != NULL);
 #endif
-#ifndef PREEMPTION
-	/* XXX */
-	td1 = turnstile_head(ts, TS_EXCLUSIVE_QUEUE);
-#endif
 #ifdef MUTEX_WAKE_ALL
 	turnstile_broadcast(ts, TS_EXCLUSIVE_QUEUE);
 	_release_lock_quick(m);
@@ -637,46 +630,6 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	 */
 	turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
 	turnstile_chain_unlock(&m->lock_object);
-
-#ifndef PREEMPTION
-	/*
-	 * XXX: This is just a hack until preemption is done.  However,
-	 * once preemption is done we need to either wrap the
-	 * turnstile_signal() and release of the actual lock in an
-	 * extra critical section or change the preemption code to
-	 * always just set a flag and never do instant-preempts.
-	 */
-	td = curthread;
-	if (td->td_critnest > 0 || td1->td_priority >= td->td_priority)
-		return;
-
-	thread_lock(td1);
-	if (!TD_IS_RUNNING(td1)) {
-#ifdef notyet
-		if (td->td_ithd != NULL) {
-			struct ithd *it = td->td_ithd;
-
-			if (it->it_interrupted) {
-				if (LOCK_LOG_TEST(&m->lock_object, opts))
-					CTR2(KTR_LOCK,
-				    "_mtx_unlock_sleep: %p interrupted %p",
-					    it, it->it_interrupted);
-				intr_thd_fixup(it);
-			}
-		}
-#endif
-		if (LOCK_LOG_TEST(&m->lock_object, opts))
-			CTR2(KTR_LOCK,
-			    "_mtx_unlock_sleep: %p switching out lock=%p", m,
-			    (void *)m->mtx_lock);
-
-		mi_switch(SW_INVOL, NULL);
-		if (LOCK_LOG_TEST(&m->lock_object, opts))
-			CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p resuming lock=%p",
-			    m, (void *)m->mtx_lock);
-	}
-	thread_unlock(td1);
-#endif
 }
 
 /*
