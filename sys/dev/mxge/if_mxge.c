@@ -80,6 +80,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>		/* for pmap_mapdev() */
 #include <vm/pmap.h>
 
+#if defined(__i386) || defined(__amd64)
+#include <machine/specialreg.h>
+#endif
+
 #include <dev/mxge/mxge_mcp.h>
 #include <dev/mxge/mcp_gen_header.h>
 #include <dev/mxge/if_mxge_var.h>
@@ -146,8 +150,17 @@ mxge_enable_wc(mxge_softc_t *sc)
 	vm_offset_t len;
 	int err, action;
 
-	pa = rman_get_start(sc->mem_res);
 	len = rman_get_size(sc->mem_res);
+#if defined(__i386) || defined(__amd64)
+	err = pmap_change_attr((vm_offset_t) sc->sram,
+			       len, PAT_WRITE_COMBINING);
+	if (err == 0)
+		return;
+	else
+		device_printf(sc->dev, "pmap_change_attr failed, %d\n",
+			      err);
+#endif		
+	pa = rman_get_start(sc->mem_res);
 	mrdesc.mr_base = pa;
 	mrdesc.mr_len = len;
 	mrdesc.mr_flags = MDF_WRITECOMBINE;
