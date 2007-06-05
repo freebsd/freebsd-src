@@ -1033,4 +1033,10 @@ struct mfi_config_data {
 	*/
 } __packed;
 
+#define MFI_SCSI_MAX_TARGETS	128
+#define MFI_SCSI_MAX_LUNS	8
+#define MFI_SCSI_INITIATOR_ID	255
+#define MFI_SCSI_MAX_CMDS	8
+#define MFI_SCSI_MAX_CDB_LEN	16
+
 #endif /* _MFIREG_H */
