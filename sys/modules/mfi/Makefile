@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../dev/mfi
 
-SUBDIR= mfi_cam
+SUBDIR= mfip
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 SUBDIR+= mfi_linux
