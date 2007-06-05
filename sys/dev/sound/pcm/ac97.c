@@ -48,7 +48,8 @@ struct ac97mixtable_entry {
 	unsigned enable:1;	/* entry is enabled		*/
 };
 
-#define AC97_NAMELEN	16
+#define AC97_MIXER_SIZE		SOUND_MIXER_NRDEVICES
+
 struct ac97_info {
 	kobj_t methods;
 	device_t dev;
@@ -57,8 +58,8 @@ struct ac97_info {
 	u_int32_t subvendor;
 	unsigned count, caps, se, extcaps, extid, extstat, noext:1;
 	u_int32_t flags;
-	struct ac97mixtable_entry mix[32];
-	char name[AC97_NAMELEN];
+	struct ac97mixtable_entry mix[AC97_MIXER_SIZE];
+	char name[16];
 	struct mtx *lock;
 };
 
@@ -75,7 +76,7 @@ struct ac97_codecid {
 	ac97_patch patch;
 };
 
-static const struct ac97mixtable_entry ac97mixtable_default[32] = {
+static const struct ac97mixtable_entry ac97mixtable_default[AC97_MIXER_SIZE] = {
     /*	[offset]			reg	     bits of st mu re mk en */
 	[SOUND_MIXER_VOLUME]	= { AC97_MIX_MASTER, 	5, 0, 1, 1, 6, 0, 1 },
 	[SOUND_MIXER_OGAIN]	= { AC97_MIX_AUXOUT, 	5, 0, 1, 1, 0, 0, 0 },
@@ -614,12 +615,13 @@ ac97_initmixer(struct ac97_info *codec)
 
 	i = ac97_rdcd(codec, AC97_REG_RESET);
 	j = ac97_rdcd(codec, AC97_REG_RESET);
+	k = ac97_rdcd(codec, AC97_REG_RESET);
 	/*
 	 * Let see if this codec can return consistent value.
 	 * If not, turn on aggressive read workaround
 	 * (STAC9704 comes in mind).
 	 */
-	if (i != j) {
+	if (i != j || j != k) {
 		codec->flags |= AC97_F_RDCD_BUG;
 		i = ac97_rdcd(codec, AC97_REG_RESET);
 	}
@@ -674,7 +676,7 @@ ac97_initmixer(struct ac97_info *codec)
 		}
 	}
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < AC97_MIXER_SIZE; i++) {
 		codec->mix[i] = ac97mixtable_default[i];
 	}
 	ac97_fix_auxout(codec);
@@ -682,7 +684,7 @@ ac97_initmixer(struct ac97_info *codec)
 	if (codec_patch)
 		codec_patch(codec);
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < AC97_MIXER_SIZE; i++) {
 		k = codec->noext? codec->mix[i].enable : 1;
 		reg = codec->mix[i].reg;
 		if (reg < 0)
@@ -826,7 +828,8 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 	if (codec == NULL)
 		return NULL;
 
-	snprintf(codec->name, AC97_NAMELEN, "%s:ac97", device_get_nameunit(dev));
+	snprintf(codec->name, sizeof(codec->name), "%s:ac97",
+	    device_get_nameunit(dev));
 	codec->lock = snd_mtxcreate(codec->name, "ac97 codec");
 	codec->methods = kobj_create(cls, M_AC97, M_WAITOK | M_ZERO);
 	codec->dev = dev;
@@ -980,12 +983,12 @@ ac97mix_init(struct snd_mixer *m)
 #endif
 
 	mask = 0;
-	for (i = 0; i < 32; i++)
+	for (i = 0; i < AC97_MIXER_SIZE; i++)
 		mask |= codec->mix[i].enable? 1 << i : 0;
 	mix_setdevs(m, mask);
 
 	mask = 0;
-	for (i = 0; i < 32; i++)
+	for (i = 0; i < AC97_MIXER_SIZE; i++)
 		mask |= codec->mix[i].recidx? 1 << i : 0;
 	mix_setrecdevs(m, mask);
 
@@ -1024,7 +1027,7 @@ ac97mix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct ac97_info *codec = mix_getdevinfo(m);
 
-	if (codec == NULL)
+	if (codec == NULL || dev >= AC97_MIXER_SIZE)
 		return -1;
 	return ac97_setmixer(codec, dev, left, right);
 }
@@ -1037,7 +1040,7 @@ ac97mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 
 	if (codec == NULL)
 		return -1;
-	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
+	for (i = 0; i < AC97_MIXER_SIZE; i++)
 		if ((src & (1 << i)) != 0)
 			break;
 	return (ac97_setrecsrc(codec, i) == 0)? 1 << i : -1;
