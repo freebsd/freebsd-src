@@ -2235,8 +2235,7 @@ pmap_switch(pmap_t pm)
 	pmap_t prevpm;
 	int i;
 
-	mtx_assert(&sched_lock, MA_OWNED);
-
+	THREAD_LOCK_ASSERT(curthread, MA_OWNED);
 	prevpm = PCPU_GET(current_pmap);
 	if (prevpm == pm)
 		return (prevpm);
@@ -2263,10 +2262,13 @@ static pmap_t
 pmap_install(pmap_t pm)
 {
 	pmap_t prevpm;
+	struct thread *td;
 
-	mtx_lock_spin(&sched_lock);
+	td = curthread;
+	thread_lock(td);
 	prevpm = pmap_switch(pm);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
+
 	return (prevpm);
 }
 

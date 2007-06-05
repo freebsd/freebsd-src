@@ -145,9 +145,9 @@ vm_pagezero(void __unused *arg)
 			vm_page_zero_idle();
 #ifndef PREEMPTION
 			if (sched_runnable()) {
-				mtx_lock_spin(&sched_lock);
+				thread_lock(curthread);
 				mi_switch(SW_VOL, NULL);
-				mtx_unlock_spin(&sched_lock);
+				thread_unlock(curthread);
 			}
 #endif
 		} else {
@@ -176,11 +176,11 @@ pagezero_start(void __unused *arg)
 	PROC_LOCK(pagezero_proc);
 	pagezero_proc->p_flag |= P_NOLOAD;
 	PROC_UNLOCK(pagezero_proc);
-	mtx_lock_spin(&sched_lock);
 	td = FIRST_THREAD_IN_PROC(pagezero_proc);
+	thread_lock(td);
 	sched_class(td, PRI_IDLE);
 	sched_prio(td, PRI_MAX_IDLE);
 	sched_add(td, SRQ_BORING);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 }
 SYSINIT(pagezero, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, pagezero_start, NULL)

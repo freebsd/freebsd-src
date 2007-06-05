@@ -713,9 +713,9 @@ create_init(const void *udata __unused)
 	PROC_UNLOCK(initproc);
 	crfree(oldcred);
 	cred_update_thread(FIRST_THREAD_IN_PROC(initproc));
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(initproc);
 	initproc->p_sflag |= PS_INMEM;
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(initproc);
 	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(initproc), start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
@@ -729,9 +729,9 @@ kick_init(const void *udata __unused)
 	struct thread *td;
 
 	td = FIRST_THREAD_IN_PROC(initproc);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	TD_SET_CAN_RUN(td);
 	sched_add(td, SRQ_BORING);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 }
 SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)

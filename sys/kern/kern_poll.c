@@ -580,17 +580,17 @@ poll_idle(void)
 
 	rtp.prio = RTP_PRIO_MAX;	/* lowest priority */
 	rtp.type = RTP_PRIO_IDLE;
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(td->td_proc);
 	rtp_to_pri(&rtp, td);
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(td->td_proc);
 
 	for (;;) {
 		if (poll_in_idle_loop && poll_handlers > 0) {
 			idlepoll_sleeping = 0;
 			ether_poll(poll_each_burst);
-			mtx_lock_spin(&sched_lock);
+			thread_lock(td);
 			mi_switch(SW_VOL, NULL);
-			mtx_unlock_spin(&sched_lock);
+			thread_unlock(td);
 		} else {
 			idlepoll_sleeping = 1;
 			tsleep(&idlepoll_sleeping, 0, "pollid", hz * 3);

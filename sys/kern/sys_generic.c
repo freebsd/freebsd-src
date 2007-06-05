@@ -722,9 +722,9 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	mtx_lock(&sellock);
 retry:
 	ncoll = nselcoll;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags |= TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	mtx_unlock(&sellock);
 
 	error = selscan(td, ibits, obits, nd);
@@ -747,12 +747,12 @@ retry:
 	 * collisions and rescan the file descriptors if
 	 * necessary.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 		goto retry;
 	}
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 
 	if (timo > 0)
 		error = cv_timedwait_sig(&selwait, &sellock, timo);
@@ -764,9 +764,9 @@ retry:
 
 done:
 	clear_selinfo_list(td);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags &= ~TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	mtx_unlock(&sellock);
 
 done_nosellock:
@@ -896,9 +896,9 @@ poll(td, uap)
 	mtx_lock(&sellock);
 retry:
 	ncoll = nselcoll;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags |= TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	mtx_unlock(&sellock);
 
 	error = pollscan(td, bits, nfds);
@@ -919,12 +919,12 @@ retry:
 	 * sellock, so check TDF_SELECT and the number of collisions
 	 * and rescan the file descriptors if necessary.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 		goto retry;
 	}
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 
 	if (timo > 0)
 		error = cv_timedwait_sig(&selwait, &sellock, timo);
@@ -936,9 +936,9 @@ retry:
 
 done:
 	clear_selinfo_list(td);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags &= ~TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	mtx_unlock(&sellock);
 
 done_nosellock:
@@ -1109,9 +1109,9 @@ doselwakeup(sip, pri)
 	}
 	TAILQ_REMOVE(&td->td_selq, sip, si_thrlist);
 	sip->si_thread = NULL;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	td->td_flags &= ~TDF_SELECT;
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	sleepq_remove(td, &selwait);
 	mtx_unlock(&sellock);
 }

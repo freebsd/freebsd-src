@@ -423,12 +423,12 @@ profil(td, uap)
 	}
 	PROC_LOCK(p);
 	upp = &td->td_proc->p_stats->p_prof;
-	mtx_lock_spin(&time_lock);
+	PROC_SLOCK(p);
 	upp->pr_off = uap->offset;
 	upp->pr_scale = uap->scale;
 	upp->pr_base = uap->samples;
 	upp->pr_size = uap->size;
-	mtx_unlock_spin(&time_lock);
+	PROC_SUNLOCK(p);
 	startprofclock(p);
 	PROC_UNLOCK(p);
 
@@ -468,22 +468,22 @@ addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks)
 	if (ticks == 0)
 		return;
 	prof = &td->td_proc->p_stats->p_prof;
-	mtx_lock_spin(&time_lock);
+	PROC_SLOCK(td->td_proc);
 	if (pc < prof->pr_off ||
 	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size) {
-		mtx_unlock_spin(&time_lock);		
+		PROC_SUNLOCK(td->td_proc);
 		return;			/* out of range; ignore */
 	}
 
 	addr = prof->pr_base + i;
-	mtx_unlock_spin(&time_lock);
+	PROC_SUNLOCK(td->td_proc);
 	if ((v = fuswintr(addr)) == -1 || suswintr(addr, v + ticks) == -1) {
 		td->td_profil_addr = pc;
 		td->td_profil_ticks = ticks;
 		td->td_pflags |= TDP_OWEUPC;
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		td->td_flags |= TDF_ASTPENDING;
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 	}
 }
 
@@ -511,12 +511,15 @@ addupc_task(struct thread *td, uintfptr_t pc, u_int ticks)
 	}
 	p->p_profthreads++;
 	prof = &p->p_stats->p_prof;
+	PROC_SLOCK(p);
 	if (pc < prof->pr_off ||
 	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size) {
+		PROC_SUNLOCK(p);
 		goto out;
 	}
 
 	addr = prof->pr_base + i;
+	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
 	if (copyin(addr, &v, sizeof(v)) == 0) {
 		v += ticks;

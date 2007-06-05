@@ -263,9 +263,9 @@ donice(struct thread *td, struct proc *p, int n)
 		n = PRIO_MIN;
  	if (n < p->p_nice && priv_check(td, PRIV_SCHED_SETPRIORITY) != 0)
 		return (EACCES);
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	sched_nice(p, n);
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 	return (0);
 }
 
@@ -306,7 +306,7 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 	case RTP_LOOKUP:
 		if ((error = p_cansee(td, p)))
 			break;
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		if (uap->lwpid == 0 || uap->lwpid == td->td_tid)
 			td1 = td;
 		else
@@ -315,7 +315,7 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 			pri_to_rtp(td1, &rtp);
 		else
 			error = ESRCH;
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
@@ -342,7 +342,7 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 			}
 		}
 
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		if (uap->lwpid == 0 || uap->lwpid == td->td_tid)
 			td1 = td;
 		else
@@ -351,7 +351,7 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 			error = rtp_to_pri(&rtp, td1);
 		else
 			error = ESRCH;
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		break;
 	default:
 		error = EINVAL;
@@ -402,7 +402,7 @@ rtprio(td, uap)
 	case RTP_LOOKUP:
 		if ((error = p_cansee(td, p)))
 			break;
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		/*
 		 * Return OUR priority if no pid specified,
 		 * or if one is, report the highest priority
@@ -430,7 +430,7 @@ rtprio(td, uap)
 				}
 			}
 		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
@@ -468,7 +468,7 @@ rtprio(td, uap)
 		 * do all the threads on that process. If we
 		 * specify our own pid we do the latter.
 		 */
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		if (uap->pid == 0) {
 			error = rtp_to_pri(&rtp, td);
 		} else {
@@ -477,7 +477,7 @@ rtprio(td, uap)
 					break;
 			}
 		}
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		break;
 	default:
 		error = EINVAL;
@@ -492,9 +492,9 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 {
 	u_char	newpri;
 
-	mtx_assert(&sched_lock, MA_OWNED);
 	if (rtp->prio > RTP_PRIO_MAX)
 		return (EINVAL);
+	thread_lock(td);
 	switch (RTP_PRIO_BASE(rtp->type)) {
 	case RTP_PRIO_REALTIME:
 		newpri = PRI_MIN_REALTIME + rtp->prio;
@@ -506,12 +506,14 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 		newpri = PRI_MIN_IDLE + rtp->prio;
 		break;
 	default:
+		thread_unlock(td);
 		return (EINVAL);
 	}
 	sched_class(td, rtp->type);	/* XXX fix */
 	sched_user_prio(td, newpri);
 	if (curthread == td)
 		sched_prio(curthread, td->td_user_pri); /* XXX dubious */
+	thread_unlock(td);
 	return (0);
 }
 
@@ -519,7 +521,7 @@ void
 pri_to_rtp(struct thread *td, struct rtprio *rtp)
 {
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	thread_lock(td);
 	switch (PRI_BASE(td->td_pri_class)) {
 	case PRI_REALTIME:
 		rtp->prio = td->td_base_user_pri - PRI_MIN_REALTIME;
@@ -534,6 +536,7 @@ pri_to_rtp(struct thread *td, struct rtprio *rtp)
 		break;
 	}
 	rtp->type = td->td_pri_class;
+	thread_unlock(td);
 }
 
 #if defined(COMPAT_43)
@@ -634,10 +637,13 @@ lim_cb(void *arg)
 	 */
 	if (p->p_cpulimit == RLIM_INFINITY)
 		return;
-	mtx_lock_spin(&sched_lock);
-	FOREACH_THREAD_IN_PROC(p, td)
+	PROC_SLOCK(p);
+	FOREACH_THREAD_IN_PROC(p, td) {
+		thread_lock(td);
 		ruxagg(&p->p_rux, td);
-	mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
+	}
+	PROC_SUNLOCK(p);
 	if (p->p_rux.rux_runtime > p->p_cpulimit * cpu_tickrate()) {
 		lim_rlimit(p, RLIMIT_CPU, &rlim);
 		if (p->p_rux.rux_runtime >= rlim.rlim_max * cpu_tickrate()) {
@@ -699,9 +705,9 @@ kern_setrlimit(td, which, limp)
 		if (limp->rlim_cur != RLIM_INFINITY &&
 		    p->p_cpulimit == RLIM_INFINITY)
 			callout_reset(&p->p_limco, hz, lim_cb, p);
-		mtx_lock_spin(&sched_lock);
+		PROC_SLOCK(p);
 		p->p_cpulimit = limp->rlim_cur;
-		mtx_unlock_spin(&sched_lock);
+		PROC_SUNLOCK(p);
 		break;
 	case RLIMIT_DATA:
 		if (limp->rlim_cur > maxdsiz)
@@ -828,9 +834,7 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	uint64_t u;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_NOTOWNED);
-	mtx_lock_spin(&sched_lock);
-
+	PROC_SLOCK(p);
 	/*
 	 * If we are getting stats for the current process, then add in the
 	 * stats that this thread has accumulated in its current time slice.
@@ -843,9 +847,9 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 		p->p_rux.rux_runtime += u - PCPU_GET(switchtime);
 		PCPU_SET(switchtime, u);
 	}
-	/* Work on a copy of p_rux so we can let go of sched_lock */
+	/* Work on a copy of p_rux so we can let go of p_slock */
 	rux = p->p_rux;
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 	calcru1(p, &rux, up, sp);
 	/* Update the result from the p_rux copy */
 	p->p_rux.rux_uu = rux.rux_uu;
@@ -1013,6 +1017,9 @@ ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
 void
 ruxagg(struct rusage_ext *rux, struct thread *td)
 {
+
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	PROC_SLOCK_ASSERT(td->td_proc, MA_OWNED);
 	rux->rux_runtime += td->td_runtime;
 	rux->rux_uticks += td->td_uticks;
 	rux->rux_sticks += td->td_sticks;
@@ -1033,17 +1040,19 @@ rufetch(struct proc *p, struct rusage *ru)
 	struct thread *td;
 
 	memset(ru, 0, sizeof(*ru));
-	mtx_lock_spin(&sched_lock);
+	PROC_SLOCK(p);
 	if (p->p_ru == NULL)  {
 		KASSERT(p->p_numthreads > 0,
 		    ("rufetch: No threads or ru in proc %p", p));
 		FOREACH_THREAD_IN_PROC(p, td) {
+			thread_lock(td);
 			ruxagg(&p->p_rux, td);
+			thread_unlock(td);
 			rucollect(ru, &td->td_ru);
 		}
 	} else
 		*ru = *p->p_ru;
-	mtx_unlock_spin(&sched_lock);
+	PROC_SUNLOCK(p);
 }
 
 /*

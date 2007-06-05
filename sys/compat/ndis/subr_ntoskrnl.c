@@ -3824,7 +3824,7 @@ ntoskrnl_dpc_thread(arg)
 	 * once scheduled by an ISR.
 	 */
 
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 #ifdef NTOSKRNL_MULTIPLE_DPCS
 #if __FreeBSD_version >= 502102
 	sched_bind(curthread, kq->kq_cpu);
@@ -3834,7 +3834,7 @@ ntoskrnl_dpc_thread(arg)
 #if __FreeBSD_version < 600000
         curthread->td_base_pri = PRI_MIN_KERN;
 #endif
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 
 	while (1) {
 		KeWaitForSingleObject(&kq->kq_proc, 0, 0, TRUE, NULL);

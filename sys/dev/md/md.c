@@ -690,9 +690,9 @@ md_kthread(void *arg)
 	int error;
 
 	sc = arg;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	sched_prio(curthread, PRIBIO);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 	if (sc->type == MD_VNODE)
 		curthread->td_pflags |= TDP_NORUNNINGBUF;
 

@@ -82,11 +82,11 @@ userret(struct thread *td, struct trapframe *frame)
 #ifdef DIAGNOSTIC
 	/* Check that we called signotify() enough. */
 	PROC_LOCK(p);
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	if (SIGPENDING(td) && ((td->td_flags & TDF_NEEDSIGCHK) == 0 ||
 	    (td->td_flags & TDF_ASTPENDING) == 0))
 		printf("failed to set signal flags properly for ast()\n");
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	PROC_UNLOCK(p);
 #endif
 
@@ -163,7 +163,7 @@ ast(struct trapframe *framep)
 	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
 	WITNESS_WARN(WARN_PANIC, NULL, "Returning to user mode");
 	mtx_assert(&Giant, MA_NOTOWNED);
-	mtx_assert(&sched_lock, MA_NOTOWNED);
+	THREAD_LOCK_ASSERT(td, MA_NOTOWNED);
 	td->td_frame = framep;
 	td->td_pticks = 0;
 
@@ -179,8 +179,7 @@ ast(struct trapframe *framep)
 	 * AST's saved in sflag, the astpending flag will be set and
 	 * ast() will be called again.
 	 */
-	mtx_lock_spin(&sched_lock);
-	flags = td->td_flags;
+	PROC_SLOCK(p);
 	sflag = p->p_sflag;
 	if (p->p_sflag & (PS_ALRMPEND | PS_PROFPEND))
 		p->p_sflag &= ~(PS_ALRMPEND | PS_PROFPEND);
@@ -188,9 +187,12 @@ ast(struct trapframe *framep)
 	if (p->p_sflag & PS_MACPEND)
 		p->p_sflag &= ~PS_MACPEND;
 #endif
+	thread_lock(td);
+	PROC_SUNLOCK(p);
+	flags = td->td_flags;
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
 	    TDF_NEEDRESCHED | TDF_INTERRUPT);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 	PCPU_INC(cnt.v_trap);
 
 	/*
@@ -239,10 +241,11 @@ ast(struct trapframe *framep)
 		if (KTRPOINT(td, KTR_CSW))
 			ktrcsw(1, 1);
 #endif
-		mtx_lock_spin(&sched_lock);
+		thread_lock(td);
 		sched_prio(td, td->td_user_pri);
+		SCHED_STAT_INC(switch_needresched);
 		mi_switch(SW_INVOL, NULL);
-		mtx_unlock_spin(&sched_lock);
+		thread_unlock(td);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
 			ktrcsw(0, 1);

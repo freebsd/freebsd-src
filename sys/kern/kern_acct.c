@@ -612,9 +612,9 @@ acct_thread(void *dummy)
 
 	/* This is a low-priority kernel thread. */
 	pri = PRI_MAX_KERN;
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	sched_prio(curthread, pri);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 
 	/* If another accounting kthread is already running, just die. */
 	sx_xlock(&acct_sx);
