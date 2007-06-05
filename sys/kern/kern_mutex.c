@@ -439,7 +439,7 @@ _mtx_lock_spin_failed(struct mtx *m)
 	/* If the mutex is unlocked, try again. */
 	if (td == NULL)
 		return;
-#ifdef SMP
+
 	printf( "spin lock %p (%s) held by %p (tid %d) too long\n",
 	    m, m->lock_object.lo_name, td, td->td_tid);
 #ifdef WITNESS
@@ -448,6 +448,7 @@ _mtx_lock_spin_failed(struct mtx *m)
 	panic("spin lock held too long");
 }
 
+#ifdef SMP
 /*
  * _mtx_lock_spin: the tougher part of acquiring an MTX_SPIN lock.
  *
