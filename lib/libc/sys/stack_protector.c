@@ -110,9 +110,6 @@ __chk_fail(void)
 }
 
 void
-#ifdef __GNUC__
-__attribute__((visibility ("hidden")))
-#endif
 __stack_chk_fail_local(void)
 {
 	__stack_chk_fail();
