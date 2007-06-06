@@ -426,6 +426,7 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 		sbuf_printf(sb, "%s%s added\n", gp->name,
 		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
 	}
@@ -603,6 +604,7 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 		sbuf_printf(sb, "%s created\n", gp->name);
+		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
 	}
@@ -670,6 +672,7 @@ g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 		sbuf_printf(sb, "%s%s deleted\n", gp->name,
 		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
 	}
@@ -724,6 +727,7 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 		sbuf_printf(sb, "%s destroyed\n", gp->name);
+		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
 	}
@@ -771,6 +775,7 @@ g_part_ctl_modify(struct gctl_req *req, struct g_part_parms *gpp)
 		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 		sbuf_printf(sb, "%s%s modified\n", gp->name,
 		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
 	}
