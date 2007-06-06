@@ -82,7 +82,8 @@ static void psycho_set_intr(struct psycho_softc *, int, bus_addr_t, int,
     driver_filter_t);
 static int psycho_find_intrmap(struct psycho_softc *, int, bus_addr_t *,
     bus_addr_t *, u_long *);
-static driver_filter_t psycho_intr_stub;
+static driver_filter_t psycho_filter_stub;
+static driver_intr_t psycho_intr_stub;
 static bus_space_tag_t psycho_alloc_bus_tag(struct psycho_softc *, int);
 
 /* Interrupt handlers */
@@ -170,7 +171,8 @@ SLIST_HEAD(, psycho_softc) psycho_softcs =
 struct psycho_clr {
 	struct psycho_softc	*pci_sc;
 	bus_addr_t		pci_clr;	/* clear register */
-	driver_filter_t		*pci_handler;	/* handler to call */
+	driver_filter_t		*pci_filter;
+	driver_intr_t		*pci_handler;	/* handler to call */
 	void			*pci_arg;	/* argument for the handler */
 	void			*pci_cookie;	/* parent bus int. cookie */
 	device_t		pci_ppb;	/* farest PCI-PCI bridge */
@@ -982,6 +984,20 @@ psycho_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 /* Write to the correct clr register, and call the actual handler. */
 static int
+psycho_filter_stub(void *arg)
+{
+	struct psycho_clr *pc = arg;
+	int res;
+
+	if (pc->pci_filter != NULL) {
+		res = pc->pci_filter(pc->pci_arg);
+		PSYCHO_WRITE8(pc->pci_sc, pc->pci_clr, 0);
+	} else 
+		res = FILTER_SCHEDULE_THREAD;	
+	return (res);
+}
+
+static void
 psycho_intr_stub(void *arg)
 {
 	struct psycho_clr *pc = arg;
@@ -992,8 +1008,8 @@ psycho_intr_stub(void *arg)
 		(void)PSYCHO_READ8(pc->pci_sc, PSR_DMA_WRITE_SYNC);
 	}
 	pc->pci_handler(pc->pci_arg);
-	PSYCHO_WRITE8(pc->pci_sc, pc->pci_clr, 0);
-	return (FILTER_HANDLED);
+	if (pc->pci_filter == NULL)
+		PSYCHO_WRITE8(pc->pci_sc, pc->pci_clr, 0);
 }
 
 static int
@@ -1046,7 +1062,8 @@ psycho_setup_intr(device_t dev, device_t child, struct resource *ires,
 
 	pc->pci_sc = sc;
 	pc->pci_arg = arg;
-	pc->pci_handler = (filt != NULL) ? filt : (driver_filter_t *)intr;
+	pc->pci_filter = filt;
+	pc->pci_handler = intr;
 	pc->pci_clr = intrclrptr;
 
 	/*
@@ -1102,12 +1119,8 @@ psycho_setup_intr(device_t dev, device_t child, struct resource *ires,
 	/* Disable the interrupt while we fiddle with it. */
 	mr = PSYCHO_READ8(sc, intrmapptr);
 	PSYCHO_WRITE8(sc, intrmapptr, mr & ~INTMAP_V);
-	if (filt != NULL)
-		error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
-		    psycho_intr_stub, NULL, pc, cookiep);
-	else
-		error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
-		    NULL, (driver_intr_t *)psycho_intr_stub, pc, cookiep);
+	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
+	    psycho_filter_stub, psycho_intr_stub, pc, cookiep);
 	if (error != 0) {
 		free(pc, M_DEVBUF);
 		return (error);
