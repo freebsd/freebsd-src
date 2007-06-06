@@ -1179,7 +1179,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);
-	PCPU_SET(curtid, thread0.td_tid);
 	PCPU_SET(tssp, &common_tss[0]);
 
 	/*

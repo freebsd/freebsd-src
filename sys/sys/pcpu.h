@@ -74,7 +74,6 @@ struct pcpu {
 	PCPU_MD_FIELDS;
 	struct vmmeter	pc_cnt;			/* VM stats counters */
 	struct device	*pc_device;
-	lwpid_t		pc_curtid;
 };
 
 SLIST_HEAD(cpuhead, pcpu);

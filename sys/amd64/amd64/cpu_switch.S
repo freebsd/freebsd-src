@@ -203,9 +203,7 @@ sw1:
 	movq	%rbx, (%rax)
 	movq	%rbx, PCPU(RSP0)
 
-	movl	TD_TID(%rsi), %eax
 	movq	%r8, PCPU(CURPCB)
-	movl	%eax, PCPU(CURTID)
 	movq	%rsi, PCPU(CURTHREAD)		/* into next thread */
 
 	testl	$PCB_32BIT,PCB_FLAGS(%r8)
