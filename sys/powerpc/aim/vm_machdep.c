@@ -197,7 +197,7 @@ void
 cpu_throw(struct thread *old, struct thread *new)
 {
 
-	cpu_switch(old, new);
+	cpu_switch(old, new, NULL);
 	panic("cpu_throw() didn't");
 }
 
