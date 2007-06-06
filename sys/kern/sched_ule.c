@@ -1487,7 +1487,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 
-		cpu_switch(td, newtd, __DEVOLATILE(struct mtx *, td->td_lock));
+		cpu_switch(td, newtd, td->td_lock);
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);

@@ -903,7 +903,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 #endif
 
                 /* I feel sleepy */
-		cpu_switch(td, newtd, __DEVOLATILE(struct mtx *, td->td_lock));
+		cpu_switch(td, newtd, td->td_lock);
 		/*
 		 * Where am I?  What year is it?
 		 * We are in the same thread that went to sleep above,
