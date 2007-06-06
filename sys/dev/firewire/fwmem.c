@@ -90,6 +90,7 @@ MALLOC_DEFINE(M_FWMEM, "fwmem", "fwmem/FireWire");
 
 struct fwmem_softc {
 	struct fw_eui64 eui;
+	struct firewire_softc *sc;
 	int refcount;
 };
 
@@ -276,20 +277,33 @@ int
 fwmem_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
 {
 	struct fwmem_softc *fms;
+	struct firewire_softc *sc;
+	int unit = DEV2UNIT(dev);
 
+	sc = devclass_get_softc(firewire_devclass, unit);
+	if (sc == NULL)
+		return (ENXIO);
+
+	FW_GLOCK(sc->fc);
 	if (dev->si_drv1 != NULL) {
-		if ((flags & FWRITE) != 0)
-			return (EBUSY);
+		if ((flags & FWRITE) != 0) {
+			FW_GUNLOCK(sc->fc);
+			return(EBUSY);
+		}
+		FW_GUNLOCK(sc->fc);
 		fms = (struct fwmem_softc *)dev->si_drv1;
 		fms->refcount ++;
 	} else {
-		fms = (struct fwmem_softc *)malloc(sizeof(struct fwmem_softc),
-							M_FWMEM, M_WAITOK);
-		if (fms == NULL)
-			return ENOMEM;
-		bcopy(&fwmem_eui64, &fms->eui, sizeof(struct fw_eui64));
-		dev->si_drv1 = (void *)fms;
+		dev->si_drv1 = (void *)-1;
+		FW_GUNLOCK(sc->fc);
+		dev->si_drv1 = malloc(sizeof(struct fwmem_softc),
+						 M_FWMEM, M_WAITOK);
+		if (dev->si_drv1 == NULL)
+			return(ENOMEM);
 		dev->si_iosize_max = DFLTPHYS;
+		fms = (struct fwmem_softc *)dev->si_drv1;
+		bcopy(&fwmem_eui64, &fms->eui, sizeof(struct fw_eui64));
+		fms->sc = sc;
 		fms->refcount = 1;
 	}
 	if (fwmem_debug)
@@ -304,7 +318,10 @@ fwmem_close (struct cdev *dev, int flags, int fmt, fw_proc *td)
 	struct fwmem_softc *fms;
 
 	fms = (struct fwmem_softc *)dev->si_drv1;
+
+	FW_GLOCK(fms->sc->fc);
 	fms->refcount --;
+	FW_GUNLOCK(fms->sc->fc);
 	if (fwmem_debug)
 		printf("%s: refcount=%d\n", __func__, fms->refcount);
 	if (fms->refcount < 1) {
@@ -338,22 +355,18 @@ fwmem_biodone(struct fw_xfer *xfer)
 void
 fwmem_strategy(struct bio *bp)
 {
-	struct firewire_softc *sc;
 	struct fwmem_softc *fms;
 	struct fw_device *fwdev;
 	struct fw_xfer *xfer;
 	struct cdev *dev;
-	int unit, err=0, s, iolen;
+	int err=0, s, iolen;
 
 	dev = bp->bio_dev;
 	/* XXX check request length */
 
-        unit = DEV2UNIT(dev);
-	sc = devclass_get_softc(firewire_devclass, unit);
-
 	s = splfw();
 	fms = (struct fwmem_softc *)dev->si_drv1;
-	fwdev = fw_noderesolve_eui64(sc->fc, &fms->eui);
+	fwdev = fw_noderesolve_eui64(fms->sc->fc, &fms->eui);
 	if (fwdev == NULL) {
 		if (fwmem_debug)
 			printf("fwmem: no such device ID:%08x%08x\n",
