@@ -202,7 +202,7 @@ struct mqueue_notifier;
  * Thread context.  Processes may have multiple threads.
  */
 struct thread {
-	volatile struct mtx *td_lock;	/* replaces sched lock */
+	struct mtx	*volatile td_lock; /* replaces sched lock */
 	struct proc	*td_proc;	/* (*) Associated process. */
 	TAILQ_ENTRY(thread) td_plist;	/* (*) All threads in this proc. */
 
@@ -306,7 +306,7 @@ void thread_lock_unblock(struct thread *, struct mtx *);
 void thread_lock_set(struct thread *, struct mtx *);
 #define	THREAD_LOCK_ASSERT(td, type)					\
 do {									\
-	struct mtx *__m = __DEVOLATILE(struct mtx *, (td)->td_lock);	\
+	struct mtx *__m = (td)->td_lock;				\
 	if (__m != &blocked_lock)					\
 		mtx_assert(__m, (type));				\
 } while (0)
