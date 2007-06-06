@@ -2140,7 +2140,7 @@ END_DEBUG
 	xpt_async(AC_LOST_DEVICE, sbp->path, NULL);
 	xpt_free_path(sbp->path);
 	xpt_bus_deregister(cam_sim_path(sbp->sim));
-	cam_sim_free(sbp->sim, /*free_devq*/ TRUE),
+	cam_sim_free(sbp->sim, /*free_devq*/ TRUE);
 	SBP_UNLOCK(sbp);
 
 	sbp_logout_all(sbp);
