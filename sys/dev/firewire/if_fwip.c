@@ -161,6 +161,7 @@ fwip_attach(device_t dev)
 	if (ifp == NULL)
 		return (ENOSPC);
 
+	mtx_init(&fwip->mtx, "fwip", NULL, MTX_DEF);
 	/* XXX */
 	fwip->dma_ch = -1;
 
@@ -197,8 +198,7 @@ fwip_attach(device_t dev)
 	ifp->if_init = fwip_init;
 	ifp->if_start = fwip_start;
 	ifp->if_ioctl = fwip_ioctl;
-	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST|
-	    IFF_NEEDSGIANT);
+	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
 	ifp->if_snd.ifq_maxlen = TX_MAX_QUEUE;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -282,6 +282,7 @@ fwip_detach(device_t dev)
 	fwip_stop(fwip);
 	firewire_ifdetach(ifp);
 	if_free(ifp);
+	mtx_destroy(&fwip->mtx);
 
 	splx(s);
 	return 0;
@@ -303,17 +304,11 @@ fwip_init(void *arg)
 	fc = fwip->fd.fc;
 #define START 0
 	if (fwip->dma_ch < 0) {
-		for (i = START; i < fc->nisodma; i ++) {
-			xferq = fc->ir[i];
-			if ((xferq->flag & FWXFERQ_OPEN) == 0)
-				goto found;
-		}
-		printf("no free dma channel\n");
-		return;
-found:
-		fwip->dma_ch = i;
-		/* allocate DMA channel and init packet mode */
-		xferq->flag |= FWXFERQ_OPEN | FWXFERQ_EXTBUF |
+		fwip->dma_ch = fw_open_isodma(fc, /* tx */0);
+		if (fwip->dma_ch < 0)
+			return;
+		xferq = fc->ir[fwip->dma_ch];
+		xferq->flag |= FWXFERQ_EXTBUF |
 				FWXFERQ_HANDLER | FWXFERQ_STREAM;
 		xferq->flag &= ~0xff;
 		xferq->flag |= broadcast_channel & 0xff;
@@ -522,8 +517,6 @@ fwip_output_callback(struct fw_xfer *xfer)
 	struct ifnet *ifp;
 	int s;
 
-	GIANT_REQUIRED;
-
 	fwip = (struct fwip_softc *)xfer->sc;
 	ifp = fwip->fw_softc.fwip_ifp;
 	/* XXX error check */
@@ -535,12 +528,15 @@ fwip_output_callback(struct fw_xfer *xfer)
 	fw_xfer_unload(xfer);
 
 	s = splimp();
+	FWIP_LOCK(fwip);
 	STAILQ_INSERT_TAIL(&fwip->xferlist, xfer, link);
+	FWIP_UNLOCK(fwip);
 	splx(s);
 
 	/* for queue full */
-	if (ifp->if_snd.ifq_head != NULL)
+	if (ifp->if_snd.ifq_head != NULL) {
 		fwip_start(ifp);
+	}
 }
 
 static void
@@ -548,8 +544,6 @@ fwip_start(struct ifnet *ifp)
 {
 	struct fwip_softc *fwip = ((struct fwip_eth_softc *)ifp->if_softc)->fwip;
 	int s;
-
-	GIANT_REQUIRED;
 
 	FWIPDEBUG(ifp, "starting\n");
 
@@ -603,19 +597,29 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 	int error;
 	int i = 0;
 
-	GIANT_REQUIRED;
-
 	xfer = NULL;
-	xferq = fwip->fd.fc->atq;
-	while (xferq->queued < xferq->maxq - 1) {
+	xferq = fc->atq;
+	while ((xferq->queued < xferq->maxq - 1) &&
+			(ifp->if_snd.ifq_head != NULL)) {
+		FWIP_LOCK(fwip);
 		xfer = STAILQ_FIRST(&fwip->xferlist);
 		if (xfer == NULL) {
+			FWIP_UNLOCK(fwip);
+#if 0
 			printf("if_fwip: lack of xfer\n");
-			return;
-		}
-		IF_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
+#endif
 			break;
+		}
+		STAILQ_REMOVE_HEAD(&fwip->xferlist, link);
+		FWIP_UNLOCK(fwip);
+
+		IF_DEQUEUE(&ifp->if_snd, m);
+		if (m == NULL) {
+			FWIP_LOCK(fwip);
+			STAILQ_INSERT_HEAD(&fwip->xferlist, xfer, link);
+			FWIP_UNLOCK(fwip);
+			break;
+		}
 
 		/*
 		 * Dig out the link-level address which
@@ -629,7 +633,6 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 		else
 			destfw = (struct fw_hwaddr *) (mtag + 1);
 
-		STAILQ_REMOVE_HEAD(&fwip->xferlist, link);
 
 		/*
 		 * We don't do any bpf stuff here - the generic code
@@ -722,7 +725,9 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 			 * for later transmission.
 			 */
 			xfer->mbuf = 0;
+			FWIP_LOCK(fwip);
 			STAILQ_INSERT_TAIL(&fwip->xferlist, xfer, link);
+			FWIP_UNLOCK(fwip);
 			IF_PREPEND(&ifp->if_snd, m);
 			break;
 		}
@@ -741,13 +746,8 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 	if (i > 1)
 		printf("%d queued\n", i);
 #endif
-	if (i > 0) {
-#if 1
+	if (i > 0)
 		xferq->start(fc);
-#else
-		taskqueue_enqueue(taskqueue_swi_giant, &fwip->start_send);
-#endif
-	}
 }
 
 static void
@@ -755,7 +755,6 @@ fwip_start_send (void *arg, int count)
 {
 	struct fwip_softc *fwip = arg;
 
-	GIANT_REQUIRED;
 	fwip->fd.fc->atq->start(fwip->fd.fc);
 }
 
@@ -772,7 +771,6 @@ fwip_stream_input(struct fw_xferq *xferq)
 	uint16_t src;
 	uint32_t *p;
 
-	GIANT_REQUIRED;
 
 	fwip = (struct fwip_softc *)xferq->sc;
 	ifp = fwip->fw_softc.fwip_ifp;
@@ -874,8 +872,6 @@ fwip_unicast_input_recycle(struct fwip_softc *fwip, struct fw_xfer *xfer)
 {
 	struct mbuf *m;
 
-	GIANT_REQUIRED;
-
 	/*
 	 * We have finished with a unicast xfer. Allocate a new
 	 * cluster and stick it on the back of the input queue.
@@ -899,8 +895,6 @@ fwip_unicast_input(struct fw_xfer *xfer)
 	struct fw_pkt *fp;
 	//struct fw_pkt *sfp;
 	int rtcode;
-
-	GIANT_REQUIRED;
 
 	fwip = (struct fwip_softc *)xfer->sc;
 	ifp = fwip->fw_softc.fwip_ifp;

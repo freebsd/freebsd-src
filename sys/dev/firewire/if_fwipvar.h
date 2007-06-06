@@ -58,5 +58,8 @@ struct fwip_softc {
 		struct ifnet *fwip_ifp;
 		struct fwip_softc *fwip;
 	} fw_softc;
+	struct mtx mtx;
 };
+#define FWIP_LOCK(fwip)   mtx_lock(&(fwip)->mtx)
+#define FWIP_UNLOCK(fwip) mtx_unlock(&(fwip)->mtx)
 #endif /* !_NET_IF_FWIPVAR_H_ */

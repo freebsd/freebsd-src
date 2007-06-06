@@ -245,7 +245,10 @@ struct sbp_softc {
 	struct timeval last_busreset;
 #define SIMQ_FREEZED 1
 	int flags;
+	struct mtx mtx;
 };
+#define SBP_LOCK(sbp) mtx_lock(&(sbp)->mtx)
+#define SBP_UNLOCK(sbp) mtx_unlock(&(sbp)->mtx)
 
 static void sbp_post_explore (void *);
 static void sbp_recv (struct fw_xfer *);
@@ -736,8 +739,10 @@ END_DEBUG
 			continue;
 		if (alive && (sdev->status != SBP_DEV_DEAD)) {
 			if (sdev->path != NULL) {
+				SBP_LOCK(sbp);
 				xpt_freeze_devq(sdev->path, 1);
 				sdev->freeze ++;
+				SBP_UNLOCK(sbp);
 			}
 			sbp_probe_lun(sdev);
 SBP_DEBUG(0)
@@ -769,8 +774,10 @@ SBP_DEBUG(0)
 				printf("lost target\n");
 END_DEBUG
 				if (sdev->path) {
+					SBP_LOCK(sbp);
 					xpt_freeze_devq(sdev->path, 1);
 					sdev->freeze ++;
+					SBP_UNLOCK(sbp);
 				}
 				sdev->status = SBP_DEV_RETRY;
 				sbp_abort_all_ocbs(sdev, CAM_SCSI_BUS_RESET);
@@ -798,8 +805,10 @@ SBP_DEBUG(0)
 	printf("sbp_post_busreset\n");
 END_DEBUG
 	if ((sbp->sim->flags & SIMQ_FREEZED) == 0) {
+		SBP_LOCK(sbp);
 		xpt_freeze_simq(sbp->sim, /*count*/1);
 		sbp->sim->flags |= SIMQ_FREEZED;
+		SBP_UNLOCK(sbp);
 	}
 	microtime(&sbp->last_busreset);
 }
@@ -870,8 +879,10 @@ END_DEBUG
 		if (target->num_lun == 0)
 			sbp_free_target(target);
 	}
+	SBP_LOCK(sbp);
 	xpt_release_simq(sbp->sim, /*run queue*/TRUE);
 	sbp->sim->flags &= ~SIMQ_FREEZED;
+	SBP_UNLOCK(sbp);
 }
 
 #if NEED_RESPONSE
@@ -901,7 +912,9 @@ sbp_xfer_free(struct fw_xfer *xfer)
 	sdev = (struct sbp_dev *)xfer->sc;
 	fw_xfer_unload(xfer);
 	s = splfw();
+	SBP_LOCK(sdev->target->sbp);
 	STAILQ_INSERT_TAIL(&sdev->target->xferlist, xfer, link);
+	SBP_UNLOCK(sdev->target->sbp);
 	splx(s);
 }
 
@@ -1043,9 +1056,11 @@ END_DEBUG
 	ccb->ccb_h.ccb_sdev_ptr = sdev;
 
 	/* The scan is in progress now. */
+	SBP_LOCK(target->sbp);
 	xpt_action(ccb);
 	xpt_release_devq(sdev->path, sdev->freeze, TRUE);
 	sdev->freeze = 1;
+	SBP_UNLOCK(target->sbp);
 }
 
 static __inline void
@@ -1108,8 +1123,10 @@ END_DEBUG
 
 	sbp_xfer_free(xfer);
 	if (sdev->path) {
+		SBP_LOCK(sdev->target->sbp);
 		xpt_release_devq(sdev->path, sdev->freeze, TRUE);
 		sdev->freeze = 0;
+		SBP_UNLOCK(sdev->target->sbp);
 	}
 }
 
@@ -1353,20 +1370,25 @@ sbp_mgm_orb(struct sbp_dev *sdev, int func, struct sbp_ocb *aocb)
 	nid = target->sbp->fd.fc->nodeid | FWLOCALBUS;
 
 	s = splfw();
+	SBP_LOCK(target->sbp);
 	if (func == ORB_FUN_RUNQUEUE) {
 		ocb = STAILQ_FIRST(&target->mgm_ocb_queue);
 		if (target->mgm_ocb_cur != NULL || ocb == NULL) {
+			SBP_UNLOCK(target->sbp);
 			splx(s);
 			return;
 		}
 		STAILQ_REMOVE_HEAD(&target->mgm_ocb_queue, ocb);
+		SBP_UNLOCK(target->sbp);
 		goto start;
 	}
 	if ((ocb = sbp_get_ocb(sdev)) == NULL) {
+		SBP_UNLOCK(target->sbp);
 		splx(s);
 		/* XXX */
 		return;
 	}
+	SBP_UNLOCK(target->sbp);
 	ocb->flags = OCB_ACT_MGM;
 	ocb->sdev = sdev;
 
@@ -1404,7 +1426,9 @@ END_DEBUG
 
 	if (target->mgm_ocb_cur != NULL) {
 		/* there is a standing ORB */
+		SBP_LOCK(target->sbp);
 		STAILQ_INSERT_TAIL(&sdev->target->mgm_ocb_queue, ocb, ocb);
+		SBP_UNLOCK(target->sbp);
 		splx(s);
 		return;
 	}
@@ -1738,8 +1762,10 @@ END_DEBUG
 	/* we have to reset the fetch agent if it's dead */
 	if (sbp_status->dead) {
 		if (sdev->path) {
+			SBP_LOCK(sbp);
 			xpt_freeze_devq(sdev->path, 1);
 			sdev->freeze ++;
+			SBP_UNLOCK(sbp);
 		}
 		reset_agent = 1;
 	}
@@ -1847,7 +1873,9 @@ printf("len %d\n", sbp_status->len);
 				/* fix up inq data */
 				if (ccb->csio.cdb_io.cdb_bytes[0] == INQUIRY)
 					sbp_fix_inq_data(ocb);
+				SBP_LOCK(sbp);
 				xpt_done(ccb);
+				SBP_UNLOCK(sbp);
 			}
 			break;
 		default:
@@ -1910,6 +1938,7 @@ sbp_attach(device_t dev)
 {
 	struct sbp_softc *sbp;
 	struct cam_devq *devq;
+	struct firewire_comm *fc;
 	int i, s, error;
 
 	if (DFLTPHYS > SBP_MAXPHYS)
@@ -1926,12 +1955,13 @@ END_DEBUG
 	sbp = ((struct sbp_softc *)device_get_softc(dev));
 	bzero(sbp, sizeof(struct sbp_softc));
 	sbp->fd.dev = dev;
-	sbp->fd.fc = device_get_ivars(dev);
+	sbp->fd.fc = fc = device_get_ivars(dev);
+	mtx_init(&sbp->mtx, "sbp", NULL, MTX_DEF);
 
 	if (max_speed < 0)
-		max_speed = sbp->fd.fc->speed;
+		max_speed = fc->speed;
 
-	error = bus_dma_tag_create(/*parent*/sbp->fd.fc->dmat,
+	error = bus_dma_tag_create(/*parent*/fc->dmat,
 				/* XXX shoud be 4 for sane backend? */
 				/*alignment*/1,
 				/*boundary*/0,
@@ -1943,7 +1973,7 @@ END_DEBUG
 				/*flags*/BUS_DMA_ALLOCNOW,
 #if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 				/*lockfunc*/busdma_lock_mutex,
-				/*lockarg*/&Giant,
+				/*lockarg*/&sbp->mtx,
 #endif
 				&sbp->dmat);
 	if (error != 0) {
@@ -1963,7 +1993,7 @@ END_DEBUG
 
 	sbp->sim = cam_sim_alloc(sbp_action, sbp_poll, "sbp", sbp,
 				 device_get_unit(dev),
-				 &Giant,
+				 &sbp->mtx,
 				 /*untagged*/ 1,
 				 /*tagged*/ SBP_QUEUE_LEN - 1,
 				 devq);
@@ -1973,7 +2003,7 @@ END_DEBUG
 		return (ENXIO);
 	}
 
-
+	SBP_LOCK(sbp);
 	if (xpt_bus_register(sbp->sim, /*bus*/0) != CAM_SUCCESS)
 		goto fail;
 
@@ -1982,6 +2012,7 @@ END_DEBUG
 		xpt_bus_deregister(cam_sim_path(sbp->sim));
 		goto fail;
 	}
+	SBP_UNLOCK(sbp);
 
 	/* We reserve 16 bit space (4 bytes X 64 targets X 256 luns) */
 	sbp->fwb.start = ((u_int64_t)SBP_BIND_HI << 32) | SBP_DEV2ADDR(0, 0);
@@ -1990,22 +2021,26 @@ END_DEBUG
 	STAILQ_INIT(&sbp->fwb.xferlist);
 	fw_xferlist_add(&sbp->fwb.xferlist, M_SBP,
 	    /*send*/ 0, /*recv*/ SBP_RECV_LEN, SBP_NUM_OCB/2,
-	    sbp->fd.fc, (void *)sbp, sbp_recv);
-	fw_bindadd(sbp->fd.fc, &sbp->fwb);
+	    fc, (void *)sbp, sbp_recv);
+
+	fw_bindadd(fc, &sbp->fwb);
 
 	sbp->fd.post_busreset = sbp_post_busreset;
 	sbp->fd.post_explore = sbp_post_explore;
 
-	if (sbp->fd.fc->status != -1) {
+	if (fc->status != -1) {
 		s = splfw();
 		sbp_post_busreset((void *)sbp);
 		sbp_post_explore((void *)sbp);
 		splx(s);
 	}
+	SBP_LOCK(sbp);
 	xpt_async(AC_BUS_RESET, sbp->path, /*arg*/ NULL);
+	SBP_UNLOCK(sbp);
 
 	return (0);
 fail:
+	SBP_UNLOCK(sbp);
 	cam_sim_free(sbp->sim, /*free_devq*/TRUE);
 	return (ENXIO);
 }
@@ -2100,10 +2135,13 @@ END_DEBUG
 
 	for (i = 0; i < SBP_NUM_TARGETS; i ++) 
 		sbp_cam_detach_target(&sbp->targets[i]);
+
+	SBP_LOCK(sbp);
 	xpt_async(AC_LOST_DEVICE, sbp->path, NULL);
 	xpt_free_path(sbp->path);
 	xpt_bus_deregister(cam_sim_path(sbp->sim));
 	cam_sim_free(sbp->sim, /*free_devq*/ TRUE),
+	SBP_UNLOCK(sbp);
 
 	sbp_logout_all(sbp);
 
@@ -2117,6 +2155,7 @@ END_DEBUG
 	fw_xferlist_remove(&sbp->fwb.xferlist);
 
 	bus_dma_tag_destroy(sbp->dmat);
+	mtx_destroy(&sbp->mtx);
 
 	return (0);
 }
@@ -2130,15 +2169,17 @@ sbp_cam_detach_sdev(struct sbp_dev *sdev)
 		return;
 	if (sdev->status == SBP_DEV_RESET)
 		return;
+	sbp_abort_all_ocbs(sdev, CAM_DEV_NOT_THERE);
 	if (sdev->path) {
+		SBP_LOCK(sdev->target->sbp);
 		xpt_release_devq(sdev->path,
 				 sdev->freeze, TRUE);
 		sdev->freeze = 0;
 		xpt_async(AC_LOST_DEVICE, sdev->path, NULL);
 		xpt_free_path(sdev->path);
 		sdev->path = NULL;
+		SBP_UNLOCK(sdev->target->sbp);
 	}
-	sbp_abort_all_ocbs(sdev, CAM_DEV_NOT_THERE);
 }
 
 static void
@@ -2171,8 +2212,10 @@ sbp_target_reset(struct sbp_dev *sdev, int method)
 			continue;
 		if (tsdev->status == SBP_DEV_RESET)
 			continue;
+		SBP_LOCK(target->sbp);
 		xpt_freeze_devq(tsdev->path, 1);
 		tsdev->freeze ++;
+		SBP_UNLOCK(target->sbp);
 		sbp_abort_all_ocbs(tsdev, CAM_CMD_TIMEOUT);
 		if (method == 2)
 			tsdev->status = SBP_DEV_LOGIN;
@@ -2227,8 +2270,10 @@ sbp_timeout(void *arg)
 	switch(sdev->timeout) {
 	case 1:
 		printf("agent reset\n");
+		SBP_LOCK(sdev->target->sbp);
 		xpt_freeze_devq(sdev->path, 1);
 		sdev->freeze ++;
+		SBP_UNLOCK(sdev->target->sbp);
 		sbp_abort_all_ocbs(sdev, CAM_CMD_TIMEOUT);
 		sbp_agent_reset(sdev);
 		break;
@@ -2332,6 +2377,7 @@ END_DEBUG
 		void *cdb;
 
 		csio = &ccb->csio;
+		mtx_assert(sim->mtx, MA_OWNED);
 
 SBP_DEBUG(2)
 		printf("%s:%d:%d XPT_SCSI_IO: "
@@ -2375,8 +2421,10 @@ END_DEBUG
 		if ((ocb = sbp_get_ocb(sdev)) == NULL) {
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			if (sdev->freeze == 0) {
+				SBP_LOCK(sdev->target->sbp);
 				xpt_freeze_devq(sdev->path, 1);
 				sdev->freeze ++;
+				SBP_UNLOCK(sdev->target->sbp);
 			}
 			xpt_done(ccb);
 			return;
@@ -2681,6 +2729,7 @@ SBP_DEBUG(1)
 #endif
 	    __func__, ntohl(sbp_status->orb_lo), sbp_status->src);
 END_DEBUG
+	SBP_LOCK(sdev->target->sbp);
 	for (ocb = STAILQ_FIRST(&sdev->ocbs); ocb != NULL; ocb = next) {
 		next = STAILQ_NEXT(ocb, ocb);
 		flags = ocb->flags;
@@ -2728,6 +2777,7 @@ END_DEBUG
 		} else
 			order ++;
 	}
+	SBP_UNLOCK(sdev->target->sbp);
 	splx(s);
 SBP_DEBUG(0)
 	if (ocb && order > 0) {
@@ -2785,6 +2835,8 @@ sbp_get_ocb(struct sbp_dev *sdev)
 {
 	struct sbp_ocb *ocb;
 	int s = splfw();
+
+	mtx_assert(&sdev->target->sbp->mtx, MA_OWNED);
 	ocb = STAILQ_FIRST(&sdev->free_ocbs);
 	if (ocb == NULL) {
 		sdev->flags |= ORB_SHORTAGE;
@@ -2803,6 +2855,8 @@ sbp_free_ocb(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 {
 	ocb->flags = 0;
 	ocb->ccb = NULL;
+
+	SBP_LOCK(sdev->target->sbp);
 	STAILQ_INSERT_TAIL(&sdev->free_ocbs, ocb, ocb);
 	if ((sdev->flags & ORB_SHORTAGE) != 0) {
 		int count;
@@ -2812,6 +2866,7 @@ sbp_free_ocb(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 		sdev->freeze = 0;
 		xpt_release_devq(sdev->path, count, TRUE);
 	}
+	SBP_UNLOCK(sdev->target->sbp);
 }
 
 static void
@@ -2842,7 +2897,9 @@ END_DEBUG
 		untimeout(sbp_timeout, (caddr_t)ocb,
 					ocb->ccb->ccb_h.timeout_ch);
 		ocb->ccb->ccb_h.status = status;
+		SBP_LOCK(sdev->target->sbp);
 		xpt_done(ocb->ccb);
+		SBP_UNLOCK(sdev->target->sbp);
 	}
 	sbp_free_ocb(sdev, ocb);
 }
