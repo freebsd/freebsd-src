@@ -843,7 +843,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	if (th->th_seq != sc->sc_irs + 1) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 			log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u, segment "
-			    "rejected\n", s, __func__, th->th_ack, sc->sc_iss);
+			    "rejected\n", s, __func__, th->th_seq, sc->sc_irs);
 		goto failed;
 	}
 	/*
