@@ -176,7 +176,8 @@ struct sbus_softc {
 struct sbus_clr {
 	struct sbus_softc	*scl_sc;
 	bus_addr_t		scl_clr;	/* clear register */
-	driver_filter_t		*scl_handler;	/* handler to call */
+	driver_filter_t		*scl_filter;
+	driver_intr_t		*scl_handler;	/* handler to call */
 	void			*scl_arg;	/* argument for the handler */
 	void			*scl_cookie;	/* parent bus int. cookie */
 };
@@ -205,7 +206,8 @@ static int sbus_inlist(const char *, const char **);
 static struct sbus_devinfo * sbus_setup_dinfo(device_t, struct sbus_softc *,
     phandle_t);
 static void sbus_destroy_dinfo(struct sbus_devinfo *);
-static driver_filter_t sbus_intr_stub;
+static driver_filter_t sbus_filter_stub;
+static driver_intr_t sbus_intr_stub;
 static bus_space_tag_t sbus_alloc_bustag(struct sbus_softc *);
 static driver_filter_t sbus_overtemp;
 static driver_filter_t sbus_pwrfail;
@@ -627,14 +629,29 @@ sbus_get_resource_list(device_t dev, device_t child)
 
 /* Write to the correct clr register, and call the actual handler. */
 static int
+sbus_filter_stub(void *arg)
+{
+	struct sbus_clr *scl;
+	int res;
+
+	scl = (struct sbus_clr *)arg;
+	if (scl->scl_filter != NULL) {
+		res = scl->scl_filter(scl->scl_arg);
+		SYSIO_WRITE8(scl->scl_sc, scl->scl_clr, 0);
+	} else
+		res = FILTER_SCHEDULE_THREAD;	
+	return (res);
+}
+
+static void
 sbus_intr_stub(void *arg)
 {
 	struct sbus_clr *scl;
 
 	scl = (struct sbus_clr *)arg;
 	scl->scl_handler(scl->scl_arg);
-	SYSIO_WRITE8(scl->scl_sc, scl->scl_clr, 0);
-	return (FILTER_HANDLED);
+	if (scl->scl_filter == NULL)
+		SYSIO_WRITE8(scl->scl_sc, scl->scl_clr, 0);
 }
 
 static int
@@ -689,17 +706,13 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 
 	scl->scl_sc = sc;
 	scl->scl_arg = arg;
-	scl->scl_handler = (filt != NULL) ? filt : (driver_filter_t *)intr;
+	scl->scl_filter = filt;
+	scl->scl_handler = intr;
 	scl->scl_clr = intrclrptr;
 	/* Disable the interrupt while we fiddle with it */
 	SYSIO_WRITE8(sc, intrmapptr, intrmap & ~INTMAP_V);
-	if (filt != NULL)
-		error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, 
-		    flags, sbus_intr_stub, NULL, scl, cookiep);
-	else 
-		error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, 
-		    flags, NULL, (driver_intr_t *)sbus_intr_stub, scl, 
-		    cookiep);
+	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
+	    sbus_filter_stub, sbus_intr_stub, scl, cookiep);
 	if (error != 0) {
 		free(scl, M_DEVBUF);
 		return (error);
