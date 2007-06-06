@@ -358,9 +358,10 @@ g_part_apm_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS));
 	if (!strcmp(type, APM_ENT_TYPE_FREEBSD_VINUM))
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM));
-	len = MIN(sizeof(entry->ent.ent_type), bufsz - 1);
-	bcopy(type, buf, len);
-	buf[len] = '\0';
+	buf[0] = '!';
+	len = MIN(sizeof(entry->ent.ent_type), bufsz - 2);
+	bcopy(type, buf + 1, len);
+	buf[len + 1] = '\0';
 	return (buf);
 }
 
