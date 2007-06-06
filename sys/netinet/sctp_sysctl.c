@@ -192,6 +192,8 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
 
 	/* neither Mac OS X nor FreeBSD support mulitple routing functions */
 	if ((vrf = sctp_find_vrf(inp->def_vrf_id)) == NULL) {
+		SCTP_INP_RUNLOCK(inp);
+		SCTP_INP_INFO_RUNLOCK();
 		return (-1);
 	}
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
@@ -273,11 +275,18 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
 	}
 	memset((void *)&xladdr, 0, sizeof(union sctp_sockstore));
 	xladdr.last = 1;
+	SCTP_INP_RUNLOCK(inp);
+	SCTP_INP_INFO_RUNLOCK();
 	error = SYSCTL_OUT(req, &xladdr, sizeof(struct xsctp_laddr));
+
 	if (error)
 		return (error);
-	else
+
+	else {
+		SCTP_INP_INFO_RLOCK();
+		SCTP_INP_RLOCK(inp);
 		return (0);
+	}
 }
 
 /*
