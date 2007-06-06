@@ -250,6 +250,7 @@ compat/linux/linux_uid16.c	optional	compat_linux32
 compat/linux/linux_util.c	optional	compat_linux32
 #
 dev/amr/amr_linux.c		optional	compat_linux32 amr
+dev/mfi/mfi_linux.c		optional	compat_linux32 mfi
 # Windows NDIS driver support
 #
 compat/ndis/kern_ndis.c		optional	ndisapi pci

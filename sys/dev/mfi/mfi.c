@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 
 static int	mfi_alloc_commands(struct mfi_softc *);
 static int	mfi_comms_init(struct mfi_softc *);
-static int	mfi_polled_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_wait_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_get_controller_info(struct mfi_softc *);
 static int	mfi_get_log_state(struct mfi_softc *,
@@ -450,17 +449,21 @@ mfi_release_command(struct mfi_command *cm)
 
 	/*
 	 * Zero out the important fields of the frame, but make sure the
-	 * context field is preserved
+	 * context field is preserved.  For efficiency, handle the fields
+	 * as 32 bit words.  Clear out the first S/G entry too for safety.
 	 */
-	hdr_data = (uint32_t *)cm->cm_frame;
-	hdr_data[0] = 0;
-	hdr_data[1] = 0;
-
 	hdr = &cm->cm_frame->header;
 	if (hdr->sg_count) {
 		cm->cm_sg->sg32[0].len = 0;
 		cm->cm_sg->sg32[0].addr = 0;
 	}
+
+	hdr_data = (uint32_t *)cm->cm_frame;
+	hdr_data[0] = 0;	/* cmd, sense_len, cmd_status, scsi_status */
+	hdr_data[1] = 0;	/* target_id, lun_id, cdb_len, sg_count */
+	hdr_data[4] = 0;	/* flags, timeout */
+	hdr_data[5] = 0;	/* data_len */
+
 	cm->cm_extra_frames = 0;
 	cm->cm_flags = 0;
 	cm->cm_complete = NULL;
@@ -550,8 +553,10 @@ mfi_comms_init(struct mfi_softc *sc)
 	init->header.cmd = MFI_CMD_INIT;
 	init->header.data_len = sizeof(struct mfi_init_qinfo);
 	init->qinfo_new_addr_lo = cm->cm_frame_busaddr + MFI_FRAME_SIZE;
+	cm->cm_data = NULL;
+	cm->cm_flags = MFI_CMD_POLLED;
 
-	if ((error = mfi_polled_command(sc, cm)) != 0) {
+	if ((error = mfi_mapcmd(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "failed to send init command\n");
 		mtx_unlock(&sc->mfi_io_lock);
 		return (error);
@@ -578,15 +583,6 @@ mfi_get_controller_info(struct mfi_softc *sc)
 	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		device_printf(sc->mfi_dev, "Controller info buffer map failed\n");
-		free(ci, M_MFIBUF);
-		mfi_release_command(cm);
-		mtx_unlock(&sc->mfi_io_lock);
-		return (error);
-	}
-
-	/* It's ok if this fails, just use default info instead */
-	if ((error = mfi_polled_command(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to get controller info\n");
 		sc->mfi_max_io = (sc->mfi_max_sge - 1) * PAGE_SIZE /
 		    MFI_SECTOR_LEN;
@@ -624,11 +620,6 @@ mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state **log_state)
 	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		device_printf(sc->mfi_dev, "Log state buffer map failed\n");
-		goto out;
-	}
-
-	if ((error = mfi_polled_command(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to get log state\n");
 		goto out;
 	}
@@ -682,44 +673,27 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 }
 
 static int
-mfi_polled_command(struct mfi_softc *sc, struct mfi_command *cm)
-{
-	struct mfi_frame_header *hdr;
-	int tm = MFI_POLL_TIMEOUT_SECS * 1000000;
-
-	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
-
-	hdr = &cm->cm_frame->header;
-	hdr->cmd_status = 0xff;
-	hdr->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
-
-	mfi_send_frame(sc, cm);
-
-	while (hdr->cmd_status == 0xff) {
-		DELAY(1000);
-		tm -= 1000;
-		if (tm <= 0)
-			break;
-	}
-
-	if (hdr->cmd_status == 0xff) {
-		device_printf(sc->mfi_dev, "Frame %p timed out\n", hdr);
-		return (ETIMEDOUT);
-	}
-
-	return (0);
-}
-
-static int
 mfi_wait_command(struct mfi_softc *sc, struct mfi_command *cm)
 {
 
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 	cm->cm_complete = NULL;
 
+
+	/*
+	 * MegaCli can issue a DCMD of 0.  In this case do nothing
+	 * and return 0 to it as status
+	 */
+	if (cm->cm_frame->dcmd.opcode == 0) {
+		cm->cm_frame->header.cmd_status = MFI_STAT_OK;
+		cm->cm_error = 0;
+		return (cm->cm_error);
+	}
 	mfi_enqueue_ready(cm);
 	mfi_startio(sc);
-	return (msleep(cm, &sc->mfi_io_lock, PRIBIO, "mfiwait", 0));
+	if ((cm->cm_flags & MFI_CMD_COMPLETED) == 0)
+		msleep(cm, &sc->mfi_io_lock, PRIBIO, "mfiwait", 0);
+	return (cm->cm_error);
 }
 
 void
@@ -817,9 +791,12 @@ mfi_intr(void *arg)
 	mtx_lock(&sc->mfi_io_lock);
 	while (ci != pi) {
 		context = sc->mfi_comms->hw_reply_q[ci];
-		cm = &sc->mfi_commands[context];
-		mfi_remove_busy(cm);
-		mfi_complete(sc, cm);
+		if (context < sc->mfi_max_fw_cmds) {
+			cm = &sc->mfi_commands[context];
+			mfi_remove_busy(cm);
+			cm->cm_error = 0;
+			mfi_complete(sc, cm);
+		}
 		if (++ci == (sc->mfi_max_fw_cmds + 1)) {
 			ci = 0;
 		}
@@ -855,8 +832,10 @@ mfi_shutdown(struct mfi_softc *sc)
 
 	dcmd = &cm->cm_frame->dcmd;
 	dcmd->header.flags = MFI_FRAME_DIR_NONE;
+	cm->cm_flags = MFI_CMD_POLLED;
+	cm->cm_data = NULL;
 
-	if ((error = mfi_polled_command(sc, cm)) != 0) {
+	if ((error = mfi_mapcmd(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to shutdown controller\n");
 	}
 
@@ -1340,13 +1319,6 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 	cm->cm_len = size;
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		device_printf(sc->mfi_dev, "Controller info buffer map failed");
-		free(el, M_MFIBUF);
-		mfi_release_command(cm);
-		return (error);
-	}
-
-	if ((error = mfi_polled_command(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to get controller entry\n");
 		sc->mfi_max_io = (sc->mfi_max_sge - 1) * PAGE_SIZE /
 		    MFI_SECTOR_LEN;
@@ -1410,7 +1382,6 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	struct mfi_frame_header *hdr;
 	struct mfi_ld_info *ld_info;
 	struct mfi_softc *sc;
-	struct mfi_ld *ld;
 	device_t child;
 
 	sc = cm->cm_sc;
@@ -1424,28 +1395,18 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	}
 	mfi_release_command(cm);
 
-	ld = malloc(sizeof(struct mfi_ld), M_MFIBUF, M_NOWAIT|M_ZERO);
-	if (ld == NULL) {
-		device_printf(sc->mfi_dev, "Cannot allocate ld\n");
-		free(ld_info, M_MFIBUF);
-		return;
-	}
-
-	if ((child = device_add_child(sc->mfi_dev, "mfid", -1)) == NULL) {
-		device_printf(sc->mfi_dev, "Failed to add logical disk\n");
-		free(ld, M_MFIBUF);
-		free(ld_info, M_MFIBUF);
-		return;
-	}
-
-	ld->ld_id = ld_info->ld_config.properties.ld.v.target_id;
-	ld->ld_disk = child;
-	ld->ld_info = ld_info;
-
-	device_set_ivars(child, ld);
-	device_set_desc(child, "MFI Logical Disk");
 	mtx_unlock(&sc->mfi_io_lock);
 	mtx_lock(&Giant);
+	if ((child = device_add_child(sc->mfi_dev, "mfid", -1)) == NULL) {
+		device_printf(sc->mfi_dev, "Failed to add logical disk\n");
+		free(ld_info, M_MFIBUF);
+		mtx_unlock(&Giant);
+		mtx_lock(&sc->mfi_io_lock);
+		return;
+	}
+
+	device_set_ivars(child, ld_info);
+	device_set_desc(child, "MFI Logical Disk");
 	bus_generic_attach(sc->mfi_dev);
 	mtx_unlock(&Giant);
 	mtx_lock(&sc->mfi_io_lock);
@@ -1576,8 +1537,6 @@ mfi_mapcmd(struct mfi_softc *sc, struct mfi_command *cm)
 			return (0);
 		}
 	} else {
-		cm->cm_timestamp = time_uptime;
-		mfi_enqueue_busy(cm);
 		error = mfi_send_frame(sc, cm);
 	}
 
@@ -1593,13 +1552,17 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	struct mfi_softc *sc;
 	int i, dir;
 
-	if (error)
-		return;
-
 	cm = (struct mfi_command *)arg;
 	sc = cm->cm_sc;
 	hdr = &cm->cm_frame->header;
 	sgl = cm->cm_sg;
+
+	if (error) {
+		printf("error %d in callback\n", error);
+		cm->cm_error = error;
+		mfi_complete(sc, cm);
+		return;
+	}
 
 	if ((sc->mfi_flags & MFI_FLAGS_SG64) == 0) {
 		for (i = 0; i < nsegs; i++) {
@@ -1636,12 +1599,7 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	cm->cm_total_frame_size += (sc->mfi_sge_size * nsegs);
 	cm->cm_extra_frames = (cm->cm_total_frame_size - 1) / MFI_FRAME_SIZE;
 
-	/* The caller will take care of delivering polled commands */
-	if ((cm->cm_flags & MFI_CMD_POLLED) == 0) {
-		cm->cm_timestamp = time_uptime;
-		mfi_enqueue_busy(cm);
-		mfi_send_frame(sc, cm);
-	}
+	mfi_send_frame(sc, cm);
 
 	return;
 }
@@ -1649,6 +1607,18 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 {
+	struct mfi_frame_header *hdr;
+	int tm = MFI_POLL_TIMEOUT_SECS * 1000;
+
+	hdr = &cm->cm_frame->header;
+
+	if ((cm->cm_flags & MFI_CMD_POLLED) == 0) {
+		cm->cm_timestamp = time_uptime;
+		mfi_enqueue_busy(cm);
+	} else {
+		hdr->cmd_status = 0xff;
+		hdr->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
+	}
 
 	/*
 	 * The bus address of the command is aligned on a 64 byte boundary,
@@ -1667,6 +1637,24 @@ mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 
 	MFI_WRITE4(sc, MFI_IQP, (cm->cm_frame_busaddr >> 3) |
 	    cm->cm_extra_frames);
+
+	if ((cm->cm_flags & MFI_CMD_POLLED) == 0)
+		return (0);
+
+	/* This is a polled command, so busy-wait for it to complete. */
+	while (hdr->cmd_status == 0xff) {
+		DELAY(1000);
+		tm -= 1;
+		if (tm <= 0)
+			break;
+	}
+
+	if (hdr->cmd_status == 0xff) {
+		device_printf(sc->mfi_dev, "Frame %p timed out "
+			      "command 0x%X\n", hdr, cm->cm_frame->dcmd.opcode);
+		return (ETIMEDOUT);
+	}
+
 	return (0);
 }
 
@@ -1687,6 +1675,8 @@ mfi_complete(struct mfi_softc *sc, struct mfi_command *cm)
 		cm->cm_flags &= ~MFI_CMD_MAPPED;
 	}
 
+	cm->cm_flags |= MFI_CMD_COMPLETED;
+
 	if (cm->cm_complete != NULL)
 		cm->cm_complete(cm);
 	else
@@ -1698,6 +1688,7 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
 {
 	struct mfi_command *cm;
 	struct mfi_abort_frame *abort;
+	int i = 0;
 
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 
@@ -1712,14 +1703,15 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
 	abort->abort_mfi_addr_lo = cm_abort->cm_frame_busaddr;
 	abort->abort_mfi_addr_hi = 0;
 	cm->cm_data = NULL;
+	cm->cm_flags = MFI_CMD_POLLED;
 
 	sc->mfi_aen_cm->cm_aen_abort = 1;
 	mfi_mapcmd(sc, cm);
-	mfi_polled_command(sc, cm);
 	mfi_release_command(cm);
 
-	while (sc->mfi_aen_cm != NULL) {
+	while (i < 5 && sc->mfi_aen_cm != NULL) {
 		msleep(&sc->mfi_aen_cm, &sc->mfi_io_lock, 0, "mfiabort", 5 * hz);
+		i++;
 	}
 
 	return (0);
@@ -1752,12 +1744,7 @@ mfi_dump_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt, int len)
 	cm->cm_total_frame_size = MFI_IO_FRAME_SIZE;
 	cm->cm_flags = MFI_CMD_POLLED | MFI_CMD_DATAOUT;
 
-	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		mfi_release_command(cm);
-		return (error);
-	}
-
-	error = mfi_polled_command(sc, cm);
+	error = mfi_mapcmd(sc, cm);
 	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
 	    BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
@@ -1807,6 +1794,13 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 {
 	struct mfi_softc *sc;
 	union mfi_statrequest *ms;
+	struct mfi_ioc_packet *ioc;
+	struct mfi_ioc_aen *aen;
+	struct mfi_command *cm = NULL;
+	uint32_t context;
+	uint8_t *sense_ptr;
+	uint8_t *data = NULL, *temp;
+	int i;
 	int error;
 
 	sc = dev->si_drv1;
@@ -1828,7 +1822,140 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			break;
 		}
 		break;
-	case 0xc1144d01: /* Firmware Linux ioctl shim */
+	case MFIIO_QUERY_DISK:
+	{
+		struct mfi_query_disk *qd;
+		struct mfi_disk *ld;
+
+		qd = (struct mfi_query_disk *)arg;
+		mtx_lock(&sc->mfi_io_lock);
+		TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link) {
+			if (ld->ld_id == qd->array_id)
+				break;
+		}
+		if (ld == NULL) {
+			qd->present = 0;
+			mtx_unlock(&sc->mfi_io_lock);
+			return (0);
+		}
+		qd->present = 1;
+		if (ld->ld_flags & MFI_DISK_FLAGS_OPEN)
+			qd->open = 1;
+		bzero(qd->devname, SPECNAMELEN + 1);
+		snprintf(qd->devname, SPECNAMELEN, "mfid%d", ld->ld_unit);
+		mtx_unlock(&sc->mfi_io_lock);
+		break;
+	}
+	case MFI_CMD:
+		ioc = (struct mfi_ioc_packet *)arg;
+
+		mtx_lock(&sc->mfi_io_lock);
+		if ((cm = mfi_dequeue_free(sc)) == NULL) {
+			mtx_unlock(&sc->mfi_io_lock);
+			return (EBUSY);
+		}
+		mtx_unlock(&sc->mfi_io_lock);
+
+		/*
+		 * save off original context since copying from user
+		 * will clobber some data
+		 */
+		context = cm->cm_frame->header.context;
+
+		bcopy(ioc->mfi_frame.raw, cm->cm_frame,
+		      ioc->mfi_sgl_off); /* Linux can do 2 frames ? */
+		cm->cm_total_frame_size = ioc->mfi_sgl_off;
+		cm->cm_sg =
+		    (union mfi_sgl *)&cm->cm_frame->bytes[ioc->mfi_sgl_off];
+		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT;
+		cm->cm_len = cm->cm_frame->header.data_len;
+		cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
+					    M_WAITOK | M_ZERO);
+		if (cm->cm_data == NULL) {
+			device_printf(sc->mfi_dev, "Malloc failed\n");
+			goto out;
+		}
+
+		/* restore header context */
+		cm->cm_frame->header.context = context;
+
+		temp = data;
+		for (i = 0; i < ioc->mfi_sge_count; i++) {
+			error = copyin(ioc->mfi_sgl[i].iov_base,
+			       temp,
+			       ioc->mfi_sgl[i].iov_len);
+			if (error != 0) {
+				device_printf(sc->mfi_dev,
+				    "Copy in failed\n");
+				goto out;
+			}
+			temp = &temp[ioc->mfi_sgl[i].iov_len];
+		}
+
+		mtx_lock(&sc->mfi_io_lock);
+		if ((error = mfi_wait_command(sc, cm)) != 0) {
+			device_printf(sc->mfi_dev,
+			    "Controller polled failed\n");
+			mtx_unlock(&sc->mfi_io_lock);
+			goto out;
+		}
+
+		mtx_unlock(&sc->mfi_io_lock);
+
+		temp = data;
+		for (i = 0; i < ioc->mfi_sge_count; i++) {
+			error = copyout(temp,
+				ioc->mfi_sgl[i].iov_base,
+				ioc->mfi_sgl[i].iov_len);
+			if (error != 0) {
+				device_printf(sc->mfi_dev,
+				    "Copy out failed\n");
+				goto out;
+			}
+			temp = &temp[ioc->mfi_sgl[i].iov_len];
+		}
+
+		if (ioc->mfi_sense_len) {
+			/* copy out sense */
+			sense_ptr = &((struct mfi_ioc_packet*)arg)
+			    ->mfi_frame.raw[0];
+			error = copyout(cm->cm_sense, sense_ptr,
+			    ioc->mfi_sense_len);
+			if (error != 0) {
+				device_printf(sc->mfi_dev,
+				    "Copy out failed\n");
+				goto out;
+			}
+		}
+
+		ioc->mfi_frame.hdr.cmd_status = cm->cm_frame->header.cmd_status;
+		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
+			switch (cm->cm_frame->dcmd.opcode) {
+			case MFI_DCMD_CFG_CLEAR:
+			case MFI_DCMD_CFG_ADD:
+/*
+				mfi_ldrescan(sc);
+*/
+				break;
+			}
+		}
+out:
+		if (data)
+			free(data, M_MFIBUF);
+		if (cm) {
+			mtx_lock(&sc->mfi_io_lock);
+			mfi_release_command(cm);
+			mtx_unlock(&sc->mfi_io_lock);
+		}
+
+		break;
+	case MFI_SET_AEN:
+		aen = (struct mfi_ioc_aen *)arg;
+		error = mfi_aen_register(sc, aen->aen_seq_num,
+		    aen->aen_class_locale);
+
+		break;
+	case MFI_LINUX_CMD_2: /* Firmware Linux ioctl shim */
 		{
 			devclass_t devclass;
 			struct mfi_linux_ioc_packet l_ioc;
@@ -1849,7 +1976,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			    cmd, arg, flag, td));
 			break;
 		}
-	case 0x400c4d03: /* AEN Linux ioctl shim */
+	case MFI_LINUX_SET_AEN_2: /* AEN Linux ioctl shim */
 		{
 			devclass_t devclass;
 			struct mfi_linux_ioc_aen l_aen;
@@ -1887,16 +2014,17 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 	struct mfi_linux_ioc_aen l_aen;
 	struct mfi_command *cm = NULL;
 	struct mfi_aen *mfi_aen_entry;
-	uint32_t *sense_ptr;
+	uint8_t *sense_ptr;
 	uint32_t context;
 	uint8_t *data = NULL, *temp;
+	void *temp_convert;
 	int i;
 	int error;
 
 	sc = dev->si_drv1;
 	error = 0;
 	switch (cmd) {
-	case 0xc1144d01: /* Firmware Linux ioctl shim */
+	case MFI_LINUX_CMD_2: /* Firmware Linux ioctl shim */
 		error = copyin(arg, &l_ioc, sizeof(l_ioc));
 		if (error != 0)
 			return (error);
@@ -1923,8 +2051,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 		cm->cm_total_frame_size = l_ioc.lioc_sgl_off;
 		cm->cm_sg =
 		    (union mfi_sgl *)&cm->cm_frame->bytes[l_ioc.lioc_sgl_off];
-		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT
-			| MFI_CMD_POLLED;
+		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT;
 		cm->cm_len = cm->cm_frame->header.data_len;
 		cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
 					    M_WAITOK | M_ZERO);
@@ -1934,51 +2061,39 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 
 		temp = data;
 		for (i = 0; i < l_ioc.lioc_sge_count; i++) {
-			error = copyin(l_ioc.lioc_sgl[i].iov_base,
+			temp_convert =
+			    (void *)(uintptr_t)l_ioc.lioc_sgl[i].iov_base;
+			error = copyin(temp_convert,
 			       temp,
 			       l_ioc.lioc_sgl[i].iov_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
-				    "Copy in failed");
+				    "Copy in failed\n");
 				goto out;
 			}
 			temp = &temp[l_ioc.lioc_sgl[i].iov_len];
 		}
 
-		if (l_ioc.lioc_sense_len) {
-			sense_ptr =
-			    (void *)&cm->cm_frame->bytes[l_ioc.lioc_sense_off];
-			*sense_ptr = cm->cm_sense_busaddr;
-		}
-
 		mtx_lock(&sc->mfi_io_lock);
-		if ((error = mfi_mapcmd(sc, cm)) != 0) {
+		if ((error = mfi_wait_command(sc, cm)) != 0) {
 			device_printf(sc->mfi_dev,
-			    "Controller info buffer map failed");
+			    "Controller polled failed\n");
 			mtx_unlock(&sc->mfi_io_lock);
 			goto out;
 		}
 
-		if ((error = mfi_polled_command(sc, cm)) != 0) {
-			device_printf(sc->mfi_dev,
-			    "Controller polled failed");
-			mtx_unlock(&sc->mfi_io_lock);
-			goto out;
-		}
-
-		bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
-				BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
 		mtx_unlock(&sc->mfi_io_lock);
 
 		temp = data;
 		for (i = 0; i < l_ioc.lioc_sge_count; i++) {
+			temp_convert =
+			    (void *)(uintptr_t)l_ioc.lioc_sgl[i].iov_base;
 			error = copyout(temp,
-				l_ioc.lioc_sgl[i].iov_base,
+				temp_convert,
 				l_ioc.lioc_sgl[i].iov_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
-				    "Copy out failed");
+				    "Copy out failed\n");
 				goto out;
 			}
 			temp = &temp[l_ioc.lioc_sgl[i].iov_len];
@@ -1986,15 +2101,13 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 
 		if (l_ioc.lioc_sense_len) {
 			/* copy out sense */
-			sense_ptr = (void *)
-			    &l_ioc.lioc_frame.raw[l_ioc.lioc_sense_off];
-			temp = 0;
-			temp += cm->cm_sense_busaddr;
-			error = copyout(temp, sense_ptr,
+			sense_ptr = &((struct mfi_linux_ioc_packet*)arg)
+			    ->lioc_frame.raw[0];
+			error = copyout(cm->cm_sense, sense_ptr,
 			    l_ioc.lioc_sense_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
-				    "Copy out failed");
+				    "Copy out failed\n");
 				goto out;
 			}
 		}
@@ -2005,7 +2118,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 			1);
 		if (error != 0) {
 			device_printf(sc->mfi_dev,
-				      "Copy out failed");
+				      "Copy out failed\n");
 			goto out;
 		}
 
@@ -2027,7 +2140,7 @@ out:
 		}
 
 		return (error);
-	case 0x400c4d03: /* AEN Linux ioctl shim */
+	case MFI_LINUX_SET_AEN_2: /* AEN Linux ioctl shim */
 		error = copyin(arg, &l_aen, sizeof(l_aen));
 		if (error != 0)
 			return (error);
