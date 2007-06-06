@@ -74,13 +74,19 @@ struct mfi_command {
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
 	int			cm_index;
+	int			cm_error;
 };
 
-struct mfi_ld {
-	TAILQ_ENTRY(mfi_ld)	ld_link;
-	device_t		ld_disk;
+struct mfi_disk {
+	TAILQ_ENTRY(mfi_disk)	ld_link;
+	device_t	ld_dev;
+	int		ld_id;
+	int		ld_unit;
+	struct mfi_softc *ld_controller;
 	struct mfi_ld_info	*ld_info;
-	int			ld_id;
+	struct disk	*ld_disk;
+	int		ld_flags;
+#define MFI_DISK_FLAGS_OPEN	0x01
 };
 
 struct mfi_aen {
@@ -171,7 +177,7 @@ struct mfi_softc {
 	 */
 	uint32_t			mfi_max_io;
 
-	TAILQ_HEAD(,mfi_ld)		mfi_ld_tqh;
+	TAILQ_HEAD(,mfi_disk)		mfi_ld_tqh;
 	eventhandler_tag		mfi_eh;
 	struct cdev			*mfi_cdev;
 
