@@ -47,6 +47,8 @@ typedef	struct proc fw_proc;
 #endif
 
 #include <sys/uio.h>
+#include <sys/mutex.h>
+#include <sys/taskqueue.h>
 
 #define	splfw splimp
 
@@ -98,6 +100,7 @@ struct tcode_info {
 #define FWTI_TLABEL	(1 << 2)
 #define FWTI_BLOCK_STR	(1 << 3)
 #define FWTI_BLOCK_ASY	(1 << 4)
+	u_char valid_res;
 };
 
 struct firewire_comm{
@@ -145,6 +148,7 @@ struct firewire_comm{
 	struct callout busprobe_callout;
 	struct callout bmr_callout;
 	struct callout timeout_callout;
+	struct task task_timeout;
 	uint32_t (*cyctimer) (struct  firewire_comm *);
 	void (*ibr) (struct firewire_comm *);
 	uint32_t (*set_bmr) (struct firewire_comm *, uint32_t);
@@ -160,8 +164,17 @@ struct firewire_comm{
 	void (*itx_post) (struct firewire_comm *, uint32_t *);
 	struct tcode_info *tcode;
 	bus_dma_tag_t dmat;
+	struct mtx mtx;
+	struct mtx wait_lock;
+	struct taskqueue *taskqueue;
+	struct proc *probe_thread;
 };
 #define CSRARC(sc, offset) ((sc)->csr_arc[(offset)/4])
+
+#define FW_GMTX(fc)		(&(fc)->mtx)
+#define FW_GLOCK(fc)		mtx_lock(FW_GMTX(fc))
+#define FW_GUNLOCK(fc)		mtx_unlock(FW_GMTX(fc))
+#define FW_GLOCK_ASSERT(fc)	mtx_assert(FW_GMTX(fc), MA_OWNED)
 
 struct fw_xferq {
 	int flag;
@@ -220,14 +233,16 @@ struct fw_xfer{
 	struct fw_xferq *q;
 	struct timeval tv;
 	int8_t resp;
-#define FWXF_INIT 0
-#define FWXF_INQ 1
-#define FWXF_START 2
-#define FWXF_SENT 3
-#define FWXF_SENTERR 4
-#define FWXF_BUSY 8
-#define FWXF_RCVD 10
-	uint8_t state;
+#define FWXF_INIT	0x00
+#define FWXF_INQ	0x01
+#define FWXF_START	0x02
+#define FWXF_SENT	0x04
+#define FWXF_SENTERR	0x08
+#define FWXF_BUSY	0x10
+#define FWXF_RCVD	0x20
+
+#define FWXF_WAKE	0x80
+	uint8_t flag;
 	int8_t tl;
 	void (*hand) (struct fw_xfer *);
 	struct {
@@ -270,7 +285,8 @@ void fw_busreset (struct firewire_comm *, uint32_t);
 uint16_t fw_crc16 (uint32_t *, uint32_t);
 void fw_xfer_timeout (void *);
 void fw_xfer_done (struct fw_xfer *);
-void fw_asy_callback (struct fw_xfer *);
+void fw_xferwake (struct fw_xfer *);
+int fw_xferwait (struct fw_xfer *);
 void fw_asy_callback_free (struct fw_xfer *);
 struct fw_device *fw_noderesolve_nodeid (struct firewire_comm *, int);
 struct fw_device *fw_noderesolve_eui64 (struct firewire_comm *, struct fw_eui64 *);
@@ -279,6 +295,7 @@ void fw_drain_txq (struct firewire_comm *);
 int fwdev_makedev (struct firewire_softc *);
 int fwdev_destroydev (struct firewire_softc *);
 void fwdev_clone (void *, struct ucred *, char *, int, struct cdev **);
+int fw_open_isodma(struct firewire_comm *, int);
 
 extern int firewire_debug;
 extern devclass_t firewire_devclass;
@@ -292,7 +309,7 @@ extern devclass_t firewire_devclass;
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
 #define CALLOUT_INIT(x) callout_init(x)
 #else
-#define CALLOUT_INIT(x) callout_init(x, 0 /* mpsafe */)
+#define CALLOUT_INIT(x) callout_init(x, 1 /* mpsafe */)
 #endif
 
 #if defined(__DragonFly__) || __FreeBSD_version < 500000

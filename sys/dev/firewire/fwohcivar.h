@@ -35,13 +35,12 @@
  *
  */
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-#define FWOHCI_TASKQUEUE        0
-#else
-#define FWOHCI_TASKQUEUE        1
-#endif
-#if FWOHCI_TASKQUEUE
 #include <sys/taskqueue.h>
+
+#if defined(__DragonFly__) ||  __FreeBSD_version < 700043
+#define FWOHCI_INTFILT	0
+#else
+#define FWOHCI_INTFILT	1
 #endif
 
 typedef struct fwohci_softc {
@@ -77,14 +76,15 @@ typedef struct fwohci_softc {
 	struct fwdma_alloc crom_dma;
 	struct fwdma_alloc dummy_dma;
 	uint32_t intmask, irstat, itstat;
-#if FWOHCI_TASKQUEUE
 	uint32_t intstat;
-	struct task fwohci_task_complete;
-#endif
+	struct task fwohci_task_busreset;
+	struct task fwohci_task_sid;
+	struct task fwohci_task_dma;
 	int cycle_lost;
 } fwohci_softc_t;
 
 void fwohci_intr (void *arg);
+int fwohci_filt (void *arg);
 int fwohci_init (struct fwohci_softc *, device_t);
 void fwohci_poll (struct firewire_comm *, int, int);
 void fwohci_reset (struct fwohci_softc *, device_t);

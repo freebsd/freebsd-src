@@ -92,7 +92,7 @@ fwdma_malloc(struct firewire_comm *fc, int alignment, bus_size_t size,
 		/*flags*/ BUS_DMA_ALLOCNOW,
 #if defined(__FreeBSD__) && __FreeBSD_version >= 501102 
 		/*lockfunc*/busdma_lock_mutex,
-		/*lockarg*/&Giant,
+		/*lockarg*/FW_GMTX(fc),
 #endif
 		&dma->dma_tag);
 	if (err) {
@@ -190,7 +190,7 @@ fwdma_malloc_multiseg(struct firewire_comm *fc, int alignment,
 			/*flags*/ BUS_DMA_ALLOCNOW,
 #if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 			/*lockfunc*/busdma_lock_mutex,
-			/*lockarg*/&Giant,
+			/*lockarg*/FW_GMTX(fc),
 #endif
 			&am->dma_tag)) {
 		printf("fwdma_malloc_multiseg: tag_create failed\n");
