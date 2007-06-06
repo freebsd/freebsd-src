@@ -157,6 +157,7 @@ fwe_attach(device_t dev)
 	unit = device_get_unit(dev);
 
 	bzero(fwe, sizeof(struct fwe_softc));
+	mtx_init(&fwe->mtx, "fwe", NULL, MTX_DEF);
 	/* XXX */
 	fwe->stream_ch = stream_ch;
 	fwe->dma_ch = -1;
@@ -213,8 +214,7 @@ fwe_attach(device_t dev)
 	ifp->if_start = fwe_start;
 	ifp->if_ioctl = fwe_ioctl;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST|
-	    IFF_NEEDSGIANT);
+	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
 	ifp->if_snd.ifq_maxlen = TX_MAX_QUEUE;
 
 	s = splimp();
@@ -305,6 +305,7 @@ fwe_detach(device_t dev)
 #endif
 
 	splx(s);
+	mtx_destroy(&fwe->mtx);
 	return 0;
 }
 
@@ -325,22 +326,15 @@ fwe_init(void *arg)
 	ifp->if_flags |= IFF_PROMISC;
 
 	fc = fwe->fd.fc;
-#define START 0
 	if (fwe->dma_ch < 0) {
-		for (i = START; i < fc->nisodma; i ++) {
-			xferq = fc->ir[i];
-			if ((xferq->flag & FWXFERQ_OPEN) == 0)
-				goto found;
-		}
-		printf("no free dma channel\n");
-		return;
-found:
-		fwe->dma_ch = i;
+		fwe->dma_ch = fw_open_isodma(fc, /* tx */0);
+		if (fwe->dma_ch < 0)
+			return;
+		xferq = fc->ir[fwe->dma_ch];
+		xferq->flag |= FWXFERQ_EXTBUF |
+				FWXFERQ_HANDLER | FWXFERQ_STREAM;
 		fwe->stream_ch = stream_ch;
 		fwe->pkt_hdr.mode.stream.chtag = fwe->stream_ch;
-		/* allocate DMA channel and init packet mode */
-		xferq->flag |= FWXFERQ_OPEN | FWXFERQ_EXTBUF |
-				FWXFERQ_HANDLER | FWXFERQ_STREAM;
 		xferq->flag &= ~0xff;
 		xferq->flag |= fwe->stream_ch & 0xff;
 		/* register fwe_input handler */
@@ -375,7 +369,7 @@ found:
 				STAILQ_INSERT_TAIL(&xferq->stfree,
 						&xferq->bulkxfer[i], link);
 			} else
-				printf("fwe_as_input: m_getcl failed\n");
+				printf("%s: m_getcl failed\n", __FUNCTION__);
 		}
 		STAILQ_INIT(&fwe->xferlist);
 		for (i = 0; i < TX_MAX_QUEUE; i++) {
@@ -520,7 +514,9 @@ fwe_output_callback(struct fw_xfer *xfer)
 	fw_xfer_unload(xfer);
 
 	s = splimp();
+	FWE_LOCK(fwe);
 	STAILQ_INSERT_TAIL(&fwe->xferlist, xfer, link);
+	FWE_UNLOCK(fwe);
 	splx(s);
 
 	/* for queue full */
@@ -533,8 +529,6 @@ fwe_start(struct ifnet *ifp)
 {
 	struct fwe_softc *fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
 	int s;
-
-	GIANT_REQUIRED;
 
 	FWEDEBUG(ifp, "starting\n");
 
@@ -589,16 +583,27 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 
 	xfer = NULL;
 	xferq = fwe->fd.fc->atq;
-	while (xferq->queued < xferq->maxq - 1) {
+	while ((xferq->queued < xferq->maxq - 1) &&
+			(ifp->if_snd.ifq_head != NULL)) {
+		FWE_LOCK(fwe);
 		xfer = STAILQ_FIRST(&fwe->xferlist);
 		if (xfer == NULL) {
+#if 0
 			printf("if_fwe: lack of xfer\n");
-			return;
-		}
-		IF_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
+#endif
+			FWE_UNLOCK(fwe);
 			break;
+		}
 		STAILQ_REMOVE_HEAD(&fwe->xferlist, link);
+		FWE_UNLOCK(fwe);
+
+		IF_DEQUEUE(&ifp->if_snd, m);
+		if (m == NULL) {
+			FWE_LOCK(fwe);
+			STAILQ_INSERT_HEAD(&fwe->xferlist, xfer, link);
+			FWE_UNLOCK(fwe);
+			break;
+		}
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
 		if (ifp->if_bpf != NULL)
 			bpf_mtap(ifp, m);
@@ -649,6 +654,7 @@ fwe_as_input(struct fw_xferq *xferq)
 	fwe = (struct fwe_softc *)xferq->sc;
 	ifp = fwe->eth_softc.ifp;
 
+	/* We do not need a lock here because the bottom half is serialized */
 	while ((sxfer = STAILQ_FIRST(&xferq->stvalid)) != NULL) {
 		STAILQ_REMOVE_HEAD(&xferq->stvalid, link);
 		fp = mtod(sxfer->mbuf, struct fw_pkt *);
@@ -662,7 +668,7 @@ fwe_as_input(struct fw_xferq *xferq)
 			m0->m_len = m0->m_pkthdr.len = m0->m_ext.ext_size;
 			STAILQ_INSERT_TAIL(&xferq->stfree, sxfer, link);
 		} else
-			printf("fwe_as_input: m_getcl failed\n");
+			printf("%s: m_getcl failed\n", __FUNCTION__);
 
 		if (sxfer->resp != 0 || fp->mode.stream.len <
 		    ETHER_ALIGN + sizeof(struct ether_header)) {
@@ -672,7 +678,7 @@ fwe_as_input(struct fw_xferq *xferq)
 		}
 
 		m->m_data += HDR_LEN + ETHER_ALIGN;
-		c = mtod(m, char *);
+		c = mtod(m, u_char *);
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
 		eh = (struct ether_header *)c;
 		m->m_data += sizeof(struct ether_header);
