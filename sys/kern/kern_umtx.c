@@ -193,13 +193,6 @@ static int			umtx_pi_allocated;
 SYSCTL_NODE(_debug, OID_AUTO, umtx, CTLFLAG_RW, 0, "umtx debug");
 SYSCTL_INT(_debug_umtx, OID_AUTO, umtx_pi_allocated, CTLFLAG_RD,
     &umtx_pi_allocated, 0, "Allocated umtx_pi");
-SYSCTL_DECL(_kern_threads);
-static int			umtx_dflt_spins = 0;
-SYSCTL_INT(_kern_threads, OID_AUTO, umtx_dflt_spins, CTLFLAG_RW,
-    &umtx_dflt_spins, 0, "default umtx spin count");
-static int			umtx_max_spins = 3000;
-SYSCTL_INT(_kern_threads, OID_AUTO, umtx_max_spins, CTLFLAG_RW,
-    &umtx_max_spins, 0, "max umtx spin count");
 
 static void umtxq_sysinit(void *);
 static void umtxq_hash(struct umtx_key *key);
@@ -1025,33 +1018,16 @@ _do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 {
 	struct umtx_q *uq;
 	uint32_t owner, old, id;
-#ifdef SMP
-	int spincount;
-#endif
 	int error = 0;
 
 	id = td->td_tid;
 	uq = td->td_umtxq;
-
-#ifdef SMP
-	if (smp_cpus > 1) {
-		spincount = fuword32(&m->m_spincount);
-		if (spincount == 0)
-			spincount = umtx_dflt_spins;
-		if (spincount > umtx_max_spins)
-			spincount = umtx_max_spins;
-	} else
-		spincount = 0;
-#endif
 
 	/*
 	 * Care must be exercised when dealing with umtx structure. It
 	 * can fault on any access.
 	 */
 	for (;;) {
-#ifdef SMP
-try_unowned:
-#endif
 		/*
 		 * Try the uncontested case.  This should be done in userland.
 		 */
@@ -1067,9 +1043,6 @@ try_unowned:
 
 		/* If no one owns it but it is contested try to acquire it. */
 		if (owner == UMUTEX_CONTESTED) {
-#ifdef SMP
-try_contested:
-#endif
 			owner = casuword32(&m->m_owner,
 			    UMUTEX_CONTESTED, id | UMUTEX_CONTESTED);
 
@@ -1090,46 +1063,6 @@ try_contested:
 
 		if (try != 0)
 			return (EBUSY);
-
-#ifdef SMP
-		if (spincount > 0 && (owner & ~UMUTEX_CONTESTED) != id) {
-			int i, found = 0;
-			struct pcpu *pcpu = NULL;
-
-			/* Look for a cpu the owner is running on */
-			for (i = 0; i < MAXCPU; i++) {
-				if (CPU_ABSENT(i))
-					continue;
-				pcpu = pcpu_find(i);
-				if ((owner & ~UMUTEX_CONTESTED) == pcpu->pc_curtid) {
-					found = 1;
-					break;
-				}
-			}
-
-			if (__predict_false(!found))
-				goto end_spin;
-
-			while ((owner & ~UMUTEX_CONTESTED) == pcpu->pc_curtid &&
-			       (owner & ~UMUTEX_CONTESTED) != id) {
-				if (--spincount <= 0)
-					break;
-				if ((td->td_flags &
-			    	    (TDF_NEEDRESCHED|TDF_ASTPENDING|TDF_NEEDSIGCHK)) ||
-				     P_SHOULDSTOP(td->td_proc))
-					break;
-				owner = fuword32(__DEVOLATILE(uint32_t *, &m->m_owner));
-				if (owner == UMUTEX_UNOWNED)
-					goto try_unowned;
- 				if (owner == UMUTEX_CONTESTED)
-					goto try_contested;
-				cpu_spinwait();
-			}
-		}
-end_spin:
-		spincount = 0;
-
-#endif
 
 		/*
 		 * If we caught a signal, we have retried and now
