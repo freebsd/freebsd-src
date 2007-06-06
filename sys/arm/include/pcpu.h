@@ -58,7 +58,7 @@ extern struct pcpu __pcpu;
  * with respect to preemption.
  */
 #define	PCPU_ADD(member, value)	(__pcpu.pc_ ## member += (value))
-#define	PCPU_INC(member)	PCPU_LAZY_ADD(member, 1)
+#define	PCPU_INC(member)	PCPU_ADD(member, 1)
 #define	PCPU_PTR(member)	(&__pcpu.pc_ ## member)
 #define	PCPU_SET(member,value)	(__pcpu.pc_ ## member = (value))
 
