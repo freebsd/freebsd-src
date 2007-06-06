@@ -602,7 +602,8 @@ g_part_gpt_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM));
 	if (EQUUID(type, &gpt_uuid_mbr))
 		return (g_part_alias_name(G_PART_ALIAS_MBR));
-	snprintf_uuid(buf, bufsz, type);
+	buf[0] = '!';
+	snprintf_uuid(buf + 1, bufsz - 1, type);
 	return (buf);
 }
 
