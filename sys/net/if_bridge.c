@@ -2764,8 +2764,10 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	snap = 0;
 	error = -1;	/* Default error if not error == 0 */
 
+#if 0
 	/* we may return with the IP fields swapped, ensure its not shared */
 	KASSERT(M_WRITABLE(*mp), ("%s: modifying a shared mbuf", __func__));
+#endif
 
 	if (pfil_bridge == 0 && pfil_member == 0 && pfil_ipfw == 0)
 		return (0); /* filtering is disabled */
