@@ -1017,11 +1017,12 @@ each_writable_segment(td, func, closure)
 	struct proc *p = td->td_proc;
 	vm_map_t map = &p->p_vmspace->vm_map;
 	vm_map_entry_t entry;
+	vm_object_t backing_object, object;
+	boolean_t ignore_entry;
 
+	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
-		vm_object_t obj;
-
 		/*
 		 * Don't dump inaccessible mappings, deal with legacy
 		 * coredump mode.
@@ -1047,21 +1048,25 @@ each_writable_segment(td, func, closure)
 		if (entry->eflags & (MAP_ENTRY_NOCOREDUMP|MAP_ENTRY_IS_SUB_MAP))
 			continue;
 
-		if ((obj = entry->object.vm_object) == NULL)
+		if ((object = entry->object.vm_object) == NULL)
 			continue;
 
-		/* Find the deepest backing object. */
-		while (obj->backing_object != NULL)
-			obj = obj->backing_object;
-
 		/* Ignore memory-mapped devices and such things. */
-		if (obj->type != OBJT_DEFAULT &&
-		    obj->type != OBJT_SWAP &&
-		    obj->type != OBJT_VNODE)
+		VM_OBJECT_LOCK(object);
+		while ((backing_object = object->backing_object) != NULL) {
+			VM_OBJECT_LOCK(backing_object);
+			VM_OBJECT_UNLOCK(object);
+			object = backing_object;
+		}
+		ignore_entry = object->type != OBJT_DEFAULT &&
+		    object->type != OBJT_SWAP && object->type != OBJT_VNODE;
+		VM_OBJECT_UNLOCK(object);
+		if (ignore_entry)
 			continue;
 
 		(*func)(entry, closure);
 	}
+	vm_map_unlock_read(map);
 }
 
 /*
