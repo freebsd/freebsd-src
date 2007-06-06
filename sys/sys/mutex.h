@@ -132,7 +132,7 @@ void	_thread_lock_flags(struct thread *, int, const char *, int);
 #define	thread_lock_flags(tdp, opt)					\
     _thread_lock_flags((tdp), (opt), __FILE__, __LINE__)
 #define	thread_unlock(tdp)						\
-       mtx_unlock_spin(__DEVOLATILE(struct mtx *, (tdp)->td_lock))
+       mtx_unlock_spin((tdp)->td_lock)
 
 /*
  * We define our machine-independent (unoptimized) mutex micro-operations

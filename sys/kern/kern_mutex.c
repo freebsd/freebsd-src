@@ -504,7 +504,7 @@ _thread_lock_flags(struct thread *td, int opts, const char *file, int line)
 	for (;;) {
 retry:
 		spinlock_enter();
-		m = __DEVOLATILE(struct mtx *, td->td_lock);
+		m = td->td_lock;
 		WITNESS_CHECKORDER(&m->lock_object,
 		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line);
 		while (!_obtain_lock(m, tid)) {
@@ -542,7 +542,7 @@ thread_lock_block(struct thread *td)
 
 	spinlock_enter();
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	lock = __DEVOLATILE(struct mtx *, td->td_lock);
+	lock = td->td_lock;
 	td->td_lock = &blocked_lock;
 	mtx_unlock_spin(lock);
 
@@ -565,7 +565,7 @@ thread_lock_set(struct thread *td, struct mtx *new)
 
 	mtx_assert(new, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	lock = __DEVOLATILE(struct mtx *, td->td_lock);
+	lock = td->td_lock;
 	td->td_lock = new;
 	mtx_unlock_spin(lock);
 }
