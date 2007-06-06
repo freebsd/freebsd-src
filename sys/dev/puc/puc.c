@@ -59,7 +59,6 @@ struct puc_port {
 
 	int		p_hasintr:1;
 
-	driver_filter_t	*p_ih;
 	serdev_intr_t	*p_ihsrc[PUC_ISRCCNT];
 	void		*p_iharg;
 
@@ -604,8 +603,11 @@ puc_bus_setup_intr(device_t dev, device_t child, struct resource *res,
 	port = device_get_ivars(child);
 	KASSERT(port != NULL, ("%s %d", __func__, __LINE__));
 
-	if (filt == NULL || cookiep == NULL || res != port->p_ires)
+	if (cookiep == NULL || res != port->p_ires)
 		return (EINVAL);
+	/* We demand that serdev devices use filter_only interrupts. */
+	if (ihand != NULL)
+		return (ENXIO);
 	if (rman_get_device(port->p_ires) != originator)
 		return (ENXIO);
 
@@ -628,14 +630,9 @@ puc_bus_setup_intr(device_t dev, device_t child, struct resource *res,
 		return (BUS_SETUP_INTR(device_get_parent(dev), originator,
 		    sc->sc_ires, flags, filt, ihand, arg, cookiep));
 
-	/* We demand that serdev devices use fast interrupts. */
-	if (filt == NULL)
-		return (ENXIO);
-
 	sc->sc_serdevs |= 1UL << (port->p_nr - 1);
 
 	port->p_hasintr = 1;
-	port->p_ih = filt;
 	port->p_iharg = arg;
 
 	*cookiep = port;
@@ -676,7 +673,6 @@ puc_bus_teardown_intr(device_t dev, device_t child, struct resource *res,
 		return (EINVAL);
 
 	port->p_hasintr = 0;
-	port->p_ih = NULL;
 	port->p_iharg = NULL;
 
 	for (i = 0; i < PUC_ISRCCNT; i++)
