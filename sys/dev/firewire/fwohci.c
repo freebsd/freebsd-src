@@ -79,9 +79,13 @@
 #undef OHCI_DEBUG
 
 static int nocyclemaster = 0;
+int firewire_phydma_enable = 1;
 SYSCTL_DECL(_hw_firewire);
 SYSCTL_INT(_hw_firewire, OID_AUTO, nocyclemaster, CTLFLAG_RW, &nocyclemaster, 0,
         "Do not send cycle start packets");
+SYSCTL_INT(_hw_firewire, OID_AUTO, phydma_enable, CTLFLAG_RW,
+	&firewire_phydma_enable, 1, "Allow physical request DMA from firewire");
+TUNABLE_INT("hw.firewire.phydma_enable", &firewire_phydma_enable);
 
 static char dbcode[16][0x10]={"OUTM", "OUTL","INPM","INPL",
 		"STOR","LOAD","NOP ","STOP",};
@@ -1862,12 +1866,13 @@ fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 
 		/* Allow async. request to us */
 		OWRITE(sc, OHCI_AREQHI, 1 << 31);
-		/* XXX insecure ?? */
-		/* allow from all nodes */
-		OWRITE(sc, OHCI_PREQHI, 0x7fffffff);
-		OWRITE(sc, OHCI_PREQLO, 0xffffffff);
-		/* 0 to 4GB regison */
-		OWRITE(sc, OHCI_PREQUPPER, 0x10000);
+		if (firewire_phydma_enable) {
+			/* allow from all nodes */
+			OWRITE(sc, OHCI_PREQHI, 0x7fffffff);
+			OWRITE(sc, OHCI_PREQLO, 0xffffffff);
+			/* 0 to 4GB region */
+			OWRITE(sc, OHCI_PREQUPPER, 0x10000);
+		}
 		/* Set ATRetries register */
 		OWRITE(sc, OHCI_ATRETRY, 1<<(13+16) | 0xfff);
 
