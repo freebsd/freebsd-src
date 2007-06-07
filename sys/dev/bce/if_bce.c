@@ -109,7 +109,7 @@ static struct bce_type bce_devs[] = {
 
 	/* BCM5708S controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  PCI_ANY_ID,  PCI_ANY_ID,
-		"Broadcom NetXtreme II BCM5708S 1000Base-T" },
+		"Broadcom NetXtreme II BCM5708 1000Base-SX" },
 	{ 0, 0, 0, 0, NULL }
 };
 
@@ -684,24 +684,32 @@ bce_attach(device_t dev)
 	sc->bce_stats_ticks = 1000000 & 0xffff00;
 
 	/*
-	 * The copper based NetXtreme II controllers
-	 * use an integrated PHY at address 1 while
-	 * the SerDes controllers use a PHY at
-	 * address 2.
+	 * The SerDes based NetXtreme II controllers
+	 * that support 2.5Gb operation (currently 
+	 * 5708S) use a PHY at address 2, otherwise 
+	 * the PHY is present at address 1.
 	 */
 	sc->bce_phy_addr = 1;
 
 	if (BCE_CHIP_BOND_ID(sc) & BCE_CHIP_BOND_ID_SERDES_BIT) {
 		sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
 		sc->bce_flags |= BCE_NO_WOL_FLAG;
-		if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5708) {
+		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
 			sc->bce_phy_addr = 2;
 			val = REG_RD_IND(sc, sc->bce_shmem_base +
 					 BCE_SHARED_HW_CFG_CONFIG);
-			if (val & BCE_SHARED_HW_CFG_PHY_2_5G)
+			if (val & BCE_SHARED_HW_CFG_PHY_2_5G) {
 				sc->bce_phy_flags |= BCE_PHY_2_5G_CAPABLE_FLAG;
+				DBPRINT(sc, BCE_WARN, "Found 2.5Gb capable adapter\n");
+			}
 		}
 	}
+
+	/* Store config data needed by the PHY driver for backplane applications */
+	sc->bce_shared_hw_cfg = REG_RD_IND(sc, sc->bce_shmem_base +
+		BCE_SHARED_HW_CFG_CONFIG);
+	sc->bce_port_hw_cfg   = REG_RD_IND(sc, sc->bce_shmem_base +
+		BCE_SHARED_HW_CFG_CONFIG);
 
 	/* Allocate DMA memory resources. */
 	if (bce_dma_alloc(dev)) {
@@ -747,9 +755,9 @@ bce_attach(device_t dev)
 
 	ifp->if_snd.ifq_drv_maxlen = USABLE_TX_BD;
 	if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG)
-		ifp->if_baudrate = IF_Gbps(2.5);
+		ifp->if_baudrate = IF_Mbps(2500ULL);
 	else
-		ifp->if_baudrate = IF_Gbps(1);
+		ifp->if_baudrate = IF_Mbps(1000);
 
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
@@ -1047,7 +1055,7 @@ bce_miibus_write_reg(device_t dev, int phy, int reg, int val)
 
 	/* Make sure we are accessing the correct PHY address. */
 	if (phy != sc->bce_phy_addr) {
-		DBPRINT(sc, BCE_WARN, "Invalid PHY address %d for PHY write!\n", phy);
+		DBPRINT(sc, BCE_VERBOSE, "Invalid PHY address %d for PHY write!\n", phy);
 		return(0);
 	}
 
@@ -1111,71 +1119,61 @@ bce_miibus_statchg(device_t dev)
 {
 	struct bce_softc *sc;
 	struct mii_data *mii;
+	int val;
 
 	sc = device_get_softc(dev);
 
 	mii = device_get_softc(sc->bce_miibus);
 
-	DBPRINT(sc, BCE_INFO, "mii_media_active = 0x%08X\n", 
-		mii->mii_media_active);
-
-#ifdef BCE_DEBUG
-	/* Decode the interface media flags. */
-	BCE_PRINTF("Media: ( ");
-	switch(IFM_TYPE(mii->mii_media_active)) {
-		case IFM_ETHER: printf("Ethernet )");
-			break;
-		default: printf("Unknown )");
-	}
-
-	printf(" Media Options: ( ");
-	switch(IFM_SUBTYPE(mii->mii_media_active)) {
-		case IFM_AUTO:    printf("Autoselect )"); break;
-		case IFM_MANUAL:  printf("Manual )"); break;
-		case IFM_NONE:    printf("None )"); break;
-		case IFM_10_T:    printf("10Base-T )"); break;
-		case IFM_100_TX:  printf("100Base-TX )"); break;
-		case IFM_1000_SX: printf("1000Base-SX )"); break;
-		case IFM_1000_T:  printf("1000Base-T )"); break;
-		default: printf("Other )"); 
-	}
-
-	printf(" Global Options: (");
-	if (mii->mii_media_active & IFM_FDX) 
-		printf(" FullDuplex");
-	if (mii->mii_media_active & IFM_HDX)
-		printf(" HalfDuplex");
-	if (mii->mii_media_active & IFM_LOOP)
-		printf(" Loopback");
-	if (mii->mii_media_active & IFM_FLAG0)
-		printf(" Flag0");
-	if (mii->mii_media_active & IFM_FLAG1)
-		printf(" Flag1");
-	if (mii->mii_media_active & IFM_FLAG2)
-		printf(" Flag2");
-	printf(" )\n");
-#endif
-
-	BCE_CLRBIT(sc, BCE_EMAC_MODE, BCE_EMAC_MODE_PORT);
+	val = REG_RD(sc, BCE_EMAC_MODE);
+	val &= ~(BCE_EMAC_MODE_PORT | BCE_EMAC_MODE_HALF_DUPLEX | 
+		BCE_EMAC_MODE_MAC_LOOP | BCE_EMAC_MODE_FORCE_LINK | 
+		BCE_EMAC_MODE_25G);
 
 	/* Set MII or GMII interface based on the speed negotiated by the PHY. */
-	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T || 
-	    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX) {
-		DBPRINT(sc, BCE_INFO, "Setting GMII interface.\n");
-		BCE_SETBIT(sc, BCE_EMAC_MODE, BCE_EMAC_MODE_PORT_GMII);
-	} else {
-		DBPRINT(sc, BCE_INFO, "Setting MII interface.\n");
-		BCE_SETBIT(sc, BCE_EMAC_MODE, BCE_EMAC_MODE_PORT_MII);
+	switch (IFM_SUBTYPE(mii->mii_media_active)) {
+	case IFM_10_T:
+		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
+			DBPRINT(sc, BCE_INFO, "Enabling 10Mb interface.\n");
+			val |= BCE_EMAC_MODE_PORT_MII_10;
+			break;
+		}
+		/* fall-through */
+	case IFM_100_TX:
+		DBPRINT(sc, BCE_INFO, "Enabling MII interface.\n");
+		val |= BCE_EMAC_MODE_PORT_MII;
+		break;
+	case IFM_2500_SX:
+		DBPRINT(sc, BCE_INFO, "Enabling 2.5G MAC mode.\n");
+		val |= BCE_EMAC_MODE_25G;
+		/* fall-through */
+	case IFM_1000_T:
+	case IFM_1000_SX:
+		DBPRINT(sc, BCE_INFO, "Enablinb GMII interface.\n");
+		val |= BCE_EMAC_MODE_PORT_GMII;
+		break;
+	default:
+		val |= BCE_EMAC_MODE_PORT_GMII;
 	}
 
 	/* Set half or full duplex based on the duplicity negotiated by the PHY. */
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
-		DBPRINT(sc, BCE_INFO, "Setting Full-Duplex interface.\n");
-		BCE_CLRBIT(sc, BCE_EMAC_MODE, BCE_EMAC_MODE_HALF_DUPLEX);
-	} else {
+	if ((mii->mii_media_active & IFM_GMASK) == IFM_HDX) {
 		DBPRINT(sc, BCE_INFO, "Setting Half-Duplex interface.\n");
-		BCE_SETBIT(sc, BCE_EMAC_MODE, BCE_EMAC_MODE_HALF_DUPLEX);
-	}
+		val |= BCE_EMAC_MODE_HALF_DUPLEX;
+	} else
+		DBPRINT(sc, BCE_INFO, "Setting Full-Duplex interface.\n");
+
+	REG_WR(sc, BCE_EMAC_MODE, val);
+
+#if 0
+	/* Todo: Enable this support in brgphy and bge. */
+	/* FLAG0 is set if RX is enabled and FLAG1 if TX is enabled */
+	if (mii->mii_media_active & IFM_FLAG0)
+		BCE_SETBIT(sc, BCE_EMAC_RX_MODE, BCE_EMAC_RX_MODE_FLOW_EN);
+	if (mii->mii_media_active & IFM_FLAG1)
+		BCE_SETBIT(sc, BCE_EMAC_RX_MODE, BCE_EMAC_TX_MODE_FLOW_EN);
+#endif
+
 }
 
 
