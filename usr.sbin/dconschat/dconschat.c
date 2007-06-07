@@ -769,7 +769,8 @@ dconschat_proc_dcons(struct dcons_state *dc)
 		while ((len = dconschat_read_dcons(dc, port, buf,
 		    sizeof(buf))) > 0) {
 			dconschat_write_socket(p->outfd, buf, len);
-			dconschat_get_ptr(dc);
+			if ((err = dconschat_get_ptr(dc)))
+				return (err);
 		}
 		if ((dc->flags & F_ONE_SHOT) != 0 && len <= 0)
 			dconschat_cleanup(0);
@@ -781,13 +782,30 @@ static int
 dconschat_start_session(struct dcons_state *dc)
 {
 	int counter = 0;
+	int retry = 0;
+	int retry_unit_init = MAX(1, poll_hz / 10);
+	int retry_unit_offline = poll_hz * DCONS_POLL_OFFLINE;
+	int retry_unit = retry_unit_init;
+	int retry_max = retry_unit_offline / retry_unit;
 
 	while (1) {
-		if ((dc->flags & F_READY) == 0 &&
-			(++counter % (poll_hz * DCONS_POLL_OFFLINE)) == 0)
+		if (((dc->flags & F_READY) == 0) && ++counter > retry_unit) {
+			counter = 0;
+			retry ++;
+			if (retry > retry_max)
+				retry_unit = retry_unit_offline;
+			if (verbose) {
+				printf("%d/%d ", retry, retry_max);
+				fflush(stdout);
+			}
 			dconschat_fetch_header(dc);
-		if ((dc->flags & F_READY) != 0)
+		}
+		if ((dc->flags & F_READY) != 0) {
+			counter = 0;
+			retry = 0;
+			retry_unit = retry_unit_init;
 			dconschat_proc_dcons(dc);
+		}
 		dconschat_proc_socket(dc);
 	}
 	return (0);
