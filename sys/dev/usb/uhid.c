@@ -69,11 +69,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/conf.h>
 #include <sys/tty.h>
-#if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
-#else
-#include <sys/select.h>
-#endif
 #include <sys/proc.h>
 #include <sys/poll.h>
 #include <sys/sysctl.h>
@@ -168,9 +164,6 @@ static struct cdevsw uhid_cdevsw = {
 	.d_ioctl =	uhidioctl,
 	.d_poll =	uhidpoll,
 	.d_name =	"uhid",
-#if __FreeBSD_version < 500014
-	.d_bmaj		-1
-#endif
 };
 #endif
 

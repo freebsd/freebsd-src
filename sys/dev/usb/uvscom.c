@@ -51,11 +51,7 @@ __FBSDID("$FreeBSD$");
 #if defined(__FreeBSD__)
 #include <sys/bus.h>
 #include <sys/ioccom.h>
-#if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
-#else
-#include <sys/select.h>
-#endif
 #else
 #include <sys/ioctl.h>
 #include <sys/device.h>
