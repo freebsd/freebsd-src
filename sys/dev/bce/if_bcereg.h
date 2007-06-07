@@ -4699,6 +4699,10 @@ struct bce_softc
 #define BCE_PHY_INT_MODE_AUTO_POLLING_FLAG	0x100
 #define BCE_PHY_INT_MODE_LINK_READY_FLAG	0x200
 
+	/* Values that need to be shared with the PHY driver. */
+	u32					bce_shared_hw_cfg;
+	u32					bce_port_hw_cfg;
+
 	bus_addr_t				max_bus_addr;
 	u16					bus_speed_mhz;		/* PCI bus speed */
 	struct flash_spec	*bce_flash_info;	/* Flash NVRAM settings */
