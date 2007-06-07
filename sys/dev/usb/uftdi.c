@@ -57,11 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/file.h>
 
-#if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
-#else
-#include <sys/select.h>
-#endif
 
 #include <sys/sysctl.h>
 
