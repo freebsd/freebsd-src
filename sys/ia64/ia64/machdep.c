@@ -371,7 +371,6 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
 		PCPU_SET(curthread, new);
-		PCPU_SET(curtid, new->td_tid);
 #ifdef COMPAT_IA32
 		ia32_restorectx(newpcb);
 #endif
