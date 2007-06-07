@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2006
+.Dd May 4, 2007
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -449,7 +449,7 @@ Time To Live
 .It IP options
 .It IPv6 Extension headers
 Fragmentation, Hop-by-Hop options,
-source routing, IPSec options.
+Routing Headers, Source routing rthdr0, Mobile IPv6 rthdr2, IPSec options.
 .It IPv6 Flow-ID
 .It Misc. TCP header fields
 TCP flags (SYN, FIN, ACK, RST, etc.),
@@ -1106,8 +1106,12 @@ Fragment,
 .Pq Cm frag ,
 Hop-to-hop options
 .Pq Cm hopopt ,
-Source routing
+any type of Routing Header
 .Pq Cm route ,
+Source routing Routing Header Type 0
+.Pq Cm rthdr0 ,
+Mobile IPv6 Routing Header Type 2
+.Pq Cm rthdr2 ,
 Destination options
 .Pq Cm dstopt ,
 IPSec authentication headers
