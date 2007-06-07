@@ -674,8 +674,8 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		CTR4(KTR_BUSDMA, "lowaddr= %d Maxmem= %d, boundary= %d, "
 		    "alignment= %d", dmat->lowaddr, ptoa((vm_paddr_t)Maxmem),
 		    dmat->boundary, dmat->alignment);
-		CTR3(KTR_BUSDMA, "map= %p, nobouncemap= %p, pagesneeded= %d",
-		    map, &nobounce_dmamap, map->pagesneeded);
+		CTR2(KTR_BUSDMA, "map= %p, pagesneeded= %d",
+		    map, map->pagesneeded);
 		/*
 		 * Count the number of bounce pages
 		 * needed in order to complete this transfer
@@ -1384,8 +1384,7 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 	struct bounce_page *bpage;
 
 	KASSERT(dmat->bounce_zone != NULL, ("no bounce zone in dma tag"));
-	KASSERT(map != NULL && map != &nobounce_dmamap,
-	    ("add_bounce_page: bad map %p", map));
+	KASSERT(map != NULL, ("add_bounce_page: bad map %p", map));
 
 	bz = dmat->bounce_zone;
 	if (map->pagesneeded == 0)
