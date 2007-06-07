@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -143,7 +144,6 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	stack_t stack;
 	struct thread *newtd;
 	struct proc *p;
-	long id;
 	int error;
 
 	error = 0;
@@ -183,7 +183,6 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	 * its storage, because child thread may exit quickly and
 	 * memory is freed before parent thread can access it.
 	 */
-	id = newtd->td_tid;
 	if ((child_tid != NULL &&
 	    suword_lwpid(child_tid, newtd->td_tid)) ||
 	    (parent_tid != NULL &&
