@@ -441,8 +441,7 @@ proc0_init(void *dummy __unused)
 	p->p_ucred->cr_ruidinfo = uifind(0);
 	p->p_ucred->cr_prison = NULL;	/* Don't jail it. */
 #ifdef AUDIT
-	audit_proc_alloc(p);
-	audit_proc_kproc0(p);
+	audit_cred_kproc0(p->p_ucred);
 #endif
 #ifdef MAC
 	mac_create_proc0(p->p_ucred);
@@ -707,7 +706,7 @@ create_init(const void *udata __unused)
 	mac_create_proc1(newcred);
 #endif
 #ifdef AUDIT
-	audit_proc_init(initproc);
+	audit_cred_proc1(newcred);
 #endif
 	initproc->p_ucred = newcred;
 	PROC_UNLOCK(initproc);

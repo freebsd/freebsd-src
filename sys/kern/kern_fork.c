@@ -279,9 +279,6 @@ fork1(td, flags, pages, procp)
 #ifdef MAC
 	mac_init_proc(newproc);
 #endif
-#ifdef AUDIT
-	audit_proc_alloc(newproc);
-#endif
 	knlist_init(&newproc->p_klist, &newproc->p_mtx, NULL, NULL, NULL);
 	STAILQ_INIT(&newproc->p_ktr);
 
@@ -510,9 +507,6 @@ again:
 	p2->p_sflag = PS_INMEM;
 	PROC_SUNLOCK(p2);
 	td2->td_ucred = crhold(p2->p_ucred);
-#ifdef AUDIT
-	audit_proc_fork(p1, p2);
-#endif
 	pargs_hold(p2->p_args);
 
 	if (flags & RFSIGSHARE) {
@@ -752,9 +746,6 @@ fail:
 	sx_xunlock(&allproc_lock);
 #ifdef MAC
 	mac_destroy_proc(newproc);
-#endif
-#ifdef AUDIT
-	audit_proc_free(newproc);
 #endif
 	uma_zfree(proc_zone, newproc);
 	if (p1->p_flag & P_HADTHREADS) {
