@@ -3553,7 +3553,7 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	    M_ASSERTPKTHDR(ms);
 	    KASSERT(ms->m_data == ms->m_ext.ext_buf,
 		("rx mbuf data doesn't point to cluster"));	    
-	    ms->m_len = ms->m_pkthdr.len = MCLBYTES;
+	    ms->m_len = ms->m_pkthdr.len = TULIP_RX_BUFLEN;
 	    error = bus_dmamap_load_mbuf(ri->ri_data_tag, *nextout->di_map, ms,
 		tulip_dma_map_rxbuf, nextout->di_desc, BUS_DMA_NOWAIT);
 	    if (error) {
