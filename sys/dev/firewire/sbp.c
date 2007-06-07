@@ -824,6 +824,10 @@ sbp_post_explore(void *arg)
 SBP_DEBUG(0)
 	printf("sbp_post_explore (sbp_cold=%d)\n", sbp_cold);
 END_DEBUG
+	/* We need physical access */
+	if (!firewire_phydma_enable)
+		return;
+
 	if (sbp_cold > 0)
 		sbp_cold --;
 
@@ -1946,6 +1950,9 @@ sbp_attach(device_t dev)
 			"SBP_MAXPHYS(%dKB).\n", DFLTPHYS / 1024,
 			SBP_MAXPHYS / 1024);
 
+	if (!firewire_phydma_enable)
+		device_printf(dev, "Warning, hw.firewire.phydma_enable must be 1 "
+			"for SBP over FireWire.\n");
 SBP_DEBUG(0)
 	printf("sbp_attach (cold=%d)\n", cold);
 END_DEBUG

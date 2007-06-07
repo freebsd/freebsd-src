@@ -299,6 +299,7 @@ int fw_open_isodma(struct firewire_comm *, int);
 
 extern int firewire_debug;
 extern devclass_t firewire_devclass;
+extern int firewire_phydma_enable;
 
 #ifdef __DragonFly__
 #define		FWPRI		PCATCH
