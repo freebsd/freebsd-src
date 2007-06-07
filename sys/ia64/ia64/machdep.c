@@ -391,7 +391,6 @@ cpu_throw(struct thread *old __unused, struct thread *new)
 	newpcb = new->td_pcb;
 	(void)pmap_switch(newpcb->pcb_current_pmap);
 	PCPU_SET(curthread, new);
-	PCPU_SET(curtid, new->td_tid);
 #ifdef COMPAT_IA32
 	ia32_restorectx(newpcb);
 #endif
@@ -610,7 +609,6 @@ ia64_init(void)
 	ia64_set_k4((u_int64_t)pcpup);
 	pcpu_init(pcpup, 0, sizeof(pcpu0));
 	PCPU_SET(curthread, &thread0);
-	PCPU_SET(curtid, thread0.td_tid);
 
 	/*
 	 * Initialize the console before we print anything out.
