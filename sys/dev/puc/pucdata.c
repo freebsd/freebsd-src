@@ -1110,7 +1110,7 @@ puc_config_timedia(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 		*res = (port == 1 || port == 3) ? 8 : 0;
 		return (0);
 	case PUC_CFG_GET_RID:
-		*res = (port > 3) ? port - 2 : port >> 1;
+		*res = 0x10 + ((port > 3) ? port - 2 : port >> 1);
 		return (0);
 	case PUC_CFG_GET_TYPE:
 		*res = PUC_TYPE_SERIAL;
