@@ -811,9 +811,6 @@ loop:
 #ifdef MAC
 			mac_destroy_proc(p);
 #endif
-#ifdef AUDIT
-			audit_proc_free(p);
-#endif
 			KASSERT(FIRST_THREAD_IN_PROC(p),
 			    ("kern_wait: no residual thread!"));
 			uma_zfree(proc_zone, p);
