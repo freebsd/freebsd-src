@@ -1763,6 +1763,9 @@ crget(void)
 
 	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
 	refcount_init(&cr->cr_ref, 1);
+#ifdef AUDIT
+	audit_cred_init(cr);
+#endif
 #ifdef MAC
 	mac_init_cred(cr);
 #endif
@@ -1804,6 +1807,9 @@ crfree(struct ucred *cr)
 		 */
 		if (jailed(cr))
 			prison_free(cr->cr_prison);
+#ifdef AUDIT
+		audit_cred_destroy(cr);
+#endif
 #ifdef MAC
 		mac_destroy_cred(cr);
 #endif
@@ -1836,6 +1842,9 @@ crcopy(struct ucred *dest, struct ucred *src)
 	uihold(dest->cr_ruidinfo);
 	if (jailed(dest))
 		prison_hold(dest->cr_prison);
+#ifdef AUDIT
+	audit_cred_copy(src, dest);
+#endif
 #ifdef MAC
 	mac_copy_cred(src, dest);
 #endif

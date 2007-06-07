@@ -156,6 +156,7 @@ free_out:
 int
 auditon(struct thread *td, struct auditon_args *uap)
 {
+	struct ucred *newcred, *oldcred;
 	int error;
 	union auditon_udata udata;
 	struct proc *tp;
@@ -313,47 +314,53 @@ auditon(struct thread *td, struct auditon_args *uap)
 	case A_GETPINFO:
 		if (udata.au_aupinfo.ap_pid < 1)
 			return (EINVAL);
-
 		if ((tp = pfind(udata.au_aupinfo.ap_pid)) == NULL)
 			return (EINVAL);
 		if (p_cansee(td, tp) != 0) {
 			PROC_UNLOCK(tp);
 			return (EINVAL);
 		}
-
-		if (tp->p_au->ai_termid.at_type == AU_IPv6) {
+		if (tp->p_ucred->cr_audit.ai_termid.at_type == AU_IPv6) {
 			PROC_UNLOCK(tp);
 			return (EINVAL);
 		}
-		udata.au_aupinfo.ap_auid = tp->p_au->ai_auid;
+		udata.au_aupinfo.ap_auid =
+		    tp->p_ucred->cr_audit.ai_auid;
 		udata.au_aupinfo.ap_mask.am_success =
-		    tp->p_au->ai_mask.am_success;
+		    tp->p_ucred->cr_audit.ai_mask.am_success;
 		udata.au_aupinfo.ap_mask.am_failure =
-		    tp->p_au->ai_mask.am_failure;
+		    tp->p_ucred->cr_audit.ai_mask.am_failure;
 		udata.au_aupinfo.ap_termid.machine =
-		    tp->p_au->ai_termid.at_addr[0];
+		    tp->p_ucred->cr_audit.ai_termid.at_addr[0];
 		udata.au_aupinfo.ap_termid.port =
-		    (dev_t)tp->p_au->ai_termid.at_port;
-		udata.au_aupinfo.ap_asid = tp->p_au->ai_asid;
+		    (dev_t)tp->p_ucred->cr_audit.ai_termid.at_port;
+		udata.au_aupinfo.ap_asid =
+		    tp->p_ucred->cr_audit.ai_asid;
 		PROC_UNLOCK(tp);
 		break;
 
 	case A_SETPMASK:
 		if (udata.au_aupinfo.ap_pid < 1)
 			return (EINVAL);
-
-		if ((tp = pfind(udata.au_aupinfo.ap_pid)) == NULL)
-			return (EINVAL);
-		if (p_cansee(td, tp) != 0) {
-			PROC_UNLOCK(tp);
+		newcred = crget();
+		if ((tp = pfind(udata.au_aupinfo.ap_pid)) == NULL) {
+			crfree(newcred);
 			return (EINVAL);
 		}
-
-		tp->p_au->ai_mask.am_success =
+		if (p_cansee(td, tp) != 0) {
+			PROC_UNLOCK(tp);
+			crfree(newcred);
+			return (EINVAL);
+		}
+		oldcred = tp->p_ucred;
+		crcopy(newcred, oldcred);
+		newcred->cr_audit.ai_mask.am_success =
 		    udata.au_aupinfo.ap_mask.am_success;
-		tp->p_au->ai_mask.am_failure =
+		newcred->cr_audit.ai_mask.am_failure =
 		    udata.au_aupinfo.ap_mask.am_failure;
+		td->td_proc->p_ucred = newcred;
 		PROC_UNLOCK(tp);
+		crfree(oldcred);
 		break;
 
 	case A_SETFSIZE:
@@ -373,13 +380,16 @@ auditon(struct thread *td, struct auditon_args *uap)
 			return (EINVAL);
 		if ((tp = pfind(udata.au_aupinfo_addr.ap_pid)) == NULL)
 			return (EINVAL);
-		udata.au_aupinfo_addr.ap_auid = tp->p_au->ai_auid;
+		udata.au_aupinfo_addr.ap_auid =
+		    tp->p_ucred->cr_audit.ai_auid;
 		udata.au_aupinfo_addr.ap_mask.am_success =
-		    tp->p_au->ai_mask.am_success;
+		    tp->p_ucred->cr_audit.ai_mask.am_success;
 		udata.au_aupinfo_addr.ap_mask.am_failure =
-		    tp->p_au->ai_mask.am_failure;
-		udata.au_aupinfo_addr.ap_termid = tp->p_au->ai_termid;
-		udata.au_aupinfo_addr.ap_asid = tp->p_au->ai_asid;
+		    tp->p_ucred->cr_audit.ai_mask.am_failure;
+		udata.au_aupinfo_addr.ap_termid =
+		    tp->p_ucred->cr_audit.ai_termid;
+		udata.au_aupinfo_addr.ap_asid =
+		    tp->p_ucred->cr_audit.ai_asid;
 		PROC_UNLOCK(tp);
 		break;
 
@@ -431,64 +441,51 @@ int
 getauid(struct thread *td, struct getauid_args *uap)
 {
 	int error;
-	au_id_t id;
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
-
-	/*
-	 * XXX: Integer read on static pointer dereference: doesn't need
-	 * locking?
-	 */
-	PROC_LOCK(td->td_proc);
-	id = td->td_proc->p_au->ai_auid;
-	PROC_UNLOCK(td->td_proc);
-	return copyout(&id, uap->auid, sizeof(id));
+	return (copyout(&td->td_ucred->cr_audit.ai_auid, uap->auid,
+	    sizeof(td->td_ucred->cr_audit.ai_auid)));
 }
 
 /* ARGSUSED */
 int
 setauid(struct thread *td, struct setauid_args *uap)
 {
-	int error;
+	struct ucred *newcred, *oldcred;
 	au_id_t id;
+	int error;
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = priv_check(td, PRIV_AUDIT_SETAUDIT);
-	if (error)
-		return (error);
-
 	error = copyin(uap->auid, &id, sizeof(id));
 	if (error)
 		return (error);
-
 	audit_arg_auid(id);
-
-#ifdef MAC
-	error = mac_check_proc_setauid(td->td_ucred, id);
-	if (error)
-		return (error);
-#endif
-
-	/*
-	 * XXX: Integer write on static pointer dereference: doesn't need
-	 * locking?
-	 *
-	 * XXXAUDIT: Might need locking to serialize audit events in the same
-	 * order as change events?  Or maybe that's an under-solveable
-	 * problem.
-	 *
-	 * XXXRW: Test privilege while holding the proc lock?
-	 */
+	newcred = crget();
 	PROC_LOCK(td->td_proc);
-	td->td_proc->p_au->ai_auid = id;
+	oldcred = td->td_proc->p_ucred;
+	crcopy(newcred, oldcred);
+#ifdef MAC
+	error = mac_check_proc_setauid(oldcred, id);
+	if (error)
+		goto fail;
+#endif
+	error = priv_check_cred(oldcred, PRIV_AUDIT_SETAUDIT, 0);
+	if (error)
+		goto fail;
+	newcred->cr_audit.ai_auid = id;
+	td->td_proc->p_ucred = newcred;
 	PROC_UNLOCK(td->td_proc);
-
+	crfree(oldcred);
 	return (0);
+fail:
+	PROC_UNLOCK(td->td_proc);
+	crfree(newcred);
+	return (error);
 }
 
 /*
@@ -506,108 +503,108 @@ getaudit(struct thread *td, struct getaudit_args *uap)
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
-
-	PROC_LOCK(td->td_proc);
-	if (td->td_proc->p_au->ai_termid.at_type == AU_IPv6) {
-		PROC_UNLOCK(td->td_proc);
-		return (E2BIG);
-	}
 	bzero(&ai, sizeof(ai));
-	ai.ai_auid = td->td_proc->p_au->ai_auid;
-	ai.ai_mask = td->td_proc->p_au->ai_mask;
-	ai.ai_asid = td->td_proc->p_au->ai_asid;
-	ai.ai_termid.machine = td->td_proc->p_au->ai_termid.at_addr[0];
-	ai.ai_termid.port = td->td_proc->p_au->ai_termid.at_port;
-	PROC_UNLOCK(td->td_proc);
-
-	return (copyout(&ai, uap->auditinfo, sizeof(ai)));
+	ai.ai_auid = td->td_ucred->cr_audit.ai_auid;
+	ai.ai_mask = td->td_ucred->cr_audit.ai_mask;
+	ai.ai_asid = td->td_ucred->cr_audit.ai_asid;
+	ai.ai_termid.machine = td->td_ucred->cr_audit.ai_termid.at_addr[0];
+	ai.ai_termid.port = td->td_ucred->cr_audit.ai_termid.at_port;
+	return (copyout(&ai, uap->auditinfo, sizeof(&ai)));
 }
 
 /* ARGSUSED */
 int
 setaudit(struct thread *td, struct setaudit_args *uap)
 {
+	struct ucred *newcred, *oldcred;
 	struct auditinfo ai;
 	int error;
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = priv_check(td, PRIV_AUDIT_SETAUDIT);
-	if (error)
-		return (error);
-
 	error = copyin(uap->auditinfo, &ai, sizeof(ai));
 	if (error)
 		return (error);
-
 	audit_arg_auditinfo(&ai);
-
-#ifdef MAC
-	error = mac_check_proc_setaudit(td->td_ucred, &ai);
-	if (error)
-		return (error);
-#endif
-
-	/*
-	 * XXXRW: Test privilege while holding the proc lock?
-	*/
+	newcred = crget();
 	PROC_LOCK(td->td_proc);
-	bzero(td->td_proc->p_au, sizeof(struct auditinfo_addr));
-	td->td_proc->p_au->ai_auid = ai.ai_auid;
-	td->td_proc->p_au->ai_mask = ai.ai_mask;
-	td->td_proc->p_au->ai_asid = ai.ai_asid;
-	td->td_proc->p_au->ai_termid.at_addr[0] = ai.ai_termid.machine;
-	td->td_proc->p_au->ai_termid.at_port = ai.ai_termid.port;
-	td->td_proc->p_au->ai_termid.at_type = AU_IPv4;
+	oldcred = td->td_proc->p_ucred;
+	crcopy(newcred, oldcred);
+#ifdef MAC
+	error = mac_check_proc_setaudit(oldcred, &ai);
+	if (error)
+		goto fail;
+#endif
+	error = priv_check_cred(oldcred, PRIV_AUDIT_SETAUDIT, 0);
+	if (error)
+		goto fail;
+	bzero(&newcred->cr_audit, sizeof(newcred->cr_audit));
+	newcred->cr_audit.ai_auid = ai.ai_auid;
+	newcred->cr_audit.ai_mask = ai.ai_mask;
+	newcred->cr_audit.ai_asid = ai.ai_asid;
+	newcred->cr_audit.ai_termid.at_addr[0] = ai.ai_termid.machine;
+	newcred->cr_audit.ai_termid.at_port = ai.ai_termid.port;
+	newcred->cr_audit.ai_termid.at_type = AU_IPv4;
+	td->td_proc->p_ucred = newcred;
 	PROC_UNLOCK(td->td_proc);
-
+	crfree(oldcred);
 	return (0);
+fail:
+	PROC_UNLOCK(td->td_proc);
+	crfree(newcred);
+	return (error);
 }
 
 /* ARGSUSED */
 int
 getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 {
-	struct auditinfo_addr aia;
 	int error;
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
+	if (uap->length < sizeof(*uap->auditinfo_addr))
+		return (EOVERFLOW);
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
-	if (uap->length < sizeof(aia))
-		return (EOVERFLOW);
-	PROC_LOCK(td->td_proc);
-	aia = *td->td_proc->p_au;
-	PROC_UNLOCK(td->td_proc);
-	return (copyout(&aia, uap->auditinfo_addr, sizeof(aia)));
+	return (copyout(&td->td_ucred->cr_audit, uap->auditinfo_addr,
+	    sizeof(*uap->auditinfo_addr)));
 }
 
 /* ARGSUSED */
 int
 setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 {
+	struct ucred *newcred, *oldcred;
 	struct auditinfo_addr aia;
 	int error;
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = priv_check(td, PRIV_AUDIT_SETAUDIT);
-	if (error)
-		return (error);
-
-#ifdef MAC
-	error = mac_check_proc_setaudit(td->td_ucred, NULL);
-	if (error)
-		return (error);
-#endif
 	error = copyin(uap->auditinfo_addr, &aia, sizeof(aia));
 	if (error)
 		return (error);
-	PROC_LOCK(td->td_proc);
-	*td->td_proc->p_au = aia;
+	/* XXXRW: Audit argument. */
+	newcred = crget();
+	PROC_LOCK(td->td_proc);	
+	oldcred = td->td_proc->p_ucred;
+	crcopy(newcred, oldcred);
+#ifdef MAC
+	error = mac_check_proc_setaudit(oldcred, NULL);
+	if (error)
+		goto fail;
+#endif
+	error = priv_check_cred(oldcred, PRIV_AUDIT_SETAUDIT, 0);
+	if (error)
+		goto fail;
+	newcred->cr_audit = aia;
+	td->td_proc->p_ucred = newcred;
 	PROC_UNLOCK(td->td_proc);
+	crfree(oldcred);
+	return (0);
+fail:
+	crfree(newcred);
 	return (error);
 }
 

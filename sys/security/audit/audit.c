@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1999-2005 Apple Computer, Inc.
- * Copyright (c) 2006 Robert N. M. Watson
+ * Copyright (c) 2006-2007 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@
 #include <vm/uma.h>
 
 static uma_zone_t	audit_record_zone;
-static MALLOC_DEFINE(M_AUDITPROC, "audit_proc", "Audit process storage");
+static MALLOC_DEFINE(M_AUDITCRED, "audit_cred", "Audit cred storage");
 MALLOC_DEFINE(M_AUDITDATA, "audit_data", "Audit data storage");
 MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
 MALLOC_DEFINE(M_AUDITTEXT, "audit_text", "Audit text storage");
@@ -176,13 +176,11 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	ar->k_ar.ar_subj_ruid = td->td_ucred->cr_ruid;
 	ar->k_ar.ar_subj_rgid = td->td_ucred->cr_rgid;
 	ar->k_ar.ar_subj_egid = td->td_ucred->cr_groups[0];
-	PROC_LOCK(td->td_proc);
-	ar->k_ar.ar_subj_auid = td->td_proc->p_au->ai_auid;
-	ar->k_ar.ar_subj_asid = td->td_proc->p_au->ai_asid;
+	ar->k_ar.ar_subj_auid = td->td_ucred->cr_audit.ai_auid;
+	ar->k_ar.ar_subj_asid = td->td_ucred->cr_audit.ai_asid;
 	ar->k_ar.ar_subj_pid = td->td_proc->p_pid;
-	ar->k_ar.ar_subj_amask = td->td_proc->p_au->ai_mask;
-	ar->k_ar.ar_subj_term_addr = td->td_proc->p_au->ai_termid;
-	PROC_UNLOCK(td->td_proc);
+	ar->k_ar.ar_subj_amask = td->td_ucred->cr_audit.ai_mask;
+	ar->k_ar.ar_subj_term_addr = td->td_ucred->cr_audit.ai_termid;
 	return (0);
 }
 
@@ -470,11 +468,11 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 	 * Check which audit mask to use; either the kernel non-attributable
 	 * event mask or the process audit mask.
 	 */
-	auid = td->td_proc->p_au->ai_auid;
+	auid = td->td_ucred->cr_audit.ai_auid;
 	if (auid == AU_DEFAUDITID)
 		aumask = &audit_nae_mask;
 	else
-		aumask = &td->td_proc->p_au->ai_mask;
+		aumask = &td->td_ucred->cr_audit.ai_mask;
 
 	/*
 	 * Allocate an audit record, if preselection allows it, and store in
@@ -533,15 +531,50 @@ audit_syscall_exit(int error, struct thread *td)
 }
 
 /*
- * Allocate storage for a new process (init, or otherwise).
+ * Copy audit state from an existing credential to a new credential.
  */
 void
-audit_proc_alloc(struct proc *p)
+audit_cred_copy(struct ucred *src, struct ucred *dest)
 {
 
-	KASSERT(p->p_au == NULL, ("audit_proc_alloc: p->p_au != NULL (%d)",
-	    p->p_pid));
-	p->p_au = malloc(sizeof(*(p->p_au)), M_AUDITPROC, M_WAITOK);
+	bcopy(&src->cr_audit, &dest->cr_audit, sizeof(dest->cr_audit));
+}
+
+/*
+ * Free audit state from a credential when the credential is freed.
+ */
+void
+audit_cred_destroy(struct ucred *cred)
+{
+
+	bzero(&cred->cr_audit, sizeof(cred->cr_audit));
+}
+
+/*
+ * Allocate audit state for a new credential.
+ */
+void
+audit_cred_init(struct ucred *cred)
+{
+
+	bzero(&cred->cr_audit, sizeof(cred->cr_audit));
+}
+
+/*
+ * Initialize audit information for the first kernel process (proc 0) and for
+ * the first user process (init).
+ */
+void
+audit_cred_kproc0(struct ucred *cred)
+{
+
+}
+
+void
+audit_cred_proc1(struct ucred *cred)
+{
+
+	cred->cr_audit.ai_auid = AU_DEFAUDITID;
 }
 
 /*
@@ -562,63 +595,4 @@ audit_thread_free(struct thread *td)
 {
 
 	KASSERT(td->td_ar == NULL, ("audit_thread_free: td_ar != NULL"));
-}
-
-/*
- * Initialize audit information for the first kernel process (proc 0) and for
- * the first user process (init).
- *
- * XXX It is not clear what the initial values should be for audit ID,
- * session ID, etc.
- */
-void
-audit_proc_kproc0(struct proc *p)
-{
-
-	KASSERT(p->p_au != NULL, ("audit_proc_kproc0: p->p_au == NULL (%d)",
-	    p->p_pid));
-
-	bzero(p->p_au, sizeof(*(p)->p_au));
-}
-
-void
-audit_proc_init(struct proc *p)
-{
-
-	KASSERT(p->p_au != NULL, ("audit_proc_init: p->p_au == NULL (%d)",
-	    p->p_pid));
-
-	bzero(p->p_au, sizeof(*(p)->p_au));
-	p->p_au->ai_auid = AU_DEFAUDITID;
-}
-
-/*
- * Copy the audit info from the parent process to the child process when a
- * fork takes place.
- */
-void
-audit_proc_fork(struct proc *parent, struct proc *child)
-{
-
-	PROC_LOCK_ASSERT(parent, MA_OWNED);
-	PROC_LOCK_ASSERT(child, MA_OWNED);
-	KASSERT(parent->p_au != NULL,
-	    ("audit_proc_fork: parent->p_au == NULL (%d)", parent->p_pid));
-	KASSERT(child->p_au != NULL,
-	    ("audit_proc_fork: child->p_au == NULL (%d)", child->p_pid));
-
-	bcopy(parent->p_au, child->p_au, sizeof(*child->p_au));
-}
-
-/*
- * Free the auditing structure for the process.
- */
-void
-audit_proc_free(struct proc *p)
-{
-
-	KASSERT(p->p_au != NULL, ("p->p_au == NULL (%d)", p->p_pid));
-
-	free(p->p_au, M_AUDITPROC);
-	p->p_au = NULL;
 }
