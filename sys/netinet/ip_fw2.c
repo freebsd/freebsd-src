@@ -2307,6 +2307,10 @@ do {									\
 				PULLUP_TO(hlen, ulp, struct ip6_rthdr);
 				switch (((struct ip6_rthdr *)ulp)->ip6r_type) {
 				case 0:
+					ext_hd |= EXT_RTHDR0;
+					break;
+				case 2:
+					ext_hd |= EXT_RTHDR2;
 					break;
 				default:
 					printf("IPFW2: IPV6 - Unknown Routing "
