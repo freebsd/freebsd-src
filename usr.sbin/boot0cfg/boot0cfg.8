@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2007
+.Dd June 7, 2007
 .Dt BOOT0CFG 8
 .Os
 .Sh NAME
@@ -168,7 +168,7 @@ To go back to non-interactive booting, use
 .Xr fdisk 8
 to install the default MBR:
 .Pp
-.Dl "fdisk -B -b /boot/mbr ad0"
+.Dl "fdisk -B ad0"
 .Pp
 .Sh SEE ALSO
 .Xr geom 4 ,
