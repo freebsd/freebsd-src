@@ -351,7 +351,13 @@ tcp_hc_insert(struct in_conninfo *inc)
 		 * efficient.  Instead just reuse the least used element.
 		 * We may drop something that is still "in-use" but we can be
 		 * "lossy".
+		 * Just give up if this bucket row is empty and we don't have
+		 * anything to replace.
 		 */
+		if (hc_entry == NULL) {
+			THC_UNLOCK(&hc_head->hch_mtx);
+			return NULL;
+		}
 		TAILQ_REMOVE(&hc_head->hch_bucket, hc_entry, rmx_q);
 		tcp_hostcache.hashbase[hash].hch_length--;
 		tcp_hostcache.cache_count--;
