@@ -48,6 +48,7 @@ struct stat;
 struct kevent;
 struct kevent_copyops;
 struct sendfile_args;
+struct thr_param;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
@@ -168,6 +169,8 @@ int	kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct statfs *buf);
 int	kern_symlink(struct thread *td, char *path, char *link,
 	    enum uio_seg segflg);
+int	kern_thr_new(struct thread *td, struct thr_param *param);
+int	kern_thr_suspend(struct thread *td, struct timespec *tsp);
 int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,
 	    off_t length);
 int	kern_unlink(struct thread *td, char *path, enum uio_seg pathseg);
