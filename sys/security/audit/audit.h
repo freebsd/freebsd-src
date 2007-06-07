@@ -171,11 +171,11 @@ void	 audit_arg_file(struct proc *p, struct file *fp);
 void	 audit_arg_argv(char *argv, int argc, int length);
 void	 audit_arg_envv(char *envv, int envc, int length);
 void	 audit_sysclose(struct thread *td, int fd);
-void	 audit_proc_alloc(struct proc *p);
-void	 audit_proc_kproc0(struct proc *p);
-void	 audit_proc_init(struct proc *p);
-void	 audit_proc_fork(struct proc *parent, struct proc *child);
-void	 audit_proc_free(struct proc *p);
+void	 audit_cred_copy(struct ucred *src, struct ucred *dest);
+void	 audit_cred_destroy(struct ucred *cred);
+void	 audit_cred_init(struct ucred *cred);
+void	 audit_cred_kproc0(struct ucred *cred);
+void	 audit_cred_proc1(struct ucred *cred);
 void	 audit_thread_alloc(struct thread *td);
 void	 audit_thread_free(struct thread *td);
 
