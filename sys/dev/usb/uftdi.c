@@ -168,11 +168,11 @@ USB_MATCH(uftdi)
 	     uaa->product == USB_PRODUCT_FTDI_MX4_5 ||
 	     uaa->product == USB_PRODUCT_FTDI_LK202 ||
 	     uaa->product == USB_PRODUCT_FTDI_LK204 ||
-             uaa->product == USB_PRODUCT_FTDI_EISCOU ||
-             uaa->product == USB_PRODUCT_FTDI_UOPTBR ||
-             uaa->product == USB_PRODUCT_FTDI_EMCU2D ||
-             uaa->product == USB_PRODUCT_FTDI_PCMSFU ||
-             uaa->product == USB_PRODUCT_FTDI_EMCU2H ))
+	     uaa->product == USB_PRODUCT_FTDI_EISCOU ||
+	     uaa->product == USB_PRODUCT_FTDI_UOPTBR ||
+	     uaa->product == USB_PRODUCT_FTDI_EMCU2D ||
+	     uaa->product == USB_PRODUCT_FTDI_PCMSFU ||
+	     uaa->product == USB_PRODUCT_FTDI_EMCU2H ))
 		return (UMATCH_VENDOR_PRODUCT);
 	if (uaa->vendor == USB_VENDOR_SIIG2 &&
 	    (uaa->product == USB_PRODUCT_SIIG2_US2308))
@@ -255,11 +255,11 @@ USB_ATTACH(uftdi)
 		case USB_PRODUCT_FTDI_MX4_5:
 		case USB_PRODUCT_FTDI_LK202:
 		case USB_PRODUCT_FTDI_LK204:
-                case USB_PRODUCT_FTDI_EISCOU:
-                case USB_PRODUCT_FTDI_UOPTBR:
-                case USB_PRODUCT_FTDI_EMCU2D:
-                case USB_PRODUCT_FTDI_PCMSFU:
-                case USB_PRODUCT_FTDI_EMCU2H:
+		case USB_PRODUCT_FTDI_EISCOU:
+		case USB_PRODUCT_FTDI_UOPTBR:
+		case USB_PRODUCT_FTDI_EMCU2D:
+		case USB_PRODUCT_FTDI_PCMSFU:
+		case USB_PRODUCT_FTDI_EMCU2H:
 			sc->sc_type = UFTDI_TYPE_8U232AM;
 			sc->sc_hdrlen = 0;
 			break;
@@ -347,15 +347,15 @@ USB_ATTACH(uftdi)
 	}
 	if (ucom->sc_bulkin_no == -1) {
 		printf("%s: Could not find data bulk in\n",
-		       devname);
+		    devname);
 		goto bad;
 	}
 	if (ucom->sc_bulkout_no == -1) {
 		printf("%s: Could not find data bulk out\n",
-		       devname);
+		   devname);
 		goto bad;
 	}
-        ucom->sc_parent  = sc;
+	ucom->sc_parent  = sc;
 	if (uaa->iface == NULL)
 		ucom->sc_portno = FTDI_PIT_SIOA;
 	else
@@ -371,7 +371,7 @@ USB_ATTACH(uftdi)
 	ucom->sc_callback = &uftdi_callback;
 #if 0
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, ucom->sc_udev,
-			   USBDEV(ucom->sc_dev));
+	    USBDEV(ucom->sc_dev));
 #endif
 	DPRINTF(("uftdi: in=0x%x out=0x%x\n", ucom->sc_bulkin_no, ucom->sc_bulkout_no));
 	ucom_attach(&sc->sc_ucom);
