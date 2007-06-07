@@ -240,7 +240,6 @@ static pv_entry_t get_pv_entry(pmap_t locked_pmap);
 
 static void	pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
 		    vm_page_t m, vm_prot_t prot);
-static pmap_t	pmap_install(pmap_t);
 static void	pmap_invalidate_all(pmap_t pmap);
 static int	pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte,
 		    vm_offset_t va, pv_entry_t pv, int freepte);
@@ -565,9 +564,9 @@ pmap_invalidate_page_1(void *arg)
 	pmap_t oldpmap;
 
 	critical_enter();
-	oldpmap = pmap_install(args[0]);
+	oldpmap = pmap_switch(args[0]);
 	pmap_invalidate_page_locally(args[1]);
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
 	critical_exit();
 }
 #endif
@@ -844,11 +843,11 @@ retry:
 				PMAP_LOCK(pmap);
 			else if (pmap != locked_pmap && !PMAP_TRYLOCK(pmap))
 				continue;
-			oldpmap = pmap_install(pmap);
+			oldpmap = pmap_switch(pmap);
 			pte = pmap_find_vhpt(va);
 			KASSERT(pte != NULL, ("pte"));
 			pmap_remove_pte(pmap, pte, va, pv, 1);
-			pmap_install(oldpmap);
+			pmap_switch(oldpmap);
 			if (pmap != locked_pmap)
 				PMAP_UNLOCK(pmap);
 			if (allocated_pv == NULL)
@@ -1053,11 +1052,11 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 
 	pa = 0;
 	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	oldpmap = pmap_switch(pmap);
 	pte = pmap_find_vhpt(va);
 	if (pte != NULL && pmap_present(pte))
 		pa = pmap_ppn(pte);
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
 	return (pa);
 }
@@ -1079,7 +1078,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	m = NULL;
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	oldpmap = pmap_switch(pmap);
 	pte = pmap_find_vhpt(va);
 	if (pte != NULL && pmap_present(pte) &&
 	    (pmap_prot(pte) & prot) == prot) {
@@ -1087,7 +1086,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 		vm_page_hold(m);
 	}
 	vm_page_unlock_queues();
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }
@@ -1399,7 +1398,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	oldpmap = pmap_switch(pmap);
 
 	/*
 	 * special handling of removing one page.  a very
@@ -1430,7 +1429,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 out:
 	vm_page_unlock_queues();
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1469,13 +1468,13 @@ pmap_remove_all(vm_page_t m)
 		vm_offset_t va = pv->pv_va;
 
 		PMAP_LOCK(pmap);
-		oldpmap = pmap_install(pmap);
+		oldpmap = pmap_switch(pmap);
 		pte = pmap_find_vhpt(va);
 		KASSERT(pte != NULL, ("pte"));
 		if (pmap_ppn(pte) != VM_PAGE_TO_PHYS(m))
 			panic("pmap_remove_all: pv_table for %lx is inconsistent", VM_PAGE_TO_PHYS(m));
 		pmap_remove_pte(pmap, pte, va, pv, 1);
-		pmap_install(oldpmap);
+		pmap_switch(oldpmap);
 		PMAP_UNLOCK(pmap);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
@@ -1505,7 +1504,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	oldpmap = pmap_switch(pmap);
 	while (sva < eva) {
 		/* 
 		 * If page is invalid, skip this page
@@ -1536,7 +1535,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		sva += PAGE_SIZE;
 	}
 	vm_page_unlock_queues();
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1565,7 +1564,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	oldpmap = pmap_switch(pmap);
 
 	va &= ~PAGE_MASK;
 #ifdef DIAGNOSTIC
@@ -1577,13 +1576,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * Find (or create) a pte for the given mapping.
 	 */
 	while ((pte = pmap_find_pte(va)) == NULL) {
-		pmap_install(oldpmap);
+		pmap_switch(oldpmap);
 		PMAP_UNLOCK(pmap);
 		vm_page_unlock_queues();
 		VM_WAIT;
 		vm_page_lock_queues();
 		PMAP_LOCK(pmap);
-		oldpmap = pmap_install(pmap);
+		oldpmap = pmap_switch(pmap);
 	}
 	origpte = *pte;
 	if (!pmap_present(pte)) {
@@ -1660,7 +1659,7 @@ validate:
 	if ((prot & VM_PROT_WRITE) != 0)
 		vm_page_flag_set(m, PG_WRITEABLE);
 	vm_page_unlock_queues();
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1688,12 +1687,12 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	psize = atop(end - start);
 	m = m_start;
 	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	oldpmap = pmap_switch(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_quick_locked(pmap, start + ptoa(diff), m, prot);
 		m = TAILQ_NEXT(m, listq);
 	}
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
  	PMAP_UNLOCK(pmap);
 }
 
@@ -1712,9 +1711,9 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	pmap_t oldpmap;
 
 	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	oldpmap = pmap_switch(pmap);
 	pmap_enter_quick_locked(pmap, va, m, prot);
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1789,7 +1788,7 @@ pmap_change_wiring(pmap, va, wired)
 	struct ia64_lpte *pte;
 
 	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	oldpmap = pmap_switch(pmap);
 
 	pte = pmap_find_vhpt(va);
 	KASSERT(pte != NULL, ("pte"));
@@ -1801,7 +1800,7 @@ pmap_change_wiring(pmap, va, wired)
 		pmap_clear_wired(pte);
 	}
 
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1932,7 +1931,7 @@ pmap_remove_pages(pmap_t pmap)
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	oldpmap = pmap_switch(pmap);
 
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
 		struct ia64_lpte *pte;
@@ -1945,7 +1944,7 @@ pmap_remove_pages(pmap_t pmap)
 			pmap_remove_pte(pmap, pte, pv->pv_va, pv, 1);
 	}
 
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
 	vm_page_unlock_queues();
 }
@@ -1975,7 +1974,7 @@ pmap_ts_referenced(vm_page_t m)
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		PMAP_LOCK(pv->pv_pmap);
-		oldpmap = pmap_install(pv->pv_pmap);
+		oldpmap = pmap_switch(pv->pv_pmap);
 		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
 		if (pmap_accessed(pte)) {
@@ -1983,7 +1982,7 @@ pmap_ts_referenced(vm_page_t m)
 			pmap_clear_accessed(pte);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
-		pmap_install(oldpmap);
+		pmap_switch(oldpmap);
 		PMAP_UNLOCK(pv->pv_pmap);
 	}
 
@@ -2010,9 +2009,9 @@ pmap_is_modified(vm_page_t m)
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		PMAP_LOCK(pv->pv_pmap);
-		oldpmap = pmap_install(pv->pv_pmap);
+		oldpmap = pmap_switch(pv->pv_pmap);
 		pte = pmap_find_vhpt(pv->pv_va);
-		pmap_install(oldpmap);
+		pmap_switch(oldpmap);
 		KASSERT(pte != NULL, ("pte"));
 		rv = pmap_dirty(pte) ? TRUE : FALSE;
 		PMAP_UNLOCK(pv->pv_pmap);
@@ -2055,14 +2054,14 @@ pmap_clear_modify(vm_page_t m)
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		PMAP_LOCK(pv->pv_pmap);
-		oldpmap = pmap_install(pv->pv_pmap);
+		oldpmap = pmap_switch(pv->pv_pmap);
 		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
 		if (pmap_dirty(pte)) {
 			pmap_clear_dirty(pte);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
-		pmap_install(oldpmap);
+		pmap_switch(oldpmap);
 		PMAP_UNLOCK(pv->pv_pmap);
 	}
 }
@@ -2084,14 +2083,14 @@ pmap_clear_reference(vm_page_t m)
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		PMAP_LOCK(pv->pv_pmap);
-		oldpmap = pmap_install(pv->pv_pmap);
+		oldpmap = pmap_switch(pv->pv_pmap);
 		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
 		if (pmap_accessed(pte)) {
 			pmap_clear_accessed(pte);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
-		pmap_install(oldpmap);
+		pmap_switch(oldpmap);
 		PMAP_UNLOCK(pv->pv_pmap);
 	}
 }
@@ -2114,7 +2113,7 @@ pmap_remove_write(vm_page_t m)
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pmap = pv->pv_pmap;
 		PMAP_LOCK(pmap);
-		oldpmap = pmap_install(pmap);
+		oldpmap = pmap_switch(pmap);
 		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
 		prot = pmap_prot(pte);
@@ -2127,7 +2126,7 @@ pmap_remove_write(vm_page_t m)
 			pmap_pte_prot(pmap, pte, prot);
 			pmap_invalidate_page(pmap, pv->pv_va);
 		}
-		pmap_install(oldpmap);
+		pmap_switch(oldpmap);
 		PMAP_UNLOCK(pmap);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
@@ -2165,13 +2164,13 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	int val = 0;
 	
 	PMAP_LOCK(pmap);
-	oldpmap = pmap_install(pmap);
+	oldpmap = pmap_switch(pmap);
 	pte = pmap_find_vhpt(addr);
 	if (pte != NULL) {
 		tpte = *pte;
 		pte = &tpte;
 	}
-	pmap_install(oldpmap);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
 
 	if (pte == NULL)
@@ -2226,7 +2225,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 void
 pmap_activate(struct thread *td)
 {
-	pmap_install(vmspace_pmap(td->td_proc->p_vmspace));
+	pmap_switch(vmspace_pmap(td->td_proc->p_vmspace));
 }
 
 pmap_t
@@ -2235,10 +2234,10 @@ pmap_switch(pmap_t pm)
 	pmap_t prevpm;
 	int i;
 
-	THREAD_LOCK_ASSERT(curthread, MA_OWNED);
+	critical_enter();
 	prevpm = PCPU_GET(current_pmap);
 	if (prevpm == pm)
-		return (prevpm);
+		goto out;
 	if (prevpm != NULL)
 		atomic_clear_32(&prevpm->pm_active, PCPU_GET(cpumask));
 	if (pm == NULL) {
@@ -2255,20 +2254,9 @@ pmap_switch(pmap_t pm)
 	}
 	PCPU_SET(current_pmap, pm);
 	__asm __volatile("srlz.d");
-	return (prevpm);
-}
 
-static pmap_t
-pmap_install(pmap_t pm)
-{
-	pmap_t prevpm;
-	struct thread *td;
-
-	td = curthread;
-	thread_lock(td);
-	prevpm = pmap_switch(pm);
-	thread_unlock(td);
-
+out:
+	critical_exit();
 	return (prevpm);
 }
 
