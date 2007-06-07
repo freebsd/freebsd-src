@@ -1266,6 +1266,8 @@ static struct _s_x ext6hdrcodes[] = {
        { "dstopt",     EXT_DSTOPTS },
        { "ah",         EXT_AH },
        { "esp",        EXT_ESP },
+       { "rthdr0",     EXT_RTHDR0 },
+       { "rthdr2",     EXT_RTHDR2 },
        { NULL,         0 }
 };
 
@@ -1306,6 +1308,14 @@ fill_ext6hdr( ipfw_insn *cmd, char *av)
                cmd->arg1 |= EXT_ESP;
                break;
 
+           case EXT_RTHDR0:
+               cmd->arg1 |= EXT_RTHDR0;
+               break;
+
+           case EXT_RTHDR2:
+               cmd->arg1 |= EXT_RTHDR2;
+               break;
+
            default:
                errx( EX_DATAERR, "invalid option for ipv6 exten header" );
                break;
@@ -1334,6 +1344,14 @@ print_ext6hdr( ipfw_insn *cmd )
        }
        if (cmd->arg1 & EXT_ROUTING ) {
            printf("%crouting options", sep);
+           sep = ',';
+       }
+       if (cmd->arg1 & EXT_RTHDR0 ) {
+           printf("%crthdr0", sep);
+           sep = ',';
+       }
+       if (cmd->arg1 & EXT_RTHDR2 ) {
+           printf("%crthdr2", sep);
            sep = ',';
        }
        if (cmd->arg1 & EXT_DSTOPTS ) {

@@ -173,6 +173,8 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 #define EXT_AH		0x8
 #define EXT_ESP		0x10
 #define EXT_DSTOPTS	0x20
+#define EXT_RTHDR0		0x40
+#define EXT_RTHDR2		0x80
 
 /*
  * Template for instructions.
