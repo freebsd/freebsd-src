@@ -245,6 +245,7 @@ dcons_os_checkc(struct dcons_softc *dc)
 {
 	int c;
 
+	EVENTHANDLER_INVOKE(dcons_poll, 0);
 	if (dg.dma_tag != NULL)
 		bus_dmamap_sync(dg.dma_tag, dg.dma_map, BUS_DMASYNC_POSTREAD);
   
