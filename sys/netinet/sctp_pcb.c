@@ -3064,7 +3064,11 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 			net->dest_state = SCTP_ADDR_REACHABLE |
 			    SCTP_ADDR_UNCONFIRMED;
 	}
-	net->RTO = stcb->asoc.initial_rto;
+	/*
+	 * We set this to 0, the timer code knows that this means its an
+	 * initial value
+	 */
+	net->RTO = 0;
 	stcb->asoc.numnets++;
 	*(&net->ref_count) = 1;
 	net->tos_flowlabel = 0;
