@@ -21,8 +21,13 @@ SRCS+=	opensolaris_string.c
 SRCS+=	opensolaris_vfs.c
 SRCS+=	opensolaris_zone.c
 
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
 .PATH:	${.CURDIR}/../../contrib/opensolaris/common/atomic/${MACHINE_ARCH}
 SRCS+=	atomic.S
+.else
+.PATH:	${.CURDIR}/../../compat/opensolaris/kern
+SRCS+=	opensolaris_atomic.c
+.endif
 
 .PATH:	${.CURDIR}/../../contrib/opensolaris/uts/common/fs
 SRCS+=	gfs.c
