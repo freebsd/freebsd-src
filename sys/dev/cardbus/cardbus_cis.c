@@ -587,7 +587,7 @@ cardbus_parse_cis(device_t cbdev, device_t child,
     struct tuple_callbacks *callbacks, void *argp)
 {
 	uint8_t tupledata[MAXTUPLESIZE];
-	int tupleid;
+	int tupleid = CISTPL_NULL;
 	int len;
 	int expect_linktarget;
 	uint32_t start, off;
