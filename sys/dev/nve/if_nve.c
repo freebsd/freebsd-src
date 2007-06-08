@@ -1040,7 +1040,7 @@ nve_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	default:
 		/* Everything else we forward to generic ether ioctl */
-		error = ether_ioctl(ifp, (int)command, data);
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
