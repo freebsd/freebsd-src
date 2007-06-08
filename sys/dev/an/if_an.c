@@ -1478,7 +1478,6 @@ an_write_record(struct an_softc *sc, struct an_ltv_gen *ltv)
 	struct an_card_rid_desc an_rid_desc;
 	struct an_command	cmd;
 	struct an_reply		reply;
-	char			*buf;
 	u_int16_t		*ptr;
 	u_int8_t		*ptr2;
 	int			i, len;
@@ -1554,7 +1553,6 @@ an_write_record(struct an_softc *sc, struct an_ltv_gen *ltv)
 			return(EIO);
 		}
 
-		ptr = (u_int16_t *)buf;
 
 		if (reply.an_status & AN_CMD_QUAL_MASK) {
 			printf("an%d: failed to write RID 2 %x %x %x %x %x, %d\n", 
