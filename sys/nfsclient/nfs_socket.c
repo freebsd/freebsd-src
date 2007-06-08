@@ -922,7 +922,6 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 				    nmp->nm_mountp->mnt_stat.f_mntfromname);
 				goto mark_reconnect;
 			}				
-			bcopy(mtod(mp, u_int32_t *), &len, sizeof(len));
 			len = ntohl(len) & ~0x80000000;
 			m_freem(mp);
 			/*
