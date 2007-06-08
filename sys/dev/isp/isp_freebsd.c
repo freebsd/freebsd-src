@@ -892,7 +892,7 @@ static int
 isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 {
 	struct ccb_en_lun *cel = &ccb->cel;
-	tstate_t *tptr;
+	tstate_t *tptr = NULL;
 	uint32_t seq;
 	int bus, cmd, av, wildcard, tm_on;
 	lun_id_t lun;
