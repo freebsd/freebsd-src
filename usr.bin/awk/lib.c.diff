@@ -3,10 +3,19 @@ $FreeBSD$
 Index: lib.c
 ===================================================================
 RCS file: /home/ncvs/src/contrib/one-true-awk/lib.c,v
-retrieving revision 1.1.1.4
-diff -u -p -r1.1.1.4 lib.c
---- lib.c	16 May 2005 19:11:33 -0000	1.1.1.4
-+++ lib.c	15 Sep 2006 10:10:59 -0000
+retrieving revision 1.1.1.5
+diff -u -p -u -r1.1.1.5 lib.c
+--- lib.c	5 Jun 2007 15:33:51 -0000	1.1.1.5
++++ lib.c	8 Jun 2007 04:14:51 -0000
+@@ -40,7 +40,7 @@ char	*fields;
+ int	fieldssize = RECSIZE;
+ 
+ Cell	**fldtab;	/* pointers to Cells */
+-char	inputFS[10] = " ";
++char	inputFS[100] = " ";
+ 
+ #define	MAXFLD	2
+ int	nfields	= MAXFLD;	/* last allocated slot for $i */
 @@ -58,7 +58,7 @@ static Cell dollar1 = { OCELL, CFLD, NUL
  void recinit(unsigned int n)
  {
