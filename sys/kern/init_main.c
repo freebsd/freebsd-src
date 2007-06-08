@@ -296,12 +296,16 @@ static char wit_warn[] =
      "WARNING: WITNESS option enabled, expect reduced performance.\n";
 SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 1,
    print_caddr_t, wit_warn)
+SYSINIT(witwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 1,
+   print_caddr_t, wit_warn)
 #endif
 
 #ifdef DIAGNOSTIC
 static char diag_warn[] =
      "WARNING: DIAGNOSTIC option enabled, expect reduced performance.\n";
 SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 2,
+    print_caddr_t, diag_warn)
+SYSINIT(diagwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 2,
     print_caddr_t, diag_warn)
 #endif
 
