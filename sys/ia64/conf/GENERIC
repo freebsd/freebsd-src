@@ -55,6 +55,7 @@ options 	SYSVSHM		# SYSV-style shared memory
 options 	UFS_ACL		# Support for access control lists
 options 	UFS_DIRHASH	# Hash-based directory lookup scheme
 options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
+options 	AUDIT			# Security event auditing
 
 # Various "busses"
 device		firewire	# FireWire bus code

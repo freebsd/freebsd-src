@@ -61,6 +61,7 @@ options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	AUDIT			# Security event auditing
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
