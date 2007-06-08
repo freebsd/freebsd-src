@@ -1159,6 +1159,7 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 #endif
 				fw_xfer_done(xfer);
 			} else {
+				microtime(&xfer->tv);
 				xfer->flag = FWXF_SENT;
 				if (err == EBUSY) {
 					xfer->flag = FWXF_BUSY;
