@@ -105,15 +105,11 @@ SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
 
 struct uftdi_softc {
 	struct ucom_softc	sc_ucom;
-
 	usbd_interface_handle	sc_iface;	/* interface */
-
 	enum uftdi_type		sc_type;
 	u_int			sc_hdrlen;
-
 	u_char			sc_msr;
 	u_char			sc_lsr;
-
 	u_int			last_lcr;
 };
 
@@ -194,41 +190,33 @@ USB_ATTACH(uftdi)
 	usbd_interface_handle iface;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
-	char *devinfo;
-	const char *devname;
 	int i;
 	usbd_status err;
 	struct ucom_softc *ucom = &sc->sc_ucom;
 	DPRINTFN(10,("\nuftdi_attach: sc=%p\n", sc));
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
 
 	ucom->sc_dev = self;
 	ucom->sc_udev = dev;
-
-	devname = device_get_nameunit(ucom->sc_dev);
 
 	if (uaa->iface == NULL) {
 		/* Move the device into the configured state. */
 		err = usbd_set_config_index(dev, UFTDI_CONFIG_INDEX, 1);
 		if (err) {
-			printf("\n%s: failed to set configuration, err=%s\n",
-			       devname, usbd_errstr(err));
+			device_printf(ucom->sc_dev,
+			    "failed to set configuration, err=%s\n",
+			    usbd_errstr(err));
 			goto bad;
 		}
 
 		err = usbd_device2interface_handle(dev, UFTDI_IFACE_INDEX, &iface);
 		if (err) {
-			printf("\n%s: failed to get interface, err=%s\n",
-			       devname, usbd_errstr(err));
+			device_printf(ucom->sc_dev,
+			    "failed to get interface, err=%s\n", usbd_errstr(err));
 			goto bad;
 		}
 	} else {
 		iface = uaa->iface;
 	}
-
-	usbd_devinfo(dev, 0, devinfo);
-	/*	USB_ATTACH_SETUP;*/
-	printf("%s: %s\n", devname, devinfo);
 
 	id = usbd_get_interface_descriptor(iface);
 	ucom->sc_iface = iface;
@@ -324,8 +312,8 @@ USB_ATTACH(uftdi)
 		int addr, dir, attr;
 		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (ed == NULL) {
-			printf("%s: could not read endpoint descriptor\n",
-			    devname);
+			device_printf(ucom->sc_dev,
+			    "could not read endpoint descriptor\n");
 			goto bad;
 		}
 
@@ -333,22 +321,20 @@ USB_ATTACH(uftdi)
 		dir = UE_GET_DIR(ed->bEndpointAddress);
 		attr = ed->bmAttributes & UE_XFERTYPE;
 		if (dir == UE_DIR_IN && attr == UE_BULK)
-		  ucom->sc_bulkin_no = addr;
+			ucom->sc_bulkin_no = addr;
 		else if (dir == UE_DIR_OUT && attr == UE_BULK)
-		  ucom->sc_bulkout_no = addr;
+			ucom->sc_bulkout_no = addr;
 		else {
-		  printf("%s: unexpected endpoint\n", devname);
-		  goto bad;
+			device_printf(ucom->sc_dev, "unexpected endpoint\n");
+			goto bad;
 		}
 	}
 	if (ucom->sc_bulkin_no == -1) {
-		printf("%s: Could not find data bulk in\n",
-		    devname);
+		device_printf(ucom->sc_dev, "Could not find data bulk in\n");
 		goto bad;
 	}
 	if (ucom->sc_bulkout_no == -1) {
-		printf("%s: Could not find data bulk out\n",
-		   devname);
+		device_printf(ucom->sc_dev, "Could not find data bulk out\n");
 		goto bad;
 	}
 	ucom->sc_parent  = sc;
@@ -371,15 +357,11 @@ USB_ATTACH(uftdi)
 #endif
 	DPRINTF(("uftdi: in=0x%x out=0x%x\n", ucom->sc_bulkin_no, ucom->sc_bulkout_no));
 	ucom_attach(&sc->sc_ucom);
-	free(devinfo, M_USBDEV);
-
 	USB_ATTACH_SUCCESS_RETURN;
 
 bad:
 	DPRINTF(("uftdi_attach: ATTACH ERROR\n"));
 	ucom->sc_dying = 1;
-	free(devinfo, M_USBDEV);
-
 	USB_ATTACH_ERROR_RETURN;
 }
 #if 0
