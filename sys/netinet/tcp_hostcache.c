@@ -141,6 +141,7 @@ struct tcp_hostcache {
 	u_int	cache_count;
 	u_int	cache_limit;
 	int	expire;
+	int	prune;
 	int	purgeall;
 };
 static struct tcp_hostcache tcp_hostcache;
@@ -168,6 +169,9 @@ SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, count, CTLFLAG_RD,
 
 SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, expire, CTLFLAG_RW,
     &tcp_hostcache.expire, 0, "Expire time of TCP hostcache entries");
+
+SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, prune, CTLFLAG_RW,
+     &tcp_hostcache.prune, 0, "Time between purge runs");
 
 SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, purge, CTLFLAG_RW,
     &tcp_hostcache.purgeall, 0, "Expire all entires on next purge run");
@@ -208,6 +212,7 @@ tcp_hc_init(void)
 	tcp_hostcache.cache_limit =
 	    tcp_hostcache.hashsize * tcp_hostcache.bucket_limit;
 	tcp_hostcache.expire = TCP_HOSTCACHE_EXPIRE;
+	tcp_hostcache.prune = TCP_HOSTCACHE_PRUNE;
 
 	TUNABLE_INT_FETCH("net.inet.tcp.hostcache.hashsize",
 	    &tcp_hostcache.hashsize);
@@ -249,7 +254,7 @@ tcp_hc_init(void)
 	 * Set up periodic cache cleanup.
 	 */
 	callout_init(&tcp_hc_callout, CALLOUT_MPSAFE);
-	callout_reset(&tcp_hc_callout, TCP_HOSTCACHE_PRUNE * hz, tcp_hc_purge, 0);
+	callout_reset(&tcp_hc_callout, tcp_hostcache.prune * hz, tcp_hc_purge, 0);
 }
 
 /*
@@ -669,9 +674,9 @@ tcp_hc_purge(void *arg)
 				tcp_hostcache.hashbase[i].hch_length--;
 				tcp_hostcache.cache_count--;
 			} else
-				hc_entry->rmx_expire -= TCP_HOSTCACHE_PRUNE;
+				hc_entry->rmx_expire -= tcp_hostcache.prune;
 		}
 		THC_UNLOCK(&tcp_hostcache.hashbase[i].hch_mtx);
 	}
-	callout_reset(&tcp_hc_callout, TCP_HOSTCACHE_PRUNE * hz, tcp_hc_purge, 0);
+	callout_reset(&tcp_hc_callout, tcp_hostcache.prune * hz, tcp_hc_purge, 0);
 }
