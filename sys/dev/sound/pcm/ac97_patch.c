@@ -90,6 +90,15 @@ void alc655_patch(struct ac97_info* codec)
 	case 0x03511462:	/* MSI L725 */
 		ac97_wrcd(codec, 0x7a, ac97_rdcd(codec, 0x7a) & 0xfffd);
 		break;
+	case 0x10ca1734:
+		/*
+		 * Amilo Pro V2055 with ALC655 has phone out by default
+		 * disabled (surround on), leaving us only with internal
+		 * speakers. This should really go to mixer. We write the
+		 * Data Flow Control reg.
+		 */
+		ac97_wrcd(codec, 0x6a, ac97_rdcd(codec, 0x6a) | 0x0001);
+		break;
 	default:
 		break;
 	}
