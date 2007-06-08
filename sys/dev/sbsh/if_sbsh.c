@@ -1039,7 +1039,7 @@ issue_cx28975_cmd(struct sbsh_softc *sc, u_int8_t cmd,
 			u_int8_t *data, u_int8_t size)
 {
 	volatile struct cx28975_cmdarea  *p = sc->cmdp;
-	u_int8_t  *databuf = p->in_data;
+	volatile u_int8_t  *databuf = p->in_data;
 	int  i;
 
 	u_int8_t  cksum = 0;
