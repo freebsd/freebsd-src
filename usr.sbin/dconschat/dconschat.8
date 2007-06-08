@@ -69,7 +69,8 @@ using
 .Xr firewire 4 ,
 you have to specify target EUI64 address using the
 .Fl t
-option.
+option. Physical DMA should be enabled on the target machine for access
+via FireWire.
 .Pp
 The
 .Nm
@@ -95,15 +96,6 @@ options respectively.
 The port number 0 has special meaning that
 current TTY (stdin/stdout) is used instead of TCP/IP.
 A negative port number will disable the port.
-To quit
-.Nm ,
-send a CR +
-.Ql ~
-+
-.Ql \&.
-sequence to the console port,
-or send signal to the process.
-.Pp
 By analogy with
 .Xr pty 4
 device, the
@@ -112,6 +104,24 @@ acts as a slave device and
 .Nm
 acts as a master device with
 .Xr telnetd 8 .
+.Pp
+Typed characters are normally transmitted directly to
+.Xr dcons 4 .
+A tilde
+.Pq Ql ~
+appearing as the first character of a line is an escape signal; the
+following are recognized:
+.Bl -tag -width ident
+.It Ic ~.
+Drop the connection and exit.
+.It Ic ~^R
+Reset the target over FireWire if a reset address is registered in Configuration ROM.
+.It Ic ~^Z
+Suspend the dconschat process.
+.El
+.Pp
+The following options are supported.
+.Pp
 .Bl -tag -width indent
 .It Fl b
 Translate Ctrl-C to ALT_BREAK (CR +
