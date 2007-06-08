@@ -523,7 +523,7 @@ struct _pdq_t {
 
 #define	PDQ_DB_BUSPA(pdq, m) \
 	((pdq)->pdq_pa_descriptor_block + \
-		((u_int8_t *) (m) - (u_int8_t *) (pdq)->pdq_dbp))
+		((volatile u_int8_t *) (m) - (u_int8_t *) (pdq)->pdq_dbp))
 
 
 typedef enum {
