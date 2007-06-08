@@ -222,7 +222,7 @@ tcp_hc_init(void)
 	    &tcp_hostcache.bucket_limit);
 	if (!powerof2(tcp_hostcache.hashsize)) {
 		printf("WARNING: hostcache hash size is not a power of 2.\n");
-		tcp_hostcache.hashsize = 512;	/* safe default */
+		tcp_hostcache.hashsize = TCP_HOSTCACHE_HASHSIZE; /* default */
 	}
 	tcp_hostcache.hashmask = tcp_hostcache.hashsize - 1;
 
