@@ -110,7 +110,7 @@ static void hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group);
  * buffers because the only place we're call from is the interrupt handler.
  * Under these circumstances the code looks safe.
  */
-__inline void
+void
 hatm_ext_free(struct mbufx_free **list, struct mbufx_free *buf)
 {
 	for (;;) {
