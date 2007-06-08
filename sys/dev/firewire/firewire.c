@@ -316,7 +316,6 @@ fw_asystart(struct fw_xfer *xfer)
 	s = splfw();
 	/* Protect from interrupt/timeout */
 	FW_GLOCK(fc);
-	microtime(&xfer->tv);
 	xfer->flag = FWXF_INQ;
 	STAILQ_INSERT_TAIL(&xfer->q->q, xfer, link);
 #if 0
@@ -364,11 +363,11 @@ firewire_xfer_timeout(void *arg, int pending)
 	FW_GLOCK(fc);
 	for (i = 0; i < 0x40; i ++) {
 		while ((xfer = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
-			if (timevalcmp(&xfer->tv, &tv, >))
-				/* the rests are newer than this */
-				break;
 			if ((xfer->flag & FWXF_SENT) == 0)
 				/* not sent yet */
+				break;
+			if (timevalcmp(&xfer->tv, &tv, >))
+				/* the rests are newer than this */
 				break;
 			device_printf(fc->bdev,
 				"split transaction timeout: "
