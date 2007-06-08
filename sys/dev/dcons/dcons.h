@@ -65,6 +65,8 @@ struct dcons_buf {
 #define DCONS_CSR_VAL_VER	0x64636f /* "dco" */
 #define DCONS_CSR_KEY_HI	0x3a
 #define DCONS_CSR_KEY_LO	0x3b
+#define DCONS_CSR_KEY_RESET_HI	0x3c
+#define DCONS_CSR_KEY_RESET_LO	0x3d
 
 #define	DCONS_HEADER_SIZE sizeof(struct dcons_buf)
 #define DCONS_MAKE_PTR(x)	htonl(((x)->gen << DCONS_GEN_SHIFT) | (x)->pos)
@@ -88,6 +90,7 @@ struct dcons_ch {
 #define STATE0		0
 #define STATE1		1
 #define STATE2		2
+#define STATE3		3
 
 #if defined(_KERNEL) || defined(_BOOT)
 struct dcons_softc {
