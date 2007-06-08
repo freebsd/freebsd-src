@@ -204,7 +204,7 @@ dconschat_get_crom(struct dcons_state *dc)
 		if (dread(dc, &buf, 4, addr + i) < 0) {
 			if (verbose)
 				warn("crom read faild");
-			return (-1);
+			goto out;
 		}
 		buf = ntohl(buf);
 		if (verbose)
