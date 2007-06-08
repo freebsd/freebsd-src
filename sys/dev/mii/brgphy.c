@@ -238,6 +238,9 @@ brgphy_attach(device_t dev)
 
 	brgphy_reset(sc);
 
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	if (sc->mii_capabilities & BMSR_EXTSTAT)
+		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 	device_printf(dev, " ");
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
@@ -262,9 +265,10 @@ brgphy_attach(device_t dev)
 		if (fast_ether == 0) {
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, 0, sc->mii_inst),
 				BRGPHY_S1000);
+			printf("1000baseT, ");
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, IFM_FDX, sc->mii_inst),
 				BRGPHY_S1000 | BRGPHY_BMCR_FDX);
-			printf("1000baseTX-FDX, ");
+			printf("1000baseT-FDX, ");
 		}
 	} else {
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, sc->mii_inst),
