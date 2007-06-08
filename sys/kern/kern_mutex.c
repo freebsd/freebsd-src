@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_adaptive_mutexes.h"
 #include "opt_ddb.h"
 #include "opt_global.h"
-#include "opt_mutex_wake_all.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -71,15 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-
-/* 
- * Force MUTEX_WAKE_ALL for now.
- * single thread wakeup needs fixes to avoid race conditions with 
- * priority inheritance.
- */
-#ifndef MUTEX_WAKE_ALL
-#define MUTEX_WAKE_ALL
-#endif
 
 #if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
 #define	ADAPTIVE_MUTEXES
@@ -349,21 +339,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 			continue;
 		}
 
-#ifdef MUTEX_WAKE_ALL
 		MPASS(v != MTX_CONTESTED);
-#else
-		/*
-		 * The mutex was marked contested on release. This means that
-		 * there are other threads blocked on it.  Grab ownership of
-		 * it and propagate its priority to the current thread if
-		 * necessary.
-		 */
-		if (v == MTX_CONTESTED) {
-			m->mtx_lock = tid | MTX_CONTESTED;
-			turnstile_claim(ts);
-			break;
-		}
-#endif
 
 		/*
 		 * If the mutex isn't already contested and a failure occurs
@@ -609,21 +585,8 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 #else
 	MPASS(ts != NULL);
 #endif
-#ifdef MUTEX_WAKE_ALL
 	turnstile_broadcast(ts, TS_EXCLUSIVE_QUEUE);
 	_release_lock_quick(m);
-#else
-	if (turnstile_signal(ts, TS_EXCLUSIVE_QUEUE)) {
-		_release_lock_quick(m);
-		if (LOCK_LOG_TEST(&m->lock_object, opts))
-			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p not held", m);
-	} else {
-		m->mtx_lock = MTX_CONTESTED;
-		if (LOCK_LOG_TEST(&m->lock_object, opts))
-			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p still contested",
-			    m);
-	}
-#endif
 	/*
 	 * This turnstile is now no longer associated with the mutex.  We can
 	 * unlock the chain lock so a new turnstile may take it's place.
