@@ -87,6 +87,7 @@ static struct dcons_state {
 	kvm_t *kd;
 	int kq;
 	off_t paddr;
+	off_t reset;
 #define F_READY		(1 << 1)
 #define F_RD_ONLY	(1 << 2)
 #define F_ALT_BREAK	(1 << 3)
@@ -115,6 +116,7 @@ static struct dcons_state {
 	struct timespec to;
 	struct timespec zero;
 	struct termios tsave;
+	struct termios traw;
 } sc;
 
 static int
@@ -145,6 +147,32 @@ dwrite(struct dcons_state *dc, void *buf, size_t n, off_t offset)
 }
 
 static void
+dconschat_reset_target(struct dcons_state *dc)
+{
+	char zeros[PAGE_SIZE];
+	if (dc->reset == 0)
+		return;
+
+	bzero(&zeros[0], PAGE_SIZE);
+	printf("\r\n[dconschat reset target(addr=0x%zx)...]\r\n", dc->reset);
+	dwrite(dc, (void *)zeros, PAGE_SIZE, dc->reset);
+}
+
+
+static void
+dconschat_suspend(struct dcons_state *dc)
+{
+	if (tc_set)
+		tcsetattr(STDIN_FILENO, TCSADRAIN, &dc->tsave);
+
+	printf("\n[dconschat suspend]\n");
+	kill(getpid(), SIGTSTP);
+
+	if (tc_set)
+		tcsetattr(STDIN_FILENO, TCSADRAIN, &dc->traw);
+}
+
+static void
 dconschat_cleanup(int sig)
 {
 	struct dcons_state *dc;
@@ -166,7 +194,7 @@ dconschat_get_crom(struct dcons_state *dc)
 {
 	off_t addr;
 	int i, state = 0;
-	u_int32_t buf, hi = 0, lo = 0;
+	u_int32_t buf, hi = 0, lo = 0, reset_hi = 0, reset_lo = 0;
 	struct csrreg *reg; 
 
 	reg = (struct csrreg *)&buf;
@@ -193,21 +221,35 @@ dconschat_get_crom(struct dcons_state *dc)
 				state = 2;
 			break;
 		case 2:
-			if (reg->key == DCONS_CSR_KEY_HI)
+			switch (reg->key) {
+			case DCONS_CSR_KEY_HI:
 				hi = reg->val;
-			else if (reg->key == DCONS_CSR_KEY_LO) {
+				break;
+			case DCONS_CSR_KEY_LO:
 				lo = reg->val;
+				break;
+			case DCONS_CSR_KEY_RESET_HI:
+				reset_hi = reg->val;
+				break;
+			case DCONS_CSR_KEY_RESET_LO:
+				reset_lo = reg->val;
 				goto out;
+				break;
+			case 0x81:
+				break;
+			default:
+				state = 0;
 			}
 			break;
 		}
 	}
-	/* not found */
-	return (-1);
 out:
 	if (verbose)
 		printf("addr: %06x %06x\n", hi, lo); 
 	dc->paddr = ((off_t)hi << 24) | lo;
+	dc->reset = ((off_t)reset_hi << 24) | reset_lo;
+	if (dc->paddr == 0)
+		return (-1);
 	return (0);
 }
 #endif
@@ -525,11 +567,9 @@ dconschat_init_socket(struct dcons_state *dc, int port, char *host, int sport)
 		p->s = -1;
 		if (tc_set == 0 &&
 		    tcgetattr(STDIN_FILENO, &dc->tsave) == 0) {
-			struct termios traw;
-
-			traw = dc->tsave;
-			cfmakeraw(&traw);
-			tcsetattr(STDIN_FILENO, TCSADRAIN, &traw);
+			dc->traw = dc->tsave;
+			cfmakeraw(&dc->traw);
+			tcsetattr(STDIN_FILENO, TCSADRAIN, &dc->traw);
 			tc_set = 1;
 		}
 		EV_SET(&kev, p->infd, EVFILT_READ, EV_ADD, NOTE_LOWAT, 1,
@@ -627,8 +667,10 @@ dconschat_read_filter(struct dcons_state *dc, struct dcons_port *p,
     u_char *sp, int slen, u_char *dp, int *dlen)
 {
 	static u_char abreak[3] = {13 /* CR */, 126 /* ~ */, 2 /* ^B */};
+	int skip;
 
 	while (slen > 0) {
+		skip = 0;
 		if (IS_CONSOLE(p)) {
 			if ((dc->flags & F_TELNET) != 0) {
 				/* XXX Telnet workarounds */
@@ -655,15 +697,39 @@ dconschat_read_filter(struct dcons_state *dc, struct dcons_port *p,
 			}
 			switch (dc->escape_state) {
 			case STATE1:
-				if (*sp == KEY_TILDE)
+				if (*sp == KEY_TILDE) {
+					skip = 1;
 					dc->escape_state = STATE2;
-				else
+				} else
 					dc->escape_state = STATE0;
 				break;
 			case STATE2:
 				dc->escape_state = STATE0;
 				if (*sp == '.')
 					dconschat_cleanup(0);
+				else if ((*sp == 0x12 /*'^R'*/)
+						&& (dc->reset != 0)) {
+					dc->escape_state = STATE3;
+					skip = 1;
+					printf("\r\n[Are you sure to "
+						"reset target? (y/N)]");
+					fflush(stdout);
+				} else if (*sp == 0x1a /*'^Z'*/) {
+					skip = 1;
+					dconschat_suspend(dc);
+				} else {
+					*dp++ = '~';
+					(*dlen) ++;
+				}
+				break;
+			case STATE3:
+				dc->escape_state = STATE0;
+				skip = 1;
+				if (*sp == 'y')
+					dconschat_reset_target(dc);
+				else
+					printf("\r\n");
+				break;
 			}
 			if (*sp == KEY_CR)
 				dc->escape_state = STATE1;
@@ -679,8 +745,11 @@ dconschat_read_filter(struct dcons_state *dc, struct dcons_port *p,
 				break;
 			}
 		}
-		*dp++ = *sp++;
-		(*dlen) ++;
+		if (!skip) {
+			*dp++ = *sp;
+			(*dlen) ++;
+		}
+		sp ++;
 		slen --;
 	}
 	return (*dlen);
