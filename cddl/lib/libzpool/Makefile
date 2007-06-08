@@ -11,7 +11,13 @@
 # LIST_SRCS
 .PATH: ${.CURDIR}/../../../sys/contrib/opensolaris/uts/common/os
 # ATOMIC_SRCS
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
 .PATH: ${.CURDIR}/../../../sys/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
+ATOMIC_SRCS=	atomic.S
+.else
+.PATH: ${.CURDIR}/../../../sys/compat/opensolaris/kern
+ATOMIC_SRCS=	opensolaris_atomic.c
+.endif
 
 LIB=		zpool
 
@@ -19,7 +25,6 @@ ZFS_COMMON_SRCS= ${ZFS_COMMON_OBJS:C/.o$/.c/} vdev_file.c
 ZFS_SHARED_SRCS= ${ZFS_SHARED_OBJS:C/.o$/.c/}
 KERNEL_SRCS=	kernel.c taskq.c util.c
 LIST_SRCS=	list.c
-ATOMIC_SRCS=	atomic.S
 
 SRCS=		${ZFS_COMMON_SRCS} ${ZFS_SHARED_SRCS} \
 		${KERNEL_SRCS} ${LIST_SRCS} ${ATOMIC_SRCS}
