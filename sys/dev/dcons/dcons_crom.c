@@ -84,6 +84,7 @@ struct dcons_crom_softc {
 	bus_dma_tag_t dma_tag;
 	bus_dmamap_t dma_map;
 	bus_addr_t bus_addr;
+	eventhandler_tag ehand;
 };
 
 static void
@@ -164,6 +165,14 @@ dmamap_cb(void *arg, bus_dma_segment_t *segments, int seg, int error)
 #endif
 }
 
+static void
+dcons_crom_poll(void *p, int arg)
+{
+	struct dcons_crom_softc *sc = (struct dcons_crom_softc *) p;
+
+	sc->fd.fc->poll(sc->fd.fc, -1, -1);
+}
+
 static int
 dcons_crom_attach(device_t dev)
 {
@@ -200,6 +209,8 @@ dcons_crom_attach(device_t dev)
 	bus_dmamap_load(sc->dma_tag, sc->dma_map,
 	    (void *)dcons_conf->buf, dcons_conf->size,
 	    dmamap_cb, sc, 0);
+	sc->ehand = EVENTHANDLER_REGISTER(dcons_poll, dcons_crom_poll,
+			 (void *)sc, 0);
 	return (0);
 #endif
 }
@@ -211,6 +222,9 @@ dcons_crom_detach(device_t dev)
 
         sc = (struct dcons_crom_softc *) device_get_softc(dev);
 	sc->fd.post_busreset = NULL;
+
+	if (sc->ehand)
+		EVENTHANDLER_DEREGISTER(dcons_poll, sc->ehand);
 
 	/* XXX */
 	if (dcons_conf->dma_tag == sc->dma_tag)
