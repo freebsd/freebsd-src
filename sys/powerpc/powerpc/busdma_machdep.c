@@ -263,9 +263,18 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		mflags |= M_ZERO;
 
         *mapp = NULL;
-	
-        if (dmat->maxsize <= PAGE_SIZE) {
-                *vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
+
+	/* 
+	 * XXX:
+	 * (dmat->alignment < dmat->maxsize) is just a quick hack; the exact
+	 * alignment guarantees of malloc need to be nailed down, and the
+	 * code below should be rewritten to take that into account.
+	 *
+	 * In the meantime, we'll return an error if malloc gets it wrong.
+	 */
+	if (dmat->maxsize <= PAGE_SIZE &&
+	    dmat->alignment < dmat->maxsize) {
+		*vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
         } else {
                 /*
                  * XXX Use Contigmalloc until it is merged into this facility
@@ -280,6 +289,9 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
         if (*vaddr == NULL)
                 return (ENOMEM);
 
+	if ((uintptr_t)*vaddr % dmat->alignment)
+		printf("XXX: %s: alignment not respected!\n", __func__);
+
         return (0);
 }
 
@@ -292,11 +304,11 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
         if (map != NULL)
                 panic("bus_dmamem_free: Invalid map freed\n");
-        if (dmat->maxsize <= PAGE_SIZE)
+        if (dmat->maxsize <= PAGE_SIZE &&
+	    dmat->alignment < dmat->maxsize)
 		free(vaddr, M_DEVBUF);
-        else {
+        else
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
-	}
 }
 
 /*
