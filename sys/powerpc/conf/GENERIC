@@ -58,6 +58,7 @@ options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options 	AUDIT			# Security event auditing
 
 # Debugging for use in -current
 options 	KDB			#Enable the kernel debugger
