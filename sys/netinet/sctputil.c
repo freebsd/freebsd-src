@@ -2577,24 +2577,31 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	o_calctime = calc_time;
 	/* this is Van Jacobson's integer version */
 	if (net->RTO) {
-		calc_time -= (net->lastsa >> 3);
+		calc_time -= (net->lastsa >> SCTP_RTT_SHIFT);	/* take away 1/8th when
+								 * shift=3 */
 #ifdef SCTP_RTTVAR_LOGGING
 		rto_logging(net, SCTP_LOG_RTTVAR);
 #endif
 		net->prev_rtt = o_calctime;
-		net->lastsa += calc_time;
+		net->lastsa += calc_time;	/* add 7/8th into sa when
+						 * shift=3 */
 		if (calc_time < 0) {
 			calc_time = -calc_time;
 		}
-		calc_time -= (net->lastsv >> 2);
+		calc_time -= (net->lastsv >> SCTP_RTT_VAR_SHIFT);	/* take away 1/4 when
+									 * VAR shift=2 */
 		net->lastsv += calc_time;
 		if (net->lastsv == 0) {
 			net->lastsv = SCTP_CLOCK_GRANULARITY;
 		}
 	} else {
 		/* First RTO measurment */
-		net->lastsa = calc_time;
-		net->lastsv = calc_time >> 1;
+		net->lastsa = calc_time << SCTP_RTT_SHIFT;	/* Multiply by 8 when
+								 * shift=3 */
+		net->lastsv = calc_time;
+		if (net->lastsv == 0) {
+			net->lastsv = SCTP_CLOCK_GRANULARITY;
+		}
 		first_measure = 1;
 		net->prev_rtt = o_calctime;
 #ifdef SCTP_RTTVAR_LOGGING
@@ -2602,7 +2609,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 #endif
 	}
 calc_rto:
-	new_rto = ((net->lastsa >> 2) + net->lastsv) >> 1;
+	new_rto = (net->lastsa >> SCTP_RTT_SHIFT) + net->lastsv;
 	if ((new_rto > SCTP_SAT_NETWORK_MIN) &&
 	    (stcb->asoc.sat_network_lockout == 0)) {
 		stcb->asoc.sat_network = 1;

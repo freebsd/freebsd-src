@@ -2319,7 +2319,7 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 		if (net->ssthresh < net->mtu) {
 			net->ssthresh = net->mtu;
 			/* here back off the timer as well, to slow us down */
-			net->RTO <<= 2;
+			net->RTO <<= 1;
 		}
 		net->cwnd = net->ssthresh;
 #ifdef SCTP_CWND_MONITOR

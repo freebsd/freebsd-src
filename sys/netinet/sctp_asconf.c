@@ -1794,7 +1794,7 @@ sctp_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 					 * address?
 					 */
 					sctp_set_initial_cc_param(stcb, net);
-					net->RTO = stcb->asoc.initial_rto;
+					net->RTO = 0;
 
 				}
 			}
