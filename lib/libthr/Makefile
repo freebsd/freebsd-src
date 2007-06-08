@@ -16,6 +16,7 @@ SHLIBDIR= /lib
 
 LIB=thr
 SHLIB_MAJOR= 3
+WARNS?= 2
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
@@ -33,7 +34,7 @@ VERSION_MAP=${.CURDIR}/pthread.map
 MAN=	libthr.3
 
 # enable extra internal consistancy checks
-CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
+CFLAGS+=-D_PTHREADS_INVARIANTS
 #CFLAGS+=-g
 
 PRECIOUSLIB=
