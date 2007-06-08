@@ -608,7 +608,9 @@ static void
 sbp_targ_send_status(struct orb_info *orbi, union ccb *ccb)
 {
 	struct sbp_status *sbp_status;
+#if	0
 	struct orb_info *norbi;
+#endif
 
 	sbp_status = &orbi->status;
 
