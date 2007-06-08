@@ -242,7 +242,7 @@ pdq_os_transmit_done(
     struct mbuf *m)
 {
     pdq_softc_t *sc = pdq->pdq_os_ctx;
-#if NBPFILTER > 0
+#if defined(NBPFILTER) && NBPFILTER > 0
     if (PQD_IFNET(sc)->if_bpf != NULL)
 	PDQ_BPF_MTAP(sc, m);
 #endif
