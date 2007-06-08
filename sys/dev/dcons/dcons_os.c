@@ -704,7 +704,9 @@ dcons_modevent(module_t mode, int type, void *data)
 
 		break;
 	case MOD_SHUTDOWN:
+#if 0		/* Keep connection after halt */
 		dg.buf->magic = 0;
+#endif
 		break;
 	default:
 		err = EOPNOTSUPP;
