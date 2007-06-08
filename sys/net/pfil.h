@@ -92,7 +92,7 @@ int	pfil_head_unregister(struct pfil_head *);
 
 struct pfil_head *pfil_head_get(int, u_long);
 
-#define	PFIL_HOOKED(p) (&(p)->ph_nhooks > 0)
+#define	PFIL_HOOKED(p) ((p)->ph_nhooks > 0)
 #define PFIL_RLOCK(p) rw_rlock(&(p)->ph_mtx)
 #define PFIL_WLOCK(p) rw_wlock(&(p)->ph_mtx)
 #define PFIL_RUNLOCK(p) rw_runlock(&(p)->ph_mtx)
