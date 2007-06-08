@@ -2450,7 +2450,7 @@ loop:
 		mtx_unlock(&nblock);
 	}
 
-	VI_LOCK(vp);
+	BO_LOCK(bo);
 	bp = gbincore(bo, blkno);
 	if (bp != NULL) {
 		int lockflags;
@@ -2579,7 +2579,7 @@ loop:
 		 * returned by getnewbuf() is locked.  Note that the returned
 		 * buffer is also considered valid (not marked B_INVAL).
 		 */
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 		/*
 		 * If the user does not want us to create the buffer, bail out
 		 * here.
