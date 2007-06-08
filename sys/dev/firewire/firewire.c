@@ -220,6 +220,17 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 		printf("invalid tcode=%x\n", tcode);
 		return EINVAL;
 	}
+
+	/* XXX allow bus explore packets only after bus rest */
+	if ((fc->status < FWBUSEXPLORE) &&
+	    ((tcode != FWTCODE_RREQQ) || (fp->mode.rreqq.dest_hi != 0xffff) ||
+	    (fp->mode.rreqq.dest_lo  < 0xf0000000) ||
+	    (fp->mode.rreqq.dest_lo >= 0xf0001000))) {
+		xfer->resp = EAGAIN;
+		xfer->flag = FWXF_BUSY;
+		return (EAGAIN);
+	}
+
 	if (info->flag & FWTI_REQ)
 		xferq = fc->atq;
 	else
@@ -302,15 +313,6 @@ fw_asystart(struct fw_xfer *xfer)
 {
 	struct firewire_comm *fc = xfer->fc;
 	int s;
-#if 0 /* XXX allow bus explore packets only after bus rest */
-	if (fc->status < FWBUSEXPLORE) {
-		xfer->resp = EAGAIN;
-		xfer->flag = FWXF_BUSY;
-		if (xfer->hand != NULL)
-			xfer->hand(xfer);
-		return;
-	}
-#endif
 	s = splfw();
 	/* Protect from interrupt/timeout */
 	FW_GLOCK(fc);
@@ -1268,7 +1270,6 @@ void fw_sidrcv(struct firewire_comm* fc, uint32_t *sid, u_int len)
 	u_int i, j, node, c_port = 0, i_branch = 0;
 
 	fc->sid_cnt = len /(sizeof(uint32_t) * 2);
-	fc->status = FWBUSINIT;
 	fc->max_node = fc->nodeid & 0x3f;
 	CSRARC(fc, NODE_IDS) = ((uint32_t)fc->nodeid) << 16;
 	fc->status = FWBUSCYMELECT;
@@ -1890,7 +1891,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 			    fp->mode.wreqq.dest_hi, fp->mode.wreqq.dest_lo,
 			    tcode_str[tcode], tcode,
 			    fp->mode.hdr.src, ntohl(fp->mode.wreqq.data));
-			if (rb->fc->status == FWBUSRESET) {
+			if (rb->fc->status == FWBUSINIT) {
 				printf("fw_rcv: cannot respond(bus reset)!\n");
 				return;
 			}

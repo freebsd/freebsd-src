@@ -1098,7 +1098,7 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		LAST_DB(tr, db);
 		status = FWOHCI_DMA_READ(db->db.desc.res) >> OHCI_STATUS_SHIFT;
 		if(!(status & OHCI_CNTL_DMA_ACTIVE)){
-			if (fc->status != FWBUSRESET) 
+			if (fc->status != FWBUSINIT) 
 				/* maybe out of order?? */
 				goto out;
 		}
@@ -1160,7 +1160,7 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 				fw_xfer_done(xfer);
 			} else {
 				xfer->flag = FWXF_SENT;
-				if (err == EBUSY && fc->status != FWBUSRESET) {
+				if (err == EBUSY) {
 					xfer->flag = FWXF_BUSY;
 					xfer->resp = err;
 					xfer->recv.pay_len = 0;
@@ -2903,7 +2903,8 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				break;
 			}
 			case FWOHCIEV_BUSRST:
-				if (sc->fc.status != FWBUSRESET) 
+				if ((sc->fc.status != FWBUSRESET) &&
+				    (sc->fc.status != FWBUSINIT))
 					printf("got BUSRST packet!?\n");
 				break;
 			default:
