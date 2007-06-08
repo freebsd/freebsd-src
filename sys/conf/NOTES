@@ -226,11 +226,6 @@ options 	ADAPTIVE_SX
 # and WITNESS options.
 options 	MUTEX_NOINLINE
 
-# MUTEX_WAKE_ALL changes the mutex unlock algorithm to wake all waiters
-# when a contested mutex is released rather than just awaking the highest
-# priority waiter.
-options 	MUTEX_WAKE_ALL
-
 # RWLOCK_NOINLINE forces rwlock operations to call functions to perform each
 # operation rather than inlining the simple cases.  This can be used to
 # shrink the size of the kernel text segment.  Note that this behavior is

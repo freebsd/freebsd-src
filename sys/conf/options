@@ -123,7 +123,6 @@ MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h
 MPROF_BUFFERS	opt_mprof.h
 MPROF_HASH_SIZE	opt_mprof.h
-MUTEX_WAKE_ALL
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
 NSWBUF_MIN	opt_swap.h
