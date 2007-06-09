@@ -915,11 +915,9 @@ USB_MATCH(umass)
 	USB_MATCH_START(umass, uaa);
 	struct umass_softc *sc = device_get_softc(self);
 
-	USB_MATCH_SETUP;
-
+	sc->sc_dev = self;
 	if (uaa->iface == NULL)
 		return(UMATCH_NONE);
-
 	return(umass_match_proto(sc, uaa->iface, uaa->device));
 }
 
@@ -928,7 +926,6 @@ USB_ATTACH(umass)
 	USB_ATTACH_START(umass, sc, uaa);
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
-	char devinfo[1024];
 	int i;
 	int err;
 
@@ -936,10 +933,7 @@ USB_ATTACH(umass)
 	 * the softc struct is bzero-ed in device_set_driver. We can safely
 	 * call umass_detach without specifically initialising the struct.
 	 */
-
-	usbd_devinfo(uaa->device, 0, devinfo);
-	USB_ATTACH_SETUP;
-
+	sc->sc_dev = self;
 	sc->iface = uaa->iface;
 	sc->ifaceno = uaa->ifaceno;
 	usb_callout_init(sc->cam_scsi_rescan_ch);
