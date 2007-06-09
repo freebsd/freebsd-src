@@ -528,8 +528,11 @@ after_sack_rexmit:
 	 * max size segments, or at least 50% of the maximum possible
 	 * window, then want to send a window update to peer.
 	 * Skip this if the connection is in T/TCP half-open state.
+	 * Don't send pure window updates when the peer has closed
+	 * the connection and won't ever send more data.
 	 */
-	if (recwin > 0 && !(tp->t_flags & TF_NEEDSYN)) {
+	if (recwin > 0 && !(tp->t_flags & TF_NEEDSYN) &&
+	    !TCPS_HAVERCVDFIN(tp->t_state)) {
 		/*
 		 * "adv" is the amount we can increase the window,
 		 * taking into account that we are limited by
