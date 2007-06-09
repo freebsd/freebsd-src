@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
-#include <machine/cpu.h>
+#include <machine/md_var.h>
 #include <machine/vmparam.h>
 
 /*

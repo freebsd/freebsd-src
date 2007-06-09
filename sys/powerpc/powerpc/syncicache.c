@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/sysctl.h>
 
-#include <machine/cpu.h>
+#include <machine/md_var.h>
 
 #if	defined(_KERNEL) || defined(_STANDALONE)
 #ifndef	CACHELINESIZE
