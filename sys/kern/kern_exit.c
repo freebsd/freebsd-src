@@ -116,7 +116,6 @@ exit1(struct thread *td, int rv)
 	struct ucred *tracecred;
 #endif
 	struct plimit *plim;
-	struct rusage *ru;
 	int locked;
 
 	/*
@@ -233,8 +232,6 @@ retry:
 	 */
 	EVENTHANDLER_INVOKE(process_exit, p);
 
-	MALLOC(ru, struct rusage *, sizeof(struct rusage),
-		M_ZOMBIE, M_WAITOK);
 	/*
 	 * If parent is waiting for us to exit or exec,
 	 * P_PPWAIT is set; we will wakeup the parent below.
@@ -447,16 +444,6 @@ retry:
 	p->p_xstat = rv;
 	p->p_xthread = td;
 	/*
-	 * All statistics have been aggregated into the final td_ru by
-	 * thread_exit().  Copy these into the proc here where wait*()
-	 * can find them.
-	 * XXX We will miss any statistics gathered between here and
-	 * thread_exit() except for those related to clock ticks.
-	 */
-	*ru = td->td_ru;
-	ru->ru_nvcsw++;
-	p->p_ru = ru;
-	/*
 	 * Notify interested parties of our demise.
 	 */
 	KNOTE_LOCKED(&p->p_klist, NOTE_EXIT);
@@ -535,6 +522,11 @@ retry:
 	 * late in the game.
 	 */
 	knlist_destroy(&p->p_klist);
+
+	/*
+	 * Save our children's rusage information in our exit rusage.
+	 */
+	ruadd(&p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
 
 	/*
 	 * Make sure the scheduler takes this thread out of its tables etc.
@@ -711,27 +703,15 @@ loop:
 		}
 
 		nfound++;
+		PROC_SLOCK(p);
 		if (p->p_state == PRS_ZOMBIE) {
-
-			/*
-			 * It is possible that the last thread of this
-			 * process is still running on another CPU
-			 * in thread_exit() after having dropped the process
-			 * lock via PROC_UNLOCK() but before it has completed
-			 * cpu_throw().  In that case, the other thread must
-			 * still hold the proc slock, so simply by acquiring
-			 * proc slock once we will wait long enough for the
-			 * thread to exit in that case.
-			 * XXX This is questionable.
-			 */
-			PROC_SLOCK(p);
 			PROC_SUNLOCK(p);
 			
 			td->td_retval[0] = p->p_pid;
 			if (status)
 				*status = p->p_xstat;	/* convert to int */
 			if (rusage) {
-				*rusage = *p->p_ru;
+				*rusage = p->p_ru;
 				calcru(p, &rusage->ru_utime, &rusage->ru_stime);
 			}
 
@@ -776,11 +756,9 @@ loop:
 			p->p_xstat = 0;		/* XXX: why? */
 			PROC_UNLOCK(p);
 			PROC_LOCK(q);
-			ruadd(&q->p_stats->p_cru, &q->p_crux, p->p_ru,
+			ruadd(&q->p_stats->p_cru, &q->p_crux, &p->p_ru,
 			    &p->p_rux);
 			PROC_UNLOCK(q);
-			FREE(p->p_ru, M_ZOMBIE);
-			p->p_ru = NULL;
 
 			/*
 			 * Decrement the count of procs running with this uid.
@@ -819,7 +797,6 @@ loop:
 			sx_xunlock(&allproc_lock);
 			return (0);
 		}
-		PROC_SLOCK(p);
 		if ((p->p_flag & P_STOPPED_SIG) &&
 		    (p->p_suspcount == p->p_numthreads) &&
 		    (p->p_flag & P_WAITED) == 0 &&
