@@ -1039,19 +1039,16 @@ rufetch(struct proc *p, struct rusage *ru)
 {
 	struct thread *td;
 
-	memset(ru, 0, sizeof(*ru));
 	PROC_SLOCK(p);
-	if (p->p_ru == NULL)  {
-		KASSERT(p->p_numthreads > 0,
-		    ("rufetch: No threads or ru in proc %p", p));
+	*ru = p->p_ru;
+	if (p->p_numthreads > 0)  {
 		FOREACH_THREAD_IN_PROC(p, td) {
 			thread_lock(td);
 			ruxagg(&p->p_rux, td);
 			thread_unlock(td);
 			rucollect(ru, &td->td_ru);
 		}
-	} else
-		*ru = *p->p_ru;
+	}
 	PROC_SUNLOCK(p);
 }
 
