@@ -151,12 +151,9 @@ USB_ATTACH(ubtbcmfw)
 	USB_ATTACH_START(ubtbcmfw, sc, uaa);
 	usbd_interface_handle	iface;
 	usbd_status		err;
-	char			devinfo[1024];
 
+	sc->sc_dev = self;
 	sc->sc_udev = uaa->device;
-	usbd_devinfo(sc->sc_udev, 0, devinfo);
-	USB_ATTACH_SETUP;
-	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
 
 	sc->sc_ctrl_dev = sc->sc_intr_in_dev = sc->sc_bulk_out_dev = NULL;
 	sc->sc_intr_in_pipe = sc->sc_bulk_out_pipe = NULL;
