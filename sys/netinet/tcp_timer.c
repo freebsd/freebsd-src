@@ -386,8 +386,14 @@ shutdown:
 	INP_INFO_WLOCK(&tcbinfo);
 	INP_LOCK(inp);
 
-	/* When tp is gone we've lost the race. */
-	if (inp->inp_ppcb == NULL) {
+	/*
+	 * XXX: When our tcpcb went into TIMEWAIT, is gone or no
+	 * longer the one we used to work with we've lost the race.
+	 * This race is inherent in the current socket/inpcb life
+	 * cycle system.
+	 */
+	if ((inp->inp_vflag & INP_TIMEWAIT) || inp->inp_ppcb == NULL ||
+	    inp->inp_ppcb != tp) {
 		CTR3(KTR_NET, "%p %s inp %p lost shutdown race",
 		    tp, __func__, inp);
 		tcp_timer_race++;
