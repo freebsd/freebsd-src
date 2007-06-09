@@ -177,7 +177,6 @@ ucycom_attach(device_t dev)
 	struct ucycom_softc *sc;
 	struct ucycom_device *ud;
 	usb_endpoint_descriptor_t *ued;
-	char *devinfo;
 	void *urd;
 	int error, urdlen;
 
@@ -187,14 +186,6 @@ ucycom_attach(device_t dev)
 	bzero(sc, sizeof *sc);
 	sc->sc_dev = dev;
 	sc->sc_usbdev = uaa->device;
-
-	/* get device description */
-	/* XXX usb_devinfo() has little or no overflow protection */
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
-	usbd_devinfo(sc->sc_usbdev, 0, devinfo);
-	device_set_desc_copy(dev, devinfo);
-	device_printf(dev, "%s\n", devinfo);
-	free(devinfo, M_USBDEV);
 
 	/* get chip model */
 	for (ud = ucycom_devices; ud->model != 0; ++ud)
