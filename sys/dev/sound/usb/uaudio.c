@@ -523,13 +523,14 @@ USB_ATTACH(uaudio)
 	USB_ATTACH_START(uaudio, sc, uaa);
 	usb_interface_descriptor_t *id;
 	usb_config_descriptor_t *cdesc;
+#if !define(__FreeBSD__)
 	char devinfo[1024];
+#endif
 	usbd_status err;
 	int i, j, found;
 
 #if defined(__FreeBSD__)
-	usbd_devinfo(uaa->device, 0, devinfo);
-	USB_ATTACH_SETUP;
+	sc->sc_dev = self;
 #else
 	usbd_devinfo(uaa->device, 0, devinfo, sizeof(devinfo));
 	printf(": %s\n", devinfo);
