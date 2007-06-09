@@ -1226,19 +1226,21 @@ loop:
 
 		nfound++;
 
+		PROC_SLOCK(p);
 		/*
 		 * See if we have a zombie.  If so, WNOWAIT should be set,
 		 * as otherwise we should have called kern_wait() up above.
 		 */
 		if ((p->p_state == PRS_ZOMBIE) && 
 		    ((uap->options & (SVR4_WEXITED|SVR4_WTRAPPED)))) {
+			PROC_SUNLOCK(p);
 			KASSERT(uap->options & SVR4_WNOWAIT,
 			    ("WNOWAIT is clear"));
 
 			/* Found a zombie, so cache info in local variables. */
 			pid = p->p_pid;
 			status = p->p_xstat;
-			ru = *p->p_ru;
+			ru = p->p_ru;
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
 			PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
@@ -1253,7 +1255,6 @@ loop:
 		 * See if we have a stopped or continued process.
 		 * XXX: This duplicates the same code in kern_wait().
 		 */
-		PROC_SLOCK(p);
 		if ((p->p_flag & P_STOPPED_SIG) &&
 		    (p->p_suspcount == p->p_numthreads) &&
 		    (p->p_flag & P_WAITED) == 0 &&
@@ -1264,7 +1265,7 @@ loop:
 			sx_sunlock(&proctree_lock);
 			pid = p->p_pid;
 			status = W_STOPCODE(p->p_xstat);
-			ru = *p->p_ru;
+			ru = p->p_ru;
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
 			PROC_UNLOCK(p);
 
@@ -1285,7 +1286,7 @@ loop:
 		        if (((uap->options & SVR4_WNOWAIT)) == 0)
 				p->p_flag &= ~P_CONTINUED;
 			pid = p->p_pid;
-			ru = *p->p_ru;
+			ru = p->p_ru;
 			status = SIGCONT;
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
 			PROC_UNLOCK(p);
