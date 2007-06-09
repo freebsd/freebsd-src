@@ -49,6 +49,7 @@ anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26"]
 arved [label="Tilman Linneweh\narved@FreeBSD.org\n2002/10/15"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
+beech [label="Beech Rintoul\nbeech@FreeBSD.org\n2007/05/30"]
 bland [label="Alexander Nedotsukov\nbland@FreeBSD.org\n2003/08/14"]
 brooks [label="Brooks Davies\nbrooks@FreeBSD.org\n2004/05/03"]
 bsam [label="Boris Samorodov\nbsam@FreeBSD.org\n2006/07/20"]
@@ -237,6 +238,8 @@ pav -> kwm
 pav -> mnag
 
 philip -> koitsu
+
+sat -> beech
 
 sem -> az
 sem -> anray
