@@ -920,8 +920,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	/*
 	 * Unscale the window into a 32-bit value.
-	 * This value is bogus for the TCPS_SYN_SENT state
-	 * and is overwritten later.
+	 * For the SYN_SENT state it is zero.
 	 */
 	tiwin = th->th_win << tp->snd_scale;
 
@@ -947,6 +946,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * Process options only when we get SYN/ACK back. The SYN case
 	 * for incoming connections is handled in tcp_syncache.
+	 * According to RFC1323 the window field in a SYN (i.e., a <SYN>
+	 * or <SYN,ACK>) segment itself is never scaled.
 	 * XXX this is traditional behavior, may need to be cleaned up.
 	 */
 	if (tp->t_state == TCPS_SYN_SENT && (thflags & TH_SYN)) {
@@ -954,16 +955,17 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    (tp->t_flags & TF_REQ_SCALE)) {
 			tp->t_flags |= TF_RCVD_SCALE;
 			tp->snd_scale = to.to_wscale;
-			tp->snd_wnd = th->th_win << tp->snd_scale;
-			tiwin = tp->snd_wnd;
 		}
+		/*
+		 * Initial send window.  It will be updated with
+		 * the next incoming segment to the scaled value.
+		 */
+		tp->snd_wnd = th->th_win;
 		if (to.to_flags & TOF_TS) {
 			tp->t_flags |= TF_RCVD_TSTMP;
 			tp->ts_recent = to.to_tsval;
 			tp->ts_recent_age = ticks;
 		}
-		/* Initial send window, already scaled. */
-		tp->snd_wnd = th->th_win;
 		if (to.to_flags & TOF_MSS)
 			tcp_mss(tp, to.to_mss);
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
