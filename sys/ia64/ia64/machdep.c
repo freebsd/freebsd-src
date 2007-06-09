@@ -274,10 +274,11 @@ cpu_startup(dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			int size1 = phys_avail[indx + 1] - phys_avail[indx];
+			long size1 = phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08lx - 0x%08lx, %d bytes (%d pages)\n", phys_avail[indx],
-			    phys_avail[indx + 1] - 1, size1, size1 / PAGE_SIZE);
+			printf("0x%08lx - 0x%08lx, %ld bytes (%ld pages)\n",
+			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
+			    size1 >> PAGE_SHIFT);
 		}
 	}
 
