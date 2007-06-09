@@ -85,7 +85,7 @@ SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 long cp_time[CPUSTATES];
 
 /* Spin-lock protecting profiling statistics. */
-struct mtx time_lock;
+static struct mtx time_lock;
 
 static int
 sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
