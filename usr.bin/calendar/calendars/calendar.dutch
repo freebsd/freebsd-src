@@ -1,0 +1,58 @@
+/*
+ * $FreeBSD$
+ *
+ * Originally submitted by Edwin Groothuis <edwin@FreeBSD.org>
+ */
+
+LANG=nl_NL.ISO8859-15
+
+/*
+ * Feestdagen
+ */
+01/01	Nieuwjaar
+01/06	Drie koningen
+05/04	Dodenherdenking
+30/04	Koninginendag
+05/05	Bevrijdingsdag
+11/01	Allerheilingen
+11/02	Allerzielen
+11/11	Elfde-van-de-elfde
+12/05	Sinterklaas avond
+12/15	Koningkrijksdag
+12/24	Kerstavond
+12/25	Eerste kerstdag
+12/26	Tweede kerstdag
+12/28	Feest der Onnozele Kinderen
+12/31	Oudjaar
+
+/*
+ * Pasen gerelateerd
+ */
+Easter-50	Carnival
+Easter-49	Carnival
+Easter-48	Carnival
+Easter-47	Carnival
+Easter-46	As woensdag
+Easter-3	Witte Donderdag
+Easter-2	Goede vrijdag
+Easter	Eerste paasdag
+Easter+1	Tweede paasdag
+Easter+40	Hemelvaart
+Easter+50	Pinksteren
+
+/*
+ * Misc
+ */
+09/TueThird	Prinsjesdag
+
+/*
+ * Het koningshuis
+ */
+01/31	Koningin Beatrix (1938)
+04/27	Kroonprins Willem Alexander (1967)
+04/30	Prinses Juliana (RIP)
+04/30	Mr. Pieter van Vollenhoven (1939)
+05/17	Prinses Maxima (1971)
+06/26	Prinses Alexia
+12/07	Prinses Amalia (2003)
+
