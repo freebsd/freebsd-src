@@ -225,7 +225,6 @@ USB_ATTACH(ubser)
 	usb_endpoint_descriptor_t *ed;
 	usb_interface_descriptor_t *id;
 	usb_device_request_t req;
-	char *devinfo;
 	struct tty *tp;
 	usbd_status err;
 	int i;
@@ -233,9 +232,7 @@ USB_ATTACH(ubser)
 	uint8_t epcount;
 	struct ubser_port *pp;
 
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
-	usbd_devinfo(udev, 0, devinfo);
-	USB_ATTACH_SETUP;
+	sc->sc_dev = self;
 
 	DPRINTFN(10,("\nubser_attach: sc=%p\n", sc));
 
@@ -376,8 +373,6 @@ USB_ATTACH(ubser)
 	}
 
 	ubserstartread(sc);
-
-	free(devinfo, M_USBDEV);
 	USB_ATTACH_SUCCESS_RETURN;
 
 fail_4:
@@ -413,8 +408,6 @@ bad:
 	}
 
 	DPRINTF(("ubser_attach: ATTACH ERROR\n"));
-	free(devinfo, M_USBDEV);
-
 	USB_ATTACH_ERROR_RETURN;
 }
 
