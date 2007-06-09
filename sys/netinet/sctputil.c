@@ -2925,6 +2925,7 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 	ssf->ssf_length = length;
 	ssf->ssf_error = error;
 	/* not exactly what the user sent in, but should be close :) */
+	bzero(&ssf->ssf_info, sizeof(ssf->ssf_info));
 	ssf->ssf_info.sinfo_stream = chk->rec.data.stream_number;
 	ssf->ssf_info.sinfo_ssn = chk->rec.data.stream_seq;
 	ssf->ssf_info.sinfo_flags = chk->rec.data.rcv_flags;
@@ -2976,7 +2977,7 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 		return;
 
 	length = sizeof(struct sctp_send_failed) + sp->length;
-	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_adaption_event), 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_send_failed), 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
@@ -2990,6 +2991,7 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 	ssf->ssf_length = length;
 	ssf->ssf_error = error;
 	/* not exactly what the user sent in, but should be close :) */
+	bzero(&ssf->ssf_info, sizeof(ssf->ssf_info));
 	ssf->ssf_info.sinfo_stream = sp->stream;
 	ssf->ssf_info.sinfo_ssn = sp->strseq;
 	ssf->ssf_info.sinfo_flags = sp->sinfo_flags;
@@ -3458,6 +3460,69 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock)
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
+	/* sent queue SHOULD be empty */
+	if (!TAILQ_EMPTY(&asoc->sent_queue)) {
+		chk = TAILQ_FIRST(&asoc->sent_queue);
+		while (chk) {
+			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
+			asoc->sent_queue_cnt--;
+			if (chk->data) {
+				/*
+				 * trim off the sctp chunk header(it should
+				 * be there)
+				 */
+				if (chk->send_size >= sizeof(struct sctp_data_chunk)) {
+					m_adj(chk->data, sizeof(struct sctp_data_chunk));
+					sctp_mbuf_crush(chk->data);
+					chk->send_size -= sizeof(struct sctp_data_chunk);
+				}
+			}
+			sctp_free_bufspace(stcb, asoc, chk, 1);
+			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
+			    SCTP_NOTIFY_DATAGRAM_SENT, chk);
+			if (chk->data) {
+				sctp_m_freem(chk->data);
+				chk->data = NULL;
+			}
+			if (chk->whoTo)
+				sctp_free_remote_addr(chk->whoTo);
+			chk->whoTo = NULL;
+			sctp_free_a_chunk(stcb, chk);
+			/* sa_ignore FREED_MEMORY */
+			chk = TAILQ_FIRST(&asoc->sent_queue);
+		}
+	}
+	/* pending send queue SHOULD be empty */
+	if (!TAILQ_EMPTY(&asoc->send_queue)) {
+		chk = TAILQ_FIRST(&asoc->send_queue);
+		while (chk) {
+			TAILQ_REMOVE(&asoc->send_queue, chk, sctp_next);
+			asoc->send_queue_cnt--;
+			if (chk->data) {
+				/*
+				 * trim off the sctp chunk header(it should
+				 * be there)
+				 */
+				if (chk->send_size >= sizeof(struct sctp_data_chunk)) {
+					m_adj(chk->data, sizeof(struct sctp_data_chunk));
+					sctp_mbuf_crush(chk->data);
+					chk->send_size -= sizeof(struct sctp_data_chunk);
+				}
+			}
+			sctp_free_bufspace(stcb, asoc, chk, 1);
+			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, SCTP_NOTIFY_DATAGRAM_UNSENT, chk);
+			if (chk->data) {
+				sctp_m_freem(chk->data);
+				chk->data = NULL;
+			}
+			if (chk->whoTo)
+				sctp_free_remote_addr(chk->whoTo);
+			chk->whoTo = NULL;
+			sctp_free_a_chunk(stcb, chk);
+			/* sa_ignore FREED_MEMORY */
+			chk = TAILQ_FIRST(&asoc->send_queue);
+		}
+	}
 	for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 		/* For each stream */
 		outs = &stcb->asoc.strmout[i];
@@ -3484,67 +3549,6 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock)
 		}
 	}
 
-	/* pending send queue SHOULD be empty */
-	if (!TAILQ_EMPTY(&asoc->send_queue)) {
-		chk = TAILQ_FIRST(&asoc->send_queue);
-		while (chk) {
-			TAILQ_REMOVE(&asoc->send_queue, chk, sctp_next);
-			asoc->send_queue_cnt--;
-			if (chk->data) {
-				/*
-				 * trim off the sctp chunk header(it should
-				 * be there)
-				 */
-				if (chk->send_size >= sizeof(struct sctp_data_chunk)) {
-					m_adj(chk->data, sizeof(struct sctp_data_chunk));
-					sctp_mbuf_crush(chk->data);
-				}
-			}
-			sctp_free_bufspace(stcb, asoc, chk, 1);
-			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, SCTP_NOTIFY_DATAGRAM_UNSENT, chk);
-			if (chk->data) {
-				sctp_m_freem(chk->data);
-				chk->data = NULL;
-			}
-			if (chk->whoTo)
-				sctp_free_remote_addr(chk->whoTo);
-			chk->whoTo = NULL;
-			sctp_free_a_chunk(stcb, chk);
-			/* sa_ignore FREED_MEMORY */
-			chk = TAILQ_FIRST(&asoc->send_queue);
-		}
-	}
-	/* sent queue SHOULD be empty */
-	if (!TAILQ_EMPTY(&asoc->sent_queue)) {
-		chk = TAILQ_FIRST(&asoc->sent_queue);
-		while (chk) {
-			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
-			asoc->sent_queue_cnt--;
-			if (chk->data) {
-				/*
-				 * trim off the sctp chunk header(it should
-				 * be there)
-				 */
-				if (chk->send_size >= sizeof(struct sctp_data_chunk)) {
-					m_adj(chk->data, sizeof(struct sctp_data_chunk));
-					sctp_mbuf_crush(chk->data);
-				}
-			}
-			sctp_free_bufspace(stcb, asoc, chk, 1);
-			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
-			    SCTP_NOTIFY_DATAGRAM_SENT, chk);
-			if (chk->data) {
-				sctp_m_freem(chk->data);
-				chk->data = NULL;
-			}
-			if (chk->whoTo)
-				sctp_free_remote_addr(chk->whoTo);
-			chk->whoTo = NULL;
-			sctp_free_a_chunk(stcb, chk);
-			/* sa_ignore FREED_MEMORY */
-			chk = TAILQ_FIRST(&asoc->sent_queue);
-		}
-	}
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
 	}
