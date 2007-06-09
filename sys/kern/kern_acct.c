@@ -370,8 +370,7 @@ acct_process(struct thread *td)
 	bcopy(p->p_comm, acct.ac_comm, sizeof acct.ac_comm);
 
 	/* (2) The amount of user and system time that was used */
-	rufetch(p, &ru);
-	calcru(p, &ut, &st);
+	rufetchcalc(p, &ru, &ut, &st);
 	acct.ac_utime = encode_timeval(ut);
 	acct.ac_stime = encode_timeval(st);
 

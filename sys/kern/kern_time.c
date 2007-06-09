@@ -213,13 +213,17 @@ kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		break;
 	case CLOCK_VIRTUAL:
 		PROC_LOCK(p);
+		PROC_SLOCK(p);
 		calcru(p, &user, &sys);
+		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 		TIMEVAL_TO_TIMESPEC(&user, ats);
 		break;
 	case CLOCK_PROF:
 		PROC_LOCK(p);
+		PROC_SLOCK(p);
 		calcru(p, &user, &sys);
+		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 		timevaladd(&user, &sys);
 		TIMEVAL_TO_TIMESPEC(&user, ats);

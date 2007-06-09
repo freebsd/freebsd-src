@@ -123,8 +123,10 @@ rlim_t	 lim_max(struct proc *p, int which);
 void	 lim_rlimit(struct proc *p, int which, struct rlimit *rlp);
 void	 ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
 	    struct rusage_ext *rux2);
-void	 rufetch(struct proc *p, struct rusage *ru);
 void	 rucollect(struct rusage *ru, struct rusage *ru2);
+void	 rufetch(struct proc *p, struct rusage *ru);
+void	 rufetchcalc(struct proc *p, struct rusage *ru, struct timeval *up,
+	    struct timeval *sp);
 void	 ruxagg(struct rusage_ext *rux, struct thread *td);
 int	 suswintr(void *base, int word);
 struct uidinfo
