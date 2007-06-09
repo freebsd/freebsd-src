@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/db_machdep.h>
 #include <machine/frame.h>
+#include <machine/kdb.h>
 #include <machine/md_var.h>
 #include <machine/mutex.h>
 #include <machine/pcb.h>
@@ -552,6 +553,7 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 {
 	jmp_buf jb;
 	void *prev_jb;
+	size_t cnt;
 	char *dst;
 	int ret;
 
@@ -559,8 +561,10 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	ret = setjmp(jb);
 	if (ret == 0) {
 		dst = (char *)addr;
-		while (size-- > 0)
+		cnt = size;
+		while (cnt-- > 0)
 			*dst++ = *data++;
+		kdb_cpu_sync_icache((void *)addr, size);
 	}
 	(void)kdb_jmpbuf(prev_jb);
 	return (ret);
