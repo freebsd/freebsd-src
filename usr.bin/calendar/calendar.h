@@ -42,6 +42,7 @@ extern struct iovec header[];
 extern struct tm *tp;
 extern const char *calendarFile;
 extern int *cumdays;
+extern int yrdays;
 extern struct fixs neaster, npaskha;
 
 void	 cal(void);
@@ -68,7 +69,7 @@ void     setnnames(void);
 #define	F_ISDAYVAR	0x04 /* variables day of week, like SundayLast */
 #define	F_EASTER	0x08 /* Easter or easter depending days */
 
-extern int f_dayAfter; /* days after current date */
+extern int f_dayAfter;	/* days after current date */
 extern int f_dayBefore; /* days bevore current date */
 extern int Friday;	/* day before weekend */
 
@@ -77,3 +78,16 @@ struct fixs {
 	int len;
 };
 
+struct event *event_add(struct event *events, int month, int day, char *date,
+                        int var, char *txt);
+void event_continue(struct event *events, char *txt);
+void event_print_all(FILE *fp, struct event *events);
+/* Stored calendar event */
+struct event {
+	int month;
+	int day;
+	int var;
+	char *date;
+	char *text;
+	struct event *next;
+};
