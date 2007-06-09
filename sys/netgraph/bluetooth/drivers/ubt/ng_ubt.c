@@ -313,16 +313,13 @@ USB_ATTACH(ubt)
 	usb_config_descriptor_t		*cd = NULL;
 	usb_interface_descriptor_t	*id = NULL;
 	usb_endpoint_descriptor_t	*ed = NULL;
-	char				 devinfo[1024];
 	usbd_status			 error;
 	int				 i, ai, alt_no, isoc_in, isoc_out,
 					 isoc_isize, isoc_osize;
 
 	/* Get USB device info */
+	sc->sc_dev = self;
 	sc->sc_udev = uaa->device;
-	usbd_devinfo(sc->sc_udev, 0, devinfo); 
-	USB_ATTACH_SETUP;
-	printf("%s: %s\n", device_get_nameunit(sc->sc_dev), devinfo);
 
 	/* 
 	 * Initialize device softc structure
