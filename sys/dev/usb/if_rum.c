@@ -374,14 +374,11 @@ USB_ATTACH(rum)
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
 	usbd_status error;
-	char devinfo[1024];
 	int i, ntries, size;
 	uint32_t tmp;
 
 	sc->sc_udev = uaa->device;
-
-	usbd_devinfo(sc->sc_udev, 0, devinfo);
-	USB_ATTACH_SETUP;
+	sc->sc_dev = self;
 
 	if (usbd_set_config_no(sc->sc_udev, RT2573_CONFIG_NO, 0) != 0) {
 		printf("%s: could not set configuration no\n",
