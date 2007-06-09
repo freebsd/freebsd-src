@@ -152,7 +152,6 @@ uipaq_attach(device_t self)
 	usbd_interface_handle iface;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
-	char *devinfop;
 	int i;
 	usbd_status err;
 	struct ucom_softc *ucom = &sc->sc_ucom;
@@ -176,17 +175,6 @@ uipaq_attach(device_t self)
 		    usbd_errstr(err));
 		goto bad;
 	}
-
-	devinfop = malloc (1024, M_USBDEV, M_WAITOK);
-	if (devinfop == NULL) {
-		err = ENOMEM;
-		goto bad;
-	}
-	usbd_devinfo(dev, 0, devinfop);
-	ucom->sc_dev = self;
-	device_set_desc_copy(self, devinfop);
-	device_printf(ucom->sc_dev, "%s\n", devinfop);
-	free(devinfop, M_USBDEV);
 
 	sc->sc_flags = uipaq_lookup(uaa->vendor, uaa->product)->uv_flags;
 	id = usbd_get_interface_descriptor(iface);

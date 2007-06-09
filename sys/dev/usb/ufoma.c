@@ -311,7 +311,6 @@ USB_ATTACH(ufoma)
 	struct ucom_softc *ucom = &sc->sc_ucom;
 	const char *devname,*modename;
 	int ctl_notify;
-	char *devinfo;
 	int i,err;
 	int elements;
 	uByte *mode;
@@ -328,12 +327,9 @@ USB_ATTACH(ufoma)
 	sc->sc_ctl_iface_no = id->bInterfaceNumber;
 	
 	devname = device_get_nameunit(self);
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
-	usbd_devinfo(dev, 0, devinfo);
-	printf("%s: %s, iclass %d/%d ifno:%d\n", devname, devinfo,
+	device_printf(self, "iclass %d/%d ifno:%d\n",
 	    id->bInterfaceClass, id->bInterfaceSubClass, sc->sc_ctl_iface_no);
 
-	device_set_desc_copy(self, devinfo);
 	ctl_notify = -1;
 	for (i = 0; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(sc->sc_ctl_iface, i);
@@ -413,14 +409,10 @@ USB_ATTACH(ufoma)
 	SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "openmode",
 			CTLFLAG_RW|CTLTYPE_STRING, sc, 0, ufoma_sysctl_open,
 			"A", "Mode to transit when port is opened");
-	
-	free(devinfo, M_USBDEV);
 	return 0;
  error:
-	free(devinfo, M_USBDEV);
-	if(sc->sc_modetable){
+	if(sc->sc_modetable)
 		free(sc->sc_modetable, M_USBDEV);
-	}
 	return EIO;
 }
 

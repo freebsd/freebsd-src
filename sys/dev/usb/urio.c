@@ -179,7 +179,6 @@ USB_MATCH(urio)
 USB_ATTACH(urio)
 {
 	USB_ATTACH_START(urio, sc, uaa);
-	char devinfo[1024];
 	usbd_device_handle udev;
 	usbd_interface_handle iface;
 	u_int8_t epcount;
@@ -191,9 +190,7 @@ USB_ATTACH(urio)
 	int i;
 
 	DPRINTFN(10,("urio_attach: sc=%p\n", sc));
-	usbd_devinfo(uaa->device, 0, devinfo);
-	USB_ATTACH_SETUP;
-
+	sc->sc_dev = self;
 	sc->sc_udev = udev = uaa->device;
 
 #if defined(__FreeBSD__)
