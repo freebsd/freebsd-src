@@ -766,6 +766,7 @@ fr_info_t *fin;
 			 * source of the original packet then this packet is
 			 * not correct.
 			 */
+			icmp6 = fin->fin_dp;
 			ip6 = (ip6_t *)((char *)icmp6 + ICMPERR_ICMPHLEN);
 			if (IP6_NEQ(&fin->fin_fi.fi_dst,
 				    (i6addr_t *)&ip6->ip6_src))
