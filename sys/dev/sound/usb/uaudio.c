@@ -523,7 +523,7 @@ USB_ATTACH(uaudio)
 	USB_ATTACH_START(uaudio, sc, uaa);
 	usb_interface_descriptor_t *id;
 	usb_config_descriptor_t *cdesc;
-#if !define(__FreeBSD__)
+#if !defined(__FreeBSD__)
 	char devinfo[1024];
 #endif
 	usbd_status err;
