@@ -906,9 +906,6 @@ send:
 	/*
 	 * Calculate receive window.  Don't shrink window,
 	 * but avoid silly window syndrome.
-	 *
-	 * XXX: RFC1323:  The Window field in a SYN (i.e., a <SYN> or
-	 * <SYN,ACK>) segment itself is never scaled.
 	 */
 	if (recwin < (long)(so->so_rcv.sb_hiwat / 4) &&
 	    recwin < (long)tp->t_maxseg)
@@ -917,8 +914,17 @@ send:
 		recwin = (long)(tp->rcv_adv - tp->rcv_nxt);
 	if (recwin > (long)TCP_MAXWIN << tp->rcv_scale)
 		recwin = (long)TCP_MAXWIN << tp->rcv_scale;
-	th->th_win = htons((u_short) (recwin >> tp->rcv_scale));
 
+	/*
+	 * According to RFC1323 the window field in a SYN (i.e., a <SYN>
+	 * or <SYN,ACK>) segment itself is never scaled.  The <SYN,ACK>
+	 * case is handled in syncache.
+	 */
+	if (flags & TH_SYN)
+		th->th_win = htons((u_short)
+				(min(sbspace(&so->so_rcv), TCP_MAXWIN)));
+	else
+		th->th_win = htons((u_short)(recwin >> tp->rcv_scale));
 
 	/*
 	 * Adjust the RXWIN0SENT flag - indicate that we have advertised
