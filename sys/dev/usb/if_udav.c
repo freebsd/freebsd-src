@@ -284,7 +284,6 @@ USB_ATTACH(udav)
 	usbd_status err;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
-	char devinfo[1024];
 	const char *devname ;
 	struct ifnet *ifp;
 #if defined(__NetBSD__)
@@ -296,13 +295,8 @@ USB_ATTACH(udav)
 	int s;
 #endif
 
-	bzero(sc, sizeof(struct udav_softc));
-
-	usbd_devinfo(dev, 0, devinfo);
-	USB_ATTACH_SETUP;
-        devname = device_get_nameunit(sc->sc_dev);
-	printf("%s: %s\n", devname, devinfo);
-
+	sc->sc_dev = self;
+	devname = device_get_nameunit(self);
 	/* Move the device into the configured state. */
 	err = usbd_set_config_no(dev, UDAV_CONFIG_NO, 1);
 	if (err) {

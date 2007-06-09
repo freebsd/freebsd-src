@@ -146,12 +146,7 @@ USB_ATTACH(cdce)
 	const usb_cdc_ethernet_descriptor_t *ue;
 	char				 eaddr_str[USB_MAX_STRING_LEN];
 
-	bzero(sc, sizeof(struct cdce_softc));
 	sc->cdce_dev = self;
-	usbd_devinfo(dev, 0, sc->devinfo);
-	device_set_desc_copy(self, sc->devinfo);
-	printf("%s: %s\n", device_get_nameunit(sc->cdce_dev), sc->devinfo);
-
 	sc->cdce_udev = uaa->device;
 	sc->cdce_unit = device_get_unit(self);
 

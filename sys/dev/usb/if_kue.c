@@ -405,24 +405,18 @@ USB_MATCH(kue)
 USB_ATTACH(kue)
 {
 	USB_ATTACH_START(kue, sc, uaa);
-	char			devinfo[1024];
 	struct ifnet		*ifp;
 	usbd_status		err;
 	usb_interface_descriptor_t	*id;
 	usb_endpoint_descriptor_t	*ed;
 	int			i;
 
-	bzero(sc, sizeof(struct kue_softc));
 	sc->kue_dev = self;
 	sc->kue_iface = uaa->iface;
 	sc->kue_udev = uaa->device;
 	sc->kue_unit = device_get_unit(self);
 
 	id = usbd_get_interface_descriptor(uaa->iface);
-
-	usbd_devinfo(uaa->device, 0, devinfo);
-	device_set_desc_copy(self, devinfo);
-	printf("%s: %s\n", device_get_nameunit(self), devinfo);
 
 	/* Find endpoints. */
 	for (i = 0; i < id->bNumEndpoints; i++) {
