@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/devicestat.h>
 #include <sys/eventhandler.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -454,6 +455,7 @@ bd_speedup(void)
 caddr_t
 kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 {
+	int maxbuf;
 
 	/*
 	 * physmem_est is in pages.  Convert it to kilobytes (assumes
@@ -483,6 +485,11 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 
 		if (maxbcache && nbuf > maxbcache / BKVASIZE)
 			nbuf = maxbcache / BKVASIZE;
+
+		/* XXX Avoid integer overflows later on with maxbufspace. */
+		maxbuf = (INT_MAX / 3) / BKVASIZE;
+		if (nbuf > maxbuf)
+			nbuf = maxbuf;
 	}
 
 #if 0
