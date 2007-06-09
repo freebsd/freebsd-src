@@ -705,16 +705,14 @@ loop:
 		nfound++;
 		PROC_SLOCK(p);
 		if (p->p_state == PRS_ZOMBIE) {
-			PROC_SUNLOCK(p);
-			
-			td->td_retval[0] = p->p_pid;
-			if (status)
-				*status = p->p_xstat;	/* convert to int */
 			if (rusage) {
 				*rusage = p->p_ru;
 				calcru(p, &rusage->ru_utime, &rusage->ru_stime);
 			}
-
+			PROC_SUNLOCK(p);
+			td->td_retval[0] = p->p_pid;
+			if (status)
+				*status = p->p_xstat;	/* convert to int */
 			PROC_LOCK(q);
 			sigqueue_take(p->p_ksi);
 			PROC_UNLOCK(q);

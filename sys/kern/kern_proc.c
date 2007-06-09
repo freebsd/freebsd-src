@@ -700,7 +700,9 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	if ((p->p_sflag & PS_INMEM) && p->p_stats != NULL) {
 		kp->ki_start = p->p_stats->p_start;
 		timevaladd(&kp->ki_start, &boottime);
+		PROC_SLOCK(p);
 		calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
+		PROC_SUNLOCK(p);
 		calccru(p, &kp->ki_childutime, &kp->ki_childstime);
 
 		/* Some callers want child-times in a single value */
