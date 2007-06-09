@@ -48,6 +48,21 @@ kdb_cpu_set_singlestep(void)
 }
 
 static __inline void
+kdb_cpu_sync_icache(unsigned char *addr, size_t size)
+{
+	vm_offset_t cacheline;
+
+	cacheline = (uintptr_t)addr & ~31;
+	size += (uintptr_t)addr - cacheline;
+	size = (size + 31) & ~31;
+	while (size > 0) {
+		__asm __volatile("fc %0;; sync.i;; srlz.i;;" :: "r"(cacheline));
+		cacheline += 32;
+		size -= 32;
+	}
+}
+
+static __inline void
 kdb_cpu_trap(int vector, int _)
 {
 	__asm __volatile("flushrs;;");
