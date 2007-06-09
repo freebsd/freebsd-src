@@ -229,14 +229,10 @@ ugen_attach(device_t self)
         struct ugen_softc *sc = device_get_softc(self);
         struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle udev;
-	char devinfo[1024];
 	usbd_status err;
 	int conf;
 
-	usbd_devinfo(uaa->device, 0, devinfo);
 	sc->sc_dev = self;
-	device_set_desc_copy(self, devinfo);
-
 	sc->sc_udev = udev = uaa->device;
 
 	memset(sc->sc_endpoints, 0, sizeof sc->sc_endpoints);

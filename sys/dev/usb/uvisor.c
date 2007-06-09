@@ -269,25 +269,17 @@ USB_ATTACH(uvisor)
 	usbd_interface_handle iface;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
-	char *devinfo;
 	const char *devname;
 	int i;
 	usbd_status err;
 	struct ucom_softc *ucom;
 
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
 	ucom = &sc->sc_ucom;
-	bzero(sc, sizeof (struct uvisor_softc));
-	usbd_devinfo(dev, 0, devinfo);
 	ucom->sc_dev = self;
-	device_set_desc_copy(self, devinfo);
-
 	ucom->sc_udev = dev;
 	ucom->sc_iface = uaa->iface;
 
 	devname = device_get_nameunit(ucom->sc_dev);
-	printf("%s: %s\n", devname, devinfo);
-	free(devinfo, M_USBDEV);
 
 	DPRINTFN(10,("\nuvisor_attach: sc=%p\n", sc));
 
@@ -305,8 +297,6 @@ USB_ATTACH(uvisor)
 		       devname, usbd_errstr(err));
 		goto bad;
 	}
-
-	printf("%s: %s\n", devname, devinfo);
 
 	sc->sc_flags = uvisor_lookup(uaa->vendor, uaa->product)->uv_flags;
 

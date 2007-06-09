@@ -316,15 +316,11 @@ USB_ATTACH(uscanner)
 	USB_ATTACH_START(uscanner, sc, uaa);
 	usb_interface_descriptor_t *id = 0;
 	usb_endpoint_descriptor_t *ed, *ed_bulkin = NULL, *ed_bulkout = NULL;
-	char devinfo[1024];
 	int i;
 	usbd_status err;
 
-	usbd_devinfo(uaa->device, 0, devinfo);
-	USB_ATTACH_SETUP;
-
+	sc->sc_dev = self;
 	sc->sc_dev_flags = uscanner_lookup(uaa->vendor, uaa->product)->flags;
-
 	sc->sc_udev = uaa->device;
 
 	err = usbd_set_config_no(uaa->device, 1, 1); /* XXX */
