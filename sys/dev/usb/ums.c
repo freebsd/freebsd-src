@@ -196,7 +196,6 @@ USB_ATTACH(ums)
 	int size;
 	void *desc;
 	usbd_status err;
-	char devinfo[1024];
 	u_int32_t flags;
 	int i;
 	struct hid_location loc_btn;
@@ -204,8 +203,7 @@ USB_ATTACH(ums)
 	sc->sc_disconnected = 1;
 	sc->sc_iface = iface;
 	id = usbd_get_interface_descriptor(iface);
-	usbd_devinfo(uaa->device, USBD_SHOW_INTERFACE_CLASS, devinfo);
-	USB_ATTACH_SETUP;
+	sc->sc_dev = self;
 	ed = usbd_interface2endpoint_descriptor(iface, 0);
 	if (!ed) {
 		printf("%s: could not read endpoint descriptor\n",

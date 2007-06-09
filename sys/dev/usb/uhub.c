@@ -102,6 +102,7 @@ static bus_child_pnpinfo_str_t uhub_child_pnpinfo_str;
  * Every other driver only connects to hubs
  */
 
+/* XXX driver_added needs special care */
 USB_DECLARE_DRIVER_INIT(uhub,
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
@@ -114,6 +115,7 @@ USB_DECLARE_DRIVER_INIT(uhub,
 /* Create the driver instance for the hub connected to usb case. */
 devclass_t uhubroot_devclass;
 
+/* XXX driver_added needs special care */
 static device_method_t uhubroot_methods[] = {
 	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
@@ -155,7 +157,6 @@ uhub_attach(device_t self)
 	struct uhub_softc *sc = device_get_softc(self);
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev = uaa->device;
-	char *devinfo;
 	usbd_status err;
 	struct usbd_hub *hub = NULL;
 	usb_device_request_t req;
@@ -165,15 +166,9 @@ uhub_attach(device_t self)
 	usb_endpoint_descriptor_t *ed;
 	struct usbd_tt *tts = NULL;
 
-	devinfo = malloc(1024, M_TEMP, M_NOWAIT);
-	if (devinfo == NULL)
-		return (ENXIO);
 	DPRINTFN(1,("uhub_attach\n"));
 	sc->sc_hub = dev;
-	usbd_devinfo(dev, 1, devinfo);
 	sc->sc_dev = self;
-	device_set_desc_copy(self, devinfo);
-	free(devinfo, M_TEMP);
 
 	if (dev->depth > 0 && UHUB_IS_HIGH_SPEED(sc)) {
 		device_printf(sc->sc_dev, "%s transaction translator%s\n",
