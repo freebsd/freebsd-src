@@ -168,6 +168,10 @@ struct protox {
 	  tcp_stats,	NULL,		"tcp",	IPPROTO_TCP },
 	{ -1,		-1,		1,	protopr,
 	  udp_stats,	NULL,		"udp",	IPPROTO_UDP },
+#ifdef SCTP
+	{ -1,		-1,		1,	sctp_protopr,
+	  sctp_stats,	NULL,		"sctp",	IPPROTO_SCTP },
+#endif
 	{ -1,		-1,		1,	protopr,
 	  NULL,		NULL,		"divert",IPPROTO_DIVERT },
 	{ -1,		-1,		1,	protopr,

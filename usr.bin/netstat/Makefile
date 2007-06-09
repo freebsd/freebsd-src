@@ -5,12 +5,13 @@
 
 PROG=	netstat
 SRCS=	if.c inet.c main.c mbuf.c mcast.c mroute.c route.c \
-	unix.c atalk.c netgraph.c mroute6.c ipsec.c bpf.c pfkey.c
+	unix.c atalk.c netgraph.c mroute6.c ipsec.c bpf.c pfkey.c sctp.c
 
 WARNS?=	3
 
 CFLAGS+=-DIPSEC
 CFLAGS+=-DFAST_IPSEC
+CFLAGS+=-DSCTP
 
 .if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	inet6.c
