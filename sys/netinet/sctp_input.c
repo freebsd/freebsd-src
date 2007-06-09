@@ -1870,15 +1870,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	/* compare the received digest with the computed digest */
 	if (memcmp(calc_sig, sig, SCTP_SIGNATURE_SIZE) != 0) {
 		/* try the old cookie? */
-		printf("Signature size is %d\n", SCTP_SIGNATURE_SIZE);
-		printf("Signature %x %x %x %x %x %x %x %x\n",
-		    sig[0], sig[1], sig[2], sig[3],
-		    sig[4], sig[5], sig[6], sig[7]);
-
-		printf("Calc Signature %x %x %x %x %x %x %x %x\n",
-		    calc_sig[0], calc_sig[1], calc_sig[2], calc_sig[3],
-		    calc_sig[4], calc_sig[5], calc_sig[6], calc_sig[7]);
-
 		if ((cookie->time_entered.tv_sec == (long)ep->time_of_secret_change) &&
 		    (ep->current_secret_number != ep->last_secret_number)) {
 			/* compute digest with old */
