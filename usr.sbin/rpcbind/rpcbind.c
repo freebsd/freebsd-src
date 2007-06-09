@@ -451,7 +451,7 @@ init_transport(struct netconfig *nconf)
 		    (void)free(uaddr);
 		}
 #endif
-/*ARRIVATO QUI*/
+
 		if (nconf->nc_semantics != NC_TPI_CLTS)
 		    listen(fd, SOMAXCONN);
 
