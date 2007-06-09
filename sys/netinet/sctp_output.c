@@ -3083,12 +3083,12 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, int cpsize)
 
 static struct mbuf *
 sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
-    struct mbuf *initack, int initack_offset, struct sctp_state_cookie *stc_in)
+    struct mbuf *initack, int initack_offset, struct sctp_state_cookie *stc_in, uint8_t ** signature)
 {
 	struct mbuf *copy_init, *copy_initack, *m_at, *sig, *mret;
 	struct sctp_state_cookie *stc;
 	struct sctp_paramhdr *ph;
-	uint8_t *signature;
+	uint8_t *foo;
 	int sig_offset;
 	uint16_t cookie_sz;
 
@@ -3156,15 +3156,12 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 	SCTP_BUF_LEN(sig) = 0;
 	SCTP_BUF_NEXT(m_at) = sig;
 	sig_offset = 0;
-	signature = (uint8_t *) (mtod(sig, caddr_t)+sig_offset);
-	/* Time to sign the cookie */
-	(void)sctp_hmac_m(SCTP_HMAC,
-	    (uint8_t *) inp->sctp_ep.secret_key[(int)(inp->sctp_ep.current_secret_number)],
-	    SCTP_SECRET_SIZE, mret, sizeof(struct sctp_paramhdr),
-	    (uint8_t *) signature);
+	foo = (uint8_t *) (mtod(sig, caddr_t)+sig_offset);
+	memset(foo, 0, SCTP_SIGNATURE_SIZE);
+	printf("%p is address for signature\n", foo);
+	*signature = foo;
 	SCTP_BUF_LEN(sig) += SCTP_SIGNATURE_SIZE;
 	cookie_sz += SCTP_SIGNATURE_SIZE;
-
 	ph->param_length = htons(cookie_sz);
 	return (mret);
 }
@@ -4494,9 +4491,10 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	struct sockaddr *to;
 	struct sctp_state_cookie stc;
 	struct sctp_nets *net = NULL;
+	uint8_t *signature = NULL;
 	int cnt_inits_to = 0;
 	uint16_t his_limit, i_want;
-	int abort_flag, padval, sz_of;
+	int abort_flag, padval;
 	int num_ext;
 	int p_len;
 
@@ -5004,8 +5002,6 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			m_at = SCTP_BUF_NEXT(m_at);
 		}
 	}
-	/* Get total size of init packet */
-	sz_of = SCTP_SIZE32(ntohs(init_chk->ch.chunk_length));
 	/* pre-calulate the size and update pkt header and chunk header */
 	p_len = 0;
 	for (m_tmp = m; m_tmp; m_tmp = SCTP_BUF_NEXT(m_tmp)) {
@@ -5015,40 +5011,20 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			break;
 		}
 	}
-	/*
-	 * Figure now the size of the cookie. We know the size of the
-	 * INIT-ACK. The Cookie is going to be the size of INIT, INIT-ACK,
-	 * COOKIE-STRUCTURE and SIGNATURE.
-	 */
-
-	/*
-	 * take our earlier INIT calc and add in the sz we just calculated
-	 * minus the size of the sctphdr (its not included in chunk size
-	 */
-
-	/* add once for the INIT-ACK */
-	sz_of += (p_len - sizeof(struct sctphdr));
-
-	/* add a second time for the INIT-ACK in the cookie */
-	sz_of += (p_len - sizeof(struct sctphdr));
-
-	/* Now add the cookie header and cookie message struct */
-	sz_of += sizeof(struct sctp_state_cookie_param);
-	/* ...and add the size of our signature */
-	sz_of += SCTP_SIGNATURE_SIZE;
-	initackm_out->msg.ch.chunk_length = htons(sz_of);
 
 	/* Now we must build a cookie */
 	m_cookie = sctp_add_cookie(inp, init_pkt, offset, m,
-	    sizeof(struct sctphdr), &stc);
+	    sizeof(struct sctphdr), &stc, &signature);
 	if (m_cookie == NULL) {
 		/* memory problem */
 		sctp_m_freem(m);
 		return;
 	}
+	printf("signature is set to %p\n", signature);
 	/* Now append the cookie to the end and update the space/size */
 	SCTP_BUF_NEXT(m_tmp) = m_cookie;
-	for (; m_tmp; m_tmp = SCTP_BUF_NEXT(m_tmp)) {
+
+	for (m_tmp = m_cookie; m_tmp; m_tmp = SCTP_BUF_NEXT(m_tmp)) {
 		p_len += SCTP_BUF_LEN(m_tmp);
 		if (SCTP_BUF_NEXT(m_tmp) == NULL) {
 			/* m_tmp should now point to last one */
@@ -5056,7 +5032,25 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			break;
 		}
 	}
+	/*
+	 * Place in the size, but we don't include the last pad (if any) in
+	 * the INIT-ACK.
+	 */
+	initackm_out->msg.ch.chunk_length = htons((p_len - sizeof(struct sctphdr)));
 
+	/*
+	 * Time to sign the cookie, we don't sign over the cookie signature
+	 * though thus we set trailer.
+	 */
+	(void)sctp_hmac_m(SCTP_HMAC,
+	    (uint8_t *) inp->sctp_ep.secret_key[(int)(inp->sctp_ep.current_secret_number)],
+	    SCTP_SECRET_SIZE, m_cookie, sizeof(struct sctp_paramhdr),
+	    (uint8_t *) signature, SCTP_SIGNATURE_SIZE);
+	printf("signed first 4 bytes are %x %x %x %x\n",
+	    signature[0],
+	    signature[1],
+	    signature[2],
+	    signature[3]);
 	/*
 	 * We sifa 0 here to NOT set IP_DF if its IPv4, we ignore the return
 	 * here since the timer will drive a retranmission.
