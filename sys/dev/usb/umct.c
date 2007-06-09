@@ -164,25 +164,16 @@ USB_ATTACH(umct)
 	usb_config_descriptor_t *cdesc;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
-	char *devinfo;
 	const char *devname;
 	usbd_status err;
 	int i;
 
 	dev = uaa->device;
-	devinfo = malloc(1024, M_USBDEV, M_NOWAIT | M_ZERO);
-	if (devinfo == NULL)
-		return (ENOMEM);
 	bzero(sc, sizeof(struct umct_softc));
 	ucom = &sc->sc_ucom;
 	ucom->sc_dev = self;
 	ucom->sc_udev = dev;
 	ucom->sc_iface = uaa->iface;
-
-	usbd_devinfo(dev, 0, devinfo);
-	device_set_desc_copy(self, devinfo);
-	devname = device_get_nameunit(ucom->sc_dev);
-	printf("%s: %s\n", devname, devinfo);
 
 	ucom->sc_bulkout_no = -1;
 	ucom->sc_bulkin_no = -1;
@@ -274,12 +265,9 @@ USB_ATTACH(umct)
 	ucom->sc_callback = &umct_callback;
 	ucom_attach(ucom);
 	TASK_INIT(&sc->sc_task, 0, umct_notify, sc);
-
-	free(devinfo, M_USBDEV);
 	USB_ATTACH_SUCCESS_RETURN;
 
 error:
-	free(devinfo, M_USBDEV);
 	USB_ATTACH_ERROR_RETURN;
 }
 

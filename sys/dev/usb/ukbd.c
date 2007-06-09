@@ -154,20 +154,18 @@ USB_ATTACH(ukbd)
 	USB_ATTACH_START(ukbd, sc, uaa);
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id;
-	char devinfo[1024];
 
 	keyboard_switch_t *sw;
 	keyboard_t *kbd;
 	void *arg[2];
 	int unit = device_get_unit(self);
 
+	sc->sc_dev = self;
 	sw = kbd_get_switch(DRIVER_NAME);
 	if (sw == NULL)
 		USB_ATTACH_ERROR_RETURN;
 
 	id = usbd_get_interface_descriptor(iface);
-	usbd_devinfo(uaa->device, USBD_SHOW_INTERFACE_CLASS, devinfo);
-	USB_ATTACH_SETUP;
 
 	arg[0] = (void *)uaa;
 	arg[1] = (void *)ukbd_intr;

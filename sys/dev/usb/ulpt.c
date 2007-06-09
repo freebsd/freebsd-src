@@ -49,14 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/device.h>
-#include <sys/ioctl.h>
-#elif defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#endif
 #include <sys/uio.h>
 #include <sys/conf.h>
 #include <sys/syslog.h>
@@ -129,26 +124,10 @@ struct ulpt_softc {
 	int sc_refcnt;
 	u_char sc_dying;
 
-#if defined(__FreeBSD__)
 	struct cdev *dev;
 	struct cdev *dev_noprime;
-#endif
 };
 
-#if defined(__NetBSD__)
-dev_type_open(ulptopen);
-dev_type_close(ulptclose);
-dev_type_write(ulptwrite);
-dev_type_read(ulptread);
-dev_type_ioctl(ulptioctl);
-
-const struct cdevsw ulpt_cdevsw = {
-	ulptopen, ulptclose, ulptread, ulptwrite, ulptioctl,
-	nostop, notty, nopoll, nommap, nokqfilter,
-};
-#elif defined(__OpenBSD__)
-cdev_decl(ulpt);
-#elif defined(__FreeBSD__)
 static d_open_t ulptopen;
 static d_close_t ulptclose;
 static d_write_t ulptwrite;
@@ -166,7 +145,6 @@ static struct cdevsw ulpt_cdevsw = {
 	.d_ioctl =	ulptioctl,
 	.d_name =	"ulpt",
 };
-#endif
 
 void ulpt_disco(void *);
 
@@ -217,14 +195,12 @@ USB_ATTACH(ulpt)
 	usb_interface_descriptor_t *id, *iend;
 	usb_config_descriptor_t *cdesc;
 	usbd_status err;
-	char devinfo[1024];
 	usb_endpoint_descriptor_t *ed;
 	u_int8_t epcount;
 	int i, altno;
 
 	DPRINTFN(10,("ulpt_attach: sc=%p\n", sc));
-	usbd_devinfo(uaa->device, USBD_SHOW_INTERFACE_CLASS, devinfo);
-	USB_ATTACH_SETUP;
+	sc->sc_dev = self;
 
 	/* XXX
 	 * Stepping through the alternate settings needs to be abstracted out.
@@ -347,13 +323,11 @@ USB_ATTACH(ulpt)
 	}
 #endif
 
-#if defined(__FreeBSD__)
 	sc->dev = make_dev(&ulpt_cdevsw, device_get_unit(self),
 		UID_ROOT, GID_OPERATOR, 0644, "ulpt%d", device_get_unit(self));
 	sc->dev_noprime = make_dev(&ulpt_cdevsw,
 		device_get_unit(self)|ULPT_NOPRIME,
 		UID_ROOT, GID_OPERATOR, 0644, "unlpt%d", device_get_unit(self));
-#endif
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
 			   USBDEV(sc->sc_dev));
@@ -361,37 +335,13 @@ USB_ATTACH(ulpt)
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-int
-ulpt_activate(device_t self, enum devact act)
-{
-	struct ulpt_softc *sc = (struct ulpt_softc *)self;
-
-	switch (act) {
-	case DVACT_ACTIVATE:
-		return (EOPNOTSUPP);
-
-	case DVACT_DEACTIVATE:
-		sc->sc_dying = 1;
-		break;
-	}
-	return (0);
-}
-#endif
 
 USB_DETACH(ulpt)
 {
 	USB_DETACH_START(ulpt, sc);
 	int s;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	int maj, mn;
-#endif
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	DPRINTF(("ulpt_detach: sc=%p flags=%d\n", sc, flags));
-#elif defined(__FreeBSD__)
 	DPRINTF(("ulpt_detach: sc=%p\n", sc));
-#endif
 
 	sc->sc_dying = 1;
 	if (sc->sc_out_pipe != NULL)
@@ -407,23 +357,8 @@ USB_DETACH(ulpt)
 	}
 	splx(s);
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	/* locate the major number */
-#if defined(__NetBSD__)
-	maj = cdevsw_lookup_major(&ulpt_cdevsw);
-#elif defined(__OpenBSD__)
-	for (maj = 0; maj < nchrdev; maj++)
-		if (cdevsw[maj].d_open == ulptopen)
-			break;
-#endif
-
-	/* Nuke the vnodes for any open instances (calls close). */
-	mn = self->dv_unit;
-	vdevgone(maj, mn, mn, VCHR);
-#elif defined(__FreeBSD__)
 	destroy_dev(sc->dev);
 	destroy_dev(sc->dev_noprime);
-#endif
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev,
 			   USBDEV(sc->sc_dev));
@@ -520,7 +455,7 @@ ulptopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 	sc->sc_flags = flags;
 	DPRINTF(("ulptopen: flags=0x%x\n", (unsigned)flags));
 
-#if defined(USB_DEBUG) && defined(__FreeBSD__)
+#if defined(USB_DEBUG)
 	/* Ignoring these flags might not be a good idea */
 	if ((flags & ~ULPT_NOPRIME) != 0)
 		printf("ulptopen: flags ignored: %b\n", flags,
@@ -851,6 +786,4 @@ ieee1284_print_id(char *str)
 }
 #endif
 
-#if defined(__FreeBSD__)
 DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass, usbd_driver_load, 0);
-#endif
