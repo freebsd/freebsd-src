@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 struct tm *tp;
 static const struct tm tm0;
-int *cumdays, offset, yrdays;
+int *cumdays, yrdays;
 char dayname[10];
 
 
@@ -151,7 +151,8 @@ settime(time_t now)
 		cumdays = daytab[0];
 	}
 	/* Friday displays Monday's events */
-	offset = tp->tm_wday == Friday ? 3 : 1;
+	if (f_dayAfter == 0 && f_dayBefore == 0 && Friday != -1)
+		f_dayAfter = tp->tm_wday == Friday ? 3 : 1;
 	header[5].iov_base = dayname;
 
 	oldl = NULL;
@@ -375,26 +376,9 @@ isnow(char *endp, int *monthp, int *dayp, int *varp)
 	}
 
 #ifdef DEBUG
-	fprintf(stderr, "day2: day %d(%d-%d) yday %d\n", *dayp, day, cumdays[month], tp->tm_yday);
+	fprintf(stderr, "day2: day %d(%d-%d) yday %d\n", *dayp, day,
+                cumdays[month], tp->tm_yday);
 #endif
-
-	/* when only today and tomorrow (or today and the next three days if
-	   it is friday) is needed */
-	if (f_dayBefore == 0 &&
-	    f_dayAfter == 0 ) {
-		/* no year rollover */
-		if (day >= tp->tm_yday &&
-		    day <= tp->tm_yday + offset)
-			return (1);
-		/* year rollover */
-		if (tp->tm_yday + offset >= yrdays) {
-			int end = tp->tm_yday + offset - yrdays;
-			if (day <= end)
-				return (1);
-		}
-
-		return (0);
-	}
 
 	/* When days before or days after is specified */
 	/* no year rollover */
