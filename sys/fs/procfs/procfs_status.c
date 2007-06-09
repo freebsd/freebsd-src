@@ -127,12 +127,12 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		} else
 			wmesg = "nochan";
 	}
-	PROC_SUNLOCK(p);
 
 	if (p->p_sflag & PS_INMEM) {
 		struct timeval start, ut, st;
 
 		calcru(p, &ut, &st);
+		PROC_SUNLOCK(p);
 		start = p->p_stats->p_start;
 		timevaladd(&start, &boottime);
 		sbuf_printf(sb, " %jd,%ld %jd,%ld %jd,%ld",
@@ -140,6 +140,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		    (intmax_t)ut.tv_sec, ut.tv_usec,
 		    (intmax_t)st.tv_sec, st.tv_usec);
 	} else {
+		PROC_SUNLOCK(p);
 		sbuf_printf(sb, " -1,-1 -1,-1 -1,-1");
 	}
 

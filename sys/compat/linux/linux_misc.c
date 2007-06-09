@@ -670,7 +670,9 @@ linux_times(struct thread *td, struct linux_times_args *args)
 	if (args->buf != NULL) {
 		p = td->td_proc;
 		PROC_LOCK(p);
+		PROC_SLOCK(p);
 		calcru(p, &utime, &stime);
+		PROC_SUNLOCK(p);
 		calccru(p, &cutime, &cstime);
 		PROC_UNLOCK(p);
 

@@ -829,12 +829,11 @@ calccru(p, up, sp)
 void
 calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 {
-	struct rusage_ext rux;
 	struct thread *td;
 	uint64_t u;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	PROC_SLOCK(p);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	/*
 	 * If we are getting stats for the current process, then add in the
 	 * stats that this thread has accumulated in its current time slice.
@@ -847,14 +846,7 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 		p->p_rux.rux_runtime += u - PCPU_GET(switchtime);
 		PCPU_SET(switchtime, u);
 	}
-	/* Work on a copy of p_rux so we can let go of p_slock */
-	rux = p->p_rux;
-	PROC_SUNLOCK(p);
-	calcru1(p, &rux, up, sp);
-	/* Update the result from the p_rux copy */
-	p->p_rux.rux_uu = rux.rux_uu;
-	p->p_rux.rux_su = rux.rux_su;
-	p->p_rux.rux_tu = rux.rux_tu;
+	calcru1(p, &p->p_rux, up, sp);
 }
 
 static void
@@ -965,8 +957,8 @@ kern_getrusage(td, who, rup)
 	switch (who) {
 
 	case RUSAGE_SELF:
-		rufetch(p, rup);
-		calcru(p, &rup->ru_utime, &rup->ru_stime);
+		rufetchcalc(p, rup, &rup->ru_utime,
+		    &rup->ru_stime);
 		break;
 
 	case RUSAGE_CHILDREN:
@@ -1039,7 +1031,8 @@ rufetch(struct proc *p, struct rusage *ru)
 {
 	struct thread *td;
 
-	PROC_SLOCK(p);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
+
 	*ru = p->p_ru;
 	if (p->p_numthreads > 0)  {
 		FOREACH_THREAD_IN_PROC(p, td) {
@@ -1049,6 +1042,21 @@ rufetch(struct proc *p, struct rusage *ru)
 			rucollect(ru, &td->td_ru);
 		}
 	}
+}
+
+/*
+ * Atomically perform a rufetch and a calcru together.
+ * Consumers, can safely assume the calcru is executed only once
+ * rufetch is completed.
+ */
+void
+rufetchcalc(struct proc *p, struct rusage *ru, struct timeval *up,
+    struct timeval *sp)
+{
+
+	PROC_SLOCK(p);
+	rufetch(p, ru);
+	calcru(p, up, sp);
 	PROC_SUNLOCK(p);
 }
 
