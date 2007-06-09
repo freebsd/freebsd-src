@@ -13,7 +13,7 @@
 #include <sys/proc.h>
 #include <sys/smp.h>
 
-#include <machine/cpu.h>
+#include <machine/kdb.h>
 #include <machine/md_var.h>
 
 #include <vm/vm.h>
@@ -58,23 +58,19 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	jmp_buf jb;
 	void *prev_jb;
 	char *dst;
+	size_t cnt;
 	int ret;
 
 	prev_jb = kdb_jmpbuf(jb);
 	ret = setjmp(jb);
 	if (ret == 0) {
 		dst = (char *)addr;
+		cnt = size;
 
-		if (size == 4)
-			*((int *)dst) = *((int *)data);
-		else if (size == 2)
-			*((short *)dst) = *((short *)data);
-		else
-			while (size-- > 0)
-				*dst++ = *data++;
+		while (cnt-- > 0)
+			*dst++ = *data++;
+		kdb_cpu_sync_icache((void *)addr, size);
 	}
-	__syncicache((void *)addr, size);
-
 	(void)kdb_jmpbuf(prev_jb);
 	return (ret);
 }

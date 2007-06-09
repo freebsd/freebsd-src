@@ -45,12 +45,6 @@
 #define	cpu_swapout(p)
 #define	cpu_number()		0
 
-#if defined(_KERNEL) || defined(_STANDALONE)
-#define	CACHELINESIZE	32
-#endif
-
-extern void __syncicache(void *, int);
-
 /*
  * CTL_MACHDEP definitions.
  */
