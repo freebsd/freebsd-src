@@ -66,8 +66,6 @@ struct cdce_softc {
 	struct mtx		 cdce_mtx;
 
 	struct usb_qdat		 q;
-
-	char			 devinfo[1024];
 };
 
 /* We are still under Giant */

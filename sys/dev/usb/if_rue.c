@@ -575,7 +575,6 @@ USB_MATCH(rue)
 USB_ATTACH(rue)
 {
 	USB_ATTACH_START(rue, sc, uaa);
-	char				*devinfo;
 	u_char				eaddr[ETHER_ADDR_LEN];
 	struct ifnet			*ifp;
 	usbd_interface_handle		iface;
@@ -584,11 +583,6 @@ USB_ATTACH(rue)
 	usb_endpoint_descriptor_t	*ed;
 	int				i;
 	struct rue_type			*t;
-
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
-
-	bzero(sc, sizeof (struct rue_softc));
-	usbd_devinfo(uaa->device, 0, devinfo);
 
 	sc->rue_dev = self;
 	sc->rue_udev = uaa->device;
@@ -620,10 +614,6 @@ USB_ATTACH(rue)
 	}
 
 	id = usbd_get_interface_descriptor(sc->rue_iface);
-
-	usbd_devinfo(uaa->device, 0, devinfo);
-	device_set_desc_copy(self, devinfo);
-	printf("%s: %s\n", device_get_nameunit(self), devinfo);
 
 	/* Find endpoints */
 	for (i = 0; i < id->bNumEndpoints; i++) {
@@ -692,7 +682,6 @@ USB_ATTACH(rue)
 	sc->rue_dying = 0;
 
 	RUE_UNLOCK(sc);
-	free(devinfo, M_USBDEV);
 	USB_ATTACH_SUCCESS_RETURN;
 
     error2:
@@ -701,7 +690,6 @@ USB_ATTACH(rue)
 	RUE_UNLOCK(sc);
 	mtx_destroy(&sc->rue_mtx);
     error:
-	free(devinfo, M_USBDEV);
 	USB_ATTACH_ERROR_RETURN;
 }
 
