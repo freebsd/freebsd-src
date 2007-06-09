@@ -571,7 +571,7 @@ struct proc {
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
 	struct callout	p_itcallout;	/* (h + c) Interval timer callout. */
 	u_short		p_acflag;	/* (c) Accounting flags. */
-	struct rusage	*p_ru;		/* (a) Exit information. */
+	struct rusage	p_ru;		/* (a) Exit information. */
 	struct proc	*p_peers;	/* (r) */
 	struct proc	*p_leader;	/* (b) */
 	void		*p_emuldata;	/* (c) Emulator state data. */

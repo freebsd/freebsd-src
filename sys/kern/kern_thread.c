@@ -391,9 +391,9 @@ thread_exit(void)
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
 	PCPU_INC(cnt.v_swtch);
-	/* Add the child usage to our own when the final thread exits. */
-	if (p->p_numthreads == 1)
-		ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
+	/* Save our resource usage in our process. */
+	td->td_ru.ru_nvcsw++;
+	rucollect(&p->p_ru, &td->td_ru);
 	/*
 	 * The last thread is left attached to the process
 	 * So that the whole bundle gets recycled. Skip
@@ -411,9 +411,7 @@ thread_exit(void)
 			thread_unlink(td);
 #endif
 			thread_unlock(td);
-			/* Impart our resource usage on another thread */
 			td2 = FIRST_THREAD_IN_PROC(p);
-			rucollect(&td2->td_ru, &td->td_ru);
 			sched_exit_thread(td2, td);
 
 			/*
@@ -462,7 +460,7 @@ thread_exit(void)
 	} 
 	PROC_UNLOCK(p);
 	thread_lock(td);
-	/* Aggregate our tick statistics into our parents rux. */
+	/* Save our tick information with both the thread and proc locked */
 	ruxagg(&p->p_rux, td);
 	PROC_SUNLOCK(p);
 	td->td_state = TDS_INACTIVE;
