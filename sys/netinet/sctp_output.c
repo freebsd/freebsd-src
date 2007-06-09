@@ -3158,7 +3158,6 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 	sig_offset = 0;
 	foo = (uint8_t *) (mtod(sig, caddr_t)+sig_offset);
 	memset(foo, 0, SCTP_SIGNATURE_SIZE);
-	printf("%p is address for signature\n", foo);
 	*signature = foo;
 	SCTP_BUF_LEN(sig) += SCTP_SIGNATURE_SIZE;
 	cookie_sz += SCTP_SIGNATURE_SIZE;
@@ -5020,7 +5019,6 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		sctp_m_freem(m);
 		return;
 	}
-	printf("signature is set to %p\n", signature);
 	/* Now append the cookie to the end and update the space/size */
 	SCTP_BUF_NEXT(m_tmp) = m_cookie;
 
@@ -5046,11 +5044,6 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	    (uint8_t *) inp->sctp_ep.secret_key[(int)(inp->sctp_ep.current_secret_number)],
 	    SCTP_SECRET_SIZE, m_cookie, sizeof(struct sctp_paramhdr),
 	    (uint8_t *) signature, SCTP_SIGNATURE_SIZE);
-	printf("signed first 4 bytes are %x %x %x %x\n",
-	    signature[0],
-	    signature[1],
-	    signature[2],
-	    signature[3]);
 	/*
 	 * We sifa 0 here to NOT set IP_DF if its IPv4, we ignore the return
 	 * here since the timer will drive a retranmission.
