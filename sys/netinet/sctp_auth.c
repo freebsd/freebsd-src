@@ -1034,7 +1034,7 @@ sctp_hmac(uint16_t hmac_algo, uint8_t * key, uint32_t keylen,
 /* mbuf version */
 uint32_t
 sctp_hmac_m(uint16_t hmac_algo, uint8_t * key, uint32_t keylen,
-    struct mbuf *m, uint32_t m_offset, uint8_t * digest)
+    struct mbuf *m, uint32_t m_offset, uint8_t * digest, uint32_t trailer)
 {
 	uint32_t digestlen;
 	uint32_t blocklen;
@@ -1087,8 +1087,13 @@ sctp_hmac_m(uint16_t hmac_algo, uint8_t * key, uint32_t keylen,
 	}
 	/* now use the rest of the mbuf chain for the text */
 	while (m_tmp != NULL) {
-		sctp_hmac_update(hmac_algo, &ctx, mtod(m_tmp, uint8_t *) + m_offset,
-		    SCTP_BUF_LEN(m_tmp) - m_offset);
+		if ((SCTP_BUF_NEXT(m_tmp) == NULL) && trailer) {
+			sctp_hmac_update(hmac_algo, &ctx, mtod(m_tmp, uint8_t *) + m_offset,
+			    SCTP_BUF_LEN(m_tmp) - (trailer + m_offset));
+		} else {
+			sctp_hmac_update(hmac_algo, &ctx, mtod(m_tmp, uint8_t *) + m_offset,
+			    SCTP_BUF_LEN(m_tmp) - m_offset);
+		}
 
 		/* clear the offset since it's only for the first mbuf */
 		m_offset = 0;
@@ -1206,7 +1211,7 @@ sctp_compute_hmac_m(uint16_t hmac_algo, sctp_key_t * key, struct mbuf *m,
 		key->keylen = digestlen;
 		bcopy(temp, key->key, key->keylen);
 	}
-	return (sctp_hmac_m(hmac_algo, key->key, key->keylen, m, m_offset, digest));
+	return (sctp_hmac_m(hmac_algo, key->key, key->keylen, m, m_offset, digest, 0));
 }
 
 int

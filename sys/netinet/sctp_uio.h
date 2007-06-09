@@ -260,7 +260,7 @@ struct sctp_send_failed {
 	uint32_t ssf_error;
 	struct sctp_sndrcvinfo ssf_info;
 	sctp_assoc_t ssf_assoc_id;
-	uint8_t ssf_data[4];
+	uint8_t ssf_data[0];
 };
 
 /* flag that indicates state of data */

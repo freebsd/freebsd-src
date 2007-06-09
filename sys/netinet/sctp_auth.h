@@ -182,7 +182,7 @@ extern int sctp_auth_is_supported_hmac(sctp_hmaclist_t * list, uint16_t id);
 /* mbuf versions */
 extern uint32_t
 sctp_hmac_m(uint16_t hmac_algo, uint8_t * key, uint32_t keylen,
-    struct mbuf *m, uint32_t m_offset, uint8_t * digest);
+    struct mbuf *m, uint32_t m_offset, uint8_t * digest, uint32_t trailer);
 extern uint32_t
 sctp_compute_hmac_m(uint16_t hmac_algo, sctp_key_t * key, struct mbuf *m,
     uint32_t m_offset, uint8_t * digest);

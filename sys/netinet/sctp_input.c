@@ -1852,12 +1852,12 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* it's the old cookie */
 		(void)sctp_hmac_m(SCTP_HMAC,
 		    (uint8_t *) ep->secret_key[(int)ep->last_secret_number],
-		    SCTP_SECRET_SIZE, m, cookie_offset, calc_sig);
+		    SCTP_SECRET_SIZE, m, cookie_offset, calc_sig, 0);
 	} else {
 		/* it's the current cookie */
 		(void)sctp_hmac_m(SCTP_HMAC,
 		    (uint8_t *) ep->secret_key[(int)ep->current_secret_number],
-		    SCTP_SECRET_SIZE, m, cookie_offset, calc_sig);
+		    SCTP_SECRET_SIZE, m, cookie_offset, calc_sig, 0);
 	}
 	/* get the signature */
 	SCTP_INP_RUNLOCK(l_inp);
@@ -1870,12 +1870,21 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	/* compare the received digest with the computed digest */
 	if (memcmp(calc_sig, sig, SCTP_SIGNATURE_SIZE) != 0) {
 		/* try the old cookie? */
+		printf("Signature size is %d\n", SCTP_SIGNATURE_SIZE);
+		printf("Signature %x %x %x %x %x %x %x %x\n",
+		    sig[0], sig[1], sig[2], sig[3],
+		    sig[4], sig[5], sig[6], sig[7]);
+
+		printf("Calc Signature %x %x %x %x %x %x %x %x\n",
+		    calc_sig[0], calc_sig[1], calc_sig[2], calc_sig[3],
+		    calc_sig[4], calc_sig[5], calc_sig[6], calc_sig[7]);
+
 		if ((cookie->time_entered.tv_sec == (long)ep->time_of_secret_change) &&
 		    (ep->current_secret_number != ep->last_secret_number)) {
 			/* compute digest with old */
 			(void)sctp_hmac_m(SCTP_HMAC,
 			    (uint8_t *) ep->secret_key[(int)ep->last_secret_number],
-			    SCTP_SECRET_SIZE, m, cookie_offset, calc_sig);
+			    SCTP_SECRET_SIZE, m, cookie_offset, calc_sig, 0);
 			/* compare */
 			if (memcmp(calc_sig, sig, SCTP_SIGNATURE_SIZE) == 0)
 				cookie_ok = 1;
