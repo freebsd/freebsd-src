@@ -9,6 +9,7 @@
 
 #include <calendar.world>
 #include <calendar.croatian>
+#include <calendar.dutch>
 #include <calendar.french>
 #include <calendar.german>
 #include <calendar.hungarian>
