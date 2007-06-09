@@ -50,6 +50,12 @@ struct reg;
 struct cam_sim;
 struct pcicfg;
 
+#if defined(_KERNEL) || defined(_STANDALONE)
+#define	CACHELINESIZE	32
+#endif
+
+void	__syncicache(void *, int);
+
 void	busdma_swi(void);
 int	is_physical_memory(vm_offset_t addr);
 int	mem_valid(vm_offset_t addr, int len);

@@ -42,6 +42,11 @@ kdb_cpu_set_singlestep(void)
 }
 
 static __inline void
+kdb_cpu_sync_icache(unsigned char *addr, size_t size)
+{
+}
+
+static __inline void
 kdb_cpu_trap(int vector, int _)
 {
 	flushw();

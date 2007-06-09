@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 
 #include <machine/gdb_machdep.h>
+#include <machine/kdb.h>
 
 #include <gdb/gdb.h>
 #include <gdb/gdb_int.h>
@@ -129,8 +130,10 @@ gdb_rx_equal(const char *str)
 int
 gdb_rx_mem(unsigned char *addr, size_t size)
 {
+	unsigned char *p;
 	void *prev;
 	jmp_buf jb;
+	size_t cnt;
 	int ret;
 	unsigned char c;
 
@@ -140,13 +143,16 @@ gdb_rx_mem(unsigned char *addr, size_t size)
 	prev = kdb_jmpbuf(jb);
 	ret = setjmp(jb);
 	if (ret == 0) {
-		while (size-- > 0) {
+		p = addr;
+		cnt = size;
+		while (cnt-- > 0) {
 			c = (C2N(gdb_rxp[0]) << 4) & 0xf0;
 			c |= C2N(gdb_rxp[1]) & 0x0f;
-			*addr++ = c;
+			*p++ = c;
 			gdb_rxsz -= 2;
 			gdb_rxp += 2;
 		}
+		kdb_cpu_sync_icache(addr, size);
 	}
 	(void)kdb_jmpbuf(prev);
 	return ((ret == 0) ? 1 : 0);
