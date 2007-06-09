@@ -68,6 +68,10 @@ const char *pluralies(uintmax_t);
 void	protopr(u_long, const char *, int);
 void	tcp_stats(u_long, const char *, int);
 void	udp_stats(u_long, const char *, int);
+#ifdef SCTP
+void	sctp_protopr(u_long, const char *, int);
+void	sctp_stats(u_long, const char *, int);
+#endif
 void	ip_stats(u_long, const char *, int);
 void	icmp_stats(u_long, const char *, int);
 void	igmp_stats(u_long, const char *, int);
