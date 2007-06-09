@@ -283,16 +283,12 @@ USB_ATTACH(ubsa)
 	usb_config_descriptor_t *cdesc;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
-	char *devinfo;
 	const char *devname;
 	usbd_status err;
 	int i;
 
 	dev = uaa->device;
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
 	ucom = &sc->sc_ucom;
-
-	bzero(sc, sizeof (struct ubsa_softc));
 
 	/*
 	 * initialize rts, dtr variables to something
@@ -301,17 +297,12 @@ USB_ATTACH(ubsa)
 	sc->sc_dtr = -1;
 	sc->sc_rts = -1;
 
-	usbd_devinfo(dev, 0, devinfo);
-	/* USB_ATTACH_SETUP; */
 	ucom->sc_dev = self;
-	device_set_desc_copy(self, devinfo);
-	/* USB_ATTACH_SETUP; */
 
 	ucom->sc_udev = dev;
 	ucom->sc_iface = uaa->iface;
 
 	devname = device_get_nameunit(ucom->sc_dev);
-	printf("%s: %s\n", devname, devinfo);
 
 	DPRINTF(("ubsa attach: sc = %p\n", sc));
 
@@ -414,12 +405,9 @@ USB_ATTACH(ubsa)
 
 	TASK_INIT(&sc->sc_task, 0, ubsa_notify, sc); 
 	ucom_attach(ucom);
-
-	free(devinfo, M_USBDEV);
 	USB_ATTACH_SUCCESS_RETURN;
 
 error:
-	free(devinfo, M_USBDEV);
 	USB_ATTACH_ERROR_RETURN;
 }
 

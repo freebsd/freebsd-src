@@ -255,7 +255,6 @@ USB_ATTACH(udbp)
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed, *ed_bulkin = NULL, *ed_bulkout = NULL;
 	usbd_status err;
-	char devinfo[1024];
 	int i;
 	static int ngudbp_done_init=0;
 
@@ -263,8 +262,7 @@ USB_ATTACH(udbp)
 	/* fetch the interface handle for the first interface */
 	(void) usbd_device2interface_handle(uaa->device, 0, &iface);
 	id = usbd_get_interface_descriptor(iface);
-	usbd_devinfo(uaa->device, USBD_SHOW_INTERFACE_CLASS, devinfo);
-	USB_ATTACH_SETUP;
+	sc->sc_dev = self;
 
 	/* Find the two first bulk endpoints */
 	for (i = 0 ; i < id->bNumEndpoints; i++) {

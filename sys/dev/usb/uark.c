@@ -131,14 +131,10 @@ USB_ATTACH(uark)
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
 	usbd_status error;
-	char *devinfo;
 	const char *devname;
 	int i;
 	struct ucom_softc *ucom = &sc->sc_ucom;
 
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
-
-	bzero(ucom, sizeof(struct ucom_softc));
 	ucom->sc_dev = self;
 	ucom->sc_udev = dev;
 
@@ -161,9 +157,6 @@ USB_ATTACH(uark)
 		}
 	} else
 		iface = uaa->iface;
-
-	usbd_devinfo(dev, 0, devinfo);
-	printf("%s: %s\n", devname, devinfo);
 
 	id = usbd_get_interface_descriptor(iface);
 	ucom->sc_iface = iface;
@@ -197,15 +190,11 @@ USB_ATTACH(uark)
 
 	DPRINTF(("uark: in=0x%x out=0x%x\n", ucom->sc_bulkin_no, ucom->sc_bulkout_no));
 	ucom_attach(&sc->sc_ucom);
-	free(devinfo, M_USBDEV);
-
 	USB_ATTACH_SUCCESS_RETURN;
 
 bad:
 	DPRINTF(("uftdi_attach: ATTACH ERROR\n"));
 	ucom->sc_dying = 1;
-	free(devinfo, M_USBDEV);
-
 	USB_ATTACH_ERROR_RETURN;
 }
 
