@@ -849,6 +849,7 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 	uaa.vendor = UGETW(dd->idVendor);
 	uaa.product = UGETW(dd->idProduct);
 	uaa.release = UGETW(dd->bcdDevice);
+	uaa.matchlvl = 0;
 
 	/* First try with device specific drivers. */
 	DPRINTF(("usbd_probe_and_attach: trying device specific drivers\n"));
