@@ -544,12 +544,7 @@ show_var(int *oid, int nlen)
 	int qoid[CTL_MAXNAME+2];
 	uintmax_t umv;
 	intmax_t mv;
-	u_quad_t uqv;
-	quad_t qv;
-	u_long ulv;
-	long lv;
-	u_int uiv;
-	int i, flen, iv;
+	int i, hexlen;
 	size_t intlen;
 	size_t j, len;
 	u_int kind;
@@ -625,33 +620,34 @@ show_var(int *oid, int nlen)
 		if (!nflag)
 			printf("%s%s", name, sep);
 		switch (*fmt) {
-		case 'I': intlen = sizeof(int); flen = 10; break;
-		case 'L': intlen = sizeof(long); flen = 18; break;
-		case 'Q': intlen = sizeof(quad_t); flen = 18; break;
+		case 'I': intlen = sizeof(int); break;
+		case 'L': intlen = sizeof(long); break;
+		case 'Q': intlen = sizeof(quad_t); break;
 		}
+		hexlen = 2 + (intlen * CHAR_BIT + 3) / 4;
 		sep1 = "";
 		while (len >= intlen) {
 			switch (*fmt) {
 			case 'I':
-				memcpy(&uiv, p, intlen); umv = uiv;
-				memcpy(&iv, p, intlen); mv = iv;
+				umv = *(u_int *)p;
+				mv = *(int *)p;
 				break;
 			case 'L':
-				memcpy(&ulv, p, intlen); umv = ulv;
-				memcpy(&lv, p, intlen); mv = lv;
+				umv = *(u_long *)p;
+				mv = *(long *)p;
 				break;
 			case 'Q':
-				memcpy(&uqv, p, intlen); umv = uqv;
-				memcpy(&qv, p, intlen); mv = qv;
+				umv = *(u_quad_t *)p;
+				mv = *(quad_t *)p;
 				break;
 			}
 			fputs(sep1, stdout);
 			if (fmt[1] == 'U')
 				printf(hflag ? "%'ju" : "%ju", umv);
 			else if (fmt[1] == 'X')
-				printf("%#0*jx", flen, umv);
+				printf("%#0*jx", hexlen, umv);
 			else if (fmt[1] == 'K') {
-				if (*(int *)p < 0)
+				if (mv < 0)
 					printf("%jd", mv);
 				else
 					printf("%.1fC", (mv - 2732.0) / 10);
