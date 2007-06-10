@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 
-#define PAM_SM_AUTH
+#define PAM_SM_ACCOUNT
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 static char nologin_def[] = NOLOGIN;
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
 	login_cap_t *lc;
@@ -109,14 +109,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		PAM_VERBOSE_ERROR("Administrator refusing you: %s", NOLOGIN);
 
 	return (retval);
-}
-
-PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
-    int argc __unused, const char *argv[] __unused)
-{
-
-	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_nologin");
