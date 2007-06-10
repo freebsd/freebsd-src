@@ -329,7 +329,7 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int error = 0, rdonly, preat_ret = 1, postat_ret = 1;
 	int v3 = (nfsd->nd_flag & ND_NFSV3), gcheck = 0;
 	struct mbuf *mb, *mreq;
-	struct timespec guard;
+	struct timespec guard = { 0, 0 };
 	struct mount *mp = NULL;
 	int tvfslocked;
 	int vfslocked;
