@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: term.c,v 1.45 2006/03/18 19:23:14 christos Exp $
+ *	$NetBSD: term.c,v 1.46 2006/11/24 00:01:17 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -1322,7 +1322,7 @@ term_settc(EditLine *el, int argc __unused,
 	const char *what, *how;
 
 	if (argv == NULL || argv[1] == NULL || argv[2] == NULL)
-		return (-1);
+		return -1;
 
 	what = argv[1];
 	how = argv[2];
@@ -1337,7 +1337,7 @@ term_settc(EditLine *el, int argc __unused,
 	if (ts->name != NULL) {
 		term_alloc(el, ts, how);
 		term_setflags(el);
-		return (0);
+		return 0;
 	}
 	/*
          * Do the numeric ones second
@@ -1346,45 +1346,99 @@ term_settc(EditLine *el, int argc __unused,
 		if (strcmp(tv->name, what) == 0)
 			break;
 
-	if (tv->name != NULL) {
-		if (tv == &tval[T_pt] || tv == &tval[T_km] ||
-		    tv == &tval[T_am] || tv == &tval[T_xn]) {
-			if (strcmp(how, "yes") == 0)
-				el->el_term.t_val[tv - tval] = 1;
-			else if (strcmp(how, "no") == 0)
-				el->el_term.t_val[tv - tval] = 0;
-			else {
-				(void) fprintf(el->el_errfile,
-				    "settc: Bad value `%s'.\n", how);
-				return (-1);
-			}
-			term_setflags(el);
-			if (term_change_size(el, Val(T_li), Val(T_co)) == -1)
-				return (-1);
-			return (0);
-		} else {
-			long i;
-			char *ep;
+	if (tv->name != NULL)
+		return -1;
 
-			i = strtol(how, &ep, 10);
-			if (*ep != '\0') {
-				(void) fprintf(el->el_errfile,
-				    "settc: Bad value `%s'.\n", how);
-				return (-1);
-			}
-			el->el_term.t_val[tv - tval] = (int) i;
-			el->el_term.t_size.v = Val(T_co);
-			el->el_term.t_size.h = Val(T_li);
-			if (tv == &tval[T_co] || tv == &tval[T_li])
-				if (term_change_size(el, Val(T_li), Val(T_co))
-				    == -1)
-					return (-1);
-			return (0);
+	if (tv == &tval[T_pt] || tv == &tval[T_km] ||
+	    tv == &tval[T_am] || tv == &tval[T_xn]) {
+		if (strcmp(how, "yes") == 0)
+			el->el_term.t_val[tv - tval] = 1;
+		else if (strcmp(how, "no") == 0)
+			el->el_term.t_val[tv - tval] = 0;
+		else {
+			(void) fprintf(el->el_errfile,
+			    "%s: Bad value `%s'.\n", argv[0], how);
+			return -1;
 		}
+		term_setflags(el);
+		if (term_change_size(el, Val(T_li), Val(T_co)) == -1)
+			return -1;
+		return 0;
+	} else {
+		long i;
+		char *ep;
+
+		i = strtol(how, &ep, 10);
+		if (*ep != '\0') {
+			(void) fprintf(el->el_errfile,
+			    "%s: Bad value `%s'.\n", argv[0], how);
+			return -1;
+		}
+		el->el_term.t_val[tv - tval] = (int) i;
+		el->el_term.t_size.v = Val(T_co);
+		el->el_term.t_size.h = Val(T_li);
+		if (tv == &tval[T_co] || tv == &tval[T_li])
+			if (term_change_size(el, Val(T_li), Val(T_co))
+			    == -1)
+				return -1;
+		return 0;
 	}
-	return (-1);
 }
 
+
+/* term_gettc():
+ *	Get the current terminal characteristics
+ */
+protected int
+/*ARGSUSED*/
+term_gettc(EditLine *el, int argc __unused, char **argv)
+{
+	const struct termcapstr *ts;
+	const struct termcapval *tv;
+	char *what;
+	void *how;
+
+	if (argv == NULL || argv[1] == NULL || argv[2] == NULL)
+		return (-1);
+
+	what = argv[1];
+	how = argv[2];
+
+	/*
+         * Do the strings first
+         */
+	for (ts = tstr; ts->name != NULL; ts++)
+		if (strcmp(ts->name, what) == 0)
+			break;
+
+	if (ts->name != NULL) {
+		*(char **)how = el->el_term.t_str[ts - tstr];
+		return 0;
+	}
+	/*
+         * Do the numeric ones second
+         */
+	for (tv = tval; tv->name != NULL; tv++)
+		if (strcmp(tv->name, what) == 0)
+			break;
+
+	if (tv->name == NULL)
+		return -1;
+
+	if (tv == &tval[T_pt] || tv == &tval[T_km] ||
+	    tv == &tval[T_am] || tv == &tval[T_xn]) {
+		static char yes[] = "yes";
+		static char no[] = "no";
+		if (el->el_term.t_val[tv - tval])
+			*(char **)how = yes;
+		else
+			*(char **)how = no;
+		return 0;
+	} else {
+		*(int *)how = el->el_term.t_val[tv - tval];
+		return 0;
+	}
+}
 
 /* term_echotc():
  *	Print the termcap string out with variable substitution
