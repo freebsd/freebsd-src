@@ -262,7 +262,6 @@ MODULE_DEPEND(ufoma, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 
 USB_MATCH(ufoma)
 {
-	uByte *mode;
 	USB_MATCH_START(ufoma, uaa);
 	usb_interface_descriptor_t *id;
 	usb_config_descriptor_t *cd;
@@ -291,7 +290,6 @@ USB_MATCH(ufoma)
 		return (UMATCH_NONE);
 	}
 
-	mode = mode;
 #if 0
 	if(mad->bType != UMCPC_ACM_TYPE_AB5){
 		return UMATCH_NONE;
