@@ -2232,7 +2232,6 @@ dodata:							/* XXX */
 	if ((tlen || (thflags & TH_FIN)) &&
 	    TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 		tcp_seq save_start = th->th_seq;
-		tcp_seq save_end = th->th_seq + tlen;
 		m_adj(m, drop_hdrlen);	/* delayed header drop */
 		/*
 		 * Insert segment which includes th into TCP reassembly queue
@@ -2276,7 +2275,7 @@ dodata:							/* XXX */
 			tp->t_flags |= TF_ACKNOW;
 		}
 		if (tlen > 0 && (tp->t_flags & TF_SACK_PERMIT))
-			tcp_update_sack_list(tp, save_start, save_end);
+			tcp_update_sack_list(tp, save_start, save_start + tlen);
 #if 0
 		/*
 		 * Note the amount of data that peer has sent into
