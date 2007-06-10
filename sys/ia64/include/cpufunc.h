@@ -54,10 +54,9 @@ breakpoint(void)
 #define	HAVE_INLINE_FFS
 #define	ffs(x)	__builtin_ffs(x)
 
-extern uint64_t ia64_port_base;
 #define	__MEMIO_ADDR(x)		(__volatile void*)(IA64_PHYS_TO_RR6(x))
-#define	__PIO_ADDR(x)		(__volatile void*)(ia64_port_base |	\
-	(((x) & 0xFFFC) << 10) | ((x) & 0xFFF))
+extern __volatile void *ia64_ioport_address(u_int);
+#define	__PIO_ADDR(x)		ia64_ioport_address(x)
 
 /*
  * I/O port reads with ia32 semantics.
