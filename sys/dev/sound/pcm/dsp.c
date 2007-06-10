@@ -1841,7 +1841,8 @@ dsp_unit2name(char *buf, size_t len, int unit)
 {
 	int i, dtype;
 
-	KASSERT(buf != NULL && len != 0, ("bogus buf=%p len=%u", buf, len));
+	KASSERT(buf != NULL && len != 0,
+	    ("bogus buf=%p len=%ju", buf, (uintmax_t)len));
 
 	dtype = snd_unit2d(unit);
 
