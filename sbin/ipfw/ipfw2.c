@@ -47,6 +47,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/pfvar.h>
 #include <net/route.h> /* def. of struct route */
@@ -1383,10 +1384,8 @@ print_ext6hdr( ipfw_insn *cmd )
 #define	HAVE_PROTO	0x0001
 #define	HAVE_SRCIP	0x0002
 #define	HAVE_DSTIP	0x0004
-#define	HAVE_MAC	0x0008
-#define	HAVE_MACTYPE	0x0010
-#define	HAVE_PROTO4	0x0040
-#define	HAVE_PROTO6	0x0080
+#define	HAVE_PROTO4	0x0008
+#define	HAVE_PROTO6	0x0010
 #define	HAVE_OPTIONS	0x8000
 
 #define	HAVE_IP		(HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP)
@@ -1398,16 +1397,6 @@ show_prerequisites(int *flags, int want, int cmd)
 	if ( (*flags & HAVE_IP) == HAVE_IP)
 		*flags |= HAVE_OPTIONS;
 
-	if ( (*flags & (HAVE_MAC|HAVE_MACTYPE|HAVE_OPTIONS)) == HAVE_MAC &&
-	     cmd != O_MAC_TYPE) {
-		/*
-		 * mac-type was optimized out by the compiler,
-		 * restore it
-		 */
-		printf(" any");
-		*flags |= HAVE_MACTYPE | HAVE_OPTIONS;
-		return;
-	}
 	if ( !(*flags & HAVE_OPTIONS)) {
 		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO))
 			if ( (*flags & HAVE_PROTO4))
@@ -1659,28 +1648,6 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		case O_PROBE_STATE:
 			break; /* no need to print anything here */
 
-		case O_MACADDR2: {
-			ipfw_insn_mac *m = (ipfw_insn_mac *)cmd;
-
-			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
-			if (cmd->len & F_NOT)
-				printf(" not");
-			printf(" MAC");
-			flags |= HAVE_MAC;
-			print_mac(m->addr, m->mask);
-			print_mac(m->addr + 6, m->mask + 6);
-			}
-			break;
-
-		case O_MAC_TYPE:
-			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
-			print_newports((ipfw_insn_u16 *)cmd, IPPROTO_ETHERTYPE,
-				(flags & HAVE_OPTIONS) ? cmd->opcode : 0);
-			flags |= HAVE_MAC | HAVE_MACTYPE | HAVE_OPTIONS;
-			break;
-
 		case O_IP_SRC:
 		case O_IP_SRC_LOOKUP:
 		case O_IP_SRC_MASK:
@@ -1788,6 +1755,21 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			if (cmd->len & F_NOT && cmd->opcode != O_IN)
 				printf(" not");
 			switch(cmd->opcode) {
+			case O_MACADDR2: {
+				ipfw_insn_mac *m = (ipfw_insn_mac *)cmd;
+
+				printf(" MAC");
+				print_mac(m->addr, m->mask);
+				print_mac(m->addr + 6, m->mask + 6);
+				}
+				break;
+
+			case O_MAC_TYPE:
+				print_newports((ipfw_insn_u16 *)cmd,
+						IPPROTO_ETHERTYPE, cmd->opcode);
+				break;
+
+
 			case O_FRAG:
 				printf(" frag");
 				break;
@@ -3581,36 +3563,50 @@ end_mask:
 }
 
 static void
-get_mac_addr_mask(char *p, uint8_t *addr, uint8_t *mask)
+get_mac_addr_mask(const char *p, uint8_t *addr, uint8_t *mask)
 {
 	int i, l;
+	char *ap, *ptr, *optr;
+	struct ether_addr *mac;
+	const char *macset = "0123456789abcdefABCDEF:";
 
-	for (i=0; i<6; i++)
-		addr[i] = mask[i] = 0;
-	if (strcmp(p, "any") == 0)
+	if (strcmp(p, "any") == 0) {
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+			addr[i] = mask[i] = 0;
 		return;
-
-	for (i=0; *p && i<6;i++, p++) {
-		addr[i] = strtol(p, &p, 16);
-		if (*p != ':') /* we start with the mask */
-			break;
 	}
-	if (*p == '/') { /* mask len */
-		l = strtol(p+1, &p, 0);
-		for (i=0; l>0; l -=8, i++)
-			mask[i] = (l >=8) ? 0xff : (~0) << (8-l);
-	} else if (*p == '&') { /* mask */
-		for (i=0, p++; *p && i<6;i++, p++) {
-			mask[i] = strtol(p, &p, 16);
-			if (*p != ':')
-				break;
+
+	optr = ptr = strdup(p);
+	if ((ap = strsep(&ptr, "&/")) != NULL && *ap != 0) {
+		l = strlen(ap);
+		if (strspn(ap, macset) != l || (mac = ether_aton(ap)) == NULL)
+			errx(EX_DATAERR, "Incorrect MAC address");
+		bcopy(mac, addr, ETHER_ADDR_LEN);
+	} else
+		errx(EX_DATAERR, "Incorrect MAC address");
+
+	if (ptr != NULL) { /* we have mask? */
+		if (p[ptr - optr - 1] == '/') { /* mask len */
+			l = strtol(ptr, &ap, 10);
+			if (*ap != 0 || l > ETHER_ADDR_LEN * 8 || l < 0)
+				errx(EX_DATAERR, "Incorrect mask length");
+			for (i = 0; l > 0 && i < ETHER_ADDR_LEN; l -= 8, i++)
+				mask[i] = (l >= 8) ? 0xff: (~0) << (8 - l);
+		} else { /* mask */
+			l = strlen(ptr);
+			if (strspn(ptr, macset) != l ||
+			    (mac = ether_aton(ptr)) == NULL)
+				errx(EX_DATAERR, "Incorrect mask");
+			bcopy(mac, mask, ETHER_ADDR_LEN);
 		}
-	} else if (*p == '\0') {
-		for (i=0; i<6; i++)
+	} else { /* default mask: ff:ff:ff:ff:ff:ff */
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
 			mask[i] = 0xff;
 	}
-	for (i=0; i<6; i++)
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		addr[i] &= mask[i];
+
+	free(optr);
 }
 
 /*
@@ -3685,7 +3681,8 @@ add_mac(ipfw_insn *cmd, int ac, char *av[])
 
 	mac = (ipfw_insn_mac *)cmd;
 	get_mac_addr_mask(av[0], mac->addr, mac->mask);	/* dst */
-	get_mac_addr_mask(av[1], &(mac->addr[6]), &(mac->mask[6])); /* src */
+	get_mac_addr_mask(av[1], &(mac->addr[ETHER_ADDR_LEN]),
+	    &(mac->mask[ETHER_ADDR_LEN])); /* src */
 	return cmd;
 }
 
