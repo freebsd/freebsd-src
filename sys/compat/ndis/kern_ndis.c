@@ -945,7 +945,7 @@ ndis_send_packets(arg, packets, cnt)
 	ndis_senddone_func		senddonefunc;
 	int			i;
 	ndis_packet		*p;
-	uint8_t			irql;
+	uint8_t			irql = 0;
 
 	sc = arg;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -988,7 +988,7 @@ ndis_send_packet(arg, packet)
 	ndis_status		status;
 	ndis_sendsingle_handler	sendfunc;
 	ndis_senddone_func		senddonefunc;
-	uint8_t			irql;
+	uint8_t			irql = 0;
 
 	sc = arg;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -1081,7 +1081,7 @@ ndis_reset_nic(arg)
 	ndis_reset_handler	resetfunc;
 	uint8_t			addressing_reset;
 	int			rval;
-	uint8_t			irql;
+	uint8_t			irql = 0;
 
 	sc = arg;
 
