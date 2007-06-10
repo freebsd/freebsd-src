@@ -55,7 +55,6 @@ struct cdce_softc {
 	usbd_pipe_handle	 cdce_bulkout_pipe;
 	char			 cdce_dying;
 	device_t		 cdce_dev;
-	int			 cdce_unit;
 
 	struct ue_cdata		 cdce_cdata;
 	struct timeval		 cdce_rx_notice;
