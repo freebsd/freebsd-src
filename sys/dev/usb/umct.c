@@ -180,6 +180,8 @@ USB_ATTACH(umct)
 	sc->sc_intr_number = -1;
 	sc->sc_intr_pipe = NULL;
 
+	devname = device_get_nameunit(ucom->sc_dev);
+
 	err = usbd_set_config_index(dev, UMCT_CONFIG_INDEX, 1);
 	if (err) {
 		printf("%s: failed to set configuration: %s\n",
