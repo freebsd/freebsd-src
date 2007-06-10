@@ -338,8 +338,8 @@ static const char *uaudio_get_terminal_name(int);
 static int	uaudio_determine_class
 	(const struct io_terminal *, struct mixerctl *);
 #if defined(__FreeBSD__)
-static const int uaudio_feature_name(const struct io_terminal *,
-		    struct mixerctl *);
+static int uaudio_feature_name(const struct io_terminal *,
+	struct mixerctl *);
 #else
 static const char *uaudio_feature_name
 	(const struct io_terminal *, struct mixerctl *);
@@ -1251,7 +1251,7 @@ uaudio_determine_class(const struct io_terminal *iot, struct mixerctl *mix)
 }
 
 #if defined(__FreeBSD__)
-const int 
+static int 
 uaudio_feature_name(const struct io_terminal *iot, struct mixerctl *mix)
 {
 	int terminal_type;
