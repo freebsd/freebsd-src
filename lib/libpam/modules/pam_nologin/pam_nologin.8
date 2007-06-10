@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2001
+.Dd June 10, 2007
 .Dt PAM_NOLOGIN 8
 .Os
 .Sh NAME
@@ -37,19 +37,18 @@
 .Pa pam_nologin
 .Op Ar options
 .Sh DESCRIPTION
-The NoLogin authentication service module for PAM,
+The NoLogin service module for PAM,
 .Nm
 provides functionality for only one PAM category:
-authentication.
+account management.
 In terms of the
 .Ar module-type
 parameter, this is the
-.Dq Li auth
+.Dq Li account
 feature.
-It also provides a null function for session management.
-.Ss NoLogin Authentication Module
-The NoLogin authentication component
-.Pq Fn pam_sm_authenticate ,
+.Ss NoLogin Account Management Module
+The NoLogin account management component,
+.Fn pam_sm_acct_mgmt , 
 always returns success for the superuser,
 and returns success for all other users
 if the file
@@ -69,7 +68,7 @@ is used instead.
 This usually defaults to
 .Pa /var/run/nologin .
 .Pp
-The following options may be passed to the authentication module:
+The following options may be passed to the module:
 .Bl -tag -width ".Cm no_warn"
 .It Cm debug
 .Xr syslog 3
@@ -80,7 +79,7 @@ level.
 suppress warning messages to the user.
 These messages include
 reasons why the user's
-authentication attempt was declined.
+login attempt was declined.
 .El
 .Sh SEE ALSO
 .Xr syslog 3 ,

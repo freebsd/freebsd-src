@@ -5,10 +5,10 @@
 #
 
 # auth
-auth		required	pam_nologin.so		no_warn
 auth		required	pam_rhosts.so		no_warn
 
 # account
+account		required	pam_nologin.so
 account		required	pam_unix.so
 
 # session
