@@ -218,23 +218,24 @@ udp_input(m, off, proto)
 	 * Checksum extended UDP header and data.
 	 */
 	if (uh->uh_sum) {
+		u_short uh_sum;
 		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
 			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
-				uh->uh_sum = m->m_pkthdr.csum_data;
+				uh_sum = m->m_pkthdr.csum_data;
 			else
-	                	uh->uh_sum = in_pseudo(ip->ip_src.s_addr,
+				uh_sum = in_pseudo(ip->ip_src.s_addr,
 				    ip->ip_dst.s_addr, htonl((u_short)len +
 				    m->m_pkthdr.csum_data + IPPROTO_UDP));
-			uh->uh_sum ^= 0xffff;
+			uh_sum ^= 0xffff;
 		} else {
 			char b[9];
 			bcopy(((struct ipovly *)ip)->ih_x1, b, 9);
 			bzero(((struct ipovly *)ip)->ih_x1, 9);
 			((struct ipovly *)ip)->ih_len = uh->uh_ulen;
-			uh->uh_sum = in_cksum(m, len + sizeof (struct ip));
+			uh_sum = in_cksum(m, len + sizeof (struct ip));
 			bcopy(b, ((struct ipovly *)ip)->ih_x1, 9);
 		}
-		if (uh->uh_sum) {
+		if (uh_sum) {
 			udpstat.udps_badsum++;
 			m_freem(m);
 			return;
