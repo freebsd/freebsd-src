@@ -409,7 +409,7 @@ set_de_item_location(struct reiserfs_dir_entry *de, struct path *path)
  * de_bh, de_ih, de_deh (points to first element of array), de_item_num
  * is set
  */
-inline void
+void
 set_de_name_and_namelen(struct reiserfs_dir_entry *de)
 {
 	struct reiserfs_de_head *deh = de->de_deh + de->de_entry_num;
