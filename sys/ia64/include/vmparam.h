@@ -116,6 +116,34 @@
 #define	VM_PHYSSEG_SPARSE
 
 /*
+ * The number of PHYSSEG entries is equal to the number of phys_avail
+ * entries.
+ */
+#define	VM_PHYSSEG_MAX		49
+
+/*
+ * Create two free page pools: VM_FREEPOOL_DEFAULT is the default pool
+ * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
+ * the pool from which physical pages for small UMA objects are
+ * allocated.
+ */
+#define	VM_NFREEPOOL		2
+#define	VM_FREEPOOL_DEFAULT	0
+#define	VM_FREEPOOL_DIRECT	1
+
+/*
+ * Create one free page list.
+ */
+#define	VM_NFREELIST		1
+#define	VM_FREELIST_DEFAULT	0
+
+/*
+ * An allocation size of 256MB is supported in order to optimize the
+ * use of the identity mappings in region 7 by UMA.
+ */
+#define	VM_NFREEORDER		16
+
+/*
  * Manipulating region bits of an address.
  */
 #define IA64_RR_BASE(n)         (((u_int64_t) (n)) << 61)

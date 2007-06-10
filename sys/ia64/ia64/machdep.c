@@ -146,7 +146,9 @@ struct msgbuf *msgbufp=0;
 long Maxmem = 0;
 long realmem = 0;
 
-vm_offset_t phys_avail[100];
+#define	PHYSMAP_SIZE	(2 * VM_PHYSSEG_MAX)
+
+vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
