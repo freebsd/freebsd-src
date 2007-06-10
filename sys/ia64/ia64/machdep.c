@@ -817,6 +817,16 @@ ia64_init(void)
 	/* NOTREACHED */
 }
 
+__volatile void *
+ia64_ioport_address(u_int port)
+{
+	uint64_t addr;
+
+	addr = (port > 0xffff) ? IA64_PHYS_TO_RR6((uint64_t)port) :
+	    ia64_port_base | ((port & 0xfffc) << 10) | (port & 0xFFF);
+	return ((__volatile void *)addr);
+}
+
 uint64_t
 ia64_get_hcdp(void)
 {
