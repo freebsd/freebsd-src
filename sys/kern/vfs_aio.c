@@ -791,7 +791,6 @@ aio_process(struct aiocblist *aiocbe)
 {
 	struct ucred *td_savedcred;
 	struct thread *td;
-	struct proc *mycp;
 	struct aiocb *cb;
 	struct file *fp;
 	struct socket *so;
