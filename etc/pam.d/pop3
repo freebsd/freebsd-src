@@ -5,7 +5,9 @@
 #
 
 # auth
-#auth		required	pam_nologin.so		no_warn
 #auth		sufficient	pam_krb5.so		no_warn try_first_pass
 #auth		sufficient	pam_ssh.so		no_warn try_first_pass
 auth		required	pam_unix.so		no_warn try_first_pass
+
+# account
+#account	required	pam_nologin.so

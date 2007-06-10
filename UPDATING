@@ -21,6 +21,24 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070610:
+	The pam_nologin(8) module ceases to provide an authentication
+	function and starts providing an account management function.
+	Consequent changes to /etc/pam.d should be brought in using
+	mergemaster(8).  Third-party files in /usr/local/etc/pam.d may
+	need manual editing as follows.  Locate this line (or similar):
+
+		auth	required	pam_nologin.so	no_warn
+
+	and change it according to this example:
+
+		account	required	pam_nologin.so	no_warn
+
+	That is, the first word needs to be changed from "auth" to
+	"account".  The new line can be moved to the account section
+	within the file for clarity.  Not updating pam.conf(5) files
+	will result in nologin(5) ignored by the respective services.
+
 20070529:
 	The ether_ioctl() function has been synchronized with ioctl(2)
 	and ifnet.if_ioctl.  Due to that, the size of one of its arguments
