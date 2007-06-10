@@ -1174,6 +1174,8 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 	p = td->td_proc;
 	error = 0;
 	sig = 0;
+	ets.tv_sec = 0;
+	ets.tv_nsec = 0;
 	SIG_CANTMASK(waitset);
 
 	PROC_LOCK(p);
