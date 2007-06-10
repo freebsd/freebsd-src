@@ -427,7 +427,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		}
 		/* Performed initial allocation */
 		newtag->flags |= BUS_DMA_MIN_ALLOC_COMP;
-	}
+	} else
+		newtag->bounce_zone = NULL;
 	if (error != 0)
 		free(newtag, M_DEVBUF);
 	else
