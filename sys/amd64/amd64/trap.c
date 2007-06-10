@@ -736,10 +736,6 @@ syscall(struct trapframe *frame)
 	int reg, regcnt;
 	ksiginfo_t ksi;
 
-	/*
-	 * note: PCPU_INC() can only be used if we can afford
-	 * occassional inaccuracy in the count.
-	 */
 	PCPU_INC(cnt.v_syscall);
 
 #ifdef DIAGNOSTIC

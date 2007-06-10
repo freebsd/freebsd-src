@@ -658,20 +658,20 @@ again:
 	vm_forkproc(td, p2, td2, flags);
 
 	if (flags == (RFFDG | RFPROC)) {
-		atomic_add_int(&cnt.v_forks, 1);
-		atomic_add_int(&cnt.v_forkpages, p2->p_vmspace->vm_dsize +
+		PCPU_INC(cnt.v_forks);
+		PCPU_ADD(cnt.v_forkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
 	} else if (flags == (RFFDG | RFPROC | RFPPWAIT | RFMEM)) {
-		atomic_add_int(&cnt.v_vforks, 1);
-		atomic_add_int(&cnt.v_vforkpages, p2->p_vmspace->vm_dsize +
+		PCPU_INC(cnt.v_vforks);
+		PCPU_ADD(cnt.v_vforkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
 	} else if (p1 == &proc0) {
-		atomic_add_int(&cnt.v_kthreads, 1);
-		atomic_add_int(&cnt.v_kthreadpages, p2->p_vmspace->vm_dsize +
+		PCPU_INC(cnt.v_kthreads);
+		PCPU_ADD(cnt.v_kthreadpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
 	} else {
-		atomic_add_int(&cnt.v_rforks, 1);
-		atomic_add_int(&cnt.v_rforkpages, p2->p_vmspace->vm_dsize +
+		PCPU_INC(cnt.v_rforks);
+		PCPU_ADD(cnt.v_rforkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
 	}
 
