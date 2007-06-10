@@ -509,7 +509,9 @@ proc0_post(void *dummy __unused)
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		microuptime(&p->p_stats->p_start);
+		PROC_SLOCK(p);
 		rufetch(p, &ru);	/* Clears thread stats */
+		PROC_SUNLOCK(p);
 		p->p_rux.rux_runtime = 0;
 		p->p_rux.rux_uticks = 0;
 		p->p_rux.rux_sticks = 0;
