@@ -913,6 +913,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * Segment received on connection.
 	 * Reset idle time and keep-alive timer.
+	 * XXX: This should be done after segment
+	 * validation to ignore broken/spoofed segs.
 	 */
 	tp->t_rcvtime = ticks;
 	if (TCPS_HAVEESTABLISHED(tp->t_state))
@@ -920,7 +922,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	/*
 	 * Unscale the window into a 32-bit value.
-	 * For the SYN_SENT state it is zero.
+	 * For the SYN_SENT state the scale is zero.
 	 */
 	tiwin = th->th_win << tp->snd_scale;
 
@@ -1029,11 +1031,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				INP_INFO_WUNLOCK(&tcbinfo);
 				headlocked = 0;
 				/*
-				 * this is a pure ack for outstanding data.
+				 * This is a pure ack for outstanding data.
 				 */
 				++tcpstat.tcps_predack;
 				/*
-				 * "bad retransmit" recovery
+				 * "bad retransmit" recovery.
 				 */
 				if (tp->t_rxtshift == 1 &&
 				    ticks < tp->t_badrxtwin) {
@@ -1081,13 +1083,13 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tp->snd_recover = th->th_ack - 1;
 				tp->snd_una = th->th_ack;
 				/*
-				 * pull snd_wl2 up to prevent seq wrap relative
+				 * Pull snd_wl2 up to prevent seq wrap relative
 				 * to th_ack.
 				 */
 				tp->snd_wl2 = th->th_ack;
 				tp->t_dupacks = 0;
 				m_freem(m);
-				ND6_HINT(tp); /* some progress has been done */
+				ND6_HINT(tp); /* Some progress has been made. */
 
 				/*
 				 * If all outstanding data are acked, stop
@@ -1097,20 +1099,22 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * wakeup/selwakeup/signal.  If data
 				 * are ready to send, let tcp_output
 				 * decide between more output or persist.
-
+				 */
 #ifdef TCPDEBUG
 				if (so->so_options & SO_DEBUG)
 					tcp_trace(TA_INPUT, ostate, tp,
 					    (void *)tcp_saveipgen,
 					    &tcp_savetcp, 0);
 #endif
-				 */
 				if (tp->snd_una == tp->snd_max)
 					tcp_timer_activate(tp, TT_REXMT, 0);
 				else if (!tcp_timer_active(tp, TT_PERSIST))
 					tcp_timer_activate(tp, TT_REXMT,
 						      tp->t_rxtcur);
-
+				/*
+				 * NB: sowwakeup_locked() does an
+				 * implicit unlock.
+				 */
 				sowwakeup(so);
 				if (so->so_snd.sb_cc)
 					(void) tcp_output(tp);
@@ -1124,7 +1128,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			INP_INFO_WUNLOCK(&tcbinfo);
 			headlocked = 0;
 			/*
-			 * this is a pure, in-sequence data packet
+			 * This is a pure, in-sequence data packet
 			 * with nothing on the reassembly queue and
 			 * we have enough buffer space to take it.
 			 */
@@ -1145,7 +1149,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->rcv_up = tp->rcv_nxt;
 			tcpstat.tcps_rcvpack++;
 			tcpstat.tcps_rcvbyte += tlen;
-			ND6_HINT(tp);	/* some progress has been done */
+			ND6_HINT(tp);	/* Some progress has been made */
 #ifdef TCPDEBUG
 			if (so->so_options & SO_DEBUG)
 				tcp_trace(TA_INPUT, ostate, tp,
@@ -1221,6 +1225,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
 				sbappendstream_locked(&so->so_rcv, m);
 			}
+			/* NB: sorwakeup_locked() does an implicit unlock. */
 			sorwakeup_locked(so);
 			if (DELAY_ACK(tp)) {
 				tp->t_flags |= TF_DELACK;
@@ -2041,7 +2046,7 @@ process_ACK:
 			ourfinisacked = 0;
 		}
 		sowwakeup_locked(so);
-		/* detect una wraparound */
+		/* Detect una wraparound. */
 		if ((tcp_do_newreno || (tp->t_flags & TF_SACK_PERMIT)) &&
 		    !IN_FASTRECOVERY(tp) &&
 		    SEQ_GT(tp->snd_una, tp->snd_recover) &&
@@ -2074,11 +2079,11 @@ process_ACK:
 				 * Starting the timer is contrary to the
 				 * specification, but if we don't get a FIN
 				 * we'll hang forever.
+				 *
+				 * XXXjl:
+				 * we should release the tp also, and use a
+				 * compressed state.
 				 */
-		/* XXXjl
-		 * we should release the tp also, and use a
-		 * compressed state.
-		 */
 				if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 					int timeout;
 
@@ -2258,8 +2263,15 @@ dodata:							/* XXX */
 				m_freem(m);
 			else
 				sbappendstream_locked(&so->so_rcv, m);
+			/* NB: sorwakeup_locked() does an implicit unlock. */
 			sorwakeup_locked(so);
 		} else {
+			/*
+			 * XXX: Due to the header drop above "th" is
+			 * theoretically invalid by now.  Fortunately
+			 * m_adj() doesn't actually frees any mbufs
+			 * when trimming from the head.
+			 */
 			thflags = tcp_reass(tp, th, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
@@ -2703,7 +2715,6 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
  * are present.  Store the upper limit of the length of options plus
  * data in maxopd.
  *
- *
  * In case of T/TCP, we call this routine during implicit connection
  * setup as well (offer = -1), to initialize maxseg from the cached
  * MSS of our peer.
@@ -2731,7 +2742,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	const size_t min_protoh = sizeof(struct tcpiphdr);
 #endif
 
-	/* initialize */
+	/* Initialize. */
 #ifdef INET6
 	if (isipv6) {
 		maxmtu = tcp_maxmtu6(&inp->inp_inc, &mtuflags);
@@ -2745,12 +2756,12 @@ tcp_mss(struct tcpcb *tp, int offer)
 	so = inp->inp_socket;
 
 	/*
-	 * no route to sender, stay with default mss and return
+	 * No route to sender, stay with default mss and return.
 	 */
 	if (maxmtu == 0)
 		return;
 
-	/* what have we got? */
+	/* What have we got? */
 	switch (offer) {
 		case 0:
 			/*
@@ -2786,12 +2797,12 @@ tcp_mss(struct tcpcb *tp, int offer)
 	}
 
 	/*
-	 * rmx information is now retrieved from tcp_hostcache
+	 * rmx information is now retrieved from tcp_hostcache.
 	 */
 	tcp_hc_get(&inp->inp_inc, &metrics);
 
 	/*
-	 * if there's a discovered mtu int tcp hostcache, use it
+	 * If there's a discovered mtu int tcp hostcache, use it
 	 * else, use the link mtu.
 	 */
 	if (metrics.rmx_mtu)
@@ -2824,7 +2835,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	tp->t_maxopd = mss;
 
 	/*
-	 * origoffer==-1 indicates, that no segments were received yet.
+	 * origoffer==-1 indicates that no segments were received yet.
 	 * In this case we just guess.
 	 */
 	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
@@ -2880,7 +2891,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	}
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	/*
-	 * While we're here, check the others too
+	 * While we're here, check the others too.
 	 */
 	if (tp->t_srtt == 0 && (rtt = metrics.rmx_rtt)) {
 		tp->t_srtt = rtt;
