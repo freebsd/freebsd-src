@@ -112,6 +112,9 @@ struct	in6_ifaddr {
 
 	/* back pointer to the ND prefix (for autoconfigured addresses only) */
 	struct nd_prefix *ia6_ndpr;
+
+	/* multicast addresses joined from the kernel */
+	LIST_HEAD(, in6_multi_mship) ia6_memberships;
 };
 
 /* control structure to manage address selection policy */
