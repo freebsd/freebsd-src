@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)histedit.h	8.2 (Berkeley) 1/3/94
- *	$NetBSD: histedit.h,v 1.28 2005/07/14 15:00:58 christos Exp $
+ *	$NetBSD: histedit.h,v 1.31 2006/12/15 22:13:33 christos Exp $
  * $FreeBSD$
  */
 
@@ -104,7 +104,7 @@ int		 el_parse(EditLine *, int, const char **);
  * Low level editline access functions
  */
 int		 el_set(EditLine *, int, ...);
-int		 el_get(EditLine *, int, void *);
+int		 el_get(EditLine *, int, ...);
 #if 0
 unsigned char	_el_fn_complete(EditLine *, int);
 #endif
@@ -130,6 +130,9 @@ unsigned char	_el_fn_complete(EditLine *, int);
 #define	EL_CLIENTDATA	14	/* , void *);			*/
 #define	EL_UNBUFFERED	15	/* , int);			*/
 #define	EL_PREP_TERM    16      /* , int);                      */
+#define	EL_GETTC	17	/* , const char *, ..., NULL);	*/
+#define EL_GETFP	18	/* , int, FILE **)		*/
+#define EL_SETFP	19	/* , int, FILE *)		*/
 
 #define EL_BUILTIN_GETCFN	(NULL)
 

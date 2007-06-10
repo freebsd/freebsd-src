@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)el.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: el.h,v 1.16 2003/10/18 23:48:42 christos Exp $
+ *	$NetBSD: el.h,v 1.17 2006/12/15 22:13:33 christos Exp $
  * $FreeBSD$
  */
 
@@ -110,6 +110,7 @@ typedef struct el_state_t {
 
 struct editline {
 	char		 *el_prog;	/* the program name		*/
+	FILE		 *el_infile;	/* Stdio stuff			*/
 	FILE		 *el_outfile;	/* Stdio stuff			*/
 	FILE		 *el_errfile;	/* Stdio stuff			*/
 	int		  el_infd;	/* Input file descriptor	*/
