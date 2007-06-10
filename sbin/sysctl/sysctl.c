@@ -234,13 +234,13 @@ parse(char *string)
 				if (strcmp(fmt, "IK") == 0) {
 					if (!set_IK(newval, &intval))
 						errx(1, "invalid value '%s'",
-						    newval);
+						    (char *)newval);
  				} else {
 					intval = (int)strtol(newval, &endptr,
 					    0);
 					if (endptr == newval || *endptr != '\0')
 						errx(1, "invalid integer '%s'",
-						    newval);
+						    (char *)newval);
 				}
 				newval = &intval;
 				newsize = sizeof(intval);
@@ -249,7 +249,7 @@ parse(char *string)
 				uintval = (int) strtoul(newval, &endptr, 0);
 				if (endptr == newval || *endptr != '\0')
 					errx(1, "invalid unsigned integer '%s'",
-					    newval);
+					    (char *)newval);
 				newval = &uintval;
 				newsize = sizeof(uintval);
 				break;
@@ -257,7 +257,7 @@ parse(char *string)
 				longval = strtol(newval, &endptr, 0);
 				if (endptr == newval || *endptr != '\0')
 					errx(1, "invalid long integer '%s'",
-					    newval);
+					    (char *)newval);
 				newval = &longval;
 				newsize = sizeof(longval);
 				break;
@@ -265,7 +265,7 @@ parse(char *string)
 				ulongval = strtoul(newval, &endptr, 0);
 				if (endptr == newval || *endptr != '\0')
 					errx(1, "invalid unsigned long integer"
-					    " '%s'", newval);
+					    " '%s'", (char *)newval);
 				newval = &ulongval;
 				newsize = sizeof(ulongval);
 				break;
@@ -539,7 +539,8 @@ static int
 show_var(int *oid, int nlen)
 {
 	u_char buf[BUFSIZ], *val, *oval, *p;
-	char name[BUFSIZ], *fmt, *sep;
+	char name[BUFSIZ], *fmt;
+	const char *sep, *sep1;
 	int qoid[CTL_MAXNAME+2];
 	uintmax_t umv;
 	intmax_t mv;
@@ -628,7 +629,7 @@ show_var(int *oid, int nlen)
 		case 'L': intlen = sizeof(long); flen = 18; break;
 		case 'Q': intlen = sizeof(quad_t); flen = 18; break;
 		}
-		val = "";
+		sep1 = "";
 		while (len >= intlen) {
 			switch (*fmt) {
 			case 'I':
@@ -644,19 +645,19 @@ show_var(int *oid, int nlen)
 				memcpy(&qv, p, intlen); mv = qv;
 				break;
 			}
-			fputs(val, stdout);
+			fputs(sep1, stdout);
 			if (fmt[1] == 'U')
 				printf(hflag ? "%'ju" : "%ju", umv);
 			else if (fmt[1] == 'X')
-				printf(hflag ? "%'#0*jx" : "%#0*jx", flen, umv);
+				printf("%#0*jx", flen, umv);
 			else if (fmt[1] == 'K') {
 				if (*(int *)p < 0)
 					printf("%jd", mv);
 				else
 					printf("%.1fC", (mv - 2732.0) / 10);
 			} else
-				printf(hflag ? "%'d" : "%d", mv);
-			val = " ";
+				printf(hflag ? "%'jd" : "%jd", mv);
+			sep1 = " ";
 			len -= intlen;
 			p += intlen;
 		}
@@ -741,7 +742,7 @@ sysctl_all(int *oid, int len)
 
 		l2 /= sizeof(int);
 
-		if (l2 < len)
+		if (len < 0 || l2 < (unsigned int)len)
 			return (0);
 
 		for (i = 0; i < len; i++)
