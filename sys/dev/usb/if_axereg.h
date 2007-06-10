@@ -134,7 +134,6 @@ struct axe_softc {
 	usbd_interface_handle	axe_iface;
 	int			axe_ed[AXE_ENDPT_MAX];
 	usbd_pipe_handle	axe_ep[AXE_ENDPT_MAX];
-	int			axe_unit;
 	int			axe_if_flags;
 	struct ue_cdata		axe_cdata;
 	struct callout_handle	axe_stat_ch;
