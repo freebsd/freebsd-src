@@ -24,7 +24,7 @@ const struct key MAX_KEY = {
 };
 
 /* Does the buffer contain a disk block which is in the tree. */
-inline int
+int
 B_IS_IN_TREE(const struct buf *p_s_bp)
 {
 
@@ -32,7 +32,7 @@ B_IS_IN_TREE(const struct buf *p_s_bp)
 }
 
 /* To gets item head in le form */
-inline void
+void
 copy_item_head(struct item_head *p_v_to, const struct item_head *p_v_from)
 {
 
@@ -120,7 +120,7 @@ pathrelse(struct path *p_s_search_path)
  * This does not say which one is bigger, it only returns 1 if keys
  * are not equal, 0 otherwise
  */
-inline int
+int
 comp_le_keys(const struct key *k1, const struct key *k2)
 {
 
@@ -144,7 +144,7 @@ comp_le_keys(const struct key *k1, const struct key *k2)
  * cut the number of possible items it could be by one more than half
  * rounded down, or we find it.
  */
-inline int
+int
 bin_search(const void *p_v_key,  /* Key to search for. */
     const void *p_v_base, /* First item in the array. */
     int p_n_num,          /* Number of items in the array. */
@@ -191,7 +191,7 @@ bin_search(const void *p_v_key,  /* Key to search for. */
  * buffer in tree), and in this case we return a special key, either
  * MIN_KEY or MAX_KEY.
  */
-inline const struct key *
+const struct key *
 get_lkey(const struct path *p_s_chk_path,
     const struct reiserfs_sb_info *p_s_sbi)
 {
@@ -238,7 +238,7 @@ get_lkey(const struct path *p_s_chk_path,
 }
 
 /* Get delimiting key of the buffer at the path and its right neighbor. */
-inline const struct key *
+const struct key *
 get_rkey(const struct path *p_s_chk_path,
     const struct reiserfs_sb_info *p_s_sbi)
 {
