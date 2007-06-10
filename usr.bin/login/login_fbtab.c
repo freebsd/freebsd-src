@@ -133,7 +133,7 @@ gid_t gid;
 {
     glob_t  gl;
     char   *path;
-    int     i;
+    unsigned int     i;
 
     if (glob(pattern, GLOB_NOSORT, NULL, &gl) != 0)
 	return;
