@@ -239,6 +239,8 @@ linux_at(struct thread *td, int dirfd, char *filename, char **newpath, char **fr
 	   	*newpath = malloc(strlen(fullpath) + strlen(filename) + 2, M_TEMP, M_WAITOK | M_ZERO);
 		*freebuf = freepath;
 		sprintf(*newpath, "%s/%s", fullpath, filename);
+	} else {
+		*newpath = NULL;
 	}
 	vfslocked = VFS_LOCK_GIANT(dvp->v_mount);
 	vrele(dvp);
