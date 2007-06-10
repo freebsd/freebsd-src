@@ -1720,7 +1720,7 @@ ttread(struct tty *tp, struct uio *uio, int flag)
 	int s, first, error = 0;
 	int has_stime = 0, last_cc = 0;
 	long slp = 0;		/* XXX this should be renamed `timo'. */
-	struct timeval stime;
+	struct timeval stime = { 0, 0 };
 	struct pgrp *pg;
 
 	td = curthread;
