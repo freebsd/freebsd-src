@@ -35,70 +35,76 @@
 
 /*
  * System wide statistics counters.
+ * Locking:
+ *      a - locked by atomic operations
+ *      c - constant after initialization
+ *      f - locked by vm_page_queue_free_mtx
+ *      p - locked by being in the PCPU and atomicity respect to interrupts
+ *      q - locked by vm_page_queue_mtx
  */
 struct vmmeter {
 	/*
 	 * General system activity.
 	 */
-	u_int v_swtch;		/* context switches */
-	u_int v_trap;		/* calls to trap */
-	u_int v_syscall;	/* calls to syscall() */
-	u_int v_intr;		/* device interrupts */
-	u_int v_soft;		/* software interrupts */
+	u_int v_swtch;		/* (p) context switches */
+	u_int v_trap;		/* (p) calls to trap */
+	u_int v_syscall;	/* (p) calls to syscall() */
+	u_int v_intr;		/* (p) device interrupts */
+	u_int v_soft;		/* (p) software interrupts */
 	/*
 	 * Virtual memory activity.
 	 */
-	u_int v_vm_faults;	/* number of address memory faults */
-	u_int v_cow_faults;	/* number of copy-on-writes */
-	u_int v_cow_optim;	/* number of optimized copy-on-writes */
-	u_int v_zfod;		/* pages zero filled on demand */
-	u_int v_ozfod;		/* optimized zero fill pages */
-	u_int v_swapin;		/* swap pager pageins */
-	u_int v_swapout;	/* swap pager pageouts */
-	u_int v_swappgsin;	/* swap pager pages paged in */
-	u_int v_swappgsout;	/* swap pager pages paged out */
-	u_int v_vnodein;	/* vnode pager pageins */
-	u_int v_vnodeout;	/* vnode pager pageouts */
-	u_int v_vnodepgsin;	/* vnode_pager pages paged in */
-	u_int v_vnodepgsout;	/* vnode pager pages paged out */
-	u_int v_intrans;	/* intransit blocking page faults */
-	u_int v_reactivated;	/* number of pages reactivated from free list */
-	u_int v_pdwakeups;	/* number of times daemon has awaken from sleep */
-	u_int v_pdpages;	/* number of pages analyzed by daemon */
+	u_int v_vm_faults;	/* (p) address memory faults */
+	u_int v_cow_faults;	/* (p) copy-on-writes faults */
+	u_int v_cow_optim;	/* (p) optimized copy-on-writes faults */
+	u_int v_zfod;		/* (p) pages zero filled on demand */
+	u_int v_ozfod;		/* (p) optimized zero fill pages */
+	u_int v_swapin;		/* (p) swap pager pageins */
+	u_int v_swapout;	/* (p) swap pager pageouts */
+	u_int v_swappgsin;	/* (p) swap pager pages paged in */
+	u_int v_swappgsout;	/* (p) swap pager pages paged out */
+	u_int v_vnodein;	/* (p) vnode pager pageins */
+	u_int v_vnodeout;	/* (p) vnode pager pageouts */
+	u_int v_vnodepgsin;	/* (p) vnode_pager pages paged in */
+	u_int v_vnodepgsout;	/* (p) vnode pager pages paged out */
+	u_int v_intrans;	/* (p) intransit blocking page faults */
+	u_int v_reactivated;	/* (q) pages reactivated from free list */
+	u_int v_pdwakeups;	/* (f) times daemon has awaken from sleep */
+	u_int v_pdpages;	/* (q) pages analyzed by daemon */
 
-	u_int v_dfree;		/* pages freed by daemon */
-	u_int v_pfree;		/* pages freed by exiting processes */
-	u_int v_tfree;		/* total pages freed */
+	u_int v_dfree;		/* (q) pages freed by daemon */
+	u_int v_pfree;		/* (q) pages freed by exiting processes */
+	u_int v_tfree;		/* (p) total pages freed */
 	/*
 	 * Distribution of page usages.
 	 */
-	u_int v_page_size;	/* page size in bytes */
-	u_int v_page_count;	/* total number of pages in system */
-	u_int v_free_reserved;	/* number of pages reserved for deadlock */
-	u_int v_free_target;	/* number of pages desired free */
-	u_int v_free_min;	/* minimum number of pages desired free */
-	u_int v_free_count;	/* number of pages free */
-	u_int v_wire_count;	/* number of pages wired down */
-	u_int v_active_count;	/* number of pages active */
-	u_int v_inactive_target; /* number of pages desired inactive */
-	u_int v_inactive_count;	/* number of pages inactive */
-	u_int v_cache_count;	/* number of pages on buffer cache queue */
-	u_int v_cache_min;	/* min number of pages desired on cache queue */
-	u_int v_cache_max;	/* max number of pages in cached obj */
-	u_int v_pageout_free_min;   /* min number pages reserved for kernel */
-	u_int v_interrupt_free_min; /* reserved number of pages for int code */
-	u_int v_free_severe;	/* severe depletion of pages below this pt */
+	u_int v_page_size;	/* (c) page size in bytes */
+	u_int v_page_count;	/* (c) total number of pages in system */
+	u_int v_free_reserved;	/* (c) pages reserved for deadlock */
+	u_int v_free_target;	/* (c) pages desired free */
+	u_int v_free_min;	/* (c) pages desired free */
+	u_int v_free_count;	/* (f) pages free */
+	u_int v_wire_count;	/* (a) pages wired down */
+	u_int v_active_count;	/* (q) pages active */
+	u_int v_inactive_target; /* (c) pages desired inactive */
+	u_int v_inactive_count;	/* (q) pages inactive */
+	u_int v_cache_count;	/* (q) pages on buffer cache queue */
+	u_int v_cache_min;	/* (c) min pages desired on cache queue */
+	u_int v_cache_max;	/* (c) max pages in cached obj */
+	u_int v_pageout_free_min;   /* (c) min pages reserved for kernel */
+	u_int v_interrupt_free_min; /* (c) reserved pages for int code */
+	u_int v_free_severe;	/* (c) severe page depletion point */
 	/*
 	 * Fork/vfork/rfork activity.
 	 */
-	u_int v_forks;		/* number of fork() calls */
-	u_int v_vforks;		/* number of vfork() calls */
-	u_int v_rforks;		/* number of rfork() calls */
-	u_int v_kthreads;	/* number of fork() calls by kernel */
-	u_int v_forkpages;	/* number of VM pages affected by fork() */
-	u_int v_vforkpages;	/* number of VM pages affected by vfork() */
-	u_int v_rforkpages;	/* number of VM pages affected by rfork() */
-	u_int v_kthreadpages;	/* number of VM pages affected by fork() by kernel */
+	u_int v_forks;		/* (p) fork() calls */
+	u_int v_vforks;		/* (p) vfork() calls */
+	u_int v_rforks;		/* (p) rfork() calls */
+	u_int v_kthreads;	/* (p) fork() calls by kernel */
+	u_int v_forkpages;	/* (p) VM pages affected by fork() */
+	u_int v_vforkpages;	/* (p) VM pages affected by vfork() */
+	u_int v_rforkpages;	/* (p) VM pages affected by rfork() */
+	u_int v_kthreadpages;	/* (p) VM pages affected by fork() by kernel */
 };
 #ifdef _KERNEL
 

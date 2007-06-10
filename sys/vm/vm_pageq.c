@@ -192,7 +192,7 @@ vm_pageq_add_new_page(vm_paddr_t pa)
 {
 	vm_page_t m;
 
-	atomic_add_int(&cnt.v_page_count, 1);
+	cnt.v_page_count++;
 	m = PHYS_TO_VM_PAGE(pa);
 	m->phys_addr = pa;
 	m->flags = 0;
