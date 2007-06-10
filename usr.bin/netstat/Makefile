@@ -13,21 +13,11 @@ CFLAGS+=-DIPSEC
 CFLAGS+=-DFAST_IPSEC
 CFLAGS+=-DSCTP
 
-.if ${MK_INET6_SUPPORT} != "no"
-SRCS+=	inet6.c
-CFLAGS+=-DINET6
-.endif
 
 BINGRP=	kmem
 BINMODE=2555
 DPADD=	${LIBKVM} ${LIBMEMSTAT} ${LIBNETGRAPH} ${LIBUTIL}
 LDADD=	-lkvm -lmemstat -lnetgraph -lutil
 
-.if ${MK_IPX_SUPPORT} != "no"
-SRCS+=	ipx.c
-DPADD+=	${LIBIPX}
-LDADD+=	-lipx
-CFLAGS+=-DIPX
-.endif
 
 .include <bsd.prog.mk>
