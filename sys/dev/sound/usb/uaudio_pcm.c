@@ -206,7 +206,7 @@ ua_chan_trigger(kobj_t obj, void *data, int go)
 	struct ua_info *ua;
 	struct ua_chinfo *ch = data;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	ua = ch->parent;

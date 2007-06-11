@@ -573,6 +573,9 @@ m3_pchan_trigger(kobj_t kobj, void *chdata, int go)
 	struct sc_info *sc = ch->parent;
 	int ret;
 
+	if (!PCMTRIG_COMMON(go))
+		return (0);
+
 	M3_LOCK(sc);
 	ret = m3_pchan_trigger_locked(kobj, chdata, go);
 	M3_UNLOCK(sc);
@@ -915,6 +918,9 @@ m3_rchan_trigger(kobj_t kobj, void *chdata, int go)
 	struct sc_rchinfo *ch = chdata;
 	struct sc_info *sc = ch->parent;
 	int ret;
+
+	if (!PCMTRIG_COMMON(go))
+		return (0);
 
 	M3_LOCK(sc);
 	ret = m3_rchan_trigger_locked(kobj, chdata, go);

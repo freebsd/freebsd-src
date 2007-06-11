@@ -513,8 +513,9 @@ emupchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 	struct emu_pcm_pchinfo *ch = c_devinfo;
 	struct emu_pcm_info *sc = ch->pcm;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return (0);
+
 	snd_mtxlock(sc->lock); /* XXX can we trigger on parallel threads ? */
 	if (go == PCMTRIG_START) {
 		emu_vsetup(ch->master, ch->fmt, ch->spd);
@@ -653,6 +654,9 @@ emurchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 	struct emu_pcm_rchinfo *ch = c_devinfo;
 	struct emu_pcm_info *sc = ch->pcm;
 	uint32_t val, sz;
+
+	if (!PCMTRIG_COMMON(go))
+		return (0);
 
 	switch (sc->bufsz) {
 	case 4096:
@@ -805,6 +809,9 @@ emufxrchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 	struct emu_pcm_rchinfo *ch = c_devinfo;
 	struct emu_pcm_info *sc = ch->pcm;
 	uint32_t sz;
+
+	if (!PCMTRIG_COMMON(go))
+		return (0);
 
 	switch (sc->bufsz) {
 	case 4096:

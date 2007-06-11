@@ -443,9 +443,8 @@ fm801ch_trigger(kobj_t obj, void *data, int go)
 
 	DPRINT("fm801ch_trigger go %d , ", go);
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD) {
+	if (!PCMTRIG_COMMON(go))
 		return 0;
-	}
 
 	if (ch->dir == PCMDIR_PLAY) {
 		if (go == PCMTRIG_START) {

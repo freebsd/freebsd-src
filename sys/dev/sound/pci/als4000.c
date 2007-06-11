@@ -391,13 +391,19 @@ alspchan_trigger(kobj_t obj, void *data, int go)
 	struct	sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 
+	if (!PCMTRIG_COMMON(go))
+		return 0;
+
 	snd_mtxlock(sc->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		als_playback_start(ch);
 		break;
+	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
 		als_playback_stop(ch);
+		break;
+	default:
 		break;
 	}
 	snd_mtxunlock(sc->lock);
@@ -489,6 +495,7 @@ alsrchan_trigger(kobj_t obj, void *data, int go)
 	case PCMTRIG_START:
 		als_capture_start(ch);
 		break;
+	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
 		als_capture_stop(ch);
 		break;

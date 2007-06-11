@@ -533,7 +533,7 @@ trpchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct tr_chinfo *ch = data;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	if (go == PCMTRIG_START) {
@@ -658,7 +658,7 @@ trrchan_trigger(kobj_t obj, void *data, int go)
 	struct tr_info *tr = ch->parent;
 	u_int32_t i;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	if (go == PCMTRIG_START) {

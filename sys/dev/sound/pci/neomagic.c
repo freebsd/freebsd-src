@@ -406,7 +406,7 @@ nmchan_trigger(kobj_t obj, void *data, int go)
 	struct sc_info *sc = ch->parent;
 	int ssz;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	ssz = (ch->fmt & AFMT_16BIT)? 2 : 1;
