@@ -199,10 +199,6 @@ dev/syscons/scterm-sc.c		optional	sc
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_amd64.c	optional	uart
-geom/geom_bsd.c			standard
-geom/geom_bsd_enc.c		standard
-geom/geom_mbr.c			standard
-geom/geom_mbr_enc.c		standard
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/link_elf_obj.c		standard
