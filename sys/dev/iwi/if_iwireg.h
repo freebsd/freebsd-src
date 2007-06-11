@@ -213,7 +213,7 @@ struct iwi_notif_authentication {
 /* structure for notification IWI_NOTIF_TYPE_ASSOCIATION */
 struct iwi_notif_association {
 	uint8_t			state;
-#define IWI_ASSOC_FAIL		0
+#define IWI_ASSOC_INIT		0
 #define IWI_ASSOC_SUCCESS	12
 	uint8_t			pad[11];
 } __packed;
@@ -416,6 +416,10 @@ struct iwi_scan {
 #define IWI_SCAN_TYPE_BROADCAST		3 /* active, bcast probe req */
 #define IWI_SCAN_TYPE_BDIRECTED		4 /* active, directed+bcast probe */
 #define IWI_SCAN_TYPES			5
+
+/* scan result codes */
+#define IWI_SCAN_COMPLETED		1 /* scan compeleted sucessfully */
+#define IWI_SCAN_ABORTED		2 /* scan was aborted by the driver */
 
 /* structure for command IWI_CMD_SCAN_EXT */
 struct iwi_scan_ext {

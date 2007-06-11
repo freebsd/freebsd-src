@@ -97,6 +97,12 @@ struct rum_softc {
 	struct ieee80211_amrr		amrr;
 	struct ieee80211_amrr_node	amn;
 
+	struct usb_task			sc_scantask;
+	int				sc_scan_action;
+#define RUM_SCAN_START	0
+#define RUM_SCAN_END	1
+#define RUM_SET_CHANNEL	2
+
 	struct rum_rx_data		rx_data[RUM_RX_LIST_COUNT];
 	struct rum_tx_data		tx_data[RUM_TX_LIST_COUNT];
 	int				tx_queued;
@@ -106,7 +112,6 @@ struct rum_softc {
 	struct mtx			sc_mtx;
 
 	struct callout			watchdog_ch;
-	struct callout			scan_ch;
 	struct callout			amrr_ch;
 
 	int				sc_tx_timer;

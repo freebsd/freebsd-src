@@ -181,7 +181,7 @@ static int  awi_intr_lock(struct awi_softc *);
 static void awi_intr_unlock(struct awi_softc *);
 static int  awi_newstate(struct ieee80211com *, enum ieee80211_state, int);
 static void awi_recv_mgmt(struct ieee80211com *, struct mbuf *,
-    struct ieee80211_node *, int, int, u_int32_t);
+    struct ieee80211_node *, int, int, int, u_int32_t);
 static int  awi_send_mgmt(struct ieee80211com *, struct ieee80211_node *, int,
     int);
 static struct mbuf *awi_ether_encap(struct awi_softc *, struct mbuf *);
@@ -525,9 +525,10 @@ awi_intr(void *arg)
 		if (status & AWI_INT_CMD)
 			awi_cmd_done(sc);
 		if (status & AWI_INT_SCAN_CMPLT) {
+		  /* XXX revisit scanning */
 			if (sc->sc_ic.ic_state == IEEE80211_S_SCAN &&
 			    sc->sc_substate == AWI_ST_NONE)
-				ieee80211_next_scan(&sc->sc_ic);
+			  ;
 		}
 	}
 	sc->sc_cansleep = ocansleep;
@@ -589,6 +590,7 @@ awi_init(struct ifnet *ifp)
 		sc->sc_mib_local.Acting_as_AP = 1;
 		break;
 	case IEEE80211_M_MONITOR:
+	case IEEE80211_M_WDS:
 		return ENODEV;
 	}
 #if 0
@@ -596,9 +598,9 @@ awi_init(struct ifnet *ifp)
 #endif
 	memset(&sc->sc_mib_mac.aDesired_ESS_ID, 0, AWI_ESS_ID_SIZE);
 	sc->sc_mib_mac.aDesired_ESS_ID[0] = IEEE80211_ELEMID_SSID;
-	sc->sc_mib_mac.aDesired_ESS_ID[1] = ic->ic_des_esslen;
-	memcpy(&sc->sc_mib_mac.aDesired_ESS_ID[2], ic->ic_des_essid,
-	    ic->ic_des_esslen);
+	sc->sc_mib_mac.aDesired_ESS_ID[1] = ic->ic_des_ssid[0].len;
+	memcpy(&sc->sc_mib_mac.aDesired_ESS_ID[2], ic->ic_des_ssid[0].ssid,
+	    ic->ic_des_ssid[0].len);
 
 	/* configure basic rate */
 	if (ic->ic_phytype == IEEE80211_T_FH)
@@ -606,7 +608,7 @@ awi_init(struct ifnet *ifp)
 	else
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_11B];
 	if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE) {
-		rate = rs->rs_rates[ic->ic_fixed_rate] & IEEE80211_RATE_VAL;
+		rate = ic->ic_fixed_rate;
 	} else {
 		rate = 0;
 		for (i = 0; i < rs->rs_nrates; i++) {
@@ -659,18 +661,18 @@ awi_init(struct ifnet *ifp)
 
 	if (ic->ic_opmode == IEEE80211_M_AHDEMO ||
 	    ic->ic_opmode == IEEE80211_M_HOSTAP) {
-		ni->ni_chan = ic->ic_ibss_chan;
+		ni->ni_chan = ic->ic_des_chan;	/* XXX? */
 		ni->ni_intval = ic->ic_bintval;
 		ni->ni_rssi = 0;
 		ni->ni_rstamp = 0;
 		memset(&ni->ni_tstamp, 0, sizeof(ni->ni_tstamp));
 		ni->ni_rates =
-		    ic->ic_sup_rates[ieee80211_chan2mode(ic, ni->ni_chan)];
+		    ic->ic_sup_rates[ieee80211_chan2mode(ni->ni_chan)];
 		IEEE80211_ADDR_COPY(ni->ni_macaddr, ic->ic_myaddr);
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
 			IEEE80211_ADDR_COPY(ni->ni_bssid, ic->ic_myaddr);
-			ni->ni_esslen = ic->ic_des_esslen;
-			memcpy(ni->ni_essid, ic->ic_des_essid, ni->ni_esslen);
+			ni->ni_esslen = ic->ic_des_ssid[0].len;
+			memcpy(ni->ni_essid, ic->ic_des_ssid[0].ssid, ni->ni_esslen);
 			ni->ni_capinfo = IEEE80211_CAPINFO_ESS;
 			if (ic->ic_phytype == IEEE80211_T_FH) {
 				ni->ni_fhdwell = 200;   /* XXX */
@@ -812,7 +814,7 @@ awi_start(struct ifnet *ifp)
 					goto bad;
 				if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 				    (m0->m_flags & M_PWR_SAV) == 0) {
-					ieee80211_pwrsave(ic, ni, m0);
+					ieee80211_pwrsave(ni, m0);
 					continue;
 				}
 				m0 = ieee80211_encap(ic, m0, ni);
@@ -865,7 +867,7 @@ awi_start(struct ifnet *ifp)
 #endif
 
 		if ((ifp->if_flags & IFF_DEBUG) && (ifp->if_flags & IFF_LINK2))
-			ieee80211_dump_pkt(m0->m_data, m0->m_len,
+			ieee80211_dump_pkt(ic, m0->m_data, m0->m_len,
 			    ic->ic_bss->ni_rates.
 			        rs_rates[ic->ic_bss->ni_txrate] &
 			    IEEE80211_RATE_VAL, -1);
@@ -930,7 +932,6 @@ awi_watchdog(struct ifnet *ifp)
 			ifp->if_timer = 1;
 	}
 	/* TODO: rate control */
-	ieee80211_watchdog(&sc->sc_ic);
   out:
 	sc->sc_cansleep = ocansleep;
 }
@@ -1016,6 +1017,7 @@ awi_media_change(struct ifnet *ifp)
 	ime = ic->ic_media.ifm_cur;
 	if (IFM_SUBTYPE(ime->ifm_media) == IFM_AUTO) {
 		i = -1;
+		rate = ic->ic_fixed_rate;
 	} else {
 		struct ieee80211_rateset *rs =
 		    &ic->ic_sup_rates[(ic->ic_phytype == IEEE80211_T_FH)
@@ -1030,8 +1032,8 @@ awi_media_change(struct ifnet *ifp)
 		if (i == rs->rs_nrates)
 			return EINVAL;
 	}
-	if (ic->ic_fixed_rate != i) {
-		ic->ic_fixed_rate = i;
+	if (ic->ic_fixed_rate != rate) {
+		ic->ic_fixed_rate = rate;
 		error = ENETRESET;
 	}
 
@@ -1098,12 +1100,12 @@ awi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 		if (ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE)
 			rate = 0;
 		else
-			rate = ic->ic_sup_rates[mode].
-			    rs_rates[ic->ic_fixed_rate] & IEEE80211_RATE_VAL;
+			rate = ic->ic_fixed_rate;
 	}
 	imr->ifm_active |= ieee80211_rate2media(ic, rate, mode);
 	switch (ic->ic_opmode) {
 	case IEEE80211_M_MONITOR: /* we should never reach here */
+	case IEEE80211_M_WDS:
 		break;
 	case IEEE80211_M_STA:
 		break;
@@ -1240,7 +1242,8 @@ awi_rx_int(struct awi_softc *sc)
 				}
 				if ((ifp->if_flags & IFF_DEBUG) &&
 				    (ifp->if_flags & IFF_LINK2))
-					ieee80211_dump_pkt(m->m_data, m->m_len,
+					ieee80211_dump_pkt(ic,
+					    m->m_data, m->m_len,
 					    rate / 5, rssi);
 				if ((ifp->if_flags & IFF_LINK0) ||
 				    sc->sc_adhoc_ap)
@@ -1254,7 +1257,8 @@ awi_rx_int(struct awi_softc *sc)
 				}
 				ni = ieee80211_find_rxnode(ic,
 					mtod(m, struct ieee80211_frame_min *));
-				ieee80211_input(ic, m, ni, rssi, rstamp);
+				/* XXX 0 for noise floor */
+				ieee80211_input(ic, m, ni, rssi, 0, rstamp);
 				ieee80211_free_node(ni);
 			} else
 				sc->sc_rxpend = m;
@@ -1337,7 +1341,6 @@ awi_devget(struct awi_softc *sc, u_int32_t off, u_int16_t len)
 			m->m_pkthdr.rcvif = ifp;
 			m->m_pkthdr.len = len;
 			m->m_len = MHLEN;
-			m->m_flags |= M_HASFCS;
 		} else {
 			MGET(m, M_DONTWAIT, MT_DATA);
 			if (m == NULL) {
@@ -1366,6 +1369,10 @@ awi_devget(struct awi_softc *sc, u_int32_t off, u_int16_t len)
 		len -= m->m_len;
 		*mp = m;
 		mp = &m->m_next;
+	}
+	if (top != NULL) {
+		/* Strip trailing 802.11 MAC FCS. */
+		m_adj(top, -IEEE80211_CRC_LEN);
 	}
 	return top;
 }
@@ -1534,7 +1541,7 @@ awi_init_mibs(struct awi_softc *sc)
 		}
 	}
 	sc->sc_cur_chan = cs->cs_def;
-	ic->ic_ibss_chan = &ic->ic_channels[cs->cs_def];
+	ic->ic_curchan = &ic->ic_channels[cs->cs_def];	/* XXX? */
 
 	sc->sc_mib_local.Fragmentation_Dis = 1;
 	sc->sc_mib_local.Add_PLCP_Dis = 0;
@@ -1942,7 +1949,7 @@ awi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			case IEEE80211_S_AUTH:
 			case IEEE80211_S_ASSOC:
 			case IEEE80211_S_INIT:
-				ieee80211_begin_scan(ic, 0);
+			  /* XXX revisit scanning */;
 				break;
 			case IEEE80211_S_SCAN:
 				/* scan next */
@@ -2112,14 +2119,14 @@ out:
 static void
 awi_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 	struct ieee80211_node *ni,
-	int subtype, int rssi, u_int32_t rstamp)
+	int subtype, int rssi, int nf, u_int32_t rstamp)
 {
 	struct awi_softc *sc = ic->ic_ifp->if_softc;
 
 	/* probe request is handled by hardware */
 	if (subtype == IEEE80211_FC0_SUBTYPE_PROBE_REQ)
 		return;
-	(*sc->sc_recv_mgmt)(ic, m0, ni, subtype, rssi, rstamp);
+	(*sc->sc_recv_mgmt)(ic, m0, ni, subtype, rssi, nf, rstamp);
 }
 
 static int

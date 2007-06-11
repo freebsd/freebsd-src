@@ -202,6 +202,8 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_IEEE80211_OFDM3	21	/* OFDM 3Mbps */
 #define	IFM_IEEE80211_OFDM4	22	/* OFDM 4.5Mbps */
 #define	IFM_IEEE80211_OFDM27	23	/* OFDM 27Mbps */
+/* NB: not enough bits to express MCS fully */
+#define	IFM_IEEE80211_MCS	24	/* HT MCS rate */
 
 #define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
 #define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
@@ -209,12 +211,16 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_IEEE80211_IBSSMASTER 0x00000800	/* Operate as an IBSS master */
 #define	IFM_IEEE80211_TURBO	0x00001000	/* Operate in turbo mode */
 #define	IFM_IEEE80211_MONITOR	0x00002000	/* Operate in monitor mode */
+#define	IFM_IEEE80211_HT40PLUS	0x00004000	/* Operate in 11n HT40+ mode */
+#define	IFM_IEEE80211_HT40MINUS	0x00008000	/* Operate in 11n HT40- mode */
 
 /* operating mode for multi-mode devices */
 #define	IFM_IEEE80211_11A	0x00010000	/* 5Ghz, OFDM mode */
 #define	IFM_IEEE80211_11B	0x00020000	/* Direct Sequence mode */
 #define	IFM_IEEE80211_11G	0x00030000	/* 2Ghz, CCK mode */
 #define	IFM_IEEE80211_FH	0x00040000	/* 2Ghz, GFSK mode */
+#define	IFM_IEEE80211_11NA	0x00050000	/* 5Ghz, HT mode */
+#define	IFM_IEEE80211_11NG	0x00060000	/* 2Ghz, HT mode */
 
 /*
  * ATM
@@ -494,6 +500,8 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_IBSSMASTER, "ibss-master" },			\
 	{ IFM_IEEE80211_TURBO, "turbo" },				\
 	{ IFM_IEEE80211_MONITOR, "monitor" },				\
+	{ IFM_IEEE80211_HT40MINUS, "ht-" },				\
+	{ IFM_IEEE80211_HT40PLUS, "ht+" },				\
 	{ 0, NULL },							\
 }
 
@@ -503,6 +511,8 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_11B, "11b" },					\
 	{ IFM_IEEE80211_11G, "11g" },					\
 	{ IFM_IEEE80211_FH, "fh" },					\
+	{ IFM_IEEE80211_11NA, "11na" },					\
+	{ IFM_IEEE80211_11NG, "11ng" },					\
 	{ 0, NULL },							\
 }
 

@@ -32,6 +32,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
+ *
  */
 
 #include <sys/cdefs.h>
@@ -680,21 +681,23 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
         sn->static_rate_ndx = -1;
 	if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE) {
 		/*
-		 * A fixed rate is to be used; ic_fixed_rate is an
-		 * index into the supported rate set.  Convert this
+		 * A fixed rate is to be used; ic_fixed_rate is the
+		 * IEEE code for this rate (sans basic bit).  Convert this
 		 * to the index into the negotiated rate set for
 		 * the node.
 		 */
-		const struct ieee80211_rateset *rs =
-			&ic->ic_sup_rates[ic->ic_curmode];
-		int r = rs->rs_rates[ic->ic_fixed_rate] & IEEE80211_RATE_VAL;
 		/* NB: the rate set is assumed sorted */
 		srate = ni->ni_rates.rs_nrates - 1;
-		for (; srate >= 0 && RATE(srate) != r; srate--)
+		for (; srate >= 0 && RATE(srate) != ic->ic_fixed_rate; srate--)
 			;
-		KASSERT(srate >= 0,
-			("fixed rate %d not in rate set", ic->ic_fixed_rate));
-		sn->static_rate_ndx = srate;
+		/*
+		 * The fixed rate may not be available due to races
+		 * and mode settings.  Also orphaned nodes created in
+		 * adhoc mode may not have any rate set so this lookup
+		 * can fail.
+		 */
+		if (srate >= 0)
+			sn->static_rate_ndx = srate;
 	}
 
         DPRINTF(sc, ATH_DEBUG_RATE, "%s: %s size 1600 rate/tt",

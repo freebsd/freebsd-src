@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_amrr.h>
 #include <net80211/ieee80211_radiotap.h>
+#include <net80211/ieee80211_regdomain.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -128,8 +129,8 @@ static void		rum_free_tx_list(struct rum_softc *);
 static int		rum_alloc_rx_list(struct rum_softc *);
 static void		rum_free_rx_list(struct rum_softc *);
 static int		rum_media_change(struct ifnet *);
-static void		rum_next_scan(void *);
 static void		rum_task(void *);
+static void		rum_scantask(void *);
 static int		rum_newstate(struct ieee80211com *,
 			    enum ieee80211_state, int);
 static void		rum_txeof(usbd_xfer_handle, usbd_private_handle,
@@ -187,11 +188,15 @@ static int		rum_load_microcode(struct rum_softc *, const u_char *,
 static int		rum_prepare_beacon(struct rum_softc *);
 static int		rum_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
+static void		rum_scan_start(struct ieee80211com *);
+static void		rum_scan_end(struct ieee80211com *);
+static void		rum_set_channel(struct ieee80211com *);
+static int		rum_get_rssi(struct rum_softc *, uint8_t);
 static void		rum_amrr_start(struct rum_softc *,
 			    struct ieee80211_node *);
 static void		rum_amrr_timeout(void *);
 static void		rum_amrr_update(usbd_xfer_handle, usbd_private_handle,
-			    usbd_status status);
+			    usbd_status);
 
 static const struct {
 	uint32_t	reg;
@@ -374,7 +379,7 @@ USB_ATTACH(rum)
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
 	usbd_status error;
-	int i, ntries, size;
+	int i, ntries, size, bands;
 	uint32_t tmp;
 
 	sc->sc_udev = uaa->device;
@@ -426,9 +431,8 @@ USB_ATTACH(rum)
 	    MTX_DEF | MTX_RECURSE);
 
 	usb_init_task(&sc->sc_task, rum_task, sc);
-	callout_init_mtx(&sc->watchdog_ch, &sc->sc_mtx, 0);
-	callout_init(&sc->scan_ch, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
-
+	usb_init_task(&sc->sc_scantask, rum_scantask, sc);
+	callout_init(&sc->watchdog_ch, 0);
 	callout_init(&sc->amrr_ch, 0);
 
 	/* retrieve RT2573 rev. no */
@@ -490,42 +494,49 @@ USB_ATTACH(rum)
 	    IEEE80211_C_TXPMGT |	/* tx power management */
 	    IEEE80211_C_SHPREAMBLE |	/* short preamble supported */
 	    IEEE80211_C_SHSLOT |	/* short slot time supported */
+	    IEEE80211_C_BGSCAN |	/* bg scanning supported */
 	    IEEE80211_C_WPA;		/* 802.11i */
 
+	bands = 0;
+	setbit(&bands, IEEE80211_MODE_11B);
+	setbit(&bands, IEEE80211_MODE_11G);
+	ieee80211_init_channels(ic, 0, CTRY_DEFAULT, bands, 0, 1);
+
 	if (sc->rf_rev == RT2573_RF_5225 || sc->rf_rev == RT2573_RF_5226) {
+		struct ieee80211_channel *c;
+
 		/* set supported .11a channels */
 		for (i = 34; i <= 46; i += 4) {
-			ic->ic_channels[i].ic_freq =
-			    ieee80211_ieee2mhz(i, IEEE80211_CHAN_5GHZ);
-			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_A;
+			c = &ic->ic_channels[ic->ic_nchans++];
+			c->ic_freq = ieee80211_ieee2mhz(i, IEEE80211_CHAN_5GHZ);
+			c->ic_flags = IEEE80211_CHAN_A;
+			c->ic_ieee = i;
 		}
 		for (i = 36; i <= 64; i += 4) {
-			ic->ic_channels[i].ic_freq =
-			    ieee80211_ieee2mhz(i, IEEE80211_CHAN_5GHZ);
-			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_A;
+			c = &ic->ic_channels[ic->ic_nchans++];
+			c->ic_freq = ieee80211_ieee2mhz(i, IEEE80211_CHAN_5GHZ);
+			c->ic_flags = IEEE80211_CHAN_A;
+			c->ic_ieee = i;
 		}
 		for (i = 100; i <= 140; i += 4) {
-			ic->ic_channels[i].ic_freq =
-			    ieee80211_ieee2mhz(i, IEEE80211_CHAN_5GHZ);
-			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_A;
+			c = &ic->ic_channels[ic->ic_nchans++];
+			c->ic_freq = ieee80211_ieee2mhz(i, IEEE80211_CHAN_5GHZ);
+			c->ic_flags = IEEE80211_CHAN_A;
+			c->ic_ieee = i;
 		}
 		for (i = 149; i <= 165; i += 4) {
-			ic->ic_channels[i].ic_freq =
-			    ieee80211_ieee2mhz(i, IEEE80211_CHAN_5GHZ);
-			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_A;
+			c = &ic->ic_channels[ic->ic_nchans++];
+			c->ic_freq = ieee80211_ieee2mhz(i, IEEE80211_CHAN_5GHZ);
+			c->ic_flags = IEEE80211_CHAN_A;
+			c->ic_ieee = i;
 		}
-	}
-
-	/* set supported .11b and .11g channels (1 through 14) */
-	for (i = 1; i <= 14; i++) {
-		ic->ic_channels[i].ic_freq =
-		    ieee80211_ieee2mhz(i, IEEE80211_CHAN_2GHZ);
-		ic->ic_channels[i].ic_flags =
-		    IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
-		    IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
 	}
 
 	ieee80211_ifattach(ic);
+	ic->ic_scan_start = rum_scan_start;
+	ic->ic_scan_end = rum_scan_end;
+	ic->ic_set_channel = rum_set_channel;
+
 	/* enable s/w bmiss handling in sta mode */
 	ic->ic_flags_ext |= IEEE80211_FEXT_SWBMISS;
 
@@ -535,7 +546,9 @@ USB_ATTACH(rum)
 	ic->ic_raw_xmit = rum_raw_xmit;
 	ieee80211_media_init(ic, rum_media_change, ieee80211_media_status);
 
-	ieee80211_amrr_init(&sc->amrr, ic, 1, 10);
+	ieee80211_amrr_init(&sc->amrr, ic,
+	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
+	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD);
 
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
 	    sizeof (struct ieee80211_frame) + IEEE80211_RADIOTAP_HDRLEN, 
@@ -563,8 +576,8 @@ USB_DETACH(rum)
 
 	rum_stop(sc);
 	usb_rem_task(sc->sc_udev, &sc->sc_task);
+	usb_rem_task(sc->sc_udev, &sc->sc_scantask);
 	callout_stop(&sc->watchdog_ch);
-	callout_stop(&sc->scan_ch);
 	callout_stop(&sc->amrr_ch);
 
 	if (sc->amrr_xfer != NULL) {
@@ -737,20 +750,6 @@ rum_media_change(struct ifnet *ifp)
 	return 0;
 }
 
-/*
- * This function is called periodically (every 200ms) during scanning to
- * switch from one channel to another.
- */
-static void
-rum_next_scan(void *arg)
-{
-	struct rum_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-
-	if (ic->ic_state == IEEE80211_S_SCAN)
-		ieee80211_next_scan(ic);
-}
-
 static void
 rum_task(void *arg)
 {
@@ -773,22 +772,7 @@ rum_task(void *arg)
 		}
 		break;
 
-	case IEEE80211_S_SCAN:
-		rum_set_chan(sc, ic->ic_curchan);
-		callout_reset(&sc->scan_ch, hz / 5, rum_next_scan, sc);
-		break;
-
-	case IEEE80211_S_AUTH:
-		rum_set_chan(sc, ic->ic_curchan);
-		break;
-
-	case IEEE80211_S_ASSOC:
-		rum_set_chan(sc, ic->ic_curchan);
-		break;
-
 	case IEEE80211_S_RUN:
-		rum_set_chan(sc, ic->ic_curchan);
-
 		ni = ic->ic_bss;
 
 		if (ic->ic_opmode != IEEE80211_M_MONITOR) {
@@ -811,6 +795,8 @@ rum_task(void *arg)
 		    ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE)
 			rum_amrr_start(sc, ni);
 		break;
+	default:
+		break;
 	}
 
 	RUM_UNLOCK(sc);
@@ -823,7 +809,6 @@ rum_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
 	struct rum_softc *sc = ic->ic_ifp->if_softc;
 
-	callout_stop(&sc->scan_ch);
 	callout_stop(&sc->amrr_ch);
 
 	/* do it in a process context */
@@ -850,6 +835,10 @@ rum_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct rum_tx_data *data = priv;
 	struct rum_softc *sc = data->sc;
 	struct ifnet *ifp = sc->sc_ic.ic_ifp;
+
+	if (data->m->m_flags & M_TXCB)
+		ieee80211_process_callback(data->ni, data->m,
+			status == USBD_NORMAL_COMPLETION ? 0 : ETIMEDOUT);
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED)
@@ -891,7 +880,7 @@ rum_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *mnew, *m;
-	int len;
+	int len, rssi;
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED)
@@ -938,6 +927,15 @@ rum_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	m->m_data = (caddr_t)(desc + 1); 
 	m->m_pkthdr.len = m->m_len = (le32toh(desc->flags) >> 16) & 0xfff;
 
+	rssi = rum_get_rssi(sc, desc->rssi);
+
+	wh = mtod(m, struct ieee80211_frame *);
+	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
+
+	/* Error happened during RSSI conversion. */
+	if (rssi < 0)
+		rssi = ni->ni_rssi;
+
 	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct rum_rx_radiotap_header *tap = &sc->sc_rxtap;
 
@@ -946,16 +944,13 @@ rum_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
 		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wr_antenna = sc->rx_ant;
-		tap->wr_antsignal = desc->rssi;
+		tap->wr_antsignal = rssi;
 
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_rxtap_len, m);
 	}
 
-	wh = mtod(m, struct ieee80211_frame *);
-	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
-
 	/* send the frame to the 802.11 layer */
-	ieee80211_input(ic, m, ni, desc->rssi, 0);
+	ieee80211_input(ic, m, ni, rssi, RT2573_NOISE_FLOOR, 0);
 
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
@@ -1293,7 +1288,7 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	wh = mtod(m0, struct ieee80211_frame *);
 
 	if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE)
-		rate = ic->ic_bss->ni_rates.rs_rates[ic->ic_fixed_rate];
+		rate = ic->ic_fixed_rate;
 	else
 		rate = ni->ni_rates.rs_rates[ni->ni_txrate];
 
@@ -1378,8 +1373,6 @@ rum_start(struct ifnet *ifp)
 	struct mbuf *m0;
 	struct ether_header *eh;
 
-	RUM_LOCK(sc);
-
 	for (;;) {
 		IF_POLL(&ic->ic_mgtq, m0);
 		if (m0 != NULL) {
@@ -1442,27 +1435,27 @@ rum_start(struct ifnet *ifp)
 		sc->sc_tx_timer = 5;
 		callout_reset(&sc->watchdog_ch, hz, rum_watchdog, sc);
 	}
-
-	RUM_UNLOCK(sc);
 }
 
 static void
 rum_watchdog(void *arg)
 {
-	struct rum_softc *sc = (struct rum_softc *)arg;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct rum_softc *sc = arg;
+
+	RUM_LOCK(sc);
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
 			/*rum_init(ifp); XXX needs a process context! */
 			sc->sc_ifp->if_oerrors++;
+			RUM_UNLOCK(sc);
 			return;
 		}
 		callout_reset(&sc->watchdog_ch, hz, rum_watchdog, sc);
 	}
 
-	ieee80211_watchdog(ic);
+	RUM_UNLOCK(sc);
 }
 
 static int
@@ -1984,10 +1977,23 @@ rum_read_eeprom(struct rum_softc *sc)
 	if ((val & 0xff) != 0xff)
 		sc->rssi_2ghz_corr = (int8_t)(val & 0xff);	/* signed */
 
+	/* Only [-10, 10] is valid */
+	if (sc->rssi_2ghz_corr < -10 || sc->rssi_2ghz_corr > 10)
+		sc->rssi_2ghz_corr = 0;
+
 	rum_eeprom_read(sc, RT2573_EEPROM_RSSI_5GHZ_OFFSET, &val, 2);
 	val = le16toh(val);
 	if ((val & 0xff) != 0xff)
 		sc->rssi_5ghz_corr = (int8_t)(val & 0xff);	/* signed */
+
+	/* Only [-10, 10] is valid */
+	if (sc->rssi_5ghz_corr < -10 || sc->rssi_5ghz_corr > 10)
+		sc->rssi_5ghz_corr = 0;
+
+	if (sc->ext_2ghz_lna)
+		sc->rssi_2ghz_corr -= 14;
+	if (sc->ext_5ghz_lna)
+		sc->rssi_5ghz_corr -= 14;
 
 	DPRINTF(("RSSI 2GHz corr=%d\nRSSI 5GHz corr=%d\n",
 	    sc->rssi_2ghz_corr, sc->rssi_5ghz_corr));
@@ -2405,6 +2411,126 @@ rum_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
 	ieee80211_amrr_choose(&sc->amrr, sc->sc_ic.ic_bss, &sc->amn);
 
 	callout_reset(&sc->amrr_ch, hz, rum_amrr_timeout, sc);
+}
+
+static void
+rum_scan_start(struct ieee80211com *ic)
+{
+	struct rum_softc *sc = ic->ic_ifp->if_softc;
+
+	usb_rem_task(sc->sc_udev, &sc->sc_scantask);
+
+	/* do it in a process context */
+	sc->sc_scan_action = RUM_SCAN_START;
+	usb_add_task(sc->sc_udev, &sc->sc_scantask, USB_TASKQ_DRIVER);
+}
+
+static void
+rum_scan_end(struct ieee80211com *ic)
+{
+	struct rum_softc *sc = ic->ic_ifp->if_softc;
+
+	usb_rem_task(sc->sc_udev, &sc->sc_scantask);
+
+	/* do it in a process context */
+	sc->sc_scan_action = RUM_SCAN_END;
+	usb_add_task(sc->sc_udev, &sc->sc_scantask, USB_TASKQ_DRIVER);
+}
+
+static void
+rum_set_channel(struct ieee80211com *ic)
+{
+	struct rum_softc *sc = ic->ic_ifp->if_softc;
+
+	usb_rem_task(sc->sc_udev, &sc->sc_scantask);
+
+	/* do it in a process context */
+	sc->sc_scan_action = RUM_SET_CHANNEL;
+	usb_add_task(sc->sc_udev, &sc->sc_scantask, USB_TASKQ_DRIVER);
+}
+
+static void
+rum_scantask(void *arg)
+{
+	struct rum_softc *sc = arg;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+	uint32_t tmp;
+
+	RUM_LOCK(sc);
+
+	switch (sc->sc_scan_action) {
+	case RUM_SCAN_START:
+		/* abort TSF synchronization */
+		tmp = rum_read(sc, RT2573_TXRX_CSR9);
+		rum_write(sc, RT2573_TXRX_CSR9, tmp & ~0x00ffffff);
+		rum_set_bssid(sc, ifp->if_broadcastaddr);
+		break;
+
+	case RUM_SCAN_END:
+		rum_enable_tsf_sync(sc);
+		/* XXX keep local copy */
+		rum_set_bssid(sc, ic->ic_bss->ni_bssid);
+		break;
+
+	case RUM_SET_CHANNEL:
+		mtx_lock(&Giant);
+		rum_set_chan(sc, ic->ic_curchan);
+		mtx_unlock(&Giant);
+		break;
+
+	default:
+		panic("unknown scan action %d\n", sc->sc_scan_action);
+		/* NEVER REACHED */
+		break;
+	}
+
+	RUM_UNLOCK(sc);
+}
+
+static int
+rum_get_rssi(struct rum_softc *sc, uint8_t raw)
+{
+	int lna, agc, rssi;
+
+	lna = (raw >> 5) & 0x3;
+	agc = raw & 0x1f;
+
+	if (lna == 0) {
+		/*
+		 * No RSSI mapping
+		 *
+		 * NB: Since RSSI is relative to noise floor, -1 is
+		 *     adequate for caller to know error happened.
+		 */
+		return -1;
+	}
+
+	rssi = (2 * agc) - RT2573_NOISE_FLOOR;
+
+	if (IEEE80211_IS_CHAN_2GHZ(sc->sc_ic.ic_curchan)) {
+		rssi += sc->rssi_2ghz_corr;
+
+		if (lna == 1)
+			rssi -= 64;
+		else if (lna == 2)
+			rssi -= 74;
+		else if (lna == 3)
+			rssi -= 90;
+	} else {
+		rssi += sc->rssi_5ghz_corr;
+
+		if (!sc->ext_5ghz_lna && lna != 1)
+			rssi += 4;
+
+		if (lna == 1)
+			rssi -= 64;
+		else if (lna == 2)
+			rssi -= 86;
+		else if (lna == 3)
+			rssi -= 100;
+	}
+	return rssi;
 }
 
 DRIVER_MODULE(rum, uhub, rum_driver, rum_devclass, usbd_driver_load, 0);

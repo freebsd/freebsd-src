@@ -35,8 +35,6 @@
 #ifndef _DEV_ATH_ATHVAR_H
 #define _DEV_ATH_ATHVAR_H
 
-#include <sys/taskqueue.h>
-
 #include <contrib/dev/ath/ah.h>
 #include <contrib/dev/ath/ah_desc.h>
 #include <net80211/ieee80211_radiotap.h>
@@ -49,7 +47,7 @@
 #define	ATH_RXBUF	40		/* number of RX buffers */
 #endif
 #ifndef ATH_TXBUF
-#define	ATH_TXBUF	100		/* number of TX buffers */
+#define	ATH_TXBUF	200		/* number of TX buffers */
 #endif
 #define	ATH_TXDESC	10		/* number of descriptors per buffer */
 #define	ATH_TXMAXTRY	11		/* max number of transmit attempts */
@@ -71,10 +69,19 @@
 #define	ATH_KEYMAX	128		/* max key cache size we handle */
 #define	ATH_KEYBYTES	(ATH_KEYMAX/NBBY)	/* storage space in bytes */
 
+#define	ATH_FF_TXQMIN	2		/* min txq depth for staging */
+#define	ATH_FF_TXQMAX	50		/* maximum # of queued frames allowed */
+#define	ATH_FF_STAGEMAX	5		/* max waiting period for staged frame*/
+
+struct taskqueue;
+struct kthread;
+struct ath_buf;
+
 /* driver-specific node state */
 struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
 	u_int32_t	an_avgrssi;	/* average rssi over all rx frames */
+	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -93,6 +100,8 @@ struct ath_node {
 
 struct ath_buf {
 	STAILQ_ENTRY(ath_buf)	bf_list;
+	TAILQ_ENTRY(ath_buf)	bf_stagelist;	/* stage queue list */
+	u_int32_t		bf_age;		/* age when placed on stageq */
 	int			bf_nseg;
 	int			bf_flags;	/* tx descriptor flags */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
@@ -138,6 +147,13 @@ struct ath_txq {
 	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
 	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
+	/*
+	 * Fast-frame state.  The staging queue holds awaiting
+	 * a fast-frame pairing.  Buffers on this queue are
+	 * assigned an ``age'' and flushed when they wait too long.
+	 */
+	TAILQ_HEAD(axq_headtype, ath_buf) axq_stageq;
+	u_int32_t		axq_curage;	/* queue age */
 };
 
 #define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
@@ -153,6 +169,7 @@ struct ath_txq {
 #define ATH_TXQ_INSERT_TAIL(_tq, _elm, _field) do { \
 	STAILQ_INSERT_TAIL(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
+	(_tq)->axq_curage++; \
 } while (0)
 #define ATH_TXQ_REMOVE_HEAD(_tq, _field) do { \
 	STAILQ_REMOVE_HEAD(&(_tq)->axq_q, _field); \
@@ -172,7 +189,7 @@ struct ath_softc {
 	void			(*sc_recv_mgmt)(struct ieee80211com *,
 					struct mbuf *,
 					struct ieee80211_node *,
-					int, int, u_int32_t);
+					int, int, int, u_int32_t);
 	int			(*sc_newstate)(struct ieee80211com *,
 					enum ieee80211_state, int);
 	void 			(*sc_node_free)(struct ieee80211_node *);
@@ -196,10 +213,12 @@ struct ath_softc {
 				sc_ledstate: 1,	/* LED on/off state */
 				sc_blinking: 1,	/* LED blink operation active */
 				sc_mcastkey: 1,	/* mcast key cache search */
+				sc_scanning: 1,	/* scanning active */
 				sc_syncbeacon:1,/* sync/resync beacon timers */
 				sc_hasclrkey:1,	/* CLR key supported */
 				sc_xchanmode: 1,/* extended channel mode */
-				sc_outdoor  : 1;/* outdoor operation */
+				sc_outdoor  : 1,/* outdoor operation */
+				sc_dturbo  : 1;	/* dynamic turbo in use */
 						/* rate tables */
 #define	IEEE80211_MODE_HALF	(IEEE80211_MODE_MAX+0)
 #define	IEEE80211_MODE_QUARTER	(IEEE80211_MODE_MAX+1)
@@ -208,7 +227,9 @@ struct ath_softc {
 	enum ieee80211_phymode	sc_curmode;	/* current phy mode */
 	HAL_OPMODE		sc_opmode;	/* current operating mode */
 	u_int16_t		sc_curtxpow;	/* current tx power limit */
+	u_int16_t		sc_curaid;	/* current association id */
 	HAL_CHANNEL		sc_curchan;	/* current h/w channel */
+	u_int8_t		sc_curbssid[IEEE80211_ADDR_LEN];
 	u_int8_t		sc_rixmap[256];	/* IEEE to h/w rate table ix */
 	struct {
 		u_int8_t	ieeerate;	/* IEEE rate */
@@ -220,7 +241,10 @@ struct ath_softc {
 	u_int8_t		sc_minrateix;	/* min h/w rate index */
 	u_int8_t		sc_mcastrix;	/* mcast h/w rate index */
 	u_int8_t		sc_protrix;	/* protection rate index */
+	u_int8_t		sc_lastdatarix;	/* last data frame rate index */
 	u_int			sc_mcastrate;	/* ieee rate for mcastrateix */
+	u_int			sc_fftxqmin;	/* min frames before staging */
+	u_int			sc_fftxqmax;	/* max frames before drop */
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
 	HAL_INT			sc_imask;	/* interrupt mask copy */
 	u_int			sc_keymax;	/* size of key cache */
@@ -253,6 +277,7 @@ struct ath_softc {
 
 	struct ath_descdma	sc_rxdma;	/* RX descriptos */
 	ath_bufhead		sc_rxbuf;	/* receive buffer */
+	struct mbuf		*sc_rxpending;	/* pending receive data */
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
 	struct task		sc_rxtask;	/* rx int processing */
 	struct task		sc_rxorntask;	/* rxorn int processing */
@@ -264,7 +289,6 @@ struct ath_softc {
 	ath_bufhead		sc_txbuf;	/* transmit buffer */
 	struct mtx		sc_txbuflock;	/* txbuf lock */
 	char			sc_txname[12];	/* e.g. "ath0_buf" */
-	int			sc_tx_timer;	/* transmit timeout */
 	u_int			sc_txqsetup;	/* h/w queues setup */
 	u_int			sc_txintrperiod;/* tx interrupt batching */
 	struct ath_txq		sc_txq[HAL_NUM_TX_QUEUES];
@@ -291,7 +315,6 @@ struct ath_softc {
 	int			sc_calinterval;	/* current polling interval */
 	int			sc_caltries;	/* cals at current interval */
 	HAL_NODE_STATS		sc_halstats;	/* station-mode rssi stats */
-	struct callout		sc_scan_ch;	/* callout handle for scan */
 	struct callout		sc_dfs_ch;	/* callout handle for dfs */
 };
 #define	sc_tx_th		u_tx_rt.th
@@ -418,7 +441,7 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getDiagState)((_ah), (_id), \
 		(_indata), (_insize), (_outdata), (_outsize)))
 #define	ath_hal_getfatalstate(_ah, _outdata, _outsize) \
-	ath_hal_getdiagstate(_ah, 29, NULL, 0, (void **)(_outdata), _outsize)
+	ath_hal_getdiagstate(_ah, 29, NULL, 0, (_outdata), _outsize)
 #define	ath_hal_setuptxqueue(_ah, _type, _irq) \
 	((*(_ah)->ah_setupTxQueue)((_ah), (_type), (_irq)))
 #define	ath_hal_resettxqueue(_ah, _q) \
@@ -517,6 +540,8 @@ void	ath_intr(void *);
 #else
 #define	ath_hal_getmcastkeysearch(_ah)	0
 #endif
+#define	ath_hal_hasfastframes(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_FASTFRAME, 0, NULL) == HAL_OK)
 #define	ath_hal_hasrfsilent(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_RFSILENT, 0, NULL) == HAL_OK)
 #define	ath_hal_getrfkill(_ah) \
@@ -535,15 +560,8 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_TPC_CTS, 0, _ptpcts) == HAL_OK)
 #define	ath_hal_settpcts(_ah, _tpcts) \
 	ath_hal_setcapability(_ah, HAL_CAP_TPC_CTS, 0, _tpcts, NULL)
-#if HAL_ABI_VERSION < 0x05120700
-#define	ath_hal_process_noisefloor(_ah)
-#define	ath_hal_getchannoise(_ah, _c)	(-96)
-#define	HAL_CAP_TPC_ACK	100
-#define	HAL_CAP_TPC_CTS	101
-#else
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
-#endif
 #if HAL_ABI_VERSION < 0x05122200
 #define	HAL_TXQ_TXOKINT_ENABLE	TXQ_FLAG_TXOKINT_ENABLE
 #define	HAL_TXQ_TXERRINT_ENABLE	TXQ_FLAG_TXERRINT_ENABLE
@@ -560,6 +578,14 @@ void	ath_intr(void *);
 /* XXX yech, can't get to regdomain so just hack a compat shim */
 #define	ath_hal_isgsmsku(ah) \
 	((ah)->ah_countryCode == 843)
+#endif
+#if HAL_ABI_VERSION < 0x07050400
+/* compat shims so code compilers--it won't work though */
+#define	CHANNEL_HT20		0x10000
+#define	CHANNEL_HT40PLUS 	0x20000
+#define	CHANNEL_HT40MINUS 	0x40000
+#define	HAL_MODE_11NG_HT20	0x008000
+#define HAL_MODE_11NA_HT20  	0x010000
 #endif
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
