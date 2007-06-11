@@ -197,6 +197,7 @@ ipw_attach(device_t dev)
 	struct ipw_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_channel *c;
 	uint16_t val;
 	int error, i;
 
@@ -287,11 +288,17 @@ ipw_attach(device_t dev)
 	ic->ic_myaddr[4] = val >> 8;
 	ic->ic_myaddr[5] = val & 0xff;
 
-	/* set supported .11b channels */
-	for (i = 1; i < 14; i++) {
-		ic->ic_channels[i].ic_freq =
-		    ieee80211_ieee2mhz(i, IEEE80211_CHAN_B);
-		ic->ic_channels[i].ic_flags = IEEE80211_CHAN_B;
+	/* set supported .11b channels (read from EEPROM) */
+	if ((val = ipw_read_prom_word(sc, IPW_EEPROM_CHANNEL_LIST)) == 0)
+		val = 0x7ff; /* default to channels 1-11 */
+	val <<= 1;
+	for (i = 1; i < 16; i++) {
+		if (val & (1 << i)) {
+			c = &ic->ic_channels[ic->ic_nchans++];
+			c->ic_freq = ieee80211_ieee2mhz(i, IEEE80211_CHAN_2GHZ);
+			c->ic_flags = IEEE80211_CHAN_B;
+			c->ic_ieee = i;
+		}
 	}
 
 	/* check support for radio transmitter switch in EEPROM */
@@ -791,6 +798,7 @@ ipw_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 
 	case IEEE80211_M_AHDEMO:
 	case IEEE80211_M_HOSTAP:
+	case IEEE80211_M_WDS:
 		/* should not get there */
 		break;
 	}
@@ -802,7 +810,6 @@ ipw_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ipw_softc *sc = ifp->if_softc;
-	struct ieee80211_node *ni;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 	uint32_t len;
 
@@ -813,6 +820,7 @@ ipw_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		len = IEEE80211_ADDR_LEN;
 		ipw_read_table2(sc, IPW_INFO_CURRENT_BSSID, macaddr, &len);
 
+#if 0
 		ni = ieee80211_find_node(&ic->ic_scan, macaddr);
 		if (ni == NULL)
 			break;
@@ -823,6 +831,7 @@ ipw_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 		if (ic->ic_opmode == IEEE80211_M_STA)
 			ieee80211_notify_node_join(ic, ni, 1);
+#endif
 		break;
 
 	case IEEE80211_S_INIT:
@@ -980,7 +989,9 @@ ipw_fix_channel(struct ieee80211com *ic, struct mbuf *m)
 #if IEEE80211_CHAN_MAX < 255
 		if (frm[2] <= IEEE80211_CHAN_MAX)
 #endif
-			ic->ic_curchan = &ic->ic_channels[frm[2]];
+			ic->ic_bsschan = ieee80211_find_channel(ic,
+				ieee80211_ieee2mhz(frm[2], 0),
+				IEEE80211_MODE_AUTO);
 
 		frm += frm[1] + 2;
 	}
@@ -1069,7 +1080,7 @@ ipw_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 
 	/* send the frame to the 802.11 layer */
-	ieee80211_input(ic, m, ni, status->rssi, 0);
+	ieee80211_input(ic, m, ni, status->rssi, -95/*XXX*/, 0);
 
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
@@ -1162,6 +1173,8 @@ ipw_release_sbd(struct ipw_softc *sc, struct ipw_soft_bd *sbd)
 		bus_dmamap_unload(sc->txbuf_dmat, sbuf->map);
 		SLIST_INSERT_HEAD(&sc->free_sbuf, sbuf, next);
 
+		if (sbuf->m->m_flags & M_TXCB)
+			ieee80211_process_callback(sbuf->ni, sbuf->m, 0/*XXX*/);
 		m_freem(sbuf->m);
 		ieee80211_free_node(sbuf->ni);
 
@@ -1514,7 +1527,6 @@ static void
 ipw_watchdog(struct ifnet *ifp)
 {
 	struct ipw_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = &sc->sc_ic;
 
 	mtx_lock(&sc->sc_mtx);
 
@@ -1531,8 +1543,6 @@ ipw_watchdog(struct ifnet *ifp)
 		}
 		ifp->if_timer = 1;
 	}
-
-	ieee80211_watchdog(ic);
 
 	mtx_unlock(&sc->sc_mtx);
 }
@@ -1744,6 +1754,7 @@ ipw_config(struct ipw_softc *sc)
 	switch (ic->ic_opmode) {
 	case IEEE80211_M_STA:
 	case IEEE80211_M_HOSTAP:
+	case IEEE80211_M_WDS:		/* XXX */
 		data = htole32(IPW_MODE_BSS);
 		break;
 	case IEEE80211_M_IBSS:
@@ -1839,8 +1850,8 @@ ipw_config(struct ipw_softc *sc)
 		printf("\n");
 	}
 #endif
-	error = ipw_cmd(sc, IPW_CMD_SET_ESSID, ic->ic_des_essid,
-	    ic->ic_des_esslen);
+	error = ipw_cmd(sc, IPW_CMD_SET_ESSID, ic->ic_des_ssid[0].ssid,
+	    ic->ic_des_ssid[0].len);
 	if (error != 0)
 		return error;
 

@@ -296,6 +296,8 @@ SUBDIR=	${_3dfx} \
 	wb \
 	${_wi} \
 	wlan \
+	wlan_scan_ap \
+	wlan_scan_sta \
 	wlan_acl \
 	wlan_amrr \
 	wlan_ccmp \

@@ -123,6 +123,8 @@ struct iwi_softc {
 	device_t		sc_dev;
 
 	struct mtx		sc_mtx;
+	struct mtx		sc_cmdlock;
+	char			sc_cmdname[12];	/* e.g. "iwi0_cmd" */
 	uint8_t			sc_mcast[IEEE80211_ADDR_LEN];
 	struct unrhdr		*sc_unr;
 	struct taskqueue	*sc_tq;		/* private task queue */
@@ -132,11 +134,15 @@ struct iwi_softc {
 
 	uint32_t		flags;
 #define IWI_FLAG_FW_INITED	(1 << 0)
-#define IWI_FLAG_SCANNING	(1 << 1)
-#define	IWI_FLAG_FW_LOADING	(1 << 2)
 #define	IWI_FLAG_BUSY		(1 << 3)	/* busy sending a command */
 #define	IWI_FLAG_ASSOCIATED	(1 << 4)	/* currently associated  */
-
+#define IWI_FLAG_CHANNEL_SCAN	(1 << 5)
+	uint32_t		fw_state;
+#define IWI_FW_IDLE		0
+#define IWI_FW_LOADING		1
+#define IWI_FW_ASSOCIATING	2
+#define IWI_FW_DISASSOCIATING	3
+#define IWI_FW_SCANNING		4
 	struct iwi_cmd_ring	cmdq;
 	struct iwi_tx_ring	txq[WME_NUM_AC];
 	struct iwi_rx_ring	rxq;
@@ -176,20 +182,16 @@ struct iwi_softc {
 
 	int			curchan;	/* current h/w channel # */
 	int			antenna;
-	int			dwelltime;
 	int			bluetooth;
 	struct iwi_associate	assoc;
 	struct iwi_wme_params	wme[3];
+	u_int			sc_scangen;
 
 	struct task		sc_radiontask;	/* radio on processing */
 	struct task		sc_radiofftask;	/* radio off processing */
-	struct task		sc_scanstarttask;/* scan start processing */
-	struct task		sc_scanaborttask;/* scan abort processing */
-	struct task		sc_scandonetask;/* scan completed processing */
-	struct task		sc_scantask;	/* scan channel processing */
-	struct task		sc_setwmetask;	/* set wme params processing */
-	struct task		sc_downtask;	/* disassociate processing */
+	struct task		sc_scanaborttask;	/* cancel active scan */
 	struct task		sc_restarttask;	/* restart adapter processing */
+	struct task		sc_opstask;	/* scan / auth processing */
 
 	unsigned int		sc_softled : 1,	/* enable LED gpio status */
 				sc_ledstate: 1,	/* LED on/off state */
@@ -204,11 +206,26 @@ struct iwi_softc {
 	u_int8_t		sc_txrix;
 	u_int16_t		sc_ledoff;	/* off time for current blink */
 	struct callout		sc_ledtimer;	/* led off timer */
+	struct callout		sc_wdtimer;	/* watchdog timer */
 
 	int			sc_tx_timer;
 	int			sc_rfkill_timer;/* poll for rfkill change */
-	int			sc_scan_timer;	/* scan request timeout */
+	int			sc_state_timer;	/* firmware state timer */
+	int			sc_busy_timer;	/* firmware cmd timer */
 
+#define IWI_SCAN_START		(1 << 0)
+#define IWI_SET_CHANNEL	        (1 << 1)
+#define	IWI_SCAN_END		(1 << 2)
+#define	IWI_ASSOC		(1 << 3)
+#define	IWI_DISASSOC		(1 << 4)
+#define	IWI_SCAN_CURCHAN	(1 << 5)
+#define	IWI_SCAN_ALLCHAN	(1 << 6)
+#define	IWI_SET_WME		(1 << 7)
+#define	IWI_CMD_MAXOPS		10
+	int                     sc_cmd[IWI_CMD_MAXOPS];
+	int                     sc_cmd_cur;    /* current queued scan task */
+	int                     sc_cmd_next;   /* last queued scan task */
+	unsigned long		sc_maxdwell;	/* max dwell time for curchan */
 	struct bpf_if		*sc_drvbpf;
 
 	union {
@@ -226,15 +243,34 @@ struct iwi_softc {
 	int			sc_txtap_len;
 };
 
+#define	IWI_STATE_BEGIN(_sc, _state)	do {			\
+	KASSERT(_sc->fw_state == IWI_FW_IDLE,			\
+	    ("iwi firmware not idle"));				\
+	_sc->fw_state = _state;					\
+	_sc->sc_state_timer = 5;				\
+	DPRINTF(("enter FW state %d\n",	_state));		\
+} while (0)
+
+#define	IWI_STATE_END(_sc, _state)	do {			\
+	if (_sc->fw_state == _state)				\
+		DPRINTF(("exit FW state %d\n", _state));	\
+	 else							\
+		DPRINTF(("expected FW state %d, got %d\n",	\
+			    _state, _sc->fw_state));		\
+	_sc->fw_state = IWI_FW_IDLE;				\
+	wakeup(_sc);						\
+	_sc->sc_state_timer = 0;				\
+} while (0)
 /*
  * NB.: This models the only instance of async locking in iwi_init_locked
  *	and must be kept in sync.
  */
+#define	IWI_LOCK_INIT(sc) \
+	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->sc_dev), \
+	    MTX_NETWORK_LOCK, MTX_DEF)
+#define	IWI_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->sc_mtx)
 #define	IWI_LOCK_DECL	int	__waslocked = 0
-#define IWI_LOCK_CHECK(sc)	do {				\
-	if (!mtx_owned(&(sc)->sc_mtx))	\
-		DPRINTF(("%s iwi_lock not held\n", __func__));		\
-} while (0)
+#define IWI_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
 #define IWI_LOCK(sc)	do {				\
 	if (!(__waslocked = mtx_owned(&(sc)->sc_mtx)))	\
 		mtx_lock(&(sc)->sc_mtx);		\
@@ -243,3 +279,11 @@ struct iwi_softc {
 	if (!__waslocked)			\
 		mtx_unlock(&(sc)->sc_mtx);	\
 } while (0)
+#define	IWI_CMD_LOCK_INIT(sc) do { \
+	snprintf((sc)->sc_cmdname, sizeof((sc)->sc_cmdname), "%s_cmd", \
+		device_get_nameunit((sc)->sc_dev)); \
+	mtx_init(&(sc)->sc_cmdlock, (sc)->sc_cmdname, NULL, MTX_DEF); \
+} while (0)
+#define	IWI_CMD_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->sc_cmdlock)
+#define	IWI_CMD_LOCK(sc)		mtx_lock(&(sc)->sc_cmdlock)
+#define	IWI_CMD_UNLOCK(sc)		mtx_unlock(&(sc)->sc_cmdlock)

@@ -100,6 +100,7 @@ struct wi_softc	{
 	bus_space_handle_t	wi_bmemhandle;
 	bus_space_tag_t		wi_bmemtag;
 	void *			wi_intrhand;
+	struct ieee80211_channel *wi_channel;
 	int			wi_io_addr;
 	int			wi_cmd_count;
 
@@ -108,7 +109,7 @@ struct wi_softc	{
 	int			sc_if_flags;
 	int			sc_bap_id;
 	int			sc_bap_off;
-
+	
 	u_int16_t		sc_procframe;
 	u_int16_t		sc_portnum;
 
@@ -201,6 +202,13 @@ struct wi_softc	{
 #define	WI_FLAGS_BUG_AUTOINC		0x0100
 #define	WI_FLAGS_HAS_FRAGTHR		0x0200
 #define	WI_FLAGS_HAS_DBMADJUST		0x0400
+#define WI_FLAGS_SCANNING               0x0800
+
+
+/* driver-specific node state */
+struct wi_node {
+	struct ieee80211_node ni;	/* base class */
+};
 
 struct wi_card_ident {
 	u_int16_t	card_id;

@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 static	void *none_attach(struct ieee80211com *, struct ieee80211_key *);
 static	void none_detach(struct ieee80211_key *);
 static	int none_setkey(struct ieee80211_key *);
-static	int none_encap(struct ieee80211_key *, struct mbuf *, u_int8_t);
+static	int none_encap(struct ieee80211_key *, struct mbuf *, uint8_t);
 static	int none_decap(struct ieee80211_key *, struct mbuf *, int);
 static	int none_enmic(struct ieee80211_key *, struct mbuf *, int);
 static	int none_demic(struct ieee80211_key *, struct mbuf *, int);
@@ -85,7 +85,7 @@ none_setkey(struct ieee80211_key *k)
 }
 
 static int
-none_encap(struct ieee80211_key *k, struct mbuf *m, u_int8_t keyid)
+none_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 {
 	struct ieee80211com *ic = k->wk_private;
 #ifdef IEEE80211_DEBUG
@@ -109,7 +109,7 @@ none_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	struct ieee80211com *ic = k->wk_private;
 #ifdef IEEE80211_DEBUG
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
-	const u_int8_t *ivp = (const u_int8_t *)&wh[1];
+	const uint8_t *ivp = (const uint8_t *)&wh[1];
 #endif
 
 	/*

@@ -297,27 +297,27 @@ ath_rate_ctl_start(struct ath_softc *sc, struct ieee80211_node *ni)
 			/* NB: the rate set is assumed sorted */
 			for (; srate >= 0 && RATE(srate) > 72; srate--)
 				;
-			KASSERT(srate >= 0, ("bogus rate set"));
 		}
 	} else {
 		/*
-		 * A fixed rate is to be used; ic_fixed_rate is an
-		 * index into the supported rate set.  Convert this
+		 * A fixed rate is to be used; ic_fixed_rate is the
+		 * IEEE code for this rate (sans basic bit).  Convert this
 		 * to the index into the negotiated rate set for
 		 * the node.  We know the rate is there because the
 		 * rate set is checked when the station associates.
 		 */
-		const struct ieee80211_rateset *rs =
-			&ic->ic_sup_rates[ic->ic_curmode];
-		int r = rs->rs_rates[ic->ic_fixed_rate] & IEEE80211_RATE_VAL;
 		/* NB: the rate set is assumed sorted */
 		srate = ni->ni_rates.rs_nrates - 1;
-		for (; srate >= 0 && RATE(srate) != r; srate--)
+		for (; srate >= 0 && RATE(srate) != ic->ic_fixed_rate; srate--)
 			;
-		KASSERT(srate >= 0,
-			("fixed rate %d not in rate set", ic->ic_fixed_rate));
 	}
-	ath_rate_update(sc, ni, srate);
+	/*
+	 * The selected rate may not be available due to races
+	 * and mode settings.  Also orphaned nodes created in
+	 * adhoc mode may not have any rate set so this lookup
+	 * can fail.  This is not fatal.
+	 */
+	ath_rate_update(sc, ni, srate < 0 ? 0 : srate);
 #undef RATE
 }
 

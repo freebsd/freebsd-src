@@ -64,11 +64,11 @@ __FBSDID("$FreeBSD$");
 
 void
 ieee80211_amrr_init(struct ieee80211_amrr *amrr,
-    struct ieee80211com *ic, int min, int max)
+    struct ieee80211com *ic, int amin, int amax)
 {
 	/* XXX bounds check? */
-	amrr->amrr_min_success_threshold = min;
-	amrr->amrr_max_success_threshold = max;
+	amrr->amrr_min_success_threshold = amin;
+	amrr->amrr_max_success_threshold = amax;
 	amrr->amrr_ic = ic;
 }
 

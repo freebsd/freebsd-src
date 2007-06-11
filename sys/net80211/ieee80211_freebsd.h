@@ -29,6 +29,18 @@
 
 #ifdef _KERNEL
 /*
+ * Common state locking definitions.
+ */
+typedef struct mtx ieee80211_com_lock_t;
+#define	IEEE80211_LOCK_INIT(_ic, _name) \
+	mtx_init(&(_ic)->ic_comlock, _name, "802.11 com lock", MTX_DEF)
+#define	IEEE80211_LOCK_DESTROY(_ic) mtx_destroy(&(_ic)->ic_comlock)
+#define	IEEE80211_LOCK(_ic)	   mtx_lock(&(_ic)->ic_comlock)
+#define	IEEE80211_UNLOCK(_ic)	   mtx_unlock(&(_ic)->ic_comlock)
+#define	IEEE80211_LOCK_ASSERT(_ic) \
+	mtx_assert(&(_ic)->ic_comlock, MA_OWNED)
+
+/*
  * Beacon locking definitions.
  */
 typedef struct mtx ieee80211_beacon_lock_t;
@@ -60,7 +72,7 @@ typedef struct mtx ieee80211_node_lock_t;
  */
 typedef struct mtx ieee80211_scan_lock_t;
 #define	IEEE80211_SCAN_LOCK_INIT(_nt, _name) \
-	mtx_init(&(_nt)->nt_scanlock, _name, "802.11 scangen", MTX_DEF)
+	mtx_init(&(_nt)->nt_scanlock, _name, "802.11 node scangen", MTX_DEF)
 #define	IEEE80211_SCAN_LOCK_DESTROY(_nt)	mtx_destroy(&(_nt)->nt_scanlock)
 #define	IEEE80211_SCAN_LOCK(_nt)		mtx_lock(&(_nt)->nt_scanlock)
 #define	IEEE80211_SCAN_UNLOCK(_nt)		mtx_unlock(&(_nt)->nt_scanlock)
@@ -165,10 +177,21 @@ int	ieee80211_node_dectestref(struct ieee80211_node *ni);
 struct ifqueue;
 void	ieee80211_drain_ifq(struct ifqueue *);
 
-struct mbuf *ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen);
+#define	msecs_to_ticks(ms)	((ms)*1000/hz)
+#define time_after(a,b) 	((long)(b) - (long)(a) < 0)
+#define time_before(a,b)	time_after(b,a)
+#define time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
+#define time_before_eq(a,b)	time_after_eq(b,a)
+
+struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
+/* tx path usage */
 #define	M_LINK0		M_PROTO1		/* WEP requested */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
 #define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
+#define	M_FF		0x20000			/* fast frame */
+#define	M_TXCB		0x40000			/* do tx complete callback */
+/* rx path usage */
+#define	M_AMPDU		M_PROTO1		/* A-MPDU processing done */
 /*
  * Encode WME access control bits in the PROTO flags.
  * This is safe since it's passed directly in to the
@@ -193,6 +216,17 @@ struct mbuf *ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen);
 #define	M_AGE_GET(m)		(m->m_pkthdr.csum_data)
 #define	M_AGE_SUB(m,adj)	(m->m_pkthdr.csum_data -= adj)
 
+#define	MTAG_ABI_NET80211	1132948340	/* net80211 ABI */
+
+struct ieee80211_cb {
+	void	(*func)(struct ieee80211_node *, void *, int status);
+	void	*arg;
+};
+#define	NET80211_TAG_CALLBACK	0	/* xmit complete callback */
+int	ieee80211_add_callback(struct mbuf *m,
+		void (*func)(struct ieee80211_node *, void *, int), void *arg);
+void	ieee80211_process_callback(struct ieee80211_node *, struct mbuf *, int);
+
 void	get_random_bytes(void *, size_t);
 
 struct ieee80211com;
@@ -201,6 +235,36 @@ void	ieee80211_sysctl_attach(struct ieee80211com *);
 void	ieee80211_sysctl_detach(struct ieee80211com *);
 
 void	ieee80211_load_module(const char *);
+
+#define	IEEE80211_CRYPTO_MODULE(name, version) \
+static int								\
+name##_modevent(module_t mod, int type, void *unused)			\
+{									\
+	switch (type) {							\
+	case MOD_LOAD:							\
+		ieee80211_crypto_register(&name);			\
+		return 0;						\
+	case MOD_UNLOAD:						\
+	case MOD_QUIESCE:						\
+		if (nrefs) {						\
+			printf("wlan_##name: still in use (%u dynamic refs)\n",\
+				nrefs);					\
+			return EBUSY;					\
+		}							\
+		if (type == MOD_UNLOAD)					\
+			ieee80211_crypto_unregister(&name);		\
+		return 0;						\
+	}								\
+	return EINVAL;							\
+}									\
+static moduledata_t name##_mod = {					\
+	"wlan_" #name,							\
+	name##_modevent,						\
+	0								\
+};									\
+DECLARE_MODULE(wlan_##name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);\
+MODULE_VERSION(wlan_##name, version);					\
+MODULE_DEPEND(wlan_##name, wlan, 1, 1, 1)
 #endif /* _KERNEL */
 
 /* XXX this stuff belongs elsewhere */
