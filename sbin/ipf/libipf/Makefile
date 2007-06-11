@@ -7,7 +7,7 @@ SRCS=		addicmp.c addipopt.c alist_free.c alist_new.c bcopywrap.c \
 		binprint.c buildopts.c checkrev.c count4bits.c count6bits.c \
 		debug.c facpri.c fill6bits.c flags.c gethost.c getifname.c \
 		getnattype.c getport.c getportproto.c getproto.c getsumd.c \
-		hostname.c icmpcode.c inet_addr.c initparse.c ionames.c \
+		hostname.c icmpcode.c initparse.c ionames.c \
 		ipf_dotuning.c ipft_ef.c ipft_hx.c ipft_pc.c ipft_sn.c \
 		ipft_td.c ipft_tx.c ipoptsec.c kmem.c kmemcpywrap.c \
 		kvatoname.c load_file.c load_hash.c load_hashnode.c \
