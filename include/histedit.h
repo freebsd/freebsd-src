@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)histedit.h	8.2 (Berkeley) 1/3/94
- *	$NetBSD: histedit.h,v 1.31 2006/12/15 22:13:33 christos Exp $
+ *	$NetBSD: histedit.h,v 1.32 2007/06/10 20:20:28 christos Exp $
  * $FreeBSD$
  */
 
@@ -131,10 +131,10 @@ unsigned char	_el_fn_complete(EditLine *, int);
 #define	EL_UNBUFFERED	15	/* , int);			*/
 #define	EL_PREP_TERM    16      /* , int);                      */
 #define	EL_GETTC	17	/* , const char *, ..., NULL);	*/
-#define EL_GETFP	18	/* , int, FILE **)		*/
-#define EL_SETFP	19	/* , int, FILE *)		*/
+#define	EL_GETFP	18	/* , int, FILE **)		*/
+#define	EL_SETFP	19	/* , int, FILE *)		*/
 
-#define EL_BUILTIN_GETCFN	(NULL)
+#define	EL_BUILTIN_GETCFN	(NULL)
 
 /*
  * Source named file or $PWD/.editrc or $HOME/.editrc
@@ -184,7 +184,7 @@ int		history(History *, HistEvent *, int, ...);
 
 #define	H_FUNC		 0	/* , UTSL		*/
 #define	H_SETSIZE	 1	/* , const int);	*/
-#define H_EVENT		 1	/* , const int);	*/
+#define	H_EVENT		 1	/* , const int);	*/
 #define	H_GETSIZE	 2	/* , void);		*/
 #define	H_FIRST		 3	/* , void);		*/
 #define	H_LAST		 4	/* , void);		*/
