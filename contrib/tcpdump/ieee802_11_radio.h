@@ -53,7 +53,11 @@
 #endif
 #endif /* _KERNEL */
 
-/* The radio capture header precedes the 802.11 header. */
+/*
+ * The radio capture header precedes the 802.11 header.
+ *
+ * Note well: all radiotap fields are little-endian.
+ */
 struct ieee80211_radiotap_header {
 	u_int8_t	it_version;	/* Version 0. Only increases
 					 * for drastic changes,
@@ -87,15 +91,19 @@ struct ieee80211_radiotap_header {
  * IEEE80211_RADIOTAP_CHANNEL           2 x u_int16_t   MHz, bitmap
  *
  *      Tx/Rx frequency in MHz, followed by flags (see below).
+ *	Note that IEEE80211_RADIOTAP_XCHANNEL must be used to
+ *	represent an HT channel as there is not enough room in
+ *	the flags word.
  *
  * IEEE80211_RADIOTAP_FHSS              u_int16_t       see below
  *
  *      For frequency-hopping radios, the hop set (first byte)
  *      and pattern (second byte).
  *
- * IEEE80211_RADIOTAP_RATE              u_int8_t        500kb/s
+ * IEEE80211_RADIOTAP_RATE              u_int8_t        500kb/s or index
  *
- *      Tx/Rx data rate
+ *      Tx/Rx data rate.  If bit 0x80 is set then it represents an
+ *	an MCS index and not an IEEE rate.
  *
  * IEEE80211_RADIOTAP_DBM_ANTSIGNAL     int8_t          decibels from
  *                                                      one milliwatt (dBm)
@@ -154,6 +162,17 @@ struct ieee80211_radiotap_header {
  *
  *      Unitless indication of the Rx/Tx antenna for this packet.
  *      The first antenna is antenna 0.
+ *
+ * IEEE80211_RADIOTAP_XCHANNEL          u_int32_t	bitmap
+ *					u_int16_t	MHz
+ *					u_int8_t	channel number
+ *					u_int8_t	.5 dBm
+ *
+ *	Extended channel specification: flags (see below) followed by
+ *	frequency in MHz, the corresponding IEEE channel number, and
+ *	finally the maximum regulatory transmit power cap in .5 dBm
+ *	units.  This property supersedes IEEE80211_RADIOTAP_CHANNEL
+ *	and only one of the two should be present.
  */
 enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_TSFT = 0,
@@ -170,17 +189,27 @@ enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_ANTENNA = 11,
 	IEEE80211_RADIOTAP_DB_ANTSIGNAL = 12,
 	IEEE80211_RADIOTAP_DB_ANTNOISE = 13,
+	IEEE80211_RADIOTAP_XCHANNEL = 14,
 	IEEE80211_RADIOTAP_EXT = 31
 };
 
 #ifndef _KERNEL
-/* Channel flags. */
-#define IEEE80211_CHAN_TURBO    0x0010  /* Turbo channel */
-#define IEEE80211_CHAN_CCK      0x0020  /* CCK channel */
-#define IEEE80211_CHAN_OFDM     0x0040  /* OFDM channel */
-#define IEEE80211_CHAN_2GHZ     0x0080  /* 2 GHz spectrum channel. */
-#define IEEE80211_CHAN_5GHZ     0x0100  /* 5 GHz spectrum channel */
-#define IEEE80211_CHAN_PASSIVE  0x0200  /* Only passive scan allowed */
+/* Channel flags; some are used only with XCHANNEL */
+#define	IEEE80211_CHAN_TURBO	0x00010	/* Turbo channel */
+#define	IEEE80211_CHAN_CCK	0x00020	/* CCK channel */
+#define	IEEE80211_CHAN_OFDM	0x00040	/* OFDM channel */
+#define	IEEE80211_CHAN_2GHZ	0x00080	/* 2 GHz spectrum channel. */
+#define	IEEE80211_CHAN_5GHZ	0x00100	/* 5 GHz spectrum channel */
+#define	IEEE80211_CHAN_PASSIVE	0x00200	/* Only passive scan allowed */
+#define	IEEE80211_CHAN_DYN	0x00400	/* Dynamic CCK-OFDM channel */
+#define	IEEE80211_CHAN_GFSK	0x00800	/* GFSK channel (FHSS PHY) */
+#define	IEEE80211_CHAN_GSM	0x01000	/* 900 MHz spectrum channel */
+#define	IEEE80211_CHAN_STURBO	0x02000	/* 11a static turbo channel only */
+#define	IEEE80211_CHAN_HALF	0x04000	/* Half rate channel */
+#define	IEEE80211_CHAN_QUARTER	0x08000	/* Quarter rate channel */
+#define	IEEE80211_CHAN_HT20	0x10000	/* HT 20 channel */
+#define	IEEE80211_CHAN_HT40U	0x20000	/* HT 40 channel w/ ext above */
+#define	IEEE80211_CHAN_HT40D	0x40000	/* HT 40 channel w/ ext below */
 #endif /* !_KERNEL */
 
 /* For IEEE80211_RADIOTAP_FLAGS */
@@ -197,5 +226,11 @@ enum ieee80211_radiotap_type {
 #define	IEEE80211_RADIOTAP_F_FRAG	0x08	/* sent/received
 						 * with fragmentation
 						 */
+#define	IEEE80211_RADIOTAP_F_FCS	0x10	/* frame includes FCS */
+#define	IEEE80211_RADIOTAP_F_DATAPAD	0x20	/* frame has padding between
+						 * 802.11 header and payload
+						 * (to 32-bit boundary)
+						 */
+#define	IEEE80211_RADIOTAP_F_BADFCS	0x40	/* does not pass FCS check */
 
 #endif /* _NET_IF_IEEE80211RADIOTAP_H_ */
