@@ -220,6 +220,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	if (boundary != 0 && boundary < maxsegsz)
 		maxsegsz = boundary;
 
+	if (maxsegsz == 0) {
+		return (EINVAL);
+	}
+
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
 
