@@ -148,9 +148,6 @@ __CONCAT(dname,_match)(device_t self)
 #define USB_MATCH_START(dname, uaa) \
         struct usb_attach_arg *uaa = device_get_ivars(self)
 
-#define USB_MATCH_SETUP \
-	sc->sc_dev = self
-
 #define USB_ATTACH(dname) \
 static int \
 __CONCAT(dname,_attach)(device_t self)
@@ -162,12 +159,6 @@ __CONCAT(dname,_attach)(device_t self)
 /* Returns from attach */
 #define USB_ATTACH_ERROR_RETURN	return ENXIO
 #define USB_ATTACH_SUCCESS_RETURN	return 0
-
-#define USB_ATTACH_SETUP \
-	do { \
-		sc->sc_dev = self; \
-		device_set_desc_copy(self, devinfo); \
-	} while (0)
 
 #define USB_DETACH(dname) \
 static int \
