@@ -597,7 +597,7 @@ Set the interval at which beacon frames are sent when operating in
 ad-hoc or ap mode.
 The
 .Ar interval
-parameter is specified in TU's (1/1024 msecs).
+parameter is specified in TU's (1024 usecs).
 By default beacon frames are transmitted every 100 TU's.
 .It Cm bmissthreshold Ar count
 Set the number of consecutive missed beacons at which the station
@@ -664,6 +664,48 @@ Some
 adaptors ignore this setting unless you are in ad-hoc mode.
 Alternatively the frequency, in megahertz, may be specified
 instead of the channel number.
+.Pp
+When there are several ways to use a channel the channel
+number/frequency may be appended with attributes to clarify.
+For example, if a device is capable of operating on channel 6
+with 802.11n and 802.11g then one can specify that g-only use
+should be used by specifying ``6:g''.
+Similarly the channel width can be specified by appending it
+with ``/''; e.g. ``6/40'' specifies a 40MHz wide channel,
+These attributes can be combined as in: ``6:ht/40''.
+The full set of flags specified following a `:'' are:
+.Cm a
+(802.11a),
+.Cm b
+(802.11b),
+.Cm d
+(Atheros Dynamic Turbo mode),
+.Cm g
+(802.11g),
+.Cm h
+or
+.Cm n
+(802.11n aka HT),
+.Cm s
+(Atheros Static Turbo mode),
+and
+.Cm t
+(Atheros Dynamic Turbo mode, or appendeded to ``st'' and ``dt'').
+The full set of channel widths following a '/' are:
+.Cm 5 
+(5MHz aka quarter-rate channel),
+.Cm 10 
+(10MHz aka half-rate channel),
+.Cm 20 
+(20MHz mostly for use in specifying ht20),
+and
+.Cm 40 
+(40MHz mostly for use in specifying ht40),
+In addition,
+a 40MHz HT channel specification may include the location
+of the extension channel by appending ``+'' or ``-'' for above and below,
+respectively; e.g. ``2437:ht/40+'' specifies 40MHz wide HT operation 
+with the center channel at frequency 2437 and the extension channel above.
 .It Cm deftxkey Ar index
 Set the default key to use for transmission.
 Typically this is only set when using WEP encryption.
@@ -815,7 +857,8 @@ Use
 .Fl powersave
 to disable powersave operation.
 .It Cm powersavesleep Ar sleep
-Set the desired max powersave sleep time in milliseconds.
+Set the desired max powersave sleep time in TU's (1024 usecs).
+By default the max powersave sleep time is 100 TU's.
 .It Cm protmode Ar technique
 For interfaces operating in 802.11g, use the specified
 .Ar technique
