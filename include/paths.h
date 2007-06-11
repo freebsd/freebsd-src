@@ -61,6 +61,7 @@
 #define	_PATH_DRUM	"/dev/drum"
 #define	_PATH_ETC	"/etc"
 #define	_PATH_FTPUSERS	"/etc/ftpusers"
+#define	_PATH_FWMEM	"/dev/fwmem"
 #define	_PATH_HALT	"/sbin/halt"
 #define	_PATH_IFCONFIG	"/sbin/ifconfig"
 #define	_PATH_KMEM	"/dev/kmem"
