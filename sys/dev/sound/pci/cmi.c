@@ -475,12 +475,16 @@ cmichan_trigger(kobj_t obj, void *data, int go)
 	struct sc_chinfo	*ch = data;
 	struct sc_info		*sc = ch->parent;
 
+	if (!PCMTRIG_COMMON(go))
+		return 0;
+
 	snd_mtxlock(sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		switch(go) {
 		case PCMTRIG_START:
 			cmi_ch0_start(sc, ch);
 			break;
+		case PCMTRIG_STOP:
 		case PCMTRIG_ABORT:
 			cmi_ch0_stop(sc, ch);
 			break;
@@ -490,6 +494,7 @@ cmichan_trigger(kobj_t obj, void *data, int go)
 		case PCMTRIG_START:
 			cmi_ch1_start(sc, ch);
 			break;
+		case PCMTRIG_STOP:
 		case PCMTRIG_ABORT:
 			cmi_ch1_stop(sc, ch);
 			break;

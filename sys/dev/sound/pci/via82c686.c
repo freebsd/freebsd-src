@@ -342,7 +342,7 @@ viachan_trigger(kobj_t obj, void *data, int go)
 	struct via_dma_op *ado;
 	bus_addr_t sgd_addr = ch->sgd_addr;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	ado = ch->sgd_table;

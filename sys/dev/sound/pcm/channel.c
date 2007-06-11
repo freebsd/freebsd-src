@@ -688,7 +688,6 @@ chn_start(struct pcm_channel *c, int force)
 				    (sndbuf_getbps(b) * sndbuf_getspd(b)));
 		}
 	    	chn_trigger(c, PCMTRIG_START);
-		return 0;
 	}
 
 	return 0;
@@ -1777,9 +1776,8 @@ chn_trigger(struct pcm_channel *c, int go)
 	if (SND_DMA(b) && (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD))
 		sndbuf_dmabounce(b);
 #endif
-	if ((go == PCMTRIG_START || go == PCMTRIG_STOP ||
-	    go == PCMTRIG_ABORT) && go == c->trigger)
-			return 0;
+	if (PCMTRIG_COMMON(go) && go == c->trigger)
+		return (0);
 
 	ret = CHANNEL_TRIGGER(c->methods, c->devinfo, go);
 
@@ -1821,7 +1819,7 @@ chn_trigger(struct pcm_channel *c, int go)
 		}
 	}
 
-	return ret;
+	return (ret);
 }
 
 /**

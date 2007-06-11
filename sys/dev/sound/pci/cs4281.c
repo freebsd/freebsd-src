@@ -425,6 +425,7 @@ cs4281chan_trigger(kobj_t obj, void *data, int go)
 	adcdac_prog(ch);
 	adcdac_go(ch, 1);
 	break;
+    case PCMTRIG_STOP:
     case PCMTRIG_ABORT:
 	adcdac_go(ch, 0);
 	break;

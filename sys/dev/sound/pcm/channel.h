@@ -281,6 +281,7 @@ extern int chn_latency;
 extern int chn_latency_profile;
 extern int report_soft_formats;
 
+#define PCMDIR_FAKE		0
 #define PCMDIR_PLAY		1
 #define PCMDIR_PLAY_VIRTUAL	2
 #define PCMDIR_REC		-1
@@ -291,6 +292,10 @@ extern int report_soft_formats;
 #define PCMTRIG_EMLDMARD 3
 #define PCMTRIG_STOP 0
 #define PCMTRIG_ABORT -1
+
+#define PCMTRIG_COMMON(x)	((x) == PCMTRIG_START ||		\
+				 (x) == PCMTRIG_STOP ||			\
+				 (x) == PCMTRIG_ABORT)
 
 #define CHN_F_CLOSING           0x00000004  /* a pending close */
 #define CHN_F_ABORTING          0x00000008  /* a pending abort */

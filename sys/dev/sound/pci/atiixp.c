@@ -712,6 +712,9 @@ atiixp_chan_trigger(kobj_t obj, void *data, int go)
 	uint32_t value;
 	int pollticks;
 
+	if (!PCMTRIG_COMMON(go))
+		return (0);
+
 	atiixp_lock(sc);
 
 	switch (go) {

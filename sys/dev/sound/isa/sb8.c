@@ -637,7 +637,7 @@ sbchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sb_chinfo *ch = data;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	sndbuf_dma(ch->buffer, go);

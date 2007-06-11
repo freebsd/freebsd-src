@@ -336,6 +336,7 @@ svrchan_trigger(kobj_t obj, void *data, int go)
 		sv_indirect_set(sc, SV_REG_ENABLE, enable);
 		ch->dma_active = 1;
 		break;
+	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
 		enable = sv_indirect_get(sc, SV_REG_ENABLE) & ~SV_RECORD_ENABLE;
 		sv_indirect_set(sc, SV_REG_ENABLE, enable);
@@ -412,6 +413,7 @@ svpchan_trigger(kobj_t obj, void *data, int go)
 		sv_indirect_set(sc, SV_REG_ENABLE, enable);
 		ch->dma_active = 1;
 		break;
+	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
 		enable = sv_indirect_get(sc, SV_REG_ENABLE) & ~SV_PLAY_ENABLE;
 		sv_indirect_set(sc, SV_REG_ENABLE, enable);
