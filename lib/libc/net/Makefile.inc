@@ -80,7 +80,7 @@ MLINKS+=if_indextoname.3 if_nametoindex.3 if_indextoname.3 if_nameindex.3 \
 	if_indextoname.3 if_freenameindex.3
 MLINKS+=inet.3 addr.3 inet.3 inet_addr.3 inet.3 inet_aton.3 \
 	inet.3 inet_lnaof.3 inet.3 inet_makeaddr.3 inet.3 inet_netof.3 \
-	inet.3 inet_network.3 inet.3 inet_ntoa.3 \
+	inet.3 inet_network.3 inet.3 inet_ntoa.3 inet.3 inet_ntoa_r.3\
 	inet.3 inet_ntop.3 inet.3 inet_pton.3 \
 	inet.3 network.3 inet.3 ntoa.3 
 MLINKS+= sctp_send.3 sctp_sendx.3

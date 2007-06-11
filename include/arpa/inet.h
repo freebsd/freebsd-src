@@ -130,6 +130,7 @@ struct in_addr {
 #define	inet_cidr_ntop		__inet_cidr_ntop
 #define	inet_cidr_pton		__inet_cidr_pton
 #define	inet_ntoa		__inet_ntoa
+#define	inet_ntoa_r		__inet_ntoa_r
 #define	inet_pton		__inet_pton
 #define	inet_ntop		__inet_ntop
 #define	inet_nsap_addr		__inet_nsap_addr
@@ -147,6 +148,7 @@ uint16_t	 ntohs(uint16_t);
 
 in_addr_t	 inet_addr(const char *);
 /*const*/ char	*inet_ntoa(struct in_addr);
+char			*inet_ntoa_r(struct in_addr, char *buf);
 const char	*inet_ntop(int, const void * __restrict, char * __restrict,
 		    socklen_t);
 int		 inet_pton(int, const char * __restrict, void * __restrict);
