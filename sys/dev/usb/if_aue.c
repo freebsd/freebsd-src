@@ -630,7 +630,6 @@ USB_MATCH(aue)
 USB_ATTACH(aue)
 {
 	USB_ATTACH_START(aue, sc, uaa);
-	char			devinfo[1024];
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
 	usbd_interface_handle	iface;
@@ -639,24 +638,18 @@ USB_ATTACH(aue)
 	usb_endpoint_descriptor_t	*ed;
 	int			i;
 
-	bzero(sc, sizeof(struct aue_softc));
-
-	usbd_devinfo(uaa->device, 0, devinfo);
-
 	sc->aue_dev = self;
 	sc->aue_udev = uaa->device;
 	sc->aue_unit = device_get_unit(self);
 
 	if (usbd_set_config_no(sc->aue_udev, AUE_CONFIG_NO, 0)) {
-		printf("aue%d: getting interface handle failed\n",
-		    sc->aue_unit);
+		device_printf(self, "getting interface handle failed\n");
 		USB_ATTACH_ERROR_RETURN;
 	}
 
 	err = usbd_device2interface_handle(uaa->device, AUE_IFACE_IDX, &iface);
 	if (err) {
-		printf("aue%d: getting interface handle failed\n",
-		    sc->aue_unit);
+		device_printf(self, "getting interface handle failed\n");
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -668,16 +661,11 @@ USB_ATTACH(aue)
 
 	id = usbd_get_interface_descriptor(sc->aue_iface);
 
-	usbd_devinfo(uaa->device, 0, devinfo);
-	device_set_desc_copy(self, devinfo);
-	printf("%s: %s\n", device_get_nameunit(self), devinfo);
-
 	/* Find endpoints. */
 	for (i = 0; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (ed == NULL) {
-			printf("aue%d: couldn't get ep %d\n",
-			    sc->aue_unit, i);
+			device_printf(self, "couldn't get ep %d\n", i);
 			USB_ATTACH_ERROR_RETURN;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
@@ -709,7 +697,7 @@ USB_ATTACH(aue)
 
 	ifp = sc->aue_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("aue%d: can not if_alloc()\n", sc->aue_unit);
+		device_printf(self, "can not if_alloc()\n");
 		AUE_SXUNLOCK(sc);
 		mtx_destroy(&sc->aue_mtx);
 		sx_destroy(&sc->aue_sx);
@@ -742,7 +730,7 @@ USB_ATTACH(aue)
 	 */
 	if (mii_phy_probe(self, &sc->aue_miibus,
 	    aue_ifmedia_upd, aue_ifmedia_sts)) {
-		printf("aue%d: MII without any PHY!\n", sc->aue_unit);
+		device_printf(self, "MII without any PHY!\n");
 		if_free(ifp);
 		AUE_SXUNLOCK(sc);
 		mtx_destroy(&sc->aue_mtx);
@@ -819,8 +807,8 @@ aue_rxstart_thread(struct aue_softc *sc)
 
 	c->ue_mbuf = usb_ether_newbuf();
 	if (c->ue_mbuf == NULL) {
-		printf("%s: no memory for rx list "
-		    "-- packet dropped!\n", device_get_nameunit(sc->aue_dev));
+		device_printf(sc->aue_dev, "no memory for rx list -- packet "
+		    "dropped!\n");
 		ifp->if_ierrors++;
 		AUE_UNLOCK(sc);
 		return;
@@ -870,7 +858,7 @@ aue_rxeof_thread(struct aue_softc *sc)
 			return;
 		}
 		if (usbd_ratecheck(&sc->aue_rx_notice))
-			printf("aue%d: usb error on rx: %s\n", sc->aue_unit,
+			device_printf(sc->aue_dev, "usb error on rx: %s\n",
 			    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->aue_ep[AUE_ENDPT_RX]);
@@ -944,7 +932,7 @@ aue_txeof_thread(struct aue_softc *sc)
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
 			return;
 		}
-		printf("aue%d: usb error on tx: %s\n", sc->aue_unit,
+		device_printf(sc->aue_dev, "usb error on tx: %s\n",
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->aue_ep[AUE_ENDPT_TX]);
@@ -1152,14 +1140,14 @@ aue_init_body(struct aue_softc *sc)
 	/* Init TX ring. */
 	if (usb_ether_tx_list_init(sc, &sc->aue_cdata,
 	    sc->aue_udev) == ENOBUFS) {
-		printf("aue%d: tx list init failed\n", sc->aue_unit);
+		device_printf(sc->aue_dev, "tx list init failed\n");
 		return;
 	}
 
 	/* Init RX ring. */
 	if (usb_ether_rx_list_init(sc, &sc->aue_cdata,
 	    sc->aue_udev) == ENOBUFS) {
-		printf("aue%d: rx list init failed\n", sc->aue_unit);
+		device_printf(sc->aue_dev, "rx list init failed\n");
 		return;
 	}
 
@@ -1178,15 +1166,15 @@ aue_init_body(struct aue_softc *sc)
 	err = usbd_open_pipe(sc->aue_iface, sc->aue_ed[AUE_ENDPT_RX],
 	    USBD_EXCLUSIVE_USE, &sc->aue_ep[AUE_ENDPT_RX]);
 	if (err) {
-		printf("aue%d: open rx pipe failed: %s\n",
-		    sc->aue_unit, usbd_errstr(err));
+		device_printf(sc->aue_dev, "open rx pipe failed: %s\n",
+		    usbd_errstr(err));
 		return;
 	}
 	err = usbd_open_pipe(sc->aue_iface, sc->aue_ed[AUE_ENDPT_TX],
 	    USBD_EXCLUSIVE_USE, &sc->aue_ep[AUE_ENDPT_TX]);
 	if (err) {
-		printf("aue%d: open tx pipe failed: %s\n",
-		    sc->aue_unit, usbd_errstr(err));
+		device_printf(sc->aue_dev, "open tx pipe failed: %s\n",
+		    usbd_errstr(err));
 		return;
 	}
 
@@ -1317,7 +1305,7 @@ aue_watchdog(struct aue_softc *sc)
 
 	AUE_SXASSERTLOCKED(sc);
 	ifp->if_oerrors++;
-	printf("aue%d: watchdog timeout\n", sc->aue_unit);
+	device_printf(sc->aue_dev, "watchdog timeout\n");
 
 	c = &sc->aue_cdata.ue_tx_chain[0];
 	usbd_get_xfer_status(c->ue_xfer, NULL, NULL, NULL, &stat);
@@ -1352,13 +1340,13 @@ aue_stop(struct aue_softc *sc)
 	if (sc->aue_ep[AUE_ENDPT_RX] != NULL) {
 		err = usbd_abort_pipe(sc->aue_ep[AUE_ENDPT_RX]);
 		if (err) {
-			printf("aue%d: abort rx pipe failed: %s\n",
-		    	sc->aue_unit, usbd_errstr(err));
+			device_printf(sc->aue_dev,
+			    "abort rx pipe failed: %s\n", usbd_errstr(err));
 		}
 		err = usbd_close_pipe(sc->aue_ep[AUE_ENDPT_RX]);
 		if (err) {
-			printf("aue%d: close rx pipe failed: %s\n",
-		    	sc->aue_unit, usbd_errstr(err));
+			device_printf(sc->aue_dev,
+			    "close rx pipe failed: %s\n", usbd_errstr(err));
 		}
 		sc->aue_ep[AUE_ENDPT_RX] = NULL;
 	}
@@ -1366,13 +1354,13 @@ aue_stop(struct aue_softc *sc)
 	if (sc->aue_ep[AUE_ENDPT_TX] != NULL) {
 		err = usbd_abort_pipe(sc->aue_ep[AUE_ENDPT_TX]);
 		if (err) {
-			printf("aue%d: abort tx pipe failed: %s\n",
-		    	sc->aue_unit, usbd_errstr(err));
+			device_printf(sc->aue_dev,
+			    "abort tx pipe failed: %s\n", usbd_errstr(err));
 		}
 		err = usbd_close_pipe(sc->aue_ep[AUE_ENDPT_TX]);
 		if (err) {
-			printf("aue%d: close tx pipe failed: %s\n",
-			    sc->aue_unit, usbd_errstr(err));
+			device_printf(sc->aue_dev,
+			    "close tx pipe failed: %s\n", usbd_errstr(err));
 		}
 		sc->aue_ep[AUE_ENDPT_TX] = NULL;
 	}
@@ -1381,13 +1369,13 @@ aue_stop(struct aue_softc *sc)
 	if (sc->aue_ep[AUE_ENDPT_INTR] != NULL) {
 		err = usbd_abort_pipe(sc->aue_ep[AUE_ENDPT_INTR]);
 		if (err) {
-			printf("aue%d: abort intr pipe failed: %s\n",
-		    	sc->aue_unit, usbd_errstr(err));
+			device_printf(sc->aue_dev,
+			    "abort intr pipe failed: %s\n", usbd_errstr(err));
 		}
 		err = usbd_close_pipe(sc->aue_ep[AUE_ENDPT_INTR]);
 		if (err) {
-			printf("aue%d: close intr pipe failed: %s\n",
-			    sc->aue_unit, usbd_errstr(err));
+			device_printf(sc->aue_dev,
+			    "close intr pipe failed: %s\n", usbd_errstr(err));
 		}
 		sc->aue_ep[AUE_ENDPT_INTR] = NULL;
 	}
