@@ -99,7 +99,6 @@ mxge_lro_flush(mxge_softc_t *mgp, struct lro_entry *lro)
 			CSUM_IP_VALID | CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 		lro->m_head->m_pkthdr.csum_data = 0xffff;
 		lro->m_head->m_pkthdr.len = lro->len;
-		lro->m_head->m_flags |= M_LRO;
 
 		/* incorporate the latest ack into the tcp header */
 		tcp = (struct tcphdr *) (ip + 1);
