@@ -279,6 +279,16 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		/* Store in two pieces, splitting at a '/'. */
 		p = strchr(pp + strlen(pp) - USTAR_name_size - 1, '/');
 		/*
+		 * If the separator we found is the first '/', find
+		 * the next one.  (This is a pathological case that
+		 * occurs for paths of exactly 101 bytes that start with
+		 * '/'; it occurs because the separating '/' is not
+		 * stored explicitly and the reconstruction assumes that
+		 * an empty prefix means there is no '/' separator.)
+		 */
+		if (p == pp)
+			p = strchr(p + 1, '/');
+		/*
 		 * If there is no path separator, or the prefix or
 		 * remaining name are too large, return an error.
 		 */
