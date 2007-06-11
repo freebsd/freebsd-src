@@ -281,27 +281,27 @@ kue_load_fw(struct kue_softc *sc)
 	err = kue_ctl(sc, KUE_CTL_WRITE, KUE_CMD_SEND_SCAN,
 	    0, kue_code_seg, sizeof(kue_code_seg));
 	if (err) {
-		printf("kue%d: failed to load code segment: %s\n",
-		    sc->kue_unit, usbd_errstr(err));
-			return(ENXIO);
+		device_printf(sc->kue_dev, "failed to load code segment: %s\n",
+		    usbd_errstr(err));
+		return(ENXIO);
 	}
 
 	/* Load fixup segment */
 	err = kue_ctl(sc, KUE_CTL_WRITE, KUE_CMD_SEND_SCAN,
 	    0, kue_fix_seg, sizeof(kue_fix_seg));
 	if (err) {
-		printf("kue%d: failed to load fixup segment: %s\n",
-		    sc->kue_unit, usbd_errstr(err));
-			return(ENXIO);
+		device_printf(sc->kue_dev, "failed to load fixup segment: %s\n",
+		    usbd_errstr(err));
+		return(ENXIO);
 	}
 
 	/* Send trigger command. */
 	err = kue_ctl(sc, KUE_CTL_WRITE, KUE_CMD_SEND_SCAN,
 	    0, kue_trig_seg, sizeof(kue_trig_seg));
 	if (err) {
-		printf("kue%d: failed to load trigger segment: %s\n",
-		    sc->kue_unit, usbd_errstr(err));
-			return(ENXIO);
+		device_printf(sc->kue_dev, "failed to load trigger segment: %s\n",
+		    usbd_errstr(err));
+		return(ENXIO);
 	}
 
 	return(0);
@@ -366,8 +366,7 @@ kue_reset(struct kue_softc *sc)
 	if (usbd_set_config_no(sc->kue_udev, KUE_CONFIG_NO, 0) ||
 	    usbd_device2interface_handle(sc->kue_udev, KUE_IFACE_IDX,
 	    &sc->kue_iface)) {
-		printf("kue%d: getting interface handle failed\n",
-		    sc->kue_unit);
+		device_printf(sc->kue_dev, "getting interface handle failed\n");
 	}
 
 	/* Wait a little while for the chip to get its brains in order. */
@@ -414,7 +413,6 @@ USB_ATTACH(kue)
 	sc->kue_dev = self;
 	sc->kue_iface = uaa->iface;
 	sc->kue_udev = uaa->device;
-	sc->kue_unit = device_get_unit(self);
 
 	id = usbd_get_interface_descriptor(uaa->iface);
 
@@ -422,8 +420,7 @@ USB_ATTACH(kue)
 	for (i = 0; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
 		if (!ed) {
-			printf("kue%d: couldn't get ep %d\n",
-			    sc->kue_unit, i);
+			device_printf(sc->kue_dev, "couldn't get ep %d\n", i);
 			USB_ATTACH_ERROR_RETURN;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
@@ -461,13 +458,13 @@ USB_ATTACH(kue)
 
 	ifp = sc->kue_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("kue%d: can not if_alloc()\n", sc->kue_unit);
+		device_printf(sc->kue_dev, "can not if_alloc()\n");
 		KUE_UNLOCK(sc);
 		mtx_destroy(&sc->kue_mtx);
 		USB_ATTACH_ERROR_RETURN;
 	}
 	ifp->if_softc = sc;
-	if_initname(ifp, "kue", sc->kue_unit);
+	if_initname(ifp, "kue", device_get_unit(sc->kue_dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
 	    IFF_NEEDSGIANT;
@@ -538,8 +535,8 @@ kue_rxstart(struct ifnet *ifp)
 
 	c->ue_mbuf = usb_ether_newbuf();
 	if (c->ue_mbuf == NULL) {
-		printf("%s: no memory for rx list "
-		    "-- packet dropped!\n", device_get_nameunit(sc->kue_dev));
+		device_printf(sc->kue_dev, "no memory for rx list "
+		    "-- packet dropped!\n");
 		ifp->if_ierrors++;
 		KUE_UNLOCK(sc);
 		return;
@@ -586,7 +583,7 @@ static void kue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv,
 			return;
 		}
 		if (usbd_ratecheck(&sc->kue_rx_notice))
-			printf("kue%d: usb error on rx: %s\n", sc->kue_unit,
+			device_printf(sc->kue_dev, "usb error on rx: %s\n",
 			    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->kue_ep[KUE_ENDPT_RX]);
@@ -656,7 +653,7 @@ kue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 			KUE_UNLOCK(sc);
 			return;
 		}
-		printf("kue%d: usb error on tx: %s\n", sc->kue_unit,
+		device_printf(sc->kue_dev, "usb error on tx: %s\n",
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->kue_ep[KUE_ENDPT_TX]);
@@ -805,7 +802,7 @@ kue_init(void *xsc)
 	/* Init TX ring. */
 	if (usb_ether_tx_list_init(sc, &sc->kue_cdata,
 	    sc->kue_udev) == ENOBUFS) {
-		printf("kue%d: tx list init failed\n", sc->kue_unit);
+		device_printf(sc->kue_dev, "tx list init failed\n");
 		KUE_UNLOCK(sc);
 		return;
 	}
@@ -813,7 +810,7 @@ kue_init(void *xsc)
 	/* Init RX ring. */
 	if (usb_ether_rx_list_init(sc, &sc->kue_cdata,
 	    sc->kue_udev) == ENOBUFS) {
-		printf("kue%d: rx list init failed\n", sc->kue_unit);
+		device_printf(sc->kue_dev, "rx list init failed\n");
 		KUE_UNLOCK(sc);
 		return;
 	}
@@ -825,8 +822,8 @@ kue_init(void *xsc)
 	err = usbd_open_pipe(sc->kue_iface, sc->kue_ed[KUE_ENDPT_RX],
 	    USBD_EXCLUSIVE_USE, &sc->kue_ep[KUE_ENDPT_RX]);
 	if (err) {
-		printf("kue%d: open rx pipe failed: %s\n",
-		    sc->kue_unit, usbd_errstr(err));
+		device_printf(sc->kue_dev, "open rx pipe failed: %s\n",
+		    usbd_errstr(err));
 		KUE_UNLOCK(sc);
 		return;
 	}
@@ -834,8 +831,8 @@ kue_init(void *xsc)
 	err = usbd_open_pipe(sc->kue_iface, sc->kue_ed[KUE_ENDPT_TX],
 	    USBD_EXCLUSIVE_USE, &sc->kue_ep[KUE_ENDPT_TX]);
 	if (err) {
-		printf("kue%d: open tx pipe failed: %s\n",
-		    sc->kue_unit, usbd_errstr(err));
+		device_printf(sc->kue_dev, "open tx pipe failed: %s\n",
+		    usbd_errstr(err));
 		KUE_UNLOCK(sc);
 		return;
 	}
@@ -914,7 +911,7 @@ kue_watchdog(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	KUE_LOCK(sc);
 	ifp->if_oerrors++;
-	printf("kue%d: watchdog timeout\n", sc->kue_unit);
+	device_printf(sc->kue_dev, "watchdog timeout\n");
 
 	c = &sc->kue_cdata.ue_tx_chain[0];
 	usbd_get_xfer_status(c->ue_xfer, NULL, NULL, NULL, &stat);
@@ -945,13 +942,13 @@ kue_stop(struct kue_softc *sc)
 	if (sc->kue_ep[KUE_ENDPT_RX] != NULL) {
 		err = usbd_abort_pipe(sc->kue_ep[KUE_ENDPT_RX]);
 		if (err) {
-			printf("kue%d: abort rx pipe failed: %s\n",
-		    	sc->kue_unit, usbd_errstr(err));
+			device_printf(sc->kue_dev, "abort rx pipe failed: %s\n",
+			    usbd_errstr(err));
 		}
 		err = usbd_close_pipe(sc->kue_ep[KUE_ENDPT_RX]);
 		if (err) {
-			printf("kue%d: close rx pipe failed: %s\n",
-		    	sc->kue_unit, usbd_errstr(err));
+			device_printf(sc->kue_dev, "close rx pipe failed: %s\n",
+			    usbd_errstr(err));
 		}
 		sc->kue_ep[KUE_ENDPT_RX] = NULL;
 	}
@@ -959,13 +956,13 @@ kue_stop(struct kue_softc *sc)
 	if (sc->kue_ep[KUE_ENDPT_TX] != NULL) {
 		err = usbd_abort_pipe(sc->kue_ep[KUE_ENDPT_TX]);
 		if (err) {
-			printf("kue%d: abort tx pipe failed: %s\n",
-		    	sc->kue_unit, usbd_errstr(err));
+			device_printf(sc->kue_dev, "abort tx pipe failed: %s\n",
+			    usbd_errstr(err));
 		}
 		err = usbd_close_pipe(sc->kue_ep[KUE_ENDPT_TX]);
 		if (err) {
-			printf("kue%d: close tx pipe failed: %s\n",
-			    sc->kue_unit, usbd_errstr(err));
+			device_printf(sc->kue_dev, "close tx pipe failed: %s\n",
+			    usbd_errstr(err));
 		}
 		sc->kue_ep[KUE_ENDPT_TX] = NULL;
 	}
@@ -973,13 +970,13 @@ kue_stop(struct kue_softc *sc)
 	if (sc->kue_ep[KUE_ENDPT_INTR] != NULL) {
 		err = usbd_abort_pipe(sc->kue_ep[KUE_ENDPT_INTR]);
 		if (err) {
-			printf("kue%d: abort intr pipe failed: %s\n",
-		    	sc->kue_unit, usbd_errstr(err));
+			device_printf(sc->kue_dev, "abort intr pipe failed: %s\n",
+			    usbd_errstr(err));
 		}
 		err = usbd_close_pipe(sc->kue_ep[KUE_ENDPT_INTR]);
 		if (err) {
-			printf("kue%d: close intr pipe failed: %s\n",
-			    sc->kue_unit, usbd_errstr(err));
+			device_printf(sc->kue_dev, "close intr pipe failed: %s\n",
+			    usbd_errstr(err));
 		}
 		sc->kue_ep[KUE_ENDPT_INTR] = NULL;
 	}
