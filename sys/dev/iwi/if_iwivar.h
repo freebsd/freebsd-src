@@ -128,6 +128,7 @@ struct iwi_softc {
 	uint8_t			sc_mcast[IEEE80211_ADDR_LEN];
 	struct unrhdr		*sc_unr;
 	struct taskqueue	*sc_tq;		/* private task queue */
+	struct taskqueue	*sc_tq2;	/* reset task queue */
 #if __FreeBSD_version < 700000
 	struct proc		*sc_tqproc;
 #endif
