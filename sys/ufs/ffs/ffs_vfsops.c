@@ -115,6 +115,11 @@ static struct buf_ops ffs_ops = {
 	.bop_write =	ffs_bufwrite,
 	.bop_strategy =	ffs_geom_strategy,
 	.bop_sync =	bufsync,
+#ifdef NO_FFS_SNAPSHOT
+	.bop_bdflush =	bufbdflush,
+#else
+	.bop_bdflush =	ffs_bdflush,
+#endif
 };
 
 static const char *ffs_opts[] = { "acls", "async", "atime", "clusterr",

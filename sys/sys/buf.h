@@ -479,6 +479,10 @@ extern int	maxswzone;		/* Max KVA for swap structures */
 extern int	maxbcache;		/* Max KVA for buffer cache */
 extern int	runningbufspace;
 extern int	hibufspace;
+extern int	dirtybufthresh;
+extern int	bdwriteskip;
+extern int	dirtybufferflushes;
+extern int	altbufferflushes;
 extern int      buf_maxio;              /* nominal maximum I/O for buffer */
 extern struct	buf *buf;		/* The buffer headers. */
 extern char	*buffers;		/* The buffer contents. */
