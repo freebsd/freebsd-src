@@ -581,7 +581,6 @@ ate_set_mac(struct ate_softc *sc, u_char *eaddr)
 	WR4(sc, ETH_SA1L, (eaddr[3] << 24) | (eaddr[2] << 16) |
 	    (eaddr[1] << 8) | eaddr[0]);
 	WR4(sc, ETH_SA1H, (eaddr[5] << 8) | (eaddr[4]));
-
 }
 
 static int
