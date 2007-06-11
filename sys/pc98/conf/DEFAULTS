@@ -21,5 +21,9 @@ device		io		# I/O device
 device		uart_ns8250
 #device		uart_i8251
 
+# Default partitioning schemes
+options 	GEOM_BSD
+options 	GEOM_PC98
+
 # KSE support went from being default to a kernel option
 options 	KSE

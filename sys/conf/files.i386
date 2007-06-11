@@ -231,10 +231,6 @@ dev/syscons/scvesactl.c		optional sc vga vesa
 dev/syscons/scvgarndr.c		optional sc vga
 dev/syscons/scvtb.c		optional sc
 dev/uart/uart_cpu_i386.c	optional uart
-geom/geom_bsd.c			standard
-geom/geom_bsd_enc.c		standard
-geom/geom_mbr.c			standard
-geom/geom_mbr_enc.c		standard
 dev/acpica/acpi_if.m		standard
 i386/acpica/OsdEnvironment.c	optional acpi
 i386/acpica/acpi_machdep.c	optional acpi

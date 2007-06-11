@@ -28,10 +28,6 @@ dev/ofw/openfirm.c		standard
 dev/ofw/openfirmio.c		standard
 dev/ofw/openpromio.c		standard
 dev/uart/uart_cpu_sparc64.c	optional	uart
-geom/geom_bsd.c			standard
-geom/geom_bsd_enc.c		standard
-geom/geom_sunlabel.c		standard
-geom/geom_sunlabel_enc.c	standard
 kern/syscalls.c			optional	ktr
 libkern/ffs.c			standard
 libkern/ffsl.c			standard

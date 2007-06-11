@@ -8,3 +8,7 @@ machine		sun4v
 # Pseudo devices.
 device		mem		# Memory and kernel memory devices
 device		genclock	# Generic clock interface
+
+# Default partitioning schemes
+options 	GEOM_BSD
+options 	GEOM_SUNLABEL

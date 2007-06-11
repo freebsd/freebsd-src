@@ -15,3 +15,8 @@ device		uart_z8530
 
 # KSE support went from being default to a kernel option
 options 	KSE
+
+# Default partitioning schemes
+options 	GEOM_BSD
+options 	GEOM_SUNLABEL
+
