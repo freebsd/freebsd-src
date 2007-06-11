@@ -142,7 +142,6 @@ struct kue_softc {
 	struct kue_ether_desc	kue_desc;
 	int			kue_ed[KUE_ENDPT_MAX];
 	usbd_pipe_handle	kue_ep[KUE_ENDPT_MAX];
-	int			kue_unit;
 	int			kue_if_flags;
 	u_int16_t		kue_rxfilt;
 	u_int8_t		*kue_mcfilters;
