@@ -411,7 +411,7 @@ ad1816chan_trigger(kobj_t obj, void *data, int go)
     	struct ad1816_info *ad1816 = ch->parent;
     	int wr, reg;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	sndbuf_dma(ch->buffer, go);

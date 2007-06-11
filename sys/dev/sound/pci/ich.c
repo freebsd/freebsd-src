@@ -522,12 +522,14 @@ ichchan_trigger(kobj_t obj, void *data, int go)
 		ich_wr(sc, ch->regbase + ICH_REG_X_CR, ICH_X_CR_RPBM | ICH_X_CR_LVBIE | ICH_X_CR_IOCE, 1);
 		ICH_UNLOCK(sc);
 		break;
-
+	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
 		ICH_LOCK(sc);
 		ich_resetchan(sc, ch->num);
 		ICH_UNLOCK(sc);
 		ch->run = 0;
+		break;
+	default:
 		break;
 	}
 	return (0);

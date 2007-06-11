@@ -545,7 +545,7 @@ ds1pchan_trigger(kobj_t obj, void *data, int go)
 	struct sc_info *sc = ch->parent;
 	int stereo;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	if (go == PCMTRIG_START) {
@@ -673,7 +673,7 @@ ds1rchan_trigger(kobj_t obj, void *data, int go)
 	struct sc_info *sc = ch->parent;
 	u_int32_t x;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 	if (go == PCMTRIG_START) {
 		ch->run = 1;

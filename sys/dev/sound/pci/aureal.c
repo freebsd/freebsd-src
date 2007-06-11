@@ -339,12 +339,12 @@ auchan_trigger(kobj_t obj, void *data, int go)
 	struct au_chinfo *ch = data;
 	struct au_info *au = ch->parent;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	if (ch->dir == PCMDIR_PLAY) {
 		au_setadb(au, 0x11, (go)? 1 : 0);
-		if (!go) {
+		if (go != PCMTRIG_START) {
 			au_wr(au, 0, 0xf800, 0, 4);
 			au_wr(au, 0, 0xf804, 0, 4);
 			au_delroute(au, 0x58);

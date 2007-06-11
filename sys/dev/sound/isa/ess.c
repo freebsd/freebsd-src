@@ -611,7 +611,7 @@ esschan_trigger(kobj_t obj, void *data, int go)
 {
 	struct ess_chinfo *ch = data;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	switch (go) {

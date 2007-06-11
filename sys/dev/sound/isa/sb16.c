@@ -724,7 +724,7 @@ sb16chan_trigger(kobj_t obj, void *data, int go)
 	struct sb_chinfo *ch = data;
 	struct sb_info *sb = ch->parent;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	if (go == PCMTRIG_START)
