@@ -307,11 +307,6 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 {
 	ispsoftc_t *isp;
 	int nr, retval = ENOTTY;
-#if __FreeBSD_version < 500000  
-	int s = splcam();
-#else
-	GIANT_REQUIRED;
-#endif
 
 	isp = isplist;
 	while (isp) {
@@ -321,9 +316,6 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		isp = isp->isp_osinfo.next;
 	}
 	if (isp == NULL) {
-#if __FreeBSD_version < 500000  
-		splx(s);
-#endif
 		return (ENXIO);
 	}
 	
@@ -354,10 +346,12 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		break;
 	case ISP_FORCE_CRASH_DUMP:
 		if (IS_FC(isp)) {
+			ISP_LOCK(isp);
 			isp_freeze_loopdown(isp,
 			    "ispioctl(ISP_FORCE_CRASH_DUMP)");
 			isp_fw_dump(isp);
 			isp_reinit(isp);
+			ISP_UNLOCK(isp);
 			retval = 0;
 		}
 		break;
@@ -380,37 +374,35 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 			retval = EINVAL;
 			break;
 		}
-		/*
-		 * XXX: Current
-		 */
-		if (nr == ISP_ROLE_BOTH) {
-			isp_prt(isp, ISP_LOGERR, "dual roles not supported");
-			retval = EINVAL;
-			break;
-		}
 		*(int *)addr = isp->isp_role;
 		isp->isp_role = nr;
 		/* FALLTHROUGH */
 	case ISP_RESETHBA:
+		ISP_LOCK(isp);
 		isp_reinit(isp);
+		ISP_UNLOCK(isp);
 		retval = 0;
 		break;
 	case ISP_RESCAN:
 		if (IS_FC(isp)) {
+			ISP_LOCK(isp);
 			if (isp_fc_runstate(isp, 5 * 1000000)) {
 				retval = EIO;
 			} else {
 				retval = 0;
 			}
+			ISP_UNLOCK(isp);
 		}
 		break;
 	case ISP_FC_LIP:
 		if (IS_FC(isp)) {
+			ISP_LOCK(isp);
 			if (isp_control(isp, ISPCTL_SEND_LIP, 0)) {
 				retval = EIO;
 			} else {
 				retval = 0;
 			}
+			ISP_UNLOCK(isp);
 		}
 		break;
 	case ISP_FC_GETDINFO:
@@ -446,6 +438,7 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		sp->isp_stat_version = ISP_STATS_VERSION;
 		sp->isp_type = isp->isp_type;
 		sp->isp_revision = isp->isp_revision;
+		ISP_LOCK(isp);
 		sp->isp_stats[ISP_INTCNT] = isp->isp_intcnt;
 		sp->isp_stats[ISP_INTBOGUS] = isp->isp_intbogus;
 		sp->isp_stats[ISP_INTMBOXC] = isp->isp_intmboxc;
@@ -454,10 +447,12 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		sp->isp_stats[ISP_FPHCCMCPLT] = isp->isp_fphccmplt;
 		sp->isp_stats[ISP_RSCCHIWAT] = isp->isp_rscchiwater;
 		sp->isp_stats[ISP_FPCCHIWAT] = isp->isp_fpcchiwater;
+		ISP_UNLOCK(isp);
 		retval = 0;
 		break;
 	}
 	case ISP_CLR_STATS:
+		ISP_LOCK(isp);
 		isp->isp_intcnt = 0;
 		isp->isp_intbogus = 0;
 		isp->isp_intmboxc = 0;
@@ -466,6 +461,7 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		isp->isp_fphccmplt = 0;
 		isp->isp_rscchiwater = 0;
 		isp->isp_fpcchiwater = 0;
+		ISP_UNLOCK(isp);
 		retval = 0;
 		break;
 	case ISP_FC_GETHINFO:
@@ -487,92 +483,6 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 			hba->active_port_wwn = ISP_PORTWWN(isp);
 		}
 		retval = 0;
-		break;
-	}
-	case ISP_GET_FC_PARAM:
-	{
-		struct isp_fc_param *f = (struct isp_fc_param *) addr;
-
-		if (IS_SCSI(isp)) {
-			break;
-		}
-		f->parameter = 0;
-		if (strcmp(f->param_name, "framelength") == 0) {
-			f->parameter = FCPARAM(isp)->isp_maxfrmlen;
-			retval = 0;
-			break;
-		}
-		if (strcmp(f->param_name, "exec_throttle") == 0) {
-			f->parameter = FCPARAM(isp)->isp_execthrottle;
-			retval = 0;
-			break;
-		}
-		if (strcmp(f->param_name, "fullduplex") == 0) {
-			if (FCPARAM(isp)->isp_fwoptions & ICBOPT_FULL_DUPLEX)
-				f->parameter = 1;
-			retval = 0;
-			break;
-		}
-		if (strcmp(f->param_name, "loopid") == 0) {
-			f->parameter = FCPARAM(isp)->isp_loopid;
-			retval = 0;
-			break;
-		}
-		retval = EINVAL;
-		break;
-	}
-	case ISP_SET_FC_PARAM:
-	{
-		struct isp_fc_param *f = (struct isp_fc_param *) addr;
-		uint32_t param = f->parameter;
-
-		if (IS_SCSI(isp)) {
-			break;
-		}
-		f->parameter = 0;
-		if (strcmp(f->param_name, "framelength") == 0) {
-			if (param != 512 && param != 1024 && param != 1024) {
-				retval = EINVAL;
-				break;
-			}
-			FCPARAM(isp)->isp_maxfrmlen = param;
-			retval = 0;
-			break;
-		}
-		if (strcmp(f->param_name, "exec_throttle") == 0) {
-			if (param < 16 || param > 255) {
-				retval = EINVAL;
-				break;
-			}
-			FCPARAM(isp)->isp_execthrottle = param;
-			retval = 0;
-			break;
-		}
-		if (strcmp(f->param_name, "fullduplex") == 0) {
-			if (param != 0 && param != 1) {
-				retval = EINVAL;
-				break;
-			}
-			if (param) {
-				FCPARAM(isp)->isp_fwoptions |=
-				    ICBOPT_FULL_DUPLEX;
-			} else {
-				FCPARAM(isp)->isp_fwoptions &=
-				    ~ICBOPT_FULL_DUPLEX;
-			}
-			retval = 0;
-			break;
-		}
-		if (strcmp(f->param_name, "loopid") == 0) {
-			if (param < 0 || param > 125) {
-				retval = EINVAL;
-				break;
-			}
-			FCPARAM(isp)->isp_loopid = param;
-			retval = 0;
-			break;
-		}
-		retval = EINVAL;
 		break;
 	}
 	case ISP_TSK_MGMT:
@@ -629,7 +539,9 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 			if (needmarker) {
 				isp->isp_sendmarker |= 1;
 			}
+			ISP_LOCK(isp);
 			retval = isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
+			ISP_UNLOCK(isp);
 			if (retval)
 				retval = EIO;
 		}
@@ -638,9 +550,6 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 	default:
 		break;
 	}
-#if __FreeBSD_version < 500000  
-	splx(s);
-#endif
 	return (retval);
 }
 
