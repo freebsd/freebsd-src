@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (c) 2001
  *	Fortress Technologies, Inc.  All rights reserved.
@@ -60,6 +61,27 @@ do { \
 	if (p.rates.length != 0) \
 		printf(" Mbit]"); \
 } while (0)
+
+static const int ieee80211_htrates[16] = {
+	13,		/* IFM_IEEE80211_MCS0 */
+	26,		/* IFM_IEEE80211_MCS1 */
+	39,		/* IFM_IEEE80211_MCS2 */
+	52,		/* IFM_IEEE80211_MCS3 */
+	78,		/* IFM_IEEE80211_MCS4 */
+	104,		/* IFM_IEEE80211_MCS5 */
+	117,		/* IFM_IEEE80211_MCS6 */
+	130,		/* IFM_IEEE80211_MCS7 */
+	26,		/* IFM_IEEE80211_MCS8 */
+	52,		/* IFM_IEEE80211_MCS9 */
+	78,		/* IFM_IEEE80211_MCS10 */
+	104,		/* IFM_IEEE80211_MCS11 */
+	156,		/* IFM_IEEE80211_MCS12 */
+	208,		/* IFM_IEEE80211_MCS13 */
+	234,		/* IFM_IEEE80211_MCS14 */
+	260,		/* IFM_IEEE80211_MCS15 */
+};
+#define PRINT_HT_RATE(_sep, _r, _suf) \
+	printf("%s%.1f%s", _sep, (.5 * ieee80211_htrates[(_r) & 0xf]), _suf)
 
 static const char *auth_alg_text[]={"Open System","Shared Key","EAP"};
 #define NUM_AUTH_ALGS	(sizeof auth_alg_text / sizeof auth_alg_text[0])
@@ -553,6 +575,17 @@ static int
 ctrl_body_print(u_int16_t fc, const u_char *p)
 {
 	switch (FC_SUBTYPE(fc)) {
+	case CTRL_BAR:
+		printf("BAR");
+		if (!TTEST2(*p, CTRL_BAR_HDRLEN))
+			return 0;
+		if (!eflag)
+			printf(" RA:%s TA:%s CTL(%x) SEQ(%u) ",
+			    etheraddr_string(((const struct ctrl_bar_t *)p)->ra),
+			    etheraddr_string(((const struct ctrl_bar_t *)p)->ta),
+			    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->ctl)),
+			    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->seq)));
+		break;
 	case CTRL_PS_POLL:
 		printf("Power Save-Poll");
 		if (!TTEST2(*p, CTRL_PS_POLL_HDRLEN))
@@ -725,6 +758,13 @@ ctrl_header_print(u_int16_t fc, const u_char *p, const u_int8_t **srcp,
 		return;
 
 	switch (FC_SUBTYPE(fc)) {
+	case CTRL_BAR:
+		printf(" RA:%s TA:%s CTL(%x) SEQ(%u) ",
+		    etheraddr_string(((const struct ctrl_bar_t *)p)->ra),
+		    etheraddr_string(((const struct ctrl_bar_t *)p)->ta),
+		    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->ctl)),
+		    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->seq)));
+		break;
 	case CTRL_PS_POLL:
 		printf("BSSID:%s TA:%s ",
 		    etheraddr_string(((const struct ctrl_ps_poll_t *)p)->bssid),
@@ -767,6 +807,8 @@ extract_header_length(u_int16_t fc)
 		return MGMT_HDRLEN;
 	case T_CTRL:
 		switch (FC_SUBTYPE(fc)) {
+		case CTRL_BAR:
+			return CTRL_BAR_HDRLEN;
 		case CTRL_PS_POLL:
 			return CTRL_PS_POLL_HDRLEN;
 		case CTRL_RTS:
@@ -925,6 +967,64 @@ ieee802_11_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	return ieee802_11_print(p, h->len, h->caplen);
 }
 
+#define	IEEE80211_CHAN_FHSS \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_GFSK)
+#define	IEEE80211_CHAN_A \
+	(IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM)
+#define	IEEE80211_CHAN_B \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK)
+#define	IEEE80211_CHAN_PUREG \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_OFDM)
+#define	IEEE80211_CHAN_G \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN)
+
+#define	IS_CHAN_FHSS(flags) \
+	((flags & IEEE80211_CHAN_FHSS) == IEEE80211_CHAN_FHSS)
+#define	IS_CHAN_A(flags) \
+	((flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)
+#define	IS_CHAN_B(flags) \
+	((flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)
+#define	IS_CHAN_PUREG(flags) \
+	((flags & IEEE80211_CHAN_PUREG) == IEEE80211_CHAN_PUREG)
+#define	IS_CHAN_G(flags) \
+	((flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)
+#define	IS_CHAN_ANYG(flags) \
+	(IS_CHAN_PUREG(flags) || IS_CHAN_G(flags))
+
+static void
+print_chaninfo(int freq, int flags)
+{
+	printf("%u MHz", freq);
+	if (IS_CHAN_FHSS(flags))
+		printf(" FHSS");
+	if (IS_CHAN_A(flags)) {
+		if (flags & IEEE80211_CHAN_HALF)
+			printf(" 11a/10Mhz");
+		else if (flags & IEEE80211_CHAN_QUARTER)
+			printf(" 11a/5Mhz");
+		else
+			printf(" 11a");
+	}
+	if (IS_CHAN_ANYG(flags)) {
+		if (flags & IEEE80211_CHAN_HALF)
+			printf(" 11g/10Mhz");
+		else if (flags & IEEE80211_CHAN_QUARTER)
+			printf(" 11g/5Mhz");
+		else
+			printf(" 11g");
+	} else if (IS_CHAN_B(flags))
+		printf(" 11b");
+	if (flags & IEEE80211_CHAN_TURBO)
+		printf(" Turbo");
+	if (flags & IEEE80211_CHAN_HT20)
+		printf(" ht/20");
+	else if (flags & IEEE80211_CHAN_HT40D)
+		printf(" ht/40-");
+	else if (flags & IEEE80211_CHAN_HT40U)
+		printf(" ht/40+");
+	printf(" ");
+}
+
 static int
 print_radiotap_field(struct cpack_state *s, u_int32_t bit)
 {
@@ -935,7 +1035,7 @@ print_radiotap_field(struct cpack_state *s, u_int32_t bit)
 		u_int16_t	u16;
 		u_int32_t	u32;
 		u_int64_t	u64;
-	} u, u2;
+	} u, u2, u3, u4;
 	int rc;
 
 	switch (bit) {
@@ -970,6 +1070,18 @@ print_radiotap_field(struct cpack_state *s, u_int32_t bit)
 	case IEEE80211_RADIOTAP_TSFT:
 		rc = cpack_uint64(s, &u.u64);
 		break;
+	case IEEE80211_RADIOTAP_XCHANNEL:
+		rc = cpack_uint32(s, &u.u32);
+		if (rc != 0)
+			break;
+		rc = cpack_uint16(s, &u2.u16);
+		if (rc != 0)
+			break;
+		rc = cpack_uint8(s, &u3.u8);
+		if (rc != 0)
+			break;
+		rc = cpack_uint8(s, &u4.u8);
+		break;
 	default:
 		/* this bit indicates a field whose
 		 * size we do not know, so we cannot
@@ -986,15 +1098,16 @@ print_radiotap_field(struct cpack_state *s, u_int32_t bit)
 
 	switch (bit) {
 	case IEEE80211_RADIOTAP_CHANNEL:
-		printf("%u MHz ", u.u16);
-		if (u2.u16 != 0)
-			printf("(0x%04x) ", u2.u16);
+		print_chaninfo(u.u16, u2.u16);
 		break;
 	case IEEE80211_RADIOTAP_FHSS:
 		printf("fhset %d fhpat %d ", u.u16 & 0xff, (u.u16 >> 8) & 0xff);
 		break;
 	case IEEE80211_RADIOTAP_RATE:
-		PRINT_RATE("", u.u8, " Mb/s ");
+		if (u.u8 & 0x80)
+			PRINT_RATE("", u.u8, " Mb/s ");
+		else
+			PRINT_HT_RATE("", u.u8, " Mb/s ");
 		break;
 	case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
 		printf("%ddB signal ", u.i8);
@@ -1029,12 +1142,23 @@ print_radiotap_field(struct cpack_state *s, u_int32_t bit)
 			printf("wep ");
 		if (u.u8 & IEEE80211_RADIOTAP_F_FRAG)
 			printf("fragmented ");
+#if 0
+		if (u.u8 & IEEE80211_RADIOTAP_F_FCS)
+			printf("fcs ");
+		if (u.u8 & IEEE80211_RADIOTAP_F_DATAPAD)
+			printf("datapad ");
+#endif
+		if (u.u8 & IEEE80211_RADIOTAP_F_BADFCS)
+			printf("badfcs ");
 		break;
 	case IEEE80211_RADIOTAP_ANTENNA:
 		printf("antenna %d ", u.u8);
 		break;
 	case IEEE80211_RADIOTAP_TSFT:
 		printf("%" PRIu64 "us tsft ", u.u64);
+		break;
+	case IEEE80211_RADIOTAP_XCHANNEL:
+		print_chaninfo(u2.u16, u.u32);
 		break;
 	}
 	return 0;
