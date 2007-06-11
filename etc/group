@@ -11,6 +11,7 @@ bin:*:7:
 news:*:8:
 man:*:9:
 games:*:13:
+ftp:*:14:
 staff:*:20:
 sshd:*:22:
 smmsp:*:25:

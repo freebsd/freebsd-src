@@ -49,8 +49,8 @@
 /* These change if we want to use different defaults */
 
 #define FTP_UID		14
-#define FTP_GID		5
-#define FTP_GROUP	"operator"
+#define FTP_GID		14
+#define FTP_GROUP	"ftp"
 #define FTP_UPLOAD	"incoming"
 #define FTP_COMMENT	"Anonymous FTP Admin"
 #define FTP_HOMEDIR	"/var/ftp"
@@ -148,7 +148,7 @@ createFtpUser(void)
     else if (!getgrgid(gid)) {
 	/* group does not exist, create it by number */
 	
-	tptr = msgGetInput("14", "What group name to use for gid %d ?", gid);
+	tptr = msgGetInput("ftp", "What group name to use for gid %d ?", gid);
 	if (tptr && *tptr) {
 	    SAFE_STRCPY(tconf.group, tptr);
 	    if ((tgrp = getgrnam(tconf.group))) {
