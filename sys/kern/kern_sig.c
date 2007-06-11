@@ -2296,8 +2296,10 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		MPASS(action == SIG_DFL);
 
 		if (prop & SA_STOP) {
-			if (p->p_flag & P_PPWAIT)
+			if (p->p_flag & P_PPWAIT) {
+				PROC_SUNLOCK(p);
 				goto out;
+			}
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xstat = sig;
 			sig_suspend_threads(td, p, 1);
