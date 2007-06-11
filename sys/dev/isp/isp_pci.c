@@ -1712,11 +1712,15 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 
 	hlim = BUS_SPACE_MAXADDR;
 	if (IS_ULTRA2(isp) || IS_FC(isp) || IS_1240(isp)) {
-		slim = (bus_size_t) (1ULL << 32);
+		if (sizeof (bus_size_t) > 4) {
+			slim = (bus_size_t) (1ULL << 32);
+		} else {
+			slim = (bus_size_t) (1UL << 31);
+		}
 		llim = BUS_SPACE_MAXADDR;
 	} else {
 		llim = BUS_SPACE_MAXADDR_32BIT;
-		slim = (1 << 24);
+		slim = (1UL << 24);
 	}
 
 	len = isp->isp_maxcmds * sizeof (struct isp_pcmd);
