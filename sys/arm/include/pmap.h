@@ -521,6 +521,7 @@ void	pmap_devmap_register(const struct pmap_devmap *);
 #define SECTION_CACHE	0x1
 #define SECTION_PT	0x2
 void	pmap_kenter_section(vm_offset_t, vm_paddr_t, int flags);
+void	pmap_kenter_supersection(vm_offset_t, uint64_t, int flags);
 
 extern char *_tmppt;
 

@@ -613,11 +613,9 @@ pmap_pte_init_xscale(void)
 	 * is significantly faster than the traditional, write-through
 	 * behavior of this case.
 	 */
-#ifndef CPU_XSCALE_CORE3
 	pte_l1_s_cache_mode |= L1_S_XSCALE_TEX(TEX_XSCALE_X);
 	pte_l2_l_cache_mode |= L2_XSCALE_L_TEX(TEX_XSCALE_X);
 	pte_l2_s_cache_mode |= L2_XSCALE_T_TEX(TEX_XSCALE_X);
-#endif
 #endif /* XSCALE_CACHE_READ_WRITE_ALLOCATE */
 #ifdef XSCALE_CACHE_WRITE_THROUGH
 	/*
@@ -2819,6 +2817,34 @@ pmap_remove_pages(pmap_t pmap)
 /***************************************************
  * Low level mapping routines.....
  ***************************************************/
+
+/* Map a super section into the KVA. */
+
+void
+pmap_kenter_supersection(vm_offset_t va, uint64_t pa, int flags)
+{
+	pd_entry_t pd = L1_S_PROTO | L1_S_SUPERSEC | (pa & L1_SUP_OFFSET) |
+	    (((pa >> 32) & 0x8) << 20) | L1_S_PROT(PTE_KERNEL,
+	    VM_PROT_READ|VM_PROT_WRITE) | L1_S_DOM(PMAP_DOMAIN_KERNEL);
+	struct l1_ttable *l1;	
+	vm_offset_t va_end;
+
+	KASSERT(((va | pa) & L1_SUP_OFFSET) == 0,
+	    ("Not a valid section mapping"));
+	if (flags & SECTION_CACHE)
+		pd |= pte_l1_s_cache_mode;
+	else if (flags & SECTION_PT)
+		pd |= pte_l1_s_cache_mode_pt;
+	va = va & L1_SUP_OFFSET;
+	va_end = va + L1_SUP_SIZE;
+	SLIST_FOREACH(l1, &l1_list, l1_link) {
+		for (; va < va_end; va += L1_S_SIZE) {
+			l1->l1_kva[L1_IDX(va)] = pd;
+			PTE_SYNC(&l1->l1_kva[L1_IDX(va)]);
+		}
+	}
+
+}
 
 /* Map a section into the KVA. */
 
