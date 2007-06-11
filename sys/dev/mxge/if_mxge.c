@@ -130,6 +130,9 @@ MODULE_DEPEND(mxge, firmware, 1, 1, 1);
 
 static int mxge_load_firmware(mxge_softc_t *sc);
 static int mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data);
+static int mxge_close(mxge_softc_t *sc);
+static int mxge_open(mxge_softc_t *sc);
+static void mxge_tick(void *arg);
 
 static int
 mxge_probe(device_t dev)
@@ -1235,6 +1238,36 @@ mxge_change_flow_control(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+mxge_change_lro(SYSCTL_HANDLER_ARGS)
+{
+	mxge_softc_t *sc;
+	unsigned int lro_cnt;
+	int err;
+
+	sc = arg1;
+	lro_cnt = sc->lro_cnt;
+	err = sysctl_handle_int(oidp, &lro_cnt, arg2, req);
+	if (err != 0)
+		return err;
+
+	if (lro_cnt == sc->lro_cnt)
+		return 0;
+
+	if (lro_cnt > 128)
+		return EINVAL;
+
+	mtx_lock(&sc->driver_mtx);
+	sc->lro_cnt = lro_cnt;
+	callout_stop(&sc->co_hdl);
+	mxge_close(sc);
+	err = mxge_open(sc);
+	if (err == 0)
+		callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
+	mtx_unlock(&sc->driver_mtx);
+	return err;
+}
+
+static int
 mxge_handle_be32(SYSCTL_HANDLER_ARGS)
 {
         int err;
@@ -1432,9 +1465,11 @@ mxge_add_sysctls(mxge_softc_t *sc)
 		       0, "verbose printing");
 
 	/* lro */
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		       "lro_cnt", CTLFLAG_RD, &sc->lro_cnt,
-		       0, "number of lro merge queues");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+			"lro_cnt",
+			CTLTYPE_INT|CTLFLAG_RW, sc,
+			0, mxge_change_lro,
+			"I", "number of lro merge queues");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "lro_flushed", CTLFLAG_RD, &sc->lro_flushed,
@@ -3400,7 +3435,6 @@ mxge_detach(device_t dev)
 		pci_release_msi(dev);
 
 	sc->rx_done.entry = NULL;
-	mxge_dma_free(&sc->rx_done.dma);
 	mxge_dma_free(&sc->fw_stats_dma);
 	mxge_dma_free(&sc->dmabench_dma);
 	mxge_dma_free(&sc->zeropad_dma);
