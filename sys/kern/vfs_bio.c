@@ -941,9 +941,11 @@ bdwrite(struct buf *bp)
 	 */
 	vp = bp->b_vp;
 	bo = bp->b_bufobj;
-	if ((td->td_pflags & TDP_COWINPROGRESS) == 0)
+	if ((td->td_pflags & (TDP_COWINPROGRESS|TDP_INBDFLUSH)) == 0) {
+		td->td_pflags |= TDP_INBDFLUSH;
 		BO_BDFLUSH(bo, bp);
-	else
+		td->td_pflags &= ~TDP_INBDFLUSH;
+	} else
 		recursiveflushes++;
 
 	bdirty(bp);
