@@ -208,6 +208,7 @@ struct if_data {
 #define	IFCAP_VLAN_HWCSUM	0x0080	/* can do IFCAP_HWCSUM on VLANs */
 #define	IFCAP_TSO4		0x0100	/* can do TCP Segmentation Offload */
 #define	IFCAP_TSO6		0x0200	/* can do TCP6 Segmentation Offload */
+#define	IFCAP_LRO		0x0400	/* can do Large Receive Offload */
 
 #define IFCAP_HWCSUM		(IFCAP_RXCSUM | IFCAP_TXCSUM)
 #define	IFCAP_TSO		(IFCAP_TSO4 | IFCAP_TSO6)
