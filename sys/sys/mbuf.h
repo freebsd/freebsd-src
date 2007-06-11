@@ -192,7 +192,6 @@ struct mbuf {
 #define	M_LASTFRAG	0x2000	/* packet is last fragment */
 #define	M_VLANTAG	0x10000	/* ether_vtag is valid */
 #define	M_PROMISC	0x20000	/* packet was not for us */
-#define	M_LRO		0x40000	/* packet is LRO merged and may exceed mtu */
 
 /*
  * External buffer types: identify ext_buf type.
@@ -215,7 +214,7 @@ struct mbuf {
 #define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_RDONLY|M_PROTO1|M_PROTO1|M_PROTO2|\
 			    M_PROTO3|M_PROTO4|M_PROTO5|M_SKIP_FIREWALL|\
 			    M_BCAST|M_MCAST|M_FRAG|M_FIRSTFRAG|M_LASTFRAG|\
-			    M_VLANTAG|M_PROMISC|M_LRO)
+			    M_VLANTAG|M_PROMISC)
 
 /*
  * Flags to purge when crossing layers.
