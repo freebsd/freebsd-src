@@ -721,7 +721,11 @@ dcons_modevent(module_t mode, int type, void *data)
 static int
 dcons_dbg_probe(void)
 {
-	return(DCONS_FORCE_GDB);
+	int dcons_gdb;
+
+	if (getenv_int("dcons_gdb", &dcons_gdb) == 0)
+		return (-1);
+	return (dcons_gdb);
 }
 
 static void
