@@ -147,7 +147,10 @@ model DAVICOM DM9102		0x0004 DM9102 10/100 media interface
 model xxDAVICOM DM9101		0x0000 DM9101 10/100 media interface
 
 /* Integrated Circuit Systems PHYs */
+model xxICS 1889		0x0001 ICS1889 10/100 media interface
 model xxICS 1890		0x0002 ICS1890 10/100 media interface
+model xxICS 1892		0x0003 ICS1892 10/100 media interface
+model xxICS 1893		0x0004 ICS1893 10/100 media interface
 
 /* IC Plus Corp. PHYs */
 model ICPLUS IP101		0x0005 IC Plus 10/100 PHY
