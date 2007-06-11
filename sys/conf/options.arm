@@ -8,8 +8,9 @@ COUNTS_PER_SEC		opt_timer.h
 CPU_SA1100		opt_global.h
 CPU_SA1110		opt_global.h
 CPU_ARM9		opt_global.h
-CPU_XSCALE_80321	opt_global.h
 CPU_XSCALE_80219	opt_global.h
+CPU_XSCALE_80321	opt_global.h
+CPU_XSCALE_81342	opt_global.h
 CPU_XSCALE_IXP425	opt_global.h
 FLASHADDR		opt_global.h
 KERNPHYSADDR		opt_global.h
