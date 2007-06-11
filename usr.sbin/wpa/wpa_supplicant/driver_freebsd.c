@@ -587,7 +587,7 @@ wpa_scan_result_compar(const void *a, const void *b)
 }
 
 static int
-getmaxrate(uint8_t rates[15], uint8_t nrates)
+getmaxrate(const uint8_t rates[15], uint8_t nrates)
 {
 	int i, maxrate = -1;
 
@@ -621,8 +621,8 @@ wpa_driver_bsd_get_scan_results(void *priv,
 #define	min(a,b)	((a)>(b)?(b):(a))
 	struct wpa_driver_bsd_data *drv = priv;
 	uint8_t buf[24*1024];
-	uint8_t *cp, *vp;
-	struct ieee80211req_scan_result *sr;
+	const uint8_t *cp, *vp;
+	const struct ieee80211req_scan_result *sr;
 	struct wpa_scan_result *wsr;
 	int len, ielen;
 
@@ -634,7 +634,7 @@ wpa_driver_bsd_get_scan_results(void *priv,
 	cp = buf;
 	wsr = results;
 	while (len >= sizeof(struct ieee80211req_scan_result)) {
-		sr = (struct ieee80211req_scan_result *) cp;
+		sr = (const struct ieee80211req_scan_result *) cp;
 		memcpy(wsr->bssid, sr->isr_bssid, IEEE80211_ADDR_LEN);
 		wsr->ssid_len = sr->isr_ssid_len;
 		wsr->freq = sr->isr_freq;
@@ -643,7 +643,7 @@ wpa_driver_bsd_get_scan_results(void *priv,
 		wsr->level = 0;		/* XXX? */
 		wsr->caps = sr->isr_capinfo;
 		wsr->maxrate = getmaxrate(sr->isr_rates, sr->isr_nrates);
-		vp = (u_int8_t *)(sr+1);
+		vp = ((u_int8_t *)sr) + sr->isr_ie_off;
 		memcpy(wsr->ssid, vp, sr->isr_ssid_len);
 		if (sr->isr_ie_len > 0) {
 			vp += sr->isr_ssid_len;
