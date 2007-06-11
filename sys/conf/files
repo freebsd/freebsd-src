@@ -768,6 +768,7 @@ dev/mii/e1000phy.c		optional miibus | e1000phy
 # XXX only xl cards?
 dev/mii/exphy.c			optional miibus | exphy
 dev/mii/gentbi.c		optional miibus | gentbi
+dev/mii/icsphy.c		optional miibus | icsphy
 # XXX only fxp cards?
 dev/mii/inphy.c			optional miibus | inphy
 dev/mii/ip1000phy.c		optional miibus | ip1000phy
