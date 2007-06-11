@@ -2,6 +2,7 @@
  * Copyright (c) 2004, 2005
  *      Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
  * Copyright (c) 2005-2006 Sam Leffler, Errno Consulting
+ * Copyright (c) 2007 Andrew Thompson <thompsa@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -271,11 +272,19 @@ iwi_attach(device_t dev)
 		taskqueue_thread_enqueue, &sc->sc_tq);
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
 		device_get_nameunit(dev));
+	sc->sc_tq2 = taskqueue_create("iwi_taskq2", M_NOWAIT | M_ZERO,
+		taskqueue_thread_enqueue, &sc->sc_tq2);
+	taskqueue_start_threads(&sc->sc_tq2, 1, PI_NET, "%s taskq2",
+		device_get_nameunit(dev));
 #else
 	sc->sc_tq = taskqueue_create("iwi_taskq", M_NOWAIT | M_ZERO,
 		taskqueue_thread_enqueue, &sc->sc_tq, &sc->sc_tqproc);
 	kthread_create(taskqueue_thread_loop, &sc->sc_tq, &sc->sc_tqproc,
 		0, 0, "%s taskq", device_get_nameunit(dev));
+	sc->sc_tq2 = taskqueue_create("iwi_taskq2", M_NOWAIT | M_ZERO,
+		taskqueue_thread_enqueue, &sc->sc_tq2, &sc->sc_tqproc);
+	kthread_create(taskqueue_thread_loop, &sc->sc_tq2, &sc->sc_tqproc,
+		0, 0, "%s taskq2", device_get_nameunit(dev));
 #endif
 	TASK_INIT(&sc->sc_radiontask, 0, iwi_radio_on, sc);
 	TASK_INIT(&sc->sc_radiofftask, 0, iwi_radio_off, sc);
@@ -485,6 +494,7 @@ iwi_detach(device_t dev)
 		if_free(ifp);
 
 	taskqueue_free(sc->sc_tq);
+	taskqueue_free(sc->sc_tq2);
 
 	if (sc->sc_unr != NULL)
 		delete_unrhdr(sc->sc_unr);
@@ -1624,7 +1634,7 @@ iwi_intr(void *arg)
 		device_printf(sc->sc_dev, "firmware error\n");
 		/* don't restart if the interface isn't up */
 		if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_restarttask);
+			taskqueue_enqueue(sc->sc_tq2, &sc->sc_restarttask);
 
 		sc->flags &= ~IWI_FLAG_BUSY;
 		sc->sc_busy_timer = 0;
@@ -1986,7 +1996,7 @@ iwi_watchdog(void *arg)
 		if (--sc->sc_tx_timer == 0) {
 			if_printf(ifp, "device timeout\n");
 			ifp->if_oerrors++;
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_restarttask);
+			taskqueue_enqueue(sc->sc_tq2, &sc->sc_restarttask);
 		}
 	}
 	if (sc->sc_rfkill_timer > 0) {
@@ -2006,7 +2016,7 @@ iwi_watchdog(void *arg)
 		if (--sc->sc_state_timer == 0) {
 			if_printf(ifp, "firmware stuck in state %d, resetting\n",
 			    sc->fw_state);
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_restarttask);
+			taskqueue_enqueue(sc->sc_tq2, &sc->sc_restarttask);
 			if (sc->fw_state == IWI_FW_SCANNING)
 				ieee80211_cancel_scan(&sc->sc_ic);
 			sc->sc_state_timer = 3;
@@ -2015,7 +2025,7 @@ iwi_watchdog(void *arg)
 	if (sc->sc_busy_timer > 0) {
 		if (--sc->sc_busy_timer == 0) {
 			if_printf(ifp, "firmware command timeout, resetting\n");
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_restarttask);
+			taskqueue_enqueue(sc->sc_tq2, &sc->sc_restarttask);
 		}
 	}
 
@@ -3250,6 +3260,7 @@ iwi_stop(void *priv)
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
+	memset(sc->sc_cmd, 0, sizeof(sc->sc_cmd));
 	sc->sc_tx_timer = 0;
 	sc->sc_rfkill_timer = 0;
 	sc->sc_state_timer = 0;
@@ -3571,8 +3582,10 @@ again:
 		msleep(sc, &sc->sc_mtx, 0, "iwicmd", hz/10);
 	}
 
-	if (!(sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING))
-		goto done;
+	if (!(sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		IWI_UNLOCK(sc);
+		return;
+	}
 
 	switch (cmd) {
 	case IWI_ASSOC:
@@ -3676,7 +3689,7 @@ iwi_scan_end(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwi_softc *sc = ifp->if_softc;
 
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_scanaborttask);
+	taskqueue_enqueue(sc->sc_tq2, &sc->sc_scanaborttask);
 }
 
 static void
@@ -3684,6 +3697,10 @@ iwi_assoc(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwi_softc *sc = ifp->if_softc;
+
+	/* The firmware will fail if we are already associated */
+	if (sc->flags & IWI_FLAG_ASSOCIATED)
+		iwi_disassoc(ic);
 
 	iwi_queue_cmd(sc, IWI_ASSOC);
 }
