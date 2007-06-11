@@ -43,7 +43,12 @@
 #endif
 
 /* From usb_mem.h */
-DECLARE_USB_DMA_T;
+struct usb_dma_block;
+typedef struct {
+	struct usb_dma_block *block;
+	u_int offs;
+	u_int len;
+} usb_dma_t;
 
 struct usbd_xfer;
 struct usbd_pipe;
