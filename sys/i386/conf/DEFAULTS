@@ -19,5 +19,9 @@ device		io		# I/O device
 # UART chips on this platform
 device		uart_ns8250
 
+# Default partitioning schemes
+options 	GEOM_BSD
+options 	GEOM_MBR
+
 # KSE support went from being default to a kernel option
 options 	KSE
