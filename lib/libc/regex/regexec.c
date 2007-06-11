@@ -62,12 +62,7 @@ __FBSDID("$FreeBSD$");
 static int nope __unused = 0;	/* for use in asserts; shuts lint up */
 
 static __inline size_t
-xmbrtowc(wi, s, n, mbs, dummy)
-wint_t *wi;
-const char *s;
-size_t n;
-mbstate_t *mbs;
-wint_t dummy;
+xmbrtowc(wint_t *wi, const char *s, size_t n, mbstate_t *mbs, wint_t dummy)
 {
 	size_t nr;
 	wchar_t wc;
@@ -87,12 +82,11 @@ wint_t dummy;
 }
 
 static __inline size_t
-xmbrtowc_dummy(wi, s, n, mbs, dummy)
-wint_t *wi;
-const char *s;
-size_t n __unused;
-mbstate_t *mbs __unused;
-wint_t dummy __unused;
+xmbrtowc_dummy(wint_t *wi,
+		const char *s,
+		size_t n __unused,
+		mbstate_t *mbs __unused,
+		wint_t dummy __unused)
 {
 
 	if (wi != NULL)
@@ -210,12 +204,11 @@ wint_t dummy __unused;
  * have been prototyped.
  */
 int				/* 0 success, REG_NOMATCH failure */
-regexec(preg, string, nmatch, pmatch, eflags)
-const regex_t * __restrict preg;
-const char * __restrict string;
-size_t nmatch;
-regmatch_t pmatch[__restrict];
-int eflags;
+regexec(const regex_t * __restrict preg,
+	const char * __restrict string,
+	size_t nmatch,
+	regmatch_t pmatch[__restrict],
+	int eflags)
 {
 	struct re_guts *g = preg->re_g;
 #ifdef REDEBUG
