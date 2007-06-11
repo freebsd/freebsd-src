@@ -2615,7 +2615,9 @@ ttyinfo(struct tty *tp)
 	PROC_SUNLOCK(pick);
 	PROC_LOCK(pick);
 	PGRP_UNLOCK(tp->t_pgrp);
+	PROC_SLOCK(pick);
 	calcru(pick, &utime, &stime);
+	PROC_SUNLOCK(pick);
 	pid = pick->p_pid;
 	bcopy(pick->p_comm, comm, sizeof(comm));
 	PROC_UNLOCK(pick);
