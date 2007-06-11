@@ -244,7 +244,7 @@ rtfree(struct rtentry *rt)
 	 */
 	RT_REMREF(rt);
 	if (rt->rt_refcnt > 0) {
-		printf("%s: %p has %lu refs", __func__, rt, rt->rt_refcnt);
+		printf("%s: %p has %lu refs\n", __func__, rt, rt->rt_refcnt);
 		goto done;
 	}
 
