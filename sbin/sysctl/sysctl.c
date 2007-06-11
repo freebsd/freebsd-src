@@ -327,7 +327,7 @@ S_clockinfo(int l2, void *p)
 
 	if (l2 != sizeof(*ci)) {
 		warnx("S_clockinfo %d != %d", l2, sizeof(*ci));
-		return (0);
+		return (1);
 	}
 	printf(hflag ? "{ hz = %'d, tick = %'d, profhz = %'d, stathz = %'d }" :
 		"{ hz = %d, tick = %d, profhz = %d, stathz = %d }",
@@ -342,7 +342,7 @@ S_loadavg(int l2, void *p)
 
 	if (l2 != sizeof(*tv)) {
 		warnx("S_loadavg %d != %d", l2, sizeof(*tv));
-		return (0);
+		return (1);
 	}
 	printf(hflag ? "{ %'.2f %'.2f %'.2f }" : "{ %.2f %.2f %.2f }",
 		(double)tv->ldavg[0]/(double)tv->fscale,
@@ -360,7 +360,7 @@ S_timeval(int l2, void *p)
 
 	if (l2 != sizeof(*tv)) {
 		warnx("S_timeval %d != %d", l2, sizeof(*tv));
-		return (0);
+		return (1);
 	}
 	printf(hflag ? "{ sec = %'ld, usec = %'ld } " :
 		"{ sec = %ld, usec = %ld } ",
@@ -382,7 +382,7 @@ S_vmtotal(int l2, void *p)
 
 	if (l2 != sizeof(*v)) {
 		warnx("S_vmtotal %d != %d", l2, sizeof(*v));
-		return (0);
+		return (1);
 	}
 
 	printf(
@@ -414,7 +414,7 @@ T_dev_t(int l2, void *p)
 
 	if (l2 != sizeof(*d)) {
 		warnx("T_dev_T %d != %d", l2, sizeof(*d));
-		return (0);
+		return (1);
 	}
 	if ((int)(*d) != -1) {
 		if (minor(*d) > 255 || minor(*d) < 0)
@@ -588,7 +588,7 @@ show_var(int *oid, int nlen)
 	val = oval = malloc(j + 1);
 	if (val == NULL) {
 		warnx("malloc failed");
-		return (-1);
+		return (1);
 	}
 	len = j;
 	i = sysctl(oid, nlen, val, &len, 0, 0);
