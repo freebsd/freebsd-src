@@ -55,6 +55,9 @@ struct sc_info;
 
 #define ENVY24_NAMELEN 32
 
+#define SDA_GPIO 0x10
+#define SCL_GPIO 0x20
+
 struct envy24_sample {
         volatile u_int32_t buffer;
 };
@@ -740,7 +743,7 @@ envy24_gpiosetdir(struct sc_info *sc, u_int32_t dir)
 
 /* -------------------------------------------------------------------- */
 
-/* M-Audio Delta series AK4524 access interface routine */
+/* Envy24 I2C through GPIO bit-banging */
 
 struct envy24_delta_ak4524_codec {
 	struct spicds_info *info;
@@ -749,6 +752,110 @@ struct envy24_delta_ak4524_codec {
 	int num;
 	int cs, cclk, cdti;
 };
+
+static void
+envy24_gpio_i2c_ctl(void *codec, unsigned int scl, unsigned int sda)
+{
+        u_int32_t data = 0;
+        struct envy24_delta_ak4524_codec *ptr = codec;
+#if(0)
+        device_printf(ptr->parent->dev, "--> %d, %d\n", scl, sda);
+#endif
+        data = envy24_gpiord(ptr->parent);
+        data &= ~(SDA_GPIO | SCL_GPIO);
+        if (scl) data += SCL_GPIO;
+        if (sda) data += SDA_GPIO;
+        envy24_gpiowr(ptr->parent, data);
+        return;
+}
+
+static void
+i2c_wrbit(void *codec, void (*ctrl)(void*, unsigned int, unsigned int), int bit)
+{
+        struct envy24_delta_ak4524_codec *ptr = codec;
+        unsigned int sda;
+
+        if (bit)
+                sda = 1;
+        else
+                sda = 0;
+
+        ctrl(ptr, 0, sda);
+        DELAY(I2C_DELAY);
+        ctrl(ptr, 1, sda);
+        DELAY(I2C_DELAY);
+        ctrl(ptr, 0, sda);
+        DELAY(I2C_DELAY);
+}
+
+static void
+i2c_start(void *codec, void (*ctrl)(void*, unsigned int, unsigned int))
+{
+        struct envy24_delta_ak4524_codec *ptr = codec;
+
+        ctrl(ptr, 1, 1);
+        DELAY(I2C_DELAY);
+        ctrl(ptr, 1, 0);
+        DELAY(I2C_DELAY);
+        ctrl(ptr, 0, 0);
+        DELAY(I2C_DELAY);
+}
+
+static void
+i2c_stop(void *codec, void (*ctrl)(void*, unsigned int, unsigned int))
+{
+        struct envy24_delta_ak4524_codec *ptr = codec;
+
+        ctrl(ptr, 0, 0);
+        DELAY(I2C_DELAY);
+        ctrl(ptr, 1, 0);
+        DELAY(I2C_DELAY);
+        ctrl(ptr, 1, 1);
+        DELAY(I2C_DELAY);
+}
+
+static void
+i2c_ack(void *codec, void (*ctrl)(void*, unsigned int, unsigned int))
+{
+        struct envy24_delta_ak4524_codec *ptr = codec;
+
+        ctrl(ptr, 0, 1);
+        DELAY(I2C_DELAY);
+        ctrl(ptr, 1, 1);
+        DELAY(I2C_DELAY);
+        /* dummy, need routine to change gpio direction */
+        ctrl(ptr, 0, 1);
+        DELAY(I2C_DELAY);
+}
+
+static void
+i2c_wr(void *codec,  void (*ctrl)(void*, unsigned int, unsigned int), u_int32_t dev, int reg, u_int8_t val)
+{
+        struct envy24_delta_ak4524_codec *ptr = codec;
+        int mask;
+
+        i2c_start(ptr, ctrl);
+
+        for (mask = 0x80; mask != 0; mask >>= 1)
+                i2c_wrbit(ptr, ctrl, dev & mask);
+        i2c_ack(ptr, ctrl);
+
+        if (reg != 0xff) {
+        for (mask = 0x80; mask != 0; mask >>= 1)
+                i2c_wrbit(ptr, ctrl, reg & mask);
+        i2c_ack(ptr, ctrl);
+        }
+
+        for (mask = 0x80; mask != 0; mask >>= 1)
+                i2c_wrbit(ptr, ctrl, val & mask);
+        i2c_ack(ptr, ctrl);
+
+        i2c_stop(ptr, ctrl);
+}
+
+/* -------------------------------------------------------------------- */
+
+/* M-Audio Delta series AK4524 access interface routine */
 
 static void
 envy24_delta_ak4524_ctl(void *codec, unsigned int cs, unsigned int cclk, unsigned int cdti)
@@ -859,10 +966,22 @@ envy24_delta_ak4524_init(void *codec)
 	spicds_setcif(ptr->info, ptr->parent->cfg->cif);
 	spicds_setformat(ptr->info,
 	    AK452X_FORMAT_I2S | AK452X_FORMAT_256FSN | AK452X_FORMAT_1X);
-	spicds_setdvc(ptr->info, 0);
+	spicds_setdvc(ptr->info, AK452X_DVC_DEMOFF);
 	/* for the time being, init only first codec */
 	if (ptr->num == 0)
 		spicds_init(ptr->info);
+
+        /* 6fire rear input init test, set ptr->num to 1 for test */
+        if (ptr->parent->cfg->subvendor == 0x153b && \
+                ptr->parent->cfg->subdevice == 0x1138 && ptr->num == 100) {
+                ptr->cs = 0x02;  
+                spicds_init(ptr->info);
+                device_printf(ptr->parent->dev, "6fire rear input init\n");
+                i2c_wr(ptr, envy24_gpio_i2c_ctl, \
+                        PCA9554_I2CDEV, PCA9554_DIR, 0x80);
+                i2c_wr(ptr, envy24_gpio_i2c_ctl, \
+                        PCA9554_I2CDEV, PCA9554_OUT, 0x02);
+        }
 }
 
 static void
@@ -1219,6 +1338,9 @@ envy24_route(struct sc_info *sc, int dac, int class, int adc, int rev)
 		device_printf(sc->dev, "envy24_route(): MT_RECORD-->0x%08x\n", reg);
 #endif
 		envy24_wrmt(sc, ENVY24_MT_RECORD, reg, 4);
+
+		/* 6fire rear input init test */
+		envy24_wrmt(sc, ENVY24_MT_RECORD, 0x00, 4);
 	}
 
 	return 0;
@@ -1664,6 +1786,7 @@ envy24chan_trigger(kobj_t obj, void *data, int go)
 		ch->emldma(ch);
 		break;
 	case PCMTRIG_ABORT:
+		if (ch->run) {
 #if(0)
 		device_printf(sc->dev, "envy24chan_trigger(): abort\n");
 #endif
@@ -1688,6 +1811,7 @@ envy24chan_trigger(kobj_t obj, void *data, int go)
 				envy24_updintr(sc, ch->dir);
 		}
 #endif
+		}
 		break;
 	}
 	snd_mtxunlock(sc->lock);
@@ -2411,16 +2535,15 @@ envy24_pci_attach(device_t dev)
 	mixer_init(dev, &envy24mixer_class, sc);
 
 	/* set channel information */
-	err = pcm_register(dev, sc, sc->dacn, sc->adcn);
+	err = pcm_register(dev, sc, 5, 2 + sc->adcn);
 	if (err)
 		goto bad;
-	sc->chnum = ENVY24_CHAN_PLAY_DAC1;
-	for (i = 0; i < sc->dacn; i++) {
+	sc->chnum = 0;
+	for (i = 0; i < 5; i++) {
 		pcm_addchan(dev, PCMDIR_PLAY, &envy24chan_class, sc);
 		sc->chnum++;
 	}
-	sc->chnum = ENVY24_CHAN_REC_ADC1;
-	for (i = 0; i < sc->adcn; i++) {
+	for (i = 0; i < 2 + sc->adcn; i++) {
 		pcm_addchan(dev, PCMDIR_REC, &envy24chan_class, sc);
 		sc->chnum++;
 	}

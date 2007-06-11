@@ -479,4 +479,17 @@
 /* M-Audio Delta series parameter */
 #define ENVY24_DELTA_AK4524_CIF 0
 
+#define I2C_DELAY 1000
+
+/* PCA9554 registers */
+#define PCA9554_I2CDEV          0x40    /* I2C device address */
+#define PCA9554_IN              0x00    /* input port */
+#define PCA9554_OUT             0x01    /* output port */
+#define PCA9554_INVERT          0x02    /* polarity invert */
+#define PCA9554_DIR             0x03    /* port directions */
+
+/* PCF8574 registers */
+#define PCF8574_I2CDEV_DAC      0x48
+#define PCF8574_SENSE_MASK      0x40
+
 /* end of file */

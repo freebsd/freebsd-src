@@ -88,6 +88,12 @@ spicds_wrcd(struct spicds_info *codec, int reg, u_int16_t val)
         spicds_wrbit(codec, 0);
         spicds_wrbit(codec, 1);
 	}
+	else if (codec->type == SPICDS_TYPE_AK4396)
+	{
+	/* AK4396 chip address */
+        spicds_wrbit(codec, 0);
+        spicds_wrbit(codec, 0);
+	}
 	else {
 	/* chip address */
 	spicds_wrbit(codec, 1);
@@ -229,6 +235,8 @@ spicds_init(struct spicds_info *codec)
 	spicds_wrcd(codec, 0x00, 0x07);		/* I2S, 24bit, power-up */
 	if (codec->type == SPICDS_TYPE_AK4381)
 	spicds_wrcd(codec, 0x00, 0x0f);		/* I2S, 24bit, power-up */
+	if (codec->type == SPICDS_TYPE_AK4396)
+	spicds_wrcd(codec, 0x00, 0x07);		/* I2S, 24bit, power-up */
 	snd_mtxunlock(codec->lock);
 }
 
@@ -261,7 +269,8 @@ spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int r
 #endif
 	snd_mtxlock(codec->lock);
 	if (left >= 100)
-		if (codec->type == SPICDS_TYPE_AK4381)
+		if ((codec->type == SPICDS_TYPE_AK4381) || \
+		(codec->type == SPICDS_TYPE_AK4396))
 			left = 255;
 		else
 			left = 127;
@@ -270,14 +279,15 @@ spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int r
 		case SPICDS_TYPE_WM8770:
 			left = left + 27;
 			break;
-		case SPICDS_TYPE_AK4381:
+		case SPICDS_TYPE_AK4381 || SPICDS_TYPE_AK4396:
 			left = left * 255 / 100;
 			break;
 		default:
 			left = left * 127 / 100;
 		}
 	if (right >= 100)
-		if (codec->type == SPICDS_TYPE_AK4381)
+		if ((codec->type == SPICDS_TYPE_AK4381) || \
+		(codec->type == SPICDS_TYPE_AK4396))
                         right = 255;
                 else
 			right  = 127;
@@ -286,7 +296,7 @@ spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int r
 		case SPICDS_TYPE_WM8770:
                         right = right + 27;
 			break;
-		case SPICDS_TYPE_AK4381:
+		case SPICDS_TYPE_AK4381 || SPICDS_TYPE_AK4396:
 			right = right * 255 / 100;
 			break;
                 default:   
@@ -333,6 +343,14 @@ spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int r
 #endif
                 spicds_wrcd(codec, AK4381_LOATT, left);
                 spicds_wrcd(codec, AK4381_ROATT, right);
+        }
+
+        if (dir == PCMDIR_PLAY && codec->type == SPICDS_TYPE_AK4396) {
+#if(0)
+                device_printf(codec->dev, "spicds_set(): AK4396(PLAY) %d/%d\n", left, right);
+#endif
+                spicds_wrcd(codec, AK4396_LOATT, left);
+                spicds_wrcd(codec, AK4396_ROATT, right);
         }
 
 	snd_mtxunlock(codec->lock);
