@@ -70,17 +70,20 @@ struct bufv {
 typedef void b_strategy_t(struct bufobj *, struct buf *);
 typedef int b_write_t(struct buf *);
 typedef int b_sync_t(struct bufobj *, int waitfor, struct thread *td);
+typedef void b_bdflush_t(struct bufobj *, struct buf *);
 
 struct buf_ops {
 	char		*bop_name;
 	b_write_t	*bop_write;
 	b_strategy_t	*bop_strategy;
 	b_sync_t	*bop_sync;
+	b_bdflush_t	*bop_bdflush;
 };
 
 #define BO_STRATEGY(bo, bp)	((bo)->bo_ops->bop_strategy((bo), (bp)))
 #define BO_SYNC(bo, w, td)	((bo)->bo_ops->bop_sync((bo), (w), (td)))
 #define BO_WRITE(bo, bp)	((bo)->bo_ops->bop_write((bp)))
+#define BO_BDFLUSH(bo, bp)	((bo)->bo_ops->bop_bdflush((bo), (bp)))
 
 struct bufobj {
 	struct mtx	*bo_mtx;	/* Mutex which protects "i" things */
@@ -129,6 +132,7 @@ void bufobj_wrefl(struct bufobj *bo);
 int bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag, int slptimeo);
 int bufobj_wwait(struct bufobj *bo, int slpflag, int timeo);
 int bufsync(struct bufobj *bo, int waitfor, struct thread *td);
+void bufbdflush(struct bufobj *bo, struct buf *bp);
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
 #endif /* _SYS_BUFOBJ_H_ */
