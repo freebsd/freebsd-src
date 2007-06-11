@@ -795,7 +795,7 @@ emupchan_trigger(kobj_t obj, void *data, int go)
 	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	snd_mtxlock(sc->lock);
@@ -957,6 +957,9 @@ emurchan_trigger(kobj_t obj, void *data, int go)
 	struct sc_rchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 	u_int32_t val, sz;
+
+	if (!PCMTRIG_COMMON(go))
+		return 0;
 
 	switch(sc->bufsz) {
 	case 4096:

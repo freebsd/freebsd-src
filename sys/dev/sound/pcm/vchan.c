@@ -431,8 +431,7 @@ vchan_trigger(kobj_t obj, void *data, int go)
 	struct pcm_channel *c, *p;
 	int otrigger;
 
-	if (!(go == PCMTRIG_START || go == PCMTRIG_STOP ||
-	    go == PCMTRIG_ABORT) || go == ch->trigger)
+	if (!PCMTRIG_COMMON(go) || go == ch->trigger)
 		return (0);
 
 	c = ch->channel;

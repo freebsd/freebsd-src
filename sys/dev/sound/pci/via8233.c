@@ -889,6 +889,9 @@ via8233chan_trigger(kobj_t obj, void* data, int go)
 	struct via_info *via = ch->parent;
 	int pollticks;
 
+	if (!PCMTRIG_COMMON(go))
+		return (0);
+
 	snd_mtxlock(via->lock);
 	switch(go) {
 	case PCMTRIG_START:

@@ -3133,6 +3133,9 @@ hdac_channel_trigger(kobj_t obj, void *data, int go)
 	struct hdac_chan *ch = data;
 	struct hdac_softc *sc = ch->devinfo->codec->sc;
 
+	if (!PCMTRIG_COMMON(go))
+		return (0);
+
 	hdac_lock(sc);
 	switch (go) {
 	case PCMTRIG_START:

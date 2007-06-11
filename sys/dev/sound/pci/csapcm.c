@@ -569,7 +569,7 @@ csachan_trigger(kobj_t obj, void *data, int go)
 	struct csa_chinfo *ch = data;
 	struct csa_info *csa = ch->parent;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	if (go == PCMTRIG_START) {

@@ -1201,7 +1201,7 @@ msschan_trigger(kobj_t obj, void *data, int go)
 	struct mss_chinfo *ch = data;
 	struct mss_info *mss = ch->parent;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
 
 	sndbuf_dma(ch->buffer, go);

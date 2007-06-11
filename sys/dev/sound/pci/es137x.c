@@ -727,8 +727,8 @@ eschan_trigger(kobj_t obj, void *data, int go)
 	struct es_info *es = ch->parent;
 	uint32_t cnt, b = 0;
 
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
-		return (0);
+	if (!PCMTRIG_COMMON(go))
+		return 0;
 
 	ES_LOCK(es);
 	cnt = (ch->blksz / sndbuf_getbps(ch->buffer)) - 1;

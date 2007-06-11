@@ -585,9 +585,10 @@ esschan_trigger(kobj_t obj, void *data, int go)
 	struct ess_chinfo *ch = data;
 	struct ess_info *sc = ch->parent;
 
-	DEB(printf("esschan_trigger: %d\n",go));
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+	if (!PCMTRIG_COMMON(go))
 		return 0;
+
+	DEB(printf("esschan_trigger: %d\n",go));
 
 	ess_lock(sc);
 	switch (go) {
