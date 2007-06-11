@@ -340,8 +340,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	/*
 	 * Decide whether to commit the audit record by checking the error
 	 * value from the system call and using the appropriate audit mask.
-	 *
-	 * XXXAUDIT: Synchronize access to audit_nae_mask?
 	 */
 	if (ar->k_ar.ar_subj_auid == AU_DEFAUDITID)
 		aumask = &audit_nae_mask;
@@ -370,7 +368,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		break;
 
 	case AUE_AUDITON:
-		/* Convert the auditon() command to an event */
+		/* Convert the auditon() command to an event. */
 		ar->k_ar.ar_event = auditon_command_event(ar->k_ar.ar_arg_cmd);
 		break;
 	}
@@ -396,15 +394,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 
 	ar->k_ar.ar_errno = error;
 	ar->k_ar.ar_retval = retval;
-
-	/*
-	 * We might want to do some system-wide post-filtering here at some
-	 * point.
-	 */
-
-	/*
-	 * Timestamp system call end.
-	 */
 	nanotime(&ar->k_ar.ar_endtime);
 
 	/*
@@ -530,9 +519,6 @@ audit_syscall_exit(int error, struct thread *td)
 	td->td_ar = NULL;
 }
 
-/*
- * Copy audit state from an existing credential to a new credential.
- */
 void
 audit_cred_copy(struct ucred *src, struct ucred *dest)
 {
@@ -540,19 +526,12 @@ audit_cred_copy(struct ucred *src, struct ucred *dest)
 	bcopy(&src->cr_audit, &dest->cr_audit, sizeof(dest->cr_audit));
 }
 
-/*
- * Free audit state from a credential when the credential is freed.
- */
 void
 audit_cred_destroy(struct ucred *cred)
 {
 
-	bzero(&cred->cr_audit, sizeof(cred->cr_audit));
 }
 
-/*
- * Allocate audit state for a new credential.
- */
 void
 audit_cred_init(struct ucred *cred)
 {
@@ -568,6 +547,7 @@ void
 audit_cred_kproc0(struct ucred *cred)
 {
 
+	cred->cr_audit.ai_auid = AU_DEFAUDITID;
 }
 
 void
@@ -577,9 +557,6 @@ audit_cred_proc1(struct ucred *cred)
 	cred->cr_audit.ai_auid = AU_DEFAUDITID;
 }
 
-/*
- * Allocate storage for a new thread.
- */
 void
 audit_thread_alloc(struct thread *td)
 {
@@ -587,9 +564,6 @@ audit_thread_alloc(struct thread *td)
 	td->td_ar = NULL;
 }
 
-/*
- * Thread destruction.
- */
 void
 audit_thread_free(struct thread *td)
 {
