@@ -311,7 +311,7 @@ cue_getmac(struct cue_softc *sc, void *buf)
 	CUE_UNLOCK(sc);
 
 	if (err) {
-		printf("cue%d: read MAC address failed\n", sc->cue_unit);
+		device_printf(sc->cue_dev, "read MAC address failed\n");
 		return(-1);
 	}
 
@@ -394,7 +394,7 @@ cue_reset(struct cue_softc *sc)
 	USETW(req.wLength, 0);
 	err = usbd_do_request(sc->cue_udev, &req, NULL);
 	if (err)
-		printf("cue%d: reset failed\n", sc->cue_unit);
+		device_printf(sc->cue_dev, "reset failed\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -440,11 +440,9 @@ USB_ATTACH(cue)
 	sc->cue_dev = self;
 	sc->cue_iface = uaa->iface;
 	sc->cue_udev = uaa->device;
-	sc->cue_unit = device_get_unit(self);
 
 	if (usbd_set_config_no(sc->cue_udev, CUE_CONFIG_NO, 0)) {
-		printf("cue%d: getting interface handle failed\n",
-		    sc->cue_unit);
+		device_printf(sc->cue_dev, "getting interface handle failed\n");
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -454,8 +452,7 @@ USB_ATTACH(cue)
 	for (i = 0; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
 		if (!ed) {
-			printf("cue%d: couldn't get ep %d\n",
-			    sc->cue_unit, i);
+			device_printf(sc->cue_dev, "couldn't get ep %d\n", i);
 			USB_ATTACH_ERROR_RETURN;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
@@ -485,13 +482,13 @@ USB_ATTACH(cue)
 
 	ifp = sc->cue_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("cue%d: can not if_alloc()\n", sc->cue_unit);
+		device_printf(sc->cue_dev, "can not if_alloc()\n");
 		CUE_UNLOCK(sc);
 		mtx_destroy(&sc->cue_mtx);
 		USB_ATTACH_ERROR_RETURN;
 	}
 	ifp->if_softc = sc;
-	if_initname(ifp, "cue", sc->cue_unit);
+	if_initname(ifp, "cue", device_get_unit(sc->cue_dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
 	    IFF_NEEDSGIANT;
@@ -557,8 +554,8 @@ cue_rxstart(struct ifnet *ifp)
 
 	c->ue_mbuf = usb_ether_newbuf();
 	if (c->ue_mbuf == NULL) {
-		printf("%s: no memory for rx list "
-		    "-- packet dropped!\n", device_get_nameunit(sc->cue_dev));
+		device_printf(sc->cue_dev, "no memory for rx list "
+		    "-- packet dropped!\n");
 		ifp->if_ierrors++;
 		CUE_UNLOCK(sc);
 		return;
@@ -604,7 +601,7 @@ cue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 			return;
 		}
 		if (usbd_ratecheck(&sc->cue_rx_notice))
-			printf("cue%d: usb error on rx: %s\n", sc->cue_unit,
+			device_printf(sc->cue_dev, "usb error on rx: %s\n",
 			    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->cue_ep[CUE_ENDPT_RX]);
@@ -668,7 +665,7 @@ cue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 			CUE_UNLOCK(sc);
 			return;
 		}
-		printf("cue%d: usb error on tx: %s\n", sc->cue_unit,
+		device_printf(sc->cue_dev, "usb error on tx: %s\n",
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->cue_ep[CUE_ENDPT_TX]);
@@ -844,7 +841,7 @@ cue_init(void *xsc)
 	/* Init TX ring. */
 	if (usb_ether_tx_list_init(sc, &sc->cue_cdata,
 	    sc->cue_udev) == ENOBUFS) {
-		printf("cue%d: tx list init failed\n", sc->cue_unit);
+		device_printf(sc->cue_dev, "tx list init failed\n");
 		CUE_UNLOCK(sc);
 		return;
 	}
@@ -852,7 +849,7 @@ cue_init(void *xsc)
 	/* Init RX ring. */
 	if (usb_ether_rx_list_init(sc, &sc->cue_cdata,
 	    sc->cue_udev) == ENOBUFS) {
-		printf("cue%d: rx list init failed\n", sc->cue_unit);
+		device_printf(sc->cue_dev, "rx list init failed\n");
 		CUE_UNLOCK(sc);
 		return;
 	}
@@ -878,16 +875,16 @@ cue_init(void *xsc)
 	err = usbd_open_pipe(sc->cue_iface, sc->cue_ed[CUE_ENDPT_RX],
 	    USBD_EXCLUSIVE_USE, &sc->cue_ep[CUE_ENDPT_RX]);
 	if (err) {
-		printf("cue%d: open rx pipe failed: %s\n",
-		    sc->cue_unit, usbd_errstr(err));
+		device_printf(sc->cue_dev, "open rx pipe failed: %s\n",
+		    usbd_errstr(err));
 		CUE_UNLOCK(sc);
 		return;
 	}
 	err = usbd_open_pipe(sc->cue_iface, sc->cue_ed[CUE_ENDPT_TX],
 	    USBD_EXCLUSIVE_USE, &sc->cue_ep[CUE_ENDPT_TX]);
 	if (err) {
-		printf("cue%d: open tx pipe failed: %s\n",
-		    sc->cue_unit, usbd_errstr(err));
+		device_printf(sc->cue_dev, "open tx pipe failed: %s\n",
+		    usbd_errstr(err));
 		CUE_UNLOCK(sc);
 		return;
 	}
@@ -967,7 +964,7 @@ cue_watchdog(struct ifnet *ifp)
 	CUE_LOCK(sc);
 
 	ifp->if_oerrors++;
-	printf("cue%d: watchdog timeout\n", sc->cue_unit);
+	device_printf(sc->cue_dev, "watchdog timeout\n");
 
 	c = &sc->cue_cdata.ue_tx_chain[0];
 	usbd_get_xfer_status(c->ue_xfer, NULL, NULL, NULL, &stat);
@@ -1003,13 +1000,13 @@ cue_stop(struct cue_softc *sc)
 	if (sc->cue_ep[CUE_ENDPT_RX] != NULL) {
 		err = usbd_abort_pipe(sc->cue_ep[CUE_ENDPT_RX]);
 		if (err) {
-			printf("cue%d: abort rx pipe failed: %s\n",
-		    	sc->cue_unit, usbd_errstr(err));
+			device_printf(sc->cue_dev, "abort rx pipe failed: %s\n",
+		    	usbd_errstr(err));
 		}
 		err = usbd_close_pipe(sc->cue_ep[CUE_ENDPT_RX]);
 		if (err) {
-			printf("cue%d: close rx pipe failed: %s\n",
-		    	sc->cue_unit, usbd_errstr(err));
+			device_printf(sc->cue_dev, "close rx pipe failed: %s\n",
+		    	usbd_errstr(err));
 		}
 		sc->cue_ep[CUE_ENDPT_RX] = NULL;
 	}
@@ -1017,13 +1014,13 @@ cue_stop(struct cue_softc *sc)
 	if (sc->cue_ep[CUE_ENDPT_TX] != NULL) {
 		err = usbd_abort_pipe(sc->cue_ep[CUE_ENDPT_TX]);
 		if (err) {
-			printf("cue%d: abort tx pipe failed: %s\n",
-		    	sc->cue_unit, usbd_errstr(err));
+			device_printf(sc->cue_dev, "abort tx pipe failed: %s\n",
+		    	usbd_errstr(err));
 		}
 		err = usbd_close_pipe(sc->cue_ep[CUE_ENDPT_TX]);
 		if (err) {
-			printf("cue%d: close tx pipe failed: %s\n",
-			    sc->cue_unit, usbd_errstr(err));
+			device_printf(sc->cue_dev, "close tx pipe failed: %s\n",
+			    usbd_errstr(err));
 		}
 		sc->cue_ep[CUE_ENDPT_TX] = NULL;
 	}
@@ -1031,13 +1028,13 @@ cue_stop(struct cue_softc *sc)
 	if (sc->cue_ep[CUE_ENDPT_INTR] != NULL) {
 		err = usbd_abort_pipe(sc->cue_ep[CUE_ENDPT_INTR]);
 		if (err) {
-			printf("cue%d: abort intr pipe failed: %s\n",
-		    	sc->cue_unit, usbd_errstr(err));
+			device_printf(sc->cue_dev, "abort intr pipe failed: %s\n",
+		    	usbd_errstr(err));
 		}
 		err = usbd_close_pipe(sc->cue_ep[CUE_ENDPT_INTR]);
 		if (err) {
-			printf("cue%d: close intr pipe failed: %s\n",
-			    sc->cue_unit, usbd_errstr(err));
+			device_printf(sc->cue_dev, "close intr pipe failed: %s\n",
+			    usbd_errstr(err));
 		}
 		sc->cue_ep[CUE_ENDPT_INTR] = NULL;
 	}

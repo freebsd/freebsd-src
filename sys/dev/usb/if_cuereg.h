@@ -148,7 +148,6 @@ struct cue_softc {
 	usbd_interface_handle	cue_iface;
 	int			cue_ed[CUE_ENDPT_MAX];
 	usbd_pipe_handle	cue_ep[CUE_ENDPT_MAX];
-	int			cue_unit;
 	u_int8_t		cue_mctab[CUE_MCAST_TABLE_LEN];
 	int			cue_if_flags;
 	u_int16_t		cue_rxfilt;
