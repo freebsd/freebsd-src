@@ -542,7 +542,8 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
-	if (m->m_pkthdr.len >
+	if ((m->m_flags & M_LRO) == 0 &&
+	    m->m_pkthdr.len >
 	    ETHER_MAX_FRAME(ifp, etype, m->m_flags & M_HASFCS)) {
 		if_printf(ifp, "discard oversize frame "
 				"(ether type %x flags %x len %u > max %lu)\n",
