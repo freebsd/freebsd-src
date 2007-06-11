@@ -140,6 +140,12 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  * presented to the translation logic.
  */
 
+/* ARMv6 super-sections. */
+#define L1_SUP_SIZE	0x01000000	/* 16M */
+#define L1_SUP_OFFSET	(L1_SUP_SIZE - 1)
+#define L1_SUP_FRAME	(~L1_SUP_OFFSET)
+#define L1_SUP_SHIFT	24
+
 #define	L1_S_SIZE	0x00100000	/* 1M */
 #define	L1_S_OFFSET	(L1_S_SIZE - 1)
 #define	L1_S_FRAME	(~L1_S_OFFSET)
@@ -199,9 +205,12 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
 #define	L1_S_DOM_MASK	L1_S_DOM(0xf)
 #define	L1_S_AP(x)	((x) << 10)	/* access permissions */
 #define	L1_S_ADDR_MASK	0xfff00000	/* phys address of section */
+#define L1_SHARED	(1 << 16)
 
 #define	L1_S_XSCALE_P	0x00000200	/* ECC enable for this section */
 #define	L1_S_XSCALE_TEX(x) ((x) << 12)	/* Type Extension */
+
+#define L1_S_SUPERSEC	((1) << 18)	/* Section is a super-section. */
 
 /* L1 Coarse Descriptor */
 #define	L1_C_IMP0	0x00000004	/* implementation defined */
@@ -250,6 +259,7 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
 #define	L2_AP(x)	(L2_AP0(x) | L2_AP1(x) | L2_AP2(x) | L2_AP3(x))
 
 #define	L2_XSCALE_L_TEX(x) ((x) << 12)	/* Type Extension */
+#define L2_XSCALE_L_S(x)   (1 << 15)	/* Shared */
 #define	L2_XSCALE_T_TEX(x) ((x) << 6)	/* Type Extension */
 
 /*
@@ -296,6 +306,64 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  * 1 1      Y          Y        Write-back       R/W Allocate
  */
 #define	TEX_XSCALE_X	0x01		/* X modifies C and B */
+#define TEX_XSCALE_E	0x02
+#define TEX_XSCALE_T	0x04
+
+/* Xscale core 3 */
+
+/*
+ *
+ * Cache attributes with L2 present, S = 0
+ * T E X C B   L1 i-cache L1 d-cache L1 DC WP  L2 cacheable write coalesce
+ * 0 0 0 0 0 	N	  N 		- 	N		N 
+ * 0 0 0 0 1	N	  N		-	N		Y
+ * 0 0 0 1 0	Y	  Y		WT	N		Y
+ * 0 0 0 1 1	Y	  Y		WB	Y		Y
+ * 0 0 1 0 0	N	  N		-	Y		Y
+ * 0 0 1 0 1	N	  N		-	N		N
+ * 0 0 1 1 0	Y	  Y		-	-		N
+ * 0 0 1 1 1	Y	  Y		WT	Y		Y
+ * 0 1 0 0 0	N	  N		-	N		N
+ * 0 1 0 0 1	N/A	N/A		N/A	N/A		N/A
+ * 0 1 0 1 0	N/A	N/A		N/A	N/A		N/A
+ * 0 1 0 1 1	N/A	N/A		N/A	N/A		N/A
+ * 0 1 1 X X	N/A	N/A		N/A	N/A		N/A
+ * 1 X 0 0 0	N	  N		-	N		Y
+ * 1 X 0 0 1	Y	  N		-	N		Y
+ * 1 X 0 1 0	Y	  N		-	N		Y
+ * 1 X 0 1 1	Y	  N		-	Y		Y
+ * 1 X 1 0 0	N	  N		-	Y		Y
+ * 1 X 1 0 1	Y	  Y		WT	Y		Y
+ * 1 X 1 1 0	Y	  Y		WT	Y		Y
+ * 1 X 1 1 1	Y	  Y		WT	Y		Y
+ *
+ *
+ *
+ *
+  * Cache attributes with L2 present, S = 1
+ * T E X C B   L1 i-cache L1 d-cache L1 DC WP  L2 cacheable write coalesce
+ * 0 0 0 0 0 	N	  N 		- 	N		N 
+ * 0 0 0 0 1	N	  N		-	N		Y
+ * 0 0 0 1 0	Y	  Y		-	N		Y
+ * 0 0 0 1 1	Y	  Y		WT	Y		Y
+ * 0 0 1 0 0	N	  N		-	Y		Y
+ * 0 0 1 0 1	N	  N		-	N		N
+ * 0 0 1 1 0	Y	  Y		-	-		N
+ * 0 0 1 1 1	Y	  Y		WT	Y		Y
+ * 0 1 0 0 0	N	  N		-	N		N
+ * 0 1 0 0 1	N/A	N/A		N/A	N/A		N/A
+ * 0 1 0 1 0	N/A	N/A		N/A	N/A		N/A
+ * 0 1 0 1 1	N/A	N/A		N/A	N/A		N/A
+ * 0 1 1 X X	N/A	N/A		N/A	N/A		N/A
+ * 1 X 0 0 0	N	  N		-	N		Y
+ * 1 X 0 0 1	Y	  N		-	N		Y
+ * 1 X 0 1 0	Y	  N		-	N		Y
+ * 1 X 0 1 1	Y	  N		-	Y		Y
+ * 1 X 1 0 0	N	  N		-	Y		Y
+ * 1 X 1 0 1	Y	  Y		WT	Y		Y
+ * 1 X 1 1 0	Y	  Y		WT	Y		Y
+ * 1 X 1 1 1	Y	  Y		WT	Y		Y
+ */
 #endif /* !_MACHINE_PTE_H_ */
 
 /* End of pte.h */
