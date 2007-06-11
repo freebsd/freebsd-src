@@ -163,6 +163,7 @@ static int mapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
 static int readblock(struct vnode *vp, struct buf *, ufs2_daddr_t);
 static void process_deferred_inactive(struct mount *);
 static void try_free_snapdata(struct vnode *devvp, struct thread *td);
+static int ffs_bp_snapblk(struct vnode *, struct buf *);
 
 /*
  * To ensure the consistency of snapshots across crashes, we must
@@ -2063,6 +2064,119 @@ ffs_snapshot_unmount(mp)
 	}
 	try_free_snapdata(devvp, td);
 	ASSERT_VOP_LOCKED(devvp, "ffs_snapshot_unmount");
+}
+
+/*
+ * Check the buffer block to be belong to device buffer that shall be
+ * locked after snaplk. devvp shall be locked on entry, and will be
+ * leaved locked upon exit.
+ */
+static int
+ffs_bp_snapblk(devvp, bp)
+	struct vnode *devvp;
+	struct buf *bp;
+{
+	struct snapdata *sn;
+	struct fs *fs;
+	ufs2_daddr_t lbn, *snapblklist;
+	int lower, upper, mid;
+
+	ASSERT_VI_LOCKED(devvp, "ffs_bp_snapblk");
+	KASSERT(devvp->v_type == VCHR, ("Not a device %p", devvp));
+	sn = devvp->v_rdev->si_snapdata;
+	if (sn == NULL || TAILQ_FIRST(&sn->sn_head) == NULL)
+		return (0);
+	fs = TAILQ_FIRST(&sn->sn_head)->i_fs;
+	lbn = fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
+	snapblklist = sn->sn_blklist;
+	upper = sn->sn_listsize - 1;
+	lower = 1;
+	while (lower <= upper) {
+		mid = (lower + upper) / 2;
+		if (snapblklist[mid] == lbn)
+			break;
+		if (snapblklist[mid] < lbn)
+			lower = mid + 1;
+		else
+			upper = mid - 1;
+	}
+	if (lower <= upper)
+		return (1);
+	return (0);
+}
+
+void
+ffs_bdflush(bo, bp)
+	struct bufobj *bo;
+	struct buf *bp;
+{
+	struct thread *td;
+	struct vnode *vp, *devvp;
+	struct buf *nbp;
+	int bp_bdskip;
+
+	if (bo->bo_dirty.bv_cnt <= dirtybufthresh)
+		return;
+
+	td = curthread;
+	vp = bp->b_vp;
+	devvp = bo->__bo_vnode;
+	KASSERT(vp == devvp, ("devvp != vp %p %p", bo, bp));
+
+	VI_LOCK(devvp);
+	bp_bdskip = ffs_bp_snapblk(devvp, bp);
+	if (bp_bdskip)
+		bdwriteskip++;
+	VI_UNLOCK(devvp);
+	if (bo->bo_dirty.bv_cnt > dirtybufthresh + 10 && !bp_bdskip) {
+		(void) VOP_FSYNC(vp, MNT_NOWAIT, td);
+		altbufferflushes++;
+	} else {
+		BO_LOCK(bo);
+		/*
+		 * Try to find a buffer to flush.
+		 */
+		TAILQ_FOREACH(nbp, &bo->bo_dirty.bv_hd, b_bobufs) {
+			if ((nbp->b_vflags & BV_BKGRDINPROG) ||
+			    BUF_LOCK(nbp,
+				     LK_EXCLUSIVE | LK_NOWAIT, NULL))
+				continue;
+			if (bp == nbp)
+				panic("bdwrite: found ourselves");
+			BO_UNLOCK(bo);
+			/*
+			 * Don't countdeps with the bo lock
+			 * held.
+			 */
+			if (buf_countdeps(nbp, 0)) {
+				BO_LOCK(bo);
+				BUF_UNLOCK(nbp);
+				continue;
+			}
+			if (bp_bdskip) {
+				VI_LOCK(devvp);
+				if (!ffs_bp_snapblk(vp, nbp)) {
+					if (BO_MTX(bo) != VI_MTX(vp)) {
+						VI_UNLOCK(devvp);
+						BO_LOCK(bo);
+					}
+					BUF_UNLOCK(nbp);
+					continue;
+				}
+				VI_UNLOCK(devvp);
+			}
+			if (nbp->b_flags & B_CLUSTEROK) {
+				vfs_bio_awrite(nbp);
+			} else {
+				bremfree(nbp);
+				bawrite(nbp);
+			}
+			dirtybufferflushes++;
+			break;
+		}
+		if (nbp == NULL)
+			BO_UNLOCK(bo);
+	}
 }
 
 /*

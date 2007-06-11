@@ -3129,4 +3129,5 @@ struct buf_ops buf_ops_nfs = {
 	.bop_write	=	nfs_bwrite,
 	.bop_strategy	=	bufstrategy,
 	.bop_sync	=	bufsync,
+	.bop_bdflush	=	bufbdflush,
 };

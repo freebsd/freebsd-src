@@ -80,6 +80,7 @@ struct	buf_ops buf_ops_bio = {
 	.bop_write	=	bufwrite,
 	.bop_strategy	=	bufstrategy,
 	.bop_sync	=	bufsync,
+	.bop_bdflush	=	bufbdflush,
 };
 
 /*
@@ -145,10 +146,13 @@ SYSCTL_INT(_vfs, OID_AUTO, lorunningspace, CTLFLAG_RW, &lorunningspace, 0,
 static int hirunningspace;
 SYSCTL_INT(_vfs, OID_AUTO, hirunningspace, CTLFLAG_RW, &hirunningspace, 0,
     "Maximum amount of space to use for in-progress I/O");
-static int dirtybufferflushes;
+int dirtybufferflushes;
 SYSCTL_INT(_vfs, OID_AUTO, dirtybufferflushes, CTLFLAG_RW, &dirtybufferflushes,
     0, "Number of bdwrite to bawrite conversions to limit dirty buffers");
-static int altbufferflushes;
+int bdwriteskip;
+SYSCTL_INT(_vfs, OID_AUTO, bdwriteskip, CTLFLAG_RW, &bdwriteskip,
+    0, "Number of buffers supplied to bdwrite with snapshot deadlock risk");
+int altbufferflushes;
 SYSCTL_INT(_vfs, OID_AUTO, altbufferflushes, CTLFLAG_RW, &altbufferflushes,
     0, "Number of fsync flushes to limit dirty buffers");
 static int recursiveflushes;
@@ -163,7 +167,7 @@ SYSCTL_INT(_vfs, OID_AUTO, lodirtybuffers, CTLFLAG_RW, &lodirtybuffers, 0,
 static int hidirtybuffers;
 SYSCTL_INT(_vfs, OID_AUTO, hidirtybuffers, CTLFLAG_RW, &hidirtybuffers, 0,
     "When the number of dirty buffers is considered severe");
-static int dirtybufthresh;
+int dirtybufthresh;
 SYSCTL_INT(_vfs, OID_AUTO, dirtybufthresh, CTLFLAG_RW, &dirtybufthresh,
     0, "Number of bdwrite to bawrite conversions to clear dirty buffers");
 static int numfreebuffers;
@@ -862,6 +866,47 @@ bufwrite(struct buf *bp)
 	return (0);
 }
 
+void
+bufbdflush(struct bufobj *bo, struct buf *bp)
+{
+	struct buf *nbp;
+
+	if (bo->bo_dirty.bv_cnt > dirtybufthresh + 10) {
+		(void) VOP_FSYNC(bp->b_vp, MNT_NOWAIT, curthread);
+		altbufferflushes++;
+	} else if (bo->bo_dirty.bv_cnt > dirtybufthresh) {
+		BO_LOCK(bo);
+		/*
+		 * Try to find a buffer to flush.
+		 */
+		TAILQ_FOREACH(nbp, &bo->bo_dirty.bv_hd, b_bobufs) {
+			if ((nbp->b_vflags & BV_BKGRDINPROG) ||
+			    BUF_LOCK(nbp,
+				     LK_EXCLUSIVE | LK_NOWAIT, NULL))
+				continue;
+			if (bp == nbp)
+				panic("bdwrite: found ourselves");
+			BO_UNLOCK(bo);
+			/* Don't countdeps with the bo lock held. */
+			if (buf_countdeps(nbp, 0)) {
+				BO_LOCK(bo);
+				BUF_UNLOCK(nbp);
+				continue;
+			}
+			if (nbp->b_flags & B_CLUSTEROK) {
+				vfs_bio_awrite(nbp);
+			} else {
+				bremfree(nbp);
+				bawrite(nbp);
+			}
+			dirtybufferflushes++;
+			break;
+		}
+		if (nbp == NULL)
+			BO_UNLOCK(bo);
+	}
+}
+
 /*
  * Delayed write. (Buffer is marked dirty).  Do not bother writing
  * anything if the buffer is marked invalid.
@@ -876,7 +921,6 @@ bdwrite(struct buf *bp)
 {
 	struct thread *td = curthread;
 	struct vnode *vp;
-	struct buf *nbp;
 	struct bufobj *bo;
 
 	CTR3(KTR_BUF, "bdwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
@@ -897,44 +941,9 @@ bdwrite(struct buf *bp)
 	 */
 	vp = bp->b_vp;
 	bo = bp->b_bufobj;
-	if ((td->td_pflags & TDP_COWINPROGRESS) == 0) {
-		BO_LOCK(bo);
-		if (bo->bo_dirty.bv_cnt > dirtybufthresh + 10) {
-			BO_UNLOCK(bo);
-			(void) VOP_FSYNC(vp, MNT_NOWAIT, td);
-			altbufferflushes++;
-		} else if (bo->bo_dirty.bv_cnt > dirtybufthresh) {
-			/*
-			 * Try to find a buffer to flush.
-			 */
-			TAILQ_FOREACH(nbp, &bo->bo_dirty.bv_hd, b_bobufs) {
-				if ((nbp->b_vflags & BV_BKGRDINPROG) ||
-				    BUF_LOCK(nbp,
-				    LK_EXCLUSIVE | LK_NOWAIT, NULL))
-					continue;
-				if (bp == nbp)
-					panic("bdwrite: found ourselves");
-				BO_UNLOCK(bo);
-				/* Don't countdeps with the bo lock held. */
-				if (buf_countdeps(nbp, 0)) {
-					BO_LOCK(bo);
-					BUF_UNLOCK(nbp);
-					continue;
-				}
-				if (nbp->b_flags & B_CLUSTEROK) {
-					vfs_bio_awrite(nbp);
-				} else {
-					bremfree(nbp);
-					bawrite(nbp);
-				}
-				dirtybufferflushes++;
-				break;
-			}
-			if (nbp == NULL)
-				BO_UNLOCK(bo);
-		} else
-			BO_UNLOCK(bo);
-	} else
+	if ((td->td_pflags & TDP_COWINPROGRESS) == 0)
+		BO_BDFLUSH(bo, bp);
+	else
 		recursiveflushes++;
 
 	bdirty(bp);
