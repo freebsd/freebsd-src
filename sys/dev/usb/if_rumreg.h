@@ -17,6 +17,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define RT2573_NOISE_FLOOR	-95
+
 #define RT2573_TX_DESC_SIZE	(sizeof (struct rum_tx_desc))
 #define RT2573_RX_DESC_SIZE	(sizeof (struct rum_rx_desc))
 

@@ -109,14 +109,18 @@ struct rt2560_softc {
 	struct mtx		sc_mtx;
 
 	struct callout		watchdog_ch;
-	struct callout		scan_ch;
 	struct callout		rssadapt_ch;
 
 	int			sc_tx_timer;
-
+	int                     sc_invalid;
+/*
+ * The same in both up to here
+ * ------------------------------------------------
+ */
 	uint32_t		asic_rev;
 	uint32_t		eeprom_rev;
 	uint8_t			rf_rev;
+	uint8_t			rssi_corr;
 
 	struct rt2560_tx_ring	txq;
 	struct rt2560_tx_ring	prioq;
@@ -157,12 +161,13 @@ struct rt2560_softc {
 	}			sc_txtapu;
 #define sc_txtap	sc_txtapu.th
 	int			sc_txtap_len;
+#define                 RAL_INPUT_RUNNING       1
+	int                     sc_flags;
 };
 
 int	rt2560_attach(device_t, int);
 int	rt2560_detach(void *);
-void	rt2560_shutdown(void *);
-void	rt2560_suspend(void *);
+void	rt2560_stop(void *);
 void	rt2560_resume(void *);
 void	rt2560_intr(void *);
 

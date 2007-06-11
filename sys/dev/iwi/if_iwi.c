@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
+#include <net80211/ieee80211_regdomain.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -137,7 +138,7 @@ static int	iwi_media_change(struct ifnet *);
 static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211com *, enum ieee80211_state, int);
 static void	iwi_wme_init(struct iwi_softc *);
-static void	iwi_wme_setparams(void *, int);
+static int	iwi_wme_setparams(struct iwi_softc *);
 static int	iwi_wme_update(struct ieee80211com *);
 static uint16_t	iwi_read_prom_word(struct iwi_softc *, uint8_t);
 static void	iwi_frame_intr(struct iwi_softc *, struct iwi_rx_data *, int,
@@ -151,7 +152,7 @@ static void	iwi_write_ibssnode(struct iwi_softc *, const u_int8_t [], int);
 static int	iwi_tx_start(struct ifnet *, struct mbuf *,
 		    struct ieee80211_node *, int);
 static void	iwi_start(struct ifnet *);
-static void	iwi_watchdog(struct ifnet *);
+static void	iwi_watchdog(void *);
 static int	iwi_ioctl(struct ifnet *, u_long, caddr_t);
 static void	iwi_stop_master(struct iwi_softc *);
 static int	iwi_reset(struct iwi_softc *);
@@ -161,13 +162,22 @@ static void	iwi_release_fw_dma(struct iwi_softc *sc);
 static int	iwi_config(struct iwi_softc *);
 static int	iwi_get_firmware(struct iwi_softc *);
 static void	iwi_put_firmware(struct iwi_softc *);
+static int	iwi_scanchan(struct iwi_softc *, unsigned long, int);
+static void	iwi_scan_start(struct ieee80211com *);
+static void	iwi_scan_end(struct ieee80211com *);
 static void	iwi_scanabort(void *, int);
-static void	iwi_scandone(void *, int);
-static void	iwi_scanstart(void *, int);
-static void	iwi_scanchan(void *, int);
+static void	iwi_set_channel(struct ieee80211com *);
+static void	iwi_scan_curchan(struct ieee80211com *, unsigned long maxdwell);
+#if 0
+static void	iwi_scan_allchan(struct ieee80211com *, unsigned long maxdwell);
+#endif
+static void	iwi_scan_mindwell(struct ieee80211com *);
+static void     iwi_assoc(struct ieee80211com *ic);
+static void     iwi_disassoc(struct ieee80211com *);
+static void	iwi_ops(void *, int);
+static int	iwi_queue_cmd(struct iwi_softc *, int);
 static int	iwi_auth_and_assoc(struct iwi_softc *);
 static int	iwi_disassociate(struct iwi_softc *, int quiet);
-static void	iwi_down(void *, int);
 static void	iwi_init(void *);
 static void	iwi_init_locked(void *, int);
 static void	iwi_stop(void *);
@@ -247,35 +257,32 @@ iwi_attach(device_t dev)
 	struct ifnet *ifp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t val;
-	int error, i;
+	int i, error, bands;
 
 	sc->sc_dev = dev;
 
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF);
+	IWI_LOCK_INIT(sc);
+	IWI_CMD_LOCK_INIT(sc);
 
 	sc->sc_unr = new_unrhdr(1, IWI_MAX_IBSSNODE-1, &sc->sc_mtx);
 
 #if __FreeBSD_version >= 700000
-	sc->sc_tq = taskqueue_create("iwi_taskq", M_NOWAIT,
+	sc->sc_tq = taskqueue_create("iwi_taskq", M_NOWAIT | M_ZERO,
 		taskqueue_thread_enqueue, &sc->sc_tq);
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
 		device_get_nameunit(dev));
 #else
-	sc->sc_tq = taskqueue_create("iwi_taskq", M_NOWAIT,
+	sc->sc_tq = taskqueue_create("iwi_taskq", M_NOWAIT | M_ZERO,
 		taskqueue_thread_enqueue, &sc->sc_tq, &sc->sc_tqproc);
 	kthread_create(taskqueue_thread_loop, &sc->sc_tq, &sc->sc_tqproc,
 		0, 0, "%s taskq", device_get_nameunit(dev));
 #endif
 	TASK_INIT(&sc->sc_radiontask, 0, iwi_radio_on, sc);
 	TASK_INIT(&sc->sc_radiofftask, 0, iwi_radio_off, sc);
-	TASK_INIT(&sc->sc_scanstarttask, 0, iwi_scanstart, sc);
-	TASK_INIT(&sc->sc_scanaborttask, 0, iwi_scanabort, sc);
-	TASK_INIT(&sc->sc_scandonetask, 0, iwi_scandone, sc);
-	TASK_INIT(&sc->sc_scantask, 0, iwi_scanchan, sc);
-	TASK_INIT(&sc->sc_setwmetask, 0, iwi_wme_setparams, sc);
-	TASK_INIT(&sc->sc_downtask, 0, iwi_down, sc);
 	TASK_INIT(&sc->sc_restarttask, 0, iwi_restart, sc);
+	TASK_INIT(&sc->sc_opstask, 0, iwi_ops, sc);
+	TASK_INIT(&sc->sc_scanaborttask, 0, iwi_scanabort, sc);
+	callout_init_mtx(&sc->sc_wdtimer, &sc->sc_mtx, 0);
 
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 		device_printf(dev, "chip is in D%d power mode "
@@ -343,18 +350,17 @@ iwi_attach(device_t dev)
 		device_printf(dev, "can not if_alloc()\n");
 		goto fail;
 	}
+	ic->ic_ifp = ifp;
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_init = iwi_init;
 	ifp->if_ioctl = iwi_ioctl;
 	ifp->if_start = iwi_start;
-	ifp->if_watchdog = iwi_watchdog;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	ic->ic_ifp = ifp;
 	ic->ic_wme.wme_update = iwi_wme_update;
 	ic->ic_phytype = IEEE80211_T_OFDM; /* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA; /* default to BSS mode */
@@ -362,12 +368,14 @@ iwi_attach(device_t dev)
 
 	/* set device capabilities */
 	ic->ic_caps =
-	    IEEE80211_C_IBSS |		/* IBSS mode supported */
-	    IEEE80211_C_MONITOR |	/* monitor mode supported */
-	    IEEE80211_C_PMGT |		/* power save supported */
-	    IEEE80211_C_SHPREAMBLE |	/* short preamble supported */
-	    IEEE80211_C_WPA |		/* 802.11i */
-	    IEEE80211_C_WME;		/* 802.11e */
+	      IEEE80211_C_IBSS		/* IBSS mode supported */
+	    | IEEE80211_C_MONITOR	/* monitor mode supported */
+	    | IEEE80211_C_PMGT		/* power save supported */
+	    | IEEE80211_C_SHPREAMBLE	/* short preamble supported */
+	    | IEEE80211_C_WPA		/* 802.11i */
+	    | IEEE80211_C_WME		/* 802.11e */
+	    | IEEE80211_C_BGSCAN	/* capable of bg scanning */
+	    ;
 
 	/* read MAC address from EEPROM */
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 0);
@@ -379,29 +387,13 @@ iwi_attach(device_t dev)
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 2);
 	ic->ic_myaddr[4] = val & 0xff;
 	ic->ic_myaddr[5] = val >> 8;
-
-	if (pci_get_device(dev) >= 0x4223) {
-		/* set supported .11a channels */
-		for (i = 36; i <= 64; i += 4) {
-			ic->ic_channels[i].ic_freq =
-			    ieee80211_ieee2mhz(i, IEEE80211_CHAN_5GHZ);
-			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_A;
-		}
-		for (i = 149; i <= 165; i += 4) {
-			ic->ic_channels[i].ic_freq =
-			    ieee80211_ieee2mhz(i, IEEE80211_CHAN_5GHZ);
-			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_A;
-		}
-	}
-
-	/* set supported .11b and .11g channels (1 through 14) */
-	for (i = 1; i <= 14; i++) {
-		ic->ic_channels[i].ic_freq =
-		    ieee80211_ieee2mhz(i, IEEE80211_CHAN_2GHZ);
-		ic->ic_channels[i].ic_flags =
-		    IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
-		    IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
-	}
+	
+	bands = 0;
+	setbit(&bands, IEEE80211_MODE_11B);
+	setbit(&bands, IEEE80211_MODE_11G);
+	if (pci_get_device(dev) >= 0x4223) 
+		setbit(&bands, IEEE80211_MODE_11A);
+	ieee80211_init_channels(ic, 0, CTRY_DEFAULT, bands, 0, 1);
 
 	ieee80211_ifattach(ic);
 	ic->ic_bmissthreshold = 10;		/* override default */
@@ -409,6 +401,12 @@ iwi_attach(device_t dev)
 	ic->ic_node_alloc = iwi_node_alloc;
 	sc->sc_node_free = ic->ic_node_free;
 	ic->ic_node_free = iwi_node_free;
+	ic->ic_scan_start = iwi_scan_start;
+	ic->ic_scan_end = iwi_scan_end;
+	ic->ic_set_channel = iwi_set_channel;
+	ic->ic_scan_curchan = iwi_scan_curchan;
+	ic->ic_scan_mindwell = iwi_scan_mindwell;
+
 	/* override state transition machine */
 	sc->sc_newstate = ic->ic_newstate;
 	ic->ic_newstate = iwi_newstate;
@@ -454,12 +452,17 @@ iwi_detach(device_t dev)
 	struct iwi_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
+	IWI_LOCK_DECL;
 
 	if (ifp != NULL) {
+		IWI_LOCK(sc);
 		iwi_stop(sc);
+		IWI_UNLOCK(sc);
 		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 	}
+
+	callout_drain(&sc->sc_wdtimer);
 	iwi_put_firmware(sc);
 	iwi_release_fw_dma(sc);
 
@@ -486,7 +489,8 @@ iwi_detach(device_t dev)
 	if (sc->sc_unr != NULL)
 		delete_unrhdr(sc->sc_unr);
 
-	mtx_destroy(&sc->sc_mtx);
+	IWI_LOCK_DESTROY(sc);
+	IWI_CMD_LOCK_DESTROY(sc);
 
 	return 0;
 }
@@ -793,8 +797,11 @@ static int
 iwi_shutdown(device_t dev)
 {
 	struct iwi_softc *sc = device_get_softc(dev);
+	IWI_LOCK_DECL;
 
+	IWI_LOCK(sc);
 	iwi_stop(sc);
+	IWI_UNLOCK(sc);
 	iwi_put_firmware(sc);		/* ??? XXX */
 
 	return 0;
@@ -804,8 +811,11 @@ static int
 iwi_suspend(device_t dev)
 {
 	struct iwi_softc *sc = device_get_softc(dev);
+	IWI_LOCK_DECL;
 
+	IWI_LOCK(sc);
 	iwi_stop(sc);
+	IWI_UNLOCK(sc);
 
 	return 0;
 }
@@ -935,38 +945,18 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwi_softc *sc = ifp->if_softc;
+	int error = 0;
 
-	IWI_LOCK_CHECK(sc);
+	IWI_LOCK_ASSERT(sc);
 	DPRINTF(("%s: %s -> %s flags 0x%x\n", __func__,
 		ieee80211_state_name[ic->ic_state],
 		ieee80211_state_name[nstate], sc->flags));
 
 	/* XXX state change race with taskqueue */
 	switch (nstate) {
-	case IEEE80211_S_SCAN:
-		if (ic->ic_state == IEEE80211_S_RUN) {
-			/*
-			 * Beacon miss, send disassoc and wait for a reply
-			 * from the card; we'll start a scan then.  Note
-			 * this only happens with auto roaming; otherwise
-			 * just notify users and wait to be directed.
-			 */
-			/* notify directly as we bypass net80211 */
-			ieee80211_sta_leave(ic, ic->ic_bss);
-			if (ic->ic_roaming == IEEE80211_ROAMING_AUTO)
-				taskqueue_enqueue(sc->sc_tq, &sc->sc_downtask);
-			break;
-		}
-		if ((sc->flags & IWI_FLAG_SCANNING) == 0) {
-			sc->flags |= IWI_FLAG_SCANNING;
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_scanstarttask);
-		}
-		break;
-
 	case IEEE80211_S_AUTH:
-		iwi_auth_and_assoc(sc);
+		iwi_assoc(ic);
 		break;
-
 	case IEEE80211_S_RUN:
 		if (ic->ic_opmode == IEEE80211_M_IBSS) {
 			/*
@@ -978,17 +968,9 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			 * This is all totally bogus and needs to be redone.
 			 */
 			if (ic->ic_state == IEEE80211_S_SCAN)
-				iwi_auth_and_assoc(sc);
-		} else if (ic->ic_opmode == IEEE80211_M_MONITOR)
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_scantask);
-
-		/* XXX way wrong */
-		return sc->sc_newstate(ic, nstate,
-		    IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
-
-	case IEEE80211_S_ASSOC:
+				iwi_assoc(ic);
+		} 
 		break;
-
 	case IEEE80211_S_INIT:
 		/*
 		 * NB: don't try to do this if iwi_stop_master has
@@ -996,12 +978,24 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		 */
 		if (ic->ic_state == IEEE80211_S_RUN &&
 		    (sc->flags & IWI_FLAG_FW_INITED))
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_downtask);
+			iwi_disassoc(ic);
+		if (ic->ic_state == IEEE80211_S_SCAN &&
+		    (sc->fw_state == IWI_FW_SCANNING))
+			ieee80211_cancel_scan(ic);
+		break;
+	case IEEE80211_S_ASSOC:
+		/*
+		 * If we are not transitioning from AUTH the resend the
+		 * association request.
+		 */
+		if (ic->ic_state != IEEE80211_S_AUTH)
+			iwi_assoc(ic);
+		break;
+	default:
 		break;
 	}
+	return (error != 0) ? error : sc->sc_newstate(ic, nstate, arg);
 
-	ic->ic_state = nstate;
-	return 0;
 }
 
 /*
@@ -1052,7 +1046,7 @@ iwi_wme_init(struct iwi_softc *sc)
 }
 
 static int
-iwi_wme_setparams_locked(struct iwi_softc *sc)
+iwi_wme_setparams(struct iwi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	const struct wmeParams *wmep;
@@ -1071,17 +1065,6 @@ iwi_wme_setparams_locked(struct iwi_softc *sc)
 	DPRINTF(("Setting WME parameters\n"));
 	return iwi_cmd(sc, IWI_CMD_SET_WME_PARAMS, sc->wme, sizeof sc->wme);
 }
-
-static void
-iwi_wme_setparams(void *arg, int npending)
-{
-	struct iwi_softc *sc = arg;
-	IWI_LOCK_DECL;
-
-	IWI_LOCK(sc);
-	(void) iwi_wme_setparams_locked(sc);
-	IWI_UNLOCK(sc);
-}
 #undef IWI_USEC
 #undef IWI_EXP2
 
@@ -1098,9 +1081,7 @@ iwi_wme_update(struct ieee80211com *ic)
 	 * will get sent down to the adapter as part of the
 	 * work iwi_auth_and_assoc does.
 	 */
-	if (ic->ic_state == IEEE80211_S_RUN)
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_setwmetask);
-	return 0;
+	return (iwi_queue_cmd(sc, IWI_SET_WME));
 }
 
 static int
@@ -1183,8 +1164,6 @@ iwi_setcurchan(struct iwi_softc *sc, int chan)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	IWI_LOCK_CHECK(sc);
-	ic->ic_curchan = &ic->ic_channels[chan];
 	sc->curchan = chan;
 
 	sc->sc_rxtap.wr_chan_freq = sc->sc_txtap.wt_chan_freq =
@@ -1288,7 +1267,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
 
 	/* send the frame to the 802.11 layer */
-	type = ieee80211_input(ic, m, ni, frame->rssi_dbm, 0);
+	type = ieee80211_input(ic, m, ni, frame->rssi_dbm, 0, 0);
 
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
@@ -1347,6 +1326,7 @@ iwi_checkforqos(struct iwi_softc *sc, const struct ieee80211_frame *wh, int len)
 #define	SUBTYPE(wh)	((wh)->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK)
 	const uint8_t *frm, *efrm, *wme;
 	struct ieee80211_node *ni;
+	uint16_t capinfo, status, associd;
 
 	/* NB: +8 for capinfo, status, associd, and first ie */
 	if (!(sizeof(*wh)+8 < len && len < IEEE80211_MAX_LEN) ||
@@ -1363,7 +1343,13 @@ iwi_checkforqos(struct iwi_softc *sc, const struct ieee80211_frame *wh, int len)
 	 */
 	frm = (const uint8_t *)&wh[1];
 	efrm = ((const uint8_t *) wh) + len;
-	frm += 6;
+
+	capinfo = le16toh(*(const uint16_t *)frm);
+	frm += 2;
+	status = le16toh(*(const uint16_t *)frm);
+	frm += 2;
+	associd = le16toh(*(const uint16_t *)frm);
+	frm += 2;
 
 	wme = NULL;
 	while (frm < efrm) {
@@ -1378,6 +1364,8 @@ iwi_checkforqos(struct iwi_softc *sc, const struct ieee80211_frame *wh, int len)
 	}
 
 	ni = sc->sc_ic.ic_bss;
+	ni->ni_capinfo = capinfo;
+	ni->ni_associd = associd;
 	if (wme != NULL)
 		ni->ni_flags |= IEEE80211_NODE_QOS;
 	else
@@ -1400,7 +1388,10 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 		chan = (struct iwi_notif_scan_channel *)(notif + 1);
 
 		DPRINTFN(3, ("Scan of channel %u complete (%u)\n",
-		    ic->ic_channels[chan->nchan].ic_freq, chan->nchan));
+		    ieee80211_ieee2mhz(chan->nchan, 0), chan->nchan));
+
+		/* Reset the timer, the scan is still going */
+		sc->sc_state_timer = 3;
 		break;
 
 	case IWI_NOTIF_TYPE_SCAN_COMPLETE:
@@ -1409,21 +1400,11 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 		DPRINTFN(2, ("Scan completed (%u, %u)\n", scan->nchan,
 		    scan->status));
 
-		sc->sc_scan_timer = 0;
+		IWI_STATE_END(sc, IWI_FW_SCANNING);
 
-		if (ic->ic_opmode == IEEE80211_M_MONITOR) {
-			/*
-			 * Monitor mode works by doing a passive scan to set
-			 * the channel and enable rx.  Because we don't want
-			 * to abort a scan lest the firmware crash we scan
-			 * for a short period of time and automatically restart
-			 * the scan when notified the sweep has completed.
-			 */
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_scantask);
-		} else {
-			sc->flags &= ~IWI_FLAG_SCANNING;
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_scandonetask);
-		}
+		if (scan->status == IWI_SCAN_COMPLETED)
+			ieee80211_scan_next(ic);
+
 		break;
 
 	case IWI_NOTIF_TYPE_AUTHENTICATION:
@@ -1439,6 +1420,7 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 		case IWI_AUTH_FAIL:
 			DPRINTFN(2, ("Authentication failed\n"));
 			sc->flags &= ~IWI_FLAG_ASSOCIATED;
+			IWI_STATE_END(sc, IWI_FW_ASSOCIATING);
 			/* XXX */
 			break;
 
@@ -1450,6 +1432,7 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 		case IWI_AUTH_SEQ1_FAIL:
 			DPRINTFN(2, ("Initial authentication handshake failed; "
 				"you probably need shared key\n"));
+			IWI_STATE_END(sc, IWI_FW_ASSOCIATING);
 			/* XXX retry shared key when in auto */
 			break;
 
@@ -1470,16 +1453,29 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 		case IWI_ASSOC_SUCCESS:
 			DPRINTFN(2, ("Association succeeded\n"));
 			sc->flags |= IWI_FLAG_ASSOCIATED;
+			IWI_STATE_END(sc, IWI_FW_ASSOCIATING);
 			iwi_checkforqos(sc,
 			    (const struct ieee80211_frame *)(assoc+1),
 			    le16toh(notif->len) - sizeof(*assoc));
 			ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 			break;
 
-		case IWI_ASSOC_FAIL:
-			DPRINTFN(2, ("Association failed\n"));
+		case IWI_ASSOC_INIT:
+			switch (sc->fw_state) {
+				case IWI_FW_ASSOCIATING:
+					DPRINTFN(2, ("Association failed\n"));
+					IWI_STATE_END(sc, IWI_FW_ASSOCIATING);
+					ieee80211_new_state(ic,
+					    IEEE80211_S_SCAN, -1);
+					break;
+
+				case IWI_FW_DISASSOCIATING:
+					DPRINTFN(2, ("Dissassociated\n"));
+					IWI_STATE_END(sc,
+					    IWI_FW_DISASSOCIATING);
+					break;
+			}
 			sc->flags &= ~IWI_FLAG_ASSOCIATED;
-			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 			break;
 
 		default:
@@ -1496,15 +1492,6 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 		    beacon->state, le32toh(beacon->number)));
 
 		if (beacon->state == IWI_BEACON_MISS) {
-#if 0
-			if (sc->flags & IWI_FLAG_SCANNING) {
-				/* XXX terminate scan, linux driver
-				  says fw can get stuck */
-				/* XXX should be handled in iwi_newstate */
-				taskqueue_enqueue(sc->sc_tq,
-					&sc->sc_scanaborttask);
-			}
-#endif
 			/*
 			 * The firmware notifies us of every beacon miss
 			 * so we need to track the count against the
@@ -1592,6 +1579,8 @@ iwi_tx_intr(struct iwi_softc *sc, struct iwi_tx_ring *txq)
 		bus_dmamap_sync(txq->data_dmat, data->map,
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(txq->data_dmat, data->map);
+		if (data->m->m_flags & M_TXCB)
+			ieee80211_process_callback(data->ni, data->m, 0/*XXX*/);
 		m_freem(data->m);
 		data->m = NULL;
 		ieee80211_free_node(data->ni);
@@ -1633,7 +1622,13 @@ iwi_intr(void *arg)
 
 	if (r & IWI_INTR_FATAL_ERROR) {
 		device_printf(sc->sc_dev, "firmware error\n");
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_restarttask);
+		/* don't restart if the interface isn't up */
+		if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_restarttask);
+
+		sc->flags &= ~IWI_FLAG_BUSY;
+		sc->sc_busy_timer = 0;
+		wakeup(sc);
 	}
 
 	if (r & IWI_INTR_FW_INITED) {
@@ -1646,6 +1641,7 @@ iwi_intr(void *arg)
 
 	if (r & IWI_INTR_CMD_DONE) {
 		sc->flags &= ~IWI_FLAG_BUSY;
+		sc->sc_busy_timer = 0;
 		wakeup(sc);
 	}
 
@@ -1677,7 +1673,7 @@ iwi_cmd(struct iwi_softc *sc, uint8_t type, void *data, uint8_t len)
 {
 	struct iwi_cmd_desc *desc;
 
-	IWI_LOCK_CHECK(sc);
+	IWI_LOCK_ASSERT(sc);
 
 	if (sc->flags & IWI_FLAG_BUSY) {
 		device_printf(sc->sc_dev, "%s: cmd %d not sent, busy\n",
@@ -1685,6 +1681,7 @@ iwi_cmd(struct iwi_softc *sc, uint8_t type, void *data, uint8_t len)
 		return EAGAIN;
 	}
 	sc->flags |= IWI_FLAG_BUSY;
+	sc->sc_busy_timer = 2;
 
 	desc = &sc->cmdq.desc[sc->cmdq.cur];
 
@@ -1741,7 +1738,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 	int error, nsegs, hdrlen, i;
 	int ismcast, flags, xflags, staid;
 
-	IWI_LOCK_CHECK(sc);
+	IWI_LOCK_ASSERT(sc);
 	wh = mtod(m0, const struct ieee80211_frame *);
 	/* NB: only data frames use this path */
 	hdrlen = ieee80211_hdrsize(wh);
@@ -1972,20 +1969,18 @@ iwi_start(struct ifnet *ifp)
 		}
 
 		sc->sc_tx_timer = 5;
-		ifp->if_timer = 1;
 	}
 
 	IWI_UNLOCK(sc);
 }
 
 static void
-iwi_watchdog(struct ifnet *ifp)
+iwi_watchdog(void *arg)
 {
-	struct iwi_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = &sc->sc_ic;
-	IWI_LOCK_DECL;
+	struct iwi_softc *sc = arg;
+	struct ifnet *ifp = sc->sc_ifp;
 
-	IWI_LOCK(sc);
+	IWI_LOCK_ASSERT(sc);
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
@@ -2007,22 +2002,25 @@ iwi_watchdog(struct ifnet *ifp)
 				sc->sc_rfkill_timer = 2;
 		}
 	}
-	if (sc->sc_scan_timer > 0) {
-		if (--sc->sc_scan_timer == 0) {
-			if (sc->flags & IWI_FLAG_SCANNING) {
-				if_printf(ifp, "scan stuck\n");
-				taskqueue_enqueue(sc->sc_tq, &sc->sc_restarttask);
-			}
+	if (sc->sc_state_timer > 0) {
+		if (--sc->sc_state_timer == 0) {
+			if_printf(ifp, "firmware stuck in state %d, resetting\n",
+			    sc->fw_state);
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_restarttask);
+			if (sc->fw_state == IWI_FW_SCANNING)
+				ieee80211_cancel_scan(&sc->sc_ic);
+			sc->sc_state_timer = 3;
 		}
 	}
-	if (sc->sc_tx_timer || sc->sc_rfkill_timer || sc->sc_scan_timer)
-		ifp->if_timer = 1;
-	else
-		ifp->if_timer = 0;
+	if (sc->sc_busy_timer > 0) {
+		if (--sc->sc_busy_timer == 0) {
+			if_printf(ifp, "firmware command timeout, resetting\n");
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_restarttask);
+		}
+	}
 
-	ieee80211_watchdog(ic);
-
-	IWI_UNLOCK(sc);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		callout_reset(&sc->sc_wdtimer, hz, iwi_watchdog, sc);
 }
 
 static int
@@ -2083,8 +2081,6 @@ iwi_stop_master(struct iwi_softc *sc)
 {
 	uint32_t tmp;
 	int ntries;
-
-	IWI_LOCK_CHECK(sc);
 
 	/* disable interrupts */
 	CSR_WRITE_4(sc, IWI_CSR_INTR_MASK, 0);
@@ -2352,7 +2348,7 @@ iwi_load_ucode(struct iwi_softc *sc, const struct iwi_fw *fw)
 	size_t size = fw->size;
 	int i, ntries, error;
 
-	IWI_LOCK_CHECK(sc);
+	IWI_LOCK_ASSERT(sc);
 	error = 0;
 	CSR_WRITE_4(sc, IWI_CSR_RST, CSR_READ_4(sc, IWI_CSR_RST) |
 	    IWI_RST_STOP_MASTER);
@@ -2425,7 +2421,7 @@ iwi_load_firmware(struct iwi_softc *sc, const struct iwi_fw *fw)
 	uint32_t sentinel, ctl, src, dst, sum, len, mlen, tmp;
 	int ntries, error;
 
-	IWI_LOCK_CHECK(sc);
+	IWI_LOCK_ASSERT(sc);
 	/* copy firmware image to DMA memory */
 	memcpy(sc->fw_virtaddr, fw->data, fw->size);
 
@@ -2567,7 +2563,7 @@ iwi_config(struct iwi_softc *sc)
 	struct iwi_txpower power;
 	uint32_t data;
 	int error, i;
-	IWI_LOCK_CHECK(sc);
+	IWI_LOCK_ASSERT(sc);
 
 	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
 	DPRINTF(("Setting MAC address to %6D\n", ic->ic_myaddr, ":"));
@@ -2645,17 +2641,17 @@ iwi_config(struct iwi_softc *sc)
 		return error;
 
 	/* if we have a desired ESSID, set it now */
-	if (ic->ic_des_esslen != 0) {
+	if (ic->ic_des_ssid[0].len != 0) {
 #ifdef IWI_DEBUG
 		if (iwi_debug > 0) {
 			printf("Setting desired ESSID to ");
-			ieee80211_print_essid(ic->ic_des_essid,
-			    ic->ic_des_esslen);
+			ieee80211_print_essid(ic->ic_des_ssid[0].ssid,
+			    ic->ic_des_ssid[0].len);
 			printf("\n");
 		}
 #endif
-		error = iwi_cmd(sc, IWI_CMD_SET_ESSID, ic->ic_des_essid,
-		    ic->ic_des_esslen);
+		error = iwi_cmd(sc, IWI_CMD_SET_ESSID, ic->ic_des_ssid[0].ssid,
+		    ic->ic_des_ssid[0].len);
 		if (error != 0)
 			return error;
 	}
@@ -2686,94 +2682,142 @@ set_scan_type(struct iwi_scan_ext *scan, int ix, int scan_type)
 }
 
 static int
-iwi_scan(struct iwi_softc *sc)
+scan_type(const struct ieee80211_scan_state *ss,
+	const struct ieee80211_channel *chan)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
-	const struct ieee80211_channel *c;
-	struct iwi_scan_ext scan;
-	int i, ix, start, scan_type, error;
+	/* We can only set one essid for a directed scan */
+	if (ss->ss_nssid != 0)
+		return IWI_SCAN_TYPE_BDIRECTED;
+	if ((ss->ss_flags & IEEE80211_SCAN_ACTIVE) &&
+	    (chan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0)
+		return IWI_SCAN_TYPE_BROADCAST;
+	return IWI_SCAN_TYPE_PASSIVE;
+}
 
-	IWI_LOCK_CHECK(sc);
+static __inline int
+scan_band(const struct ieee80211_channel *c)
+{
+	return IEEE80211_IS_CHAN_5GHZ(c) ?  IWI_CHAN_5GHZ : IWI_CHAN_2GHZ;
+}
+
+/*
+ * Start a scan on the current channel or all channels.
+ */
+static int
+iwi_scanchan(struct iwi_softc *sc, unsigned long maxdwell, int mode)
+{
+	struct ieee80211com *ic;
+	struct ieee80211_channel *chan;
+	struct ieee80211_scan_state *ss;
+	struct iwi_scan_ext scan;
+	int error = 0;
+
+	IWI_LOCK_ASSERT(sc);
+	if (sc->fw_state == IWI_FW_SCANNING) {
+		/*
+		 * This should not happen as we only trigger scan_next after
+		 * completion
+		 */
+		DPRINTF(("%s: called too early - still scanning\n", __func__));
+		return (EBUSY);
+	}
+	IWI_STATE_BEGIN(sc, IWI_FW_SCANNING);
+
+	ic = &sc->sc_ic;
+	ss = ic->ic_scan;
 
 	memset(&scan, 0, sizeof scan);
+	scan.full_scan_index = htole32(++sc->sc_scangen);
+	scan.dwell_time[IWI_SCAN_TYPE_PASSIVE] = htole16(maxdwell);
+	if (ic->ic_flags_ext & IEEE80211_FEXT_BGSCAN) {
+		/*
+		 * Use very short dwell times for when we send probe request
+		 * frames.  Without this bg scans hang.  Ideally this should
+		 * be handled with early-termination as done by net80211 but
+		 * that's not feasible (aborting a scan is problematic).
+		 */
+		scan.dwell_time[IWI_SCAN_TYPE_BROADCAST] = htole16(30);
+		scan.dwell_time[IWI_SCAN_TYPE_BDIRECTED] = htole16(30);
+	} else {
+		scan.dwell_time[IWI_SCAN_TYPE_BROADCAST] = htole16(maxdwell);
+		scan.dwell_time[IWI_SCAN_TYPE_BDIRECTED] = htole16(maxdwell);
+	}
 
-	/* XXX different dwell times for different scan types */
-	scan.dwell_time[IWI_SCAN_TYPE_PASSIVE] = htole16(sc->dwelltime);
-	scan.dwell_time[IWI_SCAN_TYPE_BROADCAST] = htole16(sc->dwelltime);
-	scan.dwell_time[IWI_SCAN_TYPE_BDIRECTED] = htole16(sc->dwelltime);
+	/* We can only set one essid for a directed scan */
+	if (ss->ss_nssid != 0) {
+		error = iwi_cmd(sc, IWI_CMD_SET_ESSID, ss->ss_ssid[0].ssid,
+		    ss->ss_ssid[0].len);
+		if (error)
+			return (error);
+	}
 
-	scan.full_scan_index = htole32(ic->ic_scan.nt_scangen);
-
-	if (ic->ic_des_esslen != 0) {
-		scan_type = IWI_SCAN_TYPE_BDIRECTED;
+	if (mode == IWI_SCAN_ALLCHAN) {
+		int i, next, band, b, bstart;
+		/*
+		 * Convert scan list to run-length encoded channel list
+		 * the firmware requires (preserving the order setup by
+		 * net80211).  The first entry in each run specifies the
+		 * band and the count of items in the run.
+		 */
+		next = 0;		/* next open slot */
+		bstart = 0;		/* NB: not needed, silence compiler */
+		band = -1;		/* NB: impossible value */
+		KASSERT(ss->ss_last > 0, ("no channels"));
+		for (i = 0; i < ss->ss_last; i++) {
+			chan = ss->ss_chans[i];
+			b = scan_band(chan);
+			if (b != band) {
+				if (band != -1)
+					scan.channels[bstart] =
+					    (next - bstart) | band;
+				/* NB: this allocates a slot for the run-len */
+				band = b, bstart = next++;
+			}
+			if (next >= IWI_SCAN_CHANNELS) {
+				DPRINTF(("truncating scan list\n"));
+				break;
+			}
+			scan.channels[next] = ieee80211_chan2ieee(ic, chan);
+			set_scan_type(&scan, next, scan_type(ss, chan));
+			next++;
+		}
+		scan.channels[bstart] = (next - bstart) | band;
+	} else {
+		/* Scan the current channel only */
+		chan = ic->ic_curchan;
+		scan.channels[0] = 1 | scan_band(chan);
+		scan.channels[1] = ieee80211_chan2ieee(ic, chan);
+		set_scan_type(&scan, 1, scan_type(ss, chan));
+	}
 #ifdef IWI_DEBUG
-		if (iwi_debug > 0) {
-			printf("Setting desired ESSID to ");
-			ieee80211_print_essid(ic->ic_des_essid,
-			    ic->ic_des_esslen);
+	if (iwi_debug > 0) {
+		static const char *scantype[8] =
+		   { "PSTOP", "PASV", "DIR", "BCAST", "BDIR", "5", "6", "7" };
+		int i;
+		printf("Scan request: index %u dwell %d/%d/%d\n"
+		    , le32toh(scan.full_scan_index)
+		    , le16toh(scan.dwell_time[IWI_SCAN_TYPE_PASSIVE])
+		    , le16toh(scan.dwell_time[IWI_SCAN_TYPE_BROADCAST])
+		    , le16toh(scan.dwell_time[IWI_SCAN_TYPE_BDIRECTED])
+		);
+		i = 0;
+		do {
+			int run = scan.channels[i];
+			if (run == 0)
+				break;
+			printf("Scan %d %s channels:", run & 0x3f,
+			    run & IWI_CHAN_2GHZ ? "2.4GHz" : "5GHz");
+			for (run &= 0x3f, i++; run > 0; run--, i++) {
+				uint8_t type = scan.scan_type[i/2];
+				printf(" %u/%s", scan.channels[i],
+				    scantype[(i & 1 ? type : type>>4) & 7]);
+			}
 			printf("\n");
-		}
+		} while (i < IWI_SCAN_CHANNELS);
+	}
 #endif
-		error = iwi_cmd(sc, IWI_CMD_SET_ESSID, ic->ic_des_essid,
-		    ic->ic_des_esslen);
-		if (error != 0)
-			return error;
-	} else
-		scan_type = IWI_SCAN_TYPE_BROADCAST;
 
-	ix = 0;
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_11A)) {
-		start = ix;
-		for (i = 0; i <= IEEE80211_CHAN_MAX; i++) {
-			c = &ic->ic_channels[i];
-			/*
-			 * NB: ieee80211_next_scan clears curchan from the
-			 * channel list so we must explicitly check; this
-			 * will be fixed when the new scanning support arrives.
-			 */
-			if (!IEEE80211_IS_CHAN_5GHZ(c) ||
-			    !(isset(ic->ic_chan_scan,i) || c == ic->ic_curchan))
-				continue;
-			ix++;
-			scan.channels[ix] = i;
-			if (c->ic_flags & IEEE80211_CHAN_PASSIVE)
-				set_scan_type(&scan, ix, IWI_SCAN_TYPE_PASSIVE);
-			else
-				set_scan_type(&scan, ix, scan_type);
-		}
-		if (start != ix) {
-			scan.channels[start] = IWI_CHAN_5GHZ | (ix - start);
-			ix++;
-		}
-	}
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_11B)) {
-		start = ix;
-		for (i = 0; i <= IEEE80211_CHAN_MAX; i++) {
-			c = &ic->ic_channels[i];
-			/* NB: see above */
-			if (!IEEE80211_IS_CHAN_2GHZ(c) ||
-			    !(isset(ic->ic_chan_scan,i) || c == ic->ic_curchan))
-				continue;
-			ix++;
-			scan.channels[ix] = i;
-			if (c->ic_flags & IEEE80211_CHAN_PASSIVE)
-				set_scan_type(&scan, ix, IWI_SCAN_TYPE_PASSIVE);
-			else
-				set_scan_type(&scan, ix, scan_type);
-		}
-		if (start != ix)
-			scan.channels[start] = IWI_CHAN_2GHZ | (ix - start);
-	}
-
-	DPRINTF(("Start scanning\n"));
-	/*
-	 * With 100ms/channel dwell time and a max of ~20 channels
-	 * 5 seconds may be too tight; leave a bit more slack.
-	 */
-	sc->sc_scan_timer = 7;			/* seconds to complete */
-	sc->sc_ifp->if_timer = 1;
-	sc->flags |= IWI_FLAG_SCANNING;
-	return iwi_cmd(sc, IWI_CMD_SCAN_EXT, &scan, sizeof scan);
+	return (iwi_cmd(sc, IWI_CMD_SCAN_EXT, &scan, sizeof scan));
 }
 
 static void
@@ -2783,91 +2827,10 @@ iwi_scanabort(void *arg, int npending)
 	IWI_LOCK_DECL;
 
 	IWI_LOCK(sc);
+	sc->flags &= ~IWI_FLAG_CHANNEL_SCAN;
 	/* NB: make sure we're still scanning */
-	if (sc->flags & IWI_FLAG_SCANNING)
+	if (sc->fw_state == IWI_FW_SCANNING)
 		iwi_cmd(sc, IWI_CMD_ABORT_SCAN, NULL, 0);
-	IWI_UNLOCK(sc);
-}
-
-static void
-iwi_scanstart(void *arg, int npending)
-{
-	struct iwi_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-	IWI_LOCK_DECL;
-
-	IWI_LOCK(sc);
-	/*
-	 * Tell the card to kick off a scan.  We guard this
-	 * by checking IWI_FLAG_SCANNING as otherwise we'll
-	 * do this twice because ieee80211_begin_scan will
-	 * immediately call us back to scan the first channel
-	 * in the list.
-	 */
-	if (sc->flags & IWI_FLAG_SCANNING) {
-		ieee80211_begin_scan(ic, 1);
-		if (iwi_scan(sc) != 0) {
-			/* XXX should not happen */
-			sc->flags &= ~IWI_FLAG_SCANNING;
-			ieee80211_new_state(ic, IEEE80211_S_INIT, 0);
-		}
-	}
-	IWI_UNLOCK(sc);
-}
-
-static void
-iwi_scandone(void *arg, int npending)
-{
-	struct iwi_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-	IWI_LOCK_DECL;
-
-	IWI_LOCK(sc);
-	if (sc->flags & IWI_FLAG_ASSOCIATED)
-		iwi_disassociate(sc, 0);
-	ieee80211_end_scan(ic);
-	IWI_UNLOCK(sc);
-}
-
-/*
- * Set the current channel by doing a passive scan.  Note this
- * is explicitly for monitor mode operation; do not use it for
- * anything else (sigh).
- */
-static void
-iwi_scanchan(void *arg, int npending)
-{
-	struct iwi_softc *sc = arg;
-	struct ieee80211com *ic;
-	struct ieee80211_channel *chan;
-	struct iwi_scan_ext scan;
-	IWI_LOCK_DECL;
-
-	IWI_LOCK(sc);
-	ic = &sc->sc_ic;
-	KASSERT(ic->ic_opmode == IEEE80211_M_MONITOR,
-		("opmode %u", ic->ic_opmode));
-	chan = ic->ic_ibss_chan;
-
-	memset(&scan, 0, sizeof scan);
-	/*
-	 * Set the dwell time to a fairly small value.  The firmware
-	 * is prone to crash when aborting a scan so it's better to
-	 * let a scan complete before changing channels--such as when
-	 * channel hopping in monitor mode.
-	 */
-	scan.dwell_time[IWI_SCAN_TYPE_PASSIVE] = htole16(2000);
-	scan.full_scan_index = htole32(ic->ic_scan.nt_scangen);
-	if (IEEE80211_IS_CHAN_5GHZ(chan))
-		scan.channels[0] = 1 | IWI_CHAN_5GHZ;
-	else
-		scan.channels[0] = 1 | IWI_CHAN_2GHZ;
-	scan.channels[1] = ieee80211_chan2ieee(ic, chan);
-	set_scan_type(&scan, 1, IWI_SCAN_TYPE_PASSIVE);
-
-	DPRINTF(("Setting channel to %u\n", ieee80211_chan2ieee(ic, chan)));
-	sc->flags |= IWI_FLAG_SCANNING;
-	(void) iwi_cmd(sc, IWI_CMD_SCAN_EXT, &scan, sizeof scan);
 	IWI_UNLOCK(sc);
 }
 
@@ -2894,9 +2857,17 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	struct iwi_rateset rs;
 	uint16_t capinfo;
 	int error;
- 
-	IWI_LOCK_CHECK(sc);
-	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
+
+	IWI_LOCK_ASSERT(sc);
+
+	if (sc->flags & IWI_FLAG_ASSOCIATED) {
+		DPRINTF(("Already associated\n"));
+		return (-1);
+	}
+
+	IWI_STATE_BEGIN(sc, IWI_FW_ASSOCIATING);
+	error = 0;
+	if (IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan)) {
 		memset(&config, 0, sizeof config);
 		config.bluetooth_coexistence = sc->bluetooth;
 		config.antenna = sc->antenna;
@@ -2909,7 +2880,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 		DPRINTF(("Configuring adapter\n"));
 		error = iwi_cmd(sc, IWI_CMD_SET_CONFIG, &config, sizeof config);
 		if (error != 0)
-			return error;
+			goto done;
 	}
 
 #ifdef IWI_DEBUG
@@ -2921,11 +2892,16 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 #endif
 	error = iwi_cmd(sc, IWI_CMD_SET_ESSID, ni->ni_essid, ni->ni_esslen);
 	if (error != 0)
-		return error;
+		goto done;
 
 	/* the rate set has already been "negotiated" */
-	rs.mode = IEEE80211_IS_CHAN_5GHZ(ni->ni_chan) ? IWI_MODE_11A :
-	    IWI_MODE_11G;
+	if (IEEE80211_IS_CHAN_A(ic->ic_curchan))
+		rs.mode = IWI_MODE_11A;
+	else if (IEEE80211_IS_CHAN_G(ic->ic_curchan))
+		rs.mode = IWI_MODE_11G;
+	if (IEEE80211_IS_CHAN_B(ic->ic_curchan))
+		rs.mode = IWI_MODE_11B;
+
 	rs.type = IWI_RATESET_TYPE_NEGOTIATED;
 	rs.nrates = ni->ni_rates.rs_nrates;
 	if (rs.nrates > IWI_RATESET_SIZE) {
@@ -2937,13 +2913,13 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	DPRINTF(("Setting negotiated rates (%u)\n", rs.nrates));
 	error = iwi_cmd(sc, IWI_CMD_SET_RATES, &rs, sizeof rs);
 	if (error != 0)
-		return error;
+		goto done;
 
 	memset(assoc, 0, sizeof *assoc);
 
 	if ((ic->ic_flags & IEEE80211_F_WME) && ni->ni_wme_ie != NULL) {
 		/* NB: don't treat WME setup as failure */
-		if (iwi_wme_setparams_locked(sc) == 0 && iwi_wme_setie(sc) == 0)
+		if (iwi_wme_setparams(sc) == 0 && iwi_wme_setie(sc) == 0)
 			assoc->policy |= htole16(IWI_POLICY_WME);
 		/* XXX complain on failure? */
 	}
@@ -2953,21 +2929,21 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 		error = iwi_cmd(sc, IWI_CMD_SET_OPTIE, ic->ic_opt_ie,
 		    ic->ic_opt_ie_len);
 		if (error != 0)
-			return error;
+			goto done;
 	}
 
 	error = iwi_set_sensitivity(sc, ni->ni_rssi);
 	if (error != 0)
-		return error;
+		goto done;
 
-	if (IEEE80211_IS_CHAN_A(ni->ni_chan))
+	if (IEEE80211_IS_CHAN_A(ic->ic_curchan))
 		assoc->mode = IWI_MODE_11A;
-	else if (IEEE80211_IS_CHAN_G(ni->ni_chan))
+	else if (IEEE80211_IS_CHAN_G(ic->ic_curchan))
 		assoc->mode = IWI_MODE_11G;
-	else if (IEEE80211_IS_CHAN_B(ni->ni_chan))
+	else if (IEEE80211_IS_CHAN_B(ic->ic_curchan))
 		assoc->mode = IWI_MODE_11B;
-	/* XXX else error */
-	assoc->chan = ieee80211_chan2ieee(ic, ni->ni_chan);
+	
+	assoc->chan = ic->ic_curchan->ic_ieee;
 	/*
 	 * NB: do not arrange for shared key auth w/o privacy
 	 *     (i.e. a wep key); it causes a firmware error.
@@ -2986,7 +2962,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 
 		error = iwi_setwepkeys(sc);
 		if (error != 0)
-			return error;
+			goto done;
 	}
 	if (ic->ic_flags & IEEE80211_F_WPA)
 		assoc->policy |= htole16(IWI_POLICY_WPA);
@@ -3003,7 +2979,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	if (ic->ic_flags & IEEE80211_F_PRIVACY)
 		capinfo |= IEEE80211_CAPINFO_PRIVACY;
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
-	    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+	    IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
 		capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
 	if (ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME)
 		capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
@@ -3024,13 +3000,25 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	    assoc->chan, le16toh(assoc->policy), assoc->auth,
 	    le16toh(assoc->capinfo), le16toh(assoc->lintval),
 	    le16toh(assoc->intval)));
-	return iwi_cmd(sc, IWI_CMD_ASSOCIATE, assoc, sizeof *assoc);
+	error = iwi_cmd(sc, IWI_CMD_ASSOCIATE, assoc, sizeof *assoc);
+done:
+	if (error)
+		IWI_STATE_END(sc, IWI_FW_ASSOCIATING);
+
+	return (error);
 }
 
 static int
 iwi_disassociate(struct iwi_softc *sc, int quiet)
 {
 	struct iwi_associate *assoc = &sc->assoc;
+
+	if ((sc->flags & IWI_FLAG_ASSOCIATED) == 0) {
+		DPRINTF(("Not associated\n"));
+		return (-1);
+	}
+
+	IWI_STATE_BEGIN(sc, IWI_FW_DISASSOCIATING);
 
 	if (quiet)
 		assoc->type = IWI_HC_DISASSOC_QUIET;
@@ -3040,17 +3028,6 @@ iwi_disassociate(struct iwi_softc *sc, int quiet)
 	DPRINTF(("Trying to disassociate from %6D channel %u\n",
 	    assoc->bssid, ":", assoc->chan));
 	return iwi_cmd(sc, IWI_CMD_ASSOCIATE, assoc, sizeof *assoc);
-}
-
-static void
-iwi_down(void *arg, int npending)
-{
-	struct iwi_softc *sc = arg;
-	IWI_LOCK_DECL;
-
-	IWI_LOCK(sc);
-	iwi_disassociate(sc, 0);
-	IWI_UNLOCK(sc);
 }
 
 static void
@@ -3134,20 +3111,19 @@ iwi_init_locked(void *priv, int force)
 	int i;
 	IWI_LOCK_DECL;
 
-	IWI_LOCK_CHECK(sc);
-	if (sc->flags & IWI_FLAG_FW_LOADING) {
+	IWI_LOCK_ASSERT(sc);
+	if (sc->fw_state == IWI_FW_LOADING) {
 		device_printf(sc->sc_dev, "%s: already loading\n", __func__);
 		return;		/* XXX: condvar? */
 	}
 
 	iwi_stop(sc);
+	IWI_STATE_BEGIN(sc, IWI_FW_LOADING);
 
 	if (iwi_reset(sc) != 0) {
 		device_printf(sc->sc_dev, "could not reset adapter\n");
 		goto fail;
 	}
-
-	sc->flags |= IWI_FLAG_FW_LOADING;
 
 	IWI_UNLOCK(sc);
 	if (iwi_get_firmware(sc)) {
@@ -3233,14 +3209,15 @@ iwi_init_locked(void *priv, int force)
 	} else
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 
+	callout_reset(&sc->sc_wdtimer, hz, iwi_watchdog, sc);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
-	sc->flags &= ~IWI_FLAG_FW_LOADING;
+	IWI_STATE_END(sc, IWI_FW_LOADING);
 	return;
 
 fail:	ifp->if_flags &= ~IFF_UP;
-	sc->flags &= ~IWI_FLAG_FW_LOADING;
+	IWI_STATE_END(sc, IWI_FW_LOADING);
 	iwi_stop(sc);
 	iwi_put_firmware(sc);
 }
@@ -3252,12 +3229,13 @@ iwi_stop(void *priv)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
-	IWI_LOCK_CHECK(sc);	/* XXX: pretty sure this triggers */
+	IWI_LOCK_ASSERT(sc);
 	if (sc->sc_softled) {
 		callout_stop(&sc->sc_ledtimer);
 		sc->sc_blinking = 0;
 	}
 
+	callout_stop(&sc->sc_wdtimer);
 	iwi_stop_master(sc);
 
 	CSR_WRITE_4(sc, IWI_CSR_RST, IWI_RST_SOFT_RESET);
@@ -3270,13 +3248,15 @@ iwi_stop(void *priv)
 	iwi_reset_tx_ring(sc, &sc->txq[3]);
 	iwi_reset_rx_ring(sc, &sc->rxq);
 
-	ifp->if_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	sc->sc_tx_timer = 0;
 	sc->sc_rfkill_timer = 0;
-	sc->sc_scan_timer = 0;
-	sc->flags &= ~(IWI_FLAG_BUSY | IWI_FLAG_SCANNING | IWI_FLAG_ASSOCIATED);
+	sc->sc_state_timer = 0;
+	sc->sc_busy_timer = 0;
+	sc->flags &= ~(IWI_FLAG_BUSY | IWI_FLAG_ASSOCIATED);
+	sc->fw_state = IWI_FW_IDLE;
+	wakeup(sc);
 
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 }
@@ -3315,11 +3295,13 @@ static void
 iwi_radio_off(void *arg, int pending)
 {
 	struct iwi_softc *sc = arg;
+	IWI_LOCK_DECL;
 
 	device_printf(sc->sc_dev, "radio turned off\n");
+	IWI_LOCK(sc);
 	iwi_stop(sc);
 	sc->sc_rfkill_timer = 2;
-	sc->sc_ifp->if_timer = 1;
+	IWI_UNLOCK(sc);
 }
 
 static int
@@ -3364,11 +3346,6 @@ iwi_sysctlattach(struct iwi_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "stats",
 	    CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0, iwi_sysctl_stats, "S",
 	    "statistics");
-
-	sc->dwelltime = 100;
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "dwell",
-	    CTLFLAG_RW, &sc->dwelltime, 0,
-	    "channel dwell time (ms) for AP/station scanning");
 
 	sc->bluetooth = 0;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "bluetooth",
@@ -3567,4 +3544,155 @@ iwi_ledattach(struct iwi_softc *sc)
 		 */
 		sc->sc_ledpin = IWI_RST_LED_ASSOCIATED;
 	}
+}
+
+static void
+iwi_ops(void *arg, int npending)
+{
+	struct iwi_softc *sc = arg;
+	struct ieee80211com *ic = &sc->sc_ic;
+	IWI_LOCK_DECL;
+	int cmd;
+
+again:
+	IWI_CMD_LOCK(sc);
+	cmd = sc->sc_cmd[sc->sc_cmd_cur];
+	if (cmd == 0) {
+		/* No more commands to process */
+		IWI_CMD_UNLOCK(sc);
+		return;
+	}
+	sc->sc_cmd[sc->sc_cmd_cur] = 0;	/* free the slot */
+	sc->sc_cmd_cur = (sc->sc_cmd_cur + 1) % IWI_CMD_MAXOPS;
+	IWI_CMD_UNLOCK(sc);
+
+	IWI_LOCK(sc);
+	while  (sc->fw_state != IWI_FW_IDLE || (sc->flags & IWI_FLAG_BUSY)) {
+		msleep(sc, &sc->sc_mtx, 0, "iwicmd", hz/10);
+	}
+
+	if (!(sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING))
+		goto done;
+
+	switch (cmd) {
+	case IWI_ASSOC:
+		iwi_auth_and_assoc(sc);
+		break;
+	case IWI_DISASSOC:
+		iwi_disassociate(sc, 0);
+		break;
+	case IWI_SET_WME:
+		if (ic->ic_state == IEEE80211_S_RUN)
+			(void) iwi_wme_setparams(sc);
+		break;
+	case IWI_SCAN_START:
+		sc->flags |= IWI_FLAG_CHANNEL_SCAN;
+		break;
+	case IWI_SCAN_CURCHAN:
+	case IWI_SCAN_ALLCHAN:
+		if (!(sc->flags & IWI_FLAG_CHANNEL_SCAN)) {
+			DPRINTF(("%s: ic_scan_curchan while not scanning\n",
+			    __func__));
+			goto done;
+		}
+		if (iwi_scanchan(sc, sc->sc_maxdwell, cmd))
+			ieee80211_cancel_scan(ic);
+
+		break;
+	}
+done:
+	IWI_UNLOCK(sc);
+
+	/* Take another pass */
+	goto again;
+}
+
+static int
+iwi_queue_cmd(struct iwi_softc *sc, int cmd)
+{
+	IWI_CMD_LOCK(sc);
+	if (sc->sc_cmd[sc->sc_cmd_next] != 0) {
+		IWI_CMD_UNLOCK(sc);
+		DPRINTF(("%s: command %d dropped\n", __func__, cmd));
+		return (EBUSY);
+	}
+
+	sc->sc_cmd[sc->sc_cmd_next] = cmd;
+	sc->sc_cmd_next = (sc->sc_cmd_next + 1) % IWI_CMD_MAXOPS;
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_opstask);
+	IWI_CMD_UNLOCK(sc);
+	return (0);
+}
+
+static void
+iwi_scan_start(struct ieee80211com *ic)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct iwi_softc *sc = ifp->if_softc;
+
+	iwi_queue_cmd(sc, IWI_SCAN_START);
+}
+
+static void
+iwi_set_channel(struct ieee80211com *ic)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct iwi_softc *sc = ifp->if_softc;
+	if (sc->fw_state == IWI_FW_IDLE)
+		iwi_setcurchan(sc, ic->ic_curchan->ic_ieee);
+}
+
+static void
+iwi_scan_curchan(struct ieee80211com *ic, unsigned long maxdwell)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct iwi_softc *sc = ifp->if_softc;
+
+	sc->sc_maxdwell = maxdwell;
+	iwi_queue_cmd(sc, IWI_SCAN_CURCHAN);
+}
+
+#if 0
+static void
+iwi_scan_allchan(struct ieee80211com *ic, unsigned long maxdwell)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct iwi_softc *sc = ifp->if_softc;
+
+	sc->sc_maxdwell = maxdwell;
+	iwi_queue_cmd(sc, IWI_SCAN_ALLCHAN);
+}
+#endif
+
+static void
+iwi_scan_mindwell(struct ieee80211com *ic)
+{
+	/* NB: don't try to abort scan; wait for firmware to finish */
+}
+
+static void
+iwi_scan_end(struct ieee80211com *ic)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct iwi_softc *sc = ifp->if_softc;
+
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_scanaborttask);
+}
+
+static void
+iwi_assoc(struct ieee80211com *ic)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct iwi_softc *sc = ifp->if_softc;
+
+	iwi_queue_cmd(sc, IWI_ASSOC);
+}
+
+static void
+iwi_disassoc(struct ieee80211com *ic)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct iwi_softc *sc = ifp->if_softc;
+
+	iwi_queue_cmd(sc, IWI_DISASSOC);
 }

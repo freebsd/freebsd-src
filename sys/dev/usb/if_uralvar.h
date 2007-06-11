@@ -20,6 +20,11 @@
 #define RAL_RX_LIST_COUNT	1
 #define RAL_TX_LIST_COUNT	1
 
+#define URAL_SCAN_START         1
+#define URAL_SCAN_END           2
+#define URAL_SET_CHANNEL        3
+
+
 struct ural_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
 	uint8_t		wr_flags;
@@ -91,7 +96,9 @@ struct ural_softc {
 
 	enum ieee80211_state		sc_state;
 	int				sc_arg;
+	int                             sc_scan_action; /* should be an enum */
 	struct usb_task			sc_task;
+	struct usb_task			sc_scantask;
 
 	struct ieee80211_amrr		amrr;
 	struct ieee80211_amrr_node	amn;
@@ -105,9 +112,7 @@ struct ural_softc {
 	struct mtx			sc_mtx;
 
 	struct callout			watchdog_ch;
-	struct callout			scan_ch;
 	struct callout			amrr_ch;
-
 	int				sc_tx_timer;
 
 	uint16_t			sta[11];

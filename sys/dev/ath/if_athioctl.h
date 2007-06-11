@@ -69,8 +69,8 @@ struct ath_stats {
 	u_int32_t	ast_tx_shortpre;/* tx frames with short preamble */
 	u_int32_t	ast_tx_altrate;	/* tx frames with alternate rate */
 	u_int32_t	ast_tx_protect;	/* tx frames with protection */
-	u_int32_t	ast_unused1;
-	u_int32_t	ast_unused2;
+	u_int32_t	ast_tx_ctsburst;/* tx frames with cts and bursting */
+	u_int32_t	ast_tx_ctsext;	/* tx frames with cts extension */
 	u_int32_t	ast_rx_nombuf;	/* rx setup failed 'cuz no mbuf */
 	u_int32_t	ast_rx_busdma;	/* rx setup failed for dma resrcs */
 	u_int32_t	ast_rx_orn;	/* rx failed 'cuz of desc overrun */
@@ -87,7 +87,6 @@ struct ath_stats {
 	u_int32_t	ast_rx_ctl;	/* rx discarded 'cuz ctl frame */
 	int8_t		ast_tx_rssi;	/* tx rssi of last ack */
 	int8_t		ast_rx_rssi;	/* rx rssi from histogram */
-	int8_t		ast_rx_noise;	/* rx noise floor */
 	u_int8_t	ast_tx_rate;	/* IEEE rate of last unicast tx */
 	u_int32_t	ast_be_xmit;	/* beacons transmitted */
 	u_int32_t	ast_be_nombuf;	/* beacon setup failed 'cuz no mbuf */
@@ -104,7 +103,13 @@ struct ath_stats {
 	u_int32_t	ast_cabq_xmit;	/* cabq frames transmitted */
 	u_int32_t	ast_cabq_busy;	/* cabq found busy */
 	u_int32_t	ast_tx_raw;	/* tx frames through raw api */
-	u_int32_t	ast_pad[29];
+	u_int32_t	ast_ff_txok;	/* fast frames tx'd successfully */
+	u_int32_t	ast_ff_txerr;	/* fast frames tx'd w/ error */
+	u_int32_t	ast_ff_rx;	/* fast frames rx'd */
+	u_int32_t	ast_ff_flush;	/* fast frames flushed from staging q */
+	u_int32_t	ast_tx_qfull;	/* tx dropped 'cuz of queue limit */
+	int8_t		ast_rx_noise;	/* rx noise floor */
+	u_int32_t	ast_pad[22];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
@@ -131,10 +136,10 @@ struct ath_diag {
 	(1 << IEEE80211_RADIOTAP_TSFT)		| \
 	(1 << IEEE80211_RADIOTAP_FLAGS)		| \
 	(1 << IEEE80211_RADIOTAP_RATE)		| \
-	(1 << IEEE80211_RADIOTAP_CHANNEL)	| \
 	(1 << IEEE80211_RADIOTAP_ANTENNA)	| \
 	(1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL)	| \
 	(1 << IEEE80211_RADIOTAP_DBM_ANTNOISE)	| \
+	(1 << IEEE80211_RADIOTAP_XCHANNEL)	| \
 	0)
 
 struct ath_rx_radiotap_header {
@@ -142,20 +147,23 @@ struct ath_rx_radiotap_header {
 	u_int64_t	wr_tsf;
 	u_int8_t	wr_flags;
 	u_int8_t	wr_rate;
-	u_int16_t	wr_chan_freq;
-	u_int16_t	wr_chan_flags;
-	u_int8_t	wr_antsignal;
-	u_int8_t	wr_antnoise;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
 	u_int8_t	wr_antenna;
-};
+	u_int8_t	wr_pad[3];
+	u_int32_t	wr_chan_flags;
+	u_int16_t	wr_chan_freq;
+	u_int8_t	wr_chan_ieee;
+	int8_t		wr_chan_maxpow;
+} __packed;
 
 #define ATH_TX_RADIOTAP_PRESENT (		\
 	(1 << IEEE80211_RADIOTAP_TSFT)		| \
 	(1 << IEEE80211_RADIOTAP_FLAGS)		| \
 	(1 << IEEE80211_RADIOTAP_RATE)		| \
-	(1 << IEEE80211_RADIOTAP_CHANNEL)	| \
 	(1 << IEEE80211_RADIOTAP_DBM_TX_POWER)	| \
 	(1 << IEEE80211_RADIOTAP_ANTENNA)	| \
+	(1 << IEEE80211_RADIOTAP_XCHANNEL)	| \
 	0)
 
 struct ath_tx_radiotap_header {
@@ -163,10 +171,12 @@ struct ath_tx_radiotap_header {
 	u_int64_t	wt_tsf;
 	u_int8_t	wt_flags;
 	u_int8_t	wt_rate;
-	u_int16_t	wt_chan_freq;
-	u_int16_t	wt_chan_flags;
 	u_int8_t	wt_txpower;
 	u_int8_t	wt_antenna;
-};
+	u_int32_t	wt_chan_flags;
+	u_int16_t	wt_chan_freq;
+	u_int8_t	wt_chan_ieee;
+	int8_t		wt_chan_maxpow;
+} __packed;
 
 #endif /* _DEV_ATH_ATHIOCTL_H */

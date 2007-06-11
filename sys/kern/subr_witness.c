@@ -363,6 +363,18 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "nfsd_mtx", &lock_class_mtx_sleep },
 	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },
+
+	/*
+	 * IEEE 802.11
+	 */
+	{ "802.11 com lock", &lock_class_mtx_sleep},
+	{ NULL, NULL },
+	/*
+	 * Network drivers
+	 */
+	{ "network driver", &lock_class_mtx_sleep},
+	{ NULL, NULL },
+
 	/*
 	 * Netgraph
 	 */
