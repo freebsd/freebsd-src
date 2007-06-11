@@ -154,29 +154,6 @@ struct isp_hba_device {
 #define	ISP_TOPO_FPORT		4	/* F-port */
 
 #define	ISP_FC_GETHINFO	_IOR(ISP_IOC, 12, struct isp_hba_device)
-/*
- * Set some internal parameters. This doesn't take effect until
- * the chip is reset.
- *
- * Each parameter is generalized to be a name string with an integer value.
- *
- * Known parameters are:
- *
- *	Name				Value Range
- *	
- *	"framelength"			512,1024,2048
- *	"exec_throttle"			16..255
- *	"fullduplex"			0,1
- *	"loopid"			0..125
- */
-
-struct isp_fc_param {
-	char		param_name[16];	/* null terminated */
-	uint32_t	parameter;
-};
-
-#define	ISP_GET_FC_PARAM	_IOWR(ISP_IOC, 98, struct isp_fc_param)
-#define	ISP_SET_FC_PARAM	_IOWR(ISP_IOC, 99, struct isp_fc_param)
 
 /*
  * Various Reset Goodies
