@@ -2126,9 +2126,9 @@ msk_txrx_dma_alloc(struct msk_if_softc *sc_if)
 		    BUS_SPACE_MAXADDR,		/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */
 		    NULL, NULL,			/* filter, filterarg */
-		    MCLBYTES * MSK_MAXTXSEGS,	/* maxsize */
+		    MSK_TSO_MAXSIZE,		/* maxsize */
 		    MSK_MAXTXSEGS,		/* nsegments */
-		    MCLBYTES,			/* maxsegsize */
+		    MSK_TSO_MAXSGSIZE,		/* maxsegsize */
 		    0,				/* flags */
 		    NULL, NULL,			/* lockfunc, lockarg */
 		    &sc_if->msk_cdata.msk_tx_tag);
