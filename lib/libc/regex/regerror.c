@@ -112,11 +112,10 @@ static struct rerr {
  */
 /* ARGSUSED */
 size_t
-regerror(errcode, preg, errbuf, errbuf_size)
-int errcode;
-const regex_t * __restrict preg;
-char * __restrict errbuf;
-size_t errbuf_size;
+regerror(int errcode,
+	 const regex_t * __restrict preg,
+	 char * __restrict errbuf,
+	 size_t errbuf_size)
 {
 	struct rerr *r;
 	size_t len;
@@ -160,9 +159,7 @@ size_t errbuf_size;
  == static char *regatoi(const regex_t *preg, char *localbuf);
  */
 static char *
-regatoi(preg, localbuf)
-const regex_t *preg;
-char *localbuf;
+regatoi(const regex_t *preg, char *localbuf)
 {
 	struct rerr *r;
 
