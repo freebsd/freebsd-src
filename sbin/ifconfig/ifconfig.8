@@ -379,6 +379,14 @@ It will always disable TSO for
 .Xr ip 4
 and
 .Xr ip6 4 .
+.It Cm lro
+If the driver supports
+.Xr tcp 4
+large receive offloading, enable LRO on the interface.
+.It Fl lro
+If the driver supports
+.Xr tcp 4
+large receive offloading, disable LRO on the interface.
 .It Cm vlanmtu , vlanhwtag
 If the driver offers user-configurable VLAN support, enable
 reception of extended frames or tag processing in hardware,
