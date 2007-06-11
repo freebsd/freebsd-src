@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 1999
+.Dd June 7, 2007
 .Dt BOOT0CFG 8
 .Os
 .Sh NAME
@@ -89,9 +89,6 @@ which will use the video card as output, alternatively
 can be used for output to the COM1 port.
 (Be aware that nothing will be output to the COM1 port unless the
 modem signals DSR and CTS are active.)
-Use
-.Pa /boot/mbr
-to revert to non-interactive boot manager.
 .It Fl d Ar drive
 Specify the drive number used by the PC BIOS in referencing the drive
 which contains the specified
@@ -155,8 +152,6 @@ The default
 image
 .It Pa /boot/boot0sio
 Image for serial consoles (COM1,9600,8,N,1,MODEM)
-.It Pa /boot/mbr
-Non-interactive boot MBR image
 .El
 .Sh EXIT STATUS
 .Ex -std
@@ -169,9 +164,11 @@ To enable just slices 1 and 2 in the menu:
 .Pp
 .Dl "boot0cfg -m 0x3 ad0"
 .Pp
-To go back to non-interactive booting:
+To go back to non-interactive booting, use
+.Xr fdisk 8
+to install the default MBR:
 .Pp
-.Dl "boot0cfg -B -b /boot/mbr ad0"
+.Dl "fdisk -B ad0"
 .Pp
 .Sh SEE ALSO
 .Xr geom 4 ,
