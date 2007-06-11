@@ -137,10 +137,6 @@ dev/snc/if_snc_pccard.c		optional snc pccard
 dev/speaker/spkr.c		optional speaker
 dev/syscons/apm/apm_saver.c	optional apm_saver apm
 dev/uart/uart_cpu_pc98.c	optional uart
-geom/geom_bsd.c			standard
-geom/geom_bsd_enc.c		standard
-geom/geom_pc98.c		standard
-geom/geom_pc98_enc.c		standard
 i386/bios/apm.c			optional apm
 #i386/i386/apic_vector.s		optional apic
 i386/i386/atomic.c		standard				\
