@@ -169,6 +169,15 @@ ieee80211_drain_ifq(struct ifqueue *ifq)
 }
 
 /*
+ * As above, for mbufs allocated with m_gethdr/MGETHDR
+ * or initialized by M_COPY_PKTHDR.
+ */
+#define	MC_ALIGN(m, len)						\
+do {									\
+	(m)->m_data += (MCLBYTES - (len)) &~ (sizeof(long) - 1);	\
+} while (/* CONSTCOND */ 0)
+
+/*
  * Allocate and setup a management frame of the specified
  * size.  We return the mbuf and a pointer to the start
  * of the contiguous data area that's been reserved based
@@ -178,7 +187,7 @@ ieee80211_drain_ifq(struct ifqueue *ifq)
  * can use this interface too.
  */
 struct mbuf *
-ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen)
+ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen)
 {
 	struct mbuf *m;
 	u_int len;
@@ -187,8 +196,7 @@ ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen)
 	 * NB: we know the mbuf routines will align the data area
 	 *     so we don't need to do anything special.
 	 */
-	/* XXX 4-address frame? */
-	len = roundup(sizeof(struct ieee80211_frame) + pktlen, 4);
+	len = roundup2(headroom + pktlen, 4);
 	KASSERT(len <= MCLBYTES, ("802.11 mgt frame too large: %u", len));
 	if (len < MINCLSIZE) {
 		m = m_gethdr(M_NOWAIT, MT_DATA);
@@ -200,8 +208,11 @@ ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen)
 		 */
 		if (m != NULL)
 			MH_ALIGN(m, len);
-	} else
+	} else {
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		if (m != NULL)
+			MC_ALIGN(m, len);
+	}
 	if (m != NULL) {
 		m->m_data += sizeof(struct ieee80211_frame);
 		*frm = m->m_data;
@@ -209,18 +220,51 @@ ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen)
 	return m;
 }
 
+int
+ieee80211_add_callback(struct mbuf *m,
+	void (*func)(struct ieee80211_node *, void *, int), void *arg)
+{
+	struct m_tag *mtag;
+	struct ieee80211_cb *cb;
+
+	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_CALLBACK,
+			sizeof(struct ieee80211_cb), M_NOWAIT);
+	if (mtag == NULL)
+		return 0;
+
+	cb = (struct ieee80211_cb *)(mtag+1);
+	cb->func = func;
+	cb->arg = arg;
+	m_tag_prepend(m, mtag);
+	m->m_flags |= M_TXCB;
+	return 1;
+}
+
+void
+ieee80211_process_callback(struct ieee80211_node *ni,
+	struct mbuf *m, int status)
+{
+	struct m_tag *mtag;
+
+	mtag = m_tag_locate(m, MTAG_ABI_NET80211, NET80211_TAG_CALLBACK, NULL);
+	if (mtag != NULL) {
+		struct ieee80211_cb *cb = (struct ieee80211_cb *)(mtag+1);
+		cb->func(ni, cb->arg, status);
+	}
+}
+
 #include <sys/libkern.h>
 
 void
 get_random_bytes(void *p, size_t n)
 {
-	u_int8_t *dp = p;
+	uint8_t *dp = p;
 
 	while (n > 0) {
-		u_int32_t v = arc4random();
-		size_t nb = n > sizeof(u_int32_t) ? sizeof(u_int32_t) : n;
-		bcopy(&v, dp, n > sizeof(u_int32_t) ? sizeof(u_int32_t) : n);
-		dp += sizeof(u_int32_t), n -= nb;
+		uint32_t v = arc4random();
+		size_t nb = n > sizeof(uint32_t) ? sizeof(uint32_t) : n;
+		bcopy(&v, dp, n > sizeof(uint32_t) ? sizeof(uint32_t) : n);
+		dp += sizeof(uint32_t), n -= nb;
 	}
 }
 

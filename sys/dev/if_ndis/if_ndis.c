@@ -478,7 +478,7 @@ ndis_attach(dev)
 	device_object		*pdo;
 	struct ifnet		*ifp = NULL;
 	int			error = 0, len;
-	int			i;
+	int			i, j;
 
 	sc = device_get_softc(dev);
 #if __FreeBSD_version < 600031
@@ -817,10 +817,11 @@ nonettypes:
 		}
 #undef SETRATE
 #undef INCRATE
+		ic->ic_nchans = 12;
 		/*
 		 * Taking yet more guesses here.
 		 */
-		for (i = 1; i < IEEE80211_CHAN_MAX; i++) {
+		for (j = 0, i = 1; i <= 12; i++, j++) {
 			int chanflag = 0;
 
 			if (ic->ic_sup_rates[IEEE80211_MODE_11G].rs_nrates)
@@ -829,12 +830,11 @@ nonettypes:
 				chanflag |= IEEE80211_CHAN_B;
 			if (ic->ic_sup_rates[IEEE80211_MODE_11A].rs_nrates &&
 			    i > 14)
-				chanflag = IEEE80211_CHAN_A;
+				chanflag = IEEE80211_CHAN_A;			
 			if (chanflag == 0)
 				break;
-			ic->ic_channels[i].ic_freq =
-			    ieee80211_ieee2mhz(i, chanflag);
-			ic->ic_channels[i].ic_flags = chanflag;
+			ic->ic_channels[j].ic_freq = ieee80211_ieee2mhz(i, chanflag);
+			ic->ic_channels[j].ic_flags = chanflag;
 		}
 
 		/*
@@ -897,8 +897,8 @@ got_crypto:
 		ieee80211_media_init(ic, ieee80211_media_change,
 		    ndis_media_status);
 #endif
-		ic->ic_ibss_chan = IEEE80211_CHAN_ANYC;
-		ic->ic_bss->ni_chan = ic->ic_ibss_chan;
+		ic->ic_bsschan = IEEE80211_CHAN_ANYC;
+		ic->ic_bss->ni_chan = ic->ic_bsschan;
 #ifdef IEEE80211_F_WPA
 		/* install key handing routines */
 		ic->ic_crypto.cs_key_set = ndis_add_key;
@@ -2392,16 +2392,16 @@ ndis_setstate_80211(sc)
 		config.nc_atimwin = 100;
 	if (config.nc_fhconfig.ncf_dwelltime == 0)
 		config.nc_fhconfig.ncf_dwelltime = 200;
-	if (rval == 0 && ic->ic_ibss_chan != IEEE80211_CHAN_ANYC) { 
+	if (rval == 0 && ic->ic_bsschan != IEEE80211_CHAN_ANYC) { 
 		int chan, chanflag;
 
-		chan = ieee80211_chan2ieee(ic, ic->ic_ibss_chan);
+		chan = ieee80211_chan2ieee(ic, ic->ic_bsschan);
 		chanflag = config.nc_dsconfig > 2500000 ? IEEE80211_CHAN_2GHZ :
 		    IEEE80211_CHAN_5GHZ;
 		if (chan != ieee80211_mhz2ieee(config.nc_dsconfig / 1000, 0)) {
 			config.nc_dsconfig =
-			    ic->ic_ibss_chan->ic_freq * 1000;
-			ic->ic_bss->ni_chan = ic->ic_ibss_chan;
+				ic->ic_bsschan->ic_freq * 1000;
+			ic->ic_bss->ni_chan = ic->ic_bsschan;
 			len = sizeof(config);
 			config.nc_length = len;
 			config.nc_fhconfig.ncf_length =
@@ -2447,11 +2447,11 @@ ndis_setstate_80211(sc)
 
 	len = sizeof(ssid);
 	bzero((char *)&ssid, len);
-	ssid.ns_ssidlen = ic->ic_des_esslen;
+	ssid.ns_ssidlen = ic->ic_des_ssid[0].len;
 	if (ssid.ns_ssidlen == 0) {
 		ssid.ns_ssidlen = 1;
 	} else
-		bcopy(ic->ic_des_essid, ssid.ns_ssid, ssid.ns_ssidlen);
+		bcopy(ic->ic_des_ssid[0].ssid, ssid.ns_ssid, ssid.ns_ssidlen);
 
 	rval = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
 
@@ -2497,6 +2497,9 @@ ndis_media_status(struct ifnet *ifp, struct ifmediareq *imr)
         case IEEE80211_M_MONITOR:
                 imr->ifm_active |= IFM_IEEE80211_MONITOR;
                 break;
+	case IEEE80211_M_WDS:
+		printf("WARNING: WDS operation mode not supported by NDIS\n");
+		break;
         }
         switch (ic->ic_curmode) {
         case IEEE80211_MODE_11A:
@@ -2682,7 +2685,7 @@ ndis_getstate_80211(sc)
 
 	ic->ic_bss->ni_chan = &ic->ic_channels[chan];
 	ic->ic_des_chan = &ic->ic_channels[chan];
-	ic->ic_ibss_chan = &ic->ic_channels[chan];
+	ic->ic_bsschan = &ic->ic_channels[chan];
 #if __FreeBSD_version >= 600007
 	ic->ic_curchan = &ic->ic_channels[chan];
 #endif
@@ -3190,6 +3193,8 @@ ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 				bcopy((char *)wb->nwbx_ies +
 				    sizeof(struct ndis_80211_fixed_ies),
 				    cp, sr->isr_ie_len);
+			} else {
+			        sr->isr_ie_len = 0;
 			}
 			sr->isr_len = roundup(sizeof(*sr) + sr->isr_ssid_len
 			    + sr->isr_ie_len, sizeof(uint32_t));

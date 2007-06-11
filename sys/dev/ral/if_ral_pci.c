@@ -87,8 +87,8 @@ static struct ral_opns {
 }  ral_rt2560_opns = {
 	rt2560_attach,
 	rt2560_detach,
-	rt2560_shutdown,
-	rt2560_suspend,
+	rt2560_stop,
+	rt2560_stop,
 	rt2560_resume,
 	rt2560_intr
 
@@ -192,7 +192,8 @@ ral_pci_attach(device_t dev)
 
 	sc->sc_st = rman_get_bustag(psc->mem);
 	sc->sc_sh = rman_get_bushandle(psc->mem);
-
+	sc->sc_invalid = 1;
+	
 	psc->irq_rid = 0;
 	psc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &psc->irq_rid,
 	    RF_ACTIVE | RF_SHAREABLE);
@@ -214,7 +215,8 @@ ral_pci_attach(device_t dev)
 		device_printf(dev, "could not set up interrupt\n");
 		return error;
 	}
-
+	sc->sc_invalid = 0;
+	
 	return 0;
 }
 
@@ -222,7 +224,11 @@ static int
 ral_pci_detach(device_t dev)
 {
 	struct ral_pci_softc *psc = device_get_softc(dev);
-
+	struct rt2560_softc *sc = &psc->u.sc_rt2560;
+	
+	/* check if device was removed */
+	sc->sc_invalid = !bus_child_present(dev);
+	
 	(*psc->sc_opns->detach)(psc);
 
 	bus_generic_detach(dev);
