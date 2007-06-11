@@ -22,6 +22,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	to maximize performance.
 
 20070610:
+	The net80211 layer has changed significantly and all wireless
+	drivers that depend on it need to be recompiled.  Further these
+	changes require that any program that interacts with the wireless
+	support in the kernel be recompiled; this includes: ifconfig,
+	wpa_supplicant, hostapd, and wlanstats.  Users must also, for
+	the moment, kldload the wlan_scan_sta and/or wlan_scan_ap modules
+	if they use modules for wireless support.  These modules implement
+	scanning support for station and ap modes, respectively.  Failure
+	to load the appropriate module before marking a wireless interface
+	up will result in a message to the console and the device not
+	operating properly.
+
+20070610:
 	The pam_nologin(8) module ceases to provide an authentication
 	function and starts providing an account management function.
 	Consequent changes to /etc/pam.d should be brought in using
