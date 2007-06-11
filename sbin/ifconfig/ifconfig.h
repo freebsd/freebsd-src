@@ -140,3 +140,9 @@ void	ifmaybeload(const char *name);
 
 typedef void clone_callback_func(int, struct ifreq *);
 void	clone_setcallback(clone_callback_func *);
+
+/*
+ * XXX expose this so modules that neeed to know of any pending
+ * operations on ifmedia can avoid cmd line ordering confusion.
+ */
+struct ifmediareq *ifmedia_getstate(int s);
