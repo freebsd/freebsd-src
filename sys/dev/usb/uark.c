@@ -131,28 +131,27 @@ USB_ATTACH(uark)
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
 	usbd_status error;
-	const char *devname;
 	int i;
 	struct ucom_softc *ucom = &sc->sc_ucom;
 
 	ucom->sc_dev = self;
 	ucom->sc_udev = dev;
 
-	devname = device_get_nameunit(ucom->sc_dev);
-
 	if (uaa->iface == NULL) {
 		/* Move the device into the configured state. */
 		error = usbd_set_config_index(dev, UARK_CONFIG_INDEX, 1);
 		if (error) {
-			printf("\n%s: failed to set configuration, err=%s\n",
-			       devname, usbd_errstr(error));
+			device_printf(ucom->sc_dev,
+			    "failed to set configuration, err=%s\n",
+			    usbd_errstr(error));
 			goto bad;
 		}
 		error =
 		    usbd_device2interface_handle(dev, UARK_IFACE_INDEX, &iface);
 		if (error) {
-			printf("\n%s: failed to get interface, err=%s\n",
-			       devname, usbd_errstr(error));
+			device_printf(ucom->sc_dev,
+			    "failed to get interface, err=%s\n",
+			    usbd_errstr(error));
 			goto bad;
 		}
 	} else
@@ -165,8 +164,8 @@ USB_ATTACH(uark)
 	for (i = 0; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (ed == NULL) {
-			printf("%s: could not read endpoint descriptor\n",
-			    devname);
+			device_printf(ucom->sc_dev,
+			    "could not read endpoint descriptor\n");
  			goto bad;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
@@ -177,7 +176,7 @@ USB_ATTACH(uark)
 			ucom->sc_bulkout_no = ed->bEndpointAddress;
 	}
 	if (ucom->sc_bulkin_no == -1 || ucom->sc_bulkout_no == -1) {
- 		printf("%s: missing endpoint\n", devname);
+ 		device_printf(ucom->sc_dev, "missing endpoint\n");
  		goto bad;
 	}
 	ucom->sc_parent = sc;
@@ -305,9 +304,7 @@ uark_break(void *vsc, int portno, int onoff)
 #ifdef UARK_DEBUG
 	struct uark_softc *sc = vsc;
 
-	printf("%s: break %s!\n", device_get_nameunit(sc->sc_dev),
-	    onoff ? "on" : "off");
-
+	device_printf(sc->sc_dev, "%s: break %s!\n", onoff ? "on" : "off");
 	if (onoff)
 		/* break on */
 		uark_cmd(sc, 4, 0x01);
