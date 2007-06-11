@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* @(#) $Header: /tcpdump/master/tcpdump/ieee802_11.h,v 1.9 2003/07/22 17:36:57 guy Exp $ (LBL) */
 /*
  * Copyright (c) 2001
@@ -30,6 +31,7 @@
 #define	IEEE802_11_RA_LEN		6
 #define	IEEE802_11_TA_LEN		6
 #define	IEEE802_11_SEQ_LEN		2
+#define	IEEE802_11_CTL_LEN		2
 #define	IEEE802_11_IV_LEN		3
 #define	IEEE802_11_KID_LEN		1
 
@@ -72,6 +74,7 @@
 /* RESERVED 			0xF  */
 
 
+#define	CTRL_BAR	0x8
 #define	CTRL_PS_POLL	0xA
 #define	CTRL_RTS	0xB
 #define	CTRL_CTS	0xC
@@ -279,6 +282,20 @@ struct ctrl_end_ack_t {
 
 #define	CTRL_END_ACK_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
 				 IEEE802_11_RA_LEN+IEEE802_11_BSSID_LEN)
+
+struct ctrl_bar_t {
+	u_int16_t	fc;
+	u_int16_t	dur;
+	u_int8_t	ra[6];
+	u_int8_t	ta[6];
+	u_int16_t	ctl;
+	u_int16_t	seq;
+	u_int8_t	fcs[4];
+};
+
+#define	CTRL_BAR_HDRLEN		(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
+				 IEEE802_11_RA_LEN+IEEE802_11_TA_LEN+\
+				 IEEE802_11_CTL_LEN+IEEE802_11_SEQ_LEN)
 
 #define	IV_IV(iv)	((iv) & 0xFFFFFF)
 #define	IV_PAD(iv)	(((iv) >> 24) & 0x3F)
