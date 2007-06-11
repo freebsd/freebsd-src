@@ -163,7 +163,7 @@ USB_ATTACH(ufm)
 	USB_ATTACH_SUCCESS_RETURN;
 
  nobulk:
-	printf("%s: could not find %s\n", device_get_nameunit(sc->sc_dev),ermsg);
+	device_printf(sc->sc_dev, "could not find %s\n", ermsg);
 	USB_ATTACH_ERROR_RETURN;
 }
 
@@ -220,10 +220,8 @@ ufm_do_req(struct ufm_softc *sc, u_int8_t reqtype, u_int8_t request,
 	err = usbd_do_request_flags(sc->sc_udev, &req, retbuf, 0, NULL,
 	    USBD_DEFAULT_TIMEOUT);
 	splx(s);
-	if (err) {
-		printf("usbd_do_request_flags returned %#x\n", err);
+	if (err)
 		return (EIO);
-	}
 	return (0);
 }
 
