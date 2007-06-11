@@ -33,6 +33,7 @@
 #define SPICDS_TYPE_WM8770 2
 #define SPICDS_TYPE_AK4358 3
 #define SPICDS_TYPE_AK4381 4
+#define SPICDS_TYPE_AK4396 5
 
 /* AK4524/AK4528 control registers */
 #define AK4524_POWER 0x00
@@ -100,6 +101,10 @@
 /* AK4381 control registers */
 #define AK4381_LOATT 0x03
 #define AK4381_ROATT 0x04
+
+/* AK4396 control registers */
+#define AK4396_LOATT 0x03
+#define AK4396_ROATT 0x04
 
 struct spicds_info;
 
