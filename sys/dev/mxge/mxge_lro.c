@@ -243,7 +243,7 @@ mxge_lro_rx(mxge_softc_t *mgp, struct mbuf *m_head, uint32_t csum)
 				return -1;
 			}
 
-			if (lro->timestamp) {
+			if (opt_bytes) {
 				uint32_t tsval = ntohl(*(ts_ptr + 1));
 				/* make sure timestamp values are increasing */
 				if (__predict_false(lro->tsval > tsval || 
