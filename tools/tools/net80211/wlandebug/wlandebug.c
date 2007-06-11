@@ -43,14 +43,17 @@
 #include <sys/types.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <getopt.h>
 #include <string.h>
+#include <err.h>
 
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 
 const char *progname;
 
+#define	IEEE80211_MSG_11N	0x80000000	/* 11n mode debug */
 #define	IEEE80211_MSG_DEBUG	0x40000000	/* IFF_DEBUG equivalent */
 #define	IEEE80211_MSG_DUMPPKTS	0x20000000	/* IFF_LINK2 equivalant */
 #define	IEEE80211_MSG_CRYPTO	0x10000000	/* crypto work */
@@ -82,6 +85,7 @@ static struct {
 	const char	*name;
 	u_int		bit;
 } flags[] = {
+	{ "11n",	IEEE80211_MSG_11N },
 	{ "debug",	IEEE80211_MSG_DEBUG },
 	{ "dumppkts",	IEEE80211_MSG_DUMPPKTS },
 	{ "crypto",	IEEE80211_MSG_CRYPTO },
@@ -150,7 +154,7 @@ main(int argc, char *argv[])
 	const char *ifname = "ath0";
 	const char *cp, *tp;
 	const char *sep;
-	int c, op, i, unit;
+	int op, i, unit;
 	u_int32_t debug, ndebug;
 	size_t debuglen, parentlen;
 	char oid[256], parent[256];
@@ -173,8 +177,9 @@ main(int argc, char *argv[])
 		snprintf(oid, sizeof(oid), "net.wlan.%d.%%parent", unit);
 #endif
 		parentlen = sizeof(parent);
-		if (sysctlbyname(oid, parent, &parentlen, NULL, 0) >= 0 &&
-		    strncmp(parent, ifname, parentlen) == 0)
+		if (sysctlbyname(oid, parent, &parentlen, NULL, 0) < 0)
+			continue;
+		if (strncmp(parent, ifname, parentlen) == 0)
 			break;
 	}
 	if (unit == 10)
@@ -210,11 +215,12 @@ main(int argc, char *argv[])
 				ndebug |= bit;
 			else {
 				if (bit == 0) {
-					if (isdigit(*cp))
+					int c = *cp;
+					if (isdigit(c))
 						bit = strtoul(cp, NULL, 0);
 					else
 						errx(1, "unknown flag %.*s",
-							tp-cp, cp);
+							(int)(tp-cp), cp);
 				}
 				ndebug = bit;
 			}
