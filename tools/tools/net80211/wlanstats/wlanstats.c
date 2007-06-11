@@ -50,6 +50,7 @@
 #include <net/ethernet.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
@@ -91,7 +92,7 @@ static const struct fmt wlanstats[] = {
 #define	S_RX_MGTDISCARD	11
 	{ 5,  "rx_mgtdiscard",	"mgtdiscard",	"rx discard mgt frames" },
 #define	S_RX_CTL	12
-	{ 5,  "rx_ctl",		"ctl",		"rx discard ctrl frames" },
+	{ 5,  "rx_ctl",		"ctl",		"rx ctrl frames" },
 #define	S_RX_BEACON	13
 	{ 5,  "rx_beacon",	"beacon",	"rx beacon frames" },
 #define	S_RX_RSTOOBIG	14
@@ -256,29 +257,49 @@ static const struct fmt wlanstats[] = {
 	{ 5,  "rx_demicfail",	"rx_demicfail",	"rx demic failed" },
 #define	S_RX_DEFRAG	91
 	{ 5,  "rx_defrag",	"rx_defrag",	"rx defragmentation failed" },
-#define	S_INPUT		92
+#define	S_RX_ACTION	92
+	{ 5,  "rx_action",	"rx_action",	"rx action frames" },
+#define	S_AMSDU_TOOSHORT	93
+	{ 8,  "amsdu_tooshort",	"amsdu_tooshort","A-MSDU rx decap error" },
+#define	S_AMSDU_SPLIT	94
+	{ 8,  "amsdu_split",	"amsdu_split",	"A-MSDU rx failed on frame split" },
+#define	S_AMSDU_DECAP	95
+	{ 8,  "amsdu_decap",	"amsdu_decap",	"A-MSDU frames received" },
+#define	S_AMSDU_ENCAP	96
+	{ 8,  "amsdu_encap",	"amsdu_encap",	"A-MSDU frames transmitted" },
+#define	S_AMPDU_FLUSH	97
+	{ 8,  "ampdu_flush",	"ampdu_flush",	"A-MPDU frames flushed" },
+#define	S_AMPDU_BARBAD	98
+	{ 8,  "ampdu_barbad",	"ampdu_barbad",	"A-MPDU BAR rx before ADDBA exchange" },
+#define	S_AMPDU_BAROOW	99
+	{ 8,  "ampdu_baroow",	"ampdu_baroow",	"A-MPDU BAR rx out of BA window" },
+#define	S_AMPDU_BAR	100
+	{ 8,  "ampdu_bar",	"ampdu_bar",	"A-MPDU BAR rx successful" },
+#define	S_AMPDU_OOR	101
+	{ 8,  "ampdu_oor",	"ampdu_oor",	"A-MPDU frames received out-of-order" },
+#define	S_AMPDU_COPY	102
+	{ 8,  "ampdu_copy",	"ampdu_copy",	"A-MPDU rx window slots copied" },
+#define	S_INPUT		103
 	{ 8,	"input",	"input",	"data frames received" },
-#define	S_OUTPUT	93
+#define	S_OUTPUT	104
 	{ 8,	"output",	"output",	"data frames transmit" },
-#define	S_RATE		94
+#define	S_RATE		105
 	{ 4,	"rate",		"rate",		"current transmit rate" },
-#define	S_RSSI		95
+#define	S_RSSI		106
 	{ 4,	"rssi",		"rssi",		"current rssi" },
-#define	S_NOISE		96
+#define	S_NOISE		107
 	{ 4,	"noise",	"noise",	"current noise floor (dBm)" },
-#define	S_RX_UCAST	97
+#define	S_RX_UCAST	108
 	{ 8,	"rx_ucast",	"rx_ucast",	"unicast data frames received" },
-#define	S_RX_MCAST	98
+#define	S_RX_MCAST	109
 	{ 8,	"rx_mcast",	"rx_mcast",	"multicast data frames received" },
-#define	S_TX_UCAST	99
+#define	S_TX_UCAST	110
 	{ 8,	"tx_ucast",	"tx_ucast",	"unicast data frames sent" },
-#define	S_TX_MCAST	100
+#define	S_TX_MCAST	111
 	{ 8,	"tx_mcast",	"tx_mcast",	"multicast data frames sent" },
-#define	S_SIGNAL	101
+#define	S_SIGNAL	112
 	{ 4,	"signal",	"sig",		"current signal (dBm)" },
 };
-#define	S_LAST	S_RX_DEFRAG
-#define	S_MAX	S_LAST+1
 
 struct wlanstatfoo_p {
 	struct wlanstatfoo base;
@@ -376,7 +397,7 @@ wlan_setstamac(struct wlanstatfoo *wf0, const uint8_t *mac)
 			wf->ireq.i_data = wf->mac;
 			wf->ireq.i_len = IEEE80211_ADDR_LEN;
 			if (ioctl(wf->s, SIOCG80211, &wf->ireq) <0)
-				err(1, wf->ireq.i_name);
+				err(1, "%s (IEEE80211_IOC_BSSID)", wf->ireq.i_name);
 			break;
 		}
 	} else
@@ -394,18 +415,18 @@ wlan_collect(struct wlanstatfoo_p *wf,
 	wf->ireq.i_data = (caddr_t) &wf->u_info;
 	wf->ireq.i_len = sizeof(wf->u_info);
 	if (ioctl(wf->s, SIOCG80211, &wf->ireq) < 0)
-		err(1, wf->ireq.i_name);
+		err(1, "%s (IEEE80211_IOC_STA_INFO)", wf->ireq.i_name);
 
 	IEEE80211_ADDR_COPY(nstats->is_u.macaddr, wf->mac);
 	wf->ireq.i_type = IEEE80211_IOC_STA_STATS;
 	wf->ireq.i_data = (caddr_t) nstats;
 	wf->ireq.i_len = sizeof(*nstats);
 	if (ioctl(wf->s, SIOCG80211, &wf->ireq) < 0)
-		err(1, wf->ireq.i_name);
+		err(1, "%s (IEEE80211_IOC_STA_STATS)", wf->ireq.i_name);
 
 	wf->ifr.ifr_data = (caddr_t) stats;
 	if (ioctl(wf->s, SIOCG80211STATS, &wf->ifr) < 0)
-		err(1, wf->ifr.ifr_name);
+		err(1, "%s (SIOCG80211STATS)", wf->ifr.ifr_name);
 }
 
 static void
@@ -561,6 +582,17 @@ wlan_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_RX_MGMT:		STAT(rx_mgmt);
 	case S_RX_DEMICFAIL:	STAT(rx_demicfail);
 	case S_RX_DEFRAG:	STAT(rx_defrag);
+	case S_RX_ACTION:	STAT(rx_action);
+	case S_AMSDU_TOOSHORT:	STAT(amsdu_tooshort);
+	case S_AMSDU_SPLIT:	STAT(amsdu_split);
+	case S_AMSDU_DECAP:	STAT(amsdu_decap);
+	case S_AMSDU_ENCAP:	STAT(amsdu_encap);
+	case S_AMPDU_FLUSH:	STAT(ampdu_rx_flush);
+	case S_AMPDU_BARBAD:	STAT(ampdu_bar_bad);
+	case S_AMPDU_BAROOW:	STAT(ampdu_bar_oow);
+	case S_AMPDU_BAR:	STAT(ampdu_bar_rx);
+	case S_AMPDU_OOR:	STAT(ampdu_rx_oor);
+	case S_AMPDU_COPY:	STAT(ampdu_rx_copy);
 	case S_INPUT:		NSTAT(rx_data);
 	case S_OUTPUT:		NSTAT(tx_data);
 	case S_RX_UCAST:	NSTAT(rx_ucast);
@@ -674,6 +706,17 @@ wlan_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_RX_MGMT:		STAT(rx_mgmt);
 	case S_RX_DEMICFAIL:	STAT(rx_demicfail);
 	case S_RX_DEFRAG:	STAT(rx_defrag);
+	case S_RX_ACTION:	STAT(rx_action);
+	case S_AMSDU_TOOSHORT:	STAT(amsdu_tooshort);
+	case S_AMSDU_SPLIT:	STAT(amsdu_split);
+	case S_AMSDU_DECAP:	STAT(amsdu_decap);
+	case S_AMSDU_ENCAP:	STAT(amsdu_encap);
+	case S_AMPDU_FLUSH:	STAT(ampdu_rx_flush);
+	case S_AMPDU_BARBAD:	STAT(ampdu_bar_bad);
+	case S_AMPDU_BAROOW:	STAT(ampdu_bar_oow);
+	case S_AMPDU_BAR:	STAT(ampdu_bar_rx);
+	case S_AMPDU_OOR:	STAT(ampdu_rx_oor);
+	case S_AMPDU_COPY:	STAT(ampdu_rx_copy);
 	case S_INPUT:		NSTAT(rx_data);
 	case S_OUTPUT:		NSTAT(tx_data);
 	case S_RX_UCAST:	NSTAT(rx_ucast);
