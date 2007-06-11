@@ -341,7 +341,7 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ether_header *eh;
-	struct ether_vlan_header *evl;
+	struct ether_vlan_header *evl = NULL;
 	int error;
 	u_int16_t vlan;
 	struct mbuf *m;
@@ -368,7 +368,6 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 				 * Ethernet frame; tag is stored out-of-band.
 				 */
 				vlan = EVL_VLANOFTAG(m->m_pkthdr.ether_vtag);
-				(void)&evl;	/* XXX silence GCC */
 			} else {
 				if (m->m_len < sizeof(*evl) &&
 				    (m = m_pullup(m, sizeof(*evl))) == NULL) {
