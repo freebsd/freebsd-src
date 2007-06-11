@@ -1,7 +1,7 @@
 /*	$KAME: sctp_sys_calls.c,v 1.9 2004/08/17 06:08:53 itojun Exp $ */
 
 /*
- * Copyright (C) 2002-2006 Cisco Systems Inc,
+ * Copyright (C) 2002-2007 Cisco Systems Inc,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -164,15 +164,21 @@ sctp_getaddrlen(sa_family_t family)
 }
 
 int
-sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt, sctp_assoc_t * id)
+sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
+    sctp_assoc_t * id)
 {
 	char buf[SCTP_STACK_BUF_SIZE];
 	int i, ret, cnt, *aa;
 	char *cpto;
 	const struct sockaddr *at;
-	size_t len = sizeof(int);
 	sctp_assoc_t *p_id;
+	size_t len = sizeof(int);
 
+	/* validate the address count and list */
+	if ((addrs == NULL) || (addrcnt <= 0)) {
+		errno = EINVAL;
+		return (-1);
+	}
 	at = addrs;
 	cnt = 0;
 	cpto = ((caddr_t)buf + sizeof(int));
@@ -227,9 +233,15 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 	struct sockaddr *sa;
 	int i, sz, fam, argsz;
 
+	/* validate the flags */
 	if ((flags != SCTP_BINDX_ADD_ADDR) &&
 	    (flags != SCTP_BINDX_REM_ADDR)) {
 		errno = EFAULT;
+		return (-1);
+	}
+	/* validate the address count and list */
+	if ((addrcnt <= 0) || (addrs == NULL)) {
+		errno = EINVAL;
 		return (-1);
 	}
 	argsz = (sizeof(struct sockaddr_storage) +
@@ -709,7 +721,6 @@ sctp_recvmsg(int s,
     struct sctp_sndrcvinfo *sinfo,
     int *msg_flags)
 {
-
 #ifdef SYS_sctp_generic_recvmsg
 	struct iovec iov[SCTP_SMALL_IOVEC_SIZE];
 
@@ -745,7 +756,7 @@ sctp_recvmsg(int s,
 	msg.msg_control = (caddr_t)controlVector;
 	msg.msg_controllen = sizeof(controlVector);
 	errno = 0;
-	sz = recvmsg(s, &msg, 0);
+	sz = recvmsg(s, &msg, *msg_flags);
 	if (sz <= 0)
 		return (sz);
 
