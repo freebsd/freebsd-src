@@ -216,8 +216,8 @@ static const lacp_timer_func_t lacp_timer_funcs[LACP_NTIMER] = {
 void
 lacp_input(struct lagg_port *lgp, struct mbuf *m)
 {
-	struct lagg_softc *lgs = lgp->lp_lagg;
-	struct lacp_softc *lsc = LACP_SOFTC(lgs);
+	struct lagg_softc *sc = lgp->lp_softc;
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
 	uint8_t subtype;
 
 	if (m->m_pkthdr.len < sizeof(struct ether_header) + sizeof(subtype)) {
@@ -247,7 +247,7 @@ static void
 lacp_dequeue(void *arg, int pending)
 {
 	struct lacp_softc *lsc = (struct lacp_softc *)arg;
-	struct lagg_softc *sc = lsc->lsc_lagg;
+	struct lagg_softc *sc = lsc->lsc_softc;
 	struct lagg_port *lgp;
 	struct mbuf *m;
 
@@ -272,11 +272,7 @@ lacp_pdu_input(struct lagg_port *lgp, struct mbuf *m)
 	struct lacpdu *du;
 	int error = 0;
 
-	LAGG_WLOCK_ASSERT(lgp->lp_lagg);
-
-	if (__predict_false(lp->lp_flags & LACP_PORT_DETACHING)) {
-		goto bad;
-	}
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	if (m->m_pkthdr.len != sizeof(*du)) {
 		goto bad;
@@ -300,16 +296,10 @@ lacp_pdu_input(struct lagg_port *lgp, struct mbuf *m)
 		goto bad;
 	}
 
-	/* XXX
-	KASSERT(du->ldu_sph.sph_subtype == SLOWPROTOCOLS_SUBTYPE_LACP,
-	    ("a very bad kassert!"));
-	*/
-
 	/*
 	 * ignore the version for compatibility with
 	 * the future protocol revisions.
 	 */
-
 #if 0
 	if (du->ldu_sph.sph_version != 1) {
 		goto bad;
@@ -320,7 +310,6 @@ lacp_pdu_input(struct lagg_port *lgp, struct mbuf *m)
 	 * ignore tlv types for compatibility with
 	 * the future protocol revisions.
 	 */
-
 	if (tlv_check(du, sizeof(*du), &du->ldu_tlv_actor,
 	    lacp_info_tlv_template, FALSE)) {
 		goto bad;
@@ -345,11 +334,11 @@ static void
 lacp_fill_actorinfo(struct lacp_port *lp, struct lacp_peerinfo *info)
 {
 	struct lagg_port *lgp = lp->lp_lagg;
-	struct lagg_softc *lgs = lgp->lp_lagg;
+	struct lagg_softc *sc = lgp->lp_softc;
 
 	info->lip_systemid.lsi_prio = htons(LACP_SYSTEM_PRIO);
 	memcpy(&info->lip_systemid.lsi_mac,
-	    IF_LLADDR(lgs->sc_ifp), ETHER_ADDR_LEN);
+	    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 	info->lip_portid.lpi_prio = htons(LACP_PORT_PRIO);
 	info->lip_portid.lpi_portno = htons(lp->lp_ifp->if_index);
 	info->lip_state = lp->lp_state;
@@ -374,7 +363,7 @@ lacp_xmit_lacpdu(struct lacp_port *lp)
 	struct lacpdu *du;
 	int error;
 
-	LAGG_WLOCK_ASSERT(lgp->lp_lagg);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
@@ -428,7 +417,7 @@ lacp_xmit_marker(struct lacp_port *lp)
 	struct markerdu *mdu;
 	int error;
 
-	LAGG_WLOCK_ASSERT(lgp->lp_lagg);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
@@ -471,7 +460,7 @@ lacp_linkstate(struct lagg_port *lgp)
 	uint8_t old_state;
 	uint16_t old_key;
 
-	LAGG_WLOCK_ASSERT(lgp->lp_lagg);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	bzero((char *)&ifmr, sizeof(ifmr));
 	error = (*ifp->if_ioctl)(ifp, SIOCGIFMEDIA, (caddr_t)&ifmr);
@@ -486,7 +475,7 @@ lacp_linkstate(struct lagg_port *lgp)
 	old_key = lp->lp_key;
 
 	lp->lp_media = media;
-	/* 
+	/*
 	 * If the port is not an active full duplex Ethernet link then it can
 	 * not be aggregated.
 	 */
@@ -508,7 +497,7 @@ static void
 lacp_tick(void *arg)
 {
 	struct lacp_softc *lsc = arg;
-	struct lagg_softc *sc = lsc->lsc_lagg;
+	struct lagg_softc *sc = lsc->lsc_softc;
 	struct lacp_port *lp;
 
 	LAGG_WLOCK(sc);
@@ -530,8 +519,8 @@ lacp_tick(void *arg)
 int
 lacp_port_create(struct lagg_port *lgp)
 {
-	struct lagg_softc *lgs = lgp->lp_lagg;
-	struct lacp_softc *lsc = LACP_SOFTC(lgs);
+	struct lagg_softc *sc = lgp->lp_softc;
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
 	struct lacp_port *lp;
 	struct ifnet *ifp = lgp->lp_ifp;
 	struct sockaddr_dl sdl;
@@ -541,7 +530,7 @@ lacp_port_create(struct lagg_port *lgp)
 	boolean_t active = TRUE; /* XXX should be configurable */
 	boolean_t fast = FALSE; /* XXX should be configurable */
 
-	LAGG_WLOCK_ASSERT(lgs);
+	LAGG_WLOCK_ASSERT(sc);
 
 	bzero((char *)&sdl, sizeof(sdl));
 	sdl.sdl_len = sizeof(sdl);
@@ -589,7 +578,7 @@ lacp_port_destroy(struct lagg_port *lgp)
 	struct lacp_port *lp = LACP_PORT(lgp);
 	int i;
 
-	LAGG_WLOCK_ASSERT(lgp->lp_lagg);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	for (i = 0; i < LACP_NTIMER; i++) {
 		LACP_TIMER_DISARM(lp, i);
@@ -654,7 +643,7 @@ lacp_disable_distributing(struct lacp_port *lp)
 	char buf[LACP_LAGIDSTR_MAX+1];
 #endif /* defined(LACP_DEBUG) */
 
-	LAGG_WLOCK_ASSERT(lgp->lp_lagg);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	if (la == NULL || (lp->lp_state & LACP_STATE_DISTRIBUTING) == 0) {
 		return;
@@ -692,7 +681,7 @@ lacp_enable_distributing(struct lacp_port *lp)
 	char buf[LACP_LAGIDSTR_MAX+1];
 #endif /* defined(LACP_DEBUG) */
 
-	LAGG_WLOCK_ASSERT(lgp->lp_lagg);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	if ((lp->lp_state & LACP_STATE_DISTRIBUTING) != 0) {
 		return;
@@ -727,19 +716,19 @@ lacp_transit_expire(void *vp)
 }
 
 int
-lacp_attach(struct lagg_softc *lgs)
+lacp_attach(struct lagg_softc *sc)
 {
 	struct lacp_softc *lsc;
 
-	LAGG_WLOCK_ASSERT(lgs);
+	LAGG_WLOCK_ASSERT(sc);
 
 	lsc = malloc(sizeof(struct lacp_softc),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (lsc == NULL)
 		return (ENOMEM);
 
-	lgs->sc_psc = (caddr_t)lsc;
-	lsc->lsc_lagg = lgs;
+	sc->sc_psc = (caddr_t)lsc;
+	lsc->lsc_softc = sc;
 
 	lsc->lsc_hashkey = arc4random();
 	lsc->lsc_active_aggregator = NULL;
@@ -754,23 +743,23 @@ lacp_attach(struct lagg_softc *lgs)
 	callout_init(&lsc->lsc_callout, CALLOUT_MPSAFE);
 
 	/* if the lagg is already up then do the same */
-	if (lgs->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
-		lacp_init(lgs);
+	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		lacp_init(sc);
 
 	return (0);
 }
 
 int
-lacp_detach(struct lagg_softc *lgs)
+lacp_detach(struct lagg_softc *sc)
 {
-	struct lacp_softc *lsc = LACP_SOFTC(lgs);
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
 
 	KASSERT(TAILQ_EMPTY(&lsc->lsc_aggregators),
 	    ("aggregators still active"));
 	KASSERT(lsc->lsc_active_aggregator == NULL,
 	    ("aggregator still attached"));
 
-	lgs->sc_psc = NULL;
+	sc->sc_psc = NULL;
 	callout_drain(&lsc->lsc_transit_callout);
 	callout_drain(&lsc->lsc_callout);
 	taskqueue_drain(taskqueue_swi, &lsc->lsc_qtask);
@@ -782,32 +771,32 @@ lacp_detach(struct lagg_softc *lgs)
 }
 
 void
-lacp_init(struct lagg_softc *lgs)
+lacp_init(struct lagg_softc *sc)
 {
-	struct lacp_softc *lsc = LACP_SOFTC(lgs);
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
 
 	callout_reset(&lsc->lsc_callout, hz, lacp_tick, lsc);
 }
 
 void
-lacp_stop(struct lagg_softc *lgs)
+lacp_stop(struct lagg_softc *sc)
 {
-	struct lacp_softc *lsc = LACP_SOFTC(lgs);
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
 
 	callout_stop(&lsc->lsc_transit_callout);
 	callout_stop(&lsc->lsc_callout);
 }
 
 struct lagg_port *
-lacp_select_tx_port(struct lagg_softc *lgs, struct mbuf *m)
+lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 {
-	struct lacp_softc *lsc = LACP_SOFTC(lgs);
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
 	struct lacp_aggregator *la;
 	struct lacp_port *lp;
 	uint32_t hash;
 	int nports;
 
-	LAGG_RLOCK_ASSERT(lgs);
+	LAGG_RLOCK_ASSERT(sc);
 
 	if (__predict_false(lsc->lsc_suppress_distributing)) {
 		LACP_DPRINTF((NULL, "%s: waiting transit\n", __func__));
@@ -981,7 +970,7 @@ static uint16_t
 lacp_compose_key(struct lacp_port *lp)
 {
 	struct lagg_port *lgp = lp->lp_lagg;
-	struct lagg_softc *lgs = lgp->lp_lagg;
+	struct lagg_softc *sc = lgp->lp_softc;
 	u_int media = lp->lp_media;
 	uint16_t key;
 
@@ -1006,7 +995,7 @@ lacp_compose_key(struct lacp_port *lp)
 		/* bit 0..4:	IFM_SUBTYPE */
 		key = subtype;
 		/* bit 5..14:	(some bits of) if_index of lagg device */
-		key |= 0x7fe0 & ((lgs->sc_ifp->if_index) << 5);
+		key |= 0x7fe0 & ((sc->sc_ifp->if_index) << 5);
 		/* bit 15:	0 */
 	}
 	return (htons(key));
@@ -1680,11 +1669,7 @@ lacp_marker_input(struct lagg_port *lgp, struct mbuf *m)
 	int error = 0;
 	int pending = 0;
 
-	LAGG_RLOCK_ASSERT(lgp->lp_lagg);
-
-	if (__predict_false(lp->lp_flags & LACP_PORT_DETACHING)) {
-		goto bad;
-	}
+	LAGG_RLOCK_ASSERT(lgp->lp_softc);
 
 	if (m->m_pkthdr.len != sizeof(*mdu)) {
 		goto bad;
@@ -1707,11 +1692,6 @@ lacp_marker_input(struct lagg_port *lgp, struct mbuf *m)
 	    &ethermulticastaddr_slowprotocols, ETHER_ADDR_LEN)) {
 		goto bad;
 	}
-
-	/* XXX
-	KASSERT(mdu->mdu_sph.sph_subtype == SLOWPROTOCOLS_SUBTYPE_MARKER,
-	    ("a very bad kassert!"));
-	*/
 
 	if (mdu->mdu_sph.sph_version != 1) {
 		goto bad;
