@@ -51,7 +51,7 @@
 
 #define	NFE_MAX_SCATTER		32
 #define	NFE_TSO_MAXSGSIZE	4096
-#define	NFE_TSO_MAXSIZE		65535
+#define	NFE_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
 
 #define	NFE_IRQ_STATUS		0x000
 #define	NFE_IRQ_MASK		0x004
