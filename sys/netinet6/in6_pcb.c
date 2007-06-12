@@ -456,7 +456,8 @@ in6_pcbfree(struct inpcb *inp)
 	/* Check and free IPv4 related resources in case of mapped addr */
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
-	ip_freemoptions(inp->inp_moptions);
+	if (inp->inp_moptions != NULL)
+		inp_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
 	INP_UNLOCK(inp);
 	uma_zfree(ipi->ipi_zone, inp);

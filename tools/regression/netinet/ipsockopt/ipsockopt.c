@@ -679,7 +679,7 @@ test_ip_multicast_membership(int sock, const char *socktypename)
      * this usually maps to the interface to which the default
      * route is pointing.
      */
-    for (i = 0; i < nmcastgroups; i++) {
+    for (i = 1; i < nmcastgroups+1; i++) {
 	mreq.imr_multiaddr.s_addr = htonl((basegroup + i));
 	mreq.imr_interface.s_addr = INADDR_ANY;
 	inet_ntop(AF_INET, &mreq.imr_multiaddr, addrbuf, sizeof(addrbuf));
@@ -692,7 +692,7 @@ test_ip_multicast_membership(int sock, const char *socktypename)
 		    sock, socktypename, addrbuf, "INADDR_ANY");
 	}
     }
-    for (i = 0; i < nmcastgroups; i++) {
+    for (i = 1; i < nmcastgroups+1; i++) {
 	mreq.imr_multiaddr.s_addr = htonl((basegroup + i));
 	mreq.imr_interface.s_addr = INADDR_ANY;
 	inet_ntop(AF_INET, &mreq.imr_multiaddr, addrbuf, sizeof(addrbuf));

@@ -234,6 +234,7 @@ struct sockproto {
 };
 #endif
 
+#ifndef	_STRUCT_SOCKADDR_STORAGE_DECLARED
 /*
  * RFC 2553: protocol-independent placeholder for socket addresses
  */
@@ -251,6 +252,8 @@ struct sockaddr_storage {
 	__int64_t	__ss_align;	/* force desired struct alignment */
 	char		__ss_pad2[_SS_PAD2SIZE];
 };
+#define	_STRUCT_SOCKADDR_STORAGE_DECLARED
+#endif
 
 #if __BSD_VISIBLE
 /*

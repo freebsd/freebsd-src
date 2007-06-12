@@ -14,7 +14,7 @@ SRCS+=	base64.c ether_addr.c eui64.c \
 	ip6opt.c linkaddr.c map_v4v6.c name6.c ntoh.c \
 	nsdispatch.c nslexer.c nsparser.c nss_compat.c \
 	rcmd.c rcmdsh.c recv.c rthdr.c sctp_sys_calls.c send.c \
-        sockatmark.c vars.c
+        sockatmark.c sourcefilter.c vars.c
 
 .if ${MK_NS_CACHING} != "no"
 SRCS+=	nscache.c nscachedcli.c
@@ -52,6 +52,7 @@ MAN+=	byteorder.3 ethers.3 eui64.3 \
 	inet6_opt_init.3 inet6_option_space.3 inet6_rth_space.3 \
 	inet6_rthdr_space.3 linkaddr.3 \
 	nsdispatch.3 rcmd.3 rcmdsh.3 resolver.3 sockatmark.3 \
+	setsourcefilter.3 \
         sctp_bindx.3 sctp_connectx.3 sctp_freepaddrs.3 \
         sctp_getaddrlen.3 sctp_getassocid.3 sctp_getpaddrs.3 \
         sctp_opt_info.3 sctp_recvmsg.3 sctp_send.3 sctp_sendmsg.3 \
@@ -121,6 +122,8 @@ MLINKS+=resolver.3 dn_comp.3 resolver.3 dn_expand.3 resolver.3 res_init.3 \
 	resolver.3 res_search.3 resolver.3 res_send.3 resolver.3 dn_skipname.3 \
 	resolver.3 ns_get16.3 resolver.3 ns_get32.3 \
 	resolver.3 ns_put16.3 resolver.3 ns_put32.3
+MLINKS+=sourcefilter.3 setipv4sourcefilter.3 getipv4sourcefilter.3 \
+	sourcefilter.3 setsourcefilter.3 getsourcefilter.3
 
 .if ${MK_HESIOD} != "no"
 SRCS+=	hesiod.c 

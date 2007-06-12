@@ -467,6 +467,14 @@ struct route_in6 {
 				    * the source address.
 				    */
 
+/*
+ * The following option is private; do not use it from user applications.
+ * It is deliberately defined to the same value as IP_MSFILTER.
+ */
+#define	IPV6_MSFILTER		74 /* struct __msfilterreq;
+				    * set/get multicast source filter list.
+				    */
+
 /* to define items, should talk with KAME guys first, for *BSD compatibility */
 
 #define IPV6_RTHDR_LOOSE     0 /* this hop need not be a neighbor. XXX old spec */
@@ -486,6 +494,18 @@ struct ipv6_mreq {
 	struct in6_addr	ipv6mr_multiaddr;
 	unsigned int	ipv6mr_interface;
 };
+
+#ifdef notyet
+/*
+ * Argument structure for IPV6_ADD_SOURCE_MEMBERSHIP,
+ * IPV6_DROP_SOURCE_MEMBERSHIP, IPV6_BLOCK_SOURCE, and IPV6_UNBLOCK_SOURCE.
+ */
+struct ipv6_mreq_source {
+	struct in6_addr	ipv6mr_multiaddr;
+	struct in6_addr	ipv6mr_sourceaddr;
+	uint32_t	ipv6mr_interface;
+};
+#endif
 
 /*
  * IPV6_PKTINFO: Packet information(RFC2292 sec 5)

@@ -137,6 +137,10 @@ FBSD_1.0 {
 	sctp_send;
 	sctp_sendx;
 	sctp_recvmsg;
+	setipv4sourcefilter;
+	getipv4sourcefilter;
+	getsourcefilter;
+	setsourcefilter;
 };
 
 FBSDprivate_1.0 {
