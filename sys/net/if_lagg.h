@@ -25,20 +25,19 @@
  * Global definitions
  */
 
-#define LAGG_MAX_PORTS		32	/* logically */
-#define LAGG_MAX_NAMESIZE	32	/* name of a protocol */
-#define LAGG_MAX_STACKING	4	/* maximum number of stacked laggs */
+#define	LAGG_MAX_PORTS		32	/* logically */
+#define	LAGG_MAX_NAMESIZE	32	/* name of a protocol */
+#define	LAGG_MAX_STACKING	4	/* maximum number of stacked laggs */
 
 /* Port flags */
-#define LAGG_PORT_SLAVE		0x00000000	/* normal enslaved port */
-#define LAGG_PORT_MASTER	0x00000001	/* primary port */
-#define LAGG_PORT_STACK		0x00000002	/* stacked lagg port */
-#define LAGG_PORT_ACTIVE	0x00000004	/* port is active */
-#define LAGG_PORT_COLLECTING	0x00000008	/* port is receiving frames */
-#define LAGG_PORT_DISTRIBUTING	0x00000010	/* port is sending frames */
-#define LAGG_PORT_DISABLED	0x00000020	/* port is disabled */
-#define LAGG_PORT_GLOBAL	0x80000000	/* IOCTL: global flag */
-#define LAGG_PORT_BITS		"\20\01MASTER\02STACK\03ACTIVE\04COLLECTING" \
+#define	LAGG_PORT_SLAVE		0x00000000	/* normal enslaved port */
+#define	LAGG_PORT_MASTER	0x00000001	/* primary port */
+#define	LAGG_PORT_STACK		0x00000002	/* stacked lagg port */
+#define	LAGG_PORT_ACTIVE	0x00000004	/* port is active */
+#define	LAGG_PORT_COLLECTING	0x00000008	/* port is receiving frames */
+#define	LAGG_PORT_DISTRIBUTING	0x00000010	/* port is sending frames */
+#define	LAGG_PORT_DISABLED	0x00000020	/* port is disabled */
+#define	LAGG_PORT_BITS		"\20\01MASTER\02STACK\03ACTIVE\04COLLECTING" \
 				  "\05DISTRIBUTING\06DISABLED"
 
 /* Supported lagg PROTOs */
@@ -51,8 +50,8 @@
 #define	LAGG_PROTO_MAX		6
 
 struct lagg_protos {
-	const char		*tpr_name;
-	int			tpr_proto;
+	const char		*lpr_name;
+	int			lpr_proto;
 };
 
 #define	LAGG_PROTO_DEFAULT	LAGG_PROTO_FAILOVER
@@ -78,9 +77,9 @@ struct lagg_reqport {
 	u_int32_t		rp_flags;		/* port flags */
 };
 
-#define SIOCGLAGGPORT		_IOWR('i', 140, struct lagg_reqport)
-#define SIOCSLAGGPORT		 _IOW('i', 141, struct lagg_reqport)
-#define SIOCSLAGGDELPORT	 _IOW('i', 142, struct lagg_reqport)
+#define	SIOCGLAGGPORT		_IOWR('i', 140, struct lagg_reqport)
+#define	SIOCSLAGGPORT		 _IOW('i', 141, struct lagg_reqport)
+#define	SIOCSLAGGDELPORT	 _IOW('i', 142, struct lagg_reqport)
 
 /* lagg, ports and options */
 struct lagg_reqall {
@@ -92,24 +91,22 @@ struct lagg_reqall {
 	int			ra_ports;		/* total port count */
 };
 
-#define SIOCGLAGG		_IOWR('i', 143, struct lagg_reqall)
-#define SIOCSLAGG		 _IOW('i', 144, struct lagg_reqall)
+#define	SIOCGLAGG		_IOWR('i', 143, struct lagg_reqall)
+#define	SIOCSLAGG		 _IOW('i', 144, struct lagg_reqall)
 
 #ifdef _KERNEL
 /*
  * Internal kernel part
  */
 
-#define lp_ifname		lp_ifp->if_xname	/* interface name */
-#define lp_link_state		lp_ifp->if_link_state	/* link state */
-#define lp_capabilities		lp_ifp->if_capabilities	/* capabilities */
+#define	lp_ifname		lp_ifp->if_xname	/* interface name */
+#define	lp_link_state		lp_ifp->if_link_state	/* link state */
+#define	lp_capabilities		lp_ifp->if_capabilities	/* capabilities */
 
-#define LAGG_PORTACTIVE(_tp)	(					\
+#define	LAGG_PORTACTIVE(_tp)	(					\
 	((_tp)->lp_link_state == LINK_STATE_UP) &&			\
-	((_tp)->lp_ifp->if_flags & IFF_UP)					\
+	((_tp)->lp_ifp->if_flags & IFF_UP)				\
 )
-
-#define mc_enm	mc_u.mcu_enm
 
 struct lagg_ifreq {
 	union {
@@ -121,15 +118,14 @@ struct lagg_ifreq {
 	} ifreq;
 };
 
-#define sc_ifflags		sc_ifp->if_flags		/* flags */
-#define sc_ifname		sc_ifp->if_xname		/* name */
-#define sc_capabilities		sc_ifp->if_capabilities	/* capabilities */
+#define	sc_ifflags		sc_ifp->if_flags		/* flags */
+#define	sc_ifname		sc_ifp->if_xname		/* name */
+#define	sc_capabilities		sc_ifp->if_capabilities	/* capabilities */
 
-#define IFCAP_LAGG_MASK		0xffff0000	/* private capabilities */
-#define IFCAP_LAGG_FULLDUPLEX	0x00010000	/* full duplex with >1 ports */
+#define	IFCAP_LAGG_MASK		0xffff0000	/* private capabilities */
+#define	IFCAP_LAGG_FULLDUPLEX	0x00010000	/* full duplex with >1 ports */
 
 /* Private data used by the loadbalancing protocol */
-#define LAGG_LB_MAXKEYS	8
 struct lagg_lb {
 	u_int32_t		lb_key;
 	struct lagg_port	*lb_ports[LAGG_MAX_PORTS];
@@ -178,7 +174,7 @@ struct lagg_softc {
 
 struct lagg_port {
 	struct ifnet			*lp_ifp;	/* physical interface */
-	struct lagg_softc		*lp_lagg;	/* parent lagg */
+	struct lagg_softc		*lp_softc;	/* parent lagg */
 	uint8_t				lp_lladdr[ETHER_ADDR_LEN];
 
 	u_char				lp_iftype;	/* interface type */
@@ -199,14 +195,14 @@ struct lagg_port {
 	SLIST_ENTRY(lagg_port)		lp_entries;
 };
 
-#define LAGG_LOCK_INIT(_sc)	rw_init(&(_sc)->sc_mtx, "if_lagg rwlock")
-#define LAGG_LOCK_DESTROY(_sc)	rw_destroy(&(_sc)->sc_mtx)
-#define LAGG_RLOCK(_sc)		rw_rlock(&(_sc)->sc_mtx)
-#define LAGG_WLOCK(_sc)		rw_wlock(&(_sc)->sc_mtx)
-#define LAGG_RUNLOCK(_sc)	rw_runlock(&(_sc)->sc_mtx)
-#define LAGG_WUNLOCK(_sc)	rw_wunlock(&(_sc)->sc_mtx)
-#define LAGG_RLOCK_ASSERT(_sc)	rw_assert(&(_sc)->sc_mtx, RA_RLOCKED)
-#define LAGG_WLOCK_ASSERT(_sc)	rw_assert(&(_sc)->sc_mtx, RA_WLOCKED)
+#define	LAGG_LOCK_INIT(_sc)	rw_init(&(_sc)->sc_mtx, "if_lagg rwlock")
+#define	LAGG_LOCK_DESTROY(_sc)	rw_destroy(&(_sc)->sc_mtx)
+#define	LAGG_RLOCK(_sc)		rw_rlock(&(_sc)->sc_mtx)
+#define	LAGG_WLOCK(_sc)		rw_wlock(&(_sc)->sc_mtx)
+#define	LAGG_RUNLOCK(_sc)	rw_runlock(&(_sc)->sc_mtx)
+#define	LAGG_WUNLOCK(_sc)	rw_wunlock(&(_sc)->sc_mtx)
+#define	LAGG_RLOCK_ASSERT(_sc)	rw_assert(&(_sc)->sc_mtx, RA_RLOCKED)
+#define	LAGG_WLOCK_ASSERT(_sc)	rw_assert(&(_sc)->sc_mtx, RA_WLOCKED)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );
