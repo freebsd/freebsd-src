@@ -73,6 +73,7 @@ SUBDIR=	adjkerntz \
 	quotacheck \
 	rcorder \
 	reboot \
+	recoverdisk \
 	restore \
 	route \
 	routed \
