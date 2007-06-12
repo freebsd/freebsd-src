@@ -306,7 +306,7 @@ setsourcefilter(int s, uint32_t interface, struct sockaddr *group,
 #ifdef INET6
 	case AF_INET6:
 		if (grouplen != sizeof(struct sockaddr_in6) ||
-		    !IN6_IS_ADDR_MULTICAST(psu->sin6.sin6_addr)) {
+		    !IN6_IS_ADDR_MULTICAST(&psu->sin6.sin6_addr)) {
 			errno = EINVAL;
 			return (-1);
 		}
@@ -367,7 +367,7 @@ getsourcefilter(int s, uint32_t interface, struct sockaddr *group,
 #ifdef INET6
 	case AF_INET6:
 		if (grouplen != sizeof(struct sockaddr_in6) ||
-		    !IN6_IS_ADDR_MULTICAST(psu->sin6.sin6_addr)) {
+		    !IN6_IS_ADDR_MULTICAST(&psu->sin6.sin6_addr)) {
 			errno = EINVAL;
 			return (-1);
 		}
