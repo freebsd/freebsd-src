@@ -187,7 +187,7 @@ static void	umodem_rts(struct umodem_softc *, int);
 static void	umodem_break(struct umodem_softc *, int);
 static void	umodem_set_line_state(struct umodem_softc *);
 static int	umodem_param(void *, int, struct termios *);
-static int	umodem_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr );
+static int	umodem_ioctl(void *, int, u_long, caddr_t, int, struct thread *);
 static int	umodem_open(void *, int portno);
 static void	umodem_close(void *, int portno);
 static void	umodem_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -614,7 +614,7 @@ umodem_param(void *addr, int portno, struct termios *t)
 
 int
 umodem_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
-	     usb_proc_ptr p)
+	     struct thread *p)
 {
 	struct umodem_softc *sc = addr;
 	int error = 0;

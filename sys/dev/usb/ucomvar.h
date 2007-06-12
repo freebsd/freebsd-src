@@ -97,7 +97,7 @@ struct ucom_callback {
 #define UCOM_SET_RTS 2
 #define UCOM_SET_BREAK 3
 	int (*ucom_param)(void *, int, struct termios *);
-	int (*ucom_ioctl)(void *, int, u_long, caddr_t, int, usb_proc_ptr);
+	int (*ucom_ioctl)(void *, int, u_long, caddr_t, int, struct thread *);
 	int (*ucom_open)(void *, int);
 	void (*ucom_close)(void *, int);
 	void (*ucom_read)(void *, int, u_char **, u_int32_t *);

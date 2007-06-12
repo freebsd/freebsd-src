@@ -173,7 +173,7 @@ static void uhid_intr(usbd_xfer_handle, usbd_private_handle,
 static int uhid_do_read(struct uhid_softc *, struct uio *uio, int);
 static int uhid_do_write(struct uhid_softc *, struct uio *uio, int);
 static int uhid_do_ioctl(struct uhid_softc *, u_long, caddr_t, int,
-			      usb_proc_ptr);
+			      struct thread *);
 
 USB_DECLARE_DRIVER(uhid);
 
@@ -428,7 +428,7 @@ uhid_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 }
 
 int
-uhidopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
+uhidopen(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	struct uhid_softc *sc;
 	usbd_status err;
@@ -471,7 +471,7 @@ uhidopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 }
 
 int
-uhidclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
+uhidclose(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	struct uhid_softc *sc;
 
@@ -623,7 +623,7 @@ uhidwrite(struct cdev *dev, struct uio *uio, int flag)
 
 int
 uhid_do_ioctl(struct uhid_softc *sc, u_long cmd, caddr_t addr, int flag,
-	      usb_proc_ptr p)
+	      struct thread *p)
 {
 	struct usb_ctl_report_desc *rd;
 	struct usb_ctl_report *re;
@@ -737,7 +737,7 @@ uhid_do_ioctl(struct uhid_softc *sc, u_long cmd, caddr_t addr, int flag,
 }
 
 int
-uhidioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
+uhidioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *p)
 {
 	struct uhid_softc *sc;
 	int error;
@@ -752,7 +752,7 @@ uhidioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 }
 
 int
-uhidpoll(struct cdev *dev, int events, usb_proc_ptr p)
+uhidpoll(struct cdev *dev, int events, struct thread *p)
 {
 	struct uhid_softc *sc;
 	int revents = 0;
