@@ -40,10 +40,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Driver for 3c990 (Typhoon) Ethernet ASIC
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
