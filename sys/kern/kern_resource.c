@@ -688,8 +688,7 @@ kern_setrlimit(td, which, limp)
 	alimp = &oldlim->pl_rlimit[which];
 	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
-		if ((error = priv_check_cred(td->td_ucred,
-		    PRIV_PROC_SETRLIMIT, SUSER_ALLOWJAIL))) {
+		if ((error = priv_check(td, PRIV_PROC_SETRLIMIT))) {
 			PROC_UNLOCK(p);
 			lim_free(newlim);
 			return (error);

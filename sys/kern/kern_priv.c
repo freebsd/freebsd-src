@@ -77,18 +77,8 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 	/*
 	 * Jail policy will restrict certain privileges that may otherwise be
 	 * be granted.
-	 *
-	 * While debugging the transition from SUSER_ALLOWJAIL to Jail being
-	 * aware of specific privileges, perform run-time checking that the
-	 * two versions of the policy align.  This assertion will go away
-	 * once the SUSER_ALLOWJAIL flag has gone away.
 	 */
 	error = prison_priv_check(cred, priv);
-#ifdef NOTYET
-	KASSERT(!jailed(cred) || error == ((flags & SUSER_ALLOWJAIL) ? 0 :
-	    EPERM), ("priv_check_cred: prison_priv_check %d but flags %s",
-	    error, flags & SUSER_ALLOWJAIL ? "allowjail" : "!allowjail"));
-#endif
 	if (error)
 		return (error);
 

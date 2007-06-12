@@ -82,24 +82,22 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 
 	if (type == VDIR) {
 		if ((acc_mode & VEXEC) && !priv_check_cred(cred,
-		     PRIV_VFS_LOOKUP, SUSER_ALLOWJAIL))
+		     PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
 		if ((acc_mode & VEXEC) && !priv_check_cred(cred,
-		    PRIV_VFS_EXEC, SUSER_ALLOWJAIL))
+		    PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
 
-	if ((acc_mode & VREAD) && !priv_check_cred(cred, PRIV_VFS_READ,
-	    SUSER_ALLOWJAIL))
+	if ((acc_mode & VREAD) && !priv_check_cred(cred, PRIV_VFS_READ, 0))
 		priv_granted |= VREAD;
 
 	if (((acc_mode & VWRITE) || (acc_mode & VAPPEND)) &&
-	    !priv_check_cred(cred, PRIV_VFS_WRITE, SUSER_ALLOWJAIL))
+	    !priv_check_cred(cred, PRIV_VFS_WRITE, 0))
 		priv_granted |= (VWRITE | VAPPEND);
 
-	if ((acc_mode & VADMIN) && !priv_check_cred(cred, PRIV_VFS_ADMIN,
-	    SUSER_ALLOWJAIL))
+	if ((acc_mode & VADMIN) && !priv_check_cred(cred, PRIV_VFS_ADMIN, 0))
 		priv_granted |= VADMIN;
 
 	/*

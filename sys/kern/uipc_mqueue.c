@@ -961,8 +961,7 @@ int do_unlink(struct mqfs_node *pn, struct ucred *ucred)
 	sx_assert(&pn->mn_info->mi_lock, SX_LOCKED);
 
 	if (ucred->cr_uid != pn->mn_uid &&
-	    (error = priv_check_cred(ucred, PRIV_MQ_ADMIN,
-	    SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(ucred, PRIV_MQ_ADMIN, 0)) != 0)
 		error = EACCES;
 	else if (!pn->mn_deleted) {
 		parent = pn->mn_parent;
@@ -1221,8 +1220,7 @@ mqfs_setattr(struct vop_setattr_args *ap)
 		 */
 		if (((ap->a_cred->cr_uid != pn->mn_uid) || uid != pn->mn_uid ||
 		    (gid != pn->mn_gid && !groupmember(gid, ap->a_cred))) &&
-		    (error = priv_check_cred(ap->a_td->td_ucred,
-		    PRIV_MQ_ADMIN, SUSER_ALLOWJAIL)) != 0)
+		    (error = priv_check(ap->a_td, PRIV_MQ_ADMIN)) != 0)
 			return (error);
 		pn->mn_uid = uid;
 		pn->mn_gid = gid;
@@ -1231,8 +1229,7 @@ mqfs_setattr(struct vop_setattr_args *ap)
 
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if ((ap->a_cred->cr_uid != pn->mn_uid) &&
-		    (error = priv_check_cred(ap->a_td->td_ucred,
-		    PRIV_MQ_ADMIN, SUSER_ALLOWJAIL)))
+		    (error = priv_check(ap->a_td, PRIV_MQ_ADMIN)))
 			return (error);
 		pn->mn_mode = vap->va_mode;
 		c = 1;

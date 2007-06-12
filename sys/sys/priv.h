@@ -466,6 +466,18 @@ struct thread;
 struct ucred;
 int	priv_check(struct thread *td, int priv);
 int	priv_check_cred(struct ucred *cred, int priv, int flags);
+
+/*
+ * Continue to support external modules that rely on suser(9) -- for now.
+ */
+int	suser(struct thread *td);
+int	suser_cred(struct ucred *cred, int flags);
+
+/*
+ * For historical reasons, flags to priv_check_cred() retain the SUSER_
+ * prefix.
+ */
+#define	SUSER_RUID	2
 #endif
 
 #endif /* !_SYS_PRIV_H_ */

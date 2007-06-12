@@ -234,12 +234,6 @@ void	stopprofclock(struct proc *);
 void	cpu_startprofclock(void);
 void	cpu_stopprofclock(void);
 
-/* flags for suser() and suser_cred() */
-#define SUSER_ALLOWJAIL	1
-#define SUSER_RUID	2
-
-int	suser(struct thread *td);
-int	suser_cred(struct ucred *cred, int flags);
 int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
 

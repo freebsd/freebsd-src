@@ -192,11 +192,11 @@ in6_pcbbind(inp, nam, cred)
 			if (ntohs(lport) <= ipport_reservedhigh &&
 			    ntohs(lport) >= ipport_reservedlow &&
 			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
-			    SUSER_ALLOWJAIL))
+			    0))
 				return (EACCES);
 			if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr) &&
 			    priv_check_cred(so->so_cred,
-			    PRIV_NETINET_REUSEPORT, SUSER_ALLOWJAIL) != 0) {
+			    PRIV_NETINET_REUSEPORT, 0) != 0) {
 				t = in6_pcblookup_local(pcbinfo,
 				    &sin6->sin6_addr, lport,
 				    INPLOOKUP_WILDCARD);

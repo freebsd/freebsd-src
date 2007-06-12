@@ -114,8 +114,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 			 * p_candebug() should implement it, or other checks
 			 * are missing.
 			 */
-			error = priv_check_cred(td->td_ucred,
-			    PRIV_DEBUG_SUGID, SUSER_ALLOWJAIL);
+			error = priv_check(td, PRIV_DEBUG_SUGID);
 			if (error)
 				break;
 		}

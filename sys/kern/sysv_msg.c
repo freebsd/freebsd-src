@@ -502,8 +502,7 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_M)))
 			goto done2;
 		if (msqbuf->msg_qbytes > msqkptr->u.msg_qbytes) {
-			error = priv_check_cred(td->td_ucred,
-			    PRIV_IPC_MSGSIZE, SUSER_ALLOWJAIL);
+			error = priv_check(td, PRIV_IPC_MSGSIZE);
 			if (error)
 				goto done2;
 		}

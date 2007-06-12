@@ -918,7 +918,7 @@ vfs_domount(
 		}
 		if (va.va_uid != td->td_ucred->cr_uid) {
 			error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN,
-			    SUSER_ALLOWJAIL);
+			    0);
 			if (error) {
 				vput(vp);
 				return (error);
