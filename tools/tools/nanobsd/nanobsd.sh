@@ -45,6 +45,9 @@ NANO_SRC=/usr/src
 # Where nanobsd additional files live under the source tree
 NANO_TOOLS=tools/tools/nanobsd
 
+# Where cust_pkg() finds packages to install
+NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
+
 # Object tree directory
 # default is subdir of /usr/obj
 # XXX: MAKEOBJDIRPREFIX handling... ?
@@ -75,7 +78,7 @@ NANO_NEWFS="-b 4096 -f 512 -i 8192 -O1 -U"
 NANO_DRIVE=ad0
 
 # Target media size in 512 bytes sectors
-NANO_MEDIASIZE=1048576
+NANO_MEDIASIZE=1000000
 
 # Number of code images on media (1 or 2)
 NANO_IMAGES=2
@@ -100,7 +103,7 @@ NANO_RAM_ETCSIZE=10240
 NANO_RAM_TMPVARSIZE=10240
 
 # Media geometry, only relevant if bios doesn't understand LBA.
-NANO_SECTS=32
+NANO_SECTS=63
 NANO_HEADS=16
 
 # boot0 flags/options and configuration
@@ -231,6 +234,20 @@ setup_nanobsd ( ) (
 
 	(
 	cd ${NANO_WORLDDIR}
+
+	# Move /usr/local/etc to /etc/local so that the /cfg stuff
+	# can stomp on it.  Otherwise packages like ipsec-tools which
+	# have hardcoded paths under ${prefix}/etc are not tweakable.
+	if [ -d usr/local/etc ] ; then
+		(
+		mkdir etc/local
+		cd usr/local/etc
+		find . -print | cpio -dumpl ../../../etc/local
+		cd ..
+		rm -rf etc
+		ln -s ../../etc/local etc
+		)
+	fi
 
 	for d in var etc
 	do
@@ -467,6 +484,46 @@ cust_allow_ssh_root () (
 cust_install_files () (
 	cd ${NANO_TOOLS}/Files
 	find . -print | grep -v /CVS | cpio -dumpv ${NANO_WORLDDIR}
+)
+
+#######################################################################
+# Install packages from ${NANO_PACKAGE_DIR}
+
+cust_pkg () (
+
+	# Copy packages into chroot
+	mkdir -p ${NANO_WORLDDIR}/Pkg
+	cp ${NANO_PACKAGE_DIR}/* ${NANO_WORLDDIR}/Pkg
+
+	# Count & report how many we have to install
+	todo=`ls ${NANO_WORLDDIR}/Pkg | wc -l`
+	echo "=== TODO: $todo"
+	ls ${NANO_WORLDDIR}/Pkg
+	echo "==="
+	while true
+	do
+		# Record how may we have now
+		have=`ls ${NANO_WORLDDIR}/var/db/pkg | wc -l`
+
+		# Attempt to install more
+		chroot ${NANO_WORLDDIR} sh -c 'pkg_add -F Pkg/*' || true
+
+		# See what that got us
+		now=`ls ${NANO_WORLDDIR}/var/db/pkg | wc -l`
+		echo "=== NOW $now"
+		ls ${NANO_WORLDDIR}/var/db/pkg
+		echo "==="
+
+
+		if [ $now -eq $todo ] ; then
+			echo "DONE $now packages"
+			break
+		elif [ $now -eq $have ] ; then
+			echo "FAILED: Nothing happened on this pass"
+			exit 2
+		fi
+	done
+	rm -rf ${NANO_WORLDDIR}/Pkg
 )
 
 #######################################################################
