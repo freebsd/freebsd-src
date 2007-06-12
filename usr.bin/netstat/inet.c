@@ -513,7 +513,7 @@ udp_stats(u_long off __unused, const char *name, int af1 __unused)
 	p1a(udps_nosum, "\t%lu with no checksum\n");
 	p1a(udps_noport, "\t%lu dropped due to no socket\n");
 	p(udps_noportbcast,
-	    "\t%lu broadcast/multicast datagram%s dropped due to no socket\n");
+	    "\t%lu broadcast/multicast datagram%s undelivered\n");
 	p1a(udps_fullsock, "\t%lu dropped due to full socket buffers\n");
 	p1a(udpps_pcbhashmiss, "\t%lu not for hashed pcb\n");
 	delivered = udpstat.udps_ipackets -
@@ -526,6 +526,9 @@ udp_stats(u_long off __unused, const char *name, int af1 __unused)
 	if (delivered || sflag <= 1)
 		printf("\t%lu delivered\n", delivered);
 	p(udps_opackets, "\t%lu datagram%s output\n");
+	/* the next statistic is cumulative in udps_noportbcast */
+	p(udps_filtermcast,
+	    "\t%lu time%s multicast source filter matched\n");
 #undef p
 #undef p1a
 }

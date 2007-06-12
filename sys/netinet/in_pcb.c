@@ -735,7 +735,8 @@ in_pcbfree(struct inpcb *inp)
 	in_pcbremlists(inp);
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
-	ip_freemoptions(inp->inp_moptions);
+	if (inp->inp_moptions != NULL)
+		inp_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
 	
 #ifdef MAC

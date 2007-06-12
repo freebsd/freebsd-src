@@ -113,10 +113,6 @@ static int	blackhole = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW, &blackhole, 0,
     "Do not send port unreachables for refused connects");
 
-static int	strict_mcast_mship = 0;
-SYSCTL_INT(_net_inet_udp, OID_AUTO, strict_mcast_mship, CTLFLAG_RW,
-    &strict_mcast_mship, 0, "Only send multicast to member sockets");
-
 struct inpcbhead	udb;		/* from udp_var.h */
 struct inpcbinfo	udbinfo;
 
@@ -176,6 +172,7 @@ udp_input(struct mbuf *m, int off)
 	int iphlen = off;
 	struct ip *ip;
 	struct udphdr *uh;
+	struct ifnet *ifp;
 	struct inpcb *inp;
 	int len;
 	struct ip save_ip;
@@ -184,6 +181,7 @@ udp_input(struct mbuf *m, int off)
 	struct m_tag *fwd_tag;
 #endif
 
+	ifp = m->m_pkthdr.rcvif;
 	udpstat.udps_ipackets++;
 
 	/*
@@ -301,25 +299,10 @@ udp_input(struct mbuf *m, int off)
 
 	INP_INFO_RLOCK(&udbinfo);
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
-	    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif)) {
+	    in_broadcast(ip->ip_dst, ifp)) {
 		struct inpcb *last;
+		struct ip_moptions *imo;
 
-		/*
-		 * Deliver a multicast or broadcast datagram to *all* sockets
-		 * for which the local and remote addresses and ports match
-		 * those of the incoming datagram.  This allows more than one
-		 * process to receive multi/broadcasts on the same port.
-		 * (This really ought to be done for unicast datagrams as
-		 * well, but that would cause problems with existing
-		 * applications that open both address-specific sockets and a
-		 * wildcard socket listening to the same port -- they would
-		 * end up receiving duplicates of every unicast datagram.
-		 * Those applications open the multiple sockets to overcome
-		 * an inadequacy of the UDP socket interface, but for
-		 * backwards compatibility we avoid the problem here rather
-		 * than fixing the interface.  Maybe 4.5BSD will remedy
-		 * this?)
-		 */
 		last = NULL;
 		LIST_FOREACH(inp, &udb, inp_list) {
 			if (inp->inp_lport != uh->uh_dport)
@@ -328,45 +311,83 @@ udp_input(struct mbuf *m, int off)
 			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
 #endif
-			if (inp->inp_laddr.s_addr != INADDR_ANY) {
-				if (inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
+			if (inp->inp_laddr.s_addr != INADDR_ANY &&
+			    inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
 					continue;
-			}
-			if (inp->inp_faddr.s_addr != INADDR_ANY) {
-				if (inp->inp_faddr.s_addr !=
-				    ip->ip_src.s_addr ||
-				    inp->inp_fport != uh->uh_sport)
+			if (inp->inp_faddr.s_addr != INADDR_ANY &&
+			    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 					continue;
-			}
+			/*
+			 * XXX: Do not check source port of incoming datagram
+			 * unless inp_connect() has been called to bind the
+			 * fport part of the 4-tuple; the source could be
+			 * trying to talk to us with an ephemeral port.
+			 */
+			if (inp->inp_fport != 0 &&
+			    inp->inp_fport != uh->uh_sport)
+					continue;
+
+			INP_LOCK(inp);
 
 			/*
-			 * Check multicast packets to make sure they are only
-			 * sent to sockets with multicast memberships for the
-			 * packet's destination address and arrival interface
+			 * Handle socket delivery policy for any-source
+			 * and source-specific multicast. [RFC3678]
 			 */
-#define	MSHIP(_inp, n)	((_inp)->inp_moptions->imo_membership[(n)])
-#define	NMSHIPS(_inp)	((_inp)->inp_moptions->imo_num_memberships)
-			INP_LOCK(inp);
-			if (strict_mcast_mship && inp->inp_moptions != NULL) {
-				int mship, foundmship = 0;
+			imo = inp->inp_moptions;
+			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
+			    imo != NULL) {
+				struct sockaddr_in	 sin;
+				struct in_msource	*ims;
+				int			 blocked, mode;
+				size_t			 idx;
 
-				for (mship = 0; mship < NMSHIPS(inp);
-				    mship++) {
-					if (MSHIP(inp, mship)->inm_addr.s_addr
-					    == ip->ip_dst.s_addr &&
-					    MSHIP(inp, mship)->inm_ifp
-					    == m->m_pkthdr.rcvif) {
-						foundmship = 1;
-						break;
+				bzero(&sin, sizeof(struct sockaddr_in));
+				sin.sin_len = sizeof(struct sockaddr_in);
+				sin.sin_family = AF_INET;
+				sin.sin_addr = ip->ip_dst;
+
+				blocked = 0;
+				idx = imo_match_group(imo, ifp,
+				    (struct sockaddr *)&sin);
+				if (idx == -1) {
+					/*
+					 * No group membership for this socket.
+					 * Do not bump udps_noportbcast, as
+					 * this will happen further down.
+					 */
+					blocked++;
+				} else {
+					/*
+					 * Check for a multicast source filter
+					 * entry on this socket for this group.
+					 * MCAST_EXCLUDE is the default
+					 * behaviour. It means default accept;
+					 * entries, if present, denote sources
+					 * to be excluded from delivery.
+					 */
+					ims = imo_match_source(imo, idx,
+					    (struct sockaddr *)&udp_in);
+					mode = imo->imo_mfilters[idx].imf_fmode;
+					if ((ims != NULL &&
+					     mode == MCAST_EXCLUDE) ||
+					    (ims == NULL &&
+					     mode == MCAST_INCLUDE)) {
+#ifdef DIAGNOSTIC
+						if (bootverbose) {
+							printf("%s: blocked by"
+							    " source filter\n",
+							    __func__);
+						}
+#endif
+						udpstat.udps_filtermcast++;
+						blocked++;
 					}
 				}
-				if (foundmship == 0) {
+				if (blocked != 0) {
 					INP_UNLOCK(inp);
 					continue;
 				}
 			}
-#undef NMSHIPS
-#undef MSHIP
 			if (last != NULL) {
 				struct mbuf *n;
 
@@ -410,7 +431,7 @@ udp_input(struct mbuf *m, int off)
 	 * Locate pcb for datagram.
 	 */
 	inp = in_pcblookup_hash(&udbinfo, ip->ip_src, uh->uh_sport,
-	    ip->ip_dst, uh->uh_dport, 1, m->m_pkthdr.rcvif);
+	    ip->ip_dst, uh->uh_dport, 1, ifp);
 	if (inp == NULL) {
 		if (udp_log_in_vain) {
 			char buf[4*sizeof "123"];

@@ -84,6 +84,33 @@ struct in_addr {
 #define	_STRUCT_IN_ADDR_DECLARED
 #endif
 
+#ifndef	_SOCKLEN_T_DECLARED
+typedef	__socklen_t	socklen_t;
+#define	_SOCKLEN_T_DECLARED
+#endif
+
+/* Avoid collision with original definition in sys/socket.h. */
+#ifndef	_STRUCT_SOCKADDR_STORAGE_DECLARED
+/*
+ * RFC 2553: protocol-independent placeholder for socket addresses
+ */
+#define	_SS_MAXSIZE	128U
+#define	_SS_ALIGNSIZE	(sizeof(__int64_t))
+#define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(unsigned char) - \
+			    sizeof(sa_family_t))
+#define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(unsigned char) - \
+			    sizeof(sa_family_t) - _SS_PAD1SIZE - _SS_ALIGNSIZE)
+
+struct sockaddr_storage {
+	unsigned char	ss_len;		/* address length */
+	sa_family_t	ss_family;	/* address family */
+	char		__ss_pad1[_SS_PAD1SIZE];
+	__int64_t	__ss_align;	/* force desired struct alignment */
+	char		__ss_pad2[_SS_PAD2SIZE];
+};
+#define	_STRUCT_SOCKADDR_STORAGE_DECLARED
+#endif
+
 /* Socket address, internet style. */
 struct sockaddr_in {
 	uint8_t	sin_len;
@@ -390,7 +417,8 @@ __END_DECLS
 #define	IP_RECVDSTADDR		7    /* bool; receive IP dst addr w/dgram */
 #define	IP_SENDSRCADDR		IP_RECVDSTADDR /* cmsg_type to set src addr */
 #define	IP_RETOPTS		8    /* ip_opts; set/get IP options */
-#define	IP_MULTICAST_IF		9    /* u_char; set/get IP multicast i/f  */
+#define	IP_MULTICAST_IF		9    /* struct in_addr *or* struct ip_mreqn;
+				      * set/get IP multicast i/f  */
 #define	IP_MULTICAST_TTL	10   /* u_char; set/get IP multicast ttl */
 #define	IP_MULTICAST_LOOP	11   /* u_char; set/get IP multicast loopback */
 #define	IP_ADD_MEMBERSHIP	12   /* ip_mreq; add an IP group membership */
@@ -435,6 +463,23 @@ __END_DECLS
 #define	IP_MINTTL		66   /* minimum TTL for packet or drop */
 #define	IP_DONTFRAG		67   /* don't fragment packet */
 
+/* IPv4 Source Filter Multicast API [RFC3678] */
+#define	IP_ADD_SOURCE_MEMBERSHIP	70   /* join a source-specific group */
+#define	IP_DROP_SOURCE_MEMBERSHIP	71   /* drop a single source */
+#define	IP_BLOCK_SOURCE			72   /* block a source */
+#define	IP_UNBLOCK_SOURCE		73   /* unblock a source */
+
+/* The following option is private; do not use it from user applications. */
+#define	IP_MSFILTER			74   /* set/get filter list */
+
+/* Protocol Independent Multicast API [RFC3678] */
+#define	MCAST_JOIN_GROUP		80   /* join an any-source group */
+#define	MCAST_LEAVE_GROUP		81   /* leave all sources for group */
+#define	MCAST_JOIN_SOURCE_GROUP		82   /* join a source-specific group */
+#define	MCAST_LEAVE_SOURCE_GROUP	83   /* leave a single source */
+#define	MCAST_BLOCK_SOURCE		84   /* block a source */
+#define	MCAST_UNBLOCK_SOURCE		85   /* unblock a source */
+
 /*
  * Defaults and limits for options
  */
@@ -448,6 +493,7 @@ __END_DECLS
  */
 #define	IP_MIN_MEMBERSHIPS	31
 #define	IP_MAX_MEMBERSHIPS	4095
+#define	IP_MAX_SOURCE_FILTER	1024	/* # of filters per socket, per group */
 
 /*
  * Argument structure for IP_ADD_MEMBERSHIP and IP_DROP_MEMBERSHIP.
@@ -456,6 +502,82 @@ struct ip_mreq {
 	struct	in_addr imr_multiaddr;	/* IP multicast address of group */
 	struct	in_addr imr_interface;	/* local IP address of interface */
 };
+
+/*
+ * Modified argument structure for IP_MULTICAST_IF, obtained from Linux.
+ * This is used to specify an interface index for multicast sends, as
+ * the IPv4 legacy APIs do not support this (unless IP_SENDIF is available).
+ */
+struct ip_mreqn {
+	struct	in_addr imr_multiaddr;	/* IP multicast address of group */
+	struct	in_addr imr_address;	/* local IP address of interface */
+	int		imr_ifindex;	/* Interface index; cast to uint32_t */
+};
+
+/*
+ * Argument structure for IPv4 Multicast Source Filter APIs. [RFC3678]
+ */
+struct ip_mreq_source {
+	struct	in_addr imr_multiaddr;	/* IP multicast address of group */
+	struct	in_addr imr_sourceaddr;	/* IP address of source */
+	struct	in_addr imr_interface;	/* local IP address of interface */
+};
+
+/*
+ * Argument structures for Protocol-Independent Multicast Source
+ * Filter APIs. [RFC3678]
+ */
+struct group_req {
+	uint32_t		gr_interface;	/* interface index */
+	struct sockaddr_storage	gr_group;	/* group address */
+};
+
+struct group_source_req {
+	uint32_t		gsr_interface;	/* interface index */
+	struct sockaddr_storage	gsr_group;	/* group address */
+	struct sockaddr_storage	gsr_source;	/* source address */
+};
+
+#ifndef __MSFILTERREQ_DEFINED
+#define __MSFILTERREQ_DEFINED
+/*
+ * The following structure is private; do not use it from user applications.
+ * It is used to communicate IP_MSFILTER/IPV6_MSFILTER information between
+ * the RFC 3678 libc functions and the kernel.
+ */
+struct __msfilterreq {
+	uint32_t		 msfr_ifindex;	/* interface index */
+	uint32_t		 msfr_fmode;	/* filter mode for group */
+	uint32_t		 msfr_nsrcs;	/* # of sources in msfr_srcs */
+	struct sockaddr_storage	 msfr_group;	/* group address */
+	struct sockaddr_storage	*msfr_srcs;	/* pointer to the first member
+						 * of a contiguous array of
+						 * sources to filter in full.
+						 */
+};
+#endif
+
+struct sockaddr;
+
+/*
+ * Advanced (Full-state) APIs [RFC3678]
+ * The RFC specifies uint_t for the 6th argument to [sg]etsourcefilter().
+ * We use uint32_t here to be consistent.
+ */
+int	setipv4sourcefilter(int, struct in_addr, struct in_addr, uint32_t,
+	    uint32_t, struct in_addr *);
+int	getipv4sourcefilter(int, struct in_addr, struct in_addr, uint32_t *,
+	    uint32_t *, struct in_addr *);
+int	setsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
+	    uint32_t, uint32_t, struct sockaddr_storage *);
+int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
+	    uint32_t *, uint32_t *, struct sockaddr_storage *);
+
+/*
+ * Filter modes; also used to represent per-socket filter mode internally.
+ */
+#define	MCAST_INCLUDE	1	/* fmode: include these source(s) */
+#define	MCAST_EXCLUDE	2	/* fmode: exclude these source(s) */
 
 /*
  * Argument for IP_PORTRANGE:

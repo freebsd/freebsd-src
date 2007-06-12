@@ -147,6 +147,12 @@ struct router_info {
 	int    rti_type; /* type of router which is querier on this interface */
 	int    rti_time; /* # of slow timeouts since last old query */
 	SLIST_ENTRY(router_info) rti_list;
+#ifdef notyet
+	int	rti_timev1;	/* IGMPv1 querier present */
+	int	rti_timev2;	/* IGMPv2 querier present */
+	int	rti_timer;	/* report to general query */
+	int	rti_qrv;	/* querier robustness */
+#endif
 };
 
 /*
@@ -166,7 +172,43 @@ struct in_multi {
 	u_int	inm_state;		/*  state of the membership */
 	struct	router_info *inm_rti;	/* router info*/
 	u_int	inm_refcount;		/* reference count */
+#ifdef notyet		/* IGMPv3 source-specific multicast fields */
+	TAILQ_HEAD(, in_msfentry) inm_msf;	/* all active source filters */
+	TAILQ_HEAD(, in_msfentry) inm_msf_record;	/* recorded sources */
+	TAILQ_HEAD(, in_msfentry) inm_msf_exclude;	/* exclude sources */
+	TAILQ_HEAD(, in_msfentry) inm_msf_include;	/* include sources */
+	/* XXX: should this lot go to the router_info structure? */
+	/* XXX: can/should these be callouts? */
+	/* IGMP protocol timers */
+	int32_t		inm_ti_curstate;	/* current state timer */
+	int32_t		inm_ti_statechg;	/* state change timer */
+	/* IGMP report timers */
+	uint16_t	inm_rpt_statechg;	/* state change report timer */
+	uint16_t	inm_rpt_toxx;		/* fmode change report timer */
+	/* IGMP protocol state */
+	uint16_t	inm_fmode;		/* filter mode */
+	uint32_t	inm_recsrc_count;	/* # of recorded sources */
+	uint16_t	inm_exclude_sock_count;	/* # of exclude-mode sockets */
+	uint16_t	inm_gass_count;		/* # of g-a-s queries */
+#endif
 };
+
+#ifdef notyet
+/*
+ * Internet multicast source filter list. This list is used to store
+ * IP multicast source addresses for each membership on an interface.
+ * TODO: Allocate these structures using UMA.
+ * TODO: Find an easier way of linking the struct into two lists at once.
+ */
+struct in_msfentry {
+	TAILQ_ENTRY(in_msfentry) isf_link;	/* next filter in all-list */
+	TAILQ_ENTRY(in_msfentry) isf_next;	/* next filter in queue */
+	struct in_addr	isf_addr;	/* the address of this source */
+	uint16_t	isf_refcount;	/* reference count */
+	uint16_t	isf_reporttag;	/* what to report to the IGMP router */
+	uint16_t	isf_rexmit;	/* retransmission state/count */
+};
+#endif
 
 #ifdef _KERNEL
 
@@ -246,6 +288,12 @@ do { \
 } while(0)
 
 struct	route;
+struct	ip_moptions;
+
+size_t	imo_match_group(struct ip_moptions *, struct ifnet *,
+	    struct sockaddr *);
+struct	in_msource *imo_match_source(struct ip_moptions *, size_t,
+	    struct sockaddr *);
 struct	in_multi *in_addmulti(struct in_addr *, struct ifnet *);
 void	in_delmulti(struct in_multi *);
 void	in_delmulti_locked(struct in_multi *);

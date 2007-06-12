@@ -79,8 +79,28 @@ struct ipoption {
 };
 
 /*
+ * Multicast source list entry.
+ */
+struct in_msource {
+	TAILQ_ENTRY(in_msource) ims_next;	/* next source */
+	struct sockaddr_storage ims_addr;	/* address of this source */
+};
+
+/*
+ * Multicast filter descriptor; there is one instance per group membership
+ * on a socket, allocated as an expandable vector hung off ip_moptions.
+ * struct in_multi contains separate IPv4-stack-wide state for IGMPv3.
+ */
+struct in_mfilter {
+	uint16_t	imf_fmode;	/* filter mode for this socket/group */
+	uint16_t	imf_nsources;	/* # of sources for this socket/group */
+	TAILQ_HEAD(, in_msource) imf_sources;	/* source list */
+};
+
+/*
  * Structure attached to inpcb.ip_moptions and
  * passed to ip_output when IP multicast options are in use.
+ * This structure is lazy-allocated.
  */
 struct ip_moptions {
 	struct	ifnet *imo_multicast_ifp; /* ifp for outgoing multicasts */
@@ -91,6 +111,7 @@ struct ip_moptions {
 	u_short	imo_num_memberships;	/* no. memberships this socket */
 	u_short	imo_max_memberships;	/* max memberships this socket */
 	struct	in_multi **imo_membership;	/* group memberships */
+	struct	in_mfilter *imo_mfilters;	/* source filters */
 };
 
 struct	ipstat {
@@ -127,12 +148,11 @@ struct	ipstat {
 
 #ifdef _KERNEL
 
-/*
- * Flags passed to ip_output as last parameter.
- */
-#define IP_FORWARDING		0x01		/* most of ip header exists */
-#define IP_RAWOUTPUT		0x02		/* raw ip header exists */
-#define IP_SENDONES		0x04		/* send all-ones broadcast */
+/* flags passed to ip_output as last parameter */
+#define	IP_FORWARDING		0x1		/* most of ip header exists */
+#define	IP_RAWOUTPUT		0x2		/* raw ip header exists */
+#define	IP_SENDONES		0x4		/* send all-ones broadcast */
+#define	IP_SENDTOIF		0x8		/* send on specific ifnet */
 #define IP_ROUTETOIF		SO_DONTROUTE	/* 0x10 bypass routing tables */
 #define IP_ALLOWBROADCAST	SO_BROADCAST	/* 0x20 can send broadcast packets */
 
@@ -167,12 +187,15 @@ extern u_long	(*ip_mcast_src)(int);
 extern int rsvp_on;
 extern struct	pr_usrreqs rip_usrreqs;
 
+void	inp_freemoptions(struct ip_moptions *);
+int	inp_getmoptions(struct inpcb *, struct sockopt *);
+int	inp_setmoptions(struct inpcb *, struct sockopt *);
+
 int	ip_ctloutput(struct socket *, struct sockopt *sopt);
 void	ip_drain(void);
 void	ip_fini(void *xtp);
 int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags, int sw_csum);
-void	ip_freemoptions(struct ip_moptions *);
 void	ip_forward(struct mbuf *m, int srcrt);
 void	ip_init(void);
 extern int

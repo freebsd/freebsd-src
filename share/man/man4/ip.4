@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2007
+.Dd April 9, 2007
 .Dt IP 4
 .Os
 .Sh NAME
@@ -420,6 +420,16 @@ where "addr" is the local
 address of the desired interface or
 .Dv INADDR_ANY
 to specify the default interface.
+.Pp
+To specify an interface by index, an instance of
+.Vt ip_mreqn
+should be passed instead.
+The
+.Vt imr_ifindex
+member should be set to the index of the desired interface,
+or 0 to specify the default interface.
+The kernel differentiates between these two structures by their size.
+.\"
 An interface's local IP address and multicast capability can
 be obtained via the
 .Dv SIOCGIFCONF
@@ -672,3 +682,7 @@ The
 .Nm
 protocol appeared in
 .Bx 4.2 .
+The
+.Vt ip_mreqn
+structure appeared in
+.Tn Linux 2.4 .
