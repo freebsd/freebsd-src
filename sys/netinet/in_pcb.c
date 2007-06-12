@@ -340,13 +340,13 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			if (ntohs(lport) <= ipport_reservedhigh &&
 			    ntohs(lport) >= ipport_reservedlow &&
 			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
-			    SUSER_ALLOWJAIL))
+			    0))
 				return (EACCES);
 			if (jailed(cred))
 				prison = 1;
 			if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
 			    priv_check_cred(so->so_cred,
-			    PRIV_NETINET_REUSEPORT, SUSER_ALLOWJAIL) != 0) {
+			    PRIV_NETINET_REUSEPORT, 0) != 0) {
 				t = in_pcblookup_local(inp->inp_pcbinfo,
 				    sin->sin_addr, lport,
 				    prison ? 0 :  INPLOOKUP_WILDCARD);
@@ -411,7 +411,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			lastport = &pcbinfo->ipi_lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
 			error = priv_check_cred(cred,
-			    PRIV_NETINET_RESERVEDPORT, SUSER_ALLOWJAIL);
+			    PRIV_NETINET_RESERVEDPORT, 0);
 			if (error)
 				return error;
 			first = ipport_lowfirstauto;	/* 1023 */

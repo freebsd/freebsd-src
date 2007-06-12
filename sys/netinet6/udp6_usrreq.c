@@ -437,8 +437,7 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error;
 
-	error = priv_check_cred(req->td->td_ucred, PRIV_NETINET_GETCRED,
-	    SUSER_ALLOWJAIL);
+	error = priv_check(req->td, PRIV_NETINET_GETCRED);
 	if (error)
 		return (error);
 
@@ -465,6 +464,9 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 	INP_LOCK(inp);
 	KASSERT(inp->inp_socket != NULL,
 	    ("udp6_getcred: inp_socket == NULL"));
+	/*
+	 * XXXRW: There should be a scoping access control check here.
+	 */
 	cru2x(inp->inp_socket->so_cred, &xuc);
 	INP_UNLOCK(inp);
 	INP_INFO_RUNLOCK(&udbinfo);

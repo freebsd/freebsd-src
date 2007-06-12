@@ -515,7 +515,7 @@ quotaon(td, mp, type, fname)
 	int error, flags, vfslocked;
 	struct nameidata nd;
 
-	error = priv_check_cred(td->td_ucred, PRIV_UFS_QUOTAON, 0);
+	error = priv_check(td, PRIV_UFS_QUOTAON);
 	if (error)
 		return (error);
 
@@ -747,10 +747,7 @@ quotaoff(td, mp, type)
 	struct ufsmount *ump;
 	int error;
 
-	/*
-	 * XXXRW: This also seems wrong to allow in a jail?
-	 */
-	error = priv_check_cred(td->td_ucred, PRIV_UFS_QUOTAOFF, 0);
+	error = priv_check(td, PRIV_UFS_QUOTAOFF);
 	if (error)
 		return (error);
 
@@ -783,8 +780,7 @@ getquota(td, mp, id, type, addr)
 	switch (type) {
 	case USRQUOTA:
 		if ((td->td_ucred->cr_uid != id) && !unprivileged_get_quota) {
-			error = priv_check_cred(td->td_ucred,
-			    PRIV_VFS_GETQUOTA, SUSER_ALLOWJAIL);
+			error = priv_check(td, PRIV_VFS_GETQUOTA);
 			if (error)
 				return (error);
 		}
@@ -793,8 +789,7 @@ getquota(td, mp, id, type, addr)
 	case GRPQUOTA:
 		if (!groupmember(id, td->td_ucred) &&
 		    !unprivileged_get_quota) {
-			error = priv_check_cred(td->td_ucred,
-			    PRIV_VFS_GETQUOTA, SUSER_ALLOWJAIL);
+			error = priv_check(td, PRIV_VFS_GETQUOTA);
 			if (error)
 				return (error);
 		}
@@ -830,8 +825,7 @@ setquota(td, mp, id, type, addr)
 	struct dqblk newlim;
 	int error;
 
-	error = priv_check_cred(td->td_ucred, PRIV_VFS_SETQUOTA,
-	    SUSER_ALLOWJAIL);
+	error = priv_check(td, PRIV_VFS_SETQUOTA);
 	if (error)
 		return (error);
 
@@ -901,7 +895,7 @@ setuse(td, mp, id, type, addr)
 	struct dqblk usage;
 	int error;
 
-	error = priv_check_cred(td->td_ucred, PRIV_UFS_SETUSE, 0);
+	error = priv_check(td, PRIV_UFS_SETUSE);
 	if (error)
 		return (error);
 

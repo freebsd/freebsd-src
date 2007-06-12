@@ -490,12 +490,8 @@ ufs_setattr(ap)
 		 * processes if the security.jail.chflags_allowed sysctl is
 		 * is non-zero; otherwise, they behave like unprivileged
 		 * processes.
-		 *
-		 * XXXRW: Move implementation of jail_chflags_allowed to
-		 * kern_jail.c.
 		 */
-		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS,
-		    jail_chflags_allowed ? SUSER_ALLOWJAIL : 0)) {
+		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
 			if (ip->i_flags
 			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
@@ -663,13 +659,11 @@ ufs_chmod(vp, mode, cred, td)
 	 * jail(8).
 	 */
 	if (vp->v_type != VDIR && (mode & S_ISTXT)) {
-		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE,
-		    SUSER_ALLOWJAIL))
+		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE, 0))
 			return (EFTYPE);
 	}
 	if (!groupmember(ip->i_gid, cred) && (mode & ISGID)) {
-		error = priv_check_cred(cred, PRIV_VFS_SETGID,
-		    SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_VFS_SETGID, 0);
 		if (error)
 			return (error);
 	}
@@ -718,7 +712,7 @@ ufs_chown(vp, uid, gid, cred, td)
 	 */
 	if ((uid != ip->i_uid || 
 	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
-	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN, SUSER_ALLOWJAIL)))
+	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0)))
 		return (error);
 	ogid = ip->i_gid;
 	ouid = ip->i_uid;
@@ -790,8 +784,7 @@ good:
 #endif /* QUOTA */
 	ip->i_flag |= IN_CHANGE;
 	if ((ip->i_mode & (ISUID | ISGID)) && (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID,
-		    SUSER_ALLOWJAIL)) {
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0)) {
 			ip->i_mode &= ~(ISUID | ISGID);
 			DIP_SET(ip, i_mode, ip->i_mode);
 		}
@@ -2371,8 +2364,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	if (DOINGSOFTDEP(tvp))
 		softdep_change_linkcnt(ip);
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
-	    priv_check_cred(cnp->cn_cred, PRIV_VFS_SETGID,
-	    SUSER_ALLOWJAIL)) {
+	    priv_check_cred(cnp->cn_cred, PRIV_VFS_SETGID, 0)) {
 		ip->i_mode &= ~ISGID;
 		DIP_SET(ip, i_mode, ip->i_mode);
 	}

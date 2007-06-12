@@ -2155,10 +2155,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 		/* got to be root to get at low ports */
 		if (ntohs(lport) < IPPORT_RESERVED) {
 			if (p && (error =
-			    priv_check_cred(p->td_ucred,
-			    PRIV_NETINET_RESERVEDPORT,
-			    SUSER_ALLOWJAIL
-			    )
+			    priv_check(p, PRIV_NETINET_RESERVEDPORT)
 			    )) {
 				SCTP_INP_DECR_REF(inp);
 				SCTP_INP_WUNLOCK(inp);
@@ -2228,10 +2225,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 			last = ipport_hilastauto;
 		} else if (ip_inp->inp_flags & INP_LOWPORT) {
 			if (p && (error =
-			    priv_check_cred(p->td_ucred,
-			    PRIV_NETINET_RESERVEDPORT,
-			    SUSER_ALLOWJAIL
-			    )
+			    priv_check(p, PRIV_NETINET_RESERVEDPORT)
 			    )) {
 				SCTP_INP_DECR_REF(inp);
 				SCTP_INP_WUNLOCK(inp);

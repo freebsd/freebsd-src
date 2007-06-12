@@ -1079,8 +1079,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	 * Keep cr_groups[0] unchanged to prevent that.
 	 */
 
-	if ((error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS,
-	    SUSER_ALLOWJAIL)) != 0) {
+	if ((error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS, 0)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
 		return (error);

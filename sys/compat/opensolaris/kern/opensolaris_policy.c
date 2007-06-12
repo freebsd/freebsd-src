@@ -72,7 +72,7 @@ secpolicy_basic_link(struct ucred *cred)
 
 	if (!hardlink_check_uid)
 		return (0);
-	return (priv_check_cred(cred, PRIV_VFS_LINK, SUSER_ALLOWJAIL));
+	return (priv_check_cred(cred, PRIV_VFS_LINK, 0));
 }
 
 int
@@ -86,7 +86,7 @@ int
 secpolicy_vnode_remove(struct ucred *cred)
 {
 
-	return (priv_check_cred(cred, PRIV_VFS_ADMIN, SUSER_ALLOWJAIL));
+	return (priv_check_cred(cred, PRIV_VFS_ADMIN, 0));
 }
 
 int
@@ -94,23 +94,20 @@ secpolicy_vnode_access(struct ucred *cred, struct vnode *vp, uint64_t owner,
     int mode)
 {
 
-	if ((mode & VREAD) &&
-	    priv_check_cred(cred, PRIV_VFS_READ, SUSER_ALLOWJAIL) != 0) {
+	if ((mode & VREAD) && priv_check_cred(cred, PRIV_VFS_READ, 0) != 0) {
 		return (EACCES);
 	}
 	if ((mode & VWRITE) &&
-	    priv_check_cred(cred, PRIV_VFS_WRITE, SUSER_ALLOWJAIL) != 0) {
+	    priv_check_cred(cred, PRIV_VFS_WRITE, 0) != 0) {
 		return (EACCES);
 	}
 	if (mode & VEXEC) {
 		if (vp->v_type == VDIR) {
-			if (priv_check_cred(cred, PRIV_VFS_LOOKUP,
-			    SUSER_ALLOWJAIL) != 0) {
+			if (priv_check_cred(cred, PRIV_VFS_LOOKUP, 0) != 0) {
 				return (EACCES);
 			}
 		} else {
-			if (priv_check_cred(cred, PRIV_VFS_EXEC,
-			    SUSER_ALLOWJAIL) != 0) {
+			if (priv_check_cred(cred, PRIV_VFS_EXEC, 0) != 0) {
 				return (EACCES);
 			}
 		}
@@ -124,7 +121,7 @@ secpolicy_vnode_setdac(struct ucred *cred, uid_t owner)
 
 	if (owner == cred->cr_uid)
 		return (0);
-	return (priv_check_cred(cred, PRIV_VFS_ADMIN, SUSER_ALLOWJAIL));
+	return (priv_check_cred(cred, PRIV_VFS_ADMIN, 0));
 }
 
 int
@@ -173,8 +170,7 @@ secpolicy_vnode_setattr(struct ucred *cred, struct vnode *vp, struct vattr *vap,
 		if (((mask & AT_UID) && vap->va_uid != ovap->va_uid) ||
 		    ((mask & AT_GID) && vap->va_gid != ovap->va_gid &&
 		     !groupmember(vap->va_gid, cred))) {
-			error = priv_check_cred(cred, PRIV_VFS_CHOWN,
-			    SUSER_ALLOWJAIL);
+			error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0);
 			if (error)
 				return (error);
 		}
@@ -214,7 +210,7 @@ secpolicy_vnode_setids_setgids(struct ucred *cred, gid_t gid)
 {
 
 	if (!groupmember(gid, cred))
-		return (priv_check_cred(cred, PRIV_VFS_SETGID, SUSER_ALLOWJAIL));
+		return (priv_check_cred(cred, PRIV_VFS_SETGID, 0));
 	return (0);
 }
 
@@ -222,7 +218,7 @@ int
 secpolicy_vnode_setid_retain(struct ucred *cred, boolean_t issuidroot __unused)
 {
 
-	return (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, SUSER_ALLOWJAIL));
+	return (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0));
 }
 
 void
@@ -230,8 +226,7 @@ secpolicy_setid_clear(struct vattr *vap, struct ucred *cred)
 {
 
 	if ((vap->va_mode & (S_ISUID | S_ISGID)) != 0) {
-		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID,
-		    SUSER_ALLOWJAIL)) {
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0)) {
 			vap->va_mask |= AT_MODE;
 			vap->va_mode &= ~(S_ISUID|S_ISGID);
 		}
@@ -250,7 +245,7 @@ secpolicy_setid_setsticky_clear(struct vnode *vp, struct vattr *vap,
 	 * is not a member of. Both of these are allowed in jail(8).
 	 */
 	if (vp->v_type != VDIR && (vap->va_mode & S_ISTXT)) {
-		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE, SUSER_ALLOWJAIL))
+		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE, 0))
 			return (EFTYPE);
 	}
 	/*

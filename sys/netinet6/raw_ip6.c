@@ -352,7 +352,7 @@ rip6_output(m, va_alist)
 	INP_LOCK(in6p);
 
 	priv = 0;
-	if (suser_cred(so->so_cred, SUSER_ALLOWJAIL) == 0)
+	if (suser_cred(so->so_cred, 0) == 0)
 		priv = 1;
 	dst = &dstsock->sin6_addr;
 	if (control) {
