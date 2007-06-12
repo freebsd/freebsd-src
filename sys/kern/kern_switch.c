@@ -630,27 +630,4 @@ sched_newthread(struct thread *td)
 	ts->ts_thread	= td;
 }
 
-/*
- * Called from:
- *  thr_create()
- *  proc_init() (UMA) via sched_newproc()
- */
-void
-sched_init_concurrency(struct proc *p)
-{
-}
-
-/*
- * Change the concurrency of an existing proc to N
- * Called from:
- *  kse_create()
- *  kse_exit()
- *  thread_exit()
- *  thread_single()
- */
-void
-sched_set_concurrency(struct proc *p, int concurrency)
-{
-}
-
 #endif /* KERN_SWITCH_INCLUDE */
