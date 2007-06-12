@@ -73,6 +73,8 @@ TAILQ_HEAD(, thread) zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 struct mtx zombie_lock;
 MTX_SYSINIT(zombie_lock, &zombie_lock, "zombie lock", MTX_SPIN);
 
+static void thread_zombie(struct thread *);
+
 #ifdef KSE
 static int
 sysctl_kse_virtual_cpu(SYSCTL_HANDLER_ARGS)
@@ -248,15 +250,25 @@ threadinit(void)
 }
 
 /*
- * Stash an embarasingly extra thread into the zombie thread queue.
+ * Place an unused thread on the zombie list.
  * Use the slpq as that must be unused by now.
  */
 void
-thread_stash(struct thread *td)
+thread_zombie(struct thread *td)
 {
 	mtx_lock_spin(&zombie_lock);
 	TAILQ_INSERT_HEAD(&zombie_threads, td, td_slpq);
 	mtx_unlock_spin(&zombie_lock);
+}
+
+/*
+ * Release a thread that has exited after cpu_throw().
+ */
+void
+thread_stash(struct thread *td)
+{
+	atomic_subtract_rel_int(&td->td_proc->p_exitthreads, 1);
+	thread_zombie(td);
 }
 
 /*
@@ -371,7 +383,7 @@ thread_exit(void)
 		 * Note that we don't need to free the cred here as it
 		 * is done in thread_reap().
 		 */
-		thread_stash(td->td_standin);
+		thread_zombie(td->td_standin);
 		td->td_standin = NULL;
 	}
 #endif
@@ -440,6 +452,7 @@ thread_exit(void)
 			 */
 			upcall_remove(td);
 #endif
+			atomic_add_int(&td->td_proc->p_exitthreads, 1);
 			PCPU_SET(deadthread, td);
 		} else {
 			/*
@@ -481,20 +494,25 @@ thread_wait(struct proc *p)
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT((p->p_numthreads == 1), ("Multiple threads in wait1()"));
-	FOREACH_THREAD_IN_PROC(p, td) {
+	td = FIRST_THREAD_IN_PROC(p);
 #ifdef KSE
-		if (td->td_standin != NULL) {
-			if (td->td_standin->td_ucred != NULL) {
-				crfree(td->td_standin->td_ucred);
-				td->td_standin->td_ucred = NULL;
-			}
-			thread_free(td->td_standin);
-			td->td_standin = NULL;
+	if (td->td_standin != NULL) {
+		if (td->td_standin->td_ucred != NULL) {
+			crfree(td->td_standin->td_ucred);
+			td->td_standin->td_ucred = NULL;
 		}
-#endif
-		cpu_thread_clean(td);
-		crfree(td->td_ucred);
+		thread_free(td->td_standin);
+		td->td_standin = NULL;
 	}
+#endif
+	/* Lock the last thread so we spin until it exits cpu_throw(). */
+	thread_lock(td);
+	thread_unlock(td);
+	/* Wait for any remaining threads to exit cpu_throw(). */
+	while (p->p_exitthreads)
+		sched_relinquish(curthread);
+	cpu_thread_clean(td);
+	crfree(td->td_ucred);
 	thread_reap();	/* check for zombie threads etc. */
 }
 
@@ -548,7 +566,7 @@ thread_unthread(struct thread *td)
 	td->td_mailbox = NULL;
 	td->td_pflags &= ~(TDP_SA | TDP_CAN_UNBIND);
 	if (td->td_standin != NULL) {
-		thread_stash(td->td_standin);
+		thread_zombie(td->td_standin);
 		td->td_standin = NULL;
 	}
 	sched_set_concurrency(p, 1);
