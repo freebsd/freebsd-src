@@ -160,11 +160,11 @@ USB_ATTACH(ufm)
 			UID_ROOT, GID_OPERATOR,
 			0644, "ufm%d", device_get_unit(self));
 	DPRINTFN(10, ("ufm_attach: %p\n", sc->sc_udev));
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 
  nobulk:
 	device_printf(sc->sc_dev, "could not find %s\n", ermsg);
-	USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 }
 
 

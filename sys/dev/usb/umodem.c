@@ -406,11 +406,11 @@ USB_ATTACH(umodem)
 
 	TASK_INIT(&sc->sc_task, 0, umodem_notify, sc);
 	ucom_attach(&sc->sc_ucom);
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 
  bad:
 	ucom->sc_dying = 1;
-	USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 }
 
 static int

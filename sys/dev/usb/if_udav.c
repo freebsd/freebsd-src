@@ -442,7 +442,7 @@ USB_ATTACH(udav)
 		if_free(ifp);
 		UDAV_UNLOCK(sc);
 		mtx_destroy(&sc->sc_mtx);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	sc->sc_qdat.ifp = ifp;
@@ -472,11 +472,11 @@ USB_ATTACH(udav)
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, dev, USBDEV(sc->sc_dev));
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 
  bad:
 	sc->sc_dying = 1;
-	USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 }
 
 /* detach */

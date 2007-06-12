@@ -552,14 +552,14 @@ USB_ATTACH(uaudio)
 	if (cdesc == NULL) {
 		printf("%s: failed to get configuration descriptor\n",
 		       device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	err = uaudio_identify(sc, cdesc);
 	if (err) {
 		printf("%s: audio descriptors make no sense, error=%d\n",
 		       device_get_nameunit(sc->sc_dev), err);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	sc->sc_ac_ifaceh = uaa->iface;
@@ -586,7 +586,7 @@ USB_ATTACH(uaudio)
 		if (sc->sc_alts[j].ifaceh == NULL) {
 			printf("%s: alt %d missing AS interface(s)\n",
 			    device_get_nameunit(sc->sc_dev), j);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 	}
 
@@ -620,7 +620,7 @@ USB_ATTACH(uaudio)
 	sc->sc_dying = 0;
 	if (audio_attach_mi(sc->sc_dev)) {
 		printf("audio_attach_mi failed\n");
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 #endif
 
@@ -630,8 +630,7 @@ USB_ATTACH(uaudio)
 	    OID_AUTO, "async", CTLFLAG_RW, &sc->async, 0,
 	    "Asynchronous USB request");
 #endif
-
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)

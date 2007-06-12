@@ -750,11 +750,11 @@ USB_ATTACH(ubt)
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
 		USBDEV(sc->sc_dev));
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 bad:
 	ubt_detach(self);
 
-	USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 } /* USB_ATTACH(ubt) */
 
 /*

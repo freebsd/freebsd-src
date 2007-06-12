@@ -995,7 +995,7 @@ USB_ATTACH(umass)
 				"Alt Interface %d\n",
 				device_get_nameunit(sc->sc_dev), 1));
 			umass_detach(self);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 	}
 
@@ -1015,7 +1015,7 @@ USB_ATTACH(umass)
 		if (!ed) {
 			printf("%s: could not read endpoint descriptor\n",
 			       device_get_nameunit(sc->sc_dev));
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN
 		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
@@ -1044,7 +1044,7 @@ USB_ATTACH(umass)
 			device_get_nameunit(sc->sc_dev),
 			sc->bulkin, sc->bulkout, sc->intrin));
 		umass_detach(self);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/* Open the bulk-in and -out pipe */
@@ -1054,7 +1054,7 @@ USB_ATTACH(umass)
 		DPRINTF(UDMASS_USB, ("%s: cannot open %d-out pipe (bulk)\n",
 			device_get_nameunit(sc->sc_dev), sc->bulkout));
 		umass_detach(self);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	err = usbd_open_pipe(sc->iface, sc->bulkin,
 				USBD_EXCLUSIVE_USE, &sc->bulkin_pipe);
@@ -1062,7 +1062,7 @@ USB_ATTACH(umass)
 		DPRINTF(UDMASS_USB, ("%s: could not open %d-in pipe (bulk)\n",
 			device_get_nameunit(sc->sc_dev), sc->bulkin));
 		umass_detach(self);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	/* Open the intr-in pipe if the protocol is CBI with CCI.
 	 * Note: early versions of the Zip drive do have an interrupt pipe, but
@@ -1082,7 +1082,7 @@ USB_ATTACH(umass)
 			DPRINTF(UDMASS_USB, ("%s: couldn't open %d-in (intr)\n",
 				device_get_nameunit(sc->sc_dev), sc->intrin));
 			umass_detach(self);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 	}
 
@@ -1096,7 +1096,7 @@ USB_ATTACH(umass)
 			DPRINTF(UDMASS_USB, ("%s: Out of memory\n",
 				device_get_nameunit(sc->sc_dev)));
 			umass_detach(self);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 	}
 
@@ -1155,14 +1155,14 @@ USB_ATTACH(umass)
 		err = umass_cam_attach_sim(sc);
 		if (err) {
 			umass_detach(self);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		/* scan the new sim */
 		err = umass_cam_attach(sc);
 		if (err) {
 			umass_cam_detach_sim(sc);
 			umass_detach(self);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 	} else {
 		panic("%s:%d: Unknown proto 0x%02x",
@@ -1172,7 +1172,7 @@ USB_ATTACH(umass)
 	sc->transfer_state = TSTATE_IDLE;
 	DPRINTF(UDMASS_GEN, ("%s: Attach finished\n", device_get_nameunit(sc->sc_dev)));
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 USB_DETACH(umass)

@@ -644,13 +644,13 @@ USB_ATTACH(aue)
 
 	if (usbd_set_config_no(sc->aue_udev, AUE_CONFIG_NO, 0)) {
 		device_printf(self, "getting interface handle failed\n");
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	err = usbd_device2interface_handle(uaa->device, AUE_IFACE_IDX, &iface);
 	if (err) {
 		device_printf(self, "getting interface handle failed\n");
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	sc->aue_iface = iface;
@@ -666,7 +666,7 @@ USB_ATTACH(aue)
 		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (ed == NULL) {
 			device_printf(self, "couldn't get ep %d\n", i);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
 		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
@@ -702,7 +702,7 @@ USB_ATTACH(aue)
 		mtx_destroy(&sc->aue_mtx);
 		sx_destroy(&sc->aue_sx);
 		usb_ether_task_destroy(&sc->aue_taskqueue);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "aue", sc->aue_unit);
@@ -736,7 +736,7 @@ USB_ATTACH(aue)
 		mtx_destroy(&sc->aue_mtx);
 		sx_destroy(&sc->aue_sx);
 		usb_ether_task_destroy(&sc->aue_taskqueue);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	sc->aue_qdat.ifp = ifp;
@@ -751,7 +751,7 @@ USB_ATTACH(aue)
 	sc->aue_link = 1;
 
 	AUE_SXUNLOCK(sc);
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 static int

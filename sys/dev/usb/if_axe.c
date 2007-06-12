@@ -417,7 +417,7 @@ USB_ATTACH(axe)
 
 	if (usbd_set_config_no(sc->axe_udev, AXE_CONFIG_NO, 1)) {
 		device_printf(sc->axe_dev, "getting interface handle failed\n");
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	usb_init_task(&sc->axe_tick_task, axe_tick_task, sc);
@@ -425,7 +425,7 @@ USB_ATTACH(axe)
 	if (usbd_device2interface_handle(uaa->device,
 	    AXE_IFACE_IDX, &sc->axe_iface)) {
 		device_printf(sc->axe_dev, "getting interface handle failed\n");
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	id = usbd_get_interface_descriptor(sc->axe_iface);
@@ -435,7 +435,7 @@ USB_ATTACH(axe)
 		ed = usbd_interface2endpoint_descriptor(sc->axe_iface, i);
 		if (!ed) {
 			device_printf(sc->axe_dev, "couldn't get ep %d\n", i);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
 		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
@@ -479,7 +479,7 @@ USB_ATTACH(axe)
 		AXE_SLEEPUNLOCK(sc);
 		sx_destroy(&sc->axe_sleeplock);
 		mtx_destroy(&sc->axe_mtx);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "axe", device_get_unit(sc->axe_dev));
@@ -505,7 +505,7 @@ USB_ATTACH(axe)
 		AXE_SLEEPUNLOCK(sc);
 		sx_destroy(&sc->axe_sleeplock);
 		mtx_destroy(&sc->axe_mtx);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/*
@@ -521,7 +521,7 @@ USB_ATTACH(axe)
 	AXE_UNLOCK(sc);
 	AXE_SLEEPUNLOCK(sc);
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 static int
