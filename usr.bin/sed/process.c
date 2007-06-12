@@ -150,15 +150,15 @@ redirect:
 				cspace(&PS, hs, hsl, REPLACE);
 				break;
 			case 'G':
-				cspace(&PS, "\n", 1, 0);
-				cspace(&PS, hs, hsl, 0);
+				cspace(&PS, "\n", 1, APPEND);
+				cspace(&PS, hs, hsl, APPEND);
 				break;
 			case 'h':
 				cspace(&HS, ps, psl, REPLACE);
 				break;
 			case 'H':
-				cspace(&HS, "\n", 1, 0);
-				cspace(&HS, ps, psl, 0);
+				cspace(&HS, "\n", 1, APPEND);
+				cspace(&HS, ps, psl, APPEND);
 				break;
 			case 'i':
 				(void)fprintf(outfile, "%s", cp->t);
@@ -176,8 +176,8 @@ redirect:
 				break;
 			case 'N':
 				flush_appends();
-				cspace(&PS, "\n", 1, 0);
-				if (!mf_fgets(&PS, 0))
+				cspace(&PS, "\n", 1, APPEND);
+				if (!mf_fgets(&PS, APPEND))
 					exit(0);
 				break;
 			case 'p':
