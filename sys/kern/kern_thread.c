@@ -219,7 +219,9 @@ proc_linkup(struct proc *p, struct thread *td)
 {
 
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
+#ifdef KSE
 	TAILQ_INIT(&p->p_upcalls);	     /* upcall list */
+#endif
 	sigqueue_init(&p->p_sigqueue, p);
 	p->p_ksi = ksiginfo_alloc(1);
 	if (p->p_ksi != NULL) {
@@ -439,19 +441,6 @@ thread_exit(void)
 				}
 			}
 
-#ifdef KSE
-			/*
-			 * Because each upcall structure has an owner thread,
-			 * owner thread exits only when process is in exiting
-			 * state, so upcall to userland is no longer needed,
-			 * deleting upcall structure is safe here.
-			 * So when all threads in a group is exited, all upcalls
-			 * in the group should be automatically freed.
-			 *  XXXKSE This is a KSE thing and should be exported
-			 * there somehow.
-			 */
-			upcall_remove(td);
-#endif
 			atomic_add_int(&td->td_proc->p_exitthreads, 1);
 			PCPU_SET(deadthread, td);
 		} else {
@@ -569,7 +558,6 @@ thread_unthread(struct thread *td)
 		thread_zombie(td->td_standin);
 		td->td_standin = NULL;
 	}
-	sched_set_concurrency(p, 1);
 #else
 	p->p_flag &= ~P_HADTHREADS;
 #endif
