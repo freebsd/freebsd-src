@@ -48,14 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/serial.h>
 #include <sys/tty.h>
 #include <sys/file.h>
-#if defined(__FreeBSD__)
 #include <sys/bus.h>
 #include <sys/ioccom.h>
 #include <sys/selinfo.h>
-#else
-#include <sys/ioctl.h>
-#include <sys/device.h>
-#endif
 #include <sys/proc.h>
 #include <sys/poll.h>
 #include <sys/sysctl.h>
