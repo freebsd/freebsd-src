@@ -3120,7 +3120,7 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 	ph->param_type = htons(SCTP_STATE_COOKIE);
 	ph->param_length = 0;	/* fill in at the end */
 	/* Fill in the stc cookie data */
-	*stc = *stc_in;
+	memcpy(stc, stc_in, sizeof(struct sctp_state_cookie));
 
 	/* tack the INIT and then the INIT-ACK onto the chain */
 	cookie_sz = 0;
