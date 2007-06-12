@@ -390,7 +390,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 			outfname = tmpfname;
 			if (!ispan) {
 				linenum = 0;
-				resetranges();
+				resetstate();
 			}
 		} else {
 			outfile = stdout;

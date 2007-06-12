@@ -234,6 +234,12 @@ redirect:
 					err(1, "%s", cp->t);
 				break;
 			case 'x':
+				/*
+				 * If the hold space is null, make it empty
+				 * but not null.  Otherwise the pattern space
+				 * will become null after the swap, which is
+				 * an abnormal condition.
+				 */
 				if (hs == NULL)
 					cspace(&HS, "", 0, REPLACE);
 				tspace = PS;
@@ -317,16 +323,24 @@ applies(struct s_command *cp)
 }
 
 /*
- * Reset all inrange markers.
+ * Reset the sed processor to its initial state.
  */
 void
-resetranges(void)
+resetstate(void)
 {
 	struct s_command *cp;
 
+	/*
+	 * Reset all inrange markers.
+	 */
 	for (cp = prog; cp; cp = cp->code == '{' ? cp->u.c : cp->next)
 		if (cp->a2)
 			cp->inrange = 0;
+
+	/*
+	 * Clear out the hold space.
+	 */
+	cspace(&HS, "", 0, REPLACE);
 }
 
 /*
