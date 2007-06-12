@@ -17,6 +17,7 @@
  *
  * $FreeBSD$
  */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -105,9 +106,10 @@ static const struct uark_product {
 	{ 0, 0 }
 };
 
-USB_MATCH(uark)
+static int
+uark_match(device_t self)
 {
-	USB_MATCH_START(uark, uaa);
+        struct usb_attach_arg *uaa = device_get_ivars(self);
 	int i;
 
 	if (uaa->iface != NULL)
@@ -123,9 +125,11 @@ USB_MATCH(uark)
 	return (UMATCH_NONE);
 }
 
-USB_ATTACH(uark)
+static int
+uark_attach(device_t self)
 {
-	USB_ATTACH_START(uark, sc, uaa);
+	struct uark_softc *sc = device_get_softc(self);
+        struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev = uaa->device;
 	usbd_interface_handle iface;
 	usb_interface_descriptor_t *id;
@@ -197,9 +201,10 @@ bad:
 	return ENXIO;
 }
 
-USB_DETACH(uark)
+static int
+uark_detach(device_t self)
 {
-	USB_DETACH_START(uark, sc);
+	struct uark_softc *sc = device_get_softc(self);
 	int rv = 0;
 
 	DPRINTF(("uark_detach: sc=%p\n", sc));
