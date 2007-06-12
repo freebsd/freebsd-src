@@ -13268,11 +13268,6 @@ Buck-passing usually turns out to be a boomerang.
 Bucy's Law:
 	Nothing is ever accomplished by a reasonable man.
 %
-Bug:
-	An elusive creature living in a program that makes it incorrect.
-	The activity of "debugging," or removing bugs from a program, ends
-	when people get tired of doing it, not when the bugs are removed.
-%
 Bug, n.:
 	An aspect of a computer program which exists because the
 programmer was thinking about Jumbo Jacks or stock options when s/he
