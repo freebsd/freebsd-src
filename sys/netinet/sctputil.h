@@ -264,6 +264,14 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *, struct sctp_tmit_chunk *,
 
 struct mbuf *sctp_generate_invmanparam(int);
 
+void 
+sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
+    struct sockaddr *sa, sctp_assoc_t assoc_id,
+    uint32_t vrf_id, int *error, void *p);
+void 
+sctp_bindx_delete_address(struct socket *so, struct sctp_inpcb *inp,
+    struct sockaddr *sa, sctp_assoc_t assoc_id,
+    uint32_t vrf_id, int *error);
 
 #ifdef SCTP_MBCNT_LOGGING
 void

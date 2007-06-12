@@ -239,6 +239,9 @@ typedef struct callout sctp_os_timer_t;
 
 #define sctp_get_tick_count() (ticks)
 
+/* The packed define for 64 bit platforms */
+#define SCTP_PACKED __attribute__((packed))
+
 /*
  * Functions
  */
