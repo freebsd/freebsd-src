@@ -920,7 +920,7 @@ uvscom_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 #if 0 /* TODO */
 static int
 uvscom_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
-	     usb_proc_ptr p)
+	     struct thread *p)
 {
 	struct uvscom_softc *sc = addr;
 	int error = 0;

@@ -618,7 +618,7 @@ ums_disable(priv)
 }
 
 static int
-ums_open(struct cdev *dev, int flag, int fmt, usb_proc_ptr p)
+ums_open(struct cdev *dev, int flag, int fmt, struct thread *p)
 {
 	struct ums_softc *sc;
 
@@ -628,7 +628,7 @@ ums_open(struct cdev *dev, int flag, int fmt, usb_proc_ptr p)
 }
 
 static int
-ums_close(struct cdev *dev, int flag, int fmt, usb_proc_ptr p)
+ums_close(struct cdev *dev, int flag, int fmt, struct thread *p)
 {
 	struct ums_softc *sc;
 
@@ -714,7 +714,7 @@ ums_read(struct cdev *dev, struct uio *uio, int flag)
 }
 
 static int
-ums_poll(struct cdev *dev, int events, usb_proc_ptr p)
+ums_poll(struct cdev *dev, int events, struct thread *p)
 {
 	struct ums_softc *sc;
 	int revents = 0;
@@ -740,7 +740,7 @@ ums_poll(struct cdev *dev, int events, usb_proc_ptr p)
 }
 
 int
-ums_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
+ums_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *p)
 {
 	struct ums_softc *sc;
 	int error = 0;

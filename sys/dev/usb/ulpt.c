@@ -434,7 +434,7 @@ int ulptusein = 1;
  * Reset the printer, then wait until it's selected and not busy.
  */
 int
-ulptopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
+ulptopen(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	u_char flags = ULPTFLAGS(dev);
 	struct ulpt_softc *sc;
@@ -562,7 +562,7 @@ ulpt_statusmsg(u_char status, struct ulpt_softc *sc)
 }
 
 int
-ulptclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
+ulptclose(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	struct ulpt_softc *sc;
 
@@ -748,7 +748,7 @@ ulpt_tick(void *xsc)
 }
 
 int
-ulptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
+ulptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *p)
 {
 	int error = 0;
 

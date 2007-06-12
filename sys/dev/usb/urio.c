@@ -270,7 +270,7 @@ USB_ATTACH(urio)
 
 
 int
-urioopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
+urioopen(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -310,7 +310,7 @@ urioopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 }
 
 int
-urioclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
+urioclose(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -474,7 +474,7 @@ uriowrite(struct cdev *dev, struct uio *uio, int flag)
 
 
 int
-urioioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
+urioioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *p)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;

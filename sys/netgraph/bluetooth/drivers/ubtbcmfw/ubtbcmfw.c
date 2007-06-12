@@ -269,7 +269,7 @@ USB_DETACH(ubtbcmfw)
  */
 
 static int
-ubtbcmfw_open(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
+ubtbcmfw_open(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 	int			error = 0;
@@ -321,7 +321,7 @@ ubtbcmfw_open(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
  */
 
 static int
-ubtbcmfw_close(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
+ubtbcmfw_close(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 
@@ -487,7 +487,8 @@ ubtbcmfw_write(struct cdev *dev, struct uio *uio, int flag)
  */
 
 static int
-ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
+ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
+  struct thread *p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 	int			error = 0;
@@ -524,7 +525,7 @@ ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_pt
  */
 
 static int
-ubtbcmfw_poll(struct cdev *dev, int events, usb_proc_ptr p)
+ubtbcmfw_poll(struct cdev *dev, int events, struct thread *p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 	int			revents = 0;
