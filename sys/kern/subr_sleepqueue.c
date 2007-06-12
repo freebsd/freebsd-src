@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_sleepqueue_profiling.h"
 #include "opt_ddb.h"
+#include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
