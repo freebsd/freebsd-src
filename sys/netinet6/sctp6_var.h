@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 SYSCTL_DECL(_net_inet6_sctp6);
 extern struct pr_usrreqs sctp6_usrreqs;
-int sctp6_ctloutput __P((struct socket *, struct sockopt *));
 
 
 int sctp6_input __P((struct mbuf **, int *, int));
