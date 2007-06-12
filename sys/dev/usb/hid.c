@@ -42,9 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if defined(__NetBSD__)
-#include <sys/kernel.h>
-#endif
 #include <sys/malloc.h>
 
 #include <dev/usb/usb.h>

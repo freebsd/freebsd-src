@@ -58,12 +58,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/device.h>
-#elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
-#endif
 #include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/sysctl.h>

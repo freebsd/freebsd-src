@@ -42,16 +42,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/kernel.h>
-#include <sys/device.h>
-#elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
 #include "usb_if.h"
 #if defined(DIAGNOSTIC) && defined(__i386__)
 #include <machine/cpu.h>
-#endif
 #endif
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -65,10 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_mem.h>
 #include <dev/usb/usb_quirks.h>
 
-#if defined(__FreeBSD__)
 #include "usb_if.h"
 #define delay(d)	DELAY(d)
-#endif
 
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (usbdebug) logprintf x
@@ -532,6 +525,7 @@ usbd_free_xfer(usbd_xfer_handle xfer)
 	DPRINTFN(5,("usbd_free_xfer: %p\n", xfer));
 	if (xfer->rqflags & URQ_DEV_DMABUF)
 		usbd_free_buffer(xfer);
+/* XXX Does FreeBSD need to do something similar? */
 #if defined(__NetBSD__) && defined(DIAGNOSTIC)
 	if (callout_pending(&xfer->timeout_handle)) {
 		callout_stop(&xfer->timeout_handle);
@@ -1084,7 +1078,8 @@ usbd_do_request_flags_pipe(usbd_device_handle dev, usbd_pipe_handle pipe,
 	usbd_status err;
 
 #ifdef DIAGNOSTIC
-#if defined(__i386__) && defined(__FreeBSD__)
+/* XXX amd64 too? */
+#if defined(__i386__)
 	KASSERT(curthread->td_intr_nesting_level == 0,
 	       	("usbd_do_request: in interrupt context"));
 #endif
@@ -1361,7 +1356,6 @@ usbd_get_string(usbd_device_handle dev, int si, char *buf)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-#if defined(__FreeBSD__)
 int
 usbd_driver_load(module_t mod, int what, void *arg)
 {
@@ -1369,5 +1363,3 @@ usbd_driver_load(module_t mod, int what, void *arg)
 
  	return (0);
 }
-
-#endif
