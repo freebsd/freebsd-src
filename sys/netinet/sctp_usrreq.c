@@ -386,13 +386,8 @@ sctp_getcred(SYSCTL_HANDLER_ARGS)
 	/* FIX, for non-bsd is this right? */
 	vrf_id = SCTP_DEFAULT_VRFID;
 
-	/*
-	 * XXXRW: Other instances of getcred use SUSER_ALLOWJAIL, as socket
-	 * visibility is scoped using cr_canseesocket(), which it is not
-	 * here.
-	 */
-	error = priv_check_cred(req->td->td_ucred, PRIV_NETINET_GETCRED,
-	    SUSER_ALLOWJAIL);
+	error = priv_check(req->td, PRIV_NETINET_GETCRED);
+
 	if (error)
 		return (error);
 
@@ -3439,9 +3434,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 		{
 			union sctp_sockstore *ss;
 
-			error = priv_check_cred(curthread->td_ucred,
-			    PRIV_NETINET_RESERVEDPORT,
-			    SUSER_ALLOWJAIL);
+			error = priv_check(curthread,
+			    PRIV_NETINET_RESERVEDPORT);
 			if (error)
 				break;
 

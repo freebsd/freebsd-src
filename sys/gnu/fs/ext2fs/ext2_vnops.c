@@ -415,8 +415,7 @@ ext2_setattr(ap)
 		 * Privileged non-jail processes may not modify system flags
 		 * if securelevel > 0 and any existing system flags are set.
 		 */
-		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS,
-		    SUSER_ALLOWJAIL)) {
+		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
 			if (ip->i_flags
 			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
@@ -535,14 +534,12 @@ ext2_chmod(vp, mode, cred, td)
 	 * process is not a member of.
 	 */
 	if (vp->v_type != VDIR && (mode & S_ISTXT)) {
-		error = priv_check_cred(cred, PRIV_VFS_STICKYFILE,
-		    SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_VFS_STICKYFILE, 0);
 		if (error)
 			return (EFTYPE);
 	}
 	if (!groupmember(ip->i_gid, cred) && (mode & ISGID)) {
-		error = priv_check_cred(cred, PRIV_VFS_SETGID,
-		    SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_VFS_SETGID, 0);
 		if (error)
 			return (error);
 	}
@@ -586,8 +583,7 @@ ext2_chown(vp, uid, gid, cred, td)
 	 */
 	if (uid != ip->i_uid || (gid != ip->i_gid &&
 	    !groupmember(gid, cred))) {
-		error = priv_check_cred(cred, PRIV_VFS_CHOWN,
-		    SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0);
 		if (error)
 			return (error);
 	}
@@ -597,8 +593,7 @@ ext2_chown(vp, uid, gid, cred, td)
 	ip->i_uid = uid;
 	ip->i_flag |= IN_CHANGE;
 	if ((ip->i_mode & (ISUID | ISGID)) && (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID,
-		    SUSER_ALLOWJAIL) != 0)
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0) != 0)
 			ip->i_mode &= ~(ISUID | ISGID);
 	}
 	return (0);
@@ -1648,8 +1643,7 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
 	ip->i_nlink = 1;
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred)) {
-		if (priv_check_cred(cnp->cn_cred, PRIV_VFS_RETAINSUGID,
-		    SUSER_ALLOWJAIL))
+		if (priv_check_cred(cnp->cn_cred, PRIV_VFS_RETAINSUGID, 0))
 			ip->i_mode &= ~ISGID;
 	}
 

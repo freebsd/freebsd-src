@@ -125,22 +125,19 @@ ipcperm(struct thread *td, struct ipc_perm *perm, int acc_mode)
 	 */
 	priv_granted = 0;
 	if ((acc_mode & IPC_M) && !(dac_granted & IPC_M)) {
-		error = priv_check_cred(td->td_ucred, PRIV_IPC_ADMIN,
-		    SUSER_ALLOWJAIL);
+		error = priv_check(td, PRIV_IPC_ADMIN);
 		if (error == 0)
 			priv_granted |= IPC_M;
 	}
 
 	if ((acc_mode & IPC_R) && !(dac_granted & IPC_R)) {
-		error = priv_check_cred(td->td_ucred, PRIV_IPC_READ,
-		    SUSER_ALLOWJAIL);
+		error = priv_check(td, PRIV_IPC_READ);
 		if (error == 0)
 			priv_granted |= IPC_R;
 	}
 
 	if ((acc_mode & IPC_W) && !(dac_granted & IPC_W)) {
-		error = priv_check_cred(td->td_ucred, PRIV_IPC_WRITE,
-		    SUSER_ALLOWJAIL);
+		error = priv_check(td, PRIV_IPC_WRITE);
 		if (error == 0)
 			priv_granted |= IPC_W;
 	}

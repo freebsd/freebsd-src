@@ -511,8 +511,7 @@ setuid(struct thread *td, struct setuid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    uid != oldcred->cr_uid &&		/* allow setuid(geteuid()) */
 #endif
-	    (error = priv_check_cred(oldcred, PRIV_CRED_SETUID,
-	    SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETUID, 0)) != 0)
 		goto fail;
 
 	/*
@@ -529,7 +528,7 @@ setuid(struct thread *td, struct setuid_args *uap)
 	    uid == oldcred->cr_uid ||
 #endif
 	    /* We are using privs. */
-	    priv_check_cred(oldcred, PRIV_CRED_SETUID, SUSER_ALLOWJAIL) == 0)
+	    priv_check_cred(oldcred, PRIV_CRED_SETUID, 0) == 0)
 #endif
 	{
 		/*
@@ -602,8 +601,7 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 
 	if (euid != oldcred->cr_ruid &&		/* allow seteuid(getuid()) */
 	    euid != oldcred->cr_svuid &&	/* allow seteuid(saved uid) */
-	    (error = priv_check_cred(oldcred, PRIV_CRED_SETEUID,
-	    SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETEUID, 0)) != 0)
 		goto fail;
 
 	/*
@@ -672,8 +670,7 @@ setgid(struct thread *td, struct setgid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    gid != oldcred->cr_groups[0] && /* allow setgid(getegid()) */
 #endif
-	    (error = priv_check_cred(oldcred, PRIV_CRED_SETGID,
-	    SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETGID, 0)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -687,7 +684,7 @@ setgid(struct thread *td, struct setgid_args *uap)
 	    gid == oldcred->cr_groups[0] ||
 #endif
 	    /* We are using privs. */
-	    priv_check_cred(oldcred, PRIV_CRED_SETGID, SUSER_ALLOWJAIL) == 0)
+	    priv_check_cred(oldcred, PRIV_CRED_SETGID, 0) == 0)
 #endif
 	{
 		/*
@@ -756,8 +753,7 @@ setegid(struct thread *td, struct setegid_args *uap)
 
 	if (egid != oldcred->cr_rgid &&		/* allow setegid(getgid()) */
 	    egid != oldcred->cr_svgid &&	/* allow setegid(saved gid) */
-	    (error = priv_check_cred(oldcred, PRIV_CRED_SETEGID,
-	    SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETEGID, 0)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -817,8 +813,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 		goto fail;
 #endif
 
-	error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS,
-	    SUSER_ALLOWJAIL);
+	error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS, 0);
 	if (error)
 		goto fail;
 
@@ -887,8 +882,7 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	      ruid != oldcred->cr_svuid) ||
 	     (euid != (uid_t)-1 && euid != oldcred->cr_uid &&
 	      euid != oldcred->cr_ruid && euid != oldcred->cr_svuid)) &&
-	    (error = priv_check_cred(oldcred, PRIV_CRED_SETREUID,
-	     SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETREUID, 0)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -953,8 +947,7 @@ setregid(register struct thread *td, struct setregid_args *uap)
 	    rgid != oldcred->cr_svgid) ||
 	     (egid != (gid_t)-1 && egid != oldcred->cr_groups[0] &&
 	     egid != oldcred->cr_rgid && egid != oldcred->cr_svgid)) &&
-	    (error = priv_check_cred(oldcred, PRIV_CRED_SETREGID,
-	     SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETREGID, 0)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -1030,8 +1023,7 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	     (suid != (uid_t)-1 && suid != oldcred->cr_ruid &&
 	    suid != oldcred->cr_svuid &&
 	      suid != oldcred->cr_uid)) &&
-	    (error = priv_check_cred(oldcred, PRIV_CRED_SETRESUID,
-	     SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETRESUID, 0)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -1108,8 +1100,7 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	     (sgid != (gid_t)-1 && sgid != oldcred->cr_rgid &&
 	      sgid != oldcred->cr_svgid &&
 	      sgid != oldcred->cr_groups[0])) &&
-	    (error = priv_check_cred(oldcred, PRIV_CRED_SETRESGID,
-	     SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETRESGID, 0)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -1317,8 +1308,7 @@ cr_seeotheruids(struct ucred *u1, struct ucred *u2)
 {
 
 	if (!see_other_uids && u1->cr_ruid != u2->cr_ruid) {
-		if (priv_check_cred(u1, PRIV_SEEOTHERUIDS, SUSER_ALLOWJAIL)
-		    != 0)
+		if (priv_check_cred(u1, PRIV_SEEOTHERUIDS, 0) != 0)
 			return (ESRCH);
 	}
 	return (0);
@@ -1357,8 +1347,7 @@ cr_seeothergids(struct ucred *u1, struct ucred *u2)
 				break;
 		}
 		if (!match) {
-			if (priv_check_cred(u1, PRIV_SEEOTHERGIDS,
-			    SUSER_ALLOWJAIL) != 0)
+			if (priv_check_cred(u1, PRIV_SEEOTHERGIDS, 0) != 0)
 				return (ESRCH);
 		}
 	}
@@ -1475,8 +1464,7 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 			break;
 		default:
 			/* Not permitted without privilege. */
-			error = priv_check_cred(cred, PRIV_SIGNAL_SUGID,
-			    SUSER_ALLOWJAIL);
+			error = priv_check_cred(cred, PRIV_SIGNAL_SUGID, 0);
 			if (error)
 				return (error);
 		}
@@ -1490,9 +1478,7 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 	    cred->cr_ruid != proc->p_ucred->cr_svuid &&
 	    cred->cr_uid != proc->p_ucred->cr_ruid &&
 	    cred->cr_uid != proc->p_ucred->cr_svuid) {
-		/* Not permitted without privilege. */
-		error = priv_check_cred(cred, PRIV_SIGNAL_DIFFCRED,
-		    SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_SIGNAL_DIFFCRED, 0);
 		if (error)
 			return (error);
 	}
@@ -1570,8 +1556,7 @@ p_cansched(struct thread *td, struct proc *p)
 		return (error);
 	if (td->td_ucred->cr_ruid != p->p_ucred->cr_ruid &&
 	    td->td_ucred->cr_uid != p->p_ucred->cr_ruid) {
-		error = priv_check_cred(td->td_ucred, PRIV_SCHED_DIFFCRED,
-		    SUSER_ALLOWJAIL);
+		error = priv_check(td, PRIV_SCHED_DIFFCRED);
 		if (error)
 			return (error);
 	}
@@ -1610,8 +1595,7 @@ p_candebug(struct thread *td, struct proc *p)
 	KASSERT(td == curthread, ("%s: td not curthread", __func__));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!unprivileged_proc_debug) {
-		error = priv_check_cred(td->td_ucred, PRIV_DEBUG_UNPRIV,
-		    SUSER_ALLOWJAIL);
+		error = priv_check(td, PRIV_DEBUG_UNPRIV);
 		if (error)
 			return (error);
 	}
@@ -1662,15 +1646,13 @@ p_candebug(struct thread *td, struct proc *p)
 	 * for td to debug p.
 	 */
 	if (!grpsubset || !uidsubset) {
-		error = priv_check_cred(td->td_ucred, PRIV_DEBUG_DIFFCRED,
-		    SUSER_ALLOWJAIL);
+		error = priv_check(td, PRIV_DEBUG_DIFFCRED);
 		if (error)
 			return (error);
 	}
 
 	if (credentialchanged) {
-		error = priv_check_cred(td->td_ucred, PRIV_DEBUG_SUGID,
-		    SUSER_ALLOWJAIL);
+		error = priv_check(td, PRIV_DEBUG_SUGID);
 		if (error)
 			return (error);
 	}
@@ -1940,8 +1922,7 @@ setlogin(struct thread *td, struct setlogin_args *uap)
 	int error;
 	char logintmp[MAXLOGNAME];
 
-	error = priv_check_cred(td->td_ucred, PRIV_PROC_SETLOGIN,
-	    SUSER_ALLOWJAIL);
+	error = priv_check(td, PRIV_PROC_SETLOGIN);
 	if (error)
 		return (error);
 	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);

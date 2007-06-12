@@ -306,8 +306,7 @@ fork1(td, flags, pages, procp)
 	 *
 	 * XXXRW: Can we avoid privilege here if it's not needed?
 	 */
-	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, SUSER_RUID |
-	    SUSER_ALLOWJAIL);
+	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, SUSER_RUID);
 	if (error == 0)
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
 	else {

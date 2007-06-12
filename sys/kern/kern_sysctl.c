@@ -1280,8 +1280,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	/* Is this sysctl writable by only privileged users? */
 	if (req->newptr && !(oid->oid_kind & CTLFLAG_ANYBODY)) {
 		if (oid->oid_kind & CTLFLAG_PRISON)
-			error = priv_check_cred(req->td->td_ucred,
-			    PRIV_SYSCTL_WRITEJAIL, SUSER_ALLOWJAIL);
+			error = priv_check(req->td, PRIV_SYSCTL_WRITEJAIL);
 		else
 			error = priv_check(req->td, PRIV_SYSCTL_WRITE);
 		if (error)

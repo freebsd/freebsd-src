@@ -837,8 +837,7 @@ chroot(td, uap)
 	struct nameidata nd;
 	int vfslocked;
 
-	error = priv_check_cred(td->td_ucred, PRIV_VFS_CHROOT,
-	    SUSER_ALLOWJAIL);
+	error = priv_check(td, PRIV_VFS_CHROOT);
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
@@ -1367,15 +1366,13 @@ can_hardlink(struct vnode *vp, struct thread *td, struct ucred *cred)
 		return (error);
 
 	if (hardlink_check_uid && cred->cr_uid != va.va_uid) {
-		error = priv_check_cred(cred, PRIV_VFS_LINK,
-		    SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_VFS_LINK, 0);
 		if (error)
 			return (error);
 	}
 
 	if (hardlink_check_gid && !groupmember(va.va_gid, cred)) {
-		error = priv_check_cred(cred, PRIV_VFS_LINK,
-		    SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_VFS_LINK, 0);
 		if (error)
 			return (error);
 	}
@@ -2337,8 +2334,7 @@ setfflags(td, vp, flags)
 	 * chown can't fail when done as root.
 	 */
 	if (vp->v_type == VCHR || vp->v_type == VBLK) {
-		error = priv_check_cred(td->td_ucred, PRIV_VFS_CHFLAGS_DEV,
-		    SUSER_ALLOWJAIL);
+		error = priv_check(td, PRIV_VFS_CHFLAGS_DEV);
 		if (error)
 			return (error);
 	}
@@ -3840,8 +3836,7 @@ revoke(td, uap)
 	if (error)
 		goto out;
 	if (td->td_ucred->cr_uid != vattr.va_uid) {
-		error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN,
-		    SUSER_ALLOWJAIL);
+		error = priv_check(td, PRIV_VFS_ADMIN);
 		if (error)
 			goto out;
 	}

@@ -607,13 +607,8 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp == NULL, ("rip_attach: inp != NULL"));
-	/*
-	 * XXXRW: Centralize privilege decision in kern_jail.c.
-	 */
-	if (jailed(td->td_ucred) && !jail_allow_raw_sockets)
-		return (EPERM);
-	error = priv_check_cred(td->td_ucred, PRIV_NETINET_RAW,
-	    SUSER_ALLOWJAIL);
+
+	error = priv_check(td, PRIV_NETINET_RAW);
 	if (error)
 		return error;
 	if (proto >= IPPROTO_MAX || proto < 0)
