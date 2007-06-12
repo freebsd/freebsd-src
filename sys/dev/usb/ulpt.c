@@ -329,8 +329,7 @@ USB_ATTACH(ulpt)
 		device_get_unit(self)|ULPT_NOPRIME,
 		UID_ROOT, GID_OPERATOR, 0644, "unlpt%d", device_get_unit(self));
 
-	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
-			   USBDEV(sc->sc_dev));
+	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev, sc->sc_dev);
 
 	return 0;
 }
@@ -353,15 +352,14 @@ USB_DETACH(ulpt)
 	if (--sc->sc_refcnt >= 0) {
 		/* There is noone to wake, aborting the pipe is enough */
 		/* Wait for processes to go away. */
-		usb_detach_wait(USBDEV(sc->sc_dev));
+		usb_detach_wait(sc->sc_dev);
 	}
 	splx(s);
 
 	destroy_dev(sc->dev);
 	destroy_dev(sc->dev_noprime);
 
-	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev,
-			   USBDEV(sc->sc_dev));
+	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev, sc->sc_dev);
 
 	return (0);
 }
@@ -538,7 +536,7 @@ ulptopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 
  done:
 	if (--sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
+		usb_detach_wakeup(sc->sc_dev);
 
 	DPRINTF(("ulptopen: done, error=%d\n", error));
 	return (error);
@@ -649,7 +647,7 @@ ulptwrite(struct cdev *dev, struct uio *uio, int flags)
 	sc->sc_refcnt++;
 	error = ulpt_do_write(sc, uio, flags);
 	if (--sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
+		usb_detach_wakeup(sc->sc_dev);
 	return (error);
 }
 
@@ -704,7 +702,7 @@ ulptread(struct cdev *dev, struct uio *uio, int flags)
 	sc->sc_refcnt++;
 	error = ulpt_do_read(sc, uio, flags);
 	if (--sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
+		usb_detach_wakeup(sc->sc_dev);
 	return (error);
 }
 

@@ -312,7 +312,7 @@ USB_ATTACH(cdce)
 	CDCE_UNLOCK(sc);
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->cdce_udev,
-	    USBDEV(sc->cdce_dev));
+	  sc->cdce_dev);
 
 	return 0;
 }
@@ -335,7 +335,7 @@ USB_DETACH(cdce)
 	mtx_destroy(&sc->cdce_mtx);
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->cdce_udev,
-		USBDEV(sc->cdce_dev));
+	  sc->cdce_dev);
 
 	return (0);
 }
