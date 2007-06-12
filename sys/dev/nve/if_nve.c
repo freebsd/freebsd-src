@@ -292,7 +292,7 @@ nve_probe(device_t dev)
 		if ((pci_get_vendor(dev) == t->vid_id) &&
 		    (pci_get_device(dev) == t->dev_id)) {
 			device_set_desc(dev, t->name);
-			return (0);
+			return (BUS_PROBE_LOW_PRIORITY);
 		}
 		t++;
 	}
