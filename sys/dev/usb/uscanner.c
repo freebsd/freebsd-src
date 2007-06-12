@@ -327,7 +327,7 @@ USB_ATTACH(uscanner)
 	if (err) {
 		printf("%s: setting config no failed\n",
 		    device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/* XXX We only check the first interface */
@@ -337,7 +337,7 @@ USB_ATTACH(uscanner)
 	if (err || id == 0) {
 		printf("%s: could not get interface descriptor, err=%d,id=%p\n",
 		       device_get_nameunit(sc->sc_dev), err, id);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/* Find the two first bulk endpoints */
@@ -346,7 +346,7 @@ USB_ATTACH(uscanner)
 		if (ed == 0) {
 			printf("%s: could not read endpoint descriptor\n",
 			       device_get_nameunit(sc->sc_dev));
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN
@@ -365,7 +365,7 @@ USB_ATTACH(uscanner)
 	if (ed_bulkin == NULL || ed_bulkout == NULL) {
 		printf("%s: bulk-in and/or bulk-out endpoint not found\n",
 			device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	sc->sc_bulkin = ed_bulkin->bEndpointAddress;
@@ -380,7 +380,7 @@ USB_ATTACH(uscanner)
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
 			   USBDEV(sc->sc_dev));
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 int

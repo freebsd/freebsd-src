@@ -262,11 +262,11 @@ USB_ATTACH(urio)
 
 	DPRINTFN(10, ("urio_attach: %p\n", sc->sc_udev));
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 
  nobulk:
 	printf("%s: could not find %s\n", device_get_nameunit(sc->sc_dev),ermsg);
-	USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 }
 
 

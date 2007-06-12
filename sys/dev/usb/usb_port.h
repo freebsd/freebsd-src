@@ -148,10 +148,6 @@ __CONCAT(dname,_attach)(device_t self)
         struct __CONCAT(dname,_softc) *sc = device_get_softc(self); \
         struct usb_attach_arg *uaa = device_get_ivars(self)
 
-/* Returns from attach */
-#define USB_ATTACH_ERROR_RETURN	return ENXIO
-#define USB_ATTACH_SUCCESS_RETURN	return 0
-
 #define USB_DETACH(dname) \
 static int \
 __CONCAT(dname,_detach)(device_t self)

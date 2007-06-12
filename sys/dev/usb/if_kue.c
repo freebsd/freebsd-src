@@ -421,7 +421,7 @@ USB_ATTACH(kue)
 		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
 		if (!ed) {
 			device_printf(sc->kue_dev, "couldn't get ep %d\n", i);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
 		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
@@ -443,7 +443,7 @@ USB_ATTACH(kue)
 	if (kue_load_fw(sc)) {
 		KUE_UNLOCK(sc);
 		mtx_destroy(&sc->kue_mtx);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/* Reset the adapter. */
@@ -461,7 +461,7 @@ USB_ATTACH(kue)
 		device_printf(sc->kue_dev, "can not if_alloc()\n");
 		KUE_UNLOCK(sc);
 		mtx_destroy(&sc->kue_mtx);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "kue", device_get_unit(sc->kue_dev));
@@ -487,7 +487,7 @@ USB_ATTACH(kue)
 
 	KUE_UNLOCK(sc);
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 static int

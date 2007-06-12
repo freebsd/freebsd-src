@@ -283,7 +283,7 @@ USB_ATTACH(ubser)
 		if (ed == NULL) {
 			printf("%s: couldn't get ep %d\n",
 			device_get_nameunit(sc->sc_dev), i);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
 		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
@@ -373,7 +373,7 @@ USB_ATTACH(ubser)
 	}
 
 	ubserstartread(sc);
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 
 fail_4:
 	for (i = 0; i < sc->sc_numser; i++) {
@@ -408,7 +408,7 @@ bad:
 	}
 
 	DPRINTF(("ubser_attach: ATTACH ERROR\n"));
-	USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 }
 
 USB_DETACH(ubser)

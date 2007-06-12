@@ -130,7 +130,7 @@ USB_ATTACH(ndisusb)
 	sc = (struct ndis_softc *)dummy;
 
 	if (uaa->device == NULL)
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 
 	sc->ndis_dev = self;
 
@@ -140,9 +140,9 @@ USB_ATTACH(ndisusb)
 	windrv_create_pdo(drv, self);
 
 	if (ndis_attach(self) != 0)
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 static struct resource_list *
