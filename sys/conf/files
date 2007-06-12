@@ -1801,6 +1801,7 @@ netinet/ip_carp.c		optional carp
 netinet/in_gif.c		optional gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
+netinet/in_mcast.c		optional inet
 netinet/in_pcb.c		optional inet
 netinet/in_proto.c		optional inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"

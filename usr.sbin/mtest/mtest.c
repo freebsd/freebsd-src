@@ -55,6 +55,15 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <unistd.h>
 
+/* The following two socket options are private to the kernel and libc. */
+
+#ifndef IP_SETMSFILTER
+#define IP_SETMSFILTER 74 /* atomically set filter list */
+#endif
+#ifndef IP_GETMSFILTER
+#define IP_GETMSFILTER 75 /* get filter list */
+#endif
+
 static void	process_file(char *, int);
 static void	process_cmd(char*, int, FILE *fp);
 static void	usage(void);
@@ -135,14 +144,14 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 {
 	char			 str1[STR_SIZE];
 	char			 str2[STR_SIZE];
-#ifdef WITH_IGMPV3
 	char			 str3[STR_SIZE];
+#ifdef WITH_IGMPV3
 	char			 filtbuf[IP_MSFILTER_SIZE(MAX_ADDRS)];
 #endif
 	struct ifreq		 ifr;
 	struct ip_mreq		 imr;
-#ifdef WITH_IGMPV3
 	struct ip_mreq_source	 imrs;
+#ifdef WITH_IGMPV3
 	struct ip_msfilter	*imsfp;
 #endif
 	char			*line;
@@ -256,6 +265,7 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 	 */
 	case 'i':
 	case 'e':
+		/* XXX: SIOCSIPMSFILTER will be made an internal API. */
 		if ((sscanf(line, "%s %s %d", str1, str2, &n)) != 3) {
 			printf("-1\n");
 			break;
@@ -284,10 +294,13 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 		else
 			printf("ok\n");
 		break;
+#endif /* WITH_IGMPV3 */
 
 	/*
 	 * Allow or block traffic from a source, using the
 	 * delta based api.
+	 * XXX: Currently we allow this to be used with the ASM-only
+	 *      implementation of RFC3678 in FreeBSD 7. 
 	 */
 	case 't':
 	case 'b':
@@ -302,6 +315,8 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 			break;
 		}
 
+#ifdef WITH_IGMPV3
+		/* XXX: SIOCSIPMSFILTER will be made an internal API. */
 		/* First determine out current filter mode. */
 		imsfp = (struct ip_msfilter *)filtbuf;
 		imsfp->imsf_multiaddr.s_addr = imrs.imr_multiaddr.s_addr;
@@ -325,13 +340,22 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 			opt = (*cmd == 't') ? IP_ADD_SOURCE_MEMBERSHIP :
 			    IP_DROP_SOURCE_MEMBERSHIP;
 		}
+#else /* !WITH_IGMPV3 */
+		/*
+		 * Don't look before we leap; we may only block or unblock
+		 * sources on a socket in exclude mode.
+		 */
+		opt = (*cmd == 't') ? IP_UNBLOCK_SOURCE : IP_BLOCK_SOURCE;
+#endif /* WITH_IGMPV3 */
 		if (setsockopt(s, IPPROTO_IP, opt, &imrs, sizeof(imrs)) == -1)
 			warn("ioctl IP_ADD_SOURCE_MEMBERSHIP/IP_DROP_SOURCE_MEMBERSHIP/IP_UNBLOCK_SOURCE/IP_BLOCK_SOURCE");
 		else
 			printf("ok\n");
 		break;
 
+#ifdef WITH_IGMPV3
 	case 'g':
+		/* XXX: SIOCSIPMSFILTER will be made an internal API. */
 		if ((sscanf(line, "%s %s %d", str1, str2, &n)) != 3) {
 			printf("-1\n");
 			break;
@@ -360,11 +384,11 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 				printf("%s\n", inet_ntoa(imsfp->imsf_slist[i]));
 		}
 		break;
-#else	/* !WITH_IGMPV3 */
+#endif	/* !WITH_IGMPV3 */
+
+#ifndef WITH_IGMPV3
 	case 'i':
 	case 'e':
-	case 't':
-	case 'b':
 	case 'g':
 		printf("warning: IGMPv3 is not supported by this version "
 		    "of FreeBSD; command ignored.\n");
@@ -389,11 +413,15 @@ usage(void)
 	printf("d ifname e.e.e.e.e.e       - delete ether multicast address\n");
 	printf("m ifname 1/0               - set/clear ether allmulti flag\n");
 	printf("p ifname 1/0               - set/clear ether promisc flag\n");
+#ifdef WITH_IGMPv3
 	printf("i g.g.g.g i.i.i.i n        - set n include mode src filter\n");
 	printf("e g.g.g.g i.i.i.i n        - set n exclude mode src filter\n");
+#endif
 	printf("t g.g.g.g i.i.i.i s.s.s.s  - allow traffic from src\n");
 	printf("b g.g.g.g i.i.i.i s.s.s.s  - block traffic from src\n");
+#ifdef WITH_IGMPV3
 	printf("g g.g.g.g i.i.i.i n        - get and show n src filters\n");
+#endif
 	printf("f filename                 - read command(s) from file\n");
 	printf("s seconds                  - sleep for some time\n");
 	printf("q                          - quit\n");

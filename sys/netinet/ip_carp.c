@@ -380,6 +380,7 @@ carp_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc->sc_imo.imo_membership = (struct in_multi **)malloc(
 	    (sizeof(struct in_multi *) * IP_MIN_MEMBERSHIPS), M_CARP,
 	    M_WAITOK);
+	sc->sc_imo.imo_mfilters = NULL;
 	sc->sc_imo.imo_max_memberships = IP_MIN_MEMBERSHIPS;
 	sc->sc_imo.imo_multicast_vif = -1;
 
@@ -1397,6 +1398,8 @@ carp_multicast_cleanup(struct carp_softc *sc)
 			imo->imo_membership[n] = NULL;
 		}
 	}
+	KASSERT(imo->imo_mfilters == NULL,
+	   ("%s: imo_mfilters != NULL", __func__));
 	imo->imo_num_memberships = 0;
 	imo->imo_multicast_ifp = NULL;
 }

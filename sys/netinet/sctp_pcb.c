@@ -2791,7 +2791,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		ip_pcb->inp_options = 0;
 	}
 	if (ip_pcb->inp_moptions) {
-		ip_freemoptions(ip_pcb->inp_moptions);
+		inp_freemoptions(ip_pcb->inp_moptions);
 		ip_pcb->inp_moptions = 0;
 	}
 #ifdef INET6
