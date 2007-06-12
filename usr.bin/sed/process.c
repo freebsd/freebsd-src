@@ -85,7 +85,7 @@ static regex_t *defpreg;
 size_t maxnsub;
 regmatch_t *match;
 
-#define OUT(s) { fwrite(s, sizeof(u_char), psl, outfile); fputc('\n', outfile); }
+#define OUT() do {fwrite(ps, 1, psl, outfile); fputc('\n', outfile);} while (0)
 
 void
 process(void)
@@ -168,7 +168,7 @@ redirect:
 				break;
 			case 'n':
 				if (!nflag && !pd)
-					OUT(ps)
+					OUT();
 				flush_appends();
 				if (!mf_fgets(&PS, REPLACE))
 					exit(0);
@@ -183,7 +183,7 @@ redirect:
 			case 'p':
 				if (pd)
 					break;
-				OUT(ps)
+				OUT();
 				break;
 			case 'P':
 				if (pd)
@@ -192,13 +192,13 @@ redirect:
 					oldpsl = psl;
 					psl = p - ps;
 				}
-				OUT(ps)
+				OUT();
 				if (p != NULL)
 					psl = oldpsl;
 				break;
 			case 'q':
 				if (!nflag && !pd)
-					OUT(ps)
+					OUT();
 				flush_appends();
 				exit(0);
 			case 'r':
@@ -261,7 +261,7 @@ redirect:
 		} /* for all cp */
 
 new:		if (!nflag && !pd)
-			OUT(ps)
+			OUT();
 		flush_appends();
 	} /* for all lines */
 }
@@ -442,7 +442,7 @@ substitute(struct s_command *cp)
 
 	/* Handle the 'p' flag. */
 	if (cp->u.s->p)
-		OUT(ps)
+		OUT();
 
 	/* Handle the 'w' flag. */
 	if (cp->u.s->wfile && !pd) {
