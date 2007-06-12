@@ -484,6 +484,9 @@ struct rusage_ext {
 struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 	TAILQ_HEAD(, thread) p_threads;	/* (j) all threads. */
+#ifdef KSE
+	TAILQ_HEAD(, kse_upcall) p_upcalls; /* (j) All upcalls in the proc. */
+#endif
 	struct mtx	p_slock;	/* process spin lock */
 	struct ucred	*p_ucred;	/* (c) Process owner's identity. */
 	struct filedesc	*p_fd;		/* (b) Open files. */
@@ -549,7 +552,6 @@ struct proc {
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
 #ifdef KSE
-	TAILQ_HEAD(, kse_upcall) p_upcalls; /* (j) All upcalls in the proc. */
 	int		p_numupcalls;	/* (j) Num upcalls. */
 	int		p_upsleeps;	/* (c) Num threads in kse_release(). */
 	struct kse_thr_mailbox *p_completed; /* (c) Completed thread mboxes. */
