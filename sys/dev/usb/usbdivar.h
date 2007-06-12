@@ -38,10 +38,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(__NetBSD__)
-#include <sys/callout.h>
-#endif
-
 /* From usb_mem.h */
 struct usb_dma_block;
 typedef struct {
@@ -297,9 +293,6 @@ void		usb_schedsoftintr(struct usbd_bus *);
 
 /* Locator stuff. */
 
-#if defined(__NetBSD__)
-#include "locators.h"
-#elif defined(__FreeBSD__) || defined(__OpenBSD__)
 /* XXX these values are used to statically bind some elements in the USB tree
  * to specific driver instances. This should be somehow emulated in FreeBSD
  * but can be done later on.
@@ -311,16 +304,6 @@ void		usb_schedsoftintr(struct usbd_bus *);
 #define UHUBCF_VENDOR_DEFAULT -1
 #define UHUBCF_PRODUCT_DEFAULT -1
 #define UHUBCF_RELEASE_DEFAULT -1
-#endif
-
-#if defined (__OpenBSD__)
-#define	UHUBCF_PORT		0
-#define	UHUBCF_CONFIGURATION	1
-#define	UHUBCF_INTERFACE	2
-#define	UHUBCF_VENDOR		3
-#define	UHUBCF_PRODUCT		4
-#define	UHUBCF_RELEASE		5
-#endif
 
 #define	uhubcf_port		cf_loc[UHUBCF_PORT]
 #define	uhubcf_configuration	cf_loc[UHUBCF_CONFIGURATION]
