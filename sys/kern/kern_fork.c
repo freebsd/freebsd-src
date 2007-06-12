@@ -768,6 +768,7 @@ fork_exit(callout, arg, frame)
 {
 	struct proc *p;
 	struct thread *td;
+	struct thread *dtd;
 
 	td = curthread;
 	p = td->td_proc;
@@ -777,6 +778,17 @@ fork_exit(callout, arg, frame)
 		td, td->td_sched, p->p_pid, p->p_comm);
 
 	sched_fork_exit(td);
+	/*
+	* Processes normally resume in mi_switch() after being
+	* cpu_switch()'ed to, but when children start up they arrive here
+	* instead, so we must do much the same things as mi_switch() would.
+	*/
+	if ((dtd = PCPU_GET(deadthread))) {
+		PCPU_SET(deadthread, NULL);
+		thread_stash(dtd);
+	}
+	thread_unlock(td);
+
 	/*
 	 * cpu_set_fork_handler intercepts this function call to
 	 * have this call a non-return function to stay in kernel mode.
