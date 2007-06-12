@@ -95,6 +95,7 @@ static int mxge_intr_coal_delay = 30;
 static int mxge_deassert_wait = 1;
 static int mxge_flow_control = 1;
 static int mxge_verbose = 0;
+static int mxge_lro_cnt = 8;
 static int mxge_ticks;
 static char *mxge_fw_unaligned = "mxge_ethp_z8e";
 static char *mxge_fw_aligned = "mxge_eth_z8e";
@@ -1238,6 +1239,26 @@ mxge_change_flow_control(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+mxge_change_lro_locked(mxge_softc_t *sc, int lro_cnt)
+{
+	struct ifnet *ifp;
+	int err;
+
+	ifp = sc->ifp;
+	if (lro_cnt == 0) 
+		ifp->if_capenable &= ~IFCAP_LRO;
+	else
+		ifp->if_capenable |= IFCAP_LRO;
+	sc->lro_cnt = lro_cnt;
+	callout_stop(&sc->co_hdl);
+	mxge_close(sc);
+	err = mxge_open(sc);
+	if (err == 0)
+		callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
+	return err;
+}
+
+static int
 mxge_change_lro(SYSCTL_HANDLER_ARGS)
 {
 	mxge_softc_t *sc;
@@ -1257,12 +1278,7 @@ mxge_change_lro(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 
 	mtx_lock(&sc->driver_mtx);
-	sc->lro_cnt = lro_cnt;
-	callout_stop(&sc->co_hdl);
-	mxge_close(sc);
-	err = mxge_open(sc);
-	if (err == 0)
-		callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
+	err = mxge_change_lro_locked(sc, lro_cnt);
 	mtx_unlock(&sc->driver_mtx);
 	return err;
 }
@@ -3156,7 +3172,12 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				err = EINVAL;
 			}
 		}
-
+		if (mask & IFCAP_LRO) {
+			if (IFCAP_LRO & ifp->if_capenable) 
+				err = mxge_change_lro_locked(sc, 0);
+			else
+				err = mxge_change_lro_locked(sc, mxge_lro_cnt);
+		}
 		if (mask & IFCAP_VLAN_HWTAGGING)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 		mtx_unlock(&sc->driver_mtx);
@@ -3193,6 +3214,9 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 			  &mxge_verbose);	
 	TUNABLE_INT_FETCH("hw.mxge.ticks", &mxge_ticks);
 	TUNABLE_INT_FETCH("hw.mxge.lro_cnt", &sc->lro_cnt);
+	printf("%d %d\n", sc->lro_cnt, mxge_lro_cnt);
+	if (sc->lro_cnt != 0)
+		mxge_lro_cnt = sc->lro_cnt;
 
 	if (bootverbose)
 		mxge_verbose = 1;
@@ -3350,7 +3374,8 @@ mxge_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = 100000000;
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
-		IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+		IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | 
+		IFCAP_VLAN_HWCSUM | IFCAP_LRO;
 
 	sc->max_mtu = mxge_max_mtu(sc);
 	if (sc->max_mtu >= 9000)
@@ -3361,6 +3386,8 @@ mxge_attach(device_t dev)
 			      sc->max_mtu - ETHER_HDR_LEN);
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
 	ifp->if_capenable = ifp->if_capabilities;
+	if (sc->lro_cnt == 0)
+		ifp->if_capenable &= ~IFCAP_LRO;
 	sc->csum_flag = 1;
         ifp->if_init = mxge_init;
         ifp->if_softc = sc;
