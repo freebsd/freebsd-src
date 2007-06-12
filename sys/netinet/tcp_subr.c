@@ -1019,8 +1019,7 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error;
 
-	error = priv_check_cred(req->td->td_ucred, PRIV_NETINET_GETCRED,
-	    SUSER_ALLOWJAIL);
+	error = priv_check(req->td, PRIV_NETINET_GETCRED);
 	if (error)
 		return (error);
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
@@ -1064,8 +1063,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error, mapped = 0;
 
-	error = priv_check_cred(req->td->td_ucred, PRIV_NETINET_GETCRED,
-	    SUSER_ALLOWJAIL);
+	error = priv_check(req->td, PRIV_NETINET_GETCRED);
 	if (error)
 		return (error);
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));

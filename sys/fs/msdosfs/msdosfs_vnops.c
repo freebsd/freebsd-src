@@ -408,8 +408,7 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid) {
-			error = priv_check_cred(cred, PRIV_VFS_ADMIN,
-			    SUSER_ALLOWJAIL);
+			error = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
 			if (error)
 				return (error);
 		}
@@ -426,8 +425,7 @@ msdosfs_setattr(ap)
 		 * sensible filesystem attempts it a lot.
 		 */
 		if (vap->va_flags & SF_SETTABLE) {
-			error = priv_check_cred(cred, PRIV_VFS_SYSFLAGS,
-			    SUSER_ALLOWJAIL);
+			error = priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0);
 			if (error)
 				return (error);
 		}
@@ -454,8 +452,7 @@ msdosfs_setattr(ap)
 			gid = pmp->pm_gid;
 		if (cred->cr_uid != pmp->pm_uid || uid != pmp->pm_uid ||
 		    (gid != pmp->pm_gid && !groupmember(gid, cred))) {
-			error = priv_check_cred(cred, PRIV_VFS_CHOWN,
-			    SUSER_ALLOWJAIL);
+			error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0);
 			if (error)
 				return (error);
 		}
@@ -520,8 +517,7 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid) {
-			error = priv_check_cred(cred, PRIV_VFS_ADMIN,
-			    SUSER_ALLOWJAIL);
+			error = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
 			if (error)
 				return (error);
 		}

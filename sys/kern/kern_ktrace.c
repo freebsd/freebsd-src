@@ -793,8 +793,7 @@ ktrops(td, p, ops, facs, vp)
 			p->p_tracecred = crhold(td->td_ucred);
 		}
 		p->p_traceflag |= facs;
-		if (priv_check_cred(td->td_ucred, PRIV_KTRACE,
-		    SUSER_ALLOWJAIL) == 0)
+		if (priv_check(td, PRIV_KTRACE) == 0)
 			p->p_traceflag |= KTRFAC_ROOT;
 	} else {
 		/* KTROP_CLEAR */
@@ -1000,7 +999,7 @@ ktrcanset(td, targetp)
 
 	PROC_LOCK_ASSERT(targetp, MA_OWNED);
 	if (targetp->p_traceflag & KTRFAC_ROOT &&
-	    priv_check_cred(td->td_ucred, PRIV_KTRACE, SUSER_ALLOWJAIL))
+	    priv_check(td, PRIV_KTRACE))
 		return (0);
 
 	if (p_candebug(td, targetp) != 0)

@@ -612,8 +612,7 @@ svr4_sys_fchroot(td, uap)
 	struct file	*fp;
 	int		 error, vfslocked;
 
-	if ((error = priv_check_cred(td->td_ucred, PRIV_VFS_FCHROOT,
-	    SUSER_ALLOWJAIL)) != 0)
+	if ((error = priv_check(td, PRIV_VFS_FCHROOT)) != 0)
 		return error;
 	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
 		return error;

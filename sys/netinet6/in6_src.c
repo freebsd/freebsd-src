@@ -775,8 +775,7 @@ in6_pcbsetport(laddr, inp, cred)
 		last  = ipport_hilastauto;
 		lastport = &pcbinfo->ipi_lasthi;
 	} else if (inp->inp_flags & INP_LOWPORT) {
-		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
-		    SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT, 0);
 		if (error)
 			return error;
 		first = ipport_lowfirstauto;	/* 1023 */

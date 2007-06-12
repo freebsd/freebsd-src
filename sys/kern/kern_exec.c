@@ -567,8 +567,7 @@ interpret:
 
 #ifdef KTRACE
 		if (p->p_tracevp != NULL &&
-		    priv_check_cred(oldcred, PRIV_DEBUG_DIFFCRED,
-		    SUSER_ALLOWJAIL)) {
+		    priv_check_cred(oldcred, PRIV_DEBUG_DIFFCRED, 0)) {
 			mtx_lock(&ktrace_mtx);
 			p->p_traceflag = 0;
 			tracevp = p->p_tracevp;

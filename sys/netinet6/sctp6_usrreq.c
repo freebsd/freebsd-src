@@ -439,13 +439,7 @@ sctp6_getcred(SYSCTL_HANDLER_ARGS)
 
 	vrf_id = SCTP_DEFAULT_VRFID;
 
-	/*
-	 * XXXRW: Other instances of getcred use SUSER_ALLOWJAIL, as socket
-	 * visibility is scoped using cr_canseesocket(), which it is not
-	 * here.
-	 */
-	error = priv_check_cred(req->td->td_ucred, PRIV_NETINET_RESERVEDPORT,
-	    0);
+	error = priv_check(req->td, PRIV_NETINET_GETCRED);
 	if (error)
 		return (error);
 

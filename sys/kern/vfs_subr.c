@@ -3299,24 +3299,24 @@ privcheck:
 		 * requests, instead of PRIV_VFS_EXEC.
 		 */
 		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
-		    !priv_check_cred(cred, PRIV_VFS_LOOKUP, SUSER_ALLOWJAIL))
+		    !priv_check_cred(cred, PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
 		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
-		    !priv_check_cred(cred, PRIV_VFS_EXEC, SUSER_ALLOWJAIL))
+		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
 
 	if ((acc_mode & VREAD) && ((dac_granted & VREAD) == 0) &&
-	    !priv_check_cred(cred, PRIV_VFS_READ, SUSER_ALLOWJAIL))
+	    !priv_check_cred(cred, PRIV_VFS_READ, 0))
 		priv_granted |= VREAD;
 
 	if ((acc_mode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
-	    !priv_check_cred(cred, PRIV_VFS_WRITE, SUSER_ALLOWJAIL))
+	    !priv_check_cred(cred, PRIV_VFS_WRITE, 0))
 		priv_granted |= (VWRITE | VAPPEND);
 
 	if ((acc_mode & VADMIN) && ((dac_granted & VADMIN) == 0) &&
-	    !priv_check_cred(cred, PRIV_VFS_ADMIN, SUSER_ALLOWJAIL))
+	    !priv_check_cred(cred, PRIV_VFS_ADMIN, 0))
 		priv_granted |= VADMIN;
 
 	if ((acc_mode & (priv_granted | dac_granted)) == acc_mode) {
