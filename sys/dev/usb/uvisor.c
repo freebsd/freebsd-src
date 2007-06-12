@@ -362,7 +362,7 @@ USB_ATTACH(uvisor)
 	}
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, ucom->sc_udev,
-			   USBDEV(ucom->sc_dev));
+	  ucom->sc_dev);
 
 	DPRINTF(("uvisor: in=0x%x out=0x%x\n", ucom->sc_bulkin_no, ucom->sc_bulkout_no));
 	ucom_attach(&sc->sc_ucom);
@@ -409,7 +409,7 @@ USB_DETACH(uvisor)
 	rv = ucom_detach(&sc->sc_ucom);
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_ucom.sc_udev,
-			   USBDEV(sc->sc_ucom.sc_dev));
+	  sc->sc_ucom.sc_dev);
 
 	return (rv);
 }
