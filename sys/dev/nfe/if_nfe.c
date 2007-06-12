@@ -1555,9 +1555,9 @@ nfe_alloc_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 	    BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR,
 	    NULL, NULL,
-	    MCLBYTES * NFE_MAX_SCATTER,
+	    NFE_TSO_MAXSIZE,
 	    NFE_MAX_SCATTER,
-	    MCLBYTES,
+	    NFE_TSO_MAXSGSIZE,
 	    0,
 	    NULL, NULL,
 	    &ring->tx_data_tag);
