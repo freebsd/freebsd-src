@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #ifdef __i386__
 #include "opt_npx.h"
 #endif
+#include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
