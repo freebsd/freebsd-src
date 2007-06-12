@@ -270,7 +270,7 @@ USB_ATTACH(udbp)
 		if (!ed) {
 			printf("%s: could not read endpoint descriptor\n",
 			       device_get_nameunit(sc->sc_dev));
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN
@@ -289,7 +289,7 @@ USB_ATTACH(udbp)
 	if (ed_bulkin == NULL || ed_bulkout == NULL) {
 		printf("%s: bulk-in and/or bulk-out endpoint not found\n",
 			device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	if (ed_bulkin->wMaxPacketSize[0] != ed_bulkout->wMaxPacketSize[0] ||
@@ -300,7 +300,7 @@ USB_ATTACH(udbp)
 		       ed_bulkout->wMaxPacketSize[0],
 		       ed_bulkin->wMaxPacketSize[1],
 		       ed_bulkout->wMaxPacketSize[1]);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	sc->sc_bulkin = ed_bulkin->bEndpointAddress;
@@ -383,7 +383,7 @@ USB_ATTACH(udbp)
 	if (err) {
 		goto bad;
 	}
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 bad:
 #if 0 /* probably done in udbp_detach() */
 		if (sc->sc_bulkout_buffer) {
@@ -400,7 +400,7 @@ bad:
 		}
 #endif
 		udbp_detach(self);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 }
 
 

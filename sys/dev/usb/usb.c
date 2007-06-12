@@ -253,7 +253,7 @@ USB_ATTACH(usb)
 	default:
 		printf(", not supported\n");
 		sc->sc_dying = 1;
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	printf("\n");
 
@@ -272,7 +272,7 @@ USB_ATTACH(usb)
 	if (sc->sc_bus->soft == NULL) {
 		printf("%s: can't register softintr\n", device_get_nameunit(sc->sc_dev));
 		sc->sc_dying = 1;
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 #else
 	usb_callout_init(sc->sc_bus->softi);
@@ -287,7 +287,7 @@ USB_ATTACH(usb)
 			sc->sc_dying = 1;
 			printf("%s: root device is not a hub\n",
 			       device_get_nameunit(sc->sc_dev));
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		sc->sc_bus->root_hub = dev;
 #if 1
@@ -336,7 +336,7 @@ USB_ATTACH(usb)
 	}
 #endif
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 static const char *taskq_names[] = USB_TASKQ_NAMES;

@@ -208,7 +208,7 @@ USB_ATTACH(ums)
 	if (!ed) {
 		printf("%s: could not read endpoint descriptor\n",
 		       device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	DPRINTFN(10,("ums_attach: bLength=%d bDescriptorType=%d "
@@ -224,33 +224,33 @@ USB_ATTACH(ums)
 	    UE_GET_XFERTYPE(ed->bmAttributes) != UE_INTERRUPT) {
 		printf("%s: unexpected endpoint\n",
 		       device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	err = usbd_read_report_desc(uaa->iface, &desc, &size, M_TEMP);
 	if (err)
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 
 	if (!hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
 		       hid_input, &sc->sc_loc_x, &flags)) {
 		printf("%s: mouse has no X report\n", device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
 		printf("%s: X report 0x%04x not supported\n",
 		       device_get_nameunit(sc->sc_dev), flags);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	if (!hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
 		       hid_input, &sc->sc_loc_y, &flags)) {
 		printf("%s: mouse has no Y report\n", device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
 		printf("%s: Y report 0x%04x not supported\n",
 		       device_get_nameunit(sc->sc_dev), flags);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/* try to guess the Z activator: first check Z, then WHEEL */
@@ -288,7 +288,7 @@ USB_ATTACH(ums)
 				M_USBDEV, M_NOWAIT);
 	if (!sc->sc_loc_btn) {
 		printf("%s: no memory\n", device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	printf("%s: %d buttons%s%s.\n", device_get_nameunit(sc->sc_dev),
@@ -304,7 +304,7 @@ USB_ATTACH(ums)
 	if (!sc->sc_ibuf) {
 		printf("%s: no memory\n", device_get_nameunit(sc->sc_dev));
 		free(sc->sc_loc_btn, M_USB);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	sc->sc_ep_addr = ed->bEndpointAddress;
@@ -364,7 +364,7 @@ USB_ATTACH(ums)
 		sc->flags |= UMS_SPUR_BUT_UP;
 	}
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 

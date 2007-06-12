@@ -443,7 +443,7 @@ USB_ATTACH(cue)
 
 	if (usbd_set_config_no(sc->cue_udev, CUE_CONFIG_NO, 0)) {
 		device_printf(sc->cue_dev, "getting interface handle failed\n");
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	id = usbd_get_interface_descriptor(uaa->iface);
@@ -453,7 +453,7 @@ USB_ATTACH(cue)
 		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
 		if (!ed) {
 			device_printf(sc->cue_dev, "couldn't get ep %d\n", i);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
 		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
@@ -485,7 +485,7 @@ USB_ATTACH(cue)
 		device_printf(sc->cue_dev, "can not if_alloc()\n");
 		CUE_UNLOCK(sc);
 		mtx_destroy(&sc->cue_mtx);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "cue", device_get_unit(sc->cue_dev));
@@ -511,7 +511,7 @@ USB_ATTACH(cue)
 	sc->cue_dying = 0;
 
 	CUE_UNLOCK(sc);
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 static int

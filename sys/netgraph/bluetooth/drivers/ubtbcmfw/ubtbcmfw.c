@@ -207,11 +207,10 @@ USB_ATTACH(ubtbcmfw)
 		UID_ROOT, GID_OPERATOR, 0644,
 		"%s.%d", USBDEVNAME(sc->sc_dev), UBTBCMFW_BULK_OUT);
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 bad:
 	ubtbcmfw_detach(self);  
-        
-        USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 }
 
 /*
@@ -556,4 +555,3 @@ ubtbcmfw_poll(struct cdev *dev, int events, usb_proc_ptr p)
 
 	return (revents);
 }
-
