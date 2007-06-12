@@ -394,6 +394,8 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		if (SEQ_GT(sack.end, sack.start) &&
 		    SEQ_GT(sack.start, tp->snd_una) &&
 		    SEQ_GT(sack.start, th_ack) &&
+		    SEQ_LT(sack.start, tp->snd_max) &&
+		    SEQ_GT(sack.end, tp->snd_una) &&
 		    SEQ_LEQ(sack.end, tp->snd_max))
 			sack_blocks[num_sack_blks++] = sack;
 	}
