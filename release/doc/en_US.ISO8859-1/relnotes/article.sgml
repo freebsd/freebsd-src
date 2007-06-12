@@ -2037,6 +2037,12 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       <para>The <filename>ppp-user</filename> script has been renamed to
 	<filename>ppp</filename>.  &merged;</para>
 
+      <para>The <filename>sendmail</filename> script no longer rebuilds
+	the aliases database if it is missing or older than the aliases
+	file.  If desired, set the new rc.conf option
+	<varname>sendmail_rebuild_aliases</varname> to "YES" to restore
+	that functionality.</para>
+
       <para>The <varname>removable_interfaces</varname> variable
 	has been removed.</para>
 
