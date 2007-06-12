@@ -18,10 +18,15 @@
  * $FreeBSD$
  */
 
-#define	NFE_PCI_BA		0x10
-
-#define	NFE_RX_RING_COUNT	128
+#define	NFE_RX_RING_COUNT	256
+#define	NFE_JUMBO_RX_RING_COUNT	NFE_RX_RING_COUNT
 #define	NFE_TX_RING_COUNT	256
+
+#define	NFE_PROC_DEFAULT	((NFE_RX_RING_COUNT * 3) / 4)
+#define	NFE_PROC_MIN		50
+#define	NFE_PROC_MAX		(NFE_RX_RING_COUNT - 1)
+
+#define	NFE_INC(x, y)	(x) = ((x) + 1) % y
 
 /* RX/TX MAC addr + type + VLAN + align + slack */
 #define	NFE_RX_HEADERS		64
@@ -29,15 +34,31 @@
 /* Maximum MTU size. */
 #define	NV_PKTLIMIT_1		ETH_DATA_LEN	/* Hard limit not known. */
 #define	NV_PKTLIMIT_2		9100 /* Actual limit according to NVidia:9202 */
-#define	NFE_JBYTES		(ETHER_MAX_LEN_JUMBO + ETHER_ALIGN)
-#define	NFE_JPOOL_COUNT		(NFE_RX_RING_COUNT + NFE_RX_HEADERS)
 
-#define	NFE_MAX_SCATTER		(NFE_TX_RING_COUNT - 2)
+#define	NFE_JUMBO_FRAMELEN	NV_PKTLIMIT_2
+#define	NFE_JUMBO_MTU		\
+	(NFE_JUMBO_FRAMELEN - NFE_RX_HEADERS)
+#define	NFE_MIN_FRAMELEN	(ETHER_MIN_LEN - ETHER_CRC_LEN)
+#define	NFE_JSLOTS		((NFE_JUMBO_RX_RING_COUNT * 3) / 2)
+
+#define	NFE_JRAWLEN		(NFE_JUMBO_FRAMELEN + ETHER_ALIGN)
+#define	NFE_JLEN		\
+	(NFE_JRAWLEN + (sizeof(uint64_t) - (NFE_JRAWLEN % sizeof(uint64_t))))
+#define	NFE_JPAGESZ	PAGE_SIZE
+#define	NFE_RESID	\
+	(NFE_JPAGESZ - (NFE_JLEN * NFE_JSLOTS) % NFE_JPAGESZ)
+#define	NFE_JMEM	((NFE_JLEN * NFE_JSLOTS) + NFE_RESID)
+
+#define	NFE_MAX_SCATTER		32
 
 #define	NFE_IRQ_STATUS		0x000
 #define	NFE_IRQ_MASK		0x004
 #define	NFE_SETUP_R6		0x008
 #define	NFE_IMTIMER		0x00c
+#define	NFE_MSI_MAP0		0x020
+#define	NFE_MSI_MAP1		0x024
+#define	NFE_MSI_IRQ_MASK	0x030
+#define	NFE_MAC_RESET		0x03c
 #define	NFE_MISC1		0x080
 #define	NFE_TX_CTL		0x084
 #define	NFE_TX_STATUS		0x088
@@ -66,6 +87,7 @@
 #define	NFE_RXTX_CTL		0x144
 #define	NFE_TX_RING_ADDR_HI	0x148
 #define	NFE_RX_RING_ADDR_HI	0x14c
+#define	NFE_TX_PAUSE_FRAME	0x170
 #define	NFE_PHY_STATUS		0x180
 #define	NFE_SETUP_R4		0x184
 #define	NFE_STATUS		0x188
@@ -78,6 +100,14 @@
 #define	NFE_PWR_CAP		0x268
 #define	NFE_PWR_STATE		0x26c
 #define	NFE_VTAG_CTL		0x300
+#define	NFE_MSIX_MAP0		0x3e0
+#define	NFE_MSIX_MAP1		0x3e4
+#define	NFE_MSIX_IRQ_STATUS	0x3f0
+#define	NFE_PWR2_CTL		0x600
+
+#define	NFE_MAC_RESET_MAGIC	0x00f3
+
+#define	NFE_MAC_ADDR_INORDER	0x8000
 
 #define	NFE_PHY_ERROR		0x00001
 #define	NFE_PHY_WRITE		0x00400
@@ -86,7 +116,9 @@
 
 #define	NFE_STATUS_MAGIC	0x140000
 
-#define	NFE_R1_MAGIC		0x16070f
+#define	NFE_R1_MAGIC_1000	0x14050f
+#define	NFE_R1_MAGIC_10_100	0x16070f
+#define	NFE_R1_MAGIC_DEFAULT	0x15050f
 #define	NFE_R2_MAGIC		0x16
 #define	NFE_R4_MAGIC		0x08
 #define	NFE_R6_MAGIC		0x03
@@ -118,9 +150,11 @@
 #define	NFE_RXTX_RXCSUM		0x0400
 #define	NFE_RXTX_V2MAGIC	0x2100
 #define	NFE_RXTX_V3MAGIC	0x2200
-#define	NFE_RXFILTER_MAGIC	0x007f0008
-#define	NFE_U2M			(1 << 5)
-#define	NFE_PROMISC		(1 << 7)
+#define	NFE_RXFILTER_MAGIC	0x007f0000
+#define	NFE_PFF_RX_PAUSE	(1 << 3)
+#define	NFE_PFF_LOOPBACK	(1 << 4)
+#define	NFE_PFF_U2M		(1 << 5)
+#define	NFE_PFF_PROMISC		(1 << 7)
 #define	NFE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 
 /* default interrupt moderation timer of 128us */
@@ -130,6 +164,9 @@
 
 #define	NFE_PWR_VALID		(1 << 8)
 #define	NFE_PWR_WAKEUP		(1 << 15)
+
+#define	NFE_PWR2_WAKEUP_MASK	0x0f11
+#define	NFE_PWR2_REVA3		(1 << 0)
 
 #define	NFE_MEDIA_SET		0x10000
 #define	NFE_MEDIA_1000T		0x00032
@@ -141,12 +178,31 @@
 #define	NFE_PHY_HDX		(1 << 8)
 
 #define	NFE_MISC1_MAGIC		0x003b0f3c
+#define	NFE_MISC1_TX_PAUSE	(1 << 0)
 #define	NFE_MISC1_HDX		(1 << 1)
+
+#define	NFE_TX_PAUSE_FRAME_DISABLE	0x1ff0080
+#define	NFE_TX_PAUSE_FRAME_ENABLE	0x0c00030
 
 #define	NFE_SEED_MASK		0x0003ff00
 #define	NFE_SEED_10T		0x00007f00
 #define	NFE_SEED_100TX		0x00002d00
 #define	NFE_SEED_1000T		0x00007400
+
+#define	NFE_MSI_MESSAGES	8
+#define	NFE_MSI_VECTOR_0_ENABLED	0x01
+
+/*
+ * It seems that nForce supports only the lower 40 bits of a DMA address.
+ */
+#if (BUS_SPACE_MAXADDR < 0xFFFFFFFFFF)
+#define	NFE_DMA_MAXADDR		BUS_SPACE_MAXADDR
+#else
+#define	NFE_DMA_MAXADDR		0xFFFFFFFFFF
+#endif
+
+#define	NFE_ADDR_LO(x)		((u_int64_t) (x) & 0xffffffff)
+#define	NFE_ADDR_HI(x)		((u_int64_t) (x) >> 32)
 
 /* Rx/Tx descriptor */
 struct nfe_desc32 {
@@ -179,9 +235,6 @@ struct nfe_desc64 {
 #define	NFE_RX_VALID_V2		(1 << 13)
 #define	NFE_TX_ERROR_V2		0x5c04
 #define	NFE_TX_LASTFRAG_V2	(1 << 13)
-#define	NFE_RX_IP_CSUMOK_V2	0x1000
-#define	NFE_RX_UDP_CSUMOK_V2	0x1400
-#define	NFE_RX_TCP_CSUMOK_V2	0x1800
 #define	NFE_RX_ERROR1_V2	(1<<2)
 #define	NFE_RX_ERROR2_V2	(1<<3)
 #define	NFE_RX_ERROR3_V2	(1<<4)
@@ -191,19 +244,28 @@ struct nfe_desc64 {
 #define	NFE_V2_TXERR	"\020"	\
 	"\14FORCEDINT\13LASTPACKET\12UNDERFLOW\10LOSTCARRIER\09DEFERRED\02RETRY"
 
+#define	NFE_RING_ALIGN	(sizeof(struct nfe_desc64))
+
 /* flags common to V1/V2 descriptors */
-#define	NFE_RX_CSUMOK		0x1c00
+#define	NFE_RX_UDP_CSUMOK	(1 << 10)
+#define	NFE_RX_TCP_CSUMOK	(1 << 11)
+#define	NFE_RX_IP_CSUMOK	(1 << 12)
 #define	NFE_RX_ERROR		(1 << 14)
 #define	NFE_RX_READY		(1 << 15)
-#define	NFE_TX_TCP_CSUM		(1 << 10)
+#define	NFE_RX_LEN_MASK		0x3fff
+#define	NFE_TX_TCP_UDP_CSUM	(1 << 10)
 #define	NFE_TX_IP_CSUM		(1 << 11)
+#define	NFE_TX_TSO		(1 << 12)
+#define	NFE_TX_TSO_SHIFT	14
 #define	NFE_TX_VALID		(1 << 15)
 
 #define	NFE_READ(sc, reg) \
-	bus_space_read_4((sc)->nfe_memt, (sc)->nfe_memh, (reg))
+	bus_read_4((sc)->nfe_res[0], (reg))
 
 #define	NFE_WRITE(sc, reg, val) \
-	bus_space_write_4((sc)->nfe_memt, (sc)->nfe_memh, (reg), (val))
+	bus_write_4((sc)->nfe_res[0], (reg), (val))
+
+#define	NFE_TIMEOUT	1000
 
 #ifndef PCI_VENDOR_NVIDIA
 #define	PCI_VENDOR_NVIDIA	0x10DE
@@ -232,6 +294,10 @@ struct nfe_desc64 {
 #define	PCI_PRODUCT_NVIDIA_MCP65_LAN2		0x0451
 #define	PCI_PRODUCT_NVIDIA_MCP65_LAN3		0x0452
 #define	PCI_PRODUCT_NVIDIA_MCP65_LAN4		0x0453
+#define	PCI_PRODUCT_NVIDIA_MCP67_LAN1		0x054c
+#define	PCI_PRODUCT_NVIDIA_MCP67_LAN2		0x054d
+#define	PCI_PRODUCT_NVIDIA_MCP67_LAN3		0x054e
+#define	PCI_PRODUCT_NVIDIA_MCP67_LAN4		0x054f
 
 #define	PCI_PRODUCT_NVIDIA_NFORCE3_LAN2	PCI_PRODUCT_NVIDIA_NFORCE2_400_LAN1
 #define	PCI_PRODUCT_NVIDIA_NFORCE3_LAN3	PCI_PRODUCT_NVIDIA_NFORCE2_400_LAN2
