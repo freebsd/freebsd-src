@@ -106,10 +106,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	DEFAULT_THREAD_LIB=libpthread for the buildworld.
 
 20070423:
-        The ABI breakage in sendmail(8)'s libmilter has been repaired
-        so it is no longer necessary to recompile mail filters (aka,
-        milters).  If you recompiled mail filters after the 20070408
-        note, it is not necessary to recompile them again.
+	The ABI breakage in sendmail(8)'s libmilter has been repaired
+	so it is no longer necessary to recompile mail filters (aka,
+	milters).  If you recompiled mail filters after the 20070408
+	note, it is not necessary to recompile them again.
 
 20070417:
 	The new trunk(4) driver has been renamed to lagg(4) as it better
