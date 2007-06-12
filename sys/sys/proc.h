@@ -239,8 +239,10 @@ struct thread {
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
 	struct kse_thr_mailbox *td_mailbox; /* (*) Userland mailbox address. */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
+#ifdef KSE
 	struct thread	*td_standin;	/* (k + a) Use this for an upcall. */
 	struct kse_upcall *td_upcall;	/* (k + t) Upcall structure. */
+#endif
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
 	u_int		td_slptime;	/* (t) How long completely blocked. */
 	struct rusage	td_ru;		/* (t) rusage information */
@@ -435,6 +437,7 @@ do {									\
 #define	TD_SET_RUNQ(td)		(td)->td_state = TDS_RUNQ
 #define	TD_SET_CAN_RUN(td)	(td)->td_state = TDS_CAN_RUN
 
+#ifdef KSE
 /*
  * An upcall is used when returning to userland.  If a thread does not have
  * an upcall on return to userland the thread exports its context and exits.
@@ -452,6 +455,7 @@ struct kse_upcall {
 
 #define	KUF_DOUPCALL	0x00001		/* Do upcall now; don't wait. */
 #define	KUF_EXITING	0x00002		/* Upcall structure is exiting. */
+#endif
 
 /*
  * XXX: Does this belong in resource.h or resourcevar.h instead?
@@ -489,7 +493,6 @@ struct proc {
 	struct plimit	*p_limit;	/* (c) Process limits. */
 	struct callout	p_limco;	/* (c) Limit callout handle */
 	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
-	TAILQ_HEAD(, kse_upcall) p_upcalls; /* (j) All upcalls in the proc. */
 
 	/*
 	 * The following don't make too much sense.
@@ -523,7 +526,6 @@ struct proc {
 	struct rusage_ext p_rux;	/* (cj) Internal resource usage. */
 	struct rusage_ext p_crux;	/* (c) Internal child resource usage. */
 	int		p_profthreads;	/* (c) Num threads in addupc_task. */
-	int		p_maxthrwaits;	/* (c) Max threads num waiters */
 	volatile int	p_exitthreads;	/* (j) Number of threads exiting */
 	int		p_traceflag;	/* (o) Kernel trace points. */
 	struct vnode	*p_tracevp;	/* (c + o) Trace to vnode. */
@@ -546,12 +548,14 @@ struct proc {
 	int		p_boundary_count;/* (c) Num threads at user boundary */
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
-/* from ksegrp */
+#ifdef KSE
+	TAILQ_HEAD(, kse_upcall) p_upcalls; /* (j) All upcalls in the proc. */
 	int		p_numupcalls;	/* (j) Num upcalls. */
 	int		p_upsleeps;	/* (c) Num threads in kse_release(). */
 	struct kse_thr_mailbox *p_completed; /* (c) Completed thread mboxes. */
 	int		p_nextupcall;	/* (n) Next upcall time. */
 	int		p_upquantum;	/* (n) Quantum to schedule an upcall. */
+#endif
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -870,9 +874,12 @@ void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
 
 /* New in KSE. */
+#ifdef KSE
 void	kse_unlink(struct thread *);
 void	kse_GC(void);
 void	kseinit(void);
+void	upcall_remove(struct thread *td);
+#endif
 void	cpu_set_upcall(struct thread *td, struct thread *td0);
 void	cpu_set_upcall_kse(struct thread *, void (*)(void *), void *, stack_t *);
 int	cpu_set_user_tls(struct thread *, void *tls_base);
@@ -888,7 +895,6 @@ int	thread_export_context(struct thread *td, int willexit);
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct proc *p);
 void	thread_reap(void);
-struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
 void	thread_signal_add(struct thread *td, ksiginfo_t *);
 int	thread_single(int how);
 void	thread_single_end(void);
@@ -912,12 +918,6 @@ void	thread_user_enter(struct thread *td);
 void	thread_wait(struct proc *p);
 struct thread	*thread_find(struct proc *p, lwpid_t tid);
 void	thr_exit1(void);
-struct kse_upcall *upcall_alloc(void);
-void	upcall_free(struct kse_upcall *ku);
-void	upcall_link(struct kse_upcall *ku, struct proc *p);
-void	upcall_unlink(struct kse_upcall *ku);
-void	upcall_remove(struct thread *td);
-void	upcall_stash(struct kse_upcall *ke);
 
 #endif	/* _KERNEL */
 

@@ -65,6 +65,13 @@ TAILQ_HEAD(, kse_upcall) zombie_upcalls =
 
 static int thread_update_usr_ticks(struct thread *td);
 static void thread_alloc_spare(struct thread *td);
+static struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
+static struct kse_upcall *upcall_alloc(void);
+static void upcall_free(struct kse_upcall *ku);
+static void upcall_link(struct kse_upcall *ku, struct proc *p);
+static void upcall_unlink(struct kse_upcall *ku);
+static void upcall_stash(struct kse_upcall *ke);
+
 
 struct mtx kse_lock;
 MTX_SYSINIT(kse_lock, &kse_lock, "kse lock", MTX_SPIN);
@@ -138,6 +145,7 @@ kse_unlink(struct thread *td)
 	mtx_lock_spin(&kse_lock);
 	thread_unlink(td);
 	mtx_unlock_spin(&kse_lock);
+	upcall_remove(td);
 }
 #endif
 
@@ -1293,7 +1301,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		max_threads_hits++;
 		PROC_LOCK(p);
 		PROC_SLOCK(p);
-		p->p_maxthrwaits++;
 		while (p->p_numthreads > max_threads_per_proc) {
 			if (p->p_numupcalls >= max_threads_per_proc)
 				break;
@@ -1306,7 +1313,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 				PROC_SLOCK(p);
 			}
 		}
-		p->p_maxthrwaits--;
 		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 	}

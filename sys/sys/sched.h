@@ -173,9 +173,6 @@ extern long switch_needresched;
 
 /* temporarily here */
 void schedinit(void);
-void sched_init_concurrency(struct proc *p);
-void sched_set_concurrency(struct proc *p, int cuncurrency);
-void sched_schedinit(void);
 void sched_newproc(struct proc *p, struct thread *td);
 void sched_newthread(struct thread *td);
 #endif /* _KERNEL */
