@@ -3884,6 +3884,11 @@ process_control_chunks:
 				cum_ack = ntohl(sack->sack.cum_tsn_ack);
 				num_seg = ntohs(sack->sack.num_gap_ack_blks);
 				a_rwnd = (uint32_t) ntohl(sack->sack.a_rwnd);
+				SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SACK process cum_ack:%x num_seg:%d a_rwnd:%d\n",
+				    cum_ack,
+				    num_seg,
+				    a_rwnd
+				    );
 				stcb->asoc.seen_a_sack_this_pkt = 1;
 				if ((stcb->asoc.pr_sctp_cnt == 0) &&
 				    (num_seg == 0) &&
