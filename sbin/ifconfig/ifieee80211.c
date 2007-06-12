@@ -2200,6 +2200,7 @@ ieee80211_status(int s)
 			get_chaninfo(c, 1, buf, sizeof(buf)));
 	} else if (verbose)
 		printf(" channel UNDEF");
+	ireq.i_data = &data;    /* reset data buffer */
 
 	ireq.i_type = IEEE80211_IOC_BSSID;
 	ireq.i_len = IEEE80211_ADDR_LEN;
@@ -2322,6 +2323,7 @@ ieee80211_status(int s)
 				firstkey = 0;
 			}
 		}
+		ireq.i_data = &data;    /* reset data buffer */
 	}
 
 	ireq.i_type = IEEE80211_IOC_POWERSAVE;
