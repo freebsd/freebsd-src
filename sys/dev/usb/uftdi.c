@@ -353,7 +353,7 @@ USB_ATTACH(uftdi)
 	ucom->sc_callback = &uftdi_callback;
 #if 0
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, ucom->sc_udev,
-	    USBDEV(ucom->sc_dev));
+	  ucom->sc_dev);
 #endif
 	DPRINTF(("uftdi: in=0x%x out=0x%x\n", ucom->sc_bulkin_no, ucom->sc_bulkout_no));
 	ucom_attach(&sc->sc_ucom);

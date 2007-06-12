@@ -71,7 +71,6 @@ MALLOC_DECLARE(M_USBHC);
 #define USB_USE_SOFTINTR
 #endif
 
-#define USBDEV(bdev) (bdev)
 #define USBGETSOFTC(bdev) (device_get_softc(bdev))
 
 typedef struct thread *usb_proc_ptr;

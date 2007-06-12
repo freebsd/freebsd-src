@@ -443,7 +443,7 @@ USB_DETACH(ubser)
 
 	if (--sc->sc_refcnt >= 0) {
 		/* Wait for processes to go away. */
-		usb_detach_wait(USBDEV(sc->sc_dev));
+		usb_detach_wait(sc->sc_dev);
 	}
 
 	return (0);
@@ -829,7 +829,7 @@ ubserclose(struct tty *tp)
 	pp = tp->t_sc;
 	sc = pp->p_sc;
 	if (--sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
+		usb_detach_wakeup(sc->sc_dev);
 }
 
 static void
