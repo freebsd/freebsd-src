@@ -256,8 +256,7 @@ USB_ATTACH(urio)
 			UID_ROOT, GID_OPERATOR,
 			0644, "urio%d", device_get_unit(self));
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
-	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
-			   USBDEV(sc->sc_dev));
+	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev, sc->sc_dev);
 #endif
 
 	DPRINTFN(10, ("urio_attach: %p\n", sc->sc_udev));
@@ -624,7 +623,7 @@ USB_DETACH(urio)
 		for (i = 0; i < USB_MAX_ENDPOINTS; i++)
 			wakeup(&sc->sc_endpoints[i][IN]);
 		/* Wait for processes to go away. */
-		usb_detach_wait(USBDEV(sc->sc_dev));
+		usb_detach_wait(sc->sc_dev);
 	}
 	splx(s);
 #else
@@ -637,7 +636,7 @@ USB_DETACH(urio)
 	s = splusb();
 	if (--sc->sc_refcnt >= 0) {
 		/* Wait for processes to go away. */
-		usb_detach_wait(USBDEV(sc->sc_dev));
+		usb_detach_wait(sc->sc_dev);
 	}
 	splx(s);
 #endif
@@ -653,8 +652,7 @@ USB_DETACH(urio)
 	vdevgone(maj, mn, mn + USB_MAX_ENDPOINTS - 1, VCHR);
 #endif
 
-	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev,
-			   USBDEV(sc->sc_dev));
+	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev, sc->sc_dev);
 
 	return (0);
 }
