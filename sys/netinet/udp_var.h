@@ -68,6 +68,7 @@ struct udpstat {
 	u_long	udps_fastout;		/* output packets on fast path */
 	/* of no socket on port, arrived as multicast */
 	u_long	udps_noportmcast;
+	u_long	udps_filtermcast;	/* blocked by multicast filter */
 };
 
 /*

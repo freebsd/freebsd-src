@@ -21,6 +21,25 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070612:
+	The IPv4 multicast socket code has been considerably modified, and
+	moved to the file sys/netinet/in_mcast.c. Initial support for the
+	RFC 3678 Source-Specific Multicast Socket API has been added to
+	the IPv4 network stack.
+
+	Strict multicast and broadcast reception is now the default for
+	UDP/IPv4 sockets; the net.inet.udp.strict_mcast_mship sysctl variable
+	has now been removed.
+
+	The RFC 1724 hack for interface selection has been removed; the use
+	of the Linux-derived ip_mreqn structure with IP_MULTICAST_IF has
+	been added to replace it. Consumers such as routed will soon be
+	updated to reflect this.
+
+	These changes affect users who are running routed(8) or rdisc(8)
+	from the FreeBSD base system on point-to-point or unnumbered
+	interfaces.
+
 20070610:
 	The net80211 layer has changed significantly and all wireless
 	drivers that depend on it need to be recompiled.  Further these

@@ -76,6 +76,7 @@ static int generate_tmp_ifid __P((u_int8_t *, const u_int8_t *, u_int8_t *));
 static int get_ifid __P((struct ifnet *, struct ifnet *, struct in6_addr *));
 static int in6_ifattach_linklocal __P((struct ifnet *, struct ifnet *));
 static int in6_ifattach_loopback __P((struct ifnet *));
+static void in6_purgemaddrs __P((struct ifnet *));
 
 #define EUI64_GBIT	0x01
 #define EUI64_UBIT	0x02
@@ -798,18 +799,10 @@ in6_ifdetach(ifp)
 		IFAFREE(&oia->ia_ifa);
 	}
 
-	/* leave from all multicast groups joined */
-
 	in6_pcbpurgeif0(&udbinfo, ifp);
 	in6_pcbpurgeif0(&ripcbinfo, ifp);
-
-	for (in6m = LIST_FIRST(&in6_multihead); in6m; in6m = in6m_next) {
-		in6m_next = LIST_NEXT(in6m, in6m_entry);
-		if (in6m->in6m_ifp != ifp)
-			continue;
-		in6_delmulti(in6m);
-		in6m = NULL;
-	}
+	/* leave from all multicast groups joined */
+	in6_purgemaddrs(ifp);
 
 	/*
 	 * remove neighbor management table.  we call it twice just to make
@@ -897,4 +890,23 @@ in6_tmpaddrtimer(ignored_arg)
 	}
 
 	splx(s);
+}
+
+static void
+in6_purgemaddrs(ifp)
+	struct ifnet *ifp;
+{
+	struct in6_multi *in6m;
+	struct in6_multi *oin6m;
+
+#ifdef DIAGNOSTIC
+	printf("%s: purging ifp %p\n", __func__, ifp);
+#endif
+
+	IFF_LOCKGIANT(ifp);
+	LIST_FOREACH_SAFE(in6m, &in6_multihead, in6m_entry, oin6m) {
+		if (in6m->in6m_ifp == ifp)
+			in6_delmulti(in6m);
+	}
+	IFF_UNLOCKGIANT(ifp);
 }

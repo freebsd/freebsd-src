@@ -73,8 +73,6 @@
 
 #include <security/mac/mac_framework.h>
 
-static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
-
 #define print_ip(x, a, y)	 printf("%s %d.%d.%d.%d%s",\
 				x, (ntohl(a.s_addr)>>24)&0xFF,\
 				  (ntohl(a.s_addr)>>16)&0xFF,\
@@ -89,11 +87,8 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
 #endif
 
-static struct ifnet *ip_multicast_if(struct in_addr *, int *);
 static void	ip_mloopback
 	(struct ifnet *, struct mbuf *, struct sockaddr_in *, int);
-static int	ip_getmoptions(struct inpcb *, struct sockopt *);
-static int	ip_setmoptions(struct inpcb *, struct sockopt *);
 
 
 extern	struct protosw inetsw[];
@@ -930,13 +925,28 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			break;
 #undef OPTSET
 
+		/*
+		 * Multicast socket options are processed by the in_mcast
+		 * module.
+		 */
 		case IP_MULTICAST_IF:
 		case IP_MULTICAST_VIF:
 		case IP_MULTICAST_TTL:
 		case IP_MULTICAST_LOOP:
 		case IP_ADD_MEMBERSHIP:
 		case IP_DROP_MEMBERSHIP:
-			error = ip_setmoptions(inp, sopt);
+		case IP_ADD_SOURCE_MEMBERSHIP:
+		case IP_DROP_SOURCE_MEMBERSHIP:
+		case IP_BLOCK_SOURCE:
+		case IP_UNBLOCK_SOURCE:
+		case IP_MSFILTER:
+		case MCAST_JOIN_GROUP:
+		case MCAST_LEAVE_GROUP:
+		case MCAST_JOIN_SOURCE_GROUP:
+		case MCAST_LEAVE_SOURCE_GROUP:
+		case MCAST_BLOCK_SOURCE:
+		case MCAST_UNBLOCK_SOURCE:
+			error = inp_setmoptions(inp, sopt);
 			break;
 
 		case IP_PORTRANGE:
@@ -1095,11 +1105,16 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 
+		/*
+		 * Multicast socket options are processed by the in_mcast
+		 * module.
+		 */
 		case IP_MULTICAST_IF:
 		case IP_MULTICAST_VIF:
 		case IP_MULTICAST_TTL:
 		case IP_MULTICAST_LOOP:
-			error = ip_getmoptions(inp, sopt);
+		case IP_MSFILTER:
+			error = inp_getmoptions(inp, sopt);
 			break;
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
@@ -1129,477 +1144,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		break;
 	}
 	return (error);
-}
-
-/*
- * XXX
- * The whole multicast option thing needs to be re-thought.
- * Several of these options are equally applicable to non-multicast
- * transmission, and one (IP_MULTICAST_TTL) totally duplicates a
- * standard option (IP_TTL).
- */
-
-/*
- * following RFC1724 section 3.3, 0.0.0.0/8 is interpreted as interface index.
- */
-static struct ifnet *
-ip_multicast_if(struct in_addr *a, int *ifindexp)
-{
-	int ifindex;
-	struct ifnet *ifp;
-
-	if (ifindexp)
-		*ifindexp = 0;
-	if (ntohl(a->s_addr) >> 24 == 0) {
-		ifindex = ntohl(a->s_addr) & 0xffffff;
-		if (ifindex < 0 || if_index < ifindex)
-			return NULL;
-		ifp = ifnet_byindex(ifindex);
-		if (ifindexp)
-			*ifindexp = ifindex;
-	} else {
-		INADDR_TO_IFP(*a, ifp);
-	}
-	return ifp;
-}
-
-/*
- * Given an inpcb, return its multicast options structure pointer.  Accepts
- * an unlocked inpcb pointer, but will return it locked.  May sleep.
- */
-static struct ip_moptions *
-ip_findmoptions(struct inpcb *inp)
-{
-	struct ip_moptions *imo;
-	struct in_multi **immp;
-
-	INP_LOCK(inp);
-	if (inp->inp_moptions != NULL)
-		return (inp->inp_moptions);
-
-	INP_UNLOCK(inp);
-
-	imo = (struct ip_moptions*)malloc(sizeof(*imo), M_IPMOPTS, M_WAITOK);
-	immp = (struct in_multi **)malloc((sizeof(*immp) * IP_MIN_MEMBERSHIPS),
-					  M_IPMOPTS, M_WAITOK);
-
-	imo->imo_multicast_ifp = NULL;
-	imo->imo_multicast_addr.s_addr = INADDR_ANY;
-	imo->imo_multicast_vif = -1;
-	imo->imo_multicast_ttl = IP_DEFAULT_MULTICAST_TTL;
-	imo->imo_multicast_loop = IP_DEFAULT_MULTICAST_LOOP;
-	imo->imo_num_memberships = 0;
-	imo->imo_max_memberships = IP_MIN_MEMBERSHIPS;
-	imo->imo_membership = immp;
-
-	INP_LOCK(inp);
-	if (inp->inp_moptions != NULL) {
-		free(immp, M_IPMOPTS);
-		free(imo, M_IPMOPTS);
-		return (inp->inp_moptions);
-	}
-	inp->inp_moptions = imo;
-	return (imo);
-}
-
-/*
- * Set the IP multicast options in response to user setsockopt().
- */
-static int
-ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
-{
-	int error = 0;
-	int i;
-	struct in_addr addr;
-	struct ip_mreq mreq;
-	struct ifnet *ifp;
-	struct ip_moptions *imo;
-	struct route ro;
-	struct sockaddr_in *dst;
-	int ifindex;
-	int s;
-
-	switch (sopt->sopt_name) {
-	/* store an index number for the vif you wanna use in the send */
-	case IP_MULTICAST_VIF:
-		if (legal_vif_num == 0) {
-			error = EOPNOTSUPP;
-			break;
-		}
-		error = sooptcopyin(sopt, &i, sizeof i, sizeof i);
-		if (error)
-			break;
-		if (!legal_vif_num(i) && (i != -1)) {
-			error = EINVAL;
-			break;
-		}
-		imo = ip_findmoptions(inp);
-		imo->imo_multicast_vif = i;
-		INP_UNLOCK(inp);
-		break;
-
-	case IP_MULTICAST_IF:
-		/*
-		 * Select the interface for outgoing multicast packets.
-		 */
-		error = sooptcopyin(sopt, &addr, sizeof addr, sizeof addr);
-		if (error)
-			break;
-		/*
-		 * INADDR_ANY is used to remove a previous selection.
-		 * When no interface is selected, a default one is
-		 * chosen every time a multicast packet is sent.
-		 */
-		imo = ip_findmoptions(inp);
-		if (addr.s_addr == INADDR_ANY) {
-			imo->imo_multicast_ifp = NULL;
-			INP_UNLOCK(inp);
-			break;
-		}
-		/*
-		 * The selected interface is identified by its local
-		 * IP address.  Find the interface and confirm that
-		 * it supports multicasting.
-		 */
-		s = splimp();
-		ifp = ip_multicast_if(&addr, &ifindex);
-		if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0) {
-			INP_UNLOCK(inp);
-			splx(s);
-			error = EADDRNOTAVAIL;
-			break;
-		}
-		imo->imo_multicast_ifp = ifp;
-		if (ifindex)
-			imo->imo_multicast_addr = addr;
-		else
-			imo->imo_multicast_addr.s_addr = INADDR_ANY;
-		INP_UNLOCK(inp);
-		splx(s);
-		break;
-
-	case IP_MULTICAST_TTL:
-		/*
-		 * Set the IP time-to-live for outgoing multicast packets.
-		 * The original multicast API required a char argument,
-		 * which is inconsistent with the rest of the socket API.
-		 * We allow either a char or an int.
-		 */
-		if (sopt->sopt_valsize == 1) {
-			u_char ttl;
-			error = sooptcopyin(sopt, &ttl, 1, 1);
-			if (error)
-				break;
-			imo = ip_findmoptions(inp);
-			imo->imo_multicast_ttl = ttl;
-			INP_UNLOCK(inp);
-		} else {
-			u_int ttl;
-			error = sooptcopyin(sopt, &ttl, sizeof ttl, 
-					    sizeof ttl);
-			if (error)
-				break;
-			if (ttl > 255)
-				error = EINVAL;
-			else {
-				imo = ip_findmoptions(inp);
-				imo->imo_multicast_ttl = ttl;
-				INP_UNLOCK(inp);
-			}
-		}
-		break;
-
-	case IP_MULTICAST_LOOP:
-		/*
-		 * Set the loopback flag for outgoing multicast packets.
-		 * Must be zero or one.  The original multicast API required a
-		 * char argument, which is inconsistent with the rest
-		 * of the socket API.  We allow either a char or an int.
-		 */
-		if (sopt->sopt_valsize == 1) {
-			u_char loop;
-			error = sooptcopyin(sopt, &loop, 1, 1);
-			if (error)
-				break;
-			imo = ip_findmoptions(inp);
-			imo->imo_multicast_loop = !!loop;
-			INP_UNLOCK(inp);
-		} else {
-			u_int loop;
-			error = sooptcopyin(sopt, &loop, sizeof loop,
-					    sizeof loop);
-			if (error)
-				break;
-			imo = ip_findmoptions(inp);
-			imo->imo_multicast_loop = !!loop;
-			INP_UNLOCK(inp);
-		}
-		break;
-
-	case IP_ADD_MEMBERSHIP:
-		/*
-		 * Add a multicast group membership.
-		 * Group must be a valid IP multicast address.
-		 */
-		error = sooptcopyin(sopt, &mreq, sizeof mreq, sizeof mreq);
-		if (error)
-			break;
-
-		if (!IN_MULTICAST(ntohl(mreq.imr_multiaddr.s_addr))) {
-			error = EINVAL;
-			break;
-		}
-		s = splimp();
-		/*
-		 * If no interface address was provided, use the interface of
-		 * the route to the given multicast address.
-		 */
-		if (mreq.imr_interface.s_addr == INADDR_ANY) {
-			bzero((caddr_t)&ro, sizeof(ro));
-			dst = (struct sockaddr_in *)&ro.ro_dst;
-			dst->sin_len = sizeof(*dst);
-			dst->sin_family = AF_INET;
-			dst->sin_addr = mreq.imr_multiaddr;
-			rtalloc_ign(&ro, RTF_CLONING);
-			if (ro.ro_rt == NULL) {
-				error = EADDRNOTAVAIL;
-				splx(s);
-				break;
-			}
-			ifp = ro.ro_rt->rt_ifp;
-			RTFREE(ro.ro_rt);
-		}
-		else {
-			ifp = ip_multicast_if(&mreq.imr_interface, NULL);
-		}
-
-		/*
-		 * See if we found an interface, and confirm that it
-		 * supports multicast.
-		 */
-		if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0) {
-			error = EADDRNOTAVAIL;
-			splx(s);
-			break;
-		}
-		/*
-		 * See if the membership already exists or if all the
-		 * membership slots are full.
-		 */
-		imo = ip_findmoptions(inp);
-		for (i = 0; i < imo->imo_num_memberships; ++i) {
-			if (imo->imo_membership[i]->inm_ifp == ifp &&
-			    imo->imo_membership[i]->inm_addr.s_addr
-						== mreq.imr_multiaddr.s_addr)
-				break;
-		}
-		if (i < imo->imo_num_memberships) {
-			INP_UNLOCK(inp);
-			error = EADDRINUSE;
-			splx(s);
-			break;
-		}
-		if (imo->imo_num_memberships == imo->imo_max_memberships) {
-		    struct in_multi **nmships, **omships;
-		    size_t newmax;
-		    /*
-		     * Resize the vector to next power-of-two minus 1. If the
-		     * size would exceed the maximum then we know we've really
-		     * run out of entries. Otherwise, we realloc() the vector
-		     * with the INP lock held to avoid introducing a race.
-		     */
-		    nmships = NULL;
-		    omships = imo->imo_membership;
-		    newmax = ((imo->imo_max_memberships + 1) * 2) - 1;
-		    if (newmax <= IP_MAX_MEMBERSHIPS) {
-			nmships = (struct in_multi **)realloc(omships,
-sizeof(*nmships) * newmax, M_IPMOPTS, M_NOWAIT);
-			if (nmships != NULL) {
-			    imo->imo_membership = nmships;
-			    imo->imo_max_memberships = newmax;
-			}
-		    }
-		    if (nmships == NULL) {
-			INP_UNLOCK(inp);
-			error = ETOOMANYREFS;
-			splx(s);
-			break;
-		    }
-		}
-		/*
-		 * Everything looks good; add a new record to the multicast
-		 * address list for the given interface.
-		 */
-		if ((imo->imo_membership[i] =
-		    in_addmulti(&mreq.imr_multiaddr, ifp)) == NULL) {
-			INP_UNLOCK(inp);
-			error = ENOBUFS;
-			splx(s);
-			break;
-		}
-		++imo->imo_num_memberships;
-		INP_UNLOCK(inp);
-		splx(s);
-		break;
-
-	case IP_DROP_MEMBERSHIP:
-		/*
-		 * Drop a multicast group membership.
-		 * Group must be a valid IP multicast address.
-		 */
-		error = sooptcopyin(sopt, &mreq, sizeof mreq, sizeof mreq);
-		if (error)
-			break;
-
-		if (!IN_MULTICAST(ntohl(mreq.imr_multiaddr.s_addr))) {
-			error = EINVAL;
-			break;
-		}
-
-		s = splimp();
-		/*
-		 * If an interface address was specified, get a pointer
-		 * to its ifnet structure.
-		 */
-		if (mreq.imr_interface.s_addr == INADDR_ANY)
-			ifp = NULL;
-		else {
-			ifp = ip_multicast_if(&mreq.imr_interface, NULL);
-			if (ifp == NULL) {
-				error = EADDRNOTAVAIL;
-				splx(s);
-				break;
-			}
-		}
-		/*
-		 * Find the membership in the membership array.
-		 */
-		imo = ip_findmoptions(inp);
-		for (i = 0; i < imo->imo_num_memberships; ++i) {
-			if ((ifp == NULL ||
-			     imo->imo_membership[i]->inm_ifp == ifp) &&
-			     imo->imo_membership[i]->inm_addr.s_addr ==
-			     mreq.imr_multiaddr.s_addr)
-				break;
-		}
-		if (i == imo->imo_num_memberships) {
-			INP_UNLOCK(inp);
-			error = EADDRNOTAVAIL;
-			splx(s);
-			break;
-		}
-		/*
-		 * Give up the multicast address record to which the
-		 * membership points.
-		 */
-		in_delmulti(imo->imo_membership[i]);
-		/*
-		 * Remove the gap in the membership array.
-		 */
-		for (++i; i < imo->imo_num_memberships; ++i)
-			imo->imo_membership[i-1] = imo->imo_membership[i];
-		--imo->imo_num_memberships;
-		INP_UNLOCK(inp);
-		splx(s);
-		break;
-
-	default:
-		error = EOPNOTSUPP;
-		break;
-	}
-
-	return (error);
-}
-
-/*
- * Return the IP multicast options in response to user getsockopt().
- */
-static int
-ip_getmoptions(struct inpcb *inp, struct sockopt *sopt)
-{
-	struct ip_moptions *imo;
-	struct in_addr addr;
-	struct in_ifaddr *ia;
-	int error, optval;
-	u_char coptval;
-
-	INP_LOCK(inp);
-	imo = inp->inp_moptions;
-
-	error = 0;
-	switch (sopt->sopt_name) {
-	case IP_MULTICAST_VIF: 
-		if (imo != NULL)
-			optval = imo->imo_multicast_vif;
-		else
-			optval = -1;
-		INP_UNLOCK(inp);
-		error = sooptcopyout(sopt, &optval, sizeof optval);
-		break;
-
-	case IP_MULTICAST_IF:
-		if (imo == NULL || imo->imo_multicast_ifp == NULL)
-			addr.s_addr = INADDR_ANY;
-		else if (imo->imo_multicast_addr.s_addr) {
-			/* return the value user has set */
-			addr = imo->imo_multicast_addr;
-		} else {
-			IFP_TO_IA(imo->imo_multicast_ifp, ia);
-			addr.s_addr = (ia == NULL) ? INADDR_ANY
-				: IA_SIN(ia)->sin_addr.s_addr;
-		}
-		INP_UNLOCK(inp);
-		error = sooptcopyout(sopt, &addr, sizeof addr);
-		break;
-
-	case IP_MULTICAST_TTL:
-		if (imo == 0)
-			optval = coptval = IP_DEFAULT_MULTICAST_TTL;
-		else
-			optval = coptval = imo->imo_multicast_ttl;
-		INP_UNLOCK(inp);
-		if (sopt->sopt_valsize == 1)
-			error = sooptcopyout(sopt, &coptval, 1);
-		else
-			error = sooptcopyout(sopt, &optval, sizeof optval);
-		break;
-
-	case IP_MULTICAST_LOOP:
-		if (imo == 0)
-			optval = coptval = IP_DEFAULT_MULTICAST_LOOP;
-		else
-			optval = coptval = imo->imo_multicast_loop;
-		INP_UNLOCK(inp);
-		if (sopt->sopt_valsize == 1)
-			error = sooptcopyout(sopt, &coptval, 1);
-		else
-			error = sooptcopyout(sopt, &optval, sizeof optval);
-		break;
-
-	default:
-		INP_UNLOCK(inp);
-		error = ENOPROTOOPT;
-		break;
-	}
-	INP_UNLOCK_ASSERT(inp);
-
-	return (error);
-}
-
-/*
- * Discard the IP multicast options.
- */
-void
-ip_freemoptions(struct ip_moptions *imo)
-{
-	register int i;
-
-	if (imo != NULL) {
-		for (i = 0; i < imo->imo_num_memberships; ++i)
-			in_delmulti(imo->imo_membership[i]);
-		free(imo->imo_membership, M_IPMOPTS);
-		free(imo, M_IPMOPTS);
-	}
 }
 
 /*

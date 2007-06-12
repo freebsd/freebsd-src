@@ -56,6 +56,7 @@ struct igmpstat {
 	u_int	igps_rcv_badreports;	/* received invalid reports */
 	u_int	igps_rcv_ourreports;	/* received reports for our groups */
 	u_int	igps_snd_reports;	/* sent membership reports */
+	u_int	igps_rcv_toolong;	/* received with too many bytes */
 };
 
 #ifdef _KERNEL
@@ -68,18 +69,71 @@ struct igmpstat {
 #define IGMP_IREPORTEDLAST			1
 
 /*
+ * State masks for IGMPv3
+ */
+#define IGMP_V3_NONEXISTENT			0x01
+#define IGMP_V3_OTHERMEMBER			0x02
+#define IGMP_V3_IREPORTEDLAST			0x04
+
+/*
  * We must remember what version the subnet's querier is.
  * We conveniently use the IGMP message type for the proper
  * membership report to keep this state.
  */
 #define IGMP_V1_ROUTER				IGMP_V1_MEMBERSHIP_REPORT
 #define IGMP_V2_ROUTER				IGMP_V2_MEMBERSHIP_REPORT
+#define IGMP_V3_ROUTER				IGMP_V3_MEMBERSHIP_REPORT
 
 /*
  * Revert to new router if we haven't heard from an old router in
  * this amount of time.
  */
 #define IGMP_AGE_THRESHOLD			540
+
+/*
+ * IGMPv3 protocol defaults
+ */
+#define IGMP_INIT_ROBVAR	2	/* Robustness */
+#define IGMP_MAX_ROBVAR		7
+#define IGMP_INIT_QRYINT	125	/* Querier's Query interval */
+#define IGMP_MAX_QRYINT		255
+#define IGMP_INIT_QRYRSP	10	/* Query Response interval */
+#define IGMP_DEF_QRYMRT		10
+#define IGMP_UNSOL_INT		1	/* Unsolicited Report interval */
+
+/*
+ * IGMPv3 report types
+ */
+#define IGMP_REPORT_MODE_IN	1	/* mode-is-include */
+#define IGMP_REPORT_MODE_EX	2	/* mode-is-exclude */
+#define IGMP_REPORT_TO_IN	3	/* change-to-include */
+#define IGMP_REPORT_TO_EX	4	/* change-to-exclude */
+#define IGMP_REPORT_ALLOW_NEW	5	/* allow-new-sources */
+#define IGMP_REPORT_BLOCK_OLD	6	/* block-old-sources */
+
+/*
+ * Report types
+ */
+#define IGMP_MASK_CUR_STATE	0x01	/* Report current-state */
+#define IGMP_MASK_ALLOW_NEW	0x02	/* Report source as allow-new */
+#define IGMP_MASK_BLOCK_OLD	0x04	/* Report source as block-old */
+#define IGMP_MASK_TO_IN		0x08	/* Report source as to_in */
+#define IGMP_MASK_TO_EX		0x10	/* Report source as to_ex */
+#define IGMP_MASK_STATE_T1	0x20	/* State at T1 */
+#define IGMP_MASK_STATE_T2	0x40	/* State at T2 */
+#define IGMP_MASK_IF_STATE	0x80	/* Report current-state per interface */
+
+#define IGMP_MASK_STATE_TX	(IGMP_MASK_STATE_T1 | IGMP_MASK_STATE_T2)
+#define IGMP_MASK_PENDING	(IGMP_MASK_CUR_STATE |			\
+				 IGMP_MASK_ALLOW_NEW |			\
+				 IGMP_MASK_BLOCK_OLD)
+
+/*
+ * List identifiers
+ */
+#define IGMP_EXCLUDE_LIST	1	/* exclude list used to tag report */
+#define IGMP_INCLUDE_LIST	2	/* include list used to tag report */
+#define IGMP_RECORDED_LIST	3	/* recorded list used to tag report */
 
 void	igmp_init(void);
 void	igmp_input(struct mbuf *, int);
@@ -100,6 +154,6 @@ SYSCTL_DECL(_net_inet_igmp);
 
 #define IGMPCTL_NAMES { \
 	{ 0, 0 }, \
-	{ "stats", CTLTYPE_STRUCT }, \
+	{ "stats", CTLTYPE_STRUCT } \
 }
 #endif
