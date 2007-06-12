@@ -73,8 +73,6 @@ MALLOC_DECLARE(M_USBHC);
 
 #define USBGETSOFTC(bdev) (device_get_softc(bdev))
 
-typedef struct thread *usb_proc_ptr;
-
 #define usb_kthread_create1(f, s, p, a0, a1) \
 		kthread_create((f), (s), (p), RFHIGHPID, 0, (a0), (a1))
 #define usb_kthread_create2(f, s, p, a0) \
