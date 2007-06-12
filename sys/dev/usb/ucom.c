@@ -321,7 +321,7 @@ ucomclose(struct tty *tp)
 }
 
 static int
-ucomioctl(struct tty *tp, u_long cmd, void *data, int flag, usb_proc_ptr p)
+ucomioctl(struct tty *tp, u_long cmd, void *data, int flag, struct thread *p)
 {
 	struct ucom_softc *sc;
 	int error;

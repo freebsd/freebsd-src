@@ -169,7 +169,7 @@ USB_ATTACH(ufm)
 
 
 int
-ufmopen(struct cdev *dev, int flag, int mode, usb_proc_ptr td)
+ufmopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct ufm_softc *sc;
 
@@ -190,7 +190,7 @@ ufmopen(struct cdev *dev, int flag, int mode, usb_proc_ptr td)
 }
 
 int
-ufmclose(struct cdev *dev, int flag, int mode, usb_proc_ptr td)
+ufmclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct ufm_softc *sc;
 
@@ -311,7 +311,7 @@ ufm_get_stat(struct ufm_softc *sc, caddr_t addr)
 }
 
 int
-ufmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr td)
+ufmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct ufm_softc *sc;
 

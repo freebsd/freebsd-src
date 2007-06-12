@@ -519,7 +519,7 @@ usbctlprint(void *aux, const char *pnp)
 #endif /* defined(__NetBSD__) || defined(__OpenBSD__) */
 
 int
-usbopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
+usbopen(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	int unit = USBUNIT(dev);
 	struct usb_softc *sc;
@@ -575,7 +575,7 @@ usbread(struct cdev *dev, struct uio *uio, int flag)
 }
 
 int
-usbclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
+usbclose(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	int unit = USBUNIT(dev);
 
@@ -588,7 +588,7 @@ usbclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 }
 
 int
-usbioctl(struct cdev *devt, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
+usbioctl(struct cdev *devt, u_long cmd, caddr_t data, int flag, struct thread *p)
 {
 	struct usb_softc *sc;
 	int unit = USBUNIT(devt);
@@ -704,7 +704,7 @@ usbioctl(struct cdev *devt, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 }
 
 int
-usbpoll(struct cdev *dev, int events, usb_proc_ptr p)
+usbpoll(struct cdev *dev, int events, struct thread *p)
 {
 	int revents, mask, s;
 	int unit = USBUNIT(dev);
