@@ -58,16 +58,16 @@ unsetlaggport(const char *val, int d, int s, const struct afswtch *afp)
 static void
 setlaggproto(const char *val, int d, int s, const struct afswtch *afp)
 {
-	struct lagg_protos tpr[] = LAGG_PROTOS;
+	struct lagg_protos lpr[] = LAGG_PROTOS;
 	struct lagg_reqall ra;
 	int i;
 
 	bzero(&ra, sizeof(ra));
 	ra.ra_proto = LAGG_PROTO_MAX;
 
-	for (i = 0; i < (sizeof(tpr) / sizeof(tpr[0])); i++) {
-		if (strcmp(val, tpr[i].tpr_name) == 0) {
-			ra.ra_proto = tpr[i].tpr_proto;
+	for (i = 0; i < (sizeof(lpr) / sizeof(lpr[0])); i++) {
+		if (strcmp(val, lpr[i].lpr_name) == 0) {
+			ra.ra_proto = lpr[i].lpr_proto;
 			break;
 		}
 	}
@@ -82,7 +82,7 @@ setlaggproto(const char *val, int d, int s, const struct afswtch *afp)
 static void
 lagg_status(int s)
 {
-	struct lagg_protos tpr[] = LAGG_PROTOS;
+	struct lagg_protos lpr[] = LAGG_PROTOS;
 	struct lagg_reqport rp, rpbuf[LAGG_MAX_PORTS];
 	struct lagg_reqall ra;
 	const char *proto = "<unknown>";
@@ -102,9 +102,9 @@ lagg_status(int s)
 	ra.ra_port = rpbuf;
 
 	if (ioctl(s, SIOCGLAGG, &ra) == 0) {
-		for (i = 0; i < (sizeof(tpr) / sizeof(tpr[0])); i++) {
-			if (ra.ra_proto == tpr[i].tpr_proto) {
-				proto = tpr[i].tpr_name;
+		for (i = 0; i < (sizeof(lpr) / sizeof(lpr[0])); i++) {
+			if (ra.ra_proto == lpr[i].lpr_proto) {
+				proto = lpr[i].lpr_name;
 				break;
 			}
 		}
@@ -122,8 +122,8 @@ lagg_status(int s)
 
 		if (0 /* XXX */) {
 			printf("\tsupported aggregation protocols:\n");
-			for (i = 0; i < (sizeof(tpr) / sizeof(tpr[0])); i++)
-				printf("\t\tlaggproto %s\n", tpr[i].tpr_name);
+			for (i = 0; i < (sizeof(lpr) / sizeof(lpr[0])); i++)
+				printf("\t\tlaggproto %s\n", lpr[i].lpr_name);
 		}
 	} else if (isport)
 		printf("\tlagg: laggdev %s\n", rp.rp_ifname);
