@@ -544,7 +544,8 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	etype = ntohs(eh->ether_type);
 #ifdef DIAGNOSTIC
 	if (m->m_pkthdr.len >
-	    ETHER_MAX_FRAME(ifp, etype, m->m_flags & M_HASFCS)) {
+	    ETHER_MAX_FRAME(ifp, etype, m->m_flags & M_HASFCS) &&
+	    (ifp->if_capenable & IFCAP_LRO) == 0) {
 		if_printf(ifp, "discard oversize frame "
 				"(ether type %x flags %x len %u > max %lu)\n",
 				etype, m->m_flags, m->m_pkthdr.len,
