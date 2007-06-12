@@ -91,9 +91,6 @@ typedef struct callout usb_callout_t;
 #define usb_uncallout(h, f, d)  callout_stop(&(h))
 #define usb_uncallout_drain(h, f, d)  callout_drain(&(h))
 
-#define clalloc(p, s, x) (clist_alloc_cblocks((p), (s), (s)), 0)
-#define clfree(p) clist_free_cblocks((p))
-
 #define PWR_RESUME 0
 #define PWR_SUSPEND 1
 
