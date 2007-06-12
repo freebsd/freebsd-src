@@ -9,7 +9,7 @@
 .Nd Network Time Protocol (NTP) daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46aAbDdgLmnPqx
+.Op Fl aAbDdgLmnPqx
 .Op Fl c Ar conffile
 .Op Fl f Ar driftfile
 .Op Fl k Ar keyfile
@@ -91,10 +91,6 @@ to 022.
 .Pp
 The following options are available:
 .Bl -tag -width indent
-.It Fl 4
-Force DNS resolution of following host names to the IPv4 namespace.
-.It Fl 6
-Force DNS resolution of following host names to the IPv6 namespace.
 .It Fl a
 Require cryptographic authentication for broadcast client,
 multicast client and symmetric passive associations.
