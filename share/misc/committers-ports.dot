@@ -53,6 +53,7 @@ beech [label="Beech Rintoul\nbeech@FreeBSD.org\n2007/05/30"]
 bland [label="Alexander Nedotsukov\nbland@FreeBSD.org\n2003/08/14"]
 brooks [label="Brooks Davies\nbrooks@FreeBSD.org\n2004/05/03"]
 bsam [label="Boris Samorodov\nbsam@FreeBSD.org\n2006/07/20"]
+chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2007/06/12"]
 clement [label="Clement Laforet\nclement@FreeBSD.org\n2003/12/17"]
 clsung [label="Cheng-Lung Sung\nclsung@FreeBSD.org\n2004/8/18"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2006/01/31"]
@@ -238,6 +239,8 @@ pav -> kwm
 pav -> mnag
 
 philip -> koitsu
+
+rafan -> chinsan
 
 sat -> beech
 
