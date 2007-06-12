@@ -2145,27 +2145,16 @@ sched_throw(struct thread *td)
 }
 
 void
-sched_fork_exit(struct thread *ctd)
+sched_fork_exit(struct thread *td)
 {
-	struct thread *td;
 
 	/*
 	 * Finish setting up thread glue so that it begins execution in a
 	 * non-nested critical section with sched_lock held but not recursed.
 	 */
-	ctd->td_oncpu = PCPU_GET(cpuid);
-	sched_lock.mtx_lock = (uintptr_t)ctd;
-	THREAD_LOCK_ASSERT(ctd, MA_OWNED | MA_NOTRECURSED);
-	/*
-	 * Processes normally resume in mi_switch() after being
-	 * cpu_switch()'ed to, but when children start up they arrive here
-	 * instead, so we must do much the same things as mi_switch() would.
-	 */
-	if ((td = PCPU_GET(deadthread))) {
-		PCPU_SET(deadthread, NULL);
-		thread_stash(td);
-	}
-	thread_unlock(ctd);
+	td->td_oncpu = PCPU_GET(cpuid);
+	sched_lock.mtx_lock = (uintptr_t)td;
+	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
 }
 
 static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
