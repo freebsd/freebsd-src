@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_turnstile_profiling.h"
+#include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
