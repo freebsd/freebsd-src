@@ -225,7 +225,7 @@ USB_ATTACH(uhid)
 		printf("%s: could not read endpoint descriptor\n",
 		       device_get_nameunit(sc->sc_dev));
 		sc->sc_dying = 1;
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	DPRINTFN(10,("uhid_attach: bLength=%d bDescriptorType=%d "
@@ -241,7 +241,7 @@ USB_ATTACH(uhid)
 	    (ed->bmAttributes & UE_XFERTYPE) != UE_INTERRUPT) {
 		printf("%s: unexpected endpoint\n", device_get_nameunit(sc->sc_dev));
 		sc->sc_dying = 1;
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	sc->sc_ep_addr = ed->bEndpointAddress;
@@ -296,7 +296,7 @@ USB_ATTACH(uhid)
 	if (err) {
 		printf("%s: no report descriptor\n", device_get_nameunit(sc->sc_dev));
 		sc->sc_dying = 1;
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	(void)usbd_set_idle(iface, 0, 0);
@@ -314,7 +314,7 @@ USB_ATTACH(uhid)
 			0644, "uhid%d", device_get_unit(self));
 #endif
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)

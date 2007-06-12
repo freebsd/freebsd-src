@@ -160,7 +160,7 @@ USB_ATTACH(cdce)
 		    UDESC_CS_INTERFACE, UDESCSUB_CDC_UNION);
 		if (ud == NULL) {
 			device_printf(sc->cdce_dev, "no union descriptor\n");
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		data_ifcno = ud->bSlaveInterface[0];
 
@@ -179,7 +179,7 @@ USB_ATTACH(cdce)
 
 	if (sc->cdce_data_iface == NULL) {
 		device_printf(sc->cdce_dev, "no data interface\n");
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/*
@@ -208,7 +208,7 @@ USB_ATTACH(cdce)
 		if (usbd_set_interface(sc->cdce_data_iface, j)) {
 			device_printf(sc->cdce_dev,	
 			    "setting alternate interface failed\n");
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		/* Find endpoints. */
 		id = usbd_get_interface_descriptor(sc->cdce_data_iface);
@@ -218,7 +218,7 @@ USB_ATTACH(cdce)
 			if (!ed) {
 				device_printf(sc->cdce_dev,
 				    "could not read endpoint descriptor\n");
-				USB_ATTACH_ERROR_RETURN;
+				return ENXIO;
 			}
 			if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
 			    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
@@ -242,11 +242,11 @@ USB_ATTACH(cdce)
 
 	if (sc->cdce_bulkin_no == -1) {
 		device_printf(sc->cdce_dev, "could not find data bulk in\n");
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	if (sc->cdce_bulkout_no == -1 ) {
 		device_printf(sc->cdce_dev, "could not find data bulk out\n");
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	mtx_init(&sc->cdce_mtx, device_get_nameunit(sc->cdce_dev), MTX_NETWORK_LOCK,
@@ -285,7 +285,7 @@ USB_ATTACH(cdce)
 		device_printf(sc->cdce_dev, "can not if_alloc()\n");
 		CDCE_UNLOCK(sc);
 		mtx_destroy(&sc->cdce_mtx);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "cdce", device_get_unit(sc->cdce_dev));
@@ -314,7 +314,7 @@ USB_ATTACH(cdce)
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->cdce_udev,
 	    USBDEV(sc->cdce_dev));
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 USB_DETACH(cdce)

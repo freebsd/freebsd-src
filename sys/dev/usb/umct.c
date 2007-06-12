@@ -267,10 +267,10 @@ USB_ATTACH(umct)
 	ucom->sc_callback = &umct_callback;
 	ucom_attach(ucom);
 	TASK_INIT(&sc->sc_task, 0, umct_notify, sc);
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 
 error:
-	USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 }
 
 USB_DETACH(umct)

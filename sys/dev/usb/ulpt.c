@@ -209,7 +209,7 @@ USB_ATTACH(ulpt)
 	if (cdesc == NULL) {
 		printf("%s: failed to get configuration descriptor\n",
 		       device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 	iend = (usb_interface_descriptor_t *)
 		   ((char *)cdesc + UGETW(cdesc->wTotalLength));
@@ -242,7 +242,7 @@ USB_ATTACH(ulpt)
 			printf("%s: setting alternate interface failed\n",
 			       device_get_nameunit(sc->sc_dev));
 			sc->sc_dying = 1;
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 	}
 
@@ -256,7 +256,7 @@ USB_ATTACH(ulpt)
 		if (ed == NULL) {
 			printf("%s: couldn't get ep %d\n",
 			    device_get_nameunit(sc->sc_dev), i);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
 		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
@@ -270,7 +270,7 @@ USB_ATTACH(ulpt)
 		printf("%s: could not find bulk out endpoint\n",
 		    device_get_nameunit(sc->sc_dev));
 		sc->sc_dying = 1;
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	if (usbd_get_quirks(dev)->uq_flags & UQ_BROKEN_BIDIR) {
@@ -332,7 +332,7 @@ USB_ATTACH(ulpt)
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
 			   USBDEV(sc->sc_dev));
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 

@@ -388,7 +388,7 @@ USB_ATTACH(rum)
 	if (usbd_set_config_no(sc->sc_udev, RT2573_CONFIG_NO, 0) != 0) {
 		printf("%s: could not set configuration no\n",
 		    device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/* get the first interface handle */
@@ -397,7 +397,7 @@ USB_ATTACH(rum)
 	if (error != 0) {
 		printf("%s: could not get interface handle\n",
 		    device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/*
@@ -411,7 +411,7 @@ USB_ATTACH(rum)
 		if (ed == NULL) {
 			printf("%s: no endpoint descriptor for iface %d\n",
 			    device_get_nameunit(sc->sc_dev), i);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
@@ -424,7 +424,7 @@ USB_ATTACH(rum)
 	if (sc->sc_rx_no == -1 || sc->sc_tx_no == -1) {
 		printf("%s: missing endpoint\n", 
 		    device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->sc_dev), MTX_NETWORK_LOCK,
@@ -444,7 +444,7 @@ USB_ATTACH(rum)
 	if (ntries == 1000) {
 		printf("%s: timeout waiting for chip to settle\n",
 		    device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/* retrieve MAC address and various other things from EEPROM */
@@ -459,7 +459,7 @@ USB_ATTACH(rum)
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not load 8051 microcode\n");
 		mtx_destroy(&sc->sc_mtx);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
@@ -467,7 +467,7 @@ USB_ATTACH(rum)
 		printf("%s: can not if_alloc()\n", 
 		    device_get_nameunit(sc->sc_dev));
 		mtx_destroy(&sc->sc_mtx);
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	ifp->if_softc = sc;
@@ -565,7 +565,7 @@ USB_ATTACH(rum)
 	if (bootverbose)
 		ieee80211_announce(ic);
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 USB_DETACH(rum)

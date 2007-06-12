@@ -189,12 +189,12 @@ USB_ATTACH(uark)
 
 	DPRINTF(("uark: in=0x%x out=0x%x\n", ucom->sc_bulkin_no, ucom->sc_bulkout_no));
 	ucom_attach(&sc->sc_ucom);
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 
 bad:
 	DPRINTF(("uftdi_attach: ATTACH ERROR\n"));
 	ucom->sc_dying = 1;
-	USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 }
 
 USB_DETACH(uark)

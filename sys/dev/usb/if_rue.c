@@ -679,7 +679,7 @@ USB_ATTACH(rue)
 	sc->rue_dying = 0;
 
 	RUE_UNLOCK(sc);
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 
     error2:
 	if_free(ifp);
@@ -687,7 +687,7 @@ USB_ATTACH(rue)
 	RUE_UNLOCK(sc);
 	mtx_destroy(&sc->rue_mtx);
     error:
-	USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 }
 
 static int

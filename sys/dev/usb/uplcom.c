@@ -538,10 +538,10 @@ USB_ATTACH(uplcom)
 
 	TASK_INIT(&sc->sc_task, 0, uplcom_notify, sc);
 	ucom_attach(&sc->sc_ucom);
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 
 error:
-	USB_ATTACH_ERROR_RETURN;
+	return ENXIO;
 }
 
 USB_DETACH(uplcom)

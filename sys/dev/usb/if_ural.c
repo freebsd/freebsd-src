@@ -373,7 +373,7 @@ USB_ATTACH(ural)
 	if (usbd_set_config_no(sc->sc_udev, RAL_CONFIG_NO, 0) != 0) {
 		printf("%s: could not set configuration no\n",
 		    device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/* get the first interface handle */
@@ -382,7 +382,7 @@ USB_ATTACH(ural)
 	if (error != 0) {
 		printf("%s: could not get interface handle\n",
 		    device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	/*
@@ -396,7 +396,7 @@ USB_ATTACH(ural)
 		if (ed == NULL) {
 			printf("%s: no endpoint descriptor for %d\n",
 			    device_get_nameunit(sc->sc_dev), i);
-			USB_ATTACH_ERROR_RETURN;
+			return ENXIO;
 		}
 
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
@@ -409,7 +409,7 @@ USB_ATTACH(ural)
 	if (sc->sc_rx_no == -1 || sc->sc_tx_no == -1) {
 		printf("%s: missing endpoint\n",
 		    device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->sc_dev), MTX_NETWORK_LOCK,
@@ -434,7 +434,7 @@ USB_ATTACH(ural)
 	if (ifp == NULL) {
 		printf("%s: can not if_alloc()\n",
 		    device_get_nameunit(sc->sc_dev));
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	}
 
 	ifp->if_softc = sc;
@@ -504,7 +504,7 @@ USB_ATTACH(ural)
 	if (bootverbose)
 		ieee80211_announce(ic);
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 USB_DETACH(ural)

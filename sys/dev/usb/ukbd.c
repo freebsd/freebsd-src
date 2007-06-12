@@ -163,7 +163,7 @@ USB_ATTACH(ukbd)
 	sc->sc_dev = self;
 	sw = kbd_get_switch(DRIVER_NAME);
 	if (sw == NULL)
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 
 	id = usbd_get_interface_descriptor(iface);
 
@@ -171,19 +171,19 @@ USB_ATTACH(ukbd)
 	arg[1] = (void *)ukbd_intr;
 	kbd = NULL;
 	if ((*sw->probe)(unit, (void *)arg, 0))
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	if ((*sw->init)(unit, &kbd, (void *)arg, 0))
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 	(*sw->enable)(kbd);
 
 #ifdef KBD_INSTALL_CDEV
 	if (kbd_attach(kbd))
-		USB_ATTACH_ERROR_RETURN;
+		return ENXIO;
 #endif
 	if (bootverbose)
 		(*sw->diag)(kbd, bootverbose);
 
-	USB_ATTACH_SUCCESS_RETURN;
+	return 0;
 }
 
 int
