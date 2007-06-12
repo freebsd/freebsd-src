@@ -444,11 +444,7 @@ uhidopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 		return (EBUSY);
 	sc->sc_state |= UHID_OPEN;
 
-	if (clalloc(&sc->sc_q, UHID_BSIZE, 0) == -1) {
-		sc->sc_state &= ~UHID_OPEN;
-		return (ENOMEM);
-	}
-
+	clist_alloc_cblocks(&sc->sc_q, UHID_BSIZE, UHID_BSIZE);
 	sc->sc_ibuf = malloc(sc->sc_isize, M_USBDEV, M_WAITOK);
 	sc->sc_obuf = malloc(sc->sc_osize, M_USBDEV, M_WAITOK);
 
@@ -489,7 +485,7 @@ uhidclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 	sc->sc_intrpipe = 0;
 
 	ndflush(&sc->sc_q, sc->sc_q.c_cc);
-	clfree(&sc->sc_q);
+	clist_free_cblocks(&sc->sc_q);
 
 	free(sc->sc_ibuf, M_USBDEV);
 	free(sc->sc_obuf, M_USBDEV);
