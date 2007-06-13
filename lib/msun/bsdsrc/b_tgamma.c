@@ -46,11 +46,10 @@ __FBSDID("$FreeBSD$");
 
 #include <math.h>
 #include "mathimpl.h"
-#include <errno.h>
 
 /* METHOD:
  * x < 0: Use reflection formula, G(x) = pi/(sin(pi*x)*x*G(x))
- * 	At negative integers, return +Inf, and set errno.
+ * 	At negative integers, return NaN and raise invalid.
  *
  * x < 6.5:
  *	Use argument reduction G(x+1) = xG(x) to reach the
@@ -67,11 +66,15 @@ __FBSDID("$FreeBSD$");
  *	avoid premature round-off.
  *
  * Special values:
- *	non-positive integer:	Set overflow trap; return +Inf;
- *	x > 171.63:		Set overflow trap; return +Inf;
- *	NaN: 			Set invalid trap;  return NaN
+ *	-Inf:			return NaN and raise invalid;
+ *	negative integer:	return NaN and raise invalid;
+ *	other x ~< 177.79:	return +-0 and raise underflow;
+ *	+-0:			return +-Inf and raise divide-by-zero;
+ *	finite x ~> 171.63:	return +Inf and raise overflow;
+ *	+Inf:			return +Inf;
+ *	NaN: 			return NaN.
  *
- * Accuracy: Gamma(x) is accurate to within
+ * Accuracy: tgamma(x) is accurate to within
  *	x > 0:  error provably < 0.9ulp.
  *	Maximum observed in 1,000,000 trials was .87ulp.
  *	x < 0:
@@ -123,24 +126,16 @@ static struct Double ratfun_gam(double, double);
 #define Pa7	-1.44705562421428915453880392761e-02
 
 static const double zero = 0., one = 1.0, tiny = 1e-300;
-static int endian;
-
-/*
- * TRUNC sets trailing bits in a floating-point number to zero.
- * is a temporary variable.
- */
-#define TRUNC(x)	*(((int *) &x) + endian) &= 0xf8000000
 
 double
 tgamma(x)
 	double x;
 {
 	struct Double u;
-	endian = (*(int *) &one) ? 1 : 0;
 
 	if (x >= 6) {
 		if(x > 171.63)
-			return(one/zero);
+			return (x / zero);
 		u = large_gam(x);
 		return(__exp__D(u.a, u.b));
 	} else if (x >= 1.0 + LEFT + x0)
@@ -148,12 +143,11 @@ tgamma(x)
 	else if (x > 1.e-17)
 		return (smaller_gam(x));
 	else if (x > -1.e-17) {
-		if (x == 0.0)
-			return (one/x);
-		one+1e-20;		/* Raise inexact flag. */
+		if (x != 0.0)
+			u.a = one - tiny;	/* raise inexact */
 		return (one/x);
 	} else if (!finite(x))
-		return (x*x);		/* x = NaN, -Inf */
+		return (x - x);		/* x is NaN or -Inf */
 	else
 		return (neg_gam(x));
 }
@@ -287,11 +281,13 @@ neg_gam(x)
 	struct Double lg, lsine;
 	double y, z;
 
-	y = floor(x + .5);
+	y = ceil(x);
 	if (y == x)		/* Negative integer. */
-		return (one/zero);
-	z = fabs(x - y);
-	y = .5*ceil(x);
+		return ((x - x) / zero);
+	z = y - x;
+	if (z > 0.5)
+		z = one - z;
+	y = 0.5 * y;
 	if (y == ceil(y))
 		sgn = -1;
 	if (z < .25)
