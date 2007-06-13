@@ -65,17 +65,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/device.h>
-#include <sys/select.h>
-#elif defined(__FreeBSD__)
 #include <sys/endian.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/lockmgr.h>
 #if defined(DIAGNOSTIC) && defined(__i386__) && defined(__FreeBSD__)
 #include <machine/cpu.h>
-#endif
 #endif
 #include <sys/proc.h>
 #include <sys/queue.h>
@@ -93,10 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/ehcireg.h>
 #include <dev/usb/ehcivar.h>
 
-#if defined(__FreeBSD__)
-
 #define delay(d)                DELAY(d)
-#endif
 
 #ifdef USB_DEBUG
 #define EHCI_DEBUG USB_DEBUG
@@ -106,9 +98,7 @@ int ehcidebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW,
 	   &ehcidebug, 0, "ehci debug level");
-#ifndef __NetBSD__
 #define bitmask_snprintf(q,f,b,l) snprintf((b), (l), "%b", (q), (f))
-#endif
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -934,15 +924,7 @@ ehci_detach(struct ehci_softc *sc, int flags)
 {
 	int rv = 0;
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	if (sc->sc_child != NULL)
-		rv = config_detach(sc->sc_child, flags);
-
-	if (rv != 0)
-		return (rv);
-#else
 	sc->sc_dying = 1;
-#endif
 
 	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
 	EOWRITE4(sc, EHCI_USBCMD, 0);
@@ -956,7 +938,6 @@ ehci_detach(struct ehci_softc *sc, int flags)
 	if (sc->sc_shutdownhook != NULL)
 		shutdownhook_disestablish(sc->sc_shutdownhook);
 #endif
-
 	usb_delay_ms(&sc->sc_bus, 300); /* XXX let stray task complete */
 
 	usb_freemem(&sc->sc_bus, &sc->sc_fldma);
@@ -964,27 +945,6 @@ ehci_detach(struct ehci_softc *sc, int flags)
 
 	return (rv);
 }
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-int
-ehci_activate(device_t self, enum devact act)
-{
-	struct ehci_softc *sc = (struct ehci_softc *)self;
-	int rv = 0;
-
-	switch (act) {
-	case DVACT_ACTIVATE:
-		return (EOPNOTSUPP);
-
-	case DVACT_DEACTIVATE:
-		if (sc->sc_child != NULL)
-			rv = config_deactivate(sc->sc_child);
-		sc->sc_dying = 1;
-		break;
-	}
-	return (rv);
-}
-#endif
 
 /*
  * Handle suspend/resume.
