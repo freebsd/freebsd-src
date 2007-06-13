@@ -350,11 +350,6 @@ ums_attach(device_t self)
 	sc->status.button = sc->status.obutton = 0;
 	sc->status.dx = sc->status.dy = sc->status.dz = 0;
 
-#ifndef __FreeBSD__
-	sc->rsel.si_flags = 0;
-	sc->rsel.si_pid = 0;
-#endif
-
 	sc->dev = make_dev(&ums_cdevsw, device_get_unit(self),
 			UID_ROOT, GID_OPERATOR,
 			0644, "ums%d", device_get_unit(self));

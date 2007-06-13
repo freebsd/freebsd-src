@@ -56,17 +56,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
 #include <sys/fcntl.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/device.h>
-#include <sys/ioctl.h>
-#include <sys/file.h>
-#elif defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #include <sys/filio.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/ioccom.h>
-#endif
 #include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/selinfo.h>
@@ -134,18 +128,13 @@ struct uhid_softc {
 	int sc_refcnt;
 	u_char sc_dying;
 
-#if defined(__FreeBSD__)
 	struct cdev *dev;
-#endif
 };
 
 #define	UHIDUNIT(dev)	(minor(dev))
 #define	UHID_CHUNK	128	/* chunk size for read */
 #define	UHID_BSIZE	1020	/* buffer size */
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-cdev_decl(uhid);
-#elif defined(__FreeBSD__)
 d_open_t	uhidopen;
 d_close_t	uhidclose;
 d_read_t	uhidread;
@@ -165,7 +154,6 @@ static struct cdevsw uhid_cdevsw = {
 	.d_poll =	uhidpoll,
 	.d_name =	"uhid",
 };
-#endif
 
 static void uhid_intr(usbd_xfer_handle, usbd_private_handle,
 			   usbd_status);
@@ -309,49 +297,19 @@ uhid_attach(device_t self)
 
 	sc->sc_repdesc = desc;
 	sc->sc_repdesc_size = size;
-
-#if defined(__FreeBSD__)
 	sc->dev = make_dev(&uhid_cdevsw, device_get_unit(self),
 			UID_ROOT, GID_OPERATOR,
 			0644, "uhid%d", device_get_unit(self));
-#endif
-
 	return 0;
 }
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-int
-uhid_activate(device_t self, enum devact act)
-{
-	struct uhid_softc *sc = (struct uhid_softc *)self;
-
-	switch (act) {
-	case DVACT_ACTIVATE:
-		return (EOPNOTSUPP);
-
-	case DVACT_DEACTIVATE:
-		sc->sc_dying = 1;
-		break;
-	}
-	return (0);
-}
-#endif
 
 static int
 uhid_detach(device_t self)
 {
 	USB_DETACH_START(uhid, sc);
 	int s;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	int maj, mn;
-#endif
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	DPRINTF(("uhid_detach: sc=%p flags=%d\n", sc, flags));
-#else
 	DPRINTF(("uhid_detach: sc=%p\n", sc));
-#endif
-
 	sc->sc_dying = 1;
 	if (sc->sc_intrpipe != NULL)
 		usbd_abort_pipe(sc->sc_intrpipe);
@@ -366,19 +324,7 @@ uhid_detach(device_t self)
 		}
 		splx(s);
 	}
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	/* locate the major number */
-	for (maj = 0; maj < nchrdev; maj++)
-		if (cdevsw[maj].d_open == uhidopen)
-			break;
-
-	/* Nuke the vnodes for any open instances (calls close). */
-	mn = self->dv_unit;
-	vdevgone(maj, mn, mn, VCHR);
-#elif defined(__FreeBSD__)
 	destroy_dev(sc->dev);
-#endif
 
 	if (sc->sc_repdesc)
 		free(sc->sc_repdesc, M_USBDEV);
@@ -780,6 +726,4 @@ uhidpoll(struct cdev *dev, int events, struct thread *p)
 	return (revents);
 }
 
-#if defined(__FreeBSD__)
 DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, usbd_driver_load, 0);
-#endif

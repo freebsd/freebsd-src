@@ -50,15 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/device.h>
-#elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
-#endif
 #include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/selinfo.h>
@@ -243,9 +239,7 @@ struct uscanner_softc {
 	device_t		sc_dev;		/* base device */
 	usbd_device_handle	sc_udev;
 	usbd_interface_handle	sc_iface;
-#if defined(__FreeBSD__)
 	struct cdev *dev;
-#endif
 
 	u_int			sc_dev_flags;
 
@@ -270,9 +264,6 @@ struct uscanner_softc {
 	u_char			sc_dying;
 };
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-cdev_decl(uscanner);
-#elif defined(__FreeBSD__)
 d_open_t  uscanneropen;
 d_close_t uscannerclose;
 d_read_t  uscannerread;
@@ -290,7 +281,6 @@ static struct cdevsw uscanner_cdevsw = {
 	.d_poll =	uscannerpoll,
 	.d_name =	"uscanner",
 };
-#endif
 
 static int uscanner_do_read(struct uscanner_softc *, struct uio *, int);
 static int uscanner_do_write(struct uscanner_softc *, struct uio *, int);
@@ -373,12 +363,9 @@ uscanner_attach(device_t self)
 	sc->sc_bulkin = ed_bulkin->bEndpointAddress;
 	sc->sc_bulkout = ed_bulkout->bEndpointAddress;
 
-#ifdef __FreeBSD__
 	/* the main device, ctrl endpoint */
 	sc->dev = make_dev(&uscanner_cdevsw, device_get_unit(sc->sc_dev),
 		UID_ROOT, GID_OPERATOR, 0644, "%s", device_get_nameunit(sc->sc_dev));
-#endif
-
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,sc->sc_dev);
 
 	return 0;
@@ -610,38 +597,13 @@ uscannerwrite(struct cdev *dev, struct uio *uio, int flag)
 	return (error);
 }
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-int
-uscanner_activate(device_t self, enum devact act)
-{
-	struct uscanner_softc *sc = (struct uscanner_softc *)self;
-
-	switch (act) {
-	case DVACT_ACTIVATE:
-		return (EOPNOTSUPP);
-
-	case DVACT_DEACTIVATE:
-		sc->sc_dying = 1;
-		break;
-	}
-	return (0);
-}
-#endif
-
 static int
 uscanner_detach(device_t self)
 {
 	USB_DETACH_START(uscanner, sc);
 	int s;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	int maj, mn;
-#endif
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	DPRINTF(("uscanner_detach: sc=%p flags=%d\n", sc, flags));
-#elif defined(__FreeBSD__)
 	DPRINTF(("uscanner_detach: sc=%p\n", sc));
-#endif
 
 	sc->sc_dying = 1;
 	sc->sc_dev_flags = 0;	/* make close really close device */
@@ -659,20 +621,8 @@ uscanner_detach(device_t self)
 	}
 	splx(s);
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	/* locate the major number */
-	for (maj = 0; maj < nchrdev; maj++)
-		if (cdevsw[maj].d_open == uscanneropen)
-			break;
-
-	/* Nuke the vnodes for any open instances (calls close). */
-	mn = self->dv_unit * USB_MAX_ENDPOINTS;
-	vdevgone(maj, mn, mn + USB_MAX_ENDPOINTS - 1, VCHR);
-#elif defined(__FreeBSD__)
 	/* destroy the device for the control endpoint */
 	destroy_dev(sc->dev);
-#endif
-
 	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev, sc->sc_dev);
 
 	return (0);
@@ -700,6 +650,4 @@ uscannerpoll(struct cdev *dev, int events, struct thread *p)
 	return (revents);
 }
 
-#if defined(__FreeBSD__)
 DRIVER_MODULE(uscanner, uhub, uscanner_driver, uscanner_devclass, usbd_driver_load, 0);
-#endif
