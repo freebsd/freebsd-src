@@ -174,6 +174,7 @@ struct ifbareq {
 	unsigned long	ifba_expire;		/* address expire time */
 	uint8_t		ifba_flags;		/* address flags */
 	uint8_t		ifba_dst[ETHER_ADDR_LEN];/* destination address */
+	uint16_t	ifba_vlan;		/* vlan id */
 };
 
 #define	IFBAF_TYPEMASK	0x03	/* address type mask */
