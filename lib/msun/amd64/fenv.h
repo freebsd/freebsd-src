@@ -78,6 +78,9 @@ extern const fenv_t	__fe_dfl_env;
 
 #define	__fldcw(__cw)		__asm __volatile("fldcw %0" : : "m" (__cw))
 #define	__fldenv(__env)		__asm __volatile("fldenv %0" : : "m" (__env))
+#define	__fldenvx(__env)	__asm __volatile("fldenv %0" : : "m" (__env)  \
+				: "st", "st(1)", "st(2)", "st(3)", "st(4)",   \
+				"st(5)", "st(6)", "st(7)")
 #define	__fnclex()		__asm __volatile("fnclex")
 #define	__fnstenv(__env)	__asm __volatile("fnstenv %0" : "=m" (*(__env)))
 #define	__fnstcw(__cw)		__asm __volatile("fnstcw %0" : "=m" (*(__cw)))
@@ -171,7 +174,15 @@ static __inline int
 fesetenv(const fenv_t *__envp)
 {
 
-	__fldenv(__envp->__x87);
+	/*
+	 * XXX Using fldenvx() instead of fldenv() tells the compiler that this
+	 * instruction clobbers the i387 register stack.  This happens because
+	 * we restore the tag word from the saved environment.  Normally, this
+	 * would happen anyway and we wouldn't care, because the ABI allows
+	 * function calls to clobber the i387 regs.  However, fesetenv() is
+	 * inlined, so we need to be more careful.
+	 */
+	__fldenvx(__envp->__x87);
 	__ldmxcsr(__envp->__mxcsr);
 	return (0);
 }
