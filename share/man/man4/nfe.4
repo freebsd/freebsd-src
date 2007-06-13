@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 12, 2007
+.Dd June 13, 2007
 .Dt NFE 4
 .Os
 .Sh NAME
@@ -42,22 +42,122 @@ The
 .Nm
 driver supports PCI Ethernet adapters based on the NVIDIA
 nForce Media and Communications Processors (MCP), such as
-the nForce, nForce 2, nForce 3, CK804, MCP04, MCP51 and MCP55
-Ethernet controller chips.
+the nForce, nForce 2, nForce 3, CK804, MCP04, MCP51, MCP55,
+MCP61, MCP65 and MCP67 Ethernet controller chips.
+.Pp
+Supported features include (hardware support provided):
+.Pp
+.Bl -bullet -compact
+.It
+Receive/Transmit IP/TCP/UDP checksum offload
+.It
+Hardware VLAN tag insertion/stripping
+.It
+TCP segmentation offload (TSO)
+.It
+MSI/MSI-X
+.It
+Jumbo Frames
+.El
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
 .Pp
 The
 .Nm
 driver supports the following media types:
-.Pp
-.Bl -tag -width ".Cm autoselect" -compact
+.Bl -tag -width "10baseT/UTP"
 .It Cm autoselect
 Enable autoselection of the media type and options.
-.It Cm 10baseT
+.It Cm 10baseT/UTP
 Set 10Mbps operation.
 .It Cm 100baseTX
 Set 100Mbps (Fast Ethernet) operation.
 .It Cm 1000baseT
 Set 1000Mbps (Gigabit Ethernet) operation (recent models only).
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm half-duplex
+Force half duplex operation.
+.It Cm full-duplex
+Force full duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following NVIDIA MCP onboard adapters:
+.Pp
+.Bl -bullet -compact
+.It
+NVIDIA nForce MCP Networking Adapter
+.It
+NVIDIA nForce MCP04 Networking Adapter
+.It
+NVIDIA nForce 430 MCP12 Networking Adapter
+.It
+NVIDIA nForce 430 MCP13 Networking Adapter
+.It
+NVIDIA nForce MCP55 Networking Adapter
+.It
+NVIDIA nForce MCP55 Networking Adapter
+.It
+NVIDIA nForce MCP61 Networking Adapter
+.It
+NVIDIA nForce MCP65 Networking Adapter
+.It
+NVIDIA nForce MCP67 Networking Adapter
+.It
+NVIDIA nForce2 MCP2 Networking Adapter
+.It
+NVIDIA nForce2 400 MCP4 Networking Adapter
+.It
+NVIDIA nForce2 400 MCP5 Networking Adapter
+.It
+NVIDIA nForce3 MCP3 Networking Adapter
+.It
+NVIDIA nForce3 250 MCP6 Networking Adapter
+.It
+NVIDIA nForce3 MCP7 Networking Adapter
+.It
+NVIDIA nForce4 CK804 MCP8 Networking Adapter
+.It
+NVIDIA nForce4 CK804 MCP9 Networking Adapter
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.nfe.msi_disable
+Whether or not MSI support is enabled in the driver.
+The default value is 0.
+.It hw.nfe.msix_disable
+Whether or not MSI-X support is enabled in the driver.
+The default value is 0.
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to modify or monitor
+.Nm
+behavior.
+.Bl -tag -width indent
+.It Va dev.nfe.%d.process_limit
+Maximum number of Rx events to be processed in the event loop
+before rescheduling a taskqueue.
+The accepted range is 50 to 255, the default value is 192.
+The interface does not need to be brought down and up again
+before a change takes effect.
 .El
 .Sh SEE ALSO
 .Xr altq 4 ,
@@ -67,6 +167,7 @@ Set 1000Mbps (Gigabit Ethernet) operation (recent models only).
 .Xr netintro 4 ,
 .Xr pci 4 ,
 .Xr polling 4 ,
+.Xr sysctl 8 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The
