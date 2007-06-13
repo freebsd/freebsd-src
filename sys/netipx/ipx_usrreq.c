@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
-#include <netipx/ipx_ip.h>
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_var.h>
 
@@ -437,11 +436,6 @@ ipx_ctloutput(struct socket *so, struct sockopt *sopt)
 			/* Unlocked write. */
 			ipxp->ipxp_dpt = ioptval.ipx_pt;
 			break;
-#ifdef IPXIP
-		case SO_IPXIP_ROUTE:
-			error = ipxip_route(so, sopt);
-			break;
-#endif /* IPXIP */
 		default:
 			error = EINVAL;
 		}

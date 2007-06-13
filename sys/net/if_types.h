@@ -250,5 +250,5 @@
 #define	IFT_PFLOG	0xf6
 #define	IFT_PFSYNC	0xf7
 #define	IFT_CARP	0xf8	/* Common Address Redundancy Protocol */
-#define IFT_IPXIP	0xf9
+#define IFT_IPXIP	0xf9	/* IPX over IP tunneling; no longer used. */
 #endif /* !_NET_IF_TYPES_H_ */

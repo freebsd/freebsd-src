@@ -82,10 +82,6 @@ static struct pr_usrreqs nousrreqs;
 #include <netipsec/ipsec.h>
 #endif /* FAST_IPSEC */
 
-#ifdef IPXIP
-#include <netipx/ipx_ip.h>
-#endif
-
 #ifdef SCTP
 #include <netinet/in_pcb.h>
 #include <netinet/sctp_pcb.h>
@@ -328,17 +324,6 @@ struct protosw inetsw[] = {
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_init =		encap_init,
-	.pr_usrreqs =		&rip_usrreqs
-},
-#endif
-#ifdef IPXIP
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_IDP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-	.pr_input =		ipxip_input,
-	.pr_ctlinput =		ipxip_ctlinput,
 	.pr_usrreqs =		&rip_usrreqs
 },
 #endif
