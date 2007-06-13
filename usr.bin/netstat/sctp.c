@@ -436,7 +436,7 @@ sctp_protopr(u_long proto,
 {
 	char *buf;
 	const char *mibvar = "net.inet.sctp.assoclist";
-	u_int offset = 0;
+	size_t offset = 0;
 	size_t len = 0;
 	struct xsctp_inpcb *xinpcb;
 	
