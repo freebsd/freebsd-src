@@ -130,7 +130,7 @@ typedef int (*cpl_handler_func)(struct toedev *dev, struct mbuf *m);
  */
 static inline void *cplhdr(struct mbuf *m)
 {
-	return m->m_data;
+	return mtod(m, uint8_t *);
 }
 
 void t3_register_cpl_handler(unsigned int opcode, cpl_handler_func h);

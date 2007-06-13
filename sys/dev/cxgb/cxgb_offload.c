@@ -720,8 +720,14 @@ static int
 do_hwtid_rpl(struct toedev *dev, struct mbuf *m)
 {
 	union opcode_tid *p = cplhdr(m);
-	unsigned int hwtid = G_TID(ntohl(p->opcode_tid));
+	unsigned int hwtid;
 	struct toe_tid_entry *toe_tid;
+	
+	printf("do_hwtid_rpl m=%p\n", m);
+	return (0);
+	
+	
+	hwtid = G_TID(ntohl(p->opcode_tid));
 
 	toe_tid = lookup_tid(&(TOE_DATA(dev))->tid_maps, hwtid);
 	if (toe_tid->ctx && toe_tid->client->handlers &&
@@ -1115,7 +1121,7 @@ process_rx(struct toedev *dev, struct mbuf **m, int n)
 {
 	while (n--) {
 		struct mbuf *m0 = *m++;
-		unsigned int opcode = G_OPCODE(ntohl(m0->m_pkthdr.csum_data));
+		unsigned int opcode = G_OPCODE(ntohl(m0->m_pkthdr.csum_data));		
 		int ret = cpl_handlers[opcode] (dev, m0);
 
 #if VALIDATE_TID

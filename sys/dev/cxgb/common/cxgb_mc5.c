@@ -31,9 +31,11 @@ POSSIBILITY OF SUCH DAMAGE.
 __FBSDID("$FreeBSD$");
 
 #ifdef CONFIG_DEFINED
-#include <cxgb_include.h>
+#include <common/cxgb_common.h>
+#include <common/cxgb_regs.h>
 #else
-#include <dev/cxgb/cxgb_include.h>
+#include <dev/cxgb/common/cxgb_common.h>
+#include <dev/cxgb/common/cxgb_regs.h>
 #endif
 
 enum {
@@ -328,9 +330,9 @@ int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 	unsigned int tcam_size = mc5->tcam_size;
 	adapter_t *adap = mc5->adapter;
 
-	if (tcam_size == 0)
+	if (!tcam_size)
 		return 0;
-	
+
 	if (nroutes > MAX_ROUTES || nroutes + nservers + nfilters > tcam_size)
 		return -EINVAL;
 
