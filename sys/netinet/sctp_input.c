@@ -1144,6 +1144,8 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			 * double things
 			 */
 			net->hb_responded = 1;
+			net->RTO = sctp_calculate_rto(stcb, asoc, net,
+			    &cookie->time_entered);
 
 			if (stcb->asoc.sctp_autoclose_ticks &&
 			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_AUTOCLOSE))) {
@@ -1718,9 +1720,10 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	}
 	/* respond with a COOKIE-ACK */
 	/* calculate the RTT */
-	if ((netp) && (*netp))
+	if ((netp) && (*netp)) {
 		(*netp)->RTO = sctp_calculate_rto(stcb, asoc, *netp,
 		    &cookie->time_entered);
+	}
 	sctp_send_cookie_ack(stcb);
 	return (stcb);
 }
@@ -3673,14 +3676,20 @@ process_control_chunks:
 				}
 				return (NULL);
 			}
-		} else if (ch->chunk_type == SCTP_COOKIE_ECHO) {
+		} else {
+			/*
+			 * For cookies and all other chunks. if the
+			 */
 			if (chk_length > sizeof(chunk_buf)) {
 				/*
 				 * use just the size of the chunk buffer so
-				 * the front part of our cookie is intact.
-				 * The rest of cookie processing should use
-				 * the sctp_m_getptr() function to access
-				 * the other parts.
+				 * the front part of our chunks fit in
+				 * contiguous space up to the chunk buffer
+				 * size (508 bytes). For chunks that need to
+				 * get more than that they mus use the
+				 * sctp_m_getptr() function or other means
+				 * (know how to parse mbuf chains). Cookies
+				 * do this already.
 				 */
 				ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 				    (sizeof(chunk_buf) - 4),
@@ -3694,44 +3703,16 @@ process_control_chunks:
 				}
 			} else {
 				/* We can fit it all */
-				goto all_fits;
-			}
-		} else {
-			/* get a complete chunk... */
-			if (chk_length > sizeof(chunk_buf)) {
-				struct mbuf *oper;
-				struct sctp_paramhdr *phdr;
-
-				oper = NULL;
-				if (stcb) {
-					oper = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
-					    0, M_DONTWAIT, 1, MT_DATA);
-
-					if (oper) {
-						/* pre-reserve some space */
-						SCTP_BUF_RESV_UF(oper, sizeof(struct sctp_chunkhdr));
-						SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr);
-						phdr = mtod(oper, struct sctp_paramhdr *);
-						phdr->param_type = htons(SCTP_CAUSE_OUT_OF_RESC);
-						phdr->param_length = htons(sizeof(struct sctp_paramhdr));
-						sctp_queue_op_err(stcb, oper);
+				ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
+				    chk_length, chunk_buf);
+				if (ch == NULL) {
+					SCTP_PRINTF("sctp_process_control: Can't get the all data....\n");
+					*offset = length;
+					if (locked_tcb) {
+						SCTP_TCB_UNLOCK(locked_tcb);
 					}
+					return (NULL);
 				}
-				if (locked_tcb) {
-					SCTP_TCB_UNLOCK(locked_tcb);
-				}
-				return (NULL);
-			}
-	all_fits:
-			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-			    chk_length, chunk_buf);
-			if (ch == NULL) {
-				SCTP_PRINTF("sctp_process_control: Can't get the all data....\n");
-				*offset = length;
-				if (locked_tcb) {
-					SCTP_TCB_UNLOCK(locked_tcb);
-				}
-				return (NULL);
 			}
 		}
 		num_chunks++;
@@ -3813,6 +3794,8 @@ process_control_chunks:
 				SCTP_TCB_UNLOCK(locked_tcb);
 			}
 			return (NULL);
+			break;
+		case SCTP_PAD_CHUNK:
 			break;
 		case SCTP_INITIATION_ACK:
 			/* must be first and only chunk */

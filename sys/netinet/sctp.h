@@ -378,6 +378,9 @@ __attribute__((packed));
 #define SCTP_PACKET_DROPPED	0x81
 /* draft-ietf-stewart-strreset-xxx */
 #define SCTP_STREAM_RESET       0x82
+
+/* RFC4820                         */
+#define SCTP_PAD_CHUNK          0x84
 /************0xc0 series ***********/
 /* RFC3758 */
 #define SCTP_FORWARD_CUM_TSN	0xc0
