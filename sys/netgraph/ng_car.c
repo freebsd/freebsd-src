@@ -497,6 +497,8 @@ ng_car_shutdown(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
+	ng_uncallout(&priv->upper.q_callout, node);
+	ng_uncallout(&priv->lower.q_callout, node);
 	mtx_destroy(&priv->upper.q_mtx);
 	mtx_destroy(&priv->lower.q_mtx);
 	NG_NODE_UNREF(priv->node);
