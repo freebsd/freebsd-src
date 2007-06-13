@@ -1363,7 +1363,12 @@ usb_disconnect_port(struct usbd_port *up, device_t parent)
 			if (up->portno != 0)
 				printf(" port %d", up->portno);
 			printf(" (addr %d) disconnected\n", dev->address);
-			config_detach(dev->subdevs[i], DETACH_FORCE);
+			struct usb_attach_arg *uaap =
+			    device_get_ivars(dev->subdevs[i]);
+			device_detach(dev);
+			free(uaap, M_USB);
+			device_delete_child(device_get_parent(dev->subdevs[i]),
+			    dev->subdevs[i]);
 			dev->subdevs[i] = NULL;
 		}
 	}
