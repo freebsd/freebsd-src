@@ -87,14 +87,12 @@ __FBSDID("$FreeBSD$");
 static __inline int
 lro_match(struct mbuf *m, struct ip *ih, struct tcphdr *th)
 {
-	struct ip *sih = (struct ip *)(m->m_data + IPH_OFFSET);
+	struct ip *sih = (struct ip *)(mtod(m, uint8_t *) + IPH_OFFSET);
 	struct tcphdr *sth = (struct tcphdr *) (sih + 1);
 
-	/*
-	 * Why don't we check dest ports?
-	 */
-	return (*(uint32_t *)&th->th_sport == *(uint32_t *)&sth->th_sport &&
-	    ih->ip_src.s_addr == ih->ip_src.s_addr &&
+	return (th->th_sport == sth->th_sport &&
+	    th->th_dport == sth->th_dport &&
+	    ih->ip_src.s_addr == sih->ip_src.s_addr &&
 	    ih->ip_dst.s_addr == sih->ip_dst.s_addr);
 }
 
@@ -164,7 +162,7 @@ can_lro_tcpsegment(struct tcphdr *th)
 static __inline void
 lro_new_session_init(struct t3_lro_session *s, struct mbuf *m)
 {
-	struct ip *ih = (struct ip *)(m->m_data + IPH_OFFSET);
+	struct ip *ih = (struct ip *)(mtod(m, uint8_t *) + IPH_OFFSET);
 	struct tcphdr *th = (struct tcphdr *) (ih + 1);
 	int ip_len = ntohs(ih->ip_len);
 
@@ -183,7 +181,7 @@ lro_flush_session(struct sge_qset *qs, struct t3_lro_session *s, struct mbuf *m)
 {
 	struct lro_state *l = &qs->lro;
 	struct mbuf *sm = s->head;
-	struct ip *ih = (struct ip *)(sm->m_data + IPH_OFFSET);
+	struct ip *ih = (struct ip *)(mtod(sm, uint8_t *) + IPH_OFFSET);
 
 	
 	DPRINTF("%s(qs=%p, s=%p, ", __FUNCTION__,
@@ -253,9 +251,9 @@ static __inline int
 lro_update_session(struct t3_lro_session *s, struct mbuf *m)
 {
 	struct mbuf *sm = s->head;
-	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(sm->m_data + 2);
-	struct cpl_rx_pkt *ncpl = (struct cpl_rx_pkt *)(m->m_data + 2);
-	struct ip *nih = (struct ip *)(m->m_data + IPH_OFFSET);
+	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(mtod(sm, uint8_t *) + 2);
+	struct cpl_rx_pkt *ncpl = (struct cpl_rx_pkt *)(mtod(m, uint8_t *) + 2);
+	struct ip *nih = (struct ip *)(mtod(m, uint8_t *) + IPH_OFFSET);
 	struct tcphdr *th, *nth = (struct tcphdr *)(nih + 1);
 	uint32_t seq = ntohl(nth->th_seq);
 	int plen, tcpiphlen, olen = (nth->th_off << 2) - sizeof (*nth);
@@ -271,7 +269,7 @@ lro_update_session(struct t3_lro_session *s, struct mbuf *m)
 	}
 
 	MBUF_HEADER_CHECK(sm);
-	th = (struct tcphdr *)(sm->m_data + IPH_OFFSET + sizeof (struct ip));
+	th = (struct tcphdr *)(mtod(sm, uint8_t *) + IPH_OFFSET + sizeof (struct ip));
 
 	if (olen) {
 		uint32_t *ptr = (uint32_t *)(th + 1);
@@ -338,7 +336,7 @@ t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,
     int ethpad, uint32_t rss_hash, uint32_t rss_csum, int lro)
 {
 	struct sge_qset *qs = rspq_to_qset(rq);
-	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(m->m_data + ethpad);
+	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(mtod(m, uint8_t *) + ethpad);
 	struct ether_header *eh = (struct ether_header *)(cpl + 1);
 	struct ip *ih;
 	struct tcphdr *th; 
