@@ -1908,7 +1908,6 @@ netipsec/xform_tcp.c		optional fast_ipsec tcp_signature
 netipx/ipx.c			optional ipx
 netipx/ipx_cksum.c		optional ipx
 netipx/ipx_input.c		optional ipx
-netipx/ipx_ip.c			optional ipx ipxip
 netipx/ipx_outputfl.c		optional ipx
 netipx/ipx_pcb.c		optional ipx
 netipx/ipx_proto.c		optional ipx
