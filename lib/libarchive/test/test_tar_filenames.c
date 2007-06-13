@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
  * filenames into prefix/suffix.
  */
 
-static
+static void
 test_filename(const char *prefix, int dlen, int flen)
 {
 	char buff[8192];
