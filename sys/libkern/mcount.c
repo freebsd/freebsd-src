@@ -268,18 +268,23 @@ mexitcount(selfpc)
 	}
 }
 
+#ifndef __GNUCLIKE_ASM
+#error "This file uses null asms to prevent timing loops being optimized away."
+#endif
+
 void
 empty_loop()
 {
 	int i;
 
 	for (i = 0; i < CALIB_SCALE; i++)
-		;
+		__asm __volatile("");
 }
 
 void
 nullfunc()
 {
+	__asm __volatile("");
 }
 
 void
