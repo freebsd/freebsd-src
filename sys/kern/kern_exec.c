@@ -736,8 +736,13 @@ done1:
 	if (ndp->ni_vp && error != 0)
 		vrele(ndp->ni_vp);
 #ifdef KTRACE
-	if (tracevp != NULL)
+	if (tracevp != NULL) {
+		int tvfslocked;
+
+		tvfslocked = VFS_LOCK_GIANT(tracevp->v_mount);
 		vrele(tracevp);
+		VFS_UNLOCK_GIANT(tvfslocked);
+	}
 	if (tracecred != NULL)
 		crfree(tracecred);
 #endif
