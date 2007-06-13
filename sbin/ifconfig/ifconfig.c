@@ -83,7 +83,6 @@ struct	ifreq ifr;
 
 char	name[IFNAMSIZ];
 int	setaddr;
-int	setipdst;
 int	setmask;
 int	doalias;
 int	clearaddr;
@@ -616,7 +615,6 @@ setifipdst(const char *addr, int dummy __unused, int s,
 	if (inet == NULL)
 		return;
 	inet->af_getaddr(addr, DSTADDR);
-	setipdst++;
 	clearaddr = 0;
 	newaddr = 0;
 }
