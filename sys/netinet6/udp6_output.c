@@ -69,13 +69,13 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
-#include <sys/systm.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
