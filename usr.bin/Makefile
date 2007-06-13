@@ -9,8 +9,6 @@
 # Moved to secure: bdes
 #
 
-.include <bsd.own.mk>
-
 SUBDIR=	alias \
 	apply \
 	asa \
