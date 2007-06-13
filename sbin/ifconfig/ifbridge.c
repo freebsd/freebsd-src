@@ -236,8 +236,8 @@ bridge_addresses(int s, const char *prefix)
 		ifba = ifbac.ifbac_req + i;
 		memcpy(ea.octet, ifba->ifba_dst,
 		    sizeof(ea.octet));
-		printf("%s%s %s %lu ", prefix, ether_ntoa(&ea),
-		    ifba->ifba_ifsname, ifba->ifba_expire);
+		printf("%s%s Vlan%d %s %lu ", prefix, ether_ntoa(&ea),
+		    ifba->ifba_vlan, ifba->ifba_ifsname, ifba->ifba_expire);
 		printb("flags", ifba->ifba_flags, IFBAFBITS);
 		printf("\n");
 	}
@@ -474,6 +474,7 @@ setbridge_static(const char *val, const char *mac, int s,
 
 	memcpy(req.ifba_dst, ea->octet, sizeof(req.ifba_dst));
 	req.ifba_flags = IFBAF_STATIC;
+	req.ifba_vlan = 1; /* XXX allow user to specify */
 
 	if (do_cmd(s, BRDGSADDR, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGSADDR %s",  val);
