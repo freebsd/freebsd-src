@@ -169,6 +169,7 @@ recompute:
 	    case 2:
 		fw = 0.0;
 		for (i=jz;i>=0;i--) fw += fq[i];
+		fw = *(volatile float *)&fw;	/* clip any extra precision */
 		y[0] = (ih==0)? fw: -fw;
 		fw = fq[0]-fw;
 		for (i=1;i<=jz;i++) fw += fq[i];
