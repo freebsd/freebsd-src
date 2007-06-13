@@ -104,14 +104,6 @@ struct	ipx_aliasreq {
 
 #define	ETHERTYPE_IPX		0x8137	/* Only  Ethernet_II Available */
 
-#ifdef	IPXIP
-struct ipxip_req {
-	struct sockaddr rq_ipx;	/* must be ipx format destination */
-	struct sockaddr rq_ip;	/* must be ip format gateway */
-	short rq_flags;
-};
-#endif
-
 #ifdef	_KERNEL
 extern struct	ipx_ifaddr *ipx_ifaddr;
 

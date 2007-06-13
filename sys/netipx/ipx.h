@@ -115,7 +115,7 @@
 #define	SO_HEADERS_ON_OUTPUT	2
 #define	SO_DEFAULT_HEADERS	3
 #define	SO_LAST_HEADER		4
-#define	SO_IPXIP_ROUTE		5
+#define	SO_IPXIP_ROUTE		5	/* No longer implemented. */
 #define SO_SEQNO		6
 #define	SO_ALL_PACKETS		7
 #define SO_MTU			8
