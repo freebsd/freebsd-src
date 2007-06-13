@@ -359,7 +359,8 @@ static const struct rfprog {
 
 USB_DECLARE_DRIVER(rum);
 
-USB_MATCH(rum)
+static int
+rum_match(device_t self)
 {
 	USB_MATCH_START(rum, uaa);
 
@@ -370,7 +371,8 @@ USB_MATCH(rum)
 	    UMATCH_VENDOR_PRODUCT : UMATCH_NONE;
 }
 
-USB_ATTACH(rum)
+static int
+rum_attach(device_t self)
 {
 	USB_ATTACH_START(rum, sc, uaa);
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -568,7 +570,8 @@ USB_ATTACH(rum)
 	return 0;
 }
 
-USB_DETACH(rum)
+static int
+rum_detach(device_t self)
 {
 	USB_DETACH_START(rum, sc);
 	struct ieee80211com *ic = &sc->sc_ic;

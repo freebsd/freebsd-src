@@ -154,7 +154,8 @@ struct urio_softc {
 
 USB_DECLARE_DRIVER(urio);
 
-USB_MATCH(urio)
+static int
+urio_match(device_t self)
 {
 	USB_MATCH_START(urio, uaa);
 	usb_device_descriptor_t *dd;
@@ -176,7 +177,8 @@ USB_MATCH(urio)
 		return UMATCH_NONE;
 }
 
-USB_ATTACH(urio)
+static int
+urio_attach(device_t self)
 {
 	USB_ATTACH_START(urio, sc, uaa);
 	usbd_device_handle udev;
@@ -592,7 +594,8 @@ urio_activate(device_t self, enum devact act)
 	return (0);
 }
 
-USB_DETACH(urio)
+static int
+urio_detach(device_t self)
 {
 	USB_DETACH_START(urio, sc);
 	struct urio_endpoint *sce;

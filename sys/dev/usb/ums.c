@@ -159,7 +159,8 @@ static struct cdevsw ums_cdevsw = {
 
 USB_DECLARE_DRIVER(ums);
 
-USB_MATCH(ums)
+static int
+ums_match(device_t self)
 {
 	USB_MATCH_START(ums, uaa);
 	usb_interface_descriptor_t *id;
@@ -187,7 +188,8 @@ USB_MATCH(ums)
 	return (ret);
 }
 
-USB_ATTACH(ums)
+static int
+ums_attach(device_t self)
 {
 	USB_ATTACH_START(ums, sc, uaa);
 	usbd_interface_handle iface = uaa->iface;

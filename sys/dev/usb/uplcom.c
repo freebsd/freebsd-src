@@ -318,7 +318,8 @@ SYSCTL_PROC(_hw_usb_uplcom, OID_AUTO, interval, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(int), sysctl_hw_usb_uplcom_interval,
 	    "I", "uplcom interrupt pipe interval");
 
-USB_MATCH(uplcom)
+static int
+uplcom_match(device_t self)
 {
 	USB_MATCH_START(uplcom, uaa);
 	int i;
@@ -337,7 +338,8 @@ USB_MATCH(uplcom)
 	return (UMATCH_NONE);
 }
 
-USB_ATTACH(uplcom)
+static int
+uplcom_attach(device_t self)
 {
 	USB_ATTACH_START(uplcom, sc, uaa);
 	usbd_device_handle dev = uaa->device;
@@ -544,7 +546,8 @@ error:
 	return ENXIO;
 }
 
-USB_DETACH(uplcom)
+static int
+uplcom_detach(device_t self)
 {
 	USB_DETACH_START(uplcom, sc);
 	int rv = 0;

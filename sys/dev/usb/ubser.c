@@ -179,7 +179,8 @@ static t_modem_t	ubsermodem;
 
 USB_DECLARE_DRIVER(ubser);
 
-USB_MATCH(ubser)
+static int
+ubser_match(device_t self)
 {
 	USB_MATCH_START(ubser, uaa);
 	usb_string_descriptor_t us;
@@ -218,7 +219,8 @@ USB_MATCH(ubser)
 	return (UMATCH_NONE);
 }
 
-USB_ATTACH(ubser)
+static int
+ubser_attach(device_t self)
 {
 	USB_ATTACH_START(ubser, sc, uaa);
 	usbd_device_handle udev = uaa->device;
@@ -411,7 +413,8 @@ bad:
 	return ENXIO;
 }
 
-USB_DETACH(ubser)
+static int
+ubser_detach(device_t self)
 {
 	USB_DETACH_START(ubser, sc);
 	int i;
