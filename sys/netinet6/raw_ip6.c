@@ -68,13 +68,13 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sx.h>
-#include <sys/systm.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
