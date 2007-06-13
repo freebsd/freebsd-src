@@ -48,7 +48,6 @@ SRCS= ${TESTS}					\
 
 CLEANFILES+= list.h
 
-MK_MAN=no
 NO_MAN=yes
 
 PROG=libarchive_test
