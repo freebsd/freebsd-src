@@ -44,7 +44,6 @@ static const char rcsid[] =
 #include <ifaddrs.h>
 
 #include <net/if_var.h>
-#define	IPXIP
 #define IPTUNNEL
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
@@ -97,16 +96,7 @@ ipx_getaddr(const char *addr, int which)
 static void
 ipx_postproc(int s, const struct afswtch *afp)
 {
-	if (setipdst) {
-		struct ipxip_req rq;
-		int size = sizeof(rq);
 
-		rq.rq_ipx = ipx_addreq.ifra_addr;
-		rq.rq_ip = ipx_addreq.ifra_dstaddr;
-
-		if (setsockopt(s, 0, SO_IPXIP_ROUTE, &rq, size) < 0)
-			Perror("Encapsulation Routing");
-	}
 }
 
 static struct afswtch af_ipx = {
