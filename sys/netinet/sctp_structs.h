@@ -262,6 +262,7 @@ struct sctp_nets {
 					 * indicate if a new pseudo-cumack or
 					 * rtx-pseudo-cumack has been received */
 	uint8_t window_probe;	/* Doing a window probe? */
+	uint8_t RTO_measured;	/* Have we done the first measure */
 #ifdef SCTP_HIGH_SPEED
 	uint8_t last_hs_used;	/* index into the last HS table entry we used */
 #endif

@@ -101,7 +101,7 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_PEER_CHKOH_DESC		"Amount to debit peers rwnd per chunk sent"
 #define SCTPCTL_PEER_CHKOH_MIN		0
 #define SCTPCTL_PEER_CHKOH_MAX		0xFFFFFFFF
-#define SCTPCTL_PEER_CHKOH_DEFAULT	0	/* sizeof struct mbuf */
+#define SCTPCTL_PEER_CHKOH_DEFAULT	256
 
 /* maxburst: Default max burst for sctp endpoints */
 #define SCTPCTL_MAXBURST		10
@@ -326,6 +326,8 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_NAT_FRIENDLY_MIN	0
 #define SCTPCTL_NAT_FRIENDLY_MAX	1
 #define SCTPCTL_NAT_FRIENDLY_DEFAULT	1
+
+
 
 /* abc_l_var: SCTP ABC max increase per SACK (L) */
 #define SCTPCTL_ABC_L_VAR		42
