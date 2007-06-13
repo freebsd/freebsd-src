@@ -404,7 +404,8 @@ cue_reset(struct cue_softc *sc)
 /*
  * Probe for a Pegasus chip.
  */
-USB_MATCH(cue)
+static int
+cue_match(device_t self)
 {
 	USB_MATCH_START(cue, uaa);
 	struct cue_type			*t;
@@ -428,7 +429,8 @@ USB_MATCH(cue)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-USB_ATTACH(cue)
+static int
+cue_attach(device_t self)
 {
 	USB_ATTACH_START(cue, sc, uaa);
 	u_char			eaddr[ETHER_ADDR_LEN];

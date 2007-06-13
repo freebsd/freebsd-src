@@ -547,7 +547,8 @@ rue_reset(struct rue_softc *sc)
  * Probe for a RTL8150 chip.
  */
 
-USB_MATCH(rue)
+static int
+rue_match(device_t self)
 {
 	USB_MATCH_START(rue, uaa);
 	struct rue_type	*t;
@@ -572,7 +573,8 @@ USB_MATCH(rue)
  * setup and ethernet/BPF attach.
  */
 
-USB_ATTACH(rue)
+static int
+rue_attach(device_t self)
 {
 	USB_ATTACH_START(rue, sc, uaa);
 	u_char				eaddr[ETHER_ADDR_LEN];

@@ -346,7 +346,8 @@ static const struct {
 
 USB_DECLARE_DRIVER(ural);
 
-USB_MATCH(ural)
+static int
+ural_match(device_t self)
 {
 	USB_MATCH_START(ural, uaa);
 
@@ -357,7 +358,8 @@ USB_MATCH(ural)
 	    UMATCH_VENDOR_PRODUCT : UMATCH_NONE;
 }
 
-USB_ATTACH(ural)
+static int
+ural_attach(device_t self)
 {
 	USB_ATTACH_START(ural, sc, uaa);
 	struct ifnet *ifp;
@@ -507,7 +509,8 @@ USB_ATTACH(ural)
 	return 0;
 }
 
-USB_DETACH(ural)
+static int
+ural_detach(device_t self)
 {
 	USB_DETACH_START(ural, sc);
 	struct ieee80211com *ic = &sc->sc_ic;

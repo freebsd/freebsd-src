@@ -177,7 +177,8 @@ static int uhid_do_ioctl(struct uhid_softc *, u_long, caddr_t, int,
 
 USB_DECLARE_DRIVER(uhid);
 
-USB_MATCH(uhid)
+static int
+uhid_match(device_t self)
 {
 	USB_MATCH_START(uhid, uaa);
 	usb_interface_descriptor_t *id;
@@ -204,7 +205,8 @@ USB_MATCH(uhid)
 	return (UMATCH_IFACECLASS_GENERIC);
 }
 
-USB_ATTACH(uhid)
+static int
+uhid_attach(device_t self)
 {
 	USB_ATTACH_START(uhid, sc, uaa);
 	usbd_interface_handle iface = uaa->iface;
@@ -335,7 +337,8 @@ uhid_activate(device_t self, enum devact act)
 }
 #endif
 
-USB_DETACH(uhid)
+static int
+uhid_detach(device_t self)
 {
 	USB_DETACH_START(uhid, sc);
 	int s;

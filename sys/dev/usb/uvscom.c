@@ -294,7 +294,8 @@ SYSCTL_PROC(_hw_usb_uvscom, OID_AUTO, interval, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(int), sysctl_hw_usb_uvscom_interval,
 	    "I", "uvscom interrpt pipe interval");
 
-USB_MATCH(uvscom)
+static int
+uvscom_match(device_t self)
 {
 	USB_MATCH_START(uvscom, uaa);
 
@@ -305,7 +306,8 @@ USB_MATCH(uvscom)
 		UMATCH_VENDOR_PRODUCT : UMATCH_NONE);
 }
 
-USB_ATTACH(uvscom)
+static int
+uvscom_attach(device_t self)
 {
 	USB_ATTACH_START(uvscom, sc, uaa);
 	usbd_device_handle dev = uaa->device;
@@ -430,7 +432,8 @@ error:
 	return ENXIO;
 }
 
-USB_DETACH(uvscom)
+static int
+uvscom_detach(device_t self)
 {
 	USB_DETACH_START(uvscom, sc);
 	int rv = 0;
