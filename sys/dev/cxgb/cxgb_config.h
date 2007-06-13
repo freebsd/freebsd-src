@@ -34,7 +34,6 @@ $FreeBSD$
 
 #ifndef CONFIG_DEFINED
 #define CONFIG_CHELSIO_T3_CORE
-#define DEFAULT_JUMBO
 #endif
 
 #endif
