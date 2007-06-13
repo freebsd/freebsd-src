@@ -748,7 +748,7 @@ USB_ATTACH(ubt)
 		uaa->ifaces[i] = NULL;
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
-		USBDEV(sc->sc_dev));
+		sc->sc_dev);
 
 	return 0;
 bad:
@@ -841,7 +841,7 @@ USB_DETACH(ubt)
 	NG_BT_MBUFQ_DRAIN(&sc->sc_scoq);
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev,
-			USBDEV(sc->sc_dev));
+			sc->sc_dev);
 
 	return (0);
 } /* USB_DETACH(ubt) */
