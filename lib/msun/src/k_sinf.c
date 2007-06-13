@@ -1,5 +1,6 @@
 /* k_sinf.c -- float version of k_sin.c
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Optimized by Bruce D. Evans.
  */
 
 /*
@@ -13,34 +14,34 @@
  * ====================================================
  */
 
+#ifndef INLINE_KERNEL_SINDF
 #ifndef lint
 static char rcsid[] = "$FreeBSD$";
+#endif
 #endif
 
 #include "math.h"
 #include "math_private.h"
 
-static const float
-half =  5.0000000000e-01,/* 0x3f000000 */
-S1  = -1.6666667163e-01, /* 0xbe2aaaab */
-S2  =  8.3333337680e-03, /* 0x3c088889 */
-S3  = -1.9841270114e-04, /* 0xb9500d01 */
-S4  =  2.7557314297e-06, /* 0x3638ef1b */
-S5  = -2.5050759689e-08, /* 0xb2d72f34 */
-S6  =  1.5896910177e-10; /* 0x2f2ec9d3 */
+/* |sin(x)/x - s(x)| < 2**-37.5 (~[-4.89e-12, 4.824e-12]). */
+static const double
+S1 = -0x15555554cbac77.0p-55,	/* -0.166666666416265235595 */
+S2 =  0x111110896efbb2.0p-59,	/*  0.0083333293858894631756 */
+S3 = -0x1a00f9e2cae774.0p-65,	/* -0.000198393348360966317347 */
+S4 =  0x16cd878c3b46a7.0p-71;	/*  0.0000027183114939898219064 */
 
+#ifdef INLINE_KERNEL_SINDF
+extern inline
+#endif
 float
-__kernel_sinf(float x, float y, int iy)
+__kernel_sindf(double x)
 {
-	float z,r,v;
-	int32_t ix;
-	GET_FLOAT_WORD(ix,x);
-	ix &= 0x7fffffff;			/* high word of x */
-	if(ix<0x32000000)			/* |x| < 2**-27 */
-	   {if((int)x==0) return x;}		/* generate inexact */
-	z	=  x*x;
-	v	=  z*x;
-	r	=  S2+z*(S3+z*(S4+z*(S5+z*S6)));
-	if(iy==0) return x+v*(S1+z*r);
-	else      return x-((z*(half*y-v*r)-y)-v*S1);
+	double r, s, w, z;
+
+	/* Try to optimize for parallel evaluation as in k_tanf.c. */
+	z = x*x;
+	w = z*z;
+	r = S3+z*S4;
+	s = z*x;
+	return (x + s*(S1+z*S2)) + s*w*r;
 }

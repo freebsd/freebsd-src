@@ -1,5 +1,6 @@
 /* k_cosf.c -- float version of k_cos.c
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Debugged and optimized by Bruce D. Evans.
  */
 
 /*
@@ -13,44 +14,34 @@
  * ====================================================
  */
 
+#ifndef INLINE_KERNEL_COSDF
 #ifndef lint
 static char rcsid[] = "$FreeBSD$";
+#endif
 #endif
 
 #include "math.h"
 #include "math_private.h"
 
-static const float
-one =  1.0000000000e+00, /* 0x3f800000 */
-C1  =  4.1666667908e-02, /* 0x3d2aaaab */
-C2  = -1.3888889225e-03, /* 0xbab60b61 */
-C3  =  2.4801587642e-05, /* 0x37d00d01 */
-C4  = -2.7557314297e-07, /* 0xb493f27c */
-C5  =  2.0875723372e-09, /* 0x310f74f6 */
-C6  = -1.1359647598e-11; /* 0xad47d74e */
+/* |cos(x) - c(x)| < 2**-34.1 (~[-5.37e-11, 5.295e-11]). */
+static const double
+one =  1.0,
+C0  = -0x1ffffffd0c5e81.0p-54,	/* -0.499999997251031003120 */
+C1  =  0x155553e1053a42.0p-57,	/*  0.0416666233237390631894 */
+C2  = -0x16c087e80f1e27.0p-62,	/* -0.00138867637746099294692 */
+C3  =  0x199342e0ee5069.0p-68;	/*  0.0000243904487962774090654 */
 
+#ifdef INLINE_KERNEL_COSDF
+extern inline
+#endif
 float
-__kernel_cosf(float x, float y)
+__kernel_cosdf(double x)
 {
-	float a,hz,z,r,qx;
-	int32_t ix;
-	GET_FLOAT_WORD(ix,x);
-	ix &= 0x7fffffff;			/* ix = |x|'s high word*/
-	if(ix<0x32000000) {			/* if x < 2**27 */
-	    if(((int)x)==0) return one;		/* generate inexact */
-	}
-	z  = x*x;
-	r  = z*(C1+z*(C2+z*(C3+z*(C4+z*(C5+z*C6)))));
-	if(ix < 0x3e99999a) 			/* if |x| < 0.3 */
-	    return one - ((float)0.5*z - (z*r - x*y));
-	else {
-	    if(ix > 0x3f480000) {		/* x > 0.78125 */
-		qx = (float)0.28125;
-	    } else {
-	        SET_FLOAT_WORD(qx,ix-0x01000000);	/* x/4 */
-	    }
-	    hz = (float)0.5*z-qx;
-	    a  = one-qx;
-	    return a - (hz - (z*r-x*y));
-	}
+	double r, w, z;
+
+	/* Try to optimize for parallel evaluation as in k_tanf.c. */
+	z = x*x;
+	w = z*z;
+	r = C2+z*C3;
+	return ((one+z*C0) + w*C1) + (w*z)*r;
 }
