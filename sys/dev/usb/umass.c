@@ -783,9 +783,7 @@ static void umass_dump_buffer	(struct umass_softc *sc, u_int8_t *buffer,
 				int buflen, int printlen);
 #endif
 
-#if defined(__FreeBSD__)
 MODULE_DEPEND(umass, cam, 1,1,1);
-#endif
 
 /*
  * USB device probe/attach/detach

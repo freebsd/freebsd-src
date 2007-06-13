@@ -52,14 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/device.h>		/* for usbdivar.h */
-#include <machine/bus.h>
-#elif defined(__FreeBSD__)
 #include <sys/endian.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#endif
 #include <sys/queue.h>
 
 #include <machine/bus.h>

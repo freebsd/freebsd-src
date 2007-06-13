@@ -45,10 +45,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/ioctl.h>
-#endif
-
 #if defined(_KERNEL)
 #if 1
 #include <dev/usb/usb_port.h>

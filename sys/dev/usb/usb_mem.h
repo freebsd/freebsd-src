@@ -41,11 +41,7 @@
 typedef struct usb_dma_block {
 	bus_dma_tag_t tag;
 	bus_dmamap_t map;
-#ifdef __FreeBSD__
 	void *kaddr;
-#else
-        caddr_t kaddr;
-#endif
         bus_dma_segment_t segs[1];
         int nsegs;
         size_t size;
@@ -54,11 +50,7 @@ typedef struct usb_dma_block {
 	LIST_ENTRY(usb_dma_block) next;
 } usb_dma_block_t;
 
-#ifdef __FreeBSD__
 #define DMAADDR(dma, o) ((dma)->block->segs[0].ds_addr + (dma)->offs + (o))
-#else
-#define DMAADDR(dma, o) (((char *)(dma)->block->map->dm_segs[0].ds_addr) + (dma)->offs + (o))
-#endif
 #define KERNADDR(dma, o) \
 	((void *)((char *)((dma)->block->kaddr) + (dma)->offs + (o)))
 
