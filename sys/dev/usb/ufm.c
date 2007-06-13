@@ -100,7 +100,8 @@ struct ufm_softc {
 
 USB_DECLARE_DRIVER(ufm);
 
-USB_MATCH(ufm)
+static int
+ufm_match(device_t self)
 {
 	USB_MATCH_START(ufm, uaa);
 	usb_device_descriptor_t *dd;
@@ -119,7 +120,8 @@ USB_MATCH(ufm)
 		return UMATCH_NONE;
 }
 
-USB_ATTACH(ufm)
+static int
+ufm_attach(device_t self)
 {
 	USB_ATTACH_START(ufm, sc, uaa);
 	usb_endpoint_descriptor_t *edesc;

@@ -244,7 +244,8 @@ static const struct uvisor_type uvisor_devs[] = {
 #define uvisor_lookup(v, p) ((const struct uvisor_type *)usb_lookup(uvisor_devs, v, p))
 
 
-USB_MATCH(uvisor)
+static int
+uvisor_match(device_t self)
 {
 	USB_MATCH_START(uvisor, uaa);
 
@@ -258,7 +259,8 @@ USB_MATCH(uvisor)
 		UMATCH_VENDOR_PRODUCT : UMATCH_NONE);
 }
 
-USB_ATTACH(uvisor)
+static int
+uvisor_attach(device_t self)
 {
 	USB_ATTACH_START(uvisor, sc, uaa);
 	usbd_device_handle dev = uaa->device;
@@ -395,7 +397,8 @@ uvisor_activate(device_t self, enum devact act)
 
 #endif
 
-USB_DETACH(uvisor)
+static int
+uvisor_detach(device_t self)
 {
 	USB_DETACH_START(uvisor, sc);
 	int rv = 0;

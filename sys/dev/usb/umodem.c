@@ -227,7 +227,8 @@ MODULE_DEPEND(umodem, usb, 1, 1, 1);
 MODULE_DEPEND(umodem, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(umodem, UMODEM_MODVER);
 
-USB_MATCH(umodem)
+static int
+umodem_match(device_t self)
 {
 	USB_MATCH_START(umodem, uaa);
 	usb_interface_descriptor_t *id;
@@ -270,7 +271,8 @@ USB_MATCH(umodem)
 	return ret;
 }
 
-USB_ATTACH(umodem)
+static int
+umodem_attach(device_t self)
 {
 	USB_ATTACH_START(umodem, sc, uaa);
 	usbd_device_handle dev = uaa->device;
@@ -804,7 +806,8 @@ umodem_set_comm_feature(struct umodem_softc *sc, int feature, int state)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-USB_DETACH(umodem)
+static int
+umodem_detach(device_t self)
 {
 	USB_DETACH_START(umodem, sc);
 	int rv = 0;

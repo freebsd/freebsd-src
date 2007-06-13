@@ -300,7 +300,8 @@ static void uscanner_do_close(struct uscanner_softc *);
 
 USB_DECLARE_DRIVER(uscanner);
 
-USB_MATCH(uscanner)
+static int
+uscanner_match(device_t self)
 {
 	USB_MATCH_START(uscanner, uaa);
 
@@ -311,7 +312,8 @@ USB_MATCH(uscanner)
 		UMATCH_VENDOR_PRODUCT : UMATCH_NONE);
 }
 
-USB_ATTACH(uscanner)
+static int
+uscanner_attach(device_t self)
 {
 	USB_ATTACH_START(uscanner, sc, uaa);
 	usb_interface_descriptor_t *id = 0;
@@ -626,7 +628,8 @@ uscanner_activate(device_t self, enum devact act)
 }
 #endif
 
-USB_DETACH(uscanner)
+static int
+uscanner_detach(device_t self)
 {
 	USB_DETACH_START(uscanner, sc);
 	int s;

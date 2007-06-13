@@ -377,7 +377,8 @@ kue_reset(struct kue_softc *sc)
 /*
  * Probe for a KLSI chip.
  */
-USB_MATCH(kue)
+static int
+kue_match(device_t self)
 {
 	USB_MATCH_START(kue, uaa);
 	struct kue_type			*t;
@@ -401,7 +402,8 @@ USB_MATCH(kue)
  * Attach the interface. Allocate softc structures, do
  * setup and ethernet/BPF attach.
  */
-USB_ATTACH(kue)
+static int
+kue_attach(device_t self)
 {
 	USB_ATTACH_START(kue, sc, uaa);
 	struct ifnet		*ifp;

@@ -264,7 +264,8 @@ static const struct udav_type {
 
 
 /* Probe */
-USB_MATCH(udav)
+static int
+udav_match(device_t self)
 {
 	USB_MATCH_START(udav, uaa);
 
@@ -276,7 +277,8 @@ USB_MATCH(udav)
 }
 
 /* Attach */
-USB_ATTACH(udav)
+static int
+udav_attach(device_t self)
 {
 	USB_ATTACH_START(udav, sc, uaa);
 	usbd_device_handle dev = uaa->device;
@@ -480,7 +482,8 @@ USB_ATTACH(udav)
 }
 
 /* detach */
-USB_DETACH(udav)
+static int
+udav_detach(device_t self)
 {
 	USB_DETACH_START(udav, sc);
 	struct ifnet *ifp = GET_IFP(sc);

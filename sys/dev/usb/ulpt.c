@@ -167,7 +167,8 @@ void ieee1284_print_id(char *);
 
 USB_DECLARE_DRIVER(ulpt);
 
-USB_MATCH(ulpt)
+static int
+ulpt_match(device_t self)
 {
 	USB_MATCH_START(ulpt, uaa);
 	usb_interface_descriptor_t *id;
@@ -186,7 +187,8 @@ USB_MATCH(ulpt)
 	return (UMATCH_NONE);
 }
 
-USB_ATTACH(ulpt)
+static int
+ulpt_attach(device_t self)
 {
 	USB_ATTACH_START(ulpt, sc, uaa);
 	usbd_device_handle dev = uaa->device;
@@ -335,7 +337,8 @@ USB_ATTACH(ulpt)
 }
 
 
-USB_DETACH(ulpt)
+static int
+ulpt_detach(device_t self)
 {
 	USB_DETACH_START(ulpt, sc);
 	int s;

@@ -133,7 +133,8 @@ struct ucom_callback uftdi_callback = {
 	uftdi_write,
 };
 
-USB_MATCH(uftdi)
+static int
+uftdi_match(device_t self)
 {
 	USB_MATCH_START(uftdi, uaa);
 
@@ -183,7 +184,8 @@ USB_MATCH(uftdi)
 	return (UMATCH_NONE);
 }
 
-USB_ATTACH(uftdi)
+static int
+uftdi_attach(device_t self)
 {
 	USB_ATTACH_START(uftdi, sc, uaa);
 	usbd_device_handle dev = uaa->device;
@@ -385,7 +387,8 @@ uftdi_activate(device_t self, enum devact act)
 }
 #endif
 #if 1
-USB_DETACH(uftdi)
+static int
+uftdi_detach(device_t self)
 {
 	USB_DETACH_START(uftdi, sc);
 

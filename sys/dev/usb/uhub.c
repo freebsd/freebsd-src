@@ -136,7 +136,8 @@ static	driver_t uhubroot_driver = {
 	sizeof(struct uhub_softc)
 };
 
-USB_MATCH(uhub)
+static int
+uhub_match(device_t self)
 {
 	USB_MATCH_START(uhub, uaa);
 	usb_device_descriptor_t *dd = usbd_get_device_descriptor(uaa->device);
@@ -534,7 +535,8 @@ uhub_explore(usbd_device_handle dev)
  * Called from process context when the hub is gone.
  * Detach all devices on active ports.
  */
-USB_DETACH(uhub)
+static int
+uhub_detach(device_t self)
 {
 	USB_DETACH_START(uhub, sc);
 	struct usbd_hub *hub = sc->sc_hub->hub;

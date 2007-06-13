@@ -108,7 +108,8 @@ static const struct cdce_type cdce_devs[] = {
 };
 #define cdce_lookup(v, p) ((const struct cdce_type *)usb_lookup(cdce_devs, v, p))
 
-USB_MATCH(cdce)
+static int
+cdce_match(device_t self)
 {
 	USB_MATCH_START(cdce, uaa);
 	usb_interface_descriptor_t *id;
@@ -130,7 +131,8 @@ USB_MATCH(cdce)
 	return (UMATCH_NONE);
 }
 
-USB_ATTACH(cdce)
+static int
+cdce_attach(device_t self)
 {
 	USB_ATTACH_START(cdce, sc, uaa);
 	struct ifnet			*ifp;
@@ -317,7 +319,8 @@ USB_ATTACH(cdce)
 	return 0;
 }
 
-USB_DETACH(cdce)
+static int
+cdce_detach(device_t self)
 {
 	USB_DETACH_START(cdce, sc);
 	struct ifnet	*ifp;

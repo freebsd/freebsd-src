@@ -260,7 +260,8 @@ DRIVER_MODULE(ufoma, uhub, ufoma_driver, ucom_devclass, usbd_driver_load, 0);
 MODULE_DEPEND(ufoma, usb, 1, 1, 1);
 MODULE_DEPEND(ufoma, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 
-USB_MATCH(ufoma)
+static int
+ufoma_match(device_t self)
 {
 	USB_MATCH_START(ufoma, uaa);
 	usb_interface_descriptor_t *id;
@@ -298,7 +299,8 @@ USB_MATCH(ufoma)
 	return ret;
 }
 			
-USB_ATTACH(ufoma)
+static int
+ufoma_attach(device_t self)
 {
 	USB_ATTACH_START(ufoma, sc, uaa);
 	usbd_device_handle dev = uaa->device;
@@ -414,7 +416,8 @@ USB_ATTACH(ufoma)
 	return EIO;
 }
 
-USB_DETACH(ufoma)
+static int
+ufoma_detach(device_t self)
 {
 	USB_DETACH_START(ufoma, sc);
 	int rv = 0;
