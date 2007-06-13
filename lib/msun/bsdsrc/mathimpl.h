@@ -34,14 +34,41 @@
  * $FreeBSD$
  */
 
+#ifndef _MATHIMPL_H_
+#define	_MATHIMPL_H_
+
 #include <sys/cdefs.h>
 #include <math.h>
+
+#include "../src/math_private.h"
+
+/*
+ * TRUNC() is a macro that sets the trailing 27 bits in the mantissa of an
+ * IEEE double variable to zero.  It must be expression-like for syntactic
+ * reasons, and we implement this expression using an inline function
+ * instead of a pure macro to avoid depending on the gcc feature of
+ * statement-expressions.
+ */
+#define	TRUNC(d)	(_b_trunc(&(d)))
+
+static __inline void
+_b_trunc(volatile double *_dp)
+{
+	uint32_t _lw;
+
+	GET_LOW_WORD(_lw, *_dp);
+	SET_LOW_WORD(*_dp, _lw & 0xf8000000);
+}
+
+struct Double {
+	double	a;
+	double	b;
+};
 
 /*
  * Functions internal to the math package, yet not static.
  */
-extern double	__exp__E();
-
-struct Double {double a, b;};
-double __exp__D(double, double);
+double	__exp__D(double, double);
 struct Double __log__D(double);
+
+#endif /* !_MATHIMPL_H_ */
