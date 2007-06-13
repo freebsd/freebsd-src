@@ -57,7 +57,7 @@ static const char rcsid[] =
 #include <string.h>
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr,
@@ -66,8 +66,7 @@ usage()
 }
 
 static u_long
-id(name, type)
-	char *name, *type;
+id(const char *name, const char *type)
 {
 	u_long val;
 	char *ep;
@@ -86,8 +85,7 @@ id(name, type)
 }
 
 static gid_t
-a_gid(s)
-	char *s;
+a_gid(const char *s)
 {
 	struct group *gr;
 
@@ -97,8 +95,7 @@ a_gid(s)
 }
 
 static uid_t
-a_uid(s)
-	char *s;
+a_uid(const char *s)
 {
 	struct passwd *pw;
 
@@ -108,9 +105,7 @@ a_uid(s)
 }
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int range_error;
 	uid_t uid;
@@ -143,7 +138,7 @@ main(argc, argv)
 	range_error |= errno;
 	dev = makedev(mymajor, myminor);
 	if (range_error || major(dev) != (u_int) mymajor ||
-	    minor(dev) != (u_int) myminor)
+	    minor(dev) != myminor)
 		errx(1, "major or minor number too large");
 
 	uid = gid = -1;
