@@ -132,15 +132,14 @@ send_trigger(unsigned int trigger)
 {
 	struct trigger_info *ti;
 
-	/* If nobody's listening, we ain't talking. */
-	if (!audit_isopen)
-		return (ENODEV);
-
-	/*
-	 * Note: Use a condition variable instead of msleep/wakeup?
-	 */
 	ti = malloc(sizeof *ti, M_AUDITTRIGGER, M_WAITOK);
 	mtx_lock(&audit_trigger_mtx);
+	if (!audit_isopen) {
+		/* If nobody's listening, we ain't talking. */
+		mtx_unlock(&audit_trigger_mtx);
+		free(ti, M_AUDITTRIGGER);
+		return (ENODEV);
+	}
 	ti->trigger = trigger;
 	TAILQ_INSERT_TAIL(&trigger_list, ti, list);
 	wakeup(&trigger_list);
