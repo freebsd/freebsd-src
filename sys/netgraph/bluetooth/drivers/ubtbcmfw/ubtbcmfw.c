@@ -50,12 +50,6 @@
 
 #include "usbdevs.h"
 
-/* FreeBSD 7.0 defines */
-
-#define	USBBASEDEVICE	device_t
-#define	USBDEVNAME	device_get_nameunit
-#define USBDEVUNIT(bdev) device_get_unit(bdev)
-
 /*
  * Download firmware to BCM2033.
  */
@@ -68,7 +62,7 @@
 #define UBTBCMFW_BULK_OUT	UE_GET_ADDR(UBTBCMFW_BULK_OUT_EP)
 
 struct ubtbcmfw_softc {
-	USBBASEDEVICE		sc_dev;			/* base device */
+	device_t		sc_dev;			/* base device */
 	usbd_device_handle	sc_udev;		/* USB device handle */
 	struct cdev *sc_ctrl_dev;		/* control device */
 	struct cdev *sc_intr_in_dev;		/* interrupt device */
@@ -162,7 +156,7 @@ USB_ATTACH(ubtbcmfw)
 	err = usbd_set_config_no(sc->sc_udev, UBTBCMFW_CONFIG_NO, 1);
 	if (err) {
 		printf("%s: setting config no failed. %s\n",
-			USBDEVNAME(sc->sc_dev), usbd_errstr(err));
+			device_get_nameunit(sc->sc_dev), usbd_errstr(err));
 		goto bad;
 	}
 
@@ -170,7 +164,7 @@ USB_ATTACH(ubtbcmfw)
 			&iface);
 	if (err) {
 		printf("%s: getting interface handle failed. %s\n",
-			USBDEVNAME(sc->sc_dev), usbd_errstr(err));
+			device_get_nameunit(sc->sc_dev), usbd_errstr(err));
 		goto bad;
 	}
 
@@ -179,7 +173,7 @@ USB_ATTACH(ubtbcmfw)
 			&sc->sc_intr_in_pipe);
 	if (err) {
 		printf("%s: open intr in failed. %s\n",
-			USBDEVNAME(sc->sc_dev), usbd_errstr(err));
+			device_get_nameunit(sc->sc_dev), usbd_errstr(err));
 		goto bad;
 	}
 
@@ -187,25 +181,25 @@ USB_ATTACH(ubtbcmfw)
 			&sc->sc_bulk_out_pipe);
 	if (err) {
 		printf("%s: open bulk out failed. %s\n",
-			USBDEVNAME(sc->sc_dev), usbd_errstr(err));
+			device_get_nameunit(sc->sc_dev), usbd_errstr(err));
 		goto bad;
 	}
 
 	/* Create device nodes */
 	sc->sc_ctrl_dev = make_dev(&ubtbcmfw_cdevsw,
-		UBTBCMFW_MINOR(USBDEVUNIT(sc->sc_dev), 0),
+		UBTBCMFW_MINOR(device_get_unit(sc->sc_dev), 0),
 		UID_ROOT, GID_OPERATOR, 0644,
-		"%s", USBDEVNAME(sc->sc_dev));
+		"%s", device_get_nameunit(sc->sc_dev));
 
 	sc->sc_intr_in_dev = make_dev(&ubtbcmfw_cdevsw,
-		UBTBCMFW_MINOR(USBDEVUNIT(sc->sc_dev), UBTBCMFW_INTR_IN),
+		UBTBCMFW_MINOR(device_get_unit(sc->sc_dev), UBTBCMFW_INTR_IN),
 		UID_ROOT, GID_OPERATOR, 0644,
-		"%s.%d", USBDEVNAME(sc->sc_dev), UBTBCMFW_INTR_IN);
+		"%s.%d", device_get_nameunit(sc->sc_dev), UBTBCMFW_INTR_IN);
 
 	sc->sc_bulk_out_dev = make_dev(&ubtbcmfw_cdevsw,
-		UBTBCMFW_MINOR(USBDEVUNIT(sc->sc_dev), UBTBCMFW_BULK_OUT),
+		UBTBCMFW_MINOR(device_get_unit(sc->sc_dev), UBTBCMFW_BULK_OUT),
 		UID_ROOT, GID_OPERATOR, 0644,
-		"%s.%d", USBDEVNAME(sc->sc_dev), UBTBCMFW_BULK_OUT);
+		"%s.%d", device_get_nameunit(sc->sc_dev), UBTBCMFW_BULK_OUT);
 
 	return 0;
 bad:
@@ -230,7 +224,7 @@ USB_DETACH(ubtbcmfw)
 		if (sc->sc_bulk_out_pipe != NULL) 
 			usbd_abort_pipe(sc->sc_bulk_out_pipe);
 
-		usb_detach_wait(USBDEV(sc->sc_dev));
+		usb_detach_wait(sc->sc_dev);
 	}
 
 	/* Destroy device nodes */
@@ -411,7 +405,7 @@ ubtbcmfw_read(struct cdev *dev, struct uio *uio, int flag)
 	usbd_free_xfer(xfer);
 
 	if (-- sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
+		usb_detach_wakeup(sc->sc_dev);
 
 	return (error);
 }
@@ -476,7 +470,7 @@ ubtbcmfw_write(struct cdev *dev, struct uio *uio, int flag)
 	usbd_free_xfer(xfer);
 
 	if (-- sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
+		usb_detach_wakeup(sc->sc_dev);
 
 	return (error);
 }
@@ -514,7 +508,7 @@ ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 	}
 
 	if (-- sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
+		usb_detach_wakeup(sc->sc_dev);
 
 	return (error);
 }
