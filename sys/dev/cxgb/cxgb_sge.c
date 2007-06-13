@@ -307,7 +307,7 @@ get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void 
 	switch (sopeop) {
 	case RSPQ_SOP_EOP:
 		m->m_len = m->m_pkthdr.len = len; 
-		memcpy(m->m_data, resp->imm_data, len); 
+		memcpy(mtod(m, uint8_t *), resp->imm_data, len); 
 		break;
 	case RSPQ_EOP:
 		memcpy(cl, resp->imm_data, len); 
@@ -666,6 +666,7 @@ static void
 sge_timer_cb(void *arg)
 {
 	adapter_t *sc = arg;
+	struct port_info *p;
 	struct sge_qset *qs;
 	struct sge_txq  *txq;
 	int i, j;
@@ -680,11 +681,11 @@ sge_timer_cb(void *arg)
 			refill_rx = ((qs->fl[0].credits < qs->fl[0].size) || 
 			    (qs->fl[1].credits < qs->fl[1].size));
 			if (reclaim_eth || reclaim_ofl || refill_rx) {
-				taskqueue_enqueue(sc->tq, &sc->timer_reclaim_task);
-				goto done;
+				p = &sc->port[i];
+				taskqueue_enqueue(p->tq, &p->timer_reclaim_task);
+				break;
 			}
 		}
-done:
 	callout_reset(&sc->sge_timer_ch, TX_RECLAIM_PERIOD, sge_timer_cb, sc);
 }
 
@@ -694,24 +695,31 @@ done:
  *
  */
 int
-t3_sge_init_sw(adapter_t *sc)
+t3_sge_init_adapter(adapter_t *sc)
 {
-
 	callout_init(&sc->sge_timer_ch, CALLOUT_MPSAFE);
 	callout_reset(&sc->sge_timer_ch, TX_RECLAIM_PERIOD, sge_timer_cb, sc);
-	TASK_INIT(&sc->timer_reclaim_task, 0, sge_timer_reclaim, sc);
 	TASK_INIT(&sc->slow_intr_task, 0, sge_slow_intr_handler, sc);
 	return (0);
+}
+
+int
+t3_sge_init_port(struct port_info *p)
+{
+	TASK_INIT(&p->timer_reclaim_task, 0, sge_timer_reclaim, p);
 }
 
 void
 t3_sge_deinit_sw(adapter_t *sc)
 {
+	int i;
+	
 	callout_drain(&sc->sge_timer_ch);
-	if (sc->tq) {
-		taskqueue_drain(sc->tq, &sc->timer_reclaim_task);
+	if (sc->tq) 
 		taskqueue_drain(sc->tq, &sc->slow_intr_task);
-	}
+	for (i = 0; i < sc->params.nports; i++) 
+		if (sc->port[i].tq != NULL)
+			taskqueue_drain(sc->port[i].tq, &sc->port[i].timer_reclaim_task);
 }
 
 /**
@@ -736,38 +744,34 @@ refill_rspq(adapter_t *sc, const struct sge_rspq *q, u_int credits)
 static void
 sge_timer_reclaim(void *arg, int ncount)
 {
-	adapter_t *sc = arg;
-	int i, nqsets = 0;
+	struct port_info *p = arg;
+	int i, nqsets = p->nqsets;
+	adapter_t *sc = p->adapter;
 	struct sge_qset *qs;
 	struct sge_txq *txq;
 	struct mtx *lock;
 	struct mbuf *m_vec[TX_CLEAN_MAX_DESC];
 	int n, reclaimable;
-	/* 
-	 * XXX assuming these quantities are allowed to change during operation
-	 */
-	for (i = 0; i < sc->params.nports; i++) 
-		nqsets += sc->port[i].nqsets;
 
 	for (i = 0; i < nqsets; i++) {
 		qs = &sc->sge.qs[i];
 		txq = &qs->txq[TXQ_ETH];
 		reclaimable = desc_reclaimable(txq);
 		if (reclaimable > 0) {
-			mtx_lock(&txq->lock);			
+			mtx_lock(&txq->lock);
 			n = reclaim_completed_tx(sc, txq, TX_CLEAN_MAX_DESC, m_vec);
 			mtx_unlock(&txq->lock);
 
-			for (i = 0; i < n; i++) {
+			for (i = 0; i < n; i++) 
 				m_freem_vec(m_vec[i]);
-			}
-			if (qs->port->ifp->if_drv_flags & IFF_DRV_OACTIVE &&
+			
+			if (p->ifp->if_drv_flags & IFF_DRV_OACTIVE &&
 			    txq->size - txq->in_use >= TX_START_MAX_DESC) {
-				qs->port->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-				taskqueue_enqueue(qs->port->tq, &qs->port->start_task);
+				p->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+				taskqueue_enqueue(p->tq, &p->start_task);
 			}
-		} 
-		    
+		}
+
 		txq = &qs->txq[TXQ_OFLD];
 		reclaimable = desc_reclaimable(txq);
 		if (reclaimable > 0) {
@@ -775,9 +779,8 @@ sge_timer_reclaim(void *arg, int ncount)
 			n = reclaim_completed_tx(sc, txq, TX_CLEAN_MAX_DESC, m_vec);
 			mtx_unlock(&txq->lock);
 
-			for (i = 0; i < n; i++) {
+			for (i = 0; i < n; i++)
 				m_freem_vec(m_vec[i]);
-			}
 		}
 
 		lock = (sc->flags & USING_MSIX) ? &qs->rspq.lock :
@@ -1149,7 +1152,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 			pkthdr = &tmp[0];
 			m_copydata(m0, 0, TCPPKTHDRSIZE, pkthdr);
 		} else {
-			pkthdr = m0->m_data;
+			pkthdr = mtod(m0, uint8_t *);
 		}
 
 		if (__predict_false(m0->m_flags & M_VLANTAG)) {
@@ -1178,7 +1181,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 			m_set_priority(m0, txqs.pidx);
 			
 			if (m0->m_len == m0->m_pkthdr.len)
-				memcpy(&txd->flit[2], m0->m_data, mlen);
+				memcpy(&txd->flit[2], mtod(m0, uint8_t *), mlen);
 			else
 				m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[2]);
 
@@ -1343,7 +1346,7 @@ static int
 ctrl_xmit(adapter_t *adap, struct sge_txq *q, struct mbuf *m)
 {
 	int ret;
-	struct work_request_hdr *wrp = (struct work_request_hdr *)m->m_data;
+	struct work_request_hdr *wrp = mtod(m, struct work_request_hdr *);
 
 	if (__predict_false(!immediate(m))) {
 		m_freem(m);
@@ -1547,6 +1550,9 @@ t3_sge_stop(adapter_t *sc)
 	int i;
 	t3_set_reg_field(sc, A_SG_CONTROL, F_GLOBALENABLE, 0);
 
+	if (sc->tq == NULL)
+		return;
+	
 	for (i = 0; i < SGE_QSETS; ++i) {
 		struct sge_qset *qs = &sc->sge.qs[i];
 		
@@ -2105,12 +2111,12 @@ err:
 void
 t3_rx_eth(struct port_info *pi, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 {
-	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(m->m_data + ethpad);
+	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(mtod(m, uint8_t *) + ethpad);
 	struct ifnet *ifp = pi->ifp;
 	
-	DPRINTF("rx_eth m=%p m->m_data=%p p->iff=%d\n", m, m->m_data, cpl->iff);
+	DPRINTF("rx_eth m=%p m->m_data=%p p->iff=%d\n", m, mtod(m, uint8_t *), cpl->iff);
 	if (&pi->adapter->port[cpl->iff] != pi)
-		panic("bad port index %d m->m_data=%p\n", cpl->iff, m->m_data);
+		panic("bad port index %d m->m_data=%p\n", cpl->iff, mtod(m, uint8_t *));
 
 	if ((ifp->if_capenable & IFCAP_RXCSUM) && !cpl->fragment &&
 	    cpl->csum_valid && cpl->csum == 0xffff) {
@@ -2130,7 +2136,7 @@ t3_rx_eth(struct port_info *pi, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 #endif
 	
 	m->m_pkthdr.rcvif = ifp;
-	m->m_pkthdr.header = m->m_data + sizeof(*cpl) + ethpad;
+	m->m_pkthdr.header = mtod(m, uint8_t *) + sizeof(*cpl) + ethpad;
 	m_explode(m);
 	/*
 	 * adjust after conversion to mbuf chain
@@ -2215,7 +2221,6 @@ done:
 	return (ret);
 }
 
-
 /**
  *	handle_rsp_cntrl_info - handles control information in a response
  *	@qs: the queue set corresponding to the response
@@ -2239,7 +2244,7 @@ handle_rsp_cntrl_info(struct sge_qset *qs, uint32_t flags)
 		qs->txq[TXQ_ETH].processed += credits;
 		if (desc_reclaimable(&qs->txq[TXQ_ETH]) > TX_START_MAX_DESC)
 			taskqueue_enqueue(qs->port->adapter->tq,
-			    &qs->port->adapter->timer_reclaim_task);
+			    &qs->port->timer_reclaim_task);
 	}
 	
 	credits = G_RSPD_TXQ2_CR(flags);
@@ -2361,8 +2366,8 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 		}
 		
 		if (eop) {
-			prefetch(rspq->m->m_data); 
-			prefetch(rspq->m->m_data + L1_CACHE_BYTES); 
+			prefetch(mtod(rspq->m, uint8_t *)); 
+			prefetch(mtod(rspq->m, uint8_t *) + L1_CACHE_BYTES); 
 
 			if (eth) {				
 				t3_rx_eth_lro(adap, rspq, rspq->m, ethpad,
@@ -2388,7 +2393,6 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 		}
 		--budget_left;
 	}
-	
 
 	deliver_partial_bundle(&adap->tdev, rspq, offload_mbufs, ngathered);
 	t3_lro_flush(adap, qs, &qs->lro);
@@ -2520,9 +2524,8 @@ t3_lro_enable(SYSCTL_HANDLER_ARGS)
 	enabled = sc->sge.qs[0].lro.enabled;
         err = sysctl_handle_int(oidp, &enabled, arg2, req);
 
-	if (err != 0) {
+	if (err != 0) 
 		return (err);
-	}
 	if (enabled == sc->sge.qs[0].lro.enabled)
 		return (0);
 
@@ -2530,9 +2533,8 @@ t3_lro_enable(SYSCTL_HANDLER_ARGS)
 		for (j = 0; j < sc->port[i].nqsets; j++)
 			nqsets++;
 	
-	for (i = 0; i < nqsets; i++) {
+	for (i = 0; i < nqsets; i++) 
 		sc->sge.qs[i].lro.enabled = enabled;
-	}
 	
 	return (0);
 }

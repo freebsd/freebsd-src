@@ -519,6 +519,7 @@ dev/cxgb/cxgb_l2t.c		optional cxgb pci
 dev/cxgb/cxgb_lro.c		optional cxgb pci
 dev/cxgb/cxgb_sge.c		optional cxgb pci
 dev/cxgb/common/cxgb_mc5.c	optional cxgb pci
+dev/cxgb/common/cxgb_vsc7323.c	optional cxgb pci
 dev/cxgb/common/cxgb_vsc8211.c	optional cxgb pci
 dev/cxgb/common/cxgb_ael1002.c	optional cxgb pci
 dev/cxgb/common/cxgb_mv88e1xxx.c	optional cxgb pci

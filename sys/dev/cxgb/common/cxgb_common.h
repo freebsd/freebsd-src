@@ -38,18 +38,19 @@ $FreeBSD$
 #endif
 
 enum {
-	MAX_NPORTS     = 2,     /* max # of ports */
-	MAX_FRAME_SIZE = 10240, /* max MAC frame size, including header + FCS */
+	MAX_NPORTS = 4,
+	TP_TMR_RES = 200,       /* TP timer resolution in usec */
+	MAX_FRAME_SIZE = 10240, /* max MAC frame size, includes header + FCS */
 	EEPROMSIZE     = 8192,  /* Serial EEPROM size */
 	RSS_TABLE_SIZE = 64,    /* size of RSS lookup and mapping tables */
 	TCB_SIZE       = 128,   /* TCB size */
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
 	NTX_SCHED      = 8,     /* # of HW Tx scheduling queues */
-	TP_TMR_RES     = 200,   /* TP timer resolution in usec */
+	PROTO_SRAM_LINES = 128, /* size of protocol sram */
 };
 
-#define MAX_RX_COALESCING_LEN 16224U
+#define MAX_RX_COALESCING_LEN 12288U
 
 enum {
 	PAUSE_RX      = 1 << 0,
@@ -58,7 +59,7 @@ enum {
 };
 
 enum {
-	SUPPORTED_IRQ      = 1 << 25
+	SUPPORTED_IRQ      = 1 << 24
 };
 
 enum {                            /* adapter interrupt-maintained statistics */
@@ -70,8 +71,32 @@ enum {                            /* adapter interrupt-maintained statistics */
 };
 
 enum {
+	TP_VERSION_MAJOR	= 1,
+	TP_VERSION_MINOR	= 0,
+	TP_VERSION_MICRO	= 44
+};
+
+#define S_TP_VERSION_MAJOR		16
+#define M_TP_VERSION_MAJOR		0xFF
+#define V_TP_VERSION_MAJOR(x)		((x) << S_TP_VERSION_MAJOR)
+#define G_TP_VERSION_MAJOR(x)		\
+	    (((x) >> S_TP_VERSION_MAJOR) & M_TP_VERSION_MAJOR)
+
+#define S_TP_VERSION_MINOR		8
+#define M_TP_VERSION_MINOR		0xFF
+#define V_TP_VERSION_MINOR(x)		((x) << S_TP_VERSION_MINOR)
+#define G_TP_VERSION_MINOR(x)		\
+	    (((x) >> S_TP_VERSION_MINOR) & M_TP_VERSION_MINOR)
+
+#define S_TP_VERSION_MICRO		0
+#define M_TP_VERSION_MICRO		0xFF
+#define V_TP_VERSION_MICRO(x)		((x) << S_TP_VERSION_MICRO)
+#define G_TP_VERSION_MICRO(x)		\
+	    (((x) >> S_TP_VERSION_MICRO) & M_TP_VERSION_MICRO)
+
+enum {
 	FW_VERSION_MAJOR = 4,
-	FW_VERSION_MINOR = 0,
+	FW_VERSION_MINOR = 1,
 	FW_VERSION_MICRO = 0
 };
 
@@ -116,10 +141,11 @@ struct mdio_ops {
 };
 
 struct adapter_info {
-	unsigned char          nports;         /* # of ports */
+	unsigned char          nports0;        /* # of ports on channel 0 */
+	unsigned char          nports1;        /* # of ports on channel 1 */
 	unsigned char          phy_base_addr;  /* MDIO PHY base address */
-	unsigned char          mdien;
-	unsigned char          mdiinv;
+	unsigned char          mdien:1;
+	unsigned char          mdiinv:1;
 	unsigned int           gpio_out;       /* GPIO output settings */
 	unsigned int           gpio_intr;      /* GPIO IRQ enable mask */
 	unsigned long          caps;           /* adapter capabilities */
@@ -271,11 +297,13 @@ struct tp_params {
 	unsigned int rx_num_pgs;     /* # of Rx pages */
 	unsigned int tx_num_pgs;     /* # of Tx pages */
 	unsigned int ntimer_qs;      /* # of timer queues */
+	unsigned int tre;            /* log2 of core clocks per TP tick */
 	unsigned int dack_re;        /* DACK timer resolution */
 };
 
 struct qset_params {                   /* SGE queue set parameters */
 	unsigned int polling;          /* polling/interrupt service for rspq */
+	unsigned int lro;              /* large receive offload */
 	unsigned int coalesce_nsecs;   /* irq coalescing timer */
 	unsigned int rspq_size;        /* # of entries in response queue */
 	unsigned int fl_size;          /* # of entries in regular free list */
@@ -354,6 +382,7 @@ struct adapter_params {
 	unsigned short b_wnd[NCCTRL_WIN];
 #endif
 	unsigned int   nports;              /* # of ethernet ports */
+	unsigned int   chan_map;            /* bitmap of in-use Tx channels */
 	unsigned int   stats_update_period; /* MAC stats accumulation period */
 	unsigned int   linkpoll_period;     /* link poll period in 0.1s */
 	unsigned int   rev;                 /* chip revision */
@@ -430,7 +459,10 @@ static inline unsigned int t3_mc7_size(const struct mc7 *p)
 struct cmac {
 	adapter_t *adapter;
 	unsigned int offset;
-	unsigned int nucast;    /* # of address filters for unicast MACs */
+	unsigned char nucast;    /* # of address filters for unicast MACs */
+	unsigned char multiport; /* multiple ports connected to this MAC */
+	unsigned char ext_port;  /* external MAC port */
+	unsigned char promisc_map;  /* which external ports are promiscuous */
 	unsigned int tx_tcnt;
 	unsigned int tx_xcnt;
 	u64 tx_mcnt;
@@ -589,9 +621,6 @@ static inline unsigned int is_pcie(const adapter_t *adap)
 }
 
 void t3_set_reg_field(adapter_t *adap, unsigned int addr, u32 mask, u32 val);
-void t3_read_indirect(adapter_t *adap, unsigned int addr_reg,
-		      unsigned int data_reg, u32 *vals, unsigned int nregs,
-		      unsigned int start_idx);
 void t3_write_regs(adapter_t *adapter, const struct addr_val_pair *p, int n,
 		   unsigned int offset);
 int t3_wait_op_done_val(adapter_t *adapter, int reg, u32 mask, int polarity,
@@ -627,13 +656,14 @@ int t3_seeprom_write(adapter_t *adapter, u32 addr, u32 data);
 int t3_seeprom_wp(adapter_t *adapter, int enable);
 int t3_read_flash(adapter_t *adapter, unsigned int addr, unsigned int nwords,
 		  u32 *data, int byte_oriented);
+int t3_check_tpsram_version(adapter_t *adapter);
+int t3_check_tpsram(adapter_t *adapter, u8 *tp_ram, unsigned int size);
 int t3_load_fw(adapter_t *adapter, const u8 *fw_data, unsigned int size);
 int t3_get_fw_version(adapter_t *adapter, u32 *vers);
 int t3_check_fw_version(adapter_t *adapter);
 int t3_init_hw(adapter_t *adapter, u32 fw_params);
 void mac_prep(struct cmac *mac, adapter_t *adapter, int index);
 void early_hw_init(adapter_t *adapter, const struct adapter_info *ai);
-int t3_reset_adapter(adapter_t *adapter);
 int t3_prep_adapter(adapter_t *adapter, const struct adapter_info *ai, int reset);
 void t3_led_ready(adapter_t *adapter);
 void t3_fatal_err(adapter_t *adapter);
@@ -641,6 +671,7 @@ void t3_set_vlan_accel(adapter_t *adapter, unsigned int ports, int on);
 void t3_config_rss(adapter_t *adapter, unsigned int rss_config, const u8 *cpus,
 		   const u16 *rspq);
 int t3_read_rss(adapter_t *adapter, u8 *lkup, u16 *map);
+int t3_set_proto_sram(adapter_t *adap, u8 *data);
 int t3_mps_set_active_ports(adapter_t *adap, unsigned int port_mask);
 void t3_port_failover(adapter_t *adapter, int port);
 void t3_failover_done(adapter_t *adapter, int port);
@@ -657,7 +688,7 @@ int t3_mac_disable(struct cmac *mac, int which);
 int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu);
 int t3_mac_set_rx_mode(struct cmac *mac, struct t3_rx_mode *rm);
 int t3_mac_set_address(struct cmac *mac, unsigned int idx, u8 addr[6]);
-int t3_mac_set_num_ucast(struct cmac *mac, int n);
+int t3_mac_set_num_ucast(struct cmac *mac, unsigned char n);
 const struct mac_stats *t3_mac_update_stats(struct cmac *mac);
 int t3_mac_set_speed_duplex_fc(struct cmac *mac, int speed, int duplex,
 			       int fc);
@@ -717,6 +748,16 @@ int t3_sge_read_cq(adapter_t *adapter, unsigned int id, u32 data[4]);
 int t3_sge_read_rspq(adapter_t *adapter, unsigned int id, u32 data[4]);
 int t3_sge_cqcntxt_op(adapter_t *adapter, unsigned int id, unsigned int op,
 		      unsigned int credits);
+
+int t3_elmr_blk_write(adapter_t *adap, int start, const u32 *vals, int n);
+int t3_elmr_blk_read(adapter_t *adap, int start, u32 *vals, int n);
+int t3_vsc7323_init(adapter_t *adap, int nports);
+int t3_vsc7323_set_speed_fc(adapter_t *adap, int speed, int fc, int port);
+int t3_vsc7323_set_addr(adapter_t *adap, u8 addr[6], int port);
+int t3_vsc7323_set_mtu(adapter_t *adap, unsigned int mtu, int port);
+int t3_vsc7323_enable(adapter_t *adap, int port, int which);
+int t3_vsc7323_disable(adapter_t *adap, int port, int which);
+const struct mac_stats *t3_vsc7323_update_stats(struct cmac *mac);
 
 void t3_mv88e1xxx_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			   const struct mdio_ops *mdio_ops);
