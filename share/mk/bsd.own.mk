@@ -325,6 +325,7 @@ WITH_IDEA=
     IPFILTER \
     IPX \
     KERBEROS \
+    KVM \
     LIB32 \
     LIBPTHREAD \
     LIBTHR \
@@ -449,6 +450,7 @@ MK_GDB:=	no
     INET6 \
     IPX \
     KERBEROS \
+    KVM \
     PAM
 .if defined(WITH_${var}_SUPPORT) && defined(WITHOUT_${var}_SUPPORT)
 .error WITH_${var}_SUPPORT and WITHOUT_${var}_SUPPORT can't both be set.
