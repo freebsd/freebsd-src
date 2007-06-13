@@ -2576,7 +2576,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/***************************/
 	o_calctime = calc_time;
 	/* this is Van Jacobson's integer version */
-	if (net->RTO) {
+	if (net->RTO_measured) {
 		calc_time -= (net->lastsa >> SCTP_RTT_SHIFT);	/* take away 1/8th when
 								 * shift=3 */
 #ifdef SCTP_RTTVAR_LOGGING
@@ -2596,6 +2596,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 		}
 	} else {
 		/* First RTO measurment */
+		net->RTO_measured = 1;
 		net->lastsa = calc_time << SCTP_RTT_SHIFT;	/* Multiply by 8 when
 								 * shift=3 */
 		net->lastsv = calc_time;
