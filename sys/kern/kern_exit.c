@@ -356,26 +356,32 @@ retry:
 	mtx_unlock(&Giant);	
 #ifdef KTRACE
 	/*
-	 * Drain any pending records on the thread and release the trace
-	 * file.  It might be better if drain-and-clear were atomic.
+	 * Disable tracing, then drain any pending records and release
+	 * the trace file.
 	 */
-	ktrprocexit(td);
-	PROC_LOCK(p);
-	mtx_lock(&ktrace_mtx);
-	p->p_traceflag = 0;	/* don't trace the vrele() */
-	tracevp = p->p_tracevp;
-	p->p_tracevp = NULL;
-	tracecred = p->p_tracecred;
-	p->p_tracecred = NULL;
-	mtx_unlock(&ktrace_mtx);
-	PROC_UNLOCK(p);
-	if (tracevp != NULL) {
-		locked = VFS_LOCK_GIANT(tracevp->v_mount);
-		vrele(tracevp);
-		VFS_UNLOCK_GIANT(locked);
+	if (p->p_traceflag != 0) {
+		PROC_LOCK(p);
+		mtx_lock(&ktrace_mtx);
+		p->p_traceflag = 0;
+		mtx_unlock(&ktrace_mtx);
+		PROC_UNLOCK(p);
+		ktrprocexit(td);
+		PROC_LOCK(p);
+		mtx_lock(&ktrace_mtx);
+		tracevp = p->p_tracevp;
+		p->p_tracevp = NULL;
+		tracecred = p->p_tracecred;
+		p->p_tracecred = NULL;
+		mtx_unlock(&ktrace_mtx);
+		PROC_UNLOCK(p);
+		if (tracevp != NULL) {
+			locked = VFS_LOCK_GIANT(tracevp->v_mount);
+			vrele(tracevp);
+			VFS_UNLOCK_GIANT(locked);
+		}
+		if (tracecred != NULL)
+			crfree(tracecred);
 	}
-	if (tracecred != NULL)
-		crfree(tracecred);
 #endif
 	/*
 	 * Release reference to text vnode
