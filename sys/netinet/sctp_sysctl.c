@@ -58,7 +58,7 @@ uint32_t sctp_strict_init = 1;
 uint32_t sctp_abort_if_one_2_one_hits_limit = 0;
 uint32_t sctp_strict_data_order = 0;
 
-uint32_t sctp_peer_chunk_oh = sizeof(struct mbuf);
+uint32_t sctp_peer_chunk_oh = SCTPCTL_PEER_CHKOH_DEFAULT;
 uint32_t sctp_max_burst_default = SCTP_DEF_MAX_BURST;
 uint32_t sctp_use_cwnd_based_maxburst = 1;
 uint32_t sctp_do_drain = 1;
