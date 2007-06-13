@@ -89,6 +89,7 @@ GEOM_MULTIPATH	opt_geom.h
 GEOM_NOP	opt_geom.h
 GEOM_PART_APM	opt_geom.h
 GEOM_PART_GPT	opt_geom.h
+GEOM_PART_MBR	opt_geom.h
 GEOM_PC98	opt_geom.h
 GEOM_RAID3	opt_geom.h
 GEOM_SHSEC	opt_geom.h
