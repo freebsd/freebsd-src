@@ -5906,8 +5906,19 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 			*error = EINVAL;
 			return;
 		}
+		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) == 0) {
+			/* can only bind v6 on PF_INET6 sockets */
+			*error = EINVAL;
+			return;
+		}
 		sin6 = (struct sockaddr_in6 *)addr_touse;
 		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
+			    SCTP_IPV6_V6ONLY(inp)) {
+				/* can't bind v4-mapped on PF_INET sockets */
+				*error = EINVAL;
+				return;
+			}
 			in6_sin6_2_sin(&sin, sin6);
 			addr_touse = (struct sockaddr *)&sin;
 		}
@@ -5915,6 +5926,12 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 #endif
 	if (sa->sa_family == AF_INET) {
 		if (sa->sa_len != sizeof(struct sockaddr_in)) {
+			*error = EINVAL;
+			return;
+		}
+		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
+		    SCTP_IPV6_V6ONLY(inp)) {
+			/* can't bind v4 on PF_INET sockets */
 			*error = EINVAL;
 			return;
 		}
@@ -5993,8 +6010,19 @@ sctp_bindx_delete_address(struct socket *so, struct sctp_inpcb *inp,
 			*error = EINVAL;
 			return;
 		}
+		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) == 0) {
+			/* can only bind v6 on PF_INET6 sockets */
+			*error = EINVAL;
+			return;
+		}
 		sin6 = (struct sockaddr_in6 *)addr_touse;
 		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
+			    SCTP_IPV6_V6ONLY(inp)) {
+				/* can't bind mapped-v4 on PF_INET sockets */
+				*error = EINVAL;
+				return;
+			}
 			in6_sin6_2_sin(&sin, sin6);
 			addr_touse = (struct sockaddr *)&sin;
 		}
@@ -6002,6 +6030,12 @@ sctp_bindx_delete_address(struct socket *so, struct sctp_inpcb *inp,
 #endif
 	if (sa->sa_family == AF_INET) {
 		if (sa->sa_len != sizeof(struct sockaddr_in)) {
+			*error = EINVAL;
+			return;
+		}
+		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
+		    SCTP_IPV6_V6ONLY(inp)) {
+			/* can't bind v4 on PF_INET sockets */
 			*error = EINVAL;
 			return;
 		}
