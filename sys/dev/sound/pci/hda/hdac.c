@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20070505_0044"
+#define HDA_DRV_TEST_REV	"20070611_0045"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -213,8 +213,10 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ASUS_W6F_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1263)
 #define ASUS_W2J_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1971)
 #define ASUS_F3JC_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1338)
+#define ASUS_M2V_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81e7)
 #define ASUS_M2N_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x8234)
 #define ASUS_M2NPVMX_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81cb)
+#define ASUS_P5BWD_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81ec)
 #define ASUS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0xffff)
 
 /* IBM / Lenovo */
@@ -481,6 +483,7 @@ static const struct {
 #define REALTEK_VENDORID	0x10ec
 #define HDA_CODEC_ALC260	HDA_CODEC_CONSTRUCT(REALTEK, 0x0260)
 #define HDA_CODEC_ALC262	HDA_CODEC_CONSTRUCT(REALTEK, 0x0262)
+#define HDA_CODEC_ALC660	HDA_CODEC_CONSTRUCT(REALTEK, 0x0660)
 #define HDA_CODEC_ALC861	HDA_CODEC_CONSTRUCT(REALTEK, 0x0861)
 #define HDA_CODEC_ALC861VD	HDA_CODEC_CONSTRUCT(REALTEK, 0x0862)
 #define HDA_CODEC_ALC880	HDA_CODEC_CONSTRUCT(REALTEK, 0x0880)
@@ -496,6 +499,7 @@ static const struct {
 #define HDA_CODEC_AD1983	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0x1983)
 #define HDA_CODEC_AD1986A	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0x1986)
 #define HDA_CODEC_AD1988	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0x1988)
+#define HDA_CODEC_AD1988B	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0x198b)
 #define HDA_CODEC_ADXXXX	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0xffff)
 
 /* CMedia */
@@ -551,6 +555,7 @@ static const struct {
 } hdac_codecs[] = {
 	{ HDA_CODEC_ALC260,    "Realtek ALC260" },
 	{ HDA_CODEC_ALC262,    "Realtek ALC262" },
+	{ HDA_CODEC_ALC660,    "Realtek ALC660" },
 	{ HDA_CODEC_ALC861,    "Realtek ALC861" },
 	{ HDA_CODEC_ALC861VD,  "Realtek ALC861-VD" },
 	{ HDA_CODEC_ALC880,    "Realtek ALC880" },
@@ -562,6 +567,7 @@ static const struct {
 	{ HDA_CODEC_AD1983,    "Analog Devices AD1983" },
 	{ HDA_CODEC_AD1986A,   "Analog Devices AD1986A" },
 	{ HDA_CODEC_AD1988,    "Analog Devices AD1988" },
+	{ HDA_CODEC_AD1988B,   "Analog Devices AD1988B" },
 	{ HDA_CODEC_CMI9880,   "CMedia CMI9880" },
 	{ HDA_CODEC_STAC9221,  "Sigmatel STAC9221" },
 	{ HDA_CODEC_STAC9221D, "Sigmatel STAC9221D" },
@@ -3158,6 +3164,9 @@ hdac_channel_trigger(kobj_t obj, void *data, int go)
 	struct hdac_chan *ch = data;
 	struct hdac_softc *sc = ch->devinfo->codec->sc;
 
+	if (!(go == PCMTRIG_START || go == PCMTRIG_STOP || go == PCMTRIG_ABORT))
+		return (0);
+
 	hdac_lock(sc);
 	switch (go) {
 	case PCMTRIG_START:
@@ -3340,17 +3349,13 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 	}
 
 	if (softpcmvol == 1 || ctl == NULL) {
-		struct snddev_info *d = NULL;
-		d = device_get_softc(sc->dev);
-		if (d != NULL) {
-			d->flags |= SD_F_SOFTPCMVOL;
-			HDA_BOOTVERBOSE(
-				device_printf(sc->dev,
-				    "HDA_DEBUG: %s Soft PCM volume\n",
-				    (softpcmvol == 1) ?
-				    "Forcing" : "Enabling");
-			);
-		}
+		pcm_setflags(sc->dev, pcm_getflags(sc->dev) | SD_F_SOFTPCMVOL);
+		HDA_BOOTVERBOSE(
+			device_printf(sc->dev,
+			    "HDA_DEBUG: %s Soft PCM volume\n",
+			    (softpcmvol == 1) ?
+			    "Forcing" : "Enabling");
+		);
 		i = 0;
 		/*
 		 * XXX Temporary quirk for STAC9220, until the parser
@@ -4100,6 +4105,8 @@ static const struct {
 	    HDA_QUIRK_GPIO0 | HDA_QUIRK_GPIO1, 0 },
 	{ HDA_MATCH_ALL, HDA_CODEC_AD1988,
 	    HDA_QUIRK_IVREF80, HDA_QUIRK_IVREF50 | HDA_QUIRK_IVREF100 },
+	{ HDA_MATCH_ALL, HDA_CODEC_AD1988B,
+	    HDA_QUIRK_IVREF80, HDA_QUIRK_IVREF50 | HDA_QUIRK_IVREF100 },
 	{ HDA_MATCH_ALL, HDA_CODEC_CXVENICE,
 	    0, HDA_QUIRK_FORCESTEREO },
 	{ HDA_MATCH_ALL, HDA_CODEC_STACXXXX,
@@ -4258,6 +4265,7 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		}
 		break;
 	case HDA_CODEC_AD1988:
+	case HDA_CODEC_AD1988B:
 		/*w = hdac_widget_get(devinfo, 12);
 		if (w != NULL) {
 			w->selconn = 1;
@@ -5758,7 +5766,7 @@ sysctl_hdac_polling(SYSCTL_HANDLER_ARGS)
 	hdac_lock(sc);
 	val = sc->polling;
 	hdac_unlock(sc);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err != 0 || req->newptr == NULL)
 		return (err);
@@ -5817,7 +5825,7 @@ sysctl_hdac_polling_interval(SYSCTL_HANDLER_ARGS)
 	hdac_lock(sc);
 	val = ((uint64_t)sc->poll_ival * 1000) / hz;
 	hdac_unlock(sc);
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err != 0 || req->newptr == NULL)
 		return (err);
@@ -5857,7 +5865,7 @@ sysctl_hdac_dump(SYSCTL_HANDLER_ARGS)
 	    devinfo->codec->sc == NULL)
 		return (EINVAL);
 	val = 0;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL || val == 0)
 		return (err);
 	sc = devinfo->codec->sc;
