@@ -48,14 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#if defined(__NetBSD__)
-#include <sys/device.h>
-#include <sys/ioctl.h>
-#elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/ioccom.h>
-#endif
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/conf.h>
@@ -93,18 +88,6 @@ SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RW,
 #define RIO_IN  1
 #define RIO_NODIR  2
 
-#if defined(__NetBSD__)
-int urioopen(dev_t, int, int, struct proc *);
-int urioclose(dev_t, int, int, struct proc *p);
-int urioread(dev_t, struct uio *uio, int);
-int uriowrite(dev_t, struct uio *uio, int);
-int urioioctl(dev_t, u_long, caddr_t, int, struct proc *);
-
-cdev_decl(urio);
-#define RIO_UE_GET_DIR(p) ((UE_GET_DIR(p) == UE_DIR_IN) ? RIO_IN :\
-			  ((UE_GET_DIR(p) == UE_DIR_OUT) ? RIO_OUT :\
-							   RIO_NODIR))
-#elif defined(__FreeBSD__)
 d_open_t  urioopen;
 d_close_t urioclose;
 d_read_t  urioread;
@@ -125,7 +108,6 @@ static struct cdevsw urio_cdevsw = {
 #define RIO_UE_GET_DIR(p) ((UE_GET_DIR(p) == UE_DIR_IN) ? RIO_IN :\
 		 	  ((UE_GET_DIR(p) == UE_DIR_OUT) ? RIO_OUT :\
 			    				   RIO_NODIR))
-#endif  /*defined(__FreeBSD__)*/
 
 #define	URIO_BBSIZE	1024
 
@@ -140,9 +122,7 @@ struct urio_softc {
 	int sc_epaddr[2];
 
 	int sc_refcnt;
-#if defined(__FreeBSD__)
 	struct cdev *sc_dev_t;
-#endif	/* defined(__FreeBSD__) */
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	u_char sc_dying;
 #endif
