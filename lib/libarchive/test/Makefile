@@ -19,6 +19,7 @@ TESTS= \
 	test_read_format_cpio_svr4c_Z.c		\
 	test_read_format_empty.c		\
 	test_read_format_gtar_gz.c		\
+	test_read_format_gtar_sparse.c		\
 	test_read_format_iso_gz.c		\
 	test_read_format_isorr_bz2.c		\
 	test_read_format_pax_bz2.c		\
@@ -62,7 +63,7 @@ CFLAGS+= -I${.OBJDIR}
 #WARNS=6
 
 test:	libarchive_test
-	./libarchive_test
+	./libarchive_test -k
 
 list.h: ${TESTS} Makefile
 	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
