@@ -258,7 +258,8 @@ MODULE_DEPEND(ubsa, usb, 1, 1, 1);
 MODULE_DEPEND(ubsa, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(ubsa, UBSA_MODVER);
 
-USB_MATCH(ubsa)
+static int
+ubsa_match(device_t self)
 {
 	USB_MATCH_START(ubsa, uaa);
 	int i;
@@ -275,7 +276,8 @@ USB_MATCH(ubsa)
 	return (UMATCH_NONE);
 }
 
-USB_ATTACH(ubsa)
+static int
+ubsa_attach(device_t self)
 {
 	USB_ATTACH_START(ubsa, sc, uaa);
 	usbd_device_handle dev;
@@ -404,7 +406,8 @@ error:
 	return ENXIO;
 }
 
-USB_DETACH(ubsa)
+static int
+ubsa_detach(device_t self)
 {
 	USB_DETACH_START(ubsa, sc);
 	int rv;

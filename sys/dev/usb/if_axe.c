@@ -379,7 +379,8 @@ axe_reset(struct axe_softc *sc)
 /*
  * Probe for a AX88172 chip.
  */
-USB_MATCH(axe)
+static int
+axe_match(device_t self)
 {
 	USB_MATCH_START(axe, uaa);
 	struct axe_type			*t;
@@ -403,7 +404,8 @@ USB_MATCH(axe)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-USB_ATTACH(axe)
+static int
+axe_attach(device_t self)
 {
 	USB_ATTACH_START(axe, sc, uaa);
 	u_char			eaddr[ETHER_ADDR_LEN];

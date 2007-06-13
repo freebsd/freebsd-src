@@ -910,7 +910,8 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	return(UMATCH_DEVCLASS_DEVSUBCLASS_DEVPROTO);
 }
 
-USB_MATCH(umass)
+static int
+umass_match(device_t self)
 {
 	USB_MATCH_START(umass, uaa);
 	struct umass_softc *sc = device_get_softc(self);
@@ -921,7 +922,8 @@ USB_MATCH(umass)
 	return(umass_match_proto(sc, uaa->iface, uaa->device));
 }
 
-USB_ATTACH(umass)
+static int
+umass_attach(device_t self)
 {
 	USB_ATTACH_START(umass, sc, uaa);
 	usb_interface_descriptor_t *id;
@@ -1175,7 +1177,8 @@ USB_ATTACH(umass)
 	return 0;
 }
 
-USB_DETACH(umass)
+static int
+umass_detach(device_t self)
 {
 	USB_DETACH_START(umass, sc);
 	int err = 0;

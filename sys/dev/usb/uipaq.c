@@ -129,7 +129,8 @@ static const struct uipaq_type uipaq_devs[] = {
 
 #define uipaq_lookup(v, p) ((const struct uipaq_type *)usb_lookup(uipaq_devs, v, p))
 
-USB_MATCH(uipaq)
+static int
+uipaq_match(device_t self)
 {
 	USB_MATCH_START(uipaq, uaa);
 

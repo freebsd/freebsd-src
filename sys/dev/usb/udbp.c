@@ -216,7 +216,8 @@ static void udbp_out_transfer_cb	(usbd_xfer_handle xfer,
 
 USB_DECLARE_DRIVER(udbp);
 
-USB_MATCH(udbp)
+static int
+udbp_match(device_t self)
 {
 	USB_MATCH_START(udbp, uaa);
 	usb_interface_descriptor_t *id;
@@ -248,7 +249,8 @@ USB_MATCH(udbp)
 	return (UMATCH_NONE);
 }
 
-USB_ATTACH(udbp)
+static int
+udbp_attach(device_t self)
 {
 	USB_ATTACH_START(udbp, sc, uaa);
 	usbd_interface_handle iface = uaa->iface;
@@ -404,7 +406,8 @@ bad:
 }
 
 
-USB_DETACH(udbp)
+static int
+udbp_detach(device_t self)
 {
 	USB_DETACH_START(udbp, sc);
 

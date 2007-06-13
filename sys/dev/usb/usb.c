@@ -190,13 +190,15 @@ USB_DECLARE_DRIVER_INIT(usb,
 
 MODULE_VERSION(usb, 1);
 
-USB_MATCH(usb)
+static int
+usb_match(device_t self)
 {
 	DPRINTF(("usbd_match\n"));
 	return (UMATCH_GENERIC);
 }
 
-USB_ATTACH(usb)
+static int
+usb_attach(device_t self)
 {
 	struct usb_softc *sc = device_get_softc(self);
 	void *aux = device_get_ivars(self);
@@ -821,7 +823,8 @@ usb_schedsoftintr(usbd_bus_handle bus)
 #endif /* USB_USE_SOFTINTR */
 }
 
-USB_DETACH(usb)
+static int
+usb_detach(device_t self)
 {
 	USB_DETACH_START(usb, sc);
 	struct usb_event ue;

@@ -126,7 +126,8 @@ static int		ukbd_driver_load(module_t mod, int what, void *arg);
 
 USB_DECLARE_DRIVER_INIT(ukbd, DEVMETHOD(device_resume, ukbd_resume));
 
-USB_MATCH(ukbd)
+static int
+ukbd_match(device_t self)
 {
 	USB_MATCH_START(ukbd, uaa);
 
@@ -149,7 +150,8 @@ USB_MATCH(ukbd)
 	return (UMATCH_IFACECLASS_IFACESUBCLASS_IFACEPROTO);
 }
 
-USB_ATTACH(ukbd)
+static int
+ukbd_attach(device_t self)
 {
 	USB_ATTACH_START(ukbd, sc, uaa);
 	usbd_interface_handle iface = uaa->iface;
