@@ -32,12 +32,10 @@
 .\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd March 10, 1994
+.Dd November 6, 2005
 .Dt IEEE_TEST 3
 .Os
 .Sh NAME
-.Nm logb ,
-.Nm logbf ,
 .Nm scalb ,
 .Nm scalbf ,
 .Nm significand ,
@@ -47,10 +45,6 @@
 .Lb libm
 .Sh SYNOPSIS
 .In math.h
-.Ft double
-.Fn logb "double x"
-.Ft float
-.Fn logbf "float x"
 .Ft double
 .Fn scalb "double x" "double n"
 .Ft float
@@ -63,18 +57,6 @@
 These functions allow users to test conformance to
 .St -ieee754 .
 Their use is not otherwise recommended.
-.Pp
-.Fn logb x
-and
-.Fn logbf x
-return
-.Fa x Ns 's exponent
-.Fa n ,
-a signed integer converted to double\-precision floating\-point.
-.Fn logb \*(Pm\*(If
-= +\*(If;
-.Fn logb 0
-= -\*(If with a division by zero exception.
 .Pp
 .Fn scalb x n
 and
