@@ -146,13 +146,10 @@ typedef struct uhci_softc {
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 	bus_size_t sc_size;
-#if defined(__FreeBSD__)
 	void *ih;
 
 	struct resource *io_res;
 	struct resource *irq_res;
-#endif
-
 	uhci_physaddr_t *sc_pframes;
 	usb_dma_t sc_dma;
 	struct uhci_vframe sc_vframes[UHCI_VFRAMELIST_COUNT];
@@ -199,19 +196,11 @@ typedef struct uhci_softc {
 	void *sc_powerhook;		/* cookie from power hook */
 	void *sc_shutdownhook;		/* cookie from shutdown hook */
 #endif
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	device_t sc_child;		/* /dev/usb# device */
-#endif
 } uhci_softc_t;
 
 usbd_status	uhci_init(uhci_softc_t *);
 int		uhci_intr(void *);
 int		uhci_detach(uhci_softc_t *, int);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-int		uhci_activate(device_t, enum devact);
-#endif
-
 void		uhci_shutdown(void *v);
 void		uhci_power(int state, void *priv);
 

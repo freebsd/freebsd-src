@@ -91,12 +91,10 @@ typedef struct ohci_softc {
 	bus_space_handle_t ioh;
 	bus_size_t sc_size;
 
-#if defined(__FreeBSD__)
 	void *ih;
 
 	struct resource *io_res;
 	struct resource *irq_res;
-#endif
 
 	usb_dma_t sc_hccadma;
 	struct ohci_hcca *sc_hcca;
@@ -145,10 +143,6 @@ typedef struct ohci_softc {
 	struct timeval sc_overrun_ntc;
 
 	usb_callout_t sc_tmo_rhsc;
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	device_t sc_child;
-#endif
 	char sc_dying;
 } ohci_softc_t;
 
@@ -161,15 +155,10 @@ struct ohci_xfer {
 #define OHCI_XFER_ABORTWAIT	0x02	/* abort completion is being awaited. */
 
 #define OXFER(xfer) ((struct ohci_xfer *)(xfer))
+#define MS_TO_TICKS(ms) ((ms) * hz / 1000)
 
 usbd_status	ohci_init(ohci_softc_t *);
 void		ohci_intr(void *);
 int	 	ohci_detach(ohci_softc_t *, int);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-int		ohci_activate(device_t, enum devact);
-#endif
-
-#define MS_TO_TICKS(ms) ((ms) * hz / 1000)
-
 void		ohci_shutdown(void *v);
 void		ohci_power(int state, void *priv);
