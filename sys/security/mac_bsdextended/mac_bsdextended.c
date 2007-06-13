@@ -51,6 +51,7 @@
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
