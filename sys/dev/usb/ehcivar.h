@@ -154,12 +154,9 @@ typedef struct ehci_softc {
 
 	struct lock sc_doorbell_lock;
 
-	usb_callout_t sc_tmo_pcd;
-	usb_callout_t sc_tmo_intrlist;
+	struct callout sc_tmo_pcd;
+	struct callout sc_tmo_intrlist;
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	device_t sc_child;		/* /dev/usb# device */
-#endif
 	char sc_dying;
 #if defined(__NetBSD__)
 	struct usb_dma_reserve sc_dma_reserve;
