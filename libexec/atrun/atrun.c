@@ -466,7 +466,7 @@ main(int argc, char *argv[])
 	if ((S_IXUSR & buf.st_mode) && (run_time <=now)) {
 	    if (isupper(queue) && (strcmp(batch_name,dirent->d_name) > 0)) {
 		run_batch = 1;
-		strncpy(batch_name, dirent->d_name, sizeof(batch_name));
+		strlcpy(batch_name, dirent->d_name, sizeof(batch_name));
 		batch_uid = buf.st_uid;
 		batch_gid = buf.st_gid;
 	    }
