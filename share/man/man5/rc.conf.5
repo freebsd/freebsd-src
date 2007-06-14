@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2007
+.Dd June 11, 2007
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2669,10 +2669,37 @@ for a bus mouse, for example.
 .It Va moused_flags
 .Pq Vt str
 If
-.Va moused_type
-is set, these are the additional flags to pass to the
+.Va moused_flags
+is set, its value is used as an additional set of flags to pass to the
 .Xr moused 8
 daemon.
+.It Va "moused_" Ns Ar XXX Ns Va "_flags"
+When
+.Va moused_nondefault_enable
+is enabled, and a
+.Xr moused 8
+daemon is started for a non-default port, the
+.Va "moused_" Ns Ar XXX Ns Va "_flags"
+set of options has precedence over and replaces the default
+.Va moused_flags (where
+.Ar XXX
+is the name of the non-default port, i.e.\&
+.Ar ums0 ) .
+By setting
+.Va "moused_" Ns Ar XXX Ns Va "_flags"
+it is possible to set up a different set of default flags for each
+.Xr moused 8
+instance.
+For example, you can use
+.Dq Li "-3"
+for the default
+.Va moused_flags
+to make your laptop's touchpad more comfortable to use,
+but an empty set of options for
+.Va moused_ums0_flags
+when your
+.Xr usb 4
+mouse has three or more buttons.
 .It Va mousechar_start
 .Pq Vt int
 If set to
