@@ -323,8 +323,6 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 			break;
 
 		/* Disallow setting rtprio in most cases if not superuser. */
-		if (priv_check(td, PRIV_SCHED_RTPRIO) != 0) {
-			/* can't set realtime priority */
 /*
  * Realtime priority has to be restricted for reasons which should be
  * obvious.  However, for idle priority, there is a potential for
@@ -333,13 +331,13 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
  * due to a CPU-bound normal process).  Fix me!  XXX
  */
 #if 0
- 			if (RTP_PRIO_IS_REALTIME(rtp.type)) {
+ 		if (RTP_PRIO_IS_REALTIME(rtp.type)) {
 #else
-			if (rtp.type != RTP_PRIO_NORMAL) {
+		if (rtp.type != RTP_PRIO_NORMAL) {
 #endif
-				error = EPERM;
+			error = priv_check(td, PRIV_SCHED_RTPRIO);
+			if (error)
 				break;
-			}
 		}
 
 		PROC_SLOCK(p);
@@ -438,13 +436,6 @@ rtprio(td, uap)
 			break;
 
 		/* Disallow setting rtprio in most cases if not superuser. */
-		if (priv_check(td, PRIV_SCHED_RTPRIO) != 0) {
-			/* can't set someone else's */
-			if (uap->pid) {
-				error = EPERM;
-				break;
-			}
-			/* can't set realtime priority */
 /*
  * Realtime priority has to be restricted for reasons which should be
  * obvious.  However, for idle priority, there is a potential for
@@ -453,13 +444,13 @@ rtprio(td, uap)
  * due to a CPU-bound normal process).  Fix me!  XXX
  */
 #if 0
- 			if (RTP_PRIO_IS_REALTIME(rtp.type)) {
+		if (RTP_PRIO_IS_REALTIME(rtp.type)) {
 #else
-			if (rtp.type != RTP_PRIO_NORMAL) {
+		if (rtp.type != RTP_PRIO_NORMAL) {
 #endif
-				error = EPERM;
+			error = priv_check(td, PRIV_SCHED_RTPRIO);
+			if (error)
 				break;
-			}
 		}
 
 		/*
