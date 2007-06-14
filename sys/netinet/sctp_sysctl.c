@@ -63,6 +63,8 @@ uint32_t sctp_max_burst_default = SCTP_DEF_MAX_BURST;
 uint32_t sctp_use_cwnd_based_maxburst = 1;
 uint32_t sctp_do_drain = 1;
 uint32_t sctp_hb_maxburst = SCTP_DEF_MAX_BURST;
+uint32_t sctp_logging_level = SCTPCTL_LOGGING_LEVEL_DEFAULT;
+
 
 uint32_t sctp_max_chunks_on_queue = SCTP_ASOC_MAX_CHUNKS_ON_QUEUE;
 uint32_t sctp_delayed_sack_time_default = SCTP_RECV_MSEC;
@@ -682,6 +684,11 @@ SYSCTL_INT(_net_inet_sctp, OID_AUTO, min_residual, CTLFLAG_RW,
 SYSCTL_INT(_net_inet_sctp, OID_AUTO, max_retran_chunk, CTLFLAG_RW,
     &sctp_max_retran_chunk, 0,
     SCTPCTL_MAX_RETRAN_CHUNK_DESC);
+
+SYSCTL_INT(_net_inet_sctp, OID_AUTO, sctp_logging, CTLFLAG_RW,
+    &sctp_logging_level, 0,
+    SCTPCTL_LOGGING_LEVEL_DESC);
+
 
 #ifdef SCTP_DEBUG
 SYSCTL_INT(_net_inet_sctp, OID_AUTO, debug, CTLFLAG_RW,

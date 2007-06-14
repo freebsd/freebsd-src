@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_sctp.h"
 #include <sys/param.h>
+#include <sys/ktr.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -156,6 +157,18 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define SCTPDBG_PKT(level, iph, sh)
 #endif
 #define SCTP_PRINTF(params...)	printf(params)
+
+#ifdef SCTP_LTRACE_CHUNKS
+#define SCTP_LTRACE_CHK(a, b, c, d) if(sctp_logging_level & SCTP_LTRACE_CHUNK_ENABLE) CTR6(KTR_NET, "SCTP:%d[%d]:%x-%x-%x-%x", SCTP_LOG_CHUNK_PROC, 0, a, b, c, d)
+#else
+#define SCTP_LTRACE_CHK(a, b, c, d)
+#endif
+
+#ifdef SCTP_LTRACE_ERRORS
+#define SCTP_LTRACE_ERR(a, b, c, d) if(sctp_logging_level & SCTP_LTRACE_ERROR_ENABLE) CTR6(KTR_NET, "SCTP:%d[%d]:%x-%x-%x-%x", SCTP_LOG_ERROR_RET, 0, a, b, c, d)
+#else
+#define SCTP_LTRACE_ERR(a, b, c, d)
+#endif
 
 /*
  * Local address and interface list handling
