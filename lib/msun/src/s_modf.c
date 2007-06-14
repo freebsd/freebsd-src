@@ -55,6 +55,10 @@ modf(double x, double *iptr)
 	    }
 	} else if (j0>51) {		/* no fraction part */
 	    u_int32_t high;
+	    if (j0 == 0x400) {		/* inf/NaN */
+		*iptr = x;
+		return 0.0 / x;
+	    }
 	    *iptr = x*one;
 	    GET_HIGH_WORD(high,x);
 	    INSERT_WORDS(x,high&0x80000000,0);	/* return +-0 */
