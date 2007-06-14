@@ -950,9 +950,6 @@ kern_adjtime(struct thread *td, struct timeval *delta, struct timeval *olddelta)
 	struct timeval atv;
 	int error;
 
-	if ((error = priv_check(td, PRIV_ADJTIME)))
-		return (error);
-
 	mtx_lock(&Giant);
 	if (olddelta) {
 		atv.tv_sec = time_adjtime / 1000000;
@@ -963,10 +960,15 @@ kern_adjtime(struct thread *td, struct timeval *delta, struct timeval *olddelta)
 		}
 		*olddelta = atv;
 	}
-	if (delta)
+	if (delta) {
+		if ((error = priv_check(td, PRIV_ADJTIME))) {
+			mtx_unlock(&Giant);
+			return (error);
+		}
 		time_adjtime = (int64_t)delta->tv_sec * 1000000 +
 		    delta->tv_usec;
+	}
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
