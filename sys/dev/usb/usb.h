@@ -45,16 +45,15 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#if defined(_KERNEL)
-#if 1
 #include <dev/usb/usb_port.h>
-#else
+#if defined(_KERNEL)
+#include "opt_usb.h"
+
 #include <sys/malloc.h>
 
 MALLOC_DECLARE(M_USB);
 MALLOC_DECLARE(M_USBDEV);
 MALLOC_DECLARE(M_USBHC);
-#endif
 #endif /* _KERNEL */
 
 /* These two defines are used by usbd to autoload the usb kld */
