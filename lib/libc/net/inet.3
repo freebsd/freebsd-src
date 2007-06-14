@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 11, 2007
+.Dd June 14, 2007
 .Dt INET 3
 .Os
 .Sh NAME
@@ -62,6 +62,7 @@
 .Fo inet_ntoa_r
 .Fa "struct in_addr in"
 .Fa "char *buf"
+.Fa "socklen_t size"
 .Fc
 .Ft const char *
 .Fo inet_ntop
@@ -156,7 +157,6 @@ The routine
 .Fn inet_ntoa_r
 is the reentrant version of
 .Fn inet_ntoa .
-It requires a buffer large enough to contain an IPv4 address.
 The routine
 .Fn inet_makeaddr
 takes an Internet network number and a local

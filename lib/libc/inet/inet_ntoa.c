@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -60,9 +60,10 @@ inet_ntoa(struct in_addr in) {
 }
 
 char *
-inet_ntoa_r(struct in_addr in, char *buf)
+inet_ntoa_r(struct in_addr in, char *buf, socklen_t size)
 {
-	(void) inet_ntop(AF_INET, &in, buf, sizeof("255.255.255.255"));
+
+	(void) inet_ntop(AF_INET, &in, buf, size);
 	return (buf);
 }
 
