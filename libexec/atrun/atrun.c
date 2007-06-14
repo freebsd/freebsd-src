@@ -327,7 +327,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	PRIV_START
 
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
-	    perr("cannot delete saved userids");
+	    perr("cannot init group access list");
 
 	if (setgid(gid) < 0 || setegid(pentry->pw_gid) < 0)
 	    perr("cannot change group");
