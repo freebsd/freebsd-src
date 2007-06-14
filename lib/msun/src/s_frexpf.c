@@ -39,6 +39,6 @@ frexpf(float x, int *eptr)
 	}
 	*eptr += (ix>>23)-126;
 	hx = (hx&0x807fffff)|0x3f000000;
-	*(int*)&x = hx;
+	SET_FLOAT_WORD(x,hx);
 	return x;
 }
