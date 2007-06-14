@@ -899,6 +899,7 @@ atiixp_intr(void *p)
 		enable  = atiixp_rd(sc, ATI_REG_IER);
 		enable &= ~detected_codecs;
 		atiixp_wr(sc, ATI_REG_IER, enable);
+		wakeup(sc);
 	}
 
 	/* acknowledge */
@@ -1005,18 +1006,20 @@ atiixp_chip_post_init(void *arg)
 	polling = sc->polling;
 	sc->polling = 0;
 
-	/* wait for the interrupts to happen */
-	timeout = 100;
-	do {
-		msleep(sc, sc->lock, PWAIT, "ixpslp", 1);
-		if (sc->codec_not_ready_bits)
-			break;
-	} while (--timeout);
+	timeout = 10;
+	if (sc->codec_not_ready_bits == 0) {
+		/* wait for the interrupts to happen */
+		do {
+			msleep(sc, sc->lock, PWAIT, "ixpslp", max(hz / 10, 1));
+			if (sc->codec_not_ready_bits != 0)
+				break;
+		} while (--timeout);
+	}
 
 	sc->polling = polling;
 	atiixp_disable_interrupts(sc);
 
-	if (timeout == 0) {
+	if (sc->codec_not_ready_bits == 0 && timeout == 0) {
 		device_printf(sc->dev,
 			"WARNING: timeout during codec detection; "
 			"codecs might be present but haven't interrupted\n");
