@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <libutil.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,14 +75,13 @@ __FBSDID("$FreeBSD$");
 #define	YES	1
 #define	NO	0
 
-static void sidewaysintpr (u_int, u_long);
-static void catchalarm (int);
+static void sidewaysintpr(int, u_long);
+static void catchalarm(int);
 
 #ifdef INET6
-static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
 static int bdg_done;
+static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
 #endif
-
 /* print bridge statistics */
 void
 bdg_stats(u_long dummy __unused, const char *name, int af1 __unused)
@@ -123,6 +123,7 @@ bdg_stats(u_long dummy __unused, const char *name, int af1 __unused)
     }
 }
 
+
 /* 
  * Dump pfsync statistics structure.
  */
@@ -144,26 +145,26 @@ pfsync_stats(u_long off __unused, const char *name, int af1 __unused)
 	printf("%s:\n", name);
 
 #define p(f, m) if (pfsyncstat.f || sflag <= 1) \
-	printf(m, (unsigned long long)pfsyncstat.f, plural(pfsyncstat.f))
+	printf(m, (uintmax_t)pfsyncstat.f, plural(pfsyncstat.f))
 #define p2(f, m) if (pfsyncstat.f || sflag <= 1) \
-	printf(m, (unsigned long long)pfsyncstat.f)
+	printf(m, (uintmax_t)pfsyncstat.f)
 
-	p(pfsyncs_ipackets, "\t%llu packet%s received (IPv4)\n");
-	p(pfsyncs_ipackets6, "\t%llu packet%s received (IPv6)\n");
-	p(pfsyncs_badif, "\t\t%llu packet%s discarded for bad interface\n");
-	p(pfsyncs_badttl, "\t\t%llu packet%s discarded for bad ttl\n");
-	p(pfsyncs_hdrops, "\t\t%llu packet%s shorter than header\n");
-	p(pfsyncs_badver, "\t\t%llu packet%s discarded for bad version\n");
-	p(pfsyncs_badauth, "\t\t%llu packet%s discarded for bad HMAC\n");
-	p(pfsyncs_badact,"\t\t%llu packet%s discarded for bad action\n");
-	p(pfsyncs_badlen, "\t\t%llu packet%s discarded for short packet\n");
-	p(pfsyncs_badval, "\t\t%llu state%s discarded for bad values\n");
-	p(pfsyncs_stale, "\t\t%llu stale state%s\n");
-	p(pfsyncs_badstate, "\t\t%llu failed state lookup/insert%s\n");
-	p(pfsyncs_opackets, "\t%llu packet%s sent (IPv4)\n");
-	p(pfsyncs_opackets6, "\t%llu packet%s sent (IPv6)\n");
-	p2(pfsyncs_onomem, "\t\t%llu send failed due to mbuf memory error\n");
-	p2(pfsyncs_oerrors, "\t\t%llu send error\n");
+	p(pfsyncs_ipackets, "\t%ju packet%s received (IPv4)\n");
+	p(pfsyncs_ipackets6, "\t%ju packet%s received (IPv6)\n");
+	p(pfsyncs_badif, "\t\t%ju packet%s discarded for bad interface\n");
+	p(pfsyncs_badttl, "\t\t%ju packet%s discarded for bad ttl\n");
+	p(pfsyncs_hdrops, "\t\t%ju packet%s shorter than header\n");
+	p(pfsyncs_badver, "\t\t%ju packet%s discarded for bad version\n");
+	p(pfsyncs_badauth, "\t\t%ju packet%s discarded for bad HMAC\n");
+	p(pfsyncs_badact,"\t\t%ju packet%s discarded for bad action\n");
+	p(pfsyncs_badlen, "\t\t%ju packet%s discarded for short packet\n");
+	p(pfsyncs_badval, "\t\t%ju state%s discarded for bad values\n");
+	p(pfsyncs_stale, "\t\t%ju stale state%s\n");
+	p(pfsyncs_badstate, "\t\t%ju failed state lookup/insert%s\n");
+	p(pfsyncs_opackets, "\t%ju packet%s sent (IPv4)\n");
+	p(pfsyncs_opackets6, "\t%ju packet%s sent (IPv6)\n");
+	p2(pfsyncs_onomem, "\t\t%ju send failed due to mbuf memory error\n");
+	p2(pfsyncs_oerrors, "\t\t%ju send error\n");
 #undef p
 #undef p2
 }
@@ -174,11 +175,22 @@ pfsync_stats(u_long off __unused, const char *name, int af1 __unused)
 static void
 show_stat(const char *fmt, int width, u_long value, short showvalue)
 {
+	const char *lsep, *rsep;
 	char newfmt[32];
 
+	lsep = "";
+	if (strncmp(fmt, "LS", 2) == 0) {
+		lsep = " ";
+		fmt += 2;
+	}
+	rsep = " ";
+	if (strncmp(fmt, "NRS", 3) == 0) {
+		rsep = "";
+		fmt += 3;
+	}
 	if (showvalue == 0) {
 		/* Print just dash. */
-		sprintf(newfmt, "%%%ds ", width);
+		sprintf(newfmt, "%s%%%ds%s", lsep, width, rsep);
 		printf(newfmt, "-");
 		return;
 	}
@@ -189,11 +201,11 @@ show_stat(const char *fmt, int width, u_long value, short showvalue)
 		/* Format in human readable form. */
 		humanize_number(buf, sizeof(buf), (int64_t)value, "",
 		    HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL);
-		sprintf(newfmt, "%%%ds ", width);
+		sprintf(newfmt, "%s%%%ds%s", lsep, width, rsep);
 		printf(newfmt, buf);
 	} else {
 		/* Construct the format string. */
-		sprintf(newfmt, "%%%d%s ", width, fmt);
+		sprintf(newfmt, "%s%%%d%s%s", lsep, width, fmt, rsep);
 		printf(newfmt, value);
 	}
 }
@@ -202,7 +214,7 @@ show_stat(const char *fmt, int width, u_long value, short showvalue)
  * Print a description of the network interfaces.
  */
 void
-intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
+intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 {
 	struct ifnet ifnet;
 	struct ifnethead ifnethead;
@@ -237,8 +249,8 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 		printf("ifnet: symbol not defined\n");
 		return;
 	}
-	if (_interval) {
-		sidewaysintpr((unsigned)_interval, ifnetaddr);
+	if (interval1) {
+		sidewaysintpr(interval1, ifnetaddr);
 		return;
 	}
 	if (kread(ifnetaddr, (char *)&ifnethead, sizeof ifnethead))
@@ -457,14 +469,13 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 		if (bflag)
 			show_stat("lu", 10, obytes, link_layer|network_layer);
 
-		show_stat("lu", 5, collisions, link_layer);
+		show_stat("NRSlu", 5, collisions, link_layer);
 		if (tflag)
-			show_stat("d", 4, timer, link_layer);
-
+			show_stat("LSd", 4, timer, link_layer);
 		if (dflag)
-			show_stat("d", 4, drops, link_layer);
-
+			show_stat("LSd", 4, drops, link_layer);
 		putchar('\n');
+
 		if (aflag && ifaddrfound) {
 			/*
 			 * Print family's multicast addresses
@@ -552,17 +563,18 @@ u_char	signalled;			/* set if alarm goes off "early" */
 
 /*
  * Print a running summary of interface statistics.
- * Repeat display every interval seconds, showing statistics
- * collected over that interval.  Assumes that interval is non-zero.
+ * Repeat display every interval1 seconds, showing statistics
+ * collected over that interval.  Assumes that interval1 is non-zero.
  * First line printed at top of screen is always cumulative.
  * XXX - should be rewritten to use ifmib(4).
  */
 static void
-sidewaysintpr(unsigned interval1, u_long off)
+sidewaysintpr(int interval1, u_long off)
 {
 	struct ifnet ifnet;
 	u_long firstifnet;
 	struct ifnethead ifnethead;
+	struct itimerval interval_it;
 	struct iftot *iftot, *ip, *ipn, *total, *sum, *interesting;
 	int line;
 	int oldmask, first;
@@ -615,7 +627,10 @@ sidewaysintpr(unsigned interval1, u_long off)
 
 	(void)signal(SIGALRM, catchalarm);
 	signalled = NO;
-	(void)alarm(interval1);
+	interval_it.it_interval.tv_sec = interval1;
+	interval_it.it_interval.tv_usec = 0;
+	interval_it.it_value = interval_it.it_interval;
+	setitimer(ITIMER_REAL, &interval_it, NULL);
 	first = 1;
 banner:
 	printf("%17s %14s %16s", "input",
@@ -642,9 +657,10 @@ loop:
 			show_stat("lu", 10, ifnet.if_opackets - ip->ift_op, 1);
 			show_stat("lu", 5, ifnet.if_oerrors - ip->ift_oe, 1);
 			show_stat("lu", 10, ifnet.if_obytes - ip->ift_ob, 1);
-			show_stat("lu", 5, ifnet.if_collisions - ip->ift_co, 1);
+			show_stat("NRSlu", 5, 
+			    ifnet.if_collisions - ip->ift_co, 1);
 			if (dflag)
-				show_stat("u", 5,
+				show_stat("LSu", 5,
 				    ifnet.if_snd.ifq_drops - ip->ift_dr, 1);
 		}
 		ip->ift_ip = ifnet.if_ipackets;
@@ -688,9 +704,9 @@ loop:
 			show_stat("lu", 10, sum->ift_op - total->ift_op, 1);
 			show_stat("lu", 5, sum->ift_oe - total->ift_oe, 1);
 			show_stat("lu", 10, sum->ift_ob - total->ift_ob, 1);
-			show_stat("lu", 5, sum->ift_co - total->ift_co, 1);
+			show_stat("NRSlu", 5, sum->ift_co - total->ift_co, 1);
 			if (dflag)
-				show_stat("u", 5,
+				show_stat("LSu", 5,
 				    sum->ift_dr - total->ift_dr, 1);
 		}
 		*total = *sum;
@@ -699,12 +715,10 @@ loop:
 		putchar('\n');
 	fflush(stdout);
 	oldmask = sigblock(sigmask(SIGALRM));
-	if (! signalled) {
+	while (!signalled)
 		sigpause(0);
-	}
-	sigsetmask(oldmask);
 	signalled = NO;
-	(void)alarm(interval1);
+	sigsetmask(oldmask);
 	line++;
 	first = 0;
 	if (line == 21)
@@ -715,8 +729,8 @@ loop:
 }
 
 /*
- * Called if an interval expires before sidewaysintpr has completed a loop.
- * Sets a flag to not wait for the alarm.
+ * Set a flag to indicate that a signal from the periodic itimer has been
+ * caught.
  */
 static void
 catchalarm(int signo __unused)
