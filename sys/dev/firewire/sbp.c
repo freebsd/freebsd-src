@@ -2829,8 +2829,13 @@ SBP_DEBUG(2)
 		    (uintmax_t)prev2->bus_addr, (uintmax_t)ocb->bus_addr);
 #endif
 END_DEBUG
-		prev2->orb[1] = htonl(ocb->bus_addr);
-		prev2->orb[0] = 0;
+		/*
+		 * Suppress compiler optimization so that orb[1] must be written first.
+		 * XXX We may need an explicit memory barrier for other architectures
+		 * other than i386/amd64.
+		 */
+		*(volatile uint32_t *)&prev2->orb[1] = htonl(ocb->bus_addr);
+		*(volatile uint32_t *)&prev2->orb[0] = 0;
 	}
 	splx(s);
 
