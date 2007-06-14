@@ -44,7 +44,7 @@ log1pf(float x)
 	ax = hx&0x7fffffff;
 
 	k = 1;
-	if (hx < 0x3ed413d7) {			/* x < 0.41422  */
+	if (hx < 0x3ed413d0) {			/* 1+x < sqrt(2)+  */
 	    if(ax>=0x3f800000) {		/* x <= -1.0 */
 		if(x==(float)-1.0) return -two25/zero; /* log1p(-1)=+inf */
 		else return (x-x)/(x-x);	/* log1p(x<-1)=NaN */
@@ -56,13 +56,13 @@ log1pf(float x)
 		else
 		    return x - x*x*(float)0.5;
 	    }
-	    if(hx>0||hx<=((int32_t)0xbe95f61f)) {
-		k=0;f=x;hu=1;}	/* -0.2929<x<0.41422 */
+	    if(hx>0||hx<=((int32_t)0xbe95f619)) {
+		k=0;f=x;hu=1;}		/* sqrt(2)/2- <= 1+x < sqrt(2)+ */
 	}
 	if (hx >= 0x7f800000) return x+x;
 	if(k!=0) {
 	    if(hx<0x5a000000) {
-		u  = (float)1.0+x;
+		*(volatile float *)&u = (float)1.0+x;
 		GET_FLOAT_WORD(hu,u);
 	        k  = (hu>>23)-127;
 		/* correction term */
@@ -75,7 +75,14 @@ log1pf(float x)
 		c  = 0;
 	    }
 	    hu &= 0x007fffff;
-	    if(hu<0x3504f7) {
+	    /*
+	     * The approximation to sqrt(2) used in thresholds is not
+	     * critical.  However, the ones used above must give less
+	     * strict bounds than the one here so that the k==0 case is
+	     * never reached from here, since here we have committed to
+	     * using the correction term but don't use it if k==0.
+	     */
+	    if(hu<0x3504f4) {			/* u < sqrt(2) */
 	        SET_FLOAT_WORD(u,hu|0x3f800000);/* normalize u */
 	    } else {
 	        k += 1;
