@@ -169,13 +169,16 @@ login_close(login_cap_t * lc)
 
 
 /*
- * login_getclassbyname() get the login class by its name.
+ * login_getclassbyname()
+ * Get the login class by its name.
  * If the name given is NULL or empty, the default class
- * LOGIN_DEFCLASS (ie. "default") is fetched. If the
+ * LOGIN_DEFCLASS (i.e., "default") is fetched.
+ * If the name given is LOGIN_MECLASS and
  * 'pwd' argument is non-NULL and contains an non-NULL
  * dir entry, then the file _FILE_LOGIN_CONF is picked
  * up from that directory and used before the system
- * login database.
+ * login database. In that case the system login database
+ * is looked up using LOGIN_MECLASS, too, which is a bug.
  * Return a filled-out login_cap_t structure, including
  * class name, and the capability record buffer.
  */
@@ -216,6 +219,9 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 	    if (_secure_path(userpath, pwd->pw_uid, pwd->pw_gid) != -1)
 		i++;		/* only use 'secure' data */
 	}
+	/*
+	 * XXX: Why to add the system database if the class is `me'?
+	 */
 	if (_secure_path(_PATH_LOGIN_CONF, 0, 0) != -1)
 	    login_dbarray[i++] = _PATH_LOGIN_CONF;
 	login_dbarray[i] = NULL;
@@ -300,12 +306,13 @@ login_getclass(const char *cls)
 
 
 /*
- * login_getclass()
+ * login_getpwclass()
  * Get the login class for a given password entry from
  * the system (only) login class database.
  * If the password entry's class field is not set, or
  * the class specified does not exist, then use the
- * default of LOGIN_DEFCLASS (ie. "default").
+ * default of LOGIN_DEFCLASS (i.e., "default") for an unprivileged
+ * user or that of LOGIN_DEFROOTCLASS (i.e., "root") for a super-user.
  * Return a filled-out login_cap_t structure, including
  * class name, and the capability record buffer.
  */
@@ -320,14 +327,18 @@ login_getpwclass(const struct passwd *pwd)
 	if (cls == NULL || *cls == '\0')
 	    cls = (pwd->pw_uid == 0) ? LOGIN_DEFROOTCLASS : LOGIN_DEFCLASS;
     }
+    /*
+     * XXX: pwd should be unused by login_getclassbyname() unless cls is `me',
+     *      so NULL can be passed instead of pwd for more safety.
+     */
     return login_getclassbyname(cls, pwd);
 }
 
 
 /*
  * login_getuserclass()
- * Get the login class for a given password entry, allowing user
- * overrides via ~/.login_conf.
+ * Get the `me' login class, allowing user overrides via ~/.login_conf.
+ * Note that user overrides are allowed only in the `me' class.
  */
 
 login_cap_t *
@@ -335,7 +346,6 @@ login_getuserclass(const struct passwd *pwd)
 {
     return login_getclassbyname(LOGIN_MECLASS, pwd);
 }
-
 
 
 /*
