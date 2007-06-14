@@ -40,60 +40,6 @@ __FBSDID("$FreeBSD$");
 #if defined(_KERNEL)
 
 
-/*-
- * Any new logging added must also define SCTP_STAT_LOGGING if
- * its not already defined.
- */
-
-#if defined(SCTP_LOG_MAXBURST) || defined(SCTP_LOG_RWND)
-#ifndef SCTP_STAT_LOGGING
-#define SCTP_STAT_LOGGING 1
-#endif
-#endif
-
-#if defined(SCTP_CWND_LOGGING) || defined(SCTP_CWND_MONITOR) || defined(SCTP_BLK_LOGGING)
-#ifndef SCTP_STAT_LOGGING
-#define SCTP_STAT_LOGGING 1
-#endif
-#endif
-
-#if defined(SCTP_STR_LOGGING) || defined(SCTP_FR_LOGGING) || defined(SCTP_MAP_LOGGING)
-#ifndef SCTP_STAT_LOGGING
-#define SCTP_STAT_LOGGING 1
-#endif
-#endif
-
-#if defined(SCTP_SACK_LOGGING) || defined(SCTP_LOCK_LOGGING)
-#ifndef SCTP_STAT_LOGGING
-#define SCTP_STAT_LOGGING 1
-#endif
-#endif
-
-#if defined(SCTP_RTTVAR_LOGGING) || defined(SCTP_SB_LOGGING) || defined(SCTP_EARLYFR_LOGGING)
-#ifndef SCTP_STAT_LOGGING
-#define SCTP_STAT_LOGGING 1
-#endif
-#endif
-
-#if defined(SCTP_NAGLE_LOGGING) || defined(SCTP_WAKE_LOGGING) || defined(SCTP_RECV_RWND_LOGGING)
-#ifndef SCTP_STAT_LOGGING
-#define SCTP_STAT_LOGGING 1
-#endif
-#endif
-
-#if defined(SCTP_SACK_RWND_LOGGING) || defined(SCTP_FLIGHT_LOGGING) || defined(SCTP_MBUF_LOGGING)
-#ifndef SCTP_STAT_LOGGING
-#define SCTP_STAT_LOGGING 1
-#endif
-#endif
-
-#if defined(SCTP_LOG_SACK_ARRIVALS)
-#ifndef SCTP_STAT_LOGGING
-#define SCTP_STAT_LOGGING 1
-#endif
-#endif
-
-
 #ifdef SCTP_ASOCLOG_OF_TSNS
 void sctp_print_out_track_log(struct sctp_tcb *stcb);
 
@@ -276,7 +222,7 @@ sctp_bindx_delete_address(struct socket *so, struct sctp_inpcb *inp,
 #ifdef SCTP_MBCNT_LOGGING
 void
 sctp_free_bufspace(struct sctp_tcb *, struct sctp_association *,
-    struct sctp_tmit_chunk *);
+    struct sctp_tmit_chunk *, int);
 
 #else
 #define sctp_free_bufspace(stcb, asoc, tp1, chk_cnt)  \
@@ -353,7 +299,6 @@ sctp_l_soreceive(struct socket *so,
     int *flag);
 
 
-#ifdef SCTP_STAT_LOGGING
 void
      sctp_misc_ints(uint8_t from, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 
@@ -396,7 +341,6 @@ void sctp_log_map(uint32_t, uint32_t, uint32_t, int);
 
 void sctp_clr_stat_log(void);
 
-#endif
 
 #ifdef SCTP_AUDITING_ENABLED
 void

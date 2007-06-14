@@ -55,7 +55,7 @@ sctp_handle_asconf_ack(struct mbuf *, int,
 
 extern uint32_t
 sctp_addr_mgmt_ep_sa(struct sctp_inpcb *, struct sockaddr *,
-    uint32_t, uint32_t);
+    uint32_t, uint32_t, struct sctp_ifa *);
 
 
 int sctp_iterator_ep(struct sctp_inpcb *inp, void *ptr, uint32_t val);

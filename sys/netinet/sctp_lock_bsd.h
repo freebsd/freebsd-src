@@ -82,15 +82,6 @@ extern int sctp_logoff_stuff;
 #define SCTP_STATLOG_UNLOCK()
 #define SCTP_STATLOG_DESTROY()
 
-#define SCTP_STATLOG_GETREF(x) { \
-        x = atomic_fetchadd_int(&global_sctp_cwnd_log_at, 1); \
-        if(x == SCTP_STAT_LOG_SIZE) { \
-           global_sctp_cwnd_log_at = 1; \
-           x = 0; \
-           global_sctp_cwnd_log_rolled = 1; \
-        } \
-}
-
 
 #define SCTP_INP_INFO_LOCK_INIT() \
         mtx_init(&sctppcbinfo.ipi_ep_mtx, "sctp-info", "inp_info", MTX_DEF)
@@ -187,12 +178,12 @@ extern int sctp_logoff_stuff;
 
 #ifdef SCTP_LOCK_LOGGING
 #define SCTP_INP_RLOCK(_inp)	do { 					\
-	sctp_log_lock(_inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_INP);\
+	if(sctp_logging_level & SCTP_LOCK_LOGGING_ENABLE) sctp_log_lock(_inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_INP);\
         mtx_lock(&(_inp)->inp_mtx);                                     \
 } while (0)
 
 #define SCTP_INP_WLOCK(_inp)	do { 					\
-	sctp_log_lock(_inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_INP);\
+	if(sctp_logging_level & SCTP_LOCK_LOGGING_ENABLE) sctp_log_lock(_inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_INP);\
         mtx_lock(&(_inp)->inp_mtx);                                     \
 } while (0)
 
@@ -227,7 +218,7 @@ extern int sctp_logoff_stuff;
 #ifdef SCTP_LOCK_LOGGING
 #define SCTP_ASOC_CREATE_LOCK(_inp) \
 	do {								\
-                sctp_log_lock(_inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_CREATE); \
+	if(sctp_logging_level & SCTP_LOCK_LOGGING_ENABLE) sctp_log_lock(_inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_CREATE); \
 		mtx_lock(&(_inp)->inp_create_mtx);			\
 	} while (0)
 #else
@@ -257,7 +248,7 @@ extern int sctp_logoff_stuff;
 
 #ifdef SCTP_LOCK_LOGGING
 #define SCTP_TCB_LOCK(_tcb)  do {					\
-        sctp_log_lock(_tcb->sctp_ep, _tcb, SCTP_LOG_LOCK_TCB);          \
+	if(sctp_logging_level & SCTP_LOCK_LOGGING_ENABLE)  sctp_log_lock(_tcb->sctp_ep, _tcb, SCTP_LOG_LOCK_TCB);          \
 	mtx_lock(&(_tcb)->tcb_mtx);                                     \
 } while (0)
 
