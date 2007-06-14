@@ -2276,7 +2276,7 @@ mxge_clean_rx_done(mxge_softc_t *sc)
 		rx_done->idx = rx_done->cnt & rx_done->mask;
 
 		/* limit potential for livelock */
-		if (__predict_false(++limit > 2 * rx_done->mask))
+		if (__predict_false(++limit > rx_done->mask / 2))
 			break;
 	}
 	while(!SLIST_EMPTY(&sc->lro_active)) {
@@ -2294,9 +2294,8 @@ mxge_tx_done(mxge_softc_t *sc, uint32_t mcp_idx)
 	mxge_tx_buf_t *tx;
 	struct mbuf *m;
 	bus_dmamap_t map;
-	int idx, limit;
+	int idx;
 
-	limit = 0;
 	tx = &sc->tx;
 	ifp = sc->ifp;
 	while (tx->pkt_done != mcp_idx) {
@@ -2316,10 +2315,6 @@ mxge_tx_done(mxge_softc_t *sc, uint32_t mcp_idx)
 			tx->info[idx].flag = 0;
 			tx->pkt_done++;
 		}
-		/* limit potential for livelock by only handling
-		   2 full tx rings per call */
-		if (__predict_false(++limit >  2 * tx->mask))
-			break;
 	}
 	
 	/* If we have space, clear IFF_OACTIVE to tell the stack that
