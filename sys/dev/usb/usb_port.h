@@ -55,17 +55,6 @@
  * FreeBSD
  */
 
-#include "opt_usb.h"
-
-#if defined(_KERNEL)
-#include <sys/malloc.h>
-
-MALLOC_DECLARE(M_USB);
-MALLOC_DECLARE(M_USBDEV);
-MALLOC_DECLARE(M_USBHC);
-
-#endif
-
 /* We don't use the soft interrupt code in FreeBSD. */
 #if 0
 #define USB_USE_SOFTINTR
@@ -84,8 +73,6 @@ typedef struct callout usb_callout_t;
 
 #define PWR_RESUME 0
 #define PWR_SUSPEND 1
-
-typedef struct malloc_type *usb_malloc_type;
 
 #define USB_DECLARE_DRIVER_INIT(dname, init...) \
 static device_probe_t __CONCAT(dname,_match); \
@@ -110,8 +97,7 @@ static driver_t __CONCAT(dname,_driver) = { \
 MODULE_DEPEND(dname, usb, 1, 1, 1)
 
 
-#define METHODS_NONE			{0,0}
-#define USB_DECLARE_DRIVER(dname)	USB_DECLARE_DRIVER_INIT(dname, METHODS_NONE)
+#define USB_DECLARE_DRIVER(dname)	USB_DECLARE_DRIVER_INIT(dname, {0,0})
 
 #define USB_MATCH(dname) \
 static int \
