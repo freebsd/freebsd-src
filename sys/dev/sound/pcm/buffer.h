@@ -41,7 +41,7 @@ struct snd_dbuf {
 	u_int8_t *buf, *tmpbuf;
 	u_int8_t *shadbuf; /**< shadow buffer used w/ S_D_SILENCE/SKIP */
 	volatile int sl; /**< shadbuf ready length in # of bytes */
-	unsigned int bufsize, maxsize;
+	unsigned int bufsize, maxsize, allocsize;
 	volatile int dl; /* transfer size */
 	volatile int rp; /* pointers to the ready area */
 	volatile int rl; /* length of ready area */
@@ -89,6 +89,7 @@ void *sndbuf_getbuf(struct snd_dbuf *b);
 void *sndbuf_getbufofs(struct snd_dbuf *b, unsigned int ofs);
 unsigned int sndbuf_getsize(struct snd_dbuf *b);
 unsigned int sndbuf_getmaxsize(struct snd_dbuf *b);
+unsigned int sndbuf_getallocsize(struct snd_dbuf *b);
 unsigned int sndbuf_getalign(struct snd_dbuf *b);
 unsigned int sndbuf_getblkcnt(struct snd_dbuf *b);
 void sndbuf_setblkcnt(struct snd_dbuf *b, unsigned int blkcnt);

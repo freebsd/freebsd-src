@@ -146,10 +146,13 @@ sndbuf_free(struct snd_dbuf *b)
 	b->dmamap = NULL;
 }
 
+#define SNDBUF_CACHE_SHIFT	5
+
 int
 sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 {
-	u_int8_t *tmpbuf, *f2;
+	unsigned int bufsize, allocsize;
+	u_int8_t *tmpbuf;
 
 	chn_lock(b->channel);
 	if (b->maxsize == 0)
@@ -158,27 +161,38 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 		blkcnt = b->blkcnt;
 	if (blksz == 0)
 		blksz = b->blksz;
-	if (blkcnt < 2 || blksz < 16 || (blkcnt * blksz > b->maxsize)) {
+	if (blkcnt < 2 || blksz < 16 || (blkcnt * blksz) > b->maxsize) {
 		chn_unlock(b->channel);
 		return EINVAL;
 	}
 	if (blkcnt == b->blkcnt && blksz == b->blksz)
 		goto out;
 
-	chn_unlock(b->channel);
-	tmpbuf = malloc(blkcnt * blksz, M_DEVBUF, M_NOWAIT);
-	if (tmpbuf == NULL)
-		return ENOMEM;
-	chn_lock(b->channel);
+	bufsize = blkcnt * blksz;
+
+	if (b->tmpbuf == NULL || bufsize > b->allocsize ||
+	    bufsize < (b->allocsize >> SNDBUF_CACHE_SHIFT)) {
+		allocsize = round_page(bufsize);
+		chn_unlock(b->channel);
+		tmpbuf = malloc(allocsize, M_DEVBUF, M_WAITOK);
+		chn_lock(b->channel);
+		if (snd_verbose > 3)
+			printf("%s(): b=%p %p -> %p [%d -> %d : %d]\n",
+			    __func__, b, b->tmpbuf, tmpbuf,
+			    b->allocsize, allocsize, bufsize);
+		if (b->tmpbuf != NULL)
+			free(b->tmpbuf, M_DEVBUF);
+		b->tmpbuf = tmpbuf;
+		b->allocsize = allocsize;
+	} else if (snd_verbose > 3)
+		printf("%s(): b=%p %d [%d] NOCHANGE\n",
+		    __func__, b, b->allocsize, b->bufsize);
+
 	b->blkcnt = blkcnt;
 	b->blksz = blksz;
-	b->bufsize = blkcnt * blksz;
-	f2 =  b->tmpbuf;
-	b->tmpbuf = tmpbuf;
+	b->bufsize = bufsize;
+
 	sndbuf_reset(b);
-	chn_unlock(b->channel);
-	free(f2, M_DEVBUF);
-	return 0;
 out:
 	chn_unlock(b->channel);
 	return 0;
@@ -187,49 +201,48 @@ out:
 int
 sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 {
-        u_int8_t *buf, *tmpbuf, *f1, *f2;
-	u_int8_t *shadbuf, *f3;
-        unsigned int bufsize;
-	int ret;
+        unsigned int bufsize, allocsize;
+	u_int8_t *buf, *tmpbuf, *shadbuf;
 
 	if (blkcnt < 2 || blksz < 16)
 		return EINVAL;
 
 	bufsize = blksz * blkcnt;
 
-	chn_unlock(b->channel);
-	buf = malloc(bufsize, M_DEVBUF, M_WAITOK);
-	tmpbuf = malloc(bufsize, M_DEVBUF, M_WAITOK);
-	shadbuf = malloc(bufsize, M_DEVBUF, M_WAITOK);
-
-	chn_lock(b->channel);
+	if (bufsize > b->allocsize ||
+	    bufsize < (b->allocsize >> SNDBUF_CACHE_SHIFT)) {
+		allocsize = round_page(bufsize);
+		chn_unlock(b->channel);
+		buf = malloc(allocsize, M_DEVBUF, M_WAITOK);
+		tmpbuf = malloc(allocsize, M_DEVBUF, M_WAITOK);
+		shadbuf = malloc(allocsize, M_DEVBUF, M_WAITOK);
+		chn_lock(b->channel);
+		if (b->buf != NULL)
+			free(b->buf, M_DEVBUF);
+		b->buf = buf;
+		if (b->tmpbuf != NULL)
+			free(b->tmpbuf, M_DEVBUF);
+		b->tmpbuf = tmpbuf;
+		if (b->shadbuf != NULL)
+			free(b->shadbuf, M_DEVBUF);
+		b->shadbuf = shadbuf;
+		if (snd_verbose > 3)
+			printf("%s(): b=%p %d -> %d [%d]\n",
+			    __func__, b, b->allocsize, allocsize, bufsize);
+		b->allocsize = allocsize;
+	} else if (snd_verbose > 3)
+		printf("%s(): b=%p %d [%d] NOCHANGE\n",
+		    __func__, b, b->allocsize, b->bufsize);
 
 	b->blkcnt = blkcnt;
 	b->blksz = blksz;
 	b->bufsize = bufsize;
 	b->maxsize = bufsize;
-	f1 = b->buf;
-	f2 = b->tmpbuf;
-	b->buf = buf;
-	b->tmpbuf = tmpbuf;
-	f3 = b->shadbuf;
-	b->shadbuf = shadbuf;
 	b->sl = bufsize;
 
 	sndbuf_reset(b);
 
-	chn_unlock(b->channel);
-      	if (f1)
-		free(f1, M_DEVBUF);
-      	if (f2)
-		free(f2, M_DEVBUF);
-	if (f3)
-		free(f3, M_DEVBUF);
-
-	ret = 0;
-
-	chn_lock(b->channel);
-	return ret;
+	return 0;
 }
 
 /**
@@ -406,6 +419,12 @@ unsigned int
 sndbuf_getmaxsize(struct snd_dbuf *b)
 {
 	return b->maxsize;
+}
+
+unsigned int
+sndbuf_getallocsize(struct snd_dbuf *b)
+{
+	return b->allocsize;
 }
 
 unsigned int
