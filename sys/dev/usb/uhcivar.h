@@ -187,7 +187,7 @@ typedef struct uhci_softc {
 	/* Info for the root hub interrupt channel. */
 	int sc_ival;			/* time between root hub intrs */
 	usbd_xfer_handle sc_intr_xfer;	/* root hub interrupt transfer */
-	usb_callout_t sc_poll_handle;
+	struct callout sc_poll_handle;
 
 	char sc_vendor[16];		/* vendor string for root hub */
 	int sc_id_vendor;		/* vendor ID for root hub */

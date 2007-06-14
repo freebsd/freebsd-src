@@ -507,7 +507,7 @@ uhci_init(uhci_softc_t *sc)
 
 	STAILQ_INIT(&sc->sc_free_xfers);
 
-	usb_callout_init(sc->sc_poll_handle);
+	callout_init(&sc->sc_poll_handle, 0);
 
 	/* Set up the bus struct. */
 	sc->sc_bus.methods = &uhci_bus_methods;
@@ -661,8 +661,7 @@ uhci_power(int why, void *v)
 			uhci_dumpregs(sc);
 #endif
 		if (sc->sc_intr_xfer != NULL)
-			usb_uncallout(sc->sc_poll_handle, uhci_poll_hub,
-			    sc->sc_intr_xfer);
+			callout_stop(&sc->sc_poll_handle);
 		sc->sc_bus.use_polling++;
 		uhci_run(sc, 0); /* stop the controller */
 		cmd &= ~UHCI_CMD_RS;
@@ -709,8 +708,8 @@ uhci_power(int why, void *v)
 		usb_delay_ms(&sc->sc_bus, USB_RESUME_RECOVERY);
 		sc->sc_bus.use_polling--;
 		if (sc->sc_intr_xfer != NULL)
-			usb_callout(sc->sc_poll_handle, sc->sc_ival,
-				    uhci_poll_hub, sc->sc_intr_xfer);
+			callout_reset(&sc->sc_poll_handle, sc->sc_ival,
+			    uhci_poll_hub, sc->sc_intr_xfer);
 #ifdef USB_DEBUG
 		if (uhcidebug > 2)
 			uhci_dumpregs(sc);
@@ -924,7 +923,7 @@ uhci_poll_hub(void *addr)
 
 	DPRINTFN(20, ("uhci_poll_hub\n"));
 
-	usb_callout(sc->sc_poll_handle, sc->sc_ival, uhci_poll_hub, xfer);
+	callout_reset(&sc->sc_poll_handle, sc->sc_ival, uhci_poll_hub, xfer);
 
 	p = xfer->buffer;
 	p[0] = 0;
@@ -1320,7 +1319,7 @@ uhci_check_intr(uhci_softc_t *sc, uhci_intr_info_t *ii)
 	}
  done:
 	DPRINTFN(12, ("uhci_check_intr: ii=%p done\n", ii));
-	usb_uncallout(ii->xfer->timeout_handle, uhci_timeout, ii);
+	callout_stop(&ii->xfer->timeout_handle);
 	usb_rem_task(ii->xfer->pipe->device, &UXFER(ii->xfer)->abort_task);
 	uhci_idone(ii);
 }
@@ -1941,7 +1940,7 @@ uhci_device_bulk_start(usbd_xfer_handle xfer)
 	uhci_add_intr_info(sc, ii);
 
 	if (xfer->timeout && !sc->sc_bus.use_polling) {
-		usb_callout(xfer->timeout_handle, MS_TO_TICKS(xfer->timeout),
+		callout_reset(&xfer->timeout_handle, MS_TO_TICKS(xfer->timeout),
 			    uhci_timeout, ii);
 	}
 	xfer->status = USBD_IN_PROGRESS;
@@ -1994,7 +1993,7 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		/* If we're dying, just do the software part. */
 		s = splusb();
 		xfer->status = status;	/* make software ignore it */
-		usb_uncallout(xfer->timeout_handle, uhci_timeout, xfer);
+		callout_stop(&xfer->timeout_handle);
 		usb_rem_task(xfer->pipe->device, &UXFER(xfer)->abort_task);
 		uhci_transfer_complete(xfer);
 		splx(s);
@@ -2028,7 +2027,7 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	s = splusb();
 	uxfer->uhci_xfer_flags |= UHCI_XFER_ABORTING;
 	xfer->status = status;	/* make software ignore it */
-	usb_uncallout(xfer->timeout_handle, uhci_timeout, ii);
+	callout_stop(&xfer->timeout_handle);
 	usb_rem_task(xfer->pipe->device, &UXFER(xfer)->abort_task);
 	DPRINTFN(1,("uhci_abort_xfer: stop ii=%p\n", ii));
 	for (std = ii->stdstart; std != NULL; std = std->link.std)
@@ -2432,7 +2431,7 @@ uhci_device_request(usbd_xfer_handle xfer)
 	}
 #endif
 	if (xfer->timeout && !sc->sc_bus.use_polling) {
-		usb_callout(xfer->timeout_handle, MS_TO_TICKS(xfer->timeout),
+		callout_reset(&xfer->timeout_handle, MS_TO_TICKS(xfer->timeout),
 			    uhci_timeout, ii);
 	}
 	xfer->status = USBD_IN_PROGRESS;
@@ -3643,7 +3642,7 @@ uhci_root_intr_abort(usbd_xfer_handle xfer)
 {
 	uhci_softc_t *sc = (uhci_softc_t *)xfer->pipe->device->bus;
 
-	usb_uncallout(sc->sc_poll_handle, uhci_poll_hub, xfer);
+	callout_stop(&sc->sc_poll_handle);
 	sc->sc_intr_xfer = NULL;
 
 	if (xfer->pipe->intrxfer == xfer) {
@@ -3688,7 +3687,7 @@ uhci_root_intr_start(usbd_xfer_handle xfer)
 		return (USBD_IOERROR);
 
 	sc->sc_ival = MS_TO_TICKS(xfer->pipe->endpoint->edesc->bInterval);
-	usb_callout(sc->sc_poll_handle, sc->sc_ival, uhci_poll_hub, xfer);
+	callout_reset(&sc->sc_poll_handle, sc->sc_ival, uhci_poll_hub, xfer);
 	sc->sc_intr_xfer = xfer;
 	return (USBD_IN_PROGRESS);
 }
@@ -3699,7 +3698,7 @@ uhci_root_intr_close(usbd_pipe_handle pipe)
 {
 	uhci_softc_t *sc = (uhci_softc_t *)pipe->device->bus;
 
-	usb_uncallout(sc->sc_poll_handle, uhci_poll_hub, sc->sc_intr_xfer);
+	callout_stop(&sc->sc_poll_handle);
 	sc->sc_intr_xfer = NULL;
 	DPRINTF(("uhci_root_intr_close\n"));
 }
