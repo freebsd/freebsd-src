@@ -27,13 +27,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-/*
- * TWO23 is long double instead of double to avoid a bug in gcc.  Without
- * this, gcc thinks that TWO23[sx]+x and w-TWO23[sx] already have double
- * precision and doesn't clip them to double precision when they are
- * assigned and returned.
- */
-static const long double
+static const double
 TWO52[2]={
   4.50359962737049600000e+15, /* 0x43300000, 0x00000000 */
  -4.50359962737049600000e+15, /* 0xC3300000, 0x00000000 */
@@ -65,7 +59,16 @@ rint(double x)
 		if(((i0&i)|i1)==0) return x; /* x is integral */
 		i>>=1;
 		if(((i0&i)|i1)!=0) {
+		    /*
+		     * Some bit is set after the 0.5 bit.  To avoid the
+		     * possibility of errors from double rounding in
+		     * w = TWO52[sx]+x, adjust the 0.25 bit to a lower
+		     * guard bit.  We do this for all j0<=51.  The
+		     * adjustment is trickiest for j0==18 and j0==19
+		     * since then it spans the word boundary.
+		     */
 		    if(j0==19) i1 = 0x40000000; else
+		    if(j0==18) i1 = 0x80000000; else
 		    i0 = (i0&(~i))|((0x20000)>>j0);
 		}
 	    }
@@ -79,6 +82,6 @@ rint(double x)
 	    if((i1&i)!=0) i1 = (i1&(~i))|((0x40000000)>>(j0-20));
 	}
 	INSERT_WORDS(x,i0,i1);
-	w = TWO52[sx]+x;
+	*(volatile double *)&w = TWO52[sx]+x;	/* clip any extra precision */
 	return w-TWO52[sx];
 }
