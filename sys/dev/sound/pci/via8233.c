@@ -1171,10 +1171,7 @@ via_attach(device_t dev)
 	int nsegs;
 	uint32_t revid;
 
-	if ((via = malloc(sizeof *via, M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return (ENXIO);
-	}
+	via = malloc(sizeof *via, M_DEVBUF, M_WAITOK | M_ZERO);
 	via->lock = snd_mtxcreate(device_get_nameunit(dev),
 	    "snd_via8233 softc");
 	via->dev = dev;
@@ -1402,13 +1399,22 @@ static int
 via_detach(device_t dev)
 {
 	int r;
-	struct via_info *via = 0;
+	struct via_info *via;
 
 	r = pcm_unregister(dev);
 	if (r)
 		return (r);
 
 	via = pcm_getdevinfo(dev);
+
+	if (via != NULL && (via->play_num != 0 || via->rec_num != 0)) {
+		snd_mtxlock(via->lock);
+		via->polling = 0;
+		callout_stop(&via->poll_timer);
+		snd_mtxunlock(via->lock);
+		callout_drain(&via->poll_timer);
+	}
+
 	bus_release_resource(dev, SYS_RES_IOPORT, via->regid, via->reg);
 	bus_teardown_intr(dev, via->irq, via->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, via->irqid, via->irq);

@@ -1885,6 +1885,15 @@ es_pci_detach(device_t dev)
 		return (r);
 
 	es = pcm_getdevinfo(dev);
+
+	if (es != NULL && es->num != 0) {
+		ES_LOCK(es);
+		es->polling = 0;
+		callout_stop(&es->poll_timer);
+		ES_UNLOCK(es);
+		callout_drain(&es->poll_timer);
+	}
+
 	bus_teardown_intr(dev, es->irq, es->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, es->irqid, es->irq);
 	bus_release_resource(dev, es->regtype, es->regid, es->reg);
