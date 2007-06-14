@@ -49,23 +49,24 @@ feature.
 .Ss NoLogin Account Management Module
 The NoLogin account management component,
 .Fn pam_sm_acct_mgmt , 
-always returns success for the superuser,
-and returns success for all other users
-if the file
-.Pa /var/run/nologin
-does not exist.
-If
-.Pa /var/run/nologin
-does exist,
-then its contents are echoed
-to non-superusers
+verifies whether logins are administratively disabled via
+.Xr nologin 5 .
+It returns success if the user's login class has an "ignorenologin"
+capability specified in
+.Xr login.conf 5
+or the
+.Xr nologin 5
+file does not exist.
+If neither condition is met,
+then the contents of
+.Xr nologin 5
+are echoed
 before failure is returned.
-If a "nologin" capability
-is specified in
+The location of
+.Xr nologin 5
+is specified by a "nologin" capability in
 .Xr login.conf 5 ,
-then the file thus specified
-is used instead.
-This usually defaults to
+which defaults to
 .Pa /var/run/nologin .
 .Pp
 The following options may be passed to the module:
