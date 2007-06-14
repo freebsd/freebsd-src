@@ -138,7 +138,7 @@ main(int argc, char **argv)
 	range_error |= errno;
 	dev = makedev(mymajor, myminor);
 	if (range_error || major(dev) != (u_int) mymajor ||
-	    minor(dev) != myminor)
+	    (long)(u_int)minor(dev) != myminor)
 		errx(1, "major or minor number too large");
 
 	uid = gid = -1;
