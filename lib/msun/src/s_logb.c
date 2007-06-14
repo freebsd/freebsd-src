@@ -23,6 +23,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
+static const double
+two54 = 1.80143985094819840000e+16;	/* 43500000 00000000 */
+
 double
 logb(double x)
 {
@@ -31,8 +34,11 @@ logb(double x)
 	ix &= 0x7fffffff;			/* high |x| */
 	if((ix|lx)==0) return -1.0/fabs(x);
 	if(ix>=0x7ff00000) return x*x;
-	if((ix>>=20)==0) 			/* IEEE 754 logb */
-		return -1022.0;
-	else
-		return (double) (ix-1023);
+	if(ix<0x00100000) {
+		x *= two54;		 /* convert subnormal x to normal */
+		GET_FLOAT_WORD(ix,x);
+		ix &= 0x7fffffff;
+		return (float) ((ix>>20)-1023-54);
+	} else
+		return (double) ((ix>>20)-1023);
 }
