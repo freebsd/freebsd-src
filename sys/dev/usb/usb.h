@@ -46,6 +46,7 @@
 #include <sys/time.h>
 
 #include <dev/usb/usb_port.h>
+
 #if defined(_KERNEL)
 #include "opt_usb.h"
 
@@ -55,6 +56,13 @@ MALLOC_DECLARE(M_USB);
 MALLOC_DECLARE(M_USBDEV);
 MALLOC_DECLARE(M_USBHC);
 #endif /* _KERNEL */
+
+#define PWR_RESUME 0
+#define PWR_SUSPEND 1
+#define PWR_STANDBY 2
+#define PWR_SOFTSUSPEND 3
+#define PWR_SOFTSTANDBY 4
+#define PWR_SOFTRESUME 5
 
 /* These two defines are used by usbd to autoload the usb kld */
 #define USB_KLD		"usb"		/* name of usb module */
