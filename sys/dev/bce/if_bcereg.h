@@ -103,6 +103,11 @@
 #define BCE_CP_INTR				0x00000008
 #define BCE_CP_UNLOAD			0x00000010
 #define BCE_CP_RESET			0x00000020
+#define BCE_CP_PHY				0x00000040
+#define BCE_CP_NVRAM			0x00000080
+#define BCE_CP_FIRMWARE			0x00000100
+#define BCE_CP_MISC				0x00400000
+#define BCE_CP_SPECIAL			0x00800000
 #define BCE_CP_ALL				0x00FFFFFF
 
 #define BCE_CP_MASK				0x00FFFFFF
@@ -144,6 +149,31 @@
 #define BCE_INFO_RESET			(BCE_CP_RESET | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_RESET		(BCE_CP_RESET | BCE_LEVEL_VERBOSE)
 #define BCE_EXCESSIVE_RESET		(BCE_CP_RESET | BCE_LEVEL_EXCESSIVE)
+
+#define BCE_WARN_PHY			(BCE_CP_PHY | BCE_LEVEL_WARN)
+#define BCE_INFO_PHY			(BCE_CP_PHY | BCE_LEVEL_INFO)
+#define BCE_VERBOSE_PHY			(BCE_CP_PHY | BCE_LEVEL_VERBOSE)
+#define BCE_EXCESSIVE_PHY		(BCE_CP_PHY | BCE_LEVEL_EXCESSIVE)
+
+#define BCE_WARN_NVRAM			(BCE_CP_NVRAM | BCE_LEVEL_WARN)
+#define BCE_INFO_NVRAM			(BCE_CP_NVRAM | BCE_LEVEL_INFO)
+#define BCE_VERBOSE_NVRAM		(BCE_CP_NVRAM | BCE_LEVEL_VERBOSE)
+#define BCE_EXCESSIVE_NVRAM		(BCE_CP_NVRAM | BCE_LEVEL_EXCESSIVE)
+
+#define BCE_WARN_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_WARN)
+#define BCE_INFO_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_INFO)
+#define BCE_VERBOSE_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_VERBOSE)
+#define BCE_EXCESSIVE_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_EXCESSIVE)
+
+#define BCE_WARN_MISC			(BCE_CP_MISC | BCE_LEVEL_WARN)
+#define BCE_INFO_MISC			(BCE_CP_MISC | BCE_LEVEL_INFO)
+#define BCE_VERBOSE_MISC		(BCE_CP_MISC | BCE_LEVEL_VERBOSE)
+#define BCE_EXCESSIVE_MISC		(BCE_CP_MISC | BCE_LEVEL_EXCESSIVE)
+
+#define BCE_WARN_SPECIAL		(BCE_CP_SPECIAL | BCE_LEVEL_WARN)
+#define BCE_INFO_SPECIAL		(BCE_CP_SPECIAL | BCE_LEVEL_INFO)
+#define BCE_VERBOSE_SPECIAL		(BCE_CP_SPECIAL | BCE_LEVEL_VERBOSE)
+#define BCE_EXCESSIVE_SPECIAL		(BCE_CP_SPECIAL | BCE_LEVEL_EXCESSIVE)
 
 #define BCE_FATAL				(BCE_CP_ALL | BCE_LEVEL_FATAL)
 #define BCE_WARN				(BCE_CP_ALL | BCE_LEVEL_WARN)
@@ -403,6 +433,8 @@ struct flash_spec {
 #define BCE_DRV_MSG_CODE_PULSE			 	0x06000000
 #define BCE_DRV_MSG_CODE_DIAG			 	0x07000000
 #define BCE_DRV_MSG_CODE_SUSPEND_NO_WOL	 	0x09000000
+#define BCE_DRV_MSG_CODE_UNLOAD_LNK_DN		0x0b000000
+#define BCE_DRV_MSG_CODE_CMD_SET_LINK		0x10000000
 
 #define BCE_DRV_MSG_DATA			 		0x00ff0000
 #define BCE_DRV_MSG_DATA_WAIT0			 	0x00010000
@@ -644,41 +676,45 @@ struct flash_spec {
 #define BCE_BC_STATE_RESET_TYPE_VALUE(msg) (BCE_BC_STATE_RESET_TYPE_SIG | \
 					     (msg))
 
-#define BCE_BC_STATE				0x000001c4
-#define BCE_BC_STATE_ERR_MASK			 0x0000ff00
-#define BCE_BC_STATE_SIGN			 0x42530000
-#define BCE_BC_STATE_SIGN_MASK			 0xffff0000
-#define BCE_BC_STATE_BC1_START			 (BCE_BC_STATE_SIGN | 0x1)
-#define BCE_BC_STATE_GET_NVM_CFG1		 (BCE_BC_STATE_SIGN | 0x2)
-#define BCE_BC_STATE_PROG_BAR			 (BCE_BC_STATE_SIGN | 0x3)
-#define BCE_BC_STATE_INIT_VID			 (BCE_BC_STATE_SIGN | 0x4)
-#define BCE_BC_STATE_GET_NVM_CFG2		 (BCE_BC_STATE_SIGN | 0x5)
-#define BCE_BC_STATE_APPLY_WKARND		 (BCE_BC_STATE_SIGN | 0x6)
-#define BCE_BC_STATE_LOAD_BC2			 (BCE_BC_STATE_SIGN | 0x7)
-#define BCE_BC_STATE_GOING_BC2			 (BCE_BC_STATE_SIGN | 0x8)
-#define BCE_BC_STATE_GOING_DIAG		 (BCE_BC_STATE_SIGN | 0x9)
-#define BCE_BC_STATE_RT_FINAL_INIT		 (BCE_BC_STATE_SIGN | 0x81)
-#define BCE_BC_STATE_RT_WKARND			 (BCE_BC_STATE_SIGN | 0x82)
-#define BCE_BC_STATE_RT_DRV_PULSE		 (BCE_BC_STATE_SIGN | 0x83)
-#define BCE_BC_STATE_RT_FIOEVTS		 (BCE_BC_STATE_SIGN | 0x84)
-#define BCE_BC_STATE_RT_DRV_CMD		 (BCE_BC_STATE_SIGN | 0x85)
-#define BCE_BC_STATE_RT_LOW_POWER		 (BCE_BC_STATE_SIGN | 0x86)
-#define BCE_BC_STATE_RT_SET_WOL		 (BCE_BC_STATE_SIGN | 0x87)
-#define BCE_BC_STATE_RT_OTHER_FW		 (BCE_BC_STATE_SIGN | 0x88)
-#define BCE_BC_STATE_RT_GOING_D3		 (BCE_BC_STATE_SIGN | 0x89)
-#define BCE_BC_STATE_ERR_BAD_VERSION		 (BCE_BC_STATE_SIGN | 0x0100)
-#define BCE_BC_STATE_ERR_BAD_BC2_CRC		 (BCE_BC_STATE_SIGN | 0x0200)
-#define BCE_BC_STATE_ERR_BC1_LOOP		 (BCE_BC_STATE_SIGN | 0x0300)
-#define BCE_BC_STATE_ERR_UNKNOWN_CMD		 (BCE_BC_STATE_SIGN | 0x0400)
-#define BCE_BC_STATE_ERR_DRV_DEAD		 (BCE_BC_STATE_SIGN | 0x0500)
-#define BCE_BC_STATE_ERR_NO_RXP		 (BCE_BC_STATE_SIGN | 0x0600)
-#define BCE_BC_STATE_ERR_TOO_MANY_RBUF		 (BCE_BC_STATE_SIGN | 0x0700)
+#define BCE_BC_RESET_TYPE				0x000001c0
 
-#define BCE_BC_STATE_DEBUG_CMD			0x1dc
-#define BCE_BC_STATE_BC_DBG_CMD_SIGNATURE	 0x42440000
-#define BCE_BC_STATE_BC_DBG_CMD_SIGNATURE_MASK	 0xffff0000
-#define BCE_BC_STATE_BC_DBG_CMD_LOOP_CNT_MASK	 0xffff
-#define BCE_BC_STATE_BC_DBG_CMD_LOOP_INFINITE	 0xffff
+#define BCE_BC_STATE					0x000001c4
+#define BCE_BC_STATE_ERR_MASK			0x0000ff00
+#define BCE_BC_STATE_SIGN				0x42530000
+#define BCE_BC_STATE_SIGN_MASK			0xffff0000
+#define BCE_BC_STATE_BC1_START			(BCE_BC_STATE_SIGN | 0x1)
+#define BCE_BC_STATE_GET_NVM_CFG1		(BCE_BC_STATE_SIGN | 0x2)
+#define BCE_BC_STATE_PROG_BAR			(BCE_BC_STATE_SIGN | 0x3)
+#define BCE_BC_STATE_INIT_VID			(BCE_BC_STATE_SIGN | 0x4)
+#define BCE_BC_STATE_GET_NVM_CFG2		(BCE_BC_STATE_SIGN | 0x5)
+#define BCE_BC_STATE_APPLY_WKARND		(BCE_BC_STATE_SIGN | 0x6)
+#define BCE_BC_STATE_LOAD_BC2			(BCE_BC_STATE_SIGN | 0x7)
+#define BCE_BC_STATE_GOING_BC2			(BCE_BC_STATE_SIGN | 0x8)
+#define BCE_BC_STATE_GOING_DIAG			(BCE_BC_STATE_SIGN | 0x9)
+#define BCE_BC_STATE_RT_FINAL_INIT		(BCE_BC_STATE_SIGN | 0x81)
+#define BCE_BC_STATE_RT_WKARND			(BCE_BC_STATE_SIGN | 0x82)
+#define BCE_BC_STATE_RT_DRV_PULSE		(BCE_BC_STATE_SIGN | 0x83)
+#define BCE_BC_STATE_RT_FIOEVTS			(BCE_BC_STATE_SIGN | 0x84)
+#define BCE_BC_STATE_RT_DRV_CMD			(BCE_BC_STATE_SIGN | 0x85)
+#define BCE_BC_STATE_RT_LOW_POWER		(BCE_BC_STATE_SIGN | 0x86)
+#define BCE_BC_STATE_RT_SET_WOL			(BCE_BC_STATE_SIGN | 0x87)
+#define BCE_BC_STATE_RT_OTHER_FW		(BCE_BC_STATE_SIGN | 0x88)
+#define BCE_BC_STATE_RT_GOING_D3		(BCE_BC_STATE_SIGN | 0x89)
+#define BCE_BC_STATE_ERR_BAD_VERSION	(BCE_BC_STATE_SIGN | 0x0100)
+#define BCE_BC_STATE_ERR_BAD_BC2_CRC	(BCE_BC_STATE_SIGN | 0x0200)
+#define BCE_BC_STATE_ERR_BC1_LOOP		(BCE_BC_STATE_SIGN | 0x0300)
+#define BCE_BC_STATE_ERR_UNKNOWN_CMD	(BCE_BC_STATE_SIGN | 0x0400)
+#define BCE_BC_STATE_ERR_DRV_DEAD		(BCE_BC_STATE_SIGN | 0x0500)
+#define BCE_BC_STATE_ERR_NO_RXP			(BCE_BC_STATE_SIGN | 0x0600)
+#define BCE_BC_STATE_ERR_TOO_MANY_RBUF	(BCE_BC_STATE_SIGN | 0x0700)
+
+#define BCE_BC_CONDITION				0x000001c8
+
+#define BCE_BC_STATE_DEBUG_CMD					0x1dc
+#define BCE_BC_STATE_BC_DBG_CMD_SIGNATURE		0x42440000
+#define BCE_BC_STATE_BC_DBG_CMD_SIGNATURE_MASK	0xffff0000
+#define BCE_BC_STATE_BC_DBG_CMD_LOOP_CNT_MASK	0xffff
+#define BCE_BC_STATE_BC_DBG_CMD_LOOP_INFINITE	0xffff
 
 #define HOST_VIEW_SHMEM_BASE			0x167c00
 
@@ -4474,7 +4510,6 @@ struct l2_fhdr {
 #define TOTAL_TX_BD (TOTAL_TX_BD_PER_PAGE * TX_PAGES)
 #define USABLE_TX_BD (USABLE_TX_BD_PER_PAGE * TX_PAGES)
 #define MAX_TX_BD (TOTAL_TX_BD - 1)
-#define BCE_TX_SLACK_SPACE 16
 
 #define RX_PAGES	2
 #define TOTAL_RX_BD_PER_PAGE  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
@@ -4482,7 +4517,6 @@ struct l2_fhdr {
 #define TOTAL_RX_BD (TOTAL_RX_BD_PER_PAGE * RX_PAGES)
 #define USABLE_RX_BD (USABLE_RX_BD_PER_PAGE * RX_PAGES)
 #define MAX_RX_BD (TOTAL_RX_BD - 1)
-#define BCE_RX_SLACK_SPACE (MAX_RX_BD - 8)
 
 #define NEXT_TX_BD(x) (((x) & USABLE_TX_BD_PER_PAGE) ==	\
 		(USABLE_TX_BD_PER_PAGE - 1)) ?					  	\
@@ -4663,12 +4697,12 @@ struct bce_softc
 	struct ifnet		*bce_ifp;			/* Interface info */
 	device_t			bce_dev;			/* Parent device handle */
 	u_int8_t			bce_unit;			/* Interface number */
-	struct resource		*bce_res;			/* Device resource handle */
+	struct resource		*bce_res_mem;  		/* Device resource handle */
 	struct ifmedia		bce_ifmedia;		/* TBI media info */
 	bus_space_tag_t		bce_btag;			/* Device bus tag */
 	bus_space_handle_t	bce_bhandle;		/* Device bus handle */
 	vm_offset_t			bce_vhandle;		/* Device virtual memory handle */
-	struct resource		*bce_irq;			/* IRQ Resource Handle */
+	struct resource		*bce_res_irq;		/* IRQ Resource Handle */
 	struct mtx			bce_mtx;			/* Mutex */
 	void				*bce_intrhand;		/* Interrupt handler */
 
@@ -4677,23 +4711,27 @@ struct bce_softc
 
 	/* General controller flags. */
 	u32					bce_flags;
-#define BCE_PCIX_FLAG			0x01
-#define BCE_PCI_32BIT_FLAG 		0x02
-#define BCE_ONE_TDMA_FLAG		0x04		/* Deprecated */
-#define BCE_NO_WOL_FLAG			0x08
-#define BCE_USING_DAC_FLAG		0x10
-#define BCE_USING_MSI_FLAG 		0x20
-#define BCE_MFW_ENABLE_FLAG		0x40
+#define BCE_PCIX_FLAG				0x00000001
+#define BCE_PCI_32BIT_FLAG 			0x00000002
+#define BCE_ONE_TDMA_FLAG			0x00000004		/* Deprecated */
+#define BCE_NO_WOL_FLAG				0x00000008
+#define BCE_USING_DAC_FLAG			0x00000010
+#define BCE_USING_MSI_FLAG 			0x00000020
+#define BCE_MFW_ENABLE_FLAG			0x00000040
 
 	/* PHY specific flags. */
 	u32					bce_phy_flags;
-#define BCE_PHY_SERDES_FLAG					1
-#define BCE_PHY_CRC_FIX_FLAG				2
-#define BCE_PHY_PARALLEL_DETECT_FLAG		4
-#define BCE_PHY_2_5G_CAPABLE_FLAG			8
-#define BCE_PHY_INT_MODE_MASK_FLAG			0x300
-#define BCE_PHY_INT_MODE_AUTO_POLLING_FLAG	0x100
-#define BCE_PHY_INT_MODE_LINK_READY_FLAG	0x200
+#define BCE_PHY_SERDES_FLAG					0x00000001
+#define BCE_PHY_CRC_FIX_FLAG				0x00000002
+#define BCE_PHY_PARALLEL_DETECT_FLAG		0x00000004
+#define BCE_PHY_2_5G_CAPABLE_FLAG			0x00000008
+#define BCE_PHY_INT_MODE_MASK_FLAG			0x00000300
+#define BCE_PHY_INT_MODE_AUTO_POLLING_FLAG	0x00000100
+#define BCE_PHY_INT_MODE_LINK_READY_FLAG	0x00000200
+
+	/* Values that need to be shared with the PHY driver. */
+	u32					bce_shared_hw_cfg;
+	u32					bce_port_hw_cfg;
 
 	bus_addr_t				max_bus_addr;
 	u16					bus_speed_mhz;		/* PCI bus speed */
@@ -4755,7 +4793,8 @@ struct bce_softc
 	u32					tx_prod_bseq;	/* Counts the bytes used.  */
 
 	int					bce_link;
-	struct callout		bce_stat_ch;
+	struct callout		bce_tick_callout;
+	struct callout		bce_pulse_callout;
 
 	int watchdog_timer;			/* ticks until chip reset */
 
@@ -4816,7 +4855,9 @@ struct bce_softc
 
 	/* Track the number of rx_bd and tx_bd's in use. */
 	u16 free_rx_bd;
+	u16 max_rx_bd;
 	u16 used_tx_bd;
+	u16 max_tx_bd;
 
 	/* Provides access to hardware statistics through sysctl. */
 	u64 stat_IfHCInOctets;
@@ -4889,7 +4930,9 @@ struct bce_softc
 	u32 tx_interrupts;
 
 	u32	rx_low_watermark;			/* Lowest number of rx_bd's free. */
+	u32 rx_empty_count;				/* Number of times the RX chain was empty. */
 	u32 tx_hi_watermark;			/* Greatest number of tx_bd's used. */
+	u32	tx_full_count;				/* Number of times the TX chain was full. */
 	u32	mbuf_alloc_failed;			/* Mbuf allocation failure counter. */
 	u32 l2fhdr_status_errors;
 	u32 unexpected_attentions;
