@@ -3576,12 +3576,7 @@ hdac_attach(device_t dev)
 	uint16_t vendor;
 	uint8_t v;
 
-	sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (sc == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return (ENOMEM);
-	}
-
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), HDAC_MTX_NAME);
 	sc->dev = dev;
 	sc->pci_subvendor = (uint32_t)pci_get_subdevice(sc->dev) << 16;
@@ -5608,10 +5603,12 @@ hdac_release_resources(struct hdac_softc *sc)
 	hdac_lock(sc);
 	sc->polling = 0;
 	sc->poll_ival = 0;
+	callout_stop(&sc->poll_hda);
 	callout_stop(&sc->poll_hdac);
 	callout_stop(&sc->poll_jack);
 	hdac_reset(sc);
 	hdac_unlock(sc);
+	callout_drain(&sc->poll_hda);
 	callout_drain(&sc->poll_hdac);
 	callout_drain(&sc->poll_jack);
 

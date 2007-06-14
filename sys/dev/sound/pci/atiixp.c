@@ -1111,6 +1111,13 @@ atiixp_release_resource(struct atiixp_info *sc)
 {
 	if (sc == NULL)
 		return;
+	if (sc->registered_channels != 0) {
+		atiixp_lock(sc);
+		sc->polling = 0;
+		callout_stop(&sc->poll_timer);
+		atiixp_unlock(sc);
+		callout_drain(&sc->poll_timer);
+	}
 	if (sc->codec) {
 		ac97_destroy(sc->codec);
 		sc->codec = NULL;
@@ -1146,6 +1153,7 @@ atiixp_release_resource(struct atiixp_info *sc)
 		snd_mtxfree(sc->lock);
 		sc->lock = NULL;
 	}
+	free(sc, M_DEVBUF);
 }
 
 static int
@@ -1173,11 +1181,7 @@ atiixp_pci_attach(device_t dev)
 	struct atiixp_info *sc;
 	int i;
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return (ENXIO);
-	}
-
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_atiixp softc");
 	sc->dev = dev;
 
@@ -1312,7 +1316,6 @@ atiixp_pci_detach(device_t dev)
 		if (sc->st != 0 && sc->sh != 0)
 			atiixp_disable_interrupts(sc);
 		atiixp_release_resource(sc);
-		free(sc, M_DEVBUF);
 	}
 	return (0);
 }
