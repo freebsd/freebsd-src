@@ -617,7 +617,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 				in6_sin6_2_sin(&sin, sin6_p);
 				inp6->inp_vflag |= INP_IPV4;
 				inp6->inp_vflag &= ~INP_IPV6;
-				error = sctp_inpcb_bind(so, (struct sockaddr *)&sin, p);
+				error = sctp_inpcb_bind(so, (struct sockaddr *)&sin, NULL, p);
 				return error;
 			}
 		}
@@ -637,7 +637,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 				return EINVAL;
 		}
 	}
-	error = sctp_inpcb_bind(so, addr, p);
+	error = sctp_inpcb_bind(so, addr, NULL, p);
 	return error;
 }
 

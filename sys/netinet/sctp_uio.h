@@ -697,7 +697,7 @@ struct sctp_mbuf_log {
 };
 
 struct sctp_cwnd_log {
-	uint32_t time_event;
+	uint64_t time_event;
 	uint8_t from;
 	uint8_t event_type;
 	uint8_t resv[2];

@@ -35,13 +35,15 @@
 __FBSDID("$FreeBSD$");
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_pcb.h>
+#include <netinet/sctputil.h>
+#include <netinet/sctp_var.h>
+#include <netinet/sctp_var.h>
+#include <netinet/sctp_sysctl.h>
 #include <netinet/sctp.h>
 #include <netinet/sctp_uio.h>
-#include <netinet/sctp_var.h>
 #include <netinet/sctp_peeloff.h>
 #include <netinet/sctputil.h>
 #include <netinet/sctp_auth.h>
-
 
 #ifdef SCTP_DEBUG
 extern uint32_t sctp_debug_on;
@@ -174,7 +176,9 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 	/* We remove it right away */
 
 #ifdef SCTP_LOCK_LOGGING
-	sctp_log_lock(inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_SOCK);
+	if (sctp_logging_level & SCTP_LOCK_LOGGING_ENABLE) {
+		sctp_log_lock(inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_SOCK);
+	}
 #endif
 	TAILQ_REMOVE(&head->so_comp, newso, so_list);
 	head->so_qlen--;
