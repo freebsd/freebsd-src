@@ -16,14 +16,16 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 /* __kernel_sin( x, y, iy)
- * kernel sin function on [-pi/4, pi/4], pi/4 ~ 0.7854
+ * kernel sin function on ~[-pi/4, pi/4] (except on -0), pi/4 ~ 0.7854
  * Input x is assumed to be bounded by ~pi/4 in magnitude.
  * Input y is the tail of x.
  * Input iy indicates whether y is 0. (if iy=0, y assume to be 0). 
  *
  * Algorithm
  *	1. Since sin(-x) = -sin(x), we need only to consider positive x. 
- *	2. if x < 2^-27 (hx<0x3e400000 0), return x with inexact if x!=0.
+ *	2. Callers must return sin(-0) = -0 without calling here since our
+ *	   odd polynomial is not evaluated in a way that preserves -0.
+ *	   Callers may do the optimization sin(x) ~ x for tiny x.
  *	3. sin(x) is approximated by a polynomial of degree 13 on
  *	   [0,pi/4]
  *		  	         3            13
@@ -59,11 +61,7 @@ double
 __kernel_sin(double x, double y, int iy)
 {
 	double z,r,v;
-	int32_t ix;
-	GET_HIGH_WORD(ix,x);
-	ix &= 0x7fffffff;			/* high word of x */
-	if(ix<0x3e400000)			/* |x| < 2**-27 */
-	   {if((int)x==0) return x;}		/* generate inexact */
+
 	z	=  x*x;
 	v	=  z*x;
 	r	=  S2+z*(S3+z*(S4+z*(S5+z*S6)));
