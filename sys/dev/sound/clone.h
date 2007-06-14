@@ -56,6 +56,8 @@ struct snd_clone;
  *                        handler has been expired.
  * SND_CLONE_GC_REVOKE  - Revoke clone invocation status which has been
  *                        expired instead of removing and freeing it.
+ * SND_CLONE_WAITOK     - malloc() is allowed to sleep while allocating
+ *                        clone entry.
  */
 #define SND_CLONE_ENABLE	0x00000001
 #define SND_CLONE_GC_ENABLE	0x00000002
@@ -63,6 +65,7 @@ struct snd_clone;
 #define SND_CLONE_GC_LASTREF	0x00000008
 #define SND_CLONE_GC_EXPIRED	0x00000010
 #define SND_CLONE_GC_REVOKE	0x00000020
+#define SND_CLONE_WAITOK	0x80000000
 
 #define SND_CLONE_GC_MASK	(SND_CLONE_GC_ENABLE  |			\
 				 SND_CLONE_GC_UNREF   |			\
@@ -70,7 +73,8 @@ struct snd_clone;
 				 SND_CLONE_GC_EXPIRED |			\
 				 SND_CLONE_GC_REVOKE)
 
-#define SND_CLONE_MASK		(SND_CLONE_ENABLE | SND_CLONE_GC_MASK)
+#define SND_CLONE_MASK		(SND_CLONE_ENABLE | SND_CLONE_GC_MASK |	\
+				 SND_CLONE_WAITOK)
 
 /*
  * Runtime clone device flags
@@ -96,11 +100,7 @@ struct snd_clone;
 
 void snd_timestamp(struct timespec *);
 
-#ifdef SND_DIAGNOSTIC
-struct snd_clone *snd_clone_create(struct mtx *, int, int, int, uint32_t);
-#else
 struct snd_clone *snd_clone_create(int, int, int, uint32_t);
-#endif
 int snd_clone_busy(struct snd_clone *);
 int snd_clone_enable(struct snd_clone *);
 int snd_clone_disable(struct snd_clone *);
