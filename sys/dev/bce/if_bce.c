@@ -5647,7 +5647,6 @@ bce_tick(void *xsc)
 	struct bce_softc *sc = xsc;
 	struct mii_data *mii;
 	struct ifnet *ifp;
-	u32 msg;
 
 	ifp = sc->bce_ifp;
 
