@@ -189,15 +189,17 @@ authunix_create_default()
 	char machname[MAXHOSTNAMELEN + 1];
 	uid_t uid;
 	gid_t gid;
-	gid_t gids[NGRPS];
+	gid_t gids[NGROUPS_MAX];
 
 	if (gethostname(machname, sizeof machname) == -1)
 		abort();
 	machname[sizeof(machname) - 1] = 0;
 	uid = geteuid();
 	gid = getegid();
-	if ((len = getgroups(NGRPS, gids)) < 0)
+	if ((len = getgroups(NGROUPS_MAX, gids)) < 0)
 		abort();
+	if (len > NGRPS)
+		len = NGRPS;
 	/* XXX: interface problem; those should all have been unsigned */
 	return (authunix_create(machname, (int)uid, (int)gid, len,
 	    (int *)gids));
