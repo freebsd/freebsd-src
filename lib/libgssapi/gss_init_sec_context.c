@@ -41,7 +41,7 @@ gss_init_sec_context(OM_uint32 * minor_status,
     const gss_cred_id_t initiator_cred_handle,
     gss_ctx_id_t * context_handle,
     const gss_name_t target_name,
-    const gss_OID mech_type,
+    const gss_OID imech_type,
     OM_uint32 req_flags,
     OM_uint32 time_req,
     const gss_channel_bindings_t input_chan_bindings,
@@ -52,6 +52,7 @@ gss_init_sec_context(OM_uint32 * minor_status,
     OM_uint32 * time_rec)
 {
 	OM_uint32 major_status;
+	gss_OID mech_type;
 	struct _gss_mech_switch *m;
 	struct _gss_name *name = (struct _gss_name *) target_name;
 	struct _gss_mechanism_name *mn;
@@ -62,6 +63,13 @@ gss_init_sec_context(OM_uint32 * minor_status,
 	int allocated_ctx;
 
 	*minor_status = 0;
+
+	if ((mech_type = imech_type) == GSS_C_NO_OID) {
+		_gss_load_mech();
+		mech_type = &SLIST_FIRST(&_gss_mechs)->gm_mech_oid;
+		if (mech_type == NULL)
+			return (GSS_S_BAD_MECH);
+	}
 
 	/*
 	 * If we haven't allocated a context yet, do so now and lookup
