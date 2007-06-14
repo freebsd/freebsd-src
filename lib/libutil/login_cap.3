@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 1996
+.Dd June 14, 2007
 .Os
 .Dt LOGIN_CAP 3
 .Sh NAME
@@ -152,12 +152,10 @@ retrieved.
 This may not necessarily be the same as the one requested,
 either directly via
 .Fn login_getclassbyname ,
-indirectly via a user's login record using
+or indirectly via a user's login record using
 .Fn login_getpwclass ,
 by class name using
-.Fn login_getclass ,
-or
-.Fn login_getuserclass .
+.Fn login_getclass .
 If the referenced user has no login class specified in
 .Pa /etc/master.passwd ,
 the class name is
@@ -196,68 +194,84 @@ field is set by the
 function to the authorisation style, according to the requirements
 of the program handling a login itself.
 .Pp
-As noted above, the
-.Fn login_get*class
-functions return a
-.Vt login_cap_t
-object which is used to access
-the matching or default record in the capabilities database.
 The
 .Fn login_getclassbyname
-function accepts two arguments: the first one is the record identifier of the
-record to be retrieved, the second is an optional pointer to a
+function is the basic means to get a
+.Vt login_cap_t
+object.
+It accepts two arguments: the first one,
+.Fa name ,
+is the record identifier of the
+record to be retrieved; the second,
+.Fa pwd ,
+is an optional pointer to a
 .Vt passwd
 structure.
-If the first
+First of all, its arguments are used by the function
+to choose between system and user modes of operation.
+When in system mode, only the system login class database is used.
+When in user mode, the supplemental login class database in the
+user's home directory is allowed to override settings from the system
+database in a limited way as noted below.
+To minimize security implications, user mode is entered by
+.Fn login_getclassbyname
+if and only if
 .Fa name
-argument is
+is
+.Dv LOGIN_MECLASS
+.Pq Ql me
+and
+.Fa pwd
+is not
+.Dv NULL .
+Otherwise system mode is chosen.
+.Pp
+In system mode, any record in the system database
+.Pa /etc/login.conf
+can be accessed,
+and a fallback to the default record is provided as follows.
+If
+.Fa name
+is
 .Dv NULL ,
 an empty string, or a class that does not exist
-in the supplemental or system login class database, then the system
+in the login class database, then the
+.Dv LOGIN_DEFCLASS
+record
+.Pq Ql default
+is returned instead.
+.Pp
+In user mode, only the
+.Dv LOGIN_MECLASS
+record
+.Pq Ql me
+is accessed and no fallback to the
 .Ql default
-record is returned instead.
-If the second
-.Fa pwd
-parameter is
-.Dv NULL ,
-then only the system login class database is
-used.
-However,
-if the
-.Fa pwd
-parameter and the value of
-.Fa pwd->pw_dir
-are both not
-.Dv NULL ,
-then the directory contained in
+record is provided.
+The directory specified by
 .Fa pwd->pw_dir
 is searched for
 a login database file called
 .Pa .login_conf ,
-and capability records
-contained within it may override the system defaults.
-This scheme allows users to override some login settings from
-those in the system login class database by creating class records
-for their own private class with a record id of
-.Ql me .
-In the context of a
-.Em login ,
-it should be noted that some options cannot by overridden by
-users for two reasons; many options, such as resource settings
-and default process priorities, require root privileges
-in order to take effect, and other fields in the user's file are
-not be consulted at all during the early phases of login for
-security or administrative reasons.
-See
-.Xr login.conf 5
-for more information on which settings a user is able to override.
-Typically, these are limited purely to the user's default login
-environment which might otherwise have been overridden in shell
-startup scripts in any case.
-The user's
+and only the
+.Ql me
+capability record
+contained within it may override the system record with the same name
+while other records are ignored.
+Using this scheme, an application can explicitly
+allow users to override a selected subset of login settings.
+To do so, the application should obtain two
+.Vt login_cap_t
+objects, one in user mode and the other in system mode,
+and then query the user object before the
+system object for login parameters that are allowed to
+be overridden by the user.
+For example, the user's
 .Pa .login_conf
-merely provides a convenient way for a user to set up their preferred
-login environment before the shell is invoked on login.
+can provide a convenient way for a user to set up their preferred
+login environment before the shell is invoked on login if supported by
+.Xr login 1 .
+.Pp
 Note that access to the
 .Pa /etc/login.conf
 and
@@ -281,8 +295,8 @@ returns
 .Dv NULL .
 .Pp
 The functions
-.Fn login_getpwclass ,
-.Fn login_getclass
+.Fn login_getclass ,
+.Fn login_getpwclass
 and
 .Fn login_getuserclass
 retrieve the applicable login class record for the user's passwd
@@ -303,7 +317,7 @@ restrict lookup only to the system login class database in
 .Pa /etc/login.conf .
 As explained earlier,
 .Fn login_getpwclass
-only differs from
+differs from
 .Fn login_getclass
 in that it allows the default class for a super-user as
 .Ql root
@@ -314,6 +328,14 @@ or the user record
 has no login class, then the system
 .Ql default
 entry is retrieved.
+Essentially,
+.Fn login_getclass name
+is equivalent to
+.Fn login_getclassbyname name NULL
+and
+.Fn login_getuserclass pwd
+to
+.Fn login_getclassbyname LOGIN_MECLASS pwd .
 .Pp
 Once a program no longer wishes to use a
 .Vt login_cap_t
@@ -549,6 +571,7 @@ on the specifier fails,
 is returned to indicate this.
 .El
 .Sh SEE ALSO
+.Xr login 1 ,
 .Xr crypt 3 ,
 .Xr getcap 3 ,
 .Xr login_class 3 ,
