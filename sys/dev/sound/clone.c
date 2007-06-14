@@ -30,9 +30,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 
 #if defined(SND_DIAGNOSTIC) || defined(SND_DEBUG)
@@ -77,9 +75,6 @@ struct snd_clone_entry {
 /* clone manager */
 struct snd_clone {
 	TAILQ_HEAD(link_head, snd_clone_entry) head;
-#ifdef SND_DIAGNOSTIC
-	struct mtx *lock;
-#endif
 	struct timespec tsp;
 	int refcount;
 	int size;
@@ -90,18 +85,11 @@ struct snd_clone {
 };
 
 #ifdef SND_DIAGNOSTIC
-#define SND_CLONE_LOCKASSERT(x)		do {			\
-	if ((x)->lock == NULL)					\
-		panic("%s(): NULL mutex!", __func__);		\
-	if (mtx_owned((x)->lock) == 0)				\
-		panic("%s(): mutex not owned!", __func__);	\
-} while(0)
 #define SND_CLONE_ASSERT(x, y)		do {			\
 	if (!(x))						\
 		panic y;					\
 } while(0)
 #else
-#define SND_CLONE_LOCKASSERT(...)
 #define SND_CLONE_ASSERT(x...)		KASSERT(x)
 #endif
 
@@ -170,16 +158,10 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, timestamp_precision, CTLTYPE_INT | CTLFLAG_RW,
 #endif
 
 /*
- * snd_clone_create() : Return opaque allocated clone manager. Mutex is
- * not a mandatory requirement if the caller can guarantee safety across
- * concurrent access.
+ * snd_clone_create() : Return opaque allocated clone manager.
  */
 struct snd_clone *
-snd_clone_create(
-#ifdef SND_DIAGNOSTIC
-    struct mtx *lock,
-#endif
-    int typemask, int maxunit, int deadline, uint32_t flags)
+snd_clone_create(int typemask, int maxunit, int deadline, uint32_t flags)
 {
 	struct snd_clone *c;
 
@@ -193,9 +175,6 @@ snd_clone_create(
 	    ("invalid clone flags=0x%08x", flags));
 
 	c = malloc(sizeof(*c), M_DEVBUF, M_WAITOK | M_ZERO);
-#ifdef SND_DIAGNOSTIC
-	c->lock = lock;
-#endif
 	c->refcount = 0;
 	c->size = 0;
 	c->typemask = typemask;
@@ -215,7 +194,6 @@ snd_clone_busy(struct snd_clone *c)
 	struct snd_clone_entry *ce;
 
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 
 	if (c->size == 0)
 		return (0);
@@ -237,7 +215,6 @@ int
 snd_clone_enable(struct snd_clone *c)
 {
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 
 	if (c->flags & SND_CLONE_ENABLE)
 		return (EINVAL);
@@ -251,7 +228,6 @@ int
 snd_clone_disable(struct snd_clone *c)
 {
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 
 	if (!(c->flags & SND_CLONE_ENABLE))
 		return (EINVAL);
@@ -268,7 +244,6 @@ int
 snd_clone_getsize(struct snd_clone *c)
 {
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 
 	return (c->size);
 }
@@ -277,7 +252,6 @@ int
 snd_clone_getmaxunit(struct snd_clone *c)
 {
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 
 	return (c->maxunit);
 }
@@ -286,7 +260,6 @@ int
 snd_clone_setmaxunit(struct snd_clone *c, int maxunit)
 {
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 	SND_CLONE_ASSERT(maxunit == -1 ||
 	    !(maxunit & ~(~c->typemask & SND_CLONE_MAXUNIT)),
 	    ("maxunit overflow: typemask=0x%08x maxunit=%d",
@@ -302,7 +275,6 @@ int
 snd_clone_getdeadline(struct snd_clone *c)
 {
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 
 	return (c->deadline);
 }
@@ -311,7 +283,6 @@ int
 snd_clone_setdeadline(struct snd_clone *c, int deadline)
 {
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 
 	c->deadline = deadline;
 
@@ -323,7 +294,6 @@ snd_clone_gettime(struct snd_clone *c, struct timespec *tsp)
 {
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
 	SND_CLONE_ASSERT(tsp != NULL, ("NULL timespec"));
-	SND_CLONE_LOCKASSERT(c);
 
 	*tsp = c->tsp;
 
@@ -334,7 +304,6 @@ uint32_t
 snd_clone_getflags(struct snd_clone *c)
 {
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 
 	return (c->flags);
 }
@@ -343,7 +312,6 @@ uint32_t
 snd_clone_setflags(struct snd_clone *c, uint32_t flags)
 {
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 	SND_CLONE_ASSERT(!(flags & ~SND_CLONE_MASK),
 	    ("invalid clone flags=0x%08x", flags));
 
@@ -365,7 +333,6 @@ snd_clone_getdevtime(struct cdev *dev, struct timespec *tsp)
 		return (ENODEV);
 
 	SND_CLONE_ASSERT(ce->parent != NULL, ("NULL parent"));
-	SND_CLONE_LOCKASSERT(ce->parent);
 
 	*tsp = ce->tsp;
 
@@ -384,7 +351,6 @@ snd_clone_getdevflags(struct cdev *dev)
 		return (0xffffffff);
 
 	SND_CLONE_ASSERT(ce->parent != NULL, ("NULL parent"));
-	SND_CLONE_LOCKASSERT(ce->parent);
 
 	return (ce->flags);
 }
@@ -403,7 +369,6 @@ snd_clone_setdevflags(struct cdev *dev, uint32_t flags)
 		return (0xffffffff);
 
 	SND_CLONE_ASSERT(ce->parent != NULL, ("NULL parent"));
-	SND_CLONE_LOCKASSERT(ce->parent);
 
 	ce->flags = flags;
 
@@ -435,7 +400,6 @@ snd_clone_gc(struct snd_clone *c)
 	int pruned;
 
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 
 	if (!(c->flags & SND_CLONE_GC_ENABLE) || c->size == 0)
 		return (0);
@@ -483,18 +447,17 @@ snd_clone_gc(struct snd_clone *c)
 void
 snd_clone_destroy(struct snd_clone *c)
 {
-	struct snd_clone_entry *ce;
+	struct snd_clone_entry *ce, *tmp;
 
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_ASSERT(c->refcount == 0, ("refcount > 0"));
-	SND_CLONE_LOCKASSERT(c);
 
-	while (!TAILQ_EMPTY(&c->head)) {
-		ce = TAILQ_FIRST(&c->head);
-		TAILQ_REMOVE(&c->head, ce, link);
+	ce = TAILQ_FIRST(&c->head);
+	while (ce != NULL) {
+		tmp = TAILQ_NEXT(ce, link);
 		if (ce->devt != NULL)
 			destroy_dev(ce->devt);
 		free(ce, M_DEVBUF);
+		ce = tmp;
 	}
 
 	free(c, M_DEVBUF);
@@ -518,7 +481,6 @@ snd_clone_acquire(struct cdev *dev)
 		return (ENODEV);
 
 	SND_CLONE_ASSERT(ce->parent != NULL, ("NULL parent"));
-	SND_CLONE_LOCKASSERT(ce->parent);
 
 	ce->flags &= ~SND_CLONE_INVOKE;
 
@@ -546,7 +508,6 @@ snd_clone_release(struct cdev *dev)
 		return (ENODEV);
 
 	SND_CLONE_ASSERT(ce->parent != NULL, ("NULL parent"));
-	SND_CLONE_LOCKASSERT(ce->parent);
 
 	ce->flags &= ~SND_CLONE_INVOKE;
 
@@ -588,7 +549,6 @@ snd_clone_ref(struct cdev *dev)
 	c = ce->parent;
 	SND_CLONE_ASSERT(c != NULL, ("NULL parent"));
 	SND_CLONE_ASSERT(c->refcount >= 0, ("refcount < 0"));
-	SND_CLONE_LOCKASSERT(c);
 
 	return (++c->refcount);
 }
@@ -608,7 +568,6 @@ snd_clone_unref(struct cdev *dev)
 	c = ce->parent;
 	SND_CLONE_ASSERT(c != NULL, ("NULL parent"));
 	SND_CLONE_ASSERT(c->refcount > 0, ("refcount <= 0"));
-	SND_CLONE_LOCKASSERT(c);
 
 	c->refcount--;
 
@@ -637,7 +596,6 @@ snd_clone_register(struct snd_clone_entry *ce, struct cdev *dev)
 	    ce->unit, dev2unit(dev)));
 
 	SND_CLONE_ASSERT(ce->parent != NULL, ("NULL parent"));
-	SND_CLONE_LOCKASSERT(ce->parent);
 
 	dev->si_drv2 = ce;
 	ce->devt = dev;
@@ -654,7 +612,6 @@ snd_clone_alloc(struct snd_clone *c, struct cdev **dev, int *unit, int tmask)
 	pid_t curpid;
 
 	SND_CLONE_ASSERT(c != NULL, ("NULL snd_clone"));
-	SND_CLONE_LOCKASSERT(c);
 	SND_CLONE_ASSERT(dev != NULL, ("NULL dev pointer"));
 	SND_CLONE_ASSERT((c->typemask & tmask) == tmask,
 	    ("invalid tmask: typemask=0x%08x tmask=0x%08x",
@@ -771,11 +728,16 @@ snd_clone_alloc_new:
 	/*
 	 * No free entries found, and we still haven't reached maximum
 	 * allowable units. Allocate, setup a minimal unique entry with busy
-	 * status so nobody will monkey on this new entry since we had to
-	 * give up locking for further setup. Unit magic is set right here
-	 * to avoid collision with other contesting handler.
+	 * status so nobody will monkey on this new entry. Unit magic is set
+	 * right here to avoid collision with other contesting handler.
+	 * The caller must be carefull here to maintain its own
+	 * synchronization, as long as it will not conflict with malloc(9)
+	 * operations.
+	 *
+	 * That said, go figure.
 	 */
-	ce = malloc(sizeof(*ce), M_DEVBUF, M_NOWAIT | M_ZERO);
+	ce = malloc(sizeof(*ce), M_DEVBUF,
+	    ((c->flags & SND_CLONE_WAITOK) ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (ce == NULL) {
 		if (*unit != -1)
 			return (NULL);
