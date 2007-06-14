@@ -34,6 +34,7 @@ options 	FFS		# Berkeley Fast Filesystem
 options 	GDB		# Support remote GDB
 options 	INET		# InterNETworking
 options 	INET6		# IPv6 communications protocols
+options 	SCTP		# Stream Transmission Control Protocol
 options 	KDB		# Enable kernel debugger support
 options 	KTRACE		# ktrace(1) syscall trace support
 options 	MD_ROOT		# MD usable as root device
