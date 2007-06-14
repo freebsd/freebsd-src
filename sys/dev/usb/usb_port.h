@@ -71,9 +71,6 @@ typedef struct callout usb_callout_t;
 #define usb_uncallout(h, f, d)  callout_stop(&(h))
 #define usb_uncallout_drain(h, f, d)  callout_drain(&(h))
 
-#define PWR_RESUME 0
-#define PWR_SUSPEND 1
-
 #define USB_DECLARE_DRIVER_INIT(dname, init...) \
 static device_probe_t __CONCAT(dname,_match); \
 static device_attach_t __CONCAT(dname,_attach); \
