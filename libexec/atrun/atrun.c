@@ -54,6 +54,9 @@ static const char rcsid[] =
 #else
 #include <getopt.h>
 #endif
+#ifdef LOGIN_CAP
+#include <login_cap.h>
+#endif
 
 #if (MAXLOGNAME-1) > UT_NAMESIZE
 #define LOGNAMESIZE UT_NAMESIZE
@@ -288,6 +291,19 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
         nice(tolower(queue) - 'a');
 	
+#ifdef LOGIN_CAP
+	/*
+	 * For simplicity and safety, set all aspects of the user context
+	 * except for a selected subset:  Don't set priority, which was
+	 * set based on the queue file name according to the tradition.
+	 * Don't bother to set environment, including path vars, either
+	 * because it will be discarded anyway.  Although the job file
+	 * should set umask, preset it here just in case.
+	 */
+	if (setusercontext(NULL, pentry, uid, LOGIN_SETALL &
+		~(LOGIN_SETPRIORITY | LOGIN_SETPATH | LOGIN_SETENV)) != 0)
+	    exit(EXIT_FAILURE);	/* setusercontext() logged the error */
+#else /* LOGIN_CAP */
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
 	    perr("cannot init group access list");
 
@@ -299,6 +315,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
 	if (setuid(uid) < 0 || seteuid(uid) < 0)
 	    perr("cannot set user id");
+#endif /* LOGIN_CAP */
 
 	if (chdir(pentry->pw_dir))
 		chdir("/");
@@ -326,6 +343,13 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     {    
 	PRIV_START
 
+#ifdef LOGIN_CAP
+	/*
+	 * This time set full context to run the mailer.
+	 */
+	if (setusercontext(NULL, pentry, uid, LOGIN_SETALL) != 0)
+	    exit(EXIT_FAILURE);	/* setusercontext() logged the error */
+#else /* LOGIN_CAP */
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
 	    perr("cannot init group access list");
 
@@ -337,6 +361,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
 	if (setuid(uid) < 0 || seteuid(uid) < 0)
 	    perr("cannot set user id");
+#endif /* LOGIN_CAP */
 
 	if (chdir(pentry->pw_dir))
 		chdir("/");
