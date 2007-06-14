@@ -32,7 +32,9 @@ CFLAGS+=	-I${SRCDIR}
 DPADD=	${LIBNCURSES${LIB_SUFFIX:U}}
 LDADD=	-lncurses${LIB_SUFFIX}
 
+.if defined(ENABLE_WIDEC)
 INCS=	panel.h
+.endif
 
 # generate MAN
 .PATH: ${NCURSES_DIR}/man

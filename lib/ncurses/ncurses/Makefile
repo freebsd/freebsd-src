@@ -274,8 +274,11 @@ CFLAGS+=	-DFREEBSD_NATIVE -DTERMIOS
 # Installed
 HEADERS=	curses.h term.h termcap.h unctrl.h
 SRCHDRS=	ncurses_dll.h
+
+.if defined(ENABLE_WIDEC)
 INCS=		${HEADERS} ${SRCHDRS}
 INCSLINKS=	curses.h ${INCLUDEDIR}/ncurses.h
+.endif
 
 .if !defined(NO_INSTALLLIB)
 SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libcurses${LIB_SUFFIX}.a
