@@ -65,6 +65,7 @@ struct sctp_vrf {
 	uint32_t tbl_id_v6;	/* default v6 table id */
 	uint32_t total_ifa_count;
 	u_long vrf_addr_hashmark;
+	uint32_t refcount;
 };
 
 struct sctp_ifn {
@@ -422,8 +423,8 @@ struct sctp_ifn *
          sctp_find_ifn(void *ifn, uint32_t ifn_index);
 
 struct sctp_vrf *sctp_allocate_vrf(int vrfid);
-
 struct sctp_vrf *sctp_find_vrf(uint32_t vrfid);
+void sctp_free_vrf(struct sctp_vrf *vrf);
 
 struct sctp_ifa *
 sctp_add_addr_to_vrf(uint32_t vrfid,
@@ -448,8 +449,9 @@ struct sctp_nets *sctp_findnet(struct sctp_tcb *, struct sockaddr *);
 
 struct sctp_inpcb *sctp_pcb_findep(struct sockaddr *, int, int, uint32_t);
 
-int sctp_inpcb_bind(struct socket *, struct sockaddr *, struct thread *);
-
+int 
+sctp_inpcb_bind(struct socket *, struct sockaddr *, struct sctp_ifa *,
+    struct thread *);
 
 struct sctp_tcb *
 sctp_findassociation_addr(struct mbuf *, int, int,

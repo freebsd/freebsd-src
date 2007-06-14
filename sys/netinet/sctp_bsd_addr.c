@@ -364,8 +364,10 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 		SCTP_BUF_NEXT(m) = NULL;
 	}
 #ifdef SCTP_MBUF_LOGGING
-	if (SCTP_BUF_IS_EXTENDED(m)) {
-		sctp_log_mb(m, SCTP_MBUF_IALLOC);
+	if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+		if (SCTP_BUF_IS_EXTENDED(m)) {
+			sctp_log_mb(m, SCTP_MBUF_IALLOC);
+		}
 	}
 #endif
 	return (m);

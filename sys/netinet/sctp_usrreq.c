@@ -133,13 +133,13 @@ sctp_pathmtu_adjustment(struct sctp_inpcb *inp,
 			}
 			chk->sent = SCTP_DATAGRAM_RESEND;
 			chk->rec.data.doing_fast_retransmit = 0;
-#ifdef SCTP_FLIGHT_LOGGING
-			sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_PMTU,
-			    chk->whoTo->flight_size,
-			    chk->book_size,
-			    (uintptr_t) chk->whoTo,
-			    chk->rec.data.TSN_seq);
-#endif
+			if (sctp_logging_level & SCTP_FLIGHT_LOGGING_ENABLE) {
+				sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_PMTU,
+				    chk->whoTo->flight_size,
+				    chk->book_size,
+				    (uintptr_t) chk->whoTo,
+				    chk->rec.data.TSN_seq);
+			}
 			/* Clear any time so NO RTT is being done */
 			chk->do_rtt = 0;
 			sctp_flight_size_decrease(chk);
@@ -289,7 +289,9 @@ sctp_notify(struct sctp_inpcb *inp,
 		}
 		if (inp->sctp_socket) {
 #ifdef SCTP_LOCK_LOGGING
-			sctp_log_lock(inp, stcb, SCTP_LOG_LOCK_SOCK);
+			if (sctp_logging_level & SCTP_LOCK_LOGGING_ENABLE) {
+				sctp_log_lock(inp, stcb, SCTP_LOG_LOCK_SOCK);
+			}
 #endif
 			SOCK_LOCK(inp->sctp_socket);
 			inp->sctp_socket->so_error = error;
@@ -550,7 +552,7 @@ sctp_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 	if (inp == 0)
 		return EINVAL;
 
-	error = sctp_inpcb_bind(so, addr, p);
+	error = sctp_inpcb_bind(so, addr, NULL, p);
 	return error;
 }
 
@@ -1321,7 +1323,7 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
 	    SCTP_PCB_FLAGS_UNBOUND) {
 		/* Bind a ephemeral port */
-		error = sctp_inpcb_bind(so, NULL, p);
+		error = sctp_inpcb_bind(so, NULL, NULL, p);
 		if (error) {
 			goto out_now;
 		}
@@ -1732,11 +1734,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 		}
 		break;
 	case SCTP_GET_STAT_LOG:
-#ifdef SCTP_STAT_LOGGING
 		error = sctp_fill_stat_log(optval, optsize);
-#else
-		error = EOPNOTSUPP;
-#endif
 		break;
 	case SCTP_EVENTS:
 		{
@@ -2515,11 +2513,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 		}
 		break;
 	case SCTP_CLR_STAT_LOG:
-#ifdef SCTP_STAT_LOGGING
-		sctp_clr_stat_log();
-#else
 		error = EOPNOTSUPP;
-#endif
 		break;
 	case SCTP_CONTEXT:
 		{
@@ -3622,7 +3616,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
 	    SCTP_PCB_FLAGS_UNBOUND) {
 		/* Bind a ephemeral port */
-		error = sctp_inpcb_bind(so, NULL, p);
+		error = sctp_inpcb_bind(so, NULL, NULL, p);
 		if (error) {
 			goto out_now;
 		}
@@ -3711,7 +3705,9 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 	}
 	SCTP_INP_RLOCK(inp);
 #ifdef SCTP_LOCK_LOGGING
-	sctp_log_lock(inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_SOCK);
+	if (sctp_logging_level & SCTP_LOCK_LOGGING_ENABLE) {
+		sctp_log_lock(inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_SOCK);
+	}
 #endif
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
@@ -3731,7 +3727,7 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 		/* We must do a bind. */
 		SOCK_UNLOCK(so);
 		SCTP_INP_RUNLOCK(inp);
-		if ((error = sctp_inpcb_bind(so, NULL, p))) {
+		if ((error = sctp_inpcb_bind(so, NULL, NULL, p))) {
 			/* bind error, probably perm */
 			return (error);
 		}

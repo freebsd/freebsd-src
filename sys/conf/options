@@ -397,30 +397,18 @@ XBONEHACK
 # SCTP
 #
 SCTP			opt_sctp.h
-SCTP_DEBUG		opt_sctp.h
-SCTP_HIGH_SPEED		opt_sctp.h
-SCTP_LOG_MAXBURST       opt_sctp.h
-SCTP_LOG_RWND           opt_sctp.h	
-SCTP_STAT_LOGGING	opt_sctp.h
-SCTP_CWND_LOGGING	opt_sctp.h
-SCTP_CWND_MONITOR	opt_sctp.h
-SCTP_BLK_LOGGING	opt_sctp.h
-SCTP_STR_LOGGING	opt_sctp.h
-SCTP_FR_LOGGING		opt_sctp.h
-SCTP_MAP_LOGGING	opt_sctp.h
-SCTP_SACK_LOGGING	opt_sctp.h
-SCTP_LOCK_LOGGING       opt_sctp.h
-SCTP_RTTVAR_LOGGING     opt_sctp.h
-SCTP_SB_LOGGING         opt_sctp.h
-SCTP_WITH_NO_CSUM       opt_sctp.h
-SCTP_EARLYFR_LOGGING    opt_sctp.h
-SCTP_NAGLE_LOGGING      opt_sctp.h
-SCTP_WAKE_LOGGING       opt_sctp.h
-SCTP_RECV_RWND_LOGGING  opt_sctp.h
-SCTP_SACK_RWND_LOGGING  opt_sctp.h
-SCTP_FLIGHT_LOGGING     opt_sctp.h
-SCTP_MBUF_LOGGING       opt_sctp.h
-SCTP_PACKET_LOGGING     opt_sctp.h
+SCTP_DEBUG		opt_sctp.h # Enable debug printfs
+SCTP_HIGH_SPEED		opt_sctp.h # Enable Sally Floyds HS TCP CC
+SCTP_WITH_NO_CSUM       opt_sctp.h # Use this at your peril
+SCTP_LOCK_LOGGING       opt_sctp.h # Log to KTR lock activity
+SCTP_MBUF_LOGGING       opt_sctp.h # Log to KTR general mbuf aloc/free
+SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
+SCTP_PACKET_LOGGING     opt_sctp.h # Log to a packet buffer last N packets
+SCTP_LTRACE_CHUNKS      opt_sctp.h # Log to KTR chunks processed
+SCTP_LTRACE_ERRORS      opt_sctp.h # Log to KTR error returns.
+#
+#
+#
 
 # Netgraph(4). Use option NETGRAPH to enable the base netgraph code.
 # Each netgraph node type can be either be compiled into the kernel
