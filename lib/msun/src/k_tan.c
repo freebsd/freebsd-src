@@ -16,14 +16,16 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 /* __kernel_tan( x, y, k )
- * kernel tan function on [-pi/4, pi/4], pi/4 ~ 0.7854
+ * kernel tan function on ~[-pi/4, pi/4] (except on -0), pi/4 ~ 0.7854
  * Input x is assumed to be bounded by ~pi/4 in magnitude.
  * Input y is the tail of x.
  * Input k indicates whether tan (if k = 1) or -1/tan (if k = -1) is returned.
  *
  * Algorithm
  *	1. Since tan(-x) = -tan(x), we need only to consider positive x.
- *	2. if x < 2^-28 (hx<0x3e300000 0), return x with inexact if x!=0.
+ *	2. Callers must return tan(-0) = -0 without calling here since our
+ *	   odd polynomial is not evaluated in a way that preserves -0.
+ *	   Callers may do the optimization tan(x) ~ x for tiny x.
  *	3. tan(x) is approximated by a odd polynomial of degree 27 on
  *	   [0,0.67434]
  *		  	         3             27
@@ -81,29 +83,6 @@ __kernel_tan(double x, double y, int iy) {
 
 	GET_HIGH_WORD(hx,x);
 	ix = hx & 0x7fffffff;			/* high word of |x| */
-	if (ix < 0x3e300000) {			/* x < 2**-28 */
-		if ((int) x == 0) {		/* generate inexact */
-			u_int32_t low;
-			GET_LOW_WORD(low,x);
-			if (((ix | low) | (iy + 1)) == 0)
-				return one / fabs(x);
-			else {
-				if (iy == 1)
-					return x;
-				else {	/* compute -1 / (x+y) carefully */
-					double a, t;
-
-					z = w = x + y;
-					SET_LOW_WORD(z, 0);
-					v = y - (z - x);
-					t = a = -one / w;
-					SET_LOW_WORD(t, 0);
-					s = one + t * z;
-					return t + a * (s + t * v);
-				}
-			}
-		}
-	}
 	if (ix >= 0x3FE59428) {	/* |x| >= 0.6744 */
 		if (hx < 0) {
 			x = -x;
