@@ -100,7 +100,7 @@ int			audit_arge;
 int			audit_in_failure;
 
 /*
- * Global audit statistiscs.
+ * Global audit statistics.
  */
 struct audit_fstat	audit_fstat;
 
