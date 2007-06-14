@@ -142,7 +142,7 @@ typedef struct ohci_softc {
 	u_int sc_overrun_cnt;
 	struct timeval sc_overrun_ntc;
 
-	usb_callout_t sc_tmo_rhsc;
+	struct callout sc_tmo_rhsc;
 	char sc_dying;
 } ohci_softc_t;
 

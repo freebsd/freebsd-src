@@ -237,7 +237,7 @@ struct usbd_xfer {
 
 	void		       *hcpriv; /* private use by the HC driver */
 
-	usb_callout_t		timeout_handle;
+	struct callout		timeout_handle;
 };
 
 void usbd_init(void);
