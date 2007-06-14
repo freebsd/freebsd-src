@@ -144,6 +144,7 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_10G_LR	18		/* 10GBase-LR 1310nm Single-mode */
 #define	IFM_10G_SR	19		/* 10GBase-SR 850nm Multi-mode */
 #define	IFM_10G_CX4	20		/* 10GBase CX4 copper */
+#define IFM_2500_SX	21		/* 2500baseSX - multi-mode fiber */
 
 /* note 31 is the max! */
 
@@ -344,6 +345,7 @@ struct ifmedia_description {
 	{ IFM_10G_LR,	"10Gbase-LR" },					\
 	{ IFM_10G_SR,	"10Gbase-SR" },					\
 	{ IFM_10G_CX4,	"10Gbase-CX4" },				\
+	{ IFM_2500_SX,	"2500baseSX" },					\
 	{ 0, NULL },							\
 }
 
@@ -365,6 +367,7 @@ struct ifmedia_description {
 	{ IFM_1000_CX,	"1000CX" },					\
 	{ IFM_1000_T,	"1000TX" },					\
 	{ IFM_1000_T,	"1000T" },					\
+	{ IFM_2500_SX,	"2500SX" },					\
 	{ 0, NULL },							\
 }
 
@@ -593,6 +596,7 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_10G_LR,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_10G_SR,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_10G_CX4,	IF_Gbps(10ULL) },		\
+	{ IFM_ETHER | IFM_2500_SX,	IF_Mbps(2500ULL) },		\
 									\
 	{ IFM_TOKEN | IFM_TOK_STP4,	IF_Mbps(4) },			\
 	{ IFM_TOKEN | IFM_TOK_STP16,	IF_Mbps(16) },			\
