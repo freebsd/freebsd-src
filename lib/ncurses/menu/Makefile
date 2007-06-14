@@ -43,7 +43,9 @@ CFLAGS+=	-I${SRCDIR}
 DPADD=	${LIBNCURSES${LIB_SUFFIX:U}}
 LDADD=	-lncurses${LIB_SUFFIX}
 
+.if defined(ENABLE_WIDEC)
 INCS=	menu.h eti.h
+.endif
 
 .PATH: ${NCURSES_DIR}/man
 MAN=	\

@@ -57,7 +57,9 @@ CFLAGS+=	-I${NCURSES_DIR}/menu
 DPADD=	${LIBNCURSES${LIB_SUFFIX:U}}
 LDADD=	-lncurses${LIB_SUFFIX}
 
+.if defined(ENABLE_WIDEC)
 INCS=	form.h
+.endif
 
 .PATH: ${NCURSES_DIR}/man
 MAN=	\
