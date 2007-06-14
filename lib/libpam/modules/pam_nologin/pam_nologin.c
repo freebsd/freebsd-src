@@ -52,18 +52,19 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-#define	NOLOGIN	"/var/run/nologin"
+#define	_PATH_NOLOGIN	"/var/run/nologin"
 
-static char nologin_def[] = NOLOGIN;
+static char nologin_def[] = _PATH_NOLOGIN;
 
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
     int argc __unused, const char *argv[] __unused)
 {
 	login_cap_t *lc;
 	struct passwd *pwd;
 	struct stat st;
 	int retval, fd;
+	ssize_t ss;
 	const char *user, *nologin;
 	char *mtmp;
 
@@ -73,42 +74,54 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Got user: %s", user);
 
-	lc = login_getclass(NULL);
+	pwd = getpwnam(user);
+	if (pwd == NULL)
+		return (PAM_USER_UNKNOWN);
+
+	/*
+	 * login_getpwclass(3) will select the "root" class by default
+	 * if pwd->pw_uid is 0.  That class should have "ignorenologin"
+	 * capability so that super-user can bypass nologin.
+	 */
+	lc = login_getpwclass(pwd);
+	if (lc == NULL) {
+		PAM_LOG("Unable to get login class for user %s", user);
+		return (PAM_SERVICE_ERR);
+	}
+
+	if (login_getcapbool(lc, "ignorenologin", 0)) {
+		login_close(lc);
+		return (PAM_SUCCESS);
+	}
+
 	nologin = login_getcapstr(lc, "nologin", nologin_def, nologin_def);
-	login_close(lc);
-	lc = NULL;
 
 	fd = open(nologin, O_RDONLY, 0);
-	if (fd < 0)
+	if (fd < 0) {
+		login_close(lc);
 		return (PAM_SUCCESS);
-
-	PAM_LOG("Opened %s file", NOLOGIN);
-
-	pwd = getpwnam(user);
-	if (pwd && pwd->pw_uid == 0)
-		retval = PAM_SUCCESS;
-	else {
-		if (!pwd)
-			retval = PAM_USER_UNKNOWN;
-		else
-			retval = PAM_AUTH_ERR;
 	}
 
-	if (fstat(fd, &st) < 0)
-		return (retval);
+	PAM_LOG("Opened %s file", nologin);
 
-	mtmp = malloc(st.st_size + 1);
-	if (mtmp != NULL) {
-		read(fd, mtmp, st.st_size);
-		mtmp[st.st_size] = '\0';
-		pam_error(pamh, "%s", mtmp);
-		free(mtmp);
+	if (fstat(fd, &st) == 0) {
+		mtmp = malloc(st.st_size + 1);
+		if (mtmp != NULL) {
+			ss = read(fd, mtmp, st.st_size);
+			if (ss > 0) {
+				mtmp[ss] = '\0';
+				pam_error(pamh, "%s", mtmp);
+			}
+			free(mtmp);
+		}
 	}
 
-	if (retval != PAM_SUCCESS)
-		PAM_VERBOSE_ERROR("Administrator refusing you: %s", NOLOGIN);
+	PAM_VERBOSE_ERROR("Administrator refusing you: %s", nologin);
 
-	return (retval);
+	close(fd);
+	login_close(lc);
+
+	return (PAM_AUTH_ERR);
 }
 
 PAM_MODULE_ENTRY("pam_nologin");
