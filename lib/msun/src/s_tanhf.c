@@ -20,8 +20,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-static const float one=1.0, two=2.0, tiny = 1.0e-30;
-
+static const float one=1.0, two=2.0, tiny = 1.0e-30, huge = 1.0e30;
 float
 tanhf(float x)
 {
@@ -37,10 +36,11 @@ tanhf(float x)
 	    else       return one/x-one;    /* tanh(NaN) = NaN */
 	}
 
-    /* |x| < 22 */
-	if (ix < 0x41b00000) {		/* |x|<22 */
-	    if (ix<0x24000000) 		/* |x|<2**-55 */
-		return x*(one+x);    	/* tanh(small) = small */
+    /* |x| < 9 */
+	if (ix < 0x41100000) {		/* |x|<9 */
+	    if (ix<0x39800000) {	/* |x|<2**-12 */
+		if(huge+x>one) return x; /* tanh(tiny) = tiny with inexact */
+	    }
 	    if (ix>=0x3f800000) {	/* |x|>=1  */
 		t = expm1f(two*fabsf(x));
 		z = one - two/(t+two);
@@ -48,9 +48,9 @@ tanhf(float x)
 	        t = expm1f(-two*fabsf(x));
 	        z= -t/(t+two);
 	    }
-    /* |x| > 22, return +-1 */
+    /* |x| >= 9, return +-1 */
 	} else {
-	    z = one - tiny;		/* raised inexact flag */
+	    z = one - tiny;		/* raise inexact flag */
 	}
 	return (jx>=0)? z: -z;
 }
