@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2007
+.Dd June 15, 2007
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -281,6 +281,22 @@ options are intended for testing and debugging.
 An application which changes its behavior when these options are used
 is flawed.
 .Sh IMPLEMENTATION NOTES
+Traditionally, allocators have used
+.Xr sbrk 2
+to obtain memory, but this implementation uses
+.Xr mmap 2 ,
+and only uses
+.Xr sbrk 2
+under limited circumstances, and only for 32-bit architectures.
+As a result, the
+.Ar datasize
+resource limit has little practical effect for typical applications.
+The
+.Ar vmemoryuse
+resource limit, however, can be used to bound the total virtual memory used by
+a process, as described in
+.Xr limits 1 .
+.Pp
 This allocator uses multiple arenas in order to reduce lock contention for
 threaded programs on multi-processor systems.
 This works well with regard to threading scalability, but incurs some costs.
@@ -462,8 +478,10 @@ on calls to these functions:
 _malloc_options = "X";
 .Ed
 .Sh SEE ALSO
+.Xr limits 1 ,
 .Xr madvise 2 ,
 .Xr mmap 2 ,
+.Xr sbrk 2 ,
 .Xr alloca 3 ,
 .Xr atexit 3 ,
 .Xr getpagesize 3 ,
