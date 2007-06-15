@@ -2764,7 +2764,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 }
 
 static void
-sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
+sctp_handle_segments(struct mbuf *m, int *offset, struct sctp_tcb *stcb, struct sctp_association *asoc,
     struct sctp_sack_chunk *ch, uint32_t last_tsn, uint32_t * biggest_tsn_acked,
     uint32_t * biggest_newly_acked_tsn, uint32_t * this_sack_lowest_newack,
     int num_seg, int *ecn_seg_sums)
@@ -2773,7 +2773,7 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	/* process fragments and update sendqueue        */
 	/************************************************/
 	struct sctp_sack *sack;
-	struct sctp_gap_ack_block *frag;
+	struct sctp_gap_ack_block *frag, block;
 	struct sctp_tmit_chunk *tp1;
 	int i;
 	unsigned int j;
@@ -2790,10 +2790,14 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	} else {
 		primary_flag_set = 0;
 	}
-
 	sack = &ch->sack;
-	frag = (struct sctp_gap_ack_block *)((caddr_t)sack +
-	    sizeof(struct sctp_sack));
+
+	frag = (struct sctp_gap_ack_block *)sctp_m_getptr(m, *offset,
+	    sizeof(struct sctp_gap_ack_block), (uint8_t *) & block);
+	*offset += sizeof(block);
+	if (frag == NULL) {
+		return;
+	}
 	tp1 = NULL;
 	last_frag_high = 0;
 	for (i = 0; i < num_seg; i++) {
@@ -3042,7 +3046,12 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				tp1 = TAILQ_NEXT(tp1, sctp_next);
 			}	/* end while (tp1) */
 		}		/* end for (j = fragStart */
-		frag++;		/* next one */
+		frag = (struct sctp_gap_ack_block *)sctp_m_getptr(m, *offset,
+		    sizeof(struct sctp_gap_ack_block), (uint8_t *) & block);
+		*offset += sizeof(block);
+		if (frag == NULL) {
+			break;
+		}
 	}
 	if (sctp_logging_level & SCTP_FR_LOGGING_ENABLE) {
 		if (num_frs)
@@ -4578,7 +4587,8 @@ again:
 
 
 void
-sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
+sctp_handle_sack(struct mbuf *m, int offset,
+    struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
     struct sctp_nets *net_from, int *abort_now, int sack_len, uint32_t rwnd)
 {
 	struct sctp_association *asoc;
@@ -4658,15 +4668,24 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 	}
 	if ((num_dup) && (sctp_logging_level & (SCTP_FR_LOGGING_ENABLE | SCTP_EARLYFR_LOGGING_ENABLE))) {
 		int off_to_dup, iii;
-		uint32_t *dupdata;
+		uint32_t *dupdata, dblock;
 
 		off_to_dup = (num_seg * sizeof(struct sctp_gap_ack_block)) + sizeof(struct sctp_sack_chunk);
 		if ((off_to_dup + (num_dup * sizeof(uint32_t))) <= sack_length) {
-			dupdata = (uint32_t *) ((caddr_t)ch + off_to_dup);
-			for (iii = 0; iii < num_dup; iii++) {
-				sctp_log_fr(*dupdata, 0, 0, SCTP_FR_DUPED);
-				dupdata++;
+			dupdata = (uint32_t *) sctp_m_getptr(m, off_to_dup,
+			    sizeof(uint32_t), (uint8_t *) & dblock);
+			off_to_dup += sizeof(uint32_t);
+			if (dupdata) {
+				for (iii = 0; iii < num_dup; iii++) {
+					sctp_log_fr(*dupdata, 0, 0, SCTP_FR_DUPED);
+					dupdata = (uint32_t *) sctp_m_getptr(m, off_to_dup,
+					    sizeof(uint32_t), (uint8_t *) & dblock);
+					if (dupdata == NULL)
+						break;
+					off_to_dup += sizeof(uint32_t);
 
+
+				}
 			}
 		} else {
 			SCTP_PRINTF("Size invalid offset to dups:%d number dups:%d sack_len:%d num gaps:%d\n",
@@ -4904,6 +4923,8 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 	/* always set this up to cum-ack */
 	asoc->this_sack_highest_gap = last_tsn;
 
+	/* Move offset up to point to gaps/dups */
+	offset += sizeof(struct sctp_sack_chunk);
 	if (((num_seg * (sizeof(struct sctp_gap_ack_block))) + sizeof(struct sctp_sack_chunk)) > sack_length) {
 
 		/* skip corrupt segments */
@@ -4927,7 +4948,7 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 		 * handling NEWLY ACKED chunks. this_sack_lowest_newack is
 		 * used for CMT DAC algo. saw_newack will also change.
 		 */
-		sctp_handle_segments(stcb, asoc, ch, last_tsn,
+		sctp_handle_segments(m, &offset, stcb, asoc, ch, last_tsn,
 		    &biggest_tsn_acked, &biggest_tsn_newly_acked, &this_sack_lowest_newack,
 		    num_seg, &ecn_seg_sums);
 
