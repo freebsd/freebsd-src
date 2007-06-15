@@ -1,0 +1,69 @@
+$FreeBSD$
+--- diff.c.orig	2004-04-12 15:44:35.000000000 +0800
++++ diff.c	2007-06-15 14:51:05.506679851 +0800
+@@ -137,7 +137,7 @@
+ }
+ 
+ static char const shortopts[] =
+-"0123456789abBcC:dD:eEfF:hHiI:lL:nNpPqrsS:tTuU:vwW:x:X:y";
++"0123456789abBcC:dD:eEfF:hHiI:lL:nNopPqrsS:tTuU:vwW:x:X:y";
+ 
+ /* Values for long options that do not have single-letter equivalents.  */
+ enum
+@@ -265,14 +265,15 @@
+   initialize_main (&argc, &argv);
+   program_name = argv[0];
+   setlocale (LC_ALL, "");
+-  bindtextdomain (PACKAGE, LOCALEDIR);
+   textdomain (PACKAGE);
+   c_stack_action (0);
+   function_regexp_list.buf = &function_regexp;
+   ignore_regexp_list.buf = &ignore_regexp;
+-  re_set_syntax (RE_SYNTAX_GREP | RE_NO_POSIX_BACKTRACKING);
++  re_set_syntax (RE_SYNTAX_GREP);
+   excluded = new_exclude ();
+ 
++  prepend_default_options (getenv ("DIFF_OPTIONS"), &argc, &argv);
++
+   /* Decode the options.  */
+ 
+   while ((c = getopt_long (argc, argv, shortopts, longopts, 0)) != -1)
+@@ -428,6 +429,11 @@
+ 	  new_file = true;
+ 	  break;
+ 
++	case 'o':
++	  /* Output in the old tradition style.  */
++	  specify_style (OUTPUT_NORMAL);
++	  break;
++
+ 	case 'p':
+ 	  show_c_function = true;
+ 	  add_regexp (&function_regexp_list, "^[[:alpha:]$_]");
+@@ -983,8 +989,6 @@
+ {
+   if (output_style != style)
+     {
+-      if (output_style != OUTPUT_UNSPECIFIED)
+-	try_help ("conflicting output style options", 0);
+       output_style = style;
+     }
+ }
+@@ -997,7 +1001,7 @@
+ #ifdef ST_MTIM_NSEC
+ 
+ # if HAVE_CLOCK_GETTIME && defined CLOCK_REALTIME
+-  if (clock_gettime (CLOCK_REALTIME, &st->st_mtim) == 0)
++  if (clock_gettime (CLOCK_REALTIME, &st->st_mtimespec) == 0)
+     return;
+ # endif
+ 
+@@ -1007,7 +1011,7 @@
+     if (gettimeofday (&timeval, 0) == 0)
+       {
+ 	st->st_mtime = timeval.tv_sec;
+-	st->st_mtim.ST_MTIM_NSEC = timeval.tv_usec * 1000;
++	st->st_mtimespec.ST_MTIM_NSEC = timeval.tv_usec * 1000;
+ 	return;
+       }
+   }
