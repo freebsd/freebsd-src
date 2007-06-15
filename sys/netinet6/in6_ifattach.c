@@ -732,7 +732,6 @@ in6_ifdetach(ifp)
 	struct rtentry *rt;
 	short rtflags;
 	struct sockaddr_in6 sin6;
-	struct in6_multi *in6m, *in6m_next;
 	struct in6_multi_mship *imm;
 
 	/* remove neighbor management table */
