@@ -110,9 +110,16 @@ static size_t
 _kvm_pa2off(kvm_t *kd, uint64_t pa, off_t *ofs)
 {
 	Elf_Ehdr *e = kd->vmst->mmapbase;
-	Elf_Phdr *p = (Elf_Phdr*)((char*)e + e->e_phoff);
-	int n = e->e_phnum;
+	Elf_Phdr *p;
+	int n;
 
+	if (kd->rawdump) {
+		*ofs = pa;
+		return (PAGE_SIZE - ((size_t)pa & PAGE_MASK));
+	}
+
+	p = (Elf_Phdr*)((char*)e + e->e_phoff);
+	n = e->e_phnum;
 	while (n && (pa < p->p_paddr || pa >= p->p_paddr + p->p_memsz))
 		p++, n--;
 	if (n == 0)
@@ -147,7 +154,7 @@ _kvm_initvtop(kvm_t *kd)
 	size_t hdrsz;
 	char minihdr[8];
 
-	if (pread(kd->pmfd, &minihdr, 8, 0) == 8)
+	if (!kd->rawdump && pread(kd->pmfd, &minihdr, 8, 0) == 8)
 		if (memcmp(&minihdr, "minidump", 8) == 0)
 			return (_kvm_minidump_initvtop(kd));
 
@@ -158,13 +165,15 @@ _kvm_initvtop(kvm_t *kd)
 	}
 	kd->vmst->PML4 = 0;
 
-	if (_kvm_maphdrs(kd, sizeof(Elf_Ehdr)) == -1)
-		return (-1);
+	if (kd->rawdump == 0) {
+		if (_kvm_maphdrs(kd, sizeof(Elf_Ehdr)) == -1)
+			return (-1);
 
-	ehdr = kd->vmst->mmapbase;
-	hdrsz = ehdr->e_phoff + ehdr->e_phentsize * ehdr->e_phnum;
-	if (_kvm_maphdrs(kd, hdrsz) == -1)
-		return (-1);
+		ehdr = kd->vmst->mmapbase;
+		hdrsz = ehdr->e_phoff + ehdr->e_phentsize * ehdr->e_phnum;
+		if (_kvm_maphdrs(kd, hdrsz) == -1)
+			return (-1);
+	}
 
 	nlist[0].n_name = "kernbase";
 	nlist[1].n_name = 0;

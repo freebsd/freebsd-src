@@ -61,6 +61,7 @@ struct __kvm {
 	 * only allocate it if necessary.
 	 */
 	struct vmstate *vmst;
+	int	rawdump;	/* raw dump format */
 };
 
 /*

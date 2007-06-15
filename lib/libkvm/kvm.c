@@ -219,6 +219,8 @@ _kvm_open(kd, uf, mf, flag, errout)
 		_kvm_syserr(kd, kd->program, "%s", uf);
 		goto failed;
 	}
+	if (strncmp(mf, _PATH_FWMEM, strlen(_PATH_FWMEM)) == 0)
+		kd->rawdump = 1;
 	if (_kvm_initvtop(kd) < 0)
 		goto failed;
 	return (kd);
