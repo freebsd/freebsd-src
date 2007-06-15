@@ -84,7 +84,6 @@
 25	AUE_GETEUID	NOPROTO	{ uid_t geteuid(void); }
 26	AUE_PTRACE	NOPROTO	{ int ptrace(int req, pid_t pid, \
 				    caddr_t addr, int data); }
-; XXX implement
 27	AUE_RECVMSG	STD	{ int freebsd32_recvmsg(int s, struct msghdr32 *msg, \
 				    int flags); }
 28	AUE_SENDMSG	STD	{ int freebsd32_sendmsg(int s, struct msghdr32 *msg, \
@@ -142,7 +141,6 @@
 62	AUE_FSTAT	OBSOL	ofstat
 63	AUE_NULL	OBSOL	ogetkerninfo
 64	AUE_NULL	OBSOL	ogetpagesize
-; XXX implement (not OBSOL at all)
 65	AUE_MSYNC	NOPROTO	{ int msync(void *addr, size_t len, \
 				    int flags); }
 66	AUE_VFORK	NOPROTO	{ int vfork(void); }
@@ -714,7 +712,6 @@
 426	AUE_NULL	UNIMPL	__acl_set_link
 427	AUE_NULL	UNIMPL	__acl_delete_link
 428	AUE_NULL	UNIMPL	__acl_aclcheck_link
-; XXX implement
 429	AUE_SIGWAIT	NOPROTO	{ int sigwait(const sigset_t *set, \
 				    int *sig); }
 430	AUE_NULL	UNIMPL	thr_create;
