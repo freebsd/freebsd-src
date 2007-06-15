@@ -445,7 +445,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 		tdbi->spi = sav->spi;
 
 		m_tag_prepend(m, mtag);
-	} else {
+	} else if (mt != NULL) {
 		mt->m_tag_id = PACKET_TAG_IPSEC_IN_DONE;
 		/* XXX do we need to mark m_flags??? */
 	}
