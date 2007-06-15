@@ -160,11 +160,9 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
     pentry = getpwuid(uid);
     if (pentry == NULL)
-    {
-	syslog(LOG_ERR,"Userid %lu not found - aborting job %s",
-	       (unsigned long) uid, filename);
-        exit(EXIT_FAILURE);
-    }
+	perrx("Userid %lu not found - aborting job %s",
+		(unsigned long) uid, filename);
+
     PRIV_START
 
     stream=fopen(filename, "r");
@@ -173,11 +171,8 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
 #ifdef __FreeBSD__
     if (pentry->pw_expire && time(NULL) >= pentry->pw_expire)
-    {
-	syslog(LOG_ERR, "Userid %lu is expired - aborting job %s",
+	perrx("Userid %lu is expired - aborting job %s",
 		(unsigned long) uid, filename);
-	exit(EXIT_FAILURE);
-    }
 #endif
 
     if (stream == NULL)
@@ -192,23 +187,18 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     if (lstat(filename, &lbuf) == -1)
 	perr("error in fstat of input file");
 
-    if (S_ISLNK(lbuf.st_mode)) {
-	syslog(LOG_ERR,"Symbolic link encountered in job %s - aborting",
-		filename);
-	exit(EXIT_FAILURE);
-    }
+    if (S_ISLNK(lbuf.st_mode))
+	perrx("Symbolic link encountered in job %s - aborting", filename);
+ 
     if ((lbuf.st_dev != buf.st_dev) || (lbuf.st_ino != buf.st_ino) ||
         (lbuf.st_uid != buf.st_uid) || (lbuf.st_gid != buf.st_gid) ||
-        (lbuf.st_size!=buf.st_size)) {
-	syslog(LOG_ERR,"Somebody changed files from under us for job %s - "
-	"aborting",filename);
-	exit(EXIT_FAILURE);
-    }
-    if (buf.st_nlink > 1) {
-	syslog(LOG_ERR,"Somebody is trying to run a linked script for job %s",
+        (lbuf.st_size!=buf.st_size))
+	perrx("Somebody changed files from under us for job %s - aborting",
 		filename);
-	exit(EXIT_FAILURE);
-    }
+ 
+    if (buf.st_nlink > 1)
+	perrx("Somebody is trying to run a linked script for job %s", filename);
+ 
     if ((fflags = fcntl(fd_in, F_GETFD)) <0)
 	perr("error in fcntl");
 
@@ -217,28 +207,27 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     snprintf(fmt, sizeof(fmt),
 	"#!/bin/sh\n# atrun uid=%%ld gid=%%ld\n# mail %%%ds %%d",
                           LOGNAMESIZE);
-    if (fscanf(stream, fmt, &nuid, &ngid, mailbuf, &send_mail) != 4) {
-	syslog(LOG_ERR,"File %s is in wrong format - aborting", filename);
-	exit(EXIT_FAILURE);
-    }
-    if (mailbuf[0] == '-') {
-	syslog(LOG_ERR,"illegal mail name %s in %s",mailbuf,filename);
-	exit(EXIT_FAILURE);
-    }
+
+    if (fscanf(stream, fmt, &nuid, &ngid, mailbuf, &send_mail) != 4)
+	perrx("File %s is in wrong format - aborting", filename);
+
+    if (mailbuf[0] == '-')
+	perrx("Illegal mail name %s in %s", mailbuf, filename);
+ 
     mailname = mailbuf;
-    if (nuid != uid) {
-	syslog(LOG_ERR,"Job %s - userid %ld does not match file uid %lu",
+
+    if (nuid != uid)
+	perrx("Job %s - userid %ld does not match file uid %lu",
 		filename, nuid, (unsigned long)uid);
-	exit(EXIT_FAILURE);
-    }
-    if (ngid != gid) {
-	syslog(LOG_ERR,"Job %s - groupid %ld does not match file gid %lu",
+
+    if (ngid != gid)
+	perrx("Job %s - groupid %ld does not match file gid %lu",
 		filename, ngid, (unsigned long)gid);
-	exit(EXIT_FAILURE);
-    }
+
     fclose(stream);
+
     if (chdir(ATSPOOL_DIR) < 0)
-	perr("cannot chdir to " ATSPOOL_DIR);
+	perr("cannot chdir to %s", ATSPOOL_DIR);
     
     /* Create a file to hold the output of the job we are about to run.
      * Write the mail header.
@@ -285,7 +274,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	close(fd_in);
 	close(fd_out);
 	if (chdir(ATJOB_DIR) < 0)
-	    perr("cannot chdir to " ATJOB_DIR);
+	    perr("cannot chdir to %s", ATJOB_DIR);
 
 	queue = *filename;
 
@@ -480,7 +469,7 @@ main(int argc, char *argv[])
     }
 
     if (chdir(ATJOB_DIR) != 0)
-	perr("cannot change to " ATJOB_DIR);
+	perr("cannot change to %s", ATJOB_DIR);
 
     /* Main loop. Open spool directory for reading and look over all the
      * files in there. If the filename indicates that the job should be run
@@ -493,7 +482,7 @@ main(int argc, char *argv[])
      * atrun.
      */
     if ((spool = opendir(".")) == NULL)
-	perr("cannot read " ATJOB_DIR);
+	perr("cannot read %s", ATJOB_DIR);
 
     now = time(NULL);
     run_batch = 0;
@@ -502,7 +491,7 @@ main(int argc, char *argv[])
 
     while ((dirent = readdir(spool)) != NULL) {
 	if (stat(dirent->d_name,&buf) != 0)
-	    perr("cannot stat in " ATJOB_DIR);
+	    perr("cannot stat in %s", ATJOB_DIR);
 
 	/* We don't want directories
 	 */
