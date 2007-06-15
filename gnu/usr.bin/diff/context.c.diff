@@ -1,0 +1,21 @@
+$FreeBSD$
+--- context.c.orig	2004-04-12 15:44:35.000000000 +0800
++++ context.c	2007-06-15 14:51:05.497679903 +0800
+@@ -29,7 +29,7 @@
+ # define TIMESPEC_NS(timespec) 0
+ #endif
+ 
+-size_t nstrftime (char *, size_t, char const *, struct tm const *, int, int);
++size_t nstrftime (char *, size_t, char const *, struct tm const *, int, long);
+ 
+ static char const *find_function (char const * const *, lin);
+ static struct change *find_hunk (struct change *);
+@@ -57,7 +57,7 @@
+       char buf[MAX (INT_STRLEN_BOUND (int) + 32,
+ 		    INT_STRLEN_BOUND (time_t) + 11)];
+       struct tm const *tm = localtime (&inf->stat.st_mtime);
+-      int nsec = TIMESPEC_NS (inf->stat.st_mtim);
++      long nsec = TIMESPEC_NS (inf->stat.st_mtimespec);
+       if (! (tm && nstrftime (buf, sizeof buf, time_format, tm, 0, nsec)))
+ 	{
+ 	  long int sec = inf->stat.st_mtime;
