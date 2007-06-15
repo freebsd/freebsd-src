@@ -892,7 +892,28 @@ format_nice(const struct kinfo_proc *pp)
 	case PRI_ITHD:
 		return ("-");
 	case PRI_REALTIME:
-		rtpri = pp->ki_pri.pri_level - PRI_MIN_REALTIME;
+		/*
+		 * XXX: the kernel doesn't tell us the original rtprio and
+		 * doesn't really know what it was, so to recover it we
+		 * must be more chummy with the implementation than the
+		 * implementation is with itself.  pri_user gives a
+		 * constant "base" priority, but is only initialized
+		 * properly for user threads.  pri_native gives what the
+		 * kernel calls the "base" priority, but it isn't constant
+		 * since it is changed by priority propagation.  pri_native
+		 * also isn't properly initialized for all threads, but it
+		 * is properly initialized for kernel realtime and idletime
+		 * threads.  Thus we use pri_user for the base priority of
+		 * user threads (it is always correct) and pri_native for
+		 * the base priority of kernel realtime and idletime threads
+		 * (there is nothing better, and it is usually correct).
+		 *
+		 * The field width and thus the buffer are too small for
+		 * values like "kr31F", but such values shouldn't occur,
+		 * and if they do then the tailing "F" is not displayed.
+		 */
+		rtpri = ((pp->ki_flag & P_KTHREAD) ? pp->ki_pri.pri_native :
+		    pp->ki_pri.pri_user) - PRI_MIN_REALTIME;
 		snprintf(nicebuf, sizeof(nicebuf), "%sr%d%s",
 		    kthread, rtpri, fifo);
 		break;
@@ -902,7 +923,9 @@ format_nice(const struct kinfo_proc *pp)
 		snprintf(nicebuf, sizeof(nicebuf), "%d", pp->ki_nice - NZERO);
 		break;
 	case PRI_IDLE:
-		rtpri = pp->ki_pri.pri_level - PRI_MIN_IDLE;
+		/* XXX: as above. */
+		rtpri = ((pp->ki_flag & P_KTHREAD) ? pp->ki_pri.pri_native :
+		    pp->ki_pri.pri_user) - PRI_MIN_IDLE;
 		snprintf(nicebuf, sizeof(nicebuf), "%si%d%s",
 		    kthread, rtpri, fifo);
 		break;
