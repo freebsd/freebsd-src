@@ -1,3 +1,2100 @@
+2004-04-13  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AC_INIT): Version 2.8.7.
+	* configure.ac (AM_GNU_GETTEXT_VERSION): Add.
+	(XGETTEXT): Restore from pre-2004-04-12 version.  This fixes
+	a bug that lost many msgids in doc/diffutils.pot.
+	* bootstrap: New file.
+	* exgettext: Don't generate a temporary file, as this runs afoul
+	of "make distcheck" which operates with read-only directories.
+	* Makefile.am (EXTRA_DIST): Add bootstrap.
+	Remove config/config.rpath as it is deduced automatically these days.
+
+2004-04-12  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AC_INIT): Version 2.8.6.
+
+	* NEWS: Add news for 2.8.4, 2.8.6.
+
+	* README: Move copyright notice to end.  Defer to "configure
+	--help" for special "configure" options.  Suggest latest libiconv.
+	Update version numbers of Autoconf etc. to current.
+
+	* configure.ac: Quote various arguments better.
+	(AC_CONFIG_MACRO_DIR): Add call, specifying "m4".
+	(AC_CONFIG_HEADER): Replaces AM_CONFIG_HEADER.
+	(gl_USE_SYSTEM_EXTENSIONS): Replaces AC_GNU_SOURCE.
+	(AC_ISC_POSIX): Remove; nobody ports to ancient ISC any more.
+	(AC_PROG_CPP, AC_PROG_INSTALL, AC_C_INLINE,
+	AC_HEADER_STDBOOL, AC_HEADER_STDC, AM_GNU_GETTEXT, XGETTEXT,
+	AC_HEADER_STAT, AC_FUNC_VPRINTF, jm_FUNC_GLIBC_UNLOCKED_IO,
+	jm_FUNC_GNU_STRFTIME, jm_FUNC_MALLOC, jm_FUNC_REALLOC,
+	jm_PREREQ_C_STACK, jm_PREREQ_ERROR, jm_PREREQ_HARD_LOCALE,
+	jm_PREREQ_QUOTEARG, jm_PREREQ_REGEX, AC_FUNC_FNMATCH_GNU, jm_AC_DOS):
+	Remove; not needed here, as our files don't use them directly
+	or we rely on gnulib modules.
+	(AC_C_CONST): Remove; we assume C89 now.
+	(AC_CHECK_HEADERS): Remove libintl.h, limits.h, stdlib.h, string.h,
+	time.h.
+	(AC_CHECK_TYPE): Remove ptrdiff_t, ssize_t.
+	(AC_CHECK_FUNCS): Remove diraccess, strchr, strerror, tmpnam).
+	(AC_REPLACE_FUNCS): Remove memchr, mkstemp, strcasecmp.
+	(GNULIB_AUTOCONF_SNIPPET): Add call.  This replaces much of
+	the above.
+	(AC_CONFIG_FILES): Remove lib/posix/Makefile.
+	(AC_CONFIG_COMMANDS): Remove.
+	
+	* doc/diff.texi (dircategory): Change to "Text creation and
+	manipulation" from "GNU packages".
+	(Translations): New node.
+	(Overview): Improve quality of algorithm citations.
+	(Binary): -q doesn't exactly cause diff to assume files are binary.
+	(Normal): Place after Side by Side, since it's less important.
+	(Detailed Context, Detailed Unified, Detailed ed,
+	Detailed if-then-else, diff3 Hunks, Detailed diff3 Normal):
+	Place at end of menu.
+	(Detailed Unified): Mention that fractional timestamps are
+	omitted on hosts that don't support them.
+	Mention what happens when hunks contain just one line.
+	(Line Group Formats, Reject Names): Fix duplicate-word typos.
+	(Comparing Directories): Trailing white space and empty lines are
+	ignored in the -X file.
+	(diff Options): Add --strip-trailing-cr.
+	(Projects): gnu -> gvc@gnu.org.
+
+	* lib/Makefile.am (SUBDIRS): Remove.
+	(EXTRA_DIST, noinst_HEADERS): Remove most entries.
+	(libdiffutils_a_SOURCES): Now just lib_SOURCES.
+	(lib_SOURCES): New macro.
+	(DISTCLEANFILES, MOSTLYCLEANFILES): Set to empty now.
+	(gnulib.mk): Include: this does most of the work eliminated
+	by the above changes.
+
+	* lib/inttostr.c (inttostr): Protect i < 0 by compile-time
+	test intended to suppress compiler warnings.
+	* lib/inttostr.h: Include limits.h unilaterally.
+	(CHAR_BIT): Remove.
+	(PARAMS): Remove; all uses changed.
+	* lib/setmode.c (__attribute__): New macro.
+	(set_binary_mode): Define only if HAVE_SETMODE_DOS.
+	Otherwise define a dummy static char, as C89 requires
+	that we define something.
+	* lib/setmode.h (set_binary_mode): Return true, not 1.
+
+	* src/analyze.c, src/context.c, src/diff.c, src/io.c, src/util.c:
+	Do not include regex.h, as diff.h does this now.
+
+	* src/cmp.c: Sort includes.  Include <exit.h>, <unlocked-io.h>.
+	(specify_comparison_type): Don't report an error if the comparison
+	type has already been specified the same way as this one.
+
+	* src/cmp.c (usage): Mention exit status.
+	* src/diff.c (option_help_msgid): Likewise.
+	* src/diff3.c (usage): Likewise.
+	* src/sdiff.c (usage): Likewise.
+
+	* src/cmp.c (main): Adjust to latest gnulib c_stack_action
+	calling conventions.
+	* src/diff.c (main): Likewise.
+	* src/diff3.c (main): Likewise.
+	* src/sdiff.c (main): Likewise.
+
+	* src/cmp.c (main): Adjust to latest version_etc calling conventions.
+	* src/diff.c (main): Likewise.
+	* src/diff3.c (main): Likewise.
+	* src/sdiff.c (main): Likewise.
+
+	* src/diff.c: Include <exit.h>.
+	(binary): Define to true if not declared.
+	(longopts): Set tabsize flag to 1.
+	(main): Don't output nanoseconds if platform lacks them.
+	Don't treat files as binary if !binary.
+	(set_mtime_to_now): Use 0, not NULL.
+	(compare_files): Mark files as nonexistent if it looks like
+	'patch' created inaccessible regular empty files to denote
+	nonexistent backups.  Don't compare such files.
+	Clear st_* members of status of	nonexistent file.
+	Remove now-unnecessary tests.
+
+	* src/diff.h: Include regex.h, unlocked-io.h.
+	(struct file_data.changed): Now char *, not bool *, to save
+	space on hosts where bool takes more space than char.
+	All uses changed.
+
+	* src/diff3.c: Include unlocked-io.h.
+	(strip_trailing_cr): New var.
+	(STRIP_TRAILING_CR_OPTION): New enum.
+	(longopts, main, option_help_msgid, read_diff):
+	Add --strip-trailing-cr support.
+	(read_diff): Exit with status 126 (not 127) if errno != ENOENT
+	after failed execvp in child.  Report this in parent.
+
+	* src/dir.c: Include <strcase.h>.
+	(failed_locale_specific_sorting): Renamed from failed_strcoll.
+	All uses changed.
+	(compare_names): Don't invoke strcasecmp first thing when
+	ignore_file_name_case; if locale_specific_sorting, we should
+	just use that.
+
+	* src/ifdef.c (next_line): Remove; replace with...
+	(next_line0, next_line1): New vars.
+	(print_ifdef_script, print_ifdef_hunk):
+	Use them to fix line-number computation bug.
+
+	* src/io.c (find_and_hash_each_line): Don't convert char *
+	to unsigned char *; just leave pointers as char *.  This
+	lessens the number of potentially-dangerous casts.
+	* src/util.c (lines_differ): Likewise.
+
+	* src/sdiff.c: Include <unlocked-io.h>, <exit.h>.
+	(check_child_status): Renamed from ck_editor_status, and
+	accept a new arg MAX_OK_STATUS.  All callers changed.
+	Handle status 126/127 as per POSIX.
+	(edit): Likewise.
+	(main): Likewise.  Fix getopt typo: -E wasn't supported.
+
+	* src/system.h (S_IRWXU, S_IRWXG, S_IRWXO): Define if not defined.
+	(S_IXUSR, S_IXGRP, S_IXOTH): Remove.
+	Include <time.h> unconditionally, since we can assume C89 now.
+	Likewise for <stdlib.h>, <string.h>.
+	(getenv, EXIT_SUCCESS, EXIT_FAILURE, SSIZE_MAX, strchr, strrchr,
+	memcmp, memcpy): Remove decl; no longer needed.
+	(strcasecoll, strcasecmp): Define if not built in.
+	(CTYPE_DOMAIN, ISPRINT, ISSPACE, TOLOWER, _tolower, errno): Remove;
+	we now assume C89 or better.  All uses changed.
+	Include <stdbool.h> unconditionally now, since gnulib supports it
+	if the C compiler doesn't.  All boolean uses of 0 and 1 now
+	changed to false and true.
+	(lin_is_printable_as_long_int): Renamed from lin_is_printable_as_long.
+
+	* src/util.c (begin_output): Fix bug: 0 wasn't cast to char * arg,
+	which led to undefined behavior on 64-bit hosts.
+	Use more-standard test for exit status 126 versus 127.
+	(finish_output): Likewise.
+	(analyze_hunk): Do not cast bool to int.
+
+2004-03-15  Paul Eggert  <eggert@twinsun.com>
+
+	* src/cmp.c (main): Don't consider two files with the same name to
+	be the same, if their initial skip values differ.  This fixes a
+	bug reported by Hideki Iwamoto in
+	<http://mail.gnu.org/archive/html/bug-gnu-utils/2004-03/msg00024.html>.
+
+2004-03-11  Paul Eggert  <eggert@twinsun.com>
+
+	* src/analyze.c (diag): Return void, not lin, since the return
+	value wasn't needed.  All callers changed.
+	(diag, diff_2_files):
+	Use 'true' and 'false' instead of '1' and '0', when appropriate.
+	(compareseq): Use lin const * local variables instead of lin *.
+	Don't bother checking diag's return value.
+	(shift_boundaries, build_reverse_script, build_script, diff_2_files):
+	Use char arrays, not bool arrays, since
+	sizeof (bool) might be greater than 1.
+
+2004-02-09  Paul Eggert  <eggert@twinsun.com>
+
+	* m4/setmode.m4 (AC_FUNC_SETMODE_DOS): AC_LIBOBJ(setmode) if
+	we would return true.
+
+2002-10-14  Paul Eggert  <eggert@twinsun.com>
+
+	* src/Makefile.am (diff3.$(OBJEXT), diff.$(OBJEXT),
+	sdiff.$(OBJEXT)): Rename from (misspelled) diff3.$(OBJECT),
+	diff.$(OBJECT), sdiff.$(OBJECT).  Patch by Paul D. Smith in
+	<http://mail.gnu.org/pipermail/bug-gnu-utils/2002-October/003251.html>.
+	Bug reported by Chris Bainbridge.
+
+2002-10-13  Paul Eggert  <eggert@twinsun.com>
+
+	* src/Makefile.am (MOSTLYCLEANFILES): Add paths.ht.
+	(paths.h): Send output to paths.ht first, and then rename to
+	paths.h at the end.  This avoids problems if the disk is full.
+	It also works around what appears to be a bug with GNU make -j
+	(3.79.1); see <http://bugs.gentoo.org/show_bug.cgi?id=8934>.
+
+2002-06-27  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AC_INIT): Version 2.8.4.
+
+	* config/config.sub: Sync with latest version maintained in other
+	packages.
+
+	* lib/file-type.h: Protect against double inclusion.  Detect
+	whether <sys/stat.h> has been included.  Fix from Jim Meyering.
+
+	* src/analyze.c (briefly_report): Don't say "Binary files differ",
+	since one of the files may not be a binary file.
+	Bug reported by Dan Jacobson.
+
+2002-06-22  Paul Eggert  <eggert@twinsun.com>
+
+	* lib/c-stack.c (segv_handler, c_stack_action) [! defined
+	SA_SIGINFO]: Do not assume SA_SIGINFO behavior.
+	Bug reported by Jim Meyering on NetBSD 1.5.2.
+
+2002-06-16  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AC_INIT): Version 2.8.3.
+
+	* config/depcomp, config/missing, README: Update to automake 1.6.2.
+
+	* po/LINGUAS: Add en_US.
+	* po/en_US.po: New file.
+	* po/POTFILES.in: Remove lib/freesoft.c.
+	Add lib/file-type.c, lib/version-etc.c, lib/xmalloc.c.
+
+2002-06-15  Paul Eggert  <eggert@twinsun.com>
+
+	* doc/diff.texi (Special Files): Document behavior of symlink
+	loops.
+
+	* lib/Makefile.am (noinst_HEADERS): Remove freesoft.h.
+	Add version-etc.h.
+	(libdiffutils_a_SOURCES): Remove freesoft.c.  Add version-etc.c.
+	* lib/freesoft.c, lib/freesoft.h: Remove.
+	* lib/version-etc.h (PARAMS): Remove; we now assume C89 at least.
+
+	* lib/version-etc.h (version_etc): Remove package and version args.
+	(version_etc_copyright): Remove.
+	* lib/version-etc.c: Likewise.
+	Do not include unlocked-io.h; no longer needed.
+	Include gettext.h rather than libinto.h.
+	(_): Define unconditionally.
+	(version_etc): Adjust wording to match current GNU coding standards.
+	Translate "(C)" if possible.
+
+	* lib/version-etc.c, lib/version-etc.h: New files, taken from
+	fileutils.
+
+	* src/Makefile.am (cmp_SOURCES, diff3_SOURCES, sdiff_SOURCES,
+	diff_SOURCES): Remove version.c.
+	(MAINTAINERCLEANFILES, $(srcdir)/version.c): Remove.
+
+	* src/cmp.c: Include version-etc.h, not freesoft.h.
+	(copyright_notice): Remove.
+	(main): Use version_etc to print version.
+	* src/diff.c, src/diff3.c, src/sdiff.c: Likewise.
+
+	* src/cmp.c (version_string): Remove decl.
+	* src/diff.h, src/diff3.c, src/sdiff.c: Likewise.
+
+2002-06-11  Paul Eggert  <eggert@twinsun.com>
+
+	* lib/fnmatch.c, lib/fnmatch_loop.c (WIDE_CHAR_SUPPORT):
+	New macro.  Use it uniformly instead of
+	(defined HAVE_WCTYPE_H && defined HAVE_WCHAR_H).
+	It also uses HAVE_BTOWC, to fix a porting bug on Solaris 2.5.1
+	reported by Vin Shelton.
+	* m4/fnmatch.m4 (_AC_LIBOBJ_FNMATCH): Check for btowc.
+
+	* NEWS, configure.ac (AC_INIT): Version 2.8.2.
+
+	* ABOUT-NLS, config/config.guess, config/config.sub,
+	config/depcomp, config/texinfo.tex, lib/posix/regex.h,
+	m4/c-bs-a.m4, m4/gettext.m4, m4/gnu-source.m4, m4/lib-link.m4,
+	m4/malloc.m4:
+	Update to recent version (maintained in other packages).
+	* m4/prereq.m4 (jm_PREREQ_EXCLUSIVE): AC_FUNC_FNMATCH_GNU
+	no longer takes a lib.
+
+	* README: Incorporate contents from INSTALLME.
+	* INSTALLME: Remove.
+	* Makefile.am (EXTRA_DIST): Remove INSTALLME.
+
+	* configure.ac (AC_GNU_SOURCE): Move up, so that it affects
+	later compilations properly.
+	(DEFAULT_DIFF_PROGRAM, AC_TYPE_SIGNAL): Remove.
+	(jm_AC_TYPE_INTMAX_T): Add.
+	(AC_FUNC_FNMATCH_GNU): Use this, instead of AC_FUNC_FNMATCH.
+	(AC_CONFIG_LINKS): regex.hin renamed from regex_.h.
+
+	* doc/diff.texi: Reword "@option{-f} and @option{--foo}" to
+	"@option{-f} or @option{--foo}".
+	Use @acronym instead of @sc where appropriate.
+	(Specified Lines): Renamed from Specified Folding.
+	(Comparison, Blank Lines):
+	Clarify wordings for Blank Lines and Specified Lines nodes.
+	(Binary): Mention --verbose and --print-bytes.
+	(Tabs, sdiff Option Summary, diff Options):
+	New option --tabsize=COLUMNS.
+
+	* lib/Makefile.am (EXTRA_DIST): Add fnmatch_loop.c.
+	(noinst_HEADERS): fnmatch_.h renamed from fnmatch.hin.
+	regex_.h renamed from regex.hin.
+	Add file-type.h.
+	(libdiffutils_a_SOURCES): Add file-type.c.
+	(DISTCLEANFILES): Remove fnmatch.hno, regex.hno.
+
+	* lib/c-stack.c (__attribute__): New macro.
+	(EOVERFLOW): Define if not defined.
+	(stack_t): Define to struct sigaltstack if not defined or declared.
+	Include <sys/resource.h>, <ucontext.h> if available.
+	Include <stdio.h> if DEBUG.
+	Do not include <inttypes.h> or <stdint.h>.
+	(c_stack_die): Remove info and context args.  All uses changed.
+	(segv_action): Likewise.
+	(alternate_signal_stack): Change uintmax_t to long, to ease porting.
+	(get_stack_location, min_address_from_argv, max_address_from_argv,
+	null_action): New functions.
+	(stack_base, stack_size): New vars.
+	(segv_handler): context arg may not be used.
+	Use global stack_base, stack_size if
+	! HAVE_XSI_STACK_OVERFLOW_HEURISTIC.
+	Add debug code.
+	Invoke die (rather than segv_action) to exit.
+	(c_stack_action): Accept new argv arg, and simpler handler arg.
+	All uses changed.  Move code into new functions above.
+	Allow null action.
+	[! (defined SA_ONSTACK && defined _SC_PAGESIZE)]: Assume all segvs
+	are stack overflows.
+	(main) [DEBUG]: Describe what output should be like.
+
+	* lib/c-stack.h (siginfo_t, c_stack_die): Remove decl.
+
+	* lib/file-type.c, lib/file-type.h: New files.  These contain code
+	that was in src/diff.c, but is now librarified and spiffed up a
+	bit.  Jim Meyering suggested this.
+
+	* lib/fnmatch.c (alloca, __builtin_expect): Define for non-GCC hosts.
+	<strings.h>: Include only if HAVE_STRINGS_H.
+	<stddef.h>: Include if we include stdlib.h.
+	Do not comment out all code if ! HAVE_FNMATCH_GNU.
+	(getenv): Do not declare if HAVE_DECL_GETENV.
+	(__strchrnul, __wcschrnul): Remove; not used.
+	(MEMPCPY): Use mempcpy if not _LIBC; use memcpy if neither _LIBC
+	nor HAVE_MEMPCPY.
+	(FOLD) [HANDLE_MULTIBYTE]: Do not pass wide char to ISUPPER.
+	(STRLEN, STRCAT, MEMPCPY) [HANDLE_MULTIBYTE && !defined _LIBC]:
+	Use wcslen rather than __wcslen, and likewise for wcscat, wmempcpy.
+	(MEMPCPY) [HANDLE_MULTIBYTE]: Use wmempcpy if not _LIBC; use wmemcpy
+	if neither _LIBC nor HAVE_WMEMPCPY.
+	* lib/fnmatch_.h (__const): Do not define to empty, as this breaks
+	Sun cc.  The code doesn't work with K&R anyway.
+	* lib/fnmatch_loop.c (struct patternlist.str): Size 1, not 0,
+	as C89 requires this.
+	(NEW_PATTERN): Use offsetof, not sizeof, since str now has size 1.
+	* lib/fnmatch_.h: Import from glibc fnmatch.h.
+	* lib/fnmatch.c, lib/fnmatch_loop.c: Import from glibc.
+
+	* lib/posixver.c: Include posixver.h.
+
+	* lib/regex_.h: Renamed from lib/regex.hin.
+
+	* m4/c-stack.m4 (jm_PREREQ_C_STACK): Do not AC_REQUIRE
+	jm_AC_TYPE_UINTMAX_T and do not use uintmax_t.
+	Check for sys/resource.h, uccontext.h.
+	Check for decls and existence of getcontext, sigaltstack.
+	Check for stack_t.
+
+	* m4/codeset.m4, m4/glibc21.m4, m4/lcmessage.m4: Remove.
+
+	* m4/fnmatch.m4: Update to latest Autoconf CVS for AC_FUNC_FNMATCH_GNU.
+	* m4/gnu-source.m4: Likewise, for AC_GNU_SOURCE (renamed from
+	AC__GNU_SOURCE).
+
+	* m4/mbstate_t.m4 (AC_TYPE_MBSTATE_T): Renamed from AC_MBSTATE_T.
+	All uses changed.  Upgrade to recent Autoconf CVS.
+
+	* m4/stdbool.m4 (AC_HEADER_STDBOOL): Do not cast pointer to
+	bool in integer constant expression; C99 does not allow it.
+	Reported by Bruno Haible.
+
+	* po/LINGUAS: Add hu, pt_BR.
+	* po/hu.po, po/pt_BR.po: New files.
+
+	* src/Makefile.am (noinst_HEADERS): Remove diff.h.
+	(DEFS): Remove.
+	(diff_sources): Add diff.h.
+	(MOSTLYCLEANFILES): New macro.
+	(cmp.$(OBJEXT) diff3.$(OBJECT) diff.$(OBJECT) sdiff.$(OBJECT)): Depend
+	on paths.h.
+	(paths.h): New rule.
+
+	* src/analyze.c, src/cmp.c, src/diff.c, src/diff3.c, src/io.c,
+	src/sdiff.c: Include <file-type.h>.
+
+	* src/cmp.c: Include paths.h.
+	(copyright_notice): Renamed from copyright_string.
+	Now a msgid, so that copyright symbol can be translated.
+	All uses changed.
+	* src/diff.c, src/diff3.c, src/sdiff.c: Likewise.
+
+	* src/diff.c: Include posixver.h.
+	(TABSIZE_OPTION): New constant.
+	(main): Allow widths up to SIZE_MAX.
+	(filetype): Move to lib/file-type.c and rename to file_type.
+	All uses changed.
+
+	* src/diff.c (longopts, main, usage): New option --tabsize=COLUMNS.
+	* src/io.c (find_and_hash_each_line): Likewise.
+
+	* src/diff.h (TAB_WIDTH): Remove.
+	(tabsize): New decl.
+	(sdiff_half_width, sdiff_column2_offset): Now size_t rather than
+	unsigned int.
+
+	* src/diff3.c (skipwhite, readnum): New functions.
+	(process_diff_control): Use them.
+	(SKIPWHITE, READNUM): Remove.
+	(read_diff): Don't worry about errno == ENOEXEC.
+
+	* src/sdiff.c (catchsig, signal_handler, initial_action): Signal
+	handlers return void, not RETSIGTYPE, since we no longer support
+	K&R.
+	(TABSIZE_OPTION): New constant.
+	(longopts, usage, main): New option --tabsize=COLUMNS.
+	(cleanup): New arg signo.  All uses changed.
+	(ck_editor_status, main, edit): Don't worry about ENOEXEC.
+
+	* src/side.c (tab_from_to, print_half_line, print_1sdiff_line):
+	New option --tabsize=COLUMNS.
+
+	* src/system.h (S_ISBLK, S_ISCHR, S_ISDIR, S_ISFIFO, S_ISREG,
+	S_ISSOCK): Remove; now in lib/file-type.h.
+
+	* src/util.c (finish_output): Check for ENOEXEC.
+	(lines_differ, output_1_line): New option --tabsize=COLUMNS.
+	(analyze_hunk): If -b or -w is also specified, -B now considers
+	lines to be empty if they contain only white space.
+
+2002-04-05  Paul Eggert  <eggert@sic.twinsun.com>
+
+	* NEWS, configure.ac (AC_INIT): Version 2.8.1.
+
+	* configure.ac (AC_HEADER_STDBOOL): Add.
+	(AC_CHECK_HEADERS): Remove stdbool.h.
+	* m4/stdbool.m4: New file.
+	* m4/prereq.m4 (jm_PREREQ_EXCLUDE):
+	Use AC_HEADER_STDBOOL rather than AC_CHECK_HEADERS(stdbool.h).
+	(jm_PREREQ_HASH): Likewise.
+
+	* src/system.h (SSIZE_MAX): Define if limits.h doesn't.
+
+	* src/analyze.c (diff_2_files): Assign PTRDIFF_MAX - 1 to a
+	size_t variable, just in case there's a problem with ptrdiff_t
+	versus size_t.
+
+	* lib/cmpbuf.c (errno): Remove decl; K&R C is no longer supported.
+	Include limits.h.
+	(SIZE_MAX, SSIZE_MAX): Define if standard headers don't.
+	(MIN): New macro.
+	(block_read): Do not attempt to read more than SSIZE_MAX bytes, as the
+	resulting behavior is implementation-defined.  Work around bug in
+	Tru64 5.1, which can't read more than INT_MAX bytes at a time.
+	* src/cmp.c (cmp): Use block_read instead of read, to work
+	around Tru64 5.1 bug.
+	* src/diff3.c (read_diff): Likewise.
+	* src/diff3.c: Include cmpbuf.h.
+
+	* THANKS: Add Ulrich Drepper.
+
+	* INSTALLME: Mention GNU texinfo.
+
+	* doc/diff.texi:
+	Use new @copying directive.
+	Put @contents first, not last, since Texinfo now suggests this.
+	Fix bug in -w documentation noted by Karl Berry.
+	Mention links for speedup.
+	New node "Speedups" for future speedups.
+	Just say "Index", not "Concept Index".
+
+2002-03-26  Paul Eggert  <eggert@twinsun.com>
+
+	* src/Makefile.am:
+	(INCLUDES): Remove this obsolete macro,	replacing it with:
+	(AM_CPPFLAGS): New macro.
+
+2002-03-26  Albert Chin-A-Young  <china@thewrittenword.com>
+
+	* src/Makefile.am (datadir): Remove, as it conflicts with --datadir.
+
+2002-03-26  Paul Eggert  <eggert@twinsun.com>
+
+	* doc/diff.texi (dircategory GNU packages): Fix typo: a "* " was
+	missing before the menu entry.  Bug diagnosed by Adam Heath.
+	Also, put this dircategory after the Individual utilities dircategory,
+	to work around a compatibility problem with Debian install-info.
+
+2002-03-24  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* src/io.c (sip): Do not mishandle buffered count when reverting
+	to text mode.
+
+2002-03-23  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AC_INIT): Version 2.8.
+	* configure.ac (AC_PREREQ): 2.53.
+	* INSTALLME: Upgrade to gettext 0.11.1 and help2man 1.27.
+
+	* doc/diff.texi: Upgrade the description of `patch' to GNU patch
+	2.5.4, and revamp the documentation accordingly.
+
+	* src/diff.c (main): Fix typo that prevented diff -y from working.
+	Bug reported by Mitsuru Chinen.
+
+2002-03-15  Paul Eggert  <eggert@twinsun.com>
+
+	* lib/c-stack.c (c_stack_die) [!HAVE_SIGINFO_T]: Don't use info.
+	Bug reported by Eli Zaretskii.
+
+2002-03-15  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* ms/config.sed: Tweak editing of install-info-am target.
+
+2002-03-12  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AC_INIT): Version 2.7.10.
+
+	* NEWS: cmp -l -s and cmp -s -l are not allowed.
+	Deprecate diff -h, -H, -L, -P, --inhibit-hunk-merge.
+
+	* configure.ac (jm_PREREQ_HARD_LOCALE): Add.
+	(AM_INIT_AUTOMAKE): Do not distribute shar file.
+
+	* doc/diff.texi (Overview): byte != character.
+	(Detailed Context, Detailed Unified, Alternate Names, diff Options):
+	Do not document diff -L.
+	(Comparing Directories, Making Patches, diff Options):
+	Do not document diff -P.
+	(diff Performance, sdiff Option Summary, diff Options, sdiff Options):
+	Do not document diff -H.
+	(diff Performance, diff Options): Do not document --horizon-lines.
+	(cmp Options): Prefer -b to -c.
+	(cmp Options, diff Options, diff3 Options, patch Options,
+	sdiff Options): Put short options next to the similar long options.
+	Document --help, and use the same wording for --verbose.
+	(diff3 Options): Fix typo in description of -E, which used wrongly used
+	"-e" instead of "-E".
+
+	* lib/hard-locale.c (alloca): Remove.
+	Include stdlib.h if available, for malloc.
+	(hard_locale): Use malloc, not alloca, so that we need not worry about
+	alloca issues.  Test for storage allocation failure.
+
+	* m4/prereq.m4 (jm_PREREQ): Add jm_PREREQ_HARD_LOCALE.
+	(jm_PREREQ_HARD_LOCALE): New macro.
+
+	* src/cmp.c (specify_comparison_type): New function.
+	(check_stdout): "indices and codes" -> "byte numbers and values"
+	(main): Detect clashing options.
+	(cmp): Use "byte" rather than "char" if a translation for "byte"
+	is available, even when in the POSIX locale.
+
+	* src/diff.c (option_help_msgid): Do not document -L, -P,
+	--horizon-lines, --inhibit-hunk-merge, -H.
+	* src/diff.h: -L -> --label
+
+2002-03-11  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AC_INIT): Version 2.7.9.
+
+	* INSTALLME: Update to autoconf 2.53, automake 1.6, help2man
+	1.25 with patch.
+
+	* configure.ac (AC_INIT):
+	Change package name from diff to diffutils.
+	(AM_INIT_AUTOMAKE): Use new form, with option gnits,
+	rather than old from that duplicated AC_INIT.
+	(AM_MISSING_PROG): Add help2man.
+	(REGEX_MALLOC): Define.
+	(AC_CONFIG_FILES): Add man/Makefile.
+
+	* Makefile.am (AUTOMAKE_OPTIONS): Remove.
+	* doc/Makefile.am (AUTOMAKE_OPTIONS): Remove.
+	* lib/Makefile.am (AUTOMAKE_OPTIONS): Likewise.
+	* ms/Makefile.am (AUTOMAKE_OPTIONS): Likewise.
+	* src/Makefile.am (AUTOMAKE_OPTIONS): Likewise.
+
+	* lib/c-stack.c: Include <errno.h>
+	(ENOTSUP): Define if errno.h doesn't.
+	(SA_NODEFER, SA_ONSTACK, SA_RESETHAND, SA_SIGINFO, SIGSTKSZ,
+	_SC_PAGESIZE, ALTERNATE_STACK_SIZE, stack_t, sigaltstack):
+	Remove; we now assume them all when
+	HAVE_XSI_STACK_OVERFLOW_HEURISTIC, so we don't need
+	substitutes.
+	(<ucontext.h>): Include only if HAVE_XSI_STACK_OVERFLOW_HEURISTIC.
+	(alternate_signal_stack): Now of size SIGSTKSZ.
+	(segv_handler): Simplify, under the assumption that
+	HAVE_XSI_STACK_OVERFLOW_HEURISTIC is nonzero.
+	(c_stack_action): Likewise.
+	(exit_failure) [DEBUG]: Initialize to 0, not 1.
+	(recurse, main) [DEBUG]: Remove main args.
+
+	* m4/c-stack.m4 (AC_SYS_XSI_STACK_OVERFLOW_HEURISTIC): Change
+	wording of message.  Do not check for stdbool.h or ucontext.h,
+	or for ucontext_t or sigaction or sigaltstack.
+
+	* po/LINGUAS: Add zh_TW.
+
+	* Makefile.am (SUBDIRS): Add man.
+	* man/Makefile.am: New file.
+	* src/cmp.c (usage): Reword for help2man.
+	* src/diff.c (option_help_msgid): Likewise.
+	* src/diff3.c (option_help_msgid, usage): Likewise.
+	* src/sdiff3.c (option_help_msgid, usage): Likewise.
+	Reword for help2man.
+
+	* THANKS: Add email address for Tower.
+
+	* config/config.guess, config/config.sub, config/depcomp,
+	config/install-sh, config/mdate-sh, config/missing,
+	config/mkinstalldirs, config/texinfo.tex: Update
+	to recent version (maintained in other packages).
+
+2002-03-04  Bruno Haible <haible@ilog.fr>
+
+	* m4/gettext.m4 (AM_GNU_GETTEXT): Set LIBINTL and LTLIBINTL to empty if
+	no preinstalled GNU gettext was found.
+
+2002-03-02  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* ms/config.sed: Tweak editing of install-info-am and
+	uninstall-info-am targets, to include 8+3-butchered names of Info
+	files.
+
+2002-02-28  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AC_INIT, AM_INIT_AUTOMAKE): Version 2.7.8.
+
+	* doc/diff.texi: Add vr index.
+	Update copyright to 2002.
+	(Standards conformance): New chapter.
+	(Binary): Differing binary files are trouble unless the user asked for
+	brief output.
+	(Detailed Context): Prefer ISO time stamp format in discussion.
+	(Detailed Unified, Pagination): Likewise.
+	(Less Context): Likewise.  Also use short option.
+	(Alternate Names): Separate option from arg.
+	(Making Patches): Mention -U 2.
+	(diff Options): Deprecate -LINES, as POSIX 1003.1-2001 does not
+	allow it.
+
+	* INSTALLME: Update advice for Solaris installation problems.
+	We no longer use a test version of gettext.
+	Autoconf test version updated from 2.52f to 2.52h.
+	POSIX 1003.1-2001 patch for Automake.
+
+	* configure.ac (AC__GNU_SOURCE): Add this,
+	replacing AH_VERBATIM of _GNU_SOURCE.
+	(tempname): Use AC_LIBOBJS, not LIBOBJS=, as now required by autoconf.
+	(jm_PREREQ_C_STACK): Add.
+	(AC_CONFIG_FILES): Remove intl/Makefile.
+	(AM_GNU_GETTEXT): Add external arg, from gettext 0.11.
+
+	* lib/c-stack.c, lib/c-stack.h, lib/exitfail.c, lib/exitfail.h,
+	lib/posixver.c, lib/posixver.h, m4/c-stack.m4, m4/gnu-source.m4,
+	po/cs.po, po/ja.po: New files.
+
+	* intl/ChangeLog, intl/Makefile.in, intl/VERSION,
+	intl/bindtextdom.c, intl/config.charset, intl/dcgettext.c,
+	intl/dcigettext.c, intl/dcngettext.c, intl/dgettext.c,
+	intl/dngettext.c, intl/explodename.c, intl/finddomain.c,
+	intl/gettext.c, intl/gettextP.h, intl/gmo.h, intl/hash-string.h,
+	intl/intl-compat.c, intl/l10nflist.c, intl/libgnuintl.h,
+	intl/loadinfo.h, intl/loadmsgcat.c, intl/localcharset.c,
+	intl/locale.alias, intl/localealias.c, intl/localename.c,
+	intl/ngettext.c, intl/os2compat.c, intl/os2compat.h, intl/osdep.c,
+	intl/plural-eval.c, intl/plural-exp.c, intl/plural-exp.h,
+	intl/plural.c, intl/plural.y, intl/ref-add.sin, intl/ref-del.sin,
+	intl/textdomain.c, m4/isc-posix.m4, m4/libtool.m4: Remove.
+
+	* ABOUT-NLS: Update to Gettext 0.11.
+
+	* Makefile.am (SUBDIRS): Remove intl.
+
+	* config/config.guess, config/config.rpath, config/config.sub,
+	config/texinfo.tex, config/depcomp, config/texinfo.tex,
+	lib/tempname.c: Update to latest version from other packages.
+
+	* lib/xalloc.h (xalloc_exit_failure): Remove; subsumed by exit_failure.
+	* lib/xmalloc.c: Include exitfail.h.
+	(xalloc_exit_failure): Remove; subsumed by exit_failure.
+	All uses changed.
+
+	* lib/Makefile.am (noinst_HEADERS): Add c-stack.h, exitfail.h.
+	(libdiffutils_a_SOURCES): Add c-stack.c, exitfail.c, quotesys.c.
+	(INCLUDES): Remove.
+
+	* lib/cmpbuf.h (buffer_lcm): New arg LCM_MAX.
+	* lib/cmpbuf.c: Include errno.h.
+	(errno): Declare if !STDC_HEADERS.
+	Include signal.h.
+	(SA_RESTART): Define if not already defined.
+	Include <inttypes.h>.
+	(PTRDIFF_MAX): Define if not already defined.
+	(TYPE_SIGNED, TYPE_MINIMUM, TYPE_MAXIMUM): Likewise.
+	(block_read): Accommodate ancient AIX hosts that set errno to EINTR
+	after uncaught SIGCONT.
+	(buffer_lcm): Return a reasonable size if the multiple is too large.
+	New arg LCM_MAX.  All callers changed.
+
+	* lib/hard-locale.c: Include "hard-locale.h".
+	(hard_locale): Ignore ENABLE_NLS, since we want to operate on
+	locales other than LC_MESSAGES.
+
+	* m4/prereq.m4 (jm_PREREQ): Add jm_PREREQ_POSIXVER.
+	(jm_PREREQ_POSIXVER): New macro.
+
+	* m4/setmode.m4 (AC_FUNC_SETMODE_DOS):
+	Check for fcntl.h and unistd.h unconditionally.
+	Suggested by Bruno Haible.
+
+	* po/LINGUAS: Add cs, ja.
+	* po/POTFILES.in: Add lib/c-stack.c, src/dir.c.
+
+	* src/Makefile.am (datadir): @DATADIRNAME@ -> share.
+	(INCLUDES): Remove intl.
+	(LDADD): Change INTLLIBS to LIBINTL.
+	No longer need to link libdiffutils.a twice.
+
+	* src/analyze.c (diff_2_files):
+	Avoid arithmetic overflow in buffer size calculation.
+
+	* src/cmp.c: Include c-stack.h, exitfail.h.
+	(hard_locale_LC_MESSAGES): Depend on ENABLE_NLS.
+	(try_help, check_stdout, main, cmp): 2 -> EXIT_TROUBLE.
+	(main): Check for stack overflow.
+	0 -> EXIT_SUCCESS.
+	1 -> EXIT_FAILURE.
+	(cmp): Likewise.
+	Accommodate ancient AIX hosts that set errno to
+	EINTR after uncaught SIGCONT.
+
+	* src/context.c (pr_context_hunk):
+	Do not dump core if an enormous context causes an
+	arithmetic overflow.
+	(pr_unidiff_hunk): Likewise.
+	(find_hunk): Likewise.
+
+	* src/diff.h: unsigned -> unsigned int.
+	* src/diff.c: Include c-stack.h, exitfail.h.
+	Do not include signal.h.
+	(specify_style, specify_value): Bring these routines back, as POSIX
+	requires that the order of options not matter.
+	(shortopts): New constant.
+	(group_format_option, line_format_option): New constants.
+	(main): 0 -> EXIT_SUCCESS, 1 -> EXIT_FAILURE, 2 -> EXIT_TROUBLE.
+	Ensure that order of options does not matter.
+	Check for stack overflow.
+	If contexts overflow, substitute LIN_MAX, as that's good enough.
+	If multiple contexts are specified, use their maximum.
+	-c is equivalent to -C 3 now, instead of having an implicit context;
+	likewise for -u and -U 3.
+	Use specify_style and specify_value.
+	(SIGCHLD): Do not define; now done in a header.
+	Use new style time stamp format for -u / -U.
+	Reject numeric-string options if operating in POSIX 1003.1-2001 mode.
+	Avoid overflow problems with tab width.
+	Simplify from-file and to-file code.
+	(usage): Do not mention obsolete options.
+	(filetype): Do not mention whether a file is executable.
+	Add typed memory objects.
+	(compare_files): 0 -> EXIT_SUCCESS, 1 -> EXIT_FAILURE, 2 ->
+	EXIT_TROUBLE.
+
+	* src/diff3.c: Include c-stack.h, exitfail.h.
+	(ALLOCATE): Remove.  All uses changed to xmalloc, or to xmalloc plus
+	an overflow check.
+	(myread): Remove.
+	(main): Check for stack overflow.
+	0 -> EXIT_SUCCESS, 1 -> EXIT_FAIULRE, 2 -> EXIT_TROUBLE.
+	(try_help): Likewise.
+	(process_diff): Check for integer overflow, to avoid core dumps.
+	2 -> EXIT_TROUBLE.
+	(read_diff): Exit with status 126 if the file is not executable,
+	for compatibility with POSIX 1003.1-2001.
+	Accommodate ancient AIX hosts that set errno to EINTR after uncaught
+	SIGCONT.
+	Check for integer overflow to avoid core dumps.
+	(fatal, perror_with_exit): 2 -> EXIT_TROUBLE.
+
+	* src/dir.c (dir_read):
+	Ignore st_size of directories: POSIX says it's garbage.
+	Check for integer overflow to avoid core dumps.
+	(diff_dirs): 0 -> EXIT_SUCCESS, 2 -> EXIT_TROUBLE.
+
+	* src/ifdef.c: Include <xalloc.h>.
+	(format_group, print_ifdef_lines): Avoid core dumps with bad formats.
+	(do_printf_spec): Avoid alloca.
+
+	* src/io.c (sip):
+	Avoid integer overflow and core dumps if buffer alignments are
+	preposterously incompatible.
+	(slurp): Do not dump core if the file is growing as we read it.
+	If a regular file grows, keep reading until we catch up with its EOF.
+	(find_and_hash_each_line): Check for integer overflow to avoid cores.
+	(GUESS_LINES): Remove.
+	(guess_lines): New function.  Avoid integer overflow.
+	(find_identical_ends): Use it.
+	Avoid integer overflow and possible core dumps.
+
+	* src/sdiff.c: Include c-stack.h, exitfail.h.  Do not include signal.h.
+	0 -> EXIT_SUCCESS, 1 -> EXIT_FAILURE, 2 -> EXIT_TROUBLE.
+	(ck_editor_status): New function.
+	(main): Check for stack overflow.
+	Adopt POSIX convention for subsidiary programs not found.
+	(diffarg): Check for integer overflow to avoid core dumps.
+	(trapsigs): Remove SA_INTERRUPT special case; now done by header.
+	(SIGCHLD): Likewise.
+	(edit): Adopt POSIX convention for subsidiary programs not found.
+
+	* src/side.c: unsigned -> unsigned int.
+
+	* src/system.h: Don't use alloca or include <alloca.h>.
+	unsigned -> unsigned int
+	(EXIT_SUCCESS, EXIT_FAILURE, EXIT_TROUBLE): Define if not defined.
+	Include signal.h.
+	(SA_RESTART): Define if not defined.
+	(SIGCHLD): Likewise.
+
+	* src/util.c: 2 -> EXIT_TROUBLE.
+	Adopt POSIX convention for ENOEXEC and exit status 126.
+	unsigned -> unsigned int
+
+2002-01-24  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AC_INIT, AM_INIT_AUTOMAKE): Version 2.7.7.
+
+	* intl/plural.c: Regenerate with Bison 1.31.
+
+	* ABOUT-NLS, intl/*: Update to Gettext 0.11-pre5++.
+	* INSTALL: Update to Autoconf 2.52f.
+
+	* INSTALLME: New file.
+	* Makefile.am (EXTRA_DIST): Add config/config.rpath, INSTALLME.
+	(DISTCLEANFILES): Remove.
+	* NEWS: Reformat for imminent 2.8 release.
+	* README: Mention INSTALLME.
+	* README-alpha: Move most of contents to INSTALLME.
+	* THANKS: Add Bruno Haible, Jim Meyering, and Eli Zaretskii.
+
+	* config: New subdirectory, containing the following files from .:
+	config.guess, config.sub, depcomp, missing, install-sh, mkinstalldirs.
+	Move the following files here from doc: texinfo.tex, mdate-sh.
+	* config/config.guess, config/config.sub, config/texinfo.tex:
+	Update to latest version from FSF.
+	* config/config.rpath: New file, from Gettext 0.11-pre5++.
+
+	* configure.ac (AC_INIT): Use new 3-arg form.
+	(AC_CONFIG_SRCDIR): Specify src/diff.c here, not in AC_INIT.
+	(ALL_LINGUAS): Remove: now in po/LINGUAS as per Gettext 0.11.
+	(AC_CONFIG_AUX_DIR): New macro invocation.
+
+	* lib/Makefile.am (noinst_HEADERS): Add gettext.h.
+	* lib/gettext.h: New file, from Gettext 0.11-pre5++.
+	* lib/prepargs.c: Include <string.h>.  Reported by Bruno Haible.
+
+	* m4/codeset.m4, m4/gettext.m4, glibc21.m4, iconv.m4, isc-posix.m4,
+	lcmessage.m4, progtest.m4: Upgrade to Gettext 0.11-pre5++.
+	* m4/lib-ld.m4, m4/lib-link.m4, m4/lib-prefix.m4: New files, from
+	Gettext 0.11-pre5++.
+
+	* po/LINGUAS: New file.
+	* po/Makefile.in.in: Upgrade to Gettext 0.11-pre5++.
+	* po/Makevars, po/Rules-quot, po/boldquot.sed: New files,
+	from Gettext 0.11-pre5++.
+
+	* src/cmp.c (copyright_string): Update to 2002.
+	* src/diff.c (copyright_string): Likewise.
+	* src/diff3.c (copyright_string): Likewise.
+	* src/sdiff.c (copyright_string): Likewise.
+
+	* src/cmp.c (specify_ignore_initial): Renamed from
+	parse_ignore_initial, with different signature, to take the
+	maximum of multiple options rather than the last one.
+	All uses changed.
+
+	* src/cmp.c (bytes, specify_ignore_initial, cmp): Use UINTMAX_MAX
+	instead of (uintmax_t) -1, to avoid warnings on some compilers.
+	* src/io.c (file_block_read): Likewise, for SIZE_MAX.
+
+	* src/cmp.c (usage): Reformat messages to ease translation.
+	* src/diff3.c (usage): Likewise.
+	* src/sdiff.c (usage): Likewise.
+
+	* src/cmp.c (main): Two files with the same name are identical
+	only if the same offset is specified.
+	(block_compare_and_count): Avoid cast to unsigned char.
+
+	* src/diff3.c (main): Remove unused variable.
+
+	* src/dir.c: Include <setjmp.h>
+	(struct dirdata): New member nnames.
+	(locale_specific_sorting, failed_strcoll): New vars.
+	(dir_read): Renamed from dir_sort.  Don't sort the dir.
+	Set new nnames member of struct dirdata.  All callers changed.
+	(compare_names): Don't check for errno after strcasecmp.
+	Use strcoll only if locale_specific_sorting is nonzero.
+	If strcoll fails, longjmp out rather than returning a value
+	that might result in an invalid comparison function that might
+	make qsort dump core.
+	(diff_dirs): Sort the directory ourselves.  Use setjmp to recover
+	from strcoll failure, falling back on native byte comparison.
+	Make local variables volatile if they need to preserve their value
+	after setjmp/longjmp.
+
+	* src/sdiff.c (handler_index_of_SIGINT, handler_index_of_SIGPIPE):
+	New macros.
+	(main): Do not confuse signal numbers with their indices.
+	Bug reported by Bruno Haible.
+	(edit): Cat lin to long before printing with %ld, since lin might
+	be narrow than long.
+
+	* src/system.h (UINTMAX_MAX): New macro.
+	Include gettext.h, not libgettext.h.
+	(N_): Do not wrap arg in parentheses.  Fix from Bruno Haible.
+
+	* src/util.c (finish_output): Ensure that werrno is initialized.
+	(lines_differ): Have an explicit do-nothing case for
+	IGNORE_NO_WHITE_SPACE, to pacify gcc -Wall.
+
+2001-12-29  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* src/sdiff.c (interact): After extracting rlen from the editor
+	command, test for a terminating null character, not for a newline.
+
+	* ms/config.bat: Allow longer source directory names without
+	overflowing the line length limits.  Create the cache in the
+	build directory, not in the source directory
+	* ms/config.sed: Fix AC_CONFIG_LINKS for when symlinks are
+	unavailable.
+
+2001-12-23  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AM_INIT_AUTOMAKE): Version 2.7.6.
+
+	* configure.ac (ALL_LINGUAS): Add tr.
+
+	* src/util.c (begin_output):
+	Have child exit with status 127 rather than reporting
+	failure on its own.  Set errno to 0 before invoking popen.
+	(finish_output): Report errno on pclose failure.
+	Distinguish between subsidiary program not found, and failure.
+
+	* src/sdiff.c (not_found, execdiff): Remove.
+	(DIFF_PROGRAM_OPTION): New constant.
+	(longopts, option_help_msgid, main): Add --diff-program=PROGRAM.
+	(check_stdout): New function.
+	(main): Remove DIFF_PROGRAM.  Check stdout after printing version.
+	Use check_stdout after printing help.  Use execvp/perror_fatail rather
+	than execdiff.  Set errno to 0 before invoking popen.
+	Check for pclose failure properly.
+	(main, edit): If child exec fails, exit with 127 rather than trying to
+	print diagnostic.
+	Distinguish between subsidiary program failing and not being found.
+	(edit): Handle signals the same way, regardless of whether we're using
+	system or fork+exec.  Check for system returning -1.
+
+	* src/diff3.c (DIFF_PROGRAM_OPTION, HELP_OPTION): New constants.
+	(longopts, main): Use them.
+	(longopts, main, option_help_msgid): New option --diff-option=PROGRAM.
+	(main): Remove DIFF_PROGRAM support.
+	Check stdout after printing version.
+	(check_stdout): Report errno info if fclose fails.
+	(read_diff): Have child exit with status 127 when program is not found,
+	rather than trying to have the child report failure.  Check for
+	pclose returning -1.
+
+	* src/diff.c (DEFAULT_WIDTH): Remove.
+	(main): Use 130 instead of DEFAULT_WIDTH, since it's not really
+	builder-settable.  Do not prepend DIFF_OPTIONS.
+	(check-stdout): If fclose (stdout) fails, print errno info.
+	(option_help_msgid): Default context is 3, not 2.
+	(usage): Work even if ptrdiff_t is wider than int.
+
+	* doc/diff.texi (diff Options): Remove DIFF_OPTIONS.
+	(Invoking diff3, Invoking sdiff): Remove DIFF_PROGRAM.
+	(diff3 Options, sdiff Options): Add --diff-program.
+
+	* src/cmp.c (valid_suffixes):
+	Add '0', to support suffixes like "MB" and "MiB".
+	(check_stdout): Don't assume that the translations of "write failed"
+	and of "standard output" lack '%'.
+	(main): Check stdout after printing version.
+
+	* lib/setmode.c: [HAVE_FCNTL_H && HAVE_SETMODE_DOS]: Include <fcntl.h>.
+	[!HAVE_SETMODE_DOS]: Do not include <unistd.h>.
+	(set_binary_mode): Return mode (not 1) if fd is a tty.
+	Do not assume that O_TEXT is zero.
+
+	* doc/diff.texi (cmp Options):
+	In byte counts, a plain suffix (without any integer)
+	is assumed to modify the integer 1.  Index terms like "kibibyte".
+	Document plain "k".
+
+	(Reporting Bugs): Mention bug-report archive and test version
+	location.  Ask for "diff --version" in bug reports.
+
+2001-12-13  Paul Eggert  <eggert@twinsun.com>
+
+	* src/diff.c (DEFAULT_WIDTH): Remove; couldn't be changed without
+	also changing option_help_msgid.  All uses replaced with 130.
+
+	* lib/setmode.c: Include fcntl.h and unistd.h only if
+	HAVE_SETMODE_DOS.
+	(setmode): Assume a file is binary unless the mode is O_TEXT.
+	* ms/README: Fix minor typos.
+
+2001-12-13  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* ms/README: New file.
+
+	* lib/setmode.c (set_binary_mode) [HAVE_SETMODE_DOS]: Don't assume
+	O_TEXT has a zero value.  If FD is a terminal device, do nothing
+	and return MODE, thus pretending that it was already in the
+	requested MODE.
+	[HAVE_FCNTL_H]: Include fcntl.h (needed for O_BINARY).
+
+	* ms/config.sed: Remove the split prevention of config.status.
+	Fix Sed commands for converting absolute file names into
+	top_srcdir-relative ones.
+
+	* ms/config.bat: Fix typos.
+
+2001-12-12  Neal H Walfield  <neal@cs.uml.edu>
+
+	* diff.c (option_help_msgid): Correct the default context width
+	from 2 to 3.
+
+2001-12-11  Paul Eggert  <eggert@twinsun.com>
+
+	* m4/Makefile.am.in: Remove jm-glibc-io.m4
+
+	* NEWS, configure.ac (AM_INIT_AUTOMAKE): Version 2.7.5.
+
+	* configure.ac (PR_PROGRAM): Use AC_DEFINE_UNQUOTED, so that
+	$PR_PROGRAM is expanded by sh.
+	(ptrdiff_t, ssize_t): Use AC_CHECK_TYPE with a default of int,
+	not AC_CHECK_TYPES.
+	(jm_AC_DOS, AC_FUNC_SETMODE_DOS): New macros.
+	(AC_CONFIG_FILES): Add ms/Makefile.
+
+	* doc/diff.texi: Add --no-ignore-file-name-case.
+	File name case sensitivity now affects file name exclusion.
+	Fix typos.
+
+	* src/util.c: Include dirname.h.
+	(dir_file_pathname): Use base_name rather than file_name_lastdirchar.
+
+	* src/system.h (S_IXUSR, S_IXGRP, S_IXOTH): New macros.
+	Include <libgettext.h> rather than rolling it ourselves.
+	(file_name_lastdirchar, HAVE_SETMODE, set_binary_mode): Remove.
+
+	* src/sdiff.c: Include <dirname.h>.
+	(expand_name): Use base_name rather than file_name_lastdirchar, for
+	portability to DOS.
+	(main): Initialize xalloc_exit_failure before possibly invoking
+	any memory allocator.
+
+	* src/io.c: Include setmode.h.
+
+	* src/diff3.c (main):
+	Initialize xalloc_exit_failure before possibly invoking any memory
+	allocator.
+
+	* src/diff.c: Include dirname.h, setmode.h.
+
+	(main): Later values and/or styles now silently override earlier.
+	(specify_value, specify_style): Likewise.  All callers changed.
+	Remove.
+	(binary, main, option_help_msgid, compare_files):
+	HAVE_SETMODE -> HAVE_SETMODE_DOS.
+	(NO_IGNORE_FILE_NAME_CASE_OPTION): New constant.
+	(longopts, main, option_help_msgid): Support it.
+	(exclude_options): New function.
+	(main): Use it. Initialize xalloc_exit_failure before potentially
+	allocating memory.
+
+	(filetype): Distinguish executable files from others, as POSIX
+	suggests.
+
+	(compare_files): Use base_name instead of file_name_lastdirchar.
+
+	* src/cmp.c: Include <hard-locale.h>, <setmode.h>.
+	(hard_locale_LC_MESSAGES): New macro.
+	(sprintc): Remove int width arg; it's now the caller's responsibility
+	to pad.  All callers changed.
+	(stat_buf): New static var; was formerly a local var in 'main'.
+	(valid_suffixes): Add 'K', for 'KiB'.
+	(option_help_msgid): Don't confuse bytes with characters.
+	(main): Set xalloc_exit_failure before invoking anything that might
+	allocate memory.  Fix bug: -n was incorrectly ignored when optimizing
+	the case of regular files with different lengths.
+	(cmp): Use an index column wide enough to store this comparison's
+	indexes.  In locales other than the POSIX locale, say "byte"
+	rather than "char".
+
+	* ms/config.bat: pc -> ms
+
+	* ms/Makefile.am, m4/setmode.m4, lib/setmode.c, lib/setmode.h:
+	New file.
+
+	* lib/Makefile.am (noinst_HEADERS): Add dirname.h, setmode.h.
+	(libdiffutils_a_SOURCES): Add basename.c, setmode.c.
+
+	* Makefile.am (SUBDIRS): Add ms.
+
+2001-12-10  Paul Eggert  <eggert@twinsun.com>
+
+	* m4/fnmatch.m4: Test for FNM_CASEFOLD.
+
+2001-12-03  Paul Eggert  <eggert@twinsun.com>
+
+	* lib/posix/regex.h: Fix copyright notice.
+
+2001-12-03  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AM_INIT_AUTOMAKE): Version 2.7.4.
+
+	* diff.texi (direntry, Overview, Comparison, Binary, Invoking cmp):
+	Use "byte" rather than "character" when talking about cmp, since
+	it compares bytes, not character.
+	(Invoking cmp): New trailing operands FROM-SKIP and TO-SKIP.
+	-i or --ignore-initial now accepts FROM-SKIP:TO-SKIP.
+	New option -n or --bytes.
+	Count operands now may be in octal or hex, and may be followed by a
+	size multiplier.
+
+	* configure.ac (DEFAULT_DIFF_PROGRAM):
+	Define to "diff", not "$bindir/diff" (which didn't work anyway).
+	(AC_CHECK_MEMBERS): Add struct stat.st_blksize, struct stat.st_rdev.
+	(AC_STRUCT_ST_BLKSIZE, AC_STRUCT_ST_RDEV): Remove; obsolescent.
+	(AC_FUNC_FORK): Use this, instead of obsolescent AC_FUNC_VFORK.
+	(AC_CONFIG_FILES, AC_CONFIG_COMMANDS): Add.
+	(AC_OUTPUT): Remove args; they were obsolescent.
+
+	* util.c (setup_output, begin_output, finish_output):
+	HAVE_FORK -> HAVE_WORKING_FORK || HAVE_WORKING_VFORK.
+	* sdiff.c (diffpid, cleanup, main, edit): Likewise.
+	* diff3.c (read_diff): Likewise.
+
+	* system.h (STAT_BLOCKSIZE):
+	Use HAVE_STRUCT_STAT_ST_BLKSIZE, not HAVE_ST_BLKSIZE.
+	(vfork): New macro.
+	(HAVE_FORK): Remove.
+	(set_binary_mode): New macro.
+
+	* sdiff.c (main): HAVE_VFORK -> HAVE_WORKING_VFORK.
+	(edit): Reopen the temporary file after the editor has run, in case
+	the editor operates by unlinking the old file and linking a new one.
+	(P_tmpdir): Rename from PVT_tmpdir; this fixes a typo.
+	All uses changed.
+
+	* io.c (sip, read_files):
+	Remove tests for HAVE_SETMODE; use set_binary_mode
+	instead of setmode.
+	(sip): Fix typo in backward lseek when reverting to text mode.
+
+	* config.site, config.sed, config.bat: New file.
+
+	* Makefile.am (EXTRA_DIST): Add xstrtol.c.
+	(noinst_HEADERS): Add xstrtol.h.
+	(libdiffutils_a_SOURCES): Add xstrtoumax.c.
+
+	* cmp.c: <xstrtol.h>: Include.
+	(ignore_initial): Now an array with 2 elements.  All uses changed.
+	(bytes): New var.
+	(HELP_OPTION): New constant.
+	(long_options, main): Use it.
+	(long_options, option_help_msgid, main, cmp):
+	Add support for -n or --bytes.
+	(parse_ignore_initial): New function.
+	(option_help_msgid, main): Add -i M:N.
+	(usage, main): Add two optional trailing operands, a la BSD.
+	(main): setmode -> set_binary_mode.
+	(cmp): Report byte number of what we've seen, not of the entire file.
+	This is to be consistent with the line number, which is always relative
+	with what we've seen.
+
+2001-12-02  Paul Eggert  <eggert@twinsun.com>
+
+	* diff.c (main, compare_files): setmode -> set_binary_mode.
+
+	* xstrtol.c (__xstrtol): Don't accept 'Ki'; require 'KiB'.
+
+	* xstrtol.c (__xstrtol): Add support for IEC 60027-2.
+
+2001-11-25  Paul Eggert  <eggert@twinsun.com>
+
+	* NEWS, configure.ac (AM_INIT_AUTOMAKE): Version 2.7.3.
+
+	* README-alpha: New file.
+
+	* src/Makefile.am (INCLUDES): Add -I../lib, for regex.h.
+
+	* configure.ac:
+	Don't set LIB_CLOCK_GETTIME to 'none required'; set it to
+	the empty string instead.
+
+	* lib/Makefile.am (EXTRA_DIST): Add strtoimax.c, strtol.c.
+
+	* Makefile.am (SUBDIRS): Put intl before lib, so that libintl.h exists.
+
+	* lib/Makefile.am (noinst_HEADERS): Add unlocked-io.h.
+
+	* configure.ac (__EXTENSIONS__): New define, for the unlocked macros.
+
+	* README: Add copyright notice.
+	Remove stuff that doesn't apply any more.
+
+	* doc/diff.texi: offsets -> indices for cmp
+
+	* src/cmp.c (option_help_msgid): offsets -> indices
+
+	* src/diff.c (option_help_msgid):
+	Don't mention --binary on POSIX hosts.
+
+	* src/sdiff.c (STRIP_TRAILING_CR_OPTION): New constant.
+	(longopts, option_help_msgid, main): Add -E, --ignore-tab-expansion,
+	--strip-trailing-cr.
+
+	* doc/diff.texi: Change direcategory from Utilities to GNU Packages.
+	Add individual utilities.
+	Switch to Free Documentation License.
+	@code -> @command
+	@samp -> @option
+	GNU -> @sc{gnu}
+	Expand tabs to spaces, except when in an example that actually
+	uses tabs.
+	Prefer @node with just one arg.
+	Document -E or --ignore-tab-expansion, --strip-trailing-cr,
+	--ignore-file-name-case.
+	Regular expressions are now grep style, not Emacs style.
+	cmp's -c or --print-chars option is now -b or --print-bytes.
+	Time stamps now depend on LC_TIME.
+	-p now implies ^[[:alpha:]$_].
+	Flags now include ' and 0.
+	cmp -i is an alias for --ignore-initial
+	Document --from-file, --to-file.
+	Document DIFF_OPTIONS.
+
+	* configure.ac (AC_CHECK_FUNCS): Add gettimeofday, clock_gettime.
+	(LIB_CLOCK_GETTIME): New subst.
+
+	* src/system.h: Assume C89 or better.
+	(_GNU_SOURCE): Remove; config.h now defines it.
+	(alloca): Declare like coreutils does it.
+	(verify, TYPE_SIGNED, TYPE_MINIMUM, TYPE_MAXIMUM, O_RDWR,
+	S_IRUSR, S_IWUSR): New macros.
+	(STAT_BLOCKSIZE): Parenthesize definiens.
+	<inttypes.h>: Include if HAVE_INTTYPES_H.
+	(CHAR_MAX, INT_MAX): Remove.
+	(PTRDIFF_MAX, SIZE_MAX): New macros.
+	(strtoumax): New decl.
+	Include stddef.h.
+	(bzero): Remove.
+	(bindtextdomain, textdomain, N_): New macros.
+	(ISPRINT, ISSPACE): Remove ifndef wrappers.
+	(ISUPPER, ISDIGIT): Remove.
+	(TOLOWER): New macro.
+	(MIN): Renamed from min; all callers changed.
+	(MAX): Likewise, from max.
+	(lin): New type.
+	(LIN_MAX): New macro.
+	(file_name_cmp): Renamed from filename_cmp.  All callers changed.
+	(file_name_lastdirchar): Renamed from file_name_lastdirchar.
+	All callers changed.
+	(could_be_mvfs_stat_bug, could_be_nfs_stat_bug,
+	dev_may_have_duplicate_ino): Remove.
+	(HAVE_SETMODE, NULL_DEVICE): New macros.
+	(same_file): Do not check attributes.
+	(same_file_attributes): New macro.
+
+	* src/util.c: Assume C89 or better.
+	int -> bool for booleans.
+	int -> lin for line numbers.
+	int -> size_t for sizes.
+	Use angle-brackets when including quotesys.h.
+	Include error.h, regex.h, xalloc.h.
+	(message5): sizeof -> offsetof
+	(begin_output): Invoke pr without -f.
+	(lines_differ): Renamed from line_cmp, and return bool not 3-way int.
+	All callers changed.
+	Add support for IGNORE_TAB_EXPANSION.
+	(change_letter): Now an array rather than a function.  All
+	callers changed.
+	(translate_range): Translate line numbers to long, not lin,
+	for convenience with printf.
+	(analyze_hunk): Return enum changes instead of a count of
+	inserts and deletes.  All callers changed.
+	(zalloc): New function.
+
+	* src/side.c: Assume C89 or better.
+	int -> bool for booleans.
+	int -> lin for line numbers.
+
+	* src/sdiff.c: Assume C89 or better.
+	int -> bool for booleans.
+	int -> lin for line numbers.
+	Use angle-brackets when including getopt.h, quotesys.h.
+	Include error.h, freesoft.h, stdio.h, xalloc.h.
+	(copyright_string): Use only most recent year.
+	(authorship_msgid, option_help_msgid): Wrap in N_().
+
+	(tmpname): Now volatile.
+	(tmpmade): Remove.
+	(tmp): New var.
+	(private_tempnam, exists, letters): Remove.
+	(temporary_file): New function.
+	(edit): Use it.
+	(interact): Use strtoumax, not atoi.
+
+	* src/normal.c: Assume C89 or better.
+	int -> lin for line numbers.
+
+	* src/io.c: Assume C89 or better.
+	int -> bool for booleans.
+	int -> lin for line numbers.
+	int -> size_t for sizes.
+	Use angle-brackets when including cmpbuf.h.
+	Include regex.h, xalloc.h.
+	(word): Remove; now done in system.h.
+	(hash_value): New type; use it instead of 'unsigned' for hash values.
+	(file_block_read): New function.
+	(sip, slurp): Use it.  Now static.
+	(sip): Ensure block size is a multiple of word size.  Clear eof flag.
+	(slurp): Use xalloc_die to report memory exhaustion.
+	(find_and_hash_each_line): Use TOLOWER instead of _tolower.
+	Add support for IGNORE_TAB_EXPANSION.
+	(prepare_text_end): Strip trailing CR if requested.
+	(find_identical_ends): Prepare the text only once,
+	if they're duplicates.
+	Let the compiler take advantage more of the fact that the buffers are
+	word-aligned.
+	(primes): Remove.
+	(prime_offset): New var.
+	(read_var): Use prime_offset instead of primes.
+	Use zalloc instead of xmalloc + bzero.
+
+	* src/ifdef.c: Assume C89 or better.
+	int -> lin for line numbers.
+	(format_group): Use strtoumax to parse line numbers.
+	(format_group, print_ifdef_lines): Use do_printf_spec to
+	handle printf specs.
+	(groups_letter_value): Don't use _tolower; it's locale-dependent.
+	(do_printf_spec): Renamed from scan_printf_spec; now does the printing.
+
+	* src/ed.c: Assume C89 or better.
+	int -> lin for line numbers (or 'long' when that's more convenient).
+	(print_ed_hunk): Fix bug when handling double-dot inserts.
+
+	* src/dir.c: Assume C89 or better.
+	int -> bool for booleans.
+	Include error.h, exclude.h, xalloc.h.
+
+	(dir_sort): Return 0 on error, 1 on success.  All callers changed.
+	compare_names -> compare_names_for_qsort.
+
+	(compare_names): Try strcasecmp if ignore_file_name_case.  Then try
+	strcoll.  Use file_name_cmp only as a last resort.  Warn about
+	strcasecmp or strcoll failure.
+	(compare_names_for_qsort): New function.
+
+	(diff_dirs): Use compare_names rather than filename_cmp.
+
+	* src/diff3.c: Assume C89 or better.
+	int -> bool for booleans.
+	int -> lin for line numbers.
+	Use angle-brackets when including getopt.h, quotesys.h.
+	Include error.h, freesoft.h, inttostr.h, xalloc.h.
+	(copyright_string): Use only most recent year.
+	(authorship_msgid, option_help_msgid): Wrap in N_().
+
+	Rename the following variables for consistency with user-visible
+	option spellings.  All uses changed.
+	(text): Renamed from always_text.
+	(initial_tab): Renamed from tab_align_flag.
+
+	(horizon_lines): Remove.  Remove all uses.
+
+	(main): Invoke bindtextdomain and textdomain after setlocale.
+	Rename "DIFF" to "DIFF_PROGRAM".
+
+	Try to compare file0 to file1, because this is where changes are
+	expected to come from.  Diffing between these pairs of files is more
+	likely to avoid phantom changes from file0 to file1.
+	However, use file2 as the common file if this is a 3-way diff,
+	for backward compatibility.  Suggested by Karl Tomlinson.
+
+	(create_diff3_block): Use xcalloc instead of malloc + bzero.
+
+	(INT_STRLEN_BOUND): Remove; now in system.h.
+
+	(read_diff): Always use --horizon-lines=100 rather than trying
+	to guess it.
+	Do not pass --inhibit-hunk-merge.
+	Minimum chunk size is 1, not 8KiB.
+	Use xalloc_die to report memory exhaustion.
+	(undotlines): Use long for start, not int.
+
+	* src/diff.h: Assume C89 or better.
+	int -> bool for booleans.
+	int -> lin for line numbers.
+	Don't include regex.h.
+	(enum changes): New enum.
+	(enum line_class): Remove; subsumed by enum changes.
+	(enum output_style): New constant OUTPUT_UNSPECIFIED.
+
+	(ignore_space_change_flag, ignore_all_space_flag): Remove.
+	(ignore_white_space): New decl, subsuming the above two.  All
+	uses changed.
+
+	Rename the following decls for consistency with user-visible
+	option spellings.  All uses changed.
+	(text): Renamed from always_text_flag.
+	(ignore_blank_lines): Renamed from ignore_blank_lines_flag.
+	(ignore_case): Renamed from ignore_case_flag.
+	(brief): Renamed from no_details_flag.
+	(initial_tab): Renamed from tab_align_flag.
+	(expand_tabs): Renamed from tab_expand_flag.
+	(starting_file): Renamed from dir_start_file.
+	(paginate): Renamed from paginate_flag.
+	(sdiff_merge_assist): Renamed from sdiff_help_sdiff.
+	(left_column): Renamed from sdiff_left_only.
+	(suppress_common_lines): Renamed from sdiff_skip_common_lines.
+	(speed_large_files): Renamed from heuristic.
+	(minimal): Renamed from no_discards.
+
+	(inhibit_hunk_merge): Remove.
+
+	(strip_trailing_cr, excluded, time_format): New decls.
+
+	(files_can_be_treated_as_binary): Renamed from ignore_some_changes.
+
+	(group_format, line_format): Now char const *[], not char *[].
+
+	(struct file_data): Buffer is now word*, not char*, as it's always
+	aligned and this can help the compiler.  buffered_chars -> buffered
+	(since it's a byte count, not a char count).  All uses changed.
+	New member `eof'.
+
+	(FILE_BUFFER): New macro.
+
+	(excluded_filename, error, free_software_msgid): Remove decls; now in
+	other .h files.
+
+	(sip, slurp): Remove decls.
+	(file_block_read): New decl.
+	(change_letter): Now an array, not a function.
+	(lines_differ): Renamed from line_cmp.
+	(analyze_hunk): Now returns enum changes rather than two change counts.
+
+	* src/Makefile.am (diff_LDADD): New symbol.
+
+	* src/diff.c: Assume C89 or better.
+	int -> bool for booleans.
+	long -> off_t for line numbers.
+	Use angle-brackets when including getopt.h, fnmatch.h, quotesys.h.
+	Include error.h, exclude.h, freesoft.h, hard-locale.h, prepargs.h,
+	regex.h, signal.h, xalloc.h.
+	(copyright_string): Use only most recent year.
+	(authorship_msgid, option_help_msgid): Wrap in N_().
+
+	Rename the following variables for consistency with user-visible
+	option spellings.  All uses changed.
+	(binary): Renamed from binary_flag.
+	(new_file): Renamed from entire_new_file_flag.
+	(unidirectional_new_file): Renamed from unidirectional_new_file_flag.
+	(report_identical_files): Renamed from print_file_same_flag.
+
+	(numeric_arg): Remove.
+
+	(exclude, exclude_alloc, exclude_count, excluded_filename, add_exclude,
+	add_exclude_file):
+	Remove; now done by exclude.h.
+
+	(BINARY_OPTION, FROM_FILE_OPTION, HELP_OPTION, HORIZON_LINES_OPTION,
+	IGNORE_FILE_NAME_CASE_OPTION, INHIBIT_HUNK_MERGE_OPTION,
+	LEFT_COLUMN_OPTION, LINE_FORMAT_OPTION, NORMAL_OPTION,
+	SDIFF_MERGE_ASSIST_OPTION, STRIP_TRAILING_CR_OPTION,
+	SUPPRESS_COMMON_LINES_OPTION, TO_FILE_OPTION,
+	UNCHANGED_LINE_FORMAT_OPTION, OLD_LINE_FORMAT_OPTION,
+	NEW_LINE_FORMAT_OPTION, UNCHANGED_GROUP_FORMAT_OPTION,
+	OLD_GROUP_FORMAT_OPTION, NEW_GROUP_FORMAT_OPTION,
+	CHANGED_GROUP_FORMAT_OPTION): New constants.
+	(longopts, main): Use them.
+
+	(longopts, main, option_help_msgid): Add -E, --from-file, --to-file.
+
+	(main): Invoke bindtextdomain and textdomain after setlocale.
+	Use grep syntax, not Emacs, for regular expressions.
+	Use exclude.h, not our own functions.
+	Use ISO 8601 time format in hard locales.
+	Prepend DIFF_OPTIONS.
+	Don't update ignore_some_changes.
+	Use strtoumax instead of numeric_arg.
+	Use specify_value when appropriate.
+	error -> try_help when appropriate.
+	-p now means ^[[:alpha:]$_], not ^[_a-zA-Z$].
+	Ignore --inhibit-hunk-merge.
+	Prefer changed group formats to unchanged ones.
+	Remove now-unnecessary casts.
+	Set files_can_be_treated_as_binary.
+
+	(specify_value): Renamed from specify_format.  All uses changed.
+
+	(specify_style): Default is now unspecified, not normal.  All
+	uses changed.
+
+	(set_mtime_to_now): New function.
+	(compare_files): Use it.  Use memset, not bzero.
+	Set stdin mtime to current time even when stdin is not a regular file.
+	Check for same file attributes, as well as for same file.
+	Use files_can_be_treated_as_binary.
+	"write failed" -> "standard output on output failure.
+
+	* src/context.c: Assume C89 or better.
+	int -> lin for line numbers.
+	Include inttostr.h, regex.h.
+	(TIMESPEC_NS): New macro.
+	(nstrftime): New decl.
+	(print_context_label): Use nstrftime and time_format to format times.
+	Print numeric time stamp value if localtime fails.
+	(print_context_function): New function.
+	(pr_context_hunk, pr_unidiff_hunk): Use it.
+	(find_function): Use size_t for sizes, not int.
+
+	* src/cmp.c: Assume C89 or better.
+	int -> bool for booleans.
+	long -> off_t for line numbers.
+	Use angle-brackets when including cmpbuf.h, getopt.h.
+	Include error.h, freesoft.h, inttostr.h, xalloc.h.
+	(copyright_string): Use only most recent year.
+	(authorship_msgid): Wrap in N_().
+	(buffer): Now word*, not char*.  All uses changed.
+	(word): Remove macro; now in system.h.
+	(long_options, option_help_msgid, main): -c --print-chars ->
+	-b --print-bytes
+	(check_stdout): "write failed" -> "standard output"
+	(option_help_msgid): Wrap in N_().
+	(main): Invoke bindtextdomain and textdomain after setlocale.
+	Use strtoumax instead of doing the work ourselves.
+	Check for same_file_attributes as well as same_file.
+	(cmp): Use ssize_t for read returns, not size_t.
+	Do not assume that size_t is not narrower than int.
+	Do not assume that line numbers fit in 'long'.
+	(block_compare_and_count, block_compare):
+	Compiler now checks that buffers are word-aligned.
+	(block_compare_and_count): Count sizes with size_t, not long.
+	(sprintc): byte arg is unsigned char, not unsigned.
+
+	* src/analyze.c: Assume C89 or better.
+	int -> lin for line numbers.
+	int -> bool for booleans.
+	unsigned int -> size_t for sizes.
+	Use angle-brackets when including cmpbuf.h.
+	Include error.h, regex.h, xalloc.h.
+	(discard_confusing_lines, diff_2_files): Use zalloc rather
+	than xalloc+bzero.
+	(discard_confusing_lines): unsigned int -> lin for values that
+	are really line numbers.
+	(shift_boundaries): Do not inhibit hunk merges.
+	(build_reverse_script, build_script, diff_2_files): Use |, not ||.
+	(diff_2_files): no_details_flag & ~ignore_some_changes ->
+	files_can_be_treated_as_binary.  Esure that buffer size is a multiple
+	of sizeof (word).  Use file_block_read to read buffers.
+	(diff_2_files): Abort if output style is not one of the
+	expected styles.
+
+2001-11-23  Paul Eggert  <eggert@twinsun.com>
+
+	* src/Makefile.am, m4/vararrays.m4: New file.
+
+	* m4/prereq.m4 (jm_PREREQ_READUTMP):
+	Remove, as it gives autoheader the willies.
+
+	* m4/README, lib/prepargs.h, lib/prepargs.c, lib/offtostr.c,
+	lib/umaxtostr.c, lib/inttostr.c, lib/inttostr.h,
+	lib/imaxtostr.c, lib/freesoft.h: New files.
+
+	* lib/freesoft.c: Include config.h, freesoft.h rather than diff.h.
+	(free_software_msgid): Wrap contents in N_.
+
+	* lib/cmpbuf.h: Use prototypes instead of old-style functions.
+
+	* lib/cmpbuf.c:
+	Don't include system.h; instead, include config.h, unistd.h.
+	Use prototypes instead of old-style functions.
+	(block_read): Don't assume that int is no wider than size_t.
+
+	* lib/Makefile.am, po/POTFILES.in: New file.
+
+2001-11-22  Paul Eggert  <eggert@twinsun.com>
+
+	* pc/config.h:
+	Define filename_cmp as an object-like macro, not as a function-like
+	macro.
+
+	* exgettext: Always operate in the C locale.
+	Set AWK using a method that works even with broken shells.
+
+	* doc/Makefile.am: New file.
+
+	* configure.ac (AC_INIT):
+	Use src/diff.c, not diff.h, as the source files got removed.
+	(AM_CONFIG_HEADER): Switch from AC_CONFIG_HEADER.
+	(AC_ARG_PROGRAM, AC_MINIX): Remove.
+
+	(AC_PREREQ, AM_INIT_AUTOMAKE, ALL_LINGUAS, AC_PROG_AWK,
+	AM_PROG_CC_STDC, AC_PROG_RANLIB, AC_C_INLINE, AC_C_VARARRAYS,
+	DEFAULT_DIFF_PROGRAM, DEFAULT_EDITOR_PROGRAM,
+	AC_STRUCT_ST_MTIM_NSEC): Add.
+
+	(PR_PROGRAM): AC_DEFINE.
+
+	(AC_SYS_LARGEFILE): Use instead of our homebrew version.
+
+	(_GNU_SOURCE): Define if not defined.
+
+	(AC_CHECK_HEADERS): Add stdbool.h, unistd.h.
+	(AC_CHECK_TYPES): Add ptrdiff_t, uintmax_t.
+	(AM_GNU_GETTEXT, XGETTEXT): Add.
+
+	(WITH_MVFS_STAT_BUG, WITH_NFS_STAT_BUG): Remove.
+	(HAVE_MEMCHR): Remove.
+	(AC_CHECK_FUNCS): Add diraccess.
+	(AC_REPLACE_FUNCS): Add memchr, waitpid.
+	(jm_FUNC_GLIBC_UNLOCKED_IO, jm_FUNC_GNU_STRFTIME, jm_FUNC_MALLOC,
+	 jm_FUNC_REALLOC, jm_PREREQ_ERROR, jm_PREREQ_QUOTEARG, jm_PREREQ_REGEX,
+	 jm_PREREQ_TEMPNAME, jm_AC_PREREQ_XSTRTOUMAX, AC_FUNC_FNMATCH): Add.
+	(fnmatch.h, regex.h): Do not create these files unless we're using
+	our own fnmatch and regex.
+
+	(AC_OUTPUT): Add doc/Makefile, intl/Makefile, lib/Makefile,
+	lib/posix/Makefile, m4/Makefile, po/Makefile.in, src/Makefile.
+
+	* Makefile.am: New file.
+
+	* po/en_GB.po: Don't translate "program" to "programme".
+
+2001-11-20  Paul Eggert  <eggert@twinsun.com>
+
+	* m4/prereq.m4: New file.
+
+2001-03-16  Paul Eggert  <eggert@twinsun.com>
+
+	* lib/tempname.c (uint64_t):
+	Define if not defined, and if UINT64_MAX is not defined.
+
+2001-02-26  Paul Eggert  <eggert@twinsun.com>
+
+	* lib/tempname.c: glibc 1.32
+
+2001-02-17  Paul Eggert  <eggert@twinsun.com>
+
+	* m4/Makefile.am.in: GNU fileutils 4.1
+
+2001-01-09  Paul Eggert  <eggert@twinsun.com>
+
+	* lib/tempname.c (struct_stat64): New macro.
+	(direxists, __gen_tempname): Use it.  This avoids a portability problem
+	with Solaris 8.
+
+	* lib/tempname.c (<config.h>): Include if HAVE_CONFIG_H.
+	(<stddef.h>, <stdint.h>, <string.h>):
+	Include only if STDC_HEADERS || _LIBC.
+	(<fcntl.h>): Include only if HAVE_FCNTL_H || _LIBC.
+	(<unistd.h>): Include only if HAVE_UNISTD_H || _LIBC.
+	(<sys/time.h>): Include only if HAVE_SYS_TIME_H || _LIBC.
+	(__set_errno): Define this macro if <errno.h> doesn't.
+	(P_tmpdir, TMP_MAX, __GT_FILE, __GT_BIGFILE, __GT_DIR, __GT_NOCREATE):
+	Define these macros if <stdio.h> doesn't.
+	(S_ISDIR, S_IRUSR, S_IWUSR, S_IXUSR):
+	Define these macros if <sys/stat.h>
+	doesn't.  Ignore <sys/stat.h> S_ISDIR if STAT_MACROS_BROKEN.
+	(stat64, __getpid, __gettimeofday, __mkdir, __open, __open64, lxstat64,
+	__xstat64): Define if not _LIBC.
+	(__secure_getenv): Define if ! (HAVE___SECURE_GETENV || _LIBC).
+	(__gen_tempname): Invoke gettimeofday only if HAVE_GETTIMEOFDAY
+	|| _LIBC; otherwise, fall back on plain "time".
+	Use macros like S_IRUSR | S_IWUSR rather than octal values like 0600.
+
+	* lib/mkstemp.c (__GT_FILE): Define to zero if not defined.
+
+2000-10-25  Paul Eggert  <eggert@twinsun.com>
+
+	* lib/hard-locale.c: New file.
+
+2000-02-05  Paul Eggert  <eggert@twinsun.com>
+
+	* exgettext: From GCC repository
+
+1999-07-06  Paul Eggert  <eggert@twinsun.com>
+
+	* lib/mkstemp.c: glibc 2.2
+
+1998-12-11  Paul Eggert  <eggert@twinsun.com>
+
+	* src/sdiff.c (lf_snarf):
+	Fix bug when help line wrapped around the input buffer.
+
+1998-09-15  Paul Eggert  <eggert@twinsun.com>
+
+	* diff.texi: Add @dircategory and @direntry.
+
+1998-09-14  Paul Eggert  <eggert@twinsun.com>
+
+	* Makefile.in (VERSION): Version 2.7.2.
+	(DEFAULT_DIFF_PROGRAM): Renamed from DIFF_PROGRAM.
+	(PR_PROGRAM): All `configure' to define it.
+	(srcs): Add $(diffutils_srcs), freesoft.c, quotearg.c instead of
+	quote.c, quotearg.h.
+	(distfiles): Add acconfig.h, message/*.
+	(all): Depend on $(destfiles), not info.
+	(version.c): Parenthesize `GNU diffutils'.
+	(common_o): Add freesoft.o
+	(diff_o): quote.o -> quotearg.o
+	(diff3_o, sdiff_o): Likewise.
+	(diff.dvi): Depend on version.texi.
+	(diff.o diff3.o quotearg.o sdiff.o util.o):
+	New dependency on quotearg.h
+	(diff3.o): DIFF_PROGRAM -> DEFAULT_DIFF_PROGRAM.
+	(sdiff.o): Likewise.
+	(messages.po): Remove.
+	(message/msgid.po, message/template.po): New rules.
+	(maintainer-clean): Renamed from realclean.
+	(install): Install from source directory, if applicable.
+	Invoke install-info if needed.
+	(install-strip): New rule.
+	(check): Set DIFF.
+	(stamp-h.in): Don't put the date into the timestamp.
+	(D_dirs): Add $D/message.
+	($D.tar.gz): Compress with gzip -9.
+	Don't use ln to create distribution; it doesn't work with symlinks.
+	(srcs, distfiles, diff_o, diff3_o, sdiff_o): Rename quotearg.c to
+	quotesys.c and quotearg.h to quotesys.h.
+
+	* configure.in (AC_PATH_PROG): Add PR_PROGRAM.
+	If available, prefer support for large files unless the user specified
+	one of the CPPFLAGS, LDFLAGS, or LIBS variables.
+	(AC_STRUCT_ST_RDEV): Add.
+	(HAVE_ST_FSTYPE_STRING): Add.
+	(--with-mvfs-stat-bug, --with-nfs-stat-bug): New options.
+	(HAVE_MEMCHR): New macro.
+	(AC_CHECK_FUNCS): Add sicprocmask.
+
+	* diff.h (XTERN): Renamed from EXTERN.
+	(struct filedata): Remove dir_p arg.
+	(struct comparison): New type.
+	(diff_2_files, diff_dirs)" Ise ot/
+	(error): Add printf attribute if applicable.
+	(free_software_msgid): New decl.
+	(pr_program): New decl.
+	(fatal): Add noreturn attribute.
+	(pfatal_with_name): Likewise.
+
+	* system.h (__attribute__): New macro.
+	(getenv): Don't declare if HAVE_STDLIB_H.
+	(CHAR_MAX): New macro.
+	(<locale.h>): New include.
+	(<locale.h>): Include before <libintl.h>.
+	(could_be_mvfs_stat_bug, could_be_nfs_stat_bug,
+	dev_may_have_duplicate_ino, same_special_file): New macros.
+	(same_file): Use them.
+
+	* cmp.c (authorship_msgid): New var.
+	(free_software_msgid): New decl.
+	(error): Now has printf attribute.
+	(try_help): Likewise.
+	(long_options): Don't assume ASCII.
+	(try_help): Now accepts operand arg.
+	(main): Check for -1, not EOF, when calling getopt_long.
+	Report --ignore-initial value when complaining about it.
+	Output copyright and free software info with -v.
+	Don't assume ASCII.
+	Report last operand when one is missing.
+	Report text of extra operand.
+	Move block_read into cmpbuf.c.
+
+	* diff.c (authorship_msgid): New var.
+	(quotesys.h): Include.
+	(ck_atoi): Remove.
+	(function_regexp_list, ignore_regexp_list): Now static.
+	(binary_flag): Renamed from binary_I_O.
+	(entire_new_file_flag, unidirectional_new_file_flag,
+	print_file_same_flag): Now static.
+	(numeric_arg): Renamed from ck_atoi.
+	New argument specifying the argument type.
+	(longopts, main): Don't assume ASCII.
+	(longopts): Remove old aliases --file-label, --entire-new-file,
+	--ascii, --print.
+	(main): Check for -1, not EOF, when calling getopt_long.
+	Use numeric_arg to report errors.
+	Report error if -l specified but pagination is not supported.
+	Report error if -S is specified twice with conflicting values.
+	Have --version conform to the new GNU standards.
+	Add new --from-file, --to-file, --inhibit-hun,-merge options.
+	Make the horizon at least as large as the context.
+	Add casts to pacify gcc -Wall.
+	(try_help): Add operand arg.
+	(option_help_msgid): Doc fix to match above.
+	(usage): Indent option_help_msgid.
+	(compare_files): Now takes struct comparison
+	instead of two directory names and a depth.
+	(NONEXISTENT, UNOPENED, ERRNO_ENCODE, ERRNO_DECODE):
+	New macros.
+	(DIR_P): New macro.
+	Report error if fflush does.
+
+	* cmpbuf.c (block_read): Moved here from cmp.c.
+
+	* cmpbuf.h (block_read): New decl.
+
+	* io.c (cmpbuf.h): Include.
+	(slurp): Check for arithmetic overflow when computing buffer size.
+
+	* dir.c (diff_dirs): Check for recursive directory loop.
+	Arg is now struct comparison const *.
+	(dir_loop): New function
+
+	* analyze.c (no_discards): Remove.
+	(inhibit): Remove.
+	(shift_boundaries): Don't inhibit.  If inhibit_hunk_merge is nonzero,
+	don't merge hunks.
+	(briefly_report): Now returns 2 if trouble, CHANGES otherwise.
+	(diff_2_files): Now takes struct comparison.  If briefly_report reports
+	trouble, pass it on to caller.
+
+	* side.c (print_half_line): Add brackets to pacify GCC -Wall.
+
+	* sdiff.c (quotesys.h): Include.
+	(DIFF_PROGRAM, DEFAULT_EDITOR_PROGRAM): Remove.
+	(free_software_msgid, editor_program, not_found): New vars.
+	(diffbin, edbin): Remove.
+	(editor_program): Renamed from edbin.
+	(edit, interact): Now take extra string arg.
+	(exiterr, fatal, perror_fatal, try_help): Add noreturn attribute.
+	(sigset_t, sigemptyset, sigmask, sigaddset, SIG_BLOCK, SIG_SETMASK):
+	(sigprocmask): New macros, if !HAVE_SIGPROCMASK.
+	(error): Now has printf attribute.
+	(longopts, main): Don't assume ASCII.
+	(try_help): New operand arg.
+	(usage): Conform to new GNU standards.
+	(main): Set static vars for editor and diff program.
+	Compare getopt_long result to -1, not EOF.
+	-v conforms to new GNU standard.
+	Complain better about extra and missing operands.
+	If HAVE_VFORK, block SIGINT and SIGPIPE in the parent, since when
+	the child munges its handlers it may somp on the parent.
+	Pass rname to intract.
+	Translate not-found message before forking.
+	(give_help): Just output it all at once.
+	(edit): New args lname, lline, rname, rline.
+	(edit): New command 'd'.
+	(interact): New args lname, rname.
+
+	* util.c (quotesys.h): Include.
+	(PR_PROGRAM): New macro.
+	(pfatal_with_name): Abort if error returns.
+	(fatal): Likewise.
+	(print_message_queue): Free message chain after printing.
+	(currently_recursive): Renamed from current_depth, and now a boolean.
+	(begin_output): Report error if fflush does.
+	Avoid stdio and gettext in child.
+
+	* diff3.c (quotesys.h): Include.
+	(free_software_msgid): New decl.
+	(RANGE_START, RANGE_END): Renamed from START and END.
+	(fatal, perror_with_exit, try_help): Add noreturn attribute.
+	(error): Add printf attribute.
+	(diff_program): Now a ptr, not an array.
+	Initialize to DEFAULT_DIFF_PROGRAM instead of DIFF_PROGRAM.
+	(longopts, main): Don't assume ASCII.
+	(main): Use DIFF environment var to specify name of diff program.
+	Compare getopt_long result to -1, not EOF.
+	-v now reports version according to new GNU standard.
+	Report spelling of extra operand, or last operand before missing one.
+	(try_help): Now takes operand arg.
+	(option_help_ms): Fix typo: missing comma.
+	(usage): Update as per current GNU standards.
+	(environ): Remove decl.
+	(read_diff): Invoke diff with --inhibit-hunk-merge.
+	Translate `not found' message before forking.
+	Quote name of diff program.
+	Pass horizon lines.
+	`memory exhausted' -> `Memory exhausted'
+
+	* pc/makefile (%.exe): Remove.
+	(pc-clean): Remove *.exe
+	* pc/makefile.sed (DEFAULT_DIFF_PROGRAM): Renamed from DIFF_PROGRAM.
+	When editing mkinstalldirs rule, look for exec_prefix and prefix.
+	Add .exe when installing files.
+	* pc/emx/config.h (same_file): Add.
+	* pc/config.h (same_file): Remove.
+	* pc/djgpp/config.h: Adjust to latest patch from eliz.
+	* pc/djgpp/makefile.sed: Don't alter PROGRAMS.
+	* pc/pc.c: Update FSF address.
+	(quote_system_arg): Renamed from system_quote_arg.
+
+	* README: Add --with-mvfs-stat-bug, --with-nfs-stat-bug.
+
+	* getmsgids: Add copyright date and update FSF address.
+
+	* diff.texi: Document recent changes.
+	The patch doc still corresponds to patch 2.2, unfortunately.
+	Update GNU bug reporting address.  Omit Larry Wall's address;
+	it's obsolete and he's busy with perl.
+
+	* context.c: Fix spacing.
+
+	* NEWS: Mention --from-file=FILE, --to-file=FILE, ed.
+
+	* acconfig.h, freesoft.c, message/de.po, message/en_UK.po,
+	message/es.po, message/fr.po, message/pl.po, message/sv.po:
+	New files.
+
+	* ed.c: Remove `#if 0'ed code.
+
+	* normal.c, waitpid.c: Update FSF address.
+
+1998-03-15  Paul Eggert  <eggert@twinsun.com>
+
+	* quotesys.c: Renamed from quotearg.c.
+
+	* quotesys.h: Renamed from quotearg.h
+	(__QUOTESYS_P): Renamed from __QUOTEARG_P.
+
+1997-05-05  Paul Eggert  <eggert@twinsun.com>
+
+	* quotesys.c, quotesys.h: New file.
+
+Mon Nov 14 05:10:56 1994  Paul Eggert  <eggert@twinsun.com>
+
+	Add internationalization support.
+	Several messages have been changed slightly,
+	to make them more consistent and easier to translate.
+	All strings that are messages are passed through gettext once before
+	being used, so that they can be localized.
+	Each function and macro whose first parameter is a gettext msgid
+	has had its first parameter's name changed so it ends in `msgid'.
+	All arrays of msgids have had their names changed to end in `msgid'.
+	`getmsgids' uses this to determine which strings are msgids.
+
+	* pc/COPYING, pc/INSTALL, pc/config.h,
+	pc/djgpp/config.h, pc/djgpp/makefile.sed,
+	pc/emx/config.h, pc/emx/diff.def, pc/emx/gnuregex.def,
+	pc/emx/makefile.sed,
+	pc/makefile, pc/makefile.sed, pc/pc.c: New files, for PC support.
+
+	* getmsgids: New file.
+
+	* Makefile.in (PACKAGE, VERSION, diffutils_srcs, D): New vars.
+	(version.c, version.texi, messages.po): New files.
+	messages.po is built automatically from source files and `getmsgids'.
+	(distfiles): Add them, pc/*, and getmsgids.
+	(diff.info): Now depends on version.texi.
+	(realclean): Clean messages.po, version.*.
+	(dist): Just build $D.tar.gz.
+	($D.tar.gz): New file, takes over old `dist' function.
+	Don't assume $(distfiles) are all in same directory.
+
+	* configure.in (AC_CHECK_HEADERS): Add libintl.h, locale.h.
+	(AC_CHECK_LIB): Check for -lintl.
+
+	* analyze.c (briefly_report): Rewrite `message (A?"B":"C")' as
+	`if (A) message ("B") : message ("C")'; this is for getmsgids.
+	(briefly_report, diff_2_files): For label, use file_label if set.
+	* diff.c (compare_files): Likewise.
+
+	* system.h (gettext): Declare; use a stub if ! HAVE_LIBINTL_H.
+	(setlocale): Declare; use a stub if ! HAVE_LOCALE_H.
+
+	* cmp.c, diff.c, diff3.c, sdiff.c (main):
+	Invoke setlocale first thing, to tell library we're internationalized.
+	(option_help_msgid): New constant.
+	(usage): Use it, so message is translated one option at a time.
+	* sdiff (help_msgid, give_help): Likewise.
+
+	* cmp.c (sprintc): Renamed from `printc'.
+	Now outputs to a buffer instead of stdout.
+	(cmp): Use new sprintc; it's easier to internationalize.
+
+	* diff.c (main): -D FOO now outputs `/* ! FOO */ instead of
+	`/* not FOO */'.
+
+	* sdiff.c (version_string): Fix decl typo: `const' was missing.
+	(trapsigs): Ignore sigaction failure, to be compatible with `signal'.
+
+	* util.c (struct msg, message5, print_message_queue):
+	Allocate just one block of memory to save a message.
+
+Wed Nov  9 17:42:44 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* sdiff.c (trapsigs): Don't check signal return value, since it's
+	bogus under djgpp.
+
+Mon Oct 31 07:27:27 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* Makefile.in (srcs, diff_o, diff3_o, sdiff_o):
+	New files quote.c, quote.o.
+
+	* diff.h (function_regexp, ignore_regexp): Replace lists of compiled
+	regexps with these single compiled regexps.  All users changed.
+	(regexp_list,function_regexp_list,ignore_regexp_list): Move to diff.c.
+	* diff.c (add_regexp): Build one big regexp instead of a regexp list.
+	(summarize_regexp_list): New function.
+	(regexp_list): Redesigned struct; moved here from diff.h.
+	(function_regexp_list, ignore_regexp_list): Likewise, for vars.
+
+	* context.c (find_function): Simplify interface:
+	don't return size of function line.  All callers changed.
+	(print_context_script, find_function): INT_MAX now denotes no
+	previous match; this is simpler than `- file->prefix_lines - 1'.
+
+	* diff3.c (read_diff): Quote arguments with system_quote_arg.
+	* sdiff.c (main): Use system_quote_arg to compute command.
+	* diff.c (option_list): Quote options with system_quote_arg.
+	* util.c (begin_output): Use system_quote_arg to compute command.
+
+	* util.c (pr_program): New var.
+	(analyze_hunk): Fix off-by-1 line length bug.
+	Match with one big regexp instead of a list of regexps.
+	Use new `trivial_length' local instead of comparing first byte to `\n'.
+	Help the compiler with linbuf local vars.
+
+	* system.h (system_quote_arg):
+	New function; replaces SYSTEM_QUOTE_ARG macro.
+
+Sat Oct 15 20:09:12 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* system.h (_tolower): Define if not already defined.
+	* io.c (find_and_hash_each_line): Change tolower to _tolower; this
+	speeds up diff -i considerably on some hosts (e.g. Solaris 2.3).
+	* util.c (line_cmp): Likewise.
+	* ifdef.c (groups_letter_value): Likewise.
+
+	* diff.h (ignore_some_line_changes): Remove.  All users changed.
+	* io.c (find_and_hash_each_line): Don't invoke line_cmp if the length
+	differs and -i is in force.  Don't assume ISSPACE ('\n') is nonzero.
+
+	* diff.h (xmalloc_exit_failure): New variable.
+	All `main' programs set this variable at the start.
+	xmalloc and xrealloc are now taken from GNU library.
+	* cmp.c (main): Align buffer size to word size; some mallocs care.
+	* io.c (slurp): Likewise.
+	* diff.c (add_exclude): Can now assume xrealloc (0, ...) works.
+	(add_regexp): Free storage on failure.  Allocate storage all at one go.
+	* system.h (malloc, realloc): Remove unused declarations.
+	* diff3.c, sdiff.c, util.c (xmalloc, xrealloc): Remove.
+	* sdiff.c (diffarg): Take advantage of cleaner xrealloc semantics.
+
+	* io.c (ROL): Use sizeof to make it more generic.
+
+	* Makefile.in (common_o): New variable.
+	Link error.o and xmalloc.o into all programs.
+	(check): Depend on $(PROGRAMS).
+
+	* diff.h (error): Change to GNU library standard.  All callers changed.
+	* diff3.c (main): Use strerror (EISDIR) instead of "Is a directory".
+	(fatal, perror_with_exit): Use `error'.
+	* util.c (perror_with_name, fatal): Use GNU `error'.
+	(error): Remove.
+
+Wed Oct 12 17:04:40 1994  David J. MacKenzie  (djm@duality.gnu.ai.mit.edu)
+
+	* cmp.c (main): Set xmalloc_exit_failure.
+
 Sat Oct  1 05:24:19 1994  Paul Eggert  <eggert@twinsun.com>
 
 	* Version 2.7 released.
@@ -190,7 +2287,7 @@ Fri Sep  2 16:01:49 1994  Paul Eggert  <eggert@twinsun.com>
 	* system.h (STAT_BLOCKSIZE): Don't define if already defined.
 	(min, max): Undef if already defined.
 	(filename_cmp, filename_lastdirchar, HAVE_FORK, HAVE_SETMODE,
-	initialize_main O_BINARY, same_file): New macros.
+	initialize_main, O_BINARY, same_file): New macros.
 
 Fri Jun 17 11:23:53 1994  David J. MacKenzie  (djm@geech.gnu.ai.mit.edu)
 
@@ -580,7 +2677,7 @@ Sat Jun  5 23:10:40 1993  Paul Eggert  (eggert@twinsun.com)
 Wed May 26 17:16:02 1993  Paul Eggert  (eggert@twinsun.com)
 
 	* diff.c (main): Cast args to compare_files, for traditional C.
-	* side.c (print_sdiff_common_lines_print_sdiff_hunk): Likewise.
+	* side.c (print_sdiff_common_lines, print_sdiff_hunk): Likewise.
 	* analyze.c, diff3.c, sdiff.c, util.c: Don't assume NULL is defined
 	properly.
 
@@ -1407,9 +3504,9 @@ Sun Mar 25 15:58:42 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
 
 	* analyze.c (discard_confusing_lines):
 	`many' wasn't being used; use it.
-	Cancelling provisionals near start of run must handle already
-	cancelled provisionals.
-	Cancelling subruns of provisionals was cancelling last nonprovisional.
+	Canceling provisionals near start of run must handle already
+	canceled provisionals.
+	Canceling subruns of provisionals was canceling last nonprovisional.
 
 Sat Mar 24 14:02:51 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
 
@@ -1417,7 +3514,7 @@ Sat Mar 24 14:02:51 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
 	Threshold for line occurring many times scales by square root
 	of total lines.
 	Within each run, cancel any long subrun of provisionals.
-	Don't update `provisional' while cancelling provisionals.
+	Don't update `provisional' while canceling provisionals.
 	In big outer loop, handle provisional and nonprovisional separately.
 
 Thu Mar 22 16:35:33 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
@@ -1477,7 +3574,7 @@ Thu Feb  8 02:43:16 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
 
 Fri Feb  2 23:21:38 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
 
-	* analyze.c (diif_2_files): If -B or -I, don't return 1
+	* analyze.c (diff_2_files): If -B or -I, don't return 1
 	if all changes were ignored.
 
 Wed Jan 24 20:43:57 1990  Richard Stallman  (rms at albert.ai.mit.edu)
@@ -1496,7 +3593,7 @@ Wed Jan 10 16:06:38 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
 Sun Dec 24 10:29:20 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
 
 	* io.c (find_equiv_class): Fix typo that came from changing init of B
-	to an assigment.
+	to an assignment.
 
 	* version.c: New file.
 	* diff.c (main): -v prints version number.
@@ -1523,7 +3620,7 @@ Thu Nov 16 13:51:10 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
 
 	* analyze.c (shift_boundaries):
 	Test for END at end of range before indexing by it.
-	Fix typo `preceeding' in var names.
+	Fix misspelling of `preceding' in var names.
 
 Sat Nov 11 14:04:16 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
 
@@ -1758,9 +3855,24 @@ Thu Nov  3 16:30:24 1988  Randall Smith  (randy at gluteus.ai.mit.edu)
 
 	* ed.c, analyze.c, context.c: Shortened names to 12 characters for
 	the sake of System V (too simple not to do).
-
-Local Variables:
-mode: indented-text
-left-margin: 8
-version-control: never
-End:
+
+
+Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 1998, 1999,
+2000, 2001, 2002 Free Software Foundation, Inc.
+
+This file is part of GNU Diffutils.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+This program is distributed in the hope that they will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; see the file COPYING.  If not, write to
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.
