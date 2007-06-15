@@ -707,6 +707,7 @@ int
 t3_sge_init_port(struct port_info *p)
 {
 	TASK_INIT(&p->timer_reclaim_task, 0, sge_timer_reclaim, p);
+	return (0);
 }
 
 void

@@ -112,8 +112,9 @@ static __inline void reg_block_dump(struct adapter *ap, uint8_t *buf, unsigned i
 static void cxgb_get_regs(adapter_t *sc, struct ifconf_regs *regs, uint8_t *buf);
 static int cxgb_get_regs_len(void);
 static int offload_open(struct port_info *pi);
+#ifdef notyet
 static int offload_close(struct toedev *tdev);
-
+#endif
 
 
 static device_method_t cxgb_controller_methods[] = {
@@ -1346,7 +1347,7 @@ out:
 	}
 	return (err);
 }
-
+#ifdef notyet
 static int
 offload_close(struct toedev *tdev)
 {
@@ -1370,6 +1371,7 @@ offload_close(struct toedev *tdev)
 	cxgb_offload_deactivate(adapter);
 	return (0);
 }
+#endif
 
 static void
 cxgb_init(void *arg)
