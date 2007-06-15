@@ -70,27 +70,27 @@ static struct tcpstat curstat, initstat, oldstat;
 /*-
 --0         1         2         3         4         5         6         7
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
-00          TCP Connections                    TCP Packets
-01999999999 connections initiated    999999999 total packets sent
-02999999999 connections accepted     999999999 - data
-03999999999 connections established  999999999 - data (retransmit by dupack)
-04999999999 connections dropped      999999999 - data (retransmit by sack)
-05999999999 - in embryonic state     999999999 - ack-only
-06999999999 - on retransmit timeout  999999999 - window probes
-07999999999 - by keepalive           999999999 - window updates
-08999999999 - from listen queue      999999999 - urgent data only
-09                                   999999999 - control
-10                                   999999999 - resends by PMTU discovery
-11          TCP Timers               999999999 total packets received
-12999999999 potential rtt updates    999999999 - in sequence
-13999999999 - successful             999999999 - completely duplicate
-14999999999 delayed acks sent        999999999 - with some duplicate data
-15999999999 retransmit timeouts      999999999 - out-of-order
-16999999999 persist timeouts         999999999 - duplicate acks
-17999999999 keepalive probes         999999999 - acks
-18999999999 - timeouts               999999999 - window probes
-19                                   999999999 - window updates
-20                                   999999999 - bad checksum
+00             TCP Connections                       TCP Packets
+01999999999999 connections initiated    999999999999 total packets sent
+02999999999999 connections accepted     999999999999 - data
+03999999999999 connections established  999999999999 - data (retransmit by dupack)
+04999999999999 connections dropped      999999999999 - data (retransmit by sack)
+05999999999999 - in embryonic state     999999999999 - ack-only
+06999999999999 - on retransmit timeout  999999999999 - window probes
+07999999999999 - by keepalive           999999999999 - window updates
+08999999999999 - from listen queue      999999999999 - urgent data only
+09                                      999999999999 - control
+10                                      999999999999 - resends by PMTU discovery
+11             TCP Timers               999999999999 total packets received
+12999999999999 potential rtt updates    999999999999 - in sequence
+13999999999999 - successful             999999999999 - completely duplicate
+14999999999999 delayed acks sent        999999999999 - with some duplicate data
+15999999999999 retransmit timeouts      999999999999 - out-of-order
+16999999999999 persist timeouts         999999999999 - duplicate acks
+17999999999999 keepalive probes         999999999999 - acks
+18999999999999 - timeouts               999999999999 - window probes
+19                                      999999999999 - window updates
+20                                      999999999999 - bad checksum
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
 --0         1         2         3         4         5         6         7
 */
@@ -116,8 +116,8 @@ void
 labeltcp(void)
 {
 	wmove(wnd, 0, 0); wclrtoeol(wnd);
-#define L(row, str) mvwprintw(wnd, row, 10, str)
-#define R(row, str) mvwprintw(wnd, row, 45, str);
+#define L(row, str) mvwprintw(wnd, row, 13, str)
+#define R(row, str) mvwprintw(wnd, row, 51, str);
 	L(0, "TCP Connections");		R(0, "TCP Packets");
 	L(1, "connections initiated");		R(1, "total packets sent");
 	L(2, "connections accepted");		R(2, "- data");
@@ -239,9 +239,9 @@ showtcp(void)
 	domode(&stats);
 
 #define DO(stat, row, col) \
-	mvwprintw(wnd, row, col, "%9lu", stats.stat)
+	mvwprintw(wnd, row, col, "%12lu", stats.stat)
 #define	L(row, stat) DO(stat, row, 0)
-#define	R(row, stat) DO(stat, row, 35)
+#define	R(row, stat) DO(stat, row, 38)
 	L(1, tcps_connattempt);		R(1, tcps_sndtotal);
 	L(2, tcps_accepts);		R(2, tcps_sndpack);
 	L(3, tcps_connects);		R(3, tcps_sndrexmitpack);
