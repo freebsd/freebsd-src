@@ -604,6 +604,7 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	crfree(oldcred);
 	return (0);
 fail:
+	PROC_UNLOCK(td->td_proc);
 	crfree(newcred);
 	return (error);
 }
