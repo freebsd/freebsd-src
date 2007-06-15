@@ -56,12 +56,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/kdb.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
+#include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/module.h>
@@ -930,4 +933,100 @@ static devclass_t attimer_devclass;
 
 DRIVER_MODULE(attimer, isa, attimer_driver, attimer_devclass, 0, 0);
 DRIVER_MODULE(attimer, acpi, attimer_driver, attimer_devclass, 0, 0);
+
+/*
+ * Linux-style /dev/nvram driver
+ *
+ * cmos ram starts at bytes 14 through 128, for a total of 114 bytes.
+ * bytes 16 through 31 are checksummed at byte 32.
+ * Unlike Linux, you have to take care of the checksums yourself.
+ * The driver exposes byte 14 as file offset 0.
+ */
+
+#define NVRAM_FIRST	RTC_DIAG	/* 14 */
+#define NVRAM_LAST	128
+
+static d_open_t		nvram_open;
+static d_read_t		nvram_read;
+static d_write_t	nvram_write;
+
+static struct cdev *nvram_dev;
+
+static struct cdevsw nvram_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
+	.d_open =	nvram_open,
+	.d_read =	nvram_read,
+	.d_write =	nvram_write,
+	.d_name =	"nvram",
+};
+
+static int
+nvram_open(struct cdev *dev __unused, int flags, int fmt __unused,
+    struct thread *td)
+{
+	int error = 0;
+
+	if (flags & FWRITE)
+		error = securelevel_gt(td->td_ucred, 0);
+
+	return (error);
+}
+
+static int
+nvram_read(struct cdev *dev, struct uio *uio, int flags)
+{
+	int nv_off;
+	u_char v;
+	int error = 0;
+
+	while (uio->uio_resid > 0 && error == 0) {
+		nv_off = uio->uio_offset + NVRAM_FIRST;
+		if (nv_off < NVRAM_FIRST || nv_off >= NVRAM_LAST)
+			return (0);	/* Signal EOF */
+		/* Single byte at a time */
+		v = rtcin(nv_off);
+		error = uiomove(&v, 1, uio);
+	}
+	return (error);
+
+}
+
+static int
+nvram_write(struct cdev *dev, struct uio *uio, int flags)
+{
+	int nv_off;
+	u_char v;
+	int error = 0;
+
+	while (uio->uio_resid > 0 && error == 0) {
+		nv_off = uio->uio_offset + NVRAM_FIRST;
+		if (nv_off < NVRAM_FIRST || nv_off >= NVRAM_LAST)
+			return (0);	/* Signal EOF */
+		/* Single byte at a time */
+		error = uiomove(&v, 1, uio);
+		writertc(nv_off, v);
+	}
+	return (error);
+}
+
+static int
+nvram_modevent(module_t mod __unused, int type, void *data __unused)
+{
+	switch (type) {
+	case MOD_LOAD:
+		nvram_dev = make_dev(&nvram_cdevsw, 0,
+		    UID_ROOT, GID_KMEM, 0640, "nvram");
+		break;
+	case MOD_UNLOAD:
+	case MOD_SHUTDOWN:
+		destroy_dev(nvram_dev);
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+	return (0);
+}
+DEV_MODULE(nvram, nvram_modevent, NULL);
+
 #endif /* DEV_ISA */
