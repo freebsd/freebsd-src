@@ -1306,8 +1306,10 @@ ste_init_locked(sc)
 	ste_stop(sc);
 
 	/* Init our MAC address */
-	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		CSR_WRITE_1(sc, STE_PAR0 + i, IF_LLADDR(sc->ste_ifp)[i]);
+	for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
+		CSR_WRITE_2(sc, STE_PAR0 + i,
+		    ((IF_LLADDR(sc->ste_ifp)[i] & 0xff) |
+		     IF_LLADDR(sc->ste_ifp)[i + 1] << 8));
 	}
 
 	/* Init RX list */
