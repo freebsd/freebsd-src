@@ -414,7 +414,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	memset(sctp_ifap, 0, sizeof(struct sctp_ifa));
 	sctp_ifap->ifn_p = sctp_ifnp;
 	atomic_add_int(&sctp_ifnp->refcount, 1);
-
+	sctp_ifap->vrf_id = vrf_id;
 	sctp_ifap->ifa = ifa;
 	memcpy(&sctp_ifap->address, addr, addr->sa_len);
 	sctp_ifap->localifa_flags = SCTP_ADDR_VALID | SCTP_ADDR_DEFER_USE;
