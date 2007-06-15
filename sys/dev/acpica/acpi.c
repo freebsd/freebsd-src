@@ -868,7 +868,7 @@ acpi_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	*(ACPI_HANDLE *)result = ad->ad_handle;
 	break;
     case ACPI_IVAR_MAGIC:
-	*(int *)result = ad->ad_magic;
+	*(uintptr_t *)result = ad->ad_magic;
 	break;
     case ACPI_IVAR_PRIVATE:
 	*(void **)result = ad->ad_private;
@@ -906,7 +906,7 @@ acpi_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	ad->ad_handle = (ACPI_HANDLE)value;
 	break;
     case ACPI_IVAR_MAGIC:
-	ad->ad_magic = (int)value;
+	ad->ad_magic = (uintptr_t)value;
 	break;
     case ACPI_IVAR_PRIVATE:
 	ad->ad_private = (void *)value;
