@@ -58,6 +58,10 @@ static const char rcsid[] =
 #ifdef LOGIN_CAP
 #include <login_cap.h>
 #endif
+#ifdef PAM
+#include <security/pam_appl.h>
+#include <security/openpam.h>
+#endif
 
 #if (MAXLOGNAME-1) > UT_NAMESIZE
 #define LOGNAMESIZE UT_NAMESIZE
@@ -87,6 +91,7 @@ static const char rcsid[] =
 
 /* File scope variables */
 
+static const char * const atrun = "atrun"; /* service name for syslog etc. */
 static int debug = 0;
 
 void perr(const char *fmt, ...);
@@ -135,7 +140,14 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     int fflags;
     long nuid;
     long ngid;
-
+#ifdef PAM
+    pam_handle_t *pamh = NULL;
+    int pam_err;
+    struct pam_conv pamc = {
+	.conv = openpam_nullconv,
+	.appdata_ptr = NULL
+    };
+#endif
 
     PRIV_START
 
@@ -163,17 +175,30 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	perrx("Userid %lu not found - aborting job %s",
 		(unsigned long) uid, filename);
 
+#ifdef PAM
+    PRIV_START
+
+    pam_err = pam_start(atrun, pentry->pw_name, &pamc, &pamh);
+    if (pam_err != PAM_SUCCESS)
+	perrx("cannot start PAM: %s", pam_strerror(pamh, pam_err));
+
+    pam_err = pam_acct_mgmt(pamh, PAM_SILENT);
+    /* Expired password shouldn't prevent the job from running. */
+    if (pam_err != PAM_SUCCESS && pam_err != PAM_NEW_AUTHTOK_REQD)
+	perrx("Account %s (userid %lu) unavailable for job %s: %s",
+	    pentry->pw_name, (unsigned long)uid,
+	    filename, pam_strerror(pamh, pam_err));
+
+    pam_end(pamh, pam_err);
+
+    PRIV_END
+#endif /* PAM */
+
     PRIV_START
 
     stream=fopen(filename, "r");
 
     PRIV_END
-
-#ifdef __FreeBSD__
-    if (pentry->pw_expire && time(NULL) >= pentry->pw_expire)
-	perrx("Userid %lu is expired - aborting job %s",
-		(unsigned long) uid, filename);
-#endif
 
     if (stream == NULL)
 	perr("cannot open input file");
@@ -444,7 +469,7 @@ main(int argc, char *argv[])
 
     RELINQUISH_PRIVS_ROOT(DAEMON_UID, DAEMON_GID)
 
-    openlog("atrun", LOG_PID, LOG_CRON);
+    openlog(atrun, LOG_PID, LOG_CRON);
 
     opterr = 0;
     while((c=getopt(argc, argv, "dl:"))!= -1)

@@ -12,11 +12,11 @@ BINDIR=	${ATLIB_DIR}
 CLEANFILES= ${MAN}
 
 CFLAGS+=-I${MAINSRC} -I${.CURDIR}
-CFLAGS+=-DLOGIN_CAP
+CFLAGS+=-DLOGIN_CAP -DPAM
 WFORMAT=0
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+DPADD=	${LIBPAM} ${LIBUTIL}
+LDADD=	-lpam -lutil
 
 atrun.8: atrun.man
 	@${ECHO} Making ${.TARGET:T} from ${.ALLSRC:T}; \

@@ -3,6 +3,7 @@
 NO_OBJ=
 
 FILES=	README \
+	atrun \
 	ftpd \
 	gdm \
 	imap \
