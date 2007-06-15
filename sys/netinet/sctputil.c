@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 
 #ifndef SCTP_SUBSYS_KTR
-#define SCTP_SUBSYS_KTR KTR_GEN
+#define SCTP_SUBSYS_KTR KTR_SUBSYS
 #endif
 
 void
