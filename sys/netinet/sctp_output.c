@@ -6637,6 +6637,16 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 			asoc->locked_on_sending = NULL;
 			strqt = sctp_select_a_stream(stcb, asoc);
 			if (TAILQ_FIRST(&strq->outqueue) == NULL) {
+				if (strq == strqn) {
+					/* Must move start to next one */
+					strqn = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
+					if (strqn == NULL) {
+						strqn = TAILQ_FIRST(&asoc->out_wheel);
+						if (strqn == NULL) {
+							break;
+						}
+					}
+				}
 				sctp_remove_from_wheel(stcb, asoc, strq);
 			}
 			if (giveup) {
