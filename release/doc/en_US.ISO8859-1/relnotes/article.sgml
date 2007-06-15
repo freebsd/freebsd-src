@@ -910,6 +910,11 @@
 	  interfaces.  More information can be found in
 	  &man.ifconfig.8;.</para>
 
+	<para>The 802.11 protocol stack has been significantly reworked.
+	  Among the new features are support for background scanning
+	  and roaming between APs, as well as support that will be
+	  required by 802.11n-capable devices.</para>
+
 	<para>The 802.11 protocol stack now has support for 900 MHz
 	  cards, as well as quarter- and half-channel support
 	  for 802.11a. &merged;</para>
@@ -1035,6 +1040,8 @@ pipe tablearg ip from table(1) to any</programlisting>
         IPv6 support, it should be used instead.  Please note that some rules might need
         to be adjusted.</para>
 
+      <para>Support for tunneling IPX over IP has been removed.</para>
+
       <para>The &man.lagg.4; driver, ported from OpenBSD and NetBSD,
 	has been added to support a variety of protocols and algorithms
 	for link aggregation, failover, and fault tolerance.  &merged;</para>
@@ -1120,6 +1127,10 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>The <literal>PIM</literal> kernel option has been removed.
 	The corresponding code is now included in the
 	<literal>MROUTING</literal> kernel option.</para>
+
+      <para>Support has been added for the RFC 3678 Source-Specific
+	Multicast (SSM) socket API.  More details can be found in
+	the &man.sourcefilter.3; manual page.</para>
 
       <para>Support has been added for the Stream Control Transmission
 	Protocol (SCTP).  SCTP implements a reliable, message-oriented
@@ -1742,6 +1753,18 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The objformat(1) utility and getobjformat(3) library (the
       last remnants of a.out object file support) have been removed.</para>
 
+    <para>The &man.pam.nologin.8; module no longer provides a
+      an authentication function; instead it now provides an account
+      management function.  Third-party files in
+      <filename>/usr/local/etc/pam.d</filename> may  
+      need manual editing; specifically, lines in these files of
+      the form:
+
+      <screen>auth    required        pam_nologin.so  no_warn</screen></para>
+
+    <para>These lines need to have the word <literal>auth</literal>
+      replaced with the word <literal>account</literal>.</para>
+
     <para>The &man.periodic.8; daily script now supports
       display of the status of &man.gmirror.8;, &man.graid3.8;,
       &man.gstripe.8;, and &man.gconcat.8; devices.
@@ -2073,6 +2096,9 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para><application>BZIP2</application> has been updated from
       1.0.3 to 1.0.4.</para>
+
+    <para>GNU <application>Diffutils</application> has been updated
+      to 2.8.7.</para>
 
     <para><application>DRM</application> has
       been updated to a snapshot from DRI CVS as of 20060517.
