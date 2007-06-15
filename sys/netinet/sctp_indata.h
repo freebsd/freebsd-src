@@ -96,7 +96,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
     uint32_t rwnd, int nonce_sum_flag, int *abort_now);
 
 void
-sctp_handle_sack(struct sctp_sack_chunk *, struct sctp_tcb *,
+sctp_handle_sack(struct mbuf *m, int offset, struct sctp_sack_chunk *, struct sctp_tcb *,
     struct sctp_nets *, int *, int, uint32_t);
 
 /* draft-ietf-tsvwg-usctp */

@@ -3177,7 +3177,7 @@ strres_nochunk:
  */
 static void
 sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
-    struct sctp_tcb *stcb, struct sctp_nets *net)
+    struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t limit)
 {
 	uint32_t bottle_bw, on_queue;
 	uint16_t trunc_len;
@@ -3200,6 +3200,9 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 		memset(&desc, 0, sizeof(desc));
 	}
 	trunc_len = (uint16_t) ntohs(cp->trunc_len);
+	if (trunc_len > limit) {
+		trunc_len = limit;
+	}
 	/* now the chunks themselves */
 	while ((ch != NULL) && (chlen >= sizeof(struct sctp_chunkhdr))) {
 		desc.chunk_type = ch->chunk_type;
@@ -3889,7 +3892,8 @@ process_control_chunks:
 					    &abort_now);
 				} else {
 					if (netp && *netp)
-						sctp_handle_sack(sack, stcb, *netp, &abort_now, chk_length, a_rwnd);
+						sctp_handle_sack(m, *offset,
+						    sack, stcb, *netp, &abort_now, chk_length, a_rwnd);
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
@@ -4233,8 +4237,6 @@ process_control_chunks:
 			break;
 		case SCTP_STREAM_RESET:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_STREAM_RESET\n");
-			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-			    chk_length, chunk_buf);
 			if (((stcb == NULL) || (ch == NULL) || (chk_length < sizeof(struct sctp_stream_reset_tsn_req)))) {
 				/* Its not ours */
 				if (locked_tcb) {
@@ -4274,12 +4276,11 @@ process_control_chunks:
 				*offset = length;
 				return (NULL);
 			}
-			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-			    chk_length, chunk_buf);
-
 			if (ch && (stcb) && netp && (*netp)) {
 				sctp_handle_packet_dropped((struct sctp_pktdrop_chunk *)ch,
-				    stcb, *netp);
+				    stcb, *netp,
+				    min(chk_length, (sizeof(chunk_buf) - 4)));
+
 			}
 			break;
 
@@ -4312,8 +4313,6 @@ process_control_chunks:
 				/* skip this chunk... it's already auth'd */
 				goto next_chunk;
 			}
-			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-			    chk_length, chunk_buf);
 			got_auth = 1;
 			if ((ch == NULL) || sctp_handle_auth(stcb, (struct sctp_auth_chunk *)ch,
 			    m, *offset)) {
