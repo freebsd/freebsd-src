@@ -44,7 +44,7 @@ static const char rcsid[] =
 
 /* Global functions */
 
-void perr(const char *a);
+void perr(const char *fmt, ...);
 
 double
 gloadavg(void)
