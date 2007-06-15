@@ -35,6 +35,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl brvwRT1
+.Op Fl e Ar escape-char
 .Op Fl h Ar hz
 .Op Fl C Ar console_port
 .Op Fl G Ar gdb_port
@@ -107,13 +108,15 @@ acts as a master device with
 .Pp
 Typed characters are normally transmitted directly to
 .Xr dcons 4 .
-A tilde
-.Pq Ql ~
-appearing as the first character of a line is an escape signal; the
+A escape character (the default is
+.Ql ~
+) appearing as the first character of a line is an escape signal; the
 following are recognized:
 .Bl -tag -width ident
 .It Ic ~.
 Drop the connection and exit.
+.It Ic ~^G
+Invoke kgdb on the terminal on which dconschat is running.
 .It Ic ~^R
 Reset the target over FireWire if a reset address is registered in Configuration ROM.
 .It Ic ~^Z
@@ -156,6 +159,9 @@ Read available buffer, then exit.
 This implies the
 .Fl r
 option.
+.It Fl e Ar escape-char
+Specify escape character.
+The default is '~'.
 .It Fl h Ar hz
 Specify polling rate.
 The default value is 100.
