@@ -643,29 +643,21 @@ name##_RB_FIND(struct name *head, struct type *elm)			\
 attr struct type *							\
 name##_RB_NFIND(struct name *head, struct type *elm)			\
 {									\
-	struct type *ret = RB_ROOT(head);				\
-	struct type *tmp;						\
+	struct type *tmp = RB_ROOT(head);				\
+	struct type *res = NULL;					\
 	int comp;							\
-	while (ret && (comp = cmp(elm, ret)) != 0) {			\
+	while (tmp) {							\
+		comp = cmp(elm, tmp);					\
 		if (comp < 0) {						\
-			if ((tmp = RB_LEFT(ret, field)) == NULL)	\
-				break;					\
-			ret = tmp;					\
-		} else {						\
-			if ((tmp = RB_RIGHT(ret, field)) == NULL) {	\
-				tmp = ret;				\
-				ret = RB_PARENT(ret, field);		\
-				while (ret && tmp == RB_RIGHT(ret,	\
-				    field)) {				\
-					tmp = ret;			\
-					ret = RB_PARENT(ret, field);	\
-				}					\
-				break;					\
-			}						\
-			ret = tmp;					\
+			res = tmp;					\
+			tmp = RB_LEFT(tmp, field);			\
 		}							\
+		else if (comp > 0)					\
+			tmp = RB_RIGHT(tmp, field);			\
+		else							\
+			return (tmp);					\
 	}								\
-	return (ret);							\
+	return (res);							\
 }									\
 									\
 /* ARGSUSED */								\
