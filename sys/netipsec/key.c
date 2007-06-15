@@ -7296,10 +7296,12 @@ key_setkey(struct seckey *src, u_int16_t exttype)
 {
 	struct mbuf *m;
 	struct sadb_key *p;
-	int len = PFKEY_ALIGN8(sizeof(struct sadb_key) + _KEYLEN(src));
+	int len;
 
 	if (src == NULL)
 		return NULL;
+
+	len = PFKEY_ALIGN8(sizeof(struct sadb_key) + _KEYLEN(src));
 
 	m = key_alloc_mbuf(len);
 	if (m == NULL)
