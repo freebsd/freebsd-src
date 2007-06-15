@@ -307,6 +307,17 @@
       generates a 256-bit pre-shared WPA key from an ASCII
       passphrase.</para>
 
+    <sect3 id="rc-scripts"> 
+      <title><filename>/etc/rc.d</filename> Scripts</title>
+
+      <para>The <filename>sendmail</filename> script can be instructed
+ 	not to rebuild the aliases database if it is missing or older than
+ 	the aliases file.  If desired, set the new rc.conf option
+ 	<varname>sendmail_rebuild_aliases</varname> to "NO" to turn off
+ 	that functionality.</para>
+
+    </sect3>
+
   </sect2>
 
   <sect2 id="contrib">
