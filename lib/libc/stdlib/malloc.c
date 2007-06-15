@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2006 Jason Evans <jasone@FreeBSD.org>.
+ * Copyright (C) 2006,2007 Jason Evans <jasone@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,36 +47,37 @@
  * categories according to size class.  Assuming runtime defaults, 4 kB pages
  * and a 16 byte quantum, the size classes in each category are as follows:
  *
- *   |====================================|
- *   | Category | Subcategory    |   Size |
- *   |====================================|
- *   | Small    | Tiny           |      2 |
- *   |          |                |      4 |
- *   |          |                |      8 |
- *   |          |----------------+--------|
- *   |          | Quantum-spaced |     16 |
- *   |          |                |     32 |
- *   |          |                |     48 |
- *   |          |                |    ... |
- *   |          |                |    480 |
- *   |          |                |    496 |
- *   |          |                |    512 |
- *   |          |----------------+--------|
- *   |          | Sub-page       |   1 kB |
- *   |          |                |   2 kB |
- *   |====================================|
- *   | Large                     |   4 kB |
- *   |                           |   8 kB |
- *   |                           |  16 kB |
- *   |                           |    ... |
- *   |                           | 256 kB |
- *   |                           | 512 kB |
- *   |====================================|
- *   | Huge                      |   1 MB |
- *   |                           |   2 MB |
- *   |                           |   3 MB |
- *   |                           |    ... |
- *   |====================================|
+ *   |=====================================|
+ *   | Category | Subcategory    |    Size |
+ *   |=====================================|
+ *   | Small    | Tiny           |       2 |
+ *   |          |                |       4 |
+ *   |          |                |       8 |
+ *   |          |----------------+---------|
+ *   |          | Quantum-spaced |      16 |
+ *   |          |                |      32 |
+ *   |          |                |      48 |
+ *   |          |                |     ... |
+ *   |          |                |     480 |
+ *   |          |                |     496 |
+ *   |          |                |     512 |
+ *   |          |----------------+---------|
+ *   |          | Sub-page       |    1 kB |
+ *   |          |                |    2 kB |
+ *   |=====================================|
+ *   | Large                     |    4 kB |
+ *   |                           |    8 kB |
+ *   |                           |   12 kB |
+ *   |                           |     ... |
+ *   |                           | 1012 kB |
+ *   |                           | 1016 kB |
+ *   |                           | 1020 kB |
+ *   |=====================================|
+ *   | Huge                      |    1 MB |
+ *   |                           |    2 MB |
+ *   |                           |    3 MB |
+ *   |                           |     ... |
+ *   |=====================================|
  *
  * A different mechanism is used for each category:
  *
@@ -1419,7 +1420,7 @@ chunk_dealloc(void *chunk, size_t size)
 
 /*
  * Choose an arena based on a per-thread value (fast-path code, calls slow-path
- * code if necessary.
+ * code if necessary).
  */
 static inline arena_t *
 choose_arena(void)
@@ -1438,7 +1439,7 @@ choose_arena(void)
 	     * app switches to threaded mode, the initial thread may end up
 	     * being assigned to some other arena, but this one-time switch
 	     * shouldn't cause significant issues.
-	     * */
+	     */
 	    return (arenas[0]);
 	}
 
@@ -1898,7 +1899,9 @@ arena_run_alloc(arena_t *arena, size_t size)
 		}
 	}
 
-	/* No usable runs.  Allocate a new chunk, then try again. */
+	/*
+	 * No usable runs.  Create a new chunk from which to allocate the run.
+	 */
 	chunk = arena_chunk_alloc(arena);
 	if (chunk == NULL)
 		return (NULL);
@@ -2401,6 +2404,7 @@ arena_ralloc(void *ptr, size_t size, size_t oldsize)
 	if (ret == NULL)
 		return (NULL);
 
+	/* Junk/zero-filling were already done by arena_malloc(). */
 	if (size < oldsize)
 		memcpy(ret, ptr, size);
 	else
@@ -2411,7 +2415,7 @@ IN_PLACE:
 	if (opt_junk && size < oldsize)
 		memset((void *)((uintptr_t)ptr + size), 0x5a, oldsize - size);
 	else if (opt_zero && size > oldsize)
-		memset((void *)((uintptr_t)ptr + size), 0, oldsize - size);
+		memset((void *)((uintptr_t)ptr + oldsize), 0, size - oldsize);
 	return (ptr);
 }
 
@@ -2757,8 +2761,16 @@ huge_ralloc(void *ptr, size_t size, size_t oldsize)
 
 	/* Avoid moving the allocation if the size class would not change. */
 	if (oldsize > arena_maxclass &&
-	    CHUNK_CEILING(size) == CHUNK_CEILING(oldsize))
+	    CHUNK_CEILING(size) == CHUNK_CEILING(oldsize)) {
+		if (opt_junk && size < oldsize) {
+			memset((void *)((uintptr_t)ptr + size), 0x5a, oldsize
+			    - size);
+		} else if (opt_zero && size > oldsize) {
+			memset((void *)((uintptr_t)ptr + oldsize), 0, size
+			    - oldsize);
+		}
 		return (ptr);
+	}
 
 	/*
 	 * If we get here, then size and oldsize are different enough that we
