@@ -127,18 +127,18 @@ labeltcp(void)
 	L(6, "- on retransmit timeout");	R(6, "- window probes");
 	L(7, "- by keepalive");			R(7, "- window updates");
 	L(8, "- from listen queue");		R(8, "- urgent data only");
-	R(9, "- control");
-	R(10, "- resends by PMTU discovery");
-	L(11, "TCP Timers");		R(11, "total packets received");
-	L(12, "potential rtt updates");	R(12, "- in sequence");
-	L(13, "- successful");		R(13, "- completely duplicate");
-	L(14, "delayed acks sent");	R(14, "- with some duplicate data");
-	L(15, "retransmit timeouts");	R(15, "- out-of-order");
-	L(16, "persist timeouts");	R(16, "- duplicate acks");
-	L(17, "keepalive probes");	R(17, "- acks");
-	L(18, "- timeouts");		R(18, "- window probes");
-	R(19, "- window updates");
-	R(20, "- bad checksum");
+						R(9, "- control");
+						R(10, "- resends by PMTU discovery");
+	L(11, "TCP Timers");			R(11, "total packets received");
+	L(12, "potential rtt updates");		R(12, "- in sequence");
+	L(13, "- successful");			R(13, "- completely duplicate");
+	L(14, "delayed acks sent");		R(14, "- with some duplicate data");
+	L(15, "retransmit timeouts");		R(15, "- out-of-order");
+	L(16, "persist timeouts");		R(16, "- duplicate acks");
+	L(17, "keepalive probes");		R(17, "- acks");
+	L(18, "- timeouts");			R(18, "- window probes");
+						R(19, "- window updates");
+						R(20, "- bad checksum");
 #undef L
 #undef R
 }
@@ -250,9 +250,9 @@ showtcp(void)
 	L(6, tcps_timeoutdrop);		R(6, tcps_sndprobe);
 	L(7, tcps_keepdrops);		R(7, tcps_sndwinup);
 	L(8, tcps_listendrop);		R(8, tcps_sndurg);
-	R(9, tcps_sndctrl);
-	R(10, tcps_mturesent);
-	R(11, tcps_rcvtotal);
+					R(9, tcps_sndctrl);
+					R(10, tcps_mturesent);
+					R(11, tcps_rcvtotal);
 	L(12, tcps_segstimed);		R(12, tcps_rcvpack);
 	L(13, tcps_rttupdated);		R(13, tcps_rcvduppack);
 	L(14, tcps_delack);		R(14, tcps_rcvpartduppack);
@@ -260,8 +260,8 @@ showtcp(void)
 	L(16, tcps_persisttimeo);	R(16, tcps_rcvdupack);
 	L(17, tcps_keepprobe);		R(17, tcps_rcvackpack);
 	L(18, tcps_keeptimeo);		R(18, tcps_rcvwinprobe);
-	R(19, tcps_rcvwinupd);
-	R(20, tcps_rcvbadsum);
+					R(19, tcps_rcvwinupd);
+					R(20, tcps_rcvbadsum);
 #undef DO
 #undef L
 #undef R
