@@ -41,6 +41,7 @@ static const char rcsid[] =
 #include <grp.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,7 +89,8 @@ static const char rcsid[] =
 
 static int debug = 0;
 
-void perr(const char *a);
+void perr(const char *fmt, ...);
+void perrx(const char *fmt, ...);
 static void usage(void);
 
 /* Local functions */
@@ -384,14 +386,38 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
 /* Needed in gloadavg.c */
 void
-perr(const char *a)
+perr(const char *fmt, ...)
 {
+    const char * const fmtadd = ": %m";
+    char nfmt[strlen(fmt) + strlen(fmtadd) + 1];
+    va_list ap;
+
+    va_start(ap, fmt);
     if (debug)
     {
-	warn("%s", a);
+	vwarn(fmt, ap);
     }
     else
-	syslog(LOG_ERR, "%s: %m", a);
+    {
+	snprintf(nfmt, sizeof(nfmt), "%s%s", fmt, fmtadd);
+	vsyslog(LOG_ERR, nfmt, ap);
+    }
+    va_end(ap);
+
+    exit(EXIT_FAILURE);
+}
+
+void
+perrx(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    if (debug)
+	vwarnx(fmt, ap);
+    else
+	vsyslog(LOG_ERR, fmt, ap);
+    va_end(ap);
 
     exit(EXIT_FAILURE);
 }
