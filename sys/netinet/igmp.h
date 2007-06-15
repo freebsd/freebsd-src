@@ -89,8 +89,10 @@ struct igmp_report {
 #define IGMP_GRPREC_HDRLEN		8
 #define IGMP_PREPEND			0
 
+#if 0
 #define IGMP_QRV(pigmp)			((pigmp)->igmp_misc & (0x07)) /* XXX */
 #define IGMP_MAXSOURCES(len)		(((len) - 12) >> 2) /* XXX */
+#endif
 
 /*
  * Message types, including version number.
