@@ -584,17 +584,7 @@ options SCTP_HIGH_SPEED
 # for in a captured lab environment :-)
 options SCTP_WITH_NO_CSUM
 #
-# Logging, this is another debug tool thats way
-# cool.. but does take resources so its off 
-# by default. To do any logging you must first
-# enable SCTP_STAT_LOGGING. This gets the utilities
-# into the code base that actually do the logging and
-# alocates a hugh fixed circular buffer that logging
-# uses (about 80,000 entires that are probably 8 long
-# words or so long.. so it does take a LOT of memory).
-# Its cool for real-time debugging though.
-#
-options SCTP_STAT_LOGGING
+
 #
 # All that options after that turn on specific types of
 # logging. You can monitor CWND growth, flight size
@@ -605,25 +595,19 @@ options SCTP_STAT_LOGGING
 # I have not yet commited the tools to get and print
 # the logs, I will do that eventually .. before then
 # if you want them send me an email rrs@freebsd.org
+# You basically must have KTR enabled for these
+# and you then set the sysctl to turn on/off various
+# logging bits. Use ktrdump to pull the log and run
+# it through a dispaly program.. and graphs and other
+# things too.
 #
-options SCTP_LOG_MAXBURST
-options SCTP_LOG_RWND
-options SCTP_CWND_LOGGING
-options SCTP_CWND_MONITOR
-options SCTP_BLK_LOGGING
-options SCTP_STR_LOGGING
-options SCTP_FR_LOGGING
-options SCTP_MAP_LOGGING
-options SCTP_SACK_LOGGING
-options SCTP_LOCK_LOGGING
-options SCTP_RTTVAR_LOGGING
-options SCTP_SB_LOGGING
-options SCTP_EARLYFR_LOGGING
-options SCTP_NAGLE_LOGGING
-options SCTP_WAKE_LOGGING
-options SCTP_RECV_RWND_LOGGING
-options SCTP_SACK_RWND_LOGGING
-options SCTP_MBUF_LOGGING
+options 	SCTP_LOCK_LOGGING
+options 	SCTP_MBUF_LOGGING
+options 	SCTP_MBCNT_LOGGING
+options 	SCTP_PACKET_LOGGING
+options		SCTP_LTRACE_CHUNKS
+options 	SCTP_LTRACE_ERRORS
+
 
 # altq(9). Enable the base part of the hooks with the ALTQ option.
 # Individual disciplines must be built into the base system and can not be
