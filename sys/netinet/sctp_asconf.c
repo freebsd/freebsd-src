@@ -1704,6 +1704,11 @@ sctp_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 	LIST_FOREACH(l, &asc->list_of_work, sctp_nxt_addr) {
 		ifa = l->ifa;
 		type = l->action;
+
+		/* address's vrf_id must be the vrf_id of the assoc */
+		if (ifa->vrf_id != stcb->asoc.vrf_id) {
+			continue;
+		}
 		/* Same checks again for assoc */
 		if (ifa->address.sa.sa_family == AF_INET6) {
 			/* invalid if we're not a v6 endpoint */
