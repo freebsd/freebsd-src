@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+INSTALL
+config/
+m4/
+ms/
+po/
+src/Makefile.in
+lib/posix/Makefile.in
+lib/Makefile.in
+doc/Makefile.in
+man/Makefile.in
+Makefile.in
+aclocal.m4
+config.hin
+configure
+configure.ac
