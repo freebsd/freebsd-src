@@ -81,7 +81,7 @@ struct acpi_softc {
 struct acpi_device {
     /* ACPI ivars */
     ACPI_HANDLE			ad_handle;
-    int				ad_magic;
+    uintptr_t			ad_magic;
     void			*ad_private;
     int				ad_flags;
 
@@ -227,7 +227,7 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)	\
 }
 
 __ACPI_BUS_ACCESSOR(acpi, handle, ACPI, HANDLE, ACPI_HANDLE)
-__ACPI_BUS_ACCESSOR(acpi, magic, ACPI, MAGIC, int)
+__ACPI_BUS_ACCESSOR(acpi, magic, ACPI, MAGIC, uintptr_t)
 __ACPI_BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
 __ACPI_BUS_ACCESSOR(acpi, flags, ACPI, FLAGS, int)
 
