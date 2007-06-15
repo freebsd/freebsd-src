@@ -64,7 +64,7 @@ static char *hpet_ids[] = { "PNP0103", NULL };
 #define HPET_OFFSET_ENABLE	0x10	/* Location of enable word */
 #define HPET_OFFSET_VALUE	0xf0	/* Location of actual timer value */
 
-#define DEV_HPET(x)		(acpi_get_magic(x) == (int)&acpi_hpet_devclass)
+#define DEV_HPET(x)	(acpi_get_magic(x) == (uintptr_t)&acpi_hpet_devclass)
 
 struct timecounter hpet_timecounter = {
 	.tc_get_timecount =	hpet_get_timecount,
@@ -112,7 +112,7 @@ acpi_hpet_table_probe(device_t parent)
 	}
 
 	/* Record a magic value so we can detect this device later. */
-	acpi_set_magic(child, (int)&acpi_hpet_devclass);
+	acpi_set_magic(child, (uintptr_t)&acpi_hpet_devclass);
 	bus_set_resource(child, SYS_RES_MEMORY, 0, hpet->Address.Address,
 	    HPET_MEM_WIDTH);
 	if (device_probe_and_attach(child) != 0)

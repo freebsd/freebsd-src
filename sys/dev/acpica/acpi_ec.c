@@ -237,7 +237,7 @@ struct acpi_ec_params {
 };
 
 /* Indicate that this device has already been probed via ECDT. */
-#define DEV_ECDT(x)		(acpi_get_magic(x) == (int)&acpi_ec_devclass)
+#define DEV_ECDT(x)	(acpi_get_magic(x) == (uintptr_t)&acpi_ec_devclass)
 
 /*
  * Driver softc.
@@ -446,7 +446,7 @@ acpi_ec_ecdt_probe(device_t parent)
     params->uid = ecdt->Uid;
     acpi_GetInteger(h, "_GLK", &params->glk);
     acpi_set_private(child, params);
-    acpi_set_magic(child, (int)&acpi_ec_devclass);
+    acpi_set_magic(child, (uintptr_t)&acpi_ec_devclass);
 
     /* Finish the attach process. */
     if (device_probe_and_attach(child) != 0)
