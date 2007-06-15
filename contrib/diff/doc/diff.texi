@@ -2465,18 +2465,22 @@ Like @samp{eb}, except precede each version with a header that
 shows what file and lines the version came from.
 
 @item el
+@itemx e1
 Edit a copy of the left version, then copy the result to the output.
 
 @item er
+@itemx e2
 Edit a copy of the right version, then copy the result to the output.
 
 @item l
+@itemx 1
 Copy the left version to the output.
 
 @item q
 Quit.
 
 @item r
+@itemx 2
 Copy the right version to the output.
 
 @item s
