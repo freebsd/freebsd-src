@@ -412,6 +412,8 @@ nbssn_recv(struct nbpcb *nbp, struct mbuf **mpp, int *lenp,
 		 * Poll for a response header.
 		 * If we don't have one waiting, return.
 		 */
+		len = 0;
+		rpcode = 0;
 		error = nbssn_recvhdr(nbp, &len, &rpcode, MSG_DONTWAIT, td);
 		if ((so->so_state & (SS_ISDISCONNECTING | SS_ISDISCONNECTED)) ||
 		    (so->so_rcv.sb_state & SBS_CANTRCVMORE)) {
