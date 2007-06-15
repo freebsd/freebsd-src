@@ -144,7 +144,6 @@ static	d_kqfilter_t	bpfkqfilter;
 
 static struct cdevsw bpf_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	bpfopen,
 	.d_close =	bpfclose,
 	.d_read =	bpfread,
@@ -775,8 +774,10 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			if (d->bd_bif == NULL)
 				error = EINVAL;
 			else {
+				NET_LOCK_GIANT();
 				ifp = d->bd_bif->bif_ifp;
 				error = (*ifp->if_ioctl)(ifp, cmd, addr);
+				NET_UNLOCK_GIANT();
 			}
 			break;
 		}
@@ -834,9 +835,9 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			break;
 		}
 		if (d->bd_promisc == 0) {
-			mtx_lock(&Giant);
+			NET_LOCK_GIANT();
 			error = ifpromisc(d->bd_bif->bif_ifp, 1);
-			mtx_unlock(&Giant);
+			NET_UNLOCK_GIANT();
 			if (error == 0)
 				d->bd_promisc = 1;
 		}
