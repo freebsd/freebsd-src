@@ -1,26 +1,6 @@
 # $FreeBSD$
-Import of GNU diff 2.7
+Import of GNU diff 2.8.7
 
-Original source available as ftp://prep.ai.mit.edu/pub/gnu/diffutils-2.7.tar.gz
+Original source available as ftp://alpha.gnu.org/pub/gnu/diffutils/diffutils-2.8.7.tar.gz
 
-The following files and directories were removed for this import:
-
-Makefile.in
-INSTALL
-alloca.c
-cmp.c
-diff.info
-diff.info-1
-diff.info-2
-diff.info-3
-diff.info-4
-error.c
-fnmatch.c
-fnmatch.h
-memchr.c
-mkinstalldirs
-regex.c
-regex.h
-texinfo.tex
-waitpid.c
-getopt*
+Removed files are listed in FREEBSD-Xlist.
