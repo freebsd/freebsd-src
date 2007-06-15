@@ -58,16 +58,18 @@ sendmail_precmd()
 	fi
 
 	# check modifications on /etc/mail/aliases
-	if [ -f "/etc/mail/aliases.db" ]; then
-		if [ "/etc/mail/aliases" -nt "/etc/mail/aliases.db" ]; then
+	if checkyesno sendmail_rebuild_aliases; then
+		if [ -f "/etc/mail/aliases.db" ]; then
+			if [ "/etc/mail/aliases" -nt "/etc/mail/aliases.db" ]; then
+				echo \
+	    	"${name}: /etc/mail/aliases newer than /etc/mail/aliases.db, regenerating"
+				/usr/bin/newaliases
+			fi
+		else
 			echo \
-	    "${name}: /etc/mail/aliases newer than /etc/mail/aliases.db, regenerating"
-			/usr/bin/newaliases
+	    	"${name}: /etc/mail/aliases.db not present, generating"
+				/usr/bin/newaliases
 		fi
-	else
-		echo \
-	    "${name}: /etc/mail/aliases.db not present, generating"
-			/usr/bin/newaliases
 	fi
 }
 
