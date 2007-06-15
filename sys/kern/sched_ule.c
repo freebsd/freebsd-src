@@ -135,7 +135,7 @@ static struct td_sched td_sched0;
 #define	SCHED_PRI_NHALF		(SCHED_PRI_NRESV / 2)
 #define	SCHED_PRI_MIN		(PRI_MIN_TIMESHARE + SCHED_PRI_NHALF)
 #define	SCHED_PRI_MAX		(PRI_MAX_TIMESHARE - SCHED_PRI_NHALF)
-#define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN + 1)
+#define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN)
 #define	SCHED_PRI_TICKS(ts)						\
     (SCHED_TICK_HZ((ts)) /						\
     (roundup(SCHED_TICK_TOTAL((ts)), SCHED_PRI_RANGE) / SCHED_PRI_RANGE))
@@ -938,16 +938,11 @@ tdq_choose(struct tdq *tdq)
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	ts = runq_choose(&tdq->tdq_realtime);
-	if (ts != NULL) {
-		KASSERT(ts->ts_thread->td_priority <= PRI_MAX_REALTIME,
-		    ("tdq_choose: Invalid priority on realtime queue %d",
-		    ts->ts_thread->td_priority));
+	if (ts != NULL)
 		return (ts);
-	}
 	ts = runq_choose_from(&tdq->tdq_timeshare, tdq->tdq_ridx);
 	if (ts != NULL) {
-		KASSERT(ts->ts_thread->td_priority <= PRI_MAX_TIMESHARE &&
-		    ts->ts_thread->td_priority >= PRI_MIN_TIMESHARE,
+		KASSERT(ts->ts_thread->td_priority >= PRI_MIN_TIMESHARE,
 		    ("tdq_choose: Invalid priority on timeshare queue %d",
 		    ts->ts_thread->td_priority));
 		return (ts);
