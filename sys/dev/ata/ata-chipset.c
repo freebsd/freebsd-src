@@ -4821,7 +4821,7 @@ ata_via_ident(device_t dev)
     {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "6410" },
      { ATA_VIA6420,   0x00, 7,      0x00,    ATA_SA150, "6420" },
      { ATA_VIA6421,   0x00, 6,      VIABAR,  ATA_SA150, "6421" },
-     { ATA_VIA8237A,  0x00, 0,      0x00,    ATA_SA150, "8237A" },
+     { ATA_VIA8237A,  0x00, 7,      0x00,    ATA_SA150, "8237A" },
      { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA300, "8251" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
