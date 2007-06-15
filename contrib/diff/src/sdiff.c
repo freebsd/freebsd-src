@@ -857,11 +857,11 @@ give_help (void)
   fprintf (stderr, "%s", _("\
 ed:\tEdit then use both versions, each decorated with a header.\n\
 eb:\tEdit then use both versions.\n\
-el:\tEdit then use the left version.\n\
-er:\tEdit then use the right version.\n\
-e:\tEdit a new version.\n\
-l:\tUse the left version.\n\
-r:\tUse the right version.\n\
+el or e1:\tEdit then use the left version.\n\
+er or e2:\tEdit then use the right version.\n\
+e:\tDiscard both versions then edit a new one.\n\
+l or 1:\tUse the left version.\n\
+r or 2:\tUse the right version.\n\
 s:\tSilently include common lines.\n\
 v:\tVerbosely include common lines.\n\
 q:\tQuit.\n\
@@ -917,7 +917,8 @@ edit (struct line_filter *left, char const *lname, lin lline, lin llen,
 	  cmd0 = skip_white ();
 	  switch (cmd0)
 	    {
-	    case 'l': case 'r': case 's': case 'v': case 'q':
+	    case '1': case '2': case 'l': case 'r':
+	    case 's': case 'v': case 'q':
 	      if (skip_white () != '\n')
 		{
 		  give_help ();
@@ -931,7 +932,7 @@ edit (struct line_filter *left, char const *lname, lin lline, lin llen,
 	      cmd1 = skip_white ();
 	      switch (cmd1)
 		{
-		case 'b': case 'd': case 'l': case 'r':
+		case '1': case '2': case 'b': case 'd': case 'l': case 'r':
 		  if (skip_white () != '\n')
 		    {
 		      give_help ();
@@ -969,11 +970,11 @@ edit (struct line_filter *left, char const *lname, lin lline, lin llen,
 
       switch (cmd0)
 	{
-	case 'l':
+	case '1': case 'l':
 	  lf_copy (left, llen, outfile);
 	  lf_skip (right, rlen);
 	  return true;
-	case 'r':
+	case '2': case 'r':
 	  lf_copy (right, rlen, outfile);
 	  lf_skip (left, llen);
 	  return true;
@@ -1014,7 +1015,7 @@ edit (struct line_filter *left, char const *lname, lin lline, lin llen,
 			       (long int) (lline + llen - 1));
 		  }
 		/* Fall through.  */
-	      case 'b': case 'l':
+	      case '1': case 'b': case 'l':
 		lf_copy (left, llen, tmp);
 		break;
 
@@ -1036,7 +1037,7 @@ edit (struct line_filter *left, char const *lname, lin lline, lin llen,
 			       (long int) (rline + rlen - 1));
 		  }
 		/* Fall through.  */
-	      case 'b': case 'r':
+	      case '2': case 'b': case 'r':
 		lf_copy (right, rlen, tmp);
 		break;
 
