@@ -248,8 +248,6 @@ static void
 tcp_usr_detach(struct socket *so)
 {
 	struct inpcb *inp;
-	struct tcpcb *tp;
-	TCPDEBUG0;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_detach: inp == NULL"));
@@ -257,11 +255,7 @@ tcp_usr_detach(struct socket *so)
 	INP_LOCK(inp);
 	KASSERT(inp->inp_socket != NULL,
 	    ("tcp_usr_detach: inp_socket == NULL"));
-	TCPDEBUG1();
-
 	tcp_detach(so, inp);
-	tp = NULL;
-	TCPDEBUG2(PRU_DETACH);
 	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
