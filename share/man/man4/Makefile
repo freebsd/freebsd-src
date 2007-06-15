@@ -404,6 +404,7 @@ MAN=	aac.4 \
 	witness.4 \
 	wlan.4 \
 	wlan_acl.4 \
+	wlan_amrr.4 \
 	wlan_ccmp.4 \
 	wlan_tkip.4 \
 	wlan_wep.4 \
