@@ -805,6 +805,7 @@ smb_read(struct smb_share *ssp, u_int16_t fid, struct uio *uio,
 
 	tsize = uio->uio_resid;
 	while (tsize > 0) {
+		resid = 0;
 		len = tsize;
 		error = smb_smb_read(ssp, fid, &len, &resid, uio, scred);
 		if (error)
@@ -880,6 +881,7 @@ smb_write(struct smb_share *ssp, u_int16_t fid, struct uio *uio,
 	tsize = uio->uio_resid;
 	olduio = *uio;
 	while (tsize > 0) {
+		resid = 0;
 		len = tsize;
 		error = smb_smb_write(ssp, fid, &len, &resid, uio, scred);
 		if (error)
