@@ -1922,7 +1922,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		 * read a full record.
 		 */
 		rblim = (struct  scsi_read_block_limits_data *)
-		    malloc(8192, M_SCSISA, M_WAITOK);
+		    malloc(8192, M_SCSISA, M_NOWAIT);
 		if (rblim == NULL) {
 			xpt_print(periph->path, "no memory for test read\n");
 			xpt_release_ccb(ccb);
@@ -2728,7 +2728,9 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 
 	softc = (struct sa_softc *)periph->softc;
 
-	ccomp = malloc(sizeof (sa_comp_t), M_SCSISA, M_WAITOK);
+	ccomp = malloc(sizeof (sa_comp_t), M_SCSISA, M_NOWAIT);
+	if (ccomp == NULL)
+		return (ENOMEM);
 
 	/*
 	 * Since it doesn't make sense to set the number of blocks, or
@@ -2751,7 +2753,11 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 	if (params_to_set & SA_PARAM_COMPRESSION)
 		mode_buffer_len += sizeof (sa_comp_t);
 
-	mode_buffer = malloc(mode_buffer_len, M_SCSISA, M_WAITOK | M_ZERO);
+	mode_buffer = malloc(mode_buffer_len, M_SCSISA, M_NOWAIT | M_ZERO);
+	if (mode_buffer == NULL) {
+		free(ccomp, M_SCSISA);
+		return (ENOMEM);
+	}
 
 	mode_hdr = (struct scsi_mode_header_6 *)mode_buffer;
 	mode_blk = (struct scsi_mode_blk_desc *)&mode_hdr[1];
