@@ -473,8 +473,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 
 	BVPRINTF("init_mondo_queue\n");
 	init_mondo_queue();
-	BVPRINTF("OF_set_mmfsa_traptable\n");
-	OF_set_mmfsa_traptable(&tl0_base, mmfsa);
+	BVPRINTF("set_mmfsa_traptable\n");
+	set_mmfsa_traptable(&tl0_base, mmfsa);
 	BVPRINTF("trap conversion\n");
 	for (i = 0; i < 256; i++)
 		trap_conversion[i] = 0;
