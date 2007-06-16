@@ -2590,7 +2590,7 @@ calc_rto:
  * one mbuf, a copy is made at 'ptr'. caller must ensure that the buffer size
  * is >= 'len' returns NULL if there there isn't 'len' bytes in the chain.
  */
-__inline caddr_t
+caddr_t
 sctp_m_getptr(struct mbuf *m, int off, int len, uint8_t * in_ptr)
 {
 	uint32_t count;
@@ -3805,7 +3805,7 @@ sctp_recover_scope(struct sockaddr_in6 *addr, struct sockaddr_in6 *store)
  * are the two addresses the same?  currently a "scopeless" check returns: 1
  * if same, 0 if not
  */
-__inline int
+int
 sctp_cmpaddr(struct sockaddr *sa1, struct sockaddr *sa2)
 {
 
