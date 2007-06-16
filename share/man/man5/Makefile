@@ -63,7 +63,8 @@ MAN=	acct.5 \
 	style.Makefile.5 \
 	sysctl.conf.5 \
 	tmpfs.5 \
-	utmp.5
+	utmp.5 \
+	xfs.5
 
 MLINKS=	dir.5 dirent.5
 MLINKS+=fs.5 inode.5
