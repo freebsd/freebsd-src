@@ -23,9 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * This is the syscon(4)-ized version of the Xbox Frame Buffer driver. It
@@ -71,7 +72,7 @@ struct xboxfb_softc {
 	char* sc_framebuffer;
 
 	/* pointer to the font used */
-	struct gfb_font* sc_font;
+	const struct gfb_font* sc_font;
 };
 
 #define SCREEN_WIDTH	640
@@ -79,7 +80,7 @@ struct xboxfb_softc {
 
 #define XBOXFB_DRIVER_NAME "xboxsc"
 
-extern struct gfb_font bold8x16;
+extern const struct gfb_font bold8x16;
 
 static vi_probe_t xboxfb_probe;
 static vi_init_t xboxfb_init;
@@ -593,7 +594,7 @@ xboxfb_putc(video_adapter_t *adp, vm_offset_t off, u_int8_t c, u_int8_t a)
 	int i, j;
 	struct xboxfb_softc* sc = &xboxfb_sc;
 	uint32_t* ptri = (uint32_t*)sc->sc_framebuffer;
-	uint8_t* fontdata;
+	const uint8_t* fontdata;
 	uint32_t clr;
 	uint8_t mask;
 
