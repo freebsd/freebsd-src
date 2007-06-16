@@ -135,6 +135,9 @@ main(argc, argv)
 
 	init_prompt();
 
+	if (less_is_more)
+		scan_option("-fG");
+
 	s = lgetenv(less_is_more ? "MORE" : "LESS");
 	if (s != NULL)
 		scan_option(save(s));
