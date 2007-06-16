@@ -230,6 +230,7 @@ static void bce_dump_status_block	(struct bce_softc *);
 static void bce_dump_stats_block	(struct bce_softc *);
 static void bce_dump_driver_state	(struct bce_softc *);
 static void bce_dump_hw_state		(struct bce_softc *);
+static void bce_dump_bc_state		(struct bce_softc *);
 static void bce_breakpoint			(struct bce_softc *);
 #endif
 
@@ -320,6 +321,7 @@ static void bce_intr				(void *);
 static void bce_set_rx_mode			(struct bce_softc *);
 static void bce_stats_update		(struct bce_softc *);
 static void bce_tick				(void *);
+static void bce_pulse				(void *);
 static void bce_add_sysctls			(struct bce_softc *);
 
 
@@ -437,9 +439,6 @@ bce_probe(device_t dev)
 		t++;
 	}
 
-	DBPRINT(sc, BCE_VERBOSE_LOAD, "%s(%d): No IOCTL match found!\n", 
-		__FILE__, __LINE__);
-
 	return(ENXIO);
 }
 
@@ -501,10 +500,11 @@ bce_attach(device_t dev)
 	if (count == 1 && pci_alloc_msi(dev, &count) == 0 && count == 1) {
 		rid = 1;
 		sc->bce_flags |= BCE_USING_MSI_FLAG;
-		DBPRINT(sc, BCE_INFO, "Allocating %d MSI interrupt(s).\n", count);
+		DBPRINT(sc, BCE_VERBOSE_LOAD, 
+			"Allocating %d MSI interrupt(s)\n", count);
 	} else {
 		rid = 0;
-		DBPRINT(sc, BCE_INFO, "Allocating IRQ interrupt.\n");
+		DBPRINT(sc, BCE_VERBOSE_LOAD, "Allocating IRQ interrupt\n");
 	}
 
 	sc->bce_res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -568,7 +568,21 @@ bce_attach(device_t dev)
 	else
 		sc->bce_shmem_base = HOST_VIEW_SHMEM_BASE;
 
-	DBPRINT(sc, BCE_INFO, "bce_shmem_base = 0x%08X\n", sc->bce_shmem_base);
+	DBPRINT(sc, BCE_VERBOSE_FIRMWARE, "%s(): bce_shmem_base = 0x%08X\n", 
+		__FUNCTION__, sc->bce_shmem_base);
+
+	sc->bce_fw_ver = REG_RD_IND(sc, sc->bce_shmem_base + 
+		BCE_DEV_INFO_BC_REV);
+	DBPRINT(sc, BCE_INFO_FIRMWARE, "%s(): bce_fw_ver = 0x%08X\n", 
+		__FUNCTION__, sc->bce_fw_ver);
+
+	/* Check if any management firmware is running. */
+	val = REG_RD_IND(sc, sc->bce_shmem_base + BCE_PORT_FEATURE);
+	if (val & (BCE_PORT_FEATURE_ASF_ENABLED | BCE_PORT_FEATURE_IMD_ENABLED)) {
+		sc->bce_flags |= BCE_MFW_ENABLE_FLAG;
+		DBPRINT(sc, BCE_INFO_LOAD, "%s(): BCE_MFW_ENABLE_FLAG\n", 
+			__FUNCTION__);
+	}
 
 	/* Get PCI bus information (speed and type). */
 	val = REG_RD(sc, BCE_PCICFG_MISC_STATUS);
@@ -615,16 +629,10 @@ bce_attach(device_t dev)
 	if (val & BCE_PCICFG_MISC_STATUS_32BIT_DET)
 		sc->bce_flags |= BCE_PCI_32BIT_FLAG;
 
-	BCE_PRINTF("ASIC ID 0x%08X; Revision (%c%d); PCI%s %s %dMHz\n",
-		sc->bce_chipid,
-		((BCE_CHIP_ID(sc) & 0xf000) >> 12) + 'A',
-		((BCE_CHIP_ID(sc) & 0x0ff0) >> 4),
-		((sc->bce_flags & BCE_PCIX_FLAG) ? "-X" : ""),
-		((sc->bce_flags & BCE_PCI_32BIT_FLAG) ? "32-bit" : "64-bit"),
-		sc->bus_speed_mhz);
-
-	/* Reset the controller. */
+	/* Reset the controller and announce to bootcde that driver is present. */
 	if (bce_reset(sc, BCE_DRV_MSG_CODE_RESET)) {
+		BCE_PRINTF("%s(%d): Controller reset failed!\n", 
+			__FILE__, __LINE__);
 		rc = ENXIO;
 		goto bce_attach_fail;
 	}
@@ -654,10 +662,10 @@ bce_attach(device_t dev)
 	 * interrupt while ticks control how long
 	 * a BD can sit in the chain before
 	 * generating an interrupt.  Set the default 
-	 * values for the RX and TX rings.
+	 * values for the RX and TX chains.
 	 */
 
-#ifdef BCE_DRBUG
+#ifdef BCE_DEBUG
 	/* Force more frequent interrupts. */
 	sc->bce_tx_quick_cons_trip_int = 1;
 	sc->bce_tx_quick_cons_trip     = 1;
@@ -669,6 +677,7 @@ bce_attach(device_t dev)
 	sc->bce_rx_ticks_int           = 0;
 	sc->bce_rx_ticks               = 0;
 #else
+	/* Improve throughput at the expense of increased latency. */
 	sc->bce_tx_quick_cons_trip_int = 20;
 	sc->bce_tx_quick_cons_trip     = 20;
 	sc->bce_tx_ticks_int           = 80;
@@ -700,12 +709,12 @@ bce_attach(device_t dev)
 					 BCE_SHARED_HW_CFG_CONFIG);
 			if (val & BCE_SHARED_HW_CFG_PHY_2_5G) {
 				sc->bce_phy_flags |= BCE_PHY_2_5G_CAPABLE_FLAG;
-				DBPRINT(sc, BCE_WARN, "Found 2.5Gb capable adapter\n");
+				DBPRINT(sc, BCE_INFO_LOAD, "Found 2.5Gb capable adapter\n");
 			}
 		}
 	}
 
-	/* Store config data needed by the PHY driver for backplane applications */
+	/* Store data needed by PHY driver for backplane applications */
 	sc->bce_shared_hw_cfg = REG_RD_IND(sc, sc->bce_shmem_base +
 		BCE_SHARED_HW_CFG_CONFIG);
 	sc->bce_port_hw_cfg   = REG_RD_IND(sc, sc->bce_shmem_base +
@@ -754,18 +763,18 @@ bce_attach(device_t dev)
 #endif
 
 	ifp->if_snd.ifq_drv_maxlen = USABLE_TX_BD;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
+	IFQ_SET_READY(&ifp->if_snd);
+
 	if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG)
 		ifp->if_baudrate = IF_Mbps(2500ULL);
 	else
 		ifp->if_baudrate = IF_Mbps(1000);
 
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
-
-	/* Look for our PHY. */
+	/* Check for an MII child bus by probing the PHY. */
 	if (mii_phy_probe(dev, &sc->bce_miibus, bce_ifmedia_upd,
 		bce_ifmedia_sts)) {
-		BCE_PRINTF("%s(%d): PHY probe failed!\n", 
+		BCE_PRINTF("%s(%d): No PHY found on child MII bus!\n", 
 			__FILE__, __LINE__);
 		rc = ENXIO;
 		goto bce_attach_fail;
@@ -775,9 +784,11 @@ bce_attach(device_t dev)
 	ether_ifattach(ifp, sc->eaddr);
 
 #if __FreeBSD_version < 500000
-	callout_init(&sc->bce_stat_ch);
+	callout_init(&sc->bce_tick_callout);
+	callout_init(&sc->bce_pulse_callout);
 #else
-	callout_init_mtx(&sc->bce_stat_ch, &sc->bce_mtx, 0);
+	callout_init_mtx(&sc->bce_tick_callout, &sc->bce_mtx, 0);
+	callout_init_mtx(&sc->bce_pulse_callout, &sc->bce_mtx, 0);
 #endif
 
 	/* Hookup IRQ last. */
@@ -791,16 +802,46 @@ bce_attach(device_t dev)
 		goto bce_attach_exit;
 	}
 
+	/* 
+	 * At this point we've acquired all the resources 
+	 * we need to run so there's no turning back, we're
+	 * cleared for launch.
+	 */
+
 	/* Print some important debugging info. */
 	DBRUN(BCE_INFO, bce_dump_driver_state(sc));
 
 	/* Add the supported sysctls to the kernel. */
 	bce_add_sysctls(sc);
 
-	/* Get the firmware running so IPMI still works */
- 	BCE_LOCK(sc);
+	BCE_LOCK(sc);
+	/* 
+	 * The chip reset earlier notified the bootcode that
+	 * a driver is present.  We now need to start our pulse
+	 * routine so that the bootcode is reminded that we're
+	 * still running.
+	 */
+	bce_pulse(sc);
+
 	bce_mgmt_init_locked(sc);
 	BCE_UNLOCK(sc);
+
+	/* Finally, print some useful adapter info */
+	BCE_PRINTF("ASIC (0x%08X); ", sc->bce_chipid);
+	printf("Rev (%c%d); ", ((BCE_CHIP_ID(sc) & 0xf000) >> 12) + 'A',
+		((BCE_CHIP_ID(sc) & 0x0ff0) >> 4));
+	printf("Bus (PCI%s, %s, %dMHz); ",
+		((sc->bce_flags & BCE_PCIX_FLAG) ? "-X" : ""),
+		((sc->bce_flags & BCE_PCI_32BIT_FLAG) ? "32-bit" : "64-bit"),
+		sc->bus_speed_mhz);
+	printf("F/W (0x%08X); Flags( ", sc->bce_fw_ver);
+	if (sc->bce_flags & BCE_MFW_ENABLE_FLAG)
+		printf("MFW ");
+	if (sc->bce_flags & BCE_USING_MSI_FLAG)
+		printf("MSI ");
+	if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG)
+		printf("2.5G ");
+	printf(")\n");
 
 	goto bce_attach_exit;
 
@@ -826,10 +867,9 @@ bce_attach_exit:
 static int
 bce_detach(device_t dev)
 {
-	struct bce_softc *sc;
+	struct bce_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
-
-	sc = device_get_softc(dev);
+	u32 msg;
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
 
@@ -840,10 +880,17 @@ bce_detach(device_t dev)
 		ether_poll_deregister(ifp);
 #endif
 
+	/* Stop the pulse so the bootcode can go to driver absent state. */
+	callout_stop(&sc->bce_pulse_callout);
+
 	/* Stop and reset the controller. */
 	BCE_LOCK(sc);
 	bce_stop(sc);
-	bce_reset(sc, BCE_DRV_MSG_CODE_RESET);
+	if (sc->bce_flags & BCE_NO_WOL_FLAG)
+		msg = BCE_DRV_MSG_CODE_UNLOAD_LNK_DN;
+	else
+		msg = BCE_DRV_MSG_CODE_UNLOAD;
+	bce_reset(sc, msg);
 	BCE_UNLOCK(sc);
 
 	ether_ifdetach(ifp);
@@ -873,11 +920,20 @@ static void
 bce_shutdown(device_t dev)
 {
 	struct bce_softc *sc = device_get_softc(dev);
+	u32 msg;
+
+	DBPRINT(sc, BCE_VERBOSE_SPECIAL, "Entering %s()\n", __FUNCTION__);
 
 	BCE_LOCK(sc);
 	bce_stop(sc);
-	bce_reset(sc, BCE_DRV_MSG_CODE_RESET);
+	if (sc->bce_flags & BCE_NO_WOL_FLAG)
+		msg = BCE_DRV_MSG_CODE_UNLOAD_LNK_DN;
+	else
+		msg = BCE_DRV_MSG_CODE_UNLOAD;
+	bce_reset(sc, msg);
 	BCE_UNLOCK(sc);
+	
+	DBPRINT(sc, BCE_VERBOSE_SPECIAL, "Exiting %s()\n", __FUNCTION__);
 }
 
 
@@ -977,7 +1033,7 @@ bce_miibus_read_reg(device_t dev, int phy, int reg)
 
 	/* Make sure we are accessing the correct PHY address. */
 	if (phy != sc->bce_phy_addr) {
-		DBPRINT(sc, BCE_VERBOSE, "Invalid PHY address %d for PHY read!\n", phy);
+		DBPRINT(sc, BCE_EXCESSIVE_PHY, "Invalid PHY address %d for PHY read!\n", phy);
 		return(0);
 	}
 
@@ -1055,7 +1111,7 @@ bce_miibus_write_reg(device_t dev, int phy, int reg, int val)
 
 	/* Make sure we are accessing the correct PHY address. */
 	if (phy != sc->bce_phy_addr) {
-		DBPRINT(sc, BCE_VERBOSE, "Invalid PHY address %d for PHY write!\n", phy);
+		DBPRINT(sc, BCE_EXCESSIVE_PHY, "Invalid PHY address %d for PHY write!\n", phy);
 		return(0);
 	}
 
@@ -1149,10 +1205,11 @@ bce_miibus_statchg(device_t dev)
 		/* fall-through */
 	case IFM_1000_T:
 	case IFM_1000_SX:
-		DBPRINT(sc, BCE_INFO, "Enablinb GMII interface.\n");
+		DBPRINT(sc, BCE_INFO, "Enabling GMII interface.\n");
 		val |= BCE_EMAC_MODE_PORT_GMII;
 		break;
 	default:
+		DBPRINT(sc, BCE_INFO, "Enabling default GMII interface.\n");
 		val |= BCE_EMAC_MODE_PORT_GMII;
 	}
 
@@ -1166,7 +1223,7 @@ bce_miibus_statchg(device_t dev)
 	REG_WR(sc, BCE_EMAC_MODE, val);
 
 #if 0
-	/* Todo: Enable this support in brgphy and bge. */
+	/* Todo: Enable flow control support in brgphy and bge. */
 	/* FLAG0 is set if RX is enabled and FLAG1 if TX is enabled */
 	if (mii->mii_media_active & IFM_FLAG0)
 		BCE_SETBIT(sc, BCE_EMAC_RX_MODE, BCE_EMAC_RX_MODE_FLOW_EN);
@@ -1193,7 +1250,7 @@ bce_acquire_nvram_lock(struct bce_softc *sc)
 	u32 val;
 	int j;
 
-	DBPRINT(sc, BCE_VERBOSE, "Acquiring NVRAM lock.\n");
+	DBPRINT(sc, BCE_VERBOSE_NVRAM, "Acquiring NVRAM lock.\n");
 
 	/* Request access to the flash interface. */
 	REG_WR(sc, BCE_NVM_SW_ARB, BCE_NVM_SW_ARB_ARB_REQ_SET2);
@@ -1230,7 +1287,7 @@ bce_release_nvram_lock(struct bce_softc *sc)
 	int j;
 	u32 val;
 
-	DBPRINT(sc, BCE_VERBOSE, "Releasing NVRAM lock.\n");
+	DBPRINT(sc, BCE_VERBOSE_NVRAM, "Releasing NVRAM lock.\n");
 
 	/*
 	 * Relinquish nvram interface.
@@ -1268,7 +1325,7 @@ bce_enable_nvram_write(struct bce_softc *sc)
 {
 	u32 val;
 
-	DBPRINT(sc, BCE_VERBOSE, "Enabling NVRAM write.\n");
+	DBPRINT(sc, BCE_VERBOSE_NVRAM, "Enabling NVRAM write.\n");
 
 	val = REG_RD(sc, BCE_MISC_CFG);
 	REG_WR(sc, BCE_MISC_CFG, val | BCE_MISC_CFG_NVM_WR_EN_PCI);
@@ -1310,7 +1367,7 @@ bce_disable_nvram_write(struct bce_softc *sc)
 {
 	u32 val;
 
-	DBPRINT(sc, BCE_VERBOSE,  "Disabling NVRAM write.\n");
+	DBPRINT(sc, BCE_VERBOSE_NVRAM,  "Disabling NVRAM write.\n");
 
 	val = REG_RD(sc, BCE_MISC_CFG);
 	REG_WR(sc, BCE_MISC_CFG, val & ~BCE_MISC_CFG_NVM_WR_EN);
@@ -1332,7 +1389,7 @@ bce_enable_nvram_access(struct bce_softc *sc)
 {
 	u32 val;
 
-	DBPRINT(sc, BCE_VERBOSE, "Enabling NVRAM access.\n");
+	DBPRINT(sc, BCE_VERBOSE_NVRAM, "Enabling NVRAM access.\n");
 
 	val = REG_RD(sc, BCE_NVM_ACCESS_ENABLE);
 	/* Enable both bits, even on read. */
@@ -1354,7 +1411,7 @@ bce_disable_nvram_access(struct bce_softc *sc)
 {
 	u32 val;
 
-	DBPRINT(sc, BCE_VERBOSE, "Disabling NVRAM access.\n");
+	DBPRINT(sc, BCE_VERBOSE_NVRAM, "Disabling NVRAM access.\n");
 
 	val = REG_RD(sc, BCE_NVM_ACCESS_ENABLE);
 
@@ -1385,7 +1442,7 @@ bce_nvram_erase_page(struct bce_softc *sc, u32 offset)
 	if (sc->bce_flash_info->buffered)
 		return 0;
 
-	DBPRINT(sc, BCE_VERBOSE, "Erasing NVRAM page.\n");
+	DBPRINT(sc, BCE_VERBOSE_NVRAM, "Erasing NVRAM page.\n");
 
 	/* Build an erase command. */
 	cmd = BCE_NVM_COMMAND_ERASE | BCE_NVM_COMMAND_WR |
@@ -1554,7 +1611,7 @@ bce_init_nvram(struct bce_softc *sc)
 	int j, entry_count, rc;
 	struct flash_spec *flash;
 
-	DBPRINT(sc,BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
+	DBPRINT(sc, BCE_VERBOSE_NVRAM, "Entering %s()\n", __FUNCTION__);
 
 	/* Determine the selected interface. */
 	val = REG_RD(sc, BCE_NVM_CFG1);
@@ -1641,7 +1698,7 @@ bce_init_nvram(struct bce_softc *sc)
 	DBPRINT(sc, BCE_INFO_LOAD, "bce_init_nvram() flash->total_size = 0x%08X\n",
 		sc->bce_flash_info->total_size);
 
-	DBPRINT(sc,BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
+	DBPRINT(sc, BCE_VERBOSE_NVRAM, "Exiting %s()\n", __FUNCTION__);
 
 	return rc;
 }
@@ -2620,7 +2677,7 @@ bce_fw_sync(struct bce_softc *sc, u32 msg_data)
 	sc->bce_fw_wr_seq++;
 	msg_data |= sc->bce_fw_wr_seq;
 
- 	DBPRINT(sc, BCE_VERBOSE, "bce_fw_sync(): msg_data = 0x%08X\n", msg_data);
+ 	DBPRINT(sc, BCE_VERBOSE_FIRMWARE, "bce_fw_sync(): msg_data = 0x%08X\n", msg_data);
 
 	/* Send the message to the bootcode driver mailbox. */
 	REG_WR_IND(sc, sc->bce_shmem_base + BCE_DRV_MB, msg_data);
@@ -3061,7 +3118,7 @@ bce_get_mac_addr(struct bce_softc *sc)
 		sc->eaddr[5] = (u_char)(mac_lo >> 0);
 	}
 
-	DBPRINT(sc, BCE_INFO, "Permanent Ethernet address = %6D\n", sc->eaddr, ":");
+	DBPRINT(sc, BCE_INFO_MISC, "Permanent Ethernet address = %6D\n", sc->eaddr, ":");
 }
 
 
@@ -3077,7 +3134,7 @@ bce_set_mac_addr(struct bce_softc *sc)
 	u32 val;
 	u8 *mac_addr = sc->eaddr;
 
-	DBPRINT(sc, BCE_INFO, "Setting Ethernet address = %6D\n", sc->eaddr, ":");
+	DBPRINT(sc, BCE_INFO_MISC, "Setting Ethernet address = %6D\n", sc->eaddr, ":");
 
 	val = (mac_addr[0] << 8) | mac_addr[1];
 
@@ -3112,7 +3169,7 @@ bce_stop(struct bce_softc *sc)
 
 	mii = device_get_softc(sc->bce_miibus);
 
-	callout_stop(&sc->bce_stat_ch);
+	callout_stop(&sc->bce_tick_callout);
 
 	/* Disable the transmit/receive blocks. */
 	REG_WR(sc, BCE_MISC_ENABLE_CLR_BITS, 0x5ffffff);
@@ -3120,9 +3177,6 @@ bce_stop(struct bce_softc *sc)
 	DELAY(20);
 
 	bce_disable_intr(sc);
-
-	/* Tell firmware that the driver is going away. */
-	bce_reset(sc, BCE_DRV_MSG_CODE_SUSPEND_NO_WOL);
 
 	/* Free the RX lists. */
 	bce_free_rx_chain(sc);
@@ -3138,9 +3192,8 @@ bce_stop(struct bce_softc *sc)
 
 	itmp = ifp->if_flags;
 	ifp->if_flags |= IFF_UP;
-	/*
-	 * If we are called from bce_detach(), mii is already NULL.
-	 */
+
+	/* If we are called from bce_detach(), mii is already NULL. */
 	if (mii != NULL) {
 		ifm = mii->mii_media.ifm_cur;
 		mtmp = ifm->ifm_media;
@@ -3157,8 +3210,6 @@ bce_stop(struct bce_softc *sc)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
-
-	bce_mgmt_init_locked(sc);
 }
 
 
@@ -3168,7 +3219,8 @@ bce_reset(struct bce_softc *sc, u32 reset_code)
 	u32 val;
 	int i, rc = 0;
 
-	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
+	DBPRINT(sc, BCE_VERBOSE_RESET, "%s(): reset_code = 0x%08X\n", 
+		__FUNCTION__, reset_code);
 
 	/* Wait for pending PCI transactions to complete. */
 	REG_WR(sc, BCE_MISC_ENABLE_CLR_BITS,
@@ -3238,8 +3290,6 @@ bce_reset(struct bce_softc *sc, u32 reset_code)
 			__FILE__, __LINE__);
 
 bce_reset_exit:
-	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
-
 	return (rc);
 }
 
@@ -3422,16 +3472,6 @@ bce_blockinit(struct bce_softc *sc)
 		rc = ENODEV;
 		goto bce_blockinit_exit;
 	}
-
-	/* Check if any management firmware is running. */
-	reg = REG_RD_IND(sc, sc->bce_shmem_base + BCE_PORT_FEATURE);
-	if (reg & (BCE_PORT_FEATURE_ASF_ENABLED | BCE_PORT_FEATURE_IMD_ENABLED)) {
-		DBPRINT(sc, BCE_INFO, "Management F/W Enabled.\n");
-		sc->bce_flags |= BCE_MFW_ENABLE_FLAG;
-	}
-
-	sc->bce_fw_ver = REG_RD_IND(sc, sc->bce_shmem_base + BCE_DEV_INFO_BC_REV);
-	DBPRINT(sc, BCE_INFO, "bootcode rev = 0x%08X\n", sc->bce_fw_ver);
 
 	/* Allow bootcode to apply any additional fixes before enabling MAC. */
 	rc = bce_fw_sync(sc, BCE_DRV_MSG_DATA_WAIT2 | BCE_DRV_MSG_CODE_RESET);
@@ -3939,19 +3979,19 @@ bce_phy_intr(struct bce_softc *sc)
 		DBRUN(BCE_VERBOSE_INTR, bce_dump_status_block(sc));
 
 		sc->bce_link = 0;
-		callout_stop(&sc->bce_stat_ch);
+		callout_stop(&sc->bce_tick_callout);
 		bce_tick(sc);
 
 		/* Update the status_attn_bits_ack field in the status block. */
 		if (new_link_state) {
 			REG_WR(sc, BCE_PCICFG_STATUS_BIT_SET_CMD,
 				STATUS_ATTN_BITS_LINK_STATE);
-			DBPRINT(sc, BCE_INFO, "Link is now UP.\n");
+			DBPRINT(sc, BCE_INFO_MISC, "Link is now UP.\n");
 		}
 		else {
 			REG_WR(sc, BCE_PCICFG_STATUS_BIT_CLEAR_CMD,
 				STATUS_ATTN_BITS_LINK_STATE);
-			DBPRINT(sc, BCE_INFO, "Link is now DOWN.\n");
+			DBPRINT(sc, BCE_INFO_MISC, "Link is now DOWN.\n");
 		}
 
 	}
@@ -4163,7 +4203,7 @@ bce_rx_intr(struct bce_softc *sc)
 					if ((l2fhdr->l2_fhdr_ip_xsum ^ 0xffff) == 0)
 						m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
 					else
-						DBPRINT(sc, BCE_WARN_RECV, 
+						DBPRINT(sc, BCE_WARN_SEND, 
 							"%s(): Invalid IP checksum = 0x%04X!\n",
 							__FUNCTION__, l2fhdr->l2_fhdr_ip_xsum);
 				}
@@ -4180,7 +4220,7 @@ bce_rx_intr(struct bce_softc *sc)
 						m->m_pkthdr.csum_flags |= (CSUM_DATA_VALID 
 							| CSUM_PSEUDO_HDR);
 					} else
-						DBPRINT(sc, BCE_WARN_RECV, 
+						DBPRINT(sc, BCE_WARN_SEND, 
 							"%s(): Invalid TCP/UDP checksum = 0x%04X!\n",
 							__FUNCTION__, l2fhdr->l2_fhdr_tcp_udp_xsum);
 				}
@@ -4224,7 +4264,7 @@ bce_rx_int_next_rx:
 			(*ifp->if_input)(ifp, m);
 			DBRUNIF(1, sc->rx_mbuf_alloc--);
 			BCE_LOCK(sc);
-
+			
 			/* Recover our place. */
 			sw_cons = sc->rx_cons;
 			sw_prod = sc->rx_prod;
@@ -4370,7 +4410,7 @@ bce_tx_intr(struct bce_softc *sc)
 	/* Clear the tx hardware queue full flag. */
 	if (sc->used_tx_bd < sc->max_tx_bd) {
 		DBRUNIF((ifp->if_drv_flags & IFF_DRV_OACTIVE),
-			DBPRINT(sc, BCE_WARN_SEND, 
+			DBPRINT(sc, BCE_INFO_SEND, 
 				"%s(): Open TX chain! %d/%d (used/total)\n", 
 				__FUNCTION__, sc->used_tx_bd, sc->max_tx_bd));
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -4468,7 +4508,7 @@ bce_init_locked(struct bce_softc *sc)
 	ether_mtu = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ifp->if_mtu + 
 		ETHER_CRC_LEN;
 
-	DBPRINT(sc, BCE_INFO, "%s(): setting mtu = %d\n",__FUNCTION__, ether_mtu);
+	DBPRINT(sc, BCE_INFO_MISC, "%s(): setting mtu = %d\n",__FUNCTION__, ether_mtu);
 
 	/* 
 	 * Program the mtu, enabling jumbo frame 
@@ -4487,7 +4527,7 @@ bce_init_locked(struct bce_softc *sc)
 	/* Calculate the RX Ethernet frame size for rx_bd's. */
 	sc->max_frame_size = sizeof(struct l2_fhdr) + 2 + ether_mtu + 8;
 
-	DBPRINT(sc, BCE_INFO, 
+	DBPRINT(sc, BCE_INFO_RECV, 
 		"%s(): mclbytes = %d, mbuf_alloc_size = %d, "
 		"max_frame_size = %d\n",
 		__FUNCTION__, (int) MCLBYTES, sc->mbuf_alloc_size, sc->max_frame_size);
@@ -4520,7 +4560,7 @@ bce_init_locked(struct bce_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	callout_reset(&sc->bce_stat_ch, hz, bce_tick, sc);
+	callout_reset(&sc->bce_tick_callout, hz, bce_tick, sc);
 
 bce_init_locked_exit:
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
@@ -4531,7 +4571,7 @@ bce_init_locked_exit:
 
 /****************************************************************************/
 /* Initialize the controller just enough so that any management firmware    */
-/* running on the device will continue to operate corectly.                 */
+/* running on the device will continue to operate correctly.                */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
@@ -4539,31 +4579,23 @@ bce_init_locked_exit:
 static void
 bce_mgmt_init_locked(struct bce_softc *sc)
 {
-	u32 val;
 	struct ifnet *ifp;
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
 
 	BCE_LOCK_ASSERT(sc);
 
+	/* Bail out if management firmware is not running. */
+	if (!(sc->bce_flags & BCE_MFW_ENABLE_FLAG)) {
+		DBPRINT(sc, BCE_VERBOSE_SPECIAL, 
+			"No management firmware running...\n");
+		goto bce_mgmt_init_locked_exit;
+	}
+
 	ifp = sc->bce_ifp;
 
-	/* Check if the driver is still running and bail out if it is. */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		goto bce_mgmt_init_locked_exit;
-
-	/* Initialize the on-boards CPUs */
-	bce_init_cpus(sc);
-
-	/* Set the page size and clear the RV2P processor stall bits. */
-	val = (BCM_PAGE_BITS - 8) << 24;
-	REG_WR(sc, BCE_RV2P_CONFIG, val);
-
 	/* Enable all critical blocks in the MAC. */
-	REG_WR(sc, BCE_MISC_ENABLE_SET_BITS,
-	       BCE_MISC_ENABLE_SET_BITS_RX_V2P_ENABLE |
-	       BCE_MISC_ENABLE_SET_BITS_RX_DMA_ENABLE |
-	       BCE_MISC_ENABLE_SET_BITS_COMPLETION_ENABLE);
+	REG_WR(sc, BCE_MISC_ENABLE_SET_BITS, 0x5ffffff);
 	REG_RD(sc, BCE_MISC_ENABLE_SET_BITS);
 	DELAY(20);
 
@@ -4943,11 +4975,9 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data *mii;
 	int mask, error = 0;
 
-	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
-
 	switch(command) {
 
-		/* Set the MTU. */
+		/* Set the interface MTU. */
 		case SIOCSIFMTU:
 			/* Check that the MTU setting is supported. */
 			if ((ifr->ifr_mtu < BCE_MIN_MTU) || 
@@ -4956,7 +4986,9 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				break;
 			}
 
-			DBPRINT(sc, BCE_INFO, "Setting new MTU of %d\n", ifr->ifr_mtu);
+			DBPRINT(sc, BCE_INFO_MISC,
+				"SIOCSIFMTU: Changing MTU from %d to %d\n", 
+				(int) ifp->if_mtu, (int) ifr->ifr_mtu);
 
 			BCE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
@@ -4965,25 +4997,32 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			BCE_UNLOCK(sc);
 			break;
 
-		/* Set interface. */
+		/* Set interface flags. */
 		case SIOCSIFFLAGS:
-			DBPRINT(sc, BCE_VERBOSE, "Received SIOCSIFFLAGS\n");
+			DBPRINT(sc, BCE_VERBOSE_SPECIAL, "Received SIOCSIFFLAGS\n");
 
 			BCE_LOCK(sc);
 
 			/* Check if the interface is up. */
 			if (ifp->if_flags & IFF_UP) {
 				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-					/* Change the promiscuous/multicast flags as necessary. */
+					/* Change promiscuous/multicast flags as necessary. */
 					bce_set_rx_mode(sc);
 				} else {
 					/* Start the HW */
 					bce_init_locked(sc);
 				}
 			} else {
-				/* The interface is down.  Check if the driver is running. */
+				/* The interface is down, check if driver is running. */
 				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 					bce_stop(sc);
+
+					/* If MFW is running, restart the controller a bit. */
+					if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
+						bce_reset(sc, BCE_DRV_MSG_CODE_RESET);
+						bce_chipinit(sc);
+						bce_mgmt_init_locked(sc);
+					}
 				}
 			}
 
@@ -4995,7 +5034,7 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		/* Add/Delete multicast address */
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
-			DBPRINT(sc, BCE_VERBOSE, "Received SIOCADDMULTI/SIOCDELMULTI\n");
+			DBPRINT(sc, BCE_VERBOSE_MISC, "Received SIOCADDMULTI/SIOCDELMULTI\n");
 
 			BCE_LOCK(sc);
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -5009,12 +5048,8 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		/* Set/Get Interface media */
 		case SIOCSIFMEDIA:
 		case SIOCGIFMEDIA:
-			DBPRINT(sc, BCE_VERBOSE, "Received SIOCSIFMEDIA/SIOCGIFMEDIA\n");
+			DBPRINT(sc, BCE_VERBOSE_MISC, "Received SIOCSIFMEDIA/SIOCGIFMEDIA\n");
 
-			DBPRINT(sc, BCE_VERBOSE, "bce_phy_flags = 0x%08X\n",
-				sc->bce_phy_flags);
-
-			DBPRINT(sc, BCE_VERBOSE, "Copper media set/get\n");
 			mii = device_get_softc(sc->bce_miibus);
 			error = ifmedia_ioctl(ifp, ifr,
 			    &mii->mii_media, command);
@@ -5023,7 +5058,7 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		/* Set interface capability */
 		case SIOCSIFCAP:
 			mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-			DBPRINT(sc, BCE_INFO, "Received SIOCSIFCAP = 0x%08X\n", (u32) mask);
+			DBPRINT(sc, BCE_INFO_MISC, "Received SIOCSIFCAP = 0x%08X\n", (u32) mask);
 
 #ifdef DEVICE_POLLING
 			if (mask & IFCAP_POLLING) {
@@ -5115,9 +5150,6 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 			break;
 		default:
-			DBPRINT(sc, BCE_INFO, "Received unsupported IOCTL: 0x%08X\n",
-				(u32) command);
-
 			/* We don't know how to handle the IOCTL, pass it on. */
 			error = ether_ioctl(ifp, command, data);
 			break;
@@ -5126,9 +5158,6 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 #ifdef DEVICE_POLLING
 bce_ioctl_exit:
 #endif
-
-	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
-
 	return(error);
 }
 
@@ -5142,10 +5171,6 @@ bce_ioctl_exit:
 static void
 bce_watchdog(struct bce_softc *sc)
 {
-
-	DBRUN(BCE_VERBOSE_SEND, 
-		bce_dump_driver_state(sc);
-		bce_dump_status_block(sc));
 
 	BCE_LOCK_ASSERT(sc);
 
@@ -5161,6 +5186,10 @@ bce_watchdog(struct bce_softc *sc)
 
 	BCE_PRINTF("%s(%d): Watchdog timeout occurred, resetting!\n", 
 		__FILE__, __LINE__);
+
+	DBRUN(BCE_VERBOSE_SEND, 
+		bce_dump_driver_state(sc);
+		bce_dump_status_block(sc));
 
 	/* DBRUN(BCE_FATAL, bce_breakpoint(sc)); */
 
@@ -5262,7 +5291,7 @@ bce_intr(void *xsc)
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_capenable & IFCAP_POLLING) {
-		DBPRINT(sc, BCE_INFO, "Polling enabled!\n");
+		DBPRINT(sc, BCE_INFO_MISC, "Polling enabled!\n");
 		goto bce_intr_exit;
 	}
 #endif
@@ -5395,13 +5424,13 @@ bce_set_rx_mode(struct bce_softc *sc)
 	 * multicast address filtering.
 	 */
 	if (ifp->if_flags & IFF_PROMISC) {
-		DBPRINT(sc, BCE_INFO, "Enabling promiscuous mode.\n");
+		DBPRINT(sc, BCE_INFO_MISC, "Enabling promiscuous mode.\n");
 
 		/* Enable promiscuous mode. */
 		rx_mode |= BCE_EMAC_RX_MODE_PROMISCUOUS;
 		sort_mode |= BCE_RPM_SORT_USER0_PROM_EN;
 	} else if (ifp->if_flags & IFF_ALLMULTI) {
-		DBPRINT(sc, BCE_INFO, "Enabling all multicast mode.\n");
+		DBPRINT(sc, BCE_INFO_MISC, "Enabling all multicast mode.\n");
 
 		/* Enable all multicast addresses. */
 		for (i = 0; i < NUM_MC_HASH_REGISTERS; i++) {
@@ -5410,7 +5439,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 		sort_mode |= BCE_RPM_SORT_USER0_MC_EN;
 	} else {
 		/* Accept one or more multicast(s). */
-		DBPRINT(sc, BCE_INFO, "Enabling selective multicast mode.\n");
+		DBPRINT(sc, BCE_INFO_MISC, "Enabling selective multicast mode.\n");
 
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
@@ -5430,7 +5459,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 
 	/* Only make changes if the recive mode has actually changed. */
 	if (rx_mode != sc->rx_mode) {
-		DBPRINT(sc, BCE_VERBOSE, "Enabling new receive mode: 0x%08X\n", 
+		DBPRINT(sc, BCE_VERBOSE_MISC, "Enabling new receive mode: 0x%08X\n", 
 			rx_mode);
 
 		sc->rx_mode = rx_mode;
@@ -5671,6 +5700,34 @@ bce_stats_update(struct bce_softc *sc)
 
 
 /****************************************************************************/
+/* Periodic function to notify the bootcode that the driver is still        */
+/* present.                                                                 */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   Nothing.                                                               */
+/****************************************************************************/
+static void
+bce_pulse(void *xsc)
+{
+	struct bce_softc *sc = xsc;
+	u32 msg;
+
+	DBPRINT(sc, BCE_EXCESSIVE_MISC, "pulse\n");
+
+	BCE_LOCK_ASSERT(sc);
+
+	/* Tell the firmware that the driver is still running. */
+	msg = (u32) ++sc->bce_fw_drv_pulse_wr_seq;
+	REG_WR_IND(sc, sc->bce_shmem_base + BCE_DRV_PULSE_MB, msg);
+
+	/* Schedule the next pulse. */
+	callout_reset(&sc->bce_pulse_callout, hz, bce_pulse, sc);
+
+	return;
+}
+
+
+/****************************************************************************/
 /* Periodic function to perform maintenance tasks.                          */
 /*                                                                          */
 /* Returns:                                                                 */
@@ -5682,19 +5739,10 @@ bce_tick(void *xsc)
 	struct bce_softc *sc = xsc;
 	struct mii_data *mii;
 	struct ifnet *ifp;
-	u32 msg;
 
 	ifp = sc->bce_ifp;
 
 	BCE_LOCK_ASSERT(sc);
-
-	/* Tell the firmware that the driver is still running. */
-#ifdef BCE_DEBUG
-	msg = (u32) BCE_DRV_MSG_DATA_PULSE_CODE_ALWAYS_ALIVE;
-#else
-	msg = (u32) ++sc->bce_fw_drv_pulse_wr_seq;
-#endif
-	REG_WR_IND(sc, sc->bce_shmem_base + BCE_DRV_PULSE_MB, msg);
 
 	/* Update the statistics from the hardware statistics block. */
 	bce_stats_update(sc);
@@ -5703,11 +5751,7 @@ bce_tick(void *xsc)
 	bce_watchdog(sc);
 
 	/* Schedule the next tick. */
-	callout_reset(
-		&sc->bce_stat_ch,		/* callout */
-		hz, 					/* ticks */
-		bce_tick, 				/* function */
-		sc);					/* function argument */
+	callout_reset(&sc->bce_tick_callout, hz, bce_tick, sc);
 
 	/* If link is up already up then we're done. */
 	if (sc->bce_link)
@@ -5792,7 +5836,35 @@ bce_sysctl_hw_state(SYSCTL_HANDLER_ARGS)
 
 
 /****************************************************************************/
-/* Provides a sysctl interface to allows dumping the RX chain.              */
+/* Allows the bootcode state to be dumped through the sysctl interface.     */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   0 for success, positive value for failure.                             */
+/****************************************************************************/
+static int
+bce_sysctl_bc_state(SYSCTL_HANDLER_ARGS)
+{
+        int error;
+        int result;
+        struct bce_softc *sc;
+
+        result = -1;
+        error = sysctl_handle_int(oidp, &result, 0, req);
+
+        if (error || !req->newptr)
+                return (error);
+
+        if (result == 1) {
+                sc = (struct bce_softc *)arg1;
+                bce_dump_bc_state(sc);
+        }
+
+        return error;
+}
+
+
+/****************************************************************************/
+/* Provides a sysctl interface to allow dumping the RX chain.               */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   0 for success, positive value for failure.                             */
@@ -5820,7 +5892,7 @@ bce_sysctl_dump_rx_chain(SYSCTL_HANDLER_ARGS)
 
 
 /****************************************************************************/
-/* Provides a sysctl interface to allows dumping the TX chain.              */
+/* Provides a sysctl interface to allow dumping the TX chain.               */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   0 for success, positive value for failure.                             */
@@ -5859,13 +5931,13 @@ bce_sysctl_reg_read(SYSCTL_HANDLER_ARGS)
 {
 	struct bce_softc *sc;
 	int error;
-	uint32_t val, result;
-
+	u32 val, result;
+  	 
 	result = -1;
 	error = sysctl_handle_int(oidp, &result, 0, req);
 	if (error || (req->newptr == NULL))
 		return (error);
-
+  	 
 	/* Make sure the register is accessible. */
 	if (result < 0x8000) {
 		sc = (struct bce_softc *)arg1;
@@ -5876,11 +5948,11 @@ bce_sysctl_reg_read(SYSCTL_HANDLER_ARGS)
 		val = REG_RD_IND(sc, result);
 		BCE_PRINTF("reg 0x%08X = 0x%08X\n", result, val);
 	}
-
+  	 
 	return (error);
 }
 
-
+  	 
 /****************************************************************************/
 /* Provides a sysctl interface to allow reading arbitrary PHY registers in  */
 /* the device.  DO NOT ENABLE ON PRODUCTION SYSTEMS!                        */
@@ -6291,6 +6363,11 @@ bce_add_sysctls(struct bce_softc *sc)
 		bce_sysctl_hw_state, "I", "Hardware state information");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
+		"bc_state", CTLTYPE_INT | CTLFLAG_RW,
+		(void *)sc, 0,
+		bce_sysctl_bc_state, "I", "Bootcode state information");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 		"dump_rx_chain", CTLTYPE_INT | CTLFLAG_RW,
 		(void *)sc, 0,
 		bce_sysctl_dump_rx_chain, "I", "Dump rx_bd chain");
@@ -6612,7 +6689,7 @@ bce_dump_rxbd(struct bce_softc *sc, int idx, struct rx_bd *rxbd)
 
 
 /****************************************************************************/
-/* Prints out a l2_fhdr structure.                                            */
+/* Prints out a l2_fhdr structure.                                          */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
@@ -6620,7 +6697,6 @@ bce_dump_rxbd(struct bce_softc *sc, int idx, struct rx_bd *rxbd)
 static void
 bce_dump_l2fhdr(struct bce_softc *sc, int idx, struct l2_fhdr *l2fhdr)
 {
-
 	BCE_PRINTF("l2_fhdr[0x%04X]: status = 0x%08X, "
 		"pkt_len = 0x%04X, vlan = 0x%04x, ip_xsum = 0x%04X, "
 		"tcp_udp_xsum = 0x%04X\n", idx,
@@ -6631,7 +6707,7 @@ bce_dump_l2fhdr(struct bce_softc *sc, int idx, struct l2_fhdr *l2fhdr)
 
 
 /****************************************************************************/
-/* Prints out the tx chain.                                                 */
+/* Prints out the TX chain.                                                 */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
@@ -6655,7 +6731,7 @@ bce_dump_tx_chain(struct bce_softc *sc, int tx_prod, int count)
 
 	BCE_PRINTF("total tx_bd    = 0x%08X\n", (u32) TOTAL_TX_BD);
 
-	BCE_PRINTF(""
+	BCE_PRINTF(
 		"----------------------------"
 		"   tx_bd data   "
 		"----------------------------\n");
@@ -6675,7 +6751,7 @@ bce_dump_tx_chain(struct bce_softc *sc, int tx_prod, int count)
 
 
 /****************************************************************************/
-/* Prints out the rx chain.                                                 */
+/* Prints out the RX chain.                                                 */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
@@ -6833,7 +6909,7 @@ bce_dump_status_block(struct bce_softc *sc)
 
 
 /****************************************************************************/
-/* Prints out the statistics block.                                         */
+/* Prints out the statistics block from host memory.                        */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
@@ -7226,7 +7302,7 @@ bce_dump_driver_state(struct bce_softc *sc)
 
 
 /****************************************************************************/
-/* Prints out the hardware state through a summary of important registers,  */
+/* Prints out the hardware state through a summary of important register,   */
 /* followed by a complete register dump.                                    */
 /*                                                                          */
 /* Returns:                                                                 */
@@ -7301,6 +7377,47 @@ bce_dump_hw_state(struct bce_softc *sc)
 		BCE_PRINTF("0x%04X: 0x%08X 0x%08X 0x%08X 0x%08X\n",
 			i, REG_RD(sc, i), REG_RD(sc, i + 0x4),
 			REG_RD(sc, i + 0x8), REG_RD(sc, i + 0xC));
+
+	BCE_PRINTF( 
+		"----------------------------"
+		"----------------"
+		"----------------------------\n");
+}
+
+
+/****************************************************************************/
+/* Prints out the bootcode state.                                           */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   Nothing.                                                               */
+/****************************************************************************/
+static void
+bce_dump_bc_state(struct bce_softc *sc)
+{
+	u32 val;
+
+	BCE_PRINTF(
+		"----------------------------"
+		" Bootcode State "
+		"----------------------------\n");
+
+	BCE_PRINTF("0x%08X - bootcode version\n", sc->bce_fw_ver);
+
+	val = REG_RD_IND(sc, sc->bce_shmem_base + BCE_BC_RESET_TYPE);
+	BCE_PRINTF("0x%08X - (0x%06X) reset_type\n",
+		val, BCE_BC_RESET_TYPE);
+
+	val = REG_RD_IND(sc, sc->bce_shmem_base + BCE_BC_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) state\n",
+		val, BCE_BC_STATE);
+
+	val = REG_RD_IND(sc, sc->bce_shmem_base + BCE_BC_CONDITION);
+	BCE_PRINTF("0x%08X - (0x%06X) condition\n",
+		val, BCE_BC_CONDITION);
+
+	val = REG_RD_IND(sc, sc->bce_shmem_base + BCE_BC_STATE_DEBUG_CMD);
+	BCE_PRINTF("0x%08X - (0x%06X) debug_cmd\n",
+		val, BCE_BC_STATE_DEBUG_CMD);
 
 	BCE_PRINTF( 
 		"----------------------------"
@@ -7469,6 +7586,7 @@ bce_breakpoint(struct bce_softc *sc)
 		bce_dump_stats_block(sc);
 		bce_dump_driver_state(sc);
 		bce_dump_hw_state(sc);
+		bce_dump_bc_state(sc);
 		bce_dump_txp_state(sc);
 		bce_dump_rxp_state(sc);
 		bce_dump_tpat_state(sc);
@@ -7488,3 +7606,4 @@ bce_breakpoint(struct bce_softc *sc)
 	return;
 }
 #endif
+
