@@ -154,8 +154,6 @@ struct sbus_rd {
 };
 
 struct sbus_softc {
-	bus_space_tag_t		sc_bustag;
-	bus_space_handle_t	sc_bushandle;
 	bus_dma_tag_t		sc_cdmatag;
 	bus_space_tag_t		sc_cbustag;
 	int			sc_clockfreq;	/* clock frequency (in Hz) */
@@ -176,16 +174,16 @@ struct sbus_softc {
 struct sbus_clr {
 	struct sbus_softc	*scl_sc;
 	bus_addr_t		scl_clr;	/* clear register */
-	driver_filter_t		*scl_filter;
+	driver_filter_t		*scl_filter;	/* filter to call */
 	driver_intr_t		*scl_handler;	/* handler to call */
 	void			*scl_arg;	/* argument for the handler */
 	void			*scl_cookie;	/* parent bus int. cookie */
 };
 
 #define	SYSIO_READ8(sc, off) \
-	bus_space_read_8((sc)->sc_bustag, (sc)->sc_bushandle, (off))
+	bus_read_8((sc)->sc_sysio_res, (off))
 #define	SYSIO_WRITE8(sc, off, v) \
-	bus_space_write_8((sc)->sc_bustag, (sc)->sc_bushandle, (off), (v))
+	bus_write_8((sc)->sc_sysio_res, (off), (v))
 
 static device_probe_t sbus_probe;
 static device_attach_t sbus_attach;
@@ -209,8 +207,8 @@ static void sbus_destroy_dinfo(struct sbus_devinfo *);
 static driver_filter_t sbus_filter_stub;
 static driver_intr_t sbus_intr_stub;
 static bus_space_tag_t sbus_alloc_bustag(struct sbus_softc *);
-static driver_filter_t sbus_overtemp;
-static driver_filter_t sbus_pwrfail;
+static driver_intr_t sbus_overtemp;
+static driver_intr_t sbus_pwrfail;
 static int sbus_print_res(struct sbus_devinfo *);
 
 static device_method_t sbus_methods[] = {
@@ -316,8 +314,6 @@ sbus_attach(device_t dev)
 	    RF_ACTIVE);
 	if (sc->sc_sysio_res == NULL)
 		panic("%s: cannot allocate device memory", __func__);
-	sc->sc_bustag = rman_get_bustag(sc->sc_sysio_res);
-	sc->sc_bushandle = rman_get_bushandle(sc->sc_sysio_res);
 
 	if (OF_getprop(node, "interrupts", &intr, sizeof(intr)) == -1)
 		panic("%s: cannot get IGN", __func__);
@@ -384,8 +380,8 @@ sbus_attach(device_t dev)
 	/* initalise the IOMMU */
 
 	/* punch in our copies */
-	sc->sc_is.is_bustag = sc->sc_bustag;
-	sc->sc_is.is_bushandle = sc->sc_bushandle;
+	sc->sc_is.is_bustag = rman_get_bustag(sc->sc_sysio_res);
+	sc->sc_is.is_bushandle = rman_get_bushandle(sc->sc_sysio_res);
 	sc->sc_is.is_iommu = SBR_IOMMU;
 	sc->sc_is.is_dtag = SBR_IOMMU_TLB_TAG_DIAG;
 	sc->sc_is.is_ddram = SBR_IOMMU_TLB_DATA_DIAG;
@@ -425,7 +421,7 @@ sbus_attach(device_t dev)
 	if (sc->sc_ot_ires == NULL ||
 	    rman_get_start(sc->sc_ot_ires) != INTVEC(mr) ||
 	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC,
-	    sbus_overtemp, NULL, sc, &sc->sc_ot_ihand) != 0)
+	    NULL, sbus_overtemp, sc, &sc->sc_ot_ihand) != 0)
 		panic("%s: failed to set up temperature interrupt", __func__);
 	SYSIO_WRITE8(sc, SBR_THERM_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 	rid = 3;
@@ -435,12 +431,13 @@ sbus_attach(device_t dev)
 	if (sc->sc_pf_ires == NULL ||
 	    rman_get_start(sc->sc_pf_ires) != INTVEC(mr) ||
 	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC,
-	    sbus_pwrfail, NULL, sc, &sc->sc_pf_ihand) != 0)
+	    NULL, sbus_pwrfail, sc, &sc->sc_pf_ihand) != 0)
 		panic("%s: failed to set up power fail interrupt", __func__);
 	SYSIO_WRITE8(sc, SBR_POWER_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 
 	/* Initialize the counter-timer. */
-	sparc64_counter_init(sc->sc_bustag, sc->sc_bushandle, SBR_TC0);
+	sparc64_counter_init(rman_get_bustag(sc->sc_sysio_res),
+	    rman_get_bushandle(sc->sc_sysio_res), SBR_TC0);
 
 	/*
 	 * Loop through ROM children, fixing any relative addresses
@@ -627,7 +624,6 @@ sbus_get_resource_list(device_t dev, device_t child)
 	return (&sdi->sdi_rl);
 }
 
-/* Write to the correct clr register, and call the actual handler. */
 static int
 sbus_filter_stub(void *arg)
 {
@@ -932,23 +928,21 @@ sbus_get_devinfo(device_t bus, device_t child)
  * This handles the interrupt and powers off the machine.
  * The same needs to be done to PCI controller drivers.
  */
-static int
+static void
 sbus_overtemp(void *arg)
 {
 
 	printf("DANGER: OVER TEMPERATURE detected\nShutting down NOW.\n");
 	shutdown_nice(RB_POWEROFF);
-	return (FILTER_HANDLED);
 }
 
 /* Try to shut down in time in case of power failure. */
-static int
+static void
 sbus_pwrfail(void *arg)
 {
 
 	printf("Power failure detected\nShutting down NOW.\n");
 	shutdown_nice(0);
-	return (FILTER_HANDLED);
 }
 
 static bus_space_tag_t
@@ -962,7 +956,7 @@ sbus_alloc_bustag(struct sbus_softc *sc)
 		panic("%s: out of memory", __func__);
 
 	sbt->bst_cookie = sc;
-	sbt->bst_parent = sc->sc_bustag;
+	sbt->bst_parent = rman_get_bustag(sc->sc_sysio_res);
 	sbt->bst_type = SBUS_BUS_SPACE;
 	return (sbt);
 }
