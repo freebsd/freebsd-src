@@ -110,9 +110,11 @@ struct vm_page {
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
-	u_short	queue;			/* page queue index */
-	u_short	flags,			/* see below */
-		pc;			/* page color */
+	uint8_t	queue;			/* page queue index */
+	int8_t segind;  
+	u_short	flags;			/* see below */
+	uint8_t	order;			/* index of the buddy queue */
+	uint8_t pool;
 	u_short wire_count;		/* wired down maps refs (P) */
 	u_int cow;			/* page cow mapping count */
 	short hold_count;		/* page hold count */
@@ -155,62 +157,39 @@ CTASSERT(sizeof(u_long) >= 8);
 #endif
 #endif
 
-/* PQ_CACHE and PQ_FREE represents a PQ_NUMCOLORS consecutive queue. */
 #define PQ_NONE		0
-#define PQ_FREE		1
-#define PQ_INACTIVE	(page_queue_coloring.inactive)
-#define PQ_ACTIVE	(page_queue_coloring.active)
-#define PQ_CACHE	(page_queue_coloring.cache)
-#define PQ_HOLD		(page_queue_coloring.hold)
-#define PQ_COUNT	(page_queue_coloring.count)
-#define PQ_MAXCOLORS	1024
-#define PQ_MAXCOUNT	(4 + 2 * PQ_MAXCOLORS)
-#define PQ_NUMCOLORS	(page_queue_coloring.numcolors)
-#define PQ_PRIME1	(page_queue_coloring.prime1)
-#define PQ_PRIME2	(page_queue_coloring.prime2)
-#define PQ_COLORMASK	(page_queue_coloring.colormask)
-#define PQ_MAXLENGTH	(page_queue_coloring.maxlength)
+#define	PQ_INACTIVE	1
+#define	PQ_ACTIVE	2
+#define	PQ_CACHE	3
+#define	PQ_HOLD		4
+#define	PQ_COUNT	5
+#define	PQ_MAXCOUNT	5
 
 /* Returns the real queue a page is on. */
 #define VM_PAGE_GETQUEUE(m)	((m)->queue)
 
 /* Returns the well known queue a page is on. */
-#define VM_PAGE_GETKNOWNQUEUE1(m)	((m)->queue - (m)->pc)
+#define VM_PAGE_GETKNOWNQUEUE1(m)	VM_PAGE_GETQUEUE(m)
 #define VM_PAGE_GETKNOWNQUEUE2(m)	VM_PAGE_GETQUEUE(m)
 
 /* Given the real queue number and a page color return the well know queue. */
-#define VM_PAGE_RESOLVEQUEUE(m, q)	((q) - (m)->pc)
+#define VM_PAGE_RESOLVEQUEUE(m, q)	(q)
 
 /* Returns true if the page is in the named well known queue. */
 #define VM_PAGE_INQUEUE1(m, q)	(VM_PAGE_GETKNOWNQUEUE1(m) == (q))
 #define VM_PAGE_INQUEUE2(m, q)	(VM_PAGE_GETKNOWNQUEUE2(m) == (q))
 
 /* Sets the queue a page is on. */
-#define VM_PAGE_SETQUEUE1(m, q)	(VM_PAGE_GETQUEUE(m) = (q) + (m)->pc)
+#define VM_PAGE_SETQUEUE1(m, q)	(VM_PAGE_GETQUEUE(m) = (q))
 #define VM_PAGE_SETQUEUE2(m, q)	(VM_PAGE_GETQUEUE(m) = (q))
 
 struct vpgqueues {
 	struct pglist pl;
 	int	*cnt;
-	int	lcnt;
-};
-
-struct pq_coloring {
-	int numcolors;
-	int colormask;
-	int prime1;
-	int prime2;
-	int inactive;
-	int active;
-	int cache;
-	int hold;
-	int count;
-	int maxlength;
 };
 
 extern struct vpgqueues vm_page_queues[PQ_MAXCOUNT];
 extern struct mtx vm_page_queue_free_mtx;
-extern struct pq_coloring page_queue_coloring;
 
 /*
  * These are the flags defined for vm_page.
@@ -222,6 +201,7 @@ extern struct pq_coloring page_queue_coloring;
  *	 pte mappings, nor can they be removed from their objects via 
  *	 the object, and such pages are also not on any PQ queue.
  */
+#define	PG_FREE		0x0002		/* page is free */
 #define PG_WINATCFLS	0x0004		/* flush dirty page on inactive q */
 #define	PG_FICTITIOUS	0x0008		/* physical page doesn't exist (O) */
 #define	PG_WRITEABLE	0x0010		/* page is mapped writeable */
@@ -276,7 +256,11 @@ extern vm_page_t vm_page_array;		/* First resident page in table */
 extern int vm_page_array_size;		/* number of vm_page_t's */
 extern long first_page;			/* first physical page number */
 
+#define	VM_PAGE_IS_FREE(m)	(((m)->flags & PG_FREE) != 0)
+
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
+
+vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 
 static __inline vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
@@ -284,11 +268,7 @@ static __inline vm_page_t
 PHYS_TO_VM_PAGE(vm_paddr_t pa)
 {
 #ifdef VM_PHYSSEG_SPARSE
-	int i, j = 0;
-
-	for (i = 0; phys_avail[i + 1] <= pa || phys_avail[i] > pa; i += 2)
-		j += atop(phys_avail[i + 1] - phys_avail[i]);
-	return (&vm_page_array[j + atop(pa - phys_avail[i])]);
+	return (vm_phys_paddr_to_vm_page(pa));
 #elif defined(VM_PHYSSEG_DENSE)
 	return (&vm_page_array[atop(pa) - first_page]);
 #else
@@ -336,17 +316,13 @@ void vm_page_dirty(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
 
 void vm_pageq_init(void);
-void vm_pageq_add_new_page(vm_paddr_t pa);
 void vm_pageq_enqueue(int queue, vm_page_t m);
 void vm_pageq_remove_nowakeup(vm_page_t m);
 void vm_pageq_remove(vm_page_t m);
-vm_page_t vm_pageq_find(int basequeue, int index, boolean_t prefer_zero);
 void vm_pageq_requeue(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
-vm_page_t vm_page_alloc_contig (vm_pindex_t, vm_paddr_t, vm_paddr_t,
-	    vm_offset_t, vm_offset_t);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 void vm_page_cache (register vm_page_t);
 int vm_page_try_to_cache (vm_page_t);
@@ -357,7 +333,7 @@ void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
-vm_page_t vm_page_select_cache(int);
+vm_page_t vm_page_select_cache(void);
 void vm_page_sleep(vm_page_t m, const char *msg);
 vm_page_t vm_page_splay(vm_pindex_t, vm_page_t);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);

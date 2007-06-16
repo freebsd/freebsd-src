@@ -109,8 +109,26 @@ struct pmap_physseg {
  */
 #define	VM_PHYSSEG_DENSE
 
+/*
+ * Create two free page pools: VM_FREEPOOL_DEFAULT is the default pool
+ * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
+ * the pool from which physical pages for small UMA objects are
+ * allocated.
+ */
+#define	VM_NFREEPOOL		2
+#define	VM_FREEPOOL_DEFAULT	0
+#define	VM_FREEPOOL_DIRECT	1
+
+/*
+ * Create one free page list.
+ */
 #define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
+
+/*
+ * The largest allocation size is 4MB.
+ */
+#define	VM_NFREEORDER		11
 
 #ifndef VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
