@@ -1180,6 +1180,18 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 
 	m = rpcclnt_buildheader(rpc, procnum, mrest, mrest_len, &xid, &mheadend,
 	    cred);
+	/*
+	 * This can happen if the auth_type is neither UNIX or NULL
+	 */
+	if (m == NULL) {
+#ifdef __OpenBSD__
+		pool_put(&rpctask_pool, task);
+#else
+		FREE(task, M_RPC);
+#endif
+		error = EPROTONOSUPPORT;
+		goto rpcmout;
+	}
 
 	/*
 	 * For stream protocols, insert a Sun RPC Record Mark.
@@ -1867,6 +1879,7 @@ rpcclnt_buildheader(rc, procid, mrest, mrest_len, xidp, mheadend, cred)
 	*tl++ = txdr_unsigned(procid);
 
 	if ((error = rpcauth_buildheader(rc->rc_auth, cred, &mb, &bpos))) {
+		m_freem(mreq);
 		RPCDEBUG("rpcauth_buildheader failed %d", error);
 		return NULL;
 	}
