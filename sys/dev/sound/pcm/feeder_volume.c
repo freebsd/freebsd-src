@@ -36,14 +36,14 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define FVOL_CLAMP(val)		(((val) << FVOL_RESOLUTION) / FVOL_OSS_SCALE)
 #define FVOL_LEFT(val)		FVOL_CLAMP((val) & 0x7f)
 #define FVOL_RIGHT(val)		FVOL_LEFT((val) >> 8)
-#define FVOL_MAX		(1U << FVOL_RESOLUTION)
+#define FVOL_MAX		(1 << FVOL_RESOLUTION)
 #define FVOL_CALC(sval, vval)	(((sval) * (vval)) >> FVOL_RESOLUTION)
 
-typedef uint32_t (*feed_volume_filter)(uint8_t *, uint32_t *, uint32_t);
+typedef uint32_t (*feed_volume_filter)(uint8_t *, int *, uint32_t);
 
 #define FEEDER_VOLUME_FILTER(FMTBIT, VOL_INTCAST, SIGN, SIGNS, ENDIAN, ENDIANS)	\
 static uint32_t									\
-feed_volume_filter_##SIGNS##FMTBIT##ENDIANS(uint8_t *b, uint32_t *vol,		\
+feed_volume_filter_##SIGNS##FMTBIT##ENDIANS(uint8_t *b, int *vol,		\
 							uint32_t count)		\
 {										\
 	int32_t j;								\
@@ -137,7 +137,7 @@ feed_volume(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 						uint32_t count, void *source)
 {
 	struct feed_volume_info *info;
-	uint32_t vol[2];
+	int vol[2];
 	int k, smpsz;
 
 	vol[0] = FVOL_LEFT(c->volume);
