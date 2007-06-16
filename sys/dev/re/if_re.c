@@ -1270,8 +1270,8 @@ re_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = re_ioctl;
 	ifp->if_start = re_start;
-	ifp->if_hwassist = RE_CSUM_FEATURES | CSUM_TSO;
-	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
+	ifp->if_hwassist = RE_CSUM_FEATURES;
+	ifp->if_capabilities = IFCAP_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_init = re_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, RL_IFQ_MAXLEN);
