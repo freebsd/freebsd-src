@@ -40,12 +40,10 @@
 struct psycho_softc {
 	device_t			sc_dev;
 
+	struct mtx			*sc_mtx;
+
 	/* Interrupt Group Number for this device */
 	int				sc_ign;
-
-	/* Our tags (from parent) */
-	bus_space_tag_t			sc_bustag;
-	bus_space_handle_t		sc_bushandle;
 
 	bus_addr_t			sc_pcictl;
 
