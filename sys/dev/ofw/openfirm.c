@@ -81,7 +81,8 @@ OF_init(int (*openfirm)(void *))
 	set_openfirm_callback(openfirm);
 	if ((chosen = OF_finddevice("/chosen")) == -1)
 		OF_exit();
-	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1)
+		OF_exit();
 }
 
 void
