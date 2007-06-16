@@ -46,8 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/reboot.h>
 
@@ -78,8 +80,8 @@ __FBSDID("$FreeBSD$");
 static const struct psycho_desc *psycho_find_desc(const struct psycho_desc *,
     const char *);
 static const struct psycho_desc *psycho_get_desc(device_t);
-static void psycho_set_intr(struct psycho_softc *, int, bus_addr_t, int,
-    driver_filter_t);
+static void psycho_set_intr(struct psycho_softc *, int, bus_addr_t,
+    driver_filter_t, driver_intr_t);
 static int psycho_find_intrmap(struct psycho_softc *, int, bus_addr_t *,
     bus_addr_t *, u_long *);
 static driver_filter_t psycho_filter_stub;
@@ -91,7 +93,7 @@ static driver_filter_t psycho_ue;
 static driver_filter_t psycho_ce;
 static driver_filter_t psycho_pci_bus;
 static driver_filter_t psycho_powerfail;
-static driver_filter_t psycho_overtemp;
+static driver_intr_t psycho_overtemp;
 #ifdef PSYCHO_MAP_WAKEUP
 static driver_filter_t psycho_wakeup;
 #endif
@@ -171,7 +173,7 @@ SLIST_HEAD(, psycho_softc) psycho_softcs =
 struct psycho_clr {
 	struct psycho_softc	*pci_sc;
 	bus_addr_t		pci_clr;	/* clear register */
-	driver_filter_t		*pci_filter;
+	driver_filter_t		*pci_filter;	/* filter to call */
 	driver_intr_t		*pci_handler;	/* handler to call */
 	void			*pci_arg;	/* argument for the handler */
 	void			*pci_cookie;	/* parent bus int. cookie */
@@ -182,9 +184,9 @@ struct psycho_clr {
 };
 
 #define	PSYCHO_READ8(sc, off) \
-	bus_space_read_8((sc)->sc_bustag, (sc)->sc_bushandle, (off))
+	bus_read_8((sc)->sc_mem_res, (off))
 #define	PSYCHO_WRITE8(sc, off, v) \
-	bus_space_write_8((sc)->sc_bustag, (sc)->sc_bushandle, (off), (v))
+	bus_write_8((sc)->sc_mem_res, (off), (v))
 #define	PCICTL_READ8(sc, off) \
 	PSYCHO_READ8((sc), (sc)->sc_pcictl + (off))
 #define	PCICTL_WRITE8(sc, off, v) \
@@ -218,14 +220,6 @@ struct psycho_clr {
  * On UltraII machines, there can be any number of "Psycho+" ICs, each
  * providing two PCI buses.
  */
-
-#define FAST    0x66600000 
-
-#ifdef DEBUGGER_ON_POWERFAIL
-#define	PSYCHO_PWRFAIL_INT_FLAGS	FAST
-#else
-#define	PSYCHO_PWRFAIL_INT_FLAGS	0
-#endif
 
 #define	OFW_PCI_TYPE		"pci"
 
@@ -346,8 +340,6 @@ psycho_attach(device_t dev)
 	    RF_ACTIVE);
 	if (sc->sc_mem_res == NULL)
 		panic("%s: could not allocate registers", __func__);
-	sc->sc_bustag = rman_get_bustag(sc->sc_mem_res);
-	sc->sc_bushandle = rman_get_bushandle(sc->sc_mem_res);
 
 	/*
 	 * Match other Psycho's that are already configured against
@@ -362,6 +354,17 @@ psycho_attach(device_t dev)
 			osc = asc;
 			break;
 		}
+	}
+	if (osc == NULL) {
+		sc->sc_mtx = malloc(sizeof(*sc->sc_mtx), M_DEVBUF,
+		    M_NOWAIT | M_ZERO);
+		if (sc->sc_mtx == NULL)
+			panic("%s: could not malloc mutex", __func__);
+		mtx_init(sc->sc_mtx, "pcib_mtx", NULL, MTX_SPIN);
+	} else {
+		if (mtx_initialized(osc->sc_mtx) == 0)
+			panic("%s: mutex not initialized", __func__);
+		sc->sc_mtx = osc->sc_mtx;
 	}
 
 	/* Clear PCI AFSR. */
@@ -487,7 +490,7 @@ psycho_attach(device_t dev)
 	 * interrupt but they are also only used for PCI bus A.
 	 */
 	psycho_set_intr(sc, 0, sc->sc_half == 0 ? PSR_PCIAERR_INT_MAP :
-	    PSR_PCIBERR_INT_MAP, FAST, psycho_pci_bus);
+	    PSR_PCIBERR_INT_MAP, psycho_pci_bus, NULL);
 
 	/*
 	 * If we're a Hummingbird/Sabre or the first of a pair of Psycho's to
@@ -503,10 +506,15 @@ psycho_attach(device_t dev)
 		 * XXX Not all controllers have these, but installing them
 		 * is better than trying to sort through this mess.
 		 */
-		psycho_set_intr(sc, 1, PSR_UE_INT_MAP, FAST, psycho_ue);
-		psycho_set_intr(sc, 2, PSR_CE_INT_MAP, 0, psycho_ce);
-		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP,
-		    PSYCHO_PWRFAIL_INT_FLAGS, psycho_powerfail);
+		psycho_set_intr(sc, 1, PSR_UE_INT_MAP, psycho_ue, NULL);
+		psycho_set_intr(sc, 2, PSR_CE_INT_MAP, psycho_ce, NULL);
+#ifdef DEBUGGER_ON_POWERFAIL
+		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, psycho_powerfail,
+		    NULL);
+#else
+		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, NULL,
+		    (driver_intr_t *)psycho_powerfail);
+#endif
 		/* Psycho-specific initialization */
 		if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
 			/*
@@ -518,20 +526,20 @@ psycho_attach(device_t dev)
 			 * The spare hardware interrupt is used for the
 			 * over-temperature interrupt.
 			 */
-			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP, FAST,
-			    psycho_overtemp);
+			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP,
+			    NULL, psycho_overtemp);
 #ifdef PSYCHO_MAP_WAKEUP
 			/*
 			 * psycho_wakeup() doesn't do anything useful right
 			 * now.
 			 */
-			psycho_set_intr(sc, 5, PSR_PWRMGT_INT_MAP, 0,
-			    psycho_wakeup);
+			psycho_set_intr(sc, 5, PSR_PWRMGT_INT_MAP,
+			    psycho_wakeup, NULL);
 #endif /* PSYCHO_MAP_WAKEUP */
 
 			/* Initialize the counter-timer. */
-			sparc64_counter_init(sc->sc_bustag, sc->sc_bushandle,
-			    PSR_TC0);
+			sparc64_counter_init(rman_get_bustag(sc->sc_mem_res),
+			    rman_get_bushandle(sc->sc_mem_res), PSR_TC0);
 		}
 
 		/*
@@ -655,32 +663,21 @@ psycho_attach(device_t dev)
 }
 
 static void
-psycho_set_intr(struct psycho_softc *sc, int index, bus_addr_t map, int iflags,
-    driver_filter_t handler)
+psycho_set_intr(struct psycho_softc *sc, int index, bus_addr_t map,
+    driver_filter_t filt, driver_intr_t intr)
 {
 	uint64_t mr;
-	int res, rid;
+	int rid;
 
-	res = EINVAL;
 	rid = index;
 	mr = PSYCHO_READ8(sc, map);
 	sc->sc_irq_res[index] = bus_alloc_resource_any(sc->sc_dev, SYS_RES_IRQ,
 	    &rid, RF_ACTIVE);
-	if (sc->sc_irq_res[index] != NULL &&
-	    rman_get_start(sc->sc_irq_res[index]) == INTVEC(mr)) {
-		if (iflags & FAST) {
-			iflags &= ~FAST;
-			res = bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index],
-		            INTR_TYPE_MISC | iflags, handler, NULL, sc, 
-		            &sc->sc_ihand[index]);
-		} else
-			res = bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index],
-		            INTR_TYPE_MISC | iflags, NULL, 
-			    (driver_intr_t *)handler, sc, 
-		            &sc->sc_ihand[index]);
-	}
-	if (res)
-		panic("%s: failed to set up interrupt", __func__);
+	if (sc->sc_irq_res[index] == NULL ||
+	    rman_get_start(sc->sc_irq_res[index]) != INTVEC(mr) ||
+	    bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index], INTR_TYPE_MISC,
+	    filt, intr, sc, &sc->sc_ihand[index]) != 0)
+		panic("%s: failed to set up interrupt %d", __func__, index);
 	PSYCHO_WRITE8(sc, map, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 }
 
@@ -765,6 +762,7 @@ psycho_ce(void *arg)
 	struct psycho_softc *sc = arg;
 	uint64_t afar, afsr;
 
+	mtx_lock_spin(sc->sc_mtx);
 	afar = PSYCHO_READ8(sc, PSR_CE_AFA);
 	afsr = PSYCHO_READ8(sc, PSR_CE_AFS);
 	device_printf(sc->sc_dev, "correctable DMA error AFAR %#lx "
@@ -772,6 +770,7 @@ psycho_ce(void *arg)
 	/* Clear the error bits that we caught. */
 	PSYCHO_WRITE8(sc, PSR_CE_AFS, afsr & CEAFSR_ERRMASK);
 	PSYCHO_WRITE8(sc, PSR_CE_INT_CLR, 0);
+	mtx_unlock_spin(sc->sc_mtx);
 	return (FILTER_HANDLED);
 }
 
@@ -792,7 +791,6 @@ psycho_pci_bus(void *arg)
 static int
 psycho_powerfail(void *arg)
 {
-
 #ifdef DEBUGGER_ON_POWERFAIL
 	struct psycho_softc *sc = arg;
 
@@ -805,13 +803,12 @@ psycho_powerfail(void *arg)
 	return (FILTER_HANDLED);
 }
 
-static int
+static void
 psycho_overtemp(void *arg)
 {
 
 	printf("DANGER: OVER TEMPERATURE detected.\nShutting down NOW.\n");
 	shutdown_nice(RB_POWEROFF);
-	return (FILTER_HANDLED);
 }
 
 #ifdef PSYCHO_MAP_WAKEUP
@@ -834,8 +831,8 @@ psycho_iommu_init(struct psycho_softc *sc, int tsbsize, uint32_t dvmabase)
 	struct iommu_state *is = sc->sc_is;
 
 	/* Punch in our copies. */
-	is->is_bustag = sc->sc_bustag;
-	is->is_bushandle = sc->sc_bushandle;
+	is->is_bustag = rman_get_bustag(sc->sc_mem_res);
+	is->is_bushandle = rman_get_bushandle(sc->sc_mem_res);
 	is->is_iommu = PSR_IOMMU;
 	is->is_dtag = PSR_IOMMU_TLB_TAG_DIAG;
 	is->is_ddram = PSR_IOMMU_TLB_DATA_DIAG;
@@ -982,7 +979,6 @@ psycho_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return (ENOENT);
 }
 
-/* Write to the correct clr register, and call the actual handler. */
 static int
 psycho_filter_stub(void *arg)
 {
@@ -992,8 +988,8 @@ psycho_filter_stub(void *arg)
 	if (pc->pci_filter != NULL) {
 		res = pc->pci_filter(pc->pci_arg);
 		PSYCHO_WRITE8(pc->pci_sc, pc->pci_clr, 0);
-	} else 
-		res = FILTER_SCHEDULE_THREAD;	
+	} else
+		res = FILTER_SCHEDULE_THREAD;
 	return (res);
 }
 
@@ -1320,7 +1316,7 @@ psycho_adjust_busrange(device_t dev, u_int subbus)
 	if (subbus > sc->sc_pci_subbus) {
 #ifdef PSYCHO_DEBUG
 		device_printf(dev,
-		    "adjusting secondary bus number from %d to %d\n",
+		    "adjusting subordinate bus number from %d to %d\n",
 		    sc->sc_pci_subbus, subbus);
 #endif
 		sc->sc_pci_subbus = subbus;
@@ -1339,7 +1335,7 @@ psycho_alloc_bus_tag(struct psycho_softc *sc, int type)
 		panic("%s: out of memory", __func__);
 
 	bt->bst_cookie = sc;
-	bt->bst_parent = sc->sc_bustag;
+	bt->bst_parent = rman_get_bustag(sc->sc_mem_res);
 	bt->bst_type = type;
 	return (bt);
 }
