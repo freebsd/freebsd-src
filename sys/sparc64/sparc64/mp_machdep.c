@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 
 #include <vm/vm.h>
@@ -87,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tick.h>
 #include <machine/tlb.h>
 #include <machine/tte.h>
+#include <machine/ver.h>
 
 static ih_func_t cpu_ipi_ast;
 static ih_func_t cpu_ipi_stop;
@@ -104,40 +106,59 @@ struct	pcb stoppcbs[MAXCPU];
 
 struct	mtx ipi_mtx;
 
-vm_offset_t mp_tramp;
+cpu_ipi_selected_t *cpu_ipi_selected;
 
-static u_int		cpuid_to_mid[MAXCPU];
-static volatile u_int	shutdown_cpus;
+static vm_offset_t mp_tramp;
+static u_int cpuid_to_mid[MAXCPU];
+static int isjbus;
+static volatile u_int shutdown_cpus;
 
-static void cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2);
 static void cpu_mp_unleash(void *v);
+static void spitfire_ipi_send(u_int, u_long, u_long, u_long);
 static void sun4u_startcpu(phandle_t cpu, void *func, u_long arg);
 static void sun4u_stopself(void);
 
+static cpu_ipi_selected_t cheetah_ipi_selected;
+static cpu_ipi_selected_t spitfire_ipi_selected;
+
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
 
-vm_offset_t
-mp_tramp_alloc(void)
+CTASSERT(MAXCPU <= IDR_CHEETAH_MAX_BN_PAIRS);
+CTASSERT(MAXCPU <= sizeof(u_int) * NBBY);
+CTASSERT(MAXCPU <= sizeof(int) * NBBY);
+
+void
+mp_init(void)
 {
 	struct tte *tp;
-	char *v;
 	int i;
 
-	v = OF_claim(NULL, PAGE_SIZE, PAGE_SIZE);
-	if (v == NULL)
+	mp_tramp = (vm_offset_t)OF_claim(NULL, PAGE_SIZE, PAGE_SIZE);
+	if (mp_tramp == (vm_offset_t)-1)
 		panic("%s", __func__);
-	bcopy(mp_tramp_code, v, mp_tramp_code_len);
-	*(u_long *)(v + mp_tramp_tlb_slots) = kernel_tlb_slots;
-	*(u_long *)(v + mp_tramp_func) = (u_long)mp_startup;
-	tp = (struct tte *)(v + mp_tramp_code_len);
+	bcopy(mp_tramp_code, (void *)mp_tramp, mp_tramp_code_len);
+	*(vm_offset_t *)(mp_tramp + mp_tramp_tlb_slots) = kernel_tlb_slots;
+	*(vm_offset_t *)(mp_tramp + mp_tramp_func) = (vm_offset_t)mp_startup;
+	tp = (struct tte *)(mp_tramp + mp_tramp_code_len);
 	for (i = 0; i < kernel_tlb_slots; i++) {
 		tp[i].tte_vpn = TV_VPN(kernel_tlbs[i].te_va, TS_4M);
 		tp[i].tte_data = TD_V | TD_4M | TD_PA(kernel_tlbs[i].te_pa) |
 		    TD_L | TD_CP | TD_CV | TD_P | TD_W;
 	}
-	for (i = 0; i < PAGE_SIZE; i += sizeof(long))
-		flush(v + i);
-	return (vm_offset_t)v;
+	for (i = 0; i < PAGE_SIZE; i += sizeof(vm_offset_t))
+		flush(mp_tramp + i);
+
+	/*
+	 * On UP systems cpu_ipi_selected() can be called while
+	 * cpu_mp_start() wasn't so initialize these here.
+	 */
+	if (cpu_impl == CPU_IMPL_ULTRASPARCIIIi ||
+	    cpu_impl == CPU_IMPL_ULTRASPARCIIIip)
+		isjbus = 1;
+	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+		cpu_ipi_selected = cheetah_ipi_selected;
+	else
+		cpu_ipi_selected = spitfire_ipi_selected;
 }
 
 /*
@@ -148,19 +169,16 @@ cpu_mp_setmaxid(void)
 {
 	char buf[128];
 	phandle_t child;
-	phandle_t root;
 	int cpus;
 
 	all_cpus = 1 << curcpu;
 	mp_ncpus = 1;
 
 	cpus = 0;
-	root = OF_peer(0);
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+	for (child = OF_child(OF_peer(0)); child != 0; child = OF_peer(child))
 		if (OF_getprop(child, "device_type", buf, sizeof(buf)) > 0 &&
 		    strcmp(buf, "cpu") == 0)
 			cpus++;
-	}
 	mp_maxid = cpus - 1;
 }
 
@@ -184,10 +202,6 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 	} args = {
 		(cell_t)"SUNW,start-cpu",
 		3,
-		0,
-		0,
-		0,
-		0
 	};
 
 	args.cpu = cpu;
@@ -208,8 +222,6 @@ sun4u_stopself(void)
 		cell_t	nreturns;
 	} args = {
 		(cell_t)"SUNW,stop-self",
-		0,
-		0,
 	};
 
 	openfirmware_exit(&args);
@@ -228,7 +240,6 @@ cpu_mp_start(void)
 	register_t s;
 	vm_offset_t va;
 	phandle_t child;
-	phandle_t root;
 	u_int clock;
 	u_int mid;
 	int cpuid;
@@ -242,14 +253,14 @@ cpu_mp_start(void)
 
 	cpuid_to_mid[curcpu] = PCPU_GET(mid);
 
-	root = OF_peer(0);
 	csa = &cpu_start_args;
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+	for (child = OF_child(OF_peer(0)); child != 0 && mp_ncpus <= MAXCPU;
+	    child = OF_peer(child)) {
 		if (OF_getprop(child, "device_type", buf, sizeof(buf)) <= 0 ||
 		    strcmp(buf, "cpu") != 0)
 			continue;
-		if (OF_getprop(child, "upa-portid", &mid, sizeof(mid)) <= 0 &&
-		    OF_getprop(child, "portid", &mid, sizeof(mid)) <= 0)
+		if (OF_getprop(child, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+		    "upa-portid" : "portid", &mid, sizeof(mid)) <= 0)
 			panic("%s: can't get module ID", __func__);
 		if (mid == PCPU_GET(mid))
 			continue;
@@ -282,6 +293,9 @@ cpu_mp_start(void)
 
 		all_cpus |= 1 << cpuid;
 	}
+	KASSERT(!isjbus || mp_ncpus <= IDR_JALAPENO_MAX_BN_PAIRS,
+	    ("%s: can only IPI a maximum of %d JBus-CPUs",
+	    __func__, IDR_JALAPENO_MAX_BN_PAIRS));
 	PCPU_SET(other_cpus, all_cpus & ~(1 << curcpu));
 	smp_active = 1;
 }
@@ -413,20 +427,22 @@ cpu_ipi_stop(struct trapframe *tf)
 	CTR2(KTR_SMP, "%s: restarted %d", __func__, curcpu);
 }
 
-void
-cpu_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2)
+static void
+spitfire_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2)
 {
 	u_int cpu;
 
+	KASSERT((cpus & (1 << curcpu)) == 0,
+	    ("%s: CPU can't IPI itself", __func__));
 	while (cpus) {
 		cpu = ffs(cpus) - 1;
 		cpus &= ~(1 << cpu);
-		cpu_ipi_send(cpuid_to_mid[cpu], d0, d1, d2);
+		spitfire_ipi_send(cpuid_to_mid[cpu], d0, d1, d2);
 	}
 }
 
 static void
-cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
+spitfire_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 {
 	register_t s;
 	u_long ids;
@@ -439,6 +455,7 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		stxa(AA_SDB_INTR_D0, ASI_SDB_INTR_W, d0);
 		stxa(AA_SDB_INTR_D1, ASI_SDB_INTR_W, d1);
 		stxa(AA_SDB_INTR_D2, ASI_SDB_INTR_W, d2);
+		membar(Sync);
 		stxa(AA_INTR_SEND | (mid << IDC_ITID_SHIFT),
 		    ASI_SDB_INTR_W, 0);
 		/*
@@ -455,7 +472,7 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		    IDR_BUSY) != 0)
 			;
 		intr_restore(s);
-		if ((ids & IDR_NACK) == 0)
+		if ((ids & (IDR_BUSY | IDR_NACK)) == 0)
 			return;
 		/*
 		 * Leave interrupts enabled for a bit before retrying
@@ -471,6 +488,74 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 	    panicstr != NULL)
 		printf("%s: couldn't send IPI to module 0x%u\n",
 		    __func__, mid);
+	else
+		panic("%s: couldn't send IPI", __func__);
+}
+
+static void
+cheetah_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2)
+{
+	register_t s;
+	u_long ids;
+	u_int bnp;
+	u_int cpu;
+	int i;
+
+	KASSERT((cpus & (1 << curcpu)) == 0,
+	    ("%s: CPU can't IPI itself", __func__));
+	KASSERT((ldxa(0, ASI_INTR_DISPATCH_STATUS) &
+	    IDR_CHEETAH_ALL_BUSY) == 0,
+	    ("%s: outstanding dispatch", __func__));
+	if (cpus == 0)
+		return;
+	ids = 0;
+	for (i = 0; i < IPI_RETRIES * mp_ncpus; i++) {
+		s = intr_disable();
+		stxa(AA_SDB_INTR_D0, ASI_SDB_INTR_W, d0);
+		stxa(AA_SDB_INTR_D1, ASI_SDB_INTR_W, d1);
+		stxa(AA_SDB_INTR_D2, ASI_SDB_INTR_W, d2);
+		membar(Sync);
+		bnp = 0;
+		for (cpu = 0; cpu < mp_ncpus; cpu++) {
+			if ((cpus & (1 << cpu)) != 0) {
+				stxa(AA_INTR_SEND |
+				    (cpuid_to_mid[cpu] << IDC_ITID_SHIFT) |
+				    (isjbus ? 0 : bnp << IDC_BN_SHIFT),
+				    ASI_SDB_INTR_W, 0);
+				membar(Sync);
+				bnp++;
+			}
+		}
+		while (((ids = ldxa(0, ASI_INTR_DISPATCH_STATUS)) &
+		    IDR_CHEETAH_ALL_BUSY) != 0)
+			;
+		intr_restore(s);
+		if ((ids & (IDR_CHEETAH_ALL_BUSY | IDR_CHEETAH_ALL_NACK)) == 0)
+			return;
+		bnp = 0;
+		for (cpu = 0; cpu < mp_ncpus; cpu++) {
+			if ((cpus & (1 << cpu)) != 0) {
+				if ((ids & (IDR_NACK << (isjbus ?
+				    (2 * cpuid_to_mid[cpu]) :
+				    (2 * bnp)))) == 0)
+					cpus &= ~(1 << cpu);
+				bnp++;
+			}
+		}
+		/*
+		 * Leave interrupts enabled for a bit before retrying
+		 * in order to avoid deadlocks if the other CPUs are
+		 * also trying to send IPIs.
+		 */
+		DELAY(2 * bnp);
+	}
+	if (
+#ifdef KDB
+	    kdb_active ||
+#endif
+	    panicstr != NULL)
+		printf("%s: couldn't send IPI (cpus=0x%u ids=0x%lu)\n",
+		    __func__, cpus, ids);
 	else
 		panic("%s: couldn't send IPI", __func__);
 }
