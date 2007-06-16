@@ -744,8 +744,9 @@ dastrategy(struct bio *bp)
 	
 	/*
 	 * Place it in the queue of disk activities for this disk
-	 */
 	bioq_disksort(&softc->bio_queue, bp);
+	 */
+	bioq_insert_tail(&softc->bio_queue, bp);
 
 	/*
 	 * Schedule ourselves for performing the work.
