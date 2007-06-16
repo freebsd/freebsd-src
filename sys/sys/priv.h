@@ -457,10 +457,10 @@
 #ifdef _KERNEL
 /*
  * Privilege check interfaces, modeled after historic suser() interfacs, but
- * with the addition of a specific privilege name.  The existing SUSER_* flag
- * name space is used here.  The jail flag will likely be something that can
- * be removed at some point as jail itself will be able to decide if the priv
- * is appropriate, rather than the caller.
+ * with the addition of a specific privilege name.  No flags are currently
+ * defined for the API.  Historically, flags specified using the real uid
+ * instead of the effective uid, and whether or not the check should be
+ * allowed in jail.
  */
 struct thread;
 struct ucred;
@@ -472,12 +472,6 @@ int	priv_check_cred(struct ucred *cred, int priv, int flags);
  */
 int	suser(struct thread *td);
 int	suser_cred(struct ucred *cred, int flags);
-
-/*
- * For historical reasons, flags to priv_check_cred() retain the SUSER_
- * prefix.
- */
-#define	SUSER_RUID	2
 #endif
 
 #endif /* !_SYS_PRIV_H_ */

@@ -1332,7 +1332,7 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 	sx_xlock(&filelist_lock);
 
 	if ((openfiles >= maxuserfiles &&
-	    priv_check_cred(td->td_ucred, PRIV_MAXFILES, SUSER_RUID) != 0) ||
+	    priv_check(td, PRIV_MAXFILES) != 0) ||
 	    openfiles >= maxfiles) {
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
 			printf("kern.maxfiles limit exceeded by uid %i, please see tuning(7).\n",

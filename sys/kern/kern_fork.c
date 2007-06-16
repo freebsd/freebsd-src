@@ -293,9 +293,8 @@ fork1(td, flags, pages, procp)
 	 * processes, maxproc is the limit.
 	 */
 	sx_xlock(&allproc_lock);
-	if ((nprocs >= maxproc - 10 &&
-	    priv_check_cred(td->td_ucred, PRIV_MAXPROC, SUSER_RUID) != 0) ||
-	    nprocs >= maxproc) {
+	if ((nprocs >= maxproc - 10 && priv_check_cred(td->td_ucred,
+	    PRIV_MAXPROC, 0) != 0) || nprocs >= maxproc) {
 		error = EAGAIN;
 		goto fail;
 	}
@@ -306,7 +305,7 @@ fork1(td, flags, pages, procp)
 	 *
 	 * XXXRW: Can we avoid privilege here if it's not needed?
 	 */
-	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, SUSER_RUID);
+	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, 0);
 	if (error == 0)
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
 	else {
