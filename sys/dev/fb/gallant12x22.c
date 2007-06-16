@@ -34,11 +34,19 @@
  * SUCH DAMAGE.
  *
  * Derived from: @(#)gallant19.h	8.1 (Berkeley) 6/11/93
- *
- * $FreeBSD$
  */
 
-static u_char gallant12x22_data[] = {
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
+
+#include <dev/fb/gfb.h>
+
+const struct gfb_font gallant12x22 = {
+	12,
+	22,
+	{
 	/* 0 0x00 '^@' */
 	0x00, 0x00,	/* ............ */
 	0x00, 0x00,	/* ............ */
@@ -6182,4 +6190,5 @@ static u_char gallant12x22_data[] = {
 	0x00, 0x00,	/* ............ */
 	0x00, 0x00,	/* ............ */
 	0x00, 0x00,	/* ............ */
+	}
 };
