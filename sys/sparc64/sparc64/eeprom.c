@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 
 #include <machine/bus.h>
-#include <machine/idprom.h>
 #include <machine/resource.h>
 #include <machine/ver.h>
 
@@ -77,8 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mk48txx/mk48txxvar.h>
 
 #include "clock_if.h"
-
-#define	IDPROM_OFFSET	40
 
 static devclass_t eeprom_devclass;
 
@@ -124,8 +121,7 @@ eeprom_attach(device_t dev)
 	struct mk48txx_softc *sc;
 	struct resource *res;
 	struct timespec ts;
-	uint32_t h;
-	int error, i, rid;
+	int error, rid;
 
 	sc = device_get_softc(dev);
 
@@ -172,26 +168,6 @@ eeprom_attach(device_t dev)
 		device_printf(dev, "cannot attach time of day clock\n");
 		goto fail_res;
 	}
-
-	/*
-	 * Get the hostid from the NVRAM. This serves no real purpose other
-	 * than being able to display it below as not all sparc64 models
-	 * have an `eeprom' device and even some that do store the hostid
-	 * elsewhere. The hostid in the NVRAM of the MK48Txx reads all zero
-	 * on the latter models. A generic way to retrieve the hostid is to
-	 * use the `idprom' node.
-	 */
-	mtx_lock(&sc->sc_mtx);
-	h = bus_space_read_1(sc->sc_bst, sc->sc_bsh, sc->sc_nvramsz -
-	    IDPROM_OFFSET + offsetof(struct idprom, id_machine)) << 24;
-	for (i = 0; i < 3; i++) {
-		h |= bus_space_read_1(sc->sc_bst, sc->sc_bsh, sc->sc_nvramsz -
-		    IDPROM_OFFSET + offsetof(struct idprom, id_hostid[i])) <<
-		    ((2 - i) * 8);
-	}
-	mtx_unlock(&sc->sc_mtx);
-	if (h != 0)
-		device_printf(dev, "hostid %x\n", (u_int)h);
 
 	if (bootverbose) {
 		mk48txx_gettime(dev, &ts);
