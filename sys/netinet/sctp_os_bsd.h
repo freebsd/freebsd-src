@@ -323,12 +323,9 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_RELEASE_HEADER(m)
 #define SCTP_RELEASE_PKT(m)	sctp_m_freem(m)
 
-static inline int 
-SCTP_GET_PKT_VRFID(void *m, uint32_t vrf_id)
-{
-	vrf_id = SCTP_DEFAULT_VRFID;
-	return (0);
-}
+#define SCTP_GET_PKT_VRFID(m, vrf_id)  ((vrf_id = SCTP_DEFAULT_VRFID) != SCTP_DEFAULT_VRFID)
+
+
 
 /* Attach the chain of data into the sendable packet. */
 #define SCTP_ATTACH_CHAIN(pak, m, packet_length) do { \

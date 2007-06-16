@@ -3166,7 +3166,7 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 }
 
 
-static __inline uint8_t
+static uint8_t
 sctp_get_ect(struct sctp_tcb *stcb,
     struct sctp_tmit_chunk *chk)
 {
@@ -5215,7 +5215,7 @@ sctp_prune_prsctp(struct sctp_tcb *stcb,
 	}			/* if enabled in asoc */
 }
 
-__inline int
+int
 sctp_get_frag_point(struct sctp_tcb *stcb,
     struct sctp_association *asoc)
 {
@@ -5920,7 +5920,7 @@ sctp_toss_old_asconf(struct sctp_tcb *stcb)
 }
 
 
-static __inline void
+static void
 sctp_clean_up_datalist(struct sctp_tcb *stcb,
 
     struct sctp_association *asoc,
@@ -6009,7 +6009,7 @@ all_done:
 	}
 }
 
-static __inline void
+static void
 sctp_clean_up_ctl(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
 	struct sctp_tmit_chunk *chk, *nchk;
@@ -6047,7 +6047,7 @@ sctp_clean_up_ctl(struct sctp_tcb *stcb, struct sctp_association *asoc)
 }
 
 
-static __inline int
+static int
 sctp_can_we_split_this(struct sctp_tcb *stcb,
     struct sctp_stream_queue_pending *sp,
     uint32_t goal_mtu, uint32_t frag_point, int eeor_on)
@@ -6673,7 +6673,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 	}
 }
 
-__inline void
+void
 sctp_fix_ecn_echo(struct sctp_association *asoc)
 {
 	struct sctp_tmit_chunk *chk;
