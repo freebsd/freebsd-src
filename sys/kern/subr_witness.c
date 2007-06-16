@@ -408,9 +408,12 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "cy", &lock_class_mtx_spin },
 	{ "descriptor tables", &lock_class_mtx_spin },
 #endif
+#ifdef __sparc64__
+	{ "pcib_mtx", &lock_class_mtx_spin },
+	{ "rtc_mtx", &lock_class_mtx_spin },
+#endif
 	{ "scc_hwmtx", &lock_class_mtx_spin },
 	{ "uart_hwmtx", &lock_class_mtx_spin },
-	{ "zstty", &lock_class_mtx_spin },
 	{ "fast_taskqueue", &lock_class_mtx_spin },
 	{ "intr table", &lock_class_mtx_spin },
 #ifdef	HWPMC_HOOKS
@@ -439,7 +442,6 @@ static struct witness_order_list_entry order_lists[] = {
 #endif
 #ifdef __sparc64__
 	{ "ipi", &lock_class_mtx_spin },
-	{ "rtc_mtx", &lock_class_mtx_spin },
 #endif
 #endif
 	{ "clk", &lock_class_mtx_spin },
