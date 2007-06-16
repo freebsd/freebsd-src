@@ -126,7 +126,7 @@ serviced */\n");
 		write_svc_aux(nomain);
 	}
 	/* write out dispatcher and stubs */
-	write_programs(nomain? (char *)NULL : "static");
+	write_programs((char *)NULL);
 
 	if (nomain)
 		return;
