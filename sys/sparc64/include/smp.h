@@ -39,10 +39,15 @@
 #include <machine/pcb.h>
 #include <machine/tte.h>
 
-#define	IDR_BUSY	(1<<0)
-#define	IDR_NACK	(1<<1)
+#define	IDR_BUSY			0x0000000000000001ULL
+#define	IDR_NACK			0x0000000000000002ULL
+#define	IDR_CHEETAH_ALL_BUSY		0x5555555555555555ULL
+#define	IDR_CHEETAH_ALL_NACK		(~IDR_CHEETAH_ALL_BUSY)
+#define	IDR_CHEETAH_MAX_BN_PAIRS	32
+#define	IDR_JALAPENO_MAX_BN_PAIRS	4
 
 #define	IDC_ITID_SHIFT			14
+#define	IDC_BN_SHIFT			24
 
 #define	IPI_AST		PIL_AST
 #define	IPI_RENDEZVOUS	PIL_RENDEZVOUS
@@ -80,19 +85,19 @@ extern struct pcb stoppcbs[];
 void	cpu_mp_bootstrap(struct pcpu *pc);
 void	cpu_mp_shutdown(void);
 
-void	cpu_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2);
+typedef	void cpu_ipi_selected_t(u_int, u_long, u_long, u_long);
+extern	cpu_ipi_selected_t *cpu_ipi_selected;
 
 void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all(u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 
-vm_offset_t mp_tramp_alloc(void);
+void	mp_init(void);
 
 extern	struct mtx ipi_mtx;
 extern	struct ipi_cache_args ipi_cache_args;
 extern	struct ipi_tlb_args ipi_tlb_args;
 
-extern	vm_offset_t mp_tramp;
 extern	char *mp_tramp_code;
 extern	u_long mp_tramp_code_len;
 extern	u_long mp_tramp_tlb_slots;
