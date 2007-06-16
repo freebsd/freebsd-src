@@ -40,77 +40,63 @@ __FBSDID("$FreeBSD$");
 #include "libofw.h"
 #include "dev_net.h"
 
+extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
+
 enum {
 	HEAPVA		= 0x800000,
 	HEAPSZ		= 0x1000000,
 	LOADSZ		= 0x1000000	/* for kernel and modules */
 };
 
-struct memory_slice {
-	vm_offset_t pstart;
-	vm_offset_t size;
-};
-
-struct mmu_ops {
+static struct mmu_ops {
 	void (*tlb_init)(void);
 	int (*mmu_mapin)(vm_offset_t va, vm_size_t len);
 } *mmu_ops;
 
-
 typedef void kernel_entry_t(vm_offset_t mdp, u_long o1, u_long o2, u_long o3,
-			    void *openfirmware);
+    void *openfirmware);
 
 extern void itlb_enter(u_long vpn, u_long data);
 extern void dtlb_enter(u_long vpn, u_long data);
 extern vm_offset_t itlb_va_to_pa(vm_offset_t);
 extern vm_offset_t dtlb_va_to_pa(vm_offset_t);
 extern vm_offset_t md_load(char *, vm_offset_t *);
-static int __elfN(exec)(struct preloaded_file *);
 static int sparc64_autoload(void);
+static ssize_t sparc64_readin(const int, vm_offset_t, const size_t);
+static ssize_t sparc64_copyin(const void *, vm_offset_t, size_t);
+static void sparc64_maphint(vm_offset_t, size_t);
+static int __elfN(exec)(struct preloaded_file *);
 static int mmu_mapin_sun4u(vm_offset_t, vm_size_t);
 static int mmu_mapin_sun4v(vm_offset_t, vm_size_t);
+static vm_offset_t init_heap(void);
 static void tlb_init_sun4u(void);
 static void tlb_init_sun4v(void);
 
-struct mmu_ops mmu_ops_sun4u = 	{ tlb_init_sun4u, mmu_mapin_sun4u };
-struct mmu_ops mmu_ops_sun4v = 	{ tlb_init_sun4v, mmu_mapin_sun4v };
-
-extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
+static struct mmu_ops mmu_ops_sun4u = { tlb_init_sun4u, mmu_mapin_sun4u };
+static struct mmu_ops mmu_ops_sun4v = { tlb_init_sun4v, mmu_mapin_sun4v };
 
 /* sun4u */
 struct tlb_entry *dtlb_store;
 struct tlb_entry *itlb_store;
 int dtlb_slot;
 int itlb_slot;
-int dtlb_slot_max;
-int itlb_slot_max;
+static int dtlb_slot_max;
+static int itlb_slot_max;
 
 /* sun4v */
-struct tlb_entry *tlb_store;
-int is_sun4v = 0;
-/* 
+static struct tlb_entry *tlb_store;
+static int is_sun4v = 0;
+/*
  * no direct TLB access on sun4v
- * we somewhat arbitrarily declare enough 
+ * we somewhat arbitrarily declare enough
  * slots to cover a 4GB AS with 4MB pages
  */
-#define SUN4V_TLB_SLOT_MAX (1 << 10)
+#define	SUN4V_TLB_SLOT_MAX	(1 << 10)
 
+static vm_offset_t curkva = 0;
+static vm_offset_t heapva;
 
-extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
-
-struct tlb_entry *dtlb_store;
-struct tlb_entry *itlb_store;
-
-int dtlb_slot;
-int itlb_slot;
-int dtlb_slot_max;
-int itlb_slot_max;
-
-vm_offset_t curkva = 0;
-vm_offset_t heapva;
 phandle_t pmemh;	/* OFW memory handle */
-
-struct memory_slice memslices[18];
 
 /*
  * Machine dependent structures that the machine independent
@@ -127,7 +113,7 @@ struct devsw *devsw[] = {
 };
 struct arch_switch archsw;
 
-struct file_format sparc64_elf = {
+static struct file_format sparc64_elf = {
 	__elfN(loadfile),
 	__elfN(exec)
 };
@@ -231,23 +217,26 @@ watch_virt_set(vm_offset_t va, int sz)
 static int
 sparc64_autoload(void)
 {
+
 	printf("nothing to autoload yet.\n");
-	return 0;
+	return (0);
 }
 
 static ssize_t
 sparc64_readin(const int fd, vm_offset_t va, const size_t len)
 {
+
 	mmu_ops->mmu_mapin(va, len);
-	return read(fd, (void *)va, len);
+	return (read(fd, (void *)va, len));
 }
 
 static ssize_t
 sparc64_copyin(const void *src, vm_offset_t dest, size_t len)
 {
+
 	mmu_ops->mmu_mapin(dest, len);
 	memcpy((void *)dest, src, len);
-	return len;
+	return (len);
 }
 
 static void
@@ -266,7 +255,7 @@ sparc64_maphint(vm_offset_t va, size_t len)
 
 	/* round up to nearest 4MB page */
 	size = (len + PAGE_MASK_4M) & ~PAGE_MASK_4M;
-#if 0	
+#if 0
 	pa = (vm_offset_t)OF_alloc_phys(PAGE_SIZE_256M,	PAGE_SIZE_256M);
 
 	if (pa != -1)
@@ -281,11 +270,10 @@ sparc64_maphint(vm_offset_t va, size_t len)
 
 	for (i = 0; i < size; i += PAGE_SIZE_4M) {
 		mva = (vm_offset_t)OF_claim_virt(va + i, PAGE_SIZE_4M, 0);
-		if (mva != (va + i)) {
+		if (mva != (va + i))
 			panic("can't claim virtual page "
-			      "(wanted %#lx, got %#lx)",
-			      va, mva);
-		}
+			    "(wanted %#lx, got %#lx)",
+			    va, mva);
 
 		tlb_store[mva >> 22].te_pa = pa + i;
 		if ((ret = OF_map_phys(-1, PAGE_SIZE_4M, mva, pa + i)) != 0)
@@ -294,7 +282,6 @@ sparc64_maphint(vm_offset_t va, size_t len)
 	if (free_excess)
 		OF_release_phys((vm_offset_t)pa, PAGE_SIZE_256M);
 }
-
 
 /*
  * other MD functions
@@ -308,13 +295,12 @@ __elfN(exec)(struct preloaded_file *fp)
 	Elf_Ehdr *e;
 	int error;
 
-	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == 0) {
-		return EFTYPE;
-	}
+	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == 0)
+		return (EFTYPE);
 	e = (Elf_Ehdr *)&fmp->md_data;
 
 	if ((error = md_load(fp->f_args, &mdp)) != 0)
-		return error;
+		return (error);
 
 	printf("jumping to kernel entry at %#lx.\n", e->e_entry);
 #if 0
@@ -354,11 +340,10 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 					panic("out of memory");
 				mva = (vm_offset_t)OF_claim_virt(va,
 				    PAGE_SIZE_4M, 0);
-				if (mva != va) {
+				if (mva != va)
 					panic("can't claim virtual page "
 					    "(wanted %#lx, got %#lx)",
 					    va, mva);
-				}
 				/* The mappings may have changed, be paranoid. */
 				continue;
 			}
@@ -367,9 +352,9 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 			 * most (depending on the kernel TSB size).
 			 */
 			if (dtlb_slot >= dtlb_slot_max)
-				panic("mmu_mapin: out of dtlb_slots");
+				panic("%s: out of dtlb_slots", __func__);
 			if (itlb_slot >= itlb_slot_max)
-				panic("mmu_mapin: out of itlb_slots");
+				panic("%s: out of itlb_slots", __func__);
 			data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP |
 			    TD_CV | TD_P | TD_W;
 			dtlb_store[dtlb_slot].te_pa = pa;
@@ -387,14 +372,12 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 	}
 	if (pa != (vm_offset_t)-1)
 		OF_release_phys(pa, PAGE_SIZE_4M);
-
-	return 0;
+	return (0);
 }
 
 static int
 mmu_mapin_sun4v(vm_offset_t va, vm_size_t len)
 {
-
 	vm_offset_t pa, mva;
 	u_long data;
 	int ret;
@@ -417,11 +400,10 @@ mmu_mapin_sun4v(vm_offset_t va, vm_size_t len)
 					panic("out of memory");
 				mva = (vm_offset_t)OF_claim_virt(va,
 				    PAGE_SIZE_4M, 0);
-				if (mva != va) {
+				if (mva != va)
 					panic("can't claim virtual page "
 					    "(wanted %#lx, got %#lx)",
 					    va, mva);
-				}
 			}
 
 			tlb_store[va >> 22].te_pa = pa;
@@ -434,7 +416,8 @@ mmu_mapin_sun4v(vm_offset_t va, vm_size_t len)
 	}
 	if (pa != (vm_offset_t)-1)
 		OF_release_phys(pa, PAGE_SIZE_4M);
-	return 0;
+
+	return (0);
 }
 
 static vm_offset_t
@@ -447,7 +430,7 @@ init_heap(void)
 
 	/* There is no need for continuous physical heap memory. */
 	heapva = (vm_offset_t)OF_claim((void *)HEAPVA, HEAPSZ, 32);
-	return heapva;
+	return (heapva);
 }
 
 static void
@@ -461,36 +444,37 @@ tlb_init_sun4u(void)
 
 	bootcpu = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
 	if ((root = OF_peer(0)) == -1)
-		panic("main: OF_peer");
+		panic("%s: OF_peer", __func__);
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		if (child == -1)
-			panic("main: OF_child");
+			panic("%s: OF_child", __func__);
 		if (OF_getprop(child, "device_type", buf, sizeof(buf)) > 0 &&
 		    strcmp(buf, "cpu") == 0) {
 			if (OF_getprop(child, "upa-portid", &cpu,
 			    sizeof(cpu)) == -1 && OF_getprop(child, "portid",
 			    &cpu, sizeof(cpu)) == -1)
-				panic("main: OF_getprop");
+				panic("%s: OF_getprop", __func__);
 			if (cpu == bootcpu)
 				break;
 		}
 	}
 	if (cpu != bootcpu)
-		panic("init_tlb: no node for bootcpu?!?!");
+		panic("%s: no node for bootcpu?!?!", __func__);
 	if (OF_getprop(child, "#dtlb-entries", &dtlb_slot_max,
 	    sizeof(dtlb_slot_max)) == -1 ||
 	    OF_getprop(child, "#itlb-entries", &itlb_slot_max,
 	    sizeof(itlb_slot_max)) == -1)
-		panic("init_tlb: OF_getprop");
+		panic("%s: OF_getprop", __func__);
 	dtlb_store = malloc(dtlb_slot_max * sizeof(*dtlb_store));
 	itlb_store = malloc(itlb_slot_max * sizeof(*itlb_store));
 	if (dtlb_store == NULL || itlb_store == NULL)
-		panic("init_tlb: malloc");
+		panic("%s: malloc", __func__);
 }
 
 static void
 tlb_init_sun4v(void)
 {
+
 	tlb_store = malloc(SUN4V_TLB_SLOT_MAX * sizeof(*tlb_store));
 	memset(tlb_store, 0xFF, SUN4V_TLB_SLOT_MAX * sizeof(*tlb_store));
 }
@@ -518,6 +502,7 @@ main(int (*openfirm)(void *))
 
 	init_heap();
 	setheap((void *)heapva, (void *)(heapva + HEAPSZ));
+
 	/*
 	 * Probe for a console.
 	 */
@@ -579,7 +564,7 @@ main(int (*openfirm)(void *))
 
 	/* Give control to the machine independent loader code. */
 	interact();
-	return 1;
+	return (1);
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
@@ -601,19 +586,21 @@ command_reboot(int argc, char *argv[])
 void
 exit(int code)
 {
+
 	OF_exit();
 }
 
 #ifdef LOADER_DEBUG
 typedef u_int64_t tte_t;
 
-const char *page_sizes[] = {
+static const char *page_sizes[] = {
 	"  8k", " 64k", "512k", "  4m"
 };
 
 static void
 pmap_print_tte(tte_t tag, tte_t tte)
 {
+
 	printf("%s %s ",
 	    page_sizes[(tte & TD_SIZE_MASK) >> TD_SIZE_SHIFT],
 	    tag & TD_G ? "G" : " ");
