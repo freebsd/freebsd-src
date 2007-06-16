@@ -4498,7 +4498,7 @@ uaudio_mixer_setrecsrc(device_t dev, u_int32_t src)
 static int
 uaudio_sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 {
-    	struct snddev_info *d;
+	struct snddev_info *d;
 	struct pcm_channel *c;
 	struct pcm_feeder *f;
 	device_t pa_dev = device_get_parent(dev);
@@ -4511,13 +4511,14 @@ uaudio_sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 	if (!d)
 		return ENXIO;
 
-	snd_mtxlock(d->lock);
+	PCM_BUSYASSERT(d);
+
 	if (CHN_EMPTY(d, channels.pcm)) {
 		sbuf_printf(s, " (mixer only)");
-		snd_mtxunlock(d->lock);
 		return 0;
 	}
-	sbuf_printf(s, " (%dp:%dv/%dr:%dv channels%s%s)", 
+
+	sbuf_printf(s, " (%dp:%dv/%dr:%dv channels%s%s)",
 			d->playcount, d->pvchancount,
 			d->reccount, d->rvchancount,
 			(d->flags & SD_F_SIMPLEX)? "" : " duplex",
@@ -4532,16 +4533,15 @@ uaudio_sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		sbuf_cat(s, sbuf_data(&(sc->uaudio_sndstat)));
 	}
 
-	if (verbose <= 1) {
-		snd_mtxunlock(d->lock);
+	if (verbose <= 1)
 		return 0;
-	}
 
 	CHN_FOREACH(c, d, channels.pcm) {
-		sbuf_printf(s, "\n\t");
 
 		KASSERT(c->bufhard != NULL && c->bufsoft != NULL,
 			("hosed pcm channel setup"));
+
+		sbuf_printf(s, "\n\t");
 
 		/* it would be better to indent child channels */
 		sbuf_printf(s, "%s[%s]: ", c->parentchannel? c->parentchannel->name : "", c->name);
@@ -4584,14 +4584,14 @@ uaudio_sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 				sbuf_printf(s, "(0x%08x -> 0x%08x)", f->desc->in, f->desc->out);
 			if (f->desc->type == FEEDER_RATE)
 				sbuf_printf(s, "(%d -> %d)", FEEDER_GET(f, FEEDRATE_SRC), FEEDER_GET(f, FEEDRATE_DST));
-			if (f->desc->type == FEEDER_ROOT || f->desc->type == FEEDER_MIXER)
+			if (f->desc->type == FEEDER_ROOT || f->desc->type == FEEDER_MIXER ||
+					f->desc->type == FEEDER_VOLUME)
 				sbuf_printf(s, "(0x%08x)", f->desc->out);
 			sbuf_printf(s, " -> ");
 			f = f->parent;
 		}
 		sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC)? "userland" : "hardware");
 	}
-	snd_mtxunlock(d->lock);
 
 	return 0;
 }

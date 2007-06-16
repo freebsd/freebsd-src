@@ -37,6 +37,6 @@
  * Last 2 decimal places reserved for daily versioning, starting
  * with 0.
  */
-#define SND_DRV_VERSION		2007060100
+#define SND_DRV_VERSION		2007061600
 
 #endif /* !_SND_VERSION_H_ */

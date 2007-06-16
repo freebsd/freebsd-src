@@ -26,6 +26,7 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/vchan.h>
+#include <dev/sound/version.h>
 #ifdef	USING_MUTEX
 #include <sys/sx.h>
 #endif
@@ -45,7 +46,6 @@ static d_read_t sndstat_read;
 
 static struct cdevsw sndstat_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	sndstat_open,
 	.d_close =	sndstat_close,
 	.d_read =	sndstat_read,
@@ -137,8 +137,6 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, verbose, CTLTYPE_INT | CTLFLAG_RW,
 static int
 sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
-	int error;
-
 	if (sndstat_dev == NULL || i_dev != sndstat_dev)
 		return EBADF;
 
@@ -150,19 +148,13 @@ sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	SNDSTAT_PID_SET(i_dev, td->td_proc->p_pid);
 	mtx_unlock(&sndstat_lock);
 	if (sbuf_new(&sndstat_sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
-		error = ENXIO;
-		goto out;
-	}
-	sndstat_bufptr = 0;
-	error = (sndstat_prepare(&sndstat_sbuf) > 0) ? 0 : ENOMEM;
-out:
-	if (error) {
 		mtx_lock(&sndstat_lock);
-		SNDSTAT_FLUSH();
 		SNDSTAT_PID_SET(i_dev, 0);
 		mtx_unlock(&sndstat_lock);
+		return ENXIO;
 	}
-	return (error);
+	sndstat_bufptr = 0;
+	return 0;
 }
 
 static int
@@ -200,6 +192,16 @@ sndstat_read(struct cdev *i_dev, struct uio *buf, int flag)
 		return EBADF;
 	}
 	mtx_unlock(&sndstat_lock);
+
+	if (sndstat_bufptr == 0) {
+		err = (sndstat_prepare(&sndstat_sbuf) > 0) ? 0 : ENOMEM;
+		if (err) {
+			mtx_lock(&sndstat_lock);
+			SNDSTAT_FLUSH();
+			mtx_unlock(&sndstat_lock);
+			return err;
+		}
+	}
 
     	l = min(buf->uio_resid, sbuf_len(&sndstat_sbuf) - sndstat_bufptr);
 	err = (l > 0)? uiomove(sbuf_data(&sndstat_sbuf) + sndstat_bufptr, l, buf) : 0;
@@ -348,10 +350,11 @@ static int
 sndstat_prepare(struct sbuf *s)
 {
 	struct sndstat_entry *ent;
+	struct snddev_info *d;
     	int i, j;
 
-	sbuf_printf(s, "FreeBSD Audio Driver (newpcm: %ubit)\n",
-		(unsigned int)sizeof(intpcm_t) << 3);
+	sbuf_printf(s, "FreeBSD Audio Driver (newpcm: %ubit %d/%s)\n",
+	    (u_int)sizeof(intpcm_t) << 3, SND_DRV_VERSION, MACHINE_ARCH);
 	if (SLIST_EMPTY(&sndstat_devlist)) {
 		sbuf_printf(s, "No devices installed.\n");
 		sbuf_finish(s);
@@ -365,14 +368,21 @@ sndstat_prepare(struct sbuf *s)
 			ent = sndstat_find(j, i);
 			if (!ent)
 				continue;
+			d = device_get_softc(ent->dev);
+			if (!PCM_REGISTERED(d))
+				continue;
+			/* XXX Need Giant magic entry ??? */
+			PCM_ACQUIRE_QUICK(d);
 			sbuf_printf(s, "%s:", device_get_nameunit(ent->dev));
 			sbuf_printf(s, " <%s>", device_get_desc(ent->dev));
-			sbuf_printf(s, " %s", ent->str);
+			sbuf_printf(s, " %s [%s]", ent->str,
+			    (d->flags & SD_F_MPSAFE) ? "MPSAFE" : "GIANT");
 			if (ent->handler)
 				ent->handler(s, ent->dev, snd_verbose);
 			else
 				sbuf_printf(s, " [no handler]");
 			sbuf_printf(s, "\n");
+			PCM_RELEASE_QUICK(d);
 		}
     	}
 

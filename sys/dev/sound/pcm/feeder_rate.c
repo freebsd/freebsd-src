@@ -320,7 +320,7 @@ feed_rate_setup(struct pcm_feeder *f)
 	if (!(RATE_FACTOR_SAFE(info->gx) && RATE_FACTOR_SAFE(info->gy)))
 		return (-1);
 
-	for (i = 0; i < sizeof(convtbl) / sizeof(*convtbl); i++) {
+	for (i = 0; i < sizeof(convtbl) / sizeof(convtbl[0]); i++) {
 		if (convtbl[i].format == 0)
 			return (-1);
 		if ((f->desc->out & ~AFMT_STEREO) == convtbl[i].format) {
@@ -404,8 +404,8 @@ feed_rate_init(struct pcm_feeder *f)
 	 * bufsz = sample from last cycle + conversion space
 	 */
 	info->bufsz_init = 8 + feeder_buffersize;
-	info->buffer = malloc(sizeof(*info->buffer) * info->bufsz_init,
-	    M_RATEFEEDER, M_NOWAIT | M_ZERO);
+	info->buffer = malloc(info->bufsz_init, M_RATEFEEDER,
+	    M_NOWAIT | M_ZERO);
 	if (info->buffer == NULL) {
 		free(info, M_RATEFEEDER);
 		return (ENOMEM);
@@ -480,7 +480,7 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		 * beginning of buffer.
 		 */
 		bcopy(info->buffer + info->pos - smpsz, info->buffer,
-		    sizeof(*info->buffer) * (smpsz << 1));
+		    smpsz << 1);
 		info->pos = smpsz;
 		info->bpos = smpsz << 1;
 	}
@@ -574,7 +574,7 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 			    info->stray));
 #endif
 			bcopy(info->buffer + info->pos - smpsz, info->buffer,
-			    sizeof(*info->buffer) * smpsz);
+			    smpsz);
 			info->bpos = smpsz;
 			info->pos = smpsz;
 		}

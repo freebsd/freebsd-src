@@ -26,15 +26,26 @@
  * $FreeBSD$
  */
 
+struct snd_mixer *mixer_create(device_t dev, kobj_class_t cls, void *devinfo,
+    const char *desc);
+int mixer_delete(struct snd_mixer *m);
 int mixer_init(device_t dev, kobj_class_t cls, void *devinfo);
 int mixer_uninit(device_t dev);
 int mixer_reinit(device_t dev);
-int mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td);
+int mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td, int from);
 int mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi);
 
 int mixer_hwvol_init(device_t dev);
 void mixer_hwvol_mute(device_t dev);
 void mixer_hwvol_step(device_t dev, int left_step, int right_step);
+
+int mixer_busy(struct snd_mixer *m);
+
+int mix_set(struct snd_mixer *m, u_int dev, u_int left, u_int right);
+int mix_get(struct snd_mixer *m, u_int dev);
+int mix_setrecsrc(struct snd_mixer *m, u_int32_t src);
+u_int32_t mix_getrecsrc(struct snd_mixer *m);
+int mix_get_type(struct snd_mixer *m);
 
 void mix_setdevs(struct snd_mixer *m, u_int32_t v);
 void mix_setrecdevs(struct snd_mixer *m, u_int32_t v);
@@ -48,11 +59,17 @@ void *mix_getdevinfo(struct snd_mixer *m);
 
 extern int mixer_count;
 
+#define MIXER_CMD_DIRECT	0	/* send command within driver   */
+#define MIXER_CMD_CDEV		1	/* send command from cdev/ioctl */
+
+#define MIXER_TYPE_PRIMARY	0	/* mixer_init()   */
+#define MIXER_TYPE_SECONDARY	1	/* mixer_create() */
+
 /*
  * this is a kludge to allow hiding of the struct snd_mixer definition
  * 512 should be enough for all architectures
  */
-# define	MIXER_SIZE	(512 + sizeof(struct kobj) + \
-				 sizeof(oss_mixer_enuminfo))
+#define MIXER_SIZE	(512 + sizeof(struct kobj) +		\
+			    sizeof(oss_mixer_enuminfo))
 
 #define MIXER_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, MIXER_SIZE)
