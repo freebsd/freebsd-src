@@ -62,6 +62,7 @@ MAN=	acct.5 \
 	stab.5 \
 	style.Makefile.5 \
 	sysctl.conf.5 \
+	tmpfs.5 \
 	utmp.5
 
 MLINKS=	dir.5 dirent.5
