@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
  * the list.
  */
 
-__inline void
+void
 sctp_set_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
 	uint32_t calc, calc_w_oh;
@@ -116,7 +116,7 @@ sctp_set_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 
 /* Calculate what the rwnd would be */
 
-__inline uint32_t
+uint32_t
 sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
 	uint32_t calc = 0, calc_w_oh;
@@ -3846,7 +3846,7 @@ sctp_hs_cwnd_decrease(struct sctp_tcb *stcb, struct sctp_nets *net)
 #endif
 
 
-static __inline void
+static void
 sctp_cwnd_update(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     int accum_moved, int reneged_all, int will_exit)

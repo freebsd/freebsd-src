@@ -4387,7 +4387,7 @@ next_chunk:
  * Process the ECN bits we have something set so we must look to see if it is
  * ECN(0) or ECN(1) or CE
  */
-static __inline void
+static void
 sctp_process_ecn_marked_a(struct sctp_tcb *stcb, struct sctp_nets *net,
     uint8_t ecn_bits)
 {
@@ -4426,7 +4426,7 @@ sctp_process_ecn_marked_a(struct sctp_tcb *stcb, struct sctp_nets *net,
 	}
 }
 
-static __inline void
+static void
 sctp_process_ecn_marked_b(struct sctp_tcb *stcb, struct sctp_nets *net,
     uint32_t high_tsn, uint8_t ecn_bits)
 {
