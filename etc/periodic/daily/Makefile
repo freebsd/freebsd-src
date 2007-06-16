@@ -23,6 +23,7 @@ FILES=	100.clean-disks \
 	450.status-security \
 	460.status-mail-rejects \
 	470.status-named \
+	480.status-ntpd \
 	500.queuerun \
 	999.local
 
