@@ -1359,8 +1359,7 @@ vm_page_cache(vm_page_t m)
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->flags & PG_UNMANAGED) || (m->oflags & VPO_BUSY) || m->busy ||
 	    m->hold_count || m->wire_count) {
-		printf("vm_page_cache: attempting to cache busy page\n");
-		return;
+		panic("vm_page_cache: attempting to cache busy page");
 	}
 	if (VM_PAGE_INQUEUE1(m, PQ_CACHE))
 		return;
