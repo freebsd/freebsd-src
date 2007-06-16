@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
 #include <vm/uma.h>
 
 #include <machine/cpu.h>
@@ -1286,13 +1287,13 @@ pmap_alloc_zeroed_contig_pages(int npages, uint64_t alignment)
 	m = NULL;
 	while (m == NULL) {	
 		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-			m = vm_page_alloc_contig(npages, phys_avail[i], 
+			m = vm_phys_alloc_contig(npages, phys_avail[i], 
 						 phys_avail[i + 1], alignment, (1UL<<34));
 			if (m)
 				goto found;
 		}
 		if (m == NULL) {
-			printf("vm_page_alloc_contig failed - waiting to retry\n");
+			printf("vm_phys_alloc_contig failed - waiting to retry\n");
 			VM_WAIT;
 		}
 	}

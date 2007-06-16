@@ -154,15 +154,6 @@ static long object_bypasses;
 SYSCTL_LONG(_vm_stats_object, OID_AUTO, bypasses, CTLFLAG_RD,
     &object_bypasses, 0, "VM object bypasses");
 
-/*
- * next_index determines the page color that is assigned to the next
- * allocated object.  Accesses to next_index are not synchronized
- * because the effects of two or more object allocations using
- * next_index simultaneously are inconsequential.  At any given time,
- * numerous objects have the same page color.
- */
-static int next_index;
-
 static uma_zone_t obj_zone;
 
 static int vm_object_zinit(void *mem, int size, int flags);
@@ -210,7 +201,6 @@ vm_object_zinit(void *mem, int size, int flags)
 void
 _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 {
-	int incr;
 
 	TAILQ_INIT(&object->memq);
 	LIST_INIT(&object->shadow_head);
@@ -223,11 +213,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->flags = 0;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
 		object->flags = OBJ_ONEMAPPING;
-	incr = PQ_MAXLENGTH;
-	if (size <= incr)
-		incr = size;
-	object->pg_color = next_index;
-	next_index = (object->pg_color + incr) & PQ_COLORMASK;
+	object->pg_color = 0;
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
@@ -1258,15 +1244,8 @@ vm_object_shadow(
 		LIST_INSERT_HEAD(&source->shadow_head, result, shadow_list);
 		source->shadow_count++;
 		source->generation++;
-		if (length < source->size)
-			length = source->size;
-		if (length > PQ_MAXLENGTH || source->generation > 1)
-			length = PQ_MAXLENGTH;
-		result->pg_color = (source->pg_color +
-		    length * source->generation) & PQ_COLORMASK;
 		result->flags |= source->flags & OBJ_NEEDGIANT;
 		VM_OBJECT_UNLOCK(source);
-		next_index = (result->pg_color + PQ_MAXLENGTH) & PQ_COLORMASK;
 	}
 
 
@@ -2129,7 +2108,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		vm_pindex_t idx, fidx;
 		vm_pindex_t osize;
-		vm_paddr_t pa = -1, padiff;
+		vm_paddr_t pa = -1;
 		int rcount;
 		vm_page_t m;
 
@@ -2171,17 +2150,8 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 				continue;
 			}
 			if (rcount) {
-				padiff = pa + rcount * PAGE_SIZE - VM_PAGE_TO_PHYS(m);
-				padiff >>= PAGE_SHIFT;
-				padiff &= PQ_COLORMASK;
-				if (padiff == 0) {
-					pa = VM_PAGE_TO_PHYS(m) - rcount * PAGE_SIZE;
-					++rcount;
-					continue;
-				}
-				db_printf(" index(%ld)run(%d)pa(0x%lx)",
+				db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
 					(long)fidx, rcount, (long)pa);
-				db_printf("pd(%ld)\n", (long)padiff);
 				if (nl > 18) {
 					c = cngetc();
 					if (c != ' ')

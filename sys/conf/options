@@ -555,7 +555,6 @@ VM_KMEM_SIZE_MAX	opt_vm.h
 NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
 MALLOC_PROFILE		opt_vm.h
-PQ_NOOPT		opt_vmpage.h
 
 # The MemGuard replacement allocator used for tamper-after-free detection
 DEBUG_MEMGUARD		opt_vm.h
