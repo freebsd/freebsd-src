@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2006
+.Dd May 12, 2007
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -612,6 +612,11 @@ for the previous day.
 Set to
 .Dq YES
 if you want to enable reverse DNS lookups.
+.It Va daily_status_ntpd
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to enable NTP status check.
 .It Va daily_queuerun_enable
 .Pq Vt bool
 Set to
