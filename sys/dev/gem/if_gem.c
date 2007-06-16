@@ -632,7 +632,7 @@ gem_bitwait(sc, r, clr, set)
 
 	for (i = TRIES; i--; DELAY(100)) {
 		reg = bus_read_4(sc->sc_res[0], r);
-		if ((r & clr) == 0 && (r & set) == set)
+		if ((reg & clr) == 0 && (reg & set) == set)
 			return (1);
 	}
 	return (0);
@@ -755,7 +755,7 @@ gem_reset_rx(sc)
 	/* Finally, reset the ERX */
 	bus_write_4(sc->sc_res[0], GEM_RESET, GEM_RESET_RX);
 	/* Wait till it finishes */
-	if (!gem_bitwait(sc, GEM_RESET, GEM_RESET_TX, 0)) {
+	if (!gem_bitwait(sc, GEM_RESET, GEM_RESET_RX, 0)) {
 		device_printf(sc->sc_dev, "cannot reset receiver\n");
 		return (1);
 	}
