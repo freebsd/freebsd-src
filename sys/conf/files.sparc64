@@ -46,6 +46,7 @@ dev/auxio/auxio.c		optional	auxio sbus | auxio ebus
 dev/esp/esp_sbus.c		optional	esp sbus
 dev/fb/creator.c		optional	creator sc
 dev/fb/fb.c			optional	sc
+dev/fb/gallant12x22.c		optional	sc
 dev/fb/machfb.c			optional	machfb sc
 dev/hwpmc/hwpmc_sparc64.c	optional	hwpmc
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd

@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/creatorreg.h>
-#include <dev/fb/gallant12x22.h>
+#include <dev/fb/gfb.h>
 #include <dev/syscons/syscons.h>
 
 #define	CREATOR_DRIVER_NAME	"creator"
@@ -73,7 +73,7 @@ struct creator_softc {
 	int			sc_xmargin;
 	int			sc_ymargin;
 
-	u_char			*sc_font;
+	const u_char		*sc_font;
 
 	int			sc_bg_cache;
 	int			sc_fg_cache;
@@ -152,6 +152,8 @@ static const struct {
 
 #define	CREATOR_FB_MAP_SIZE						\
 	(sizeof(creator_fb_map) / sizeof(creator_fb_map[0]))
+
+extern const struct gfb_font gallant12x22;
 
 static struct creator_softc creator_softc;
 static struct bus_space_tag creator_bst_store[FFB_FBC];
@@ -486,12 +488,12 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 	if (OF_getprop(options, "screen-#columns", buf, sizeof(buf)) == -1)
 		return (ENXIO);
 	vi->vi_width = strtol(buf, NULL, 10);
-	vi->vi_cwidth = 12;
-	vi->vi_cheight = 22;
+	vi->vi_cwidth = gallant12x22.width;
+	vi->vi_cheight = gallant12x22.height;
 	vi->vi_flags = V_INFO_COLOR;
 	vi->vi_mem_model = V_INFO_MM_OTHER;
 
-	sc->sc_font = gallant12x22_data;
+	sc->sc_font = gallant12x22.data;
 	sc->sc_xmargin = (sc->sc_width - (vi->vi_width * vi->vi_cwidth)) / 2;
 	sc->sc_ymargin = (sc->sc_height - (vi->vi_height * vi->vi_cheight)) / 2;
 
@@ -815,7 +817,7 @@ static int
 creator_putc(video_adapter_t *adp, vm_offset_t off, u_int8_t c, u_int8_t a)
 {
 	struct creator_softc *sc;
-	uint16_t *p;
+	const uint16_t *p;
 	int row;
 	int col;
 	int i;
@@ -823,7 +825,7 @@ creator_putc(video_adapter_t *adp, vm_offset_t off, u_int8_t c, u_int8_t a)
 	sc = (struct creator_softc *)adp;
 	row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
 	col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
-	p = (uint16_t *)sc->sc_font + (c * adp->va_info.vi_cheight);
+	p = (const uint16_t *)sc->sc_font + (c * adp->va_info.vi_cheight);
 	creator_ras_setfg(sc, creator_cmap[a & 0xf]);
 	creator_ras_setbg(sc, creator_cmap[(a >> 4) & 0xf]);
 	creator_ras_fifo_wait(sc, 1 + adp->va_info.vi_cheight);
