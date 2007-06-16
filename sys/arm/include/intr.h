@@ -39,7 +39,9 @@
 #ifndef _MACHINE_INTR_H_
 #define _MACHINE_INTR_H_
 
-#ifdef CPU_ARM9
+#ifdef CPU_XSCALE_81342
+#define NIRQ		128
+#elif defined(CPU_ARM9)
 #define NIRQ		64
 #else
 #define NIRQ		32
