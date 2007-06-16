@@ -28,8 +28,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_vmpage.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/linker_set.h>
@@ -48,103 +46,17 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_extern.h>
 
-static void vm_coloring_init(void);
-void setPQL2(int *const size, int *const ways);
-
 struct vpgqueues vm_page_queues[PQ_MAXCOUNT];
-struct pq_coloring page_queue_coloring;
-
-static int pq_cachesize = 0;	/* size of the cache in KB */
-static int pq_cachenways = 0;	/* associativity of the cache */
-
-SYSCTL_NODE(_vm_stats, OID_AUTO, pagequeue, CTLFLAG_RW, 0, "VM meter stats");
-SYSCTL_INT(_vm_stats_pagequeue, OID_AUTO, page_colors, CTLFLAG_RD,
-    &(PQ_NUMCOLORS), 0, "Number of colors in the page queue");
-SYSCTL_INT(_vm_stats_pagequeue, OID_AUTO, cachesize, CTLFLAG_RD,
-    &pq_cachesize, 0, "Size of the processor cache in KB");
-SYSCTL_INT(_vm_stats_pagequeue, OID_AUTO, cachenways, CTLFLAG_RD,
-    &pq_cachenways, 0, "Associativity of the processor cache");
-SYSCTL_INT(_vm_stats_pagequeue, OID_AUTO, prime1, CTLFLAG_RD,
-    &(PQ_PRIME1), 0, "Cache tuning value");
-SYSCTL_INT(_vm_stats_pagequeue, OID_AUTO, prime2, CTLFLAG_RD,
-    &(PQ_PRIME2), 0, "Cache tuning value");
-
-static void
-vm_coloring_init(void)
-{
-#ifdef PQ_NOOPT
-	PQ_NUMCOLORS = PQ_PRIME1 = PQ_PRIME2 = 1;
-#else
-
-	setPQL2(&pq_cachesize, &pq_cachenways);
-
-	CTASSERT(PAGE_SIZE/1024 > 0);
-
-	if (pq_cachesize > 0 && pq_cachenways > 0)
-		PQ_NUMCOLORS = pq_cachesize / (PAGE_SIZE/1024) / \
-		    pq_cachenways;
-	else
-		PQ_NUMCOLORS = 32;
-
-	if (PQ_MAXCOLORS < PQ_NUMCOLORS) {
-		printf("VM-PQ color limit (PQ_MAXCOLORS=%u) exceeded (%u), see vm_page.h", PQ_MAXCOLORS, PQ_NUMCOLORS);
-		PQ_NUMCOLORS = PQ_MAXCOLORS;
-	}
-
-	if (PQ_NUMCOLORS >= 128) {
-		PQ_PRIME1 = 31;
-		PQ_PRIME2 = 23;
-	} else if (PQ_NUMCOLORS >= 64) {
-		PQ_PRIME1 = 13;
-		PQ_PRIME2 = 7;
-	} else if (PQ_NUMCOLORS >= 32) {
-		PQ_PRIME1 = 9;
-		PQ_PRIME2 = 5;
-	} else if (PQ_NUMCOLORS >= 16) {
-		PQ_PRIME1 = 5;
-		PQ_PRIME2 = 3;
-	} else
-		PQ_NUMCOLORS = PQ_PRIME1 = PQ_PRIME2 = 1;
-#endif
-
-	/*
-	 * PQ_CACHE represents a
-	 * PQ_NUMCOLORS consecutive queue.
-	 */
-	PQ_COLORMASK = PQ_NUMCOLORS - 1;
-	PQ_INACTIVE  = 1 + PQ_NUMCOLORS;
-	PQ_ACTIVE    = 2 + PQ_NUMCOLORS;
-	PQ_CACHE     = 3 + PQ_NUMCOLORS;
-	PQ_HOLD      = 3 + 2 * PQ_NUMCOLORS;
-	PQ_COUNT     = 4 + 2 * PQ_NUMCOLORS;
-	PQ_MAXLENGTH = PQ_NUMCOLORS / 3 + PQ_PRIME1;
-
-#if 0
-	/* XXX: is it possible to allocate vm_page_queues[PQ_COUNT] here? */
-#error XXX: vm_page_queues = malloc(PQ_COUNT * sizeof(struct vpgqueues));
-#endif
-
-	if (bootverbose)
-		if (PQ_NUMCOLORS > 1)
-		    printf("Using %d colors for the VM-PQ tuning (%d, %d)\n",
-		    PQ_NUMCOLORS, pq_cachesize, pq_cachenways);
-}
 
 void
 vm_pageq_init(void)
 {
 	int i;
 
-	vm_coloring_init();
-
-	for (i = 0; i < PQ_NUMCOLORS; ++i) {
-		vm_page_queues[PQ_FREE+i].cnt = &cnt.v_free_count;
-	}
-	for (i = 0; i < PQ_NUMCOLORS; ++i) {
-		vm_page_queues[PQ_CACHE + i].cnt = &cnt.v_cache_count;
-	}
+	vm_page_queues[PQ_CACHE].cnt = &cnt.v_cache_count;
 	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
 	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
 	vm_page_queues[PQ_HOLD].cnt = &cnt.v_active_count;
@@ -179,28 +91,6 @@ vm_pageq_enqueue(int queue, vm_page_t m)
 	VM_PAGE_SETQUEUE2(m, queue);
 	TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
 	++*vpq->cnt;
-	++vpq->lcnt;
-}
-
-/*
- *	vm_add_new_page:
- *
- *	Add a new page to the freelist for use by the system.
- */
-void
-vm_pageq_add_new_page(vm_paddr_t pa)
-{
-	vm_page_t m;
-
-	cnt.v_page_count++;
-	m = PHYS_TO_VM_PAGE(pa);
-	m->phys_addr = pa;
-	m->flags = 0;
-	m->pc = (pa >> PAGE_SHIFT) & PQ_COLORMASK;
-	pmap_page_init(m);
-	mtx_lock(&vm_page_queue_free_mtx);
-	vm_pageq_enqueue(m->pc + PQ_FREE, m);
-	mtx_unlock(&vm_page_queue_free_mtx);
 }
 
 /*
@@ -222,7 +112,6 @@ vm_pageq_remove_nowakeup(vm_page_t m)
 		VM_PAGE_SETQUEUE2(m, PQ_NONE);
 		TAILQ_REMOVE(&pq->pl, m, pageq);
 		(*pq->cnt)--;
-		pq->lcnt--;
 	}
 }
 
@@ -245,86 +134,9 @@ vm_pageq_remove(vm_page_t m)
 		pq = &vm_page_queues[queue];
 		TAILQ_REMOVE(&pq->pl, m, pageq);
 		(*pq->cnt)--;
-		pq->lcnt--;
 		if (VM_PAGE_RESOLVEQUEUE(m, queue) == PQ_CACHE) {
 			if (vm_paging_needed())
 				pagedaemon_wakeup();
 		}
 	}
 }
-
-#ifndef PQ_NOOPT
-
-/*
- *	vm_pageq_find:
- *
- *	Find a page on the specified queue with color optimization.
- *
- *	The page coloring optimization attempts to locate a page
- *	that does not overload other nearby pages in the object in
- *	the cpu's L2 cache.  We need this optimization because cpu
- *	caches tend to be physical caches, while object spaces tend 
- *	to be virtual.
- *
- *	The specified queue must be locked.
- *	This routine may not block.
- *
- *	This routine may only be called from the vm_pageq_find()
- *	function in this file.
- */
-static inline vm_page_t
-_vm_pageq_find(int basequeue, int index)
-{
-	int i;
-	vm_page_t m = NULL;
-	struct vpgqueues *pq;
-
-	pq = &vm_page_queues[basequeue];
-
-	/*
-	 * Note that for the first loop, index+i and index-i wind up at the
-	 * same place.  Even though this is not totally optimal, we've already
-	 * blown it by missing the cache case so we do not care.
-	 */
-	for (i = PQ_NUMCOLORS / 2; i > 0; --i) {
-		if ((m = TAILQ_FIRST(&pq[(index + i) & PQ_COLORMASK].pl)) \
-		    != NULL)
-			break;
-
-		if ((m = TAILQ_FIRST(&pq[(index - i) & PQ_COLORMASK].pl)) \
-		    != NULL)
-			break;
-	}
-	return (m);
-}
-#endif /* PQ_NOOPT */
-
-vm_page_t
-vm_pageq_find(int basequeue, int index, boolean_t prefer_zero)
-{
-        vm_page_t m;
-
-#ifndef PQ_NOOPT
-	if (PQ_NUMCOLORS > 1) {
-	        if (prefer_zero) {
-	                m = TAILQ_LAST(&vm_page_queues[basequeue+index].pl, \
-			    pglist);
-        	} else {
-                	m = TAILQ_FIRST(&vm_page_queues[basequeue+index].pl);
-        	}
-        	if (m == NULL) {
-                	m = _vm_pageq_find(basequeue, index);
-		}
-	} else {
-#endif
-        	if (prefer_zero) {
-                	m = TAILQ_LAST(&vm_page_queues[basequeue].pl, pglist);
-        	} else {
-                	m = TAILQ_FIRST(&vm_page_queues[basequeue].pl);
-        	}
-#ifndef PQ_NOOPT
-	}
-#endif
-        return (m);
-}
-

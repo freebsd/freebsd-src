@@ -125,10 +125,6 @@ options 	DFLTPHYS=(64*1024)
 options 	MAXPHYS=(128*1024)
 
 
-# Options for the VM subsystem
-# Deprecated options supported for backwards compatibility
-#options 	PQ_NOOPT		# No coloring
-
 # This allows you to actually store this configuration file into
 # the kernel binary itself, where it may be later read by saying:
 #    strings -n 3 /boot/kernel/kernel | sed -n 's/^___//p' > MYKERNEL
