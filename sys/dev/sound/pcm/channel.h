@@ -93,6 +93,10 @@ struct pcm_channel {
 	struct mtx *lock;
 	int trigger;
 	/**
+	 * For interrupt manipulations.
+	 */
+	struct cv intr_cv;
+	/**
 	 * Increment,decrement this around operations that temporarily yield
 	 * lock.
 	 */
@@ -198,6 +202,16 @@ struct pcm_channel {
 #define CHN_UNIT(x)	(snd_unit2u((x)->unit))
 #define CHN_DEV(x)	(snd_unit2d((x)->unit))
 #define CHN_CHAN(x)	(snd_unit2c((x)->unit))
+
+#define CHN_BUF_PARENT(x, y)						\
+	(((x) != NULL && (x)->parentchannel != NULL &&			\
+	(x)->parentchannel->bufhard != NULL) ?				\
+	(x)->parentchannel->bufhard : (y))
+
+#define CHN_BROADCAST(x)	do {					\
+	if ((x)->cv_waiters != 0)					\
+		cv_broadcastpri(x, PRIBIO);				\
+} while(0)
 
 #include "channel_if.h"
 
@@ -315,8 +329,11 @@ extern int report_soft_formats;
 
 #define	CHN_F_VIRTUAL		0x10000000  /* not backed by hardware */
 
-#define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD | \
-					CHN_F_HAS_VCHAN | CHN_F_VIRTUAL)
+#define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD |		\
+				 CHN_F_HAS_VCHAN | CHN_F_VIRTUAL)
+
+#define CHN_F_MMAP_INVALID	(CHN_F_DEAD | CHN_F_RUNNING)
+
 					
 
 #define CHN_N_RATE		0x00000001
@@ -335,6 +352,15 @@ extern int report_soft_formats;
 #define CHN_LATENCY_PROFILE_MIN		0
 #define CHN_LATENCY_PROFILE_MAX		1
 #define CHN_LATENCY_PROFILE_DEFAULT	CHN_LATENCY_PROFILE_MAX
+
+#define CHN_STARTED(c)		((c)->flags & CHN_F_TRIGGERED)
+#define CHN_STOPPED(c)		(!CHN_STARTED(c))
+#define CHN_DIRSTR(c)		(((c)->direction == PCMDIR_PLAY) ? \
+				"PCMDIR_PLAY" : "PCMDIR_REC")
+
+#define CHN_TIMEOUT		5
+#define CHN_TIMEOUT_MIN		1
+#define CHN_TIMEOUT_MAX		10
 
 /*
  * This should be large enough to hold all pcm data between

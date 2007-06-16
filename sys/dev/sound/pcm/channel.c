@@ -33,30 +33,6 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-#define MIN_CHUNK_SIZE 		256	/* for uiomove etc. */
-#if 0
-#define	DMA_ALIGN_THRESHOLD	4
-#define	DMA_ALIGN_MASK		(~(DMA_ALIGN_THRESHOLD - 1))
-#endif
-
-#define CHN_STARTED(c)		((c)->flags & CHN_F_TRIGGERED)
-#define CHN_STOPPED(c)		(!CHN_STARTED(c))
-#define CHN_DIRSTR(c)		(((c)->direction == PCMDIR_PLAY) ? \
-				"PCMDIR_PLAY" : "PCMDIR_REC")
-
-#define BUF_PARENT(c, b)	\
-	(((c) != NULL && (c)->parentchannel != NULL && \
-	(c)->parentchannel->bufhard != NULL) ? \
-	(c)->parentchannel->bufhard : (b))
-
-#define CHN_TIMEOUT	5
-#define CHN_TIMEOUT_MIN	1
-#define CHN_TIMEOUT_MAX	10
-
-/*
-#define DEB(x) x
-*/
-
 int report_soft_formats = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_formats, CTLFLAG_RW,
 	&report_soft_formats, 1, "report software-emulated formats");
@@ -166,32 +142,44 @@ static int chn_buildfeeder(struct pcm_channel *c);
 static void
 chn_lockinit(struct pcm_channel *c, int dir)
 {
-	switch(dir) {
+	switch (dir) {
 	case PCMDIR_PLAY:
 		c->lock = snd_mtxcreate(c->name, "pcm play channel");
+		cv_init(&c->intr_cv, "pcmwr");
 		break;
 	case PCMDIR_PLAY_VIRTUAL:
 		c->lock = snd_mtxcreate(c->name, "pcm virtual play channel");
+		cv_init(&c->intr_cv, "pcmwrv");
 		break;
 	case PCMDIR_REC:
 		c->lock = snd_mtxcreate(c->name, "pcm record channel");
+		cv_init(&c->intr_cv, "pcmrd");
 		break;
 	case PCMDIR_REC_VIRTUAL:
 		c->lock = snd_mtxcreate(c->name, "pcm virtual record channel");
+		cv_init(&c->intr_cv, "pcmrdv");
 		break;
 	case 0:
 		c->lock = snd_mtxcreate(c->name, "pcm fake channel");
+		cv_init(&c->intr_cv, "pcmfk");
 		break;
 	}
 
-	cv_init(&c->cv, c->name);
+	cv_init(&c->cv, "pcmchn");
 }
 
 static void
 chn_lockdestroy(struct pcm_channel *c)
 {
-	snd_mtxfree(c->lock);
+	CHN_LOCKASSERT(c);
+
+	CHN_BROADCAST(&c->cv);
+	CHN_BROADCAST(&c->intr_cv);
+
 	cv_destroy(&c->cv);
+	cv_destroy(&c->intr_cv);
+
+	snd_mtxfree(c->lock);
 }
 
 /**
@@ -236,18 +224,23 @@ chn_pollreset(struct pcm_channel *c)
 static void
 chn_wakeup(struct pcm_channel *c)
 {
-	struct snd_dbuf *bs = c->bufsoft;
+	struct snd_dbuf *bs;
 	struct pcm_channel *ch;
 
 	CHN_LOCKASSERT(c);
-	if (CHN_EMPTY(c, children)) {
+
+	bs = c->bufsoft;
+
+	if (CHN_EMPTY(c, children.busy)) {
 		if (SEL_WAITING(sndbuf_getsel(bs)) && chn_polltrigger(c))
 			selwakeuppri(sndbuf_getsel(bs), PRIBIO);
-	} else if (CHN_EMPTY(c, children.busy)) {
-		CHN_FOREACH(ch, c, children) {
-			CHN_LOCK(ch);
-			chn_wakeup(ch);
-			CHN_UNLOCK(ch);
+		if (c->flags & CHN_F_SLEEPING) {
+			/*
+			 * Ok, I can just panic it right here since it is
+			 * quite obvious that we never allow multiple waiters
+			 * from userland. I'm too generous...
+			 */
+			CHN_BROADCAST(&c->intr_cv);
 		}
 	} else {
 		CHN_FOREACH(ch, c, children.busy) {
@@ -256,27 +249,23 @@ chn_wakeup(struct pcm_channel *c)
 			CHN_UNLOCK(ch);
 		}
 	}
-	if (c->flags & CHN_F_SLEEPING)
-		wakeup_one(bs);
 }
 
 static int
-chn_sleep(struct pcm_channel *c, char *str, int timeout)
+chn_sleep(struct pcm_channel *c, int timeout)
 {
-    	struct snd_dbuf *bs = c->bufsoft;
 	int ret;
 
 	CHN_LOCKASSERT(c);
 
+	if (c->flags & CHN_F_DEAD)
+		return (EINVAL);
+
 	c->flags |= CHN_F_SLEEPING;
-#ifdef USING_MUTEX
-	ret = msleep(bs, c->lock, PRIBIO | PCATCH, str, timeout);
-#else
-	ret = tsleep(bs, PRIBIO | PCATCH, str, timeout);
-#endif
+	ret = cv_timedwait_sig(&c->intr_cv, c->lock, timeout);
 	c->flags &= ~CHN_F_SLEEPING;
 
-	return ret;
+	return ((c->flags & CHN_F_DEAD) ? EINVAL : ret);
 }
 
 /*
@@ -297,13 +286,6 @@ chn_dmaupdate(struct pcm_channel *c)
 	hwptr = chn_getptr(c);
 	delta = (sndbuf_getsize(b) + hwptr - old) % sndbuf_getsize(b);
 	sndbuf_sethwptr(b, hwptr);
-
-	DEB(
-	if (delta >= ((sndbuf_getsize(b) * 15) / 16)) {
-		if (!(c->flags & (CHN_F_CLOSING | CHN_F_ABORTING)))
-			device_printf(c->dev, "hwptr went backwards %d -> %d\n", old, hwptr);
-	}
-	);
 
 	if (c->direction == PCMDIR_PLAY) {
 		amt = min(delta, sndbuf_getready(b));
@@ -354,23 +336,11 @@ chn_wrfeed(struct pcm_channel *c)
 	unsigned int ret, amt;
 
 	CHN_LOCKASSERT(c);
-#if 0
-    	DEB(
-	if (c->flags & CHN_F_CLOSING) {
-		sndbuf_dump(b, "b", 0x02);
-		sndbuf_dump(bs, "bs", 0x02);
-	})
-#endif
 
 	if ((c->flags & CHN_F_MAPPED) && !(c->flags & CHN_F_CLOSING))
 		sndbuf_acquire(bs, NULL, sndbuf_getfree(bs));
 
 	amt = sndbuf_getfree(b);
-	DEB(if (amt > sndbuf_getsize(bs) &&
-		    sndbuf_getbps(bs) >= sndbuf_getbps(b)) {
-		printf("%s(%s): amt %d > source size %d, flags 0x%x", __func__, c->name,
-		    amt, sndbuf_getsize(bs), c->flags);
-	});
 
 	ret = (amt > 0) ? sndbuf_feed(bs, b, c, c->feeder, amt) : ENOSPC;
 	/*
@@ -439,8 +409,11 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 				sndbuf_acquire(bs, NULL, t);
 			}
 			ret = 0;
-			if (CHN_STOPPED(c))
-				chn_start(c, 0);
+			if (CHN_STOPPED(c)) {
+				ret = chn_start(c, 0);
+				if (ret != 0)
+					c->flags |= CHN_F_DEAD;
+			}
 		} else if (c->flags & (CHN_F_NBIO | CHN_F_NOTRIGGER)) {
 			/**
 			 * @todo Evaluate whether EAGAIN is truly desirable.
@@ -454,7 +427,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 			 */
 			ret = EAGAIN;
 		} else {
-   			ret = chn_sleep(c, "pcmwr", timeout);
+   			ret = chn_sleep(c, timeout);
 			if (ret == EAGAIN) {
 				ret = EINVAL;
 				c->flags |= CHN_F_DEAD;
@@ -465,25 +438,8 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 		}
 	}
 
-	return ret;
+	return (ret);
 }
-
-#if 0
-static int
-chn_rddump(struct pcm_channel *c, unsigned int cnt)
-{
-    	struct snd_dbuf *b = c->bufhard;
-
-	CHN_LOCKASSERT(c);
-#if 0
-	static u_int32_t kk = 0;
-	printf("%u: dumping %d bytes\n", ++kk, cnt);
-#endif
-	c->xruns++;
-	sndbuf_setxrun(b, sndbuf_getxrun(b) + cnt);
-	return sndbuf_dispose(b, NULL, cnt);
-}
-#endif
 
 /*
  * Feed new data from the read buffer. Can be called in the bottom half.
@@ -496,19 +452,10 @@ chn_rdfeed(struct pcm_channel *c)
 	unsigned int ret, amt;
 
 	CHN_LOCKASSERT(c);
-    	DEB(
-	if (c->flags & CHN_F_CLOSING) {
-		sndbuf_dump(b, "b", 0x02);
-		sndbuf_dump(bs, "bs", 0x02);
-	})
 
-#if 0
-	amt = sndbuf_getready(b);
-	if (sndbuf_getfree(bs) < amt) {
-		c->xruns++;
-		amt = sndbuf_getfree(bs);
-	}
-#endif
+	if (c->flags & CHN_F_MAPPED)
+		sndbuf_dispose(bs, NULL, sndbuf_getready(bs));
+
 	amt = sndbuf_getfree(bs);
 	ret = (amt > 0) ? sndbuf_feed(b, bs, c, c->feeder, amt) : ENOSPC;
 
@@ -573,8 +520,13 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 
 	CHN_LOCKASSERT(c);
 
-	if (CHN_STOPPED(c))
-		chn_start(c, 0);
+	if (CHN_STOPPED(c)) {
+		ret = chn_start(c, 0);
+		if (ret != 0) {
+			c->flags |= CHN_F_DEAD;
+			return (ret);
+		}
+	}
 
 	ret = 0;
 	timeout = chn_timeout * hz;
@@ -601,7 +553,7 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 		} else if (c->flags & (CHN_F_NBIO | CHN_F_NOTRIGGER))
 			ret = EAGAIN;
 		else {
-   			ret = chn_sleep(c, "pcmrd", timeout);
+   			ret = chn_sleep(c, timeout);
 			if (ret == EAGAIN) {
 				ret = EINVAL;
 				c->flags |= CHN_F_DEAD;
@@ -612,7 +564,7 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 		}
 	}
 
-	return ret;
+	return (ret);
 }
 
 void
@@ -633,11 +585,14 @@ chn_start(struct pcm_channel *c, int force)
 	u_int32_t i, j;
 	struct snd_dbuf *b = c->bufhard;
 	struct snd_dbuf *bs = c->bufsoft;
+	int err;
 
 	CHN_LOCKASSERT(c);
 	/* if we're running, or if we're prevented from triggering, bail */
 	if (CHN_STARTED(c) || ((c->flags & CHN_F_NOTRIGGER) && !force))
-		return EINVAL;
+		return (EINVAL);
+
+	err = 0;
 
 	if (force) {
 		i = 1;
@@ -653,7 +608,7 @@ chn_start(struct pcm_channel *c, int force)
 			} else {
 				struct snd_dbuf *pb;
 
-				pb = BUF_PARENT(c, b);
+				pb = CHN_BUF_PARENT(c, b);
 				i = sndbuf_xbytes(sndbuf_getready(bs), bs, pb);
 				j = sndbuf_getbps(pb);
 			}
@@ -687,10 +642,10 @@ chn_start(struct pcm_channel *c, int force)
 				    (sndbuf_getsize(b) * 1000) /
 				    (sndbuf_getbps(b) * sndbuf_getspd(b)));
 		}
-	    	chn_trigger(c, PCMTRIG_START);
+		err = chn_trigger(c, PCMTRIG_START);
 	}
 
-	return 0;
+	return (err);
 }
 
 void
@@ -718,26 +673,26 @@ chn_sync(struct pcm_channel *c, int threshold)
 
 	CHN_LOCKASSERT(c);
 
+	if (c->direction != PCMDIR_PLAY)
+		return (EINVAL);
+
 	bs = c->bufsoft;
 
 	if ((c->flags & (CHN_F_DEAD | CHN_F_ABORTING)) ||
 	    (threshold < 1 && sndbuf_getready(bs) < 1))
-		return 0;
-
-	if (c->direction != PCMDIR_PLAY)
-		return EINVAL;
+		return (0);
 
 	/* if we haven't yet started and nothing is buffered, else start*/
 	if (CHN_STOPPED(c)) {
 		if (threshold > 0 || sndbuf_getready(bs) > 0) {
 			ret = chn_start(c, 1);
-			if (ret)
-				return ret;
+			if (ret != 0)
+				return (ret);
 		} else
-			return 0;
+			return (0);
 	}
 
-	b = BUF_PARENT(c, c->bufhard);
+	b = CHN_BUF_PARENT(c, c->bufhard);
 
 	minflush = threshold + sndbuf_xbytes(sndbuf_getready(b), b, bs);
 
@@ -788,12 +743,11 @@ chn_sync(struct pcm_channel *c, int threshold)
 	cflag = c->flags & CHN_F_CLOSING;
 	c->flags |= CHN_F_CLOSING;
 	while (count > 0 && (resid > 0 || minflush > 0)) {
-		ret = chn_sleep(c, "pcmsyn", c->timeout);
+		ret = chn_sleep(c, c->timeout);
     		if (ret == ERESTART || ret == EINTR) {
 			c->flags |= CHN_F_ABORTING;
 			break;
-		}
-		if (ret == 0 || ret == EAGAIN) {
+		} else if (ret == 0 || ret == EAGAIN) {
 			resid = sndbuf_getready(bs);
 			if (resid == residp) {
 				--count;
@@ -821,7 +775,8 @@ chn_sync(struct pcm_channel *c, int threshold)
 				minflush -= threshold;
 			}
 			residp = resid;
-		}
+		} else
+			break;
 	}
 	c->flags &= ~CHN_F_CLOSING;
 	c->flags |= cflag;
@@ -832,7 +787,7 @@ chn_sync(struct pcm_channel *c, int threshold)
 		    __func__, c->timeout, count, hcount, resid, residp,
 		    minflush, ret);
 
-    	return 0;
+    	return (0);
 }
 
 /* called externally, handle locking */
@@ -843,14 +798,17 @@ chn_poll(struct pcm_channel *c, int ev, struct thread *td)
 	int ret;
 
 	CHN_LOCKASSERT(c);
-    	if (!(c->flags & (CHN_F_MAPPED | CHN_F_TRIGGERED)))
-		chn_start(c, 1);
+    	if (!(c->flags & (CHN_F_MAPPED | CHN_F_TRIGGERED))) {
+		ret = chn_start(c, 1);
+		if (ret != 0)
+			return (0);
+	}
 	ret = 0;
 	if (chn_polltrigger(c) && chn_pollreset(c))
 		ret = ev;
 	else
 		selrecord(td, sndbuf_getsel(bs));
-	return ret;
+	return (ret);
 }
 
 /*
@@ -1192,6 +1150,7 @@ out:
 			sndbuf_destroy(bs);
 		if (b)
 			sndbuf_destroy(b);
+		CHN_LOCK(c);
 		c->flags |= CHN_F_DEAD;
 		chn_lockdestroy(c);
 
@@ -1216,11 +1175,13 @@ chn_kill(struct pcm_channel *c)
 		;
 	if (CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
-	c->flags |= CHN_F_DEAD;
 	sndbuf_destroy(bs);
 	sndbuf_destroy(b);
+	CHN_LOCK(c);
+	c->flags |= CHN_F_DEAD;
 	chn_lockdestroy(c);
-	return 0;
+
+	return (0);
 }
 
 int
@@ -1500,9 +1461,11 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 	}
 
 	if (c->parentchannel != NULL) {
-		pb = BUF_PARENT(c, NULL);
+		pb = CHN_BUF_PARENT(c, NULL);
 		CHN_UNLOCK(c);
+		CHN_LOCK(c->parentchannel);
 		chn_notify(c->parentchannel, CHN_N_BLOCKSIZE);
+		CHN_UNLOCK(c->parentchannel);
 		CHN_LOCK(c);
 		limit = (limit != 0 && pb != NULL) ?
 		    sndbuf_xbytes(sndbuf_getsize(pb), pb, bs) : 0;
@@ -1776,50 +1739,53 @@ chn_trigger(struct pcm_channel *c, int go)
 	if (SND_DMA(b) && (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD))
 		sndbuf_dmabounce(b);
 #endif
-	if (PCMTRIG_COMMON(go) && go == c->trigger)
+	if (!PCMTRIG_COMMON(go))
+		return (CHANNEL_TRIGGER(c->methods, c->devinfo, go));
+
+	if (go == c->trigger)
 		return (0);
 
 	ret = CHANNEL_TRIGGER(c->methods, c->devinfo, go);
+	if (ret != 0)
+		return (ret);
 
-	if (ret == 0) {
-		switch (go) {
-		case PCMTRIG_START:
-			if (snd_verbose > 3)
-				device_printf(c->dev,
-				    "%s() %s: calling go=0x%08x , "
-				    "prev=0x%08x\n", __func__, c->name, go,
-				    c->trigger);
-			if (c->trigger != PCMTRIG_START) {
-				c->trigger = go;
-				CHN_UNLOCK(c);
-				pcm_lock(d);
-				CHN_INSERT_HEAD(d, c, channels.pcm.busy);
-				pcm_unlock(d);
-				CHN_LOCK(c);
-			}
-			break;
-		case PCMTRIG_STOP:
-		case PCMTRIG_ABORT:
-			if (snd_verbose > 3)
-				device_printf(c->dev,
-				    "%s() %s: calling go=0x%08x , "
-				    "prev=0x%08x\n", __func__, c->name, go,
-				    c->trigger);
-			if (c->trigger == PCMTRIG_START) {
-				c->trigger = go;
-				CHN_UNLOCK(c);
-				pcm_lock(d);
-				CHN_REMOVE(d, c, channels.pcm.busy);
-				pcm_unlock(d);
-				CHN_LOCK(c);
-			}
-			break;
-		default:
-			break;
+	switch (go) {
+	case PCMTRIG_START:
+		if (snd_verbose > 3)
+			device_printf(c->dev,
+			    "%s() %s: calling go=0x%08x , "
+			    "prev=0x%08x\n", __func__, c->name, go,
+			    c->trigger);
+		if (c->trigger != PCMTRIG_START) {
+			c->trigger = go;
+			CHN_UNLOCK(c);
+			pcm_lock(d);
+			CHN_INSERT_HEAD(d, c, channels.pcm.busy);
+			pcm_unlock(d);
+			CHN_LOCK(c);
 		}
+		break;
+	case PCMTRIG_STOP:
+	case PCMTRIG_ABORT:
+		if (snd_verbose > 3)
+			device_printf(c->dev,
+			    "%s() %s: calling go=0x%08x , "
+			    "prev=0x%08x\n", __func__, c->name, go,
+			    c->trigger);
+		if (c->trigger == PCMTRIG_START) {
+			c->trigger = go;
+			CHN_UNLOCK(c);
+			pcm_lock(d);
+			CHN_REMOVE(d, c, channels.pcm.busy);
+			pcm_unlock(d);
+			CHN_LOCK(c);
+		}
+		break;
+	default:
+		break;
 	}
 
-	return (ret);
+	return (0);
 }
 
 /**
@@ -1836,19 +1802,6 @@ chn_trigger(struct pcm_channel *c, int go)
 int
 chn_getptr(struct pcm_channel *c)
 {
-#if 0
-	int hwptr;
-	int a = (1 << c->align) - 1;
-
-	CHN_LOCKASSERT(c);
-	hwptr = (c->flags & CHN_F_TRIGGERED)? CHANNEL_GETPTR(c->methods, c->devinfo) : 0;
-	/* don't allow unaligned values in the hwa ptr */
-#if 1
-	hwptr &= ~a ; /* Apply channel align mask */
-#endif
-	hwptr &= DMA_ALIGN_MASK; /* Apply DMA align mask */
-	return hwptr;
-#endif
 	int hwptr;
 
 	CHN_LOCKASSERT(c);
@@ -1889,6 +1842,7 @@ chn_buildfeeder(struct pcm_channel *c)
 {
 	struct feeder_class *fc;
 	struct pcm_feederdesc desc;
+	struct snd_mixer *m;
 	u_int32_t tmp[2], type, flags, hwfmt, *fmtlist;
 	int err;
 	char fmtstr[AFMTSTR_MAXSZ];
@@ -1940,18 +1894,25 @@ chn_buildfeeder(struct pcm_channel *c)
 	} else
 		return EOPNOTSUPP;
 
+	/* XXX These are too much.. */
+	if (c->parentsnddev != NULL && c->parentsnddev->mixer_dev != NULL &&
+	    c->parentsnddev->mixer_dev->si_drv1 != NULL)
+		m = c->parentsnddev->mixer_dev->si_drv1;
+	else
+		m = NULL;
+
 	c->feederflags &= ~(1 << FEEDER_VOLUME);
-	if (c->direction == PCMDIR_PLAY &&
-	    !(c->flags & CHN_F_VIRTUAL) && c->parentsnddev &&
-	    (c->parentsnddev->flags & SD_F_SOFTPCMVOL) &&
-	    c->parentsnddev->mixer_dev)
+	if (c->direction == PCMDIR_PLAY && !(c->flags & CHN_F_VIRTUAL) && m &&
+	    (c->parentsnddev->flags & SD_F_SOFTPCMVOL))
 		c->feederflags |= 1 << FEEDER_VOLUME;
+
 	if (!(c->flags & CHN_F_VIRTUAL) && c->parentsnddev &&
 	    ((c->direction == PCMDIR_PLAY &&
 	    (c->parentsnddev->flags & SD_F_PSWAPLR)) ||
 	    (c->direction == PCMDIR_REC &&
 	    (c->parentsnddev->flags & SD_F_RSWAPLR))))
 		c->feederflags |= 1 << FEEDER_SWAPLR;
+
 	flags = c->feederflags;
 	fmtlist = chn_getcaps(c)->fmtlist;
 
@@ -2064,34 +2025,27 @@ chn_buildfeeder(struct pcm_channel *c)
 	sndbuf_setfmt(c->bufhard, hwfmt);
 
 	if ((flags & (1 << FEEDER_VOLUME))) {
-		u_int32_t parent = SOUND_MIXER_NONE;
+		u_int32_t parent;
 		int vol, left, right;
 
-		vol = 100 | (100 << 8);
-
 		CHN_UNLOCK(c);
-		/*
-		 * XXX This is ugly! The way mixer subs being so secretive
-		 * about its own internals force us to use this silly
-		 * monkey trick.
-		 */
-		if (mixer_ioctl(c->parentsnddev->mixer_dev,
-				MIXER_READ(SOUND_MIXER_PCM), (caddr_t)&vol, -1, NULL) != 0)
-			device_printf(c->dev, "Soft PCM Volume: Failed to read default value\n");
+		vol = mix_get(m, SOUND_MIXER_PCM);
+		if (vol == -1) {
+			device_printf(c->dev,
+			    "Soft PCM Volume: Failed to read default value\n");
+			vol = 100 | (100 << 8);
+		}
 		left = vol & 0x7f;
 		right = (vol >> 8) & 0x7f;
-		if (c->parentsnddev != NULL &&
-		    c->parentsnddev->mixer_dev != NULL &&
-		    c->parentsnddev->mixer_dev->si_drv1 != NULL)
-			parent = mix_getparent(
-			    c->parentsnddev->mixer_dev->si_drv1,
-			    SOUND_MIXER_PCM);
+		parent = mix_getparent(m, SOUND_MIXER_PCM);
 		if (parent != SOUND_MIXER_NONE) {
-			vol = 100 | (100 << 8);
-			if (mixer_ioctl(c->parentsnddev->mixer_dev,
-					MIXER_READ(parent),
-					(caddr_t)&vol, -1, NULL) != 0)
-				device_printf(c->dev, "Soft Volume: Failed to read parent default value\n");
+			vol = mix_get(m, parent);
+			if (vol == -1) {
+				device_printf(c->dev,
+				    "Soft Volume: Failed to read parent "
+				    "default value\n");
+				vol = 100 | (100 << 8);
+			}
 			left = (left * (vol & 0x7f)) / 100;
 			right = (right * ((vol >> 8) & 0x7f)) / 100;
 		}
@@ -2105,39 +2059,31 @@ chn_buildfeeder(struct pcm_channel *c)
 int
 chn_notify(struct pcm_channel *c, u_int32_t flags)
 {
-	int run;
+	int err, run, nrun;
 
-	CHN_LOCK(c);
+	CHN_LOCKASSERT(c);
 
-	if (CHN_EMPTY(c, children)) {
-		CHN_UNLOCK(c);
-		return ENODEV;
-	}
+	if (CHN_EMPTY(c, children))
+		return (ENODEV);
 
-	run = (CHN_STARTED(c)) ? 1 : 0;
+	err = 0;
+
 	/*
-	 * if the hwchan is running, we can't change its rate, format or
+	 * If the hwchan is running, we can't change its rate, format or
 	 * blocksize
 	 */
+	run = (CHN_STARTED(c)) ? 1 : 0;
 	if (run)
 		flags &= CHN_N_VOLUME | CHN_N_TRIGGER;
 
 	if (flags & CHN_N_RATE) {
-		/*
-		 * we could do something here, like scan children and decide on
-		 * the most appropriate rate to mix at, but we don't for now
-		 */
+		/* XXX I'll make good use of this someday. */
 	}
 	if (flags & CHN_N_FORMAT) {
-		/*
-		 * we could do something here, like scan children and decide on
-		 * the most appropriate mixer feeder to use, but we don't for now
-		 */
+		/* XXX I'll make good use of this someday. */
 	}
 	if (flags & CHN_N_VOLUME) {
-		/*
-		 * we could do something here but we don't for now
-		 */
+		/* XXX I'll make good use of this someday. */
 	}
 	if (flags & CHN_N_BLOCKSIZE) {
 		/*
@@ -2146,16 +2092,14 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 		chn_setlatency(c, chn_latency);
 	}
 	if (flags & CHN_N_TRIGGER) {
-		int nrun;
-
 		nrun = CHN_EMPTY(c, children.busy) ? 0 : 1;
 		if (nrun && !run)
-			chn_start(c, 1);
+			err = chn_start(c, 1);
 		if (!nrun && run)
 			chn_abort(c);
 	}
-	CHN_UNLOCK(c);
-	return 0;
+
+	return (err);
 }
 
 /**

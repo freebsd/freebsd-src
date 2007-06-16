@@ -868,32 +868,11 @@ feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u
 		} else {
 			if (l > 0)
 				sndbuf_dispose(src, buffer, l);
-#if 1
 			memset(buffer + l,
 			    sndbuf_zerodata(sndbuf_getfmt(src)),
 			    offset);
 			if (!(ch->flags & CHN_F_CLOSING))
 				ch->xruns++;
-#else
-			if (l < 1 || (ch->flags & CHN_F_CLOSING)) {
-				memset(buffer + l,
-				    sndbuf_zerodata(sndbuf_getfmt(src)),
-				    offset);
-				if (!(ch->flags & CHN_F_CLOSING))
-					ch->xruns++;
-			} else {
-				int cp, tgt;
-
-				tgt = l;
-				while (offset > 0) {
-					cp = min(l, offset);
-					memcpy(buffer + tgt, buffer, cp);
-					offset -= cp;
-					tgt += cp;
-				}
-				ch->xruns++;
-			}
-#endif
 		}
 	} else if (l > 0)
 		sndbuf_dispose(src, buffer, l);

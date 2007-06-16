@@ -138,11 +138,20 @@ struct snd_mixer;
 #define SD_F_RSWAPLR		0x00000010
 #define SD_F_DYING		0x00000020
 #define SD_F_SUICIDE		0x00000040
+#define SD_F_BUSY		0x00000080
+#define SD_F_MPSAFE		0x00000100
+#define SD_F_REGISTERED		0x00000200
+
 #define SD_F_PRIO_RD		0x10000000
 #define SD_F_PRIO_WR		0x20000000
 #define SD_F_PRIO_SET		(SD_F_PRIO_RD | SD_F_PRIO_WR)
 #define SD_F_DIR_SET		0x40000000
 #define SD_F_TRANSIENT		0xf0000000
+
+#define PCM_ALIVE(x)		((x) != NULL && (x)->lock != NULL &&	\
+				 !((x)->flags & SD_F_DYING))
+#define PCM_REGISTERED(x)	(PCM_ALIVE(x) &&			\
+				 ((x)->flags & SD_F_REGISTERED))
 
 /* many variables should be reduced to a range. Here define a macro */
 #define RANGE(var, low, high) (var) = \
@@ -464,6 +473,13 @@ int fkchan_kill(struct pcm_channel *c);
 #define SND_DEV_DSPHW_REC	13	/* specific record channel */
 #define SND_DEV_DSPHW_VREC	14	/* specific virtual record channel */
 
+#define SND_DEV_DSPHW_CD	15	/* s16le/stereo 44100Hz CD */
+
+#define SND_DEV_DSP_MMAP	16	/* OSSv4 compatible /dev/dsp_mmap */
+
+#define SND_DEV_LAST		SND_DEV_DSP_MMAP
+#define SND_DEV_MAX		PCMMAXDEV
+
 #define DSP_DEFAULT_SPEED	8000
 
 #define ON		1
@@ -565,6 +581,7 @@ struct snddev_info {
 			} busy;
 		} pcm;
 	} channels;
+	TAILQ_HEAD(dsp_cdevinfo_linkhead, dsp_cdevinfo) dsp_cdevinfo_pool;
 	struct snd_clone *clones;
 	struct pcm_channel *fakechan;
 	unsigned devcount, playcount, reccount, pvchancount, rvchancount ;
@@ -580,6 +597,7 @@ struct snddev_info {
 	uint32_t rvchanrate, rvchanformat;
 	struct sysctl_ctx_list play_sysctl_ctx, rec_sysctl_ctx;
 	struct sysctl_oid *play_sysctl_tree, *rec_sysctl_tree;
+	struct cv cv;
 };
 
 void	sound_oss_sysinfo(oss_sysinfo *);
@@ -591,6 +609,196 @@ void	sound_oss_sysinfo(oss_sysinfo *);
 void pcm_lock(struct snddev_info *d);
 void pcm_unlock(struct snddev_info *d);
 #endif
+
+/*
+ * For PCM_CV_[WAIT | ACQUIRE | RELEASE], be sure to surround these
+ * with pcm_lock/unlock() sequence, or I'll come to gnaw upon you!
+ */
+#ifdef SND_DIAGNOSTIC
+#define PCM_WAIT(x)		do {					\
+	if (mtx_owned((x)->lock) == 0)					\
+		panic("%s(%d): [PCM WAIT] Mutex not owned!",		\
+		    __func__, __LINE__);				\
+	while ((x)->flags & SD_F_BUSY) {				\
+		if (snd_verbose > 3)					\
+			device_printf((x)->dev,				\
+			    "%s(%d): [PCM WAIT] calling cv_wait().\n",	\
+			    __func__, __LINE__);			\
+		cv_wait(&(x)->cv, (x)->lock);				\
+	}								\
+} while(0)
+
+#define PCM_ACQUIRE(x)		do {					\
+	if (mtx_owned((x)->lock) == 0)					\
+		panic("%s(%d): [PCM ACQUIRE] Mutex not owned!",		\
+		    __func__, __LINE__);				\
+	if ((x)->flags & SD_F_BUSY)					\
+		panic("%s(%d): [PCM ACQUIRE] "				\
+		    "Trying to acquire BUSY cv!", __func__, __LINE__);	\
+	(x)->flags |= SD_F_BUSY;					\
+} while(0)
+
+#define PCM_RELEASE(x)		do {					\
+	if (mtx_owned((x)->lock) == 0)					\
+		panic("%s(%d): [PCM RELEASE] Mutex not owned!",		\
+		    __func__, __LINE__);				\
+	if ((x)->flags & SD_F_BUSY) {					\
+		(x)->flags &= ~SD_F_BUSY;				\
+		if ((x)->cv.cv_waiters != 0) {				\
+			if ((x)->cv.cv_waiters > 1 && snd_verbose > 3)	\
+				device_printf((x)->dev,			\
+				    "%s(%d): [PCM RELEASE] "		\
+				    "cv_waiters=%d > 1!\n",		\
+				    __func__, __LINE__,			\
+				    (x)->cv.cv_waiters);		\
+			cv_broadcast(&(x)->cv);				\
+		}							\
+	} else								\
+		panic("%s(%d): [PCM RELEASE] Releasing non-BUSY cv!",	\
+		    __func__, __LINE__);				\
+} while(0)
+
+/* Quick version, for shorter path. */
+#define PCM_ACQUIRE_QUICK(x)	do {					\
+	if (mtx_owned((x)->lock) != 0)					\
+		panic("%s(%d): [PCM ACQUIRE QUICK] Mutex owned!",	\
+		    __func__, __LINE__);				\
+	pcm_lock(x);							\
+	PCM_WAIT(x);							\
+	PCM_ACQUIRE(x);							\
+	pcm_unlock(x);							\
+} while(0)
+
+#define PCM_RELEASE_QUICK(x)	do {					\
+	if (mtx_owned((x)->lock) != 0)					\
+		panic("%s(%d): [PCM RELEASE QUICK] Mutex owned!",	\
+		    __func__, __LINE__);				\
+	pcm_lock(x);							\
+	PCM_RELEASE(x);							\
+	pcm_unlock(x);							\
+} while(0)
+
+#define PCM_BUSYASSERT(x)	do {					\
+	if (!((x) != NULL && ((x)->flags & SD_F_BUSY)))			\
+		panic("%s(%d): [PCM BUSYASSERT] "			\
+		    "Failed, snddev_info=%p", __func__, __LINE__, x);	\
+} while(0)
+
+#define PCM_GIANT_ENTER(x)	do {					\
+	int _pcm_giant = 0;						\
+	if (mtx_owned((x)->lock) != 0)					\
+		panic("%s(%d): [GIANT ENTER] PCM lock owned!",		\
+		    __func__, __LINE__);				\
+	if (mtx_owned(&Giant) != 0 && snd_verbose > 3)			\
+		device_printf((x)->dev,					\
+		    "%s(%d): [GIANT ENTER] Giant owned!\n",		\
+		    __func__, __LINE__);				\
+	if (!((x)->flags & SD_F_MPSAFE) && mtx_owned(&Giant) == 0)	\
+		do {							\
+			mtx_lock(&Giant);				\
+			_pcm_giant = 1;					\
+		} while(0)
+
+#define PCM_GIANT_EXIT(x)	do {					\
+	if (mtx_owned((x)->lock) != 0)					\
+		panic("%s(%d): [GIANT EXIT] PCM lock owned!",		\
+		    __func__, __LINE__);				\
+	if (!(_pcm_giant == 0 || _pcm_giant == 1))			\
+		panic("%s(%d): [GIANT EXIT] _pcm_giant screwed!",	\
+		    __func__, __LINE__);				\
+	if ((x)->flags & SD_F_MPSAFE) {					\
+		if (_pcm_giant == 1)					\
+			panic("%s(%d): [GIANT EXIT] MPSAFE Giant?",	\
+			    __func__, __LINE__);			\
+		if (mtx_owned(&Giant) != 0 && snd_verbose > 3)		\
+			device_printf((x)->dev,				\
+			    "%s(%d): [GIANT EXIT] Giant owned!\n",	\
+			    __func__, __LINE__);			\
+	}								\
+	if (_pcm_giant != 0) {						\
+		if (mtx_owned(&Giant) == 0)				\
+			panic("%s(%d): [GIANT EXIT] Giant not owned!",	\
+			    __func__, __LINE__);			\
+		_pcm_giant = 0;						\
+		mtx_unlock(&Giant);					\
+	}								\
+} while(0)
+#else /* SND_DIAGNOSTIC */
+#define PCM_WAIT(x)		do {					\
+	mtx_assert((x)->lock, MA_OWNED);				\
+	while ((x)->flags & SD_F_BUSY)					\
+		cv_wait(&(x)->cv, (x)->lock);				\
+} while(0)
+
+#define PCM_ACQUIRE(x)		do {					\
+	mtx_assert((x)->lock, MA_OWNED);				\
+	KASSERT(!((x)->flags & SD_F_BUSY),				\
+	    ("%s(%d): [PCM ACQUIRE] Trying to acquire BUSY cv!",	\
+	    __func__, __LINE__));					\
+	(x)->flags |= SD_F_BUSY;					\
+} while(0)
+
+#define PCM_RELEASE(x)		do {					\
+	mtx_assert((x)->lock, MA_OWNED);				\
+	KASSERT((x)->flags & SD_F_BUSY,					\
+	    ("%s(%d): [PCM RELEASE] Releasing non-BUSY cv!",		\
+	    __func__, __LINE__));					\
+	(x)->flags &= ~SD_F_BUSY;					\
+	if ((x)->cv.cv_waiters != 0)					\
+		cv_broadcast(&(x)->cv);					\
+} while(0)
+
+/* Quick version, for shorter path. */
+#define PCM_ACQUIRE_QUICK(x)	do {					\
+	mtx_assert((x)->lock, MA_NOTOWNED);				\
+	pcm_lock(x);							\
+	PCM_WAIT(x);							\
+	PCM_ACQUIRE(x);							\
+	pcm_unlock(x);							\
+} while(0)
+
+#define PCM_RELEASE_QUICK(x)	do {					\
+	mtx_assert((x)->lock, MA_NOTOWNED);				\
+	pcm_lock(x);							\
+	PCM_RELEASE(x);							\
+	pcm_unlock(x);							\
+} while(0)
+
+#define PCM_BUSYASSERT(x)	KASSERT(x != NULL &&			\
+				    ((x)->flags & SD_F_BUSY),		\
+				    ("%s(%d): [PCM BUSYASSERT] "	\
+				    "Failed, snddev_info=%p",		\
+				    __func__, __LINE__, x))
+
+#define PCM_GIANT_ENTER(x)	do {					\
+	int _pcm_giant = 0;						\
+	mtx_assert((x)->lock, MA_NOTOWNED);				\
+	if (!((x)->flags & SD_F_MPSAFE) && mtx_owned(&Giant) == 0)	\
+		do {							\
+			mtx_lock(&Giant);				\
+			_pcm_giant = 1;					\
+		} while(0)
+
+#define PCM_GIANT_EXIT(x)	do {					\
+	mtx_assert((x)->lock, MA_NOTOWNED);				\
+	KASSERT(_pcm_giant == 0 || _pcm_giant == 1,			\
+	    ("%s(%d): [GIANT EXIT] _pcm_giant screwed!",		\
+	    __func__, __LINE__));					\
+	KASSERT(!((x)->flags & SD_F_MPSAFE) ||				\
+	    (((x)->flags & SD_F_MPSAFE) && _pcm_giant == 0),		\
+	    ("%s(%d): [GIANT EXIT] MPSAFE Giant?",			\
+	    __func__, __LINE__));					\
+	if (_pcm_giant != 0) {						\
+		mtx_assert(&Giant, MA_OWNED);				\
+		_pcm_giant = 0;						\
+		mtx_unlock(&Giant);					\
+	}								\
+} while(0)
+#endif /* !SND_DIAGNOSTIC */
+
+#define PCM_GIANT_LEAVE(x)						\
+	PCM_GIANT_EXIT(x);						\
+} while(0)
 
 #ifdef KLD_MODULE
 #define PCM_KLDSTRING(a) ("kld " # a)
