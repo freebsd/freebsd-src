@@ -34,8 +34,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * Modifications for SUN TYPE 6 USB Keyboard by
- *  Jörg Peter Schley (jps@scxnet.de)
  */
 
 #include <sys/cdefs.h>
