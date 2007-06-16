@@ -68,6 +68,10 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 	KASSERT(PRIV_VALID(priv), ("priv_check_cred: invalid privilege %d",
 	    priv));
 
+	/*
+	 * We first evaluate policies that may deny the granting of
+	 * privilege unilaterally.
+	 */
 #ifdef MAC
 	error = mac_priv_check(cred, priv);
 	if (error)
@@ -84,21 +88,28 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 
 	/*
 	 * Having determined if privilege is restricted by various policies,
-	 * now determine if privilege is granted.  For now, we allow
-	 * short-circuit boolean evaluation, so may not call all policies.
-	 * Perhaps we should.
+	 * now determine if privilege is granted.  At this point, any policy
+	 * may grant privilege.  For now, we allow short-circuit boolean
+	 * evaluation, so may not call all policies.  Perhaps we should.
 	 *
 	 * Superuser policy grants privilege based on the effective (or in
-	 * certain edge cases, real) uid being 0.  We allow the policy to be
-	 * globally disabled, although this is currently of limited utility.
+	 * the case of specific privileges, real) uid being 0.  We allow the
+	 * superuser policy to be globally disabled, although this is
+	 * currenty of limited utility.
 	 */
 	if (suser_enabled) {
-		if (flags & SUSER_RUID) {
+		switch (priv) {
+		case PRIV_MAXFILES:
+		case PRIV_MAXPROC:
+		case PRIV_PROC_LIMIT:
 			if (cred->cr_ruid == 0)
 				return (0);
-		} else {
+			break;
+
+		default:
 			if (cred->cr_uid == 0)
 				return (0);
+			break;
 		}
 	}
 
