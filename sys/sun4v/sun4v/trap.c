@@ -67,6 +67,8 @@
 #include <sys/ktrace.h>
 #endif
 
+#include <dev/ofw/openfirm.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -237,11 +239,35 @@ SYSCTL_INT(_debug, OID_AUTO, debugger_on_signal, CTLFLAG_RW,
     &debugger_on_signal, 0, "");
 #endif
 
+/*
+ * This interface allows the client to safely take over the %tba by
+ * the prom's service. The prom will take care of the quiescence of
+ * interrupts and handle any pending soft interrupts.
+ * This call also sets the MMU fault status area for the CPU.
+ */
+void
+set_mmfsa_traptable(void *tba_addr, uint64_t mmfsa_ra)
+{
+	static struct {
+	cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+		cell_t tba_addr;
+		cell_t mmfsa_ra;
+	} args = {
+		(cell_t)"SUNW,set-trap-table",
+		2,
+	};
+
+	args.tba_addr = (cell_t)tba_addr;
+	args.mmfsa_ra = mmfsa_ra;
+	openfirmware(&args);
+}
+
 void 
 trap_init(void)
 {
 	vm_paddr_t mmfsa;
-	int i;
 
 	mmfsa = mmu_fault_status_area + (MMFSA_SIZE*curcpu);
 
@@ -249,7 +275,7 @@ trap_init(void)
 	set_mmfsa_scratchpad(mmfsa);
 
 	init_mondo_queue();
-	OF_set_mmfsa_traptable(&tl0_base, mmfsa);
+	set_mmfsa_traptable(&tl0_base, mmfsa);
 }
 
 void
