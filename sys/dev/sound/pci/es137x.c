@@ -1480,14 +1480,14 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 	struct es_info *es;
 	struct snddev_info *d;
 	struct snd_mixer *m;
-	struct cdev *i_dev;
 	device_t dev;
 	uint32_t val, set;
 	int recsrc, level, err;
 
 	dev = oidp->oid_arg1;
 	d = device_get_softc(dev);
-	if (d == NULL || d->mixer_dev == NULL || d->mixer_dev->si_drv1 == NULL)
+	if (!PCM_REGISTERED(d) || d->mixer_dev == NULL ||
+	    d->mixer_dev->si_drv1 == NULL)
 		return (EINVAL);
 	es = d->devinfo;
 	if (es == NULL)
@@ -1504,22 +1504,27 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	if (val == set)
 		return (0);
-	i_dev = d->mixer_dev;
-	if (mixer_ioctl(i_dev, 0, (caddr_t)&recsrc, 0, NULL) != EBADF)
+	PCM_ACQUIRE_QUICK(d);
+	m = (d->mixer_dev != NULL) ? d->mixer_dev->si_drv1 : NULL;
+	if (m == NULL) {
+		PCM_RELEASE_QUICK(d);
+		return (ENODEV);
+	}
+	if (mixer_busy(m) != 0) {
+		PCM_RELEASE_QUICK(d);
 		return (EBUSY);
-	err = mixer_ioctl(i_dev, MIXER_READ(SOUND_MIXER_PCM), (caddr_t)&level,
-	    -1, NULL);
-	if (!err)
-		err = mixer_ioctl(i_dev, MIXER_READ(SOUND_MIXER_RECSRC),
-		    (caddr_t)&recsrc, -1, NULL);
-	if (err)
-		return (err);
-	if (level < 0)
-		return (EINVAL);
+	}
+	level = mix_get(m, SOUND_MIXER_PCM);
+	recsrc = mix_getrecsrc(m);
+	if (level < 0 || recsrc < 0) {
+		PCM_RELEASE_QUICK(d);
+		return (ENXIO);
+	}
 
 	ES_LOCK(es);
 	if (es->ctrl & (CTRL_ADC_EN | CTRL_DAC1_EN | CTRL_DAC2_EN)) {
 		ES_UNLOCK(es);
+		PCM_RELEASE_QUICK(d);
 		return (EBUSY);
 	}
 	if (val)
@@ -1527,20 +1532,16 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 	else
 		es->escfg = ES_SET_SINGLE_PCM_MIX(es->escfg, 0);
 	ES_UNLOCK(es);
-	m = i_dev->si_drv1;
 	if (!val) {
-		mix_setdevs(m, mix_getdevs(d->mixer_dev->si_drv1) |
-		    (1 << SOUND_MIXER_SYNTH));
-		mix_setrecdevs(m, mix_getrecdevs(d->mixer_dev->si_drv1) |
-		    (1 << SOUND_MIXER_SYNTH));
-		err = mixer_ioctl(i_dev, MIXER_WRITE(SOUND_MIXER_SYNTH),
-		    (caddr_t)&level, -1, NULL);
+		mix_setdevs(m, mix_getdevs(m) | (1 << SOUND_MIXER_SYNTH));
+		mix_setrecdevs(m, mix_getrecdevs(m) | (1 << SOUND_MIXER_SYNTH));
+		err = mix_set(m, SOUND_MIXER_SYNTH, level & 0x7f,
+		    (level >> 8) & 0x7f);
 	} else {
-		err = mixer_ioctl(i_dev, MIXER_WRITE(SOUND_MIXER_SYNTH),
-		    (caddr_t)&level, -1, NULL);
-		mix_setdevs(m, mix_getdevs(d->mixer_dev->si_drv1) &
-		    ~(1 << SOUND_MIXER_SYNTH));
-		mix_setrecdevs(m, mix_getrecdevs(d->mixer_dev->si_drv1) &
+		err = mix_set(m, SOUND_MIXER_SYNTH, level & 0x7f,
+		    (level >> 8) & 0x7f);
+		mix_setdevs(m, mix_getdevs(m) & ~(1 << SOUND_MIXER_SYNTH));
+		mix_setrecdevs(m, mix_getrecdevs(m) &
 		    ~(1 << SOUND_MIXER_SYNTH));
 	}
 	if (!err) {
@@ -1550,10 +1551,11 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 		else if (recsrc & (1 << SOUND_MIXER_SYNTH))
 			recsrc |= 1 << SOUND_MIXER_PCM;
 		if (level != recsrc)
-			err = mixer_ioctl(i_dev,
-			    MIXER_WRITE(SOUND_MIXER_RECSRC),
-			    (caddr_t)&recsrc, -1, NULL);
+			err = mix_setrecsrc(m, recsrc);
 	}
+
+	PCM_RELEASE_QUICK(d);
+
 	return (err);
 }
 

@@ -170,7 +170,7 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 
 	bufsize = blkcnt * blksz;
 
-	if (b->tmpbuf == NULL || bufsize > b->allocsize ||
+	if (bufsize > b->allocsize ||
 	    bufsize < (b->allocsize >> SNDBUF_CACHE_SHIFT)) {
 		allocsize = round_page(bufsize);
 		chn_unlock(b->channel);
