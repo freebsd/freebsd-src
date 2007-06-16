@@ -528,13 +528,13 @@ vm_phys_zero_pages_idle(void)
 }
 
 /*
- * Allocate a contiguous set of physical pages of the given size from
- * the free lists.  All of the physical pages must be at or above the
- * given physical address "low" and below the given physical address
- * "high".  If the given value "alignment" is non-zero, then the
- * lowest page in the set must be aligned to that value.  If the given
- * value "boundary" is non-zero, then the set of physical pages cannot
- * cross any boundary that is a multiple of that value.  Both
+ * Allocate a contiguous set of physical pages of the given size
+ * "npages" from the free lists.  All of the physical pages must be at
+ * or above the given physical address "low" and below the given
+ * physical address "high".  The given value "alignment" determines the
+ * alignment of the first physical page in the set.  If the given value
+ * "boundary" is non-zero, then the set of physical pages cannot cross
+ * any physical address boundary that is a multiple of that value.  Both
  * "alignment" and "boundary" must be a power of two.
  */
 vm_page_t
