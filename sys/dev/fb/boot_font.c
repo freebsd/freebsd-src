@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fb/gfb.h>
 
-struct gfb_font bold8x16 = {
+const struct gfb_font bold8x16 = {
 	8,
 	16,
 	{
