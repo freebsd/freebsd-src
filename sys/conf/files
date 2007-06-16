@@ -2078,6 +2078,7 @@ vm/vm_page.c			standard
 vm/vm_pageout.c			standard
 vm/vm_pageq.c			standard
 vm/vm_pager.c			standard
+vm/vm_phys.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard

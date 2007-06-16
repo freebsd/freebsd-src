@@ -682,8 +682,7 @@ vm_pageout_scan(int pass)
 	struct thread *td;
 	vm_offset_t size, bigsize;
 	vm_object_t object;
-	int actcount, cache_cur, cache_first_failure;
-	static int cache_last_free;
+	int actcount;
 	int vnodes_skipped = 0;
 	int maxlaunder;
 
@@ -1145,12 +1144,8 @@ unlock_and_continue:
 	 * are considered basically 'free', moving pages from cache to free
 	 * does not effect other calculations.
 	 */
-	cache_cur = cache_last_free;
-	cache_first_failure = -1;
-	while (cnt.v_free_count < cnt.v_free_reserved && (cache_cur =
-	    (cache_cur + PQ_PRIME2) & PQ_COLORMASK) != cache_first_failure) {
-		TAILQ_FOREACH(m, &vm_page_queues[PQ_CACHE + cache_cur].pl,
-		    pageq) {
+	while (cnt.v_free_count < cnt.v_free_reserved) {
+		TAILQ_FOREACH(m, &vm_page_queues[PQ_CACHE].pl, pageq) {
 			KASSERT(m->dirty == 0,
 			    ("Found dirty cache page %p", m));
 			KASSERT(!pmap_page_is_mapped(m),
@@ -1167,13 +1162,11 @@ unlock_and_continue:
 				vm_page_free(m);
 				VM_OBJECT_UNLOCK(object);
 				cnt.v_dfree++;
-				cache_last_free = cache_cur;
-				cache_first_failure = -1;
 				break;
 			}
 		}
-		if (m == NULL && cache_first_failure == -1)
-			cache_first_failure = cache_cur;
+		if (m == NULL)
+			break;
 	}
 	vm_page_unlock_queues();
 #if !defined(NO_SWAPPING)
@@ -1425,7 +1418,7 @@ vm_pageout()
 	cnt.v_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
 	    cnt.v_interrupt_free_min;
 	cnt.v_free_reserved = vm_pageout_page_count +
-	    cnt.v_pageout_free_min + (cnt.v_page_count / 768) + PQ_NUMCOLORS;
+	    cnt.v_pageout_free_min + (cnt.v_page_count / 768);
 	cnt.v_free_severe = cnt.v_free_min / 2;
 	cnt.v_free_min += cnt.v_free_reserved;
 	cnt.v_free_severe += cnt.v_free_reserved;
