@@ -1065,6 +1065,7 @@ static void
 sta_authretry(struct ieee80211com *ic, struct ieee80211_node *ni, int reason)
 {
 	switch (reason) {
+	case IEEE80211_STATUS_SUCCESS:
 	case IEEE80211_STATUS_TIMEOUT:
 	case IEEE80211_REASON_ASSOC_EXPIRE:
 	case IEEE80211_REASON_NOT_AUTHED:
