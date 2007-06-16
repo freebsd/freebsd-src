@@ -51,6 +51,10 @@ struct mc146818_softc {
 	void (*sc_setcent)(device_t, u_int);
 };
 
+/* Default read/write functions */
+u_int mc146818_def_read(device_t, u_int);
+void mc146818_def_write(device_t, u_int, u_int);
+
 /* Chip attach function */
 int mc146818_attach(device_t);
 

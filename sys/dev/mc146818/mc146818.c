@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 
 static u_int	mc146818_def_getcent(device_t);
 static void	mc146818_def_setcent(device_t, u_int);
-static u_int	mc146818_def_read(device_t, u_int);
-static void	mc146818_def_write(device_t, u_int, u_int);
 
 int
 mc146818_attach(device_t dev)
@@ -242,7 +240,7 @@ mc146818_settime(device_t dev, struct timespec *ts)
 #define	MC_ADDR	0
 #define	MC_DATA	1
 
-static u_int
+u_int
 mc146818_def_read(device_t dev, u_int reg)
 {
 	struct mc146818_softc *sc;
@@ -252,7 +250,7 @@ mc146818_def_read(device_t dev, u_int reg)
 	return (bus_space_read_1(sc->sc_bst, sc->sc_bsh, MC_DATA));
 }
 
-static void
+void
 mc146818_def_write(device_t dev, u_int reg, u_int val)
 {
 	struct mc146818_softc *sc;
