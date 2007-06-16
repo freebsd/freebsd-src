@@ -1211,8 +1211,7 @@ pccard_filter(void *arg)
 	if (doisr) {
 		if (pf->intr_filter != NULL)
 			return (pf->intr_filter(pf->intr_handler_arg));
-		else 
-			return (FILTER_SCHEDULE_THREAD);
+		return (FILTER_SCHEDULE_THREAD);
 	}
 	return (FILTER_STRAY);
 }
@@ -1238,7 +1237,7 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 	if (pf->intr_filter != NULL || pf->intr_handler != NULL)
 		panic("Only one interrupt handler per function allowed");
 	err = bus_generic_setup_intr(dev, child, irq, flags, pccard_filter, 
-	    pccard_intr, pf, cookiep);
+	    intr ? pccard_intr : NULL, pf, cookiep);
 	if (err != 0)
 		return (err);
 	pf->intr_filter = filt;
