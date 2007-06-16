@@ -9651,9 +9651,9 @@ sctp_send_packet_dropped(struct sctp_tcb *stcb, struct sctp_nets *net,
 	struct sctp_tmit_chunk *chk;
 	uint8_t *datap;
 	int len;
-	unsigned int small_one;
+	int was_trunc = 0;
 	struct ip *iph;
-
+	int fullsz = 0, trimby = 0;
 	long spc;
 
 	asoc = &stcb->asoc;
@@ -9686,6 +9686,17 @@ sctp_send_packet_dropped(struct sctp_tcb *stcb, struct sctp_nets *net,
 		ip6h = mtod(m, struct ip6_hdr *);
 		len = chk->send_size = htons(ip6h->ip6_plen);
 	}
+	if ((len + SCTP_MAX_OVERHEAD + sizeof(struct sctp_pktdrop_chunk)) >
+	    min(stcb->asoc.smallest_mtu, MCLBYTES)) {
+		/*
+		 * only send 1 mtu worth, trim off the excess on the end.
+		 */
+		fullsz = len + SCTP_MAX_OVERHEAD;
+		len = min(stcb->asoc.smallest_mtu, MCLBYTES) - SCTP_MAX_OVERHEAD;
+		trimby = len - fullsz;
+		m_adj(m, trimby);
+		was_trunc = 1;
+	}
 	chk->asoc = &stcb->asoc;
 	chk->data = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
 	if (chk->data == NULL) {
@@ -9700,20 +9711,17 @@ jump_out:
 		chk->data = NULL;
 		goto jump_out;
 	}
-	small_one = asoc->smallest_mtu;
-	if (small_one > MCLBYTES) {
-		/* Only one cluster worth of data MAX */
-		small_one = MCLBYTES;
-	}
 	chk->book_size = SCTP_SIZE32((chk->send_size + sizeof(struct sctp_pktdrop_chunk) +
 	    sizeof(struct sctphdr) + SCTP_MED_OVERHEAD));
 	chk->book_size_scale = 0;
-	if (chk->book_size > small_one) {
+	if (was_trunc) {
 		drp->ch.chunk_flags = SCTP_PACKET_TRUNCATED;
-		drp->trunc_len = htons(chk->send_size);
-		chk->send_size = small_one - (SCTP_MED_OVERHEAD +
-		    sizeof(struct sctp_pktdrop_chunk) +
-		    sizeof(struct sctphdr));
+		drp->trunc_len = htons(fullsz);
+		/*
+		 * Len is already adjusted to size minus overhead above take
+		 * out the pkt_drop chunk itself from it.
+		 */
+		chk->send_size = len - sizeof(struct sctp_pktdrop_chunk);
 		len = chk->send_size;
 	} else {
 		/* no truncation needed */
