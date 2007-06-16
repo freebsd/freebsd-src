@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/fb/fbreg.h>
-#include <dev/fb/gallant12x22.h>
+#include <dev/fb/gfb.h>
 #include <dev/fb/machfbreg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -135,7 +135,7 @@ struct machfb_softc {
 	int			sc_mclk_post_div;
 	int			sc_mclk_fb_div;
 
-	u_char			*sc_font;
+	const u_char		*sc_font;
 	int			sc_cbwidth;
 	vm_offset_t		sc_curoff;
 
@@ -252,6 +252,8 @@ static const char *machfb_memtype_names[] = {
 	"(N/A)", "DRAM", "EDO DRAM", "EDO DRAM", "SDRAM", "SGRAM", "WRAM",
 	"(unknown type)"
 };
+
+extern const struct gfb_font gallant12x22;
 
 static struct machfb_softc machfb_softc;
 static struct bus_space_tag machfb_bst_store[1];
@@ -587,13 +589,13 @@ machfb_init(int unit, video_adapter_t *adp, int flags)
 	if (OF_getprop(options, "screen-#columns", buf, sizeof(buf)) == -1)
 		return (ENXIO);
 	vi->vi_width = strtol(buf, NULL, 10);
-	vi->vi_cwidth = 12;
-	vi->vi_cheight = 22;
+	vi->vi_cwidth = gallant12x22.width;
+	vi->vi_cheight = gallant12x22.height;
 	vi->vi_flags = V_INFO_COLOR;
 	vi->vi_mem_model = V_INFO_MM_OTHER;
 
-	sc->sc_font = gallant12x22_data;
-	sc->sc_cbwidth = howmany(vi->vi_cwidth, 8);	/* width in bytes */
+	sc->sc_font = gallant12x22.data;
+	sc->sc_cbwidth = howmany(vi->vi_cwidth, NBBY);	/* width in bytes */
 	sc->sc_xmargin = (sc->sc_width - (vi->vi_width * vi->vi_cwidth)) / 2;
 	sc->sc_ymargin = (sc->sc_height - (vi->vi_height * vi->vi_cheight)) / 2;
 
@@ -1027,7 +1029,7 @@ static int
 machfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 {
 	struct machfb_softc *sc;
-	uint8_t *p;
+	const uint8_t *p;
 	int i;
 
 	sc = (struct machfb_softc *)adp;
