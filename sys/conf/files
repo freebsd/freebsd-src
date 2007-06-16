@@ -1205,6 +1205,11 @@ fs/umapfs/umap_vnops.c		optional umapfs
 fs/unionfs/union_subr.c		optional unionfs
 fs/unionfs/union_vfsops.c	optional unionfs
 fs/unionfs/union_vnops.c	optional unionfs
+fs/tmpfs/tmpfs_vnops.c		optional tmpfs
+fs/tmpfs/tmpfs_fifoops.c 	optional tmpfs
+fs/tmpfs/tmpfs_vfsops.c 	optional tmpfs
+fs/tmpfs/tmpfs_subr.c 		optional tmpfs
+fs/tmpfs/tmpfs_uma.c 		optional tmpfs
 gdb/gdb_cons.c			optional gdb
 gdb/gdb_main.c			optional gdb
 gdb/gdb_packet.c		optional gdb
