@@ -35,7 +35,7 @@
 struct gfb_font {
 	int width;
 	int height;
-	u_char data[256 * 32];
+	const u_char data[];
 };
 
 #endif /* _FB_GFB_H_ */
