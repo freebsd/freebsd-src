@@ -2543,7 +2543,12 @@ retry:
 			mode_buffer_len += sizeof (sa_comp_t);
 	}
 
-	mode_buffer = malloc(mode_buffer_len, M_SCSISA, M_WAITOK | M_ZERO);
+	/* XXX Fix M_NOWAIT */
+	mode_buffer = malloc(mode_buffer_len, M_SCSISA, M_NOWAIT | M_ZERO);
+	if (mode_buffer == NULL) {
+		xpt_release_ccb(ccb);
+		return (ENOMEM);
+	}
 	mode_hdr = (struct scsi_mode_header_6 *)mode_buffer;
 	mode_blk = (struct scsi_mode_blk_desc *)&mode_hdr[1];
 
