@@ -484,6 +484,7 @@ acpi_attach(device_t dev)
      * a problem but should be addressed eventually.
      */
     acpi_ec_ecdt_probe(dev);
+    acpi_hpet_table_probe(dev);
 
     /* Bring device objects and regions online. */
     if (ACPI_FAILURE(status = AcpiInitializeObjects(flags))) {
