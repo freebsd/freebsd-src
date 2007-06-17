@@ -405,7 +405,8 @@ kue_match(device_t self)
 static int
 kue_attach(device_t self)
 {
-	USB_ATTACH_START(kue, sc, uaa);
+	struct kue_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ifnet		*ifp;
 	usbd_status		err;
 	usb_interface_descriptor_t	*id;
