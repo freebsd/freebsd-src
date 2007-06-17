@@ -1291,7 +1291,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	vm_ooffset_t foff)
 {
 	boolean_t fitit;
-	vm_object_t object;
+	vm_object_t object = NULL;
 	int rv = KERN_SUCCESS;
 	int docow, error;
 	struct thread *td = curthread;
@@ -1349,6 +1349,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		/* FALLTHROUGH */
 	default:
 		error = EINVAL;
+		break;
 	}
 	if (error)
 		return (error);
