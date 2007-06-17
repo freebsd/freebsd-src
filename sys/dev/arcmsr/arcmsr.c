@@ -2155,7 +2155,7 @@ static u_int32_t arcmsr_attach(device_t dev)
 		printf("arcmsr%d: cam_sim_alloc failure!\n", unit);
 		return ENXIO;
 	}
-	if(xpt_bus_register(acb->psim, 0) != CAM_SUCCESS) {
+	if(xpt_bus_register(acb->psim, dev, 0) != CAM_SUCCESS) {
 		arcmsr_free_resource(acb);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, acb->irqres);
 		cam_sim_free(acb->psim, /*free_devq*/TRUE);

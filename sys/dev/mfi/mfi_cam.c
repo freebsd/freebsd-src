@@ -134,7 +134,7 @@ mfip_attach(device_t dev)
 	}
 
 	mtx_lock(&mfisc->mfi_io_lock);
-	if (xpt_bus_register(sc->sim, 0) != 0) {
+	if (xpt_bus_register(sc->sim, dev, 0) != 0) {
 		device_printf(dev, "XPT bus registration failed\n");
 		cam_sim_free(sc->sim, FALSE);
 		cam_simq_free(sc->devq);

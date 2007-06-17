@@ -109,6 +109,7 @@ dpt_eisa_attach (device_t dev)
 	int		error = 0;
 
 	dpt = device_get_softc(dev);
+	dpt->dev = dev;
 
 	dpt->io_rid = 0;
 	dpt->io_type = SYS_RES_IOPORT;

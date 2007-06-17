@@ -323,7 +323,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	/*
 	 * Create the device queue for our SIM(s).
 	 */
-	devq = cam_simq_alloc(maxq);
+	devq = cam_simq_alloc(1);
 	if (devq == NULL) {
 		mpt_prt(mpt, "Unable to allocate CAM SIMQ!\n");
 		error = ENOMEM;
@@ -334,7 +334,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Construct our SIM entry.
 	 */
 	mpt->sim =
-	    mpt_sim_alloc(mpt_action, mpt_poll, "mpt", mpt, 1, maxq, devq);
+	    mpt_sim_alloc(mpt_action, mpt_poll, "mpt", mpt, 1, 1, devq);
 	if (mpt->sim == NULL) {
 		mpt_prt(mpt, "Unable to allocate CAM SIM!\n");
 		cam_simq_free(devq);
@@ -346,7 +346,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Register exactly this bus.
 	 */
 	MPT_LOCK(mpt);
-	if (xpt_bus_register(mpt->sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(mpt->sim, mpt->dev, 0) != CAM_SUCCESS) {
 		mpt_prt(mpt, "Bus registration Failed!\n");
 		error = ENOMEM;
 		MPT_UNLOCK(mpt);
@@ -374,7 +374,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Create a "bus" to export all hidden disks to CAM.
 	 */
 	mpt->phydisk_sim =
-	    mpt_sim_alloc(mpt_action, mpt_poll, "mpt", mpt, 1, maxq, devq);
+	    mpt_sim_alloc(mpt_action, mpt_poll, "mpt", mpt, 1, 1, devq);
 	if (mpt->phydisk_sim == NULL) {
 		mpt_prt(mpt, "Unable to allocate Physical Disk CAM SIM!\n");
 		error = ENOMEM;
@@ -385,7 +385,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Register this bus.
 	 */
 	MPT_LOCK(mpt);
-	if (xpt_bus_register(mpt->phydisk_sim, 1) != CAM_SUCCESS) {
+	if (xpt_bus_register(mpt->phydisk_sim, mpt->dev, 1) != CAM_SUCCESS) {
 		mpt_prt(mpt, "Physical Disk Bus registration Failed!\n");
 		error = ENOMEM;
 		MPT_UNLOCK(mpt);

@@ -3784,7 +3784,7 @@ ncr_attach (device_t dev)
 	}
 
 	
-	if (xpt_bus_register(np->sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(np->sim, dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(np->sim, /*free_devq*/ TRUE);
 		return ENOMEM;
 	}

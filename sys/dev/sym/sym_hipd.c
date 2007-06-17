@@ -8978,7 +8978,7 @@ static int sym_cam_attach(hcb_p np)
 		goto fail;
 	devq = 0;
 
-	if (xpt_bus_register(sim, 0) != CAM_SUCCESS)
+	if (xpt_bus_register(sim, np->device, 0) != CAM_SUCCESS)
 		goto fail;
 	np->sim = sim;
 	sim = 0;

@@ -2491,7 +2491,7 @@ amd_attach(device_t dev)
 		return ENXIO;
 	}
 
-	if (xpt_bus_register(amd->psim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(amd->psim, dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(amd->psim, /*free_devq*/TRUE);
 		if (bootverbose)
 			printf("amd_attach: xpt_bus_register failure!\n");

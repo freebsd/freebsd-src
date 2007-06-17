@@ -158,7 +158,7 @@ amr_cam_attach(struct amr_softc *sc)
 	}
 
 	/* register the bus ID so we can get it later */
-	if (xpt_bus_register(sc->amr_cam_sim[chn], chn)) {
+	if (xpt_bus_register(sc->amr_cam_sim[chn], sc->amr_dev, chn)) {
 	    device_printf(sc->amr_dev, "CAM XPT bus registration failed\n");
 	    return(ENXIO);
 	}
