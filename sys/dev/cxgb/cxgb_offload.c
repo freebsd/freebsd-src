@@ -1512,7 +1512,7 @@ cxgb_offload_init(void)
 		return;
 	else
 		inited = 1;
-
+	
 	mtx_init(&cxgb_db_lock, "ofld db", NULL, MTX_DEF);
 	rw_init(&adapter_list_lock, "ofld adap list");
 	TAILQ_INIT(&client_list);
@@ -1555,6 +1555,14 @@ cxgb_offload_init(void)
 void 
 cxgb_offload_exit(void)
 {
+	static int deinited = 0;
+
+	if (deinited)
+		return;
+
+	deinited = 1;
+	mtx_destroy(&cxgb_db_lock);
+	rw_destroy(&adapter_list_lock);
 #if 0	
 	offload_proc_cleanup();
 #endif	
