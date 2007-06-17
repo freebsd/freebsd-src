@@ -911,7 +911,7 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 static int
 umass_match(device_t self)
 {
-	USB_MATCH_START(umass, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct umass_softc *sc = device_get_softc(self);
 
 	sc->sc_dev = self;

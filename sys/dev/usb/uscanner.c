@@ -293,7 +293,7 @@ USB_DECLARE_DRIVER(uscanner);
 static int
 uscanner_match(device_t self)
 {
-	USB_MATCH_START(uscanner, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->iface != NULL)
 		return UMATCH_NONE;

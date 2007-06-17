@@ -141,7 +141,7 @@ MODULE_VERSION(umct, 1);
 static int
 umct_match(device_t self)
 {
-	USB_MATCH_START(umct, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	int i;
 
 	if (uaa->iface != NULL)

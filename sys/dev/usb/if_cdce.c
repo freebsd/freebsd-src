@@ -111,7 +111,7 @@ static const struct cdce_type cdce_devs[] = {
 static int
 cdce_match(device_t self)
 {
-	USB_MATCH_START(cdce, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_interface_descriptor_t *id;
 
 	if (uaa->iface == NULL)

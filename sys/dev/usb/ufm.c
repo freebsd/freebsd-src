@@ -103,7 +103,7 @@ USB_DECLARE_DRIVER(ufm);
 static int
 ufm_match(device_t self)
 {
-	USB_MATCH_START(ufm, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_device_descriptor_t *dd;
 
 	DPRINTFN(10,("ufm_match\n"));
