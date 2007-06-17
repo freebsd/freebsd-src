@@ -513,10 +513,11 @@ again:
 	lenat = (int *)target;
 	*lenat = packet_log_end;
 	lenat++;
-	this_copy = min((length - sizeof(int)), packet_log_end);
+	this_copy = min((length - sizeof(int)), SCTP_PACKET_LOG_SIZE);
 	memcpy((void *)lenat, (void *)packet_log_buffer, this_copy);
 	if (SCTP_PKTLOG_WRITERS_NEED_LOCK) {
-		atomic_subtract_int(&packet_log_writers, SCTP_PKTLOG_WRITERS_NEED_LOCK);
+		atomic_subtract_int(&packet_log_writers,
+		    SCTP_PKTLOG_WRITERS_NEED_LOCK);
 	}
 	SCTP_IP_PKTLOG_UNLOCK();
 	return (this_copy + sizeof(int));
