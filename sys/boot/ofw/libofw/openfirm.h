@@ -106,10 +106,7 @@ int		OF_seek(ihandle_t, u_quad_t);
 
 /* Memory functions */
 void 		*OF_claim(void *, u_int, u_int);
-vm_offset_t 	OF_claim_virt(vm_offset_t, size_t, int);
-void		*OF_alloc_phys(size_t, int);
 void		OF_release(void *, u_int);
-void		OF_release_phys(vm_offset_t, u_int);
 
 /* Control transfer functions */
 void		OF_boot(char *);
@@ -117,13 +114,7 @@ void		OF_enter(void);
 void		OF_exit(void) __attribute__((noreturn));
 void		OF_chain(void *, u_int, void (*)(), void *, u_int);
 
-#if 0
-/* User interface functions */
-/* OF_interpret */
-void 		*OF_set_callback(void *);
-void		OF_set_symbol_lookup(void *, void *);
-#endif
-
 /* Time function */
 int		OF_milliseconds(void);
+
 #endif /* _OPENFIRM_H_ */
