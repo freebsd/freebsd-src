@@ -126,9 +126,6 @@ __CONCAT(dname,_detach)(device_t self)
 #define USB_GET_SC(dname, unit, sc) \
 	sc = devclass_get_softc(__CONCAT(dname,_devclass), unit)
 
-#define USB_DO_ATTACH(dev, bdev, parent, args, print, sub) \
-	(device_probe_and_attach((bdev)) == 0 ? (bdev) : 0)
-
 #include <sys/syslog.h>
 /*
 #define logprintf(args...)	log(LOG_DEBUG, args)
