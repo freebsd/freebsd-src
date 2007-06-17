@@ -209,7 +209,7 @@ iir_pci_attach(device_t dev)
     }
 
     gdt = device_get_softc(dev);
-    bzero(gdt, sizeof(struct gdt_softc));
+    gdt->sc_devnode = dev;
     gdt->sc_init_level = 0;
     gdt->sc_dpmemt = rman_get_bustag(io);
     gdt->sc_dpmemh = rman_get_bushandle(io);

@@ -202,7 +202,7 @@ ahc_attach(struct ahc_softc *ahc)
 		goto fail;
 	}
 
-	if (xpt_bus_register(sim, bus_id) != CAM_SUCCESS) {
+	if (xpt_bus_register(sim, ahc->dev_softc, bus_id) != CAM_SUCCESS) {
 		cam_sim_free(sim, /*free_devq*/TRUE);
 		sim = NULL;
 		goto fail;
@@ -237,7 +237,8 @@ ahc_attach(struct ahc_softc *ahc)
 			goto fail;
 		}
 		
-		if (xpt_bus_register(sim2, bus_id2) != CAM_SUCCESS) {
+		if (xpt_bus_register(sim2, ahc->dev_softc, bus_id2) !=
+		    CAM_SUCCESS) {
 			printf("ahc_attach: Unable to attach second "
 			       "bus due to resource shortage");
 			/*

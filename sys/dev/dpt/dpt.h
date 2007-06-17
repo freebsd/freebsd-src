@@ -1018,6 +1018,7 @@ struct sg_map_node {
 
 /* Main state machine and interface structure */
 typedef struct dpt_softc {
+	device_t		dev;
 
 	struct resource *	io_res;
 	int			io_rid;

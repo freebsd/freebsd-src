@@ -880,7 +880,7 @@ bt_attach(device_t dev)
 		return (ENOMEM);
 	}
 	
-	if (xpt_bus_register(bt->sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(bt->sim, dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(bt->sim, /*free_devq*/TRUE);
 		return (ENXIO);
 	}

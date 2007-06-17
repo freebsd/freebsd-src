@@ -169,7 +169,7 @@ vpo_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (xpt_bus_register(vpo->sim, /*bus*/0) != CAM_SUCCESS) {
+	if (xpt_bus_register(vpo->sim, dev, /*bus*/0) != CAM_SUCCESS) {
 		cam_sim_free(vpo->sim, /*free_devq*/TRUE);
 		return (ENXIO);
 	}

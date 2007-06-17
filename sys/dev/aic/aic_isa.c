@@ -101,6 +101,7 @@ aic_isa_alloc_resources(device_t dev)
 		}
 	}
 
+	sc->sc_aic.dev = dev;
 	sc->sc_aic.unit = device_get_unit(dev);
 	sc->sc_aic.tag = rman_get_bustag(sc->sc_port);
 	sc->sc_aic.bsh = rman_get_bushandle(sc->sc_port);

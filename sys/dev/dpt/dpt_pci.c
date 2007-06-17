@@ -81,6 +81,7 @@ dpt_pci_attach (device_t dev)
 	u_int32_t	command;
 
 	dpt = device_get_softc(dev);
+	dpt->dev = dev;
 
 	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
 

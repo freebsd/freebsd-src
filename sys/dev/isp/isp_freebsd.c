@@ -156,7 +156,7 @@ isp_attach(ispsoftc_t *isp)
 	}
 	ISP_LOCK(isp);
 
-	if (xpt_bus_register(sim, primary) != CAM_SUCCESS) {
+	if (xpt_bus_register(sim, isp->isp_dev, primary) != CAM_SUCCESS) {
 		cam_sim_free(sim, TRUE);
 		return;
 	}
@@ -191,7 +191,8 @@ isp_attach(ispsoftc_t *isp)
 			config_intrhook_disestablish(&isp->isp_osinfo.ehook);
 			return;
 		}
-		if (xpt_bus_register(sim, secondary) != CAM_SUCCESS) {
+		if (xpt_bus_register(sim, isp->isp_dev, secondary) !=
+		    CAM_SUCCESS) {
 			xpt_bus_deregister(cam_sim_path(isp->isp_sim));
 			xpt_free_path(isp->isp_path);
 			cam_sim_free(sim, TRUE);

@@ -178,7 +178,7 @@ aac_cam_attach(device_t dev)
 	}
 
 	/* Since every bus has it's own sim, every bus 'appears' as bus 0 */
-	if (xpt_bus_register(sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(sim, dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(sim, TRUE);
 		return (EIO);
 	}
