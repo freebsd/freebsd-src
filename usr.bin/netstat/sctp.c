@@ -540,92 +540,80 @@ sctp_stats(u_long off __unused, const char *name, int af1 __unused)
 	/*
 	 * input statistics
 	 */
-	p(sctps_recvpackets, "\t%lu total input packet%s\n");
-	p(sctps_recvdatagrams, "\t%lu total input datagram%s\n");
-	p(sctps_recvpktwithdata, "\t%lu total packet%s that had data\n");
-	p(sctps_recvsacks, "\t%lu total input SACK chunk%s\n");
-	p(sctps_recvdata, "\t%lu total input DATA chunk%s\n");
-	p(sctps_recvdupdata, "\t%lu total input duplicate DATA chunk%s\n");
-	p(sctps_recvheartbeat, "\t%lu total input HB chunk%s\n");
-	p(sctps_recvheartbeatack, "\t%lu total input HB-ACK chunk%s\n");
-	p(sctps_recvecne, "\t%lu total input ECNE chunk%s\n");
-	p(sctps_recvauth, "\t%lu total input AUTH chunk%s\n");
-	p(sctps_recvauthmissing, "\t%lu total input chunk%s missing AUTH\n");
-	p(sctps_recvivalhmacid, "\t%lu total number of invalid HMAC id%s "
-	    "received\n");
-	p(sctps_recvivalkeyid, "\t%lu total number of invalid %secret ids "
-	    "received\n");
-	p1a(sctps_recvauthfailed, "\t%lu total number of auth failed\n");
-	p(sctps_recvexpress, "\t%lu total fa%st path receives all one "
-	    "chunk\n");
-	p(sctps_recvexpressm, "\t%lu total fa%st path multi-part data\n");
+	p(sctps_recvpackets, "\t%lu input packet%s\n");
+	p(sctps_recvdatagrams, "\t\t%lu datagram%s\n");
+	p(sctps_recvpktwithdata, "\t\t%lu packet%s that had data\n");
+	p(sctps_recvsacks, "\t\t%lu input SACK chunk%s\n");
+	p(sctps_recvdata, "\t\t%lu input DATA chunk%s\n");
+	p(sctps_recvdupdata, "\t\t%lu duplicate DATA chunk%s\n");
+	p(sctps_recvheartbeat, "\t\t%lu input HB chunk%s\n");
+	p(sctps_recvheartbeatack, "\t\t%lu HB-ACK chunk%s\n");
+	p(sctps_recvecne, "\t\t%lu input ECNE chunk%s\n");
+	p(sctps_recvauth, "\t\t%lu input AUTH chunk%s\n");
+	p(sctps_recvauthmissing, "\t\t%lu chunk%s missing AUTH\n");
+	p(sctps_recvivalhmacid, "\t\t%lu invalid HMAC id%s received\n");
+	p(sctps_recvivalkeyid, "\t\t%lu invalid %secret ids received\n");
+	p1a(sctps_recvauthfailed, "\t\t%lu auth failed\n");
+	p(sctps_recvexpress, "\t\t%lu fa%st path receives all one chunk\n");
+	p(sctps_recvexpressm, "\t\t%lu fa%st path multi-part data\n");
 
 	/*
 	 * output statistics
 	 */
-	p(sctps_sendpackets, "\t%lu total output packet%s\n");
-	p(sctps_sendsacks, "\t%lu total output SACK%s\n");
-	p(sctps_senddata, "\t%lu total output DATA chunk%s\n");
-	p(sctps_sendretransdata, "\t%lu total output retran%smitted DATA "
-	    "chunks\n");
-	p(sctps_sendfastretrans, "\t%lu total output fa%st retransmitted "
-	    "DATA chunks\n");
-	p(sctps_sendmultfastretrans, "\t%lu total FR'%s that happened more "
-	    "than once to same chunk (u-del multi-fr algo).\n");
-	p(sctps_sendheartbeat, "\t%lu total output HB chunk%s\n");
-	p(sctps_sendecne, "\t%lu total output ECNE chunk%s\n");
-	p(sctps_sendauth, "\t%lu total output AUTH chunk%s\n");
-	p1a(sctps_senderrors, "\t%lu ip_output error counter\n");
+	p(sctps_sendpackets, "\t%lu output packet%s\n");
+	p(sctps_sendsacks, "\t\t%lu output SACK%s\n");
+	p(sctps_senddata, "\t\t%lu output DATA chunk%s\n");
+	p(sctps_sendretransdata, "\t\t%lu retran%smitted DATA chunks\n");
+	p(sctps_sendfastretrans, "\t\t%lu fa%st retransmitted DATA chunks\n");
+	p(sctps_sendmultfastretrans, "\t\t%lu FR'%s that happened more "
+	    "than once to same chunk.\n");
+	p(sctps_sendheartbeat, "\t\t%lu intput HB chunk%s\n");
+	p(sctps_sendecne, "\t\t%lu output ECNE chunk%s\n");
+	p(sctps_sendauth, "\t\t%lu output AUTH chunk%s\n");
+	p1a(sctps_senderrors, "\t\t%lu ip_output error counter\n");
 
 	/*
 	 * PCKDROPREP statistics
 	 */
-	p1a(sctps_pdrpfmbox, "\t%lu packet drop from middle box\n");
-	p(sctps_pdrpfehos, "\t%lu packet drop from end ho%st\n");
-	p(sctps_pdrpmbda, "\t%lu packet drop%s with data\n");
-	p(sctps_pdrpmbct, "\t%lu packet drop%s, non-data, non-endhost\n");
-	p(sctps_pdrpbwrpt, "\t%lu packet drop, non-endho%st, bandwidth "
-	    "rep only\n");
-	p1a(sctps_pdrpcrupt, "\t%lu packet drop, not enough for chunk "
-	    "header\n");
-	p1a(sctps_pdrpnedat, "\t%lu packet drop, not enough data to confirm\n");
-	p(sctps_pdrppdbrk, "\t%lu packet drop, where proce%ss_chunk_drop "
-	    "said break\n");
-	p1a(sctps_pdrptsnnf, "\t%lu packet drop, could not find TSN\n");
-	p(sctps_pdrpdnfnd, "\t%lu packet drop, attempt rever%se TSN lookup\n");
-	p(sctps_pdrpdiwnp, "\t%lu packet drop, e-ho%st confirms zero-rwnd\n");
-	p(sctps_pdrpdizrw, "\t%lu packet drop, midbox confirm%s no space\n");
-	p1a(sctps_pdrpbadd, "\t%lu packet drop, data did not match TSN\n");
-	p(sctps_pdrpmark, "\t%lu packet drop, TSN'%s marked for Fast Retran\n");
+	printf("\tPacket drop statistics:\n");
+	p1a(sctps_pdrpfmbox, "\t\t%lu from middle box\n");
+	p(sctps_pdrpfehos, "\t\t%lu from end ho%st\n");
+	p1a(sctps_pdrpmbda, "\t\t%lu with data\n");
+	p1a(sctps_pdrpmbct, "\t\t%lu non-data, non-endhost\n");
+	p(sctps_pdrpbwrpt, "\t\t%lu non-endho%st, bandwidth rep only\n");
+	p1a(sctps_pdrpcrupt, "\t\t%lu not enough for chunk header\n");
+	p1a(sctps_pdrpnedat, "\t\t%lu not enough data to confirm\n");
+	p(sctps_pdrppdbrk, "\t\t%lu where proce%ss_chunk_drop said break\n");
+	p1a(sctps_pdrptsnnf, "\t\t%lu failed to find TSN\n");
+	p(sctps_pdrpdnfnd, "\t\t%lu attempt rever%se TSN lookup\n");
+	p(sctps_pdrpdiwnp, "\t\t%lu e-ho%st confirms zero-rwnd\n");
+	p(sctps_pdrpdizrw, "\t\t%lu midbox confirm%s no space\n");
+	p1a(sctps_pdrpbadd, "\t\t%lu data did not match TSN\n");
+	p(sctps_pdrpmark, "\t\t%lu TSN'%s marked for Fast Retran\n");
 
 	/*
 	 * Timeouts
 	 */
-	p(sctps_timoiterator, "\t%lu number of iterator timer%s that fired\n");
-	p(sctps_timodata, "\t%lu number of T3 data time out%s\n");
-	p(sctps_timowindowprobe, "\t%lu number of window probe (T3) timer%s "
-	    "that fired\n");
-	p(sctps_timoinit, "\t%lu number of INIT timer%s that fired\n");
-	p(sctps_timosack, "\t%lu number of %sack timers that fired\n");
-	p(sctps_timoshutdown, "\t%lu number of %shutdown timers that fired\n");
-	p(sctps_timoheartbeat, "\t%lu number of heartbeat timer%s that "
-	    "fired\n");
-	p(sctps_timocookie, "\t%lu number of time%s a cookie timeout fired\n");
-	p(sctps_timosecret, "\t%lu number of time%s an endpoint changed its "
-	    "cookie secret\n");
-	p(sctps_timopathmtu, "\t%lu number of PMTU timer%s that fired\n");
-	p(sctps_timoshutdownack, "\t%lu number of %shutdown ack timers that "
-	    "fired\n");
-	p(sctps_timoshutdownguard, "\t%lu number of %shutdown guard timers "
-	    "that fired\n");
-	p(sctps_timostrmrst, "\t%lu number of %stream reset timers that "
-	    "fired\n");
-	p(sctps_timoearlyfr, "\t%lu number of early FR timer%s that fired\n");
-	p(sctps_timoasconf, "\t%lu number of time%s an asconf timer fired\n");
-	p(sctps_timoautoclose, "\t%lu number of time%s auto close timer "
-	    "fired\n");
-	p(sctps_timoassockill, "\t%lu number of a%soc free timers expired\n");
-	p(sctps_timoinpkill, "\t%lu number of inp free timer%s expired\n");
+	printf("\tTimeouts:\n");
+	p(sctps_timoiterator, "\t\t%lu iterator timer%s fired\n");
+	p(sctps_timodata, "\t\t%lu T3 data time out%s\n");
+	p(sctps_timowindowprobe, "\t\t%lu window probe (T3) timer%s fired\n");
+	p(sctps_timoinit, "\t\t%lu INIT timer%s fired\n");
+	p(sctps_timosack, "\t\t%lu %sack timers fired\n");
+	p(sctps_timoshutdown, "\t\t%lu %shutdown timers fired\n");
+	p(sctps_timoheartbeat, "\t\t%lu heartbeat timer%s fired\n");
+	p1a(sctps_timocookie, "\t\t%lu a cookie timeout fired\n");
+	p1a(sctps_timosecret, "\t\t%lu an endpoint changed its cookie"
+	    "secret\n");
+	p(sctps_timopathmtu, "\t\t%lu PMTU timer%s fired\n");
+	p(sctps_timoshutdownack, "\t\t%lu %shutdown ack timers fired\n");
+	p(sctps_timoshutdownguard, "\t\t%lu %shutdown guard timers fired\n");
+	p(sctps_timostrmrst, "\t\t%lu %stream reset timers fired\n");
+	p(sctps_timoearlyfr, "\t\t%lu early FR timer%s fired\n");
+	p1a(sctps_timoasconf, "\t\t%lu an asconf timer fired\n");
+	p1a(sctps_timoautoclose, "\t\t%lu auto close timer fired\n");
+	p(sctps_timoassockill, "\t\t%lu a%soc free timers expired\n");
+	p(sctps_timoinpkill, "\t\t%lu inp free timer%s expired\n");
 
 #if 0
 	/*
@@ -662,49 +650,48 @@ sctp_stats(u_long off __unused, const char *name, int af1 __unused)
 	p(sctps_naglequeued, "\t%lu nagle doe%s't allow sending\n");
 	p(sctps_maxburstqueued, "\t%lu max bur%st dosn't allow sending\n");
 	p(sctps_ifnomemqueued, "\t%lu look ahead tell%s us no memory in "
-	    "interface ring buffer or we had a send error and are queuing "
-	    "one send.\n");
-	p(sctps_windowprobed, "\t%lu total number of window probe%s sent\n");
-	p(sctps_lowlevelerr, "\t%lu total time%s an output error causes us "
-	    "to clamp down on next user send.\n");
-	p(sctps_lowlevelerrusr, "\t%lu total time%s sctp_senderrors were "
-	    "caused from a user send from a user invoked send not a sack "
-	    "response\n");
+	    "interface\n");
+	p(sctps_windowprobed, "\t%lu numbers of window probe%s sent\n");
+	p(sctps_lowlevelerr, "\t%lu time%s an output error to clamp "
+	    "down on next user send.\n");
+	p(sctps_lowlevelerrusr, "\t%lu time%s sctp_senderrors were "
+	    "caused from a user\n");
 	p(sctps_datadropchklmt, "\t%lu number of in data drop%s due to "
 	    "chunk limit reached\n");
 	p(sctps_datadroprwnd, "\t%lu number of in data drop%s due to rwnd "
 	    "limit reached\n");
-	p(sctps_ecnereducedcwnd, "\t%lu number of time%s a ECN reduced "
+	p(sctps_ecnereducedcwnd, "\t%lu time%s a ECN reduced "
 	    "the cwnd\n");
 	p(sctps_vtagexpress, "\t%lu u%sed express lookup via vtag\n");
 	p(sctps_vtagbogus, "\t%lu colli%sion in express lookup.\n");
-	p(sctps_primary_randry, "\t%lu number of time%s the sender ran dry "
+	p(sctps_primary_randry, "\t%lu time%s the sender ran dry "
 	    "of user data on primary\n");
 	p1a(sctps_cmt_randry, "\t%lu same for above\n");
 	p(sctps_slowpath_sack, "\t%lu sack%s the slow way\n");
 	p(sctps_wu_sacks_sent, "\t%lu window update only %sacks sent\n");
-	p(sctps_sends_with_flags, "\t%lu number of %sends with "
-	    "sinfo_flags !=0\n");
-	p(sctps_sends_with_unord, "\t%lu number of undordered %sends\n");
-	p(sctps_sends_with_eof, "\t%lu number of %sends with EOF flag set\n");
-	p(sctps_sends_with_abort, "\t%lu number of %sends with ABORT "
-	    "flag set\n");
-	p(sctps_protocol_drain_calls, "\t%lu number of time%s protocol "
-	    "drain called\n");
-	p(sctps_protocol_drains_done, "\t%lu number of time%s we did a "
-	    "protocol drain\n");
-	p(sctps_read_peeks, "\t%lu number of time%s recv was called with "
-	    "peek\n");
-	p(sctps_cached_chk, "\t%lu number of cached chunk%s used\n");
-	p(sctps_cached_strmoq, "\t%lu number of cached %stream oq's used\n");
-	p(sctps_left_abandon, "\t%lu number of unread me%ssage abandonded "
-	    "by close\n");
+	p(sctps_sends_with_flags, "\t%lu %sends with sinfo_flags !=0\n");
+	p(sctps_sends_with_unord, "\t%lu unordered %sends\n");
+	p(sctps_sends_with_eof, "\t%lu %sends with EOF flag set\n");
+	p(sctps_sends_with_abort, "\t%lu %sends with ABORT flag set\n");
+	p(sctps_protocol_drain_calls, "\t%lu time%s protocol drain called\n");
+	p(sctps_protocol_drains_done, "\t%lu time%s we did a protocol "
+	    "drain\n");
+	p(sctps_read_peeks, "\t%lu time%s recv was called with peek\n");
+	p(sctps_cached_chk, "\t%lu cached chunk%s used\n");
+	p(sctps_cached_strmoq, "\t%lu cached %stream oq's used\n");
+	p(sctps_left_abandon, "\t%lu unread me%ssage abandonded by close\n");
 	p(sctps_send_burst_avoid, "\t%lu send bur%st avoidance, already "
 	    "max burst inflight to net\n");
 	p(sctps_send_cwnd_avoid, "\t%lu send cwnd full avoidance, already "
 	    "max bur%st inflight to net\n");
 	p(sctps_fwdtsn_map_over, "\t%lu number of map array over-run%s via "
 	    "fwd-tsn's\n");
+
+#undef p
+#undef p1a
+#undef p2
+#undef p2a
+#undef p3
 }
 
 #endif /* SCTP */
