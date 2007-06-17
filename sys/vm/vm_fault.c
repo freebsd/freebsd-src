@@ -464,7 +464,7 @@ readrest:
 		 */
 		if (TRYPAGER) {
 			int rv;
-			int reqpage;
+			int reqpage = 0;
 			int ahead, behind;
 			u_char behavior = vm_map_entry_behavior(fs.entry);
 
