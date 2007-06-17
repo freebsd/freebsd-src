@@ -72,8 +72,8 @@ struct offload_id {
 	unsigned long data;
 };
 
+struct rtentry;
 struct ifnet;
-struct rt_entry;
 struct tom_info;
 struct sysctl_oid;
 struct socket;

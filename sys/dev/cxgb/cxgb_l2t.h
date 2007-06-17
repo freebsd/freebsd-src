@@ -31,11 +31,17 @@ $FreeBSD$
 #ifndef _CHELSIO_L2T_H
 #define _CHELSIO_L2T_H
 
+#ifdef CONFIG_DEFINED
+#include <ulp/toecore/toedev.h>
+#else
 #include <dev/cxgb/ulp/toecore/toedev.h>
+#endif
+
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #if __FreeBSD_version > 700000
 #include <sys/rwlock.h>
-#else 
+#else
 #define rwlock mtx
 #define rw_wlock(x) mtx_lock((x))
 #define rw_wunlock(x) mtx_unlock((x))
@@ -51,6 +57,7 @@ enum {
 	L2T_STATE_RESOLVING,  /* entry needs address resolution */
 	L2T_STATE_UNUSED      /* entry not in use */
 };
+
 
 /*
  * Each L2T entry plays multiple roles.  First of all, it keeps state for the
