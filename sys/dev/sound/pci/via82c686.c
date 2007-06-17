@@ -477,10 +477,7 @@ via_attach(device_t dev)
 	char status[SND_STATUSLEN];
 	u_int32_t data, cnt;
 
-	if ((via = malloc(sizeof *via, M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return ENXIO;
-	}
+	via = malloc(sizeof(*via), M_DEVBUF, M_WAITOK | M_ZERO);
 	via->lock = snd_mtxcreate(device_get_nameunit(dev),
 	    "snd_via82c686 softc");
 

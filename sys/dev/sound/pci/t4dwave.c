@@ -814,11 +814,7 @@ tr_pci_attach(device_t dev)
 	int		i;
 	char 		status[SND_STATUSLEN];
 
-	if ((tr = malloc(sizeof(*tr), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return ENXIO;
-	}
-
+	tr = malloc(sizeof(*tr), M_DEVBUF, M_WAITOK | M_ZERO);
 	tr->type = pci_get_devid(dev);
 	tr->rev = pci_get_revid(dev);
 	tr->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_t4dwave softc");

@@ -572,10 +572,7 @@ au88x0_pci_attach(device_t dev)
 	uint32_t config;
 	int error;
 
-	if ((aui = malloc(sizeof *aui, M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL) {
-		device_printf(dev, "failed to allocate softc\n");
-		return (ENXIO);
-	}
+	aui = malloc(sizeof(*aui), M_DEVBUF, M_WAITOK | M_ZERO);
 	aui->aui_dev = dev;
 
 	/* Model-specific parameters */
