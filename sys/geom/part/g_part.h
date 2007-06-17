@@ -87,12 +87,25 @@ struct g_part_table {
 	 */
 	uint32_t	gpt_smhead;
 	uint32_t	gpt_smtail;
+	/*
+	 * gpt_sectors and gpt_heads are the fixed or synchesized number
+	 * of sectors per track and heads (resp) that make up a disks
+	 * geometry. This is to support partitioning schemes as well as
+	 * file systems that work on a geometry. The MBR scheme and the
+	 * MS-DOS (FAT) file system come to mind.
+	 * We keep track of whether the geometry is fixed or synchesized
+	 * so that a partitioning scheme can correct the synthesized
+	 * geometry, based on the on-disk metadata.
+	 */
+	uint32_t	gpt_sectors;
+	uint32_t	gpt_heads;
 
 	int		gpt_depth;	/* Sub-partitioning level. */
 	int		gpt_isleaf:1;	/* Cannot be sub-partitioned. */
 	int		gpt_created:1;	/* Newly created. */
 	int		gpt_modified:1;	/* Table changes have been made. */
 	int		gpt_opened:1;	/* Permissions obtained. */
+	int		gpt_fixgeom:1;	/* Geometry is fixed. */
 };
 
 struct g_part_entry *g_part_new_entry(struct g_part_table *, int, quad_t,
@@ -126,5 +139,7 @@ struct g_part_parms {
 	const char	*gpp_type;
 	unsigned int	gpp_version;
 };
+
+void g_part_geometry_heads(off_t, u_int, off_t *, u_int *);
 
 #endif /* !_GEOM_PART_H_ */

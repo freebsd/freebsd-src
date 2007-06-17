@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 struct g_part_mbr_table {
 	struct g_part_table	base;
 	u_char		mbr[MBRSIZE];
-	int		spt;		/* Sectors/track. */
 };
 
 struct g_part_mbr_entry {
@@ -119,31 +118,52 @@ mbr_parse_type(const char *type, u_char *dp_typ)
 	return (EINVAL);
 }
 
+static void
+mbr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
+    u_char *secp)
+{
+	uint32_t cyl, hd, sec;
+
+	sec = lba % table->gpt_sectors + 1;
+	lba /= table->gpt_sectors;
+	hd = lba % table->gpt_heads;
+	lba /= table->gpt_heads;
+	cyl = lba;
+	if (cyl > 1023)
+		sec = hd = cyl = ~0;
+
+	*cylp = cyl & 0xff;
+	*hdp = hd & 0xff;
+	*secp = (sec & 0x3f) | ((cyl >> 2) & 0xc0);
+}
+
 static int
 g_part_mbr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct g_part_parms *gpp)
 {
 	struct g_part_mbr_entry *entry;
 	struct g_part_mbr_table *table;
-	uint32_t start, size;
+	uint32_t start, size, sectors;
 
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		return (EINVAL);
+
+	sectors = basetable->gpt_sectors;
 
 	entry = (struct g_part_mbr_entry *)baseentry;
 	table = (struct g_part_mbr_table *)basetable;
 
 	start = gpp->gpp_start;
 	size = gpp->gpp_size;
-	if (size < table->spt)
+	if (size < sectors)
 		return (EINVAL);
-	if (start % table->spt) {
-		size = size - table->spt + (start % table->spt);
-		start = start - (start % table->spt) + table->spt;
+	if (start % sectors) {
+		size = size - sectors + (start % sectors);
+		start = start - (start % sectors) + sectors;
 	}
-	if (size % table->spt)
-		size = size - (size % table->spt);
-	if (size < table->spt)
+	if (size % sectors)
+		size = size - (size % sectors);
+	if (size < sectors)
 		return (EINVAL);
 
 	if (baseentry->gpe_deleted)
@@ -155,6 +175,10 @@ g_part_mbr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	baseentry->gpe_end = start + size - 1;
 	entry->ent.dp_start = start;
 	entry->ent.dp_size = size;
+	mbr_set_chs(basetable, baseentry->gpe_start, &entry->ent.dp_scyl,
+	    &entry->ent.dp_shd, &entry->ent.dp_ssect);
+	mbr_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
+	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
 	return (mbr_parse_type(gpp->gpp_type, &entry->ent.dp_typ));
 }
 
@@ -165,27 +189,19 @@ g_part_mbr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	struct g_provider *pp;
 	struct g_part_mbr_table *table;
 	uint64_t msize;
-	int error, spt;
 
 	pp = gpp->gpp_provider;
 	cp = LIST_FIRST(&pp->consumers);
 
-	error = g_getattr("GEOM::fwsectors", cp, &spt);
-	if (error)
-		spt = 17;
-	else if (spt == 0)
-		spt = 1;
-
-	if (pp->sectorsize < MBRSIZE || pp->mediasize < spt * pp->sectorsize)
+	if (pp->sectorsize < MBRSIZE)
 		return (ENOSPC);
 
 	msize = pp->mediasize / pp->sectorsize;
-	basetable->gpt_first = spt;
-	basetable->gpt_last = msize - (msize % spt) - 1;
+	basetable->gpt_first = basetable->gpt_sectors;
+	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
 
 	table = (struct g_part_mbr_table *)basetable;
 	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
-	table->spt = spt;
 	return (0);
 }
 
@@ -262,23 +278,13 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 	struct g_part_mbr_table *table;
 	struct g_part_mbr_entry *entry;
 	u_char *buf, *p;
-	uint64_t msize;
-	int error, index, spt;
-
-	error = g_getattr("GEOM::fwsectors", cp, &spt);
-	if (error)
-		spt = 17;
-	else if (spt == 0)
-		spt = 1;
+	off_t chs, msize;
+	u_int sectors, heads;
+	int error, index;
 
 	pp = cp->provider;
 	table = (struct g_part_mbr_table *)basetable;
-	table->spt = spt;
-
 	msize = pp->mediasize / pp->sectorsize;
-	basetable->gpt_first = spt;
-	basetable->gpt_last = msize - (msize % spt) - 1;
-	basetable->gpt_entries = NDOSPART;
 
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
@@ -303,10 +309,19 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 			continue;
 		if (ent.dp_start == 0 || ent.dp_size == 0)
 			continue;
-		if ((ent.dp_start % spt) != 0)
+		sectors = ent.dp_esect & 0x3f;
+		if (sectors > basetable->gpt_sectors &&
+		    !basetable->gpt_fixgeom) {
+			g_part_geometry_heads(msize, sectors, &chs, &heads);
+			if (chs != 0) {
+				basetable->gpt_sectors = sectors;
+				basetable->gpt_heads = heads;
+			}
+		}
+		if ((ent.dp_start % basetable->gpt_sectors) != 0)
 			printf("GEOM: %s: partition %d does not start on a "
 			    "track boundary.\n", pp->name, index + 1);
-		if ((ent.dp_size % spt) != 0)
+		if ((ent.dp_size % basetable->gpt_sectors) != 0)
 			printf("GEOM: %s: partition %d does not end on a "
 			    "track boundary.\n", pp->name, index + 1);
 
@@ -314,6 +329,11 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 		    index + 1, ent.dp_start, ent.dp_start + ent.dp_size - 1);
 		entry->ent = ent;
 	}
+
+	basetable->gpt_entries = NDOSPART;
+	basetable->gpt_first = basetable->gpt_sectors;
+	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
+
 	return (0);
 }
 
