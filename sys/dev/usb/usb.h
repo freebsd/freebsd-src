@@ -98,11 +98,7 @@ typedef u_int8_t uDWord[4];
 #define USETDW(w,v) (*(u_int32_t *)(w) = (v))
 #endif
 
-#if defined(__FreeBSD__) && (__FreeBSD_version <= 500014)
-#define UPACKED __attribute__ ((packed))
-#else
 #define UPACKED __packed
-#endif
 
 typedef struct {
 	uByte		bmRequestType;
