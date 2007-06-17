@@ -4737,6 +4737,8 @@ sctp_input(i_pak, off)
 	}
 	sh = (struct sctphdr *)((caddr_t)ip + iphlen);
 	ch = (struct sctp_chunkhdr *)((caddr_t)sh + sizeof(*sh));
+	SCTPDBG(SCTP_DEBUG_INPUT1,
+	    "sctp_input() length:%d iphlen:%d\n", mlen, iphlen);
 
 	/* SCTP does not allow broadcasts or multicasts */
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
