@@ -1243,7 +1243,7 @@ adw_attach(struct adw_softc *adw)
 	/*
 	 * Register the bus.
 	 */
-	if (xpt_bus_register(adw->sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(adw->sim, adw->device, 0) != CAM_SUCCESS) {
 		cam_sim_free(adw->sim, /*free devq*/TRUE);
 		error = ENOMEM;
 		goto fail;

@@ -611,7 +611,7 @@ aha_attach(struct aha_softc *aha)
 		cam_simq_free(devq);
 		return (ENOMEM);
 	}
-	if (xpt_bus_register(aha->sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(aha->sim, aha->dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(aha->sim, /*free_devq*/TRUE);
 		return (ENXIO);
 	}

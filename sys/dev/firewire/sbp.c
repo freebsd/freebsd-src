@@ -2033,7 +2033,7 @@ END_DEBUG
 	}
 
 	SBP_LOCK(sbp);
-	if (xpt_bus_register(sbp->sim, /*bus*/0) != CAM_SUCCESS)
+	if (xpt_bus_register(sbp->sim, dev, /*bus*/0) != CAM_SUCCESS)
 		goto fail;
 
 	if (xpt_create_path(&sbp->path, xpt_periph, cam_sim_path(sbp->sim),

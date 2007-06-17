@@ -1703,7 +1703,7 @@ sbp_targ_attach(device_t dev)
 	}
 
 	SBP_LOCK(sc);
-	if (xpt_bus_register(sc->sim, /*bus*/0) != CAM_SUCCESS)
+	if (xpt_bus_register(sc->sim, dev, /*bus*/0) != CAM_SUCCESS)
 		goto fail;
 
 	if (xpt_create_path(&sc->path, /*periph*/ NULL, cam_sim_path(sc->sim),

@@ -1351,7 +1351,7 @@ scsi_low_attach_cam(slp)
 	 	return ENODEV;
 	}
 
-	if (xpt_bus_register(slp->sl_si.sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(slp->sl_si.sim, NULL, 0) != CAM_SUCCESS) {
 		free(slp->sl_si.sim, M_SCSILOW);
 	 	return ENODEV;
 	}

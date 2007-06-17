@@ -590,6 +590,7 @@ struct gdt_intr_ctx {
 
 /* softc structure */
 struct gdt_softc {
+    device_t sc_devnode;
     int sc_hanum;
     int sc_class;               /* Controller class */
 #define GDT_MPR         0x05

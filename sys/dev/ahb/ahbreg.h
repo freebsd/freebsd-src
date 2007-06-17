@@ -258,6 +258,7 @@ struct ecb {
 };
 
 struct ahb_softc {
+	device_t		 dev;
 	bus_space_tag_t		 tag;
 	bus_space_handle_t	 bsh;
 	struct	cam_sim		*sim;

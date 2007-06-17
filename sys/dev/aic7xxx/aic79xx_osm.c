@@ -148,7 +148,7 @@ ahd_attach(struct ahd_softc *ahd)
 		goto fail;
 	}
 
-	if (xpt_bus_register(sim, /*bus_id*/0) != CAM_SUCCESS) {
+	if (xpt_bus_register(sim, ahd->dev_softc, /*bus_id*/0) != CAM_SUCCESS) {
 		cam_sim_free(sim, /*free_devq*/TRUE);
 		sim = NULL;
 		goto fail;

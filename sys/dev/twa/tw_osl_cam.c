@@ -121,7 +121,7 @@ tw_osli_cam_attach(struct twa_softc *sc)
 	 */
 	tw_osli_dbg_dprintf(3, sc, "Calling xpt_bus_register");
 	mtx_lock(&Giant);
-	if (xpt_bus_register(sc->sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(sc->sim, sc->bus_dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(sc->sim, TRUE);
 		sc->sim = NULL; /* so cam_detach will not try to free it */
 		tw_osli_printf(sc, "error = %d",

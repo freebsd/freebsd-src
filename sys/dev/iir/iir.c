@@ -505,7 +505,7 @@ iir_attach(struct gdt_softc *gdt)
                                      gdt, gdt->sc_hanum, &Giant,
 				     /*untagged*/1,
                                      /*tagged*/GDT_MAXCMDS, devq);
-        if (xpt_bus_register(gdt->sims[i], i) != CAM_SUCCESS) {
+        if (xpt_bus_register(gdt->sims[i], gdt->sc_devnode, i) != CAM_SUCCESS) {
             cam_sim_free(gdt->sims[i], /*free_devq*/i == 0);
             break;
         }

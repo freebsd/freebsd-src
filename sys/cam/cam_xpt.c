@@ -197,6 +197,7 @@ struct cam_eb {
 #define	CAM_EB_RUNQ_SCHEDULED	0x01
 	u_int32_t	     refcount;
 	u_int		     generation;
+	device_t	     parent_dev;
 };
 
 struct cam_path {
@@ -1505,7 +1506,7 @@ xpt_init(void *dummy)
 	xpt_sim->max_ccbs = 16;
 
 	mtx_lock(&xsoftc.xpt_lock);
-	if ((status = xpt_bus_register(xpt_sim, /*bus #*/0)) != CAM_SUCCESS) {
+	if ((status = xpt_bus_register(xpt_sim, NULL, 0)) != CAM_SUCCESS) {
 		printf("xpt_init: xpt_bus_register failed with status %#x,"
 		       " failing attach\n", status);
 		return (EINVAL);
@@ -4320,7 +4321,7 @@ xpt_release_ccb(union ccb *free_ccb)
  * availible, the bus will be probed.
  */
 int32_t
-xpt_bus_register(struct cam_sim *sim, u_int32_t bus)
+xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 {
 	struct cam_eb *new_bus;
 	struct cam_eb *old_bus;

@@ -1549,7 +1549,7 @@ aic_attach(struct aic_softc *aic)
 		return (ENOMEM);
 	}
 
-	if (xpt_bus_register(aic->sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(aic->sim, aic->dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(aic->sim, /*free_devq*/TRUE);
 		return (ENXIO);
 	}
