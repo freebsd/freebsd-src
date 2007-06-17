@@ -409,7 +409,7 @@ ahballoc(device_t dev, struct resource *res)
 	 */
 	ahb = malloc(sizeof(struct ahb_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!ahb) {
-		printf("ahb%ld: cannot malloc!\n", unit);
+		device_printf(dev, "cannot malloc!\n");
 		return (NULL);
 	}
 	SLIST_INIT(&ahb->free_ecbs);
