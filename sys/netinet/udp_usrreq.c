@@ -243,6 +243,8 @@ udp_input(struct mbuf *m, int off)
 	 */
 	if (!blackhole)
 		save_ip = *ip;
+	else
+		memset(&save_ip, 0, sizeof(save_ip));
 
 	/*
 	 * Checksum extended UDP header and data.
