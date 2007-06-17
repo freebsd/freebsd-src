@@ -55,8 +55,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/cxgb/ulp/toecore/toedev.h>
+#ifdef CONFIG_DEFINED
+#include <cxgb_osdep.h>
+#include <ulp/toecore/toedev.h>
+#include <sys/mbufq.h>
+#else
+#include <dev/cxgb/cxgb_osdep.h>
 #include <dev/cxgb/sys/mbufq.h>
+#include <dev/cxgb/ulp/toecore/toedev.h>
+#endif
 
 struct adapter;
 struct sge_qset;
@@ -79,6 +86,7 @@ struct port_info {
 	uint8_t         first_qset;
 	struct taskqueue *tq;
 	struct task     start_task;
+	struct task	timer_reclaim_task;
 	struct cdev     *port_cdev;
 };
 
@@ -274,7 +282,6 @@ struct adapter {
 
 	/* Tasks */
 	struct task		ext_intr_task;
-	struct task		timer_reclaim_task;
 	struct task		slow_intr_task;
 	struct task		process_responses_task;
 	struct task		mr_refresh_task;
@@ -284,6 +291,7 @@ struct adapter {
 
 	/* Register lock for use by the hardware layer */
 	struct mtx		mdio_lock;
+	struct mtx		elmer_lock;
 
 	/* Bookkeeping for the hardware layer */
 	struct adapter_params  params;
@@ -316,6 +324,8 @@ struct t3_rx_mode {
 
 #define MDIO_LOCK(adapter)	mtx_lock(&(adapter)->mdio_lock)
 #define MDIO_UNLOCK(adapter)	mtx_unlock(&(adapter)->mdio_lock)
+#define ELMR_LOCK(adapter)	mtx_lock(&(adapter)->elmer_lock)
+#define ELMR_UNLOCK(adapter)	mtx_unlock(&(adapter)->elmer_lock)
 
 #define PORT_LOCK(port)		mtx_lock(&(port)->lock);
 #define PORT_UNLOCK(port)	mtx_unlock(&(port)->lock);
@@ -410,7 +420,8 @@ void t3_intr_msi(void *data);
 void t3_intr_msix(void *data);
 int t3_encap(struct port_info *, struct mbuf **);
 
-int t3_sge_init_sw(adapter_t *);
+int t3_sge_init_adapter(adapter_t *);
+int t3_sge_init_port(struct port_info *);
 void t3_sge_deinit_sw(adapter_t *);
 
 void t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,

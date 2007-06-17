@@ -41,8 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 
 #include <machine/bus.h>
-#include <dev/cxgb/cxgb_osdep.h>
-#include <dev/cxgb/sys/mvec.h>
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -66,7 +69,7 @@ int
 _m_explode(struct mbuf *m) 
 {
         int i, offset, type, first, len;
-        uint8_t *cl;
+        caddr_t cl;
         struct mbuf *m0, *head = NULL;
         struct mbuf_vec *mv;
 
@@ -230,7 +233,7 @@ m_setiovec(struct mbuf_iovec *mi, struct mbuf *m, struct mbuf_ext *extvec, int *
 	} else {
 		KASSERT(m->m_len < 256, ("mbuf too large len=%d",
 			m->m_len));
-		mi->mi_base = (uint8_t *)m;
+		mi->mi_base = (caddr_t)m;
 		mi->mi_refcnt = NULL;
 		mi->mi_offset =
 		    (m->m_data - (caddr_t)m);
@@ -332,7 +335,7 @@ mb_free_vec(struct mbuf *m)
 	DPRINTF("count=%d len=%d\n", mv->mv_count, m->m_len);
 	for (i = mv->mv_first; i < mv->mv_count; i++) {
 		uma_zone_t zone = NULL;
-		volatile int *refcnt = mv->mv_vec[i].mi_refcnt;
+		volatile unsigned int *refcnt = mv->mv_vec[i].mi_refcnt;
 		int type = mbuf_vec_get_type(mv, i);
 		void *cl = mv->mv_vec[i].mi_base;
 

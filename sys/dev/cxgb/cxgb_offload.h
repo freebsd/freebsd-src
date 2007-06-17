@@ -37,12 +37,11 @@ $FreeBSD$
 #ifndef _CXGB_OFFLOAD_H
 #define _CXGB_OFFLOAD_H
 
-
-#include <dev/cxgb/common/cxgb_tcb.h>
-#include <dev/cxgb/cxgb_l2t.h>
-
-#include <dev/cxgb/ulp/toecore/toedev.h>
-#include <dev/cxgb/common/cxgb_t3_cpl.h>
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
 
 struct adapter;
 struct cxgb_client;
@@ -130,7 +129,7 @@ typedef int (*cpl_handler_func)(struct toedev *dev, struct mbuf *m);
  */
 static inline void *cplhdr(struct mbuf *m)
 {
-	return m->m_data;
+	return mtod(m, uint8_t *);
 }
 
 void t3_register_cpl_handler(unsigned int opcode, cpl_handler_func h);

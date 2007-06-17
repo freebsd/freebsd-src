@@ -1,4 +1,3 @@
-
 /**************************************************************************
 
 Copyright (c) 2007, Chelsio Inc.
@@ -55,14 +54,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
 
-#include <dev/cxgb/cxgb_osdep.h>
-#include <dev/cxgb/common/cxgb_common.h>
-#include <dev/cxgb/cxgb_ioctl.h>
-#include <dev/cxgb/common/cxgb_regs.h>
-#include <dev/cxgb/common/cxgb_t3_cpl.h>
-#include <dev/cxgb/common/cxgb_ctl_defs.h>
-#include <dev/cxgb/common/cxgb_firmware_exports.h>
-#include <dev/cxgb/cxgb_offload.h>
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
 
 #include <net/if_vlan_var.h>
 #include <net/route.h>
@@ -529,7 +525,7 @@ cxgb_insert_tid(struct toedev *tdev, struct cxgb_client *client,
 
 	t->tid_tab[tid].client = client;
 	t->tid_tab[tid].ctx = ctx;
-	atomic_add_int(&t->tids_in_use, 1);
+	atomic_add_int((volatile unsigned int *)&t->tids_in_use, 1);
 }
 
 /*
@@ -611,7 +607,7 @@ cxgb_remove_tid(struct toedev *tdev, void *ctx, unsigned int tid)
 		} else
 			cxgb_queue_tid_release(tdev, tid);
 	}
-	atomic_add_int(&t->tids_in_use, -1);
+	atomic_add_int((volatile unsigned int *)&t->tids_in_use, -1);
 }
 
 int
@@ -723,8 +719,14 @@ static int
 do_hwtid_rpl(struct toedev *dev, struct mbuf *m)
 {
 	union opcode_tid *p = cplhdr(m);
-	unsigned int hwtid = G_TID(ntohl(p->opcode_tid));
+	unsigned int hwtid;
 	struct toe_tid_entry *toe_tid;
+	
+	printf("do_hwtid_rpl m=%p\n", m);
+	return (0);
+	
+	
+	hwtid = G_TID(ntohl(p->opcode_tid));
 
 	toe_tid = lookup_tid(&(TOE_DATA(dev))->tid_maps, hwtid);
 	if (toe_tid->ctx && toe_tid->client->handlers &&
@@ -1118,7 +1120,7 @@ process_rx(struct toedev *dev, struct mbuf **m, int n)
 {
 	while (n--) {
 		struct mbuf *m0 = *m++;
-		unsigned int opcode = G_OPCODE(ntohl(m0->m_pkthdr.csum_data));
+		unsigned int opcode = G_OPCODE(ntohl(m0->m_pkthdr.csum_data));		
 		int ret = cpl_handlers[opcode] (dev, m0);
 
 #if VALIDATE_TID
@@ -1317,7 +1319,7 @@ init_tid_tabs(struct tid_info *t, unsigned int ntids,
 	t->atid_base = atid_base;
 	t->afree = NULL;
 	t->stids_in_use = t->atids_in_use = 0;
-	atomic_set_int(&t->tids_in_use, 0);
+	atomic_set_int((volatile unsigned int *)&t->tids_in_use, 0);
 	mtx_init(&t->stid_lock, "stid", NULL, MTX_DEF);
 	mtx_init(&t->atid_lock, "atid", NULL, MTX_DEF);
 
