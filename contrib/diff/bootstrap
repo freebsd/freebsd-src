@@ -1,0 +1,180 @@
+#! /bin/sh
+
+# Bootstrap this package from CVS.
+
+# Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+# 02111-1307, USA.
+
+# Written by Paul Eggert.
+
+package=diffutils
+
+# Parse options.
+
+for option
+do
+  case $option in
+  --help)
+    echo "$0: usage: $0 [--gnulib-srcdir=DIR] [--cvs-auth=AUTH-METHOD] [--cvs-user=USERNAME] [--skip-po]"
+    exit;;
+  --gnulib-srcdir=*)
+    GNULIB_SRCDIR=`expr "$1" : '--gnulib-srcdir=\(.*\)'`;;
+  --cvs-auth=*)
+    CVS_AUTH=`expr "$1" : '--cvs-auth=\(.*\)'`;;
+  --cvs-user=*)
+    CVS_USER=`expr "$1" : '--cvs-user=\(.*\)'`;;
+  --skip-po)
+    SKIP_PO=t;;
+  *)
+    echo >&2 "$0: $option: unknown option"
+    exit 1;;
+  esac
+done
+
+echo "$0: Bootstrapping CVS $package..."
+
+build_cvs_prefix() {
+  CVS_PREFIX=:${1}:
+  if [ "${2}" != - ]; then
+    CVS_PREFIX=${CVS_PREFIX}${2}@
+  fi
+}
+
+# Get gnulib files.
+
+case ${GNULIB_SRCDIR--} in
+-)
+  if [ ! -d gnulib ]; then
+    echo "$0: getting gnulib files..."
+
+    trap exit 1 2 13 15
+    trap 'rm -fr gnulib; exit 1' 0
+
+    case "${CVS_AUTH--}" in
+    -)       : ${CVS_RSH:?}
+             CVS_PREFIX="";;
+    pserver) build_cvs_prefix $CVS_AUTH ${CVS_USER:-anoncvs};;
+    gserver|server)
+             build_cvs_prefix $CVS_AUTH ${CVS_USER--};;
+    ext)     : ${CVS_RSH:?}
+             build_cvs_prefix $CVS_AUTH ${CVS_USER--};;
+    *)       echo "$0: Unknown CVS access method" >&2
+             exit 1;;
+    esac
+    if [ "${CVS_AUTH--}" = "pserver" ]; then
+      cvs -d ${CVS_PREFIX}subversions.gnu.org:/cvsroot/gnulib login || exit
+    fi
+    cvs -q -d ${CVS_PREFIX}subversions.gnu.org:/cvsroot/gnulib co gnulib || exit
+
+    trap 0
+  fi
+  GNULIB_SRCDIR=gnulib
+esac
+
+<$GNULIB_SRCDIR/gnulib-tool || exit
+
+gnulib_modules='
+c-stack
+dirname
+error
+exclude
+exit
+exitfail
+file-type
+fnmatch-gnu
+getopt
+hard-locale
+inttostr
+mkstemp
+posixver
+regex
+strcase
+strftime
+strtoumax
+unlocked-io
+version-etc
+xalloc
+xstrtoumax
+'
+
+previous_gnulib_modules=
+while [ "$gnulib_modules" != "$previous_gnulib_modules" ]; do
+  previous_gnulib_modules=$gnulib_modules
+  gnulib_modules=`
+    (echo "$gnulib_modules"
+     for gnulib_module in $gnulib_modules; do
+       $GNULIB_SRCDIR/gnulib-tool --extract-dependencies $gnulib_module
+     done) | sort -u
+  `
+done
+
+gnulib_files=`
+  (for gnulib_module in $gnulib_modules; do
+     $GNULIB_SRCDIR/gnulib-tool --extract-filelist $gnulib_module
+   done) | sort -u
+`
+
+gnulib_dirs=`echo "$gnulib_files" | sed 's,/[^/]*$,,' | sort -u`
+mkdir -p $gnulib_dirs || exit
+
+for gnulib_file in $gnulib_files; do
+  dest=$gnulib_file
+
+  case $gnulib_file in
+  m4/onceonly_2_57.m4) dest=m4/onceonly.m4;;
+  esac
+
+  rm -f $dest &&
+  echo "$0: Copying file $GNULIB_SRCDIR/$gnulib_file" &&
+  cp -p $GNULIB_SRCDIR/$gnulib_file $dest || exit
+done
+
+
+# Get translations.
+
+case $SKIP_PO in
+'')
+  echo "$0: getting translations into po..."
+  (cd po &&
+   rm -f dummy `ls | sed -n '/\.gmo$/p; /\.po/p'` &&
+   wget -nv -nd -r -l 1 -A .po -C off \
+     http://www2.iro.umontreal.ca/~gnutra/po/maint/$package/ &&
+   ls *.po | sed 's/\.po$//' >LINGUAS
+  ) || exit;;
+esac
+
+
+# Reconfigure, getting other files.
+
+echo "$0: autoreconf --verbose --install --force ..."
+autoreconf --verbose --install --force || exit
+
+
+# Generate autoconf and automake snippets.
+
+(echo '# This file is generated automatically by "bootstrap".' &&
+ echo 'AC_DEFUN([GNULIB_AUTOCONF_SNIPPET],[' &&
+ $GNULIB_SRCDIR/gnulib-tool --extract-autoconf-snippet $gnulib_modules &&
+ echo '])'
+) >m4/gnulib.m4 || exit
+
+(echo '# This file is generated automatically by "bootstrap".' &&
+ $GNULIB_SRCDIR/gnulib-tool --extract-automake-snippet $gnulib_modules
+) >lib/gnulib.mk || exit
+
+
+echo "$0: done.  Now you can run './configure'."
