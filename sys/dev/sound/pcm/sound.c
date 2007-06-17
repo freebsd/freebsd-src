@@ -42,7 +42,7 @@ devclass_t pcm_devclass;
 int pcm_veto_load = 1;
 
 #ifdef USING_DEVFS
-int snd_unit = 0;
+int snd_unit = -1;
 TUNABLE_INT("hw.snd.default_unit", &snd_unit);
 #endif
 
@@ -801,6 +801,9 @@ pcm_setstatus(device_t dev, char *str)
 
 	pcm_unlock(d);
 
+	if (snd_unit < 0)
+		snd_unit = device_get_unit(dev);
+
 	return (0);
 }
 
@@ -1199,8 +1202,10 @@ pcm_unregister(device_t dev)
 
 	if (snd_unit == device_get_unit(dev)) {
 		/*
-		 * Reassign default unit to the next available dev.
+		 * Reassign default unit to the next available dev, but
+		 * first, reset snd_unit to something ridiculous.
 		 */
+		snd_unit = -1;
 		for (i = 0; pcm_devclass != NULL &&
 		    i < devclass_get_maxunit(pcm_devclass); i++) {
 			if (device_get_unit(dev) == i)
