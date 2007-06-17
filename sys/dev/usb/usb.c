@@ -73,11 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/poll.h>
-#if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
-#else
-#include <sys/select.h>
-#endif
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
@@ -158,9 +154,6 @@ struct cdevsw usb_cdevsw = {
 	.d_ioctl =	usbioctl,
 	.d_poll =	usbpoll,
 	.d_name =	"usb",
-#if __FreeBSD_version < 500014
-	.d_bmaj =	-1
-#endif
 };
 #endif
 

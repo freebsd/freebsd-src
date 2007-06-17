@@ -62,11 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/tty.h>
 #include <sys/file.h>
-#if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
-#else
-#include <sys/select.h>
-#endif
 #include <sys/poll.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
@@ -125,9 +121,6 @@ Static struct cdevsw urio_cdevsw = {
 	.d_write =	uriowrite,
 	.d_ioctl =	urioioctl,
 	.d_name =	"urio",
-#if __FreeBSD_version < 500014
- 	.d_bmaj =	-1
-#endif
 };
 #define RIO_UE_GET_DIR(p) ((UE_GET_DIR(p) == UE_DIR_IN) ? RIO_IN :\
 		 	  ((UE_GET_DIR(p) == UE_DIR_OUT) ? RIO_OUT :\

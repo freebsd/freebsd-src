@@ -61,11 +61,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/tty.h>
 #include <sys/file.h>
-#if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
-#else
-#include <sys/select.h>
-#endif
 #include <sys/proc.h>
 #include <sys/poll.h>
 #include <sys/conf.h>
@@ -293,9 +289,6 @@ Static struct cdevsw uscanner_cdevsw = {
 	.d_write =	uscannerwrite,
 	.d_poll =	uscannerpoll,
 	.d_name =	"uscanner",
-#if __FreeBSD_version < 500014
-	.d_bmaj		-1
-#endif
 };
 #endif
 
