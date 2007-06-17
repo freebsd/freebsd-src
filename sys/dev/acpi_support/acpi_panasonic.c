@@ -478,7 +478,7 @@ static void
 acpi_panasonic_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 {
 	struct acpi_panasonic_softc *sc;
-	UINT32 key;
+	UINT32 key = 0;
 
 	sc = (struct acpi_panasonic_softc *)context;
 
