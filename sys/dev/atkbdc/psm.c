@@ -1815,6 +1815,8 @@ psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	     */
 	    if (((old_mousemode_t *)addr)->resolution > 0)
 	        mode.resolution = -((old_mousemode_t *)addr)->resolution - 1;
+	    else
+	        mode.resolution = 0;
 	    mode.accelfactor = ((old_mousemode_t *)addr)->accelfactor;
 	    mode.level = -1;
 	} else {
