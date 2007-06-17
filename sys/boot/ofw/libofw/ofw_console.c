@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "openfirm.h"
 
-int console;
-
 static void ofw_cons_probe(struct console *cp);
 static int ofw_cons_init(int);
 void ofw_cons_putchar(int);
@@ -59,10 +57,7 @@ struct console ofwconsole = {
 static void
 ofw_cons_probe(struct console *cp)
 {
-	phandle_t chosen;
 
-	if ((chosen = OF_finddevice("/chosen")) == -1)
-		OF_exit();
 	OF_getprop(chosen, "stdin", &stdin, sizeof(stdin));
 	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
 	cp->c_flags |= C_PRESENTIN|C_PRESENTOUT;
