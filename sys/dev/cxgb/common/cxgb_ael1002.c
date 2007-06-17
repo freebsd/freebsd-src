@@ -9,11 +9,7 @@ modification, are permitted provided that the following conditions are met:
  1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Chelsio Corporation nor the names of its
+ 2. Neither the name of the Chelsio Corporation nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
 
@@ -34,8 +30,11 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/cxgb/common/cxgb_common.h>
-#include <dev/cxgb/common/cxgb_regs.h>
+#ifdef CONFIG_DEFINED
+#include <cxgb_include.h>
+#else
+#include <dev/cxgb/cxgb_include.h>
+#endif
 
 enum {
 	AEL100X_TX_DISABLE  = 9,
@@ -278,7 +277,13 @@ static int xaui_direct_get_link_status(struct cphy *phy, int *link_ok,
 		unsigned int status;
 		
 		status = t3_read_reg(phy->adapter,
-				     XGM_REG(A_XGM_SERDES_STAT0, phy->addr));
+				     XGM_REG(A_XGM_SERDES_STAT0, phy->addr)) |
+			 t3_read_reg(phy->adapter,
+				     XGM_REG(A_XGM_SERDES_STAT1, phy->addr)) |
+			 t3_read_reg(phy->adapter,
+				     XGM_REG(A_XGM_SERDES_STAT2, phy->addr)) |
+			 t3_read_reg(phy->adapter,
+				     XGM_REG(A_XGM_SERDES_STAT3, phy->addr));
 		*link_ok = !(status & F_LOWSIG0);
 	}
 	if (speed)
@@ -324,5 +329,5 @@ static struct cphy_ops xaui_direct_ops = {
 void t3_xaui_direct_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			     const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, 1, &xaui_direct_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &xaui_direct_ops, mdio_ops);
 }

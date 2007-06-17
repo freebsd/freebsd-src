@@ -29,6 +29,9 @@ $FreeBSD$
 
 ***************************************************************************/
 
+#ifndef CXGB_MBUFQ_H_
+#define CXGB_MBUFQ_H_
+
 struct mbuf_head {
 	struct mbuf *head;
 	struct mbuf *tail;
@@ -84,3 +87,5 @@ mbufq_peek(struct mbuf_head *l)
 {
 	return (l->head);
 }
+
+#endif  /* CXGB_MBUFQ_H_ */

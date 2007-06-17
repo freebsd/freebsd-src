@@ -49,7 +49,7 @@ struct mbuf_iovec {
 	uint16_t mi_flags;     /* per-cluster flags          */ 
 	uint16_t mi_len;       /* length of cluster          */ 
 	uint32_t mi_offset;    /* data offsets into cluster  */ 
-	uint8_t  *mi_base;     /* pointers to cluster        */
+	caddr_t  mi_base;      /* pointers to cluster        */
 	volatile uint32_t *mi_refcnt;   /* refcnt for cluster*/
 #ifdef __i386__
 	void     *mi_args;      /* for sf_buf                 */
@@ -149,7 +149,7 @@ m_iovinit(struct mbuf *m)
 } 
  
 static __inline void 
-m_iovappend(struct mbuf *m, uint8_t *cl, int size, int len, int offset)
+m_iovappend(struct mbuf *m, caddr_t cl, int size, int len, int offset)
 { 
 	struct mbuf_vec *mv = mtomv(m);
 	struct mbuf_iovec *iov;
@@ -160,7 +160,7 @@ m_iovappend(struct mbuf *m, uint8_t *cl, int size, int len, int offset)
 		panic("invalid flags in %s", __func__); 
 
         if (mv->mv_count == 0)
-		m->m_data = cl + offset; 
+		m->m_data = (caddr_t)(cl + offset); 
 
         iov = &mv->mv_vec[idx];
 	iov->mi_flags = m_gettype(size); 
