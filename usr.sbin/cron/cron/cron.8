@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 1993
+.Dd June 17, 2007
 .Dt CRON 8
 .Os
 .Sh NAME
@@ -53,11 +53,21 @@ utility also searches for
 .Pa /etc/crontab
 which is in a different format (see
 .Xr crontab 5 ) .
+.Pp
 The
 .Nm
 utility
 then wakes up every minute, examining all stored crontabs, checking each
 command to see if it should be run in the current minute.
+Before running a command from a per-account crontab file,
+.Nm
+checks the status of the account with
+.Xr pam 3
+and skips the command if the account is unavailable,
+e.g., locked out or expired.
+Commands from
+.Pa /etc/crontab
+bypass this check.
 When executing
 commands, any output is mailed to the owner of the crontab (or to the user
 named in the
@@ -173,8 +183,21 @@ be verbose when iterating through the scheduling algorithms
 trace through the execution, but do not perform any actions
 .El
 .El
+.Sh FILES
+.Bl -tag -width /etc/pam.d/cron -compact
+.It Pa /etc/crontab
+System crontab file
+.It Pa /etc/pam.d/cron
+.Xr pam.conf 5
+configuration file for
+.Nm
+.It Pa /var/cron/tabs
+Directory for personal crontab files
+.El
 .Sh SEE ALSO
 .Xr crontab 1 ,
-.Xr crontab 5
+.Xr pam 3 ,
+.Xr crontab 5 ,
+.Xr pam.conf 5
 .Sh AUTHORS
 .An Paul Vixie Aq paul@vix.com
