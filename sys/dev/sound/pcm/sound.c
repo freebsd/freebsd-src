@@ -49,7 +49,7 @@ TUNABLE_INT("hw.snd.default_unit", &snd_unit);
 static int snd_unit_auto = 0;
 TUNABLE_INT("hw.snd.default_auto", &snd_unit_auto);
 SYSCTL_INT(_hw_snd, OID_AUTO, default_auto, CTLFLAG_RW,
-    &snd_unit_auto, 0, "assign default unit to a newly attach device");
+    &snd_unit_auto, 0, "assign default unit to a newly attached device");
 
 int snd_maxautovchans = 16;
 /* XXX: a tunable implies that we may need more than one sound channel before
