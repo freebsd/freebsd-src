@@ -81,7 +81,7 @@ int frame_rate[] = {30, 25};
 
 #define PSIZE 512
 #define DSIZE 480
-#define NCHUNK 8
+#define NCHUNK 64
 
 #define NPACKET_R 256
 #define NPACKET_T 255
