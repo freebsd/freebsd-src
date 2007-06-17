@@ -153,7 +153,7 @@ ah4_output(m, isr)
 	size_t plen = 0;	/* AH payload size in bytes */
 	size_t ahlen = 0;	/* plen + sizeof(ah) */
 	struct ip *ip;
-	struct in_addr dst;
+	in_addr_t saveaddr = { 0 };
 	struct in_addr *finaldst;
 	int error;
 
@@ -294,7 +294,7 @@ ah4_output(m, isr)
 	 */
 	finaldst = ah4_finaldst(m);
 	if (finaldst) {
-		dst.s_addr = ip->ip_dst.s_addr;
+		saveaddr = ip->ip_dst.s_addr;
 		ip->ip_dst.s_addr = finaldst->s_addr;
 	}
 
@@ -314,7 +314,7 @@ ah4_output(m, isr)
 
 	if (finaldst) {
 		ip = mtod(m, struct ip *);	/* just to make sure */
-		ip->ip_dst.s_addr = dst.s_addr;
+		ip->ip_dst.s_addr = saveaddr;
 	}
 	ipsecstat.out_success++;
 	ipsecstat.out_ahhist[sav->alg_auth]++;
