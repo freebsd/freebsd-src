@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 
 int (*openfirmware)(void *);
 
+phandle_t chosen;
 ihandle_t mmu;
 ihandle_t memory;
 
@@ -74,30 +75,15 @@ ihandle_t memory;
 void
 OF_init(int (*openfirm)(void *))
 {
-	phandle_t chosen;
 
 	openfirmware = openfirm;
 
-	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "memory", &memory, sizeof(memory));
-	if (memory == 0)
-		panic("failed to get memory ihandle");
-	OF_getprop(chosen, "mmu", &mmu, sizeof(mmu));
-	if (mmu == 0)
-		panic("failed to get mmu ihandle");
-}
-
-phandle_t
-OF_chosennode(void)
-{
-	static phandle_t chosen;
-
-	if (chosen)
-		return (chosen);
-
 	if ((chosen = OF_finddevice("/chosen")) == -1)
 		OF_exit();
-	return (chosen);
+	if (OF_getprop(chosen, "memory", &memory, sizeof(memory)) == -1)
+		OF_exit();
+	if (OF_getprop(chosen, "mmu", &mmu, sizeof(mmu)) == -1)
+		OF_exit();
 }
 
 /*
@@ -461,7 +447,8 @@ OF_call_method(char *method, ihandle_t instance, int nargs, int nreturns, ...)
 		2,
 		1,
 	};
-	int *ip, n;
+	cell_t *cp;
+	int n;
 
 	if (nargs > 6)
 		return (-1);
@@ -470,15 +457,15 @@ OF_call_method(char *method, ihandle_t instance, int nargs, int nreturns, ...)
 	args.method = (cell_t)method;
 	args.instance = instance;
 	va_start(ap, nreturns);
-	for (ip = (int *)(args.args_n_results + (n = nargs)); --n >= 0;)
-		*--ip = va_arg(ap, int);
+	for (cp = (cell_t *)(args.args_n_results + (n = nargs)); --n >= 0;)
+		*--cp = va_arg(ap, cell_t);
 	if (openfirmware(&args) == -1)
 		return (-1);
 	if (args.args_n_results[nargs])
 		return (args.args_n_results[nargs]);
-	for (ip = (int *)(args.args_n_results + nargs + (n = args.nreturns));
+	for (cp = (cell_t *)(args.args_n_results + nargs + (n = args.nreturns));
 	    --n > 0;)
-		*va_arg(ap, int *) = *--ip;
+		*va_arg(ap, cell_t *) = *--cp;
 	va_end(ap);
 	return (0);
 }
@@ -648,67 +635,6 @@ OF_claim(void *virt, u_int size, u_int align)
 	return ((void *)args.baseaddr);
 }
 
-/* Allocate an area of physical memory */
-vm_offset_t
-OF_claim_virt(vm_offset_t virt, size_t size, int align)
-{
-	static struct {
-		cell_t name;
-		cell_t nargs;
-		cell_t nret;
-		cell_t method;
-		cell_t ihandle;
-		cell_t align;
-		cell_t size;
-		cell_t virt;
-		cell_t status;
-		cell_t ret;
-	} args = {
-		(cell_t)"call-method",
-		5,
-		2,
-		(cell_t)"claim",
-	};
-
-	args.ihandle = mmu;
-	args.align = align;
-	args.size = size;
-	args.virt = (cell_t)virt;
-	if (openfirmware(&args) == -1)
-		return (-1);
-	return (args.ret);
-}
-
-/* Allocate an area of physical memory */
-void *
-OF_alloc_phys(size_t size, int align)
-{
-	static struct {
-		cell_t name;
-		cell_t nargs;
-		cell_t nret;
-		cell_t method;
-		cell_t ihandle;
-		cell_t align;
-		cell_t size;
-		cell_t status;
-		cell_t phys_hi;
-		cell_t phys_low;
-	} args = {
-		(cell_t)"call-method",
-		4,
-		3,
-		(cell_t)"claim",
-	};
-
-	args.ihandle = memory;
-	args.size = size;
-	args.align = align;
-	if (openfirmware(&args) == -1)
-		return ((void *)-1);
-	return ((void *)(args.phys_hi << 32 | args.phys_low));
-}
-
 /* Release an area of memory. */
 void
 OF_release(void *virt, u_int size)
@@ -725,33 +651,6 @@ OF_release(void *virt, u_int size)
 	};
 
 	args.virt = (cell_t)virt;
-	args.size = size;
-	openfirmware(&args);
-}
-
-/* Release an area of physical memory. */
-void
-OF_release_phys(vm_offset_t phys, u_int size)
-{
-	static struct {
-		cell_t name;
-		cell_t nargs;
-		cell_t nret;
-		cell_t method;
-		cell_t ihandle;
-		cell_t size;
-		cell_t phys_hi;
-		cell_t phys_lo;
-	} args = {
-		(cell_t)"call-method",
-		5,
-		0,
-		(cell_t)"release",
-	};
-
-	args.ihandle = memory;
-	args.phys_hi = phys >> 32;
-	args.phys_lo = phys;
 	args.size = size;
 	openfirmware(&args);
 }
