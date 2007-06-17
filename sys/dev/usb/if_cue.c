@@ -432,7 +432,8 @@ cue_match(device_t self)
 static int
 cue_attach(device_t self)
 {
-	USB_ATTACH_START(cue, sc, uaa);
+	struct cue_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
 	usb_interface_descriptor_t	*id;

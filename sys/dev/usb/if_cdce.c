@@ -73,15 +73,32 @@ __FBSDID("$FreeBSD$");
 #include "usbdevs.h"
 #include <dev/usb/if_cdcereg.h>
 
+static device_probe_t cdce_match;
+static device_attach_t cdce_attach;
+static device_detach_t cdce_detach;
 static device_shutdown_t cdce_shutdown;
-USB_DECLARE_DRIVER_INIT(cdce,
-	DEVMETHOD(device_probe, cdce_match),
-	DEVMETHOD(device_attach, cdce_attach),
-	DEVMETHOD(device_detach, cdce_detach),
-	DEVMETHOD(device_shutdown, cdce_shutdown)
-	);
+
+static device_method_t cdce_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		cdce_match),
+	DEVMETHOD(device_attach,	cdce_attach),
+	DEVMETHOD(device_detach,	cdce_detach),
+	DEVMETHOD(device_shutdown,	cdce_shutdown),
+
+	{ 0, 0 }
+};
+
+static driver_t cdce_driver = {
+	"cdce",
+	cdce_methods,
+	sizeof(struct cdce_softc)
+};
+
+static devclass_t cdce_devclass;
+
 DRIVER_MODULE(cdce, uhub, cdce_driver, cdce_devclass, usbd_driver_load, 0);
 MODULE_VERSION(cdce, 0);
+MODULE_DEPEND(cdce, usb, 1, 1, 1);
 
 static int	 cdce_encap(struct cdce_softc *, struct mbuf *, int);
 static void	 cdce_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -134,7 +151,8 @@ cdce_match(device_t self)
 static int
 cdce_attach(device_t self)
 {
-	USB_ATTACH_START(cdce, sc, uaa);
+	struct cdce_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ifnet			*ifp;
 	usbd_device_handle		 dev = uaa->device;
 	const struct cdce_type		*t;
@@ -322,7 +340,7 @@ cdce_attach(device_t self)
 static int
 cdce_detach(device_t self)
 {
-	USB_DETACH_START(cdce, sc);
+	struct cdce_softc *sc = device_get_softc(self);
 	struct ifnet	*ifp;
 
 	CDCE_LOCK(sc);
