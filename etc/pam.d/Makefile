@@ -4,6 +4,7 @@ NO_OBJ=
 
 FILES=	README \
 	atrun \
+	cron \
 	ftpd \
 	gdm \
 	imap \
