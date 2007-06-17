@@ -719,11 +719,7 @@ sv_attach(device_t dev) {
 	char		status[SND_STATUSLEN];
 	u_long		midi_start, games_start, count, sdmaa, sdmac, ml, mu;
 
-	sc = malloc(sizeof(struct sc_info), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (sc == NULL) {
-		device_printf(dev, "cannot allocate softc");
-		return ENXIO;
-	}
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->dev = dev;
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
