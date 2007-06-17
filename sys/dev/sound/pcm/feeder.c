@@ -117,7 +117,7 @@ feeder_register(void *p)
 		/* initialize unit numbering */
 		snd_unit_init();
 		if (snd_unit < 0 || snd_unit > PCMMAXUNIT)
-			snd_unit = 0;
+			snd_unit = -1;
 		
 		if (snd_maxautovchans < 0 ||
 		    snd_maxautovchans > SND_MAXVCHANS)
