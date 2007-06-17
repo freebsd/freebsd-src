@@ -362,7 +362,7 @@ USB_DECLARE_DRIVER(rum);
 static int
 rum_match(device_t self)
 {
-	USB_MATCH_START(rum, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->iface != NULL)
 		return UMATCH_NONE;

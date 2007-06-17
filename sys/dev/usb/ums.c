@@ -162,7 +162,7 @@ USB_DECLARE_DRIVER(ums);
 static int
 ums_match(device_t self)
 {
-	USB_MATCH_START(ums, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_interface_descriptor_t *id;
 	int size, ret;
 	void *desc;

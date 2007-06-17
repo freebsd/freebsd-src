@@ -137,7 +137,7 @@ USB_DECLARE_DRIVER(urio);
 static int
 urio_match(device_t self)
 {
-	USB_MATCH_START(urio, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_device_descriptor_t *dd;
 
 	DPRINTFN(10,("urio_match\n"));

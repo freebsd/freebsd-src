@@ -550,7 +550,7 @@ rue_reset(struct rue_softc *sc)
 static int
 rue_match(device_t self)
 {
-	USB_MATCH_START(rue, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct rue_type	*t;
 
 	if (uaa->iface == NULL)

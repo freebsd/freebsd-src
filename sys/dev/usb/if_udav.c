@@ -267,7 +267,7 @@ static const struct udav_type {
 static int
 udav_match(device_t self)
 {
-	USB_MATCH_START(udav, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->iface != NULL)
 		return (UMATCH_NONE);

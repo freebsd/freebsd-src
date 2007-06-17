@@ -219,7 +219,7 @@ USB_DECLARE_DRIVER(udbp);
 static int
 udbp_match(device_t self)
 {
-	USB_MATCH_START(udbp, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_interface_descriptor_t *id;
 	if (!uaa->iface)
 	  return (UMATCH_NONE);

@@ -170,7 +170,7 @@ USB_DECLARE_DRIVER(ulpt);
 static int
 ulpt_match(device_t self)
 {
-	USB_MATCH_START(ulpt, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_interface_descriptor_t *id;
 
 	DPRINTFN(10,("ulpt_match\n"));
