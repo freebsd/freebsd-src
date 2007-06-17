@@ -1493,7 +1493,7 @@ retrylookup:
  *
  * Inputs are required to range within a page.
  */
-inline int
+int
 vm_page_bits(int base, int size)
 {
 	int first_bit;
