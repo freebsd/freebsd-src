@@ -5,6 +5,6 @@ INTERNALLIB=
 SRCS= entry.c env.c misc.c
 
 CFLAGS+= -I${.CURDIR}/../cron
-CFLAGS+= -DLOGIN_CAP
+CFLAGS+= -DLOGIN_CAP -DPAM
 
 .include <bsd.lib.mk>

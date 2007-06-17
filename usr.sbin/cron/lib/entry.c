@@ -323,10 +323,12 @@ load_entry(file, error_func, pw, envp)
 #endif
 	}
 
+#ifndef PAM	/* PAM takes care of account expiration by itself */
 	if (pw->pw_expire && time(NULL) >= pw->pw_expire) {
 		ecode = e_username;
 		goto eof;
 	}
+#endif /* !PAM */
 
 	e->uid = pw->pw_uid;
 	e->gid = pw->pw_gid;
