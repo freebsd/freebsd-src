@@ -1579,7 +1579,7 @@ dpt_attach(dpt_softc_t *dpt)
 			break;
 		}
 
-		if (xpt_bus_register(dpt->sims[i], i) != CAM_SUCCESS) {
+		if (xpt_bus_register(dpt->sims[i], dpt->dev, i) != CAM_SUCCESS){
 			cam_sim_free(dpt->sims[i], /*free_devq*/i == 0);
 			dpt->sims[i] = NULL;
 			break;

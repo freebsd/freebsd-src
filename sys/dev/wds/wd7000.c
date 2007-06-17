@@ -614,7 +614,7 @@ wds_attach(device_t dev)
 	}
 	wp->sim = sim;
 
-	if (xpt_bus_register(sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(sim, dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(sim, /* free_devq */ TRUE);
 		goto bad;
 	}

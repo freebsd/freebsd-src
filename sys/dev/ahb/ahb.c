@@ -69,7 +69,7 @@
 	bus_space_write_4((ahb)->tag, (ahb)->bsh, port, value)
 
 static const char		*ahbmatch(eisa_id_t type);
-static struct ahb_softc		*ahballoc(u_long unit, struct resource *res);
+static struct ahb_softc		*ahballoc(device_t dev, struct resource *res);
 static void			 ahbfree(struct ahb_softc *ahb);
 static int			 ahbreset(struct ahb_softc *ahb);
 static void			 ahbmapecbs(void *arg, bus_dma_segment_t *segs,
@@ -271,7 +271,7 @@ ahbattach(device_t dev)
 		return ENOMEM;
 	}
 
-	if ((ahb = ahballoc(device_get_unit(dev), io)) == NULL) {
+	if ((ahb = ahballoc(dev, io)) == NULL) {
 		goto error_exit2;
 	}
 
@@ -400,7 +400,7 @@ error_exit2:
 }
 
 static struct ahb_softc *
-ahballoc(u_long unit, struct resource *res)
+ahballoc(device_t dev, struct resource *res)
 {
 	struct	ahb_softc *ahb;
 
@@ -414,11 +414,12 @@ ahballoc(u_long unit, struct resource *res)
 	}
 	SLIST_INIT(&ahb->free_ecbs);
 	LIST_INIT(&ahb->pending_ccbs);
-	ahb->unit = unit;
+	ahb->unit = device_get_unit(dev);
 	ahb->tag = rman_get_bustag(res);
 	ahb->bsh = rman_get_bushandle(res);
 	ahb->disc_permitted = ~0;
 	ahb->tags_permitted = ~0;
+	ahb->dev = dev;
 
 	return (ahb);
 }
@@ -559,7 +560,7 @@ ahbxptattach(struct ahb_softc *ahb)
 		return (ENOMEM);
 	}
 
-	if (xpt_bus_register(ahb->sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(ahb->sim, ahb->dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(ahb->sim, /*free_devq*/TRUE);
 		return (ENXIO);
 	}

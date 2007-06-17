@@ -1966,7 +1966,7 @@ hpt_attach(device_t dev)
 		return ENOMEM;
 	}
 
-	if(xpt_bus_register(hpt_vsim, 0) != CAM_SUCCESS)
+	if(xpt_bus_register(hpt_vsim, dev, 0) != CAM_SUCCESS)
 	{
 		cam_sim_free(hpt_vsim, /*free devq*/ TRUE);
 		hpt_vsim = NULL;

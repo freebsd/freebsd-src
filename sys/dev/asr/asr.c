@@ -2657,7 +2657,7 @@ asr_attach(device_t dev)
 			continue;
 		}
 
-		if (xpt_bus_register(sc->ha_sim[bus], bus) != CAM_SUCCESS) {
+		if (xpt_bus_register(sc->ha_sim[bus], dev, bus) != CAM_SUCCESS){
 			cam_sim_free(sc->ha_sim[bus],
 			  /*free_devq*/TRUE);
 			sc->ha_sim[bus] = NULL;

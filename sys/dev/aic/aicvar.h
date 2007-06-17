@@ -69,6 +69,7 @@ struct aic_scb {
 enum { AIC6260, AIC6360, AIC6370, GM82C700 };
 
 struct aic_softc {
+	device_t		dev;
 	int			unit;
 	bus_space_tag_t		tag;
 	bus_space_handle_t	bsh;

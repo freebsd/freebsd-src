@@ -1423,7 +1423,7 @@ adv_attach(adv)
 	 *
 	 * XXX Twin Channel EISA Cards???
 	 */
-	if (xpt_bus_register(adv->sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(adv->sim, adv->dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(adv->sim, /*free devq*/TRUE);
 		return (ENXIO);
 	}

@@ -3645,7 +3645,7 @@ trm_attach(device_t dev)
 		cam_simq_free(device_Q);  /* SIM allocate fault*/
 		goto bad;
 	}
-	if (xpt_bus_register(pACB->psim, 0) != CAM_SUCCESS)  {
+	if (xpt_bus_register(pACB->psim, dev, 0) != CAM_SUCCESS)  {
 		printf("trm%d: xpt_bus_register fault !\n",unit);
 		goto bad;
 	}

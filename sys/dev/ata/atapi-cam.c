@@ -218,7 +218,7 @@ atapi_cam_attach(device_t dev)
     scp->sim = sim;
 
     mtx_lock(&scp->state_lock);
-    if (xpt_bus_register(sim, 0) != CAM_SUCCESS) {
+    if (xpt_bus_register(sim, dev, 0) != CAM_SUCCESS) {
 	error = EINVAL;
 	mtx_unlock(&scp->state_lock);
 	goto out;

@@ -681,7 +681,7 @@ attach_failed:
 		goto attach_failed;
 	}
 
-	if (xpt_bus_register(hba->sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(hba->sim, dev, 0) != CAM_SUCCESS) {
 		printf("hptiop: xpt_bus_register failed\n");
 		cam_sim_free(hba->sim, /*free devq*/ TRUE);
 		hba->sim = NULL;

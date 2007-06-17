@@ -2263,7 +2263,7 @@ umass_cam_attach_sim(struct umass_softc *sc)
 		return(ENOMEM);
 	}
 
-	if(xpt_bus_register(sc->umass_sim, device_get_unit(sc->sc_dev)) !=
+	if(xpt_bus_register(sc->umass_sim, NULL, device_get_unit(sc->sc_dev)) !=
 	    CAM_SUCCESS)
 		return(ENOMEM);
 

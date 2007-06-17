@@ -1950,7 +1950,7 @@ mly_cam_attach(struct mly_softc *sc)
 						      1, devq)) == NULL) {
 		return(ENOMEM);
 	    }
-	    if (xpt_bus_register(sc->mly_cam_sim[chn], chn)) {
+	    if (xpt_bus_register(sc->mly_cam_sim[chn], sc->mly_dev, chn)) {
 		mly_printf(sc, "CAM XPT phsyical channel registration failed\n");
 		return(ENXIO);
 	    }
@@ -1970,7 +1970,7 @@ mly_cam_attach(struct mly_softc *sc)
 						  0, devq)) == NULL) {
 	    return(ENOMEM);
 	}
-	if (xpt_bus_register(sc->mly_cam_sim[chn], chn)) {
+	if (xpt_bus_register(sc->mly_cam_sim[chn], sc->mly_dev, chn)) {
 	    mly_printf(sc, "CAM XPT virtual channel registration failed\n");
 	    return(ENXIO);
 	}

@@ -332,7 +332,7 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 		error = ENOMEM;
 		goto fail_devq;
 	}
-	if (xpt_bus_register(sim, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(sim, sc->sc_dev, 0) != CAM_SUCCESS) {
 		device_printf(sc->sc_dev, "cannot register bus\n");
 		error = EIO;
 		goto fail_sim;

@@ -1097,7 +1097,8 @@ static void hpt_final_init(void *dummy)
 			return ;
 		}
 	
-		if (xpt_bus_register(vbus_ext->sim, 0) != CAM_SUCCESS) {
+		/* XXX No single device parent */
+		if (xpt_bus_register(vbus_ext->sim, NULL, 0) != CAM_SUCCESS) {
 			os_printk("xpt_bus_register failed");
 			cam_sim_free(vbus_ext->sim, /*free devq*/ TRUE);
 			vbus_ext->sim = NULL;

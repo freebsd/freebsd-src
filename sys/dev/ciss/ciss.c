@@ -2503,7 +2503,7 @@ ciss_cam_init(struct ciss_softc *sc)
 	 */
 	mtx_lock(&sc->ciss_mtx);
 	if (i == 0 || sc->ciss_controllers[i].physical.bus != 0) { 
-	    if (xpt_bus_register(sc->ciss_cam_sim[i], i) != 0) {
+	    if (xpt_bus_register(sc->ciss_cam_sim[i], sc->ciss_dev, i) != 0) {
 		ciss_printf(sc, "can't register SCSI bus %d\n", i);
 		mtx_unlock(&sc->ciss_mtx);
 		return (ENXIO);
@@ -2525,7 +2525,7 @@ ciss_cam_init(struct ciss_softc *sc)
 	}
 
 	mtx_lock(&sc->ciss_mtx);
-	if (xpt_bus_register(sc->ciss_cam_sim[i], i) != 0) {
+	if (xpt_bus_register(sc->ciss_cam_sim[i], sc->ciss_dev, i) != 0) {
 	    ciss_printf(sc, "can't register SCSI bus %d\n", i);
 	    mtx_unlock(&sc->ciss_mtx);
 	    return (ENXIO);
