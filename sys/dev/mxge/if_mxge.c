@@ -154,6 +154,7 @@ mxge_enable_wc(mxge_softc_t *sc)
 	vm_offset_t len;
 	int err, action;
 
+	sc->wc = 1;
 	len = rman_get_size(sc->mem_res);
 #if defined(__i386) || defined(__amd64)
 	err = pmap_change_attr((vm_offset_t) sc->sram,
@@ -172,11 +173,10 @@ mxge_enable_wc(mxge_softc_t *sc)
 	strcpy((char *)&mrdesc.mr_owner, "mxge");
 	err = mem_range_attr_set(&mrdesc, &action);
 	if (err != 0) {
+		sc->wc = 0;
 		device_printf(sc->dev, 
 			      "w/c failed for pa 0x%lx, len 0x%lx, err = %d\n",
 			      (unsigned long)pa, (unsigned long)len, err);
-	} else {
-		sc->wc = 1;
 	}
 }
 
