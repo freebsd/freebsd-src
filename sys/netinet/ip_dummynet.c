@@ -1696,7 +1696,7 @@ config_pipe(struct dn_pipe *p)
 			 */
 			pipe->idle_heap.size = pipe->idle_heap.elements = 0;
 			pipe->idle_heap.offset =
-			    OFFSET_OF(struct dn_flow_queue, heap_pos);
+			    offsetof(struct dn_flow_queue, heap_pos);
 		} else
 			/* Flush accumulated credit for all queues. */
 			for (i = 0; i <= pipe->fs.rq_size; i++)
