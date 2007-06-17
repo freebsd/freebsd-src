@@ -165,9 +165,6 @@ Static struct cdevsw ulpt_cdevsw = {
 	.d_read =	ulptread,
 	.d_ioctl =	ulptioctl,
 	.d_name =	"ulpt",
-#if __FreeBSD_version < 500014
-	.d_bmaj		-1
-#endif
 };
 #endif
 
