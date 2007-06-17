@@ -70,11 +70,6 @@ typedef u_int64_t dn_key ;      /* sorting key */
  * virtual time wraps every 15 days.
  */
 
-/*
- * The OFFSET_OF macro is used to return the offset of a field within
- * a structure. It is used by the heap management routines.
- */
-#define OFFSET_OF(type, field) ((int)&( ((type *)0)->field) )
 
 /*
  * The maximum hash table size for queues.  This value must be a power
