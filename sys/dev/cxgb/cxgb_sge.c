@@ -686,7 +686,8 @@ sge_timer_cb(void *arg)
 				break;
 			}
 		}
-	callout_reset(&sc->sge_timer_ch, TX_RECLAIM_PERIOD, sge_timer_cb, sc);
+	if (sc->open_device_map != 0) 
+		callout_reset(&sc->sge_timer_ch, TX_RECLAIM_PERIOD, sge_timer_cb, sc);
 }
 
 /*
@@ -1467,7 +1468,7 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		}
 	}
 
-	for (i = 0; i < SGE_TXQ_PER_SET; ++i) {
+	for (i = 0; i < SGE_TXQ_PER_SET; i++) {
 		if (q->txq[i].desc) {
 			mtx_lock(&sc->sge.reg_lock);
 			t3_sge_enable_ecntxt(sc, q->txq[i].cntxt_id, 0);
@@ -1478,12 +1479,10 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 					q->txq[i].desc_map);
 			bus_dma_tag_destroy(q->txq[i].desc_tag);
 			bus_dma_tag_destroy(q->txq[i].entry_tag);
+			MTX_DESTROY(&q->txq[i].lock);
 		}
 		if (q->txq[i].sdesc) {
 			free(q->txq[i].sdesc, M_DEVBUF);
-		}
-		if (mtx_initialized(&q->txq[i].lock)) {
-			mtx_destroy(&q->txq[i].lock);
 		}
 	}
 
@@ -1496,11 +1495,9 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		bus_dmamem_free(q->rspq.desc_tag, q->rspq.desc,
 			        q->rspq.desc_map);
 		bus_dma_tag_destroy(q->rspq.desc_tag);
+		MTX_DESTROY(&q->rspq.lock);
 	}
 
-	if (mtx_initialized(&q->rspq.lock))
-		mtx_destroy(&q->rspq.lock); 
-	
 	bzero(q, sizeof(*q));
 }
 
@@ -1513,9 +1510,12 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 void
 t3_free_sge_resources(adapter_t *sc)
 {
-	int i;
+	int i, nqsets;
 
-	for (i = 0; i < SGE_QSETS; ++i)
+	for (nqsets = i = 0; i < (sc)->params.nports; i++) 
+		nqsets += sc->port[i].nqsets;
+	
+	for (i = 0; i < nqsets; ++i)
 		t3_free_qset(sc, &sc->sge.qs[i]);
 }
 
@@ -1548,13 +1548,17 @@ t3_sge_start(adapter_t *sc)
 void
 t3_sge_stop(adapter_t *sc)
 {
-	int i;
+	int i, nqsets;
+	
 	t3_set_reg_field(sc, A_SG_CONTROL, F_GLOBALENABLE, 0);
 
 	if (sc->tq == NULL)
 		return;
 	
-	for (i = 0; i < SGE_QSETS; ++i) {
+	for (nqsets = i = 0; i < (sc)->params.nports; i++) 
+		nqsets += sc->port[i].nqsets;
+	
+	for (i = 0; i < nqsets; ++i) {
 		struct sge_qset *qs = &sc->sge.qs[i];
 		
 		taskqueue_drain(sc->tq, &qs->txq[TXQ_OFLD].qresume_tsk);
@@ -2010,7 +2014,9 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 		mbufq_init(&q->txq[i].sendq);
 		q->txq[i].gen = 1;
 		q->txq[i].size = p->txq_size[i];
-		mtx_init(&q->txq[i].lock, "t3 txq lock", NULL, MTX_DEF);
+		snprintf(q->txq[i].lockbuf, TXQ_NAME_LEN, "t3 txq lock %d:%d:%d",
+		    device_get_unit(sc->dev), irq_vec_idx, i);
+		MTX_INIT(&q->txq[i].lock, q->txq[i].lockbuf, NULL, MTX_DEF);
 	}
 
 	TASK_INIT(&q->txq[TXQ_OFLD].qresume_tsk, 0, restart_offloadq, q);
@@ -2022,8 +2028,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 
 	q->rspq.gen = 1;
 	q->rspq.size = p->rspq_size;
-	mtx_init(&q->rspq.lock, "t3 rspq lock", NULL, MTX_DEF);
-	
+
 	q->txq[TXQ_ETH].stop_thres = nports *
 	    flits_to_desc(sgl_len(TX_MAX_SEGS + 1) + 3);
 
@@ -2087,6 +2092,10 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 			goto err_unlock;
 		}
 	}
+	
+	snprintf(q->rspq.lockbuf, RSPQ_NAME_LEN, "t3 rspq lock %d:%d",
+	    device_get_unit(sc->dev), irq_vec_idx);
+	MTX_INIT(&q->rspq.lock, q->rspq.lockbuf, NULL, MTX_DEF);
 	
 	mtx_unlock(&sc->sge.reg_lock);
 	t3_update_qset_coalesce(q, p);
