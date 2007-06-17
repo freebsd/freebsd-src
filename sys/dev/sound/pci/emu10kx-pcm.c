@@ -1011,15 +1011,11 @@ emu_pcm_attach(device_t dev)
 	uint32_t inte, ipr;
 	uintptr_t route, r, is_emu10k1;
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return (ENXIO);
-	}
-	bzero(sc, sizeof(*sc));
-
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->card = (struct emu_sc_info *)(device_get_softc(device_get_parent(dev)));
 	if (sc->card == NULL) {
 		device_printf(dev, "cannot get bridge conf\n");
+		free(sc, M_DEVBUF);
 		return (ENXIO);
 	}
 

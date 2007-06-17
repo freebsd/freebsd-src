@@ -824,10 +824,7 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 	struct ac97_info *codec;
 	int eapdinv;
 
-	codec = (struct ac97_info *)malloc(sizeof *codec, M_AC97, M_NOWAIT | M_ZERO);
-	if (codec == NULL)
-		return NULL;
-
+	codec = malloc(sizeof(*codec), M_AC97, M_WAITOK | M_ZERO);
 	snprintf(codec->name, sizeof(codec->name), "%s:ac97",
 	    device_get_nameunit(dev));
 	codec->lock = snd_mtxcreate(codec->name, "ac97 codec");

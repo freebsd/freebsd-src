@@ -1979,10 +1979,7 @@ pnpmss_attach(device_t dev)
 {
 	struct mss_info *mss;
 
-	mss = (struct mss_info *)malloc(sizeof *mss, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (!mss)
-	    return ENXIO;
-
+	mss = malloc(sizeof(*mss), M_DEVBUF, M_WAITOK | M_ZERO);
 	mss->io_rid = 0;
 	mss->conf_rid = -1;
 	mss->irq_rid = 0;
