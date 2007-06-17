@@ -405,6 +405,8 @@ int		acpi_battery_get_battinfo(device_t dev,
 
 /* Embedded controller. */
 void		acpi_ec_ecdt_probe(device_t);
+/* HPET table probe*/
+void		acpi_hpet_table_probe(device_t);
 
 /* AC adapter interface. */
 int		acpi_acad_get_acline(int *);
