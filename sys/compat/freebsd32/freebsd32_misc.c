@@ -2053,7 +2053,7 @@ ofreebsd32_sigstack(struct thread *td,
 {
 	struct sigstack32 s32;
 	struct sigstack nss, oss;
-	int error = 0;
+	int error = 0, unss;
 
 	if (uap->nss != NULL) {
 		error = copyin(uap->nss, &s32, sizeof(s32));
@@ -2061,13 +2061,16 @@ ofreebsd32_sigstack(struct thread *td,
 			return (error);
 		nss.ss_sp = PTRIN(s32.ss_sp);
 		CP(s32, nss, ss_onstack);
+		unss = 1;
+	} else {
+		unss = 0;
 	}
 	oss.ss_sp = td->td_sigstk.ss_sp;
 	oss.ss_onstack = sigonstack(cpu_getstack(td));
-	if (uap->nss != NULL) {
+	if (unss) {
 		td->td_sigstk.ss_sp = nss.ss_sp;
 		td->td_sigstk.ss_size = 0;
-		td->td_sigstk.ss_flags |= nss.ss_onstack & SS_ONSTACK;
+		td->td_sigstk.ss_flags |= (nss.ss_onstack & SS_ONSTACK);
 		td->td_pflags |= TDP_ALTSTACK;
 	}
 	if (uap->oss != NULL) {
