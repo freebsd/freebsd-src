@@ -324,11 +324,7 @@ cs4231_sbus_attach(device_t dev)
 	struct cs4231_softc *sc;
 	int burst;
 
-	sc = malloc(sizeof(struct cs4231_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (sc == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return (ENOMEM);
-	}
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->sc_dev = dev;
 	/*
 	 * XXX

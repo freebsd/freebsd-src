@@ -880,11 +880,7 @@ ich_pci_attach(device_t dev)
 	struct sc_info 		*sc;
 	int			i;
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return (ENXIO);
-	}
-
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->ich_lock = snd_mtxcreate(device_get_nameunit(dev), "snd_ich softc");
 	sc->dev = dev;
 

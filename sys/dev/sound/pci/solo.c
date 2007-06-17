@@ -986,10 +986,7 @@ ess_attach(device_t dev)
 	u_int16_t ddma;
 	u_int32_t data;
 
-	sc = (struct ess_info *)malloc(sizeof *sc, M_DEVBUF, M_NOWAIT | M_ZERO);
-    	if (!sc)
-		return ENXIO;
-
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
 	pci_write_config(dev, PCIR_COMMAND, data, 2);

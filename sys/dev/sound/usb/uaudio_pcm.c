@@ -360,10 +360,7 @@ ua_attach(device_t dev)
 	u_int32_t nplay, nrec, flags;
 	int i;
 
-	ua = (struct ua_info *)malloc(sizeof *ua, M_DEVBUF, M_ZERO | M_NOWAIT);
-	if (ua == NULL)
-		return ENXIO;
-
+	ua = malloc(sizeof(*ua), M_DEVBUF, M_WAITOK | M_ZERO);
 	ua->sc_dev = dev;
 
 	/* Mark for existence */
