@@ -1645,6 +1645,9 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 				continue;
 			pmap->pm_stats.resident_count--;
 			pte = pmap_pte_pde(pmap, va, &ptepde);
+			if (pte == NULL) {
+				panic("null pte in pmap_collect");
+			}
 			tpte = pte_load_clear(pte);
 			KASSERT((tpte & PG_W) == 0,
 			    ("pmap_collect: wired pte %#lx", tpte));
@@ -2060,6 +2063,9 @@ pmap_remove_all(vm_page_t m)
 		PMAP_LOCK(pmap);
 		pmap->pm_stats.resident_count--;
 		pte = pmap_pte_pde(pmap, pv->pv_va, &ptepde);
+		if (pte == NULL) {
+			panic("null pte in pmap_remove_all");
+		}
 		tpte = pte_load_clear(pte);
 		if (tpte & PG_W)
 			pmap->pm_stats.wired_count--;
