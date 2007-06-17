@@ -46,6 +46,11 @@ int snd_unit = -1;
 TUNABLE_INT("hw.snd.default_unit", &snd_unit);
 #endif
 
+static int snd_unit_auto = 0;
+TUNABLE_INT("hw.snd.default_auto", &snd_unit_auto);
+SYSCTL_INT(_hw_snd, OID_AUTO, default_auto, CTLFLAG_RW,
+    &snd_unit_auto, 0, "assign default unit to a newly attach device");
+
 int snd_maxautovchans = 16;
 /* XXX: a tunable implies that we may need more than one sound channel before
    the system can change a sysctl (/etc/sysctl.conf), do we really need
@@ -801,7 +806,7 @@ pcm_setstatus(device_t dev, char *str)
 
 	pcm_unlock(d);
 
-	if (snd_unit < 0)
+	if (snd_unit < 0 || snd_unit_auto != 0)
 		snd_unit = device_get_unit(dev);
 
 	return (0);
