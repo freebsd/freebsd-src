@@ -96,14 +96,10 @@ struct ofw_pcibus_devinfo {
 	struct ofw_bus_devinfo	opd_obdinfo;
 };
 
-struct ofw_pcibus_softc {
-	phandle_t	ops_node;
-};
-
 static devclass_t pci_devclass;
 
-DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods,
-    sizeof(struct ofw_pcibus_softc), pci_driver);
+DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods, 1 /* no softc */,
+    pci_driver);
 DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, pci_devclass, 0, 0);
 MODULE_VERSION(ofw_pcibus, 1);
 MODULE_DEPEND(ofw_pcibus, pci, 1, 1, 1);
