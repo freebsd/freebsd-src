@@ -613,6 +613,8 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		return (0);
 
 	bzero(&dst, sizeof(dst));
+	m = NULL;
+	hlen = 0;
 	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, ifp->if_mtu,
 	    &m, &dst, &hlen, d->bd_wfilter);
 	if (error)
