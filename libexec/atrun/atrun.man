@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd April 12, 1995
+.Dd June 17, 2007
 .Dt ATRUN 8
 .Os
 .Sh NAME
@@ -34,6 +34,13 @@ time has elapsed.
 In addition, if the load average over the last minute was less than
 the specified limit then a maximum of one batch job (denoted by the
 uppercase queues) is started.
+.Pp
+Before starting a job,
+.Nm
+will check the status of its owner's account with
+.Xr pam 3
+and refuse to run the job if the account is unavailable,
+e.g., locked out or expired.
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl l Ar load_avg
@@ -50,17 +57,23 @@ to work, you have to start up a
 .Xr cron 8
 daemon.
 .Sh FILES
-.Bl -tag -width /var/at/spool -compact
-.It Pa /var/at/spool
-Directory containing output spool files
+.Bl -tag -width /etc/pam.d/atrun -compact
+.It Pa /etc/pam.d/atrun
+.Xr pam.conf 5
+configuration file for
+.Nm
 .It Pa /var/at/jobs
 Directory containing job files
+.It Pa /var/at/spool
+Directory containing output spool files
 .El
 .Sh SEE ALSO
 .Xr at 1 ,
 .Xr crontab 1 ,
+.Xr pam 3 ,
 .Xr syslog 3 ,
 .Xr crontab 5 ,
+.Xr pam.conf 5 ,
 .Xr cron 8
 .Sh BUGS
 The functionality of
