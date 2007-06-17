@@ -812,7 +812,6 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 	usb_device_descriptor_t *dd = &dev->ddesc;
 	int found, i, confi, nifaces;
 	usbd_status err;
-	device_t dv;
 	device_t *tmpdv;
 	usbd_interface_handle ifaces[256]; /* 256 is the absolute max */
 	char *devinfo;
@@ -855,7 +854,7 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 	DPRINTF(("usbd_probe_and_attach: trying device specific drivers\n"));
 
 	dev->ifacenums = NULL;
-	dev->subdevs = malloc(2 * sizeof dv, M_USB, M_NOWAIT);
+	dev->subdevs = malloc(2 * sizeof(device_t), M_USB, M_NOWAIT);
 	if (dev->subdevs == NULL) {
 		free(devinfo, M_USB);
 		return (USBD_NOMEM);
@@ -865,11 +864,11 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 	*uaap = uaa;
 	usbd_devinfo(dev, 1, devinfo);
 	device_set_desc_copy(bdev, devinfo);
-	dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, usbd_submatch);
-	if (dv) {
+	if (device_probe_and_attach(bdev) == 0) {
 		free(devinfo, M_USB);
 		return (USBD_NORMAL_COMPLETION);
 	}
+
 	/*
 	 * Free subdevs so we can reallocate it larger for the number of
 	 * interfaces 
@@ -904,7 +903,7 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 			ifaces[i] = &dev->ifaces[i];
 		uaa.ifaces = ifaces;
 		uaa.nifaces = nifaces;
-		dev->subdevs = malloc((nifaces+1) * sizeof dv, M_USB,M_NOWAIT);
+		dev->subdevs = malloc((nifaces+1) * sizeof(device_t), M_USB,M_NOWAIT);
 		if (dev->subdevs == NULL) {
 			free(devinfo, M_USB);
 			return (USBD_NOMEM);
@@ -928,9 +927,7 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 			*uaap = uaa;
 			usbd_devinfo(dev, 1, devinfo);
 			device_set_desc_copy(bdev, devinfo);
-			dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print,
-					   usbd_submatch);
-			if (dv != NULL) {
+			if (device_probe_and_attach(bdev) == 0) {
 				ifaces[i] = 0; /* consumed */
 				found++;
 				/* create another child for the next iface */
@@ -977,7 +974,7 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 	uaa.usegeneric = 1;
 	uaa.configno = UHUB_UNK_CONFIGURATION;
 	uaa.ifaceno = UHUB_UNK_INTERFACE;
-	dev->subdevs = malloc(2 * sizeof dv, M_USB, M_NOWAIT);
+	dev->subdevs = malloc(2 * sizeof(device_t), M_USB, M_NOWAIT);
 	if (dev->subdevs == 0) {
 		free(devinfo, M_USB);
 		return (USBD_NOMEM);
@@ -988,8 +985,7 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 	usbd_devinfo(dev, 1, devinfo);
 	device_set_desc_copy(bdev, devinfo);
 	free(devinfo, M_USB);
-	dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, usbd_submatch);
-	if (dv != NULL)
+	if (device_probe_and_attach(bdev) == 0)
 		return (USBD_NORMAL_COMPLETION);
 
 	/*
@@ -1365,7 +1361,7 @@ usb_disconnect_port(struct usbd_port *up, device_t parent)
 			printf(" (addr %d) disconnected\n", dev->address);
 			struct usb_attach_arg *uaap =
 			    device_get_ivars(dev->subdevs[i]);
-			device_detach(dev);
+			device_detach(dev->subdevs[i]);
 			free(uaap, M_USB);
 			device_delete_child(device_get_parent(dev->subdevs[i]),
 			    dev->subdevs[i]);
