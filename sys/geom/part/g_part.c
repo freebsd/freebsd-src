@@ -136,6 +136,81 @@ g_part_alias_name(enum g_part_alias alias)
 	return (NULL);
 }
 
+void
+g_part_geometry_heads(off_t blocks, u_int sectors, off_t *bestchs,
+    u_int *bestheads)
+{
+	static u_int candidate_heads[] = { 1, 2, 16, 32, 64, 128, 255, 0 };
+	off_t chs, cylinders;
+	u_int heads;
+	int idx;
+
+	*bestchs = 0;
+	*bestheads = 0;
+	for (idx = 0; candidate_heads[idx] != 0; idx++) {
+		heads = candidate_heads[idx];
+		cylinders = blocks / heads / sectors;
+		if (cylinders < heads || cylinders < sectors)
+			break;
+		if (cylinders > 1023)
+			continue;
+		chs = cylinders * heads * sectors;
+		if (chs > *bestchs || (chs == *bestchs && *bestheads == 1)) {
+			*bestchs = chs;
+			*bestheads = heads;
+		}
+	}
+}
+
+static void
+g_part_geometry(struct g_part_table *table, struct g_consumer *cp,
+    off_t blocks)
+{
+	static u_int candidate_sectors[] = { 1, 9, 17, 33, 63, 0 };
+	off_t chs, bestchs;
+	u_int heads, sectors;
+	int idx;
+
+	if (g_getattr("GEOM::fwsectors", cp, &sectors) != 0 ||
+	    sectors < 1 || sectors > 63 ||
+	    g_getattr("GEOM::fwheads", cp, &heads) != 0 ||
+	    heads < 1 || heads > 255) {
+		table->gpt_fixgeom = 0;
+		table->gpt_heads = 0;
+		table->gpt_sectors = 0;
+		bestchs = 0;
+		for (idx = 0; candidate_sectors[idx] != 0; idx++) {
+			sectors = candidate_sectors[idx];
+			g_part_geometry_heads(blocks, sectors, &chs, &heads);
+			if (chs == 0)
+				continue;
+			/*
+			 * Prefer a geometry with sectors > 1, but only if
+			 * it doesn't bump down the numbver of heads to 1.
+			 */
+			if (chs > bestchs || (chs == bestchs && heads > 1 &&
+			    table->gpt_sectors == 1)) {
+				bestchs = chs;
+				table->gpt_heads = heads;
+				table->gpt_sectors = sectors;
+			}
+		}
+		/*
+		 * If we didn't find a geometry at all, then the disk is
+		 * too big. This means we can use the maximum number of
+		 * heads and sectors.
+		 */
+		if (bestchs == 0) {
+			table->gpt_heads = 255;
+			table->gpt_sectors = 63;
+		}
+	} else {
+		table->gpt_fixgeom = 1;
+		table->gpt_heads = heads;
+		table->gpt_sectors = sectors;
+	}
+}
+
 struct g_part_entry *
 g_part_new_entry(struct g_part_table *table, int index, quad_t start,
     quad_t end)
@@ -574,6 +649,12 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 
 	g_topology_unlock();
 
+	/* Make sure the provider has media. */
+	if (pp->mediasize == 0 || pp->sectorsize == 0) {
+		error = ENODEV;
+		goto fail;
+	}
+
 	/* Make sure we can nest and if so, determine our depth. */
 	error = g_getattr("PART::isleaf", cp, &attr);
 	if (!error && attr) {
@@ -582,6 +663,14 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	}
 	error = g_getattr("PART::depth", cp, &attr);
 	table->gpt_depth = (!error) ? attr + 1 : 0;
+
+	/*
+	 * Synthesize a disk geometry. Some partitioning schemes
+	 * depend on it and since some file systems need it even
+	 * when the partitition scheme doesn't, we do it here in
+	 * scheme-independent code.
+	 */
+	g_part_geometry(table, cp, pp->mediasize / pp->sectorsize);
 
 	error = G_PART_CREATE(table, gpp);
 	if (error)
@@ -1217,6 +1306,15 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_topology_unlock();
 
+	/*
+	 * Short-circuit the whole probing galore when there's no
+	 * media present.
+	 */
+	if (pp->mediasize == 0 || pp->sectorsize == 0) {
+		error = ENODEV;
+		goto fail;
+	}
+
 	/* Make sure we can nest and if so, determine our depth. */
 	error = g_getattr("PART::isleaf", cp, &attr);
 	if (!error && attr) {
@@ -1231,6 +1329,15 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		goto fail;
 
 	table = gp->softc;
+	
+	/*
+	 * Synthesize a disk geometry. Some partitioning schemes
+	 * depend on it and since some file systems need it even
+	 * when the partitition scheme doesn't, we do it here in
+	 * scheme-independent code.
+	 */
+	g_part_geometry(table, cp, pp->mediasize / pp->sectorsize);
+
 	error = G_PART_READ(table, cp);
 	if (error)
 		goto fail;
@@ -1311,6 +1418,10 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    (uintmax_t)table->gpt_first);
 		sbuf_printf(sb, "%s<last>%ju</last>\n", indent,
 		    (uintmax_t)table->gpt_last);
+		sbuf_printf(sb, "%s<fwsectors>%u</fwsectors>\n", indent,
+		    table->gpt_sectors);
+		sbuf_printf(sb, "%s<fwheads>%u</fwheads>\n", indent,
+		    table->gpt_heads);
 		G_PART_DUMPCONF(table, NULL, sb, indent);
 	}
 }
@@ -1349,7 +1460,6 @@ g_part_start(struct bio *bp)
 	struct g_part_table *table;
 	struct g_kerneldump *gkd;
 	struct g_provider *pp;
-	int attr;
 
 	pp = bp->bio_to;
 	gp = pp->geom;
@@ -1387,6 +1497,14 @@ g_part_start(struct bio *bp)
 	case BIO_FLUSH:
 		break;
 	case BIO_GETATTR:
+		if (g_handleattr_int(bp, "GEOM::fwheads", table->gpt_heads))
+			return;
+		if (g_handleattr_int(bp, "GEOM::fwsectors", table->gpt_sectors))
+			return;
+		if (g_handleattr_int(bp, "PART::isleaf", table->gpt_isleaf))
+			return;
+		if (g_handleattr_int(bp, "PART::depth", table->gpt_depth))
+			return;
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			/*
 			 * Check that the partition is suitable for kernel
@@ -1405,25 +1523,6 @@ g_part_start(struct bio *bp)
 			if (gkd->offset + gkd->length > pp->mediasize)
 				gkd->length = pp->mediasize - gkd->offset;
 			gkd->offset += entry->gpe_offset;
-		} else if (!strcmp("PART::isleaf", bp->bio_attribute)) {
-			if (bp->bio_length != sizeof(int)) {
-				g_io_deliver(bp, EFAULT);
-				return;
-			}
-			attr = table->gpt_isleaf ? 1 : 0;
-			bcopy(&attr, bp->bio_data, sizeof(int));
-			bp->bio_completed = sizeof(int);
-			g_io_deliver(bp, 0);
-			return;
-		} else if (!strcmp("PART::depth", bp->bio_attribute)) {
-			if (bp->bio_length != sizeof(int)) {
-				g_io_deliver(bp, EFAULT);
-				return;
-			}
-			bcopy(&table->gpt_depth, bp->bio_data, sizeof(int));
-			bp->bio_completed = sizeof(int);
-			g_io_deliver(bp, 0);
-			return;
 		}
 		break;
 	default:
