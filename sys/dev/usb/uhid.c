@@ -168,7 +168,7 @@ USB_DECLARE_DRIVER(uhid);
 static int
 uhid_match(device_t self)
 {
-	USB_MATCH_START(uhid, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_interface_descriptor_t *id;
 
 	if (uaa->iface == NULL)

@@ -182,7 +182,7 @@ USB_DECLARE_DRIVER(ubser);
 static int
 ubser_match(device_t self)
 {
-	USB_MATCH_START(ubser, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_string_descriptor_t us;
 	usb_interface_descriptor_t *id;
 	usb_device_descriptor_t *dd;

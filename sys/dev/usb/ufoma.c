@@ -263,7 +263,7 @@ MODULE_DEPEND(ufoma, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 static int
 ufoma_match(device_t self)
 {
-	USB_MATCH_START(ufoma, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_interface_descriptor_t *id;
 	usb_config_descriptor_t *cd;
 	usb_mcpc_acm_descriptor *mad;

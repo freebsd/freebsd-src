@@ -321,7 +321,7 @@ SYSCTL_PROC(_hw_usb_uplcom, OID_AUTO, interval, CTLTYPE_INT | CTLFLAG_RW,
 static int
 uplcom_match(device_t self)
 {
-	USB_MATCH_START(uplcom, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	int i;
 
 	if (uaa->iface != NULL)

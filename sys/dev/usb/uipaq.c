@@ -132,7 +132,7 @@ static const struct uipaq_type uipaq_devs[] = {
 static int
 uipaq_match(device_t self)
 {
-	USB_MATCH_START(uipaq, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->iface != NULL)
 		return (UMATCH_NONE);

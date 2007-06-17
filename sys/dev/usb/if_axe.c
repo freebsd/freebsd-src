@@ -382,7 +382,7 @@ axe_reset(struct axe_softc *sc)
 static int
 axe_match(device_t self)
 {
-	USB_MATCH_START(axe, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct axe_type			*t;
 
 	if (!uaa->iface)
