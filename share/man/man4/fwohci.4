@@ -52,6 +52,15 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 firewire_load="YES"
 .Ed
+.Pp
+To disable physical access (see
+.Sx BUGS
+section for detail), put the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.firewire.phydma_enable=0
+.Ed
+.Pp
 .Sh HARDWARE
 The
 .Nm
