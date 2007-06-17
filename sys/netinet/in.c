@@ -605,9 +605,9 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 		struct in_ifaddr *ia;
 		struct in_addr mask, candidate, match;
 		struct sockaddr_in *sin;
-		int cmp;
 
 		bzero(&mask, sizeof(mask));
+		bzero(&match, sizeof(match));
 		if (iflr->flags & IFLR_PREFIX) {
 			/* lookup a prefix rather than address. */
 			in_len2mask(&mask, iflr->prefixlen);
@@ -620,25 +620,20 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			if (match.s_addr != sin->sin_addr.s_addr)
 				return EINVAL;
 
-			cmp = 1;
 		} else {
-			if (cmd == SIOCGLIFADDR) {
-				/* on getting an address, take the 1st match */
-				cmp = 0;	/*XXX*/
-			} else {
-				/* on deleting an address, do exact match */
+			/* on getting an address, take the 1st match */
+			/* on deleting an address, do exact match */
+			if (cmd != SIOCGLIFADDR) {
 				in_len2mask(&mask, 32);
 				sin = (struct sockaddr_in *)&iflr->addr;
 				match.s_addr = sin->sin_addr.s_addr;
-
-				cmp = 1;
 			}
 		}
 
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)	{
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
-			if (!cmp)
+			if (match.s_addr == 0)
 				break;
 			candidate.s_addr = ((struct sockaddr_in *)&ifa->ifa_addr)->sin_addr.s_addr;
 			candidate.s_addr &= mask.s_addr;
@@ -798,8 +793,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	((((x)->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)) != 0) \
 	    ? RTF_HOST : 0)
 /*
- * Check if we have a route for the given prefix already or add a one
- * accordingly.
+ * Check if we have a route for the given prefix already or add one accordingly.
  */
 static int
 in_addprefix(struct in_ifaddr *target, int flags)
@@ -808,9 +802,10 @@ in_addprefix(struct in_ifaddr *target, int flags)
 	struct in_addr prefix, mask, p, m;
 	int error;
 
-	if ((flags & RTF_HOST) != 0)
+	if ((flags & RTF_HOST) != 0) {
 		prefix = target->ia_dstaddr.sin_addr;
-	else {
+		mask.s_addr = 0;
+	} else {
 		prefix = target->ia_addr.sin_addr;
 		mask = target->ia_sockmask.sin_addr;
 		prefix.s_addr &= mask.s_addr;
