@@ -2560,10 +2560,8 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 			if ((SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_COOKIE_WAIT) ||
 			    (SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_COOKIE_ECHOED)) {
 				/* Just abandon things in the front states */
-				if (asoc->asoc.total_output_queue_size == 0) {
-					sctp_free_assoc(inp, asoc, SCTP_PCBFREE_NOFORCE, SCTP_FROM_SCTP_PCB + SCTP_LOC_2);
-					continue;
-				}
+				sctp_free_assoc(inp, asoc, SCTP_PCBFREE_NOFORCE, SCTP_FROM_SCTP_PCB + SCTP_LOC_2);
+				continue;
 			}
 			SCTP_TCB_LOCK(asoc);
 			/* Disconnect the socket please */
