@@ -410,7 +410,7 @@ aue_read_eeprom(struct aue_softc *sc, caddr_t dest, int off, int cnt, int swap)
 static int
 aue_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct aue_softc	*sc = USBGETSOFTC(dev);
+	struct aue_softc	*sc = device_get_softc(dev);
 	int			i;
 	u_int16_t		val = 0;
 
@@ -454,7 +454,7 @@ aue_miibus_readreg(device_t dev, int phy, int reg)
 static int
 aue_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
-	struct aue_softc	*sc = USBGETSOFTC(dev);
+	struct aue_softc	*sc = device_get_softc(dev);
 	int			i;
 
 	if (phy == 3)
@@ -480,7 +480,7 @@ aue_miibus_writereg(device_t dev, int phy, int reg, int data)
 static void
 aue_miibus_statchg(device_t dev)
 {
-	struct aue_softc	*sc = USBGETSOFTC(dev);
+	struct aue_softc	*sc = device_get_softc(dev);
 	struct mii_data		*mii = GET_MII(sc);
 
 	AUE_CLRBIT(sc, AUE_CTL0, AUE_CTL0_RX_ENB | AUE_CTL0_TX_ENB);
@@ -631,7 +631,8 @@ aue_match(device_t self)
 static int
 aue_attach(device_t self)
 {
-	USB_ATTACH_START(aue, sc, uaa);
+	struct aue_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
 	usbd_interface_handle	iface;

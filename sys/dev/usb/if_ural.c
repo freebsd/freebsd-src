@@ -344,7 +344,27 @@ static const struct {
 	{ 161, 0x08808, 0x0242f, 0x00281 }
 };
 
-USB_DECLARE_DRIVER(ural);
+static int ural_match(device_t);
+static int ural_attach(device_t);
+static int ural_detach(device_t);
+static device_method_t ural_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ural_match),
+	DEVMETHOD(device_attach,	ural_attach),
+	DEVMETHOD(device_detach,	ural_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t ural_driver = {
+	"ural",
+	ural_methods,
+	sizeof(struct ural_softc)
+};
+
+static devclass_t ural_devclass;
+
+DRIVER_MODULE(ural, uhub, ural_driver, ural_devclass, usbd_driver_load, 0);
 
 static int
 ural_match(device_t self)
@@ -361,7 +381,8 @@ ural_match(device_t self)
 static int
 ural_attach(device_t self)
 {
-	USB_ATTACH_START(ural, sc, uaa);
+	struct ural_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ifnet *ifp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	usb_interface_descriptor_t *id;
@@ -512,7 +533,7 @@ ural_attach(device_t self)
 static int
 ural_detach(device_t self)
 {
-	USB_DETACH_START(ural, sc);
+	struct ural_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
@@ -2479,5 +2500,3 @@ ural_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 	callout_reset(&sc->amrr_ch, hz, ural_amrr_timeout, sc);
 }
-
-DRIVER_MODULE(ural, uhub, ural_driver, ural_devclass, usbd_driver_load, 0);

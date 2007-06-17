@@ -207,7 +207,7 @@ axe_cmd(struct axe_softc *sc, int cmd, int index, int val, void *buf)
 static int
 axe_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct axe_softc	*sc = USBGETSOFTC(dev);
+	struct axe_softc	*sc = device_get_softc(dev);
 	usbd_status		err;
 	u_int16_t		val;
 
@@ -250,7 +250,7 @@ axe_miibus_readreg(device_t dev, int phy, int reg)
 static int
 axe_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
-	struct axe_softc	*sc = USBGETSOFTC(dev);
+	struct axe_softc	*sc = device_get_softc(dev);
 	usbd_status		err;
 
 	if (sc->axe_dying)
@@ -275,7 +275,7 @@ static void
 axe_miibus_statchg(device_t dev)
 {
 #ifdef notdef
-	struct axe_softc	*sc = USBGETSOFTC(dev);
+	struct axe_softc	*sc = device_get_softc(dev);
 	struct mii_data		*mii = GET_MII(sc);
 #endif
 	/* doesn't seem to be necessary */
@@ -407,7 +407,8 @@ axe_match(device_t self)
 static int
 axe_attach(device_t self)
 {
-	USB_ATTACH_START(axe, sc, uaa);
+	struct axe_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
 	usb_interface_descriptor_t	*id;
