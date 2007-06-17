@@ -179,12 +179,11 @@ extern char *strchr();
 static void
 ofwn_init(struct iodesc *desc, void *machdep_hint)
 {
-	phandle_t	chosen, netdev;
+	phandle_t	netdev;
 	char		path[64];
 	char		*ch;
 	int		pathlen;
 
-	chosen = OF_finddevice("/chosen");
 	pathlen = OF_getprop(chosen, "bootpath", path, 64);
 	if ((ch = index(path, ':')) != NULL)
 		*ch = '\0';

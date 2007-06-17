@@ -65,6 +65,10 @@ static int sparc64_autoload(void);
 static ssize_t sparc64_readin(const int, vm_offset_t, const size_t);
 static ssize_t sparc64_copyin(const void *, vm_offset_t, size_t);
 static void sparc64_maphint(vm_offset_t, size_t);
+static vm_offset_t claim_virt(vm_offset_t, size_t, int);
+static vm_offset_t alloc_phys(size_t, int);
+static int map_phys(int, size_t, vm_offset_t, vm_offset_t);
+static void release_phys(vm_offset_t, u_int);
 static int __elfN(exec)(struct preloaded_file *);
 static int mmu_mapin_sun4u(vm_offset_t, vm_size_t);
 static int mmu_mapin_sun4v(vm_offset_t, vm_size_t);
@@ -96,7 +100,7 @@ static int is_sun4v = 0;
 static vm_offset_t curkva = 0;
 static vm_offset_t heapva;
 
-phandle_t pmemh;	/* OFW memory handle */
+static phandle_t root;
 
 /*
  * Machine dependent structures that the machine independent
@@ -245,7 +249,7 @@ sparc64_maphint(vm_offset_t va, size_t len)
 	vm_paddr_t pa;
 	vm_offset_t mva;
 	size_t size;
-	int i, ret, free_excess = 0;
+	int i, free_excess = 0;
 
 	if (!is_sun4v)
 		return;
@@ -256,36 +260,73 @@ sparc64_maphint(vm_offset_t va, size_t len)
 	/* round up to nearest 4MB page */
 	size = (len + PAGE_MASK_4M) & ~PAGE_MASK_4M;
 #if 0
-	pa = (vm_offset_t)OF_alloc_phys(PAGE_SIZE_256M,	PAGE_SIZE_256M);
+	pa = alloc_phys(PAGE_SIZE_256M, PAGE_SIZE_256M);
 
 	if (pa != -1)
 		free_excess = 1;
 	else
 #endif
-		pa = (vm_offset_t)OF_alloc_phys(size, PAGE_SIZE_256M);
+		pa = alloc_phys(size, PAGE_SIZE_256M);
 	if (pa == -1)
-		pa = (vm_offset_t)OF_alloc_phys(size, PAGE_SIZE_4M);
+		pa = alloc_phys(size, PAGE_SIZE_4M);
 	if (pa == -1)
-		panic("out of memory");
+		panic("%s: out of memory", __func__);
 
 	for (i = 0; i < size; i += PAGE_SIZE_4M) {
-		mva = (vm_offset_t)OF_claim_virt(va + i, PAGE_SIZE_4M, 0);
+		mva = claim_virt(va + i, PAGE_SIZE_4M, 0);
 		if (mva != (va + i))
-			panic("can't claim virtual page "
+			panic("%s: can't claim virtual page "
 			    "(wanted %#lx, got %#lx)",
-			    va, mva);
+			    __func__, va, mva);
 
 		tlb_store[mva >> 22].te_pa = pa + i;
-		if ((ret = OF_map_phys(-1, PAGE_SIZE_4M, mva, pa + i)) != 0)
-			printf("OF_map_phys failed: %d\n", ret);
+		if (map_phys(-1, PAGE_SIZE_4M, mva, pa + i) != 0)
+			printf("%s: can't map physical page\n", __func__);
 	}
 	if (free_excess)
-		OF_release_phys((vm_offset_t)pa, PAGE_SIZE_256M);
+		release_phys(pa, PAGE_SIZE_256M);
 }
 
 /*
  * other MD functions
  */
+static vm_offset_t
+claim_virt(vm_offset_t virt, size_t size, int align)
+{
+	vm_offset_t mva;
+
+	if (OF_call_method("claim", mmu, 3, 1, virt, size, align, &mva) == -1)
+		return ((vm_offset_t)-1);
+	return (mva);
+}
+
+static vm_offset_t
+alloc_phys(size_t size, int align)
+{
+	cell_t phys_hi, phys_low;
+
+	if (OF_call_method("claim", memory, 2, 2, size, align, &phys_low,
+	    &phys_hi) == -1)
+		return ((vm_offset_t)-1);
+	return ((vm_offset_t)phys_hi << 32 | phys_low);
+}
+
+static int
+map_phys(int mode, size_t size, vm_offset_t virt, vm_offset_t phys)
+{
+
+	return (OF_call_method("map", mmu, 5, 0, (uint32_t)phys,
+	    (uint32_t)(phys >> 32), virt, size, mode));
+}
+
+static void
+release_phys(vm_offset_t phys, u_int size)
+{
+
+	(void)OF_call_method("release", memory, 3, 0, (uint32_t)phys,
+	    (uint32_t)(phys >> 32), size);
+}
+
 static int
 __elfN(exec)(struct preloaded_file *fp)
 {
@@ -314,7 +355,7 @@ __elfN(exec)(struct preloaded_file *fp)
 
 	((kernel_entry_t *)entry)(mdp, 0, 0, 0, openfirmware);
 
-	panic("exec returned");
+	panic("%s: exec returned", __func__);
 }
 
 static int
@@ -334,16 +375,14 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 		    itlb_va_to_pa(va) == (vm_offset_t)-1) {
 			/* Allocate a physical page, claim the virtual area */
 			if (pa == (vm_offset_t)-1) {
-				pa = (vm_offset_t)OF_alloc_phys(PAGE_SIZE_4M,
-				    PAGE_SIZE_4M);
+				pa = alloc_phys(PAGE_SIZE_4M, PAGE_SIZE_4M);
 				if (pa == (vm_offset_t)-1)
-					panic("out of memory");
-				mva = (vm_offset_t)OF_claim_virt(va,
-				    PAGE_SIZE_4M, 0);
+					panic("%s: out of memory", __func__);
+				mva = claim_virt(va, PAGE_SIZE_4M, 0);
 				if (mva != va)
-					panic("can't claim virtual page "
+					panic("%s: can't claim virtual page "
 					    "(wanted %#lx, got %#lx)",
-					    va, mva);
+					    __func__, va, mva);
 				/* The mappings may have changed, be paranoid. */
 				continue;
 			}
@@ -371,7 +410,7 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 		va += PAGE_SIZE_4M;
 	}
 	if (pa != (vm_offset_t)-1)
-		OF_release_phys(pa, PAGE_SIZE_4M);
+		release_phys(pa, PAGE_SIZE_4M);
 	return (0);
 }
 
@@ -379,8 +418,6 @@ static int
 mmu_mapin_sun4v(vm_offset_t va, vm_size_t len)
 {
 	vm_offset_t pa, mva;
-	u_long data;
-	int ret;
 
 	if (va + len > curkva)
 		curkva = va + len;
@@ -390,43 +427,37 @@ mmu_mapin_sun4v(vm_offset_t va, vm_size_t len)
 	va &= ~PAGE_MASK_4M;
 	while (len) {
 		if ((va >> 22) > SUN4V_TLB_SLOT_MAX)
-			panic("trying to map more than 4GB");
+			panic("%s: trying to map more than 4GB", __func__);
 		if (tlb_store[va >> 22].te_pa == -1) {
 			/* Allocate a physical page, claim the virtual area */
 			if (pa == (vm_offset_t)-1) {
-				pa = (vm_offset_t)OF_alloc_phys(PAGE_SIZE_4M,
-				    PAGE_SIZE_4M);
+				pa = alloc_phys(PAGE_SIZE_4M, PAGE_SIZE_4M);
 				if (pa == (vm_offset_t)-1)
-					panic("out of memory");
-				mva = (vm_offset_t)OF_claim_virt(va,
-				    PAGE_SIZE_4M, 0);
+				    panic("%s: out of memory", __func__);
+				mva = claim_virt(va, PAGE_SIZE_4M, 0);
 				if (mva != va)
-					panic("can't claim virtual page "
+					panic("%s: can't claim virtual page "
 					    "(wanted %#lx, got %#lx)",
-					    va, mva);
+					    __func__, va, mva);
 			}
 
 			tlb_store[va >> 22].te_pa = pa;
-			if ((ret = OF_map_phys(-1, PAGE_SIZE_4M, va, pa)) != 0)
-				printf("OF_map_phys failed: %d\n", ret);
+			if (map_phys(-1, PAGE_SIZE_4M, va, pa) == -1)
+				printf("%s: can't map physical page\n",
+				    __func__);
 			pa = (vm_offset_t)-1;
 		}
 		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;
 		va += PAGE_SIZE_4M;
 	}
 	if (pa != (vm_offset_t)-1)
-		OF_release_phys(pa, PAGE_SIZE_4M);
-
+		release_phys(pa, PAGE_SIZE_4M);
 	return (0);
 }
 
 static vm_offset_t
 init_heap(void)
 {
-	if ((pmemh = OF_finddevice("/memory")) == (phandle_t)-1)
-		OF_exit();
-	if (OF_getprop(pmemh, "available", memslices, sizeof(memslices)) <= 0)
-		OF_exit();
 
 	/* There is no need for continuous physical heap memory. */
 	heapva = (vm_offset_t)OF_claim((void *)HEAPVA, HEAPSZ, 32);
@@ -437,23 +468,20 @@ static void
 tlb_init_sun4u(void)
 {
 	phandle_t child;
-	phandle_t root;
 	char buf[128];
 	u_int bootcpu;
 	u_int cpu;
 
 	bootcpu = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
-	if ((root = OF_peer(0)) == -1)
-		panic("%s: OF_peer", __func__);
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		if (child == -1)
-			panic("%s: OF_child", __func__);
+			panic("%s: can't get child phandle", __func__);
 		if (OF_getprop(child, "device_type", buf, sizeof(buf)) > 0 &&
 		    strcmp(buf, "cpu") == 0) {
 			if (OF_getprop(child, "upa-portid", &cpu,
 			    sizeof(cpu)) == -1 && OF_getprop(child, "portid",
 			    &cpu, sizeof(cpu)) == -1)
-				panic("%s: OF_getprop", __func__);
+				panic("%s: can't get portid", __func__);
 			if (cpu == bootcpu)
 				break;
 		}
@@ -464,11 +492,11 @@ tlb_init_sun4u(void)
 	    sizeof(dtlb_slot_max)) == -1 ||
 	    OF_getprop(child, "#itlb-entries", &itlb_slot_max,
 	    sizeof(itlb_slot_max)) == -1)
-		panic("%s: OF_getprop", __func__);
+		panic("%s: can't get TLB slot max.", __func__);
 	dtlb_store = malloc(dtlb_slot_max * sizeof(*dtlb_store));
 	itlb_store = malloc(itlb_slot_max * sizeof(*itlb_store));
 	if (dtlb_store == NULL || itlb_store == NULL)
-		panic("%s: malloc", __func__);
+		panic("%s: can't allocate TLB store", __func__);
 }
 
 static void
@@ -485,8 +513,6 @@ main(int (*openfirm)(void *))
 	char bootpath[64];
 	char compatible[32];
 	struct devsw **dp;
-	phandle_t rooth;
-	phandle_t chosenh;
 
 	/*
 	 * Tell the Open Firmware functions where they find the ofw gate.
@@ -508,8 +534,9 @@ main(int (*openfirm)(void *))
 	 */
 	cons_probe();
 
-	rooth = OF_peer(0);
-	OF_getprop(rooth, "compatible", compatible, sizeof(compatible));
+	if ((root = OF_peer(0)) == -1)
+		panic("%s: can't get root phandle", __func__);
+	OF_getprop(root, "compatible", compatible, sizeof(compatible));
 	if (!strcmp(compatible, "sun4v")) {
 		printf("\nBooting with sun4v support.\n");
 		mmu_ops = &mmu_ops_sun4v;
@@ -532,8 +559,7 @@ main(int (*openfirm)(void *))
 	/*
 	 * Set up the current device.
 	 */
-	chosenh = OF_finddevice("/chosen");
-	OF_getprop(chosenh, "bootpath", bootpath, sizeof(bootpath));
+	OF_getprop(chosen, "bootpath", bootpath, sizeof(bootpath));
 
 	/*
 	 * Sun compatible bootable CD-ROMs have a disk label placed
