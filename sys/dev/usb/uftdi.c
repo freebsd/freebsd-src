@@ -136,7 +136,7 @@ struct ucom_callback uftdi_callback = {
 static int
 uftdi_match(device_t self)
 {
-	USB_MATCH_START(uftdi, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->iface != NULL) {
 		if (uaa->vendor == USB_VENDOR_FTDI &&

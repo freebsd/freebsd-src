@@ -615,7 +615,7 @@ aue_reset(struct aue_softc *sc)
 static int
 aue_match(device_t self)
 {
-	USB_MATCH_START(aue, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->iface != NULL)
 		return (UMATCH_NONE);

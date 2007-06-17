@@ -261,7 +261,7 @@ MODULE_VERSION(ubsa, UBSA_MODVER);
 static int
 ubsa_match(device_t self)
 {
-	USB_MATCH_START(ubsa, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	int i;
 
 	if (uaa->iface != NULL)

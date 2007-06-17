@@ -247,7 +247,7 @@ static const struct uvisor_type uvisor_devs[] = {
 static int
 uvisor_match(device_t self)
 {
-	USB_MATCH_START(uvisor, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->iface != NULL)
 		return (UMATCH_NONE);

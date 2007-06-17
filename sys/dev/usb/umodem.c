@@ -230,7 +230,7 @@ MODULE_VERSION(umodem, UMODEM_MODVER);
 static int
 umodem_match(device_t self)
 {
-	USB_MATCH_START(umodem, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_interface_descriptor_t *id;
 	usb_device_descriptor_t *dd;
 	int cm, acm, i, ret;

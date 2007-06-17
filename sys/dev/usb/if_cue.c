@@ -407,7 +407,7 @@ cue_reset(struct cue_softc *sc)
 static int
 cue_match(device_t self)
 {
-	USB_MATCH_START(cue, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct cue_type			*t;
 
 	if (!uaa->iface)

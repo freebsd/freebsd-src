@@ -297,7 +297,7 @@ SYSCTL_PROC(_hw_usb_uvscom, OID_AUTO, interval, CTLTYPE_INT | CTLFLAG_RW,
 static int
 uvscom_match(device_t self)
 {
-	USB_MATCH_START(uvscom, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->iface != NULL)
 		return (UMATCH_NONE);

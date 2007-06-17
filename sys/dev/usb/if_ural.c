@@ -349,7 +349,7 @@ USB_DECLARE_DRIVER(ural);
 static int
 ural_match(device_t self)
 {
-	USB_MATCH_START(ural, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->iface != NULL)
 		return UMATCH_NONE;

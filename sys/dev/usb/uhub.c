@@ -139,7 +139,7 @@ static	driver_t uhubroot_driver = {
 static int
 uhub_match(device_t self)
 {
-	USB_MATCH_START(uhub, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_device_descriptor_t *dd = usbd_get_device_descriptor(uaa->device);
 
 	DPRINTFN(5,("uhub_match, dd=%p\n", dd));

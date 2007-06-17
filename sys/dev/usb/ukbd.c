@@ -127,7 +127,7 @@ USB_DECLARE_DRIVER_INIT(ukbd, DEVMETHOD(device_resume, ukbd_resume));
 static int
 ukbd_match(device_t self)
 {
-	USB_MATCH_START(ukbd, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	keyboard_switch_t *sw;
 	void *arg[2];

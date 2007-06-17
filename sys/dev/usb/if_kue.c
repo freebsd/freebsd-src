@@ -380,7 +380,7 @@ kue_reset(struct kue_softc *sc)
 static int
 kue_match(device_t self)
 {
-	USB_MATCH_START(kue, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct kue_type			*t;
 
 	if (!uaa->iface)
