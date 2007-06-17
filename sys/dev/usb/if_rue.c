@@ -345,7 +345,7 @@ rue_csr_write_4(struct rue_softc *sc, int reg, u_int32_t val)
 static int
 rue_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct rue_softc	*sc = USBGETSOFTC(dev);
+	struct rue_softc	*sc = device_get_softc(dev);
 	int			rval;
 	int			ruereg;
 
@@ -389,7 +389,7 @@ rue_miibus_readreg(device_t dev, int phy, int reg)
 static int
 rue_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
-	struct rue_softc	*sc = USBGETSOFTC(dev);
+	struct rue_softc	*sc = device_get_softc(dev);
 	int			ruereg;
 
 	if (phy != 0)		/* RTL8150 supports PHY == 0, only */
@@ -442,7 +442,7 @@ rue_miibus_statchg(device_t dev)
 	 * out, so that disable it for good.
 	 */
 #if 0
-	struct rue_softc	*sc = USBGETSOFTC(dev);
+	struct rue_softc	*sc = device_get_softc(dev);
 	struct mii_data		*mii = GET_MII(sc);
 	int			bmcr;
 
@@ -576,7 +576,8 @@ rue_match(device_t self)
 static int
 rue_attach(device_t self)
 {
-	USB_ATTACH_START(rue, sc, uaa);
+	struct rue_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	u_char				eaddr[ETHER_ADDR_LEN];
 	struct ifnet			*ifp;
 	usbd_interface_handle		iface;
