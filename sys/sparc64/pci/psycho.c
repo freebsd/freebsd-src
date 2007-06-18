@@ -120,6 +120,7 @@ static pcib_write_config_t psycho_write_config;
 static pcib_route_interrupt_t psycho_route_interrupt;
 static ofw_pci_intr_pending_t psycho_intr_pending;
 static ofw_bus_get_node_t psycho_get_node;
+static ofw_pci_alloc_busno_t psycho_alloc_busno;
 static ofw_pci_adjust_busrange_t psycho_adjust_busrange;
 
 static device_method_t psycho_methods[] = {
@@ -152,6 +153,7 @@ static device_method_t psycho_methods[] = {
 
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_intr_pending,	psycho_intr_pending),
+	DEVMETHOD(ofw_pci_alloc_busno,	psycho_alloc_busno),
 	DEVMETHOD(ofw_pci_adjust_busrange,	psycho_adjust_busrange),
 
 	{ 0, 0 }
@@ -167,8 +169,10 @@ static devclass_t psycho_devclass;
 
 DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, 0, 0);
 
-SLIST_HEAD(, psycho_softc) psycho_softcs =
+static SLIST_HEAD(, psycho_softc) psycho_softcs =
     SLIST_HEAD_INITIALIZER(psycho_softcs);
+
+static uint8_t psycho_pci_bus_cnt;
 
 struct psycho_clr {
 	struct psycho_softc	*pci_sc;
@@ -629,7 +633,7 @@ psycho_attach(device_t dev)
 	PCIB_WRITE_CONFIG(dev, psycho_br[0], PCS_DEVICE, PCS_FUNC,
 	    PCIR_LATTIMER, 64, 1);
 
-	sc->sc_pci_secbus = sc->sc_pci_subbus = ofw_pci_alloc_busno(node);
+	sc->sc_pci_secbus = sc->sc_pci_subbus = psycho_alloc_busno(dev);
 	/*
 	 * Program the bus range registers.
 	 * NOTE: for the Psycho, the second write changes the bus number the
@@ -1304,6 +1308,15 @@ psycho_get_node(device_t bus, device_t dev)
 	sc = device_get_softc(bus);
 	/* We only have one child, the PCI bus, which needs our own node. */
 	return (sc->sc_node);
+}
+
+static int
+psycho_alloc_busno(device_t dev)
+{
+
+	if (psycho_pci_bus_cnt == PCI_BUSMAX)
+		panic("%s: out of PCI bus numbers", __func__);
+	return (psycho_pci_bus_cnt++);
 }
 
 static void

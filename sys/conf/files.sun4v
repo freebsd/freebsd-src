@@ -47,7 +47,6 @@ sun4v/sun4v/exception.S	standard	no-obj
 sparc64/sparc64/gdb_machdep.c	optional	gdb
 sun4v/sun4v/hv_pci.c	optional	pci
 sun4v/sun4v/trap_trace.S	optional	trap_tracing
-sparc64/pci/ofw_pci.c		optional	pci
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci
