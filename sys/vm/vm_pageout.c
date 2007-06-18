@@ -292,11 +292,10 @@ vm_pageout_clean(m)
 	 */
 
 	/*
-	 * Don't mess with the page if it's busy, held, or special
+	 * Can't clean the page if it's busy or held.
 	 */
 	if ((m->hold_count != 0) ||
-	    ((m->busy != 0) || (m->oflags & VPO_BUSY) ||
-	     (m->flags & PG_UNMANAGED))) {
+	    ((m->busy != 0) || (m->oflags & VPO_BUSY))) {
 		return 0;
 	}
 
@@ -340,8 +339,7 @@ more:
 			break;
 		}
 		if (VM_PAGE_INQUEUE1(p, PQ_CACHE) ||
-		    (p->oflags & VPO_BUSY) || p->busy ||
-		    (p->flags & PG_UNMANAGED)) {
+		    (p->oflags & VPO_BUSY) || p->busy) {
 			ib = 0;
 			break;
 		}
@@ -371,8 +369,7 @@ more:
 		if ((p = vm_page_lookup(object, pindex + is)) == NULL)
 			break;
 		if (VM_PAGE_INQUEUE1(p, PQ_CACHE) ||
-		    (p->oflags & VPO_BUSY) || p->busy ||
-		    (p->flags & PG_UNMANAGED)) {
+		    (p->oflags & VPO_BUSY) || p->busy) {
 			break;
 		}
 		vm_page_test_dirty(p);
