@@ -3878,6 +3878,7 @@ free_chain(struct ip_fw_chain *chain, int kill_default)
  *	2	move rules with given number to new set
  *	3	move rules with given set number to new set
  *	4	swap sets with given numbers
+ *	5	delete rules with given number and with given set number
  */
 static int
 del_entry(struct ip_fw_chain *chain, u_int32_t arg)
@@ -3890,11 +3891,9 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 	cmd = (arg >> 24) & 0xff;
 	new_set = (arg >> 16) & 0xff;
 
-	if (cmd > 4)
+	if (cmd > 5 || new_set > RESVD_SET)
 		return EINVAL;
-	if (new_set > RESVD_SET)
-		return EINVAL;
-	if (cmd == 0 || cmd == 2) {
+	if (cmd == 0 || cmd == 2 || cmd == 5) {
 		if (rulenum >= IPFW_DEFAULT_RULE)
 			return EINVAL;
 	} else {
@@ -3958,6 +3957,25 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			else if (rule->set == new_set)
 				rule->set = rulenum;
 		break;
+	case 5: /* delete rules with given number and with given set number.
+		 * rulenum - given rule number;
+		 * new_set - given set number.
+		 */
+		for (; rule->rulenum < rulenum; prev = rule, rule = rule->next)
+			;
+		if (rule->rulenum != rulenum) {
+			IPFW_WUNLOCK(chain);
+			return (EINVAL);
+		}
+		flush_rule_ptrs(chain);
+		while (rule->rulenum == rulenum) {
+			if (rule->set == new_set)
+				rule = remove_rule(chain, rule, prev);
+			else {
+				prev = rule;
+				rule = rule->next;
+			}
+		}
 	}
 	/*
 	 * Look for rules to reclaim.  We grab the list before
@@ -3991,23 +4009,39 @@ clear_counters(struct ip_fw *rule, int log_only)
 
 /**
  * Reset some or all counters on firewall rules.
- * @arg frwl is null to clear all entries, or contains a specific
- * rule number.
- * @arg log_only is 1 if we only want to reset logs, zero otherwise.
+ * The argument `arg' is an u_int32_t. The low 16 bit are the rule number,
+ * the next 8 bits are the set number, the top 8 bits are the command:
+ *	0	work with rules from all set's;
+ *	1	work with rules only from specified set.
+ * Specified rule number is zero if we want to clear all entries.
+ * log_only is 1 if we only want to reset logs, zero otherwise.
  */
 static int
-zero_entry(struct ip_fw_chain *chain, int rulenum, int log_only)
+zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 {
 	struct ip_fw *rule;
 	char *msg;
 
+	uint16_t rulenum = arg & 0xffff;
+	uint8_t set = (arg >> 16) & 0xff;
+	uint8_t cmd = (arg >> 24) & 0xff;
+
+	if (cmd > 1)
+		return (EINVAL);
+	if (cmd == 1 && set > RESVD_SET)
+		return (EINVAL);
+
 	IPFW_WLOCK(chain);
 	if (rulenum == 0) {
 		norule_counter = 0;
-		for (rule = chain->rules; rule; rule = rule->next)
+		for (rule = chain->rules; rule; rule = rule->next) {
+			/* Skip rules from another set. */
+			if (cmd == 1 && rule->set != set)
+				continue;
 			clear_counters(rule, log_only);
+		}
 		msg = log_only ? "ipfw: All logging counts reset.\n" :
-				"ipfw: Accounting cleared.\n";
+		    "ipfw: Accounting cleared.\n";
 	} else {
 		int cleared = 0;
 		/*
@@ -4017,7 +4051,8 @@ zero_entry(struct ip_fw_chain *chain, int rulenum, int log_only)
 		for (rule = chain->rules; rule; rule = rule->next)
 			if (rule->rulenum == rulenum) {
 				while (rule && rule->rulenum == rulenum) {
-					clear_counters(rule, log_only);
+					if (cmd == 0 || rule->set == set)
+						clear_counters(rule, log_only);
 					rule = rule->next;
 				}
 				cleared = 1;
@@ -4028,7 +4063,7 @@ zero_entry(struct ip_fw_chain *chain, int rulenum, int log_only)
 			return (EINVAL);
 		}
 		msg = log_only ? "ipfw: Entry %d logging count reset.\n" :
-				"ipfw: Entry %d cleared.\n";
+		    "ipfw: Entry %d cleared.\n";
 	}
 	IPFW_WUNLOCK(chain);
 
@@ -4378,6 +4413,13 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 					bcopy(&(p->rule->rulenum), &(dst->rule),
 					    sizeof(p->rule->rulenum));
 					/*
+					 * store set number into high word of
+					 * dst->rule pointer.
+					 */
+					bcopy(&(p->rule->set), &dst->rule +
+					    sizeof(p->rule->rulenum),
+					    sizeof(p->rule->set));
+					/*
 					 * store a non-null value in "next".
 					 * The userland code will interpret a
 					 * NULL here as a marker
@@ -4406,7 +4448,7 @@ static int
 ipfw_ctl(struct sockopt *sopt)
 {
 #define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
-	int error, rule_num;
+	int error;
 	size_t size;
 	struct ip_fw *buf, *rule;
 	u_int32_t rulenum[2];
@@ -4524,15 +4566,15 @@ ipfw_ctl(struct sockopt *sopt)
 		break;
 
 	case IP_FW_ZERO:
-	case IP_FW_RESETLOG: /* argument is an int, the rule number */
-		rule_num = 0;
+	case IP_FW_RESETLOG: /* argument is an u_int_32, the rule number */
+		rulenum[0] = 0;
 		if (sopt->sopt_val != 0) {
-		    error = sooptcopyin(sopt, &rule_num,
-			    sizeof(int), sizeof(int));
+		    error = sooptcopyin(sopt, rulenum,
+			    sizeof(u_int32_t), sizeof(u_int32_t));
 		    if (error)
 			break;
 		}
-		error = zero_entry(&layer3_chain, rule_num,
+		error = zero_entry(&layer3_chain, rulenum[0],
 			sopt->sopt_name == IP_FW_RESETLOG);
 		break;
 
