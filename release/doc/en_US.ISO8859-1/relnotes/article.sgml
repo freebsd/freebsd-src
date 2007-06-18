@@ -1431,6 +1431,13 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       option together with the <option>-d</option> and <option>-a</option> options
       to allow all entries for a given interface to be removed. &merged;</para>
 
+    <para>The &man.atrun.8; utility has gained PAM support.  Before
+      running a job for a user account, it will check the account
+      status with PAM and refuse to run the job if the account is
+      unavailable.  The default definition of an unavailable account
+      includes those expired and administratively locked out with
+      &man.pw.8;.</para>
+
     <para>The OpenBSM userland tools, including &man.audit.8;,
       &man.auditd.8;,
       &man.auditreduce.1;, and
@@ -1462,6 +1469,18 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.cp.1; utility now supports a <option>-l</option>
       option, which causes it to create hardlinks to the source files
       instead of copying them. &merged;</para>
+
+    <para>The &man.cron.8; daemon has gained PAM support.  Before
+      running a command from account's private &man.crontab.5; file,
+      it will check the account status with PAM and skip the command
+      if the account is unavailable.  The default definition of an
+      unavailable account includes those expired and administratively
+      locked out with &man.pw.8;.  In addition, &man.cron.8; will
+      skip commands from private &man.crontab.5; files if a
+      &man.nologin.5; file exists, unless the &man.crontab.5; owner's
+      login class is exempt from &man.nologin.5; restriction.
+      Commands from the system file <filename>/etc/crontab</filename>
+      are not subject to the PAM check.</para>
 
     <para>The &man.csh.1; utility now supports NLS catalogs.
       Note that this requires installing
