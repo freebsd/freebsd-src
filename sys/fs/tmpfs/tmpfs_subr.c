@@ -898,7 +898,10 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 
 	node->tn_reg.tn_aobj_pages = newpages;
 
+	TMPFS_LOCK(tmp);
 	tmp->tm_pages_used += (newpages - oldpages);
+	TMPFS_UNLOCK(tmp);
+
 	node->tn_size = newsize;
 	vnode_pager_setsize(vp, newsize);
 	if (newsize < oldsize) {
