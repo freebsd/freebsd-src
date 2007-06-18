@@ -126,6 +126,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
+#include <dev/usb/usb_port.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -150,10 +151,13 @@ USB_DECLARE_DRIVER(udav);
 #endif
 
 #if defined(__FreeBSD__)
-static int udav_match(device_t);
-static int udav_attach(device_t);
-static int udav_detach(device_t);
-static void udav_shutdown(device_t);
+static device_probe_t udav_match;
+static device_attach_t udav_attach;
+static device_detach_t udav_detach;
+static device_shutdown_t udav_shutdown;
+static miibus_readreg_t udav_miibus_readreg;
+static miibus_writereg_t udav_miibus_writereg;
+static miibus_statchg_t udav_miibus_statchg;
 #endif
 
 static int udav_openpipes(struct udav_softc *);
@@ -174,10 +178,10 @@ static int udav_ifmedia_change(struct ifnet *);
 static void udav_ifmedia_status(struct ifnet *, struct ifmediareq *);
 static void udav_lock_mii(struct udav_softc *);
 static void udav_unlock_mii(struct udav_softc *);
+#if defined(__NetBSD__)
 static int udav_miibus_readreg(device_t, int, int);
 static void udav_miibus_writereg(device_t, int, int, int);
 static void udav_miibus_statchg(device_t);
-#if defined(__NetBSD__)
 static int udav_init(struct ifnet *);
 #elif defined(__FreeBSD__)
 static void udav_init(void *);
@@ -1850,14 +1854,14 @@ udav_miibus_readreg(device_t dev, int phy, int reg)
 	return (data16);
 }
 
-static void
+static int
 udav_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct udav_softc *sc;
 	u_int8_t val[2];
 
 	if (dev == NULL)
-		return;
+		return (0);	/* XXX real error? */
 
 	sc = USBGETSOFTC(dev);
 
@@ -1869,14 +1873,14 @@ udav_miibus_writereg(device_t dev, int phy, int reg, int data)
 		printf("%s: %s: dying\n", device_get_nameunit(sc->sc_dev),
 		       __func__);
 #endif
-		return;
+		return (0);	/* XXX real error? */
 	}
 
 	/* XXX: one PHY only for the internal PHY */
 	if (phy != 0) {
 		DPRINTFN(0xff, ("%s: %s: phy=%d is not supported\n",
 			 device_get_nameunit(sc->sc_dev), __func__, phy));
-		return;
+		return (0);	/* XXX real error? */
 	}
 
 	udav_lock_mii(sc);
@@ -1900,7 +1904,7 @@ udav_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	udav_unlock_mii(sc);
 
-	return;
+	return (0);
 }
 
 static void
@@ -1923,7 +1927,7 @@ udav_miibus_statchg(device_t dev)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 udav_shutdown(device_t dev)
 {
 	struct udav_softc	*sc;
@@ -1932,7 +1936,7 @@ udav_shutdown(device_t dev)
 
 	udav_stop_task(sc);
 
-	return;
+	return (0);
 }
 
 static void

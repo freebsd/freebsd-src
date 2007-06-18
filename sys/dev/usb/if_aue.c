@@ -185,9 +185,13 @@ static const struct aue_type aue_devs[] = {
 };
 #define aue_lookup(v, p) ((const struct aue_type *)usb_lookup(aue_devs, v, p))
 
-static int aue_match(device_t);
-static int aue_attach(device_t);
-static int aue_detach(device_t);
+static device_probe_t aue_match;
+static device_attach_t aue_attach;
+static device_detach_t aue_detach;
+static device_shutdown_t aue_shutdown;
+static miibus_readreg_t aue_miibus_readreg;
+static miibus_writereg_t aue_miibus_writereg;
+static miibus_statchg_t aue_miibus_statchg;
 
 static void aue_reset_pegasus_II(struct aue_softc *sc);
 static int aue_encap(struct aue_softc *, struct mbuf *, int);
@@ -210,15 +214,11 @@ static void aue_init(void *);
 static void aue_init_body(struct aue_softc *);
 static void aue_stop(struct aue_softc *);
 static void aue_watchdog(struct aue_softc *);
-static void aue_shutdown(device_t);
 static int aue_ifmedia_upd(struct ifnet *);
 static void aue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static void aue_eeprom_getword(struct aue_softc *, int, u_int16_t *);
 static void aue_read_eeprom(struct aue_softc *, caddr_t, int, int, int);
-static int aue_miibus_readreg(device_t, int, int);
-static int aue_miibus_writereg(device_t, int, int, int);
-static void aue_miibus_statchg(device_t);
 
 static void aue_setmulti(struct aue_softc *);
 static void aue_reset(struct aue_softc *);
@@ -1405,7 +1405,7 @@ aue_stop(struct aue_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 aue_shutdown(device_t dev)
 {
 	struct aue_softc	*sc;
@@ -1417,7 +1417,7 @@ aue_shutdown(device_t dev)
 	aue_stop(sc);
 	AUE_SXUNLOCK(sc);
 
-	return;
+	return (0);
 }
 
 static void
