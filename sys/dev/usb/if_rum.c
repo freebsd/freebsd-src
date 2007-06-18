@@ -357,8 +357,6 @@ static const struct rfprog {
 	{ 165, 0x00b33, 0x012ad, 0x2e014, 0x30285 }
 };
 
-USB_DECLARE_DRIVER(rum);
-
 static int
 rum_match(device_t self)
 {
@@ -374,7 +372,8 @@ rum_match(device_t self)
 static int
 rum_attach(device_t self)
 {
-	USB_ATTACH_START(rum, sc, uaa);
+	struct rum_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp;
 	const uint8_t *ucode = NULL;
@@ -573,7 +572,7 @@ rum_attach(device_t self)
 static int
 rum_detach(device_t self)
 {
-	USB_DETACH_START(rum, sc);
+	struct rum_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
@@ -2535,5 +2534,22 @@ rum_get_rssi(struct rum_softc *sc, uint8_t raw)
 	}
 	return rssi;
 }
+
+static device_method_t rum_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		rum_match),
+	DEVMETHOD(device_attach,	rum_attach),
+	DEVMETHOD(device_detach,	rum_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t rum_driver = {
+	"rum",
+	rum_methods,
+	sizeof(struct rum_softc)
+};
+
+static devclass_t rum_devclass;
 
 DRIVER_MODULE(rum, uhub, rum_driver, rum_devclass, usbd_driver_load, 0);
