@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2007
+.Dd June 16, 2007
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -14,15 +14,17 @@
 .Ar rule
 .Nm
 .Op Fl acdefnNStT
+.Op Cm set Ar N
 .Brq Cm list | show
 .Op Ar rule | first-last ...
 .Nm
 .Op Fl f | q
+.Op Cm set Ar N
 .Cm flush
 .Nm
 .Op Fl q
+.Op Cm set Ar N
 .Brq Cm delete | zero | resetlog
-.Op Cm set
 .Op Ar number ...
 .Nm
 .Cm enable
@@ -2493,6 +2495,22 @@ terminates, and your ruleset will be left active.
 Otherwise, e.g.\& if
 you cannot access your box, the ruleset will be disabled after
 the sleep terminates thus restoring the previous situation.
+.Pp
+To show rules of the specific set:
+.Pp
+.Dl "ipfw set 18 show"
+.Pp
+To show rules of the disabled set:
+.Pp
+.Dl "ipfw -S set 18 show"
+.Pp
+To clear a specific rule counters of the specific set:
+.Pp
+.Dl "ipfw set 18 zero NN"
+.Pp
+To delete a specific rule of the specific set:
+.Pp
+.Dl "ipfw set 18 delete NN"
 .Ss NAT, REDIRECT AND LSNAT
 First redirect all the traffic to nat instance 123:
 .Pp
