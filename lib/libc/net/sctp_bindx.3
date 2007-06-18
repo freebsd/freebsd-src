@@ -50,19 +50,24 @@
 The
 .Fn sctp_bindx
 call binds or unbinds a address or a list of addresses to an
-SCTP endpoint. This allows a user to bind a subset of
-addresses. The
+SCTP endpoint.
+This allows a user to bind a subset of
+addresses.
+The
 .Fn sctp_bindx
 call operates similarly to 
 .Fn bind
 but allows a list of addresses and also allows a bind or an
-unbind. The argument
+unbind.
+The argument
 .Fa s
-must be a valid SCTP socket descriptor. The argument
+must be a valid SCTP socket descriptor.
+The argument
 .Fa addrs
 is a list of addresses (where the list may be only 1 in
 length) that the user wishes to bind or unbind to the
-socket. The argument
+socket.
+The argument
 .Fa type
 must be one of the following values.
 .Pp
@@ -75,7 +80,8 @@ This value indicates that the listed address(es) need to
 be removed from the endpoint.
 .Pp
 Note that when a user adds or deletes an address to an
-association if the dynamic address flag "net.inet.sctp.auto_asconf"
+association if the dynamic address flag
+.Va net.inet.sctp.auto_asconf
 is enabled any associations in the endpoint will attempt to
 have the address(es) added dynamically to the existing
 association.
@@ -104,6 +110,5 @@ The argument
 is not a socket.
 .El
 .Sh SEE ALSO
-.Xr sctp 4 ,
 .Xr bind 2 ,
-
+.Xr sctp 4

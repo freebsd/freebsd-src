@@ -36,9 +36,9 @@
 .Dt SCTP_GETPADDR 3
 .Os
 .Sh NAME
-.Nm sctp_getpaddrs
+.Nm sctp_getpaddrs ,
 .Nm sctp_getladdrs
-.Nd return a list of addresses to the caller.
+.Nd return a list of addresses to the caller
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -58,11 +58,12 @@ The
 function is used to get the list of the local addresses.
 The association of interest is identified by the
 .Fa asocid
-argument. The addresses are returned in a newly allocated
+argument.
+The addresses are returned in a newly allocated
 array of socket addresses returned in the argument
 .Fa addrs
 upon success.
- .Pp
+.Pp
 After the caller is through the function
 .Fn sctp_freepaddrs
 or
@@ -93,8 +94,7 @@ The argument
 is not a socket.
 .El
 .Sh SEE ALSO
-.Xr sctp 4 ,
-.Xr sctp_freepaddrs 3 ,
-.Xr sctp_freeladdrs 3 ,
 .Xr getsockopt 2 ,
-
+.Xr sctp_freeladdrs 3 ,
+.Xr sctp_freepaddrs 3 ,
+.Xr sctp 4
