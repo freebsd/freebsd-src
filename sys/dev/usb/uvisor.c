@@ -262,7 +262,8 @@ uvisor_match(device_t self)
 static int
 uvisor_attach(device_t self)
 {
-	USB_ATTACH_START(uvisor, sc, uaa);
+	struct uvisor_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev = uaa->device;
 	usbd_interface_handle iface;
 	usb_interface_descriptor_t *id;
@@ -400,7 +401,7 @@ uvisor_activate(device_t self, enum devact act)
 static int
 uvisor_detach(device_t self)
 {
-	USB_DETACH_START(uvisor, sc);
+	struct uvisor_softc *sc = device_get_softc(self);
 	int rv = 0;
 
 	DPRINTF(("uvisor_detach: sc=%p\n", sc));

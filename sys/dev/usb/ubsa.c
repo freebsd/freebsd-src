@@ -279,7 +279,8 @@ ubsa_match(device_t self)
 static int
 ubsa_attach(device_t self)
 {
-	USB_ATTACH_START(ubsa, sc, uaa);
+	struct ubsa_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev;
 	struct ucom_softc *ucom;
 	usb_config_descriptor_t *cdesc;
@@ -409,9 +410,8 @@ error:
 static int
 ubsa_detach(device_t self)
 {
-	USB_DETACH_START(ubsa, sc);
+	struct ubsa_softc *sc = device_get_softc(self);
 	int rv;
-
 
 	DPRINTF(("ubsa_detach: sc = %p\n", sc));
 

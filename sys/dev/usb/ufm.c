@@ -98,7 +98,26 @@ struct ufm_softc {
 
 #define UFMUNIT(n) (minor(n))
 
-USB_DECLARE_DRIVER(ufm);
+static device_probe_t ufm_match;
+static device_attach_t ufm_attach;
+static device_detach_t ufm_detach;
+
+static device_method_t ufm_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ufm_match),
+	DEVMETHOD(device_attach,	ufm_attach),
+	DEVMETHOD(device_detach,	ufm_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t ufm_driver = {
+	"ufm",
+	ufm_methods,
+	sizeof(struct ufm_softc)
+};
+
+static devclass_t ufm_devclass;
 
 static int
 ufm_match(device_t self)
@@ -123,7 +142,8 @@ ufm_match(device_t self)
 static int
 ufm_attach(device_t self)
 {
-	USB_ATTACH_START(ufm, sc, uaa);
+	struct ufm_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_endpoint_descriptor_t *edesc;
 	usbd_device_handle udev;
 	usbd_interface_handle iface;
@@ -175,7 +195,9 @@ ufmopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	struct ufm_softc *sc;
 
 	int unit = UFMUNIT(dev);
-	USB_GET_SC_OPEN(ufm, unit, sc);
+	sc = devclass_get_softc(ufm_devclass, unit);
+	if (sc == NULL)
+		return (ENXIO);
 
 	DPRINTFN(5, ("ufmopen: flag=%d, mode=%d, unit=%d\n",
 		     flag, mode, unit));
@@ -196,7 +218,7 @@ ufmclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	struct ufm_softc *sc;
 
 	int unit = UFMUNIT(dev);
-	USB_GET_SC(ufm, unit, sc);
+	sc = devclass_get_softc(ufm_devclass, unit);
 
 	DPRINTFN(5, ("ufmclose: flag=%d, mode=%d, unit=%d\n", flag, mode, unit));
 	sc->sc_opened = 0;
@@ -319,7 +341,7 @@ ufmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	int unit = UFMUNIT(dev);
 	int error = 0;
 
-	USB_GET_SC(ufm, unit, sc);
+	sc = devclass_get_softc(ufm_devclass, unit);
 
 	switch (cmd) {
 	case FM_SET_FREQ:

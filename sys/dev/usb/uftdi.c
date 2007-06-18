@@ -187,7 +187,8 @@ uftdi_match(device_t self)
 static int
 uftdi_attach(device_t self)
 {
-	USB_ATTACH_START(uftdi, sc, uaa);
+	struct uftdi_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev = uaa->device;
 	usbd_interface_handle iface;
 	usb_interface_descriptor_t *id;
@@ -386,11 +387,11 @@ uftdi_activate(device_t self, enum devact act)
 	return (rv);
 }
 #endif
-#if 1
+
 static int
 uftdi_detach(device_t self)
 {
-	USB_DETACH_START(uftdi, sc);
+	struct uftdi_softc *sc = device_get_softc(self);
 
 	int rv = 0;
 
@@ -400,7 +401,7 @@ uftdi_detach(device_t self)
 
 	return rv;
 }
-#endif
+
 static int
 uftdi_open(void *vsc, int portno)
 {
