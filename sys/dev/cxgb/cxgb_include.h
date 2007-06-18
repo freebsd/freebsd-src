@@ -5,13 +5,15 @@
 
 #ifdef CONFIG_DEFINED
 #include <cxgb_osdep.h>
+#include <cxgb_l2t.h>
 #include <common/cxgb_common.h>
 #include <cxgb_ioctl.h>
 #include <cxgb_offload.h>
 #include <common/cxgb_regs.h>
 #include <common/cxgb_t3_cpl.h>
-#include <dev/cxgb/common/cxgb_ctl_defs.h>
-#include <dev/cxgb/common/cxgb_sge_defs.h>
+#include <common/cxgb_tcb.h>
+#include <common/cxgb_ctl_defs.h>
+#include <common/cxgb_sge_defs.h>
 #include <common/cxgb_firmware_exports.h>
 #include <sys/mvec.h>
 #include <ulp/toecore/toedev.h>
@@ -23,8 +25,10 @@
 #include <dev/cxgb/cxgb_osdep.h>
 #include <dev/cxgb/common/cxgb_common.h>
 #include <dev/cxgb/cxgb_ioctl.h>
+#include <dev/cxgb/cxgb_l2t.h>
 #include <dev/cxgb/cxgb_offload.h>
 #include <dev/cxgb/common/cxgb_regs.h>
+#include <dev/cxgb/common/cxgb_tcb.h>
 #include <dev/cxgb/common/cxgb_t3_cpl.h>
 #include <dev/cxgb/common/cxgb_ctl_defs.h>
 #include <dev/cxgb/common/cxgb_sge_defs.h>
