@@ -3455,7 +3455,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			return (ENOMEM);
 		}
 #ifdef  SCTP_PACKET_LOGGING
-		sctp_packet_log(m, packet_length);
+		if (sctp_logging_level & SCTP_LAST_PACKET_TRACING)
+			sctp_packet_log(m, packet_length);
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, m, packet_length);
 
@@ -3673,7 +3674,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			return (ENOMEM);
 		}
 #ifdef  SCTP_PACKET_LOGGING
-		sctp_packet_log(m, packet_length);
+		if (sctp_logging_level & SCTP_LAST_PACKET_TRACING)
+			sctp_packet_log(m, packet_length);
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, m, packet_length);
 
@@ -9347,7 +9349,8 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 		/* set IPv4 length */
 		iph_out->ip_len = mlen;
 #ifdef  SCTP_PACKET_LOGGING
-		sctp_packet_log(mout, mlen);
+		if (sctp_logging_level & SCTP_LAST_PACKET_TRACING)
+			sctp_packet_log(mout, mlen);
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, mlen);
 
@@ -9366,7 +9369,8 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 		bzero(&ro, sizeof(ro));
 		mlen = SCTP_BUF_LEN(mout);
 #ifdef  SCTP_PACKET_LOGGING
-		sctp_packet_log(mout, mlen);
+		if (sctp_logging_level & SCTP_LAST_PACKET_TRACING)
+			sctp_packet_log(mout, mlen);
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, mlen);
 		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id);
@@ -10227,7 +10231,8 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 		iph_out->ip_len = len;
 		/* out it goes */
 #ifdef  SCTP_PACKET_LOGGING
-		sctp_packet_log(mout, len);
+		if (sctp_logging_level & SCTP_LAST_PACKET_TRACING)
+			sctp_packet_log(mout, len);
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		SCTP_IP_OUTPUT(ret, o_pak, &ro, stcb, vrf_id);
@@ -10247,7 +10252,8 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 		SCTPDBG_PKT(SCTP_DEBUG_OUTPUT2, (struct ip *)ip6_out, &abm->sh);
 		ip6_out->ip6_plen = len - sizeof(*ip6_out);
 #ifdef  SCTP_PACKET_LOGGING
-		sctp_packet_log(mout, len);
+		if (sctp_logging_level & SCTP_LAST_PACKET_TRACING)
+			sctp_packet_log(mout, len);
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id);
@@ -10351,7 +10357,8 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 		out->ip_dst = iph->ip_src;
 		out->ip_len = len;
 #ifdef  SCTP_PACKET_LOGGING
-		sctp_packet_log(mout, len);
+		if (sctp_logging_level & SCTP_LAST_PACKET_TRACING)
+			sctp_packet_log(mout, len);
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 
@@ -10399,7 +10406,8 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 		SCTPDBG_ADDR(SCTP_DEBUG_OUTPUT2, (struct sockaddr *)&fsa6);
 
 #ifdef  SCTP_PACKET_LOGGING
-		sctp_packet_log(mout, len);
+		if (sctp_logging_level & SCTP_LAST_PACKET_TRACING)
+			sctp_packet_log(mout, len);
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id);
