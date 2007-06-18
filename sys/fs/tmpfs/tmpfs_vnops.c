@@ -505,6 +505,9 @@ tmpfs_uio_xfer(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		if (uio->uio_rw == UIO_READ && m->valid != VM_PAGE_BITS_ALL)
 			if (vm_pager_get_pages(uobj, &m, 1, 0) != VM_PAGER_OK)
 				vm_page_zero_invalid(m, TRUE);
+		vm_page_lock_queues();
+		vm_page_hold(m);
+		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(uobj);
 		sched_pin();
 		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
@@ -518,6 +521,7 @@ tmpfs_uio_xfer(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 			vm_page_zero_invalid(m, TRUE);
 			vm_page_dirty(m);
 		}
+		vm_page_unhold(m);
 		vm_page_activate(m);
 		vm_page_wakeup(m);
 		vm_page_unlock_queues();
