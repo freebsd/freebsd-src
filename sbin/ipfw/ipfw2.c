@@ -74,6 +74,7 @@ int
 		do_expired,		/* display expired dynamic rules */
 		do_compact,		/* show rules in compact mode */
 		do_force,		/* do not ask for confirmation */
+		use_set,		/* work with specified set number */
 		show_sets,		/* display rule sets */
 		test_only,		/* only check syntax */
 		comment_only,		/* only print action and comment */
@@ -2498,6 +2499,7 @@ list(int ac, char *av[], int show_counters)
 	u_long rnum, last;
 	char *endptr;
 	int seen = 0;
+	uint8_t set;
 
 	const int ocmd = do_pipe ? IP_DUMMYNET_GET : IP_FW_GET;
 	int nalloc = 1024;	/* start somewhere... */
@@ -2552,6 +2554,10 @@ list(int ac, char *av[], int show_counters)
 	bcwidth = pcwidth = 0;
 	if (show_counters) {
 		for (n = 0, r = data; n < nstat; n++, r = NEXT(r)) {
+			/* skip rules from another set */
+			if (use_set && r->set != use_set - 1)
+				continue;
+
 			/* packet counter */
 			width = snprintf(NULL, 0, "%llu",
 			    align_uint64(&r->pcnt));
@@ -2567,6 +2573,13 @@ list(int ac, char *av[], int show_counters)
 	}
 	if (do_dynamic && ndyn) {
 		for (n = 0, d = dynrules; n < ndyn; n++, d++) {
+			if (use_set) {
+				/* skip rules from another set */
+				bcopy(&d->rule + sizeof(uint16_t),
+				      &set, sizeof(uint8_t));
+				if (set != use_set - 1)
+					continue;
+			}
 			width = snprintf(NULL, 0, "%llu",
 			    align_uint64(&d->pcnt));
 			if (width > pcwidth)
@@ -2580,13 +2593,23 @@ list(int ac, char *av[], int show_counters)
 	}
 	/* if no rule numbers were specified, list all rules */
 	if (ac == 0) {
-		for (n = 0, r = data; n < nstat; n++, r = NEXT(r) )
+		for (n = 0, r = data; n < nstat; n++, r = NEXT(r)) {
+			if (use_set && r->set != use_set - 1)
+				continue;
 			show_ipfw(r, pcwidth, bcwidth);
+		}
 
 		if (do_dynamic && ndyn) {
 			printf("## Dynamic rules (%d):\n", ndyn);
-			for (n = 0, d = dynrules; n < ndyn; n++, d++)
+			for (n = 0, d = dynrules; n < ndyn; n++, d++) {
+				if (use_set) {
+					bcopy(&d->rule + sizeof(uint16_t),
+					      &set, sizeof(uint8_t));
+					if (set != use_set - 1)
+						continue;
+				}
 				show_dyn_ipfw(d, pcwidth, bcwidth);
+		}
 		}
 		goto done;
 	}
@@ -2606,6 +2629,8 @@ list(int ac, char *av[], int show_counters)
 		for (n = seen = 0, r = data; n < nstat; n++, r = NEXT(r) ) {
 			if (r->rulenum > last)
 				break;
+			if (use_set && r->set != use_set - 1)
+				continue;
 			if (r->rulenum >= rnum && r->rulenum <= last) {
 				show_ipfw(r, pcwidth, bcwidth);
 				seen = 1;
@@ -2634,6 +2659,12 @@ list(int ac, char *av[], int show_counters)
 				bcopy(&d->rule, &rulenum, sizeof(rulenum));
 				if (rulenum > rnum)
 					break;
+				if (use_set) {
+					bcopy(&d->rule + sizeof(uint16_t),
+					      &set, sizeof(uint8_t));
+					if (set != use_set - 1)
+						continue;
+				}
 				if (r->rulenum >= rnum && r->rulenum <= last)
 					show_dyn_ipfw(d, pcwidth, bcwidth);
 			}
@@ -2672,6 +2703,7 @@ help(void)
 "		reverse|proxy_only|redirect_addr linkspec|\n"
 "		redirect_port linkspec|redirect_proto linkspec}\n"
 "set [disable N... enable N...] | move [rule] X to Y | swap X Y | show\n"
+"set N {show|list|zero|resetlog|delete} [N{,N}] | flush\n"
 "table N {add ip[/bits] [value] | delete ip[/bits] | flush | list}\n"
 "\n"
 "RULE-BODY:	check-state [PARAMS] | ACTION [PARAMS] ADDR [OPTION_LIST]\n"
@@ -3189,6 +3221,11 @@ delete(int ac, char *av[])
 	av++; ac--;
 	NEED1("missing rule specification");
 	if (ac > 0 && _substrcmp(*av, "set") == 0) {
+		/* Do not allow using the following syntax:
+		 *	ipfw set N delete set M
+		 */
+		if (use_set)
+			errx(EX_DATAERR, "invalid syntax");
 		do_set = 1;	/* delete set */
 		ac--; av++;
 	}
@@ -3214,6 +3251,10 @@ delete(int ac, char *av[])
 				    do_pipe == 1 ? p.pipe_nr : p.fs.fs_nr);
 			}
 		} else {
+			if (use_set)
+				rulenum = (i & 0xffff) | (5 << 24) |
+				    ((use_set - 1) << 16);
+			else
 			rulenum =  (i & 0xffff) | (do_set << 24);
 			i = do_cmd(IP_FW_DEL, &rulenum, sizeof rulenum);
 			if (i) {
@@ -5674,9 +5715,10 @@ done:
 static void
 zero(int ac, char *av[], int optname /* IP_FW_ZERO or IP_FW_RESETLOG */)
 {
-	int rulenum;
+	uint32_t arg, saved_arg;
 	int failed = EX_OK;
 	char const *name = optname == IP_FW_ZERO ?  "ZERO" : "RESETLOG";
+	char const *errstr;
 
 	av++; ac--;
 
@@ -5694,15 +5736,21 @@ zero(int ac, char *av[], int optname /* IP_FW_ZERO or IP_FW_RESETLOG */)
 	while (ac) {
 		/* Rule number */
 		if (isdigit(**av)) {
-			rulenum = atoi(*av);
+			arg = strtonum(*av, 0, 0xffff, &errstr);
+			if (errstr)
+				errx(EX_DATAERR,
+				    "invalid rule number %s\n", *av);
+			saved_arg = arg;
+			if (use_set)
+				arg |= (1 << 24) | ((use_set - 1) << 16);
 			av++;
 			ac--;
-			if (do_cmd(optname, &rulenum, sizeof rulenum)) {
+			if (do_cmd(optname, &arg, sizeof(arg))) {
 				warn("rule %u: setsockopt(IP_FW_%s)",
-				    rulenum, name);
+				    saved_arg, name);
 				failed = EX_UNAVAILABLE;
 			} else if (!do_quiet)
-				printf("Entry %d %s.\n", rulenum,
+				printf("Entry %d %s.\n", saved_arg,
 				    optname == IP_FW_ZERO ?
 					"cleared" : "logging count reset");
 		} else {
@@ -5733,7 +5781,12 @@ flush(int force)
 		if (c == 'N')	/* user said no */
 			return;
 	}
-	if (do_cmd(cmd, NULL, 0) < 0)
+	/* `ipfw set N flush` - is the same that `ipfw delete set N` */
+	if (use_set) {
+		uint32_t arg = ((use_set - 1) & 0xffff) | (1 << 24);
+		if (do_cmd(IP_FW_DEL, &arg, sizeof(arg)) < 0)
+			err(EX_UNAVAILABLE, "setsockopt(IP_FW_DEL)");
+	} else if (do_cmd(cmd, NULL, 0) < 0)
 		err(EX_UNAVAILABLE, "setsockopt(IP_%s_FLUSH)",
 		    do_pipe ? "DUMMYNET" : "FW");
 	if (!do_quiet)
@@ -5944,6 +5997,7 @@ static int
 ipfw_main(int oldac, char **oldav)
 {
 	int ch, ac, save_ac;
+	const char *errstr;
 	char **av, **save_av;
 	int do_acct = 0;		/* Show packet/byte count */
 
@@ -6134,6 +6188,16 @@ ipfw_main(int oldac, char **oldav)
 		do_pipe = 1;
 	else if (_substrcmp(*av, "queue") == 0)
 		do_pipe = 2;
+	else if (!strncmp(*av, "set", strlen(*av))) {
+		if (ac > 1 && isdigit(av[1][0])) {
+			use_set = strtonum(av[1], 0, RESVD_SET, &errstr);
+			if (errstr)
+				errx(EX_DATAERR,
+				    "invalid set number %s\n", av[1]);
+			ac -= 2; av += 2; use_set++;
+		}
+	}
+
 	if (do_pipe || do_nat) {
 		ac--;
 		av++;
@@ -6152,37 +6216,45 @@ ipfw_main(int oldac, char **oldav)
 		av[1] = p;
 	}
 
-	if (_substrcmp(*av, "add") == 0)
-		add(ac, av);
-	else if (do_nat && _substrcmp(*av, "show") == 0)
- 		show_nat(ac, av);
-	else if (do_pipe && _substrcmp(*av, "config") == 0)
-		config_pipe(ac, av);
-	else if (do_nat && _substrcmp(*av, "config") == 0) 
- 		config_nat(ac, av);
-	else if (_substrcmp(*av, "delete") == 0)
-		delete(ac, av);
-	else if (_substrcmp(*av, "flush") == 0)
-		flush(do_force);
-	else if (_substrcmp(*av, "zero") == 0)
-		zero(ac, av, IP_FW_ZERO);
-	else if (_substrcmp(*av, "resetlog") == 0)
-		zero(ac, av, IP_FW_RESETLOG);
-	else if (_substrcmp(*av, "print") == 0 ||
-	         _substrcmp(*av, "list") == 0)
-		list(ac, av, do_acct);
-	else if (_substrcmp(*av, "set") == 0)
-		sets_handler(ac, av);
-	else if (_substrcmp(*av, "table") == 0)
-		table_handler(ac, av);
-	else if (_substrcmp(*av, "enable") == 0)
-		sysctl_handler(ac, av, 1);
-	else if (_substrcmp(*av, "disable") == 0)
-		sysctl_handler(ac, av, 0);
-	else if (_substrcmp(*av, "show") == 0)
-		list(ac, av, 1 /* show counters */);
-	else
-		errx(EX_USAGE, "bad command `%s'", *av);
+	int try_next = 0;
+	if (use_set == 0) {
+		if (_substrcmp(*av, "add") == 0)
+			add(ac, av);
+		else if (do_nat && _substrcmp(*av, "show") == 0)
+ 			show_nat(ac, av);
+		else if (do_pipe && _substrcmp(*av, "config") == 0)
+			config_pipe(ac, av);
+		else if (do_nat && _substrcmp(*av, "config") == 0)
+ 			config_nat(ac, av);
+			else if (_substrcmp(*av, "set") == 0)
+				sets_handler(ac, av);
+			else if (_substrcmp(*av, "table") == 0)
+				table_handler(ac, av);
+			else if (_substrcmp(*av, "enable") == 0)
+				sysctl_handler(ac, av, 1);
+			else if (_substrcmp(*av, "disable") == 0)
+				sysctl_handler(ac, av, 0);
+			else
+				try_next = 1;
+	}
+
+	if (use_set || try_next) {
+		if (_substrcmp(*av, "delete") == 0)
+			delete(ac, av);
+		else if (_substrcmp(*av, "flush") == 0)
+			flush(do_force);
+		else if (_substrcmp(*av, "zero") == 0)
+			zero(ac, av, IP_FW_ZERO);
+		else if (_substrcmp(*av, "resetlog") == 0)
+			zero(ac, av, IP_FW_RESETLOG);
+		else if (_substrcmp(*av, "print") == 0 ||
+		         _substrcmp(*av, "list") == 0)
+			list(ac, av, do_acct);
+		else if (_substrcmp(*av, "show") == 0)
+			list(ac, av, 1 /* show counters */);
+		else
+			errx(EX_USAGE, "bad command `%s'", *av);
+	}
 
 	/* Free memory allocated in the argument parsing. */
 	free_args(save_ac, save_av);
