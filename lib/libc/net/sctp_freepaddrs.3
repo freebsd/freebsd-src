@@ -36,9 +36,9 @@
 .Dt SCTP_FREEPADDRS 3
 .Os
 .Sh NAME
-.Nm sctp_freepaddrs
+.Nm sctp_freepaddrs ,
 .Nm sctp_freeladdrs
-.Nd release the memory returned from a previous call.
+.Nd release the memory returned from a previous call
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -49,13 +49,12 @@
 .Fn sctp_freepaddrs "struct sockaddr *" 
 .Ft void
 .Fn sctp_freeladdrs "struct sockaddr *" 
-
 .Sh DESCRIPTION
-The function
+The
 .Fn sctp_freepaddrs
 and
 .Fn sctp_freeladdrs
-are used to release the memory allocated by previous
+functions are used to release the memory allocated by previous
 calls to
 .Fn sctp_getpaddrs
 or
@@ -63,9 +62,7 @@ or
 respectively.
 .Sh RETURN VALUES
 none.
-.El
 .Sh SEE ALSO
-.Xr sctp 4 ,
-.Xr sctp_getpaddrs 3 ,
 .Xr sctp_getladdrs 3 ,
-
+.Xr sctp_getpaddrs 3 ,
+.Xr sctp 4

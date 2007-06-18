@@ -53,14 +53,21 @@ call provides a multi-os compatible method for getting
 specific 
 .Fn getsockopt
 data where an association identification needs to be passed
-into the operating system. For FreeBSD a direct
+into the operating system.
+For
+.Fx
+a direct
 .Fn getsockopt
-may be used, since FreeBSD has the ability to pass information
+may be used, since
+.Fx
+has the ability to pass information
 into the operating system on a
 .Fn getsockopt
-call. Other operating systems may not have this ability. For those
-who wish to write portable code amongst multiple operating system
-this call should be used for the for the following sctp
+call.
+Other operating systems may not have this ability.
+For those
+who wish to write portable code amongst multiple operating systems
+this call should be used for the following SCTP
 socket options.
 .Pp
 .Dv SCTP_RTOINFO 
@@ -83,7 +90,7 @@ socket options.
 .Sh ERRORS
 The
 .Fn sctp_opt_info
-can return the following errors.
+function can return the following errors.
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The argument
@@ -104,6 +111,5 @@ The argument
 is not a socket.
 .El
 .Sh SEE ALSO
-.Xr sctp 4 ,
 .Xr getsockopt 2 ,
-
+.Xr sctp 4

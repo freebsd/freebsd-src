@@ -45,20 +45,27 @@
 .In sys/socket.h
 .In netinet/sctp.h
 .Ft int
-.Fn sctp_getaddrlen "sa_family_t family""
+.Fn sctp_getaddrlen "sa_family_t family"
 .Sh DESCRIPTION
 The
 .Fn sctp_getaddrlen
-returns the size of a specific address family. This function
+function returns the size of a specific address family.
+This function
 is provided for application binary compatability since it
 provides the application with the size the operating system
-thinks the specific address family is. Note that the function
+thinks the specific address family is.
+Note that the function
 will actually create an SCTP socket and then gather the
 information via a
 .Fn getsockopt
-system calls. If for some reason a SCTP socket cannot
-be created or the getsockopt fails, an error will be returned 
-with errno set as specified in the
+system calls.
+If for some reason a SCTP socket cannot
+be created or the
+.Fn getsockopt
+call fails, an error will be returned 
+with
+.Va errno
+set as specified in the
 .Fn socket
 or
 .Fn getsockopt
@@ -69,12 +76,12 @@ system expects for the specific address family or -1.
 .Sh ERRORS
 The
 .Fn sctp_getaddrlen
+function can return the following errors.
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The address family specified does NOT exist.
 .El
 .Sh SEE ALSO
-.Xr sctp 4 ,
-.Xr socket 2 ,
 .Xr getsockopt 2 ,
-
+.Xr socket 2 ,
+.Xr sctp 4
