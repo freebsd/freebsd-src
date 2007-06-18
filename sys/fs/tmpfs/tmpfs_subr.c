@@ -1256,7 +1256,7 @@ tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
 	    TMPFS_NODE_CHANGED)) == 0)
 		return;
 
-	nanotime(&now);
+	vfs_timestamp(&now);
 	if (node->tn_status & TMPFS_NODE_ACCESSED) {
 		if (acc == NULL)
 			 acc = &now;
