@@ -10436,9 +10436,10 @@ sctp_copy_resume(struct sctp_stream_queue_pending *sp,
 	    (M_PKTHDR | (user_marks_eor ? M_EOR : 0)));
 	if (m == NULL)
 		*error = ENOMEM;
-	else
+	else {
 		*sndout = m_length(m, NULL);
-	*new_tail = m_last(m);
+		*new_tail = m_last(m);
+	}
 	return (m);
 }
 

@@ -1706,7 +1706,8 @@ select_a_new_ep:
 		if (iteration_count > SCTP_ITERATOR_MAX_AT_ONCE) {
 	start_timer_return:
 			/* set a timer to continue this later */
-			SCTP_TCB_UNLOCK(it->stcb);
+			if (it->stcb)
+				SCTP_TCB_UNLOCK(it->stcb);
 			sctp_timer_start(SCTP_TIMER_TYPE_ITERATOR,
 			    (struct sctp_inpcb *)it, NULL, NULL);
 			SCTP_ITERATOR_UNLOCK();
