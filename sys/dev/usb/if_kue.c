@@ -125,10 +125,10 @@ static struct kue_type kue_devs[] = {
 	{ 0, 0 }
 };
 
-static int kue_match(device_t);
-static int kue_attach(device_t);
-static int kue_detach(device_t);
-static void kue_shutdown(device_t);
+static device_probe_t kue_match;
+static device_attach_t kue_attach;
+static device_detach_t kue_detach;
+static device_shutdown_t kue_shutdown;
 static int kue_encap(struct kue_softc *, struct mbuf *, int);
 static void kue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 static void kue_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -996,7 +996,7 @@ kue_stop(struct kue_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 kue_shutdown(device_t dev)
 {
 	struct kue_softc	*sc;
@@ -1005,5 +1005,5 @@ kue_shutdown(device_t dev)
 
 	kue_stop(sc);
 
-	return;
+	return (0);
 }
