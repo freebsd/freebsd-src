@@ -323,7 +323,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	/*
 	 * Create the device queue for our SIM(s).
 	 */
-	devq = cam_simq_alloc(1);
+	devq = cam_simq_alloc(maxq);
 	if (devq == NULL) {
 		mpt_prt(mpt, "Unable to allocate CAM SIMQ!\n");
 		error = ENOMEM;
@@ -334,7 +334,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Construct our SIM entry.
 	 */
 	mpt->sim =
-	    mpt_sim_alloc(mpt_action, mpt_poll, "mpt", mpt, 1, 1, devq);
+	    mpt_sim_alloc(mpt_action, mpt_poll, "mpt", mpt, 1, maxq, devq);
 	if (mpt->sim == NULL) {
 		mpt_prt(mpt, "Unable to allocate CAM SIM!\n");
 		cam_simq_free(devq);
@@ -374,7 +374,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Create a "bus" to export all hidden disks to CAM.
 	 */
 	mpt->phydisk_sim =
-	    mpt_sim_alloc(mpt_action, mpt_poll, "mpt", mpt, 1, 1, devq);
+	    mpt_sim_alloc(mpt_action, mpt_poll, "mpt", mpt, 1, maxq, devq);
 	if (mpt->phydisk_sim == NULL) {
 		mpt_prt(mpt, "Unable to allocate Physical Disk CAM SIM!\n");
 		error = ENOMEM;
