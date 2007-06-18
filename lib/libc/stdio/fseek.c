@@ -283,6 +283,7 @@ abspos:
 		fp->_r -= n;
 	}
 	fp->_flags &= ~__SEOF;
+	memset(&fp->_extra->mbstate, 0, sizeof(mbstate_t));
 	return (0);
 
 	/*
@@ -293,6 +294,11 @@ dumb:
 	if (__sflush(fp) ||
 	    (ret = _sseek(fp, (fpos_t)offset, whence)) == POS_ERR)
 		return (-1);
+	if (ltest && ret > LONG_MAX) {
+		fp->_flags |= __SERR;
+		errno = EOVERFLOW;
+		return (-1);
+	}
 	/* success: clear EOF indicator and discard ungetc() data */
 	if (HASUB(fp))
 		FREEUB(fp);
@@ -301,10 +307,5 @@ dumb:
 	/* fp->_w = 0; */	/* unnecessary (I think...) */
 	fp->_flags &= ~__SEOF;
 	memset(&fp->_extra->mbstate, 0, sizeof(mbstate_t));
-	if (ltest && ret > LONG_MAX) {
-		fp->_flags |= __SERR;
-		errno = EOVERFLOW;
-		return (-1);
-	}
 	return (0);
 }
