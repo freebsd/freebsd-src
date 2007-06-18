@@ -514,7 +514,7 @@ usbd_alloc_xfer(usbd_device_handle dev)
 	if (xfer == NULL)
 		return (NULL);
 	xfer->device = dev;
-	usb_callout_init(xfer->timeout_handle);
+	callout_init(&xfer->timeout_handle, 0);
 	DPRINTFN(5,("usbd_alloc_xfer() = %p\n", xfer));
 	return (xfer);
 }
