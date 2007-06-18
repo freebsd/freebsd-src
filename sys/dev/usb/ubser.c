@@ -177,7 +177,26 @@ static t_open_t		ubseropen;
 static t_close_t	ubserclose;
 static t_modem_t	ubsermodem;
 
-USB_DECLARE_DRIVER(ubser);
+static device_probe_t ubser_match;
+static device_attach_t ubser_attach;
+static device_detach_t ubser_detach;
+
+static device_method_t ubser_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ubser_match),
+	DEVMETHOD(device_attach,	ubser_attach),
+	DEVMETHOD(device_detach,	ubser_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t ubser_driver = {
+	"ubser",
+	ubser_methods,
+	sizeof(struct ubser_softc)
+};
+
+static devclass_t ubser_devclass;
 
 static int
 ubser_match(device_t self)
@@ -222,7 +241,8 @@ ubser_match(device_t self)
 static int
 ubser_attach(device_t self)
 {
-	USB_ATTACH_START(ubser, sc, uaa);
+	struct ubser_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle udev = uaa->device;
 	usb_endpoint_descriptor_t *ed;
 	usb_interface_descriptor_t *id;
@@ -416,7 +436,7 @@ bad:
 static int
 ubser_detach(device_t self)
 {
-	USB_DETACH_START(ubser, sc);
+	struct ubser_softc *sc = device_get_softc(self);
 	int i;
 	struct ubser_port *pp;
 

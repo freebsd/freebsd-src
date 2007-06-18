@@ -341,7 +341,8 @@ uplcom_match(device_t self)
 static int
 uplcom_attach(device_t self)
 {
-	USB_ATTACH_START(uplcom, sc, uaa);
+	struct uplcom_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev = uaa->device;
 	struct ucom_softc *ucom;
 	usb_config_descriptor_t *cdesc;
@@ -549,7 +550,7 @@ error:
 static int
 uplcom_detach(device_t self)
 {
-	USB_DETACH_START(uplcom, sc);
+	struct uplcom_softc *sc = device_get_softc(self);
 	int rv = 0;
 
 	DPRINTF(("uplcom_detach: sc = %p\n", sc));
