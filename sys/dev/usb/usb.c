@@ -153,7 +153,6 @@ struct cdevsw usb_cdevsw = {
 };
 
 static void	usb_discover(void *);
-static bus_child_detached_t usb_child_detached;
 static void	usb_create_event_thread(void *);
 static void	usb_event_thread(void *);
 static void	usb_task_thread(void *);
@@ -181,13 +180,38 @@ static int usb_get_next_event(struct usb_event *);
 
 static const char *usbrev_str[] = USBREV_STR;
 
-USB_DECLARE_DRIVER_INIT(usb,
-			DEVMETHOD(bus_child_detached, usb_child_detached),
-			DEVMETHOD(device_suspend, bus_generic_suspend),
-			DEVMETHOD(device_resume, bus_generic_resume),
-			DEVMETHOD(device_shutdown, bus_generic_shutdown)
-			);
+static device_probe_t usb_match;
+static device_attach_t usb_attach;
+static device_detach_t usb_detach;
+static bus_child_detached_t usb_child_detached;
 
+static device_method_t usb_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		usb_match),
+	DEVMETHOD(device_attach,	usb_attach),
+	DEVMETHOD(device_detach,	usb_detach),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
+	/* Bus interface */
+	DEVMETHOD(bus_child_detached,	usb_child_detached),
+
+	{ 0, 0 }
+};
+
+static driver_t usb_driver = {
+	"usb",
+	usb_methods,
+	sizeof(struct usb_softc)
+};
+
+static devclass_t usb_devclass;
+
+DRIVER_MODULE(usb, ohci, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usb, uhci, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usb, ehci, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usb, slhci, usb_driver, usb_devclass, 0, 0);
 MODULE_VERSION(usb, 1);
 
 static int
@@ -291,7 +315,7 @@ usb_attach(device_t self)
 	if (cold)
 		sc->sc_bus->use_polling--;
 
-	config_pending_incr();
+	/* XXX really do right config_pending_incr(); */
 	usb_create_event_thread(sc);
 	/* The per controller devices (used for usb_discover) */
 	/* XXX This is redundant now, but old usbd's will want it */
@@ -407,7 +431,7 @@ usb_event_thread(void *arg)
 	/* Make sure first discover does something. */
 	sc->sc_bus->needs_explore = 1;
 	usb_discover(sc);
-	config_pending_decr();
+	/* XXX really do right config_pending_decr(); */
 
 	while (!sc->sc_dying) {
 #ifdef USB_DEBUG
@@ -482,9 +506,9 @@ usbopen(struct cdev *dev, int flag, int mode, struct thread *p)
 		usb_async_proc = 0;
 		return (0);
 	}
-
-	USB_GET_SC_OPEN(usb, unit, sc);
-
+	sc = devclass_get_softc(usb_devclass, unit);
+	if (sc == NULL)
+		return (ENXIO);
 	if (sc->sc_dying)
 		return (EIO);
 
@@ -561,9 +585,7 @@ usbioctl(struct cdev *devt, u_long cmd, caddr_t data, int flag, struct thread *p
 			return (EINVAL);
 		}
 	}
-
-	USB_GET_SC(usb, unit, sc);
-
+	sc = devclass_get_softc(usb_devclass, unit);
 	if (sc->sc_dying)
 		return (EIO);
 
@@ -826,7 +848,7 @@ usb_schedsoftintr(usbd_bus_handle bus)
 static int
 usb_detach(device_t self)
 {
-	USB_DETACH_START(usb, sc);
+	struct usb_softc *sc = device_get_softc(self);
 	struct usb_event ue;
 	struct usb_taskq *taskq;
 	int i;
@@ -909,9 +931,5 @@ usb_cold_explore(void *arg)
 	}
 }
 
-DRIVER_MODULE(usb, ohci, usb_driver, usb_devclass, 0, 0);
-DRIVER_MODULE(usb, uhci, usb_driver, usb_devclass, 0, 0);
-DRIVER_MODULE(usb, ehci, usb_driver, usb_devclass, 0, 0);
-DRIVER_MODULE(usb, slhci, usb_driver, usb_devclass, 0, 0);
 SYSINIT(usb_cold_explore, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE,
     usb_cold_explore, NULL);
