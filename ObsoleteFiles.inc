@@ -74,6 +74,7 @@ OLD_LIBS+=usr/lib/libthr.so.2
 OLD_LIBS+=usr/lib/libthread_db.so.2
 OLD_LIBS+=usr/lib/libugidfw.so.2
 OLD_LIBS+=usr/lib/libusbhid.so.2
+OLD_LIBS+=usr/lib/libvgl.so.4
 OLD_LIBS+=usr/lib/libwrap.so.4
 OLD_LIBS+=usr/lib/libypclnt.so.2
 OLD_LIBS+=usr/lib/snmp_atm.so.3
