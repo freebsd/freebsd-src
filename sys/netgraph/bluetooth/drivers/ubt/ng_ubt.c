@@ -65,7 +65,26 @@
  * USB methods
  */
 
-USB_DECLARE_DRIVER(ubt);
+static device_probe_t ubt_match;
+static device_attach_t ubt_attach;
+static device_detach_t ubt_detach;
+
+static device_method_t ubt_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ubt_match),
+	DEVMETHOD(device_attach,	ubt_attach),
+	DEVMETHOD(device_detach,	ubt_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t ubt_driver = {
+	"ubt",
+	ubt_methods,
+	sizeof(struct ubt_softc)
+};
+
+static devclass_t ubt_devclass;
 
 static int         ubt_modevent		  (module_t, int, void *);
 
@@ -254,7 +273,8 @@ ubt_modevent(module_t mod, int event, void *data)
  * Probe for a USB Bluetooth device
  */
 
-USB_MATCH(ubt)
+static int
+ubt_match(device_t self)
 {
 	/*
 	 * If for some reason device should not be attached then put
@@ -284,8 +304,7 @@ USB_MATCH(ubt)
 		{ 0, 0 } /* This should be the last item in the list */
 	};
 
-	USB_MATCH_START(ubt, uaa);
-
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_device_descriptor_t	*dd = usbd_get_device_descriptor(uaa->device);
 
 	if (uaa->iface == NULL ||
@@ -301,15 +320,17 @@ USB_MATCH(ubt)
 		return (UMATCH_VENDOR_PRODUCT);
 
 	return (UMATCH_NONE);
-} /* USB_MATCH(ubt) */
+} /* ubt_match */
 
 /*
  * Attach the device
  */
 
-USB_ATTACH(ubt)
+static int
+ubt_attach(device_t self)
 {
-	USB_ATTACH_START(ubt, sc, uaa);
+	struct ubt_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_config_descriptor_t		*cd = NULL;
 	usb_interface_descriptor_t	*id = NULL;
 	usb_endpoint_descriptor_t	*ed = NULL;
@@ -755,15 +776,16 @@ bad:
 	ubt_detach(self);
 
 	return ENXIO;
-} /* USB_ATTACH(ubt) */
+} /* ubt_attach */
 
 /*
  * Detach the device
  */
 
-USB_DETACH(ubt)
+static int
+ubt_detach(device_t self)
 {
-	USB_DETACH_START(ubt, sc);
+	struct ubt_softc *sc = device_get_softc(self);
 
 	/* Destroy Netgraph node */
 	if (sc->sc_node != NULL) {
@@ -844,7 +866,7 @@ USB_DETACH(ubt)
 			sc->sc_dev);
 
 	return (0);
-} /* USB_DETACH(ubt) */
+} /* ubt_detach */
 
 /*
  * Start USB control request (HCI command). Must be called with node locked
