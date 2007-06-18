@@ -35,7 +35,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ofw_pci.h"
-#include "opt_global.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -103,6 +102,7 @@ DRIVER_MODULE(ofw_pcib, pci, ofw_pcib_driver, pcib_devclass, 0, 0);
 static int
 ofw_pcib_probe(device_t dev)
 {
+
 	if ((pci_get_class(dev) == PCIC_BRIDGE) &&
 	    (pci_get_subclass(dev) == PCIS_BRIDGE_PCI) &&
 	    ofw_bus_get_node(dev) != 0) {
@@ -115,16 +115,9 @@ ofw_pcib_probe(device_t dev)
 static int
 ofw_pcib_attach(device_t dev)
 {
-	struct ofw_pcib_gen_softc *sc;
 
-	sc = device_get_softc(dev);
 	ofw_pcib_gen_setup(dev);
 	pcib_attach_common(dev);
-#ifdef SUN4V
 	device_add_child(dev, "pci", -1);
-#else
-	device_add_child(dev, "pci", sc->ops_pcib_sc.secbus);
-#endif
-
 	return (bus_generic_attach(dev));
 }
