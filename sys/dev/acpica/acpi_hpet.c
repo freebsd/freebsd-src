@@ -82,18 +82,22 @@ hpet_get_timecount(struct timecounter *tc)
 	return (bus_read_4(sc->mem_res, HPET_OFFSET_VALUE));
 }
 
+/* Temporary define for 6.x */
+#define ACPI_SIG_HPET "HPET"
+
 /* Discover the HPET via the ACPI table of the same name. */
 void 
 acpi_hpet_table_probe(device_t parent)
 {
-	ACPI_TABLE_HPET *hpet;
+	HPET_TABLE *hpet;
 	ACPI_TABLE_HEADER *hdr;
 	ACPI_STATUS	status;
 	device_t	child;
 
 	/* Currently, ID and minimum clock tick info is unused. */
 
-	status = AcpiGetTable(ACPI_SIG_HPET, 1, (ACPI_TABLE_HEADER **)&hdr);
+	status = AcpiGetFirmwareTable(ACPI_SIG_HPET, 1, ACPI_LOGICAL_ADDRESSING,
+		&hdr);
 	if (ACPI_FAILURE(status))
 		return;
 
@@ -101,10 +105,10 @@ acpi_hpet_table_probe(device_t parent)
 	 * The unit number could be derived from hdr->Sequence but we only
 	 * support one HPET device.
 	 */
-	hpet = (ACPI_TABLE_HPET *)hdr;
-	if (hpet->Sequence != 0)
+	hpet = (HPET_TABLE *)hdr;
+	if (hpet->HpetNumber != 0)
 		printf("ACPI HPET table warning: Sequence is non-zero (%d)\n",
-		    hpet->Sequence);
+		    hpet->HpetNumber);
 	child = BUS_ADD_CHILD(parent, 0, "acpi_hpet", 0);
 	if (child == NULL) {
 		printf("%s: can't add child\n", __func__);
@@ -113,7 +117,7 @@ acpi_hpet_table_probe(device_t parent)
 
 	/* Record a magic value so we can detect this device later. */
 	acpi_set_magic(child, (uintptr_t)&acpi_hpet_devclass);
-	bus_set_resource(child, SYS_RES_MEMORY, 0, hpet->Address.Address,
+	bus_set_resource(child, SYS_RES_MEMORY, 0, hpet->BaseAddress.Address,
 	    HPET_MEM_WIDTH);
 	if (device_probe_and_attach(child) != 0)
 		device_delete_child(parent, child);
