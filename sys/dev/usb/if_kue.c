@@ -387,15 +387,12 @@ kue_match(device_t self)
 		return(UMATCH_NONE);
 
 	t = kue_devs;
-	while(t->kue_vid) {
-		if (uaa->vendor == t->kue_vid &&
-		    uaa->product == t->kue_did) {
-			return(UMATCH_VENDOR_PRODUCT);
-		}
+	while (t->kue_vid) {
+		if (uaa->vendor == t->kue_vid && uaa->product == t->kue_did)
+			return (UMATCH_VENDOR_PRODUCT);
 		t++;
 	}
-
-	return(UMATCH_NONE);
+	return (UMATCH_NONE);
 }
 
 /*
