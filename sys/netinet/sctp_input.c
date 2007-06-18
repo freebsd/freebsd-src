@@ -4715,7 +4715,8 @@ sctp_input(i_pak, off)
 	}
 #endif
 #ifdef  SCTP_PACKET_LOGGING
-	sctp_packet_log(m, mlen);
+	if (sctp_logging_level & SCTP_LAST_PACKET_TRACING)
+		sctp_packet_log(m, mlen);
 #endif
 	/*
 	 * Must take out the iphlen, since mlen expects this (only effect lb
