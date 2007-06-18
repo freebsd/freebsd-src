@@ -913,6 +913,8 @@ struct sctpstat {
 #define SCTP_STAT_DECR_COUNTER64(_x) SCTP_STAT_DECR(_x)
 #define SCTP_STAT_DECR_GAUGE32(_x) SCTP_STAT_DECR(_x)
 
+#define SCTP_ALIGN_64_SA 36
+
 union sctp_sockstore {
 #if defined(INET) || !defined(_KERNEL)
 	struct sockaddr_in sin;
@@ -921,6 +923,7 @@ union sctp_sockstore {
 	struct sockaddr_in6 sin6;
 #endif
 	struct sockaddr sa;
+	uint8_t reserved[SCTP_ALIGN_64_SA];
 };
 
 struct xsctp_inpcb {
