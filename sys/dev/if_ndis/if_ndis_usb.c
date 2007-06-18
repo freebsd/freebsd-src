@@ -69,10 +69,9 @@ __FBSDID("$FreeBSD$");
 
 MODULE_DEPEND(ndis, usb, 1, 1, 1);
 
-static int ndisusb_match	(device_t);
-static int ndisusb_attach	(device_t);
-static struct resource_list *ndis_get_resource_list
-				(device_t, device_t);
+static device_probe_t ndisusb_match;
+static device_attach_t ndisusb_attach;
+static bus_get_resource_list_t ndis_get_resource_list;
 
 extern int ndisdrv_modevent     (module_t, int, void *);
 extern int ndis_attach          (device_t);
@@ -108,22 +107,25 @@ static devclass_t ndis_devclass;
 
 DRIVER_MODULE(ndis, uhub, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 
-USB_MATCH(ndisusb)
+static int
+ndisusb_match(device_t self)
 {
-	USB_MATCH_START(ndisusb, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (windrv_lookup(0, "USB Bus") == NULL)
-		return(UMATCH_NONE);
+		return (UMATCH_NONE);
 
 	if (uaa->iface != NULL)
-		return(UMATCH_NONE);
+		return (UMATCH_NONE);
 
-	return(UMATCH_NONE);
+	return (UMATCH_NONE);
 }
 
-USB_ATTACH(ndisusb)
+static int
+ndisusb_attach(device_t self)
 {
-	USB_ATTACH_START(ndisusb, dummy, uaa);
+	struct ndisusb_softc *dummy = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ndis_softc	*sc;
 	driver_object		*drv;
 
@@ -146,9 +148,7 @@ USB_ATTACH(ndisusb)
 }
 
 static struct resource_list *
-ndis_get_resource_list(dev, child)
-	device_t		dev;
-	device_t		child;
+ndis_get_resource_list(device_t dev, device_t child)
 {
 	struct ndis_softc       *sc;
 
