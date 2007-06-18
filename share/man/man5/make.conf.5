@@ -680,6 +680,97 @@ Set to install BIND libraries and include files.
 Set to disable the installation of
 .Xr ppp 8
 as an suid root program.
+.It Va SENDMAIL_ADDITIONAL_MC
+.Pq Vt str
+Additional
+.Pa .mc
+files which should be built into
+.Pa .cf
+files at build time.
+The value should include the full path to the
+.Pa .mc
+file(s), e.g.,
+.Pa /etc/mail/foo.mc
+.Pa /etc/mail/bar.mc .
+.It Va SENDMAIL_ALIASES
+.Pq Vt str
+List of
+.Xr aliases 5
+files to rebuild when using
+.Pa /etc/mail/Makefile .
+The default value is
+.Pa /etc/mail/aliases .
+.It Va SENDMAIL_CFLAGS
+.Pq Vt str
+Flags to pass to the compile command when building
+.Xr sendmail 8 .
+The
+.Va SENDMAIL_*
+flags can be used to provide SASL support with setting such as:
+.Bd -literal -offset indent
+SENDMAIL_CFLAGS=-I/usr/local/include -DSASL
+SENDMAIL_LDFLAGS=-L/usr/local/lib
+SENDMAIL_LDADD=-lsasl
+.Ed
+.It Va SENDMAIL_CF_DIR
+.Pq Vt str
+Override the default location for the
+.Xr m4 1
+configuration files used to build a
+.Pa .cf
+file from a
+.Pa .mc
+file.
+.It Va SENDMAIL_DPADD
+.Pq Vt str
+Extra dependencies to add when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_LDADD
+.Pq Vt str
+Flags to add to the end of the
+.Xr ld 1
+command when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_LDFLAGS
+.Pq Vt str
+Flags to pass to the
+.Xr ld 1
+command when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_M4_FLAGS
+.Pq Vt str
+Flags passed to
+.Xr m4 1
+when building a
+.Pa .cf
+file from a
+.Pa .mc
+file.
+.It Va SENDMAIL_MAP_PERMS
+.Pq Vt str
+Mode to use when generating alias and map database files using
+.Pa /etc/mail/Makefile .
+The default value is 0640.
+.It Va SENDMAIL_MAP_SRC
+.Pq Vt str
+Additional maps to rebuild when using
+.Pa /etc/mail/Makefile .
+The 
+.Pa access ,
+.Pa bitdomain ,
+.Pa domaintable ,
+.Pa genericstable ,
+.Pa mailertable ,
+.Pa uucpdomain ,
+and
+.Pa virtusertable
+maps are always rebuilt if they exist.
+.It Va SENDMAIL_MAP_TYPE
+.Pq Vt str
+Database map type to use when generating map database files using
+.Pa /etc/mail/Makefile .
+The default value is hash.
+The alternative is btree.
 .It Va SENDMAIL_MC
 .Pq Vt str
 The default
@@ -694,6 +785,28 @@ Use with caution as a make install will overwrite any existing
 Note that
 .Va SENDMAIL_CF
 is now deprecated.
+.It Va SENDMAIL_SET_USER_ID
+.Pq Vt bool
+If set, install
+.Xr sendmail 8
+as a set-user-ID root binary instead of a set-group-ID binary
+and do not install
+.Pa /etc/mail/submit.{cf,mc} .
+Use of this flag is not recommended and the alternative advice in
+.Pa /etc/mail/README
+should be followed instead if at all possible.
+.It Va SENDMAIL_START_SCRIPT
+.Pq Vt str
+The script used by
+.Pa /etc/mail/Makefile
+to start, stop, and restart
+.Xr sendmail 8 .
+The default value is
+.Pa /etc/rc.sendmail .
+This value should match the
+.Dq Li mta_start_script
+setting in
+.Xr rc.conf 5 .
 .It Va SENDMAIL_SUBMIT_MC
 .Pq Vt str
 The default
@@ -706,79 +819,6 @@ file, e.g.,
 .Pa /etc/mail/mysubmit.mc .
 Use with caution as a make install will overwrite any existing
 .Pa /etc/mail/submit.cf .
-.It Va SENDMAIL_ADDITIONAL_MC
-.Pq Vt str
-Additional
-.Pa .mc
-files which should be built into
-.Pa .cf
-files at build time.
-The value should include the full path to the
-.Pa .mc
-file(s), e.g.,
-.Pa /etc/mail/foo.mc
-.Pa /etc/mail/bar.mc .
-.It Va SENDMAIL_CF_DIR
-.Pq Vt str
-Override the default location for the
-.Xr m4 1
-configuration files used to build a
-.Pa .cf
-file from a
-.Pa .mc
-file.
-.It Va SENDMAIL_M4_FLAGS
-.Pq Vt str
-Flags passed to
-.Xr m4 1
-when building a
-.Pa .cf
-file from a
-.Pa .mc
-file.
-.It Va SENDMAIL_CFLAGS
-.Pq Vt str
-Flags to pass to the compile command when building
-.Xr sendmail 8 .
-The
-.Va SENDMAIL_*
-flags can be used to provide SASL support with setting such as:
-.Bd -literal -offset indent
-SENDMAIL_CFLAGS=-I/usr/local/include -DSASL
-SENDMAIL_LDFLAGS=-L/usr/local/lib
-SENDMAIL_LDADD=-lsasl
-.Ed
-.It Va SENDMAIL_LDFLAGS
-.Pq Vt str
-Flags to pass to the
-.Xr ld 1
-command when building
-.Xr sendmail 8 .
-.It Va SENDMAIL_LDADD
-.Pq Vt str
-Flags to add to the end of the
-.Xr ld 1
-command when building
-.Xr sendmail 8 .
-.It Va SENDMAIL_DPADD
-.Pq Vt str
-Extra dependencies to add when building
-.Xr sendmail 8 .
-.It Va SENDMAIL_SET_USER_ID
-.Pq Vt bool
-If set, install
-.Xr sendmail 8
-as a set-user-ID root binary instead of a set-group-ID binary
-and do not install
-.Pa /etc/mail/submit.{cf,mc} .
-Use of this flag is not recommended and the alternative advice in
-.Pa /etc/mail/README
-should be followed instead if at all possible.
-.It Va SENDMAIL_MAP_PERMS
-.Pq Vt str
-Mode to use when generating alias and map database files using
-.Pa /etc/mail/Makefile .
-The default value is 0640.
 .It Va TOP_TABLE_SIZE
 .Pq Vt int
 .Xr top 1
