@@ -120,9 +120,13 @@ static struct axe_type axe_devs[] = {
 	{ 0, 0 }
 };
 
-static int axe_match(device_t);
-static int axe_attach(device_t);
-static int axe_detach(device_t);
+static device_probe_t axe_match;
+static device_attach_t axe_attach;
+static device_detach_t axe_detach;
+static device_shutdown_t axe_shutdown;
+static miibus_readreg_t axe_miibus_readreg;
+static miibus_writereg_t axe_miibus_writereg;
+static miibus_statchg_t axe_miibus_statchg;
 
 static int axe_encap(struct axe_softc *, struct mbuf *, int);
 static void axe_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -135,10 +139,6 @@ static int axe_ioctl(struct ifnet *, u_long, caddr_t);
 static void axe_init(void *);
 static void axe_stop(struct axe_softc *);
 static void axe_watchdog(struct ifnet *);
-static void axe_shutdown(device_t);
-static int axe_miibus_readreg(device_t, int, int);
-static int axe_miibus_writereg(device_t, int, int, int);
-static void axe_miibus_statchg(device_t);
 static int axe_cmd(struct axe_softc *, int, int, int, void *);
 static int axe_ifmedia_upd(struct ifnet *);
 static void axe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -1124,7 +1124,7 @@ axe_stop(struct axe_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 axe_shutdown(device_t dev)
 {
 	struct axe_softc	*sc;
@@ -1135,5 +1135,5 @@ axe_shutdown(device_t dev)
 	axe_stop(sc);
 	AXE_SLEEPUNLOCK(sc);
 
-	return;
+	return (0);
 }

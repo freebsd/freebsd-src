@@ -90,9 +90,10 @@ static struct cue_type cue_devs[] = {
 	{ 0, 0 }
 };
 
-static int cue_match(device_t);
-static int cue_attach(device_t);
-static int cue_detach(device_t);
+static device_probe_t cue_match;
+static device_attach_t cue_attach;
+static device_detach_t cue_detach;
+static device_shutdown_t cue_shutdown;
 
 static int cue_encap(struct cue_softc *, struct mbuf *, int);
 static void cue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -104,7 +105,6 @@ static int cue_ioctl(struct ifnet *, u_long, caddr_t);
 static void cue_init(void *);
 static void cue_stop(struct cue_softc *);
 static void cue_watchdog(struct ifnet *);
-static void cue_shutdown(device_t);
 
 static void cue_setmulti(struct cue_softc *);
 static uint32_t cue_mchash(const uint8_t *);
@@ -1057,7 +1057,7 @@ cue_stop(struct cue_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 cue_shutdown(device_t dev)
 {
 	struct cue_softc	*sc;
@@ -1069,5 +1069,5 @@ cue_shutdown(device_t dev)
 	cue_stop(sc);
 	CUE_UNLOCK(sc);
 
-	return;
+	return (0);
 }

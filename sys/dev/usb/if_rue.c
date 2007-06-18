@@ -127,9 +127,13 @@ static struct rue_type rue_devs[] = {
 	{ 0, 0 }
 };
 
-static int rue_match(device_t);
-static int rue_attach(device_t);
-static int rue_detach(device_t);
+static device_probe_t rue_match;
+static device_attach_t rue_attach;
+static device_detach_t rue_detach;
+static device_shutdown_t rue_shutdown;
+static miibus_readreg_t rue_miibus_readreg;
+static miibus_writereg_t rue_miibus_writereg;
+static miibus_statchg_t rue_miibus_statchg;
 
 static int rue_encap(struct rue_softc *, struct mbuf *, int);
 #ifdef RUE_INTR_PIPE
@@ -144,13 +148,8 @@ static int rue_ioctl(struct ifnet *, u_long, caddr_t);
 static void rue_init(void *);
 static void rue_stop(struct rue_softc *);
 static void rue_watchdog(struct ifnet *);
-static void rue_shutdown(device_t);
 static int rue_ifmedia_upd(struct ifnet *);
 static void rue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
-
-static int rue_miibus_readreg(device_t, int, int);
-static int rue_miibus_writereg(device_t, int, int, int);
-static void rue_miibus_statchg(device_t);
 
 static void rue_setmulti(struct rue_softc *);
 static void rue_reset(struct rue_softc *);
@@ -1359,7 +1358,7 @@ rue_stop(struct rue_softc *sc)
  * get confused by errant DMAs when rebooting.
  */
 
-static void
+static int
 rue_shutdown(device_t dev)
 {
 	struct rue_softc	*sc;
@@ -1371,4 +1370,6 @@ rue_shutdown(device_t dev)
 	rue_reset(sc);
 	rue_stop(sc);
 	RUE_UNLOCK(sc);
+
+	return (0);
 }

@@ -344,9 +344,10 @@ static const struct {
 	{ 161, 0x08808, 0x0242f, 0x00281 }
 };
 
-static int ural_match(device_t);
-static int ural_attach(device_t);
-static int ural_detach(device_t);
+static device_probe_t ural_match;
+static device_attach_t ural_attach;
+static device_detach_t ural_detach;
+
 static device_method_t ural_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ural_match),
