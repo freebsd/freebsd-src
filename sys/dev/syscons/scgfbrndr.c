@@ -105,11 +105,37 @@ sc_rndr_sw_t grrndrsw = {
 #endif /* SC_NO_MODE_CHANGE */
 
 #ifndef SC_NO_CUTPASTE
-
+#ifdef __sparc64__
+static u_char mouse_pointer[22 * 2] = {
+	0x00, 0x00,	/* ............ */
+	0x80, 0x00,	/* *........... */
+	0xc0, 0x00,	/* **.......... */
+	0xe0, 0x00,	/* ***......... */
+	0xf0, 0x00,	/* ****........ */
+	0xf8, 0x00,	/* *****....... */
+	0xfc, 0x00,	/* ******...... */
+	0xfe, 0x00,	/* *******..... */
+	0xff, 0x00,	/* ********.... */
+	0xff, 0x80,	/* *********... */
+	0xfc, 0xc0,	/* ******..**.. */
+	0xdc, 0x00,	/* **.***...... */
+	0x8e, 0x00,	/* *...***..... */
+	0x0e, 0x00,	/* ....***..... */
+	0x07, 0x00,	/* .....***.... */
+	0x04, 0x00,	/* .....*...... */
+	0x00, 0x00,	/* ............ */
+	0x00, 0x00,	/* ............ */
+	0x00, 0x00,	/* ............ */
+	0x00, 0x00,	/* ............ */
+	0x00, 0x00,	/* ............ */
+	0x00, 0x00	/* ............ */
+};
+#else
 static u_char mouse_pointer[16] = {
 	0x00, 0x40, 0x60, 0x70, 0x78, 0x7c, 0x7e, 0x68,
 	0x0c, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00
 };
+#endif
 #endif
 
 static void
@@ -317,6 +343,10 @@ gfb_blink(scr_stat *scp, int at, int flip)
 static void 
 gfb_mouse(scr_stat *scp, int x, int y, int on)
 {
+#ifdef __sparc64__
+		(*vidsw[scp->sc->adapter]->putm)(scp->sc->adp, x, y,
+		    mouse_pointer, on ? 0xffffffff : 0x0, 22, 12);
+#else
 	int i, pos;
 
 	if (on) {
@@ -337,6 +367,7 @@ gfb_mouse(scr_stat *scp, int x, int y, int on)
 		if (x < scp->ysize - 1)
 			(*scp->rndr->draw)(scp, pos + scp->xsize, i, FALSE);
 	}
+#endif
 }
 
 #endif /* SC_NO_CUTPASTE */
