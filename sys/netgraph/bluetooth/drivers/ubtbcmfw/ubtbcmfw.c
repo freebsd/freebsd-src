@@ -111,7 +111,26 @@ static struct cdevsw	ubtbcmfw_cdevsw = {
  * Module
  */
 
-USB_DECLARE_DRIVER(ubtbcmfw);
+static device_probe_t ubtbcmfw_match;
+static device_attach_t ubtbcmfw_attach;
+static device_detach_t ubtbcmfw_detach;
+
+static device_method_t ubtbcmfw_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ubtbcmfw_match),
+	DEVMETHOD(device_attach,	ubtbcmfw_attach),
+	DEVMETHOD(device_detach,	ubtbcmfw_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t ubtbcmfw_driver = {
+	"ubtbcmfw",
+	ubtbcmfw_methods,
+	sizeof(struct ubtbcmfw_softc)
+};
+
+static devclass_t ubtbcmfw_devclass;
 DRIVER_MODULE(ubtbcmfw, uhub, ubtbcmfw_driver, ubtbcmfw_devclass,
 	      usbd_driver_load, 0);
 
@@ -119,11 +138,11 @@ DRIVER_MODULE(ubtbcmfw, uhub, ubtbcmfw_driver, ubtbcmfw_devclass,
  * Probe for a USB Bluetooth device
  */
 
-USB_MATCH(ubtbcmfw)
+static int
+ubtbcmfw_match(device_t self)
 {
 #define	USB_PRODUCT_BROADCOM_BCM2033NF	0x2033
-
-	USB_MATCH_START(ubtbcmfw, uaa);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->iface != NULL)
 		return (UMATCH_NONE);
@@ -140,9 +159,11 @@ USB_MATCH(ubtbcmfw)
  * Attach the device
  */
 
-USB_ATTACH(ubtbcmfw)
+static int
+ubtbcmfw_attach(device_t self)
 {
-	USB_ATTACH_START(ubtbcmfw, sc, uaa);
+	struct ubtbcmfw_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_interface_handle	iface;
 	usbd_status		err;
 
@@ -211,12 +232,12 @@ bad:
  * Detach the device
  */
 
-USB_DETACH(ubtbcmfw)
+static int
+ubtbcmfw_detach(device_t self)
 {
-	USB_DETACH_START(ubtbcmfw, sc);
+	struct ubtbcmfw_softc *sc = device_get_softc(self);
 
 	sc->sc_dying = 1;
-
 	if (-- sc->sc_refcnt >= 0) {
 		if (sc->sc_intr_in_pipe != NULL) 
 			usbd_abort_pipe(sc->sc_intr_in_pipe);
@@ -269,7 +290,9 @@ ubtbcmfw_open(struct cdev *dev, int flag, int mode, struct thread *p)
 	int			error = 0;
 
 	/* checks for sc != NULL */
-	USB_GET_SC_OPEN(ubtbcmfw, UBTBCMFW_UNIT(dev), sc);
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
+	if (sc == NULL)
+		return (ENXIO);
 	if (sc->sc_dying)
 		return (ENXIO);
 
@@ -319,7 +342,7 @@ ubtbcmfw_close(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 
-	USB_GET_SC(ubtbcmfw, UBTBCMFW_UNIT(dev), sc);
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
 	if (sc == NULL)
 		return (ENXIO);
 
@@ -360,7 +383,7 @@ ubtbcmfw_read(struct cdev *dev, struct uio *uio, int flag)
 	usbd_status		err;
 	int			n, tn, error = 0;
 
-	USB_GET_SC(ubtbcmfw, UBTBCMFW_UNIT(dev), sc);
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
 	if (sc == NULL || sc->sc_dying)
 		return (ENXIO);
 
@@ -424,7 +447,7 @@ ubtbcmfw_write(struct cdev *dev, struct uio *uio, int flag)
 	usbd_status		err;
 	int			n, error = 0;
 
-	USB_GET_SC(ubtbcmfw, UBTBCMFW_UNIT(dev), sc);
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
 	if (sc == NULL || sc->sc_dying)
 		return (ENXIO);
 
@@ -487,7 +510,7 @@ ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 	ubtbcmfw_softc_p	sc = NULL;
 	int			error = 0;
 
-	USB_GET_SC(ubtbcmfw, UBTBCMFW_UNIT(dev), sc);
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
 	if (sc == NULL || sc->sc_dying)
 		return (ENXIO);
 
@@ -524,7 +547,7 @@ ubtbcmfw_poll(struct cdev *dev, int events, struct thread *p)
 	ubtbcmfw_softc_p	sc = NULL;
 	int			revents = 0;
 
-	USB_GET_SC(ubtbcmfw, UBTBCMFW_UNIT(dev), sc);
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
 	if (sc == NULL)
 		return (ENXIO);
 
