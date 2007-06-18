@@ -118,11 +118,33 @@ typedef struct ukbd_softc {
 typedef void usbd_intr_t(usbd_xfer_handle, usbd_private_handle, usbd_status);
 typedef void usbd_disco_t(void *);
 
-static int		ukbd_resume(device_t self);
 static usbd_intr_t	ukbd_intr;
 static int		ukbd_driver_load(module_t mod, int what, void *arg);
 
-USB_DECLARE_DRIVER_INIT(ukbd, DEVMETHOD(device_resume, ukbd_resume));
+static device_probe_t ukbd_match;
+static device_attach_t ukbd_attach;
+static device_detach_t ukbd_detach;
+static device_resume_t ukbd_resume;
+
+static device_method_t ukbd_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ukbd_match),
+	DEVMETHOD(device_attach,	ukbd_attach),
+	DEVMETHOD(device_detach,	ukbd_detach),
+	DEVMETHOD(device_resume,	ukbd_resume),
+
+	{ 0, 0 }
+};
+
+static driver_t ukbd_driver = {
+	"ukbd",
+	ukbd_methods,
+	sizeof(struct ukbd_softc)
+};
+
+static devclass_t ukbd_devclass;
+
+DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, usbd_driver_load, 0);
 
 static int
 ukbd_match(device_t self)
@@ -151,7 +173,8 @@ ukbd_match(device_t self)
 static int
 ukbd_attach(device_t self)
 {
-	USB_ATTACH_START(ukbd, sc, uaa);
+	struct ukbd_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id;
 
@@ -233,9 +256,6 @@ ukbd_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 
 	(*kbdsw[kbd->kb_index]->intr)(kbd, (void *)status);
 }
-
-DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, ukbd_driver_load, 0);
-
 
 #define UKBD_DEFAULT	0
 
