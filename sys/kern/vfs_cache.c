@@ -573,9 +573,6 @@ cache_purge(vp)
 
 /*
  * Flush all entries referencing a particular filesystem.
- *
- * Since we need to check it anyway, we will flush all the invalid
- * entries at the same time.
  */
 void
 cache_purgevfs(mp)
