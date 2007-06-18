@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
  * Printer Class spec: http://www.usb.org/developers/data/devclass/usbprint109.PDF
  */
 
+/* XXXimp: need to migrate from devclass_get_softc */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -110,7 +112,7 @@ struct ulpt_softc {
 	usbd_xfer_handle sc_in_xfer;
 	void *sc_in_buf;
 
-	usb_callout_t sc_read_callout;
+	struct callout sc_read_callout;
 	int sc_has_callout;
 
 	u_char sc_state;
@@ -164,8 +166,28 @@ void ieee1284_print_id(char *);
 #define	ULPTUNIT(s)	(minor(s) & 0x1f)
 #define	ULPTFLAGS(s)	(minor(s) & 0xe0)
 
+static device_probe_t ulpt_match;
+static device_attach_t ulpt_attach;
+static device_detach_t ulpt_detach;
 
-USB_DECLARE_DRIVER(ulpt);
+static device_method_t ulpt_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ulpt_match),
+	DEVMETHOD(device_attach,	ulpt_attach),
+	DEVMETHOD(device_detach,	ulpt_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t ulpt_driver = {
+	"ulpt",
+	ulpt_methods,
+	sizeof(struct ulpt_softc)
+};
+
+static devclass_t ulpt_devclass;
+
+DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass, usbd_driver_load, 0);
 
 static int
 ulpt_match(device_t self)
@@ -190,7 +212,8 @@ ulpt_match(device_t self)
 static int
 ulpt_attach(device_t self)
 {
-	USB_ATTACH_START(ulpt, sc, uaa);
+	struct ulpt_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev = uaa->device;
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *ifcd = usbd_get_interface_descriptor(iface);
@@ -340,7 +363,7 @@ ulpt_attach(device_t self)
 static int
 ulpt_detach(device_t self)
 {
-	USB_DETACH_START(ulpt, sc);
+	struct ulpt_softc *sc = device_get_softc(self);
 	int s;
 
 	DPRINTF(("ulpt_detach: sc=%p\n", sc));
@@ -444,7 +467,9 @@ ulptopen(struct cdev *dev, int flag, int mode, struct thread *p)
 	usbd_status err;
 	int error;
 
-	USB_GET_SC_OPEN(ulpt, ULPTUNIT(dev), sc);
+	sc = devclass_get_softc(ulpt_devclass, ULPTUNIT(dev));
+	if (sc == NULL)
+		return (ENXIO);
 
 	if (sc == NULL || sc->sc_iface == NULL || sc->sc_dying)
 		return (ENXIO);
@@ -513,8 +538,9 @@ ulptopen(struct cdev *dev, int flag, int mode, struct thread *p)
 		/* If it's not opened for read the set up a reader. */
 		if (!(flag & FREAD)) {
 			DPRINTF(("ulpt_open: start read callout\n"));
-			usb_callout_init(sc->sc_read_callout);
-			usb_callout(sc->sc_read_callout, hz/5, ulpt_tick, sc);
+			callout_init(&sc->sc_read_callout, 0);
+			callout_reset(&sc->sc_read_callout, hz/5, ulpt_tick,
+			    sc);
 			sc->sc_has_callout = 1;
 		}
 	}
@@ -569,14 +595,14 @@ ulptclose(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	struct ulpt_softc *sc;
 
-	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
+	sc = devclass_get_softc(ulpt_devclass, ULPTUNIT(dev));
 
 	if (sc->sc_state != ULPT_OPEN)
 		/* We are being forced to close before the open completed. */
 		return (0);
 
 	if (sc->sc_has_callout) {
-		usb_uncallout(sc->sc_read_callout, ulpt_tick, sc);
+		callout_stop(&sc->sc_read_callout);
 		sc->sc_has_callout = 0;
 	}
 
@@ -642,7 +668,7 @@ ulptwrite(struct cdev *dev, struct uio *uio, int flags)
 	struct ulpt_softc *sc;
 	int error;
 
-	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
+	sc = devclass_get_softc(ulpt_devclass, ULPTUNIT(dev));
 
 	if (sc->sc_dying)
 		return (EIO);
@@ -697,7 +723,7 @@ ulptread(struct cdev *dev, struct uio *uio, int flags)
 	struct ulpt_softc *sc;
 	int error;
 
-	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
+	sc = devclass_get_softc(ulpt_devclass, ULPTUNIT(dev));
 
 	if (sc->sc_dying)
 		return (EIO);
@@ -728,8 +754,8 @@ ulpt_read_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 		DPRINTF(("ulpt_tick: discarding %d bytes\n", n));
 #endif
 	if (!err || err == USBD_TIMEOUT)
-		usb_callout(sc->sc_read_callout, hz / ULPT_READS_PER_SEC,
-			    ulpt_tick, sc);
+		callout_reset(&sc->sc_read_callout, hz / ULPT_READS_PER_SEC,
+		    ulpt_tick, sc);
 }
 
 void
@@ -786,5 +812,3 @@ ieee1284_print_id(char *str)
 	}
 }
 #endif
-
-DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass, usbd_driver_load, 0);
