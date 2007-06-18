@@ -26,13 +26,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2007
+.Dd June 18, 2007
 .Dt TMPFS 5
 .Os
 .Sh NAME
 .Nm tmpfs
-.Nd "tmpfs the efficient memory file system"
+.Nd "efficient memory file system"
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options TMPFS"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+tmpfs_load="YES"
+.Ed
+
 To load as a kernel loadable module:
 .Pp
 .Dl "kldload tmpfs"
@@ -80,5 +94,6 @@ This manual page was written by
 The
 .Nm
 kernel implementation is currently considered as
-an experimental feature.  Some file system mount
+an experimental feature.
+Some file system mount
 time options are not well supported.
