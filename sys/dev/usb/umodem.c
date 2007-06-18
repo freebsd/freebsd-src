@@ -274,7 +274,8 @@ umodem_match(device_t self)
 static int
 umodem_attach(device_t self)
 {
-	USB_ATTACH_START(umodem, sc, uaa);
+	struct umodem_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev = uaa->device;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
@@ -809,7 +810,7 @@ umodem_set_comm_feature(struct umodem_softc *sc, int feature, int state)
 static int
 umodem_detach(device_t self)
 {
-	USB_DETACH_START(umodem, sc);
+	struct umodem_softc *sc = device_get_softc(self);
 	int rv = 0;
 
 	DPRINTF(("umodem_detach: sc=%p\n", sc));

@@ -302,7 +302,8 @@ ufoma_match(device_t self)
 static int
 ufoma_attach(device_t self)
 {
-	USB_ATTACH_START(ufoma, sc, uaa);
+	struct ufoma_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev = uaa->device;
 	usb_config_descriptor_t *cd;
 	usb_interface_descriptor_t *id;
@@ -419,18 +420,17 @@ ufoma_attach(device_t self)
 static int
 ufoma_detach(device_t self)
 {
-	USB_DETACH_START(ufoma, sc);
+	struct ufoma_softc *sc = device_get_softc(self);
 	int rv = 0;
 
 	usbd_free_xfer(sc->sc_msgxf);
 	sc->sc_ucom.sc_dying = 1;
 	usbd_abort_pipe(sc->sc_notify_pipe);
 	usbd_close_pipe(sc->sc_notify_pipe);
-	if(sc->sc_is_ucom){
+	if(sc->sc_is_ucom)
 		ucom_detach(&sc->sc_ucom);
-	}else{
+	else
 		ttyfree(sc->sc_ucom.sc_tty);
-	}
 	free(sc->sc_modetable, M_USBDEV);
 	return rv;
 }

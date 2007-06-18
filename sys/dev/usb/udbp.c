@@ -214,7 +214,26 @@ static void udbp_out_transfer_cb	(usbd_xfer_handle xfer,
 					usbd_private_handle priv,
 					usbd_status err);
 
-USB_DECLARE_DRIVER(udbp);
+static device_probe_t udbp_match;
+static device_attach_t udbp_attach;
+static device_detach_t udbp_detach;
+
+static device_method_t udbp_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		udbp_match),
+	DEVMETHOD(device_attach,	udbp_attach),
+	DEVMETHOD(device_detach,	udbp_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t udbp_driver = {
+	"udbp",
+	udbp_methods,
+	sizeof(struct udbp_softc)
+};
+
+static devclass_t udbp_devclass;
 
 static int
 udbp_match(device_t self)
@@ -252,7 +271,8 @@ udbp_match(device_t self)
 static int
 udbp_attach(device_t self)
 {
-	USB_ATTACH_START(udbp, sc, uaa);
+	struct udbp_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed, *ed_bulkin = NULL, *ed_bulkout = NULL;
@@ -409,7 +429,7 @@ bad:
 static int
 udbp_detach(device_t self)
 {
-	USB_DETACH_START(udbp, sc);
+	struct udbp_softc *sc = device_get_softc(self);
 
 	sc->flags |= DISCONNECTED;
 
