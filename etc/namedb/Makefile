@@ -1,9 +1,11 @@
 # $FreeBSD$
 
-FILES=	PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
-	make-localhost
+SUBDIR=	master
+
+FILES=	named.conf named.root
+
 NO_OBJ=
-FILESDIR= /etc/namedb
-FILESMODE= 644
+FILESDIR=	/etc/namedb
+FILESMODE=	644
 
 .include <bsd.prog.mk>
