@@ -103,4 +103,17 @@ struct statfs32 {
 	int32_t f_spare[2];
 };
 
+struct thr_param32 {
+	uint32_t start_func;
+	uint32_t arg;
+	uint32_t stack_base;
+	uint32_t stack_size;
+	uint32_t tls_base;
+	uint32_t tls_size;
+	uint32_t child_tid;
+	uint32_t parent_tid;
+	int32_t	 flags;
+	uint32_t spare[4];
+};
+
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */
