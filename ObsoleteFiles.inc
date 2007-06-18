@@ -14,8 +14,51 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070618: shared library version bump
+OLD_LIBS+=lib/libalias.so.5
+OLD_LIBS+=lib/libbsnmp.so.3
+OLD_LIBS+=lib/libncurses.so.6
+OLD_LIBS+=lib/libncursesw.so.6
+OLD_LIBS+=lib/libreadline.so.6
+OLD_LIBS+=usr/lib/libdialog.so.5
+OLD_LIBS+=usr/lib/libgnuregex.so.3
+OLD_LIBS+=usr/lib/libhistory.so.6
+OLD_LIBS+=usr/lib/libpam.so.3
+OLD_LIBS+=usr/lib/libssh.so.3
+OLD_LIBS+=usr/lib/pam_chroot.so.3
+OLD_LIBS+=usr/lib/pam_deny.so.3
+OLD_LIBS+=usr/lib/pam_echo.so.3
+OLD_LIBS+=usr/lib/pam_exec.so.3
+OLD_LIBS+=usr/lib/pam_ftpusers.so.3
+OLD_LIBS+=usr/lib/pam_group.so.3
+OLD_LIBS+=usr/lib/pam_guest.so.3
+OLD_LIBS+=usr/lib/pam_krb5.so.3
+OLD_LIBS+=usr/lib/pam_ksu.so.3
+OLD_LIBS+=usr/lib/pam_lastlog.so.3
+OLD_LIBS+=usr/lib/pam_login_access.so.3
+OLD_LIBS+=usr/lib/pam_nologin.so.3
+OLD_LIBS+=usr/lib/pam_opie.so.3
+OLD_LIBS+=usr/lib/pam_opieaccess.so.3
+OLD_LIBS+=usr/lib/pam_passwdqc.so.3
+OLD_LIBS+=usr/lib/pam_permit.so.3
+OLD_LIBS+=usr/lib/pam_radius.so.3
+OLD_LIBS+=usr/lib/pam_rhosts.so.3
+OLD_LIBS+=usr/lib/pam_rootok.so.3
+OLD_LIBS+=usr/lib/pam_securetty.so.3
+OLD_LIBS+=usr/lib/pam_self.so.3
+OLD_LIBS+=usr/lib/pam_ssh.so.3
+OLD_LIBS+=usr/lib/pam_tacplus.so.3
+OLD_LIBS+=usr/lib/pam_unix.so.3
+OLD_LIBS+=usr/lib/snmp_atm.so.4
+OLD_LIBS+=usr/lib/snmp_bridge.so.4
+OLD_LIBS+=usr/lib/snmp_hostres.so.4
+OLD_LIBS+=usr/lib/snmp_mibII.so.4
+OLD_LIBS+=usr/lib/snmp_netgraph.so.4
+OLD_LIBS+=usr/lib/snmp_pf.so.4
 # 20070605: sched_core removal
 OLD_FILES+=usr/share/man/man4/sched_core.4.gz
+# 20070603: BIND 9.4.1 import
+OLD_LIBS+=lib/liblwres.so.10
 # 20070521: shared library version bump
 OLD_LIBS+=lib/libatm.so.4
 OLD_LIBS+=lib/libbegemot.so.2
