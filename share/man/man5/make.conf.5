@@ -766,6 +766,14 @@ The value should include the full path to the
 file(s), e.g.,
 .Pa /etc/mail/foo.mc
 .Pa /etc/mail/bar.mc .
+.It Va SENDMAIL_ALIASES
+.Pq Vt str
+List of
+.Xr aliases 5
+files to rebuild when using
+.Pa /etc/mail/Makefile .
+The default value is
+.Pa /etc/mail/aliases .
 .It Va SENDMAIL_CFLAGS
 .Pq Vt str
 Flags to pass to the compile command when building
@@ -817,6 +825,26 @@ file.
 Mode to use when generating alias and map database files using
 .Pa /etc/mail/Makefile .
 The default value is 0640.
+.It Va SENDMAIL_MAP_SRC
+.Pq Vt str
+Additional maps to rebuild when using
+.Pa /etc/mail/Makefile .
+The 
+.Pa access ,
+.Pa bitdomain ,
+.Pa domaintable ,
+.Pa genericstable ,
+.Pa mailertable ,
+.Pa uucpdomain ,
+and
+.Pa virtusertable
+maps are always rebuilt if they exist.
+.It Va SENDMAIL_MAP_TYPE
+.Pq Vt str
+Database map type to use when generating map database files using
+.Pa /etc/mail/Makefile .
+The default value is hash.
+The alternative is btree.
 .It Va SENDMAIL_MC
 .Pq Vt str
 The default
@@ -841,6 +869,18 @@ and do not install
 Use of this flag is not recommended and the alternative advice in
 .Pa /etc/mail/README
 should be followed instead if at all possible.
+.It Va SENDMAIL_START_SCRIPT
+.Pq Vt str
+The script used by
+.Pa /etc/mail/Makefile
+to start, stop, and restart
+.Xr sendmail 8 .
+The default value is
+.Pa /etc/rc.sendmail .
+This value should match the
+.Dq Li mta_start_script
+setting in
+.Xr rc.conf 5 .
 .It Va SENDMAIL_SUBMIT_MC
 .Pq Vt str
 The default
