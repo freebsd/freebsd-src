@@ -1294,7 +1294,8 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 		/* Already have or am bring up an association */
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 		creat_lock_on = 0;
-		SCTP_TCB_UNLOCK(stcb);
+		if (stcb)
+			SCTP_TCB_UNLOCK(stcb);
 		if (bad_addresses == 0)
 			error = EALREADY;
 		goto out_now;

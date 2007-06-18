@@ -1074,6 +1074,10 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->timoshutdownack = 0;
 	(void)SCTP_GETTIME_TIMEVAL(&asoc->start_time);
 	asoc->discontinuity_time = asoc->start_time;
+	/*
+	 * sa_ignore MEMLEAK {memory is put in the assoc mapping array and
+	 * freed later whe the association is freed.
+	 */
 	return (0);
 }
 
@@ -1415,11 +1419,17 @@ sctp_timeout_handler(void *t)
 	/* call the handler for the appropriate timer type */
 	switch (tmr->type) {
 	case SCTP_TIMER_TYPE_ZERO_COPY:
+		if (inp == NULL) {
+			break;
+		}
 		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
 			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
 		}
 		break;
 	case SCTP_TIMER_TYPE_ZCOPY_SENDQ:
+		if (inp == NULL) {
+			break;
+		}
 		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
 			SCTP_ZERO_COPY_SENDQ_EVENT(inp, inp->sctp_socket);
 		}

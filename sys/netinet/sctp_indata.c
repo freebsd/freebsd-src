@@ -3532,7 +3532,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			/* fix counts and things */
 			if (sctp_logging_level & SCTP_FLIGHT_LOGGING_ENABLE) {
 				sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_RSND,
-				    tp1->whoTo->flight_size,
+				    (tp1->whoTo ? (tp1->whoTo->flight_size) : 0),
 				    tp1->book_size,
 				    (uintptr_t) tp1->whoTo,
 				    tp1->rec.data.TSN_seq);
