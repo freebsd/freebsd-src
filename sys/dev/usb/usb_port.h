@@ -132,8 +132,4 @@ __CONCAT(dname,_detach)(device_t self)
 */
 #define logprintf		printf
 
-#ifdef SYSCTL_DECL
-SYSCTL_DECL(_hw_usb);
-#endif
-
 #endif /* _USB_PORT_H */
